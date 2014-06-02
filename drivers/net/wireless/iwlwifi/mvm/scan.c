@@ -325,9 +325,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_SCAN(mvm, "Handling mac80211 scan request\n");
 	mvm->scan_status = IWL_MVM_SCAN_OS;
-	memset(cmd, 0, sizeof(struct iwl_scan_cmd) +
-	       mvm->fw->ucode_capa.max_probe_length +
-	       (MAX_NUM_SCAN_CHANNELS * sizeof(struct iwl_scan_channel)));
+	memset(cmd, 0, ksize(cmd));
 
 	cmd->channel_count = (u8)req->n_channels;
 	cmd->quiet_time = cpu_to_le16(IWL_ACTIVE_QUIET_TIME);
