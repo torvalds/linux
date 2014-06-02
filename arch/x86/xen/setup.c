@@ -27,7 +27,6 @@
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
 #include <xen/features.h>
-#include "mmu.h"
 #include "xen-ops.h"
 #include "vdso.h"
 
@@ -82,9 +81,6 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 
 	memblock_reserve(start, size);
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
 	for (pfn = PFN_DOWN(start); pfn < xen_max_p2m_pfn; pfn++) {
 		unsigned long mfn = pfn_to_mfn(pfn);
@@ -107,7 +103,6 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 		.domid        = DOMID_SELF
 	};
 	unsigned long len = 0;
-	int xlated_phys = xen_feature(XENFEAT_auto_translated_physmap);
 	unsigned long pfn;
 	int ret;
 
@@ -121,7 +116,7 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 				continue;
 			frame = mfn;
 		} else {
-			if (!xlated_phys && mfn != INVALID_P2M_ENTRY)
+			if (mfn != INVALID_P2M_ENTRY)
 				continue;
 			frame = pfn;
 		}
@@ -159,13 +154,6 @@ static unsigned long __init xen_do_chunk(unsigned long start,
 static unsigned long __init xen_release_chunk(unsigned long start,
 					      unsigned long end)
 {
-	/*
-	 * Xen already ballooned out the E820 non RAM regions for us
-	 * and set them up properly in EPT.
-	 */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return end - start;
-
 	return xen_do_chunk(start, end, true);
 }
 
@@ -234,13 +222,7 @@ static void __init xen_set_identity_and_release_chunk(
 	 * (except for the ISA region which must be 1:1 mapped) to
 	 * release the refcounts (in Xen) on the original frames.
 	 */
-
-	/*
-	 * PVH E820 matches the hypervisor's P2M which means we need to
-	 * account for the proper values of *release and *identity.
-	 */
-	for (pfn = start_pfn; !xen_feature(XENFEAT_auto_translated_physmap) &&
-	     pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
+	for (pfn = start_pfn; pfn <= max_pfn_mapped && pfn < end_pfn; pfn++) {
 		pte_t pte = __pte_ma(0);
 
 		if (pfn < PFN_UP(ISA_END_ADDRESS))
