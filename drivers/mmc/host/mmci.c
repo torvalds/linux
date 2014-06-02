@@ -73,6 +73,7 @@ static unsigned int fmax = 515633;
  * @busy_detect: true if busy detection on dat0 is supported
  * @pwrreg_nopower: bits in MMCIPOWER don't controls ext. power supply
  * @explicit_mclk_control: enable explicit mclk control in driver.
+ * @qcom_fifo: enables qcom specific fifo pio read logic.
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -95,6 +96,7 @@ struct variant_data {
 	bool			busy_detect;
 	bool			pwrreg_nopower;
 	bool			explicit_mclk_control;
+	bool			qcom_fifo;
 };
 
 static struct variant_data variant_arm = {
@@ -992,15 +994,34 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	}
 }
 
+static int mmci_get_rx_fifocnt(struct mmci_host *host, u32 status, int remain)
+{
+	return remain - (readl(host->base + MMCIFIFOCNT) << 2);
+}
+
+static int mmci_qcom_get_rx_fifocnt(struct mmci_host *host, u32 status, int r)
+{
+	/*
+	 * on qcom SDCC4 only 8 words are used in each burst so only 8 addresses
+	 * from the fifo range should be used
+	 */
+	if (status & MCI_RXFIFOHALFFULL)
+		return host->variant->fifohalfsize;
+	else if (status & MCI_RXDATAAVLBL)
+		return 4;
+
+	return 0;
+}
+
 static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int remain)
 {
 	void __iomem *base = host->base;
 	char *ptr = buffer;
-	u32 status;
+	u32 status = readl(host->base + MMCISTATUS);
 	int host_remain = host->size;
 
 	do {
-		int count = host_remain - (readl(base + MMCIFIFOCNT) << 2);
+		int count = host->get_rx_fifocnt(host, status, host_remain);
 
 		if (count > remain)
 			count = remain;
@@ -1488,6 +1509,11 @@ static int mmci_probe(struct amba_device *dev,
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
 		goto host_free;
+
+	if (variant->qcom_fifo)
+		host->get_rx_fifocnt = mmci_qcom_get_rx_fifocnt;
+	else
+		host->get_rx_fifocnt = mmci_get_rx_fifocnt;
 
 	host->plat = plat;
 	host->variant = variant;

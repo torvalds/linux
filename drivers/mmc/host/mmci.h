@@ -229,6 +229,7 @@ struct mmci_host {
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
+	int (*get_rx_fifocnt)(struct mmci_host *h, u32 status, int remain);
 
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
