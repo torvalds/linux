@@ -2042,6 +2042,7 @@ hcall_real_table:
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
 	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
+	.globl	hcall_real_table_end
 hcall_real_table_end:
 
 ignore_hdec:

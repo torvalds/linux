@@ -645,6 +645,28 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
+static int kvmppc_hcall_impl_hv(unsigned long cmd)
+{
+	switch (cmd) {
+	case H_CEDE:
+	case H_PROD:
+	case H_CONFER:
+	case H_REGISTER_VPA:
+#ifdef CONFIG_KVM_XICS
+	case H_XIRR:
+	case H_CPPR:
+	case H_EOI:
+	case H_IPI:
+	case H_IPOLL:
+	case H_XIRR_X:
+#endif
+		return 1;
+	}
+
+	/* See if it's in the real-mode table */
+	return kvmppc_hcall_impl_hv_realmode(cmd);
+}
+
 static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				 struct task_struct *tsk)
 {
@@ -2451,9 +2473,13 @@ static unsigned int default_hcall_list[] = {
 static void init_default_hcalls(void)
 {
 	int i;
+	unsigned int hcall;
 
-	for (i = 0; default_hcall_list[i]; ++i)
-		__set_bit(default_hcall_list[i] / 4, default_enabled_hcalls);
+	for (i = 0; default_hcall_list[i]; ++i) {
+		hcall = default_hcall_list[i];
+		WARN_ON(!kvmppc_hcall_impl_hv(hcall));
+		__set_bit(hcall / 4, default_enabled_hcalls);
+	}
 }
 
 static struct kvmppc_ops kvm_ops_hv = {
@@ -2488,6 +2514,7 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.emulate_mfspr = kvmppc_core_emulate_mfspr_hv,
 	.fast_vcpu_kick = kvmppc_fast_vcpu_kick_hv,
 	.arch_vm_ioctl  = kvm_arch_vm_ioctl_hv,
+	.hcall_implemented = kvmppc_hcall_impl_hv,
 };
 
 static int kvmppc_book3s_init_hv(void)

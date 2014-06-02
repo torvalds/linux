@@ -925,6 +925,11 @@ int kvmppc_core_check_processor_compat(void)
 	return 0;
 }
 
+int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hcall)
+{
+	return kvm->arch.kvm_ops->hcall_implemented(hcall);
+}
+
 static int kvmppc_book3s_init(void)
 {
 	int r;

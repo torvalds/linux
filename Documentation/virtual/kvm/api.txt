@@ -3039,3 +3039,7 @@ not to attempt to handle the hcall, but will always exit to userspace
 to handle it.  Note that it may not make sense to enable some and
 disable others of a group of related hcalls, but KVM does not prevent
 userspace from doing that.
+
+If the hcall number specified is not one that has an in-kernel
+implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
+error.

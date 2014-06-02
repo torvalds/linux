@@ -1119,6 +1119,8 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		if (hcall > MAX_HCALL_OPCODE || (hcall & 3) ||
 		    cap->args[1] > 1)
 			break;
+		if (!kvmppc_book3s_hcall_implemented(kvm, hcall))
+			break;
 		if (cap->args[1])
 			set_bit(hcall / 4, kvm->arch.enabled_hcalls);
 		else

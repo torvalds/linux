@@ -228,7 +228,7 @@ struct kvmppc_ops {
 	void (*fast_vcpu_kick)(struct kvm_vcpu *vcpu);
 	long (*arch_vm_ioctl)(struct file *filp, unsigned int ioctl,
 			      unsigned long arg);
-
+	int (*hcall_implemented)(unsigned long hcall);
 };
 
 extern struct kvmppc_ops *kvmppc_hv_ops;
