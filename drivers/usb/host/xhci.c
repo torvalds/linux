@@ -1804,15 +1804,15 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		ret = -ETIME;
 		break;
 	case COMP_ENOMEM:
-		dev_warn(&udev->dev, "Not enough host controller resources "
-				"for new device state.\n");
+		dev_warn(&udev->dev,
+			 "Not enough host controller resources for new device state.\n");
 		ret = -ENOMEM;
 		/* FIXME: can we allocate more resources for the HC? */
 		break;
 	case COMP_BW_ERR:
 	case COMP_2ND_BW_ERR:
-		dev_warn(&udev->dev, "Not enough bandwidth "
-				"for new device state.\n");
+		dev_warn(&udev->dev,
+			 "Not enough bandwidth for new device state.\n");
 		ret = -ENOSPC;
 		/* FIXME: can we go back to the old state? */
 		break;
@@ -1824,8 +1824,8 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		ret = -EINVAL;
 		break;
 	case COMP_DEV_ERR:
-		dev_warn(&udev->dev, "ERROR: Incompatible device for endpoint "
-				"configure command.\n");
+		dev_warn(&udev->dev,
+			 "ERROR: Incompatible device for endpoint configure command.\n");
 		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
@@ -1834,8 +1834,8 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		ret = 0;
 		break;
 	default:
-		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", *cmd_status);
+		xhci_err(xhci, "ERROR: unexpected command completion code 0x%x.\n",
+				*cmd_status);
 		ret = -EINVAL;
 		break;
 	}
@@ -1855,24 +1855,24 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		ret = -ETIME;
 		break;
 	case COMP_EINVAL:
-		dev_warn(&udev->dev, "WARN: xHCI driver setup invalid evaluate "
-				"context command.\n");
+		dev_warn(&udev->dev,
+			 "WARN: xHCI driver setup invalid evaluate context command.\n");
 		ret = -EINVAL;
 		break;
 	case COMP_EBADSLT:
-		dev_warn(&udev->dev, "WARN: slot not enabled for"
-				"evaluate context command.\n");
+		dev_warn(&udev->dev,
+			"WARN: slot not enabled for evaluate context command.\n");
 		ret = -EINVAL;
 		break;
 	case COMP_CTX_STATE:
-		dev_warn(&udev->dev, "WARN: invalid context state for "
-				"evaluate context command.\n");
+		dev_warn(&udev->dev,
+			"WARN: invalid context state for evaluate context command.\n");
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
 		break;
 	case COMP_DEV_ERR:
-		dev_warn(&udev->dev, "ERROR: Incompatible device for evaluate "
-				"context command.\n");
+		dev_warn(&udev->dev,
+			"ERROR: Incompatible device for evaluate context command.\n");
 		ret = -ENODEV;
 		break;
 	case COMP_MEL_ERR:
@@ -1886,8 +1886,8 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 		ret = 0;
 		break;
 	default:
-		xhci_err(xhci, "ERROR: unexpected command completion "
-				"code 0x%x.\n", *cmd_status);
+		xhci_err(xhci, "ERROR: unexpected command completion code 0x%x.\n",
+			*cmd_status);
 		ret = -EINVAL;
 		break;
 	}
