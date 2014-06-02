@@ -657,7 +657,7 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 			     direction, flags, false);
 }
 
-struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
+static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
 	unsigned long flags, void *context)
