@@ -33,6 +33,7 @@
 #include "device.h"
 #include "ioctl.h"
 #include "iocmd.h"
+#include "iwctl.h"
 #include "mac.h"
 #include "card.h"
 #include "hostap.h"
