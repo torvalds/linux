@@ -429,8 +429,6 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	if (priv->pcs)	/* FIXME */
 		return;
 
-	spin_lock(&priv->lock);
-
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 	pause->autoneg = priv->phydev->autoneg;
