@@ -185,6 +185,13 @@ static char mv643xx_eth_driver_version[] = "1.4";
 
 #define TSO_HEADER_SIZE		128
 
+/* Max number of allowed TCP segments for software TSO */
+#define MV643XX_MAX_TSO_SEGS 100
+#define MV643XX_MAX_SKB_DESCS (MV643XX_MAX_TSO_SEGS * 2 + MAX_SKB_FRAGS)
+
+#define IS_TSO_HEADER(txq, addr) \
+	((addr >= txq->tso_hdrs_dma) && \
+	 (addr < txq->tso_hdrs_dma + txq->tx_ring_size * TSO_HEADER_SIZE))
 /*
  * RX/TX descriptors.
  */
@@ -348,6 +355,9 @@ struct tx_queue {
 	int tx_curr_desc;
 	int tx_used_desc;
 
+	int tx_stop_threshold;
+	int tx_wake_threshold;
+
 	char *tso_hdrs;
 	dma_addr_t tso_hdrs_dma;
 
@@ -497,7 +507,7 @@ static void txq_maybe_wake(struct tx_queue *txq)
 
 	if (netif_tx_queue_stopped(nq)) {
 		__netif_tx_lock(nq, smp_processor_id());
-		if (txq->tx_ring_size - txq->tx_desc_count >= MAX_SKB_FRAGS + 1)
+		if (txq->tx_desc_count <= txq->tx_wake_threshold)
 			netif_tx_wake_queue(nq);
 		__netif_tx_unlock(nq);
 	}
@@ -897,7 +907,8 @@ static void txq_submit_frag_skb(struct tx_queue *txq, struct sk_buff *skb)
 	}
 }
 
-static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
+static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb,
+			  struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
@@ -910,11 +921,15 @@ static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	cmd_sts = 0;
 	l4i_chk = 0;
 
-	ret = skb_tx_csum(mp, skb, &l4i_chk, &cmd_sts, skb->len);
-	if (ret) {
-		dev_kfree_skb_any(skb);
-		return ret;
+	if (txq->tx_ring_size - txq->tx_desc_count < MAX_SKB_FRAGS + 1) {
+		if (net_ratelimit())
+			netdev_err(dev, "tx queue full?!\n");
+		return -EBUSY;
 	}
+
+	ret = skb_tx_csum(mp, skb, &l4i_chk, &cmd_sts, skb->len);
+	if (ret)
+		return ret;
 	cmd_sts |= TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
 
 	tx_index = txq->tx_curr_desc++;
@@ -967,17 +982,9 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	nq = netdev_get_tx_queue(dev, queue);
 
 	if (has_tiny_unaligned_frags(skb) && __skb_linearize(skb)) {
-		txq->tx_dropped++;
 		netdev_printk(KERN_DEBUG, dev,
 			      "failed to linearize skb with tiny unaligned fragment\n");
 		return NETDEV_TX_BUSY;
-	}
-
-	if (txq->tx_ring_size - txq->tx_desc_count < MAX_SKB_FRAGS + 1) {
-		if (net_ratelimit())
-			netdev_err(dev, "tx queue full?!\n");
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
 	}
 
 	length = skb->len;
@@ -985,18 +992,16 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_is_gso(skb))
 		ret = txq_submit_tso(txq, skb, dev);
 	else
-		ret = txq_submit_skb(txq, skb);
+		ret = txq_submit_skb(txq, skb, dev);
 	if (!ret) {
-		int entries_left;
-
 		txq->tx_bytes += length;
 		txq->tx_packets++;
 
-		entries_left = txq->tx_ring_size - txq->tx_desc_count;
-		if (entries_left < MAX_SKB_FRAGS + 1)
+		if (txq->tx_desc_count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
-	} else if (ret == -EBUSY) {
-		return NETDEV_TX_BUSY;
+	} else {
+		txq->tx_dropped++;
+		dev_kfree_skb_any(skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -1070,8 +1075,9 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 			mp->dev->stats.tx_errors++;
 		}
 
-		dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
-				 desc->byte_cnt, DMA_TO_DEVICE);
+		if (!IS_TSO_HEADER(txq, desc->buf_ptr))
+			dma_unmap_single(mp->dev->dev.parent, desc->buf_ptr,
+					 desc->byte_cnt, DMA_TO_DEVICE);
 		dev_kfree_skb(skb);
 	}
 
@@ -1614,7 +1620,11 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 		return -EINVAL;
 
 	mp->rx_ring_size = er->rx_pending < 4096 ? er->rx_pending : 4096;
-	mp->tx_ring_size = er->tx_pending < 4096 ? er->tx_pending : 4096;
+	mp->tx_ring_size = clamp_t(unsigned int, er->tx_pending,
+				   MV643XX_MAX_SKB_DESCS * 2, 4096);
+	if (mp->tx_ring_size != er->tx_pending)
+		netdev_warn(dev, "TX queue size set to %u (requested %u)\n",
+			    mp->tx_ring_size, er->tx_pending);
 
 	if (netif_running(dev)) {
 		mv643xx_eth_stop(dev);
@@ -1989,6 +1999,13 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 	txq->index = index;
 
 	txq->tx_ring_size = mp->tx_ring_size;
+
+	/* A queue must always have room for at least one skb.
+	 * Therefore, stop the queue when the free entries reaches
+	 * the maximum number of descriptors per skb.
+	 */
+	txq->tx_stop_threshold = txq->tx_ring_size - MV643XX_MAX_SKB_DESCS;
+	txq->tx_wake_threshold = txq->tx_stop_threshold / 2;
 
 	txq->tx_desc_count = 0;
 	txq->tx_curr_desc = 0;
@@ -2849,6 +2866,7 @@ static void set_params(struct mv643xx_eth_private *mp,
 		       struct mv643xx_eth_platform_data *pd)
 {
 	struct net_device *dev = mp->dev;
+	unsigned int tx_ring_size;
 
 	if (is_valid_ether_addr(pd->mac_addr))
 		memcpy(dev->dev_addr, pd->mac_addr, ETH_ALEN);
@@ -2863,9 +2881,16 @@ static void set_params(struct mv643xx_eth_private *mp,
 
 	mp->rxq_count = pd->rx_queue_count ? : 1;
 
-	mp->tx_ring_size = DEFAULT_TX_QUEUE_SIZE;
+	tx_ring_size = DEFAULT_TX_QUEUE_SIZE;
 	if (pd->tx_queue_size)
-		mp->tx_ring_size = pd->tx_queue_size;
+		tx_ring_size = pd->tx_queue_size;
+
+	mp->tx_ring_size = clamp_t(unsigned int, tx_ring_size,
+				   MV643XX_MAX_SKB_DESCS * 2, 4096);
+	if (mp->tx_ring_size != tx_ring_size)
+		netdev_warn(dev, "TX queue size set to %u (requested %u)\n",
+			    mp->tx_ring_size, tx_ring_size);
+
 	mp->tx_desc_sram_addr = pd->tx_sram_addr;
 	mp->tx_desc_sram_size = pd->tx_sram_size;
 
@@ -3092,6 +3117,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->hw_features = dev->features;
 
 	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->gso_max_segs = MV643XX_MAX_TSO_SEGS;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
