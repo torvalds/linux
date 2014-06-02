@@ -168,7 +168,7 @@ int iwctl_giwscan(struct net_device *dev,
 
 int iwctl_siwscan(struct net_device *dev,
 		  struct iw_request_info *info,
-		  struct iw_param *wrq,
+		  struct iw_point *wrq,
 		  char *extra);
 
 //2008-0409-07, <Add> by Einsn Liu
