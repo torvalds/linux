@@ -1295,7 +1295,7 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
 		return -EFAULT;
 
-	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
@@ -1376,7 +1376,7 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	unsigned int *data = NULL;
 	int ret = 0;
 
-	data = kmalloc(sizeof(unsigned int) * MAX_SAMPLES, GFP_KERNEL);
+	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
