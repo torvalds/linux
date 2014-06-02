@@ -1997,7 +1997,7 @@ qlt_set_t10dif_tags(struct se_cmd *se_cmd, struct crc_context *ctx)
 	 * have been immplemented by TCM, before AppTag is avail.
 	 * Look for modesense_handlers[]
 	 */
-	ctx->app_tag = __constant_cpu_to_le16(0);
+	ctx->app_tag = 0;
 	ctx->app_tag_mask[0] = 0x0;
 	ctx->app_tag_mask[1] = 0x0;
 
@@ -2079,6 +2079,7 @@ qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
 	struct se_cmd		*se_cmd = &cmd->se_cmd;
 	uint32_t h;
 	struct atio_from_isp *atio = &prm->cmd->atio;
+	uint16_t t16;
 
 	sgc = 0;
 	ha = vha->hw;
@@ -2175,8 +2176,13 @@ qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
 	pkt->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
 	pkt->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
 	pkt->exchange_addr   = atio->u.isp24.exchange_addr;
-	pkt->ox_id  = swab16(atio->u.isp24.fcp_hdr.ox_id);
-	pkt->flags |= (atio->u.isp24.attr << 9);
+
+	/* silence compile warning */
+	t16 = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
+	pkt->ox_id  = cpu_to_le16(t16);
+
+	t16 = (atio->u.isp24.attr << 9);
+	pkt->flags |= cpu_to_le16(t16);
 	pkt->relative_offset = cpu_to_le32(prm->cmd->offset);
 
 	/* Set transfer direction */
@@ -2251,8 +2257,7 @@ qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
 
 	if (bundling && prm->prot_seg_cnt) {
 		/* Walks dif segments */
-		pkt->add_flags |=
-			__constant_cpu_to_le16(CTIO_CRC2_AF_DIF_DSD_ENA);
+		pkt->add_flags |= CTIO_CRC2_AF_DIF_DSD_ENA;
 
 		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.dif_address;
 		if (qla24xx_walk_and_build_prot_sglist(ha, NULL, cur_dsd,

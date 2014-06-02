@@ -316,7 +316,7 @@ struct fcp_hdr {
 	uint8_t  seq_id;
 	uint8_t  df_ctl;
 	uint16_t seq_cnt;
-	uint16_t ox_id;
+	__be16   ox_id;
 	uint16_t rx_id;
 	uint32_t parameter;
 } __packed;
@@ -441,7 +441,7 @@ struct ctio7_to_24xx {
 	union {
 		struct {
 			uint16_t reserved1;
-			uint16_t flags;
+			__le16 flags;
 			uint32_t residual;
 			uint16_t ox_id;
 			uint16_t scsi_status;
@@ -527,7 +527,7 @@ struct ctio_crc2_to_fw {
 
 	uint32_t handle;		/* System handle. */
 	uint16_t nport_handle;		/* N_PORT handle. */
-	uint16_t timeout;		/* Command timeout. */
+	__le16 timeout;		/* Command timeout. */
 
 	uint16_t dseg_count;		/* Data segment count. */
 	uint8_t  vp_index;
@@ -538,15 +538,15 @@ struct ctio_crc2_to_fw {
 	uint8_t  reserved1;
 	uint32_t exchange_addr;		/* rcv exchange address */
 	uint16_t reserved2;
-	uint16_t flags;			/* refer to CTIO7 flags values */
+	__le16 flags;			/* refer to CTIO7 flags values */
 	uint32_t residual;
-	uint16_t ox_id;
+	__le16 ox_id;
 	uint16_t scsi_status;
-	uint32_t relative_offset;
+	__le32 relative_offset;
 	uint32_t reserved5;
-	uint32_t transfer_length;		/* total fc transfer length */
+	__le32 transfer_length;		/* total fc transfer length */
 	uint32_t reserved6;
-	uint32_t crc_context_address[2];/* Data segment address. */
+	__le32 crc_context_address[2];/* Data segment address. */
 	uint16_t crc_context_len;	/* Data segment length. */
 	uint16_t reserved_1;		/* MUST be set to 0. */
 } __packed;
