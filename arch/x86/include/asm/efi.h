@@ -104,6 +104,8 @@ extern void __init runtime_code_page_mkexec(void);
 extern void __init efi_runtime_mkexec(void);
 extern void __init efi_dump_pagetable(void);
 extern void __init efi_apply_memmap_quirks(void);
+extern int __init efi_reuse_config(u64 tables, int nr_tables);
+extern void efi_delete_dummy_variable(void);
 
 struct efi_setup_data {
 	u64 fw_vendor;
