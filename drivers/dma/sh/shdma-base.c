@@ -657,6 +657,8 @@ static struct dma_async_tx_descriptor *shdma_prep_slave_sg(
 			     direction, flags, false);
 }
 
+#define SHDMA_MAX_SG_LEN 32
+
 static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
@@ -668,13 +670,19 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	unsigned int sg_len = buf_len / period_len;
 	int slave_id = schan->slave_id;
 	dma_addr_t slave_addr;
-	struct scatterlist sgl[sg_len];
+	struct scatterlist sgl[SHDMA_MAX_SG_LEN];
 	int i;
 
 	if (!chan)
 		return NULL;
 
 	BUG_ON(!schan->desc_num);
+
+	if (sg_len > SHDMA_MAX_SG_LEN) {
+		dev_err(schan->dev, "sg length %d exceds limit %d",
+				sg_len, SHDMA_MAX_SG_LEN);
+		return NULL;
+	}
 
 	/* Someone calling slave DMA on a generic channel? */
 	if (slave_id < 0 || (buf_len < period_len)) {
