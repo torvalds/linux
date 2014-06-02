@@ -31,7 +31,6 @@
 struct intel_dsi_device {
 	unsigned int panel_id;
 	const char *name;
-	int type;
 	const struct intel_dsi_dev_ops *dev_ops;
 	void *dev_priv;
 };
@@ -85,6 +84,9 @@ struct intel_dsi {
 	/* virtual channel */
 	int channel;
 
+	/* Video mode or command mode */
+	u16 operation_mode;
+
 	/* number of DSI lanes */
 	unsigned int lane_count;
 
@@ -112,6 +114,15 @@ struct intel_dsi {
 	u16 hs_to_lp_count;
 	u16 clk_lp_to_hs_count;
 	u16 clk_hs_to_lp_count;
+
+	u16 init_count;
+
+	/* all delays in ms */
+	u16 backlight_off_delay;
+	u16 backlight_on_delay;
+	u16 panel_on_delay;
+	u16 panel_off_delay;
+	u16 panel_pwr_cycle_delay;
 };
 
 static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)

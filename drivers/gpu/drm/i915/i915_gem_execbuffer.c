@@ -541,7 +541,7 @@ need_reloc_mappable(struct i915_vma *vma)
 
 static int
 i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
-				struct intel_ring_buffer *ring,
+				struct intel_engine_cs *ring,
 				bool *need_reloc)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
@@ -596,7 +596,7 @@ i915_gem_execbuffer_reserve_vma(struct i915_vma *vma,
 }
 
 static int
-i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
+i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			    struct list_head *vmas,
 			    bool *need_relocs)
 {
@@ -609,6 +609,8 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 
 	if (list_empty(vmas))
 		return 0;
+
+	i915_gem_retire_requests_ring(ring);
 
 	vm = list_first_entry(vmas, struct i915_vma, exec_list)->vm;
 
@@ -711,7 +713,7 @@ static int
 i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_i915_gem_execbuffer2 *args,
 				  struct drm_file *file,
-				  struct intel_ring_buffer *ring,
+				  struct intel_engine_cs *ring,
 				  struct eb_vmas *eb,
 				  struct drm_i915_gem_exec_object2 *exec)
 {
@@ -827,7 +829,7 @@ err:
 }
 
 static int
-i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
+i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 				struct list_head *vmas)
 {
 	struct i915_vma *vma;
@@ -910,11 +912,11 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 	return 0;
 }
 
-static struct i915_hw_context *
+static struct intel_context *
 i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
-			  struct intel_ring_buffer *ring, const u32 ctx_id)
+			  struct intel_engine_cs *ring, const u32 ctx_id)
 {
-	struct i915_hw_context *ctx = NULL;
+	struct intel_context *ctx = NULL;
 	struct i915_ctx_hang_stats *hs;
 
 	if (ring->id != RCS && ctx_id != DEFAULT_CONTEXT_ID)
@@ -935,7 +937,7 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
-				   struct intel_ring_buffer *ring)
+				   struct intel_engine_cs *ring)
 {
 	struct i915_vma *vma;
 
@@ -970,7 +972,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 static void
 i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct drm_file *file,
-				    struct intel_ring_buffer *ring,
+				    struct intel_engine_cs *ring,
 				    struct drm_i915_gem_object *obj)
 {
 	/* Unconditionally force add_request to emit a full flush. */
@@ -982,7 +984,7 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 
 static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
-			    struct intel_ring_buffer *ring)
+			    struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
@@ -1025,12 +1027,12 @@ static int gen8_dispatch_bsd_ring(struct drm_device *dev,
 		int ring_id;
 
 		mutex_lock(&dev->struct_mutex);
-		if (dev_priv->ring_index == 0) {
+		if (dev_priv->mm.bsd_ring_dispatch_index == 0) {
 			ring_id = VCS;
-			dev_priv->ring_index = 1;
+			dev_priv->mm.bsd_ring_dispatch_index = 1;
 		} else {
 			ring_id = VCS2;
-			dev_priv->ring_index = 0;
+			dev_priv->mm.bsd_ring_dispatch_index = 0;
 		}
 		file_priv->bsd_ring = &dev_priv->ring[ring_id];
 		mutex_unlock(&dev->struct_mutex);
@@ -1048,8 +1050,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct eb_vmas *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
-	struct intel_ring_buffer *ring;
-	struct i915_hw_context *ctx;
+	struct intel_engine_cs *ring;
+	struct intel_context *ctx;
 	struct i915_address_space *vm;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u64 exec_start = args->batch_start_offset, exec_len;
@@ -1168,6 +1170,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto pre_mutex_err;
 		}
 	} else {
+		if (args->DR4 == 0xffffffff) {
+			DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+			args->DR4 = 0;
+		}
+
 		if (args->DR1 || args->DR4 || args->cliprects_ptr) {
 			DRM_DEBUG("0 cliprects but dirt in cliprects fields\n");
 			return -EINVAL;

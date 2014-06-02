@@ -205,6 +205,7 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
 		err_puts(m, purgeable_flag(err->purgeable));
+		err_puts(m, err->userptr ? " userptr" : "");
 		err_puts(m, err->ring != -1 ? " " : "");
 		err_puts(m, ring_str(err->ring));
 		err_puts(m, i915_cache_level_str(err->cache_level));
@@ -641,6 +642,7 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->tiling = obj->tiling_mode;
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
+	err->userptr = obj->userptr.mm != NULL;
 	err->ring = obj->ring ? obj->ring->id : -1;
 	err->cache_level = obj->cache_level;
 }
@@ -745,7 +747,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 }
 
 static void i915_record_ring_state(struct drm_device *dev,
-				   struct intel_ring_buffer *ring,
+				   struct intel_engine_cs *ring,
 				   struct drm_i915_error_ring *ering)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -823,8 +825,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->hws = I915_READ(mmio);
 	}
 
-	ering->cpu_ring_head = ring->head;
-	ering->cpu_ring_tail = ring->tail;
+	ering->cpu_ring_head = ring->buffer->head;
+	ering->cpu_ring_tail = ring->buffer->tail;
 
 	ering->hangcheck_score = ring->hangcheck.score;
 	ering->hangcheck_action = ring->hangcheck.action;
@@ -857,7 +859,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 }
 
 
-static void i915_gem_record_active_context(struct intel_ring_buffer *ring,
+static void i915_gem_record_active_context(struct intel_engine_cs *ring,
 					   struct drm_i915_error_state *error,
 					   struct drm_i915_error_ring *ering)
 {
@@ -884,7 +886,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 	int i, count;
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+		struct intel_engine_cs *ring = &dev_priv->ring[i];
 
 		if (ring->dev == NULL)
 			continue;
@@ -928,7 +930,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		}
 
 		error->ring[i].ringbuffer =
-			i915_error_ggtt_object_create(dev_priv, ring->obj);
+			i915_error_ggtt_object_create(dev_priv, ring->buffer->obj);
 
 		if (ring->status_page.obj)
 			error->ring[i].hws_page =

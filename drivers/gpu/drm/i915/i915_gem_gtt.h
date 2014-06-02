@@ -95,6 +95,7 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define PPAT_CACHED_INDEX		_PAGE_PAT /* WB LLCeLLC */
 #define PPAT_DISPLAY_ELLC_INDEX		_PAGE_PCD /* WT eLLC */
 
+#define CHV_PPAT_SNOOP			(1<<6)
 #define GEN8_PPAT_AGE(x)		(x<<4)
 #define GEN8_PPAT_LLCeLLC		(3<<2)
 #define GEN8_PPAT_LLCELLC		(2<<2)
@@ -256,11 +257,11 @@ struct i915_hw_ppgtt {
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
 
-	struct i915_hw_context *ctx;
+	struct intel_context *ctx;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_ring_buffer *ring,
+			 struct intel_engine_cs *ring,
 			 bool synchronous);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };

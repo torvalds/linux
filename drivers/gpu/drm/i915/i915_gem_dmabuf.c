@@ -229,6 +229,14 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				      struct drm_gem_object *gem_obj, int flags)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
+
+	if (obj->ops->dmabuf_export) {
+		int ret = obj->ops->dmabuf_export(obj);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
 	return dma_buf_export(gem_obj, &i915_dmabuf_ops, gem_obj->size, flags);
 }
 

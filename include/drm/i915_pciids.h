@@ -245,4 +245,10 @@
 	INTEL_BDW_GT12D_IDS(info), \
 	INTEL_BDW_GT3D_IDS(info)
 
+#define INTEL_CHV_IDS(info) \
+	INTEL_VGA_DEVICE(0x22b0, info), \
+	INTEL_VGA_DEVICE(0x22b1, info), \
+	INTEL_VGA_DEVICE(0x22b2, info), \
+	INTEL_VGA_DEVICE(0x22b3, info)
+
 #endif /* _I915_PCIIDS_H */

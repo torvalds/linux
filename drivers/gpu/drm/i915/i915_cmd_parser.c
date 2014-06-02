@@ -498,16 +498,18 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	return 0;
 }
 
-static bool validate_cmds_sorted(struct intel_ring_buffer *ring)
+static bool validate_cmds_sorted(struct intel_engine_cs *ring,
+				 const struct drm_i915_cmd_table *cmd_tables,
+				 int cmd_table_count)
 {
 	int i;
 	bool ret = true;
 
-	if (!ring->cmd_tables || ring->cmd_table_count == 0)
+	if (!cmd_tables || cmd_table_count == 0)
 		return true;
 
-	for (i = 0; i < ring->cmd_table_count; i++) {
-		const struct drm_i915_cmd_table *table = &ring->cmd_tables[i];
+	for (i = 0; i < cmd_table_count; i++) {
+		const struct drm_i915_cmd_table *table = &cmd_tables[i];
 		u32 previous = 0;
 		int j;
 
@@ -550,11 +552,73 @@ static bool check_sorted(int ring_id, const u32 *reg_table, int reg_count)
 	return ret;
 }
 
-static bool validate_regs_sorted(struct intel_ring_buffer *ring)
+static bool validate_regs_sorted(struct intel_engine_cs *ring)
 {
 	return check_sorted(ring->id, ring->reg_table, ring->reg_count) &&
 		check_sorted(ring->id, ring->master_reg_table,
 			     ring->master_reg_count);
+}
+
+struct cmd_node {
+	const struct drm_i915_cmd_descriptor *desc;
+	struct hlist_node node;
+};
+
+/*
+ * Different command ranges have different numbers of bits for the opcode. For
+ * example, MI commands use bits 31:23 while 3D commands use bits 31:16. The
+ * problem is that, for example, MI commands use bits 22:16 for other fields
+ * such as GGTT vs PPGTT bits. If we include those bits in the mask then when
+ * we mask a command from a batch it could hash to the wrong bucket due to
+ * non-opcode bits being set. But if we don't include those bits, some 3D
+ * commands may hash to the same bucket due to not including opcode bits that
+ * make the command unique. For now, we will risk hashing to the same bucket.
+ *
+ * If we attempt to generate a perfect hash, we should be able to look at bits
+ * 31:29 of a command from a batch buffer and use the full mask for that
+ * client. The existing INSTR_CLIENT_MASK/SHIFT defines can be used for this.
+ */
+#define CMD_HASH_MASK STD_MI_OPCODE_MASK
+
+static int init_hash_table(struct intel_engine_cs *ring,
+			   const struct drm_i915_cmd_table *cmd_tables,
+			   int cmd_table_count)
+{
+	int i, j;
+
+	hash_init(ring->cmd_hash);
+
+	for (i = 0; i < cmd_table_count; i++) {
+		const struct drm_i915_cmd_table *table = &cmd_tables[i];
+
+		for (j = 0; j < table->count; j++) {
+			const struct drm_i915_cmd_descriptor *desc =
+				&table->table[j];
+			struct cmd_node *desc_node =
+				kmalloc(sizeof(*desc_node), GFP_KERNEL);
+
+			if (!desc_node)
+				return -ENOMEM;
+
+			desc_node->desc = desc;
+			hash_add(ring->cmd_hash, &desc_node->node,
+				 desc->cmd.value & CMD_HASH_MASK);
+		}
+	}
+
+	return 0;
+}
+
+static void fini_hash_table(struct intel_engine_cs *ring)
+{
+	struct hlist_node *tmp;
+	struct cmd_node *desc_node;
+	int i;
+
+	hash_for_each_safe(ring->cmd_hash, i, tmp, desc_node, node) {
+		hash_del(&desc_node->node);
+		kfree(desc_node);
+	}
 }
 
 /**
@@ -562,23 +626,29 @@ static bool validate_regs_sorted(struct intel_ring_buffer *ring)
  * @ring: the ringbuffer to initialize
  *
  * Optionally initializes fields related to batch buffer command parsing in the
- * struct intel_ring_buffer based on whether the platform requires software
+ * struct intel_engine_cs based on whether the platform requires software
  * command parsing.
+ *
+ * Return: non-zero if initialization fails
  */
-void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
+int i915_cmd_parser_init_ring(struct intel_engine_cs *ring)
 {
+	const struct drm_i915_cmd_table *cmd_tables;
+	int cmd_table_count;
+	int ret;
+
 	if (!IS_GEN7(ring->dev))
-		return;
+		return 0;
 
 	switch (ring->id) {
 	case RCS:
 		if (IS_HASWELL(ring->dev)) {
-			ring->cmd_tables = hsw_render_ring_cmds;
-			ring->cmd_table_count =
+			cmd_tables = hsw_render_ring_cmds;
+			cmd_table_count =
 				ARRAY_SIZE(hsw_render_ring_cmds);
 		} else {
-			ring->cmd_tables = gen7_render_cmds;
-			ring->cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
+			cmd_tables = gen7_render_cmds;
+			cmd_table_count = ARRAY_SIZE(gen7_render_cmds);
 		}
 
 		ring->reg_table = gen7_render_regs;
@@ -595,17 +665,17 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		ring->get_cmd_length_mask = gen7_render_get_cmd_length_mask;
 		break;
 	case VCS:
-		ring->cmd_tables = gen7_video_cmds;
-		ring->cmd_table_count = ARRAY_SIZE(gen7_video_cmds);
+		cmd_tables = gen7_video_cmds;
+		cmd_table_count = ARRAY_SIZE(gen7_video_cmds);
 		ring->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
 	case BCS:
 		if (IS_HASWELL(ring->dev)) {
-			ring->cmd_tables = hsw_blt_ring_cmds;
-			ring->cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmds);
+			cmd_tables = hsw_blt_ring_cmds;
+			cmd_table_count = ARRAY_SIZE(hsw_blt_ring_cmds);
 		} else {
-			ring->cmd_tables = gen7_blt_cmds;
-			ring->cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
+			cmd_tables = gen7_blt_cmds;
+			cmd_table_count = ARRAY_SIZE(gen7_blt_cmds);
 		}
 
 		ring->reg_table = gen7_blt_regs;
@@ -622,8 +692,8 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		ring->get_cmd_length_mask = gen7_blt_get_cmd_length_mask;
 		break;
 	case VECS:
-		ring->cmd_tables = hsw_vebox_cmds;
-		ring->cmd_table_count = ARRAY_SIZE(hsw_vebox_cmds);
+		cmd_tables = hsw_vebox_cmds;
+		cmd_table_count = ARRAY_SIZE(hsw_vebox_cmds);
 		/* VECS can use the same length_mask function as VCS */
 		ring->get_cmd_length_mask = gen7_bsd_get_cmd_length_mask;
 		break;
@@ -633,18 +703,45 @@ void i915_cmd_parser_init_ring(struct intel_ring_buffer *ring)
 		BUG();
 	}
 
-	BUG_ON(!validate_cmds_sorted(ring));
+	BUG_ON(!validate_cmds_sorted(ring, cmd_tables, cmd_table_count));
 	BUG_ON(!validate_regs_sorted(ring));
+
+	ret = init_hash_table(ring, cmd_tables, cmd_table_count);
+	if (ret) {
+		DRM_ERROR("CMD: cmd_parser_init failed!\n");
+		fini_hash_table(ring);
+		return ret;
+	}
+
+	ring->needs_cmd_parser = true;
+
+	return 0;
+}
+
+/**
+ * i915_cmd_parser_fini_ring() - clean up cmd parser related fields
+ * @ring: the ringbuffer to clean up
+ *
+ * Releases any resources related to command parsing that may have been
+ * initialized for the specified ring.
+ */
+void i915_cmd_parser_fini_ring(struct intel_engine_cs *ring)
+{
+	if (!ring->needs_cmd_parser)
+		return;
+
+	fini_hash_table(ring);
 }
 
 static const struct drm_i915_cmd_descriptor*
-find_cmd_in_table(const struct drm_i915_cmd_table *table,
+find_cmd_in_table(struct intel_engine_cs *ring,
 		  u32 cmd_header)
 {
-	int i;
+	struct cmd_node *desc_node;
 
-	for (i = 0; i < table->count; i++) {
-		const struct drm_i915_cmd_descriptor *desc = &table->table[i];
+	hash_for_each_possible(ring->cmd_hash, desc_node, node,
+			       cmd_header & CMD_HASH_MASK) {
+		const struct drm_i915_cmd_descriptor *desc = desc_node->desc;
 		u32 masked_cmd = desc->cmd.mask & cmd_header;
 		u32 masked_value = desc->cmd.value & desc->cmd.mask;
 
@@ -664,20 +761,16 @@ find_cmd_in_table(const struct drm_i915_cmd_table *table,
  * ring's default length encoding and returns default_desc.
  */
 static const struct drm_i915_cmd_descriptor*
-find_cmd(struct intel_ring_buffer *ring,
+find_cmd(struct intel_engine_cs *ring,
 	 u32 cmd_header,
 	 struct drm_i915_cmd_descriptor *default_desc)
 {
+	const struct drm_i915_cmd_descriptor *desc;
 	u32 mask;
-	int i;
 
-	for (i = 0; i < ring->cmd_table_count; i++) {
-		const struct drm_i915_cmd_descriptor *desc;
-
-		desc = find_cmd_in_table(&ring->cmd_tables[i], cmd_header);
-		if (desc)
-			return desc;
-	}
+	desc = find_cmd_in_table(ring, cmd_header);
+	if (desc)
+		return desc;
 
 	mask = ring->get_cmd_length_mask(cmd_header);
 	if (!mask)
@@ -744,12 +837,11 @@ finish:
  *
  * Return: true if the ring requires software command parsing
  */
-bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
+bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
-	/* No command tables indicates a platform without parsing */
-	if (!ring->cmd_tables)
+	if (!ring->needs_cmd_parser)
 		return false;
 
 	/*
@@ -763,7 +855,7 @@ bool i915_needs_cmd_parser(struct intel_ring_buffer *ring)
 	return (i915.enable_cmd_parser == 1);
 }
 
-static bool check_cmd(const struct intel_ring_buffer *ring,
+static bool check_cmd(const struct intel_engine_cs *ring,
 		      const struct drm_i915_cmd_descriptor *desc,
 		      const u32 *cmd,
 		      const bool is_master,
@@ -865,7 +957,7 @@ static bool check_cmd(const struct intel_ring_buffer *ring,
  *
  * Return: non-zero if the parser finds violations or otherwise fails
  */
-int i915_parse_cmds(struct intel_ring_buffer *ring,
+int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
 		    u32 batch_start_offset,
 		    bool is_master)

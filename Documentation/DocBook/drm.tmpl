@@ -3368,6 +3368,10 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       with a call to <function>drm_vblank_cleanup</function> in the driver
       <methodname>unload</methodname> operation handler.
     </para>
+    <sect2>
+      <title>Vertical Blanking and Interrupt Handling Functions Reference</title>
+!Edrivers/gpu/drm/drm_irq.c
+    </sect2>
   </sect1>
 
   <!-- Internals: open/close, file operations and ioctls -->
@@ -3710,17 +3714,16 @@ int num_ioctls;</synopsis>
             <term>DRM_IOCTL_MODESET_CTL</term>
             <listitem>
               <para>
-                This should be called by application level drivers before and
-                after mode setting, since on many devices the vertical blank
-                counter is reset at that time.  Internally, the DRM snapshots
-                the last vblank count when the ioctl is called with the
-                _DRM_PRE_MODESET command, so that the counter won't go backwards
-                (which is dealt with when _DRM_POST_MODESET is used).
+		This was only used for user-mode-settind drivers around
+		modesetting changes to allow the kernel to update the vblank
+		interrupt after mode setting, since on many devices the vertical
+		blank counter is reset to 0 at some point during modeset. Modern
+		drivers should not call this any more since with kernel mode
+		setting it is a no-op.
               </para>
             </listitem>
           </varlistentry>
         </variablelist>
-<!--!Edrivers/char/drm/drm_irq.c-->
       </para>
     </sect1>
 
@@ -3782,6 +3785,96 @@ int num_ioctls;</synopsis>
 	  i915 driver still uses most of the common DRM helper code for output
 	  probing, so those sections fully apply.
         </para>
+      </sect2>
+      <sect2>
+        <title>DPIO</title>
+!Pdrivers/gpu/drm/i915/i915_reg.h DPIO
+	<table id="dpiox2">
+	  <title>Dual channel PHY (VLV/CHV)</title>
+	  <tgroup cols="8">
+	    <colspec colname="c0" />
+	    <colspec colname="c1" />
+	    <colspec colname="c2" />
+	    <colspec colname="c3" />
+	    <colspec colname="c4" />
+	    <colspec colname="c5" />
+	    <colspec colname="c6" />
+	    <colspec colname="c7" />
+	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
+	    <spanspec spanname="ch1" namest="c4" nameend="c7" />
+	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
+	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
+	    <spanspec spanname="ch1pcs01" namest="c4" nameend="c5" />
+	    <spanspec spanname="ch1pcs23" namest="c6" nameend="c7" />
+	    <thead>
+	      <row>
+		<entry spanname="ch0">CH0</entry>
+		<entry spanname="ch1">CH1</entry>
+	      </row>
+	    </thead>
+	    <tbody valign="top" align="center">
+	      <row>
+		<entry spanname="ch0">CMN/PLL/REF</entry>
+		<entry spanname="ch1">CMN/PLL/REF</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0pcs01">PCS01</entry>
+		<entry spanname="ch0pcs23">PCS23</entry>
+		<entry spanname="ch1pcs01">PCS01</entry>
+		<entry spanname="ch1pcs23">PCS23</entry>
+	      </row>
+	      <row>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0">DDI0</entry>
+		<entry spanname="ch1">DDI1</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+	<table id="dpiox1">
+	  <title>Single channel PHY (CHV)</title>
+	  <tgroup cols="4">
+	    <colspec colname="c0" />
+	    <colspec colname="c1" />
+	    <colspec colname="c2" />
+	    <colspec colname="c3" />
+	    <spanspec spanname="ch0" namest="c0" nameend="c3" />
+	    <spanspec spanname="ch0pcs01" namest="c0" nameend="c1" />
+	    <spanspec spanname="ch0pcs23" namest="c2" nameend="c3" />
+	    <thead>
+	      <row>
+		<entry spanname="ch0">CH0</entry>
+	      </row>
+	    </thead>
+	    <tbody valign="top" align="center">
+	      <row>
+		<entry spanname="ch0">CMN/PLL/REF</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0pcs01">PCS01</entry>
+		<entry spanname="ch0pcs23">PCS23</entry>
+	      </row>
+	      <row>
+		<entry>TX0</entry>
+		<entry>TX1</entry>
+		<entry>TX2</entry>
+		<entry>TX3</entry>
+	      </row>
+	      <row>
+		<entry spanname="ch0">DDI2</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
       </sect2>
     </sect1>
 
