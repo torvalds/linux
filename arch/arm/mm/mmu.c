@@ -117,6 +117,8 @@ static struct cachepolicy cache_policies[] __initdata = {
 };
 
 #ifdef CONFIG_CPU_CP15
+static unsigned long initial_pmd_value __initdata = 0;
+
 /*
  * Initialise the cache_policy variable with the initial state specified
  * via the "pmd" value.  This is used to ensure that on ARMv6 and later,
@@ -127,6 +129,8 @@ static struct cachepolicy cache_policies[] __initdata = {
 void __init init_default_cache_policy(unsigned long pmd)
 {
 	int i;
+
+	initial_pmd_value = pmd;
 
 	pmd &= PMD_SECT_TEX(1) | PMD_SECT_BUFFERABLE | PMD_SECT_CACHEABLE;
 
@@ -414,9 +418,15 @@ static void __init build_mem_type_table(void)
 		ecc_mask = 0;
 	}
 
-	if (is_smp() && cachepolicy != CPOLICY_WRITEALLOC) {
-		pr_warn("Forcing write-allocate cache policy for SMP\n");
-		cachepolicy = CPOLICY_WRITEALLOC;
+	if (is_smp()) {
+		if (cachepolicy != CPOLICY_WRITEALLOC) {
+			pr_warn("Forcing write-allocate cache policy for SMP\n");
+			cachepolicy = CPOLICY_WRITEALLOC;
+		}
+		if (!(initial_pmd_value & PMD_SECT_S)) {
+			pr_warn("Forcing shared mappings for SMP\n");
+			initial_pmd_value |= PMD_SECT_S;
+		}
 	}
 
 	/*
@@ -541,11 +551,12 @@ static void __init build_mem_type_table(void)
 		mem_types[MT_CACHECLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 #endif
 
-		if (is_smp()) {
-			/*
-			 * Mark memory with the "shared" attribute
-			 * for SMP systems
-			 */
+		/*
+		 * If the initial page tables were created with the S bit
+		 * set, then we need to do the same here for the same
+		 * reasons given in early_cachepolicy().
+		 */
+		if (initial_pmd_value & PMD_SECT_S) {
 			user_pgprot |= L_PTE_SHARED;
 			kern_pgprot |= L_PTE_SHARED;
 			vecs_pgprot |= L_PTE_SHARED;
