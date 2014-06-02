@@ -4314,6 +4314,13 @@ done_prefixes:
 	if (ctxt->d & ModRM)
 		ctxt->modrm = insn_fetch(u8, ctxt);
 
+	/* vex-prefix instructions are not implemented */
+	if (ctxt->opcode_len == 1 && (ctxt->b == 0xc5 || ctxt->b == 0xc4) &&
+	    (mode == X86EMUL_MODE_PROT64 ||
+	    (mode >= X86EMUL_MODE_PROT16 && (ctxt->modrm & 0x80)))) {
+		ctxt->d = NotImpl;
+	}
+
 	while (ctxt->d & GroupMask) {
 		switch (ctxt->d & GroupMask) {
 		case Group:
