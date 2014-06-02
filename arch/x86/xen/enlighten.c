@@ -1339,6 +1339,7 @@ xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 
 static struct notifier_block xen_panic_block = {
 	.notifier_call= xen_panic_event,
+	.priority = INT_MIN
 };
 
 int xen_panic_handler_init(void)

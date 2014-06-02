@@ -242,6 +242,15 @@ struct pci_dev *pcistub_get_pci_dev(struct xen_pcibk_device *pdev,
 	return found_dev;
 }
 
+/*
+ * Called when:
+ *  - XenBus state has been reconfigure (pci unplug). See xen_pcibk_remove_device
+ *  - XenBus state has been disconnected (guest shutdown). See xen_pcibk_xenbus_remove
+ *  - 'echo BDF > unbind' on pciback module with no guest attached. See pcistub_remove
+ *  - 'echo BDF > unbind' with a guest still using it. See pcistub_remove
+ *
+ *  As such we have to be careful.
+ */
 void pcistub_put_pci_dev(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev, *found_psdev = NULL;
@@ -272,16 +281,16 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	 * and want to inhibit the user from fiddling with 'reset'
 	 */
 	pci_reset_function(dev);
-	pci_restore_state(psdev->dev);
+	pci_restore_state(dev);
 
 	/* This disables the device. */
-	xen_pcibk_reset_device(found_psdev->dev);
+	xen_pcibk_reset_device(dev);
 
 	/* And cleanup up our emulated fields. */
-	xen_pcibk_config_free_dyn_fields(found_psdev->dev);
-	xen_pcibk_config_reset_dev(found_psdev->dev);
+	xen_pcibk_config_reset_dev(dev);
+	xen_pcibk_config_free_dyn_fields(dev);
 
-	xen_unregister_device_domain_owner(found_psdev->dev);
+	xen_unregister_device_domain_owner(dev);
 
 	spin_lock_irqsave(&found_psdev->lock, flags);
 	found_psdev->pdev = NULL;
@@ -493,6 +502,8 @@ static int pcistub_seize(struct pci_dev *dev)
 	return err;
 }
 
+/* Called when 'bind'. This means we must _NOT_ call pci_reset_function or
+ * other functions that take the sysfs lock. */
 static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err = 0;
@@ -520,6 +531,8 @@ out:
 	return err;
 }
 
+/* Called when 'unbind'. This means we must _NOT_ call pci_reset_function or
+ * other functions that take the sysfs lock. */
 static void pcistub_remove(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev, *found_psdev = NULL;
@@ -551,6 +564,8 @@ static void pcistub_remove(struct pci_dev *dev)
 			pr_warn("****** shutdown driver domain before binding device\n");
 			pr_warn("****** to other drivers or domains\n");
 
+			/* N.B. This ends up calling pcistub_put_pci_dev which ends up
+			 * doing the FLR. */
 			xen_pcibk_release_pci_dev(found_psdev->pdev,
 						found_psdev->dev);
 		}

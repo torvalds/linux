@@ -36,7 +36,7 @@
  *  pfn_to_mfn(0xc0000)=0xc0000
  *
  * The benefit of this is, that we can assume for non-RAM regions (think
- * PCI BARs, or ACPI spaces), we can create mappings easily b/c we
+ * PCI BARs, or ACPI spaces), we can create mappings easily because we
  * get the PFN value to match the MFN.
  *
  * For this to work efficiently we have one new page p2m_identity and
@@ -60,7 +60,7 @@
  * There is also a digram of the P2M at the end that can help.
  * Imagine your E820 looking as so:
  *
- *                    1GB                                           2GB
+ *                    1GB                                           2GB    4GB
  * /-------------------+---------\/----\         /----------\    /---+-----\
  * | System RAM        | Sys RAM ||ACPI|         | reserved |    | Sys RAM |
  * \-------------------+---------/\----/         \----------/    \---+-----/
@@ -77,9 +77,8 @@
  * of the PFN and the end PFN (263424 and 512256 respectively). The first step
  * is to reserve_brk a top leaf page if the p2m[1] is missing. The top leaf page
  * covers 512^2 of page estate (1GB) and in case the start or end PFN is not
- * aligned on 512^2*PAGE_SIZE (1GB) we loop on aligned 1GB PFNs from start pfn
- * to end pfn.  We reserve_brk top leaf pages if they are missing (means they
- * point to p2m_mid_missing).
+ * aligned on 512^2*PAGE_SIZE (1GB) we reserve_brk new middle and leaf pages as
+ * required to split any existing p2m_mid_missing middle pages.
  *
  * With the E820 example above, 263424 is not 1GB aligned so we allocate a
  * reserve_brk page which will cover the PFNs estate from 0x40000 to 0x80000.
@@ -88,7 +87,7 @@
  * Next stage is to determine if we need to do a more granular boundary check
  * on the 4MB (or 2MB depending on architecture) off the start and end pfn's.
  * We check if the start pfn and end pfn violate that boundary check, and if
- * so reserve_brk a middle (p2m[x][y]) leaf page. This way we have a much finer
+ * so reserve_brk a (p2m[x][y]) leaf page. This way we have a much finer
  * granularity of setting which PFNs are missing and which ones are identity.
  * In our example 263424 and 512256 both fail the check so we reserve_brk two
  * pages. Populate them with INVALID_P2M_ENTRY (so they both have "missing"
@@ -102,9 +101,10 @@
  *
  * The next step is to walk from the start pfn to the end pfn setting
  * the IDENTITY_FRAME_BIT on each PFN. This is done in set_phys_range_identity.
- * If we find that the middle leaf is pointing to p2m_missing we can swap it
- * over to p2m_identity - this way covering 4MB (or 2MB) PFN space.  At this
- * point we do not need to worry about boundary aligment (so no need to
+ * If we find that the middle entry is pointing to p2m_missing we can swap it
+ * over to p2m_identity - this way covering 4MB (or 2MB) PFN space (and
+ * similarly swapping p2m_mid_missing for p2m_mid_identity for larger regions).
+ * At this point we do not need to worry about boundary aligment (so no need to
  * reserve_brk a middle page, figure out which PFNs are "missing" and which
  * ones are identity), as that has been done earlier.  If we find that the
  * middle leaf is not occupied by p2m_identity or p2m_missing, we dereference
@@ -118,6 +118,9 @@
  * considered missing). In our case, p2m[1][2][0->255] and p2m[1][488][257->511]
  * contain the INVALID_P2M_ENTRY value and are considered "missing."
  *
+ * Finally, the region beyond the end of of the E820 (4 GB in this example)
+ * is set to be identity (in case there are MMIO regions placed here).
+ *
  * This is what the p2m ends up looking (for the E820 above) with this
  * fabulous drawing:
  *
@@ -129,21 +132,27 @@
  *  |-----|    \                      | [p2m_identity]+\\    | ....            |
  *  |  2  |--\  \-------------------->|  ...          | \\   \----------------/
  *  |-----|   \                       \---------------/  \\
- *  |  3  |\   \                                          \\  p2m_identity
- *  |-----| \   \-------------------->/---------------\   /-----------------\
- *  | ..  +->+                        | [p2m_identity]+-->| ~0, ~0, ~0, ... |
- *  \-----/ /                         | [p2m_identity]+-->| ..., ~0         |
- *         / /---------------\        | ....          |   \-----------------/
- *        /  | IDENTITY[@0]  |      /-+-[x], ~0, ~0.. |
- *       /   | IDENTITY[@256]|<----/  \---------------/
- *      /    | ~0, ~0, ....  |
- *     |     \---------------/
- *     |
- *   p2m_mid_missing           p2m_missing
- * /-----------------\     /------------\
- * | [p2m_missing]   +---->| ~0, ~0, ~0 |
- * | [p2m_missing]   +---->| ..., ~0    |
- * \-----------------/     \------------/
+ *  |  3  |-\  \                                          \\  p2m_identity [1]
+ *  |-----|  \  \-------------------->/---------------\   /-----------------\
+ *  | ..  |\  |                       | [p2m_identity]+-->| ~0, ~0, ~0, ... |
+ *  \-----/ | |                       | [p2m_identity]+-->| ..., ~0         |
+ *          | |                       | ....          |   \-----------------/
+ *          | |                       +-[x], ~0, ~0.. +\
+ *          | |                       \---------------/ \
+ *          | |                                          \-> /---------------\
+ *          | V  p2m_mid_missing       p2m_missing           | IDENTITY[@0]  |
+ *          | /-----------------\     /------------\         | IDENTITY[@256]|
+ *          | | [p2m_missing]   +---->| ~0, ~0, ...|         | ~0, ~0, ....  |
+ *          | | [p2m_missing]   +---->| ..., ~0    |         \---------------/
+ *          | | ...             |     \------------/
+ *          | \-----------------/
+ *          |
+ *          |     p2m_mid_identity
+ *          |   /-----------------\
+ *          \-->| [p2m_identity]  +---->[1]
+ *              | [p2m_identity]  +---->[1]
+ *              | ...             |
+ *              \-----------------/
  *
  * where ~0 is INVALID_P2M_ENTRY. IDENTITY is (PFN | IDENTITY_BIT)
  */
@@ -187,13 +196,15 @@ static RESERVE_BRK_ARRAY(unsigned long, p2m_top_mfn, P2M_TOP_PER_PAGE);
 static RESERVE_BRK_ARRAY(unsigned long *, p2m_top_mfn_p, P2M_TOP_PER_PAGE);
 
 static RESERVE_BRK_ARRAY(unsigned long, p2m_identity, P2M_PER_PAGE);
+static RESERVE_BRK_ARRAY(unsigned long *, p2m_mid_identity, P2M_MID_PER_PAGE);
+static RESERVE_BRK_ARRAY(unsigned long, p2m_mid_identity_mfn, P2M_MID_PER_PAGE);
 
 RESERVE_BRK(p2m_mid, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 RESERVE_BRK(p2m_mid_mfn, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 
 /* We might hit two boundary violations at the start and end, at max each
  * boundary violation will require three middle nodes. */
-RESERVE_BRK(p2m_mid_identity, PAGE_SIZE * 2 * 3);
+RESERVE_BRK(p2m_mid_extra, PAGE_SIZE * 2 * 3);
 
 /* When we populate back during bootup, the amount of pages can vary. The
  * max we have is seen is 395979, but that does not mean it can't be more.
@@ -242,20 +253,20 @@ static void p2m_top_mfn_p_init(unsigned long **top)
 		top[i] = p2m_mid_missing_mfn;
 }
 
-static void p2m_mid_init(unsigned long **mid)
+static void p2m_mid_init(unsigned long **mid, unsigned long *leaf)
 {
 	unsigned i;
 
 	for (i = 0; i < P2M_MID_PER_PAGE; i++)
-		mid[i] = p2m_missing;
+		mid[i] = leaf;
 }
 
-static void p2m_mid_mfn_init(unsigned long *mid)
+static void p2m_mid_mfn_init(unsigned long *mid, unsigned long *leaf)
 {
 	unsigned i;
 
 	for (i = 0; i < P2M_MID_PER_PAGE; i++)
-		mid[i] = virt_to_mfn(p2m_missing);
+		mid[i] = virt_to_mfn(leaf);
 }
 
 static void p2m_init(unsigned long *p2m)
@@ -286,7 +297,9 @@ void __ref xen_build_mfn_list_list(void)
 	/* Pre-initialize p2m_top_mfn to be completely missing */
 	if (p2m_top_mfn == NULL) {
 		p2m_mid_missing_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		p2m_mid_mfn_init(p2m_mid_missing_mfn);
+		p2m_mid_mfn_init(p2m_mid_missing_mfn, p2m_missing);
+		p2m_mid_identity_mfn = extend_brk(PAGE_SIZE, PAGE_SIZE);
+		p2m_mid_mfn_init(p2m_mid_identity_mfn, p2m_identity);
 
 		p2m_top_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
 		p2m_top_mfn_p_init(p2m_top_mfn_p);
@@ -295,7 +308,8 @@ void __ref xen_build_mfn_list_list(void)
 		p2m_top_mfn_init(p2m_top_mfn);
 	} else {
 		/* Reinitialise, mfn's all change after migration */
-		p2m_mid_mfn_init(p2m_mid_missing_mfn);
+		p2m_mid_mfn_init(p2m_mid_missing_mfn, p2m_missing);
+		p2m_mid_mfn_init(p2m_mid_identity_mfn, p2m_identity);
 	}
 
 	for (pfn = 0; pfn < xen_max_p2m_pfn; pfn += P2M_PER_PAGE) {
@@ -327,7 +341,7 @@ void __ref xen_build_mfn_list_list(void)
 			 * it too late.
 			 */
 			mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_mid_mfn_init(mid_mfn_p);
+			p2m_mid_mfn_init(mid_mfn_p, p2m_missing);
 
 			p2m_top_mfn_p[topidx] = mid_mfn_p;
 		}
@@ -365,15 +379,16 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 	p2m_missing = extend_brk(PAGE_SIZE, PAGE_SIZE);
 	p2m_init(p2m_missing);
+	p2m_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
+	p2m_init(p2m_identity);
 
 	p2m_mid_missing = extend_brk(PAGE_SIZE, PAGE_SIZE);
-	p2m_mid_init(p2m_mid_missing);
+	p2m_mid_init(p2m_mid_missing, p2m_missing);
+	p2m_mid_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
+	p2m_mid_init(p2m_mid_identity, p2m_identity);
 
 	p2m_top = extend_brk(PAGE_SIZE, PAGE_SIZE);
 	p2m_top_init(p2m_top);
-
-	p2m_identity = extend_brk(PAGE_SIZE, PAGE_SIZE);
-	p2m_init(p2m_identity);
 
 	/*
 	 * The domain builder gives us a pre-constructed p2m array in
@@ -386,7 +401,7 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		if (p2m_top[topidx] == p2m_mid_missing) {
 			unsigned long **mid = extend_brk(PAGE_SIZE, PAGE_SIZE);
-			p2m_mid_init(mid);
+			p2m_mid_init(mid, p2m_missing);
 
 			p2m_top[topidx] = mid;
 		}
@@ -492,7 +507,7 @@ unsigned long get_phys_to_machine(unsigned long pfn)
 	unsigned topidx, mididx, idx;
 
 	if (unlikely(pfn >= MAX_P2M_PFN))
-		return INVALID_P2M_ENTRY;
+		return IDENTITY_FRAME(pfn);
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
@@ -545,7 +560,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (!mid)
 			return false;
 
-		p2m_mid_init(mid);
+		p2m_mid_init(mid, p2m_missing);
 
 		if (cmpxchg(top_p, p2m_mid_missing, mid) != p2m_mid_missing)
 			free_p2m_page(mid);
@@ -565,7 +580,7 @@ static bool alloc_p2m(unsigned long pfn)
 		if (!mid_mfn)
 			return false;
 
-		p2m_mid_mfn_init(mid_mfn);
+		p2m_mid_mfn_init(mid_mfn, p2m_missing);
 
 		missing_mfn = virt_to_mfn(p2m_mid_missing_mfn);
 		mid_mfn_mfn = virt_to_mfn(mid_mfn);
@@ -596,7 +611,7 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary)
+static bool __init early_alloc_p2m(unsigned long pfn, bool check_boundary)
 {
 	unsigned topidx, mididx, idx;
 	unsigned long *p2m;
@@ -638,7 +653,7 @@ static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary
 	return true;
 }
 
-static bool __init early_alloc_p2m(unsigned long pfn)
+static bool __init early_alloc_p2m_middle(unsigned long pfn)
 {
 	unsigned topidx = p2m_top_index(pfn);
 	unsigned long *mid_mfn_p;
@@ -649,7 +664,7 @@ static bool __init early_alloc_p2m(unsigned long pfn)
 	if (mid == p2m_mid_missing) {
 		mid = extend_brk(PAGE_SIZE, PAGE_SIZE);
 
-		p2m_mid_init(mid);
+		p2m_mid_init(mid, p2m_missing);
 
 		p2m_top[topidx] = mid;
 
@@ -658,12 +673,12 @@ static bool __init early_alloc_p2m(unsigned long pfn)
 	/* And the save/restore P2M tables.. */
 	if (mid_mfn_p == p2m_mid_missing_mfn) {
 		mid_mfn_p = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		p2m_mid_mfn_init(mid_mfn_p);
+		p2m_mid_mfn_init(mid_mfn_p, p2m_missing);
 
 		p2m_top_mfn_p[topidx] = mid_mfn_p;
 		p2m_top_mfn[topidx] = virt_to_mfn(mid_mfn_p);
 		/* Note: we don't set mid_mfn_p[midix] here,
-		 * look in early_alloc_p2m_middle */
+		 * look in early_alloc_p2m() */
 	}
 	return true;
 }
@@ -739,7 +754,7 @@ found:
 
 	/* This shouldn't happen */
 	if (WARN_ON(p2m_top[topidx] == p2m_mid_missing))
-		early_alloc_p2m(set_pfn);
+		early_alloc_p2m_middle(set_pfn);
 
 	if (WARN_ON(p2m_top[topidx][mididx] != p2m_missing))
 		return false;
@@ -754,13 +769,13 @@ found:
 bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
 	if (unlikely(!__set_phys_to_machine(pfn, mfn)))  {
-		if (!early_alloc_p2m(pfn))
+		if (!early_alloc_p2m_middle(pfn))
 			return false;
 
 		if (early_can_reuse_p2m_middle(pfn, mfn))
 			return __set_phys_to_machine(pfn, mfn);
 
-		if (!early_alloc_p2m_middle(pfn, false /* boundary crossover OK!*/))
+		if (!early_alloc_p2m(pfn, false /* boundary crossover OK!*/))
 			return false;
 
 		if (!__set_phys_to_machine(pfn, mfn))
@@ -769,12 +784,30 @@ bool __init early_set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 	return true;
 }
+
+static void __init early_split_p2m(unsigned long pfn)
+{
+	unsigned long mididx, idx;
+
+	mididx = p2m_mid_index(pfn);
+	idx = p2m_index(pfn);
+
+	/*
+	 * Allocate new middle and leaf pages if this pfn lies in the
+	 * middle of one.
+	 */
+	if (mididx || idx)
+		early_alloc_p2m_middle(pfn);
+	if (idx)
+		early_alloc_p2m(pfn, false);
+}
+
 unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 				      unsigned long pfn_e)
 {
 	unsigned long pfn;
 
-	if (unlikely(pfn_s >= MAX_P2M_PFN || pfn_e >= MAX_P2M_PFN))
+	if (unlikely(pfn_s >= MAX_P2M_PFN))
 		return 0;
 
 	if (unlikely(xen_feature(XENFEAT_auto_translated_physmap)))
@@ -783,19 +816,30 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 	if (pfn_s > pfn_e)
 		return 0;
 
-	for (pfn = (pfn_s & ~(P2M_MID_PER_PAGE * P2M_PER_PAGE - 1));
-		pfn < ALIGN(pfn_e, (P2M_MID_PER_PAGE * P2M_PER_PAGE));
-		pfn += P2M_MID_PER_PAGE * P2M_PER_PAGE)
-	{
-		WARN_ON(!early_alloc_p2m(pfn));
-	}
+	if (pfn_e > MAX_P2M_PFN)
+		pfn_e = MAX_P2M_PFN;
 
-	early_alloc_p2m_middle(pfn_s, true);
-	early_alloc_p2m_middle(pfn_e, true);
+	early_split_p2m(pfn_s);
+	early_split_p2m(pfn_e);
 
-	for (pfn = pfn_s; pfn < pfn_e; pfn++)
+	for (pfn = pfn_s; pfn < pfn_e;) {
+		unsigned topidx = p2m_top_index(pfn);
+		unsigned mididx = p2m_mid_index(pfn);
+
 		if (!__set_phys_to_machine(pfn, IDENTITY_FRAME(pfn)))
 			break;
+		pfn++;
+
+		/*
+		 * If the PFN was set to a middle or leaf identity
+		 * page the remainder must also be identity, so skip
+		 * ahead to the next middle or leaf entry.
+		 */
+		if (p2m_top[topidx] == p2m_mid_identity)
+			pfn = ALIGN(pfn, P2M_MID_PER_PAGE * P2M_PER_PAGE);
+		else if (p2m_top[topidx][mididx] == p2m_identity)
+			pfn = ALIGN(pfn, P2M_PER_PAGE);
+	}
 
 	if (!WARN((pfn - pfn_s) != (pfn_e - pfn_s),
 		"Identity mapping failed. We are %ld short of 1-1 mappings!\n",
@@ -825,8 +869,22 @@ bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 
 	/* For sparse holes were the p2m leaf has real PFN along with
 	 * PCI holes, stick in the PFN as the MFN value.
+	 *
+	 * set_phys_range_identity() will have allocated new middle
+	 * and leaf pages as required so an existing p2m_mid_missing
+	 * or p2m_missing mean that whole range will be identity so
+	 * these can be switched to p2m_mid_identity or p2m_identity.
 	 */
 	if (mfn != INVALID_P2M_ENTRY && (mfn & IDENTITY_FRAME_BIT)) {
+		if (p2m_top[topidx] == p2m_mid_identity)
+			return true;
+
+		if (p2m_top[topidx] == p2m_mid_missing) {
+			WARN_ON(cmpxchg(&p2m_top[topidx], p2m_mid_missing,
+					p2m_mid_identity) != p2m_mid_missing);
+			return true;
+		}
+
 		if (p2m_top[topidx][mididx] == p2m_identity)
 			return true;
 
