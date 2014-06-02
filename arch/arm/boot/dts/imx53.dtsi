@@ -18,6 +18,7 @@
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -726,8 +727,8 @@
 				clocks = <&clks IMX5_CLK_VPU_GATE>,
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
+				resets = <&src 1>;
 				iram = <&ocram>;
-				status = "disabled";
 			};
 		};
 

@@ -26,6 +26,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
 	};
 
 	mbus {
@@ -39,7 +40,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-0 = <&pmx_usb_power>;
 			pinctrl-names = "default";
 
@@ -56,8 +57,6 @@
 
 		spi@10600 {
 			status = "okay";
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 
 			m25p128@0 {
 				#address-cells = <1>;

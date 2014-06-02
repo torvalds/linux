@@ -24,6 +24,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	mbus {
@@ -37,14 +38,10 @@
 
 	ocp@f1000000 {
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
 			status = "okay";
 		};
 
 		i2c@11000 {
-			pinctrl-0 = <&pmx_twsi0>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			eeprom@50 {
@@ -54,7 +51,7 @@
 			};
 		};
 
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_usb_power_enable: pmx-usb-power-enable {
 				marvell,pins = "mpp14";
 				marvell,function = "gpio";
@@ -139,7 +136,6 @@
 &nand {
 	/* Total size : 512MB */
 	status = "okay";
-	pinctrl-0 = <&pmx_nand>;
 
 	partition@0 {
 		label = "u-boot";

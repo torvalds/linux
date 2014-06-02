@@ -25,6 +25,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	mbus {
@@ -40,7 +41,7 @@
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pmx_button_power: pmx-button-power {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
@@ -119,8 +120,6 @@
 		};
 
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
 			status = "okay";
 		};
 

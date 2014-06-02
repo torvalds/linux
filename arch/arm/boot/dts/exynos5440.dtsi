@@ -176,7 +176,7 @@
 		clock-names = "i2c";
 	};
 
-	watchdog {
+	watchdog@110000 {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x110000 0x1000>;
 		interrupts = <0 1 0>;

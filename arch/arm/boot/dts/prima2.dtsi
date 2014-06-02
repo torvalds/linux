@@ -314,8 +314,9 @@
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <25>;
-				sirf,spi-dma-tx-channel = <20>;
+				dmas = <&dmac1 9>,
+				     <&dmac1 4>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 19>;
@@ -328,8 +329,9 @@
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <12>;
-				sirf,spi-dma-tx-channel = <13>;
+				dmas = <&dmac0 12>,
+				     <&dmac0 13>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 20>;

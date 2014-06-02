@@ -136,6 +136,36 @@
 				      >;
 
 				/* shared pinctrl settings */
+				adc0 {
+					pinctrl_adc0_adtrg: adc0_adtrg {
+						atmel,pins = <AT91_PIOD 28 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad0: adc0_ad0 {
+						atmel,pins = <AT91_PIOD 20 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad1: adc0_ad1 {
+						atmel,pins = <AT91_PIOD 21 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad2: adc0_ad2 {
+						atmel,pins = <AT91_PIOD 22 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad3: adc0_ad3 {
+						atmel,pins = <AT91_PIOD 23 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad4: adc0_ad4 {
+						atmel,pins = <AT91_PIOD 24 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad5: adc0_ad5 {
+						atmel,pins = <AT91_PIOD 25 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad6: adc0_ad6 {
+						atmel,pins = <AT91_PIOD 26 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+					pinctrl_adc0_ad7: adc0_ad7 {
+						atmel,pins = <AT91_PIOD 27 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+				};
+
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
@@ -634,10 +664,9 @@
 			adc0: adc@fffb0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "atmel,at91sam9260-adc";
+				compatible = "atmel,at91sam9g45-adc";
 				reg = <0xfffb0000 0x100>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
-				atmel,adc-use-external-triggers;
 				atmel,adc-channels-used = <0xff>;
 				atmel,adc-vref = <3300>;
 				atmel,adc-startup-time = <40>;

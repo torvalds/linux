@@ -31,9 +31,14 @@
 			reg = <0x1013c000 0x100>;
 		};
 
-		pmu@20004000 {
-			compatible = "rockchip,rk3066-pmu";
+		pmu: pmu@20004000 {
+			compatible = "rockchip,rk3066-pmu", "syscon";
 			reg = <0x20004000 0x100>;
+		};
+
+		grf: grf@20008000 {
+			compatible = "syscon";
+			reg = <0x20008000 0x200>;
 		};
 
 		gic: interrupt-controller@1013d000 {

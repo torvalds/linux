@@ -25,6 +25,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8";
+		stdout-path = &uart0;
 	};
 
 	gpio-fan-150-32-35 {

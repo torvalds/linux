@@ -1,6 +1,6 @@
 /dts-v1/;
 
-#include "kirkwood-nsa310-common.dtsi"
+#include "kirkwood-nsa3x0-common.dtsi"
 
 /*
  * There are at least two different NSA310 designs. This variant does
@@ -17,10 +17,11 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
 	};
 
 	ocp@f1000000 {
-		pinctrl: pinctrl@10000 {
+		pinctrl: pin-controller@10000 {
 			pinctrl-names = "default";
 
 			pmx_led_esata_green: pmx-led-esata-green {
@@ -38,11 +39,6 @@
 				marvell,function = "gpio";
 			};
 
-			pmx_usb_power_off: pmx-usb-power-off {
-				marvell,pins = "mpp21";
-				marvell,function = "gpio";
-			};
-
 			pmx_led_sys_green: pmx-led-sys-green {
 				marvell,pins = "mpp28";
 				marvell,function = "gpio";
@@ -50,26 +46,6 @@
 
 			pmx_led_sys_red: pmx-led-sys-red {
 				marvell,pins = "mpp29";
-				marvell,function = "gpio";
-			};
-
-			pmx_btn_reset: pmx-btn-reset {
-				marvell,pins = "mpp36";
-				marvell,function = "gpio";
-			};
-
-			pmx_btn_copy: pmx-btn-copy {
-				marvell,pins = "mpp37";
-				marvell,function = "gpio";
-			};
-
-			pmx_led_copy_green: pmx-led-copy-green {
-				marvell,pins = "mpp39";
-				marvell,function = "gpio";
-			};
-
-			pmx_led_copy_red: pmx-led-copy-red {
-				marvell,pins = "mpp40";
 				marvell,function = "gpio";
 			};
 
@@ -83,11 +59,6 @@
 				marvell,function = "gpio";
 			};
 
-			pmx_btn_power: pmx-btn-power {
-				marvell,pins = "mpp46";
-				marvell,function = "gpio";
-			};
-
 		};
 
 		i2c@11000 {
@@ -97,28 +68,6 @@
 				compatible = "national,lm85";
 				reg = <0x2e>;
 			};
-		};
-	};
-
-	gpio_keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		button@1 {
-			label = "Power Button";
-			linux,code = <KEY_POWER>;
-			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
-		};
-		button@2 {
-			label = "Copy Button";
-			linux,code = <KEY_COPY>;
-			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
-		};
-		button@3 {
-			label = "Reset Button";
-			linux,code = <KEY_RESTART>;
-			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 	};
 

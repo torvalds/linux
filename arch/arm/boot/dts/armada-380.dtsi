@@ -21,6 +21,8 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,armada-380-smp";
+
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";

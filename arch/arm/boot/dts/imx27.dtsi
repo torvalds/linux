@@ -11,11 +11,13 @@
 
 #include "skeleton.dtsi"
 #include "imx27-pinfunc.h"
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 
 / {
 	aliases {
+		ethernet0 = &fec;
 		gpio0 = &gpio1;
 		gpio1 = &gpio2;
 		gpio2 = &gpio3;
@@ -68,26 +70,6 @@
 			clock-latency = <62500>;
 			clocks = <&clks 18>;
 			voltage-tolerance = <5>;
-		};
-	};
-
-	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks 75>;
-			clock-names = "main_clk";
-		};
-
-		usbphy2: usbphy@2 {
-			compatible = "usb-nop-xceiv";
-			reg = <2>;
-			clocks = <&clks 75>;
-			clock-names = "main_clk";
 		};
 	};
 
@@ -464,9 +446,8 @@
 				compatible = "fsl,imx27-usb";
 				reg = <0x10024000 0x200>;
 				interrupts = <56>;
-				clocks = <&clks 15>;
+				clocks = <&clks 75>;
 				fsl,usbmisc = <&usbmisc 0>;
-				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
@@ -474,7 +455,7 @@
 				compatible = "fsl,imx27-usb";
 				reg = <0x10024200 0x200>;
 				interrupts = <54>;
-				clocks = <&clks 15>;
+				clocks = <&clks 75>;
 				fsl,usbmisc = <&usbmisc 1>;
 				status = "disabled";
 			};
@@ -483,9 +464,8 @@
 				compatible = "fsl,imx27-usb";
 				reg = <0x10024400 0x200>;
 				interrupts = <55>;
-				clocks = <&clks 15>;
+				clocks = <&clks 75>;
 				fsl,usbmisc = <&usbmisc 2>;
-				fsl,usbphy = <&usbphy2>;
 				status = "disabled";
 			};
 

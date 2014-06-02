@@ -11,6 +11,22 @@
 	sys_clkin_ck: sys_clkin_ck {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
+		clocks = <&sysboot_freq_sel_ck>, <&crystal_freq_sel_ck>;
+		ti,bit-shift = <31>;
+		reg = <0x0040>;
+	};
+
+	crystal_freq_sel_ck: crystal_freq_sel_ck {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
+		clocks = <&virt_19200000_ck>, <&virt_24000000_ck>, <&virt_25000000_ck>, <&virt_26000000_ck>;
+		ti,bit-shift = <29>;
+		reg = <0x0040>;
+	};
+
+	sysboot_freq_sel_ck: sysboot_freq_sel_ck@44e10040 {
+		#clock-cells = <0>;
+		compatible = "ti,mux-clock";
 		clocks = <&virt_19200000_ck>, <&virt_24000000_ck>, <&virt_25000000_ck>, <&virt_26000000_ck>;
 		ti,bit-shift = <22>;
 		reg = <0x0040>;
@@ -86,6 +102,54 @@
 		clocks = <&sys_clkin_ck>;
 		clock-mult = <1>;
 		clock-div = <1>;
+	};
+
+	ehrpwm0_tbclk: ehrpwm0_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <0>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm1_tbclk: ehrpwm1_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <1>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm2_tbclk: ehrpwm2_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <2>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm3_tbclk: ehrpwm3_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <4>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm4_tbclk: ehrpwm4_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <5>;
+		reg = <0x0664>;
+	};
+
+	ehrpwm5_tbclk: ehrpwm5_tbclk {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_m2_ck>;
+		ti,bit-shift = <6>;
+		reg = <0x0664>;
 	};
 };
 &prcm_clocks {
@@ -229,6 +293,7 @@
 		reg = <0x2e30>;
 		ti,index-starts-at-one;
 		ti,invert-autoidle-bit;
+		ti,set-rate-parent;
 	};
 
 	dpll_per_ck: dpll_per_ck {
@@ -511,6 +576,7 @@
 		compatible = "ti,mux-clock";
 		clocks = <&dpll_disp_m2_ck>, <&dpll_core_m5_ck>, <&dpll_per_m2_ck>;
 		reg = <0x4244>;
+		ti,set-rate-parent;
 	};
 
 	dpll_extdev_ck: dpll_extdev_ck {
@@ -609,10 +675,13 @@
 
 	dpll_per_clkdcoldo: dpll_per_clkdcoldo {
 		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
+		compatible = "ti,fixed-factor-clock";
 		clocks = <&dpll_per_ck>;
-		clock-mult = <1>;
-		clock-div = <1>;
+		ti,clock-mult = <1>;
+		ti,clock-div = <1>;
+		ti,autoidle-shift = <8>;
+		reg = <0x2e14>;
+		ti,invert-autoidle-bit;
 	};
 
 	dll_aging_clk_div: dll_aging_clk_div {
@@ -652,5 +721,37 @@
 		compatible = "ti,mux-clock";
 		clocks = <&clk_32768_ck>, <&clk_32k_tpm_ck>;
 		reg = <0x4260>;
+	};
+
+	usb_phy0_always_on_clk32k: usb_phy0_always_on_clk32k {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&usbphy_32khz_clkmux>;
+		ti,bit-shift = <8>;
+		reg = <0x2a40>;
+	};
+
+	usb_phy1_always_on_clk32k: usb_phy1_always_on_clk32k {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&usbphy_32khz_clkmux>;
+		ti,bit-shift = <8>;
+		reg = <0x2a48>;
+	};
+
+	usb_otg_ss0_refclk960m: usb_otg_ss0_refclk960m {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_clkdcoldo>;
+		ti,bit-shift = <8>;
+		reg = <0x8a60>;
+	};
+
+	usb_otg_ss1_refclk960m: usb_otg_ss1_refclk960m {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&dpll_per_clkdcoldo>;
+		ti,bit-shift = <8>;
+		reg = <0x8a68>;
 	};
 };
