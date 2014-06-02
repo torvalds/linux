@@ -957,10 +957,8 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 	 * Do tty device initialization.
 	 */
 	ret = dgap_tty_init(brd);
-	if (ret < 0) {
-		dgap_tty_uninit(brd);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = dgap_tty_register_ports(brd);
 	if (ret)
@@ -1330,6 +1328,7 @@ static int dgap_tty_init(struct board_t *brd)
 	struct channel_t *ch;
 	struct bs_t __iomem *bs;
 	struct cm_t __iomem *cm;
+	int ret;
 
 	if (!brd)
 		return -EIO;
@@ -1381,8 +1380,10 @@ static int dgap_tty_init(struct board_t *brd)
 	for (i = 0; i < brd->nasync; i++) {
 		brd->channels[i] =
 			kzalloc(sizeof(struct channel_t), GFP_KERNEL);
-		if (!brd->channels[i])
-			return -ENOMEM;
+		if (!brd->channels[i]) {
+			ret = -ENOMEM;
+			goto free_chan;
+		}
 	}
 
 	ch = brd->channels[0];
@@ -1478,6 +1479,13 @@ static int dgap_tty_init(struct board_t *brd)
 	}
 
 	return 0;
+
+free_chan:
+	while (--i >= 0) {
+		kfree(brd->channels[i]);
+		brd->channels[i] = NULL;
+	}
+	return ret;
 }
 
 /*
