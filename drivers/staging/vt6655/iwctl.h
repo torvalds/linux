@@ -211,6 +211,6 @@ int iwctl_siwmlme(struct net_device *dev,
 //End Add -- //2008-0409-07, <Add> by Einsn Liu
 
 extern const struct iw_handler_def	iwctl_handler_def;
-extern const struct iw_priv_args	iwctl_private_args;
+extern struct iw_priv_args       iwctl_private_args[];
 
 #endif // __IWCTL_H__
