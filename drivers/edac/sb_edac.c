@@ -233,7 +233,6 @@ static const u32 rir_way_limit[] = {
 
 #define IS_RIR_VALID(reg)	GET_BITFIELD(reg, 31, 31)
 #define RIR_WAY(reg)		GET_BITFIELD(reg, 28, 29)
-#define RIR_LIMIT(reg)		((GET_BITFIELD(reg,  1, 10) << 29)| 0x1fffffff)
 
 #define MAX_RIR_WAY	8
 
@@ -296,6 +295,7 @@ struct sbridge_info {
 	u32		rankcfgr;
 	u64		(*get_tolm)(struct sbridge_pvt *pvt);
 	u64		(*get_tohm)(struct sbridge_pvt *pvt);
+	u64		(*rir_limit)(u32 reg);
 	const u32	*dram_rule;
 	const u32	*interleave_list;
 	const struct interleave_pkg *interleave_pkg;
@@ -584,6 +584,11 @@ static u64 ibridge_get_tohm(struct sbridge_pvt *pvt)
 	pci_read_config_dword(pvt->pci_br1, TOHM, &reg);
 
 	return GET_TOHM(reg);
+}
+
+static u64 rir_limit(u32 reg)
+{
+	return ((u64)GET_BITFIELD(reg,  1, 10) << 29) | 0x1fffffff;
 }
 
 static enum mem_type get_memory_type(struct sbridge_pvt *pvt)
@@ -902,7 +907,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			if (!IS_RIR_VALID(reg))
 				continue;
 
-			tmp_mb = RIR_LIMIT(reg) >> 20;
+			tmp_mb = pvt->info.rir_limit(reg) >> 20;
 			rir_way = 1 << RIR_WAY(reg);
 			mb = div_u64_rem(tmp_mb, 1000, &kb);
 			edac_dbg(0, "CH#%d RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d, reg=0x%08x\n",
@@ -1196,7 +1201,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		if (!IS_RIR_VALID(reg))
 			continue;
 
-		limit = RIR_LIMIT(reg);
+		limit = pvt->info.rir_limit(reg);
 		mb = div_u64_rem(limit >> 20, 1000, &kb);
 		edac_dbg(0, "RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d\n",
 			 n_rir,
@@ -1993,6 +1998,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.dram_rule = ibridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.get_node_id = get_node_id;
+		pvt->info.rir_limit = rir_limit;
 		pvt->info.max_sad = ARRAY_SIZE(ibridge_dram_rule);
 		pvt->info.interleave_list = ibridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(ibridge_interleave_list);
@@ -2010,6 +2016,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev, enum type type)
 		pvt->info.dram_rule = sbridge_dram_rule;
 		pvt->info.get_memory_type = get_memory_type;
 		pvt->info.get_node_id = get_node_id;
+		pvt->info.rir_limit = rir_limit;
 		pvt->info.max_sad = ARRAY_SIZE(sbridge_dram_rule);
 		pvt->info.interleave_list = sbridge_interleave_list;
 		pvt->info.max_interleave = ARRAY_SIZE(sbridge_interleave_list);
