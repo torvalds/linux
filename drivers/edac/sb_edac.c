@@ -1810,10 +1810,6 @@ static int sbridge_mce_check_error(struct notifier_block *nb, unsigned long val,
 			  "%u APIC %x\n", mce->cpuvendor, mce->cpuid,
 			  mce->time, mce->socketid, mce->apicid);
 
-	/* Only handle if it is the right mc controller */
-	if (cpu_data(mce->cpu).phys_proc_id != pvt->sbridge_dev->mc)
-		return NOTIFY_DONE;
-
 	smp_rmb();
 	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
 		smp_wmb();
