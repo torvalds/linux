@@ -17,6 +17,13 @@ enum cpufreq_level_index {
 	L20,
 };
 
+enum exynos_soc_type {
+	EXYNOS_SOC_4210,
+	EXYNOS_SOC_4212,
+	EXYNOS_SOC_4412,
+	EXYNOS_SOC_5250,
+};
+
 #define APLL_FREQ(f, a0, a1, a2, a3, a4, a5, a6, a7, b0, b1, b2, m, p, s) \
 	{ \
 		.freq = (f) * 1000, \
@@ -34,6 +41,7 @@ struct apll_freq {
 };
 
 struct exynos_dvfs_info {
+	enum exynos_soc_type type;
 	unsigned long	mpll_freq_khz;
 	unsigned int	pll_safe_idx;
 	struct clk	*cpu_clk;

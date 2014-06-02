@@ -121,9 +121,14 @@ static struct platform_device *smdk2443_devices[] __initdata = {
 static void __init smdk2443_map_io(void)
 {
 	s3c24xx_init_io(smdk2443_iodesc, ARRAY_SIZE(smdk2443_iodesc));
-	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(smdk2443_uartcfgs, ARRAY_SIZE(smdk2443_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
+}
+
+static void __init smdk2443_init_time(void)
+{
+	s3c2443_init_clocks(12000000);
+	samsung_timer_init();
 }
 
 static void __init smdk2443_machine_init(void)
@@ -145,6 +150,6 @@ MACHINE_START(SMDK2443, "SMDK2443")
 	.init_irq	= s3c2443_init_irq,
 	.map_io		= smdk2443_map_io,
 	.init_machine	= smdk2443_machine_init,
-	.init_time	= samsung_timer_init,
+	.init_time	= smdk2443_init_time,
 	.restart	= s3c2443_restart,
 MACHINE_END

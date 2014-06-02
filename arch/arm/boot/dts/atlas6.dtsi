@@ -195,6 +195,7 @@
 				compatible = "sirf,prima2-tick";
 				reg = <0xb0020000 0x1000>;
 				interrupts = <0>;
+				clocks = <&clks 11>;
 			};
 
 			nand@b0030000 {

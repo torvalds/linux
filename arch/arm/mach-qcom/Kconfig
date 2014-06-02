@@ -3,8 +3,6 @@ config ARCH_QCOM
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
 	select CLKSRC_OF
-	select GENERIC_CLOCKEVENTS
-	select HAVE_SMP
 	select QCOM_SCM if SMP
 	help
 	  Support for Qualcomm's devicetree based systems.

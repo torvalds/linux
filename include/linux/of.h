@@ -130,6 +130,12 @@ static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 	return test_bit(flag, &n->_flags);
 }
 
+static inline int of_node_test_and_set_flag(struct device_node *n,
+					    unsigned long flag)
+{
+	return test_and_set_bit(flag, &n->_flags);
+}
+
 static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
 {
 	set_bit(flag, &n->_flags);
@@ -197,6 +203,7 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 /* flag descriptions */
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
+#define OF_POPULATED	3 /* device already created for the node */
 
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)

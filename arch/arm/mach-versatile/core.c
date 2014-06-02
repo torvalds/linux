@@ -310,6 +310,21 @@ static struct platform_device char_lcd_device = {
 	.resource       =       char_lcd_resources,
 };
 
+static struct resource leds_resources[] = {
+	{
+		.start	= VERSATILE_SYS_BASE + VERSATILE_SYS_LED_OFFSET,
+		.end	= VERSATILE_SYS_BASE + VERSATILE_SYS_LED_OFFSET + 4,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device leds_device = {
+	.name		= "versatile-leds",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(leds_resources),
+	.resource	= leds_resources,
+};
+
 /*
  * Clock handling
  */
@@ -795,6 +810,7 @@ void __init versatile_init(void)
 	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
 	platform_device_register(&char_lcd_device);
+	platform_device_register(&leds_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

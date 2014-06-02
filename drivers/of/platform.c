@@ -206,12 +206,13 @@ static struct platform_device *of_platform_device_create_pdata(
 {
 	struct platform_device *dev;
 
-	if (!of_device_is_available(np))
+	if (!of_device_is_available(np) ||
+	    of_node_test_and_set_flag(np, OF_POPULATED))
 		return NULL;
 
 	dev = of_device_alloc(np, bus_id, parent);
 	if (!dev)
-		return NULL;
+		goto err_clear_flag;
 
 #if defined(CONFIG_MICROBLAZE)
 	dev->archdata.dma_mask = 0xffffffffUL;
@@ -229,10 +230,14 @@ static struct platform_device *of_platform_device_create_pdata(
 
 	if (of_device_add(dev) != 0) {
 		platform_device_put(dev);
-		return NULL;
+		goto err_clear_flag;
 	}
 
 	return dev;
+
+err_clear_flag:
+	of_node_clear_flag(np, OF_POPULATED);
+	return NULL;
 }
 
 /**
@@ -264,14 +269,15 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 
 	pr_debug("Creating amba device %s\n", node->full_name);
 
-	if (!of_device_is_available(node))
+	if (!of_device_is_available(node) ||
+	    of_node_test_and_set_flag(node, OF_POPULATED))
 		return NULL;
 
 	dev = amba_device_alloc(NULL, 0, 0);
 	if (!dev) {
 		pr_err("%s(): amba_device_alloc() failed for %s\n",
 		       __func__, node->full_name);
-		return NULL;
+		goto err_clear_flag;
 	}
 
 	/* setup generic device info */
@@ -311,6 +317,8 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 
 err_free:
 	amba_device_put(dev);
+err_clear_flag:
+	of_node_clear_flag(node, OF_POPULATED);
 	return NULL;
 }
 #else /* CONFIG_ARM_AMBA */
@@ -487,4 +495,60 @@ int of_platform_populate(struct device_node *root,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(of_platform_populate);
+
+static int of_platform_device_destroy(struct device *dev, void *data)
+{
+	bool *children_left = data;
+
+	/* Do not touch devices not populated from the device tree */
+	if (!dev->of_node || !of_node_check_flag(dev->of_node, OF_POPULATED)) {
+		*children_left = true;
+		return 0;
+	}
+
+	/* Recurse, but don't touch this device if it has any children left */
+	if (of_platform_depopulate(dev) != 0) {
+		*children_left = true;
+		return 0;
+	}
+
+	if (dev->bus == &platform_bus_type)
+		platform_device_unregister(to_platform_device(dev));
+#ifdef CONFIG_ARM_AMBA
+	else if (dev->bus == &amba_bustype)
+		amba_device_unregister(to_amba_device(dev));
+#endif
+	else {
+		*children_left = true;
+		return 0;
+	}
+
+	of_node_clear_flag(dev->of_node, OF_POPULATED);
+
+	return 0;
+}
+
+/**
+ * of_platform_depopulate() - Remove devices populated from device tree
+ * @parent: device which childred will be removed
+ *
+ * Complementary to of_platform_populate(), this function removes children
+ * of the given device (and, recurrently, their children) that have been
+ * created from their respective device tree nodes (and only those,
+ * leaving others - eg. manually created - unharmed).
+ *
+ * Returns 0 when all children devices have been removed or
+ * -EBUSY when some children remained.
+ */
+int of_platform_depopulate(struct device *parent)
+{
+	bool children_left = false;
+
+	device_for_each_child(parent, &children_left,
+			      of_platform_device_destroy);
+
+	return children_left ? -EBUSY : 0;
+}
+EXPORT_SYMBOL_GPL(of_platform_depopulate);
+
 #endif /* CONFIG_OF_ADDRESS */

@@ -72,7 +72,7 @@
  *            | (../mach-omap2/omap_hwmod*)   |
  *            +-------------------------------+
  *            | OMAP clock/PRCM/register fns  |
- *            | (__raw_{read,write}l, clk*)   |
+ *            | ({read,write}l_relaxed, clk*) |
  *            +-------------------------------+
  *
  * Device drivers should not contain any OMAP-specific code or data in
@@ -3230,17 +3230,17 @@ static int _am33xx_is_hardreset_asserted(struct omap_hwmod *oh,
 u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs)
 {
 	if (oh->flags & HWMOD_16BIT_REG)
-		return __raw_readw(oh->_mpu_rt_va + reg_offs);
+		return readw_relaxed(oh->_mpu_rt_va + reg_offs);
 	else
-		return __raw_readl(oh->_mpu_rt_va + reg_offs);
+		return readl_relaxed(oh->_mpu_rt_va + reg_offs);
 }
 
 void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 {
 	if (oh->flags & HWMOD_16BIT_REG)
-		__raw_writew(v, oh->_mpu_rt_va + reg_offs);
+		writew_relaxed(v, oh->_mpu_rt_va + reg_offs);
 	else
-		__raw_writel(v, oh->_mpu_rt_va + reg_offs);
+		writel_relaxed(v, oh->_mpu_rt_va + reg_offs);
 }
 
 /**

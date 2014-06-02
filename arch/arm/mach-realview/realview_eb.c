@@ -452,6 +452,7 @@ static void __init realview_eb_init(void)
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&char_lcd_device);
+	platform_device_register(&realview_leds_device);
 	eth_device_register();
 	realview_usb_register(realview_eb_isp1761_resources);
 

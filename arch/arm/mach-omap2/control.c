@@ -151,32 +151,32 @@ void __iomem *omap_ctrl_base_get(void)
 
 u8 omap_ctrl_readb(u16 offset)
 {
-	return __raw_readb(OMAP_CTRL_REGADDR(offset));
+	return readb_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 u16 omap_ctrl_readw(u16 offset)
 {
-	return __raw_readw(OMAP_CTRL_REGADDR(offset));
+	return readw_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 u32 omap_ctrl_readl(u16 offset)
 {
-	return __raw_readl(OMAP_CTRL_REGADDR(offset));
+	return readl_relaxed(OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writeb(u8 val, u16 offset)
 {
-	__raw_writeb(val, OMAP_CTRL_REGADDR(offset));
+	writeb_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writew(u16 val, u16 offset)
 {
-	__raw_writew(val, OMAP_CTRL_REGADDR(offset));
+	writew_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 void omap_ctrl_writel(u32 val, u16 offset)
 {
-	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
+	writel_relaxed(val, OMAP_CTRL_REGADDR(offset));
 }
 
 /*
@@ -188,12 +188,12 @@ void omap_ctrl_writel(u32 val, u16 offset)
 
 u32 omap4_ctrl_pad_readl(u16 offset)
 {
-	return __raw_readl(OMAP4_CTRL_PAD_REGADDR(offset));
+	return readl_relaxed(OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
 void omap4_ctrl_pad_writel(u32 val, u16 offset)
 {
-	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
+	writel_relaxed(val, OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -222,7 +222,7 @@ void omap3_ctrl_write_boot_mode(u8 bootmode)
 	 *
 	 * XXX This should use some omap_ctrl_writel()-type function
 	 */
-	__raw_writel(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
+	writel_relaxed(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
 }
 
 #endif
@@ -285,7 +285,7 @@ void omap3_clear_scratchpad_contents(void)
 	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
 	    OMAP3430_GLOBAL_COLD_RST_MASK) {
 		for ( ; offset <= max_offset; offset += 0x4)
-			__raw_writel(0x0, (v_addr + offset));
+			writel_relaxed(0x0, (v_addr + offset));
 		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
 					   OMAP3430_GR_MOD,
 					   OMAP3_PRM_RSTST_OFFSET);

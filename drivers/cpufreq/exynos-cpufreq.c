@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 
 #include <plat/cpu.h>
 
@@ -163,14 +164,22 @@ static int exynos_cpufreq_probe(struct platform_device *pdev)
 	if (!exynos_info)
 		return -ENOMEM;
 
-	if (soc_is_exynos4210())
+	if (of_machine_is_compatible("samsung,exynos4210")) {
+		exynos_info->type = EXYNOS_SOC_4210;
 		ret = exynos4210_cpufreq_init(exynos_info);
-	else if (soc_is_exynos4212() || soc_is_exynos4412())
+	} else if (of_machine_is_compatible("samsung,exynos4212")) {
+		exynos_info->type = EXYNOS_SOC_4212;
 		ret = exynos4x12_cpufreq_init(exynos_info);
-	else if (soc_is_exynos5250())
+	} else if (of_machine_is_compatible("samsung,exynos4412")) {
+		exynos_info->type = EXYNOS_SOC_4412;
+		ret = exynos4x12_cpufreq_init(exynos_info);
+	} else if (of_machine_is_compatible("samsung,exynos5250")) {
+		exynos_info->type = EXYNOS_SOC_5250;
 		ret = exynos5250_cpufreq_init(exynos_info);
-	else
-		return 0;
+	} else {
+		pr_err("%s: Unknown SoC type\n", __func__);
+		return -ENODEV;
+	}
 
 	if (ret)
 		goto err_vdd_arm;

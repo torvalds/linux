@@ -515,6 +515,15 @@ config SRAM
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
 
+config VEXPRESS_SYSCFG
+	bool "Versatile Express System Configuration driver"
+	depends on VEXPRESS_CONFIG
+	default y
+	help
+	  ARM Ltd. Versatile Express uses specialised platform configuration
+	  bus. System Configuration interface is one of the possible means
+	  of generating transactions on this bus.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

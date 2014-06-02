@@ -128,6 +128,10 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
+static struct clk_lookup osc1_lookup = {
+	.dev_id		= "ct:clcd",
+};
+
 static struct platform_device osc1_device = {
 	.name		= "vexpress-osc",
 	.id		= 1,
@@ -135,6 +139,7 @@ static struct platform_device osc1_device = {
 	.resource	= (struct resource []) {
 		VEXPRESS_RES_FUNC(0xf, 1),
 	},
+	.dev.platform_data = &osc1_lookup,
 };
 
 static void __init ct_ca9x4_init(void)
@@ -155,10 +160,7 @@ static void __init ct_ca9x4_init(void)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
 
 	platform_device_register(&pmu_device);
-	platform_device_register(&osc1_device);
-
-	WARN_ON(clk_register_clkdev(vexpress_osc_setup(&osc1_device.dev),
-			NULL, "ct:clcd"));
+	vexpress_syscfg_device_register(&osc1_device);
 }
 
 #ifdef CONFIG_SMP
