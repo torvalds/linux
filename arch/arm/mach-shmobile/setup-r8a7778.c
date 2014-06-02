@@ -71,33 +71,20 @@ R8A7778_SCIF(5, 0xffe45000, gic_iid(0x6b));
 					  sizeof(scif##index##_platform_data))
 
 /* TMU */
-static struct resource sh_tmu0_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffd80008, 12),
+static struct sh_timer_config sh_tmu0_platform_data = {
+	.channels_mask = 7,
+};
+
+static struct resource sh_tmu0_resources[] = {
+	DEFINE_RES_MEM(0xffd80000, 0x30),
 	DEFINE_RES_IRQ(gic_iid(0x40)),
-};
-
-static struct sh_timer_config sh_tmu0_platform_data __initdata = {
-	.name			= "TMU00",
-	.channel_offset		= 0x4,
-	.timer_bit		= 0,
-	.clockevent_rating	= 200,
-};
-
-static struct resource sh_tmu1_resources[] __initdata = {
-	DEFINE_RES_MEM(0xffd80014, 12),
 	DEFINE_RES_IRQ(gic_iid(0x41)),
-};
-
-static struct sh_timer_config sh_tmu1_platform_data __initdata = {
-	.name			= "TMU01",
-	.channel_offset		= 0x10,
-	.timer_bit		= 1,
-	.clocksource_rating	= 200,
+	DEFINE_RES_IRQ(gic_iid(0x42)),
 };
 
 #define r8a7778_register_tmu(idx)			\
 	platform_device_register_resndata(		\
-		&platform_bus, "sh_tmu", idx,		\
+		&platform_bus, "sh-tmu", idx,		\
 		sh_tmu##idx##_resources,		\
 		ARRAY_SIZE(sh_tmu##idx##_resources),	\
 		&sh_tmu##idx##_platform_data,		\
@@ -312,7 +299,6 @@ void __init r8a7778_add_dt_devices(void)
 	r8a7778_register_scif(4);
 	r8a7778_register_scif(5);
 	r8a7778_register_tmu(0);
-	r8a7778_register_tmu(1);
 }
 
 /* HPB-DMA */
