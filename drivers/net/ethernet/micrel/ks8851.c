@@ -1441,30 +1441,32 @@ static int ks8851_probe(struct spi_device *spi)
 		}
 	}
 
-	ks->vdd_io = devm_regulator_get(&spi->dev, "vdd-io");
+	ks->vdd_io = devm_regulator_get_optional(&spi->dev, "vdd-io");
 	if (IS_ERR(ks->vdd_io)) {
 		ret = PTR_ERR(ks->vdd_io);
-		goto err_reg_io;
+		if (ret == -EPROBE_DEFER)
+			goto err_reg_io;
+	} else {
+		ret = regulator_enable(ks->vdd_io);
+		if (ret) {
+			dev_err(&spi->dev, "regulator vdd_io enable fail: %d\n",
+				ret);
+			goto err_reg_io;
+		}
 	}
 
-	ret = regulator_enable(ks->vdd_io);
-	if (ret) {
-		dev_err(&spi->dev, "regulator vdd_io enable fail: %d\n",
-			ret);
-		goto err_reg_io;
-	}
-
-	ks->vdd_reg = devm_regulator_get(&spi->dev, "vdd");
+	ks->vdd_reg = devm_regulator_get_optional(&spi->dev, "vdd");
 	if (IS_ERR(ks->vdd_reg)) {
 		ret = PTR_ERR(ks->vdd_reg);
-		goto err_reg;
-	}
-
-	ret = regulator_enable(ks->vdd_reg);
-	if (ret) {
-		dev_err(&spi->dev, "regulator vdd enable fail: %d\n",
-			ret);
-		goto err_reg;
+		if (ret == -EPROBE_DEFER)
+			goto err_reg;
+	} else {
+		ret = regulator_enable(ks->vdd_reg);
+		if (ret) {
+			dev_err(&spi->dev, "regulator vdd enable fail: %d\n",
+				ret);
+			goto err_reg;
+		}
 	}
 
 	if (gpio_is_valid(gpio)) {
@@ -1570,9 +1572,11 @@ err_irq:
 	if (gpio_is_valid(gpio))
 		gpio_set_value(gpio, 0);
 err_id:
-	regulator_disable(ks->vdd_reg);
+	if (!IS_ERR(ks->vdd_reg))
+		regulator_disable(ks->vdd_reg);
 err_reg:
-	regulator_disable(ks->vdd_io);
+	if (!IS_ERR(ks->vdd_io))
+		regulator_disable(ks->vdd_io);
 err_reg_io:
 err_gpio:
 	free_netdev(ndev);
@@ -1590,8 +1594,10 @@ static int ks8851_remove(struct spi_device *spi)
 	free_irq(spi->irq, priv);
 	if (gpio_is_valid(priv->gpio))
 		gpio_set_value(priv->gpio, 0);
-	regulator_disable(priv->vdd_reg);
-	regulator_disable(priv->vdd_io);
+	if (!IS_ERR(priv->vdd_reg))
+		regulator_disable(priv->vdd_reg);
+	if (!IS_ERR(priv->vdd_io))
+		regulator_disable(priv->vdd_io);
 	free_netdev(priv->netdev);
 
 	return 0;
