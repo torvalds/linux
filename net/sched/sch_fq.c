@@ -591,10 +591,7 @@ static void *fq_alloc_node(size_t sz, int node)
 
 static void fq_free(void *addr)
 {
-	if (addr && is_vmalloc_addr(addr))
-		vfree(addr);
-	else
-		kfree(addr);
+	kvfree(addr);
 }
 
 static int fq_resize(struct Qdisc *sch, u32 log)

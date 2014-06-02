@@ -494,12 +494,7 @@ static void *hhf_zalloc(size_t sz)
 
 static void hhf_free(void *addr)
 {
-	if (addr) {
-		if (is_vmalloc_addr(addr))
-			vfree(addr);
-		else
-			kfree(addr);
-	}
+	kvfree(addr);
 }
 
 static void hhf_destroy(struct Qdisc *sch)

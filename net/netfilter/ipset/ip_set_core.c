@@ -271,10 +271,7 @@ ip_set_free(void *members)
 {
 	pr_debug("%p: free with %s\n", members,
 		 is_vmalloc_addr(members) ? "vfree" : "kfree");
-	if (is_vmalloc_addr(members))
-		vfree(members);
-	else
-		kfree(members);
+	kvfree(members);
 }
 EXPORT_SYMBOL_GPL(ip_set_free);
 

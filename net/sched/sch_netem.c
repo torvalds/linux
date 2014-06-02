@@ -648,12 +648,7 @@ static void netem_reset(struct Qdisc *sch)
 
 static void dist_free(struct disttable *d)
 {
-	if (d) {
-		if (is_vmalloc_addr(d))
-			vfree(d);
-		else
-			kfree(d);
-	}
+	kvfree(d);
 }
 
 /*

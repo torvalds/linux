@@ -76,10 +76,7 @@ static bool nft_hash_lookup(const struct nft_set *set,
 
 static void nft_hash_tbl_free(const struct nft_hash_table *tbl)
 {
-	if (is_vmalloc_addr(tbl))
-		vfree(tbl);
-	else
-		kfree(tbl);
+	kvfree(tbl);
 }
 
 static unsigned int nft_hash_tbl_size(unsigned int nelem)
