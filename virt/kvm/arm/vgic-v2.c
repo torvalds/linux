@@ -229,6 +229,7 @@ int vgic_v2_probe(struct device_node *vgic_node,
 		goto out_unmap;
 	}
 
+	vgic->can_emulate_gicv2 = true;
 	kvm_register_device_ops(&kvm_arm_vgic_v2_ops, KVM_DEV_TYPE_ARM_VGIC_V2);
 
 	vgic->vcpu_base = vcpu_res.start;

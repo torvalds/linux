@@ -134,6 +134,8 @@ struct vgic_params {
 	/* Virtual control interface base address */
 	void __iomem	*vctrl_base;
 	int		max_gic_vcpus;
+	/* Only needed for the legacy KVM_CREATE_IRQCHIP */
+	bool		can_emulate_gicv2;
 };
 
 struct vgic_vm_ops {
