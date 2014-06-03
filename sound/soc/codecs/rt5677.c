@@ -3480,18 +3480,7 @@ static struct i2c_driver rt5677_i2c_driver = {
 	.remove   = rt5677_i2c_remove,
 	.id_table = rt5677_i2c_id,
 };
-
-static int __init rt5677_modinit(void)
-{
-	return i2c_add_driver(&rt5677_i2c_driver);
-}
-module_init(rt5677_modinit);
-
-static void __exit rt5677_modexit(void)
-{
-	i2c_del_driver(&rt5677_i2c_driver);
-}
-module_exit(rt5677_modexit);
+module_i2c_driver(rt5677_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC RT5677 driver");
 MODULE_AUTHOR("Oder Chiou <oder_chiou@realtek.com>");
