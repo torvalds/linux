@@ -39,6 +39,7 @@ source "drivers/net/ethernet/cisco/Kconfig"
 config CX_ECAT
 	tristate "Beckhoff CX5020 EtherCAT master support"
 	depends on PCI
+	depends on X86 || COMPILE_TEST
 	---help---
 	  Driver for EtherCAT master module located on CCAT FPGA
 	  that can be found on Beckhoff CX5020, and possibly other of CX

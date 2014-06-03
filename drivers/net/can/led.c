@@ -97,6 +97,9 @@ static int can_led_notifier(struct notifier_block *nb, unsigned long msg,
 	if (!priv)
 		return NOTIFY_DONE;
 
+	if (!priv->tx_led_trig || !priv->rx_led_trig)
+		return NOTIFY_DONE;
+
 	if (msg == NETDEV_CHANGENAME) {
 		snprintf(name, sizeof(name), "%s-tx", netdev->name);
 		led_trigger_rename_static(name, priv->tx_led_trig);
