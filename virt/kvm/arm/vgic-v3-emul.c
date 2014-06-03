@@ -841,6 +841,117 @@ void vgic_v3_init_emulation(struct kvm *kvm)
 	kvm->arch.max_vcpus = KVM_MAX_VCPUS;
 }
 
+/*
+ * Compare a given affinity (level 1-3 and a level 0 mask, from the SGI
+ * generation register ICC_SGI1R_EL1) with a given VCPU.
+ * If the VCPU's MPIDR matches, return the level0 affinity, otherwise
+ * return -1.
+ */
+static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
+{
+	unsigned long affinity;
+	int level0;
+
+	/*
+	 * Split the current VCPU's MPIDR into affinity level 0 and the
+	 * rest as this is what we have to compare against.
+	 */
+	affinity = kvm_vcpu_get_mpidr_aff(vcpu);
+	level0 = MPIDR_AFFINITY_LEVEL(affinity, 0);
+	affinity &= ~MPIDR_LEVEL_MASK;
+
+	/* bail out if the upper three levels don't match */
+	if (sgi_aff != affinity)
+		return -1;
+
+	/* Is this VCPU's bit set in the mask ? */
+	if (!(sgi_cpu_mask & BIT(level0)))
+		return -1;
+
+	return level0;
+}
+
+#define SGI_AFFINITY_LEVEL(reg, level) \
+	((((reg) & ICC_SGI1R_AFFINITY_## level ##_MASK) \
+	>> ICC_SGI1R_AFFINITY_## level ##_SHIFT) << MPIDR_LEVEL_SHIFT(level))
+
+/**
+ * vgic_v3_dispatch_sgi - handle SGI requests from VCPUs
+ * @vcpu: The VCPU requesting a SGI
+ * @reg: The value written into the ICC_SGI1R_EL1 register by that VCPU
+ *
+ * With GICv3 (and ARE=1) CPUs trigger SGIs by writing to a system register.
+ * This will trap in sys_regs.c and call this function.
+ * This ICC_SGI1R_EL1 register contains the upper three affinity levels of the
+ * target processors as well as a bitmask of 16 Aff0 CPUs.
+ * If the interrupt routing mode bit is not set, we iterate over all VCPUs to
+ * check for matching ones. If this bit is set, we signal all, but not the
+ * calling VCPU.
+ */
+void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu *c_vcpu;
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	u16 target_cpus;
+	u64 mpidr;
+	int sgi, c;
+	int vcpu_id = vcpu->vcpu_id;
+	bool broadcast;
+	int updated = 0;
+
+	sgi = (reg & ICC_SGI1R_SGI_ID_MASK) >> ICC_SGI1R_SGI_ID_SHIFT;
+	broadcast = reg & BIT(ICC_SGI1R_IRQ_ROUTING_MODE_BIT);
+	target_cpus = (reg & ICC_SGI1R_TARGET_LIST_MASK) >> ICC_SGI1R_TARGET_LIST_SHIFT;
+	mpidr = SGI_AFFINITY_LEVEL(reg, 3);
+	mpidr |= SGI_AFFINITY_LEVEL(reg, 2);
+	mpidr |= SGI_AFFINITY_LEVEL(reg, 1);
+
+	/*
+	 * We take the dist lock here, because we come from the sysregs
+	 * code path and not from the MMIO one (which already takes the lock).
+	 */
+	spin_lock(&dist->lock);
+
+	/*
+	 * We iterate over all VCPUs to find the MPIDRs matching the request.
+	 * If we have handled one CPU, we clear it's bit to detect early
+	 * if we are already finished. This avoids iterating through all
+	 * VCPUs when most of the times we just signal a single VCPU.
+	 */
+	kvm_for_each_vcpu(c, c_vcpu, kvm) {
+
+		/* Exit early if we have dealt with all requested CPUs */
+		if (!broadcast && target_cpus == 0)
+			break;
+
+		 /* Don't signal the calling VCPU */
+		if (broadcast && c == vcpu_id)
+			continue;
+
+		if (!broadcast) {
+			int level0;
+
+			level0 = match_mpidr(mpidr, target_cpus, c_vcpu);
+			if (level0 == -1)
+				continue;
+
+			/* remove this matching VCPU from the mask */
+			target_cpus &= ~BIT(level0);
+		}
+
+		/* Flag the SGI as pending */
+		vgic_dist_irq_set_pending(c_vcpu, sgi);
+		updated = 1;
+		kvm_debug("SGI%d from CPU%d to CPU%d\n", sgi, vcpu_id, c);
+	}
+	if (updated)
+		vgic_update_state(vcpu->kvm);
+	spin_unlock(&dist->lock);
+	if (updated)
+		vgic_kick_vcpus(vcpu->kvm);
+}
+
 static int vgic_v3_create(struct kvm_device *dev, u32 type)
 {
 	return kvm_vgic_create(dev->kvm, type);
