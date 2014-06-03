@@ -87,7 +87,7 @@ nvd0_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	const u32 shift = nvd0_sor_dp_lane_map(priv, ln);
 	const u32 loff = nvd0_sor_loff(outp);
-	u32 addr, data[3];
+	u32 addr, data[4];
 	u8  ver, hdr, cnt, len;
 	struct nvbios_dpout info;
 	struct nvbios_dpcfg ocfg;
@@ -98,7 +98,7 @@ nvd0_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 	if (!addr)
 		return -ENODEV;
 
-	addr = nvbios_dpcfg_match(bios, addr, 0, vs, pe,
+	addr = nvbios_dpcfg_match(bios, addr, pc, vs, pe,
 				 &ver, &hdr, &cnt, &len, &ocfg);
 	if (!addr)
 		return -EINVAL;
@@ -106,10 +106,11 @@ nvd0_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 	data[0] = nv_rd32(priv, 0x61c118 + loff) & ~(0x000000ff << shift);
 	data[1] = nv_rd32(priv, 0x61c120 + loff) & ~(0x000000ff << shift);
 	data[2] = nv_rd32(priv, 0x61c130 + loff) & ~(0x0000ff00);
-	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.drv << shift));
-	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pre << shift));
-	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.unk << 8));
-	nv_mask(priv, 0x61c13c + loff, 0x00000000, 0x00000000);
+	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
+	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
+	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.tx_pu << 8));
+	data[3] = nv_rd32(priv, 0x61c13c + loff) & ~(0x000000ff << shift);
+	nv_wr32(priv, 0x61c13c + loff, data[3] | (ocfg.pc << shift));
 	return 0;
 }
 
