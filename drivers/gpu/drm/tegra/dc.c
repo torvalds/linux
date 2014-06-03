@@ -18,6 +18,7 @@
 struct tegra_dc_soc_info {
 	bool supports_interlacing;
 	bool supports_cursor;
+	bool supports_block_linear;
 };
 
 struct tegra_plane {
@@ -212,15 +213,44 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
 	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
-	if (window->tiled) {
-		value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
-			DC_WIN_BUFFER_ADDR_MODE_TILE;
-	} else {
-		value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
-			DC_WIN_BUFFER_ADDR_MODE_LINEAR;
-	}
+	if (dc->soc->supports_block_linear) {
+		unsigned long height = window->tiling.value;
 
-	tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+		switch (window->tiling.mode) {
+		case TEGRA_BO_TILING_MODE_PITCH:
+			value = DC_WINBUF_SURFACE_KIND_PITCH;
+			break;
+
+		case TEGRA_BO_TILING_MODE_TILED:
+			value = DC_WINBUF_SURFACE_KIND_TILED;
+			break;
+
+		case TEGRA_BO_TILING_MODE_BLOCK:
+			value = DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(height) |
+				DC_WINBUF_SURFACE_KIND_BLOCK;
+			break;
+		}
+
+		tegra_dc_writel(dc, value, DC_WINBUF_SURFACE_KIND);
+	} else {
+		switch (window->tiling.mode) {
+		case TEGRA_BO_TILING_MODE_PITCH:
+			value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
+				DC_WIN_BUFFER_ADDR_MODE_LINEAR;
+			break;
+
+		case TEGRA_BO_TILING_MODE_TILED:
+			value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
+				DC_WIN_BUFFER_ADDR_MODE_TILE;
+			break;
+
+		case TEGRA_BO_TILING_MODE_BLOCK:
+			DRM_ERROR("hardware doesn't support block linear mode\n");
+			return -EINVAL;
+		}
+
+		tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+	}
 
 	value = WIN_ENABLE;
 
@@ -288,6 +318,7 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_dc_window window;
 	unsigned int i;
+	int err;
 
 	memset(&window, 0, sizeof(window));
 	window.src.x = src_x >> 16;
@@ -301,7 +332,10 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.format = tegra_dc_format(fb->pixel_format, &window.swap);
 	window.bits_per_pixel = fb->bits_per_pixel;
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
-	window.tiled = tegra_fb_is_tiled(fb);
+
+	err = tegra_fb_get_tiling(fb, &window.tiling);
+	if (err < 0)
+		return err;
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
 		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
@@ -402,8 +436,14 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 {
 	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned int h_offset = 0, v_offset = 0;
+	struct tegra_bo_tiling tiling;
 	unsigned int format, swap;
 	unsigned long value;
+	int err;
+
+	err = tegra_fb_get_tiling(fb, &tiling);
+	if (err < 0)
+		return err;
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
 
@@ -417,15 +457,44 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	tegra_dc_writel(dc, format, DC_WIN_COLOR_DEPTH);
 	tegra_dc_writel(dc, swap, DC_WIN_BYTE_SWAP);
 
-	if (tegra_fb_is_tiled(fb)) {
-		value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
-			DC_WIN_BUFFER_ADDR_MODE_TILE;
-	} else {
-		value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
-			DC_WIN_BUFFER_ADDR_MODE_LINEAR;
-	}
+	if (dc->soc->supports_block_linear) {
+		unsigned long height = tiling.value;
 
-	tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+		switch (tiling.mode) {
+		case TEGRA_BO_TILING_MODE_PITCH:
+			value = DC_WINBUF_SURFACE_KIND_PITCH;
+			break;
+
+		case TEGRA_BO_TILING_MODE_TILED:
+			value = DC_WINBUF_SURFACE_KIND_TILED;
+			break;
+
+		case TEGRA_BO_TILING_MODE_BLOCK:
+			value = DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(height) |
+				DC_WINBUF_SURFACE_KIND_BLOCK;
+			break;
+		}
+
+		tegra_dc_writel(dc, value, DC_WINBUF_SURFACE_KIND);
+	} else {
+		switch (tiling.mode) {
+		case TEGRA_BO_TILING_MODE_PITCH:
+			value = DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV |
+				DC_WIN_BUFFER_ADDR_MODE_LINEAR;
+			break;
+
+		case TEGRA_BO_TILING_MODE_TILED:
+			value = DC_WIN_BUFFER_ADDR_MODE_TILE_UV |
+				DC_WIN_BUFFER_ADDR_MODE_TILE;
+			break;
+
+		case TEGRA_BO_TILING_MODE_BLOCK:
+			DRM_ERROR("hardware doesn't support block linear mode\n");
+			return -EINVAL;
+		}
+
+		tegra_dc_writel(dc, value, DC_WIN_BUFFER_ADDR_MODE);
+	}
 
 	/* make sure bottom-up buffers are properly displayed */
 	if (tegra_fb_is_bottom_up(fb)) {
@@ -1277,16 +1346,19 @@ static const struct host1x_client_ops dc_client_ops = {
 static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
+	.supports_block_linear = false,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.supports_interlacing = false,
 	.supports_cursor = false,
+	.supports_block_linear = false,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.supports_interlacing = true,
 	.supports_cursor = true,
+	.supports_block_linear = true,
 };
 
 static const struct of_device_id tegra_dc_of_match[] = {

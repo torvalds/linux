@@ -46,14 +46,15 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 	return false;
 }
 
-bool tegra_fb_is_tiled(struct drm_framebuffer *framebuffer)
+int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
+			struct tegra_bo_tiling *tiling)
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 
-	if (fb->planes[0]->flags & TEGRA_BO_TILED)
-		return true;
+	/* TODO: handle YUV formats? */
+	*tiling = fb->planes[0]->tiling;
 
-	return false;
+	return 0;
 }
 
 static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)

@@ -126,7 +126,7 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 		goto err_mmap;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
-		bo->flags |= TEGRA_BO_TILED;
+		bo->tiling.mode = TEGRA_BO_TILING_MODE_TILED;
 
 	if (flags & DRM_TEGRA_GEM_CREATE_BOTTOM_UP)
 		bo->flags |= TEGRA_BO_BOTTOM_UP;
