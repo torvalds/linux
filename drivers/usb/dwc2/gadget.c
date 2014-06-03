@@ -1022,7 +1022,8 @@ static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
  *
  * Set stall for ep0 as response for setup request.
  */
-static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg) {
+static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg)
+{
 	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
 	u32 reg;
 	u32 ctrl;
@@ -1994,7 +1995,7 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		s3c_hsotg_complete_request(hsotg, ep, req,
 					   result);
 	}
-	if(hsotg->dedicated_fifos)
+	if (hsotg->dedicated_fifos)
 		if ((readl(hsotg->regs + DTXFSTS(ep->index)) & 0xffff) * 4 < 3072)
 			s3c_hsotg_txfifo_flush(hsotg, ep->index);
 }
