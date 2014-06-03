@@ -360,12 +360,30 @@ static int gsc_hpdi_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static int gsc_hpdi_check_chanlist(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_cmd *cmd)
+{
+	int i;
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if (chan != i) {
+			dev_dbg(dev->class_dev,
+				"chanlist must be ch 0 to 31 in order\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int i;
 
 	if (s->io_bits)
 		return -EINVAL;
@@ -392,6 +410,8 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 	if (!cmd->chanlist_len || !cmd->chanlist) {
 		cmd->chanlist_len = 32;
 		err |= -EINVAL;
@@ -411,17 +431,9 @@ static int gsc_hpdi_cmd_test(struct comedi_device *dev,
 	if (err)
 		return 4;
 
-	/* step 5: complain about special chanlist considerations */
-
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		if (CR_CHAN(cmd->chanlist[i]) != i) {
-			/*  XXX could support 8 or 16 channels */
-			dev_err(dev->class_dev,
-				"chanlist must be ch 0 to 31 in order");
-			err |= -EINVAL;
-			break;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= gsc_hpdi_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;

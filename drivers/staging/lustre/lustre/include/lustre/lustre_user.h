@@ -1106,7 +1106,8 @@ static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
-								hal_fsname)));
+								hal_fsname)
+							 + 1));
 }
 /* Return pointer to next hai */
 static inline struct hsm_action_item * hai_next(struct hsm_action_item *hai)
@@ -1121,7 +1122,7 @@ static inline int hal_size(struct hsm_action_list *hal)
 	int i, sz;
 	struct hsm_action_item *hai;
 
-	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname));
+	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname) + 1);
 	hai = hai_zero(hal);
 	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);

@@ -128,7 +128,7 @@ struct cfs_cpt_table *cfs_cpt_table_alloc(unsigned int ncpt);
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab);
 /**
- * return number of HW cores or hypter-threadings in a CPU partition \a cpt
+ * return number of HW cores or hyper-threadings in a CPU partition \a cpt
  */
 int cfs_cpt_weight(struct cfs_cpt_table *cptab, int cpt);
 /**
@@ -152,7 +152,7 @@ int cfs_cpt_of_cpu(struct cfs_cpt_table *cptab, int cpu);
  */
 int cfs_cpt_bind(struct cfs_cpt_table *cptab, int cpt);
 /**
- * add \a cpu to CPU partion @cpt of \a cptab, return 1 for success,
+ * add \a cpu to CPU partition @cpt of \a cptab, return 1 for success,
  * otherwise 0 is returned
  */
 int cfs_cpt_set_cpu(struct cfs_cpt_table *cptab, int cpt, int cpu);
@@ -201,6 +201,11 @@ void cfs_cpt_clear(struct cfs_cpt_table *cptab, int cpt);
  * nodes in this partition, it might return a different node id each time.
  */
 int cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt);
+
+/**
+ * return number of HTs in the same core of \a cpu
+ */
+int cfs_cpu_ht_nsiblings(int cpu);
 
 /**
  * iterate over all CPU partitions in \a cptab

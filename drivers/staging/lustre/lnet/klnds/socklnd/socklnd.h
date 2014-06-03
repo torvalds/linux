@@ -418,7 +418,7 @@ ksocknal_nid2peerlist (lnet_nid_t nid)
 {
 	unsigned int hash = ((unsigned int)nid) % ksocknal_data.ksnd_peer_hash_size;
 
-	return (&ksocknal_data.ksnd_peers [hash]);
+	return &ksocknal_data.ksnd_peers[hash];
 }
 
 static inline void
@@ -452,7 +452,7 @@ ksocknal_connsock_addref (ksock_conn_t *conn)
 	}
 	read_unlock(&ksocknal_data.ksnd_global_lock);
 
-	return (rc);
+	return rc;
 }
 
 static inline void

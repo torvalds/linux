@@ -320,9 +320,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	/* <5> set hw caps */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_RX_INCLUDES_FCS |
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
-	    IEEE80211_HW_BEACON_FILTER |
-#endif
 	    IEEE80211_HW_AMPDU_AGGREGATION |
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 	    IEEE80211_HW_CONNECTION_MONITOR |
@@ -335,8 +332,6 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 			IEEE80211_HW_PS_NULLFUNC_STACK |
 			/* IEEE80211_HW_SUPPORTS_DYNAMIC_PS | */
 			0;
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_AP) |
 	    BIT(NL80211_IFTYPE_STATION) |
@@ -344,23 +339,10 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    BIT(NL80211_IFTYPE_MESH_POINT) |
 	    BIT(NL80211_IFTYPE_P2P_CLIENT) |
 	    BIT(NL80211_IFTYPE_P2P_GO);
-#else
-/*<delete in kernel end>*/
-	hw->wiphy->interface_modes =
-	    BIT(NL80211_IFTYPE_AP) |
-	    BIT(NL80211_IFTYPE_STATION) |
-	    BIT(NL80211_IFTYPE_ADHOC) |
-	    BIT(NL80211_IFTYPE_MESH_POINT) ;
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39))
-	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
-#endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0))
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-#endif
 
 	hw->wiphy->rts_threshold = 2347;
 
@@ -401,15 +383,8 @@ static int _rtl_init_deferred_work(struct ieee80211_hw *hw)
 		    rtl_easy_concurrent_retrytimer_callback, (unsigned long)hw);
 	/* <2> work queue */
 	rtlpriv->works.hw = hw;
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-/*<delete in kernel end>*/
-	rtlpriv->works.rtl_wq = alloc_workqueue(rtlpriv->cfg->name, 0, 0);
-/*<delete in kernel start>*/
-#else
-	rtlpriv->works.rtl_wq = create_workqueue(rtlpriv->cfg->name);
-#endif
-/*<delete in kernel end>*/
+	rtlpriv->works.rtl_wq = alloc_workqueue("%s", 0, 0,
+						rtlpriv->cfg->name);
 	if (!rtlpriv->works.rtl_wq)
 		return -ENOMEM;
 
@@ -900,13 +875,8 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 								    hdr->addr3,
 								    tid);
 					if (skb_delba) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 						rx_status.freq = hw->conf.chandef.chan->center_freq;
 						rx_status.band = hw->conf.chandef.chan->band;
-#else
-						rx_status.freq = hw->conf.channel->center_freq;
-						rx_status.band = hw->conf.channel->band;
-#endif
 						rx_status.flag |= RX_FLAG_DECRYPTED;
 						rx_status.flag |= RX_FLAG_MACTIME_MPDU;
 						rx_status.rate_idx = 0;
@@ -1481,21 +1451,8 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0); */
 
 		info->control.rates[0].idx = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 		info->band = hw->conf.chandef.chan->band;
-#else
-		info->band = hw->conf.channel->band;
-#endif
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 7, 0))
-		info->control.sta = sta;
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
-#else
-/*<delete in kernel end>*/
 		rtlpriv->intf_ops->adapter_tx(hw, sta, skb, &tcb_desc);
-/*<delete in kernel start>*/
-#endif
-/*<delete in kernel end>*/
 	}
 	return 1;
 

@@ -160,8 +160,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
-			} //for
+			}
 			pBSSList->wPKCount = (unsigned short)j;
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wPKCount: %d\n", pBSSList->wPKCount);
 		}
@@ -187,7 +186,7 @@ WPA_ParseRSN(
 						;
 				} else
 					break;
-				//DBG_PRN_GRP14(("abyAuthType[%d]: %X\n", j-1, pBSSList->abyAuthType[j-1]));
+
 			}
 			if (j > 0)
 				pBSSList->wAuthCount = (unsigned short)j;
@@ -206,9 +205,6 @@ WPA_ParseRSN(
 				pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
 				pBSSList->sRSNCapObj.bRSNCapExist = true;
 				pBSSList->sRSNCapObj.wRSNCap = *(unsigned short *)pbyCaps;
-				//DBG_PRN_GRP14(("pbyCaps: %X\n", *pbyCaps));
-				//DBG_PRN_GRP14(("byDefaultK_as_PK: %X\n", pBSSList->byDefaultK_as_PK));
-				//DBG_PRN_GRP14(("byReplayIdx: %X\n", pBSSList->byReplayIdx));
 			}
 		}
 		pBSSList->bWPAValid = true;

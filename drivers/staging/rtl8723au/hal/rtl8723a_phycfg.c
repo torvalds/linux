@@ -18,6 +18,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*---------------------------Define Local Constant---------------------------*/
 /* Channel switch:The size of command tables for switch channel*/
@@ -87,7 +88,7 @@ PHY_QueryBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
 	u32	ReturnValue = 0, OriginalValue, BitShift;
 
-	OriginalValue = rtw_read32(Adapter, RegAddr);
+	OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 	return ReturnValue;
@@ -123,12 +124,12 @@ PHY_SetBBReg(struct rtw_adapter *Adapter, u32 RegAddr, u32 BitMask, u32	Data)
 	/* RT_TRACE(COMP_RF, DBG_TRACE, ("--->PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
 
 	if (BitMask != bMaskDWord) {/* if not "double word" write */
-		OriginalValue = rtw_read32(Adapter, RegAddr);
+		OriginalValue = rtl8723au_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}
 
-	rtw_write32(Adapter, RegAddr, Data);
+	rtl8723au_write32(Adapter, RegAddr, Data);
 
 	/* RTPRINT(FPHY, PHY_BBW, ("BBW MASK = 0x%lx Addr[0x%lx]= 0x%lx\n", BitMask, RegAddr, Data)); */
 	/* RT_TRACE(COMP_RF, DBG_TRACE, ("<---PHY_SetBBReg(): RegAddr(%#lx), BitMask(%#lx), Data(%#lx)\n", RegAddr, BitMask, Data)); */
@@ -212,10 +213,12 @@ phy_RFSerialRead(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
 
 	if (eRFPath == RF_PATH_A)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter,
-						rFPGA0_XA_HSSIParameter1, BIT8);
+						rFPGA0_XA_HSSIParameter1,
+						BIT(8));
 	else if (eRFPath == RF_PATH_B)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter,
-						rFPGA0_XB_HSSIParameter1, BIT8);
+						rFPGA0_XB_HSSIParameter1,
+						BIT(8));
 
 	if (RfPiEnable)	{
 		/* Read from BBreg8b8, 12 bits for 8190, 20bits for T65 RF */
@@ -413,28 +416,23 @@ PHY_SetRFReg(struct rtw_adapter *Adapter, enum RF_RADIO_PATH eRFPath,
  *  08/12/2008	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-s32 PHY_MACConfig8723A(struct rtw_adapter *Adapter)
+int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 {
 	int rtStatus = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	s8 *pszMACRegFile;
-	s8 sz8723MACRegFile[] = RTL8723_PHY_MACREG;
 	bool is92C = IS_92C_SERIAL(pHalData->VersionID);
-
-	pszMACRegFile = sz8723MACRegFile;
 
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (HAL_STATUS_FAILURE ==
-	    ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv))
+	if (ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv) == _FAIL)
 		rtStatus = _FAIL;
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
 	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */
-	rtw_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A); /* By tynli. 2010.11.18. */
+	rtl8723au_write8(Adapter, REG_MAX_AGGR_NUM, 0x0A);
 	if (is92C && (BOARD_USB_DONGLE == pHalData->BoardType))
-		rtw_write8(Adapter, 0x40, 0x04);
+		rtl8723au_write8(Adapter, 0x40, 0x04);
 
 	return rtStatus;
 }
@@ -751,27 +749,12 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	int rtStatus = _SUCCESS;
 
-	u8 sz8723BBRegFile[] = RTL8723_PHY_REG;
-	u8 sz8723AGCTableFile[] = RTL8723_AGC_TAB;
-	u8 sz8723BBRegPgFile[] = RTL8723_PHY_REG_PG;
-	u8 sz8723BBRegMpFile[] = RTL8723_PHY_REG_MP;
-
-	u8 *pszBBRegFile = NULL, *pszAGCTableFile = NULL;
-	u8 *pszBBRegPgFile = NULL, *pszBBRegMpFile = NULL;
-
-	/* RT_TRACE(COMP_INIT, DBG_TRACE, ("==>phy_BB8192S_Config_ParaFile\n")); */
-
-	pszBBRegFile = sz8723BBRegFile ;
-	pszAGCTableFile = sz8723AGCTableFile;
-	pszBBRegPgFile = sz8723BBRegPgFile;
-	pszBBRegMpFile = sz8723BBRegMpFile;
-
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will seperate as 88C / 92C according to chip version */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-							     CONFIG_BB_PHY_REG))
+	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
+					  CONFIG_BB_PHY_REG) == _FAIL)
 		rtStatus = _FAIL;
 	if (rtStatus != _SUCCESS)
 		goto phy_BB8190_Config_ParaFile_Fail;
@@ -801,8 +784,8 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  */
 	/*  3. BB AGC table Initialization */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-							     CONFIG_BB_AGC_TAB))
+	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
+					  CONFIG_BB_AGC_TAB) == _FAIL)
 		rtStatus = _FAIL;
 
 phy_BB8190_Config_ParaFile_Fail:
@@ -822,30 +805,30 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 
 	/*  Suggested by Scott. tynli_test. 2010.12.30. */
 	/* 1. 0x28[1] = 1 */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_PLL_CTRL);
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_PLL_CTRL);
 	udelay(2);
-	rtw_write8(Adapter, REG_AFE_PLL_CTRL, (TmpU1B|BIT1));
+	rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL, TmpU1B | BIT(1));
 	udelay(2);
 
 	/* 2. 0x29[7:0] = 0xFF */
-	rtw_write8(Adapter, REG_AFE_PLL_CTRL+1, 0xff);
+	rtl8723au_write8(Adapter, REG_AFE_PLL_CTRL+1, 0xff);
 	udelay(2);
 
 	/* 3. 0x02[1:0] = 2b'11 */
-	TmpU1B = rtw_read8(Adapter, REG_SYS_FUNC_EN);
-	rtw_write8(Adapter, REG_SYS_FUNC_EN,
-		   (TmpU1B | FEN_BB_GLB_RSTn | FEN_BBRSTB));
+	TmpU1B = rtl8723au_read8(Adapter, REG_SYS_FUNC_EN);
+	rtl8723au_write8(Adapter, REG_SYS_FUNC_EN,
+			 (TmpU1B | FEN_BB_GLB_RSTn | FEN_BBRSTB));
 
 	/* 4. 0x25[6] = 0 */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+1, (TmpU1B & (~BIT6)));
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL + 1);
+	rtl8723au_write8(Adapter, REG_AFE_XTAL_CTRL+1, TmpU1B & ~BIT(6));
 
 	/* 5. 0x24[20] = 0	Advised by SD3 Alex Wang. 2011.02.09. */
-	TmpU1B = rtw_read8(Adapter, REG_AFE_XTAL_CTRL+2);
-	rtw_write8(Adapter, REG_AFE_XTAL_CTRL+2, (TmpU1B & (~BIT4)));
+	TmpU1B = rtl8723au_read8(Adapter, REG_AFE_XTAL_CTRL+2);
+	rtl8723au_write8(Adapter, REG_AFE_XTAL_CTRL+2, TmpU1B & ~BIT(4));
 
 	/* 6. 0x1f[7:0] = 0x07 */
-	rtw_write8(Adapter, REG_RF_CTRL, 0x07);
+	rtl8723au_write8(Adapter, REG_RF_CTRL, 0x07);
 
 	/*  */
 	/*  Config BB and AGC */
@@ -974,20 +957,20 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	/* 3<1>Set MAC register */
 	/* 3 */
 
-	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
-	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR+2);
+	regBwOpMode = rtl8723au_read8(Adapter, REG_BWOPMODE);
+	regRRSR_RSC = rtl8723au_read8(Adapter, REG_RRSR+2);
 
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		rtl8723au_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		break;
 	case HT_CHANNEL_WIDTH_40:
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		rtl8723au_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		regRRSR_RSC = (regRRSR_RSC & 0x90) |
 			(pHalData->nCur40MhzPrimeSC << 5);
-		rtw_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
+		rtl8723au_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
 		break;
 
 	default:
@@ -1002,7 +985,7 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 	case HT_CHANNEL_WIDTH_20:
 		PHY_SetBBReg(Adapter, rFPGA0_RFMOD, bRFMOD, 0x0);
 		PHY_SetBBReg(Adapter, rFPGA1_RFMOD, bRFMOD, 0x0);
-		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT10, 1);
+		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT(10), 1);
 
 		break;
 
@@ -1017,9 +1000,9 @@ _PHY_SetBWMode23a92C(struct rtw_adapter *Adapter)
 			     (pHalData->nCur40MhzPrimeSC >> 1));
 		PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0xC00,
 			     pHalData->nCur40MhzPrimeSC);
-		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT10, 0);
+		PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter2, BIT(10), 0);
 
-		PHY_SetBBReg(Adapter, 0x818, (BIT26 | BIT27),
+		PHY_SetBBReg(Adapter, 0x818, BIT(26) | BIT(27),
 			     (pHalData->nCur40MhzPrimeSC ==
 			      HAL_PRIME_CHNL_OFFSET_LOWER) ? 2:1);
 		break;
@@ -1116,7 +1099,7 @@ static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 
 	if (Adapter->bNotifyChannelChange)
-		DBG_8723A("[%s] ch = %d\n", __FUNCTION__, channel);
+		DBG_8723A("[%s] ch = %d\n", __func__, channel);
 
 	/* s1. pre common command - CmdID_SetTxPowerLevel */
 	PHY_SetTxPowerLevel8723A(Adapter, channel);

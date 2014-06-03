@@ -11,7 +11,8 @@ config AK8975
 	depends on GPIOLIB
 	help
 	  Say yes here to build support for Asahi Kasei AK8975 3-Axis
-	  Magnetometer.
+	  Magnetometer. This driver can also support AK8963, if i2c
+	  device name is identified as ak8963.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ak8975.

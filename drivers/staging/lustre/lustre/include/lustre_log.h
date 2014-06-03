@@ -206,11 +206,7 @@ int llog_setup(const struct lu_env *env, struct obd_device *obd,
 int __llog_ctxt_put(const struct lu_env *env, struct llog_ctxt *ctxt);
 int llog_cleanup(const struct lu_env *env, struct llog_ctxt *);
 int llog_sync(struct llog_ctxt *ctxt, struct obd_export *exp, int flags);
-int llog_obd_add(const struct lu_env *env, struct llog_ctxt *ctxt,
-		 struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-		 struct llog_cookie *logcookies, int numcookies);
 int llog_cancel(const struct lu_env *env, struct llog_ctxt *ctxt,
-		struct lov_stripe_md *lsm, int count,
 		struct llog_cookie *cookies, int flags);
 
 int obd_llog_init(struct obd_device *obd, struct obd_llog_group *olg,
@@ -242,7 +238,6 @@ struct llog_operations {
 			int flags);
 	int (*lop_cleanup)(const struct lu_env *env, struct llog_ctxt *ctxt);
 	int (*lop_cancel)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			  struct lov_stripe_md *lsm, int count,
 			  struct llog_cookie *cookies, int flags);
 	int (*lop_connect)(struct llog_ctxt *ctxt, struct llog_logid *logid,
 			   struct llog_gen *gen, struct obd_uuid *uuid);
@@ -296,11 +291,6 @@ struct llog_operations {
 	int (*lop_add)(const struct lu_env *env, struct llog_handle *lgh,
 		       struct llog_rec_hdr *rec, struct llog_cookie *cookie,
 		       void *buf, struct thandle *th);
-	/* Old llog_add version, used in MDS-LOV-OSC now and will gone with
-	 * LOD/OSP replacement */
-	int (*lop_obd_add)(const struct lu_env *env, struct llog_ctxt *ctxt,
-			   struct llog_rec_hdr *rec, struct lov_stripe_md *lsm,
-			   struct llog_cookie *logcookies, int numcookies);
 };
 
 /* In-memory descriptor for a log object or log catalog */

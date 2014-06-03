@@ -44,7 +44,6 @@
 #include <lustre/lustre_user.h>
 #include <obd_cksum.h>
 #include <obd_ost.h>
-#include <obd_lov.h>
 
 #include <lustre_ha.h>
 #include <lprocfs_status.h>

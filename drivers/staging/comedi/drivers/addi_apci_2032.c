@@ -197,6 +197,7 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	struct apci2032_int_private *subpriv;
 	unsigned int val;
 	bool do_event = false;
@@ -222,21 +223,20 @@ static irqreturn_t apci2032_interrupt(int irq, void *d)
 	 */
 
 	if (subpriv->active && (val & subpriv->enabled_isns) != 0) {
-		unsigned short bits;
-		unsigned int n, len;
-		unsigned int *chanlist;
+		unsigned short bits = 0;
+		int i;
 
 		/* Bits in scan data correspond to indices in channel list. */
-		bits = 0;
-		len = s->async->cmd.chanlist_len;
-		chanlist = &s->async->cmd.chanlist[0];
-		for (n = 0; n < len; n++)
-			if ((val & (1U << CR_CHAN(chanlist[n]))) != 0)
-				bits |= 1U << n;
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		if (comedi_buf_put(s->async, bits)) {
+			if (val & (1 << chan))
+				bits |= (1 << i);
+		}
+
+		if (comedi_buf_put(s, bits)) {
 			s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-			if (s->async->cmd.stop_src == TRIG_COUNT &&
+			if (cmd->stop_src == TRIG_COUNT &&
 			    subpriv->stop_count > 0) {
 				subpriv->stop_count--;
 				if (subpriv->stop_count == 0) {
@@ -374,5 +374,5 @@ static struct pci_driver apci2032_pci_driver = {
 module_comedi_pci_driver(apci2032_driver, apci2032_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("ADDI-DATA APCI-2032, 32 channel DO boards");
 MODULE_LICENSE("GPL");

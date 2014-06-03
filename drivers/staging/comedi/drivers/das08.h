@@ -40,7 +40,9 @@ struct das08_board_struct {
 };
 
 struct das08_private_struct {
-	unsigned int do_mux_bits;	/*  bits for do/mux register on boards without separate do register */
+	unsigned int do_mux_bits;	/*  bits for do/mux register on boards
+					 *  without separate do register
+					 */
 	const unsigned int *pg_gainlist;
 	unsigned int ao_readback[2];	/* assume 2 AO channels */
 };

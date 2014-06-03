@@ -260,7 +260,7 @@ err:
 }
 
 
-void usbip_vhci_driver_close()
+void usbip_vhci_driver_close(void)
 {
 	if (!vhci_driver)
 		return;

@@ -443,7 +443,7 @@ static ssize_t ad7280_show_balance_timer(struct device *dev,
 
 	msecs = (ret >> 3) * 71500;
 
-	return sprintf(buf, "%d\n", msecs);
+	return sprintf(buf, "%u\n", msecs);
 }
 
 static ssize_t ad7280_store_balance_timer(struct device *dev,
@@ -619,7 +619,7 @@ static ssize_t ad7280_read_channel_config(struct device *dev,
 		return -EINVAL;
 	}
 
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%u\n", val);
 }
 
 static ssize_t ad7280_write_channel_config(struct device *dev,

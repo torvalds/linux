@@ -635,6 +635,7 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	{
 		int ret = 0;
+
 		ret = usb_hcd_check_unlink_urb(hcd, urb, status);
 		if (ret) {
 			spin_unlock(&the_controller->lock);
@@ -885,6 +886,7 @@ static int vhci_start(struct usb_hcd *hcd)
 
 	for (rhport = 0; rhport < VHCI_NPORTS; rhport++) {
 		struct vhci_device *vdev = &vhci->vdev[rhport];
+
 		vhci_device_init(vdev);
 		vdev->rhport = rhport;
 	}

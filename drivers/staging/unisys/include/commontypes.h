@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,14 @@
 #define _COMMONTYPES_H_
 
 /* define the following to prevent include nesting in kernel header files of
- * similar abreviated content */
+ * similar abbreviated content */
 #define _SUPERVISOR_COMMONTYPES_H_
 
 #ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/version.h>
 #include <linux/io.h>
+#include <linux/uuid.h>
 #else
 #include <stdint.h>
 #include <syslog.h>
@@ -59,16 +60,6 @@
 
 #endif
 
-typedef struct {
-	U32 data1;
-	U16 data2;
-	U16 data3;
-	U8 data4[8];
-} __attribute__ ((__packed__)) GUID;
-
-#ifndef GUID0
-#define GUID0 {0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0} }
-#endif
 typedef U64 GUEST_PHYSICAL_ADDRESS;
 
 #define MEMSET(ptr, val, len) memset(ptr, val, len)
@@ -89,18 +80,16 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
 	do {								\
-		char s1[50], s2[50], s3[50];				\
-		pr_err("Channel mismatch on channel=%s(%s) field=%s expected=%s actual=%s @%s:%d\n", \
-		       chName, GUID_format2(&chType, s1), field,	\
-		       GUID_format2(&expected, s2), GUID_format2(&actual, s3), \
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=%pUL actual=%pUL @%s:%d\n", \
+		       chName, &chType, field,	\
+		       &expected, &actual, \
 		       fil, lin);					\
 	} while (0)
 #define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
-		char s1[50];						\
-		pr_err("Channel mismatch on channel=%s(%s) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d\n", \
-		       chName, GUID_format2(&chType, s1), field,	\
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d\n", \
+		       chName, &chType, field,	\
 		       (unsigned long)expected, (unsigned long)actual,	\
 		       fil, lin);					\
 	} while (0)
@@ -108,9 +97,8 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #define CHANNEL_U64_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
-		char s1[50];						\
-		pr_err("Channel mismatch on channel=%s(%s) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d\n", \
-		       chName, GUID_format2(&chType, s1), field,	\
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d\n", \
+		       chName, &chType, field,	\
 		       (unsigned long long)expected,			\
 		       (unsigned long long)actual,			\
 		       fil, lin);					\
@@ -128,21 +116,19 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
 			      lin, logCtx)				\
 	do {								\
-		char s1[50], s2[50], s3[50];				\
 		syslog(LOG_USER | LOG_ERR,				\
-		       "Channel mismatch on channel=%s(%s) field=%s expected=%s actual=%s @%s:%d", \
-		       chName, GUID_format2(&chType, s1), field,	\
-		       GUID_format2(&expected, s2), GUID_format2(&actual, s3), \
+		       "Channel mismatch on channel=%s(%pUL) field=%s expected=%pUL actual=%pUL @%s:%d", \
+		       chName, &chType, field,	\
+		       &expected, &actual, \
 		       fil, lin);					\
 	} while (0)
 
 #define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
-		char s1[50];						\
 		syslog(LOG_USER | LOG_ERR,				\
-		       "Channel mismatch on channel=%s(%s) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d", \
-		       chName, GUID_format2(&chType, s1), field,	\
+		       "Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d", \
+		       chName, chType, field,	\
 		       (unsigned long)expected, (unsigned long)actual,	\
 		       fil, lin);					\
 	} while (0)
@@ -150,10 +136,9 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #define CHANNEL_U64_MISMATCH(chType, chName, field, expected, actual, fil, \
 			     lin, logCtx)				\
 	do {								\
-		char s1[50];						\
 		syslog(LOG_USER | LOG_ERR,				\
-		       "Channel mismatch on channel=%s(%s) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d", \
-		       chName, GUID_format2(&chType, s1), field,	\
+		       "Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d", \
+		       chName, chType, field,	\
 		       (unsigned long long)expected,			\
 		       (unsigned long long)actual,			\
 		       fil, lin);					\
@@ -167,4 +152,4 @@ typedef U64 GUEST_PHYSICAL_ADDRESS;
 #define VolatileBarrier() MEMORYBARRIER
 
 #endif
-#include "guidutils.h"
+

@@ -28,13 +28,6 @@
 #include <osdep_intf.h>
 #include <usb_ops.h>
 
-/* init os related resource in struct recv_priv */
-int rtw_os_recv_resource_init(struct recv_priv *precvpriv,
-			      struct adapter *padapter)
-{
-	return _SUCCESS;
-}
-
 /* alloc os related resource in struct recv_frame */
 int rtw_os_recv_resource_alloc(struct adapter *padapter,
 			       struct recv_frame *precvframe)
@@ -44,40 +37,18 @@ int rtw_os_recv_resource_alloc(struct adapter *padapter,
 	return _SUCCESS;
 }
 
-/* free os related resource in struct recv_frame */
-void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
-{
-}
-
 /* alloc os related resource in struct recv_buf */
 int rtw_os_recvbuf_resource_alloc(struct adapter *padapter,
 				  struct recv_buf *precvbuf)
 {
 	int res = _SUCCESS;
 
-	precvbuf->irp_pending = false;
 	precvbuf->purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (precvbuf->purb == NULL)
 		res = _FAIL;
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	precvbuf->pallocated_buf = NULL;
-	precvbuf->pbuf = NULL;
-	precvbuf->pdata = NULL;
-	precvbuf->phead = NULL;
-	precvbuf->ptail = NULL;
-	precvbuf->pend = NULL;
-	precvbuf->transfer_len = 0;
-	precvbuf->len = 0;
 	return res;
-}
-
-/* free os related resource in struct recv_buf */
-int rtw_os_recvbuf_resource_free(struct adapter *padapter,
-				 struct recv_buf *precvbuf)
-{
-	usb_free_urb(precvbuf->purb);
-	return _SUCCESS;
 }
 
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
@@ -114,11 +85,6 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	wrqu.data.length = sizeof(ev);
 	wireless_send_event(padapter->pnetdev, IWEVMICHAELMICFAILURE,
 			    &wrqu, (char *)&ev);
-}
-
-void rtw_hostapd_mlme_rx(struct adapter *padapter,
-			 struct recv_frame *precv_frame)
-{
 }
 
 int rtw_recv_indicatepkt(struct adapter *padapter,
@@ -229,14 +195,12 @@ void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
 {
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
-	precvbuf->ref_cnt--;
 	/* free skb in recv_buf */
 	dev_kfree_skb_any(precvbuf->pskb);
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	if (!precvbuf->irp_pending)
-		rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
-			      (unsigned char *)precvbuf);
+	rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
+			(unsigned char *)precvbuf);
 }
 
 static void _rtw_reordering_ctrl_timeout_handler(void *func_context)

@@ -42,9 +42,6 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-// PSDevice pDevice
-// PSDevice hDeviceContext
-
 bool
 PSbConsiderPowerDown(
 	void *hDeviceContext,

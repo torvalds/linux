@@ -87,7 +87,8 @@ kportal_memhog_free (struct libcfs_device_userstate *ldu)
 }
 
 int
-kportal_memhog_alloc (struct libcfs_device_userstate *ldu, int npages, int flags)
+kportal_memhog_alloc(struct libcfs_device_userstate *ldu, int npages,
+		     gfp_t flags)
 {
 	struct page **level0p;
 	struct page **level1p;

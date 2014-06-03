@@ -46,21 +46,23 @@ u8 RSN_CIPHER_SUITE_WEP10423A[] = { 0x00, 0x0f, 0xac, 5 };
 /*  for adhoc-master to generate ie and provide supported-rate to fw */
 /*  */
 
-static u8	WIFI_CCKRATES[] =
-{(IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK),
- (IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK)};
+static u8 WIFI_CCKRATES[] = {
+	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
+	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
+};
 
-static u8	WIFI_OFDMRATES[] =
-{(IEEE80211_OFDM_RATE_6MB),
- (IEEE80211_OFDM_RATE_9MB),
- (IEEE80211_OFDM_RATE_12MB),
- (IEEE80211_OFDM_RATE_18MB),
- (IEEE80211_OFDM_RATE_24MB),
- IEEE80211_OFDM_RATE_36MB,
- IEEE80211_OFDM_RATE_48MB,
- IEEE80211_OFDM_RATE_54MB};
+static u8 WIFI_OFDMRATES[] = {
+	IEEE80211_OFDM_RATE_6MB,
+	IEEE80211_OFDM_RATE_9MB,
+	IEEE80211_OFDM_RATE_12MB,
+	IEEE80211_OFDM_RATE_18MB,
+	IEEE80211_OFDM_RATE_24MB,
+	IEEE80211_OFDM_RATE_36MB,
+	IEEE80211_OFDM_RATE_48MB,
+	IEEE80211_OFDM_RATE_54MB
+};
 
 int rtw_get_bit_value_from_ieee_value23a(u8 val)
 {
@@ -76,13 +78,13 @@ int rtw_get_bit_value_from_ieee_value23a(u8 val)
 	return 0;
 }
 
-uint rtw_is_cckrates_included23a(u8 *rate)
+static bool rtw_is_cckrates_included(u8 *rate)
 {
 	u32 i = 0;
 
-	while (rate[i] != 0) {
-		if ((((rate[i]) & 0x7f) == 2) || (((rate[i]) & 0x7f) == 4) ||
-		    (((rate[i]) & 0x7f) == 11) || (((rate[i]) & 0x7f) == 22))
+	while (rate[i]) {
+		if ((rate[i] & 0x7f) == 2 || (rate[i] & 0x7f) == 4 ||
+		    (rate[i] & 0x7f) == 11 || (rate[i] & 0x7f) == 22)
 			return true;
 		i++;
 	}
@@ -90,13 +92,13 @@ uint rtw_is_cckrates_included23a(u8 *rate)
 	return false;
 }
 
-uint rtw_is_cckratesonly_included23a(u8 *rate)
+static bool rtw_is_cckratesonly_included(u8 *rate)
 {
 	u32 i = 0;
 
-	while (rate[i] != 0) {
-		if ((((rate[i]) & 0x7f) != 2) && (((rate[i]) & 0x7f) != 4) &&
-		    (((rate[i]) & 0x7f) != 11) && (((rate[i]) & 0x7f) != 22))
+	while (rate[i]) {
+		if ((rate[i] & 0x7f) != 2 && (rate[i] & 0x7f) != 4 &&
+		    (rate[i] & 0x7f) != 11 && (rate[i] & 0x7f) != 22)
 			return false;
 
 		i++;
@@ -108,14 +110,14 @@ uint rtw_is_cckratesonly_included23a(u8 *rate)
 int rtw_check_network_type23a(unsigned char *rate, int ratelen, int channel)
 {
 	if (channel > 14) {
-		if ((rtw_is_cckrates_included23a(rate)) == true)
+		if (rtw_is_cckrates_included(rate))
 			return WIRELESS_INVALID;
 		else
 			return WIRELESS_11A;
 	} else {  /*  could be pure B, pure G, or B/G */
-		if ((rtw_is_cckratesonly_included23a(rate)) == true)
+		if (rtw_is_cckratesonly_included(rate))
 			return WIRELESS_11B;
-		else if ((rtw_is_cckrates_included23a(rate)) == true)
+		else if (rtw_is_cckrates_included(rate))
 			return	WIRELESS_11BG;
 		else
 			return WIRELESS_11G;
@@ -131,7 +133,7 @@ u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len,
 }
 
 /*  rtw_set_ie23a will update frame length */
-u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, u8 *source, uint *frlen)
+u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen)
 {
 
 	*pbuf = (u8)index;
@@ -142,7 +144,6 @@ u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, u8 *source, uint *frlen)
 		memcpy((void *)(pbuf + 2), (void *)source, len);
 
 	*frlen = *frlen + (len + 2);
-
 
 	return pbuf + len + 2;
 }
@@ -156,18 +157,6 @@ inline u8 *rtw_set_ie23a_ch_switch (u8 *buf, u32 *buf_len, u8 ch_switch_mode,
 	ie_data[1] = new_ch;
 	ie_data[2] = ch_switch_cnt;
 	return rtw_set_ie23a(buf, WLAN_EID_CHANNEL_SWITCH,  3, ie_data, buf_len);
-}
-
-inline u8 secondary_ch_offset_to_hal_ch_offset23a(u8 ch_offset)
-{
-	if (ch_offset == SCN)
-		return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
-	else if (ch_offset == SCA)
-		return HAL_PRIME_CHNL_OFFSET_UPPER;
-	else if (ch_offset == SCB)
-		return HAL_PRIME_CHNL_OFFSET_LOWER;
-
-	return HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 }
 
 inline u8 hal_ch_offset_to_secondary_ch_offset23a(u8 ch_offset)
@@ -187,19 +176,6 @@ inline u8 *rtw_set_ie23a_secondary_ch_offset(u8 *buf, u32 *buf_len,
 {
 	return rtw_set_ie23a(buf, WLAN_EID_SECONDARY_CHANNEL_OFFSET,
 			  1, &secondary_ch_offset, buf_len);
-}
-
-inline u8 *rtw_set_ie23a_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
-					  u8 flags, u16 reason, u16 precedence)
-{
-	u8 ie_data[6];
-
-	ie_data[0] = ttl;
-	ie_data[1] = flags;
-	put_unaligned_le16(reason, (u8*)&ie_data[2]);
-	put_unaligned_le16(precedence, (u8*)&ie_data[4]);
-
-	return rtw_set_ie23a(buf, 0x118,  6, ie_data, buf_len);
 }
 
 /*----------------------------------------------------------------------------
@@ -367,7 +343,7 @@ uint rtw_get_rateset_len23a(u8 *rateset)
 	uint i = 0;
 
 	while(1) {
-		if ((rateset[i]) == 0)
+		if (rateset[i] == 0)
 			break;
 
 		if (i > 12)
@@ -394,31 +370,31 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	/* beacon interval : 2bytes */
 	/* BCN_INTERVAL; */
-	*(u16*)ie = cpu_to_le16((u16)pdev_network->Configuration.BeaconPeriod);
+	*(u16*)ie = cpu_to_le16(pdev_network->BeaconPeriod);
 	sz += 2;
 	ie += 2;
 
 	/* capability info */
 	*(u16*)ie = 0;
 
-	*(u16*)ie |= cpu_to_le16(cap_IBSS);
+	*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_IBSS);
 
 	if (pregistrypriv->preamble == PREAMBLE_SHORT)
-		*(u16*)ie |= cpu_to_le16(cap_ShortPremble);
+		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 
 	if (pdev_network->Privacy)
-		*(u16*)ie |= cpu_to_le16(cap_Privacy);
+		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
 
 	sz += 2;
 	ie += 2;
 
 	/* SSID */
-	ie = rtw_set_ie23a(ie, _SSID_IE_, pdev_network->Ssid.ssid_len,
+	ie = rtw_set_ie23a(ie, WLAN_EID_SSID, pdev_network->Ssid.ssid_len,
 			pdev_network->Ssid.ssid, &sz);
 
 	/* supported rates */
 	if (pregistrypriv->wireless_mode == WIRELESS_11ABGN) {
-		if (pdev_network->Configuration.DSConfig > 14)
+		if (pdev_network->DSConfig > 14)
 			wireless_mode = WIRELESS_11A_5N;
 		else
 			wireless_mode = WIRELESS_11BG_24N;
@@ -431,25 +407,25 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	rateLen = rtw_get_rateset_len23a(pdev_network->SupportedRates);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie23a(ie, _SUPPORTEDRATES_IE_, 8,
+		ie = rtw_set_ie23a(ie, WLAN_EID_SUPP_RATES, 8,
 				pdev_network->SupportedRates, &sz);
 		/* ie = rtw_set_ie23a(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8), (pdev_network->SupportedRates + 8), &sz); */
 	} else {
-		ie = rtw_set_ie23a(ie, _SUPPORTEDRATES_IE_, rateLen,
+		ie = rtw_set_ie23a(ie, WLAN_EID_SUPP_RATES, rateLen,
 				pdev_network->SupportedRates, &sz);
 	}
 
 	/* DS parameter set */
-	ie = rtw_set_ie23a(ie, _DSSET_IE_, 1,
-			   (u8 *)&pdev_network->Configuration.DSConfig, &sz);
+	ie = rtw_set_ie23a(ie, WLAN_EID_DS_PARAMS, 1,
+			   (u8 *)&pdev_network->DSConfig, &sz);
 
 	/* IBSS Parameter Set */
 
-	ie = rtw_set_ie23a(ie, _IBSS_PARA_IE_, 2,
-			   (u8 *)&pdev_network->Configuration.ATIMWindow, &sz);
+	ie = rtw_set_ie23a(ie, WLAN_EID_IBSS_PARAMS, 2,
+			   (u8 *)&pdev_network->ATIMWindow, &sz);
 
 	if (rateLen > 8) {
-		ie = rtw_set_ie23a(ie, _EXT_SUPPORTEDRATES_IE_, (rateLen - 8),
+		ie = rtw_set_ie23a(ie, WLAN_EID_EXT_SUPP_RATES, (rateLen - 8),
 				(pdev_network->SupportedRates + 8), &sz);
 	}
 
@@ -460,60 +436,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	return sz;
 }
 
-unsigned char *rtw_get_wpa_ie23a(unsigned char *pie, int *wpa_ie_len, int limit)
-{
-	int len;
-	u16 val16;
-	unsigned char wpa_oui_type[] = {0x00, 0x50, 0xf2, 0x01};
-	u8 *pbuf = pie;
-	int limit_new = limit;
-
-	while(1) {
-		pbuf = rtw_get_ie23a(pbuf, _WPA_IE_ID_, &len, limit_new);
-
-		if (pbuf) {
-			/* check if oui matches... */
-			if (memcmp((pbuf + 2), wpa_oui_type,
-				   sizeof(wpa_oui_type))) {
-				goto check_next_ie;
-			}
-
-			/* check version... */
-			memcpy((u8 *)&val16, (pbuf + 6), sizeof(val16));
-
-			val16 = le16_to_cpu(val16);
-			if (val16 != 0x0001)
-				goto check_next_ie;
-
-			*wpa_ie_len = *(pbuf + 1);
-
-			return pbuf;
-		} else {
-			*wpa_ie_len = 0;
-			return NULL;
-		}
-
-check_next_ie:
-
-		limit_new = limit - (pbuf - pie) - 2 - len;
-
-		if (limit_new <= 0)
-			break;
-
-		pbuf += (2 + len);
-	}
-
-	*wpa_ie_len = 0;
-
-	return NULL;
-}
-
-unsigned char *rtw_get_wpa2_ie23a(unsigned char *pie, int *rsn_ie_len, int limit)
-{
-	return rtw_get_ie23a(pie, _WPA2_IE_ID_, rsn_ie_len, limit);
-}
-
-int rtw_get_wpa_cipher_suite23a(u8 *s)
+int rtw_get_wpa_cipher_suite23a(const u8 *s)
 {
 	if (!memcmp(s, WPA_CIPHER_SUITE_NONE23A, WPA_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -529,7 +452,7 @@ int rtw_get_wpa_cipher_suite23a(u8 *s)
 	return 0;
 }
 
-int rtw_get_wpa2_cipher_suite23a(u8 *s)
+int rtw_get_wpa2_cipher_suite23a(const u8 *s)
 {
 	if (!memcmp(s, RSN_CIPHER_SUITE_NONE23A, RSN_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -545,22 +468,19 @@ int rtw_get_wpa2_cipher_suite23a(u8 *s)
 	return 0;
 }
 
-int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
+int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
-	u8 *pos;
-	u8 SUITE_1X[4] = {0x00, 0x50, 0xf2, 1};
+	const u8 *pos;
 
 	if (wpa_ie_len <= 0) {
 		/* No WPA IE - fail silently */
 		return _FAIL;
 	}
 
-	if ((*wpa_ie != _WPA_IE_ID_) || (*(wpa_ie+1) != (u8)(wpa_ie_len - 2)) ||
-	    memcmp(wpa_ie + 2, RTW_WPA_OUI23A_TYPE, WPA_SELECTOR_LEN)) {
+	if (wpa_ie[1] != (u8)(wpa_ie_len - 2))
 		return _FAIL;
-	}
 
 	pos = wpa_ie;
 
@@ -612,7 +532,7 @@ int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pair
 	if (is_8021x) {
 		if (left >= 6) {
 			pos += 2;
-			if (!memcmp(pos, SUITE_1X, 4)) {
+			if (!memcmp(pos, RTW_WPA_OUI23A_TYPE, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 					 ("%s : there has 802.1x auth\n",
 					  __func__));
@@ -624,12 +544,12 @@ int rtw_parse_wpa_ie23a(u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pair
 	return ret;
 }
 
-int rtw_parse_wpa2_ie23a(u8* rsn_ie, int rsn_ie_len, int *group_cipher,
+int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 		      int *pairwise_cipher, int *is_8021x)
 {
 	int i, ret = _SUCCESS;
 	int left, count;
-	u8 *pos;
+	const u8 *pos;
 	u8 SUITE_1X[4] = {0x00, 0x0f, 0xac, 0x01};
 
 	if (rsn_ie_len <= 0) {
@@ -637,7 +557,7 @@ int rtw_parse_wpa2_ie23a(u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 		return _FAIL;
 	}
 
-	if ((*rsn_ie!= _WPA2_IE_ID_) || (*(rsn_ie+1) != (u8)(rsn_ie_len - 2))) {
+	if (*rsn_ie != _WPA2_IE_ID_ || *(rsn_ie+1) != (u8)(rsn_ie_len - 2)) {
 		return _FAIL;
 	}
 
@@ -705,9 +625,7 @@ int rtw_get_sec_ie23a(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 		   u8 *wpa_ie, u16 *wpa_len)
 {
 	u8 authmode, sec_idx, i;
-	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint cnt;
-
 
 
 	/* Search required WPA or WPA2 IE and copy to sec_ie[ ] */
@@ -719,8 +637,8 @@ int rtw_get_sec_ie23a(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 	while(cnt < in_len) {
 		authmode = in_ie[cnt];
 
-		if ((authmode == _WPA_IE_ID_) &&
-		    !memcmp(&in_ie[cnt+2], &wpa_oui[0], 4)) {
+		if ((authmode == WLAN_EID_VENDOR_SPECIFIC) &&
+		    !memcmp(&in_ie[cnt+2], RTW_WPA_OUI23A_TYPE, 4)) {
 				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 					 ("\n rtw_get_wpa_ie23a: sec_idx =%d "
 					  "in_ie[cnt+1]+2 =%d\n",
@@ -778,24 +696,6 @@ int rtw_get_sec_ie23a(u8 *in_ie, uint in_len, u8 *rsn_ie, u16 *rsn_len,
 	return *rsn_len + *wpa_len;
 }
 
-u8 rtw_is_wps_ie23a(u8 *ie_ptr, uint *wps_ielen)
-{
-	u8 match = false;
-	u8 eid, wps_oui[4]= {0x0, 0x50, 0xf2, 0x04};
-
-	if (!ie_ptr)
-		return match;
-
-	eid = ie_ptr[0];
-
-	if ((eid == _WPA_IE_ID_) && !memcmp(&ie_ptr[2], wps_oui, 4)) {
-		/* DBG_8723A("==> found WPS_IE.....\n"); */
-		*wps_ielen = ie_ptr[1] + 2;
-		match = true;
-	}
-	return match;
-}
-
 /**
  * rtw_get_wps_ie23a - Search WPS IE from a series of IEs
  * @in_ie: Address of IEs to search
@@ -824,7 +724,8 @@ u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 	while (cnt < in_len) {
 		eid = in_ie[cnt];
 
-		if ((eid == _WPA_IE_ID_) && !memcmp(&in_ie[cnt+2], wps_oui, 4)) {
+		if (eid == WLAN_EID_VENDOR_SPECIFIC &&
+		    !memcmp(&in_ie[cnt+2], wps_oui, 4)) {
 			wpsie_ptr = &in_ie[cnt];
 
 			if (wps_ie)
@@ -866,7 +767,7 @@ u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 	if (len_attr)
 		*len_attr = 0;
 
-	if ((wps_ie[0] != _VENDOR_SPECIFIC_IE_) ||
+	if (wps_ie[0] != WLAN_EID_VENDOR_SPECIFIC ||
 	    memcmp(wps_ie + 2, wps_oui, 4)) {
 		return attr_ptr;
 	}
@@ -937,664 +838,26 @@ u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
 	return NULL;
 }
 
-static int
-rtw_ieee802_11_parse_vendor_specific(u8 *pos, uint elen,
-				     struct rtw_ieee802_11_elems *elems,
-				     int show_errors)
-{
-	unsigned int oui;
-
-	/* first 3 bytes in vendor specific information element are the IEEE
-	 * OUI of the vendor. The following byte is used a vendor specific
-	 * sub-type. */
-	if (elen < 4) {
-		if (show_errors) {
-			DBG_8723A("short vendor specific "
-				   "information element ignored (len =%lu)\n",
-				   (unsigned long) elen);
-		}
-		return -1;
-	}
-
-	oui = RTW_GET_BE24(pos);
-	switch (oui) {
-	case WLAN_OUI_MICROSOFT:
-		/* Microsoft/Wi-Fi information elements are further typed and
-		 * subtyped */
-		switch (pos[3]) {
-		case 1:
-			/* Microsoft OUI (00:50:F2) with OUI Type 1:
-			 * real WPA information element */
-			elems->wpa_ie = pos;
-			elems->wpa_ie_len = elen;
-			break;
-		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
-			if (elen < 5) {
-				DBG_8723A("short WME "
-					   "information element ignored "
-					   "(len =%lu)\n",
-					   (unsigned long) elen);
-				return -1;
-			}
-			switch (pos[4]) {
-			case WME_OUI_SUBTYPE_INFORMATION_ELEMENT:
-			case WME_OUI_SUBTYPE_PARAMETER_ELEMENT:
-				elems->wme = pos;
-				elems->wme_len = elen;
-				break;
-			case WME_OUI_SUBTYPE_TSPEC_ELEMENT:
-				elems->wme_tspec = pos;
-				elems->wme_tspec_len = elen;
-				break;
-			default:
-				DBG_8723A("unknown WME "
-					   "information element ignored "
-					   "(subtype =%d len =%lu)\n",
-					   pos[4], (unsigned long) elen);
-				return -1;
-			}
-			break;
-		case 4:
-			/* Wi-Fi Protected Setup (WPS) IE */
-			elems->wps_ie = pos;
-			elems->wps_ie_len = elen;
-			break;
-		default:
-			DBG_8723A("Unknown Microsoft "
-				   "information element ignored "
-				   "(type =%d len =%lu)\n",
-				   pos[3], (unsigned long) elen);
-			return -1;
-		}
-		break;
-
-	case OUI_BROADCOM:
-		switch (pos[3]) {
-		case VENDOR_HT_CAPAB_OUI_TYPE:
-			elems->vendor_ht_cap = pos;
-			elems->vendor_ht_cap_len = elen;
-			break;
-		default:
-			DBG_8723A("Unknown Broadcom "
-				   "information element ignored "
-				   "(type =%d len =%lu)\n",
-				   pos[3], (unsigned long) elen);
-			return -1;
-		}
-		break;
-
-	default:
-		DBG_8723A("unknown vendor specific information "
-			   "element ignored (vendor OUI %02x:%02x:%02x "
-			   "len =%lu)\n",
-			   pos[0], pos[1], pos[2], (unsigned long) elen);
-		return -1;
-	}
-
-	return 0;
-}
-
-/**
- * ieee802_11_parse_elems - Parse information elements in management frames
- * @start: Pointer to the start of IEs
- * @len: Length of IE buffer in octets
- * @elems: Data structure for parsed elements
- * @show_errors: Whether to show parsing errors in debug log
- * Returns: Parsing result
- */
-enum parse_res rtw_ieee802_11_parse_elems23a(u8 *start, uint len,
-				struct rtw_ieee802_11_elems *elems,
-				int show_errors)
-{
-	uint left = len;
-	u8 *pos = start;
-	int unknown = 0;
-
-	memset(elems, 0, sizeof(*elems));
-
-	while (left >= 2) {
-		u8 id, elen;
-
-		id = *pos++;
-		elen = *pos++;
-		left -= 2;
-
-		if (elen > left) {
-			if (show_errors) {
-				DBG_8723A("IEEE 802.11 element "
-					   "parse failed (id =%d elen =%d "
-					   "left =%lu)\n",
-					   id, elen, (unsigned long) left);
-			}
-			return ParseFailed;
-		}
-
-		switch (id) {
-		case WLAN_EID_SSID:
-			elems->ssid = pos;
-			elems->ssid_len = elen;
-			break;
-		case WLAN_EID_SUPP_RATES:
-			elems->supp_rates = pos;
-			elems->supp_rates_len = elen;
-			break;
-		case WLAN_EID_FH_PARAMS:
-			elems->fh_params = pos;
-			elems->fh_params_len = elen;
-			break;
-		case WLAN_EID_DS_PARAMS:
-			elems->ds_params = pos;
-			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_CF_PARAMS:
-			elems->cf_params = pos;
-			elems->cf_params_len = elen;
-			break;
-		case WLAN_EID_TIM:
-			elems->tim = pos;
-			elems->tim_len = elen;
-			break;
-		case WLAN_EID_IBSS_PARAMS:
-			elems->ibss_params = pos;
-			elems->ibss_params_len = elen;
-			break;
-		case WLAN_EID_CHALLENGE:
-			elems->challenge = pos;
-			elems->challenge_len = elen;
-			break;
-		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
-			break;
-		case WLAN_EID_EXT_SUPP_RATES:
-			elems->ext_supp_rates = pos;
-			elems->ext_supp_rates_len = elen;
-			break;
-		case WLAN_EID_VENDOR_SPECIFIC:
-			if (rtw_ieee802_11_parse_vendor_specific(pos, elen,
-								 elems,
-								 show_errors))
-				unknown++;
-			break;
-		case WLAN_EID_RSN:
-			elems->rsn_ie = pos;
-			elems->rsn_ie_len = elen;
-			break;
-		case WLAN_EID_PWR_CAPABILITY:
-			elems->power_cap = pos;
-			elems->power_cap_len = elen;
-			break;
-		case WLAN_EID_SUPPORTED_CHANNELS:
-			elems->supp_channels = pos;
-			elems->supp_channels_len = elen;
-			break;
-		case WLAN_EID_MOBILITY_DOMAIN:
-			elems->mdie = pos;
-			elems->mdie_len = elen;
-			break;
-		case WLAN_EID_FAST_BSS_TRANSITION:
-			elems->ftie = pos;
-			elems->ftie_len = elen;
-			break;
-		case WLAN_EID_TIMEOUT_INTERVAL:
-			elems->timeout_int = pos;
-			elems->timeout_int_len = elen;
-			break;
-		case WLAN_EID_HT_CAPABILITY:
-			elems->ht_capabilities = pos;
-			elems->ht_capabilities_len = elen;
-			break;
-		case WLAN_EID_HT_OPERATION:
-			elems->ht_operation = pos;
-			elems->ht_operation_len = elen;
-			break;
-		default:
-			unknown++;
-			if (!show_errors)
-				break;
-			DBG_8723A("IEEE 802.11 element parse "
-				   "ignored unknown element (id =%d elen =%d)\n",
-				   id, elen);
-			break;
-		}
-
-		left -= elen;
-		pos += elen;
-	}
-
-	if (left)
-		return ParseFailed;
-
-	return unknown ? ParseUnknown : ParseOK;
-}
-
-static u8 key_char2num(u8 ch)
-{
-	if ((ch >= '0') && (ch <= '9'))
-		return ch - '0';
-	else if ((ch >= 'a') && (ch <= 'f'))
-		return ch - 'a' + 10;
-	else if ((ch >= 'A') && (ch <= 'F'))
-		return ch - 'A' + 10;
-	else
-		return 0xff;
-}
-
-u8 str_2char2num23a(u8 hch, u8 lch)
-{
-	return (key_char2num(hch) * 10) + key_char2num(lch);
-}
-
-u8 key_2char2num23a(u8 hch, u8 lch)
-{
-	return (key_char2num(hch) << 4) | key_char2num(lch);
-}
-
-void rtw_macaddr_cfg23a(u8 *mac_addr)
-{
-	u8 mac[ETH_ALEN];
-	if (!mac_addr)
-		return;
-
-	memcpy(mac, mac_addr, ETH_ALEN);
-
-	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
-		mac[0] = 0x00;
-		mac[1] = 0xe0;
-		mac[2] = 0x4c;
-		mac[3] = 0x87;
-		mac[4] = 0x00;
-		mac[5] = 0x00;
-		/*  use default mac addresss */
-		memcpy(mac_addr, mac, ETH_ALEN);
-		DBG_8723A("MAC Address from efuse error, assign default "
-			  "one !!!\n");
-	}
-	DBG_8723A("rtw_macaddr_cfg23a MAC Address  = "MAC_FMT"\n",
-		  MAC_ARG(mac_addr));
-}
-
-void dump_ies23a(u8 *buf, u32 buf_len) {
-	u8* pos = (u8*)buf;
-	u8 id, len;
-
-	while (pos-buf <= buf_len) {
-		id = *pos;
-		len = *(pos + 1);
-
-		DBG_8723A("%s ID:%u, LEN:%u\n", __func__, id, len);
-#ifdef CONFIG_8723AU_P2P
-		dump_p2p_ie23a(pos, len);
-#endif
-		dump_wps_ie23a(pos, len);
-
-		pos += (2 + len);
-	}
-}
-
-void dump_wps_ie23a(u8 *ie, u32 ie_len) {
-	u8* pos = (u8*)ie;
-	u16 id;
-	u16 len;
-
-	u8 *wps_ie;
-	uint wps_ielen;
-
-	wps_ie = rtw_get_wps_ie23a(ie, ie_len, NULL, &wps_ielen);
-	if (wps_ie != ie || wps_ielen == 0)
-		return;
-
-	pos+= 6;
-	while (pos-ie < ie_len) {
-		id = get_unaligned_be16(pos);
-		len = get_unaligned_be16(pos + 2);
-
-		DBG_8723A("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
-
-		pos += (4 + len);
-	}
-}
-
-#ifdef CONFIG_8723AU_P2P
-void dump_p2p_ie23a(u8 *ie, u32 ie_len) {
-	u8* pos = (u8*)ie;
-	u8 id;
-	u16 len;
-
-	u8 *p2p_ie;
-	uint p2p_ielen;
-
-	p2p_ie = rtw_get_p2p_ie23a(ie, ie_len, NULL, &p2p_ielen);
-	if (p2p_ie != ie || p2p_ielen == 0)
-		return;
-
-	pos += 6;
-	while (pos-ie < ie_len) {
-		id = *pos;
-		len = get_unaligned_le16(pos+1);
-
-		DBG_8723A("%s ID:%u, LEN:%u\n", __func__, id, len);
-
-		pos+= (3+len);
-	}
-}
-
-/**
- * rtw_get_p2p_ie23a - Search P2P IE from a series of IEs
- * @in_ie: Address of IEs to search
- * @in_len: Length limit from in_ie
- * @p2p_ie: If not NULL and P2P IE is found, P2P IE will be copied to the
- *          buf starting from p2p_ie
- * @p2p_ielen: If not NULL and P2P IE is found, will set to the length of
- *             the entire P2P IE
- *
- * Returns: The address of the P2P IE found, or NULL
- */
-u8 *rtw_get_p2p_ie23a(u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen)
-{
-	uint cnt = 0;
-	u8 *p2p_ie_ptr;
-	u8 eid, p2p_oui[4]={0x50, 0x6F, 0x9A, 0x09};
-
-	if (p2p_ielen)
-		*p2p_ielen = 0;
-
-	while (cnt<in_len) {
-		eid = in_ie[cnt];
-		if ((in_len < 0) || (cnt > MAX_IE_SZ)) {
-			dump_stack();
-			return NULL;
-		}
-		if ((eid == _VENDOR_SPECIFIC_IE_) &&
-		    !memcmp(&in_ie[cnt + 2], p2p_oui, 4)) {
-			p2p_ie_ptr = in_ie + cnt;
-
-			if (p2p_ie != NULL) {
-				memcpy(p2p_ie, &in_ie[cnt],
-				       in_ie[cnt + 1] + 2);
-			}
-
-			if (p2p_ielen != NULL) {
-				*p2p_ielen = in_ie[cnt + 1] + 2;
-			}
-
-			return p2p_ie_ptr;
-
-			break;
-		} else {
-			cnt += in_ie[cnt + 1] + 2; /* goto next */
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * rtw_get_p2p_attr23a - Search a specific P2P attribute from a given P2P IE
- * @p2p_ie: Address of P2P IE to search
- * @p2p_ielen: Length limit from p2p_ie
- * @target_attr_id: The attribute ID of P2P attribute to search
- * @buf_attr: If not NULL and the P2P attribute is found, P2P attribute will
- *            be copied to the buf starting from buf_attr
- * @len_attr: If not NULL and the P2P attribute is found, will set to the
- *            length of the entire P2P attribute
- *
- * Returns: the address of the specific WPS attribute found, or NULL
- */
-u8 *rtw_get_p2p_attr23a(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id,
-		     u8 *buf_attr, u32 *len_attr)
-{
-	u8 *attr_ptr = NULL;
-	u8 *target_attr_ptr = NULL;
-	u8 p2p_oui[4]={0x50, 0x6F, 0x9A, 0x09};
-
-	if (len_attr)
-		*len_attr = 0;
-
-	if (!p2p_ie || (p2p_ie[0] != _VENDOR_SPECIFIC_IE_) ||
-	    memcmp(p2p_ie + 2, p2p_oui, 4)) {
-		return attr_ptr;
-	}
-
-	/*  6 = 1(Element ID) + 1(Length) + 3 (OUI) + 1(OUI Type) */
-	attr_ptr = p2p_ie + 6; /* goto first attr */
-
-	while (attr_ptr - p2p_ie < p2p_ielen) {
-		/*  3 = 1(Attribute ID) + 2(Length) */
-		u8 attr_id = *attr_ptr;
-		u16 attr_data_len = get_unaligned_le16(attr_ptr + 1);
-		u16 attr_len = attr_data_len + 3;
-
-		/* DBG_8723A("%s attr_ptr:%p, id:%u, length:%u\n", __func__, attr_ptr, attr_id, attr_data_len); */
-		if (attr_id == target_attr_id) {
-			target_attr_ptr = attr_ptr;
-
-			if (buf_attr)
-				memcpy(buf_attr, attr_ptr, attr_len);
-
-			if (len_attr)
-				*len_attr = attr_len;
-
-			break;
-		} else {
-			attr_ptr += attr_len; /* goto next */
-		}
-	}
-
-	return target_attr_ptr;
-}
-
-/**
- * rtw_get_p2p_attr23a_content - Search a specific P2P attribute content from
- * a given P2P IE
- * @p2p_ie: Address of P2P IE to search
- * @p2p_ielen: Length limit from p2p_ie
- * @target_attr_id: The attribute ID of P2P attribute to search
- * @buf_content: If not NULL and the P2P attribute is found, P2P attribute
- *               content will be copied to the buf starting from buf_content
- * @len_content: If not NULL and the P2P attribute is found, will set to the
- *               length of the P2P attribute content
- *
- * Returns: the address of the specific P2P attribute content found, or NULL
- */
-u8 *rtw_get_p2p_attr23a_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id,
-			     u8 *buf_content, uint *len_content)
-{
-	u8 *attr_ptr;
-	u32 attr_len;
-
-	if (len_content)
-		*len_content = 0;
-
-	attr_ptr = rtw_get_p2p_attr23a(p2p_ie, p2p_ielen, target_attr_id,
-				    NULL, &attr_len);
-
-	if (attr_ptr && attr_len) {
-		if (buf_content)
-			memcpy(buf_content, attr_ptr + 3, attr_len - 3);
-
-		if (len_content)
-			*len_content = attr_len - 3;
-
-		return attr_ptr+3;
-	}
-
-	return NULL;
-}
-
-u32 rtw_set_p2p_attr_content23a(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr)
-{
-	u32 a_len;
-
-	*pbuf = attr_id;
-
-	/* u16*)(pbuf + 1) = cpu_to_le16(attr_len); */
-	put_unaligned_le16(attr_len, pbuf + 1);
-
-	if (pdata_attr)
-		memcpy(pbuf + 3, pdata_attr, attr_len);
-
-	a_len = attr_len + 3;
-
-	return a_len;
-}
-
-static uint rtw_p2p_attr_remove(u8 *ie, uint ielen_ori, u8 attr_id)
-{
-	u8 *target_attr;
-	u32 target_attr_len;
-	uint ielen = ielen_ori;
-
-	while(1) {
-		target_attr = rtw_get_p2p_attr23a(ie, ielen, attr_id, NULL,
-					     &target_attr_len);
-		if (target_attr && target_attr_len) {
-			u8 *next_attr = target_attr+target_attr_len;
-			uint remain_len = ielen-(next_attr-ie);
-			/* dump_ies23a(ie, ielen); */
-
-			memset(target_attr, 0, target_attr_len);
-			memcpy(target_attr, next_attr, remain_len);
-			memset(target_attr+remain_len, 0, target_attr_len);
-			*(ie + 1) -= target_attr_len;
-			ielen -= target_attr_len;
-		} else {
-			/* if (index>0) */
-			/*	dump_ies23a(ie, ielen); */
-			break;
-		}
-	}
-
-	return ielen;
-}
-
-void rtw_wlan_bssid_ex_remove_p2p_attr23a(struct wlan_bssid_ex *bss_ex, u8 attr_id)
-{
-	u8 *p2p_ie;
-	uint p2p_ielen, p2p_ielen_ori;
-
-	if ((p2p_ie = rtw_get_p2p_ie23a(bss_ex->IEs + _FIXED_IE_LENGTH_,
-				     bss_ex->IELength - _FIXED_IE_LENGTH_,
-				     NULL, &p2p_ielen_ori))) {
-		p2p_ielen = rtw_p2p_attr_remove(p2p_ie, p2p_ielen_ori, attr_id);
-		if (p2p_ielen != p2p_ielen_ori) {
-			u8 *next_ie_ori = p2p_ie+p2p_ielen_ori;
-			u8 *next_ie = p2p_ie+p2p_ielen;
-			uint remain_len;
-			remain_len = bss_ex->IELength-(next_ie_ori-bss_ex->IEs);
-
-			memcpy(next_ie, next_ie_ori, remain_len);
-			memset(next_ie+remain_len, 0, p2p_ielen_ori-p2p_ielen);
-			bss_ex->IELength -= p2p_ielen_ori-p2p_ielen;
-		}
-	}
-}
-
-#endif /* CONFIG_8723AU_P2P */
-
-#ifdef CONFIG_8723AU_P2P
-int rtw_get_wfd_ie(u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen)
-{
-	int match;
-	const u8 *ie;
-
-	match = 0;
-
-	if (in_len < 0)
-		return match;
-
-	ie = cfg80211_find_vendor_ie(0x506F9A, 0x0A, in_ie, in_len);
-	if (ie && (ie[1] <= (MAX_WFD_IE_LEN - 2))) {
-		if (wfd_ie) {
-			*wfd_ielen = ie[1] + 2;
-			memcpy(wfd_ie, ie, ie[1] + 2);
-		} else
-			if (wfd_ielen)
-				*wfd_ielen = 0;
-
-		match = 1;
-	}
-
-	return match;
-}
-
-/*	attr_content: The output buffer, contains the "body field" of
-	WFD attribute. */
-/*	attr_contentlen: The data length of the "body field" of WFD
-	attribute. */
-int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id,
-			     u8 *attr_content, uint *attr_contentlen)
-{
-	int match;
-	uint cnt = 0;
-	u8 attr_id, wfd_oui[4] = {0x50, 0x6F, 0x9A, 0x0A};
-
-	match = false;
-
-	if ((wfd_ie[0] != _VENDOR_SPECIFIC_IE_) ||
-	    memcmp(wfd_ie + 2, wfd_oui, 4)) {
-		return match;
-	}
-
-	/*	1 (WFD IE) + 1 (Length) + 3 (OUI) + 1 (OUI Type) */
-	cnt = 6;
-	while (cnt < wfd_ielen) {
-		u16 attrlen = get_unaligned_be16(wfd_ie + cnt + 1);
-
-		attr_id = wfd_ie[cnt];
-		if (attr_id == target_attr_id) {
-			/*	3 -> 1 byte for attribute ID field, 2
-				bytes for length field */
-			if (attr_content)
-				memcpy(attr_content, &wfd_ie[cnt + 3], attrlen);
-
-			if (attr_contentlen)
-				*attr_contentlen = attrlen;
-
-			cnt += attrlen + 3;
-
-			match = true;
-			break;
-		} else {
-			cnt += attrlen + 3; /* goto next */
-		}
-	}
-
-	return match;
-}
-#endif /*  CONFIG_8723AU_P2P */
-
-/* Baron adds to avoid FreeBSD warning */
-int ieee80211_is_empty_essid23a(const char *essid, int essid_len)
-{
-	/* Single white space is for Linksys APs */
-	if (essid_len == 1 && essid[0] == ' ')
-		return 1;
-
-	/* Otherwise, if the entire essid is 0, we assume it is hidden */
-	while (essid_len) {
-		essid_len--;
-		if (essid[essid_len] != '\0')
-			return 0;
-	}
-
-	return 1;
-}
-
 static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 {
-	u32 wpa_ielen;
-	unsigned char *pbuf;
+	const u8 *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
-	int r;
-	pbuf = rtw_get_wpa_ie23a(&pnetwork->network.IEs[12], &wpa_ielen,
-			      pnetwork->network.IELength - 12);
+	int r, offset, plen;
+	char *pie;
 
-	if (pbuf && (wpa_ielen > 0)) {
+	offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u);
+	pie = &pnetwork->network.IEs[offset];
+	plen = pnetwork->network.IELength - offset;
+
+	pbuf = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				       WLAN_OUI_TYPE_MICROSOFT_WPA, pie, plen);
+
+	if (pbuf && pbuf[1] > 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-			 ("rtw_get_cipher_info: wpa_ielen: %d", wpa_ielen));
-		r = rtw_parse_wpa_ie23a(pbuf, wpa_ielen + 2, &group_cipher,
+			 ("rtw_get_cipher_info: wpa_ielen: %d", pbuf[1]));
+		r = rtw_parse_wpa_ie23a(pbuf, pbuf[1] + 2, &group_cipher,
 				     &pairwise_cipher, &is8021x);
 		if (r == _SUCCESS) {
 			pnetwork->BcnInfo.pairwise_cipher = pairwise_cipher;
@@ -1608,13 +871,12 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 			ret = _SUCCESS;
 		}
 	} else {
-		pbuf = rtw_get_wpa2_ie23a(&pnetwork->network.IEs[12], &wpa_ielen,
-				       pnetwork->network.IELength - 12);
+		pbuf = cfg80211_find_ie(WLAN_EID_RSN, pie, plen);
 
-		if (pbuf && (wpa_ielen > 0)) {
+		if (pbuf && pbuf[1] > 0) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 				 ("get RSN IE\n"));
-			r = rtw_parse_wpa2_ie23a(pbuf, wpa_ielen + 2,
+			r = rtw_parse_wpa2_ie23a(pbuf, pbuf[1] + 2,
 					      &group_cipher, &pairwise_cipher,
 					      &is8021x);
 			if (r == _SUCCESS) {
@@ -1641,23 +903,22 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 {
-	unsigned short cap = 0;
+	unsigned short cap;
 	u8 bencrypt = 0;
 	/* u8 wpa_ie[255], rsn_ie[255]; */
 	u16 wpa_len = 0, rsn_len = 0;
-	struct HT_info_element *pht_info = NULL;
-	struct ieee80211_ht_cap *pht_cap = NULL;
-	unsigned int		len;
-	unsigned char		*p;
+	struct HT_info_element *pht_info;
+	struct ieee80211_ht_cap *pht_cap;
+	const u8 *p;
 
-	memcpy(&cap, rtw_get_capability23a_from_ie(pnetwork->network.IEs), 2);
-	cap = le16_to_cpu(cap);
+	cap = get_unaligned_le16(
+		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
 	if (cap & WLAN_CAPABILITY_PRIVACY) {
 		bencrypt = 1;
 		pnetwork->network.Privacy = 1;
-	} else {
+	} else
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
-	}
+
 	rtw_get_sec_ie23a(pnetwork->network.IEs, pnetwork->network.IELength,
 		       NULL, &rsn_len, NULL, &wpa_len);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
@@ -1671,11 +932,11 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 		 ("rtw_get_bcn_info23a: wpa_len =%d rsn_len =%d\n",
 		  wpa_len, rsn_len));
 
-	if (rsn_len > 0) {
+	if (rsn_len > 0)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	} else if (wpa_len > 0) {
+	else if (wpa_len > 0)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA;
-	} else {
+	else {
 		if (bencrypt)
 			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
@@ -1689,25 +950,24 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 
 	/* get bwmode and ch_offset */
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       _HT_CAPABILITY_IE_, &len,
-		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && len > 0) {
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
+			     pnetwork->network.IELength - _FIXED_IE_LENGTH_);
+	if (p && p[1] > 0) {
 		pht_cap = (struct ieee80211_ht_cap *)(p + 2);
 		pnetwork->BcnInfo.ht_cap_info = pht_cap->cap_info;
-	} else {
+	} else
 		pnetwork->BcnInfo.ht_cap_info = 0;
-	}
+
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-		       _HT_ADD_INFO_IE_, &len,
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+			     pnetwork->network.IEs + _FIXED_IE_LENGTH_,
 		       pnetwork->network.IELength - _FIXED_IE_LENGTH_);
-	if (p && len > 0) {
+	if (p && p[1] > 0) {
 		pht_info = (struct HT_info_element *)(p + 2);
 		pnetwork->BcnInfo.ht_info_infos_0 = pht_info->infos[0];
-	} else {
+	} else
 		pnetwork->BcnInfo.ht_info_infos_0 = 0;
-	}
 }
 
 /* show MCS rate, unit: 100Kbps */
@@ -1779,37 +1039,6 @@ u16 rtw_mcs_rate23a(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40,
 		}
 	}
 	return max_rate;
-}
-
-int rtw_action_frame_parse23a(const u8 *frame, u32 frame_len, u8* category,
-			   u8 *action)
-{
-	const u8 *frame_body = frame + sizeof(struct ieee80211_hdr_3addr);
-	u16 fc;
-	u8 c, a = 0;
-
-	fc = le16_to_cpu(((struct ieee80211_hdr_3addr *)frame)->frame_control);
-
-	if ((fc & (IEEE80211_FCTL_FTYPE|IEEE80211_FCTL_STYPE)) !=
-	    (IEEE80211_FTYPE_MGMT|IEEE80211_STYPE_ACTION)) {
-		return false;
-	}
-
-	c = frame_body[0];
-
-	switch (c) {
-	case WLAN_CATEGORY_VENDOR_SPECIFIC: /* vendor-specific */
-		break;
-	default:
-		a = frame_body[1];
-	}
-
-	if (category)
-		*category = c;
-	if (action)
-		*action = a;
-
-	return true;
 }
 
 static const char *_action_public_str23a[] = {

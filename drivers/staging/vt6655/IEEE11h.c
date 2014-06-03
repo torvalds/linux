@@ -192,8 +192,6 @@ static bool s_bRxTPCReq(PSMgmtObject pMgmt,
 	if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
 		return false;
 	return true;
-/*    return CARDbSendPacket(pMgmt->pAdapter, pFrame, PKT_TYPE_802_11_MNG,
-      sizeof(WLAN_FRAME_TPCREP)); */
 }
 
 /*---------------------  Export Variables  --------------------------*/
@@ -274,8 +272,6 @@ IEEE11hbMgrRxAction(void *pMgmtHandle, void *pRxPacket)
 			pAction->byCategory);
 		pAction->byCategory |= 0x80;
 
-		/*return CARDbSendPacket(pMgmt->pAdapter, pAction, PKT_TYPE_802_11_MNG,
-		  uLength);*/
 		return true;
 	}
 	return true;
@@ -317,6 +313,4 @@ bool IEEE11hbMSRRepTx(void *pMgmtHandle)
 	if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
 		return false;
 	return true;
-/*    return CARDbSendPacket(pMgmt->pAdapter, pMSRRep, PKT_TYPE_802_11_MNG,
-      uLength); */
 }

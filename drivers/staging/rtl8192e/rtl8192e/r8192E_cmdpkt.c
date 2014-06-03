@@ -373,7 +373,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 		default:
 
 			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():"
-				 "unknow CMD Element\n");
+				 "unknown CMD Element\n");
 			return 1;
 		}
 

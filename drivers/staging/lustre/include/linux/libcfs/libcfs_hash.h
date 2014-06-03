@@ -59,8 +59,8 @@
 /*
  * Ideally we would use HAVE_HASH_LONG for this, but on linux we configure
  * the linux kernel and user space at the same time, so we need to differentiate
- * between them explicitely. If this is not needed on other architectures, then
- * we'll need to move the functions to archi specific headers.
+ * between them explicitly. If this is not needed on other architectures, then
+ * we'll need to move the functions to architecture specific headers.
  */
 
 #include <linux/hash.h>
@@ -86,7 +86,7 @@ union cfs_hash_lock {
 
 /**
  * cfs_hash_bucket is a container of:
- * - lock, couter ...
+ * - lock, counter ...
  * - array of hash-head starting from hsb_head[0], hash-head can be one of
  *   . cfs_hash_head_t
  *   . cfs_hash_head_dep_t
@@ -136,7 +136,7 @@ enum cfs_hash_tag {
 	CFS_HASH_NO_BKTLOCK     = 1 << 1,
 	/** rwlock to protect bucket */
 	CFS_HASH_RW_BKTLOCK     = 1 << 2,
-	/** spinlcok to protect bucket */
+	/** spinlock to protect bucket */
 	CFS_HASH_SPIN_BKTLOCK   = 1 << 3,
 	/** always add new item to tail */
 	CFS_HASH_ADD_TAIL       = 1 << 4,

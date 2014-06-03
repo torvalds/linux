@@ -104,7 +104,6 @@ void CARDvSafeResetRx(void *pDeviceHandler);
 //xxx
 bool CARDbRadioPowerOff(void *pDeviceHandler);
 bool CARDbRadioPowerOn(void *pDeviceHandler);
-//bool CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength);
 bool CARDbIsShortPreamble(void *pDeviceHandler);
 bool CARDbIsShorSlotTime(void *pDeviceHandler);
 bool CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);

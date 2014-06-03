@@ -53,12 +53,14 @@
 #define RF_EMU              0x80
 #define RF_MASK             0x7F
 
+#define VNT_RF_MAX_POWER    0x3f
+
 extern const u8 RFaby11aChannelIndex[200];
 
-int IFRFbWriteEmbedded(struct vnt_private *, u32 dwData);
-int RFbSetPower(struct vnt_private *, u32 uRATE, u32 uCH);
-int RFbRawSetPower(struct vnt_private *, u8 byPwr, u32 uRATE);
-void RFvRSSITodBm(struct vnt_private *, u8 byCurrRSSI, long *pldBm);
-void RFbRFTableDownload(struct vnt_private *pDevice);
+int vnt_rf_write_embedded(struct vnt_private *, u32);
+int vnt_rf_setpower(struct vnt_private *, u32, u32);
+int vnt_rf_set_txpower(struct vnt_private *, u8, u32);
+void vnt_rf_rssi_to_dbm(struct vnt_private *, u8, long *);
+void vnt_rf_table_download(struct vnt_private *);
 
 #endif /* __RF_H__ */

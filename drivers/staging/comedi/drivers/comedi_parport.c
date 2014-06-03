@@ -181,7 +181,7 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -229,7 +229,7 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 	if (!(ctrl & PARPORT_CTRL_IRQ_ENA))
 		return IRQ_NONE;
 
-	comedi_buf_put(s->async, 0);
+	comedi_buf_put(s, 0);
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 
 	comedi_event(dev, s);
@@ -295,6 +295,7 @@ static int parport_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= parport_intr_insn_bits;
+		s->len_chanlist	= 1;
 		s->do_cmdtest	= parport_intr_cmdtest;
 		s->do_cmd	= parport_intr_cmd;
 		s->cancel	= parport_intr_cancel;

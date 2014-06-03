@@ -188,7 +188,6 @@ void
 ksocknal_lib_eager_ack (ksock_conn_t *conn)
 {
 	int	    opt = 1;
-	mm_segment_t   oldmm = get_fs();
 	struct socket *sock = conn->ksnc_sock;
 
 	/* Remind the socket to ACK eagerly.  If I don't, the socket might
@@ -196,10 +195,8 @@ ksocknal_lib_eager_ack (ksock_conn_t *conn)
 	 * on, introducing delay in completing zero-copy sends in my
 	 * peer. */
 
-	set_fs(KERNEL_DS);
-	sock->ops->setsockopt (sock, SOL_TCP, TCP_QUICKACK,
+	kernel_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			       (char *)&opt, sizeof (opt));
-	set_fs(oldmm);
 }
 
 int
@@ -383,7 +380,7 @@ ksocknal_lib_recv_kiov (ksock_conn_t *conn)
 			kunmap(kiov[i].kiov_page);
 	}
 
-	return (rc);
+	return rc;
 }
 
 void
@@ -428,7 +425,6 @@ ksocknal_lib_csum_tx(ksock_tx_t *tx)
 int
 ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem, int *rxmem, int *nagle)
 {
-	mm_segment_t   oldmm = get_fs ();
 	struct socket *sock = conn->ksnc_sock;
 	int	    len;
 	int	    rc;
@@ -437,16 +433,14 @@ ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem, int *rxmem, int 
 	if (rc != 0) {
 		LASSERT (conn->ksnc_closing);
 		*txmem = *rxmem = *nagle = 0;
-		return (-ESHUTDOWN);
+		return -ESHUTDOWN;
 	}
 
 	rc = libcfs_sock_getbuf(sock, txmem, rxmem);
 	if (rc == 0) {
 		len = sizeof(*nagle);
-		set_fs(KERNEL_DS);
-		rc = sock->ops->getsockopt(sock, SOL_TCP, TCP_NODELAY,
+		rc = kernel_getsockopt(sock, SOL_TCP, TCP_NODELAY,
 					   (char *)nagle, &len);
-		set_fs(oldmm);
 	}
 
 	ksocknal_connsock_decref(conn);
@@ -456,13 +450,12 @@ ksocknal_lib_get_conn_tunables (ksock_conn_t *conn, int *txmem, int *rxmem, int 
 	else
 		*txmem = *rxmem = *nagle = 0;
 
-	return (rc);
+	return rc;
 }
 
 int
 ksocknal_lib_setup_sock (struct socket *sock)
 {
-	mm_segment_t    oldmm = get_fs ();
 	int	     rc;
 	int	     option;
 	int	     keep_idle;
@@ -479,35 +472,29 @@ ksocknal_lib_setup_sock (struct socket *sock)
 	linger.l_onoff = 0;
 	linger.l_linger = 0;
 
-	set_fs (KERNEL_DS);
-	rc = sock_setsockopt (sock, SOL_SOCKET, SO_LINGER,
+	rc = kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
 			      (char *)&linger, sizeof (linger));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set SO_LINGER: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	option = -1;
-	set_fs (KERNEL_DS);
-	rc = sock->ops->setsockopt (sock, SOL_TCP, TCP_LINGER2,
+	rc = kernel_setsockopt(sock, SOL_TCP, TCP_LINGER2,
 				    (char *)&option, sizeof (option));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set SO_LINGER2: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	if (!*ksocknal_tunables.ksnd_nagle) {
 		option = 1;
 
-		set_fs (KERNEL_DS);
-		rc = sock->ops->setsockopt (sock, SOL_TCP, TCP_NODELAY,
+		rc = kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
 					    (char *)&option, sizeof (option));
-		set_fs (oldmm);
 		if (rc != 0) {
 			CERROR ("Can't disable nagle: %d\n", rc);
-			return (rc);
+			return rc;
 		}
 	}
 
@@ -518,7 +505,7 @@ ksocknal_lib_setup_sock (struct socket *sock)
 		CERROR ("Can't set buffer tx %d, rx %d buffers: %d\n",
 			*ksocknal_tunables.ksnd_tx_buffer_size,
 			*ksocknal_tunables.ksnd_rx_buffer_size, rc);
-		return (rc);
+		return rc;
 	}
 
 /* TCP_BACKOFF_* sockopt tunables unsupported in stock kernels */
@@ -531,46 +518,38 @@ ksocknal_lib_setup_sock (struct socket *sock)
 	do_keepalive = (keep_idle > 0 && keep_count > 0 && keep_intvl > 0);
 
 	option = (do_keepalive ? 1 : 0);
-	set_fs (KERNEL_DS);
-	rc = sock_setsockopt (sock, SOL_SOCKET, SO_KEEPALIVE,
+	rc = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
 			      (char *)&option, sizeof (option));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set SO_KEEPALIVE: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	if (!do_keepalive)
-		return (0);
+		return 0;
 
-	set_fs (KERNEL_DS);
-	rc = sock->ops->setsockopt (sock, SOL_TCP, TCP_KEEPIDLE,
+	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPIDLE,
 				    (char *)&keep_idle, sizeof (keep_idle));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPIDLE: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
-	set_fs (KERNEL_DS);
-	rc = sock->ops->setsockopt (sock, SOL_TCP, TCP_KEEPINTVL,
+	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPINTVL,
 				    (char *)&keep_intvl, sizeof (keep_intvl));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPINTVL: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
-	set_fs (KERNEL_DS);
-	rc = sock->ops->setsockopt (sock, SOL_TCP, TCP_KEEPCNT,
+	rc = kernel_setsockopt(sock, SOL_TCP, TCP_KEEPCNT,
 				    (char *)&keep_count, sizeof (keep_count));
-	set_fs (oldmm);
 	if (rc != 0) {
 		CERROR ("Can't set TCP_KEEPCNT: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
-	return (0);
+	return 0;
 }
 
 void
@@ -581,7 +560,6 @@ ksocknal_lib_push_conn (ksock_conn_t *conn)
 	int	     nonagle;
 	int	     val = 1;
 	int	     rc;
-	mm_segment_t    oldmm;
 
 	rc = ksocknal_connsock_addref(conn);
 	if (rc != 0)			    /* being shut down */
@@ -595,14 +573,9 @@ ksocknal_lib_push_conn (ksock_conn_t *conn)
 	tp->nonagle = 1;
 	release_sock (sk);
 
-	oldmm = get_fs ();
-	set_fs (KERNEL_DS);
-
-	rc = sk->sk_prot->setsockopt (sk, SOL_TCP, TCP_NODELAY,
+	rc = kernel_setsockopt(conn->ksnc_sock, SOL_TCP, TCP_NODELAY,
 				      (char *)&val, sizeof (val));
 	LASSERT (rc == 0);
-
-	set_fs (oldmm);
 
 	lock_sock (sk);
 	tp->nonagle = nonagle;

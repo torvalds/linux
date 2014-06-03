@@ -449,7 +449,7 @@ void nrs_policy_get_info_locked(struct ptlrpc_nrs_policy *policy,
 {
 	LASSERT(policy != NULL);
 	LASSERT(info != NULL);
-	LASSERT(spin_is_locked(&policy->pol_nrs->nrs_lock));
+	assert_spin_locked(&policy->pol_nrs->nrs_lock);
 
 	memcpy(info->pi_name, policy->pol_desc->pd_name, NRS_POL_NAME_MAX);
 
@@ -1190,7 +1190,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
-	class_incref(obd, __FUNCTION__, current);
+	class_incref(obd, __func__, current);
 
 	if (strncmp(tmpbuf, "nid:", 4) == 0)
 		obd_export_evict_by_nid(obd, tmpbuf + 4);
@@ -1199,7 +1199,7 @@ int lprocfs_wr_evict_client(struct file *file, const char *buffer,
 	else
 		obd_export_evict_by_uuid(obd, tmpbuf);
 
-	class_decref(obd, __FUNCTION__, current);
+	class_decref(obd, __func__, current);
 
 out:
 	OBD_FREE(kbuf, BUFLEN);

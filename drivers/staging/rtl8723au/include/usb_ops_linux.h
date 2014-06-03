@@ -17,30 +17,25 @@
 
 #define VENDOR_CMD_MAX_DATA_LEN	254
 
-#define RTW_USB_CONTROL_MSG_TIMEOUT_TEST	10/* ms */
 #define RTW_USB_CONTROL_MSG_TIMEOUT	500/* ms */
 
 #define MAX_USBCTRL_VENDORREQ_TIMES	10
 
-#define RTW_USB_BULKOUT_TIMEOUT	5000/* ms */
+int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
+			struct recv_buf *precvbuf);
+void rtl8723au_read_port_cancel(struct rtw_adapter *padapter);
+int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
+			 struct xmit_buf *pxmitbuf);
+void rtl8723au_write_port_cancel(struct rtw_adapter *padapter);
+int rtl8723au_read_interrupt(struct rtw_adapter *adapter, u32 addr);
 
-#define _usbctrl_vendorreq_async_callback(urb, regs)		\
-	_usbctrl_vendorreq_async_callback(urb)
-#define usb_write_mem23a_complete(purb, regs)	usb_write_mem23a_complete(purb)
-#define usb_write_port23a_complete(purb, regs)	usb_write_port23a_complete(purb)
-#define usb_read_port_complete(purb, regs)	usb_read_port_complete(purb)
-#define usb_read_interrupt_complete(purb, regs)			\
-	usb_read_interrupt_complete(purb)
-
-unsigned int ffaddr2pipehdl23a(struct dvobj_priv *pdvobj, u32 addr);
-
-void usb_read_mem23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem);
-void usb_write_mem23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem);
-
-void usb_read_port_cancel23a(struct intf_hdl *pintfhdl);
-
-u32 usb_write_port23a(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
-		   struct xmit_buf *wmem);
-void usb_write_port23a_cancel(struct intf_hdl *pintfhdl);
+u8 rtl8723au_read8(struct rtw_adapter *padapter, u32 addr);
+u16 rtl8723au_read16(struct rtw_adapter *padapter, u32 addr);
+u32 rtl8723au_read32(struct rtw_adapter *padapter, u32 addr);
+int rtl8723au_write8(struct rtw_adapter *padapter, u32 addr, u8 val);
+int rtl8723au_write16(struct rtw_adapter *padapter, u32 addr, u16 val);
+int rtl8723au_write32(struct rtw_adapter *padapter, u32 addr, u32 val);
+int rtl8723au_writeN(struct rtw_adapter *padapter,
+		     u32 addr, u32 length, u8 *pdata);
 
 #endif

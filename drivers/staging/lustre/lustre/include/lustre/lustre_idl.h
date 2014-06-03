@@ -265,7 +265,7 @@ static inline __u64 range_space(const struct lu_seq_range *range)
 
 static inline void range_init(struct lu_seq_range *range)
 {
-	range->lsr_start = range->lsr_end = range->lsr_index = 0;
+	memset(range, 0, sizeof(*range));
 }
 
 /**
@@ -1682,6 +1682,30 @@ static inline __u32 lov_mds_md_size(__u16 stripes, __u32 lmm_magic)
 				stripes * sizeof(struct lov_ost_data_v1);
 }
 
+static inline __u32
+lov_mds_md_max_stripe_count(size_t buf_size, __u32 lmm_magic)
+{
+	switch (lmm_magic) {
+	case LOV_MAGIC_V1: {
+		struct lov_mds_md_v1 lmm;
+
+		if (buf_size < sizeof(lmm))
+			return 0;
+
+		return (buf_size - sizeof(lmm)) / sizeof(lmm.lmm_objects[0]);
+	}
+	case LOV_MAGIC_V3: {
+		struct lov_mds_md_v3 lmm;
+
+		if (buf_size < sizeof(lmm))
+			return 0;
+
+		return (buf_size - sizeof(lmm)) / sizeof(lmm.lmm_objects[0]);
+	}
+	default:
+		return 0;
+	}
+}
 
 #define OBD_MD_FLID	(0x00000001ULL) /* object ID */
 #define OBD_MD_FLATIME     (0x00000002ULL) /* access time */
@@ -2681,6 +2705,8 @@ enum seq_op {
  * protocol, this will limit the max number of OSTs per LOV */
 
 #define LOV_DESC_MAGIC 0xB0CCDE5C
+#define LOV_DESC_QOS_MAXAGE_DEFAULT 5  /* Seconds */
+#define LOV_DESC_STRIPE_SIZE_DEFAULT (1 << LNET_MTU_BITS)
 
 /* LOV settings descriptor (should only contain static info) */
 struct lov_desc {

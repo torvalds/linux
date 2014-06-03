@@ -86,15 +86,6 @@
 /*  structure and define */
 /*  */
 
-/*  */
-/*  2011/09/20 MH Add for AP/ADSLpseudo DM structuer requirement. */
-/*  We need to remove to other position??? */
-/*  */
-struct rtl8723a_priv {
-	u8		temp;
-};
-
-
 struct  dig_t {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
@@ -187,7 +178,6 @@ struct rx_hp {
 	bool		First_time_enter;
 	bool		RXHP_enable;
 	u8		TP_Mode;
-	struct timer_list PSDTimer;
 };
 
 #define ASSOCIATE_ENTRY_NUM					32 /*  Max size of AsocEntry[]. */
@@ -234,14 +224,12 @@ struct sw_ant_sw {
 	u64		RXByteCnt_A;
 	u64		RXByteCnt_B;
 	u8		TrafficLoad;
-	struct timer_list SwAntennaSwitchTimer;
 };
 
 struct edca_turbo {
 	bool bCurrentTurboEDCA;
 	bool bIsCurRDLState;
 	u32	prv_traffic_idx; /*  edca turbo */
-
 };
 
 struct odm_rate_adapt {
@@ -267,20 +255,6 @@ struct odm_rate_adapt {
 
 /*  Declare for common info */
 
-struct odm_phy_info {
-	u8		RxPWDBAll;
-	u8		SignalQuality;	 /*  in 0-100 index. */
-	u8		RxMIMOSignalQuality[RF_PATH_MAX]; /* EVM */
-	u8		RxMIMOSignalStrength[RF_PATH_MAX];/*  in 0~100 index */
-	s8		RxPower; /*  in dBm Translate from PWdB */
-	s8		RecvSignalPower;/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
-	u8		BTRxRSSIPercentage;
-	u8		SignalStrength; /*  in 0-100 index. */
-	u8		RxPwr[RF_PATH_MAX];/* per-path's pwdb */
-	u8		RxSNR[RF_PATH_MAX];/* per-path's SNR */
-};
-
-
 struct odm_phy_dbg_info {
 	/* ODM Write,debug info */
 	s8		RxSNRdB[RF_PATH_MAX];
@@ -300,11 +274,6 @@ struct odm_packet_info {
 	bool		bPacketBeacon;
 };
 
-struct odm_mac_info {
-	u8	test;
-
-};
-
 
 enum {
 	/*  BB Team */
@@ -320,32 +289,6 @@ enum {
 	ODM_2TPATHDIV		= 0x00000200,
 	ODM_1TPATHDIV		= 0x00000400,
 	ODM_PSD2AFH		= 0x00000800
-};
-
-/*  */
-/*  2011/20/20 MH For MP driver RT_WLAN_STA =  struct sta_info */
-/*  Please declare below ODM relative info in your STA info structure. */
-/*  */
-struct odm_sta_info {
-	/*  Driver Write */
-	bool		bUsed;				/*  record the sta status link or not? */
-	u8		IOTPeer;			/*  Enum value.	HT_IOT_PEER_E */
-
-	/*  ODM Write */
-	/* 1 PHY_STATUS_INFO */
-	u8		RSSI_Path[4];		/*  */
-	u8		RSSI_Ave;
-	u8		RXEVM[4];
-	u8		RXSNR[4];
-
-	/*  ODM Write */
-	/* 1 TX_INFO (may changed by IC) */
-
-	/*  */
-	/*	Please use compile flag to disable the structure for other IC except 88E. */
-	/*	Move To lower layer. */
-	/*  */
-	/*  ODM Write Wilson will handle this part(said by Luke.Lee) */
 };
 
 /*  */
@@ -428,28 +371,28 @@ enum odm_cmninfo {
 /*  Define ODM support ability.  ODM_CMNINFO_ABILITY */
 enum {
 	/*  BB ODM section BIT 0-15 */
-	ODM_BB_DIG				= BIT0,
-	ODM_BB_RA_MASK				= BIT1,
-	ODM_BB_DYNAMIC_TXPWR			= BIT2,
-	ODM_BB_FA_CNT				= BIT3,
-	ODM_BB_RSSI_MONITOR			= BIT4,
-	ODM_BB_CCK_PD				= BIT5,
-	ODM_BB_ANT_DIV				= BIT6,
-	ODM_BB_PWR_SAVE				= BIT7,
-	ODM_BB_PWR_TRAIN			= BIT8,
-	ODM_BB_RATE_ADAPTIVE			= BIT9,
-	ODM_BB_PATH_DIV				= BIT10,
-	ODM_BB_PSD				= BIT11,
-	ODM_BB_RXHP				= BIT12,
+	ODM_BB_DIG				= BIT(0),
+	ODM_BB_RA_MASK				= BIT(1),
+	ODM_BB_DYNAMIC_TXPWR			= BIT(2),
+	ODM_BB_FA_CNT				= BIT(3),
+	ODM_BB_RSSI_MONITOR			= BIT(4),
+	ODM_BB_CCK_PD				= BIT(5),
+	ODM_BB_ANT_DIV				= BIT(6),
+	ODM_BB_PWR_SAVE				= BIT(7),
+	ODM_BB_PWR_TRAIN			= BIT(8),
+	ODM_BB_RATE_ADAPTIVE			= BIT(9),
+	ODM_BB_PATH_DIV				= BIT(10),
+	ODM_BB_PSD				= BIT(11),
+	ODM_BB_RXHP				= BIT(12),
 
 	/*  MAC DM section BIT 16-23 */
-	ODM_MAC_EDCA_TURBO			= BIT16,
-	ODM_MAC_EARLY_MODE			= BIT17,
+	ODM_MAC_EDCA_TURBO			= BIT(16),
+	ODM_MAC_EARLY_MODE			= BIT(17),
 
 	/*  RF ODM section BIT 24-31 */
-	ODM_RF_TX_PWR_TRACK			= BIT24,
-	ODM_RF_RX_GAIN_TRACK			= BIT25,
-	ODM_RF_CALIBRATION			= BIT26,
+	ODM_RF_TX_PWR_TRACK			= BIT(24),
+	ODM_RF_RX_GAIN_TRACK			= BIT(25),
+	ODM_RF_CALIBRATION			= BIT(26),
 
 };
 
@@ -463,13 +406,13 @@ enum odm_interface_def {
 
 /*  ODM_CMNINFO_IC_TYPE */
 enum odm_ic_type_def {
-	ODM_RTL8192S	=	BIT0,
-	ODM_RTL8192C	=	BIT1,
-	ODM_RTL8192D	=	BIT2,
-	ODM_RTL8723A	=	BIT3,
-	ODM_RTL8188E	=	BIT4,
-	ODM_RTL8812	=	BIT5,
-	ODM_RTL8821	=	BIT6,
+	ODM_RTL8192S	=	BIT(0),
+	ODM_RTL8192C	=	BIT(1),
+	ODM_RTL8192D	=	BIT(2),
+	ODM_RTL8723A	=	BIT(3),
+	ODM_RTL8188E	=	BIT(4),
+	ODM_RTL8812	=	BIT(5),
+	ODM_RTL8821	=	BIT(6),
 };
 
 #define ODM_IC_11N_SERIES			\
@@ -496,14 +439,14 @@ enum odm_fab_version {
 /*  ODM_CMNINFO_RF_TYPE */
 /*  For example 1T2R (A+AB = BIT0|BIT4|BIT5) */
 enum rf_path_def {
-	ODM_RF_TX_A	=	BIT0,
-	ODM_RF_TX_B	=	BIT1,
-	ODM_RF_TX_C	=	BIT2,
-	ODM_RF_TX_D	=	BIT3,
-	ODM_RF_RX_A	=	BIT4,
-	ODM_RF_RX_B	=	BIT5,
-	ODM_RF_RX_C	=	BIT6,
-	ODM_RF_RX_D	=	BIT7,
+	ODM_RF_TX_A	=	BIT(0),
+	ODM_RF_TX_B	=	BIT(1),
+	ODM_RF_TX_C	=	BIT(2),
+	ODM_RF_TX_D	=	BIT(3),
+	ODM_RF_RX_A	=	BIT(4),
+	ODM_RF_RX_B	=	BIT(5),
+	ODM_RF_RX_C	=	BIT(6),
+	ODM_RF_RX_D	=	BIT(7),
 };
 
 
@@ -536,33 +479,33 @@ enum odm_bt_coexist {
 
 /*  ODM_CMNINFO_OP_MODE */
 enum odm_operation_mode {
-	ODM_NO_LINK		= BIT0,
-	ODM_LINK		= BIT1,
-	ODM_SCAN		= BIT2,
-	ODM_POWERSAVE		= BIT3,
-	ODM_AP_MODE		= BIT4,
-	ODM_CLIENT_MODE		= BIT5,
-	ODM_AD_HOC		= BIT6,
-	ODM_WIFI_DIRECT		= BIT7,
-	ODM_WIFI_DISPLAY	= BIT8,
+	ODM_NO_LINK		= BIT(0),
+	ODM_LINK		= BIT(1),
+	ODM_SCAN		= BIT(2),
+	ODM_POWERSAVE		= BIT(3),
+	ODM_AP_MODE		= BIT(4),
+	ODM_CLIENT_MODE		= BIT(5),
+	ODM_AD_HOC		= BIT(6),
+	ODM_WIFI_DIRECT		= BIT(7),
+	ODM_WIFI_DISPLAY	= BIT(8),
 };
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
 	ODM_WM_UNKNOW		= 0x0,
-	ODM_WM_B		= BIT0,
-	ODM_WM_G		= BIT1,
-	ODM_WM_A		= BIT2,
-	ODM_WM_N24G		= BIT3,
-	ODM_WM_N5G		= BIT4,
-	ODM_WM_AUTO		= BIT5,
-	ODM_WM_AC		= BIT6,
+	ODM_WM_B		= BIT(0),
+	ODM_WM_G		= BIT(1),
+	ODM_WM_A		= BIT(2),
+	ODM_WM_N24G		= BIT(3),
+	ODM_WM_N5G		= BIT(4),
+	ODM_WM_AUTO		= BIT(5),
+	ODM_WM_AC		= BIT(6),
 };
 
 /*  ODM_CMNINFO_BAND */
 enum odm_band_type {
-	ODM_BAND_2_4G		= BIT0,
-	ODM_BAND_5G		= BIT1,
+	ODM_BAND_2_4G		= BIT(0),
+	ODM_BAND_5G		= BIT(1),
 
 };
 
@@ -571,18 +514,6 @@ enum odm_sec_chnl_offset {
 	ODM_DONT_CARE		= 0,
 	ODM_BELOW		= 1,
 	ODM_ABOVE		= 2
-};
-
-/*  ODM_CMNINFO_SEC_MODE */
-enum odm_security {
-	ODM_SEC_OPEN		= 0,
-	ODM_SEC_WEP40		= 1,
-	ODM_SEC_TKIP		= 2,
-	ODM_SEC_RESERVE		= 3,
-	ODM_SEC_AESCCMP		= 4,
-	ODM_SEC_WEP104		= 5,
-	ODM_WEP_WPA_MIXED	= 6, /*  WEP + WPA */
-	ODM_SEC_SMS4		= 7,
 };
 
 /*  ODM_CMNINFO_BW */
@@ -611,38 +542,6 @@ enum odm_cca_path {
 	ODM_CCA_2R			= 0,
 	ODM_CCA_1R_A			= 1,
 	ODM_CCA_1R_B			= 2,
-};
-
-struct odm_ra_info {
-	u8 RateID;
-	u32 RateMask;
-	u32 RAUseRate;
-	u8 RateSGI;
-	u8 RssiStaRA;
-	u8 PreRssiStaRA;
-	u8 SGIEnable;
-	u8 DecisionRate;
-	u8 PreRate;
-	u8 HighestRate;
-	u8 LowestRate;
-	u32 NscUp;
-	u32 NscDown;
-	u16 RTY[5];
-	u32 TOTAL;
-	u16 DROP;
-	u8 Active;
-	u16 RptTime;
-	u8 RAWaitingCounter;
-	u8 RAPendingCounter;
-	u8 PTActive;  /*  on or off */
-	u8 PTTryState;  /*  0 trying state, 1 for decision state */
-	u8 PTStage;  /*  0~6 */
-	u8 PTStopCount; /* Stop PT counter */
-	u8 PTPreRate;  /*  if rate change do PT */
-	u8 PTPreRssi; /*  if RSSI change 5% do PT */
-	u8 PTModeSS;  /*  decide whitch rate should do PT */
-	u8 RAstage;  /*  StageRA, decide how many times RA will be done between PT */
-	u8 PTSmoothFactor;
 };
 
 struct iqk_matrix_regs_set {
@@ -762,16 +661,10 @@ enum ant_dif_type {
 
 /*  2011/09/22 MH Copy from SD4 defined structure. We use to support PHY DM integration. */
 struct dm_odm_t {
-	/* struct timer_list FastAntTrainingTimer; */
 	/*  */
 	/*	Add for different team use temporarily */
 	/*  */
 	struct rtw_adapter	*Adapter;		/*  For CE/NIC team */
-	struct rtl8723a_priv	*priv;			/*  For AP/ADSL team */
-	/*  WHen you use Adapter or priv pointer, you must make sure the pointer is ready. */
-	bool			odm_ready;
-
-	struct rtl8723a_priv fake_priv;
 
 	u64			DebugComponents;
 	u32			DebugLevel;
@@ -891,7 +784,6 @@ struct dm_odm_t {
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	struct odm_mac_info		*pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
@@ -928,7 +820,6 @@ struct dm_odm_t {
 
 	/* PSD */
 	bool			bUserAssignLevel;
-	struct timer_list	PSDTimer;
 	u8			RSSI_BT;			/* come from BT */
 	bool			bPSDinProcess;
 	bool			bDMInitialGainEnable;
@@ -955,14 +846,6 @@ struct dm_odm_t {
 	/*  */
 	/*  ODM system resource. */
 	/*  */
-
-	/*  ODM relative time. */
-	struct timer_list PathDivSwitchTimer;
-	/* 2011.09.27 add for Path Diversity */
-	struct timer_list CCKPathDiversityTimer;
-	struct timer_list FastAntTrainingTimer;
-
-	/*  ODM relative workitem. */
 };	/*  DM_Dynamic_Mechanism_Structure */
 
 enum odm_rf_content {
@@ -1163,7 +1046,7 @@ bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 
 #define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
 void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct odm_phy_info *pPhyInfo);
+			       struct phy_info *pPhyInfo);
 
 u32 ConvertTo_dB23a(u32 Value);
 
@@ -1185,12 +1068,6 @@ void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, void
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, u16 Index, void *pValue);
 
 void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value);
-
-void ODM_InitAllTimers(struct dm_odm_t *pDM_Odm);
-
-void ODM_CancelAllTimers(struct dm_odm_t *pDM_Odm);
-
-void ODM_ReleaseAllTimers(struct dm_odm_t *pDM_Odm);
 
 void ODM_ResetIQKResult(struct dm_odm_t *pDM_Odm);
 

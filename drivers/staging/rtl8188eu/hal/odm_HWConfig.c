@@ -275,10 +275,6 @@ static void odm_RxPhyStatus92CSeries_Parsing(struct odm_dm_struct *dm_odm,
 	dm_odm->DM_FatTable.antsel_rx_keep_2 = pPhyStaRpt->antsel_rx_keep_2;
 }
 
-void odm_Init_RSSIForDM(struct odm_dm_struct *dm_odm)
-{
-}
-
 static void odm_Process_RSSIForDM(struct odm_dm_struct *dm_odm,
 				  struct odm_phy_status_info *pPhyInfo,
 				  struct odm_per_pkt_info *pPktinfo)
@@ -434,14 +430,6 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 			u8 *pPhyStatus, struct odm_per_pkt_info *pPktinfo)
 {
 	ODM_PhyStatusQuery_92CSeries(dm_odm, pPhyInfo, pPhyStatus, pPktinfo);
-}
-
-/*  For future use. */
-void ODM_MacStatusQuery(struct odm_dm_struct *dm_odm, u8 *mac_stat,
-			u8 macid, bool pkt_match_bssid,
-			bool pkttoself, bool pkt_beacon)
-{
-	/*  2011/10/19 Driver team will handle in the future. */
 }
 
 enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm,

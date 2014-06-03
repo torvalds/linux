@@ -197,7 +197,7 @@ static int pcl726_intr_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
@@ -240,7 +240,7 @@ static irqreturn_t pcl726_interrupt(int irq, void *d)
 	if (devpriv->cmd_running) {
 		pcl726_intr_cancel(dev, s);
 
-		comedi_buf_put(s->async, 0);
+		comedi_buf_put(s, 0);
 		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 		comedi_event(dev, s);
 	}
@@ -430,6 +430,7 @@ static int pcl726_attach(struct comedi_device *dev,
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
 		s->insn_bits	= pcl726_intr_insn_bits;
+		s->len_chanlist	= 1;
 		s->do_cmdtest	= pcl726_intr_cmdtest;
 		s->do_cmd	= pcl726_intr_cmd;
 		s->cancel	= pcl726_intr_cancel;

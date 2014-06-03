@@ -1,6 +1,6 @@
 /* procobjecttree.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -95,6 +95,7 @@ static struct proc_dir_entry *
 createProcDir(const char *name, struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *p = proc_mkdir_mode(name, S_IFDIR, parent);
+
 	if (p == NULL)
 		ERRDRV("failed to create /proc directory %s", name);
 	return p;
@@ -197,9 +198,11 @@ void visor_proc_DestroyType(MYPROCTYPE *type)
 		return;
 	if (type->procDirs != NULL) {
 		int i = type->nNames-1;
+
 		while (i >= 0) {
 			if (type->procDirs[i] != NULL) {
 				struct proc_dir_entry *parent = NULL;
+
 				if (i == 0)
 					parent = type->procDirRoot;
 				else
@@ -299,6 +302,7 @@ EXPORT_SYMBOL_GPL(visor_proc_CreateObject);
 void visor_proc_DestroyObject(MYPROCOBJECT *obj)
 {
 	MYPROCTYPE *type = NULL;
+
 	if (obj == NULL)
 		return;
 	type = obj->type;
@@ -306,6 +310,7 @@ void visor_proc_DestroyObject(MYPROCOBJECT *obj)
 		return;
 	if (obj->procDirProperties != NULL) {
 		int i = 0;
+
 		for (i = 0; i < type->nProperties; i++) {
 			if (obj->procDirProperties[i] != NULL) {
 				remove_proc_entry(type->propertyNames[i],
@@ -338,6 +343,7 @@ EXPORT_SYMBOL_GPL(visor_proc_DestroyObject);
 static int seq_show(struct seq_file *seq, void *offset)
 {
 	PROCDIRENTRYCONTEXT *ctx = (PROCDIRENTRYCONTEXT *)(seq->private);
+
 	if (ctx == NULL) {
 		ERRDRV("I don't have a freakin' clue...");
 		return 0;

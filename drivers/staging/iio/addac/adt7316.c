@@ -172,7 +172,7 @@
 #define ID_ADT75XX		0x10
 
 /*
- * struct adt7316_chip_info - chip specifc information
+ * struct adt7316_chip_info - chip specific information
  */
 
 struct adt7316_chip_info {
@@ -208,7 +208,7 @@ struct adt7316_chip_info {
 	(ADT7316_TEMP_INT_MASK)
 
 /*
- * struct adt7316_chip_info - chip specifc information
+ * struct adt7316_chip_info - chip specific information
  */
 
 struct adt7316_limit_regs {

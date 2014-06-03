@@ -39,7 +39,6 @@
 #include <linux/libcfs/libcfs.h>
 
 #include <obd_class.h>
-#include <obd_lov.h>
 #include <lustre/lustre_idl.h>
 
 #include "lov_internal.h"

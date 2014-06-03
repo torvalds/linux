@@ -75,14 +75,6 @@ static int ll_d_mountpoint(struct dentry *dparent, struct dentry *dchild,
 	return mounted;
 }
 
-int ll_unlock(__u32 mode, struct lustre_handle *lockh)
-{
-	ldlm_lock_decref(lockh, mode);
-
-	return 0;
-}
-
-
 /* called from iget5_locked->find_inode() under inode_hash_lock spinlock */
 static int ll_test_inode(struct inode *inode, void *opaque)
 {
@@ -433,12 +425,10 @@ struct dentry *ll_splice_alias(struct inode *inode, struct dentry *de)
 	return de;
 }
 
-int ll_lookup_it_finish(struct ptlrpc_request *request,
-			struct lookup_intent *it, void *data)
+static int ll_lookup_it_finish(struct ptlrpc_request *request,
+			       struct lookup_intent *it,
+			       struct inode *parent, struct dentry **de)
 {
-	struct it_cb_data *icbd = data;
-	struct dentry **de = icbd->icbd_childp;
-	struct inode *parent = icbd->icbd_parent;
 	struct inode *inode = NULL;
 	__u64 bits = 0;
 	int rc;
@@ -513,7 +503,6 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	struct dentry *save = dentry, *retval;
 	struct ptlrpc_request *req = NULL;
 	struct md_op_data *op_data;
-	struct it_cb_data icbd;
 	__u32 opc;
 	int rc;
 
@@ -527,7 +516,8 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (d_mountpoint(dentry))
 		CERROR("Tell Peter, lookup on mtpt, it %s\n", LL_IT2STR(it));
 
-	ll_frob_intent(&it, &lookup_it);
+	if (it == NULL || it->it_op == IT_GETXATTR)
+		it = &lookup_it;
 
 	if (it->it_op == IT_GETATTR) {
 		rc = ll_statahead_enter(parent, &dentry, 0);
@@ -537,9 +527,6 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 			GOTO(out, retval = dentry);
 		}
 	}
-
-	icbd.icbd_childp = &dentry;
-	icbd.icbd_parent = parent;
 
 	if (it->it_op & IT_CREAT)
 		opc = LUSTRE_OPC_CREATE;
@@ -562,7 +549,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if (rc < 0)
 		GOTO(out, retval = ERR_PTR(rc));
 
-	rc = ll_lookup_it_finish(req, it, &icbd);
+	rc = ll_lookup_it_finish(req, it, parent, &dentry);
 	if (rc != 0) {
 		ll_intent_release(it);
 		GOTO(out, retval = ERR_PTR(rc));
@@ -697,10 +684,7 @@ out_release:
 
 
 /* We depend on "mode" being set with the proper file type/umask by now */
-static struct inode *ll_create_node(struct inode *dir, const char *name,
-				    int namelen, const void *data, int datalen,
-				    int mode, __u64 extra,
-				    struct lookup_intent *it)
+static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 {
 	struct inode *inode = NULL;
 	struct ptlrpc_request *request = NULL;
@@ -757,13 +741,9 @@ static int ll_create_it(struct inode *dir, struct dentry *dentry, int mode,
 	if (rc)
 		return rc;
 
-	inode = ll_create_node(dir, dentry->d_name.name, dentry->d_name.len,
-			       NULL, 0, mode, 0, it);
+	inode = ll_create_node(dir, it);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
-
-	if (filename_is_volatile(dentry->d_name.name, dentry->d_name.len, NULL))
-		ll_i2info(inode)->lli_volatile = true;
 
 	d_instantiate(dentry, inode);
 	return 0;
@@ -1238,7 +1218,7 @@ static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return err;
 }
 
-struct inode_operations ll_dir_inode_operations = {
+const struct inode_operations ll_dir_inode_operations = {
 	.mknod	      = ll_mknod,
 	.atomic_open	    = ll_atomic_open,
 	.lookup	     = ll_lookup_nd,
@@ -1260,7 +1240,7 @@ struct inode_operations ll_dir_inode_operations = {
 	.get_acl	    = ll_get_acl,
 };
 
-struct inode_operations ll_special_inode_operations = {
+const struct inode_operations ll_special_inode_operations = {
 	.setattr	= ll_setattr,
 	.getattr	= ll_getattr,
 	.permission     = ll_inode_permission,

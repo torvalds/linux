@@ -160,16 +160,18 @@ config COMEDI_PCL730
 	  Enable support for various simple ISA or PC/104 Digital I/O boards.
 	  These boards all use 8-bit I/O ports.
 
-	  Advantech PCL-730   isolated - 16 in/16 out  ttl - 16 in/16 out
-	  ICP ISO-730         isolated - 16 in/16 out  ttl - 16 in/16 out
-	  ADlink ACL-7130     isolated - 16 in/16 out  ttl - 16 in/16 out
-	  Advantech PCM-3730  isolated - 8 in/8 out    ttl - 16 in/16 out
-	  Advantech PCL-725   isolated - 8 in/8 out
-	  ICP P8R8-DIO        isolated - 8 in/8 out
-	  ADlink ACL-7225b    isolated - 16 in/16 out
-	  ICP P16R16-DIO      isolated - 16 in/16 out
-	  Advantech PCL-733   isolated - 32 in
-	  Advantech PCL-734   isolated - 32 out
+	  Advantech PCL-730             iso - 16 in/16 out  ttl - 16 in/16 out
+	  ICP ISO-730                   iso - 16 in/16 out  ttl - 16 in/16 out
+	  ADlink ACL-7130               iso - 16 in/16 out  ttl - 16 in/16 out
+	  Advantech PCM-3730            iso - 8 in/8 out    ttl - 16 in/16 out
+	  Advantech PCL-725             iso - 8 in/8 out
+	  ICP P8R8-DIO                  iso - 8 in/8 out
+	  ADlink ACL-7225b              iso - 16 in/16 out
+	  ICP P16R16-DIO                iso - 16 in/16 out
+	  Advantech PCL-733             iso - 32 in
+	  Advantech PCL-734             iso - 32 out
+	  Diamond Systems OPMM-1616-XT  iso - 16 in/16 out
+	  Diamond Systems PEARL-MM-P    iso - 16 out
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcl730.

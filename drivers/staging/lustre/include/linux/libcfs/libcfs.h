@@ -42,6 +42,7 @@
 #endif
 
 #include <linux/libcfs/linux/libcfs.h>
+#include <linux/gfp.h>
 
 #include "curproc.h"
 

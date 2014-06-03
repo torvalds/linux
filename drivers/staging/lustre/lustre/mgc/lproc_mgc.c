@@ -56,21 +56,21 @@ static int mgc_ir_state_seq_show(struct seq_file *m, void *v)
 LPROC_SEQ_FOPS_RO(mgc_ir_state);
 
 static struct lprocfs_vars lprocfs_mgc_obd_vars[] = {
-	{ "uuid",	     &mgc_uuid_fops,	  0, 0 },
-	{ "ping",	     &mgc_ping_fops,      0, 0222 },
-	{ "connect_flags",   &mgc_connect_flags_fops, 0, 0 },
-	{ "mgs_server_uuid", &mgc_server_uuid_fops,   0, 0 },
-	{ "mgs_conn_uuid",   &mgc_conn_uuid_fops,     0, 0 },
-	{ "import",	     &mgc_import_fops,	0, 0 },
-	{ "state",	     &mgc_state_fops,	 0, 0 },
-	{ "ir_state",	     &mgc_ir_state_fops,  0, 0 },
-	{ 0 }
+	{ "uuid",	     &mgc_uuid_fops,	  NULL, 0 },
+	{ "ping",	     &mgc_ping_fops,      NULL, 0222 },
+	{ "connect_flags",   &mgc_connect_flags_fops, NULL, 0 },
+	{ "mgs_server_uuid", &mgc_server_uuid_fops,   NULL, 0 },
+	{ "mgs_conn_uuid",   &mgc_conn_uuid_fops,     NULL, 0 },
+	{ "import",	     &mgc_import_fops,	NULL, 0 },
+	{ "state",	     &mgc_state_fops,	 NULL, 0 },
+	{ "ir_state",	     &mgc_ir_state_fops,  NULL, 0 },
+	{ NULL }
 };
 
 LPROC_SEQ_FOPS_RO_TYPE(mgc, numrefs);
 static struct lprocfs_vars lprocfs_mgc_module_vars[] = {
-	{ "num_refs",	&mgc_numrefs_fops,       0, 0 },
-	{ 0 }
+	{ "num_refs",	&mgc_numrefs_fops,       NULL, 0 },
+	{ NULL }
 };
 
 void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars)

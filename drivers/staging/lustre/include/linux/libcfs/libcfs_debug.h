@@ -183,7 +183,7 @@ struct libcfs_debug_msg_data {
 do {								\
 	(data)->msg_subsys = DEBUG_SUBSYSTEM;			\
 	(data)->msg_file   = __FILE__;				\
-	(data)->msg_fn     = __FUNCTION__;			\
+	(data)->msg_fn     = __func__;				\
 	(data)->msg_line   = __LINE__;				\
 	(data)->msg_cdls   = (cdls);				\
 	(data)->msg_mask   = (mask);				\
@@ -193,7 +193,7 @@ do {								\
 	static struct libcfs_debug_msg_data dataname = {	\
 	       .msg_subsys = DEBUG_SUBSYSTEM,			\
 	       .msg_file   = __FILE__,				\
-	       .msg_fn     = __FUNCTION__,			\
+	       .msg_fn     = __func__,				\
 	       .msg_line   = __LINE__,				\
 	       .msg_cdls   = (cdls)	 };			\
 	dataname.msg_mask   = (mask);

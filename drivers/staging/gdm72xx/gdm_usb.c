@@ -27,6 +27,7 @@
 MODULE_DEVICE_TABLE(usb, id_table);
 
 #define TX_BUF_SIZE		2048
+
 #if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
 #define RX_BUF_SIZE		(128*1024)	/* For packet aggregation */
 #else
@@ -166,10 +167,10 @@ static void put_rx_struct(struct rx_cxt *rx, struct usb_rx *r)
 static int init_usb(struct usbwm_dev *udev)
 {
 	int ret = 0, i;
-	struct tx_cxt	*tx = &udev->tx;
-	struct rx_cxt	*rx = &udev->rx;
-	struct usb_tx	*t;
-	struct usb_rx	*r;
+	struct tx_cxt *tx = &udev->tx;
+	struct rx_cxt *rx = &udev->rx;
+	struct usb_tx *t;
+	struct usb_rx *r;
 	unsigned long flags;
 
 	INIT_LIST_HEAD(&tx->free_list);
@@ -215,10 +216,10 @@ fail:
 
 static void release_usb(struct usbwm_dev *udev)
 {
-	struct tx_cxt	*tx = &udev->tx;
-	struct rx_cxt	*rx = &udev->rx;
-	struct usb_tx	*t, *t_next;
-	struct usb_rx	*r, *r_next;
+	struct tx_cxt *tx = &udev->tx;
+	struct rx_cxt *rx = &udev->rx;
+	struct usb_tx *t, *t_next;
+	struct usb_rx *r, *r_next;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tx->lock, flags);
@@ -344,16 +345,11 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	if ((len % 512) == 0)
 		len++;
 
-	usb_fill_bulk_urb(t->urb,
-			usbdev,
-			usb_sndbulkpipe(usbdev, 1),
-			t->buf,
-			len + padding,
-			gdm_usb_send_complete,
-			t);
+	usb_fill_bulk_urb(t->urb, usbdev, usb_sndbulkpipe(usbdev, 1), t->buf,
+			  len + padding, gdm_usb_send_complete, t);
 
-	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1,
-			     t->buf, len + padding, false);
+	print_hex_dump_debug("usb_send: ", DUMP_PREFIX_NONE, 16, 1, t->buf,
+			     len + padding, false);
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	if (usbdev->state & USB_STATE_SUSPENDED) {
 		list_add_tail(&t->p_list, &tx->pending_list);
@@ -470,8 +466,8 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 }
 
 static int gdm_usb_receive(void *priv_dev,
-			void (*cb)(void *cb_data, void *data, int len),
-			void *cb_data)
+			   void (*cb)(void *cb_data, void *data, int len),
+			   void *cb_data)
 {
 	struct usbwm_dev *udev = priv_dev;
 	struct usb_device *usbdev = udev->usbdev;
@@ -494,13 +490,8 @@ static int gdm_usb_receive(void *priv_dev,
 	r->callback = cb;
 	r->cb_data = cb_data;
 
-	usb_fill_bulk_urb(r->urb,
-			usbdev,
-			usb_rcvbulkpipe(usbdev, 0x82),
-			r->buf,
-			RX_BUF_SIZE,
-			gdm_usb_rcv_complete,
-			r);
+	usb_fill_bulk_urb(r->urb, usbdev, usb_rcvbulkpipe(usbdev, 0x82), r->buf,
+			  RX_BUF_SIZE, gdm_usb_rcv_complete, r);
 
 	return usb_submit_urb(r->urb, GFP_ATOMIC);
 }
@@ -518,8 +509,8 @@ static void do_pm_control(struct work_struct *work)
 		usb_autopm_put_interface(udev->intf);
 
 	spin_lock_irqsave(&tx->lock, flags);
-	if (!(udev->usbdev->state & USB_STATE_SUSPENDED)
-		&& (!list_empty(&tx->hci_list) || !list_empty(&tx->sdu_list))) {
+	if (!(udev->usbdev->state & USB_STATE_SUSPENDED) &&
+	    (!list_empty(&tx->hci_list) || !list_empty(&tx->sdu_list))) {
 		struct usb_tx *t, *temp;
 
 		list_for_each_entry_safe(t, temp, &tx->pending_list, p_list) {
@@ -537,7 +528,7 @@ static void do_pm_control(struct work_struct *work)
 #endif /* CONFIG_WIMAX_GDM72XX_USB_PM */
 
 static int gdm_usb_probe(struct usb_interface *intf,
-				const struct usb_device_id *id)
+			 const struct usb_device_id *id)
 {
 	int ret = 0;
 	u8 bConfigurationValue;
@@ -567,7 +558,7 @@ static int gdm_usb_probe(struct usb_interface *intf,
 
 	/* Support for EEPROM bootloader */
 	if (bConfigurationValue == DOWNLOAD_CONF_VALUE ||
-		idProduct & B_DOWNLOAD) {
+	    idProduct & B_DOWNLOAD) {
 		ret = usb_boot(usbdev, bcdDevice);
 		goto out;
 	}
@@ -639,8 +630,9 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	idProduct = L2H(usbdev->descriptor.idProduct);
 
 	if (idProduct != EMERGENCY_PID &&
-			bConfigurationValue != DOWNLOAD_CONF_VALUE &&
-			(idProduct & B_DOWNLOAD) == 0) {
+	    bConfigurationValue != DOWNLOAD_CONF_VALUE &&
+	    (idProduct & B_DOWNLOAD) == 0) {
+
 		udev = phy_dev->priv_dev;
 		udev->usbdev = NULL;
 
@@ -730,7 +722,7 @@ static int k_mode_thread(void *arg)
 			spin_unlock_irqrestore(&k_lock, flags2);
 
 			expire = jiffies + K_WAIT_TIME;
-			while (jiffies < expire)
+			while (time_before(jiffies, expire))
 				schedule_timeout(K_WAIT_TIME);
 
 			spin_lock_irqsave(&rx->lock, flags);
@@ -743,7 +735,7 @@ static int k_mode_thread(void *arg)
 			spin_lock_irqsave(&tx->lock, flags);
 
 			list_for_each_entry_safe(t, temp, &tx->pending_list,
-						p_list) {
+						 p_list) {
 				list_del(&t->p_list);
 				ret = usb_submit_urb(t->urb, GFP_ATOMIC);
 
@@ -759,8 +751,8 @@ static int k_mode_thread(void *arg)
 			spin_lock_irqsave(&k_lock, flags2);
 		}
 		wait_event_interruptible_lock_irq(k_wait,
-						  !list_empty(&k_list) || k_mode_stop,
-						  k_lock);
+						  !list_empty(&k_list) ||
+						  k_mode_stop, k_lock);
 		spin_unlock_irqrestore(&k_lock, flags2);
 	}
 	return 0;

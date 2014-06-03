@@ -97,10 +97,6 @@ double __extendsfdf2(float a)
 #include <linux/seq_file.h>
 // FIXME: check if 2.6.7 is ok
 
-#ifdef CONFIG_RTL8192_PM
-#include "r8192_pm.h"
-#endif
-
 #include "dot11d.h"
 //set here to open your trace code. //WB
 u32 rt_global_debug_component = COMP_DOWN	|
@@ -159,13 +155,8 @@ static struct usb_driver rtl8192_usb_driver = {
 	.id_table	= rtl8192_usb_id_tbl,		  /* PCI_ID table  */
 	.probe		= rtl8192_usb_probe,		  /* probe fn      */
 	.disconnect	= rtl8192_usb_disconnect,	  /* remove fn     */
-#ifdef CONFIG_RTL8192_PM
-	.suspend	= rtl8192_suspend,		  /* PM suspend fn */
-	.resume		= rtl8192_resume,                 /* PM resume fn  */
-#else
 	.suspend	= NULL,				  /* PM suspend fn */
 	.resume		= NULL,				  /* PM resume fn  */
-#endif
 };
 
 
@@ -2044,9 +2035,6 @@ static void rtl8192_qos_activate(struct work_struct *work)
 	u8  u1bAIFS;
 	u32 u4bAcParam;
 	int i;
-
-	if (priv == NULL)
-		return;
 
 	mutex_lock(&priv->mutex);
 	if (priv->ieee80211->state != IEEE80211_LINKED)
@@ -4981,12 +4969,8 @@ static int rtl8192_usb_probe(struct usb_interface *intf,
 
 	dev->netdev_ops = &rtl8192_netdev_ops;
 
-#if WIRELESS_EXT >= 12
-#if WIRELESS_EXT < 17
-	dev->get_wireless_stats = r8192_get_wireless_stats;
-#endif
 	dev->wireless_handlers = (struct iw_handler_def *) &r8192_wx_handlers_def;
-#endif
+
 	dev->type = ARPHRD_ETHER;
 
 	dev->watchdog_timeo = HZ*3;	//modified by john, 0805

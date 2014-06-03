@@ -92,14 +92,14 @@ do {									\
 
 struct tx_desc {
 	/* DWORD 0 */
-	unsigned int txdw0;
-	unsigned int txdw1;
-	unsigned int txdw2;
-	unsigned int txdw3;
-	unsigned int txdw4;
-	unsigned int txdw5;
-	unsigned int txdw6;
-	unsigned int txdw7;
+	__le32 txdw0;
+	__le32 txdw1;
+	__le32 txdw2;
+	__le32 txdw3;
+	__le32 txdw4;
+	__le32 txdw5;
+	__le32 txdw6;
+	__le32 txdw7;
 };
 
 union txdesc {
@@ -114,8 +114,7 @@ struct	hw_xmit	{
 
 /* reduce size */
 struct pkt_attrib {
-	u8	type;
-	u8	subtype;
+	u16	type;
 	u8	bswenc;
 	u8	dhcp_pkt;
 	u16	ether_type;
@@ -124,8 +123,8 @@ struct pkt_attrib {
 	u16	hdrlen;		/* the WLAN Header Len */
 	u32	pktlen;		/* the original 802.3 pkt raw_data len */
 	u32	last_txcmdsz;
+	u32	encrypt;	/* when 0 indicate no encrypt. */
 	u8	nr_frags;
-	u8	encrypt;	/* when 0 indicate no encrypt. */
 	u8	iv_len;
 	u8	icv_len;
 	u8	iv[18];
@@ -286,14 +285,10 @@ struct	xmit_priv {
 	struct rtw_queue	vo_pending;
 	struct rtw_queue	bm_pending;
 
-	u8 *pallocated_frame_buf;
-	u8 *pxmit_frame_buf;
-	uint free_xmitframe_cnt;
+	int free_xmitframe_cnt;
 	struct rtw_queue	free_xmit_queue;
 
-	u8 *xframe_ext_alloc_addr;
-	u8 *xframe_ext;
-	uint free_xframe_ext_cnt;
+	int free_xframe_ext_cnt;
 	struct rtw_queue free_xframe_ext_queue;
 
 	uint	frag_len;
@@ -354,10 +349,7 @@ s32 rtw_free_xmitbuf23a(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);
 void rtw_count_tx_stats23a(struct rtw_adapter *padapter,
 			struct xmit_frame *pxmitframe, int sz);
 void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len);
-s32 rtw_make_wlanhdr23a(struct rtw_adapter *padapter, u8 *hdr,
-		     struct pkt_attrib *pattrib);
 s32 rtw_put_snap23a(u8 *data, u16 h_proto);
-struct xmit_frame *rtw_alloc_xmitframe23a(struct xmit_priv *pxmitpriv);
 struct xmit_frame *rtw_alloc_xmitframe23a_ext(struct xmit_priv *pxmitpriv);
 struct xmit_frame *rtw_alloc_xmitframe23a_once(struct xmit_priv *pxmitpriv);
 s32 rtw_free_xmitframe23a(struct xmit_priv *pxmitpriv,
@@ -382,7 +374,7 @@ s32 rtw_txframes_pending23a(struct rtw_adapter *padapter);
 s32 rtw_txframes_sta_ac_pending23a(struct rtw_adapter *padapter,
 				struct pkt_attrib *pattrib);
 void rtw_init_hwxmits23a(struct hw_xmit *phwxmit, int entry);
-s32 _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
+int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 			struct rtw_adapter *padapter);
 void _rtw_free_xmit_priv23a(struct xmit_priv *pxmitpriv);
 void rtw_alloc_hwxmits23a(struct rtw_adapter *padapter);

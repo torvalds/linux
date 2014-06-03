@@ -268,6 +268,7 @@ static void xlr_make_tx_desc(struct nlm_fmn_msg *msg, unsigned long addr,
 	unsigned long physkb = virt_to_phys(skb);
 	int cpu_core = nlm_core_id();
 	int fr_stn_id = cpu_core * 8 + XLR_FB_STN;	/* FB to 6th bucket */
+
 	msg->msg0 = (((u64)1 << 63)	|	/* End of packet descriptor */
 		((u64)127 << 54)	|	/* No Free back */
 		(u64)skb->len << 40	|	/* Length of data */

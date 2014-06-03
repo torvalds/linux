@@ -1,6 +1,6 @@
 /* testing.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +19,7 @@
 #define __VISORCHIPSET_TESTING_H__
 
 #define VISORCHIPSET_TEST_PROC
+#include <linux/uuid.h>
 #include "globals.h"
 #include "controlvmchannel.h"
 
@@ -28,10 +29,10 @@ void test_manufacture_vnic_client_add(void *p);
 void test_manufacture_vnic_client_add_phys(HOSTADDRESS addr);
 void test_manufacture_preamble_messages(void);
 void test_manufacture_device_attach(ulong busNo, ulong devNo);
-void test_manufacture_device_add(ulong busNo, ulong devNo, GUID dataTypeGuid,
+void test_manufacture_device_add(ulong busNo, ulong devNo, uuid_le dataTypeGuid,
 				 void *pChannel);
 void test_manufacture_add_bus(ulong busNo, ulong maxDevices,
-			      GUID id, u8 *name, BOOL isServer);
+			      uuid_le id, u8 *name, BOOL isServer);
 void test_manufacture_device_destroy(ulong busNo, ulong devNo);
 void test_manufacture_bus_destroy(ulong busNo);
 void test_manufacture_detach_externalPort(ulong switchNo, ulong externalPortNo);

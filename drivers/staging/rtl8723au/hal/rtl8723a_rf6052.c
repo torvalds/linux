@@ -40,6 +40,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*---------------------------Define Local Constant---------------------------*/
 /*  Define local structure for debug!!!!! */
@@ -368,7 +369,8 @@ static void writeOFDMPowerReg(struct rtw_adapter *Adapter, u8 index, u32 *pValue
 					writeVal = (writeVal > 8) ? (writeVal-8) : 0;
 				else
 					writeVal = (writeVal > 6) ? (writeVal-6) : 0;
-				rtw_write8(Adapter, (u32)(RegOffset+i), (u8)writeVal);
+				rtl8723au_write8(Adapter, RegOffset + i,
+						 (u8)writeVal);
 			}
 		}
 	}
@@ -417,12 +419,6 @@ static int phy_RF6052_Config_ParaFile(struct rtw_adapter *Adapter)
 	struct bb_reg_define	*pPhyReg;
 	int rtStatus = _SUCCESS;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	static char sz8723RadioAFile[] = RTL8723_PHY_RADIO_A;
-	static char sz8723RadioBFile[] = RTL8723_PHY_RADIO_B;
-	char *pszRadioAFile, *pszRadioBFile;
-
-	pszRadioAFile = sz8723RadioAFile;
-	pszRadioBFile = sz8723RadioBFile;
 
 	/* 3----------------------------------------------------------------- */
 	/* 3 <2> Initialize RF */
@@ -459,11 +455,19 @@ static int phy_RF6052_Config_ParaFile(struct rtw_adapter *Adapter)
 		/*----Initialize RF fom connfiguration file----*/
 		switch (eRFPath) {
 		case RF_PATH_A:
-			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv, (enum RF_RADIO_PATH)eRFPath, (enum RF_RADIO_PATH)eRFPath))
+			if (ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv,
+							  (enum RF_RADIO_PATH)
+							  eRFPath,
+							  (enum RF_RADIO_PATH)
+							  eRFPath) == _FAIL)
 				rtStatus = _FAIL;
 			break;
 		case RF_PATH_B:
-			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv, (enum RF_RADIO_PATH)eRFPath, (enum RF_RADIO_PATH)eRFPath))
+			if (ODM_ConfigRFWithHeaderFile23a(&pHalData->odmpriv,
+							  (enum RF_RADIO_PATH)
+							  eRFPath,
+							  (enum RF_RADIO_PATH)
+							  eRFPath) == _FAIL)
 				rtStatus = _FAIL;
 			break;
 		}

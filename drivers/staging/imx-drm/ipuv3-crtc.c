@@ -60,24 +60,32 @@ struct ipu_crtc {
 
 static void ipu_fb_enable(struct ipu_crtc *ipu_crtc)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+
 	if (ipu_crtc->enabled)
 		return;
 
-	ipu_di_enable(ipu_crtc->di);
-	ipu_dc_enable_channel(ipu_crtc->dc);
+	ipu_dc_enable(ipu);
 	ipu_plane_enable(ipu_crtc->plane[0]);
+	/* Start DC channel and DI after IDMAC */
+	ipu_dc_enable_channel(ipu_crtc->dc);
+	ipu_di_enable(ipu_crtc->di);
 
 	ipu_crtc->enabled = 1;
 }
 
 static void ipu_fb_disable(struct ipu_crtc *ipu_crtc)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
+
 	if (!ipu_crtc->enabled)
 		return;
 
-	ipu_plane_disable(ipu_crtc->plane[0]);
+	/* Stop DC channel and DI before IDMAC */
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
+	ipu_plane_disable(ipu_crtc->plane[0]);
+	ipu_dc_disable(ipu);
 
 	ipu_crtc->enabled = 0;
 }
@@ -158,7 +166,7 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 		sig_cfg.Vsync_pol = 1;
 
 	sig_cfg.enable_pol = 1;
-	sig_cfg.clk_pol = 1;
+	sig_cfg.clk_pol = 0;
 	sig_cfg.width = mode->hdisplay;
 	sig_cfg.height = mode->vdisplay;
 	sig_cfg.pixel_fmt = out_pixel_fmt;

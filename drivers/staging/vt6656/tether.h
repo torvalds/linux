@@ -60,8 +60,6 @@
 #define TYPE_DATE_NULL      0x4800
 
 #define TYPE_CTL_PSPOLL     0xa400
-#define TYPE_CTL_RTS        0xb400
-#define TYPE_CTL_CTS        0xc400
 #define TYPE_CTL_ACK        0xd400
 
 #else //if LITTLE_ENDIAN
@@ -91,8 +89,6 @@
 #define TYPE_DATE_NULL      0x0048
 
 #define TYPE_CTL_PSPOLL     0x00a4
-#define TYPE_CTL_RTS        0x00b4
-#define TYPE_CTL_CTS        0x00c4
 #define TYPE_CTL_ACK        0x00d4
 
 #endif //#ifdef __BIG_ENDIAN

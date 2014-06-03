@@ -262,7 +262,7 @@ struct s_hdw_info
     struct pci_dev *pdev[2];
 
     unsigned long addr[2];
-    unsigned long addr_mapped[2];
+    void __iomem *addr_mapped[2];
     unsigned long len[2];
 
     union

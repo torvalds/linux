@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 #ifndef __CONTROLVMCHANNEL_H__
 #define __CONTROLVMCHANNEL_H__
 
+#include <linux/uuid.h>
 #include "commontypes.h"
 #include "channel.h"
 #include "controlframework.h"
@@ -25,10 +26,10 @@ enum { INVALID_GUEST_FIRMWARE, SAMPLE_GUEST_FIRMWARE,
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_GUID	\
-	{0x2b3c2d10, 0x7ef5, 0x4ad8, \
-		{0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d} }
+		UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
+				0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-static const GUID UltraControlvmChannelProtocolGuid =
+static const uuid_le UltraControlvmChannelProtocolGuid =
 	ULTRA_CONTROLVM_CHANNEL_PROTOCOL_GUID;
 
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
@@ -293,8 +294,8 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
 			*   can be dereferenced by the receiver
 			*   of this ControlVm command */
 	U64 channelBytes; /**< specifies size of the channel in bytes */
-	GUID dataTypeGuid;/**< specifies format of data in channel */
-	GUID devInstGuid; /**< instance guid for the device */
+	uuid_le dataTypeGuid;/**< specifies format of data in channel */
+	uuid_le devInstGuid; /**< instance guid for the device */
 	struct InterruptInfo intr; /**< specifies interrupt information */
 } CONTROLVM_PACKET_DEVICE_CREATE;	/* for CONTROLVM_DEVICE_CREATE */
 
@@ -333,9 +334,9 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 					      *   dereferenced by the receiver
 					      *   of this ControlVm command */
 			U64 channelBytes;    /*< size of the channel in bytes */
-			GUID busDataTypeGuid;/*< indicates format of data in bus
-					      * channel */
-			GUID busInstGuid;    /*< instance guid for the bus */
+			uuid_le busDataTypeGuid;/*< indicates format of data in
+						    bus channel */
+			uuid_le busInstGuid;    /*< instance guid for the bus */
 		} createBus;	/* for CONTROLVM_BUS_CREATE */
 		struct  {
 			U32 busNo;	      /*< bus # (0..n-1) from the msg
@@ -611,7 +612,7 @@ typedef struct _ULTRA_CONTROLVM_PARAMETERS_HEADER  {
 	U32 ClientLength;
 	U32 NameOffset;
 	U32 NameLength;
-	GUID Id;
+	uuid_le Id;
 	U32 Revision;
 	U32 Reserved;		/* Natural alignment */
 } ULTRA_CONTROLVM_PARAMETERS_HEADER;

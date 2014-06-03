@@ -471,6 +471,5 @@ void rtl8188e_stop_thread(struct adapter *padapter);
 void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter  *Adapter, int len);
 s32 rtl8188e_iol_efuse_patch(struct adapter *padapter);
 void rtw_cancel_all_timer(struct adapter *padapter);
-void _ps_open_RF(struct adapter *adapt);
 
 #endif /* __RTL8188E_HAL_H__ */

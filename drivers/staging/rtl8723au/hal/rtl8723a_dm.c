@@ -28,6 +28,7 @@
 #include <drv_types.h>
 
 #include <rtl8723a_hal.h>
+#include <usb_ops_linux.h>
 
 /*  */
 /*  Global var */
@@ -45,18 +46,21 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 	if (!padapter->registrypriv.hw_wps_pbc)
 		return;
 
-	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte |= (HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as output mode */
+	/* enable GPIO[2] as output mode */
+	rtl8723au_write8(padapter, GPIO_IO_SEL, tmp1byte);
 
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter,  GPIO_IN, tmp1byte);		/* reset the floating voltage level */
+	/* reset the floating voltage level */
+	rtl8723au_write8(padapter,  GPIO_IN, tmp1byte);
 
-	tmp1byte = rtw_read8(padapter, GPIO_IO_SEL);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IO_SEL);
 	tmp1byte &= ~(HAL_8192C_HW_GPIO_WPS_BIT);
-	rtw_write8(padapter, GPIO_IO_SEL, tmp1byte);	/* enable GPIO[2] as input mode */
+	/* enable GPIO[2] as input mode */
+	rtl8723au_write8(padapter, GPIO_IO_SEL, tmp1byte);
 
-	tmp1byte = rtw_read8(padapter, GPIO_IN);
+	tmp1byte = rtl8723au_read8(padapter, GPIO_IN);
 
 	if (tmp1byte == 0xff)
 		return;
@@ -76,7 +80,7 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 			return;
 		}
 
-		rtw_signal_process(padapter->pid[0], SIGUSR1);
+		kill_pid(find_vpid(padapter->pid[0]), SIGUSR1, 1);
 	}
 }
 
@@ -197,7 +201,7 @@ void rtl8723a_InitHalDm(struct rtw_adapter *Adapter)
 	ODM23a_DMInit(pDM_Odm);
 	/*  Save REG_INIDATA_RATE_SEL value for TXDESC. */
 	for (i = 0; i < 32; i++)
-		pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
+		pdmpriv->INIDATA_RATE[i] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL+i) & 0x3f;
 }
 
 void
@@ -217,14 +221,7 @@ rtl8723a_HalDmWatchDog(
 		goto skip_dm;
 
 	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
-	rtw23a_hal_get_hwreg(Adapter, HW_VAR_FWLPS_RF_ON, (u8 *)(&bFwPSAwake));
-
-#ifdef CONFIG_8723AU_P2P
-	/*  Fw is under p2p powersaving mode, driver should stop dynamic mechanism. */
-	/*  modifed by thomas. 2011.06.11. */
-	if (Adapter->wdinfo.p2p_ps_mode)
-		bFwPSAwake = false;
-#endif /* CONFIG_8723AU_P2P */
+	bFwPSAwake = rtl8723a_get_fwlps_rf_on(Adapter);
 
 	if ((hw_init_completed) && ((!bFwCurrentInPSMode) && bFwPSAwake)) {
 		/*  Calculate Tx/Rx statistics. */
@@ -232,11 +229,11 @@ rtl8723a_HalDmWatchDog(
 
 		/*  Read REG_INIDATA_RATE_SEL value for TXDESC. */
 		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE)) {
-			pdmpriv->INIDATA_RATE[0] = rtw_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
+			pdmpriv->INIDATA_RATE[0] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
 		} else {
 			u8	i;
 			for (i = 1 ; i < (Adapter->stapriv.asoc_sta_count + 1); i++)
-				pdmpriv->INIDATA_RATE[i] = rtw_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
+				pdmpriv->INIDATA_RATE[i] = rtl8723au_read8(Adapter, (REG_INIDATA_RATE_SEL+i)) & 0x3f;
 		}
 	}
 

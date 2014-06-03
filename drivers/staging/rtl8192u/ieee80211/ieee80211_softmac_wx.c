@@ -26,7 +26,7 @@ const long ieee80211_wlan_frequencies[] = {
 	2452, 2457, 2462, 2467,
 	2472, 2484
 };
-
+EXPORT_SYMBOL(ieee80211_wlan_frequencies);
 
 int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -83,7 +83,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
-
+EXPORT_SYMBOL(ieee80211_wx_set_freq);
 
 int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 			     struct iw_request_info *a,
@@ -101,6 +101,7 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_freq);
 
 int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
 			    struct iw_request_info *info,
@@ -129,7 +130,7 @@ int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
 
 	return 0;
 }
-
+EXPORT_SYMBOL(ieee80211_wx_get_wap);
 
 int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 			 struct iw_request_info *info,
@@ -176,6 +177,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_wap);
 
  int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
 {
@@ -211,6 +213,7 @@ out:
 	return ret;
 
 }
+EXPORT_SYMBOL(ieee80211_wx_get_essid);
 
 int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
@@ -223,8 +226,7 @@ int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 	//FIXME: we might want to limit rate also in management protocols.
 	return 0;
 }
-
-
+EXPORT_SYMBOL(ieee80211_wx_set_rate);
 
 int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
@@ -237,7 +239,7 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 
 	return 0;
 }
-
+EXPORT_SYMBOL(ieee80211_wx_get_rate);
 
 int ieee80211_wx_set_rts(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
@@ -254,6 +256,7 @@ int ieee80211_wx_set_rts(struct ieee80211_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_rts);
 
 int ieee80211_wx_get_rts(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
@@ -264,6 +267,8 @@ int ieee80211_wx_get_rts(struct ieee80211_device *ieee,
 	wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD);
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_rts);
+
 int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
@@ -294,6 +299,7 @@ out:
 	up(&ieee->wx_sem);
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_mode);
 
 void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
@@ -378,6 +384,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_scan);
 
 int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 			      struct iw_request_info *a,
@@ -432,6 +439,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_essid);
 
  int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -440,6 +448,7 @@ out:
 	wrqu->mode = ieee->iw_mode;
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_get_mode);
 
  int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
@@ -477,6 +486,7 @@ out:
 
 	return 0;
 }
+EXPORT_SYMBOL(ieee80211_wx_set_rawtx);
 
 int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 			     struct iw_request_info *info,
@@ -502,7 +512,7 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 
 	return 0;
 }
-
+EXPORT_SYMBOL(ieee80211_wx_get_name);
 
 /* this is mostly stolen from hostap */
 int ieee80211_wx_set_power(struct ieee80211_device *ieee,
@@ -553,14 +563,13 @@ exit:
 	return ret;
 
 }
+EXPORT_SYMBOL(ieee80211_wx_set_power);
 
 /* this is stolen from hostap */
 int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret =0;
-
 	down(&ieee->wx_sem);
 
 	if(ieee->ps == IEEE80211_PS_DISABLED){
@@ -590,24 +599,7 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 
 exit:
 	up(&ieee->wx_sem);
-	return ret;
+	return 0;
 
 }
-EXPORT_SYMBOL(ieee80211_wx_get_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_essid);
-EXPORT_SYMBOL(ieee80211_wx_set_rate);
-EXPORT_SYMBOL(ieee80211_wx_get_rate);
-EXPORT_SYMBOL(ieee80211_wx_set_wap);
-EXPORT_SYMBOL(ieee80211_wx_get_wap);
-EXPORT_SYMBOL(ieee80211_wx_set_mode);
-EXPORT_SYMBOL(ieee80211_wx_get_mode);
-EXPORT_SYMBOL(ieee80211_wx_set_scan);
-EXPORT_SYMBOL(ieee80211_wx_get_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_freq);
-EXPORT_SYMBOL(ieee80211_wx_set_rawtx);
-EXPORT_SYMBOL(ieee80211_wx_get_name);
-EXPORT_SYMBOL(ieee80211_wx_set_power);
 EXPORT_SYMBOL(ieee80211_wx_get_power);
-EXPORT_SYMBOL(ieee80211_wlan_frequencies);
-EXPORT_SYMBOL(ieee80211_wx_set_rts);
-EXPORT_SYMBOL(ieee80211_wx_get_rts);

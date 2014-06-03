@@ -18,7 +18,6 @@ TODO:
 	  use ethtool instead
 	- reorder code to elminate use of forward declarations
 	- don't keep private linked list of drivers.
-	- remove all the gratiutous debug infrastructure
 	- use PCI_DEVICE()
 	- do ethtool correctly using ethtool_ops
 	- NAPI?

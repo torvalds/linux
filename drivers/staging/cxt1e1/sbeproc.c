@@ -72,7 +72,7 @@ static int sbecom_proc_get_sbe_info(struct seq_file *m, void *v)
 	char       *spd;
 	struct sbe_brd_info *bip;
 
-	bip = OS_kmalloc(sizeof(struct sbe_brd_info));
+	bip = kzalloc(sizeof(struct sbe_brd_info), GFP_KERNEL | GFP_DMA);
 	if (!bip)
 		return -ENOMEM;
 

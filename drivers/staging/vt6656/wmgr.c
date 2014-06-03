@@ -78,8 +78,7 @@
 #include "wpa.h"
 #include "rf.h"
 #include "iowpa.h"
-#include "control.h"
-#include "rndis.h"
+#include "usbpipe.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
@@ -541,10 +540,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                   (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrExtSuppRates
                 );
     if (pTxPacket != NULL ){
-
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         /* send the frame */
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
@@ -690,9 +685,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         /* send the frame */
-        if (pDevice->bEnableHostapd) {
-            return;
-        }
         Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx failed\n");
@@ -764,7 +756,8 @@ static void s_vMgrRxAssocResponse(struct vnt_private *pDevice,
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
             DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Link with AP(SSID): %s\n", pItemSSID->abySSID);
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
 
 	//if(pDevice->bWPASuppWextEnabled == true)
 	   {
@@ -1075,9 +1068,6 @@ static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
@@ -1257,9 +1247,6 @@ reply:
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (pDevice->bEnableHostapd) {
-        return;
-    }
     if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
     }
@@ -1412,7 +1399,8 @@ static void s_vMgrRxDeauthentication(struct vnt_private *pDevice,
                     pMgmt->eCurrState = WMAC_STATE_IDLE;
                     netif_stop_queue(pDevice->dev);
                     pDevice->bLinkPass = false;
-                    ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
+
+		    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_SLOW);
                 }
             }
 
@@ -1897,7 +1885,9 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
                 pMgmt->eCurrState = WMAC_STATE_JOINTED;
                 pDevice->bLinkPass = true;
-                ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+		vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
                 if (netif_queue_stopped(pDevice->dev)){
                     netif_wake_queue(pDevice->dev);
                 }
@@ -2502,7 +2492,9 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             // Adopt BSS state in Adapter Device Object
 	    pDevice->op_mode = NL80211_IFTYPE_ADHOC;
             pDevice->bLinkPass = true;
-            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
+
+	    vnt_mac_set_led(pDevice, LEDSTS_STS, LEDSTS_INTER);
+
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Join IBSS ok:%pM\n",
@@ -2572,7 +2564,6 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     }
 
     // Init the BSS informations
-    pDevice->bCCK = true;
     pDevice->bProtectMode = false;
     MACvDisableProtectMD(pDevice);
     pDevice->bBarkerPreambleMd = false;
@@ -2655,8 +2646,7 @@ static void s_vMgrSynchBSS(struct vnt_private *pDevice, u32 uBSSMode,
     pMgmt->uCurrChannel = pCurr->uChannel;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
 
-    if ((pDevice->bUpdateBBVGA) &&
-        (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0])) {
+    if (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) {
         pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
         BBvSetVGAGainOffset(pDevice, pDevice->byBBVGACurrent);
         BBvSetShortSlotTime(pDevice);
@@ -2932,16 +2922,6 @@ static struct vnt_tx_mgmt *s_MgrMakeBeacon(struct vnt_private *pDevice,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
     }
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
-    }
 
     /* Adjust the length fields */
     pTxPacket->cbMPDULen = sFrame.len;
@@ -3050,17 +3030,6 @@ static struct vnt_tx_mgmt *s_MgrMakeProbeResponse(struct vnt_private *pDevice,
              pCurrExtSuppRates,
              ((PWLAN_IE_SUPP_RATES)pCurrExtSuppRates)->len + WLAN_IEHDR_LEN
              );
-    }
-
-    // hostapd wpa/wpa2 IE
-    if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnableHostapd == true)) {
-         if (pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-             if (pMgmt->wWPAIELen != 0) {
-                 sFrame.pRSN = (PWLAN_IE_RSN)(sFrame.pBuf + sFrame.len);
-                 memcpy(sFrame.pRSN, pMgmt->abyWPAIE, pMgmt->wWPAIELen);
-                 sFrame.len += pMgmt->wWPAIELen;
-             }
-         }
     }
 
     // Adjust the length fields
@@ -4058,14 +4027,14 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
 	struct vnt_manager *pMgmt)
 {
 	struct vnt_tx_mgmt *pTxPacket;
+	unsigned long flags;
 
 //    pDevice->bBeaconBufReady = false;
-    if (pDevice->bEncryptionEnable || pDevice->bEnable8021x){
-        pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
-    else {
-        pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
-    }
+	if (pDevice->bEncryptionEnable)
+		pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_PRIVACY(1);
+	else
+		pMgmt->wCurrCapInfo &= ~WLAN_SET_CAP_INFO_PRIVACY(1);
+
     pTxPacket = s_MgrMakeBeacon
                 (
                   pDevice,
@@ -4084,8 +4053,13 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
         (pMgmt->abyCurrBSSID[0] == 0))
         return false;
 
-    csBeacon_xmit(pDevice, pTxPacket);
-    MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+	spin_lock_irqsave(&pDevice->lock, flags);
+
+	csBeacon_xmit(pDevice, pTxPacket);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
+
+	MACvRegBitsOn(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
 
     return true;
 }

@@ -990,18 +990,10 @@ static void qt_block_until_empty(struct tty_struct *tty,
 static void qt_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	struct quatech_port *qt_port;
-	struct quatech_port *port0;
-	struct tty_struct *tty;
-	int status;
-	unsigned int index;
-	status = 0;
-
-	tty = tty_port_tty_get(&port->port);
-	index = port->port_number;
-
-	qt_port = qt_get_port_private(port);
-	port0 = qt_get_port_private(serial->port[0]);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	unsigned int index = port->port_number;
+	struct quatech_port *qt_port = qt_get_port_private(port);
+	struct quatech_port *port0 = qt_get_port_private(serial->port[0]);
 
 	/* shutdown any bulk reads that might be going on */
 	if (serial->num_bulk_out)
@@ -1015,8 +1007,7 @@ static void qt_close(struct usb_serial_port *port)
 	tty_kref_put(tty);
 
 	/* Close uart channel */
-	status = qt_close_channel(serial, index);
-	if (status < 0)
+	if (qt_close_channel(serial, index) < 0)
 		dev_dbg(&port->dev, "%s - qt_close_channel failed.\n",
 			__func__);
 
@@ -1268,9 +1259,9 @@ static void qt_set_termios(struct tty_struct *tty,
 	if (I_IXOFF(tty) || I_IXON(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
 		unsigned char start_char = START_CHAR(tty);
-		status =
-		    box_set_sw_flow_ctrl(port->serial, index, stop_char,
-				      start_char);
+
+		status = box_set_sw_flow_ctrl(port->serial, index, stop_char,
+					      start_char);
 		if (status < 0)
 			dev_dbg(&port->dev,
 				"box_set_sw_flow_ctrl (enabled) failed\n");
