@@ -710,7 +710,8 @@ failed:
 }
 
 
-static int dgnc_finalize_board_init(struct dgnc_board *brd) {
+static int dgnc_finalize_board_init(struct dgnc_board *brd)
+{
 	int rc = 0;
 
 	DPR_INIT(("dgnc_finalize_board_init() - start\n"));
