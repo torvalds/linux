@@ -100,6 +100,7 @@ struct tb {
 	struct tb_ctl *ctl;
 	struct workqueue_struct *wq; /* ordered workqueue for plug events */
 	struct tb_switch *root_switch;
+	struct list_head tunnel_list; /* list of active PCIe tunnels */
 	bool hotplug_active; /*
 			      * tb_handle_hotplug will stop progressing plug
 			      * events and exit if this is not set (it needs to
