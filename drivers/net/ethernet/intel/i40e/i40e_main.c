@@ -5961,6 +5961,12 @@ static void i40e_service_task(struct work_struct *work)
 					  service_task);
 	unsigned long start_time = jiffies;
 
+	/* don't bother with service tasks if a reset is in progress */
+	if (test_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state)) {
+		i40e_service_event_complete(pf);
+		return;
+	}
+
 	i40e_reset_subtask(pf);
 	i40e_handle_mdd_event(pf);
 	i40e_vc_process_vflr_event(pf);
