@@ -296,6 +296,10 @@ static i40e_status i40e_config_asq_regs(struct i40e_hw *hw)
 	i40e_status ret_code = 0;
 	u32 reg = 0;
 
+	/* Clear Head and Tail */
+	wr32(hw, hw->aq.asq.head, 0);
+	wr32(hw, hw->aq.asq.tail, 0);
+
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the transmit queue */
 		wr32(hw, I40E_VF_ATQBAH1,
@@ -333,6 +337,10 @@ static i40e_status i40e_config_arq_regs(struct i40e_hw *hw)
 {
 	i40e_status ret_code = 0;
 	u32 reg = 0;
+
+	/* Clear Head and Tail */
+	wr32(hw, hw->aq.arq.head, 0);
+	wr32(hw, hw->aq.arq.tail, 0);
 
 	if (hw->mac.type == I40E_MAC_VF) {
 		/* configure the receive queue */
@@ -677,6 +685,10 @@ static u16 i40e_clean_asq(struct i40e_hw *hw)
 	desc = I40E_ADMINQ_DESC(*asq, ntc);
 	details = I40E_ADMINQ_DETAILS(*asq, ntc);
 	while (rd32(hw, hw->aq.asq.head) != ntc) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "%s: ntc %d head %d.\n", __func__, ntc,
+			   rd32(hw, hw->aq.asq.head));
+
 		if (details->callback) {
 			I40E_ADMINQ_CALLBACK cb_func =
 					(I40E_ADMINQ_CALLBACK)details->callback;
@@ -736,6 +748,15 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	struct i40e_aq_desc *desc_on_ring;
 	bool cmd_completed = false;
 	u16  retval = 0;
+	u32  val = 0;
+
+	val = rd32(hw, hw->aq.asq.head);
+	if (val >= hw->aq.num_asq_entries) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "AQTX: head overrun at %d\n", val);
+		status = I40E_ERR_QUEUE_EMPTY;
+		goto asq_send_command_exit;
+	}
 
 	if (hw->aq.asq.count == 0) {
 		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
