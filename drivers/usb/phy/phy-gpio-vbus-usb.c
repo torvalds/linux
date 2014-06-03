@@ -253,11 +253,13 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 		return -EINVAL;
 	gpio = pdata->gpio_vbus;
 
-	gpio_vbus = kzalloc(sizeof(struct gpio_vbus_data), GFP_KERNEL);
+	gpio_vbus = devm_kzalloc(&pdev->dev, sizeof(struct gpio_vbus_data),
+				 GFP_KERNEL);
 	if (!gpio_vbus)
 		return -ENOMEM;
 
-	gpio_vbus->phy.otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
+	gpio_vbus->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
+					  GFP_KERNEL);
 	if (!gpio_vbus->phy.otg) {
 		kfree(gpio_vbus);
 		return -ENOMEM;
@@ -274,11 +276,11 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	gpio_vbus->phy.otg->phy = &gpio_vbus->phy;
 	gpio_vbus->phy.otg->set_peripheral = gpio_vbus_set_peripheral;
 
-	err = gpio_request(gpio, "vbus_detect");
+	err = devm_gpio_request(&pdev->dev, gpio, "vbus_detect");
 	if (err) {
 		dev_err(&pdev->dev, "can't request vbus gpio %d, err: %d\n",
 			gpio, err);
-		goto err_gpio;
+		return err;
 	}
 	gpio_direction_input(gpio);
 
@@ -296,27 +298,27 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	/* if data line pullup is in use, initialize it to "not pulling up" */
 	gpio = pdata->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
-		err = gpio_request(gpio, "udc_pullup");
+		err = devm_gpio_request(&pdev->dev, gpio, "udc_pullup");
 		if (err) {
 			dev_err(&pdev->dev,
 				"can't request pullup gpio %d, err: %d\n",
 				gpio, err);
-			gpio_free(pdata->gpio_vbus);
-			goto err_gpio;
+			return err;
 		}
 		gpio_direction_output(gpio, pdata->gpio_pullup_inverted);
 	}
 
-	err = request_irq(irq, gpio_vbus_irq, irqflags, "vbus_detect", pdev);
+	err = devm_request_irq(&pdev->dev, irq, gpio_vbus_irq, irqflags,
+			       "vbus_detect", pdev);
 	if (err) {
 		dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
 			irq, err);
-		goto err_irq;
+		return err;
 	}
 
 	INIT_DELAYED_WORK(&gpio_vbus->work, gpio_vbus_work);
 
-	gpio_vbus->vbus_draw = regulator_get(&pdev->dev, "vbus_draw");
+	gpio_vbus->vbus_draw = devm_regulator_get(&pdev->dev, "vbus_draw");
 	if (IS_ERR(gpio_vbus->vbus_draw)) {
 		dev_dbg(&pdev->dev, "can't get vbus_draw regulator, err: %ld\n",
 			PTR_ERR(gpio_vbus->vbus_draw));
@@ -328,43 +330,22 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
-		goto err_otg;
+		return err;
 	}
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 
 	return 0;
-err_otg:
-	regulator_put(gpio_vbus->vbus_draw);
-	free_irq(irq, pdev);
-err_irq:
-	if (gpio_is_valid(pdata->gpio_pullup))
-		gpio_free(pdata->gpio_pullup);
-	gpio_free(pdata->gpio_vbus);
-err_gpio:
-	kfree(gpio_vbus->phy.otg);
-	kfree(gpio_vbus);
-	return err;
 }
 
 static int gpio_vbus_remove(struct platform_device *pdev)
 {
 	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
-	struct gpio_vbus_mach_info *pdata = dev_get_platdata(&pdev->dev);
-	int gpio = pdata->gpio_vbus;
 
 	device_init_wakeup(&pdev->dev, 0);
 	cancel_delayed_work_sync(&gpio_vbus->work);
-	regulator_put(gpio_vbus->vbus_draw);
 
 	usb_remove_phy(&gpio_vbus->phy);
-
-	free_irq(gpio_vbus->irq, pdev);
-	if (gpio_is_valid(pdata->gpio_pullup))
-		gpio_free(pdata->gpio_pullup);
-	gpio_free(gpio);
-	kfree(gpio_vbus->phy.otg);
-	kfree(gpio_vbus);
 
 	return 0;
 }
