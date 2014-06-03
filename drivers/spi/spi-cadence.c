@@ -647,7 +647,7 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cdns_spi_dev_pm_ops, cdns_spi_suspend,
 			 cdns_spi_resume);
 
-static struct of_device_id cdns_spi_of_match[] = {
+static const struct of_device_id cdns_spi_of_match[] = {
 	{ .compatible = "xlnx,zynq-spi-r1p6" },
 	{ .compatible = "cdns,spi-r1p6" },
 	{ /* end of table */ }
