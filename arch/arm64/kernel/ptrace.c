@@ -650,12 +650,16 @@ static int compat_gpr_get(struct task_struct *target,
 			reg = (void *)&task_pt_regs(target)->regs[idx];
 		}
 
-		ret = copy_to_user(ubuf, reg, sizeof(compat_ulong_t));
+		if (kbuf) {
+			memcpy(kbuf, &reg, sizeof(reg));
+			kbuf += sizeof(reg);
+		} else {
+			ret = copy_to_user(ubuf, &reg, sizeof(reg));
+			if (ret)
+				break;
 
-		if (ret)
-			break;
-		else
-			ubuf += sizeof(compat_ulong_t);
+			ubuf += sizeof(reg);
+		}
 	}
 
 	return ret;
@@ -683,7 +687,18 @@ static int compat_gpr_set(struct task_struct *target,
 
 	for (i = 0; i < num_regs; ++i) {
 		unsigned int idx = start + i;
-		void *reg;
+		compat_ulong_t reg;
+
+		if (kbuf) {
+			memcpy(&reg, kbuf, sizeof(reg));
+			kbuf += sizeof(reg);
+		} else {
+			ret = copy_from_user(&reg, ubuf, sizeof(reg));
+			if (ret)
+				return ret;
+
+			ubuf += sizeof(reg);
+		}
 
 		switch (idx) {
 		case 15:
