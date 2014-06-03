@@ -293,6 +293,11 @@
 				 "msiof0_tx";
 		renesas,function = "msiof0";
 	};
+
+	i2c6_pins: i2c6 {
+		renesas,groups = "i2c6";
+		renesas,function = "i2c6";
+	};
 };
 
 &ether {
@@ -406,5 +411,21 @@
 		spi-max-frequency = <6000000>;
 		spi-cpol;
 		spi-cpha;
+	};
+};
+
+&i2c6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins>;
+	status = "okay";
+
+	vdd_dvfs: regulator@68 {
+		compatible = "diasemi,da9210";
+		reg = <0x68>;
+
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
