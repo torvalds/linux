@@ -113,7 +113,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	       sizeof(current->thread.fp_regs));
 
 	restore_fp_regs(current->thread.fp_regs.fprs);
-	clear_thread_flag(TIF_SYSCALL);	/* No longer in a system call */
+	clear_pt_regs_flag(regs, PIF_SYSCALL); /* No longer in a system call */
 	return 0;
 }
 
@@ -356,7 +356,7 @@ void do_signal(struct pt_regs *regs)
 	 * call information.
 	 */
 	current_thread_info()->system_call =
-		test_thread_flag(TIF_SYSCALL) ? regs->int_code : 0;
+		test_pt_regs_flag(regs, PIF_SYSCALL) ? regs->int_code : 0;
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	if (signr > 0) {
@@ -384,7 +384,7 @@ void do_signal(struct pt_regs *regs)
 			}
 		}
 		/* No longer in a system call */
-		clear_thread_flag(TIF_SYSCALL);
+		clear_pt_regs_flag(regs, PIF_SYSCALL);
 
 		if (is_compat_task())
 			handle_signal32(signr, &ka, &info, oldset, regs);
@@ -394,7 +394,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/* No handlers present - check for system call restart */
-	clear_thread_flag(TIF_SYSCALL);
+	clear_pt_regs_flag(regs, PIF_SYSCALL);
 	if (current_thread_info()->system_call) {
 		regs->int_code = current_thread_info()->system_call;
 		switch (regs->gprs[2]) {
@@ -407,9 +407,9 @@ void do_signal(struct pt_regs *regs)
 		case -ERESTARTNOINTR:
 			/* Restart system call with magic TIF bit. */
 			regs->gprs[2] = regs->orig_gpr2;
-			set_thread_flag(TIF_SYSCALL);
+			set_pt_regs_flag(regs, PIF_SYSCALL);
 			if (test_thread_flag(TIF_SINGLE_STEP))
-				set_thread_flag(TIF_PER_TRAP);
+				clear_pt_regs_flag(regs, PIF_PER_TRAP);
 			break;
 		}
 	}

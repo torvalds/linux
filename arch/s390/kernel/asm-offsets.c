@@ -50,6 +50,7 @@ int main(void)
 	DEFINE(__PT_INT_CODE, offsetof(struct pt_regs, int_code));
 	DEFINE(__PT_INT_PARM, offsetof(struct pt_regs, int_parm));
 	DEFINE(__PT_INT_PARM_LONG, offsetof(struct pt_regs, int_parm_long));
+	DEFINE(__PT_FLAGS, offsetof(struct pt_regs, flags));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
@@ -115,6 +116,7 @@ int main(void)
 	DEFINE(__LC_SAVE_AREA_SYNC, offsetof(struct _lowcore, save_area_sync));
 	DEFINE(__LC_SAVE_AREA_ASYNC, offsetof(struct _lowcore, save_area_async));
 	DEFINE(__LC_SAVE_AREA_RESTART, offsetof(struct _lowcore, save_area_restart));
+	DEFINE(__LC_CPU_FLAGS, offsetof(struct _lowcore, cpu_flags));
 	DEFINE(__LC_RETURN_PSW, offsetof(struct _lowcore, return_psw));
 	DEFINE(__LC_RETURN_MCCK_PSW, offsetof(struct _lowcore, return_mcck_psw));
 	DEFINE(__LC_SYNC_ENTER_TIMER, offsetof(struct _lowcore, sync_enter_timer));
@@ -142,7 +144,6 @@ int main(void)
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
-	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
 	DEFINE(__LC_DUMP_REIPL, offsetof(struct _lowcore, ipib));
 	BLANK();
 	DEFINE(__LC_CPU_TIMER_SAVE_AREA, offsetof(struct _lowcore, cpu_timer_save_area));

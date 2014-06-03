@@ -8,6 +8,12 @@
 
 #include <uapi/asm/ptrace.h>
 
+#define PIF_SYSCALL		0	/* inside a system call */
+#define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
+
+#define _PIF_SYSCALL		(1<<PIF_SYSCALL)
+#define _PIF_PER_TRAP		(1<<PIF_PER_TRAP)
+
 #ifndef __ASSEMBLY__
 
 #define PSW_KERNEL_BITS	(PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_HOME | \
@@ -29,6 +35,7 @@ struct pt_regs
 	unsigned int int_code;
 	unsigned int int_parm;
 	unsigned long int_parm_long;
+	unsigned long flags;
 };
 
 /*
@@ -78,6 +85,21 @@ struct per_struct_kernel {
 #define PER_CONTROL_BRANCH_ADDRESS	0x00800000UL
 #define PER_CONTROL_SUSPENSION		0x00400000UL
 #define PER_CONTROL_ALTERATION		0x00200000UL
+
+static inline void set_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	regs->flags |= (1U << flag);
+}
+
+static inline void clear_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	regs->flags &= ~(1U << flag);
+}
+
+static inline int test_pt_regs_flag(struct pt_regs *regs, int flag)
+{
+	return !!(regs->flags & (1U << flag));
+}
 
 /*
  * These are defined as per linux/ptrace.h, which see.

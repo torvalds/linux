@@ -33,4 +33,4 @@ obj-$(CONFIG_MONWRITER) += monwriter.o
 obj-$(CONFIG_S390_VMUR) += vmur.o
 
 zcore_mod-objs := sclp_sdias.o zcore.o
-obj-$(CONFIG_ZFCPDUMP) += zcore_mod.o
+obj-$(CONFIG_CRASH_DUMP) += zcore_mod.o

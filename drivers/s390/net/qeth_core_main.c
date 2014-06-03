@@ -22,6 +22,7 @@
 #include <net/iucv/af_iucv.h>
 
 #include <asm/ebcdic.h>
+#include <asm/chpid.h>
 #include <asm/io.h>
 #include <asm/sysinfo.h>
 #include <asm/compat.h>
@@ -1344,16 +1345,7 @@ static void qeth_set_multiple_write_queues(struct qeth_card *card)
 static void qeth_update_from_chp_desc(struct qeth_card *card)
 {
 	struct ccw_device *ccwdev;
-	struct channelPath_dsc {
-		u8 flags;
-		u8 lsn;
-		u8 desc;
-		u8 chpid;
-		u8 swla;
-		u8 zeroes;
-		u8 chla;
-		u8 chpp;
-	} *chp_dsc;
+	struct channel_path_desc *chp_dsc;
 
 	QETH_DBF_TEXT(SETUP, 2, "chp_desc");
 

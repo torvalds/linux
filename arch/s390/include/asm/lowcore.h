@@ -93,7 +93,9 @@ struct _lowcore {
 	__u32	save_area_sync[8];		/* 0x0200 */
 	__u32	save_area_async[8];		/* 0x0220 */
 	__u32	save_area_restart[1];		/* 0x0240 */
-	__u8	pad_0x0244[0x0248-0x0244];	/* 0x0244 */
+
+	/* CPU flags. */
+	__u32	cpu_flags;			/* 0x0244 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0248 */
@@ -139,12 +141,9 @@ struct _lowcore {
 	__u32	percpu_offset;			/* 0x02f0 */
 	__u32	machine_flags;			/* 0x02f4 */
 	__u32	ftrace_func;			/* 0x02f8 */
-	__u8	pad_0x02fc[0x0300-0x02fc];	/* 0x02fc */
+	__u32	spinlock_lockval;		/* 0x02fc */
 
-	/* Interrupt response block */
-	__u8	irb[64];			/* 0x0300 */
-
-	__u8	pad_0x0340[0x0e00-0x0340];	/* 0x0340 */
+	__u8	pad_0x0300[0x0e00-0x0300];	/* 0x0300 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
@@ -237,7 +236,9 @@ struct _lowcore {
 	__u64	save_area_sync[8];		/* 0x0200 */
 	__u64	save_area_async[8];		/* 0x0240 */
 	__u64	save_area_restart[1];		/* 0x0280 */
-	__u8	pad_0x0288[0x0290-0x0288];	/* 0x0288 */
+
+	/* CPU flags. */
+	__u64	cpu_flags;			/* 0x0288 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0290 */
@@ -285,15 +286,13 @@ struct _lowcore {
 	__u64	machine_flags;			/* 0x0388 */
 	__u64	ftrace_func;			/* 0x0390 */
 	__u64	gmap;				/* 0x0398 */
-	__u8	pad_0x03a0[0x0400-0x03a0];	/* 0x03a0 */
-
-	/* Interrupt response block. */
-	__u8	irb[64];			/* 0x0400 */
+	__u32	spinlock_lockval;		/* 0x03a0 */
+	__u8	pad_0x03a0[0x0400-0x03a4];	/* 0x03a4 */
 
 	/* Per cpu primary space access list */
-	__u32	paste[16];			/* 0x0440 */
+	__u32	paste[16];			/* 0x0400 */
 
-	__u8	pad_0x0480[0x0e00-0x0480];	/* 0x0480 */
+	__u8	pad_0x04c0[0x0e00-0x0440];	/* 0x0440 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information

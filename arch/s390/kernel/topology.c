@@ -333,7 +333,9 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
-		mask->next = alloc_bootmem(sizeof(struct mask_info));
+		mask->next = alloc_bootmem_align(
+			roundup_pow_of_two(sizeof(struct mask_info)),
+			roundup_pow_of_two(sizeof(struct mask_info)));
 		mask = mask->next;
 	}
 }

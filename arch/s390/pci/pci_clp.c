@@ -114,6 +114,16 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 	zdev->end_dma = response->edma;
 	zdev->pchid = response->pchid;
 	zdev->pfgid = response->pfgid;
+	zdev->pft = response->pft;
+	zdev->vfn = response->vfn;
+	zdev->uid = response->uid;
+
+	memcpy(zdev->pfip, response->pfip, sizeof(zdev->pfip));
+	if (response->util_str_avail) {
+		memcpy(zdev->util_str, response->util_str,
+		       sizeof(zdev->util_str));
+	}
+
 	return 0;
 }
 
