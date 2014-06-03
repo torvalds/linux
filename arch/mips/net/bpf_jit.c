@@ -1240,7 +1240,10 @@ jmp_cmp:
 			emit_half_load(r_A, r_skb, off, ctx);
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 			/* This needs little endian fixup */
-			if (!cpu_has_mips_r2) {
+			if (cpu_has_mips_r2) {
+				/* R2 and later have the wsbh instruction */
+				emit_wsbh(r_A, r_A, ctx);
+			} else {
 				/* Get first byte */
 				emit_andi(r_tmp_imm, r_A, 0xff, ctx);
 				/* Shift it */
@@ -1250,9 +1253,6 @@ jmp_cmp:
 				emit_andi(r_tmp_imm, r_tmp_imm, 0xff, ctx);
 				/* Put everyting together in r_A */
 				emit_or(r_A, r_tmp, r_tmp_imm, ctx);
-			} else {
-				/* R2 and later have the wsbh instruction */
-				emit_wsbh(r_A, r_A, ctx);
 			}
 #endif
 			break;
