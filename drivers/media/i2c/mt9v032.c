@@ -1,5 +1,5 @@
 /*
- * Driver for MT9V032 CMOS Image Sensor from Micron
+ * Driver for MT9V022, MT9V024, MT9V032, and MT9V034 CMOS Image Sensors
  *
  * Copyright (C) 2010, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *
@@ -134,8 +134,12 @@
 #define MT9V032_THERMAL_INFO				0xc1
 
 enum mt9v032_model {
-	MT9V032_MODEL_V032_COLOR,
-	MT9V032_MODEL_V032_MONO,
+	MT9V032_MODEL_V022_COLOR,	/* MT9V022IX7ATC */
+	MT9V032_MODEL_V022_MONO,	/* MT9V022IX7ATM */
+	MT9V032_MODEL_V024_COLOR,	/* MT9V024IA7XTC */
+	MT9V032_MODEL_V024_MONO,	/* MT9V024IA7XTM */
+	MT9V032_MODEL_V032_COLOR,	/* MT9V032C12STM */
+	MT9V032_MODEL_V032_MONO,	/* MT9V032C12STC */
 	MT9V032_MODEL_V034_COLOR,
 	MT9V032_MODEL_V034_MONO,
 };
@@ -161,14 +165,14 @@ struct mt9v032_model_info {
 };
 
 static const struct mt9v032_model_version mt9v032_versions[] = {
-	{ MT9V032_CHIP_ID_REV1, "MT9V032 rev1/2" },
-	{ MT9V032_CHIP_ID_REV3, "MT9V032 rev3" },
-	{ MT9V034_CHIP_ID_REV1, "MT9V034 rev1" },
+	{ MT9V032_CHIP_ID_REV1, "MT9V022/MT9V032 rev1/2" },
+	{ MT9V032_CHIP_ID_REV3, "MT9V022/MT9V032 rev3" },
+	{ MT9V034_CHIP_ID_REV1, "MT9V024/MT9V034 rev1" },
 };
 
 static const struct mt9v032_model_data mt9v032_model_data[] = {
 	{
-		/* MT9V032 revisions 1/2/3 */
+		/* MT9V022, MT9V032 revisions 1/2/3 */
 		.min_row_time = 660,
 		.min_hblank = MT9V032_HORIZONTAL_BLANKING_MIN,
 		.min_vblank = MT9V032_VERTICAL_BLANKING_MIN,
@@ -177,7 +181,7 @@ static const struct mt9v032_model_data mt9v032_model_data[] = {
 		.max_shutter = MT9V032_TOTAL_SHUTTER_WIDTH_MAX,
 		.pclk_reg = MT9V032_PIXEL_CLOCK,
 	}, {
-		/* MT9V034 */
+		/* MT9V024, MT9V034 */
 		.min_row_time = 690,
 		.min_hblank = MT9V034_HORIZONTAL_BLANKING_MIN,
 		.min_vblank = MT9V034_VERTICAL_BLANKING_MIN,
@@ -189,6 +193,22 @@ static const struct mt9v032_model_data mt9v032_model_data[] = {
 };
 
 static const struct mt9v032_model_info mt9v032_models[] = {
+	[MT9V032_MODEL_V022_COLOR] = {
+		.data = &mt9v032_model_data[0],
+		.color = true,
+	},
+	[MT9V032_MODEL_V022_MONO] = {
+		.data = &mt9v032_model_data[0],
+		.color = false,
+	},
+	[MT9V032_MODEL_V024_COLOR] = {
+		.data = &mt9v032_model_data[1],
+		.color = true,
+	},
+	[MT9V032_MODEL_V024_MONO] = {
+		.data = &mt9v032_model_data[1],
+		.color = false,
+	},
 	[MT9V032_MODEL_V032_COLOR] = {
 		.data = &mt9v032_model_data[0],
 		.color = true,
@@ -1010,6 +1030,10 @@ static int mt9v032_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9v032_id[] = {
+	{ "mt9v022", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_COLOR] },
+	{ "mt9v022m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ "mt9v024", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_COLOR] },
+	{ "mt9v024m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V024_MONO] },
 	{ "mt9v032", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_COLOR] },
 	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
 	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
