@@ -187,7 +187,7 @@ static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
 static void dgap_do_conc_load(struct board_t *brd, u8 *uaddr, int len);
 #endif
-static int dgap_after_config_loaded(int board);
+static int dgap_after_config_loaded(struct board_t *brd);
 static int dgap_finalize_board_init(struct board_t *brd);
 
 static void dgap_get_vpd(struct board_t *brd);
@@ -859,7 +859,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		kfree(dgap_config_buf);
 	}
 
-	ret = dgap_after_config_loaded(brd->boardnum);
+	ret = dgap_after_config_loaded(brd);
 	if (ret)
 		return ret;
 	/*
@@ -4113,23 +4113,23 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 }
 
-static int dgap_after_config_loaded(int board)
+static int dgap_after_config_loaded(struct board_t *brd)
 {
 	/*
 	 * Initialize KME waitqueues...
 	 */
-	init_waitqueue_head(&(dgap_board[board]->kme_wait));
+	init_waitqueue_head(&brd->kme_wait);
 
 	/*
 	 * allocate flip buffer for board.
 	 */
-	dgap_board[board]->flipbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
-	if (!dgap_board[board]->flipbuf)
+	brd->flipbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
+	if (!brd->flipbuf)
 		return -ENOMEM;
 
-	dgap_board[board]->flipflagbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
-	if (!dgap_board[board]->flipflagbuf) {
-		kfree(dgap_board[board]->flipbuf);
+	brd->flipflagbuf = kmalloc(MYFLIPLEN, GFP_KERNEL);
+	if (!brd->flipflagbuf) {
+		kfree(brd->flipbuf);
 		return -ENOMEM;
 	}
 
