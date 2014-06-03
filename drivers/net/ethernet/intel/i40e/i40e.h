@@ -350,6 +350,7 @@ struct i40e_pf {
 	u32 rx_hwtstamp_cleared;
 	bool ptp_tx;
 	bool ptp_rx;
+	u16 rss_table_size;
 };
 
 struct i40e_mac_filter {

@@ -6599,6 +6599,7 @@ static int i40e_config_rss(struct i40e_pf *pf)
 	u32 lut = 0;
 	int i, j;
 	u64 hena;
+	u32 reg_val;
 
 	/* Fill out hash function seed */
 	for (i = 0; i <= I40E_PFQF_HKEY_MAX_INDEX; i++)
@@ -6611,8 +6612,19 @@ static int i40e_config_rss(struct i40e_pf *pf)
 	wr32(hw, I40E_PFQF_HENA(0), (u32)hena);
 	wr32(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
 
+	/* Check capability and Set table size and register per hw expectation*/
+	reg_val = rd32(hw, I40E_PFQF_CTL_0);
+	if (hw->func_caps.rss_table_size == 512) {
+		reg_val |= I40E_PFQF_CTL_0_HASHLUTSIZE_512;
+		pf->rss_table_size = 512;
+	} else {
+		pf->rss_table_size = 128;
+		reg_val &= ~I40E_PFQF_CTL_0_HASHLUTSIZE_512;
+	}
+	wr32(hw, I40E_PFQF_CTL_0, reg_val);
+
 	/* Populate the LUT with max no. of queues in round robin fashion */
-	for (i = 0, j = 0; i < pf->hw.func_caps.rss_table_size; i++, j++) {
+	for (i = 0, j = 0; i < pf->rss_table_size; i++, j++) {
 
 		/* The assumption is that lan qp count will be the highest
 		 * qp count for any PF VSI that needs RSS.
