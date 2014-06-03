@@ -1551,8 +1551,12 @@ static void acpi_bus_get_power_flags(struct acpi_device *device)
 	 */
 	if (acpi_has_method(device->handle, "_PSC"))
 		device->power.flags.explicit_get = 1;
+
 	if (acpi_has_method(device->handle, "_IRC"))
 		device->power.flags.inrush_current = 1;
+
+	if (acpi_has_method(device->handle, "_DSW"))
+		device->power.flags.dsw_present = 1;
 
 	/*
 	 * Enumerate supported power management states
