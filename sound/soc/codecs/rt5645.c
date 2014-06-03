@@ -26,6 +26,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include "rl6231.h"
 #include "rt5645.h"
 
 #define RT5645_DEVICE_ID 0x6308
@@ -519,30 +520,15 @@ static const struct snd_kcontrol_new rt5645_snd_controls[] = {
  * @kcontrol: The kcontrol of this widget.
  * @event: Event id.
  *
- * Choose dmic clock between 1MHz and 3MHz.
- * It is better for clock to approximate 3MHz.
  */
 static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
-	int div[] = {2, 3, 4, 6, 8, 12};
-	int idx = -EINVAL, i;
-	int rate, red, bound, temp;
+	int idx = -EINVAL;
 
-	rate = rt5645->sysclk;
-	red = 3000000 * 12;
-	for (i = 0; i < ARRAY_SIZE(div); i++) {
-		bound = div[i] * 3000000;
-		if (rate > bound)
-			continue;
-		temp = bound - rate;
-		if (temp < red) {
-			red = temp;
-			idx = i;
-		}
-	}
+	idx = rl6231_calc_dmic_clk(rt5645->sysclk);
 
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
@@ -1800,21 +1786,6 @@ static const struct snd_soc_dapm_route rt5645_dapm_routes[] = {
 	{ "SPOR", NULL, "SPK amp" },
 };
 
-static int get_clk_info(int sclk, int rate)
-{
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
-
-	if (sclk <= 0 || rate <= 0)
-		return -EINVAL;
-
-	rate = rate << 8;
-	for (i = 0; i < ARRAY_SIZE(pd); i++)
-		if (sclk == rate * pd[i])
-			return i;
-
-	return -EINVAL;
-}
-
 static int rt5645_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -1824,7 +1795,7 @@ static int rt5645_hw_params(struct snd_pcm_substream *substream,
 	int pre_div, bclk_ms, frame_size;
 
 	rt5645->lrck[dai->id] = params_rate(params);
-	pre_div = get_clk_info(rt5645->sysclk, rt5645->lrck[dai->id]);
+	pre_div = rl6231_get_clk_info(rt5645->sysclk, rt5645->lrck[dai->id]);
 	if (pre_div < 0) {
 		dev_err(codec->dev, "Unsupported clock setting\n");
 		return -EINVAL;
@@ -1978,80 +1949,12 @@ static int rt5645_set_dai_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-/**
- * rt5645_pll_calc - Calcualte PLL M/N/K code.
- * @freq_in: external clock provided to codec.
- * @freq_out: target clock which codec works on.
- * @pll_code: Pointer to structure with M, N, K and bypass flag.
- *
- * Calcualte M/N/K code to configure PLL for codec. And K is assigned to 2
- * which make calculation more efficiently.
- *
- * Returns 0 for success or negative error code.
- */
-static int rt5645_pll_calc(const unsigned int freq_in,
-	const unsigned int freq_out, struct rt5645_pll_code *pll_code)
-{
-	int max_n = RT5645_PLL_N_MAX, max_m = RT5645_PLL_M_MAX;
-	int k, n = 0, m = 0, red, n_t, m_t, pll_out, in_t, out_t;
-	int red_t = abs(freq_out - freq_in);
-	bool bypass = false;
-
-	if (RT5645_PLL_INP_MAX < freq_in || RT5645_PLL_INP_MIN > freq_in)
-		return -EINVAL;
-
-	k = 100000000 / freq_out - 2;
-	if (k > RT5645_PLL_K_MAX)
-		k = RT5645_PLL_K_MAX;
-	for (n_t = 0; n_t <= max_n; n_t++) {
-		in_t = freq_in / (k + 2);
-		pll_out = freq_out / (n_t + 2);
-		if (in_t < 0)
-			continue;
-		if (in_t == pll_out) {
-			bypass = true;
-			n = n_t;
-			goto code_find;
-		}
-		red = abs(in_t - pll_out);
-		if (red < red_t) {
-			bypass = true;
-			n = n_t;
-			m = m_t;
-			if (red == 0)
-				goto code_find;
-			red_t = red;
-		}
-		for (m_t = 0; m_t <= max_m; m_t++) {
-			out_t = in_t / (m_t + 2);
-			red = abs(out_t - pll_out);
-			if (red < red_t) {
-				bypass = false;
-				n = n_t;
-				m = m_t;
-				if (red == 0)
-					goto code_find;
-				red_t = red;
-			}
-		}
-	}
-	pr_debug("Only get approximation about PLL\n");
-
-code_find:
-
-	pll_code->m_bp = bypass;
-	pll_code->m_code = m;
-	pll_code->n_code = n;
-	pll_code->k_code = k;
-	return 0;
-}
-
 static int rt5645_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5645_priv *rt5645 = snd_soc_codec_get_drvdata(codec);
-	struct rt5645_pll_code pll_code;
+	struct rl6231_pll_code pll_code;
 	int ret;
 
 	if (source == rt5645->pll_src && freq_in == rt5645->pll_in &&
@@ -2094,7 +1997,7 @@ static int rt5645_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return -EINVAL;
 	}
 
-	ret = rt5645_pll_calc(freq_in, freq_out, &pll_code);
+	ret = rl6231_pll_calc(freq_in, freq_out, &pll_code);
 	if (ret < 0) {
 		dev_err(codec->dev, "Unsupport input clock %d\n", freq_in);
 		return ret;
