@@ -81,11 +81,7 @@ static const char *scsi_null_device_strs = "nullnullnullnull";
 
 #define MAX_SCSI_LUNS	512
 
-#ifdef CONFIG_SCSI_MULTI_LUN
 static unsigned int max_scsi_luns = MAX_SCSI_LUNS;
-#else
-static unsigned int max_scsi_luns = 1;
-#endif
 
 module_param_named(max_luns, max_scsi_luns, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,

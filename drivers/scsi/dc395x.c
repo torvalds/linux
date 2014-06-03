@@ -519,9 +519,7 @@ static struct ParameterData cfg_data[] = {
 		CFG_PARAM_UNSET,
 		0,
 		0x2f,
-#ifdef CONFIG_SCSI_MULTI_LUN
-			NAC_SCANLUN |
-#endif
+		NAC_SCANLUN |
 		NAC_GT2DRIVES | NAC_GREATER_1G | NAC_POWERON_SCSI_RESET
 			/*| NAC_ACTIVE_NEG*/,
 		NAC_GT2DRIVES | NAC_GREATER_1G | NAC_POWERON_SCSI_RESET | 0x08
@@ -4434,15 +4432,10 @@ static void adapter_init_scsi_host(struct Scsi_Host *host)
 	if (host->max_id - 1 == eeprom->scsi_id)
 		host->max_id--;
 
-#ifdef CONFIG_SCSI_MULTI_LUN
 	if (eeprom->channel_cfg & NAC_SCANLUN)
 		host->max_lun = 8;
 	else
 		host->max_lun = 1;
-#else
-	host->max_lun = 1;
-#endif
-
 }
 
 
