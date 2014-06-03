@@ -1146,6 +1146,33 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 	return container_of(component, struct snd_soc_platform, component);
 }
 
+/**
+ * snd_soc_dapm_to_codec() - Casts a DAPM context to the CODEC it is embedded in
+ * @dapm: The DAPM context to cast to the CODEC
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a CODEC (e.g. in a CODEC driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_codec, dapm);
+}
+
+/**
+ * snd_soc_dapm_to_platform() - Casts a DAPM context to the platform it is
+ *  embedded in
+ * @dapm: The DAPM context to cast to the platform.
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a platform (e.g. in a platform driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_platform, dapm);
+}
+
 /* codec IO */
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 int snd_soc_write(struct snd_soc_codec *codec, unsigned int reg,
