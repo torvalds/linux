@@ -139,6 +139,40 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 }
 
 /**
+ * tb_port_add_nfc_credits() - add/remove non flow controlled credits to port
+ *
+ * Change the number of NFC credits allocated to @port by @credits. To remove
+ * NFC credits pass a negative amount of credits.
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_port_add_nfc_credits(struct tb_port *port, int credits)
+{
+	if (credits == 0)
+		return 0;
+	tb_port_info(port,
+		     "adding %#x NFC credits (%#x -> %#x)",
+		     credits,
+		     port->config.nfc_credits,
+		     port->config.nfc_credits + credits);
+	port->config.nfc_credits += credits;
+	return tb_port_write(port, &port->config.nfc_credits,
+			     TB_CFG_PORT, 4, 1);
+}
+
+/**
+ * tb_port_clear_counter() - clear a counter in TB_CFG_COUNTER
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_port_clear_counter(struct tb_port *port, int counter)
+{
+	u32 zero[3] = { 0, 0, 0 };
+	tb_port_info(port, "clearing counter %d\n", counter);
+	return tb_port_write(port, zero, TB_CFG_COUNTERS, 3 * counter, 3);
+}
+
+/**
  * tb_init_port() - initialize a port
  *
  * This is a helper method for tb_switch_alloc. Does not check or initialize

@@ -35,6 +35,60 @@ struct tb_port {
 };
 
 /**
+ * struct tb_path_hop - routing information for a tb_path
+ *
+ * Hop configuration is always done on the IN port of a switch.
+ * in_port and out_port have to be on the same switch. Packets arriving on
+ * in_port with "hop" = in_hop_index will get routed to through out_port. The
+ * next hop to take (on out_port->remote) is determined by next_hop_index.
+ *
+ * in_counter_index is the index of a counter (in TB_CFG_COUNTERS) on the in
+ * port.
+ */
+struct tb_path_hop {
+	struct tb_port *in_port;
+	struct tb_port *out_port;
+	int in_hop_index;
+	int in_counter_index; /* write -1 to disable counters for this hop. */
+	int next_hop_index;
+};
+
+/**
+ * enum tb_path_port - path options mask
+ */
+enum tb_path_port {
+	TB_PATH_NONE = 0,
+	TB_PATH_SOURCE = 1, /* activate on the first hop (out of src) */
+	TB_PATH_INTERNAL = 2, /* activate on other hops (not the first/last) */
+	TB_PATH_DESTINATION = 4, /* activate on the last hop (into dst) */
+	TB_PATH_ALL = 7,
+};
+
+/**
+ * struct tb_path - a unidirectional path between two ports
+ *
+ * A path consists of a number of hops (see tb_path_hop). To establish a PCIe
+ * tunnel two paths have to be created between the two PCIe ports.
+ *
+ */
+struct tb_path {
+	struct tb *tb;
+	int nfc_credits; /* non flow controlled credits */
+	enum tb_path_port ingress_shared_buffer;
+	enum tb_path_port egress_shared_buffer;
+	enum tb_path_port ingress_fc_enable;
+	enum tb_path_port egress_fc_enable;
+
+	int priority:3;
+	int weight:4;
+	bool drop_packages;
+	bool activated;
+	struct tb_path_hop *hops;
+	int path_length; /* number of hops */
+};
+
+
+/**
  * struct tb - main thunderbolt bus structure
  */
 struct tb {
@@ -165,8 +219,16 @@ void tb_sw_set_unpplugged(struct tb_switch *sw);
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 
 int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
+int tb_port_add_nfc_credits(struct tb_port *port, int credits);
+int tb_port_clear_counter(struct tb_port *port, int counter);
 
 int tb_find_cap(struct tb_port *port, enum tb_cfg_space space, u32 value);
+
+struct tb_path *tb_path_alloc(struct tb *tb, int num_hops);
+void tb_path_free(struct tb_path *path);
+int tb_path_activate(struct tb_path *path);
+void tb_path_deactivate(struct tb_path *path);
+bool tb_path_is_invalid(struct tb_path *path);
 
 
 static inline int tb_route_length(u64 route)
