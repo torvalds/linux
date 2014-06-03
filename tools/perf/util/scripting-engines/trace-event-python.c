@@ -197,6 +197,7 @@ static void define_event_symbols(struct event_format *event,
 	case PRINT_BSTRING:
 	case PRINT_DYNAMIC_ARRAY:
 	case PRINT_FUNC:
+	case PRINT_BITMASK:
 		/* we should warn... */
 		return;
 	}
