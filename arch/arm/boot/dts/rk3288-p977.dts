@@ -623,7 +623,7 @@
 
 		rk808_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_gpu";
-			regulator-always-on;
+		//	regulator-always-on;
 			regulator-boot-on;
 		};
 
