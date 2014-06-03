@@ -19,6 +19,7 @@ struct tb_switch {
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
 	struct tb *tb;
+	int cap_plug_events; /* offset, zero if not found */
 };
 
 /**

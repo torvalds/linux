@@ -99,6 +99,45 @@ static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 }
 
 /**
+ * tb_plug_events_active() - enable/disable plug events on a switch
+ *
+ * Also configures a sane plug_events_delay of 255ms.
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+static int tb_plug_events_active(struct tb_switch *sw, bool active)
+{
+	u32 data;
+	int res;
+
+	sw->config.plug_events_delay = 0xff;
+	res = tb_sw_write(sw, ((u32 *) &sw->config) + 4, TB_CFG_SWITCH, 4, 1);
+	if (res)
+		return res;
+
+	res = tb_sw_read(sw, &data, TB_CFG_SWITCH, sw->cap_plug_events + 1, 1);
+	if (res)
+		return res;
+
+	if (active) {
+		data = data & 0xFFFFFF83;
+		switch (sw->config.device_id) {
+		case 0x1513:
+		case 0x151a:
+		case 0x1549:
+			break;
+		default:
+			data |= 4;
+		}
+	} else {
+		data = data | 0x7c;
+	}
+	return tb_sw_write(sw, &data, TB_CFG_SWITCH,
+			   sw->cap_plug_events + 1, 1);
+}
+
+
+/**
  * tb_switch_free() - free a tb_switch and all downstream switches
  */
 void tb_switch_free(struct tb_switch *sw)
@@ -113,6 +152,8 @@ void tb_switch_free(struct tb_switch *sw)
 		sw->ports[i].remote = NULL;
 	}
 
+	tb_plug_events_active(sw, false);
+
 	kfree(sw->ports);
 	kfree(sw);
 }
@@ -125,6 +166,7 @@ void tb_switch_free(struct tb_switch *sw)
 struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 {
 	int i;
+	int cap;
 	struct tb_switch *sw;
 	int upstream_port = tb_cfg_get_upstream_port(tb->ctl, route);
 	if (upstream_port < 0)
@@ -176,6 +218,16 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	}
 
 	/* TODO: I2C, IECS, EEPROM, link controller */
+
+	cap = tb_find_cap(&sw->ports[0], TB_CFG_SWITCH, TB_CAP_PLUG_EVENTS);
+	if (cap < 0) {
+		tb_sw_warn(sw, "cannot find TB_CAP_PLUG_EVENTS aborting\n");
+		goto err;
+	}
+	sw->cap_plug_events = cap;
+
+	if (tb_plug_events_active(sw, true))
+		goto err;
 
 	return sw;
 err:
