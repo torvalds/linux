@@ -7,7 +7,7 @@
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
 #include <linux/mutex.h>
-
+#include <linux/timer.h>
 #include <linux/usb.h>
 
 
@@ -476,6 +476,14 @@ alloc_sglist(int nents, int max, int vary)
 	return sg;
 }
 
+static void sg_timeout(unsigned long _req)
+{
+	struct usb_sg_request	*req = (struct usb_sg_request *) _req;
+
+	req->status = -ETIMEDOUT;
+	usb_sg_cancel(req);
+}
+
 static int perform_sglist(
 	struct usbtest_dev	*tdev,
 	unsigned		iterations,
@@ -487,6 +495,9 @@ static int perform_sglist(
 {
 	struct usb_device	*udev = testdev_to_usbdev(tdev);
 	int			retval = 0;
+	struct timer_list	sg_timer;
+
+	setup_timer_on_stack(&sg_timer, sg_timeout, (unsigned long) req);
 
 	while (retval == 0 && iterations-- > 0) {
 		retval = usb_sg_init(req, udev, pipe,
@@ -497,7 +508,10 @@ static int perform_sglist(
 
 		if (retval)
 			break;
+		mod_timer(&sg_timer, jiffies +
+				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
+		del_timer_sync(&sg_timer);
 		retval = req->status;
 
 		/* FIXME check resulting data pattern */
