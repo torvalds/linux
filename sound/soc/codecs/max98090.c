@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1547,19 +1548,19 @@ static const int lrclk_rates[] = {
 };
 
 static const int user_pclk_rates[] = {
-	13000000, 13000000
+	13000000, 13000000, 19200000, 19200000,
 };
 
 static const int user_lrclk_rates[] = {
-	44100, 48000
+	44100, 48000, 44100, 48000,
 };
 
 static const unsigned long long ni_value[] = {
-	3528, 768
+	3528, 768, 441, 8
 };
 
 static const unsigned long long mi_value[] = {
-	8125, 1625
+	8125, 1625, 1500, 25
 };
 
 static void max98090_configure_bclk(struct snd_soc_codec *codec)
@@ -1800,6 +1801,19 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
+		/*
+		 * SND_SOC_BIAS_PREPARE is called while preparing for a
+		 * transition to ON or away from ON. If current bias_level
+		 * is SND_SOC_BIAS_ON, then it is preparing for a transition
+		 * away from ON. Disable the clock in that case, otherwise
+		 * enable it.
+		 */
+		if (!IS_ERR(max98090->mclk)) {
+			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
+				clk_disable_unprepare(max98090->mclk);
+			else
+				clk_prepare_enable(max98090->mclk);
+		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1928,6 +1942,11 @@ static int max98090_dai_set_sysclk(struct snd_soc_dai *dai,
 	/* Requested clock frequency is already setup */
 	if (freq == max98090->sysclk)
 		return 0;
+
+	if (!IS_ERR(max98090->mclk)) {
+		freq = clk_round_rate(max98090->mclk, freq);
+		clk_set_rate(max98090->mclk, freq);
+	}
 
 	/* Setup clocks for slave mode, and using the PLL
 	 * PSCLK = 0x01 (when master clk is 10MHz to 20MHz)
@@ -2212,6 +2231,10 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	int ret = 0;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
+
+	max98090->mclk = devm_clk_get(codec->dev, "mclk");
+	if (PTR_ERR(max98090->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	max98090->codec = codec;
 
