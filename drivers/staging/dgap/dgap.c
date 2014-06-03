@@ -70,7 +70,7 @@ MODULE_SUPPORTED_DEVICE("dgap");
 
 static int dgap_start(void);
 static void dgap_init_globals(void);
-static int dgap_found_board(struct pci_dev *pdev, int id);
+static int dgap_found_board(struct pci_dev *pdev, int id, int boardnum);
 static void dgap_cleanup_board(struct board_t *brd);
 static void dgap_poll_handler(ulong dummy);
 static int dgap_init_pci(void);
@@ -575,7 +575,7 @@ static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return -EIO;
 
-	rc = dgap_found_board(pdev, ent->driver_data);
+	rc = dgap_found_board(pdev, ent->driver_data, dgap_numboards);
 	if (rc)
 		return rc;
 
@@ -667,7 +667,7 @@ static void dgap_cleanup_board(struct board_t *brd)
  *
  * A board has been found, init it.
  */
-static int dgap_found_board(struct pci_dev *pdev, int id)
+static int dgap_found_board(struct pci_dev *pdev, int id, int boardnum)
 {
 	struct board_t *brd;
 	unsigned int pci_irq;
@@ -679,11 +679,11 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 	if (!brd)
 		return -ENOMEM;
 
-	dgap_board[dgap_numboards] = brd;
+	dgap_board[boardnum] = brd;
 
 	/* store the info for the board we've found */
 	brd->magic = DGAP_BOARD_MAGIC;
-	brd->boardnum = dgap_numboards;
+	brd->boardnum = boardnum;
 	brd->firstminor = 0;
 	brd->vendor = dgap_pci_tbl[id].vendor;
 	brd->device = dgap_pci_tbl[id].device;
@@ -777,13 +777,13 @@ static int dgap_found_board(struct pci_dev *pdev, int id)
 		goto free_brd;
 
 	pr_info("dgap: board %d: %s (rev %d), irq %ld\n",
-		dgap_numboards, brd->name, brd->rev, brd->irq);
+		boardnum, brd->name, brd->rev, brd->irq);
 
 	return 0;
 
 free_brd:
 	kfree(brd);
-	dgap_board[dgap_numboards] = NULL;
+	dgap_board[boardnum] = NULL;
 
 	return ret;
 }
