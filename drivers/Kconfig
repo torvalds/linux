@@ -176,4 +176,6 @@ source "drivers/powercap/Kconfig"
 
 source "drivers/mcb/Kconfig"
 
+source "drivers/thunderbolt/Kconfig"
+
 endmenu
