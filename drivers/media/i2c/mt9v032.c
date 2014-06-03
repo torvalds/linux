@@ -87,6 +87,7 @@
 #define		MT9V032_READ_MODE_COLUMN_FLIP		(1 << 5)
 #define		MT9V032_READ_MODE_DARK_COLUMNS		(1 << 6)
 #define		MT9V032_READ_MODE_DARK_ROWS		(1 << 7)
+#define		MT9V032_READ_MODE_RESERVED		0x0300
 #define MT9V032_PIXEL_OPERATION_MODE			0x0f
 #define		MT9V034_PIXEL_OPERATION_MODE_HDR	(1 << 0)
 #define		MT9V034_PIXEL_OPERATION_MODE_COLOR	(1 << 1)
@@ -414,6 +415,7 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
 	struct v4l2_rect *crop = &mt9v032->crop;
+	unsigned int read_mode;
 	unsigned int hbin;
 	unsigned int vbin;
 	int ret;
@@ -424,9 +426,13 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 	/* Configure the window size and row/column bin */
 	hbin = fls(mt9v032->hratio) - 1;
 	vbin = fls(mt9v032->vratio) - 1;
-	ret = mt9v032_write(client, MT9V032_READ_MODE,
-			    hbin << MT9V032_READ_MODE_COLUMN_BIN_SHIFT |
-			    vbin << MT9V032_READ_MODE_ROW_BIN_SHIFT);
+	read_mode = mt9v032_read(client, MT9V032_READ_MODE);
+	if (read_mode < 0)
+		return read_mode;
+	read_mode &= MT9V032_READ_MODE_RESERVED;
+	read_mode |= hbin << MT9V032_READ_MODE_COLUMN_BIN_SHIFT |
+		     vbin << MT9V032_READ_MODE_ROW_BIN_SHIFT;
+	ret = mt9v032_write(client, MT9V032_READ_MODE, read_mode);
 	if (ret < 0)
 		return ret;
 
