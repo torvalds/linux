@@ -1081,10 +1081,8 @@ static int pc87427_probe(struct platform_device *pdev)
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct pc87427_data),
 			    GFP_KERNEL);
-	if (!data) {
-		pr_err("Out of memory\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->address[0] = sio_data->address[0];
 	data->address[1] = sio_data->address[1];

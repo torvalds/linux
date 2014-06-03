@@ -1,0 +1,57 @@
+Kernel driver nct6683
+=====================
+
+Supported chips:
+  * Nuvoton NCT6683D
+    Prefix: 'nct6683'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: Available from Nuvoton upon request
+
+Authors:
+        Guenter Roeck <linux@roeck-us.net>
+
+Description
+-----------
+
+This driver implements support for the Nuvoton NCT6683D eSIO chip.
+
+The chips implement up to shared 32 temperature and voltage sensors.
+It supports up to 16 fan rotation sensors and up to 8 fan control engines.
+
+Temperatures are measured in degrees Celsius. Measurement resolution is
+0.5 degrees C.
+
+Voltage sensors (also known as IN sensors) report their values in millivolts.
+
+Fan rotation speeds are reported in RPM (rotations per minute).
+
+Usage Note
+----------
+
+Limit register locations on Intel boards with EC firmware version 1.0
+build date 04/03/13 do not match the register locations in the Nuvoton
+datasheet. Nuvoton confirms that Intel uses a special firmware version
+with different register addresses. The specification describing the Intel
+firmware is held under NDA by Nuvoton and Intel and not available
+to the public.
+
+Some of the register locations can be reverse engineered; others are too
+well hidden. Given this, writing any values from the operating system is
+considered too risky with this firmware and has been disabled. All limits
+must all be written from the BIOS.
+
+The driver has only been tested with the Intel firmware, and by default
+only instantiates on Intel boards. To enable it on non-Intel boards,
+set the 'force' module parameter to 1.
+
+Tested Boards and Firmware Versions
+-----------------------------------
+
+The driver has been reported to work with the following boards and
+firmware versions.
+
+Board		Firmware version
+---------------------------------------------------------------
+Intel DH87RL	NCT6683D EC firmware version 1.0 build 04/03/13
+Intel DH87MC	NCT6683D EC firmware version 1.0 build 04/03/13
+Intel DB85FL	NCT6683D EC firmware version 1.0 build 04/03/13

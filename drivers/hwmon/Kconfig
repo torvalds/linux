@@ -1065,6 +1065,16 @@ config SENSORS_NTC_THERMISTOR
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
 
+config SENSORS_NCT6683
+	tristate "Nuvoton NCT6683D"
+	depends on !PPC
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6683D eSIO chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called nct6683.
+
 config SENSORS_NCT6775
 	tristate "Nuvoton NCT6775F and compatibles"
 	depends on !PPC

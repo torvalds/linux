@@ -86,26 +86,41 @@ static inline unsigned char FAN_TO_REG(unsigned rpm, unsigned div)
 #define FAN_FROM_REG(val, div)	((val) == 0 ? -1 : \
 				(val) == 255 ? 0 : 1350000/((div) * (val)))
 
-static inline long TEMP_FROM_REG(u16 temp)
-{
-	long res;
-
-	temp >>= 4;
-	if (temp < 0x0800)
-		res = 625 * (long) temp;
-	else
-		res = ((long) temp - 0x01000) * 625;
-
-	return res / 10;
-}
-
-#define TEMP_LIMIT_FROM_REG(val)	(((val) > 0x80 ? \
-	(val) - 0x100 : (val)) * 1000)
-
-#define TEMP_LIMIT_TO_REG(val)		clamp_val((val) < 0 ? \
-	((val) - 500) / 1000 : ((val) + 500) / 1000, 0, 255)
+#define TEMP_FROM_REG(reg)	((reg) * 125 / 32)
+#define TEMP_TO_REG(temp)	(DIV_ROUND_CLOSEST(clamp_val((temp), \
+					-128000, 127000), 1000) << 8)
 
 #define DIV_FROM_REG(val)		(1 << (val))
+
+enum temp_index {
+	t_input = 0,
+	t_hot_max,
+	t_hot_hyst,
+	t_os_max,
+	t_os_hyst,
+	t_num_temp
+};
+
+static const u8 temp_regs[t_num_temp] = {
+	[t_input] = LM80_REG_TEMP,
+	[t_hot_max] = LM80_REG_TEMP_HOT_MAX,
+	[t_hot_hyst] = LM80_REG_TEMP_HOT_HYST,
+	[t_os_max] = LM80_REG_TEMP_OS_MAX,
+	[t_os_hyst] = LM80_REG_TEMP_OS_HYST,
+};
+
+enum in_index {
+	i_input = 0,
+	i_max,
+	i_min,
+	i_num_in
+};
+
+enum fan_index {
+	f_input,
+	f_min,
+	f_num_fan
+};
 
 /*
  * Client data (each client gets its own)
@@ -118,106 +133,187 @@ struct lm80_data {
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
-	u8 in[7];		/* Register value */
-	u8 in_max[7];		/* Register value */
-	u8 in_min[7];		/* Register value */
-	u8 fan[2];		/* Register value */
-	u8 fan_min[2];		/* Register value */
+	u8 in[i_num_in][7];	/* Register value, 1st index is enum in_index */
+	u8 fan[f_num_fan][2];	/* Register value, 1st index enum fan_index */
 	u8 fan_div[2];		/* Register encoding, shifted right */
-	u16 temp;		/* Register values, shifted right */
-	u8 temp_hot_max;	/* Register value */
-	u8 temp_hot_hyst;	/* Register value */
-	u8 temp_os_max;		/* Register value */
-	u8 temp_os_hyst;	/* Register value */
+	s16 temp[t_num_temp];	/* Register values, normalized to 16 bit */
 	u16 alarms;		/* Register encoding, combined */
 };
 
-/*
- * Functions declaration
- */
+static int lm80_read_value(struct i2c_client *client, u8 reg)
+{
+	return i2c_smbus_read_byte_data(client, reg);
+}
 
-static int lm80_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id);
-static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info);
-static void lm80_init_client(struct i2c_client *client);
-static struct lm80_data *lm80_update_device(struct device *dev);
-static int lm80_read_value(struct i2c_client *client, u8 reg);
-static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
+static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value)
+{
+	return i2c_smbus_write_byte_data(client, reg, value);
+}
 
-/*
- * Driver data (common to all clients)
- */
+/* Called when we have found a new LM80 and after read errors */
+static void lm80_init_client(struct i2c_client *client)
+{
+	/*
+	 * Reset all except Watchdog values and last conversion values
+	 * This sets fan-divs to 2, among others. This makes most other
+	 * initializations unnecessary
+	 */
+	lm80_write_value(client, LM80_REG_CONFIG, 0x80);
+	/* Set 11-bit temperature resolution */
+	lm80_write_value(client, LM80_REG_RES, 0x08);
 
-static const struct i2c_device_id lm80_id[] = {
-	{ "lm80", 0 },
-	{ "lm96080", 1 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, lm80_id);
+	/* Start monitoring */
+	lm80_write_value(client, LM80_REG_CONFIG, 0x01);
+}
 
-static struct i2c_driver lm80_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "lm80",
-	},
-	.probe		= lm80_probe,
-	.id_table	= lm80_id,
-	.detect		= lm80_detect,
-	.address_list	= normal_i2c,
-};
+static struct lm80_data *lm80_update_device(struct device *dev)
+{
+	struct lm80_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int i;
+	int rv;
+	int prev_rv;
+	struct lm80_data *ret = data;
+
+	mutex_lock(&data->update_lock);
+
+	if (data->error)
+		lm80_init_client(client);
+
+	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
+		dev_dbg(dev, "Starting lm80 update\n");
+		for (i = 0; i <= 6; i++) {
+			rv = lm80_read_value(client, LM80_REG_IN(i));
+			if (rv < 0)
+				goto abort;
+			data->in[i_input][i] = rv;
+
+			rv = lm80_read_value(client, LM80_REG_IN_MIN(i));
+			if (rv < 0)
+				goto abort;
+			data->in[i_min][i] = rv;
+
+			rv = lm80_read_value(client, LM80_REG_IN_MAX(i));
+			if (rv < 0)
+				goto abort;
+			data->in[i_max][i] = rv;
+		}
+
+		rv = lm80_read_value(client, LM80_REG_FAN1);
+		if (rv < 0)
+			goto abort;
+		data->fan[f_input][0] = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FAN_MIN(1));
+		if (rv < 0)
+			goto abort;
+		data->fan[f_min][0] = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FAN2);
+		if (rv < 0)
+			goto abort;
+		data->fan[f_input][1] = rv;
+
+		rv = lm80_read_value(client, LM80_REG_FAN_MIN(2));
+		if (rv < 0)
+			goto abort;
+		data->fan[f_min][1] = rv;
+
+		prev_rv = rv = lm80_read_value(client, LM80_REG_TEMP);
+		if (rv < 0)
+			goto abort;
+		rv = lm80_read_value(client, LM80_REG_RES);
+		if (rv < 0)
+			goto abort;
+		data->temp[t_input] = (prev_rv << 8) | (rv & 0xf0);
+
+		for (i = t_input + 1; i < t_num_temp; i++) {
+			rv = lm80_read_value(client, temp_regs[i]);
+			if (rv < 0)
+				goto abort;
+			data->temp[i] = rv << 8;
+		}
+
+		rv = lm80_read_value(client, LM80_REG_FANDIV);
+		if (rv < 0)
+			goto abort;
+		data->fan_div[0] = (rv >> 2) & 0x03;
+		data->fan_div[1] = (rv >> 4) & 0x03;
+
+		prev_rv = rv = lm80_read_value(client, LM80_REG_ALARM1);
+		if (rv < 0)
+			goto abort;
+		rv = lm80_read_value(client, LM80_REG_ALARM2);
+		if (rv < 0)
+			goto abort;
+		data->alarms = prev_rv + (rv << 8);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+		data->error = 0;
+	}
+	goto done;
+
+abort:
+	ret = ERR_PTR(rv);
+	data->valid = 0;
+	data->error = 1;
+
+done:
+	mutex_unlock(&data->update_lock);
+
+	return ret;
+}
 
 /*
  * Sysfs stuff
  */
 
-#define show_in(suffix, value) \
-static ssize_t show_in_##suffix(struct device *dev, \
-	struct device_attribute *attr, char *buf) \
-{ \
-	int nr = to_sensor_dev_attr(attr)->index; \
-	struct lm80_data *data = lm80_update_device(dev); \
-	if (IS_ERR(data)) \
-		return PTR_ERR(data); \
-	return sprintf(buf, "%d\n", IN_FROM_REG(data->value[nr])); \
-}
-show_in(min, in_min)
-show_in(max, in_max)
-show_in(input, in)
+static ssize_t show_in(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct lm80_data *data = lm80_update_device(dev);
+	int index = to_sensor_dev_attr_2(attr)->index;
+	int nr = to_sensor_dev_attr_2(attr)->nr;
 
-#define set_in(suffix, value, reg) \
-static ssize_t set_in_##suffix(struct device *dev, \
-	struct device_attribute *attr, const char *buf, size_t count) \
-{ \
-	int nr = to_sensor_dev_attr(attr)->index; \
-	struct lm80_data *data = dev_get_drvdata(dev); \
-	struct i2c_client *client = data->client; \
-	long val; \
-	int err = kstrtol(buf, 10, &val); \
-	if (err < 0) \
-		return err; \
-\
-	mutex_lock(&data->update_lock);\
-	data->value[nr] = IN_TO_REG(val); \
-	lm80_write_value(client, reg(nr), data->value[nr]); \
-	mutex_unlock(&data->update_lock);\
-	return count; \
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+	return sprintf(buf, "%d\n", IN_FROM_REG(data->in[nr][index]));
 }
-set_in(min, in_min, LM80_REG_IN_MIN)
-set_in(max, in_max, LM80_REG_IN_MAX)
 
-#define show_fan(suffix, value) \
-static ssize_t show_fan_##suffix(struct device *dev, \
-	struct device_attribute *attr, char *buf) \
-{ \
-	int nr = to_sensor_dev_attr(attr)->index; \
-	struct lm80_data *data = lm80_update_device(dev); \
-	if (IS_ERR(data)) \
-		return PTR_ERR(data); \
-	return sprintf(buf, "%d\n", FAN_FROM_REG(data->value[nr], \
-		       DIV_FROM_REG(data->fan_div[nr]))); \
+static ssize_t set_in(struct device *dev, struct device_attribute *attr,
+		      const char *buf, size_t count)
+{
+	struct lm80_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int index = to_sensor_dev_attr_2(attr)->index;
+	int nr = to_sensor_dev_attr_2(attr)->nr;
+	long val;
+	u8 reg;
+	int err = kstrtol(buf, 10, &val);
+	if (err < 0)
+		return err;
+
+	reg = nr == i_min ? LM80_REG_IN_MIN(index) : LM80_REG_IN_MAX(index);
+
+	mutex_lock(&data->update_lock);
+	data->in[nr][index] = IN_TO_REG(val);
+	lm80_write_value(client, reg, data->in[nr][index]);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
-show_fan(min, fan_min)
-show_fan(input, fan)
+
+static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	int index = to_sensor_dev_attr_2(attr)->index;
+	int nr = to_sensor_dev_attr_2(attr)->nr;
+	struct lm80_data *data = lm80_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[nr][index],
+		       DIV_FROM_REG(data->fan_div[index])));
+}
 
 static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 	char *buf)
@@ -232,7 +328,8 @@ static ssize_t show_fan_div(struct device *dev, struct device_attribute *attr,
 static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	const char *buf, size_t count)
 {
-	int nr = to_sensor_dev_attr(attr)->index;
+	int index = to_sensor_dev_attr_2(attr)->index;
+	int nr = to_sensor_dev_attr_2(attr)->nr;
 	struct lm80_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 	unsigned long val;
@@ -241,8 +338,10 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
-	lm80_write_value(client, LM80_REG_FAN_MIN(nr + 1), data->fan_min[nr]);
+	data->fan[nr][index] = FAN_TO_REG(val,
+					  DIV_FROM_REG(data->fan_div[index]));
+	lm80_write_value(client, LM80_REG_FAN_MIN(index + 1),
+			 data->fan[nr][index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -267,7 +366,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 
 	/* Save fan_min */
 	mutex_lock(&data->update_lock);
-	min = FAN_FROM_REG(data->fan_min[nr],
+	min = FAN_FROM_REG(data->fan[f_min][nr],
 			   DIV_FROM_REG(data->fan_div[nr]));
 
 	switch (val) {
@@ -291,62 +390,47 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	reg = (lm80_read_value(client, LM80_REG_FANDIV) & ~(3 << (2 * (nr + 1))))
-	    | (data->fan_div[nr] << (2 * (nr + 1)));
+	reg = (lm80_read_value(client, LM80_REG_FANDIV) &
+	       ~(3 << (2 * (nr + 1)))) | (data->fan_div[nr] << (2 * (nr + 1)));
 	lm80_write_value(client, LM80_REG_FANDIV, reg);
 
 	/* Restore fan_min */
-	data->fan_min[nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
-	lm80_write_value(client, LM80_REG_FAN_MIN(nr + 1), data->fan_min[nr]);
+	data->fan[f_min][nr] = FAN_TO_REG(min, DIV_FROM_REG(data->fan_div[nr]));
+	lm80_write_value(client, LM80_REG_FAN_MIN(nr + 1),
+			 data->fan[f_min][nr]);
 	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
-static ssize_t show_temp_input1(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm80_data *data = lm80_update_device(dev);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
-	return sprintf(buf, "%ld\n", TEMP_FROM_REG(data->temp));
+	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-#define show_temp(suffix, value) \
-static ssize_t show_temp_##suffix(struct device *dev, \
-	struct device_attribute *attr, char *buf) \
-{ \
-	struct lm80_data *data = lm80_update_device(dev); \
-	if (IS_ERR(data)) \
-		return PTR_ERR(data); \
-	return sprintf(buf, "%d\n", TEMP_LIMIT_FROM_REG(data->value)); \
-}
-show_temp(hot_max, temp_hot_max);
-show_temp(hot_hyst, temp_hot_hyst);
-show_temp(os_max, temp_os_max);
-show_temp(os_hyst, temp_os_hyst);
+static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
+			const char *buf, size_t count)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct lm80_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	int nr = attr->index;
+	long val;
+	int err = kstrtol(buf, 10, &val);
+	if (err < 0)
+		return err;
 
-#define set_temp(suffix, value, reg) \
-static ssize_t set_temp_##suffix(struct device *dev, \
-	struct device_attribute *attr, const char *buf, size_t count) \
-{ \
-	struct lm80_data *data = dev_get_drvdata(dev); \
-	struct i2c_client *client = data->client; \
-	long val; \
-	int err = kstrtol(buf, 10, &val); \
-	if (err < 0) \
-		return err; \
-\
-	mutex_lock(&data->update_lock); \
-	data->value = TEMP_LIMIT_TO_REG(val); \
-	lm80_write_value(client, reg, data->value); \
-	mutex_unlock(&data->update_lock); \
-	return count; \
+	mutex_lock(&data->update_lock);
+	data->temp[nr] = TEMP_TO_REG(val);
+	lm80_write_value(client, temp_regs[nr], data->temp[nr] >> 8);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
-set_temp(hot_max, temp_hot_max, LM80_REG_TEMP_HOT_MAX);
-set_temp(hot_hyst, temp_hot_hyst, LM80_REG_TEMP_HOT_HYST);
-set_temp(os_max, temp_os_max, LM80_REG_TEMP_OS_MAX);
-set_temp(os_hyst, temp_os_hyst, LM80_REG_TEMP_OS_HYST);
 
 static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -367,60 +451,60 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR(in0_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 0);
-static SENSOR_DEVICE_ATTR(in1_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 1);
-static SENSOR_DEVICE_ATTR(in2_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 2);
-static SENSOR_DEVICE_ATTR(in3_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 3);
-static SENSOR_DEVICE_ATTR(in4_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 4);
-static SENSOR_DEVICE_ATTR(in5_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 5);
-static SENSOR_DEVICE_ATTR(in6_min, S_IWUSR | S_IRUGO,
-		show_in_min, set_in_min, 6);
-static SENSOR_DEVICE_ATTR(in0_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 0);
-static SENSOR_DEVICE_ATTR(in1_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 1);
-static SENSOR_DEVICE_ATTR(in2_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 2);
-static SENSOR_DEVICE_ATTR(in3_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 3);
-static SENSOR_DEVICE_ATTR(in4_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 4);
-static SENSOR_DEVICE_ATTR(in5_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 5);
-static SENSOR_DEVICE_ATTR(in6_max, S_IWUSR | S_IRUGO,
-		show_in_max, set_in_max, 6);
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, show_in_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, show_in_input, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, show_in_input, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, show_in_input, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, show_in_input, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, show_in_input, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, show_in_input, NULL, 6);
-static SENSOR_DEVICE_ATTR(fan1_min, S_IWUSR | S_IRUGO,
-		show_fan_min, set_fan_min, 0);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IWUSR | S_IRUGO,
-		show_fan_min, set_fan_min, 1);
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan_input, NULL, 1);
+static SENSOR_DEVICE_ATTR_2(in0_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 0);
+static SENSOR_DEVICE_ATTR_2(in1_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 1);
+static SENSOR_DEVICE_ATTR_2(in2_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 2);
+static SENSOR_DEVICE_ATTR_2(in3_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 3);
+static SENSOR_DEVICE_ATTR_2(in4_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 4);
+static SENSOR_DEVICE_ATTR_2(in5_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 5);
+static SENSOR_DEVICE_ATTR_2(in6_min, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_min, 6);
+static SENSOR_DEVICE_ATTR_2(in0_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 0);
+static SENSOR_DEVICE_ATTR_2(in1_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 1);
+static SENSOR_DEVICE_ATTR_2(in2_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 2);
+static SENSOR_DEVICE_ATTR_2(in3_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 3);
+static SENSOR_DEVICE_ATTR_2(in4_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 4);
+static SENSOR_DEVICE_ATTR_2(in5_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 5);
+static SENSOR_DEVICE_ATTR_2(in6_max, S_IWUSR | S_IRUGO,
+		show_in, set_in, i_max, 6);
+static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO, show_in, NULL, i_input, 0);
+static SENSOR_DEVICE_ATTR_2(in1_input, S_IRUGO, show_in, NULL, i_input, 1);
+static SENSOR_DEVICE_ATTR_2(in2_input, S_IRUGO, show_in, NULL, i_input, 2);
+static SENSOR_DEVICE_ATTR_2(in3_input, S_IRUGO, show_in, NULL, i_input, 3);
+static SENSOR_DEVICE_ATTR_2(in4_input, S_IRUGO, show_in, NULL, i_input, 4);
+static SENSOR_DEVICE_ATTR_2(in5_input, S_IRUGO, show_in, NULL, i_input, 5);
+static SENSOR_DEVICE_ATTR_2(in6_input, S_IRUGO, show_in, NULL, i_input, 6);
+static SENSOR_DEVICE_ATTR_2(fan1_min, S_IWUSR | S_IRUGO,
+		show_fan, set_fan_min, f_min, 0);
+static SENSOR_DEVICE_ATTR_2(fan2_min, S_IWUSR | S_IRUGO,
+		show_fan, set_fan_min, f_min, 1);
+static SENSOR_DEVICE_ATTR_2(fan1_input, S_IRUGO, show_fan, NULL, f_input, 0);
+static SENSOR_DEVICE_ATTR_2(fan2_input, S_IRUGO, show_fan, NULL, f_input, 1);
 static SENSOR_DEVICE_ATTR(fan1_div, S_IWUSR | S_IRUGO,
 		show_fan_div, set_fan_div, 0);
 static SENSOR_DEVICE_ATTR(fan2_div, S_IWUSR | S_IRUGO,
 		show_fan_div, set_fan_div, 1);
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp_input1, NULL);
-static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_hot_max,
-	set_temp_hot_max);
-static DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO, show_temp_hot_hyst,
-	set_temp_hot_hyst);
-static DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp_os_max,
-	set_temp_os_max);
-static DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temp_os_hyst,
-	set_temp_os_hyst);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, t_input);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp,
+		set_temp, t_hot_max);
+static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO, show_temp,
+		set_temp, t_hot_hyst);
+static SENSOR_DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp,
+		set_temp, t_os_max);
+static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temp,
+		set_temp, t_os_hyst);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
@@ -466,11 +550,11 @@ static struct attribute *lm80_attrs[] = {
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_div.dev_attr.attr,
 	&sensor_dev_attr_fan2_div.dev_attr.attr,
-	&dev_attr_temp1_input.attr,
-	&dev_attr_temp1_max.attr,
-	&dev_attr_temp1_max_hyst.attr,
-	&dev_attr_temp1_crit.attr,
-	&dev_attr_temp1_crit_hyst.attr,
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_in0_alarm.dev_attr.attr,
 	&sensor_dev_attr_in1_alarm.dev_attr.attr,
@@ -551,8 +635,8 @@ static int lm80_probe(struct i2c_client *client,
 	lm80_init_client(client);
 
 	/* A few vars need to be filled upon startup */
-	data->fan_min[0] = lm80_read_value(client, LM80_REG_FAN_MIN(1));
-	data->fan_min[1] = lm80_read_value(client, LM80_REG_FAN_MIN(2));
+	data->fan[f_min][0] = lm80_read_value(client, LM80_REG_FAN_MIN(1));
+	data->fan[f_min][1] = lm80_read_value(client, LM80_REG_FAN_MIN(2));
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 							   data, lm80_groups);
@@ -560,143 +644,27 @@ static int lm80_probe(struct i2c_client *client,
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int lm80_read_value(struct i2c_client *client, u8 reg)
-{
-	return i2c_smbus_read_byte_data(client, reg);
-}
+/*
+ * Driver data (common to all clients)
+ */
 
-static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value)
-{
-	return i2c_smbus_write_byte_data(client, reg, value);
-}
+static const struct i2c_device_id lm80_id[] = {
+	{ "lm80", 0 },
+	{ "lm96080", 1 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm80_id);
 
-/* Called when we have found a new LM80. */
-static void lm80_init_client(struct i2c_client *client)
-{
-	/*
-	 * Reset all except Watchdog values and last conversion values
-	 * This sets fan-divs to 2, among others. This makes most other
-	 * initializations unnecessary
-	 */
-	lm80_write_value(client, LM80_REG_CONFIG, 0x80);
-	/* Set 11-bit temperature resolution */
-	lm80_write_value(client, LM80_REG_RES, 0x08);
-
-	/* Start monitoring */
-	lm80_write_value(client, LM80_REG_CONFIG, 0x01);
-}
-
-static struct lm80_data *lm80_update_device(struct device *dev)
-{
-	struct lm80_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	int i;
-	int rv;
-	int prev_rv;
-	struct lm80_data *ret = data;
-
-	mutex_lock(&data->update_lock);
-
-	if (data->error)
-		lm80_init_client(client);
-
-	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
-		dev_dbg(dev, "Starting lm80 update\n");
-		for (i = 0; i <= 6; i++) {
-			rv = lm80_read_value(client, LM80_REG_IN(i));
-			if (rv < 0)
-				goto abort;
-			data->in[i] = rv;
-
-			rv = lm80_read_value(client, LM80_REG_IN_MIN(i));
-			if (rv < 0)
-				goto abort;
-			data->in_min[i] = rv;
-
-			rv = lm80_read_value(client, LM80_REG_IN_MAX(i));
-			if (rv < 0)
-				goto abort;
-			data->in_max[i] = rv;
-		}
-
-		rv = lm80_read_value(client, LM80_REG_FAN1);
-		if (rv < 0)
-			goto abort;
-		data->fan[0] = rv;
-
-		rv = lm80_read_value(client, LM80_REG_FAN_MIN(1));
-		if (rv < 0)
-			goto abort;
-		data->fan_min[0] = rv;
-
-		rv = lm80_read_value(client, LM80_REG_FAN2);
-		if (rv < 0)
-			goto abort;
-		data->fan[1] = rv;
-
-		rv = lm80_read_value(client, LM80_REG_FAN_MIN(2));
-		if (rv < 0)
-			goto abort;
-		data->fan_min[1] = rv;
-
-		prev_rv = rv = lm80_read_value(client, LM80_REG_TEMP);
-		if (rv < 0)
-			goto abort;
-		rv = lm80_read_value(client, LM80_REG_RES);
-		if (rv < 0)
-			goto abort;
-		data->temp = (prev_rv << 8) | (rv & 0xf0);
-
-		rv = lm80_read_value(client, LM80_REG_TEMP_OS_MAX);
-		if (rv < 0)
-			goto abort;
-		data->temp_os_max = rv;
-
-		rv = lm80_read_value(client, LM80_REG_TEMP_OS_HYST);
-		if (rv < 0)
-			goto abort;
-		data->temp_os_hyst = rv;
-
-		rv = lm80_read_value(client, LM80_REG_TEMP_HOT_MAX);
-		if (rv < 0)
-			goto abort;
-		data->temp_hot_max = rv;
-
-		rv = lm80_read_value(client, LM80_REG_TEMP_HOT_HYST);
-		if (rv < 0)
-			goto abort;
-		data->temp_hot_hyst = rv;
-
-		rv = lm80_read_value(client, LM80_REG_FANDIV);
-		if (rv < 0)
-			goto abort;
-		data->fan_div[0] = (rv >> 2) & 0x03;
-		data->fan_div[1] = (rv >> 4) & 0x03;
-
-		prev_rv = rv = lm80_read_value(client, LM80_REG_ALARM1);
-		if (rv < 0)
-			goto abort;
-		rv = lm80_read_value(client, LM80_REG_ALARM2);
-		if (rv < 0)
-			goto abort;
-		data->alarms = prev_rv + (rv << 8);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-		data->error = 0;
-	}
-	goto done;
-
-abort:
-	ret = ERR_PTR(rv);
-	data->valid = 0;
-	data->error = 1;
-
-done:
-	mutex_unlock(&data->update_lock);
-
-	return ret;
-}
+static struct i2c_driver lm80_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "lm80",
+	},
+	.probe		= lm80_probe,
+	.id_table	= lm80_id,
+	.detect		= lm80_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(lm80_driver);
 
