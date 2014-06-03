@@ -608,6 +608,10 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		pr_err("%s: Bad type %d\n", __func__, ulp_type);
 		return -EINVAL;
 	}
+
+	if (ulp_type == CNIC_ULP_ISCSI)
+		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
+
 	mutex_lock(&cnic_lock);
 	if (rcu_dereference(cp->ulp_ops[ulp_type])) {
 		RCU_INIT_POINTER(cp->ulp_ops[ulp_type], NULL);
@@ -620,9 +624,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	}
 	mutex_unlock(&cnic_lock);
 
-	if (ulp_type == CNIC_ULP_ISCSI)
-		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
-	else if (ulp_type == CNIC_ULP_FCOE)
+	if (ulp_type == CNIC_ULP_FCOE)
 		dev->fcoe_cap = NULL;
 
 	synchronize_rcu();
