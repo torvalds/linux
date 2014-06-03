@@ -1235,6 +1235,12 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 		max_dev_lun = min(8U, max_dev_lun);
 
 	/*
+	 * Stop scanning at 255 unless BLIST_SCSI3LUN
+	 */
+	if (!(bflags & BLIST_SCSI3LUN))
+		max_dev_lun = min(256U, max_dev_lun);
+
+	/*
 	 * We have already scanned LUN 0, so start at LUN 1. Keep scanning
 	 * until we reach the max, or no LUN is found and we are not
 	 * sparse_lun.
