@@ -7,9 +7,7 @@
  * Original driver (sg.c):
  *        Copyright (C) 1992 Lawrence Foard
  * Version 2 and 3 extensions to driver:
- *        Copyright (C) 1998 - 2005 Douglas Gilbert
- *
- *  Modified  19-JAN-1998  Richard Gooch <rgooch@atnf.csiro.au>  Devfs support
+ *        Copyright (C) 1998 - 2014 Douglas Gilbert
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,11 +16,11 @@
  *
  */
 
-static int sg_version_num = 30534;	/* 2 digits for each component */
-#define SG_VERSION_STR "3.5.34"
+static int sg_version_num = 30536;	/* 2 digits for each component */
+#define SG_VERSION_STR "3.5.36"
 
 /*
- *  D. P. Gilbert (dgilbert@interlog.com, dougg@triode.net.au), notes:
+ *  D. P. Gilbert (dgilbert@interlog.com), notes:
  *      - scsi logging is available via SCSI_LOG_TIMEOUT macros. First
  *        the kernel/module needs to be built with CONFIG_SCSI_LOGGING
  *        (otherwise the macros compile to empty statements).
@@ -64,7 +62,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 
 #ifdef CONFIG_SCSI_PROC_FS
 #include <linux/proc_fs.h>
-static char *sg_version_date = "20061027";
+static char *sg_version_date = "20140603";
 
 static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
@@ -73,6 +71,12 @@ static void sg_proc_cleanup(void);
 #define SG_ALLOW_DIO_DEF 0
 
 #define SG_MAX_DEVS 32768
+
+/* SG_MAX_CDB_SIZE should be 260 (spc4r37 section 3.1.30) however the type
+ * of sg_io_hdr::cmd_len can only represent 255. All SCSI commands greater
+ * than 16 bytes are "variable length" whose length is a multiple of 4
+ */
+#define SG_MAX_CDB_SIZE 252
 
 /*
  * Suppose you want to calculate the formula muldiv(x,m,d)=int(x * m / d)
@@ -161,7 +165,7 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 	char low_dma;		/* as in parent but possibly overridden to 1 */
 	char force_packid;	/* 1 -> pack_id input to read(), 0 -> ignored */
 	char cmd_q;		/* 1 -> allow command queuing, 0 -> don't */
-	char next_cmd_len;	/* 0 -> automatic (def), >0 -> use on next write() */
+	unsigned char next_cmd_len; /* 0: automatic, >0: use on next write() */
 	char keep_orphan;	/* 0 -> drop orphan (def), 1 -> keep for read() */
 	char mmap_called;	/* 0 -> mmap() never called on this fd */
 	struct kref f_ref;
@@ -566,7 +570,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	Sg_request *srp;
 	struct sg_header old_hdr;
 	sg_io_hdr_t *hp;
-	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned char cmnd[SG_MAX_CDB_SIZE];
 
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
@@ -598,12 +602,6 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	buf += SZ_SG_HEADER;
 	__get_user(opcode, buf);
 	if (sfp->next_cmd_len > 0) {
-		if (sfp->next_cmd_len > MAX_COMMAND_SIZE) {
-			SCSI_LOG_TIMEOUT(1, printk("sg_write: command length too long\n"));
-			sfp->next_cmd_len = 0;
-			sg_remove_request(sfp, srp);
-			return -EIO;
-		}
 		cmd_size = sfp->next_cmd_len;
 		sfp->next_cmd_len = 0;	/* reset so only this write() effected */
 	} else {
@@ -675,7 +673,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 	int k;
 	Sg_request *srp;
 	sg_io_hdr_t *hp;
-	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned char cmnd[SG_MAX_CDB_SIZE];
 	int timeout;
 	unsigned long ul_timeout;
 
@@ -1654,15 +1652,27 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	struct request_queue *q = sfp->parentdp->device->request_queue;
 	struct rq_map_data *md, map_data;
 	int rw = hp->dxfer_direction == SG_DXFER_TO_DEV ? WRITE : READ;
+	unsigned char *long_cmdp = NULL;
 
 	SCSI_LOG_TIMEOUT(4, printk(KERN_INFO "sg_start_req: dxfer_len=%d\n",
 				   dxfer_len));
 
+	if (hp->cmd_len > BLK_MAX_CDB) {
+		long_cmdp = kzalloc(hp->cmd_len, GFP_KERNEL);
+		if (!long_cmdp)
+			return -ENOMEM;
+	}
+
 	rq = blk_get_request(q, rw, GFP_ATOMIC);
-	if (!rq)
+	if (!rq) {
+		kfree(long_cmdp);
 		return -ENOMEM;
+	}
 
 	blk_rq_set_block_pc(rq);
+
+	if (hp->cmd_len > BLK_MAX_CDB)
+		rq->cmd = long_cmdp;
 	memcpy(rq->cmd, cmd, hp->cmd_len);
 	rq->cmd_len = hp->cmd_len;
 
@@ -1747,6 +1757,8 @@ static int sg_finish_rem_req(Sg_request * srp)
 		if (srp->bio)
 			ret = blk_rq_unmap_user(srp->bio);
 
+		if (srp->rq->cmd != srp->rq->__cmd)
+			kfree(srp->rq->cmd);
 		blk_put_request(srp->rq);
 	}
 
