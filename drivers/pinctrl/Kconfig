@@ -11,10 +11,10 @@ menu "Pin controllers"
 	depends on PINCTRL
 
 config PINMUX
-	bool "Support pin multiplexing controllers"
+	bool "Support pin multiplexing controllers" if COMPILE_TEST
 
 config PINCONF
-	bool "Support pin configuration controllers"
+	bool "Support pin configuration controllers" if COMPILE_TEST
 
 config GENERIC_PINCONF
 	bool
