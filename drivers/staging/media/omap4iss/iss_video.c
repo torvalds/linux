@@ -895,7 +895,6 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
-	spin_lock_init(&video->qlock);
 	video->error = false;
 	atomic_set(&pipe->frame_number, -1);
 
@@ -1175,6 +1174,7 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 	if (ret < 0)
 		return ret;
 
+	spin_lock_init(&video->qlock);
 	mutex_init(&video->mutex);
 	atomic_set(&video->active, 0);
 
