@@ -130,18 +130,28 @@ dp_link_train_commit(struct dp_state *dp, bool pc)
 
 	for (i = 0; i < dp->link_nr; i++) {
 		u8 lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
+		u8 lpc2 = (dp->pc2stat >> (i * 2)) & 0x3;
 		u8 lpre = (lane & 0x0c) >> 2;
 		u8 lvsw = (lane & 0x03) >> 0;
+		u8 hivs = 3 - lpre;
+		u8 hipe = 3;
+		u8 hipc = 3;
+
+		if (lpc2 >= hipc)
+			lpc2 = hipc | DPCD_LC0F_LANE0_MAX_POST_CURSOR2_REACHED;
+		if (lpre >= hipe) {
+			lpre = hipe | DPCD_LC03_MAX_SWING_REACHED; /* yes. */
+			lvsw = hivs = 3 - (lpre & 3);
+		} else
+		if (lvsw >= hivs) {
+			lvsw = hivs | DPCD_LC03_MAX_SWING_REACHED;
+		}
 
 		dp->conf[i] = (lpre << 3) | lvsw;
-		if (lvsw == 3)
-			dp->conf[i] |= DPCD_LC03_MAX_SWING_REACHED;
-		if (lpre == 3)
-			dp->conf[i] |= DPCD_LC03_MAX_PRE_EMPHASIS_REACHED;
-		dp->pc2conf[i >> 1] |= 4 << ((i & 1) * 4);
+		dp->pc2conf[i >> 1] |= lpc2 << ((i & 1) * 4);
 
-		DBG("config lane %d %02x\n", i, dp->conf[i]);
-		impl->drv_ctl(outp, i, lvsw, lpre, 0);
+		DBG("config lane %d %02x %02x\n", i, dp->conf[i], lpc2);
+		impl->drv_ctl(outp, i, lvsw & 3, lpre & 3, lpc2 & 3);
 	}
 
 	ret = nv_wraux(outp->base.edid, DPCD_LC03(0), dp->conf, 4);
