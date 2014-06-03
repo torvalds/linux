@@ -605,7 +605,7 @@ static void init_feature_attrs(void)
 	}
 }
 
-static int add_device_membership(struct btrfs_fs_info *fs_info)
+static int btrfs_kobj_add_device(struct btrfs_fs_info *fs_info)
 {
 	int error = 0;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
@@ -666,7 +666,7 @@ int btrfs_sysfs_add_one(struct btrfs_fs_info *fs_info)
 	if (error)
 		goto failure;
 
-	error = add_device_membership(fs_info);
+	error = btrfs_kobj_add_device(fs_info);
 	if (error)
 		goto failure;
 
