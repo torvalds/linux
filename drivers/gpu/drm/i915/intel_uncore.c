@@ -1154,18 +1154,16 @@ static int gen6_do_reset(struct drm_device *dev)
 
 int intel_gpu_reset(struct drm_device *dev)
 {
-	switch (INTEL_INFO(dev)->gen) {
-	case 8:
-	case 7:
-	case 6: return gen6_do_reset(dev);
-	case 5: return ironlake_do_reset(dev);
-	case 4:
-		if (IS_G4X(dev))
-			return g4x_do_reset(dev);
-		else
-			return i965_do_reset(dev);
-	default: return -ENODEV;
-	}
+	if (INTEL_INFO(dev)->gen >= 6)
+		return gen6_do_reset(dev);
+	else if (IS_GEN5(dev))
+		return ironlake_do_reset(dev);
+	else if (IS_G4X(dev))
+		return g4x_do_reset(dev);
+	else if (IS_GEN4(dev))
+		return i965_do_reset(dev);
+	else
+		return -ENODEV;
 }
 
 void intel_uncore_check_errors(struct drm_device *dev)
