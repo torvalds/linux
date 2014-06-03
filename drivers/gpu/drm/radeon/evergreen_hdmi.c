@@ -342,19 +342,19 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 		case 16:
 		default:
 			DRM_DEBUG("%s: Disabling hdmi deep color for %d bpc.\n",
-					 drm_get_connector_name(connector), bpc);
+					 connector->name, bpc);
 			break;
 		case 10:
 			val |= HDMI_DEEP_COLOR_ENABLE;
 			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_30BIT_DEEP_COLOR);
 			DRM_DEBUG("%s: Enabling hdmi deep color 30 for 10 bpc.\n",
-					 drm_get_connector_name(connector));
+					 connector->name);
 			break;
 		case 12:
 			val |= HDMI_DEEP_COLOR_ENABLE;
 			val |= HDMI_DEEP_COLOR_DEPTH(HDMI_36BIT_DEEP_COLOR);
 			DRM_DEBUG("%s: Enabling hdmi deep color 36 for 12 bpc.\n",
-					 drm_get_connector_name(connector));
+					 connector->name);
 			break;
 	}
 

@@ -703,7 +703,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		radeon_connector = to_radeon_connector(connector);
 		DRM_INFO("Connector %d:\n", i);
-		DRM_INFO("  %s\n", drm_get_connector_name(connector));
+		DRM_INFO("  %s\n", connector->name);
 		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
 			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
 		if (radeon_connector->ddc_bus) {
