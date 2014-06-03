@@ -159,6 +159,8 @@ void thunderbolt_shutdown_and_free(struct tb *tb);
 struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route);
 void tb_switch_free(struct tb_switch *sw);
 
+int tb_find_cap(struct tb_port *port, enum tb_cfg_space space, u32 value);
+
 
 static inline int tb_route_length(u64 route)
 {
