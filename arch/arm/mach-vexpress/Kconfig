@@ -65,7 +65,6 @@ config ARCH_VEXPRESS_DCSCB
 
 config ARCH_VEXPRESS_SPC
 	bool "Versatile Express Serial Power Controller (SPC)"
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select PM_OPP
 	help

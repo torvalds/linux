@@ -84,7 +84,6 @@ config MACH_DOVE
 
 config MACH_KIRKWOOD
 	bool "Marvell Kirkwood boards" if ARCH_MULTI_V5
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
 	select KIRKWOOD_CLK

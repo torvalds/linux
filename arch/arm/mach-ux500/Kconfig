@@ -3,7 +3,6 @@ config ARCH_U8500
 	depends on MMU
 	select AB8500_CORE
 	select ABX500_CORE
-	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_754322
