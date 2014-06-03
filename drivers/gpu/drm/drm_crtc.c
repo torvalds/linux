@@ -1631,7 +1631,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 					    &dev->mode_config.encoder_list,
 					    head) {
 				DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
-						drm_get_encoder_name(encoder));
+						encoder->name);
 				if (put_user(encoder->base.id, encoder_id +
 					     copied)) {
 					ret = -EFAULT;
