@@ -1039,21 +1039,17 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_uio_dev *udev;
 
-	read_lock(&cnic_dev_lock);
 	list_for_each_entry(udev, &cnic_udev_list, list) {
 		if (udev->pdev == dev->pcidev) {
 			udev->dev = dev;
 			if (__cnic_alloc_uio_rings(udev, pages)) {
 				udev->dev = NULL;
-				read_unlock(&cnic_dev_lock);
 				return -ENOMEM;
 			}
 			cp->udev = udev;
-			read_unlock(&cnic_dev_lock);
 			return 0;
 		}
 	}
-	read_unlock(&cnic_dev_lock);
 
 	udev = kzalloc(sizeof(struct cnic_uio_dev), GFP_ATOMIC);
 	if (!udev)
@@ -1067,9 +1063,7 @@ static int cnic_alloc_uio_rings(struct cnic_dev *dev, int pages)
 	if (__cnic_alloc_uio_rings(udev, pages))
 		goto err_udev;
 
-	write_lock(&cnic_dev_lock);
 	list_add(&udev->list, &cnic_udev_list);
-	write_unlock(&cnic_dev_lock);
 
 	pci_dev_get(udev->pdev);
 
