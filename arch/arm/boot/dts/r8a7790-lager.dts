@@ -338,3 +338,7 @@
 		regulator-always-on;
 	};
 };
+
+&cpu0 {
+	cpu0-supply = <&vdd_dvfs>;
+};
