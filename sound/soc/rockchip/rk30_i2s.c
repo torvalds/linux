@@ -682,8 +682,8 @@ MODULE_DEVICE_TABLE(of, exynos_i2s_match);
 #endif
 
 static const struct dev_pm_ops rockchip_i2s_pm_ops = {
-        SET_RUNTIME_PM_OPS(rockchip_i2s_suspend_noirq,
-                                rockchip_i2s_resume_noirq, NULL)
+	.suspend_noirq = rockchip_i2s_suspend_noirq,
+	.resume_noirq  = rockchip_i2s_resume_noirq,
 };
 
 static struct platform_driver rockchip_i2s_driver = {
