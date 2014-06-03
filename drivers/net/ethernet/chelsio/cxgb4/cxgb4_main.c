@@ -2739,7 +2739,7 @@ static u32 get_rss_table_size(struct net_device *dev)
 	return pi->rss_size;
 }
 
-static int get_rss_table(struct net_device *dev, u32 *p)
+static int get_rss_table(struct net_device *dev, u32 *p, u8 *key)
 {
 	const struct port_info *pi = netdev_priv(dev);
 	unsigned int n = pi->rss_size;
@@ -2749,7 +2749,7 @@ static int get_rss_table(struct net_device *dev, u32 *p)
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev, const u32 *p)
+static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
@@ -2851,8 +2851,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
-	.get_rxfh_indir    = get_rss_table,
-	.set_rxfh_indir    = set_rss_table,
+	.get_rxfh	   = get_rss_table,
+	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
 };
 
