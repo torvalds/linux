@@ -233,11 +233,6 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH	0x000d0044
 #define HID_DG_ERASER		0x000d0045
 #define HID_DG_TABLETPICK	0x000d0046
-/*
- * as of May 20, 2009 the usages below are not yet in the official USB spec
- * but are being pushed by Microsft as described in their paper "Digitizer
- * Drivers for Windows Touch and Pen-Based Computers"
- */
 #define HID_DG_CONFIDENCE	0x000d0047
 #define HID_DG_WIDTH		0x000d0048
 #define HID_DG_HEIGHT		0x000d0049
@@ -246,6 +241,8 @@ struct hid_item {
 #define HID_DG_DEVICEINDEX	0x000d0053
 #define HID_DG_CONTACTCOUNT	0x000d0054
 #define HID_DG_CONTACTMAX	0x000d0055
+#define HID_DG_BARRELSWITCH2	0x000d005a
+#define HID_DG_TOOLSERIALNUMBER	0x000d005b
 
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!

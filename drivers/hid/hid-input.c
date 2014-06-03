@@ -684,7 +684,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case 0x46: /* TabletPick */
+		case 0x5a: /* SecondaryBarrelSwitch */
 			map_key_clear(BTN_STYLUS2);
+			break;
+
+		case 0x5b: /* TransducerSerialNumber */
+			set_bit(MSC_SERIAL, input->mscbit);
 			break;
 
 		default:  goto unknown;
