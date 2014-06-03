@@ -240,7 +240,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 
 /* NVMe Namespace and Command Defines */
 #define NVME_GET_SMART_LOG_PAGE				0x02
-#define NVME_GET_FEAT_TEMP_THRESH			0x04
 #define BYTES_TO_DWORDS					4
 #define NVME_MAX_FIRMWARE_SLOT				7
 
