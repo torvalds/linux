@@ -157,12 +157,12 @@ EXPORT_SYMBOL(devm_ioremap_resource);
  *	if (!base)
  *		return -EADDRNOTAVAIL;
  */
-void __iomem *devm_request_and_ioremap(struct device *device,
+void __iomem *devm_request_and_ioremap(struct device *dev,
 				       struct resource *res)
 {
 	void __iomem *dest_ptr;
 
-	dest_ptr = devm_ioremap_resource(device, res);
+	dest_ptr = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dest_ptr))
 		return NULL;
 
@@ -194,7 +194,7 @@ static int devm_ioport_map_match(struct device *dev, void *res,
  * Managed ioport_map().  Map is automatically unmapped on driver
  * detach.
  */
-void __iomem * devm_ioport_map(struct device *dev, unsigned long port,
+void __iomem *devm_ioport_map(struct device *dev, unsigned long port,
 			       unsigned int nr)
 {
 	void __iomem **ptr, *addr;
@@ -265,7 +265,7 @@ static void pcim_iomap_release(struct device *gendev, void *res)
  * be safely called without context and guaranteed to succed once
  * allocated.
  */
-void __iomem * const * pcim_iomap_table(struct pci_dev *pdev)
+void __iomem * const *pcim_iomap_table(struct pci_dev *pdev)
 {
 	struct pcim_iomap_devres *dr, *new_dr;
 
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(pcim_iomap_table);
  * Managed pci_iomap().  Map is automatically unmapped on driver
  * detach.
  */
-void __iomem * pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
+void __iomem *pcim_iomap(struct pci_dev *pdev, int bar, unsigned long maxlen)
 {
 	void __iomem **tbl;
 

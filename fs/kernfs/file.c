@@ -14,6 +14,7 @@
 #include <linux/poll.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/fsnotify.h>
 
 #include "kernfs-internal.h"
 
@@ -790,20 +791,48 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
  */
 void kernfs_notify(struct kernfs_node *kn)
 {
+	struct kernfs_root *root = kernfs_root(kn);
 	struct kernfs_open_node *on;
+	struct kernfs_super_info *info;
 	unsigned long flags;
 
+	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
+		return;
+
+	/* kick poll */
 	spin_lock_irqsave(&kernfs_open_node_lock, flags);
 
-	if (!WARN_ON(kernfs_type(kn) != KERNFS_FILE)) {
-		on = kn->attr.open;
-		if (on) {
-			atomic_inc(&on->event);
-			wake_up_interruptible(&on->poll);
-		}
+	on = kn->attr.open;
+	if (on) {
+		atomic_inc(&on->event);
+		wake_up_interruptible(&on->poll);
 	}
 
 	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+
+	/* kick fsnotify */
+	mutex_lock(&kernfs_mutex);
+
+	list_for_each_entry(info, &root->supers, node) {
+		struct inode *inode;
+		struct dentry *dentry;
+
+		inode = ilookup(info->sb, kn->ino);
+		if (!inode)
+			continue;
+
+		dentry = d_find_any_alias(inode);
+		if (dentry) {
+			fsnotify_parent(NULL, dentry, FS_MODIFY);
+			fsnotify(inode, FS_MODIFY, inode, FSNOTIFY_EVENT_INODE,
+				 NULL, 0);
+			dput(dentry);
+		}
+
+		iput(inode);
+	}
+
+	mutex_unlock(&kernfs_mutex);
 }
 EXPORT_SYMBOL_GPL(kernfs_notify);
 
