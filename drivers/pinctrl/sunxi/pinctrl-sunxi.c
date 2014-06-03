@@ -28,9 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-sunxi.h"
-#include "pinctrl-sunxi-pins.h"
 
 static struct sunxi_pinctrl_group *
 sunxi_pinctrl_find_group_by_name(struct sunxi_pinctrl *pctl, const char *group)
@@ -281,6 +280,7 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct sunxi_pinctrl_group *g = &pctl->groups[group];
 	unsigned long flags;
+	unsigned pin = g->pin - pctl->desc->pin_base;
 	u32 val, mask;
 	u16 strength;
 	u8 dlevel;
@@ -304,23 +304,23 @@ static int sunxi_pconf_group_set(struct pinctrl_dev *pctldev,
 			 *   3: 40mA
 			 */
 			dlevel = strength / 10 - 1;
-			val = readl(pctl->membase + sunxi_dlevel_reg(g->pin));
-			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(g->pin);
+			val = readl(pctl->membase + sunxi_dlevel_reg(pin));
+			mask = DLEVEL_PINS_MASK << sunxi_dlevel_offset(pin);
 			writel((val & ~mask)
-				| dlevel << sunxi_dlevel_offset(g->pin),
-				pctl->membase + sunxi_dlevel_reg(g->pin));
+				| dlevel << sunxi_dlevel_offset(pin),
+				pctl->membase + sunxi_dlevel_reg(pin));
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-			writel((val & ~mask) | 1 << sunxi_pull_offset(g->pin),
-				pctl->membase + sunxi_pull_reg(g->pin));
+			val = readl(pctl->membase + sunxi_pull_reg(pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
+			writel((val & ~mask) | 1 << sunxi_pull_offset(pin),
+				pctl->membase + sunxi_pull_reg(pin));
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			val = readl(pctl->membase + sunxi_pull_reg(g->pin));
-			mask = PULL_PINS_MASK << sunxi_pull_offset(g->pin);
-			writel((val & ~mask) | 2 << sunxi_pull_offset(g->pin),
-				pctl->membase + sunxi_pull_reg(g->pin));
+			val = readl(pctl->membase + sunxi_pull_reg(pin));
+			mask = PULL_PINS_MASK << sunxi_pull_offset(pin);
+			writel((val & ~mask) | 2 << sunxi_pull_offset(pin),
+				pctl->membase + sunxi_pull_reg(pin));
 			break;
 		default:
 			break;
@@ -377,6 +377,7 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pctl->lock, flags);
 
+	pin -= pctl->desc->pin_base;
 	val = readl(pctl->membase + sunxi_mux_reg(pin));
 	mask = MUX_PINS_MASK << sunxi_mux_offset(pin);
 	writel((val & ~mask) | config << sunxi_mux_offset(pin),
@@ -435,12 +436,6 @@ static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.enable			= sunxi_pmx_enable,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
-};
-
-static struct pinctrl_desc sunxi_pctrl_desc = {
-	.confops	= &sunxi_pconf_ops,
-	.pctlops	= &sunxi_pctrl_ops,
-	.pmxops		= &sunxi_pmx_ops,
 };
 
 static int sunxi_pinctrl_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -530,27 +525,12 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	if (!desc)
 		return -EINVAL;
 
-	pctl->irq_array[desc->irqnum] = offset;
-
 	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
 		chip->label, offset + chip->base, desc->irqnum);
 
 	return irq_find_mapping(pctl->domain, desc->irqnum);
 }
 
-static struct gpio_chip sunxi_pinctrl_gpio_chip = {
-	.owner			= THIS_MODULE,
-	.request		= sunxi_pinctrl_gpio_request,
-	.free			= sunxi_pinctrl_gpio_free,
-	.direction_input	= sunxi_pinctrl_gpio_direction_input,
-	.direction_output	= sunxi_pinctrl_gpio_direction_output,
-	.get			= sunxi_pinctrl_gpio_get,
-	.set			= sunxi_pinctrl_gpio_set,
-	.of_xlate		= sunxi_pinctrl_gpio_of_xlate,
-	.to_irq			= sunxi_pinctrl_gpio_to_irq,
-	.of_gpio_n_cells	= 3,
-	.can_sleep		= false,
-};
 
 static int sunxi_pinctrl_irq_set_type(struct irq_data *d,
 				      unsigned int type)
@@ -685,16 +665,6 @@ static void sunxi_pinctrl_irq_handler(unsigned irq, struct irq_desc *desc)
 	}
 }
 
-static struct of_device_id sunxi_pinctrl_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-pinctrl", .data = (void *)&sun4i_a10_pinctrl_data },
-	{ .compatible = "allwinner,sun5i-a10s-pinctrl", .data = (void *)&sun5i_a10s_pinctrl_data },
-	{ .compatible = "allwinner,sun5i-a13-pinctrl", .data = (void *)&sun5i_a13_pinctrl_data },
-	{ .compatible = "allwinner,sun6i-a31-pinctrl", .data = (void *)&sun6i_a31_pinctrl_data },
-	{ .compatible = "allwinner,sun7i-a20-pinctrl", .data = (void *)&sun7i_a20_pinctrl_data },
-	{}
-};
-MODULE_DEVICE_TABLE(of, sunxi_pinctrl_match);
-
 static int sunxi_pinctrl_add_function(struct sunxi_pinctrl *pctl,
 					const char *name)
 {
@@ -755,6 +725,9 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 		struct sunxi_desc_function *func = pin->functions;
 
 		while (func->name) {
+			/* Create interrupt mapping while we're at it */
+			if (!strcmp(func->name, "irq"))
+				pctl->irq_array[func->irqnum] = pin->pin.number;
 			sunxi_pinctrl_add_function(pctl, func->name);
 			func++;
 		}
@@ -798,12 +771,14 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	return 0;
 }
 
-static int sunxi_pinctrl_probe(struct platform_device *pdev)
+int sunxi_pinctrl_init(struct platform_device *pdev,
+		       const struct sunxi_pinctrl_desc *desc)
 {
 	struct device_node *node = pdev->dev.of_node;
-	const struct of_device_id *device;
+	struct pinctrl_desc *pctrl_desc;
 	struct pinctrl_pin_desc *pins;
 	struct sunxi_pinctrl *pctl;
+	struct resource *res;
 	int i, ret, last_pin;
 	struct clk *clk;
 
@@ -814,15 +789,13 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 
 	spin_lock_init(&pctl->lock);
 
-	pctl->membase = of_iomap(node, 0);
-	if (!pctl->membase)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pctl->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pctl->membase))
+		return PTR_ERR(pctl->membase);
 
-	device = of_match_device(sunxi_pinctrl_match, &pdev->dev);
-	if (!device)
-		return -ENODEV;
-
-	pctl->desc = (struct sunxi_pinctrl_desc *)device->data;
+	pctl->dev = &pdev->dev;
+	pctl->desc = desc;
 
 	ret = sunxi_pinctrl_build_state(pdev);
 	if (ret) {
@@ -839,12 +812,21 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < pctl->desc->npins; i++)
 		pins[i] = pctl->desc->pins[i].pin;
 
-	sunxi_pctrl_desc.name = dev_name(&pdev->dev);
-	sunxi_pctrl_desc.owner = THIS_MODULE;
-	sunxi_pctrl_desc.pins = pins;
-	sunxi_pctrl_desc.npins = pctl->desc->npins;
-	pctl->dev = &pdev->dev;
-	pctl->pctl_dev = pinctrl_register(&sunxi_pctrl_desc,
+	pctrl_desc = devm_kzalloc(&pdev->dev,
+				  sizeof(*pctrl_desc),
+				  GFP_KERNEL);
+	if (!pctrl_desc)
+		return -ENOMEM;
+
+	pctrl_desc->name = dev_name(&pdev->dev);
+	pctrl_desc->owner = THIS_MODULE;
+	pctrl_desc->pins = pins;
+	pctrl_desc->npins = pctl->desc->npins;
+	pctrl_desc->confops = &sunxi_pconf_ops;
+	pctrl_desc->pctlops = &sunxi_pctrl_ops;
+	pctrl_desc->pmxops =  &sunxi_pmx_ops;
+
+	pctl->pctl_dev = pinctrl_register(pctrl_desc,
 					  &pdev->dev, pctl);
 	if (!pctl->pctl_dev) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
@@ -858,11 +840,22 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	last_pin = pctl->desc->pins[pctl->desc->npins - 1].pin.number;
-	pctl->chip = &sunxi_pinctrl_gpio_chip;
-	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK);
+	pctl->chip->owner = THIS_MODULE;
+	pctl->chip->request = sunxi_pinctrl_gpio_request,
+	pctl->chip->free = sunxi_pinctrl_gpio_free,
+	pctl->chip->direction_input = sunxi_pinctrl_gpio_direction_input,
+	pctl->chip->direction_output = sunxi_pinctrl_gpio_direction_output,
+	pctl->chip->get = sunxi_pinctrl_gpio_get,
+	pctl->chip->set = sunxi_pinctrl_gpio_set,
+	pctl->chip->of_xlate = sunxi_pinctrl_gpio_of_xlate,
+	pctl->chip->to_irq = sunxi_pinctrl_gpio_to_irq,
+	pctl->chip->of_gpio_n_cells = 3,
+	pctl->chip->can_sleep = false,
+	pctl->chip->ngpio = round_up(last_pin, PINS_PER_BANK) -
+			    pctl->desc->pin_base;
 	pctl->chip->label = dev_name(&pdev->dev);
 	pctl->chip->dev = &pdev->dev;
-	pctl->chip->base = 0;
+	pctl->chip->base = pctl->desc->pin_base;
 
 	ret = gpiochip_add(pctl->chip);
 	if (ret)
@@ -884,12 +877,14 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 		goto gpiochip_error;
 	}
 
-	clk_prepare_enable(clk);
+	ret = clk_prepare_enable(clk);
+	if (ret)
+		goto gpiochip_error;
 
 	pctl->irq = irq_of_parse_and_map(node, 0);
 	if (!pctl->irq) {
 		ret = -EINVAL;
-		goto gpiochip_error;
+		goto clk_error;
 	}
 
 	pctl->domain = irq_domain_add_linear(node, SUNXI_IRQ_NUMBER,
@@ -897,7 +892,7 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 	if (!pctl->domain) {
 		dev_err(&pdev->dev, "Couldn't register IRQ domain\n");
 		ret = -ENOMEM;
-		goto gpiochip_error;
+		goto clk_error;
 	}
 
 	for (i = 0; i < SUNXI_IRQ_NUMBER; i++) {
@@ -915,6 +910,8 @@ static int sunxi_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 
+clk_error:
+	clk_disable_unprepare(clk);
 gpiochip_error:
 	if (gpiochip_remove(pctl->chip))
 		dev_err(&pdev->dev, "failed to remove gpio chip\n");
@@ -922,17 +919,3 @@ pinctrl_error:
 	pinctrl_unregister(pctl->pctl_dev);
 	return ret;
 }
-
-static struct platform_driver sunxi_pinctrl_driver = {
-	.probe = sunxi_pinctrl_probe,
-	.driver = {
-		.name = "sunxi-pinctrl",
-		.owner = THIS_MODULE,
-		.of_match_table = sunxi_pinctrl_match,
-	},
-};
-module_platform_driver(sunxi_pinctrl_driver);
-
-MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com");
-MODULE_DESCRIPTION("Allwinner A1X pinctrl driver");
-MODULE_LICENSE("GPL");
