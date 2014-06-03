@@ -741,7 +741,26 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 
 	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
 
-	if (flags & R600_PTE_SYSTEM) {
+	if (flags == R600_PTE_GART) {
+		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
+		while (count) {
+			unsigned bytes = count * 8;
+			if (bytes > 0x1FFFF8)
+				bytes = 0x1FFFF8;
+
+			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
+			ib->ptr[ib->length_dw++] = bytes;
+			ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
+			ib->ptr[ib->length_dw++] = src & 0xffffffff;
+			ib->ptr[ib->length_dw++] = upper_32_bits(src);
+			ib->ptr[ib->length_dw++] = pe & 0xffffffff;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+
+			pe += bytes;
+			src += bytes;
+			count -= bytes / 8;
+		}
+	} else if (flags & R600_PTE_SYSTEM) {
 		while (count) {
 			ndw = count * 2;
 			if (ndw > 0xFFFFE)

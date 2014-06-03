@@ -676,14 +676,16 @@ void radeon_doorbell_free(struct radeon_device *rdev, u32 doorbell);
  * IRQS.
  */
 
-struct radeon_unpin_work {
-	struct work_struct work;
-	struct radeon_device *rdev;
-	int crtc_id;
-	struct radeon_fence *fence;
+struct radeon_flip_work {
+	struct work_struct		flip_work;
+	struct work_struct		unpin_work;
+	struct radeon_device		*rdev;
+	int				crtc_id;
+	struct drm_framebuffer		*fb;
 	struct drm_pending_vblank_event *event;
-	struct radeon_bo *old_rbo;
-	u64 new_crtc_base;
+	struct radeon_bo		*old_rbo;
+	struct radeon_bo		*new_rbo;
+	struct radeon_fence		*fence;
 };
 
 struct r500_irq_stat_regs {
@@ -847,6 +849,15 @@ struct radeon_mec {
 #define R600_PTE_SNOOPED	(1 << 2)
 #define R600_PTE_READABLE	(1 << 5)
 #define R600_PTE_WRITEABLE	(1 << 6)
+
+/* PTE (Page Table Entry) fragment field for different page sizes */
+#define R600_PTE_FRAG_4KB	(0 << 7)
+#define R600_PTE_FRAG_64KB	(4 << 7)
+#define R600_PTE_FRAG_256KB	(6 << 7)
+
+/* flags used for GART page table entries on R600+ */
+#define R600_PTE_GART	( R600_PTE_VALID | R600_PTE_SYSTEM | R600_PTE_SNOOPED \
+			| R600_PTE_READABLE | R600_PTE_WRITEABLE)
 
 struct radeon_vm_pt {
 	struct radeon_bo		*bo;
@@ -1876,9 +1887,8 @@ struct radeon_asic {
 	} dpm;
 	/* pageflipping */
 	struct {
-		void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
-		u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
-		void (*post_page_flip)(struct radeon_device *rdev, int crtc);
+		void (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
+		bool (*page_flip_pending)(struct radeon_device *rdev, int crtc);
 	} pflip;
 };
 
@@ -2737,9 +2747,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
-#define radeon_pre_page_flip(rdev, crtc) (rdev)->asic->pflip.pre_page_flip((rdev), (crtc))
 #define radeon_page_flip(rdev, crtc, base) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base))
-#define radeon_post_page_flip(rdev, crtc) (rdev)->asic->pflip.post_page_flip((rdev), (crtc))
+#define radeon_page_flip_pending(rdev, crtc) (rdev)->asic->pflip.page_flip_pending((rdev), (crtc))
 #define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
