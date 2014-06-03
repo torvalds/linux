@@ -145,15 +145,19 @@ static void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 
 static void vgic_v3_enable(struct kvm_vcpu *vcpu)
 {
+	struct vgic_v3_cpu_if *vgic_v3 = &vcpu->arch.vgic_cpu.vgic_v3;
+
 	/*
 	 * By forcing VMCR to zero, the GIC will restore the binary
 	 * points to their reset values. Anything else resets to zero
 	 * anyway.
 	 */
-	vcpu->arch.vgic_cpu.vgic_v3.vgic_vmcr = 0;
+	vgic_v3->vgic_vmcr = 0;
+
+	vgic_v3->vgic_sre = 0;
 
 	/* Get the show on the road... */
-	vcpu->arch.vgic_cpu.vgic_v3.vgic_hcr = ICH_HCR_EN;
+	vgic_v3->vgic_hcr = ICH_HCR_EN;
 }
 
 static const struct vgic_ops vgic_v3_ops = {

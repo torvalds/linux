@@ -245,6 +245,7 @@ struct vgic_v3_cpu_if {
 #ifdef CONFIG_ARM_GIC_V3
 	u32		vgic_hcr;
 	u32		vgic_vmcr;
+	u32		vgic_sre;	/* Restored only, change ignored */
 	u32		vgic_misr;	/* Saved only */
 	u32		vgic_eisr;	/* Saved only */
 	u32		vgic_elrsr;	/* Saved only */
