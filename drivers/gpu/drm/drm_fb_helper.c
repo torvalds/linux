@@ -120,7 +120,7 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 		mode = &fb_helper_conn->cmdline_mode;
 
 		/* do something on return - turn off connector maybe */
-		if (fb_get_options(drm_get_connector_name(connector), &option))
+		if (fb_get_options(connector->name, &option))
 			continue;
 
 		if (drm_mode_parse_command_line_for_connector(option,
@@ -142,12 +142,12 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 				}
 
 				DRM_INFO("forcing %s connector %s\n",
-					 drm_get_connector_name(connector), s);
+					 connector->name, s);
 				connector->force = mode->force;
 			}
 
 			DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-				      drm_get_connector_name(connector),
+				      connector->name,
 				      mode->xres, mode->yres,
 				      mode->refresh_specified ? mode->refresh : 60,
 				      mode->rb ? " reduced blanking" : "",

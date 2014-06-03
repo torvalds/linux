@@ -600,11 +600,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 		if (new_crtc) {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-				connector->base.id, drm_get_connector_name(connector),
+				connector->base.id, connector->name,
 				new_crtc->base.id);
 		} else {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.id, drm_get_connector_name(connector));
+				connector->base.id, connector->name);
 		}
 	}
 
@@ -630,7 +630,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
 			for (i = 0; i < set->num_connectors; i++) {
 				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-					      drm_get_connector_name(set->connectors[i]));
+					      set->connectors[i]->name);
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}

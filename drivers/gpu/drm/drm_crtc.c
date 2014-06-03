@@ -1663,7 +1663,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 					    head) {
 				DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 					connector->base.id,
-					drm_get_connector_name(connector));
+					connector->name);
 				if (put_user(connector->base.id,
 					     connector_id + copied)) {
 					ret = -EFAULT;
@@ -2458,7 +2458,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			connector = obj_to_connector(obj);
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 					connector->base.id,
-					drm_get_connector_name(connector));
+					connector->name);
 
 			connector_set[i] = connector;
 		}

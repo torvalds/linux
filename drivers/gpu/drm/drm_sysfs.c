@@ -380,9 +380,9 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 
 	connector->kdev = device_create(drm_class, dev->primary->kdev,
 					0, connector, "card%d-%s",
-					dev->primary->index, drm_get_connector_name(connector));
+					dev->primary->index, connector->name);
 	DRM_DEBUG("adding \"%s\" to sysfs\n",
-		  drm_get_connector_name(connector));
+		  connector->name);
 
 	if (IS_ERR(connector->kdev)) {
 		DRM_ERROR("failed to register connector device: %ld\n", PTR_ERR(connector->kdev));
@@ -460,7 +460,7 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	if (!connector->kdev)
 		return;
 	DRM_DEBUG("removing \"%s\" from sysfs\n",
-		  drm_get_connector_name(connector));
+		  connector->name);
 
 	for (i = 0; i < ARRAY_SIZE(connector_attrs); i++)
 		device_remove_file(connector->kdev, &connector_attrs[i]);

@@ -261,7 +261,7 @@ out:
 
 int drm_load_edid_firmware(struct drm_connector *connector)
 {
-	const char *connector_name = drm_get_connector_name(connector);
+	const char *connector_name = connector->name;
 	char *edidname = edid_firmware, *last, *colon;
 	int ret;
 	struct edid *edid;

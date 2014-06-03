@@ -96,7 +96,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
-			drm_get_connector_name(connector));
+			connector->name);
 	/* set all modes to the unverified state */
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_UNVERIFIED;
@@ -120,7 +120,7 @@ static int drm_helper_probe_single_connector_modes_merge_bits(struct drm_connect
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
-			connector->base.id, drm_get_connector_name(connector));
+			connector->base.id, connector->name);
 		drm_mode_connector_update_edid_property(connector, NULL);
 		verbose_prune = false;
 		goto prune;
@@ -168,7 +168,7 @@ prune:
 	drm_mode_sort(&connector->modes);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
-			drm_get_connector_name(connector));
+			connector->name);
 	list_for_each_entry(mode, &connector->modes, head) {
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 		drm_mode_debug_printmodeline(mode);
@@ -286,7 +286,7 @@ static void output_poll_execute(struct work_struct *work)
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] "
 				      "status updated from %s to %s\n",
 				      connector->base.id,
-				      drm_get_connector_name(connector),
+				      connector->name,
 				      old, new);
 
 			changed = true;
@@ -431,7 +431,7 @@ bool drm_helper_hpd_irq_event(struct drm_device *dev)
 		connector->status = connector->funcs->detect(connector, false);
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
-			      drm_get_connector_name(connector),
+			      connector->name,
 			      drm_get_connector_status_name(old_status),
 			      drm_get_connector_status_name(connector->status));
 		if (old_status != connector->status)

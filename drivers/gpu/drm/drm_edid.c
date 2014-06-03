@@ -1232,7 +1232,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 		if (i == 4 && print_bad_edid) {
 			dev_warn(connector->dev->dev,
 			 "%s: Ignoring invalid EDID block %d.\n",
-			 drm_get_connector_name(connector), j);
+			 connector->name, j);
 
 			connector->bad_edid_counter++;
 		}
@@ -1252,7 +1252,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 carp:
 	if (print_bad_edid) {
 		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
-			 drm_get_connector_name(connector), j);
+			 connector->name, j);
 	}
 	connector->bad_edid_counter++;
 
@@ -3470,24 +3470,24 @@ static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
 			if (hdmi[6] & DRM_EDID_HDMI_DC_30) {
 				dc_bpc = 10;
 				DRM_DEBUG("%s: HDMI sink does deep color 30.\n",
-						  drm_get_connector_name(connector));
+						  connector->name);
 			}
 
 			if (hdmi[6] & DRM_EDID_HDMI_DC_36) {
 				dc_bpc = 12;
 				DRM_DEBUG("%s: HDMI sink does deep color 36.\n",
-						  drm_get_connector_name(connector));
+						  connector->name);
 			}
 
 			if (hdmi[6] & DRM_EDID_HDMI_DC_48) {
 				dc_bpc = 16;
 				DRM_DEBUG("%s: HDMI sink does deep color 48.\n",
-						  drm_get_connector_name(connector));
+						  connector->name);
 			}
 
 			if (dc_bpc > 0) {
 				DRM_DEBUG("%s: Assigning HDMI sink color depth as %d bpc.\n",
-						  drm_get_connector_name(connector), dc_bpc);
+						  connector->name, dc_bpc);
 				info->bpc = dc_bpc;
 
 				/*
@@ -3501,7 +3501,7 @@ static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
 				if (hdmi[6] & DRM_EDID_HDMI_DC_Y444) {
 					info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
 					DRM_DEBUG("%s: HDMI sink does YCRCB444 in deep color.\n",
-							  drm_get_connector_name(connector));
+							  connector->name);
 				}
 
 				/*
@@ -3510,14 +3510,14 @@ static bool drm_assign_hdmi_deep_color_info(struct edid *edid,
 				 */
 				if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
 					DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
-							  drm_get_connector_name(connector));
+							  connector->name);
 				}
 
 				return true;
 			}
 			else {
 				DRM_DEBUG("%s: No deep color support on this HDMI sink.\n",
-						  drm_get_connector_name(connector));
+						  connector->name);
 			}
 		}
 	}
@@ -3600,7 +3600,7 @@ static void drm_add_display_info(struct edid *edid,
 	}
 
 	DRM_DEBUG("%s: Assigning EDID-1.4 digital sink color depth as %d bpc.\n",
-			  drm_get_connector_name(connector), info->bpc);
+			  connector->name, info->bpc);
 
 	info->color_formats |= DRM_COLOR_FORMAT_RGB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB444)
@@ -3628,7 +3628,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	}
 	if (!drm_edid_is_valid(edid)) {
 		dev_warn(connector->dev->dev, "%s: EDID invalid.\n",
-			 drm_get_connector_name(connector));
+			 connector->name);
 		return 0;
 	}
 
