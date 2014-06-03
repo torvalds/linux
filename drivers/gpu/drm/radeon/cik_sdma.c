@@ -141,7 +141,7 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 		next_rptr += 4;
 		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
 		radeon_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
-		radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
+		radeon_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
 		radeon_ring_write(ring, 1); /* number of DWs to follow */
 		radeon_ring_write(ring, next_rptr);
 	}
@@ -151,7 +151,7 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev,
 		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_INDIRECT_BUFFER, 0, extra_bits));
 	radeon_ring_write(ring, ib->gpu_addr & 0xffffffe0); /* base must be 32 byte aligned */
-	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xffffffff);
+	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr));
 	radeon_ring_write(ring, ib->length_dw);
 
 }
@@ -203,8 +203,8 @@ void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
 
 	/* write the fence */
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_FENCE, 0, 0));
-	radeon_ring_write(ring, addr & 0xffffffff);
-	radeon_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
+	radeon_ring_write(ring, upper_32_bits(addr));
 	radeon_ring_write(ring, fence->seq);
 	/* generate an interrupt */
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_TRAP, 0, 0));
@@ -233,7 +233,7 @@ bool cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
 
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SEMAPHORE, 0, extra_bits));
 	radeon_ring_write(ring, addr & 0xfffffff8);
-	radeon_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	radeon_ring_write(ring, upper_32_bits(addr));
 
 	return true;
 }
@@ -551,10 +551,10 @@ int cik_copy_dma(struct radeon_device *rdev,
 		radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, 0));
 		radeon_ring_write(ring, cur_size_in_bytes);
 		radeon_ring_write(ring, 0); /* src/dst endian swap */
-		radeon_ring_write(ring, src_offset & 0xffffffff);
-		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xffffffff);
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
-		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(src_offset));
+		radeon_ring_write(ring, upper_32_bits(src_offset));
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
+		radeon_ring_write(ring, upper_32_bits(dst_offset));
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
 	}
@@ -605,7 +605,7 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 	}
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0));
 	radeon_ring_write(ring, rdev->vram_scratch.gpu_addr & 0xfffffffc);
-	radeon_ring_write(ring, upper_32_bits(rdev->vram_scratch.gpu_addr) & 0xffffffff);
+	radeon_ring_write(ring, upper_32_bits(rdev->vram_scratch.gpu_addr));
 	radeon_ring_write(ring, 1); /* number of DWs to follow */
 	radeon_ring_write(ring, 0xDEADBEEF);
 	radeon_ring_unlock_commit(rdev, ring);
@@ -660,7 +660,7 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 
 	ib.ptr[0] = SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
 	ib.ptr[1] = rdev->vram_scratch.gpu_addr & 0xfffffffc;
-	ib.ptr[2] = upper_32_bits(rdev->vram_scratch.gpu_addr) & 0xffffffff;
+	ib.ptr[2] = upper_32_bits(rdev->vram_scratch.gpu_addr);
 	ib.ptr[3] = 1;
 	ib.ptr[4] = 0xDEADBEEF;
 	ib.length_dw = 5;
@@ -752,9 +752,9 @@ void cik_sdma_vm_set_page(struct radeon_device *rdev,
 			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
 			ib->ptr[ib->length_dw++] = bytes;
 			ib->ptr[ib->length_dw++] = 0; /* src/dst endian swap */
-			ib->ptr[ib->length_dw++] = src & 0xffffffff;
+			ib->ptr[ib->length_dw++] = lower_32_bits(src);
 			ib->ptr[ib->length_dw++] = upper_32_bits(src);
-			ib->ptr[ib->length_dw++] = pe & 0xffffffff;
+			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
 			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
 
 			pe += bytes;

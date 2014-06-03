@@ -2724,7 +2724,7 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		/* EVENT_WRITE_EOP - flush caches, send int */
 		radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
 		radeon_ring_write(ring, EVENT_TYPE(CACHE_FLUSH_AND_INV_EVENT_TS) | EVENT_INDEX(5));
-		radeon_ring_write(ring, addr & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(addr));
 		radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
 		radeon_ring_write(ring, fence->seq);
 		radeon_ring_write(ring, 0);
@@ -2763,7 +2763,7 @@ bool r600_semaphore_ring_emit(struct radeon_device *rdev,
 		sel |= PACKET3_SEM_WAIT_ON_SIGNAL;
 
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
-	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, lower_32_bits(addr));
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
 
 	return true;
@@ -2824,9 +2824,9 @@ int r600_copy_cpdma(struct radeon_device *rdev,
 		if (size_in_bytes == 0)
 			tmp |= PACKET3_CP_DMA_CP_SYNC;
 		radeon_ring_write(ring, PACKET3(PACKET3_CP_DMA, 4));
-		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(src_offset));
 		radeon_ring_write(ring, tmp);
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
 		radeon_ring_write(ring, cur_size_in_bytes);
 		src_offset += cur_size_in_bytes;
