@@ -1106,8 +1106,15 @@ static int battery_notify(struct notifier_block *nb,
 	return 0;
 }
 
+static int battery_bix_broken_package_quirk(const struct dmi_system_id *d)
+{
+	battery_bix_broken_package = 1;
+	return 0;
+}
+
 static struct dmi_system_id bat_dmi_table[] = {
 	{
+		.callback = battery_bix_broken_package_quirk,
 		.ident = "NEC LZ750/LS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
@@ -1227,8 +1234,7 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	if (acpi_disabled)
 		return;
 
-	if (dmi_check_system(bat_dmi_table))
-		battery_bix_broken_package = 1;
+	dmi_check_system(bat_dmi_table);
 	
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();
