@@ -54,25 +54,6 @@
 #include "fsl_ssi.h"
 #include "imx-pcm.h"
 
-#ifdef PPC
-#define read_ssi(addr)			 in_be32(addr)
-#define write_ssi(val, addr)		 out_be32(addr, val)
-#define write_ssi_mask(addr, clear, set) clrsetbits_be32(addr, clear, set)
-#else
-#define read_ssi(addr)			 readl(addr)
-#define write_ssi(val, addr)		 writel(val, addr)
-/*
- * FIXME: Proper locking should be added at write_ssi_mask caller level
- * to ensure this register read/modify/write sequence is race free.
- */
-static inline void write_ssi_mask(u32 __iomem *addr, u32 clear, u32 set)
-{
-	u32 val = readl(addr);
-	val = (val & ~clear) | set;
-	writel(val, addr);
-}
-#endif
-
 /**
  * FSLSSI_I2S_RATES: sample rates supported by the I2S
  *
@@ -132,72 +113,86 @@ struct fsl_ssi_rxtx_reg_val {
 	struct fsl_ssi_reg_val rx;
 	struct fsl_ssi_reg_val tx;
 };
+static const struct regmap_config fsl_ssi_regconfig = {
+	.max_register = CCSR_SSI_SACCDIS,
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+};
+
+struct fsl_ssi_soc_data {
+	bool imx;
+	bool offline_config;
+	u32 sisr_write_mask;
+};
 
 /**
  * fsl_ssi_private: per-SSI private data
  *
- * @ssi: pointer to the SSI's registers
- * @ssi_phys: physical address of the SSI registers
+ * @reg: Pointer to the regmap registers
  * @irq: IRQ of this SSI
- * @playback: the number of playback streams opened
- * @capture: the number of capture streams opened
- * @cpu_dai: the CPU DAI for this device
- * @dev_attr: the sysfs device attribute structure
- * @stats: SSI statistics
+ * @cpu_dai_drv: CPU DAI driver for this device
+ *
+ * @dai_fmt: DAI configuration this device is currently used with
+ * @i2s_mode: i2s and network mode configuration of the device. Is used to
+ * switch between normal and i2s/network mode
+ * mode depending on the number of channels
+ * @use_dma: DMA is used or FIQ with stream filter
+ * @use_dual_fifo: DMA with support for both FIFOs used
+ * @fifo_deph: Depth of the SSI FIFOs
+ * @rxtx_reg_val: Specific register settings for receive/transmit configuration
+ *
+ * @clk: SSI clock
+ * @baudclk: SSI baud clock for master mode
+ * @baudclk_streams: Active streams that are using baudclk
+ * @bitclk_freq: bitclock frequency set by .set_dai_sysclk
+ *
+ * @dma_params_tx: DMA transmit parameters
+ * @dma_params_rx: DMA receive parameters
+ * @ssi_phys: physical address of the SSI registers
+ *
+ * @fiq_params: FIQ stream filtering parameters
+ *
+ * @pdev: Pointer to pdev used for deprecated fsl-ssi sound card
+ *
+ * @dbg_stats: Debugging statistics
+ *
+ * @soc: SoC specifc data
  */
 struct fsl_ssi_private {
-	struct ccsr_ssi __iomem *ssi;
-	dma_addr_t ssi_phys;
+	struct regmap *regs;
 	unsigned int irq;
-	unsigned int fifo_depth;
 	struct snd_soc_dai_driver cpu_dai_drv;
-	struct platform_device *pdev;
-	unsigned int dai_fmt;
 
-	enum fsl_ssi_type hw_type;
-	bool use_dma;
-	bool baudclk_locked;
-	bool use_dual_fifo;
+	unsigned int dai_fmt;
 	u8 i2s_mode;
-	spinlock_t baudclk_lock;
-	struct clk *baudclk;
-	struct clk *clk;
-	struct snd_dmaengine_dai_dma_data dma_params_tx;
-	struct snd_dmaengine_dai_dma_data dma_params_rx;
-	struct imx_pcm_fiq_params fiq_params;
-	/* Register values for rx/tx configuration */
+	bool use_dma;
+	bool use_dual_fifo;
+	unsigned int fifo_depth;
 	struct fsl_ssi_rxtx_reg_val rxtx_reg_val;
 
+	struct clk *clk;
+	struct clk *baudclk;
+	unsigned int baudclk_streams;
+	unsigned int bitclk_freq;
+
+	/* DMA params */
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	dma_addr_t ssi_phys;
+
+	/* params for non-dma FIQ stream filtered mode */
+	struct imx_pcm_fiq_params fiq_params;
+
+	/* Used when using fsl-ssi as sound-card. This is only used by ppc and
+	 * should be replaced with simple-sound-card. */
+	struct platform_device *pdev;
+
 	struct fsl_ssi_dbg dbg_stats;
+
+	const struct fsl_ssi_soc_data *soc;
 };
-
-static const struct of_device_id fsl_ssi_ids[] = {
-	{ .compatible = "fsl,mpc8610-ssi", .data = (void *) FSL_SSI_MCP8610},
-	{ .compatible = "fsl,imx51-ssi", .data = (void *) FSL_SSI_MX51},
-	{ .compatible = "fsl,imx35-ssi", .data = (void *) FSL_SSI_MX35},
-	{ .compatible = "fsl,imx21-ssi", .data = (void *) FSL_SSI_MX21},
-	{}
-};
-MODULE_DEVICE_TABLE(of, fsl_ssi_ids);
-
-static bool fsl_ssi_is_ac97(struct fsl_ssi_private *ssi_private)
-{
-	return !!(ssi_private->dai_fmt & SND_SOC_DAIFMT_AC97);
-}
-
-static bool fsl_ssi_on_imx(struct fsl_ssi_private *ssi_private)
-{
-	switch (ssi_private->hw_type) {
-	case FSL_SSI_MX21:
-	case FSL_SSI_MX35:
-	case FSL_SSI_MX51:
-		return true;
-	case FSL_SSI_MCP8610:
-		return false;
-	}
-
-	return false;
-}
 
 /*
  * imx51 and later SoCs have a slightly different IP that allows the
@@ -214,18 +209,54 @@ static bool fsl_ssi_on_imx(struct fsl_ssi_private *ssi_private)
  * while the SSI unit is running (SSIEN). So we support the necessary
  * online configuration of fsl-ssi starting at imx51.
  */
-static bool fsl_ssi_offline_config(struct fsl_ssi_private *ssi_private)
-{
-	switch (ssi_private->hw_type) {
-	case FSL_SSI_MCP8610:
-	case FSL_SSI_MX21:
-	case FSL_SSI_MX35:
-		return true;
-	case FSL_SSI_MX51:
-		return false;
-	}
 
-	return true;
+static struct fsl_ssi_soc_data fsl_ssi_mpc8610 = {
+	.imx = false,
+	.offline_config = true,
+	.sisr_write_mask = CCSR_SSI_SISR_RFRC | CCSR_SSI_SISR_TFRC |
+			CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
+			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1,
+};
+
+static struct fsl_ssi_soc_data fsl_ssi_imx21 = {
+	.imx = true,
+	.offline_config = true,
+	.sisr_write_mask = 0,
+};
+
+static struct fsl_ssi_soc_data fsl_ssi_imx35 = {
+	.imx = true,
+	.offline_config = true,
+	.sisr_write_mask = CCSR_SSI_SISR_RFRC | CCSR_SSI_SISR_TFRC |
+			CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
+			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1,
+};
+
+static struct fsl_ssi_soc_data fsl_ssi_imx51 = {
+	.imx = true,
+	.offline_config = false,
+	.sisr_write_mask = CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
+		CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1,
+};
+
+static const struct of_device_id fsl_ssi_ids[] = {
+	{ .compatible = "fsl,mpc8610-ssi", .data = &fsl_ssi_mpc8610 },
+	{ .compatible = "fsl,imx51-ssi", .data = &fsl_ssi_imx51 },
+	{ .compatible = "fsl,imx35-ssi", .data = &fsl_ssi_imx35 },
+	{ .compatible = "fsl,imx21-ssi", .data = &fsl_ssi_imx21 },
+	{}
+};
+MODULE_DEVICE_TABLE(of, fsl_ssi_ids);
+
+static bool fsl_ssi_is_ac97(struct fsl_ssi_private *ssi_private)
+{
+	return !!(ssi_private->dai_fmt & SND_SOC_DAIFMT_AC97);
+}
+
+static bool fsl_ssi_is_i2s_master(struct fsl_ssi_private *ssi_private)
+{
+	return (ssi_private->dai_fmt & SND_SOC_DAIFMT_MASTER_MASK) ==
+		SND_SOC_DAIFMT_CBS_CFS;
 }
 
 /**
@@ -243,39 +274,20 @@ static bool fsl_ssi_offline_config(struct fsl_ssi_private *ssi_private)
 static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 {
 	struct fsl_ssi_private *ssi_private = dev_id;
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	__be32 sisr;
 	__be32 sisr2;
-	__be32 sisr_write_mask = 0;
-
-	switch (ssi_private->hw_type) {
-	case FSL_SSI_MX21:
-		sisr_write_mask = 0;
-		break;
-
-	case FSL_SSI_MCP8610:
-	case FSL_SSI_MX35:
-		sisr_write_mask = CCSR_SSI_SISR_RFRC | CCSR_SSI_SISR_TFRC |
-			CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
-			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1;
-		break;
-
-	case FSL_SSI_MX51:
-		sisr_write_mask = CCSR_SSI_SISR_ROE0 | CCSR_SSI_SISR_ROE1 |
-			CCSR_SSI_SISR_TUE0 | CCSR_SSI_SISR_TUE1;
-		break;
-	}
 
 	/* We got an interrupt, so read the status register to see what we
 	   were interrupted for.  We mask it with the Interrupt Enable register
 	   so that we only check for events that we're interested in.
 	 */
-	sisr = read_ssi(&ssi->sisr);
+	regmap_read(regs, CCSR_SSI_SISR, &sisr);
 
-	sisr2 = sisr & sisr_write_mask;
+	sisr2 = sisr & ssi_private->soc->sisr_write_mask;
 	/* Clear the bits that we set */
 	if (sisr2)
-		write_ssi(sisr2, &ssi->sisr);
+		regmap_write(regs, CCSR_SSI_SISR, sisr2);
 
 	fsl_ssi_dbg_isr(&ssi_private->dbg_stats, sisr);
 
@@ -288,17 +300,26 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
 static void fsl_ssi_rxtx_config(struct fsl_ssi_private *ssi_private,
 		bool enable)
 {
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	struct fsl_ssi_rxtx_reg_val *vals = &ssi_private->rxtx_reg_val;
 
 	if (enable) {
-		write_ssi_mask(&ssi->sier, 0, vals->rx.sier | vals->tx.sier);
-		write_ssi_mask(&ssi->srcr, 0, vals->rx.srcr | vals->tx.srcr);
-		write_ssi_mask(&ssi->stcr, 0, vals->rx.stcr | vals->tx.stcr);
+		regmap_update_bits(regs, CCSR_SSI_SIER,
+				vals->rx.sier | vals->tx.sier,
+				vals->rx.sier | vals->tx.sier);
+		regmap_update_bits(regs, CCSR_SSI_SRCR,
+				vals->rx.srcr | vals->tx.srcr,
+				vals->rx.srcr | vals->tx.srcr);
+		regmap_update_bits(regs, CCSR_SSI_STCR,
+				vals->rx.stcr | vals->tx.stcr,
+				vals->rx.stcr | vals->tx.stcr);
 	} else {
-		write_ssi_mask(&ssi->srcr, vals->rx.srcr | vals->tx.srcr, 0);
-		write_ssi_mask(&ssi->stcr, vals->rx.stcr | vals->tx.stcr, 0);
-		write_ssi_mask(&ssi->sier, vals->rx.sier | vals->tx.sier, 0);
+		regmap_update_bits(regs, CCSR_SSI_SRCR,
+				vals->rx.srcr | vals->tx.srcr, 0);
+		regmap_update_bits(regs, CCSR_SSI_STCR,
+				vals->rx.stcr | vals->tx.stcr, 0);
+		regmap_update_bits(regs, CCSR_SSI_SIER,
+				vals->rx.sier | vals->tx.sier, 0);
 	}
 }
 
@@ -329,12 +350,16 @@ static void fsl_ssi_rxtx_config(struct fsl_ssi_private *ssi_private,
 static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 		struct fsl_ssi_reg_val *vals)
 {
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	struct fsl_ssi_reg_val *avals;
-	u32 scr_val = read_ssi(&ssi->scr);
-	int nr_active_streams = !!(scr_val & CCSR_SSI_SCR_TE) +
-				!!(scr_val & CCSR_SSI_SCR_RE);
+	int nr_active_streams;
+	u32 scr_val;
 	int keep_active;
+
+	regmap_read(regs, CCSR_SSI_SCR, &scr_val);
+
+	nr_active_streams = !!(scr_val & CCSR_SSI_SCR_TE) +
+				!!(scr_val & CCSR_SSI_SCR_RE);
 
 	if (nr_active_streams - 1 > 0)
 		keep_active = 1;
@@ -352,7 +377,7 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 	if (!enable) {
 		u32 scr = fsl_ssi_disable_val(vals->scr, avals->scr,
 				keep_active);
-		write_ssi_mask(&ssi->scr, scr, 0);
+		regmap_update_bits(regs, CCSR_SSI_SCR, scr, 0);
 	}
 
 	/*
@@ -360,7 +385,7 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 	 * reconfiguration, so we have to enable all necessary flags at once
 	 * even if we do not use them later (capture and playback configuration)
 	 */
-	if (fsl_ssi_offline_config(ssi_private)) {
+	if (ssi_private->soc->offline_config) {
 		if ((enable && !nr_active_streams) ||
 				(!enable && !keep_active))
 			fsl_ssi_rxtx_config(ssi_private, enable);
@@ -373,9 +398,9 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 	 * (online configuration)
 	 */
 	if (enable) {
-		write_ssi_mask(&ssi->sier, 0, vals->sier);
-		write_ssi_mask(&ssi->srcr, 0, vals->srcr);
-		write_ssi_mask(&ssi->stcr, 0, vals->stcr);
+		regmap_update_bits(regs, CCSR_SSI_SIER, vals->sier, vals->sier);
+		regmap_update_bits(regs, CCSR_SSI_SRCR, vals->srcr, vals->srcr);
+		regmap_update_bits(regs, CCSR_SSI_STCR, vals->stcr, vals->stcr);
 	} else {
 		u32 sier;
 		u32 srcr;
@@ -398,15 +423,15 @@ static void fsl_ssi_config(struct fsl_ssi_private *ssi_private, bool enable,
 		stcr = fsl_ssi_disable_val(vals->stcr, avals->stcr,
 				keep_active);
 
-		write_ssi_mask(&ssi->srcr, srcr, 0);
-		write_ssi_mask(&ssi->stcr, stcr, 0);
-		write_ssi_mask(&ssi->sier, sier, 0);
+		regmap_update_bits(regs, CCSR_SSI_SRCR, srcr, 0);
+		regmap_update_bits(regs, CCSR_SSI_STCR, stcr, 0);
+		regmap_update_bits(regs, CCSR_SSI_SIER, sier, 0);
 	}
 
 config_done:
 	/* Enabling of subunits is done after configuration */
 	if (enable)
-		write_ssi_mask(&ssi->scr, 0, vals->scr);
+		regmap_update_bits(regs, CCSR_SSI_SCR, vals->scr, vals->scr);
 }
 
 
@@ -457,32 +482,33 @@ static void fsl_ssi_setup_reg_vals(struct fsl_ssi_private *ssi_private)
 
 static void fsl_ssi_setup_ac97(struct fsl_ssi_private *ssi_private)
 {
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 
 	/*
 	 * Setup the clock control register
 	 */
-	write_ssi(CCSR_SSI_SxCCR_WL(17) | CCSR_SSI_SxCCR_DC(13),
-			&ssi->stccr);
-	write_ssi(CCSR_SSI_SxCCR_WL(17) | CCSR_SSI_SxCCR_DC(13),
-			&ssi->srccr);
+	regmap_write(regs, CCSR_SSI_STCCR,
+			CCSR_SSI_SxCCR_WL(17) | CCSR_SSI_SxCCR_DC(13));
+	regmap_write(regs, CCSR_SSI_SRCCR,
+			CCSR_SSI_SxCCR_WL(17) | CCSR_SSI_SxCCR_DC(13));
 
 	/*
 	 * Enable AC97 mode and startup the SSI
 	 */
-	write_ssi(CCSR_SSI_SACNT_AC97EN | CCSR_SSI_SACNT_FV,
-			&ssi->sacnt);
-	write_ssi(0xff, &ssi->saccdis);
-	write_ssi(0x300, &ssi->saccen);
+	regmap_write(regs, CCSR_SSI_SACNT,
+			CCSR_SSI_SACNT_AC97EN | CCSR_SSI_SACNT_FV);
+	regmap_write(regs, CCSR_SSI_SACCDIS, 0xff);
+	regmap_write(regs, CCSR_SSI_SACCEN, 0x300);
 
 	/*
 	 * Enable SSI, Transmit and Receive. AC97 has to communicate with the
 	 * codec before a stream is started.
 	 */
-	write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_SSIEN |
-			CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE);
+	regmap_update_bits(regs, CCSR_SSI_SCR,
+			CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE,
+			CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE);
 
-	write_ssi(CCSR_SSI_SOR_WAIT(3), &ssi->sor);
+	regmap_write(regs, CCSR_SSI_SOR, CCSR_SSI_SOR_WAIT(3));
 }
 
 /**
@@ -499,13 +525,6 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private =
 		snd_soc_dai_get_drvdata(rtd->cpu_dai);
-	unsigned long flags;
-
-	if (!dai->active && !fsl_ssi_is_ac97(ssi_private)) {
-		spin_lock_irqsave(&ssi_private->baudclk_lock, flags);
-		ssi_private->baudclk_locked = false;
-		spin_unlock_irqrestore(&ssi_private->baudclk_lock, flags);
-	}
 
 	/* When using dual fifo mode, it is safer to ensure an even period
 	 * size. If appearing to an odd number while DMA always starts its
@@ -520,7 +539,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 }
 
 /**
- * fsl_ssi_set_dai_sysclk - configure Digital Audio Interface bit clock
+ * fsl_ssi_set_bclk - configure Digital Audio Interface bit clock
  *
  * Note: This function can be only called when using SSI as DAI master
  *
@@ -528,19 +547,30 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
  * freq: Output BCLK frequency = samplerate * 32 (fixed) * channels
  * dir: SND_SOC_CLOCK_OUT -> TxBCLK, SND_SOC_CLOCK_IN -> RxBCLK.
  */
-static int fsl_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
-				  int clk_id, unsigned int freq, int dir)
+static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *cpu_dai,
+		struct snd_pcm_hw_params *hw_params)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	int synchronous = ssi_private->cpu_dai_drv.symmetric_rates, ret;
 	u32 pm = 999, div2, psr, stccr, mask, afreq, factor, i;
-	unsigned long flags, clkrate, baudrate, tmprate;
+	unsigned long clkrate, baudrate, tmprate;
 	u64 sub, savesub = 100000;
+	unsigned int freq;
+	bool baudclk_is_used;
+
+	/* Prefer the explicitly set bitclock frequency */
+	if (ssi_private->bitclk_freq)
+		freq = ssi_private->bitclk_freq;
+	else
+		freq = params_channels(hw_params) * 32 * params_rate(hw_params);
 
 	/* Don't apply it to any non-baudclk circumstance */
 	if (IS_ERR(ssi_private->baudclk))
 		return -EINVAL;
+
+	baudclk_is_used = ssi_private->baudclk_streams & ~(BIT(substream->stream));
 
 	/* It should be already enough to divide clock by setting pm alone */
 	psr = 0;
@@ -554,7 +584,11 @@ static int fsl_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 			continue;
 
 		tmprate = freq * factor * (i + 2);
-		clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
+
+		if (baudclk_is_used)
+			clkrate = clk_get_rate(ssi_private->baudclk);
+		else
+			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
 
 		do_div(clkrate, factor);
 		afreq = (u32)clkrate / (i + 1);
@@ -594,23 +628,28 @@ static int fsl_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	mask = CCSR_SSI_SxCCR_PM_MASK | CCSR_SSI_SxCCR_DIV2 |
 		CCSR_SSI_SxCCR_PSR;
 
-	if (dir == SND_SOC_CLOCK_OUT || synchronous)
-		write_ssi_mask(&ssi->stccr, mask, stccr);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK || synchronous)
+		regmap_update_bits(regs, CCSR_SSI_STCCR, mask, stccr);
 	else
-		write_ssi_mask(&ssi->srccr, mask, stccr);
+		regmap_update_bits(regs, CCSR_SSI_SRCCR, mask, stccr);
 
-	spin_lock_irqsave(&ssi_private->baudclk_lock, flags);
-	if (!ssi_private->baudclk_locked) {
+	if (!baudclk_is_used) {
 		ret = clk_set_rate(ssi_private->baudclk, baudrate);
 		if (ret) {
-			spin_unlock_irqrestore(&ssi_private->baudclk_lock,
-					flags);
 			dev_err(cpu_dai->dev, "failed to set baudclk rate\n");
 			return -EINVAL;
 		}
-		ssi_private->baudclk_locked = true;
 	}
-	spin_unlock_irqrestore(&ssi_private->baudclk_lock, flags);
+
+	return 0;
+}
+
+static int fsl_ssi_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
+		int clk_id, unsigned int freq, int dir)
+{
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ssi_private->bitclk_freq = freq;
 
 	return 0;
 }
@@ -632,12 +671,17 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	unsigned int channels = params_channels(hw_params);
 	unsigned int sample_size =
 		snd_pcm_format_width(params_format(hw_params));
 	u32 wl = CCSR_SSI_SxCCR_WL(sample_size);
-	int enabled = read_ssi(&ssi->scr) & CCSR_SSI_SCR_SSIEN;
+	int ret;
+	u32 scr_val;
+	int enabled;
+
+	regmap_read(regs, CCSR_SSI_SCR, &scr_val);
+	enabled = scr_val & CCSR_SSI_SCR_SSIEN;
 
 	/*
 	 * If we're in synchronous mode, and the SSI is already enabled,
@@ -645,6 +689,21 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	 */
 	if (enabled && ssi_private->cpu_dai_drv.symmetric_rates)
 		return 0;
+
+	if (fsl_ssi_is_i2s_master(ssi_private)) {
+		ret = fsl_ssi_set_bclk(substream, cpu_dai, hw_params);
+		if (ret)
+			return ret;
+
+		/* Do not enable the clock if it is already enabled */
+		if (!(ssi_private->baudclk_streams & BIT(substream->stream))) {
+			ret = clk_prepare_enable(ssi_private->baudclk);
+			if (ret)
+				return ret;
+
+			ssi_private->baudclk_streams |= BIT(substream->stream);
+		}
+	}
 
 	/*
 	 * FIXME: The documentation says that SxCCR[WL] should not be
@@ -659,40 +718,63 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 	/* In synchronous mode, the SSI uses STCCR for capture */
 	if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ||
 	    ssi_private->cpu_dai_drv.symmetric_rates)
-		write_ssi_mask(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
+		regmap_update_bits(regs, CCSR_SSI_STCCR, CCSR_SSI_SxCCR_WL_MASK,
+				wl);
 	else
-		write_ssi_mask(&ssi->srccr, CCSR_SSI_SxCCR_WL_MASK, wl);
+		regmap_update_bits(regs, CCSR_SSI_SRCCR, CCSR_SSI_SxCCR_WL_MASK,
+				wl);
 
 	if (!fsl_ssi_is_ac97(ssi_private))
-		write_ssi_mask(&ssi->scr,
+		regmap_update_bits(regs, CCSR_SSI_SCR,
 				CCSR_SSI_SCR_NET | CCSR_SSI_SCR_I2S_MODE_MASK,
 				channels == 1 ? 0 : ssi_private->i2s_mode);
 
 	return 0;
 }
 
-/**
- * fsl_ssi_set_dai_fmt - configure Digital Audio Interface Format.
- */
-static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+static int fsl_ssi_hw_free(struct snd_pcm_substream *substream,
+		struct snd_soc_dai *cpu_dai)
 {
-	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct fsl_ssi_private *ssi_private =
+		snd_soc_dai_get_drvdata(rtd->cpu_dai);
+
+	if (fsl_ssi_is_i2s_master(ssi_private) &&
+			ssi_private->baudclk_streams & BIT(substream->stream)) {
+		clk_disable_unprepare(ssi_private->baudclk);
+		ssi_private->baudclk_streams &= ~BIT(substream->stream);
+	}
+
+	return 0;
+}
+
+static int _fsl_ssi_set_dai_fmt(struct fsl_ssi_private *ssi_private,
+		unsigned int fmt)
+{
+	struct regmap *regs = ssi_private->regs;
 	u32 strcr = 0, stcr, srcr, scr, mask;
 	u8 wm;
 
 	ssi_private->dai_fmt = fmt;
 
+	if (fsl_ssi_is_i2s_master(ssi_private) && IS_ERR(ssi_private->baudclk)) {
+		dev_err(&ssi_private->pdev->dev, "baudclk is missing which is necessary for master mode\n");
+		return -EINVAL;
+	}
+
 	fsl_ssi_setup_reg_vals(ssi_private);
 
-	scr = read_ssi(&ssi->scr) & ~(CCSR_SSI_SCR_SYN | CCSR_SSI_SCR_I2S_MODE_MASK);
+	regmap_read(regs, CCSR_SSI_SCR, &scr);
+	scr &= ~(CCSR_SSI_SCR_SYN | CCSR_SSI_SCR_I2S_MODE_MASK);
 	scr |= CCSR_SSI_SCR_SYNC_TX_FS;
 
 	mask = CCSR_SSI_STCR_TXBIT0 | CCSR_SSI_STCR_TFDIR | CCSR_SSI_STCR_TXDIR |
 		CCSR_SSI_STCR_TSCKP | CCSR_SSI_STCR_TFSI | CCSR_SSI_STCR_TFSL |
 		CCSR_SSI_STCR_TEFS;
-	stcr = read_ssi(&ssi->stcr) & ~mask;
-	srcr = read_ssi(&ssi->srcr) & ~mask;
+	regmap_read(regs, CCSR_SSI_STCR, &stcr);
+	regmap_read(regs, CCSR_SSI_SRCR, &srcr);
+	stcr &= ~mask;
+	srcr &= ~mask;
 
 	ssi_private->i2s_mode = CCSR_SSI_SCR_NET;
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -700,6 +782,12 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 		case SND_SOC_DAIFMT_CBS_CFS:
 			ssi_private->i2s_mode |= CCSR_SSI_SCR_I2S_MODE_MASTER;
+			regmap_update_bits(regs, CCSR_SSI_STCCR,
+					CCSR_SSI_SxCCR_DC_MASK,
+					CCSR_SSI_SxCCR_DC(2));
+			regmap_update_bits(regs, CCSR_SSI_SRCCR,
+					CCSR_SSI_SxCCR_DC_MASK,
+					CCSR_SSI_SxCCR_DC(2));
 			break;
 		case SND_SOC_DAIFMT_CBM_CFM:
 			ssi_private->i2s_mode |= CCSR_SSI_SCR_I2S_MODE_SLAVE;
@@ -778,9 +866,9 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		scr |= CCSR_SSI_SCR_SYN;
 	}
 
-	write_ssi(stcr, &ssi->stcr);
-	write_ssi(srcr, &ssi->srcr);
-	write_ssi(scr, &ssi->scr);
+	regmap_write(regs, CCSR_SSI_STCR, stcr);
+	regmap_write(regs, CCSR_SSI_SRCR, srcr);
+	regmap_write(regs, CCSR_SSI_SCR, scr);
 
 	/*
 	 * Set the watermark for transmit FIFI 0 and receive FIFO 0. We don't
@@ -798,16 +886,16 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	else
 		wm = ssi_private->fifo_depth;
 
-	write_ssi(CCSR_SSI_SFCSR_TFWM0(wm) | CCSR_SSI_SFCSR_RFWM0(wm) |
-			CCSR_SSI_SFCSR_TFWM1(wm) | CCSR_SSI_SFCSR_RFWM1(wm),
-			&ssi->sfcsr);
+	regmap_write(regs, CCSR_SSI_SFCSR,
+			CCSR_SSI_SFCSR_TFWM0(wm) | CCSR_SSI_SFCSR_RFWM0(wm) |
+			CCSR_SSI_SFCSR_TFWM1(wm) | CCSR_SSI_SFCSR_RFWM1(wm));
 
 	if (ssi_private->use_dual_fifo) {
-		write_ssi_mask(&ssi->srcr, CCSR_SSI_SRCR_RFEN1,
+		regmap_update_bits(regs, CCSR_SSI_SRCR, CCSR_SSI_SRCR_RFEN1,
 				CCSR_SSI_SRCR_RFEN1);
-		write_ssi_mask(&ssi->stcr, CCSR_SSI_STCR_TFEN1,
+		regmap_update_bits(regs, CCSR_SSI_STCR, CCSR_SSI_STCR_TFEN1,
 				CCSR_SSI_STCR_TFEN1);
-		write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_TCH_EN,
+		regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_TCH_EN,
 				CCSR_SSI_SCR_TCH_EN);
 	}
 
@@ -815,6 +903,17 @@ static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		fsl_ssi_setup_ac97(ssi_private);
 
 	return 0;
+
+}
+
+/**
+ * fsl_ssi_set_dai_fmt - configure Digital Audio Interface Format.
+ */
+static int fsl_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
+{
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
+
+	return _fsl_ssi_set_dai_fmt(ssi_private, fmt);
 }
 
 /**
@@ -826,31 +925,34 @@ static int fsl_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai, u32 tx_mask,
 				u32 rx_mask, int slots, int slot_width)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(cpu_dai);
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct regmap *regs = ssi_private->regs;
 	u32 val;
 
 	/* The slot number should be >= 2 if using Network mode or I2S mode */
-	val = read_ssi(&ssi->scr) & (CCSR_SSI_SCR_I2S_MODE_MASK | CCSR_SSI_SCR_NET);
+	regmap_read(regs, CCSR_SSI_SCR, &val);
+	val &= CCSR_SSI_SCR_I2S_MODE_MASK | CCSR_SSI_SCR_NET;
 	if (val && slots < 2) {
 		dev_err(cpu_dai->dev, "slot number should be >= 2 in I2S or NET\n");
 		return -EINVAL;
 	}
 
-	write_ssi_mask(&ssi->stccr, CCSR_SSI_SxCCR_DC_MASK,
+	regmap_update_bits(regs, CCSR_SSI_STCCR, CCSR_SSI_SxCCR_DC_MASK,
 			CCSR_SSI_SxCCR_DC(slots));
-	write_ssi_mask(&ssi->srccr, CCSR_SSI_SxCCR_DC_MASK,
+	regmap_update_bits(regs, CCSR_SSI_SRCCR, CCSR_SSI_SxCCR_DC_MASK,
 			CCSR_SSI_SxCCR_DC(slots));
 
 	/* The register SxMSKs needs SSI to provide essential clock due to
 	 * hardware design. So we here temporarily enable SSI to set them.
 	 */
-	val = read_ssi(&ssi->scr) & CCSR_SSI_SCR_SSIEN;
-	write_ssi_mask(&ssi->scr, 0, CCSR_SSI_SCR_SSIEN);
+	regmap_read(regs, CCSR_SSI_SCR, &val);
+	val &= CCSR_SSI_SCR_SSIEN;
+	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN,
+			CCSR_SSI_SCR_SSIEN);
 
-	write_ssi(tx_mask, &ssi->stmsk);
-	write_ssi(rx_mask, &ssi->srmsk);
+	regmap_write(regs, CCSR_SSI_STMSK, tx_mask);
+	regmap_write(regs, CCSR_SSI_SRMSK, rx_mask);
 
-	write_ssi_mask(&ssi->scr, CCSR_SSI_SCR_SSIEN, val);
+	regmap_update_bits(regs, CCSR_SSI_SCR, CCSR_SSI_SCR_SSIEN, val);
 
 	return 0;
 }
@@ -869,11 +971,11 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(rtd->cpu_dai);
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-	unsigned long flags;
+	struct regmap *regs = ssi_private->regs;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			fsl_ssi_tx_config(ssi_private, true);
@@ -882,18 +984,12 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			fsl_ssi_tx_config(ssi_private, false);
 		else
 			fsl_ssi_rx_config(ssi_private, false);
-
-		if (!fsl_ssi_is_ac97(ssi_private) && (read_ssi(&ssi->scr) &
-					(CCSR_SSI_SCR_TE | CCSR_SSI_SCR_RE)) == 0) {
-			spin_lock_irqsave(&ssi_private->baudclk_lock, flags);
-			ssi_private->baudclk_locked = false;
-			spin_unlock_irqrestore(&ssi_private->baudclk_lock, flags);
-		}
 		break;
 
 	default:
@@ -902,9 +998,9 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	if (fsl_ssi_is_ac97(ssi_private)) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			write_ssi(CCSR_SSI_SOR_TX_CLR, &ssi->sor);
+			regmap_write(regs, CCSR_SSI_SOR, CCSR_SSI_SOR_TX_CLR);
 		else
-			write_ssi(CCSR_SSI_SOR_RX_CLR, &ssi->sor);
+			regmap_write(regs, CCSR_SSI_SOR, CCSR_SSI_SOR_RX_CLR);
 	}
 
 	return 0;
@@ -914,7 +1010,7 @@ static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
 {
 	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(dai);
 
-	if (fsl_ssi_on_imx(ssi_private) && ssi_private->use_dma) {
+	if (ssi_private->soc->imx && ssi_private->use_dma) {
 		dai->playback_dma_data = &ssi_private->dma_params_tx;
 		dai->capture_dma_data = &ssi_private->dma_params_rx;
 	}
@@ -925,6 +1021,7 @@ static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
 static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
+	.hw_free	= fsl_ssi_hw_free,
 	.set_fmt	= fsl_ssi_set_dai_fmt,
 	.set_sysclk	= fsl_ssi_set_dai_sysclk,
 	.set_tdm_slot	= fsl_ssi_set_dai_tdm_slot,
@@ -978,7 +1075,7 @@ static struct fsl_ssi_private *fsl_ac97_data;
 static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 		unsigned short val)
 {
-	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
+	struct regmap *regs = fsl_ac97_data->regs;
 	unsigned int lreg;
 	unsigned int lval;
 
@@ -987,12 +1084,12 @@ static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 
 
 	lreg = reg <<  12;
-	write_ssi(lreg, &ssi->sacadd);
+	regmap_write(regs, CCSR_SSI_SACADD, lreg);
 
 	lval = val << 4;
-	write_ssi(lval , &ssi->sacdat);
+	regmap_write(regs, CCSR_SSI_SACDAT, lval);
 
-	write_ssi_mask(&ssi->sacnt, CCSR_SSI_SACNT_RDWR_MASK,
+	regmap_update_bits(regs, CCSR_SSI_SACNT, CCSR_SSI_SACNT_RDWR_MASK,
 			CCSR_SSI_SACNT_WR);
 	udelay(100);
 }
@@ -1000,19 +1097,21 @@ static void fsl_ssi_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 static unsigned short fsl_ssi_ac97_read(struct snd_ac97 *ac97,
 		unsigned short reg)
 {
-	struct ccsr_ssi *ssi = fsl_ac97_data->ssi;
+	struct regmap *regs = fsl_ac97_data->regs;
 
 	unsigned short val = -1;
+	u32 reg_val;
 	unsigned int lreg;
 
 	lreg = (reg & 0x7f) <<  12;
-	write_ssi(lreg, &ssi->sacadd);
-	write_ssi_mask(&ssi->sacnt, CCSR_SSI_SACNT_RDWR_MASK,
+	regmap_write(regs, CCSR_SSI_SACADD, lreg);
+	regmap_update_bits(regs, CCSR_SSI_SACNT, CCSR_SSI_SACNT_RDWR_MASK,
 			CCSR_SSI_SACNT_RD);
 
 	udelay(100);
 
-	val = (read_ssi(&ssi->sacdat) >> 4) & 0xffff;
+	regmap_read(regs, CCSR_SSI_SACDAT, &reg_val);
+	val = (reg_val >> 4) & 0xffff;
 
 	return val;
 }
@@ -1064,8 +1163,6 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	if (IS_ERR(ssi_private->baudclk))
 		dev_dbg(&pdev->dev, "could not get baud clock: %ld\n",
 			 PTR_ERR(ssi_private->baudclk));
-	else
-		clk_prepare_enable(ssi_private->baudclk);
 
 	/*
 	 * We have burstsize be "fifo_depth - 2" to match the SSI
@@ -1073,10 +1170,8 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	 */
 	ssi_private->dma_params_tx.maxburst = ssi_private->fifo_depth - 2;
 	ssi_private->dma_params_rx.maxburst = ssi_private->fifo_depth - 2;
-	ssi_private->dma_params_tx.addr = ssi_private->ssi_phys +
-			offsetof(struct ccsr_ssi, stx0);
-	ssi_private->dma_params_rx.addr = ssi_private->ssi_phys +
-			offsetof(struct ccsr_ssi, srx0);
+	ssi_private->dma_params_tx.addr = ssi_private->ssi_phys + CCSR_SSI_STX0;
+	ssi_private->dma_params_rx.addr = ssi_private->ssi_phys + CCSR_SSI_SRX0;
 
 	ret = !of_property_read_u32_array(np, "dmas", dmas, 4);
 	if (ssi_private->use_dma && !ret && dmas[2] == IMX_DMATYPE_SSI_DUAL) {
@@ -1116,9 +1211,6 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	return 0;
 
 error_pcm:
-	if (!IS_ERR(ssi_private->baudclk))
-		clk_disable_unprepare(ssi_private->baudclk);
-
 	clk_disable_unprepare(ssi_private->clk);
 
 	return ret;
@@ -1129,8 +1221,6 @@ static void fsl_ssi_imx_clean(struct platform_device *pdev,
 {
 	if (!ssi_private->use_dma)
 		imx_pcm_fiq_exit(pdev);
-	if (!IS_ERR(ssi_private->baudclk))
-		clk_disable_unprepare(ssi_private->baudclk);
 	clk_disable_unprepare(ssi_private->clk);
 }
 
@@ -1140,12 +1230,11 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id;
-	enum fsl_ssi_type hw_type;
 	const char *p, *sprop;
 	const uint32_t *iprop;
 	struct resource res;
+	void __iomem *iomem;
 	char name[64];
-	bool ac97 = false;
 
 	/* SSIs that are not connected on the board should have a
 	 *      status = "disabled"
@@ -1155,17 +1244,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	of_id = of_match_device(fsl_ssi_ids, &pdev->dev);
-	if (!of_id)
+	if (!of_id || !of_id->data)
 		return -EINVAL;
-	hw_type = (enum fsl_ssi_type) of_id->data;
-
-	sprop = of_get_property(np, "fsl,mode", NULL);
-	if (!sprop) {
-		dev_err(&pdev->dev, "fsl,mode property is necessary\n");
-		return -EINVAL;
-	}
-	if (!strcmp(sprop, "ac97-slave"))
-		ac97 = true;
 
 	ssi_private = devm_kzalloc(&pdev->dev, sizeof(*ssi_private),
 			GFP_KERNEL);
@@ -1174,11 +1254,21 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	ssi_private->soc = of_id->data;
+
+	sprop = of_get_property(np, "fsl,mode", NULL);
+	if (sprop) {
+		if (!strcmp(sprop, "ac97-slave"))
+			ssi_private->dai_fmt = SND_SOC_DAIFMT_AC97;
+		else if (!strcmp(sprop, "i2s-slave"))
+			ssi_private->dai_fmt = SND_SOC_DAIFMT_I2S |
+				SND_SOC_DAIFMT_CBM_CFM;
+	}
+
 	ssi_private->use_dma = !of_property_read_bool(np,
 			"fsl,fiq-stream-filter");
-	ssi_private->hw_type = hw_type;
 
-	if (ac97) {
+	if (fsl_ssi_is_ac97(ssi_private)) {
 		memcpy(&ssi_private->cpu_dai_drv, &fsl_ssi_ac97_dai,
 				sizeof(fsl_ssi_ac97_dai));
 
@@ -1198,12 +1288,20 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not determine device resources\n");
 		return ret;
 	}
-	ssi_private->ssi = of_iomap(np, 0);
-	if (!ssi_private->ssi) {
+	ssi_private->ssi_phys = res.start;
+
+	iomem = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
+	if (!iomem) {
 		dev_err(&pdev->dev, "could not map device resources\n");
 		return -ENOMEM;
 	}
-	ssi_private->ssi_phys = res.start;
+
+	ssi_private->regs = devm_regmap_init_mmio(&pdev->dev, iomem,
+			&fsl_ssi_regconfig);
+	if (IS_ERR(ssi_private->regs)) {
+		dev_err(&pdev->dev, "Failed to init register map\n");
+		return PTR_ERR(ssi_private->regs);
+	}
 
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
 	if (!ssi_private->irq) {
@@ -1226,13 +1324,10 @@ static int fsl_ssi_probe(struct platform_device *pdev)
                 /* Older 8610 DTs didn't have the fifo-depth property */
 		ssi_private->fifo_depth = 8;
 
-	ssi_private->baudclk_locked = false;
-	spin_lock_init(&ssi_private->baudclk_lock);
-
 	dev_set_drvdata(&pdev->dev, ssi_private);
 
-	if (fsl_ssi_on_imx(ssi_private)) {
-		ret = fsl_ssi_imx_probe(pdev, ssi_private, ssi_private->ssi);
+	if (ssi_private->soc->imx) {
+		ret = fsl_ssi_imx_probe(pdev, ssi_private, iomem);
 		if (ret)
 			goto error_irqmap;
 	}
@@ -1289,6 +1384,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 done:
+	if (ssi_private->dai_fmt)
+		_fsl_ssi_set_dai_fmt(ssi_private, ssi_private->dai_fmt);
+
 	return 0;
 
 error_sound_card:
@@ -1298,7 +1396,7 @@ error_irq:
 	snd_soc_unregister_component(&pdev->dev);
 
 error_asoc_register:
-	if (fsl_ssi_on_imx(ssi_private))
+	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);
 
 error_irqmap:
@@ -1318,7 +1416,7 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 		platform_device_unregister(ssi_private->pdev);
 	snd_soc_unregister_component(&pdev->dev);
 
-	if (fsl_ssi_on_imx(ssi_private))
+	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);
 
 	if (ssi_private->use_dma)
