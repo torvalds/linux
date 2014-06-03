@@ -31,7 +31,7 @@ struct thingm_fwinfo {
 	unsigned first;
 };
 
-const struct thingm_fwinfo thingm_fwinfo[] = {
+static const struct thingm_fwinfo thingm_fwinfo[] = {
 	{
 		.major = THINGM_MAJOR_MK1,
 		.numrgb = 1,
