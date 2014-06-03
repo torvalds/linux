@@ -19,6 +19,7 @@ struct tb_switch {
 	struct tb_regs_switch_header config;
 	struct tb_port *ports;
 	struct tb *tb;
+	u64 uid;
 	int cap_plug_events; /* offset, zero if not found */
 	bool is_unplugged; /* unplugged, will go away */
 };
@@ -230,6 +231,8 @@ void tb_path_free(struct tb_path *path);
 int tb_path_activate(struct tb_path *path);
 void tb_path_deactivate(struct tb_path *path);
 bool tb_path_is_invalid(struct tb_path *path);
+
+int tb_eeprom_read_uid(struct tb_switch *sw, u64 *uid);
 
 
 static inline int tb_route_length(u64 route)

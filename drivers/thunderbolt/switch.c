@@ -376,6 +376,11 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	}
 	sw->cap_plug_events = cap;
 
+	if (tb_eeprom_read_uid(sw, &sw->uid))
+		tb_sw_warn(sw, "could not read uid from eeprom\n");
+	else
+		tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+
 	if (tb_plug_events_active(sw, true))
 		goto err;
 
