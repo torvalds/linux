@@ -125,8 +125,4 @@ enum s5p6450_gpio_number {
 
 #define S3C_GPIO_END		S5P64X0_GPIO_END
 
-/* define the number of gpios we need to the one after the last GPIO range */
-
-#define ARCH_NR_GPIOS		(S5P64X0_GPIO_END + CONFIG_SAMSUNG_GPIO_EXTRA)
-
 #endif /* __ASM_ARCH_GPIO_H */

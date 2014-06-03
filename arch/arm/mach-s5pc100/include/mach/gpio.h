@@ -138,7 +138,4 @@ enum s5p_gpio_number {
 /* It used the end of the S5PC100 gpios */
 #define S3C_GPIO_END		S5PC100_GPIO_END
 
-/* define the number of gpios we need to the one after the MP04() range */
-#define ARCH_NR_GPIOS		(S5PC100_GPIO_END + 1)
-
 #endif /* __ASM_ARCH_GPIO_H */

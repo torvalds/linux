@@ -133,8 +133,4 @@ enum s5p_gpio_number {
 #define S5PV210_GPIO_END	(S5PV210_MP05(S5PV210_GPIO_MP05_NR) + 1)
 #define S3C_GPIO_END		S5PV210_GPIO_END
 
-/* define the number of gpios we need to the one after the MP05() range */
-#define ARCH_NR_GPIOS		(S5PV210_MP05(S5PV210_GPIO_MP05_NR) +	\
-				 CONFIG_SAMSUNG_GPIO_EXTRA + 1)
-
 #endif /* __ASM_ARCH_GPIO_H */
