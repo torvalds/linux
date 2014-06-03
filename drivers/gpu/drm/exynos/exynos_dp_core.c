@@ -1390,4 +1390,4 @@ struct platform_driver dp_driver = {
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("Samsung SoC DP Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
