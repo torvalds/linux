@@ -25,6 +25,7 @@ struct cpu_signature {
 struct device;
 
 enum ucode_state { UCODE_ERROR, UCODE_OK, UCODE_NFOUND };
+extern bool dis_ucode_ldr;
 
 struct microcode_ops {
 	enum ucode_state (*request_microcode_user) (int cpu,
