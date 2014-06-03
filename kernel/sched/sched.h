@@ -409,6 +409,8 @@ struct rt_rq {
 	int overloaded;
 	struct plist_head pushable_tasks;
 #endif
+	int rt_queued;
+
 	int rt_throttled;
 	u64 rt_time;
 	u64 rt_runtime;
@@ -422,18 +424,6 @@ struct rt_rq {
 	struct task_group *tg;
 #endif
 };
-
-#ifdef CONFIG_RT_GROUP_SCHED
-static inline int rt_rq_throttled(struct rt_rq *rt_rq)
-{
-	return rt_rq->rt_throttled && !rt_rq->rt_nr_boosted;
-}
-#else
-static inline int rt_rq_throttled(struct rt_rq *rt_rq)
-{
-	return rt_rq->rt_throttled;
-}
-#endif
 
 /* Deadline class' related fields in a runqueue */
 struct dl_rq {
@@ -1216,12 +1206,14 @@ extern void update_idle_cpu_load(struct rq *this_rq);
 
 extern void init_task_runnable_average(struct task_struct *p);
 
-static inline void inc_nr_running(struct rq *rq)
+static inline void add_nr_running(struct rq *rq, unsigned count)
 {
-	rq->nr_running++;
+	unsigned prev_nr = rq->nr_running;
+
+	rq->nr_running = prev_nr + count;
 
 #ifdef CONFIG_NO_HZ_FULL
-	if (rq->nr_running == 2) {
+	if (prev_nr < 2 && rq->nr_running >= 2) {
 		if (tick_nohz_full_cpu(rq->cpu)) {
 			/* Order rq->nr_running write against the IPI */
 			smp_wmb();
@@ -1231,9 +1223,9 @@ static inline void inc_nr_running(struct rq *rq)
 #endif
 }
 
-static inline void dec_nr_running(struct rq *rq)
+static inline void sub_nr_running(struct rq *rq, unsigned count)
 {
-	rq->nr_running--;
+	rq->nr_running -= count;
 }
 
 static inline void rq_last_tick_reset(struct rq *rq)

@@ -296,7 +296,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		data->needs_update = 0;
 	}
 
-	data->last_state_idx = 0;
+	data->last_state_idx = CPUIDLE_DRIVER_STATE_START - 1;
 
 	/* Special case when user has set very strict latency requirement */
 	if (unlikely(latency_req == 0))
@@ -309,13 +309,6 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 
 
 	data->bucket = which_bucket(data->next_timer_us);
-
-	/*
-	 * if the correction factor is 0 (eg first time init or cpu hotplug
-	 * etc), we actually want to start out with a unity factor.
-	 */
-	if (data->correction_factor[data->bucket] == 0)
-		data->correction_factor[data->bucket] = RESOLUTION * DECAY;
 
 	/*
 	 * Force the result of multiplication to be 64 bits even if both
@@ -466,8 +459,16 @@ static int menu_enable_device(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev)
 {
 	struct menu_device *data = &per_cpu(menu_devices, dev->cpu);
+	int i;
 
 	memset(data, 0, sizeof(struct menu_device));
+
+	/*
+	 * if the correction factor is 0 (eg first time init or cpu hotplug
+	 * etc), we actually want to start out with a unity factor.
+	 */
+	for(i = 0; i < BUCKETS; i++)
+		data->correction_factor[i] = RESOLUTION * DECAY;
 
 	return 0;
 }
