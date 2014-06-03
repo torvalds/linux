@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 
 #include "tb.h"
+#include "tb_regs.h"
 
 /* hotplug handling */
 
@@ -99,6 +100,10 @@ void thunderbolt_shutdown_and_free(struct tb *tb)
 struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi)
 {
 	struct tb *tb;
+
+	BUILD_BUG_ON(sizeof(struct tb_regs_switch_header) != 5 * 4);
+	BUILD_BUG_ON(sizeof(struct tb_regs_port_header) != 8 * 4);
+	BUILD_BUG_ON(sizeof(struct tb_regs_hop) != 2 * 4);
 
 	tb = kzalloc(sizeof(*tb), GFP_KERNEL);
 	if (!tb)
