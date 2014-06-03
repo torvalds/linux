@@ -4461,8 +4461,6 @@ static void wq_unbind_fn(struct work_struct *work)
 	struct worker *worker;
 
 	for_each_cpu_worker_pool(pool, cpu) {
-		WARN_ON_ONCE(cpu != smp_processor_id());
-
 		mutex_lock(&pool->attach_mutex);
 		spin_lock_irq(&pool->lock);
 
