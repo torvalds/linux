@@ -137,6 +137,10 @@ do {									\
 
 #endif
 
+/* Atomic operations are already serializing on x86 */
+#define smp_mb__before_atomic()	barrier()
+#define smp_mb__after_atomic()	barrier()
+
 /*
  * Stop RDTSC speculation. This is needed when you need to use RDTSC
  * (or get_cycles or vread that possibly accesses the TSC) in a defined

@@ -436,7 +436,7 @@ static int cnic_offld_prep(struct cnic_sock *csk)
 static int cnic_close_prep(struct cnic_sock *csk)
 {
 	clear_bit(SK_F_CONNECT_START, &csk->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags)) {
 		while (test_and_set_bit(SK_F_OFFLD_SCHED, &csk->flags))
@@ -450,7 +450,7 @@ static int cnic_close_prep(struct cnic_sock *csk)
 static int cnic_abort_prep(struct cnic_sock *csk)
 {
 	clear_bit(SK_F_CONNECT_START, &csk->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	while (test_and_set_bit(SK_F_OFFLD_SCHED, &csk->flags))
 		msleep(1);
@@ -3646,7 +3646,7 @@ static int cnic_cm_destroy(struct cnic_sock *csk)
 
 	csk_hold(csk);
 	clear_bit(SK_F_INUSE, &csk->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	while (atomic_read(&csk->ref_count) != 1)
 		msleep(1);
 	cnic_cm_cleanup(csk);
@@ -4026,7 +4026,7 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 			 L4_KCQE_COMPLETION_STATUS_PARITY_ERROR)
 			set_bit(SK_F_HW_ERR, &csk->flags);
 
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
 		cnic_cm_upcall(cp, csk, opcode);
 		break;

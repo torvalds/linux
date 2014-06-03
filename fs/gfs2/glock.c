@@ -277,7 +277,7 @@ static inline int may_grant(const struct gfs2_glock *gl, const struct gfs2_holde
 static void gfs2_holder_wake(struct gfs2_holder *gh)
 {
 	clear_bit(HIF_WAIT, &gh->gh_iflags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&gh->gh_iflags, HIF_WAIT);
 }
 
@@ -411,7 +411,7 @@ static void gfs2_demote_wake(struct gfs2_glock *gl)
 {
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
 	clear_bit(GLF_DEMOTE, &gl->gl_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&gl->gl_flags, GLF_DEMOTE);
 }
 
@@ -620,7 +620,7 @@ out:
 
 out_sched:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	gl->gl_lockref.count++;
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 		gl->gl_lockref.count--;
@@ -628,7 +628,7 @@ out_sched:
 
 out_unlock:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	return;
 }
 

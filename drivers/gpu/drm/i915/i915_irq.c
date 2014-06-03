@@ -2157,7 +2157,7 @@ static void i915_error_work_func(struct work_struct *work)
 			 * updates before
 			 * the counter increment.
 			 */
-			smp_mb__before_atomic_inc();
+			smp_mb__before_atomic();
 			atomic_inc(&dev_priv->gpu_error.reset_counter);
 
 			kobject_uevent_env(&dev->primary->kdev->kobj,

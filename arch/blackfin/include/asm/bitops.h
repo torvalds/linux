@@ -27,21 +27,17 @@
 
 #include <asm-generic/bitops/ext2-atomic.h>
 
+#include <asm/barrier.h>
+
 #ifndef CONFIG_SMP
 #include <linux/irqflags.h>
-
 /*
  * clear_bit may not imply a memory barrier
  */
-#ifndef smp_mb__before_clear_bit
-#define smp_mb__before_clear_bit()	smp_mb()
-#define smp_mb__after_clear_bit()	smp_mb()
-#endif
 #include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/non-atomic.h>
 #else
 
-#include <asm/barrier.h>
 #include <asm/byteorder.h>	/* swab32 */
 #include <linux/linkage.h>
 
@@ -100,12 +96,6 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 	volatile unsigned long *a = addr + (nr >> 5);
 	return __raw_bit_test_toggle_asm(a, nr & 0x1f);
 }
-
-/*
- * clear_bit() doesn't provide any barrier for the compiler.
- */
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
 
 #define test_bit __skip_test_bit
 #include <asm-generic/bitops/non-atomic.h>

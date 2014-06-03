@@ -1798,9 +1798,9 @@ void stop_gfar(struct net_device *dev)
 
 	netif_tx_stop_all_queues(dev);
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	set_bit(GFAR_DOWN, &priv->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	disable_napi(priv);
 
@@ -2043,9 +2043,9 @@ int startup_gfar(struct net_device *ndev)
 
 	gfar_init_tx_rx_base(priv);
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(GFAR_DOWN, &priv->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	/* Start Rx/Tx DMA and enable the interrupts */
 	gfar_start(priv);

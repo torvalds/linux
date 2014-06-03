@@ -2462,9 +2462,9 @@ static void rcu_sysidle_enter(struct rcu_dynticks *rdtp, int irq)
 	/* Record start of fully idle period. */
 	j = jiffies;
 	ACCESS_ONCE(rdtp->dynticks_idle_jiffies) = j;
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(&rdtp->dynticks_idle);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	WARN_ON_ONCE(atomic_read(&rdtp->dynticks_idle) & 0x1);
 }
 
@@ -2529,9 +2529,9 @@ static void rcu_sysidle_exit(struct rcu_dynticks *rdtp, int irq)
 	}
 
 	/* Record end of idle period. */
-	smp_mb__before_atomic_inc();
+	smp_mb__before_atomic();
 	atomic_inc(&rdtp->dynticks_idle);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	WARN_ON_ONCE(!(atomic_read(&rdtp->dynticks_idle) & 0x1));
 
 	/*

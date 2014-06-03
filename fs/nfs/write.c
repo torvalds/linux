@@ -405,7 +405,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	nfs_pageio_complete(&pgio);
 
 	clear_bit_unlock(NFS_INO_FLUSHING, bitlock);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(bitlock, NFS_INO_FLUSHING);
 
 	if (err < 0)
@@ -1458,7 +1458,7 @@ static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
 static void nfs_commit_clear_lock(struct nfs_inode *nfsi)
 {
 	clear_bit(NFS_INO_COMMIT, &nfsi->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&nfsi->flags, NFS_INO_COMMIT);
 }
 

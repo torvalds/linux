@@ -20,7 +20,7 @@
  */
 #define clear_bit_unlock(nr, addr)	\
 do {					\
-	smp_mb__before_clear_bit();	\
+	smp_mb__before_atomic();	\
 	clear_bit(nr, addr);		\
 } while (0)
 

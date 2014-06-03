@@ -95,7 +95,7 @@ nfs_iocounter_dec(struct nfs_io_counter *c)
 {
 	if (atomic_dec_and_test(&c->io_count)) {
 		clear_bit(NFS_IO_INPROGRESS, &c->flags);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 		wake_up_bit(&c->flags, NFS_IO_INPROGRESS);
 	}
 }
@@ -193,9 +193,9 @@ void nfs_unlock_request(struct nfs_page *req)
 		printk(KERN_ERR "NFS: Invalid unlock attempted\n");
 		BUG();
 	}
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(PG_BUSY, &req->wb_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(&req->wb_flags, PG_BUSY);
 }
 

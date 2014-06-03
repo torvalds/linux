@@ -1810,7 +1810,7 @@ static void pnfs_clear_layoutcommitting(struct inode *inode)
 	unsigned long *bitlock = &NFS_I(inode)->flags;
 
 	clear_bit_unlock(NFS_INO_LAYOUTCOMMITTING, bitlock);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(bitlock, NFS_INO_LAYOUTCOMMITTING);
 }
 

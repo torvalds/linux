@@ -7,6 +7,8 @@
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
 #include <arch/atomic.h>
+#include <arch/system.h>
+#include <asm/barrier.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -150,11 +152,5 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 	cris_atomic_restore(v, flags);
 	return ret;
 }
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()    barrier()
-#define smp_mb__after_atomic_dec()     barrier()
-#define smp_mb__before_atomic_inc()    barrier()
-#define smp_mb__after_atomic_inc()     barrier()
 
 #endif

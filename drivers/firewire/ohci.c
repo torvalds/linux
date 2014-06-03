@@ -3498,7 +3498,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 		}
 
 		clear_bit_unlock(0, &ctx->flushing_completions);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 	}
 
 	tasklet_enable(&ctx->context.tasklet);

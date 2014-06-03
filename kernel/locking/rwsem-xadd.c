@@ -12,6 +12,55 @@
 #include <linux/export.h>
 
 /*
+ * Guide to the rw_semaphore's count field for common values.
+ * (32-bit case illustrated, similar for 64-bit)
+ *
+ * 0x0000000X	(1) X readers active or attempting lock, no writer waiting
+ *		    X = #active_readers + #readers attempting to lock
+ *		    (X*ACTIVE_BIAS)
+ *
+ * 0x00000000	rwsem is unlocked, and no one is waiting for the lock or
+ *		attempting to read lock or write lock.
+ *
+ * 0xffff000X	(1) X readers active or attempting lock, with waiters for lock
+ *		    X = #active readers + # readers attempting lock
+ *		    (X*ACTIVE_BIAS + WAITING_BIAS)
+ *		(2) 1 writer attempting lock, no waiters for lock
+ *		    X-1 = #active readers + #readers attempting lock
+ *		    ((X-1)*ACTIVE_BIAS + ACTIVE_WRITE_BIAS)
+ *		(3) 1 writer active, no waiters for lock
+ *		    X-1 = #active readers + #readers attempting lock
+ *		    ((X-1)*ACTIVE_BIAS + ACTIVE_WRITE_BIAS)
+ *
+ * 0xffff0001	(1) 1 reader active or attempting lock, waiters for lock
+ *		    (WAITING_BIAS + ACTIVE_BIAS)
+ *		(2) 1 writer active or attempting lock, no waiters for lock
+ *		    (ACTIVE_WRITE_BIAS)
+ *
+ * 0xffff0000	(1) There are writers or readers queued but none active
+ *		    or in the process of attempting lock.
+ *		    (WAITING_BIAS)
+ *		Note: writer can attempt to steal lock for this count by adding
+ *		ACTIVE_WRITE_BIAS in cmpxchg and checking the old count
+ *
+ * 0xfffe0001	(1) 1 writer active, or attempting lock. Waiters on queue.
+ *		    (ACTIVE_WRITE_BIAS + WAITING_BIAS)
+ *
+ * Note: Readers attempt to lock by adding ACTIVE_BIAS in down_read and checking
+ *	 the count becomes more than 0 for successful lock acquisition,
+ *	 i.e. the case where there are only readers or nobody has lock.
+ *	 (1st and 2nd case above).
+ *
+ *	 Writers attempt to lock by adding ACTIVE_WRITE_BIAS in down_write and
+ *	 checking the count becomes ACTIVE_WRITE_BIAS for successful lock
+ *	 acquisition (i.e. nobody else has lock or attempts lock).  If
+ *	 unsuccessful, in rwsem_down_write_failed, we'll check to see if there
+ *	 are only waiters but none active (5th case above), and attempt to
+ *	 steal the lock.
+ *
+ */
+
+/*
  * Initialize an rwsem:
  */
 void __init_rwsem(struct rw_semaphore *sem, const char *name,

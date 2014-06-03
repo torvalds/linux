@@ -1650,9 +1650,9 @@ static
 void bnx2x_vf_handle_filters_eqe(struct bnx2x *bp,
 				 struct bnx2x_virtf *vf)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(BNX2X_FILTER_RX_MODE_PENDING, &vf->filter_state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static void bnx2x_vf_handle_rss_update_eqe(struct bnx2x *bp,
@@ -2990,9 +2990,9 @@ void bnx2x_iov_task(struct work_struct *work)
 
 void bnx2x_schedule_iov_task(struct bnx2x *bp, enum bnx2x_iov_flag flag)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	set_bit(flag, &bp->iov_task_state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	DP(BNX2X_MSG_IOV, "Scheduling iov task [Flag: %d]\n", flag);
 	queue_delayed_work(bnx2x_iov_wq, &bp->iov_task, 0);
 }
