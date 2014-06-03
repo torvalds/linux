@@ -632,7 +632,7 @@ static int i40evf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key)
 	u32 hlut_val;
 	int i, j;
 
-	for (i = 0, j = 0; i < I40E_VFQF_HLUT_MAX_INDEX; i++) {
+	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = rd32(hw, I40E_VFQF_HLUT(i));
 		indir[j++] = hlut_val & 0xff;
 		indir[j++] = (hlut_val >> 8) & 0xff;
@@ -659,7 +659,7 @@ static int i40evf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	u32 hlut_val;
 	int i, j;
 
-	for (i = 0, j = 0; i < I40E_VFQF_HLUT_MAX_INDEX + 1; i++) {
+	for (i = 0, j = 0; i <= I40E_VFQF_HLUT_MAX_INDEX; i++) {
 		hlut_val = indir[j++];
 		hlut_val |= indir[j++] << 8;
 		hlut_val |= indir[j++] << 16;
