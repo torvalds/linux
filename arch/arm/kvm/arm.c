@@ -851,7 +851,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	switch (ioctl) {
 	case KVM_CREATE_IRQCHIP: {
 		if (vgic_present)
-			return kvm_vgic_create(kvm);
+			return kvm_vgic_create(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
 		else
 			return -ENXIO;
 	}
