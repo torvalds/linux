@@ -406,7 +406,7 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct of_device_id fsl_dspi_dt_ids[] = {
+static const struct of_device_id fsl_dspi_dt_ids[] = {
 	{ .compatible = "fsl,vf610-dspi", .data = NULL, },
 	{ /* sentinel */ }
 };

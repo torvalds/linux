@@ -10,7 +10,6 @@
 */
 
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -183,11 +182,11 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 
 	/* allocate settings on the first call */
 	if (!cs) {
-		cs = kzalloc(sizeof(struct s3c24xx_spi_devstate), GFP_KERNEL);
-		if (!cs) {
-			dev_err(&spi->dev, "no memory for controller state\n");
+		cs = devm_kzalloc(&spi->dev,
+				  sizeof(struct s3c24xx_spi_devstate),
+				  GFP_KERNEL);
+		if (!cs)
 			return -ENOMEM;
-		}
 
 		cs->spcon = SPCON_DEFAULT;
 		cs->hz = -1;
@@ -207,11 +206,6 @@ static int s3c24xx_spi_setup(struct spi_device *spi)
 	spin_unlock(&hw->bitbang.lock);
 
 	return 0;
-}
-
-static void s3c24xx_spi_cleanup(struct spi_device *spi)
-{
-	kfree(spi->controller_state);
 }
 
 static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
@@ -543,7 +537,6 @@ static int s3c24xx_spi_probe(struct platform_device *pdev)
 	hw->bitbang.txrx_bufs      = s3c24xx_spi_txrx;
 
 	hw->master->setup  = s3c24xx_spi_setup;
-	hw->master->cleanup = s3c24xx_spi_cleanup;
 
 	dev_dbg(hw->dev, "bitbang at %p\n", &hw->bitbang);
 

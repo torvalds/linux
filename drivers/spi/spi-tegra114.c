@@ -1012,7 +1012,7 @@ static irqreturn_t tegra_spi_isr(int irq, void *context_data)
 	return IRQ_WAKE_THREAD;
 }
 
-static struct of_device_id tegra_spi_of_match[] = {
+static const struct of_device_id tegra_spi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-spi", },
 	{}
 };
