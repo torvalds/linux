@@ -214,6 +214,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			unusable.  The "log_buf_len" parameter may be useful
 			if you need to capture more output.
 
+	acpi_force_table_verification	[HW,ACPI]
+			Enable table checksum verification during early stage.
+			By default, this is disabled due to x86 early mapping
+			size limitation.
+
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
@@ -237,7 +242,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			This feature is enabled by default.
 			This option allows to turn off the feature.
 
-	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+	acpi_no_static_ssdt	[HW,ACPI]
+			Disable installation of static SSDTs at early boot time
+			By default, SSDTs contained in the RSDT/XSDT will be
+			installed automatically and they will appear under
+			/sys/firmware/acpi/tables.
+			This option turns off this feature.
+			Note that specifying this option does not affect
+			dynamic table installation which will install SSDT
+			tables to /sys/firmware/acpi/tables/dynamic.
 
 	acpica_no_return_repair [HW, ACPI]
 			Disable AML predefined validation mechanism

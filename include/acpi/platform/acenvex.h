@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acgcc.h - GCC specific defines, etc.
+ * Name: acenvex.h - Extra host and compiler configuration
  *
  *****************************************************************************/
 
@@ -41,38 +41,23 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACGCC_H__
-#define __ACGCC_H__
+#ifndef __ACENVEX_H__
+#define __ACENVEX_H__
 
-#define ACPI_INLINE             __inline__
+/*! [Begin] no source code translation */
 
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
-
-#define ACPI_GET_FUNCTION_NAME          __func__
-
-/*
- * This macro is used to tag functions as "printf-like" because
- * some compilers (like GCC) can catch printf format string problems.
- */
-#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
-
-/*
- * Some compilers complain about unused variables. Sometimes we don't want to
- * use all the variables (for example, _acpi_module_name). This allows us
- * to tell the compiler warning in a per-variable manner that a variable
- * is unused.
- */
-#define ACPI_UNUSED_VAR __attribute__ ((unused))
-
-/*
- * Some versions of gcc implement strchr() with a buggy macro. So,
- * undef it here. Prevents error messages of this form (usually from the
- * file getopt.c):
+/******************************************************************************
  *
- * error: logical '&&' with non-zero constant will always evaluate as true
- */
-#ifdef strchr
-#undef strchr
+ * Extra host configuration files. All ACPICA headers are included before
+ * including these files.
+ *
+ *****************************************************************************/
+
+#if defined(_LINUX) || defined(__linux__)
+#include <acpi/platform/aclinuxex.h>
+
 #endif
 
-#endif				/* __ACGCC_H__ */
+/*! [End] no source code translation !*/
+
+#endif				/* __ACENVEX_H__ */

@@ -44,6 +44,12 @@ static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
 
 static int acpi_apic_instance __initdata;
 
+/*
+ * Disable table checksum verification for the early stage due to the size
+ * limitation of the current x86 early mapping implementation.
+ */
+static bool acpi_verify_table_checksum __initdata = false;
+
 void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 {
 	if (!header)
@@ -333,6 +339,14 @@ int __init acpi_table_init(void)
 {
 	acpi_status status;
 
+	if (acpi_verify_table_checksum) {
+		pr_info("Early table checksum verification enabled\n");
+		acpi_gbl_verify_table_checksum = TRUE;
+	} else {
+		pr_info("Early table checksum verification disabled\n");
+		acpi_gbl_verify_table_checksum = FALSE;
+	}
+
 	status = acpi_initialize_tables(initial_tables, ACPI_MAX_TABLES, 0);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
@@ -354,3 +368,12 @@ static int __init acpi_parse_apic_instance(char *str)
 }
 
 early_param("acpi_apic_instance", acpi_parse_apic_instance);
+
+static int __init acpi_force_table_verification_setup(char *s)
+{
+	acpi_verify_table_checksum = true;
+
+	return 0;
+}
+
+early_param("acpi_force_table_verification", acpi_force_table_verification_setup);

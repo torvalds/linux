@@ -202,7 +202,7 @@ static void check_vendor_extension(u64 paddr,
 
 	if (!offset)
 		return;
-	v = acpi_os_map_memory(paddr + offset, sizeof(*v));
+	v = acpi_os_map_iomem(paddr + offset, sizeof(*v));
 	if (!v)
 		return;
 	sbdf = v->pcie_sbdf;
@@ -210,7 +210,7 @@ static void check_vendor_extension(u64 paddr,
 		sbdf >> 24, (sbdf >> 16) & 0xff,
 		(sbdf >> 11) & 0x1f, (sbdf >> 8) & 0x7,
 		 v->vendor_id, v->device_id, v->rev_id);
-	acpi_os_unmap_memory(v, sizeof(*v));
+	acpi_os_unmap_iomem(v, sizeof(*v));
 }
 
 static void *einj_get_parameter_address(void)
@@ -236,7 +236,7 @@ static void *einj_get_parameter_address(void)
 	if (pa_v5) {
 		struct set_error_type_with_address *v5param;
 
-		v5param = acpi_os_map_memory(pa_v5, sizeof(*v5param));
+		v5param = acpi_os_map_iomem(pa_v5, sizeof(*v5param));
 		if (v5param) {
 			acpi5 = 1;
 			check_vendor_extension(pa_v5, v5param);
@@ -246,11 +246,11 @@ static void *einj_get_parameter_address(void)
 	if (param_extension && pa_v4) {
 		struct einj_parameter *v4param;
 
-		v4param = acpi_os_map_memory(pa_v4, sizeof(*v4param));
+		v4param = acpi_os_map_iomem(pa_v4, sizeof(*v4param));
 		if (!v4param)
 			return NULL;
 		if (v4param->reserved1 || v4param->reserved2) {
-			acpi_os_unmap_memory(v4param, sizeof(*v4param));
+			acpi_os_unmap_iomem(v4param, sizeof(*v4param));
 			return NULL;
 		}
 		return v4param;
@@ -794,7 +794,7 @@ err_unmap:
 			sizeof(struct set_error_type_with_address) :
 			sizeof(struct einj_parameter);
 
-		acpi_os_unmap_memory(einj_param, size);
+		acpi_os_unmap_iomem(einj_param, size);
 	}
 	apei_exec_post_unmap_gars(&ctx);
 err_release:
@@ -816,7 +816,7 @@ static void __exit einj_exit(void)
 			sizeof(struct set_error_type_with_address) :
 			sizeof(struct einj_parameter);
 
-		acpi_os_unmap_memory(einj_param, size);
+		acpi_os_unmap_iomem(einj_param, size);
 	}
 	einj_exec_ctx_init(&ctx);
 	apei_exec_post_unmap_gars(&ctx);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acgcc.h - GCC specific defines, etc.
+ * Name: aclinuxex.h - Extra OS specific defines, etc. for Linux
  *
  *****************************************************************************/
 
@@ -41,38 +41,72 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACGCC_H__
-#define __ACGCC_H__
+#ifndef __ACLINUXEX_H__
+#define __ACLINUXEX_H__
 
-#define ACPI_INLINE             __inline__
-
-/* Function name is used for debug output. Non-ANSI, compiler-dependent */
-
-#define ACPI_GET_FUNCTION_NAME          __func__
+#ifdef __KERNEL__
 
 /*
- * This macro is used to tag functions as "printf-like" because
- * some compilers (like GCC) can catch printf format string problems.
+ * Overrides for in-kernel ACPICA
  */
-#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
+acpi_status __init acpi_os_initialize(void);
+
+acpi_status acpi_os_terminate(void);
 
 /*
- * Some compilers complain about unused variables. Sometimes we don't want to
- * use all the variables (for example, _acpi_module_name). This allows us
- * to tell the compiler warning in a per-variable manner that a variable
- * is unused.
+ * The irqs_disabled() check is for resume from RAM.
+ * Interrupts are off during resume, just like they are for boot.
+ * However, boot has  (system_state != SYSTEM_RUNNING)
+ * to quiet __might_sleep() in kmalloc() and resume does not.
  */
-#define ACPI_UNUSED_VAR __attribute__ ((unused))
+static inline void *acpi_os_allocate(acpi_size size)
+{
+	return kmalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline void *acpi_os_allocate_zeroed(acpi_size size)
+{
+	return kzalloc(size, irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline void acpi_os_free(void *memory)
+{
+	kfree(memory);
+}
+
+static inline void *acpi_os_acquire_object(acpi_cache_t * cache)
+{
+	return kmem_cache_zalloc(cache,
+				 irqs_disabled()? GFP_ATOMIC : GFP_KERNEL);
+}
+
+static inline acpi_thread_id acpi_os_get_thread_id(void)
+{
+	return (acpi_thread_id) (unsigned long)current;
+}
 
 /*
- * Some versions of gcc implement strchr() with a buggy macro. So,
- * undef it here. Prevents error messages of this form (usually from the
- * file getopt.c):
- *
- * error: logical '&&' with non-zero constant will always evaluate as true
+ * When lockdep is enabled, the spin_lock_init() macro stringifies it's
+ * argument and uses that as a name for the lock in debugging.
+ * By executing spin_lock_init() in a macro the key changes from "lock" for
+ * all locks to the name of the argument of acpi_os_create_lock(), which
+ * prevents lockdep from reporting false positives for ACPICA locks.
  */
-#ifdef strchr
-#undef strchr
-#endif
+#define acpi_os_create_lock(__handle) \
+	({ \
+		spinlock_t *lock = ACPI_ALLOCATE(sizeof(*lock)); \
+		if (lock) { \
+			*(__handle) = lock; \
+			spin_lock_init(*(__handle)); \
+		} \
+		lock ? AE_OK : AE_NO_MEMORY; \
+	})
 
-#endif				/* __ACGCC_H__ */
+/*
+ * OSL interfaces added by Linux
+ */
+void early_acpi_os_unmap_memory(void __iomem * virt, acpi_size size);
+
+#endif				/* __KERNEL__ */
+
+#endif				/* __ACLINUXEX_H__ */

@@ -55,28 +55,7 @@ ACPI_MODULE_NAME("utglobal")
  * Static global variable initialization.
  *
  ******************************************************************************/
-/* Debug output control masks */
-u32 acpi_dbg_level = ACPI_DEBUG_DEFAULT;
-
-u32 acpi_dbg_layer = 0;
-
-/* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
-
-struct acpi_table_fadt acpi_gbl_FADT;
-u32 acpi_gbl_trace_flags;
-acpi_name acpi_gbl_trace_method_name;
-u8 acpi_gbl_system_awake_and_running;
-u32 acpi_current_gpe_count;
-
-/*
- * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
- * that the ACPI hardware is no longer required. A flag in the FADT indicates
- * a reduced HW machine, and that flag is duplicated here for convenience.
- */
-u8 acpi_gbl_reduced_hardware;
-
 /* Various state name strings */
-
 const char *acpi_gbl_sleep_state_names[ACPI_S_STATE_COUNT] = {
 	"\\_S0_",
 	"\\_S1_",
@@ -337,7 +316,6 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_acpi_hardware_present = TRUE;
 	acpi_gbl_last_owner_id_index = 0;
 	acpi_gbl_next_owner_id_offset = 0;
-	acpi_gbl_trace_method_name = 0;
 	acpi_gbl_trace_dbg_level = 0;
 	acpi_gbl_trace_dbg_layer = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
@@ -377,9 +355,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_disable_mem_tracking = FALSE;
 #endif
 
-#ifdef ACPI_DEBUGGER
-	acpi_gbl_db_terminate_threads = FALSE;
-#endif
+	ACPI_DEBUGGER_EXEC(acpi_gbl_db_terminate_threads = FALSE);
 
 	return_ACPI_STATUS(AE_OK);
 }
