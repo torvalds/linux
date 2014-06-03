@@ -1,6 +1,4 @@
 /**
- * linux/drivers/usb/gadget/s3c-hsotg.c
- *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
