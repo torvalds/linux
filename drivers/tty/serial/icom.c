@@ -1052,11 +1052,6 @@ static void icom_stop_rx(struct uart_port *port)
 	writeb(cmdReg & ~CMD_RCV_ENABLE, &ICOM_PORT->dram->CmdReg);
 }
 
-static void icom_enable_ms(struct uart_port *port)
-{
-	/* no-op */
-}
-
 static void icom_break(struct uart_port *port, int break_state)
 {
 	unsigned char cmdReg;
@@ -1300,7 +1295,6 @@ static struct uart_ops icom_ops = {
 	.start_tx = icom_start_tx,
 	.send_xchar = icom_send_xchar,
 	.stop_rx = icom_stop_rx,
-	.enable_ms = icom_enable_ms,
 	.break_ctl = icom_break,
 	.startup = icom_open,
 	.shutdown = icom_close,

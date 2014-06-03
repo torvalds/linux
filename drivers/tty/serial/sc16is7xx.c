@@ -991,7 +991,6 @@ static const struct uart_ops sc16is7xx_ops = {
 	.stop_tx	= sc16is7xx_stop_tx,
 	.start_tx	= sc16is7xx_start_tx,
 	.stop_rx	= sc16is7xx_stop_rx,
-	.enable_ms	= sc16is7xx_null_void,
 	.break_ctl	= sc16is7xx_break_ctl,
 	.startup	= sc16is7xx_startup,
 	.shutdown	= sc16is7xx_shutdown,

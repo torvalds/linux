@@ -411,12 +411,6 @@ static void asc_stop_rx(struct uart_port *port)
 	asc_disable_rx_interrupts(port);
 }
 
-/* Force modem status interrupts on */
-static void asc_enable_ms(struct uart_port *port)
-{
-	/* Nothing here yet .. */
-}
-
 /* Handle breaks - ignored by us */
 static void asc_break_ctl(struct uart_port *port, int break_state)
 {
@@ -644,7 +638,6 @@ static struct uart_ops asc_uart_ops = {
 	.start_tx	= asc_start_tx,
 	.stop_tx	= asc_stop_tx,
 	.stop_rx	= asc_stop_rx,
-	.enable_ms	= asc_enable_ms,
 	.break_ctl	= asc_break_ctl,
 	.startup	= asc_startup,
 	.shutdown	= asc_shutdown,

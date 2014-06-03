@@ -179,10 +179,6 @@ static void lpuart_stop_rx(struct uart_port *port)
 	writeb(temp & ~UARTCR2_RE, port->membase + UARTCR2);
 }
 
-static void lpuart_enable_ms(struct uart_port *port)
-{
-}
-
 static void lpuart_copy_rx_to_tty(struct lpuart_port *sport,
 		struct tty_port *tty, int count)
 {
@@ -996,7 +992,6 @@ static struct uart_ops lpuart_pops = {
 	.stop_tx	= lpuart_stop_tx,
 	.start_tx	= lpuart_start_tx,
 	.stop_rx	= lpuart_stop_rx,
-	.enable_ms	= lpuart_enable_ms,
 	.break_ctl	= lpuart_break_ctl,
 	.startup	= lpuart_startup,
 	.shutdown	= lpuart_shutdown,

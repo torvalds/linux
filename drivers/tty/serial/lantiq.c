@@ -154,11 +154,6 @@ lqasc_stop_rx(struct uart_port *port)
 	ltq_w32(ASCWHBSTATE_CLRREN, port->membase + LTQ_ASC_WHBSTATE);
 }
 
-static void
-lqasc_enable_ms(struct uart_port *port)
-{
-}
-
 static int
 lqasc_rx_chars(struct uart_port *port)
 {
@@ -568,7 +563,6 @@ static struct uart_ops lqasc_pops = {
 	.stop_tx =	lqasc_stop_tx,
 	.start_tx =	lqasc_start_tx,
 	.stop_rx =	lqasc_stop_rx,
-	.enable_ms =	lqasc_enable_ms,
 	.break_ctl =	lqasc_break_ctl,
 	.startup =	lqasc_startup,
 	.shutdown =	lqasc_shutdown,

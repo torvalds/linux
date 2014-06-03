@@ -203,10 +203,6 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 	}
 }
 
-static void s3c24xx_serial_enable_ms(struct uart_port *port)
-{
-}
-
 static inline struct s3c24xx_uart_info *s3c24xx_port_to_info(struct uart_port *port)
 {
 	return to_ourport(port)->info;
@@ -952,7 +948,6 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.stop_tx	= s3c24xx_serial_stop_tx,
 	.start_tx	= s3c24xx_serial_start_tx,
 	.stop_rx	= s3c24xx_serial_stop_rx,
-	.enable_ms	= s3c24xx_serial_enable_ms,
 	.break_ctl	= s3c24xx_serial_break_ctl,
 	.startup	= s3c24xx_serial_startup,
 	.shutdown	= s3c24xx_serial_shutdown,

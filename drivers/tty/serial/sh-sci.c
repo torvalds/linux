@@ -1560,13 +1560,6 @@ static void sci_stop_rx(struct uart_port *port)
 	serial_port_out(port, SCSCR, ctrl);
 }
 
-static void sci_enable_ms(struct uart_port *port)
-{
-	/*
-	 * Not supported by hardware, always a nop.
-	 */
-}
-
 static void sci_break_ctl(struct uart_port *port, int break_state)
 {
 	struct sci_port *s = to_sci_port(port);
@@ -2080,7 +2073,6 @@ static struct uart_ops sci_uart_ops = {
 	.start_tx	= sci_start_tx,
 	.stop_tx	= sci_stop_tx,
 	.stop_rx	= sci_stop_rx,
-	.enable_ms	= sci_enable_ms,
 	.break_ctl	= sci_break_ctl,
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,

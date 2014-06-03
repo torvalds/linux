@@ -200,14 +200,6 @@ static void bfin_serial_stop_rx(struct uart_port *port)
 	UART_CLEAR_IER(uart, ERBFI);
 }
 
-/*
- * Set the modem control timer to fire immediately.
- */
-static void bfin_serial_enable_ms(struct uart_port *port)
-{
-}
-
-
 #if ANOMALY_05000363 && defined(CONFIG_SERIAL_BFIN_PIO)
 # define UART_GET_ANOMALY_THRESHOLD(uart)    ((uart)->anomaly_threshold)
 # define UART_SET_ANOMALY_THRESHOLD(uart, v) ((uart)->anomaly_threshold = (v))
@@ -1014,7 +1006,6 @@ static struct uart_ops bfin_serial_pops = {
 	.stop_tx	= bfin_serial_stop_tx,
 	.start_tx	= bfin_serial_start_tx,
 	.stop_rx	= bfin_serial_stop_rx,
-	.enable_ms	= bfin_serial_enable_ms,
 	.break_ctl	= bfin_serial_break_ctl,
 	.startup	= bfin_serial_startup,
 	.shutdown	= bfin_serial_shutdown,

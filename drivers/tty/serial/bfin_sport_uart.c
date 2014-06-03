@@ -426,11 +426,6 @@ static void sport_stop_rx(struct uart_port *port)
 	SSYNC();
 }
 
-static void sport_enable_ms(struct uart_port *port)
-{
-	pr_debug("%s enter\n", __func__);
-}
-
 static void sport_break_ctl(struct uart_port *port, int break_state)
 {
 	pr_debug("%s enter\n", __func__);
@@ -587,7 +582,6 @@ struct uart_ops sport_uart_ops = {
 	.stop_tx	= sport_stop_tx,
 	.start_tx	= sport_start_tx,
 	.stop_rx	= sport_stop_rx,
-	.enable_ms	= sport_enable_ms,
 	.break_ctl	= sport_break_ctl,
 	.startup	= sport_startup,
 	.shutdown	= sport_shutdown,

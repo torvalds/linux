@@ -109,10 +109,6 @@ static void altera_jtaguart_break_ctl(struct uart_port *port, int break_state)
 {
 }
 
-static void altera_jtaguart_enable_ms(struct uart_port *port)
-{
-}
-
 static void altera_jtaguart_set_termios(struct uart_port *port,
 					struct ktermios *termios,
 					struct ktermios *old)
@@ -291,7 +287,6 @@ static struct uart_ops altera_jtaguart_ops = {
 	.start_tx	= altera_jtaguart_start_tx,
 	.stop_tx	= altera_jtaguart_stop_tx,
 	.stop_rx	= altera_jtaguart_stop_rx,
-	.enable_ms	= altera_jtaguart_enable_ms,
 	.break_ctl	= altera_jtaguart_break_ctl,
 	.startup	= altera_jtaguart_startup,
 	.shutdown	= altera_jtaguart_shutdown,

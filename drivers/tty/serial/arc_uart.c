@@ -340,13 +340,6 @@ static void arc_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	/* MCR not present */
 }
 
-/* Enable Modem Status Interrupts */
-
-static void arc_serial_enable_ms(struct uart_port *port)
-{
-	/* MSR not present */
-}
-
 static void arc_serial_break_ctl(struct uart_port *port, int break_state)
 {
 	/* ARC UART doesn't support sending Break signal */
@@ -510,7 +503,6 @@ static struct uart_ops arc_serial_pops = {
 	.stop_tx	= arc_serial_stop_tx,
 	.start_tx	= arc_serial_start_tx,
 	.stop_rx	= arc_serial_stop_rx,
-	.enable_ms	= arc_serial_enable_ms,
 	.break_ctl	= arc_serial_break_ctl,
 	.startup	= arc_serial_startup,
 	.shutdown	= arc_serial_shutdown,

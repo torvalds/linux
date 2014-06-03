@@ -163,10 +163,6 @@ static void altera_uart_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void altera_uart_enable_ms(struct uart_port *port)
-{
-}
-
 static void altera_uart_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
 				    struct ktermios *old)
@@ -415,7 +411,6 @@ static struct uart_ops altera_uart_ops = {
 	.start_tx	= altera_uart_start_tx,
 	.stop_tx	= altera_uart_stop_tx,
 	.stop_rx	= altera_uart_stop_rx,
-	.enable_ms	= altera_uart_enable_ms,
 	.break_ctl	= altera_uart_break_ctl,
 	.startup	= altera_uart_startup,
 	.shutdown	= altera_uart_shutdown,
