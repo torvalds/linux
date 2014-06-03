@@ -281,6 +281,11 @@ int rsnd_gen_probe(struct platform_device *pdev,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
+void rsnd_gen_dma_addr(struct rsnd_priv *priv,
+		       struct rsnd_dma *dma,
+		       struct dma_slave_config *cfg,
+		       int is_play,  int slave_id);
+
 #define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN2)
 
@@ -317,7 +322,7 @@ struct rsnd_of_data {
 
 struct rsnd_priv {
 
-	struct device *dev;
+	struct platform_device *pdev;
 	struct rcar_snd_info *info;
 	spinlock_t lock;
 
@@ -357,7 +362,8 @@ struct rsnd_priv {
 	int rdai_nr;
 };
 
-#define rsnd_priv_to_dev(priv)	((priv)->dev)
+#define rsnd_priv_to_pdev(priv)	((priv)->pdev)
+#define rsnd_priv_to_dev(priv)	(&(rsnd_priv_to_pdev(priv)->dev))
 #define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)

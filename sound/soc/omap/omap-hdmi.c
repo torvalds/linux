@@ -34,9 +34,9 @@
 #include <sound/asoundef.h>
 #include <sound/dmaengine_pcm.h>
 #include <video/omapdss.h>
+#include <sound/omap-pcm.h>
 
 #include "omap-hdmi.h"
-#include "omap-pcm.h"
 
 #define DRV_NAME "omap-hdmi-audio-dai"
 

@@ -10,6 +10,8 @@
  */
 #include "rsnd.h"
 
+#define SRC_NAME "src"
+
 struct rsnd_src {
 	struct rsnd_src_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
@@ -268,10 +270,6 @@ static int rsnd_src_stop(struct rsnd_mod *mod,
 	return 0;
 }
 
-static struct rsnd_mod_ops rsnd_src_non_ops = {
-	.name	= "src (non)",
-};
-
 /*
  *		Gen1 functions
  */
@@ -393,6 +391,17 @@ static int rsnd_src_set_convert_rate_gen1(struct rsnd_mod *mod,
 	return 0;
 }
 
+static int rsnd_src_probe_gen1(struct rsnd_mod *mod,
+			      struct rsnd_dai *rdai)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	dev_dbg(dev, "%s (Gen1) is probed\n", rsnd_mod_name(mod));
+
+	return 0;
+}
+
 static int rsnd_src_init_gen1(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
@@ -438,7 +447,8 @@ static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
-	.name	= "sru (gen1)",
+	.name	= SRC_NAME,
+	.probe	= rsnd_src_probe_gen1,
 	.init	= rsnd_src_init_gen1,
 	.quit	= rsnd_src_quit,
 	.start	= rsnd_src_start_gen1,
@@ -502,6 +512,8 @@ static int rsnd_src_probe_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		dev_err(dev, "SRC DMA failed\n");
 
+	dev_dbg(dev, "%s (Gen2) is probed\n", rsnd_mod_name(mod));
+
 	return ret;
 }
 
@@ -562,7 +574,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_src_gen2_ops = {
-	.name	= "src (gen2)",
+	.name	= SRC_NAME,
 	.probe	= rsnd_src_probe_gen2,
 	.remove	= rsnd_src_remove_gen2,
 	.init	= rsnd_src_init_gen2,
@@ -598,18 +610,21 @@ static void rsnd_of_parse_src(struct platform_device *pdev,
 
 	nr = of_get_child_count(src_node);
 	if (!nr)
-		return;
+		goto rsnd_of_parse_src_end;
 
 	src_info = devm_kzalloc(dev,
 				sizeof(struct rsnd_src_platform_info) * nr,
 				GFP_KERNEL);
 	if (!src_info) {
 		dev_err(dev, "src info allocation error\n");
-		return;
+		goto rsnd_of_parse_src_end;
 	}
 
 	info->src_info		= src_info;
 	info->src_info_nr	= nr;
+
+rsnd_of_parse_src_end:
+	of_node_put(src_node);
 }
 
 int rsnd_src_probe(struct platform_device *pdev,
@@ -623,6 +638,16 @@ int rsnd_src_probe(struct platform_device *pdev,
 	struct clk *clk;
 	char name[RSND_SRC_NAME_SIZE];
 	int i, nr;
+
+	ops = NULL;
+	if (rsnd_is_gen1(priv))
+		ops = &rsnd_src_gen1_ops;
+	if (rsnd_is_gen2(priv))
+		ops = &rsnd_src_gen2_ops;
+	if (!ops) {
+		dev_err(dev, "unknown Generation\n");
+		return -EIO;
+	}
 
 	rsnd_of_parse_src(pdev, of_data, priv);
 
@@ -643,7 +668,8 @@ int rsnd_src_probe(struct platform_device *pdev,
 	priv->src	= src;
 
 	for_each_rsnd_src(src, priv, i) {
-		snprintf(name, RSND_SRC_NAME_SIZE, "src.%d", i);
+		snprintf(name, RSND_SRC_NAME_SIZE, "%s.%d",
+			 SRC_NAME, i);
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk))
@@ -651,12 +677,6 @@ int rsnd_src_probe(struct platform_device *pdev,
 
 		src->info = &info->src_info[i];
 		src->clk = clk;
-
-		ops = &rsnd_src_non_ops;
-		if (rsnd_is_gen1(priv))
-			ops = &rsnd_src_gen1_ops;
-		if (rsnd_is_gen2(priv))
-			ops = &rsnd_src_gen2_ops;
 
 		rsnd_mod_init(priv, &src->mod, ops, RSND_MOD_SRC, i);
 
