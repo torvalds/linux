@@ -7,6 +7,7 @@
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
  */
 
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -492,6 +493,22 @@ static irqreturn_t nhi_msi(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int nhi_suspend_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+	thunderbolt_suspend(tb);
+	return 0;
+}
+
+static int nhi_resume_noirq(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct tb *tb = pci_get_drvdata(pdev);
+	thunderbolt_resume(tb);
+	return 0;
+}
+
 static void nhi_shutdown(struct tb_nhi *nhi)
 {
 	int i;
@@ -600,6 +617,21 @@ static void nhi_remove(struct pci_dev *pdev)
 	nhi_shutdown(nhi);
 }
 
+/*
+ * The tunneled pci bridges are siblings of us. Use resume_noirq to reenable
+ * the tunnels asap. A corresponding pci quirk blocks the downstream bridges
+ * resume_noirq until we are done.
+ */
+static const struct dev_pm_ops nhi_pm_ops = {
+	.suspend_noirq = nhi_suspend_noirq,
+	.resume_noirq = nhi_resume_noirq,
+	.freeze_noirq = nhi_suspend_noirq, /*
+					    * we just disable hotplug, the
+					    * pci-tunnels stay alive.
+					    */
+	.restore_noirq = nhi_resume_noirq,
+};
+
 struct pci_device_id nhi_ids[] = {
 	/*
 	 * We have to specify class, the TB bridges use the same device and
@@ -626,6 +658,7 @@ static struct pci_driver nhi_driver = {
 	.id_table = nhi_ids,
 	.probe = nhi_probe,
 	.remove = nhi_remove,
+	.driver.pm = &nhi_pm_ops,
 };
 
 static int __init nhi_init(void)

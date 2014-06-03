@@ -69,6 +69,28 @@ static void tb_free_invalid_tunnels(struct tb *tb)
 }
 
 /**
+ * tb_free_unplugged_children() - traverse hierarchy and free unplugged switches
+ */
+static void tb_free_unplugged_children(struct tb_switch *sw)
+{
+	int i;
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		struct tb_port *port = &sw->ports[i];
+		if (tb_is_upstream_port(port))
+			continue;
+		if (!port->remote)
+			continue;
+		if (port->remote->sw->is_unplugged) {
+			tb_switch_free(port->remote->sw);
+			port->remote = NULL;
+		} else {
+			tb_free_unplugged_children(port->remote->sw);
+		}
+	}
+}
+
+
+/**
  * find_pci_up_port() - return the first PCIe up port on @sw or NULL
  */
 static struct tb_port *tb_find_pci_up_port(struct tb_switch *sw)
@@ -368,3 +390,42 @@ err_locked:
 	return NULL;
 }
 
+void thunderbolt_suspend(struct tb *tb)
+{
+	tb_info(tb, "suspending...\n");
+	mutex_lock(&tb->lock);
+	tb_switch_suspend(tb->root_switch);
+	tb_ctl_stop(tb->ctl);
+	tb->hotplug_active = false; /* signal tb_handle_hotplug to quit */
+	mutex_unlock(&tb->lock);
+	tb_info(tb, "suspend finished\n");
+}
+
+void thunderbolt_resume(struct tb *tb)
+{
+	struct tb_pci_tunnel *tunnel, *n;
+	tb_info(tb, "resuming...\n");
+	mutex_lock(&tb->lock);
+	tb_ctl_start(tb->ctl);
+
+	/* remove any pci devices the firmware might have setup */
+	tb_switch_reset(tb, 0);
+
+	tb_switch_resume(tb->root_switch);
+	tb_free_invalid_tunnels(tb);
+	tb_free_unplugged_children(tb->root_switch);
+	list_for_each_entry_safe(tunnel, n, &tb->tunnel_list, list)
+		tb_pci_restart(tunnel);
+	if (!list_empty(&tb->tunnel_list)) {
+		/*
+		 * the pcie links need some time to get going.
+		 * 100ms works for me...
+		 */
+		tb_info(tb, "tunnels restarted, sleeping for 100ms\n");
+		msleep(100);
+	}
+	 /* Allow tb_handle_hotplug to progress events */
+	tb->hotplug_active = true;
+	mutex_unlock(&tb->lock);
+	tb_info(tb, "resume finished\n");
+}

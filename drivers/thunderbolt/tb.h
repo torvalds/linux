@@ -214,9 +214,14 @@ static inline int tb_port_write(struct tb_port *port, void *buffer,
 
 struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi);
 void thunderbolt_shutdown_and_free(struct tb *tb);
+void thunderbolt_suspend(struct tb *tb);
+void thunderbolt_resume(struct tb *tb);
 
 struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route);
 void tb_switch_free(struct tb_switch *sw);
+void tb_switch_suspend(struct tb_switch *sw);
+int tb_switch_resume(struct tb_switch *sw);
+int tb_switch_reset(struct tb *tb, u64 route);
 void tb_sw_set_unpplugged(struct tb_switch *sw);
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 

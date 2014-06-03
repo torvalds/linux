@@ -229,6 +229,30 @@ static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 		sw->__unknown1, sw->__unknown4);
 }
 
+/**
+ * reset_switch() - reconfigure route, enable and send TB_CFG_PKG_RESET
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_switch_reset(struct tb *tb, u64 route)
+{
+	struct tb_cfg_result res;
+	struct tb_regs_switch_header header = {
+		header.route_hi = route >> 32,
+		header.route_lo = route,
+		header.enabled = true,
+	};
+	tb_info(tb, "resetting switch at %llx\n", route);
+	res.err = tb_cfg_write(tb->ctl, ((u32 *) &header) + 2, route,
+			0, 2, 2, 2);
+	if (res.err)
+		return res.err;
+	res = tb_cfg_reset(tb->ctl, route, TB_CFG_DEFAULT_TIMEOUT);
+	if (res.err > 0)
+		return -EIO;
+	return res.err;
+}
+
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route)
 {
 	u8 next_port = route; /*
@@ -412,3 +436,63 @@ void tb_sw_set_unpplugged(struct tb_switch *sw)
 	}
 }
 
+int tb_switch_resume(struct tb_switch *sw)
+{
+	int i, err;
+	u64 uid;
+	tb_sw_info(sw, "resuming switch\n");
+
+	err = tb_eeprom_read_uid(sw, &uid);
+	if (err) {
+		tb_sw_warn(sw, "uid read failed\n");
+		return err;
+	}
+	if (sw->uid != uid) {
+		tb_sw_info(sw,
+			"changed while suspended (uid %#llx -> %#llx)\n",
+			sw->uid, uid);
+		return -ENODEV;
+	}
+
+	/* upload configuration */
+	err = tb_sw_write(sw, 1 + (u32 *) &sw->config, TB_CFG_SWITCH, 1, 3);
+	if (err)
+		return err;
+
+	err = tb_plug_events_active(sw, true);
+	if (err)
+		return err;
+
+	/* check for surviving downstream switches */
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		struct tb_port *port = &sw->ports[i];
+		if (tb_is_upstream_port(port))
+			continue;
+		if (!port->remote)
+			continue;
+		if (tb_wait_for_port(port, true) <= 0
+			|| tb_switch_resume(port->remote->sw)) {
+			tb_port_warn(port,
+				     "lost during suspend, disconnecting\n");
+			tb_sw_set_unpplugged(port->remote->sw);
+		}
+	}
+	return 0;
+}
+
+void tb_switch_suspend(struct tb_switch *sw)
+{
+	int i, err;
+	err = tb_plug_events_active(sw, false);
+	if (err)
+		return;
+
+	for (i = 1; i <= sw->config.max_port_number; i++) {
+		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+			tb_switch_suspend(sw->ports[i].remote->sw);
+	}
+	/*
+	 * TODO: invoke tb_cfg_prepare_to_sleep here? does not seem to have any
+	 * effect?
+	 */
+}
