@@ -1743,7 +1743,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status ret;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
@@ -1805,7 +1805,7 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	struct edid *edid;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/* set the bus switch and get the modes */
 	edid = intel_sdvo_get_edid(connector);
@@ -1903,7 +1903,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	int i;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/* Read the list of supported input resolutions for the selected TV
 	 * format.
@@ -1940,7 +1940,7 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	struct drm_display_mode *newmode;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some

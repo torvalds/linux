@@ -334,7 +334,7 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status status;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	status = intel_panel_detect(dev);
 	if (status != connector_status_unknown)

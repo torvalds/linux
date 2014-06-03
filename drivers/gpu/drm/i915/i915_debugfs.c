@@ -2202,7 +2202,7 @@ static void intel_encoder_info(struct seq_file *m,
 		struct drm_connector *connector = &intel_connector->base;
 		seq_printf(m, "\t\tconnector %d: type: %s, status: %s",
 			   connector->base.id,
-			   drm_get_connector_name(connector),
+			   connector->name,
 			   drm_get_connector_status_name(connector->status));
 		if (connector->status == connector_status_connected) {
 			struct drm_display_mode *mode = &crtc->mode;
@@ -2273,7 +2273,7 @@ static void intel_connector_info(struct seq_file *m,
 	struct drm_display_mode *mode;
 
 	seq_printf(m, "connector %d: type %s, status: %s\n",
-		   connector->base.id, drm_get_connector_name(connector),
+		   connector->base.id, connector->name,
 		   drm_get_connector_status_name(connector->status));
 	if (connector->status == connector_status_connected) {
 		seq_printf(m, "\tname: %s\n", connector->display_info.name);

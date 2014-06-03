@@ -3453,7 +3453,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	intel_display_power_get(dev_priv, power_domain);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	intel_dp->has_audio = false;
 
