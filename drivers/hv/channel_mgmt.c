@@ -365,7 +365,7 @@ static u32  next_vp;
  * performance critical channels (IDE, SCSI and Network) will be uniformly
  * distributed across all available CPUs.
  */
-static u32 get_vp_index(uuid_le *type_guid)
+static u32 get_vp_index(const uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;
