@@ -263,6 +263,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	long timeout = MAX_SCHEDULE_TIMEOUT;
 	unsigned long target_rate = 0;
 	unsigned long s = sys_status;
+	bool auto_self_refresh = false;
 	char *mode = NULL;
 
 	dprintk(DEBUG_VERBOSE, "sys_status %02lx\n", sys_status);
@@ -278,6 +279,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.suspend_rate && (s & SYS_STATUS_SUSPEND)) {
 		if (ddr.suspend_rate > target_rate) {
 			target_rate = ddr.suspend_rate;
+			auto_self_refresh = true;
 			mode = "suspend";
 		}
 	}
@@ -285,6 +287,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.performance_rate && (s & SYS_STATUS_PERFORMANCE)) {
 		if (ddr.performance_rate > target_rate) {
 			target_rate = ddr.performance_rate;
+			auto_self_refresh = false;
 			mode = "performance";
 		}
 	}
@@ -293,6 +296,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 		(s & SYS_STATUS_LCDC0) && (s & SYS_STATUS_LCDC1)) {
 		 if (ddr.dualview_rate > target_rate) {
 			 target_rate = ddr.dualview_rate;
+			 auto_self_refresh = false;
 			 mode = "dual-view";
 		 }
 	 }
@@ -301,6 +305,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 		(s & SYS_STATUS_HDMI)) {
 		 if (ddr.hdmi_rate > target_rate) {
 			 target_rate = ddr.hdmi_rate;
+			 auto_self_refresh = false;
 			 mode = "hdmi";
 		 }
 	 }
@@ -308,6 +313,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.video_4k_rate && (s & SYS_STATUS_VIDEO_4K)) {
 		if (ddr.video_4k_rate > target_rate) {
 			target_rate = ddr.video_4k_rate;
+			auto_self_refresh = false;
 			mode = "video_4k";
 		}
 	}
@@ -315,6 +321,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.video_1080p_rate && (s & SYS_STATUS_VIDEO_1080P)) {
 		if (ddr.video_1080p_rate > target_rate) {
 			target_rate = ddr.video_1080p_rate;
+			auto_self_refresh = false;
 			mode = "video_1080p";
 		}
 	}
@@ -322,12 +329,13 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	if (ddr.isp_rate && (s & SYS_STATUS_ISP)) {
 		if (ddr.isp_rate > target_rate) {
 			target_rate = ddr.isp_rate;
+			auto_self_refresh = false;
 			mode = "isp";
 		}
 	}
 
 	if (target_rate > 0) {
-		ddrfreq_mode(false, target_rate, mode);
+		ddrfreq_mode(auto_self_refresh, target_rate, mode);
 	} else {
 		if (ddr.auto_freq) {
 			ddr_auto_freq();
