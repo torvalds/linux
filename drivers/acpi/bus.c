@@ -52,6 +52,12 @@ struct proc_dir_entry *acpi_root_dir;
 EXPORT_SYMBOL(acpi_root_dir);
 
 #ifdef CONFIG_X86
+#ifdef CONFIG_ACPI_CUSTOM_DSDT
+static inline int set_copy_dsdt(const struct dmi_system_id *id)
+{
+	return 0;
+}
+#else
 static int set_copy_dsdt(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE "%s detected - "
@@ -59,6 +65,7 @@ static int set_copy_dsdt(const struct dmi_system_id *id)
 	acpi_gbl_copy_dsdt_locally = 1;
 	return 0;
 }
+#endif
 
 static struct dmi_system_id dsdt_dmi_table[] __initdata = {
 	/*
@@ -132,6 +139,21 @@ void acpi_bus_private_data_handler(acpi_handle handle,
 }
 EXPORT_SYMBOL(acpi_bus_private_data_handler);
 
+int acpi_bus_attach_private_data(acpi_handle handle, void *data)
+{
+	acpi_status status;
+
+	status = acpi_attach_data(handle,
+			acpi_bus_private_data_handler, data);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(handle, "Error attaching device data\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_attach_private_data);
+
 int acpi_bus_get_private_data(acpi_handle handle, void **data)
 {
 	acpi_status status;
@@ -140,15 +162,20 @@ int acpi_bus_get_private_data(acpi_handle handle, void **data)
 		return -EINVAL;
 
 	status = acpi_get_data(handle, acpi_bus_private_data_handler, data);
-	if (ACPI_FAILURE(status) || !*data) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
-				handle));
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_debug(handle, "No context for object\n");
 		return -ENODEV;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(acpi_bus_get_private_data);
+EXPORT_SYMBOL_GPL(acpi_bus_get_private_data);
+
+void acpi_bus_detach_private_data(acpi_handle handle)
+{
+	acpi_detach_data(handle, acpi_bus_private_data_handler);
+}
+EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
 void acpi_bus_no_hotplug(acpi_handle handle)
 {
