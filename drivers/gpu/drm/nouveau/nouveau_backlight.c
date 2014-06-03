@@ -31,7 +31,6 @@
  */
 
 #include <linux/backlight.h>
-#include <linux/acpi.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_reg.h"
@@ -221,14 +220,6 @@ nouveau_backlight_init(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct drm_connector *connector;
-
-#ifdef CONFIG_ACPI
-	if (acpi_video_backlight_support()) {
-		NV_INFO(drm, "ACPI backlight interface available, "
-			     "not registering our own\n");
-		return 0;
-	}
-#endif
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->connector_type != DRM_MODE_CONNECTOR_LVDS &&
