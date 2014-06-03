@@ -909,7 +909,6 @@ extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
-extern const char *drm_get_connector_name(const struct drm_connector *connector);
 extern const char *drm_get_connector_status_name(enum drm_connector_status status);
 extern const char *drm_get_subpixel_order_name(enum subpixel_order order);
 extern const char *drm_get_dpms_name(int val);
@@ -972,7 +971,6 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
-extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);

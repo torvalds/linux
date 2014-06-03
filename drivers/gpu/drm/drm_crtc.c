@@ -257,26 +257,6 @@ void drm_connector_ida_destroy(void)
 }
 
 /**
- * drm_get_encoder_name - return a string for encoder
- * @encoder: the encoder to get name for
- */
-const char *drm_get_encoder_name(const struct drm_encoder *encoder)
-{
-	return encoder->name;
-}
-EXPORT_SYMBOL(drm_get_encoder_name);
-
-/**
- * drm_get_connector_name - return a string for connector
- * @connector: the connector to get name for
- */
-const char *drm_get_connector_name(const struct drm_connector *connector)
-{
-	return connector->name;
-}
-EXPORT_SYMBOL(drm_get_connector_name);
-
-/**
  * drm_get_connector_status_name - return a string for connector status
  * @status: connector status to compute name of
  *
