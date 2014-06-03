@@ -3018,6 +3018,8 @@ extern struct pci_fixup __start_pci_fixups_resume_early[];
 extern struct pci_fixup __end_pci_fixups_resume_early[];
 extern struct pci_fixup __start_pci_fixups_suspend[];
 extern struct pci_fixup __end_pci_fixups_suspend[];
+extern struct pci_fixup __start_pci_fixups_suspend_late[];
+extern struct pci_fixup __end_pci_fixups_suspend_late[];
 
 static bool pci_apply_fixup_final_quirks;
 
@@ -3061,6 +3063,11 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	case pci_fixup_suspend:
 		start = __start_pci_fixups_suspend;
 		end = __end_pci_fixups_suspend;
+		break;
+
+	case pci_fixup_suspend_late:
+		start = __start_pci_fixups_suspend_late;
+		end = __end_pci_fixups_suspend_late;
 		break;
 
 	default:
