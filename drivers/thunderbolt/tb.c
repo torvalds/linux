@@ -71,6 +71,10 @@ void thunderbolt_shutdown_and_free(struct tb *tb)
 {
 	mutex_lock(&tb->lock);
 
+	if (tb->root_switch)
+		tb_switch_free(tb->root_switch);
+	tb->root_switch = NULL;
+
 	if (tb->ctl) {
 		tb_ctl_stop(tb->ctl);
 		tb_ctl_free(tb->ctl);
@@ -125,6 +129,10 @@ struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi)
 	 * channel is started. Thats why we have to hold the lock here.
 	 */
 	tb_ctl_start(tb->ctl);
+
+	tb->root_switch = tb_switch_alloc(tb, 0);
+	if (!tb->root_switch)
+		goto err_locked;
 
 	/* Allow tb_handle_hotplug to progress events */
 	tb->hotplug_active = true;
