@@ -2197,7 +2197,7 @@ static void intel_encoder_info(struct seq_file *m,
 
 	encoder = &intel_encoder->base;
 	seq_printf(m, "\tencoder %d: type: %s, connectors:\n",
-		   encoder->base.id, drm_get_encoder_name(encoder));
+		   encoder->base.id, encoder->name);
 	for_each_connector_on_encoder(dev, encoder, intel_connector) {
 		struct drm_connector *connector = &intel_connector->base;
 		seq_printf(m, "\t\tconnector %d: type: %s, status: %s",

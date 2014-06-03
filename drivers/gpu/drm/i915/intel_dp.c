@@ -3267,7 +3267,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 
 	if (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count)) {
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
-			      drm_get_encoder_name(&intel_encoder->base));
+			      intel_encoder->base.name);
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
 		intel_dp_stop_link_train(intel_dp);

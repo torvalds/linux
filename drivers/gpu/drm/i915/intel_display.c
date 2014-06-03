@@ -7855,7 +7855,7 @@ void intel_write_eld(struct drm_encoder *encoder,
 			 connector->base.id,
 			 connector->name,
 			 connector->encoder->base.id,
-			 drm_get_encoder_name(connector->encoder));
+			 connector->encoder->name);
 
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
@@ -8321,7 +8321,7 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
-		      encoder->base.id, drm_get_encoder_name(encoder));
+		      encoder->base.id, encoder->name);
 
 	/*
 	 * Algorithm gets a little messy:
@@ -8433,7 +8433,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, connector->name,
-		      encoder->base.id, drm_get_encoder_name(encoder));
+		      encoder->base.id, encoder->name);
 
 	if (old->load_detect_temp) {
 		to_intel_connector(connector)->new_encoder = NULL;
@@ -10050,7 +10050,7 @@ check_encoder_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s]\n",
 			      encoder->base.base.id,
-			      drm_get_encoder_name(&encoder->base));
+			      encoder->base.name);
 
 		WARN(&encoder->new_crtc->base != encoder->base.crtc,
 		     "encoder's stage crtc doesn't match current crtc\n");
@@ -11960,7 +11960,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 	if (encoder->connectors_active && !has_active_crtc) {
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] has active connectors but no active pipe!\n",
 			      encoder->base.base.id,
-			      drm_get_encoder_name(&encoder->base));
+			      encoder->base.name);
 
 		/* Connector is active, but has no active pipe. This is
 		 * fallout from our resume register restoring. Disable
@@ -11968,7 +11968,7 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 		if (encoder->base.crtc) {
 			DRM_DEBUG_KMS("[ENCODER:%d:%s] manually disabled\n",
 				      encoder->base.base.id,
-				      drm_get_encoder_name(&encoder->base));
+				      encoder->base.name);
 			encoder->disable(encoder);
 		}
 
@@ -12086,7 +12086,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		encoder->connectors_active = false;
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] hw state readout: %s, pipe %c\n",
 			      encoder->base.base.id,
-			      drm_get_encoder_name(&encoder->base),
+			      encoder->base.name,
 			      encoder->base.crtc ? "enabled" : "disabled",
 			      pipe_name(pipe));
 	}
