@@ -304,8 +304,8 @@ static void i40e_tx_timeout(struct net_device *netdev)
 		break;
 	default:
 		netdev_err(netdev, "tx_timeout recovery unsuccessful\n");
-		set_bit(__I40E_DOWN, &vsi->state);
-		i40e_down(vsi);
+		set_bit(__I40E_DOWN_REQUESTED, &pf->state);
+		set_bit(__I40E_DOWN_REQUESTED, &vsi->state);
 		break;
 	}
 	i40e_service_event_schedule(pf);
@@ -4692,6 +4692,23 @@ void i40e_do_reset(struct i40e_pf *pf, u32 reset_flags)
 
 		/* no further action needed, so return now */
 		return;
+	} else if (reset_flags & (1 << __I40E_DOWN_REQUESTED)) {
+		int v;
+
+		/* Find the VSI(s) that needs to be brought down */
+		dev_info(&pf->pdev->dev, "VSI down requested\n");
+		for (v = 0; v < pf->num_alloc_vsi; v++) {
+			struct i40e_vsi *vsi = pf->vsi[v];
+			if (vsi != NULL &&
+			    test_bit(__I40E_DOWN_REQUESTED, &vsi->state)) {
+				set_bit(__I40E_DOWN, &vsi->state);
+				i40e_down(vsi);
+				clear_bit(__I40E_DOWN_REQUESTED, &vsi->state);
+			}
+		}
+
+		/* no further action needed, so return now */
+		return;
 	} else {
 		dev_info(&pf->pdev->dev,
 			 "bad reset request 0x%08x\n", reset_flags);
@@ -5161,6 +5178,10 @@ static void i40e_reset_subtask(struct i40e_pf *pf)
 	if (test_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state)) {
 		reset_flags |= (1 << __I40E_GLOBAL_RESET_REQUESTED);
 		clear_bit(__I40E_GLOBAL_RESET_REQUESTED, &pf->state);
+	}
+	if (test_bit(__I40E_DOWN_REQUESTED, &pf->state)) {
+		reset_flags |= (1 << __I40E_DOWN_REQUESTED);
+		clear_bit(__I40E_DOWN_REQUESTED, &pf->state);
 	}
 
 	/* If there's a recovery already waiting, it takes
