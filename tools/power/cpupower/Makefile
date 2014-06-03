@@ -62,7 +62,7 @@ LIB_MAJ=			0.0.0
 LIB_MIN=			0
 
 PACKAGE =			cpupower
-PACKAGE_BUGREPORT =		cpufreq@vger.kernel.org
+PACKAGE_BUGREPORT =		linux-pm@vger.kernel.org
 LANGUAGES = 			de fr it cs pt
 
 
