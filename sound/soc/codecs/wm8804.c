@@ -63,6 +63,7 @@ struct wm8804_priv {
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
+	int mclk_div;
 };
 
 static int txsrc_get(struct snd_kcontrol *kcontrol,
@@ -318,7 +319,7 @@ static struct {
 
 #define FIXED_PLL_SIZE ((1ULL << 22) * 10)
 static int pll_factors(struct pll_div *pll_div, unsigned int target,
-		       unsigned int source)
+		       unsigned int source, unsigned int mclk_div)
 {
 	u64 Kpart;
 	unsigned long int K, Ndiv, Nmod, tmp;
@@ -330,7 +331,8 @@ static int pll_factors(struct pll_div *pll_div, unsigned int target,
 	 */
 	for (i = 0; i < ARRAY_SIZE(post_table); i++) {
 		tmp = target * post_table[i].div;
-		if (tmp >= 90000000 && tmp <= 100000000) {
+		if ((tmp >= 90000000 && tmp <= 100000000) &&
+		    (mclk_div == post_table[i].mclkdiv)) {
 			pll_div->freqmode = post_table[i].freqmode;
 			pll_div->mclkdiv = post_table[i].mclkdiv;
 			target *= post_table[i].div;
@@ -387,8 +389,12 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 	} else {
 		int ret;
 		struct pll_div pll_div;
+		struct wm8804_priv *wm8804;
 
-		ret = pll_factors(&pll_div, freq_out, freq_in);
+		wm8804 = snd_soc_codec_get_drvdata(codec);
+
+		ret = pll_factors(&pll_div, freq_out, freq_in,
+				  wm8804->mclk_div);
 		if (ret)
 			return ret;
 
@@ -452,12 +458,17 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 			     int div_id, int div)
 {
 	struct snd_soc_codec *codec;
+	struct wm8804_priv *wm8804;
 
 	codec = dai->codec;
 	switch (div_id) {
 	case WM8804_CLKOUT_DIV:
 		snd_soc_update_bits(codec, WM8804_PLL5, 0x30,
 				    (div & 0x3) << 4);
+		break;
+	case WM8804_MCLK_DIV:
+		wm8804 = snd_soc_codec_get_drvdata(codec);
+		wm8804->mclk_div = div;
 		break;
 	default:
 		dev_err(dai->dev, "Unknown clock divider: %d\n", div_id);

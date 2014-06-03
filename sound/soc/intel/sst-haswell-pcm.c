@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>

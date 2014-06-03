@@ -2162,13 +2162,6 @@ enum {
 	RT5645_DMIC_DATA_GPIO11,
 };
 
-struct rt5645_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	int m_code;
-	int n_code;
-	int k_code;
-};
-
 struct rt5645_priv {
 	struct snd_soc_codec *codec;
 	struct rt5645_platform_data pdata;

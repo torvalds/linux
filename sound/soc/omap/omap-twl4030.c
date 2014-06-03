@@ -231,6 +231,19 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
+static int omap_twl4030_card_remove(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	struct omap_twl4030 *priv = snd_soc_card_get_drvdata(card);
+
+	if (priv->jack_detect > 0)
+		snd_soc_jack_free_gpios(&priv->hs_jack,
+					ARRAY_SIZE(hs_jack_gpios),
+					hs_jack_gpios);
+
+	return 0;
+}
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link omap_twl4030_dai_links[] = {
 	{
@@ -258,6 +271,7 @@ static struct snd_soc_dai_link omap_twl4030_dai_links[] = {
 /* Audio machine driver */
 static struct snd_soc_card omap_twl4030_card = {
 	.owner = THIS_MODULE,
+	.remove = omap_twl4030_card_remove,
 	.dai_link = omap_twl4030_dai_links,
 	.num_links = ARRAY_SIZE(omap_twl4030_dai_links),
 
@@ -353,19 +367,6 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int omap_twl4030_remove(struct platform_device *pdev)
-{
-	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct omap_twl4030 *priv = snd_soc_card_get_drvdata(card);
-
-	if (priv->jack_detect > 0)
-		snd_soc_jack_free_gpios(&priv->hs_jack,
-					ARRAY_SIZE(hs_jack_gpios),
-					hs_jack_gpios);
-
-	return 0;
-}
-
 static const struct of_device_id omap_twl4030_of_match[] = {
 	{.compatible = "ti,omap-twl4030", },
 	{ },
@@ -380,7 +381,6 @@ static struct platform_driver omap_twl4030_driver = {
 		.of_match_table = omap_twl4030_of_match,
 	},
 	.probe = omap_twl4030_probe,
-	.remove = omap_twl4030_remove,
 };
 
 module_platform_driver(omap_twl4030_driver);

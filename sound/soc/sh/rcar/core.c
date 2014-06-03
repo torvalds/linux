@@ -255,11 +255,81 @@ int rsnd_dma_available(struct rsnd_dma *dma)
 	return !!dma->chan;
 }
 
+#define DMA_NAME_SIZE 16
+#define MOD_MAX 4 /* MEM/SSI/SRC/DVC */
+static int _rsnd_dma_of_name(char *dma_name, struct rsnd_mod *mod)
+{
+	if (mod)
+		return snprintf(dma_name, DMA_NAME_SIZE / 2, "%s%d",
+			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+	else
+		return snprintf(dma_name, DMA_NAME_SIZE / 2, "mem");
+
+}
+
+static void rsnd_dma_of_name(struct rsnd_dma *dma,
+			     int is_play, char *dma_name)
+{
+	struct rsnd_mod *this = rsnd_dma_to_mod(dma);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(this);
+	struct rsnd_mod *ssi = rsnd_io_to_mod_ssi(io);
+	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
+	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
+	struct rsnd_mod *mod[MOD_MAX];
+	struct rsnd_mod *src_mod, *dst_mod;
+	int i, index;
+
+
+	for (i = 0; i < MOD_MAX; i++)
+		mod[i] = NULL;
+
+	/*
+	 * in play case...
+	 *
+	 * src -> dst
+	 *
+	 * mem -> SSI
+	 * mem -> SRC -> SSI
+	 * mem -> SRC -> DVC -> SSI
+	 */
+	mod[0] = NULL; /* for "mem" */
+	index = 1;
+	for (i = 1; i < MOD_MAX; i++) {
+		if (!src) {
+			mod[i] = ssi;
+			break;
+		} else if (!dvc) {
+			mod[i] = src;
+			src = NULL;
+		} else {
+			mod[i] = dvc;
+			dvc = NULL;
+		}
+
+		if (mod[i] == this)
+			index = i;
+	}
+
+	if (is_play) {
+		src_mod = mod[index - 1];
+		dst_mod = mod[index];
+	} else {
+		src_mod = mod[index];
+		dst_mod = mod[index + 1];
+	}
+
+	index = 0;
+	index = _rsnd_dma_of_name(dma_name + index, src_mod);
+	*(dma_name + index++) = '_';
+	index = _rsnd_dma_of_name(dma_name + index, dst_mod);
+}
+
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		  int is_play, int id)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_slave_config cfg;
+	char dma_name[DMA_NAME_SIZE];
 	dma_cap_mask_t mask;
 	int ret;
 
@@ -271,18 +341,23 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
+	if (dev->of_node)
+		rsnd_dma_of_name(dma, is_play, dma_name);
+	else
+		snprintf(dma_name, DMA_NAME_SIZE,
+			 is_play ? "tx" : "rx");
+
+	dev_dbg(dev, "dma name : %s\n", dma_name);
+
 	dma->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
 						     (void *)id, dev,
-						     is_play ? "tx" : "rx");
+						     dma_name);
 	if (!dma->chan) {
 		dev_err(dev, "can't get dma channel\n");
 		return -EIO;
 	}
 
-	cfg.slave_id	= id;
-	cfg.dst_addr	= 0; /* use default addr when playback */
-	cfg.src_addr	= 0; /* use default addr when capture */
-	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+	rsnd_gen_dma_addr(priv, dma, &cfg, is_play, id);
 
 	ret = dmaengine_slave_config(dma->chan, &cfg);
 	if (ret < 0)
@@ -956,7 +1031,7 @@ static int rsnd_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	priv->dev	= dev;
+	priv->pdev	= pdev;
 	priv->info	= info;
 	spin_lock_init(&priv->lock);
 

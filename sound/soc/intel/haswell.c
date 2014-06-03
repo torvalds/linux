@@ -202,18 +202,11 @@ static int haswell_audio_probe(struct platform_device *pdev)
 {
 	haswell_rt5640.dev = &pdev->dev;
 
-	return snd_soc_register_card(&haswell_rt5640);
-}
-
-static int haswell_audio_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_card(&haswell_rt5640);
-	return 0;
+	return devm_snd_soc_register_card(&pdev->dev, &haswell_rt5640);
 }
 
 static struct platform_driver haswell_audio = {
 	.probe = haswell_audio_probe,
-	.remove = haswell_audio_remove,
 	.driver = {
 		.name = "haswell-audio",
 		.owner = THIS_MODULE,

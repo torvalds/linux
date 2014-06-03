@@ -2079,13 +2079,6 @@ enum {
 	RT5640_DMIC2,
 };
 
-struct rt5640_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	int m_code;
-	int n_code;
-	int k_code;
-};
-
 struct rt5640_priv {
 	struct snd_soc_codec *codec;
 	struct rt5640_platform_data pdata;
@@ -2097,7 +2090,6 @@ struct rt5640_priv {
 	int bclk[RT5640_AIFS];
 	int master[RT5640_AIFS];
 
-	struct rt5640_pll_code pll_code;
 	int pll_src;
 	int pll_in;
 	int pll_out;

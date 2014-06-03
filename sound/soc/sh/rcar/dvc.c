@@ -13,6 +13,9 @@
 #define RSND_DVC_NAME_SIZE	16
 #define RSND_DVC_VOLUME_MAX	100
 #define RSND_DVC_VOLUME_NUM	2
+
+#define DVC_NAME "dvc"
+
 struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
@@ -41,6 +44,17 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 
 	rsnd_mod_write(mod, DVC_VOL0R, vol[0]);
 	rsnd_mod_write(mod, DVC_VOL1R, vol[1]);
+}
+
+static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
+			       struct rsnd_dai *rdai)
+{
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
+	struct device *dev = rsnd_priv_to_dev(priv);
+
+	dev_dbg(dev, "%s (Gen2) is probed\n", rsnd_mod_name(mod));
+
+	return 0;
 }
 
 static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
@@ -208,7 +222,8 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_dvc_ops = {
-	.name		= "dvc (gen2)",
+	.name		= DVC_NAME,
+	.probe		= rsnd_dvc_probe_gen2,
 	.init		= rsnd_dvc_init,
 	.quit		= rsnd_dvc_quit,
 	.start		= rsnd_dvc_start,
@@ -255,7 +270,8 @@ int rsnd_dvc_probe(struct platform_device *pdev,
 	priv->dvc	= dvc;
 
 	for_each_rsnd_dvc(dvc, priv, i) {
-		snprintf(name, RSND_DVC_NAME_SIZE, "dvc.%d", i);
+		snprintf(name, RSND_DVC_NAME_SIZE, "%s.%d",
+			 DVC_NAME, i);
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk))

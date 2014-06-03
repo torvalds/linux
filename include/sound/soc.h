@@ -452,11 +452,22 @@ int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
+int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+			    struct snd_soc_jack *jack,
+			    int count, struct snd_soc_jack_gpio *gpios);
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
 #else
 static inline int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 					 struct snd_soc_jack_gpio *gpios)
+{
+	return 0;
+}
+
+static inline int snd_soc_jack_add_gpiods(struct device *gpiod_dev,
+					  struct snd_soc_jack *jack,
+					  int count,
+					  struct snd_soc_jack_gpio *gpios)
 {
 	return 0;
 }
@@ -587,8 +598,12 @@ struct snd_soc_jack_zone {
 /**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
- * @gpio:         gpio number
- * @name:         gpio name
+ * @gpio:         legacy gpio number
+ * @idx:          gpio descriptor index within the function of the GPIO
+ *                consumer device
+ * @gpiod_dev     GPIO consumer device
+ * @name:         gpio name. Also as connection ID for the GPIO consumer
+ *                device function name lookup
  * @report:       value to report when jack detected
  * @invert:       report presence in low state
  * @debouce_time: debouce time in ms
@@ -599,6 +614,8 @@ struct snd_soc_jack_zone {
  */
 struct snd_soc_jack_gpio {
 	unsigned int gpio;
+	unsigned int idx;
+	struct device *gpiod_dev;
 	const char *name;
 	int report;
 	int invert;
@@ -607,6 +624,7 @@ struct snd_soc_jack_gpio {
 
 	struct snd_soc_jack *jack;
 	struct delayed_work work;
+	struct gpio_desc *desc;
 
 	void *data;
 	int (*jack_status_check)(void *data);
@@ -1144,6 +1162,33 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 	struct snd_soc_component *component)
 {
 	return container_of(component, struct snd_soc_platform, component);
+}
+
+/**
+ * snd_soc_dapm_to_codec() - Casts a DAPM context to the CODEC it is embedded in
+ * @dapm: The DAPM context to cast to the CODEC
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a CODEC (e.g. in a CODEC driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_codec, dapm);
+}
+
+/**
+ * snd_soc_dapm_to_platform() - Casts a DAPM context to the platform it is
+ *  embedded in
+ * @dapm: The DAPM context to cast to the platform.
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a platform (e.g. in a platform driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_platform, dapm);
 }
 
 /* codec IO */

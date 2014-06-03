@@ -334,6 +334,14 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+static int rx51_card_remove(struct snd_soc_pcm_runtime *rtd)
+{
+	snd_soc_jack_free_gpios(&rx51_av_jack, ARRAY_SIZE(rx51_av_jack_gpios),
+				rx51_av_jack_gpios);
+
+	return 0;
+}
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link rx51_dai[] = {
 	{
@@ -368,6 +376,7 @@ static struct snd_soc_codec_conf rx51_codec_conf[] = {
 static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
 	.owner = THIS_MODULE,
+	.remove = rx51_card_remove,
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
 	.aux_dev = rx51_aux_dev,
@@ -499,14 +508,6 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rx51_soc_remove(struct platform_device *pdev)
-{
-	snd_soc_jack_free_gpios(&rx51_av_jack, ARRAY_SIZE(rx51_av_jack_gpios),
-				rx51_av_jack_gpios);
-
-	return 0;
-}
-
 #if defined(CONFIG_OF)
 static const struct of_device_id rx51_audio_of_match[] = {
 	{ .compatible = "nokia,n900-audio", },
@@ -522,7 +523,6 @@ static struct platform_driver rx51_soc_driver = {
 		.of_match_table = of_match_ptr(rx51_audio_of_match),
 	},
 	.probe = rx51_soc_probe,
-	.remove = rx51_soc_remove,
 };
 
 module_platform_driver(rx51_soc_driver);

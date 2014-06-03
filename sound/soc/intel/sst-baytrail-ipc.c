@@ -22,7 +22,6 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
@@ -892,7 +891,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	/* start the IPC message thread */
 	init_kthread_worker(&byt->kworker);
 	byt->tx_thread = kthread_run(kthread_worker_fn,
-				     &byt->kworker,
+				     &byt->kworker, "%s",
 				     dev_name(byt->dev));
 	if (IS_ERR(byt->tx_thread)) {
 		err = PTR_ERR(byt->tx_thread);
@@ -907,7 +906,7 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	byt->dsp = sst_dsp_new(dev, &byt_dev, pdata);
 	if (byt->dsp == NULL) {
 		err = -ENODEV;
-		goto err_free_msg;
+		goto dsp_err;
 	}
 
 	/* keep the DSP in reset state for base FW loading */
@@ -940,6 +939,8 @@ boot_err:
 	sst_fw_free(byt_sst_fw);
 fw_err:
 	sst_dsp_free(byt->dsp);
+dsp_err:
+	kthread_stop(byt->tx_thread);
 err_free_msg:
 	kfree(byt->msg);
 
@@ -954,6 +955,7 @@ void sst_byt_dsp_free(struct device *dev, struct sst_pdata *pdata)
 	sst_dsp_reset(byt->dsp);
 	sst_fw_free_all(byt->dsp);
 	sst_dsp_free(byt->dsp);
+	kthread_stop(byt->tx_thread);
 	kfree(byt->msg);
 }
 EXPORT_SYMBOL_GPL(sst_byt_dsp_free);
