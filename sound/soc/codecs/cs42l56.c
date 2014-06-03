@@ -763,14 +763,14 @@ static int cs42l56_set_sysclk(struct snd_soc_dai *codec_dai,
 	case CS42L56_MCLK_11P2896MHZ:
 	case CS42L56_MCLK_12MHZ:
 	case CS42L56_MCLK_12P288MHZ:
-		cs42l56->mclk_div2 = 1;
+		cs42l56->mclk_div2 = CS42L56_MCLK_DIV2;
 		cs42l56->mclk_prediv = 0;
 		break;
 	case CS42L56_MCLK_22P5792MHZ:
 	case CS42L56_MCLK_24MHZ:
 	case CS42L56_MCLK_24P576MHZ:
-		cs42l56->mclk_div2 = 1;
-		cs42l56->mclk_prediv = 1;
+		cs42l56->mclk_div2 = CS42L56_MCLK_DIV2;
+		cs42l56->mclk_prediv = CS42L56_MCLK_PREDIV;
 		break;
 	default:
 		return -EINVAL;
@@ -844,57 +844,49 @@ static int cs42l56_digital_mute(struct snd_soc_dai *dai, int mute)
 		/* Hit the DSP Mixer first */
 		snd_soc_update_bits(codec, CS42L56_DSP_MUTE_CTL,
 				    CS42L56_ADCAMIX_MUTE_MASK |
-				CS42L56_ADCBMIX_MUTE_MASK |
-				CS42L56_PCMAMIX_MUTE_MASK |
-				CS42L56_PCMBMIX_MUTE_MASK |
-				CS42L56_MSTB_MUTE_MASK |
-				CS42L56_MSTA_MUTE_MASK,
-				CS42L56_MUTE);
+				    CS42L56_ADCBMIX_MUTE_MASK |
+				    CS42L56_PCMAMIX_MUTE_MASK |
+				    CS42L56_PCMBMIX_MUTE_MASK |
+				    CS42L56_MSTB_MUTE_MASK |
+				    CS42L56_MSTA_MUTE_MASK,
+				    CS42L56_MUTE_ALL);
 		/* Mute ADC's */
 		snd_soc_update_bits(codec, CS42L56_MISC_ADC_CTL,
-				CS42L56_ADCA_MUTE_MASK |
-				CS42L56_ADCB_MUTE_MASK,
-				CS42L56_MUTE);
+				    CS42L56_ADCA_MUTE_MASK |
+				    CS42L56_ADCB_MUTE_MASK,
+				    CS42L56_MUTE_ALL);
 		/* HP And LO */
 		snd_soc_update_bits(codec, CS42L56_HPA_VOLUME,
-				CS42L56_HP_MUTE_MASK,
-				CS42L56_MUTE);
+				    CS42L56_HP_MUTE_MASK, CS42L56_MUTE_ALL);
 		snd_soc_update_bits(codec, CS42L56_HPB_VOLUME,
-				CS42L56_HP_MUTE_MASK,
-				CS42L56_MUTE);
+				    CS42L56_HP_MUTE_MASK, CS42L56_MUTE_ALL);
 		snd_soc_update_bits(codec, CS42L56_LOA_VOLUME,
-				CS42L56_LO_MUTE_MASK,
-				CS42L56_MUTE);
+				    CS42L56_LO_MUTE_MASK, CS42L56_MUTE_ALL);
 		snd_soc_update_bits(codec, CS42L56_LOB_VOLUME,
-				CS42L56_LO_MUTE_MASK,
-				CS42L56_MUTE);
-
-
+				    CS42L56_LO_MUTE_MASK, CS42L56_MUTE_ALL);
 	} else {
 		snd_soc_update_bits(codec, CS42L56_DSP_MUTE_CTL,
 				    CS42L56_ADCAMIX_MUTE_MASK |
-				CS42L56_ADCBMIX_MUTE_MASK |
-				CS42L56_PCMAMIX_MUTE_MASK |
-				CS42L56_PCMBMIX_MUTE_MASK |
-				CS42L56_MSTB_MUTE_MASK |
-				CS42L56_MSTA_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_ADCBMIX_MUTE_MASK |
+				    CS42L56_PCMAMIX_MUTE_MASK |
+				    CS42L56_PCMBMIX_MUTE_MASK |
+				    CS42L56_MSTB_MUTE_MASK |
+				    CS42L56_MSTA_MUTE_MASK,
+				    CS42L56_UNMUTE);
+
 		snd_soc_update_bits(codec, CS42L56_MISC_ADC_CTL,
-				CS42L56_ADCA_MUTE_MASK |
-				CS42L56_ADCB_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_ADCA_MUTE_MASK |
+				    CS42L56_ADCB_MUTE_MASK,
+				    CS42L56_UNMUTE);
+
 		snd_soc_update_bits(codec, CS42L56_HPA_VOLUME,
-				CS42L56_HP_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_HP_MUTE_MASK, CS42L56_UNMUTE);
 		snd_soc_update_bits(codec, CS42L56_HPB_VOLUME,
-				CS42L56_HP_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_HP_MUTE_MASK, CS42L56_UNMUTE);
 		snd_soc_update_bits(codec, CS42L56_LOA_VOLUME,
-				CS42L56_LO_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_LO_MUTE_MASK, CS42L56_UNMUTE);
 		snd_soc_update_bits(codec, CS42L56_LOB_VOLUME,
-				CS42L56_LO_MUTE_MASK,
-				CS42L56_UNMUTE);
+				    CS42L56_LO_MUTE_MASK, CS42L56_UNMUTE);
 	}
 	return 0;
 }
