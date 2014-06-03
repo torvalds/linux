@@ -2147,6 +2147,10 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	total_bytes = btrfs_super_num_devices(root->fs_info->super_copy);
 	btrfs_set_super_num_devices(root->fs_info->super_copy,
 				    total_bytes + 1);
+
+	/* add sysfs device entry */
+	btrfs_kobj_add_device(root->fs_info, device);
+
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	if (seeding_dev) {
@@ -2209,6 +2213,7 @@ error_trans:
 	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 	rcu_string_free(device->name);
+	btrfs_kobj_rm_device(root->fs_info, device);
 	kfree(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
