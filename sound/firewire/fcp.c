@@ -218,8 +218,6 @@ struct fcp_transaction {
  *
  * @command and @response can point to the same buffer.
  *
- * Asynchronous operation (INTERIM, NOTIFY) is not supported at the moment.
- *
  * Returns the actual size of the response frame, or a negative error code.
  */
 int fcp_avc_transaction(struct fw_unit *unit,
