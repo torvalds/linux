@@ -2559,9 +2559,10 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	}
 
 	/*
-	 * There is nothing to wait for if no buffers have already been queued.
+	 * There is nothing to wait for if no buffer has been queued and the
+	 * queue isn't streaming.
 	 */
-	if (list_empty(&q->queued_list))
+	if (list_empty(&q->queued_list) && !vb2_is_streaming(q))
 		return res | POLLERR;
 
 	if (list_empty(&q->done_list))
