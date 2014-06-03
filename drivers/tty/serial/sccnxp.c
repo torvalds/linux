@@ -474,9 +474,7 @@ static void sccnxp_timer(unsigned long data)
 	sccnxp_handle_events(s);
 	spin_unlock_irqrestore(&s->lock, flags);
 
-	if (!timer_pending(&s->timer))
-		mod_timer(&s->timer, jiffies +
-			  usecs_to_jiffies(s->pdata.poll_time_us));
+	mod_timer(&s->timer, jiffies + usecs_to_jiffies(s->pdata.poll_time_us));
 }
 
 static irqreturn_t sccnxp_ist(int irq, void *dev_id)
@@ -674,6 +672,8 @@ static void sccnxp_set_termios(struct uart_port *port,
 	port->ignore_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
 		port->ignore_status_mask |= SR_BRK;
+	if (termios->c_iflag & IGNPAR)
+		port->ignore_status_mask |= SR_PE;
 	if (!(termios->c_cflag & CREAD))
 		port->ignore_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
 
