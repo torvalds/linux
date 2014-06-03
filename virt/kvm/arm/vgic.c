@@ -1667,7 +1667,7 @@ static int vgic_ioaddr_assign(struct kvm *kvm, phys_addr_t *ioaddr,
 /**
  * kvm_vgic_addr - set or get vgic VM base addresses
  * @kvm:   pointer to the vm struct
- * @type:  the VGIC addr type, one of KVM_VGIC_V2_ADDR_TYPE_XXX
+ * @type:  the VGIC addr type, one of KVM_VGIC_V[23]_ADDR_TYPE_XXX
  * @addr:  pointer to address value
  * @write: if true set the address in the VM address space, if false read the
  *          address
@@ -1681,29 +1681,49 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 {
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
+	int type_needed;
+	phys_addr_t *addr_ptr, block_size;
 
 	mutex_lock(&kvm->lock);
 	switch (type) {
 	case KVM_VGIC_V2_ADDR_TYPE_DIST:
-		if (write) {
-			r = vgic_ioaddr_assign(kvm, &vgic->vgic_dist_base,
-					       *addr, KVM_VGIC_V2_DIST_SIZE);
-		} else {
-			*addr = vgic->vgic_dist_base;
-		}
+		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
+		addr_ptr = &vgic->vgic_dist_base;
+		block_size = KVM_VGIC_V2_DIST_SIZE;
 		break;
 	case KVM_VGIC_V2_ADDR_TYPE_CPU:
-		if (write) {
-			r = vgic_ioaddr_assign(kvm, &vgic->vgic_cpu_base,
-					       *addr, KVM_VGIC_V2_CPU_SIZE);
-		} else {
-			*addr = vgic->vgic_cpu_base;
-		}
+		type_needed = KVM_DEV_TYPE_ARM_VGIC_V2;
+		addr_ptr = &vgic->vgic_cpu_base;
+		block_size = KVM_VGIC_V2_CPU_SIZE;
 		break;
+#ifdef CONFIG_ARM_GIC_V3
+	case KVM_VGIC_V3_ADDR_TYPE_DIST:
+		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
+		addr_ptr = &vgic->vgic_dist_base;
+		block_size = KVM_VGIC_V3_DIST_SIZE;
+		break;
+	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
+		type_needed = KVM_DEV_TYPE_ARM_VGIC_V3;
+		addr_ptr = &vgic->vgic_redist_base;
+		block_size = KVM_VGIC_V3_REDIST_SIZE;
+		break;
+#endif
 	default:
 		r = -ENODEV;
+		goto out;
 	}
 
+	if (vgic->vgic_model != type_needed) {
+		r = -ENODEV;
+		goto out;
+	}
+
+	if (write)
+		r = vgic_ioaddr_assign(kvm, addr_ptr, *addr, block_size);
+	else
+		*addr = *addr_ptr;
+
+out:
 	mutex_unlock(&kvm->lock);
 	return r;
 }
