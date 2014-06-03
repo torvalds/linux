@@ -28,6 +28,7 @@ obj-$(CONFIG_USB_IMX21_HCD)	+= host/
 obj-$(CONFIG_USB_FSL_MPH_DR_OF)	+= host/
 obj-$(CONFIG_USB_FUSBH200_HCD)	+= host/
 obj-$(CONFIG_USB_FOTG210_HCD)	+= host/
+obj-$(CONFIG_USB_MAX3421_HCD)	+= host/
 
 obj-$(CONFIG_USB_C67X00_HCD)	+= c67x00/
 
@@ -58,4 +59,4 @@ obj-$(CONFIG_USB_CHIPIDEA)	+= chipidea/
 obj-$(CONFIG_USB_RENESAS_USBHS)	+= renesas_usbhs/
 obj-$(CONFIG_USB_GADGET)	+= gadget/
 
-obj-$(CONFIG_USB_COMMON)	+= usb-common.o
+obj-$(CONFIG_USB_COMMON)	+= common/

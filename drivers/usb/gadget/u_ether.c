@@ -818,7 +818,7 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 
 	return dev;
 }
-EXPORT_SYMBOL(gether_setup_name);
+EXPORT_SYMBOL_GPL(gether_setup_name);
 
 struct net_device *gether_setup_name_default(const char *netname)
 {
@@ -855,7 +855,7 @@ struct net_device *gether_setup_name_default(const char *netname)
 
 	return net;
 }
-EXPORT_SYMBOL(gether_setup_name_default);
+EXPORT_SYMBOL_GPL(gether_setup_name_default);
 
 int gether_register_netdev(struct net_device *net)
 {
@@ -893,7 +893,7 @@ int gether_register_netdev(struct net_device *net)
 
 	return status;
 }
-EXPORT_SYMBOL(gether_register_netdev);
+EXPORT_SYMBOL_GPL(gether_register_netdev);
 
 void gether_set_gadget(struct net_device *net, struct usb_gadget *g)
 {
@@ -903,7 +903,7 @@ void gether_set_gadget(struct net_device *net, struct usb_gadget *g)
 	dev->gadget = g;
 	SET_NETDEV_DEV(net, &g->dev);
 }
-EXPORT_SYMBOL(gether_set_gadget);
+EXPORT_SYMBOL_GPL(gether_set_gadget);
 
 int gether_set_dev_addr(struct net_device *net, const char *dev_addr)
 {
@@ -916,7 +916,7 @@ int gether_set_dev_addr(struct net_device *net, const char *dev_addr)
 	memcpy(dev->dev_mac, new_addr, ETH_ALEN);
 	return 0;
 }
-EXPORT_SYMBOL(gether_set_dev_addr);
+EXPORT_SYMBOL_GPL(gether_set_dev_addr);
 
 int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len)
 {
@@ -925,7 +925,7 @@ int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len)
 	dev = netdev_priv(net);
 	return get_ether_addr_str(dev->dev_mac, dev_addr, len);
 }
-EXPORT_SYMBOL(gether_get_dev_addr);
+EXPORT_SYMBOL_GPL(gether_get_dev_addr);
 
 int gether_set_host_addr(struct net_device *net, const char *host_addr)
 {
@@ -938,7 +938,7 @@ int gether_set_host_addr(struct net_device *net, const char *host_addr)
 	memcpy(dev->host_mac, new_addr, ETH_ALEN);
 	return 0;
 }
-EXPORT_SYMBOL(gether_set_host_addr);
+EXPORT_SYMBOL_GPL(gether_set_host_addr);
 
 int gether_get_host_addr(struct net_device *net, char *host_addr, int len)
 {
@@ -947,7 +947,7 @@ int gether_get_host_addr(struct net_device *net, char *host_addr, int len)
 	dev = netdev_priv(net);
 	return get_ether_addr_str(dev->host_mac, host_addr, len);
 }
-EXPORT_SYMBOL(gether_get_host_addr);
+EXPORT_SYMBOL_GPL(gether_get_host_addr);
 
 int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len)
 {
@@ -961,7 +961,7 @@ int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len)
 
 	return strlen(host_addr);
 }
-EXPORT_SYMBOL(gether_get_host_addr_cdc);
+EXPORT_SYMBOL_GPL(gether_get_host_addr_cdc);
 
 void gether_get_host_addr_u8(struct net_device *net, u8 host_mac[ETH_ALEN])
 {
@@ -970,7 +970,7 @@ void gether_get_host_addr_u8(struct net_device *net, u8 host_mac[ETH_ALEN])
 	dev = netdev_priv(net);
 	memcpy(host_mac, dev->host_mac, ETH_ALEN);
 }
-EXPORT_SYMBOL(gether_get_host_addr_u8);
+EXPORT_SYMBOL_GPL(gether_get_host_addr_u8);
 
 void gether_set_qmult(struct net_device *net, unsigned qmult)
 {
@@ -979,7 +979,7 @@ void gether_set_qmult(struct net_device *net, unsigned qmult)
 	dev = netdev_priv(net);
 	dev->qmult = qmult;
 }
-EXPORT_SYMBOL(gether_set_qmult);
+EXPORT_SYMBOL_GPL(gether_set_qmult);
 
 unsigned gether_get_qmult(struct net_device *net)
 {
@@ -988,7 +988,7 @@ unsigned gether_get_qmult(struct net_device *net)
 	dev = netdev_priv(net);
 	return dev->qmult;
 }
-EXPORT_SYMBOL(gether_get_qmult);
+EXPORT_SYMBOL_GPL(gether_get_qmult);
 
 int gether_get_ifname(struct net_device *net, char *name, int len)
 {
@@ -997,7 +997,7 @@ int gether_get_ifname(struct net_device *net, char *name, int len)
 	rtnl_unlock();
 	return strlen(name);
 }
-EXPORT_SYMBOL(gether_get_ifname);
+EXPORT_SYMBOL_GPL(gether_get_ifname);
 
 /**
  * gether_cleanup - remove Ethernet-over-USB device
@@ -1014,7 +1014,7 @@ void gether_cleanup(struct eth_dev *dev)
 	flush_work(&dev->work);
 	free_netdev(dev->net);
 }
-EXPORT_SYMBOL(gether_cleanup);
+EXPORT_SYMBOL_GPL(gether_cleanup);
 
 /**
  * gether_connect - notify network layer that USB link is active
@@ -1095,7 +1095,7 @@ fail0:
 		return ERR_PTR(result);
 	return dev->net;
 }
-EXPORT_SYMBOL(gether_connect);
+EXPORT_SYMBOL_GPL(gether_connect);
 
 /**
  * gether_disconnect - notify network layer that USB link is inactive
@@ -1166,7 +1166,7 @@ void gether_disconnect(struct gether *link)
 	dev->port_usb = NULL;
 	spin_unlock(&dev->lock);
 }
-EXPORT_SYMBOL(gether_disconnect);
+EXPORT_SYMBOL_GPL(gether_disconnect);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

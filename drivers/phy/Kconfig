@@ -89,8 +89,8 @@ config PHY_EXYNOS_DP_VIDEO
 
 config BCM_KONA_USB2_PHY
 	tristate "Broadcom Kona USB2 PHY Driver"
-	depends on GENERIC_PHY
 	depends on HAS_IOMEM
+	select GENERIC_PHY
 	help
 	  Enable this to support the Broadcom Kona USB 2.0 PHY.
 
@@ -159,6 +159,17 @@ config PHY_EXYNOS5250_USB2
 	  Samsung USB 2.0 PHY driver is enabled and means that support for this
 	  particular SoC is compiled in the driver. In case of Exynos 5250 four
 	  phys are available - device, host, HSIC0 and HSIC.
+
+config PHY_EXYNOS5_USBDRD
+	tristate "Exynos5 SoC series USB DRD PHY driver"
+	depends on ARCH_EXYNOS5 && OF
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable USB DRD PHY support for Exynos 5 SoC series.
+	  This driver provides PHY interface for USB 3.0 DRD controller
+	  present on Exynos5 SoC series.
 
 config PHY_XGENE
 	tristate "APM X-Gene 15Gbps PHY support"

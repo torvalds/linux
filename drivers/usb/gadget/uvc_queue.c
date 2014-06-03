@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 
+#include <media/v4l2-common.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "uvc.h"
@@ -136,6 +137,8 @@ static int uvc_queue_init(struct uvc_video_queue *queue,
 	queue->queue.buf_struct_size = sizeof(struct uvc_buffer);
 	queue->queue.ops = &uvc_queue_qops;
 	queue->queue.mem_ops = &vb2_vmalloc_memops;
+	queue->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC
+				     | V4L2_BUF_FLAG_TSTAMP_SRC_EOF;
 	ret = vb2_queue_init(&queue->queue);
 	if (ret)
 		return ret;
@@ -379,14 +382,9 @@ static struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	else
 		nextbuf = NULL;
 
-	/*
-	 * FIXME: with videobuf2, the sequence number or timestamp fields
-	 * are valid only for video capture devices and the UVC gadget usually
-	 * is a video output device. Keeping these until the specs are clear on
-	 * this aspect.
-	 */
+	buf->buf.v4l2_buf.field = V4L2_FIELD_NONE;
 	buf->buf.v4l2_buf.sequence = queue->sequence++;
-	do_gettimeofday(&buf->buf.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&buf->buf.v4l2_buf.timestamp);
 
 	vb2_set_plane_payload(&buf->buf, 0, buf->bytesused);
 	vb2_buffer_done(&buf->buf, VB2_BUF_STATE_DONE);

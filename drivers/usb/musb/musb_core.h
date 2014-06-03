@@ -192,6 +192,7 @@ struct musb_platform_ops {
 
 	int	(*set_mode)(struct musb *musb, u8 mode);
 	void	(*try_idle)(struct musb *musb, unsigned long timeout);
+	void	(*reset)(struct musb *musb);
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
@@ -296,6 +297,7 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct work_struct	recover_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
 	u16			hwvers;
@@ -337,6 +339,7 @@ struct musb {
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;
+	u8			tusb_revision;
 #endif
 
 	/* passed down from chip/board specific irq handlers */
@@ -550,6 +553,12 @@ static inline void musb_platform_try_idle(struct musb *musb,
 {
 	if (musb->ops->try_idle)
 		musb->ops->try_idle(musb, timeout);
+}
+
+static inline void musb_platform_reset(struct musb *musb)
+{
+	if (musb->ops->reset)
+		musb->ops->reset(musb);
 }
 
 static inline int musb_platform_get_vbus_status(struct musb *musb)

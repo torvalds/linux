@@ -61,7 +61,6 @@
 #define MAX_PHYS			3
 
 struct sun4i_usb_phy_data {
-	struct clk *clk;
 	void __iomem *base;
 	struct mutex mutex;
 	int num_phys;
@@ -71,6 +70,7 @@ struct sun4i_usb_phy_data {
 		void __iomem *pmu;
 		struct regulator *vbus;
 		struct reset_control *reset;
+		struct clk *clk;
 		int index;
 	} phys[MAX_PHYS];
 };
@@ -146,13 +146,13 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
 	int ret;
 
-	ret = clk_prepare_enable(data->clk);
+	ret = clk_prepare_enable(phy->clk);
 	if (ret)
 		return ret;
 
 	ret = reset_control_deassert(phy->reset);
 	if (ret) {
-		clk_disable_unprepare(data->clk);
+		clk_disable_unprepare(phy->clk);
 		return ret;
 	}
 
@@ -170,11 +170,10 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 static int sun4i_usb_phy_exit(struct phy *_phy)
 {
 	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
-	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
 
 	sun4i_usb_phy_passby(phy, 0);
 	reset_control_assert(phy->reset);
-	clk_disable_unprepare(data->clk);
+	clk_disable_unprepare(phy->clk);
 
 	return 0;
 }
@@ -224,13 +223,9 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	struct sun4i_usb_phy_data *data;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	void __iomem *pmu = NULL;
 	struct phy_provider *phy_provider;
-	struct reset_control *reset;
-	struct regulator *vbus;
+	bool dedicated_clocks;
 	struct resource *res;
-	struct phy *phy;
-	char name[16];
 	int i;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -249,55 +244,64 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 	else
 		data->disc_thresh = 2;
 
+	if (of_device_is_compatible(np, "allwinner,sun6i-a31-usb-phy"))
+		dedicated_clocks = true;
+	else
+		dedicated_clocks = false;
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy_ctrl");
 	data->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
-	data->clk = devm_clk_get(dev, "usb_phy");
-	if (IS_ERR(data->clk)) {
-		dev_err(dev, "could not get usb_phy clock\n");
-		return PTR_ERR(data->clk);
-	}
-
 	/* Skip 0, 0 is the phy for otg which is not yet supported. */
 	for (i = 1; i < data->num_phys; i++) {
+		struct sun4i_usb_phy *phy = data->phys + i;
+		char name[16];
+
 		snprintf(name, sizeof(name), "usb%d_vbus", i);
-		vbus = devm_regulator_get_optional(dev, name);
-		if (IS_ERR(vbus)) {
-			if (PTR_ERR(vbus) == -EPROBE_DEFER)
+		phy->vbus = devm_regulator_get_optional(dev, name);
+		if (IS_ERR(phy->vbus)) {
+			if (PTR_ERR(phy->vbus) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
-			vbus = NULL;
+			phy->vbus = NULL;
+		}
+
+		if (dedicated_clocks)
+			snprintf(name, sizeof(name), "usb%d_phy", i);
+		else
+			strlcpy(name, "usb_phy", sizeof(name));
+
+		phy->clk = devm_clk_get(dev, name);
+		if (IS_ERR(phy->clk)) {
+			dev_err(dev, "failed to get clock %s\n", name);
+			return PTR_ERR(phy->clk);
 		}
 
 		snprintf(name, sizeof(name), "usb%d_reset", i);
-		reset = devm_reset_control_get(dev, name);
-		if (IS_ERR(reset)) {
+		phy->reset = devm_reset_control_get(dev, name);
+		if (IS_ERR(phy->reset)) {
 			dev_err(dev, "failed to get reset %s\n", name);
-			return PTR_ERR(reset);
+			return PTR_ERR(phy->reset);
 		}
 
 		if (i) { /* No pmu for usbc0 */
 			snprintf(name, sizeof(name), "pmu%d", i);
 			res = platform_get_resource_byname(pdev,
 							IORESOURCE_MEM, name);
-			pmu = devm_ioremap_resource(dev, res);
-			if (IS_ERR(pmu))
-				return PTR_ERR(pmu);
+			phy->pmu = devm_ioremap_resource(dev, res);
+			if (IS_ERR(phy->pmu))
+				return PTR_ERR(phy->pmu);
 		}
 
-		phy = devm_phy_create(dev, &sun4i_usb_phy_ops, NULL);
-		if (IS_ERR(phy)) {
+		phy->phy = devm_phy_create(dev, &sun4i_usb_phy_ops, NULL);
+		if (IS_ERR(phy->phy)) {
 			dev_err(dev, "failed to create PHY %d\n", i);
-			return PTR_ERR(phy);
+			return PTR_ERR(phy->phy);
 		}
 
-		data->phys[i].phy = phy;
-		data->phys[i].pmu = pmu;
-		data->phys[i].vbus = vbus;
-		data->phys[i].reset = reset;
-		data->phys[i].index = i;
-		phy_set_drvdata(phy, &data->phys[i]);
+		phy->index = i;
+		phy_set_drvdata(phy->phy, &data->phys[i]);
 	}
 
 	dev_set_drvdata(dev, data);
@@ -311,6 +315,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 static const struct of_device_id sun4i_usb_phy_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-usb-phy" },
 	{ .compatible = "allwinner,sun5i-a13-usb-phy" },
+	{ .compatible = "allwinner,sun6i-a31-usb-phy" },
 	{ .compatible = "allwinner,sun7i-a20-usb-phy" },
 	{ },
 };

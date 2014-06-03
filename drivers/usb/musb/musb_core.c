@@ -848,6 +848,10 @@ b_host:
 		}
 	}
 
+	/* handle babble condition */
+	if (int_usb & MUSB_INTR_BABBLE)
+		schedule_work(&musb->recover_work);
+
 #if 0
 /* REVISIT ... this would be for multiplexing periodic endpoints, or
  * supporting transfer phasing to prevent exceeding ISO bandwidth
@@ -1746,6 +1750,34 @@ static void musb_irq_work(struct work_struct *data)
 	}
 }
 
+/* Recover from babble interrupt conditions */
+static void musb_recover_work(struct work_struct *data)
+{
+	struct musb *musb = container_of(data, struct musb, recover_work);
+	int status;
+
+	musb_platform_reset(musb);
+
+	usb_phy_vbus_off(musb->xceiv);
+	udelay(100);
+
+	usb_phy_vbus_on(musb->xceiv);
+	udelay(100);
+
+	/*
+	 * When a babble condition occurs, the musb controller removes the
+	 * session bit and the endpoint config is lost.
+	 */
+	if (musb->dyn_fifo)
+		status = ep_config_from_table(musb);
+	else
+		status = ep_config_from_hw(musb);
+
+	/* start the session again */
+	if (status == 0)
+		musb_start(musb);
+}
+
 /* --------------------------------------------------------------------------
  * Init support
  */
@@ -1913,6 +1945,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
+	INIT_WORK(&musb->recover_work, musb_recover_work);
 	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
 	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
@@ -2008,6 +2041,7 @@ fail4:
 
 fail3:
 	cancel_work_sync(&musb->irq_work);
+	cancel_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
@@ -2073,6 +2107,7 @@ static int musb_remove(struct platform_device *pdev)
 		dma_controller_destroy(musb->dma_controller);
 
 	cancel_work_sync(&musb->irq_work);
+	cancel_work_sync(&musb->recover_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	musb_free(musb);

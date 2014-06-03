@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb/phy.h>
 #include <linux/usb/samsung_usb_phy.h>
@@ -42,17 +43,106 @@
 static const char hcd_name[] = "ehci-exynos";
 static struct hc_driver __read_mostly exynos_ehci_hc_driver;
 
+#define PHY_NUMBER 3
+
 struct exynos_ehci_hcd {
 	struct clk *clk;
 	struct usb_phy *phy;
 	struct usb_otg *otg;
+	struct phy *phy_g[PHY_NUMBER];
 };
 
 #define to_exynos_ehci(hcd) (struct exynos_ehci_hcd *)(hcd_to_ehci(hcd)->priv)
 
-static void exynos_setup_vbus_gpio(struct platform_device *pdev)
+static int exynos_ehci_get_phy(struct device *dev,
+				struct exynos_ehci_hcd *exynos_ehci)
 {
-	struct device *dev = &pdev->dev;
+	struct device_node *child;
+	struct phy *phy;
+	int phy_number;
+	int ret = 0;
+
+	exynos_ehci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+	if (IS_ERR(exynos_ehci->phy)) {
+		ret = PTR_ERR(exynos_ehci->phy);
+		if (ret != -ENXIO && ret != -ENODEV) {
+			dev_err(dev, "no usb2 phy configured\n");
+			return ret;
+		}
+		dev_dbg(dev, "Failed to get usb2 phy\n");
+	} else {
+		exynos_ehci->otg = exynos_ehci->phy->otg;
+	}
+
+	for_each_available_child_of_node(dev->of_node, child) {
+		ret = of_property_read_u32(child, "reg", &phy_number);
+		if (ret) {
+			dev_err(dev, "Failed to parse device tree\n");
+			of_node_put(child);
+			return ret;
+		}
+
+		if (phy_number >= PHY_NUMBER) {
+			dev_err(dev, "Invalid number of PHYs\n");
+			of_node_put(child);
+			return -EINVAL;
+		}
+
+		phy = devm_of_phy_get(dev, child, 0);
+		of_node_put(child);
+		if (IS_ERR(phy)) {
+			ret = PTR_ERR(phy);
+			if (ret != -ENOSYS && ret != -ENODEV) {
+				dev_err(dev, "no usb2 phy configured\n");
+				return ret;
+			}
+			dev_dbg(dev, "Failed to get usb2 phy\n");
+		}
+		exynos_ehci->phy_g[phy_number] = phy;
+	}
+
+	return ret;
+}
+
+static int exynos_ehci_phy_enable(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
+	int i;
+	int ret = 0;
+
+	if (!IS_ERR(exynos_ehci->phy))
+		return usb_phy_init(exynos_ehci->phy);
+
+	for (i = 0; ret == 0 && i < PHY_NUMBER; i++)
+		if (!IS_ERR(exynos_ehci->phy_g[i]))
+			ret = phy_power_on(exynos_ehci->phy_g[i]);
+	if (ret)
+		for (i--; i >= 0; i--)
+			if (!IS_ERR(exynos_ehci->phy_g[i]))
+				phy_power_off(exynos_ehci->phy_g[i]);
+
+	return ret;
+}
+
+static void exynos_ehci_phy_disable(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
+	int i;
+
+	if (!IS_ERR(exynos_ehci->phy)) {
+		usb_phy_shutdown(exynos_ehci->phy);
+		return;
+	}
+
+	for (i = 0; i < PHY_NUMBER; i++)
+		if (!IS_ERR(exynos_ehci->phy_g[i]))
+			phy_power_off(exynos_ehci->phy_g[i]);
+}
+
+static void exynos_setup_vbus_gpio(struct device *dev)
+{
 	int err;
 	int gpio;
 
@@ -75,7 +165,6 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
 	struct resource *res;
-	struct usb_phy *phy;
 	int irq;
 	int err;
 
@@ -88,7 +177,7 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	exynos_setup_vbus_gpio(pdev);
+	exynos_setup_vbus_gpio(&pdev->dev);
 
 	hcd = usb_create_hcd(&exynos_ehci_hc_driver,
 			     &pdev->dev, dev_name(&pdev->dev));
@@ -102,15 +191,9 @@ static int exynos_ehci_probe(struct platform_device *pdev)
 					"samsung,exynos5440-ehci"))
 		goto skip_phy;
 
-	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(phy)) {
-		usb_put_hcd(hcd);
-		dev_warn(&pdev->dev, "no platform data or transceiver defined\n");
-		return -EPROBE_DEFER;
-	} else {
-		exynos_ehci->phy = phy;
-		exynos_ehci->otg = phy->otg;
-	}
+	err = exynos_ehci_get_phy(&pdev->dev, exynos_ehci);
+	if (err)
+		goto fail_clk;
 
 skip_phy:
 
@@ -135,10 +218,9 @@ skip_phy:
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
-	hcd->regs = devm_ioremap(&pdev->dev, res->start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
-		err = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto fail_io;
 	}
 
@@ -152,8 +234,11 @@ skip_phy:
 	if (exynos_ehci->otg)
 		exynos_ehci->otg->set_host(exynos_ehci->otg, &hcd->self);
 
-	if (exynos_ehci->phy)
-		usb_phy_init(exynos_ehci->phy);
+	err = exynos_ehci_phy_enable(&pdev->dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to enable USB phy\n");
+		goto fail_io;
+	}
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
@@ -173,8 +258,7 @@ skip_phy:
 	return 0;
 
 fail_add_hcd:
-	if (exynos_ehci->phy)
-		usb_phy_shutdown(exynos_ehci->phy);
+	exynos_ehci_phy_disable(&pdev->dev);
 fail_io:
 	clk_disable_unprepare(exynos_ehci->clk);
 fail_clk:
@@ -192,8 +276,7 @@ static int exynos_ehci_remove(struct platform_device *pdev)
 	if (exynos_ehci->otg)
 		exynos_ehci->otg->set_host(exynos_ehci->otg, &hcd->self);
 
-	if (exynos_ehci->phy)
-		usb_phy_shutdown(exynos_ehci->phy);
+	exynos_ehci_phy_disable(&pdev->dev);
 
 	clk_disable_unprepare(exynos_ehci->clk);
 
@@ -218,8 +301,7 @@ static int exynos_ehci_suspend(struct device *dev)
 	if (exynos_ehci->otg)
 		exynos_ehci->otg->set_host(exynos_ehci->otg, &hcd->self);
 
-	if (exynos_ehci->phy)
-		usb_phy_shutdown(exynos_ehci->phy);
+	exynos_ehci_phy_disable(dev);
 
 	clk_disable_unprepare(exynos_ehci->clk);
 
@@ -230,14 +312,19 @@ static int exynos_ehci_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
+	int ret;
 
 	clk_prepare_enable(exynos_ehci->clk);
 
 	if (exynos_ehci->otg)
 		exynos_ehci->otg->set_host(exynos_ehci->otg, &hcd->self);
 
-	if (exynos_ehci->phy)
-		usb_phy_init(exynos_ehci->phy);
+	ret = exynos_ehci_phy_enable(dev);
+	if (ret) {
+		dev_err(dev, "Failed to enable USB phy\n");
+		clk_disable_unprepare(exynos_ehci->clk);
+		return ret;
+	}
 
 	/* DMA burst Enable */
 	writel(EHCI_INSNREG00_ENABLE_DMA_BURST, EHCI_INSNREG00(hcd->regs));

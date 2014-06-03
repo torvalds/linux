@@ -3,7 +3,7 @@
 
 #include <linux/usb/otg.h>
 
-struct usb_phy_gen_xceiv_platform_data {
+struct usb_phy_generic_platform_data {
 	enum usb_phy_type type;
 	unsigned long clk_rate;
 
@@ -13,16 +13,17 @@ struct usb_phy_gen_xceiv_platform_data {
 	int gpio_reset;
 };
 
-#if defined(CONFIG_NOP_USB_XCEIV) || (defined(CONFIG_NOP_USB_XCEIV_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_NOP_USB_XCEIV)
 /* sometimes transceivers are accessed only through e.g. ULPI */
-extern void usb_nop_xceiv_register(void);
-extern void usb_nop_xceiv_unregister(void);
+extern struct platform_device *usb_phy_generic_register(void);
+extern void usb_phy_generic_unregister(struct platform_device *);
 #else
-static inline void usb_nop_xceiv_register(void)
+static inline struct platform_device *usb_phy_generic_register(void)
 {
+	return NULL;
 }
 
-static inline void usb_nop_xceiv_unregister(void)
+static inline void usb_phy_generic_unregister(struct platform_device *pdev)
 {
 }
 #endif

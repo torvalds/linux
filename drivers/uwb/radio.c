@@ -115,7 +115,7 @@ int uwb_radio_start(struct uwb_pal *pal)
 EXPORT_SYMBOL_GPL(uwb_radio_start);
 
 /**
- * uwb_radio_stop - request tha the radio be stopped.
+ * uwb_radio_stop - request that the radio be stopped.
  * @pal: the PAL making the request.
  *
  * Stops the radio if no other PAL is making use of it.

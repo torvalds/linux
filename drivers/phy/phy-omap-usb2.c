@@ -275,18 +275,34 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
 
-	phy->wkupclk = devm_clk_get(phy->dev, "usb_phy_cm_clk32k");
+	phy->wkupclk = devm_clk_get(phy->dev, "wkupclk");
 	if (IS_ERR(phy->wkupclk)) {
-		dev_err(&pdev->dev, "unable to get usb_phy_cm_clk32k\n");
-		return PTR_ERR(phy->wkupclk);
+		dev_warn(&pdev->dev, "unable to get wkupclk, trying old name\n");
+		phy->wkupclk = devm_clk_get(phy->dev, "usb_phy_cm_clk32k");
+		if (IS_ERR(phy->wkupclk)) {
+			dev_err(&pdev->dev, "unable to get usb_phy_cm_clk32k\n");
+			return PTR_ERR(phy->wkupclk);
+		} else {
+			dev_warn(&pdev->dev,
+				 "found usb_phy_cm_clk32k, please fix DTS\n");
+		}
 	}
 	clk_prepare(phy->wkupclk);
 
-	phy->optclk = devm_clk_get(phy->dev, "usb_otg_ss_refclk960m");
-	if (IS_ERR(phy->optclk))
-		dev_vdbg(&pdev->dev, "unable to get refclk960m\n");
-	else
+	phy->optclk = devm_clk_get(phy->dev, "refclk");
+	if (IS_ERR(phy->optclk)) {
+		dev_dbg(&pdev->dev, "unable to get refclk, trying old name\n");
+		phy->optclk = devm_clk_get(phy->dev, "usb_otg_ss_refclk960m");
+		if (IS_ERR(phy->optclk)) {
+			dev_dbg(&pdev->dev,
+				"unable to get usb_otg_ss_refclk960m\n");
+		} else {
+			dev_warn(&pdev->dev,
+				 "found usb_otg_ss_refclk960m, please fix DTS\n");
+		}
+	} else {
 		clk_prepare(phy->optclk);
+	}
 
 	usb_add_phy_dev(&phy->phy);
 

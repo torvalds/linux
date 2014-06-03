@@ -1686,7 +1686,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		reset_all_endpoints(udc);
 
 		if (udc->gadget.speed != USB_SPEED_UNKNOWN
-				&& udc->driver->disconnect) {
+				&& udc->driver && udc->driver->disconnect) {
 			udc->gadget.speed = USB_SPEED_UNKNOWN;
 			spin_unlock(&udc->lock);
 			udc->driver->disconnect(&udc->gadget);

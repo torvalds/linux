@@ -1320,6 +1320,11 @@ static int unlink1(struct usbtest_dev *dev, int pipe, int size, int async)
 	urb->context = &completion;
 	urb->complete = unlink1_callback;
 
+	if (usb_pipeout(urb->pipe)) {
+		simple_fill_buf(urb);
+		urb->transfer_flags |= URB_ZERO_PACKET;
+	}
+
 	/* keep the endpoint busy.  there are lots of hc/hcd-internal
 	 * states, and testing should get to all of them over time.
 	 *
@@ -1339,6 +1344,9 @@ static int unlink1(struct usbtest_dev *dev, int pipe, int size, int async)
 	if (async) {
 		while (!completion_done(&completion)) {
 			retval = usb_unlink_urb(urb);
+
+			if (retval == 0 && usb_pipein(urb->pipe))
+				retval = simple_check_buf(dev, urb);
 
 			switch (retval) {
 			case -EBUSY:
@@ -1450,6 +1458,11 @@ static int unlink_queued(struct usbtest_dev *dev, int pipe, unsigned num,
 				unlink_queued_callback, &ctx);
 		ctx.urbs[i]->transfer_dma = buf_dma;
 		ctx.urbs[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+
+		if (usb_pipeout(ctx.urbs[i]->pipe)) {
+			simple_fill_buf(ctx.urbs[i]);
+			ctx.urbs[i]->transfer_flags |= URB_ZERO_PACKET;
+		}
 	}
 
 	/* Submit all the URBs and then unlink URBs num - 4 and num - 2. */

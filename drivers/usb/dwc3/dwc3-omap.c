@@ -393,7 +393,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	struct extcon_dev	*edev;
 	struct regulator	*vbus_reg = NULL;
 
-	int			ret = -ENOMEM;
+	int			ret;
 	int			irq;
 
 	int			utmi_mode = 0;
