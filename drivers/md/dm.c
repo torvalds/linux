@@ -1498,7 +1498,6 @@ static int dm_merge_bvec(struct request_queue *q,
 	 * just one page.
 	 */
 	else if (queue_max_hw_sectors(q) <= PAGE_SIZE >> 9)
-
 		max_size = 0;
 
 out:
