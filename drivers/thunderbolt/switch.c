@@ -195,6 +195,24 @@ static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 		sw->__unknown1, sw->__unknown4);
 }
 
+struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route)
+{
+	u8 next_port = route; /*
+			       * Routes use a stride of 8 bits,
+			       * eventhough a port index has 6 bits at most.
+			       * */
+	if (route == 0)
+		return sw;
+	if (next_port > sw->config.max_port_number)
+		return 0;
+	if (tb_is_upstream_port(&sw->ports[next_port]))
+		return 0;
+	if (!sw->ports[next_port].remote)
+		return 0;
+	return get_switch_at_route(sw->ports[next_port].remote->sw,
+				   route >> TB_ROUTE_SHIFT);
+}
+
 /**
  * tb_plug_events_active() - enable/disable plug events on a switch
  *
@@ -249,7 +267,8 @@ void tb_switch_free(struct tb_switch *sw)
 		sw->ports[i].remote = NULL;
 	}
 
-	tb_plug_events_active(sw, false);
+	if (!sw->is_unplugged)
+		tb_plug_events_active(sw, false);
 
 	kfree(sw->ports);
 	kfree(sw);
@@ -331,5 +350,26 @@ err:
 	kfree(sw->ports);
 	kfree(sw);
 	return NULL;
+}
+
+/**
+ * tb_sw_set_unpplugged() - set is_unplugged on switch and downstream switches
+ */
+void tb_sw_set_unpplugged(struct tb_switch *sw)
+{
+	int i;
+	if (sw == sw->tb->root_switch) {
+		tb_sw_WARN(sw, "cannot unplug root switch\n");
+		return;
+	}
+	if (sw->is_unplugged) {
+		tb_sw_WARN(sw, "is_unplugged already set\n");
+		return;
+	}
+	sw->is_unplugged = true;
+	for (i = 0; i <= sw->config.max_port_number; i++) {
+		if (!tb_is_upstream_port(&sw->ports[i]) && sw->ports[i].remote)
+			tb_sw_set_unpplugged(sw->ports[i].remote->sw);
+	}
 }
 

@@ -71,11 +71,55 @@ static void tb_handle_hotplug(struct work_struct *work)
 {
 	struct tb_hotplug_event *ev = container_of(work, typeof(*ev), work);
 	struct tb *tb = ev->tb;
+	struct tb_switch *sw;
+	struct tb_port *port;
 	mutex_lock(&tb->lock);
 	if (!tb->hotplug_active)
 		goto out; /* during init, suspend or shutdown */
 
-	/* do nothing for now */
+	sw = get_switch_at_route(tb->root_switch, ev->route);
+	if (!sw) {
+		tb_warn(tb,
+			"hotplug event from non existent switch %llx:%x (unplug: %d)\n",
+			ev->route, ev->port, ev->unplug);
+		goto out;
+	}
+	if (ev->port > sw->config.max_port_number) {
+		tb_warn(tb,
+			"hotplug event from non existent port %llx:%x (unplug: %d)\n",
+			ev->route, ev->port, ev->unplug);
+		goto out;
+	}
+	port = &sw->ports[ev->port];
+	if (tb_is_upstream_port(port)) {
+		tb_warn(tb,
+			"hotplug event for upstream port %llx:%x (unplug: %d)\n",
+			ev->route, ev->port, ev->unplug);
+		goto out;
+	}
+	if (ev->unplug) {
+		if (port->remote) {
+			tb_port_info(port, "unplugged\n");
+			tb_sw_set_unpplugged(port->remote->sw);
+			tb_switch_free(port->remote->sw);
+			port->remote = NULL;
+		} else {
+			tb_port_info(port,
+				     "got unplug event for disconnected port, ignoring\n");
+		}
+	} else if (port->remote) {
+		tb_port_info(port,
+			     "got plug event for connected port, ignoring\n");
+	} else {
+		tb_port_info(port, "hotplug: scanning\n");
+		tb_scan_port(port);
+		if (!port->remote) {
+			tb_port_info(port, "hotplug: no switch found\n");
+		} else if (port->remote->sw->config.depth > 1) {
+			tb_sw_warn(port->remote->sw,
+				   "hotplug: chaining not supported\n");
+		}
+	}
 out:
 	mutex_unlock(&tb->lock);
 	kfree(ev);
