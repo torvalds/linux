@@ -527,7 +527,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int ams_delta_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int ams_delta_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&ams_delta_hook_switch,
 			ARRAY_SIZE(ams_delta_hook_switch_gpios),

@@ -152,7 +152,7 @@ static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
-static int hx4700_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int hx4700_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&hs_jack, 1, &hs_jack_gpio);
 

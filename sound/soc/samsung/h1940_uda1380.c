@@ -189,7 +189,7 @@ static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int h1940_uda1380_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int h1940_uda1380_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);

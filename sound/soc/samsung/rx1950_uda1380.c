@@ -31,7 +31,7 @@
 #include "s3c24xx-i2s.h"
 
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd);
-static int rx1950_uda1380_card_remove(struct snd_soc_pcm_runtime *rtd);
+static int rx1950_uda1380_card_remove(struct snd_soc_card *card);
 static int rx1950_startup(struct snd_pcm_substream *substream);
 static int rx1950_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params);
@@ -236,7 +236,7 @@ static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int rx1950_uda1380_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int rx1950_uda1380_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);

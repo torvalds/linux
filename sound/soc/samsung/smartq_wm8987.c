@@ -182,7 +182,7 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
-static int smartq_wm8987_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int smartq_wm8987_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&smartq_jack, ARRAY_SIZE(smartq_jack_gpios),
 				smartq_jack_gpios);

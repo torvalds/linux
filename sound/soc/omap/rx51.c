@@ -334,7 +334,7 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
-static int rx51_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int rx51_card_remove(struct snd_soc_card *card)
 {
 	snd_soc_jack_free_gpios(&rx51_av_jack, ARRAY_SIZE(rx51_av_jack_gpios),
 				rx51_av_jack_gpios);

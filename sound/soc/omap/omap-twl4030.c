@@ -231,9 +231,8 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static int omap_twl4030_card_remove(struct snd_soc_pcm_runtime *rtd)
+static int omap_twl4030_card_remove(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = rtd->card;
 	struct omap_twl4030 *priv = snd_soc_card_get_drvdata(card);
 
 	if (priv->jack_detect > 0)
