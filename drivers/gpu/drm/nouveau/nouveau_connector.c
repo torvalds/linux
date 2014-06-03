@@ -265,14 +265,14 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 							nv_connector->edid);
 		if (!nv_connector->edid) {
 			NV_ERROR(drm, "DDC responded, but no EDID for %s\n",
-				 drm_get_connector_name(connector));
+				 connector->name);
 			goto detect_analog;
 		}
 
 		if (nv_encoder->dcb->type == DCB_OUTPUT_DP &&
 		    !nouveau_dp_detect(to_drm_encoder(nv_encoder))) {
 			NV_ERROR(drm, "Detected %s, but failed init\n",
-				 drm_get_connector_name(connector));
+				 connector->name);
 			conn_status = connector_status_disconnected;
 			goto out;
 		}
@@ -437,7 +437,7 @@ nouveau_connector_force(struct drm_connector *connector)
 	nv_encoder = find_encoder(connector, type);
 	if (!nv_encoder) {
 		NV_ERROR(drm, "can't find encoder to force %s on!\n",
-			 drm_get_connector_name(connector));
+			 connector->name);
 		connector->status = connector_status_disconnected;
 		return;
 	}
@@ -923,7 +923,7 @@ nouveau_connector_hotplug_work(struct work_struct *work)
 	bool plugged = gpio->get(gpio, 0, nv_connector->hpd.func, 0xff);
 
 	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un",
-		 drm_get_connector_name(connector));
+		 connector->name);
 
 	if (plugged)
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);

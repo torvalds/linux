@@ -2295,7 +2295,7 @@ nv50_display_create(struct drm_device *dev)
 			continue;
 
 		NV_WARN(drm, "%s has no encoders, removing\n",
-			drm_get_connector_name(connector));
+			connector->name);
 		connector->funcs->destroy(connector);
 	}
 
