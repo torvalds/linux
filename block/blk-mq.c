@@ -1276,6 +1276,8 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		return;
 
 	rq = blk_mq_map_request(q, bio, &data);
+	if (unlikely(!rq))
+		return;
 
 	if (unlikely(is_flush_fua)) {
 		blk_mq_bio_to_request(rq, bio);
