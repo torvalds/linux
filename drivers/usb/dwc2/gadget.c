@@ -3391,10 +3391,8 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	int i;
 
 	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsotg), GFP_KERNEL);
-	if (!hsotg) {
-		dev_err(dev, "cannot get memory\n");
+	if (!hsotg)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Attempt to find a generic PHY, then look for an old style
@@ -3513,7 +3511,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	eps = kcalloc(hsotg->num_of_eps + 1, sizeof(struct s3c_hsotg_ep),
 		      GFP_KERNEL);
 	if (!eps) {
-		dev_err(dev, "cannot get memory\n");
 		ret = -ENOMEM;
 		goto err_supplies;
 	}
