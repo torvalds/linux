@@ -2236,7 +2236,11 @@ got_data:
 		}
 	}
 
-	sdp->use_16_for_rw = (sdkp->capacity > 0xffffffff);
+	if (sdkp->capacity > 0xffffffff) {
+		sdp->use_16_for_rw = 1;
+		sdkp->max_xfer_blocks = SD_MAX_XFER_BLOCKS;
+	} else
+		sdkp->max_xfer_blocks = SD_DEF_XFER_BLOCKS;
 
 	/* Rescale capacity to 512-byte units */
 	if (sector_size == 4096)
@@ -2551,12 +2555,17 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
 	unsigned int sector_sz = sdkp->device->sector_size;
 	const int vpd_len = 64;
+	u32 max_xfer_length;
 	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
 
 	if (!buffer ||
 	    /* Block Limits VPD */
 	    scsi_get_vpd_page(sdkp->device, 0xb0, buffer, vpd_len))
 		goto out;
+
+	max_xfer_length = get_unaligned_be32(&buffer[8]);
+	if (max_xfer_length)
+		sdkp->max_xfer_blocks = max_xfer_length;
 
 	blk_queue_io_min(sdkp->disk->queue,
 			 get_unaligned_be16(&buffer[6]) * sector_sz);
@@ -2712,6 +2721,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
 	unsigned char *buffer;
+	unsigned int max_xfer;
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp,
 				      "sd_revalidate_disk\n"));
@@ -2759,6 +2769,10 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	sd_set_flush_flag(sdkp);
 
+	max_xfer = min_not_zero(queue_max_hw_sectors(sdkp->disk->queue),
+				sdkp->max_xfer_blocks);
+	max_xfer <<= ilog2(sdp->sector_size) - 9;
+	blk_queue_max_hw_sectors(sdkp->disk->queue, max_xfer);
 	set_capacity(disk, sdkp->capacity);
 	sd_config_write_same(sdkp);
 	kfree(buffer);
