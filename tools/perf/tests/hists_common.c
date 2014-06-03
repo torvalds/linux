@@ -12,9 +12,9 @@ static struct {
 	u32 pid;
 	const char *comm;
 } fake_threads[] = {
-	{ 100, "perf" },
-	{ 200, "perf" },
-	{ 300, "bash" },
+	{ FAKE_PID_PERF1, "perf" },
+	{ FAKE_PID_PERF2, "perf" },
+	{ FAKE_PID_BASH,  "bash" },
 };
 
 static struct {
@@ -22,15 +22,15 @@ static struct {
 	u64 start;
 	const char *filename;
 } fake_mmap_info[] = {
-	{ 100, 0x40000, "perf" },
-	{ 100, 0x50000, "libc" },
-	{ 100, 0xf0000, "[kernel]" },
-	{ 200, 0x40000, "perf" },
-	{ 200, 0x50000, "libc" },
-	{ 200, 0xf0000, "[kernel]" },
-	{ 300, 0x40000, "bash" },
-	{ 300, 0x50000, "libc" },
-	{ 300, 0xf0000, "[kernel]" },
+	{ FAKE_PID_PERF1, FAKE_MAP_PERF,   "perf" },
+	{ FAKE_PID_PERF1, FAKE_MAP_LIBC,   "libc" },
+	{ FAKE_PID_PERF1, FAKE_MAP_KERNEL, "[kernel]" },
+	{ FAKE_PID_PERF2, FAKE_MAP_PERF,   "perf" },
+	{ FAKE_PID_PERF2, FAKE_MAP_LIBC,   "libc" },
+	{ FAKE_PID_PERF2, FAKE_MAP_KERNEL, "[kernel]" },
+	{ FAKE_PID_BASH,  FAKE_MAP_BASH,   "bash" },
+	{ FAKE_PID_BASH,  FAKE_MAP_LIBC,   "libc" },
+	{ FAKE_PID_BASH,  FAKE_MAP_KERNEL, "[kernel]" },
 };
 
 struct fake_sym {
@@ -40,27 +40,30 @@ struct fake_sym {
 };
 
 static struct fake_sym perf_syms[] = {
-	{ 700, 100, "main" },
-	{ 800, 100, "run_command" },
-	{ 900, 100, "cmd_record" },
+	{ FAKE_SYM_OFFSET1, FAKE_SYM_LENGTH, "main" },
+	{ FAKE_SYM_OFFSET2, FAKE_SYM_LENGTH, "run_command" },
+	{ FAKE_SYM_OFFSET3, FAKE_SYM_LENGTH, "cmd_record" },
 };
 
 static struct fake_sym bash_syms[] = {
-	{ 700, 100, "main" },
-	{ 800, 100, "xmalloc" },
-	{ 900, 100, "xfree" },
+	{ FAKE_SYM_OFFSET1, FAKE_SYM_LENGTH, "main" },
+	{ FAKE_SYM_OFFSET2, FAKE_SYM_LENGTH, "xmalloc" },
+	{ FAKE_SYM_OFFSET3, FAKE_SYM_LENGTH, "xfree" },
 };
 
 static struct fake_sym libc_syms[] = {
 	{ 700, 100, "malloc" },
 	{ 800, 100, "free" },
 	{ 900, 100, "realloc" },
+	{ FAKE_SYM_OFFSET1, FAKE_SYM_LENGTH, "malloc" },
+	{ FAKE_SYM_OFFSET2, FAKE_SYM_LENGTH, "free" },
+	{ FAKE_SYM_OFFSET3, FAKE_SYM_LENGTH, "realloc" },
 };
 
 static struct fake_sym kernel_syms[] = {
-	{ 700, 100, "schedule" },
-	{ 800, 100, "page_fault" },
-	{ 900, 100, "sys_perf_event_open" },
+	{ FAKE_SYM_OFFSET1, FAKE_SYM_LENGTH, "schedule" },
+	{ FAKE_SYM_OFFSET2, FAKE_SYM_LENGTH, "page_fault" },
+	{ FAKE_SYM_OFFSET3, FAKE_SYM_LENGTH, "sys_perf_event_open" },
 };
 
 static struct {
@@ -102,7 +105,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 				.pid = fake_mmap_info[i].pid,
 				.tid = fake_mmap_info[i].pid,
 				.start = fake_mmap_info[i].start,
-				.len = 0x1000ULL,
+				.len = FAKE_MAP_LENGTH,
 				.pgoff = 0ULL,
 			},
 		};
@@ -193,10 +196,11 @@ void print_hists_out(struct hists *hists)
 		he = rb_entry(node, struct hist_entry, rb_node);
 
 		if (!he->filtered) {
-			pr_info("%2d: entry: %8s:%5d [%-8s] %20s: period = %"PRIu64"\n",
+			pr_info("%2d: entry: %8s:%5d [%-8s] %20s: period = %"PRIu64"/%"PRIu64"\n",
 				i, thread__comm_str(he->thread), he->thread->tid,
 				he->ms.map->dso->short_name,
-				he->ms.sym->name, he->stat.period);
+				he->ms.sym->name, he->stat.period,
+				he->stat_acc ? he->stat_acc->period : 0);
 		}
 
 		i++;

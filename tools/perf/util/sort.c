@@ -1061,6 +1061,7 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__OVERHEAD_US, "overhead_us"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_SYS, "overhead_guest_sys"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_US, "overhead_guest_us"),
+	DIM(PERF_HPP__OVERHEAD_ACC, "overhead_children"),
 	DIM(PERF_HPP__SAMPLES, "sample"),
 	DIM(PERF_HPP__PERIOD, "period"),
 };
@@ -1580,6 +1581,9 @@ void reset_output_field(void)
 	sort__has_parent = 0;
 	sort__has_sym = 0;
 	sort__has_dso = 0;
+
+	field_order = NULL;
+	sort_order = NULL;
 
 	reset_dimensions();
 	perf_hpp__reset_output_field();

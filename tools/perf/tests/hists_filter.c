@@ -21,33 +21,33 @@ struct sample {
 /* For the numbers, see hists_common.c */
 static struct sample fake_samples[] = {
 	/* perf [kernel] schedule() */
-	{ .pid = 100, .ip = 0xf0000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, },
 	/* perf [perf]   main() */
-	{ .pid = 100, .ip = 0x40000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_MAIN, },
 	/* perf [libc]   malloc() */
-	{ .pid = 100, .ip = 0x50000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, },
 	/* perf [perf]   main() */
-	{ .pid = 200, .ip = 0x40000 + 700, }, /* will be merged */
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, }, /* will be merged */
 	/* perf [perf]   cmd_record() */
-	{ .pid = 200, .ip = 0x40000 + 900, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_CMD_RECORD, },
 	/* perf [kernel] page_fault() */
-	{ .pid = 200, .ip = 0xf0000 + 800, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 	/* bash [bash]   main() */
-	{ .pid = 300, .ip = 0x40000 + 700, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_MAIN, },
 	/* bash [bash]   xmalloc() */
-	{ .pid = 300, .ip = 0x40000 + 800, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, },
 	/* bash [libc]   malloc() */
-	{ .pid = 300, .ip = 0x50000 + 700, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, },
 	/* bash [kernel] page_fault() */
-	{ .pid = 300, .ip = 0xf0000 + 800, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 };
 
-static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
+static int add_hist_entries(struct perf_evlist *evlist,
+			    struct machine *machine __maybe_unused)
 {
 	struct perf_evsel *evsel;
 	struct addr_location al;
-	struct hist_entry *he;
-	struct perf_sample sample = { .cpu = 0, };
+	struct perf_sample sample = { .period = 100, };
 	size_t i;
 
 	/*
@@ -61,6 +61,10 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 				.header = {
 					.misc = PERF_RECORD_MISC_USER,
 				},
+			};
+			struct hist_entry_iter iter = {
+				.ops = &hist_iter_normal,
+				.hide_unresolved = false,
 			};
 
 			/* make sure it has no filter at first */
@@ -76,18 +80,13 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL,
-						NULL, NULL, 100, 1, 0);
-			if (he == NULL)
+			if (hist_entry_iter__add(&iter, &al, evsel, &sample,
+						 PERF_MAX_STACK_DEPTH, NULL) < 0)
 				goto out;
 
 			fake_samples[i].thread = al.thread;
 			fake_samples[i].map = al.map;
 			fake_samples[i].sym = al.sym;
-
-			hists__inc_nr_events(he->hists, PERF_RECORD_SAMPLE);
-			if (!he->filtered)
-				he->hists->stats.nr_non_filtered_samples++;
 		}
 	}
 
