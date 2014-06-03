@@ -1,14 +1,14 @@
 #!/bin/sh
 #
-# Check the console output from an rcutorture run for goodness.
+# Check the console output from a torture run for goodness.
 # The "file" is a pathname on the local system, and "title" is
 # a text string for error-message purposes.
 #
-# The file must contain rcutorture output, but can be interspersed
-# with other dmesg text.
+# The file must contain torture output, but can be interspersed
+# with other dmesg text, as in console-log output.
 #
 # Usage:
-#	sh parse-rcutorture.sh file title
+#	sh parse-torture.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
 
-T=/tmp/parse-rcutorture.sh.$$
+T=/tmp/parse-torture.sh.$$
 file="$1"
 title="$2"
 
@@ -36,13 +36,13 @@ trap 'rm -f $T.seq' 0
 
 . functions.sh
 
-# check for presence of rcutorture.txt file
+# check for presence of torture output file.
 
 if test -f "$file" -a -r "$file"
 then
 	:
 else
-	echo $title unreadable rcutorture.txt file: $file
+	echo $title unreadable torture output file: $file
 	exit 1
 fi
 
@@ -76,9 +76,9 @@ BEGIN	{
 END	{
 	if (badseq) {
 		if (badseqno1 == badseqno2 && badseqno2 == ver)
-			print "RCU GP HANG at " ver " rcutorture stat " badseqnr;
+			print "GP HANG at " ver " torture stat " badseqnr;
 		else
-			print "BAD SEQ " badseqno1 ":" badseqno2 " last:" ver " RCU version " badseqnr;
+			print "BAD SEQ " badseqno1 ":" badseqno2 " last:" ver " version " badseqnr;
 	}
 	}' > $T.seq
 
@@ -91,13 +91,13 @@ then
 		exit 2
 	fi
 else
-	if grep -q RCU_HOTPLUG $file
+	if grep -q "_HOTPLUG:" $file
 	then
 		print_warning HOTPLUG FAILURES $title `cat $T.seq`
 		echo "   " $file
 		exit 3
 	fi
-	echo $title no success message, `grep --binary-files=text 'ver:' $file | wc -l` successful RCU version messages
+	echo $title no success message, `grep --binary-files=text 'ver:' $file | wc -l` successful version messages
 	if test -s $T.seq
 	then
 		print_warning $title `cat $T.seq`

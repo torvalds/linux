@@ -639,7 +639,7 @@ do {									\
 #  define raw_cpu_add_return_8(pcp, val)	raw_cpu_generic_add_return(pcp, val)
 # endif
 # define raw_cpu_add_return(pcp, val)	\
-	__pcpu_size_call_return2(raw_add_return_, pcp, val)
+	__pcpu_size_call_return2(raw_cpu_add_return_, pcp, val)
 #endif
 
 #define raw_cpu_sub_return(pcp, val)	raw_cpu_add_return(pcp, -(typeof(pcp))(val))
