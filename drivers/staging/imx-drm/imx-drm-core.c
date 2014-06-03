@@ -298,7 +298,7 @@ static int imx_drm_driver_load(struct drm_device *drm, unsigned long flags)
 			dev_err(drm->dev,
 				"[CONNECTOR:%d:%s] drm_sysfs_connector_add failed: %d\n",
 				connector->base.id,
-				drm_get_connector_name(connector), ret);
+				connector->name, ret);
 			goto err_unbind;
 		}
 	}
