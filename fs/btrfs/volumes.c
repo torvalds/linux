@@ -40,6 +40,7 @@
 #include "rcu-string.h"
 #include "math.h"
 #include "dev-replace.h"
+#include "sysfs.h"
 
 static int init_first_rw_device(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
@@ -1679,6 +1680,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 	if (device->bdev)
 		device->fs_devices->open_devices--;
+
+	/* remove sysfs entry */
+	btrfs_kobj_rm_device(root->fs_info, device);
 
 	call_rcu(&device->rcu, free_device);
 
