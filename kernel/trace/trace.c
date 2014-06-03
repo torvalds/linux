@@ -6671,10 +6671,6 @@ __init static int tracer_alloc_buffers(void)
 out_free_temp_buffer:
 	ring_buffer_free(temp_buffer);
 out_free_cpumask:
-	free_percpu(global_trace.trace_buffer.data);
-#ifdef CONFIG_TRACER_MAX_TRACE
-	free_percpu(global_trace.max_buffer.data);
-#endif
 	free_cpumask_var(global_trace.tracing_cpumask);
 out_free_buffer_mask:
 	free_cpumask_var(tracing_buffer_mask);
