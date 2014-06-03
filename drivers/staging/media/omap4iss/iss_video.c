@@ -25,6 +25,9 @@
 #include "iss_video.h"
 #include "iss.h"
 
+static unsigned debug;
+module_param(debug, uint, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
 
 /* -----------------------------------------------------------------------------
  * Helper functions
@@ -1042,6 +1045,8 @@ static int iss_video_open(struct file *file)
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (handle == NULL)
 		return -ENOMEM;
+
+	video->video.debug = debug;
 
 	v4l2_fh_init(&handle->vfh, &video->video);
 	v4l2_fh_add(&handle->vfh);
