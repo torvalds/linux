@@ -1006,6 +1006,7 @@ unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
 	else
 		return clk->rate;
 }
+EXPORT_SYMBOL_GPL(__clk_round_rate);
 
 /**
  * clk_round_rate - round the given rate for a clk
