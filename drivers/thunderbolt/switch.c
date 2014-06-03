@@ -53,6 +53,92 @@ static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
 }
 
 /**
+ * tb_port_state() - get connectedness state of a port
+ *
+ * The port must have a TB_CAP_PHY (i.e. it should be a real port).
+ *
+ * Return: Returns an enum tb_port_state on success or an error code on failure.
+ */
+static int tb_port_state(struct tb_port *port)
+{
+	struct tb_cap_phy phy;
+	int res;
+	if (port->cap_phy == 0) {
+		tb_port_WARN(port, "does not have a PHY\n");
+		return -EINVAL;
+	}
+	res = tb_port_read(port, &phy, TB_CFG_PORT, port->cap_phy, 2);
+	if (res)
+		return res;
+	return phy.state;
+}
+
+/**
+ * tb_wait_for_port() - wait for a port to become ready
+ *
+ * Wait up to 1 second for a port to reach state TB_PORT_UP. If
+ * wait_if_unplugged is set then we also wait if the port is in state
+ * TB_PORT_UNPLUGGED (it takes a while for the device to be registered after
+ * switch resume). Otherwise we only wait if a device is registered but the link
+ * has not yet been established.
+ *
+ * Return: Returns an error code on failure. Returns 0 if the port is not
+ * connected or failed to reach state TB_PORT_UP within one second. Returns 1
+ * if the port is connected and in state TB_PORT_UP.
+ */
+int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
+{
+	int retries = 10;
+	int state;
+	if (!port->cap_phy) {
+		tb_port_WARN(port, "does not have PHY\n");
+		return -EINVAL;
+	}
+	if (tb_is_upstream_port(port)) {
+		tb_port_WARN(port, "is the upstream port\n");
+		return -EINVAL;
+	}
+
+	while (retries--) {
+		state = tb_port_state(port);
+		if (state < 0)
+			return state;
+		if (state == TB_PORT_DISABLED) {
+			tb_port_info(port, "is disabled (state: 0)\n");
+			return 0;
+		}
+		if (state == TB_PORT_UNPLUGGED) {
+			if (wait_if_unplugged) {
+				/* used during resume */
+				tb_port_info(port,
+					     "is unplugged (state: 7), retrying...\n");
+				msleep(100);
+				continue;
+			}
+			tb_port_info(port, "is unplugged (state: 7)\n");
+			return 0;
+		}
+		if (state == TB_PORT_UP) {
+			tb_port_info(port,
+				     "is connected, link is up (state: 2)\n");
+			return 1;
+		}
+
+		/*
+		 * After plug-in the state is TB_PORT_CONNECTING. Give it some
+		 * time.
+		 */
+		tb_port_info(port,
+			     "is connected, link is not up (state: %d), retrying...\n",
+			     state);
+		msleep(100);
+	}
+	tb_port_warn(port,
+		     "failed to reach state TB_PORT_UP. Ignoring port...\n");
+	return 0;
+}
+
+/**
  * tb_init_port() - initialize a port
  *
  * This is a helper method for tb_switch_alloc. Does not check or initialize
@@ -63,6 +149,7 @@ static void tb_dump_port(struct tb *tb, struct tb_regs_port_header *port)
 static int tb_init_port(struct tb_switch *sw, u8 port_nr)
 {
 	int res;
+	int cap;
 	struct tb_port *port = &sw->ports[port_nr];
 	port->sw = sw;
 	port->port = port_nr;
@@ -70,6 +157,16 @@ static int tb_init_port(struct tb_switch *sw, u8 port_nr)
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res)
 		return res;
+
+	/* Port 0 is the switch itself and has no PHY. */
+	if (port->config.type == TB_TYPE_PORT && port_nr != 0) {
+		cap = tb_find_cap(port, TB_CFG_PORT, TB_CAP_PHY);
+
+		if (cap > 0)
+			port->cap_phy = cap;
+		else
+			tb_port_WARN(port, "non switch port without a PHY\n");
+	}
 
 	tb_dump_port(sw->tb, &port->config);
 

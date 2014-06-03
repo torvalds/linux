@@ -11,6 +11,47 @@
 #include "tb.h"
 #include "tb_regs.h"
 
+
+/* enumeration & hot plug handling */
+
+
+static void tb_scan_port(struct tb_port *port);
+
+/**
+ * tb_scan_switch() - scan for and initialize downstream switches
+ */
+static void tb_scan_switch(struct tb_switch *sw)
+{
+	int i;
+	for (i = 1; i <= sw->config.max_port_number; i++)
+		tb_scan_port(&sw->ports[i]);
+}
+
+/**
+ * tb_scan_port() - check for and initialize switches below port
+ */
+static void tb_scan_port(struct tb_port *port)
+{
+	struct tb_switch *sw;
+	if (tb_is_upstream_port(port))
+		return;
+	if (port->config.type != TB_TYPE_PORT)
+		return;
+	if (tb_wait_for_port(port, false) <= 0)
+		return;
+	if (port->remote) {
+		tb_port_WARN(port, "port already has a remote!\n");
+		return;
+	}
+	sw = tb_switch_alloc(port->sw->tb, tb_downstream_route(port));
+	if (!sw)
+		return;
+	port->remote = tb_upstream_port(sw);
+	tb_upstream_port(sw)->remote = port;
+	tb_scan_switch(sw);
+}
+
+
 /* hotplug handling */
 
 struct tb_hotplug_event {
@@ -133,6 +174,9 @@ struct tb *thunderbolt_alloc_and_start(struct tb_nhi *nhi)
 	tb->root_switch = tb_switch_alloc(tb, 0);
 	if (!tb->root_switch)
 		goto err_locked;
+
+	/* Full scan to discover devices added before the driver was loaded. */
+	tb_scan_switch(tb->root_switch);
 
 	/* Allow tb_handle_hotplug to progress events */
 	tb->hotplug_active = true;

@@ -29,6 +29,7 @@ struct tb_port {
 	struct tb_regs_port_header config;
 	struct tb_switch *sw;
 	struct tb_port *remote; /* remote port, NULL if not connected */
+	int cap_phy; /* offset, zero if not found */
 	u8 port; /* port number on switch */
 };
 
@@ -160,6 +161,8 @@ void thunderbolt_shutdown_and_free(struct tb *tb);
 struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route);
 void tb_switch_free(struct tb_switch *sw);
 
+int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
+
 int tb_find_cap(struct tb_port *port, enum tb_cfg_space space, u32 value);
 
 
@@ -171,6 +174,19 @@ static inline int tb_route_length(u64 route)
 static inline bool tb_is_upstream_port(struct tb_port *port)
 {
 	return port == tb_upstream_port(port->sw);
+}
+
+/**
+ * tb_downstream_route() - get route to downstream switch
+ *
+ * Port must not be the upstream port (otherwise a loop is created).
+ *
+ * Return: Returns a route to the switch behind @port.
+ */
+static inline u64 tb_downstream_route(struct tb_port *port)
+{
+	return tb_route(port->sw)
+	       | ((u64) port->port << (port->sw->config.depth * 8));
 }
 
 #endif
