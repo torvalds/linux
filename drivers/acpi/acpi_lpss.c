@@ -25,6 +25,10 @@
 
 ACPI_MODULE_NAME("acpi_lpss");
 
+#ifdef CONFIG_X86_INTEL_LPSS
+
+#define LPSS_ADDR(desc) ((unsigned long)&desc)
+
 #define LPSS_CLK_SIZE	0x04
 #define LPSS_LTR_SIZE	0x18
 
@@ -169,39 +173,47 @@ static struct lpss_device_desc byt_i2c_dev_desc = {
 	.shared_clock = &i2c_clock,
 };
 
+#else
+
+#define LPSS_ADDR(desc) (0UL)
+
+#endif /* CONFIG_X86_INTEL_LPSS */
+
 static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	/* Generic LPSS devices */
-	{ "INTL9C60", (unsigned long)&lpss_dma_desc },
+	{ "INTL9C60", LPSS_ADDR(lpss_dma_desc) },
 
 	/* Lynxpoint LPSS devices */
-	{ "INT33C0", (unsigned long)&lpt_dev_desc },
-	{ "INT33C1", (unsigned long)&lpt_dev_desc },
-	{ "INT33C2", (unsigned long)&lpt_i2c_dev_desc },
-	{ "INT33C3", (unsigned long)&lpt_i2c_dev_desc },
-	{ "INT33C4", (unsigned long)&lpt_uart_dev_desc },
-	{ "INT33C5", (unsigned long)&lpt_uart_dev_desc },
-	{ "INT33C6", (unsigned long)&lpt_sdio_dev_desc },
+	{ "INT33C0", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT33C1", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT33C2", LPSS_ADDR(lpt_i2c_dev_desc) },
+	{ "INT33C3", LPSS_ADDR(lpt_i2c_dev_desc) },
+	{ "INT33C4", LPSS_ADDR(lpt_uart_dev_desc) },
+	{ "INT33C5", LPSS_ADDR(lpt_uart_dev_desc) },
+	{ "INT33C6", LPSS_ADDR(lpt_sdio_dev_desc) },
 	{ "INT33C7", },
 
 	/* BayTrail LPSS devices */
-	{ "80860F09", (unsigned long)&byt_pwm_dev_desc },
-	{ "80860F0A", (unsigned long)&byt_uart_dev_desc },
-	{ "80860F0E", (unsigned long)&byt_spi_dev_desc },
-	{ "80860F14", (unsigned long)&byt_sdio_dev_desc },
-	{ "80860F41", (unsigned long)&byt_i2c_dev_desc },
+	{ "80860F09", LPSS_ADDR(byt_pwm_dev_desc) },
+	{ "80860F0A", LPSS_ADDR(byt_uart_dev_desc) },
+	{ "80860F0E", LPSS_ADDR(byt_spi_dev_desc) },
+	{ "80860F14", LPSS_ADDR(byt_sdio_dev_desc) },
+	{ "80860F41", LPSS_ADDR(byt_i2c_dev_desc) },
 	{ "INT33B2", },
 
-	{ "INT3430", (unsigned long)&lpt_dev_desc },
-	{ "INT3431", (unsigned long)&lpt_dev_desc },
-	{ "INT3432", (unsigned long)&lpt_i2c_dev_desc },
-	{ "INT3433", (unsigned long)&lpt_i2c_dev_desc },
-	{ "INT3434", (unsigned long)&lpt_uart_dev_desc },
-	{ "INT3435", (unsigned long)&lpt_uart_dev_desc },
-	{ "INT3436", (unsigned long)&lpt_sdio_dev_desc },
+	{ "INT3430", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT3431", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT3432", LPSS_ADDR(lpt_i2c_dev_desc) },
+	{ "INT3433", LPSS_ADDR(lpt_i2c_dev_desc) },
+	{ "INT3434", LPSS_ADDR(lpt_uart_dev_desc) },
+	{ "INT3435", LPSS_ADDR(lpt_uart_dev_desc) },
+	{ "INT3436", LPSS_ADDR(lpt_sdio_dev_desc) },
 	{ "INT3437", },
 
 	{ }
 };
+
+#ifdef CONFIG_X86_INTEL_LPSS
 
 static int is_memory(struct acpi_resource *res, void *not_used)
 {
@@ -695,3 +707,16 @@ void __init acpi_lpss_init(void)
 		acpi_scan_add_handler(&lpss_handler);
 	}
 }
+
+#else
+
+static struct acpi_scan_handler lpss_handler = {
+	.ids = acpi_lpss_device_ids,
+};
+
+void __init acpi_lpss_init(void)
+{
+	acpi_scan_add_handler(&lpss_handler);
+}
+
+#endif /* CONFIG_X86_INTEL_LPSS */

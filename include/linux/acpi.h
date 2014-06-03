@@ -185,6 +185,8 @@ extern int ec_transaction(u8 command,
                           u8 *rdata, unsigned rdata_len);
 extern acpi_handle ec_get_handle(void);
 
+extern bool acpi_is_pnp_device(struct acpi_device *);
+
 #if defined(CONFIG_ACPI_WMI) || defined(CONFIG_ACPI_WMI_MODULE)
 
 typedef void (*wmi_notify_handler) (u32 value, void *context);

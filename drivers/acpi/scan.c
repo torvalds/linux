@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(acpi_initialize_hp_context);
 
 int acpi_scan_add_handler(struct acpi_scan_handler *handler)
 {
-	if (!handler || !handler->attach)
+	if (!handler)
 		return -EINVAL;
 
 	list_add_tail(&handler->list_node, &acpi_scan_handlers_list);
@@ -1797,8 +1797,10 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 			return;
 		}
 
-		if (info->valid & ACPI_VALID_HID)
+		if (info->valid & ACPI_VALID_HID) {
 			acpi_add_id(pnp, info->hardware_id.string);
+			pnp->type.platform_id = 1;
+		}
 		if (info->valid & ACPI_VALID_CID) {
 			cid_list = &info->compatible_id_list;
 			for (i = 0; i < cid_list->count; i++)
@@ -1977,6 +1979,9 @@ static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
 {
 	const struct acpi_device_id *devid;
 
+	if (handler->match)
+		return handler->match(idstr, matchid);
+
 	for (devid = handler->ids; devid->id[0]; devid++)
 		if (!strcmp((char *)devid->id, idstr)) {
 			if (matchid)
@@ -2065,6 +2070,44 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl_not_used,
 	return AE_OK;
 }
 
+static int acpi_check_spi_i2c_slave(struct acpi_resource *ares, void *data)
+{
+	bool *is_spi_i2c_slave_p = data;
+
+	if (ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS)
+		return 1;
+
+	/*
+	 * devices that are connected to UART still need to be enumerated to
+	 * platform bus
+	 */
+	if (ares->data.common_serial_bus.type != ACPI_RESOURCE_SERIAL_TYPE_UART)
+		*is_spi_i2c_slave_p = true;
+
+	 /* no need to do more checking */
+	return -1;
+}
+
+static void acpi_default_enumeration(struct acpi_device *device)
+{
+	struct list_head resource_list;
+	bool is_spi_i2c_slave = false;
+
+	if (!device->pnp.type.platform_id || device->handler)
+		return;
+
+	/*
+	 * Do not enemerate SPI/I2C slaves as they will be enuerated by their
+	 * respective parents.
+	 */
+	INIT_LIST_HEAD(&resource_list);
+	acpi_dev_get_resources(device, &resource_list, acpi_check_spi_i2c_slave,
+			       &is_spi_i2c_slave);
+	acpi_dev_free_resource_list(&resource_list);
+	if (!is_spi_i2c_slave)
+		acpi_create_platform_device(device);
+}
+
 static int acpi_scan_attach_handler(struct acpi_device *device)
 {
 	struct acpi_hardware_id *hwid;
@@ -2076,6 +2119,10 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 
 		handler = acpi_scan_match_handler(hwid->id, &devid);
 		if (handler) {
+			if (!handler->attach) {
+				device->pnp.type.platform_id = 0;
+				continue;
+			}
 			device->handler = handler;
 			ret = handler->attach(device, devid);
 			if (ret > 0)
@@ -2086,6 +2133,9 @@ static int acpi_scan_attach_handler(struct acpi_device *device)
 				break;
 		}
 	}
+	if (!ret)
+		acpi_default_enumeration(device);
+
 	return ret;
 }
 
@@ -2245,11 +2295,11 @@ int __init acpi_scan_init(void)
 	acpi_pci_root_init();
 	acpi_pci_link_init();
 	acpi_processor_init();
-	acpi_platform_init();
 	acpi_lpss_init();
 	acpi_cmos_rtc_init();
 	acpi_container_init();
 	acpi_memory_hotplug_init();
+	acpi_pnp_init();
 
 	mutex_lock(&acpi_scan_lock);
 	/*
