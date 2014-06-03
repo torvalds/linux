@@ -3443,101 +3443,6 @@ static void __sramfunc ddr_update_odt(uint32 ch)
     dsb();
 }
 
-void PIE_FUNC(ddr_adjust_config)(void *arg)
-{
-    uint32 value[CH_MAX];
-    uint32 ch;
-    pDDR_REG_T    pDDR_Reg;
-    pDDRPHY_REG_T pPHY_Reg;
-
-    for(ch=0;ch<CH_MAX;ch++)
-    {
-        if(DATA(ddr_ch[ch]).mem_type != DRAM_MAX)
-        {
-            value[ch] = ((uint32 *)arg)[ch];
-            pDDR_Reg = DATA(ddr_ch[ch]).pDDR_Reg;
-            pPHY_Reg = DATA(ddr_ch[ch]).pPHY_Reg;
-            
-            //enter config state
-            ddr_move_to_Config_state(ch);
-
-            //set data training address
-            pPHY_Reg->DTAR = value[ch];
-
-            //set auto power down idle
-            pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
-
-            //CKDV=00
-            pPHY_Reg->PGCR &= ~(0x3<<12);
-
-            //enable the hardware low-power interface
-            pDDR_Reg->SCFG.b.hw_low_power_en = 1;
-
-            if(pDDR_Reg->PPCFG & 1)
-            {
-                pPHY_Reg->DATX8[2].DXGCR &= ~(1);          //disable byte
-                pPHY_Reg->DATX8[3].DXGCR &= ~(1);
-                pPHY_Reg->DATX8[2].DXDLLCR |= 0x80000000;  //disable DLL
-                pPHY_Reg->DATX8[3].DXDLLCR |= 0x80000000;
-            }
-
-            ddr_update_odt(ch);
-
-            //enter access state
-            ddr_move_to_Access_state(ch);
-        }
-    }
-}
-EXPORT_PIE_SYMBOL(FUNC(ddr_adjust_config));
-
-static void ddr_adjust_config(void)
-{
-    uint32 dtar[CH_MAX];
-    uint32 i;
-    volatile uint32 n;
-    volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
-
-    //get data training address before idle port
-    ddr_get_datatraing_addr(dtar);
-
-    /** 1. Make sure there is no host access */
-    flush_cache_all();
-    outer_flush_all();
-    flush_tlb_all();
-    isb();
-
-    for(i=0;i<SRAM_SIZE/4096;i++)
-    {
-        n=temp[1024*i];
-        barrier();
-    }
-    for(i=0;i<CH_MAX;i++)
-    {
-        if(p_ddr_ch[i]->mem_type != DRAM_MAX)
-        {
-            n= p_ddr_ch[i]->pDDR_Reg->SCFG.d32;
-            n= p_ddr_ch[i]->pPHY_Reg->RIDR;
-            n= p_ddr_ch[i]->pMSCH_Reg->ddrconf;
-        }
-    }
-    n= pCRU_Reg->CRU_PLL_CON[0][0];
-    n= pPMU_Reg->PMU_WAKEUP_CFG[0];
-    n= READ_GRF_REG();
-    dsb();
-
-    call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_adjust_config)),
-                    (void *)dtar,
-                    rockchip_sram_stack);
-    //disable unused channel
-    for(i=0;i<CH_MAX;i++)
-    {
-        if(p_ddr_ch[i]->mem_type != DRAM_MAX)
-        {
-            //FIXME
-        }
-    }
-}
-
 static void __sramfunc ddr_selfrefresh_enter(uint32 nMHz)
 {
     uint32 ch;
@@ -3729,7 +3634,7 @@ void PIE_FUNC(ddr_change_freq_sram)(void *arg)
 EXPORT_PIE_SYMBOL(FUNC(ddr_change_freq_sram));
 
 static int dclk_div;
-static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_freq_t)
+static noinline uint32 ddr_change_freq_sram(void *arg)
 {
     uint32 freq;
     uint32 freq_slew=0;
@@ -3740,6 +3645,9 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
     uint32 i;
     uint32 gpllvaluel;
+    uint32 nMHz=*(uint32 *)arg;
+    struct ddr_freq_t *p_ddr_freq_t=(struct ddr_freq_t *)((uint32)arg + 4);
+
 
 #if defined(CONFIG_ARCH_RK3066B)
     if(dqstr_flag==true)
@@ -3783,13 +3691,13 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
     isb();
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
-    if(ddr_freq_t.screen_ft_us > 0)
+    if(p_ddr_freq_t->screen_ft_us > 0)
     {
-        ddr_freq_t.t1 = cpu_clock(0);
-        ddr_freq_t.t2 = (uint32)(ddr_freq_t.t1 - ddr_freq_t.t0);   //ns
+        p_ddr_freq_t->t1 = cpu_clock(0);
+        p_ddr_freq_t->t2 = (uint32)(p_ddr_freq_t->t1 - p_ddr_freq_t->t0);   //ns
 
         //if test_count exceed maximum test times,ddr_freq_t.screen_ft_us == 0xfefefefe by ddr_freq.c
-        if( (ddr_freq_t.t2 > ddr_freq_t.screen_ft_us*1000) && (ddr_freq_t.screen_ft_us != 0xfefefefe))
+        if( (p_ddr_freq_t->t2 > p_ddr_freq_t->screen_ft_us*1000) && (p_ddr_freq_t->screen_ft_us != 0xfefefefe))
         {
             freq = 0;
             goto end;
@@ -3826,7 +3734,7 @@ static noinline uint32 ddr_change_freq_sram(uint32 nMHz , struct ddr_freq_t ddr_
     cru_writel(0 |CRU_W_MSK_SETBITS(0xff,8,0xff), RK3288_CRU_CLKSELS_CON(29));
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_change_freq_sram)),
                     &param,
-                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SZIE);
+                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SIZE);
     cru_writel(0 |CRU_W_MSK_SETBITS(dclk_div,8,0xff), RK3288_CRU_CLKSELS_CON(29));
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
@@ -3909,14 +3817,14 @@ static void pause_cpu(void *info)
 
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(_pause_cpu)),
             (void *)cpu,
-            rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SZIE);
+            rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SIZE);
 }
 
 static void wait_cpu(void *info)
 {
 }
 
-static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
+static int call_with_single_cpu(u32 (*fn)(void *arg), void *arg)
 {
     u32 timeout = MAX_TIMEOUT;
     unsigned int cpu;
@@ -3938,13 +3846,136 @@ static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
         }
     }
 
-    ret = ddr_change_freq_sram(nMHz, ddr_freq_t);
+    ret = fn(arg);
 
 out:
     set_cpu0_paused(false);
     local_bh_enable();
     smp_call_function(wait_cpu, NULL, true);
     cpu_maps_update_done();
+
+    return ret;
+}
+
+void PIE_FUNC(ddr_adjust_config)(void *arg)
+{
+    uint32 value[CH_MAX];
+    uint32 ch;
+    pDDR_REG_T    pDDR_Reg;
+    pDDRPHY_REG_T pPHY_Reg;
+
+    for(ch=0;ch<CH_MAX;ch++)
+    {
+        if(DATA(ddr_ch[ch]).mem_type != DRAM_MAX)
+        {
+            value[ch] = ((uint32 *)arg)[ch];
+            pDDR_Reg = DATA(ddr_ch[ch]).pDDR_Reg;
+            pPHY_Reg = DATA(ddr_ch[ch]).pPHY_Reg;
+            
+            //enter config state
+            ddr_move_to_Config_state(ch);
+
+            //set data training address
+            pPHY_Reg->DTAR = value[ch];
+
+            //set auto power down idle
+            pDDR_Reg->MCFG=(pDDR_Reg->MCFG&0xffff00ff)|(PD_IDLE<<8);
+
+            //CKDV=00
+            pPHY_Reg->PGCR &= ~(0x3<<12);
+
+            //enable the hardware low-power interface
+            pDDR_Reg->SCFG.b.hw_low_power_en = 1;
+
+            if(pDDR_Reg->PPCFG & 1)
+            {
+                pPHY_Reg->DATX8[2].DXGCR &= ~(1);          //disable byte
+                pPHY_Reg->DATX8[3].DXGCR &= ~(1);
+                pPHY_Reg->DATX8[2].DXDLLCR |= 0x80000000;  //disable DLL
+                pPHY_Reg->DATX8[3].DXDLLCR |= 0x80000000;
+            }
+
+            ddr_update_odt(ch);
+
+            //enter access state
+            ddr_move_to_Access_state(ch);
+        }
+    }
+}
+EXPORT_PIE_SYMBOL(FUNC(ddr_adjust_config));
+
+static uint32 _ddr_adjust_config(void *dtar)
+{
+    uint32 i;
+    unsigned long flags;
+    volatile uint32 n;
+    volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
+    
+     /** 1. Make sure there is no host access */
+    local_irq_save(flags);
+    local_fiq_disable();
+    flush_tlb_all();
+    isb();
+
+    for(i=0;i<SRAM_SIZE/4096;i++)
+    {
+        n=temp[1024*i];
+        barrier();
+    }
+    for(i=0;i<CH_MAX;i++)
+    {
+        if(p_ddr_ch[i]->mem_type != DRAM_MAX)
+        {
+            n= p_ddr_ch[i]->pDDR_Reg->SCFG.d32;
+            n= p_ddr_ch[i]->pPHY_Reg->RIDR;
+            n= p_ddr_ch[i]->pMSCH_Reg->ddrconf;
+        }
+    }
+    n= pCRU_Reg->CRU_PLL_CON[0][0];
+    n= pPMU_Reg->PMU_WAKEUP_CFG[0];
+    n= READ_GRF_REG();
+    dsb();
+
+    call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_adjust_config)),
+                    (void *)dtar,
+                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SIZE);
+    local_fiq_enable();
+    local_irq_restore(flags);
+    return 0;
+}
+
+static void ddr_adjust_config(void)
+{
+    uint32 dtar[CH_MAX];
+    uint32 i;
+
+    //get data training address before idle port
+    ddr_get_datatraing_addr(dtar);
+
+    call_with_single_cpu(&_ddr_adjust_config, (void*)dtar);
+    //_ddr_adjust_config(dtar);
+    //disable unused channel
+    for(i=0;i<CH_MAX;i++)
+    {
+        if(p_ddr_ch[i]->mem_type != DRAM_MAX)
+        {
+            //FIXME
+        }
+    }
+}
+
+static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
+{
+    struct {
+        uint32_t nMHz;
+        struct ddr_freq_t *p_ddr_freq_t;
+    }freq;
+    int ret = 0;
+
+    freq.nMHz = nMHz;
+    freq.p_ddr_freq_t = &ddr_freq_t;
+    ret = call_with_single_cpu(&ddr_change_freq_sram, 
+                               (void*)&freq);
 
     return ret;
 }
@@ -4284,7 +4315,7 @@ static int ddr_init(uint32 dram_speed_bin, uint32 freq)
     struct clk *clk;
     uint32 ch,cap=0,cs_cap;
 
-    ddr_print("version 1.00 20140404 \n");
+    ddr_print("version 1.00 20140603 \n");
 
     p_ddr_reg = kern_to_pie(rockchip_pie_chunk, &DATA(ddr_reg));
     p_ddr_set_pll = fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_set_pll));

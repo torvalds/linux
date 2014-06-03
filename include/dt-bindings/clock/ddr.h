@@ -42,6 +42,6 @@
 #define DDR_LPDDR    (23)
 #define DDR_LPDDR2   (24)
 
-#define PAUSE_CPU_STACK_SZIE	16
+#define PAUSE_CPU_STACK_SIZE	16
 
 #endif

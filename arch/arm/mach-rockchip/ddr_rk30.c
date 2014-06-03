@@ -3534,7 +3534,7 @@ static noinline uint32_t ddr_change_freq_sram(uint32_t nMHz , struct ddr_freq_t 
     param.dqstr_value = dqstr_value;
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_change_freq_sram)),
                     &param,
-                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SZIE);
+                    rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SIZE);
 
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
@@ -3639,7 +3639,7 @@ static void pause_cpu(void *info)
 
 	call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(_pause_cpu)),
 			(void *)cpu,
-			rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SZIE);
+			rockchip_sram_stack-(cpu-1)*PAUSE_CPU_STACK_SIZE);
 }
 
 static void wait_cpu(void *info)
