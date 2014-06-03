@@ -123,7 +123,7 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
 
 static int dgap_tty_register(struct board_t *brd);
 static int dgap_tty_init(struct board_t *);
-static void dgap_tty_uninit(struct board_t *);
+static void dgap_cleanup_tty(struct board_t *);
 static void dgap_carrier(struct channel_t *ch);
 static void dgap_input(struct channel_t *ch);
 
@@ -613,7 +613,7 @@ static void dgap_cleanup_module(void)
 
 	for (i = 0; i < dgap_numboards; ++i) {
 		dgap_remove_ports_sysfiles(dgap_board[i]);
-		dgap_tty_uninit(dgap_board[i]);
+		dgap_cleanup_tty(dgap_board[i]);
 		dgap_cleanup_board(dgap_board[i]);
 	}
 
@@ -1489,12 +1489,12 @@ free_chan:
 }
 
 /*
- * dgap_tty_uninit()
+ * dgap_cleanup_tty()
  *
  * Uninitialize the TTY portion of this driver.  Free all memory and
  * resources.
  */
-static void dgap_tty_uninit(struct board_t *brd)
+static void dgap_cleanup_tty(struct board_t *brd)
 {
 	struct device *dev;
 	int i;
