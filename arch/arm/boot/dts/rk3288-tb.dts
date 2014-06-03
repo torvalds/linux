@@ -381,13 +381,13 @@
 			regulator-name = "vdd_gpu";
 			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1500000>;
-			regulator-always-on;
-  		regulator-boot-on;
+	//		regulator-always-on;
+  			regulator-boot-on;
 			regulator-initial-mode = <0x2>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-mode = <0x2>;
-				regulator-state-enabled;
+				regulator-state-disabled;
 				regulator-state-uv = <900000>;
 			};	
 		};
@@ -858,7 +858,7 @@ rockchip,power_type = <GPIO>;
 
 		rk808_dcdc2_reg: regulator@1 {
 			regulator-name= "vdd_gpu";
-			regulator-always-on;
+		//	regulator-always-on;
 			regulator-boot-on;
 		};
 
