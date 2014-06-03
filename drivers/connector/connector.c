@@ -43,6 +43,8 @@ static struct cn_dev cdev;
 static int cn_already_initialized;
 
 /*
+ * Sends mult (multiple) cn_msg at a time.
+ *
  * msg->seq and msg->ack are used to determine message genealogy.
  * When someone sends message it puts there locally unique sequence
  * and random acknowledge numbers.  Sequence number may be copied into
@@ -62,10 +64,13 @@ static int cn_already_initialized;
  * the acknowledgement number in the original message + 1, then it is
  * a new message.
  *
+ * If msg->len != len, then additional cn_msg messages are expected following
+ * the first msg.
+ *
  * The message is sent to, the portid if given, the group if given, both if
  * both, or if both are zero then the group is looked up and sent there.
  */
-int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 __group,
+int cn_netlink_send_mult(struct cn_msg *msg, u16 len, u32 portid, u32 __group,
 	gfp_t gfp_mask)
 {
 	struct cn_callback_entry *__cbq;
@@ -98,7 +103,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 __group,
 	if (!portid && !netlink_has_listeners(dev->nls, group))
 		return -ESRCH;
 
-	size = sizeof(*msg) + msg->len;
+	size = sizeof(*msg) + len;
 
 	skb = nlmsg_new(size, gfp_mask);
 	if (!skb)
@@ -120,6 +125,14 @@ int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 __group,
 		return netlink_broadcast(dev->nls, skb, portid, group,
 					 gfp_mask);
 	return netlink_unicast(dev->nls, skb, portid, !(gfp_mask&__GFP_WAIT));
+}
+EXPORT_SYMBOL_GPL(cn_netlink_send_mult);
+
+/* same as cn_netlink_send_mult except msg->len is used for len */
+int cn_netlink_send(struct cn_msg *msg, u32 portid, u32 __group,
+	gfp_t gfp_mask)
+{
+	return cn_netlink_send_mult(msg, msg->len, portid, __group, gfp_mask);
 }
 EXPORT_SYMBOL_GPL(cn_netlink_send);
 

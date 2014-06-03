@@ -454,7 +454,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
  */
 int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 {
-	int rc;
+	int rc = 0;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (sgl->fpage) {

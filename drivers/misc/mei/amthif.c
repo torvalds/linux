@@ -111,8 +111,6 @@ int mei_amthif_host_init(struct mei_device *dev)
 		return ret;
 	}
 
-	cl->state = MEI_FILE_CONNECTING;
-
 	ret = mei_cl_connect(cl, NULL);
 
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;

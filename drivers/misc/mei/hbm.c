@@ -14,10 +14,12 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/mei.h>
+#include <linux/pm_runtime.h>
 
 #include "mei_dev.h"
 #include "hbm.h"
@@ -58,6 +60,34 @@ static int mei_cl_conn_status_to_errno(enum mei_cl_connect_status status)
 }
 
 /**
+ * mei_hbm_idle - set hbm to idle state
+ *
+ * @dev: the device structure
+ */
+void mei_hbm_idle(struct mei_device *dev)
+{
+	dev->init_clients_timer = 0;
+	dev->hbm_state = MEI_HBM_IDLE;
+}
+
+/**
+ * mei_hbm_reset - reset hbm counters and book keeping data structurs
+ *
+ * @dev: the device structure
+ */
+void mei_hbm_reset(struct mei_device *dev)
+{
+	dev->me_clients_num = 0;
+	dev->me_client_presentation_num = 0;
+	dev->me_client_index = 0;
+
+	kfree(dev->me_clients);
+	dev->me_clients = NULL;
+
+	mei_hbm_idle(dev);
+}
+
+/**
  * mei_hbm_me_cl_allocate - allocates storage for me clients
  *
  * @dev: the device structure
@@ -69,9 +99,7 @@ static int mei_hbm_me_cl_allocate(struct mei_device *dev)
 	struct mei_me_client *clients;
 	int b;
 
-	dev->me_clients_num = 0;
-	dev->me_client_presentation_num = 0;
-	dev->me_client_index = 0;
+	mei_hbm_reset(dev);
 
 	/* count how many ME clients we have */
 	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
@@ -79,9 +107,6 @@ static int mei_hbm_me_cl_allocate(struct mei_device *dev)
 
 	if (dev->me_clients_num == 0)
 		return 0;
-
-	kfree(dev->me_clients);
-	dev->me_clients = NULL;
 
 	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%ld.\n",
 		dev->me_clients_num * sizeof(struct mei_me_client));
@@ -132,17 +157,6 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, void *buf)
 		cl->me_client_id == cmd->me_addr;
 }
 
-
-/**
- * mei_hbm_idle - set hbm to idle state
- *
- * @dev: the device structure
- */
-void mei_hbm_idle(struct mei_device *dev)
-{
-	dev->init_clients_timer = 0;
-	dev->hbm_state = MEI_HBM_IDLE;
-}
 
 int mei_hbm_start_wait(struct mei_device *dev)
 {
@@ -288,6 +302,34 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 
 	return 0;
 }
+
+/*
+ * mei_hbm_pg - sends pg command
+ *
+ * @dev: the device structure
+ * @pg_cmd: the pg command code
+ *
+ * This function returns -EIO on write failure
+ */
+int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
+{
+	struct mei_msg_hdr *mei_hdr = &dev->wr_msg.hdr;
+	struct hbm_power_gate *req;
+	const size_t len = sizeof(struct hbm_power_gate);
+	int ret;
+
+	mei_hbm_hdr(mei_hdr, len);
+
+	req = (struct hbm_power_gate *)dev->wr_msg.data;
+	memset(req, 0, len);
+	req->hbm_cmd = pg_cmd;
+
+	ret = mei_write_message(dev, mei_hdr, dev->wr_msg.data);
+	if (ret)
+		dev_err(&dev->pdev->dev, "power gate command write failed.\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mei_hbm_pg);
 
 /**
  * mei_hbm_stop_req - send stop request message
@@ -699,6 +741,27 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 		flow_control = (struct hbm_flow_control *) mei_msg;
 		mei_hbm_cl_flow_control_res(dev, flow_control);
+		break;
+
+	case MEI_PG_ISOLATION_ENTRY_RES_CMD:
+		dev_dbg(&dev->pdev->dev, "power gate isolation entry response received\n");
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
+		if (waitqueue_active(&dev->wait_pg))
+			wake_up(&dev->wait_pg);
+		break;
+
+	case MEI_PG_ISOLATION_EXIT_REQ_CMD:
+		dev_dbg(&dev->pdev->dev, "power gate isolation exit request received\n");
+		dev->pg_event = MEI_PG_EVENT_RECEIVED;
+		if (waitqueue_active(&dev->wait_pg))
+			wake_up(&dev->wait_pg);
+		else
+			/*
+			* If the driver is not waiting on this then
+			* this is HW initiated exit from PG.
+			* Start runtime pm resume sequence to exit from PG.
+			*/
+			pm_request_resume(&dev->pdev->dev);
 		break;
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:

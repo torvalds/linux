@@ -1078,6 +1078,8 @@ static void w1_search_process(struct w1_master *dev, u8 search_type)
  * w1_process_callbacks() - execute each dev->async_list callback entry
  * @dev: w1_master device
  *
+ * The w1 master list_mutex must be held.
+ *
  * Return: 1 if there were commands to executed 0 otherwise
  */
 int w1_process_callbacks(struct w1_master *dev)
