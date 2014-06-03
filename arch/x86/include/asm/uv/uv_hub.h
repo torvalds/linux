@@ -5,7 +5,7 @@
  *
  * SGI UV architectural definitions
  *
- * Copyright (C) 2007-2013 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2014 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_HUB_H
@@ -202,16 +202,6 @@ static inline int is_uv_hub(void)
 static inline int is_uvx_hub(void)
 {
 	return uv_hub_info->hub_revision >= UV2_HUB_REVISION_BASE;
-}
-
-static inline int is_uv2_1_hub(void)
-{
-	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE;
-}
-
-static inline int is_uv2_2_hub(void)
-{
-	return uv_hub_info->hub_revision == UV2_HUB_REVISION_BASE + 1;
 }
 
 union uvh_apicid {
