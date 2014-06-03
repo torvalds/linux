@@ -1767,7 +1767,7 @@ static void blk_mq_add_queue_tag_set(struct blk_mq_tag_set *set,
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 {
 	struct blk_mq_hw_ctx **hctxs;
-	struct blk_mq_ctx *ctx;
+	struct blk_mq_ctx __percpu *ctx;
 	struct request_queue *q;
 	unsigned int *map;
 	int i;
