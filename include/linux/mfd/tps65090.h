@@ -64,6 +64,20 @@ enum {
 	TPS65090_REGULATOR_MAX,
 };
 
+/* Register addresses */
+#define TPS65090_REG_INTR_STS	0x00
+#define TPS65090_REG_INTR_STS2	0x01
+#define TPS65090_REG_INTR_MASK	0x02
+#define TPS65090_REG_INTR_MASK2	0x03
+#define TPS65090_REG_CG_CTRL0	0x04
+#define TPS65090_REG_CG_CTRL1	0x05
+#define TPS65090_REG_CG_CTRL2	0x06
+#define TPS65090_REG_CG_CTRL3	0x07
+#define TPS65090_REG_CG_CTRL4	0x08
+#define TPS65090_REG_CG_CTRL5	0x09
+#define TPS65090_REG_CG_STATUS1	0x0a
+#define TPS65090_REG_CG_STATUS2	0x0b
+
 struct tps65090 {
 	struct device		*dev;
 	struct regmap		*rmap;
