@@ -4,7 +4,7 @@
 #include <linux/perf_event.h>
 
 #include "../../perf.h"
-#include "../../util/types.h"
+#include <linux/types.h>
 #include "../../util/debug.h"
 #include "tsc.h"
 

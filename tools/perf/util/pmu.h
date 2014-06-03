@@ -1,7 +1,7 @@
 #ifndef __PMU_H
 #define __PMU_H
 
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
 
