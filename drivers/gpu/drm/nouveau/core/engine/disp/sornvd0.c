@@ -105,7 +105,9 @@ nvd0_sor_dp_drv_ctl(struct nvkm_output_dp *outp, int ln, int vs, int pe, int pc)
 
 	data[0] = nv_rd32(priv, 0x61c118 + loff) & ~(0x000000ff << shift);
 	data[1] = nv_rd32(priv, 0x61c120 + loff) & ~(0x000000ff << shift);
-	data[2] = nv_rd32(priv, 0x61c130 + loff) & ~(0x0000ff00);
+	data[2] = nv_rd32(priv, 0x61c130 + loff);
+	if ((data[2] & 0x0000ff00) < (ocfg.tx_pu << 8) || ln == 0)
+		data[2] = (data[2] & ~0x0000ff00) | (ocfg.tx_pu << 8);
 	nv_wr32(priv, 0x61c118 + loff, data[0] | (ocfg.dc << shift));
 	nv_wr32(priv, 0x61c120 + loff, data[1] | (ocfg.pe << shift));
 	nv_wr32(priv, 0x61c130 + loff, data[2] | (ocfg.tx_pu << 8));
