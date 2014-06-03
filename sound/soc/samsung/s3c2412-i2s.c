@@ -120,11 +120,11 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		iismod |= S3C2412_IISMOD_8BIT;
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		iismod &= ~S3C2412_IISMOD_8BIT;
 		break;
 	}

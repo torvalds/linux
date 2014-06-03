@@ -109,7 +109,7 @@ static void enable_and_reset_codec(struct regmap *regmap,
 {
 	regmap_update_bits(regmap, AUDIO_IC_CODEC_CTRL1,
 			codec_enable_bits | codec_reset_bits,
-			codec_enable_bits | ~codec_reset_bits);
+			codec_enable_bits);
 	msleep(20);
 	regmap_update_bits(regmap, AUDIO_IC_CODEC_CTRL1,
 			codec_reset_bits, codec_reset_bits);
@@ -128,8 +128,7 @@ static int atlas6_codec_enable_and_reset_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(sirf_audio_codec->regmap,
-			AUDIO_IC_CODEC_CTRL1, ATLAS6_CODEC_ENABLE_BITS,
-			~ATLAS6_CODEC_ENABLE_BITS);
+			AUDIO_IC_CODEC_CTRL1, ATLAS6_CODEC_ENABLE_BITS, 0);
 		break;
 	default:
 		break;
@@ -151,8 +150,7 @@ static int prima2_codec_enable_and_reset_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(sirf_audio_codec->regmap,
-			AUDIO_IC_CODEC_CTRL1, PRIMA2_CODEC_ENABLE_BITS,
-			~PRIMA2_CODEC_ENABLE_BITS);
+			AUDIO_IC_CODEC_CTRL1, PRIMA2_CODEC_ENABLE_BITS, 0);
 		break;
 	default:
 		break;

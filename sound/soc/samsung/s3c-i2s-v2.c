@@ -322,13 +322,13 @@ static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 
 	iismod &= ~S3C64XX_IISMOD_BLC_MASK;
 	/* Sample size */
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		iismod |= S3C64XX_IISMOD_BLC_8BIT;
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		iismod |= S3C64XX_IISMOD_BLC_24BIT;
 		break;
 	}
