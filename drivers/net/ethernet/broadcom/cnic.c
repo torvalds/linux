@@ -5624,20 +5624,27 @@ static void cnic_rcv_netevent(struct cnic_local *cp, unsigned long event,
 {
 	int if_type;
 
-	rcu_read_lock();
 	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
 		struct cnic_ulp_ops *ulp_ops;
 		void *ctx;
 
-		ulp_ops = rcu_dereference(cp->ulp_ops[if_type]);
-		if (!ulp_ops || !ulp_ops->indicate_netevent)
+		mutex_lock(&cnic_lock);
+		ulp_ops = rcu_dereference_protected(cp->ulp_ops[if_type],
+						lockdep_is_held(&cnic_lock));
+		if (!ulp_ops || !ulp_ops->indicate_netevent) {
+			mutex_unlock(&cnic_lock);
 			continue;
+		}
 
 		ctx = cp->ulp_handle[if_type];
 
+		set_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
+		mutex_unlock(&cnic_lock);
+
 		ulp_ops->indicate_netevent(ctx, event, vlan_id);
+
+		clear_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
 	}
-	rcu_read_unlock();
 }
 
 /* netdev event handler */
