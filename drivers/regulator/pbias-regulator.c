@@ -49,33 +49,13 @@ static const unsigned int pbias_volt_table[] = {
 	3000000
 };
 
-static int pbias_regulator_enable(struct regulator_dev *rdev)
-{
-	struct pbias_regulator_data *data = rdev_get_drvdata(rdev);
-	const struct pbias_reg_info *info = data->info;
-
-	return regmap_update_bits(data->syscon, rdev->desc->enable_reg,
-				  info->enable_mask, info->enable);
-}
-
-static int pbias_regulator_is_enable(struct regulator_dev *rdev)
-{
-	struct pbias_regulator_data *data = rdev_get_drvdata(rdev);
-	const struct pbias_reg_info *info = data->info;
-	int value;
-
-	regmap_read(data->syscon, rdev->desc->enable_reg, &value);
-
-	return (value & info->enable_mask) == info->enable;
-}
-
 static struct regulator_ops pbias_regulator_voltage_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
-	.enable = pbias_regulator_enable,
+	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
-	.is_enabled = pbias_regulator_is_enable,
+	.is_enabled = regulator_is_enabled_regmap,
 };
 
 static const struct pbias_reg_info pbias_mmc_omap2430 = {
@@ -142,10 +122,8 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct pbias_regulator_data)
 			       * count, GFP_KERNEL);
-	if (drvdata == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate device data\n");
+	if (!drvdata)
 		return -ENOMEM;
-	}
 
 	syscon = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(syscon))
@@ -180,6 +158,7 @@ static int pbias_regulator_probe(struct platform_device *pdev)
 		drvdata[data_idx].desc.vsel_mask = info->vmode;
 		drvdata[data_idx].desc.enable_reg = res->start;
 		drvdata[data_idx].desc.enable_mask = info->enable_mask;
+		drvdata[data_idx].desc.enable_val = info->enable;
 
 		cfg.init_data = pbias_matches[idx].init_data;
 		cfg.driver_data = &drvdata[data_idx];

@@ -134,6 +134,7 @@ static struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= tps65217_pmic_set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 };
 
 static const struct regulator_desc regulators[] = {
@@ -257,9 +258,6 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 				pdev->name);
 			return PTR_ERR(rdev);
 		}
-
-		/* Save regulator for cleanup */
-		tps->rdev[i] = rdev;
 	}
 	return 0;
 }
