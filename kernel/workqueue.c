@@ -2015,13 +2015,7 @@ __acquires(&pool->lock)
 
 	lockdep_copy_map(&lockdep_map, &work->lockdep_map);
 #endif
-	/*
-	 * Ensure we're on the correct CPU.  DISASSOCIATED test is
-	 * necessary to avoid spurious warnings from rescuers servicing the
-	 * unbound or a disassociated pool.
-	 */
-	WARN_ON_ONCE(!(worker->flags & WORKER_UNBOUND) &&
-		     !(pool->flags & POOL_DISASSOCIATED) &&
+	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
 		     raw_smp_processor_id() != pool->cpu);
 
 	/*
