@@ -498,7 +498,7 @@ static int pxa_gpio_nums(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id pxa_gpio_dt_ids[] = {
+static const struct of_device_id pxa_gpio_dt_ids[] = {
 	{ .compatible = "intel,pxa25x-gpio",	.data = &pxa25x_id, },
 	{ .compatible = "intel,pxa26x-gpio",	.data = &pxa26x_id, },
 	{ .compatible = "intel,pxa27x-gpio",	.data = &pxa27x_id, },
