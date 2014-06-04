@@ -35,7 +35,6 @@ static void trace_do_benchmark(void)
 	u64 delta;
 	s64 stddev;
 	u64 seed;
-	u64 seedsq;
 	u64 last_seed;
 	unsigned int avg;
 	unsigned int std = 0;
