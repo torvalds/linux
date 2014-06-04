@@ -184,8 +184,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	}
 	master->max_speed_hz = clk_get_rate(hw->spi_clk);
 
-	platform_set_drvdata(pdev, master);
-
 	hw->syscon = syscon_regmap_lookup_by_pdevname("syscon.3");
 	if (IS_ERR(hw->syscon)) {
 		ret = PTR_ERR(hw->syscon);
