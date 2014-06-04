@@ -6263,14 +6263,6 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return ret;
 }
 
-static u64 stripe_align(struct btrfs_root *root,
-			struct btrfs_block_group_cache *cache,
-			u64 val, u64 num_bytes)
-{
-	u64 ret = ALIGN(val, root->stripesize);
-	return ret;
-}
-
 /*
  * when we wait for progress in the block group caching, its because
  * our allocation attempt failed at least once.  So, we must sleep
@@ -6751,8 +6743,7 @@ unclustered_alloc:
 			goto loop;
 		}
 checks:
-		search_start = stripe_align(root, block_group,
-					    offset, num_bytes);
+		search_start = ALIGN(offset, root->stripesize);
 
 		/* move on to the next group */
 		if (search_start + num_bytes >
