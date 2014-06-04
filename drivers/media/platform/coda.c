@@ -3770,7 +3770,7 @@ static int coda_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get irq resource\n");
-		return -ENOENT;
+		return irq;
 	}
 
 	if (devm_request_threaded_irq(&pdev->dev, irq, NULL, coda_irq_handler,
