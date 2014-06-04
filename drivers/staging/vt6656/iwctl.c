@@ -1328,11 +1328,11 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 	}
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
 		pDevice->ePSMode = WMAC_POWER_FAST;
-		PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
+		vnt_enable_power_saving(pDevice, pMgmt->wListenInterval);
 
 	} else if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_PERIOD) {
 		pDevice->ePSMode = WMAC_POWER_FAST;
-		PSvEnablePowerSaving((void *)pDevice, pMgmt->wListenInterval);
+		vnt_enable_power_saving(pDevice, pMgmt->wListenInterval);
 	}
 
 	switch (wrq->flags & IW_POWER_MODE) {

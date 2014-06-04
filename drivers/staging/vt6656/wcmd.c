@@ -593,7 +593,7 @@ void vRunCommand(struct work_struct *work)
 		if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_ASSOC\n");
 			if (pDevice->ePSMode != WMAC_POWER_CAM) {
-				PSvEnablePowerSaving((void *) pDevice,
+				vnt_enable_power_saving(pDevice,
 						pMgmt->wListenInterval);
 			}
 /*

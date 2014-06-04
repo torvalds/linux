@@ -26,7 +26,7 @@
  * Date: July 17, 2002
  *
  * Functions:
- *      PSvEnablePowerSaving - Enable Power Saving Mode
+ *      vnt_enable_power_saving - Enable Power Saving Mode
  *      PSvDiasblePowerSaving - Disable Power Saving Mode
  *      PSbConsiderPowerDown - Decide if we can Power Down
  *      PSvSendPSPOLL - Send PS-POLL packet
@@ -58,7 +58,7 @@ static int msglevel = MSG_LEVEL_INFO;
  *
  */
 
-void PSvEnablePowerSaving(struct vnt_private *priv, u16 listen_interval)
+void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 {
 	struct vnt_manager *mgmt = &priv->vnt_mgmt;
 	u16 aid = mgmt->wCurrAID | BIT14 | BIT15;

@@ -39,7 +39,7 @@
 int PSbConsiderPowerDown(struct vnt_private *, int bCheckRxDMA,
 	int bCheckCountToWakeUp);
 void PSvDisablePowerSaving(struct vnt_private *);
-void PSvEnablePowerSaving(struct vnt_private *, u16 wListenInterval);
+void vnt_enable_power_saving(struct vnt_private *, u16);
 void PSvSendPSPOLL(struct vnt_private *);
 int PSbSendNullPacket(struct vnt_private *);
 int PSbIsNextTBTTWakeUp(struct vnt_private *);
