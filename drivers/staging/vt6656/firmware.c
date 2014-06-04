@@ -43,14 +43,14 @@ static int msglevel = MSG_LEVEL_INFO;
 
 #define FIRMWARE_CHUNK_SIZE	0x400
 
-int FIRMWAREbDownload(struct vnt_private *pDevice)
+int FIRMWAREbDownload(struct vnt_private *priv)
 {
-	struct device *dev = &pDevice->usb->dev;
+	struct device *dev = &priv->usb->dev;
 	const struct firmware *fw;
-	int NdisStatus;
-	void *pBuffer = NULL;
+	int status;
+	void *buffer = NULL;
 	bool result = false;
-	u16 wLength;
+	u16 length;
 	int ii, rc;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
@@ -62,24 +62,24 @@ int FIRMWAREbDownload(struct vnt_private *pDevice)
 			goto out;
 	}
 
-	pBuffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
-	if (!pBuffer)
+	buffer = kmalloc(FIRMWARE_CHUNK_SIZE, GFP_KERNEL);
+	if (!buffer)
 		goto out;
 
 	for (ii = 0; ii < fw->size; ii += FIRMWARE_CHUNK_SIZE) {
-		wLength = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);
-		memcpy(pBuffer, fw->data + ii, wLength);
+		length = min_t(int, fw->size - ii, FIRMWARE_CHUNK_SIZE);
+		memcpy(buffer, fw->data + ii, length);
 
-		NdisStatus = vnt_control_out(pDevice,
+		status = vnt_control_out(priv,
 						0,
 						0x1200+ii,
 						0x0000,
-						wLength,
-						pBuffer);
+						length,
+						buffer);
 
 		DBG_PRT(MSG_LEVEL_DEBUG,
 			KERN_INFO"Download firmware...%d %zu\n", ii, fw->size);
-		if (NdisStatus != STATUS_SUCCESS)
+		if (status != STATUS_SUCCESS)
 			goto free_fw;
 	}
 
@@ -88,7 +88,7 @@ free_fw:
 	release_firmware(fw);
 
 out:
-	kfree(pBuffer);
+	kfree(buffer);
 
 	return result;
 }
