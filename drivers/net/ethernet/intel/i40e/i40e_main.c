@@ -8898,7 +8898,6 @@ static void i40e_remove(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 	i40e_status ret_code;
-	u32 reg;
 	int i;
 
 	i40e_dbg_pf_exit(pf);
@@ -8975,11 +8974,6 @@ static void i40e_remove(struct pci_dev *pdev)
 	kfree(pf->qp_pile);
 	kfree(pf->irq_pile);
 	kfree(pf->vsi);
-
-	/* force a PF reset to clean anything leftover */
-	reg = rd32(&pf->hw, I40E_PFGEN_CTRL);
-	wr32(&pf->hw, I40E_PFGEN_CTRL, (reg | I40E_PFGEN_CTRL_PFSWR_MASK));
-	i40e_flush(&pf->hw);
 
 	iounmap(pf->hw.hw_addr);
 	kfree(pf);
