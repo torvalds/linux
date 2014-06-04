@@ -479,6 +479,8 @@ config LEDS_OT200
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
 
+comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
+
 config LEDS_BLINKM
 	tristate "LED support for the BlinkM I2C RGB LED"
 	depends on LEDS_CLASS
