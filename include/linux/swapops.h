@@ -54,7 +54,7 @@ static inline pgoff_t swp_offset(swp_entry_t entry)
 /* check whether a pte points to a swap entry */
 static inline int is_swap_pte(pte_t pte)
 {
-	return !pte_none(pte) && !pte_present(pte) && !pte_file(pte);
+	return !pte_none(pte) && !pte_present_nonuma(pte) && !pte_file(pte);
 }
 #endif
 

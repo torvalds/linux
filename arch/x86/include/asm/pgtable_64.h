@@ -145,8 +145,16 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 /* Encode and de-code a swap entry */
 #if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
 #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#ifdef CONFIG_NUMA_BALANCING
+/* Automatic NUMA balancing needs to be distinguishable from swap entries */
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 2)
 #else
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#endif
+#else
+#ifdef CONFIG_NUMA_BALANCING
+#error Incompatible format for automatic NUMA balancing
+#endif
 #define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
 #define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
 #endif
