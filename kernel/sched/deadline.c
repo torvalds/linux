@@ -352,7 +352,7 @@ static void replenish_dl_entity(struct sched_dl_entity *dl_se,
 
 		if (!lag_once) {
 			lag_once = true;
-			printk_sched("sched: DL replenish lagged to much\n");
+			printk_deferred("sched: DL replenish lagged to much\n");
 		}
 		dl_se->deadline = rq_clock(rq) + pi_se->dl_deadline;
 		dl_se->runtime = pi_se->dl_runtime;
