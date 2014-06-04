@@ -1886,6 +1886,7 @@ int soc_dpcm_runtime_update(struct snd_soc_dapm_widget *widget)
 			dpcm_be_disconnect(fe, SNDRV_PCM_STREAM_PLAYBACK);
 		}
 
+		dpcm_path_put(&list);
 capture:
 		/* skip if FE doesn't have capture capability */
 		if (!fe->cpu_dai->driver->capture.channels_min)
