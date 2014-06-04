@@ -214,12 +214,6 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
 	return follow_page_pte(vma, address, pmd, flags);
 }
 
-static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
-{
-	return stack_guard_page_start(vma, addr) ||
-	       stack_guard_page_end(vma, addr+PAGE_SIZE);
-}
-
 static int get_gate_page(struct mm_struct *mm, unsigned long address,
 		unsigned int gup_flags, struct vm_area_struct **vma,
 		struct page **page)
@@ -262,6 +256,63 @@ out:
 unmap:
 	pte_unmap(pte);
 	return ret;
+}
+
+static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+		unsigned long address, unsigned int *flags, int *nonblocking)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned int fault_flags = 0;
+	int ret;
+
+	/* For mlock, just skip the stack guard page. */
+	if ((*flags & FOLL_MLOCK) &&
+			(stack_guard_page_start(vma, address) ||
+			 stack_guard_page_end(vma, address + PAGE_SIZE)))
+		return -ENOENT;
+	if (*flags & FOLL_WRITE)
+		fault_flags |= FAULT_FLAG_WRITE;
+	if (nonblocking)
+		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+	if (*flags & FOLL_NOWAIT)
+		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+
+	ret = handle_mm_fault(mm, vma, address, fault_flags);
+	if (ret & VM_FAULT_ERROR) {
+		if (ret & VM_FAULT_OOM)
+			return -ENOMEM;
+		if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
+			return *flags & FOLL_HWPOISON ? -EHWPOISON : -EFAULT;
+		if (ret & VM_FAULT_SIGBUS)
+			return -EFAULT;
+		BUG();
+	}
+
+	if (tsk) {
+		if (ret & VM_FAULT_MAJOR)
+			tsk->maj_flt++;
+		else
+			tsk->min_flt++;
+	}
+
+	if (ret & VM_FAULT_RETRY) {
+		if (nonblocking)
+			*nonblocking = 0;
+		return -EBUSY;
+	}
+
+	/*
+	 * The VM_FAULT_WRITE bit tells us that do_wp_page has broken COW when
+	 * necessary, even if maybe_mkwrite decided not to set pte_write. We
+	 * can thus safely do subsequent page lookups as if they were reads.
+	 * But only do so when looping for pte_write is futile: in some cases
+	 * userspace may also be wanting to write to the gotten user page,
+	 * which a read fault here might prevent (a readonly page might get
+	 * reCOWed by userspace write).
+	 */
+	if ((ret & VM_FAULT_WRITE) && !(vma->vm_flags & VM_WRITE))
+		*flags &= ~FOLL_WRITE;
+	return 0;
 }
 
 /**
@@ -410,69 +461,22 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			while (!(page = follow_page_mask(vma, start,
 						foll_flags, &page_mask))) {
 				int ret;
-				unsigned int fault_flags = 0;
-
-				/* For mlock, just skip the stack guard page. */
-				if (foll_flags & FOLL_MLOCK) {
-					if (stack_guard_page(vma, start))
-						goto next_page;
-				}
-				if (foll_flags & FOLL_WRITE)
-					fault_flags |= FAULT_FLAG_WRITE;
-				if (nonblocking)
-					fault_flags |= FAULT_FLAG_ALLOW_RETRY;
-				if (foll_flags & FOLL_NOWAIT)
-					fault_flags |= (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT);
-
-				ret = handle_mm_fault(mm, vma, start,
-							fault_flags);
-
-				if (ret & VM_FAULT_ERROR) {
-					if (ret & VM_FAULT_OOM)
-						return i ? i : -ENOMEM;
-					if (ret & (VM_FAULT_HWPOISON |
-						   VM_FAULT_HWPOISON_LARGE)) {
-						if (i)
-							return i;
-						else if (gup_flags & FOLL_HWPOISON)
-							return -EHWPOISON;
-						else
-							return -EFAULT;
-					}
-					if (ret & VM_FAULT_SIGBUS)
-						goto efault;
+				ret = faultin_page(tsk, vma, start, &foll_flags,
+						nonblocking);
+				switch (ret) {
+				case 0:
+					break;
+				case -EFAULT:
+				case -ENOMEM:
+				case -EHWPOISON:
+					return i ? i : ret;
+				case -EBUSY:
+					return i;
+				case -ENOENT:
+					goto next_page;
+				default:
 					BUG();
 				}
-
-				if (tsk) {
-					if (ret & VM_FAULT_MAJOR)
-						tsk->maj_flt++;
-					else
-						tsk->min_flt++;
-				}
-
-				if (ret & VM_FAULT_RETRY) {
-					if (nonblocking)
-						*nonblocking = 0;
-					return i;
-				}
-
-				/*
-				 * The VM_FAULT_WRITE bit tells us that
-				 * do_wp_page has broken COW when necessary,
-				 * even if maybe_mkwrite decided not to set
-				 * pte_write. We can thus safely do subsequent
-				 * page lookups as if they were reads. But only
-				 * do so when looping for pte_write is futile:
-				 * in some cases userspace may also be wanting
-				 * to write to the gotten user page, which a
-				 * read fault here might prevent (a readonly
-				 * page might get reCOWed by userspace write).
-				 */
-				if ((ret & VM_FAULT_WRITE) &&
-				    !(vma->vm_flags & VM_WRITE))
-					foll_flags &= ~FOLL_WRITE;
-
 				cond_resched();
 			}
 			if (IS_ERR(page))
