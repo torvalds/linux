@@ -3216,11 +3216,11 @@ process_slot:
 				 * | ------------- extent ------------- |
 				 */
 
-				/* substract range b */
+				/* subtract range b */
 				if (key.offset + datal > off + len)
 					datal = off + len - key.offset;
 
-				/* substract range a */
+				/* subtract range a */
 				if (off > key.offset) {
 					datao += off - key.offset;
 					datal -= off - key.offset;
