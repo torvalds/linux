@@ -187,13 +187,13 @@ dm9000_reset(board_info_t *db)
 	 * The essential point is that we have to do a double reset, and the
 	 * instruction is to set LBK into MAC internal loopback mode.
 	 */
-	iow(db, DM9000_NCR, 0x03);
+	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100); /* Application note says at least 20 us */
 	if (ior(db, DM9000_NCR) & 1)
 		dev_err(db->dev, "dm9000 did not respond to first reset\n");
 
 	iow(db, DM9000_NCR, 0);
-	iow(db, DM9000_NCR, 0x03);
+	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100);
 	if (ior(db, DM9000_NCR) & 1)
 		dev_err(db->dev, "dm9000 did not respond to second reset\n");
@@ -894,6 +894,8 @@ dm9000_init_dm9000(struct net_device *dev)
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
 
+	dm9000_reset(db);
+
 	/* I/O mode */
 	db->io_mode = ior(db, DM9000_ISR) >> 6;	/* ISR bit7:6 keeps I/O mode */
 
@@ -962,7 +964,6 @@ static void dm9000_timeout(struct net_device *dev)
 	reg_save = readb(db->io_addr);
 
 	netif_stop_queue(dev);
-	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies; /* prevent tx timeout */
@@ -1304,7 +1305,6 @@ dm9000_open(struct net_device *dev)
 	mdelay(1); /* delay needs by DM9000B */
 
 	/* Initialize DM9000 board */
-	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
 
 	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
@@ -1550,12 +1550,7 @@ dm9000_probe(struct platform_device *pdev)
 	db->flags |= DM9000_PLATF_SIMPLE_PHY;
 #endif
 
-	/* Fixing bug on dm9000_probe, takeover dm9000_reset(db),
-	 * Need 'NCR_MAC_LBK' bit to indeed stable our DM9000 fifo
-	 * while probe stage.
-	 */
-
-	iow(db, DM9000_NCR, NCR_MAC_LBK | NCR_RST);
+	dm9000_reset(db);
 
 	/* try multiple times, DM9000 sometimes gets the read wrong */
 	for (i = 0; i < 8; i++) {
@@ -1698,7 +1693,6 @@ dm9000_drv_resume(struct device *dev)
 			/* reset if we were not in wake mode to ensure if
 			 * the device was powered off it is in a known state */
 			if (!db->wake_state) {
-				dm9000_reset(db);
 				dm9000_init_dm9000(ndev);
 			}
 
