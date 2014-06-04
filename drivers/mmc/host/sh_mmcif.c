@@ -1390,7 +1390,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
-		goto eofparse;
+		goto err_host;
 
 	host		= mmc_priv(mmc);
 	host->mmc	= mmc;
@@ -1420,19 +1420,19 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	host->power = false;
 
-	host->hclk = clk_get(&pdev->dev, NULL);
+	host->hclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->hclk)) {
 		ret = PTR_ERR(host->hclk);
 		dev_err(&pdev->dev, "cannot get clock: %d\n", ret);
-		goto eclkget;
+		goto err_pm;
 	}
 	ret = sh_mmcif_clk_update(host);
 	if (ret < 0)
-		goto eclkupdate;
+		goto err_pm;
 
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
-		goto eresume;
+		goto err_clk;
 
 	INIT_DELAYED_WORK(&host->timeout_work, mmcif_timeout_work);
 
@@ -1483,13 +1483,11 @@ ereqirq1:
 	free_irq(irq[0], host);
 ereqirq0:
 	pm_runtime_suspend(&pdev->dev);
-eresume:
+err_clk:
 	clk_disable_unprepare(host->hclk);
-eclkupdate:
-	clk_put(host->hclk);
-eclkget:
+err_pm:
 	pm_runtime_disable(&pdev->dev);
-eofparse:
+err_host:
 	mmc_free_host(mmc);
 	return ret;
 }
