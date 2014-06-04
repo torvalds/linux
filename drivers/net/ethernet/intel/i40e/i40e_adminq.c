@@ -571,6 +571,9 @@ i40e_status i40e_init_adminq(struct i40e_hw *hw)
 	/* Set up register offsets */
 	i40e_adminq_init_regs(hw);
 
+	/* setup ASQ command write back timeout */
+	hw->aq.asq_cmd_timeout = I40E_ASQ_CMD_TIMEOUT;
+
 	/* allocate the ASQ */
 	ret_code = i40e_init_asq(hw);
 	if (ret_code)
@@ -860,7 +863,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 			/* ugh! delay while spin_lock */
 			udelay(delay_len);
 			total_delay += delay_len;
-		} while (total_delay <  I40E_ASQ_CMD_TIMEOUT);
+		} while (total_delay <  hw->aq.asq_cmd_timeout);
 	}
 
 	/* if ready, copy the desc back to temp */
