@@ -158,8 +158,7 @@ struct xenvif {
 
 	struct timer_list wake_queue;
 
-	/* This array is allocated seperately as it is large */
-	struct gnttab_copy *grant_copy_op;
+	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
 	/* We create one meta structure per ring request we consume, so
 	 * the maximum number is the same as the ring size.
