@@ -578,28 +578,30 @@ static void print_page_info(struct page *page)
 
 static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
-	char buf[100];
 
 	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 	pr_err("=============================================================================\n");
-	pr_err("BUG %s (%s): %s\n", s->name, print_tainted(), buf);
+	pr_err("BUG %s (%s): %pV\n", s->name, print_tainted(), &vaf);
 	pr_err("-----------------------------------------------------------------------------\n\n");
 
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+	va_end(args);
 }
 
 static void slab_fix(struct kmem_cache *s, char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
-	char buf[100];
 
 	va_start(args, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, args);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	pr_err("FIX %s: %pV\n", s->name, &vaf);
 	va_end(args);
-	pr_err("FIX %s: %s\n", s->name, buf);
 }
 
 static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
