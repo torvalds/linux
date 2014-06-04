@@ -761,6 +761,89 @@ static u64 genwqe_fir_checking(struct genwqe_dev *cd)
 }
 
 /**
+ * genwqe_pci_fundamental_reset() - trigger a PCIe fundamental reset on the slot
+ *
+ * Note: pci_set_pcie_reset_state() is not implemented on all archs, so this
+ * reset method will not work in all cases.
+ *
+ * Return: 0 on success or error code from pci_set_pcie_reset_state()
+ */
+static int genwqe_pci_fundamental_reset(struct pci_dev *pci_dev)
+{
+	int rc;
+
+	/*
+	 * lock pci config space access from userspace,
+	 * save state and issue PCIe fundamental reset
+	 */
+	pci_cfg_access_lock(pci_dev);
+	pci_save_state(pci_dev);
+	rc = pci_set_pcie_reset_state(pci_dev, pcie_warm_reset);
+	if (!rc) {
+		/* keep PCIe reset asserted for 250ms */
+		msleep(250);
+		pci_set_pcie_reset_state(pci_dev, pcie_deassert_reset);
+		/* Wait for 2s to reload flash and train the link */
+		msleep(2000);
+	}
+	pci_restore_state(pci_dev);
+	pci_cfg_access_unlock(pci_dev);
+	return rc;
+}
+
+/*
+ * genwqe_reload_bistream() - reload card bitstream
+ *
+ * Set the appropriate register and call fundamental reset to reaload the card
+ * bitstream.
+ *
+ * Return: 0 on success, error code otherwise
+ */
+static int genwqe_reload_bistream(struct genwqe_dev *cd)
+{
+	struct pci_dev *pci_dev = cd->pci_dev;
+	int rc;
+
+	dev_info(&pci_dev->dev,
+		 "[%s] resetting card for bitstream reload\n",
+		 __func__);
+
+	genwqe_stop(cd);
+
+	/*
+	 * Cause a CPLD reprogram with the 'next_bitstream'
+	 * partition on PCIe hot or fundamental reset
+	 */
+	__genwqe_writeq(cd, IO_SLC_CFGREG_SOFTRESET,
+			(cd->softreset & 0xcull) | 0x70ull);
+
+	rc = genwqe_pci_fundamental_reset(pci_dev);
+	if (rc) {
+		/*
+		 * A fundamental reset failure can be caused
+		 * by lack of support on the arch, so we just
+		 * log the error and try to start the card
+		 * again.
+		 */
+		dev_err(&pci_dev->dev,
+			"[%s] err: failed to reset card for bitstream reload\n",
+			__func__);
+	}
+
+	rc = genwqe_start(cd);
+	if (rc) {
+		dev_err(&pci_dev->dev,
+			"[%s] err: cannot start card services! (err=%d)\n",
+			__func__, rc);
+		return rc;
+	}
+	dev_info(&pci_dev->dev,
+		 "[%s] card reloaded\n", __func__);
+	return 0;
+}
+
+
+/**
  * genwqe_health_thread() - Health checking thread
  *
  * This thread is only started for the PF of the card.
@@ -844,6 +927,13 @@ static int genwqe_health_thread(void *data)
 				/* FIXME Card is unusable and needs unbind! */
 				goto fatal_error;
 			}
+		}
+
+		if (cd->card_state == GENWQE_CARD_RELOAD_BITSTREAM) {
+			/* Userspace requested card bitstream reload */
+			rc = genwqe_reload_bistream(cd);
+			if (rc)
+				goto fatal_error;
 		}
 
 		cd->last_gfir = gfir;
