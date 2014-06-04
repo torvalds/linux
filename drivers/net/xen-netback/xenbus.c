@@ -19,6 +19,8 @@
 */
 
 #include "common.h"
+#include <linux/vmalloc.h>
+#include <linux/rtnetlink.h>
 
 struct backend_info {
 	struct xenbus_device *dev;
@@ -34,8 +36,9 @@ struct backend_info {
 	u8 have_hotplug_status_watch:1;
 };
 
-static int connect_rings(struct backend_info *);
-static void connect(struct backend_info *);
+static int connect_rings(struct backend_info *be, struct xenvif_queue *queue);
+static void connect(struct backend_info *be);
+static int read_xenbus_vif_flags(struct backend_info *be);
 static void backend_create_xenvif(struct backend_info *be);
 static void unregister_hotplug_status_watch(struct backend_info *be);
 static void set_backend_state(struct backend_info *be,
@@ -485,10 +488,10 @@ static void connect(struct backend_info *be)
 {
 	int err;
 	struct xenbus_device *dev = be->dev;
-
-	err = connect_rings(be);
-	if (err)
-		return;
+	unsigned long credit_bytes, credit_usec;
+	unsigned int queue_index;
+	unsigned int requested_num_queues = 1;
+	struct xenvif_queue *queue;
 
 	err = xen_net_read_mac(dev, be->vif->fe_dev_addr);
 	if (err) {
@@ -496,9 +499,34 @@ static void connect(struct backend_info *be)
 		return;
 	}
 
-	xen_net_read_rate(dev, &be->vif->credit_bytes,
-			  &be->vif->credit_usec);
-	be->vif->remaining_credit = be->vif->credit_bytes;
+	xen_net_read_rate(dev, &credit_bytes, &credit_usec);
+	read_xenbus_vif_flags(be);
+
+	be->vif->queues = vzalloc(requested_num_queues *
+				  sizeof(struct xenvif_queue));
+	rtnl_lock();
+	netif_set_real_num_tx_queues(be->vif->dev, requested_num_queues);
+	rtnl_unlock();
+
+	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
+		queue = &be->vif->queues[queue_index];
+		queue->vif = be->vif;
+		queue->id = queue_index;
+		snprintf(queue->name, sizeof(queue->name), "%s-q%u",
+				be->vif->dev->name, queue->id);
+
+		err = xenvif_init_queue(queue);
+		if (err)
+			goto err;
+
+		queue->remaining_credit = credit_bytes;
+
+		err = connect_rings(be, queue);
+		if (err)
+			goto err;
+	}
+
+	xenvif_carrier_on(be->vif);
 
 	unregister_hotplug_status_watch(be);
 	err = xenbus_watch_pathfmt(dev, &be->hotplug_status_watch,
@@ -507,18 +535,26 @@ static void connect(struct backend_info *be)
 	if (!err)
 		be->have_hotplug_status_watch = 1;
 
-	netif_wake_queue(be->vif->dev);
+	netif_tx_wake_all_queues(be->vif->dev);
+
+	return;
+
+err:
+	vfree(be->vif->queues);
+	be->vif->queues = NULL;
+	rtnl_lock();
+	netif_set_real_num_tx_queues(be->vif->dev, 0);
+	rtnl_unlock();
+	return;
 }
 
 
-static int connect_rings(struct backend_info *be)
+static int connect_rings(struct backend_info *be, struct xenvif_queue *queue)
 {
-	struct xenvif *vif = be->vif;
 	struct xenbus_device *dev = be->dev;
 	unsigned long tx_ring_ref, rx_ring_ref;
-	unsigned int tx_evtchn, rx_evtchn, rx_copy;
+	unsigned int tx_evtchn, rx_evtchn;
 	int err;
-	int val;
 
 	err = xenbus_gather(XBT_NIL, dev->otherend,
 			    "tx-ring-ref", "%lu", &tx_ring_ref,
@@ -545,6 +581,27 @@ static int connect_rings(struct backend_info *be)
 		}
 		rx_evtchn = tx_evtchn;
 	}
+
+	/* Map the shared frame, irq etc. */
+	err = xenvif_connect(queue, tx_ring_ref, rx_ring_ref,
+			     tx_evtchn, rx_evtchn);
+	if (err) {
+		xenbus_dev_fatal(dev, err,
+				 "mapping shared-frames %lu/%lu port tx %u rx %u",
+				 tx_ring_ref, rx_ring_ref,
+				 tx_evtchn, rx_evtchn);
+		return err;
+	}
+
+	return 0;
+}
+
+static int read_xenbus_vif_flags(struct backend_info *be)
+{
+	struct xenvif *vif = be->vif;
+	struct xenbus_device *dev = be->dev;
+	unsigned int rx_copy;
+	int err, val;
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
 			   &rx_copy);
@@ -621,16 +678,6 @@ static int connect_rings(struct backend_info *be)
 		val = 0;
 	vif->ipv6_csum = !!val;
 
-	/* Map the shared frame, irq etc. */
-	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref,
-			     tx_evtchn, rx_evtchn);
-	if (err) {
-		xenbus_dev_fatal(dev, err,
-				 "mapping shared-frames %lu/%lu port tx %u rx %u",
-				 tx_ring_ref, rx_ring_ref,
-				 tx_evtchn, rx_evtchn);
-		return err;
-	}
 	return 0;
 }
 
