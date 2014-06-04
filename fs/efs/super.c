@@ -134,7 +134,7 @@ static const struct export_operations efs_export_ops = {
 
 static int __init init_efs_fs(void) {
 	int err;
-	printk("EFS: "EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
+	pr_info("EFS: "EFS_VERSION" - http://aeschi.ch.eu.org/efs/\n");
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -179,7 +179,7 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 		csum += be32_to_cpu(cs);
 	}
 	if (csum) {
-		printk(KERN_INFO "EFS: SGI disklabel: checksum bad, label corrupted\n");
+		pr_warn("EFS: SGI disklabel: checksum bad, label corrupted\n");
 		return 0;
 	}
 
@@ -226,11 +226,10 @@ static efs_block_t efs_validate_vh(struct volume_header *vh) {
 	}
 
 	if (slice == -1) {
-		printk(KERN_NOTICE "EFS: partition table contained no EFS partitions\n");
+		pr_notice("EFS: partition table contained no EFS partitions\n");
 #ifdef DEBUG
 	} else {
-		printk(KERN_INFO "EFS: using slice %d (type %s, offset 0x%x)\n",
-			slice,
+		pr_info("EFS: using slice %d (type %s, offset 0x%x)\n", slice,
 			(pt_entry->pt_name) ? pt_entry->pt_name : "unknown",
 			sblock);
 #endif
@@ -268,7 +267,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
  
 	s->s_magic		= EFS_SUPER_MAGIC;
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
-		printk(KERN_ERR "EFS: device does not support %d byte blocks\n",
+		pr_err("EFS: device does not support %d byte blocks\n",
 			EFS_BLOCKSIZE);
 		return -EINVAL;
 	}
@@ -277,7 +276,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	bh = sb_bread(s, 0);
 
 	if (!bh) {
-		printk(KERN_ERR "EFS: cannot read volume header\n");
+		pr_err("EFS: cannot read volume header\n");
 		return -EINVAL;
 	}
 
@@ -295,13 +294,13 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	bh = sb_bread(s, sb->fs_start + EFS_SUPER);
 	if (!bh) {
-		printk(KERN_ERR "EFS: cannot read superblock\n");
+		pr_err("EFS: cannot read superblock\n");
 		return -EINVAL;
 	}
 		
 	if (efs_validate_super(sb, (struct efs_super *) bh->b_data)) {
 #ifdef DEBUG
-		printk(KERN_WARNING "EFS: invalid superblock at block %u\n", sb->fs_start + EFS_SUPER);
+		pr_warn("EFS: invalid superblock at block %u\n", sb->fs_start + EFS_SUPER);
 #endif
 		brelse(bh);
 		return -EINVAL;
@@ -310,7 +309,7 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 
 	if (!(s->s_flags & MS_RDONLY)) {
 #ifdef DEBUG
-		printk(KERN_INFO "EFS: forcing read-only mode\n");
+		pr_info("EFS: forcing read-only mode\n");
 #endif
 		s->s_flags |= MS_RDONLY;
 	}
@@ -318,13 +317,13 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	s->s_export_op = &efs_export_ops;
 	root = efs_iget(s, EFS_ROOTINODE);
 	if (IS_ERR(root)) {
-		printk(KERN_ERR "EFS: get root inode failed\n");
+		pr_err("EFS: get root inode failed\n");
 		return PTR_ERR(root);
 	}
 
 	s->s_root = d_make_root(root);
 	if (!(s->s_root)) {
-		printk(KERN_ERR "EFS: get root dentry failed\n");
+		pr_err("EFS: get root dentry failed\n");
 		return -ENOMEM;
 	}
 
