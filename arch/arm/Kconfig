@@ -480,6 +480,7 @@ config ARCH_IOP13XX
 	select PCI
 	select PLAT_IOP
 	select VMSPLIT_1G
+	select SPARSE_IRQ
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 

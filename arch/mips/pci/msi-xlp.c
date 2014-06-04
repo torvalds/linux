@@ -206,14 +206,8 @@ static struct irq_chip xlp_msix_chip = {
 	.irq_unmask	= unmask_msi_irq,
 };
 
-void destroy_irq(unsigned int irq)
-{
-	    /* nothing to do yet */
-}
-
 void arch_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
 }
 
 /*
@@ -298,10 +292,8 @@ static int xlp_setup_msi(uint64_t lnkbase, int node, int link,
 
 	xirq = xirq + msivec;		/* msi mapped to global irq space */
 	ret = irq_set_msi_desc(xirq, desc);
-	if (ret < 0) {
-		destroy_irq(xirq);
+	if (ret < 0)
 		return ret;
-	}
 
 	write_msi_msg(xirq, &msg);
 	return 0;

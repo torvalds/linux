@@ -206,9 +206,6 @@ int __init arch_early_irq_init(void)
 	count = ARRAY_SIZE(irq_cfgx);
 	node = cpu_to_node(0);
 
-	/* Make sure the legacy interrupts are marked in the bitmap */
-	irq_reserve_irqs(0, legacy_pic->nr_legacy_irqs);
-
 	for (i = 0; i < count; i++) {
 		irq_set_chip_data(i, &cfg[i]);
 		zalloc_cpumask_var_node(&cfg[i].domain, GFP_KERNEL, node);
@@ -280,18 +277,6 @@ static struct irq_cfg *alloc_irq_and_cfg_at(unsigned int at, int node)
 		irq_free_desc(at);
 	return cfg;
 }
-
-static int alloc_irqs_from(unsigned int from, unsigned int count, int node)
-{
-	return irq_alloc_descs_from(from, count, node);
-}
-
-static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
-{
-	free_irq_cfg(at, cfg);
-	irq_free_desc(at);
-}
-
 
 struct io_apic {
 	unsigned int index;
@@ -2916,98 +2901,39 @@ static int __init ioapic_init_ops(void)
 device_initcall(ioapic_init_ops);
 
 /*
- * Dynamic irq allocate and deallocation
+ * Dynamic irq allocate and deallocation. Should be replaced by irq domains!
  */
-unsigned int __create_irqs(unsigned int from, unsigned int count, int node)
+int arch_setup_hwirq(unsigned int irq, int node)
 {
-	struct irq_cfg **cfg;
+	struct irq_cfg *cfg;
 	unsigned long flags;
-	int irq, i;
+	int ret;
 
-	if (from < nr_irqs_gsi)
-		from = nr_irqs_gsi;
-
-	cfg = kzalloc_node(count * sizeof(cfg[0]), GFP_KERNEL, node);
+	cfg = alloc_irq_cfg(irq, node);
 	if (!cfg)
-		return 0;
-
-	irq = alloc_irqs_from(from, count, node);
-	if (irq < 0)
-		goto out_cfgs;
-
-	for (i = 0; i < count; i++) {
-		cfg[i] = alloc_irq_cfg(irq + i, node);
-		if (!cfg[i])
-			goto out_irqs;
-	}
+		return -ENOMEM;
 
 	raw_spin_lock_irqsave(&vector_lock, flags);
-	for (i = 0; i < count; i++)
-		if (__assign_irq_vector(irq + i, cfg[i], apic->target_cpus()))
-			goto out_vecs;
+	ret = __assign_irq_vector(irq, cfg, apic->target_cpus());
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
 
-	for (i = 0; i < count; i++) {
-		irq_set_chip_data(irq + i, cfg[i]);
-		irq_clear_status_flags(irq + i, IRQ_NOREQUEST);
-	}
-
-	kfree(cfg);
-	return irq;
-
-out_vecs:
-	for (i--; i >= 0; i--)
-		__clear_irq_vector(irq + i, cfg[i]);
-	raw_spin_unlock_irqrestore(&vector_lock, flags);
-out_irqs:
-	for (i = 0; i < count; i++)
-		free_irq_at(irq + i, cfg[i]);
-out_cfgs:
-	kfree(cfg);
-	return 0;
+	if (!ret)
+		irq_set_chip_data(irq, cfg);
+	else
+		free_irq_cfg(irq, cfg);
+	return ret;
 }
 
-unsigned int create_irq_nr(unsigned int from, int node)
-{
-	return __create_irqs(from, 1, node);
-}
-
-int create_irq(void)
-{
-	int node = cpu_to_node(0);
-	unsigned int irq_want;
-	int irq;
-
-	irq_want = nr_irqs_gsi;
-	irq = create_irq_nr(irq_want, node);
-
-	if (irq == 0)
-		irq = -1;
-
-	return irq;
-}
-
-void destroy_irq(unsigned int irq)
+void arch_teardown_hwirq(unsigned int irq)
 {
 	struct irq_cfg *cfg = irq_get_chip_data(irq);
 	unsigned long flags;
 
-	irq_set_status_flags(irq, IRQ_NOREQUEST|IRQ_NOPROBE);
-
 	free_remapped_irq(irq);
-
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	__clear_irq_vector(irq, cfg);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
-	free_irq_at(irq, cfg);
-}
-
-void destroy_irqs(unsigned int irq, unsigned int count)
-{
-	unsigned int i;
-
-	for (i = 0; i < count; i++)
-		destroy_irq(irq + i);
+	free_irq_cfg(irq, cfg);
 }
 
 /*
@@ -3136,8 +3062,8 @@ int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 
 int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	unsigned int irq, irq_want;
 	struct msi_desc *msidesc;
+	unsigned int irq;
 	int node, ret;
 
 	/* Multiple MSI vectors only supported with interrupt remapping */
@@ -3145,28 +3071,25 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	node = dev_to_node(&dev->dev);
-	irq_want = nr_irqs_gsi;
+
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
-		irq = create_irq_nr(irq_want, node);
-		if (irq == 0)
+		irq = irq_alloc_hwirq(node);
+		if (!irq)
 			return -ENOSPC;
 
-		irq_want = irq + 1;
-
 		ret = setup_msi_irq(dev, msidesc, irq, 0);
-		if (ret < 0)
-			goto error;
+		if (ret < 0) {
+			irq_free_hwirq(irq);
+			return ret;
+		}
+
 	}
 	return 0;
-
-error:
-	destroy_irq(irq);
-	return ret;
 }
 
 void native_teardown_msi_irq(unsigned int irq)
 {
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 }
 
 #ifdef CONFIG_DMAR_TABLE
@@ -3418,11 +3341,6 @@ static void __init probe_nr_irqs_gsi(void)
 		nr_irqs_gsi = nr;
 
 	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
-}
-
-int get_nr_irqs_gsi(void)
-{
-	return nr_irqs_gsi;
 }
 
 unsigned int arch_dynirq_lower_bound(unsigned int from)
