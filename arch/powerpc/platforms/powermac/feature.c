@@ -2805,25 +2805,20 @@ set_initial_features(void)
 		/* Enable GMAC for now for PCI probing. It will be disabled
 		 * later on after PCI probe
 		 */
-		np = of_find_node_by_name(NULL, "ethernet");
-		while(np) {
+		for_each_node_by_name(np, "ethernet")
 			if (of_device_is_compatible(np, "K2-GMAC"))
 				g5_gmac_enable(np, 0, 1);
-			np = of_find_node_by_name(np, "ethernet");
-		}
 
 		/* Enable FW before PCI probe. Will be disabled later on
 		 * Note: We should have a batter way to check that we are
 		 * dealing with uninorth internal cell and not a PCI cell
 		 * on the external PCI. The code below works though.
 		 */
-		np = of_find_node_by_name(NULL, "firewire");
-		while(np) {
+		for_each_node_by_name(np, "firewire") {
 			if (of_device_is_compatible(np, "pci106b,5811")) {
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				g5_fw_enable(np, 0, 1);
 			}
-			np = of_find_node_by_name(np, "firewire");
 		}
 	}
 #else /* CONFIG_POWER4 */
@@ -2834,13 +2829,11 @@ set_initial_features(void)
 		/* Enable GMAC for now for PCI probing. It will be disabled
 		 * later on after PCI probe
 		 */
-		np = of_find_node_by_name(NULL, "ethernet");
-		while(np) {
+		for_each_node_by_name(np, "ethernet") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && of_device_is_compatible(np, "gmac"))
 				core99_gmac_enable(np, 0, 1);
-			np = of_find_node_by_name(np, "ethernet");
 		}
 
 		/* Enable FW before PCI probe. Will be disabled later on
@@ -2848,8 +2841,7 @@ set_initial_features(void)
 		 * dealing with uninorth internal cell and not a PCI cell
 		 * on the external PCI. The code below works though.
 		 */
-		np = of_find_node_by_name(NULL, "firewire");
-		while(np) {
+		for_each_node_by_name(np, "firewire") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && (of_device_is_compatible(np, "pci106b,18") ||
@@ -2858,18 +2850,16 @@ set_initial_features(void)
 				macio_chips[0].flags |= MACIO_FLAG_FW_SUPPORTED;
 				core99_firewire_enable(np, 0, 1);
 			}
-			np = of_find_node_by_name(np, "firewire");
 		}
 
 		/* Enable ATA-100 before PCI probe. */
 		np = of_find_node_by_name(NULL, "ata-6");
-		while(np) {
+		for_each_node_by_name(np, "ata-6") {
 			if (np->parent
 			    && of_device_is_compatible(np->parent, "uni-north")
 			    && of_device_is_compatible(np, "kauai-ata")) {
 				core99_ata100_enable(np, 1);
 			}
-			np = of_find_node_by_name(np, "ata-6");
 		}
 
 		/* Switch airport off */

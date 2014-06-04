@@ -232,8 +232,7 @@ static void __init pseries_discover_pic(void)
 	struct device_node *np;
 	const char *typep;
 
-	for (np = NULL; (np = of_find_node_by_name(np,
-						   "interrupt-controller"));) {
+	for_each_node_by_name(np, "interrupt-controller") {
 		typep = of_get_property(np, "compatible", NULL);
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
