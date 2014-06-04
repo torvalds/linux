@@ -1462,8 +1462,8 @@ static int fwnet_probe(struct fw_unit *unit,
 
 	net = alloc_netdev(sizeof(*dev), "firewire%d", fwnet_init_dev);
 	if (net == NULL) {
-		ret = -ENOMEM;
-		goto out;
+		mutex_unlock(&fwnet_device_mutex);
+		return -ENOMEM;
 	}
 
 	allocated_netdev = true;
