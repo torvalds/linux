@@ -506,8 +506,8 @@ void memcg_update_array_size(int num_groups);
 struct kmem_cache *
 __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
 
-int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size);
-void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size);
+int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
+void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
 
 int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
 
