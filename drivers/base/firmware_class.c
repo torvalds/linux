@@ -100,9 +100,14 @@ static inline long firmware_loading_timeout(void)
 #define FW_OPT_UEVENT	(1U << 0)
 #define FW_OPT_NOWAIT	(1U << 1)
 #ifdef CONFIG_FW_LOADER_USER_HELPER
-#define FW_OPT_FALLBACK	(1U << 2)
+#define FW_OPT_USERHELPER	(1U << 2)
 #else
-#define FW_OPT_FALLBACK	0
+#define FW_OPT_USERHELPER	0
+#endif
+#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
+#define FW_OPT_FALLBACK		FW_OPT_USERHELPER
+#else
+#define FW_OPT_FALLBACK		0
 #endif
 
 struct firmware_cache {
@@ -1111,7 +1116,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 
 	ret = fw_get_filesystem_firmware(device, fw->priv);
 	if (ret) {
-		if (opt_flags & FW_OPT_FALLBACK) {
+		if (opt_flags & FW_OPT_USERHELPER) {
 			dev_warn(device,
 				 "Direct firmware load failed with error %d\n",
 				 ret);
@@ -1171,7 +1176,7 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 }
 EXPORT_SYMBOL(request_firmware);
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER
+#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
 /**
  * request_firmware: - load firmware directly without usermode helper
  * @firmware_p: pointer to firmware image
@@ -1277,7 +1282,7 @@ request_firmware_nowait(
 	fw_work->context = context;
 	fw_work->cont = cont;
 	fw_work->opt_flags = FW_OPT_NOWAIT | FW_OPT_FALLBACK |
-		(uevent ? FW_OPT_UEVENT : 0);
+		(uevent ? FW_OPT_UEVENT : FW_OPT_USERHELPER);
 
 	if (!try_module_get(module)) {
 		kfree(fw_work);

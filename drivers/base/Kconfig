@@ -149,15 +149,21 @@ config EXTRA_FIRMWARE_DIR
 	  some other directory containing the firmware files.
 
 config FW_LOADER_USER_HELPER
+	bool
+
+config FW_LOADER_USER_HELPER_FALLBACK
 	bool "Fallback user-helper invocation for firmware loading"
 	depends on FW_LOADER
-	default y
+	select FW_LOADER_USER_HELPER
 	help
 	  This option enables / disables the invocation of user-helper
 	  (e.g. udev) for loading firmware files as a fallback after the
 	  direct file loading in kernel fails.  The user-mode helper is
 	  no longer required unless you have a special firmware file that
-	  resides in a non-standard path.
+	  resides in a non-standard path. Moreover, the udev support has
+	  been deprecated upstream.
+
+	  If you are unsure about this, say N here.
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
