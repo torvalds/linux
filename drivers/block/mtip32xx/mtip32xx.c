@@ -193,7 +193,9 @@ static void mtip_put_int_command(struct driver_data *dd, struct mtip_cmd *cmd)
 static struct request *mtip_rq_from_tag(struct driver_data *dd,
 					unsigned int tag)
 {
-	return blk_mq_tag_to_rq(dd->queue->queue_hw_ctx[0], tag);
+	struct blk_mq_hw_ctx *hctx = dd->queue->queue_hw_ctx[0];
+
+	return blk_mq_tag_to_rq(hctx->tags, tag);
 }
 
 static struct mtip_cmd *mtip_cmd_from_tag(struct driver_data *dd,

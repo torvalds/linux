@@ -529,15 +529,20 @@ void blk_mq_kick_requeue_list(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_mq_kick_requeue_list);
 
-struct request *blk_mq_tag_to_rq(struct blk_mq_hw_ctx *hctx, unsigned int tag)
+static inline bool is_flush_request(struct request *rq, unsigned int tag)
 {
-	struct request_queue *q = hctx->queue;
+	return ((rq->cmd_flags & REQ_FLUSH_SEQ) &&
+			rq->q->flush_rq->tag == tag);
+}
 
-	if ((q->flush_rq->cmd_flags & REQ_FLUSH_SEQ) &&
-	    q->flush_rq->tag == tag)
-		return q->flush_rq;
+struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
+{
+	struct request *rq = tags->rqs[tag];
 
-	return hctx->tags->rqs[tag];
+	if (!is_flush_request(rq, tag))
+		return rq;
+
+	return rq->q->flush_rq;
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
@@ -566,7 +571,7 @@ static void blk_mq_timeout_check(void *__data, unsigned long *free_tags)
 		if (tag >= hctx->tags->nr_tags)
 			break;
 
-		rq = blk_mq_tag_to_rq(hctx, tag++);
+		rq = blk_mq_tag_to_rq(hctx->tags, tag++);
 		if (rq->q != hctx->queue)
 			continue;
 		if (!test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
