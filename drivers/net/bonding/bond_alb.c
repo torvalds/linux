@@ -755,7 +755,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	/* Don't modify or load balance ARPs that do not originate locally
 	 * (e.g.,arrive via a bridge).
 	 */
-	if (!bond_slave_has_mac_rcu(bond, arp->mac_src))
+	if (!bond_slave_has_mac_rx(bond, arp->mac_src))
 		return NULL;
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
@@ -1039,11 +1039,14 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 	struct bonding *bond = bond_get_bond_by_slave(slave);
 	struct net_device *upper;
 	struct list_head *iter;
+	struct bond_vlan_tag tags[BOND_MAX_VLAN_ENCAP];
 
 	/* send untagged */
 	alb_send_lp_vid(slave, mac_addr, 0, 0);
 
-	/* loop through vlans and send one packet for each */
+	/* loop through all devices and see if we need to send a packet
+	 * for that device.
+	 */
 	rcu_read_lock();
 	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
 		if (is_vlan_dev(upper) && vlan_get_encap_level(upper) == 0) {
@@ -1058,6 +1061,16 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[],
 						vlan_dev_vlan_proto(upper),
 						vlan_dev_vlan_id(upper));
 			}
+		}
+
+		/* If this is a macvlan device, then only send updates
+		 * when strict_match is turned off.
+		 */
+		if (netif_is_macvlan(upper) && !strict_match) {
+			memset(tags, 0, sizeof(tags));
+			bond_verify_device_path(bond->dev, upper, tags);
+			alb_send_lp_vid(slave, upper->dev_addr,
+					tags[0].vlan_proto, tags[0].vlan_id);
 		}
 	}
 	rcu_read_unlock();
@@ -1560,8 +1573,10 @@ void bond_alb_monitor(struct work_struct *work)
 			/* If updating current_active, use all currently
 			 * user mac addreses (!strict_match).  Otherwise, only
 			 * use mac of the slave device.
+			 * In RLB mode, we always use strict matches.
 			 */
-			strict_match = (slave != bond->curr_active_slave);
+			strict_match = (slave != bond->curr_active_slave ||
+					bond_info->rlb_enabled);
 			alb_send_learning_packets(slave, slave->dev->dev_addr,
 						  strict_match);
 		}

@@ -2206,9 +2206,9 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
  * When the path is validated, collect any vlan information in the
  * path.
  */
-static bool bond_verify_device_path(struct net_device *start_dev,
-				    struct net_device *end_dev,
-				    struct bond_vlan_tag *tags)
+bool bond_verify_device_path(struct net_device *start_dev,
+			     struct net_device *end_dev,
+			     struct bond_vlan_tag *tags)
 {
 	struct net_device *upper;
 	struct list_head  *iter;
