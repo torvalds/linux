@@ -82,9 +82,9 @@ out:
 	return ret;
 }
 
-static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
-		unsigned long rate)
+static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
 {
+	unsigned long rate = freq_table[index].frequency;
 	int ret = 0;
 
 	/*
@@ -104,11 +104,6 @@ static int tegra_update_cpu_speed(struct cpufreq_policy *policy,
 			rate);
 
 	return ret;
-}
-
-static int tegra_target(struct cpufreq_policy *policy, unsigned int index)
-{
-	return tegra_update_cpu_speed(policy, freq_table[index].frequency);
 }
 
 static int tegra_cpu_init(struct cpufreq_policy *policy)

@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/hardirq.h>
 #include <linux/acpi.h>
+#include <linux/dynamic_debug.h>
 
 #include "internal.h"
 
@@ -457,6 +458,24 @@ acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
 EXPORT_SYMBOL(acpi_evaluate_ost);
 
 /**
+ * acpi_handle_path: Return the object path of handle
+ *
+ * Caller must free the returned buffer
+ */
+static char *acpi_handle_path(acpi_handle handle)
+{
+	struct acpi_buffer buffer = {
+		.length = ACPI_ALLOCATE_BUFFER,
+		.pointer = NULL
+	};
+
+	if (in_interrupt() ||
+	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
+		return NULL;
+	return buffer.pointer;
+}
+
+/**
  * acpi_handle_printk: Print message with ACPI prefix and object path
  *
  * This function is called through acpi_handle_<level> macros and prints
@@ -469,28 +488,49 @@ acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	struct acpi_buffer buffer = {
-		.length = ACPI_ALLOCATE_BUFFER,
-		.pointer = NULL
-	};
 	const char *path;
 
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (in_interrupt() ||
-	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
-		path = "<n/a>";
-	else
-		path = buffer.pointer;
-
-	printk("%sACPI: %s: %pV", level, path, &vaf);
+	path = acpi_handle_path(handle);
+	printk("%sACPI: %s: %pV", level, path ? path : "<n/a>" , &vaf);
 
 	va_end(args);
-	kfree(buffer.pointer);
+	kfree(path);
 }
 EXPORT_SYMBOL(acpi_handle_printk);
+
+#if defined(CONFIG_DYNAMIC_DEBUG)
+/**
+ * __acpi_handle_debug: pr_debug with ACPI prefix and object path
+ *
+ * This function is called through acpi_handle_debug macro and debug
+ * prints a message with ACPI prefix and object path. This function
+ * acquires the global namespace mutex to obtain an object path.  In
+ * interrupt context, it shows the object path as <n/a>.
+ */
+void
+__acpi_handle_debug(struct _ddebug *descriptor, acpi_handle handle,
+		    const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	const char *path;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	path = acpi_handle_path(handle);
+	__dynamic_pr_debug(descriptor, "ACPI: %s: %pV", path ? path : "<n/a>", &vaf);
+
+	va_end(args);
+	kfree(path);
+}
+EXPORT_SYMBOL(__acpi_handle_debug);
+#endif
 
 /**
  * acpi_has_method: Check whether @handle has a method named @name

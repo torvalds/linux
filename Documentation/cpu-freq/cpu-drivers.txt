@@ -228,3 +228,22 @@ is the corresponding frequency table helper for the ->target
 stage. Just pass the values to this function, and the unsigned int
 index returns the number of the frequency table entry which contains
 the frequency the CPU shall be set to.
+
+The following macros can be used as iterators over cpufreq_frequency_table:
+
+cpufreq_for_each_entry(pos, table) - iterates over all entries of frequency
+table.
+
+cpufreq-for_each_valid_entry(pos, table) - iterates over all entries,
+excluding CPUFREQ_ENTRY_INVALID frequencies.
+Use arguments "pos" - a cpufreq_frequency_table * as a loop cursor and
+"table" - the cpufreq_frequency_table * you want to iterate over.
+
+For example:
+
+	struct cpufreq_frequency_table *pos, *driver_freq_table;
+
+	cpufreq_for_each_entry(pos, driver_freq_table) {
+		/* Do something with pos */
+		pos->frequency = ...
+	}
