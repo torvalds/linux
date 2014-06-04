@@ -24,7 +24,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/reboot.h>
 
@@ -39,6 +38,7 @@
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>

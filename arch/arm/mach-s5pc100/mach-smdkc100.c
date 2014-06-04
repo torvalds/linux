@@ -31,6 +31,7 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>

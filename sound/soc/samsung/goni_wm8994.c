@@ -16,7 +16,7 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include "../codecs/wm8994.h"
 

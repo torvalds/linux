@@ -12,10 +12,10 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/sdhci.h>

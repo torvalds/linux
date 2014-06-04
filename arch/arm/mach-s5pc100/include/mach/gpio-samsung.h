@@ -1,5 +1,4 @@
-/* arch/arm/mach-s5pc100/include/mach/gpio.h
- *
+/*
  * Copyright 2009 Samsung Electronics Co.
  *	Byungho Min <bhmin@samsung.com>
  *

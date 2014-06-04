@@ -14,11 +14,11 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/gpio.h>
 
 struct platform_device; /* don't need the contents */
 
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-samsung.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include "i2c.h"

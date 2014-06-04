@@ -11,11 +11,11 @@
 */
 
 #include <linux/kernel.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
 
 #include <mach/regs-clock.h>
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-samsung.h>
 
 static void s5pc100_ide_cfg_gpios(unsigned int base, unsigned int nr)
 {

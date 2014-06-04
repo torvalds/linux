@@ -14,12 +14,12 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/sdhci.h>
+#include <mach/gpio-samsung.h>
 
 void s5pc100_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)
 {

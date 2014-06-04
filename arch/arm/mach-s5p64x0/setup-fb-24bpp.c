@@ -11,11 +11,11 @@
 */
 
 #include <linux/fb.h>
-#include <linux/gpio.h>
 
 #include <plat/cpu.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-samsung.h>
 
 void s5p64x0_fb_gpio_setup_24bpp(void)
 {

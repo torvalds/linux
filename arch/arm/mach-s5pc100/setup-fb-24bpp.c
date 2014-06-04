@@ -13,9 +13,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/fb.h>
-#include <linux/gpio.h>
 
 #include <mach/map.h>
+#include <mach/gpio-samsung.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 

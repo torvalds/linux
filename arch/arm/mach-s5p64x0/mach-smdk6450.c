@@ -39,6 +39,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
+#include <mach/gpio-samsung.h>
 
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>
