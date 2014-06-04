@@ -214,8 +214,8 @@ struct percpu_cluster {
 struct swap_info_struct {
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
+	struct list_head list;		/* entry in swap list */
 	signed char	type;		/* strange name for an index */
-	signed char	next;		/* next type on the swap list */
 	unsigned int	max;		/* extent of the swap_map */
 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
 	struct swap_cluster_info *cluster_info; /* cluster info. Only for SSD */
@@ -253,11 +253,6 @@ struct swap_info_struct {
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_info discard_cluster_head; /* list head of discard clusters */
 	struct swap_cluster_info discard_cluster_tail; /* list tail of discard clusters */
-};
-
-struct swap_list_t {
-	int head;	/* head of priority-ordered swapfile list */
-	int next;	/* swapfile to be used next */
 };
 
 /* linux/mm/workingset.c */
