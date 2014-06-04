@@ -1705,6 +1705,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		ndev->features |= local->hw.netdev_features;
 
+		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
+
 		ret = register_netdevice(ndev);
 		if (ret) {
 			free_netdev(ndev);

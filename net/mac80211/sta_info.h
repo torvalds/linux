@@ -627,6 +627,8 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 			  struct rate_info *rinfo);
 void sta_set_rate_info_rx(struct sta_info *sta,
 			  struct rate_info *rinfo);
+void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo);
+
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
 u8 sta_info_tx_streams(struct sta_info *sta);

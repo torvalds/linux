@@ -1847,6 +1847,8 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper);
 
 
+extern const struct ethtool_ops ieee80211_ethtool_ops;
+
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
 #else

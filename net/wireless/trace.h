@@ -298,11 +298,6 @@ DEFINE_EVENT(wiphy_only_evt, rdev_return_void,
 	TP_ARGS(wiphy)
 );
 
-DEFINE_EVENT(wiphy_only_evt, rdev_get_ringparam,
-	TP_PROTO(struct wiphy *wiphy),
-	TP_ARGS(wiphy)
-);
-
 DEFINE_EVENT(wiphy_only_evt, rdev_get_antenna,
 	TP_PROTO(struct wiphy *wiphy),
 	TP_ARGS(wiphy)
@@ -576,11 +571,6 @@ DECLARE_EVENT_CLASS(wiphy_netdev_evt,
 );
 
 DEFINE_EVENT(wiphy_netdev_evt, rdev_stop_ap,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev),
-	TP_ARGS(wiphy, netdev)
-);
-
-DEFINE_EVENT(wiphy_netdev_evt, rdev_get_et_stats,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev),
 	TP_ARGS(wiphy, netdev)
 );
@@ -1439,11 +1429,6 @@ DECLARE_EVENT_CLASS(tx_rx_evt,
 		  WIPHY_PR_ARG, __entry->tx, __entry->rx)
 );
 
-DEFINE_EVENT(tx_rx_evt, rdev_set_ringparam,
-	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
-	TP_ARGS(wiphy, rx, tx)
-);
-
 DEFINE_EVENT(tx_rx_evt, rdev_set_antenna,
 	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
 	TP_ARGS(wiphy, rx, tx)
@@ -1723,40 +1708,6 @@ TRACE_EVENT(rdev_set_noack_map,
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", noack_map: %u",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->noack_map)
-);
-
-TRACE_EVENT(rdev_get_et_sset_count,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int sset),
-	TP_ARGS(wiphy, netdev, sset),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		__field(int, sset)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		__entry->sset = sset;
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", sset: %d",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->sset)
-);
-
-TRACE_EVENT(rdev_get_et_strings,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u32 sset),
-	TP_ARGS(wiphy, netdev, sset),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		__field(u32, sset)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		__entry->sset = sset;
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", sset: %u",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->sset)
 );
 
 DEFINE_EVENT(wiphy_wdev_evt, rdev_get_channel,
