@@ -3087,16 +3087,33 @@ static bool i40e_clean_fdir_tx_irq(struct i40e_ring *tx_ring, int budget)
 		/* clear next_to_watch to prevent false hangs */
 		tx_buf->next_to_watch = NULL;
 
+		tx_desc->buffer_addr = 0;
+		tx_desc->cmd_type_offset_bsz = 0;
+		/* move past filter desc */
+		tx_buf++;
+		tx_desc++;
+		i++;
+		if (unlikely(!i)) {
+			i -= tx_ring->count;
+			tx_buf = tx_ring->tx_bi;
+			tx_desc = I40E_TX_DESC(tx_ring, 0);
+		}
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
 				 dma_unmap_addr(tx_buf, dma),
 				 dma_unmap_len(tx_buf, len),
 				 DMA_TO_DEVICE);
+		if (tx_buf->tx_flags & I40E_TX_FLAGS_FD_SB)
+			kfree(tx_buf->raw_buf);
 
+		tx_buf->raw_buf = NULL;
+		tx_buf->tx_flags = 0;
+		tx_buf->next_to_watch = NULL;
 		dma_unmap_len_set(tx_buf, len, 0);
+		tx_desc->buffer_addr = 0;
+		tx_desc->cmd_type_offset_bsz = 0;
 
-
-		/* move to the next desc and buffer to clean */
+		/* move us past the eop_desc for start of next FD desc */
 		tx_buf++;
 		tx_desc++;
 		i++;
