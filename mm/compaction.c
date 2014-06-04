@@ -161,7 +161,8 @@ static void update_pageblock_skip(struct compact_control *cc,
 			return;
 		if (pfn > zone->compact_cached_migrate_pfn[0])
 			zone->compact_cached_migrate_pfn[0] = pfn;
-		if (cc->sync && pfn > zone->compact_cached_migrate_pfn[1])
+		if (cc->mode != MIGRATE_ASYNC &&
+		    pfn > zone->compact_cached_migrate_pfn[1])
 			zone->compact_cached_migrate_pfn[1] = pfn;
 	} else {
 		if (cc->finished_update_free)
@@ -208,7 +209,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 		}
 
 		/* async aborts if taking too long or contended */
-		if (!cc->sync) {
+		if (cc->mode == MIGRATE_ASYNC) {
 			cc->contended = true;
 			return false;
 		}
@@ -473,7 +474,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 	bool locked = false;
 	struct page *page = NULL, *valid_page = NULL;
 	bool set_unsuitable = true;
-	const isolate_mode_t mode = (!cc->sync ? ISOLATE_ASYNC_MIGRATE : 0) |
+	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
+					ISOLATE_ASYNC_MIGRATE : 0) |
 				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
 
 	/*
@@ -483,7 +485,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 	 */
 	while (unlikely(too_many_isolated(zone))) {
 		/* async migration should just abort */
-		if (!cc->sync)
+		if (cc->mode == MIGRATE_ASYNC)
 			return 0;
 
 		congestion_wait(BLK_RW_ASYNC, HZ/10);
@@ -548,7 +550,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			 * the minimum amount of work satisfies the allocation
 			 */
 			mt = get_pageblock_migratetype(page);
-			if (!cc->sync && !migrate_async_suitable(mt)) {
+			if (cc->mode == MIGRATE_ASYNC &&
+			    !migrate_async_suitable(mt)) {
 				set_unsuitable = false;
 				goto next_pageblock;
 			}
@@ -981,6 +984,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	int ret;
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
+	const bool sync = cc->mode != MIGRATE_ASYNC;
 
 	ret = compaction_suitable(zone, cc->order);
 	switch (ret) {
@@ -1006,7 +1010,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	 * information on where the scanners should start but check that it
 	 * is initialised by ensuring the values are within zone boundaries.
 	 */
-	cc->migrate_pfn = zone->compact_cached_migrate_pfn[cc->sync];
+	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
 	cc->free_pfn = zone->compact_cached_free_pfn;
 	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
 		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
@@ -1040,8 +1044,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 
 		nr_migrate = cc->nr_migratepages;
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
-				compaction_free, (unsigned long)cc,
-				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
+				compaction_free, (unsigned long)cc, cc->mode,
 				MR_COMPACTION);
 		update_nr_listpages(cc);
 		nr_remaining = cc->nr_migratepages;
@@ -1074,9 +1077,8 @@ out:
 	return ret;
 }
 
-static unsigned long compact_zone_order(struct zone *zone,
-				 int order, gfp_t gfp_mask,
-				 bool sync, bool *contended)
+static unsigned long compact_zone_order(struct zone *zone, int order,
+		gfp_t gfp_mask, enum migrate_mode mode, bool *contended)
 {
 	unsigned long ret;
 	struct compact_control cc = {
@@ -1085,7 +1087,7 @@ static unsigned long compact_zone_order(struct zone *zone,
 		.order = order,
 		.migratetype = allocflags_to_migratetype(gfp_mask),
 		.zone = zone,
-		.sync = sync,
+		.mode = mode,
 	};
 	INIT_LIST_HEAD(&cc.freepages);
 	INIT_LIST_HEAD(&cc.migratepages);
@@ -1107,7 +1109,7 @@ int sysctl_extfrag_threshold = 500;
  * @order: The order of the current allocation
  * @gfp_mask: The GFP mask of the current allocation
  * @nodemask: The allowed nodes to allocate from
- * @sync: Whether migration is synchronous or not
+ * @mode: The migration mode for async, sync light, or sync migration
  * @contended: Return value that is true if compaction was aborted due to lock contention
  * @page: Optionally capture a free page of the requested order during compaction
  *
@@ -1115,7 +1117,7 @@ int sysctl_extfrag_threshold = 500;
  */
 unsigned long try_to_compact_pages(struct zonelist *zonelist,
 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
-			bool sync, bool *contended)
+			enum migrate_mode mode, bool *contended)
 {
 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
 	int may_enter_fs = gfp_mask & __GFP_FS;
@@ -1140,7 +1142,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 								nodemask) {
 		int status;
 
-		status = compact_zone_order(zone, order, gfp_mask, sync,
+		status = compact_zone_order(zone, order, gfp_mask, mode,
 						contended);
 		rc = max(status, rc);
 
@@ -1190,7 +1192,7 @@ void compact_pgdat(pg_data_t *pgdat, int order)
 {
 	struct compact_control cc = {
 		.order = order,
-		.sync = false,
+		.mode = MIGRATE_ASYNC,
 	};
 
 	if (!order)
@@ -1203,7 +1205,7 @@ static void compact_node(int nid)
 {
 	struct compact_control cc = {
 		.order = -1,
-		.sync = true,
+		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 	};
 
