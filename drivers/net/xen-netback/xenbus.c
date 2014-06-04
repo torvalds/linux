@@ -19,6 +19,8 @@
 */
 
 #include "common.h"
+#include <linux/vmalloc.h>
+#include <linux/rtnetlink.h>
 
 struct backend_info {
 	struct xenbus_device *dev;
@@ -34,8 +36,9 @@ struct backend_info {
 	u8 have_hotplug_status_watch:1;
 };
 
-static int connect_rings(struct backend_info *);
-static void connect(struct backend_info *);
+static int connect_rings(struct backend_info *be, struct xenvif_queue *queue);
+static void connect(struct backend_info *be);
+static int read_xenbus_vif_flags(struct backend_info *be);
 static void backend_create_xenvif(struct backend_info *be);
 static void unregister_hotplug_status_watch(struct backend_info *be);
 static void set_backend_state(struct backend_info *be,
@@ -156,6 +159,12 @@ static int netback_probe(struct xenbus_device *dev,
 			    "%u", separate_tx_rx_irq);
 	if (err)
 		pr_debug("Error writing feature-split-event-channels\n");
+
+	/* Multi-queue support: This is an optional feature. */
+	err = xenbus_printf(XBT_NIL, dev->nodename,
+			    "multi-queue-max-queues", "%u", xenvif_max_queues);
+	if (err)
+		pr_debug("Error writing multi-queue-max-queues\n");
 
 	err = xenbus_switch_state(dev, XenbusStateInitWait);
 	if (err)
@@ -485,10 +494,26 @@ static void connect(struct backend_info *be)
 {
 	int err;
 	struct xenbus_device *dev = be->dev;
+	unsigned long credit_bytes, credit_usec;
+	unsigned int queue_index;
+	unsigned int requested_num_queues;
+	struct xenvif_queue *queue;
 
-	err = connect_rings(be);
-	if (err)
+	/* Check whether the frontend requested multiple queues
+	 * and read the number requested.
+	 */
+	err = xenbus_scanf(XBT_NIL, dev->otherend,
+			   "multi-queue-num-queues",
+			   "%u", &requested_num_queues);
+	if (err < 0) {
+		requested_num_queues = 1; /* Fall back to single queue */
+	} else if (requested_num_queues > xenvif_max_queues) {
+		/* buggy or malicious guest */
+		xenbus_dev_fatal(dev, err,
+				 "guest requested %u queues, exceeding the maximum of %u.",
+				 requested_num_queues, xenvif_max_queues);
 		return;
+	}
 
 	err = xen_net_read_mac(dev, be->vif->fe_dev_addr);
 	if (err) {
@@ -496,9 +521,54 @@ static void connect(struct backend_info *be)
 		return;
 	}
 
-	xen_net_read_rate(dev, &be->vif->credit_bytes,
-			  &be->vif->credit_usec);
-	be->vif->remaining_credit = be->vif->credit_bytes;
+	xen_net_read_rate(dev, &credit_bytes, &credit_usec);
+	read_xenbus_vif_flags(be);
+
+	/* Use the number of queues requested by the frontend */
+	be->vif->queues = vzalloc(requested_num_queues *
+				  sizeof(struct xenvif_queue));
+	rtnl_lock();
+	netif_set_real_num_tx_queues(be->vif->dev, requested_num_queues);
+	rtnl_unlock();
+
+	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
+		queue = &be->vif->queues[queue_index];
+		queue->vif = be->vif;
+		queue->id = queue_index;
+		snprintf(queue->name, sizeof(queue->name), "%s-q%u",
+				be->vif->dev->name, queue->id);
+
+		err = xenvif_init_queue(queue);
+		if (err) {
+			/* xenvif_init_queue() cleans up after itself on
+			 * failure, but we need to clean up any previously
+			 * initialised queues. Set num_queues to i so that
+			 * earlier queues can be destroyed using the regular
+			 * disconnect logic.
+			 */
+			rtnl_lock();
+			netif_set_real_num_tx_queues(be->vif->dev, queue_index);
+			rtnl_unlock();
+			goto err;
+		}
+
+		queue->remaining_credit = credit_bytes;
+
+		err = connect_rings(be, queue);
+		if (err) {
+			/* connect_rings() cleans up after itself on failure,
+			 * but we need to clean up after xenvif_init_queue() here,
+			 * and also clean up any previously initialised queues.
+			 */
+			xenvif_deinit_queue(queue);
+			rtnl_lock();
+			netif_set_real_num_tx_queues(be->vif->dev, queue_index);
+			rtnl_unlock();
+			goto err;
+		}
+	}
+
+	xenvif_carrier_on(be->vif);
 
 	unregister_hotplug_status_watch(be);
 	err = xenbus_watch_pathfmt(dev, &be->hotplug_status_watch,
@@ -507,44 +577,108 @@ static void connect(struct backend_info *be)
 	if (!err)
 		be->have_hotplug_status_watch = 1;
 
-	netif_wake_queue(be->vif->dev);
+	netif_tx_wake_all_queues(be->vif->dev);
+
+	return;
+
+err:
+	if (be->vif->dev->real_num_tx_queues > 0)
+		xenvif_disconnect(be->vif); /* Clean up existing queues */
+	vfree(be->vif->queues);
+	be->vif->queues = NULL;
+	rtnl_lock();
+	netif_set_real_num_tx_queues(be->vif->dev, 0);
+	rtnl_unlock();
+	return;
 }
 
 
-static int connect_rings(struct backend_info *be)
+static int connect_rings(struct backend_info *be, struct xenvif_queue *queue)
 {
-	struct xenvif *vif = be->vif;
 	struct xenbus_device *dev = be->dev;
+	unsigned int num_queues = queue->vif->dev->real_num_tx_queues;
 	unsigned long tx_ring_ref, rx_ring_ref;
-	unsigned int tx_evtchn, rx_evtchn, rx_copy;
+	unsigned int tx_evtchn, rx_evtchn;
 	int err;
-	int val;
+	char *xspath;
+	size_t xspathsize;
+	const size_t xenstore_path_ext_size = 11; /* sufficient for "/queue-NNN" */
 
-	err = xenbus_gather(XBT_NIL, dev->otherend,
+	/* If the frontend requested 1 queue, or we have fallen back
+	 * to single queue due to lack of frontend support for multi-
+	 * queue, expect the remaining XenStore keys in the toplevel
+	 * directory. Otherwise, expect them in a subdirectory called
+	 * queue-N.
+	 */
+	if (num_queues == 1) {
+		xspath = kzalloc(strlen(dev->otherend) + 1, GFP_KERNEL);
+		if (!xspath) {
+			xenbus_dev_fatal(dev, -ENOMEM,
+					 "reading ring references");
+			return -ENOMEM;
+		}
+		strcpy(xspath, dev->otherend);
+	} else {
+		xspathsize = strlen(dev->otherend) + xenstore_path_ext_size;
+		xspath = kzalloc(xspathsize, GFP_KERNEL);
+		if (!xspath) {
+			xenbus_dev_fatal(dev, -ENOMEM,
+					 "reading ring references");
+			return -ENOMEM;
+		}
+		snprintf(xspath, xspathsize, "%s/queue-%u", dev->otherend,
+			 queue->id);
+	}
+
+	err = xenbus_gather(XBT_NIL, xspath,
 			    "tx-ring-ref", "%lu", &tx_ring_ref,
 			    "rx-ring-ref", "%lu", &rx_ring_ref, NULL);
 	if (err) {
 		xenbus_dev_fatal(dev, err,
 				 "reading %s/ring-ref",
-				 dev->otherend);
-		return err;
+				 xspath);
+		goto err;
 	}
 
 	/* Try split event channels first, then single event channel. */
-	err = xenbus_gather(XBT_NIL, dev->otherend,
+	err = xenbus_gather(XBT_NIL, xspath,
 			    "event-channel-tx", "%u", &tx_evtchn,
 			    "event-channel-rx", "%u", &rx_evtchn, NULL);
 	if (err < 0) {
-		err = xenbus_scanf(XBT_NIL, dev->otherend,
+		err = xenbus_scanf(XBT_NIL, xspath,
 				   "event-channel", "%u", &tx_evtchn);
 		if (err < 0) {
 			xenbus_dev_fatal(dev, err,
 					 "reading %s/event-channel(-tx/rx)",
-					 dev->otherend);
-			return err;
+					 xspath);
+			goto err;
 		}
 		rx_evtchn = tx_evtchn;
 	}
+
+	/* Map the shared frame, irq etc. */
+	err = xenvif_connect(queue, tx_ring_ref, rx_ring_ref,
+			     tx_evtchn, rx_evtchn);
+	if (err) {
+		xenbus_dev_fatal(dev, err,
+				 "mapping shared-frames %lu/%lu port tx %u rx %u",
+				 tx_ring_ref, rx_ring_ref,
+				 tx_evtchn, rx_evtchn);
+		goto err;
+	}
+
+	err = 0;
+err: /* Regular return falls through with err == 0 */
+	kfree(xspath);
+	return err;
+}
+
+static int read_xenbus_vif_flags(struct backend_info *be)
+{
+	struct xenvif *vif = be->vif;
+	struct xenbus_device *dev = be->dev;
+	unsigned int rx_copy;
+	int err, val;
 
 	err = xenbus_scanf(XBT_NIL, dev->otherend, "request-rx-copy", "%u",
 			   &rx_copy);
@@ -621,16 +755,6 @@ static int connect_rings(struct backend_info *be)
 		val = 0;
 	vif->ipv6_csum = !!val;
 
-	/* Map the shared frame, irq etc. */
-	err = xenvif_connect(vif, tx_ring_ref, rx_ring_ref,
-			     tx_evtchn, rx_evtchn);
-	if (err) {
-		xenbus_dev_fatal(dev, err,
-				 "mapping shared-frames %lu/%lu port tx %u rx %u",
-				 tx_ring_ref, rx_ring_ref,
-				 tx_evtchn, rx_evtchn);
-		return err;
-	}
 	return 0;
 }
 
