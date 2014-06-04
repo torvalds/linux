@@ -797,6 +797,41 @@ static int genwqe_pci_fundamental_reset(struct pci_dev *pci_dev)
 	return rc;
 }
 
+
+static int genwqe_platform_recovery(struct genwqe_dev *cd)
+{
+	struct pci_dev *pci_dev = cd->pci_dev;
+	int rc;
+
+	dev_info(&pci_dev->dev,
+		 "[%s] resetting card for error recovery\n", __func__);
+
+	/* Clear out error injection flags */
+	cd->err_inject &= ~(GENWQE_INJECT_HARDWARE_FAILURE |
+			    GENWQE_INJECT_GFIR_FATAL |
+			    GENWQE_INJECT_GFIR_INFO);
+
+	genwqe_stop(cd);
+
+	/* Try recoverying the card with fundamental reset */
+	rc = genwqe_pci_fundamental_reset(pci_dev);
+	if (!rc) {
+		rc = genwqe_start(cd);
+		if (!rc)
+			dev_info(&pci_dev->dev,
+				 "[%s] card recovered\n", __func__);
+		else
+			dev_err(&pci_dev->dev,
+				"[%s] err: cannot start card services! (err=%d)\n",
+				__func__, rc);
+	} else {
+		dev_err(&pci_dev->dev,
+			"[%s] card reset failed\n", __func__);
+	}
+
+	return rc;
+}
+
 /*
  * genwqe_reload_bistream() - reload card bitstream
  *
@@ -875,6 +910,7 @@ static int genwqe_health_thread(void *data)
 	struct pci_dev *pci_dev = cd->pci_dev;
 	u64 gfir, gfir_masked, slu_unitcfg, app_unitcfg;
 
+ health_thread_begin:
 	while (!kthread_should_stop()) {
 		rc = wait_event_interruptible_timeout(cd->health_waitq,
 			 (genwqe_health_check_cond(cd, &gfir) ||
@@ -960,6 +996,15 @@ static int genwqe_health_thread(void *data)
 		/* We do nothing if the card is going over PCI recovery */
 		if (pci_channel_offline(pci_dev))
 			return -EIO;
+
+		/*
+		 * If it's supported by the platform, we try a fundamental reset
+		 * to recover from a fatal error. Otherwise, we continue to wait
+		 * for an external recovery procedure to take care of it.
+		 */
+		rc = genwqe_platform_recovery(cd);
+		if (!rc)
+			goto health_thread_begin;
 	}
 
 	dev_err(&pci_dev->dev,
