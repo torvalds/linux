@@ -249,7 +249,6 @@ static int imx_tve_connector_mode_valid(struct drm_connector *connector,
 {
 	struct imx_tve *tve = con_to_tve(connector);
 	unsigned long rate;
-	int ret;
 
 	/* pixel clock with 2x oversampling */
 	rate = clk_round_rate(tve->clk, 2000UL * mode->clock) / 2000;
