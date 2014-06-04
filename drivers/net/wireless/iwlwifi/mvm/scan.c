@@ -267,7 +267,7 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 
 static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
-				     int n_ssids,
+				     int n_ssids, u32 flags,
 				     struct iwl_mvm_scan_params *params)
 {
 	bool global_bound = false;
@@ -288,6 +288,9 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		params->suspend_time = 250;
 		params->max_out_time = 250;
 	}
+
+	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
+		params->max_out_time = 200;
 
 not_bound:
 
@@ -332,7 +335,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	cmd->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	cmd->rxchain_sel_flags = iwl_mvm_scan_rx_chain(mvm);
 
-	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, req->flags, &params);
 	cmd->max_out_time = cpu_to_le32(params.max_out_time);
 	cmd->suspend_time = cpu_to_le32(params.suspend_time);
 	if (params.passive_fragmented)
@@ -758,7 +761,7 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	if (!scan_cfg)
 		return -ENOMEM;
 
-	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
 	iwl_build_scan_cmd(mvm, vif, req, &scan_cfg->scan_cmd, &params);
 	scan_cfg->scan_cmd.len = cpu_to_le16(cmd_len);
 

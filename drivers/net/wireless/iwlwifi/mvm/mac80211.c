@@ -374,6 +374,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->wiphy->max_sched_scan_ie_len = SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
+			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
 			       NL80211_FEATURE_P2P_GO_OPPPS;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
