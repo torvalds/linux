@@ -86,6 +86,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	lbz	r4, LPPACA_PMCINUSE(r3)
 	cmpwi	r4, 0
 	beq	23f			/* skip if not */
+BEGIN_FTR_SECTION
+	ld	r3, HSTATE_MMCR(r13)
+	andi.	r4, r3, MMCR0_PMAO_SYNC | MMCR0_PMAO
+	cmpwi	r4, MMCR0_PMAO
+	beql	kvmppc_fix_pmao
+END_FTR_SECTION_IFSET(CPU_FTR_PMAO_BUG)
 	lwz	r3, HSTATE_PMC(r13)
 	lwz	r4, HSTATE_PMC + 4(r13)
 	lwz	r5, HSTATE_PMC + 8(r13)
@@ -737,6 +743,12 @@ skip_tm:
 	sldi	r3, r3, 31		/* MMCR0_FC (freeze counters) bit */
 	mtspr	SPRN_MMCR0, r3		/* freeze all counters, disable ints */
 	isync
+BEGIN_FTR_SECTION
+	ld	r3, VCPU_MMCR(r4)
+	andi.	r5, r3, MMCR0_PMAO_SYNC | MMCR0_PMAO
+	cmpwi	r5, MMCR0_PMAO
+	beql	kvmppc_fix_pmao
+END_FTR_SECTION_IFSET(CPU_FTR_PMAO_BUG)
 	lwz	r3, VCPU_PMC(r4)	/* always load up guest PMU registers */
 	lwz	r5, VCPU_PMC + 4(r4)	/* to prevent information leak */
 	lwz	r6, VCPU_PMC + 8(r4)
@@ -1439,6 +1451,30 @@ END_FTR_SECTION_IFCLR(CPU_FTR_TM)
 25:
 	/* Save PMU registers if requested */
 	/* r8 and cr0.eq are live here */
+BEGIN_FTR_SECTION
+	/*
+	 * POWER8 seems to have a hardware bug where setting
+	 * MMCR0[PMAE] along with MMCR0[PMC1CE] and/or MMCR0[PMCjCE]
+	 * when some counters are already negative doesn't seem
+	 * to cause a performance monitor alert (and hence interrupt).
+	 * The effect of this is that when saving the PMU state,
+	 * if there is no PMU alert pending when we read MMCR0
+	 * before freezing the counters, but one becomes pending
+	 * before we read the counters, we lose it.
+	 * To work around this, we need a way to freeze the counters
+	 * before reading MMCR0.  Normally, freezing the counters
+	 * is done by writing MMCR0 (to set MMCR0[FC]) which
+	 * unavoidably writes MMCR0[PMA0] as well.  On POWER8,
+	 * we can also freeze the counters using MMCR2, by writing
+	 * 1s to all the counter freeze condition bits (there are
+	 * 9 bits each for 6 counters).
+	 */
+	li	r3, -1			/* set all freeze bits */
+	clrrdi	r3, r3, 10
+	mfspr	r10, SPRN_MMCR2
+	mtspr	SPRN_MMCR2, r3
+	isync
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3, 1
 	sldi	r3, r3, 31		/* MMCR0_FC (freeze counters) bit */
 	mfspr	r4, SPRN_MMCR0		/* save MMCR0 */
@@ -1462,6 +1498,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	std	r4, VCPU_MMCR(r9)
 	std	r5, VCPU_MMCR + 8(r9)
 	std	r6, VCPU_MMCR + 16(r9)
+BEGIN_FTR_SECTION
+	std	r10, VCPU_MMCR + 24(r9)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	std	r7, VCPU_SIAR(r9)
 	std	r8, VCPU_SDAR(r9)
 	mfspr	r3, SPRN_PMC1
@@ -1485,12 +1524,10 @@ BEGIN_FTR_SECTION
 	stw	r11, VCPU_PMC + 28(r9)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 BEGIN_FTR_SECTION
-	mfspr	r4, SPRN_MMCR2
 	mfspr	r5, SPRN_SIER
 	mfspr	r6, SPRN_SPMC1
 	mfspr	r7, SPRN_SPMC2
 	mfspr	r8, SPRN_MMCRS
-	std	r4, VCPU_MMCR + 24(r9)
 	std	r5, VCPU_SIER(r9)
 	stw	r6, VCPU_PMC + 24(r9)
 	stw	r7, VCPU_PMC + 28(r9)
@@ -2227,6 +2264,7 @@ machine_check_realmode:
 	beq	mc_cont
 	/* If not, deliver a machine check.  SRR0/1 are already set */
 	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
+	ld	r11, VCPU_MSR(r9)
 	bl	kvmppc_msr_interrupt
 	b	fast_interrupt_c_return
 
@@ -2430,4 +2468,22 @@ kvmppc_msr_interrupt:
 	/* ... if transactional, change to suspended */
 	li	r0, 1
 1:	rldimi	r11, r0, MSR_TS_S_LG, 63 - MSR_TS_T_LG
+	blr
+
+/*
+ * This works around a hardware bug on POWER8E processors, where
+ * writing a 1 to the MMCR0[PMAO] bit doesn't generate a
+ * performance monitor interrupt.  Instead, when we need to have
+ * an interrupt pending, we have to arrange for a counter to overflow.
+ */
+kvmppc_fix_pmao:
+	li	r3, 0
+	mtspr	SPRN_MMCR2, r3
+	lis	r3, (MMCR0_PMXE | MMCR0_FCECE)@h
+	ori	r3, r3, MMCR0_PMCjCE | MMCR0_C56RUN
+	mtspr	SPRN_MMCR0, r3
+	lis	r3, 0x7fff
+	ori	r3, r3, 0xffff
+	mtspr	SPRN_PMC6, r3
+	isync
 	blr

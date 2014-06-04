@@ -704,25 +704,11 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	}
 
 	if (is_long_mode(vcpu)) {
-		if (kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE)) {
-			if (cr3 & CR3_PCID_ENABLED_RESERVED_BITS)
-				return 1;
-		} else
-			if (cr3 & CR3_L_MODE_RESERVED_BITS)
-				return 1;
-	} else {
-		if (is_pae(vcpu)) {
-			if (cr3 & CR3_PAE_RESERVED_BITS)
-				return 1;
-			if (is_paging(vcpu) &&
-			    !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
-				return 1;
-		}
-		/*
-		 * We don't check reserved bits in nonpae mode, because
-		 * this isn't enforced, and VMware depends on this.
-		 */
-	}
+		if (cr3 & CR3_L_MODE_RESERVED_BITS)
+			return 1;
+	} else if (is_pae(vcpu) && is_paging(vcpu) &&
+		   !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
+		return 1;
 
 	vcpu->arch.cr3 = cr3;
 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
@@ -1935,6 +1921,8 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		if (!(data & HV_X64_MSR_APIC_ASSIST_PAGE_ENABLE)) {
 			vcpu->arch.hv_vapic = data;
+			if (kvm_lapic_enable_pv_eoi(vcpu, 0))
+				return 1;
 			break;
 		}
 		gfn = data >> HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT;
@@ -1945,6 +1933,8 @@ static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			return 1;
 		vcpu->arch.hv_vapic = data;
 		mark_page_dirty(vcpu->kvm, gfn);
+		if (kvm_lapic_enable_pv_eoi(vcpu, gfn_to_gpa(gfn) | KVM_MSR_ENABLED))
+			return 1;
 		break;
 	}
 	case HV_X64_MSR_EOI:
@@ -2647,6 +2637,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IRQ_INJECT_STATUS:
 	case KVM_CAP_IRQFD:
 	case KVM_CAP_IOEVENTFD:
+	case KVM_CAP_IOEVENTFD_NO_LENGTH:
 	case KVM_CAP_PIT2:
 	case KVM_CAP_PIT_STATE2:
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
@@ -3649,10 +3640,18 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 		offset = i * BITS_PER_LONG;
 		kvm_mmu_write_protect_pt_masked(kvm, memslot, offset, mask);
 	}
-	if (is_dirty)
-		kvm_flush_remote_tlbs(kvm);
 
 	spin_unlock(&kvm->mmu_lock);
+
+	/* See the comments in kvm_mmu_slot_remove_write_access(). */
+	lockdep_assert_held(&kvm->slots_lock);
+
+	/*
+	 * All the TLBs can be flushed out of mmu lock, see the comments in
+	 * kvm_mmu_slot_remove_write_access().
+	 */
+	if (is_dirty)
+		kvm_flush_remote_tlbs(kvm);
 
 	r = -EFAULT;
 	if (copy_to_user(log->dirty_bitmap, dirty_bitmap_buffer, n))
@@ -4489,8 +4488,6 @@ static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
 			       unsigned short port, void *val,
 			       unsigned int count, bool in)
 {
-	trace_kvm_pio(!in, port, size, count);
-
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = in;
 	vcpu->arch.pio.count  = count;
@@ -4525,6 +4522,7 @@ static int emulator_pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 	if (ret) {
 data_avail:
 		memcpy(val, vcpu->arch.pio_data, size * count);
+		trace_kvm_pio(KVM_PIO_IN, port, size, count, vcpu->arch.pio_data);
 		vcpu->arch.pio.count = 0;
 		return 1;
 	}
@@ -4539,6 +4537,7 @@ static int emulator_pio_out_emulated(struct x86_emulate_ctxt *ctxt,
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 
 	memcpy(vcpu->arch.pio_data, val, size * count);
+	trace_kvm_pio(KVM_PIO_OUT, port, size, count, vcpu->arch.pio_data);
 	return emulator_pio_in_out(vcpu, size, port, (void *)val, count, false);
 }
 
@@ -4648,11 +4647,6 @@ static int emulator_set_cr(struct x86_emulate_ctxt *ctxt, int cr, ulong val)
 	}
 
 	return res;
-}
-
-static void emulator_set_rflags(struct x86_emulate_ctxt *ctxt, ulong val)
-{
-	kvm_set_rflags(emul_to_vcpu(ctxt), val);
 }
 
 static int emulator_get_cpl(struct x86_emulate_ctxt *ctxt)
@@ -4839,7 +4833,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.set_idt	     = emulator_set_idt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
-	.set_rflags          = emulator_set_rflags,
 	.cpl                 = emulator_get_cpl,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
@@ -4905,7 +4898,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	ctxt->eip = kvm_rip_read(vcpu);
 	ctxt->mode = (!is_protmode(vcpu))		? X86EMUL_MODE_REAL :
 		     (ctxt->eflags & X86_EFLAGS_VM)	? X86EMUL_MODE_VM86 :
-		     cs_l				? X86EMUL_MODE_PROT64 :
+		     (cs_l && is_long_mode(vcpu))	? X86EMUL_MODE_PROT64 :
 		     cs_db				? X86EMUL_MODE_PROT32 :
 							  X86EMUL_MODE_PROT16;
 	ctxt->guest_mode = is_guest_mode(vcpu);
@@ -7333,8 +7326,12 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
 	/*
 	 * Write protect all pages for dirty logging.
-	 * Existing largepage mappings are destroyed here and new ones will
-	 * not be created until the end of the logging.
+	 *
+	 * All the sptes including the large sptes which point to this
+	 * slot are set to readonly. We can not create any new large
+	 * spte on this slot until the end of the logging.
+	 *
+	 * See the comments in fast_page_fault().
 	 */
 	if ((change != KVM_MR_DELETE) && (mem->flags & KVM_MEM_LOG_DIRTY_PAGES))
 		kvm_mmu_slot_remove_write_access(kvm, mem->slot);

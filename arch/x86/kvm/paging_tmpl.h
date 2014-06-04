@@ -913,8 +913,7 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
  *   and kvm_mmu_notifier_invalidate_range_start detect the mapping page isn't
  *   used by guest then tlbs are not flushed, so guest is allowed to access the
  *   freed pages.
- *   We set tlbs_dirty to let the notifier know this change and delay the flush
- *   until such a case actually happens.
+ *   And we increase kvm->tlbs_dirty to delay tlbs flush in this case.
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
@@ -943,7 +942,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			return -EINVAL;
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
-			vcpu->kvm->tlbs_dirty = true;
+			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 
@@ -958,7 +957,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
-			vcpu->kvm->tlbs_dirty = true;
+			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 

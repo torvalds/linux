@@ -57,6 +57,20 @@ static inline void __ctl_clear_bit(unsigned int cr, unsigned int bit)
 void smp_ctl_set_bit(int cr, int bit);
 void smp_ctl_clear_bit(int cr, int bit);
 
+union ctlreg0 {
+	unsigned long val;
+	struct {
+#ifdef CONFIG_64BIT
+		unsigned long	   : 32;
+#endif
+		unsigned long	   : 3;
+		unsigned long lap  : 1; /* Low-address-protection control */
+		unsigned long	   : 4;
+		unsigned long edat : 1; /* Enhanced-DAT-enablement control */
+		unsigned long	   : 23;
+	};
+};
+
 #ifdef CONFIG_SMP
 # define ctl_set_bit(cr, bit) smp_ctl_set_bit(cr, bit)
 # define ctl_clear_bit(cr, bit) smp_ctl_clear_bit(cr, bit)

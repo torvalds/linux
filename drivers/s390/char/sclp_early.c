@@ -22,11 +22,14 @@ struct read_info_sccb {
 	u8	rnsize;			/* 10 */
 	u8	_reserved0[16 - 11];	/* 11-15 */
 	u16	ncpurl;			/* 16-17 */
-	u8	_reserved7[24 - 18];	/* 18-23 */
+	u16	cpuoff;			/* 18-19 */
+	u8	_reserved7[24 - 20];	/* 20-23 */
 	u8	loadparm[8];		/* 24-31 */
 	u8	_reserved1[48 - 32];	/* 32-47 */
 	u64	facilities;		/* 48-55 */
-	u8	_reserved2[84 - 56];	/* 56-83 */
+	u8	_reserved2a[76 - 56];	/* 56-75 */
+	u32	ibc;			/* 76-79 */
+	u8	_reserved2b[84 - 80];	/* 80-83 */
 	u8	fac84;			/* 84 */
 	u8	fac85;			/* 85 */
 	u8	_reserved3[91 - 86];	/* 86-90 */
@@ -45,6 +48,8 @@ static unsigned int sclp_con_has_linemode __initdata;
 static unsigned long sclp_hsa_size;
 static unsigned int sclp_max_cpu;
 static struct sclp_ipl_info sclp_ipl_info;
+static unsigned char sclp_siif;
+static u32 sclp_ibc;
 
 u64 sclp_facilities;
 u8 sclp_fac84;
@@ -96,6 +101,9 @@ static int __init sclp_read_info_early(struct read_info_sccb *sccb)
 
 static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 {
+	struct sclp_cpu_entry *cpue;
+	u16 boot_cpu_address, cpu;
+
 	if (sclp_read_info_early(sccb))
 		return;
 
@@ -106,6 +114,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	sclp_rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
 	sclp_rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
 	sclp_rzm <<= 20;
+	sclp_ibc = sccb->ibc;
 
 	if (!sccb->hcpua) {
 		if (MACHINE_IS_VM)
@@ -114,6 +123,15 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 			sclp_max_cpu = sccb->ncpurl;
 	} else {
 		sclp_max_cpu = sccb->hcpua + 1;
+	}
+
+	boot_cpu_address = stap();
+	cpue = (void *)sccb + sccb->cpuoff;
+	for (cpu = 0; cpu < sccb->ncpurl; cpue++, cpu++) {
+		if (boot_cpu_address != cpue->address)
+			continue;
+		sclp_siif = cpue->siif;
+		break;
 	}
 
 	/* Save IPL information */
@@ -147,6 +165,18 @@ unsigned int sclp_get_max_cpu(void)
 {
 	return sclp_max_cpu;
 }
+
+int sclp_has_siif(void)
+{
+	return sclp_siif;
+}
+EXPORT_SYMBOL(sclp_has_siif);
+
+unsigned int sclp_get_ibc(void)
+{
+	return sclp_ibc;
+}
+EXPORT_SYMBOL(sclp_get_ibc);
 
 /*
  * This function will be called after sclp_facilities_detect(), which gets

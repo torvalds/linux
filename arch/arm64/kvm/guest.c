@@ -214,6 +214,8 @@ int __attribute_const__ kvm_target_cpu(void)
 			return KVM_ARM_TARGET_AEM_V8;
 		case ARM_CPU_PART_FOUNDATION:
 			return KVM_ARM_TARGET_FOUNDATION_V8;
+		case ARM_CPU_PART_CORTEX_A53:
+			return KVM_ARM_TARGET_CORTEX_A53;
 		case ARM_CPU_PART_CORTEX_A57:
 			return KVM_ARM_TARGET_CORTEX_A57;
 		};

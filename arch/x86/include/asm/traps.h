@@ -74,6 +74,11 @@ dotraplinkage void do_general_protection(struct pt_regs *, long);
 dotraplinkage void do_page_fault(struct pt_regs *, unsigned long);
 #ifdef CONFIG_TRACING
 dotraplinkage void trace_do_page_fault(struct pt_regs *, unsigned long);
+#else
+static inline void trace_do_page_fault(struct pt_regs *regs, unsigned long error)
+{
+	do_page_fault(regs, error);
+}
 #endif
 dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *, long);
 dotraplinkage void do_coprocessor_error(struct pt_regs *, long);

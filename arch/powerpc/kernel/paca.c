@@ -98,6 +98,9 @@ static inline void free_lppacas(void) { }
 /*
  * 3 persistent SLBs are registered here.  The buffer will be zero
  * initially, hence will all be invaild until we actually write them.
+ *
+ * If you make the number of persistent SLB entries dynamic, please also
+ * update PR KVM to flush and restore them accordingly.
  */
 static struct slb_shadow *slb_shadow;
 

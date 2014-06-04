@@ -57,7 +57,7 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 		for (i = 0; ; ++i) {
 			if (i == 8)
 				goto done;
-			if ((*hpte & HPTE_V_VALID) == 0)
+			if ((be64_to_cpu(*hpte) & HPTE_V_VALID) == 0)
 				break;
 			hpte += 2;
 		}
@@ -67,8 +67,8 @@ static int kvmppc_h_pr_enter(struct kvm_vcpu *vcpu)
 			goto done;
 	}
 
-	hpte[0] = kvmppc_get_gpr(vcpu, 6);
-	hpte[1] = kvmppc_get_gpr(vcpu, 7);
+	hpte[0] = cpu_to_be64(kvmppc_get_gpr(vcpu, 6));
+	hpte[1] = cpu_to_be64(kvmppc_get_gpr(vcpu, 7));
 	pteg_addr += i * HPTE_SIZE;
 	copy_to_user((void __user *)pteg_addr, hpte, HPTE_SIZE);
 	kvmppc_set_gpr(vcpu, 4, pte_index | i);
@@ -93,6 +93,8 @@ static int kvmppc_h_pr_remove(struct kvm_vcpu *vcpu)
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+	pte[0] = be64_to_cpu(pte[0]);
+	pte[1] = be64_to_cpu(pte[1]);
 
 	ret = H_NOT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
@@ -169,6 +171,8 @@ static int kvmppc_h_pr_bulk_remove(struct kvm_vcpu *vcpu)
 
 		pteg = get_pteg_addr(vcpu, tsh & H_BULK_REMOVE_PTEX);
 		copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+		pte[0] = be64_to_cpu(pte[0]);
+		pte[1] = be64_to_cpu(pte[1]);
 
 		/* tsl = AVPN */
 		flags = (tsh & H_BULK_REMOVE_FLAGS) >> 26;
@@ -207,6 +211,8 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	pteg = get_pteg_addr(vcpu, pte_index);
 	mutex_lock(&vcpu->kvm->arch.hpt_mutex);
 	copy_from_user(pte, (void __user *)pteg, sizeof(pte));
+	pte[0] = be64_to_cpu(pte[0]);
+	pte[1] = be64_to_cpu(pte[1]);
 
 	ret = H_NOT_FOUND;
 	if ((pte[0] & HPTE_V_VALID) == 0 ||
@@ -225,6 +231,8 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 
 	rb = compute_tlbie_rb(v, r, pte_index);
 	vcpu->arch.mmu.tlbie(vcpu, rb, rb & 1 ? true : false);
+	pte[0] = cpu_to_be64(pte[0]);
+	pte[1] = cpu_to_be64(pte[1]);
 	copy_to_user((void __user *)pteg, pte, sizeof(pte));
 	ret = H_SUCCESS;
 
@@ -270,7 +278,7 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 	case H_PUT_TCE:
 		return kvmppc_h_pr_put_tce(vcpu);
 	case H_CEDE:
-		vcpu->arch.shared->msr |= MSR_EE;
+		kvmppc_set_msr_fast(vcpu, kvmppc_get_msr(vcpu) | MSR_EE);
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;

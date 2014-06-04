@@ -834,6 +834,7 @@ void gmap_do_ipte_notify(struct mm_struct *mm, pte_t *pte)
 	}
 	spin_unlock(&gmap_notifier_lock);
 }
+EXPORT_SYMBOL_GPL(gmap_do_ipte_notify);
 
 static inline int page_table_with_pgste(struct page *page)
 {
@@ -866,8 +867,7 @@ static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 	atomic_set(&page->_mapcount, 0);
 	table = (unsigned long *) page_to_phys(page);
 	clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-	clear_table(table + PTRS_PER_PTE, PGSTE_HR_BIT | PGSTE_HC_BIT,
-		    PAGE_SIZE/2);
+	clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
 	return table;
 }
 
@@ -885,8 +885,8 @@ static inline void page_table_free_pgste(unsigned long *table)
 	__free_page(page);
 }
 
-static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
-			pmd_t *pmd, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pte(struct mm_struct *mm, pmd_t *pmd,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	pte_t *start_pte, *pte;
 	spinlock_t *ptl;
@@ -897,6 +897,22 @@ static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
 	do {
 		pgste = pgste_get_lock(pte);
 		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+		if (init_skey) {
+			unsigned long address;
+
+			pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
+					      PGSTE_GR_BIT | PGSTE_GC_BIT);
+
+			/* skip invalid and not writable pages */
+			if (pte_val(*pte) & _PAGE_INVALID ||
+			    !(pte_val(*pte) & _PAGE_WRITE)) {
+				pgste_set_unlock(pte, pgste);
+				continue;
+			}
+
+			address = pte_val(*pte) & PAGE_MASK;
+			page_set_storage_key(address, PAGE_DEFAULT_KEY, 1);
+		}
 		pgste_set_unlock(pte, pgste);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(start_pte, ptl);
@@ -904,8 +920,8 @@ static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
 	return addr;
 }
 
-static inline unsigned long page_table_reset_pmd(struct mm_struct *mm,
-			pud_t *pud, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pmd(struct mm_struct *mm, pud_t *pud,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	unsigned long next;
 	pmd_t *pmd;
@@ -915,14 +931,14 @@ static inline unsigned long page_table_reset_pmd(struct mm_struct *mm,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		next = page_table_reset_pte(mm, pmd, addr, next);
+		next = page_table_reset_pte(mm, pmd, addr, next, init_skey);
 	} while (pmd++, addr = next, addr != end);
 
 	return addr;
 }
 
-static inline unsigned long page_table_reset_pud(struct mm_struct *mm,
-			pgd_t *pgd, unsigned long addr, unsigned long end)
+static inline unsigned long page_table_reset_pud(struct mm_struct *mm, pgd_t *pgd,
+			unsigned long addr, unsigned long end, bool init_skey)
 {
 	unsigned long next;
 	pud_t *pud;
@@ -932,28 +948,33 @@ static inline unsigned long page_table_reset_pud(struct mm_struct *mm,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		next = page_table_reset_pmd(mm, pud, addr, next);
+		next = page_table_reset_pmd(mm, pud, addr, next, init_skey);
 	} while (pud++, addr = next, addr != end);
 
 	return addr;
 }
 
-void page_table_reset_pgste(struct mm_struct *mm,
-			unsigned long start, unsigned long end)
+void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+			    unsigned long end, bool init_skey)
 {
 	unsigned long addr, next;
 	pgd_t *pgd;
 
+	down_write(&mm->mmap_sem);
+	if (init_skey && mm_use_skey(mm))
+		goto out_up;
 	addr = start;
-	down_read(&mm->mmap_sem);
 	pgd = pgd_offset(mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		next = page_table_reset_pud(mm, pgd, addr, next);
+		next = page_table_reset_pud(mm, pgd, addr, next, init_skey);
 	} while (pgd++, addr = next, addr != end);
-	up_read(&mm->mmap_sem);
+	if (init_skey)
+		current->mm->context.use_skey = 1;
+out_up:
+	up_write(&mm->mmap_sem);
 }
 EXPORT_SYMBOL(page_table_reset_pgste);
 
@@ -991,7 +1012,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	/* changing the guest storage key is considered a change of the page */
 	if ((pgste_val(new) ^ pgste_val(old)) &
 	    (PGSTE_ACC_BITS | PGSTE_FP_BIT | PGSTE_GR_BIT | PGSTE_GC_BIT))
-		pgste_val(new) |= PGSTE_HC_BIT;
+		pgste_val(new) |= PGSTE_UC_BIT;
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(*ptep, ptl);
@@ -1011,6 +1032,11 @@ static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
 						    unsigned long vmaddr)
 {
 	return NULL;
+}
+
+void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+			    unsigned long end, bool init_skey)
+{
 }
 
 static inline void page_table_free_pgste(unsigned long *table)
@@ -1358,6 +1384,37 @@ int s390_enable_sie(void)
 	return mm->context.has_pgste ? 0 : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
+
+/*
+ * Enable storage key handling from now on and initialize the storage
+ * keys with the default key.
+ */
+void s390_enable_skey(void)
+{
+	page_table_reset_pgste(current->mm, 0, TASK_SIZE, true);
+}
+EXPORT_SYMBOL_GPL(s390_enable_skey);
+
+/*
+ * Test and reset if a guest page is dirty
+ */
+bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *gmap)
+{
+	pte_t *pte;
+	spinlock_t *ptl;
+	bool dirty = false;
+
+	pte = get_locked_pte(gmap->mm, address, &ptl);
+	if (unlikely(!pte))
+		return false;
+
+	if (ptep_test_and_clear_user_dirty(gmap->mm, address, pte))
+		dirty = true;
+
+	spin_unlock(ptl);
+	return dirty;
+}
+EXPORT_SYMBOL_GPL(gmap_test_and_clear_dirty);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 int pmdp_clear_flush_young(struct vm_area_struct *vma, unsigned long address,

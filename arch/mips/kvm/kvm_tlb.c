@@ -222,26 +222,19 @@ kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 		return -1;
 	}
 
-	if (idx < 0) {
-		idx = read_c0_random() % current_cpu_data.tlbsize;
-		write_c0_index(idx);
-		mtc0_tlbw_hazard();
-	}
 	write_c0_entrylo0(entrylo0);
 	write_c0_entrylo1(entrylo1);
 	mtc0_tlbw_hazard();
 
-	tlb_write_indexed();
+	if (idx < 0)
+		tlb_write_random();
+	else
+		tlb_write_indexed();
 	tlbw_use_hazard();
 
-#ifdef DEBUG
-	if (debug) {
-		kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] "
-			  "entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
-			  vcpu->arch.pc, idx, read_c0_entryhi(),
-			  read_c0_entrylo0(), read_c0_entrylo1());
-	}
-#endif
+	kvm_debug("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0(R): 0x%08lx, entrylo1(R): 0x%08lx\n",
+		  vcpu->arch.pc, idx, read_c0_entryhi(),
+		  read_c0_entrylo0(), read_c0_entrylo1());
 
 	/* Flush D-cache */
 	if (flush_dcache_mask) {
@@ -348,11 +341,9 @@ int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 	mtc0_tlbw_hazard();
 	tlbw_use_hazard();
 
-#ifdef DEBUG
 	kvm_debug ("@ %#lx idx: %2d [entryhi(R): %#lx] entrylo0 (R): 0x%08lx, entrylo1(R): 0x%08lx\n",
 	     vcpu->arch.pc, read_c0_index(), read_c0_entryhi(),
 	     read_c0_entrylo0(), read_c0_entrylo1());
-#endif
 
 	/* Restore old ASID */
 	write_c0_entryhi(old_entryhi);
@@ -400,10 +391,8 @@ kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) | (0x3 << 3) |
 			(tlb->tlb_lo1 & MIPS3_PG_D) | (tlb->tlb_lo1 & MIPS3_PG_V);
 
-#ifdef DEBUG
 	kvm_debug("@ %#lx tlb_lo0: 0x%08lx tlb_lo1: 0x%08lx\n", vcpu->arch.pc,
 		  tlb->tlb_lo0, tlb->tlb_lo1);
-#endif
 
 	return kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
 				       tlb->tlb_mask);
@@ -424,10 +413,8 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 		}
 	}
 
-#ifdef DEBUG
 	kvm_debug("%s: entryhi: %#lx, index: %d lo0: %#lx, lo1: %#lx\n",
 		  __func__, entryhi, index, tlb[i].tlb_lo0, tlb[i].tlb_lo1);
-#endif
 
 	return index;
 }
@@ -461,9 +448,7 @@ int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 
 	local_irq_restore(flags);
 
-#ifdef DEBUG
 	kvm_debug("Host TLB lookup, %#lx, idx: %2d\n", vaddr, idx);
-#endif
 
 	return idx;
 }
@@ -508,12 +493,9 @@ int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va)
 
 	local_irq_restore(flags);
 
-#ifdef DEBUG
-	if (idx > 0) {
+	if (idx > 0)
 		kvm_debug("%s: Invalidated entryhi %#lx @ idx %d\n", __func__,
-			  (va & VPN2_MASK) | (vcpu->arch.asid_map[va & ASID_MASK] & ASID_MASK), idx);
-	}
-#endif
+			  (va & VPN2_MASK) | kvm_mips_get_user_asid(vcpu), idx);
 
 	return 0;
 }
@@ -658,15 +640,30 @@ void kvm_local_flush_tlb_all(void)
 	local_irq_restore(flags);
 }
 
+/**
+ * kvm_mips_migrate_count() - Migrate timer.
+ * @vcpu:	Virtual CPU.
+ *
+ * Migrate CP0_Count hrtimer to the current CPU by cancelling and restarting it
+ * if it was running prior to being cancelled.
+ *
+ * Must be called when the VCPU is migrated to a different CPU to ensure that
+ * timer expiry during guest execution interrupts the guest and causes the
+ * interrupt to be delivered in a timely manner.
+ */
+static void kvm_mips_migrate_count(struct kvm_vcpu *vcpu)
+{
+	if (hrtimer_cancel(&vcpu->arch.comparecount_timer))
+		hrtimer_restart(&vcpu->arch.comparecount_timer);
+}
+
 /* Restore ASID once we are scheduled back after preemption */
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	unsigned long flags;
 	int newasid = 0;
 
-#ifdef DEBUG
 	kvm_debug("%s: vcpu %p, cpu: %d\n", __func__, vcpu, cpu);
-#endif
 
 	/* Alocate new kernel and user ASIDs if needed */
 
@@ -682,17 +679,23 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		    vcpu->arch.guest_user_mm.context.asid[cpu];
 		newasid++;
 
-		kvm_info("[%d]: cpu_context: %#lx\n", cpu,
-			 cpu_context(cpu, current->mm));
-		kvm_info("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
-			 cpu, vcpu->arch.guest_kernel_asid[cpu]);
-		kvm_info("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
-			 vcpu->arch.guest_user_asid[cpu]);
+		kvm_debug("[%d]: cpu_context: %#lx\n", cpu,
+			  cpu_context(cpu, current->mm));
+		kvm_debug("[%d]: Allocated new ASID for Guest Kernel: %#x\n",
+			  cpu, vcpu->arch.guest_kernel_asid[cpu]);
+		kvm_debug("[%d]: Allocated new ASID for Guest User: %#x\n", cpu,
+			  vcpu->arch.guest_user_asid[cpu]);
 	}
 
 	if (vcpu->arch.last_sched_cpu != cpu) {
-		kvm_info("[%d->%d]KVM VCPU[%d] switch\n",
-			 vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
+		kvm_debug("[%d->%d]KVM VCPU[%d] switch\n",
+			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
+		/*
+		 * Migrate the timer interrupt to the current CPU so that it
+		 * always interrupts the guest and synchronously triggers a
+		 * guest timer interrupt.
+		 */
+		kvm_mips_migrate_count(vcpu);
 	}
 
 	if (!newasid) {

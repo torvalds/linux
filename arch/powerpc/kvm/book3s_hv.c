@@ -879,23 +879,8 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_IAMR:
 		*val = get_reg_val(id, vcpu->arch.iamr);
 		break;
-	case KVM_REG_PPC_FSCR:
-		*val = get_reg_val(id, vcpu->arch.fscr);
-		break;
 	case KVM_REG_PPC_PSPB:
 		*val = get_reg_val(id, vcpu->arch.pspb);
-		break;
-	case KVM_REG_PPC_EBBHR:
-		*val = get_reg_val(id, vcpu->arch.ebbhr);
-		break;
-	case KVM_REG_PPC_EBBRR:
-		*val = get_reg_val(id, vcpu->arch.ebbrr);
-		break;
-	case KVM_REG_PPC_BESCR:
-		*val = get_reg_val(id, vcpu->arch.bescr);
-		break;
-	case KVM_REG_PPC_TAR:
-		*val = get_reg_val(id, vcpu->arch.tar);
 		break;
 	case KVM_REG_PPC_DPDES:
 		*val = get_reg_val(id, vcpu->arch.vcore->dpdes);
@@ -1091,23 +1076,8 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_IAMR:
 		vcpu->arch.iamr = set_reg_val(id, *val);
 		break;
-	case KVM_REG_PPC_FSCR:
-		vcpu->arch.fscr = set_reg_val(id, *val);
-		break;
 	case KVM_REG_PPC_PSPB:
 		vcpu->arch.pspb = set_reg_val(id, *val);
-		break;
-	case KVM_REG_PPC_EBBHR:
-		vcpu->arch.ebbhr = set_reg_val(id, *val);
-		break;
-	case KVM_REG_PPC_EBBRR:
-		vcpu->arch.ebbrr = set_reg_val(id, *val);
-		break;
-	case KVM_REG_PPC_BESCR:
-		vcpu->arch.bescr = set_reg_val(id, *val);
-		break;
-	case KVM_REG_PPC_TAR:
-		vcpu->arch.tar = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_DPDES:
 		vcpu->arch.vcore->dpdes = set_reg_val(id, *val);
@@ -1280,6 +1250,17 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 		goto free_vcpu;
 
 	vcpu->arch.shared = &vcpu->arch.shregs;
+#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+	/*
+	 * The shared struct is never shared on HV,
+	 * so we can always use host endianness
+	 */
+#ifdef __BIG_ENDIAN__
+	vcpu->arch.shared_big_endian = true;
+#else
+	vcpu->arch.shared_big_endian = false;
+#endif
+#endif
 	vcpu->arch.mmcr[0] = MMCR0_FC;
 	vcpu->arch.ctrl = CTRL_RUNLATCH;
 	/* default to host PVR, since we can't spoof it */
@@ -1949,6 +1930,13 @@ static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
 	 * support pte_enc here
 	 */
 	(*sps)->enc[0].pte_enc = def->penc[linux_psize];
+	/*
+	 * Add 16MB MPSS support if host supports it
+	 */
+	if (linux_psize != MMU_PAGE_16M && def->penc[MMU_PAGE_16M] != -1) {
+		(*sps)->enc[1].page_shift = 24;
+		(*sps)->enc[1].pte_enc = def->penc[MMU_PAGE_16M];
+	}
 	(*sps)++;
 }
 

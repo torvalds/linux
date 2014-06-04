@@ -39,7 +39,7 @@
 #include <kvm/arm_vgic.h>
 #include <kvm/arm_arch_timer.h>
 
-#define KVM_VCPU_MAX_FEATURES 2
+#define KVM_VCPU_MAX_FEATURES 3
 
 struct kvm_vcpu;
 int kvm_target_cpu(void);
