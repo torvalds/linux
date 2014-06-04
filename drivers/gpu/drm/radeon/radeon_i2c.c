@@ -988,7 +988,7 @@ void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 		return;
 	i2c_del_adapter(&i2c->adapter);
 	if (i2c->has_aux)
-		drm_dp_aux_unregister_i2c_bus(&i2c->aux);
+		drm_dp_aux_unregister(&i2c->aux);
 	kfree(i2c);
 }
 

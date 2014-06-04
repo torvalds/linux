@@ -702,9 +702,9 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	DRM_DEBUG_KMS("registering %s bus for %s\n", name,
 		      connector->base.kdev->kobj.name);
 
-	ret = drm_dp_aux_register_i2c_bus(&intel_dp->aux);
+	ret = drm_dp_aux_register(&intel_dp->aux);
 	if (ret < 0) {
-		DRM_ERROR("drm_dp_aux_register_i2c_bus() for %s failed (%d)\n",
+		DRM_ERROR("drm_dp_aux_register() for %s failed (%d)\n",
 			  name, ret);
 		return;
 	}
@@ -714,7 +714,7 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 				intel_dp->aux.ddc.dev.kobj.name);
 	if (ret < 0) {
 		DRM_ERROR("sysfs_create_link() for %s failed (%d)\n", name, ret);
-		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
+		drm_dp_aux_unregister(&intel_dp->aux);
 	}
 }
 
@@ -3662,7 +3662,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
+	drm_dp_aux_unregister(&intel_dp->aux);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
@@ -4244,7 +4244,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->psr_setup_done = false;
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector, &power_seq)) {
-		drm_dp_aux_unregister_i2c_bus(&intel_dp->aux);
+		drm_dp_aux_unregister(&intel_dp->aux);
 		if (is_edp(intel_dp)) {
 			cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
 			mutex_lock(&dev->mode_config.connection_mutex);

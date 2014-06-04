@@ -332,7 +332,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	dpaux->aux.transfer = tegra_dpaux_transfer;
 	dpaux->aux.dev = &pdev->dev;
 
-	err = drm_dp_aux_register_i2c_bus(&dpaux->aux);
+	err = drm_dp_aux_register(&dpaux->aux);
 	if (err < 0)
 		return err;
 
@@ -355,7 +355,7 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux = platform_get_drvdata(pdev);
 
-	drm_dp_aux_unregister_i2c_bus(&dpaux->aux);
+	drm_dp_aux_unregister(&dpaux->aux);
 
 	mutex_lock(&dpaux_lock);
 	list_del(&dpaux->list);
