@@ -1378,22 +1378,15 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Get irq error\n");
 		return -ENXIO;
 	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "platform_get_resource error.\n");
-		return -ENXIO;
-	}
-	reg = ioremap(res->start, resource_size(res));
-	if (!reg) {
-		dev_err(&pdev->dev, "ioremap error.\n");
-		return -ENOMEM;
-	}
+	reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
 
 	mmc = mmc_alloc_host(sizeof(struct sh_mmcif_host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto ealloch;
-	}
+	if (!mmc)
+		return -ENOMEM;
 
 	ret = mmc_of_parse(mmc);
 	if (ret < 0)
@@ -1498,8 +1491,6 @@ eclkget:
 	pm_runtime_disable(&pdev->dev);
 eofparse:
 	mmc_free_host(mmc);
-ealloch:
-	iounmap(reg);
 	return ret;
 }
 
@@ -1523,9 +1514,6 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	 * (a query on the linux-mmc mailing list didn't bring any replies).
 	 */
 	cancel_delayed_work_sync(&host->timeout_work);
-
-	if (host->addr)
-		iounmap(host->addr);
 
 	irq[0] = platform_get_irq(pdev, 0);
 	irq[1] = platform_get_irq(pdev, 1);
