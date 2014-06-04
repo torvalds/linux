@@ -5314,9 +5314,6 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u32 oldval;
 	u32 val;
 
-	if (!test_bit(__I40E_ADMINQ_EVENT_PENDING, &pf->state))
-		return;
-
 	/* check for error indications */
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
 	oldval = val;
@@ -5360,10 +5357,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	do {
 		event.msg_size = I40E_MAX_AQ_BUF_SIZE; /* reinit each time */
 		ret = i40e_clean_arq_element(hw, &event, &pending);
-		if (ret == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
-			dev_info(&pf->pdev->dev, "No ARQ event found\n");
+		if (ret == I40E_ERR_ADMIN_QUEUE_NO_WORK)
 			break;
-		} else if (ret) {
+		else if (ret) {
 			dev_info(&pf->pdev->dev, "ARQ event error %d\n", ret);
 			break;
 		}
