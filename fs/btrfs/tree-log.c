@@ -1498,7 +1498,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 		return -EIO;
 
 	key.objectid = BTRFS_TREE_LOG_FIXUP_OBJECTID;
-	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = objectid;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
@@ -3364,7 +3364,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		 * or deletes of this inode don't have to relog the inode
 		 * again
 		 */
-		if (btrfs_key_type(ins_keys + i) == BTRFS_EXTENT_DATA_KEY &&
+		if (ins_keys[i].type == BTRFS_EXTENT_DATA_KEY &&
 		    !skip_csum) {
 			int found_type;
 			extent = btrfs_item_ptr(src, start_slot + i,
@@ -4369,7 +4369,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
 	key.offset = (u64)-1;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.type = BTRFS_ROOT_ITEM_KEY;
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);

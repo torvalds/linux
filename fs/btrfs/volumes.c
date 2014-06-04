@@ -1054,7 +1054,7 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 		if (key.objectid > device->devid)
 			break;
 
-		if (btrfs_key_type(&key) != BTRFS_DEV_EXTENT_KEY)
+		if (key.type != BTRFS_DEV_EXTENT_KEY)
 			goto next;
 
 		dev_extent = btrfs_item_ptr(l, slot, struct btrfs_dev_extent);
@@ -1206,7 +1206,7 @@ again:
 		if (key.objectid > device->devid)
 			break;
 
-		if (btrfs_key_type(&key) != BTRFS_DEV_EXTENT_KEY)
+		if (key.type != BTRFS_DEV_EXTENT_KEY)
 			goto next;
 
 		if (key.offset > search_start) {

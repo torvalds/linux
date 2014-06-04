@@ -4224,7 +4224,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	WARN_ON(!ret);
 	path->slots[0]--;
 	btrfs_item_key_to_cpu(path->nodes[0], &found_key, path->slots[0]);
-	found_type = btrfs_key_type(&found_key);
+	found_type = found_key.type;
 
 	/* No extents, but there might be delalloc bits */
 	if (found_key.objectid != btrfs_ino(inode) ||

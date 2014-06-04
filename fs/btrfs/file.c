@@ -299,7 +299,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 
 	/* get the inode */
 	key.objectid = defrag->root;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
 
 	index = srcu_read_lock(&fs_info->subvol_srcu);
@@ -311,7 +311,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	}
 
 	key.objectid = defrag->ino;
-	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
 	inode = btrfs_iget(fs_info->sb, &key, inode_root, NULL);
 	if (IS_ERR(inode)) {

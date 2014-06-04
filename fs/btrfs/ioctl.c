@@ -535,7 +535,7 @@ static noinline int create_subvol(struct inode *dir,
 
 	key.objectid = objectid;
 	key.offset = 0;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.type = BTRFS_ROOT_ITEM_KEY;
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&root_item);
 	if (ret)
@@ -3252,11 +3252,11 @@ process_slot:
 		slot = path->slots[0];
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
-		if (btrfs_key_type(&key) > BTRFS_EXTENT_DATA_KEY ||
+		if (key.type > BTRFS_EXTENT_DATA_KEY ||
 		    key.objectid != btrfs_ino(src))
 			break;
 
-		if (btrfs_key_type(&key) == BTRFS_EXTENT_DATA_KEY) {
+		if (key.type == BTRFS_EXTENT_DATA_KEY) {
 			struct btrfs_file_extent_item *extent;
 			int type;
 			u32 size;

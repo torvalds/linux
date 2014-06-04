@@ -153,7 +153,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 
 		key.objectid = btrfs_ino(inode);
 		key.offset = start;
-		btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+		key.type = BTRFS_EXTENT_DATA_KEY;
 
 		datasize = btrfs_file_extent_calc_inline_size(cur_size);
 		path->leave_spinning = 1;
@@ -3159,7 +3159,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	path->reada = -1;
 
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
-	btrfs_set_key_type(&key, BTRFS_ORPHAN_ITEM_KEY);
+	key.type = BTRFS_ORPHAN_ITEM_KEY;
 	key.offset = (u64)-1;
 
 	while (1) {
@@ -3186,7 +3186,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		/* make sure the item matches what we want */
 		if (found_key.objectid != BTRFS_ORPHAN_OBJECTID)
 			break;
-		if (btrfs_key_type(&found_key) != BTRFS_ORPHAN_ITEM_KEY)
+		if (found_key.type != BTRFS_ORPHAN_ITEM_KEY)
 			break;
 
 		/* release the path since we're done with it */
@@ -4085,7 +4085,7 @@ search_again:
 		fi = NULL;
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-		found_type = btrfs_key_type(&found_key);
+		found_type = found_key.type;
 
 		if (found_key.objectid != ino)
 			break;
@@ -5331,7 +5331,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 		btrfs_get_delayed_items(inode, &ins_list, &del_list);
 	}
 
-	btrfs_set_key_type(&key, key_type);
+	key.type = key_type;
 	key.offset = ctx->pos;
 	key.objectid = btrfs_ino(inode);
 
@@ -5356,7 +5356,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 
 		if (found_key.objectid != key.objectid)
 			break;
-		if (btrfs_key_type(&found_key) != key_type)
+		if (found_key.type != key_type)
 			break;
 		if (found_key.offset < ctx->pos)
 			goto next;
@@ -5568,7 +5568,7 @@ static int btrfs_set_inode_index_count(struct inode *inode)
 	int ret;
 
 	key.objectid = btrfs_ino(inode);
-	btrfs_set_key_type(&key, BTRFS_DIR_INDEX_KEY);
+	key.type = BTRFS_DIR_INDEX_KEY;
 	key.offset = (u64)-1;
 
 	path = btrfs_alloc_path();
@@ -5600,7 +5600,7 @@ static int btrfs_set_inode_index_count(struct inode *inode)
 	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
 	if (found_key.objectid != btrfs_ino(inode) ||
-	    btrfs_key_type(&found_key) != BTRFS_DIR_INDEX_KEY) {
+	    found_key.type != BTRFS_DIR_INDEX_KEY) {
 		BTRFS_I(inode)->index_cnt = 2;
 		goto out;
 	}
@@ -5718,7 +5718,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
 
 	key[0].objectid = objectid;
-	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
+	key[0].type = BTRFS_INODE_ITEM_KEY;
 	key[0].offset = 0;
 
 	sizes[0] = sizeof(struct btrfs_inode_item);
@@ -5731,7 +5731,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		 * add more hard links than can fit in the ref item.
 		 */
 		key[1].objectid = objectid;
-		btrfs_set_key_type(&key[1], BTRFS_INODE_REF_KEY);
+		key[1].type = BTRFS_INODE_REF_KEY;
 		key[1].offset = ref_objectid;
 
 		sizes[1] = name_len + sizeof(*ref);
@@ -5740,7 +5740,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	location = &BTRFS_I(inode)->location;
 	location->objectid = objectid;
 	location->offset = 0;
-	btrfs_set_key_type(location, BTRFS_INODE_ITEM_KEY);
+	location->type = BTRFS_INODE_ITEM_KEY;
 
 	ret = btrfs_insert_inode_locked(inode);
 	if (ret < 0)
@@ -5832,7 +5832,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		memcpy(&key, &BTRFS_I(inode)->root->root_key, sizeof(key));
 	} else {
 		key.objectid = ino;
-		btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
+		key.type = BTRFS_INODE_ITEM_KEY;
 		key.offset = 0;
 	}
 
@@ -6333,7 +6333,7 @@ again:
 			      struct btrfs_file_extent_item);
 	/* are we inside the extent that was found? */
 	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-	found_type = btrfs_key_type(&found_key);
+	found_type = found_key.type;
 	if (found_key.objectid != objectid ||
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
 		/*
@@ -8832,7 +8832,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	}
 	key.objectid = btrfs_ino(inode);
 	key.offset = 0;
-	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+	key.type = BTRFS_EXTENT_DATA_KEY;
 	datasize = btrfs_file_extent_calc_inline_size(name_len);
 	err = btrfs_insert_empty_item(trans, root, path, &key,
 				      datasize);

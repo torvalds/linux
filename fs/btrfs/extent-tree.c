@@ -3097,7 +3097,7 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 	for (i = 0; i < nritems; i++) {
 		if (level == 0) {
 			btrfs_item_key_to_cpu(buf, &key, i);
-			if (btrfs_key_type(&key) != BTRFS_EXTENT_DATA_KEY)
+			if (key.type != BTRFS_EXTENT_DATA_KEY)
 				continue;
 			fi = btrfs_item_ptr(buf, i,
 					    struct btrfs_file_extent_item);
@@ -6464,7 +6464,7 @@ static noinline int find_free_extent(struct btrfs_root *orig_root,
 	bool have_caching_bg = false;
 
 	WARN_ON(num_bytes < root->sectorsize);
-	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
+	ins->type = BTRFS_EXTENT_ITEM_KEY;
 	ins->objectid = 0;
 	ins->offset = 0;
 
@@ -9009,7 +9009,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	root = info->extent_root;
 	key.objectid = 0;
 	key.offset = 0;
-	btrfs_set_key_type(&key, BTRFS_BLOCK_GROUP_ITEM_KEY);
+	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;

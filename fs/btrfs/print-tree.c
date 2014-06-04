@@ -195,7 +195,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	for (i = 0 ; i < nr ; i++) {
 		item = btrfs_item_nr(i);
 		btrfs_item_key_to_cpu(l, &key, i);
-		type = btrfs_key_type(&key);
+		type = key.type;
 		printk(KERN_INFO "\titem %d key (%llu %u %llu) itemoff %d "
 		       "itemsize %d\n",
 			i, key.objectid, type, key.offset,

@@ -2714,7 +2714,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (found_key.objectid != scrub_dev->devid)
 			break;
 
-		if (btrfs_key_type(&found_key) != BTRFS_DEV_EXTENT_KEY)
+		if (found_key.type != BTRFS_DEV_EXTENT_KEY)
 			break;
 
 		if (found_key.offset >= end)
