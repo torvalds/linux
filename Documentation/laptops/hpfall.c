@@ -28,6 +28,7 @@ int set_unload_heads_path(char *device)
 	if (strlen(device) <= 5 || strncmp(device, "/dev/", 5) != 0)
 		return -EINVAL;
 	strncpy(devname, device + 5, sizeof(devname));
+	devname[sizeof(devname) - 1] = '\0';
 
 	snprintf(unload_heads_path, sizeof(unload_heads_path) - 1,
 				"/sys/block/%s/device/unload_heads", devname);
