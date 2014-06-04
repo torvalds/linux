@@ -574,6 +574,10 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 			   bo->surf.height, bo->surf.stride, bo->surf.format);
 		qxl_io_create_primary(qdev, base_offset, bo);
 		bo->is_primary = true;
+	}
+
+	if (bo->is_primary) {
+		DRM_DEBUG_KMS("setting surface_id to 0 for primary surface %d on crtc %d\n", bo->surface_id, qcrtc->index);
 		surf_id = 0;
 	} else {
 		surf_id = bo->surface_id;
