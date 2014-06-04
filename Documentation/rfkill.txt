@@ -21,7 +21,7 @@ aircraft.
 The rfkill subsystem has a concept of "hard" and "soft" block, which
 differ little in their meaning (block == transmitters off) but rather in
 whether they can be changed or not:
- - hard block: read-only radio block that cannot be overriden by software
+ - hard block: read-only radio block that cannot be overridden by software
  - soft block: writable radio block (need not be readable) that is set by
                the system software.
 

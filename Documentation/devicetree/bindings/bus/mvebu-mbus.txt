@@ -197,7 +197,7 @@ to be set by the operating system and that are guaranteed to be free of overlaps
 with one another or with the system memory ranges.
 
 Each entry in the property refers to exactly one window. If the operating system
-choses to use a different set of mbus windows, it must ensure that any address
+chooses to use a different set of mbus windows, it must ensure that any address
 translations performed from downstream devices are adapted accordingly.
 
 The operating system may insert additional mbus windows that do not conflict

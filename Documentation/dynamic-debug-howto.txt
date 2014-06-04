@@ -321,7 +321,7 @@ nullarbor:~ # echo -n 'func svc_process -p' >
 nullarbor:~ # echo -n 'format "nfsd: READ" +p' >
 				<debugfs>/dynamic_debug/control
 
-// enable messages in files of which the pathes include string "usb"
+// enable messages in files of which the paths include string "usb"
 nullarbor:~ # echo -n '*usb* +p' > <debugfs>/dynamic_debug/control
 
 // enable all messages

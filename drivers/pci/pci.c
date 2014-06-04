@@ -106,7 +106,7 @@ static bool pcie_ari_disabled;
  * Given a PCI bus, returns the highest PCI bus number present in the set
  * including the given PCI bus and its list of child PCI buses.
  */
-unsigned char pci_bus_max_busnr(struct pci_bus* bus)
+unsigned char pci_bus_max_busnr(struct pci_bus *bus)
 {
 	struct pci_bus *tmp;
 	unsigned char max, n;
@@ -1371,7 +1371,7 @@ static void pcim_release(struct device *gendev, void *res)
 		pci_disable_device(dev);
 }
 
-static struct pci_devres * get_pci_dr(struct pci_dev *pdev)
+static struct pci_devres *get_pci_dr(struct pci_dev *pdev)
 {
 	struct pci_devres *dr, *new_dr;
 
@@ -1385,7 +1385,7 @@ static struct pci_devres * get_pci_dr(struct pci_dev *pdev)
 	return devres_get(&pdev->dev, new_dr, NULL, NULL);
 }
 
-static struct pci_devres * find_pci_dr(struct pci_dev *pdev)
+static struct pci_devres *find_pci_dr(struct pci_dev *pdev)
 {
 	if (pci_is_managed(pdev))
 		return devres_find(&pdev->dev, pcim_release, NULL, NULL);

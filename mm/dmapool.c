@@ -341,10 +341,10 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 				continue;
 			if (pool->dev)
 				dev_err(pool->dev,
-					"dma_pool_alloc %s, %p (corruped)\n",
+					"dma_pool_alloc %s, %p (corrupted)\n",
 					pool->name, retval);
 			else
-				pr_err("dma_pool_alloc %s, %p (corruped)\n",
+				pr_err("dma_pool_alloc %s, %p (corrupted)\n",
 					pool->name, retval);
 
 			/*

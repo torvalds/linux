@@ -125,7 +125,7 @@ the request was handled successfully.
 
 read()
 ------
-read() will return a queued ouput report. These output reports can be of type
+read() will return a queued output report. These output reports can be of type
 UHID_START, UHID_STOP, UHID_OPEN, UHID_CLOSE, UHID_OUTPUT or UHID_OUTPUT_EV. No
 reaction is required to any of them but you should handle them according to your
 needs. Only UHID_OUTPUT and UHID_OUTPUT_EV have payloads.

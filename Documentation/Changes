@@ -73,6 +73,11 @@ Perl
 You will need perl 5 and the following modules: Getopt::Long, Getopt::Std,
 File::Basename, and File::Find to build the kernel.
 
+BC
+--
+
+You will need bc to build kernels 3.10 and higher
+
 
 System utilities
 ================

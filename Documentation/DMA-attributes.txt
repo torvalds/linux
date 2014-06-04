@@ -98,5 +98,5 @@ DMA_ATTR_FORCE_CONTIGUOUS
 By default DMA-mapping subsystem is allowed to assemble the buffer
 allocated by dma_alloc_attrs() function from individual pages if it can
 be mapped as contiguous chunk into device dma address space. By
-specifing this attribute the allocated buffer is forced to be contiguous
+specifying this attribute the allocated buffer is forced to be contiguous
 also in physical memory.

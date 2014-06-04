@@ -406,7 +406,7 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
 
 /*
  * Ensure that there are not more swap files than can be encoded in the kernel
- * the PTEs.
+ * PTEs.
  */
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 

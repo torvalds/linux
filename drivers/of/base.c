@@ -2040,8 +2040,8 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
  * @np:		Pointer to the given device_node
  * @stem:	Alias stem of the given device_node
  *
- * The function travels the lookup table to get alias id for the given
- * device_node and alias stem.  It returns the alias id if find it.
+ * The function travels the lookup table to get the alias id for the given
+ * device_node and alias stem.  It returns the alias id if found.
  */
 int of_alias_get_id(struct device_node *np, const char *stem)
 {

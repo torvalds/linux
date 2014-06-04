@@ -443,7 +443,7 @@ The following commands are supported:
   The following command creates a snapshot every time a block request
   queue is unplugged with a depth > 1.  If you were tracing a set of
   events or functions at the time, the snapshot trace buffer would
-  capture those events when the trigger event occured:
+  capture those events when the trigger event occurred:
 
   # echo 'snapshot if nr_rq > 1' > \
         /sys/kernel/debug/tracing/events/block/block_unplug/trigger

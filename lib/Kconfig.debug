@@ -575,8 +575,8 @@ config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
 	help
-	  This options enables addition error checking for high memory systems.
-	  Disable for production systems.
+	  This option enables additional error checking for high memory
+	  systems.  Disable for production systems.
 
 config HAVE_DEBUG_STACKOVERFLOW
 	bool
