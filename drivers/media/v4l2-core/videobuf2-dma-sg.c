@@ -211,7 +211,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
 		     ++num_pages_from_user, vaddr += PAGE_SIZE) {
 			unsigned long pfn;
 
-			if (follow_pfn(buf->vma, vaddr, &pfn)) {
+			if (follow_pfn(vma, vaddr, &pfn)) {
 				dprintk(1, "no page for address %lu\n", vaddr);
 				break;
 			}

@@ -1673,8 +1673,6 @@ static int adv7604_get_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		return -EINVAL;
 	if (edid->start_block == 1)
 		edid->blocks = 1;
-	if (!edid->edid)
-		return -EINVAL;
 
 	if (edid->blocks > state->edid.blocks)
 		edid->blocks = state->edid.blocks;
@@ -1761,8 +1759,6 @@ static int adv7604_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		edid->blocks = 2;
 		return -E2BIG;
 	}
-	if (!edid->edid)
-		return -EINVAL;
 
 	v4l2_dbg(2, debug, sd, "%s: write EDID pad %d, edid.present = 0x%x\n",
 			__func__, edid->pad, state->edid.present);

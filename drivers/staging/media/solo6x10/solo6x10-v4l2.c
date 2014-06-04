@@ -336,13 +336,12 @@ static int solo_start_streaming(struct vb2_queue *q, unsigned int count)
 	return solo_start_thread(solo_dev);
 }
 
-static int solo_stop_streaming(struct vb2_queue *q)
+static void solo_stop_streaming(struct vb2_queue *q)
 {
 	struct solo_dev *solo_dev = vb2_get_drv_priv(q);
 
 	solo_stop_thread(solo_dev);
 	INIT_LIST_HEAD(&solo_dev->vidq_active);
-	return 0;
 }
 
 static void solo_buf_queue(struct vb2_buffer *vb)

@@ -140,7 +140,7 @@ enum iss_video_dmaqueue_flags {
  *		if there was no buffer previously queued.
  */
 struct iss_video_operations {
-	int(*queue)(struct iss_video *video, struct iss_buffer *buffer);
+	int (*queue)(struct iss_video *video, struct iss_buffer *buffer);
 };
 
 struct iss_video {

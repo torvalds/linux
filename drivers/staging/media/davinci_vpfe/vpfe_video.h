@@ -102,8 +102,6 @@ struct vpfe_video_device {
 	 * user has selected
 	 */
 	enum v4l2_memory			memory;
-	/* Used to keep track of state of the priority */
-	struct v4l2_prio_state			prio;
 	/* number of open instances of the channel */
 	u32					usrs;
 	/* flag to indicate whether decoder is initialized */

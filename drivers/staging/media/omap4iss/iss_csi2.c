@@ -487,9 +487,7 @@ static void csi2_irq_status_set(struct iss_csi2_device *csi2, int enable)
  */
 int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 {
-	u8 soft_reset_retries = 0;
-	u32 reg;
-	int i;
+	unsigned int timeout;
 
 	if (!csi2->available)
 		return -ENODEV;
@@ -500,37 +498,22 @@ int omap4iss_csi2_reset(struct iss_csi2_device *csi2)
 	iss_reg_set(csi2->iss, csi2->regs1, CSI2_SYSCONFIG,
 		    CSI2_SYSCONFIG_SOFT_RESET);
 
-	do {
-		reg = iss_reg_read(csi2->iss, csi2->regs1, CSI2_SYSSTATUS)
-		    & CSI2_SYSSTATUS_RESET_DONE;
-		if (reg == CSI2_SYSSTATUS_RESET_DONE)
-			break;
-		soft_reset_retries++;
-		if (soft_reset_retries < 5)
-			usleep_range(100, 100);
-	} while (soft_reset_retries < 5);
-
-	if (soft_reset_retries == 5) {
-		dev_err(csi2->iss->dev,
-			"CSI2: Soft reset try count exceeded!\n");
+	timeout = iss_poll_condition_timeout(
+		iss_reg_read(csi2->iss, csi2->regs1, CSI2_SYSSTATUS) &
+		CSI2_SYSSTATUS_RESET_DONE, 500, 100, 200);
+	if (timeout) {
+		dev_err(csi2->iss->dev, "CSI2: Soft reset timeout!\n");
 		return -EBUSY;
 	}
 
 	iss_reg_set(csi2->iss, csi2->regs1, CSI2_COMPLEXIO_CFG,
 		    CSI2_COMPLEXIO_CFG_RESET_CTRL);
 
-	i = 100;
-	do {
-		reg = iss_reg_read(csi2->iss, csi2->phy->phy_regs, REGISTER1)
-		    & REGISTER1_RESET_DONE_CTRLCLK;
-		if (reg == REGISTER1_RESET_DONE_CTRLCLK)
-			break;
-		usleep_range(100, 100);
-	} while (--i > 0);
-
-	if (i == 0) {
-		dev_err(csi2->iss->dev,
-			"CSI2: Reset for CSI2_96M_FCLK domain Failed!\n");
+	timeout = iss_poll_condition_timeout(
+		iss_reg_read(csi2->iss, csi2->phy->phy_regs, REGISTER1) &
+		REGISTER1_RESET_DONE_CTRLCLK, 10000, 100, 500);
+	if (timeout) {
+		dev_err(csi2->iss->dev, "CSI2: CSI2_96M_FCLK reset timeout!\n");
 		return -EBUSY;
 	}
 

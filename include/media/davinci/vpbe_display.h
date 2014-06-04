@@ -16,6 +16,7 @@
 /* Header files */
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-fh.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/davinci/vpbe_types.h>
 #include <media/davinci/vpbe_osd.h>
@@ -94,8 +95,6 @@ struct vpbe_layer {
 	 * has selected
 	 */
 	enum v4l2_memory memory;
-	/* Used to keep track of state of the priority */
-	struct v4l2_prio_state prio;
 	/* Used to store pixel format */
 	struct v4l2_pix_format pix_fmt;
 	enum v4l2_field buf_field;
@@ -134,14 +133,13 @@ struct vpbe_display {
 
 /* File handle structure */
 struct vpbe_fh {
+	struct v4l2_fh fh;
 	/* vpbe device structure */
 	struct vpbe_display *disp_dev;
 	/* pointer to layer object for opened device */
 	struct vpbe_layer *layer;
 	/* Indicates whether this file handle is doing IO */
 	unsigned char io_allowed;
-	/* Used to keep track priority of this instance */
-	enum v4l2_priority prio;
 };
 
 struct buf_config_params {

@@ -294,15 +294,15 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 }
 
-static int stop_streaming(struct vb2_queue *q)
+static void stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
 
 	if (!fimc_capture_active(fimc))
-		return -EINVAL;
+		return;
 
-	return fimc_stop_capture(fimc, false);
+	fimc_stop_capture(fimc, false);
 }
 
 int fimc_capture_suspend(struct fimc_dev *fimc)

@@ -467,6 +467,18 @@ static struct em28xx_reg_seq speedlink_vad_laplace_reg_seq[] = {
 	{	-1,			-1,	-1,	-1},
 };
 
+static struct em28xx_reg_seq pctv_292e[] = {
+	{EM2874_R80_GPIO_P0_CTRL,      0xff, 0xff,      0},
+	{0x0d,                         0xff, 0xff,    950},
+	{EM2874_R80_GPIO_P0_CTRL,      0xbd, 0xff,    100},
+	{EM2874_R80_GPIO_P0_CTRL,      0xfd, 0xff,    410},
+	{EM2874_R80_GPIO_P0_CTRL,      0x7d, 0xff,    300},
+	{EM2874_R80_GPIO_P0_CTRL,      0x7c, 0xff,     60},
+	{0x0d,                         0x42, 0xff,     50},
+	{EM2874_R5F_TS_ENABLE,         0x85, 0xff,      0},
+	{-1,                             -1,   -1,     -1},
+};
+
 /*
  *  Button definitions
  */
@@ -2220,6 +2232,17 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb       = 1,
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
+	/* 2013:025f PCTV tripleStick (292e).
+	 * Empia EM28178, Silicon Labs Si2168, Silicon Labs Si2157 */
+	[EM28178_BOARD_PCTV_292E] = {
+		.name          = "PCTV tripleStick (292e)",
+		.def_i2c_bus   = 1,
+		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_FREQ_400_KHZ,
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_292e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2397,6 +2420,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2765_BOARD_SPEEDLINK_VAD_LAPLACE },
 	{ USB_DEVICE(0x2013, 0x0258),
 			.driver_info = EM28178_BOARD_PCTV_461E },
+	{ USB_DEVICE(0x2013, 0x025f),
+			.driver_info = EM28178_BOARD_PCTV_292E },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2682,8 +2707,6 @@ static void em28xx_card_setup(struct em28xx *dev)
 	if (dev->board.is_webcam) {
 		if (em28xx_detect_sensor(dev) < 0)
 			dev->board.is_webcam = 0;
-		else
-			dev->progressive = 1;
 	}
 
 	switch (dev->model) {
@@ -2718,11 +2741,6 @@ static void em28xx_card_setup(struct em28xx *dev)
 		    dev->board.name, dev->model);
 
 	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
-	if (em28xx_boards[dev->model].tuner_addr)
-		dev->tuner_addr = em28xx_boards[dev->model].tuner_addr;
-
-	if (em28xx_boards[dev->model].tda9887_conf)
-		dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
 
 	/* request some modules */
 	switch (dev->model) {
@@ -2991,8 +3009,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	const char *chip_name = default_chip_name;
 
 	dev->udev = udev;
-	mutex_init(&dev->vb_queue_lock);
-	mutex_init(&dev->vb_vbi_queue_lock);
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
 
@@ -3416,15 +3432,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* Select USB transfer types to use */
 	if (has_video) {
-	    if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
-		dev->analog_xfer_bulk = 1;
-	    em28xx_info("analog set to %s mode.\n",
-			dev->analog_xfer_bulk ? "bulk" : "isoc");
+		if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
+			dev->analog_xfer_bulk = 1;
+		em28xx_info("analog set to %s mode.\n",
+			    dev->analog_xfer_bulk ? "bulk" : "isoc");
 	}
 	if (has_dvb) {
-	    if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
-		dev->dvb_xfer_bulk = 1;
-
+		if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
+			dev->dvb_xfer_bulk = 1;
 		em28xx_info("dvb set to %s mode.\n",
 			    dev->dvb_xfer_bulk ? "bulk" : "isoc");
 	}

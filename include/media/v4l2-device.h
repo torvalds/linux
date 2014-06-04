@@ -120,6 +120,14 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 int __must_check
 v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev);
 
+/* Send a notification to v4l2_device. */
+static inline void v4l2_subdev_notify(struct v4l2_subdev *sd,
+				      unsigned int notification, void *arg)
+{
+	if (sd && sd->v4l2_dev && sd->v4l2_dev->notify)
+		sd->v4l2_dev->notify(sd, notification, arg);
+}
+
 /* Iterate over all subdevs. */
 #define v4l2_device_for_each_subdev(sd, v4l2_dev)			\
 	list_for_each_entry(sd, &(v4l2_dev)->subdevs, list)

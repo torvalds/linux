@@ -5041,8 +5041,6 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
-	.s_std = cx25840_s_std,
-	.g_std = cx25840_g_std,
 	.reset = cx25840_reset,
 	.load_fw = cx25840_load_fw,
 	.s_io_pin_config = common_s_io_pin_config,
@@ -5067,6 +5065,8 @@ static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 };
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {
+	.s_std = cx25840_s_std,
+	.g_std = cx25840_g_std,
 	.s_routing = cx25840_s_video_routing,
 	.s_mbus_fmt = cx25840_s_mbus_fmt,
 	.s_stream = cx25840_s_stream,

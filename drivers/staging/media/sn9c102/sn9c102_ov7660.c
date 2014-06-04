@@ -23,7 +23,7 @@
 #include "sn9c102_devtable.h"
 
 
-static int ov7660_init(struct sn9c102_device* cam)
+static int ov7660_init(struct sn9c102_device *cam)
 {
 	int err = 0;
 
@@ -271,8 +271,8 @@ static int ov7660_init(struct sn9c102_device* cam)
 }
 
 
-static int ov7660_get_ctrl(struct sn9c102_device* cam,
-			   struct v4l2_control* ctrl)
+static int ov7660_get_ctrl(struct sn9c102_device *cam,
+			   struct v4l2_control *ctrl)
 {
 	int err = 0;
 
@@ -332,8 +332,8 @@ static int ov7660_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int ov7660_set_ctrl(struct sn9c102_device* cam,
-			   const struct v4l2_control* ctrl)
+static int ov7660_set_ctrl(struct sn9c102_device *cam,
+			   const struct v4l2_control *ctrl)
 {
 	int err = 0;
 
@@ -371,10 +371,10 @@ static int ov7660_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int ov7660_set_crop(struct sn9c102_device* cam,
-			   const struct v4l2_rect* rect)
+static int ov7660_set_crop(struct sn9c102_device *cam,
+			   const struct v4l2_rect *rect)
 {
-	struct sn9c102_sensor* s = sn9c102_get_sensor(cam);
+	struct sn9c102_sensor *s = sn9c102_get_sensor(cam);
 	int err = 0;
 	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 1,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 1;
@@ -386,8 +386,8 @@ static int ov7660_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int ov7660_set_pix_format(struct sn9c102_device* cam,
-				 const struct v4l2_pix_format* pix)
+static int ov7660_set_pix_format(struct sn9c102_device *cam,
+				 const struct v4l2_pix_format *pix)
 {
 	int r0, err = 0;
 
@@ -525,7 +525,7 @@ static const struct sn9c102_sensor ov7660 = {
 };
 
 
-int sn9c102_probe_ov7660(struct sn9c102_device* cam)
+int sn9c102_probe_ov7660(struct sn9c102_device *cam)
 {
 	int pid, ver, err;
 

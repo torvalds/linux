@@ -516,7 +516,7 @@ static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret;
 }
 
-static int go7007_stop_streaming(struct vb2_queue *q)
+static void go7007_stop_streaming(struct vb2_queue *q)
 {
 	struct go7007 *go = vb2_get_drv_priv(q);
 	unsigned long flags;
@@ -538,7 +538,6 @@ static int go7007_stop_streaming(struct vb2_queue *q)
 	/* Turn on Capture LED */
 	if (go->board_id == GO7007_BOARDID_ADS_USBAV_709)
 		go7007_write_addr(go, 0x3c82, 0x000d);
-	return 0;
 }
 
 static struct vb2_ops go7007_video_qops = {
@@ -666,7 +665,7 @@ static int go7007_s_std(struct go7007 *go)
 		go->sensor_framerate = 30000;
 	}
 
-	call_all(&go->v4l2_dev, core, s_std, go->std);
+	call_all(&go->v4l2_dev, video, s_std, go->std);
 	set_capture_size(go, NULL, 0);
 	return 0;
 }

@@ -513,7 +513,7 @@ static int rcar_vin_videobuf_init(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int rcar_vin_stop_streaming(struct vb2_queue *vq)
+static void rcar_vin_stop_streaming(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -524,8 +524,6 @@ static int rcar_vin_stop_streaming(struct vb2_queue *vq)
 	list_for_each_safe(buf_head, tmp, &priv->capture)
 		list_del_init(buf_head);
 	spin_unlock_irq(&priv->lock);
-
-	return 0;
 }
 
 static struct vb2_ops rcar_vin_vb2_ops = {

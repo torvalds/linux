@@ -61,41 +61,20 @@ enum fimc_bus_type {
 #define GRP_ID_FLITE		(1 << 13)
 #define GRP_ID_FIMC_IS		(1 << 14)
 
-struct i2c_board_info;
-
 /**
  * struct fimc_source_info - video source description required for the host
  *			     interface configuration
  *
- * @board_info: pointer to I2C subdevice's board info
- * @clk_frequency: frequency of the clock the host interface provides to sensor
  * @fimc_bus_type: FIMC camera input type
  * @sensor_bus_type: image sensor bus type, MIPI, ITU-R BT.601 etc.
  * @flags: the parallel sensor bus flags defining signals polarity (V4L2_MBUS_*)
- * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
- * @clk_id: index of the SoC peripheral clock for sensors
  */
 struct fimc_source_info {
-	struct i2c_board_info *board_info;
-	unsigned long clk_frequency;
 	enum fimc_bus_type fimc_bus_type;
 	enum fimc_bus_type sensor_bus_type;
 	u16 flags;
-	u16 i2c_bus_num;
 	u16 mux_id;
-	u8 clk_id;
-};
-
-/**
- * struct s5p_platform_fimc - camera host interface platform data
- *
- * @source_info: properties of an image source for the host interface setup
- * @num_clients: the number of attached image sources
- */
-struct s5p_platform_fimc {
-	struct fimc_source_info *source_info;
-	int num_clients;
 };
 
 /*

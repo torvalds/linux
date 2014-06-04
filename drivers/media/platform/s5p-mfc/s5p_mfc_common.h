@@ -23,8 +23,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include "regs-mfc.h"
-#include "regs-mfc-v6.h"
-#include "regs-mfc-v7.h"
+#include "regs-mfc-v8.h"
 
 /* Definitions related to MFC memory */
 
@@ -223,6 +222,7 @@ struct s5p_mfc_buf_align {
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
+	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
 	char	*fw_name;
@@ -330,6 +330,7 @@ struct s5p_mfc_dev {
 	int warn_start;
 	struct s5p_mfc_hw_ops *mfc_ops;
 	struct s5p_mfc_hw_cmds *mfc_cmds;
+	const struct s5p_mfc_regs *mfc_regs;
 };
 
 /**
@@ -663,6 +664,7 @@ struct s5p_mfc_fmt {
 	u32 codec_mode;
 	enum s5p_mfc_fmt_type type;
 	u32 num_planes;
+	u32 versions;
 };
 
 /**
@@ -700,6 +702,13 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)
 #define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
 #define IS_MFCV6_PLUS(dev)	(dev->variant->version >= 0x60 ? 1 : 0)
-#define IS_MFCV7(dev)		(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV7_PLUS(dev)	(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV8(dev)		(dev->variant->version >= 0x80 ? 1 : 0)
+
+#define MFC_V5_BIT	BIT(0)
+#define MFC_V6_BIT	BIT(1)
+#define MFC_V7_BIT	BIT(2)
+#define MFC_V8_BIT	BIT(3)
+
 
 #endif /* S5P_MFC_COMMON_H_ */
