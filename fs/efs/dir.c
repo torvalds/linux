@@ -71,10 +71,9 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 			inodenum = be32_to_cpu(dirslot->inode);
 			namelen  = dirslot->namelen;
 			nameptr  = dirslot->name;
-
-#ifdef DEBUG
-			printk(KERN_DEBUG "EFS: readdir(): block %d slot %d/%d: inode %u, name \"%s\", namelen %u\n", block, slot, dirblock->slots-1, inodenum, nameptr, namelen);
-#endif
+			pr_debug("%s(): block %d slot %d/%d: inode %u, name \"%s\", namelen %u\n",
+				 __func__, block, slot, dirblock->slots-1,
+				 inodenum, nameptr, namelen);
 			if (!namelen)
 				continue;
 			/* found the next entry */
