@@ -986,7 +986,7 @@ extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
 
 extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 					    dma_addr_t *addrs, int max_pages);
-extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages);
+extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
 extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
 
 
