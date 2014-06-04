@@ -1105,7 +1105,6 @@ dm9000_rx(struct net_device *dev)
 		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
-			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
 			return;
 		}
 
