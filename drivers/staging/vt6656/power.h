@@ -42,6 +42,6 @@ void vnt_disable_power_saving(struct vnt_private *);
 void vnt_enable_power_saving(struct vnt_private *, u16);
 void PSvSendPSPOLL(struct vnt_private *);
 int PSbSendNullPacket(struct vnt_private *);
-int PSbIsNextTBTTWakeUp(struct vnt_private *);
+int vnt_next_tbtt_wakeup(struct vnt_private *);
 
 #endif /* __POWER_H__ */

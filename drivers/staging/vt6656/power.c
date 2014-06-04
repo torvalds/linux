@@ -31,7 +31,7 @@
  *      PSbConsiderPowerDown - Decide if we can Power Down
  *      PSvSendPSPOLL - Send PS-POLL packet
  *      PSbSendNullPacket - Send Null packet
- *      PSbIsNextTBTTWakeUp - Decide if we need to wake up at next Beacon
+ *      vnt_next_tbtt_wakeup - Decide if we need to wake up at next Beacon
  *
  * Revision History:
  *
@@ -312,7 +312,7 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
  *
  */
 
-int PSbIsNextTBTTWakeUp(struct vnt_private *priv)
+int vnt_next_tbtt_wakeup(struct vnt_private *priv)
 {
 	struct vnt_manager *mgmt = &priv->vnt_mgmt;
 	int wake_up = false;

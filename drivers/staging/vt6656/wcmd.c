@@ -826,7 +826,7 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_TBTT_WAKEUP_START:
-		PSbIsNextTBTTWakeUp(pDevice);
+		vnt_next_tbtt_wakeup(pDevice);
 		break;
 
 	case WLAN_CMD_BECON_SEND_START:
