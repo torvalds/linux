@@ -420,8 +420,6 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	master->min_speed_hz = OMAP1_SPI100K_MAX_FREQ/(1<<16);
 	master->max_speed_hz = OMAP1_SPI100K_MAX_FREQ;
 
-	platform_set_drvdata(pdev, master);
-
 	spi100k = spi_master_get_devdata(master);
 
 	/*
