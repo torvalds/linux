@@ -445,14 +445,16 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
 			/* Turn off ATR first */
-			if (pf->flags & I40E_FLAG_FD_ATR_ENABLED) {
-				pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+			    !(pf->auto_disable_flags &
+			      I40E_FLAG_FD_ATR_ENABLED)) {
 				dev_warn(&pdev->dev, "FD filter space full, ATR for further flows will be turned off\n");
 				pf->auto_disable_flags |=
 						       I40E_FLAG_FD_ATR_ENABLED;
 				pf->flags |= I40E_FLAG_FDIR_REQUIRES_REINIT;
-			} else if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
-				pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			} else if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+				   !(pf->auto_disable_flags &
+				     I40E_FLAG_FD_SB_ENABLED)) {
 				dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
 				pf->auto_disable_flags |=
 							I40E_FLAG_FD_SB_ENABLED;
