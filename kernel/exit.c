@@ -395,14 +395,12 @@ retry:
 	}
 
 	/*
-	 * Search through everything else. We should not get
-	 * here often
+	 * Search through everything else, we should not get here often.
 	 */
-	do_each_thread(g, c) {
-		if (c->mm == mm)
+	for_each_process_thread(g, c) {
+		if (!(c->flags & PF_KTHREAD) && c->mm == mm)
 			goto assign_new_owner;
-	} while_each_thread(g, c);
-
+	}
 	read_unlock(&tasklist_lock);
 	/*
 	 * We found no owner yet mm_users > 1: this implies that we are
