@@ -54,8 +54,8 @@ static unsigned char admin_timeout = 60;
 module_param(admin_timeout, byte, 0644);
 MODULE_PARM_DESC(admin_timeout, "timeout in seconds for admin commands");
 
-unsigned char io_timeout = 30;
-module_param(io_timeout, byte, 0644);
+unsigned char nvme_io_timeout = 30;
+module_param_named(io_timeout, nvme_io_timeout, byte, 0644);
 MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
 
 static unsigned char retry_time = 30;
