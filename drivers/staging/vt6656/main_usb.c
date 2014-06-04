@@ -289,9 +289,9 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	if (!FIRMWAREbCheckVersion(pDevice)) {
 		if (vnt_download_firmware(pDevice) == true) {
-			if (FIRMWAREbBrach2Sram(pDevice) == false) {
+			if (vnt_firmware_branch_to_sram(pDevice) == false) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
-					" FIRMWAREbBrach2Sram fail\n");
+					" vnt_firmware_branch_to_sram fail\n");
 				return false;
 			}
 		} else {

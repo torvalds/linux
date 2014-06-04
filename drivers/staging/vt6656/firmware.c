@@ -91,7 +91,7 @@ out:
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
-int FIRMWAREbBrach2Sram(struct vnt_private *priv)
+int vnt_firmware_branch_to_sram(struct vnt_private *priv)
 {
 	int status;
 
@@ -137,7 +137,7 @@ int FIRMWAREbCheckVersion(struct vnt_private *priv)
 
 	if (priv->wFirmwareVersion < FIRMWARE_VERSION) {
 		/* branch to loader for download new firmware */
-		FIRMWAREbBrach2Sram(priv);
+		vnt_firmware_branch_to_sram(priv);
 		return false;
 	}
 	return true;
