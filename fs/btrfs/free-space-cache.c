@@ -279,8 +279,7 @@ static int io_ctl_init(struct io_ctl *io_ctl, struct inode *inode,
 	int num_pages;
 	int check_crcs = 0;
 
-	num_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-		    PAGE_CACHE_SHIFT;
+	num_pages = DIV_ROUND_UP(i_size_read(inode), PAGE_CACHE_SIZE);
 
 	if (btrfs_ino(inode) != BTRFS_FREE_INO_OBJECTID)
 		check_crcs = 1;

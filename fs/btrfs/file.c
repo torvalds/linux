@@ -1481,9 +1481,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	bool force_page_uptodate = false;
 	bool need_unlock;
 
-	nrptrs = min((iov_iter_count(i) + PAGE_CACHE_SIZE - 1) /
-		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
-		     (sizeof(struct page *)));
+	nrptrs = min(DIV_ROUND_UP(iov_iter_count(i), PAGE_CACHE_SIZE),
+			PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	nrptrs = min(nrptrs, current->nr_dirtied_pause - current->nr_dirtied);
 	nrptrs = max(nrptrs, 8);
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
@@ -1497,8 +1496,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		size_t write_bytes = min(iov_iter_count(i),
 					 nrptrs * (size_t)PAGE_CACHE_SIZE -
 					 offset);
-		size_t num_pages = (write_bytes + offset +
-				    PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+		size_t num_pages = DIV_ROUND_UP(write_bytes + offset,
+						PAGE_CACHE_SIZE);
 		size_t reserve_bytes;
 		size_t dirty_pages;
 		size_t copied;
@@ -1526,9 +1525,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 				 * our prealloc extent may be smaller than
 				 * write_bytes, so scale down.
 				 */
-				num_pages = (write_bytes + offset +
-					     PAGE_CACHE_SIZE - 1) >>
-					PAGE_CACHE_SHIFT;
+				num_pages = DIV_ROUND_UP(write_bytes + offset,
+							 PAGE_CACHE_SIZE);
 				reserve_bytes = num_pages << PAGE_CACHE_SHIFT;
 				ret = 0;
 			} else {
@@ -1590,9 +1588,8 @@ again:
 			dirty_pages = 0;
 		} else {
 			force_page_uptodate = false;
-			dirty_pages = (copied + offset +
-				       PAGE_CACHE_SIZE - 1) >>
-				       PAGE_CACHE_SHIFT;
+			dirty_pages = DIV_ROUND_UP(copied + offset,
+						   PAGE_CACHE_SIZE);
 		}
 
 		/*

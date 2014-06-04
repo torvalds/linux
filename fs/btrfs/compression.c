@@ -91,8 +91,7 @@ static inline int compressed_bio_size(struct btrfs_root *root,
 	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
 
 	return sizeof(struct compressed_bio) +
-		((disk_size + root->sectorsize - 1) / root->sectorsize) *
-		csum_size;
+		(DIV_ROUND_UP(disk_size, root->sectorsize)) * csum_size;
 }
 
 static struct bio *compressed_bio_alloc(struct block_device *bdev,
@@ -615,8 +614,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->compress_type = extent_compress_type(bio_flags);
 	cb->orig_bio = bio;
 
-	nr_pages = (compressed_len + PAGE_CACHE_SIZE - 1) /
-				 PAGE_CACHE_SIZE;
+	nr_pages = DIV_ROUND_UP(compressed_len, PAGE_CACHE_SIZE);
 	cb->compressed_pages = kzalloc(sizeof(struct page *) * nr_pages,
 				       GFP_NOFS);
 	if (!cb->compressed_pages)
@@ -686,8 +684,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 							comp_bio, sums);
 				BUG_ON(ret); /* -ENOMEM */
 			}
-			sums += (comp_bio->bi_iter.bi_size +
-				 root->sectorsize - 1) / root->sectorsize;
+			sums += DIV_ROUND_UP(comp_bio->bi_iter.bi_size,
+					     root->sectorsize);
 
 			ret = btrfs_map_bio(root, READ, comp_bio,
 					    mirror_num, 0);

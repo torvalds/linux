@@ -1251,8 +1251,7 @@ static void btrfsic_read_from_block_data(
 
 	while (len > 0) {
 		cur = min(len, ((size_t)PAGE_CACHE_SIZE - offset_in_page));
-		BUG_ON(i >= (block_ctx->len + PAGE_CACHE_SIZE - 1) >>
-			    PAGE_CACHE_SHIFT);
+		BUG_ON(i >= DIV_ROUND_UP(block_ctx->len, PAGE_CACHE_SIZE));
 		kaddr = block_ctx->datav[i];
 		memcpy(dst, kaddr + offset_in_page, cur);
 
