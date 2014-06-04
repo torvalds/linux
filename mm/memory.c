@@ -232,23 +232,32 @@ void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long 
 #endif
 }
 
-void tlb_flush_mmu(struct mmu_gather *tlb)
+static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
 {
-	struct mmu_gather_batch *batch;
-
-	if (!tlb->need_flush)
-		return;
 	tlb->need_flush = 0;
 	tlb_flush(tlb);
 #ifdef CONFIG_HAVE_RCU_TABLE_FREE
 	tlb_table_flush(tlb);
 #endif
+}
+
+static void tlb_flush_mmu_free(struct mmu_gather *tlb)
+{
+	struct mmu_gather_batch *batch;
 
 	for (batch = &tlb->local; batch; batch = batch->next) {
 		free_pages_and_swap_cache(batch->pages, batch->nr);
 		batch->nr = 0;
 	}
 	tlb->active = &tlb->local;
+}
+
+void tlb_flush_mmu(struct mmu_gather *tlb)
+{
+	if (!tlb->need_flush)
+		return;
+	tlb_flush_mmu_tlbonly(tlb);
+	tlb_flush_mmu_free(tlb);
 }
 
 /* tlb_finish_mmu
@@ -1127,8 +1136,10 @@ again:
 			if (PageAnon(page))
 				rss[MM_ANONPAGES]--;
 			else {
-				if (pte_dirty(ptent))
+				if (pte_dirty(ptent)) {
+					force_flush = 1;
 					set_page_dirty(page);
+				}
 				if (pte_young(ptent) &&
 				    likely(!(vma->vm_flags & VM_SEQ_READ)))
 					mark_page_accessed(page);
@@ -1137,9 +1148,10 @@ again:
 			page_remove_rmap(page);
 			if (unlikely(page_mapcount(page) < 0))
 				print_bad_pte(vma, addr, ptent, page);
-			force_flush = !__tlb_remove_page(tlb, page);
-			if (force_flush)
+			if (unlikely(!__tlb_remove_page(tlb, page))) {
+				force_flush = 1;
 				break;
+			}
 			continue;
 		}
 		/*
@@ -1174,17 +1186,10 @@ again:
 
 	add_mm_rss_vec(mm, rss);
 	arch_leave_lazy_mmu_mode();
-	pte_unmap_unlock(start_pte, ptl);
 
-	/*
-	 * mmu_gather ran out of room to batch pages, we break out of
-	 * the PTE lock to avoid doing the potential expensive TLB invalidate
-	 * and page-free while holding it.
-	 */
+	/* Do the actual TLB flush before dropping ptl */
 	if (force_flush) {
 		unsigned long old_end;
-
-		force_flush = 0;
 
 		/*
 		 * Flush the TLB just for the previous segment,
@@ -1193,11 +1198,21 @@ again:
 		 */
 		old_end = tlb->end;
 		tlb->end = addr;
-
-		tlb_flush_mmu(tlb);
-
+		tlb_flush_mmu_tlbonly(tlb);
 		tlb->start = addr;
 		tlb->end = old_end;
+	}
+	pte_unmap_unlock(start_pte, ptl);
+
+	/*
+	 * If we forced a TLB flush (either due to running out of
+	 * batch buffers or because we needed to flush dirty TLB
+	 * entries before releasing the ptl), free the batched
+	 * memory too. Restart if we didn't do everything.
+	 */
+	if (force_flush) {
+		force_flush = 0;
+		tlb_flush_mmu_free(tlb);
 
 		if (addr != end)
 			goto again;
@@ -1955,10 +1970,15 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long address, unsigned int fault_flags)
 {
 	struct vm_area_struct *vma;
+	vm_flags_t vm_flags;
 	int ret;
 
 	vma = find_extend_vma(mm, address);
 	if (!vma || address < vma->vm_start)
+		return -EFAULT;
+
+	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
+	if (!(vm_flags & vma->vm_flags))
 		return -EFAULT;
 
 	ret = handle_mm_fault(mm, vma, address, fault_flags);

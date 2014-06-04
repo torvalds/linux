@@ -682,7 +682,10 @@ static void c4iw_dealloc(struct uld_ctx *ctx)
 	idr_destroy(&ctx->dev->hwtid_idr);
 	idr_destroy(&ctx->dev->stid_idr);
 	idr_destroy(&ctx->dev->atid_idr);
-	iounmap(ctx->dev->rdev.oc_mw_kva);
+	if (ctx->dev->rdev.bar2_kva)
+		iounmap(ctx->dev->rdev.bar2_kva);
+	if (ctx->dev->rdev.oc_mw_kva)
+		iounmap(ctx->dev->rdev.oc_mw_kva);
 	ib_dealloc_device(&ctx->dev->ibdev);
 	ctx->dev = NULL;
 }
@@ -722,11 +725,31 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	}
 	devp->rdev.lldi = *infop;
 
-	devp->rdev.oc_mw_pa = pci_resource_start(devp->rdev.lldi.pdev, 2) +
-		(pci_resource_len(devp->rdev.lldi.pdev, 2) -
-		 roundup_pow_of_two(devp->rdev.lldi.vr->ocq.size));
-	devp->rdev.oc_mw_kva = ioremap_wc(devp->rdev.oc_mw_pa,
-					       devp->rdev.lldi.vr->ocq.size);
+	/*
+	 * For T5 devices, we map all of BAR2 with WC.
+	 * For T4 devices with onchip qp mem, we map only that part
+	 * of BAR2 with WC.
+	 */
+	devp->rdev.bar2_pa = pci_resource_start(devp->rdev.lldi.pdev, 2);
+	if (is_t5(devp->rdev.lldi.adapter_type)) {
+		devp->rdev.bar2_kva = ioremap_wc(devp->rdev.bar2_pa,
+			pci_resource_len(devp->rdev.lldi.pdev, 2));
+		if (!devp->rdev.bar2_kva) {
+			pr_err(MOD "Unable to ioremap BAR2\n");
+			return ERR_PTR(-EINVAL);
+		}
+	} else if (ocqp_supported(infop)) {
+		devp->rdev.oc_mw_pa =
+			pci_resource_start(devp->rdev.lldi.pdev, 2) +
+			pci_resource_len(devp->rdev.lldi.pdev, 2) -
+			roundup_pow_of_two(devp->rdev.lldi.vr->ocq.size);
+		devp->rdev.oc_mw_kva = ioremap_wc(devp->rdev.oc_mw_pa,
+			devp->rdev.lldi.vr->ocq.size);
+		if (!devp->rdev.oc_mw_kva) {
+			pr_err(MOD "Unable to ioremap onchip mem\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	PDBG(KERN_INFO MOD "ocq memory: "
 	       "hw_start 0x%x size %u mw_pa 0x%lx mw_kva %p\n",
@@ -1003,9 +1026,11 @@ static int enable_qp_db(int id, void *p, void *data)
 static void resume_rc_qp(struct c4iw_qp *qp)
 {
 	spin_lock(&qp->lock);
-	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc);
+	t4_ring_sq_db(&qp->wq, qp->wq.sq.wq_pidx_inc,
+		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
 	qp->wq.sq.wq_pidx_inc = 0;
-	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc);
+	t4_ring_rq_db(&qp->wq, qp->wq.rq.wq_pidx_inc,
+		      is_t5(qp->rhp->rdev.lldi.adapter_type), NULL);
 	qp->wq.rq.wq_pidx_inc = 0;
 	spin_unlock(&qp->lock);
 }

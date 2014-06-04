@@ -64,8 +64,7 @@ bool radeon_ddc_probe(struct radeon_connector *radeon_connector, bool use_aux)
 		radeon_router_select_ddc_port(radeon_connector);
 
 	if (use_aux) {
-		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-		ret = i2c_transfer(&dig->dp_i2c_bus->adapter, msgs, 2);
+		ret = i2c_transfer(&radeon_connector->ddc_bus->aux.ddc, msgs, 2);
 	} else {
 		ret = i2c_transfer(&radeon_connector->ddc_bus->adapter, msgs, 2);
 	}
@@ -950,16 +949,16 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		/* set the radeon bit adapter */
 		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
 			 "Radeon i2c bit bus %s", name);
-		i2c->adapter.algo_data = &i2c->algo.bit;
-		i2c->algo.bit.pre_xfer = pre_xfer;
-		i2c->algo.bit.post_xfer = post_xfer;
-		i2c->algo.bit.setsda = set_data;
-		i2c->algo.bit.setscl = set_clock;
-		i2c->algo.bit.getsda = get_data;
-		i2c->algo.bit.getscl = get_clock;
-		i2c->algo.bit.udelay = 10;
-		i2c->algo.bit.timeout = usecs_to_jiffies(2200);	/* from VESA */
-		i2c->algo.bit.data = i2c;
+		i2c->adapter.algo_data = &i2c->bit;
+		i2c->bit.pre_xfer = pre_xfer;
+		i2c->bit.post_xfer = post_xfer;
+		i2c->bit.setsda = set_data;
+		i2c->bit.setscl = set_clock;
+		i2c->bit.getsda = get_data;
+		i2c->bit.getscl = get_clock;
+		i2c->bit.udelay = 10;
+		i2c->bit.timeout = usecs_to_jiffies(2200);	/* from VESA */
+		i2c->bit.data = i2c;
 		ret = i2c_bit_add_bus(&i2c->adapter);
 		if (ret) {
 			DRM_ERROR("Failed to register bit i2c %s\n", name);
@@ -974,46 +973,13 @@ out_free:
 
 }
 
-struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
-					     struct radeon_i2c_bus_rec *rec,
-					     const char *name)
-{
-	struct radeon_i2c_chan *i2c;
-	int ret;
-
-	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
-	if (i2c == NULL)
-		return NULL;
-
-	i2c->rec = *rec;
-	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.class = I2C_CLASS_DDC;
-	i2c->adapter.dev.parent = &dev->pdev->dev;
-	i2c->dev = dev;
-	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
-		 "Radeon aux bus %s", name);
-	i2c_set_adapdata(&i2c->adapter, i2c);
-	i2c->adapter.algo_data = &i2c->algo.dp;
-	i2c->algo.dp.aux_ch = radeon_dp_i2c_aux_ch;
-	i2c->algo.dp.address = 0;
-	ret = i2c_dp_aux_add_bus(&i2c->adapter);
-	if (ret) {
-		DRM_INFO("Failed to register i2c %s\n", name);
-		goto out_free;
-	}
-
-	return i2c;
-out_free:
-	kfree(i2c);
-	return NULL;
-
-}
-
 void radeon_i2c_destroy(struct radeon_i2c_chan *i2c)
 {
 	if (!i2c)
 		return;
 	i2c_del_adapter(&i2c->adapter);
+	if (i2c->has_aux)
+		drm_dp_aux_unregister_i2c_bus(&i2c->aux);
 	kfree(i2c);
 }
 

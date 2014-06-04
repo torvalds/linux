@@ -296,11 +296,19 @@ struct hid_item {
 
 /*
  * HID device groups
+ *
+ * Note: HID_GROUP_ANY is declared in linux/mod_devicetable.h
+ * and has a value of 0x0000
  */
 #define HID_GROUP_GENERIC			0x0001
 #define HID_GROUP_MULTITOUCH			0x0002
 #define HID_GROUP_SENSOR_HUB			0x0003
 #define HID_GROUP_MULTITOUCH_WIN_8		0x0004
+
+/*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_RMI				0x0100
 
 /*
  * This is the global environment of the parser. This information is
@@ -567,6 +575,8 @@ struct hid_descriptor {
 	.bus = BUS_USB, .vendor = (ven), .product = (prod)
 #define HID_BLUETOOTH_DEVICE(ven, prod)					\
 	.bus = BUS_BLUETOOTH, .vendor = (ven), .product = (prod)
+#define HID_I2C_DEVICE(ven, prod)				\
+	.bus = BUS_I2C, .vendor = (ven), .product = (prod)
 
 #define HID_REPORT_ID(rep) \
 	.report_type = (rep)

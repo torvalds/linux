@@ -173,12 +173,15 @@ static void start_ep_timer(struct c4iw_ep *ep)
 	add_timer(&ep->timer);
 }
 
-static void stop_ep_timer(struct c4iw_ep *ep)
+static int stop_ep_timer(struct c4iw_ep *ep)
 {
 	PDBG("%s ep %p stopping\n", __func__, ep);
 	del_timer_sync(&ep->timer);
-	if (!test_and_set_bit(TIMEOUT, &ep->com.flags))
+	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
 		c4iw_put_ep(&ep->com);
+		return 0;
+	}
+	return 1;
 }
 
 static int c4iw_l2t_send(struct c4iw_rdev *rdev, struct sk_buff *skb,
@@ -584,6 +587,10 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= SACK_EN(1);
 	if (wscale && enable_tcp_window_scaling)
 		opt2 |= WND_SCALE_EN(1);
+	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		opt2 |= T5_OPT_2_VALID;
+		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+	}
 	t4_set_arp_err_handler(skb, NULL, act_open_req_arp_failure);
 
 	if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
@@ -993,7 +1000,7 @@ static void close_complete_upcall(struct c4iw_ep *ep, int status)
 static int abort_connection(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 {
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
-	state_set(&ep->com, ABORTING);
+	__state_set(&ep->com, ABORTING);
 	set_bit(ABORT_CONN, &ep->com.history);
 	return send_abort(ep, skb, gfp);
 }
@@ -1151,7 +1158,7 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	return credits;
 }
 
-static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
+static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 {
 	struct mpa_message *mpa;
 	struct mpa_v2_conn_params *mpa_v2_params;
@@ -1161,17 +1168,17 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	struct c4iw_qp_attributes attrs;
 	enum c4iw_qp_attr_mask mask;
 	int err;
+	int disconnect = 0;
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
 	/*
-	 * Stop mpa timer.  If it expired, then the state has
-	 * changed and we bail since ep_timeout already aborted
-	 * the connection.
+	 * Stop mpa timer.  If it expired, then
+	 * we ignore the MPA reply.  process_timeout()
+	 * will abort the connection.
 	 */
-	stop_ep_timer(ep);
-	if (ep->com.state != MPA_REQ_SENT)
-		return;
+	if (stop_ep_timer(ep))
+		return 0;
 
 	/*
 	 * If we get more than the supported amount of private data
@@ -1193,7 +1200,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * if we don't even have the mpa message, then bail.
 	 */
 	if (ep->mpa_pkt_len < sizeof(*mpa))
-		return;
+		return 0;
 	mpa = (struct mpa_message *) ep->mpa_pkt;
 
 	/* Validate MPA header. */
@@ -1233,7 +1240,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * We'll continue process when more data arrives.
 	 */
 	if (ep->mpa_pkt_len < (sizeof(*mpa) + plen))
-		return;
+		return 0;
 
 	if (mpa->flags & MPA_REJECT) {
 		err = -ECONNREFUSED;
@@ -1335,9 +1342,11 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_NOMATCH_RTR;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
+		attrs.send_term = 1;
 		err = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-				C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
+				C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		err = -ENOMEM;
+		disconnect = 1;
 		goto out;
 	}
 
@@ -1353,9 +1362,11 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		attrs.layer_etype = LAYER_MPA | DDP_LLP;
 		attrs.ecode = MPA_INSUFF_IRD;
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
+		attrs.send_term = 1;
 		err = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-				C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
+				C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
 		err = -ENOMEM;
+		disconnect = 1;
 		goto out;
 	}
 	goto out;
@@ -1364,7 +1375,7 @@ err:
 	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
-	return;
+	return disconnect;
 }
 
 static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
@@ -1375,15 +1386,12 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
 
-	if (ep->com.state != MPA_REQ_WAIT)
-		return;
-
 	/*
 	 * If we get more than the supported amount of private data
 	 * then we must fail this connection.
 	 */
 	if (ep->mpa_pkt_len + skb->len > sizeof(ep->mpa_pkt)) {
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1413,13 +1421,13 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	if (mpa->revision > mpa_rev) {
 		printk(KERN_ERR MOD "%s MPA version mismatch. Local = %d,"
 		       " Received = %d\n", __func__, mpa_rev, mpa->revision);
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
 
 	if (memcmp(mpa->key, MPA_KEY_REQ, sizeof(mpa->key))) {
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1430,7 +1438,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * Fail if there's too much private data.
 	 */
 	if (plen > MPA_MAX_PRIVATE_DATA) {
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1439,7 +1447,7 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * If plen does not account for pkt size
 	 */
 	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen)) {
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		abort_connection(ep, skb, GFP_KERNEL);
 		return;
 	}
@@ -1496,18 +1504,24 @@ static void process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 	     ep->mpa_attr.xmit_marker_enabled, ep->mpa_attr.version,
 	     ep->mpa_attr.p2p_type);
 
-	__state_set(&ep->com, MPA_REQ_RCVD);
-	stop_ep_timer(ep);
+	/*
+	 * If the endpoint timer already expired, then we ignore
+	 * the start request.  process_timeout() will abort
+	 * the connection.
+	 */
+	if (!stop_ep_timer(ep)) {
+		__state_set(&ep->com, MPA_REQ_RCVD);
 
-	/* drive upcall */
-	mutex_lock(&ep->parent_ep->com.mutex);
-	if (ep->parent_ep->com.state != DEAD) {
-		if (connect_request_upcall(ep))
+		/* drive upcall */
+		mutex_lock(&ep->parent_ep->com.mutex);
+		if (ep->parent_ep->com.state != DEAD) {
+			if (connect_request_upcall(ep))
+				abort_connection(ep, skb, GFP_KERNEL);
+		} else {
 			abort_connection(ep, skb, GFP_KERNEL);
-	} else {
-		abort_connection(ep, skb, GFP_KERNEL);
+		}
+		mutex_unlock(&ep->parent_ep->com.mutex);
 	}
-	mutex_unlock(&ep->parent_ep->com.mutex);
 	return;
 }
 
@@ -1519,6 +1533,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	unsigned int tid = GET_TID(hdr);
 	struct tid_info *t = dev->rdev.lldi.tids;
 	__u8 status = hdr->status;
+	int disconnect = 0;
 
 	ep = lookup_tid(t, tid);
 	if (!ep)
@@ -1534,7 +1549,7 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 	switch (ep->com.state) {
 	case MPA_REQ_SENT:
 		ep->rcv_seq += dlen;
-		process_mpa_reply(ep, skb);
+		disconnect = process_mpa_reply(ep, skb);
 		break;
 	case MPA_REQ_WAIT:
 		ep->rcv_seq += dlen;
@@ -1550,13 +1565,16 @@ static int rx_data(struct c4iw_dev *dev, struct sk_buff *skb)
 			       ep->com.state, ep->hwtid, status);
 		attrs.next_state = C4IW_QP_STATE_TERMINATE;
 		c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
-			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 0);
+			       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		disconnect = 1;
 		break;
 	}
 	default:
 		break;
 	}
 	mutex_unlock(&ep->com.mutex);
+	if (disconnect)
+		c4iw_ep_disconnect(ep, 0, GFP_KERNEL);
 	return 0;
 }
 
@@ -2004,6 +2022,10 @@ static void accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 		if (tcph->ece && tcph->cwr)
 			opt2 |= CCTRL_ECN(1);
 	}
+	if (is_t5(ep->com.dev->rdev.lldi.adapter_type)) {
+		opt2 |= T5_OPT_2_VALID;
+		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
+	}
 
 	rpl = cplhdr(skb);
 	INIT_TP_WR(rpl, ep->hwtid);
@@ -2265,7 +2287,7 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		disconnect = 0;
 		break;
 	case MORIBUND:
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		if (ep->com.cm_id && ep->com.qp) {
 			attrs.next_state = C4IW_QP_STATE_IDLE;
 			c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
@@ -2325,10 +2347,10 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 	case CONNECTING:
 		break;
 	case MPA_REQ_WAIT:
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		break;
 	case MPA_REQ_SENT:
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		if (mpa_rev == 1 || (mpa_rev == 2 && ep->tried_with_mpa_v1))
 			connect_reply_upcall(ep, -ECONNRESET);
 		else {
@@ -2433,7 +2455,7 @@ static int close_con_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		__state_set(&ep->com, MORIBUND);
 		break;
 	case MORIBUND:
-		stop_ep_timer(ep);
+		(void)stop_ep_timer(ep);
 		if ((ep->com.cm_id) && (ep->com.qp)) {
 			attrs.next_state = C4IW_QP_STATE_IDLE;
 			c4iw_modify_qp(ep->com.qp->rhp,
@@ -3028,7 +3050,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 		if (!test_and_set_bit(CLOSE_SENT, &ep->com.flags)) {
 			close = 1;
 			if (abrupt) {
-				stop_ep_timer(ep);
+				(void)stop_ep_timer(ep);
 				ep->com.state = ABORTING;
 			} else
 				ep->com.state = MORIBUND;
@@ -3462,14 +3484,24 @@ static void process_timeout(struct c4iw_ep *ep)
 		__state_set(&ep->com, ABORTING);
 		close_complete_upcall(ep, -ETIMEDOUT);
 		break;
+	case ABORTING:
+	case DEAD:
+
+		/*
+		 * These states are expected if the ep timed out at the same
+		 * time as another thread was calling stop_ep_timer().
+		 * So we silently do nothing for these states.
+		 */
+		abort = 0;
+		break;
 	default:
 		WARN(1, "%s unexpected state ep %p tid %u state %u\n",
 			__func__, ep, ep->hwtid, ep->com.state);
 		abort = 0;
 	}
-	mutex_unlock(&ep->com.mutex);
 	if (abort)
 		abort_connection(ep, NULL, GFP_KERNEL);
+	mutex_unlock(&ep->com.mutex);
 	c4iw_put_ep(&ep->com);
 }
 
@@ -3483,6 +3515,8 @@ static void process_timedout_eps(void)
 
 		tmp = timeout_list.next;
 		list_del(tmp);
+		tmp->next = NULL;
+		tmp->prev = NULL;
 		spin_unlock_irq(&timeout_lock);
 		ep = list_entry(tmp, struct c4iw_ep, entry);
 		process_timeout(ep);
@@ -3499,6 +3533,7 @@ static void process_work(struct work_struct *work)
 	unsigned int opcode;
 	int ret;
 
+	process_timedout_eps();
 	while ((skb = skb_dequeue(&rxq))) {
 		rpl = cplhdr(skb);
 		dev = *((struct c4iw_dev **) (skb->cb + sizeof(void *)));
@@ -3508,8 +3543,8 @@ static void process_work(struct work_struct *work)
 		ret = work_handlers[opcode](dev, skb);
 		if (!ret)
 			kfree_skb(skb);
+		process_timedout_eps();
 	}
-	process_timedout_eps();
 }
 
 static DECLARE_WORK(skb_work, process_work);
@@ -3521,8 +3556,13 @@ static void ep_timeout(unsigned long arg)
 
 	spin_lock(&timeout_lock);
 	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
-		list_add_tail(&ep->entry, &timeout_list);
-		kickit = 1;
+		/*
+		 * Only insert if it is not already on the list.
+		 */
+		if (!ep->entry.next) {
+			list_add_tail(&ep->entry, &timeout_list);
+			kickit = 1;
+		}
 	}
 	spin_unlock(&timeout_lock);
 	if (kickit)

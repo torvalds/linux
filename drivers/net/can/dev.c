@@ -256,7 +256,7 @@ static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 	/* Check if the CAN device has bit-timing parameters */
 	if (!btc)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/*
 	 * Depending on the given can_bittiming parameter structure the CAN

@@ -59,6 +59,7 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
 				    struct uwb_rceb *reply, ssize_t reply_size)
 {
 	struct uwb_rc_evt_set_drp_ie *r = (struct uwb_rc_evt_set_drp_ie *)reply;
+	unsigned long flags;
 
 	if (r != NULL) {
 		if (r->bResultCode != UWB_RC_RES_SUCCESS)
@@ -67,14 +68,14 @@ static void uwb_rc_set_drp_cmd_done(struct uwb_rc *rc, void *arg,
 	} else
 		dev_err(&rc->uwb_dev.dev, "SET-DRP-IE: timeout\n");
 
-	spin_lock_irq(&rc->rsvs_lock);
+	spin_lock_irqsave(&rc->rsvs_lock, flags);
 	if (rc->set_drp_ie_pending > 1) {
 		rc->set_drp_ie_pending = 0;
-		uwb_rsv_queue_update(rc);	
+		uwb_rsv_queue_update(rc);
 	} else {
-		rc->set_drp_ie_pending = 0;	
+		rc->set_drp_ie_pending = 0;
 	}
-	spin_unlock_irq(&rc->rsvs_lock);
+	spin_unlock_irqrestore(&rc->rsvs_lock, flags);
 }
 
 /**
@@ -599,8 +600,11 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 
 	/* alloc and initialize new uwb_cnflt_alien */
 	cnflt = kzalloc(sizeof(struct uwb_cnflt_alien), GFP_KERNEL);
-	if (!cnflt)
+	if (!cnflt) {
 		dev_err(dev, "failed to alloc uwb_cnflt_alien struct\n");
+		return;
+	}
+
 	INIT_LIST_HEAD(&cnflt->rc_node);
 	init_timer(&cnflt->timer);
 	cnflt->timer.function = uwb_cnflt_timer;

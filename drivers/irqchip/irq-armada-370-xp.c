@@ -41,6 +41,7 @@
 #define ARMADA_370_XP_INT_SET_ENABLE_OFFS	(0x30)
 #define ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS	(0x34)
 #define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + irq*4)
+#define ARMADA_370_XP_INT_SOURCE_CPU_MASK	0xF
 
 #define ARMADA_370_XP_CPU_INTACK_OFFS		(0x44)
 #define ARMADA_375_PPI_CAUSE			(0x10)
@@ -132,8 +133,7 @@ static int armada_370_xp_setup_msi_irq(struct msi_chip *chip,
 				       struct msi_desc *desc)
 {
 	struct msi_msg msg;
-	irq_hw_number_t hwirq;
-	int virq;
+	int virq, hwirq;
 
 	hwirq = armada_370_xp_alloc_msi();
 	if (hwirq < 0)
@@ -159,8 +159,19 @@ static void armada_370_xp_teardown_msi_irq(struct msi_chip *chip,
 					   unsigned int irq)
 {
 	struct irq_data *d = irq_get_irq_data(irq);
+	unsigned long hwirq = d->hwirq;
+
 	irq_dispose_mapping(irq);
-	armada_370_xp_free_msi(d->hwirq);
+	armada_370_xp_free_msi(hwirq);
+}
+
+static int armada_370_xp_check_msi_device(struct msi_chip *chip, struct pci_dev *dev,
+					  int nvec, int type)
+{
+	/* We support MSI, but not MSI-X */
+	if (type == PCI_CAP_ID_MSI)
+		return 0;
+	return -EINVAL;
 }
 
 static struct irq_chip armada_370_xp_msi_irq_chip = {
@@ -201,6 +212,7 @@ static int armada_370_xp_msi_init(struct device_node *node,
 
 	msi_chip->setup_irq = armada_370_xp_setup_msi_irq;
 	msi_chip->teardown_irq = armada_370_xp_teardown_msi_irq;
+	msi_chip->check_device = armada_370_xp_check_msi_device;
 	msi_chip->of_node = node;
 
 	armada_370_xp_msi_domain =
@@ -244,35 +256,18 @@ static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 static int armada_xp_set_affinity(struct irq_data *d,
 				  const struct cpumask *mask_val, bool force)
 {
-	unsigned long reg;
-	unsigned long new_mask = 0;
-	unsigned long online_mask = 0;
-	unsigned long count = 0;
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	unsigned long reg, mask;
 	int cpu;
 
-	for_each_cpu(cpu, mask_val) {
-		new_mask |= 1 << cpu_logical_map(cpu);
-		count++;
-	}
-
-	/*
-	 * Forbid mutlicore interrupt affinity
-	 * This is required since the MPIC HW doesn't limit
-	 * several CPUs from acknowledging the same interrupt.
-	 */
-	if (count > 1)
-		return -EINVAL;
-
-	for_each_cpu(cpu, cpu_online_mask)
-		online_mask |= 1 << cpu_logical_map(cpu);
+	/* Select a single core from the affinity mask which is online */
+	cpu = cpumask_any_and(mask_val, cpu_online_mask);
+	mask = 1UL << cpu_logical_map(cpu);
 
 	raw_spin_lock(&irq_controller_lock);
-
 	reg = readl(main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq));
-	reg = (reg & (~online_mask)) | new_mask;
+	reg = (reg & (~ARMADA_370_XP_INT_SOURCE_CPU_MASK)) | mask;
 	writel(reg, main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq));
-
 	raw_spin_unlock(&irq_controller_lock);
 
 	return 0;
@@ -494,15 +489,6 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 
 #ifdef CONFIG_SMP
 	armada_xp_mpic_smp_cpu_init();
-
-	/*
-	 * Set the default affinity from all CPUs to the boot cpu.
-	 * This is required since the MPIC doesn't limit several CPUs
-	 * from acknowledging the same interrupt.
-	 */
-	cpumask_clear(irq_default_affinity);
-	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
-
 #endif
 
 	armada_370_xp_msi_init(node, main_int_res.start);

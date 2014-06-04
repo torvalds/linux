@@ -76,6 +76,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",
 	[RESET_TYPE_WORLD]              = "WORLD",
 	[RESET_TYPE_RECOVER_OR_DISABLE] = "RECOVER_OR_DISABLE",
+	[RESET_TYPE_MC_BIST]		= "MC_BIST",
 	[RESET_TYPE_DISABLE]            = "DISABLE",
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
 	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
@@ -83,7 +84,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
-	[RESET_TYPE_MC_BIST]		= "MC_BIST",
+	[RESET_TYPE_MCDI_TIMEOUT]	= "MCDI_TIMEOUT (FLR)",
 };
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
@@ -1739,7 +1740,8 @@ static void efx_start_all(struct efx_nic *efx)
 
 	/* Check that it is appropriate to restart the interface. All
 	 * of these flags are safe to read under just the rtnl lock */
-	if (efx->port_enabled || !netif_running(efx->net_dev))
+	if (efx->port_enabled || !netif_running(efx->net_dev) ||
+	    efx->reset_pending)
 		return;
 
 	efx_start_port(efx);
@@ -2334,6 +2336,9 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
+	if (method == RESET_TYPE_MCDI_TIMEOUT)
+		efx->type->prepare_flr(efx);
+
 	efx_stop_all(efx);
 	efx_disable_interrupts(efx);
 
@@ -2354,6 +2359,10 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
+	if (method == RESET_TYPE_MCDI_TIMEOUT)
+		efx->type->finish_flr(efx);
+
+	/* Ensure that SRAM is initialised even if we're disabling the device */
 	rc = efx->type->init(efx);
 	if (rc) {
 		netif_err(efx, drv, efx->net_dev, "failed to initialise NIC\n");
@@ -2417,7 +2426,10 @@ int efx_reset(struct efx_nic *efx, enum reset_type method)
 	/* Clear flags for the scopes we covered.  We assume the NIC and
 	 * driver are now quiescent so that there is no race here.
 	 */
-	efx->reset_pending &= -(1 << (method + 1));
+	if (method < RESET_TYPE_MAX_METHOD)
+		efx->reset_pending &= -(1 << (method + 1));
+	else /* it doesn't fit into the well-ordered scope hierarchy */
+		__clear_bit(method, &efx->reset_pending);
 
 	/* Reinitialise bus-mastering, which may have been turned off before
 	 * the reset was scheduled. This is still appropriate, even in the
@@ -2546,6 +2558,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_DISABLE:
 	case RESET_TYPE_RECOVER_OR_DISABLE:
 	case RESET_TYPE_MC_BIST:
+	case RESET_TYPE_MCDI_TIMEOUT:
 		method = type;
 		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
 			  RESET_TYPE(method));

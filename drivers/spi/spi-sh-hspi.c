@@ -244,9 +244,9 @@ static int hspi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	clk = clk_get(NULL, "shyway_clk");
+	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "shyway_clk is required\n");
+		dev_err(&pdev->dev, "couldn't get clock\n");
 		ret = -EINVAL;
 		goto error0;
 	}

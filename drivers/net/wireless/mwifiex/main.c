@@ -292,6 +292,12 @@ process_start:
 			while ((skb = skb_dequeue(&adapter->usb_rx_data_q)))
 				mwifiex_handle_rx_packet(adapter, skb);
 
+		/* Check for event */
+		if (adapter->event_received) {
+			adapter->event_received = false;
+			mwifiex_process_event(adapter);
+		}
+
 		/* Check for Cmd Resp */
 		if (adapter->cmd_resp_received) {
 			adapter->cmd_resp_received = false;
@@ -302,12 +308,6 @@ process_start:
 				adapter->hw_status = MWIFIEX_HW_STATUS_READY;
 				mwifiex_init_fw_complete(adapter);
 			}
-		}
-
-		/* Check for event */
-		if (adapter->event_received) {
-			adapter->event_received = false;
-			mwifiex_process_event(adapter);
 		}
 
 		/* Check if we need to confirm Sleep Request

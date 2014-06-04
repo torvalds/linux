@@ -44,8 +44,13 @@ extern void of_irq_init(const struct of_device_id *matches);
 
 #ifdef CONFIG_OF_IRQ
 extern int of_irq_count(struct device_node *dev);
+extern int of_irq_get(struct device_node *dev, int index);
 #else
 static inline int of_irq_count(struct device_node *dev)
+{
+	return 0;
+}
+static inline int of_irq_get(struct device_node *dev, int index)
 {
 	return 0;
 }

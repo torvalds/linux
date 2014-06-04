@@ -45,10 +45,10 @@ static void sxgbe_prepare_tx_desc(struct sxgbe_tx_norm_desc *p, u8 is_fd,
 	p->tdes23.tx_rd_des23.first_desc = is_fd;
 	p->tdes23.tx_rd_des23.buf1_size = buf1_len;
 
-	p->tdes23.tx_rd_des23.tx_pkt_len.cksum_pktlen.total_pkt_len = pkt_len;
+	p->tdes23.tx_rd_des23.tx_pkt_len.pkt_len.total_pkt_len = pkt_len;
 
 	if (cksum)
-		p->tdes23.tx_rd_des23.tx_pkt_len.cksum_pktlen.cksum_ctl = cic_full;
+		p->tdes23.tx_rd_des23.cksum_ctl = cic_full;
 }
 
 /* Set VLAN control information */
@@ -231,6 +231,12 @@ static int sxgbe_get_rx_owner(struct sxgbe_rx_norm_desc *p)
 static void sxgbe_set_rx_owner(struct sxgbe_rx_norm_desc *p)
 {
 	p->rdes23.rx_rd_des23.own_bit = 1;
+}
+
+/* Set Interrupt on completion bit */
+static void sxgbe_set_rx_int_on_com(struct sxgbe_rx_norm_desc *p)
+{
+	p->rdes23.rx_rd_des23.int_on_com = 1;
 }
 
 /* Get the receive frame size */
@@ -498,6 +504,7 @@ static const struct sxgbe_desc_ops desc_ops = {
 	.init_rx_desc			= sxgbe_init_rx_desc,
 	.get_rx_owner			= sxgbe_get_rx_owner,
 	.set_rx_owner			= sxgbe_set_rx_owner,
+	.set_rx_int_on_com		= sxgbe_set_rx_int_on_com,
 	.get_rx_frame_len		= sxgbe_get_rx_frame_len,
 	.get_rx_fd_status		= sxgbe_get_rx_fd_status,
 	.get_rx_ld_status		= sxgbe_get_rx_ld_status,

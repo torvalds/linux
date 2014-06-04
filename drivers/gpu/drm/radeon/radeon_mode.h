@@ -187,12 +187,10 @@ struct radeon_pll {
 struct radeon_i2c_chan {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
-	union {
-		struct i2c_algo_bit_data bit;
-		struct i2c_algo_dp_aux_data dp;
-	} algo;
+	struct i2c_algo_bit_data bit;
 	struct radeon_i2c_bus_rec rec;
 	struct drm_dp_aux aux;
+	bool has_aux;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -440,7 +438,6 @@ struct radeon_encoder {
 struct radeon_connector_atom_dig {
 	uint32_t igp_lane_info;
 	/* displayport */
-	struct radeon_i2c_chan *dp_i2c_bus;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 dp_sink_type;
 	int dp_clock;
@@ -702,8 +699,6 @@ extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   uint8_t lane_set);
 extern void radeon_atom_ext_encoder_setup_ddc(struct drm_encoder *encoder);
 extern struct drm_encoder *radeon_get_external_encoder(struct drm_encoder *encoder);
-extern int radeon_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
-				u8 write_byte, u8 *read_byte);
 void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le);
 
 extern void radeon_i2c_init(struct radeon_device *rdev);
@@ -715,9 +710,6 @@ extern void radeon_i2c_add(struct radeon_device *rdev,
 			   const char *name);
 extern struct radeon_i2c_chan *radeon_i2c_lookup(struct radeon_device *rdev,
 						 struct radeon_i2c_bus_rec *i2c_bus);
-extern struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
-						    struct radeon_i2c_bus_rec *rec,
-						    const char *name);
 extern struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 						 struct radeon_i2c_bus_rec *rec,
 						 const char *name);

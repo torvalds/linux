@@ -617,7 +617,7 @@ static void hsw_notification_work(struct work_struct *work)
 	case IPC_POSITION_CHANGED:
 		trace_ipc_notification("DSP stream position changed for",
 			stream->reply.stream_hw_id);
-		sst_dsp_inbox_read(hsw->dsp, pos, sizeof(pos));
+		sst_dsp_inbox_read(hsw->dsp, pos, sizeof(*pos));
 
 		if (stream->notify_position)
 			stream->notify_position(stream, stream->pdata);
@@ -991,7 +991,8 @@ int sst_hsw_stream_get_volume(struct sst_hsw *hsw, struct sst_hsw_stream *stream
 		return -EINVAL;
 
 	sst_dsp_read(hsw->dsp, volume,
-		stream->reply.volume_register_address[channel], sizeof(volume));
+		stream->reply.volume_register_address[channel],
+		sizeof(*volume));
 
 	return 0;
 }
@@ -1609,7 +1610,7 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 	trace_ipc_request("PM enter Dx state", state);
 
 	ret = ipc_tx_message_wait(hsw, header, &state_, sizeof(state_),
-		dx, sizeof(dx));
+		dx, sizeof(*dx));
 	if (ret < 0) {
 		dev_err(hsw->dev, "ipc: error set dx state %d failed\n", state);
 		return ret;

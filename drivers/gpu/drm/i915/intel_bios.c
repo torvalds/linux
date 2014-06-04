@@ -287,6 +287,9 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
 
+	/* Err to enabling backlight if no backlight block. */
+	dev_priv->vbt.backlight.present = true;
+
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -298,6 +301,13 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	}
 
 	entry = &backlight_data->data[panel_type];
+
+	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
+	if (!dev_priv->vbt.backlight.present) {
+		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
+			      entry->type);
+		return;
+	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;

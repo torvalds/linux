@@ -16,15 +16,6 @@ struct mpage_da_data;
 struct ext4_map_blocks;
 struct extent_status;
 
-/* shim until we merge in the xfs_collapse_range branch */
-#ifndef FALLOC_FL_COLLAPSE_RANGE
-#define FALLOC_FL_COLLAPSE_RANGE	0x08
-#endif
-
-#ifndef FALLOC_FL_ZERO_RANGE
-#define FALLOC_FL_ZERO_RANGE           0x10
-#endif
-
 #define EXT4_I(inode) (container_of(inode, struct ext4_inode_info, vfs_inode))
 
 #define show_mballoc_flags(flags) __print_flags(flags, "|",	\

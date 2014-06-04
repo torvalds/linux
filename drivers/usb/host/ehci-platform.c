@@ -303,6 +303,8 @@ static int ehci_platform_suspend(struct device *dev)
 	int ret;
 
 	ret = ehci_suspend(hcd, do_wakeup);
+	if (ret)
+		return ret;
 
 	if (pdata->power_suspend)
 		pdata->power_suspend(pdev);

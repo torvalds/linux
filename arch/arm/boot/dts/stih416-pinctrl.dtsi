@@ -53,7 +53,7 @@
 			reg 		= <0xfe61f080 0x4>;
 			reg-names	= "irqmux";
 			interrupts 	= <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts-names = "irqmux";
+			interrupt-names	= "irqmux";
 			ranges		= <0 0xfe610000 0x6000>;
 
 			PIO0: gpio@fe610000 {
@@ -201,7 +201,7 @@
 			reg 		= <0xfee0f080 0x4>;
 			reg-names	= "irqmux";
 			interrupts 	= <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts-names = "irqmux";
+			interrupt-names	= "irqmux";
 			ranges		= <0 0xfee00000 0x10000>;
 
 			PIO5: gpio@fee00000 {
@@ -333,7 +333,7 @@
 			reg 		= <0xfe82f080 0x4>;
 			reg-names	= "irqmux";
 			interrupts 	= <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts-names = "irqmux";
+			interrupt-names	= "irqmux";
 			ranges 		= <0 0xfe820000 0x6000>;
 
 			PIO13: gpio@fe820000 {
@@ -461,7 +461,7 @@
 			reg 		= <0xfd6bf080 0x4>;
 			reg-names	= "irqmux";
 			interrupts 	= <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts-names = "irqmux";
+			interrupt-names	= "irqmux";
 			ranges		= <0 0xfd6b0000 0x3000>;
 
 			PIO100: gpio@fd6b0000 {
@@ -498,7 +498,7 @@
 			reg 		= <0xfd33f080 0x4>;
 			reg-names	= "irqmux";
 			interrupts 	= <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
-			interrupts-names = "irqmux";
+			interrupt-names	= "irqmux";
 			ranges			= <0 0xfd330000 0x5000>;
 
 			PIO103: gpio@fd330000 {

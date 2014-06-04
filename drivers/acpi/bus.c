@@ -380,9 +380,8 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	default:
-		acpi_handle_warn(handle, "Unsupported event type 0x%x\n", type);
-		ost_code = ACPI_OST_SC_UNRECOGNIZED_NOTIFY;
-		goto err;
+		acpi_handle_debug(handle, "Unknown event type 0x%x\n", type);
+		break;
 	}
 
 	adev = acpi_bus_get_acpi_device(handle);

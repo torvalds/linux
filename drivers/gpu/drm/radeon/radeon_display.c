@@ -284,6 +284,10 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	u32 update_pending;
 	int vpos, hpos;
 
+	/* can happen during initialization */
+	if (radeon_crtc == NULL)
+		return;
+
 	spin_lock_irqsave(&rdev->ddev->event_lock, flags);
 	work = radeon_crtc->unpin_work;
 	if (work == NULL ||
@@ -759,19 +763,18 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 
 	if (radeon_connector_encoder_get_dp_bridge_encoder_id(&radeon_connector->base) !=
 	    ENCODER_OBJECT_ID_NONE) {
-		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-
-		if (dig->dp_i2c_bus)
+		if (radeon_connector->ddc_bus->has_aux)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
-							      &dig->dp_i2c_bus->adapter);
+							      &radeon_connector->ddc_bus->aux.ddc);
 	} else if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 		   (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 
 		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
-		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
+		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) &&
+		    radeon_connector->ddc_bus->has_aux)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
-							      &dig->dp_i2c_bus->adapter);
+							      &radeon_connector->ddc_bus->aux.ddc);
 		else if (radeon_connector->ddc_bus && !radeon_connector->edid)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base,
 							      &radeon_connector->ddc_bus->adapter);
@@ -827,16 +830,48 @@ static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
 
 	/* make sure nominator is large enough */
         if (*nom < nom_min) {
-		tmp = (nom_min + *nom - 1) / *nom;
+		tmp = DIV_ROUND_UP(nom_min, *nom);
 		*nom *= tmp;
 		*den *= tmp;
 	}
 
 	/* make sure the denominator is large enough */
 	if (*den < den_min) {
-		tmp = (den_min + *den - 1) / *den;
+		tmp = DIV_ROUND_UP(den_min, *den);
 		*nom *= tmp;
 		*den *= tmp;
+	}
+}
+
+/**
+ * avivo_get_fb_ref_div - feedback and ref divider calculation
+ *
+ * @nom: nominator
+ * @den: denominator
+ * @post_div: post divider
+ * @fb_div_max: feedback divider maximum
+ * @ref_div_max: reference divider maximum
+ * @fb_div: resulting feedback divider
+ * @ref_div: resulting reference divider
+ *
+ * Calculate feedback and reference divider for a given post divider. Makes
+ * sure we stay within the limits.
+ */
+static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
+				 unsigned fb_div_max, unsigned ref_div_max,
+				 unsigned *fb_div, unsigned *ref_div)
+{
+	/* limit reference * post divider to a maximum */
+	ref_div_max = min(128 / post_div, ref_div_max);
+
+	/* get matching reference and feedback divider */
+	*ref_div = min(max(DIV_ROUND_CLOSEST(den, post_div), 1u), ref_div_max);
+	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
+
+	/* limit fb divider to its maximum */
+        if (*fb_div > fb_div_max) {
+		*ref_div = DIV_ROUND_CLOSEST(*ref_div * fb_div_max, *fb_div);
+		*fb_div = fb_div_max;
 	}
 }
 
@@ -861,11 +896,14 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 			      u32 *ref_div_p,
 			      u32 *post_div_p)
 {
+	unsigned target_clock = pll->flags & RADEON_PLL_USE_FRAC_FB_DIV ?
+		freq : freq / 10;
+
 	unsigned fb_div_min, fb_div_max, fb_div;
 	unsigned post_div_min, post_div_max, post_div;
 	unsigned ref_div_min, ref_div_max, ref_div;
 	unsigned post_div_best, diff_best;
-	unsigned nom, den, tmp;
+	unsigned nom, den;
 
 	/* determine allowed feedback divider range */
 	fb_div_min = pll->min_feedback_div;
@@ -881,14 +919,18 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 		ref_div_min = pll->reference_div;
 	else
 		ref_div_min = pll->min_ref_div;
-	ref_div_max = pll->max_ref_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV &&
+	    pll->flags & RADEON_PLL_USE_REF_DIV)
+		ref_div_max = pll->reference_div;
+	else
+		ref_div_max = pll->max_ref_div;
 
 	/* determine allowed post divider range */
 	if (pll->flags & RADEON_PLL_USE_POST_DIV) {
 		post_div_min = pll->post_div;
 		post_div_max = pll->post_div;
 	} else {
-		unsigned target_clock = freq / 10;
 		unsigned vco_min, vco_max;
 
 		if (pll->flags & RADEON_PLL_IS_LCD) {
@@ -897,6 +939,11 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 		} else {
 			vco_min = pll->pll_out_min;
 			vco_max = pll->pll_out_max;
+		}
+
+		if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+			vco_min *= 10;
+			vco_max *= 10;
 		}
 
 		post_div_min = vco_min / target_clock;
@@ -913,7 +960,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	}
 
 	/* represent the searched ratio as fractional number */
-	nom = pll->flags & RADEON_PLL_USE_FRAC_FB_DIV ? freq : freq / 10;
+	nom = target_clock;
 	den = pll->reference_freq;
 
 	/* reduce the numbers to a simpler ratio */
@@ -927,7 +974,12 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	diff_best = ~0;
 
 	for (post_div = post_div_min; post_div <= post_div_max; ++post_div) {
-		unsigned diff = abs(den - den / post_div * post_div);
+		unsigned diff;
+		avivo_get_fb_ref_div(nom, den, post_div, fb_div_max,
+				     ref_div_max, &fb_div, &ref_div);
+		diff = abs(target_clock - (pll->reference_freq * fb_div) /
+			(ref_div * post_div));
+
 		if (diff < diff_best || (diff == diff_best &&
 		    !(pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP))) {
 
@@ -937,28 +989,23 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	}
 	post_div = post_div_best;
 
-	/* get matching reference and feedback divider */
-	ref_div = max(den / post_div, 1u);
-	fb_div = nom;
-
-	/* we're almost done, but reference and feedback
-	   divider might be to large now */
-
-	tmp = ref_div;
-
-        if (fb_div > fb_div_max) {
-		ref_div = ref_div * fb_div_max / fb_div;
-		fb_div = fb_div_max;
-	}
-
-	if (ref_div > ref_div_max) {
-		ref_div = ref_div_max;
-		fb_div = nom * ref_div_max / tmp;
-	}
+	/* get the feedback and reference divider for the optimal value */
+	avivo_get_fb_ref_div(nom, den, post_div, fb_div_max, ref_div_max,
+			     &fb_div, &ref_div);
 
 	/* reduce the numbers to a simpler ratio once more */
 	/* this also makes sure that the reference divider is large enough */
 	avivo_reduce_ratio(&fb_div, &ref_div, fb_div_min, ref_div_min);
+
+	/* avoid high jitter with small fractional dividers */
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV && (fb_div % 10)) {
+		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 60);
+		if (fb_div < fb_div_min) {
+			unsigned tmp = DIV_ROUND_UP(fb_div_min, fb_div);
+			fb_div *= tmp;
+			ref_div *= tmp;
+		}
+	}
 
 	/* and finally save the result */
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
@@ -976,7 +1023,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	*post_div_p = post_div;
 
 	DRM_DEBUG_KMS("%d - %d, pll dividers - fb: %d.%d ref: %d, post %d\n",
-		      freq, *dot_clock_p, *fb_div_p, *frac_fb_div_p,
+		      freq, *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p,
 		      ref_div, post_div);
 }
 

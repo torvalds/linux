@@ -730,6 +730,12 @@ struct cik_irq_stat_regs {
 	u32 disp_int_cont4;
 	u32 disp_int_cont5;
 	u32 disp_int_cont6;
+	u32 d1grph_int;
+	u32 d2grph_int;
+	u32 d3grph_int;
+	u32 d4grph_int;
+	u32 d5grph_int;
+	u32 d6grph_int;
 };
 
 union radeon_irq_stat_regs {
@@ -739,7 +745,7 @@ union radeon_irq_stat_regs {
 	struct cik_irq_stat_regs cik;
 };
 
-#define RADEON_MAX_HPD_PINS 6
+#define RADEON_MAX_HPD_PINS 7
 #define RADEON_MAX_CRTCS 6
 #define RADEON_MAX_AFMT_BLOCKS 7
 
@@ -2321,6 +2327,7 @@ struct radeon_device {
 	bool have_disp_power_ref;
 };
 
+bool radeon_is_px(struct drm_device *dev);
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
@@ -2631,6 +2638,9 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE64(rdev) ((rdev->family == CHIP_OLAND))
 #define ASIC_IS_NODCE(rdev) ((rdev->family == CHIP_HAINAN))
 #define ASIC_IS_DCE8(rdev) ((rdev->family >= CHIP_BONAIRE))
+#define ASIC_IS_DCE81(rdev) ((rdev->family == CHIP_KAVERI))
+#define ASIC_IS_DCE82(rdev) ((rdev->family == CHIP_BONAIRE))
+#define ASIC_IS_DCE83(rdev) ((rdev->family == CHIP_KABINI))
 
 #define ASIC_IS_LOMBOK(rdev) ((rdev->ddev->pdev->device == 0x6849) || \
 			      (rdev->ddev->pdev->device == 0x6850) || \

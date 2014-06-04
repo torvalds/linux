@@ -779,3 +779,8 @@ int __init __weak arch_early_irq_init(void)
 {
 	return 0;
 }
+
+unsigned int __weak arch_dynirq_lower_bound(unsigned int from)
+{
+	return from;
+}

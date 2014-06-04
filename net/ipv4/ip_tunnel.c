@@ -442,6 +442,8 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		tunnel->i_seqno = ntohl(tpi->seq) + 1;
 	}
 
+	skb_reset_network_header(skb);
+
 	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {
 		if (log_ecn_error)
@@ -722,19 +724,18 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 {
 	int err = 0;
-	struct ip_tunnel *t;
-	struct net *net = dev_net(dev);
-	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct ip_tunnel_net *itn = net_generic(net, tunnel->ip_tnl_net_id);
+	struct ip_tunnel *t = netdev_priv(dev);
+	struct net *net = t->net;
+	struct ip_tunnel_net *itn = net_generic(net, t->ip_tnl_net_id);
 
 	BUG_ON(!itn->fb_tunnel_dev);
 	switch (cmd) {
 	case SIOCGETTUNNEL:
-		t = NULL;
-		if (dev == itn->fb_tunnel_dev)
+		if (dev == itn->fb_tunnel_dev) {
 			t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
-		if (t == NULL)
-			t = netdev_priv(dev);
+			if (t == NULL)
+				t = netdev_priv(dev);
+		}
 		memcpy(p, &t->parms, sizeof(*p));
 		break;
 

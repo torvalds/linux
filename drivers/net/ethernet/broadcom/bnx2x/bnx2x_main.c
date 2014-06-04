@@ -13233,6 +13233,8 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 				iounmap(bp->doorbells);
 
 			bnx2x_release_firmware(bp);
+		} else {
+			bnx2x_vf_pci_dealloc(bp);
 		}
 		bnx2x_free_mem_bp(bp);
 

@@ -929,11 +929,10 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			 */
 			if (hw->fc.requested_mode == e1000_fc_full) {
 				hw->fc.current_mode = e1000_fc_full;
-				hw_dbg("Flow Control = FULL.\r\n");
+				hw_dbg("Flow Control = FULL.\n");
 			} else {
 				hw->fc.current_mode = e1000_fc_rx_pause;
-				hw_dbg("Flow Control = "
-				       "RX PAUSE frames only.\r\n");
+				hw_dbg("Flow Control = RX PAUSE frames only.\n");
 			}
 		}
 		/* For receiving PAUSE frames ONLY.
@@ -948,7 +947,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			  (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_tx_pause;
-			hw_dbg("Flow Control = TX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = TX PAUSE frames only.\n");
 		}
 		/* For transmitting PAUSE frames ONLY.
 		 *
@@ -962,7 +961,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			 !(mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE) &&
 			 (mii_nway_lp_ability_reg & NWAY_LPAR_ASM_DIR)) {
 			hw->fc.current_mode = e1000_fc_rx_pause;
-			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = RX PAUSE frames only.\n");
 		}
 		/* Per the IEEE spec, at this point flow control should be
 		 * disabled.  However, we want to consider that we could
@@ -988,10 +987,10 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			 (hw->fc.requested_mode == e1000_fc_tx_pause) ||
 			 (hw->fc.strict_ieee)) {
 			hw->fc.current_mode = e1000_fc_none;
-			hw_dbg("Flow Control = NONE.\r\n");
+			hw_dbg("Flow Control = NONE.\n");
 		} else {
 			hw->fc.current_mode = e1000_fc_rx_pause;
-			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
+			hw_dbg("Flow Control = RX PAUSE frames only.\n");
 		}
 
 		/* Now we need to do one last check...  If we auto-

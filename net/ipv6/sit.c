@@ -1127,8 +1127,8 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 	int err = 0;
 	struct ip_tunnel_parm p;
 	struct ip_tunnel_prl prl;
-	struct ip_tunnel *t;
-	struct net *net = dev_net(dev);
+	struct ip_tunnel *t = netdev_priv(dev);
+	struct net *net = t->net;
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 #ifdef CONFIG_IPV6_SIT_6RD
 	struct ip_tunnel_6rd ip6rd;
@@ -1139,16 +1139,15 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 #ifdef CONFIG_IPV6_SIT_6RD
 	case SIOCGET6RD:
 #endif
-		t = NULL;
 		if (dev == sitn->fb_tunnel_dev) {
 			if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p))) {
 				err = -EFAULT;
 				break;
 			}
 			t = ipip6_tunnel_locate(net, &p, 0);
+			if (t == NULL)
+				t = netdev_priv(dev);
 		}
-		if (t == NULL)
-			t = netdev_priv(dev);
 
 		err = -EFAULT;
 		if (cmd == SIOCGETTUNNEL) {
@@ -1244,9 +1243,6 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		err = -EINVAL;
 		if (dev == sitn->fb_tunnel_dev)
 			goto done;
-		err = -ENOENT;
-		if (!(t = netdev_priv(dev)))
-			goto done;
 		err = ipip6_tunnel_get_prl(t, ifr->ifr_ifru.ifru_data);
 		break;
 
@@ -1261,9 +1257,6 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			goto done;
 		err = -EFAULT;
 		if (copy_from_user(&prl, ifr->ifr_ifru.ifru_data, sizeof(prl)))
-			goto done;
-		err = -ENOENT;
-		if (!(t = netdev_priv(dev)))
 			goto done;
 
 		switch (cmd) {
@@ -1291,8 +1284,6 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (copy_from_user(&ip6rd, ifr->ifr_ifru.ifru_data,
 				   sizeof(ip6rd)))
 			goto done;
-
-		t = netdev_priv(dev);
 
 		if (cmd != SIOCDEL6RD) {
 			err = ipip6_tunnel_update_6rd(t, &ip6rd);

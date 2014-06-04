@@ -2516,6 +2516,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 		rdev->asic = &kv_asic;
 		/* set num crtcs */
 		if (rdev->family == CHIP_KAVERI) {
