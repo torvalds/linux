@@ -201,10 +201,14 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
  */
 struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+struct device;
+
 int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
-		struct ion_handle *handle, unsigned long *iova, unsigned long *size);
+		  struct ion_handle *handle, unsigned long *iova,
+		  unsigned long *size);
 
 void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
-			struct ion_handle *handle);
-
+		     struct ion_handle *handle);
+#endif
 #endif /* _LINUX_ION_H */
