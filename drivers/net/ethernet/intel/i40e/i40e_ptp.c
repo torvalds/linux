@@ -423,27 +423,22 @@ int i40e_ptp_get_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 }
 
 /**
- * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
+ * i40e_ptp_set_timestamp_mode - setup hardware for requested timestamp mode
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @config: hwtstamp settings requested or saved
  *
- * Respond to the user filter requests and make the appropriate hardware
- * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping
- * logic, so keep track in software of whether to indicate these timestamps
- * or not.
+ * Control hardware registers to enter the specific mode requested by the
+ * user. Also used during reset path to ensure that timestamp settings are
+ * maintained.
  *
- * It is permissible to "upgrade" the user request to a broader filter, as long
- * as the user receives the timestamps they care about and the user is notified
- * the filter has been broadened.
+ * Note: modifies config in place, and may update the requested mode to be
+ * more broad if the specific filter is not directly supported.
  **/
-int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
+static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
+				       struct hwtstamp_config *config)
 {
 	struct i40e_hw *hw = &pf->hw;
-	struct hwtstamp_config *config = &pf->tstamp_config;
 	u32 pf_id, tsyntype, regval;
-
-	if (copy_from_user(config, ifr->ifr_data, sizeof(*config)))
-		return -EFAULT;
 
 	/* Reserved for future extensions. */
 	if (config->flags)
@@ -535,6 +530,35 @@ int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 		wr32(hw, I40E_PRTTSYN_CTL1, regval);
 	}
 
+	return 0;
+}
+
+/**
+ * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
+ * @pf: Board private structure
+ * @ifreq: ioctl data
+ *
+ * Respond to the user filter requests and make the appropriate hardware
+ * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping
+ * logic, so keep track in software of whether to indicate these timestamps
+ * or not.
+ *
+ * It is permissible to "upgrade" the user request to a broader filter, as long
+ * as the user receives the timestamps they care about and the user is notified
+ * the filter has been broadened.
+ **/
+int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
+{
+	struct hwtstamp_config *config = &pf->tstamp_config;
+	int err;
+
+	if (copy_from_user(config, ifr->ifr_data, sizeof(*config)))
+		return -EFAULT;
+
+	err = i40e_ptp_set_timestamp_mode(pf, config);
+	if (err)
+		return err;
+
 	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
 		-EFAULT : 0;
 }
@@ -578,6 +602,9 @@ void i40e_ptp_init(struct i40e_pf *pf)
 			 netdev->name);
 		pf->flags |= I40E_FLAG_PTP;
 
+		pf->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+		pf->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+
 		/* Ensure the clocks are running. */
 		regval = rd32(hw, I40E_PRTTSYN_CTL0);
 		regval |= I40E_PRTTSYN_CTL0_TSYNENA_MASK;
@@ -589,8 +616,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		/* Set the increment value per clock tick. */
 		i40e_ptp_set_increment(pf);
 
-		/* reset the tstamp_config */
-		memset(&pf->tstamp_config, 0, sizeof(pf->tstamp_config));
+		/* reset timestamping mode */
+		i40e_ptp_set_timestamp_mode(pf, &pf->tstamp_config);
 
 		/* Set the clock value. */
 		ts = ktime_to_timespec(ktime_get_real());
