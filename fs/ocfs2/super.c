@@ -2292,8 +2292,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 
-	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
-	osb->vol_label[63] = '\0';
+	strlcpy(osb->vol_label, di->id2.i_super.s_label,
+		OCFS2_MAX_VOL_LABEL_LEN);
 	osb->root_blkno = le64_to_cpu(di->id2.i_super.s_root_blkno);
 	osb->system_dir_blkno = le64_to_cpu(di->id2.i_super.s_system_dir_blkno);
 	osb->first_cluster_group_blkno =
