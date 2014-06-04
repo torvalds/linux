@@ -1221,8 +1221,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		wr_regl(port, S3C64XX_UINTSP, 0xf);
 	}
 
-	dbg("port: map=%08x, mem=%p, irq=%d (%d,%d), clock=%u\n",
-	    port->mapbase, port->membase, port->irq,
+	dbg("port: map=%pa, mem=%p, irq=%d (%d,%d), clock=%u\n",
+	    &port->mapbase, port->membase, port->irq,
 	    ourport->rx_irq, ourport->tx_irq, port->uartclk);
 
 	/* reset the fifos (and setup the uart) */
