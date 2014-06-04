@@ -1250,7 +1250,7 @@ nvd0_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 		 chid, (mthd & 0x0000ffc), data, mthd, unkn);
 
 	if (chid == 0) {
-		switch (mthd) {
+		switch (mthd & 0xffc) {
 		case 0x0080:
 			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 0,
 					    impl->mthd.core);
@@ -1260,7 +1260,7 @@ nvd0_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 		}
 	} else
 	if (chid <= 4) {
-		switch (mthd) {
+		switch (mthd & 0xffc) {
 		case 0x0080:
 			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 1,
 					    impl->mthd.base);
@@ -1270,7 +1270,7 @@ nvd0_disp_intr_error(struct nv50_disp_priv *priv, int chid)
 		}
 	} else
 	if (chid <= 8) {
-		switch (mthd) {
+		switch (mthd & 0xffc) {
 		case 0x0080:
 			nv50_disp_mthd_chan(priv, NV_DBG_ERROR, chid - 5,
 					    impl->mthd.ovly);
