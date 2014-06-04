@@ -56,6 +56,8 @@ struct i40e_adminq_ring {
 	u32 head;
 	u32 tail;
 	u32 len;
+	u32 bah;
+	u32 bal;
 };
 
 /* ASQ transaction details */
