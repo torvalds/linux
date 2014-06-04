@@ -2401,10 +2401,6 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 
 	rx_ctx.rxmax = min_t(u16, vsi->max_frame,
 				  (chain_len * ring->rx_buf_len));
-	rx_ctx.tphrdesc_ena = 1;
-	rx_ctx.tphwdesc_ena = 1;
-	rx_ctx.tphdata_ena = 1;
-	rx_ctx.tphhead_ena = 1;
 	if (hw->revision_id == 0)
 		rx_ctx.lrxqthresh = 0;
 	else
