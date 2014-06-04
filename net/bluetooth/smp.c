@@ -2346,6 +2346,16 @@ static int smp_cmd_dhkey_check(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+static int smp_cmd_keypress_notify(struct l2cap_conn *conn,
+				   struct sk_buff *skb)
+{
+	struct smp_cmd_keypress_notify *kp = (void *) skb->data;
+
+	BT_DBG("value 0x%02x", kp->value);
+
+	return 0;
+}
+
 static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 {
 	struct l2cap_conn *conn = chan->conn;
@@ -2436,6 +2446,10 @@ static int smp_sig_channel(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	case SMP_CMD_DHKEY_CHECK:
 		reason = smp_cmd_dhkey_check(conn, skb);
+		break;
+
+	case SMP_CMD_KEYPRESS_NOTIFY:
+		reason = smp_cmd_keypress_notify(conn, skb);
 		break;
 
 	default:
