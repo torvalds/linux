@@ -224,13 +224,15 @@ static DEFINE_PER_CPU(struct irq_work, nohz_full_kick_work) = {
 };
 
 /*
- * Kick the current CPU if it's full dynticks in order to force it to
+ * Kick the CPU if it's full dynticks in order to force it to
  * re-evaluate its dependency on the tick and restart it if necessary.
  */
-void tick_nohz_full_kick(void)
+void tick_nohz_full_kick_cpu(int cpu)
 {
-	if (tick_nohz_full_cpu(smp_processor_id()))
-		irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+	if (!tick_nohz_full_cpu(cpu))
+		return;
+
+	irq_work_queue_on(&per_cpu(nohz_full_kick_work, cpu), cpu);
 }
 
 static void nohz_full_kick_ipi(void *info)
