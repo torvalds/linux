@@ -297,6 +297,34 @@ static u32 log_next(u32 idx)
 	return idx + msg->len;
 }
 
+/* check whether there is enough free space for the given message */
+static int logbuf_has_space(u32 msg_size)
+{
+	u32 free;
+
+	if (log_next_idx > log_first_idx)
+		free = max(log_buf_len - log_next_idx, log_first_idx);
+	else
+		free = log_first_idx - log_next_idx;
+
+	/*
+	 * We need space also for an empty header that signalizes wrapping
+	 * of the buffer.
+	 */
+	return free >= msg_size + sizeof(struct printk_log);
+}
+
+static void log_make_free_space(u32 msg_size)
+{
+	while (log_first_seq < log_next_seq) {
+		if (logbuf_has_space(msg_size))
+			return;
+		/* drop old messages until we have enough continuous space */
+		log_first_idx = log_next(log_first_idx);
+		log_first_seq++;
+	}
+}
+
 /* insert record into the buffer, discard old ones, update heads */
 static void log_store(int facility, int level,
 		      enum log_flags flags, u64 ts_nsec,
@@ -311,21 +339,7 @@ static void log_store(int facility, int level,
 	pad_len = (-size) & (LOG_ALIGN - 1);
 	size += pad_len;
 
-	while (log_first_seq < log_next_seq) {
-		u32 free;
-
-		if (log_next_idx > log_first_idx)
-			free = max(log_buf_len - log_next_idx, log_first_idx);
-		else
-			free = log_first_idx - log_next_idx;
-
-		if (free >= size + sizeof(struct printk_log))
-			break;
-
-		/* drop old messages until we have enough contiuous space */
-		log_first_idx = log_next(log_first_idx);
-		log_first_seq++;
-	}
+	log_make_free_space(size);
 
 	if (log_next_idx + size + sizeof(struct printk_log) > log_buf_len) {
 		/*
