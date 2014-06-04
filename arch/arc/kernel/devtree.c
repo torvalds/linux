@@ -42,7 +42,7 @@ const struct machine_desc * __init setup_machine_fdt(void *dt)
 	const struct machine_desc *mdesc;
 	unsigned long dt_root;
 	void *clk;
-	unsigned long len;
+	int len;
 
 	if (!early_init_dt_scan(dt))
 		return NULL;

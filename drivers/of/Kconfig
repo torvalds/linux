@@ -20,6 +20,7 @@ config OF_SELFTEST
 config OF_FLATTREE
 	bool
 	select DTC
+	select LIBFDT
 
 config OF_EARLY_FLATTREE
 	bool

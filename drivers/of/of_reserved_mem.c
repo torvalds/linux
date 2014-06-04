@@ -95,8 +95,8 @@ static int __init __reserved_mem_alloc_size(unsigned long node,
 	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	phys_addr_t start = 0, end = 0;
 	phys_addr_t base = 0, align = 0, size;
-	unsigned long len;
-	__be32 *prop;
+	int len;
+	const __be32 *prop;
 	int nomap;
 	int ret;
 
@@ -188,7 +188,7 @@ static int __init __reserved_mem_init_node(struct reserved_mem *rmem)
 		if (!of_flat_dt_is_compatible(rmem->fdt_node, compat))
 			continue;
 
-		if (initfn(rmem, rmem->fdt_node, rmem->name) == 0) {
+		if (initfn(rmem) == 0) {
 			pr_info("Reserved memory: initialized node %s, compatible id %s\n",
 				rmem->name, compat);
 			return 0;

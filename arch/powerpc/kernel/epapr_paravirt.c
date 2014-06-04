@@ -36,7 +36,7 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 					   int depth, void *data)
 {
 	const u32 *insts;
-	unsigned long len;
+	int len;
 	int i;
 
 	insts = of_get_flat_dt_prop(node, "hcall-instructions", &len);

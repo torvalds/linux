@@ -18,8 +18,6 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 {
 	struct device_node *dn, *ppnode;
 	struct pci_dev *ppdev;
-	u32 lspec;
-	__be32 lspec_be;
 	__be32 laddr[3];
 	u8 pin;
 	int rc;
@@ -46,7 +44,6 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 		return -ENODEV;
 
 	/* Now we walk up the PCI tree */
-	lspec = pin;
 	for (;;) {
 		/* Get the pci_dev of our parent */
 		ppdev = pdev->bus->self;
@@ -80,14 +77,13 @@ int of_irq_parse_pci(const struct pci_dev *pdev, struct of_phandle_args *out_irq
 		/* We can only get here if we hit a P2P bridge with no node,
 		 * let's do standard swizzling and try again
 		 */
-		lspec = pci_swizzle_interrupt_pin(pdev, lspec);
+		pin = pci_swizzle_interrupt_pin(pdev, pin);
 		pdev = ppdev;
 	}
 
 	out_irq->np = ppnode;
 	out_irq->args_count = 1;
-	out_irq->args[0] = lspec;
-	lspec_be = cpu_to_be32(lspec);
+	out_irq->args[0] = pin;
 	laddr[0] = cpu_to_be32((pdev->bus->number << 16) | (pdev->devfn << 8));
 	laddr[1] = laddr[2] = cpu_to_be32(0);
 	return of_irq_parse_raw(laddr, out_irq);

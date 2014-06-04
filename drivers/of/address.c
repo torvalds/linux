@@ -498,8 +498,7 @@ static u64 __of_translate_address(struct device_node *dev,
 	/* Count address cells & copy address locally */
 	bus->count_cells(dev, &na, &ns);
 	if (!OF_CHECK_COUNTS(na, ns)) {
-		printk(KERN_ERR "prom_parse: Bad cell count for %s\n",
-		       of_node_full_name(dev));
+		pr_debug("OF: Bad cell count for %s\n", of_node_full_name(dev));
 		goto bail;
 	}
 	memcpy(addr, in_addr, na * 4);
@@ -563,25 +562,6 @@ u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 	return __of_translate_address(dev, in_addr, "dma-ranges");
 }
 EXPORT_SYMBOL(of_translate_dma_address);
-
-bool of_can_translate_address(struct device_node *dev)
-{
-	struct device_node *parent;
-	struct of_bus *bus;
-	int na, ns;
-
-	parent = of_get_parent(dev);
-	if (parent == NULL)
-		return false;
-
-	bus = of_match_bus(parent);
-	bus->count_cells(dev, &na, &ns);
-
-	of_node_put(parent);
-
-	return OF_CHECK_COUNTS(na, ns);
-}
-EXPORT_SYMBOL(of_can_translate_address);
 
 const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		    unsigned int *flags)

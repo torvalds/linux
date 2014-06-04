@@ -202,7 +202,7 @@ static int __init exynos_fdt_map_chipid(unsigned long node, const char *uname,
 {
 	struct map_desc iodesc;
 	__be32 *reg;
-	unsigned long len;
+	int len;
 
 	if (!of_flat_dt_is_compatible(node, "samsung,exynos4210-chipid") &&
 		!of_flat_dt_is_compatible(node, "samsung,exynos5440-clock"))
