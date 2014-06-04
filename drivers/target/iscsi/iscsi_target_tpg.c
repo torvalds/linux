@@ -184,7 +184,8 @@ static void iscsit_clear_tpg_np_login_thread(
 		return;
 	}
 
-	tpg_np->tpg_np->enabled = false;
+	if (shutdown)
+		tpg_np->tpg_np->enabled = false;
 	iscsit_reset_np_thread(tpg_np->tpg_np, tpg_np, tpg, shutdown);
 }
 
