@@ -1782,7 +1782,8 @@ struct radeon_asic {
 	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
-		int (*set_page)(struct radeon_device *rdev, int i, uint64_t addr);
+		void (*set_page)(struct radeon_device *rdev, unsigned i,
+				 uint64_t addr);
 	} gart;
 	struct {
 		int (*init)(struct radeon_device *rdev);
