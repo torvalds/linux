@@ -160,7 +160,7 @@ ENTRY(__cpu_setup)
 	ret					// return to head.S
 ENDPROC(__cpu_setup)
 
-#ifdef CONFIG_ARMV7_COMPAT_CP15_BARRIER
+#ifdef CONFIG_ARMV7_COMPAT
 	/*
 	 *                 n n            T
 	 *       U E      WT T UD     US IHBS
