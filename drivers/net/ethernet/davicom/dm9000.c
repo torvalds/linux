@@ -109,6 +109,7 @@ typedef struct board_info {
 	u8		imr_all;
 
 	unsigned int	flags;
+	unsigned int	in_timeout:1;
 	unsigned int	in_suspend:1;
 	unsigned int	wake_supported:1;
 
@@ -273,7 +274,7 @@ static void dm9000_dumpblk_32bit(void __iomem *reg, int count)
  */
 static void dm9000_msleep(board_info_t *db, unsigned int ms)
 {
-	if (db->in_suspend)
+	if (db->in_suspend || db->in_timeout)
 		mdelay(ms);
 	else
 		msleep(ms);
@@ -334,7 +335,8 @@ dm9000_phy_write(struct net_device *dev,
 	unsigned long reg_save;
 
 	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
-	mutex_lock(&db->addr_lock);
+	if (!db->in_timeout)
+		mutex_lock(&db->addr_lock);
 
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -365,7 +367,8 @@ dm9000_phy_write(struct net_device *dev,
 	writeb(reg_save, db->io_addr);
 
 	spin_unlock_irqrestore(&db->lock, flags);
-	mutex_unlock(&db->addr_lock);
+	if (!db->in_timeout)
+		mutex_unlock(&db->addr_lock);
 }
 
 /* dm9000_set_io
@@ -971,6 +974,7 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Save previous register address */
 	spin_lock_irqsave(&db->lock, flags);
+	db->in_timeout = 1;
 	reg_save = readb(db->io_addr);
 
 	netif_stop_queue(dev);
@@ -982,6 +986,7 @@ static void dm9000_timeout(struct net_device *dev)
 
 	/* Restore previous register address */
 	writeb(reg_save, db->io_addr);
+	db->in_timeout = 0;
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
