@@ -239,13 +239,6 @@ config ARM_PATCH_PHYS_VIRT
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
 
-config NEED_MACH_GPIO_H
-	bool
-	help
-	  Select this when mach/gpio.h is required to provide special
-	  definitions for this platform. The need for mach/gpio.h should
-	  be avoided when possible.
-
 config NEED_MACH_IO_H
 	bool
 	help
