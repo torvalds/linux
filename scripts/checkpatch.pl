@@ -3470,6 +3470,13 @@ sub process {
 			}
 		}
 
+# unnecessary return in a void function? (a single leading tab, then return;)
+		if ($sline =~ /^\+\treturn\s*;\s*$/ &&
+		    $prevline =~ /^\+/) {
+			WARN("RETURN_VOID",
+			     "void function return statements are not generally useful\n" . $herecurr);
+		}
+
 # if statements using unnecessary parentheses - ie: if ((foo == bar))
 		if ($^V && $^V ge 5.10.0 &&
 		    $line =~ /\bif\s*((?:\(\s*){2,})/) {
