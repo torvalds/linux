@@ -413,7 +413,7 @@ static void free_msi_irqs(struct pci_dev *dev)
 	if (dev->msi_irq_groups) {
 		sysfs_remove_groups(&dev->dev.kobj, dev->msi_irq_groups);
 		msi_attrs = dev->msi_irq_groups[0]->attrs;
-		list_for_each_entry(entry, &dev->msi_list, list) {
+		while (msi_attrs[count]) {
 			dev_attr = container_of(msi_attrs[count],
 						struct device_attribute, attr);
 			kfree(dev_attr->attr.name);
