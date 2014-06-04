@@ -148,7 +148,7 @@ copy_resp_to_buf(struct snd_efw *efw, void *data, size_t length, int *rcode)
 
 		efw->push_ptr += till_end;
 		if (efw->push_ptr >= efw->resp_buf + snd_efw_resp_buf_size)
-			efw->push_ptr = efw->resp_buf;
+			efw->push_ptr -= snd_efw_resp_buf_size;
 
 		length -= till_end;
 		data += till_end;
