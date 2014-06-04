@@ -717,7 +717,7 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 	 * And we should keep the cached OPAL notifier event sychronized
 	 * between the kernel and firmware.
 	 */
-	eeh_remove_event(NULL);
+	eeh_remove_event(NULL, false);
 	opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
 	list_for_each_entry(hose, &hose_list, list_node) {

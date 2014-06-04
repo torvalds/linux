@@ -770,7 +770,7 @@ static void eeh_handle_special_event(void)
 			eeh_serialize_lock(&flags);
 
 			/* Purge all events */
-			eeh_remove_event(NULL);
+			eeh_remove_event(NULL, true);
 
 			list_for_each_entry(hose, &hose_list, list_node) {
 				phb_pe = eeh_phb_pe_get(hose);
@@ -789,7 +789,7 @@ static void eeh_handle_special_event(void)
 			eeh_serialize_lock(&flags);
 
 			/* Purge all events of the PHB */
-			eeh_remove_event(pe);
+			eeh_remove_event(pe, true);
 
 			if (rc == EEH_NEXT_ERR_DEAD_PHB)
 				eeh_pe_state_mark(pe, EEH_PE_ISOLATED);
