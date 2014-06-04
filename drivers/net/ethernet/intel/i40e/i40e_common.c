@@ -1037,6 +1037,52 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 /* Admin command wrappers */
 
 /**
+ * i40e_aq_get_phy_capabilities
+ * @hw: pointer to the hw struct
+ * @abilities: structure for PHY capabilities to be filled
+ * @qualified_modules: report Qualified Modules
+ * @report_init: report init capabilities (active are default)
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Returns the various PHY abilities supported on the Port.
+ **/
+i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
+			bool qualified_modules, bool report_init,
+			struct i40e_aq_get_phy_abilities_resp *abilities,
+			struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aq_desc desc;
+	i40e_status status;
+	u16 abilities_size = sizeof(struct i40e_aq_get_phy_abilities_resp);
+
+	if (!abilities)
+		return I40E_ERR_PARAM;
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_get_phy_abilities);
+
+	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
+	if (abilities_size > I40E_AQ_LARGE_BUF)
+		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
+
+	if (qualified_modules)
+		desc.params.external.param0 |=
+			cpu_to_le32(I40E_AQ_PHY_REPORT_QUALIFIED_MODULES);
+
+	if (report_init)
+		desc.params.external.param0 |=
+			cpu_to_le32(I40E_AQ_PHY_REPORT_INITIAL_VALUES);
+
+	status = i40e_asq_send_command(hw, &desc, abilities, abilities_size,
+				       cmd_details);
+
+	if (hw->aq.asq_last_status == I40E_AQ_RC_EIO)
+		status = I40E_ERR_UNKNOWN_PHY;
+
+	return status;
+}
+
+/**
  * i40e_aq_clear_pxe_mode
  * @hw: pointer to the hw struct
  * @cmd_details: pointer to command details structure or NULL
@@ -1159,6 +1205,35 @@ i40e_status i40e_aq_get_link_info(struct i40e_hw *hw,
 	hw->phy.get_link_info = false;
 
 aq_get_link_info_exit:
+	return status;
+}
+
+/**
+ * i40e_update_link_info
+ * @hw: pointer to the hw struct
+ * @enable_lse: enable/disable LinkStatusEvent reporting
+ *
+ * Returns the link status of the adapter
+ **/
+i40e_status i40e_update_link_info(struct i40e_hw *hw, bool enable_lse)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	i40e_status status;
+
+	status = i40e_aq_get_link_info(hw, enable_lse, NULL, NULL);
+	if (status)
+		return status;
+
+	status = i40e_aq_get_phy_capabilities(hw, false, false,
+					      &abilities, NULL);
+	if (status)
+		return status;
+
+	if (abilities.abilities & I40E_AQ_PHY_AN_ENABLED)
+		hw->phy.link_info.an_enabled = true;
+	else
+		hw->phy.link_info.an_enabled = false;
+
 	return status;
 }
 
