@@ -1665,6 +1665,9 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	queue->rx_refill_timer.data = (unsigned long)queue;
 	queue->rx_refill_timer.function = rx_refill_timeout;
 
+	snprintf(queue->name, sizeof(queue->name), "%s-q%u",
+		 queue->info->netdev->name, queue->id);
+
 	/* Initialise tx_skbs as a free chain containing every entry. */
 	queue->tx_skb_freelist = 0;
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
