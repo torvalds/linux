@@ -2077,6 +2077,8 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 	ether_addr_copy(vf->default_lan_addr.addr, mac);
 	vf->pf_set_mac = true;
+	/* Force the VF driver stop so it has to reload with new MAC address */
+	i40e_vc_disable_vf(pf, vf);
 	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
 	ret = 0;
 
