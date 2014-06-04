@@ -61,7 +61,22 @@ static const char Unused_offset[] = "Unused swap offset entry ";
  * all active swap_info_structs
  * protected with swap_lock, and ordered by priority.
  */
-LIST_HEAD(swap_list_head);
+PLIST_HEAD(swap_active_head);
+
+/*
+ * all available (active, not full) swap_info_structs
+ * protected with swap_avail_lock, ordered by priority.
+ * This is used by get_swap_page() instead of swap_active_head
+ * because swap_active_head includes all swap_info_structs,
+ * but get_swap_page() doesn't need to look at full ones.
+ * This uses its own lock instead of swap_lock because when a
+ * swap_info_struct changes between not-full/full, it needs to
+ * add/remove itself to/from this list, but the swap_info_struct->lock
+ * is held and the locking order requires swap_lock to be taken
+ * before any swap_info_struct->lock.
+ */
+static PLIST_HEAD(swap_avail_head);
+static DEFINE_SPINLOCK(swap_avail_lock);
 
 struct swap_info_struct *swap_info[MAX_SWAPFILES];
 
@@ -594,6 +609,9 @@ checks:
 	if (si->inuse_pages == si->pages) {
 		si->lowest_bit = si->max;
 		si->highest_bit = 0;
+		spin_lock(&swap_avail_lock);
+		plist_del(&si->avail_list, &swap_avail_head);
+		spin_unlock(&swap_avail_lock);
 	}
 	si->swap_map[offset] = usage;
 	inc_cluster_info_page(si, si->cluster_info, offset);
@@ -645,57 +663,63 @@ swp_entry_t get_swap_page(void)
 {
 	struct swap_info_struct *si, *next;
 	pgoff_t offset;
-	struct list_head *tmp;
 
-	spin_lock(&swap_lock);
 	if (atomic_long_read(&nr_swap_pages) <= 0)
 		goto noswap;
 	atomic_long_dec(&nr_swap_pages);
 
-	list_for_each(tmp, &swap_list_head) {
-		si = list_entry(tmp, typeof(*si), list);
+	spin_lock(&swap_avail_lock);
+
+start_over:
+	plist_for_each_entry_safe(si, next, &swap_avail_head, avail_list) {
+		/* requeue si to after same-priority siblings */
+		plist_requeue(&si->avail_list, &swap_avail_head);
+		spin_unlock(&swap_avail_lock);
 		spin_lock(&si->lock);
 		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
+			spin_lock(&swap_avail_lock);
+			if (plist_node_empty(&si->avail_list)) {
+				spin_unlock(&si->lock);
+				goto nextsi;
+			}
+			WARN(!si->highest_bit,
+			     "swap_info %d in list but !highest_bit\n",
+			     si->type);
+			WARN(!(si->flags & SWP_WRITEOK),
+			     "swap_info %d in list but !SWP_WRITEOK\n",
+			     si->type);
+			plist_del(&si->avail_list, &swap_avail_head);
 			spin_unlock(&si->lock);
-			continue;
+			goto nextsi;
 		}
 
-		/*
-		 * rotate the current swap_info that we're going to use
-		 * to after any other swap_info that have the same prio,
-		 * so that all equal-priority swap_info get used equally
-		 */
-		next = si;
-		list_for_each_entry_continue(next, &swap_list_head, list) {
-			if (si->prio != next->prio)
-				break;
-			list_rotate_left(&si->list);
-			next = si;
-		}
-
-		spin_unlock(&swap_lock);
 		/* This is called for allocating swap entry for cache */
 		offset = scan_swap_map(si, SWAP_HAS_CACHE);
 		spin_unlock(&si->lock);
 		if (offset)
 			return swp_entry(si->type, offset);
-		spin_lock(&swap_lock);
+		pr_debug("scan_swap_map of si %d failed to find offset\n",
+		       si->type);
+		spin_lock(&swap_avail_lock);
+nextsi:
 		/*
 		 * if we got here, it's likely that si was almost full before,
 		 * and since scan_swap_map() can drop the si->lock, multiple
 		 * callers probably all tried to get a page from the same si
-		 * and it filled up before we could get one.  So we need to
-		 * try again.  Since we dropped the swap_lock, there may now
-		 * be non-full higher priority swap_infos, and this si may have
-		 * even been removed from the list (although very unlikely).
-		 * Let's start over.
+		 * and it filled up before we could get one; or, the si filled
+		 * up between us dropping swap_avail_lock and taking si->lock.
+		 * Since we dropped the swap_avail_lock, the swap_avail_head
+		 * list may have been modified; so if next is still in the
+		 * swap_avail_head list then try it, otherwise start over.
 		 */
-		tmp = &swap_list_head;
+		if (plist_node_empty(&next->avail_list))
+			goto start_over;
 	}
+
+	spin_unlock(&swap_avail_lock);
 
 	atomic_long_inc(&nr_swap_pages);
 noswap:
-	spin_unlock(&swap_lock);
 	return (swp_entry_t) {0};
 }
 
@@ -798,8 +822,18 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 		dec_cluster_info_page(p, p->cluster_info, offset);
 		if (offset < p->lowest_bit)
 			p->lowest_bit = offset;
-		if (offset > p->highest_bit)
+		if (offset > p->highest_bit) {
+			bool was_full = !p->highest_bit;
 			p->highest_bit = offset;
+			if (was_full && (p->flags & SWP_WRITEOK)) {
+				spin_lock(&swap_avail_lock);
+				WARN_ON(!plist_node_empty(&p->avail_list));
+				if (plist_node_empty(&p->avail_list))
+					plist_add(&p->avail_list,
+						  &swap_avail_head);
+				spin_unlock(&swap_avail_lock);
+			}
+		}
 		atomic_long_inc(&nr_swap_pages);
 		p->inuse_pages--;
 		frontswap_invalidate_page(p->type, offset);
@@ -1734,12 +1768,16 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
 				unsigned char *swap_map,
 				struct swap_cluster_info *cluster_info)
 {
-	struct swap_info_struct *si;
-
 	if (prio >= 0)
 		p->prio = prio;
 	else
 		p->prio = --least_priority;
+	/*
+	 * the plist prio is negated because plist ordering is
+	 * low-to-high, while swap ordering is high-to-low
+	 */
+	p->list.prio = -p->prio;
+	p->avail_list.prio = -p->prio;
 	p->swap_map = swap_map;
 	p->cluster_info = cluster_info;
 	p->flags |= SWP_WRITEOK;
@@ -1747,27 +1785,20 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
 	total_swap_pages += p->pages;
 
 	assert_spin_locked(&swap_lock);
-	BUG_ON(!list_empty(&p->list));
 	/*
-	 * insert into swap list; the list is in priority order,
-	 * so that get_swap_page() can get a page from the highest
-	 * priority swap_info_struct with available page(s), and
-	 * swapoff can adjust the auto-assigned (i.e. negative) prio
-	 * values for any lower-priority swap_info_structs when
-	 * removing a negative-prio swap_info_struct
+	 * both lists are plists, and thus priority ordered.
+	 * swap_active_head needs to be priority ordered for swapoff(),
+	 * which on removal of any swap_info_struct with an auto-assigned
+	 * (i.e. negative) priority increments the auto-assigned priority
+	 * of any lower-priority swap_info_structs.
+	 * swap_avail_head needs to be priority ordered for get_swap_page(),
+	 * which allocates swap pages from the highest available priority
+	 * swap_info_struct.
 	 */
-	list_for_each_entry(si, &swap_list_head, list) {
-		if (p->prio >= si->prio) {
-			list_add_tail(&p->list, &si->list);
-			return;
-		}
-	}
-	/*
-	 * this covers two cases:
-	 * 1) p->prio is less than all existing prio
-	 * 2) the swap list is empty
-	 */
-	list_add_tail(&p->list, &swap_list_head);
+	plist_add(&p->list, &swap_active_head);
+	spin_lock(&swap_avail_lock);
+	plist_add(&p->avail_list, &swap_avail_head);
+	spin_unlock(&swap_avail_lock);
 }
 
 static void enable_swap_info(struct swap_info_struct *p, int prio,
@@ -1821,7 +1852,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 
 	mapping = victim->f_mapping;
 	spin_lock(&swap_lock);
-	list_for_each_entry(p, &swap_list_head, list) {
+	plist_for_each_entry(p, &swap_active_head, list) {
 		if (p->flags & SWP_WRITEOK) {
 			if (p->swap_file->f_mapping == mapping) {
 				found = 1;
@@ -1841,16 +1872,21 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 		spin_unlock(&swap_lock);
 		goto out_dput;
 	}
+	spin_lock(&swap_avail_lock);
+	plist_del(&p->avail_list, &swap_avail_head);
+	spin_unlock(&swap_avail_lock);
 	spin_lock(&p->lock);
 	if (p->prio < 0) {
 		struct swap_info_struct *si = p;
 
-		list_for_each_entry_continue(si, &swap_list_head, list) {
+		plist_for_each_entry_continue(si, &swap_active_head, list) {
 			si->prio++;
+			si->list.prio--;
+			si->avail_list.prio--;
 		}
 		least_priority++;
 	}
-	list_del_init(&p->list);
+	plist_del(&p->list, &swap_active_head);
 	atomic_long_sub(p->pages, &nr_swap_pages);
 	total_swap_pages -= p->pages;
 	p->flags &= ~SWP_WRITEOK;
@@ -2115,7 +2151,8 @@ static struct swap_info_struct *alloc_swap_info(void)
 		 */
 	}
 	INIT_LIST_HEAD(&p->first_swap_extent.list);
-	INIT_LIST_HEAD(&p->list);
+	plist_node_init(&p->list, 0);
+	plist_node_init(&p->avail_list, 0);
 	p->flags = SWP_USED;
 	spin_unlock(&swap_lock);
 	spin_lock_init(&p->lock);
