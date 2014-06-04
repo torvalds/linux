@@ -2022,7 +2022,7 @@ static void i40evf_init_task(struct work_struct *work)
 		}
 		err = i40evf_send_vf_config_msg(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable send config request (%d)\n",
+			dev_err(&pdev->dev, "Unable to send config request (%d)\n",
 				err);
 			goto err;
 		}
