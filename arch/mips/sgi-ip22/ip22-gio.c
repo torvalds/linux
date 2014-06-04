@@ -19,6 +19,9 @@ static struct {
 } gio_name_table[] = {
 	{ .name = "SGI Impact", .id = 0x10 },
 	{ .name = "Phobos G160", .id = 0x35 },
+	{ .name = "Phobos G130", .id = 0x36 },
+	{ .name = "Phobos G100", .id = 0x37 },
+	{ .name = "Set Engineering GFE", .id = 0x38 },
 	/* fake IDs */
 	{ .name = "SGI Newport", .id = 0x7e },
 	{ .name = "SGI GR2/GR3", .id = 0x7f },
@@ -293,7 +296,16 @@ static int ip22_gio_id(unsigned long addr, u32 *res)
 		 * data matches
 		 */
 		ptr8 = (void *)CKSEG1ADDR(addr + 3);
-		get_dbe(tmp8, ptr8);
+		if (get_dbe(tmp8, ptr8)) {
+			/*
+			 * 32bit access worked, but 8bit doesn't
+			 * so we don't see phantom reads on
+			 * a pipelined bus, but a real card which
+			 * doesn't support 8 bit reads
+			 */
+			*res = tmp32;
+			return 1;
+		}
 		ptr16 = (void *)CKSEG1ADDR(addr + 2);
 		get_dbe(tmp16, ptr16);
 		if (tmp8 == (tmp16 & 0xff) &&
@@ -324,7 +336,7 @@ static int ip22_is_gr2(unsigned long addr)
 }
 
 
-static void ip22_check_gio(int slotno, unsigned long addr)
+static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 {
 	const char *name = "Unknown";
 	struct gio_device *gio_dev;
@@ -338,9 +350,9 @@ static void ip22_check_gio(int slotno, unsigned long addr)
 	else {
 		if (!ip22_gio_id(addr, &tmp)) {
 			/*
-			 * no GIO signature at start address of slot, but
-			 * Newport doesn't have one, so let's check usea
-			 * status register
+			 * no GIO signature at start address of slot
+			 * since Newport doesn't have one, we check if
+			 * user status register is readable
 			 */
 			if (ip22_gio_id(addr + NEWPORT_USTATUS_OFFS, &tmp))
 				tmp = 0x7e;
@@ -369,6 +381,7 @@ static void ip22_check_gio(int slotno, unsigned long addr)
 		gio_dev->resource.start = addr;
 		gio_dev->resource.end = addr + 0x3fffff;
 		gio_dev->resource.flags = IORESOURCE_MEM;
+		gio_dev->irq = irq;
 		dev_set_name(&gio_dev->dev, "%d", slotno);
 		gio_device_register(gio_dev);
 	} else
@@ -408,16 +421,17 @@ int __init ip22_gio_init(void)
 		request_resource(&iomem_resource, &gio_bus_resource);
 		printk(KERN_INFO "GIO: Probing bus...\n");
 
-		if (ip22_is_fullhouse() ||
-		    !get_dbe(pbdma, (unsigned int *)&hpc3c1->pbdma[1])) {
-			/* Indigo2 and ChallengeS */
-			ip22_check_gio(0, GIO_SLOT_GFX_BASE);
-			ip22_check_gio(1, GIO_SLOT_EXP0_BASE);
+		if (ip22_is_fullhouse()) {
+			/* Indigo2 */
+			ip22_check_gio(0, GIO_SLOT_GFX_BASE, SGI_GIO_1_IRQ);
+			ip22_check_gio(1, GIO_SLOT_EXP0_BASE, SGI_GIO_1_IRQ);
 		} else {
-			/* Indy */
-			ip22_check_gio(0, GIO_SLOT_GFX_BASE);
-			ip22_check_gio(1, GIO_SLOT_EXP0_BASE);
-			ip22_check_gio(2, GIO_SLOT_EXP1_BASE);
+			/* Indy/Challenge S */
+			if (get_dbe(pbdma, (unsigned int *)&hpc3c1->pbdma[1]))
+				ip22_check_gio(0, GIO_SLOT_GFX_BASE,
+					       SGI_GIO_0_IRQ);
+			ip22_check_gio(1, GIO_SLOT_EXP0_BASE, SGI_GIOEXP0_IRQ);
+			ip22_check_gio(2, GIO_SLOT_EXP1_BASE, SGI_GIOEXP1_IRQ);
 		}
 	} else
 		device_unregister(&gio_bus);
