@@ -225,7 +225,7 @@ static void flush_end_io(struct request *flush_rq, int error)
 
 	if (q->mq_ops) {
 		spin_lock_irqsave(&q->mq_flush_lock, flags);
-		q->flush_rq->cmd_flags = 0;
+		q->flush_rq->tag = -1;
 	}
 
 	running = &q->flush_queue[q->flush_running_idx];
