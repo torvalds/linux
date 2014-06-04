@@ -1552,6 +1552,8 @@ static void blk_mq_exit_hw_queues(struct request_queue *q,
 		if (i == nr_queue)
 			break;
 
+		blk_mq_tag_idle(hctx);
+
 		if (set->ops->exit_hctx)
 			set->ops->exit_hctx(hctx, i);
 
