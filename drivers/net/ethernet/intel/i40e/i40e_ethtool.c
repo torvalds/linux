@@ -215,52 +215,135 @@ static int i40e_get_settings(struct net_device *netdev,
 	/* hardware is either in 40G mode or 10G mode
 	 * NOTE: this section initializes supported and advertising
 	 */
+	if (!link_up) {
+		/* link is down and the driver needs to fall back on
+		 * device ID to determine what kinds of info to display,
+		 * it's mostly a guess that may change when link is up
+		 */
+		switch (hw->device_id) {
+		case I40E_DEV_ID_QSFP_A:
+		case I40E_DEV_ID_QSFP_B:
+		case I40E_DEV_ID_QSFP_C:
+			/* pluggable QSFP */
+			ecmd->supported = SUPPORTED_40000baseSR4_Full |
+					  SUPPORTED_40000baseCR4_Full |
+					  SUPPORTED_40000baseLR4_Full;
+			ecmd->advertising = ADVERTISED_40000baseSR4_Full |
+					    ADVERTISED_40000baseCR4_Full |
+					    ADVERTISED_40000baseLR4_Full;
+			break;
+		case I40E_DEV_ID_KX_B:
+			/* backplane 40G */
+			ecmd->supported = SUPPORTED_40000baseKR4_Full;
+			ecmd->advertising = ADVERTISED_40000baseKR4_Full;
+			break;
+		case I40E_DEV_ID_KX_C:
+			/* backplane 10G */
+			ecmd->supported = SUPPORTED_10000baseKR_Full;
+			ecmd->advertising = ADVERTISED_10000baseKR_Full;
+			break;
+		default:
+			/* all the rest are 10G/1G */
+			ecmd->supported = SUPPORTED_10000baseT_Full |
+					  SUPPORTED_1000baseT_Full;
+			ecmd->advertising = ADVERTISED_10000baseT_Full |
+					    ADVERTISED_1000baseT_Full;
+			break;
+		}
+
+		/* skip phy_type use as it is zero when link is down */
+		goto no_valid_phy_type;
+	}
+
 	switch (hw_link_info->phy_type) {
 	case I40E_PHY_TYPE_40GBASE_CR4:
 	case I40E_PHY_TYPE_40GBASE_CR4_CU:
-		ecmd->supported = SUPPORTED_40000baseCR4_Full;
-		ecmd->advertising = ADVERTISED_40000baseCR4_Full;
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_40000baseCR4_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_40000baseCR4_Full;
 		break;
 	case I40E_PHY_TYPE_40GBASE_KR4:
-		ecmd->supported = SUPPORTED_40000baseKR4_Full;
-		ecmd->advertising = ADVERTISED_40000baseKR4_Full;
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_40000baseKR4_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_40000baseKR4_Full;
 		break;
 	case I40E_PHY_TYPE_40GBASE_SR4:
+	case I40E_PHY_TYPE_XLPPI:
+	case I40E_PHY_TYPE_XLAUI:
 		ecmd->supported = SUPPORTED_40000baseSR4_Full;
-		ecmd->advertising = ADVERTISED_40000baseSR4_Full;
 		break;
 	case I40E_PHY_TYPE_40GBASE_LR4:
 		ecmd->supported = SUPPORTED_40000baseLR4_Full;
-		ecmd->advertising = ADVERTISED_40000baseLR4_Full;
 		break;
 	case I40E_PHY_TYPE_10GBASE_KX4:
-		ecmd->supported = SUPPORTED_10000baseKX4_Full;
-		ecmd->advertising = ADVERTISED_10000baseKX4_Full;
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_10000baseKX4_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_10000baseKX4_Full;
 		break;
 	case I40E_PHY_TYPE_10GBASE_KR:
-		ecmd->supported = SUPPORTED_10000baseKR_Full;
-		ecmd->advertising = ADVERTISED_10000baseKR_Full;
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_10000baseKR_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_10000baseKR_Full;
+		break;
+	case I40E_PHY_TYPE_10GBASE_SR:
+	case I40E_PHY_TYPE_10GBASE_LR:
+		ecmd->supported = SUPPORTED_10000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_10GBASE_CR1_CU:
+	case I40E_PHY_TYPE_10GBASE_CR1:
+	case I40E_PHY_TYPE_10GBASE_T:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_10000baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_10000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_XAUI:
+	case I40E_PHY_TYPE_XFI:
+	case I40E_PHY_TYPE_SFI:
+	case I40E_PHY_TYPE_10GBASE_SFPP_CU:
+		ecmd->supported = SUPPORTED_10000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_1000BASE_KX:
+	case I40E_PHY_TYPE_1000BASE_T:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_1000baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_1000baseT_Full;
+		break;
+	case I40E_PHY_TYPE_100BASE_TX:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_100baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_100baseT_Full;
+		break;
+	case I40E_PHY_TYPE_SGMII:
+		ecmd->supported = SUPPORTED_Autoneg |
+				  SUPPORTED_1000baseT_Full |
+				  SUPPORTED_100baseT_Full;
+		ecmd->advertising = ADVERTISED_Autoneg |
+				    ADVERTISED_1000baseT_Full |
+				    ADVERTISED_100baseT_Full;
 		break;
 	default:
-		if (i40e_is_40G_device(hw->device_id)) {
-			ecmd->supported = SUPPORTED_40000baseSR4_Full;
-			ecmd->advertising = ADVERTISED_40000baseSR4_Full;
-		} else {
-			ecmd->supported = SUPPORTED_10000baseT_Full;
-			ecmd->advertising = ADVERTISED_10000baseT_Full;
-		}
-		break;
+		/* if we got here and link is up something bad is afoot */
+		WARN_ON(link_up);
 	}
 
-	ecmd->supported |= SUPPORTED_Autoneg;
-	ecmd->advertising |= ADVERTISED_Autoneg;
+no_valid_phy_type:
+	/* this is if autoneg is enabled or disabled */
 	ecmd->autoneg = ((hw_link_info->an_info & I40E_AQ_AN_COMPLETED) ?
 			  AUTONEG_ENABLE : AUTONEG_DISABLE);
 
 	switch (hw->phy.media_type) {
 	case I40E_MEDIA_TYPE_BACKPLANE:
-		ecmd->supported |= SUPPORTED_Backplane;
-		ecmd->advertising |= ADVERTISED_Backplane;
+		ecmd->supported |= SUPPORTED_Autoneg |
+				   SUPPORTED_Backplane;
+		ecmd->advertising |= ADVERTISED_Autoneg |
+				     ADVERTISED_Backplane;
 		ecmd->port = PORT_NONE;
 		break;
 	case I40E_MEDIA_TYPE_BASET:
@@ -276,7 +359,6 @@ static int i40e_get_settings(struct net_device *netdev,
 		break;
 	case I40E_MEDIA_TYPE_FIBER:
 		ecmd->supported |= SUPPORTED_FIBRE;
-		ecmd->advertising |= ADVERTISED_FIBRE;
 		ecmd->port = PORT_FIBRE;
 		break;
 	case I40E_MEDIA_TYPE_UNKNOWN:
@@ -287,6 +369,25 @@ static int i40e_get_settings(struct net_device *netdev,
 
 	ecmd->transceiver = XCVR_EXTERNAL;
 
+	ecmd->supported |= SUPPORTED_Pause;
+
+	switch (hw->fc.current_mode) {
+	case I40E_FC_FULL:
+		ecmd->advertising |= ADVERTISED_Pause;
+		break;
+	case I40E_FC_TX_PAUSE:
+		ecmd->advertising |= ADVERTISED_Asym_Pause;
+		break;
+	case I40E_FC_RX_PAUSE:
+		ecmd->advertising |= (ADVERTISED_Pause |
+				      ADVERTISED_Asym_Pause);
+		break;
+	default:
+		ecmd->advertising &= ~(ADVERTISED_Pause |
+				       ADVERTISED_Asym_Pause);
+		break;
+	}
+
 	if (link_up) {
 		switch (link_speed) {
 		case I40E_LINK_SPEED_40GB:
@@ -295,6 +396,9 @@ static int i40e_get_settings(struct net_device *netdev,
 			break;
 		case I40E_LINK_SPEED_10GB:
 			ethtool_cmd_speed_set(ecmd, SPEED_10000);
+			break;
+		case I40E_LINK_SPEED_1GB:
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 			break;
 		default:
 			break;
