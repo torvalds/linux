@@ -3773,10 +3773,11 @@ static int coda_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	if (devm_request_threaded_irq(&pdev->dev, irq, NULL, coda_irq_handler,
-		IRQF_ONESHOT, dev_name(&pdev->dev), dev) < 0) {
-		dev_err(&pdev->dev, "failed to request irq\n");
-		return -ENOENT;
+	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, coda_irq_handler,
+			IRQF_ONESHOT, dev_name(&pdev->dev), dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
+		return ret;
 	}
 
 	dev->rstc = devm_reset_control_get(&pdev->dev, NULL);
