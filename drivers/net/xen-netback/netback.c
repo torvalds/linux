@@ -62,6 +62,11 @@ unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
 unsigned int rx_drain_timeout_jiffies;
 
+unsigned int xenvif_max_queues;
+module_param_named(max_queues, xenvif_max_queues, uint, 0644);
+MODULE_PARM_DESC(max_queues,
+		 "Maximum number of queues per virtual interface");
+
 /*
  * This is the maximum slots a skb can have. If a guest sends a skb
  * which exceeds this limit it is considered malicious.
@@ -1952,6 +1957,9 @@ static int __init netback_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	/* Allow as many queues as there are CPUs, by default */
+	xenvif_max_queues = num_online_cpus();
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
 		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",

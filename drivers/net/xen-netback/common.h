@@ -237,6 +237,7 @@ struct xenvif *xenvif_alloc(struct device *parent,
 			    unsigned int handle);
 
 int xenvif_init_queue(struct xenvif_queue *queue);
+void xenvif_deinit_queue(struct xenvif_queue *queue);
 
 int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
@@ -299,5 +300,6 @@ extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_drain_timeout_jiffies;
+extern unsigned int xenvif_max_queues;
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

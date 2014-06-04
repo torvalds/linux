@@ -139,7 +139,6 @@ static void xenvif_wake_queue_callback(unsigned long data)
 static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
 			       void *accel_priv, select_queue_fallback_t fallback)
 {
-	struct xenvif *vif = netdev_priv(dev);
 	unsigned int num_queues = dev->real_num_tx_queues;
 	u32 hash;
 	u16 queue_index;
@@ -436,7 +435,12 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	char name[IFNAMSIZ] = {};
 
 	snprintf(name, IFNAMSIZ - 1, "vif%u.%u", domid, handle);
-	dev = alloc_netdev_mq(sizeof(struct xenvif), name, ether_setup, 1);
+	/* Allocate a netdev with the max. supported number of queues.
+	 * When the guest selects the desired number, it will be updated
+	 * via netif_set_real_num_tx_queues().
+	 */
+	dev = alloc_netdev_mq(sizeof(struct xenvif), name, ether_setup,
+			      xenvif_max_queues);
 	if (dev == NULL) {
 		pr_warn("Could not allocate netdev for %s\n", name);
 		return ERR_PTR(-ENOMEM);
@@ -706,6 +710,16 @@ void xenvif_disconnect(struct xenvif *vif)
 	}
 }
 
+/* Reverse the relevant parts of xenvif_init_queue().
+ * Used for queue teardown from xenvif_free(), and on the
+ * error handling paths in xenbus.c:connect().
+ */
+void xenvif_deinit_queue(struct xenvif_queue *queue)
+{
+	free_xenballooned_pages(MAX_PENDING_REQS, queue->mmap_pages);
+	netif_napi_del(&queue->napi);
+}
+
 void xenvif_free(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
@@ -729,11 +743,8 @@ void xenvif_free(struct xenvif *vif)
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];
-
 		xenvif_wait_unmap_timeout(queue, worst_case_skb_lifetime);
-		free_xenballooned_pages(MAX_PENDING_REQS, queue->mmap_pages);
-
-		netif_napi_del(&queue->napi);
+		xenvif_deinit_queue(queue);
 	}
 
 	/* Free the array of queues. The call below does not require
