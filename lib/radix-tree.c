@@ -1296,7 +1296,6 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
 /**
  *	__radix_tree_delete_node    -    try to free node after clearing a slot
  *	@root:		radix tree root
- *	@index:		index key
  *	@node:		node containing @index
  *
  *	After clearing the slot at @index in @node from radix tree
