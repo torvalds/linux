@@ -261,6 +261,16 @@ config POSIX_MQUEUE_SYSCTL
 	depends on SYSCTL
 	default y
 
+config CROSS_MEMORY_ATTACH
+	bool "Enable process_vm_readv/writev syscalls"
+	depends on MMU
+	default y
+	help
+	  Enabling this option adds the system calls process_vm_readv and
+	  process_vm_writev which allow a process with the correct privileges
+	  to directly read from or write to to another process's address space.
+	  See the man page for more details.
+
 config FHANDLE
 	bool "open by fhandle syscalls"
 	select EXPORTFS
@@ -933,7 +943,6 @@ config RESOURCE_COUNTERS
 config MEMCG
 	bool "Memory Resource Controller for Control Groups"
 	depends on RESOURCE_COUNTERS
-	select MM_OWNER
 	select EVENTFD
 	help
 	  Provides a memory resource controller that manages both anonymous
@@ -950,9 +959,6 @@ config MEMCG
 	  this, you can set "cgroup_disable=memory" at your boot option to
 	  disable memory resource controller and you can avoid overheads.
 	  (and lose benefits of memory resource controller)
-
-	  This config option also selects MM_OWNER config option, which
-	  could in turn add some fork/exit overhead.
 
 config MEMCG_SWAP
 	bool "Memory Resource Controller Swap Extension"
@@ -995,6 +1001,12 @@ config MEMCG_KMEM
 	  Memory Controller, which are page-based, and can be swapped. Users of
 	  the kmem extension can use it to guarantee that no group of processes
 	  will ever exhaust kernel resources alone.
+
+	  WARNING: Current implementation lacks reclaim support. That means
+	  allocation attempts will fail when close to the limit even if there
+	  are plenty of kmem available for reclaim. That makes this option
+	  unusable in real life so DO NOT SELECT IT unless for development
+	  purposes.
 
 config CGROUP_HUGETLB
 	bool "HugeTLB Resource Controller for Control Groups"
@@ -1173,9 +1185,6 @@ config SCHED_AUTOGROUP
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
 
-config MM_OWNER
-	bool
-
 config SYSFS_DEPRECATED
 	bool "Enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
@@ -1303,6 +1312,16 @@ config UID16
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
+
+config SGETMASK_SYSCALL
+	bool "sgetmask/ssetmask syscalls support" if EXPERT
+	def_bool PARISC || MN10300 || BLACKFIN || M68K || PPC || MIPS || X86 || SPARC || CRIS || MICROBLAZE || SUPERH
+	---help---
+	  sys_sgetmask and sys_ssetmask are obsolete system calls
+	  no longer supported in libc but still enabled by default in some
+	  architectures.
+
+	  If unsure, leave the default option here.
 
 config SYSFS_SYSCALL
 	bool "Sysfs syscall support" if EXPERT

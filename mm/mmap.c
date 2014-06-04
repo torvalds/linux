@@ -640,11 +640,10 @@ static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct address_space *mapping = NULL;
 
-	if (vma->vm_file)
+	if (vma->vm_file) {
 		mapping = vma->vm_file->f_mapping;
-
-	if (mapping)
 		mutex_lock(&mapping->i_mmap_mutex);
+	}
 
 	__vma_link(mm, vma, prev, rb_link, rb_parent);
 	__vma_link_file(vma);
@@ -2965,9 +2964,7 @@ int install_special_mapping(struct mm_struct *mm,
 	struct vm_area_struct *vma = _install_special_mapping(mm,
 			    addr, len, vm_flags, pages);
 
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-	return 0;
+	return PTR_ERR_OR_ZERO(vma);
 }
 
 static DEFINE_MUTEX(mm_all_locks_mutex);

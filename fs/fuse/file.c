@@ -1089,8 +1089,6 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
 		flush_dcache_page(page);
 
-		mark_page_accessed(page);
-
 		if (!tmp) {
 			unlock_page(page);
 			page_cache_release(page);

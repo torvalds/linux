@@ -890,14 +890,8 @@ static int sched_rt_runtime_exceeded(struct rt_rq *rt_rq)
 		 * but accrue some time due to boosting.
 		 */
 		if (likely(rt_b->rt_runtime)) {
-			static bool once = false;
-
 			rt_rq->rt_throttled = 1;
-
-			if (!once) {
-				once = true;
-				printk_sched("sched: RT throttling activated\n");
-			}
+			printk_deferred_once("sched: RT throttling activated\n");
 		} else {
 			/*
 			 * In case we did anyway, make it go away,

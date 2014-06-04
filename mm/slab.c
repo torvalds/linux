@@ -1621,10 +1621,16 @@ __initcall(cpucache_init);
 static noinline void
 slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 {
+#if DEBUG
 	struct kmem_cache_node *n;
 	struct page *page;
 	unsigned long flags;
 	int node;
+	static DEFINE_RATELIMIT_STATE(slab_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
+
+	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slab_oom_rs))
+		return;
 
 	printk(KERN_WARNING
 		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
@@ -1662,6 +1668,7 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 			node, active_slabs, num_slabs, active_objs, num_objs,
 			free_objects);
 	}
+#endif
 }
 
 /*
@@ -1681,10 +1688,13 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
 		flags |= __GFP_RECLAIMABLE;
 
+	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
+		return NULL;
+
 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
 	if (!page) {
-		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
-			slab_out_of_memory(cachep, flags, nodeid);
+		memcg_uncharge_slab(cachep, cachep->gfporder);
+		slab_out_of_memory(cachep, flags, nodeid);
 		return NULL;
 	}
 
@@ -1702,7 +1712,6 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
 	__SetPageSlab(page);
 	if (page->pfmemalloc)
 		SetPageSlabPfmemalloc(page);
-	memcg_bind_pages(cachep, cachep->gfporder);
 
 	if (kmemcheck_enabled && !(cachep->flags & SLAB_NOTRACK)) {
 		kmemcheck_alloc_shadow(page, cachep->gfporder, flags, nodeid);
@@ -1738,10 +1747,10 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
 	page_mapcount_reset(page);
 	page->mapping = NULL;
 
-	memcg_release_pages(cachep, cachep->gfporder);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += nr_freed;
-	__free_memcg_kmem_pages(page, cachep->gfporder);
+	__free_pages(page, cachep->gfporder);
+	memcg_uncharge_slab(cachep, cachep->gfporder);
 }
 
 static void kmem_rcu_free(struct rcu_head *head)
@@ -2469,8 +2478,7 @@ out:
 	return nr_freed;
 }
 
-/* Called with slab_mutex held to protect against cpu hotplug */
-static int __cache_shrink(struct kmem_cache *cachep)
+int __kmem_cache_shrink(struct kmem_cache *cachep)
 {
 	int ret = 0, i = 0;
 	struct kmem_cache_node *n;
@@ -2491,32 +2499,11 @@ static int __cache_shrink(struct kmem_cache *cachep)
 	return (ret ? 1 : 0);
 }
 
-/**
- * kmem_cache_shrink - Shrink a cache.
- * @cachep: The cache to shrink.
- *
- * Releases as many slabs as possible for a cache.
- * To help debugging, a zero exit status indicates all slabs were released.
- */
-int kmem_cache_shrink(struct kmem_cache *cachep)
-{
-	int ret;
-	BUG_ON(!cachep || in_interrupt());
-
-	get_online_cpus();
-	mutex_lock(&slab_mutex);
-	ret = __cache_shrink(cachep);
-	mutex_unlock(&slab_mutex);
-	put_online_cpus();
-	return ret;
-}
-EXPORT_SYMBOL(kmem_cache_shrink);
-
 int __kmem_cache_shutdown(struct kmem_cache *cachep)
 {
 	int i;
 	struct kmem_cache_node *n;
-	int rc = __cache_shrink(cachep);
+	int rc = __kmem_cache_shrink(cachep);
 
 	if (rc)
 		return rc;

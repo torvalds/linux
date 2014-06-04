@@ -352,7 +352,7 @@ int disallow_signal(int sig)
 
 EXPORT_SYMBOL(disallow_signal);
 
-#ifdef CONFIG_MM_OWNER
+#ifdef CONFIG_MEMCG
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
@@ -395,14 +395,18 @@ retry:
 	}
 
 	/*
-	 * Search through everything else. We should not get
-	 * here often
+	 * Search through everything else, we should not get here often.
 	 */
-	do_each_thread(g, c) {
-		if (c->mm == mm)
-			goto assign_new_owner;
-	} while_each_thread(g, c);
-
+	for_each_process(g) {
+		if (g->flags & PF_KTHREAD)
+			continue;
+		for_each_thread(g, c) {
+			if (c->mm == mm)
+				goto assign_new_owner;
+			if (c->mm)
+				break;
+		}
+	}
 	read_unlock(&tasklist_lock);
 	/*
 	 * We found no owner yet mm_users > 1: this implies that we are
@@ -434,7 +438,7 @@ assign_new_owner:
 	task_unlock(c);
 	put_task_struct(c);
 }
-#endif /* CONFIG_MM_OWNER */
+#endif /* CONFIG_MEMCG */
 
 /*
  * Turn us into a lazy TLB process if we

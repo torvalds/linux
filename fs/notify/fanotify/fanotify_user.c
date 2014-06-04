@@ -25,6 +25,19 @@
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
 #define FANOTIFY_DEFAULT_MAX_LISTENERS	128
 
+/*
+ * All flags that may be specified in parameter event_f_flags of fanotify_init.
+ *
+ * Internal and external open flags are stored together in field f_flags of
+ * struct file. Only external open flags shall be allowed in event_f_flags.
+ * Internal flags like FMODE_NONOTIFY, FMODE_EXEC, FMODE_NOCMTIME shall be
+ * excluded.
+ */
+#define	FANOTIFY_INIT_ALL_EVENT_F_BITS				( \
+		O_ACCMODE	| O_APPEND	| O_NONBLOCK	| \
+		__O_SYNC	| O_DSYNC	| O_CLOEXEC     | \
+		O_LARGEFILE	| O_NOATIME	)
+
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
@@ -669,6 +682,18 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if (flags & ~FAN_ALL_INIT_FLAGS)
 		return -EINVAL;
 
+	if (event_f_flags & ~FANOTIFY_INIT_ALL_EVENT_F_BITS)
+		return -EINVAL;
+
+	switch (event_f_flags & O_ACCMODE) {
+	case O_RDONLY:
+	case O_RDWR:
+	case O_WRONLY:
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	user = get_current_user();
 	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
 		free_uid(user);
@@ -776,7 +801,10 @@ SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 	case FAN_MARK_REMOVE:
 		if (!mask)
 			return -EINVAL;
+		break;
 	case FAN_MARK_FLUSH:
+		if (flags & ~(FAN_MARK_MOUNT | FAN_MARK_FLUSH))
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
@@ -813,6 +841,15 @@ SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 	    group->priority == FS_PRIO_0)
 		goto fput_and_out;
 
+	if (flags & FAN_MARK_FLUSH) {
+		ret = 0;
+		if (flags & FAN_MARK_MOUNT)
+			fsnotify_clear_vfsmount_marks_by_group(group);
+		else
+			fsnotify_clear_inode_marks_by_group(group);
+		goto fput_and_out;
+	}
+
 	ret = fanotify_find_path(dfd, pathname, &path, flags);
 	if (ret)
 		goto fput_and_out;
@@ -824,7 +861,7 @@ SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 		mnt = path.mnt;
 
 	/* create/update an inode mark */
-	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
+	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE)) {
 	case FAN_MARK_ADD:
 		if (flags & FAN_MARK_MOUNT)
 			ret = fanotify_add_vfsmount_mark(group, mnt, mask, flags);
@@ -836,12 +873,6 @@ SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 			ret = fanotify_remove_vfsmount_mark(group, mnt, mask, flags);
 		else
 			ret = fanotify_remove_inode_mark(group, inode, mask, flags);
-		break;
-	case FAN_MARK_FLUSH:
-		if (flags & FAN_MARK_MOUNT)
-			fsnotify_clear_vfsmount_marks_by_group(group);
-		else
-			fsnotify_clear_inode_marks_by_group(group);
 		break;
 	default:
 		ret = -EINVAL;

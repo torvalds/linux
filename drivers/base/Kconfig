@@ -258,7 +258,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 4 9
+	range 4 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest

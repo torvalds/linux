@@ -67,7 +67,7 @@ static void __page_cache_release(struct page *page)
 static void __put_single_page(struct page *page)
 {
 	__page_cache_release(page);
-	free_hot_cold_page(page, 0);
+	free_hot_cold_page(page, false);
 }
 
 static void __put_compound_page(struct page *page)
@@ -79,95 +79,88 @@ static void __put_compound_page(struct page *page)
 	(*dtor)(page);
 }
 
-static void put_compound_page(struct page *page)
+/**
+ * Two special cases here: we could avoid taking compound_lock_irqsave
+ * and could skip the tail refcounting(in _mapcount).
+ *
+ * 1. Hugetlbfs page:
+ *
+ *    PageHeadHuge will remain true until the compound page
+ *    is released and enters the buddy allocator, and it could
+ *    not be split by __split_huge_page_refcount().
+ *
+ *    So if we see PageHeadHuge set, and we have the tail page pin,
+ *    then we could safely put head page.
+ *
+ * 2. Slab THP page:
+ *
+ *    PG_slab is cleared before the slab frees the head page, and
+ *    tail pin cannot be the last reference left on the head page,
+ *    because the slab code is free to reuse the compound page
+ *    after a kfree/kmem_cache_free without having to check if
+ *    there's any tail pin left.  In turn all tail pinsmust be always
+ *    released while the head is still pinned by the slab code
+ *    and so we know PG_slab will be still set too.
+ *
+ *    So if we see PageSlab set, and we have the tail page pin,
+ *    then we could safely put head page.
+ */
+static __always_inline
+void put_unrefcounted_compound_page(struct page *page_head, struct page *page)
 {
-	struct page *page_head;
-
-	if (likely(!PageTail(page))) {
-		if (put_page_testzero(page)) {
-			/*
-			 * By the time all refcounts have been released
-			 * split_huge_page cannot run anymore from under us.
-			 */
-			if (PageHead(page))
-				__put_compound_page(page);
-			else
-				__put_single_page(page);
-		}
-		return;
-	}
-
-	/* __split_huge_page_refcount can run under us */
-	page_head = compound_head(page);
-
 	/*
-	 * THP can not break up slab pages so avoid taking
-	 * compound_lock() and skip the tail page refcounting (in
-	 * _mapcount) too. Slab performs non-atomic bit ops on
-	 * page->flags for better performance. In particular
-	 * slab_unlock() in slub used to be a hot path. It is still
-	 * hot on arches that do not support
-	 * this_cpu_cmpxchg_double().
-	 *
-	 * If "page" is part of a slab or hugetlbfs page it cannot be
-	 * splitted and the head page cannot change from under us. And
-	 * if "page" is part of a THP page under splitting, if the
-	 * head page pointed by the THP tail isn't a THP head anymore,
-	 * we'll find PageTail clear after smp_rmb() and we'll treat
-	 * it as a single page.
+	 * If @page is a THP tail, we must read the tail page
+	 * flags after the head page flags. The
+	 * __split_huge_page_refcount side enforces write memory barriers
+	 * between clearing PageTail and before the head page
+	 * can be freed and reallocated.
 	 */
-	if (!__compound_tail_refcounted(page_head)) {
+	smp_rmb();
+	if (likely(PageTail(page))) {
 		/*
-		 * If "page" is a THP tail, we must read the tail page
-		 * flags after the head page flags. The
-		 * split_huge_page side enforces write memory barriers
-		 * between clearing PageTail and before the head page
-		 * can be freed and reallocated.
+		 * __split_huge_page_refcount cannot race
+		 * here, see the comment above this function.
 		 */
-		smp_rmb();
-		if (likely(PageTail(page))) {
+		VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
+		VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
+		if (put_page_testzero(page_head)) {
 			/*
-			 * __split_huge_page_refcount cannot race
-			 * here.
+			 * If this is the tail of a slab THP page,
+			 * the tail pin must not be the last reference
+			 * held on the page, because the PG_slab cannot
+			 * be cleared before all tail pins (which skips
+			 * the _mapcount tail refcounting) have been
+			 * released.
+			 *
+			 * If this is the tail of a hugetlbfs page,
+			 * the tail pin may be the last reference on
+			 * the page instead, because PageHeadHuge will
+			 * not go away until the compound page enters
+			 * the buddy allocator.
 			 */
-			VM_BUG_ON_PAGE(!PageHead(page_head), page_head);
-			VM_BUG_ON_PAGE(page_mapcount(page) != 0, page);
-			if (put_page_testzero(page_head)) {
-				/*
-				 * If this is the tail of a slab
-				 * compound page, the tail pin must
-				 * not be the last reference held on
-				 * the page, because the PG_slab
-				 * cannot be cleared before all tail
-				 * pins (which skips the _mapcount
-				 * tail refcounting) have been
-				 * released. For hugetlbfs the tail
-				 * pin may be the last reference on
-				 * the page instead, because
-				 * PageHeadHuge will not go away until
-				 * the compound page enters the buddy
-				 * allocator.
-				 */
-				VM_BUG_ON_PAGE(PageSlab(page_head), page_head);
-				__put_compound_page(page_head);
-			}
-			return;
-		} else
-			/*
-			 * __split_huge_page_refcount run before us,
-			 * "page" was a THP tail. The split page_head
-			 * has been freed and reallocated as slab or
-			 * hugetlbfs page of smaller order (only
-			 * possible if reallocated as slab on x86).
-			 */
-			goto out_put_single;
-	}
+			VM_BUG_ON_PAGE(PageSlab(page_head), page_head);
+			__put_compound_page(page_head);
+		}
+	} else
+		/*
+		 * __split_huge_page_refcount run before us,
+		 * @page was a THP tail. The split @page_head
+		 * has been freed and reallocated as slab or
+		 * hugetlbfs page of smaller order (only
+		 * possible if reallocated as slab on x86).
+		 */
+		if (put_page_testzero(page))
+			__put_single_page(page);
+}
 
+static __always_inline
+void put_refcounted_compound_page(struct page *page_head, struct page *page)
+{
 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
 		unsigned long flags;
 
 		/*
-		 * page_head wasn't a dangling pointer but it may not
+		 * @page_head wasn't a dangling pointer but it may not
 		 * be a head page anymore by the time we obtain the
 		 * lock. That is ok as long as it can't be freed from
 		 * under us.
@@ -178,7 +171,7 @@ static void put_compound_page(struct page *page)
 			compound_unlock_irqrestore(page_head, flags);
 			if (put_page_testzero(page_head)) {
 				/*
-				 * The head page may have been freed
+				 * The @page_head may have been freed
 				 * and reallocated as a compound page
 				 * of smaller order and then freed
 				 * again.  All we know is that it
@@ -222,10 +215,49 @@ out_put_single:
 				__put_single_page(page_head);
 		}
 	} else {
-		/* page_head is a dangling pointer */
+		/* @page_head is a dangling pointer */
 		VM_BUG_ON_PAGE(PageTail(page), page);
 		goto out_put_single;
 	}
+}
+
+static void put_compound_page(struct page *page)
+{
+	struct page *page_head;
+
+	/*
+	 * We see the PageCompound set and PageTail not set, so @page maybe:
+	 *  1. hugetlbfs head page, or
+	 *  2. THP head page.
+	 */
+	if (likely(!PageTail(page))) {
+		if (put_page_testzero(page)) {
+			/*
+			 * By the time all refcounts have been released
+			 * split_huge_page cannot run anymore from under us.
+			 */
+			if (PageHead(page))
+				__put_compound_page(page);
+			else
+				__put_single_page(page);
+		}
+		return;
+	}
+
+	/*
+	 * We see the PageCompound set and PageTail set, so @page maybe:
+	 *  1. a tail hugetlbfs page, or
+	 *  2. a tail THP page, or
+	 *  3. a split THP page.
+	 *
+	 *  Case 3 is possible, as we may race with
+	 *  __split_huge_page_refcount tearing down a THP page.
+	 */
+	page_head = compound_head_by_tail(page);
+	if (!__compound_tail_refcounted(page_head))
+		put_unrefcounted_compound_page(page_head, page);
+	else
+		put_refcounted_compound_page(page_head, page);
 }
 
 void put_page(struct page *page)
@@ -441,7 +473,7 @@ void rotate_reclaimable_page(struct page *page)
 
 		page_cache_get(page);
 		local_irq_save(flags);
-		pvec = &__get_cpu_var(lru_rotate_pvecs);
+		pvec = this_cpu_ptr(&lru_rotate_pvecs);
 		if (!pagevec_add(pvec, page))
 			pagevec_move_tail(pvec);
 		local_irq_restore(flags);
@@ -583,12 +615,17 @@ void mark_page_accessed(struct page *page)
 EXPORT_SYMBOL(mark_page_accessed);
 
 /*
- * Queue the page for addition to the LRU via pagevec. The decision on whether
- * to add the page to the [in]active [file|anon] list is deferred until the
- * pagevec is drained. This gives a chance for the caller of __lru_cache_add()
- * have the page added to the active list using mark_page_accessed().
+ * Used to mark_page_accessed(page) that is not visible yet and when it is
+ * still safe to use non-atomic ops
  */
-void __lru_cache_add(struct page *page)
+void init_page_accessed(struct page *page)
+{
+	if (!PageReferenced(page))
+		__SetPageReferenced(page);
+}
+EXPORT_SYMBOL(init_page_accessed);
+
+static void __lru_cache_add(struct page *page)
 {
 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
 
@@ -598,11 +635,34 @@ void __lru_cache_add(struct page *page)
 	pagevec_add(pvec, page);
 	put_cpu_var(lru_add_pvec);
 }
-EXPORT_SYMBOL(__lru_cache_add);
+
+/**
+ * lru_cache_add: add a page to the page lists
+ * @page: the page to add
+ */
+void lru_cache_add_anon(struct page *page)
+{
+	if (PageActive(page))
+		ClearPageActive(page);
+	__lru_cache_add(page);
+}
+
+void lru_cache_add_file(struct page *page)
+{
+	if (PageActive(page))
+		ClearPageActive(page);
+	__lru_cache_add(page);
+}
+EXPORT_SYMBOL(lru_cache_add_file);
 
 /**
  * lru_cache_add - add a page to a page list
  * @page: the page to be added to the LRU.
+ *
+ * Queue the page for addition to the LRU via pagevec. The decision on whether
+ * to add the page to the [in]active [file|anon] list is deferred until the
+ * pagevec is drained. This gives a chance for the caller of lru_cache_add()
+ * have the page added to the active list using mark_page_accessed().
  */
 void lru_cache_add(struct page *page)
 {
@@ -813,7 +873,7 @@ void lru_add_drain_all(void)
  * grabbed the page via the LRU.  If it did, give up: shrink_inactive_list()
  * will free it.
  */
-void release_pages(struct page **pages, int nr, int cold)
+void release_pages(struct page **pages, int nr, bool cold)
 {
 	int i;
 	LIST_HEAD(pages_to_free);
@@ -854,7 +914,7 @@ void release_pages(struct page **pages, int nr, int cold)
 		}
 
 		/* Clear Active bit in case of parallel mark_page_accessed */
-		ClearPageActive(page);
+		__ClearPageActive(page);
 
 		list_add(&page->lru, &pages_to_free);
 	}

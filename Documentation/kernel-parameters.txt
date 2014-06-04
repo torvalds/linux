@@ -630,8 +630,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Also note the kernel might malfunction if you disable
 			some critical bits.
 
-	cma=nn[MG]	[ARM,KNL]
-			Sets the size of kernel global memory area for contiguous
+	cma=nn[MG]@[start[MG][-end[MG]]]
+			[ARM,X86,KNL]
+			Sets the size of kernel global memory area for
+			contiguous memory allocations and optionally the
+			placement constraint by the physical address range of
 			memory allocations. For more information, see
 			include/linux/dma-contiguous.h
 
@@ -1308,6 +1311,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	initcall_debug	[KNL] Trace initcalls as they are executed.  Useful
 			for working out where the kernel is dying during
 			startup.
+
+	initcall_blacklist=  [KNL] Do not execute a comma-separated list of
+			initcall functions.  Useful for debugging built-in
+			modules and initcalls.
 
 	initrd=		[BOOT] Specify the location of the initial ramdisk
 

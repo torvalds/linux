@@ -1132,7 +1132,7 @@ repeat:
 			goto decused;
 		}
 
-		SetPageSwapBacked(page);
+		__SetPageSwapBacked(page);
 		__set_page_locked(page);
 		error = mem_cgroup_charge_file(page, current->mm,
 						gfp & GFP_RECLAIM_MASK);
@@ -1372,9 +1372,13 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int ret;
 	struct inode *inode = mapping->host;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+	if (ret == 0 && *pagep)
+		init_page_accessed(*pagep);
+	return ret;
 }
 
 static int
