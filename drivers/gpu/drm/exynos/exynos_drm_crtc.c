@@ -368,6 +368,7 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 		return -ENOMEM;
 	}
 
+	manager->crtc = &exynos_crtc->drm_crtc;
 	crtc = &exynos_crtc->drm_crtc;
 
 	private->crtc[manager->pipe] = crtc;
@@ -490,4 +491,20 @@ void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb)
 		if (manager->ops->wait_for_vblank)
 			manager->ops->wait_for_vblank(manager);
 	}
+}
+
+int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
+					unsigned int out_type)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &drm_dev->mode_config.crtc_list, head) {
+		struct exynos_drm_crtc *exynos_crtc;
+
+		exynos_crtc = to_exynos_crtc(crtc);
+		if (exynos_crtc->manager->type == out_type)
+			return exynos_crtc->manager->pipe;
+	}
+
+	return -EPERM;
 }
