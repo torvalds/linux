@@ -24,7 +24,6 @@
  */
 
 const kernel_cap_t __cap_empty_set = CAP_EMPTY_SET;
-
 EXPORT_SYMBOL(__cap_empty_set);
 
 int file_caps_enabled = 1;
@@ -189,7 +188,7 @@ SYSCALL_DEFINE2(capget, cap_user_header_t, header, cap_user_data_t, dataptr)
 		 *
 		 * An alternative would be to return an error here
 		 * (-ERANGE), but that causes legacy applications to
-		 * unexpectidly fail; the capget/modify/capset aborts
+		 * unexpectedly fail; the capget/modify/capset aborts
 		 * before modification is attempted and the application
 		 * fails.
 		 */
@@ -395,7 +394,8 @@ EXPORT_SYMBOL(ns_capable);
  * This does not set PF_SUPERPRIV because the caller may not
  * actually be privileged.
  */
-bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap)
+bool file_ns_capable(const struct file *file, struct user_namespace *ns,
+		     int cap)
 {
 	if (WARN_ON_ONCE(!cap_valid(cap)))
 		return false;
