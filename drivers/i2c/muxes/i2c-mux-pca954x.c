@@ -36,12 +36,11 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c/pca954x.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
 
 #define PCA954X_MAX_NCHANS 8
