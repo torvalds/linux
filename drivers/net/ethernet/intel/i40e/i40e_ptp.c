@@ -567,18 +567,22 @@ int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 }
 
 /**
- * i40e_ptp_init - Initialize the 1588 support and register the PHC
+ * i40e_ptp_create_clock - Create PTP clock device for userspace
  * @pf: Board private structure
  *
- * This function registers the device clock as a PHC. If it is successful, it
- * starts the clock in the hardware.
+ * This function creates a new PTP clock device. It only creates one if we
+ * don't already have one, so it is safe to call. Will return error if it
+ * can't create one, but success if we already have a device. Should be used
+ * by i40e_ptp_init to create clock initially, and prevent global resets from
+ * creating new clock devices.
  **/
-void i40e_ptp_init(struct i40e_pf *pf)
+static long i40e_ptp_create_clock(struct i40e_pf *pf)
 {
-	struct i40e_hw *hw = &pf->hw;
-	struct net_device *netdev = pf->vsi[pf->lan_vsi]->netdev;
+	/* no need to create a clock device if we already have one */
+	if (!IS_ERR_OR_NULL(pf->ptp_clock))
+		return 0;
 
-	strncpy(pf->ptp_caps.name, "i40e", sizeof(pf->ptp_caps.name));
+	strncpy(pf->ptp_caps.name, i40e_driver_name, sizeof(pf->ptp_caps.name));
 	pf->ptp_caps.owner = THIS_MODULE;
 	pf->ptp_caps.max_adj = 999999999;
 	pf->ptp_caps.n_ext_ts = 0;
@@ -592,6 +596,41 @@ void i40e_ptp_init(struct i40e_pf *pf)
 	/* Attempt to register the clock before enabling the hardware. */
 	pf->ptp_clock = ptp_clock_register(&pf->ptp_caps, &pf->pdev->dev);
 	if (IS_ERR(pf->ptp_clock)) {
+		return PTR_ERR(pf->ptp_clock);
+	}
+
+	/* clear the hwtstamp settings here during clock create, instead of
+	 * during regular init, so that we can maintain settings across a
+	 * reset or suspend.
+	 */
+	pf->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+	pf->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+
+	return 0;
+}
+
+/**
+ * i40e_ptp_init - Initialize the 1588 support after device probe or reset
+ * @pf: Board private structure
+ *
+ * This function sets device up for 1588 support. The first time it is run, it
+ * will create a PHC clock device. It does not create a clock device if one
+ * already exists. It also reconfigures the device after a reset.
+ **/
+void i40e_ptp_init(struct i40e_pf *pf)
+{
+	struct net_device *netdev = pf->vsi[pf->lan_vsi]->netdev;
+	struct i40e_hw *hw = &pf->hw;
+	long err;
+
+	/* we have to initialize the lock first, since we can't control
+	 * when the user will enter the PHC device entry points
+	 */
+	spin_lock_init(&pf->tmreg_lock);
+
+	/* ensure we have a clock device */
+	err = i40e_ptp_create_clock(pf);
+	if (err) {
 		pf->ptp_clock = NULL;
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
@@ -599,14 +638,9 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		struct timespec ts;
 		u32 regval;
 
-		spin_lock_init(&pf->tmreg_lock);
-
 		dev_info(&pf->pdev->dev, "%s: added PHC on %s\n", __func__,
 			 netdev->name);
 		pf->flags |= I40E_FLAG_PTP;
-
-		pf->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
-		pf->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
 		/* Ensure the clocks are running. */
 		regval = rd32(hw, I40E_PRTTSYN_CTL0);
