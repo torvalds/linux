@@ -339,6 +339,18 @@ static int log_make_free_space(u32 msg_size)
 	return -ENOMEM;
 }
 
+/* compute the message size including the padding bytes */
+static u32 msg_used_size(u16 text_len, u16 dict_len, u32 *pad_len)
+{
+	u32 size;
+
+	size = sizeof(struct printk_log) + text_len + dict_len;
+	*pad_len = (-size) & (LOG_ALIGN - 1);
+	size += *pad_len;
+
+	return size;
+}
+
 /* insert record into the buffer, discard old ones, update heads */
 static void log_store(int facility, int level,
 		      enum log_flags flags, u64 ts_nsec,
@@ -349,9 +361,7 @@ static void log_store(int facility, int level,
 	u32 size, pad_len;
 
 	/* number of '\0' padding bytes to next message */
-	size = sizeof(struct printk_log) + text_len + dict_len;
-	pad_len = (-size) & (LOG_ALIGN - 1);
-	size += pad_len;
+	size = msg_used_size(text_len, dict_len, &pad_len);
 
 	/* if message does not fit empty log buffer, ignore it */
 	if (log_make_free_space(size))
