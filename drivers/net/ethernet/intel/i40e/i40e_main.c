@@ -8633,6 +8633,20 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pf_reset;
 	}
 
+	if (hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
+		dev_info(&pdev->dev,
+			 "Note: FW API version %02x.%02x newer than expected %02x.%02x, recommend driver update.\n",
+			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+
+	if (hw->aq.api_maj_ver < I40E_FW_API_VERSION_MAJOR ||
+	    hw->aq.api_min_ver < (I40E_FW_API_VERSION_MINOR-1))
+		dev_info(&pdev->dev,
+			 "Note: FW API version %02x.%02x older than expected %02x.%02x, recommend nvm update.\n",
+			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+
+
 	i40e_verify_eeprom(pf);
 
 	/* Rev 0 hardware was never productized */
