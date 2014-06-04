@@ -1567,7 +1567,6 @@ static int emac_dev_open(struct net_device *ndev)
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ,
 					    res_num))) {
 		for (irq_num = res->start; irq_num <= res->end; irq_num++) {
-			dev_err(emac_dev, "Request IRQ %d\n", irq_num);
 			if (request_irq(irq_num, emac_irq, 0, ndev->name,
 					ndev)) {
 				dev_err(emac_dev,

@@ -171,5 +171,4 @@ static inline void inet_peer_refcheck(const struct inet_peer *p)
 {
 	WARN_ON_ONCE(atomic_read(&p->refcnt) <= 0);
 }
-
 #endif /* _NET_INETPEER_H */

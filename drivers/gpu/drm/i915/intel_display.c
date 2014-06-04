@@ -7825,14 +7825,12 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = i915_gem_obj_ggtt_offset(obj);
 	} else {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
-		ret = i915_gem_attach_phys_object(dev, obj,
-						  (intel_crtc->pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1,
-						  align);
+		ret = i915_gem_object_attach_phys(obj, align);
 		if (ret) {
 			DRM_DEBUG_KMS("failed to attach phys object\n");
 			goto fail_locked;
 		}
-		addr = obj->phys_obj->handle->busaddr;
+		addr = obj->phys_handle->busaddr;
 	}
 
 	if (IS_GEN2(dev))
@@ -7840,10 +7838,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
  finish:
 	if (intel_crtc->cursor_bo) {
-		if (INTEL_INFO(dev)->cursor_needs_physical) {
-			if (intel_crtc->cursor_bo != obj)
-				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
-		} else
+		if (!INTEL_INFO(dev)->cursor_needs_physical)
 			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
 		drm_gem_object_unreference(&intel_crtc->cursor_bo->base);
 	}

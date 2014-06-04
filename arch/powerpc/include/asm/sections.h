@@ -39,6 +39,17 @@ static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
 		(unsigned long)_stext < end;
 }
 
+static inline int overlaps_kvm_tmp(unsigned long start, unsigned long end)
+{
+#ifdef CONFIG_KVM_GUEST
+	extern char kvm_tmp[];
+	return start < (unsigned long)kvm_tmp &&
+		(unsigned long)&kvm_tmp[1024 * 1024] < end;
+#else
+	return 0;
+#endif
+}
+
 #undef dereference_function_descriptor
 static inline void *dereference_function_descriptor(void *ptr)
 {

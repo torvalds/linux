@@ -285,7 +285,7 @@ static int unwind_exec_pop_r4_to_rN(struct unwind_ctrl_block *ctrl,
 		if (unwind_pop_register(ctrl, &vsp, reg))
 				return -URC_FAILURE;
 
-	if (insn & 0x80)
+	if (insn & 0x8)
 		if (unwind_pop_register(ctrl, &vsp, 14))
 				return -URC_FAILURE;
 

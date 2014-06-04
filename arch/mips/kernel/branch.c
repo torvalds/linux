@@ -317,7 +317,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (regs->regs[insn.i_format.rs] ==
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == beql_op)
+			if (insn.i_format.opcode == beql_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -329,7 +329,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		if (regs->regs[insn.i_format.rs] !=
 		    regs->regs[insn.i_format.rt]) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == bnel_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -341,7 +341,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] <= 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == blezl_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;
@@ -353,7 +353,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		/* rt field assumed to be zero */
 		if ((long)regs->regs[insn.i_format.rs] > 0) {
 			epc = epc + 4 + (insn.i_format.simmediate << 2);
-			if (insn.i_format.rt == bnel_op)
+			if (insn.i_format.opcode == bgtzl_op)
 				ret = BRANCH_LIKELY_TAKEN;
 		} else
 			epc += 8;

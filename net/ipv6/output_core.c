@@ -8,7 +8,6 @@
 #include <net/addrconf.h>
 #include <net/secure_seq.h>
 
-
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);

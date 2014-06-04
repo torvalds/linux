@@ -10,7 +10,7 @@
 
 struct dma_chan;
 
-#if defined(CONFIG_DMA_OMAP) || defined(CONFIG_DMA_OMAP_MODULE)
+#if defined(CONFIG_DMA_OMAP) || (defined(CONFIG_DMA_OMAP_MODULE) && defined(MODULE))
 bool omap_dma_filter_fn(struct dma_chan *, void *);
 #else
 static inline bool omap_dma_filter_fn(struct dma_chan *c, void *d)
