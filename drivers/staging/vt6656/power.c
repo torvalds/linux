@@ -312,27 +312,27 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
  *
  */
 
-int PSbIsNextTBTTWakeUp(struct vnt_private *pDevice)
+int PSbIsNextTBTTWakeUp(struct vnt_private *priv)
 {
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
-	int bWakeUp = false;
+	struct vnt_manager *mgmt = &priv->vnt_mgmt;
+	int wake_up = false;
 
-	if (pMgmt->wListenInterval >= 2) {
-		if (pMgmt->wCountToWakeUp == 0)
-			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
+	if (mgmt->wListenInterval >= 2) {
+		if (mgmt->wCountToWakeUp == 0)
+			mgmt->wCountToWakeUp = mgmt->wListenInterval;
 
-		pMgmt->wCountToWakeUp--;
+		mgmt->wCountToWakeUp--;
 
-		if (pMgmt->wCountToWakeUp == 1) {
+		if (mgmt->wCountToWakeUp == 1) {
 			/* Turn on wake up to listen next beacon */
-			vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
-			pDevice->bPSRxBeacon = false;
-			bWakeUp = true;
-		} else if (!pDevice->bPSRxBeacon) {
+			vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
+			priv->bPSRxBeacon = false;
+			wake_up = true;
+		} else if (!priv->bPSRxBeacon) {
 			/* Listen until RxBeacon */
-			vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_LNBCN);
+			vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
 		}
 	}
-	return bWakeUp;
+	return wake_up;
 }
 
