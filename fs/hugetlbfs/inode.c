@@ -938,7 +938,7 @@ static int get_hstate_idx(int page_size_log)
 	return h - hstates;
 }
 
-static struct dentry_operations anon_ops = {
+static const struct dentry_operations anon_ops = {
 	.d_dname = simple_dname
 };
 
