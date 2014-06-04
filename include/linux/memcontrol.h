@@ -509,7 +509,6 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
 int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size);
 void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size);
 
-void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
 int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
 
 /**
