@@ -48,7 +48,7 @@
 
 #include "core_priv.h"
 
-int ib_rate_to_mult(enum ib_rate rate)
+__attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
 	case IB_RATE_2_5_GBPS: return  1;
@@ -65,7 +65,7 @@ int ib_rate_to_mult(enum ib_rate rate)
 }
 EXPORT_SYMBOL(ib_rate_to_mult);
 
-enum ib_rate mult_to_ib_rate(int mult)
+__attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 {
 	switch (mult) {
 	case 1:  return IB_RATE_2_5_GBPS;
@@ -82,7 +82,7 @@ enum ib_rate mult_to_ib_rate(int mult)
 }
 EXPORT_SYMBOL(mult_to_ib_rate);
 
-int ib_rate_to_mbps(enum ib_rate rate)
+__attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 {
 	switch (rate) {
 	case IB_RATE_2_5_GBPS: return 2500;
@@ -107,7 +107,7 @@ int ib_rate_to_mbps(enum ib_rate rate)
 }
 EXPORT_SYMBOL(ib_rate_to_mbps);
 
-enum rdma_transport_type
+__attribute_const__ enum rdma_transport_type
 rdma_node_get_transport(enum rdma_node_type node_type)
 {
 	switch (node_type) {
