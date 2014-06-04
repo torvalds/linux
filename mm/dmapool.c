@@ -170,24 +170,16 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	retval->boundary = boundary;
 	retval->allocation = allocation;
 
-	if (dev) {
-		int ret;
+	INIT_LIST_HEAD(&retval->pools);
 
-		mutex_lock(&pools_lock);
-		if (list_empty(&dev->dma_pools))
-			ret = device_create_file(dev, &dev_attr_pools);
-		else
-			ret = 0;
-		/* note:  not currently insisting "name" be unique */
-		if (!ret)
-			list_add(&retval->pools, &dev->dma_pools);
-		else {
-			kfree(retval);
-			retval = NULL;
-		}
-		mutex_unlock(&pools_lock);
+	mutex_lock(&pools_lock);
+	if (list_empty(&dev->dma_pools) &&
+	    device_create_file(dev, &dev_attr_pools)) {
+		kfree(retval);
+		return NULL;
 	} else
-		INIT_LIST_HEAD(&retval->pools);
+		list_add(&retval->pools, &dev->dma_pools);
+	mutex_unlock(&pools_lock);
 
 	return retval;
 }
