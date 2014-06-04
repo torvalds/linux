@@ -1327,9 +1327,6 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 
 	netdev_info(netdev, "set mac address=%pM\n", addr->sa_data);
 
-	if (ether_addr_equal(netdev->dev_addr, addr->sa_data))
-		return 0;
-
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
 		return -EADDRNOTAVAIL;
@@ -1345,22 +1342,26 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 				    ret);
 			return -EADDRNOTAVAIL;
 		}
-
-		ether_addr_copy(vsi->back->hw.mac.addr, addr->sa_data);
 	}
 
-	/* In order to be sure to not drop any packets, add the new address
-	 * then delete the old one.
-	 */
-	f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY, false, false);
-	if (!f)
-		return -ENOMEM;
+	if (!i40e_find_mac(vsi, addr->sa_data, false, true)) {
 
-	i40e_sync_vsi_filters(vsi);
-	i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY, false, false);
-	i40e_sync_vsi_filters(vsi);
+		/* In order to be sure to not drop any packets, add the
+		 * new address first then delete the old one.
+		 */
+		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
+				    false, false);
+		if (!f)
+			return -ENOMEM;
 
-	ether_addr_copy(netdev->dev_addr, addr->sa_data);
+		i40e_sync_vsi_filters(vsi);
+		i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
+				false, false);
+		i40e_sync_vsi_filters(vsi);
+	}
+
+	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
+		ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
 }
