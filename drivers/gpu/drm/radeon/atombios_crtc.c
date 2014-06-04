@@ -270,8 +270,6 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		radeon_crtc->enabled = true;
-		/* adjust pm to dpms changes BEFORE enabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
@@ -289,10 +287,10 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
-		/* adjust pm to dpms changes AFTER disabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		break;
 	}
+	/* adjust pm to dpms */
+	radeon_pm_compute_clocks(rdev);
 }
 
 static void

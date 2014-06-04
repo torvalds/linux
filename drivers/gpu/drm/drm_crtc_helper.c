@@ -29,6 +29,7 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
+#include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
@@ -88,7 +89,13 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	/*
+	 * We can expect this mutex to be locked if we are not panicking.
+	 * Locking is currently fubar in the panic handler.
+	 */
+	if (!oops_in_progress)
+		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		if (connector->encoder == encoder)
 			return true;
@@ -112,7 +119,13 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 	struct drm_encoder *encoder;
 	struct drm_device *dev = crtc->dev;
 
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	/*
+	 * We can expect this mutex to be locked if we are not panicking.
+	 * Locking is currently fubar in the panic handler.
+	 */
+	if (!oops_in_progress)
+		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
 		if (encoder->crtc == crtc && drm_helper_encoder_in_use(encoder))
 			return true;

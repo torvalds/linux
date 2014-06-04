@@ -132,7 +132,7 @@ struct radeon_cs_reloc *radeon_vm_get_bos(struct radeon_device *rdev,
 	struct radeon_cs_reloc *list;
 	unsigned i, idx;
 
-	list = kmalloc_array(vm->max_pde_used + 1,
+	list = kmalloc_array(vm->max_pde_used + 2,
 			     sizeof(struct radeon_cs_reloc), GFP_KERNEL);
 	if (!list)
 		return NULL;
@@ -585,7 +585,8 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 {
 	static const uint32_t incr = RADEON_VM_PTE_COUNT * 8;
 
-	uint64_t pd_addr = radeon_bo_gpu_offset(vm->page_directory);
+	struct radeon_bo *pd = vm->page_directory;
+	uint64_t pd_addr = radeon_bo_gpu_offset(pd);
 	uint64_t last_pde = ~0, last_pt = ~0;
 	unsigned count = 0, pt_idx, ndw;
 	struct radeon_ib ib;
@@ -642,6 +643,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 					incr, R600_PTE_VALID);
 
 	if (ib.length_dw != 0) {
+		radeon_semaphore_sync_to(ib.semaphore, pd->tbo.sync_obj);
 		radeon_semaphore_sync_to(ib.semaphore, vm->last_id_use);
 		r = radeon_ib_schedule(rdev, &ib, NULL);
 		if (r) {
@@ -689,15 +691,18 @@ static void radeon_vm_update_ptes(struct radeon_device *rdev,
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; ) {
 		uint64_t pt_idx = addr >> RADEON_VM_BLOCK_SIZE;
+		struct radeon_bo *pt = vm->page_tables[pt_idx].bo;
 		unsigned nptes;
 		uint64_t pte;
+
+		radeon_semaphore_sync_to(ib->semaphore, pt->tbo.sync_obj);
 
 		if ((addr & ~mask) == (end & ~mask))
 			nptes = end - addr;
 		else
 			nptes = RADEON_VM_PTE_COUNT - (addr & mask);
 
-		pte = radeon_bo_gpu_offset(vm->page_tables[pt_idx].bo);
+		pte = radeon_bo_gpu_offset(pt);
 		pte += (addr & mask) * 8;
 
 		if ((last_pte + 8 * count) != pte) {
