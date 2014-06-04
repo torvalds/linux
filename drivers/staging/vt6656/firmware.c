@@ -94,19 +94,19 @@ out:
 }
 MODULE_FIRMWARE(FIRMWARE_NAME);
 
-int FIRMWAREbBrach2Sram(struct vnt_private *pDevice)
+int FIRMWAREbBrach2Sram(struct vnt_private *priv)
 {
-	int NdisStatus;
+	int status;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
 
-	NdisStatus = vnt_control_out(pDevice,
+	status = vnt_control_out(priv,
 					1,
 					0x1200,
 					0x0000,
 					0,
 					NULL);
-	if (NdisStatus != STATUS_SUCCESS)
+	if (status != STATUS_SUCCESS)
 		return false;
 	else
 		return true;
