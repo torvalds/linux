@@ -307,13 +307,7 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 
 static void btrfs_put_super(struct super_block *sb)
 {
-	(void)close_ctree(btrfs_sb(sb)->tree_root);
-	/* FIXME: need to fix VFS to return error? */
-	/* AV: return it _where_?  ->put_super() can be triggered by any number
-	 * of async events, up to and including delivery of SIGKILL to the
-	 * last process that kept it busy.  Or segfault in the aforementioned
-	 * process...  Whom would you report that to?
-	 */
+	close_ctree(btrfs_sb(sb)->tree_root);
 }
 
 enum {

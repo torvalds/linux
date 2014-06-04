@@ -3623,7 +3623,7 @@ int btrfs_commit_super(struct btrfs_root *root)
 	return btrfs_commit_transaction(trans, root);
 }
 
-int close_ctree(struct btrfs_root *root)
+void close_ctree(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
@@ -3711,8 +3711,6 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_free_block_rsv(root, root->orphan_block_rsv);
 	root->orphan_block_rsv = NULL;
-
-	return 0;
 }
 
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
