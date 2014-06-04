@@ -34,6 +34,6 @@
 
 int vnt_download_firmware(struct vnt_private *);
 int vnt_firmware_branch_to_sram(struct vnt_private *);
-int FIRMWAREbCheckVersion(struct vnt_private *);
+int vnt_check_firmware_version(struct vnt_private *);
 
 #endif /* __FIRMWARE_H__ */

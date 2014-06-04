@@ -287,7 +287,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
 	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
-	if (!FIRMWAREbCheckVersion(pDevice)) {
+	if (!vnt_check_firmware_version(pDevice)) {
 		if (vnt_download_firmware(pDevice) == true) {
 			if (vnt_firmware_branch_to_sram(pDevice) == false) {
 				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO

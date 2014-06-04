@@ -109,7 +109,7 @@ int vnt_firmware_branch_to_sram(struct vnt_private *priv)
 		return true;
 }
 
-int FIRMWAREbCheckVersion(struct vnt_private *priv)
+int vnt_check_firmware_version(struct vnt_private *priv)
 {
 	int status;
 
