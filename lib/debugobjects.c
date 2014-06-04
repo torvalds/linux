@@ -1061,8 +1061,8 @@ static int __init debug_objects_replace_static_objects(void)
 	}
 	local_irq_enable();
 
-	printk(KERN_DEBUG "ODEBUG: %d of %d active objects replaced\n", cnt,
-	       obj_pool_used);
+	pr_debug("%d of %d active objects replaced\n",
+		 cnt, obj_pool_used);
 	return 0;
 free:
 	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
