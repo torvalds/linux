@@ -850,6 +850,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 	}
 
 	/* bump the tail */
+	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQTX: desc and buffer:\n");
 	i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc_on_ring, buff);
 	(hw->aq.asq.next_to_use)++;
 	if (hw->aq.asq.next_to_use == hw->aq.asq.count)
@@ -887,6 +888,7 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 				   I40E_DEBUG_AQ_MESSAGE,
 				   "AQTX: Command completed with error 0x%X.\n",
 				   retval);
+
 			/* strip off FW internal code */
 			retval &= 0xff;
 		}
@@ -900,6 +902,12 @@ i40e_status i40e_asq_send_command(struct i40e_hw *hw,
 
 	if (i40e_is_nvm_update_op(desc))
 		hw->aq.nvm_busy = true;
+
+	if (le16_to_cpu(desc->datalen) == buff_size) {
+		i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE,
+			   "AQTX: desc and buffer writeback:\n");
+		i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, buff);
+	}
 
 	/* update the error if time out occurred */
 	if ((!cmd_completed) &&
@@ -972,10 +980,6 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 	/* now clean the next descriptor */
 	desc = I40E_ADMINQ_DESC(hw->aq.arq, ntc);
 	desc_idx = ntc;
-	i40e_debug_aq(hw,
-		      I40E_DEBUG_AQ_COMMAND,
-		      (void *)desc,
-		      hw->aq.arq.r.arq_bi[desc_idx].va);
 
 	flags = le16_to_cpu(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
@@ -997,6 +1001,9 @@ i40e_status i40e_clean_arq_element(struct i40e_hw *hw,
 
 	if (i40e_is_nvm_update_op(&e->desc))
 		hw->aq.nvm_busy = false;
+
+	i40e_debug(hw, I40E_DEBUG_AQ_MESSAGE, "AQRX: desc and buffer:\n");
+	i40e_debug_aq(hw, I40E_DEBUG_AQ_COMMAND, (void *)desc, e->msg_buf);
 
 	/* Restore the original datalen and buffer address in the desc,
 	 * FW updates datalen to indicate the event message
