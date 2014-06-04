@@ -51,7 +51,7 @@ static int proc_do_uts_string(ctl_table *table, int write,
 	int r;
 	memcpy(&uts_table, table, sizeof(uts_table));
 	uts_table.data = get_uts(table, write);
-	r = proc_dostring(&uts_table,write,buffer,lenp, ppos);
+	r = proc_dostring(&uts_table, write, buffer, lenp, ppos);
 	put_uts(table, write, uts_table.data);
 
 	if (write)
@@ -135,4 +135,4 @@ static int __init utsname_sysctl_init(void)
 	return 0;
 }
 
-__initcall(utsname_sysctl_init);
+device_initcall(utsname_sysctl_init);
