@@ -279,7 +279,7 @@ filelayout_set_layoutcommit(struct nfs_pgio_data *wdata)
 		return;
 
 	pnfs_set_layoutcommit(wdata);
-	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
+	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
 
