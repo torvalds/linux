@@ -61,10 +61,14 @@ static void bnx2x_add_all_napi(struct bnx2x *bp)
 
 static int bnx2x_calc_num_queues(struct bnx2x *bp)
 {
-	return  bnx2x_num_queues ?
-		 min_t(int, bnx2x_num_queues, BNX2X_MAX_QUEUES(bp)) :
-		 min_t(int, netif_get_num_default_rss_queues(),
-		       BNX2X_MAX_QUEUES(bp));
+	int nq = bnx2x_num_queues ? : netif_get_num_default_rss_queues();
+
+	/* Reduce memory usage in kdump environment by using only one queue */
+	if (reset_devices)
+		nq = 1;
+
+	nq = clamp(nq, 1, BNX2X_MAX_QUEUES(bp));
+	return nq;
 }
 
 /**
@@ -868,6 +872,8 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 	if (unlikely(bp->panic))
 		return 0;
 #endif
+	if (budget <= 0)
+		return rx_pkt;
 
 	bd_cons = fp->rx_bd_cons;
 	bd_prod = fp->rx_bd_prod;
@@ -1638,36 +1644,16 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 	DP(BNX2X_MSG_SP, "about to request enable msix with %d vectors\n",
 	   msix_vec);
 
-	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], msix_vec);
-
+	rc = pci_enable_msix_range(bp->pdev, &bp->msix_table[0],
+				   BNX2X_MIN_MSIX_VEC_CNT(bp), msix_vec);
 	/*
 	 * reconfigure number of tx/rx queues according to available
 	 * MSI-X vectors
 	 */
-	if (rc >= BNX2X_MIN_MSIX_VEC_CNT(bp)) {
-		/* how less vectors we will have? */
-		int diff = msix_vec - rc;
-
-		BNX2X_DEV_INFO("Trying to use less MSI-X vectors: %d\n", rc);
-
-		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], rc);
-
-		if (rc) {
-			BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
-			goto no_msix;
-		}
-		/*
-		 * decrease number of queues by number of unallocated entries
-		 */
-		bp->num_ethernet_queues -= diff;
-		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
-
-		BNX2X_DEV_INFO("New queue configuration set: %d\n",
-			       bp->num_queues);
-	} else if (rc > 0) {
+	if (rc == -ENOSPC) {
 		/* Get by with single vector */
-		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], 1);
-		if (rc) {
+		rc = pci_enable_msix_range(bp->pdev, &bp->msix_table[0], 1, 1);
+		if (rc < 0) {
 			BNX2X_DEV_INFO("Single MSI-X is not attainable rc %d\n",
 				       rc);
 			goto no_msix;
@@ -1680,8 +1666,22 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		bp->num_ethernet_queues = 1;
 		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
 	} else if (rc < 0) {
-		BNX2X_DEV_INFO("MSI-X is not attainable  rc %d\n", rc);
+		BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
 		goto no_msix;
+	} else if (rc < msix_vec) {
+		/* how less vectors we will have? */
+		int diff = msix_vec - rc;
+
+		BNX2X_DEV_INFO("Trying to use less MSI-X vectors: %d\n", rc);
+
+		/*
+		 * decrease number of queues by number of unallocated entries
+		 */
+		bp->num_ethernet_queues -= diff;
+		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
+
+		BNX2X_DEV_INFO("New queue configuration set: %d\n",
+			       bp->num_queues);
 	}
 
 	bp->flags |= USING_MSIX_FLAG;
@@ -2234,8 +2234,10 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 		sizeof(struct per_queue_stats) * num_queue_stats +
 		sizeof(struct stats_counter);
 
-	BNX2X_PCI_ALLOC(bp->fw_stats, &bp->fw_stats_mapping,
-			bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+	bp->fw_stats = BNX2X_PCI_ALLOC(&bp->fw_stats_mapping,
+				       bp->fw_stats_data_sz + bp->fw_stats_req_sz);
+	if (!bp->fw_stats)
+		goto alloc_mem_err;
 
 	/* Set shortcuts */
 	bp->fw_stats_req = (struct bnx2x_fw_stats_req *)bp->fw_stats;
@@ -2802,6 +2804,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (CNIC_ENABLED(bp))
 		bnx2x_load_cnic(bp);
 
+	if (IS_PF(bp))
+		bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_GET_DRV_VERSION, 0);
+
 	if (IS_PF(bp) && SHMEM2_HAS(bp, drv_capabilities_flag)) {
 		/* mark driver is loaded in shmem2 */
 		u32 val;
@@ -3027,6 +3032,10 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 
 	bp->state = BNX2X_STATE_CLOSED;
 	bp->cnic_loaded = false;
+
+	/* Clear driver version indication in shmem */
+	if (IS_PF(bp))
+		bnx2x_update_mng_version(bp);
 
 	/* Check if there are pending parity attentions. If there are - set
 	 * RECOVERY_IN_PROGRESS.
@@ -4370,14 +4379,17 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 
 	if (!IS_FCOE_IDX(index)) {
 		/* status blocks */
-		if (!CHIP_IS_E1x(bp))
-			BNX2X_PCI_ALLOC(sb->e2_sb,
-				&bnx2x_fp(bp, index, status_blk_mapping),
-				sizeof(struct host_hc_status_block_e2));
-		else
-			BNX2X_PCI_ALLOC(sb->e1x_sb,
-				&bnx2x_fp(bp, index, status_blk_mapping),
-			    sizeof(struct host_hc_status_block_e1x));
+		if (!CHIP_IS_E1x(bp)) {
+			sb->e2_sb = BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, status_blk_mapping),
+						    sizeof(struct host_hc_status_block_e2));
+			if (!sb->e2_sb)
+				goto alloc_mem_err;
+		} else {
+			sb->e1x_sb = BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, status_blk_mapping),
+						     sizeof(struct host_hc_status_block_e1x));
+			if (!sb->e1x_sb)
+				goto alloc_mem_err;
+		}
 	}
 
 	/* FCoE Queue uses Default SB and doesn't ACK the SB, thus no need to
@@ -4396,35 +4408,49 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 			   "allocating tx memory of fp %d cos %d\n",
 			   index, cos);
 
-			BNX2X_ALLOC(txdata->tx_buf_ring,
-				sizeof(struct sw_tx_bd) * NUM_TX_BD);
-			BNX2X_PCI_ALLOC(txdata->tx_desc_ring,
-				&txdata->tx_desc_mapping,
-				sizeof(union eth_tx_bd_types) * NUM_TX_BD);
+			txdata->tx_buf_ring = kcalloc(NUM_TX_BD,
+						      sizeof(struct sw_tx_bd),
+						      GFP_KERNEL);
+			if (!txdata->tx_buf_ring)
+				goto alloc_mem_err;
+			txdata->tx_desc_ring = BNX2X_PCI_ALLOC(&txdata->tx_desc_mapping,
+							       sizeof(union eth_tx_bd_types) * NUM_TX_BD);
+			if (!txdata->tx_desc_ring)
+				goto alloc_mem_err;
 		}
 	}
 
 	/* Rx */
 	if (!skip_rx_queue(bp, index)) {
 		/* fastpath rx rings: rx_buf rx_desc rx_comp */
-		BNX2X_ALLOC(bnx2x_fp(bp, index, rx_buf_ring),
-				sizeof(struct sw_rx_bd) * NUM_RX_BD);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, index, rx_desc_ring),
-				&bnx2x_fp(bp, index, rx_desc_mapping),
-				sizeof(struct eth_rx_bd) * NUM_RX_BD);
+		bnx2x_fp(bp, index, rx_buf_ring) =
+			kcalloc(NUM_RX_BD, sizeof(struct sw_rx_bd), GFP_KERNEL);
+		if (!bnx2x_fp(bp, index, rx_buf_ring))
+			goto alloc_mem_err;
+		bnx2x_fp(bp, index, rx_desc_ring) =
+			BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, rx_desc_mapping),
+					sizeof(struct eth_rx_bd) * NUM_RX_BD);
+		if (!bnx2x_fp(bp, index, rx_desc_ring))
+			goto alloc_mem_err;
 
 		/* Seed all CQEs by 1s */
-		BNX2X_PCI_FALLOC(bnx2x_fp(bp, index, rx_comp_ring),
-				 &bnx2x_fp(bp, index, rx_comp_mapping),
-				 sizeof(struct eth_fast_path_rx_cqe) *
-				 NUM_RCQ_BD);
+		bnx2x_fp(bp, index, rx_comp_ring) =
+			BNX2X_PCI_FALLOC(&bnx2x_fp(bp, index, rx_comp_mapping),
+					 sizeof(struct eth_fast_path_rx_cqe) * NUM_RCQ_BD);
+		if (!bnx2x_fp(bp, index, rx_comp_ring))
+			goto alloc_mem_err;
 
 		/* SGE ring */
-		BNX2X_ALLOC(bnx2x_fp(bp, index, rx_page_ring),
-				sizeof(struct sw_rx_page) * NUM_RX_SGE);
-		BNX2X_PCI_ALLOC(bnx2x_fp(bp, index, rx_sge_ring),
-				&bnx2x_fp(bp, index, rx_sge_mapping),
-				BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+		bnx2x_fp(bp, index, rx_page_ring) =
+			kcalloc(NUM_RX_SGE, sizeof(struct sw_rx_page),
+				GFP_KERNEL);
+		if (!bnx2x_fp(bp, index, rx_page_ring))
+			goto alloc_mem_err;
+		bnx2x_fp(bp, index, rx_sge_ring) =
+			BNX2X_PCI_ALLOC(&bnx2x_fp(bp, index, rx_sge_mapping),
+					BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
+		if (!bnx2x_fp(bp, index, rx_sge_ring))
+			goto alloc_mem_err;
 		/* RX BD ring */
 		bnx2x_set_next_page_rx_bd(fp);
 
@@ -4780,12 +4806,8 @@ void bnx2x_tx_timeout(struct net_device *dev)
 		bnx2x_panic();
 #endif
 
-	smp_mb__before_clear_bit();
-	set_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state);
-	smp_mb__after_clear_bit();
-
 	/* This allows the netif to be shutdown gracefully before resetting */
-	schedule_delayed_work(&bp->sp_rtnl_task, 0);
+	bnx2x_schedule_sp_rtnl(bp, BNX2X_SP_RTNL_TX_TIMEOUT, 0);
 }
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -4913,3 +4935,15 @@ void bnx2x_update_coalesce_sb_index(struct bnx2x *bp, u8 fw_sb_id,
 	disable = disable ? 1 : (usec ? 0 : 1);
 	storm_memset_hc_disable(bp, port, fw_sb_id, sb_index, disable);
 }
+
+void bnx2x_schedule_sp_rtnl(struct bnx2x *bp, enum sp_rtnl_flag flag,
+			    u32 verbose)
+{
+	smp_mb__before_clear_bit();
+	set_bit(flag, &bp->sp_rtnl_state);
+	smp_mb__after_clear_bit();
+	DP((BNX2X_MSG_SP | verbose), "Scheduling sp_rtnl task [Flag: %d]\n",
+	   flag);
+	schedule_delayed_work(&bp->sp_rtnl_task, 0);
+}
+EXPORT_SYMBOL(bnx2x_schedule_sp_rtnl);

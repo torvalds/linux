@@ -253,6 +253,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("ehci_clk", "700000.ehci", &uhphs_clk),
 	CLKDEV_CON_DEV_ID("hclk", "500000.gadget", &utmi_clk),
 	CLKDEV_CON_DEV_ID("pclk", "500000.gadget", &udphs_clk),
+	CLKDEV_CON_DEV_ID(NULL, "f8034000.pwm", &pwm_clk),
 };
 
 /*

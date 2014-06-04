@@ -17,6 +17,7 @@
 /dts-v1/;
 #include "r8a7778.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "bockw";
@@ -84,7 +85,7 @@
 
 	sdhi0_pins: sd0 {
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl",
-				  "sdhi0_cd", "sdhi0_wp";
+				  "sdhi0_cd";
 		renesas,function = "sdhi0";
 	};
 
@@ -101,6 +102,7 @@
 	vmmc-supply = <&fixedregulator3v3>;
 	bus-width = <4>;
 	status = "okay";
+	wp-gpios = <&gpio3 18 GPIO_ACTIVE_HIGH>;
 };
 
 &hspi0 {

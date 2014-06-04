@@ -4610,8 +4610,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_query_oat_command);
 
-int qeth_query_card_info_cb(struct qeth_card *card,
-			struct qeth_reply *reply, unsigned long data)
+static int qeth_query_card_info_cb(struct qeth_card *card,
+				   struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd;
 	struct qeth_query_card_info *card_info;

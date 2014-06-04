@@ -688,7 +688,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		*pos++ = csa->settings.count;
 		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;
 		*pos++ = 6;
-		if (ifmsh->chsw_init) {
+		if (ifmsh->csa_role == IEEE80211_MESH_CSA_ROLE_INIT) {
 			*pos++ = ifmsh->mshcfg.dot11MeshTTL;
 			*pos |= WLAN_EID_CHAN_SWITCH_PARAM_INITIATOR;
 		} else {
@@ -859,18 +859,12 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 {
 	struct cfg80211_csa_settings params;
 	struct ieee80211_csa_ie csa_ie;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_chanctx *chanctx;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
-	int err, num_chanctx;
+	int err;
 	u32 sta_flags;
 
-	if (sdata->vif.csa_active)
-		return true;
-
-	if (!ifmsh->mesh_id)
-		return false;
+	sdata_assert_lock(sdata);
 
 	sta_flags = IEEE80211_STA_DISABLE_VHT;
 	switch (sdata->vif.bss_conf.chandef.width) {
@@ -896,10 +890,6 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	params.chandef = csa_ie.chandef;
 	params.count = csa_ie.count;
 
-	if (sdata->vif.bss_conf.chandef.chan->band !=
-	    params.chandef.chan->band)
-		return false;
-
 	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &params.chandef,
 				     IEEE80211_CHAN_DISABLED)) {
 		sdata_info(sdata,
@@ -922,24 +912,12 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 		return false;
 	}
 
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
-	if (!chanctx_conf)
-		goto failed_chswitch;
-
-	/* don't handle for multi-VIF cases */
-	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
-	if (chanctx->refcount > 1)
-		goto failed_chswitch;
-
-	num_chanctx = 0;
-	list_for_each_entry_rcu(chanctx, &sdata->local->chanctx_list, list)
-		num_chanctx++;
-
-	if (num_chanctx > 1)
-		goto failed_chswitch;
-
-	rcu_read_unlock();
+	if (cfg80211_chandef_identical(&params.chandef,
+				       &sdata->vif.bss_conf.chandef)) {
+		mcsa_dbg(sdata,
+			 "received csa with an identical chandef, ignoring\n");
+		return true;
+	}
 
 	mcsa_dbg(sdata,
 		 "received channel switch announcement to go to channel %d MHz\n",
@@ -953,30 +931,16 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 		ifmsh->pre_value = csa_ie.pre_value;
 	}
 
-	if (ifmsh->chsw_ttl < ifmsh->mshcfg.dot11MeshTTL) {
-		if (ieee80211_mesh_csa_beacon(sdata, &params, false) < 0)
-			return false;
-	} else {
+	if (ifmsh->chsw_ttl >= ifmsh->mshcfg.dot11MeshTTL)
 		return false;
-	}
 
-	sdata->csa_radar_required = params.radar_required;
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_REPEATER;
 
-	if (params.block_tx)
-		ieee80211_stop_queues_by_reason(&sdata->local->hw,
-				IEEE80211_MAX_QUEUE_MAP,
-				IEEE80211_QUEUE_STOP_REASON_CSA);
-
-	sdata->csa_chandef = params.chandef;
-	sdata->vif.csa_active = true;
-
-	ieee80211_bss_info_change_notify(sdata, err);
-	drv_channel_switch_beacon(sdata, &params.chandef);
+	if (ieee80211_channel_switch(sdata->local->hw.wiphy, sdata->dev,
+				     &params) < 0)
+		return false;
 
 	return true;
-failed_chswitch:
-	rcu_read_unlock();
-	return false;
 }
 
 static void
@@ -1086,7 +1050,8 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		ifmsh->sync_ops->rx_bcn_presp(sdata,
 			stype, mgmt, &elems, rx_status);
 
-	if (!ifmsh->chsw_init)
+	if (ifmsh->csa_role != IEEE80211_MESH_CSA_ROLE_INIT &&
+	    !sdata->vif.csa_active)
 		ieee80211_mesh_process_chnswitch(sdata, &elems, true);
 }
 
@@ -1095,29 +1060,30 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
 	int ret = 0;
+	int changed = 0;
 
 	/* Reset the TTL value and Initiator flag */
-	ifmsh->chsw_init = false;
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
 	ifmsh->chsw_ttl = 0;
 
 	/* Remove the CSA and MCSP elements from the beacon */
 	tmp_csa_settings = rcu_dereference(ifmsh->csa);
 	rcu_assign_pointer(ifmsh->csa, NULL);
-	kfree_rcu(tmp_csa_settings, rcu_head);
+	if (tmp_csa_settings)
+		kfree_rcu(tmp_csa_settings, rcu_head);
 	ret = ieee80211_mesh_rebuild_beacon(sdata);
 	if (ret)
 		return -EINVAL;
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	changed |= BSS_CHANGED_BEACON;
 
 	mcsa_dbg(sdata, "complete switching to center freq %d MHz",
 		 sdata->vif.bss_conf.chandef.chan->center_freq);
-	return 0;
+	return changed;
 }
 
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings,
-			      bool csa_action)
+			      struct cfg80211_csa_settings *csa_settings)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
@@ -1141,12 +1107,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		return ret;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
-
-	if (csa_action)
-		ieee80211_send_action_csa(sdata, csa_settings);
-
-	return 0;
+	return BSS_CHANGED_BEACON;
 }
 
 static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
@@ -1210,7 +1171,8 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 
 	ifmsh->pre_value = pre_value;
 
-	if (!ieee80211_mesh_process_chnswitch(sdata, &elems, false)) {
+	if (!sdata->vif.csa_active &&
+	    !ieee80211_mesh_process_chnswitch(sdata, &elems, false)) {
 		mcsa_dbg(sdata, "Failed to process CSA action frame");
 		return;
 	}
@@ -1257,7 +1219,7 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	sdata_lock(sdata);
 
 	/* mesh already went down */
-	if (!sdata->wdev.mesh_id_len)
+	if (!sdata->u.mesh.mesh_id_len)
 		goto out;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1310,7 +1272,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 	sdata_lock(sdata);
 
 	/* mesh already went down */
-	if (!sdata->wdev.mesh_id_len)
+	if (!sdata->u.mesh.mesh_id_len)
 		goto out;
 
 	if (ifmsh->preq_queue_len &&
@@ -1365,7 +1327,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;
 	ifmsh->next_perr = jiffies;
-	ifmsh->chsw_init = false;
+	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();

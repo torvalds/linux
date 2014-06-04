@@ -47,21 +47,22 @@ displays the statistics gathered since it was forked.
 .PP
 .SH FIELD DESCRIPTIONS
 .nf
-\fBpk\fP processor package number.
-\fBcor\fP processor core number.
+\fBPackage\fP processor package number.
+\fBCore\fP processor core number.
 \fBCPU\fP Linux CPU (logical processor) number.
 Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology.
-\fB%c0\fP percent of the interval that the CPU retired instructions.
-\fBGHz\fP average clock rate while the CPU was in c0 state.
-\fBTSC\fP average GHz that the TSC ran during the entire interval.
-\fB%c1, %c3, %c6, %c7\fP show the percentage residency in hardware core idle states.
-\fBCTMP\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
-\fBPTMP\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
-\fB%pc2, %pc3, %pc6, %pc7\fP percentage residency in hardware package idle states.
-\fBPkg_W\fP Watts consumed by the whole package.
-\fBCor_W\fP Watts consumed by the core part of the package.
-\fBGFX_W\fP Watts consumed by the Graphics part of the package -- available only on client processors.
-\fBRAM_W\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
+\fBAVG_MHz\fP number of cycles executed divided by time elapsed.
+\fB%Buzy\fP percent of the interval that the CPU retired instructions, aka. % of time in "C0" state.
+\fBBzy_MHz\fP average clock rate while the CPU was busy (in "c0" state).
+\fBTSC_MHz\fP average MHz that the TSC ran during the entire interval.
+\fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.
+\fBCoreTmp\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
+\fBPkgTtmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
+\fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.
+\fBPkgWatt\fP Watts consumed by the whole package.
+\fBCorWatt\fP Watts consumed by the core part of the package.
+\fBGFXWatt\fP Watts consumed by the Graphics part of the package -- available only on client processors.
+\fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
 \fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
@@ -78,29 +79,17 @@ For Watts columns, the summary is a system total.
 Subsequent rows show per-CPU statistics.
 
 .nf
-[root@sandy]# ./turbostat
-cor CPU    %c0  GHz  TSC    %c1    %c3    %c6    %c7 CTMP PTMP   %pc2   %pc3   %pc6   %pc7  Pkg_W  Cor_W GFX_W
-          0.06 0.80 2.29   0.11   0.00   0.00  99.83   47   40   0.26   0.01   0.44  98.78   3.49   0.12  0.14
-  0   0   0.07 0.80 2.29   0.07   0.00   0.00  99.86   40   40   0.26   0.01   0.44  98.78   3.49   0.12  0.14
-  0   4   0.03 0.80 2.29   0.12
-  1   1   0.04 0.80 2.29   0.25   0.01   0.00  99.71   40
-  1   5   0.16 0.80 2.29   0.13
-  2   2   0.05 0.80 2.29   0.06   0.01   0.00  99.88   40
-  2   6   0.03 0.80 2.29   0.08
-  3   3   0.05 0.80 2.29   0.08   0.00   0.00  99.87   47
-  3   7   0.04 0.84 2.29   0.09
-.fi
-.SH SUMMARY EXAMPLE
-The "-s" option prints the column headers just once,
-and then the one line system summary for each sample interval.
-
-.nf
-[root@wsm]# turbostat -S
-   %c0  GHz  TSC    %c1    %c3    %c6 CTMP   %pc3   %pc6
-  1.40 2.81 3.38  10.78  43.47  44.35   42  13.67   2.09
-  1.34 2.90 3.38  11.48  58.96  28.23   41  19.89   0.15
-  1.55 2.72 3.38  26.73  37.66  34.07   42   2.53   2.80
-  1.37 2.83 3.38  16.95  60.05  21.63   42   5.76   0.20
+[root@ivy]# ./turbostat
+    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
+       -       -       6    0.36    1596    3492       0    0.59    0.01   99.04    0.00      23      24   23.82    0.01   72.47    0.00    6.40    1.01    0.00
+       0       0       9    0.58    1596    3492       0    0.28    0.01   99.13    0.00      23      24   23.82    0.01   72.47    0.00    6.40    1.01    0.00
+       0       4       1    0.07    1596    3492       0    0.79
+       1       1      10    0.65    1596    3492       0    0.59    0.00   98.76    0.00      23
+       1       5       5    0.28    1596    3492       0    0.95
+       2       2      10    0.66    1596    3492       0    0.41    0.01   98.92    0.00      23
+       2       6       2    0.10    1597    3492       0    0.97
+       3       3       3    0.20    1596    3492       0    0.44    0.00   99.37    0.00      23
+       3       7       5    0.31    1596    3492       0    0.33
 .fi
 .SH VERBOSE EXAMPLE
 The "-v" option adds verbosity to the output:
@@ -154,55 +143,35 @@ eg. Here a cycle soaker is run on 1 CPU (see %c0) for a few seconds
 until ^C while the other CPUs are mostly idle:
 
 .nf
-[root@x980 lenb]# ./turbostat cat /dev/zero > /dev/null
+root@ivy: turbostat cat /dev/zero > /dev/null
 ^C
-cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-          8.86 3.61 3.38  15.06  31.19  44.89   0.00   0.00
-  0   0   1.46 3.22 3.38  16.84  29.48  52.22   0.00   0.00
-  0   6   0.21 3.06 3.38  18.09
-  1   2   0.53 3.33 3.38   2.80  46.40  50.27
-  1   8   0.89 3.47 3.38   2.44
-  2   4   1.36 3.43 3.38   9.04  23.71  65.89
-  2  10   0.18 2.86 3.38  10.22
-  8   1   0.04 2.87 3.38  99.96   0.01   0.00
-  8   7  99.72 3.63 3.38   0.27
-  9   3   0.31 3.21 3.38   7.64  56.55  35.50
-  9   9   0.08 2.95 3.38   7.88
- 10   5   1.42 3.43 3.38   2.14  30.99  65.44
- 10  11   0.16 2.88 3.38   3.40
+    Core     CPU Avg_MHz   %Busy Bzy_MHz TSC_MHz     SMI  CPU%c1  CPU%c3  CPU%c6  CPU%c7 CoreTmp  PkgTmp Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt 
+       -       -     496   12.75    3886    3492       0   13.16    0.04   74.04    0.00      36      36    0.00    0.00    0.00    0.00   23.15   17.65    0.00
+       0       0      22    0.57    3830    3492       0    0.83    0.02   98.59    0.00      27      36    0.00    0.00    0.00    0.00   23.15   17.65    0.00
+       0       4       9    0.24    3829    3492       0    1.15
+       1       1       4    0.09    3783    3492       0   99.91    0.00    0.00    0.00      36
+       1       5    3880   99.82    3888    3492       0    0.18
+       2       2      17    0.44    3813    3492       0    0.77    0.04   98.75    0.00      28
+       2       6      12    0.32    3823    3492       0    0.89
+       3       3      16    0.43    3844    3492       0    0.63    0.11   98.84    0.00      30
+       3       7       4    0.11    3827    3492       0    0.94
+30.372243 sec
+
 .fi
-Above the cycle soaker drives cpu7 up its 3.6 GHz turbo limit
+Above the cycle soaker drives cpu5 up its 3.8 GHz turbo limit
 while the other processors are generally in various states of idle.
 
-Note that cpu1 and cpu7 are HT siblings within core8.
-As cpu7 is very busy, it prevents its sibling, cpu1,
+Note that cpu1 and cpu5 are HT siblings within core1.
+As cpu5 is very busy, it prevents its sibling, cpu1,
 from entering a c-state deeper than c1.
 
-Note that turbostat reports average GHz of 3.63, while
-the arithmetic average of the GHz column above is lower.
-This is a weighted average, where the weight is %c0.  ie. it is the total number of
-un-halted cycles elapsed per time divided by the number of CPUs.
-.SH SMI COUNTING EXAMPLE
-On Intel Nehalem and newer processors, MSR 0x34 is a System Management Mode Interrupt (SMI) counter.
-This counter is shown by default under the "SMI" column.
-.nf
-[root@x980 ~]# turbostat
-cor CPU    %c0  GHz  TSC SMI    %c1    %c3    %c6 CTMP   %pc3   %pc6
-          0.11 1.91 3.38   0   1.84   0.26  97.79   29   0.82  83.87
-  0   0   0.40 1.63 3.38   0  10.27   0.12  89.20   20   0.82  83.88
-  0   6   0.06 1.63 3.38   0  10.61
-  1   2   0.37 2.63 3.38   0   0.02   0.10  99.51   22
-  1   8   0.01 1.62 3.38   0   0.39
-  2   4   0.07 1.62 3.38   0   0.04   0.07  99.82   23
-  2  10   0.02 1.62 3.38   0   0.09
-  8   1   0.23 1.64 3.38   0   0.10   1.07  98.60   24
-  8   7   0.02 1.64 3.38   0   0.31
-  9   3   0.03 1.62 3.38   0   0.03   0.05  99.89   29
-  9   9   0.02 1.62 3.38   0   0.05
- 10   5   0.07 1.62 3.38   0   0.08   0.12  99.73   27
- 10  11   0.03 1.62 3.38   0   0.13
-^C
-.fi
+Note that the Avg_MHz column reflects the total number of cycles executed
+divided by the measurement interval.  If the %Busy column is 100%,
+then the processor was running at that speed the entire interval.
+The Avg_MHz multiplied by the %Busy results in the Bzy_MHz --
+which is the average frequency while the processor was executing --
+not including any non-busy idle time.
+
 .SH NOTES
 
 .B "turbostat "

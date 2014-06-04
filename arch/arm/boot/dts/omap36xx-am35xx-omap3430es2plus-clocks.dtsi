@@ -160,7 +160,7 @@
 		ti,bit-shift = <30>;
 	};
 
-	dss1_alwon_fck_3430es2: dss1_alwon_fck_3430es2 {
+	dss1_alwon_fck: dss1_alwon_fck_3430es2 {
 		#clock-cells = <0>;
 		compatible = "ti,dss-gate-clock";
 		clocks = <&dpll4_m4x2_ck>;
@@ -169,7 +169,7 @@
 		ti,set-rate-parent;
 	};
 
-	dss_ick_3430es2: dss_ick_3430es2 {
+	dss_ick: dss_ick_3430es2 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-dss-interface-clock";
 		clocks = <&l4_ick>;
@@ -216,7 +216,7 @@
 	dss_clkdm: dss_clkdm {
 		compatible = "ti,clockdomain";
 		clocks = <&dss_tv_fck>, <&dss_96m_fck>, <&dss2_alwon_fck>,
-			 <&dss1_alwon_fck_3430es2>, <&dss_ick_3430es2>;
+			 <&dss1_alwon_fck>, <&dss_ick>;
 	};
 
 	core_l4_clkdm: core_l4_clkdm {

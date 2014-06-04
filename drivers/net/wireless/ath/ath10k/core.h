@@ -46,21 +46,35 @@
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
+/* number of failed packets */
+#define ATH10K_KICKOUT_THRESHOLD 50
+
+/*
+ * Use insanely high numbers to make sure that the firmware implementation
+ * won't start, we have the same functionality already in hostapd. Unit
+ * is seconds.
+ */
+#define ATH10K_KEEPALIVE_MIN_IDLE 3747
+#define ATH10K_KEEPALIVE_MAX_IDLE 3895
+#define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
+
 struct ath10k;
 
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
-	bool is_mapped;
-	bool is_aborted;
 	u8 vdev_id;
 
 	struct {
 		u8 tid;
 		bool is_offchan;
-
-		u8 frag_len;
-		u8 pad_len;
+		struct ath10k_htt_txbuf *txbuf;
+		u32 txbuf_paddr;
 	} __packed htt;
+
+	struct {
+		bool dtim_zero;
+		bool deliver_cab;
+	} bcn;
 } __packed;
 
 static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
@@ -68,32 +82,6 @@ static inline struct ath10k_skb_cb *ATH10K_SKB_CB(struct sk_buff *skb)
 	BUILD_BUG_ON(sizeof(struct ath10k_skb_cb) >
 		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath10k_skb_cb *)&IEEE80211_SKB_CB(skb)->driver_data;
-}
-
-static inline int ath10k_skb_map(struct device *dev, struct sk_buff *skb)
-{
-	if (ATH10K_SKB_CB(skb)->is_mapped)
-		return -EINVAL;
-
-	ATH10K_SKB_CB(skb)->paddr = dma_map_single(dev, skb->data, skb->len,
-						   DMA_TO_DEVICE);
-
-	if (unlikely(dma_mapping_error(dev, ATH10K_SKB_CB(skb)->paddr)))
-		return -EIO;
-
-	ATH10K_SKB_CB(skb)->is_mapped = true;
-	return 0;
-}
-
-static inline int ath10k_skb_unmap(struct device *dev, struct sk_buff *skb)
-{
-	if (!ATH10K_SKB_CB(skb)->is_mapped)
-		return -EINVAL;
-
-	dma_unmap_single(dev, ATH10K_SKB_CB(skb)->paddr, skb->len,
-			 DMA_TO_DEVICE);
-	ATH10K_SKB_CB(skb)->is_mapped = false;
-	return 0;
 }
 
 static inline u32 host_interest_item_address(u32 item_offset)
@@ -211,6 +199,18 @@ struct ath10k_peer {
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 };
 
+struct ath10k_sta {
+	struct ath10k_vif *arvif;
+
+	/* the following are protected by ar->data_lock */
+	u32 changed; /* IEEE80211_RC_* */
+	u32 bw;
+	u32 nss;
+	u32 smps;
+
+	struct work_struct update_wk;
+};
+
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5*HZ)
 
 struct ath10k_vif {
@@ -222,9 +222,16 @@ struct ath10k_vif {
 	u32 beacon_interval;
 	u32 dtim_period;
 	struct sk_buff *beacon;
+	/* protected by data_lock */
+	bool beacon_sent;
 
 	struct ath10k *ar;
 	struct ieee80211_vif *vif;
+
+	bool is_started;
+	bool is_up;
+	u32 aid;
+	u8 bssid[ETH_ALEN];
 
 	struct work_struct wep_key_work;
 	struct ieee80211_key_conf *wep_keys[WMI_MAX_KEY_INDEX + 1];
@@ -235,7 +242,6 @@ struct ath10k_vif {
 
 	union {
 		struct {
-			u8 bssid[ETH_ALEN];
 			u32 uapsd;
 		} sta;
 		struct {
@@ -249,13 +255,11 @@ struct ath10k_vif {
 			u32 noa_len;
 			u8 *noa_data;
 		} ap;
-		struct {
-			u8 bssid[ETH_ALEN];
-		} ibss;
 	} u;
 
 	u8 fixed_rate;
 	u8 fixed_nss;
+	u8 force_sgi;
 };
 
 struct ath10k_vif_iter {
@@ -355,8 +359,7 @@ struct ath10k {
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
-	wait_queue_head_t event_queue;
-	bool is_target_paused;
+	struct completion target_suspend;
 
 	struct ath10k_bmi bmi;
 	struct ath10k_wmi wmi;
@@ -411,6 +414,9 @@ struct ath10k {
 
 	/* valid during scan; needed for mgmt rx during scan */
 	struct ieee80211_channel *scan_channel;
+
+	/* current operating channel definition */
+	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
 	int monitor_vdev_id;
@@ -470,6 +476,7 @@ struct ath10k *ath10k_core_create(void *hif_priv, struct device *dev,
 void ath10k_core_destroy(struct ath10k *ar);
 
 int ath10k_core_start(struct ath10k *ar);
+int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt);
 void ath10k_core_stop(struct ath10k *ar);
 int ath10k_core_register(struct ath10k *ar, u32 chip_id);
 void ath10k_core_unregister(struct ath10k *ar);

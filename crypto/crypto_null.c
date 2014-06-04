@@ -17,17 +17,13 @@
  *
  */
 
+#include <crypto/null.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-
-#define NULL_KEY_SIZE		0
-#define NULL_BLOCK_SIZE		1
-#define NULL_DIGEST_SIZE	0
-#define NULL_IV_SIZE		0
 
 static int null_compress(struct crypto_tfm *tfm, const u8 *src,
 			 unsigned int slen, u8 *dst, unsigned int *dlen)

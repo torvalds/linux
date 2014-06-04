@@ -38,13 +38,6 @@
 #define clps_writel(val,off)	writel(val, CLPS711X_VIRT_BASE + (off))
 #endif
 
-/*
- * The physical addresses that the external chip select signals map to is
- * dependent on the setting of the nMEDCHG signal on EP7211 and EP7212
- * processors.  CONFIG_EP72XX_BOOT_ROM is only available if these
- * processors are in use.
- */
-#ifndef CONFIG_EP72XX_ROM_BOOT
 #define CS0_PHYS_BASE		(0x00000000)
 #define CS1_PHYS_BASE		(0x10000000)
 #define CS2_PHYS_BASE		(0x20000000)
@@ -53,16 +46,6 @@
 #define CS5_PHYS_BASE		(0x50000000)
 #define CS6_PHYS_BASE		(0x60000000)
 #define CS7_PHYS_BASE		(0x70000000)
-#else
-#define CS0_PHYS_BASE		(0x70000000)
-#define CS1_PHYS_BASE		(0x60000000)
-#define CS2_PHYS_BASE		(0x50000000)
-#define CS3_PHYS_BASE		(0x40000000)
-#define CS4_PHYS_BASE		(0x30000000)
-#define CS5_PHYS_BASE		(0x20000000)
-#define CS6_PHYS_BASE		(0x10000000)
-#define CS7_PHYS_BASE		(0x00000000)
-#endif
 
 #define CLPS711X_SRAM_BASE	CS6_PHYS_BASE
 #define CLPS711X_SRAM_SIZE	(48 * 1024)

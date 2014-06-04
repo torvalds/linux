@@ -70,6 +70,26 @@
 	};
 };
 
+&dpll4_m2x2_mul_ck {
+	clock-mult = <1>;
+};
+
+&dpll4_m3x2_mul_ck {
+	clock-mult = <1>;
+};
+
+&dpll4_m4x2_mul_ck {
+	ti,clock-mult = <1>;
+};
+
+&dpll4_m5x2_mul_ck {
+	clock-mult = <1>;
+};
+
+&dpll4_m6x2_mul_ck {
+	clock-mult = <1>;
+};
+
 &cm_clockdomains {
 	dpll4_clkdm: dpll4_clkdm {
 		compatible = "ti,clockdomain";

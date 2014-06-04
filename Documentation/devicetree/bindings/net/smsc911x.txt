@@ -6,9 +6,7 @@ Required properties:
 - interrupts : Should contain SMSC LAN interrupt line
 - interrupt-parent : Should be the phandle for the interrupt controller
   that services interrupts for this device
-- phy-mode : String, operation mode of the PHY interface.
-  Supported values are: "mii", "gmii", "sgmii", "tbi", "rmii",
-  "rgmii", "rgmii-id", "rgmii-rxid", "rgmii-txid", "rtbi", "smii".
+- phy-mode : See ethernet.txt file in the same directory
 
 Optional properties:
 - reg-shift : Specify the quantity to shift the register offsets by
@@ -23,7 +21,6 @@ Optional properties:
   external PHY
 - smsc,save-mac-address : Indicates that mac address needs to be saved
   before resetting the controller
-- local-mac-address : 6 bytes, mac address
 
 Examples:
 

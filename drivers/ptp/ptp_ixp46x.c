@@ -244,6 +244,7 @@ static struct ptp_clock_info ptp_ixp_caps = {
 	.name		= "IXP46X timer",
 	.max_adj	= 66666655,
 	.n_ext_ts	= N_EXT_TS,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= ptp_ixp_adjfreq,
 	.adjtime	= ptp_ixp_adjtime,

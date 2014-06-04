@@ -228,7 +228,7 @@ mmctx_xfer:
 			and $r11 0x1f
 			cmpu b32 $r11 0x10
 			bra ne #mmctx_fini_wait
-		mov $r10 2				// DONE_MMCTX
+		mov $r10 5			// DONE_MMCTX
 		call(wait_donez)
 		bra #mmctx_done
 	mmctx_stop:

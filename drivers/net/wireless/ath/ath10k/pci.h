@@ -43,23 +43,6 @@ struct bmi_xfer {
 	u32 resp_len;
 };
 
-enum ath10k_pci_compl_state {
-	ATH10K_PCI_COMPL_FREE = 0,
-	ATH10K_PCI_COMPL_SEND,
-	ATH10K_PCI_COMPL_RECV,
-};
-
-struct ath10k_pci_compl {
-	struct list_head list;
-	enum ath10k_pci_compl_state state;
-	struct ath10k_ce_pipe *ce_state;
-	struct ath10k_pci_pipe *pipe_info;
-	struct sk_buff *skb;
-	unsigned int nbytes;
-	unsigned int transfer_id;
-	unsigned int flags;
-};
-
 /*
  * PCI-specific Target state
  *
@@ -175,9 +158,6 @@ struct ath10k_pci_pipe {
 	/* protects compl_free and num_send_allowed */
 	spinlock_t pipe_lock;
 
-	/* List of free CE completion slots */
-	struct list_head compl_free;
-
 	struct ath10k_pci *ar_pci;
 	struct tasklet_struct intr;
 };
@@ -204,14 +184,6 @@ struct ath10k_pci {
 
 	atomic_t keep_awake_count;
 	bool verified_awake;
-
-	/* List of CE completions to be processed */
-	struct list_head compl_process;
-
-	/* protects compl_processing and compl_process */
-	spinlock_t compl_lock;
-
-	bool compl_processing;
 
 	struct ath10k_pci_pipe pipe_info[CE_COUNT_MAX];
 

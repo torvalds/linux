@@ -2399,11 +2399,18 @@ static const struct i2c_device_id max98090_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max98090_i2c_id);
 
+static const struct of_device_id max98090_of_match[] = {
+	{ .compatible = "maxim,max98090", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max98090_of_match);
+
 static struct i2c_driver max98090_i2c_driver = {
 	.driver = {
 		.name = "max98090",
 		.owner = THIS_MODULE,
 		.pm = &max98090_pm,
+		.of_match_table = of_match_ptr(max98090_of_match),
 	},
 	.probe  = max98090_i2c_probe,
 	.remove = max98090_i2c_remove,

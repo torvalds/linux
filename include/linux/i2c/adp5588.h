@@ -161,10 +161,10 @@ struct adp5588_gpio_platform_data {
 	unsigned irq_base;	/* interrupt base # */
 	unsigned pullup_dis_mask; /* Pull-Up Disable Mask */
 	int	(*setup)(struct i2c_client *client,
-				int gpio, unsigned ngpio,
+				unsigned gpio, unsigned ngpio,
 				void *context);
 	int	(*teardown)(struct i2c_client *client,
-				int gpio, unsigned ngpio,
+				unsigned gpio, unsigned ngpio,
 				void *context);
 	void	*context;
 };

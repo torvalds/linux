@@ -22,9 +22,8 @@
  */
 
 #include <linux/backlight.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -44,9 +43,6 @@ struct panel_desc {
 	} size;
 };
 
-/* TODO: convert to gpiod_*() API once it's been merged */
-#define GPIO_ACTIVE_LOW	(1 << 0)
-
 struct panel_simple {
 	struct drm_panel base;
 	bool enabled;
@@ -57,8 +53,7 @@ struct panel_simple {
 	struct regulator *supply;
 	struct i2c_adapter *ddc;
 
-	unsigned long enable_gpio_flags;
-	int enable_gpio;
+	struct gpio_desc *enable_gpio;
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
@@ -110,12 +105,8 @@ static int panel_simple_disable(struct drm_panel *panel)
 		backlight_update_status(p->backlight);
 	}
 
-	if (gpio_is_valid(p->enable_gpio)) {
-		if (p->enable_gpio_flags & GPIO_ACTIVE_LOW)
-			gpio_set_value(p->enable_gpio, 1);
-		else
-			gpio_set_value(p->enable_gpio, 0);
-	}
+	if (p->enable_gpio)
+		gpiod_set_value_cansleep(p->enable_gpio, 0);
 
 	regulator_disable(p->supply);
 	p->enabled = false;
@@ -137,12 +128,8 @@ static int panel_simple_enable(struct drm_panel *panel)
 		return err;
 	}
 
-	if (gpio_is_valid(p->enable_gpio)) {
-		if (p->enable_gpio_flags & GPIO_ACTIVE_LOW)
-			gpio_set_value(p->enable_gpio, 0);
-		else
-			gpio_set_value(p->enable_gpio, 1);
-	}
+	if (p->enable_gpio)
+		gpiod_set_value_cansleep(p->enable_gpio, 1);
 
 	if (p->backlight) {
 		p->backlight->props.power = FB_BLANK_UNBLANK;
@@ -185,7 +172,6 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
-	enum of_gpio_flags flags;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
@@ -199,29 +185,20 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
 
-	panel->enable_gpio = of_get_named_gpio_flags(dev->of_node,
-						     "enable-gpios", 0,
-						     &flags);
-	if (gpio_is_valid(panel->enable_gpio)) {
-		unsigned int value;
-
-		if (flags & OF_GPIO_ACTIVE_LOW)
-			panel->enable_gpio_flags |= GPIO_ACTIVE_LOW;
-
-		err = gpio_request(panel->enable_gpio, "enable");
-		if (err < 0) {
-			dev_err(dev, "failed to request GPIO#%u: %d\n",
-				panel->enable_gpio, err);
+	panel->enable_gpio = devm_gpiod_get(dev, "enable");
+	if (IS_ERR(panel->enable_gpio)) {
+		err = PTR_ERR(panel->enable_gpio);
+		if (err != -ENOENT) {
+			dev_err(dev, "failed to request GPIO: %d\n", err);
 			return err;
 		}
 
-		value = (panel->enable_gpio_flags & GPIO_ACTIVE_LOW) != 0;
-
-		err = gpio_direction_output(panel->enable_gpio, value);
+		panel->enable_gpio = NULL;
+	} else {
+		err = gpiod_direction_output(panel->enable_gpio, 0);
 		if (err < 0) {
-			dev_err(dev, "failed to setup GPIO%u: %d\n",
-				panel->enable_gpio, err);
-			goto free_gpio;
+			dev_err(dev, "failed to setup GPIO: %d\n", err);
+			return err;
 		}
 	}
 
@@ -230,10 +207,8 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		panel->backlight = of_find_backlight_by_node(backlight);
 		of_node_put(backlight);
 
-		if (!panel->backlight) {
-			err = -EPROBE_DEFER;
-			goto free_gpio;
-		}
+		if (!panel->backlight)
+			return -EPROBE_DEFER;
 	}
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
@@ -265,9 +240,6 @@ free_ddc:
 free_backlight:
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
-free_gpio:
-	if (gpio_is_valid(panel->enable_gpio))
-		gpio_free(panel->enable_gpio);
 
 	return err;
 }
@@ -286,11 +258,6 @@ static int panel_simple_remove(struct device *dev)
 
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
-
-	if (gpio_is_valid(panel->enable_gpio))
-		gpio_free(panel->enable_gpio);
-
-	regulator_disable(panel->supply);
 
 	return 0;
 }
@@ -361,6 +328,28 @@ static const struct panel_desc chunghwa_claa101wb01 = {
 	},
 };
 
+static const struct drm_display_mode lg_lp129qe_mode = {
+	.clock = 285250,
+	.hdisplay = 2560,
+	.hsync_start = 2560 + 48,
+	.hsync_end = 2560 + 48 + 32,
+	.htotal = 2560 + 48 + 32 + 80,
+	.vdisplay = 1700,
+	.vsync_start = 1700 + 3,
+	.vsync_end = 1700 + 3 + 10,
+	.vtotal = 1700 + 3 + 10 + 36,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lp129qe = {
+	.modes = &lg_lp129qe_mode,
+	.num_modes = 1,
+	.size = {
+		.width = 272,
+		.height = 181,
+	},
+};
+
 static const struct drm_display_mode samsung_ltn101nt05_mode = {
 	.clock = 54030,
 	.hdisplay = 1024,
@@ -393,6 +382,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "chunghwa,claa101wb01",
 		.data = &chunghwa_claa101wb01
+	}, {
+		.compatible = "lg,lp129qe",
+		.data = &lg_lp129qe,
 	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
@@ -433,8 +425,63 @@ static struct platform_driver panel_simple_platform_driver = {
 struct panel_desc_dsi {
 	struct panel_desc desc;
 
+	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
+};
+
+static const struct drm_display_mode lg_ld070wx3_sl01_mode = {
+	.clock = 71000,
+	.hdisplay = 800,
+	.hsync_start = 800 + 32,
+	.hsync_end = 800 + 32 + 1,
+	.htotal = 800 + 32 + 1 + 57,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 28,
+	.vsync_end = 1280 + 28 + 1,
+	.vtotal = 1280 + 28 + 1 + 14,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
+	.desc = {
+		.modes = &lg_ld070wx3_sl01_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 94,
+			.height = 151,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
+};
+
+static const struct drm_display_mode lg_lh500wx1_sd03_mode = {
+	.clock = 67000,
+	.hdisplay = 720,
+	.hsync_start = 720 + 12,
+	.hsync_end = 720 + 12 + 4,
+	.htotal = 720 + 12 + 4 + 112,
+	.vdisplay = 1280,
+	.vsync_start = 1280 + 8,
+	.vsync_end = 1280 + 8 + 4,
+	.vtotal = 1280 + 8 + 4 + 12,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi lg_lh500wx1_sd03 = {
+	.desc = {
+		.modes = &lg_lh500wx1_sd03_mode,
+		.num_modes = 1,
+		.size = {
+			.width = 62,
+			.height = 110,
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO,
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 4,
 };
 
 static const struct drm_display_mode panasonic_vvx10f004b00_mode = {
@@ -459,12 +506,19 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.height = 136,
 		},
 	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
 };
 
 static const struct of_device_id dsi_of_match[] = {
 	{
+		.compatible = "lg,ld070wx3-sl01",
+		.data = &lg_ld070wx3_sl01
+	}, {
+		.compatible = "lg,lh500wx1-sd03",
+		.data = &lg_lh500wx1_sd03
+	}, {
 		.compatible = "panasonic,vvx10f004b00",
 		.data = &panasonic_vvx10f004b00
 	}, {
@@ -489,6 +543,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	if (err < 0)
 		return err;
 
+	dsi->mode_flags = desc->flags;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 

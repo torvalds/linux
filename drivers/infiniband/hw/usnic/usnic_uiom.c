@@ -286,7 +286,7 @@ iter_chunk:
 				err = iommu_map(pd->domain, va_start, pa_start,
 							size, flags);
 				if (err) {
-					usnic_err("Failed to map va 0x%lx pa 0x%pa size 0x%zx with err %d\n",
+					usnic_err("Failed to map va 0x%lx pa %pa size 0x%zx with err %d\n",
 						va_start, &pa_start, size, err);
 					goto err_out;
 				}

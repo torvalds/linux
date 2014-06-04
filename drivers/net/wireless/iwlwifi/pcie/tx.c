@@ -207,7 +207,7 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
 			le32_to_cpu(txq->scratchbufs[i].scratch));
 
-	iwl_trans_fw_error(trans);
+	iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
 }
 
 /*
@@ -296,43 +296,38 @@ void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 	if (txq->need_update == 0)
 		return;
 
-	if (trans->cfg->base_params->shadow_reg_enable ||
-	    txq_id == trans_pcie->cmd_queue) {
-		/* shadow register enabled */
-		iwl_write32(trans, HBUS_TARG_WRPTR,
-			    txq->q.write_ptr | (txq_id << 8));
-	} else {
-		/* if we're trying to save power */
-		if (test_bit(STATUS_TPOWER_PMI, &trans->status)) {
-			/* wake up nic if it's powered down ...
-			 * uCode will wake up, and interrupt us again, so next
-			 * time we'll skip this part. */
-			reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
-
-			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-				IWL_DEBUG_INFO(trans,
-					"Tx queue %d requesting wakeup,"
-					" GP1 = 0x%x\n", txq_id, reg);
-				iwl_set_bit(trans, CSR_GP_CNTRL,
-					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-				return;
-			}
-
-			IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id,
-				     txq->q.write_ptr);
-
-			iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-				     txq->q.write_ptr | (txq_id << 8));
-
+	/*
+	 * explicitly wake up the NIC if:
+	 * 1. shadow registers aren't enabled
+	 * 2. NIC is woken up for CMD regardless of shadow outside this function
+	 * 3. there is a chance that the NIC is asleep
+	 */
+	if (!trans->cfg->base_params->shadow_reg_enable &&
+	    txq_id != trans_pcie->cmd_queue &&
+	    test_bit(STATUS_TPOWER_PMI, &trans->status)) {
 		/*
-		 * else not in power-save mode,
-		 * uCode will never sleep when we're
-		 * trying to tx (during RFKILL, we're not trying to tx).
+		 * wake up nic if it's powered down ...
+		 * uCode will wake up, and interrupt us again, so next
+		 * time we'll skip this part.
 		 */
-		} else
-			iwl_write32(trans, HBUS_TARG_WRPTR,
-				    txq->q.write_ptr | (txq_id << 8));
+		reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
+
+		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
+			IWL_DEBUG_INFO(trans, "Tx queue %d requesting wakeup, GP1 = 0x%x\n",
+				       txq_id, reg);
+			iwl_set_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+			return;
+		}
 	}
+
+	/*
+	 * if not in power-save mode, uCode will never sleep when we're
+	 * trying to tx (during RFKILL, we're not trying to tx).
+	 */
+	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->q.write_ptr);
+	iwl_write32(trans, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
+
 	txq->need_update = 0;
 }
 
@@ -705,8 +700,9 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
 
 	/* Enable L1-Active */
-	iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
-			    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
+				    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 }
 
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
@@ -1028,7 +1024,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n",
 				idx, q->write_ptr, q->read_ptr);
-			iwl_trans_fw_error(trans);
+			iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
 		}
 	}
 
@@ -1587,6 +1583,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 			       get_cmd_string(trans_pcie, cmd->id));
 		ret = -ETIMEDOUT;
 
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG, 1);
 		iwl_trans_fw_error(trans);
 
 		goto cancel;

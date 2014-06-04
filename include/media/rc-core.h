@@ -1,7 +1,7 @@
 /*
  * Remote Controller core header
  *
- * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2009-2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,8 +35,32 @@ enum rc_driver_type {
 };
 
 /**
+ * struct rc_scancode_filter - Filter scan codes.
+ * @data:	Scancode data to match.
+ * @mask:	Mask of bits of scancode to compare.
+ */
+struct rc_scancode_filter {
+	u32 data;
+	u32 mask;
+};
+
+/**
+ * enum rc_filter_type - Filter type constants.
+ * @RC_FILTER_NORMAL:	Filter for normal operation.
+ * @RC_FILTER_WAKEUP:	Filter for waking from suspend.
+ * @RC_FILTER_MAX:	Number of filter types.
+ */
+enum rc_filter_type {
+	RC_FILTER_NORMAL = 0,
+	RC_FILTER_WAKEUP,
+
+	RC_FILTER_MAX
+};
+
+/**
  * struct rc_dev - represents a remote control device
  * @dev: driver model's view of this device
+ * @sysfs_groups: sysfs attribute groups
  * @input_name: name of the input child device
  * @input_phys: physical path to the input child device
  * @input_id: id of the input child device (struct input_id)
@@ -50,8 +74,10 @@ enum rc_driver_type {
  * @input_dev: the input child device used to communicate events to userspace
  * @driver_type: specifies if protocol decoding is done in hardware or software
  * @idle: used to keep track of RX state
- * @allowed_protos: bitmask with the supported RC_BIT_* protocols
- * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols
+ * @allowed_protocols: bitmask with the supported RC_BIT_* protocols for each
+ *	filter type
+ * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols for each
+ *	filter type
  * @scanmask: some hardware decoders are not capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
@@ -70,7 +96,10 @@ enum rc_driver_type {
  * @max_timeout: maximum timeout supported by device
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
+ * @scancode_filters: scancode filters (indexed by enum rc_filter_type)
  * @change_protocol: allow changing the protocol used on hardware decoders
+ * @change_wakeup_protocol: allow changing the protocol used for wakeup
+ *	filtering
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
  * @close: callback to allow drivers to disable polling/irq when IR input device
@@ -84,9 +113,12 @@ enum rc_driver_type {
  *	device doesn't interrupt host until it sees IR pulses
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
+ * @s_filter: set the scancode filter 
+ * @s_wakeup_filter: set the wakeup scancode filter
  */
 struct rc_dev {
 	struct device			dev;
+	const struct attribute_group	*sysfs_groups[5];
 	const char			*input_name;
 	const char			*input_phys;
 	struct input_id			input_id;
@@ -99,8 +131,8 @@ struct rc_dev {
 	struct input_dev		*input_dev;
 	enum rc_driver_type		driver_type;
 	bool				idle;
-	u64				allowed_protos;
-	u64				enabled_protocols;
+	u64				allowed_protocols[RC_FILTER_MAX];
+	u64				enabled_protocols[RC_FILTER_MAX];
 	u32				users;
 	u32				scanmask;
 	void				*priv;
@@ -116,7 +148,9 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
+	struct rc_scancode_filter	scancode_filters[RC_FILTER_MAX];
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int				(*change_wakeup_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
 	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);
@@ -127,9 +161,49 @@ struct rc_dev {
 	void				(*s_idle)(struct rc_dev *dev, bool enable);
 	int				(*s_learning_mode)(struct rc_dev *dev, int enable);
 	int				(*s_carrier_report) (struct rc_dev *dev, int enable);
+	int				(*s_filter)(struct rc_dev *dev,
+						    struct rc_scancode_filter *filter);
+	int				(*s_wakeup_filter)(struct rc_dev *dev,
+							   struct rc_scancode_filter *filter);
 };
 
 #define to_rc_dev(d) container_of(d, struct rc_dev, dev)
+
+static inline bool rc_protocols_allowed(struct rc_dev *rdev, u64 protos)
+{
+	return rdev->allowed_protocols[RC_FILTER_NORMAL] & protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_allowed_protocols(struct rc_dev *rdev, u64 protos)
+{
+	rdev->allowed_protocols[RC_FILTER_NORMAL] = protos;
+}
+
+static inline bool rc_protocols_enabled(struct rc_dev *rdev, u64 protos)
+{
+	return rdev->enabled_protocols[RC_FILTER_NORMAL] & protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_enabled_protocols(struct rc_dev *rdev, u64 protos)
+{
+	rdev->enabled_protocols[RC_FILTER_NORMAL] = protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_allowed_wakeup_protocols(struct rc_dev *rdev,
+						   u64 protos)
+{
+	rdev->allowed_protocols[RC_FILTER_WAKEUP] = protos;
+}
+
+/* should be called prior to registration or with mutex held */
+static inline void rc_set_enabled_wakeup_protocols(struct rc_dev *rdev,
+						   u64 protos)
+{
+	rdev->enabled_protocols[RC_FILTER_WAKEUP] = protos;
+}
 
 /*
  * From rc-main.c

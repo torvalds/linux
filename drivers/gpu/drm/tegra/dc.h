@@ -118,6 +118,7 @@
 #define DC_DISP_DISP_WIN_OPTIONS		0x402
 #define HDMI_ENABLE (1 << 30)
 #define DSI_ENABLE  (1 << 29)
+#define SOR_ENABLE  (1 << 25)
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)

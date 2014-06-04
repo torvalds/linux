@@ -340,9 +340,9 @@ static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
 	for (i = 0; i < CH7xxx_NUM_REGS; i++) {
 		uint8_t val;
 		if ((i % 8) == 0)
-			DRM_LOG_KMS("\n %02X: ", i);
+			DRM_DEBUG_KMS("\n %02X: ", i);
 		ch7xxx_readb(dvo, i, &val);
-		DRM_LOG_KMS("%02X ", val);
+		DRM_DEBUG_KMS("%02X ", val);
 	}
 }
 

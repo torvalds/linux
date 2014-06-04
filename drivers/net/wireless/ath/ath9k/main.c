@@ -229,16 +229,16 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
 			       sc->config.txpowlimit, &sc->curtxpow);
 
-	clear_bit(SC_OP_HW_RESET, &sc->sc_flags);
+	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) && start) {
-		if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+		if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
 			goto work;
 
 		if (ah->opmode == NL80211_IFTYPE_STATION &&
-		    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+		    test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 			spin_lock_irqsave(&sc->sc_pm_lock, flags);
 			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 			spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
@@ -336,7 +336,7 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 	int old_pos = -1;
 	int r;
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
 		return -EIO;
 
 	offchannel = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
@@ -402,7 +402,7 @@ static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chand
 			chan->center_freq);
 	} else {
 		/* perform spectral scan if requested. */
-		if (test_bit(SC_OP_SCANNING, &sc->sc_flags) &&
+		if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
 			sc->spectral_mode == SPECTRAL_CHANSCAN)
 			ath9k_spectral_scan_trigger(hw);
 	}
@@ -451,7 +451,7 @@ void ath9k_tasklet(unsigned long data)
 		 * interrupts are enabled in the reset routine.
 		 */
 		atomic_inc(&ah->intr_ref_cnt);
-		ath_dbg(common, ANY, "FATAL: Skipping interrupts\n");
+		ath_dbg(common, RESET, "FATAL: Skipping interrupts\n");
 		goto out;
 	}
 
@@ -471,7 +471,7 @@ void ath9k_tasklet(unsigned long data)
 			 * interrupts are enabled in the reset routine.
 			 */
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"BB_WATCHDOG: Skipping interrupts\n");
 			goto out;
 		}
@@ -484,7 +484,7 @@ void ath9k_tasklet(unsigned long data)
 			type = RESET_TYPE_TX_GTT;
 			ath9k_queue_reset(sc, type);
 			atomic_inc(&ah->intr_ref_cnt);
-			ath_dbg(common, ANY,
+			ath_dbg(common, RESET,
 				"GTT: Skipping interrupts\n");
 			goto out;
 		}
@@ -566,6 +566,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	struct ath_softc *sc = dev;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	enum ath9k_int status;
 	u32 sync_cause = 0;
 	bool sched = false;
@@ -575,7 +576,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	 * touch anything. Note this can happen early
 	 * on if the IRQ is shared.
 	 */
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags))
+	if (test_bit(ATH_OP_INVALID, &common->op_flags))
 		return IRQ_NONE;
 
 	/* shared irq, not for us */
@@ -583,7 +584,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (!ath9k_hw_intrpend(ah))
 		return IRQ_NONE;
 
-	if (test_bit(SC_OP_HW_RESET, &sc->sc_flags)) {
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags)) {
 		ath9k_hw_kill_interrupts(ah);
 		return IRQ_HANDLED;
 	}
@@ -684,10 +685,11 @@ int ath_reset(struct ath_softc *sc)
 
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 #ifdef CONFIG_ATH9K_DEBUGFS
 	RESET_STAT_INC(sc, type);
 #endif
-	set_bit(SC_OP_HW_RESET, &sc->sc_flags);
+	set_bit(ATH_OP_HW_RESET, &common->op_flags);
 	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 }
 
@@ -768,7 +770,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	ath_mci_enable(sc);
 
-	clear_bit(SC_OP_INVALID, &sc->sc_flags);
+	clear_bit(ATH_OP_INVALID, &common->op_flags);
 	sc->sc_ah->is_monitoring = false;
 
 	if (!ath_complete_reset(sc, false))
@@ -885,7 +887,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	ath_cancel_work(sc);
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
@@ -940,7 +942,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	ath9k_ps_restore(sc);
 
-	set_bit(SC_OP_INVALID, &sc->sc_flags);
+	set_bit(ATH_OP_INVALID, &common->op_flags);
 	sc->ps_idle = prev_idle;
 
 	mutex_unlock(&sc->mutex);
@@ -1081,7 +1083,7 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	 */
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    old_opmode == NL80211_IFTYPE_AP &&
-	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
+	    test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ieee80211_iterate_active_interfaces_atomic(
 			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 			ath9k_sta_vif_iter, sc);
@@ -1177,9 +1179,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_remove_slot(sc, vif);
-
-	if (sc->csa_vif == vif)
-		sc->csa_vif = NULL;
 
 	ath9k_ps_wakeup(sc);
 	ath9k_calculate_summary_state(hw, NULL);
@@ -1593,7 +1592,7 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	unsigned long flags;
 
-	set_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
+	set_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 	avp->primary_sta_vif = true;
 
 	/*
@@ -1609,7 +1608,7 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	common->curaid = bss_conf->aid;
 	ath9k_hw_write_associd(sc->sc_ah);
 
-	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
 	sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
@@ -1628,8 +1627,9 @@ static void ath9k_bss_assoc_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = data;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	if (test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+	if (test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 		return;
 
 	if (bss_conf->assoc)
@@ -1660,18 +1660,18 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->bssid, bss_conf->assoc);
 
 		if (avp->primary_sta_vif && !bss_conf->assoc) {
-			clear_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags);
+			clear_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags);
 			avp->primary_sta_vif = false;
 
 			if (ah->opmode == NL80211_IFTYPE_STATION)
-				clear_bit(SC_OP_BEACONS, &sc->sc_flags);
+				clear_bit(ATH_OP_BEACONS, &common->op_flags);
 		}
 
 		ieee80211_iterate_active_interfaces_atomic(
 			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 			ath9k_bss_assoc_iter, sc);
 
-		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags) &&
+		if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags) &&
 		    ah->opmode == NL80211_IFTYPE_STATION) {
 			memset(common->curbssid, 0, ETH_ALEN);
 			common->curaid = 0;
@@ -1866,7 +1866,7 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
 
 static bool ath9k_has_tx_pending(struct ath_softc *sc)
 {
-	int i, npend;
+	int i, npend = 0;
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (!ATH_TXQ_SETUP(sc, i))
@@ -1900,7 +1900,7 @@ static void ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		return;
 	}
 
-	if (test_bit(SC_OP_INVALID, &sc->sc_flags)) {
+	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
@@ -2056,7 +2056,7 @@ static int ath9k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 		ah->rxchainmask = fill_chainmask(ah->caps.rx_chainmask, rx_ant);
 
 	ah->txchainmask = fill_chainmask(ah->caps.tx_chainmask, tx_ant);
-	ath9k_reload_chainmask_settings(sc);
+	ath9k_cmn_reload_chainmask(ah);
 
 	return 0;
 }
@@ -2073,26 +2073,23 @@ static int ath9k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-	set_bit(SC_OP_SCANNING, &sc->sc_flags);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	set_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-	clear_bit(SC_OP_SCANNING, &sc->sc_flags);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
 static void ath9k_channel_switch_beacon(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 					struct cfg80211_chan_def *chandef)
 {
-	struct ath_softc *sc = hw->priv;
-
-	/* mac80211 does not support CSA in multi-if cases (yet) */
-	if (WARN_ON(sc->csa_vif))
-		return;
-
-	sc->csa_vif = vif;
+	/* depend on vif->csa_active only */
+	return;
 }
 
 struct ieee80211_ops ath9k_ops = {

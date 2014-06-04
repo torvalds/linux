@@ -12,7 +12,7 @@ if ARCH_S3C24XX
 config PLAT_S3C24XX
 	def_bool y
 	select ARCH_REQUIRE_GPIOLIB
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select S3C_DEV_NAND
 	select IRQ_DOMAIN
 	help
@@ -521,7 +521,6 @@ config MACH_ANUBIS
 	select HAVE_PATA_PLATFORM
 	select S3C2440_XTAL_12000000
 	select S3C24XX_DCLK
-	select S3C24XX_GPIO_EXTRA64
 	select S3C24XX_SIMTEC_PM if PM
 	select S3C_DEV_USB_HOST
 	help
@@ -537,7 +536,7 @@ config MACH_AT2440EVB
 
 config MACH_MINI2440
 	bool "MINI2440 development board"
-	select EEPROM_AT24
+	select EEPROM_AT24 if I2C
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select LEDS_TRIGGER_BACKLIGHT
@@ -562,7 +561,6 @@ config MACH_OSIRIS
 	select S3C2410_IOTIMING if ARM_S3C2440_CPUFREQ
 	select S3C2440_XTAL_12000000
 	select S3C24XX_DCLK
-	select S3C24XX_GPIO_EXTRA128
 	select S3C24XX_SIMTEC_PM if PM
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
@@ -573,7 +571,7 @@ config MACH_OSIRIS
 config MACH_OSIRIS_DVS
 	tristate "Simtec IM2440D20 (OSIRIS) Dynamic Voltage Scaling driver"
 	depends on MACH_OSIRIS
-	select TPS65010
+	depends on TPS65010
 	help
 	  Say Y/M here if you want to have dynamic voltage scaling support
 	  on the Simtec IM2440D20 (OSIRIS) module via the TPS65011.

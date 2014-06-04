@@ -323,6 +323,7 @@ static int ems_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = EMS_PCI_CDR;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			if (card->version == 1)
 				/* reset int flag of pita */

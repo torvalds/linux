@@ -14,6 +14,11 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/of_irq.h>
+#include <linux/interrupt.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 #include "pmc.h"
 
@@ -25,19 +30,48 @@
 struct clk_system {
 	struct clk_hw hw;
 	struct at91_pmc *pmc;
+	unsigned int irq;
+	wait_queue_head_t wait;
 	u8 id;
 };
 
-static int clk_system_enable(struct clk_hw *hw)
+static inline int is_pck(int id)
+{
+	return (id >= 8) && (id <= 15);
+}
+static irqreturn_t clk_system_irq_handler(int irq, void *dev_id)
+{
+	struct clk_system *sys = (struct clk_system *)dev_id;
+
+	wake_up(&sys->wait);
+	disable_irq_nosync(sys->irq);
+
+	return IRQ_HANDLED;
+}
+
+static int clk_system_prepare(struct clk_hw *hw)
 {
 	struct clk_system *sys = to_clk_system(hw);
 	struct at91_pmc *pmc = sys->pmc;
+	u32 mask = 1 << sys->id;
 
-	pmc_write(pmc, AT91_PMC_SCER, 1 << sys->id);
+	pmc_write(pmc, AT91_PMC_SCER, mask);
+
+	if (!is_pck(sys->id))
+		return 0;
+
+	while (!(pmc_read(pmc, AT91_PMC_SR) & mask)) {
+		if (sys->irq) {
+			enable_irq(sys->irq);
+			wait_event(sys->wait,
+				   pmc_read(pmc, AT91_PMC_SR) & mask);
+		} else
+			cpu_relax();
+	}
 	return 0;
 }
 
-static void clk_system_disable(struct clk_hw *hw)
+static void clk_system_unprepare(struct clk_hw *hw)
 {
 	struct clk_system *sys = to_clk_system(hw);
 	struct at91_pmc *pmc = sys->pmc;
@@ -45,27 +79,34 @@ static void clk_system_disable(struct clk_hw *hw)
 	pmc_write(pmc, AT91_PMC_SCDR, 1 << sys->id);
 }
 
-static int clk_system_is_enabled(struct clk_hw *hw)
+static int clk_system_is_prepared(struct clk_hw *hw)
 {
 	struct clk_system *sys = to_clk_system(hw);
 	struct at91_pmc *pmc = sys->pmc;
 
-	return !!(pmc_read(pmc, AT91_PMC_SCSR) & (1 << sys->id));
+	if (!(pmc_read(pmc, AT91_PMC_SCSR) & (1 << sys->id)))
+		return 0;
+
+	if (!is_pck(sys->id))
+		return 1;
+
+	return !!(pmc_read(pmc, AT91_PMC_SR) & (1 << sys->id));
 }
 
 static const struct clk_ops system_ops = {
-	.enable = clk_system_enable,
-	.disable = clk_system_disable,
-	.is_enabled = clk_system_is_enabled,
+	.prepare = clk_system_prepare,
+	.unprepare = clk_system_unprepare,
+	.is_prepared = clk_system_is_prepared,
 };
 
 static struct clk * __init
 at91_clk_register_system(struct at91_pmc *pmc, const char *name,
-			 const char *parent_name, u8 id)
+			 const char *parent_name, u8 id, int irq)
 {
 	struct clk_system *sys;
 	struct clk *clk = NULL;
 	struct clk_init_data init;
+	int ret;
 
 	if (!parent_name || id > SYSTEM_MAX_ID)
 		return ERR_PTR(-EINVAL);
@@ -84,11 +125,20 @@ at91_clk_register_system(struct at91_pmc *pmc, const char *name,
 	 * (see drivers/memory) which would request and enable the ddrck clock.
 	 * When this is done we will be able to remove CLK_IGNORE_UNUSED flag.
 	 */
-	init.flags = CLK_IGNORE_UNUSED;
+	init.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED;
 
 	sys->id = id;
 	sys->hw.init = &init;
 	sys->pmc = pmc;
+	sys->irq = irq;
+	if (irq) {
+		init_waitqueue_head(&sys->wait);
+		irq_set_status_flags(sys->irq, IRQ_NOAUTOEN);
+		ret = request_irq(sys->irq, clk_system_irq_handler,
+				IRQF_TRIGGER_HIGH, name, sys);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	clk = clk_register(NULL, &sys->hw);
 	if (IS_ERR(clk))
@@ -101,6 +151,7 @@ static void __init
 of_at91_clk_sys_setup(struct device_node *np, struct at91_pmc *pmc)
 {
 	int num;
+	int irq = 0;
 	u32 id;
 	struct clk *clk;
 	const char *name;
@@ -118,9 +169,12 @@ of_at91_clk_sys_setup(struct device_node *np, struct at91_pmc *pmc)
 		if (of_property_read_string(np, "clock-output-names", &name))
 			name = sysclknp->name;
 
+		if (is_pck(id))
+			irq = irq_of_parse_and_map(sysclknp, 0);
+
 		parent_name = of_clk_get_parent_name(sysclknp, 0);
 
-		clk = at91_clk_register_system(pmc, name, parent_name, id);
+		clk = at91_clk_register_system(pmc, name, parent_name, id, irq);
 		if (IS_ERR(clk))
 			continue;
 

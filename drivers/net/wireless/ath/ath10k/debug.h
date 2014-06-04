@@ -92,7 +92,7 @@ static inline void ath10k_debug_read_target_stats(struct ath10k *ar,
 
 #ifdef CONFIG_ATH10K_DEBUG
 __printf(2, 3) void ath10k_dbg(enum ath10k_debug_mask mask,
-				      const char *fmt, ...);
+			       const char *fmt, ...);
 void ath10k_dbg_dump(enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len);

@@ -152,7 +152,8 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->paca_index = cpu;
 	new_paca->kernel_toc = kernel_toc;
 	new_paca->kernelbase = (unsigned long) _stext;
-	new_paca->kernel_msr = MSR_KERNEL;
+	/* Only set MSR:IR/DR when MMU is initialized */
+	new_paca->kernel_msr = MSR_KERNEL & ~(MSR_IR | MSR_DR);
 	new_paca->hw_cpu_id = 0xffff;
 	new_paca->kexec_state = KEXEC_STATE_NONE;
 	new_paca->__current = &init_task;

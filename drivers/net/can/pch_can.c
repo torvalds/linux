@@ -950,6 +950,7 @@ static const struct net_device_ops pch_can_netdev_ops = {
 	.ndo_open		= pch_can_open,
 	.ndo_stop		= pch_close,
 	.ndo_start_xmit		= pch_xmit,
+	.ndo_change_mtu		= can_change_mtu,
 };
 
 static void pch_can_remove(struct pci_dev *pdev)

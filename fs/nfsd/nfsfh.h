@@ -133,6 +133,17 @@ fh_init(struct svc_fh *fhp, int maxsize)
 
 #ifdef CONFIG_NFSD_V3
 /*
+ * The wcc data stored in current_fh should be cleared
+ * between compound ops.
+ */
+static inline void
+fh_clear_wcc(struct svc_fh *fhp)
+{
+	fhp->fh_post_saved = 0;
+	fhp->fh_pre_saved = 0;
+}
+
+/*
  * Fill in the pre_op attr for the wcc data
  */
 static inline void
@@ -152,7 +163,8 @@ fill_pre_wcc(struct svc_fh *fhp)
 
 extern void fill_post_wcc(struct svc_fh *);
 #else
-#define	fill_pre_wcc(ignored)
+#define fh_clear_wcc(ignored)
+#define fill_pre_wcc(ignored)
 #define fill_post_wcc(notused)
 #endif /* CONFIG_NFSD_V3 */
 

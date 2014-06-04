@@ -125,7 +125,7 @@ static inline int iscsi_sw_sk_state_check(struct sock *sk)
 	return 0;
 }
 
-static void iscsi_sw_tcp_data_ready(struct sock *sk, int flag)
+static void iscsi_sw_tcp_data_ready(struct sock *sk)
 {
 	struct iscsi_conn *conn;
 	struct iscsi_tcp_conn *tcp_conn;

@@ -176,8 +176,8 @@ static irqreturn_t tx4939_rtc_interrupt(int irq, void *dev_id)
 		tx4939_rtc_cmd(rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	}
 	spin_unlock(&pdata->lock);
-	if (likely(pdata->rtc))
-		rtc_update_irq(pdata->rtc, 1, events);
+	rtc_update_irq(pdata->rtc, 1, events);
+
 	return IRQ_HANDLED;
 }
 

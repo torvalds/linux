@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/audit.h>
 #include <linux/kthread.h>
@@ -226,7 +228,7 @@ static int audit_match_signal(struct audit_entry *entry)
 #endif
 
 /* Common user-space to kernel rule translation. */
-static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
+static inline struct audit_entry *audit_to_entry_common(struct audit_rule_data *rule)
 {
 	unsigned listnr;
 	struct audit_entry *entry;
@@ -249,7 +251,7 @@ static inline struct audit_entry *audit_to_entry_common(struct audit_rule *rule)
 		;
 	}
 	if (unlikely(rule->action == AUDIT_POSSIBLE)) {
-		printk(KERN_ERR "AUDIT_POSSIBLE is deprecated\n");
+		pr_err("AUDIT_POSSIBLE is deprecated\n");
 		goto exit_err;
 	}
 	if (rule->action != AUDIT_NEVER && rule->action != AUDIT_ALWAYS)
@@ -403,7 +405,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 	int i;
 	char *str;
 
-	entry = audit_to_entry_common((struct audit_rule *)data);
+	entry = audit_to_entry_common(data);
 	if (IS_ERR(entry))
 		goto exit_nofree;
 
@@ -429,6 +431,19 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		if ((f->type == AUDIT_LOGINUID) && (f->val == AUDIT_UID_UNSET)) {
 			f->type = AUDIT_LOGINUID_SET;
 			f->val = 0;
+		}
+
+		if ((f->type == AUDIT_PID) || (f->type == AUDIT_PPID)) {
+			struct pid *pid;
+			rcu_read_lock();
+			pid = find_vpid(f->val);
+			if (!pid) {
+				rcu_read_unlock();
+				err = -ESRCH;
+				goto exit_free;
+			}
+			f->val = pid_nr(pid);
+			rcu_read_unlock();
 		}
 
 		err = audit_field_valid(entry, f);
@@ -479,8 +494,8 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			/* Keep currently invalid fields around in case they
 			 * become valid after a policy reload. */
 			if (err == -EINVAL) {
-				printk(KERN_WARNING "audit rule for LSM "
-				       "\'%s\' is invalid\n",  str);
+				pr_warn("audit rule for LSM \'%s\' is invalid\n",
+					str);
 				err = 0;
 			}
 			if (err) {
@@ -709,8 +724,8 @@ static inline int audit_dupe_lsm_field(struct audit_field *df,
 	/* Keep currently invalid fields around in case they
 	 * become valid after a policy reload. */
 	if (ret == -EINVAL) {
-		printk(KERN_WARNING "audit rule for LSM \'%s\' is "
-		       "invalid\n", df->lsm_str);
+		pr_warn("audit rule for LSM \'%s\' is invalid\n",
+			df->lsm_str);
 		ret = 0;
 	}
 
@@ -1240,12 +1255,14 @@ static int audit_filter_user_rules(struct audit_krule *rule, int type,
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
+		pid_t pid;
 		int result = 0;
 		u32 sid;
 
 		switch (f->type) {
 		case AUDIT_PID:
-			result = audit_comparator(task_pid_vnr(current), f->op, f->val);
+			pid = task_pid_nr(current);
+			result = audit_comparator(pid, f->op, f->val);
 			break;
 		case AUDIT_UID:
 			result = audit_uid_comparator(current_uid(), f->op, f->uid);

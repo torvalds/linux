@@ -11,7 +11,7 @@ struct tcf_ipt {
 	char			*tcfi_tname;
 	struct xt_entry_target	*tcfi_t;
 };
-#define to_ipt(pc) \
-	container_of(pc, struct tcf_ipt, common)
+#define to_ipt(a) \
+	container_of(a->priv, struct tcf_ipt, common)
 
 #endif /* __NET_TC_IPT_H */

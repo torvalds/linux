@@ -18,7 +18,6 @@
 #define DEBUG_H
 
 #include "hw.h"
-#include "rc.h"
 #include "dfs_debug.h"
 
 struct ath_txq;

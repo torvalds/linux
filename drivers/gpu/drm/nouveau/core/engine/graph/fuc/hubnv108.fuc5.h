@@ -342,7 +342,7 @@ uint32_t nv108_grhub_code[] = {
 	0xb4f000bb,
 	0x10b4b01f,
 	0x0af31bf4,
-	0x00b87e02,
+	0x00b87e05,
 	0x250ef400,
 /* 0x01d8: mmctx_stop */
 	0xb600abc8,

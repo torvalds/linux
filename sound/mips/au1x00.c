@@ -725,15 +725,4 @@ struct platform_driver au1000_ac97c_driver = {
 	.remove		= au1000_ac97_remove,
 };
 
-static int __init au1000_ac97_load(void)
-{
-	return platform_driver_register(&au1000_ac97c_driver);
-}
-
-static void __exit au1000_ac97_unload(void)
-{
-	platform_driver_unregister(&au1000_ac97c_driver);
-}
-
-module_init(au1000_ac97_load);
-module_exit(au1000_ac97_unload);
+module_platform_driver(au1000_ac97c_driver);

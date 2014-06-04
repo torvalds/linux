@@ -842,7 +842,7 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Reserve space & log for one extent added to the file.
 		 */
-		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growdata,
+		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_growrtalloc,
 					  resblks, 0);
 		if (error)
 			goto error_cancel;

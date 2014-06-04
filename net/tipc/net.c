@@ -146,19 +146,19 @@ void tipc_net_route_msg(struct sk_buff *buf)
 	if (tipc_in_scope(dnode, tipc_own_addr)) {
 		if (msg_isdata(msg)) {
 			if (msg_mcast(msg))
-				tipc_port_recv_mcast(buf, NULL);
+				tipc_port_mcast_rcv(buf, NULL);
 			else if (msg_destport(msg))
-				tipc_port_recv_msg(buf);
+				tipc_port_rcv(buf);
 			else
 				net_route_named_msg(buf);
 			return;
 		}
 		switch (msg_user(msg)) {
 		case NAME_DISTRIBUTOR:
-			tipc_named_recv(buf);
+			tipc_named_rcv(buf);
 			break;
 		case CONN_MANAGER:
-			tipc_port_recv_proto_msg(buf);
+			tipc_port_proto_rcv(buf);
 			break;
 		default:
 			kfree_skb(buf);
@@ -168,7 +168,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 
 	/* Handle message for another node */
 	skb_trim(buf, msg_size(msg));
-	tipc_link_send(buf, dnode, msg_link_selector(msg));
+	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
 }
 
 void tipc_net_start(u32 addr)
@@ -182,8 +182,8 @@ void tipc_net_start(u32 addr)
 	tipc_bclink_init();
 	write_unlock_bh(&tipc_net_lock);
 
-	tipc_cfg_reinit();
-
+	tipc_nametbl_publish(TIPC_CFG_SRV, tipc_own_addr, tipc_own_addr,
+			     TIPC_ZONE_SCOPE, 0, tipc_own_addr);
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",
 		tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
@@ -191,15 +191,15 @@ void tipc_net_start(u32 addr)
 
 void tipc_net_stop(void)
 {
-	struct tipc_node *node, *t_node;
-
 	if (!tipc_own_addr)
 		return;
+
+	tipc_nametbl_withdraw(TIPC_CFG_SRV, tipc_own_addr, 0, tipc_own_addr);
 	write_lock_bh(&tipc_net_lock);
 	tipc_bearer_stop();
 	tipc_bclink_stop();
-	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
-		tipc_node_delete(node);
+	tipc_node_stop();
 	write_unlock_bh(&tipc_net_lock);
+
 	pr_info("Left network mode\n");
 }

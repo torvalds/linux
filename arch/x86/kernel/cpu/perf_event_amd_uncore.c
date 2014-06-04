@@ -531,15 +531,16 @@ static int __init amd_uncore_init(void)
 	if (ret)
 		return -ENODEV;
 
-	get_online_cpus();
+	cpu_notifier_register_begin();
+
 	/* init cpus already online before registering for hotplug notifier */
 	for_each_online_cpu(cpu) {
 		amd_uncore_cpu_up_prepare(cpu);
 		smp_call_function_single(cpu, init_cpu_already_online, NULL, 1);
 	}
 
-	register_cpu_notifier(&amd_uncore_cpu_notifier_block);
-	put_online_cpus();
+	__register_cpu_notifier(&amd_uncore_cpu_notifier_block);
+	cpu_notifier_register_done();
 
 	return 0;
 }

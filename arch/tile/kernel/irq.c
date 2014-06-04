@@ -21,6 +21,7 @@
 #include <hv/drv_pcie_rc_intf.h>
 #include <arch/spr_def.h>
 #include <asm/traps.h>
+#include <linux/perf_event.h>
 
 /* Bit-flag stored in irq_desc->chip_data to indicate HW-cleared irqs. */
 #define IS_HW_CLEARED 1
@@ -258,6 +259,23 @@ EXPORT_SYMBOL(tile_irq_activate);
 void ack_bad_irq(unsigned int irq)
 {
 	pr_err("unexpected IRQ trap at vector %02x\n", irq);
+}
+
+/*
+ * /proc/interrupts printing:
+ */
+int arch_show_interrupts(struct seq_file *p, int prec)
+{
+#ifdef CONFIG_PERF_EVENTS
+	int i;
+
+	seq_printf(p, "%*s: ", prec, "PMI");
+
+	for_each_online_cpu(i)
+		seq_printf(p, "%10llu ", per_cpu(perf_irqs, i));
+	seq_puts(p, "  perf_events\n");
+#endif
+	return 0;
 }
 
 /*

@@ -64,7 +64,7 @@ static int opal_get_sys_param(u32 param_id, u32 length, void *buffer)
 		goto out_token;
 	}
 
-	ret = msg.params[1];
+	ret = be64_to_cpu(msg.params[1]);
 
 out_token:
 	opal_async_release_token(token);
@@ -98,7 +98,7 @@ static int opal_set_sys_param(u32 param_id, u32 length, void *buffer)
 		goto out_token;
 	}
 
-	ret = msg.params[1];
+	ret = be64_to_cpu(msg.params[1]);
 
 out_token:
 	opal_async_release_token(token);

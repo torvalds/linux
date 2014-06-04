@@ -195,8 +195,12 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	if (isr & BIT_DMA_EP_RX_ICR_RX_DONE) {
 		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
-		wil_dbg_txrx(wil, "NAPI schedule\n");
-		napi_schedule(&wil->napi_rx);
+		if (test_bit(wil_status_reset_done, &wil->status)) {
+			wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
+			napi_schedule(&wil->napi_rx);
+		} else {
+			wil_err(wil, "Got Rx interrupt while in reset\n");
+		}
 	}
 
 	if (isr)
@@ -226,10 +230,15 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 	if (isr & BIT_DMA_EP_TX_ICR_TX_DONE) {
 		wil_dbg_irq(wil, "TX done\n");
-		napi_schedule(&wil->napi_tx);
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		/* clear also all VRING interrupts */
 		isr &= ~(BIT(25) - 1UL);
+		if (test_bit(wil_status_reset_done, &wil->status)) {
+			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
+			napi_schedule(&wil->napi_tx);
+		} else {
+			wil_err(wil, "Got Tx interrupt while in reset\n");
+		}
 	}
 
 	if (isr)
@@ -319,6 +328,7 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	if (isr & ISR_MISC_FW_ERROR) {
 		wil_notify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
+		wil_fw_error_recovery(wil);
 	}
 
 	if (isr & ISR_MISC_MBOX_EVT) {
@@ -492,6 +502,23 @@ free0:
 	free_irq(irq, wil);
 
 	return rc;
+}
+/* can't use wil_ioread32_and_clear because ICC value is not ser yet */
+static inline void wil_clear32(void __iomem *addr)
+{
+	u32 x = ioread32(addr);
+
+	iowrite32(x, addr);
+}
+
+void wil6210_clear_irq(struct wil6210_priv *wil)
+{
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_RX_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_TX_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
+	wil_clear32(wil->csr + HOSTADDR(RGF_DMA_EP_MISC_ICR) +
+		    offsetof(struct RGF_ICR, ICR));
 }
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq)

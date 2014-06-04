@@ -1496,7 +1496,7 @@ int kvm_vgic_hyp_init(void)
 		goto out;
 	}
 
-	ret = register_cpu_notifier(&vgic_cpu_nb);
+	ret = __register_cpu_notifier(&vgic_cpu_nb);
 	if (ret) {
 		kvm_err("Cannot register vgic CPU notifier\n");
 		goto out_free_irq;

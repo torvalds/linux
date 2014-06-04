@@ -128,7 +128,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
 					     sizeof(struct affs_inode_info),
@@ -163,7 +163,7 @@ static const struct super_operations affs_sops = {
 };
 
 enum {
-	Opt_bs, Opt_mode, Opt_mufs, Opt_prefix, Opt_protect,
+	Opt_bs, Opt_mode, Opt_mufs, Opt_notruncate, Opt_prefix, Opt_protect,
 	Opt_reserved, Opt_root, Opt_setgid, Opt_setuid,
 	Opt_verbose, Opt_volume, Opt_ignore, Opt_err,
 };
@@ -172,6 +172,7 @@ static const match_table_t tokens = {
 	{Opt_bs, "bs=%u"},
 	{Opt_mode, "mode=%o"},
 	{Opt_mufs, "mufs"},
+	{Opt_notruncate, "nofilenametruncate"},
 	{Opt_prefix, "prefix=%s"},
 	{Opt_protect, "protect"},
 	{Opt_reserved, "reserved=%u"},
@@ -232,6 +233,9 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			break;
 		case Opt_mufs:
 			*mount_opts |= SF_MUFS;
+			break;
+		case Opt_notruncate:
+			*mount_opts |= SF_NO_TRUNCATE;
 			break;
 		case Opt_prefix:
 			*prefix = match_strdup(&args[0]);
@@ -530,6 +534,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 
 	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
 
+	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
 
 	memcpy(volume, sbi->s_volume, 32);

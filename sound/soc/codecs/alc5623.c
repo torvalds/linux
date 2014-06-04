@@ -902,7 +902,6 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 {
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
 
 	alc5623_reset(codec);
 
@@ -961,7 +960,7 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* power down chip */

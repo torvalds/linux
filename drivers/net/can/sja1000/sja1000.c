@@ -106,8 +106,7 @@ static int sja1000_probe_chip(struct net_device *dev)
 	struct sja1000_priv *priv = netdev_priv(dev);
 
 	if (priv->reg_base && sja1000_is_absent(priv)) {
-		printk(KERN_INFO "%s: probing @0x%lX failed\n",
-		       DRV_NAME, dev->base_addr);
+		netdev_err(dev, "probing failed\n");
 		return 0;
 	}
 	return -1;
@@ -643,9 +642,10 @@ void free_sja1000dev(struct net_device *dev)
 EXPORT_SYMBOL_GPL(free_sja1000dev);
 
 static const struct net_device_ops sja1000_netdev_ops = {
-       .ndo_open               = sja1000_open,
-       .ndo_stop               = sja1000_close,
-       .ndo_start_xmit         = sja1000_start_xmit,
+	.ndo_open	= sja1000_open,
+	.ndo_stop	= sja1000_close,
+	.ndo_start_xmit	= sja1000_start_xmit,
+	.ndo_change_mtu	= can_change_mtu,
 };
 
 int register_sja1000dev(struct net_device *dev)

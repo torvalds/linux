@@ -16,7 +16,7 @@
 
 / {
 	model = "Hardkernel ODROID-X board based on Exynos4412";
-	compatible = "hardkernel,odroid-x", "samsung,exynos4412";
+	compatible = "hardkernel,odroid-x", "samsung,exynos4412", "samsung,exynos4";
 
 	memory {
 		reg = <0x40000000 0x40000000>;
@@ -251,7 +251,7 @@
 				buck2_reg: BUCK2 {
 					regulator-name = "vdd_arm";
 					regulator-min-microvolt = <900000>;
-					regulator-max-microvolt = <1300000>;
+					regulator-max-microvolt = <1350000>;
 					regulator-always-on;
 					regulator-boot-on;
 				};

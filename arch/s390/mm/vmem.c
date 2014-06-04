@@ -138,7 +138,6 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 	}
 	ret = 0;
 out:
-	flush_tlb_kernel_range(start, end);
 	return ret;
 }
 
@@ -265,7 +264,6 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	memset((void *)start, 0, end - start);
 	ret = 0;
 out:
-	flush_tlb_kernel_range(start, end);
 	return ret;
 }
 

@@ -19,15 +19,15 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_labels.h>
 
 struct nft_ct {
 	enum nft_ct_keys	key:8;
 	enum ip_conntrack_dir	dir:8;
-	union{
+	union {
 		enum nft_registers	dreg:8;
 		enum nft_registers	sreg:8;
 	};
-	uint8_t			family;
 };
 
 static void nft_ct_get_eval(const struct nft_expr *expr,
@@ -97,6 +97,26 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 			goto err;
 		strncpy((char *)dest->data, helper->name, sizeof(dest->data));
 		return;
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS: {
+		struct nf_conn_labels *labels = nf_ct_labels_find(ct);
+		unsigned int size;
+
+		if (!labels) {
+			memset(dest->data, 0, sizeof(dest->data));
+			return;
+		}
+
+		BUILD_BUG_ON(NF_CT_LABELS_MAX_SIZE > sizeof(dest->data));
+		size = labels->words * sizeof(long);
+
+		memcpy(dest->data, labels->bits, size);
+		if (size < sizeof(dest->data))
+			memset(((char *) dest->data) + size, 0,
+			       sizeof(dest->data) - size);
+		return;
+	}
+#endif
 	}
 
 	tuple = &ct->tuplehash[priv->dir].tuple;
@@ -221,6 +241,9 @@ static int nft_ct_init_validate_get(const struct nft_expr *expr,
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	case NFT_CT_SECMARK:
 #endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	case NFT_CT_LABELS:
+#endif
 	case NFT_CT_EXPIRATION:
 	case NFT_CT_HELPER:
 		if (tb[NFTA_CT_DIRECTION] != NULL)
@@ -292,16 +315,13 @@ static int nft_ct_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	priv->family = ctx->afi->family;
-
 	return 0;
 }
 
-static void nft_ct_destroy(const struct nft_expr *expr)
+static void nft_ct_destroy(const struct nft_ctx *ctx,
+			   const struct nft_expr *expr)
 {
-	struct nft_ct *priv = nft_expr_priv(expr);
-
-	nft_ct_l3proto_module_put(priv->family);
+	nft_ct_l3proto_module_put(ctx->afi->family);
 }
 
 static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)

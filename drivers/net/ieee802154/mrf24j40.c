@@ -465,8 +465,8 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
 		/* Short Addr */
 		u8 addrh, addrl;
-		addrh = filt->short_addr >> 8 & 0xff;
-		addrl = filt->short_addr & 0xff;
+		addrh = le16_to_cpu(filt->short_addr) >> 8 & 0xff;
+		addrl = le16_to_cpu(filt->short_addr) & 0xff;
 
 		write_short_reg(devrec, REG_SADRH, addrh);
 		write_short_reg(devrec, REG_SADRL, addrl);
@@ -476,15 +476,16 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 
 	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
 		/* Device Address */
-		int i;
+		u8 i, addr[8];
+
+		memcpy(addr, &filt->ieee_addr, 8);
 		for (i = 0; i < 8; i++)
-			write_short_reg(devrec, REG_EADR0+i,
-					filt->ieee_addr[7-i]);
+			write_short_reg(devrec, REG_EADR0 + i, addr[i]);
 
 #ifdef DEBUG
 		printk(KERN_DEBUG "Set long addr to: ");
 		for (i = 0; i < 8; i++)
-			printk("%02hhx ", filt->ieee_addr[i]);
+			printk("%02hhx ", addr[7 - i]);
 		printk(KERN_DEBUG "\n");
 #endif
 	}
@@ -492,8 +493,8 @@ static int mrf24j40_filter(struct ieee802154_dev *dev,
 	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
 		/* PAN ID */
 		u8 panidl, panidh;
-		panidh = filt->pan_id >> 8 & 0xff;
-		panidl = filt->pan_id & 0xff;
+		panidh = le16_to_cpu(filt->pan_id) >> 8 & 0xff;
+		panidl = le16_to_cpu(filt->pan_id) & 0xff;
 		write_short_reg(devrec, REG_PANIDH, panidh);
 		write_short_reg(devrec, REG_PANIDL, panidl);
 

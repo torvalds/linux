@@ -86,19 +86,14 @@ static int64_t dump_send_ack(uint32_t dump_id)
 	return rc;
 }
 
-static void delay_release_kobj(void *kobj)
-{
-	kobject_put((struct kobject *)kobj);
-}
-
 static ssize_t dump_ack_store(struct dump_obj *dump_obj,
 			      struct dump_attribute *attr,
 			      const char *buf,
 			      size_t count)
 {
 	dump_send_ack(dump_obj->id);
-	sysfs_schedule_callback(&dump_obj->kobj, delay_release_kobj,
-				&dump_obj->kobj, THIS_MODULE);
+	sysfs_remove_file_self(&dump_obj->kobj, &attr->attr);
+	kobject_put(&dump_obj->kobj);
 	return count;
 }
 

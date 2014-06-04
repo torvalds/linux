@@ -505,6 +505,84 @@ int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps)
 	mlx4_free_cmd_mailbox(dev, outmailbox);
 	return err;
 }
+static struct mlx4_roce_gid_entry zgid_entry;
+
+int mlx4_get_slave_num_gids(struct mlx4_dev *dev, int slave, int port)
+{
+	int vfs;
+	int slave_gid = slave;
+	unsigned i;
+	struct mlx4_slaves_pport slaves_pport;
+	struct mlx4_active_ports actv_ports;
+	unsigned max_port_p_one;
+
+	if (slave == 0)
+		return MLX4_ROCE_PF_GIDS;
+
+	/* Slave is a VF */
+	slaves_pport = mlx4_phys_to_slaves_pport(dev, port);
+	actv_ports = mlx4_get_active_ports(dev, slave);
+	max_port_p_one = find_first_bit(actv_ports.ports, dev->caps.num_ports) +
+		bitmap_weight(actv_ports.ports, dev->caps.num_ports) + 1;
+
+	for (i = 1; i < max_port_p_one; i++) {
+		struct mlx4_active_ports exclusive_ports;
+		struct mlx4_slaves_pport slaves_pport_actv;
+		bitmap_zero(exclusive_ports.ports, dev->caps.num_ports);
+		set_bit(i - 1, exclusive_ports.ports);
+		if (i == port)
+			continue;
+		slaves_pport_actv = mlx4_phys_to_slaves_pport_actv(
+				    dev, &exclusive_ports);
+		slave_gid -= bitmap_weight(slaves_pport_actv.slaves,
+					   dev->num_vfs + 1);
+	}
+	vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+	if (slave_gid <= ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) % vfs))
+		return ((MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / vfs) + 1;
+	return (MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS) / vfs;
+}
+
+int mlx4_get_base_gid_ix(struct mlx4_dev *dev, int slave, int port)
+{
+	int gids;
+	unsigned i;
+	int slave_gid = slave;
+	int vfs;
+
+	struct mlx4_slaves_pport slaves_pport;
+	struct mlx4_active_ports actv_ports;
+	unsigned max_port_p_one;
+
+	if (slave == 0)
+		return 0;
+
+	slaves_pport = mlx4_phys_to_slaves_pport(dev, port);
+	actv_ports = mlx4_get_active_ports(dev, slave);
+	max_port_p_one = find_first_bit(actv_ports.ports, dev->caps.num_ports) +
+		bitmap_weight(actv_ports.ports, dev->caps.num_ports) + 1;
+
+	for (i = 1; i < max_port_p_one; i++) {
+		struct mlx4_active_ports exclusive_ports;
+		struct mlx4_slaves_pport slaves_pport_actv;
+		bitmap_zero(exclusive_ports.ports, dev->caps.num_ports);
+		set_bit(i - 1, exclusive_ports.ports);
+		if (i == port)
+			continue;
+		slaves_pport_actv = mlx4_phys_to_slaves_pport_actv(
+				    dev, &exclusive_ports);
+		slave_gid -= bitmap_weight(slaves_pport_actv.slaves,
+					   dev->num_vfs + 1);
+	}
+	gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
+	vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+	if (slave_gid <= gids % vfs)
+		return MLX4_ROCE_PF_GIDS + ((gids / vfs) + 1) * (slave_gid - 1);
+
+	return MLX4_ROCE_PF_GIDS + (gids % vfs) +
+		((gids / vfs) * (slave_gid - 1));
+}
+EXPORT_SYMBOL_GPL(mlx4_get_base_gid_ix);
 
 static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				u8 op_mod, struct mlx4_cmd_mailbox *inbox)
@@ -515,14 +593,18 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	struct mlx4_slave_state *slave_st = &master->slave_state[slave];
 	struct mlx4_set_port_rqp_calc_context *qpn_context;
 	struct mlx4_set_port_general_context *gen_context;
+	struct mlx4_roce_gid_entry *gid_entry_tbl, *gid_entry_mbox, *gid_entry_mb1;
 	int reset_qkey_viols;
 	int port;
 	int is_eth;
+	int num_gids;
+	int base;
 	u32 in_modifier;
 	u32 promisc;
 	u16 mtu, prev_mtu;
 	int err;
-	int i;
+	int i, j;
+	int offset;
 	__be32 agg_cap_mask;
 	__be32 slave_cap_mask;
 	__be32 new_cap_mask;
@@ -535,7 +617,8 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	/* Slaves cannot perform SET_PORT operations except changing MTU */
 	if (is_eth) {
 		if (slave != dev->caps.function &&
-		    in_modifier != MLX4_SET_PORT_GENERAL) {
+		    in_modifier != MLX4_SET_PORT_GENERAL &&
+		    in_modifier != MLX4_SET_PORT_GID_TABLE) {
 			mlx4_warn(dev, "denying SET_PORT for slave:%d\n",
 					slave);
 			return -EINVAL;
@@ -580,6 +663,67 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 			}
 
 			gen_context->mtu = cpu_to_be16(master->max_mtu[port]);
+			break;
+		case MLX4_SET_PORT_GID_TABLE:
+			/* change to MULTIPLE entries: number of guest's gids
+			 * need a FOR-loop here over number of gids the guest has.
+			 * 1. Check no duplicates in gids passed by slave
+			 */
+			num_gids = mlx4_get_slave_num_gids(dev, slave, port);
+			base = mlx4_get_base_gid_ix(dev, slave, port);
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0; i < num_gids; gid_entry_mbox++, i++) {
+				if (!memcmp(gid_entry_mbox->raw, zgid_entry.raw,
+					    sizeof(zgid_entry)))
+					continue;
+				gid_entry_mb1 = gid_entry_mbox + 1;
+				for (j = i + 1; j < num_gids; gid_entry_mb1++, j++) {
+					if (!memcmp(gid_entry_mb1->raw,
+						    zgid_entry.raw, sizeof(zgid_entry)))
+						continue;
+					if (!memcmp(gid_entry_mb1->raw, gid_entry_mbox->raw,
+						    sizeof(gid_entry_mbox->raw))) {
+						/* found duplicate */
+						return -EINVAL;
+					}
+				}
+			}
+
+			/* 2. Check that do not have duplicates in OTHER
+			 *    entries in the port GID table
+			 */
+			for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
+				if (i >= base && i < base + num_gids)
+					continue; /* don't compare to slave's current gids */
+				gid_entry_tbl = &priv->roce_gids[port - 1][i];
+				if (!memcmp(gid_entry_tbl->raw, zgid_entry.raw, sizeof(zgid_entry)))
+					continue;
+				gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+				for (j = 0; j < num_gids; gid_entry_mbox++, j++) {
+					if (!memcmp(gid_entry_mbox->raw, zgid_entry.raw,
+						    sizeof(zgid_entry)))
+						continue;
+					if (!memcmp(gid_entry_mbox->raw, gid_entry_tbl->raw,
+						    sizeof(gid_entry_tbl->raw))) {
+						/* found duplicate */
+						mlx4_warn(dev, "requested gid entry for slave:%d "
+							  "is a duplicate of gid at index %d\n",
+							  slave, i);
+						return -EINVAL;
+					}
+				}
+			}
+
+			/* insert slave GIDs with memcpy, starting at slave's base index */
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0, offset = base; i < num_gids; gid_entry_mbox++, offset++, i++)
+				memcpy(priv->roce_gids[port - 1][offset].raw, gid_entry_mbox->raw, 16);
+
+			/* Now, copy roce port gids table to current mailbox for passing to FW */
+			gid_entry_mbox = (struct mlx4_roce_gid_entry *)(inbox->buf);
+			for (i = 0; i < MLX4_ROCE_MAX_GIDS; gid_entry_mbox++, i++)
+				memcpy(gid_entry_mbox->raw, priv->roce_gids[port - 1][i].raw, 16);
+
 			break;
 		}
 		return mlx4_cmd(dev, inbox->dma, in_mod, op_mod,
@@ -646,6 +790,15 @@ int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			  struct mlx4_cmd_mailbox *outbox,
 			  struct mlx4_cmd_info *cmd)
 {
+	int port = mlx4_slave_convert_port(
+			dev, slave, vhcr->in_modifier & 0xFF);
+
+	if (port < 0)
+		return -EINVAL;
+
+	vhcr->in_modifier = (vhcr->in_modifier & ~0xFF) |
+			    (port & 0xFF);
+
 	return mlx4_common_set_port(dev, slave, vhcr->in_modifier,
 				    vhcr->op_modifier, inbox);
 }
@@ -835,7 +988,7 @@ struct mlx4_set_port_vxlan_context {
 	u8	steering;
 };
 
-int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering)
+int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable)
 {
 	int err;
 	u32 in_mod;
@@ -849,7 +1002,8 @@ int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering)
 	memset(context, 0, sizeof(*context));
 
 	context->modify_flags = VXLAN_ENABLE_MODIFY | VXLAN_STEERING_MODIFY;
-	context->enable_flags = VXLAN_ENABLE;
+	if (enable)
+		context->enable_flags = VXLAN_ENABLE;
 	context->steering  = steering;
 
 	in_mod = MLX4_SET_PORT_VXLAN << 8 | port;
@@ -927,3 +1081,108 @@ void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap)
 		*stats_bitmap |= MLX4_STATS_ERROR_COUNTERS_MASK;
 }
 EXPORT_SYMBOL(mlx4_set_stats_bitmap);
+
+int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
+				 int *slave_id)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i, found_ix = -1;
+	int vf_gids = MLX4_ROCE_MAX_GIDS - MLX4_ROCE_PF_GIDS;
+	struct mlx4_slaves_pport slaves_pport;
+	unsigned num_vfs;
+	int slave_gid;
+
+	if (!mlx4_is_mfunc(dev))
+		return -EINVAL;
+
+	slaves_pport = mlx4_phys_to_slaves_pport(dev, port);
+	num_vfs = bitmap_weight(slaves_pport.slaves, dev->num_vfs + 1) - 1;
+
+	for (i = 0; i < MLX4_ROCE_MAX_GIDS; i++) {
+		if (!memcmp(priv->roce_gids[port - 1][i].raw, gid, 16)) {
+			found_ix = i;
+			break;
+		}
+	}
+
+	if (found_ix >= 0) {
+		if (found_ix < MLX4_ROCE_PF_GIDS)
+			slave_gid = 0;
+		else if (found_ix < MLX4_ROCE_PF_GIDS + (vf_gids % num_vfs) *
+			 (vf_gids / num_vfs + 1))
+			slave_gid = ((found_ix - MLX4_ROCE_PF_GIDS) /
+				     (vf_gids / num_vfs + 1)) + 1;
+		else
+			slave_gid =
+			((found_ix - MLX4_ROCE_PF_GIDS -
+			  ((vf_gids % num_vfs) * ((vf_gids / num_vfs + 1)))) /
+			 (vf_gids / num_vfs)) + vf_gids % num_vfs + 1;
+
+		if (slave_gid) {
+			struct mlx4_active_ports exclusive_ports;
+			struct mlx4_active_ports actv_ports;
+			struct mlx4_slaves_pport slaves_pport_actv;
+			unsigned max_port_p_one;
+			int num_slaves_before = 1;
+
+			for (i = 1; i < port; i++) {
+				bitmap_zero(exclusive_ports.ports, dev->caps.num_ports);
+				set_bit(i, exclusive_ports.ports);
+				slaves_pport_actv =
+					mlx4_phys_to_slaves_pport_actv(
+							dev, &exclusive_ports);
+				num_slaves_before += bitmap_weight(
+						slaves_pport_actv.slaves,
+						dev->num_vfs + 1);
+			}
+
+			if (slave_gid < num_slaves_before) {
+				bitmap_zero(exclusive_ports.ports, dev->caps.num_ports);
+				set_bit(port - 1, exclusive_ports.ports);
+				slaves_pport_actv =
+					mlx4_phys_to_slaves_pport_actv(
+							dev, &exclusive_ports);
+				slave_gid += bitmap_weight(
+						slaves_pport_actv.slaves,
+						dev->num_vfs + 1) -
+						num_slaves_before;
+			}
+			actv_ports = mlx4_get_active_ports(dev, slave_gid);
+			max_port_p_one = find_first_bit(
+				actv_ports.ports, dev->caps.num_ports) +
+				bitmap_weight(actv_ports.ports,
+					      dev->caps.num_ports) + 1;
+
+			for (i = 1; i < max_port_p_one; i++) {
+				if (i == port)
+					continue;
+				bitmap_zero(exclusive_ports.ports,
+					    dev->caps.num_ports);
+				set_bit(i - 1, exclusive_ports.ports);
+				slaves_pport_actv =
+					mlx4_phys_to_slaves_pport_actv(
+						dev, &exclusive_ports);
+				slave_gid += bitmap_weight(
+						slaves_pport_actv.slaves,
+						dev->num_vfs + 1);
+			}
+		}
+		*slave_id = slave_gid;
+	}
+
+	return (found_ix >= 0) ? 0 : -EINVAL;
+}
+EXPORT_SYMBOL(mlx4_get_slave_from_roce_gid);
+
+int mlx4_get_roce_gid_from_slave(struct mlx4_dev *dev, int port, int slave_id,
+				 u8 *gid)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (!mlx4_is_master(dev))
+		return -EINVAL;
+
+	memcpy(gid, priv->roce_gids[port - 1][slave_id].raw, 16);
+	return 0;
+}
+EXPORT_SYMBOL(mlx4_get_roce_gid_from_slave);

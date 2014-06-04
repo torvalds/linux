@@ -90,6 +90,7 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
 		sge_no++;
 	}
 	rqstp->rq_respages = &rqstp->rq_pages[sge_no];
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* We should never run out of SGE because the limit is defined to
 	 * support the max allowed RPC data length
@@ -169,6 +170,7 @@ static int map_read_chunks(struct svcxprt_rdma *xprt,
 		 */
 		head->arg.pages[page_no] = rqstp->rq_arg.pages[page_no];
 		rqstp->rq_respages = &rqstp->rq_arg.pages[page_no+1];
+		rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 		byte_count -= sge_bytes;
 		ch_bytes -= sge_bytes;
@@ -276,6 +278,7 @@ static int fast_reg_read_chunks(struct svcxprt_rdma *xprt,
 
 	/* rq_respages points one past arg pages */
 	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Create the reply and chunk maps */
 	offset = 0;
@@ -520,13 +523,6 @@ next_sge:
 	for (ch_no = 0; &rqstp->rq_pages[ch_no] < rqstp->rq_respages; ch_no++)
 		rqstp->rq_pages[ch_no] = NULL;
 
-	/*
-	 * Detach res pages. If svc_release sees any it will attempt to
-	 * put them.
-	 */
-	while (rqstp->rq_next_page != rqstp->rq_respages)
-		*(--rqstp->rq_next_page) = NULL;
-
 	return err;
 }
 
@@ -550,7 +546,7 @@ static int rdma_read_complete(struct svc_rqst *rqstp,
 
 	/* rq_respages starts after the last arg page */
 	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
-	rqstp->rq_next_page = &rqstp->rq_arg.pages[page_no];
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 
 	/* Rebuild rq_arg head and tail. */
 	rqstp->rq_arg.head[0] = head->arg.head[0];

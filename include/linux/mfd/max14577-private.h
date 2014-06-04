@@ -248,14 +248,6 @@ enum max14577_charger_reg {
 /* MAX14577 regulator SFOUT LDO voltage, fixed, uV */
 #define MAX14577_REGULATOR_SAFEOUT_VOLTAGE		4900000
 
-enum max14577_irq_source {
-	MAX14577_IRQ_INT1 = 0,
-	MAX14577_IRQ_INT2,
-	MAX14577_IRQ_INT3,
-
-	MAX14577_IRQ_REGS_NUM,
-};
-
 enum max14577_irq {
 	/* INT1 */
 	MAX14577_IRQ_INT1_ADC,

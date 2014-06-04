@@ -66,11 +66,11 @@ config MTD_PHYSMAP_BANKWIDTH
 	  used internally by the CFI drivers.
 
 config MTD_PHYSMAP_OF
-	tristate "Flash device in physical memory map based on OF description"
-	depends on OF && (MTD_CFI || MTD_JEDECPROBE || MTD_ROM)
+	tristate "Memory device in physical memory map based on OF description"
+	depends on OF && (MTD_CFI || MTD_JEDECPROBE || MTD_ROM || MTD_RAM)
 	help
-	  This provides a 'mapping' driver which allows the NOR Flash and
-	  ROM driver code to communicate with chips which are mapped
+	  This provides a 'mapping' driver which allows the NOR Flash, ROM
+	  and RAM driver code to communicate with chips which are mapped
 	  physically into the CPU's memory. The mapping description here is
 	  taken from OF device tree.
 
@@ -124,7 +124,7 @@ config MTD_NETSC520
 
 config MTD_TS5500
 	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
-	depends on X86
+	depends on TS5500 || COMPILE_TEST
 	select MTD_JEDECPROBE
 	select MTD_CFI_AMDSTD
 	help

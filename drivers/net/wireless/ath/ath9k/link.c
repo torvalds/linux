@@ -115,13 +115,14 @@ void ath_hw_pll_work(struct work_struct *work)
 	u32 pll_sqsum;
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_pll_work.work);
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	/*
 	 * ensure that the PLL WAR is executed only
 	 * after the STA is associated (or) if the
 	 * beaconing had started in interfaces that
 	 * uses beacons.
 	 */
-	if (!test_bit(SC_OP_BEACONS, &sc->sc_flags))
+	if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
 		return;
 
 	if (sc->tx99_state)
@@ -414,7 +415,7 @@ void ath_start_ani(struct ath_softc *sc)
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
 	if (common->disable_ani ||
-	    !test_bit(SC_OP_ANI_RUN, &sc->sc_flags) ||
+	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags) ||
 	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
 		return;
 
@@ -438,6 +439,7 @@ void ath_stop_ani(struct ath_softc *sc)
 void ath_check_ani(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
 
 	/*
@@ -453,23 +455,23 @@ void ath_check_ani(struct ath_softc *sc)
 			 * Disable ANI only when there are no
 			 * associated stations.
 			 */
-			if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+			if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 				goto stop_ani;
 		}
 	} else if (ah->opmode == NL80211_IFTYPE_STATION) {
-		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags))
+		if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags))
 			goto stop_ani;
 	}
 
-	if (!test_bit(SC_OP_ANI_RUN, &sc->sc_flags)) {
-		set_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	if (!test_bit(ATH_OP_ANI_RUN, &common->op_flags)) {
+		set_bit(ATH_OP_ANI_RUN, &common->op_flags);
 		ath_start_ani(sc);
 	}
 
 	return;
 
 stop_ani:
-	clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+	clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 	ath_stop_ani(sc);
 }
 

@@ -45,6 +45,7 @@
  * Contact Information:
  * Jon Mason <jon.mason@intel.com>
  */
+#include <linux/ntb.h>
 
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF		0x3725
 #define PCI_DEVICE_ID_INTEL_NTB_PS_JSF		0x3726
@@ -59,8 +60,6 @@
 #define PCI_DEVICE_ID_INTEL_NTB_PS_HSX		0x2F0E
 #define PCI_DEVICE_ID_INTEL_NTB_SS_HSX		0x2F0F
 #define PCI_DEVICE_ID_INTEL_NTB_B2B_BWD		0x0C4E
-
-#define msix_table_size(control)	((control & PCI_MSIX_FLAGS_QSIZE)+1)
 
 #ifndef readq
 static inline u64 readq(void __iomem *addr)
@@ -82,9 +81,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 #define NTB_BAR_45		4
 #define NTB_BAR_MASK		((1 << NTB_BAR_MMIO) | (1 << NTB_BAR_23) |\
 				 (1 << NTB_BAR_45))
-
-#define NTB_LINK_DOWN		0
-#define NTB_LINK_UP		1
 
 #define NTB_HB_TIMEOUT		msecs_to_jiffies(1000)
 
@@ -233,7 +229,7 @@ int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
 							   int db_num));
 void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx);
 int ntb_register_event_callback(struct ntb_device *ndev,
-				void (*event_cb_func) (void *handle,
+				void (*event_cb_func)(void *handle,
 						      enum ntb_hw_event event));
 void ntb_unregister_event_callback(struct ntb_device *ndev);
 int ntb_get_max_spads(struct ntb_device *ndev);

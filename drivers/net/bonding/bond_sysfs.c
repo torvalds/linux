@@ -117,9 +117,9 @@ static ssize_t bonding_store_bonds(struct class *cls,
 		rv = bond_create(bn->net, ifname);
 		if (rv) {
 			if (rv == -EEXIST)
-				pr_info("%s already exists.\n", ifname);
+				pr_info("%s already exists\n", ifname);
 			else
-				pr_info("%s creation failed.\n", ifname);
+				pr_info("%s creation failed\n", ifname);
 			res = rv;
 		}
 	} else if (command[0] == '-') {
@@ -144,7 +144,7 @@ static ssize_t bonding_store_bonds(struct class *cls,
 	return res;
 
 err_no_cmd:
-	pr_err("no command found in bonding_masters. Use +ifname or -ifname.\n");
+	pr_err("no command found in bonding_masters - use +ifname or -ifname\n");
 	return -EPERM;
 }
 
@@ -220,7 +220,7 @@ static ssize_t bonding_show_mode(struct device *d,
 				 struct device_attribute *attr, char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_MODE, bond->params.mode);
 
@@ -251,7 +251,7 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_XMIT_HASH, bond->params.xmit_policy);
 
@@ -282,7 +282,7 @@ static ssize_t bonding_show_arp_validate(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_ARP_VALIDATE,
 			       bond->params.arp_validate);
@@ -314,7 +314,7 @@ static ssize_t bonding_show_arp_all_targets(struct device *d,
 					 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_ARP_ALL_TARGETS,
 			       bond->params.arp_all_targets);
@@ -348,7 +348,7 @@ static ssize_t bonding_show_fail_over_mac(struct device *d,
 					  char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_FAIL_OVER_MAC,
 			       bond->params.fail_over_mac);
@@ -505,7 +505,7 @@ static ssize_t bonding_show_lacp(struct device *d,
 				 char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_LACP_RATE, bond->params.lacp_fast);
 
@@ -558,7 +558,7 @@ static ssize_t bonding_show_ad_select(struct device *d,
 				      char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_AD_SELECT, bond->params.ad_select);
 
@@ -686,7 +686,7 @@ static ssize_t bonding_show_primary_reselect(struct device *d,
 					     char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
 			       bond->params.primary_reselect);
@@ -1135,7 +1135,7 @@ int bond_create_sysfs(struct bond_net *bn)
 		/* Is someone being kinky and naming a device bonding_master? */
 		if (__dev_get_by_name(bn->net,
 				      class_attr_bonding_masters.attr.name))
-			pr_err("network device named %s already exists in sysfs",
+			pr_err("network device named %s already exists in sysfs\n",
 			       class_attr_bonding_masters.attr.name);
 		ret = 0;
 	}

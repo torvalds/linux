@@ -39,7 +39,7 @@
 #define FIMC_IS_FW_LOAD_TIMEOUT		1000 /* ms */
 #define FIMC_IS_POWER_ON_TIMEOUT	1000 /* us */
 
-#define FIMC_IS_SENSOR_NUM		2
+#define FIMC_IS_SENSORS_NUM		2
 
 /* Memory definitions */
 #define FIMC_IS_CPU_MEM_SIZE		(0xa00000)
@@ -253,7 +253,7 @@ struct fimc_is {
 	struct firmware			*f_w;
 
 	struct fimc_isp			isp;
-	struct fimc_is_sensor		*sensor;
+	struct fimc_is_sensor		sensor[FIMC_IS_SENSORS_NUM];
 	struct fimc_is_setfile		setfile;
 
 	struct vb2_alloc_ctx		*alloc_ctx;
@@ -290,6 +290,11 @@ struct fimc_is {
 static inline struct fimc_is *fimc_isp_to_is(struct fimc_isp *isp)
 {
 	return container_of(isp, struct fimc_is, isp);
+}
+
+static inline struct chain_config *__get_curr_is_config(struct fimc_is *is)
+{
+	return &is->config[is->config_index];
 }
 
 static inline void fimc_is_mem_barrier(void)

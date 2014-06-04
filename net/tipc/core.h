@@ -79,7 +79,6 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 extern u32 tipc_own_addr __read_mostly;
 extern int tipc_max_ports __read_mostly;
 extern int tipc_net_id __read_mostly;
-extern int tipc_remote_management __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 
 /*

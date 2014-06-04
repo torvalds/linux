@@ -621,7 +621,7 @@ static void smc_hardware_send_pkt(unsigned long data)
 done:	if (!THROTTLE_TX_PKTS)
 		netif_wake_queue(dev);
 
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 }
 
 /*
@@ -657,7 +657,7 @@ static int smc_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netdev_warn(dev, "Far too big packet error.\n");
 		dev->stats.tx_errors++;
 		dev->stats.tx_dropped++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 

@@ -171,7 +171,7 @@ static ssize_t udf_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	} else
 		up_write(&iinfo->i_data_sem);
 
-	retval = __generic_file_aio_write(iocb, iov, nr_segs, &iocb->ki_pos);
+	retval = __generic_file_aio_write(iocb, iov, nr_segs);
 	mutex_unlock(&inode->i_mutex);
 
 	if (retval > 0) {

@@ -317,9 +317,7 @@ static void qlcnic_write_window_reg(u32 addr, void __iomem *bar0, u32 data)
 int
 qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 {
-	int timeout = 0;
-	int err = 0;
-	u32 done = 0;
+	int timeout = 0, err = 0, done = 0;
 
 	while (!done) {
 		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)),
@@ -327,10 +325,20 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 		if (done == 1)
 			break;
 		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
-			dev_err(&adapter->pdev->dev,
-				"Failed to acquire sem=%d lock; holdby=%d\n",
-				sem,
-				id_reg ? QLCRD32(adapter, id_reg, &err) : -1);
+			if (id_reg) {
+				done = QLCRD32(adapter, id_reg, &err);
+				if (done != -1)
+					dev_err(&adapter->pdev->dev,
+						"Failed to acquire sem=%d lock held by=%d\n",
+						sem, done);
+				else
+					dev_err(&adapter->pdev->dev,
+						"Failed to acquire sem=%d lock",
+						sem);
+			} else {
+				dev_err(&adapter->pdev->dev,
+					"Failed to acquire sem=%d lock", sem);
+			}
 			return -EIO;
 		}
 		msleep(1);

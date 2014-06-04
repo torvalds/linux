@@ -23,7 +23,7 @@
 
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 8
-#define CE_HTT_H2T_MSG_SRC_NENTRIES 2048
+#define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
 
 /* Descriptor rings must be aligned to this boundary */
 #define CE_DESC_RING_ALIGN	8
@@ -151,6 +151,13 @@ int ath10k_ce_send(struct ath10k_ce_pipe *ce_state,
 		   /* 14 bits */
 		   unsigned int transfer_id,
 		   unsigned int flags);
+
+int ath10k_ce_send_nolock(struct ath10k_ce_pipe *ce_state,
+			  void *per_transfer_context,
+			  u32 buffer,
+			  unsigned int nbytes,
+			  unsigned int transfer_id,
+			  unsigned int flags);
 
 void ath10k_ce_send_cb_register(struct ath10k_ce_pipe *ce_state,
 				void (*send_cb)(struct ath10k_ce_pipe *),

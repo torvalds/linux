@@ -41,7 +41,7 @@ static inline int ioremap_page_range(unsigned long addr, unsigned long end,
 /*
  * Managed iomap interface
  */
-#ifdef CONFIG_HAS_IOPORT
+#ifdef CONFIG_HAS_IOPORT_MAP
 void __iomem * devm_ioport_map(struct device *dev, unsigned long port,
 			       unsigned int nr);
 void devm_ioport_unmap(struct device *dev, void __iomem *addr);

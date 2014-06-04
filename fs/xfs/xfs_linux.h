@@ -119,6 +119,7 @@ typedef __uint64_t __psunsigned_t;
 #include "xfs_iops.h"
 #include "xfs_aops.h"
 #include "xfs_super.h"
+#include "xfs_cksum.h"
 #include "xfs_buf.h"
 #include "xfs_message.h"
 
@@ -178,6 +179,7 @@ typedef __uint64_t __psunsigned_t;
 #define ENOATTR		ENODATA		/* Attribute not found */
 #define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
+#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)

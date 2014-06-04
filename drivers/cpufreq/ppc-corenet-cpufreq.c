@@ -13,7 +13,6 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/errno.h>
-#include <sysdev/fsl_soc.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

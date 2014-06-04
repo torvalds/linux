@@ -66,5 +66,6 @@ int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_list_iface(struct sk_buff *skb, struct genl_info *info);
 int ieee802154_dump_iface(struct sk_buff *skb, struct netlink_callback *cb);
+int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info);
 
 #endif

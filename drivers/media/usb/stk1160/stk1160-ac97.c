@@ -108,7 +108,7 @@ int stk1160_ac97_register(struct stk1160 *dev)
 		 "stk1160-mixer");
 	snprintf(card->longname, sizeof(card->longname),
 		 "stk1160 ac97 codec mixer control");
-	strncpy(card->driver, dev->dev->driver->name, sizeof(card->driver));
+	strlcpy(card->driver, dev->dev->driver->name, sizeof(card->driver));
 
 	rc = snd_ac97_bus(card, 0, &stk1160_ac97_ops, NULL, &ac97_bus);
 	if (rc)

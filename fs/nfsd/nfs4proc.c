@@ -1273,6 +1273,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	struct nfsd4_op	*op;
 	struct nfsd4_operation *opdesc;
 	struct nfsd4_compound_state *cstate = &resp->cstate;
+	struct svc_fh *current_fh = &cstate->current_fh;
+	struct svc_fh *save_fh = &cstate->save_fh;
 	int		slack_bytes;
 	u32		plen = 0;
 	__be32		status;
@@ -1288,11 +1290,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	resp->tag = args->tag;
 	resp->opcnt = 0;
 	resp->rqstp = rqstp;
-	resp->cstate.minorversion = args->minorversion;
-	resp->cstate.replay_owner = NULL;
-	resp->cstate.session = NULL;
-	fh_init(&resp->cstate.current_fh, NFS4_FHSIZE);
-	fh_init(&resp->cstate.save_fh, NFS4_FHSIZE);
+	cstate->minorversion = args->minorversion;
+	cstate->replay_owner = NULL;
+	cstate->session = NULL;
+	fh_init(current_fh, NFS4_FHSIZE);
+	fh_init(save_fh, NFS4_FHSIZE);
 	/*
 	 * Don't use the deferral mechanism for NFSv4; compounds make it
 	 * too hard to avoid non-idempotency problems.
@@ -1345,20 +1347,28 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 
 		opdesc = OPDESC(op);
 
-		if (!cstate->current_fh.fh_dentry) {
+		if (!current_fh->fh_dentry) {
 			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
 				op->status = nfserr_nofilehandle;
 				goto encode_op;
 			}
-		} else if (cstate->current_fh.fh_export->ex_fslocs.migrated &&
+		} else if (current_fh->fh_export->ex_fslocs.migrated &&
 			  !(opdesc->op_flags & ALLOWED_ON_ABSENT_FS)) {
 			op->status = nfserr_moved;
 			goto encode_op;
 		}
 
+		fh_clear_wcc(current_fh);
+
 		/* If op is non-idempotent */
 		if (opdesc->op_flags & OP_MODIFIES_SOMETHING) {
 			plen = opdesc->op_rsize_bop(rqstp, op);
+			/*
+			 * If there's still another operation, make sure
+			 * we'll have space to at least encode an error:
+			 */
+			if (resp->opcnt < args->opcnt)
+				plen += COMPOUND_ERR_SLACK_SPACE;
 			op->status = nfsd4_check_resp_size(resp, plen);
 		}
 
@@ -1377,12 +1387,12 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 				clear_current_stateid(cstate);
 
 			if (need_wrongsec_check(rqstp))
-				op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
+				op->status = check_nfsd_access(current_fh->fh_export, rqstp);
 		}
 
 encode_op:
 		/* Only from SEQUENCE */
-		if (resp->cstate.status == nfserr_replay_cache) {
+		if (cstate->status == nfserr_replay_cache) {
 			dprintk("%s NFS4.1 replay from cache\n", __func__);
 			status = op->status;
 			goto out;
@@ -1411,10 +1421,10 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
-	resp->cstate.status = status;
-	fh_put(&resp->cstate.current_fh);
-	fh_put(&resp->cstate.save_fh);
-	BUG_ON(resp->cstate.replay_owner);
+	cstate->status = status;
+	fh_put(current_fh);
+	fh_put(save_fh);
+	BUG_ON(cstate->replay_owner);
 out:
 	/* Reset deferral mechanism for RPC deferrals */
 	rqstp->rq_usedeferral = 1;
@@ -1523,7 +1533,8 @@ static inline u32 nfsd4_setattr_rsize(struct svc_rqst *rqstp, struct nfsd4_op *o
 
 static inline u32 nfsd4_setclientid_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)
 {
-	return (op_encode_hdr_size + 2 + 1024) * sizeof(__be32);
+	return (op_encode_hdr_size + 2 + XDR_QUADLEN(NFS4_VERIFIER_SIZE)) *
+								sizeof(__be32);
 }
 
 static inline u32 nfsd4_write_rsize(struct svc_rqst *rqstp, struct nfsd4_op *op)

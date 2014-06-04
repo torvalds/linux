@@ -17,9 +17,7 @@
 #include <linux/serial_8250.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#ifdef CONFIG_LEDS_CLASS
 #include <linux/leds.h>
-#endif
 
 #include <asm/setup.h>
 #include <asm/memory.h>

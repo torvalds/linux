@@ -8,11 +8,25 @@
  * kind, whether express or implied.
  */
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	compatible = "renesas,r7s72100";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
+		spi3 = &spi3;
+		spi4 = &spi4;
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -32,5 +46,138 @@
 		interrupt-controller;
 		reg = <0xe8201000 0x1000>,
 			<0xe8202000 0x1000>;
+	};
+
+	i2c0: i2c@fcfee000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,riic-r7s72100", "renesas,riic-rz";
+		reg = <0xfcfee000 0x44>;
+		interrupts = <0 157 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 158 IRQ_TYPE_EDGE_RISING>,
+			     <0 159 IRQ_TYPE_EDGE_RISING>,
+			     <0 160 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 161 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 162 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 163 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 164 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c1: i2c@fcfee400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,riic-r7s72100", "renesas,riic-rz";
+		reg = <0xfcfee400 0x44>;
+		interrupts = <0 165 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 166 IRQ_TYPE_EDGE_RISING>,
+			     <0 167 IRQ_TYPE_EDGE_RISING>,
+			     <0 168 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 169 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 170 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 171 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 172 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@fcfee800 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,riic-r7s72100", "renesas,riic-rz";
+		reg = <0xfcfee800 0x44>;
+		interrupts = <0 173 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 174 IRQ_TYPE_EDGE_RISING>,
+			     <0 175 IRQ_TYPE_EDGE_RISING>,
+			     <0 176 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 177 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 178 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 179 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 180 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@fcfeec00 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,riic-r7s72100", "renesas,riic-rz";
+		reg = <0xfcfeec00 0x44>;
+		interrupts = <0 181 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 182 IRQ_TYPE_EDGE_RISING>,
+			     <0 183 IRQ_TYPE_EDGE_RISING>,
+			     <0 184 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 185 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 186 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 187 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 188 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	spi0: spi@e800c800 {
+		compatible = "renesas,rspi-r7s72100", "renesas,rspi-rz";
+		reg = <0xe800c800 0x24>;
+		interrupts = <0 238 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 239 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 240 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "error", "rx", "tx";
+		num-cs = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi1: spi@e800d000 {
+		compatible = "renesas,rspi-r7s72100", "renesas,rspi-rz";
+		reg = <0xe800d000 0x24>;
+		interrupts = <0 241 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 242 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 243 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "error", "rx", "tx";
+		num-cs = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi2: spi@e800d800 {
+		compatible = "renesas,rspi-r7s72100", "renesas,rspi-rz";
+		reg = <0xe800d800 0x24>;
+		interrupts = <0 244 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 245 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 246 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "error", "rx", "tx";
+		num-cs = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi3: spi@e800e000 {
+		compatible = "renesas,rspi-r7s72100", "renesas,rspi-rz";
+		reg = <0xe800e000 0x24>;
+		interrupts = <0 247 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 248 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 249 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "error", "rx", "tx";
+		num-cs = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	spi4: spi@e800e800 {
+		compatible = "renesas,rspi-r7s72100", "renesas,rspi-rz";
+		reg = <0xe800e800 0x24>;
+		interrupts = <0 250 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 251 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 252 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "error", "rx", "tx";
+		num-cs = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 };

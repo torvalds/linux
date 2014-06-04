@@ -1,0 +1,30 @@
+Sony ACX565AKM SDI Panel
+========================
+
+Required properties:
+- compatible: "sony,acx565akm"
+
+Optional properties:
+- label: a symbolic name for the panel
+- reset-gpios: panel reset gpio
+
+Required nodes:
+- Video port for SDI input
+
+Example
+-------
+
+acx565akm@2 {
+	compatible = "sony,acx565akm";
+	spi-max-frequency = <6000000>;
+	reg = <2>;
+
+	label = "lcd";
+	reset-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>; /* 90 */
+
+	port {
+		lcd_in: endpoint {
+			remote-endpoint = <&sdi_out>;
+		};
+	};
+};

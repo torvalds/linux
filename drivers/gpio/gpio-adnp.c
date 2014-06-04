@@ -408,24 +408,23 @@ static void adnp_irq_bus_unlock(struct irq_data *data)
 	mutex_unlock(&adnp->irq_lock);
 }
 
-static unsigned int adnp_irq_startup(struct irq_data *data)
+static int adnp_irq_reqres(struct irq_data *data)
 {
 	struct adnp *adnp = irq_data_get_irq_chip_data(data);
 
-	if (gpio_lock_as_irq(&adnp->gpio, data->hwirq))
+	if (gpio_lock_as_irq(&adnp->gpio, data->hwirq)) {
 		dev_err(adnp->gpio.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			data->hwirq);
-	/* Satisfy the .enable semantics by unmasking the line */
-	adnp_irq_unmask(data);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void adnp_irq_shutdown(struct irq_data *data)
+static void adnp_irq_relres(struct irq_data *data)
 {
 	struct adnp *adnp = irq_data_get_irq_chip_data(data);
 
-	adnp_irq_mask(data);
 	gpio_unlock_as_irq(&adnp->gpio, data->hwirq);
 }
 
@@ -436,8 +435,8 @@ static struct irq_chip adnp_irq_chip = {
 	.irq_set_type = adnp_irq_set_type,
 	.irq_bus_lock = adnp_irq_bus_lock,
 	.irq_bus_sync_unlock = adnp_irq_bus_unlock,
-	.irq_startup = adnp_irq_startup,
-	.irq_shutdown = adnp_irq_shutdown,
+	.irq_request_resources = adnp_irq_reqres,
+	.irq_release_resources = adnp_irq_relres,
 };
 
 static int adnp_irq_map(struct irq_domain *domain, unsigned int irq,

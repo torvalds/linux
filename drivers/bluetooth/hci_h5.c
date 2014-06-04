@@ -206,11 +206,11 @@ static int h5_close(struct hci_uart *hu)
 {
 	struct h5 *h5 = hu->priv;
 
+	del_timer_sync(&h5->timer);
+
 	skb_queue_purge(&h5->unack);
 	skb_queue_purge(&h5->rel);
 	skb_queue_purge(&h5->unrel);
-
-	del_timer(&h5->timer);
 
 	kfree(h5);
 
@@ -673,7 +673,8 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 		return h5_prepare_pkt(hu, HCI_3WIRE_LINK_PKT, wakeup_req, 2);
 	}
 
-	if ((skb = skb_dequeue(&h5->unrel)) != NULL) {
+	skb = skb_dequeue(&h5->unrel);
+	if (skb != NULL) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {
@@ -690,7 +691,8 @@ static struct sk_buff *h5_dequeue(struct hci_uart *hu)
 	if (h5->unack.qlen >= h5->tx_win)
 		goto unlock;
 
-	if ((skb = skb_dequeue(&h5->rel)) != NULL) {
+	skb = skb_dequeue(&h5->rel);
+	if (skb != NULL) {
 		nskb = h5_prepare_pkt(hu, bt_cb(skb)->pkt_type,
 				      skb->data, skb->len);
 		if (nskb) {

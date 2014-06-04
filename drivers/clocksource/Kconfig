@@ -188,3 +188,6 @@ config EM_TIMER_STI
 	  This enables build of a clocksource and clockevent driver for
 	  the 48-bit System Timer (STI) hardware available on a SoCs
 	  such as EMEV2 from former NEC Electronics.
+
+config CLKSRC_QCOM
+	bool

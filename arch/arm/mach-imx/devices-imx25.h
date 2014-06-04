@@ -83,7 +83,3 @@ extern const struct imx_spi_imx_data imx25_cspi_data[];
 #define imx25_add_spi_imx0(pdata)	imx25_add_spi_imx(0, pdata)
 #define imx25_add_spi_imx1(pdata)	imx25_add_spi_imx(1, pdata)
 #define imx25_add_spi_imx2(pdata)	imx25_add_spi_imx(2, pdata)
-
-extern struct imx_mxc_pwm_data imx25_mxc_pwm_data[];
-#define imx25_add_mxc_pwm(id)	\
-	imx_add_mxc_pwm(&imx25_mxc_pwm_data[id])

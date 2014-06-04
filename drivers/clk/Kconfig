@@ -65,10 +65,12 @@ config COMMON_CLK_SI570
 	  clock generators.
 
 config COMMON_CLK_S2MPS11
-	tristate "Clock driver for S2MPS11 MFD"
+	tristate "Clock driver for S2MPS11/S5M8767 MFD"
 	depends on MFD_SEC_CORE
 	---help---
-	  This driver supports S2MPS11 crystal oscillator clock.
+	  This driver supports S2MPS11/S5M8767 crystal oscillator clock. These
+	  multi-function devices have 3 fixed-rate oscillators, clocked at
+	  32KHz each.
 
 config CLK_TWL6040
 	tristate "External McPDM functional clock from twl6040"
@@ -111,4 +113,5 @@ source "drivers/clk/qcom/Kconfig"
 
 endmenu
 
+source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/mvebu/Kconfig"

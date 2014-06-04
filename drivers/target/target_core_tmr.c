@@ -87,14 +87,17 @@ static void core_tmr_handle_tas_abort(
 	struct se_cmd *cmd,
 	int tas)
 {
+	bool remove = true;
 	/*
 	 * TASK ABORTED status (TAS) bit support
 	*/
 	if ((tmr_nacl &&
-	     (tmr_nacl == cmd->se_sess->se_node_acl)) || tas)
+	     (tmr_nacl != cmd->se_sess->se_node_acl)) && tas) {
+		remove = false;
 		transport_send_task_abort(cmd);
+	}
 
-	transport_cmd_finish_abort(cmd, 0);
+	transport_cmd_finish_abort(cmd, remove);
 }
 
 static int target_check_cdb_and_preempt(struct list_head *list,
@@ -127,6 +130,11 @@ void core_tmr_abort_task(
 
 		if (dev != se_cmd->se_dev)
 			continue;
+
+		/* skip se_cmd associated with tmr */
+		if (tmr->task_cmd == se_cmd)
+			continue;
+
 		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
 		if (tmr->ref_task_tag != ref_tag)
 			continue;
@@ -150,18 +158,9 @@ void core_tmr_abort_task(
 
 		cancel_work_sync(&se_cmd->work);
 		transport_wait_for_tasks(se_cmd);
-		/*
-		 * Now send SAM_STAT_TASK_ABORTED status for the referenced
-		 * se_cmd descriptor..
-		 */
-		transport_send_task_abort(se_cmd);
-		/*
-		 * Also deal with possible extra acknowledge reference..
-		 */
-		if (se_cmd->se_cmd_flags & SCF_ACK_KREF)
-			target_put_sess_cmd(se_sess, se_cmd);
 
 		target_put_sess_cmd(se_sess, se_cmd);
+		transport_cmd_finish_abort(se_cmd, true);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
 				" ref_tag: %d\n", ref_tag);

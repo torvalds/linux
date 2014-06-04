@@ -52,11 +52,10 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 			    struct ttm_placement *placement,
 			    bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	int ret;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -71,7 +70,7 @@ int vmw_dmabuf_to_placement(struct vmw_private *dev_priv,
 	ttm_bo_unreserve(bo);
 
 err:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -95,12 +94,11 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 			      struct vmw_dma_buffer *buf,
 			      bool pin, bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	struct ttm_placement *placement;
 	int ret;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -143,7 +141,7 @@ int vmw_dmabuf_to_vram_or_gmr(struct vmw_private *dev_priv,
 err_unreserve:
 	ttm_bo_unreserve(bo);
 err:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 	return ret;
 }
 
@@ -198,7 +196,6 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 				struct vmw_dma_buffer *buf,
 				bool pin, bool interruptible)
 {
-	struct vmw_master *vmaster = dev_priv->active_master;
 	struct ttm_buffer_object *bo = &buf->base;
 	struct ttm_placement placement;
 	int ret = 0;
@@ -209,7 +206,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 		placement = vmw_vram_placement;
 	placement.lpfn = bo->num_pages;
 
-	ret = ttm_write_lock(&vmaster->lock, interruptible);
+	ret = ttm_write_lock(&dev_priv->reservation_sem, interruptible);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -232,7 +229,7 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *dev_priv,
 
 	ttm_bo_unreserve(bo);
 err_unlock:
-	ttm_write_unlock(&vmaster->lock);
+	ttm_write_unlock(&dev_priv->reservation_sem);
 
 	return ret;
 }

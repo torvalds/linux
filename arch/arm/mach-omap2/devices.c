@@ -229,6 +229,9 @@ static struct omap_iommu_arch_data omap3_isp_iommu = {
 
 int omap3_init_camera(struct isp_platform_data *pdata)
 {
+	if (of_have_populated_dt())
+		omap3_isp_iommu.name = "480bd400.mmu";
+
 	omap3isp_device.dev.platform_data = pdata;
 	omap3isp_device.dev.archdata.iommu = &omap3_isp_iommu;
 

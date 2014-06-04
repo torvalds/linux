@@ -89,6 +89,8 @@ typedef struct xfs_dinode {
 	/* structure must be padded to 64 bit alignment */
 } xfs_dinode_t;
 
+#define XFS_DINODE_CRC_OFF	offsetof(struct xfs_dinode, di_crc)
+
 #define DI_MAX_FLUSH 0xffff
 
 /*

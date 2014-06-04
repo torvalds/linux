@@ -67,14 +67,6 @@
 #include "iwl-eeprom-read.h"
 #include "iwl-nvm-parse.h"
 
-/* list of NVM sections we are allowed/need to read */
-static const int nvm_to_read[] = {
-	NVM_SECTION_TYPE_HW,
-	NVM_SECTION_TYPE_SW,
-	NVM_SECTION_TYPE_CALIBRATION,
-	NVM_SECTION_TYPE_PRODUCTION,
-};
-
 /* Default NVM size to read */
 #define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024)
 #define IWL_MAX_NVM_SECTION_SIZE 7000
@@ -236,24 +228,39 @@ static struct iwl_nvm_data *
 iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 {
 	struct iwl_nvm_section *sections = mvm->nvm_sections;
-	const __le16 *hw, *sw, *calib;
+	const __le16 *hw, *sw, *calib, *regulatory, *mac_override;
 
 	/* Checking for required sections */
-	if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
-	    !mvm->nvm_sections[NVM_SECTION_TYPE_HW].data) {
-		IWL_ERR(mvm, "Can't parse empty NVM sections\n");
-		return NULL;
+	if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
+		    !mvm->nvm_sections[mvm->cfg->nvm_hw_section_num].data) {
+			IWL_ERR(mvm, "Can't parse empty NVM sections\n");
+			return NULL;
+		}
+	} else {
+		if (!mvm->nvm_sections[NVM_SECTION_TYPE_SW].data ||
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data ||
+		    !mvm->nvm_sections[NVM_SECTION_TYPE_REGULATORY].data) {
+			IWL_ERR(mvm,
+				"Can't parse empty family 8000 NVM sections\n");
+			return NULL;
+		}
 	}
 
 	if (WARN_ON(!mvm->cfg))
 		return NULL;
 
-	hw = (const __le16 *)sections[NVM_SECTION_TYPE_HW].data;
+	hw = (const __le16 *)sections[mvm->cfg->nvm_hw_section_num].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
+	regulatory = (const __le16 *)sections[NVM_SECTION_TYPE_REGULATORY].data;
+	mac_override =
+		(const __le16 *)sections[NVM_SECTION_TYPE_MAC_OVERRIDE].data;
+
 	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
-				  iwl_fw_valid_tx_ant(mvm->fw),
-				  iwl_fw_valid_rx_ant(mvm->fw));
+				  regulatory, mac_override,
+				  mvm->fw->valid_tx_ant,
+				  mvm->fw->valid_rx_ant);
 }
 
 #define MAX_NVM_FILE_LEN	16384
@@ -293,6 +300,8 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 
 #define NVM_WORD1_LEN(x) (8 * (x & 0x03FF))
 #define NVM_WORD2_ID(x) (x >> 12)
+#define NVM_WORD2_LEN_FAMILY_8000(x) (2 * ((x & 0xFF) << 8 | x >> 8))
+#define NVM_WORD1_ID_FAMILY_8000(x) (x >> 4)
 
 	IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from external NVM\n");
 
@@ -343,8 +352,16 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		section_size = 2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
-		section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
+		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+			section_size =
+				2 * NVM_WORD1_LEN(le16_to_cpu(file_sec->word1));
+			section_id = NVM_WORD2_ID(le16_to_cpu(file_sec->word2));
+		} else {
+			section_size = 2 * NVM_WORD2_LEN_FAMILY_8000(
+						le16_to_cpu(file_sec->word2));
+			section_id = NVM_WORD1_ID_FAMILY_8000(
+						le16_to_cpu(file_sec->word1));
+		}
 
 		if (section_size > IWL_MAX_NVM_SECTION_SIZE) {
 			IWL_ERR(mvm, "ERROR - section too large (%d)\n",
@@ -367,7 +384,7 @@ static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 			break;
 		}
 
-		if (WARN(section_id >= NVM_NUM_OF_SECTIONS,
+		if (WARN(section_id >= NVM_MAX_NUM_SECTIONS,
 			 "Invalid NVM section ID %d\n", section_id)) {
 			ret = -EINVAL;
 			break;
@@ -414,6 +431,11 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 {
 	int ret, i, section;
 	u8 *nvm_buffer, *temp;
+	int nvm_to_read[NVM_MAX_NUM_SECTIONS];
+	int num_of_sections_to_read;
+
+	if (WARN_ON_ONCE(mvm->cfg->nvm_hw_section_num >= NVM_MAX_NUM_SECTIONS))
+		return -EINVAL;
 
 	/* load external NVM if configured */
 	if (iwlwifi_mod_params.nvm_file) {
@@ -422,6 +444,22 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 		if (ret)
 			return ret;
 	} else {
+		/* list of NVM sections we are allowed/need to read */
+		if (mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) {
+			nvm_to_read[0] = mvm->cfg->nvm_hw_section_num;
+			nvm_to_read[1] = NVM_SECTION_TYPE_SW;
+			nvm_to_read[2] = NVM_SECTION_TYPE_CALIBRATION;
+			nvm_to_read[3] = NVM_SECTION_TYPE_PRODUCTION;
+			num_of_sections_to_read = 4;
+		} else {
+			nvm_to_read[0] = NVM_SECTION_TYPE_SW;
+			nvm_to_read[1] = NVM_SECTION_TYPE_CALIBRATION;
+			nvm_to_read[2] = NVM_SECTION_TYPE_PRODUCTION;
+			nvm_to_read[3] = NVM_SECTION_TYPE_REGULATORY;
+			nvm_to_read[4] = NVM_SECTION_TYPE_MAC_OVERRIDE;
+			num_of_sections_to_read = 5;
+		}
+
 		/* Read From FW NVM */
 		IWL_DEBUG_EEPROM(mvm->trans->dev, "Read from NVM\n");
 
@@ -430,7 +468,7 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 				     GFP_KERNEL);
 		if (!nvm_buffer)
 			return -ENOMEM;
-		for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
+		for (i = 0; i < num_of_sections_to_read; i++) {
 			section = nvm_to_read[i];
 			/* we override the constness for initial read */
 			ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
@@ -446,10 +484,6 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 			switch (section) {
-			case NVM_SECTION_TYPE_HW:
-				mvm->nvm_hw_blob.data = temp;
-				mvm->nvm_hw_blob.size = ret;
-				break;
 			case NVM_SECTION_TYPE_SW:
 				mvm->nvm_sw_blob.data = temp;
 				mvm->nvm_sw_blob.size  = ret;
@@ -463,6 +497,11 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 				mvm->nvm_prod_blob.size  = ret;
 				break;
 			default:
+				if (section == mvm->cfg->nvm_hw_section_num) {
+					mvm->nvm_hw_blob.data = temp;
+					mvm->nvm_hw_blob.size = ret;
+					break;
+				}
 				WARN(1, "section: %d", section);
 			}
 #endif

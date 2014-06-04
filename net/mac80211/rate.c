@@ -10,15 +10,15 @@
 
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
-#include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "rate.h"
 #include "ieee80211_i.h"
 #include "debugfs.h"
 
 struct rate_control_alg {
 	struct list_head list;
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 };
 
 static LIST_HEAD(rate_ctrl_algs);
@@ -29,7 +29,7 @@ module_param(ieee80211_default_rc_algo, charp, 0644);
 MODULE_PARM_DESC(ieee80211_default_rc_algo,
 		 "Default rate control algorithm for mac80211 to use");
 
-int ieee80211_rate_control_register(struct rate_control_ops *ops)
+int ieee80211_rate_control_register(const struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
 
@@ -60,7 +60,7 @@ int ieee80211_rate_control_register(struct rate_control_ops *ops)
 }
 EXPORT_SYMBOL(ieee80211_rate_control_register);
 
-void ieee80211_rate_control_unregister(struct rate_control_ops *ops)
+void ieee80211_rate_control_unregister(const struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
 
@@ -76,32 +76,31 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops)
 }
 EXPORT_SYMBOL(ieee80211_rate_control_unregister);
 
-static struct rate_control_ops *
+static const struct rate_control_ops *
 ieee80211_try_rate_control_ops_get(const char *name)
 {
 	struct rate_control_alg *alg;
-	struct rate_control_ops *ops = NULL;
+	const struct rate_control_ops *ops = NULL;
 
 	if (!name)
 		return NULL;
 
 	mutex_lock(&rate_ctrl_mutex);
 	list_for_each_entry(alg, &rate_ctrl_algs, list) {
-		if (!strcmp(alg->ops->name, name))
-			if (try_module_get(alg->ops->module)) {
-				ops = alg->ops;
-				break;
-			}
+		if (!strcmp(alg->ops->name, name)) {
+			ops = alg->ops;
+			break;
+		}
 	}
 	mutex_unlock(&rate_ctrl_mutex);
 	return ops;
 }
 
 /* Get the rate control algorithm. */
-static struct rate_control_ops *
+static const struct rate_control_ops *
 ieee80211_rate_control_ops_get(const char *name)
 {
-	struct rate_control_ops *ops;
+	const struct rate_control_ops *ops;
 	const char *alg_name;
 
 	kparam_block_sysfs_write(ieee80211_default_rc_algo);
@@ -111,10 +110,6 @@ ieee80211_rate_control_ops_get(const char *name)
 		alg_name = name;
 
 	ops = ieee80211_try_rate_control_ops_get(alg_name);
-	if (!ops) {
-		request_module("rc80211_%s", alg_name);
-		ops = ieee80211_try_rate_control_ops_get(alg_name);
-	}
 	if (!ops && name)
 		/* try default if specific alg requested but not found */
 		ops = ieee80211_try_rate_control_ops_get(ieee80211_default_rc_algo);
@@ -125,11 +120,6 @@ ieee80211_rate_control_ops_get(const char *name)
 	kparam_unblock_sysfs_write(ieee80211_default_rc_algo);
 
 	return ops;
-}
-
-static void ieee80211_rate_control_ops_put(struct rate_control_ops *ops)
-{
-	module_put(ops->module);
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -158,11 +148,11 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
 	if (!ref)
-		goto fail_ref;
+		return NULL;
 	ref->local = local;
 	ref->ops = ieee80211_rate_control_ops_get(name);
 	if (!ref->ops)
-		goto fail_ops;
+		goto free;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	debugfsdir = debugfs_create_dir("rc", local->hw.wiphy->debugfsdir);
@@ -172,14 +162,11 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 
 	ref->priv = ref->ops->alloc(&local->hw, debugfsdir);
 	if (!ref->priv)
-		goto fail_priv;
+		goto free;
 	return ref;
 
-fail_priv:
-	ieee80211_rate_control_ops_put(ref->ops);
-fail_ops:
+free:
 	kfree(ref);
-fail_ref:
 	return NULL;
 }
 
@@ -192,7 +179,6 @@ static void rate_control_free(struct rate_control_ref *ctrl_ref)
 	ctrl_ref->local->debugfs.rcdir = NULL;
 #endif
 
-	ieee80211_rate_control_ops_put(ctrl_ref->ops);
 	kfree(ctrl_ref);
 }
 

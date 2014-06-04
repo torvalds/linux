@@ -274,18 +274,11 @@ static int reset_uart401(uart401_devc * devc)
 		}
 	}
 
-
+	/* Flush input before enabling interrupts */
 	if (ok)
-	{
-		DEB(printk("Reset UART401 OK\n"));
-	}
+		uart401_input_loop(devc);
 	else
 		DDB(printk("Reset UART401 failed - No hardware detected.\n"));
-
-	if (ok)
-		uart401_input_loop(devc);	/*
-						 * Flush input before enabling interrupts
-						 */
 
 	return ok;
 }

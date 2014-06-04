@@ -344,7 +344,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			tz->trips.hot.flags.valid = 1;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					"Found hot threshold [%lu]\n",
-					tz->trips.critical.temperature));
+					tz->trips.hot.temperature));
 		}
 	}
 

@@ -60,13 +60,13 @@ affs_get_toupper(struct super_block *sb)
  * Note: the dentry argument is the parent dentry.
  */
 static inline int
-__affs_hash_dentry(struct qstr *qstr, toupper_t toupper)
+__affs_hash_dentry(struct qstr *qstr, toupper_t toupper, bool notruncate)
 {
 	const u8 *name = qstr->name;
 	unsigned long hash;
 	int i;
 
-	i = affs_check_name(qstr->name, qstr->len);
+	i = affs_check_name(qstr->name, qstr->len, notruncate);
 	if (i)
 		return i;
 
@@ -82,16 +82,22 @@ __affs_hash_dentry(struct qstr *qstr, toupper_t toupper)
 static int
 affs_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
-	return __affs_hash_dentry(qstr, affs_toupper);
+	return __affs_hash_dentry(qstr, affs_toupper,
+				  affs_nofilenametruncate(dentry));
+
 }
+
 static int
 affs_intl_hash_dentry(const struct dentry *dentry, struct qstr *qstr)
 {
-	return __affs_hash_dentry(qstr, affs_intl_toupper);
+	return __affs_hash_dentry(qstr, affs_intl_toupper,
+				  affs_nofilenametruncate(dentry));
+
 }
 
 static inline int __affs_compare_dentry(unsigned int len,
-		const char *str, const struct qstr *name, toupper_t toupper)
+		const char *str, const struct qstr *name, toupper_t toupper,
+		bool notruncate)
 {
 	const u8 *aname = str;
 	const u8 *bname = name->name;
@@ -101,7 +107,7 @@ static inline int __affs_compare_dentry(unsigned int len,
 	 * must be valid. 'name' must be validated first.
 	 */
 
-	if (affs_check_name(name->name, name->len))
+	if (affs_check_name(name->name, name->len, notruncate))
 		return 1;
 
 	/*
@@ -126,13 +132,18 @@ static int
 affs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	return __affs_compare_dentry(len, str, name, affs_toupper);
+
+	return __affs_compare_dentry(len, str, name, affs_toupper,
+				     affs_nofilenametruncate(parent));
 }
+
 static int
 affs_intl_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
-	return __affs_compare_dentry(len, str, name, affs_intl_toupper);
+	return __affs_compare_dentry(len, str, name, affs_intl_toupper,
+				     affs_nofilenametruncate(parent));
+
 }
 
 /*
@@ -411,7 +422,10 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 (u32)old_dir->i_ino, (int)old_dentry->d_name.len, old_dentry->d_name.name,
 		 (u32)new_dir->i_ino, (int)new_dentry->d_name.len, new_dentry->d_name.name);
 
-	retval = affs_check_name(new_dentry->d_name.name,new_dentry->d_name.len);
+	retval = affs_check_name(new_dentry->d_name.name,
+				 new_dentry->d_name.len,
+				 affs_nofilenametruncate(old_dentry));
+
 	if (retval)
 		return retval;
 

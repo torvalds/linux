@@ -28,8 +28,8 @@ use IO::Handle;
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
 		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
-		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137",
-		"drxk_pctv", "drxk_terratec_htc_stick", "sms1xxx_hcw");
+		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "drxk_pctv",
+		"drxk_terratec_htc_stick", "sms1xxx_hcw");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -725,24 +725,6 @@ sub it9135 {
 	extract("$tmpdir/$outfile", 12866, 5817, "$fwfile2");
 
 	"$fwfile1 $fwfile2"
-}
-
-sub it9137 {
-    my $url = "http://kworld.server261.com/kworld/CD/ITE_TiVme/V1.00/";
-    my $zipfile = "Driver_V10.323.1.0412.100412.zip";
-    my $hash = "79b597dc648698ed6820845c0c9d0d37";
-    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
-    my $drvfile = "Driver_V10.323.1.0412.100412/Data/x86/IT9135BDA.sys";
-    my $fwfile = "dvb-usb-it9137-01.fw";
-
-    checkstandard();
-
-    wgetfile($zipfile, $url . $zipfile);
-    verify($zipfile, $hash);
-    unzip($zipfile, $tmpdir);
-    extract("$tmpdir/$drvfile", 69632, 5731, "$fwfile");
-
-    "$fwfile"
 }
 
 sub tda10071 {

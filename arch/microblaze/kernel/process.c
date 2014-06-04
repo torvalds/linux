@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/cpu.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/pm.h>

@@ -1070,12 +1070,35 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
 }
 
+static inline void __ptep_ipte_local(unsigned long address, pte_t *ptep)
+{
+	unsigned long pto = (unsigned long) ptep;
+
+#ifndef CONFIG_64BIT
+	/* pto in ESA mode must point to the start of the segment table */
+	pto &= 0x7ffffc00;
+#endif
+	/* Invalidation + local TLB flush for the pte */
+	asm volatile(
+		"	.insn rrf,0xb2210000,%2,%3,0,1"
+		: "=m" (*ptep) : "m" (*ptep), "a" (pto), "a" (address));
+}
+
 static inline void ptep_flush_direct(struct mm_struct *mm,
 				     unsigned long address, pte_t *ptep)
 {
+	int active, count;
+
 	if (pte_val(*ptep) & _PAGE_INVALID)
 		return;
-	__ptep_ipte(address, ptep);
+	active = (mm == current->active_mm) ? 1 : 0;
+	count = atomic_add_return(0x10000, &mm->context.attach_count);
+	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
+		__ptep_ipte_local(address, ptep);
+	else
+		__ptep_ipte(address, ptep);
+	atomic_sub(0x10000, &mm->context.attach_count);
 }
 
 static inline void ptep_flush_lazy(struct mm_struct *mm,
@@ -1384,35 +1407,6 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_unmap(pte) do { } while (0)
 
-static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
-{
-	unsigned long sto = (unsigned long) pmdp -
-			    pmd_index(address) * sizeof(pmd_t);
-
-	if (!(pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)) {
-		asm volatile(
-			"	.insn	rrf,0xb98e0000,%2,%3,0,0"
-			: "=m" (*pmdp)
-			: "m" (*pmdp), "a" (sto),
-			  "a" ((address & HPAGE_MASK))
-			: "cc"
-		);
-	}
-}
-
-static inline void __pmd_csp(pmd_t *pmdp)
-{
-	register unsigned long reg2 asm("2") = pmd_val(*pmdp);
-	register unsigned long reg3 asm("3") = pmd_val(*pmdp) |
-					       _SEGMENT_ENTRY_INVALID;
-	register unsigned long reg4 asm("4") = ((unsigned long) pmdp) + 5;
-
-	asm volatile(
-		"	csp %1,%3"
-		: "=m" (*pmdp)
-		: "d" (reg2), "d" (reg3), "d" (reg4), "m" (*pmdp) : "cc");
-}
-
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
 static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 {
@@ -1481,18 +1475,80 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
 
+static inline void __pmdp_csp(pmd_t *pmdp)
+{
+	register unsigned long reg2 asm("2") = pmd_val(*pmdp);
+	register unsigned long reg3 asm("3") = pmd_val(*pmdp) |
+					       _SEGMENT_ENTRY_INVALID;
+	register unsigned long reg4 asm("4") = ((unsigned long) pmdp) + 5;
+
+	asm volatile(
+		"	csp %1,%3"
+		: "=m" (*pmdp)
+		: "d" (reg2), "d" (reg3), "d" (reg4), "m" (*pmdp) : "cc");
+}
+
+static inline void __pmdp_idte(unsigned long address, pmd_t *pmdp)
+{
+	unsigned long sto;
+
+	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
+	asm volatile(
+		"	.insn	rrf,0xb98e0000,%2,%3,0,0"
+		: "=m" (*pmdp)
+		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
+		: "cc" );
+}
+
+static inline void __pmdp_idte_local(unsigned long address, pmd_t *pmdp)
+{
+	unsigned long sto;
+
+	sto = (unsigned long) pmdp - pmd_index(address) * sizeof(pmd_t);
+	asm volatile(
+		"	.insn	rrf,0xb98e0000,%2,%3,0,1"
+		: "=m" (*pmdp)
+		: "m" (*pmdp), "a" (sto), "a" ((address & HPAGE_MASK))
+		: "cc" );
+}
+
+static inline void pmdp_flush_direct(struct mm_struct *mm,
+				     unsigned long address, pmd_t *pmdp)
+{
+	int active, count;
+
+	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
+		return;
+	if (!MACHINE_HAS_IDTE) {
+		__pmdp_csp(pmdp);
+		return;
+	}
+	active = (mm == current->active_mm) ? 1 : 0;
+	count = atomic_add_return(0x10000, &mm->context.attach_count);
+	if (MACHINE_HAS_TLB_LC && (count & 0xffff) <= active &&
+	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
+		__pmdp_idte_local(address, pmdp);
+	else
+		__pmdp_idte(address, pmdp);
+	atomic_sub(0x10000, &mm->context.attach_count);
+}
+
 static inline void pmdp_flush_lazy(struct mm_struct *mm,
 				   unsigned long address, pmd_t *pmdp)
 {
 	int active, count;
 
+	if (pmd_val(*pmdp) & _SEGMENT_ENTRY_INVALID)
+		return;
 	active = (mm == current->active_mm) ? 1 : 0;
 	count = atomic_add_return(0x10000, &mm->context.attach_count);
 	if ((count & 0xffff) <= active) {
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
-	} else
-		__pmd_idte(address, pmdp);
+	} else if (MACHINE_HAS_IDTE)
+		__pmdp_idte(address, pmdp);
+	else
+		__pmdp_csp(pmdp);
 	atomic_sub(0x10000, &mm->context.attach_count);
 }
 
@@ -1545,7 +1601,7 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 	pmd_t pmd;
 
 	pmd = *pmdp;
-	__pmd_idte(address, pmdp);
+	pmdp_flush_direct(vma->vm_mm, address, pmdp);
 	*pmdp = pmd_mkold(pmd);
 	return pmd_young(pmd);
 }
@@ -1556,7 +1612,7 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 {
 	pmd_t pmd = *pmdp;
 
-	__pmd_idte(address, pmdp);
+	pmdp_flush_direct(mm, address, pmdp);
 	pmd_clear(pmdp);
 	return pmd;
 }
@@ -1572,7 +1628,7 @@ static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
 static inline void pmdp_invalidate(struct vm_area_struct *vma,
 				   unsigned long address, pmd_t *pmdp)
 {
-	__pmd_idte(address, pmdp);
+	pmdp_flush_direct(vma->vm_mm, address, pmdp);
 }
 
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT
@@ -1582,7 +1638,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 	pmd_t pmd = *pmdp;
 
 	if (pmd_write(pmd)) {
-		__pmd_idte(address, pmdp);
+		pmdp_flush_direct(mm, address, pmdp);
 		set_pmd_at(mm, address, pmdp, pmd_wrprotect(pmd));
 	}
 }

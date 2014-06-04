@@ -91,6 +91,10 @@ int ocfs2_alloc_dinode_update_counts(struct inode *inode,
 			 struct buffer_head *di_bh,
 			 u32 num_bits,
 			 u16 chain);
+void ocfs2_rollback_alloc_dinode_counts(struct inode *inode,
+			 struct buffer_head *di_bh,
+			 u32 num_bits,
+			 u16 chain);
 int ocfs2_block_group_set_bits(handle_t *handle,
 			 struct inode *alloc_inode,
 			 struct ocfs2_group_desc *bg,

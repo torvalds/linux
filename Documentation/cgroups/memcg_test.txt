@@ -24,7 +24,7 @@ Please note that implementation details can be changed.
 
    a page/swp_entry may be charged (usage += PAGE_SIZE) at
 
-	mem_cgroup_newpage_charge()
+	mem_cgroup_charge_anon()
 	  Called at new page fault and Copy-On-Write.
 
 	mem_cgroup_try_charge_swapin()
@@ -32,7 +32,7 @@ Please note that implementation details can be changed.
 	  Followed by charge-commit-cancel protocol. (With swap accounting)
 	  At commit, a charge recorded in swap_cgroup is removed.
 
-	mem_cgroup_cache_charge()
+	mem_cgroup_charge_file()
 	  Called at add_to_page_cache()
 
 	mem_cgroup_cache_charge_swapin()

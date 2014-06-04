@@ -11,6 +11,7 @@ struct nouveau_devinit_impl {
 	void (*meminit)(struct nouveau_devinit *);
 	int  (*pll_set)(struct nouveau_devinit *, u32 type, u32 freq);
 	u64  (*disable)(struct nouveau_devinit *);
+	u32  (*mmio)(struct nouveau_devinit *, u32);
 };
 
 #define nouveau_devinit_create(p,e,o,d)                                        \

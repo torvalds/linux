@@ -75,9 +75,10 @@ The cpu-map node can only contain three types of child nodes:
 
 whose bindings are described in paragraph 3.
 
-The nodes describing the CPU topology (cluster/core/thread) can only be
-defined within the cpu-map node.
-Any other configuration is consider invalid and therefore must be ignored.
+The nodes describing the CPU topology (cluster/core/thread) can only
+be defined within the cpu-map node and every core/thread in the system
+must be defined within the topology.  Any other configuration is
+invalid and therefore must be ignored.
 
 ===========================================
 2.1 - cpu-map child nodes naming convention

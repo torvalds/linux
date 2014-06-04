@@ -111,6 +111,9 @@ struct nfc_target {
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 	u8 hci_reader_gate;
 	u8 logical_idx;
+	u8 is_iso15693;
+	u8 iso15693_dsfid;
+	u8 iso15693_uid[NFC_ISO15693_UID_MAXSIZE];
 };
 
 /**

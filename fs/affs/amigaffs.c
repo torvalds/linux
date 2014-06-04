@@ -471,20 +471,27 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 		function,ErrorBuffer);
 }
 
+bool
+affs_nofilenametruncate(const struct dentry *dentry)
+{
+	struct inode *inode = dentry->d_inode;
+	return AFFS_SB(inode->i_sb)->s_flags & SF_NO_TRUNCATE;
+
+}
+
 /* Check if the name is valid for a affs object. */
 
 int
-affs_check_name(const unsigned char *name, int len)
+affs_check_name(const unsigned char *name, int len, bool notruncate)
 {
 	int	 i;
 
-	if (len > 30)
-#ifdef AFFS_NO_TRUNCATE
-		return -ENAMETOOLONG;
-#else
-		len = 30;
-#endif
-
+	if (len > 30) {
+		if (notruncate)
+			return -ENAMETOOLONG;
+		else
+			len = 30;
+	}
 	for (i = 0; i < len; i++) {
 		if (name[i] < ' ' || name[i] == ':'
 		    || (name[i] > 0x7e && name[i] < 0xa0))

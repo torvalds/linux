@@ -135,46 +135,45 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	char *buf;
+	int i;
+	struct {
+		const char *name;
+		unsigned int val;
+	} ani_info[] = {
+		{ "ANI RESET", ah->stats.ast_ani_reset },
+		{ "OFDM LEVEL", ah->ani.ofdmNoiseImmunityLevel },
+		{ "CCK LEVEL", ah->ani.cckNoiseImmunityLevel },
+		{ "SPUR UP", ah->stats.ast_ani_spurup },
+		{ "SPUR DOWN", ah->stats.ast_ani_spurup },
+		{ "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon },
+		{ "OFDM WS-DET OFF", ah->stats.ast_ani_ofdmoff },
+		{ "MRC-CCK ON", ah->stats.ast_ani_ccklow },
+		{ "MRC-CCK OFF", ah->stats.ast_ani_cckhigh },
+		{ "FIR-STEP UP", ah->stats.ast_ani_stepup },
+		{ "FIR-STEP DOWN", ah->stats.ast_ani_stepdown },
+		{ "INV LISTENTIME", ah->stats.ast_ani_lneg_or_lzero },
+		{ "OFDM ERRORS", ah->stats.ast_ani_ofdmerrs },
+		{ "CCK ERRORS", ah->stats.ast_ani_cckerrs },
+	};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	if (common->disable_ani) {
-		len += scnprintf(buf + len, size - len, "%s: %s\n",
-				 "ANI", "DISABLED");
-		goto exit;
-	}
+	len += scnprintf(buf + len, size - len, "%15s: %s\n", "ANI",
+			 common->disable_ani ? "DISABLED" : "ENABLED");
 
-	len += scnprintf(buf + len, size - len, "%15s: %s\n",
-			 "ANI", "ENABLED");
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "ANI RESET", ah->stats.ast_ani_reset);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "SPUR UP", ah->stats.ast_ani_spurup);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "SPUR DOWN", ah->stats.ast_ani_spurup);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "OFDM WS-DET OFF", ah->stats.ast_ani_ofdmoff);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "MRC-CCK ON", ah->stats.ast_ani_ccklow);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "MRC-CCK OFF", ah->stats.ast_ani_cckhigh);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "FIR-STEP UP", ah->stats.ast_ani_stepup);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "FIR-STEP DOWN", ah->stats.ast_ani_stepdown);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "INV LISTENTIME", ah->stats.ast_ani_lneg_or_lzero);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "OFDM ERRORS", ah->stats.ast_ani_ofdmerrs);
-	len += scnprintf(buf + len, size - len, "%15s: %u\n",
-			 "CCK ERRORS", ah->stats.ast_ani_cckerrs);
+	if (common->disable_ani)
+		goto exit;
+
+	for (i = 0; i < ARRAY_SIZE(ani_info); i++)
+		len += scnprintf(buf + len, size - len, "%15s: %u\n",
+				 ani_info[i].name, ani_info[i].val);
+
 exit:
 	if (len > size)
 		len = size;
@@ -209,7 +208,7 @@ static ssize_t write_file_ani(struct file *file,
 	common->disable_ani = !ani;
 
 	if (common->disable_ani) {
-		clear_bit(SC_OP_ANI_RUN, &sc->sc_flags);
+		clear_bit(ATH_OP_ANI_RUN, &common->op_flags);
 		ath_stop_ani(sc);
 	} else {
 		ath_check_ani(sc);
@@ -307,13 +306,13 @@ static ssize_t read_file_antenna_diversity(struct file *file,
 	struct ath_antenna_stats *as_main = &sc->debug.stats.ant_stats[ANT_MAIN];
 	struct ath_antenna_stats *as_alt = &sc->debug.stats.ant_stats[ANT_ALT];
 	struct ath_hw_antcomb_conf div_ant_conf;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	char *buf;
-	char *lna_conf_str[4] = {"LNA1_MINUS_LNA2",
-				 "LNA2",
-				 "LNA1",
-				 "LNA1_PLUS_LNA2"};
+	static const char *lna_conf_str[4] = {
+		"LNA1_MINUS_LNA2", "LNA2", "LNA1", "LNA1_PLUS_LNA2"
+	};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -716,10 +715,13 @@ static ssize_t read_file_queues(struct file *file, char __user *user_buf,
 	struct ath_softc *sc = file->private_data;
 	struct ath_txq *txq;
 	char *buf;
-	unsigned int len = 0, size = 1024;
+	unsigned int len = 0;
+	const unsigned int size = 1024;
 	ssize_t retval = 0;
 	int i;
-	char *qname[4] = {"VO", "VI", "BE", "BK"};
+	static const char *qname[4] = {
+		"VO", "VI", "BE", "BK"
+	};
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
@@ -865,6 +867,12 @@ static ssize_t read_file_reset(struct file *file, char __user *user_buf,
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%17s: %2d\n", "PLL RX Hang",
 			 sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%17s: %2d\n", "MAC Hang",
+			 sc->debug.stats.reset[RESET_TYPE_MAC_HANG]);
+	len += scnprintf(buf + len, sizeof(buf) - len,
+			 "%17s: %2d\n", "Stuck Beacon",
+			 sc->debug.stats.reset[RESET_TYPE_BEACON_STUCK]);
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "%17s: %2d\n", "MCI Reset",
 			 sc->debug.stats.reset[RESET_TYPE_MCI]);

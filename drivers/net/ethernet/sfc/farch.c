@@ -311,7 +311,6 @@ static inline void efx_farch_push_tx_desc(struct efx_tx_queue *tx_queue,
  */
 void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 {
-
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
@@ -1249,6 +1248,9 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	int tx_packets = 0;
 	int spent = 0;
 
+	if (budget <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {
@@ -1608,7 +1610,6 @@ irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
 
 /* Setup RSS indirection table.
  * This maps from the hash value of the packet to RXQ

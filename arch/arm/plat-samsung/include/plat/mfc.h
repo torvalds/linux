@@ -32,7 +32,4 @@ struct s5p_mfc_dt_meminfo {
 void __init s5p_mfc_reserve_mem(phys_addr_t rbase, unsigned int rsize,
 				phys_addr_t lbase, unsigned int lsize);
 
-int __init s5p_fdt_find_mfc_mem(unsigned long node, const char *uname,
-				int depth, void *data);
-
 #endif /* __PLAT_SAMSUNG_MFC_H */

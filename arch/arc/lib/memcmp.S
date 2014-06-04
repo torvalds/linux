@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/linkage.h>
+#include <linux/linkage.h>
 
 #ifdef __LITTLE_ENDIAN__
 #define WORD2 r2
@@ -16,7 +16,7 @@
 #define SHIFT r2
 #endif
 
-ARC_ENTRY memcmp
+ENTRY(memcmp)
 	or	r12,r0,r1
 	asl_s	r12,r12,30
 	sub	r3,r2,1
@@ -121,4 +121,4 @@ ARC_ENTRY memcmp
 .Lnil:
 	j_s.d	[blink]
 	mov	r0,0
-ARC_EXIT memcmp
+END(memcmp)

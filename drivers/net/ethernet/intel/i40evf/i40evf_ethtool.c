@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -241,6 +241,7 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 {
 	struct i40evf_adapter *adapter = netdev_priv(netdev);
 	u32 new_rx_count, new_tx_count;
+	int i;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -256,12 +257,14 @@ static int i40evf_set_ringparam(struct net_device *netdev,
 	new_rx_count = ALIGN(new_rx_count, I40EVF_REQ_DESCRIPTOR_MULTIPLE);
 
 	/* if nothing to do return success */
-	if ((new_tx_count == adapter->txd_count) &&
-	    (new_rx_count == adapter->rxd_count))
+	if ((new_tx_count == adapter->tx_rings[0]->count) &&
+	    (new_rx_count == adapter->rx_rings[0]->count))
 		return 0;
 
-	adapter->txd_count = new_tx_count;
-	adapter->rxd_count = new_rx_count;
+	for (i = 0; i < adapter->vsi_res->num_queue_pairs; i++) {
+		adapter->tx_rings[0]->count = new_tx_count;
+		adapter->rx_rings[0]->count = new_rx_count;
+	}
 
 	if (netif_running(netdev))
 		i40evf_reinit_locked(adapter);

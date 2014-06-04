@@ -168,7 +168,7 @@ static void *vexpress_sysreg_config_func_get(struct device *dev,
 		struct device_node *node)
 {
 	struct vexpress_sysreg_config_func *config_func;
-	u32 site;
+	u32 site = 0;
 	u32 position = 0;
 	u32 dcc = 0;
 	u32 func_device[2];

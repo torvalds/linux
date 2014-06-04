@@ -1,0 +1,32 @@
+#
+# Exynos Video configuration
+#
+
+menuconfig EXYNOS_VIDEO
+	bool "Exynos Video driver support"
+	help
+	  This enables support for EXYNOS Video device.
+
+if EXYNOS_VIDEO
+
+#
+# MIPI DSI driver
+#
+
+config EXYNOS_MIPI_DSI
+	bool "EXYNOS MIPI DSI driver support."
+	depends on ARCH_S5PV210 || ARCH_EXYNOS
+	select GENERIC_PHY
+	help
+	  This enables support for MIPI-DSI device.
+
+config EXYNOS_LCD_S6E8AX0
+	bool "S6E8AX0 MIPI AMOLED LCD Driver"
+	depends on EXYNOS_MIPI_DSI && BACKLIGHT_CLASS_DEVICE
+	depends on (LCD_CLASS_DEVICE = y)
+	default n
+	help
+	  If you have an S6E8AX0 MIPI AMOLED LCD Panel, say Y to enable its
+	  LCD control driver.
+
+endif # EXYNOS_VIDEO

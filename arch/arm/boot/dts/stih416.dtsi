@@ -10,6 +10,7 @@
 #include "stih416-clock.dtsi"
 #include "stih416-pinctrl.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/stih416-resets.h>
 / {
 	L2: cache-controller {
 		compatible = "arm,pl310-cache";
@@ -26,6 +27,16 @@
 		interrupt-parent = <&intc>;
 		ranges;
 		compatible	= "simple-bus";
+
+		powerdown: powerdown-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih416-powerdown";
+		};
+
+		softreset: softreset-controller {
+			#reset-cells = <1>;
+			compatible = "st,stih416-softreset";
+		};
 
 		syscfg_sbc:sbc-syscfg@fe600000{
 			compatible	= "st,stih416-sbc-syscfg", "syscon";
@@ -144,6 +155,74 @@
 			pinctrl-0	= <&pinctrl_sbc_i2c1_default>;
 
 			status		= "disabled";
+		};
+
+		ethernet0: dwmac@fe810000 {
+			device_type 	= "network";
+			compatible	= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg 		= <0xfe810000 0x8000>, <0x8bc 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+
+			interrupts = <0 133 0>, <0 134 0>, <0 135 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl 	= <32>;
+			snps,mixed-burst;
+
+			st,syscon		= <&syscfg_rear>;
+			resets			= <&softreset STIH416_ETH0_SOFTRESET>;
+			reset-names		= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii0>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLK_S_GMAC0_PHY>;
+		};
+
+		ethernet1: dwmac@fef08000 {
+			device_type = "network";
+			compatible		= "st,stih416-dwmac", "snps,dwmac", "snps,dwmac-3.710";
+			status 		= "disabled";
+			reg		= <0xfef08000 0x8000>, <0x7f0 0x4>;
+			reg-names	= "stmmaceth", "sti-ethconf";
+			interrupts = <0 136 0>, <0 137 0>, <0 138 0>;
+			interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+
+			snps,pbl	= <32>;
+			snps,mixed-burst;
+
+			st,syscon	= <&syscfg_sbc>;
+
+			resets		= <&softreset STIH416_ETH1_SOFTRESET>;
+			reset-names	= "stmmaceth";
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_mii1>;
+			clock-names	= "stmmaceth";
+			clocks		= <&CLK_S_ETH1_PHY>;
+		};
+
+		rc: rc@fe518000 {
+			compatible	= "st,comms-irb";
+			reg		= <0xfe518000 0x234>;
+			interrupts	=  <0 203 0>;
+			rx-mode         = "infrared";
+			clocks		= <&CLK_SYSIN>;
+			pinctrl-names 	= "default";
+			pinctrl-0	= <&pinctrl_ir>;
+			resets		= <&softreset STIH416_IRB_SOFTRESET>;
+		};
+
+		/* FSM */
+		spifsm: spifsm@fe902000 {
+			compatible	   = "st,spi-fsm";
+			reg		   = <0xfe902000 0x1000>;
+			pinctrl-0	   = <&pinctrl_fsm>;
+
+			st,syscfg	   = <&syscfg_rear>;
+			st,boot-device-reg = <0x958>;
+			st,boot-device-spi = <0x1a>;
+
+			status = "disabled";
 		};
 	};
 };

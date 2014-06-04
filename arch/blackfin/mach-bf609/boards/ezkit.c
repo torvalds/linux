@@ -39,7 +39,7 @@ const char bfin_board_name[] = "ADI BF609-EZKIT";
  *  Driver needs to know address, irq and flag pin.
  */
 
-#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_ISP1760_HCD)
 #include <linux/usb/isp1760.h>
 static struct resource bfin_isp1760_resources[] = {
 	[0] = {
@@ -74,7 +74,7 @@ static struct platform_device bfin_isp1760_device = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_BFIN_ROTARY)
 #include <asm/bfin_rotary.h>
 
 static struct bfin_rotary_platform_data bfin_rotary_data = {
@@ -105,7 +105,7 @@ static struct platform_device bfin_rotary_device = {
 };
 #endif
 
-#if defined(CONFIG_STMMAC_ETH) || defined(CONFIG_STMMAC_ETH_MODULE)
+#if IS_ENABLED(CONFIG_STMMAC_ETH)
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 
@@ -159,7 +159,7 @@ static struct platform_device bfin_eth_device = {
 };
 #endif
 
-#if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_ADXL34X)
 #include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
@@ -198,14 +198,14 @@ static const struct adxl34x_platform_data adxl34x_info = {
 };
 #endif
 
-#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_RTC_DRV_BFIN)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
 	.id   = -1,
 };
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 static struct resource bfin_uart0_resources[] = {
 	{
@@ -355,7 +355,7 @@ static struct platform_device bfin_uart1_device = {
 #endif
 #endif
 
-#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_SIR)
 #ifdef CONFIG_BFIN_SIR0
 static struct resource bfin_sir0_resources[] = {
 	{
@@ -408,7 +408,7 @@ static struct platform_device bfin_sir1_device = {
 #endif
 #endif
 
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
 static struct resource musb_resources[] = {
 	[0] = {
 		.start	= 0xFFCC1000,
@@ -464,7 +464,7 @@ static struct platform_device musb_device = {
 };
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN_SPORT)
 #ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
 static struct resource bfin_sport0_uart_resources[] = {
 	{
@@ -569,7 +569,7 @@ static struct platform_device bfin_sport2_uart_device = {
 #endif
 #endif
 
-#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_CAN_BFIN)
 
 static unsigned short bfin_can0_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
@@ -610,7 +610,7 @@ static struct platform_device bfin_can0_device = {
 
 #endif
 
-#if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_BF5XX)
 static struct mtd_partition partition_info[] = {
 	{
 		.name = "bootloader(nand)",
@@ -660,7 +660,7 @@ static struct platform_device bfin_nand_device = {
 };
 #endif
 
-#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SDH_BFIN)
 
 static struct bfin_sd_host bfin_sdh_data = {
 	.dma_chan = CH_RSI,
@@ -677,7 +677,7 @@ static struct platform_device bfin_sdh_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 static struct mtd_partition ezkit_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
@@ -741,8 +741,7 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_MTD_M25P80) \
-	|| defined(CONFIG_MTD_M25P80_MODULE)
+#if IS_ENABLED(CONFIG_MTD_M25P80)
 /* SPI flash chip (w25q32) */
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
@@ -773,21 +772,20 @@ static struct bfin_spi3_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+#if IS_ENABLED(CONFIG_SPI_SPIDEV)
 static struct bfin_spi3_chip spidev_chip_info = {
 	.enable_dma = true,
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
 static struct platform_device bfin_i2s_pcm = {
 	.name = "bfin-i2s-pcm-audio",
 	.id = -1,
 };
 #endif
 
-#if defined(CONFIG_SND_BF6XX_SOC_I2S) || \
-	defined(CONFIG_SND_BF6XX_SOC_I2S_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF6XX_SOC_I2S)
 #include <asm/bfin_sport3.h>
 static struct resource bfin_snd_resources[] = {
 	{
@@ -841,8 +839,7 @@ static struct platform_device bfin_i2s = {
 };
 #endif
 
-#if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
-	        || defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF5XX_SOC_AD1836)
 static const char * const ad1836_link[] = {
 	"bfin-i2s.0",
 	"spi0.76",
@@ -856,14 +853,13 @@ static struct platform_device bfin_ad1836_machine = {
 };
 #endif
 
-#if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61) || \
-	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61)
 static struct platform_device adau1761_device = {
 	.name = "bfin-eval-adau1x61",
 };
 #endif
 
-#if defined(CONFIG_SND_SOC_ADAU1761) || defined(CONFIG_SND_SOC_ADAU1761_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_ADAU1761)
 #include <sound/adau17x1.h>
 static struct adau1761_platform_data adau1761_info = {
 	.lineout_mode = ADAU1761_OUTPUT_MODE_LINE,
@@ -871,8 +867,7 @@ static struct adau1761_platform_data adau1761_info = {
 };
 #endif
 
-#if defined(CONFIG_VIDEO_BLACKFIN_CAPTURE) \
-	|| defined(CONFIG_VIDEO_BLACKFIN_CAPTURE_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_BLACKFIN_CAPTURE)
 #include <linux/videodev2.h>
 #include <media/blackfin/bfin_capture.h>
 #include <media/blackfin/ppi.h>
@@ -882,7 +877,7 @@ static const unsigned short ppi_req[] = {
 	P_PPI0_D4, P_PPI0_D5, P_PPI0_D6, P_PPI0_D7,
 	P_PPI0_D8, P_PPI0_D9, P_PPI0_D10, P_PPI0_D11,
 	P_PPI0_D12, P_PPI0_D13, P_PPI0_D14, P_PPI0_D15,
-#if !defined(CONFIG_VIDEO_VS6624) && !defined(CONFIG_VIDEO_VS6624_MODULE)
+#if !IS_ENABLED(CONFIG_VIDEO_VS6624)
 	P_PPI0_D16, P_PPI0_D17, P_PPI0_D18, P_PPI0_D19,
 	P_PPI0_D20, P_PPI0_D21, P_PPI0_D22, P_PPI0_D23,
 #endif
@@ -898,8 +893,7 @@ static const struct ppi_info ppi_info = {
 	.pin_req = ppi_req,
 };
 
-#if defined(CONFIG_VIDEO_VS6624) \
-	|| defined(CONFIG_VIDEO_VS6624_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_VS6624)
 static struct v4l2_input vs6624_inputs[] = {
 	{
 		.index = 0,
@@ -936,8 +930,7 @@ static struct bfin_capture_config bfin_capture_data = {
 };
 #endif
 
-#if defined(CONFIG_VIDEO_ADV7842) \
-	|| defined(CONFIG_VIDEO_ADV7842_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_ADV7842)
 #include <media/adv7842.h>
 
 static struct v4l2_input adv7842_inputs[] = {
@@ -1067,8 +1060,7 @@ static struct platform_device bfin_capture_device = {
 };
 #endif
 
-#if defined(CONFIG_VIDEO_BLACKFIN_DISPLAY) \
-	|| defined(CONFIG_VIDEO_BLACKFIN_DISPLAY_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_BLACKFIN_DISPLAY)
 #include <linux/videodev2.h>
 #include <media/blackfin/bfin_display.h>
 #include <media/blackfin/ppi.h>
@@ -1090,8 +1082,7 @@ static const struct ppi_info ppi_info = {
 	.pin_req = ppi_req_disp,
 };
 
-#if defined(CONFIG_VIDEO_ADV7511) \
-	|| defined(CONFIG_VIDEO_ADV7511_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_ADV7511)
 #include <media/adv7511.h>
 
 static struct v4l2_output adv7511_outputs[] = {
@@ -1313,7 +1304,7 @@ static struct platform_device bfin_crypto_crc_device = {
 };
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_AD7877)
 static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.model			= 7877,
 	.vref_delay_usecs	= 50,	/* internal, no capacitor */
@@ -1679,7 +1670,7 @@ static struct platform_device bfin_gpg_device = {
 
 #endif
 
-#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#if IS_ENABLED(CONFIG_KEYBOARD_GPIO)
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 
@@ -1702,8 +1693,7 @@ static struct platform_device bfin_device_gpiokeys = {
 #endif
 
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
-#if defined(CONFIG_MTD_M25P80) \
-	|| defined(CONFIG_MTD_M25P80_MODULE)
+#if IS_ENABLED(CONFIG_MTD_M25P80)
 	{
 		/* the modalias must be the same as spi device driver name */
 		.modalias = "m25p80", /* Name of spi_driver for this device */
@@ -1715,7 +1705,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 	},
 #endif
-#if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_AD7877)
 	{
 		.modalias		= "ad7877",
 		.platform_data		= &bfin_ad7877_ts_info,
@@ -1725,7 +1715,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select		= MAX_CTRL_CS + GPIO_PC15, /* SPI_SSEL4 */
 	},
 #endif
-#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+#if IS_ENABLED(CONFIG_SPI_SPIDEV)
 	{
 		.modalias = "spidev",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
@@ -1734,7 +1724,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &spidev_chip_info,
 	},
 #endif
-#if defined(CONFIG_INPUT_ADXL34X_SPI) || defined(CONFIG_INPUT_ADXL34X_SPI_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_ADXL34X_SPI)
 	{
 		.modalias		= "adxl34x",
 		.platform_data		= &adxl34x_info,
@@ -1818,7 +1808,7 @@ static struct platform_device bf60x_spi_master1 = {
 };
 #endif  /* spi master and devices */
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if IS_ENABLED(CONFIG_I2C_BLACKFIN_TWI)
 static const u16 bfin_twi0_pins[] = {P_TWI0_SCL, P_TWI0_SDA, 0};
 
 static struct resource bfin_twi0_resource[] = {
@@ -1871,20 +1861,20 @@ static struct platform_device i2c_bfin_twi1_device = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
-#if defined(CONFIG_INPUT_ADXL34X_I2C) || defined(CONFIG_INPUT_ADXL34X_I2C_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_ADXL34X_I2C)
 	{
 		I2C_BOARD_INFO("adxl34x", 0x53),
 		.irq = IRQ_PC5,
 		.platform_data = (void *)&adxl34x_info,
 	},
 #endif
-#if defined(CONFIG_SND_SOC_ADAU1761) || defined(CONFIG_SND_SOC_ADAU1761_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_ADAU1761)
 	{
 		I2C_BOARD_INFO("adau1761", 0x38),
 		.platform_data = (void *)&adau1761_info
 	},
 #endif
-#if defined(CONFIG_SND_SOC_SSM2602) || defined(CONFIG_SND_SOC_SSM2602_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_SSM2602)
 	{
 		I2C_BOARD_INFO("ssm2602", 0x1b),
 	},
@@ -1942,11 +1932,11 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_gpg_device,
 #endif
 
-#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_RTC_DRV_BFIN)
 	&rtc_device,
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 	&bfin_uart0_device,
 #endif
@@ -1955,7 +1945,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
+#if IS_ENABLED(CONFIG_BFIN_SIR)
 #ifdef CONFIG_BFIN_SIR0
 	&bfin_sir0_device,
 #endif
@@ -1964,19 +1954,19 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_STMMAC_ETH) || defined(CONFIG_STMMAC_ETH_MODULE)
+#if IS_ENABLED(CONFIG_STMMAC_ETH)
 	&bfin_eth_device,
 #endif
 
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
+#if IS_ENABLED(CONFIG_USB_MUSB_HDRC)
 	&musb_device,
 #endif
 
-#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_ISP1760_HCD)
 	&bfin_isp1760_device,
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
+#if IS_ENABLED(CONFIG_SERIAL_BFIN_SPORT)
 #ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
 	&bfin_sport0_uart_device,
 #endif
@@ -1988,15 +1978,15 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_CAN_BFIN)
 	&bfin_can0_device,
 #endif
 
-#if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_BF5XX)
 	&bfin_nand_device,
 #endif
 
-#if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+#if IS_ENABLED(CONFIG_SDH_BFIN)
 	&bfin_sdh_device,
 #endif
 
@@ -2005,11 +1995,11 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bf60x_spi_master1,
 #endif
 
-#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_BFIN_ROTARY)
 	&bfin_rotary_device,
 #endif
 
-#if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
+#if IS_ENABLED(CONFIG_I2C_BLACKFIN_TWI)
 	&i2c_bfin_twi0_device,
 #if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
@@ -2024,34 +2014,29 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_crypto_crc_device,
 #endif
 
-#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#if IS_ENABLED(CONFIG_KEYBOARD_GPIO)
 	&bfin_device_gpiokeys,
 #endif
 
-#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+#if IS_ENABLED(CONFIG_MTD_PHYSMAP)
 	&ezkit_flash_device,
 #endif
-#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF5XX_I2S)
 	&bfin_i2s_pcm,
 #endif
-#if defined(CONFIG_SND_BF6XX_SOC_I2S) || \
-	defined(CONFIG_SND_BF6XX_SOC_I2S_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF6XX_SOC_I2S)
 	&bfin_i2s,
 #endif
-#if defined(CONFIG_SND_BF5XX_SOC_AD1836) || \
-	defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+#if IS_ENABLED(CONFIG_SND_BF5XX_SOC_AD1836)
 	&bfin_ad1836_machine,
 #endif
-#if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61) || \
-	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61_MODULE)
+#if IS_ENABLED(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61)
 	&adau1761_device,
 #endif
-#if defined(CONFIG_VIDEO_BLACKFIN_CAPTURE) \
-	|| defined(CONFIG_VIDEO_BLACKFIN_CAPTURE_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_BLACKFIN_CAPTURE)
 	&bfin_capture_device,
 #endif
-#if defined(CONFIG_VIDEO_BLACKFIN_DISPLAY) \
-	|| defined(CONFIG_VIDEO_BLACKFIN_DISPLAY_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_BLACKFIN_DISPLAY)
 	&bfin_display_device,
 #endif
 
@@ -2075,9 +2060,9 @@ static struct pinctrl_map __initdata bfin_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("physmap-flash.0",  "pinctrl-adi2.0", NULL, "smc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bf609_nl8048.2",  "pinctrl-adi2.0", NULL, "ppi2_16b"),
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_display.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
-#if defined(CONFIG_VIDEO_MT9M114) || defined(CONFIG_VIDEO_MT9M114_MODULE)
+#if IS_ENABLED(CONFIG_VIDEO_MT9M114)
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_8b"),
-#elif defined(CONFIG_VIDEO_VS6624) || defined(CONFIG_VIDEO_VS6624_MODULE)
+#elif IS_ENABLED(CONFIG_VIDEO_VS6624)
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_16b"),
 #else
 	PIN_MAP_MUX_GROUP_DEFAULT("bfin_capture.0",  "pinctrl-adi2.0", NULL, "ppi0_24b"),

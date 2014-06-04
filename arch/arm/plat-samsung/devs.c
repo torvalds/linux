@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -30,6 +31,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>
+#include <linux/sizes.h>
 #include <linux/platform_data/s3c-hsudc.h>
 #include <linux/platform_data/s3c-hsotg.h>
 #include <linux/platform_data/dma-s3c24xx.h>
@@ -41,7 +43,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
 #include <mach/map.h>
@@ -64,7 +65,6 @@
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/usb-phy.h>
-#include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
 #include <linux/platform_data/spi-s3c64xx.h>
 
@@ -744,10 +744,7 @@ void __init s5p_i2c_hdmiphy_set_platdata(struct s3c2410_platform_i2c *pd)
 	if (!pd) {
 		pd = &default_i2c_data;
 
-		if (soc_is_exynos4210() ||
-		    soc_is_exynos4212() || soc_is_exynos4412())
-			pd->bus_num = 8;
-		else if (soc_is_s5pv210())
+		if (soc_is_s5pv210())
 			pd->bus_num = 3;
 		else
 			pd->bus_num = 0;
@@ -764,10 +761,7 @@ void __init s5p_hdmi_set_platdata(struct i2c_board_info *hdmiphy_info,
 {
 	struct s5p_hdmi_platform_data *pd = &s5p_hdmi_def_platdata;
 
-	if (soc_is_exynos4210() ||
-	    soc_is_exynos4212() || soc_is_exynos4412())
-		pd->hdmiphy_bus = 8;
-	else if (soc_is_s5pv210())
+	if (soc_is_s5pv210())
 		pd->hdmiphy_bus = 3;
 	else
 		pd->hdmiphy_bus = 0;

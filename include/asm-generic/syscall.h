@@ -144,8 +144,6 @@ void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
 
 /**
  * syscall_get_arch - return the AUDIT_ARCH for the current system call
- * @task:	task of interest, must be in system call entry tracing
- * @regs:	task_pt_regs() of @task
  *
  * Returns the AUDIT_ARCH_* based on the system call convention in use.
  *
@@ -155,5 +153,5 @@ void syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
  * Architectures which permit CONFIG_HAVE_ARCH_SECCOMP_FILTER must
  * provide an implementation of this.
  */
-int syscall_get_arch(struct task_struct *task, struct pt_regs *regs);
+int syscall_get_arch(void);
 #endif	/* _ASM_SYSCALL_H */

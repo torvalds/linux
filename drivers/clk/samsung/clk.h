@@ -313,9 +313,7 @@ struct samsung_pll_clock {
 		_lock, _con, _rtable, _alias)
 
 extern void __init samsung_clk_init(struct device_node *np, void __iomem *base,
-		unsigned long nr_clks, unsigned long *rdump,
-		unsigned long nr_rdump, unsigned long *soc_rdump,
-		unsigned long nr_soc_rdump);
+				    unsigned long nr_clks);
 extern void __init samsung_clk_of_register_fixed_ext(
 		struct samsung_fixed_rate_clock *fixed_rate_clk,
 		unsigned int nr_fixed_rate_clk,
@@ -339,5 +337,15 @@ extern void __init samsung_clk_register_pll(struct samsung_pll_clock *pll_list,
 		unsigned int nr_clk, void __iomem *base);
 
 extern unsigned long _get_rate(const char *clk_name);
+
+extern void samsung_clk_save(void __iomem *base,
+			     struct samsung_clk_reg_dump *rd,
+			     unsigned int num_regs);
+extern void samsung_clk_restore(void __iomem *base,
+				const struct samsung_clk_reg_dump *rd,
+				unsigned int num_regs);
+extern struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
+						const unsigned long *rdump,
+						unsigned long nr_rdump);
 
 #endif /* __SAMSUNG_CLK_H */

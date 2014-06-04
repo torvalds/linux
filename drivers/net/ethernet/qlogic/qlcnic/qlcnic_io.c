@@ -13,16 +13,19 @@
 
 #include "qlcnic.h"
 
-#define TX_ETHER_PKT	0x01
-#define TX_TCP_PKT	0x02
-#define TX_UDP_PKT	0x03
-#define TX_IP_PKT	0x04
-#define TX_TCP_LSO	0x05
-#define TX_TCP_LSO6	0x06
-#define TX_TCPV6_PKT	0x0b
-#define TX_UDPV6_PKT	0x0c
-#define FLAGS_VLAN_TAGGED	0x10
-#define FLAGS_VLAN_OOB		0x40
+#define QLCNIC_TX_ETHER_PKT		0x01
+#define QLCNIC_TX_TCP_PKT		0x02
+#define QLCNIC_TX_UDP_PKT		0x03
+#define QLCNIC_TX_IP_PKT		0x04
+#define QLCNIC_TX_TCP_LSO		0x05
+#define QLCNIC_TX_TCP_LSO6		0x06
+#define QLCNIC_TX_ENCAP_PKT		0x07
+#define QLCNIC_TX_ENCAP_LSO		0x08
+#define QLCNIC_TX_TCPV6_PKT		0x0b
+#define QLCNIC_TX_UDPV6_PKT		0x0c
+
+#define QLCNIC_FLAGS_VLAN_TAGGED	0x10
+#define QLCNIC_FLAGS_VLAN_OOB		0x40
 
 #define qlcnic_set_tx_vlan_tci(cmd_desc, v)	\
 	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
@@ -364,6 +367,101 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	spin_unlock(&adapter->mac_learn_lock);
 }
 
+#define QLCNIC_ENCAP_VXLAN_PKT		BIT_0
+#define QLCNIC_ENCAP_OUTER_L3_IP6	BIT_1
+#define QLCNIC_ENCAP_INNER_L3_IP6	BIT_2
+#define QLCNIC_ENCAP_INNER_L4_UDP	BIT_3
+#define QLCNIC_ENCAP_DO_L3_CSUM		BIT_4
+#define QLCNIC_ENCAP_DO_L4_CSUM		BIT_5
+
+static int qlcnic_tx_encap_pkt(struct qlcnic_adapter *adapter,
+			       struct cmd_desc_type0 *first_desc,
+			       struct sk_buff *skb,
+			       struct qlcnic_host_tx_ring *tx_ring)
+{
+	u8 opcode = 0, inner_hdr_len = 0, outer_hdr_len = 0, total_hdr_len = 0;
+	int copied, copy_len, descr_size;
+	u32 producer = tx_ring->producer;
+	struct cmd_desc_type0 *hwdesc;
+	u16 flags = 0, encap_descr = 0;
+
+	opcode = QLCNIC_TX_ETHER_PKT;
+	encap_descr = QLCNIC_ENCAP_VXLAN_PKT;
+
+	if (skb_is_gso(skb)) {
+		inner_hdr_len = skb_inner_transport_header(skb) +
+				inner_tcp_hdrlen(skb) -
+				skb_inner_mac_header(skb);
+
+		/* VXLAN header size = 8 */
+		outer_hdr_len = skb_transport_offset(skb) + 8 +
+				sizeof(struct udphdr);
+		first_desc->outer_hdr_length = outer_hdr_len;
+		total_hdr_len = inner_hdr_len + outer_hdr_len;
+		encap_descr |= QLCNIC_ENCAP_DO_L3_CSUM |
+			       QLCNIC_ENCAP_DO_L4_CSUM;
+		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
+		first_desc->hdr_length = inner_hdr_len;
+
+		/* Copy inner and outer headers in Tx descriptor(s)
+		 * If total_hdr_len > cmd_desc_type0, use multiple
+		 * descriptors
+		 */
+		copied = 0;
+		descr_size = (int)sizeof(struct cmd_desc_type0);
+		while (copied < total_hdr_len) {
+			copy_len = min(descr_size, (total_hdr_len - copied));
+			hwdesc = &tx_ring->desc_head[producer];
+			tx_ring->cmd_buf_arr[producer].skb = NULL;
+			skb_copy_from_linear_data_offset(skb, copied,
+							 (char *)hwdesc,
+							 copy_len);
+			copied += copy_len;
+			producer = get_next_index(producer, tx_ring->num_desc);
+		}
+
+		tx_ring->producer = producer;
+
+		/* Make sure updated tx_ring->producer is visible
+		 * for qlcnic_tx_avail()
+		 */
+		smp_mb();
+		adapter->stats.encap_lso_frames++;
+
+		opcode = QLCNIC_TX_ENCAP_LSO;
+	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (inner_ip_hdr(skb)->version == 6) {
+			if (inner_ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
+				encap_descr |= QLCNIC_ENCAP_INNER_L4_UDP;
+		} else {
+			if (inner_ip_hdr(skb)->protocol == IPPROTO_UDP)
+				encap_descr |= QLCNIC_ENCAP_INNER_L4_UDP;
+		}
+
+		adapter->stats.encap_tx_csummed++;
+		opcode = QLCNIC_TX_ENCAP_PKT;
+	}
+
+	/* Prepare first 16 bits of byte offset 16 of Tx descriptor */
+	if (ip_hdr(skb)->version == 6)
+		encap_descr |= QLCNIC_ENCAP_OUTER_L3_IP6;
+
+	/* outer IP header's size in 32bit words size*/
+	encap_descr |= (skb_network_header_len(skb) >> 2) << 6;
+
+	/* outer IP header offset */
+	encap_descr |= skb_network_offset(skb) << 10;
+	first_desc->encap_descr = cpu_to_le16(encap_descr);
+
+	first_desc->tcp_hdr_offset = skb_inner_transport_header(skb) -
+				     skb->data;
+	first_desc->ip_hdr_offset = skb_inner_network_offset(skb);
+
+	qlcnic_set_tx_flags_opcode(first_desc, flags, opcode);
+
+	return 0;
+}
+
 static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 			 struct cmd_desc_type0 *first_desc, struct sk_buff *skb,
 			 struct qlcnic_host_tx_ring *tx_ring)
@@ -378,11 +476,11 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 
 	if (protocol == ETH_P_8021Q) {
 		vh = (struct vlan_ethhdr *)skb->data;
-		flags = FLAGS_VLAN_TAGGED;
+		flags = QLCNIC_FLAGS_VLAN_TAGGED;
 		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
 	} else if (vlan_tx_tag_present(skb)) {
-		flags = FLAGS_VLAN_OOB;
+		flags = QLCNIC_FLAGS_VLAN_OOB;
 		vlan_tci = vlan_tx_tag_get(skb);
 	}
 	if (unlikely(adapter->tx_pvid)) {
@@ -391,7 +489,7 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		if (vlan_tci && (adapter->flags & QLCNIC_TAGGING_ENABLED))
 			goto set_flags;
 
-		flags = FLAGS_VLAN_OOB;
+		flags = QLCNIC_FLAGS_VLAN_OOB;
 		vlan_tci = adapter->tx_pvid;
 	}
 set_flags:
@@ -402,25 +500,26 @@ set_flags:
 		flags |= BIT_0;
 		memcpy(&first_desc->eth_addr, skb->data, ETH_ALEN);
 	}
-	opcode = TX_ETHER_PKT;
+	opcode = QLCNIC_TX_ETHER_PKT;
 	if (skb_is_gso(skb)) {
 		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		first_desc->mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
-		first_desc->total_hdr_length = hdr_len;
-		opcode = (protocol == ETH_P_IPV6) ? TX_TCP_LSO6 : TX_TCP_LSO;
+		first_desc->hdr_length = hdr_len;
+		opcode = (protocol == ETH_P_IPV6) ? QLCNIC_TX_TCP_LSO6 :
+						    QLCNIC_TX_TCP_LSO;
 
 		/* For LSO, we need to copy the MAC/IP/TCP headers into
 		* the descriptor ring */
 		copied = 0;
 		offset = 2;
 
-		if (flags & FLAGS_VLAN_OOB) {
-			first_desc->total_hdr_length += VLAN_HLEN;
+		if (flags & QLCNIC_FLAGS_VLAN_OOB) {
+			first_desc->hdr_length += VLAN_HLEN;
 			first_desc->tcp_hdr_offset = VLAN_HLEN;
 			first_desc->ip_hdr_offset = VLAN_HLEN;
 
 			/* Only in case of TSO on vlan device */
-			flags |= FLAGS_VLAN_TAGGED;
+			flags |= QLCNIC_FLAGS_VLAN_TAGGED;
 
 			/* Create a TSO vlan header template for firmware */
 			hwdesc = &tx_ring->desc_head[producer];
@@ -464,16 +563,16 @@ set_flags:
 			l4proto = ip_hdr(skb)->protocol;
 
 			if (l4proto == IPPROTO_TCP)
-				opcode = TX_TCP_PKT;
+				opcode = QLCNIC_TX_TCP_PKT;
 			else if (l4proto == IPPROTO_UDP)
-				opcode = TX_UDP_PKT;
+				opcode = QLCNIC_TX_UDP_PKT;
 		} else if (protocol == ETH_P_IPV6) {
 			l4proto = ipv6_hdr(skb)->nexthdr;
 
 			if (l4proto == IPPROTO_TCP)
-				opcode = TX_TCPV6_PKT;
+				opcode = QLCNIC_TX_TCPV6_PKT;
 			else if (l4proto == IPPROTO_UDP)
-				opcode = TX_UDPV6_PKT;
+				opcode = QLCNIC_TX_UDPV6_PKT;
 		}
 	}
 	first_desc->tcp_hdr_offset += skb_transport_offset(skb);
@@ -563,6 +662,8 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	struct ethhdr *phdr;
 	int i, k, frag_count, delta = 0;
 	u32 producer, num_txd;
+	u16 protocol;
+	bool l4_is_udp = false;
 
 	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_tx_stop_all_queues(netdev);
@@ -653,8 +754,23 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	tx_ring->producer = get_next_index(producer, num_txd);
 	smp_mb();
 
-	if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb, tx_ring)))
-		goto unwind_buff;
+	protocol = ntohs(skb->protocol);
+	if (protocol == ETH_P_IP)
+		l4_is_udp = ip_hdr(skb)->protocol == IPPROTO_UDP;
+	else if (protocol == ETH_P_IPV6)
+		l4_is_udp = ipv6_hdr(skb)->nexthdr == IPPROTO_UDP;
+
+	/* Check if it is a VXLAN packet */
+	if (!skb->encapsulation || !l4_is_udp ||
+	    !qlcnic_encap_tx_offload(adapter)) {
+		if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb,
+					   tx_ring)))
+			goto unwind_buff;
+	} else {
+		if (unlikely(qlcnic_tx_encap_pkt(adapter, first_desc,
+						 skb, tx_ring)))
+			goto unwind_buff;
+	}
 
 	if (adapter->drv_mac_learn)
 		qlcnic_send_filter(adapter, first_desc, skb);
@@ -1587,6 +1703,13 @@ static inline int qlcnic_83xx_is_lb_pkt(u64 sts_data, int lro_pkt)
 		return (sts_data & QLC_83XX_NORMAL_LB_PKT) ? 1 : 0;
 }
 
+#define QLCNIC_ENCAP_LENGTH_MASK	0x7f
+
+static inline u8 qlcnic_encap_length(u64 sts_data)
+{
+	return sts_data & QLCNIC_ENCAP_LENGTH_MASK;
+}
+
 static struct qlcnic_rx_buffer *
 qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 			struct qlcnic_host_sds_ring *sds_ring,
@@ -1636,6 +1759,12 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
+
+	if (qlcnic_encap_length(sts_data[1]) &&
+	    skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		skb->encapsulation = 1;
+		adapter->stats.encap_rx_csummed++;
+	}
 
 	if (vid != 0xffff)
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);

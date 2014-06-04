@@ -38,6 +38,31 @@
 #
 
 use strict;
+use Getopt::Long;
+my $header = 0;
+
+sub help {
+	my $text = << "EOM";
+Usage:
+1) dmesg | perl scripts/bootgraph.pl [OPTION] > output.svg
+2) perl scripts/bootgraph.pl -h
+
+Options:
+	-header	Insert kernel version and date
+EOM
+	my $std=shift;
+	if ($std == 1) {
+		print STDERR $text;
+	} else {
+		print $text;
+	}
+	exit;
+}
+
+GetOptions(
+	'h|help'	=>\&help,
+	'header'	=>\$header
+);
 
 my %start;
 my %end;
@@ -48,6 +73,11 @@ my $firsttime = 99999;
 my $count = 0;
 my %pids;
 my %pidctr;
+
+my $headerstep = 20;
+my $xheader = 15;
+my $yheader = 25;
+my $cyheader = 0;
 
 while (<>) {
 	my $line = $_;
@@ -112,14 +142,22 @@ if ($count == 0) {
     print STDERR <<END;
 No data found in the dmesg. Make sure that 'printk.time=1' and
 'initcall_debug' are passed on the kernel command line.
-Usage:
-      dmesg | perl scripts/bootgraph.pl > output.svg
 END
+	help(1);
     exit 1;
 }
 
 print "<?xml version=\"1.0\" standalone=\"no\"?> \n";
 print "<svg width=\"2000\" height=\"100%\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n";
+
+
+if ($header) {
+	my $version = `uname -a`;
+	my $date = `date`;
+	print "<text transform=\"translate($xheader,$yheader)\">Kernel version: $version</text>\n";
+	$cyheader = $yheader+$headerstep;
+	print "<text transform=\"translate($xheader,$cyheader)\">Date: $date</text>\n";
+}
 
 my @styles;
 

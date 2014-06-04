@@ -92,8 +92,6 @@ static inline unsigned long extable_fixup(const struct exception_table_entry *x)
 #define ARCH_HAS_SORT_EXTABLE
 #define ARCH_HAS_SEARCH_EXTABLE
 
-int __handle_fault(unsigned long, unsigned long, int);
-
 /**
  * __copy_from_user: - Copy a block of data from user space, with less checking.
  * @to:   Destination address, in kernel space.

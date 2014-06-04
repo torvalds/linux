@@ -104,16 +104,16 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_CAPRI
-	bool "Broadcom Capri pinctrl driver"
+config PINCTRL_BCM281XX
+	bool "Broadcom BCM281xx pinctrl driver"
 	depends on OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
 	select REGMAP_MMIO
 	help
-	  Say Y here to support Broadcom Capri pinctrl driver, which is used for
-	  the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
+	  Say Y here to support Broadcom BCM281xx pinctrl driver, which is used
+	  for the BCM281xx SoC family, including BCM11130, BCM11140, BCM11351,
 	  BCM28145, and BCM28155 SoCs.  This driver requires the pinctrl
 	  framework.  GPIO is provided by a separate GPIO driver.
 
@@ -235,6 +235,9 @@ config PINCTRL_NOMADIK
 	depends on ARCH_U8500 || ARCH_NOMADIK
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
 
 config PINCTRL_STN8815
 	bool "STN8815 pin controller driver"
@@ -321,6 +324,7 @@ config PINCTRL_U300
 config PINCTRL_COH901
 	bool "ST-Ericsson U300 COH 901 335/571 GPIO"
 	depends on GPIOLIB && ARCH_U300 && PINCTRL_U300
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support GPIO interface on ST-Ericsson U300.
 	  The names of the two IP block variants supported are

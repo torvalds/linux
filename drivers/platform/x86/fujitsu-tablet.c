@@ -71,6 +71,44 @@ static unsigned short keymap_Lifebook_Tseries[KEYMAP_LEN] __initdata = {
 	KEY_LEFTALT
 };
 
+static unsigned short keymap_Lifebook_T901[KEYMAP_LEN] __initdata = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_SCROLLDOWN,
+	KEY_SCROLLUP,
+	KEY_CYCLEWINDOWS,
+	KEY_LEFTCTRL,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_LEFTMETA
+};
+
+static unsigned short keymap_Lifebook_T902[KEYMAP_LEN] __initdata = {
+	KEY_RESERVED,
+	KEY_VOLUMEDOWN,
+	KEY_VOLUMEUP,
+	KEY_CYCLEWINDOWS,
+	KEY_PROG1,
+	KEY_PROG2,
+	KEY_LEFTMETA,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+};
+
 static unsigned short keymap_Lifebook_U810[KEYMAP_LEN] __initdata = {
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -300,6 +338,33 @@ static int fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 }
 
 static const struct dmi_system_id dmi_ids[] __initconst = {
+	{
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T901",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook T901")
+		},
+		.driver_data = keymap_Lifebook_T901
+	},
+	{
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T901",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T901")
+		},
+		.driver_data = keymap_Lifebook_T901
+	},
+	{
+		.callback = fujitsu_dmi_lifebook,
+		.ident = "Fujitsu Lifebook T902",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T902")
+		},
+		.driver_data = keymap_Lifebook_T902
+	},
 	{
 		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Siemens P/T Series",

@@ -265,6 +265,7 @@ static dma_addr_t dma_map_xdr(struct svcxprt_rdma *xprt,
 		xdr_off -= xdr->head[0].iov_len;
 		if (xdr_off < xdr->page_len) {
 			/* This offset is in the page list */
+			xdr_off += xdr->page_base;
 			page = xdr->pages[xdr_off >> PAGE_SHIFT];
 			xdr_off &= ~PAGE_MASK;
 		} else {
@@ -625,6 +626,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		if (page_no+1 >= sge_no)
 			ctxt->sge[page_no+1].length = 0;
 	}
+	rqstp->rq_next_page = rqstp->rq_respages + 1;
 	BUG_ON(sge_no > rdma->sc_max_sge);
 	memset(&send_wr, 0, sizeof send_wr);
 	ctxt->wr_op = IB_WR_SEND;

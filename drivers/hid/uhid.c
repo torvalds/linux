@@ -441,11 +441,10 @@ static int uhid_dev_create2(struct uhid_device *uhid,
 	if (uhid->rd_size <= 0 || uhid->rd_size > HID_MAX_DESCRIPTOR_SIZE)
 		return -EINVAL;
 
-	uhid->rd_data = kmalloc(uhid->rd_size, GFP_KERNEL);
+	uhid->rd_data = kmemdup(ev->u.create2.rd_data, uhid->rd_size,
+				GFP_KERNEL);
 	if (!uhid->rd_data)
 		return -ENOMEM;
-
-	memcpy(uhid->rd_data, ev->u.create2.rd_data, uhid->rd_size);
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {

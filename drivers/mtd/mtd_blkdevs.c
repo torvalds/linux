@@ -30,7 +30,6 @@
 #include <linux/blkpg.h>
 #include <linux/spinlock.h>
 #include <linux/hdreg.h>
-#include <linux/init.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 

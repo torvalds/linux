@@ -68,7 +68,7 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	if (!cma_obj) {
-		DRM_LOG_KMS("entry is null.\n");
+		DRM_DEBUG_KMS("entry is null.\n");
 		return -EFAULT;
 	}
 

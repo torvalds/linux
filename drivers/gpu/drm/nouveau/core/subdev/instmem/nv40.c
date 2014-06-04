@@ -50,7 +50,6 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		  struct nouveau_object **pobject)
 {
 	struct nouveau_device *device = nv_device(parent);
-	struct pci_dev *pdev = device->pdev;
 	struct nv04_instmem_priv *priv;
 	int ret, bar, vs;
 
@@ -60,13 +59,13 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* map bar */
-	if (pci_resource_len(pdev, 2))
+	if (nv_device_resource_len(device, 2))
 		bar = 2;
 	else
 		bar = 3;
 
-	priv->iomem = ioremap(pci_resource_start(pdev, bar),
-			      pci_resource_len(pdev, bar));
+	priv->iomem = ioremap(nv_device_resource_start(device, bar),
+			      nv_device_resource_len(device, bar));
 	if (!priv->iomem) {
 		nv_error(priv, "unable to map PRAMIN BAR\n");
 		return -EFAULT;

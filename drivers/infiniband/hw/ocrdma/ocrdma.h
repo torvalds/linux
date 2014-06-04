@@ -35,16 +35,26 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/ib_addr.h>
 
 #include <be_roce.h>
 #include "ocrdma_sli.h"
 
-#define OCRDMA_ROCE_DEV_VERSION "1.0.0"
+#define OCRDMA_ROCE_DRV_VERSION "10.2.145.0u"
+
+#define OCRDMA_ROCE_DRV_DESC "Emulex OneConnect RoCE Driver"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
 
+#define OC_NAME_SH	OCRDMA_NODE_DESC "(Skyhawk)"
+#define OC_NAME_UNKNOWN OCRDMA_NODE_DESC "(Unknown)"
+
+#define OC_SKH_DEVICE_PF 0x720
+#define OC_SKH_DEVICE_VF 0x728
 #define OCRDMA_MAX_AH 512
 
 #define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
+
+#define convert_to_64bit(lo, hi) ((u64)hi << 32 | (u64)lo)
 
 struct ocrdma_dev_attr {
 	u8 fw_ver[32];
@@ -65,6 +75,7 @@ struct ocrdma_dev_attr {
 	int max_mr;
 	u64 max_mr_size;
 	u32 max_num_mr_pbl;
+	int max_mw;
 	int max_fmr;
 	int max_map_per_fmr;
 	int max_pages_per_frmr;
@@ -81,6 +92,12 @@ struct ocrdma_dev_attr {
 	u8 local_ca_ack_delay;
 	u8 ird;
 	u8 num_ird_pages;
+};
+
+struct ocrdma_dma_mem {
+	void *va;
+	dma_addr_t pa;
+	u32 size;
 };
 
 struct ocrdma_pbl {
@@ -148,6 +165,26 @@ struct ocrdma_mr {
 	struct ocrdma_hw_mr hwmr;
 };
 
+struct ocrdma_stats {
+	u8 type;
+	struct ocrdma_dev *dev;
+};
+
+struct stats_mem {
+	struct ocrdma_mqe mqe;
+	void *va;
+	dma_addr_t pa;
+	u32 size;
+	char *debugfs_mem;
+};
+
+struct phy_info {
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	u16 phy_type;
+	u16 interface_type;
+};
+
 struct ocrdma_dev {
 	struct ib_device ibdev;
 	struct ocrdma_dev_attr attr;
@@ -191,12 +228,30 @@ struct ocrdma_dev {
 	struct mqe_ctx mqe_ctx;
 
 	struct be_dev_info nic_info;
+	struct phy_info phy;
+	char model_number[32];
+	u32 hba_port_num;
 
 	struct list_head entry;
 	struct rcu_head rcu;
 	int id;
-	struct ocrdma_mr *stag_arr[OCRDMA_MAX_STAG];
+	u64 stag_arr[OCRDMA_MAX_STAG];
 	u16 pvid;
+	u32 asic_id;
+
+	ulong last_stats_time;
+	struct mutex stats_lock; /* provide synch for debugfs operations */
+	struct stats_mem stats_mem;
+	struct ocrdma_stats rsrc_stats;
+	struct ocrdma_stats rx_stats;
+	struct ocrdma_stats wqe_stats;
+	struct ocrdma_stats tx_stats;
+	struct ocrdma_stats db_err_stats;
+	struct ocrdma_stats tx_qp_err_stats;
+	struct ocrdma_stats rx_qp_err_stats;
+	struct ocrdma_stats tx_dbg_stats;
+	struct ocrdma_stats rx_dbg_stats;
+	struct dentry *dir;
 };
 
 struct ocrdma_cq {
@@ -209,8 +264,8 @@ struct ocrdma_cq {
 			 */
 	u32 max_hw_cqe;
 	bool phase_change;
-	bool armed, solicited;
-	bool arm_needed;
+	bool deferred_arm, deferred_sol;
+	bool first_arm;
 
 	spinlock_t cq_lock ____cacheline_aligned; /* provide synchronization
 						   * to cq polling
@@ -223,6 +278,7 @@ struct ocrdma_cq {
 	struct ocrdma_ucontext *ucontext;
 	dma_addr_t pa;
 	u32 len;
+	u32 cqe_cnt;
 
 	/* head of all qp's sq and rq for which cqes need to be flushed
 	 * by the software.
@@ -232,7 +288,6 @@ struct ocrdma_cq {
 
 struct ocrdma_pd {
 	struct ib_pd ibpd;
-	struct ocrdma_dev *dev;
 	struct ocrdma_ucontext *uctx;
 	u32 id;
 	int num_dpp_qp;
@@ -317,9 +372,7 @@ struct ocrdma_qp {
 	bool dpp_enabled;
 	u8 *ird_q_va;
 	bool signaled;
-	u16 db_cache;
 };
-
 
 struct ocrdma_ucontext {
 	struct ib_ucontext ibucontext;
@@ -385,13 +438,6 @@ static inline struct ocrdma_srq *get_ocrdma_srq(struct ib_srq *ibsrq)
 	return container_of(ibsrq, struct ocrdma_srq, ibsrq);
 }
 
-
-static inline int ocrdma_get_num_posted_shift(struct ocrdma_qp *qp)
-{
-	return ((qp->dev->nic_info.dev_family == OCRDMA_GEN2_FAMILY &&
-		 qp->id < 128) ? 24 : 16);
-}
-
 static inline int is_cqe_valid(struct ocrdma_cq *cq, struct ocrdma_cqe *cqe)
 {
 	int cqe_valid;
@@ -434,6 +480,42 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	else
 		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
 	return 0;
+}
+
+static inline char *hca_name(struct ocrdma_dev *dev)
+{
+	switch (dev->nic_info.pdev->device) {
+	case OC_SKH_DEVICE_PF:
+	case OC_SKH_DEVICE_VF:
+		return OC_NAME_SH;
+	default:
+		return OC_NAME_UNKNOWN;
+	}
+}
+
+static inline int ocrdma_get_eq_table_index(struct ocrdma_dev *dev,
+		int eqid)
+{
+	int indx;
+
+	for (indx = 0; indx < dev->eq_cnt; indx++) {
+		if (dev->eq_tbl[indx].q.id == eqid)
+			return indx;
+	}
+
+	return -EINVAL;
+}
+
+static inline u8 ocrdma_get_asic_type(struct ocrdma_dev *dev)
+{
+	if (dev->nic_info.dev_family == 0xF && !dev->asic_id) {
+		pci_read_config_dword(
+			dev->nic_info.pdev,
+			OCRDMA_SLI_ASIC_ID_OFFSET, &dev->asic_id);
+	}
+
+	return (dev->asic_id & OCRDMA_SLI_ASIC_GEN_NUM_MASK) >>
+				OCRDMA_SLI_ASIC_GEN_NUM_SHIFT;
 }
 
 #endif

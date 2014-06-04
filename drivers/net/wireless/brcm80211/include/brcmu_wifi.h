@@ -217,6 +217,9 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define WSEC_SWFLAG		0x0008
 /* to go into transition mode without setting wep */
 #define SES_OW_ENABLED		0x0040
+/* MFP */
+#define MFP_CAPABLE		0x0200
+#define MFP_REQUIRED		0x0400
 
 /* WPA authentication mode bitvec */
 #define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */

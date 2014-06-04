@@ -155,22 +155,6 @@ static void arc_timer_event_setup(unsigned int limit)
 	write_aux_reg(ARC_REG_TIMER0_CTRL, TIMER_CTRL_IE | TIMER_CTRL_NH);
 }
 
-/*
- * Acknowledge the interrupt (oneshot) and optionally re-arm it (periodic)
- * -Any write to CTRL Reg will ack the intr (NH bit: Count when not halted)
- * -Rearming is done by setting the IE bit
- *
- * Small optimisation: Normal code would have been
- *   if (irq_reenable)
- *     CTRL_REG = (IE | NH);
- *   else
- *     CTRL_REG = NH;
- * However since IE is BIT0 we can fold the branch
- */
-static void arc_timer_event_ack(unsigned int irq_reenable)
-{
-	write_aux_reg(ARC_REG_TIMER0_CTRL, irq_reenable | TIMER_CTRL_NH);
-}
 
 static int arc_clkevent_set_next_event(unsigned long delta,
 				       struct clock_event_device *dev)
@@ -207,10 +191,22 @@ static DEFINE_PER_CPU(struct clock_event_device, arc_clockevent_device) = {
 
 static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *clk = this_cpu_ptr(&arc_clockevent_device);
+	/*
+	 * Note that generic IRQ core could have passed @evt for @dev_id if
+	 * irq_set_chip_and_handler() asked for handle_percpu_devid_irq()
+	 */
+	struct clock_event_device *evt = this_cpu_ptr(&arc_clockevent_device);
+	int irq_reenable = evt->mode == CLOCK_EVT_MODE_PERIODIC;
 
-	arc_timer_event_ack(clk->mode == CLOCK_EVT_MODE_PERIODIC);
-	clk->event_handler(clk);
+	/*
+	 * Any write to CTRL reg ACks the interrupt, we rewrite the
+	 * Count when [N]ot [H]alted bit.
+	 * And re-arm it if perioid by [I]nterrupt [E]nable bit
+	 */
+	write_aux_reg(ARC_REG_TIMER0_CTRL, irq_reenable | TIMER_CTRL_NH);
+
+	evt->event_handler(evt);
+
 	return IRQ_HANDLED;
 }
 
@@ -222,9 +218,8 @@ static struct irqaction arc_timer_irq = {
 
 /*
  * Setup the local event timer for @cpu
- * N.B. weak so that some exotic ARC SoCs can completely override it
  */
-void __weak arc_local_timer_setup(unsigned int cpu)
+void arc_local_timer_setup(unsigned int cpu)
 {
 	struct clock_event_device *clk = &per_cpu(arc_clockevent_device, cpu);
 

@@ -396,7 +396,17 @@ _xfs_buf_map_pages(
 		bp->b_addr = NULL;
 	} else {
 		int retried = 0;
+		unsigned noio_flag;
 
+		/*
+		 * vm_map_ram() will allocate auxillary structures (e.g.
+		 * pagetables) with GFP_KERNEL, yet we are likely to be under
+		 * GFP_NOFS context here. Hence we need to tell memory reclaim
+		 * that we are in such a context via PF_MEMALLOC_NOIO to prevent
+		 * memory reclaim re-entering the filesystem here and
+		 * potentially deadlocking.
+		 */
+		noio_flag = memalloc_noio_save();
 		do {
 			bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
 						-1, PAGE_KERNEL);
@@ -404,6 +414,7 @@ _xfs_buf_map_pages(
 				break;
 			vm_unmap_aliases();
 		} while (retried++ <= 1);
+		memalloc_noio_restore(noio_flag);
 
 		if (!bp->b_addr)
 			return -ENOMEM;
@@ -1361,21 +1372,29 @@ xfs_buf_iorequest(
 		xfs_buf_wait_unpin(bp);
 	xfs_buf_hold(bp);
 
-	/* Set the count to 1 initially, this will stop an I/O
+	/*
+	 * Set the count to 1 initially, this will stop an I/O
 	 * completion callout which happens before we have started
 	 * all the I/O from calling xfs_buf_ioend too early.
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
-	_xfs_buf_ioend(bp, 1);
+	/*
+	 * If _xfs_buf_ioapply failed, we'll get back here with
+	 * only the reference we took above.  _xfs_buf_ioend will
+	 * drop it to zero, so we'd better not queue it for later,
+	 * or we'll free it before it's done.
+	 */
+	_xfs_buf_ioend(bp, bp->b_error ? 0 : 1);
 
 	xfs_buf_rele(bp);
 }
 
 /*
  * Waits for I/O to complete on the buffer supplied.  It returns immediately if
- * no I/O is pending or there is already a pending error on the buffer.  It
- * returns the I/O error code, if any, or 0 if there was no error.
+ * no I/O is pending or there is already a pending error on the buffer, in which
+ * case nothing will ever complete.  It returns the I/O error code, if any, or
+ * 0 if there was no error.
  */
 int
 xfs_buf_iowait(

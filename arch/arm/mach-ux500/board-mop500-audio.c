@@ -9,7 +9,6 @@
 #include <linux/gpio.h>
 #include <linux/platform_data/dma-ste-dma40.h>
 
-#include "irqs.h"
 #include <linux/platform_data/asoc-ux500-msp.h>
 
 #include "ste-dma40-db8500.h"

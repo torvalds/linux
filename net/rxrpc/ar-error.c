@@ -83,6 +83,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 
 		if (mtu == 0) {
 			/* they didn't give us a size, estimate one */
+			mtu = peer->if_mtu;
 			if (mtu > 1500) {
 				mtu >>= 1;
 				if (mtu < 1500)

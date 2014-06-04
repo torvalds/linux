@@ -37,7 +37,21 @@
 
 /* SAI Transmit/Recieve Control Register */
 #define FSL_SAI_CSR_TERE	BIT(31)
+#define FSL_SAI_CSR_FR		BIT(25)
+#define FSL_SAI_CSR_xF_SHIFT	16
+#define FSL_SAI_CSR_xF_W_SHIFT	18
+#define FSL_SAI_CSR_xF_MASK	(0x1f << FSL_SAI_CSR_xF_SHIFT)
+#define FSL_SAI_CSR_xF_W_MASK	(0x7 << FSL_SAI_CSR_xF_W_SHIFT)
+#define FSL_SAI_CSR_WSF		BIT(20)
+#define FSL_SAI_CSR_SEF		BIT(19)
+#define FSL_SAI_CSR_FEF		BIT(18)
 #define FSL_SAI_CSR_FWF		BIT(17)
+#define FSL_SAI_CSR_FRF		BIT(16)
+#define FSL_SAI_CSR_xIE_SHIFT	8
+#define FSL_SAI_CSR_WSIE	BIT(12)
+#define FSL_SAI_CSR_SEIE	BIT(11)
+#define FSL_SAI_CSR_FEIE	BIT(10)
+#define FSL_SAI_CSR_FWIE	BIT(9)
 #define FSL_SAI_CSR_FRIE	BIT(8)
 #define FSL_SAI_CSR_FRDE	BIT(0)
 
@@ -99,6 +113,7 @@
 #define FSL_SAI_MAXBURST_RX 6
 
 struct fsl_sai {
+	struct platform_device *pdev;
 	struct regmap *regmap;
 
 	bool big_endian_regs;

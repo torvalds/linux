@@ -5,3 +5,17 @@
   "soft_bch".
 - nand-bus-width : 8 or 16 bus width if not present 8
 - nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
+
+- nand-ecc-strength: integer representing the number of bits to correct
+		     per ECC step.
+
+- nand-ecc-step-size: integer representing the number of data bytes
+		      that are covered by a single ECC step.
+
+The ECC strength and ECC step size properties define the correction capability
+of a controller. Together, they say a controller can correct "{strength} bit
+errors per {size} bytes".
+
+The interpretation of these parameters is implementation-defined, so not all
+implementations must support all possible combinations. However, implementations
+are encouraged to further specify the value(s) they support.

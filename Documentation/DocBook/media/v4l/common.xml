@@ -38,70 +38,41 @@ the basic concepts applicable to all devices.</para>
 
       <para>V4L2 drivers are implemented as kernel modules, loaded
 manually by the system administrator or automatically when a device is
-first opened. The driver modules plug into the "videodev" kernel
+first discovered. The driver modules plug into the "videodev" kernel
 module. It provides helper functions and a common application
 interface specified in this document.</para>
 
       <para>Each driver thus loaded registers one or more device nodes
-with major number 81 and a minor number between 0 and 255. Assigning
-minor numbers to V4L2 devices is entirely up to the system administrator,
-this is primarily intended to solve conflicts between devices.<footnote>
-	  <para>Access permissions are associated with character
-device special files, hence we must ensure device numbers cannot
-change with the module load order. To this end minor numbers are no
-longer automatically assigned by the "videodev" module as in V4L but
-requested by the driver. The defaults will suffice for most people
-unless two drivers compete for the same minor numbers.</para>
-	</footnote> The module options to select minor numbers are named
-after the device special file with a "_nr" suffix. For example "video_nr"
-for <filename>/dev/video</filename> video capture devices. The number is
-an offset to the base minor number associated with the device type.
-<footnote>
-	  <para>In earlier versions of the V4L2 API the module options
-where named after the device special file with a "unit_" prefix, expressing
-the minor number itself, not an offset. Rationale for this change is unknown.
-Lastly the naming and semantics are just a convention among driver writers,
-the point to note is that minor numbers are not supposed to be hardcoded
-into drivers.</para>
-	</footnote> When the driver supports multiple devices of the same
-type more than one minor number can be assigned, separated by commas:
-<informalexample>
+with major number 81 and a minor number between 0 and 255. Minor numbers
+are allocated dynamically unless the kernel is compiled with the kernel
+option CONFIG_VIDEO_FIXED_MINOR_RANGES. In that case minor numbers are
+allocated in ranges depending on the device node type (video, radio, etc.).</para>
+
+      <para>Many drivers support "video_nr", "radio_nr" or "vbi_nr"
+module options to select specific video/radio/vbi node numbers. This allows
+the user to request that the device node is named e.g. /dev/video5 instead
+of leaving it to chance. When the driver supports multiple devices of the same
+type more than one device node number can be assigned, separated by commas:
+	<informalexample>
 	  <screen>
-&gt; insmod mydriver.o video_nr=0,1 radio_nr=0,1</screen>
+&gt; modprobe mydriver video_nr=0,1 radio_nr=0,1</screen>
 	</informalexample></para>
 
       <para>In <filename>/etc/modules.conf</filename> this may be
 written as: <informalexample>
 	  <screen>
-alias char-major-81-0 mydriver
-alias char-major-81-1 mydriver
-alias char-major-81-64 mydriver              <co id="alias" />
-options mydriver video_nr=0,1 radio_nr=0,1   <co id="options" />
+options mydriver video_nr=0,1 radio_nr=0,1
 	  </screen>
-	  <calloutlist>
-	    <callout arearefs="alias">
-	      <para>When an application attempts to open a device
-special file with major number 81 and minor number 0, 1, or 64, load
-"mydriver" (and the "videodev" module it depends upon).</para>
-	    </callout>
-	    <callout arearefs="options">
-	      <para>Register the first two video capture devices with
-minor number 0 and 1 (base number is 0), the first two radio device
-with minor number 64 and 65 (base 64).</para>
-	    </callout>
-	  </calloutlist>
-	</informalexample> When no minor number is given as module
-option the driver supplies a default. <xref linkend="devices" />
-recommends the base minor numbers to be used for the various device
-types. Obviously minor numbers must be unique. When the number is
-already in use the <emphasis>offending device</emphasis> will not be
-registered. <!-- Blessed by Linus Torvalds on
-linux-kernel@vger.kernel.org, 2002-11-20. --></para>
+	</informalexample> When no device node number is given as module
+option the driver supplies a default.</para>
 
-      <para>By convention system administrators create various
-character device special files with these major and minor numbers in
-the <filename>/dev</filename> directory. The names recommended for the
-different V4L2 device types are listed in <xref linkend="devices" />.
+      <para>Normally udev will create the device nodes in /dev automatically
+for you. If udev is not installed, then you need to enable the
+CONFIG_VIDEO_FIXED_MINOR_RANGES kernel option in order to be able to correctly
+relate a minor number to a device node number. I.e., you need to be certain
+that minor number 5 maps to device node name video5. With this kernel option
+different device types have different minor number ranges. These ranges are
+listed in <xref linkend="devices" />.
 </para>
 
       <para>The creation of character special files (with
@@ -110,85 +81,66 @@ devices cannot be opened by major and minor number. That means
 applications cannot <emphasis>reliable</emphasis> scan for loaded or
 installed drivers. The user must enter a device name, or the
 application can try the conventional device names.</para>
-
-      <para>Under the device filesystem (devfs) the minor number
-options are ignored. V4L2 drivers (or by proxy the "videodev" module)
-automatically create the required device files in the
-<filename>/dev/v4l</filename> directory using the conventional device
-names above.</para>
     </section>
 
     <section id="related">
       <title>Related Devices</title>
 
-      <para>Devices can support several related functions. For example
-video capturing, video overlay and VBI capturing are related because
-these functions share, amongst other, the same video input and tuner
-frequency. V4L and earlier versions of V4L2 used the same device name
-and minor number for video capturing and overlay, but different ones
-for VBI. Experience showed this approach has several problems<footnote>
-	  <para>Given a device file name one cannot reliable find
-related devices. For once names are arbitrary and in a system with
-multiple devices, where only some support VBI capturing, a
-<filename>/dev/video2</filename> is not necessarily related to
-<filename>/dev/vbi2</filename>. The V4L
-<constant>VIDIOCGUNIT</constant> ioctl would require a search for a
-device file with a particular major and minor number.</para>
-	</footnote>, and to make things worse the V4L videodev module
-used to prohibit multiple opens of a device.</para>
+      <para>Devices can support several functions. For example
+video capturing, VBI capturing and radio support.</para>
 
-      <para>As a remedy the present version of the V4L2 API relaxed the
-concept of device types with specific names and minor numbers. For
-compatibility with old applications drivers must still register different
-minor numbers to assign a default function to the device. But if related
-functions are supported by the driver they must be available under all
-registered minor numbers. The desired function can be selected after
-opening the device as described in <xref linkend="devices" />.</para>
+      <para>The V4L2 API creates different nodes for each of these functions.</para>
 
-      <para>Imagine a driver supporting video capturing, video
-overlay, raw VBI capturing, and FM radio reception. It registers three
-devices with minor number 0, 64 and 224 (this numbering scheme is
-inherited from the V4L API). Regardless if
-<filename>/dev/video</filename> (81, 0) or
-<filename>/dev/vbi</filename> (81, 224) is opened the application can
-select any one of the video capturing, overlay or VBI capturing
-functions. Without programming (e.&nbsp;g. reading from the device
-with <application>dd</application> or <application>cat</application>)
-<filename>/dev/video</filename> captures video images, while
-<filename>/dev/vbi</filename> captures raw VBI data.
-<filename>/dev/radio</filename> (81, 64) is invariable a radio device,
-unrelated to the video functions. Being unrelated does not imply the
-devices can be used at the same time, however. The &func-open;
-function may very well return an &EBUSY;.</para>
+      <para>The V4L2 API was designed with the idea that one device node could support
+all functions. However, in practice this never worked: this 'feature'
+was never used by applications and many drivers did not support it and if
+they did it was certainly never tested. In addition, switching a device
+node between different functions only works when using the streaming I/O
+API, not with the read()/write() API.</para>
+
+      <para>Today each device node supports just one function.</para>
 
       <para>Besides video input or output the hardware may also
 support audio sampling or playback. If so, these functions are
-implemented as OSS or ALSA PCM devices and eventually OSS or ALSA
-audio mixer. The V4L2 API makes no provisions yet to find these
-related devices. If you have an idea please write to the linux-media
-mailing list: &v4l-ml;.</para>
+implemented as ALSA PCM devices with optional ALSA audio mixer
+devices.</para>
+
+      <para>One problem with all these devices is that the V4L2 API
+makes no provisions to find these related devices. Some really
+complex devices use the Media Controller (see <xref linkend="media_controller" />)
+which can be used for this purpose. But most drivers do not use it,
+and while some code exists that uses sysfs to discover related devices
+(see libmedia_dev in the <ulink url="http://git.linuxtv.org/v4l-utils/">v4l-utils</ulink>
+git repository), there is no library yet that can provide a single API towards
+both Media Controller-based devices and devices that do not use the Media Controller.
+If you want to work on this please write to the linux-media mailing list: &v4l-ml;.</para>
     </section>
 
     <section>
       <title>Multiple Opens</title>
 
-      <para>In general, V4L2 devices can be opened more than once.
+      <para>V4L2 devices can be opened more than once.<footnote><para>
+There are still some old and obscure drivers that have not been updated to
+allow for multiple opens. This implies that for such drivers &func-open; can
+return an &EBUSY; when the device is already in use.</para></footnote>
 When this is supported by the driver, users can for example start a
 "panel" application to change controls like brightness or audio
 volume, while another application captures video and audio. In other words, panel
-applications are comparable to an OSS or ALSA audio mixer application.
-When a device supports multiple functions like capturing and overlay
-<emphasis>simultaneously</emphasis>, multiple opens allow concurrent
-use of the device by forked processes or specialized applications.</para>
+applications are comparable to an ALSA audio mixer application.
+Just opening a V4L2 device should not change the state of the device.<footnote>
+<para>Unfortunately, opening a radio device often switches the state of the
+device to radio mode in many drivers. This behavior should be fixed eventually
+as it violates the V4L2 specification.</para></footnote></para>
 
-      <para>Multiple opens are optional, although drivers should
-permit at least concurrent accesses without data exchange, &ie; panel
-applications. This implies &func-open; can return an &EBUSY; when the
-device is already in use, as well as &func-ioctl; functions initiating
-data exchange (namely the &VIDIOC-S-FMT; ioctl), and the &func-read;
-and &func-write; functions.</para>
+      <para>Once an application has allocated the memory buffers needed for
+streaming data (by calling the &VIDIOC-REQBUFS; or &VIDIOC-CREATE-BUFS; ioctls,
+or implicitly by calling the &func-read; or &func-write; functions) that
+application (filehandle) becomes the owner of the device. It is no longer
+allowed to make changes that would affect the buffer sizes (e.g. by calling
+the &VIDIOC-S-FMT; ioctl) and other applications are no longer allowed to allocate
+buffers or start or stop streaming. The &EBUSY; will be returned instead.</para>
 
-      <para>Mere opening a V4L2 device does not grant exclusive
+      <para>Merely opening a V4L2 device does not grant exclusive
 access.<footnote>
 	  <para>Drivers could recognize the
 <constant>O_EXCL</constant> open flag. Presently this is not required,
@@ -206,12 +158,7 @@ additional access privileges using the priority mechanism described in
       <para>V4L2 drivers should not support multiple applications
 reading or writing the same data stream on a device by copying
 buffers, time multiplexing or similar means. This is better handled by
-a proxy application in user space. When the driver supports stream
-sharing anyway it must be implemented transparently. The V4L2 API does
-not specify how conflicts are solved. <!-- For example O_EXCL when the
-application does not want to be preempted, PROT_READ mmapped buffers
-which can be mapped twice, what happens when image formats do not
-match etc.--></para>
+a proxy application in user space.</para>
     </section>
 
     <section>
@@ -240,15 +187,15 @@ methods</link> supported by the device.</para>
 
     <para>Starting with kernel version 3.1, VIDIOC-QUERYCAP will return the
 V4L2 API version used by the driver, with generally matches the Kernel version.
-There's no need of using &VIDIOC-QUERYCAP; to check if an specific ioctl is
-supported, the V4L2 core now returns ENOIOCTLCMD if a driver doesn't provide
+There's no need of using &VIDIOC-QUERYCAP; to check if a specific ioctl is
+supported, the V4L2 core now returns ENOTTY if a driver doesn't provide
 support for an ioctl.</para>
 
     <para>Other features can be queried
 by calling the respective ioctl, for example &VIDIOC-ENUMINPUT;
 to learn about the number, types and names of video connectors on the
 device. Although abstraction is a major objective of this API, the
-ioctl also allows driver specific applications to reliable identify
+&VIDIOC-QUERYCAP; ioctl also allows driver specific applications to reliably identify
 the driver.</para>
 
     <para>All V4L2 drivers must support
@@ -278,9 +225,7 @@ Applications requiring a different priority will usually call
 the &VIDIOC-QUERYCAP; ioctl.</para>
 
     <para>Ioctls changing driver properties, such as &VIDIOC-S-INPUT;,
-return an &EBUSY; after another application obtained higher priority.
-An event mechanism to notify applications about asynchronous property
-changes has been proposed but not added yet.</para>
+return an &EBUSY; after another application obtained higher priority.</para>
   </section>
 
   <section id="video">
@@ -288,9 +233,9 @@ changes has been proposed but not added yet.</para>
 
     <para>Video inputs and outputs are physical connectors of a
 device. These can be for example RF connectors (antenna/cable), CVBS
-a.k.a. Composite Video, S-Video or RGB connectors. Only video and VBI
-capture devices have inputs, output devices have outputs, at least one
-each. Radio devices have no video inputs or outputs.</para>
+a.k.a. Composite Video, S-Video or RGB connectors. Video and VBI
+capture devices have inputs. Video and VBI output devices have outputs,
+at least one each. Radio devices have no video inputs or outputs.</para>
 
     <para>To learn about the number and attributes of the
 available inputs and outputs applications can enumerate them with the
@@ -299,29 +244,12 @@ available inputs and outputs applications can enumerate them with the
 ioctl also contains signal status information applicable when the
 current video input is queried.</para>
 
-    <para>The &VIDIOC-G-INPUT; and &VIDIOC-G-OUTPUT; ioctl return the
+    <para>The &VIDIOC-G-INPUT; and &VIDIOC-G-OUTPUT; ioctls return the
 index of the current video input or output. To select a different
 input or output applications call the &VIDIOC-S-INPUT; and
-&VIDIOC-S-OUTPUT; ioctl. Drivers must implement all the input ioctls
+&VIDIOC-S-OUTPUT; ioctls. Drivers must implement all the input ioctls
 when the device has one or more inputs, all the output ioctls when the
 device has one or more outputs.</para>
-
-    <!--
-    <figure id=io-tree>
-      <title>Input and output enumeration is the root of most device properties.</title>
-      <mediaobject>
-	<imageobject>
-	  <imagedata fileref="links.pdf" format="ps" />
-	</imageobject>
-	<imageobject>
-	  <imagedata fileref="links.gif" format="gif" />
-	</imageobject>
-	<textobject>
-	  <phrase>Links between various device property structures.</phrase>
-	</textobject>
-      </mediaobject>
-    </figure>
-    -->
 
     <example>
       <title>Information about the current video input</title>
@@ -330,20 +258,20 @@ device has one or more outputs.</para>
 &v4l2-input; input;
 int index;
 
-if (-1 == ioctl (fd, &VIDIOC-G-INPUT;, &amp;index)) {
-	perror ("VIDIOC_G_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-G-INPUT;, &amp;index)) {
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
 }
 
-memset (&amp;input, 0, sizeof (input));
+memset(&amp;input, 0, sizeof(input));
 input.index = index;
 
-if (-1 == ioctl (fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
-	perror ("VIDIOC_ENUMINPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
+	perror("VIDIOC_ENUMINPUT");
+	exit(EXIT_FAILURE);
 }
 
-printf ("Current input: %s\n", input.name);
+printf("Current input: %s\n", input.name);
       </programlisting>
     </example>
 
@@ -355,9 +283,9 @@ int index;
 
 index = 0;
 
-if (-1 == ioctl (fd, &VIDIOC-S-INPUT;, &amp;index)) {
-	perror ("VIDIOC_S_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-S-INPUT;, &amp;index)) {
+	perror("VIDIOC_S_INPUT");
+	exit(EXIT_FAILURE);
 }
       </programlisting>
     </example>
@@ -397,7 +325,7 @@ available inputs and outputs applications can enumerate them with the
 also contains signal status information applicable when the current
 audio input is queried.</para>
 
-    <para>The &VIDIOC-G-AUDIO; and &VIDIOC-G-AUDOUT; ioctl report
+    <para>The &VIDIOC-G-AUDIO; and &VIDIOC-G-AUDOUT; ioctls report
 the current audio input and output, respectively. Note that, unlike
 &VIDIOC-G-INPUT; and &VIDIOC-G-OUTPUT; these ioctls return a structure
 as <constant>VIDIOC_ENUMAUDIO</constant> and
@@ -408,11 +336,11 @@ applications call the &VIDIOC-S-AUDIO; ioctl. To select an audio
 output (which presently has no changeable properties) applications
 call the &VIDIOC-S-AUDOUT; ioctl.</para>
 
-    <para>Drivers must implement all input ioctls when the device
-has one or more inputs, all output ioctls when the device has one
-or more outputs. When the device has any audio inputs or outputs the
-driver must set the <constant>V4L2_CAP_AUDIO</constant> flag in the
-&v4l2-capability; returned by the &VIDIOC-QUERYCAP; ioctl.</para>
+    <para>Drivers must implement all audio input ioctls when the device
+has multiple selectable audio inputs, all audio output ioctls when the
+device has multiple selectable audio outputs. When the device has any
+audio inputs or outputs the driver must set the <constant>V4L2_CAP_AUDIO</constant>
+flag in the &v4l2-capability; returned by the &VIDIOC-QUERYCAP; ioctl.</para>
 
     <example>
       <title>Information about the current audio input</title>
@@ -420,14 +348,14 @@ driver must set the <constant>V4L2_CAP_AUDIO</constant> flag in the
       <programlisting>
 &v4l2-audio; audio;
 
-memset (&amp;audio, 0, sizeof (audio));
+memset(&amp;audio, 0, sizeof(audio));
 
-if (-1 == ioctl (fd, &VIDIOC-G-AUDIO;, &amp;audio)) {
-	perror ("VIDIOC_G_AUDIO");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-G-AUDIO;, &amp;audio)) {
+	perror("VIDIOC_G_AUDIO");
+	exit(EXIT_FAILURE);
 }
 
-printf ("Current input: %s\n", audio.name);
+printf("Current input: %s\n", audio.name);
       </programlisting>
     </example>
 
@@ -437,13 +365,13 @@ printf ("Current input: %s\n", audio.name);
       <programlisting>
 &v4l2-audio; audio;
 
-memset (&amp;audio, 0, sizeof (audio)); /* clear audio.mode, audio.reserved */
+memset(&amp;audio, 0, sizeof(audio)); /* clear audio.mode, audio.reserved */
 
 audio.index = 0;
 
-if (-1 == ioctl (fd, &VIDIOC-S-AUDIO;, &amp;audio)) {
-	perror ("VIDIOC_S_AUDIO");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-S-AUDIO;, &amp;audio)) {
+	perror("VIDIOC_S_AUDIO");
+	exit(EXIT_FAILURE);
 }
       </programlisting>
     </example>
@@ -468,7 +396,7 @@ the tuner.</para>
 video inputs.</para>
 
       <para>To query and change tuner properties applications use the
-&VIDIOC-G-TUNER; and &VIDIOC-S-TUNER; ioctl, respectively. The
+&VIDIOC-G-TUNER; and &VIDIOC-S-TUNER; ioctls, respectively. The
 &v4l2-tuner; returned by <constant>VIDIOC_G_TUNER</constant> also
 contains signal status information applicable when the tuner of the
 current video or radio input is queried. Note that
@@ -533,7 +461,7 @@ standards or variations of standards. Each video input and output may
 support another set of standards. This set is reported by the
 <structfield>std</structfield> field of &v4l2-input; and
 &v4l2-output; returned by the &VIDIOC-ENUMINPUT; and
-&VIDIOC-ENUMOUTPUT; ioctl, respectively.</para>
+&VIDIOC-ENUMOUTPUT; ioctls, respectively.</para>
 
     <para>V4L2 defines one bit for each analog video standard
 currently in use worldwide, and sets aside bits for driver defined
@@ -564,28 +492,10 @@ automatically.</para>
     <para>To query and select the standard used by the current video
 input or output applications call the &VIDIOC-G-STD; and
 &VIDIOC-S-STD; ioctl, respectively. The <emphasis>received</emphasis>
-standard can be sensed with the &VIDIOC-QUERYSTD; ioctl. Note that the parameter of all these ioctls is a pointer to a &v4l2-std-id; type (a standard set), <emphasis>not</emphasis> an index into the standard enumeration.<footnote>
-	<para>An alternative to the current scheme is to use pointers
-to indices as arguments of <constant>VIDIOC_G_STD</constant> and
-<constant>VIDIOC_S_STD</constant>, the &v4l2-input; and
-&v4l2-output; <structfield>std</structfield> field would be a set of
-indices like <structfield>audioset</structfield>.</para>
-	<para>Indices are consistent with the rest of the API
-and identify the standard unambiguously. In the present scheme of
-things an enumerated standard is looked up by &v4l2-std-id;. Now the
-standards supported by the inputs of a device can overlap. Just
-assume the tuner and composite input in the example above both
-exist on a device. An enumeration of "PAL-B/G", "PAL-H/I" suggests
-a choice which does not exist. We cannot merge or omit sets, because
-applications would be unable to find the standards reported by
-<constant>VIDIOC_G_STD</constant>. That leaves separate enumerations
-for each input. Also selecting a standard by &v4l2-std-id; can be
-ambiguous. Advantage of this method is that applications need not
-identify the standard indirectly, after enumerating.</para><para>So in
-summary, the lookup itself is unavoidable. The difference is only
-whether the lookup is necessary to find an enumerated standard or to
-switch to a standard by &v4l2-std-id;.</para>
-      </footnote> Drivers must implement all video standard ioctls
+standard can be sensed with the &VIDIOC-QUERYSTD; ioctl. Note that the
+parameter of all these ioctls is a pointer to a &v4l2-std-id; type
+(a standard set), <emphasis>not</emphasis> an index into the standard
+enumeration. Drivers must implement all video standard ioctls
 when the device has one or more video inputs or outputs.</para>
 
     <para>Special rules apply to devices such as USB cameras where the notion of video
@@ -604,17 +514,10 @@ to zero and the <constant>VIDIOC_G_STD</constant>,
 <constant>VIDIOC_S_STD</constant>,
 <constant>VIDIOC_QUERYSTD</constant> and
 <constant>VIDIOC_ENUMSTD</constant> ioctls shall return the
-&ENOTTY;.<footnote>
-	<para>See <xref linkend="buffer" /> for a rationale.</para>
+&ENOTTY; or the &EINVAL;.</para>
 	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
 <xref linkend="output-capabilities"/> flags to determine whether the video standard ioctls
-are available for the device.</para>
-
-	<para>See <xref linkend="buffer" /> for a rationale. Probably
-even USB cameras follow some well known video standard. It might have
-been better to explicitly indicate elsewhere if a device cannot live
-up to normal expectations, instead of this exception.</para>
-	    </footnote></para>
+can be used with the given input or output.</para>
 
     <example>
       <title>Information about the current video standard</title>
@@ -623,22 +526,22 @@ up to normal expectations, instead of this exception.</para>
 &v4l2-std-id; std_id;
 &v4l2-standard; standard;
 
-if (-1 == ioctl (fd, &VIDIOC-G-STD;, &amp;std_id)) {
+if (-1 == ioctl(fd, &VIDIOC-G-STD;, &amp;std_id)) {
 	/* Note when VIDIOC_ENUMSTD always returns ENOTTY this
 	   is no video device or it falls under the USB exception,
 	   and VIDIOC_G_STD returning ENOTTY is no error. */
 
-	perror ("VIDIOC_G_STD");
-	exit (EXIT_FAILURE);
+	perror("VIDIOC_G_STD");
+	exit(EXIT_FAILURE);
 }
 
-memset (&amp;standard, 0, sizeof (standard));
+memset(&amp;standard, 0, sizeof(standard));
 standard.index = 0;
 
-while (0 == ioctl (fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
+while (0 == ioctl(fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
 	if (standard.id &amp; std_id) {
-	       printf ("Current video standard: %s\n", standard.name);
-	       exit (EXIT_SUCCESS);
+	       printf("Current video standard: %s\n", standard.name);
+	       exit(EXIT_SUCCESS);
 	}
 
 	standard.index++;
@@ -648,8 +551,8 @@ while (0 == ioctl (fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
    empty unless this device falls under the USB exception. */
 
 if (errno == EINVAL || standard.index == 0) {
-	perror ("VIDIOC_ENUMSTD");
-	exit (EXIT_FAILURE);
+	perror("VIDIOC_ENUMSTD");
+	exit(EXIT_FAILURE);
 }
       </programlisting>
     </example>
@@ -662,26 +565,26 @@ input</title>
 &v4l2-input; input;
 &v4l2-standard; standard;
 
-memset (&amp;input, 0, sizeof (input));
+memset(&amp;input, 0, sizeof(input));
 
-if (-1 == ioctl (fd, &VIDIOC-G-INPUT;, &amp;input.index)) {
-	perror ("VIDIOC_G_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-G-INPUT;, &amp;input.index)) {
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
 }
 
-if (-1 == ioctl (fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
-	perror ("VIDIOC_ENUM_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
+	perror("VIDIOC_ENUM_INPUT");
+	exit(EXIT_FAILURE);
 }
 
-printf ("Current input %s supports:\n", input.name);
+printf("Current input %s supports:\n", input.name);
 
-memset (&amp;standard, 0, sizeof (standard));
+memset(&amp;standard, 0, sizeof(standard));
 standard.index = 0;
 
-while (0 == ioctl (fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
+while (0 == ioctl(fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
 	if (standard.id &amp; input.std)
-		printf ("%s\n", standard.name);
+		printf("%s\n", standard.name);
 
 	standard.index++;
 }
@@ -690,8 +593,8 @@ while (0 == ioctl (fd, &VIDIOC-ENUMSTD;, &amp;standard)) {
    empty unless this device falls under the USB exception. */
 
 if (errno != EINVAL || standard.index == 0) {
-	perror ("VIDIOC_ENUMSTD");
-	exit (EXIT_FAILURE);
+	perror("VIDIOC_ENUMSTD");
+	exit(EXIT_FAILURE);
 }
       </programlisting>
     </example>
@@ -703,21 +606,21 @@ if (errno != EINVAL || standard.index == 0) {
 &v4l2-input; input;
 &v4l2-std-id; std_id;
 
-memset (&amp;input, 0, sizeof (input));
+memset(&amp;input, 0, sizeof(input));
 
-if (-1 == ioctl (fd, &VIDIOC-G-INPUT;, &amp;input.index)) {
-	perror ("VIDIOC_G_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-G-INPUT;, &amp;input.index)) {
+	perror("VIDIOC_G_INPUT");
+	exit(EXIT_FAILURE);
 }
 
-if (-1 == ioctl (fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
-	perror ("VIDIOC_ENUM_INPUT");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-ENUMINPUT;, &amp;input)) {
+	perror("VIDIOC_ENUM_INPUT");
+	exit(EXIT_FAILURE);
 }
 
 if (0 == (input.std &amp; V4L2_STD_PAL_BG)) {
-	fprintf (stderr, "Oops. B/G PAL is not supported.\n");
-	exit (EXIT_FAILURE);
+	fprintf(stderr, "Oops. B/G PAL is not supported.\n");
+	exit(EXIT_FAILURE);
 }
 
 /* Note this is also supposed to work when only B
@@ -725,9 +628,9 @@ if (0 == (input.std &amp; V4L2_STD_PAL_BG)) {
 
 std_id = V4L2_STD_PAL_BG;
 
-if (-1 == ioctl (fd, &VIDIOC-S-STD;, &amp;std_id)) {
-	perror ("VIDIOC_S_STD");
-	exit (EXIT_FAILURE);
+if (-1 == ioctl(fd, &VIDIOC-S-STD;, &amp;std_id)) {
+	perror("VIDIOC_S_STD");
+	exit(EXIT_FAILURE);
 }
       </programlisting>
     </example>
@@ -740,26 +643,25 @@ corresponding video timings. Today there are many more different hardware interf
 such as High Definition TV interfaces (HDMI), VGA, DVI connectors etc., that carry
 video signals and there is a need to extend the API to select the video timings
 for these interfaces. Since it is not possible to extend the &v4l2-std-id; due to
-the limited bits available, a new set of IOCTLs was added to set/get video timings at
-the input and output: </para><itemizedlist>
-	<listitem>
-	<para>DV Timings: This will allow applications to define detailed
-video timings for the interface. This includes parameters such as width, height,
-polarities, frontporch, backporch etc. The <filename>linux/v4l2-dv-timings.h</filename>
+the limited bits available, a new set of ioctls was added to set/get video timings at
+the input and output.</para>
+
+	<para>These ioctls deal with the detailed digital video timings that define
+each video format. This includes parameters such as the active video width and height,
+signal polarities, frontporches, backporches, sync widths etc. The <filename>linux/v4l2-dv-timings.h</filename>
 header can be used to get the timings of the formats in the <xref linkend="cea861" /> and
 <xref linkend="vesadmt" /> standards.
 	</para>
-	</listitem>
-	</itemizedlist>
-	<para>To enumerate and query the attributes of the DV timings supported by a device,
+
+	<para>To enumerate and query the attributes of the DV timings supported by a device
 	applications use the &VIDIOC-ENUM-DV-TIMINGS; and &VIDIOC-DV-TIMINGS-CAP; ioctls.
-	To set DV timings for the device, applications use the
+	To set DV timings for the device applications use the
 &VIDIOC-S-DV-TIMINGS; ioctl and to get current DV timings they use the
 &VIDIOC-G-DV-TIMINGS; ioctl. To detect the DV timings as seen by the video receiver applications
 use the &VIDIOC-QUERY-DV-TIMINGS; ioctl.</para>
 	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
-<xref linkend="output-capabilities"/> flags to decide what ioctls are available to set the
-video timings for the device.</para>
+<xref linkend="output-capabilities"/> flags to determine whether the digital video ioctls
+can be used with the given input or output.</para>
   </section>
 
   &sub-controls;

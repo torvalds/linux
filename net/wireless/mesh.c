@@ -195,7 +195,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
 		wdev->mesh_id_len = setup->mesh_id_len;
-		wdev->channel = setup->chandef.chan;
+		wdev->chandef = setup->chandef;
 	}
 
 	return err;
@@ -236,6 +236,12 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
 
+		/* cfg80211_can_use_chan() calls
+		 * cfg80211_can_use_iftype_chan() with no radar
+		 * detection, so if we're trying to use a radar
+		 * channel here, something is wrong.
+		 */
+		WARN_ON_ONCE(chandef->chan->flags & IEEE80211_CHAN_RADAR);
 		err = cfg80211_can_use_chan(rdev, wdev, chandef->chan,
 					    CHAN_MODE_SHARED);
 		if (err)
@@ -244,7 +250,7 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 		err = rdev_libertas_set_mesh_channel(rdev, wdev->netdev,
 						     chandef->chan);
 		if (!err)
-			wdev->channel = chandef->chan;
+			wdev->chandef = *chandef;
 
 		return err;
 	}
@@ -276,7 +282,7 @@ static int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 	err = rdev_leave_mesh(rdev, dev);
 	if (!err) {
 		wdev->mesh_id_len = 0;
-		wdev->channel = NULL;
+		memset(&wdev->chandef, 0, sizeof(wdev->chandef));
 		rdev_set_qos_map(rdev, dev, NULL);
 	}
 

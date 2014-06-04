@@ -1,7 +1,7 @@
 config USB_SI4713
 	tristate "Silicon Labs Si4713 FM Radio Transmitter support with USB"
-	depends on USB && RADIO_SI4713
-	select SI4713
+	depends on USB && I2C && RADIO_SI4713
+	select I2C_SI4713
 	---help---
 	  This is a driver for USB devices with the Silicon Labs SI4713
 	  chip. Currently these devices are known to work.
@@ -16,7 +16,7 @@ config USB_SI4713
 config PLATFORM_SI4713
 	tristate "Silicon Labs Si4713 FM Radio Transmitter support with I2C"
 	depends on I2C && RADIO_SI4713
-	select SI4713
+	select I2C_SI4713
 	---help---
 	  This is a driver for I2C devices with the Silicon Labs SI4713
 	  chip.

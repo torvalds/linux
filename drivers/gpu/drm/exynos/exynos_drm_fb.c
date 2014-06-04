@@ -20,9 +20,10 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
+#include "exynos_drm_fbdev.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
-#include "exynos_drm_encoder.h"
+#include "exynos_drm_crtc.h"
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -71,7 +72,7 @@ static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
 	unsigned int i;
 
 	/* make sure that overlay data are updated before relesing fb. */
-	exynos_drm_encoder_complete_scanout(fb);
+	exynos_drm_crtc_complete_scanout(fb);
 
 	drm_framebuffer_cleanup(fb);
 
@@ -300,6 +301,8 @@ static void exynos_drm_output_poll_changed(struct drm_device *dev)
 
 	if (fb_helper)
 		drm_fb_helper_hotplug_event(fb_helper);
+	else
+		exynos_drm_fbdev_init(dev);
 }
 
 static const struct drm_mode_config_funcs exynos_drm_mode_config_funcs = {

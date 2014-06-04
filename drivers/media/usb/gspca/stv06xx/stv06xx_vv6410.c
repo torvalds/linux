@@ -178,7 +178,7 @@ static int vv6410_stop(struct sd *sd)
 
 	PDEBUG(D_STREAM, "Halting stream");
 
-	return (err < 0) ? err : 0;
+	return 0;
 }
 
 static int vv6410_dump(struct sd *sd)

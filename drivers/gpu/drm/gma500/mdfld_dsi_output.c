@@ -287,7 +287,7 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 						&gma_crtc->saved_mode,
 						encoder->crtc->x,
 						encoder->crtc->y,
-						encoder->crtc->fb))
+						encoder->crtc->primary->fb))
 					goto set_prop_error;
 			} else {
 				struct drm_encoder_helper_funcs *funcs =

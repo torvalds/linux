@@ -27,7 +27,7 @@ config UNICORE32
 config GENERIC_CSUM
 	def_bool y
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	bool
 
 config STACKTRACE_SUPPORT

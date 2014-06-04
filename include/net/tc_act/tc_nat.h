@@ -13,9 +13,9 @@ struct tcf_nat {
 	u32 flags;
 };
 
-static inline struct tcf_nat *to_tcf_nat(struct tcf_common *pc)
+static inline struct tcf_nat *to_tcf_nat(struct tc_action *a)
 {
-	return container_of(pc, struct tcf_nat, common);
+	return container_of(a->priv, struct tcf_nat, common);
 }
 
 #endif /* __NET_TC_NAT_H */

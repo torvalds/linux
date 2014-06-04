@@ -1033,7 +1033,7 @@ int hwsampler_setup(void)
 				max_sampler_rate = cb->qsi.max_sampl_rate;
 		}
 	}
-	register_external_interrupt(0x1407, hws_ext_handler);
+	register_external_irq(EXT_IRQ_MEASURE_ALERT, hws_ext_handler);
 
 	hws_state = HWS_DEALLOCATED;
 	rc = 0;
@@ -1068,7 +1068,7 @@ int hwsampler_shutdown(void)
 			hws_wq = NULL;
 		}
 
-		unregister_external_interrupt(0x1407, hws_ext_handler);
+		unregister_external_irq(EXT_IRQ_MEASURE_ALERT, hws_ext_handler);
 		hws_state = HWS_INIT;
 		rc = 0;
 	}

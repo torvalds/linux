@@ -193,8 +193,8 @@ static void bt3c_write_wakeup(bt3c_info_t *info)
 		if (!pcmcia_dev_present(info->p_dev))
 			break;
 
-
-		if (!(skb = skb_dequeue(&(info->txq)))) {
+		skb = skb_dequeue(&(info->txq));
+		if (!skb) {
 			clear_bit(XMIT_SENDING, &(info->tx_state));
 			break;
 		}
@@ -238,7 +238,8 @@ static void bt3c_receive(bt3c_info_t *info)
 		if (info->rx_skb == NULL) {
 			info->rx_state = RECV_WAIT_PACKET_TYPE;
 			info->rx_count = 0;
-			if (!(info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC))) {
+			info->rx_skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
+			if (!info->rx_skb) {
 				BT_ERR("Can't allocate mem for new packet");
 				return;
 			}

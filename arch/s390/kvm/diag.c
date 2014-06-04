@@ -167,6 +167,10 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 
 	VCPU_EVENT(vcpu, 5, "diag ipl functions, subcode %lx", subcode);
 	switch (subcode) {
+	case 0:
+	case 1:
+		page_table_reset_pgste(current->mm, 0, TASK_SIZE);
+		return -EOPNOTSUPP;
 	case 3:
 		vcpu->run->s390_reset_flags = KVM_S390_RESET_CLEAR;
 		page_table_reset_pgste(current->mm, 0, TASK_SIZE);

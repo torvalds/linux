@@ -632,6 +632,8 @@ raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 		raw3270_size_device_done(rp);
 	} else
 		raw3270_writesf_readpart(rp);
+	memset(&rp->init_reset, 0, sizeof(rp->init_reset));
+	memset(&rp->init_data, 0, sizeof(rp->init_data));
 }
 
 static int
@@ -639,9 +641,10 @@ __raw3270_reset_device(struct raw3270 *rp)
 {
 	int rc;
 
+	/* Check if reset is already pending */
+	if (rp->init_reset.view)
+		return -EBUSY;
 	/* Store reset data stream to init_data/init_reset */
-	memset(&rp->init_reset, 0, sizeof(rp->init_reset));
-	memset(&rp->init_data, 0, sizeof(rp->init_data));
 	rp->init_data[0] = TW_KR;
 	rp->init_reset.ccw.cmd_code = TC_EWRITEA;
 	rp->init_reset.ccw.flags = CCW_FLAG_SLI;
@@ -850,7 +853,7 @@ raw3270_create_device(struct ccw_device *cdev)
 	char *ascebc;
 	int rc;
 
-	rp = kmalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
+	rp = kzalloc(sizeof(struct raw3270), GFP_KERNEL | GFP_DMA);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 	ascebc = kmalloc(256, GFP_KERNEL);

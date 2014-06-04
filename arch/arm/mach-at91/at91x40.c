@@ -19,7 +19,7 @@
 #include <asm/mach/arch.h>
 #include <mach/at91x40.h>
 #include <mach/at91_st.h>
-#include <mach/timex.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "generic.h"

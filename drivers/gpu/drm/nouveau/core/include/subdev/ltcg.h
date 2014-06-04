@@ -35,6 +35,7 @@ nouveau_ltcg(void *obj)
 #define _nouveau_ltcg_init _nouveau_subdev_init
 #define _nouveau_ltcg_fini _nouveau_subdev_fini
 
-extern struct nouveau_oclass nvc0_ltcg_oclass;
+extern struct nouveau_oclass *gf100_ltcg_oclass;
+extern struct nouveau_oclass *gm107_ltcg_oclass;
 
 #endif

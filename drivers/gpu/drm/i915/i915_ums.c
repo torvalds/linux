@@ -271,6 +271,10 @@ void i915_save_display_reg(struct drm_device *dev)
 	/* FIXME: regfile.save TV & SDVO state */
 
 	/* Backlight */
+	if (INTEL_INFO(dev)->gen <= 4)
+		pci_read_config_byte(dev->pdev, PCI_LBPC,
+				     &dev_priv->regfile.saveLBB);
+
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->regfile.saveBLC_PWM_CTL = I915_READ(BLC_PWM_PCH_CTL1);
 		dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_PCH_CTL2);
@@ -293,6 +297,10 @@ void i915_restore_display_reg(struct drm_device *dev)
 	int i;
 
 	/* Backlight */
+	if (INTEL_INFO(dev)->gen <= 4)
+		pci_write_config_byte(dev->pdev, PCI_LBPC,
+				      dev_priv->regfile.saveLBB);
+
 	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(BLC_PWM_PCH_CTL1, dev_priv->regfile.saveBLC_PWM_CTL);
 		I915_WRITE(BLC_PWM_PCH_CTL2, dev_priv->regfile.saveBLC_PWM_CTL2);

@@ -1501,6 +1501,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	init_completion(&host->op_completion);
 
 	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq < 0)
+		return host->irq;
 
 	/*
 	 * Use host->devtype_data->irq_control() here instead of irq_control()

@@ -91,6 +91,7 @@ struct l2cap_conninfo {
 #define L2CAP_LM_TRUSTED	0x0008
 #define L2CAP_LM_RELIABLE	0x0010
 #define L2CAP_LM_SECURE		0x0020
+#define L2CAP_LM_FIPS		0x0040
 
 /* L2CAP command codes */
 #define L2CAP_COMMAND_REJ	0x01
@@ -623,6 +624,9 @@ struct l2cap_conn {
 	__u32			rx_len;
 	__u8			tx_ident;
 
+	struct sk_buff_head	pending_rx;
+	struct work_struct	pending_rx_work;
+
 	__u8			disc_reason;
 
 	struct delayed_work	security_timer;
@@ -647,7 +651,7 @@ struct l2cap_user {
 #define L2CAP_CHAN_RAW			1
 #define L2CAP_CHAN_CONN_LESS		2
 #define L2CAP_CHAN_CONN_ORIENTED	3
-#define L2CAP_CHAN_CONN_FIX_A2MP	4
+#define L2CAP_CHAN_FIXED		4
 
 /* ----- L2CAP socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
@@ -853,7 +857,6 @@ static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 }
 
 extern bool disable_ertm;
-extern bool enable_lecoc;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
@@ -878,6 +881,7 @@ int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void l2cap_conn_update_id_addr(struct hci_conn *hcon);
 void l2cap_send_conn_req(struct l2cap_chan *chan);
 void l2cap_move_start(struct l2cap_chan *chan);
 void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,

@@ -39,15 +39,15 @@ struct s3c_ac97_info {
 };
 static struct s3c_ac97_info s3c_ac97;
 
-static struct s3c2410_dma_client s3c_dma_client_out = {
+static struct s3c_dma_client s3c_dma_client_out = {
 	.name = "AC97 PCMOut"
 };
 
-static struct s3c2410_dma_client s3c_dma_client_in = {
+static struct s3c_dma_client s3c_dma_client_in = {
 	.name = "AC97 PCMIn"
 };
 
-static struct s3c2410_dma_client s3c_dma_client_micin = {
+static struct s3c_dma_client s3c_dma_client_micin = {
 	.name = "AC97 MicIn"
 };
 

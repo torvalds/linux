@@ -55,26 +55,14 @@
 				   NFC_PROTO_NFC_DEP_MASK)
 
 static const struct usb_device_id pn533_table[] = {
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= PN533_VENDOR_ID,
-	  .idProduct		= PN533_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_STD,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SCM_VENDOR_ID,
-	  .idProduct		= SCL3711_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_STD,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= SONY_VENDOR_ID,
-	  .idProduct		= PASORI_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_PASORI,
-	},
-	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
-	  .idVendor		= ACS_VENDOR_ID,
-	  .idProduct		= ACR122U_PRODUCT_ID,
-	  .driver_info		= PN533_DEVICE_ACR122U,
-	},
+	{ USB_DEVICE(PN533_VENDOR_ID, PN533_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_STD },
+	{ USB_DEVICE(SCM_VENDOR_ID, SCL3711_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_STD },
+	{ USB_DEVICE(SONY_VENDOR_ID, PASORI_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_PASORI },
+	{ USB_DEVICE(ACS_VENDOR_ID, ACR122U_PRODUCT_ID),
+	  .driver_info = PN533_DEVICE_ACR122U },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, pn533_table);

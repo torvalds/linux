@@ -54,14 +54,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	xori	r12,r12,MSR_LE ;				\
 	mtspr	SPRN_SRR1,r12 ;					\
 	rfid ;		/* return to userspace */		\
-	b	. ;						\
-2:	mfspr	r12,SPRN_SRR1 ;					\
-	andi.	r12,r12,MSR_PR ;				\
-	bne	0b ;						\
-	mtspr	SPRN_SRR0,r3 ;					\
-	mtspr	SPRN_SRR1,r4 ;					\
-	mtspr	SPRN_SDR1,r5 ;					\
-	rfid ;							\
 	b	. ;	/* prevent speculative execution */
 
 #if defined(CONFIG_RELOCATABLE)

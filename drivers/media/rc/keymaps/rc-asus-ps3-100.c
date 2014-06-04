@@ -1,6 +1,6 @@
 /* asus-ps3-100.h - Keytable for asus_ps3_100 Remote Controller
  *
- * Copyright (c) 2012 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2012 by Mauro Carvalho Chehab
  *
  * Based on a previous patch from Remi Schwartz <remi.schwartz@gmail.com>
  *
@@ -88,4 +88,4 @@ module_init(init_rc_map_asus_ps3_100)
 module_exit(exit_rc_map_asus_ps3_100)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");

@@ -64,12 +64,12 @@ enum s5pv210_dmc_port {
 };
 
 static struct cpufreq_frequency_table s5pv210_freq_table[] = {
-	{L0, 1000*1000},
-	{L1, 800*1000},
-	{L2, 400*1000},
-	{L3, 200*1000},
-	{L4, 100*1000},
-	{0, CPUFREQ_TABLE_END},
+	{0, L0, 1000*1000},
+	{0, L1, 800*1000},
+	{0, L2, 400*1000},
+	{0, L3, 200*1000},
+	{0, L4, 100*1000},
+	{0, 0, CPUFREQ_TABLE_END},
 };
 
 static struct regulator *arm_regulator;

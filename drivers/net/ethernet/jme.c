@@ -2054,19 +2054,6 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 }
 
 static int
-jme_expand_header(struct jme_adapter *jme, struct sk_buff *skb)
-{
-	if (unlikely(skb_shinfo(skb)->gso_size &&
-			skb_header_cloned(skb) &&
-			pskb_expand_head(skb, 0, 0, GFP_ATOMIC))) {
-		dev_kfree_skb(skb);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int
 jme_tx_tso(struct sk_buff *skb, __le16 *mss, u8 *flags)
 {
 	*mss = cpu_to_le16(skb_shinfo(skb)->gso_size << TXDESC_MSS_SHIFT);
@@ -2225,7 +2212,8 @@ jme_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int idx;
 
-	if (unlikely(jme_expand_header(jme, skb))) {
+	if (unlikely(skb_is_gso(skb) && skb_cow_head(skb, 0))) {
+		dev_kfree_skb_any(skb);
 		++(NET_STAT(jme).tx_dropped);
 		return NETDEV_TX_OK;
 	}

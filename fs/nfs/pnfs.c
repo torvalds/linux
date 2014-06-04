@@ -662,7 +662,18 @@ pnfs_destroy_all_layouts(struct nfs_client *clp)
  */
 static bool pnfs_seqid_is_newer(u32 s1, u32 s2)
 {
-	return (s32)s1 - (s32)s2 > 0;
+	return (s32)(s1 - s2) > 0;
+}
+
+static void
+pnfs_verify_layout_stateid(struct pnfs_layout_hdr *lo,
+		const nfs4_stateid *new,
+		struct list_head *free_me_list)
+{
+	if (nfs4_stateid_match_other(&lo->plh_stateid, new))
+		return;
+	/* Layout is new! Kill existing layout segments */
+	pnfs_mark_matching_lsegs_invalid(lo, free_me_list, NULL);
 }
 
 /* update lo->plh_stateid with new if is more recent */
@@ -1315,6 +1326,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct nfs4_layoutget_res *res = &lgp->res;
 	struct pnfs_layout_segment *lseg;
 	struct inode *ino = lo->plh_inode;
+	LIST_HEAD(free_me);
 	int status = 0;
 
 	/* Inject layout blob into I/O device driver */
@@ -1341,6 +1353,8 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out_forget_reply;
 	}
 
+	/* Check that the new stateid matches the old stateid */
+	pnfs_verify_layout_stateid(lo, &res->stateid, &free_me);
 	/* Done processing layoutget. Set the layout stateid */
 	pnfs_set_layout_stateid(lo, &res->stateid, false);
 
@@ -1355,6 +1369,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 
 	spin_unlock(&ino->i_lock);
+	pnfs_free_lseg_list(&free_me);
 	return lseg;
 out:
 	return ERR_PTR(status);

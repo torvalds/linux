@@ -1,7 +1,7 @@
 /*
  *   Sharp s921 driver
  *
- *   Copyright (C) 2009 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *   Copyright (C) 2009 Mauro Carvalho Chehab
  *   Copyright (C) 2009 Douglas Landgraf <dougsland@redhat.com>
  *
  *   This program is free software; you can redistribute it and/or

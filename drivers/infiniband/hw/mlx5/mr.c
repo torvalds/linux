@@ -992,6 +992,122 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
+struct ib_mr *mlx5_ib_create_mr(struct ib_pd *pd,
+				struct ib_mr_init_attr *mr_init_attr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_create_mkey_mbox_in *in;
+	struct mlx5_ib_mr *mr;
+	int access_mode, err;
+	int ndescs = roundup(mr_init_attr->max_reg_descriptors, 4);
+
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	in = kzalloc(sizeof(*in), GFP_KERNEL);
+	if (!in) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	in->seg.status = 1 << 6; /* free */
+	in->seg.xlt_oct_size = cpu_to_be32(ndescs);
+	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+	in->seg.flags_pd = cpu_to_be32(to_mpd(pd)->pdn);
+	access_mode = MLX5_ACCESS_MODE_MTT;
+
+	if (mr_init_attr->flags & IB_MR_SIGNATURE_EN) {
+		u32 psv_index[2];
+
+		in->seg.flags_pd = cpu_to_be32(be32_to_cpu(in->seg.flags_pd) |
+							   MLX5_MKEY_BSF_EN);
+		in->seg.bsfs_octo_size = cpu_to_be32(MLX5_MKEY_BSF_OCTO_SIZE);
+		mr->sig = kzalloc(sizeof(*mr->sig), GFP_KERNEL);
+		if (!mr->sig) {
+			err = -ENOMEM;
+			goto err_free_in;
+		}
+
+		/* create mem & wire PSVs */
+		err = mlx5_core_create_psv(&dev->mdev, to_mpd(pd)->pdn,
+					   2, psv_index);
+		if (err)
+			goto err_free_sig;
+
+		access_mode = MLX5_ACCESS_MODE_KLM;
+		mr->sig->psv_memory.psv_idx = psv_index[0];
+		mr->sig->psv_wire.psv_idx = psv_index[1];
+
+		mr->sig->sig_status_checked = true;
+		mr->sig->sig_err_exists = false;
+		/* Next UMR, Arm SIGERR */
+		++mr->sig->sigerr_count;
+	}
+
+	in->seg.flags = MLX5_PERM_UMR_EN | access_mode;
+	err = mlx5_core_create_mkey(&dev->mdev, &mr->mmr, in, sizeof(*in),
+				    NULL, NULL, NULL);
+	if (err)
+		goto err_destroy_psv;
+
+	mr->ibmr.lkey = mr->mmr.key;
+	mr->ibmr.rkey = mr->mmr.key;
+	mr->umem = NULL;
+	kfree(in);
+
+	return &mr->ibmr;
+
+err_destroy_psv:
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(&dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(&dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+	}
+err_free_sig:
+	kfree(mr->sig);
+err_free_in:
+	kfree(in);
+err_free:
+	kfree(mr);
+	return ERR_PTR(err);
+}
+
+int mlx5_ib_destroy_mr(struct ib_mr *ibmr)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	int err;
+
+	if (mr->sig) {
+		if (mlx5_core_destroy_psv(&dev->mdev,
+					  mr->sig->psv_memory.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy mem psv %d\n",
+				     mr->sig->psv_memory.psv_idx);
+		if (mlx5_core_destroy_psv(&dev->mdev,
+					  mr->sig->psv_wire.psv_idx))
+			mlx5_ib_warn(dev, "failed to destroy wire psv %d\n",
+				     mr->sig->psv_wire.psv_idx);
+		kfree(mr->sig);
+	}
+
+	err = mlx5_core_destroy_mkey(&dev->mdev, &mr->mmr);
+	if (err) {
+		mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
+			     mr->mmr.key, err);
+		return err;
+	}
+
+	kfree(mr);
+
+	return err;
+}
+
 struct ib_mr *mlx5_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 					int max_page_list_len)
 {
@@ -1076,4 +1192,45 @@ void mlx5_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list)
 			  mfrpl->map);
 	kfree(mfrpl->ibfrpl.page_list);
 	kfree(mfrpl);
+}
+
+int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
+			    struct ib_mr_status *mr_status)
+{
+	struct mlx5_ib_mr *mmr = to_mmr(ibmr);
+	int ret = 0;
+
+	if (check_mask & ~IB_MR_CHECK_SIG_STATUS) {
+		pr_err("Invalid status check mask\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
+	mr_status->fail_status = 0;
+	if (check_mask & IB_MR_CHECK_SIG_STATUS) {
+		if (!mmr->sig) {
+			ret = -EINVAL;
+			pr_err("signature status check requested on a non-signature enabled MR\n");
+			goto done;
+		}
+
+		mmr->sig->sig_status_checked = true;
+		if (!mmr->sig->sig_err_exists)
+			goto done;
+
+		if (ibmr->lkey == mmr->sig->err_item.key)
+			memcpy(&mr_status->sig_err, &mmr->sig->err_item,
+			       sizeof(mr_status->sig_err));
+		else {
+			mr_status->sig_err.err_type = IB_SIG_BAD_GUARD;
+			mr_status->sig_err.sig_err_offset = 0;
+			mr_status->sig_err.key = mmr->sig->err_item.key;
+		}
+
+		mmr->sig->sig_err_exists = false;
+		mr_status->fail_status |= IB_MR_CHECK_SIG_STATUS;
+	}
+
+done:
+	return ret;
 }

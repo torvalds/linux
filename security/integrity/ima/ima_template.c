@@ -12,6 +12,9 @@
  * File: ima_template.c
  *      Helpers to manage template descriptors.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <crypto/hash_info.h>
 
 #include "ima.h"
@@ -19,20 +22,20 @@
 
 static struct ima_template_desc defined_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
-	{.name = "ima-ng",.fmt = "d-ng|n-ng"},
-	{.name = "ima-sig",.fmt = "d-ng|n-ng|sig"},
+	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
+	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
 };
 
 static struct ima_template_field supported_fields[] = {
-	{.field_id = "d",.field_init = ima_eventdigest_init,
+	{.field_id = "d", .field_init = ima_eventdigest_init,
 	 .field_show = ima_show_template_digest},
-	{.field_id = "n",.field_init = ima_eventname_init,
+	{.field_id = "n", .field_init = ima_eventname_init,
 	 .field_show = ima_show_template_string},
-	{.field_id = "d-ng",.field_init = ima_eventdigest_ng_init,
+	{.field_id = "d-ng", .field_init = ima_eventdigest_ng_init,
 	 .field_show = ima_show_template_digest_ng},
-	{.field_id = "n-ng",.field_init = ima_eventname_ng_init,
+	{.field_id = "n-ng", .field_init = ima_eventname_ng_init,
 	 .field_show = ima_show_template_string},
-	{.field_id = "sig",.field_init = ima_eventsig_init,
+	{.field_id = "sig", .field_init = ima_eventsig_init,
 	 .field_show = ima_show_template_sig},
 };
 
@@ -58,7 +61,7 @@ static int __init ima_template_setup(char *str)
 	 */
 	if (template_len == 3 && strcmp(str, IMA_TEMPLATE_IMA_NAME) == 0 &&
 	    ima_hash_algo != HASH_ALGO_SHA1 && ima_hash_algo != HASH_ALGO_MD5) {
-		pr_err("IMA: template does not support hash alg\n");
+		pr_err("template does not support hash alg\n");
 		return 1;
 	}
 

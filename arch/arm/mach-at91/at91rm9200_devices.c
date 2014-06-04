@@ -21,6 +21,7 @@
 #include <mach/at91rm9200.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
+#include <mach/hardware.h>
 
 #include "board.h"
 #include "generic.h"
@@ -922,6 +923,7 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);
@@ -960,6 +962,7 @@ static struct resource uart0_resources[] = {
 static struct atmel_uart_data uart0_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart0_dmamask = DMA_BIT_MASK(32);
@@ -987,9 +990,10 @@ static inline void configure_usart0_pins(unsigned pins)
 	if (pins & ATMEL_UART_RTS) {
 		/*
 		 * AT91RM9200 Errata #39 - RTS0 is not internally connected to PA21.
-		 *  We need to drive the pin manually.  Default is off (RTS is active low).
+		 * We need to drive the pin manually. The serial driver will driver
+		 * this to high when initializing.
 		 */
-		at91_set_gpio_output(AT91_PIN_PA21, 1);
+		uart0_data.rts_gpio = AT91_PIN_PA21;
 	}
 }
 
@@ -1009,6 +1013,7 @@ static struct resource uart1_resources[] = {
 static struct atmel_uart_data uart1_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart1_dmamask = DMA_BIT_MASK(32);
@@ -1060,6 +1065,7 @@ static struct resource uart2_resources[] = {
 static struct atmel_uart_data uart2_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart2_dmamask = DMA_BIT_MASK(32);
@@ -1103,6 +1109,7 @@ static struct resource uart3_resources[] = {
 static struct atmel_uart_data uart3_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart3_dmamask = DMA_BIT_MASK(32);

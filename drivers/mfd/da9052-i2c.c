@@ -75,6 +75,7 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 					   DA9052_PARK_REGISTER,
 					   &val);
 		break;
+	case DA9053_BC:
 	default:
 		/*
 		 * For other chips parking of I2C register
@@ -114,6 +115,7 @@ static const struct i2c_device_id da9052_i2c_id[] = {
 	{"da9053-aa", DA9053_AA},
 	{"da9053-ba", DA9053_BA},
 	{"da9053-bb", DA9053_BB},
+	{"da9053-bc", DA9053_BC},
 	{}
 };
 
@@ -121,8 +123,9 @@ static const struct i2c_device_id da9052_i2c_id[] = {
 static const struct of_device_id dialog_dt_ids[] = {
 	{ .compatible = "dlg,da9052", .data = &da9052_i2c_id[0] },
 	{ .compatible = "dlg,da9053-aa", .data = &da9052_i2c_id[1] },
-	{ .compatible = "dlg,da9053-ab", .data = &da9052_i2c_id[2] },
+	{ .compatible = "dlg,da9053-ba", .data = &da9052_i2c_id[2] },
 	{ .compatible = "dlg,da9053-bb", .data = &da9052_i2c_id[3] },
+	{ .compatible = "dlg,da9053-bc", .data = &da9052_i2c_id[4] },
 	{ /* sentinel */ }
 };
 #endif

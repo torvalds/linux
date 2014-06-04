@@ -25,7 +25,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>

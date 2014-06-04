@@ -1,0 +1,8 @@
+config ALTERA_TSE
+	tristate "Altera Triple-Speed Ethernet MAC support"
+	select PHYLIB
+	---help---
+	  This driver supports the Altera Triple-Speed (TSE) Ethernet MAC.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called alteratse.

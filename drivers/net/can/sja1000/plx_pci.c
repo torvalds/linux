@@ -587,6 +587,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 			priv->cdr = ci->cdr;
 
 			SET_NETDEV_DEV(dev, &pdev->dev);
+			dev->dev_id = i;
 
 			/* Register SJA1000 device */
 			err = register_sja1000dev(dev);

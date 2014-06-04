@@ -45,7 +45,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	 * map with a copy of the kernel's persistent map.
 	 */
 
-	memcpy(pgd, swapper_pg_dir, PTRS_PER_PGD*sizeof(pgd_t *));
+	memcpy(pgd, swapper_pg_dir, PTRS_PER_PGD*sizeof(pgd_t));
 	mm->context.generation = kmap_generation;
 
 	/* Physical version is what is passed to virtual machine on switch */

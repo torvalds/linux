@@ -1,6 +1,6 @@
 /* ir-raw.c - handle IR pulse/space events
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -256,7 +256,7 @@ int ir_raw_event_register(struct rc_dev *dev)
 		return -ENOMEM;
 
 	dev->raw->dev = dev;
-	dev->enabled_protocols = ~0;
+	rc_set_enabled_protocols(dev, ~0);
 	rc = kfifo_alloc(&dev->raw->kfifo,
 			 sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE,
 			 GFP_KERNEL);
@@ -352,6 +352,7 @@ void ir_raw_init(void)
 	load_jvc_decode();
 	load_sony_decode();
 	load_sanyo_decode();
+	load_sharp_decode();
 	load_mce_kbd_decode();
 	load_lirc_codec();
 

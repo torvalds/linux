@@ -78,7 +78,7 @@ struct smp_cmd_encrypt_info {
 #define SMP_CMD_MASTER_IDENT	0x07
 struct smp_cmd_master_ident {
 	__le16	ediv;
-	__u8	rand[8];
+	__le64	rand;
 } __packed;
 
 #define SMP_CMD_IDENT_INFO	0x08
@@ -118,6 +118,8 @@ struct smp_cmd_security_req {
 #define SMP_FLAG_TK_VALID	1
 #define SMP_FLAG_CFM_PENDING	2
 #define SMP_FLAG_MITM_AUTH	3
+#define SMP_FLAG_COMPLETE	4
+#define SMP_FLAG_INITIATOR	5
 
 struct smp_chan {
 	struct l2cap_conn *conn;
@@ -128,20 +130,31 @@ struct smp_chan {
 	u8		pcnf[16]; /* SMP Pairing Confirm */
 	u8		tk[16]; /* SMP Temporary Key */
 	u8		enc_key_size;
+	u8		remote_key_dist;
+	bdaddr_t	id_addr;
+	u8		id_addr_type;
+	u8		irk[16];
+	struct smp_csrk	*csrk;
+	struct smp_csrk	*slave_csrk;
+	struct smp_ltk	*ltk;
+	struct smp_ltk	*slave_ltk;
+	struct smp_irk	*remote_irk;
 	unsigned long	smp_flags;
-	struct crypto_blkcipher	*tfm;
 	struct work_struct confirm;
 	struct work_struct random;
-
 };
 
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);
-int smp_distribute_keys(struct l2cap_conn *conn, __u8 force);
+int smp_distribute_keys(struct l2cap_conn *conn);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
 void smp_chan_destroy(struct l2cap_conn *conn);
+
+bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
+		     bdaddr_t *bdaddr);
+int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
 
 #endif /* __SMP_H */

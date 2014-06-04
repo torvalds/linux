@@ -78,11 +78,19 @@ static void ntb_netdev_event_handler(void *data, int status)
 	netdev_dbg(ndev, "Event %x, Link %x\n", status,
 		   ntb_transport_link_query(dev->qp));
 
-	/* Currently, only link status event is supported */
-	if (status)
-		netif_carrier_on(ndev);
-	else
+	switch (status) {
+	case NTB_LINK_DOWN:
 		netif_carrier_off(ndev);
+		break;
+	case NTB_LINK_UP:
+		if (!ntb_transport_link_query(dev->qp))
+			return;
+
+		netif_carrier_on(ndev);
+		break;
+	default:
+		netdev_warn(ndev, "Unsupported event type %d\n", status);
+	}
 }
 
 static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
@@ -182,8 +190,10 @@ static int ntb_netdev_open(struct net_device *ndev)
 
 		rc = ntb_transport_rx_enqueue(dev->qp, skb, skb->data,
 					      ndev->mtu + ETH_HLEN);
-		if (rc == -EINVAL)
+		if (rc == -EINVAL) {
+			dev_kfree_skb(skb);
 			goto err;
+		}
 	}
 
 	netif_carrier_off(ndev);
@@ -367,12 +377,15 @@ static void ntb_netdev_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev;
 	struct ntb_netdev *dev;
+	bool found = false;
 
 	list_for_each_entry(dev, &dev_list, list) {
-		if (dev->pdev == pdev)
+		if (dev->pdev == pdev) {
+			found = true;
 			break;
+		}
 	}
-	if (dev == NULL)
+	if (!found)
 		return;
 
 	list_del(&dev->list);

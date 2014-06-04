@@ -1,0 +1,34 @@
+* ImgTec Infrared (IR) decoder version 1
+
+This binding is for Imagination Technologies' Infrared decoder block,
+specifically major revision 1.
+
+Required properties:
+- compatible:		Should be "img,ir-rev1"
+- reg:			Physical base address of the controller and length of
+			memory mapped region.
+- interrupts:		The interrupt specifier to the cpu.
+
+Optional properties:
+- clocks:		List of clock specifiers as described in standard
+			clock bindings.
+			Up to 3 clocks may be specified in the following order:
+			1st:	Core clock (defaults to 32.768KHz if omitted).
+			2nd:	System side (fast) clock.
+			3rd:	Power modulation clock.
+- clock-names:		List of clock names corresponding to the clocks
+			specified in the clocks property.
+			Accepted clock names are:
+			"core":	Core clock.
+			"sys":	System clock.
+			"mod":	Power modulation clock.
+
+Example:
+
+	ir@02006200 {
+		compatible = "img,ir-rev1";
+		reg = <0x02006200 0x100>;
+		interrupts = <29 4>;
+		clocks = <&clk_32khz>;
+		clock-names =  "core";
+	};

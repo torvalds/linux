@@ -523,13 +523,6 @@ static int oaktrail_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static bool oaktrail_hdmi_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
-{
-	return true;
-}
-
 static enum drm_connector_status
 oaktrail_hdmi_detect(struct drm_connector *connector, bool force)
 {
@@ -608,7 +601,7 @@ static void oaktrail_hdmi_destroy(struct drm_connector *connector)
 
 static const struct drm_encoder_helper_funcs oaktrail_hdmi_helper_funcs = {
 	.dpms = oaktrail_hdmi_dpms,
-	.mode_fixup = oaktrail_hdmi_mode_fixup,
+	.mode_fixup = gma_encoder_mode_fixup,
 	.prepare = gma_encoder_prepare,
 	.mode_set = oaktrail_hdmi_mode_set,
 	.commit = gma_encoder_commit,

@@ -33,20 +33,6 @@ config ARCH_P720T
 	  Say Y here if you intend to run this kernel on the ARM Prospector
 	  720T.
 
-config EP72XX_ROM_BOOT
-	bool "EP721x/EP731x ROM boot"
-	help
-	  If you say Y here, your CLPS711x-based kernel will use the bootstrap
-	  mode memory map instead of the normal memory map.
-
-	  Processors derived from the Cirrus CLPS711X core support two boot
-	  modes.  Normal mode boots from the external memory device at CS0.
-	  Bootstrap mode rearranges parts of the memory map, placing an
-	  internal 128 byte bootstrap ROM at CS0.  This option performs the
-	  address map changes required to support booting in this mode.
-
-	  You almost surely want to say N here.
-
 endmenu
 
 endif
