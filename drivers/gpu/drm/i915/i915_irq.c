@@ -503,7 +503,7 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
 		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
 	else if (IS_GEN7(dev))
 		ivybridge_set_fifo_underrun_reporting(dev, pipe, enable, old);
-	else if (IS_GEN8(dev))
+	else if (IS_GEN8(dev) || IS_GEN9(dev))
 		broadwell_set_fifo_underrun_reporting(dev, pipe, enable);
 
 	return old;
