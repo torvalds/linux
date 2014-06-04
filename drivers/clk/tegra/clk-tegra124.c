@@ -869,7 +869,7 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_spdif_in] = { .dt_id = TEGRA124_CLK_SPDIF_IN, .present = true },
 	[tegra_clk_spdif_out] = { .dt_id = TEGRA124_CLK_SPDIF_OUT, .present = true },
 	[tegra_clk_vi_9] = { .dt_id = TEGRA124_CLK_VI, .present = true },
-	[tegra_clk_vi_sensor] = { .dt_id = TEGRA124_CLK_VI_SENSOR, .present = true },
+	[tegra_clk_vi_sensor_8] = { .dt_id = TEGRA124_CLK_VI_SENSOR, .present = true },
 	[tegra_clk_fuse] = { .dt_id = TEGRA124_CLK_FUSE, .present = true },
 	[tegra_clk_fuse_burn] = { .dt_id = TEGRA124_CLK_FUSE_BURN, .present = true },
 	[tegra_clk_clk_32k] = { .dt_id = TEGRA124_CLK_CLK_32K, .present = true },
