@@ -2093,8 +2093,10 @@ sub process {
 
 			foreach my $compat (@compats) {
 				my $compat2 = $compat;
-				$compat2 =~ s/\,[a-z]*\-/\,<\.\*>\-/;
-				`grep -Erq "$compat|$compat2" $dt_path`;
+				$compat2 =~ s/\,[a-zA-Z0-9]*\-/\,<\.\*>\-/;
+				my $compat3 = $compat;
+				$compat3 =~ s/\,([a-z]*)[0-9]*\-/\,$1<\.\*>\-/;
+				`grep -Erq "$compat|$compat2|$compat3" $dt_path`;
 				if ( $? >> 8 ) {
 					WARN("UNDOCUMENTED_DT_STRING",
 					     "DT compatible string \"$compat\" appears un-documented -- check $dt_path\n" . $herecurr);
