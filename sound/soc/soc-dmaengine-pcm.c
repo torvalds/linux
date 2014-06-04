@@ -132,7 +132,7 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
-#if CONFIG_ARCH_ROCKCHIP
+#ifdef CONFIG_ARCH_ROCKCHIP
 static int debug_audio_timeout = 0;
 module_param(debug_audio_timeout, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(debug_audio_timeout, "Debug interface Audio DMA buffdone time out");
@@ -142,7 +142,7 @@ static void dmaengine_pcm_dma_complete(void *arg)
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
-#if CONFIG_ARCH_ROCKCHIP
+#ifdef CONFIG_ARCH_ROCKCHIP
 	if(debug_audio_timeout){
 		struct snd_pcm_runtime *runtime = substream->runtime;
 		static ktime_t before = {0},after = {0};
@@ -180,10 +180,23 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 		flags |= DMA_PREP_INTERRUPT;
 
 	prtd->pos = 0;
+#if CONFIG_ARCH_ROCKCHIP
+	//printk("soc dma buffersize = %d , periodsize=%d, periods=%d\n",
+	//	snd_pcm_lib_buffer_bytes(substream),
+	//	snd_pcm_lib_period_bytes(substream),
+	//	snd_pcm_lib_buffer_bytes(substream)/snd_pcm_lib_period_bytes(substream));
+	desc = dmaengine_prep_dma_infiniteloop(chan,
+		substream->runtime->dma_addr,
+		snd_pcm_lib_buffer_bytes(substream),
+		snd_pcm_lib_period_bytes(substream),
+		direction, flags,
+		snd_pcm_lib_buffer_bytes(substream)/snd_pcm_lib_period_bytes(substream));
+#else
 	desc = dmaengine_prep_dma_cyclic(chan,
 		substream->runtime->dma_addr,
 		snd_pcm_lib_buffer_bytes(substream),
 		snd_pcm_lib_period_bytes(substream), direction, flags);
+#endif
 
 	if (!desc)
 		return -ENOMEM;
