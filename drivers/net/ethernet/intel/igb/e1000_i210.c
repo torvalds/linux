@@ -97,7 +97,7 @@ static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
 		return -E1000_ERR_NVM;
 	}
 
-	return E1000_SUCCESS;
+	return 0;
 }
 
 /**
@@ -139,7 +139,7 @@ s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	u32 swfw_sync;
 	u32 swmask = mask;
 	u32 fwmask = mask << 16;
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 	s32 i = 0, timeout = 200; /* FIXME: find real value to use here */
 
 	while (i < timeout) {
@@ -184,7 +184,7 @@ void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 {
 	u32 swfw_sync;
 
-	while (igb_get_hw_semaphore_i210(hw) != E1000_SUCCESS)
+	while (igb_get_hw_semaphore_i210(hw))
 		; /* Empty */
 
 	swfw_sync = rd32(E1000_SW_FW_SYNC);
@@ -207,7 +207,7 @@ void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 				  u16 *data)
 {
-	s32 status = E1000_SUCCESS;
+	s32 status = 0;
 	u16 i, count;
 
 	/* We cannot hold synchronization semaphores for too long,
@@ -217,7 +217,7 @@ static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 	for (i = 0; i < words; i += E1000_EERD_EEWR_MAX_COUNT) {
 		count = (words - i) / E1000_EERD_EEWR_MAX_COUNT > 0 ?
 			E1000_EERD_EEWR_MAX_COUNT : (words - i);
-		if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
+		if (!(hw->nvm.ops.acquire(hw))) {
 			status = igb_read_nvm_eerd(hw, offset, count,
 						     data + i);
 			hw->nvm.ops.release(hw);
@@ -225,7 +225,7 @@ static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 			status = E1000_ERR_SWFW_SYNC;
 		}
 
-		if (status != E1000_SUCCESS)
+		if (status)
 			break;
 	}
 
@@ -250,7 +250,7 @@ static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 i, k, eewr = 0;
 	u32 attempts = 100000;
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
 	 * too many words for the offset, and not enough words.
@@ -272,13 +272,13 @@ static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 		for (k = 0; k < attempts; k++) {
 			if (E1000_NVM_RW_REG_DONE &
 			    rd32(E1000_SRWR)) {
-				ret_val = E1000_SUCCESS;
+				ret_val = 0;
 				break;
 			}
 			udelay(5);
 	}
 
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			hw_dbg("Shadow RAM write EEWR timed out\n");
 			break;
 		}
@@ -307,7 +307,7 @@ out:
 static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 				   u16 *data)
 {
-	s32 status = E1000_SUCCESS;
+	s32 status = 0;
 	u16 i, count;
 
 	/* We cannot hold synchronization semaphores for too long,
@@ -317,7 +317,7 @@ static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 	for (i = 0; i < words; i += E1000_EERD_EEWR_MAX_COUNT) {
 		count = (words - i) / E1000_EERD_EEWR_MAX_COUNT > 0 ?
 			E1000_EERD_EEWR_MAX_COUNT : (words - i);
-		if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
+		if (!(hw->nvm.ops.acquire(hw))) {
 			status = igb_write_nvm_srwr(hw, offset, count,
 						      data + i);
 			hw->nvm.ops.release(hw);
@@ -325,7 +325,7 @@ static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 			status = E1000_ERR_SWFW_SYNC;
 		}
 
-		if (status != E1000_SUCCESS)
+		if (status)
 			break;
 	}
 
@@ -364,12 +364,12 @@ static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 				*data = INVM_DWORD_TO_WORD_DATA(invm_dword);
 				hw_dbg("Read INVM Word 0x%02x = %x\n",
 					  address, *data);
-				status = E1000_SUCCESS;
+				status = 0;
 				break;
 			}
 		}
 	}
-	if (status != E1000_SUCCESS)
+	if (status)
 		hw_dbg("Requested word 0x%02x not found in OTP\n", address);
 	return status;
 }
@@ -385,7 +385,7 @@ static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
 				u16 words __always_unused, u16 *data)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 
 	/* Only the MAC addr is required to be present in the iNVM */
 	switch (offset) {
@@ -395,42 +395,42 @@ static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
 						     &data[1]);
 		ret_val |= igb_read_invm_word_i210(hw, (u8)offset+2,
 						     &data[2]);
-		if (ret_val != E1000_SUCCESS)
+		if (ret_val)
 			hw_dbg("MAC Addr not found in iNVM\n");
 		break;
 	case NVM_INIT_CTRL_2:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 		}
 		break;
 	case NVM_INIT_CTRL_4:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 		}
 		break;
 	case NVM_LED_1_CFG:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			*data = NVM_LED_1_CFG_DEFAULT_I211;
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 		}
 		break;
 	case NVM_LED_0_2_CFG:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 		}
 		break;
 	case NVM_ID_LED_SETTINGS:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			*data = ID_LED_RESERVED_FFFF;
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 		}
 		break;
 	case NVM_SUB_DEV_ID:
@@ -486,14 +486,14 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		/* Check if we have first version location used */
 		if ((i == 1) && ((*record & E1000_INVM_VER_FIELD_ONE) == 0)) {
 			version = 0;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 		/* Check if we have second version location used */
 		else if ((i == 1) &&
 			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
 			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 		/* Check if we have odd version location
@@ -504,7 +504,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 			 (i != 1))) {
 			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
 				  >> 13;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 		/* Check if we have even version location
@@ -513,12 +513,12 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
 			 ((*record & 0x3) == 0)) {
 			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 	}
 
-	if (status == E1000_SUCCESS) {
+	if (!status) {
 		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
 					>> E1000_INVM_MAJOR_SHIFT;
 		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
@@ -531,7 +531,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		/* Check if we have image type in first location used */
 		if ((i == 1) && ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) {
 			invm_ver->invm_img_type = 0;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 		/* Check if we have image type in first location used */
@@ -540,7 +540,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 			 ((((*record & 0x3) != 0) && (i != 1)))) {
 			invm_ver->invm_img_type =
 				(*next_record & E1000_INVM_IMGTYPE_FIELD) >> 23;
-			status = E1000_SUCCESS;
+			status = 0;
 			break;
 		}
 	}
@@ -556,10 +556,10 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
  **/
 static s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
 {
-	s32 status = E1000_SUCCESS;
+	s32 status = 0;
 	s32 (*read_op_ptr)(struct e1000_hw *, u16, u16, u16 *);
 
-	if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
+	if (!(hw->nvm.ops.acquire(hw))) {
 
 		/* Replace the read function with semaphore grabbing with
 		 * the one that skips this for a while.
@@ -591,7 +591,7 @@ static s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
  **/
 static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 	u16 checksum = 0;
 	u16 i, nvm_data;
 
@@ -600,12 +600,12 @@ static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 	 * EEPROM read fails
 	 */
 	ret_val = igb_read_nvm_eerd(hw, 0, 1, &nvm_data);
-	if (ret_val != E1000_SUCCESS) {
+	if (ret_val) {
 		hw_dbg("EEPROM read failed\n");
 		goto out;
 	}
 
-	if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
+	if (!(hw->nvm.ops.acquire(hw))) {
 		/* Do not use hw->nvm.ops.write, hw->nvm.ops.read
 		 * because we do not want to take the synchronization
 		 * semaphores twice here.
@@ -623,7 +623,7 @@ static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 		checksum = (u16) NVM_SUM - checksum;
 		ret_val = igb_write_nvm_srwr(hw, NVM_CHECKSUM_REG, 1,
 						&checksum);
-		if (ret_val != E1000_SUCCESS) {
+		if (ret_val) {
 			hw->nvm.ops.release(hw);
 			hw_dbg("NVM Write Error while updating checksum.\n");
 			goto out;
@@ -652,7 +652,7 @@ static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
 	for (i = 0; i < E1000_FLUDONE_ATTEMPTS; i++) {
 		reg = rd32(E1000_EECD);
 		if (reg & E1000_EECD_FLUDONE_I210) {
-			ret_val = E1000_SUCCESS;
+			ret_val = 0;
 			break;
 		}
 		udelay(5);
@@ -685,7 +685,7 @@ bool igb_get_flash_presence_i210(struct e1000_hw *hw)
  **/
 static s32 igb_update_flash_i210(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 	u32 flup;
 
 	ret_val = igb_pool_flash_update_done_i210(hw);
@@ -698,7 +698,7 @@ static s32 igb_update_flash_i210(struct e1000_hw *hw)
 	wr32(E1000_EECD, flup);
 
 	ret_val = igb_pool_flash_update_done_i210(hw);
-	if (ret_val == E1000_SUCCESS)
+	if (ret_val)
 		hw_dbg("Flash update complete\n");
 	else
 		hw_dbg("Flash update time out\n");
@@ -751,7 +751,7 @@ out:
 static s32 __igb_access_xmdio_reg(struct e1000_hw *hw, u16 address,
 				  u8 dev_addr, u16 *data, bool read)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 
 	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, dev_addr);
 	if (ret_val)

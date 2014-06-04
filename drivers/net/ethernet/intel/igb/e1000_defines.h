@@ -459,7 +459,6 @@
 #define E1000_RAH_POOL_1 0x00040000
 
 /* Error Codes */
-#define E1000_SUCCESS      0
 #define E1000_ERR_NVM      1
 #define E1000_ERR_PHY      2
 #define E1000_ERR_CONFIG   3

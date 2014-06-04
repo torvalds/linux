@@ -155,7 +155,7 @@ static s32 igb_check_for_link_media_swap(struct e1000_hw *hw)
 		ret_val = igb_check_for_link_82575(hw);
 	}
 
-	return E1000_SUCCESS;
+	return 0;
 }
 
 /**
@@ -1004,7 +1004,6 @@ out:
 static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
 	u16 data;
 
 	data = rd32(E1000_82580_PHY_POWER_MGMT);
@@ -1028,7 +1027,7 @@ static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
 			data &= ~E1000_82580_PM_SPD; }
 
 	wr32(E1000_82580_PHY_POWER_MGMT, data);
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -1048,7 +1047,6 @@ static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
 static s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
-	s32 ret_val = 0;
 	u16 data;
 
 	data = rd32(E1000_82580_PHY_POWER_MGMT);
@@ -1073,7 +1071,7 @@ static s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 	}
 
 	wr32(E1000_82580_PHY_POWER_MGMT, data);
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -1199,7 +1197,6 @@ static void igb_release_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 {
 	s32 timeout = PHY_CFG_TIMEOUT;
-	s32 ret_val = 0;
 	u32 mask = E1000_NVM_CFG_DONE_PORT_0;
 
 	if (hw->bus.func == 1)
@@ -1223,7 +1220,7 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 	    (hw->phy.type == e1000_phy_igp_3))
 		igb_phy_init_script_igp3(hw);
 
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -1617,7 +1614,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl_ext, ctrl_reg, reg, anadv_reg;
 	bool pcs_autoneg;
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 	u16 data;
 
 	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
@@ -2518,7 +2515,7 @@ out:
 static s32 __igb_access_emi_reg(struct e1000_hw *hw, u16 address,
 				  u16 *data, bool read)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val = 0;
 
 	ret_val = hw->phy.ops.write_reg(hw, E1000_EMIADD, address);
 	if (ret_val)
@@ -2552,7 +2549,6 @@ s32 igb_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data)
  **/
 s32 igb_set_eee_i350(struct e1000_hw *hw)
 {
-	s32 ret_val = 0;
 	u32 ipcnfg, eeer;
 
 	if ((hw->mac.type < e1000_i350) ||
@@ -2586,7 +2582,7 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 	rd32(E1000_EEER);
 out:
 
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -2713,7 +2709,6 @@ static const u8 e1000_emc_therm_limit[4] = {
  **/
 static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 {
-	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
 	u16 ets_cfg;
 	u16 ets_sensor;
@@ -2731,7 +2726,7 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 	/* Return the internal sensor only if ETS is unsupported */
 	hw->nvm.ops.read(hw, NVM_ETS_CFG, 1, &ets_offset);
 	if ((ets_offset == 0x0000) || (ets_offset == 0xFFFF))
-		return status;
+		return 0;
 
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
 	if (((ets_cfg & NVM_ETS_TYPE_MASK) >> NVM_ETS_TYPE_SHIFT)
@@ -2755,7 +2750,7 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 					E1000_I2C_THERMAL_SENSOR_ADDR,
 					&data->sensor[i].temp);
 	}
-	return status;
+	return 0;
 }
 
 /**
@@ -2767,7 +2762,6 @@ static s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
  **/
 static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 {
-	s32 status = E1000_SUCCESS;
 	u16 ets_offset;
 	u16 ets_cfg;
 	u16 ets_sensor;
@@ -2793,7 +2787,7 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 	/* Return the internal sensor only if ETS is unsupported */
 	hw->nvm.ops.read(hw, NVM_ETS_CFG, 1, &ets_offset);
 	if ((ets_offset == 0x0000) || (ets_offset == 0xFFFF))
-		return status;
+		return 0;
 
 	hw->nvm.ops.read(hw, ets_offset, 1, &ets_cfg);
 	if (((ets_cfg & NVM_ETS_TYPE_MASK) >> NVM_ETS_TYPE_SHIFT)
@@ -2824,7 +2818,7 @@ static s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 							low_thresh_delta;
 		}
 	}
-	return status;
+	return 0;
 }
 
 #endif
