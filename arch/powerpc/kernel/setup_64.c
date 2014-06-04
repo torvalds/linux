@@ -36,6 +36,7 @@
 #include <linux/lockdep.h>
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
+#include <linux/memory.h>
 
 #include <asm/io.h>
 #include <asm/kdump.h>
@@ -780,6 +781,15 @@ void __init setup_per_cpu_areas(void)
 }
 #endif
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+unsigned long memory_block_size_bytes(void)
+{
+	if (ppc_md.memory_block_size)
+		return ppc_md.memory_block_size();
+
+	return MIN_MEMORY_BLOCK_SIZE;
+}
+#endif
 
 #if defined(CONFIG_PPC_INDIRECT_PIO) || defined(CONFIG_PPC_INDIRECT_MMIO)
 struct ppc_pci_io ppc_pci_io;

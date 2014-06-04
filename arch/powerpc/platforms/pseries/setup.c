@@ -810,4 +810,7 @@ define_machine(pseries) {
 #ifdef CONFIG_KEXEC
 	.machine_kexec          = pSeries_machine_kexec,
 #endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pseries_memory_block_size,
+#endif
 };
