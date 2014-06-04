@@ -26,7 +26,8 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 	int			slot;
 
 	if (inode->i_size & (EFS_DIRBSIZE-1))
-		pr_warn("EFS: WARNING: readdir(): directory size not a multiple of EFS_DIRBSIZE\n");
+		pr_warn("%s(): directory size not a multiple of EFS_DIRBSIZE\n",
+			__func__);
 
 	/* work out where this entry can be found */
 	block = ctx->pos >> EFS_DIRBSIZE_BITS;
@@ -43,14 +44,15 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 		bh = sb_bread(inode->i_sb, efs_bmap(inode, block));
 
 		if (!bh) {
-			pr_err("EFS: readdir(): failed to read dir block %d\n", block);
+			pr_err("%s(): failed to read dir block %d\n",
+			       __func__, block);
 			break;
 		}
 
 		dirblock = (struct efs_dir *) bh->b_data; 
 
 		if (be16_to_cpu(dirblock->magic) != EFS_DIRBLK_MAGIC) {
-			pr_err("EFS: readdir(): invalid directory block\n");
+			pr_err("%s(): invalid directory block\n", __func__);
 			brelse(bh);
 			break;
 		}
@@ -80,7 +82,8 @@ static int efs_readdir(struct file *file, struct dir_context *ctx)
 
 			/* sanity check */
 			if (nameptr - (char *) dirblock + namelen > EFS_DIRBSIZE) {
-				pr_warn("EFS: directory entry %d exceeds directory block\n", slot);
+				pr_warn("directory entry %d exceeds directory block\n",
+					slot);
 				continue;
 			}
 
