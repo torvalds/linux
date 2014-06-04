@@ -8,19 +8,19 @@
 
 /*
  * Fireworks have its own transaction. The transaction can be delivered by AV/C
- * Vendor Specific command. But at least Windows driver and firmware version 5.5
- * or later don't use it.
+ * Vendor Specific command frame or usual asynchronous transaction. At least,
+ * Windows driver and firmware version 5.5 or later don't use AV/C command.
  *
  * Transaction substance:
- *  At first, 6 data exist. Following to the 6 data, parameters for each
- *  commands exists. All of parameters are 32 bit alighed to big endian.
+ *  At first, 6 data exist. Following to the data, parameters for each command
+ *  exist. All of the parameters are 32 bit alighed to big endian.
  *   data[0]:	Length of transaction substance
  *   data[1]:	Transaction version
  *   data[2]:	Sequence number. This is incremented by the device
- *   data[3]:	transaction category
- *   data[4]:	transaction command
- *   data[5]:	return value in response.
- *   data[6-]:	parameters
+ *   data[3]:	Transaction category
+ *   data[4]:	Transaction command
+ *   data[5]:	Return value in response.
+ *   data[6-]:	Parameters
  *
  * Transaction address:
  *  command:	0xecc000000000
