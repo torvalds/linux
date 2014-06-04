@@ -629,9 +629,7 @@ asmlinkage __visible void __init start_kernel(void)
 	signals_init();
 	/* rootfs populating might need page-writeback */
 	page_writeback_init();
-#ifdef CONFIG_PROC_FS
 	proc_root_init();
-#endif
 	cgroup_init();
 	cpuset_init();
 	taskstats_init_early();
