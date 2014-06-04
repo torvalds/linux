@@ -510,7 +510,7 @@ enum OpalMemErr_DynErrType {
 struct OpalMemoryErrorData {
 	enum OpalMemErr_Version	version:8;	/* 0x00 */
 	enum OpalMemErrType	type:8;		/* 0x01 */
-	uint16_t		flags;		/* 0x02 */
+	__be16			flags;		/* 0x02 */
 	uint8_t			reserved_1[4];	/* 0x04 */
 
 	union {
@@ -518,15 +518,15 @@ struct OpalMemoryErrorData {
 		struct {
 			enum OpalMemErr_ResilErrType resil_err_type:8;
 			uint8_t		reserved_1[7];
-			uint64_t	physical_address_start;
-			uint64_t	physical_address_end;
+			__be64		physical_address_start;
+			__be64		physical_address_end;
 		} resilience;
 		/* Dynamic memory deallocation error info */
 		struct {
 			enum OpalMemErr_DynErrType dyn_err_type:8;
 			uint8_t		reserved_1[7];
-			uint64_t	physical_address_start;
-			uint64_t	physical_address_end;
+			__be64		physical_address_start;
+			__be64		physical_address_end;
 		} dyn_dealloc;
 	} u;
 };
