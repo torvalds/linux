@@ -1344,8 +1344,8 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		}
 	}
 
-	if (!i40e_find_mac(vsi, addr->sa_data, false, true)) {
-
+	f = i40e_find_mac(vsi, addr->sa_data, false, true);
+	if (!f) {
 		/* In order to be sure to not drop any packets, add the
 		 * new address first then delete the old one.
 		 */
@@ -1360,6 +1360,7 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		i40e_sync_vsi_filters(vsi);
 	}
 
+	f->is_laa = true;
 	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
 		ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
@@ -7378,6 +7379,12 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
 		f->changed = true;
 		f_count++;
+
+		if (f->is_laa && vsi->type == I40E_VSI_MAIN) {
+			i40e_aq_mac_address_write(&vsi->back->hw,
+						  I40E_AQC_WRITE_TYPE_LAA_WOL,
+						  f->macaddr, NULL);
+		}
 	}
 	if (f_count) {
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;

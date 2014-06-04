@@ -362,6 +362,7 @@ struct i40e_mac_filter {
 	bool is_vf;		/* filter belongs to a VF */
 	bool is_netdev;		/* filter belongs to a netdev */
 	bool changed;		/* filter needs to be sync'd to the HW */
+	bool is_laa;		/* filter is a Locally Administered Address */
 };
 
 struct i40e_veb {
