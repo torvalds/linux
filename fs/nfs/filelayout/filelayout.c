@@ -608,10 +608,7 @@ filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
 		data->args.fh = fh;
-	/*
-	 * Get the file offset on the dserver. Set the write offset to
-	 * this offset and save the original offset.
-	 */
+
 	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
