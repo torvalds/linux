@@ -34,6 +34,10 @@ static int __cpuinit socfpga_boot_secondary(unsigned int cpu, struct task_struct
 	int trampoline_size = &secondary_trampoline_end - &secondary_trampoline;
 
 	if (cpu1start_addr) {
+		/* This will put CPU #1 into reset.*/
+		__raw_writel(RSTMGR_MPUMODRST_CPU1,
+			     rst_manager_base_addr + 0x10);
+
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
 		__raw_writel(virt_to_phys(socfpga_secondary_startup),
@@ -89,13 +93,9 @@ static void socfpga_cpu_die(unsigned int cpu)
 	/* Flush the L1 data cache. */
 	flush_cache_all();
 
-	/* This will put CPU #1 into reset.*/
-	__raw_writel(RSTMGR_MPUMODRST_CPU1, rst_manager_base_addr + 0x10);
-
-	cpu_do_idle();
-
-	/* We should have never returned from idle */
-	panic("cpu %d unexpectedly exit from shutdown\n", cpu);
+	/* Do WFI. If we wake up early, go back into WFI */
+	while (1)
+		cpu_do_idle();
 }
 
 struct smp_operations socfpga_smp_ops __initdata = {
