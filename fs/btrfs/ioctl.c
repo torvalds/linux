@@ -477,7 +477,7 @@ static noinline int create_subvol(struct inode *dir,
 	if (ret)
 		goto fail;
 
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+	leaf = btrfs_alloc_free_block(trans, root, root->nodesize,
 				      0, objectid, NULL, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
@@ -503,7 +503,7 @@ static noinline int create_subvol(struct inode *dir,
 	btrfs_set_stack_inode_generation(inode_item, 1);
 	btrfs_set_stack_inode_size(inode_item, 3);
 	btrfs_set_stack_inode_nlink(inode_item, 1);
-	btrfs_set_stack_inode_nbytes(inode_item, root->leafsize);
+	btrfs_set_stack_inode_nbytes(inode_item, root->nodesize);
 	btrfs_set_stack_inode_mode(inode_item, S_IFDIR | 0755);
 
 	btrfs_set_root_flags(&root_item, 0);
@@ -3199,7 +3199,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	u64 last_dest_end = destoff;
 
 	ret = -ENOMEM;
-	buf = vmalloc(btrfs_level_size(root, 0));
+	buf = vmalloc(root->nodesize);
 	if (!buf)
 		return ret;
 

@@ -2157,7 +2157,7 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
-		blocksize = btrfs_level_size(root, *level - 1);
+		blocksize = root->nodesize;
 
 		parent = path->nodes[*level];
 		root_owner = btrfs_header_owner(parent);

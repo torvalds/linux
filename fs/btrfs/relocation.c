@@ -1787,7 +1787,7 @@ again:
 			btrfs_node_key_to_cpu(parent, next_key, slot + 1);
 
 		old_bytenr = btrfs_node_blockptr(parent, slot);
-		blocksize = btrfs_level_size(dest, level - 1);
+		blocksize = dest->nodesize;
 		old_ptr_gen = btrfs_node_ptr_generation(parent, slot);
 
 		if (level <= max_level) {
@@ -1970,7 +1970,7 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 		}
 
 		bytenr = btrfs_node_blockptr(eb, path->slots[i]);
-		blocksize = btrfs_level_size(root, i - 1);
+		blocksize = root->nodesize;
 		eb = read_tree_block(root, bytenr, blocksize, ptr_gen);
 		if (!eb || !extent_buffer_uptodate(eb)) {
 			free_extent_buffer(eb);
@@ -2544,8 +2544,7 @@ u64 calcu_metadata_size(struct reloc_control *rc,
 			if (next->processed && (reserve || next != node))
 				break;
 
-			num_bytes += btrfs_level_size(rc->extent_root,
-						      next->level);
+			num_bytes += rc->extent_root->nodesize;
 
 			if (list_empty(&next->upper))
 				break;
@@ -2679,7 +2678,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 				goto next;
 		}
 
-		blocksize = btrfs_level_size(root, node->level);
+		blocksize = root->nodesize;
 		generation = btrfs_node_ptr_generation(upper->eb, slot);
 		eb = read_tree_block(root, bytenr, blocksize, generation);
 		if (!eb || !extent_buffer_uptodate(eb)) {
@@ -2789,7 +2788,7 @@ static void __mark_block_processed(struct reloc_control *rc,
 	u32 blocksize;
 	if (node->level == 0 ||
 	    in_block_group(node->bytenr, rc->block_group)) {
-		blocksize = btrfs_level_size(rc->extent_root, node->level);
+		blocksize = rc->extent_root->nodesize;
 		mark_block_processed(rc, node->bytenr, blocksize);
 	}
 	node->processed = 1;
@@ -2865,7 +2864,7 @@ static int reada_tree_block(struct reloc_control *rc,
 	if (block->key.type == BTRFS_METADATA_ITEM_KEY)
 		readahead_tree_block(rc->extent_root, block->bytenr,
 				     block->key.objectid,
-				     rc->extent_root->leafsize);
+				     rc->extent_root->nodesize);
 	else
 		readahead_tree_block(rc->extent_root, block->bytenr,
 				     block->key.objectid, block->key.offset);
@@ -3313,7 +3312,7 @@ static int add_tree_block(struct reloc_control *rc,
 		return -ENOMEM;
 
 	block->bytenr = extent_key->objectid;
-	block->key.objectid = rc->extent_root->leafsize;
+	block->key.objectid = rc->extent_root->nodesize;
 	block->key.offset = generation;
 	block->level = level;
 	block->key_ready = 0;
@@ -3640,7 +3639,7 @@ int add_data_references(struct reloc_control *rc,
 	struct btrfs_extent_inline_ref *iref;
 	unsigned long ptr;
 	unsigned long end;
-	u32 blocksize = btrfs_level_size(rc->extent_root, 0);
+	u32 blocksize = rc->extent_root->nodesize;
 	int ret = 0;
 	int err = 0;
 
@@ -3783,7 +3782,7 @@ next:
 		}
 
 		if (key.type == BTRFS_METADATA_ITEM_KEY &&
-		    key.objectid + rc->extent_root->leafsize <=
+		    key.objectid + rc->extent_root->nodesize <=
 		    rc->search_start) {
 			path->slots[0]++;
 			goto next;
@@ -3801,7 +3800,7 @@ next:
 				rc->search_start = key.objectid + key.offset;
 			else
 				rc->search_start = key.objectid +
-					rc->extent_root->leafsize;
+					rc->extent_root->nodesize;
 			memcpy(extent_key, &key, sizeof(key));
 			return 0;
 		}

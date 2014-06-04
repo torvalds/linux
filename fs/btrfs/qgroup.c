@@ -2237,7 +2237,6 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (srcid) {
 		struct btrfs_root *srcroot;
 		struct btrfs_key srckey;
-		int srcroot_level;
 
 		srckey.objectid = srcid;
 		srckey.type = BTRFS_ROOT_ITEM_KEY;
@@ -2249,8 +2248,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		}
 
 		rcu_read_lock();
-		srcroot_level = btrfs_header_level(srcroot->node);
-		level_size = btrfs_level_size(srcroot, srcroot_level);
+		level_size = srcroot->nodesize;
 		rcu_read_unlock();
 	}
 
@@ -2566,7 +2564,7 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		    found.type != BTRFS_METADATA_ITEM_KEY)
 			continue;
 		if (found.type == BTRFS_METADATA_ITEM_KEY)
-			num_bytes = fs_info->extent_root->leafsize;
+			num_bytes = fs_info->extent_root->nodesize;
 		else
 			num_bytes = found.offset;
 

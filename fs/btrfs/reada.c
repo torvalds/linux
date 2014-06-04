@@ -347,7 +347,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	if (!re)
 		return NULL;
 
-	blocksize = btrfs_level_size(root, level);
+	blocksize = root->nodesize;
 	re->logical = logical;
 	re->blocksize = blocksize;
 	re->top = *top;

@@ -408,7 +408,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 	if (num_items > 0 && root != root->fs_info->chunk_root) {
 		if (root->fs_info->quota_enabled &&
 		    is_fstree(root->root_key.objectid)) {
-			qgroup_reserved = num_items * root->leafsize;
+			qgroup_reserved = num_items * root->nodesize;
 			ret = btrfs_qgroup_reserve(root, qgroup_reserved);
 			if (ret)
 				return ERR_PTR(ret);

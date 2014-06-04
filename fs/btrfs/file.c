@@ -1653,7 +1653,7 @@ again:
 		cond_resched();
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
-		if (dirty_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
+		if (dirty_pages < (root->nodesize >> PAGE_CACHE_SHIFT) + 1)
 			btrfs_btree_balance_dirty(root);
 
 		pos += copied;
