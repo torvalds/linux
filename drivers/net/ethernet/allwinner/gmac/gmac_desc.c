@@ -49,7 +49,7 @@ int desc_get_tx_status(void *data, struct gmac_extra_stats *x,
 	}
 
 	if (p->desc0.tx.vlan_tag) {
-		printk(KERN_INFO "GMAC TX status: VLAN frame\n");
+		pr_debug("GMAC TX status: VLAN frame\n");
 		x->tx_vlan++;
 	}
 
