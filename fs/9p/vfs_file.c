@@ -352,9 +352,6 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 		invalidate_mapping_pages(&inode->i_data, 0, -1);
 	}
 	/* Convert flock to posix lock */
-	fl->fl_owner = (fl_owner_t)filp;
-	fl->fl_start = 0;
-	fl->fl_end = OFFSET_MAX;
 	fl->fl_flags |= FL_POSIX;
 	fl->fl_flags ^= FL_FLOCK;
 

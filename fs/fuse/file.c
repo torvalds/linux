@@ -2304,7 +2304,6 @@ static int fuse_file_flock(struct file *file, int cmd, struct file_lock *fl)
 		struct fuse_file *ff = file->private_data;
 
 		/* emulate flock with POSIX locks */
-		fl->fl_owner = (fl_owner_t) file;
 		ff->flock = true;
 		err = fuse_setlk(file, fl, 1);
 	}
