@@ -78,6 +78,8 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 	if (!vmacache_valid(mm))
 		return NULL;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
 
@@ -85,8 +87,10 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
 			continue;
 		if (WARN_ON_ONCE(vma->vm_mm != mm))
 			break;
-		if (vma->vm_start <= addr && vma->vm_end > addr)
+		if (vma->vm_start <= addr && vma->vm_end > addr) {
+			count_vm_vmacache_event(VMACACHE_FIND_HITS);
 			return vma;
+		}
 	}
 
 	return NULL;
@@ -102,11 +106,15 @@ struct vm_area_struct *vmacache_find_exact(struct mm_struct *mm,
 	if (!vmacache_valid(mm))
 		return NULL;
 
+	count_vm_vmacache_event(VMACACHE_FIND_CALLS);
+
 	for (i = 0; i < VMACACHE_SIZE; i++) {
 		struct vm_area_struct *vma = current->vmacache[i];
 
-		if (vma && vma->vm_start == start && vma->vm_end == end)
+		if (vma && vma->vm_start == start && vma->vm_end == end) {
+			count_vm_vmacache_event(VMACACHE_FIND_HITS);
 			return vma;
+		}
 	}
 
 	return NULL;
