@@ -65,33 +65,26 @@ extern int pageblock_order;
 /* Forward declaration */
 struct page;
 
-unsigned long get_pageblock_flags_mask(struct page *page,
+unsigned long get_pfnblock_flags_mask(struct page *page,
+				unsigned long pfn,
 				unsigned long end_bitidx,
 				unsigned long mask);
-void set_pageblock_flags_mask(struct page *page,
+
+void set_pfnblock_flags_mask(struct page *page,
 				unsigned long flags,
+				unsigned long pfn,
 				unsigned long end_bitidx,
 				unsigned long mask);
 
 /* Declarations for getting and setting flags. See mm/page_alloc.c */
-static inline unsigned long get_pageblock_flags_group(struct page *page,
-					int start_bitidx, int end_bitidx)
-{
-	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
-	unsigned long mask = (1 << nr_flag_bits) - 1;
-
-	return get_pageblock_flags_mask(page, end_bitidx, mask);
-}
-
-static inline void set_pageblock_flags_group(struct page *page,
-					unsigned long flags,
-					int start_bitidx, int end_bitidx)
-{
-	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
-	unsigned long mask = (1 << nr_flag_bits) - 1;
-
-	set_pageblock_flags_mask(page, flags, end_bitidx, mask);
-}
+#define get_pageblock_flags_group(page, start_bitidx, end_bitidx) \
+	get_pfnblock_flags_mask(page, page_to_pfn(page),		\
+			end_bitidx,					\
+			(1 << (end_bitidx - start_bitidx + 1)) - 1)
+#define set_pageblock_flags_group(page, flags, start_bitidx, end_bitidx) \
+	set_pfnblock_flags_mask(page, flags, page_to_pfn(page),		\
+			end_bitidx,					\
+			(1 << (end_bitidx - start_bitidx + 1)) - 1)
 
 #ifdef CONFIG_COMPACTION
 #define get_pageblock_skip(page) \
