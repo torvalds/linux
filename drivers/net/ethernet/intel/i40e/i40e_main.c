@@ -6885,9 +6885,11 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 			i40e_fdir_filter_exit(pf);
 		}
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
-		/* if ATR was disabled it can be re-enabled. */
-		if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
-			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+		pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* if ATR was auto disabled it can be re-enabled. */
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
 	}
 	return need_reset;
 }
