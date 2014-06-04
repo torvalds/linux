@@ -412,6 +412,25 @@ no_valid_phy_type:
 	return 0;
 }
 
+static int i40e_nway_reset(struct net_device *netdev)
+{
+	/* restart autonegotiation */
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	bool link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
+	i40e_status ret = 0;
+
+	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
+	if (ret) {
+		netdev_info(netdev, "link restart failed, aq_err=%d\n",
+			    pf->hw.aq.asq_last_status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * i40e_get_pauseparam -  Get Flow Control status
  * Return tx/rx-pause status
@@ -1120,25 +1139,6 @@ static int i40e_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	if (pf->wol_en != !!wol->wolopts) {
 		pf->wol_en = !!wol->wolopts;
 		device_set_wakeup_enable(&pf->pdev->dev, pf->wol_en);
-	}
-
-	return 0;
-}
-
-static int i40e_nway_reset(struct net_device *netdev)
-{
-	/* restart autonegotiation */
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_pf *pf = np->vsi->back;
-	struct i40e_hw *hw = &pf->hw;
-	bool link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
-	i40e_status ret = 0;
-
-	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
-	if (ret) {
-		netdev_info(netdev, "link restart failed, aq_err=%d\n",
-			    pf->hw.aq.asq_last_status);
-		return -EIO;
 	}
 
 	return 0;
