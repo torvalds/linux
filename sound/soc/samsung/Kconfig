@@ -236,7 +236,7 @@ config SND_SOC_LITTLEMILL
 
 config SND_SOC_SNOW
 	tristate "Audio support for Google Snow boards"
-	depends on SND_SOC_SAMSUNG
+	depends on SND_SOC_SAMSUNG && I2C
 	select SND_SOC_MAX98090
 	select SND_SOC_MAX98095
 	select SND_SAMSUNG_I2S
