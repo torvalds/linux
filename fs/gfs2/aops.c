@@ -577,7 +577,6 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 		p = kmap_atomic(page);
 		memcpy(buf + copied, p + offset, amt);
 		kunmap_atomic(p);
-		mark_page_accessed(page);
 		page_cache_release(page);
 		copied += amt;
 		index++;
