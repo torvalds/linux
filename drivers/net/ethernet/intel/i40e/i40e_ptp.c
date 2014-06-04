@@ -216,7 +216,7 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 }
 
 /**
- * i40e_ptp_enable - Enable/disable ancillary features of the PHC subsystem
+ * i40e_ptp_feature_enable - Enable/disable ancillary features of the PHC subsystem
  * @ptp: The PTP clock structure
  * @rq: The requested feature to change
  * @on: Enable/disable flag
@@ -224,8 +224,8 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
  * The XL710 does not support any of the ancillary features of the PHC
  * subsystem, so this function may just return.
  **/
-static int i40e_ptp_enable(struct ptp_clock_info *ptp,
-			   struct ptp_clock_request *rq, int on)
+static int i40e_ptp_feature_enable(struct ptp_clock_info *ptp,
+				   struct ptp_clock_request *rq, int on)
 {
 	return -EOPNOTSUPP;
 }
@@ -560,7 +560,7 @@ void i40e_ptp_init(struct i40e_pf *pf)
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
 	pf->ptp_caps.gettime = i40e_ptp_gettime;
 	pf->ptp_caps.settime = i40e_ptp_settime;
-	pf->ptp_caps.enable = i40e_ptp_enable;
+	pf->ptp_caps.enable = i40e_ptp_feature_enable;
 
 	/* Attempt to register the clock before enabling the hardware. */
 	pf->ptp_clock = ptp_clock_register(&pf->ptp_caps, &pf->pdev->dev);
