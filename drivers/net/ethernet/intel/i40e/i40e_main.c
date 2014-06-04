@@ -5611,7 +5611,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
  *
  * Close up the VFs and other things in prep for pf Reset.
   **/
-static int i40e_prep_for_reset(struct i40e_pf *pf)
+static void i40e_prep_for_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret = 0;
@@ -5619,7 +5619,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 
 	clear_bit(__I40E_RESET_INTR_RECEIVED, &pf->state);
 	if (test_and_set_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state))
-		return 0;
+		return;
 
 	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
@@ -5636,13 +5636,10 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	/* call shutdown HMC */
 	if (hw->hmc.hmc_obj) {
 		ret = i40e_shutdown_lan_hmc(hw);
-		if (ret) {
+		if (ret)
 			dev_warn(&pf->pdev->dev,
 				 "shutdown_lan_hmc failed: %d\n", ret);
-			clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
-		}
 	}
-	return ret;
 }
 
 /**
@@ -5816,11 +5813,8 @@ end_core_reset:
  **/
 static void i40e_handle_reset_warning(struct i40e_pf *pf)
 {
-	i40e_status ret;
-
-	ret = i40e_prep_for_reset(pf);
-	if (!ret)
-		i40e_reset_and_rebuild(pf, false);
+	i40e_prep_for_reset(pf);
+	i40e_reset_and_rebuild(pf, false);
 }
 
 /**
