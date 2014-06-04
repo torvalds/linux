@@ -281,7 +281,6 @@ struct ieee80211_tx_latency_stat {
  * @driver_buffered_tids: bitmap of TIDs the driver has data buffered on
  * @rx_packets: Number of MSDUs received from this STA
  * @rx_bytes: Number of bytes received from this STA
- * @wep_weak_iv_count: number of weak WEP IVs received from this station
  * @last_rx: time (in jiffies) when last frame was received from this STA
  * @last_connected: time (in seconds) when a station got connected
  * @num_duplicates: number of duplicate frames received from this STA
@@ -369,7 +368,6 @@ struct sta_info {
 	/* Updated from RX path only, no locking requirements */
 	unsigned long rx_packets;
 	u64 rx_bytes;
-	unsigned long wep_weak_iv_count;
 	unsigned long last_rx;
 	long last_connected;
 	unsigned long num_duplicates;

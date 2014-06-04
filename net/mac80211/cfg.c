@@ -603,7 +603,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 }
 
 static const char ieee80211_gstrings_sta_stats[][ETH_GSTRING_LEN] = {
-	"rx_packets", "rx_bytes", "wep_weak_iv_count",
+	"rx_packets", "rx_bytes",
 	"rx_duplicates", "rx_fragments", "rx_dropped",
 	"tx_packets", "tx_bytes", "tx_fragments",
 	"tx_filtered", "tx_retry_failed", "tx_retries",
@@ -651,7 +651,6 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 	do {						\
 		data[i++] += sta->rx_packets;		\
 		data[i++] += sta->rx_bytes;		\
-		data[i++] += sta->wep_weak_iv_count;	\
 		data[i++] += sta->num_duplicates;	\
 		data[i++] += sta->rx_fragments;		\
 		data[i++] += sta->rx_dropped;		\
