@@ -34,6 +34,8 @@ msm-y := \
 	msm_gem_submit.o \
 	msm_gpu.o \
 	msm_iommu.o \
+	msm_perf.o \
+	msm_rd.o \
 	msm_ringbuffer.o
 
 msm-$(CONFIG_DRM_MSM_FBDEV) += msm_fbdev.o

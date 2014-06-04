@@ -280,12 +280,22 @@ struct msm_kms *mdp5_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk") ||
-			get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk") ||
-			get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src") ||
-			get_clk(pdev, &mdp5_kms->core_clk, "core_clk") ||
-			get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk") ||
-			get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
+	ret = get_clk(pdev, &mdp5_kms->axi_clk, "bus_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->ahb_clk, "iface_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->src_clk, "core_clk_src");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->core_clk, "core_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->lut_clk, "lut_clk");
+	if (ret)
+		goto fail;
+	ret = get_clk(pdev, &mdp5_kms->vsync_clk, "vsync_clk");
 	if (ret)
 		goto fail;
 

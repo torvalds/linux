@@ -220,7 +220,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		 * is bogus, but non-null if allocation succeeded:
 		 */
 		p = dma_alloc_attrs(dev->dev, size,
-				&priv->vram.paddr, 0, &attrs);
+				&priv->vram.paddr, GFP_KERNEL, &attrs);
 		if (!p) {
 			dev_err(dev->dev, "failed to allocate VRAM\n");
 			priv->vram.paddr = 0;
@@ -298,6 +298,10 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 #ifdef CONFIG_DRM_MSM_FBDEV
 	priv->fbdev = msm_fbdev_init(dev);
 #endif
+
+	ret = msm_debugfs_late_init(dev);
+	if (ret)
+		goto fail;
 
 	drm_kms_helper_poll_init(dev);
 
@@ -531,6 +535,41 @@ static struct drm_info_list msm_debugfs_list[] = {
 		{ "fb", show_locked, 0, msm_fb_show },
 };
 
+static int late_init_minor(struct drm_minor *minor)
+{
+	int ret;
+
+	if (!minor)
+		return 0;
+
+	ret = msm_rd_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install rd debugfs\n");
+		return ret;
+	}
+
+	ret = msm_perf_debugfs_init(minor);
+	if (ret) {
+		dev_err(minor->dev->dev, "could not install perf debugfs\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int msm_debugfs_late_init(struct drm_device *dev)
+{
+	int ret;
+	ret = late_init_minor(dev->primary);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->render);
+	if (ret)
+		return ret;
+	ret = late_init_minor(dev->control);
+	return ret;
+}
+
 static int msm_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
@@ -545,13 +584,17 @@ static int msm_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static void msm_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(msm_debugfs_list,
 			ARRAY_SIZE(msm_debugfs_list), minor);
+	if (!minor->dev->dev_private)
+		return;
+	msm_rd_debugfs_cleanup(minor);
+	msm_perf_debugfs_cleanup(minor);
 }
 #endif
 
