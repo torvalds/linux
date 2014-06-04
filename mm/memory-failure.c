@@ -1664,11 +1664,7 @@ int soft_offline_page(struct page *page, int flags)
 		}
 	}
 
-	/*
-	 * The lock_memory_hotplug prevents a race with memory hotplug.
-	 * This is a big hammer, a better would be nicer.
-	 */
-	lock_memory_hotplug();
+	get_online_mems();
 
 	/*
 	 * Isolate the page, so that it doesn't get reallocated if it
@@ -1679,7 +1675,7 @@ int soft_offline_page(struct page *page, int flags)
 		set_migratetype_isolate(page, true);
 
 	ret = get_any_page(page, pfn, flags);
-	unlock_memory_hotplug();
+	put_online_mems();
 	if (ret > 0) { /* for in-use pages */
 		if (PageHuge(page))
 			ret = soft_offline_huge_page(page, flags);
