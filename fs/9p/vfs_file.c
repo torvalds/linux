@@ -681,7 +681,7 @@ v9fs_direct_read(struct file *filp, char __user *udata, size_t count,
 /**
  * v9fs_cached_file_read - read from a file
  * @filp: file pointer to read
- * @udata: user data buffer to read data into
+ * @data: user data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
@@ -698,7 +698,7 @@ v9fs_cached_file_read(struct file *filp, char __user *data, size_t count,
 /**
  * v9fs_mmap_file_read - read from a file
  * @filp: file pointer to read
- * @udata: user data buffer to read data into
+ * @data: user data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
