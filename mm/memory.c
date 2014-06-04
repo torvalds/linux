@@ -2760,6 +2760,10 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
 
 static unsigned long fault_around_bytes = 65536;
 
+/*
+ * fault_around_pages() and fault_around_mask() round down fault_around_bytes
+ * to nearest page order. It's what do_fault_around() expects to see.
+ */
 static inline unsigned long fault_around_pages(void)
 {
 	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
@@ -2801,6 +2805,29 @@ static int __init fault_around_debugfs(void)
 late_initcall(fault_around_debugfs);
 #endif
 
+/*
+ * do_fault_around() tries to map few pages around the fault address. The hope
+ * is that the pages will be needed soon and this will lower the number of
+ * faults to handle.
+ *
+ * It uses vm_ops->map_pages() to map the pages, which skips the page if it's
+ * not ready to be mapped: not up-to-date, locked, etc.
+ *
+ * This function is called with the page table lock taken. In the split ptlock
+ * case the page table lock only protects only those entries which belong to
+ * the page table corresponding to the fault address.
+ *
+ * This function doesn't cross the VMA boundaries, in order to call map_pages()
+ * only once.
+ *
+ * fault_around_pages() defines how many pages we'll try to map.
+ * do_fault_around() expects it to return a power of two less than or equal to
+ * PTRS_PER_PTE.
+ *
+ * The virtual address of the area that we map is naturally aligned to the
+ * fault_around_pages() value (and therefore to page order).  This way it's
+ * easier to guarantee that we don't cross page table boundaries.
+ */
 static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
 		pte_t *pte, pgoff_t pgoff, unsigned int flags)
 {
