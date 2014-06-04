@@ -397,9 +397,15 @@ retry:
 	/*
 	 * Search through everything else, we should not get here often.
 	 */
-	for_each_process_thread(g, c) {
-		if (!(c->flags & PF_KTHREAD) && c->mm == mm)
-			goto assign_new_owner;
+	for_each_process(g) {
+		if (g->flags & PF_KTHREAD)
+			continue;
+		for_each_thread(g, c) {
+			if (c->mm == mm)
+				goto assign_new_owner;
+			if (c->mm)
+				break;
+		}
 	}
 	read_unlock(&tasklist_lock);
 	/*
