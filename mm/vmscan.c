@@ -2064,12 +2064,26 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	unsigned long nr_reclaimed = 0;
 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
 	struct blk_plug plug;
-	bool scan_adjusted = false;
+	bool scan_adjusted;
 
 	get_scan_count(lruvec, sc, nr);
 
 	/* Record the original scan target for proportional adjustments later */
 	memcpy(targets, nr, sizeof(nr));
+
+	/*
+	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
+	 * event that can occur when there is little memory pressure e.g.
+	 * multiple streaming readers/writers. Hence, we do not abort scanning
+	 * when the requested number of pages are reclaimed when scanning at
+	 * DEF_PRIORITY on the assumption that the fact we are direct
+	 * reclaiming implies that kswapd is not keeping up and it is best to
+	 * do a batch of work at once. For memcg reclaim one check is made to
+	 * abort proportional reclaim if either the file or anon lru has already
+	 * dropped to zero at the first pass.
+	 */
+	scan_adjusted = (global_reclaim(sc) && !current_is_kswapd() &&
+			 sc->priority == DEF_PRIORITY);
 
 	blk_start_plug(&plug);
 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
@@ -2091,23 +2105,23 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 			continue;
 
 		/*
-		 * For global direct reclaim, reclaim only the number of pages
-		 * requested. Less care is taken to scan proportionally as it
-		 * is more important to minimise direct reclaim stall latency
-		 * than it is to properly age the LRU lists.
-		 */
-		if (global_reclaim(sc) && !current_is_kswapd())
-			break;
-
-		/*
 		 * For kswapd and memcg, reclaim at least the number of pages
-		 * requested. Ensure that the anon and file LRUs shrink
+		 * requested. Ensure that the anon and file LRUs are scanned
 		 * proportionally what was requested by get_scan_count(). We
 		 * stop reclaiming one LRU and reduce the amount scanning
 		 * proportional to the original scan target.
 		 */
 		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
 		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
+
+		/*
+		 * It's just vindictive to attack the larger once the smaller
+		 * has gone to zero.  And given the way we stop scanning the
+		 * smaller below, this makes sure that we only make one nudge
+		 * towards proportionality once we've got nr_to_reclaim.
+		 */
+		if (!nr_file || !nr_anon)
+			break;
 
 		if (nr_file > nr_anon) {
 			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
