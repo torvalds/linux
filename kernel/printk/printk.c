@@ -297,12 +297,20 @@ static u32 log_next(u32 idx)
 	return idx + msg->len;
 }
 
-/* check whether there is enough free space for the given message */
-static int logbuf_has_space(u32 msg_size)
+/*
+ * Check whether there is enough free space for the given message.
+ *
+ * The same values of first_idx and next_idx mean that the buffer
+ * is either empty or full.
+ *
+ * If the buffer is empty, we must respect the position of the indexes.
+ * They cannot be reset to the beginning of the buffer.
+ */
+static int logbuf_has_space(u32 msg_size, bool empty)
 {
 	u32 free;
 
-	if (log_next_idx > log_first_idx)
+	if (log_next_idx > log_first_idx || empty)
 		free = max(log_buf_len - log_next_idx, log_first_idx);
 	else
 		free = log_first_idx - log_next_idx;
@@ -314,15 +322,21 @@ static int logbuf_has_space(u32 msg_size)
 	return free >= msg_size + sizeof(struct printk_log);
 }
 
-static void log_make_free_space(u32 msg_size)
+static int log_make_free_space(u32 msg_size)
 {
 	while (log_first_seq < log_next_seq) {
-		if (logbuf_has_space(msg_size))
-			return;
+		if (logbuf_has_space(msg_size, false))
+			return 0;
 		/* drop old messages until we have enough continuous space */
 		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
+
+	/* sequence numbers are equal, so the log buffer is empty */
+	if (logbuf_has_space(msg_size, true))
+		return 0;
+
+	return -ENOMEM;
 }
 
 /* insert record into the buffer, discard old ones, update heads */
@@ -339,7 +353,9 @@ static void log_store(int facility, int level,
 	pad_len = (-size) & (LOG_ALIGN - 1);
 	size += pad_len;
 
-	log_make_free_space(size);
+	/* if message does not fit empty log buffer, ignore it */
+	if (log_make_free_space(size))
+		return;
 
 	if (log_next_idx + size + sizeof(struct printk_log) > log_buf_len) {
 		/*
