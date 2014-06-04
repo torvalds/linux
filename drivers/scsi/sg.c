@@ -741,7 +741,7 @@ static int
 sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		unsigned char *cmnd, int timeout, int blocking)
 {
-	int k, data_dir;
+	int k, data_dir, at_head;
 	Sg_device *sdp = sfp->parentdp;
 	sg_io_hdr_t *hp = &srp->header;
 
@@ -785,11 +785,16 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		break;
 	}
 	hp->duration = jiffies_to_msecs(jiffies);
+	if (hp->interface_id != '\0' &&	/* v3 (or later) interface */
+	    (SG_FLAG_Q_AT_TAIL & hp->flags))
+		at_head = 0;
+	else
+		at_head = 1;
 
 	srp->rq->timeout = timeout;
 	kref_get(&sfp->f_ref); /* sg_rq_end_io() does kref_put(). */
 	blk_execute_rq_nowait(sdp->device->request_queue, sdp->disk,
-			      srp->rq, 1, sg_rq_end_io);
+			      srp->rq, at_head, sg_rq_end_io);
 	return 0;
 }
 
