@@ -487,6 +487,8 @@ static i40e_status i40e_shutdown_asq(struct i40e_hw *hw)
 	wr32(hw, hw->aq.asq.head, 0);
 	wr32(hw, hw->aq.asq.tail, 0);
 	wr32(hw, hw->aq.asq.len, 0);
+	wr32(hw, hw->aq.asq.bal, 0);
+	wr32(hw, hw->aq.asq.bah, 0);
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.asq_mutex);
@@ -518,6 +520,8 @@ static i40e_status i40e_shutdown_arq(struct i40e_hw *hw)
 	wr32(hw, hw->aq.arq.head, 0);
 	wr32(hw, hw->aq.arq.tail, 0);
 	wr32(hw, hw->aq.arq.len, 0);
+	wr32(hw, hw->aq.arq.bal, 0);
+	wr32(hw, hw->aq.arq.bah, 0);
 
 	/* make sure lock is available */
 	mutex_lock(&hw->aq.arq_mutex);
