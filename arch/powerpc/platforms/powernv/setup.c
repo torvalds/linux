@@ -244,6 +244,13 @@ static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif /* CONFIG_KEXEC */
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+static unsigned long pnv_memory_block_size(void)
+{
+	return 256UL * 1024 * 1024;
+}
+#endif
+
 static void __init pnv_setup_machdep_opal(void)
 {
 	ppc_md.get_boot_time = opal_get_boot_time;
@@ -325,5 +332,8 @@ define_machine(powernv) {
 	.dma_set_mask		= pnv_dma_set_mask,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
+#endif
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+	.memory_block_size	= pnv_memory_block_size,
 #endif
 };
