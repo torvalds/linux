@@ -822,22 +822,6 @@ static void compaction_free(struct page *page, unsigned long data)
 	cc->nr_freepages++;
 }
 
-/*
- * We cannot control nr_migratepages fully when migration is running as
- * migrate_pages() has no knowledge of of compact_control.  When migration is
- * complete, we count the number of pages on the list by hand.
- */
-static void update_nr_listpages(struct compact_control *cc)
-{
-	int nr_migratepages = 0;
-	struct page *page;
-
-	list_for_each_entry(page, &cc->migratepages, lru)
-		nr_migratepages++;
-
-	cc->nr_migratepages = nr_migratepages;
-}
-
 /* possible outcome of isolate_migratepages */
 typedef enum {
 	ISOLATE_ABORT,		/* Abort compaction now */
@@ -1032,7 +1016,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 	migrate_prep_local();
 
 	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
-		unsigned long nr_migrate, nr_remaining;
 		int err;
 
 		switch (isolate_migratepages(zone, cc)) {
@@ -1047,20 +1030,20 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 			;
 		}
 
-		nr_migrate = cc->nr_migratepages;
+		if (!cc->nr_migratepages)
+			continue;
+
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
 				compaction_free, (unsigned long)cc, cc->mode,
 				MR_COMPACTION);
-		update_nr_listpages(cc);
-		nr_remaining = cc->nr_migratepages;
 
-		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
-						nr_remaining);
+		trace_mm_compaction_migratepages(cc->nr_migratepages, err,
+							&cc->migratepages);
 
-		/* Release isolated pages not migrated */
+		/* All pages were either migrated or will be released */
+		cc->nr_migratepages = 0;
 		if (err) {
 			putback_movable_pages(&cc->migratepages);
-			cc->nr_migratepages = 0;
 			/*
 			 * migrate_pages() may return -ENOMEM when scanners meet
 			 * and we want compact_finished() to detect it
