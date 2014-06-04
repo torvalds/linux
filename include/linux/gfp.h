@@ -6,7 +6,6 @@
 #include <linux/stddef.h>
 #include <linux/linkage.h>
 #include <linux/topology.h>
-#include <linux/mmdebug.h>
 
 struct vm_area_struct;
 
