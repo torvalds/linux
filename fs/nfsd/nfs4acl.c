@@ -590,7 +590,7 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 		add_to_mask(state, &state->groups->aces[i].perms);
 	}
 
-	if (!state->users->n && !state->groups->n) {
+	if (state->users->n || state->groups->n) {
 		pace++;
 		pace->e_tag = ACL_MASK;
 		low_mode_from_nfs4(state->mask.allow, &pace->e_perm, flags);

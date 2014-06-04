@@ -1248,8 +1248,8 @@ void __neigh_set_probe_once(struct neighbour *neigh)
 	neigh->updated = jiffies;
 	if (!(neigh->nud_state & NUD_FAILED))
 		return;
-	neigh->nud_state = NUD_PROBE;
-	atomic_set(&neigh->probes, NEIGH_VAR(neigh->parms, UCAST_PROBES));
+	neigh->nud_state = NUD_INCOMPLETE;
+	atomic_set(&neigh->probes, neigh_max_probes(neigh));
 	neigh_add_timer(neigh,
 			jiffies + NEIGH_VAR(neigh->parms, RETRANS_TIME));
 }

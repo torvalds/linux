@@ -171,7 +171,7 @@ static struct bpf_binary_header *bpf_alloc_binary(unsigned int proglen,
 	memset(header, 0xcc, sz); /* fill whole space with int3 instructions */
 
 	header->pages = sz / PAGE_SIZE;
-	hole = sz - (proglen + sizeof(*header));
+	hole = min(sz - (proglen + sizeof(*header)), PAGE_SIZE - sizeof(*header));
 
 	/* insert a random number of int3 instructions before BPF code */
 	*image_ptr = &header->image[prandom_u32() % hole];

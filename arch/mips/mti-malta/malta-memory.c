@@ -27,7 +27,7 @@ unsigned long physical_memsize = 0L;
 fw_memblock_t * __init fw_getmdesc(int eva)
 {
 	char *memsize_str, *ememsize_str = NULL, *ptr;
-	unsigned long memsize, ememsize = 0;
+	unsigned long memsize = 0, ememsize = 0;
 	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 	int tmp;
 

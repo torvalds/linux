@@ -644,3 +644,22 @@ bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 
 	return result;
 }
+
+static void iwl_mvm_idle_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *idle = _data;
+
+	if (!vif->bss_conf.idle)
+		*idle = false;
+}
+
+bool iwl_mvm_is_idle(struct iwl_mvm *mvm)
+{
+	bool idle = true;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_idle_iter, &idle);
+
+	return idle;
+}

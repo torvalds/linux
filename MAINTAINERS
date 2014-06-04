@@ -537,7 +537,7 @@ L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridgers2013@gmail.com
+M:	Vince Bridgers <vbridgers2013@gmail.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
@@ -6523,10 +6523,10 @@ T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc/
 
 OPENVSWITCH
-M:	Jesse Gross <jesse@nicira.com>
+M:	Pravin Shelar <pshelar@nicira.com>
 L:	dev@openvswitch.org
 W:	http://openvswitch.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pshelar/openvswitch.git
 S:	Maintained
 F:	net/openvswitch/
 
@@ -7413,6 +7413,14 @@ S:	Maintained
 F:	drivers/rpmsg/
 F:	Documentation/rpmsg.txt
 F:	include/linux/rpmsg.h
+
+RESET CONTROLLER FRAMEWORK
+M:	Philipp Zabel <p.zabel@pengutronix.de>
+S:	Maintained
+F:	drivers/reset/
+F:	Documentation/devicetree/bindings/reset/
+F:	include/linux/reset.h
+F:	include/linux/reset-controller.h
 
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>

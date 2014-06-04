@@ -862,7 +862,7 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 				 unsigned *fb_div, unsigned *ref_div)
 {
 	/* limit reference * post divider to a maximum */
-	ref_div_max = min(128 / post_div, ref_div_max);
+	ref_div_max = max(min(100 / post_div, ref_div_max), 1u);
 
 	/* get matching reference and feedback divider */
 	*ref_div = min(max(DIV_ROUND_CLOSEST(den, post_div), 1u), ref_div_max);
@@ -999,7 +999,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 
 	/* avoid high jitter with small fractional dividers */
 	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV && (fb_div % 10)) {
-		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 60);
+		fb_div_min = max(fb_div_min, (9 - (fb_div % 10)) * 20 + 50);
 		if (fb_div < fb_div_min) {
 			unsigned tmp = DIV_ROUND_UP(fb_div_min, fb_div);
 			fb_div *= tmp;

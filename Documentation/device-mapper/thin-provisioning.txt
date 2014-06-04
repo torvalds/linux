@@ -309,7 +309,10 @@ ii) Status
     error_if_no_space|queue_if_no_space
 	If the pool runs out of data or metadata space, the pool will
 	either queue or error the IO destined to the data device.  The
-	default is to queue the IO until more space is added.
+	default is to queue the IO until more space is added or the
+	'no_space_timeout' expires.  The 'no_space_timeout' dm-thin-pool
+	module parameter can be used to change this timeout -- it
+	defaults to 60 seconds but may be disabled using a value of 0.
 
 iii) Messages
 

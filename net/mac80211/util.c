@@ -1780,7 +1780,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_unlock(&local->mtx);
 
 	if (sched_scan_stopped)
-		cfg80211_sched_scan_stopped(local->hw.wiphy);
+		cfg80211_sched_scan_stopped_rtnl(local->hw.wiphy);
 
 	/*
 	 * If this is for hw restart things are still running.

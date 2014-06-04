@@ -63,7 +63,8 @@ int __init sysfs_init(void)
 {
 	int err;
 
-	sysfs_root = kernfs_create_root(NULL, 0, NULL);
+	sysfs_root = kernfs_create_root(NULL, KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK,
+					NULL);
 	if (IS_ERR(sysfs_root))
 		return PTR_ERR(sysfs_root);
 
