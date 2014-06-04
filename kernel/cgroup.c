@@ -1780,8 +1780,11 @@ static void cgroup_kill_sb(struct super_block *sb)
 	 * If @root doesn't have any mounts or children, start killing it.
 	 * This prevents new mounts by disabling percpu_ref_tryget_live().
 	 * cgroup_mount() may wait for @root's release.
+	 *
+	 * And don't kill the default root.
 	 */
-	if (css_has_online_children(&root->cgrp.self))
+	if (css_has_online_children(&root->cgrp.self) ||
+	    root == &cgrp_dfl_root)
 		cgroup_put(&root->cgrp);
 	else
 		percpu_ref_kill(&root->cgrp.self.refcnt);
