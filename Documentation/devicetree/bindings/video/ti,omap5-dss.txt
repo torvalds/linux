@@ -1,4 +1,4 @@
-Texas Instruments OMAP4 Display Subsystem
+Texas Instruments OMAP5 Display Subsystem
 =========================================
 
 See Documentation/devicetree/bindings/video/ti,omap-dss.txt for generic
@@ -8,7 +8,7 @@ DSS Core
 --------
 
 Required properties:
-- compatible: "ti,omap4-dss"
+- compatible: "ti,omap5-dss"
 - reg: address and length of the register space
 - ti,hwmods: "dss_core"
 - clocks: handle to fclk
@@ -18,7 +18,7 @@ Required nodes:
 - DISPC
 
 Optional nodes:
-- DSS Submodules: RFBI, VENC, DSI, HDMI
+- DSS Submodules: RFBI, DSI, HDMI
 - Video port for DPI output
 
 DPI Endpoint required properties:
@@ -29,7 +29,7 @@ DISPC
 -----
 
 Required properties:
-- compatible: "ti,omap4-dispc"
+- compatible: "ti,omap5-dispc"
 - reg: address and length of the register space
 - ti,hwmods: "dss_dispc"
 - interrupts: the DISPC interrupt
@@ -41,7 +41,7 @@ RFBI
 ----
 
 Required properties:
-- compatible: "ti,omap4-rfbi"
+- compatible: "ti,omap5-rfbi"
 - reg: address and length of the register space
 - ti,hwmods: "dss_rfbi"
 - clocks: handles to fclk and iclk
@@ -52,30 +52,11 @@ Optional nodes:
 - RFBI controlled peripherals
 
 
-VENC
-----
-
-Required properties:
-- compatible: "ti,omap4-venc"
-- reg: address and length of the register space
-- ti,hwmods: "dss_venc"
-- vdda-supply: power supply for DAC
-- clocks: handle to fclk
-- clock-names: "fck"
-
-Optional nodes:
-- Video port for VENC output
-
-VENC Endpoint required properties:
-- ti,invert-polarity: invert the polarity of the video signal
-- ti,channels: 1 for composite, 2 for s-video
-
-
 DSI
 ---
 
 Required properties:
-- compatible: "ti,omap4-dsi"
+- compatible: "ti,omap5-dsi"
 - reg: addresses and lengths of the register spaces for 'proto', 'phy' and 'pll'
 - reg-names: "proto", "phy", "pll"
 - interrupts: the DSI interrupt line
@@ -97,7 +78,7 @@ HDMI
 ----
 
 Required properties:
-- compatible: "ti,omap4-hdmi"
+- compatible: "ti,omap5-hdmi"
 - reg: addresses and lengths of the register spaces for 'wp', 'pll', 'phy',
        'core'
 - reg-names: "wp", "pll", "phy", "core"

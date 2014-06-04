@@ -998,38 +998,20 @@ int hdmi4_audio_get_dma_port(u32 *offset, u32 *size)
 
 #endif
 
-#define CORE_OFFSET		0x400
-#define CORE_SIZE		0xc00
-
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
 	struct resource *res;
-	struct resource temp_res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
 	if (!res) {
-		DSSDBG("can't get CORE mem resource by name\n");
-		/*
-		 * if hwmod/DT doesn't have the memory resource information
-		 * split into HDMI sub blocks by name, we try again by getting
-		 * the platform's first resource. this code will be removed when
-		 * the driver can get the mem resources by name
-		 */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res) {
-			DSSERR("can't get CORE mem resource\n");
-			return -EINVAL;
-		}
-
-		temp_res.start = res->start + CORE_OFFSET;
-		temp_res.end = temp_res.start + CORE_SIZE - 1;
-		res = &temp_res;
+		DSSERR("can't get CORE mem resource\n");
+		return -EINVAL;
 	}
 
-	core->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!core->base) {
+	core->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(core->base)) {
 		DSSERR("can't ioremap CORE\n");
-		return -ENOMEM;
+		return PTR_ERR(core->base);
 	}
 
 	return 0;
