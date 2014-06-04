@@ -846,7 +846,9 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
 		int current_uV = _regulator_get_voltage(rdev);
 		if (current_uV < 0) {
-			rdev_err(rdev, "failed to get the current voltage\n");
+			rdev_err(rdev,
+				 "failed to get the current voltage(%d)\n",
+				 current_uV);
 			return current_uV;
 		}
 		if (current_uV < rdev->constraints->min_uV ||
@@ -856,8 +858,8 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 				rdev->constraints->max_uV);
 			if (ret < 0) {
 				rdev_err(rdev,
-					"failed to apply %duV constraint\n",
-					rdev->constraints->min_uV);
+					"failed to apply %duV constraint(%d)\n",
+					rdev->constraints->min_uV, ret);
 				return ret;
 			}
 		}
