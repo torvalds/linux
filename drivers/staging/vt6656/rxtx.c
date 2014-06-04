@@ -344,15 +344,15 @@ static u32 s_uGetTxRsvTime(struct vnt_private *priv, u8 pkt_type,
 {
 	u32 data_time, ack_time;
 
-	data_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+	data_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 							frame_length, rate);
 
 	if (pkt_type == PK_TYPE_11B)
-		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type, 14,
-						(u16)priv->byTopCCKBasicRate);
+		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
+					14, (u16)priv->byTopCCKBasicRate);
 	else
-		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type, 14,
-						(u16)priv->byTopOFDMBasicRate);
+		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
+					14, (u16)priv->byTopOFDMBasicRate);
 
 	if (need_ack)
 		return data_time + priv->uSIFS + ack_time;
@@ -375,30 +375,30 @@ static __le16 s_uGetRTSCTSRsvTime(struct vnt_private *priv,
 
 	rrv_time = rts_time = cts_time = ack_time = data_time = 0;
 
-	data_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+	data_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 						frame_length, current_rate);
 
 	if (rsv_type == 0) {
-		rts_time = BBuGetFrameTime(priv->byPreambleType,
+		rts_time = vnt_get_frame_time(priv->byPreambleType,
 			pkt_type, 20, priv->byTopCCKBasicRate);
-		cts_time = ack_time = BBuGetFrameTime(priv->byPreambleType,
+		cts_time = ack_time = vnt_get_frame_time(priv->byPreambleType,
 			pkt_type, 14, priv->byTopCCKBasicRate);
 	} else if (rsv_type == 1) {
-		rts_time = BBuGetFrameTime(priv->byPreambleType,
+		rts_time = vnt_get_frame_time(priv->byPreambleType,
 			pkt_type, 20, priv->byTopCCKBasicRate);
-		cts_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+		cts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopCCKBasicRate);
-		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopOFDMBasicRate);
 	} else if (rsv_type == 2) {
-		rts_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+		rts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			20, priv->byTopOFDMBasicRate);
-		cts_time = ack_time = BBuGetFrameTime(priv->byPreambleType,
+		cts_time = ack_time = vnt_get_frame_time(priv->byPreambleType,
 			pkt_type, 14, priv->byTopOFDMBasicRate);
 	} else if (rsv_type == 3) {
-		cts_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+		cts_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopCCKBasicRate);
-		ack_time = BBuGetFrameTime(priv->byPreambleType, pkt_type,
+		ack_time = vnt_get_frame_time(priv->byPreambleType, pkt_type,
 			14, priv->byTopOFDMBasicRate);
 
 		rrv_time = cts_time + ack_time + data_time + 2 * priv->uSIFS;
@@ -419,10 +419,10 @@ static __le16 s_uGetDataDuration(struct vnt_private *pDevice,
 
 	if (bNeedAck) {
 		if (byPktType == PK_TYPE_11B)
-			uAckTime = BBuGetFrameTime(pDevice->byPreambleType,
+			uAckTime = vnt_get_frame_time(pDevice->byPreambleType,
 				byPktType, 14, pDevice->byTopCCKBasicRate);
 		else
-			uAckTime = BBuGetFrameTime(pDevice->byPreambleType,
+			uAckTime = vnt_get_frame_time(pDevice->byPreambleType,
 				byPktType, 14, pDevice->byTopOFDMBasicRate);
 		return cpu_to_le16((u16)(pDevice->uSIFS + uAckTime));
 	}
@@ -442,8 +442,8 @@ static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 	case RTSDUR_BA:
 	case RTSDUR_BA_F0:
 	case RTSDUR_BA_F1:
-		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType,
-			14, pDevice->byTopCCKBasicRate);
+		uCTSTime = vnt_get_frame_time(pDevice->byPreambleType,
+				byPktType, 14, pDevice->byTopCCKBasicRate);
 		uDurTime = uCTSTime + 2 * pDevice->uSIFS +
 			s_uGetTxRsvTime(pDevice, byPktType,
 						cbFrameLength, wRate, bNeedAck);
@@ -452,8 +452,8 @@ static __le16 s_uGetRTSCTSDuration(struct vnt_private *pDevice, u8 byDurType,
 	case RTSDUR_AA:
 	case RTSDUR_AA_F0:
 	case RTSDUR_AA_F1:
-		uCTSTime = BBuGetFrameTime(pDevice->byPreambleType, byPktType,
-			14, pDevice->byTopOFDMBasicRate);
+		uCTSTime = vnt_get_frame_time(pDevice->byPreambleType,
+				byPktType, 14, pDevice->byTopOFDMBasicRate);
 		uDurTime = uCTSTime + 2 * pDevice->uSIFS +
 			s_uGetTxRsvTime(pDevice, byPktType,
 						cbFrameLength, wRate, bNeedAck);

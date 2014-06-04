@@ -26,7 +26,7 @@
  * Date: Jun. 5, 2002
  *
  * Functions:
- *      BBuGetFrameTime        - Calculate data frame transmitting time
+ *      vnt_get_frame_time        - Calculate data frame transmitting time
  *      vnt_get_phy_field   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbVT3184Init          - VIA VT3184 baseband chip init code
  *
@@ -646,7 +646,7 @@ static const u16 awcFrameTime[MAX_RATE] =
  * Return Value: FrameTime
  *
  */
-unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
+unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 	unsigned int frame_length, u16 tx_rate)
 {
 	unsigned int frame_time;

@@ -88,7 +88,7 @@ struct vnt_phy_field {
 	__le16 len;
 } __packed;
 
-unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
+unsigned int vnt_get_frame_time(u8 preamble_type, u8 pkt_type,
 	unsigned int frame_length, u16 tx_rate);
 
 void vnt_get_phy_field(struct vnt_private *, u32 frame_length,
