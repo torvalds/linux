@@ -1302,9 +1302,8 @@ static int task_numa_migrate(struct task_struct *p)
 	groupimp = group_weight(p, env.dst_nid) - groupweight;
 	update_numa_stats(&env.dst_stats, env.dst_nid);
 
-	/* If the preferred nid has free capacity, try to use it. */
-	if (env.dst_stats.has_free_capacity)
-		task_numa_find_cpu(&env, taskimp, groupimp);
+	/* Try to find a spot on the preferred nid. */
+	task_numa_find_cpu(&env, taskimp, groupimp);
 
 	/* No space available on the preferred nid. Look elsewhere. */
 	if (env.best_cpu == -1) {
