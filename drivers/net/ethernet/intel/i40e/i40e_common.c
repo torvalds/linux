@@ -669,8 +669,10 @@ void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable)
 	u32 reg_block = 0;
 	u32 reg_val;
 
-	if (abs_queue_idx >= 128)
+	if (abs_queue_idx >= 128) {
 		reg_block = abs_queue_idx / 128;
+		abs_queue_idx %= 128;
+	}
 
 	reg_val = rd32(hw, I40E_GLLAN_TXPRE_QDIS(reg_block));
 	reg_val &= ~I40E_GLLAN_TXPRE_QDIS_QINDX_MASK;
