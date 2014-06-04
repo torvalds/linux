@@ -222,6 +222,30 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
 	return true;
 }
 
+/*
+ * Aside from avoiding lock contention, compaction also periodically checks
+ * need_resched() and either schedules in sync compaction or aborts async
+ * compaction. This is similar to what compact_checklock_irqsave() does, but
+ * is used where no lock is concerned.
+ *
+ * Returns false when no scheduling was needed, or sync compaction scheduled.
+ * Returns true when async compaction should abort.
+ */
+static inline bool compact_should_abort(struct compact_control *cc)
+{
+	/* async compaction aborts if contended */
+	if (need_resched()) {
+		if (cc->mode == MIGRATE_ASYNC) {
+			cc->contended = true;
+			return true;
+		}
+
+		cond_resched();
+	}
+
+	return false;
+}
+
 /* Returns true if the page is within a block suitable for migration to */
 static bool suitable_migration_target(struct page *page)
 {
@@ -494,11 +518,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			return 0;
 	}
 
-	if (cond_resched()) {
-		/* Async terminates prematurely on need_resched() */
-		if (cc->mode == MIGRATE_ASYNC)
-			return 0;
-	}
+	if (compact_should_abort(cc))
+		return 0;
 
 	/* Time to isolate some pages for migration */
 	for (; low_pfn < end_pfn; low_pfn++) {
@@ -720,9 +741,11 @@ static void isolate_freepages(struct zone *zone,
 		/*
 		 * This can iterate a massively long zone without finding any
 		 * suitable migration targets, so periodically check if we need
-		 * to schedule.
+		 * to schedule, or even abort async compaction.
 		 */
-		cond_resched();
+		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
+						&& compact_should_abort(cc))
+			break;
 
 		if (!pfn_valid(block_start_pfn))
 			continue;
@@ -760,6 +783,13 @@ static void isolate_freepages(struct zone *zone,
 		 */
 		if (isolated)
 			cc->finished_update_free = true;
+
+		/*
+		 * isolate_freepages_block() might have aborted due to async
+		 * compaction being contended
+		 */
+		if (cc->contended)
+			break;
 	}
 
 	/* split_free_page does not map the pages */
@@ -786,9 +816,13 @@ static struct page *compaction_alloc(struct page *migratepage,
 	struct compact_control *cc = (struct compact_control *)data;
 	struct page *freepage;
 
-	/* Isolate free pages if necessary */
+	/*
+	 * Isolate free pages if necessary, and if we are not aborting due to
+	 * contention.
+	 */
 	if (list_empty(&cc->freepages)) {
-		isolate_freepages(cc->zone, cc);
+		if (!cc->contended)
+			isolate_freepages(cc->zone, cc);
 
 		if (list_empty(&cc->freepages))
 			return NULL;
@@ -858,7 +892,7 @@ static int compact_finished(struct zone *zone,
 	unsigned int order;
 	unsigned long watermark;
 
-	if (fatal_signal_pending(current))
+	if (cc->contended || fatal_signal_pending(current))
 		return COMPACT_PARTIAL;
 
 	/* Compaction run completes if the migrate and free scanner meet */
