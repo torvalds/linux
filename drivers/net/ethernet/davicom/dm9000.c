@@ -1326,7 +1326,8 @@ dm9000_open(struct net_device *dev)
 	mii_check_media(&db->mii, netif_msg_link(db), 1);
 	netif_start_queue(dev);
 
-	dm9000_schedule_poll(db);
+	/* Poll initial link status */
+	schedule_delayed_work(&db->phy_poll, 1);
 
 	return 0;
 }
