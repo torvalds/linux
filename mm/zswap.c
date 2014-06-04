@@ -347,7 +347,7 @@ static int __zswap_cpu_notifier(unsigned long action, unsigned long cpu)
 			return NOTIFY_BAD;
 		}
 		*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = tfm;
-		dst = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
+		dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
 		if (!dst) {
 			pr_err("can't allocate compressor buffer\n");
 			crypto_free_comp(tfm);
