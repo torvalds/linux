@@ -1122,7 +1122,7 @@ static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
 	mgmt_fwd = (struct ieee80211_mgmt *) skb_put(skb, len);
 
 	/* offset_ttl is based on whether the secondary channel
-	 * offset is available or not. Substract 1 from the mesh TTL
+	 * offset is available or not. Subtract 1 from the mesh TTL
 	 * and disable the initiator flag before forwarding.
 	 */
 	offset_ttl = (len < 42) ? 7 : 10;
