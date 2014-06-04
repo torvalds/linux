@@ -2029,8 +2029,8 @@ static struct radeon_asic ci_asic = {
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 		.dma = &cik_copy_dma,
 		.dma_ring_index = R600_RING_TYPE_DMA_INDEX,
-		.copy = &cik_copy_cpdma,
-		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.copy = &cik_copy_dma,
+		.copy_ring_index = R600_RING_TYPE_DMA_INDEX,
 	},
 	.surface = {
 		.set_reg = r600_set_surface_reg,
