@@ -454,6 +454,7 @@ static int qlcnic_sriov_get_vf_acl(struct qlcnic_adapter *adapter)
 	struct qlcnic_cmd_args cmd;
 	int ret = 0;
 
+	memset(&cmd, 0, sizeof(cmd));
 	ret = qlcnic_sriov_alloc_bc_mbx_args(&cmd, QLCNIC_BC_CMD_GET_ACL);
 	if (ret)
 		return ret;
@@ -1441,6 +1442,7 @@ static int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *adapter, u8 cmd_o
 	struct qlcnic_vf_info *vf = &adapter->ahw->sriov->vf_info[0];
 	int ret;
 
+	memset(&cmd, 0, sizeof(cmd));
 	if (qlcnic_sriov_alloc_bc_mbx_args(&cmd, cmd_op))
 		return -ENOMEM;
 
@@ -1998,6 +2000,7 @@ int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *adapter,
 	struct qlcnic_cmd_args cmd;
 	int ret;
 
+	memset(&cmd, 0, sizeof(cmd));
 	if (vid == 0)
 		return 0;
 
