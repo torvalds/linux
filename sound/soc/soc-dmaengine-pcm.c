@@ -132,11 +132,33 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
+#if CONFIG_ARCH_ROCKCHIP
+static int debug_audio_timeout = 0;
+module_param(debug_audio_timeout, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+MODULE_PARM_DESC(debug_audio_timeout, "Debug interface Audio DMA buffdone time out");
+#endif
 static void dmaengine_pcm_dma_complete(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
+#if CONFIG_ARCH_ROCKCHIP
+	if(debug_audio_timeout){
+		struct snd_pcm_runtime *runtime = substream->runtime;
+		static ktime_t before = {0},after = {0};
+		s64 t;
+		before = after;
+		after = ktime_get();
+		t = ktime_to_us(ktime_sub(after, before));
+
+		if(t > (snd_pcm_lib_period_bytes(substream)/4+32)*1000*1000/runtime->rate
+			&& t != ktime_to_us(after)) // (23220)4096/4/44100 + 32/44100
+		{
+				printk(KERN_DEBUG "Time out:: Audio DMA buffdone time out!!! the time = %lld!\n", t);
+		}
+		//printk(KERN_DEBUG "audio DMA callback time = %lld\n", t);
+	}
+#endif
 	prtd->pos += snd_pcm_lib_period_bytes(substream);
 	if (prtd->pos >= snd_pcm_lib_buffer_bytes(substream))
 		prtd->pos = 0;
