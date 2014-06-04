@@ -35,9 +35,6 @@
 #include "firmware.h"
 #include "usbpipe.h"
 
-static int msglevel = MSG_LEVEL_INFO;
-/* static int msglevel = MSG_LEVEL_DEBUG; */
-
 #define FIRMWARE_VERSION	0x133		/* version 1.51 */
 #define FIRMWARE_NAME		"vntwusb.fw"
 
@@ -53,7 +50,7 @@ int FIRMWAREbDownload(struct vnt_private *priv)
 	u16 length;
 	int ii, rc;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Download firmware\n");
+	dev_dbg(dev, "---->Download firmware\n");
 
 	rc = request_firmware(&fw, FIRMWARE_NAME, dev);
 	if (rc) {
@@ -77,8 +74,8 @@ int FIRMWAREbDownload(struct vnt_private *priv)
 						length,
 						buffer);
 
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO"Download firmware...%d %zu\n", ii, fw->size);
+		dev_dbg(dev, "Download firmware...%d %zu\n", ii, fw->size);
+
 		if (status != STATUS_SUCCESS)
 			goto free_fw;
 	}
@@ -98,7 +95,7 @@ int FIRMWAREbBrach2Sram(struct vnt_private *priv)
 {
 	int status;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Branch to Sram\n");
+	dev_dbg(&priv->usb->dev, "---->Branch to Sram\n");
 
 	status = vnt_control_out(priv,
 					1,
@@ -123,18 +120,21 @@ int FIRMWAREbCheckVersion(struct vnt_private *priv)
 					2,
 					(u8 *) &(priv->wFirmwareVersion));
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n",
+	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
 						priv->wFirmwareVersion);
+
 	if (status != STATUS_SUCCESS) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Invalid.\n");
+		dev_dbg(&priv->usb->dev, "Firmware Invalid.\n");
 		return false;
 	}
 	if (priv->wFirmwareVersion == 0xFFFF) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"In Loader.\n");
+		dev_dbg(&priv->usb->dev, "In Loader.\n");
 		return false;
 	}
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Firmware Version [%04x]\n",
+
+	dev_dbg(&priv->usb->dev, "Firmware Version [%04x]\n",
 						priv->wFirmwareVersion);
+
 	if (priv->wFirmwareVersion < FIRMWARE_VERSION) {
 		/* branch to loader for download new firmware */
 		FIRMWAREbBrach2Sram(priv);
