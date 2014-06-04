@@ -2832,7 +2832,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
 
 	/*
 	 *  max_pgoff is either end of page table or end of vma
-	 *  or fault_around_pages() from pgoff, depending what is neast.
+	 *  or fault_around_pages() from pgoff, depending what is nearest.
 	 */
 	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
 		PTRS_PER_PTE - 1;
