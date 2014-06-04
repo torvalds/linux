@@ -4675,9 +4675,9 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
 		if (mem_cgroup_move_parent(page, pc, memcg)) {
 			/* found lock contention or "pc" is obsolete. */
 			busy = page;
-			cond_resched();
 		} else
 			busy = NULL;
+		cond_resched();
 	} while (!list_empty(list));
 }
 
