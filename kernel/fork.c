@@ -1099,12 +1099,12 @@ static void rt_mutex_init_task(struct task_struct *p)
 #endif
 }
 
-#ifdef CONFIG_MM_OWNER
+#ifdef CONFIG_MEMCG
 void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 {
 	mm->owner = p;
 }
-#endif /* CONFIG_MM_OWNER */
+#endif /* CONFIG_MEMCG */
 
 /*
  * Initialize POSIX timer handling for a single task.

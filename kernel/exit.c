@@ -352,7 +352,7 @@ int disallow_signal(int sig)
 
 EXPORT_SYMBOL(disallow_signal);
 
-#ifdef CONFIG_MM_OWNER
+#ifdef CONFIG_MEMCG
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
@@ -434,7 +434,7 @@ assign_new_owner:
 	task_unlock(c);
 	put_task_struct(c);
 }
-#endif /* CONFIG_MM_OWNER */
+#endif /* CONFIG_MEMCG */
 
 /*
  * Turn us into a lazy TLB process if we
