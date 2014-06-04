@@ -80,7 +80,7 @@ int do_swap_account __read_mostly;
 #ifdef CONFIG_MEMCG_SWAP_ENABLED
 static int really_do_swap_account __initdata = 1;
 #else
-static int really_do_swap_account __initdata = 0;
+static int really_do_swap_account __initdata;
 #endif
 
 #else
@@ -3110,7 +3110,7 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
 char *memcg_create_cache_name(struct mem_cgroup *memcg,
 			      struct kmem_cache *root_cache)
 {
-	static char *buf = NULL;
+	static char *buf;
 
 	/*
 	 * We need a mutex here to protect the shared buffer. Since this is
