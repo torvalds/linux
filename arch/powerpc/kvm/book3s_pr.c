@@ -120,6 +120,11 @@ void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
 #ifdef CONFIG_PPC_BOOK3S_64
 	svcpu->shadow_fscr = vcpu->arch.shadow_fscr;
 #endif
+	/*
+	 * Now also save the current time base value. We use this
+	 * to find the guest purr and spurr value.
+	 */
+	vcpu->arch.entry_tb = get_tb();
 	svcpu->in_use = true;
 }
 
@@ -166,6 +171,12 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 #ifdef CONFIG_PPC_BOOK3S_64
 	vcpu->arch.shadow_fscr = svcpu->shadow_fscr;
 #endif
+	/*
+	 * Update purr and spurr using time base on exit.
+	 */
+	vcpu->arch.purr += get_tb() - vcpu->arch.entry_tb;
+	vcpu->arch.spurr += get_tb() - vcpu->arch.entry_tb;
+
 	svcpu->in_use = false;
 
 out:
