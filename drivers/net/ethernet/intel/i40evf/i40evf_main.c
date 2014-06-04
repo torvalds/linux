@@ -2408,7 +2408,9 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_reset_interrupt_capability(adapter);
 	}
 
-	del_timer_sync(&adapter->watchdog_timer);
+	if (adapter->watchdog_timer.function)
+		del_timer_sync(&adapter->watchdog_timer);
+
 	flush_scheduled_work();
 
 	if (hw->aq.asq.count)
