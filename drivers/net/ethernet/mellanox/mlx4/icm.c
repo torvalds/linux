@@ -246,7 +246,7 @@ int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev)
 }
 
 int mlx4_table_get(struct mlx4_dev *dev, struct mlx4_icm_table *table, u32 obj,
-		   int gfp)
+		   gfp_t gfp)
 {
 	u32 i = (obj & (table->num_obj - 1)) /
 			(MLX4_TABLE_CHUNK_SIZE / table->obj_size);
