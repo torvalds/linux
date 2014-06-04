@@ -620,11 +620,10 @@ int __kmem_cache_shutdown(struct kmem_cache *c)
 	return 0;
 }
 
-int kmem_cache_shrink(struct kmem_cache *d)
+int __kmem_cache_shrink(struct kmem_cache *d)
 {
 	return 0;
 }
-EXPORT_SYMBOL(kmem_cache_shrink);
 
 struct kmem_cache kmem_cache_boot = {
 	.name = "kmem_cache",
