@@ -278,7 +278,7 @@ static void i40e_tx_timeout(struct net_device *netdev)
 	pf->tx_timeout_count++;
 
 	if (time_after(jiffies, (pf->tx_timeout_last_recovery + HZ*20)))
-		pf->tx_timeout_recovery_level = 0;
+		pf->tx_timeout_recovery_level = 1;
 	pf->tx_timeout_last_recovery = jiffies;
 	netdev_info(netdev, "tx_timeout recovery level %d\n",
 		    pf->tx_timeout_recovery_level);
@@ -6825,6 +6825,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 	pf->irq_pile->num_entries = pf->hw.func_caps.num_msix_vectors;
 	pf->irq_pile->search_hint = 0;
+
+	pf->tx_timeout_recovery_level = 1;
 
 	mutex_init(&pf->switch_mutex);
 
