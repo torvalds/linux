@@ -680,8 +680,6 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	p = spi_master_get_devdata(master);
 
-	platform_set_drvdata(pdev, p);
-
 	of_id = of_match_device(sh_msiof_match, &pdev->dev);
 	if (of_id) {
 		p->chipdata = of_id->data;
