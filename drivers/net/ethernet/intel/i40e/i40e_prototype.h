@@ -217,6 +217,7 @@ i40e_status i40e_aq_query_switch_comp_bw_config(struct i40e_hw *hw,
 /* i40e_common */
 i40e_status i40e_init_shared_code(struct i40e_hw *hw);
 i40e_status i40e_pf_reset(struct i40e_hw *hw);
+void i40e_clear_hw(struct i40e_hw *hw);
 void i40e_clear_pxe_mode(struct i40e_hw *hw);
 bool i40e_get_link_status(struct i40e_hw *hw);
 i40e_status i40e_get_mac_addr(struct i40e_hw *hw,

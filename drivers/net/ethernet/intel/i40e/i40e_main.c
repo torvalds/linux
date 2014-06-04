@@ -8636,6 +8636,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Reset here to make sure all is clean and to define PF 'n' */
+	i40e_clear_hw(hw);
 	err = i40e_pf_reset(hw);
 	if (err) {
 		dev_info(&pdev->dev, "Initial pf_reset failed: %d\n", err);
