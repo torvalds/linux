@@ -40,10 +40,10 @@
 #define BYT_TURBO_VIDS		0x66d
 
 
-#define FRAC_BITS 6
+#define FRAC_BITS 8
 #define int_tofp(X) ((int64_t)(X) << FRAC_BITS)
 #define fp_toint(X) ((X) >> FRAC_BITS)
-#define FP_ROUNDUP(X) ((X) += 1 << FRAC_BITS)
+
 
 static inline int32_t mul_fp(int32_t x, int32_t y)
 {
@@ -59,8 +59,8 @@ struct sample {
 	int32_t core_pct_busy;
 	u64 aperf;
 	u64 mperf;
-	unsigned long long tsc;
 	int freq;
+	ktime_t time;
 };
 
 struct pstate_data {
@@ -98,9 +98,9 @@ struct cpudata {
 	struct vid_data vid;
 	struct _pid pid;
 
+	ktime_t last_sample_time;
 	u64	prev_aperf;
 	u64	prev_mperf;
-	unsigned long long prev_tsc;
 	struct sample sample;
 };
 
@@ -200,7 +200,10 @@ static signed int pid_calc(struct _pid *pid, int32_t busy)
 	pid->last_err = fp_error;
 
 	result = pterm + mul_fp(pid->integral, pid->i_gain) + dterm;
-
+	if (result >= 0)
+		result = result + (1 << (FRAC_BITS-1));
+	else
+		result = result - (1 << (FRAC_BITS-1));
 	return (signed int)fp_toint(result);
 }
 
@@ -560,47 +563,42 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
-	int32_t core_pct;
-	int32_t c0_pct;
+	int64_t core_pct;
+	int32_t rem;
 
-	core_pct = div_fp(int_tofp((sample->aperf)),
-			int_tofp((sample->mperf)));
-	core_pct = mul_fp(core_pct, int_tofp(100));
-	FP_ROUNDUP(core_pct);
+	core_pct = int_tofp(sample->aperf) * int_tofp(100);
+	core_pct = div_u64_rem(core_pct, int_tofp(sample->mperf), &rem);
 
-	c0_pct = div_fp(int_tofp(sample->mperf), int_tofp(sample->tsc));
+	if ((rem << 1) >= int_tofp(sample->mperf))
+		core_pct += 1;
 
 	sample->freq = fp_toint(
 		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
 
-	sample->core_pct_busy = mul_fp(core_pct, c0_pct);
+	sample->core_pct_busy = (int32_t)core_pct;
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
 {
 	u64 aperf, mperf;
-	unsigned long long tsc;
 
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
-	tsc = native_read_tsc();
 
 	aperf = aperf >> FRAC_BITS;
 	mperf = mperf >> FRAC_BITS;
-	tsc = tsc >> FRAC_BITS;
 
+	cpu->last_sample_time = cpu->sample.time;
+	cpu->sample.time = ktime_get();
 	cpu->sample.aperf = aperf;
 	cpu->sample.mperf = mperf;
-	cpu->sample.tsc = tsc;
 	cpu->sample.aperf -= cpu->prev_aperf;
 	cpu->sample.mperf -= cpu->prev_mperf;
-	cpu->sample.tsc -= cpu->prev_tsc;
 
 	intel_pstate_calc_busy(cpu, &cpu->sample);
 
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
-	cpu->prev_tsc = tsc;
 }
 
 static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
@@ -614,13 +612,25 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 
 static inline int32_t intel_pstate_get_scaled_busy(struct cpudata *cpu)
 {
-	int32_t core_busy, max_pstate, current_pstate;
+	int32_t core_busy, max_pstate, current_pstate, sample_ratio;
+	u32 duration_us;
+	u32 sample_time;
 
 	core_busy = cpu->sample.core_pct_busy;
 	max_pstate = int_tofp(cpu->pstate.max_pstate);
 	current_pstate = int_tofp(cpu->pstate.current_pstate);
 	core_busy = mul_fp(core_busy, div_fp(max_pstate, current_pstate));
-	return FP_ROUNDUP(core_busy);
+
+	sample_time = (pid_params.sample_rate_ms  * USEC_PER_MSEC);
+	duration_us = (u32) ktime_us_delta(cpu->sample.time,
+					cpu->last_sample_time);
+	if (duration_us > sample_time * 3) {
+		sample_ratio = div_fp(int_tofp(sample_time),
+				int_tofp(duration_us));
+		core_busy = mul_fp(core_busy, sample_ratio);
+	}
+
+	return core_busy;
 }
 
 static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
