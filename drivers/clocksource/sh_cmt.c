@@ -1106,10 +1106,8 @@ static int sh_cmt_probe(struct platform_device *pdev)
 	}
 
 	cmt = kzalloc(sizeof(*cmt), GFP_KERNEL);
-	if (cmt == NULL) {
-		dev_err(&pdev->dev, "failed to allocate driver data\n");
+	if (cmt == NULL)
 		return -ENOMEM;
-	}
 
 	ret = sh_cmt_setup(cmt, pdev);
 	if (ret) {
