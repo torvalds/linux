@@ -412,6 +412,163 @@ no_valid_phy_type:
 	return 0;
 }
 
+/**
+ * i40e_set_settings - Set Speed and Duplex
+ * @netdev: network interface device structure
+ * @ecmd: ethtool command
+ *
+ * Set speed/duplex per media_types advertised/forced
+ **/
+static int i40e_set_settings(struct net_device *netdev,
+			     struct ethtool_cmd *ecmd)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	struct i40e_pf *pf = np->vsi->back;
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_hw *hw = &pf->hw;
+	struct ethtool_cmd safe_ecmd;
+	i40e_status status = 0;
+	bool change = false;
+	int err = 0;
+	u8 autoneg;
+	u32 advertise;
+
+	if (vsi != pf->vsi[pf->lan_vsi])
+		return -EOPNOTSUPP;
+
+	if (hw->phy.media_type != I40E_MEDIA_TYPE_BASET &&
+	    hw->phy.media_type != I40E_MEDIA_TYPE_FIBER &&
+	    hw->phy.media_type != I40E_MEDIA_TYPE_BACKPLANE)
+		return -EOPNOTSUPP;
+
+	/* get our own copy of the bits to check against */
+	memset(&safe_ecmd, 0, sizeof(struct ethtool_cmd));
+	i40e_get_settings(netdev, &safe_ecmd);
+
+	/* save autoneg and speed out of ecmd */
+	autoneg = ecmd->autoneg;
+	advertise = ecmd->advertising;
+
+	/* set autoneg and speed back to what they currently are */
+	ecmd->autoneg = safe_ecmd.autoneg;
+	ecmd->advertising = safe_ecmd.advertising;
+
+	ecmd->cmd = safe_ecmd.cmd;
+	/* If ecmd and safe_ecmd are not the same now, then they are
+	 * trying to set something that we do not support
+	 */
+	if (memcmp(ecmd, &safe_ecmd, sizeof(struct ethtool_cmd)))
+		return -EOPNOTSUPP;
+
+	while (test_bit(__I40E_CONFIG_BUSY, &vsi->state))
+		usleep_range(1000, 2000);
+
+	/* Get the current phy config */
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
+					      NULL);
+	if (status)
+		return -EAGAIN;
+
+	/* Copy link_speed and abilities to config in case they are not
+	 * set below
+	 */
+	memset(&config, 0, sizeof(struct i40e_aq_set_phy_config));
+	config.link_speed = abilities.link_speed;
+	config.abilities = abilities.abilities;
+
+	/* Check autoneg */
+	if (autoneg == AUTONEG_ENABLE) {
+		/* If autoneg is not supported, return error */
+		if (!(safe_ecmd.supported & SUPPORTED_Autoneg)) {
+			netdev_info(netdev, "Autoneg not supported on this phy\n");
+			return -EINVAL;
+		}
+		/* If autoneg was not already enabled */
+		if (!(hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED)) {
+			config.abilities = abilities.abilities |
+					   I40E_AQ_PHY_ENABLE_AN;
+			change = true;
+		}
+	} else {
+		/* If autoneg is supported 10GBASE_T is the only phy that
+		 * can disable it, so otherwise return error
+		 */
+		if (safe_ecmd.supported & SUPPORTED_Autoneg &&
+		    hw->phy.link_info.phy_type != I40E_PHY_TYPE_10GBASE_T) {
+			netdev_info(netdev, "Autoneg cannot be disabled on this phy\n");
+			return -EINVAL;
+		}
+		/* If autoneg is currently enabled */
+		if (hw->phy.link_info.an_info & I40E_AQ_AN_COMPLETED) {
+			config.abilities = abilities.abilities |
+					   ~I40E_AQ_PHY_ENABLE_AN;
+			change = true;
+		}
+	}
+
+	if (advertise & ~safe_ecmd.supported)
+		return -EINVAL;
+
+	if (advertise & ADVERTISED_100baseT_Full)
+		if (!(abilities.link_speed & I40E_LINK_SPEED_100MB)) {
+			config.link_speed |= I40E_LINK_SPEED_100MB;
+			change = true;
+		}
+	if (advertise & ADVERTISED_1000baseT_Full ||
+	    advertise & ADVERTISED_1000baseKX_Full)
+		if (!(abilities.link_speed & I40E_LINK_SPEED_1GB)) {
+			config.link_speed |= I40E_LINK_SPEED_1GB;
+			change = true;
+		}
+	if (advertise & ADVERTISED_10000baseT_Full ||
+	    advertise & ADVERTISED_10000baseKX4_Full ||
+	    advertise & ADVERTISED_10000baseKR_Full)
+		if (!(abilities.link_speed & I40E_LINK_SPEED_10GB)) {
+			config.link_speed |= I40E_LINK_SPEED_10GB;
+			change = true;
+		}
+	if (advertise & ADVERTISED_40000baseKR4_Full ||
+	    advertise & ADVERTISED_40000baseCR4_Full ||
+	    advertise & ADVERTISED_40000baseSR4_Full ||
+	    advertise & ADVERTISED_40000baseLR4_Full)
+		if (!(abilities.link_speed & I40E_LINK_SPEED_40GB)) {
+			config.link_speed |= I40E_LINK_SPEED_40GB;
+			change = true;
+		}
+
+	if (change) {
+		/* copy over the rest of the abilities */
+		config.phy_type = abilities.phy_type;
+		config.eee_capability = abilities.eee_capability;
+		config.eeer = abilities.eeer_val;
+		config.low_power_ctrl = abilities.d3_lpan;
+
+		/* If link is up set link and an so changes take effect */
+		if (hw->phy.link_info.link_info & I40E_AQ_LINK_UP)
+			config.abilities |= I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+
+		/* make the aq call */
+		status = i40e_aq_set_phy_config(hw, &config, NULL);
+		if (status) {
+			netdev_info(netdev, "Set phy config failed with error %d.\n",
+				    status);
+			return -EAGAIN;
+		}
+
+		status = i40e_update_link_info(hw, true);
+		if (status)
+			netdev_info(netdev, "Updating link info failed with error %d\n",
+				    status);
+
+	} else {
+		netdev_info(netdev, "Nothing changed, exiting without setting anything.\n");
+	}
+
+	return err;
+}
+
 static int i40e_nway_reset(struct net_device *netdev)
 {
 	/* restart autonegotiation */
@@ -1929,6 +2086,7 @@ static int i40e_set_channels(struct net_device *dev,
 
 static const struct ethtool_ops i40e_ethtool_ops = {
 	.get_settings		= i40e_get_settings,
+	.set_settings		= i40e_set_settings,
 	.get_drvinfo		= i40e_get_drvinfo,
 	.get_regs_len		= i40e_get_regs_len,
 	.get_regs		= i40e_get_regs,
