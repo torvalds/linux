@@ -125,24 +125,24 @@ void PSvEnablePowerSaving(struct vnt_private *priv, u16 listen_interval)
  *
  */
 
-void PSvDisablePowerSaving(struct vnt_private *pDevice)
+void PSvDisablePowerSaving(struct vnt_private *priv)
 {
 
 	/* disable power saving hw function */
-	vnt_control_out(pDevice, MESSAGE_TYPE_DISABLE_PS, 0,
+	vnt_control_out(priv, MESSAGE_TYPE_DISABLE_PS, 0,
 						0, 0, NULL);
 
 	/* clear AutoSleep */
-	vnt_mac_reg_bits_off(pDevice, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	vnt_mac_reg_bits_off(priv, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
 	/* set always listen beacon */
-	vnt_mac_reg_bits_on(pDevice, MAC_REG_PSCTL, PSCTL_ALBCN);
-	pDevice->bEnablePSMode = false;
+	vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
+	priv->bEnablePSMode = false;
 
-	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
-		PSbSendNullPacket(pDevice);
+	if (priv->op_mode == NL80211_IFTYPE_STATION)
+		PSbSendNullPacket(priv);
 
-	pDevice->bPWBitOn = false;
+	priv->bPWBitOn = false;
 }
 
 /*
