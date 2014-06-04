@@ -42,36 +42,6 @@ static const struct ieee80211_iface_combination mwifiex_iface_comb_ap_sta = {
 	.beacon_int_infra_match = true,
 };
 
-static const struct ieee80211_regdomain mwifiex_world_regdom_custom = {
-	.n_reg_rules = 7,
-	.alpha2 =  "99",
-	.reg_rules = {
-		/* Channel 1 - 11 */
-		REG_RULE(2412-10, 2462+10, 40, 3, 20, 0),
-		/* Channel 12 - 13 */
-		REG_RULE(2467-10, 2472+10, 20, 3, 20,
-			 NL80211_RRF_NO_IR),
-		/* Channel 14 */
-		REG_RULE(2484-10, 2484+10, 20, 3, 20,
-			 NL80211_RRF_NO_IR |
-			 NL80211_RRF_NO_OFDM),
-		/* Channel 36 - 48 */
-		REG_RULE(5180-10, 5240+10, 40, 3, 20,
-			 NL80211_RRF_NO_IR),
-		/* Channel 149 - 165 */
-		REG_RULE(5745-10, 5825+10, 40, 3, 20,
-			 NL80211_RRF_NO_IR),
-		/* Channel 52 - 64 */
-		REG_RULE(5260-10, 5320+10, 40, 3, 30,
-			 NL80211_RRF_NO_IR |
-			 NL80211_RRF_DFS),
-		/* Channel 100 - 140 */
-		REG_RULE(5500-10, 5700+10, 40, 3, 30,
-			 NL80211_RRF_NO_IR |
-			 NL80211_RRF_DFS),
-	}
-};
-
 /*
  * This function maps the nl802.11 channel type into driver channel type.
  *
@@ -2915,12 +2885,6 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	if (ISSUPP_TDLS_ENABLED(adapter->fw_cap_info))
 		wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 				WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
-
-	wiphy->regulatory_flags |=
-			REGULATORY_CUSTOM_REG |
-			REGULATORY_STRICT_REG;
-
-	wiphy_apply_custom_regulatory(wiphy, &mwifiex_world_regdom_custom);
 
 #ifdef CONFIG_PM
 	wiphy->wowlan = &mwifiex_wowlan_support;
