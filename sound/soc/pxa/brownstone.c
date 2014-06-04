@@ -50,11 +50,6 @@ static int brownstone_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
-	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
-	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
-	snd_soc_dapm_enable_pin(dapm, "Main Mic");
-
 	/* set endpoints to not connected */
 	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");
 	snd_soc_dapm_nc_pin(dapm, "HPOUT2N");
@@ -69,8 +64,6 @@ static int brownstone_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "IN2RN");
 	snd_soc_dapm_nc_pin(dapm, "IN2RP:VXRP");
 	snd_soc_dapm_nc_pin(dapm, "IN2LN");
-
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

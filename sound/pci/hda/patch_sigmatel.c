@@ -795,7 +795,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	}
 
 	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
-		if (sscanf(dev->name, "HP_Mute_LED_%d_%x",
+		if (sscanf(dev->name, "HP_Mute_LED_%u_%x",
 			   &spec->gpio_led_polarity,
 			   &spec->gpio_led) == 2) {
 			unsigned int max_gpio;
@@ -808,7 +808,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 				spec->vref_mute_led_nid = spec->gpio_led;
 			return 1;
 		}
-		if (sscanf(dev->name, "HP_Mute_LED_%d",
+		if (sscanf(dev->name, "HP_Mute_LED_%u",
 			   &spec->gpio_led_polarity) == 1) {
 			set_hp_led_gpio(codec);
 			return 1;

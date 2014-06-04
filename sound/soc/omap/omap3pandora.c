@@ -121,7 +121,7 @@ static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
  *  |A| <~~clk~~+
  *  |P| <--- TWL4030 <--------- Line In and MICs
  */
-static const struct snd_soc_dapm_widget omap3pandora_out_dapm_widgets[] = {
+static const struct snd_soc_dapm_widget omap3pandora_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("PCM DAC", "HiFi Playback", SND_SOC_NOPM,
 			   0, 0, omap3pandora_dac_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -130,22 +130,18 @@ static const struct snd_soc_dapm_widget omap3pandora_out_dapm_widgets[] = {
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_LINE("Line Out", NULL),
-};
 
-static const struct snd_soc_dapm_widget omap3pandora_in_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic (internal)", NULL),
 	SND_SOC_DAPM_MIC("Mic (external)", NULL),
 	SND_SOC_DAPM_LINE("Line In", NULL),
 };
 
-static const struct snd_soc_dapm_route omap3pandora_out_map[] = {
+static const struct snd_soc_dapm_route omap3pandora_map[] = {
 	{"PCM DAC", NULL, "APLL Enable"},
 	{"Headphone Amplifier", NULL, "PCM DAC"},
 	{"Line Out", NULL, "PCM DAC"},
 	{"Headphone Jack", NULL, "Headphone Amplifier"},
-};
 
-static const struct snd_soc_dapm_route omap3pandora_in_map[] = {
 	{"AUXL", NULL, "Line In"},
 	{"AUXR", NULL, "Line In"},
 
@@ -160,7 +156,6 @@ static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
 
 	/* All TWL4030 output pins are floating */
 	snd_soc_dapm_nc_pin(dapm, "EARPIECE");
@@ -174,20 +169,13 @@ static int omap3pandora_out_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "HFR");
 	snd_soc_dapm_nc_pin(dapm, "VIBRA");
 
-	ret = snd_soc_dapm_new_controls(dapm, omap3pandora_out_dapm_widgets,
-				ARRAY_SIZE(omap3pandora_out_dapm_widgets));
-	if (ret < 0)
-		return ret;
-
-	return snd_soc_dapm_add_routes(dapm, omap3pandora_out_map,
-		ARRAY_SIZE(omap3pandora_out_map));
+	return 0;
 }
 
 static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
 
 	/* Not comnnected */
 	snd_soc_dapm_nc_pin(dapm, "HSMIC");
@@ -195,13 +183,7 @@ static int omap3pandora_in_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "DIGIMIC0");
 	snd_soc_dapm_nc_pin(dapm, "DIGIMIC1");
 
-	ret = snd_soc_dapm_new_controls(dapm, omap3pandora_in_dapm_widgets,
-				ARRAY_SIZE(omap3pandora_in_dapm_widgets));
-	if (ret < 0)
-		return ret;
-
-	return snd_soc_dapm_add_routes(dapm, omap3pandora_in_map,
-		ARRAY_SIZE(omap3pandora_in_map));
+	return 0;
 }
 
 static struct snd_soc_ops omap3pandora_ops = {
@@ -215,7 +197,7 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 		.stream_name = "HiFi Out",
 		.cpu_dai_name = "omap-mcbsp.2",
 		.codec_dai_name = "twl4030-hifi",
-		.platform_name = "omap-pcm-audio",
+		.platform_name = "omap-mcbsp.2",
 		.codec_name = "twl4030-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
@@ -226,7 +208,7 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 		.stream_name = "Line/Mic In",
 		.cpu_dai_name = "omap-mcbsp.4",
 		.codec_dai_name = "twl4030-hifi",
-		.platform_name = "omap-pcm-audio",
+		.platform_name = "omap-mcbsp.4",
 		.codec_name = "twl4030-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
@@ -241,6 +223,11 @@ static struct snd_soc_card snd_soc_card_omap3pandora = {
 	.owner = THIS_MODULE,
 	.dai_link = omap3pandora_dai,
 	.num_links = ARRAY_SIZE(omap3pandora_dai),
+
+	.dapm_widgets = omap3pandora_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(omap3pandora_dapm_widgets),
+	.dapm_routes = omap3pandora_map,
+	.num_dapm_routes = ARRAY_SIZE(omap3pandora_map),
 };
 
 static struct platform_device *omap3pandora_snd_device;

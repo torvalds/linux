@@ -390,7 +390,7 @@ static int wm8955_set_deemph(struct snd_soc_codec *codec)
 static int wm8955_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = wm8955->deemph;
@@ -400,7 +400,7 @@ static int wm8955_get_deemph(struct snd_kcontrol *kcontrol,
 static int wm8955_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
 	int deemph = ucontrol->value.enumerated.item[0];
 
@@ -898,7 +898,7 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8955->supplies); i++)
 		wm8955->supplies[i].supply = wm8955_supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8955->supplies),
+	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8955->supplies),
 				 wm8955->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
@@ -909,7 +909,7 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 				    wm8955->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		return ret;
 	}
 
 	ret = wm8955_reset(codec);
@@ -961,17 +961,12 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
 	return ret;
 }
 
 static int wm8955_remove(struct snd_soc_codec *codec)
 {
-	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
-
 	wm8955_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regulator_bulk_free(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
 	return 0;
 }
 

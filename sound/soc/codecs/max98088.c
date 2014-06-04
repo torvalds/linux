@@ -635,7 +635,7 @@ static SOC_ENUM_SINGLE_DECL(max98088_dai1_adc_filter_enum,
 static int max98088_mic1pre_set(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -649,7 +649,7 @@ static int max98088_mic1pre_set(struct snd_kcontrol *kcontrol,
 static int max98088_mic1pre_get(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
        ucontrol->value.integer.value[0] = max98088->mic1pre;
@@ -659,7 +659,7 @@ static int max98088_mic1pre_get(struct snd_kcontrol *kcontrol,
 static int max98088_mic2pre_set(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -673,7 +673,7 @@ static int max98088_mic2pre_set(struct snd_kcontrol *kcontrol,
 static int max98088_mic2pre_get(struct snd_kcontrol *kcontrol,
                                struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
        ucontrol->value.integer.value[0] = max98088->mic2pre;
@@ -1750,7 +1750,7 @@ static void max98088_setup_eq2(struct snd_soc_codec *codec)
 static int max98088_put_eq_enum(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        struct max98088_pdata *pdata = max98088->pdata;
        int channel = max98088_get_channel(codec, kcontrol->id.name);
@@ -1782,7 +1782,7 @@ static int max98088_put_eq_enum(struct snd_kcontrol *kcontrol,
 static int max98088_get_eq_enum(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
-       struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+       struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
        int channel = max98088_get_channel(codec, kcontrol->id.name);
        struct max98088_cdata *cdata;

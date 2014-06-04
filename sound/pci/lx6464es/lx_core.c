@@ -24,6 +24,7 @@
 
 /* #define RMH_DEBUG 1 */
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -429,11 +430,6 @@ int lx_dsp_read_async_events(struct lx6464es *chip, u32 *data)
 	return ret;
 }
 
-#define CSES_TIMEOUT        100     /* microseconds */
-#define CSES_CE             0x0001
-#define CSES_BROADCAST      0x0002
-#define CSES_UPDATE_LDSV    0x0004
-
 #define PIPE_INFO_TO_CMD(capture, pipe)					\
 	((u32)((u32)(pipe) | ((capture) ? ID_IS_CAPTURE : 0L)) << ID_OFFSET)
 
@@ -519,7 +515,6 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 				*r_needed += 1;
 		}
 
-#if 0
 		dev_dbg(chip->card->dev,
 			"CMD_08_ASK_BUFFERS: needed %d, freed %d\n",
 			    *r_needed, *r_freed);
@@ -530,7 +525,6 @@ int lx_buffer_ask(struct lx6464es *chip, u32 pipe, int is_capture,
 					    chip->rmh.stat[i],
 					    chip->rmh.stat[i] & MASK_DATA_SIZE);
 		}
-#endif
 	}
 
 	spin_unlock_irqrestore(&chip->msg_lock, flags);
@@ -971,9 +965,9 @@ int lx_level_peaks(struct lx6464es *chip, int is_capture, int channels,
 
 /* interrupt handling */
 #define PCX_IRQ_NONE 0
-#define IRQCS_ACTIVE_PCIDB  0x00002000L         /* Bit nÃÂ¸ 13 */
-#define IRQCS_ENABLE_PCIIRQ 0x00000100L         /* Bit nÃÂ¸ 08 */
-#define IRQCS_ENABLE_PCIDB  0x00000200L         /* Bit nÃÂ¸ 09 */
+#define IRQCS_ACTIVE_PCIDB	BIT(13)
+#define IRQCS_ENABLE_PCIIRQ	BIT(8)
+#define IRQCS_ENABLE_PCIDB	BIT(9)
 
 static u32 lx_interrupt_test_ack(struct lx6464es *chip)
 {
@@ -1030,25 +1024,21 @@ static int lx_interrupt_handle_async_events(struct lx6464es *chip, u32 irqsrc,
 	int err;
 	u32 stat[9];		/* answer from CMD_04_GET_EVENT */
 
-	/* On peut optimiser pour ne pas lire les evenements vides
-	 * les mots de rÃÂ©ponse sont dans l'ordre suivant :
-	 * Stat[0]	mot de status gÃÂ©nÃÂ©ral
-	 * Stat[1]	fin de buffer OUT pF
-	 * Stat[2]	fin de buffer OUT pf
-	 * Stat[3]	fin de buffer IN pF
-	 * Stat[4]	fin de buffer IN pf
-	 * Stat[5]	underrun poid fort
-	 * Stat[6]	underrun poid faible
-	 * Stat[7]	overrun poid fort
-	 * Stat[8]	overrun poid faible
+	/* We can optimize this to not read dumb events.
+	 * Answer words are in the following order:
+	 * Stat[0]	general status
+	 * Stat[1]	end of buffer OUT pF
+	 * Stat[2]	end of buffer OUT pf
+	 * Stat[3]	end of buffer IN pF
+	 * Stat[4]	end of buffer IN pf
+	 * Stat[5]	MSB underrun
+	 * Stat[6]	LSB underrun
+	 * Stat[7]	MSB overrun
+	 * Stat[8]	LSB overrun
 	 * */
 
 	u64 orun_mask;
 	u64 urun_mask;
-#if 0
-	int has_underrun   = (irqsrc & MASK_SYS_STATUS_URUN) ? 1 : 0;
-	int has_overrun    = (irqsrc & MASK_SYS_STATUS_ORUN) ? 1 : 0;
-#endif
 	int eb_pending_out = (irqsrc & MASK_SYS_STATUS_EOBO) ? 1 : 0;
 	int eb_pending_in  = (irqsrc & MASK_SYS_STATUS_EOBI) ? 1 : 0;
 
@@ -1199,9 +1189,8 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 	if (irqsrc & MASK_SYS_STATUS_CMD_DONE)
 		goto exit;
 
-#if 0
 	if (irqsrc & MASK_SYS_STATUS_EOBI)
-		dev_dgg(chip->card->dev, "interrupt: EOBI\n");
+		dev_dbg(chip->card->dev, "interrupt: EOBI\n");
 
 	if (irqsrc & MASK_SYS_STATUS_EOBO)
 		dev_dbg(chip->card->dev, "interrupt: EOBO\n");
@@ -1211,7 +1200,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 
 	if (irqsrc & MASK_SYS_STATUS_ORUN)
 		dev_dbg(chip->card->dev, "interrupt: ORUN\n");
-#endif
 
 	if (async_pending) {
 		u64 notified_in_pipe_mask = 0;
@@ -1238,7 +1226,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 	}
 
 	if (async_escmd) {
-#if 0
 		/* backdoor for ethersound commands
 		 *
 		 * for now, we do not need this
@@ -1246,7 +1233,6 @@ irqreturn_t lx_interrupt(int irq, void *dev_id)
 		 * */
 
 		dev_dbg(chip->card->dev, "interrupt requests escmd handling\n");
-#endif
 	}
 
 exit:

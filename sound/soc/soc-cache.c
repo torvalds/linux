@@ -72,6 +72,9 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 
 	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
 
+	if (!reg_size)
+		return 0;
+
 	mutex_init(&codec->cache_rw_mutex);
 
 	dev_dbg(codec->dev, "ASoC: Initializing cache for %s codec\n",
@@ -161,8 +164,6 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 			if (snd_soc_get_cache_val(codec_drv->reg_cache_default,
 						  i, codec_drv->reg_word_size) == val)
 				continue;
-
-		WARN_ON(!snd_soc_codec_writable_register(codec, i));
 
 		ret = snd_soc_write(codec, i, val);
 		if (ret)

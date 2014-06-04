@@ -12,7 +12,8 @@ obj-$(CONFIG_SND_SOC_P1022_RDK) += snd-soc-p1022-rdk.o
 
 # Freescale SSI/DMA/SAI/SPDIF Support
 snd-soc-fsl-sai-objs := fsl_sai.o
-snd-soc-fsl-ssi-objs := fsl_ssi.o
+snd-soc-fsl-ssi-y := fsl_ssi.o
+snd-soc-fsl-ssi-$(CONFIG_DEBUG_FS) += fsl_ssi_dbg.o
 snd-soc-fsl-spdif-objs := fsl_spdif.o
 snd-soc-fsl-esai-objs := fsl_esai.o
 snd-soc-fsl-utils-objs := fsl_utils.o

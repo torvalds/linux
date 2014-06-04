@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -139,7 +138,7 @@ static inline unsigned int hsw_ipc_to_mixer(u32 value)
 static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct hsw_priv_data *pdata =
@@ -177,7 +176,7 @@ static int hsw_stream_volume_put(struct snd_kcontrol *kcontrol,
 static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct hsw_priv_data *pdata =
@@ -209,7 +208,7 @@ static int hsw_stream_volume_get(struct snd_kcontrol *kcontrol,
 static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
 	struct sst_hsw *hsw = pdata->hsw;
 	u32 volume;
@@ -234,7 +233,7 @@ static int hsw_volume_put(struct snd_kcontrol *kcontrol,
 static int hsw_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_platform *platform = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
 	struct hsw_priv_data *pdata = snd_soc_platform_get_drvdata(platform);
 	struct sst_hsw *hsw = pdata->hsw;
 	unsigned int volume = 0;
