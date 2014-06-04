@@ -188,7 +188,7 @@ static void iscsit_clear_tpg_np_login_thread(
 	iscsit_reset_np_thread(tpg_np->tpg_np, tpg_np, tpg, shutdown);
 }
 
-void iscsit_clear_tpg_np_login_threads(
+static void iscsit_clear_tpg_np_login_threads(
 	struct iscsi_portal_group *tpg,
 	bool shutdown)
 {
@@ -274,8 +274,6 @@ int iscsit_tpg_del_portal_group(
 	spin_lock(&tpg->tpg_state_lock);
 	tpg->tpg_state = TPG_STATE_INACTIVE;
 	spin_unlock(&tpg->tpg_state_lock);
-
-	iscsit_clear_tpg_np_login_threads(tpg, true);
 
 	if (iscsit_release_sessions_for_tpg(tpg, force) < 0) {
 		pr_err("Unable to delete iSCSI Target Portal Group:"
