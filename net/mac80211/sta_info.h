@@ -306,7 +306,6 @@ struct ieee80211_tx_latency_stat {
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
  * @plink_retries: Retries in establishment
- * @ignore_plink_timer: ignore the peer-link timer (used internally)
  * @plink_state: peer link state
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
@@ -421,7 +420,6 @@ struct sta_info {
 	u16 plid;
 	u16 reason;
 	u8 plink_retries;
-	bool ignore_plink_timer;
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
