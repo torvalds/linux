@@ -4326,7 +4326,11 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 static int i40e_up_complete(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
+	u8 set_fc_aq_fail = 0;
 	int err;
+
+	/* force flow control off */
+	i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
 		i40e_vsi_configure_msix(vsi);
@@ -8277,7 +8281,6 @@ int i40e_fetch_switch_configuration(struct i40e_pf *pf, bool printconfig)
  **/
 static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 {
-	u32 rxfc = 0, txfc = 0, rxfc_reg;
 	int ret;
 
 	/* find out what's out there already */
@@ -8343,62 +8346,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 	/* Initialize user-specific link properties */
 	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
 				  I40E_AQ_AN_COMPLETED) ? true : false);
-	/* requested_mode is set in probe or by ethtool */
-	if (!pf->fc_autoneg_status)
-		goto no_autoneg;
 
-	if ((pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX) &&
-	    (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_RX))
-		pf->hw.fc.current_mode = I40E_FC_FULL;
-	else if (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX)
-		pf->hw.fc.current_mode = I40E_FC_TX_PAUSE;
-	else if (pf->hw.phy.link_info.an_info & I40E_AQ_LINK_PAUSE_RX)
-		pf->hw.fc.current_mode = I40E_FC_RX_PAUSE;
-	else
-		pf->hw.fc.current_mode = I40E_FC_NONE;
-
-	/* sync the flow control settings with the auto-neg values */
-	switch (pf->hw.fc.current_mode) {
-	case I40E_FC_FULL:
-		txfc = 1;
-		rxfc = 1;
-		break;
-	case I40E_FC_TX_PAUSE:
-		txfc = 1;
-		rxfc = 0;
-		break;
-	case I40E_FC_RX_PAUSE:
-		txfc = 0;
-		rxfc = 1;
-		break;
-	case I40E_FC_NONE:
-	case I40E_FC_DEFAULT:
-		txfc = 0;
-		rxfc = 0;
-		break;
-	case I40E_FC_PFC:
-		/* TBD */
-		break;
-	/* no default case, we have to handle all possibilities here */
-	}
-
-	wr32(&pf->hw, I40E_PRTDCB_FCCFG, txfc << I40E_PRTDCB_FCCFG_TFCE_SHIFT);
-
-	rxfc_reg = rd32(&pf->hw, I40E_PRTDCB_MFLCN) &
-		   ~I40E_PRTDCB_MFLCN_RFCE_MASK;
-	rxfc_reg |= (rxfc << I40E_PRTDCB_MFLCN_RFCE_SHIFT);
-
-	wr32(&pf->hw, I40E_PRTDCB_MFLCN, rxfc_reg);
-
-	goto fc_complete;
-
-no_autoneg:
-	/* disable L2 flow control, user can turn it on if they wish */
-	wr32(&pf->hw, I40E_PRTDCB_FCCFG, 0);
-	wr32(&pf->hw, I40E_PRTDCB_MFLCN, rd32(&pf->hw, I40E_PRTDCB_MFLCN) &
-					 ~I40E_PRTDCB_MFLCN_RFCE_MASK);
-
-fc_complete:
 	i40e_ptp_init(pf);
 
 	return ret;

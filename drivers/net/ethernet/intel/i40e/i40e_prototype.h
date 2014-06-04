@@ -74,6 +74,15 @@ i40e_status i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_default_vsi(struct i40e_hw *hw, u16 vsi_id,
 				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
+			bool qualified_modules, bool report_init,
+			struct i40e_aq_get_phy_abilities_resp *abilities,
+			struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
+				struct i40e_aq_set_phy_config *config,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
+				  bool atomic_reset);
 i40e_status i40e_aq_clear_pxe_mode(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 i40e_status i40e_aq_set_link_restart_an(struct i40e_hw *hw,

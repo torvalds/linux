@@ -140,6 +140,14 @@ enum i40e_fc_mode {
 	I40E_FC_DEFAULT
 };
 
+enum i40e_set_fc_aq_failures {
+	I40E_SET_FC_AQ_FAIL_NONE = 0,
+	I40E_SET_FC_AQ_FAIL_GET = 1,
+	I40E_SET_FC_AQ_FAIL_SET = 2,
+	I40E_SET_FC_AQ_FAIL_UPDATE = 4,
+	I40E_SET_FC_AQ_FAIL_SET_UPDATE = 6
+};
+
 enum i40e_vsi_type {
 	I40E_VSI_MAIN = 0,
 	I40E_VSI_VMDQ1,
