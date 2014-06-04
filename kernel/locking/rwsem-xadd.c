@@ -433,9 +433,9 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 		count = ACCESS_ONCE(sem->count);
 
 		/*
-		 * If there were already threads queued before us and there are no
-		 * active writers, the lock must be read owned; so we try to wake
-		 * any read locks that were queued ahead of us.
+		 * If there were already threads queued before us and there are
+		 * no active writers, the lock must be read owned; so we try to
+		 * wake any read locks that were queued ahead of us.
 		 */
 		if (count > RWSEM_WAITING_BIAS)
 			sem = __rwsem_do_wake(sem, RWSEM_WAKE_READERS);
