@@ -1292,6 +1292,9 @@ dm9000_open(struct net_device *dev)
 	 * may work, and tell the user that this is a problem */
 
 	if (irqflags == IRQF_TRIGGER_NONE)
+		irqflags = irq_get_trigger_type(dev->irq);
+
+	if (irqflags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
 
 	irqflags |= IRQF_SHARED;
