@@ -203,9 +203,9 @@ void gfs2_set_inode_flags(struct inode *inode)
 			     GFS2_DIF_INHERIT_JDATA)
 
 /**
- * gfs2_set_flags - set flags on an inode
- * @inode: The inode
- * @flags: The flags to set
+ * do_gfs2_set_flags - set flags on an inode
+ * @filp: file pointer
+ * @reqflags: The flags to set
  * @mask: Indicates which flags are valid
  *
  */
@@ -256,7 +256,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	}
 	if ((flags ^ new_flags) & GFS2_DIF_JDATA) {
 		if (flags & GFS2_DIF_JDATA)
-			gfs2_log_flush(sdp, ip->i_gl);
+			gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
 		error = filemap_fdatawrite(inode->i_mapping);
 		if (error)
 			goto out;
@@ -318,7 +318,7 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 /**
  * gfs2_size_hint - Give a hint to the size of a write request
- * @file: The struct file
+ * @filep: The struct file
  * @offset: The file offset of the write
  * @size: The length of the write
  *
@@ -371,7 +371,7 @@ static int gfs2_allocate_page_backing(struct page *page)
 /**
  * gfs2_page_mkwrite - Make a shared, mmap()ed, page writable
  * @vma: The virtual memory area
- * @page: The page which is about to become writable
+ * @vmf: The virtual memory fault containing the page to become writable
  *
  * When the page becomes writable, we need to ensure that we have
  * blocks allocated on disk to back that page.
