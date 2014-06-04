@@ -1252,7 +1252,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 
 out_unmap:
 	pte_unmap_unlock(pte, ptl);
-	if (ret != SWAP_FAIL)
+	if (ret != SWAP_FAIL && TTU_ACTION(flags) != TTU_MUNLOCK)
 		mmu_notifier_invalidate_page(mm, address);
 out:
 	return ret;
