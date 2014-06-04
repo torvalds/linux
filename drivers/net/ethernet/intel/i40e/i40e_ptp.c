@@ -549,17 +549,20 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
  **/
 int i40e_ptp_set_ts_config(struct i40e_pf *pf, struct ifreq *ifr)
 {
-	struct hwtstamp_config *config = &pf->tstamp_config;
+	struct hwtstamp_config config;
 	int err;
 
-	if (copy_from_user(config, ifr->ifr_data, sizeof(*config)))
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
 
-	err = i40e_ptp_set_timestamp_mode(pf, config);
+	err = i40e_ptp_set_timestamp_mode(pf, &config);
 	if (err)
 		return err;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
+	/* save these settings for future reference */
+	pf->tstamp_config = config;
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
 }
 
