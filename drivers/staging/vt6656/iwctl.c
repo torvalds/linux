@@ -1323,7 +1323,7 @@ int iwctl_siwpower(struct net_device *dev, struct iw_request_info *info,
 
 	if (wrq->disabled) {
 		pDevice->ePSMode = WMAC_POWER_CAM;
-		PSvDisablePowerSaving(pDevice);
+		vnt_disable_power_saving(pDevice);
 		return rc;
 	}
 	if ((wrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {

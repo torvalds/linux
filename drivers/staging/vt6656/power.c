@@ -125,7 +125,7 @@ void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
  *
  */
 
-void PSvDisablePowerSaving(struct vnt_private *priv)
+void vnt_disable_power_saving(struct vnt_private *priv)
 {
 
 	/* disable power saving hw function */

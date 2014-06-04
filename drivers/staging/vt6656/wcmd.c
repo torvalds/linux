@@ -480,7 +480,7 @@ void vRunCommand(struct work_struct *work)
 		// set initial state
 		pMgmt->eCurrState = WMAC_STATE_IDLE;
 		pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-		PSvDisablePowerSaving((void *) pDevice);
+		vnt_disable_power_saving(pDevice);
 		BSSvClearNodeDBTable(pDevice, 0);
 		vMgrJoinBSSBegin((void *) pDevice, &Status);
 		// if Infra mode
