@@ -50,8 +50,8 @@
 static unsigned long ntfs_nr_compression_users;
 
 /* A global default upcase table and a corresponding reference count. */
-static ntfschar *default_upcase = NULL;
-static unsigned long ntfs_nr_upcase_users = 0;
+static ntfschar *default_upcase;
+static unsigned long ntfs_nr_upcase_users;
 
 /* Error constants/strings used in inode.c::ntfs_show_options(). */
 typedef enum {
