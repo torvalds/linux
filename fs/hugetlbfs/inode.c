@@ -901,8 +901,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_free;
 	return 0;
 out_free:
-	if (sbinfo->spool)
-		kfree(sbinfo->spool);
+	kfree(sbinfo->spool);
 	kfree(sbinfo);
 	return -ENOMEM;
 }
