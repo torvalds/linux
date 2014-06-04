@@ -1686,7 +1686,7 @@ static size_t get_note_info_size(struct elf_note_info *info)
 static int write_note_info(struct elf_note_info *info,
 			   struct coredump_params *cprm)
 {
-	bool first = 1;
+	bool first = true;
 	struct elf_thread_core_info *t = info->thread;
 
 	do {
@@ -1710,7 +1710,7 @@ static int write_note_info(struct elf_note_info *info,
 			    !writenote(&t->notes[i], cprm))
 				return 0;
 
-		first = 0;
+		first = false;
 		t = t->next;
 	} while (t);
 
