@@ -18,6 +18,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,berlin-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
@@ -111,6 +112,11 @@
 			reg = <0xad1000 0x1000>, <0xad0100 0x100>;
 			interrupt-controller;
 			#interrupt-cells = <3>;
+		};
+
+		cpu-ctrl@dd0000 {
+			compatible = "marvell,berlin-cpu-ctrl";
+			reg = <0xdd0000 0x10000>;
 		};
 
 		apb@e80000 {
