@@ -2846,12 +2846,16 @@ static bool rcu_nohz_full_cpu(struct rcu_state *rsp)
  */
 static void rcu_bind_gp_kthread(void)
 {
-#ifdef CONFIG_NO_HZ_FULL
-	int cpu = tick_do_timer_cpu;
+	int __maybe_unused cpu;
 
-	if (cpu < 0 || cpu >= nr_cpu_ids)
+	if (!tick_nohz_full_enabled())
 		return;
-	if (raw_smp_processor_id() != cpu)
+#ifdef CONFIG_NO_HZ_FULL_SYSIDLE
+	cpu = tick_do_timer_cpu;
+	if (cpu >= 0 && cpu < nr_cpu_ids && raw_smp_processor_id() != cpu)
 		set_cpus_allowed_ptr(current, cpumask_of(cpu));
-#endif /* #ifdef CONFIG_NO_HZ_FULL */
+#else /* #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
+	if (!is_housekeeping_cpu(raw_smp_processor_id()))
+		housekeeping_affine(current);
+#endif /* #else #ifdef CONFIG_NO_HZ_FULL_SYSIDLE */
 }
