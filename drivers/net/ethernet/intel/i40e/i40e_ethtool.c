@@ -1027,9 +1027,10 @@ static int i40e_nway_reset(struct net_device *netdev)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	bool link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
 	i40e_status ret = 0;
 
-	ret = i40e_aq_set_link_restart_an(hw, NULL);
+	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
 	if (ret) {
 		netdev_info(netdev, "link restart failed, aq_err=%d\n",
 			    pf->hw.aq.asq_last_status);
