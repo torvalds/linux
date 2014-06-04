@@ -776,7 +776,10 @@ SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
 	case FAN_MARK_REMOVE:
 		if (!mask)
 			return -EINVAL;
+		break;
 	case FAN_MARK_FLUSH:
+		if (flags & ~(FAN_MARK_MOUNT | FAN_MARK_FLUSH))
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
