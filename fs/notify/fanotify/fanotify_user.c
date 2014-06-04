@@ -25,6 +25,19 @@
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
 #define FANOTIFY_DEFAULT_MAX_LISTENERS	128
 
+/*
+ * All flags that may be specified in parameter event_f_flags of fanotify_init.
+ *
+ * Internal and external open flags are stored together in field f_flags of
+ * struct file. Only external open flags shall be allowed in event_f_flags.
+ * Internal flags like FMODE_NONOTIFY, FMODE_EXEC, FMODE_NOCMTIME shall be
+ * excluded.
+ */
+#define	FANOTIFY_INIT_ALL_EVENT_F_BITS				( \
+		O_ACCMODE	| O_APPEND	| O_NONBLOCK	| \
+		__O_SYNC	| O_DSYNC	| O_CLOEXEC     | \
+		O_LARGEFILE	| O_NOATIME	)
+
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
 static struct kmem_cache *fanotify_mark_cache __read_mostly;
@@ -668,6 +681,18 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	if (flags & ~FAN_ALL_INIT_FLAGS)
 		return -EINVAL;
+
+	if (event_f_flags & ~FANOTIFY_INIT_ALL_EVENT_F_BITS)
+		return -EINVAL;
+
+	switch (event_f_flags & O_ACCMODE) {
+	case O_RDONLY:
+	case O_RDWR:
+	case O_WRONLY:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	user = get_current_user();
 	if (atomic_read(&user->fanotify_listeners) > FANOTIFY_DEFAULT_MAX_LISTENERS) {
