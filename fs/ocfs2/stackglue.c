@@ -709,7 +709,7 @@ static struct ctl_table ocfs2_root_table[] = {
 	{ }
 };
 
-static struct ctl_table_header *ocfs2_table_header = NULL;
+static struct ctl_table_header *ocfs2_table_header;
 
 
 /*

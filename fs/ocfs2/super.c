@@ -75,7 +75,7 @@
 
 #include "buffer_head_io.h"
 
-static struct kmem_cache *ocfs2_inode_cachep = NULL;
+static struct kmem_cache *ocfs2_inode_cachep;
 struct kmem_cache *ocfs2_dquot_cachep;
 struct kmem_cache *ocfs2_qf_chunk_cachep;
 
@@ -85,7 +85,7 @@ struct kmem_cache *ocfs2_qf_chunk_cachep;
  * workqueue and schedule on our own. */
 struct workqueue_struct *ocfs2_wq = NULL;
 
-static struct dentry *ocfs2_debugfs_root = NULL;
+static struct dentry *ocfs2_debugfs_root;
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
