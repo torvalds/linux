@@ -53,10 +53,15 @@
  */
 int __genwqe_writeq(struct genwqe_dev *cd, u64 byte_offs, u64 val)
 {
+	struct pci_dev *pci_dev = cd->pci_dev;
+
 	if (cd->err_inject & GENWQE_INJECT_HARDWARE_FAILURE)
 		return -EIO;
 
 	if (cd->mmio == NULL)
+		return -EIO;
+
+	if (pci_channel_offline(pci_dev))
 		return -EIO;
 
 	__raw_writeq((__force u64)cpu_to_be64(val), cd->mmio + byte_offs);
@@ -99,10 +104,15 @@ u64 __genwqe_readq(struct genwqe_dev *cd, u64 byte_offs)
  */
 int __genwqe_writel(struct genwqe_dev *cd, u64 byte_offs, u32 val)
 {
+	struct pci_dev *pci_dev = cd->pci_dev;
+
 	if (cd->err_inject & GENWQE_INJECT_HARDWARE_FAILURE)
 		return -EIO;
 
 	if (cd->mmio == NULL)
+		return -EIO;
+
+	if (pci_channel_offline(pci_dev))
 		return -EIO;
 
 	__raw_writel((__force u32)cpu_to_be32(val), cd->mmio + byte_offs);

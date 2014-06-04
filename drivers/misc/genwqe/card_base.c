@@ -140,6 +140,12 @@ static struct genwqe_dev *genwqe_dev_alloc(void)
 	cd->class_genwqe = class_genwqe;
 	cd->debugfs_genwqe = debugfs_genwqe;
 
+	/*
+	 * This comes from kernel config option and can be overritten via
+	 * debugfs.
+	 */
+	cd->use_platform_recovery = CONFIG_GENWQE_PLATFORM_ERROR_RECOVERY;
+
 	init_waitqueue_head(&cd->queue_waitq);
 
 	spin_lock_init(&cd->file_lock);
@@ -943,6 +949,19 @@ static int genwqe_health_thread(void *data)
 	return 0;
 
  fatal_error:
+	if (cd->use_platform_recovery) {
+		/*
+		 * Since we use raw accessors, EEH errors won't be detected
+		 * by the platform until we do a non-raw MMIO or config space
+		 * read
+		 */
+		readq(cd->mmio + IO_SLC_CFGREG_GFIR);
+
+		/* We do nothing if the card is going over PCI recovery */
+		if (pci_channel_offline(pci_dev))
+			return -EIO;
+	}
+
 	dev_err(&pci_dev->dev,
 		"[%s] card unusable. Please trigger unbind!\n", __func__);
 
@@ -1047,6 +1066,9 @@ static int genwqe_pci_setup(struct genwqe_dev *cd)
 
 	pci_set_master(pci_dev);
 	pci_enable_pcie_error_reporting(pci_dev);
+
+	/* EEH recovery requires PCIe fundamental reset */
+	pci_dev->needs_freset = 1;
 
 	/* request complete BAR-0 space (length = 0) */
 	cd->mmio_len = pci_resource_len(pci_dev, 0);
@@ -1186,23 +1208,40 @@ static pci_ers_result_t genwqe_err_error_detected(struct pci_dev *pci_dev,
 
 	dev_err(&pci_dev->dev, "[%s] state=%d\n", __func__, state);
 
-	if (pci_dev == NULL)
-		return PCI_ERS_RESULT_NEED_RESET;
-
 	cd = dev_get_drvdata(&pci_dev->dev);
 	if (cd == NULL)
-		return PCI_ERS_RESULT_NEED_RESET;
+		return PCI_ERS_RESULT_DISCONNECT;
 
-	switch (state) {
-	case pci_channel_io_normal:
-		return PCI_ERS_RESULT_CAN_RECOVER;
-	case pci_channel_io_frozen:
+	/* Stop the card */
+	genwqe_health_check_stop(cd);
+	genwqe_stop(cd);
+
+	/*
+	 * On permanent failure, the PCI code will call device remove
+	 * after the return of this function.
+	 * genwqe_stop() can be called twice.
+	 */
+	if (state == pci_channel_io_perm_failure) {
+		return PCI_ERS_RESULT_DISCONNECT;
+	} else {
+		genwqe_pci_remove(cd);
 		return PCI_ERS_RESULT_NEED_RESET;
-	case pci_channel_io_perm_failure:
+	}
+}
+
+static pci_ers_result_t genwqe_err_slot_reset(struct pci_dev *pci_dev)
+{
+	int rc;
+	struct genwqe_dev *cd = dev_get_drvdata(&pci_dev->dev);
+
+	rc = genwqe_pci_setup(cd);
+	if (!rc) {
+		return PCI_ERS_RESULT_RECOVERED;
+	} else {
+		dev_err(&pci_dev->dev,
+			"err: problems with PCI setup (err=%d)\n", rc);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-
-	return PCI_ERS_RESULT_NEED_RESET;
 }
 
 static pci_ers_result_t genwqe_err_result_none(struct pci_dev *dev)
@@ -1210,8 +1249,22 @@ static pci_ers_result_t genwqe_err_result_none(struct pci_dev *dev)
 	return PCI_ERS_RESULT_NONE;
 }
 
-static void genwqe_err_resume(struct pci_dev *dev)
+static void genwqe_err_resume(struct pci_dev *pci_dev)
 {
+	int rc;
+	struct genwqe_dev *cd = dev_get_drvdata(&pci_dev->dev);
+
+	rc = genwqe_start(cd);
+	if (!rc) {
+		rc = genwqe_health_check_start(cd);
+		if (rc)
+			dev_err(&pci_dev->dev,
+				"err: cannot start health checking! (err=%d)\n",
+				rc);
+	} else {
+		dev_err(&pci_dev->dev,
+			"err: cannot start card services! (err=%d)\n", rc);
+	}
 }
 
 static int genwqe_sriov_configure(struct pci_dev *dev, int numvfs)
@@ -1234,7 +1287,7 @@ static struct pci_error_handlers genwqe_err_handler = {
 	.error_detected = genwqe_err_error_detected,
 	.mmio_enabled	= genwqe_err_result_none,
 	.link_reset	= genwqe_err_result_none,
-	.slot_reset	= genwqe_err_result_none,
+	.slot_reset	= genwqe_err_slot_reset,
 	.resume		= genwqe_err_resume,
 };
 
