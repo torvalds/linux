@@ -378,10 +378,10 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 }
 
 /* insert record into the buffer, discard old ones, update heads */
-static void log_store(int facility, int level,
-		      enum log_flags flags, u64 ts_nsec,
-		      const char *dict, u16 dict_len,
-		      const char *text, u16 text_len)
+static int log_store(int facility, int level,
+		     enum log_flags flags, u64 ts_nsec,
+		     const char *dict, u16 dict_len,
+		     const char *text, u16 text_len)
 {
 	struct printk_log *msg;
 	u32 size, pad_len;
@@ -396,7 +396,7 @@ static void log_store(int facility, int level,
 				    &dict_len, &pad_len);
 		/* survive when the log buffer is too small for trunc_msg */
 		if (log_make_free_space(size))
-			return;
+			return 0;
 	}
 
 	if (log_next_idx + size + sizeof(struct printk_log) > log_buf_len) {
@@ -432,6 +432,8 @@ static void log_store(int facility, int level,
 	/* insert message */
 	log_next_idx += msg->len;
 	log_next_seq++;
+
+	return msg->text_len;
 }
 
 #ifdef CONFIG_SECURITY_DMESG_RESTRICT
@@ -1606,10 +1608,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 			"BUG: recent printk recursion!";
 
 		recursion_bug = 0;
-		printed_len += strlen(recursion_msg);
+		text_len = strlen(recursion_msg);
 		/* emit KERN_CRIT message */
-		log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
-			  NULL, 0, recursion_msg, printed_len);
+		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
+					 NULL, 0, recursion_msg, text_len);
 	}
 
 	/*
@@ -1662,9 +1664,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 			cont_flush(LOG_NEWLINE);
 
 		/* buffer line if possible, otherwise store it right away */
-		if (!cont_add(facility, level, text, text_len))
-			log_store(facility, level, lflags | LOG_CONT, 0,
-				  dict, dictlen, text, text_len);
+		if (cont_add(facility, level, text, text_len))
+			printed_len += text_len;
+		else
+			printed_len += log_store(facility, level,
+						 lflags | LOG_CONT, 0,
+						 dict, dictlen, text, text_len);
 	} else {
 		bool stored = false;
 
@@ -1683,11 +1688,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 			cont_flush(LOG_NEWLINE);
 		}
 
-		if (!stored)
-			log_store(facility, level, lflags, 0,
-				  dict, dictlen, text, text_len);
+		if (stored)
+			printed_len += text_len;
+		else
+			printed_len += log_store(facility, level, lflags, 0,
+						 dict, dictlen, text, text_len);
 	}
-	printed_len += text_len;
 
 	/*
 	 * Try to acquire and then immediately release the console semaphore.
