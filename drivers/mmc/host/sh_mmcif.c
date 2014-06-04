@@ -1459,14 +1459,14 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	if (pd && pd->use_cd_gpio) {
 		ret = mmc_gpio_request_cd(mmc, pd->cd_gpio, 0);
 		if (ret < 0)
-			goto erqcd;
+			goto err_clk;
 	}
 
 	mutex_init(&host->thread_lock);
 
 	ret = mmc_add_host(mmc);
 	if (ret < 0)
-		goto emmcaddh;
+		goto err_clk;
 
 	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
@@ -1477,8 +1477,6 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	clk_disable_unprepare(host->hclk);
 	return ret;
 
-emmcaddh:
-erqcd:
 err_clk:
 	clk_disable_unprepare(host->hclk);
 err_pm:
