@@ -494,8 +494,8 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 
 	/* Get SignalField,ServiceField,Length */
-	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->a);
-	BBvCalculateParameter(priv, frame_len, priv->byTopCCKBasicRate,
+	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->a);
+	vnt_get_phy_field(priv, frame_len, priv->byTopCCKBasicRate,
 							PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
@@ -518,9 +518,9 @@ static u16 vnt_rxtx_datahead_g_fb(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 
 	/* Get SignalField,ServiceField,Length */
-	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->a);
+	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->a);
 
-	BBvCalculateParameter(priv, frame_len, priv->byTopCCKBasicRate,
+	vnt_get_phy_field(priv, frame_len, priv->byTopCCKBasicRate,
 						PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
@@ -546,7 +546,7 @@ static u16 vnt_rxtx_datahead_a_fb(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 
 	/* Get SignalField,ServiceField,Length */
-	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->a);
+	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->a);
 	/* Get Duration and TimeStampOff */
 	buf->duration = s_uGetDataDuration(priv, pkt_type, need_ack);
 
@@ -567,7 +567,7 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 
 	/* Get SignalField,ServiceField,Length */
-	BBvCalculateParameter(priv, frame_len, rate, pkt_type, &buf->ab);
+	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->ab);
 	/* Get Duration and TimeStampOff */
 	buf->duration = s_uGetDataDuration(priv, pkt_type, need_ack);
 
@@ -608,9 +608,9 @@ static u16 vnt_rxtx_rts_g_head(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
 
-	BBvCalculateParameter(priv, rts_frame_len, priv->byTopCCKBasicRate,
+	vnt_get_phy_field(priv, rts_frame_len, priv->byTopCCKBasicRate,
 		PK_TYPE_11B, &buf->b);
-	BBvCalculateParameter(priv, rts_frame_len,
+	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
 	buf->duration_bb = s_uGetRTSCTSDuration(priv, RTSDUR_BB, frame_len,
@@ -634,9 +634,9 @@ static u16 vnt_rxtx_rts_g_fb_head(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
 
-	BBvCalculateParameter(priv, rts_frame_len, priv->byTopCCKBasicRate,
+	vnt_get_phy_field(priv, rts_frame_len, priv->byTopCCKBasicRate,
 		PK_TYPE_11B, &buf->b);
-	BBvCalculateParameter(priv, rts_frame_len,
+	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
 
@@ -671,7 +671,7 @@ static u16 vnt_rxtx_rts_ab_head(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
 
-	BBvCalculateParameter(priv, rts_frame_len,
+	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->ab);
 
 	buf->duration = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
@@ -691,7 +691,7 @@ static u16 vnt_rxtx_rts_a_fb_head(struct vnt_usb_send_context *tx_context,
 	struct vnt_private *priv = tx_context->priv;
 	u16 rts_frame_len = 20;
 
-	BBvCalculateParameter(priv, rts_frame_len,
+	vnt_get_phy_field(priv, rts_frame_len,
 		priv->byTopOFDMBasicRate, pkt_type, &buf->a);
 
 	buf->duration = s_uGetRTSCTSDuration(priv, RTSDUR_AA, frame_len,
@@ -766,7 +766,7 @@ static u16 s_vFillCTSHead(struct vnt_usb_send_context *tx_context,
 		/* Auto Fall back */
 		struct vnt_cts_fb *pBuf = &head->cts_g_fb;
 		/* Get SignalField,ServiceField,Length */
-		BBvCalculateParameter(pDevice, uCTSFrameLen,
+		vnt_get_phy_field(pDevice, uCTSFrameLen,
 			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
 		pBuf->duration_ba = s_uGetRTSCTSDuration(pDevice, CTSDUR_BA,
 			cbFrameLength, byPktType,
@@ -792,7 +792,7 @@ static u16 s_vFillCTSHead(struct vnt_usb_send_context *tx_context,
 	} else {
 		struct vnt_cts *pBuf = &head->cts_g;
 		/* Get SignalField,ServiceField,Length */
-		BBvCalculateParameter(pDevice, uCTSFrameLen,
+		vnt_get_phy_field(pDevice, uCTSFrameLen,
 			pDevice->byTopCCKBasicRate, PK_TYPE_11B, &pBuf->b);
 		/* Get CTSDuration_ba */
 		pBuf->duration_ba = s_uGetRTSCTSDuration(pDevice,
@@ -1651,7 +1651,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 		wCurrentRate = RATE_6M;
 
 		/* Get SignalField,ServiceField,Length */
-		BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate,
+		vnt_get_phy_field(pDevice, cbFrameSize, wCurrentRate,
 			PK_TYPE_11A, &short_head->ab);
 
 		/* Get Duration and TimeStampOff */
@@ -1664,7 +1664,7 @@ CMD_STATUS csBeacon_xmit(struct vnt_private *pDevice,
 		short_head->fifo_ctl |= FIFOCTL_11B;
 
 		/* Get SignalField,ServiceField,Length */
-		BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate,
+		vnt_get_phy_field(pDevice, cbFrameSize, wCurrentRate,
 					PK_TYPE_11B, &short_head->ab);
 
 		/* Get Duration and TimeStampOff */

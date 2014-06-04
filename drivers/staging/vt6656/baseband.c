@@ -27,7 +27,7 @@
  *
  * Functions:
  *      BBuGetFrameTime        - Calculate data frame transmitting time
- *      BBvCalculateParameter   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
+ *      vnt_get_phy_field   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbVT3184Init          - VIA VT3184 baseband chip init code
  *
  * Revision History:
@@ -705,7 +705,7 @@ unsigned int BBuGetFrameTime(u8 preamble_type, u8 pkt_type,
  * Return Value: none
  *
  */
-void BBvCalculateParameter(struct vnt_private *priv, u32 frame_length,
+void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
 	u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy)
 {
 	u32 bit_count;

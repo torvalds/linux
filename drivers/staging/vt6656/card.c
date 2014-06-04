@@ -300,19 +300,19 @@ void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type)
 	int i;
 
 	/*RSPINF_b_1*/
-	BBvCalculateParameter(priv, 14,
+	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_1M), PK_TYPE_11B, &phy[0]);
 
 	/*RSPINF_b_2*/
-	BBvCalculateParameter(priv, 14,
+	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_2M), PK_TYPE_11B, &phy[1]);
 
 	/*RSPINF_b_5*/
-	BBvCalculateParameter(priv, 14,
+	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_5M), PK_TYPE_11B, &phy[2]);
 
 	/*RSPINF_b_11*/
-	BBvCalculateParameter(priv, 14,
+	vnt_get_phy_field(priv, 14,
 		vnt_get_cck_rate(priv, RATE_11M), PK_TYPE_11B, &phy[3]);
 
 
