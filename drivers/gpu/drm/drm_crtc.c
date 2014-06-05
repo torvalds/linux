@@ -1513,6 +1513,15 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_group_init_legacy_group);
 
+void drm_reinit_primary_mode_group(struct drm_device *dev)
+{
+	drm_modeset_lock_all(dev);
+	drm_mode_group_destroy(&dev->primary->mode_group);
+	drm_mode_group_init_legacy_group(dev, &dev->primary->mode_group);
+	drm_modeset_unlock_all(dev);
+}
+EXPORT_SYMBOL(drm_reinit_primary_mode_group);
+
 /**
  * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
  * @out: drm_mode_modeinfo struct to return to the user
