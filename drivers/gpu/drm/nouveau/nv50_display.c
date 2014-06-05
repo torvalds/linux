@@ -1208,6 +1208,7 @@ static void
 nv50_crtc_disable(struct drm_crtc *crtc)
 {
 	struct nv50_head *head = nv50_head(crtc);
+	evo_sync(crtc->dev);
 	if (head->image)
 		nouveau_bo_unpin(head->image);
 	nouveau_bo_ref(NULL, &head->image);
