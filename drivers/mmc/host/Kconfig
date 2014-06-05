@@ -216,8 +216,7 @@ config MMC_SDHCI_SIRF
 config MMC_SDHCI_PXAV3
 	tristate "Marvell MMP2 SD Host Controller support (PXAV3)"
 	depends on CLKDEV_LOOKUP
-	select MMC_SDHCI
-	select MMC_SDHCI_PLTFM
+	depends on MMC_SDHCI_PLTFM
 	default CPU_MMP2
 	help
 	  This selects the Marvell(R) PXAV3 SD Host Controller.
@@ -229,8 +228,7 @@ config MMC_SDHCI_PXAV3
 config MMC_SDHCI_PXAV2
 	tristate "Marvell PXA9XX SD Host Controller support (PXAV2)"
 	depends on CLKDEV_LOOKUP
-	select MMC_SDHCI
-	select MMC_SDHCI_PLTFM
+	depends on MMC_SDHCI_PLTFM
 	default CPU_PXA910
 	help
 	  This selects the Marvell(R) PXAV2 SD Host Controller.
@@ -264,7 +262,7 @@ config MMC_SDHCI_S3C_DMA
 config MMC_SDHCI_BCM_KONA
 	tristate "SDHCI support on Broadcom KONA platform"
 	depends on ARCH_BCM_MOBILE
-	select MMC_SDHCI_PLTFM
+	depends on MMC_SDHCI_PLTFM
 	help
 	  This selects the Broadcom Kona Secure Digital Host Controller
 	  Interface(SDHCI) support.
