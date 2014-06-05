@@ -12411,8 +12411,8 @@ intel_display_capture_error_state(struct drm_device *dev)
 
 	for_each_pipe(i) {
 		error->pipe[i].power_domain_on =
-			intel_display_power_enabled_sw(dev_priv,
-						       POWER_DOMAIN_PIPE(i));
+			intel_display_power_enabled_unlocked(dev_priv,
+							   POWER_DOMAIN_PIPE(i));
 		if (!error->pipe[i].power_domain_on)
 			continue;
 
@@ -12447,7 +12447,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 		enum transcoder cpu_transcoder = transcoders[i];
 
 		error->transcoder[i].power_domain_on =
-			intel_display_power_enabled_sw(dev_priv,
+			intel_display_power_enabled_unlocked(dev_priv,
 				POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!error->transcoder[i].power_domain_on)
 			continue;
