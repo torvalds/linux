@@ -2886,6 +2886,9 @@ bool dispc_mgr_timings_ok(enum omap_channel channel,
 	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixelclock);
 
 	if (dss_mgr_is_lcd(channel)) {
+		/* TODO: OMAP4+ supports interlace for LCD outputs */
+		timings_ok &= timings->interlace == false;
+
 		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
 				timings->vbp);
