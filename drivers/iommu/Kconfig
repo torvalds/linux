@@ -131,7 +131,6 @@ config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
 	depends on ARCH_ROCKCHIP
 	select IOMMU_API
-	select ARM_HAS_SG_CHAIN
 	help
 	  Support for the IOMMU(System MMU) of Rockchip rk32xx application
 	  processor family. This enables H/W multimedia accellerators to see
