@@ -908,7 +908,10 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* inform CIU */
 		mci_send_cmd(slot, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
-                 
+
+                if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
+                        goto normal;
+                        
                 if(clock == 400*1000){
 	                MMC_DBG_BOOT_FUNC(host->mmc,
                                 "dw_mci_setup_bus: argue clk_mmc workaround out 800K for init[%s]",
@@ -963,7 +966,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	                        
 	        }
 	        
-                
+normal:                
 		/* set clock to desired speed */
 		mci_writel(host, CLKDIV, div);
 
@@ -1558,6 +1561,9 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	struct dw_mci_tuning_data tuning_data;
 	int err = -ENOSYS;
+
+        if (!(mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
+                return 0;
 
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
