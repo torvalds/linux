@@ -919,6 +919,9 @@ static void __init save_runtime_map(void)
 	void *tmp, *p, *q = NULL;
 	int count = 0;
 
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return;
+
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
 		md = p;
 
