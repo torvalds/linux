@@ -713,7 +713,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		value &= ~SOR_DP_CONFIG_ACTIVE_SYM_POLARITY;
 
 	value |= SOR_DP_CONFIG_ACTIVE_SYM_ENABLE;
-	value |= SOR_DP_CONFIG_DISPARITY_NEGATIVE; /* XXX: don't hardcode? */
+	value |= SOR_DP_CONFIG_DISPARITY_NEGATIVE;
 	tegra_sor_writel(sor, value, SOR_DP_CONFIG_0);
 
 	value = tegra_sor_readl(sor, SOR_DP_AUDIO_HBLANK_SYMBOLS);
