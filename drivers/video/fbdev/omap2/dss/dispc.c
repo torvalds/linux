@@ -2879,22 +2879,24 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	bool timings_ok;
+	if (!_dispc_mgr_size_ok(timings->x_res, timings->y_res))
+		return false;
 
-	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
-
-	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixelclock);
+	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
+		return false;
 
 	if (dss_mgr_is_lcd(channel)) {
 		/* TODO: OMAP4+ supports interlace for LCD outputs */
-		timings_ok &= timings->interlace == false;
+		if (timings->interlace)
+			return false;
 
-		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
+		if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
-				timings->vbp);
+				timings->vbp))
+			return false;
 	}
 
-	return timings_ok;
+	return true;
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
