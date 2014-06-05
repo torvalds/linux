@@ -81,13 +81,13 @@
  */
 #define convert_rloc_to_loc(dl, offs)	((u32)(dl) + (offs))
 
-static inline void *get_rloc_data(u32 *dl)
+static nokprobe_inline void *get_rloc_data(u32 *dl)
 {
 	return (u8 *)dl + get_rloc_offs(*dl);
 }
 
 /* For data_loc conversion */
-static inline void *get_loc_data(u32 *dl, void *ent)
+static nokprobe_inline void *get_loc_data(u32 *dl, void *ent)
 {
 	return (u8 *)ent + get_rloc_offs(*dl);
 }
@@ -136,9 +136,8 @@ typedef u32 string_size;
 
 /* Printing  in basic type function template */
 #define DECLARE_BASIC_PRINT_TYPE_FUNC(type)				\
-__kprobes int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s,		\
-					 const char *name,		\
-					 void *data, void *ent);	\
+int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
+				void *data, void *ent);			\
 extern const char PRINT_TYPE_FMT_NAME(type)[]
 
 DECLARE_BASIC_PRINT_TYPE_FUNC(u8);
@@ -303,7 +302,7 @@ static inline bool trace_probe_is_registered(struct trace_probe *tp)
 	return !!(tp->flags & TP_FLAG_REGISTERED);
 }
 
-static inline __kprobes void call_fetch(struct fetch_param *fprm,
+static nokprobe_inline void call_fetch(struct fetch_param *fprm,
 				 struct pt_regs *regs, void *dest)
 {
 	return fprm->fn(regs, fprm->data, dest);
@@ -351,7 +350,7 @@ extern ssize_t traceprobe_probes_write(struct file *file,
 extern int traceprobe_command(const char *buf, int (*createfn)(int, char**));
 
 /* Sum up total data length for dynamic arraies (strings) */
-static inline __kprobes int
+static nokprobe_inline int
 __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 {
 	int i, ret = 0;
@@ -367,7 +366,7 @@ __get_data_size(struct trace_probe *tp, struct pt_regs *regs)
 }
 
 /* Store the value of each argument */
-static inline __kprobes void
+static nokprobe_inline void
 store_trace_args(int ent_size, struct trace_probe *tp, struct pt_regs *regs,
 		 u8 *data, int maxlen)
 {
