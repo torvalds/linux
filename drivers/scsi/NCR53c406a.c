@@ -595,7 +595,7 @@ static int NCR53c406a_release(struct Scsi_Host *shost)
 {
 	if (shost->irq)
 		free_irq(shost->irq, NULL);
-#ifdef USE_DMA
+#if USE_DMA
 	if (shost->dma_channel != 0xff)
 		free_dma(shost->dma_channel);
 #endif
