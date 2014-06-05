@@ -60,8 +60,8 @@
 /* Max default timeout in ms, */
 #define I40E_MAX_NVM_TIMEOUT		18000
 
-/* Switch from mc to the 2usec global time (this is the GTIME resolution) */
-#define I40E_MS_TO_GTIME(time)		(((time) * 1000) / 2)
+/* Switch from ms to the 1usec global time (this is the GTIME resolution) */
+#define I40E_MS_TO_GTIME(time)		((time) * 1000)
 
 /* forward declaration */
 struct i40e_hw;
@@ -955,6 +955,16 @@ struct i40e_vsi_context {
 	struct i40e_aqc_vsi_properties_data info;
 };
 
+struct i40e_veb_context {
+	u16 seid;
+	u16 uplink_seid;
+	u16 veb_number;
+	u16 vebs_allocated;
+	u16 vebs_unallocated;
+	u16 flags;
+	struct i40e_aqc_get_veb_parameters_completion info;
+};
+
 /* Statistics collected by each port, VSI, VEB, and S-channel */
 struct i40e_eth_stats {
 	u64 rx_bytes;			/* gorc */
@@ -962,8 +972,6 @@ struct i40e_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_errors;			/* repc */
-	u64 rx_missed;			/* rmpc */
 	u64 rx_unknown_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */

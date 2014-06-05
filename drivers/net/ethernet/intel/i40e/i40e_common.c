@@ -1062,8 +1062,6 @@ i40e_status i40e_aq_add_vsi(struct i40e_hw *hw,
 	cmd->vsi_flags = cpu_to_le16(vsi_ctx->flags);
 
 	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
-	if (sizeof(vsi_ctx->info) > I40E_AQ_LARGE_BUF)
-		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
 
 	status = i40e_asq_send_command(hw, &desc, &vsi_ctx->info,
 				    sizeof(vsi_ctx->info), cmd_details);
@@ -1204,8 +1202,6 @@ i40e_status i40e_aq_get_vsi_params(struct i40e_hw *hw,
 	cmd->uplink_seid = cpu_to_le16(vsi_ctx->seid);
 
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
-	if (sizeof(vsi_ctx->info) > I40E_AQ_LARGE_BUF)
-		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
 
 	status = i40e_asq_send_command(hw, &desc, &vsi_ctx->info,
 				    sizeof(vsi_ctx->info), NULL);
@@ -1244,8 +1240,6 @@ i40e_status i40e_aq_update_vsi_params(struct i40e_hw *hw,
 	cmd->uplink_seid = cpu_to_le16(vsi_ctx->seid);
 
 	desc.flags |= cpu_to_le16((u16)(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD));
-	if (sizeof(vsi_ctx->info) > I40E_AQ_LARGE_BUF)
-		desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_LB);
 
 	status = i40e_asq_send_command(hw, &desc, &vsi_ctx->info,
 				    sizeof(vsi_ctx->info), cmd_details);

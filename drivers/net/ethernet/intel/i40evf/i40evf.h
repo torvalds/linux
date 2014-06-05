@@ -80,7 +80,7 @@ struct i40e_vsi {
 #define I40EVF_MIN_TXD       64
 #define I40EVF_MAX_RXD       4096
 #define I40EVF_MIN_RXD       64
-#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  8
+#define I40EVF_REQ_DESCRIPTOR_MULTIPLE  32
 
 /* Supported Rx Buffer Sizes */
 #define I40EVF_RXBUFFER_64    64     /* Used for packet split */
@@ -196,10 +196,12 @@ struct i40evf_adapter {
 	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
 	u32 tx_timeout_count;
 	struct list_head mac_filter_list;
+	u32 tx_desc_count;
 
 	/* RX */
 	struct i40e_ring *rx_rings[I40E_MAX_VSI_QP];
 	u64 hw_csum_rx_error;
+	u32 rx_desc_count;
 	int num_msix_vectors;
 	struct msix_entry *msix_entries;
 

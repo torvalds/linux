@@ -62,6 +62,12 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_crc_errors),
 };
 
+static const struct i40e_stats i40e_gstrings_misc_stats[] = {
+	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
+	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
+};
+
 static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 				 struct ethtool_rxnfc *cmd);
 
@@ -78,7 +84,6 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_bytes", stats.eth.rx_bytes),
 	I40E_PF_STAT("tx_bytes", stats.eth.tx_bytes),
-	I40E_PF_STAT("rx_errors", stats.eth.rx_errors),
 	I40E_PF_STAT("tx_errors", stats.eth.tx_errors),
 	I40E_PF_STAT("rx_dropped", stats.eth.rx_discards),
 	I40E_PF_STAT("tx_dropped", stats.eth.tx_discards),
@@ -126,7 +131,9 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 	    * (sizeof(struct i40e_queue_stats) / sizeof(u64)))
 #define I40E_GLOBAL_STATS_LEN	ARRAY_SIZE(i40e_gstrings_stats)
 #define I40E_NETDEV_STATS_LEN   ARRAY_SIZE(i40e_gstrings_net_stats)
+#define I40E_MISC_STATS_LEN	ARRAY_SIZE(i40e_gstrings_misc_stats)
 #define I40E_VSI_STATS_LEN(n)   (I40E_NETDEV_STATS_LEN + \
+				 I40E_MISC_STATS_LEN + \
 				 I40E_QUEUE_STATS_LEN((n)))
 #define I40E_PFC_STATS_LEN ( \
 		(FIELD_SIZEOF(struct i40e_pf, stats.priority_xoff_rx) + \
@@ -649,6 +656,11 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (i40e_gstrings_net_stats[j].sizeof_stat ==
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
+	for (j = 0; j < I40E_MISC_STATS_LEN; j++) {
+		p = (char *)vsi + i40e_gstrings_misc_stats[j].stat_offset;
+		data[i++] = (i40e_gstrings_misc_stats[j].sizeof_stat ==
+			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
 	rcu_read_lock();
 	for (j = 0; j < vsi->num_queue_pairs; j++) {
 		tx_ring = ACCESS_ONCE(vsi->tx_rings[j]);
@@ -713,6 +725,11 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 		for (i = 0; i < I40E_NETDEV_STATS_LEN; i++) {
 			snprintf(p, ETH_GSTRING_LEN, "%s",
 				 i40e_gstrings_net_stats[i].stat_string);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MISC_STATS_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "%s",
+				 i40e_gstrings_misc_stats[i].stat_string);
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
