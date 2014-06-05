@@ -1563,8 +1563,6 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
-	struct usb_device *udev = serial->dev;
-
 	struct usb_interface *interface = serial->interface;
 	struct usb_endpoint_descriptor *ep_desc;
 
@@ -1583,7 +1581,8 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 		ep_desc = &interface->cur_altsetting->endpoint[i].desc;
 		if (ep_desc->wMaxPacketSize == 0) {
 			ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
-			dev_info(&udev->dev, "Overriding wMaxPacketSize on endpoint %d\n", i);
+			dev_warn(&port->dev, "Overriding wMaxPacketSize on endpoint %d\n",
+					usb_endpoint_num(ep_desc));
 		}
 	}
 
