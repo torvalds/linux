@@ -1595,6 +1595,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	 */
 	dev->flags &= ~IFF_MULTICAST;
 
+	/* libphy will adjust the link state accordingly */
+	netif_carrier_off(dev);
+
 	ret = register_netdev(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register net_device\n");
