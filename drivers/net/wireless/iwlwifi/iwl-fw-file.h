@@ -128,6 +128,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_CSCHEME		= 28,
 	IWL_UCODE_TLV_API_CHANGES_SET	= 29,
 	IWL_UCODE_TLV_ENABLED_CAPABILITIES	= 30,
+	IWL_UCODE_TLV_N_SCAN_CHANNELS		= 31,
 };
 
 struct iwl_ucode_tlv {

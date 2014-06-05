@@ -504,7 +504,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	scan_size = sizeof(struct iwl_scan_cmd) +
 		mvm->fw->ucode_capa.max_probe_length +
-		(MAX_NUM_SCAN_CHANNELS * sizeof(struct iwl_scan_channel));
+		(mvm->fw->ucode_capa.n_scan_channels *
+					sizeof(struct iwl_scan_channel));
 	mvm->scan_cmd = kmalloc(scan_size, GFP_KERNEL);
 	if (!mvm->scan_cmd)
 		goto out_free;

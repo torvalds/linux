@@ -178,6 +178,7 @@ enum iwl_ucode_sec {
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
+	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
 	u32 api[IWL_API_ARRAY_SIZE];

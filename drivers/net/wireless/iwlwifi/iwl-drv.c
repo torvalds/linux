@@ -155,6 +155,8 @@ static struct iwlwifi_opmode_table {
 	[MVM_OP_MODE] = { .name = "iwlmvm", .ops = NULL },
 };
 
+#define IWL_DEFAULT_SCAN_CHANNELS 40
+
 /*
  * struct fw_sec: Just for the image parsing proccess.
  * For the fw storage we are using struct fw_desc.
@@ -819,6 +821,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			if (iwl_store_cscheme(&drv->fw, tlv_data, tlv_len))
 				goto invalid_tlv_len;
 			break;
+		case IWL_UCODE_TLV_N_SCAN_CHANNELS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->n_scan_channels =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -973,6 +981,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->ucode_capa.max_probe_length = IWL_DEFAULT_MAX_PROBE_LENGTH;
 	fw->ucode_capa.standard_phy_calibration_size =
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+	fw->ucode_capa.n_scan_channels = IWL_DEFAULT_SCAN_CHANNELS;
 
 	if (!api_ok)
 		api_ok = api_max;

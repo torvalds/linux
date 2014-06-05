@@ -1543,7 +1543,8 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	if (req->n_channels == 0 || req->n_channels > MAX_NUM_SCAN_CHANNELS)
+	if (req->n_channels == 0 ||
+	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
