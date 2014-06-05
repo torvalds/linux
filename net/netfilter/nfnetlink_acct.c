@@ -83,7 +83,6 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 		return -EBUSY;
 	}
 
-	nfacct = kzalloc(sizeof(struct nf_acct), GFP_KERNEL);
 	if (tb[NFACCT_FLAGS]) {
 		flags = ntohl(nla_get_be32(tb[NFACCT_FLAGS]));
 		if (flags & ~NFACCT_F_QUOTA)
