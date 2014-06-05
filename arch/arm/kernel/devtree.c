@@ -27,10 +27,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	arm_add_memory(base, size);
-}
 
 #ifdef CONFIG_SMP
 extern struct of_cpu_method __cpu_method_of_table[];

@@ -153,7 +153,6 @@ enum sys_powerdown {
 	NUM_SYS_POWERDOWN,
 };
 
-extern unsigned long l2x0_regs_phys;
 struct exynos_pmu_conf {
 	void __iomem *reg;
 	unsigned int val[NUM_SYS_POWERDOWN];

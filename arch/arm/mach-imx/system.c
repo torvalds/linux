@@ -124,7 +124,7 @@ void __init imx_init_l2cache(void)
 	}
 
 	/* Configure the L2 PREFETCH and POWER registers */
-	val = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
+	val = readl_relaxed(l2x0_base + L310_PREFETCH_CTRL);
 	val |= 0x70800000;
 	/*
 	 * The L2 cache controller(PL310) version on the i.MX6D/Q is r3p1-50rel0
@@ -137,14 +137,12 @@ void __init imx_init_l2cache(void)
 	 */
 	if (cpu_is_imx6q())
 		val &= ~(1 << 30 | 1 << 23);
-	writel_relaxed(val, l2x0_base + L2X0_PREFETCH_CTRL);
-	val = L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN;
-	writel_relaxed(val, l2x0_base + L2X0_POWER_CTRL);
+	writel_relaxed(val, l2x0_base + L310_PREFETCH_CTRL);
 
 	iounmap(l2x0_base);
 	of_node_put(np);
 
 out:
-	l2x0_of_init(0, ~0UL);
+	l2x0_of_init(0, ~0);
 }
 #endif

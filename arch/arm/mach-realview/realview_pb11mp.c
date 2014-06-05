@@ -337,8 +337,13 @@ static void __init realview_pb11mp_init(void)
 	int i;
 
 #ifdef CONFIG_CACHE_L2X0
-	/* 1MB (128KB/way), 8-way associativity, evmon/parity/share enabled
-	 * Bits:  .... ...0 0111 1001 0000 .... .... .... */
+	/*
+	 * The PL220 needs to be manually configured as the hardware
+	 * doesn't report the correct sizes.
+	 * 1MB (128KB/way), 8-way associativity, event monitor and
+	 * parity enabled, ignore share bit, no force write allocate
+	 * Bits:  .... ...0 0111 1001 0000 .... .... ....
+	 */
 	l2x0_init(__io_address(REALVIEW_TC11MP_L220_BASE), 0x00790000, 0xfe000fff);
 #endif
 

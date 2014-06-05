@@ -64,9 +64,8 @@ int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 int orion5x_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
-struct meminfo;
 struct tag;
-extern void __init tag_fixup_mem32(struct tag *, char **, struct meminfo *);
+extern void __init tag_fixup_mem32(struct tag *, char **);
 
 #ifdef CONFIG_MACH_MSS2_DT
 extern void mss2_init(void);

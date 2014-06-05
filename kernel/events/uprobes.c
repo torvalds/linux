@@ -1291,14 +1291,8 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe)
 	if (unlikely(!xol_vaddr))
 		return 0;
 
-	/* Initialize the slot */
-	copy_to_page(area->page, xol_vaddr,
-			&uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
-	/*
-	 * We probably need flush_icache_user_range() but it needs vma.
-	 * This should work on supported architectures too.
-	 */
-	flush_dcache_page(area->page);
+	arch_uprobe_copy_ixol(area->page, xol_vaddr,
+			      &uprobe->arch.ixol, sizeof(uprobe->arch.ixol));
 
 	return xol_vaddr;
 }
@@ -1339,6 +1333,21 @@ static void xol_free_insn_slot(struct task_struct *tsk)
 
 		tsk->utask->xol_vaddr = 0;
 	}
+}
+
+void __weak arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
+				  void *src, unsigned long len)
+{
+	/* Initialize the slot */
+	copy_to_page(page, vaddr, src, len);
+
+	/*
+	 * We probably need flush_icache_user_range() but it needs vma.
+	 * This should work on most of architectures by default. If
+	 * architecture needs to do something different it can define
+	 * its own version of the function.
+	 */
+	flush_dcache_page(page);
 }
 
 /**

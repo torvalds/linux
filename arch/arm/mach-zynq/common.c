@@ -109,11 +109,6 @@ static void __init zynq_init_machine(void)
 	struct soc_device *soc_dev;
 	struct device *parent = NULL;
 
-	/*
-	 * 64KB way size, 8-way associativity, parity disabled
-	 */
-	l2x0_of_init(0x02060000, 0xF0F0FFFF);
-
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		goto out;
@@ -202,6 +197,9 @@ static const char * const zynq_dt_match[] = {
 };
 
 DT_MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
+	/* 64KB way size, 8-way associativity, parity disabled */
+	.l2c_aux_val	= 0x02000000,
+	.l2c_aux_mask	= 0xf0ffffff,
 	.smp		= smp_ops(zynq_smp_ops),
 	.map_io		= zynq_map_io,
 	.init_irq	= zynq_irq_init,

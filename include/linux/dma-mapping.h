@@ -129,6 +129,13 @@ static inline int dma_coerce_mask_and_coherent(struct device *dev, u64 mask)
 
 extern u64 dma_get_required_mask(struct device *dev);
 
+#ifndef set_arch_dma_coherent_ops
+static inline int set_arch_dma_coherent_ops(struct device *dev)
+{
+	return 0;
+}
+#endif
+
 static inline unsigned int dma_get_max_seg_size(struct device *dev)
 {
 	return dev->dma_parms ? dev->dma_parms->max_segment_size : 65536;

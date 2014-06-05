@@ -70,40 +70,12 @@ u32 tegra_uart_config[3] = {
 	0,
 };
 
-static void __init tegra_init_cache(void)
-{
-#ifdef CONFIG_CACHE_L2X0
-	static const struct of_device_id pl310_ids[] __initconst = {
-		{ .compatible = "arm,pl310-cache",  },
-		{}
-	};
-
-	struct device_node *np;
-	int ret;
-	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
-	u32 aux_ctrl, cache_type;
-
-	np = of_find_matching_node(NULL, pl310_ids);
-	if (!np)
-		return;
-
-	cache_type = readl(p + L2X0_CACHE_TYPE);
-	aux_ctrl = (cache_type & 0x700) << (17-8);
-	aux_ctrl |= 0x7C400001;
-
-	ret = l2x0_of_init(aux_ctrl, 0x8200c3fe);
-	if (!ret)
-		l2x0_saved_regs_addr = virt_to_phys(&l2x0_saved_regs);
-#endif
-}
-
 static void __init tegra_init_early(void)
 {
 	of_register_trusted_foundations();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_cpu_reset_handler_init();
-	tegra_init_cache();
 	tegra_powergate_init();
 	tegra_hotplug_init();
 }
@@ -191,8 +163,10 @@ static const char * const tegra_dt_board_compat[] = {
 };
 
 DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
-	.map_io		= tegra_map_common_io,
+	.l2c_aux_val	= 0x3c400001,
+	.l2c_aux_mask	= 0xc20fc3fe,
 	.smp		= smp_ops(tegra_smp_ops),
+	.map_io		= tegra_map_common_io,
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.init_machine	= tegra_dt_init,
