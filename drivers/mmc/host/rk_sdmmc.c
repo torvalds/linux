@@ -41,6 +41,7 @@
 #include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/clk-private.h>
+#include <linux/rockchip/cpu.h>
 
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_of.h"
@@ -49,7 +50,7 @@
 
 #define grf_writel(v, offset)   do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
 
-#define RK_SDMMC_DRIVER_VERSION "Ver 1.10 2014-06-05" 
+#define RK_SDMMC_DRIVER_VERSION "Ver 1.11 2014-06-05" 
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \
@@ -832,7 +833,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 	}
 }
 
-static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
+static int mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
 {
 	struct dw_mci *host = slot->host;	
 	unsigned long timeout = jiffies + msecs_to_jiffies(500);//msecs_to_jiffies(5000);
@@ -854,32 +855,39 @@ static void mci_send_cmd(struct dw_mci_slot *slot, u32 cmd, u32 arg)
 	mci_writel(host, CMDARG, arg);
 	wmb();
 	mci_writel(host, CMD, SDMMC_CMD_START | cmd);
-
+	if(cmd & SDMMC_CMD_UPD_CLK)
+		timeout = jiffies + msecs_to_jiffies(50);
+	else
+		timeout = jiffies + msecs_to_jiffies(500);
 	while (time_before(jiffies, timeout)) {
 		cmd_status = mci_readl(host, CMD);
 		if (!(cmd_status & SDMMC_CMD_START))
-			return;
+			return 0;
 	}
 	dev_err(&slot->mmc->class_dev,
 		"Timeout sending command (cmd %#x arg %#x status %#x)\n",
 		cmd, arg, cmd_status);
+	return -EAGAIN;
 }
 
-static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
+static int dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 {
 	struct dw_mci *host = slot->host;
 	unsigned int tempck,clock = slot->clock;
 	u32 div;
 	u32 clk_en_a;
 	u32 sdio_int;
+	int ret = 0;
 	
         MMC_DBG_INFO_FUNC(host->mmc,"%d..%s: clock=%d, current_speed=%d, bus_hz=%d,forc=%d[%s]\n", 
                 __LINE__, __FUNCTION__, clock, host->current_speed,host->bus_hz,force_clkinit,mmc_hostname(host->mmc));
 
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
-		mci_send_cmd(slot,
+		ret = mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		if(ret < 0)
+			return -EAGAIN;
 	} else if (clock != host->current_speed || force_clkinit) {
 		div = host->bus_hz / clock;
 		if (host->bus_hz % clock && host->bus_hz > clock)
@@ -907,7 +915,10 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		mci_writel(host, CLKSRC, 0);
 
 		/* inform CIU */
-		mci_send_cmd(slot, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		ret = mci_send_cmd(slot,
+			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+        if(ret < 0)
+			return -EAGAIN;
 
                 if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
                         goto normal;
@@ -971,8 +982,10 @@ normal:
 		mci_writel(host, CLKDIV, div);
 
 		/* inform CIU */
-		mci_send_cmd(slot,
+		ret = mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		if(ret < 0)
+			return -EAGAIN;
 
 		/* enable clock; only low power if no SDIO */
 		clk_en_a = SDMMC_CLKEN_ENABLE << slot->id;
@@ -987,9 +1000,10 @@ normal:
 		mci_writel(host, CLKENA, clk_en_a);
 
 		/* inform CIU */
-		mci_send_cmd(slot,
+		ret = mci_send_cmd(slot,
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
-
+		if(ret < 0)
+			return -EAGAIN;
 		/* keep the clock with reflecting clock dividor */
 		slot->__clk_old = clock << div;
 	}
@@ -1005,7 +1019,7 @@ normal:
 
 	/* Set the current slot bus width */
 	mci_writel(host, CTYPE, (slot->ctype << slot->id));
-
+	return ret;
 }
 
 static void dw_mci_wait_unbusy(struct dw_mci *host)
@@ -1181,7 +1195,7 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_unlock_bh(&host->lock);
 }
 
-static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+static int dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
@@ -1205,8 +1219,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     {
         printk("slot->flags=%d ", slot->flags);
         dump_stack();
-        printk("%d..%s:  wait for unbusy timeout.......[%s]\n", \
-            __LINE__, __FUNCTION__, mmc_hostname(mmc));
+        printk("%d..%s:  wait for unbusy timeout....... STATUS = 0x%x[%s]\n", \
+            __LINE__, __FUNCTION__, regs, mmc_hostname(mmc));
             }
 #endif
 	switch (ios->bus_width) {
@@ -1243,7 +1257,8 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		drv_data->set_ios(slot->host, ios);
 
 	/* Slot specific timing and width adjustment */
-	dw_mci_setup_bus(slot, false);
+	if(dw_mci_setup_bus(slot, false) < 0)
+		return -EAGAIN;
 
 EXIT_POWER:
 	switch (ios->power_mode) {
@@ -1267,6 +1282,7 @@ EXIT_POWER:
 	default:
 		break;
 	}
+	return 0;
 }
 
 static int dw_mci_get_ro(struct mmc_host *mmc)
@@ -2504,13 +2520,15 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 		}
 
 		if (pending & SDMMC_INT_CMD_DONE) {
-    			MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_CMD_DONE, INT-pending=0x%x. [%s]",pending,mmc_hostname(host->mmc));
+    			MMC_DBG_CMD_FUNC(host->mmc, "SDMMC_INT_CMD_DONE, CMD = 0x%x, INT-pending=0x%x. [%s]",mci_readl(host, CMD),pending,mmc_hostname(host->mmc));
 			mci_writel(host, RINTSTS, SDMMC_INT_CMD_DONE);
 			dw_mci_cmd_interrupt(host, pending);
 		}
 
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
+			MMC_DBG_INFO_FUNC(host->mmc, "SDMMC_INT_CD, INT-pending=0x%x. [%s]", pending, mmc_hostname(host->mmc)); 
+			wake_lock_timeout(&host->mmc->detect_wake_lock, 5 * HZ);
 			queue_work(host->card_workqueue, &host->card_work);
 		}
 		
@@ -3501,13 +3519,18 @@ int dw_mci_suspend(struct dw_mci *host)
 
 	/*only for sdmmc controller*/
 	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
-	    disable_irq(host->irq);
-	    
-	    if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-		    printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
-	    dw_mci_of_get_cd_gpio(host->dev,0,host->mmc);
-	    
-	    enable_irq_wake(host->mmc->slot.cd_irq);
+		host->mmc->rescan_disable = 1;
+		if (cancel_delayed_work_sync(&host->mmc->detect)){
+			wake_unlock(&host->mmc->detect_wake_lock);
+		}
+		disable_irq(host->irq);
+		if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+			printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+		dw_mci_of_get_cd_gpio(host->dev,0,host->mmc);
+		mci_writel(host, RINTSTS, 0xFFFFFFFF);
+		mci_writel(host, INTMASK, 0x00);
+		mci_writel(host, CTRL, 0x00);
+		enable_irq_wake(host->mmc->slot.cd_irq);
     }
 	return 0;
 }
@@ -3515,7 +3538,7 @@ EXPORT_SYMBOL(dw_mci_suspend);
 
 int dw_mci_resume(struct dw_mci *host)
 {
-	int i, ret;
+	int i, ret, retry_cnt = 0;
 	u32 regs;
         struct dw_mci_slot *slot;
     
@@ -3525,7 +3548,17 @@ int dw_mci_resume(struct dw_mci *host)
                 if(!test_bit(DW_MMC_CARD_PRESENT, &slot->flags))
                         return 0;
         }
-        
+    	/*only for sdmmc controller*/
+	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+		disable_irq_wake(host->mmc->slot.cd_irq);
+		mmc_gpio_free_cd(host->mmc);
+		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+			printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));  
+		host->mmc->rescan_disable = 0;
+		if(cpu_is_rk3288()) {
+			grf_writel(((1<<12)<<16)|(0<<12), RK3288_GRF_SOC_CON0);//disable jtag
+		}
+	}
 	if (host->vmmc) {
 		ret = regulator_enable(host->vmmc);
 		if (ret) {
@@ -3534,7 +3567,8 @@ int dw_mci_resume(struct dw_mci *host)
 			return ret;
 		}
 	}
-        
+	
+RESUME_AGAIN:	
 	if (!dw_mci_ctrl_all_reset(host)) {
 		ret = -ENODEV;
 		return ret;
@@ -3559,28 +3593,30 @@ int dw_mci_resume(struct dw_mci *host)
 	    regs |= SDMMC_INT_CD;	   
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
+	/*only for sdmmc controller*/
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)) {
+		enable_irq(host->irq);	
+	}   
+	
+	if((retry_cnt++) > 0x100) {
+		dev_err(host->dev,
+				"failed to resume controller: %d.[%s]\n", ret, mmc_hostname(host->mmc));
+		return -ENODEV;
+	}
+	if(retry_cnt > 1)
+		dev_err("%s sdmmc resume error.[%s]\n",__func__, mmc_hostname(host->mmc));
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
 		if (!slot)
 			continue;
 		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
-			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
-			dw_mci_setup_bus(slot, true);
+			if(dw_mci_set_ios(slot->mmc, &slot->mmc->ios) < 0)
+				goto RESUME_AGAIN;
+			if(dw_mci_setup_bus(slot, true) < 0)
+				goto RESUME_AGAIN;
 		}
 	}
-	
-	/*only for sdmmc controller*/
-	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
-	    disable_irq_wake(host->mmc->slot.cd_irq);
-
-	    mmc_gpio_free_cd(host->mmc);
-	    if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-		    printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));  
-
-        enable_irq(host->irq);
-	    
-    }	
 	
 	return 0;
 }
