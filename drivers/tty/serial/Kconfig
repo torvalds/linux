@@ -773,7 +773,7 @@ config SERIAL_HS_LPC32XX
 
 config SERIAL_HS_LPC32XX_CONSOLE
 	bool "Enable LPC32XX high speed UART serial console"
-	depends on SERIAL_HS_LPC32XX
+	depends on SERIAL_HS_LPC32XX=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you would like to be able to use one of the high speed serial
