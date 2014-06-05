@@ -35,16 +35,6 @@
 #define __dma_alloc_coherent(dev, gfp, size, handle)	NULL
 #define __dma_free_coherent(size, addr)		((void)0)
 
-static inline unsigned long device_to_mask(struct device *dev)
-{
-	if (dev->dma_mask && *dev->dma_mask)
-		return *dev->dma_mask;
-	/* Assume devices without mask can take 32 bit addresses */
-	return 0xfffffffful;
-}
-
-extern struct dma_map_ops *dma_ops;
-
 /*
  * Available generic sets of operations
  */
@@ -52,20 +42,7 @@ extern struct dma_map_ops dma_direct_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
-	/* We don't handle the NULL dev case for ISA for now. We could
-	 * do it via an out of line call but it is not needed for now. The
-	 * only ISA DMA device we support is the floppy and we have a hack
-	 * in the floppy driver directly to get a device for us.
-	 */
-	if (unlikely(!dev) || !dev->archdata.dma_ops)
-		return NULL;
-
-	return dev->archdata.dma_ops;
-}
-
-static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
-{
-	dev->archdata.dma_ops = ops;
+	return &dma_direct_ops;
 }
 
 static inline int dma_supported(struct device *dev, u64 mask)
