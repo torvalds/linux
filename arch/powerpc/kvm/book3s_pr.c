@@ -125,6 +125,7 @@ void kvmppc_copy_to_svcpu(struct kvmppc_book3s_shadow_vcpu *svcpu,
 	 * to find the guest purr and spurr value.
 	 */
 	vcpu->arch.entry_tb = get_tb();
+	vcpu->arch.entry_vtb = get_vtb();
 	svcpu->in_use = true;
 }
 
@@ -176,7 +177,7 @@ void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu,
 	 */
 	vcpu->arch.purr += get_tb() - vcpu->arch.entry_tb;
 	vcpu->arch.spurr += get_tb() - vcpu->arch.entry_tb;
-
+	vcpu->arch.vtb += get_vtb() - vcpu->arch.entry_vtb;
 	svcpu->in_use = false;
 
 out:
