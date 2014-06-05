@@ -347,6 +347,8 @@ enum {
 	SKB_GSO_MPLS = 1 << 10,
 
 	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 11,
+
+	SKB_GSO_GRE_CSUM = 1 << 12,
 };
 
 #if BITS_PER_LONG > 32

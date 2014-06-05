@@ -1254,6 +1254,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
 		       SKB_GSO_GRE |
+		       SKB_GSO_GRE_CSUM |
 		       SKB_GSO_IPIP |
 		       SKB_GSO_SIT |
 		       SKB_GSO_TCPV6 |
