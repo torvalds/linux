@@ -1572,8 +1572,6 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 	unsigned i;
 
 	num_endpoints = interface->cur_altsetting->desc.bNumEndpoints;
-	dev_info(&udev->dev, "Number of endpoints %d\n", num_endpoints);
-
 	if (!num_endpoints)
 		return;
 
@@ -1582,8 +1580,6 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 	 * want to override the endpoint descriptor setting and use a
 	 * value of 64 for wMaxPacketSize */
 	for (i = 0; i < num_endpoints; i++) {
-		dev_info(&udev->dev, "Endpoint %d MaxPacketSize %d\n", i+1,
-			interface->cur_altsetting->endpoint[i].desc.wMaxPacketSize);
 		ep_desc = &interface->cur_altsetting->endpoint[i].desc;
 		if (ep_desc->wMaxPacketSize == 0) {
 			ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
@@ -1593,8 +1589,6 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 
 	/* set max packet size based on descriptor */
 	priv->max_packet_size = usb_endpoint_maxp(ep_desc);
-
-	dev_info(&udev->dev, "Setting MaxPacketSize %d\n", priv->max_packet_size);
 }
 
 
