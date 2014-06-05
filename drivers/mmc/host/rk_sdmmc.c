@@ -3089,13 +3089,13 @@ static bool dw_mci_ctrl_reset(struct dw_mci *host, u32 reset)
 	do {
 		ctrl = mci_readl(host, CTRL);
 		if (!(ctrl & reset))
-			return true;
+		        return true;
 	} while (time_before(jiffies, timeout));
 
 	dev_err(host->dev,
 		"Timeout resetting block (ctrl reset %#x)\n",
 		ctrl & reset);
-
+		
 	return false;
 }
 
@@ -3517,7 +3517,15 @@ int dw_mci_resume(struct dw_mci *host)
 {
 	int i, ret;
 	u32 regs;
+        struct dw_mci_slot *slot;
+    
+        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO){
+                slot = mmc_priv(host->mmc);
 
+                if(!test_bit(DW_MMC_CARD_PRESENT, &slot->flags))
+                        return 0;
+        }
+        
 	if (host->vmmc) {
 		ret = regulator_enable(host->vmmc);
 		if (ret) {
@@ -3526,7 +3534,7 @@ int dw_mci_resume(struct dw_mci *host)
 			return ret;
 		}
 	}
-
+        
 	if (!dw_mci_ctrl_all_reset(host)) {
 		ret = -ENODEV;
 		return ret;
