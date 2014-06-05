@@ -17,6 +17,7 @@ extern int fixed_phy_add(unsigned int irq, int phy_id,
 extern int fixed_phy_register(unsigned int irq,
 			      struct fixed_phy_status *status,
 			      struct device_node *np);
+extern void fixed_phy_del(int phy_addr);
 #else
 static inline int fixed_phy_add(unsigned int irq, int phy_id,
 				struct fixed_phy_status *status)
@@ -26,6 +27,10 @@ static inline int fixed_phy_add(unsigned int irq, int phy_id,
 static inline int fixed_phy_register(unsigned int irq,
 				     struct fixed_phy_status *status,
 				     struct device_node *np)
+{
+	return -ENODEV;
+}
+static inline int fixed_phy_del(int phy_addr)
 {
 	return -ENODEV;
 }
