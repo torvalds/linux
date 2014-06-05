@@ -121,6 +121,9 @@ struct drm_display_info {
 	enum subpixel_order subpixel_order;
 	u32 color_formats;
 
+	/* Mask of supported hdmi deep color modes */
+	u8 edid_hdmi_dc_modes;
+
 	u8 cea_rev;
 };
 
