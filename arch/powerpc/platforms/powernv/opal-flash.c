@@ -131,7 +131,8 @@ static inline void opal_flash_validate(void)
 {
 	long ret;
 	void *buf = validate_flash_data.buf;
-	__be32 size, result;
+	__be32 size = cpu_to_be32(validate_flash_data.buf_size);
+	__be32 result;
 
 	ret = opal_validate_flash(__pa(buf), &size, &result);
 
