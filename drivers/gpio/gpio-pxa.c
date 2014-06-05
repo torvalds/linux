@@ -649,6 +649,11 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 						 handle_edge_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}
+	} else {
+		if (irq0 > 0)
+			irq_set_chained_handler(irq0, pxa_gpio_demux_handler);
+		if (irq1 > 0)
+			irq_set_chained_handler(irq1, pxa_gpio_demux_handler);
 	}
 
 	irq_set_chained_handler(irq_mux, pxa_gpio_demux_handler);
