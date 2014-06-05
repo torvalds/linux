@@ -321,6 +321,7 @@ static const struct intel_device_info intel_broadwell_m_info = {
 	.has_ddi = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_gt3d_info = {
@@ -331,6 +332,7 @@ static const struct intel_device_info intel_broadwell_gt3d_info = {
 	.has_ddi = 1,
 	.has_fbc = 1,
 	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
 };
 
 static const struct intel_device_info intel_broadwell_gt3m_info = {
