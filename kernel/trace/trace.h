@@ -252,6 +252,9 @@ static inline struct trace_array *top_trace_array(void)
 {
 	struct trace_array *tr;
 
+	if (list_empty(ftrace_trace_arrays.prev))
+		return NULL;
+
 	tr = list_entry(ftrace_trace_arrays.prev,
 			typeof(*tr), list);
 	WARN_ON(!(tr->flags & TRACE_ARRAY_FL_GLOBAL));
