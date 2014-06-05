@@ -634,10 +634,24 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	if (err < 0)
 		dev_err(sor->dev, "failed to set DP parent clock: %d\n", err);
 
-	/* power dplanes (XXX parameterize based on link?) */
+	/* power DP lanes */
 	value = tegra_sor_readl(sor, SOR_DP_PADCTL_0);
-	value |= SOR_DP_PADCTL_PD_TXD_3 | SOR_DP_PADCTL_PD_TXD_0 |
-		 SOR_DP_PADCTL_PD_TXD_1 | SOR_DP_PADCTL_PD_TXD_2;
+
+	if (link.num_lanes <= 2)
+		value &= ~(SOR_DP_PADCTL_PD_TXD_3 | SOR_DP_PADCTL_PD_TXD_2);
+	else
+		value |= SOR_DP_PADCTL_PD_TXD_3 | SOR_DP_PADCTL_PD_TXD_2;
+
+	if (link.num_lanes <= 1)
+		value &= ~SOR_DP_PADCTL_PD_TXD_1;
+	else
+		value |= SOR_DP_PADCTL_PD_TXD_1;
+
+	if (link.num_lanes == 0)
+		value &= ~SOR_DP_PADCTL_PD_TXD_0;
+	else
+		value |= SOR_DP_PADCTL_PD_TXD_0;
+
 	tegra_sor_writel(sor, value, SOR_DP_PADCTL_0);
 
 	value = tegra_sor_readl(sor, SOR_DP_LINKCTL_0);
