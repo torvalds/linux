@@ -1029,7 +1029,7 @@ static int iss_get_clocks(struct iss_device *iss)
 	if (IS_ERR(iss->iss_ctrlclk)) {
 		dev_err(iss->dev, "Unable to get iss_ctrlclk clock info\n");
 		iss_put_clocks(iss);
-		return PTR_ERR(iss->iss_fck);
+		return PTR_ERR(iss->iss_ctrlclk);
 	}
 
 	return 0;
