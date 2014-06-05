@@ -45,8 +45,11 @@
 #include "rk_sdmmc.h"
 #include "rk_sdmmc_of.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
+#include "../../clk/rockchip/clk-ops.h"
 
-#define RK_SDMMC_DRIVER_VERSION "Ver 1.00. The last modify date is 2014-05-05" 
+#define grf_writel(v, offset)   do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
+
+#define RK_SDMMC_DRIVER_VERSION "Ver 1.10 2014-06-05" 
 
 /* Common flag combinations */
 #define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | \
@@ -870,8 +873,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	u32 clk_en_a;
 	u32 sdio_int;
 	
-    MMC_DBG_INFO_FUNC(host->mmc,"%d..%s: clock=%d, current_speed=%d, bus_hz=%d,forc=%d[%s]\n", 
-        __LINE__, __FUNCTION__, clock, host->current_speed,host->bus_hz,force_clkinit,mmc_hostname(host->mmc));
+        MMC_DBG_INFO_FUNC(host->mmc,"%d..%s: clock=%d, current_speed=%d, bus_hz=%d,forc=%d[%s]\n", 
+                __LINE__, __FUNCTION__, clock, host->current_speed,host->bus_hz,force_clkinit,mmc_hostname(host->mmc));
 
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
@@ -896,7 +899,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 				 tempck, div);
 
 			host->set_speed = tempck;
-		    host->set_div = div;
+		        host->set_div = div;
 		}
 
 		/* disable clock */
@@ -904,25 +907,63 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 		mci_writel(host, CLKSRC, 0);
 
 		/* inform CIU */
-		mci_send_cmd(slot,
-			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		mci_send_cmd(slot, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+                 
+                if(clock == 400*1000){
+	                MMC_DBG_BOOT_FUNC(host->mmc,
+                                "dw_mci_setup_bus: argue clk_mmc workaround out 800K for init[%s]",
+                                mmc_hostname(host->mmc)); 
+                        /* RK3288 clk_mmc will change parents to 24MHz xtal*/
+	                clk_set_rate(host->clk_mmc,800*1000);	               
 
-                if(div > 1){
-                        if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-                          && host->bus_hz > 100000000){
-                                printk("rk_sdmmc: emmc : div larger than 1, illegal clk in dts ![%s]\n ", 
-                                        mmc_hostname(host->mmc));
-                                printk("eMMC ERROR, emergancy halt!!!!!!!!!\n");        
-                                printk("Please refer to your eMMC datasheet to determine speed mode!\n");
-                                printk("================================rk3288====================================");
-                                printk("DDR 8-bits mode: clk in dts should be 100MHz!\n");
-                                printk("DDR 4-bits mode: clk in dts should be <=100MHz(recommand 50 or 100Mhz)!\n");
-                                printk("SDR mode: clk in dts should <= 100MHz(recommand 50 or 100Mhz)!\n");
-                                printk("HS200 mode: clk in dts should <= 150MHz!\n");
-                                printk("==========================================================================");
-                                BUG();
+	                div = 0;
+	                host->set_div = div;
+	        }
+	        else
+	        {
+	                MMC_DBG_BOOT_FUNC(host->mmc,
+                                "dw_mci_setup_bus: argue clk_mmc workaround out normal clock [%s]",
+                                mmc_hostname(host->mmc)); 
+                        if(div > 1)
+                        {
+                                MMC_DBG_ERR_FUNC(host->mmc,
+                                        "dw_mci_setup_bus: div SHOULD NOT LARGER THAN ONE! [%s]",
+                                        mmc_hostname(host->mmc)); 
+                                 div = 1;
+                                 host->set_div = div;
+                                 host->bus_hz = host->set_speed * 2;
+                                 MMC_DBG_BOOT_FUNC(host->mmc,
+                                        "dw_mci_setup_bus: workaround div = %d, host->bus_hz = %d [%s]",
+                                        div, host->bus_hz, mmc_hostname(host->mmc));                                 
                         }
-                }
+                        /* BUG may be here, come on,  Linux BSP engineer looks!
+                           FIXME:  HS-DDR eMMC, div SHOULD be ONE, but we here cannot fetch eMMC bus mode!!!!!!!! 
+                           WRONG dts set clk = 50M, and calc div be zero. Controller denied this setting!
+                           some oops happened like that:
+                           mmc_host mmc0: Bus speed (slot 0) = 50000000Hz (slot req 50000000Hz, actual 50000000HZ div = 0)
+                           rk_sdmmc: BOOT dw_mci_setup_bus: argue clk_mmc workaround out normal clock [mmc0]
+                           rk_sdmmc: BOOT Bus speed=50000000Hz,Bus width=8bits.[mmc0]
+                           mmc0: new high speed DDR MMC card at address 0001
+                           mmcblk0: mmc0:0001 M8G1GC 7.28 GiB 
+                           ....
+                           mmcblk0: error -84 transferring data, sector 606208, nr 32, cmd response 0x900, card status 0xb00
+                           mmcblk0: retrying using single block read
+                           mmcblk0: error -110 sending status command, retrying
+
+                           How to: If eMMC HW version < 4.51, or > 4.51 but no caps2-mmc-hs200 support in dts
+                                   Please set dts emmc clk to 100M or 150M, I will workaround it!
+                         */
+
+	                if (host->verid < DW_MMC_240A)
+	                        clk_set_rate(host->clk_mmc,(host->bus_hz));
+	                else
+	                        clk_set_rate(host->clk_mmc,(host->bus_hz) * 2);
+
+
+	                        
+	        }
+	        
+                
 		/* set clock to desired speed */
 		mci_writel(host, CLKDIV, div);
 
@@ -935,7 +976,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		if (host->verid < DW_MMC_240A)
 		    sdio_int = SDMMC_INT_SDIO(slot->id);
-	    else
+	        else
 		    sdio_int = SDMMC_INT_SDIO((slot->id) + 8);
 
 		if (!(mci_readl(host, INTMASK) & sdio_int))
@@ -2834,7 +2875,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 		mmc->hold_reg_flag |= drv_data->hold_reg_flag[ctrl_id];		
 
 	//set the compatibility of driver.	
-    mmc->caps |= MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50|MMC_CAP_UHS_SDR104|MMC_CAP_ERASE;
+    mmc->caps |= MMC_CAP_UHS_SDR12|MMC_CAP_UHS_SDR25|MMC_CAP_UHS_SDR50|MMC_CAP_UHS_SDR104|MMC_CAP_ERASE ;
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
@@ -3248,10 +3289,10 @@ int dw_mci_probe(struct dw_mci *host)
         }
     }
 
-	host->quirks = host->pdata->quirks;
-    host->irq_state = true;
-    host->set_speed = 0;
-    host->set_div = 0;
+        host->quirks = host->pdata->quirks;
+        host->irq_state = true;
+        host->set_speed = 0;
+        host->set_div = 0;
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
