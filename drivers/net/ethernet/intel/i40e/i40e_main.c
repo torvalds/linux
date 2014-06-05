@@ -5744,26 +5744,28 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	/* find what triggered the MDD event */
 	reg = rd32(hw, I40E_GL_MDET_TX);
 	if (reg & I40E_GL_MDET_TX_VALID_MASK) {
-		u8 func = (reg & I40E_GL_MDET_TX_FUNCTION_MASK)
-				>> I40E_GL_MDET_TX_FUNCTION_SHIFT;
-		u8 event = (reg & I40E_GL_MDET_TX_EVENT_SHIFT)
-				>> I40E_GL_MDET_TX_EVENT_SHIFT;
-		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK)
-				>> I40E_GL_MDET_TX_QUEUE_SHIFT;
+		u8 pf_num = (reg & I40E_GL_MDET_TX_PF_NUM_MASK) >>
+				I40E_GL_MDET_TX_PF_NUM_SHIFT;
+		u8 vf_num = (reg & I40E_GL_MDET_TX_VF_NUM_MASK) >>
+				I40E_GL_MDET_TX_VF_NUM_SHIFT;
+		u8 event = (reg & I40E_GL_MDET_TX_EVENT_SHIFT) >>
+				I40E_GL_MDET_TX_EVENT_SHIFT;
+		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
+				I40E_GL_MDET_TX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on TX queue %d of function 0x%02x\n",
-			 event, queue, func);
+			 "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
+			 event, queue, pf_num, vf_num);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
 	}
 	reg = rd32(hw, I40E_GL_MDET_RX);
 	if (reg & I40E_GL_MDET_RX_VALID_MASK) {
-		u8 func = (reg & I40E_GL_MDET_RX_FUNCTION_MASK)
-				>> I40E_GL_MDET_RX_FUNCTION_SHIFT;
-		u8 event = (reg & I40E_GL_MDET_RX_EVENT_SHIFT)
-				>> I40E_GL_MDET_RX_EVENT_SHIFT;
-		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK)
-				>> I40E_GL_MDET_RX_QUEUE_SHIFT;
+		u8 func = (reg & I40E_GL_MDET_RX_FUNCTION_MASK) >>
+				I40E_GL_MDET_RX_FUNCTION_SHIFT;
+		u8 event = (reg & I40E_GL_MDET_RX_EVENT_SHIFT) >>
+				I40E_GL_MDET_RX_EVENT_SHIFT;
+		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
+				I40E_GL_MDET_RX_QUEUE_SHIFT;
 		dev_info(&pf->pdev->dev,
 			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
 			 event, queue, func);
