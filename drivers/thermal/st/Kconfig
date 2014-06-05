@@ -1,0 +1,4 @@
+config ST_THERMAL
+       tristate "Thermal sensors on STMicroelectronics STi series of SoCs"
+       help
+         Support for thermal sensors on STMicroelectronics STi series of SoCs.

@@ -243,4 +243,9 @@ depends on ARCH_EXYNOS
 source "drivers/thermal/samsung/Kconfig"
 endmenu
 
+menu "STMicroelectronics thermal drivers"
+depends on ARCH_STI && OF
+source "drivers/thermal/st/Kconfig"
+endmenu
+
 endif
