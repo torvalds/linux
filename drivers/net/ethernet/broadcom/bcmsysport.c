@@ -514,7 +514,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 
 		if (unlikely(status & (RX_STATUS_ERR | RX_STATUS_OVFLOW))) {
 			netif_err(priv, rx_err, ndev, "error packet\n");
-			if (RX_STATUS_OVFLOW)
+			if (status & RX_STATUS_OVFLOW)
 				ndev->stats.rx_over_errors++;
 			ndev->stats.rx_dropped++;
 			ndev->stats.rx_errors++;
