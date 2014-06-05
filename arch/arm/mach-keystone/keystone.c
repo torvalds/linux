@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/memblock.h>
 
 #include <asm/setup.h>
 #include <asm/mach/map.h>
@@ -68,9 +69,8 @@ static void __init keystone_init_meminfo(void)
 	phys_addr_t offset = PHYS_OFFSET - KEYSTONE_LOW_PHYS_START;
 	phys_addr_t mem_start, mem_end;
 
-	BUG_ON(meminfo.nr_banks < 1);
-	mem_start = meminfo.bank[0].start;
-	mem_end = mem_start + meminfo.bank[0].size - 1;
+	mem_start = memblock_start_of_DRAM();
+	mem_end = memblock_end_of_DRAM();
 
 	/* nothing to do if we are running out of the <32-bit space */
 	if (mem_start >= KEYSTONE_LOW_PHYS_START &&
