@@ -2538,6 +2538,9 @@ bool ieee80211_csa_is_complete(struct ieee80211_vif *vif)
 		goto out;
 	}
 
+	if (!beacon->csa_counter_offsets[0])
+		goto out;
+
 	if (WARN_ON_ONCE(beacon->csa_counter_offsets[0] > beacon_data_len))
 		goto out;
 
@@ -2582,7 +2585,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 		beacon = rcu_dereference(ap->beacon);
 		if (beacon) {
-			if (sdata->vif.csa_active) {
+			if (beacon->csa_counter_offsets[0]) {
 				if (!is_template)
 					ieee80211_csa_update_counter(vif);
 
@@ -2628,7 +2631,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!beacon)
 			goto out;
 
-		if (sdata->vif.csa_active) {
+		if (beacon->csa_counter_offsets[0]) {
 			if (!is_template)
 				ieee80211_csa_update_counter(vif);
 
@@ -2653,7 +2656,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		if (!beacon)
 			goto out;
 
-		if (sdata->vif.csa_active) {
+		if (beacon->csa_counter_offsets[0]) {
 			if (!is_template)
 				/* TODO: For mesh csa_counter is in TU, so
 				 * decrementing it by one isn't correct, but
