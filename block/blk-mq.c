@@ -1967,13 +1967,19 @@ static int blk_mq_queue_reinit_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+/*
+ * Alloc a tag set to be associated with one or more request queues.
+ * May fail with EINVAL for various error conditions. May adjust the
+ * requested depth down, if if it too large. In that case, the set
+ * value will be stored in set->queue_depth.
+ */
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 {
 	int i;
 
 	if (!set->nr_hw_queues)
 		return -EINVAL;
-	if (!set->queue_depth || set->queue_depth > BLK_MQ_MAX_DEPTH)
+	if (!set->queue_depth)
 		return -EINVAL;
 	if (set->queue_depth < set->reserved_tags + BLK_MQ_TAG_MIN)
 		return -EINVAL;
@@ -1981,6 +1987,11 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	if (!set->nr_hw_queues || !set->ops->queue_rq || !set->ops->map_queue)
 		return -EINVAL;
 
+	if (set->queue_depth > BLK_MQ_MAX_DEPTH) {
+		pr_info("blk-mq: reduced tag depth to %u\n",
+			BLK_MQ_MAX_DEPTH);
+		set->queue_depth = BLK_MQ_MAX_DEPTH;
+	}
 
 	set->tags = kmalloc_node(set->nr_hw_queues *
 				 sizeof(struct blk_mq_tags *),
