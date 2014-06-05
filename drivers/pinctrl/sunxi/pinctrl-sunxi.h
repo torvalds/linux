@@ -53,7 +53,7 @@
 #define PULL_PINS_BITS		2
 #define PULL_PINS_MASK		0x03
 
-#define SUNXI_IRQ_NUMBER	32
+#define IRQ_PER_BANK		32
 
 #define IRQ_CFG_REG		0x200
 #define IRQ_CFG_IRQ_PER_REG		8
@@ -67,6 +67,8 @@
 #define IRQ_STATUS_IRQ_PER_REG		32
 #define IRQ_STATUS_IRQ_BITS		1
 #define IRQ_STATUS_IRQ_MASK		((1 << IRQ_STATUS_IRQ_BITS) - 1)
+
+#define IRQ_MEM_SIZE		0x20
 
 #define IRQ_EDGE_RISING		0x00
 #define IRQ_EDGE_FALLING	0x01
@@ -115,8 +117,8 @@ struct sunxi_pinctrl {
 	unsigned			nfunctions;
 	struct sunxi_pinctrl_group	*groups;
 	unsigned			ngroups;
-	int				irq;
-	int				irq_array[SUNXI_IRQ_NUMBER];
+	int				*irq;
+	unsigned			*irq_array;
 	spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
 };
@@ -228,8 +230,10 @@ static inline u32 sunxi_pull_offset(u16 pin)
 
 static inline u32 sunxi_irq_cfg_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_CFG_IRQ_PER_REG * 0x04;
-	return reg + IRQ_CFG_REG;
+	u8 bank = irq / IRQ_PER_BANK;
+	u8 reg = (irq % IRQ_PER_BANK) / IRQ_CFG_IRQ_PER_REG * 0x04;
+
+	return IRQ_CFG_REG + bank * IRQ_MEM_SIZE + reg;
 }
 
 static inline u32 sunxi_irq_cfg_offset(u16 irq)
@@ -238,10 +242,16 @@ static inline u32 sunxi_irq_cfg_offset(u16 irq)
 	return irq_num * IRQ_CFG_IRQ_BITS;
 }
 
+static inline u32 sunxi_irq_ctrl_reg_from_bank(u8 bank)
+{
+	return IRQ_CTRL_REG + bank * IRQ_MEM_SIZE;
+}
+
 static inline u32 sunxi_irq_ctrl_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_CTRL_IRQ_PER_REG * 0x04;
-	return reg + IRQ_CTRL_REG;
+	u8 bank = irq / IRQ_PER_BANK;
+
+	return sunxi_irq_ctrl_reg_from_bank(bank);
 }
 
 static inline u32 sunxi_irq_ctrl_offset(u16 irq)
@@ -250,10 +260,16 @@ static inline u32 sunxi_irq_ctrl_offset(u16 irq)
 	return irq_num * IRQ_CTRL_IRQ_BITS;
 }
 
+static inline u32 sunxi_irq_status_reg_from_bank(u8 bank)
+{
+	return IRQ_STATUS_REG + bank * IRQ_MEM_SIZE;
+}
+
 static inline u32 sunxi_irq_status_reg(u16 irq)
 {
-	u8 reg = irq / IRQ_STATUS_IRQ_PER_REG * 0x04;
-	return reg + IRQ_STATUS_REG;
+	u8 bank = irq / IRQ_PER_BANK;
+
+	return sunxi_irq_status_reg_from_bank(bank);
 }
 
 static inline u32 sunxi_irq_status_offset(u16 irq)
