@@ -624,6 +624,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * Start/stop beaconing.
 	 */
 	if (changes & BSS_CHANGED_BEACON_ENABLED) {
+		mutex_lock(&intf->beacon_skb_mutex);
 		if (!bss_conf->enable_beacon && intf->enable_beacon) {
 			rt2x00dev->intf_beaconing--;
 			intf->enable_beacon = false;
@@ -639,9 +640,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				 * Last beaconing interface disabled
 				 * -> stop beacon queue.
 				 */
-				mutex_lock(&intf->beacon_skb_mutex);
 				rt2x00queue_stop_queue(rt2x00dev->bcn);
-				mutex_unlock(&intf->beacon_skb_mutex);
 			}
 		} else if (bss_conf->enable_beacon && !intf->enable_beacon) {
 			rt2x00dev->intf_beaconing++;
@@ -658,11 +657,10 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				 * First beaconing interface enabled
 				 * -> start beacon queue.
 				 */
-				mutex_lock(&intf->beacon_skb_mutex);
 				rt2x00queue_start_queue(rt2x00dev->bcn);
-				mutex_unlock(&intf->beacon_skb_mutex);
 			}
 		}
+		mutex_unlock(&intf->beacon_skb_mutex);
 	}
 
 	/*
