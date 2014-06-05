@@ -722,7 +722,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	/* We can't free more than one frame at once on a shared queue */
 	WARN_ON(skb_freed > 1);
 
-	/* If we have still frames from this STA nothing to do here */
+	/* If we have still frames for this STA nothing to do here */
 	if (!atomic_sub_and_test(skb_freed, &mvm->pending_frames[sta_id]))
 		goto out;
 
