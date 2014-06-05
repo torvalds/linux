@@ -19,8 +19,10 @@
 *v0.6.0:
 *        1) add support mipi phy configuration;
 *        2) add support io domain and mclk driver strength configuration;
+*v0.7.0:
+		 1) add flash_trigger_out control
 */
-#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,6,0)
+#define CAMSYS_HEAD_VERSION           KERNEL_VERSION(0,7,0)
 
 #define CAMSYS_MARVIN_DEVNAME         "camsys_marvin"           
 #define CAMSYS_CIF0_DEVNAME           "camsys_cif0"
@@ -111,7 +113,10 @@ typedef enum camsys_sysctrl_ops_e {
 
     CamSys_Phy_Start_Tag,    
     CamSys_Phy,
-    CamSys_Phy_End_Tag
+    CamSys_Phy_End_Tag,
+    CamSys_Flash_Trigger_Start_Tag, 
+    CamSys_Flash_Trigger,
+    CamSys_Flash_Trigger_End_Tag
     
 } camsys_sysctrl_ops_t;
 

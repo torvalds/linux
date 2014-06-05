@@ -377,7 +377,11 @@ static int camsys_sysctl(camsys_sysctrl_t *devctl, camsys_dev_t *camsys_dev)
             {
                 camsys_dev->reset_cb(camsys_dev, devctl->on);
                 break;
-            }            
+            } 
+            case CamSys_Flash_Trigger:
+            {
+                camsys_dev->flash_trigger_cb(camsys_dev, devctl->on);
+            }
             default:
                 break;
 

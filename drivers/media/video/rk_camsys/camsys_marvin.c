@@ -1,5 +1,6 @@
 #include "camsys_marvin.h"
 #include "camsys_soc_priv.h"
+#include "camsys_gpio.h"
 
 #include <linux/rockchip/common.h> 
 #include <dt-bindings/clock/rk_system_status.h>
@@ -8,6 +9,7 @@ extern int rockchip_set_system_status(unsigned long status);
 extern int rockchip_clear_system_status(unsigned long status);
 
 static const char miscdev_name[] = CAMSYS_MARVIN_DEVNAME;
+
 
 static int camsys_mrv_iomux_cb(camsys_extdev_t *extdev,void *ptr)
 {
@@ -110,10 +112,74 @@ fail:
     return -1;
 }
 
+static int camsys_mrv_flash_trigger_cb(void *ptr,unsigned int on)
+{
+    camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
+    struct device *dev = &(camsys_dev->pdev->dev);
+    int flash_trigger_io ;
+    struct pinctrl      *pinctrl;
+    struct pinctrl_state    *state;
+    char state_str[20] = {0};
+    int retval = 0;
+    enum of_gpio_flags flags;
+
+    if(!on){
+        strcpy(state_str,"isp_flash_as_gpio");
+        pinctrl = devm_pinctrl_get(dev);
+        if (IS_ERR(pinctrl)) {
+            camsys_err("devm_pinctrl_get failed!");
+        }
+        state = pinctrl_lookup_state(pinctrl,
+                             state_str);
+        if (IS_ERR(state)){
+            camsys_err("pinctrl_lookup_state failed!");
+        }
+
+        if (!IS_ERR(state)) {
+            retval = pinctrl_select_state(pinctrl, state);
+            if (retval){
+                camsys_err("pinctrl_select_state failed!");
+            }
+
+        }
+
+        //get gpio index
+        flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+        if(gpio_is_valid(flash_trigger_io)){
+            flash_trigger_io = of_get_named_gpio_flags(camsys_dev->pdev->dev.of_node, "rockchip,gpios", 0, &flags);
+            gpio_request(flash_trigger_io,"camsys_gpio");
+            gpio_direction_output(flash_trigger_io, 1);
+            }
+
+    }else{
+        strcpy(state_str,"isp_flash_as_trigger_out");
+        pinctrl = devm_pinctrl_get(dev);
+        if (IS_ERR(pinctrl)) {
+            camsys_err("devm_pinctrl_get failed!");
+        }
+        state = pinctrl_lookup_state(pinctrl,
+                             state_str);
+        if (IS_ERR(state)){
+            camsys_err("pinctrl_lookup_state failed!");
+        }
+
+        if (!IS_ERR(state)) {
+            retval = pinctrl_select_state(pinctrl, state);
+            if (retval){
+                camsys_err("pinctrl_select_state failed!");
+            }
+
+        }
+    }
+    return retval;
+}
+
+
 static int camsys_mrv_reset_cb(void *ptr,unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_soc_priv_t *soc;
+
 
     if (camsys_dev->soc) {
         soc = (camsys_soc_priv_t*)camsys_dev->soc;
@@ -144,7 +210,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         clk_prepare_enable(clk->clk_mipi_24m); 
         clk_prepare_enable(clk->pclkin_isp); 
 		clk_prepare_enable(clk->pd_isp);
-    	
+
         clk->in_on = true;
 
         camsys_trace(1, "%s clock in turn on",dev_name(camsys_dev->miscdev.this_device));
@@ -153,7 +219,6 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
         camsys_mrv_reset_cb(ptr,0);
         
     } else if (!on && clk->in_on) {
-
 
         clk_disable_unprepare(clk->aclk_isp);
         clk_disable_unprepare(clk->hclk_isp);
@@ -357,6 +422,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
     camsys_dev->clkout_cb = camsys_mrv_clkout_cb;
     camsys_dev->reset_cb = camsys_mrv_reset_cb;
     camsys_dev->iomux = camsys_mrv_iomux_cb;
+    camsys_dev->flash_trigger_cb = camsys_mrv_flash_trigger_cb;
     
     camsys_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
     camsys_dev->miscdev.name = miscdev_name;

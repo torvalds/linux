@@ -20,7 +20,12 @@
 #define MRV_MI_MIS                              (MRV_MI_BASE+0x100)
 #define MRV_MI_ICR                              (MRV_MI_BASE+0x104)
 
+#define MRV_FLASH_CONFIG                        (0x664)
 
+typedef enum IO_USE_TYPE_e{
+    USE_AS_GPIO,
+    USE_AS_ISP_INTERNAL,
+}IO_USE_TYPE_t;
 
 typedef struct camsys_mrv_clk_s {
     struct clk      *pd_isp;

@@ -45,6 +45,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #include <linux/rockchip/cpu.h>
 #include <media/camsys_head.h>
 
@@ -76,8 +77,10 @@
 *        1) fix camsys_i2c_write and camsys_i2c_write can't support reg_size=0;
 *v0.b.0:
 		 1) control ddr freq by marvin self other than by clk unit. 
+*v0.c.0:
+		 1) add flash_trigger_out control
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xb,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xc,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
@@ -236,6 +239,7 @@ typedef struct camsys_dev_s {
     int (*phy_cb) (camsys_extdev_t *extdev, camsys_sysctrl_t *devctl, void* ptr);
     int (*iomux)(camsys_extdev_t *extdev,void *ptr);
     int (*platform_remove)(struct platform_device *pdev);
+    int (*flash_trigger_cb)(void *ptr, unsigned int on);
 } camsys_dev_t;
 
 

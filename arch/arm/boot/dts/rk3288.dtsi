@@ -1208,17 +1208,20 @@
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates16 2>, <&clk_gates16 1>, <&clk_isp>, <&clk_isp_jpe>, <&clkin_isp>, <&clk_cif_out>, <&clk_gates5 15>, <&clk_cif_pll>, <&pd_isp>, <&clk_gates16 6>;
 		clock-names = "aclk_isp", "hclk_isp", "clk_isp", "clk_isp_jpe", "pclkin_isp", "clk_cif_out", "clk_mipi_24m", "clk_cif_pll", "pd_isp", "hclk_mipiphy1";
-		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl", "isp_mipi_fl_prefl";
+		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit", "isp_dvp8bit0", "isp_mipi_fl", "isp_mipi_fl_prefl","isp_flash_as_gpio","isp_flash_as_trigger_out";
 		pinctrl-0 = <&isp_mipi>;
 		pinctrl-1 = <&isp_mipi &isp_dvp_d2d9>;
 		pinctrl-2 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1>;
 		pinctrl-3 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d0d1 &isp_dvp_d10d11>;
 		pinctrl-4 = <&isp_mipi &isp_dvp_d0d7>;
-		pinctrl-5 = <&isp_mipi &isp_flash_trigger>;
-		pinctrl-6 = <&isp_mipi &isp_flash_trigger &isp_prelight>;
+		pinctrl-5 = <&isp_mipi>;
+		pinctrl-6 = <&isp_mipi &isp_prelight>;
+		pinctrl-7 = <&isp_flash_trigger_as_gpio>;
+		pinctrl-8 = <&isp_flash_trigger>;
 		rockchip,isp,mipiphy = <2>;
 		rockchip,isp,cifphy = <1>;
 		rockchip,isp,mipiphy1,reg = <0xff968000 0x4000>;
+		rockchip,gpios = <&gpio7 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 

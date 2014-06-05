@@ -1179,6 +1179,12 @@
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 				//rockchip,tristate = <VALUE_TRI_DEFAULT>;
 			};
+			isp_flash_trigger_as_gpio:isp_flash_trigger_as_gpio {
+                rockchip,pins = <FUNC_TO_GPIO(ISP_FLASHTRIGOUTSPI1_CS0)>;
+                rockchip,pull = <VALUE_PULL_DISABLE>;
+                rockchip,drive = <VALUE_DRV_DEFAULT>;
+                //rockchip,tristate = <VALUE_TRI_DEFAULT>;			
+			};
 		};
 
 	};
