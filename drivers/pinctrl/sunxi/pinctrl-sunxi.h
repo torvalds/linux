@@ -77,6 +77,7 @@
 struct sunxi_desc_function {
 	const char	*name;
 	u8		muxval;
+	u8		irqbank;
 	u8		irqnum;
 };
 
@@ -136,6 +137,14 @@ struct sunxi_pinctrl {
 	{							\
 		.name = "irq",					\
 		.muxval = _val,					\
+		.irqnum = _irq,					\
+	}
+
+#define SUNXI_FUNCTION_IRQ_BANK(_val, _bank, _irq)		\
+	{							\
+		.name = "irq",					\
+		.muxval = _val,					\
+		.irqbank = _bank,				\
 		.irqnum = _irq,					\
 	}
 
