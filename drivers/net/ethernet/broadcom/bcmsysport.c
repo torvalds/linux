@@ -637,10 +637,11 @@ static unsigned int bcm_sysport_tx_reclaim(struct bcm_sysport_priv *priv,
 					   struct bcm_sysport_tx_ring *ring)
 {
 	unsigned int released;
+	unsigned long flags;
 
-	spin_lock(&ring->lock);
+	spin_lock_irqsave(&ring->lock, flags);
 	released = __bcm_sysport_tx_reclaim(priv, ring);
-	spin_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return released;
 }
@@ -822,6 +823,7 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 	struct netdev_queue *txq;
 	struct dma_desc *desc;
 	unsigned int skb_len;
+	unsigned long flags;
 	dma_addr_t mapping;
 	u32 len_status;
 	u16 queue;
@@ -831,8 +833,8 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 	txq = netdev_get_tx_queue(dev, queue);
 	ring = &priv->tx_rings[queue];
 
-	/* lock against tx reclaim in BH context */
-	spin_lock(&ring->lock);
+	/* lock against tx reclaim in BH context and TX ring full interrupt */
+	spin_lock_irqsave(&ring->lock, flags);
 	if (unlikely(ring->desc_count == 0)) {
 		netif_tx_stop_queue(txq);
 		netdev_err(dev, "queue %d awake and ring full!\n", queue);
@@ -914,7 +916,7 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 
 	ret = NETDEV_TX_OK;
 out:
-	spin_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
 	return ret;
 }
 
