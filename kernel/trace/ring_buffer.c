@@ -1368,6 +1368,7 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
  * __ring_buffer_alloc - allocate a new ring_buffer
  * @size: the size in bytes per cpu that is needed.
  * @flags: attributes to set for the ring buffer.
+ * @key: ring buffer reader_lock_key.
  *
  * Currently the only flag that is available is the RB_FL_OVERWRITE
  * flag. This flag means that the buffer will overwrite old data
@@ -4331,6 +4332,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_read);
 /**
  * ring_buffer_size - return the size of the ring buffer (in bytes)
  * @buffer: The ring buffer.
+ * @cpu: The CPU to get ring buffer size from.
  */
 unsigned long ring_buffer_size(struct trace_buffer *buffer, int cpu)
 {
@@ -4504,6 +4506,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_empty_cpu);
  * ring_buffer_swap_cpu - swap a CPU buffer between two ring buffers
  * @buffer_a: One buffer to swap with
  * @buffer_b: The other buffer to swap with
+ * @cpu: the CPU of the buffers to swap
  *
  * This function is useful for tracers that want to take a "snapshot"
  * of a CPU buffer and has another back up buffer lying around.
