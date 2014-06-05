@@ -2,6 +2,9 @@
 #define _RGA_DRIVER_H_
 
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
+
+
 
 #define RGA_BLIT_SYNC	0x5017
 #define RGA_BLIT_ASYNC  0x5018
@@ -445,6 +448,13 @@ struct rga2_req
     u8 dither_mode;
 
     u8 rgb2yuv_mode;
+
+    #if defined(CONFIG_ROCKCHIP_IOMMU) & defined(CONFIG_ION_ROCKCHIP)
+    struct sg_table *sg_src0;
+    struct sg_table *sg_src1;
+    struct sg_table *sg_dst;
+    struct sg_table *sg_els;
+    #endif
 };
 
 struct rga2_mmu_buf_t {

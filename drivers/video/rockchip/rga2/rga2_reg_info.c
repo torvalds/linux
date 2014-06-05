@@ -824,8 +824,7 @@ RGA2_set_pat_info(RK_U8 *base, struct rga2_req *msg)
 
     reg = (pat->act_w-1) | ((pat->act_h-1) << 8) | (pat->x_offset << 16) | (pat->y_offset << 24);
     *bRGA_PAT_CON = reg;
-
-    *bRGA_FADING_CTRL = (num << 8) | offset;  //???pat_addr???
+    *bRGA_FADING_CTRL = (num << 8) | offset;
 }
 
 
@@ -1122,8 +1121,8 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
                 req->alpha_mode_1 = 0x3848;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 1) {
-                req->alpha_mode_0 = 0x384A;
-                req->alpha_mode_1 = 0x384A;
+                req->alpha_mode_0 = 0x483A;
+                req->alpha_mode_1 = 0x483A;
             }
             else if ((req_rga->alpha_rop_mode & 3) == 2) {
                 req->alpha_mode_0 = 0x384C;

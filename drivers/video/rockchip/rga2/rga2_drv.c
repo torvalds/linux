@@ -40,16 +40,22 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/wakelock.h>
+#include <linux/scatterlist.h>
+
 
 #if defined(CONFIG_ION_ROCKCHIP)
 #include <linux/rockchip_ion.h>
 #endif
 
-
 #include "rga2.h"
 #include "rga2_reg_info.h"
 #include "rga2_mmu_info.h"
 #include "RGA2_API.h"
+
+#if defined(CONFIG_ROCKCHIP_IOMMU) & defined(CONFIG_ION_ROCKCHIP)
+#define CONFIG_RGA_IOMMU
+#endif
+
 
 
 #define RGA2_TEST_FLUSH_TIME 0
@@ -465,24 +471,20 @@ static struct rga2_reg * rga2_reg_init(rga2_session *session, struct rga2_req *r
         || (req->mmu_info.dst_mmu_flag & 1) || (req->mmu_info.els_mmu_flag & 1))
     {
         ret = rga2_set_mmu_info(reg, req);
-        if(ret < 0)
-        {
+        if(ret < 0) {
             printk("%s, [%d] set mmu info error \n", __FUNCTION__, __LINE__);
             if(reg != NULL)
-            {
                 kfree(reg);
-            }
+
             return NULL;
         }
     }
 
-    if(RGA2_gen_reg_info((uint8_t *)reg->cmd_reg, req) == -1)
-    {
+    if(RGA2_gen_reg_info((uint8_t *)reg->cmd_reg, req) == -1) {
         printk("gen reg info error\n");
         if(reg != NULL)
-        {
             kfree(reg);
-        }
+
         return NULL;
     }
 
@@ -543,6 +545,7 @@ static void rga2_try_set_reg(void)
 
             rga2_power_on();
             udelay(1);
+            //mdelay(500);
 
             rga2_copy_reg(reg, 0);
             rga2_reg_from_wait_to_run(reg);
@@ -685,6 +688,10 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 	ion_phys_addr_t phy_addr;
 	size_t len;
     int ret;
+    req->sg_src0 = NULL;
+    req->sg_src1 = NULL;
+    req->sg_dst  = NULL;
+    req->sg_els  = NULL;
 
     if(req->src.yrgb_addr) {
         hdl = ion_import_dma_buf(rga2_drvdata->ion_client, req->src.yrgb_addr);
@@ -693,10 +700,25 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
             printk("RGA2 ERROR ion buf handle\n");
             return ret;
         }
-	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+        #ifdef CONFIG_RGA_IOMMU
+        if (req->mmu_info.src0_mmu_flag) {
+            req->sg_src0 = ion_sg_table(rga2_drvdata->ion_client, hdl);
+            req->src.yrgb_addr = req->src.uv_addr;
+            req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+            req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
+        }
+        else {
+            ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+            req->src.yrgb_addr = phy_addr;
+            req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
+            req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
+        }
+        #else
+        ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
         req->src.yrgb_addr = phy_addr;
         req->src.uv_addr = req->src.yrgb_addr + (req->src.vir_w * req->src.vir_h);
         req->src.v_addr = req->src.uv_addr + (req->src.vir_w * req->src.vir_h)/4;
+        #endif
         ion_free(rga2_drvdata->ion_client, hdl);
     }
     else {
@@ -712,16 +734,65 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
             printk("RGA2 ERROR ion buf handle\n");
             return ret;
         }
+        #ifdef CONFIG_RGA_IOMMU
+        if (req->mmu_info.dst_mmu_flag) {
+            req->sg_dst = ion_sg_table(rga2_drvdata->ion_client, hdl);
+            req->dst.yrgb_addr = req->dst.uv_addr;
+            req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
+        else {
+            ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+            req->dst.yrgb_addr = phy_addr;
+            req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
+        #else
 	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
         req->dst.yrgb_addr = phy_addr;
         req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
         req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        #endif
         ion_free(rga2_drvdata->ion_client, hdl);
     }
     else {
         req->dst.yrgb_addr = req->dst.uv_addr;
         req->dst.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
         req->dst.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+    }
+
+    if(req->src1.yrgb_addr) {
+        hdl = ion_import_dma_buf(rga2_drvdata->ion_client, req->src1.yrgb_addr);
+        if (IS_ERR(hdl)) {
+            ret = PTR_ERR(hdl);
+            printk("RGA2 ERROR ion buf handle\n");
+            return ret;
+        }
+        #ifdef CONFIG_RGA_IOMMU
+        if (req->mmu_info.dst_mmu_flag) {
+            req->sg_src1 = ion_sg_table(rga2_drvdata->ion_client, hdl);
+            req->src1.yrgb_addr = 0;
+            req->src1.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
+        else {
+            ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+            req->src1.yrgb_addr = phy_addr;
+            req->src1.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+            req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        }
+        #else
+	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+        req->src1.yrgb_addr = phy_addr;
+        req->src1.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
+        #endif
+        ion_free(rga2_drvdata->ion_client, hdl);
+    }
+    else {
+        req->src1.yrgb_addr = req->dst.uv_addr;
+        req->src1.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
+        req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
     }
 
     return 0;
@@ -862,7 +933,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	switch (cmd)
 	{
         case RGA_BLIT_SYNC:
-
     		if (unlikely(copy_from_user(&req_rga, (struct rga_req*)arg, sizeof(struct rga_req))))
             {
         		ERR("copy_from_user failed\n");
@@ -1304,6 +1374,14 @@ void rga2_test_0(void)
     printk("\n********************************\n");
     printk("************ RGA2_TEST ************\n");
     printk("********************************\n\n");
+
+    req.pat.act_w = 16;
+    req.pat.act_h = 16;
+    req.pat.vir_w = 16;
+    req.pat.vir_h = 16;
+    req.pat.yrgb_addr = virt_to_phys(src);
+    req.render_mode = update_palette_table_mode;
+    rga2_blit_sync(&session, &req);
 
     req.src.act_w  = 4096;
     req.src.act_h = 2304;
