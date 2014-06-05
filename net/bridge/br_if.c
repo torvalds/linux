@@ -153,7 +153,8 @@ void br_manage_promisc(struct net_bridge *br)
 			 * This lets us disable promiscuous mode and write
 			 * this config to hw.
 			 */
-			if (br->auto_cnt <= br_auto_port(p))
+			if (br->auto_cnt == 0 ||
+			    (br->auto_cnt == 1 && br_auto_port(p)))
 				br_port_clear_promisc(p);
 			else
 				br_port_set_promisc(p);
