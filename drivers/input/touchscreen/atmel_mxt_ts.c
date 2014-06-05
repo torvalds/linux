@@ -1489,12 +1489,11 @@ static int mxt_init_t7_power_cfg(struct mxt_data *data);
  *   <SIZE> - 2-byte object size as hex
  *   <CONTENTS> - array of <SIZE> 1-byte hex values
  */
-static int mxt_update_cfg(struct mxt_data *data)
+static int mxt_update_cfg(struct mxt_data *data, const struct firmware *cfg)
 {
 	struct device *dev = &data->client->dev;
 	struct mxt_info cfg_info;
 	struct mxt_object *object;
-	const struct firmware *cfg = NULL;
 	int ret;
 	int offset;
 	int data_pos;
@@ -1507,18 +1506,6 @@ static int mxt_update_cfg(struct mxt_data *data)
 	unsigned int type, instance, size;
 	u8 val;
 	u16 reg;
-
-	if (!data->cfg_name) {
-		dev_dbg(dev, "Skipping cfg download\n");
-		return 0;
-	}
-
-	ret = request_firmware(&cfg, data->cfg_name, dev);
-	if (ret < 0) {
-		dev_err(dev, "Failure to request config file %s\n",
-			data->cfg_name);
-		return 0;
-	}
 
 	mxt_update_crc(data, MXT_COMMAND_REPORTALL, 1);
 
@@ -2363,7 +2350,13 @@ err_free_mem:
 }
 
 static int mxt_initialize_t9_input_device(struct mxt_data *data);
-static int mxt_configure_objects(struct mxt_data *data);
+static int mxt_configure_objects(struct mxt_data *data,
+				 const struct firmware *cfg);
+
+static void mxt_config_cb(const struct firmware *cfg, void *ctx)
+{
+	mxt_configure_objects(ctx, cfg);
+}
 
 static int mxt_initialize(struct mxt_data *data)
 {
@@ -2417,29 +2410,39 @@ retry_bootloader:
 	if (error)
 		return error;
 
-	error = mxt_configure_objects(data);
-	if (error)
-		return error;
+	if (data->cfg_name) {
+		request_firmware_nowait(THIS_MODULE, true, data->cfg_name,
+					&data->client->dev, GFP_KERNEL, data,
+					mxt_config_cb);
+	} else {
+		error = mxt_configure_objects(data, NULL);
+		if (error)
+			return error;
+	}
 
 	return 0;
+
+err_free_object_table:
+	mxt_free_object_table(data);
+	return error;
 }
 
-static int mxt_configure_objects(struct mxt_data *data)
+static int mxt_configure_objects(struct mxt_data *data,
+				 const struct firmware *cfg)
 {
-	struct i2c_client *client = data->client;
+	struct device *dev = &data->client->dev;
 	int error;
 
 	error = mxt_init_t7_power_cfg(data);
 	if (error) {
-		dev_err(&client->dev, "Failed to initialize power cfg\n");
+		dev_err(dev, "Failed to initialize power cfg\n");
 		return error;
 	}
 
-	error = mxt_update_cfg(data);
-	if (error) {
-		dev_err(&client->dev, "Error %d initialising configuration\n",
-			error);
-		return error;
+	if (cfg) {
+		error = mxt_update_cfg(data, cfg);
+		if (error)
+			dev_warn(dev, "Error %d updating config\n", error);
 	}
 
 	if (data->T9_reportid_min) {
@@ -2451,7 +2454,7 @@ static int mxt_configure_objects(struct mxt_data *data)
 		if (error)
 			return error;
 	} else {
-		dev_warn(&client->dev, "No touch object detected\n");
+		dev_warn(dev, "No touch object detected\n");
 	}
 
 	return 0;
@@ -2749,6 +2752,7 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 		const char *buf, size_t count)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
+	const struct firmware *cfg;
 	int ret;
 
 	if (data->in_bootloader) {
@@ -2759,6 +2763,14 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 	ret = mxt_update_file_name(dev, &data->cfg_name, buf, count);
 	if (ret)
 		return ret;
+
+	ret = request_firmware(&cfg, data->cfg_name, dev);
+	if (ret < 0) {
+		dev_err(dev, "Failure to request config file %s\n",
+			data->cfg_name);
+		ret = -ENOENT;
+		goto out;
+	}
 
 	data->updating_config = true;
 
@@ -2776,7 +2788,7 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 		data->suspended = false;
 	}
 
-	ret = mxt_configure_objects(data);
+	ret = mxt_configure_objects(data, cfg);
 	if (ret)
 		goto out;
 
