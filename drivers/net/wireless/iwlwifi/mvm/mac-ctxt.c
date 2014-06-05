@@ -1206,6 +1206,7 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_tx_resp *beacon_notify_hdr;
+	struct ieee80211_vif *csa_vif;
 	u64 tsf;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1231,13 +1232,15 @@ int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 		     mvm->ap_last_beacon_gp2,
 		     le32_to_cpu(beacon_notify_hdr->initial_rate));
 
-	if (unlikely(mvm->csa_vif && mvm->csa_vif->csa_active)) {
-		if (!ieee80211_csa_is_complete(mvm->csa_vif)) {
-			ieee80211_csa_update_counter(mvm->csa_vif);
-			iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm->csa_vif);
+	csa_vif = rcu_dereference_protected(mvm->csa_vif,
+					    lockdep_is_held(&mvm->mutex));
+	if (unlikely(csa_vif && csa_vif->csa_active)) {
+		if (!ieee80211_csa_is_complete(csa_vif)) {
+			ieee80211_csa_update_counter(csa_vif);
+			iwl_mvm_mac_ctxt_beacon_changed(mvm, csa_vif);
 		} else {
-			ieee80211_csa_finish(mvm->csa_vif);
-			mvm->csa_vif = NULL;
+			ieee80211_csa_finish(csa_vif);
+			RCU_INIT_POINTER(mvm->csa_vif, NULL);
 		}
 	}
 

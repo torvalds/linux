@@ -658,7 +658,7 @@ struct iwl_mvm {
 	/* Indicate if device power save is allowed */
 	bool ps_disabled;
 
-	struct ieee80211_vif *csa_vif;
+	struct ieee80211_vif __rcu *csa_vif;
 
 	/* system time of last beacon (for AP/GO interface) */
 	u32 ap_last_beacon_gp2;

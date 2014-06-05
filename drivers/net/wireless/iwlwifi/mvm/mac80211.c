@@ -1607,6 +1607,10 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	/* Handle AP stop while in CSA */
+	if (rcu_access_pointer(mvm->csa_vif) == vif)
+		RCU_INIT_POINTER(mvm->csa_vif, NULL);
+
 	mvmvif->ap_ibss_active = false;
 	mvm->ap_last_beacon_gp2 = 0;
 
@@ -2664,15 +2668,19 @@ static void iwl_mvm_channel_switch_beacon(struct ieee80211_hw *hw,
 					  struct cfg80211_chan_def *chandef)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_vif *csa_vif;
 
 	mutex_lock(&mvm->mutex);
-	if (WARN(mvm->csa_vif && mvm->csa_vif->csa_active,
+
+	csa_vif = rcu_dereference_protected(mvm->csa_vif,
+					    lockdep_is_held(&mvm->mutex));
+	if (WARN(csa_vif && csa_vif->csa_active,
 		 "Another CSA is already in progress"))
 		goto out_unlock;
 
 	IWL_DEBUG_MAC80211(mvm, "CSA started to freq %d\n",
 			   chandef->center_freq1);
-	mvm->csa_vif = vif;
+	rcu_assign_pointer(mvm->csa_vif, vif);
 
 out_unlock:
 	mutex_unlock(&mvm->mutex);
