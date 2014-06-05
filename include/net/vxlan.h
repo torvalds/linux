@@ -24,9 +24,19 @@ struct vxlan_sock {
 	struct udp_offload udp_offloads;
 };
 
+#define VXLAN_F_LEARN			0x01
+#define VXLAN_F_PROXY			0x02
+#define VXLAN_F_RSC			0x04
+#define VXLAN_F_L2MISS			0x08
+#define VXLAN_F_L3MISS			0x10
+#define VXLAN_F_IPV6			0x20
+#define VXLAN_F_UDP_CSUM		0x40
+#define VXLAN_F_UDP_ZERO_CSUM6_TX	0x80
+#define VXLAN_F_UDP_ZERO_CSUM6_RX	0x100
+
 struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 				  vxlan_rcv_t *rcv, void *data,
-				  bool no_share, bool ipv6);
+				  bool no_share, u32 flags);
 
 void vxlan_sock_release(struct vxlan_sock *vs);
 

@@ -84,7 +84,8 @@ void gre_build_header(struct sk_buff *skb, const struct tnl_ptk_info *tpi,
 			ptr--;
 		}
 		if (tpi->flags&TUNNEL_CSUM &&
-		    !(skb_shinfo(skb)->gso_type & SKB_GSO_GRE)) {
+		    !(skb_shinfo(skb)->gso_type &
+		      (SKB_GSO_GRE|SKB_GSO_GRE_CSUM))) {
 			*ptr = 0;
 			*(__sum16 *)ptr = csum_fold(skb_checksum(skb, 0,
 								 skb->len, 0));
