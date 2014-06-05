@@ -514,7 +514,7 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 
 		if (unlikely(status & (RX_STATUS_ERR | RX_STATUS_OVFLOW))) {
 			netif_err(priv, rx_err, ndev, "error packet\n");
-			if (RX_STATUS_OVFLOW)
+			if (status & RX_STATUS_OVFLOW)
 				ndev->stats.rx_over_errors++;
 			ndev->stats.rx_dropped++;
 			ndev->stats.rx_errors++;
@@ -528,9 +528,9 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		if (likely(status & DESC_L4_CSUM))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-		/* Hardware pre-pends packets with 2bytes between Ethernet
-		 * and IP header plus we have the Receive Status Block, strip
-		 * off all of this from the SKB.
+		/* Hardware pre-pends packets with 2bytes before Ethernet
+		 * header plus we have the Receive Status Block, strip off all
+		 * of this from the SKB.
 		 */
 		skb_pull(skb, sizeof(*rsb) + 2);
 		len -= (sizeof(*rsb) + 2);
@@ -637,10 +637,11 @@ static unsigned int bcm_sysport_tx_reclaim(struct bcm_sysport_priv *priv,
 					   struct bcm_sysport_tx_ring *ring)
 {
 	unsigned int released;
+	unsigned long flags;
 
-	spin_lock(&ring->lock);
+	spin_lock_irqsave(&ring->lock, flags);
 	released = __bcm_sysport_tx_reclaim(priv, ring);
-	spin_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return released;
 }
@@ -822,6 +823,7 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 	struct netdev_queue *txq;
 	struct dma_desc *desc;
 	unsigned int skb_len;
+	unsigned long flags;
 	dma_addr_t mapping;
 	u32 len_status;
 	u16 queue;
@@ -831,8 +833,8 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 	txq = netdev_get_tx_queue(dev, queue);
 	ring = &priv->tx_rings[queue];
 
-	/* lock against tx reclaim in BH context */
-	spin_lock(&ring->lock);
+	/* lock against tx reclaim in BH context and TX ring full interrupt */
+	spin_lock_irqsave(&ring->lock, flags);
 	if (unlikely(ring->desc_count == 0)) {
 		netif_tx_stop_queue(txq);
 		netdev_err(dev, "queue %d awake and ring full!\n", queue);
@@ -914,7 +916,7 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 
 	ret = NETDEV_TX_OK;
 out:
-	spin_unlock(&ring->lock);
+	spin_unlock_irqrestore(&ring->lock, flags);
 	return ret;
 }
 
@@ -1592,6 +1594,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	 * multicast hash table in this Ethernet MAC.
 	 */
 	dev->flags &= ~IFF_MULTICAST;
+
+	/* libphy will adjust the link state accordingly */
+	netif_carrier_off(dev);
 
 	ret = register_netdev(dev);
 	if (ret) {
