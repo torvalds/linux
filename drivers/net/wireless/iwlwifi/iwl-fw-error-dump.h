@@ -145,12 +145,12 @@ struct iwl_fw_error_dump_info {
 } __packed;
 
 /**
- * iwl_mvm_fw_error_next_data - advance fw error dump data pointer
+ * iwl_fw_error_next_data - advance fw error dump data pointer
  * @data: previous data block
  * Returns: next data block
  */
 static inline struct iwl_fw_error_dump_data *
-iwl_mvm_fw_error_next_data(struct iwl_fw_error_dump_data *data)
+iwl_fw_error_next_data(struct iwl_fw_error_dump_data *data)
 {
 	return (void *)(data->data + le32_to_cpu(data->len));
 }

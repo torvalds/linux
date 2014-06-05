@@ -870,12 +870,12 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	strncpy(dump_info->bus_human_readable, mvm->dev->bus->name,
 		sizeof(dump_info->bus_human_readable));
 
-	dump_data = iwl_mvm_fw_error_next_data(dump_data);
+	dump_data = iwl_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
 	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
 	memcpy(dump_data->data, mvm->fw_error_rxf, mvm->fw_error_rxf_len);
 
-	dump_data = iwl_mvm_fw_error_next_data(dump_data);
+	dump_data = iwl_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
 	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
 
@@ -895,7 +895,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	mvm->fw_error_sram_len = 0;
 
 	if (trans_len) {
-		void *buf = iwl_mvm_fw_error_next_data(dump_data);
+		void *buf = iwl_fw_error_next_data(dump_data);
 		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
 							 trans_len);
 		dump_data = (void *)((u8 *)buf + real_trans_len);
