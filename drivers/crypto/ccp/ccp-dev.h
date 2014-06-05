@@ -23,8 +23,6 @@
 #include <linux/hw_random.h>
 
 
-#define IO_OFFSET			0x20000
-
 #define MAX_DMAPOOL_NAME_LEN		32
 
 #define MAX_HW_QUEUES			5
@@ -194,6 +192,7 @@ struct ccp_device {
 	void *dev_specific;
 	int (*get_irq)(struct ccp_device *ccp);
 	void (*free_irq)(struct ccp_device *ccp);
+	unsigned int irq;
 
 	/*
 	 * I/O area used for device communication. The register mapping
