@@ -237,6 +237,24 @@
 				  <&softreset STIH416_KEYSCAN_SOFTRESET>;
 		};
 
+		temp0 {
+			compatible = "st,stih416-sas-thermal";
+			clock-names = "thermal";
+			clocks = <&clockgen_c_vcc 14>;
+
+			status = "okay";
+		};
+
+		temp1@fdfe8000 {
+			compatible = "st,stih416-mpe-thermal";
+			reg = <0xfdfe8000 0x10>;
+			clocks = <&clockgen_e 3>;
+			clock-names = "thermal";
+			interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+
+			status = "okay";
+		};
+
 		mmc0: sdhci@fe81e000 {
 			compatible	= "st,sdhci";
 			status		= "disabled";
