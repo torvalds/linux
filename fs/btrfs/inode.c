@@ -6767,8 +6767,10 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 			break;
 
 		if (radix_tree_exception(page)) {
-			if (radix_tree_deref_retry(page))
+			if (radix_tree_deref_retry(page)) {
+				page = NULL;
 				continue;
+			}
 			/*
 			 * Otherwise, shmem/tmpfs must be storing a swap entry
 			 * here as an exceptional entry: so return it without
