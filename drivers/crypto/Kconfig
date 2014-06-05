@@ -418,4 +418,5 @@ config CRYPTO_DEV_MXS_DCP
 	  To compile this driver as a module, choose M here: the module
 	  will be called mxs-dcp.
 
+source "drivers/crypto/qat/Kconfig"
 endif # CRYPTO_HW
