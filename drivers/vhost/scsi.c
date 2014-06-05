@@ -1373,6 +1373,9 @@ err_dev:
 
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 {
+	struct vhost_virtqueue *vq;
+	int i;
+
 	if (features & ~VHOST_SCSI_FEATURES)
 		return -EOPNOTSUPP;
 
@@ -1382,9 +1385,13 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 		mutex_unlock(&vs->dev.mutex);
 		return -EFAULT;
 	}
-	vs->dev.acked_features = features;
-	smp_wmb();
-	vhost_scsi_flush(vs);
+
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		vq = &vs->vqs[i].vq;
+		mutex_lock(&vq->mutex);
+		vq->acked_features = features;
+		mutex_unlock(&vq->mutex);
+	}
 	mutex_unlock(&vs->dev.mutex);
 	return 0;
 }
@@ -1591,10 +1598,6 @@ tcm_vhost_do_plug(struct tcm_vhost_tpg *tpg,
 		return;
 
 	mutex_lock(&vs->dev.mutex);
-	if (!vhost_has_feature(&vs->dev, VIRTIO_SCSI_F_HOTPLUG)) {
-		mutex_unlock(&vs->dev.mutex);
-		return;
-	}
 
 	if (plug)
 		reason = VIRTIO_SCSI_EVT_RESET_RESCAN;
@@ -1603,8 +1606,9 @@ tcm_vhost_do_plug(struct tcm_vhost_tpg *tpg,
 
 	vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	mutex_lock(&vq->mutex);
-	tcm_vhost_send_evt(vs, tpg, lun,
-			VIRTIO_SCSI_T_TRANSPORT_RESET, reason);
+	if (vhost_has_feature(vq, VIRTIO_SCSI_F_HOTPLUG))
+		tcm_vhost_send_evt(vs, tpg, lun,
+				   VIRTIO_SCSI_T_TRANSPORT_RESET, reason);
 	mutex_unlock(&vq->mutex);
 	mutex_unlock(&vs->dev.mutex);
 }

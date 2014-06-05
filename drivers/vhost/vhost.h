@@ -105,6 +105,7 @@ struct vhost_virtqueue {
 	struct vring_used_elem *heads;
 	/* Protected by virtqueue mutex. */
 	void *private_data;
+	unsigned acked_features;
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;
@@ -117,7 +118,6 @@ struct vhost_dev {
 	struct vhost_memory __rcu *memory;
 	struct mm_struct *mm;
 	struct mutex mutex;
-	unsigned acked_features;
 	struct vhost_virtqueue **vqs;
 	int nvqs;
 	struct file *log_file;
@@ -174,13 +174,8 @@ enum {
 			 (1ULL << VHOST_F_LOG_ALL),
 };
 
-static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
+static inline int vhost_has_feature(struct vhost_virtqueue *vq, int bit)
 {
-	unsigned acked_features;
-
-	/* TODO: check that we are running from vhost_worker or dev mutex is
-	 * held? */
-	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
-	return acked_features & (1 << bit);
+	return vq->acked_features & (1 << bit);
 }
 #endif
