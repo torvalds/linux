@@ -1556,16 +1556,16 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 }
 
 
-/* Determine the maximum packet size for the device.  This depends on the chip
- * type and the USB host capabilities.  The value should be obtained from the
- * device descriptor as the chip will use the appropriate values for the host.*/
+/*
+ * Determine the maximum packet size for the device. This depends on the chip
+ * type and the USB host capabilities. The value should be obtained from the
+ * device descriptor as the chip will use the appropriate values for the host.
+ */
 static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 {
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	struct usb_serial *serial = port->serial;
-	struct usb_interface *interface = serial->interface;
+	struct usb_interface *interface = port->serial->interface;
 	struct usb_endpoint_descriptor *ep_desc;
-
 	unsigned num_endpoints;
 	unsigned i;
 
@@ -1573,20 +1573,22 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 	if (!num_endpoints)
 		return;
 
-	/* NOTE: some customers have programmed FT232R/FT245R devices
-	 * with an endpoint size of 0 - not good.  In this case, we
+	/*
+	 * NOTE: Some customers have programmed FT232R/FT245R devices
+	 * with an endpoint size of 0 - not good. In this case, we
 	 * want to override the endpoint descriptor setting and use a
-	 * value of 64 for wMaxPacketSize */
+	 * value of 64 for wMaxPacketSize.
+	 */
 	for (i = 0; i < num_endpoints; i++) {
 		ep_desc = &interface->cur_altsetting->endpoint[i].desc;
-		if (ep_desc->wMaxPacketSize == 0) {
+		if (!ep_desc->wMaxPacketSize) {
 			ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
 			dev_warn(&port->dev, "Overriding wMaxPacketSize on endpoint %d\n",
 					usb_endpoint_num(ep_desc));
 		}
 	}
 
-	/* set max packet size based on descriptor */
+	/* Set max packet size based on last descriptor. */
 	priv->max_packet_size = usb_endpoint_maxp(ep_desc);
 }
 
