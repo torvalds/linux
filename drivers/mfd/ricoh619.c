@@ -838,6 +838,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 		}
 		else{
 			do{
+				ret = ricoh619_write(ricoh619->dev, 0xff, 0x00);
 				ret = ricoh619_read(ricoh619->dev, 0x36, &control);
 				i += 1;
 				printk(KERN_INFO "##################:read ricoh619 0x36 error retry %08x %d\n",control,ret);

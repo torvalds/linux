@@ -1090,7 +1090,7 @@ rockchip,power_type = <GPIO>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
+				regulator-state-uv = <1000000>;
 			};
 		};
 		ricoh619_ldo8_reg: regulator@12  {
@@ -1100,7 +1100,7 @@ rockchip,power_type = <GPIO>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
+				regulator-state-uv = <1800000>;
 			};
 		};
 		ricoh619_ldo9_reg: regulator@13  {
@@ -1110,7 +1110,7 @@ rockchip,power_type = <GPIO>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
+				regulator-state-uv = <1000000>;
 			};
 		};
 		ricoh619_ldo10_reg: regulator@14  {
@@ -1120,7 +1120,7 @@ rockchip,power_type = <GPIO>;
 			regulator-initial-state = <3>;
 			regulator-state-mem {
 				regulator-state-enabled;
-				regulator-state-uv = <3300000>;
+				regulator-state-uv = <1800000>;
 			};
 		};
 		ricoh619_ldortc1_reg: regulator@15  {

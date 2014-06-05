@@ -34,6 +34,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
+#include <asm/system_misc.h>
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -802,7 +803,9 @@ int act8846_device_shutdown(void)
 #if 1
 	if (act8846->pmic_hold_gpio) {
 			gpio_direction_output(act8846->pmic_hold_gpio,0);
+			arm_pm_restart('h', "charge");
 	}
+	
 #else
 	ret = act8846_reg_read(act8846,0xc3);
 	ret = act8846_set_bits(act8846, 0xc3,(0x1<<3),(0x1<<3));
