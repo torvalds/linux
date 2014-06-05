@@ -656,7 +656,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 
 	value = tegra_sor_readl(sor, SOR_DP_LINKCTL_0);
 	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
-	value |= SOR_DP_LINKCTL_LANE_COUNT(4);
+	value |= SOR_DP_LINKCTL_LANE_COUNT(link.num_lanes);
 	tegra_sor_writel(sor, value, SOR_DP_LINKCTL_0);
 
 	/* start lane sequencer */
