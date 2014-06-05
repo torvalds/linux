@@ -36,6 +36,7 @@ config ION_TEGRA
 config ION_ROCKCHIP
     tristate "Ion for Rockchip"
     depends on ARCH_ROCKCHIP && ION
+    select ARM_HAS_SG_CHAIN
     help
       Choose this option if you wish to use ion on an Rockchip.
 
