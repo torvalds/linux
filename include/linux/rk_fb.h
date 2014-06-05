@@ -537,6 +537,7 @@ struct rk_lcdc_driver {
 	struct sw_sync_timeline *timeline;
 	int			timeline_max;
 	int			suspend_flag;
+	int			cabc_mode;
 	struct list_head	update_regs_list;
 	struct mutex		update_regs_list_lock;
 	struct kthread_worker	update_regs_worker;

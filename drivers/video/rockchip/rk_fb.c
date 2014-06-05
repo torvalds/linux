@@ -3238,6 +3238,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->first_frame = 1;
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY) {
+		dev_drv->ops->set_dsp_cabc(dev_drv, dev_drv->cabc_mode);
 		rk_fb_set_prmry_screen(screen);
 		rk_fb_get_prmry_screen(screen);
 	}

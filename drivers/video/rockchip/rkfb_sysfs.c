@@ -294,7 +294,12 @@ static ssize_t set_dsp_lut(struct device *dev, struct device_attribute *attr,
 static ssize_t show_dsp_cabc(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_driver *dev_drv =
+	    (struct rk_lcdc_driver *)fbi->par;
 
+	return snprintf(buf, PAGE_SIZE, "cabc mode=%d\n",
+		dev_drv->cabc_mode);
 	return 0;
 }
 

@@ -1348,6 +1348,12 @@ struct alpha_config{
 	enum factor_mode dst_factor_mode;      /*win0_dst_factor_m0*/
 };
 
+struct lcdc_cabc_mode {
+	char pixel_num;			/* pixel precent number */
+	char stage_up;			/* up stride */
+	char stage_down;		/* down stride */
+};
+
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev,u32 offset,u32 v)
 {
 	u32 *_pv = (u32*)lcdc_dev->regsbak;	
