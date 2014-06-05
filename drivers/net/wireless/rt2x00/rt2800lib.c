@@ -947,6 +947,40 @@ static inline u8 rt2800_get_beacon_offset(struct rt2x00_dev *rt2x00dev,
 	return BEACON_BASE_TO_OFFSET(rt2800_hw_beacon_base(rt2x00dev, index));
 }
 
+static void rt2800_update_beacons_setup(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue = rt2x00dev->bcn;
+	struct queue_entry *entry;
+	int i, bcn_num = 0;
+	u64 off, reg = 0;
+	u32 bssid_dw1;
+
+	/*
+	 * Setup offsets of all active beacons in BCN_OFFSET{0,1} registers.
+	 */
+	for (i = 0; i < queue->limit; i++) {
+		entry = &queue->entries[i];
+		if (!test_bit(ENTRY_BCN_ENABLED, &entry->flags))
+			continue;
+		off = rt2800_get_beacon_offset(rt2x00dev, entry->entry_idx);
+		reg |= off << (8 * bcn_num);
+		bcn_num++;
+	}
+
+	WARN_ON_ONCE(bcn_num != rt2x00dev->intf_beaconing);
+
+	rt2800_register_write(rt2x00dev, BCN_OFFSET0, (u32) reg);
+	rt2800_register_write(rt2x00dev, BCN_OFFSET1, (u32) (reg >> 32));
+
+	/*
+	 * H/W sends up to MAC_BSSID_DW1_BSS_BCN_NUM + 1 consecutive beacons.
+	 */
+	rt2800_register_read(rt2x00dev, MAC_BSSID_DW1, &bssid_dw1);
+	rt2x00_set_field32(&bssid_dw1, MAC_BSSID_DW1_BSS_BCN_NUM,
+			   bcn_num > 0 ? bcn_num - 1 : 0);
+	rt2800_register_write(rt2x00dev, MAC_BSSID_DW1, bssid_dw1);
+}
+
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
@@ -1003,6 +1037,12 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 
 	rt2800_register_multiwrite(rt2x00dev, beacon_base, entry->skb->data,
 				   entry->skb->len + padding_len);
+	__set_bit(ENTRY_BCN_ENABLED, &entry->flags);
+
+	/*
+	 * Change global beacons settings.
+	 */
+	rt2800_update_beacons_setup(rt2x00dev);
 
 	/*
 	 * Restore beaconing state.
@@ -1053,7 +1093,12 @@ void rt2800_clear_beacon(struct queue_entry *entry)
 	 * Clear beacon.
 	 */
 	rt2800_clear_beacon_register(rt2x00dev, entry->entry_idx);
+	__clear_bit(ENTRY_BCN_ENABLED, &entry->flags);
 
+	/*
+	 * Change global beacons settings.
+	 */
+	rt2800_update_beacons_setup(rt2x00dev);
 	/*
 	 * Restore beaconing state.
 	 */
