@@ -449,12 +449,10 @@ struct rga2_req
 
     u8 rgb2yuv_mode;
 
-    #if defined(CONFIG_ROCKCHIP_IOMMU) & defined(CONFIG_ION_ROCKCHIP)
     struct sg_table *sg_src0;
     struct sg_table *sg_src1;
     struct sg_table *sg_dst;
     struct sg_table *sg_els;
-    #endif
 };
 
 struct rga2_mmu_buf_t {

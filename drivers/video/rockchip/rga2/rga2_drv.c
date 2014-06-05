@@ -545,7 +545,6 @@ static void rga2_try_set_reg(void)
 
             rga2_power_on();
             udelay(1);
-            //mdelay(500);
 
             rga2_copy_reg(reg, 0);
             rga2_reg_from_wait_to_run(reg);
@@ -688,10 +687,13 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 	ion_phys_addr_t phy_addr;
 	size_t len;
     int ret;
+    
+    #ifdef CONFIG_RGA_IOMMU
     req->sg_src0 = NULL;
     req->sg_src1 = NULL;
     req->sg_dst  = NULL;
     req->sg_els  = NULL;
+    #endif
 
     if(req->src.yrgb_addr) {
         hdl = ion_import_dma_buf(rga2_drvdata->ion_client, req->src.yrgb_addr);
@@ -782,7 +784,7 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
             req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
         }
         #else
-	    ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
+	ion_phys(rga2_drvdata->ion_client, hdl, &phy_addr, &len);
         req->src1.yrgb_addr = phy_addr;
         req->src1.uv_addr = req->dst.yrgb_addr + (req->dst.vir_w * req->dst.vir_h);
         req->src1.v_addr = req->dst.uv_addr + (req->dst.vir_w * req->dst.vir_h)/4;
