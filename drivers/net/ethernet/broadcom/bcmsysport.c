@@ -528,9 +528,9 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		if (likely(status & DESC_L4_CSUM))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-		/* Hardware pre-pends packets with 2bytes between Ethernet
-		 * and IP header plus we have the Receive Status Block, strip
-		 * off all of this from the SKB.
+		/* Hardware pre-pends packets with 2bytes before Ethernet
+		 * header plus we have the Receive Status Block, strip off all
+		 * of this from the SKB.
 		 */
 		skb_pull(skb, sizeof(*rsb) + 2);
 		len -= (sizeof(*rsb) + 2);
