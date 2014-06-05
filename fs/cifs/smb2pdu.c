@@ -108,7 +108,6 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 	if (!tcon)
 		goto out;
 
-	/* BB FIXME when we do write > 64K add +1 for every 64K in req or rsp */
 	/* GLOBAL_CAP_LARGE_MTU will only be set if dialect > SMB2.02 */
 	/* See sections 2.2.4 and 3.2.4.1.5 of MS-SMB2 */
 	if ((tcon->ses) &&
@@ -1892,15 +1891,25 @@ int
 smb2_async_writev(struct cifs_writedata *wdata,
 		  void (*release)(struct kref *kref))
 {
-	int rc = -EACCES;
+	int rc = -EACCES, flags = 0;
 	struct smb2_write_req *req = NULL;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct kvec iov;
 	struct smb_rqst rqst;
 
 	rc = small_smb2_init(SMB2_WRITE, tcon, (void **) &req);
-	if (rc)
+	if (rc) {
+		if (rc == -EAGAIN && wdata->credits) {
+			/* credits was reset by reconnect */
+			wdata->credits = 0;
+			/* reduce in_flight value since we won't send the req */
+			spin_lock(&server->req_lock);
+			server->in_flight--;
+			spin_unlock(&server->req_lock);
+		}
 		goto async_writev_out;
+	}
 
 	req->hdr.ProcessId = cpu_to_le32(wdata->cfile->pid);
 
@@ -1933,9 +1942,20 @@ smb2_async_writev(struct cifs_writedata *wdata,
 
 	inc_rfc1001_len(&req->hdr, wdata->bytes - 1 /* Buffer */);
 
+	if (wdata->credits) {
+		req->hdr.CreditCharge = cpu_to_le16(DIV_ROUND_UP(wdata->bytes,
+						    SMB2_MAX_BUFFER_SIZE));
+		spin_lock(&server->req_lock);
+		server->credits += wdata->credits -
+					le16_to_cpu(req->hdr.CreditCharge);
+		spin_unlock(&server->req_lock);
+		wake_up(&server->request_q);
+		flags = CIFS_HAS_CREDITS;
+	}
+
 	kref_get(&wdata->refcount);
-	rc = cifs_call_async(tcon->ses->server, &rqst, NULL,
-				smb2_writev_callback, wdata, 0);
+	rc = cifs_call_async(server, &rqst, NULL, smb2_writev_callback, wdata,
+			     flags);
 
 	if (rc) {
 		kref_put(&wdata->refcount, release);
