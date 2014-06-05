@@ -6776,6 +6776,7 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 			 * here as an exceptional entry: so return it without
 			 * attempting to raise page count.
 			 */
+			page = NULL;
 			break; /* TODO: Is this relevant for this use case? */
 		}
 
