@@ -5115,7 +5115,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 			/* already done this stripe */
 			continue;
 
-		sh = get_active_stripe(conf, sector, 0, 1, 0);
+		sh = get_active_stripe(conf, sector, 0, 1, 1);
 
 		if (!sh) {
 			/* failed to get a stripe - must wait */
