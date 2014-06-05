@@ -52,7 +52,7 @@ struct arch_uprobe {
 		struct {
 			u8	fixups;
 			u8	ilen;
-		} 			def;
+		} 			defparam;
 	};
 };
 
