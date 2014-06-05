@@ -420,12 +420,18 @@ static int conn_send(struct l2cap_conn *conn,
 	return 0;
 }
 
-static void get_dest_bdaddr(struct in6_addr *ip6_daddr,
-			    bdaddr_t *addr, u8 *addr_type)
+static u8 get_addr_type_from_eui64(u8 byte)
 {
-	u8 *eui64;
+	/* Is universal(0) or local(1) bit,  */
+	if (byte & 0x02)
+		return ADDR_LE_DEV_RANDOM;
 
-	eui64 = ip6_daddr->s6_addr + 8;
+	return ADDR_LE_DEV_PUBLIC;
+}
+
+static void copy_to_bdaddr(struct in6_addr *ip6_daddr, bdaddr_t *addr)
+{
+	u8 *eui64 = ip6_daddr->s6_addr + 8;
 
 	addr->b[0] = eui64[7];
 	addr->b[1] = eui64[6];
@@ -433,16 +439,19 @@ static void get_dest_bdaddr(struct in6_addr *ip6_daddr,
 	addr->b[3] = eui64[2];
 	addr->b[4] = eui64[1];
 	addr->b[5] = eui64[0];
+}
 
-	addr->b[5] ^= 2;
+static void convert_dest_bdaddr(struct in6_addr *ip6_daddr,
+				bdaddr_t *addr, u8 *addr_type)
+{
+	copy_to_bdaddr(ip6_daddr, addr);
 
-	/* Set universal/local bit to 0 */
-	if (addr->b[5] & 1) {
-		addr->b[5] &= ~1;
-		*addr_type = ADDR_LE_DEV_PUBLIC;
-	} else {
-		*addr_type = ADDR_LE_DEV_RANDOM;
-	}
+	/* We need to toggle the U/L bit that we got from IPv6 address
+	 * so that we get the proper address and type of the BD address.
+	 */
+	addr->b[5] ^= 0x02;
+
+	*addr_type = get_addr_type_from_eui64(addr->b[5]);
 }
 
 static int header_create(struct sk_buff *skb, struct net_device *netdev,
@@ -473,9 +482,11 @@ static int header_create(struct sk_buff *skb, struct net_device *netdev,
 		/* Get destination BT device from skb.
 		 * If there is no such peer then discard the packet.
 		 */
-		get_dest_bdaddr(&hdr->daddr, &addr, &addr_type);
+		convert_dest_bdaddr(&hdr->daddr, &addr, &addr_type);
 
-		BT_DBG("dest addr %pMR type %d", &addr, addr_type);
+		BT_DBG("dest addr %pMR type %s IP %pI6c", &addr,
+		       addr_type == ADDR_LE_DEV_PUBLIC ? "PUBLIC" : "RANDOM",
+		       &hdr->daddr);
 
 		read_lock_irqsave(&devices_lock, flags);
 		peer = peer_lookup_ba(dev, &addr, addr_type);
@@ -556,7 +567,7 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	} else {
 		unsigned long flags;
 
-		get_dest_bdaddr(&lowpan_cb(skb)->addr, &addr, &addr_type);
+		convert_dest_bdaddr(&lowpan_cb(skb)->addr, &addr, &addr_type);
 		eui64_addr = lowpan_cb(skb)->addr.s6_addr + 8;
 		dev = lowpan_dev(netdev);
 
@@ -564,8 +575,10 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 		peer = peer_lookup_ba(dev, &addr, addr_type);
 		read_unlock_irqrestore(&devices_lock, flags);
 
-		BT_DBG("xmit from %s to %pMR (%pI6c) peer %p", netdev->name,
-		       &addr, &lowpan_cb(skb)->addr, peer);
+		BT_DBG("xmit %s to %pMR type %s IP %pI6c peer %p",
+		       netdev->name, &addr,
+		       addr_type == ADDR_LE_DEV_PUBLIC ? "PUBLIC" : "RANDOM",
+		       &lowpan_cb(skb)->addr, peer);
 
 		if (peer && peer->conn)
 			err = send_pkt(peer->conn, netdev->dev_addr,
@@ -620,13 +633,13 @@ static void set_addr(u8 *eui, u8 *addr, u8 addr_type)
 	eui[6] = addr[1];
 	eui[7] = addr[0];
 
-	eui[0] ^= 2;
-
-	/* Universal/local bit set, RFC 4291 */
+	/* Universal/local bit set, BT 6lowpan draft ch. 3.2.1 */
 	if (addr_type == ADDR_LE_DEV_PUBLIC)
-		eui[0] |= 1;
+		eui[0] &= ~0x02;
 	else
-		eui[0] &= ~1;
+		eui[0] |= 0x02;
+
+	BT_DBG("type %d addr %*phC", addr_type, 8, eui);
 }
 
 static void set_dev_addr(struct net_device *netdev, bdaddr_t *addr,
@@ -634,7 +647,6 @@ static void set_dev_addr(struct net_device *netdev, bdaddr_t *addr,
 {
 	netdev->addr_assign_type = NET_ADDR_PERM;
 	set_addr(netdev->dev_addr, addr->b, addr_type);
-	netdev->dev_addr[0] ^= 2;
 }
 
 static void ifup(struct net_device *netdev)
@@ -684,13 +696,6 @@ static int add_peer_conn(struct l2cap_conn *conn, struct lowpan_dev *dev)
 
 	memcpy(&peer->eui64_addr, (u8 *)&peer->peer_addr.s6_addr + 8,
 	       EUI64_ADDR_LEN);
-	peer->eui64_addr[0] ^= 2; /* second bit-flip (Universe/Local)
-				   * is done according RFC2464
-				   */
-
-	raw_dump_inline(__func__, "peer IPv6 address",
-			(unsigned char *)&peer->peer_addr, 16);
-	raw_dump_inline(__func__, "peer EUI64 address", peer->eui64_addr, 8);
 
 	write_lock_irqsave(&devices_lock, flags);
 	INIT_LIST_HEAD(&peer->list);
