@@ -295,7 +295,7 @@ config MMC_MOXART
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
 	depends on ARCH_OMAP
-	select TPS65010 if MACH_OMAP_H2
+	depends on TPS65010 || !MACH_OMAP_H2
 	help
 	  This selects the TI OMAP Multimedia card Interface.
 	  If you have an OMAP board with a Multimedia Card slot,
