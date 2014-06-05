@@ -554,7 +554,8 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 }
 
 static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
-				    const u8 *resp, size_t resp_len)
+				    const u8 *resp, size_t resp_len,
+				    const struct ieee80211_csa_settings *csa)
 {
 	struct probe_resp *new, *old;
 
@@ -570,6 +571,11 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	new->len = resp_len;
 	memcpy(new->data, resp, resp_len);
 
+	if (csa)
+		memcpy(new->csa_counter_offsets, csa->counter_offsets_presp,
+		       csa->n_counter_offsets_presp *
+		       sizeof(new->csa_counter_offsets[0]));
+
 	rcu_assign_pointer(sdata->u.ap.probe_resp, new);
 	if (old)
 		kfree_rcu(old, rcu_head);
@@ -578,7 +584,8 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
-				   struct cfg80211_beacon_data *params)
+				   struct cfg80211_beacon_data *params,
+				   const struct ieee80211_csa_settings *csa)
 {
 	struct beacon_data *new, *old;
 	int new_head_len, new_tail_len;
@@ -622,6 +629,13 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	new->head_len = new_head_len;
 	new->tail_len = new_tail_len;
 
+	if (csa) {
+		new->csa_current_counter = csa->count;
+		memcpy(new->csa_counter_offsets, csa->counter_offsets_beacon,
+		       csa->n_counter_offsets_beacon *
+		       sizeof(new->csa_counter_offsets[0]));
+	}
+
 	/* copy in head */
 	if (params->head)
 		memcpy(new->head, params->head, new_head_len);
@@ -636,7 +650,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			memcpy(new->tail, old->tail, new_tail_len);
 
 	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
-				       params->probe_resp_len);
+				       params->probe_resp_len, csa);
 	if (err < 0)
 		return err;
 	if (err == 0)
@@ -721,7 +735,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
 					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
-	err = ieee80211_assign_beacon(sdata, &params->beacon);
+	err = ieee80211_assign_beacon(sdata, &params->beacon, NULL);
 	if (err < 0) {
 		ieee80211_vif_release_channel(sdata);
 		return err;
@@ -769,7 +783,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (!old)
 		return -ENOENT;
 
-	err = ieee80211_assign_beacon(sdata, params);
+	err = ieee80211_assign_beacon(sdata, params, NULL);
 	if (err < 0)
 		return err;
 	ieee80211_bss_info_change_notify(sdata, err);
@@ -2752,7 +2766,8 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
-		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon);
+		err = ieee80211_assign_beacon(sdata, sdata->u.ap.next_beacon,
+					      NULL);
 		kfree(sdata->u.ap.next_beacon);
 		sdata->u.ap.next_beacon = NULL;
 
@@ -2855,6 +2870,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 				    struct cfg80211_csa_settings *params,
 				    u32 *changed)
 {
+	struct ieee80211_csa_settings csa = {};
 	int err;
 
 	switch (sdata->vif.type) {
@@ -2889,20 +2905,13 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		     IEEE80211_MAX_CSA_COUNTERS_NUM))
 			return -EINVAL;
 
-		/* make sure we don't have garbage in other counters */
-		memset(sdata->csa_counter_offset_beacon, 0,
-		       sizeof(sdata->csa_counter_offset_beacon));
-		memset(sdata->csa_counter_offset_presp, 0,
-		       sizeof(sdata->csa_counter_offset_presp));
+		csa.counter_offsets_beacon = params->counter_offsets_beacon;
+		csa.counter_offsets_presp = params->counter_offsets_presp;
+		csa.n_counter_offsets_beacon = params->n_counter_offsets_beacon;
+		csa.n_counter_offsets_presp = params->n_counter_offsets_presp;
+		csa.count = params->count;
 
-		memcpy(sdata->csa_counter_offset_beacon,
-		       params->counter_offsets_beacon,
-		       params->n_counter_offsets_beacon * sizeof(u16));
-		memcpy(sdata->csa_counter_offset_presp,
-		       params->counter_offsets_presp,
-		       params->n_counter_offsets_presp * sizeof(u16));
-
-		err = ieee80211_assign_beacon(sdata, &params->beacon_csa);
+		err = ieee80211_assign_beacon(sdata, &params->beacon_csa, &csa);
 		if (err < 0) {
 			kfree(sdata->u.ap.next_beacon);
 			return err;
@@ -3046,7 +3055,6 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	sdata->csa_radar_required = params->radar_required;
 	sdata->csa_chandef = params->chandef;
 	sdata->csa_block_tx = params->block_tx;
-	sdata->csa_current_counter = params->count;
 	sdata->vif.csa_active = true;
 
 	if (sdata->csa_block_tx)
@@ -3194,10 +3202,23 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
 	    params->n_csa_offsets) {
 		int i;
-		u8 c = sdata->csa_current_counter;
+		struct beacon_data *beacon = NULL;
 
-		for (i = 0; i < params->n_csa_offsets; i++)
-			data[params->csa_offsets[i]] = c;
+		rcu_read_lock();
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP)
+			beacon = rcu_dereference(sdata->u.ap.beacon);
+		else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+			beacon = rcu_dereference(sdata->u.ibss.presp);
+		else if (ieee80211_vif_is_mesh(&sdata->vif))
+			beacon = rcu_dereference(sdata->u.mesh.beacon);
+
+		if (beacon)
+			for (i = 0; i < params->n_csa_offsets; i++)
+				data[params->csa_offsets[i]] =
+					beacon->csa_current_counter;
+
+		rcu_read_unlock();
 	}
 
 	IEEE80211_SKB_CB(skb)->flags = flags;

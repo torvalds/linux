@@ -229,16 +229,29 @@ struct ieee80211_rx_data {
 	u16 tkip_iv16;
 };
 
+struct ieee80211_csa_settings {
+	const u16 *counter_offsets_beacon;
+	const u16 *counter_offsets_presp;
+
+	int n_counter_offsets_beacon;
+	int n_counter_offsets_presp;
+
+	u8 count;
+};
+
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
 	struct ieee80211_meshconf_ie *meshconf;
+	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
+	u8 csa_current_counter;
 	struct rcu_head rcu_head;
 };
 
 struct probe_resp {
 	struct rcu_head rcu_head;
 	int len;
+	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
 	u8 data[0];
 };
 
@@ -754,8 +767,6 @@ struct ieee80211_sub_if_data {
 	struct mac80211_qos_map __rcu *qos_map;
 
 	struct work_struct csa_finalize_work;
-	u16 csa_counter_offset_beacon[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	u16 csa_counter_offset_presp[IEEE80211_MAX_CSA_COUNTERS_NUM];
 	bool csa_radar_required;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
 	struct cfg80211_chan_def csa_chandef;
@@ -767,7 +778,6 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;
 	bool reserved_radar_required;
-	u8 csa_current_counter;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
