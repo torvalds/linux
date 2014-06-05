@@ -46,6 +46,7 @@ struct nouveau_encoder {
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
 	struct drm_crtc *crtc;
+	u32 ctrl;
 
 	struct drm_display_mode mode;
 	int last_dpms;

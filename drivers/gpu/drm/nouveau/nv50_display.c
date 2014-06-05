@@ -1701,10 +1701,9 @@ nv50_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 }
 
 static void
-nv50_hdmi_disconnect(struct drm_encoder *encoder)
+nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
 
@@ -1775,33 +1774,36 @@ nv50_sor_mode_fixup(struct drm_encoder *encoder,
 }
 
 static void
+nv50_sor_ctrl(struct nouveau_encoder *nv_encoder, u32 mask, u32 data)
+{
+	struct nv50_mast *mast = nv50_mast(nv_encoder->base.base.dev);
+	u32 temp = (nv_encoder->ctrl & ~mask) | (data & mask), *push;
+	if (temp != nv_encoder->ctrl && (push = evo_wait(mast, 2))) {
+		if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x40), 1);
+			evo_data(push, (nv_encoder->ctrl = temp));
+		} else {
+			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
+			evo_data(push, (nv_encoder->ctrl = temp));
+		}
+		evo_kick(push, mast);
+	}
+}
+
+static void
 nv50_sor_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_mast *mast = nv50_mast(encoder->dev);
-	const int or = nv_encoder->or;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		nv50_crtc_prepare(nv_encoder->crtc);
-
-		push = evo_wait(mast, 4);
-		if (push) {
-			if (nv50_vers(mast) < NVD0_DISP_MAST_CLASS) {
-				evo_mthd(push, 0x0600 + (or * 0x40), 1);
-				evo_data(push, 0x00000000);
-			} else {
-				evo_mthd(push, 0x0200 + (or * 0x20), 1);
-				evo_data(push, 0x00000000);
-			}
-			evo_kick(push, mast);
-		}
-
-		nv50_hdmi_disconnect(encoder);
-	}
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
 
 	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 	nv_encoder->crtc = NULL;
+
+	if (nv_crtc) {
+		nv50_crtc_prepare(&nv_crtc->base);
+		nv50_sor_ctrl(nv_encoder, 1 << nv_crtc->index, 0);
+		nv50_hdmi_disconnect(&nv_encoder->base.base, nv_crtc);
+	}
 }
 
 static void
@@ -1821,12 +1823,14 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
-	u32 *push, lvds = 0;
+	u32 lvds = 0, mask, ctrl;
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto = 0xf;
 	u8 depth = 0x0;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	nv_encoder->crtc = encoder->crtc;
+
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
@@ -1838,7 +1842,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			proto = 0x2;
 		}
 
-		nv50_hdmi_mode_set(encoder, mode);
+		nv50_hdmi_mode_set(&nv_encoder->base.base, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
 		proto = 0x0;
@@ -1894,19 +1898,11 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		break;
 	}
 
-	nv50_sor_dpms(encoder, DRM_MODE_DPMS_ON);
+	nv50_sor_dpms(&nv_encoder->base.base, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(nv50_mast(dev), 8);
-	if (push) {
-		if (nv50_vers(mast) < NVD0_DISP_CLASS) {
-			u32 ctrl = (depth << 16) | (proto << 8) | owner;
-			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-				ctrl |= 0x00001000;
-			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-				ctrl |= 0x00002000;
-			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x040), 1);
-			evo_data(push, ctrl);
-		} else {
+	if (nv50_vers(mast) >= NVD0_DISP_CLASS) {
+		u32 *push = evo_wait(mast, 3);
+		if (push) {
 			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
 			u32 syncs = 0x00000001;
 
@@ -1921,14 +1917,21 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, syncs | (depth << 6));
 			evo_data(push, magic);
-			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 1);
-			evo_data(push, owner | (proto << 8));
+			evo_kick(push, mast);
 		}
 
-		evo_kick(push, mast);
+		ctrl = proto << 8;
+		mask = 0x00000f00;
+	} else {
+		ctrl = (depth << 16) | (proto << 8);
+		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+			ctrl |= 0x00001000;
+		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+			ctrl |= 0x00002000;
+		mask = 0x000f3f00;
 	}
 
-	nv_encoder->crtc = encoder->crtc;
+	nv50_sor_ctrl(nv_encoder, mask | owner, ctrl | owner);
 }
 
 static void
