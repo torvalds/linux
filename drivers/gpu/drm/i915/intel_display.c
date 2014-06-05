@@ -4300,6 +4300,23 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
+static enum intel_display_power_domain port_to_power_domain(enum port port)
+{
+	switch (port) {
+	case PORT_A:
+		return POWER_DOMAIN_PORT_DDI_A_4_LANES;
+	case PORT_B:
+		return POWER_DOMAIN_PORT_DDI_B_4_LANES;
+	case PORT_C:
+		return POWER_DOMAIN_PORT_DDI_C_4_LANES;
+	case PORT_D:
+		return POWER_DOMAIN_PORT_DDI_D_4_LANES;
+	default:
+		WARN_ON_ONCE(1);
+		return POWER_DOMAIN_PORT_OTHER;
+	}
+}
+
 #define for_each_power_domain(domain, mask)				\
 	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
 		if ((1 << (domain)) & (mask))
@@ -4318,19 +4335,7 @@ intel_display_port_power_domain(struct intel_encoder *intel_encoder)
 	case INTEL_OUTPUT_HDMI:
 	case INTEL_OUTPUT_EDP:
 		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
-		switch (intel_dig_port->port) {
-		case PORT_A:
-			return POWER_DOMAIN_PORT_DDI_A_4_LANES;
-		case PORT_B:
-			return POWER_DOMAIN_PORT_DDI_B_4_LANES;
-		case PORT_C:
-			return POWER_DOMAIN_PORT_DDI_C_4_LANES;
-		case PORT_D:
-			return POWER_DOMAIN_PORT_DDI_D_4_LANES;
-		default:
-			WARN_ON_ONCE(1);
-			return POWER_DOMAIN_PORT_OTHER;
-		}
+		return port_to_power_domain(intel_dig_port->port);
 	case INTEL_OUTPUT_ANALOG:
 		return POWER_DOMAIN_PORT_CRT;
 	case INTEL_OUTPUT_DSI:
