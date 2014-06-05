@@ -205,6 +205,7 @@ struct perf_hpp_fmt {
 
 	struct list_head list;
 	struct list_head sort_list;
+	bool elide;
 };
 
 extern struct list_head perf_hpp__list;
@@ -252,7 +253,12 @@ void perf_hpp__append_sort_keys(void);
 
 bool perf_hpp__is_sort_entry(struct perf_hpp_fmt *format);
 bool perf_hpp__same_sort_entry(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
-bool perf_hpp__should_skip(struct perf_hpp_fmt *format);
+
+static inline bool perf_hpp__should_skip(struct perf_hpp_fmt *format)
+{
+	return format->elide;
+}
+
 void perf_hpp__reset_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);

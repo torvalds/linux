@@ -454,7 +454,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			if (done)
 				break;
 			err = poll(rec->evlist->pollfd, rec->evlist->nr_fds, -1);
-			if (err < 0 && errno == EINTR)
+			/*
+			 * Propagate error, only if there's any. Ignore positive
+			 * number of returned events and interrupt error.
+			 */
+			if (err > 0 || (err < 0 && errno == EINTR))
 				err = 0;
 			waking++;
 		}
