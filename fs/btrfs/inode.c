@@ -6777,8 +6777,10 @@ bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 			break; /* TODO: Is this relevant for this use case? */
 		}
 
-		if (!page_cache_get_speculative(page))
+		if (!page_cache_get_speculative(page)) {
+			page = NULL;
 			continue;
+		}
 
 		/*
 		 * Has the page moved?
