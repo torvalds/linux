@@ -849,7 +849,8 @@ int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 		 unsigned int offset)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	return __bio_add_page(q, bio, page, len, offset, queue_max_sectors(q));
+
+	return __bio_add_page(q, bio, page, len, offset, blk_max_size_offset(q, bio->bi_iter.bi_sector));
 }
 EXPORT_SYMBOL(bio_add_page);
 
