@@ -1526,18 +1526,6 @@ static int hub_configure(struct usb_hub *hub,
 		dev_dbg(hub_dev, "%umA bus power budget for each child\n",
 				hub->mA_per_port);
 
-	/* Update the HCD's internal representation of this hub before khubd
-	 * starts getting port status changes for devices under the hub.
-	 */
-	if (hcd->driver->update_hub_device) {
-		ret = hcd->driver->update_hub_device(hcd, hdev,
-				&hub->tt, GFP_KERNEL);
-		if (ret < 0) {
-			message = "can't update HCD hub info";
-			goto fail;
-		}
-	}
-
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);
 	if (ret < 0) {
 		message = "can't get hub status";
@@ -1592,6 +1580,18 @@ static int hub_configure(struct usb_hub *hub,
 	mutex_unlock(&usb_port_peer_mutex);
 	if (ret < 0)
 		goto fail;
+
+	/* Update the HCD's internal representation of this hub before khubd
+	 * starts getting port status changes for devices under the hub.
+	 */
+	if (hcd->driver->update_hub_device) {
+		ret = hcd->driver->update_hub_device(hcd, hdev,
+				&hub->tt, GFP_KERNEL);
+		if (ret < 0) {
+			message = "can't update HCD hub info";
+			goto fail;
+		}
+	}
 
 	usb_hub_adjust_deviceremovable(hdev, hub->descriptor);
 
