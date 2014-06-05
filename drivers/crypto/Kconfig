@@ -391,7 +391,7 @@ config CRYPTO_DEV_ATMEL_SHA
 
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
-	depends on X86 && PCI
+	depends on (X86 && PCI) || ARM64
 	default n
 	help
 	  The AMD Cryptographic Coprocessor provides hardware support

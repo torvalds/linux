@@ -30,6 +30,8 @@
 
 #define TRNG_RETRIES			10
 
+#define CACHE_WB_NO_ALLOC		0xb7
+
 
 /****** Register Mappings ******/
 #define Q_MASK_REG			0x000
@@ -48,7 +50,7 @@
 #define CMD_Q_INT_STATUS_BASE		0x214
 #define CMD_Q_STATUS_INCR		0x20
 
-#define CMD_Q_CACHE			0x228
+#define CMD_Q_CACHE_BASE		0x228
 #define CMD_Q_CACHE_INC			0x20
 
 #define CMD_Q_ERROR(__qs)		((__qs) & 0x0000003f);
@@ -258,6 +260,9 @@ struct ccp_device {
 
 int ccp_pci_init(void);
 void ccp_pci_exit(void);
+
+int ccp_platform_init(void);
+void ccp_platform_exit(void);
 
 struct ccp_device *ccp_alloc_struct(struct device *dev);
 int ccp_init(struct ccp_device *ccp);
