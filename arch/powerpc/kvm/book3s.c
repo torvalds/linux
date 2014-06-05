@@ -649,6 +649,9 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		case KVM_REG_PPC_VTB:
 			val = get_reg_val(reg->id, vcpu->arch.vtb);
 			break;
+		case KVM_REG_PPC_IC:
+			val = get_reg_val(reg->id, vcpu->arch.ic);
+			break;
 		default:
 			r = -EINVAL;
 			break;
@@ -755,6 +758,9 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			break;
 		case KVM_REG_PPC_VTB:
 			vcpu->arch.vtb = set_reg_val(reg->id, val);
+			break;
+		case KVM_REG_PPC_IC:
+			vcpu->arch.ic = set_reg_val(reg->id, val);
 			break;
 		default:
 			r = -EINVAL;

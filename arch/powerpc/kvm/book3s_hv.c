@@ -894,9 +894,6 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_CIABR:
 		*val = get_reg_val(id, vcpu->arch.ciabr);
 		break;
-	case KVM_REG_PPC_IC:
-		*val = get_reg_val(id, vcpu->arch.ic);
-		break;
 	case KVM_REG_PPC_CSIGR:
 		*val = get_reg_val(id, vcpu->arch.csigr);
 		break;
@@ -1090,9 +1087,6 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 		/* Don't allow setting breakpoints in hypervisor code */
 		if ((vcpu->arch.ciabr & CIABR_PRIV) == CIABR_PRIV_HYPER)
 			vcpu->arch.ciabr &= ~CIABR_PRIV;	/* disable */
-		break;
-	case KVM_REG_PPC_IC:
-		vcpu->arch.ic = set_reg_val(id, *val);
 		break;
 	case KVM_REG_PPC_CSIGR:
 		vcpu->arch.csigr = set_reg_val(id, *val);

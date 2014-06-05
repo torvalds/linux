@@ -580,6 +580,9 @@ int kvmppc_core_emulate_mfspr_pr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val
 	case SPRN_VTB:
 		*spr_val = vcpu->arch.vtb;
 		break;
+	case SPRN_IC:
+		*spr_val = vcpu->arch.ic;
+		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
 	case SPRN_GQR2:
