@@ -29,7 +29,7 @@ static void __init i386_default_early_setup(void)
 	reserve_ebda_region();
 }
 
-asmlinkage void __init i386_start_kernel(void)
+asmlinkage __visible void __init i386_start_kernel(void)
 {
 	sanitize_boot_params(&boot_params);
 

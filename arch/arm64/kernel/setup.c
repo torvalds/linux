@@ -396,7 +396,7 @@ static int __init arm64_device_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
-arch_initcall(arm64_device_init);
+arch_initcall_sync(arm64_device_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 

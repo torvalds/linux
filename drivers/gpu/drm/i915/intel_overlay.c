@@ -193,7 +193,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 	struct overlay_registers __iomem *regs;
 
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_obj->handle->vaddr;
+		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_handle->vaddr;
 	else
 		regs = io_mapping_map_wc(dev_priv->gtt.mappable,
 					 i915_gem_obj_ggtt_offset(overlay->reg_bo));
@@ -1340,14 +1340,12 @@ void intel_setup_overlay(struct drm_device *dev)
 	overlay->reg_bo = reg_bo;
 
 	if (OVERLAY_NEEDS_PHYSICAL(dev)) {
-		ret = i915_gem_attach_phys_object(dev, reg_bo,
-						  I915_GEM_PHYS_OVERLAY_REGS,
-						  PAGE_SIZE);
+		ret = i915_gem_object_attach_phys(reg_bo, PAGE_SIZE);
 		if (ret) {
 			DRM_ERROR("failed to attach phys overlay regs\n");
 			goto out_free_bo;
 		}
-		overlay->flip_addr = reg_bo->phys_obj->handle->busaddr;
+		overlay->flip_addr = reg_bo->phys_handle->busaddr;
 	} else {
 		ret = i915_gem_obj_ggtt_pin(reg_bo, PAGE_SIZE, PIN_MAPPABLE);
 		if (ret) {
@@ -1428,7 +1426,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 		/* Cast to make sparse happy, but it's wc memory anyway, so
 		 * equivalent to the wc io mapping on X86. */
 		regs = (struct overlay_registers __iomem *)
-			overlay->reg_bo->phys_obj->handle->vaddr;
+			overlay->reg_bo->phys_handle->vaddr;
 	else
 		regs = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
 						i915_gem_obj_ggtt_offset(overlay->reg_bo));
@@ -1462,7 +1460,7 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 	error->dovsta = I915_READ(DOVSTA);
 	error->isr = I915_READ(ISR);
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		error->base = (__force long)overlay->reg_bo->phys_obj->handle->vaddr;
+		error->base = (__force long)overlay->reg_bo->phys_handle->vaddr;
 	else
 		error->base = i915_gem_obj_ggtt_offset(overlay->reg_bo);
 

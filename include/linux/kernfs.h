@@ -50,7 +50,24 @@ enum kernfs_node_flag {
 
 /* @flags for kernfs_create_root() */
 enum kernfs_root_flag {
-	KERNFS_ROOT_CREATE_DEACTIVATED = 0x0001,
+	/*
+	 * kernfs_nodes are created in the deactivated state and invisible.
+	 * They require explicit kernfs_activate() to become visible.  This
+	 * can be used to make related nodes become visible atomically
+	 * after all nodes are created successfully.
+	 */
+	KERNFS_ROOT_CREATE_DEACTIVATED		= 0x0001,
+
+	/*
+	 * For regular flies, if the opener has CAP_DAC_OVERRIDE, open(2)
+	 * succeeds regardless of the RW permissions.  sysfs had an extra
+	 * layer of enforcement where open(2) fails with -EACCES regardless
+	 * of CAP_DAC_OVERRIDE if the permission doesn't have the
+	 * respective read or write access at all (none of S_IRUGO or
+	 * S_IWUGO) or the respective operation isn't implemented.  The
+	 * following flag enables that behavior.
+	 */
+	KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK	= 0x0002,
 };
 
 /* type-specific structures for kernfs_node union members */
@@ -280,8 +297,8 @@ void kernfs_notify(struct kernfs_node *kn);
 
 const void *kernfs_super_ns(struct super_block *sb);
 struct dentry *kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-			       struct kernfs_root *root, bool *new_sb_created,
-			       const void *ns);
+			       struct kernfs_root *root, unsigned long magic,
+			       bool *new_sb_created, const void *ns);
 void kernfs_kill_sb(struct super_block *sb);
 
 void kernfs_init(void);
@@ -374,7 +391,8 @@ static inline const void *kernfs_super_ns(struct super_block *sb)
 
 static inline struct dentry *
 kernfs_mount_ns(struct file_system_type *fs_type, int flags,
-		struct kernfs_root *root, bool *new_sb_created, const void *ns)
+		struct kernfs_root *root, unsigned long magic,
+		bool *new_sb_created, const void *ns)
 { return ERR_PTR(-ENOSYS); }
 
 static inline void kernfs_kill_sb(struct super_block *sb) { }
@@ -432,9 +450,11 @@ static inline int kernfs_rename(struct kernfs_node *kn,
 
 static inline struct dentry *
 kernfs_mount(struct file_system_type *fs_type, int flags,
-	     struct kernfs_root *root, bool *new_sb_created)
+		struct kernfs_root *root, unsigned long magic,
+		bool *new_sb_created)
 {
-	return kernfs_mount_ns(fs_type, flags, root, new_sb_created, NULL);
+	return kernfs_mount_ns(fs_type, flags, root,
+				magic, new_sb_created, NULL);
 }
 
 #endif	/* __LINUX_KERNFS_H */

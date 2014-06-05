@@ -122,6 +122,13 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 	return 0;
 }
 
+/* Register mappings for user programs. */
+#define A_REG		0
+#define X_REG		7
+#define TMP_REG		8
+#define ARG2_REG	2
+#define ARG3_REG	3
+
 /**
  *	__sk_run_filter - run a filter on a given context
  *	@ctx: buffer to run the filter on
@@ -242,6 +249,8 @@ unsigned int __sk_run_filter(void *ctx, const struct sock_filter_int *insn)
 
 	regs[FP_REG]  = (u64) (unsigned long) &stack[ARRAY_SIZE(stack)];
 	regs[ARG1_REG] = (u64) (unsigned long) ctx;
+	regs[A_REG] = 0;
+	regs[X_REG] = 0;
 
 select_insn:
 	goto *jumptable[insn->code];
@@ -642,13 +651,6 @@ static u64 __get_raw_cpu_id(u64 ctx, u64 A, u64 X, u64 r4, u64 r5)
 {
 	return raw_smp_processor_id();
 }
-
-/* Register mappings for user programs. */
-#define A_REG		0
-#define X_REG		7
-#define TMP_REG		8
-#define ARG2_REG	2
-#define ARG3_REG	3
 
 static bool convert_bpf_extensions(struct sock_filter *fp,
 				   struct sock_filter_int **insnp)
@@ -1557,8 +1559,13 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 	fp->jited = 0;
 
 	err = sk_chk_filter(fp->insns, fp->len);
-	if (err)
+	if (err) {
+		if (sk != NULL)
+			sk_filter_uncharge(sk, fp);
+		else
+			kfree(fp);
 		return ERR_PTR(err);
+	}
 
 	/* Probe if we can JIT compile the filter and if so, do
 	 * the compilation of the filter.

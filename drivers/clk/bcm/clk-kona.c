@@ -61,7 +61,7 @@ u64 do_div_round_closest(u64 dividend, unsigned long divisor)
 /* Convert a divider into the scaled divisor value it represents. */
 static inline u64 scaled_div_value(struct bcm_clk_div *div, u32 reg_div)
 {
-	return (u64)reg_div + ((u64)1 << div->frac_width);
+	return (u64)reg_div + ((u64)1 << div->u.s.frac_width);
 }
 
 /*
@@ -77,7 +77,7 @@ u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value, u32 billionths)
 	BUG_ON(billionths >= BILLION);
 
 	combined = (u64)div_value * BILLION + billionths;
-	combined <<= div->frac_width;
+	combined <<= div->u.s.frac_width;
 
 	return do_div_round_closest(combined, BILLION);
 }
@@ -87,7 +87,7 @@ static inline u64
 scaled_div_min(struct bcm_clk_div *div)
 {
 	if (divider_is_fixed(div))
-		return (u64)div->fixed;
+		return (u64)div->u.fixed;
 
 	return scaled_div_value(div, 0);
 }
@@ -98,9 +98,9 @@ u64 scaled_div_max(struct bcm_clk_div *div)
 	u32 reg_div;
 
 	if (divider_is_fixed(div))
-		return (u64)div->fixed;
+		return (u64)div->u.fixed;
 
-	reg_div = ((u32)1 << div->width) - 1;
+	reg_div = ((u32)1 << div->u.s.width) - 1;
 
 	return scaled_div_value(div, reg_div);
 }
@@ -115,7 +115,7 @@ divider(struct bcm_clk_div *div, u64 scaled_div)
 	BUG_ON(scaled_div < scaled_div_min(div));
 	BUG_ON(scaled_div > scaled_div_max(div));
 
-	return (u32)(scaled_div - ((u64)1 << div->frac_width));
+	return (u32)(scaled_div - ((u64)1 << div->u.s.frac_width));
 }
 
 /* Return a rate scaled for use when dividing by a scaled divisor. */
@@ -125,7 +125,7 @@ scale_rate(struct bcm_clk_div *div, u32 rate)
 	if (divider_is_fixed(div))
 		return (u64)rate;
 
-	return (u64)rate << div->frac_width;
+	return (u64)rate << div->u.s.frac_width;
 }
 
 /* CCU access */
@@ -398,14 +398,14 @@ static u64 divider_read_scaled(struct ccu_data *ccu, struct bcm_clk_div *div)
 	u32 reg_div;
 
 	if (divider_is_fixed(div))
-		return (u64)div->fixed;
+		return (u64)div->u.fixed;
 
 	flags = ccu_lock(ccu);
-	reg_val = __ccu_read(ccu, div->offset);
+	reg_val = __ccu_read(ccu, div->u.s.offset);
 	ccu_unlock(ccu, flags);
 
 	/* Extract the full divider field from the register value */
-	reg_div = bitfield_extract(reg_val, div->shift, div->width);
+	reg_div = bitfield_extract(reg_val, div->u.s.shift, div->u.s.width);
 
 	/* Return the scaled divisor value it represents */
 	return scaled_div_value(div, reg_div);
@@ -433,16 +433,17 @@ static int __div_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	 * state was defined in the device tree, we just find out
 	 * what its current value is rather than updating it.
 	 */
-	if (div->scaled_div == BAD_SCALED_DIV_VALUE) {
-		reg_val = __ccu_read(ccu, div->offset);
-		reg_div = bitfield_extract(reg_val, div->shift, div->width);
-		div->scaled_div = scaled_div_value(div, reg_div);
+	if (div->u.s.scaled_div == BAD_SCALED_DIV_VALUE) {
+		reg_val = __ccu_read(ccu, div->u.s.offset);
+		reg_div = bitfield_extract(reg_val, div->u.s.shift,
+						div->u.s.width);
+		div->u.s.scaled_div = scaled_div_value(div, reg_div);
 
 		return 0;
 	}
 
 	/* Convert the scaled divisor to the value we need to record */
-	reg_div = divider(div, div->scaled_div);
+	reg_div = divider(div, div->u.s.scaled_div);
 
 	/* Clock needs to be enabled before changing the rate */
 	enabled = __is_clk_gate_enabled(ccu, gate);
@@ -452,9 +453,10 @@ static int __div_commit(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	}
 
 	/* Replace the divider value and record the result */
-	reg_val = __ccu_read(ccu, div->offset);
-	reg_val = bitfield_replace(reg_val, div->shift, div->width, reg_div);
-	__ccu_write(ccu, div->offset, reg_val);
+	reg_val = __ccu_read(ccu, div->u.s.offset);
+	reg_val = bitfield_replace(reg_val, div->u.s.shift, div->u.s.width,
+					reg_div);
+	__ccu_write(ccu, div->u.s.offset, reg_val);
 
 	/* If the trigger fails we still want to disable the gate */
 	if (!__clk_trigger(ccu, trig))
@@ -490,11 +492,11 @@ static int divider_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 
 	BUG_ON(divider_is_fixed(div));
 
-	previous = div->scaled_div;
+	previous = div->u.s.scaled_div;
 	if (previous == scaled_div)
 		return 0;	/* No change */
 
-	div->scaled_div = scaled_div;
+	div->u.s.scaled_div = scaled_div;
 
 	flags = ccu_lock(ccu);
 	__ccu_write_enable(ccu);
@@ -505,7 +507,7 @@ static int divider_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 	ccu_unlock(ccu, flags);
 
 	if (ret)
-		div->scaled_div = previous;		/* Revert the change */
+		div->u.s.scaled_div = previous;		/* Revert the change */
 
 	return ret;
 
@@ -802,7 +804,7 @@ static int selector_write(struct ccu_data *ccu, struct bcm_clk_gate *gate,
 static int kona_peri_clk_enable(struct clk_hw *hw)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct bcm_clk_gate *gate = &bcm_clk->peri->gate;
+	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
 	return clk_gate(bcm_clk->ccu, bcm_clk->name, gate, true);
 }
@@ -810,7 +812,7 @@ static int kona_peri_clk_enable(struct clk_hw *hw)
 static void kona_peri_clk_disable(struct clk_hw *hw)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct bcm_clk_gate *gate = &bcm_clk->peri->gate;
+	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
 	(void)clk_gate(bcm_clk->ccu, bcm_clk->name, gate, false);
 }
@@ -818,7 +820,7 @@ static void kona_peri_clk_disable(struct clk_hw *hw)
 static int kona_peri_clk_is_enabled(struct clk_hw *hw)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct bcm_clk_gate *gate = &bcm_clk->peri->gate;
+	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
 	return is_clk_gate_enabled(bcm_clk->ccu, gate) ? 1 : 0;
 }
@@ -827,7 +829,7 @@ static unsigned long kona_peri_clk_recalc_rate(struct clk_hw *hw,
 			unsigned long parent_rate)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct peri_clk_data *data = bcm_clk->peri;
+	struct peri_clk_data *data = bcm_clk->u.peri;
 
 	return clk_recalc_rate(bcm_clk->ccu, &data->div, &data->pre_div,
 				parent_rate);
@@ -837,20 +839,20 @@ static long kona_peri_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 			unsigned long *parent_rate)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct bcm_clk_div *div = &bcm_clk->peri->div;
+	struct bcm_clk_div *div = &bcm_clk->u.peri->div;
 
 	if (!divider_exists(div))
 		return __clk_get_rate(hw->clk);
 
 	/* Quietly avoid a zero rate */
-	return round_rate(bcm_clk->ccu, div, &bcm_clk->peri->pre_div,
+	return round_rate(bcm_clk->ccu, div, &bcm_clk->u.peri->pre_div,
 				rate ? rate : 1, *parent_rate, NULL);
 }
 
 static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct peri_clk_data *data = bcm_clk->peri;
+	struct peri_clk_data *data = bcm_clk->u.peri;
 	struct bcm_clk_sel *sel = &data->sel;
 	struct bcm_clk_trig *trig;
 	int ret;
@@ -884,7 +886,7 @@ static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 static u8 kona_peri_clk_get_parent(struct clk_hw *hw)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct peri_clk_data *data = bcm_clk->peri;
+	struct peri_clk_data *data = bcm_clk->u.peri;
 	u8 index;
 
 	index = selector_read_index(bcm_clk->ccu, &data->sel);
@@ -897,7 +899,7 @@ static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 			unsigned long parent_rate)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
-	struct peri_clk_data *data = bcm_clk->peri;
+	struct peri_clk_data *data = bcm_clk->u.peri;
 	struct bcm_clk_div *div = &data->div;
 	u64 scaled_div = 0;
 	int ret;
@@ -958,7 +960,7 @@ struct clk_ops kona_peri_clk_ops = {
 static bool __peri_clk_init(struct kona_clk *bcm_clk)
 {
 	struct ccu_data *ccu = bcm_clk->ccu;
-	struct peri_clk_data *peri = bcm_clk->peri;
+	struct peri_clk_data *peri = bcm_clk->u.peri;
 	const char *name = bcm_clk->name;
 	struct bcm_clk_trig *trig;
 

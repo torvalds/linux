@@ -58,6 +58,8 @@
 /* MAC function configuration default settings */
 #define ALTERA_TSE_TX_IPG_LENGTH	12
 
+#define ALTERA_TSE_PAUSE_QUANTA		0xffff
+
 #define GET_BIT_VALUE(v, bit)		(((v) >> (bit)) & 0x1)
 
 /* MAC Command_Config Register Bit Definitions
@@ -355,6 +357,8 @@ struct altera_tse_mac {
 	u32 reserved5[42];
 };
 
+#define tse_csroffs(a) (offsetof(struct altera_tse_mac, a))
+
 /* Transmit and Receive Command Registers Bit Definitions
  */
 #define ALTERA_TSE_TX_CMD_STAT_OMIT_CRC		BIT(17)
@@ -390,10 +394,11 @@ struct altera_dmaops {
 	void (*clear_rxirq)(struct altera_tse_private *);
 	int (*tx_buffer)(struct altera_tse_private *, struct tse_buffer *);
 	u32 (*tx_completions)(struct altera_tse_private *);
-	int (*add_rx_desc)(struct altera_tse_private *, struct tse_buffer *);
+	void (*add_rx_desc)(struct altera_tse_private *, struct tse_buffer *);
 	u32 (*get_rx_status)(struct altera_tse_private *);
 	int (*init_dma)(struct altera_tse_private *);
 	void (*uninit_dma)(struct altera_tse_private *);
+	void (*start_rxdma)(struct altera_tse_private *);
 };
 
 /* This structure is private to each device.
@@ -453,6 +458,7 @@ struct altera_tse_private {
 	u32 rxctrlreg;
 	dma_addr_t rxdescphys;
 	dma_addr_t txdescphys;
+	size_t sgdmadesclen;
 
 	struct list_head txlisthd;
 	struct list_head rxlisthd;
@@ -482,5 +488,50 @@ struct altera_tse_private {
 /* Function prototypes
  */
 void altera_tse_set_ethtool_ops(struct net_device *);
+
+static inline
+u32 csrrd32(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readl(paddr);
+}
+
+static inline
+u16 csrrd16(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readw(paddr);
+}
+
+static inline
+u8 csrrd8(void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+	return readb(paddr);
+}
+
+static inline
+void csrwr32(u32 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writel(val, paddr);
+}
+
+static inline
+void csrwr16(u16 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writew(val, paddr);
+}
+
+static inline
+void csrwr8(u8 val, void __iomem *mac, size_t offs)
+{
+	void __iomem *paddr = (void __iomem *)((uintptr_t)mac + offs);
+
+	writeb(val, paddr);
+}
 
 #endif /* __ALTERA_TSE_H__ */

@@ -16,9 +16,10 @@ static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 }
 
 enum netlink_skb_flags {
-	NETLINK_SKB_MMAPED	= 0x1,		/* Packet data is mmaped */
-	NETLINK_SKB_TX		= 0x2,		/* Packet was sent by userspace */
-	NETLINK_SKB_DELIVERED	= 0x4,		/* Packet was delivered */
+	NETLINK_SKB_MMAPED	= 0x1,	/* Packet data is mmaped */
+	NETLINK_SKB_TX		= 0x2,	/* Packet was sent by userspace */
+	NETLINK_SKB_DELIVERED	= 0x4,	/* Packet was delivered */
+	NETLINK_SKB_DST		= 0x8,	/* Dst set in sendto or sendmsg */
 };
 
 struct netlink_skb_parms {
@@ -168,5 +169,12 @@ struct netlink_tap {
 
 extern int netlink_add_tap(struct netlink_tap *nt);
 extern int netlink_remove_tap(struct netlink_tap *nt);
+
+bool __netlink_ns_capable(const struct netlink_skb_parms *nsp,
+			  struct user_namespace *ns, int cap);
+bool netlink_ns_capable(const struct sk_buff *skb,
+			struct user_namespace *ns, int cap);
+bool netlink_capable(const struct sk_buff *skb, int cap);
+bool netlink_net_capable(const struct sk_buff *skb, int cap);
 
 #endif	/* __LINUX_NETLINK_H */

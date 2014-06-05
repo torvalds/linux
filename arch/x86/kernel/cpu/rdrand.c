@@ -27,6 +27,7 @@
 static int __init x86_rdrand_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_RDRAND);
+	setup_clear_cpu_cap(X86_FEATURE_RDSEED);
 	return 1;
 }
 __setup("nordrand", x86_rdrand_setup);

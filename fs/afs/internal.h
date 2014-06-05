@@ -75,7 +75,7 @@ struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
 	const struct afs_wait_mode *wait_mode;	/* completion wait mode */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
-	work_func_t		async_workfn;
+	void (*async_workfn)(struct afs_call *call); /* asynchronous work function */
 	struct work_struct	async_work;	/* asynchronous work processor */
 	struct work_struct	work;		/* actual work processor */
 	struct sk_buff_head	rx_queue;	/* received packets */

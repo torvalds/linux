@@ -35,25 +35,35 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
 bool intel_enable_ppgtt(struct drm_device *dev, bool full)
 {
-	if (i915.enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+	if (i915.enable_ppgtt == 0)
 		return false;
 
 	if (i915.enable_ppgtt == 1 && full)
 		return false;
 
+	return true;
+}
+
+static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
+{
+	if (enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+		return 0;
+
+	if (enable_ppgtt == 1)
+		return 1;
+
+	if (enable_ppgtt == 2 && HAS_PPGTT(dev))
+		return 2;
+
 #ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
 	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped) {
 		DRM_INFO("Disabling PPGTT because VT-d is on\n");
-		return false;
+		return 0;
 	}
 #endif
 
-	/* Full ppgtt disabled by default for now due to issues. */
-	if (full)
-		return HAS_PPGTT(dev) && (i915.enable_ppgtt == 2);
-	else
-		return HAS_ALIASING_PPGTT(dev);
+	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
 }
 
 
@@ -1039,7 +1049,9 @@ alloc:
 	if (ret == -ENOSPC && !retried) {
 		ret = i915_gem_evict_something(dev, &dev_priv->gtt.base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
-					       I915_CACHE_NONE, 0);
+					       I915_CACHE_NONE,
+					       0, dev_priv->gtt.base.total,
+					       0);
 		if (ret)
 			return ret;
 
@@ -2052,6 +2064,14 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (intel_iommu_gfx_mapped)
 		DRM_INFO("VT-d active for gfx access\n");
 #endif
+	/*
+	 * i915.enable_ppgtt is read-only, so do an early pass to validate the
+	 * user's requested state against the hardware/driver capabilities.  We
+	 * do this now so that we can print out any log messages once rather
+	 * than every time we check intel_enable_ppgtt().
+	 */
+	i915.enable_ppgtt = sanitize_enable_ppgtt(dev, i915.enable_ppgtt);
+	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915.enable_ppgtt);
 
 	return 0;
 }

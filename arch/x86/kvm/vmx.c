@@ -503,7 +503,7 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 				[number##_HIGH] = VMCS12_OFFSET(name)+4
 
 
-static const unsigned long shadow_read_only_fields[] = {
+static unsigned long shadow_read_only_fields[] = {
 	/*
 	 * We do NOT shadow fields that are modified when L0
 	 * traps and emulates any vmx instruction (e.g. VMPTRLD,
@@ -526,10 +526,10 @@ static const unsigned long shadow_read_only_fields[] = {
 	GUEST_LINEAR_ADDRESS,
 	GUEST_PHYSICAL_ADDRESS
 };
-static const int max_shadow_read_only_fields =
+static int max_shadow_read_only_fields =
 	ARRAY_SIZE(shadow_read_only_fields);
 
-static const unsigned long shadow_read_write_fields[] = {
+static unsigned long shadow_read_write_fields[] = {
 	GUEST_RIP,
 	GUEST_RSP,
 	GUEST_CR0,
@@ -558,7 +558,7 @@ static const unsigned long shadow_read_write_fields[] = {
 	HOST_FS_SELECTOR,
 	HOST_GS_SELECTOR
 };
-static const int max_shadow_read_write_fields =
+static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
 
 static const unsigned short vmcs_field_to_offset_table[] = {
@@ -3009,6 +3009,41 @@ static void free_kvm_area(void)
 	}
 }
 
+static void init_vmcs_shadow_fields(void)
+{
+	int i, j;
+
+	/* No checks for read only fields yet */
+
+	for (i = j = 0; i < max_shadow_read_write_fields; i++) {
+		switch (shadow_read_write_fields[i]) {
+		case GUEST_BNDCFGS:
+			if (!vmx_mpx_supported())
+				continue;
+			break;
+		default:
+			break;
+		}
+
+		if (j < i)
+			shadow_read_write_fields[j] =
+				shadow_read_write_fields[i];
+		j++;
+	}
+	max_shadow_read_write_fields = j;
+
+	/* shadowed fields guest access without vmexit */
+	for (i = 0; i < max_shadow_read_write_fields; i++) {
+		clear_bit(shadow_read_write_fields[i],
+			  vmx_vmwrite_bitmap);
+		clear_bit(shadow_read_write_fields[i],
+			  vmx_vmread_bitmap);
+	}
+	for (i = 0; i < max_shadow_read_only_fields; i++)
+		clear_bit(shadow_read_only_fields[i],
+			  vmx_vmread_bitmap);
+}
+
 static __init int alloc_kvm_area(void)
 {
 	int cpu;
@@ -3039,6 +3074,8 @@ static __init int hardware_setup(void)
 		enable_vpid = 0;
 	if (!cpu_has_vmx_shadow_vmcs())
 		enable_shadow_vmcs = 0;
+	if (enable_shadow_vmcs)
+		init_vmcs_shadow_fields();
 
 	if (!cpu_has_vmx_ept() ||
 	    !cpu_has_vmx_ept_4levels()) {
@@ -7741,7 +7778,8 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 	exec_control = vmcs12->pin_based_vm_exec_control;
 	exec_control |= vmcs_config.pin_based_exec_ctrl;
-	exec_control &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+	exec_control &= ~(PIN_BASED_VMX_PREEMPTION_TIMER |
+                          PIN_BASED_POSTED_INTR);
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, exec_control);
 
 	vmx->nested.preemption_timer_expired = false;
@@ -7778,7 +7816,9 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		if (!vmx->rdtscp_enabled)
 			exec_control &= ~SECONDARY_EXEC_RDTSCP;
 		/* Take the following fields only from vmcs12 */
-		exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		exec_control &= ~(SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+                                  SECONDARY_EXEC_APIC_REGISTER_VIRT);
 		if (nested_cpu_has(vmcs12,
 				CPU_BASED_ACTIVATE_SECONDARY_CONTROLS))
 			exec_control |= vmcs12->secondary_vm_exec_control;
@@ -8803,14 +8843,6 @@ static int __init vmx_init(void)
 
 	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
 	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
-	/* shadowed read/write fields */
-	for (i = 0; i < max_shadow_read_write_fields; i++) {
-		clear_bit(shadow_read_write_fields[i], vmx_vmwrite_bitmap);
-		clear_bit(shadow_read_write_fields[i], vmx_vmread_bitmap);
-	}
-	/* shadowed read only fields */
-	for (i = 0; i < max_shadow_read_only_fields; i++)
-		clear_bit(shadow_read_only_fields[i], vmx_vmread_bitmap);
 
 	/*
 	 * Allow direct access to the PC debug port (it is often used for I/O

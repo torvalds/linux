@@ -21,7 +21,7 @@ struct mv_sata_platform_data;
 #define ORION_MBUS_DEVBUS_BOOT_ATTR   0x0f
 #define ORION_MBUS_DEVBUS_TARGET(cs)  0x01
 #define ORION_MBUS_DEVBUS_ATTR(cs)    (~(1 << cs))
-#define ORION_MBUS_SRAM_TARGET        0x00
+#define ORION_MBUS_SRAM_TARGET        0x09
 #define ORION_MBUS_SRAM_ATTR          0x00
 
 /*

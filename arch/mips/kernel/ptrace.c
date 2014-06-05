@@ -163,7 +163,7 @@ int ptrace_get_watch_regs(struct task_struct *child,
 	enum pt_watch_style style;
 	int i;
 
-	if (!cpu_has_watch || current_cpu_data.watch_reg_use_cnt == 0)
+	if (!cpu_has_watch || boot_cpu_data.watch_reg_use_cnt == 0)
 		return -EIO;
 	if (!access_ok(VERIFY_WRITE, addr, sizeof(struct pt_watch_regs)))
 		return -EIO;
@@ -177,14 +177,14 @@ int ptrace_get_watch_regs(struct task_struct *child,
 #endif
 
 	__put_user(style, &addr->style);
-	__put_user(current_cpu_data.watch_reg_use_cnt,
+	__put_user(boot_cpu_data.watch_reg_use_cnt,
 		   &addr->WATCH_STYLE.num_valid);
-	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		__put_user(child->thread.watch.mips3264.watchlo[i],
 			   &addr->WATCH_STYLE.watchlo[i]);
 		__put_user(child->thread.watch.mips3264.watchhi[i] & 0xfff,
 			   &addr->WATCH_STYLE.watchhi[i]);
-		__put_user(current_cpu_data.watch_reg_masks[i],
+		__put_user(boot_cpu_data.watch_reg_masks[i],
 			   &addr->WATCH_STYLE.watch_masks[i]);
 	}
 	for (; i < 8; i++) {
@@ -204,12 +204,12 @@ int ptrace_set_watch_regs(struct task_struct *child,
 	unsigned long lt[NUM_WATCH_REGS];
 	u16 ht[NUM_WATCH_REGS];
 
-	if (!cpu_has_watch || current_cpu_data.watch_reg_use_cnt == 0)
+	if (!cpu_has_watch || boot_cpu_data.watch_reg_use_cnt == 0)
 		return -EIO;
 	if (!access_ok(VERIFY_READ, addr, sizeof(struct pt_watch_regs)))
 		return -EIO;
 	/* Check the values. */
-	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		__get_user(lt[i], &addr->WATCH_STYLE.watchlo[i]);
 #ifdef CONFIG_32BIT
 		if (lt[i] & __UA_LIMIT)
@@ -228,7 +228,7 @@ int ptrace_set_watch_regs(struct task_struct *child,
 			return -EINVAL;
 	}
 	/* Install them. */
-	for (i = 0; i < current_cpu_data.watch_reg_use_cnt; i++) {
+	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		if (lt[i] & 7)
 			watch_active = 1;
 		child->thread.watch.mips3264.watchlo[i] = lt[i];

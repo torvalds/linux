@@ -246,13 +246,13 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 	if (val1 != -1)
 		newval = ((newval & 0xfff0) | ((val1 / PS_TO_REG) & 0xf) << 0);
 
-	if (val2 != -1)
+	if (val2 != -2)
 		newval = ((newval & 0xff0f) | ((val2 / PS_TO_REG) & 0xf) << 4);
 
-	if (val3 != -1)
+	if (val3 != -3)
 		newval = ((newval & 0xf0ff) | ((val3 / PS_TO_REG) & 0xf) << 8);
 
-	if (val4 != -1)
+	if (val4 != -4)
 		newval = ((newval & 0x0fff) | ((val4 / PS_TO_REG) & 0xf) << 12);
 
 	return kszphy_extended_write(phydev, reg, newval);

@@ -60,6 +60,7 @@ void tty_buffer_lock_exclusive(struct tty_port *port)
 	atomic_inc(&buf->priority);
 	mutex_lock(&buf->lock);
 }
+EXPORT_SYMBOL_GPL(tty_buffer_lock_exclusive);
 
 void tty_buffer_unlock_exclusive(struct tty_port *port)
 {
@@ -73,6 +74,7 @@ void tty_buffer_unlock_exclusive(struct tty_port *port)
 	if (restart)
 		queue_work(system_unbound_wq, &buf->work);
 }
+EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
 
 /**
  *	tty_buffer_space_avail	-	return unused buffer space
@@ -255,16 +257,15 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 	if (change || left < size) {
 		/* This is the slow path - looking for new buffers to use */
 		if ((n = tty_buffer_alloc(port, size)) != NULL) {
-			unsigned long iflags;
-
 			n->flags = flags;
 			buf->tail = n;
-
-			spin_lock_irqsave(&buf->flush_lock, iflags);
 			b->commit = b->used;
+			/* paired w/ barrier in flush_to_ldisc(); ensures the
+			 * latest commit value can be read before the head is
+			 * advanced to the next buffer
+			 */
+			smp_wmb();
 			b->next = n;
-			spin_unlock_irqrestore(&buf->flush_lock, iflags);
-
 		} else if (change)
 			size = 0;
 		else
@@ -448,27 +449,28 @@ static void flush_to_ldisc(struct work_struct *work)
 	mutex_lock(&buf->lock);
 
 	while (1) {
-		unsigned long flags;
 		struct tty_buffer *head = buf->head;
+		struct tty_buffer *next;
 		int count;
 
 		/* Ldisc or user is trying to gain exclusive access */
 		if (atomic_read(&buf->priority))
 			break;
 
-		spin_lock_irqsave(&buf->flush_lock, flags);
+		next = head->next;
+		/* paired w/ barrier in __tty_buffer_request_room();
+		 * ensures commit value read is not stale if the head
+		 * is advancing to the next buffer
+		 */
+		smp_rmb();
 		count = head->commit - head->read;
 		if (!count) {
-			if (head->next == NULL) {
-				spin_unlock_irqrestore(&buf->flush_lock, flags);
+			if (next == NULL)
 				break;
-			}
-			buf->head = head->next;
-			spin_unlock_irqrestore(&buf->flush_lock, flags);
+			buf->head = next;
 			tty_buffer_free(port, head);
 			continue;
 		}
-		spin_unlock_irqrestore(&buf->flush_lock, flags);
 
 		count = receive_buf(tty, head, count);
 		if (!count)
@@ -523,7 +525,6 @@ void tty_buffer_init(struct tty_port *port)
 	struct tty_bufhead *buf = &port->buf;
 
 	mutex_init(&buf->lock);
-	spin_lock_init(&buf->flush_lock);
 	tty_buffer_reset(&buf->sentinel, 0);
 	buf->head = &buf->sentinel;
 	buf->tail = &buf->sentinel;

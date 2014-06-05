@@ -27,7 +27,7 @@
 #define SXGBE_SMA_PREAD_CMD	0x02 /* post read  increament address */
 #define SXGBE_SMA_READ_CMD	0x03 /* read command */
 #define SXGBE_SMA_SKIP_ADDRFRM	0x00040000 /* skip the address frame */
-#define SXGBE_MII_BUSY		0x00800000 /* mii busy */
+#define SXGBE_MII_BUSY		0x00400000 /* mii busy */
 
 static int sxgbe_mdio_busy_wait(void __iomem *ioaddr, unsigned int mii_data)
 {
@@ -147,6 +147,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 	struct sxgbe_mdio_bus_data *mdio_data = priv->plat->mdio_bus_data;
 	int err, phy_addr;
 	int *irqlist;
+	bool phy_found = false;
 	bool act;
 
 	/* allocate the new mdio bus */
@@ -162,7 +163,7 @@ int sxgbe_mdio_register(struct net_device *ndev)
 		irqlist = priv->mii_irq;
 
 	/* assign mii bus fields */
-	mdio_bus->name = "samsxgbe";
+	mdio_bus->name = "sxgbe";
 	mdio_bus->read = &sxgbe_mdio_read;
 	mdio_bus->write = &sxgbe_mdio_write;
 	snprintf(mdio_bus->id, MII_BUS_ID_SIZE, "%s-%x",
@@ -216,13 +217,22 @@ int sxgbe_mdio_register(struct net_device *ndev)
 			netdev_info(ndev, "PHY ID %08x at %d IRQ %s (%s)%s\n",
 				    phy->phy_id, phy_addr, irq_str,
 				    dev_name(&phy->dev), act ? " active" : "");
+			phy_found = true;
 		}
+	}
+
+	if (!phy_found) {
+		netdev_err(ndev, "PHY not found\n");
+		goto phyfound_err;
 	}
 
 	priv->mii = mdio_bus;
 
 	return 0;
 
+phyfound_err:
+	err = -ENODEV;
+	mdiobus_unregister(mdio_bus);
 mdiobus_err:
 	mdiobus_free(mdio_bus);
 	return err;

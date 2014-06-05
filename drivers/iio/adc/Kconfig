@@ -106,7 +106,7 @@ config AT91_ADC
 	  Say yes here to build support for Atmel AT91 ADC.
 
 config EXYNOS_ADC
-	bool "Exynos ADC driver support"
+	tristate "Exynos ADC driver support"
 	depends on OF
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
@@ -114,7 +114,7 @@ config EXYNOS_ADC
 	  this resource.
 
 config LP8788_ADC
-	bool "LP8788 ADC driver"
+	tristate "LP8788 ADC driver"
 	depends on MFD_LP8788
 	help
 	  Say yes here to build support for TI LP8788 ADC.

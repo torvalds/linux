@@ -99,6 +99,7 @@ static const char radeon_family_name[][16] = {
 	"KAVERI",
 	"KABINI",
 	"HAWAII",
+	"MULLINS",
 	"LAST",
 };
 
@@ -1533,11 +1534,6 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 
 	radeon_restore_bios_scratch_regs(rdev);
 
-	if (fbcon) {
-		radeon_fbdev_set_suspend(rdev, 0);
-		console_unlock();
-	}
-
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
@@ -1562,6 +1558,16 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	drm_kms_helper_poll_enable(dev);
+
+	/* set the power state here in case we are a PX system or headless */
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
+		radeon_pm_compute_clocks(rdev);
+
+	if (fbcon) {
+		radeon_fbdev_set_suspend(rdev, 0);
+		console_unlock();
+	}
+
 	return 0;
 }
 

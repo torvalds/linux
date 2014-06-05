@@ -2178,6 +2178,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->num_discard_bios = 1;
 	ti->discards_supported = true;
 	ti->discard_zeroes_data_unsupported = true;
+	/* Discard bios must be split on a block boundary */
+	ti->split_discard_bios = true;
 
 	cache->features = ca->features;
 	ti->per_bio_data_size = get_per_bio_data_size(cache);
@@ -2488,6 +2490,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 
 		} else {
 			inc_hit_counter(cache, bio);
+			pb->all_io_entry = dm_deferred_entry_inc(cache->all_io_ds);
 
 			if (bio_data_dir(bio) == WRITE && writethrough_mode(&cache->features) &&
 			    !is_dirty(cache, lookup_result.cblock))

@@ -219,16 +219,6 @@
 		reg = <0x100440C0 0x20>;
 	};
 
-	mau_pd: power-domain@100440E0 {
-		compatible = "samsung,exynos4210-pd";
-		reg = <0x100440E0 0x20>;
-	};
-
-	g2d_pd: power-domain@10044100 {
-		compatible = "samsung,exynos4210-pd";
-		reg = <0x10044100 0x20>;
-	};
-
 	msc_pd: power-domain@10044120 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10044120 0x20>;
@@ -336,6 +326,13 @@
 			#dma-cells = <1>;
 			#dma-channels = <8>;
 			#dma-requests = <1>;
+			/*
+			 * MDMA1 can support both secure and non-secure
+			 * AXI transactions. When this is enabled in the kernel
+			 * for boards that run in secure mode, we are getting
+			 * imprecise external aborts causing the kernel to oops.
+			 */
+			status = "disabled";
 		};
 	};
 
@@ -385,7 +382,7 @@
 	spi_0: spi@12d20000 {
 		compatible = "samsung,exynos4210-spi";
 		reg = <0x12d20000 0x100>;
-		interrupts = <0 66 0>;
+		interrupts = <0 68 0>;
 		dmas = <&pdma0 5
 			&pdma0 4>;
 		dma-names = "tx", "rx";
@@ -401,7 +398,7 @@
 	spi_1: spi@12d30000 {
 		compatible = "samsung,exynos4210-spi";
 		reg = <0x12d30000 0x100>;
-		interrupts = <0 67 0>;
+		interrupts = <0 69 0>;
 		dmas = <&pdma1 5
 			&pdma1 4>;
 		dma-names = "tx", "rx";
@@ -417,7 +414,7 @@
 	spi_2: spi@12d40000 {
 		compatible = "samsung,exynos4210-spi";
 		reg = <0x12d40000 0x100>;
-		interrupts = <0 68 0>;
+		interrupts = <0 70 0>;
 		dmas = <&pdma0 7
 			&pdma0 6>;
 		dma-names = "tx", "rx";
@@ -730,6 +727,5 @@
 		interrupts = <0 112 0>;
 		clocks = <&clock 471>;
 		clock-names = "secss";
-		samsung,power-domain = <&g2d_pd>;
 	};
 };

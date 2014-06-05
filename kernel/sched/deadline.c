@@ -528,6 +528,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	sched_clock_tick();
 	update_rq_clock(rq);
 	dl_se->dl_throttled = 0;
+	dl_se->dl_yielded = 0;
 	if (p->on_rq) {
 		enqueue_task_dl(rq, p, ENQUEUE_REPLENISH);
 		if (task_has_dl_policy(rq->curr))
@@ -893,10 +894,10 @@ static void yield_task_dl(struct rq *rq)
 	 * We make the task go to sleep until its current deadline by
 	 * forcing its runtime to zero. This way, update_curr_dl() stops
 	 * it and the bandwidth timer will wake it up and will give it
-	 * new scheduling parameters (thanks to dl_new=1).
+	 * new scheduling parameters (thanks to dl_yielded=1).
 	 */
 	if (p->dl.runtime > 0) {
-		rq->curr->dl.dl_new = 1;
+		rq->curr->dl.dl_yielded = 1;
 		p->dl.runtime = 0;
 	}
 	update_curr_dl(rq);
