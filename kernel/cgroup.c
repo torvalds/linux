@@ -3069,6 +3069,9 @@ int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts)
 {
 	int ret;
 
+	if (ss->disabled)
+		return 0;
+
 	if (!cfts || cfts[0].name[0] == '\0')
 		return 0;
 
@@ -4678,8 +4681,6 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss, bool early)
 
 	BUG_ON(online_css(css));
 
-	cgrp_dfl_root.subsys_mask |= 1 << ss->id;
-
 	mutex_unlock(&cgroup_mutex);
 }
 
@@ -4758,11 +4759,14 @@ int __init cgroup_init(void)
 			      &cgrp_dfl_root.cgrp.e_csets[ssid]);
 
 		/*
-		 * cftype registration needs kmalloc and can't be done
-		 * during early_init.  Register base cftypes separately.
+		 * Setting dfl_root subsys_mask needs to consider the
+		 * disabled flag and cftype registration needs kmalloc,
+		 * both of which aren't available during early_init.
 		 */
-		if (ss->base_cftypes)
+		if (!ss->disabled) {
+			cgrp_dfl_root.subsys_mask |= 1 << ss->id;
 			WARN_ON(cgroup_add_cftypes(ss, ss->base_cftypes));
+		}
 	}
 
 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
