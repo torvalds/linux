@@ -80,8 +80,9 @@ int i40evf_send_api_ver(struct i40evf_adapter *adapter)
  * @adapter: adapter structure
  *
  * Compare API versions with the PF. Must be called after admin queue is
- * initialized. Returns 0 if API versions match, -EIO if
- * they do not, or I40E_ERR_ADMIN_QUEUE_NO_WORK if the admin queue is empty.
+ * initialized. Returns 0 if API versions match, -EIO if they do not,
+ * I40E_ERR_ADMIN_QUEUE_NO_WORK if the admin queue is empty, and any errors
+ * from the firmware are propagated.
  **/
 int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 {
@@ -102,13 +103,13 @@ int i40evf_verify_api_ver(struct i40evf_adapter *adapter)
 		goto out_alloc;
 
 	err = (i40e_status)le32_to_cpu(event.desc.cookie_low);
-	if (err) {
-		err = -EIO;
+	if (err)
 		goto out_alloc;
-	}
 
 	if ((enum i40e_virtchnl_ops)le32_to_cpu(event.desc.cookie_high) !=
 	    I40E_VIRTCHNL_OP_VERSION) {
+		dev_info(&adapter->pdev->dev, "Invalid reply type %d from PF\n",
+			 le32_to_cpu(event.desc.cookie_high));
 		err = -EIO;
 		goto out_alloc;
 	}
