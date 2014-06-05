@@ -1384,15 +1384,15 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	gfar_hw_init(priv);
 
+	/* Carrier starts down, phylib will bring it up */
+	netif_carrier_off(dev);
+
 	err = register_netdev(dev);
 
 	if (err) {
 		pr_err("%s: Cannot register net device, aborting\n", dev->name);
 		goto register_fail;
 	}
-
-	/* Carrier starts down, phylib will bring it up */
-	netif_carrier_off(dev);
 
 	device_init_wakeup(&dev->dev,
 			   priv->device_flags &
