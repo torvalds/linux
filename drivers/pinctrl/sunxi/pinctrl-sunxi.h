@@ -90,6 +90,7 @@ struct sunxi_pinctrl_desc {
 	const struct sunxi_desc_pin	*pins;
 	int				npins;
 	unsigned			pin_base;
+	unsigned			irq_banks;
 };
 
 struct sunxi_pinctrl_function {

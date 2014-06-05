@@ -836,6 +836,7 @@ static const struct sunxi_desc_pin sun6i_a31_pins[] = {
 static const struct sunxi_pinctrl_desc sun6i_a31_pinctrl_data = {
 	.pins = sun6i_a31_pins,
 	.npins = ARRAY_SIZE(sun6i_a31_pins),
+	.irq_banks = 4,
 };
 
 static int sun6i_a31_pinctrl_probe(struct platform_device *pdev)
