@@ -3260,6 +3260,7 @@ static int vt_unbind(struct con_driver *con)
 {
 	const struct consw *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
+	int ret;
 
  	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
 	    con_is_graphics(con->con, con->first, con->last))
@@ -3285,8 +3286,10 @@ static int vt_unbind(struct con_driver *con)
 
 		if (first != -1) {
 			console_lock();
-			do_unbind_con_driver(csw, first, last, deflt);
+			ret = do_unbind_con_driver(csw, first, last, deflt);
 			console_unlock();
+			if (ret != 0)
+				return ret;
 		}
 
 		first = -1;
