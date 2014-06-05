@@ -1695,44 +1695,86 @@ asmlinkage __visible int printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 /* type_printk : printing output with types */
-asmlinkage __visible int type_printk(int type, const char *fmt, ...)
+asmlinkage __visible int type_printk(int type, char *fmt, ...)
 {
 	va_list args;
-	int r;
+	char *buf;
 	char *all_fmt;
+	int r;
+	unsigned long flags;
 
-	switch(type){
-		case 0:
-			/* normal type , we will print an output like the one that printk prints */
-			va_start(args, fmt);
-        		r = vprintk_emit(0, -1, NULL, 0, fmt, args);
-			break;
-		case 1:
-			/* error type , we we will print the fmt and adding [error] */
-			all_fmt = kmalloc(sizeof(fmt)+10*sizeof(char), GFP_KERNEL);
+	local_irq_save(flags);
+	buf = __get_cpu_var(printk_sched_buf);
+
+	switch(type) {
+    		default:
+    			/* no type , printing normaly */
+        		va_start(args, fmt);
+        		r = vsnprintf(buf, PRINTK_BUF_SIZE, fmt, args);
+        		break;
+    		case 1:
+    			/* error type , we we will print the fmt and adding [error] */
+        		all_fmt = kmalloc(sizeof(fmt)+11*sizeof(char), GFP_KERNEL);
         		sprintf(all_fmt, "[Error] : %s", fmt);
         		va_start(args, all_fmt);
-        		r = vprintk_emit(0, -1, NULL, 0, all_fmt, args);
-			kfree(all_fmt);
-			break;
-		case 2:
-			/* Action type , we we will print the fmt and adding [action] */
-			all_fmt = kmalloc(sizeof(fmt)+11*sizeof(char), GFP_KERNEL);
+        		r = vsnprintf(buf, PRINTK_BUF_SIZE, all_fmt, args);
+        		kfree(all_fmt);
+        		break;
+    		case 2:
+    			/* Action type , we we will print the fmt and adding [action] */
+			all_fmt = kmalloc(sizeof(fmt)+12*sizeof(char), GFP_KERNEL);
         		sprintf(all_fmt, "[Action] : %s", fmt);
         		va_start(args, all_fmt);
-        		r = vprintk_emit(0, -1, NULL, 0, all_fmt, args);
-			kfree(all_fmt);
-			break;
-		default:
-			/* no type , printing normaly */
-			va_start(args, fmt);
-        		r = vprintk_emit(0, -1, NULL, 0, fmt, args);
-			break;
+        		r = vsnprintf(buf, PRINTK_BUF_SIZE, all_fmt, args);
+        		kfree(all_fmt);
+        		break;
 	}
 	va_end(args);
+	__this_cpu_or(printk_pending, PRINTK_PENDING_SCHED);
+	irq_work_queue(&__get_cpu_var(wake_up_klogd_work));
+	local_irq_restore(flags);
+	return r;
+	}
+EXPORT_SYMBOL(type_printk);
+
+asmlinkage __visible int type_printk_using_printk_sched(int type, char *fmt, ...)
+{
+	va_list args;
+	char *all_fmt;
+	int r;
+
+	switch(type) {
+    		default:
+    			/* no type , printing normaly */
+	 	 	va_start(args, fmt);
+        		r = printk_sched(fmt, args);
+        		break;
+      		case 0:
+      			/* normal type , we will print an output like the one that printk prints */
+      			va_start(args, fmt);
+        		r = vprintk_emit(0, -1, NULL, 0, fmt, args);
+			break;
+    		case 1:
+    			/* error type , we we will print the fmt and adding [error] */
+        		all_fmt = kmalloc(sizeof(fmt)+11*sizeof(char), GFP_KERNEL);
+        		sprintf(all_fmt, "[Error] : %s\n", fmt);
+        		va_start(args, all_fmt);
+        		r = printk_sched(all_fmt, args);
+        		kfree(all_fmt);
+        		break;
+    		case 2:
+    			/* Action type , we we will print the fmt and adding [action] */
+        		all_fmt = kmalloc(sizeof(fmt)+12*sizeof(char), GFP_KERNEL);
+        		sprintf(all_fmt, "[Action] : %s\n", fmt);
+        		va_start(args, all_fmt);
+        		r = printk_sched(all_fmt, args);
+        		kfree(all_fmt);
+        		break;
+	}
 	return r;
 }
-EXPORT_SYMBOL(type_printk);
+EXPORT_SYMBOL(type_printk_using_printk_sched);
+
 #else /* CONFIG_PRINTK */
 
 #define LOG_LINE_MAX		0
