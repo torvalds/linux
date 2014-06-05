@@ -563,6 +563,7 @@
 /*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
 &lcdc1 {
 	status = "okay";
+	rockchip,cabc_mode = <0>;
 	power_ctr: power_ctr {
 		rockchip,debug = <0>;
 		rockchip,mirror = <NO_MIRROR>;
