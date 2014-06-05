@@ -1,3 +1,5 @@
+#include <asm/vdso.h>
+
 /*
  * Linker script for vDSO.  This is an ELF shared object prelinked to
  * its virtual address, and with only one read-only segment.
@@ -6,20 +8,6 @@
 
 SECTIONS
 {
-#ifdef BUILD_VDSO32
-#include <asm/vdso32.h>
-
-	hpet_page = . - VDSO_OFFSET(VDSO_HPET_PAGE);
-
-	vvar = . - VDSO_OFFSET(VDSO_VVAR_PAGE);
-
-	/* Place all vvars at the offsets in asm/vvar.h. */
-#define EMIT_VVAR(name, offset) vvar_ ## name = vvar + offset;
-#define __VVAR_KERNEL_LDS
-#include <asm/vvar.h>
-#undef __VVAR_KERNEL_LDS
-#undef EMIT_VVAR
-#endif
 	. = SIZEOF_HEADERS;
 
 	.hash		: { *(.hash) }			:text
@@ -60,9 +48,29 @@ SECTIONS
 	.text		: { *(.text*) }			:text	=0x90909090,
 
 	/*
-	 * The comma above works around a bug in gold:
-	 * https://sourceware.org/bugzilla/show_bug.cgi?id=16804
+	 * The remainder of the vDSO consists of special pages that are
+	 * shared between the kernel and userspace.  It needs to be at the
+	 * end so that it doesn't overlap the mapping of the actual
+	 * vDSO image.
 	 */
+
+	. = ALIGN(PAGE_SIZE);
+	vvar_page = .;
+
+	/* Place all vvars at the offsets in asm/vvar.h. */
+#define EMIT_VVAR(name, offset) vvar_ ## name = vvar_page + offset;
+#define __VVAR_KERNEL_LDS
+#include <asm/vvar.h>
+#undef __VVAR_KERNEL_LDS
+#undef EMIT_VVAR
+
+	. = vvar_page + PAGE_SIZE;
+
+	hpet_page = .;
+	. = . + PAGE_SIZE;
+
+	. = ALIGN(PAGE_SIZE);
+	end_mapping = .;
 
 	/DISCARD/ : {
 		*(.discard)

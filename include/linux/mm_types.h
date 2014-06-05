@@ -510,4 +510,10 @@ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
 }
 #endif
 
+struct vm_special_mapping
+{
+	const char *name;
+	struct page **pages;
+};
+
 #endif /* _LINUX_MM_TYPES_H */
