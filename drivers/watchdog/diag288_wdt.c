@@ -1,10 +1,15 @@
 /*
- * Watchdog driver for z/VM using the diag 288 interface.
+ * Watchdog driver for z/VM and LPAR using the diag 288 interface.
  *
  * Under z/VM, expiration of the watchdog will send a "system restart" command
  * to CP.
  *
- * The command can be altered using the module parameter "cmd".
+ * The command can be altered using the module parameter "cmd". This is
+ * not recommended because it's only supported on z/VM but not whith LPAR.
+ *
+ * On LPAR, the watchdog will always trigger a system restart. the module
+ * paramter cmd is meaningless here.
+ *
  *
  * Copyright IBM Corp. 2004, 2013
  * Author(s): Arnd Bergmann (arndb@de.ibm.com)
@@ -40,6 +45,9 @@
 #define WDT_FUNC_CHANGE 1
 #define WDT_FUNC_CANCEL 2
 #define WDT_FUNC_CONCEAL 0x80000000
+
+/* Action codes for LPAR watchdog */
+#define LPARWDT_RESTART 0
 
 static char wdt_cmd[MAX_CMDLEN] = DEFAULT_CMD;
 static bool conceal_on;
@@ -89,6 +97,12 @@ static int __diag288_vm(unsigned int  func, unsigned int timeout,
 	return __diag288(func, timeout, virt_to_phys(cmd), len);
 }
 
+static int __diag288_lpar(unsigned int func, unsigned int timeout,
+			  unsigned long action)
+{
+	return __diag288(func, timeout, action, 0);
+}
+
 static int wdt_start(struct watchdog_device *dev)
 {
 	char *ebc_cmd;
@@ -111,6 +125,11 @@ static int wdt_start(struct watchdog_device *dev)
 		ret = __diag288_vm(func, dev->timeout, ebc_cmd, len);
 		WARN_ON(ret != 0);
 		kfree(ebc_cmd);
+	}
+
+	if (MACHINE_IS_LPAR) {
+		ret = __diag288_lpar(WDT_FUNC_INIT,
+				     dev->timeout, LPARWDT_RESTART);
 	}
 
 	if (ret) {
@@ -149,7 +168,8 @@ static int wdt_ping(struct watchdog_device *dev)
 
 		/*
 		 * It seems to be ok to z/VM to use the init function to
-		 * retrigger the watchdog.
+		 * retrigger the watchdog. On LPAR WDT_FUNC_CHANGE must
+		 * be used when the watchdog is running.
 		 */
 		func = conceal_on ? (WDT_FUNC_INIT | WDT_FUNC_CONCEAL)
 			: WDT_FUNC_INIT;
@@ -158,6 +178,9 @@ static int wdt_ping(struct watchdog_device *dev)
 		WARN_ON(ret != 0);
 		kfree(ebc_cmd);
 	}
+
+	if (MACHINE_IS_LPAR)
+		ret = __diag288_lpar(WDT_FUNC_CHANGE, dev->timeout, 0);
 
 	if (ret)
 		pr_err("The watchdog timer cannot be started or reset\n");
@@ -256,12 +279,18 @@ static int __init diag288_init(void)
 			pr_err("The watchdog cannot be initialized\n");
 			return -EINVAL;
 		}
+	} else if (MACHINE_IS_LPAR) {
+		pr_info("The watchdog device driver detected an LPAR environment\n");
+		if (__diag288_lpar(WDT_FUNC_INIT, 30, LPARWDT_RESTART)) {
+			pr_err("The watchdog cannot be initialized\n");
+			return -EINVAL;
+		}
 	} else {
 		pr_err("Linux runs in an environment that does not support the diag288 watchdog\n");
 		return -ENODEV;
 	}
 
-	if (__diag288_vm(WDT_FUNC_CANCEL, 0, NULL, 0)) {
+	if (__diag288_lpar(WDT_FUNC_CANCEL, 0, 0)) {
 		pr_err("The watchdog cannot be deactivated\n");
 		return -EINVAL;
 	}
