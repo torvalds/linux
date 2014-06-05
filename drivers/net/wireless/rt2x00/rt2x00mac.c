@@ -628,12 +628,6 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 		if (!bss_conf->enable_beacon && intf->enable_beacon) {
 			rt2x00dev->intf_beaconing--;
 			intf->enable_beacon = false;
-			/*
-			 * Clear beacon in the H/W for this vif. This is needed
-			 * to disable beaconing on this particular interface
-			 * and keep it running on other interfaces.
-			 */
-			rt2x00queue_clear_beacon(rt2x00dev, vif);
 
 			if (rt2x00dev->intf_beaconing == 0) {
 				/*
@@ -642,6 +636,12 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				 */
 				rt2x00queue_stop_queue(rt2x00dev->bcn);
 			}
+			/*
+			 * Clear beacon in the H/W for this vif. This is needed
+			 * to disable beaconing on this particular interface
+			 * and keep it running on other interfaces.
+			 */
+			rt2x00queue_clear_beacon(rt2x00dev, vif);
 		} else if (bss_conf->enable_beacon && !intf->enable_beacon) {
 			rt2x00dev->intf_beaconing++;
 			intf->enable_beacon = true;
