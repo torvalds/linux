@@ -578,7 +578,11 @@ EXPORT_SYMBOL_GPL(sk_run_filter_int_skb);
  * to make sure its still a 3bit field starting at a byte boundary;
  * taken from arch/x86/net/bpf_jit_comp.c.
  */
+#ifdef __BIG_ENDIAN_BITFIELD
+#define PKT_TYPE_MAX	(7 << 5)
+#else
 #define PKT_TYPE_MAX	7
+#endif
 static unsigned int pkt_type_offset(void)
 {
 	struct sk_buff skb_probe = { .pkt_type = ~0, };
@@ -685,6 +689,13 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		insn->code = BPF_ALU | BPF_AND | BPF_K;
 		insn->a_reg = A_REG;
 		insn->imm = PKT_TYPE_MAX;
+#ifdef __BIG_ENDIAN_BITFIELD
+		insn++;
+
+		insn->code = BPF_ALU | BPF_RSH | BPF_K;
+		insn->a_reg = A_REG;
+		insn->imm = 5;
+#endif
 		break;
 
 	case SKF_AD_OFF + SKF_AD_IFINDEX:
