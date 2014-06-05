@@ -658,10 +658,10 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		usleep_range(250, 1000);
 	}
 
-	/* set link bandwidth (2.7 GHz, XXX: parameterize based on link?) */
+	/* set link bandwidth */
 	value = tegra_sor_readl(sor, SOR_CLK_CNTRL);
 	value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
-	value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G2_70;
+	value |= drm_dp_link_rate_to_bw_code(link.rate) << 2;
 	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
 
 	/* set linkctl */
