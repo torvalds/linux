@@ -506,6 +506,7 @@ struct radeon_connector {
 	struct radeon_i2c_chan *router_bus;
 	enum radeon_connector_audio audio;
 	enum radeon_connector_dither dither;
+	int pixelclock_for_modeset;
 };
 
 struct radeon_framebuffer {

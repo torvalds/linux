@@ -101,6 +101,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
 	int bpc = 8;
+	int mode_clock, max_tmds_clock;
 
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
@@ -165,6 +166,36 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 12 bpc.\n",
 					  connector->name, bpc);
 			bpc = 12;
+		}
+
+		/* Any defined maximum tmds clock limit we must not exceed? */
+		if (connector->max_tmds_clock > 0) {
+			/* mode_clock is clock in kHz for mode to be modeset on this connector */
+			mode_clock = radeon_connector->pixelclock_for_modeset;
+
+			/* Maximum allowable input clock in kHz */
+			max_tmds_clock = connector->max_tmds_clock * 1000;
+
+			DRM_DEBUG("%s: hdmi mode dotclock %d kHz, max tmds input clock %d kHz.\n",
+					  connector->name, mode_clock, max_tmds_clock);
+
+			/* Check if bpc is within clock limit. Try to degrade gracefully otherwise */
+			if ((bpc == 12) && (mode_clock * 3/2 > max_tmds_clock)) {
+				if ((connector->display_info.edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30) &&
+					(mode_clock * 5/4 <= max_tmds_clock))
+					bpc = 10;
+				else
+					bpc = 8;
+
+				DRM_DEBUG("%s: HDMI deep color 12 bpc exceeds max tmds clock. Using %d bpc.\n",
+						  connector->name, bpc);
+			}
+
+			if ((bpc == 10) && (mode_clock * 5/4 > max_tmds_clock)) {
+				bpc = 8;
+				DRM_DEBUG("%s: HDMI deep color 10 bpc exceeds max tmds clock. Using %d bpc.\n",
+						  connector->name, bpc);
+			}
 		}
 	}
 
