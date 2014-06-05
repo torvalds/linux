@@ -338,7 +338,7 @@ static int rdma_read_chunk_frmr(struct svcxprt_rdma *xprt,
 		memset(&inv_wr, 0, sizeof(inv_wr));
 		inv_wr.wr_id = (unsigned long)ctxt;
 		inv_wr.opcode = IB_WR_LOCAL_INV;
-		inv_wr.send_flags = IB_SEND_SIGNALED;
+		inv_wr.send_flags = IB_SEND_SIGNALED | IB_SEND_FENCE;
 		inv_wr.ex.invalidate_rkey = frmr->mr->lkey;
 	}
 	ctxt->wr_op = read_wr.opcode;
