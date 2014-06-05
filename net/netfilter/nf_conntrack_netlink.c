@@ -1163,9 +1163,6 @@ ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying
 	if (cb->args[2])
 		return 0;
 
-	if (cb->args[0] == nr_cpu_ids)
-		return 0;
-
 	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
 		struct ct_pcpu *pcpu;
 
@@ -1194,6 +1191,7 @@ restart:
 			rcu_read_unlock();
 			if (res < 0) {
 				nf_conntrack_get(&ct->ct_general);
+				cb->args[0] = cpu;
 				cb->args[1] = (unsigned long)ct;
 				spin_unlock_bh(&pcpu->lock);
 				goto out;
@@ -1202,10 +1200,10 @@ restart:
 		if (cb->args[1]) {
 			cb->args[1] = 0;
 			goto restart;
-		} else
-			cb->args[2] = 1;
+		}
 		spin_unlock_bh(&pcpu->lock);
 	}
+	cb->args[2] = 1;
 out:
 	if (last)
 		nf_ct_put(last);
