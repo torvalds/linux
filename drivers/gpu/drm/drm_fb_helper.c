@@ -119,6 +119,58 @@ fail:
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
 
+int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector)
+{
+	struct drm_fb_helper_connector **temp;
+	struct drm_fb_helper_connector *fb_helper_connector;
+
+	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
+	if (fb_helper->connector_count + 1 > fb_helper->connector_info_alloc_count) {
+		temp = krealloc(fb_helper->connector_info, sizeof(struct drm_fb_helper_connector) * (fb_helper->connector_count + 1), GFP_KERNEL);
+		if (!temp)
+			return -ENOMEM;
+
+		fb_helper->connector_info_alloc_count = fb_helper->connector_count + 1;
+		fb_helper->connector_info = temp;
+	}
+
+
+	fb_helper_connector = kzalloc(sizeof(struct drm_fb_helper_connector), GFP_KERNEL);
+	if (!fb_helper_connector)
+		return -ENOMEM;
+
+	fb_helper_connector->connector = connector;
+	fb_helper->connector_info[fb_helper->connector_count++] = fb_helper_connector;
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_add_one_connector);
+
+int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,
+				       struct drm_connector *connector)
+{
+	struct drm_fb_helper_connector *fb_helper_connector;
+	int i, j;
+
+	WARN_ON(!mutex_is_locked(&fb_helper->dev->mode_config.mutex));
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		if (fb_helper->connector_info[i]->connector == connector)
+			break;
+	}
+
+	if (i == fb_helper->connector_count)
+		return -EINVAL;
+	fb_helper_connector = fb_helper->connector_info[i];
+
+	for (j = i + 1; j < fb_helper->connector_count; j++) {
+		fb_helper->connector_info[j - 1] = fb_helper->connector_info[j];
+	}
+	fb_helper->connector_count--;
+	kfree(fb_helper_connector);
+	return 0;
+}
+EXPORT_SYMBOL(drm_fb_helper_remove_one_connector);
+
 static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 {
 	struct drm_fb_helper_connector *fb_helper_conn;
@@ -596,6 +648,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 		kfree(fb_helper->crtc_info);
 		return -ENOMEM;
 	}
+	fb_helper->connector_info_alloc_count = dev->mode_config.num_connector;
 	fb_helper->connector_count = 0;
 
 	for (i = 0; i < crtc_count; i++) {
