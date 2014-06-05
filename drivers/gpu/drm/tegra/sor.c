@@ -48,6 +48,9 @@ struct tegra_sor_config {
 	u32 tu_size;
 	u32 active_frac;
 	u32 watermark;
+
+	u32 hblank_symbols;
+	u32 vblank_symbols;
 };
 
 static inline struct tegra_sor *
@@ -393,8 +396,8 @@ static int tegra_sor_calc_config(struct tegra_sor *sor,
 {
 	const u64 f = 100000, link_rate = link->rate * 1000;
 	const u64 pclk = mode->clock * 1000;
+	u64 input, output, watermark, num;
 	struct tegra_sor_params params;
-	u64 input, output, watermark;
 	u32 num_syms_per_line;
 	unsigned int i;
 
@@ -457,6 +460,23 @@ static int tegra_sor_calc_config(struct tegra_sor *sor,
 		dev_err(sor->dev, "watermark too high, forcing to %u\n",
 			config->watermark);
 	}
+
+	/* compute the number of symbols per horizontal blanking interval */
+	num = ((mode->htotal - mode->hdisplay) - 7) * link_rate;
+	config->hblank_symbols = div_u64(num, pclk);
+
+	if (link->capabilities & DP_LINK_CAP_ENHANCED_FRAMING)
+		config->hblank_symbols -= 3;
+
+	config->hblank_symbols -= 12 / link->num_lanes;
+
+	/* compute the number of symbols per vertical blanking interval */
+	num = (mode->hdisplay - 25) * link_rate;
+	config->vblank_symbols = div_u64(num, pclk);
+	config->vblank_symbols -= 36 / link->num_lanes + 4;
+
+	dev_dbg(sor->dev, "blank symbols: H:%u V:%u\n", config->hblank_symbols,
+		config->vblank_symbols);
 
 	return 0;
 }
@@ -684,12 +704,12 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 
 	value = tegra_sor_readl(sor, SOR_DP_AUDIO_HBLANK_SYMBOLS);
 	value &= ~SOR_DP_AUDIO_HBLANK_SYMBOLS_MASK;
-	value |= 137; /* XXX: don't hardcode? */
+	value |= config.hblank_symbols & 0xffff;
 	tegra_sor_writel(sor, value, SOR_DP_AUDIO_HBLANK_SYMBOLS);
 
 	value = tegra_sor_readl(sor, SOR_DP_AUDIO_VBLANK_SYMBOLS);
 	value &= ~SOR_DP_AUDIO_VBLANK_SYMBOLS_MASK;
-	value |= 2368; /* XXX: don't hardcode? */
+	value |= config.vblank_symbols & 0xffff;
 	tegra_sor_writel(sor, value, SOR_DP_AUDIO_VBLANK_SYMBOLS);
 
 	/* enable pad calibration logic */
