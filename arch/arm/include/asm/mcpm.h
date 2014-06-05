@@ -98,14 +98,14 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster);
  * previously in which case the caller should take appropriate action.
  *
  * On success, the CPU is not guaranteed to be truly halted until
- * mcpm_cpu_power_down_finish() subsequently returns non-zero for the
+ * mcpm_wait_for_cpu_powerdown() subsequently returns non-zero for the
  * specified cpu.  Until then, other CPUs should make sure they do not
  * trash memory the target CPU might be executing/accessing.
  */
 void mcpm_cpu_power_down(void);
 
 /**
- * mcpm_cpu_power_down_finish - wait for a specified CPU to halt, and
+ * mcpm_wait_for_cpu_powerdown - wait for a specified CPU to halt, and
  *	make sure it is powered off
  *
  * @cpu: CPU number within given cluster
@@ -127,7 +127,7 @@ void mcpm_cpu_power_down(void);
  *	- zero if the CPU is in a safely parked state
  *	- nonzero otherwise (e.g., timeout)
  */
-int mcpm_cpu_power_down_finish(unsigned int cpu, unsigned int cluster);
+int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
 
 /**
  * mcpm_cpu_suspend - bring the calling CPU in a suspended state
@@ -171,7 +171,7 @@ int mcpm_cpu_powered_up(void);
 struct mcpm_platform_ops {
 	int (*power_up)(unsigned int cpu, unsigned int cluster);
 	void (*power_down)(void);
-	int (*power_down_finish)(unsigned int cpu, unsigned int cluster);
+	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
 	void (*suspend)(u64);
 	void (*powered_up)(void);
 };

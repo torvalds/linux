@@ -59,9 +59,6 @@ static void __init mvebu_timer_and_clk_init(void)
 	clocksource_of_init();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init());
-#ifdef CONFIG_CACHE_L2X0
-	l2x0_of_init(0, ~0UL);
-#endif
 
 	if (of_machine_is_compatible("marvell,armada375"))
 		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
@@ -109,6 +106,8 @@ static const char * const armada_370_xp_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= mvebu_dt_init,
 	.init_time	= mvebu_timer_and_clk_init,
@@ -122,6 +121,8 @@ static const char * const armada_375_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_time	= mvebu_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
@@ -134,6 +135,8 @@ static const char * const armada_38x_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_time	= mvebu_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_38x_dt_compat,

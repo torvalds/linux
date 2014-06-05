@@ -35,6 +35,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/pci.h>
+#include <asm/fixmap.h>
 
 #include "mm.h"
 #include "tcm.h"
@@ -1074,74 +1075,47 @@ phys_addr_t arm_lowmem_limit __initdata = 0;
 void __init sanity_check_meminfo(void)
 {
 	phys_addr_t memblock_limit = 0;
-	int i, j, highmem = 0;
+	int highmem = 0;
 	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
+	struct memblock_region *reg;
 
-	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
-		struct membank *bank = &meminfo.bank[j];
-		phys_addr_t size_limit;
+	for_each_memblock(memory, reg) {
+		phys_addr_t block_start = reg->base;
+		phys_addr_t block_end = reg->base + reg->size;
+		phys_addr_t size_limit = reg->size;
 
-		*bank = meminfo.bank[i];
-		size_limit = bank->size;
-
-		if (bank->start >= vmalloc_limit)
+		if (reg->base >= vmalloc_limit)
 			highmem = 1;
 		else
-			size_limit = vmalloc_limit - bank->start;
+			size_limit = vmalloc_limit - reg->base;
 
-		bank->highmem = highmem;
 
-#ifdef CONFIG_HIGHMEM
-		/*
-		 * Split those memory banks which are partially overlapping
-		 * the vmalloc area greatly simplifying things later.
-		 */
-		if (!highmem && bank->size > size_limit) {
-			if (meminfo.nr_banks >= NR_BANKS) {
-				printk(KERN_CRIT "NR_BANKS too low, "
-						 "ignoring high memory\n");
-			} else {
-				memmove(bank + 1, bank,
-					(meminfo.nr_banks - i) * sizeof(*bank));
-				meminfo.nr_banks++;
-				i++;
-				bank[1].size -= size_limit;
-				bank[1].start = vmalloc_limit;
-				bank[1].highmem = highmem = 1;
-				j++;
+		if (!IS_ENABLED(CONFIG_HIGHMEM) || cache_is_vipt_aliasing()) {
+
+			if (highmem) {
+				pr_notice("Ignoring RAM at %pa-%pa (!CONFIG_HIGHMEM)\n",
+					&block_start, &block_end);
+				memblock_remove(reg->base, reg->size);
+				continue;
 			}
-			bank->size = size_limit;
-		}
-#else
-		/*
-		 * Highmem banks not allowed with !CONFIG_HIGHMEM.
-		 */
-		if (highmem) {
-			printk(KERN_NOTICE "Ignoring RAM at %.8llx-%.8llx "
-			       "(!CONFIG_HIGHMEM).\n",
-			       (unsigned long long)bank->start,
-			       (unsigned long long)bank->start + bank->size - 1);
-			continue;
+
+			if (reg->size > size_limit) {
+				phys_addr_t overlap_size = reg->size - size_limit;
+
+				pr_notice("Truncating RAM at %pa-%pa to -%pa",
+				      &block_start, &block_end, &vmalloc_limit);
+				memblock_remove(vmalloc_limit, overlap_size);
+				block_end = vmalloc_limit;
+			}
 		}
 
-		/*
-		 * Check whether this memory bank would partially overlap
-		 * the vmalloc area.
-		 */
-		if (bank->size > size_limit) {
-			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
-			       "to -%.8llx (vmalloc region overlap).\n",
-			       (unsigned long long)bank->start,
-			       (unsigned long long)bank->start + bank->size - 1,
-			       (unsigned long long)bank->start + size_limit - 1);
-			bank->size = size_limit;
-		}
-#endif
-		if (!bank->highmem) {
-			phys_addr_t bank_end = bank->start + bank->size;
-
-			if (bank_end > arm_lowmem_limit)
-				arm_lowmem_limit = bank_end;
+		if (!highmem) {
+			if (block_end > arm_lowmem_limit) {
+				if (reg->size > size_limit)
+					arm_lowmem_limit = vmalloc_limit;
+				else
+					arm_lowmem_limit = block_end;
+			}
 
 			/*
 			 * Find the first non-section-aligned page, and point
@@ -1157,35 +1131,15 @@ void __init sanity_check_meminfo(void)
 			 * occurs before any free memory is mapped.
 			 */
 			if (!memblock_limit) {
-				if (!IS_ALIGNED(bank->start, SECTION_SIZE))
-					memblock_limit = bank->start;
-				else if (!IS_ALIGNED(bank_end, SECTION_SIZE))
-					memblock_limit = bank_end;
+				if (!IS_ALIGNED(block_start, SECTION_SIZE))
+					memblock_limit = block_start;
+				else if (!IS_ALIGNED(block_end, SECTION_SIZE))
+					memblock_limit = arm_lowmem_limit;
 			}
-		}
-		j++;
-	}
-#ifdef CONFIG_HIGHMEM
-	if (highmem) {
-		const char *reason = NULL;
 
-		if (cache_is_vipt_aliasing()) {
-			/*
-			 * Interactions between kmap and other mappings
-			 * make highmem support with aliasing VIPT caches
-			 * rather difficult.
-			 */
-			reason = "with VIPT aliasing cache";
-		}
-		if (reason) {
-			printk(KERN_CRIT "HIGHMEM is not supported %s, ignoring high memory\n",
-				reason);
-			while (j > 0 && meminfo.bank[j - 1].highmem)
-				j--;
 		}
 	}
-#endif
-	meminfo.nr_banks = j;
+
 	high_memory = __va(arm_lowmem_limit - 1) + 1;
 
 	/*
@@ -1372,6 +1326,9 @@ static void __init kmap_init(void)
 #ifdef CONFIG_HIGHMEM
 	pkmap_page_table = early_pte_alloc(pmd_off_k(PKMAP_BASE),
 		PKMAP_BASE, _PAGE_KERNEL_TABLE);
+
+	fixmap_page_table = early_pte_alloc(pmd_off_k(FIXADDR_START),
+		FIXADDR_START, _PAGE_KERNEL_TABLE);
 #endif
 }
 
@@ -1474,7 +1431,7 @@ void __init early_paging_init(const struct machine_desc *mdesc,
 	 * just complicate the code.
 	 */
 	flush_cache_louis();
-	dsb();
+	dsb(ishst);
 	isb();
 
 	/* remap level 1 table */

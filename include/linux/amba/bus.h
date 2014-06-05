@@ -47,6 +47,7 @@ struct amba_driver {
 enum amba_vendor {
 	AMBA_VENDOR_ARM = 0x41,
 	AMBA_VENDOR_ST = 0x80,
+	AMBA_VENDOR_QCOM = 0x51,
 };
 
 extern struct bus_type amba_bustype;
