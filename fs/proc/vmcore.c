@@ -42,7 +42,7 @@ static size_t elfnotes_sz;
 /* Total size of vmcore file. */
 static u64 vmcore_size;
 
-static struct proc_dir_entry *proc_vmcore = NULL;
+static struct proc_dir_entry *proc_vmcore;
 
 /*
  * Returns > 0 for RAM pages, 0 for non-RAM pages, < 0 on error
