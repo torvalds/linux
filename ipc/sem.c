@@ -1047,6 +1047,16 @@ static int count_semzcnt(struct sem_array *sma, ushort semnum)
 			    && !(sops[i].sem_flg & IPC_NOWAIT))
 				semzcnt++;
 	}
+	list_for_each_entry(q, &sma->pending_alter, list) {
+		struct sembuf *sops = q->sops;
+		int nsops = q->nsops;
+		int i;
+		for (i = 0; i < nsops; i++)
+			if (sops[i].sem_num == semnum
+			    && (sops[i].sem_op == 0)
+			    && !(sops[i].sem_flg & IPC_NOWAIT))
+				semzcnt++;
+	}
 	return semzcnt;
 }
 
