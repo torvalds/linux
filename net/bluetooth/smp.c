@@ -29,9 +29,13 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/mgmt.h>
 
+#include "ecc.h"
 #include "smp.h"
 
 #define SMP_ALLOW_CMD(smp, code)	set_bit(code, &smp->allow_cmd)
+
+/* Keys which are not distributed with Secure Connections */
+#define SMP_SC_NO_DIST (SMP_DIST_ENC_KEY | SMP_DIST_LINK_KEY);
 
 #define SMP_TIMEOUT	msecs_to_jiffies(30000)
 
@@ -70,6 +74,10 @@ struct smp_chan {
 	struct smp_ltk	*slave_ltk;
 	struct smp_irk	*remote_irk;
 	unsigned long	flags;
+
+	/* Secure Connections variables */
+	u8			local_pk[64];
+	u8			local_sk[32];
 
 	struct crypto_blkcipher	*tfm_aes;
 	struct crypto_hash	*tfm_cmac;
@@ -1012,12 +1020,40 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	memcpy(&smp->prsp[1], &rsp, sizeof(rsp));
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(rsp), &rsp);
-	SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
+
+	clear_bit(SMP_FLAG_INITIATOR, &smp->flags);
+
+	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
+		SMP_ALLOW_CMD(smp, SMP_CMD_PUBLIC_KEY);
+		/* Clear bits which are generated but not distributed */
+		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
+		/* Wait for Public Key from Initiating Device */
+		return 0;
+	} else {
+		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_CONFIRM);
+	}
 
 	/* Request setup of TK */
 	ret = tk_request(conn, 0, auth, rsp.io_capability, req->io_capability);
 	if (ret)
 		return SMP_UNSPECIFIED;
+
+	return 0;
+}
+
+static u8 sc_send_public_key(struct smp_chan *smp)
+{
+	BT_DBG("");
+
+	/* Generate local key pair for Secure Connections */
+	if (!ecc_make_key(smp->local_pk, smp->local_sk))
+		return SMP_UNSPECIFIED;
+
+	BT_DBG("Local Public Key X: %32phN", smp->local_pk);
+	BT_DBG("Local Public Key Y: %32phN", &smp->local_pk[32]);
+	BT_DBG("Local Private Key:  %32phN", smp->local_sk);
+
+	smp_send_cmd(smp->conn, SMP_CMD_PUBLIC_KEY, 64, smp->local_pk);
 
 	return 0;
 }
@@ -1073,6 +1109,13 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	 * some bits that we had enabled in our request.
 	 */
 	smp->remote_key_dist &= rsp->resp_key_dist;
+
+	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
+		/* Clear bits which are generated but not distributed */
+		smp->remote_key_dist &= ~SMP_SC_NO_DIST;
+		SMP_ALLOW_CMD(smp, SMP_CMD_PUBLIC_KEY);
+		return sc_send_public_key(smp);
+	}
 
 	auth |= req->auth_req;
 
