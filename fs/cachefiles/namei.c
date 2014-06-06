@@ -131,10 +131,10 @@ found_dentry:
 
 	if (fscache_object_is_live(&object->fscache)) {
 		pr_err("\n");
-		pr_err("CacheFiles: Error: Can't preemptively bury live object\n");
+		pr_err("Error: Can't preemptively bury live object\n");
 		cachefiles_printk_object(object, NULL);
 	} else if (test_and_set_bit(CACHEFILES_OBJECT_BURIED, &object->flags)) {
-		pr_err("CacheFiles: Error: Object already preemptively buried\n");
+		pr_err("Error: Object already preemptively buried\n");
 	}
 
 	write_unlock(&cache->active_lock);
@@ -157,7 +157,7 @@ try_again:
 	write_lock(&cache->active_lock);
 
 	if (test_and_set_bit(CACHEFILES_OBJECT_ACTIVE, &object->flags)) {
-		pr_err("CacheFiles: Error: Object already active\n");
+		pr_err("Error: Object already active\n");
 		cachefiles_printk_object(object, NULL);
 		BUG();
 	}
@@ -191,7 +191,7 @@ try_again:
 wait_for_old_object:
 	if (fscache_object_is_live(&object->fscache)) {
 		pr_err("\n");
-		pr_err("CacheFiles: Error: Unexpected object collision\n");
+		pr_err("Error: Unexpected object collision\n");
 		cachefiles_printk_object(object, xobject);
 		BUG();
 	}
@@ -238,7 +238,7 @@ wait_for_old_object:
 
 		if (timeout <= 0) {
 			pr_err("\n");
-			pr_err("CacheFiles: Error: Overlong wait for old active object to go away\n");
+			pr_err("Error: Overlong wait for old active object to go away\n");
 			cachefiles_printk_object(object, xobject);
 			goto requeue;
 		}
@@ -543,7 +543,7 @@ lookup_again:
 			       next, next->d_inode, next->d_inode->i_ino);
 
 		} else if (!S_ISDIR(next->d_inode->i_mode)) {
-			kerror("inode %lu is not a directory",
+			pr_err("inode %lu is not a directory",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
 			goto error;
@@ -574,7 +574,7 @@ lookup_again:
 		} else if (!S_ISDIR(next->d_inode->i_mode) &&
 			   !S_ISREG(next->d_inode->i_mode)
 			   ) {
-			kerror("inode %lu is not a file or directory",
+			pr_err("inode %lu is not a file or directory",
 			       next->d_inode->i_ino);
 			ret = -ENOBUFS;
 			goto error;
@@ -768,7 +768,7 @@ struct dentry *cachefiles_get_directory(struct cachefiles_cache *cache,
 	ASSERT(subdir->d_inode);
 
 	if (!S_ISDIR(subdir->d_inode->i_mode)) {
-		kerror("%s is not a directory", dirname);
+		pr_err("%s is not a directory", dirname);
 		ret = -EIO;
 		goto check_error;
 	}
@@ -795,13 +795,13 @@ check_error:
 mkdir_error:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	dput(subdir);
-	kerror("mkdir %s failed with error %d", dirname, ret);
+	pr_err("mkdir %s failed with error %d", dirname, ret);
 	return ERR_PTR(ret);
 
 lookup_error:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	ret = PTR_ERR(subdir);
-	kerror("Lookup %s failed with error %d", dirname, ret);
+	pr_err("Lookup %s failed with error %d", dirname, ret);
 	return ERR_PTR(ret);
 
 nomem_d_alloc:
@@ -891,7 +891,7 @@ lookup_error:
 	if (ret == -EIO) {
 		cachefiles_io_error(cache, "Lookup failed");
 	} else if (ret != -ENOMEM) {
-		kerror("Internal error: %d", ret);
+		pr_err("Internal error: %d", ret);
 		ret = -EIO;
 	}
 
@@ -950,7 +950,7 @@ error:
 	}
 
 	if (ret != -ENOMEM) {
-		kerror("Internal error: %d", ret);
+		pr_err("Internal error: %d", ret);
 		ret = -EIO;
 	}
 
