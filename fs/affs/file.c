@@ -498,34 +498,36 @@ affs_getemptyblk_ino(struct inode *inode, int block)
 }
 
 static int
-affs_do_readpage_ofs(struct file *file, struct page *page, unsigned from, unsigned to)
+affs_do_readpage_ofs(struct page *page, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh;
 	char *data;
+	unsigned pos = 0;
 	u32 bidx, boff, bsize;
 	u32 tmp;
 
-	pr_debug("AFFS: read_page(%u, %ld, %d, %d)\n", (u32)inode->i_ino, page->index, from, to);
-	BUG_ON(from > to || to > PAGE_CACHE_SIZE);
+	pr_debug("AFFS: read_page(%u, %ld, 0, %d)\n", (u32)inode->i_ino,
+		 page->index, to);
+	BUG_ON(to > PAGE_CACHE_SIZE);
 	kmap(page);
 	data = page_address(page);
 	bsize = AFFS_SB(sb)->s_data_blksize;
-	tmp = (page->index << PAGE_CACHE_SHIFT) + from;
+	tmp = page->index << PAGE_CACHE_SHIFT;
 	bidx = tmp / bsize;
 	boff = tmp % bsize;
 
-	while (from < to) {
+	while (pos < to) {
 		bh = affs_bread_ino(inode, bidx, 0);
 		if (IS_ERR(bh))
 			return PTR_ERR(bh);
-		tmp = min(bsize - boff, to - from);
-		BUG_ON(from + tmp > to || tmp > bsize);
-		memcpy(data + from, AFFS_DATA(bh) + boff, tmp);
+		tmp = min(bsize - boff, to - pos);
+		BUG_ON(pos + tmp > to || tmp > bsize);
+		memcpy(data + pos, AFFS_DATA(bh) + boff, tmp);
 		affs_brelse(bh);
 		bidx++;
-		from += tmp;
+		pos += tmp;
 		boff = 0;
 	}
 	flush_dcache_page(page);
@@ -615,7 +617,7 @@ affs_readpage_ofs(struct file *file, struct page *page)
 		memset(page_address(page) + to, 0, PAGE_CACHE_SIZE - to);
 	}
 
-	err = affs_do_readpage_ofs(file, page, 0, to);
+	err = affs_do_readpage_ofs(page, to);
 	if (!err)
 		SetPageUptodate(page);
 	unlock_page(page);
@@ -651,7 +653,7 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 		return 0;
 
 	/* XXX: inefficient but safe in the face of short writes */
-	err = affs_do_readpage_ofs(file, page, 0, PAGE_CACHE_SIZE);
+	err = affs_do_readpage_ofs(page, PAGE_CACHE_SIZE);
 	if (err) {
 		unlock_page(page);
 		page_cache_release(page);
