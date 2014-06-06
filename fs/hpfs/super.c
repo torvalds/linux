@@ -62,7 +62,7 @@ void hpfs_error(struct super_block *s, const char *fmt, ...)
 	vsnprintf(err_buf, sizeof(err_buf), fmt, args);
 	va_end(args);
 
-	pr_err("HPFS: filesystem error: %s", err_buf);
+	pr_err("filesystem error: %s", err_buf);
 	if (!hpfs_sb(s)->sb_was_error) {
 		if (hpfs_sb(s)->sb_err == 2) {
 			pr_cont("; crashing the system because you wanted it\n");
@@ -438,7 +438,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	if (!(o = parse_opts(data, &uid, &gid, &umask, &lowercase,
 	    &eas, &chk, &errs, &chkdsk, &timeshift))) {
-		pr_warn("HPFS: bad mount options.\n");
+		pr_warn("bad mount options.\n");
 		goto out_err;
 	}
 	if (o == 2) {
@@ -446,7 +446,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 		goto out_err;
 	}
 	if (timeshift != sbi->sb_timeshift) {
-		pr_warn("HPFS: timeshift can't be changed using remount.\n");
+		pr_warn("timeshift can't be changed using remount.\n");
 		goto out_err;
 	}
 
@@ -527,7 +527,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	if (!(o = parse_opts(options, &uid, &gid, &umask, &lowercase,
 	    &eas, &chk, &errs, &chkdsk, &timeshift))) {
-		pr_warn("HPFS: bad mount options.\n");
+		pr_warn("bad mount options.\n");
 		goto bail0;
 	}
 	if (o==2) {
@@ -547,16 +547,16 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	    ||*/ le32_to_cpu(superblock->magic) != SB_MAGIC
 	    || le32_to_cpu(spareblock->magic) != SP_MAGIC) {
 		if (!silent)
-			pr_warn("HPFS: Bad magic ... probably not HPFS\n");
+			pr_warn("Bad magic ... probably not HPFS\n");
 		goto bail4;
 	}
 
 	/* Check version */
 	if (!(s->s_flags & MS_RDONLY) &&
 	      superblock->funcversion != 2 && superblock->funcversion != 3) {
-		pr_warn("HPFS: Bad version %d,%d. Mount readonly to go around\n",
+		pr_warn("Bad version %d,%d. Mount readonly to go around\n",
 			(int)superblock->version, (int)superblock->funcversion);
-		pr_warn("HPFS: please try recent version of HPFS driver at http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi and if it still can't understand this format, contact author - mikulas@artax.karlin.mff.cuni.cz\n");
+		pr_warn("please try recent version of HPFS driver at http://artax.karlin.mff.cuni.cz/~mikulas/vyplody/hpfs/index-e.cgi and if it still can't understand this format, contact author - mikulas@artax.karlin.mff.cuni.cz\n");
 		goto bail4;
 	}
 
@@ -602,7 +602,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	/* Check for general fs errors*/
 	if (spareblock->dirty && !spareblock->old_wrote) {
 		if (errs == 2) {
-			pr_warn("HPFS: Improperly stopped, not mounted\n");
+			pr_warn("Improperly stopped, not mounted\n");
 			goto bail4;
 		}
 		hpfs_error(s, "improperly stopped");
@@ -616,25 +616,25 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
 		if (errs >= 2) {
-			pr_warn("HPFS: Hotfixes not supported here, try chkdsk\n");
+			pr_warn("Hotfixes not supported here, try chkdsk\n");
 			mark_dirty(s, 0);
 			goto bail4;
 		}
 		hpfs_error(s, "hotfixes not supported here, try chkdsk");
 		if (errs == 0)
-			pr_warn("HPFS: Proceeding, but your filesystem will be probably corrupted by this driver...\n");
+			pr_warn("Proceeding, but your filesystem will be probably corrupted by this driver...\n");
 		else
-			pr_warn("HPFS: This driver may read bad files or crash when operating on disk with hotfixes.\n");
+			pr_warn("This driver may read bad files or crash when operating on disk with hotfixes.\n");
 	}
 	if (le32_to_cpu(spareblock->n_dnode_spares) != le32_to_cpu(spareblock->n_dnode_spares_free)) {
 		if (errs >= 2) {
-			pr_warn("HPFS: Spare dnodes used, try chkdsk\n");
+			pr_warn("Spare dnodes used, try chkdsk\n");
 			mark_dirty(s, 0);
 			goto bail4;
 		}
 		hpfs_error(s, "warning: spare dnodes used, try chkdsk");
 		if (errs == 0)
-			pr_warn("HPFS: Proceeding, but your filesystem could be corrupted if you delete files or directories\n");
+			pr_warn("Proceeding, but your filesystem could be corrupted if you delete files or directories\n");
 	}
 	if (chk) {
 		unsigned a;
@@ -654,12 +654,12 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		}
 		sbi->sb_dirband_size = a;
 	} else
-		pr_warn("HPFS: You really don't want any checks? You are crazy...\n");
+		pr_warn("You really don't want any checks? You are crazy...\n");
 
 	/* Load code page table */
 	if (le32_to_cpu(spareblock->n_code_pages))
 		if (!(sbi->sb_cp_table = hpfs_load_code_page(s, le32_to_cpu(spareblock->code_page_dir))))
-			pr_warn("HPFS: Warning: code page support is disabled\n");
+			pr_warn("code page support is disabled\n");
 
 	brelse(bh2);
 	brelse(bh1);
