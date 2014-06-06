@@ -82,8 +82,10 @@ static int blk_mq_queue_enter(struct request_queue *q)
 
 	__percpu_counter_add(&q->mq_usage_counter, 1, 1000000);
 	smp_wmb();
-	/* we have problems to freeze the queue if it's initializing */
-	if (!blk_queue_bypass(q) || !blk_queue_init_done(q))
+
+	/* we have problems freezing the queue if it's initializing */
+	if (!blk_queue_dying(q) &&
+	    (!blk_queue_bypass(q) || !blk_queue_init_done(q)))
 		return 0;
 
 	__percpu_counter_add(&q->mq_usage_counter, -1, 1000000);
