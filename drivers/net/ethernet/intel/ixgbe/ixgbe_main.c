@@ -8477,7 +8477,7 @@ err_alloc_etherdev:
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
-	if (!test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
+	if (!adapter || !test_and_set_bit(__IXGBE_DISABLED, &adapter->state))
 		pci_disable_device(pdev);
 	return err;
 }
