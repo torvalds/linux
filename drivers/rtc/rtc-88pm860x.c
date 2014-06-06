@@ -293,7 +293,7 @@ static int pm860x_rtc_dt_init(struct platform_device *pdev,
 	int ret;
 	if (!np)
 		return -ENODEV;
-	np = of_find_node_by_name(np, "rtc");
+	np = of_get_child_by_name(np, "rtc");
 	if (!np) {
 		dev_err(&pdev->dev, "failed to find rtc node\n");
 		return -ENODEV;
