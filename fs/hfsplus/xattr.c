@@ -806,15 +806,11 @@ end_removexattr:
 static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 					void *buffer, size_t size, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
-
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
 
 	/*
 	 * Don't allow retrieving properly prefixed attributes
@@ -822,22 +818,26 @@ static int hfsplus_osx_getxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
+	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	res = hfsplus_getxattr(dentry, xattr_name, buffer, size);
+	kfree(xattr_name);
+	return res;
 }
 
 static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 		const void *buffer, size_t size, int flags, int type)
 {
-	char xattr_name[HFSPLUS_ATTR_MAX_STRLEN +
-				XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
-	size_t len = strlen(name);
+	char *xattr_name;
+	int res;
 
 	if (!strcmp(name, ""))
 		return -EINVAL;
-
-	if (len > HFSPLUS_ATTR_MAX_STRLEN)
-		return -EOPNOTSUPP;
 
 	/*
 	 * Don't allow setting properly prefixed attributes
@@ -845,8 +845,16 @@ static int hfsplus_osx_setxattr(struct dentry *dentry, const char *name,
 	 */
 	if (is_known_namespace(name))
 		return -EOPNOTSUPP;
+	xattr_name = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN
+		+ XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!xattr_name)
+		return -ENOMEM;
+	strcpy(xattr_name, XATTR_MAC_OSX_PREFIX);
+	strcpy(xattr_name + XATTR_MAC_OSX_PREFIX_LEN, name);
 
-	return hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	res = hfsplus_setxattr(dentry, xattr_name, buffer, size, flags);
+	kfree(xattr_name);
+	return res;
 }
 
 static size_t hfsplus_osx_listxattr(struct dentry *dentry, char *list,

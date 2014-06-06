@@ -54,14 +54,11 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 	memset(key, 0, sizeof(struct hfsplus_attr_key));
 	key->attr.cnid = cpu_to_be32(cnid);
 	if (name) {
-		len = strlen(name);
-		if (len > HFSPLUS_ATTR_MAX_STRLEN) {
-			pr_err("invalid xattr name's length\n");
-			return -EINVAL;
-		}
-		hfsplus_asc2uni(sb,
+		int res = hfsplus_asc2uni(sb,
 				(struct hfsplus_unistr *)&key->attr.key_name,
-				HFSPLUS_ATTR_MAX_STRLEN, name, len);
+				HFSPLUS_ATTR_MAX_STRLEN, name, strlen(name));
+		if (res)
+			return res;
 		len = be16_to_cpu(key->attr.key_name.length);
 	} else {
 		key->attr.key_name.length = 0;
