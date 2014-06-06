@@ -1418,7 +1418,7 @@ static inline ULONG RestoreSFParam(struct bcm_mini_adapter *Adapter,
 	ulAddrSFParamSet = ntohl(ulAddrSFParamSet);
 
 	/* Read out the SF Param Set At the indicated Location */
-	if (rdm(Adapter, ulAddrSFParamSet,(PUCHAR)pucDestBuffer, nBytesToRead) < 0)
+	if (rdm(Adapter, ulAddrSFParamSet, (PUCHAR)pucDestBuffer, nBytesToRead) < 0)
 		return STATUS_FAILURE;
 
 	return 1;
