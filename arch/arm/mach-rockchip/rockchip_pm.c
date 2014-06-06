@@ -416,21 +416,20 @@ static int rk_lpmode_enter(unsigned long arg)
 
 
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
-
+static u32 test_count=0;
 static int rkpm_enter(suspend_state_t state)
 {
- 
-        printk("%s\n",__FUNCTION__);
 
-        
+        // printk(KERN_DEBUG"pm: ");
+        printk("%s:\n",__FUNCTION__);
+        //printk("pm test times=%d\n",++test_count);
+       
         RKPM_DDR_FUN(prepare);   
         
-        printk(KERN_DEBUG "pm: ");
-
         rkpm_ctrbits_prepare();
          
-      //  if(rkpm_chk_jdg_ctrbits(RKPM_CTR_RET_DIRT))
-      //  return 0;
+        //  if(rkpm_chk_jdg_ctrbits(RKPM_CTR_RET_DIRT))
+        //  return 0;
       
         rkpm_ddr_printch('0');
 
@@ -458,8 +457,6 @@ static int rkpm_enter(suspend_state_t state)
 
         rkpm_ddr_printch('5');
 
-        pm_log = false;
-
         if(rkpm_chk_jdg_ctrbits(RKPM_CTRBITS_SOC_DLPMD))
         {   
             if(cpu_suspend(0,rk_lpmode_enter)==0)
@@ -480,8 +477,6 @@ static int rkpm_enter(suspend_state_t state)
             wfi();
         }
 
-        pm_log = true;
-
         rkpm_ddr_printch('5');
 
         RKPM_BITCTR_DDR_FUN(GPIOS,re_gpios);
@@ -501,21 +496,12 @@ static int rkpm_enter(suspend_state_t state)
         local_fiq_enable();
         rkpm_ddr_printch('1');
         
-
-
         RKPM_BITCTR_DDR_FUN(PWR_DMNS,re_pwr_dmns);
 
         rkpm_ddr_printch('0');
-
-
-        pm_log = false;
-
-        printk(KERN_CONT "\n");
-
         rkpm_ddr_printch('\n');
-
-        RKPM_DDR_FUN(finish);
         
+        RKPM_DDR_FUN(finish);           
         return 0;
 }
 
