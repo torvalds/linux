@@ -227,7 +227,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 static inline void ss_add(struct msg_queue *msq, struct msg_sender *mss)
 {
 	mss->tsk = current;
-	current->state = TASK_INTERRUPTIBLE;
+	__set_current_state(TASK_INTERRUPTIBLE);
 	list_add_tail(&mss->list, &msq->q_senders);
 }
 
@@ -976,7 +976,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, int msgfl
 		else
 			msr_d.r_maxsize = bufsz;
 		msr_d.r_msg = ERR_PTR(-EAGAIN);
-		current->state = TASK_INTERRUPTIBLE;
+		__set_current_state(TASK_INTERRUPTIBLE);
 
 		ipc_unlock_object(&msq->q_perm);
 		rcu_read_unlock();
