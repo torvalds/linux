@@ -121,8 +121,10 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 		return -ENOMEM;
 
 	pwrst->pwrdm = pwrdm;
-	pwrst->next_state = PWRDM_POWER_RET;
-	pwrst->next_logic_state = PWRDM_POWER_OFF;
+	pwrst->next_state = pwrdm_get_valid_lp_state(pwrdm, false,
+						     PWRDM_POWER_RET);
+	pwrst->next_logic_state = pwrdm_get_valid_lp_state(pwrdm, true,
+							   PWRDM_POWER_OFF);
 
 	list_add(&pwrst->node, &pwrst_list);
 
