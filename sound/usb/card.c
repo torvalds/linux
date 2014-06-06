@@ -651,7 +651,7 @@ int snd_usb_autoresume(struct snd_usb_audio *chip)
 	int err = -ENODEV;
 
 	down_read(&chip->shutdown_rwsem);
-	if (chip->probing)
+	if (chip->probing && chip->in_pm)
 		err = 0;
 	else if (!chip->shutdown)
 		err = usb_autopm_get_interface(chip->pm_intf);
@@ -663,7 +663,7 @@ int snd_usb_autoresume(struct snd_usb_audio *chip)
 void snd_usb_autosuspend(struct snd_usb_audio *chip)
 {
 	down_read(&chip->shutdown_rwsem);
-	if (!chip->shutdown && !chip->probing)
+	if (!chip->shutdown && !chip->probing && !chip->in_pm)
 		usb_autopm_put_interface(chip->pm_intf);
 	up_read(&chip->shutdown_rwsem);
 }
@@ -695,8 +695,9 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			chip->autosuspended = 1;
 	}
 
-	list_for_each_entry(mixer, &chip->mixer_list, list)
-		snd_usb_mixer_suspend(mixer);
+	if (chip->num_suspended_intf == 1)
+		list_for_each_entry(mixer, &chip->mixer_list, list)
+			snd_usb_mixer_suspend(mixer);
 
 	return 0;
 }
@@ -711,6 +712,8 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 		return 0;
 	if (--chip->num_suspended_intf)
 		return 0;
+
+	chip->in_pm = 1;
 	/*
 	 * ALSA leaves material resumption to user space
 	 * we just notify and restart the mixers
@@ -726,6 +729,7 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 	chip->autosuspended = 0;
 
 err_out:
+	chip->in_pm = 0;
 	return err;
 }
 

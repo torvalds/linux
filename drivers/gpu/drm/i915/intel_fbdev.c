@@ -132,6 +132,16 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
+	if (intel_fb &&
+	    (sizes->fb_width > intel_fb->base.width ||
+	     sizes->fb_height > intel_fb->base.height)) {
+		DRM_DEBUG_KMS("BIOS fb too small (%dx%d), we require (%dx%d),"
+			      " releasing it\n",
+			      intel_fb->base.width, intel_fb->base.height,
+			      sizes->fb_width, sizes->fb_height);
+		drm_framebuffer_unreference(&intel_fb->base);
+		intel_fb = ifbdev->fb = NULL;
+	}
 	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);

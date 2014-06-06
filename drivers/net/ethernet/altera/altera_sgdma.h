@@ -26,10 +26,11 @@ void sgdma_clear_rxirq(struct altera_tse_private *);
 void sgdma_clear_txirq(struct altera_tse_private *);
 int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *);
 u32 sgdma_tx_completions(struct altera_tse_private *);
-int sgdma_add_rx_desc(struct altera_tse_private *priv, struct tse_buffer *);
+void sgdma_add_rx_desc(struct altera_tse_private *priv, struct tse_buffer *);
 void sgdma_status(struct altera_tse_private *);
 u32 sgdma_rx_status(struct altera_tse_private *);
 int sgdma_initialize(struct altera_tse_private *);
 void sgdma_uninitialize(struct altera_tse_private *);
+void sgdma_start_rxdma(struct altera_tse_private *);
 
 #endif /*  __ALTERA_SGDMA_H__ */

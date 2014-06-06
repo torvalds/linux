@@ -33,7 +33,7 @@ Optional properties:
 - max-frame-size: See ethernet.txt file in the same directory
 - clocks: If present, the first clock should be the GMAC main clock,
   further clocks may be specified in derived bindings.
-- clocks-names: One name for each entry in the clocks property, the
+- clock-names: One name for each entry in the clocks property, the
   first one should be "stmmaceth".
 
 Examples:
