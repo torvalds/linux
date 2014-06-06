@@ -78,4 +78,5 @@ void __init r8a7790_pm_init(void)
 	iounmap(p);
 
 	r8a7790_sysc_init();
+	shmobile_smp_apmu_suspend_init();
 }
