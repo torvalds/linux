@@ -63,7 +63,7 @@ void coda_sysctl_clean(void);
     else \
         ptr = (cast)vzalloc((unsigned long) size); \
     if (!ptr) \
-        printk("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
+	pr_warn("kernel malloc returns 0 at %s:%d\n", __FILE__, __LINE__); \
 } while (0)
 
 

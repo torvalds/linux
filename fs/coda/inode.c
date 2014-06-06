@@ -119,12 +119,12 @@ static int get_device_index(struct coda_mount_data *data)
 	int idx;
 
 	if (data == NULL) {
-		printk("coda_read_super: Bad mount data\n");
+		pr_warn("coda_read_super: Bad mount data\n");
 		return -1;
 	}
 
 	if (data->version != CODA_MOUNT_VERSION) {
-		printk("coda_read_super: Bad mount version\n");
+		pr_warn("coda_read_super: Bad mount version\n");
 		return -1;
 	}
 
@@ -141,13 +141,13 @@ static int get_device_index(struct coda_mount_data *data)
 	fdput(f);
 
 	if (idx < 0 || idx >= MAX_CODADEVS) {
-		printk("coda_read_super: Bad minor number\n");
+		pr_warn("coda_read_super: Bad minor number\n");
 		return -1;
 	}
 
 	return idx;
 Ebadf:
-	printk("coda_read_super: Bad file\n");
+	pr_warn("coda_read_super: Bad file\n");
 	return -1;
 }
 
@@ -168,19 +168,19 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	if(idx == -1)
 		idx = 0;
 	
-	printk(KERN_INFO "coda_read_super: device index: %i\n", idx);
+	pr_info("coda_read_super: device index: %i\n", idx);
 
 	vc = &coda_comms[idx];
 	mutex_lock(&vc->vc_mutex);
 
 	if (!vc->vc_inuse) {
-		printk("coda_read_super: No pseudo device\n");
+		pr_warn("coda_read_super: No pseudo device\n");
 		error = -EINVAL;
 		goto unlock_out;
 	}
 
 	if (vc->vc_sb) {
-		printk("coda_read_super: Device already mounted\n");
+		pr_warn("coda_read_super: Device already mounted\n");
 		error = -EBUSY;
 		goto unlock_out;
 	}
@@ -204,22 +204,23 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	/* get root fid from Venus: this needs the root inode */
 	error = venus_rootfid(sb, &fid);
 	if ( error ) {
-	        printk("coda_read_super: coda_get_rootfid failed with %d\n",
-		       error);
+		pr_warn("coda_read_super: coda_get_rootfid failed with %d\n",
+			error);
 		goto error;
 	}
-	printk("coda_read_super: rootfid is %s\n", coda_f2s(&fid));
+	pr_info("coda_read_super: rootfid is %s\n", coda_f2s(&fid));
 	
 	/* make root inode */
         root = coda_cnode_make(&fid, sb);
         if (IS_ERR(root)) {
 		error = PTR_ERR(root);
-		printk("Failure of coda_cnode_make for root: error %d\n", error);
+		pr_warn("Failure of coda_cnode_make for root: error %d\n",
+			error);
 		goto error;
 	} 
 
-	printk("coda_read_super: rootinode is %ld dev %s\n", 
-	       root->i_ino, root->i_sb->s_id);
+	pr_info("coda_read_super: rootinode is %ld dev %s\n",
+		root->i_ino, root->i_sb->s_id);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		error = -EINVAL;
@@ -246,7 +247,7 @@ static void coda_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 	mutex_unlock(&vcp->vc_mutex);
 
-	printk("Coda: Bye bye.\n");
+	pr_info("Coda: Bye bye.\n");
 }
 
 static void coda_evict_inode(struct inode *inode)
