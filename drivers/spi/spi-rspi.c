@@ -926,19 +926,19 @@ static int rspi_request_dma(struct device *dev, struct spi_master *master,
 	return 0;
 }
 
-static void rspi_release_dma(struct rspi_data *rspi)
+static void rspi_release_dma(struct spi_master *master)
 {
-	if (rspi->master->dma_tx)
-		dma_release_channel(rspi->master->dma_tx);
-	if (rspi->master->dma_rx)
-		dma_release_channel(rspi->master->dma_rx);
+	if (master->dma_tx)
+		dma_release_channel(master->dma_tx);
+	if (master->dma_rx)
+		dma_release_channel(master->dma_rx);
 }
 
 static int rspi_remove(struct platform_device *pdev)
 {
 	struct rspi_data *rspi = platform_get_drvdata(pdev);
 
-	rspi_release_dma(rspi);
+	rspi_release_dma(rspi->master);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
@@ -1140,7 +1140,7 @@ static int rspi_probe(struct platform_device *pdev)
 	return 0;
 
 error3:
-	rspi_release_dma(rspi);
+	rspi_release_dma(master);
 error2:
 	pm_runtime_disable(&pdev->dev);
 error1:
