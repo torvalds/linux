@@ -100,6 +100,7 @@ extern int radeon_dpm;
 extern int radeon_aspm;
 extern int radeon_runtime_pm;
 extern int radeon_hard_reset;
+extern int radeon_vm_size;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting

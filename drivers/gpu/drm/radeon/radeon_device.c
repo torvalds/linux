@@ -1052,6 +1052,27 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 		radeon_agpmode = 0;
 		break;
 	}
+
+	if (!radeon_check_pot_argument(radeon_vm_size)) {
+		dev_warn(rdev->dev, "VM size (%d) must be a power of 2\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
+
+	if (radeon_vm_size < 4) {
+		dev_warn(rdev->dev, "VM size (%d) to small, min is 4MB\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
+
+       /*
+        * Max GPUVM size for Cayman, SI and CI are 40 bits.
+        */
+	if (radeon_vm_size > 1024*1024) {
+		dev_warn(rdev->dev, "VM size (%d) to large, max is 1TB\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
 }
 
 /**
@@ -1197,17 +1218,16 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 
+	radeon_check_arguments(rdev);
 	/* Adjust VM size here.
-	 * Currently set to 4GB ((1 << 20) 4k pages).
-	 * Max GPUVM size for cayman and SI is 40 bits.
+	 * Max GPUVM size for cayman+ is 40 bits.
 	 */
-	rdev->vm_manager.max_pfn = 1 << 20;
+	rdev->vm_manager.max_pfn = radeon_vm_size << 8;
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)
 		return r;
-	radeon_check_arguments(rdev);
 
 	/* all of the newer IGP chips have an internal gart
 	 * However some rs4xx report as AGP, so remove that here.
