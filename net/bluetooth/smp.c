@@ -1216,6 +1216,25 @@ static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 	return 0;
 }
 
+static u8 sc_check_confirm(struct smp_chan *smp)
+{
+	struct l2cap_conn *conn = smp->conn;
+
+	BT_DBG("");
+
+	/* Public Key exchange must happen before any other steps */
+	if (!test_bit(SMP_FLAG_REMOTE_PK, &smp->flags))
+		return SMP_UNSPECIFIED;
+
+	if (conn->hcon->out) {
+		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(smp->prnd),
+			     smp->prnd);
+		SMP_ALLOW_CMD(smp, SMP_CMD_PAIRING_RANDOM);
+	}
+
+	return 0;
+}
+
 static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct l2cap_chan *chan = conn->smp;
@@ -1228,6 +1247,9 @@ static u8 smp_cmd_pairing_confirm(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	memcpy(smp->pcnf, skb->data, sizeof(smp->pcnf));
 	skb_pull(skb, sizeof(smp->pcnf));
+
+	if (test_bit(SMP_FLAG_SC, &smp->flags))
+		return sc_check_confirm(smp);
 
 	if (conn->hcon->out) {
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(smp->prnd),
