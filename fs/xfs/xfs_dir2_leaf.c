@@ -641,7 +641,7 @@ xfs_dir2_leaf_addname(
 	tp = args->trans;
 	mp = dp->i_mount;
 
-	error = xfs_dir3_leaf_read(tp, dp, mp->m_dirleafblk, -1, &lbp);
+	error = xfs_dir3_leaf_read(tp, dp, args->geo->leafblk, -1, &lbp);
 	if (error)
 		return error;
 
@@ -1232,7 +1232,7 @@ xfs_dir2_leaf_lookup_int(
 	tp = args->trans;
 	mp = dp->i_mount;
 
-	error = xfs_dir3_leaf_read(tp, dp, mp->m_dirleafblk, -1, &lbp);
+	error = xfs_dir3_leaf_read(tp, dp, args->geo->leafblk, -1, &lbp);
 	if (error)
 		return error;
 
@@ -1429,7 +1429,7 @@ xfs_dir2_leaf_removename(
 	 */
 	if (be16_to_cpu(bf[0].length) ==
 			mp->m_dirblksize - dp->d_ops->data_entry_offset) {
-		ASSERT(db != mp->m_dirdatablk);
+		ASSERT(db != args->geo->datablk);
 		if ((error = xfs_dir2_shrink_inode(args, db, dbp))) {
 			/*
 			 * Nope, can't get rid of it because it caused
@@ -1470,7 +1470,7 @@ xfs_dir2_leaf_removename(
 	/*
 	 * If the data block was not the first one, drop it.
 	 */
-	else if (db != mp->m_dirdatablk)
+	else if (db != args->geo->datablk)
 		dbp = NULL;
 
 	xfs_dir3_leaf_check(dp, lbp);
@@ -1722,7 +1722,7 @@ xfs_dir2_node_to_leaf(
 	 * that may have been left behind during no-space-reservation
 	 * operations.
 	 */
-	while (fo > mp->m_dirfreeblk) {
+	while (fo > args->geo->freeblk) {
 		if ((error = xfs_dir2_node_trim_free(args, fo, &rval))) {
 			return error;
 		}
@@ -1752,7 +1752,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Read the freespace block.
 	 */
-	error = xfs_dir2_free_read(tp, dp,  mp->m_dirfreeblk, &fbp);
+	error = xfs_dir2_free_read(tp, dp,  args->geo->freeblk, &fbp);
 	if (error)
 		return error;
 	free = fbp->b_addr;

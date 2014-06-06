@@ -247,7 +247,7 @@ xfs_dir2_block_to_sf(
 
 	/* now we are done with the block, we can shrink the inode */
 	logflags = XFS_ILOG_CORE;
-	error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp);
+	error = xfs_dir2_shrink_inode(args, args->geo->datablk, bp);
 	if (error) {
 		ASSERT(error != ENOSPC);
 		goto out;

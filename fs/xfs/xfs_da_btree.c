@@ -598,7 +598,7 @@ xfs_da3_root_split(
 	 * Set up the new root node.
 	 */
 	error = xfs_da3_node_create(args,
-		(args->whichfork == XFS_DATA_FORK) ? mp->m_dirleafblk : 0,
+		(args->whichfork == XFS_DATA_FORK) ? args->geo->leafblk : 0,
 		level + 1, &bp, args->whichfork);
 	if (error)
 		return error;
@@ -616,10 +616,10 @@ xfs_da3_root_split(
 #ifdef DEBUG
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
-		ASSERT(blk1->blkno >= mp->m_dirleafblk &&
-		       blk1->blkno < mp->m_dirfreeblk);
-		ASSERT(blk2->blkno >= mp->m_dirleafblk &&
-		       blk2->blkno < mp->m_dirfreeblk);
+		ASSERT(blk1->blkno >= args->geo->leafblk &&
+		       blk1->blkno < args->geo->freeblk);
+		ASSERT(blk2->blkno >= args->geo->leafblk &&
+		       blk2->blkno < args->geo->freeblk);
 	}
 #endif
 
@@ -894,8 +894,8 @@ xfs_da3_node_add(
 	ASSERT(oldblk->index >= 0 && oldblk->index <= nodehdr.count);
 	ASSERT(newblk->blkno != 0);
 	if (state->args->whichfork == XFS_DATA_FORK)
-		ASSERT(newblk->blkno >= state->mp->m_dirleafblk &&
-		       newblk->blkno < state->mp->m_dirfreeblk);
+		ASSERT(newblk->blkno >= state->args->geo->leafblk &&
+		       newblk->blkno < state->args->geo->freeblk);
 
 	/*
 	 * We may need to make some room before we insert the new node.
@@ -1472,7 +1472,7 @@ xfs_da3_node_lookup_int(
 	 * Descend thru the B-tree searching each level for the right
 	 * node to use, until the right hashval is found.
 	 */
-	blkno = (args->whichfork == XFS_DATA_FORK)? state->mp->m_dirleafblk : 0;
+	blkno = (args->whichfork == XFS_DATA_FORK)? args->geo->leafblk : 0;
 	for (blk = &state->path.blk[0], state->path.active = 1;
 			 state->path.active <= XFS_DA_NODE_MAXDEPTH;
 			 blk++, state->path.active++) {
@@ -2096,7 +2096,7 @@ xfs_da_grow_inode(
 	trace_xfs_da_grow_inode(args);
 
 	if (args->whichfork == XFS_DATA_FORK) {
-		bno = args->dp->i_mount->m_dirleafblk;
+		bno = args->geo->leafblk;
 		count = args->dp->i_mount->m_dirblkfsbs;
 	} else {
 		bno = 0;
@@ -2158,7 +2158,7 @@ xfs_da3_swap_lastblock(
 	w = args->whichfork;
 	ASSERT(w == XFS_DATA_FORK);
 	mp = dp->i_mount;
-	lastoff = mp->m_dirfreeblk;
+	lastoff = args->geo->freeblk;
 	error = xfs_bmap_last_before(tp, dp, &lastoff, w);
 	if (error)
 		return error;
@@ -2247,7 +2247,7 @@ xfs_da3_swap_lastblock(
 					sizeof(sib_info->back)));
 		sib_buf = NULL;
 	}
-	par_blkno = mp->m_dirleafblk;
+	par_blkno = args->geo->leafblk;
 	level = -1;
 	/*
 	 * Walk down the tree looking for the parent of the moved block.

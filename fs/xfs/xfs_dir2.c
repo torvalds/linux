@@ -147,9 +147,6 @@ xfs_da_mount(
 	/* XXX: these are to be removed as code is converted to use geo */
 	mp->m_dirblksize = mp->m_dir_geo->blksize;
 	mp->m_dirblkfsbs = mp->m_dir_geo->fsbcount;
-	mp->m_dirdatablk = mp->m_dir_geo->datablk;
-	mp->m_dirleafblk = mp->m_dir_geo->leafblk;
-	mp->m_dirfreeblk = mp->m_dir_geo->freeblk;
 	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
 	mp->m_dir_magicpct = mp->m_dir_geo->magicpct;
 	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
@@ -690,7 +687,7 @@ xfs_dir2_isleaf(
 	mp = dp->i_mount;
 	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
 		return rval;
-	*vp = last == mp->m_dirleafblk + (1 << mp->m_sb.sb_dirblklog);
+	*vp = last == mp->m_dir_geo->leafblk + (1 << mp->m_sb.sb_dirblklog);
 	return 0;
 }
 
@@ -763,7 +760,7 @@ xfs_dir2_shrink_inode(
 		 */
 		return error;
 	}
-	if (db == mp->m_dirdatablk)
+	if (db == args->geo->datablk)
 		ASSERT(bno == 0);
 	else
 		ASSERT(bno > 0);
