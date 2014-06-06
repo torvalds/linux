@@ -929,6 +929,7 @@ struct alc_codec_rename_pci_table {
 };
 
 static struct alc_codec_rename_table rename_tbl[] = {
+	{ 0x10ec0221, 0xf00f, 0x1003, "ALC231" },
 	{ 0x10ec0269, 0xfff0, 0x3010, "ALC277" },
 	{ 0x10ec0269, 0xf0f0, 0x2010, "ALC259" },
 	{ 0x10ec0269, 0xf0f0, 0x3010, "ALC258" },
@@ -937,6 +938,7 @@ static struct alc_codec_rename_table rename_tbl[] = {
 	{ 0x10ec0269, 0xffff, 0x6023, "ALC281X" },
 	{ 0x10ec0269, 0x00f0, 0x0020, "ALC269VC" },
 	{ 0x10ec0269, 0x00f0, 0x0030, "ALC269VD" },
+	{ 0x10ec0662, 0xffff, 0x4020, "ALC656" },
 	{ 0x10ec0887, 0x00f0, 0x0030, "ALC887-VD" },
 	{ 0x10ec0888, 0x00f0, 0x0030, "ALC888-VD" },
 	{ 0x10ec0888, 0xf0f0, 0x3020, "ALC886" },
@@ -956,6 +958,19 @@ static struct alc_codec_rename_pci_table rename_pci_tbl[] = {
 	{ 0x10ec0293, 0x1028, 0, "ALC3235" },
 	{ 0x10ec0255, 0x1028, 0, "ALC3234" },
 	{ 0x10ec0668, 0x1028, 0, "ALC3661" },
+	{ 0x10ec0275, 0x1028, 0, "ALC3260" },
+	{ 0x10ec0899, 0x1028, 0, "ALC3861" },
+	{ 0x10ec0670, 0x1025, 0, "ALC669X" },
+	{ 0x10ec0676, 0x1025, 0, "ALC679X" },
+	{ 0x10ec0282, 0x1043, 0, "ALC3229" },
+	{ 0x10ec0233, 0x1043, 0, "ALC3236" },
+	{ 0x10ec0280, 0x103c, 0, "ALC3228" },
+	{ 0x10ec0282, 0x103c, 0, "ALC3227" },
+	{ 0x10ec0286, 0x103c, 0, "ALC3242" },
+	{ 0x10ec0290, 0x103c, 0, "ALC3241" },
+	{ 0x10ec0668, 0x103c, 0, "ALC3662" },
+	{ 0x10ec0283, 0x17aa, 0, "ALC3239" },
+	{ 0x10ec0292, 0x17aa, 0, "ALC3232" },
 	{ } /* terminator */
 };
 
