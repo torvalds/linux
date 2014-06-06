@@ -136,8 +136,8 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 
 		CODA_FREE(dcbuf, nbytes);
 		if (error) {
-			pr_warn("psdev_write: coda_downcall error: %d\n",
-				error);
+			pr_warn("%s: coda_downcall error: %d\n",
+				__func__, error);
 			retval = error;
 			goto out;
 		}
@@ -158,16 +158,17 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 	mutex_unlock(&vcp->vc_mutex);
 
 	if (!req) {
-		pr_warn("psdev_write: msg (%d, %d) not found\n",
-			hdr.opcode, hdr.unique);
+		pr_warn("%s: msg (%d, %d) not found\n",
+			__func__, hdr.opcode, hdr.unique);
 		retval = -ESRCH;
 		goto out;
 	}
 
         /* move data into response buffer. */
 	if (req->uc_outSize < nbytes) {
-		pr_warn("psdev_write: too much cnt: %d, cnt: %ld, opc: %d, uniq: %d.\n",
-			req->uc_outSize, (long)nbytes, hdr.opcode, hdr.unique);
+		pr_warn("%s: too much cnt: %d, cnt: %ld, opc: %d, uniq: %d.\n",
+			__func__, req->uc_outSize, (long)nbytes,
+			hdr.opcode, hdr.unique);
 		nbytes = req->uc_outSize; /* don't have more space! */
 	}
         if (copy_from_user(req->uc_data, buf, nbytes)) {
@@ -241,8 +242,8 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	/* Move the input args into userspace */
 	count = req->uc_inSize;
 	if (nbytes < req->uc_inSize) {
-		pr_warn("psdev_read: Venus read %ld bytes of %d in message\n",
-			(long)nbytes, req->uc_inSize);
+		pr_warn("%s: Venus read %ld bytes of %d in message\n",
+			__func__, (long)nbytes, req->uc_inSize);
 		count = nbytes;
         }
 
@@ -306,7 +307,7 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 	struct upc_req *req, *tmp;
 
 	if (!vcp || !vcp->vc_inuse ) {
-		pr_warn("psdev_release: Not open.\n");
+		pr_warn("%s: Not open.\n", __func__);
 		return -1;
 	}
 
@@ -355,8 +356,8 @@ static int init_coda_psdev(void)
 {
 	int i, err = 0;
 	if (register_chrdev(CODA_PSDEV_MAJOR, "coda", &coda_psdev_fops)) {
-		pr_err("coda_psdev: unable to get major %d\n",
-		       CODA_PSDEV_MAJOR);
+		pr_err("%s: unable to get major %d\n",
+		       __func__, CODA_PSDEV_MAJOR);
               return -EIO;
 	}
 	coda_psdev_class = class_create(THIS_MODULE, "coda");
