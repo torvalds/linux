@@ -69,7 +69,6 @@ struct omap4_cpu_pm_info {
 	void __iomem *scu_sar_addr;
 	void __iomem *wkup_sar_addr;
 	void __iomem *l2x0_sar_addr;
-	void (*secondary_startup)(void);
 };
 
 /**
@@ -77,6 +76,7 @@ struct omap4_cpu_pm_info {
  * @finish_suspend:	CPU suspend finisher function pointer
  * @resume:		CPU resume function pointer
  * @scu_prepare:	CPU Snoop Control program function pointer
+ * @hotplug_restart:	CPU restart function pointer
  *
  * Structure holds functions pointer for CPU low power operations like
  * suspend, resume and scu programming.
@@ -85,6 +85,7 @@ struct cpu_pm_ops {
 	int (*finish_suspend)(unsigned long cpu_state);
 	void (*resume)(void);
 	void (*scu_prepare)(unsigned int cpu_id, unsigned int cpu_state);
+	void (*hotplug_restart)(void);
 };
 
 static DEFINE_PER_CPU(struct omap4_cpu_pm_info, omap4_pm_info);
@@ -108,6 +109,7 @@ struct cpu_pm_ops omap_pm_ops = {
 	.finish_suspend		= default_finish_suspend,
 	.resume			= dummy_cpu_resume,
 	.scu_prepare		= dummy_scu_prepare,
+	.hotplug_restart	= dummy_cpu_resume,
 };
 
 /*
@@ -312,7 +314,7 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	pwrdm_clear_all_prev_pwrst(pm_info->pwrdm);
 	pwrdm_set_next_pwrst(pm_info->pwrdm, power_state);
-	set_cpu_wakeup_addr(cpu, virt_to_phys(pm_info->secondary_startup));
+	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_pm_ops.hotplug_restart));
 	omap_pm_ops.scu_prepare(cpu, power_state);
 
 	/*
@@ -385,10 +387,6 @@ int __init omap4_mpuss_init(void)
 					CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
 		pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
 	}
-	if (cpu_is_omap446x())
-		pm_info->secondary_startup = omap4460_secondary_startup;
-	else
-		pm_info->secondary_startup = omap4_secondary_startup;
 
 	pm_info->pwrdm = pwrdm_lookup("cpu1_pwrdm");
 	if (!pm_info->pwrdm) {
@@ -422,11 +420,15 @@ int __init omap4_mpuss_init(void)
 		omap_pm_ops.finish_suspend = omap4_finish_suspend;
 		omap_pm_ops.resume = omap4_cpu_resume;
 		omap_pm_ops.scu_prepare = scu_pwrst_prepare;
+		omap_pm_ops.hotplug_restart = omap4_secondary_startup;
 		cpu_context_offset = OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET;
 	} else if (soc_is_omap54xx() || soc_is_dra7xx()) {
 		cpu_context_offset = OMAP54XX_RM_CPU0_CPU0_CONTEXT_OFFSET;
 		enable_mercury_retention_mode();
 	}
+
+	if (cpu_is_omap446x())
+		omap_pm_ops.hotplug_restart = omap4460_secondary_startup;
 
 	return 0;
 }
