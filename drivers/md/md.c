@@ -7626,6 +7626,9 @@ void md_do_sync(struct md_thread *thread)
 	md_new_event(mddev);
 	update_time = jiffies;
 
+	if (mddev_is_clustered(mddev))
+		md_cluster_ops->resync_info_update(mddev, j, max_sectors);
+
 	blk_start_plug(&plug);
 	while (j < max_sectors) {
 		sector_t sectors;
@@ -7686,6 +7689,8 @@ void md_do_sync(struct md_thread *thread)
 		j += sectors;
 		if (j > 2)
 			mddev->curr_resync = j;
+		if (mddev_is_clustered(mddev))
+			md_cluster_ops->resync_info_update(mddev, j, max_sectors);
 		mddev->curr_mark_cnt = io_sectors;
 		if (last_check == 0)
 			/* this is the earliest that rebuild will be
@@ -7745,6 +7750,9 @@ void md_do_sync(struct md_thread *thread)
 
 	/* tell personality that we are finished */
 	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
+
+	if (mddev_is_clustered(mddev))
+		md_cluster_ops->resync_info_update(mddev, 0, 0);
 
 	if (!test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2) {
