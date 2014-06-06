@@ -171,17 +171,28 @@ static irqreturn_t rtc_irq(int irq, void *rtc)
 
 static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	u8 reg;
+	u8 reg, irqwake_reg = 0;
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct platform_device_id *id_entry =
+					platform_get_device_id(pdev);
 
 	local_irq_disable();
 	rtc_wait_not_busy();
 	reg = rtc_read(OMAP_RTC_INTERRUPTS_REG);
-	if (enabled)
+	if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN)
+		irqwake_reg = rtc_read(OMAP_RTC_IRQWAKEEN);
+
+	if (enabled) {
 		reg |= OMAP_RTC_INTERRUPTS_IT_ALARM;
-	else
+		irqwake_reg |= OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
+	} else {
 		reg &= ~OMAP_RTC_INTERRUPTS_IT_ALARM;
+		irqwake_reg &= ~OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
+	}
 	rtc_wait_not_busy();
 	rtc_write(reg, OMAP_RTC_INTERRUPTS_REG);
+	if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN)
+		rtc_write(irqwake_reg, OMAP_RTC_IRQWAKEEN);
 	local_irq_enable();
 
 	return 0;
@@ -281,7 +292,10 @@ static int omap_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	u8 reg;
+	u8 reg, irqwake_reg = 0;
+	struct platform_device *pdev = to_platform_device(dev);
+	const struct platform_device_id *id_entry =
+					platform_get_device_id(pdev);
 
 	if (tm2bcd(&alm->time) < 0)
 		return -EINVAL;
@@ -297,11 +311,19 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	rtc_write(alm->time.tm_sec, OMAP_RTC_ALARM_SECONDS_REG);
 
 	reg = rtc_read(OMAP_RTC_INTERRUPTS_REG);
-	if (alm->enabled)
+	if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN)
+		irqwake_reg = rtc_read(OMAP_RTC_IRQWAKEEN);
+
+	if (alm->enabled) {
 		reg |= OMAP_RTC_INTERRUPTS_IT_ALARM;
-	else
+		irqwake_reg |= OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
+	} else {
 		reg &= ~OMAP_RTC_INTERRUPTS_IT_ALARM;
+		irqwake_reg &= ~OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
+	}
 	rtc_write(reg, OMAP_RTC_INTERRUPTS_REG);
+	if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN)
+		rtc_write(irqwake_reg, OMAP_RTC_IRQWAKEEN);
 
 	local_irq_enable();
 
@@ -503,28 +525,16 @@ static u8 irqstat;
 
 static int omap_rtc_suspend(struct device *dev)
 {
-	u8 irqwake_stat;
-	struct platform_device *pdev = to_platform_device(dev);
-	const struct platform_device_id *id_entry =
-					platform_get_device_id(pdev);
-
 	irqstat = rtc_read(OMAP_RTC_INTERRUPTS_REG);
 
 	/* FIXME the RTC alarm is not currently acting as a wakeup event
 	 * source on some platforms, and in fact this enable() call is just
 	 * saving a flag that's never used...
 	 */
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		enable_irq_wake(omap_rtc_alarm);
-
-		if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN) {
-			irqwake_stat = rtc_read(OMAP_RTC_IRQWAKEEN);
-			irqwake_stat |= OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
-			rtc_write(irqwake_stat, OMAP_RTC_IRQWAKEEN);
-		}
-	} else {
+	else
 		rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
-	}
 
 	/* Disable the clock/module */
 	pm_runtime_put_sync(dev);
@@ -534,25 +544,14 @@ static int omap_rtc_suspend(struct device *dev)
 
 static int omap_rtc_resume(struct device *dev)
 {
-	u8 irqwake_stat;
-	struct platform_device *pdev = to_platform_device(dev);
-	const struct platform_device_id *id_entry =
-				platform_get_device_id(pdev);
-
 	/* Enable the clock/module so that we can access the registers */
 	pm_runtime_get_sync(dev);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		disable_irq_wake(omap_rtc_alarm);
-
-		if (id_entry->driver_data & OMAP_RTC_HAS_IRQWAKEEN) {
-			irqwake_stat = rtc_read(OMAP_RTC_IRQWAKEEN);
-			irqwake_stat &= ~OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN;
-			rtc_write(irqwake_stat, OMAP_RTC_IRQWAKEEN);
-		}
-	} else {
+	else
 		rtc_write(irqstat, OMAP_RTC_INTERRUPTS_REG);
-	}
+
 	return 0;
 }
 #endif
