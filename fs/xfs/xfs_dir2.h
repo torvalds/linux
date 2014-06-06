@@ -153,16 +153,16 @@ extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 
 extern void xfs_dir2_data_freescan(struct xfs_inode *dp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
-extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_entry(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
-extern void xfs_dir2_data_log_header(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_header(struct xfs_da_args *args,
 		struct xfs_buf *bp);
-extern void xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_dir2_data_unused *dup);
-extern void xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_log_unused(struct xfs_da_args *args,
+		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup);
+extern void xfs_dir2_data_make_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
 		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
-extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir2_data_use_free(struct xfs_da_args *args,
 		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
 		xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
 		int *needlogp, int *needscanp);

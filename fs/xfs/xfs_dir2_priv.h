@@ -211,9 +211,9 @@ extern void xfs_dir3_leaf_compact_x1(struct xfs_dir3_icleaf_hdr *leafhdr,
 		int *lowstalep, int *highstalep, int *lowlogp, int *highlogp);
 extern int xfs_dir3_leaf_get_buf(struct xfs_da_args *args, xfs_dir2_db_t bno,
 		struct xfs_buf **bpp, __uint16_t magic);
-extern void xfs_dir3_leaf_log_ents(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir3_leaf_log_ents(struct xfs_da_args *args,
 		struct xfs_buf *bp, int first, int last);
-extern void xfs_dir3_leaf_log_header(struct xfs_trans *tp, struct xfs_inode *dp,
+extern void xfs_dir3_leaf_log_header(struct xfs_da_args *args,
 		struct xfs_buf *bp);
 extern int xfs_dir2_leaf_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_leaf_removename(struct xfs_da_args *args);
