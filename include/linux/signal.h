@@ -63,11 +63,6 @@ static inline int sigismember(sigset_t *set, int _sig)
 		return 1 & (set->sig[sig / _NSIG_BPW] >> (sig % _NSIG_BPW));
 }
 
-static inline int sigfindinword(unsigned long word)
-{
-	return ffz(~word);
-}
-
 #endif /* __HAVE_ARCH_SIG_BITOPS */
 
 static inline int sigisemptyset(sigset_t *set)
