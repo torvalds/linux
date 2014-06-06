@@ -752,9 +752,9 @@ struct hdmi_eld {
 int snd_hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid);
 int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 		     unsigned char *buf, int *eld_size);
-int snd_hdmi_parse_eld(struct parsed_hdmi_eld *e,
+int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 		       const unsigned char *buf, int size);
-void snd_hdmi_show_eld(struct parsed_hdmi_eld *e);
+void snd_hdmi_show_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e);
 void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,
 			      struct hda_pcm_stream *hinfo);
 
