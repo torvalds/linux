@@ -668,6 +668,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		dev->needed_headroom = max_headroom;
 
 	if (skb_cow_head(skb, dev->needed_headroom)) {
+		ip_rt_put(rt);
 		dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return;
