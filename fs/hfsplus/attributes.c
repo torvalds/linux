@@ -79,31 +79,6 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 	return 0;
 }
 
-void hfsplus_attr_build_key_uni(hfsplus_btree_key *key,
-					u32 cnid,
-					struct hfsplus_attr_unistr *name)
-{
-	int ustrlen;
-
-	memset(key, 0, sizeof(struct hfsplus_attr_key));
-	ustrlen = be16_to_cpu(name->length);
-	key->attr.cnid = cpu_to_be32(cnid);
-	key->attr.key_name.length = cpu_to_be16(ustrlen);
-	ustrlen *= 2;
-	memcpy(key->attr.key_name.unicode, name->unicode, ustrlen);
-
-	/* The length of the key, as stored in key_len field, does not include
-	 * the size of the key_len field itself.
-	 * So, offsetof(hfsplus_attr_key, key_name) is a trick because
-	 * it takes into consideration key_len field (__be16) of
-	 * hfsplus_attr_key structure instead of length field (__be16) of
-	 * hfsplus_attr_unistr structure.
-	 */
-	key->key_len =
-		cpu_to_be16(offsetof(struct hfsplus_attr_key, key_name) +
-				ustrlen);
-}
-
 hfsplus_attr_entry *hfsplus_alloc_attr_entry(void)
 {
 	return kmem_cache_alloc(hfsplus_attr_tree_cachep, GFP_KERNEL);
