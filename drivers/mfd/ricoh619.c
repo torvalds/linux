@@ -429,7 +429,7 @@ static int ricoh619_device_shutdown(struct i2c_client *client)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ricoh619_device_shutdown);
-static int ricoh619_power_off(void)
+static void ricoh619_power_off(void)
 {
 	int ret,i=0;
 	uint8_t val,charge_state;
@@ -912,9 +912,10 @@ extern u8 ricoh619_pwr_key_reg;
 int ricoh619_pwrkey_wakeup = 0;
 static int ricoh619_i2c_suspend(struct i2c_client *client, pm_message_t state)
 {
-//	if (g_ricoh619->chip_irq)
-//		disable_irq(g_ricoh619->chip_irq);
 //	printk("PMU: %s: \n",__func__);
+
+	if (g_ricoh619->chip_irq)
+		disable_irq(g_ricoh619->chip_irq);
 	ricoh619_pwrkey_wakeup = 1;
 	__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
 	 __ricoh619_read(client, RICOH619_INT_IR_SYS, &ricoh619_pwr_key_reg);
@@ -932,9 +933,32 @@ static int ricoh619_i2c_resume(struct i2c_client *client)
 		__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
 	}
 	*/
-//	enable_irq(g_ricoh619->chip_irq);
+	
+	if (g_ricoh619->chip_irq)
+		enable_irq(g_ricoh619->chip_irq);
 	return 0;
 }
+
+static int  ricoh619_i2c_late_suspend(struct device *dev)
+{
+	struct i2c_client *client = i2c_verify_client(dev);
+
+        ricoh619_i2c_suspend(client,PMSG_SUSPEND);
+	return 0;
+}
+
+static int rockchip_i2c_late_resume(struct device *dev)
+{
+	struct i2c_client *client = i2c_verify_client(dev);    
+    
+        ricoh619_i2c_resume(client);
+	return 0;
+}
+
+static const struct dev_pm_ops ricoh619_i2c_dev_pm= {
+	.suspend_late = ricoh619_i2c_late_suspend,
+	.resume_early = rockchip_i2c_late_resume,
+};
 
 #endif
 
@@ -952,20 +976,19 @@ static const struct of_device_id ricoh619_dt_match[] = {
 MODULE_DEVICE_TABLE(of, ricoh619_dt_match);
 #endif
 
-
 static struct i2c_driver ricoh619_i2c_driver = {
 	.driver = {
 		   .name = "ricoh619",
 		   .owner = THIS_MODULE,
+                  #ifdef CONFIG_PM
+		    .pm	= (&ricoh619_i2c_dev_pm),
+                  #endif		   
 		   .of_match_table = of_match_ptr(ricoh619_dt_match),
 		   },
 	.probe = ricoh619_i2c_probe,
 	.remove = ricoh619_i2c_remove,
 	.shutdown = ricoh619_device_shutdown,
-#ifdef CONFIG_PM
-	.suspend = ricoh619_i2c_suspend,
-	.resume = ricoh619_i2c_resume,
-#endif
+
 	.id_table = ricoh619_i2c_id,
 };
 

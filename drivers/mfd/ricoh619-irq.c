@@ -31,6 +31,7 @@
 #include <linux/mfd/ricoh619.h>
 #include <linux/irqdomain.h>
 
+static DEFINE_MUTEX(int_flag_mutex);
 
 enum int_type {
 	SYS_INT  = 0x1,
@@ -226,6 +227,7 @@ static void ricoh619_irq_unmask(struct irq_data *irq_data)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
 	const struct ricoh619_irq_data *data= irq_to_ricoh619_irq(ricoh619,irq_data->irq);
+    	mutex_lock(&int_flag_mutex);
 
 	ricoh619->group_irq_en[data->master_bit] |= (1 << data->grp_index);
 	if (ricoh619->group_irq_en[data->master_bit])
@@ -237,12 +239,14 @@ static void ricoh619_irq_unmask(struct irq_data *irq_data)
 	else
 		ricoh619->irq_en_reg[data->mask_reg_index]
 						|= 1 << data->int_en_bit;
+   	 mutex_unlock(&int_flag_mutex);
 }
 
 static void ricoh619_irq_mask(struct irq_data *irq_data)
 {
 	struct ricoh619 *ricoh619 = irq_data_get_irq_chip_data(irq_data);
 	const struct ricoh619_irq_data *data= irq_to_ricoh619_irq(ricoh619,irq_data->irq);
+        mutex_lock(&int_flag_mutex);
 
 	ricoh619->group_irq_en[data->master_bit] &= ~(1 << data->grp_index);
 	if (!ricoh619->group_irq_en[data->master_bit])
@@ -254,6 +258,7 @@ static void ricoh619_irq_mask(struct irq_data *irq_data)
 	else
 		ricoh619->irq_en_reg[data->mask_reg_index]
 						&= ~(1 << data->int_en_bit);
+        mutex_unlock(&int_flag_mutex);
 }
 
 static void ricoh619_irq_sync_unlock(struct irq_data *irq_data)
@@ -423,7 +428,7 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 	int_sts[6] |= int_sts[7];
 
 	/* Call interrupt handler if enabled */
-
+        mutex_lock(&int_flag_mutex);
 	for (i = 0; i <RICOH619_NR_IRQS; ++i) {
 		const struct ricoh619_irq_data *data = &ricoh619_irqs[i];
 		if ((int_sts[data->mask_reg_index] & (1 << data->int_en_bit)) &&(ricoh619->group_irq_en[data->master_bit] & (1 << data->grp_index))){
@@ -432,6 +437,7 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 				handle_nested_irq(cur_irq);
 		}
 	}
+        mutex_unlock(&int_flag_mutex);
 
 //	printk(KERN_INFO "PMU: %s: out\n", __func__);
 	return IRQ_HANDLED;
@@ -439,8 +445,10 @@ static irqreturn_t ricoh619_irq(int irq, void *data)
 
 static struct irq_chip ricoh619_irq_chip = {
 	.name = "ricoh619",
-	.irq_mask = ricoh619_irq_mask,
-	.irq_unmask = ricoh619_irq_unmask,
+	//.irq_mask = ricoh619_irq_mask,
+	//.irq_unmask = ricoh619_irq_unmask,
+	.irq_enable = ricoh619_irq_unmask,
+	.irq_disable = ricoh619_irq_mask,
 	.irq_bus_lock = ricoh619_irq_lock,
 	.irq_bus_sync_unlock = ricoh619_irq_sync_unlock,
 	.irq_set_type = ricoh619_irq_set_type,
