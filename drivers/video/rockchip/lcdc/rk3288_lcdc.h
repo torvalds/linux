@@ -1349,7 +1349,7 @@ struct alpha_config{
 };
 
 struct lcdc_cabc_mode {
-	char pixel_num;			/* pixel precent number */
+	u32 pixel_num;			/* pixel precent number */
 	char stage_up;			/* up stride */
 	char stage_down;		/* down stride */
 };

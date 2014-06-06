@@ -3119,13 +3119,12 @@ static int rk3288_lcdc_get_dsp_addr(struct rk_lcdc_driver *dev_drv,unsigned int 
 	return 0;
 }
 
-static struct lcdc_cabc_mode cabc_mode[5] = {
+static struct lcdc_cabc_mode cabc_mode[4] = {
 /* pixel_num, stage_up, stage_down */
-	{5,	2,	2},	/*mode 1*/
-	{10,	2,	2},	/*mode 2*/
-	{15,	2,	2},	/*mode 3*/
-	{20,	2,	2},	/*mode 4*/
-	{20,	128,	0},	/*mode 5*/
+	{5,	128,	0},	/*mode 1*/
+	{10,	128,	0},	/*mode 2*/
+	{15,	128,	0},	/*mode 3*/
+	{20,	128,	0},	/*mode 4*/
 };
 
 static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
@@ -3133,27 +3132,40 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
-	int total_pixel, calc_pixel, stage_up, stage_down;
-	u32 mask = 0, val = 0;
+	u32 total_pixel, calc_pixel, stage_up, stage_down, pixel_num;
+	u32 mask = 0, val = 0, cabc_en = 0;
+	u32 max_mode_num = sizeof(cabc_mode) / sizeof(struct lcdc_cabc_mode);
 
 	dev_drv->cabc_mode = mode;
 
 	/* iomux connect to vop or pwm */
-	if (mode == 0) {	/* select rk pwm */
+	if (mode == 0) {
 		DBG(3, "close cabc and select rk pwm\n");
 		val = 0x30001;
 		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
-		spin_lock(&lcdc_dev->reg_lock);
-		if(lcdc_dev->clk_on) {
-			lcdc_msk_reg(lcdc_dev, CABC_CTRL0, m_CABC_EN, v_CABC_EN(0));
-			lcdc_cfg_done(lcdc_dev);
-		}
-		spin_unlock(&lcdc_dev->reg_lock);
-		return 0;
-	} else if (mode == 99) {	/* select vop pwm */
+		cabc_en = 0;
+	} else if (mode > 0 && mode <= max_mode_num) {
+		DBG(3, "open cabc and select vop pwm\n");
+		val = (dev_drv->id == 0) ? 0x30002 : 0x30003;
+		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
+		cabc_en = 1;
+	} else if (mode > 0x10 && mode <= (max_mode_num + 0x10)) {
+		DBG(3, "open cabc and select rk pwm\n");
+		val = 0x30001;
+		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
+		cabc_en = 1;
+		mode -= 0x10;
+	} else if (mode == 0xff) {
 		DBG(3, "close cabc and select vop pwm\n");
 		val = (dev_drv->id == 0) ? 0x30002 : 0x30003;
 		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
+		cabc_en = 0;
+	} else {
+		dev_err(lcdc_dev->dev, "invalid cabc mode value:%d", mode);
+		return 0;
+	}
+
+	if (cabc_en == 0) {
 		spin_lock(&lcdc_dev->reg_lock);
 		if(lcdc_dev->clk_on) {
 			lcdc_msk_reg(lcdc_dev, CABC_CTRL0, m_CABC_EN, v_CABC_EN(0));
@@ -3161,13 +3173,11 @@ static int rk3288_lcdc_set_dsp_cabc(struct rk_lcdc_driver *dev_drv, int mode)
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
 		return 0;
-	} else {
-		val = (dev_drv->id == 0) ? 0x30002 : 0x30003;
-		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_GPIO7A_IOMUX);
 	}
 
 	total_pixel = screen->mode.xres * screen->mode.yres;
-	calc_pixel = total_pixel * (100 - cabc_mode[mode - 1].pixel_num) / 100;
+        pixel_num = 1000 - (cabc_mode[mode - 1].pixel_num);
+	calc_pixel = (total_pixel * pixel_num) / 1000;
 	stage_up = cabc_mode[mode - 1].stage_up;
 	stage_down = cabc_mode[mode - 1].stage_down;
 	
