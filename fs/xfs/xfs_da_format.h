@@ -19,10 +19,6 @@
 #ifndef __XFS_DA_FORMAT_H__
 #define __XFS_DA_FORMAT_H__
 
-/*========================================================================
- * Directory Structure when greater than XFS_LBSIZE(mp) bytes.
- *========================================================================*/
-
 /*
  * This structure is common to both leaf nodes and non-leaf nodes in the Btree.
  *
@@ -121,8 +117,6 @@ struct xfs_da3_icnode_hdr {
 	__uint16_t	count;
 	__uint16_t	level;
 };
-
-#define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
 
 /*
  * Directory version 2.
@@ -619,10 +613,6 @@ xfs_dir2_block_leaf_p(struct xfs_dir2_block_tail *btp)
  * then that int is used as the index into the Btree.  Since the hashval
  * of an attribute name may not be unique, we may have duplicate keys.  The
  * internal links in the Btree are logical block offsets into the file.
- *
- *========================================================================
- * Attribute structure when equal to XFS_LBSIZE(mp) bytes.
- *========================================================================
  *
  * Struct leaf_entry's are packed from the top.  Name/values grow from the
  * bottom but are not packed.  The freemap contains run-length-encoded entries

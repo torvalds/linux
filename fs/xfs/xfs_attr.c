@@ -863,7 +863,7 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 }
 
 /*========================================================================
- * External routines when attribute list size > XFS_LBSIZE(mp).
+ * External routines when attribute list size > geo->blksize
  *========================================================================*/
 
 /*
