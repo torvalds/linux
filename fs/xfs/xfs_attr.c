@@ -88,6 +88,7 @@ xfs_attr_args_init(
 		return EINVAL;
 
 	memset(args, 0, sizeof(*args));
+	args->geo = dp->i_mount->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->dp = dp;
 	args->flags = flags;

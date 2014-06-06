@@ -27,6 +27,7 @@ struct xfs_nameops;
 struct xfs_ail;
 struct xfs_quotainfo;
 struct xfs_dir_ops;
+struct xfs_da_geometry;
 
 #ifdef HAVE_PERCPU_SB
 
@@ -96,6 +97,8 @@ typedef struct xfs_mount {
 	uint			m_readio_blocks; /* min read size blocks */
 	uint			m_writeio_log;	/* min write size log bytes */
 	uint			m_writeio_blocks; /* min write size blocks */
+	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
+	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
 	int			m_logbufs;	/* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */

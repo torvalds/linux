@@ -85,11 +85,12 @@ static struct xfs_nameops xfs_ascii_ci_nameops = {
 	.compname	= xfs_ascii_ci_compname,
 };
 
-void
-xfs_dir_mount(
-	xfs_mount_t	*mp)
+int
+xfs_da_mount(
+	struct xfs_mount	*mp)
 {
-	int	nodehdr_size;
+	struct xfs_da_geometry	*dageo;
+	int			nodehdr_size;
 
 
 	ASSERT(xfs_sb_version_hasdirv2(&mp->m_sb));
@@ -99,24 +100,64 @@ xfs_dir_mount(
 	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
 	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
 
-	mp->m_dirblksize = 1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog);
-	mp->m_dirblkfsbs = 1 << mp->m_sb.sb_dirblklog;
-	mp->m_dirdatablk = xfs_dir2_db_to_da(mp, XFS_DIR2_DATA_FIRSTDB(mp));
-	mp->m_dirleafblk = xfs_dir2_db_to_da(mp, XFS_DIR2_LEAF_FIRSTDB(mp));
-	mp->m_dirfreeblk = xfs_dir2_db_to_da(mp, XFS_DIR2_FREE_FIRSTDB(mp));
-
 	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size;
-	mp->m_attr_node_ents = (mp->m_sb.sb_blocksize - nodehdr_size) /
-				(uint)sizeof(xfs_da_node_entry_t);
-	mp->m_dir_node_ents = (mp->m_dirblksize - nodehdr_size) /
-				(uint)sizeof(xfs_da_node_entry_t);
+	mp->m_dir_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
+				    KM_SLEEP | KM_MAYFAIL);
+	mp->m_attr_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
+				     KM_SLEEP | KM_MAYFAIL);
+	if (!mp->m_dir_geo || !mp->m_attr_geo) {
+		kmem_free(mp->m_dir_geo);
+		kmem_free(mp->m_attr_geo);
+		return ENOMEM;
+	}
 
-	mp->m_dir_magicpct = (mp->m_dirblksize * 37) / 100;
+	/* set up directory geometry */
+	dageo = mp->m_dir_geo;
+	dageo->blklog = mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog;
+	dageo->fsblog = mp->m_sb.sb_blocklog;
+	dageo->blksize = 1 << dageo->blklog;
+	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
+	dageo->datablk = xfs_dir2_byte_to_da(mp, XFS_DIR2_DATA_OFFSET);
+	dageo->leafblk = xfs_dir2_byte_to_da(mp, XFS_DIR2_LEAF_OFFSET);
+	dageo->freeblk = xfs_dir2_byte_to_da(mp, XFS_DIR2_FREE_OFFSET);
+	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->magicpct = (dageo->blksize * 37) / 100;
+
+	/* set up attribute geometry - single fsb only */
+	dageo = mp->m_attr_geo;
+	dageo->blklog = mp->m_sb.sb_blocklog;
+	dageo->fsblog = mp->m_sb.sb_blocklog;
+	dageo->blksize = 1 << dageo->blklog;
+	dageo->fsbcount = 1;
+	dageo->node_ents = (dageo->blksize - nodehdr_size) /
+				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->magicpct = (dageo->blksize * 37) / 100;
+
 	if (xfs_sb_version_hasasciici(&mp->m_sb))
 		mp->m_dirnameops = &xfs_ascii_ci_nameops;
 	else
 		mp->m_dirnameops = &xfs_default_nameops;
 
+	/* XXX: these are to be removed as code is converted to use geo */
+	mp->m_dirblksize = mp->m_dir_geo->blksize;
+	mp->m_dirblkfsbs = mp->m_dir_geo->fsbcount;
+	mp->m_dirdatablk = mp->m_dir_geo->datablk;
+	mp->m_dirleafblk = mp->m_dir_geo->leafblk;
+	mp->m_dirfreeblk = mp->m_dir_geo->freeblk;
+	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
+	mp->m_dir_magicpct = mp->m_dir_geo->magicpct;
+	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
+	mp->m_attr_magicpct = mp->m_attr_geo->magicpct;
+	return 0;
+}
+
+void
+xfs_da_unmount(
+	struct xfs_mount	*mp)
+{
+	kmem_free(mp->m_dir_geo);
+	kmem_free(mp->m_attr_geo);
 }
 
 /*
@@ -192,6 +233,7 @@ xfs_dir_init(
 	if (!args)
 		return ENOMEM;
 
+	args->geo = dp->i_mount->m_dir_geo;
 	args->dp = dp;
 	args->trans = tp;
 	error = xfs_dir2_sf_create(args, pdp->i_ino);
@@ -226,6 +268,7 @@ xfs_dir_createname(
 	if (!args)
 		return ENOMEM;
 
+	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
@@ -320,6 +363,7 @@ xfs_dir_lookup(
 	 * annotations into the reclaim path for the ilock.
 	 */
 	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
@@ -391,6 +435,7 @@ xfs_dir_removename(
 	if (!args)
 		return ENOMEM;
 
+	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
@@ -455,6 +500,7 @@ xfs_dir_replace(
 	if (!args)
 		return ENOMEM;
 
+	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;
@@ -516,6 +562,7 @@ xfs_dir_canenter(
 	if (!args)
 		return ENOMEM;
 
+	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
 	args->filetype = name->type;

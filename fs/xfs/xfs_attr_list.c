@@ -444,6 +444,7 @@ xfs_attr3_leaf_list_int(
 				xfs_da_args_t args;
 
 				memset((char *)&args, 0, sizeof(args));
+				args.geo = context->dp->i_mount->m_attr_geo;
 				args.dp = context->dp;
 				args.whichfork = XFS_ATTR_FORK;
 				args.valuelen = valuelen;

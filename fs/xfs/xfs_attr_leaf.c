@@ -711,6 +711,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 
 	memset((char *)&nargs, 0, sizeof(nargs));
 	nargs.dp = dp;
+	nargs.geo = args->geo;
 	nargs.firstblock = args->firstblock;
 	nargs.flist = args->flist;
 	nargs.total = args->total;
@@ -838,6 +839,7 @@ xfs_attr3_leaf_to_shortform(
 	 * Copy the attributes
 	 */
 	memset((char *)&nargs, 0, sizeof(nargs));
+	nargs.geo = args->geo;
 	nargs.dp = dp;
 	nargs.firstblock = args->firstblock;
 	nargs.flist = args->flist;
