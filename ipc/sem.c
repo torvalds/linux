@@ -993,38 +993,30 @@ static void do_smart_update(struct sem_array *sma, struct sembuf *sops, int nsop
 }
 
 /*
- * check_qop: Test how often a queued operation sleeps on the semaphore semnum
+ * check_qop: Test if a queued operation sleeps on the semaphore semnum
  */
 static int check_qop(struct sem_array *sma, int semnum, struct sem_queue *q,
 			bool count_zero)
 {
-	struct sembuf *sops = q->sops;
-	int nsops = q->nsops;
-	int i, semcnt;
+	struct sembuf *sop = q->blocking;
 
-	semcnt = 0;
+	if (sop->sem_num != semnum)
+		return 0;
 
-	for (i = 0; i < nsops; i++) {
-		if (sops[i].sem_num != semnum)
-			continue;
-		if (sops[i].sem_flg & IPC_NOWAIT)
-			continue;
-		if (count_zero && sops[i].sem_op == 0)
-			semcnt++;
-		if (!count_zero && sops[i].sem_op < 0)
-			semcnt++;
-	}
-	return semcnt;
+	if (count_zero && sop->sem_op == 0)
+		return 1;
+	if (!count_zero && sop->sem_op < 0)
+		return 1;
+
+	return 0;
 }
 
 /* The following counts are associated to each semaphore:
  *   semncnt        number of tasks waiting on semval being nonzero
  *   semzcnt        number of tasks waiting on semval being zero
- * This model assumes that a task waits on exactly one semaphore.
- * Since semaphore operations are to be performed atomically, tasks actually
- * wait on a whole sequence of semaphores simultaneously.
- * The counts we return here are a rough approximation, but still
- * warrant that semncnt+semzcnt>0 if the task is on the pending queue.
+ *
+ * Per definition, a task waits only on the semaphore of the first semop
+ * that cannot proceed, even if additional operation would block, too.
  */
 static int count_semcnt(struct sem_array *sma, ushort semnum,
 			bool count_zero)
