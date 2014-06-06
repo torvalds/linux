@@ -26,7 +26,7 @@
 #include <linux/mfd/max14577.h>
 #include <linux/mfd/max14577-private.h>
 
-static struct mfd_cell max14577_devs[] = {
+static const struct mfd_cell max14577_devs[] = {
 	{
 		.name = "max14577-muic",
 		.of_compatible = "maxim,max14577-muic",
@@ -38,7 +38,7 @@ static struct mfd_cell max14577_devs[] = {
 	{ .name = "max14577-charger", },
 };
 
-static struct mfd_cell max77836_devs[] = {
+static const struct mfd_cell max77836_devs[] = {
 	{
 		.name = "max77836-muic",
 		.of_compatible = "maxim,max77836-muic",
@@ -57,7 +57,7 @@ static struct mfd_cell max77836_devs[] = {
 	},
 };
 
-static struct of_device_id max14577_dt_match[] = {
+static const struct of_device_id max14577_dt_match[] = {
 	{
 		.compatible = "maxim,max14577",
 		.data = (void *)MAXIM_DEVICE_TYPE_MAX14577,
@@ -292,7 +292,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	struct device_node *np = i2c->dev.of_node;
 	int ret = 0;
 	const struct regmap_irq_chip *irq_chip;
-	struct mfd_cell *mfd_devs;
+	const struct mfd_cell *mfd_devs;
 	unsigned int mfd_devs_size;
 	int irq_flags;
 
@@ -331,7 +331,8 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 
 		of_id = of_match_device(max14577_dt_match, &i2c->dev);
 		if (of_id)
-			max14577->dev_type = (unsigned int)of_id->data;
+			max14577->dev_type =
+				(enum maxim_device_type)of_id->data;
 	} else {
 		max14577->dev_type = id->driver_data;
 	}
@@ -414,20 +415,18 @@ static int max14577_suspend(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		enable_irq_wake(max14577->irq);
-		/*
-		 * MUIC IRQ must be disabled during suspend if this is
-		 * a wake up source because it will be handled before
-		 * resuming I2C.
-		 *
-		 * When device is woken up from suspend (e.g. by ADC change),
-		 * an interrupt occurs before resuming I2C bus controller.
-		 * Interrupt handler tries to read registers but this read
-		 * will fail because I2C is still suspended.
-		 */
-		disable_irq(max14577->irq);
-	}
+	/*
+	 * MUIC IRQ must be disabled during suspend because if it happens
+	 * while suspended it will be handled before resuming I2C.
+	 *
+	 * When device is woken up from suspend (e.g. by ADC change),
+	 * an interrupt occurs before resuming I2C bus controller.
+	 * Interrupt handler tries to read registers but this read
+	 * will fail because I2C is still suspended.
+	 */
+	disable_irq(max14577->irq);
 
 	return 0;
 }
@@ -437,10 +436,9 @@ static int max14577_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct max14577 *max14577 = i2c_get_clientdata(i2c);
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev))
 		disable_irq_wake(max14577->irq);
-		enable_irq(max14577->irq);
-	}
+	enable_irq(max14577->irq);
 
 	return 0;
 }

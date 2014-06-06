@@ -102,7 +102,7 @@ static int mfd_add_device(struct device *parent, int id,
 	pdev->dev.dma_mask = parent->dma_mask;
 	pdev->dev.dma_parms = parent->dma_parms;
 
-	ret = devm_regulator_bulk_register_supply_alias(
+	ret = regulator_bulk_register_supply_alias(
 			&pdev->dev, cell->parent_supplies,
 			parent, cell->parent_supplies,
 			cell->num_parent_supplies);
@@ -182,9 +182,9 @@ static int mfd_add_device(struct device *parent, int id,
 	return 0;
 
 fail_alias:
-	devm_regulator_bulk_unregister_supply_alias(&pdev->dev,
-						    cell->parent_supplies,
-						    cell->num_parent_supplies);
+	regulator_bulk_unregister_supply_alias(&pdev->dev,
+					       cell->parent_supplies,
+					       cell->num_parent_supplies);
 fail_res:
 	kfree(res);
 fail_device:
@@ -237,6 +237,9 @@ static int mfd_remove_devices_fn(struct device *dev, void *c)
 
 	pdev = to_platform_device(dev);
 	cell = mfd_get_cell(pdev);
+
+	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
+					       cell->num_parent_supplies);
 
 	/* find the base address of usage_count pointers (for freeing) */
 	if (!*usage_count || (cell->usage_count < *usage_count))
