@@ -32,6 +32,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
+#include <linux/syscore_ops.h>
 
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -1138,7 +1139,7 @@ static struct rk808_board *rk808_parse_dt(struct i2c_client *i2c)
 	return NULL;
 }
 #endif
-static int rk808_shutdown(struct i2c_client *i2c)
+static void rk808_shutdown(void)
 {
 	int ret,i,val;
 	u16 reg = 0;
@@ -1157,9 +1158,11 @@ static int rk808_shutdown(struct i2c_client *i2c)
 	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
 	mutex_lock(&rk808->io_lock);
 	msleep(100);
-	return 0;	
 }
-EXPORT_SYMBOL_GPL(rk808_shutdown);
+
+static struct syscore_ops rk808_syscore_ops = {
+	.shutdown = rk808_shutdown,
+};
 
 static void rk808_device_shutdown(void)
 {
@@ -1503,6 +1506,8 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 		}
 	}
 	#endif
+
+	register_syscore_ops(&rk808_syscore_ops);
 	
 	return 0;
 
@@ -1517,12 +1522,12 @@ static int rk808_i2c_remove(struct i2c_client *i2c)
 	struct rk808 *rk808 = i2c_get_clientdata(i2c);
 	int i;
 
+	unregister_syscore_ops(&rk808_syscore_ops);
 	for (i = 0; i < rk808->num_regulators; i++)
 		if (rk808->rdev[i])
 			regulator_unregister(rk808->rdev[i]);
 	kfree(rk808->rdev);
 	i2c_set_clientdata(i2c, NULL);
-	kfree(rk808);
 
 	return 0;
 }
@@ -1551,7 +1556,6 @@ static struct i2c_driver rk808_i2c_driver = {
 	.probe    = rk808_i2c_probe,
 	.remove   = rk808_i2c_remove,
 	.id_table = rk808_i2c_id,
-	.shutdown = rk808_shutdown,
 };
 
 static int __init rk808_module_init(void)
