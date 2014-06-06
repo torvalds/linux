@@ -46,7 +46,8 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 	return rc;
 }
 
-static int __sigp_emergency(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
+static int __inject_sigp_emergency(struct kvm_vcpu *vcpu,
+				    struct kvm_vcpu *dst_vcpu)
 {
 	struct kvm_s390_interrupt s390int = {
 		.type = KVM_S390_INT_EMERGENCY,
@@ -60,6 +61,11 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
 			   dst_vcpu->vcpu_id);
 
 	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
+}
+
+static int __sigp_emergency(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
+{
+	return __inject_sigp_emergency(vcpu, dst_vcpu);
 }
 
 static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu,
@@ -76,12 +82,12 @@ static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu,
 	p_asn = dst_vcpu->arch.sie_block->gcr[4] & 0xffff;  /* Primary ASN */
 	s_asn = dst_vcpu->arch.sie_block->gcr[3] & 0xffff;  /* Secondary ASN */
 
-	/* Deliver the emergency signal? */
+	/* Inject the emergency signal? */
 	if (!(flags & CPUSTAT_STOPPED)
 	    || (psw->mask & psw_int_mask) != psw_int_mask
 	    || ((flags & CPUSTAT_WAIT) && psw->addr != 0)
 	    || (!(flags & CPUSTAT_WAIT) && (asn == p_asn || asn == s_asn))) {
-		return __sigp_emergency(vcpu, dst_vcpu);
+		return __inject_sigp_emergency(vcpu, dst_vcpu);
 	} else {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
