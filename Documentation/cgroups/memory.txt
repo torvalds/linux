@@ -540,14 +540,13 @@ Note:
 
 5.3 swappiness
 
-Similar to /proc/sys/vm/swappiness, but only affecting reclaim that is
-triggered by this cgroup's hard limit.  The tunable in the root cgroup
-corresponds to the global swappiness setting.
+Overrides /proc/sys/vm/swappiness for the particular group. The tunable
+in the root cgroup corresponds to the global swappiness setting.
 
-Please note that unlike the global swappiness, memcg knob set to 0
-really prevents from any swapping even if there is a swap storage
-available. This might lead to memcg OOM killer if there are no file
-pages to reclaim.
+Please note that unlike during the global reclaim, limit reclaim
+enforces that 0 swappiness really prevents from any swapping even if
+there is a swap storage available. This might lead to memcg OOM killer
+if there are no file pages to reclaim.
 
 5.4 failcnt
 

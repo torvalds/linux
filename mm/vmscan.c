@@ -83,6 +83,9 @@ struct scan_control {
 	/* Scan (total_size >> priority) pages at once */
 	int priority;
 
+	/* anon vs. file LRUs scanning "ratio" */
+	int swappiness;
+
 	/*
 	 * The memory cgroup that hit its limit and as a result is the
 	 * primary target of this reclaim invocation.
@@ -1845,13 +1848,6 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 	return shrink_inactive_list(nr_to_scan, lruvec, sc, lru);
 }
 
-static int vmscan_swappiness(struct scan_control *sc)
-{
-	if (global_reclaim(sc))
-		return vm_swappiness;
-	return mem_cgroup_swappiness(sc->target_mem_cgroup);
-}
-
 enum scan_balance {
 	SCAN_EQUAL,
 	SCAN_FRACT,
@@ -1912,7 +1908,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	 * using the memory controller's swap limit feature would be
 	 * too expensive.
 	 */
-	if (!global_reclaim(sc) && !vmscan_swappiness(sc)) {
+	if (!global_reclaim(sc) && !sc->swappiness) {
 		scan_balance = SCAN_FILE;
 		goto out;
 	}
@@ -1922,7 +1918,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	 * system is close to OOM, scan both anon and file equally
 	 * (unless the swappiness setting disagrees with swapping).
 	 */
-	if (!sc->priority && vmscan_swappiness(sc)) {
+	if (!sc->priority && sc->swappiness) {
 		scan_balance = SCAN_EQUAL;
 		goto out;
 	}
@@ -1965,7 +1961,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	 * With swappiness at 100, anonymous and file have the same priority.
 	 * This scanning priority is essentially the inverse of IO cost.
 	 */
-	anon_prio = vmscan_swappiness(sc);
+	anon_prio = sc->swappiness;
 	file_prio = 200 - anon_prio;
 
 	/*
@@ -2265,6 +2261,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
 
 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
 
+			sc->swappiness = mem_cgroup_swappiness(memcg);
 			shrink_lruvec(lruvec, sc);
 
 			/*
@@ -2731,6 +2728,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
 		.may_swap = !noswap,
 		.order = 0,
 		.priority = 0,
+		.swappiness = mem_cgroup_swappiness(memcg),
 		.target_mem_cgroup = memcg,
 	};
 	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
