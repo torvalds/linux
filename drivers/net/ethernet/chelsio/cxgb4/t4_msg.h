@@ -227,6 +227,7 @@ struct cpl_pass_open_req {
 #define DELACK(x)     ((x) << 5)
 #define ULP_MODE(x)   ((x) << 8)
 #define RCV_BUFSIZ(x) ((x) << 12)
+#define RCV_BUFSIZ_MASK 0x3FFU
 #define DSCP(x)       ((x) << 22)
 #define SMAC_SEL(x)   ((u64)(x) << 28)
 #define L2T_IDX(x)    ((u64)(x) << 36)
