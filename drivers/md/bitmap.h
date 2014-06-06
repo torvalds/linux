@@ -227,6 +227,7 @@ struct bitmap {
 	wait_queue_head_t behind_wait;
 
 	struct kernfs_node *sysfs_can_clear;
+	int cluster_slot;		/* Slot offset for clustered env */
 };
 
 /* the bitmap API */

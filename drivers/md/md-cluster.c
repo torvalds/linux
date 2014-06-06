@@ -196,6 +196,12 @@ static int join(struct mddev *mddev, int nodes)
 	if (ret)
 		goto err;
 	wait_for_completion(&cinfo->completion);
+	if (nodes <= cinfo->slot_number) {
+		pr_err("md-cluster: Slot allotted(%d) greater than available slots(%d)", cinfo->slot_number - 1,
+			nodes);
+		ret = -ERANGE;
+		goto err;
+	}
 	cinfo->sb_lock = lockres_init(mddev, "cmd-super",
 					NULL, 0);
 	if (!cinfo->sb_lock) {
