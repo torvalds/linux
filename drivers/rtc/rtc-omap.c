@@ -73,43 +73,43 @@
 #define OMAP_RTC_IRQWAKEEN		0x7c
 
 /* OMAP_RTC_CTRL_REG bit fields: */
-#define OMAP_RTC_CTRL_SPLIT		(1<<7)
-#define OMAP_RTC_CTRL_DISABLE		(1<<6)
-#define OMAP_RTC_CTRL_SET_32_COUNTER	(1<<5)
-#define OMAP_RTC_CTRL_TEST		(1<<4)
-#define OMAP_RTC_CTRL_MODE_12_24	(1<<3)
-#define OMAP_RTC_CTRL_AUTO_COMP		(1<<2)
-#define OMAP_RTC_CTRL_ROUND_30S		(1<<1)
-#define OMAP_RTC_CTRL_STOP		(1<<0)
+#define OMAP_RTC_CTRL_SPLIT		BIT(7)
+#define OMAP_RTC_CTRL_DISABLE		BIT(6)
+#define OMAP_RTC_CTRL_SET_32_COUNTER	BIT(5)
+#define OMAP_RTC_CTRL_TEST		BIT(4)
+#define OMAP_RTC_CTRL_MODE_12_24	BIT(3)
+#define OMAP_RTC_CTRL_AUTO_COMP		BIT(2)
+#define OMAP_RTC_CTRL_ROUND_30S		BIT(1)
+#define OMAP_RTC_CTRL_STOP		BIT(0)
 
 /* OMAP_RTC_STATUS_REG bit fields: */
-#define OMAP_RTC_STATUS_POWER_UP        (1<<7)
-#define OMAP_RTC_STATUS_ALARM           (1<<6)
-#define OMAP_RTC_STATUS_1D_EVENT        (1<<5)
-#define OMAP_RTC_STATUS_1H_EVENT        (1<<4)
-#define OMAP_RTC_STATUS_1M_EVENT        (1<<3)
-#define OMAP_RTC_STATUS_1S_EVENT        (1<<2)
-#define OMAP_RTC_STATUS_RUN             (1<<1)
-#define OMAP_RTC_STATUS_BUSY            (1<<0)
+#define OMAP_RTC_STATUS_POWER_UP	BIT(7)
+#define OMAP_RTC_STATUS_ALARM		BIT(6)
+#define OMAP_RTC_STATUS_1D_EVENT	BIT(5)
+#define OMAP_RTC_STATUS_1H_EVENT	BIT(4)
+#define OMAP_RTC_STATUS_1M_EVENT	BIT(3)
+#define OMAP_RTC_STATUS_1S_EVENT	BIT(2)
+#define OMAP_RTC_STATUS_RUN		BIT(1)
+#define OMAP_RTC_STATUS_BUSY		BIT(0)
 
 /* OMAP_RTC_INTERRUPTS_REG bit fields: */
-#define OMAP_RTC_INTERRUPTS_IT_ALARM    (1<<3)
-#define OMAP_RTC_INTERRUPTS_IT_TIMER    (1<<2)
+#define OMAP_RTC_INTERRUPTS_IT_ALARM	BIT(3)
+#define OMAP_RTC_INTERRUPTS_IT_TIMER	BIT(2)
 
 /* OMAP_RTC_IRQWAKEEN bit fields: */
-#define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN    (1<<1)
+#define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN	BIT(1)
 
 /* OMAP_RTC_KICKER values */
 #define	KICK0_VALUE			0x83e70b13
 #define	KICK1_VALUE			0x95a4f1e0
 
-#define	OMAP_RTC_HAS_KICKER		0x1
+#define	OMAP_RTC_HAS_KICKER		BIT(0)
 
 /*
  * Few RTC IP revisions has special WAKE-EN Register to enable Wakeup
  * generation for event Alarm.
  */
-#define	OMAP_RTC_HAS_IRQWAKEEN		0x2
+#define	OMAP_RTC_HAS_IRQWAKEEN		BIT(1)
 
 static void __iomem	*rtc_base;
 
