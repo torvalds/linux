@@ -1494,8 +1494,8 @@ xfs_attr3_leaf_rebalance(
 
 	xfs_attr3_leaf_hdr_to_disk(leaf1, &ichdr1);
 	xfs_attr3_leaf_hdr_to_disk(leaf2, &ichdr2);
-	xfs_trans_log_buf(args->trans, blk1->bp, 0, state->blocksize-1);
-	xfs_trans_log_buf(args->trans, blk2->bp, 0, state->blocksize-1);
+	xfs_trans_log_buf(args->trans, blk1->bp, 0, args->geo->blksize - 1);
+	xfs_trans_log_buf(args->trans, blk2->bp, 0, args->geo->blksize - 1);
 
 	/*
 	 * Copy out last hashval in each block for B-tree code.
@@ -1592,7 +1592,7 @@ xfs_attr3_leaf_figure_balance(
 	half += ichdr1->usedbytes + ichdr2->usedbytes +
 			xfs_attr_leaf_newentsize(state->args, NULL);
 	half /= 2;
-	lastdelta = state->blocksize;
+	lastdelta = state->args->geo->blksize;
 	entry = xfs_attr3_leaf_entryp(leaf1);
 	for (count = index = 0; count < max; entry++, index++, count++) {
 
@@ -1690,7 +1690,7 @@ xfs_attr3_leaf_toosmall(
 	bytes = xfs_attr3_leaf_hdr_size(leaf) +
 		ichdr.count * sizeof(xfs_attr_leaf_entry_t) +
 		ichdr.usedbytes;
-	if (bytes > (state->blocksize >> 1)) {
+	if (bytes > (state->args->geo->blksize >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return(0);
 	}
@@ -1744,7 +1744,8 @@ xfs_attr3_leaf_toosmall(
 
 		xfs_attr3_leaf_hdr_from_disk(&ichdr2, bp->b_addr);
 
-		bytes = state->blocksize - (state->blocksize >> 2) -
+		bytes = state->args->geo->blksize -
+			(state->args->geo->blksize >> 2) -
 			ichdr.usedbytes - ichdr2.usedbytes -
 			((ichdr.count + ichdr2.count) *
 					sizeof(xfs_attr_leaf_entry_t)) -
@@ -1997,7 +1998,7 @@ xfs_attr3_leaf_unbalance(
 		struct xfs_attr_leafblock *tmp_leaf;
 		struct xfs_attr3_icleaf_hdr tmphdr;
 
-		tmp_leaf = kmem_zalloc(state->blocksize, KM_SLEEP);
+		tmp_leaf = kmem_zalloc(state->args->geo->blksize, KM_SLEEP);
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
@@ -2010,7 +2011,7 @@ xfs_attr3_leaf_unbalance(
 		tmphdr.magic = savehdr.magic;
 		tmphdr.forw = savehdr.forw;
 		tmphdr.back = savehdr.back;
-		tmphdr.firstused = state->blocksize;
+		tmphdr.firstused = state->args->geo->blksize;
 
 		/* write the header to the temp buffer to initialise it */
 		xfs_attr3_leaf_hdr_to_disk(tmp_leaf, &tmphdr);
@@ -2035,14 +2036,14 @@ xfs_attr3_leaf_unbalance(
 						tmp_leaf, &tmphdr, tmphdr.count,
 						drophdr.count);
 		}
-		memcpy(save_leaf, tmp_leaf, state->blocksize);
+		memcpy(save_leaf, tmp_leaf, state->args->geo->blksize);
 		savehdr = tmphdr; /* struct copy */
 		kmem_free(tmp_leaf);
 	}
 
 	xfs_attr3_leaf_hdr_to_disk(save_leaf, &savehdr);
 	xfs_trans_log_buf(state->args->trans, save_blk->bp, 0,
-					   state->blocksize - 1);
+					   state->args->geo->blksize - 1);
 
 	/*
 	 * Copy out last hashval in each block for B-tree code.

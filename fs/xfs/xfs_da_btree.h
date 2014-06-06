@@ -128,8 +128,6 @@ typedef struct xfs_da_state_path {
 typedef struct xfs_da_state {
 	xfs_da_args_t		*args;		/* filename arguments */
 	struct xfs_mount	*mp;		/* filesystem mount point */
-	unsigned int		blocksize;	/* logical block size */
-	unsigned int		node_ents;	/* how many entries in danode */
 	xfs_da_state_path_t	path;		/* search/split paths */
 	xfs_da_state_path_t	altpath;	/* alternate path for join */
 	unsigned char		inleaf;		/* insert into 1->lf, 0->splf */

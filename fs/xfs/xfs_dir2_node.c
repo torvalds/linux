@@ -1414,7 +1414,7 @@ xfs_dir2_leafn_toosmall(
 
 	count = leafhdr.count - leafhdr.stale;
 	bytes = dp->d_ops->leaf_hdr_size + count * sizeof(ents[0]);
-	if (bytes > (state->blocksize >> 1)) {
+	if (bytes > (state->args->geo->blksize >> 1)) {
 		/*
 		 * Blk over 50%, don't try to join.
 		 */
@@ -1467,7 +1467,8 @@ xfs_dir2_leafn_toosmall(
 		 * Count bytes in the two blocks combined.
 		 */
 		count = leafhdr.count - leafhdr.stale;
-		bytes = state->blocksize - (state->blocksize >> 2);
+		bytes = state->args->geo->blksize -
+			(state->args->geo->blksize >> 2);
 
 		leaf = bp->b_addr;
 		dp->d_ops->leaf_hdr_from_disk(&hdr2, leaf);
@@ -1591,8 +1592,6 @@ xfs_dir2_node_addname(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = args->geo->blksize;
-	state->node_ents = args->geo->node_ents;
 	/*
 	 * Look up the name.  We're not supposed to find it, but
 	 * this gives us the insertion point.
@@ -2037,8 +2036,6 @@ xfs_dir2_node_lookup(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = args->geo->blksize;
-	state->node_ents = args->geo->node_ents;
 	/*
 	 * Fill in the path to the entry in the cursor.
 	 */
@@ -2092,8 +2089,6 @@ xfs_dir2_node_removename(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = args->geo->blksize;
-	state->node_ents = args->geo->node_ents;
 
 	/* Look up the entry we're deleting, set up the cursor. */
 	error = xfs_da3_node_lookup_int(state, &rval);
@@ -2162,8 +2157,6 @@ xfs_dir2_node_replace(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = args->geo->blksize;
-	state->node_ents = args->geo->node_ents;
 	inum = args->inumber;
 	/*
 	 * Lookup the entry to change in the btree.

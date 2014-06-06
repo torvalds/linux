@@ -663,7 +663,7 @@ xfs_da3_node_split(
 	/*
 	 * Do we have to split the node?
 	 */
-	if (nodehdr.count + newcount > state->node_ents) {
+	if (nodehdr.count + newcount > state->args->geo->node_ents) {
 		/*
 		 * Allocate a new node, add to the doubly linked chain of
 		 * nodes, then move some of our excess entries into it.
@@ -1089,14 +1089,15 @@ xfs_da3_root_join(
 	 * that could occur. For dir3 blocks we also need to update the block
 	 * number in the buffer header.
 	 */
-	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
+	memcpy(root_blk->bp->b_addr, bp->b_addr, args->geo->blksize);
 	root_blk->bp->b_ops = bp->b_ops;
 	xfs_trans_buf_copy_type(root_blk->bp, bp);
 	if (oldroothdr.magic == XFS_DA3_NODE_MAGIC) {
 		struct xfs_da3_blkinfo *da3 = root_blk->bp->b_addr;
 		da3->blkno = cpu_to_be64(root_blk->bp->b_bn);
 	}
-	xfs_trans_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
+	xfs_trans_log_buf(args->trans, root_blk->bp, 0,
+			  args->geo->blksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
 	return(error);
 }
@@ -1139,7 +1140,7 @@ xfs_da3_node_toosmall(
 	info = blk->bp->b_addr;
 	node = (xfs_da_intnode_t *)info;
 	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
-	if (nodehdr.count > (state->node_ents >> 1)) {
+	if (nodehdr.count > (state->args->geo->node_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return(0);	/* blk over 50%, don't try to join */
 	}
@@ -1176,8 +1177,8 @@ xfs_da3_node_toosmall(
 	 * We prefer coalescing with the lower numbered sibling so as
 	 * to shrink a directory over time.
 	 */
-	count  = state->node_ents;
-	count -= state->node_ents >> 2;
+	count  = state->args->geo->node_ents;
+	count -= state->args->geo->node_ents >> 2;
 	count -= nodehdr.count;
 
 	/* start with smaller blk num */
