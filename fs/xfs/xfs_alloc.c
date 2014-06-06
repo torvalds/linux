@@ -541,7 +541,6 @@ xfs_alloc_read_agfl(
 			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (error)
 		return error;
-	ASSERT(!xfs_buf_geterror(bp));
 	xfs_buf_set_ref(bp, XFS_AGFL_REF);
 	*bpp = bp;
 	return 0;

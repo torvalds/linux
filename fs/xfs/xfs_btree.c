@@ -552,14 +552,11 @@ xfs_btree_get_bufl(
 	xfs_fsblock_t	fsbno,		/* file system block number */
 	uint		lock)		/* lock flags for get_buf */
 {
-	xfs_buf_t	*bp;		/* buffer pointer (return value) */
 	xfs_daddr_t		d;		/* real disk block address */
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
-	ASSERT(!xfs_buf_geterror(bp));
-	return bp;
+	return xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
 }
 
 /*
@@ -574,15 +571,12 @@ xfs_btree_get_bufs(
 	xfs_agblock_t	agbno,		/* allocation group block number */
 	uint		lock)		/* lock flags for get_buf */
 {
-	xfs_buf_t	*bp;		/* buffer pointer (return value) */
 	xfs_daddr_t		d;		/* real disk block address */
 
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
-	ASSERT(!xfs_buf_geterror(bp));
-	return bp;
+	return xfs_trans_get_buf(tp, mp->m_ddev_targp, d, mp->m_bsize, lock);
 }
 
 /*
@@ -722,7 +716,6 @@ xfs_btree_read_bufl(
 				   mp->m_bsize, lock, &bp, ops);
 	if (error)
 		return error;
-	ASSERT(!xfs_buf_geterror(bp));
 	if (bp)
 		xfs_buf_set_ref(bp, refval);
 	*bpp = bp;
@@ -1178,7 +1171,6 @@ xfs_btree_read_buf_block(
 	if (error)
 		return error;
 
-	ASSERT(!xfs_buf_geterror(*bpp));
 	xfs_btree_set_refs(cur, *bpp);
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;
