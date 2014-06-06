@@ -6232,6 +6232,25 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 	return 0;
 }
 
+static void free_trace_buffers(struct trace_array *tr)
+{
+	if (!tr)
+		return;
+
+	if (tr->trace_buffer.buffer) {
+		ring_buffer_free(tr->trace_buffer.buffer);
+		tr->trace_buffer.buffer = NULL;
+		free_percpu(tr->trace_buffer.data);
+	}
+
+#ifdef CONFIG_TRACER_MAX_TRACE
+	if (tr->max_buffer.buffer) {
+		ring_buffer_free(tr->max_buffer.buffer);
+		tr->max_buffer.buffer = NULL;
+	}
+#endif
+}
+
 static int new_instance_create(const char *name)
 {
 	struct trace_array *tr;
@@ -6290,8 +6309,7 @@ static int new_instance_create(const char *name)
 	return 0;
 
  out_free_tr:
-	if (tr->trace_buffer.buffer)
-		ring_buffer_free(tr->trace_buffer.buffer);
+	free_trace_buffers(tr);
 	free_cpumask_var(tr->tracing_cpumask);
 	kfree(tr->name);
 	kfree(tr);
