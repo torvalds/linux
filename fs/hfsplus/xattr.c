@@ -67,7 +67,7 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	char *bmp;
 	u32 used_nodes;
 	u32 used_bmp_bytes;
-	loff_t tmp;
+	u64 tmp;
 
 	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
 		clump_size, node_size);
