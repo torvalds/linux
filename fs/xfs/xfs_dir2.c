@@ -282,7 +282,7 @@ xfs_dir_createname(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(dp, &v);
+	rval = xfs_dir2_isblock(args, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -290,7 +290,7 @@ xfs_dir_createname(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(dp, &v);
+	rval = xfs_dir2_isleaf(args, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -375,7 +375,7 @@ xfs_dir_lookup(
 		goto out_check_rval;
 	}
 
-	rval = xfs_dir2_isblock(dp, &v);
+	rval = xfs_dir2_isblock(args, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -383,7 +383,7 @@ xfs_dir_lookup(
 		goto out_check_rval;
 	}
 
-	rval = xfs_dir2_isleaf(dp, &v);
+	rval = xfs_dir2_isleaf(args, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -448,7 +448,7 @@ xfs_dir_removename(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(dp, &v);
+	rval = xfs_dir2_isblock(args, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -456,7 +456,7 @@ xfs_dir_removename(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(dp, &v);
+	rval = xfs_dir2_isleaf(args, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -513,7 +513,7 @@ xfs_dir_replace(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(dp, &v);
+	rval = xfs_dir2_isblock(args, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -521,7 +521,7 @@ xfs_dir_replace(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(dp, &v);
+	rval = xfs_dir2_isleaf(args, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -573,7 +573,7 @@ xfs_dir_canenter(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isblock(dp, &v);
+	rval = xfs_dir2_isblock(args, &v);
 	if (rval)
 		goto out_free;
 	if (v) {
@@ -581,7 +581,7 @@ xfs_dir_canenter(
 		goto out_free;
 	}
 
-	rval = xfs_dir2_isleaf(dp, &v);
+	rval = xfs_dir2_isleaf(args, &v);
 	if (rval)
 		goto out_free;
 	if (v)
@@ -649,18 +649,16 @@ xfs_dir2_grow_inode(
  */
 int
 xfs_dir2_isblock(
-	xfs_inode_t	*dp,
-	int		*vp)		/* out: 1 is block, 0 is not block */
+	struct xfs_da_args	*args,
+	int			*vp)	/* out: 1 is block, 0 is not block */
 {
-	xfs_fileoff_t	last;		/* last file offset */
-	xfs_mount_t	*mp;
-	int		rval;
+	xfs_fileoff_t		last;	/* last file offset */
+	int			rval;
 
-	mp = dp->i_mount;
-	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
+	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
 		return rval;
-	rval = XFS_FSB_TO_B(mp, last) == mp->m_dir_geo->blksize;
-	ASSERT(rval == 0 || dp->i_d.di_size == mp->m_dir_geo->blksize);
+	rval = XFS_FSB_TO_B(args->dp->i_mount, last) == args->geo->blksize;
+	ASSERT(rval == 0 || args->dp->i_d.di_size == args->geo->blksize);
 	*vp = rval;
 	return 0;
 }
@@ -670,17 +668,15 @@ xfs_dir2_isblock(
  */
 int
 xfs_dir2_isleaf(
-	xfs_inode_t	*dp,
-	int		*vp)		/* out: 1 is leaf, 0 is not leaf */
+	struct xfs_da_args	*args,
+	int			*vp)	/* out: 1 is block, 0 is not block */
 {
-	xfs_fileoff_t	last;		/* last file offset */
-	xfs_mount_t	*mp;
-	int		rval;
+	xfs_fileoff_t		last;	/* last file offset */
+	int			rval;
 
-	mp = dp->i_mount;
-	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
+	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
 		return rval;
-	*vp = last == mp->m_dir_geo->leafblk + (1 << mp->m_sb.sb_dirblklog);
+	*vp = last == args->geo->leafblk + args->geo->fsbcount;
 	return 0;
 }
 
