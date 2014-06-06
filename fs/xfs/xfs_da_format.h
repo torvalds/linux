@@ -330,8 +330,6 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 #define	XFS_DIR2_SPACE_SIZE	(1ULL << (32 + XFS_DIR2_DATA_ALIGN_LOG))
 #define	XFS_DIR2_DATA_SPACE	0
 #define	XFS_DIR2_DATA_OFFSET	(XFS_DIR2_DATA_SPACE * XFS_DIR2_SPACE_SIZE)
-#define	XFS_DIR2_DATA_FIRSTDB(mp)	\
-	xfs_dir2_byte_to_db(mp, XFS_DIR2_DATA_OFFSET)
 
 /*
  * Describe a free area in the data block.
@@ -456,8 +454,6 @@ xfs_dir2_data_unused_tag_p(struct xfs_dir2_data_unused *dup)
  */
 #define	XFS_DIR2_LEAF_SPACE	1
 #define	XFS_DIR2_LEAF_OFFSET	(XFS_DIR2_LEAF_SPACE * XFS_DIR2_SPACE_SIZE)
-#define	XFS_DIR2_LEAF_FIRSTDB(mp)	\
-	xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET)
 
 /*
  * Leaf block header.
@@ -531,8 +527,6 @@ xfs_dir2_leaf_bests_p(struct xfs_dir2_leaf_tail *ltp)
  */
 #define	XFS_DIR2_FREE_SPACE	2
 #define	XFS_DIR2_FREE_OFFSET	(XFS_DIR2_FREE_SPACE * XFS_DIR2_SPACE_SIZE)
-#define	XFS_DIR2_FREE_FIRSTDB(mp)	\
-	xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET)
 
 typedef	struct xfs_dir2_free_hdr {
 	__be32			magic;		/* XFS_DIR2_FREE_MAGIC */

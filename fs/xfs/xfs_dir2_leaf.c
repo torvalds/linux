@@ -347,8 +347,8 @@ xfs_dir3_leaf_get_buf(
 	int			error;
 
 	ASSERT(magic == XFS_DIR2_LEAF1_MAGIC || magic == XFS_DIR2_LEAFN_MAGIC);
-	ASSERT(bno >= XFS_DIR2_LEAF_FIRSTDB(mp) &&
-	       bno < XFS_DIR2_FREE_FIRSTDB(mp));
+	ASSERT(bno >= xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET) &&
+	       bno < xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET));
 
 	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, bno), -1, &bp,
 			       XFS_DATA_FORK);
@@ -404,7 +404,7 @@ xfs_dir2_block_to_leaf(
 		return error;
 	}
 	ldb = xfs_dir2_da_to_db(mp, blkno);
-	ASSERT(ldb == XFS_DIR2_LEAF_FIRSTDB(mp));
+	ASSERT(ldb == xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET));
 	/*
 	 * Initialize the leaf block, get a buffer for it.
 	 */
@@ -1798,7 +1798,8 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Get rid of the freespace block.
 	 */
-	error = xfs_dir2_shrink_inode(args, XFS_DIR2_FREE_FIRSTDB(mp), fbp);
+	error = xfs_dir2_shrink_inode(args,
+			xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET), fbp);
 	if (error) {
 		/*
 		 * This can't fail here because it can only happen when

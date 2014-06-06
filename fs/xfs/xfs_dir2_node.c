@@ -315,7 +315,7 @@ xfs_dir2_leaf_to_node(
 	if ((error = xfs_dir2_grow_inode(args, XFS_DIR2_FREE_SPACE, &fdb))) {
 		return error;
 	}
-	ASSERT(fdb == XFS_DIR2_FREE_FIRSTDB(mp));
+	ASSERT(fdb == xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET));
 	/*
 	 * Get the buffer for the new freespace block.
 	 */
@@ -1256,7 +1256,7 @@ xfs_dir2_leafn_remove(
 		struct xfs_dir3_icfree_hdr freehdr;
 		dp->d_ops->free_hdr_from_disk(&freehdr, free);
 		ASSERT(freehdr.firstdb == dp->d_ops->free_max_bests(mp) *
-					  (fdb - XFS_DIR2_FREE_FIRSTDB(mp)));
+			  (fdb - xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET)));
 	}
 #endif
 		/*
@@ -1747,7 +1747,8 @@ xfs_dir2_node_addname_int(
 			 * us a freespace block to start with.
 			 */
 			if (++fbno == 0)
-				fbno = XFS_DIR2_FREE_FIRSTDB(mp);
+				fbno = xfs_dir2_byte_to_db(mp,
+							XFS_DIR2_FREE_OFFSET);
 			/*
 			 * If it's ifbno we already looked at it.
 			 */
@@ -1887,7 +1888,9 @@ xfs_dir2_node_addname_int(
 			/*
 			 * Remember the first slot as our empty slot.
 			 */
-			freehdr.firstdb = (fbno - XFS_DIR2_FREE_FIRSTDB(mp)) *
+			freehdr.firstdb =
+				(fbno - xfs_dir2_byte_to_db(mp,
+							XFS_DIR2_FREE_OFFSET)) *
 					dp->d_ops->free_max_bests(mp);
 		} else {
 			free = fbp->b_addr;

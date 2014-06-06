@@ -611,7 +611,8 @@ xfs_dir2_free_bests_p(struct xfs_dir2_free *free)
 static xfs_dir2_db_t
 xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir2_free_max_bests(mp);
+	return xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET) +
+			(db / xfs_dir2_free_max_bests(mp));
 }
 
 /*
@@ -642,7 +643,8 @@ xfs_dir3_free_bests_p(struct xfs_dir2_free *free)
 static xfs_dir2_db_t
 xfs_dir3_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir3_free_max_bests(mp);
+	return xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET) +
+			(db / xfs_dir3_free_max_bests(mp));
 }
 
 /*
