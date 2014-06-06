@@ -721,9 +721,14 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 	ret = debuginfo__find_available_vars_at(dinfo, pev, &vls,
 						max_vls, externs);
 	if (ret <= 0) {
-		pr_err("Failed to find variables at %s (%d)\n", buf, ret);
+		if (ret == 0 || ret == -ENOENT) {
+			pr_err("Failed to find the address of %s\n", buf);
+			ret = -ENOENT;
+		} else
+			pr_warning("Debuginfo analysis failed.\n");
 		goto end;
 	}
+
 	/* Some variables are found */
 	fprintf(stdout, "Available variables at %s\n", buf);
 	for (i = 0; i < ret; i++) {
