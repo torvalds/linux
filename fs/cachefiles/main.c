@@ -68,8 +68,7 @@ static int __init cachefiles_init(void)
 				  SLAB_HWCACHE_ALIGN,
 				  cachefiles_object_init_once);
 	if (!cachefiles_object_jar) {
-		printk(KERN_NOTICE
-		       "CacheFiles: Failed to allocate an object jar\n");
+		pr_notice("CacheFiles: Failed to allocate an object jar\n");
 		goto error_object_jar;
 	}
 
@@ -77,7 +76,7 @@ static int __init cachefiles_init(void)
 	if (ret < 0)
 		goto error_proc;
 
-	printk(KERN_INFO "CacheFiles: Loaded\n");
+	pr_info("CacheFiles: Loaded\n");
 	return 0;
 
 error_proc:
@@ -96,7 +95,7 @@ fs_initcall(cachefiles_init);
  */
 static void __exit cachefiles_exit(void)
 {
-	printk(KERN_INFO "CacheFiles: Unloading\n");
+	pr_info("CacheFiles: Unloading\n");
 
 	cachefiles_proc_cleanup();
 	kmem_cache_destroy(cachefiles_object_jar);
