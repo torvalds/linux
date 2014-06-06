@@ -64,10 +64,10 @@ static inline bool is_simm32(s64 value)
 	return value == (s64) (s32) value;
 }
 
-/* mov A, X */
-#define EMIT_mov(A, X) \
-	do {if (A != X) \
-		EMIT3(add_2mod(0x48, A, X), 0x89, add_2reg(0xC0, A, X)); \
+/* mov dst, src */
+#define EMIT_mov(DST, SRC) \
+	do {if (DST != SRC) \
+		EMIT3(add_2mod(0x48, DST, SRC), 0x89, add_2reg(0xC0, DST, SRC)); \
 	} while (0)
 
 static int bpf_size_to_x86_bytes(int bpf_size)
@@ -194,16 +194,16 @@ static inline u8 add_2mod(u8 byte, u32 r1, u32 r2)
 	return byte;
 }
 
-/* encode dest register 'a_reg' into x64 opcode 'byte' */
-static inline u8 add_1reg(u8 byte, u32 a_reg)
+/* encode 'dst_reg' register into x64 opcode 'byte' */
+static inline u8 add_1reg(u8 byte, u32 dst_reg)
 {
-	return byte + reg2hex[a_reg];
+	return byte + reg2hex[dst_reg];
 }
 
-/* encode dest 'a_reg' and src 'x_reg' registers into x64 opcode 'byte' */
-static inline u8 add_2reg(u8 byte, u32 a_reg, u32 x_reg)
+/* encode 'dst_reg' and 'src_reg' registers into x64 opcode 'byte' */
+static inline u8 add_2reg(u8 byte, u32 dst_reg, u32 src_reg)
 {
-	return byte + reg2hex[a_reg] + (reg2hex[x_reg] << 3);
+	return byte + reg2hex[dst_reg] + (reg2hex[src_reg] << 3);
 }
 
 struct jit_context {
@@ -286,9 +286,9 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 	}
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		const s32 K = insn->imm;
-		u32 a_reg = insn->a_reg;
-		u32 x_reg = insn->x_reg;
+		const s32 imm32 = insn->imm;
+		u32 dst_reg = insn->dst_reg;
+		u32 src_reg = insn->src_reg;
 		u8 b1 = 0, b2 = 0, b3 = 0;
 		s64 jmp_offset;
 		u8 jmp_cond;
@@ -315,32 +315,32 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			case BPF_XOR: b2 = 0x31; break;
 			}
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
-				EMIT1(add_2mod(0x48, a_reg, x_reg));
-			else if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT1(add_2mod(0x40, a_reg, x_reg));
-			EMIT2(b2, add_2reg(0xC0, a_reg, x_reg));
+				EMIT1(add_2mod(0x48, dst_reg, src_reg));
+			else if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, dst_reg, src_reg));
+			EMIT2(b2, add_2reg(0xC0, dst_reg, src_reg));
 			break;
 
-			/* mov A, X */
+			/* mov dst, src */
 		case BPF_ALU64 | BPF_MOV | BPF_X:
-			EMIT_mov(a_reg, x_reg);
+			EMIT_mov(dst_reg, src_reg);
 			break;
 
-			/* mov32 A, X */
+			/* mov32 dst, src */
 		case BPF_ALU | BPF_MOV | BPF_X:
-			if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT1(add_2mod(0x40, a_reg, x_reg));
-			EMIT2(0x89, add_2reg(0xC0, a_reg, x_reg));
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT1(add_2mod(0x40, dst_reg, src_reg));
+			EMIT2(0x89, add_2reg(0xC0, dst_reg, src_reg));
 			break;
 
-			/* neg A */
+			/* neg dst */
 		case BPF_ALU | BPF_NEG:
 		case BPF_ALU64 | BPF_NEG:
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
-				EMIT1(add_1mod(0x48, a_reg));
-			else if (is_ereg(a_reg))
-				EMIT1(add_1mod(0x40, a_reg));
-			EMIT2(0xF7, add_1reg(0xD8, a_reg));
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
+			EMIT2(0xF7, add_1reg(0xD8, dst_reg));
 			break;
 
 		case BPF_ALU | BPF_ADD | BPF_K:
@@ -354,9 +354,9 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU64 | BPF_OR | BPF_K:
 		case BPF_ALU64 | BPF_XOR | BPF_K:
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
-				EMIT1(add_1mod(0x48, a_reg));
-			else if (is_ereg(a_reg))
-				EMIT1(add_1mod(0x40, a_reg));
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
 
 			switch (BPF_OP(insn->code)) {
 			case BPF_ADD: b3 = 0xC0; break;
@@ -366,10 +366,10 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			case BPF_XOR: b3 = 0xF0; break;
 			}
 
-			if (is_imm8(K))
-				EMIT3(0x83, add_1reg(b3, a_reg), K);
+			if (is_imm8(imm32))
+				EMIT3(0x83, add_1reg(b3, dst_reg), imm32);
 			else
-				EMIT2_off32(0x81, add_1reg(b3, a_reg), K);
+				EMIT2_off32(0x81, add_1reg(b3, dst_reg), imm32);
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_K:
@@ -377,23 +377,23 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			 * use 'mov eax, imm32' (which zero-extends imm32)
 			 * to save 2 bytes
 			 */
-			if (K < 0) {
+			if (imm32 < 0) {
 				/* 'mov rax, imm32' sign extends imm32 */
-				b1 = add_1mod(0x48, a_reg);
+				b1 = add_1mod(0x48, dst_reg);
 				b2 = 0xC7;
 				b3 = 0xC0;
-				EMIT3_off32(b1, b2, add_1reg(b3, a_reg), K);
+				EMIT3_off32(b1, b2, add_1reg(b3, dst_reg), imm32);
 				break;
 			}
 
 		case BPF_ALU | BPF_MOV | BPF_K:
 			/* mov %eax, imm32 */
-			if (is_ereg(a_reg))
-				EMIT1(add_1mod(0x40, a_reg));
-			EMIT1_off32(add_1reg(0xB8, a_reg), K);
+			if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
+			EMIT1_off32(add_1reg(0xB8, dst_reg), imm32);
 			break;
 
-			/* A %= X, A /= X, A %= K, A /= K */
+			/* dst %= src, dst /= src, dst %= imm32, dst /= imm32 */
 		case BPF_ALU | BPF_MOD | BPF_X:
 		case BPF_ALU | BPF_DIV | BPF_X:
 		case BPF_ALU | BPF_MOD | BPF_K:
@@ -406,14 +406,14 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			EMIT1(0x52); /* push rdx */
 
 			if (BPF_SRC(insn->code) == BPF_X)
-				/* mov r11, X */
-				EMIT_mov(AUX_REG, x_reg);
+				/* mov r11, src_reg */
+				EMIT_mov(AUX_REG, src_reg);
 			else
-				/* mov r11, K */
-				EMIT3_off32(0x49, 0xC7, 0xC3, K);
+				/* mov r11, imm32 */
+				EMIT3_off32(0x49, 0xC7, 0xC3, imm32);
 
-			/* mov rax, A */
-			EMIT_mov(BPF_REG_0, a_reg);
+			/* mov rax, dst_reg */
+			EMIT_mov(BPF_REG_0, dst_reg);
 
 			/* xor edx, edx
 			 * equivalent to 'xor rdx, rdx', but one byte less
@@ -421,7 +421,7 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			EMIT2(0x31, 0xd2);
 
 			if (BPF_SRC(insn->code) == BPF_X) {
-				/* if (X == 0) return 0 */
+				/* if (src_reg == 0) return 0 */
 
 				/* cmp r11, 0 */
 				EMIT4(0x49, 0x83, 0xFB, 0x00);
@@ -457,8 +457,8 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			EMIT1(0x5A); /* pop rdx */
 			EMIT1(0x58); /* pop rax */
 
-			/* mov A, r11 */
-			EMIT_mov(a_reg, AUX_REG);
+			/* mov dst_reg, r11 */
+			EMIT_mov(dst_reg, AUX_REG);
 			break;
 
 		case BPF_ALU | BPF_MUL | BPF_K:
@@ -468,15 +468,15 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			EMIT1(0x50); /* push rax */
 			EMIT1(0x52); /* push rdx */
 
-			/* mov r11, A */
-			EMIT_mov(AUX_REG, a_reg);
+			/* mov r11, dst_reg */
+			EMIT_mov(AUX_REG, dst_reg);
 
 			if (BPF_SRC(insn->code) == BPF_X)
-				/* mov rax, X */
-				EMIT_mov(BPF_REG_0, x_reg);
+				/* mov rax, src_reg */
+				EMIT_mov(BPF_REG_0, src_reg);
 			else
-				/* mov rax, K */
-				EMIT3_off32(0x48, 0xC7, 0xC0, K);
+				/* mov rax, imm32 */
+				EMIT3_off32(0x48, 0xC7, 0xC0, imm32);
 
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
 				EMIT1(add_1mod(0x48, AUX_REG));
@@ -491,8 +491,8 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 			EMIT1(0x5A); /* pop rdx */
 			EMIT1(0x58); /* pop rax */
 
-			/* mov A, r11 */
-			EMIT_mov(a_reg, AUX_REG);
+			/* mov dst_reg, r11 */
+			EMIT_mov(dst_reg, AUX_REG);
 			break;
 
 			/* shifts */
@@ -503,39 +503,39 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU64 | BPF_RSH | BPF_K:
 		case BPF_ALU64 | BPF_ARSH | BPF_K:
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
-				EMIT1(add_1mod(0x48, a_reg));
-			else if (is_ereg(a_reg))
-				EMIT1(add_1mod(0x40, a_reg));
+				EMIT1(add_1mod(0x48, dst_reg));
+			else if (is_ereg(dst_reg))
+				EMIT1(add_1mod(0x40, dst_reg));
 
 			switch (BPF_OP(insn->code)) {
 			case BPF_LSH: b3 = 0xE0; break;
 			case BPF_RSH: b3 = 0xE8; break;
 			case BPF_ARSH: b3 = 0xF8; break;
 			}
-			EMIT3(0xC1, add_1reg(b3, a_reg), K);
+			EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
 			break;
 
 		case BPF_ALU | BPF_END | BPF_FROM_BE:
-			switch (K) {
+			switch (imm32) {
 			case 16:
 				/* emit 'ror %ax, 8' to swap lower 2 bytes */
 				EMIT1(0x66);
-				if (is_ereg(a_reg))
+				if (is_ereg(dst_reg))
 					EMIT1(0x41);
-				EMIT3(0xC1, add_1reg(0xC8, a_reg), 8);
+				EMIT3(0xC1, add_1reg(0xC8, dst_reg), 8);
 				break;
 			case 32:
 				/* emit 'bswap eax' to swap lower 4 bytes */
-				if (is_ereg(a_reg))
+				if (is_ereg(dst_reg))
 					EMIT2(0x41, 0x0F);
 				else
 					EMIT1(0x0F);
-				EMIT1(add_1reg(0xC8, a_reg));
+				EMIT1(add_1reg(0xC8, dst_reg));
 				break;
 			case 64:
 				/* emit 'bswap rax' to swap 8 bytes */
-				EMIT3(add_1mod(0x48, a_reg), 0x0F,
-				      add_1reg(0xC8, a_reg));
+				EMIT3(add_1mod(0x48, dst_reg), 0x0F,
+				      add_1reg(0xC8, dst_reg));
 				break;
 			}
 			break;
@@ -543,117 +543,117 @@ static int do_jit(struct sk_filter *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU | BPF_END | BPF_FROM_LE:
 			break;
 
-			/* ST: *(u8*)(a_reg + off) = imm */
+			/* ST: *(u8*)(dst_reg + off) = imm */
 		case BPF_ST | BPF_MEM | BPF_B:
-			if (is_ereg(a_reg))
+			if (is_ereg(dst_reg))
 				EMIT2(0x41, 0xC6);
 			else
 				EMIT1(0xC6);
 			goto st;
 		case BPF_ST | BPF_MEM | BPF_H:
-			if (is_ereg(a_reg))
+			if (is_ereg(dst_reg))
 				EMIT3(0x66, 0x41, 0xC7);
 			else
 				EMIT2(0x66, 0xC7);
 			goto st;
 		case BPF_ST | BPF_MEM | BPF_W:
-			if (is_ereg(a_reg))
+			if (is_ereg(dst_reg))
 				EMIT2(0x41, 0xC7);
 			else
 				EMIT1(0xC7);
 			goto st;
 		case BPF_ST | BPF_MEM | BPF_DW:
-			EMIT2(add_1mod(0x48, a_reg), 0xC7);
+			EMIT2(add_1mod(0x48, dst_reg), 0xC7);
 
 st:			if (is_imm8(insn->off))
-				EMIT2(add_1reg(0x40, a_reg), insn->off);
+				EMIT2(add_1reg(0x40, dst_reg), insn->off);
 			else
-				EMIT1_off32(add_1reg(0x80, a_reg), insn->off);
+				EMIT1_off32(add_1reg(0x80, dst_reg), insn->off);
 
-			EMIT(K, bpf_size_to_x86_bytes(BPF_SIZE(insn->code)));
+			EMIT(imm32, bpf_size_to_x86_bytes(BPF_SIZE(insn->code)));
 			break;
 
-			/* STX: *(u8*)(a_reg + off) = x_reg */
+			/* STX: *(u8*)(dst_reg + off) = src_reg */
 		case BPF_STX | BPF_MEM | BPF_B:
 			/* emit 'mov byte ptr [rax + off], al' */
-			if (is_ereg(a_reg) || is_ereg(x_reg) ||
+			if (is_ereg(dst_reg) || is_ereg(src_reg) ||
 			    /* have to add extra byte for x86 SIL, DIL regs */
-			    x_reg == BPF_REG_1 || x_reg == BPF_REG_2)
-				EMIT2(add_2mod(0x40, a_reg, x_reg), 0x88);
+			    src_reg == BPF_REG_1 || src_reg == BPF_REG_2)
+				EMIT2(add_2mod(0x40, dst_reg, src_reg), 0x88);
 			else
 				EMIT1(0x88);
 			goto stx;
 		case BPF_STX | BPF_MEM | BPF_H:
-			if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT3(0x66, add_2mod(0x40, a_reg, x_reg), 0x89);
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT3(0x66, add_2mod(0x40, dst_reg, src_reg), 0x89);
 			else
 				EMIT2(0x66, 0x89);
 			goto stx;
 		case BPF_STX | BPF_MEM | BPF_W:
-			if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT2(add_2mod(0x40, a_reg, x_reg), 0x89);
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT2(add_2mod(0x40, dst_reg, src_reg), 0x89);
 			else
 				EMIT1(0x89);
 			goto stx;
 		case BPF_STX | BPF_MEM | BPF_DW:
-			EMIT2(add_2mod(0x48, a_reg, x_reg), 0x89);
+			EMIT2(add_2mod(0x48, dst_reg, src_reg), 0x89);
 stx:			if (is_imm8(insn->off))
-				EMIT2(add_2reg(0x40, a_reg, x_reg), insn->off);
+				EMIT2(add_2reg(0x40, dst_reg, src_reg), insn->off);
 			else
-				EMIT1_off32(add_2reg(0x80, a_reg, x_reg),
+				EMIT1_off32(add_2reg(0x80, dst_reg, src_reg),
 					    insn->off);
 			break;
 
-			/* LDX: a_reg = *(u8*)(x_reg + off) */
+			/* LDX: dst_reg = *(u8*)(src_reg + off) */
 		case BPF_LDX | BPF_MEM | BPF_B:
 			/* emit 'movzx rax, byte ptr [rax + off]' */
-			EMIT3(add_2mod(0x48, x_reg, a_reg), 0x0F, 0xB6);
+			EMIT3(add_2mod(0x48, src_reg, dst_reg), 0x0F, 0xB6);
 			goto ldx;
 		case BPF_LDX | BPF_MEM | BPF_H:
 			/* emit 'movzx rax, word ptr [rax + off]' */
-			EMIT3(add_2mod(0x48, x_reg, a_reg), 0x0F, 0xB7);
+			EMIT3(add_2mod(0x48, src_reg, dst_reg), 0x0F, 0xB7);
 			goto ldx;
 		case BPF_LDX | BPF_MEM | BPF_W:
 			/* emit 'mov eax, dword ptr [rax+0x14]' */
-			if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT2(add_2mod(0x40, x_reg, a_reg), 0x8B);
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT2(add_2mod(0x40, src_reg, dst_reg), 0x8B);
 			else
 				EMIT1(0x8B);
 			goto ldx;
 		case BPF_LDX | BPF_MEM | BPF_DW:
 			/* emit 'mov rax, qword ptr [rax+0x14]' */
-			EMIT2(add_2mod(0x48, x_reg, a_reg), 0x8B);
+			EMIT2(add_2mod(0x48, src_reg, dst_reg), 0x8B);
 ldx:			/* if insn->off == 0 we can save one extra byte, but
 			 * special case of x86 r13 which always needs an offset
 			 * is not worth the hassle
 			 */
 			if (is_imm8(insn->off))
-				EMIT2(add_2reg(0x40, x_reg, a_reg), insn->off);
+				EMIT2(add_2reg(0x40, src_reg, dst_reg), insn->off);
 			else
-				EMIT1_off32(add_2reg(0x80, x_reg, a_reg),
+				EMIT1_off32(add_2reg(0x80, src_reg, dst_reg),
 					    insn->off);
 			break;
 
-			/* STX XADD: lock *(u32*)(a_reg + off) += x_reg */
+			/* STX XADD: lock *(u32*)(dst_reg + off) += src_reg */
 		case BPF_STX | BPF_XADD | BPF_W:
 			/* emit 'lock add dword ptr [rax + off], eax' */
-			if (is_ereg(a_reg) || is_ereg(x_reg))
-				EMIT3(0xF0, add_2mod(0x40, a_reg, x_reg), 0x01);
+			if (is_ereg(dst_reg) || is_ereg(src_reg))
+				EMIT3(0xF0, add_2mod(0x40, dst_reg, src_reg), 0x01);
 			else
 				EMIT2(0xF0, 0x01);
 			goto xadd;
 		case BPF_STX | BPF_XADD | BPF_DW:
-			EMIT3(0xF0, add_2mod(0x48, a_reg, x_reg), 0x01);
+			EMIT3(0xF0, add_2mod(0x48, dst_reg, src_reg), 0x01);
 xadd:			if (is_imm8(insn->off))
-				EMIT2(add_2reg(0x40, a_reg, x_reg), insn->off);
+				EMIT2(add_2reg(0x40, dst_reg, src_reg), insn->off);
 			else
-				EMIT1_off32(add_2reg(0x80, a_reg, x_reg),
+				EMIT1_off32(add_2reg(0x80, dst_reg, src_reg),
 					    insn->off);
 			break;
 
 			/* call */
 		case BPF_JMP | BPF_CALL:
-			func = (u8 *) __bpf_call_base + K;
+			func = (u8 *) __bpf_call_base + imm32;
 			jmp_offset = func - (image + addrs[i]);
 			if (ctx->seen_ld_abs) {
 				EMIT2(0x41, 0x52); /* push %r10 */
@@ -663,9 +663,9 @@ xadd:			if (is_imm8(insn->off))
 				 */
 				jmp_offset += 4;
 			}
-			if (!K || !is_simm32(jmp_offset)) {
+			if (!imm32 || !is_simm32(jmp_offset)) {
 				pr_err("unsupported bpf func %d addr %p image %p\n",
-				       K, func, image);
+				       imm32, func, image);
 				return -EINVAL;
 			}
 			EMIT1_off32(0xE8, jmp_offset);
@@ -682,21 +682,21 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_JGE | BPF_X:
 		case BPF_JMP | BPF_JSGT | BPF_X:
 		case BPF_JMP | BPF_JSGE | BPF_X:
-			/* cmp a_reg, x_reg */
-			EMIT3(add_2mod(0x48, a_reg, x_reg), 0x39,
-			      add_2reg(0xC0, a_reg, x_reg));
+			/* cmp dst_reg, src_reg */
+			EMIT3(add_2mod(0x48, dst_reg, src_reg), 0x39,
+			      add_2reg(0xC0, dst_reg, src_reg));
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JSET | BPF_X:
-			/* test a_reg, x_reg */
-			EMIT3(add_2mod(0x48, a_reg, x_reg), 0x85,
-			      add_2reg(0xC0, a_reg, x_reg));
+			/* test dst_reg, src_reg */
+			EMIT3(add_2mod(0x48, dst_reg, src_reg), 0x85,
+			      add_2reg(0xC0, dst_reg, src_reg));
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JSET | BPF_K:
-			/* test a_reg, imm32 */
-			EMIT1(add_1mod(0x48, a_reg));
-			EMIT2_off32(0xF7, add_1reg(0xC0, a_reg), K);
+			/* test dst_reg, imm32 */
+			EMIT1(add_1mod(0x48, dst_reg));
+			EMIT2_off32(0xF7, add_1reg(0xC0, dst_reg), imm32);
 			goto emit_cond_jmp;
 
 		case BPF_JMP | BPF_JEQ | BPF_K:
@@ -705,13 +705,13 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_JGE | BPF_K:
 		case BPF_JMP | BPF_JSGT | BPF_K:
 		case BPF_JMP | BPF_JSGE | BPF_K:
-			/* cmp a_reg, imm8/32 */
-			EMIT1(add_1mod(0x48, a_reg));
+			/* cmp dst_reg, imm8/32 */
+			EMIT1(add_1mod(0x48, dst_reg));
 
-			if (is_imm8(K))
-				EMIT3(0x83, add_1reg(0xF8, a_reg), K);
+			if (is_imm8(imm32))
+				EMIT3(0x83, add_1reg(0xF8, dst_reg), imm32);
 			else
-				EMIT2_off32(0x81, add_1reg(0xF8, a_reg), K);
+				EMIT2_off32(0x81, add_1reg(0xF8, dst_reg), imm32);
 
 emit_cond_jmp:		/* convert BPF opcode to x86 */
 			switch (BPF_OP(insn->code)) {
@@ -773,27 +773,27 @@ emit_jmp:
 			func = sk_load_word;
 			goto common_load;
 		case BPF_LD | BPF_ABS | BPF_W:
-			func = CHOOSE_LOAD_FUNC(K, sk_load_word);
+			func = CHOOSE_LOAD_FUNC(imm32, sk_load_word);
 common_load:		ctx->seen_ld_abs = true;
 			jmp_offset = func - (image + addrs[i]);
 			if (!func || !is_simm32(jmp_offset)) {
 				pr_err("unsupported bpf func %d addr %p image %p\n",
-				       K, func, image);
+				       imm32, func, image);
 				return -EINVAL;
 			}
 			if (BPF_MODE(insn->code) == BPF_ABS) {
 				/* mov %esi, imm32 */
-				EMIT1_off32(0xBE, K);
+				EMIT1_off32(0xBE, imm32);
 			} else {
-				/* mov %rsi, x_reg */
-				EMIT_mov(BPF_REG_2, x_reg);
-				if (K) {
-					if (is_imm8(K))
+				/* mov %rsi, src_reg */
+				EMIT_mov(BPF_REG_2, src_reg);
+				if (imm32) {
+					if (is_imm8(imm32))
 						/* add %esi, imm8 */
-						EMIT3(0x83, 0xC6, K);
+						EMIT3(0x83, 0xC6, imm32);
 					else
 						/* add %esi, imm32 */
-						EMIT2_off32(0x81, 0xC6, K);
+						EMIT2_off32(0x81, 0xC6, imm32);
 				}
 			}
 			/* skb pointer is in R6 (%rbx), it will be copied into
@@ -808,13 +808,13 @@ common_load:		ctx->seen_ld_abs = true;
 			func = sk_load_half;
 			goto common_load;
 		case BPF_LD | BPF_ABS | BPF_H:
-			func = CHOOSE_LOAD_FUNC(K, sk_load_half);
+			func = CHOOSE_LOAD_FUNC(imm32, sk_load_half);
 			goto common_load;
 		case BPF_LD | BPF_IND | BPF_B:
 			func = sk_load_byte;
 			goto common_load;
 		case BPF_LD | BPF_ABS | BPF_B:
-			func = CHOOSE_LOAD_FUNC(K, sk_load_byte);
+			func = CHOOSE_LOAD_FUNC(imm32, sk_load_byte);
 			goto common_load;
 
 		case BPF_JMP | BPF_EXIT:
