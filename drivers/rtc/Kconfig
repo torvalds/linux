@@ -574,6 +574,7 @@ config RTC_DRV_DS1305
 	  will be called rtc-ds1305.
 
 config RTC_DRV_DS1343
+	select REGMAP_SPI
 	tristate "Dallas/Maxim DS1343/DS1344"
 	help
 	  If you say yes here you get support for the
