@@ -27,13 +27,13 @@ void hfs_bnode_read(struct hfs_bnode *node, void *buf, int off, int len)
 	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
 	off &= ~PAGE_CACHE_MASK;
 
-	l = min(len, (int)PAGE_CACHE_SIZE - off);
+	l = min_t(int, len, PAGE_CACHE_SIZE - off);
 	memcpy(buf, kmap(*pagep) + off, l);
 	kunmap(*pagep);
 
 	while ((len -= l) != 0) {
 		buf += l;
-		l = min(len, (int)PAGE_CACHE_SIZE);
+		l = min_t(int, len, PAGE_CACHE_SIZE);
 		memcpy(buf, kmap(*++pagep), l);
 		kunmap(*pagep);
 	}
@@ -80,14 +80,14 @@ void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len)
 	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
 	off &= ~PAGE_CACHE_MASK;
 
-	l = min(len, (int)PAGE_CACHE_SIZE - off);
+	l = min_t(int, len, PAGE_CACHE_SIZE - off);
 	memcpy(kmap(*pagep) + off, buf, l);
 	set_page_dirty(*pagep);
 	kunmap(*pagep);
 
 	while ((len -= l) != 0) {
 		buf += l;
-		l = min(len, (int)PAGE_CACHE_SIZE);
+		l = min_t(int, len, PAGE_CACHE_SIZE);
 		memcpy(kmap(*++pagep), buf, l);
 		set_page_dirty(*pagep);
 		kunmap(*pagep);
@@ -110,13 +110,13 @@ void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
 	pagep = node->page + (off >> PAGE_CACHE_SHIFT);
 	off &= ~PAGE_CACHE_MASK;
 
-	l = min(len, (int)PAGE_CACHE_SIZE - off);
+	l = min_t(int, len, PAGE_CACHE_SIZE - off);
 	memset(kmap(*pagep) + off, 0, l);
 	set_page_dirty(*pagep);
 	kunmap(*pagep);
 
 	while ((len -= l) != 0) {
-		l = min(len, (int)PAGE_CACHE_SIZE);
+		l = min_t(int, len, PAGE_CACHE_SIZE);
 		memset(kmap(*++pagep), 0, l);
 		set_page_dirty(*pagep);
 		kunmap(*pagep);
@@ -142,14 +142,14 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
 	dst &= ~PAGE_CACHE_MASK;
 
 	if (src == dst) {
-		l = min(len, (int)PAGE_CACHE_SIZE - src);
+		l = min_t(int, len, PAGE_CACHE_SIZE - src);
 		memcpy(kmap(*dst_page) + src, kmap(*src_page) + src, l);
 		kunmap(*src_page);
 		set_page_dirty(*dst_page);
 		kunmap(*dst_page);
 
 		while ((len -= l) != 0) {
-			l = min(len, (int)PAGE_CACHE_SIZE);
+			l = min_t(int, len, PAGE_CACHE_SIZE);
 			memcpy(kmap(*++dst_page), kmap(*++src_page), l);
 			kunmap(*src_page);
 			set_page_dirty(*dst_page);
@@ -251,7 +251,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
 		dst &= ~PAGE_CACHE_MASK;
 
 		if (src == dst) {
-			l = min(len, (int)PAGE_CACHE_SIZE - src);
+			l = min_t(int, len, PAGE_CACHE_SIZE - src);
 			memmove(kmap(*dst_page) + src,
 				kmap(*src_page) + src, l);
 			kunmap(*src_page);
@@ -259,7 +259,7 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
 			kunmap(*dst_page);
 
 			while ((len -= l) != 0) {
-				l = min(len, (int)PAGE_CACHE_SIZE);
+				l = min_t(int, len, PAGE_CACHE_SIZE);
 				memmove(kmap(*++dst_page),
 					kmap(*++src_page), l);
 				kunmap(*src_page);
@@ -386,9 +386,8 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 	struct hfs_bnode *node;
 
 	if (cnid >= tree->node_count) {
-		pr_err("request for non-existent node "
-				"%d in B*Tree\n",
-			cnid);
+		pr_err("request for non-existent node %d in B*Tree\n",
+		       cnid);
 		return NULL;
 	}
 
@@ -409,9 +408,8 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 	loff_t off;
 
 	if (cnid >= tree->node_count) {
-		pr_err("request for non-existent node "
-				"%d in B*Tree\n",
-			cnid);
+		pr_err("request for non-existent node %d in B*Tree\n",
+		       cnid);
 		return NULL;
 	}
 
@@ -602,7 +600,7 @@ struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
 
 	pagep = node->page;
 	memset(kmap(*pagep) + node->page_offset, 0,
-	       min((int)PAGE_CACHE_SIZE, (int)tree->node_size));
+	       min_t(int, PAGE_CACHE_SIZE, tree->node_size));
 	set_page_dirty(*pagep);
 	kunmap(*pagep);
 	for (i = 1; i < tree->pages_per_bnode; i++) {
