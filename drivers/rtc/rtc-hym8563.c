@@ -418,6 +418,9 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	init.num_parents = 0;
 	hym8563->clkout_hw.init = &init;
 
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
+
 	/* register the clock */
 	clk = clk_register(&client->dev, &hym8563->clkout_hw);
 
