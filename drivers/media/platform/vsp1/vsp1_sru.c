@@ -327,7 +327,6 @@ struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1)
 		return ERR_PTR(-ENOMEM);
 
 	sru->entity.type = VSP1_ENTITY_SRU;
-	sru->entity.id = VI6_DPR_NODE_SRU;
 
 	ret = vsp1_entity_init(vsp1, &sru->entity, 2);
 	if (ret < 0)

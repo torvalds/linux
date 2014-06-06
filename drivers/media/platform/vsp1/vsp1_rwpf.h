@@ -30,6 +30,10 @@ struct vsp1_rwpf {
 	unsigned int max_width;
 	unsigned int max_height;
 
+	struct {
+		unsigned int left;
+		unsigned int top;
+	} location;
 	struct v4l2_rect crop;
 
 	unsigned int offsets[2];

@@ -32,14 +32,18 @@ enum adv7604_ain_sel {
 	ADV7604_AIN9_4_5_6_SYNC_2_1 = 4,
 };
 
-/* Bus rotation and reordering (IO register 0x04, [7:5]) */
-enum adv7604_op_ch_sel {
-	ADV7604_OP_CH_SEL_GBR = 0,
-	ADV7604_OP_CH_SEL_GRB = 1,
-	ADV7604_OP_CH_SEL_BGR = 2,
-	ADV7604_OP_CH_SEL_RGB = 3,
-	ADV7604_OP_CH_SEL_BRG = 4,
-	ADV7604_OP_CH_SEL_RBG = 5,
+/*
+ * Bus rotation and reordering. This is used to specify component reordering on
+ * the board and describes the components order on the bus when the ADV7604
+ * outputs RGB.
+ */
+enum adv7604_bus_order {
+	ADV7604_BUS_ORDER_RGB,		/* No operation	*/
+	ADV7604_BUS_ORDER_GRB,		/* Swap 1-2	*/
+	ADV7604_BUS_ORDER_RBG,		/* Swap 2-3	*/
+	ADV7604_BUS_ORDER_BGR,		/* Swap 1-3	*/
+	ADV7604_BUS_ORDER_BRG,		/* Rotate right	*/
+	ADV7604_BUS_ORDER_GBR,		/* Rotate left	*/
 };
 
 /* Input Color Space (IO register 0x02, [7:4]) */
@@ -55,35 +59,41 @@ enum adv7604_inp_color_space {
 	ADV7604_INP_COLOR_SPACE_AUTO = 0xf,
 };
 
-/* Select output format (IO register 0x03, [7:0]) */
-enum adv7604_op_format_sel {
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_8 = 0x00,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_10 = 0x01,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE0 = 0x02,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE1 = 0x06,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_12_MODE2 = 0x0a,
-	ADV7604_OP_FORMAT_SEL_DDR_422_8 = 0x20,
-	ADV7604_OP_FORMAT_SEL_DDR_422_10 = 0x21,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE0 = 0x22,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE1 = 0x23,
-	ADV7604_OP_FORMAT_SEL_DDR_422_12_MODE2 = 0x24,
-	ADV7604_OP_FORMAT_SEL_SDR_444_24 = 0x40,
-	ADV7604_OP_FORMAT_SEL_SDR_444_30 = 0x41,
-	ADV7604_OP_FORMAT_SEL_SDR_444_36_MODE0 = 0x42,
-	ADV7604_OP_FORMAT_SEL_DDR_444_24 = 0x60,
-	ADV7604_OP_FORMAT_SEL_DDR_444_30 = 0x61,
-	ADV7604_OP_FORMAT_SEL_DDR_444_36 = 0x62,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_16 = 0x80,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_20 = 0x81,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE0 = 0x82,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE1 = 0x86,
-	ADV7604_OP_FORMAT_SEL_SDR_ITU656_24_MODE2 = 0x8a,
+/* Select output format (IO register 0x03, [4:2]) */
+enum adv7604_op_format_mode_sel {
+	ADV7604_OP_FORMAT_MODE0 = 0x00,
+	ADV7604_OP_FORMAT_MODE1 = 0x04,
+	ADV7604_OP_FORMAT_MODE2 = 0x08,
 };
 
 enum adv7604_drive_strength {
 	ADV7604_DR_STR_MEDIUM_LOW = 1,
 	ADV7604_DR_STR_MEDIUM_HIGH = 2,
 	ADV7604_DR_STR_HIGH = 3,
+};
+
+enum adv7604_int1_config {
+	ADV7604_INT1_CONFIG_OPEN_DRAIN,
+	ADV7604_INT1_CONFIG_ACTIVE_LOW,
+	ADV7604_INT1_CONFIG_ACTIVE_HIGH,
+	ADV7604_INT1_CONFIG_DISABLED,
+};
+
+enum adv7604_page {
+	ADV7604_PAGE_IO,
+	ADV7604_PAGE_AVLINK,
+	ADV7604_PAGE_CEC,
+	ADV7604_PAGE_INFOFRAME,
+	ADV7604_PAGE_ESDP,
+	ADV7604_PAGE_DPP,
+	ADV7604_PAGE_AFE,
+	ADV7604_PAGE_REP,
+	ADV7604_PAGE_EDID,
+	ADV7604_PAGE_HDMI,
+	ADV7604_PAGE_TEST,
+	ADV7604_PAGE_CP,
+	ADV7604_PAGE_VDP,
+	ADV7604_PAGE_MAX,
 };
 
 /* Platform dependent definition */
@@ -94,30 +104,34 @@ struct adv7604_platform_data {
 	/* DIS_CABLE_DET_RST: 1 if the 5V pins are unused and unconnected */
 	unsigned disable_cable_det_rst:1;
 
+	int default_input;
+
 	/* Analog input muxing mode */
 	enum adv7604_ain_sel ain_sel;
 
 	/* Bus rotation and reordering */
-	enum adv7604_op_ch_sel op_ch_sel;
+	enum adv7604_bus_order bus_order;
 
-	/* Select output format */
-	enum adv7604_op_format_sel op_format_sel;
+	/* Select output format mode */
+	enum adv7604_op_format_mode_sel op_format_mode_sel;
+
+	/* Configuration of the INT1 pin */
+	enum adv7604_int1_config int1_config;
 
 	/* IO register 0x02 */
 	unsigned alt_gamma:1;
 	unsigned op_656_range:1;
-	unsigned rgb_out:1;
 	unsigned alt_data_sat:1;
 
 	/* IO register 0x05 */
 	unsigned blank_data:1;
 	unsigned insert_av_codes:1;
 	unsigned replicate_av_codes:1;
-	unsigned invert_cbcr:1;
 
 	/* IO register 0x06 */
 	unsigned inv_vs_pol:1;
 	unsigned inv_hs_pol:1;
+	unsigned inv_llc_pol:1;
 
 	/* IO register 0x14 */
 	enum adv7604_drive_strength dr_str_data;
@@ -131,33 +145,21 @@ struct adv7604_platform_data {
 	unsigned hdmi_free_run_mode;
 
 	/* i2c addresses: 0 == use default */
-	u8 i2c_avlink;
-	u8 i2c_cec;
-	u8 i2c_infoframe;
-	u8 i2c_esdp;
-	u8 i2c_dpp;
-	u8 i2c_afe;
-	u8 i2c_repeater;
-	u8 i2c_edid;
-	u8 i2c_hdmi;
-	u8 i2c_test;
-	u8 i2c_cp;
-	u8 i2c_vdp;
+	u8 i2c_addresses[ADV7604_PAGE_MAX];
 };
 
-enum adv7604_input_port {
-	ADV7604_INPUT_HDMI_PORT_A,
-	ADV7604_INPUT_HDMI_PORT_B,
-	ADV7604_INPUT_HDMI_PORT_C,
-	ADV7604_INPUT_HDMI_PORT_D,
-	ADV7604_INPUT_VGA_RGB,
-	ADV7604_INPUT_VGA_COMP,
+enum adv7604_pad {
+	ADV7604_PAD_HDMI_PORT_A = 0,
+	ADV7604_PAD_HDMI_PORT_B = 1,
+	ADV7604_PAD_HDMI_PORT_C = 2,
+	ADV7604_PAD_HDMI_PORT_D = 3,
+	ADV7604_PAD_VGA_RGB = 4,
+	ADV7604_PAD_VGA_COMP = 5,
+	/* The source pad is either 1 (ADV7611) or 6 (ADV7604) */
+	ADV7604_PAD_SOURCE = 6,
+	ADV7611_PAD_SOURCE = 1,
+	ADV7604_PAD_MAX = 7,
 };
-
-#define ADV7604_EDID_PORT_A 0
-#define ADV7604_EDID_PORT_B 1
-#define ADV7604_EDID_PORT_C 2
-#define ADV7604_EDID_PORT_D 3
 
 #define V4L2_CID_ADV_RX_ANALOG_SAMPLING_PHASE	(V4L2_CID_DV_CLASS_BASE + 0x1000)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
