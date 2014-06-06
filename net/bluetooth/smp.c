@@ -77,6 +77,7 @@ struct smp_chan {
 	struct smp_ltk	*ltk;
 	struct smp_ltk	*slave_ltk;
 	struct smp_irk	*remote_irk;
+	u8		*link_key;
 	unsigned long	flags;
 
 	/* Secure Connections variables */
@@ -317,6 +318,22 @@ static int smp_e(struct crypto_blkcipher *tfm, const u8 *k, u8 *r)
 
 	/* Most significant octet of encryptedData corresponds to data[0] */
 	swap_buf(data, r, 16);
+
+	return err;
+}
+
+static int smp_h6(struct crypto_hash *tfm_cmac, const u8 w[16],
+		  const u8 key_id[4], u8 res[16])
+{
+	int err;
+
+	BT_DBG("w %16phN key_id %4phN", w, key_id);
+
+	err = aes_cmac(tfm_cmac, w, key_id, 4, res);
+	if (err)
+		return err;
+
+	BT_DBG("res %16phN", res);
 
 	return err;
 }
@@ -594,6 +611,7 @@ static void smp_chan_destroy(struct l2cap_conn *conn)
 
 	kfree(smp->csrk);
 	kfree(smp->slave_csrk);
+	kfree(smp->link_key);
 
 	crypto_free_blkcipher(smp->tfm_aes);
 	crypto_free_hash(smp->tfm_cmac);
@@ -907,6 +925,37 @@ static void smp_notify_keys(struct l2cap_conn *conn)
 		bacpy(&smp->slave_ltk->bdaddr, &hcon->dst);
 		mgmt_new_ltk(hdev, smp->slave_ltk, persistent);
 	}
+
+	if (smp->link_key) {
+		hci_add_link_key(hdev, smp->conn->hcon, &hcon->dst,
+				 smp->link_key, HCI_LK_AUTH_COMBINATION_P256,
+				 0, NULL);
+	}
+}
+
+static void sc_generate_link_key(struct smp_chan *smp)
+{
+	/* These constants are as specified in the core specification.
+	 * In ASCII they spell out to 'tmp1' and 'lebr'.
+	 */
+	const u8 tmp1[4] = { 0x31, 0x70, 0x6d, 0x74 };
+	const u8 lebr[4] = { 0x72, 0x62, 0x65, 0x6c };
+
+	smp->link_key = kzalloc(16, GFP_KERNEL);
+	if (!smp->link_key)
+		return;
+
+	if (smp_h6(smp->tfm_cmac, smp->tk, tmp1, smp->link_key)) {
+		kfree(smp->link_key);
+		smp->link_key = NULL;
+		return;
+	}
+
+	if (smp_h6(smp->tfm_cmac, smp->link_key, lebr, smp->link_key)) {
+		kfree(smp->link_key);
+		smp->link_key = NULL;
+		return;
+	}
 }
 
 static void smp_allow_key_dist(struct smp_chan *smp)
@@ -949,6 +998,14 @@ static void smp_distribute_keys(struct smp_chan *smp)
 	} else {
 		keydist = &rsp->resp_key_dist;
 		*keydist &= req->resp_key_dist;
+	}
+
+	if (test_bit(SMP_FLAG_SC, &smp->flags)) {
+		if (*keydist & SMP_DIST_LINK_KEY)
+			sc_generate_link_key(smp);
+
+		/* Clear the keys which are generated but not distributed */
+		*keydist &= ~SMP_SC_NO_DIST;
 	}
 
 	BT_DBG("keydist 0x%x", *keydist);
