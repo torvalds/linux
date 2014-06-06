@@ -1418,10 +1418,10 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
 	if (file) {
-		seq_printf(m, " file=");
+		seq_puts(m, " file=");
 		seq_path(m, &file->f_path, "\n\t= ");
 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
-		seq_printf(m, " heap");
+		seq_puts(m, " heap");
 	} else {
 		pid_t tid = vm_is_stack(task, vma, is_pid);
 		if (tid != 0) {
@@ -1431,14 +1431,14 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
 			 */
 			if (!is_pid || (vma->vm_start <= mm->start_stack &&
 			    vma->vm_end >= mm->start_stack))
-				seq_printf(m, " stack");
+				seq_puts(m, " stack");
 			else
 				seq_printf(m, " stack:%d", tid);
 		}
 	}
 
 	if (is_vm_hugetlb_page(vma))
-		seq_printf(m, " huge");
+		seq_puts(m, " huge");
 
 	walk_page_range(vma->vm_start, vma->vm_end, &walk);
 
