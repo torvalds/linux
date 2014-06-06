@@ -333,6 +333,16 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
 		local_dist |= SMP_DIST_ID_KEY;
 
+	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
+		if ((authreq & SMP_AUTH_SC) &&
+		    test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+			local_dist |= SMP_DIST_LINK_KEY;
+			remote_dist |= SMP_DIST_LINK_KEY;
+		}
+	} else {
+		authreq &= ~SMP_AUTH_SC;
+	}
+
 	if (rsp == NULL) {
 		req->io_capability = conn->hcon->io_capability;
 		req->oob_flag = SMP_OOB_NOT_PRESENT;
