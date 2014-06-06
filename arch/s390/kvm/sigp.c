@@ -147,15 +147,27 @@ out:
 	return rc;
 }
 
-static int __sigp_stop(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
-		       int action)
+static int __sigp_stop(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu)
 {
 	int rc;
 
-	rc = __inject_sigp_stop(dst_vcpu, action);
+	rc = __inject_sigp_stop(dst_vcpu, ACTION_STOP_ON_STOP);
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", dst_vcpu->vcpu_id);
 
-	if ((action & ACTION_STORE_ON_STOP) != 0 && rc == -ESHUTDOWN) {
+	return rc;
+}
+
+static int __sigp_stop_and_store_status(struct kvm_vcpu *vcpu,
+					struct kvm_vcpu *dst_vcpu, u64 *reg)
+{
+	int rc;
+
+	rc = __inject_sigp_stop(dst_vcpu, ACTION_STOP_ON_STOP |
+					      ACTION_STORE_ON_STOP);
+	VCPU_EVENT(vcpu, 4, "sent sigp stop and store status to cpu %x",
+		   dst_vcpu->vcpu_id);
+
+	if (rc == -ESHUTDOWN) {
 		/* If the CPU has already been stopped, we still have
 		 * to save the status when doing stop-and-store. This
 		 * has to be done after unlocking all spinlocks. */
@@ -347,12 +359,11 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		break;
 	case SIGP_STOP:
 		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, dst_vcpu, ACTION_STOP_ON_STOP);
+		rc = __sigp_stop(vcpu, dst_vcpu);
 		break;
 	case SIGP_STOP_AND_STORE_STATUS:
 		vcpu->stat.instruction_sigp_stop_store_status++;
-		rc = __sigp_stop(vcpu, dst_vcpu, ACTION_STORE_ON_STOP |
-						 ACTION_STOP_ON_STOP);
+		rc = __sigp_stop_and_store_status(vcpu, dst_vcpu, status_reg);
 		break;
 	case SIGP_STORE_STATUS_AT_ADDRESS:
 		vcpu->stat.instruction_sigp_store_status++;
