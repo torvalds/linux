@@ -267,7 +267,7 @@ static int dw8250_probe_of(struct uart_port *p,
 		p->membase += 7;
 #endif
 		p->serial_out = dw8250_serial_out_rb;
-		p->flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
+		p->flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_FIXED_TYPE;
 		p->type = PORT_OCTEON;
 		data->usr_reg = 0x27;
 		has_ucv = false;
