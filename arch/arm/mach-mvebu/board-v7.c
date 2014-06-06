@@ -78,7 +78,6 @@ static void __init mvebu_timer_and_clk_init(void)
 	mvebu_scu_enable();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
-	l2x0_of_init(0, ~0UL);
 
 	if (of_machine_is_compatible("marvell,armada375"))
 		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
