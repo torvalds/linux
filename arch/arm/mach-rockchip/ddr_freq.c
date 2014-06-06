@@ -30,7 +30,11 @@
 #include <linux/clk-private.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
+#ifdef CONFIG_CPU_FREQ
 extern int rockchip_cpufreq_reboot_limit_freq(void);
+#else
+static inline int rockchip_cpufreq_reboot_limit_freq(void) { return 0; }
+#endif
 
 static DECLARE_COMPLETION(ddrfreq_completion);
 static DEFINE_MUTEX(ddrfreq_mutex);
@@ -588,6 +592,7 @@ static struct miscdevice video_state_dev = {
 	.minor	= MISC_DYNAMIC_MINOR,
 };
 
+#ifdef CONFIG_INPUT
 static void ddr_freq_input_event(struct input_handle *handle, unsigned int type,
 		unsigned int code, int value)
 {
@@ -662,6 +667,7 @@ static struct input_handler ddr_freq_input_handler = {
 	.name		= "ddr_freq",
 	.id_table	= ddr_freq_ids,
 };
+#endif
 #if 0
 static int ddrfreq_clk_event(int status, unsigned long event)
 {
@@ -898,9 +904,11 @@ static int ddrfreq_init(void)
 	if (!ddr.reboot_rate)
 		ddr.reboot_rate = ddr.normal_rate;
 
+#ifdef CONFIG_INPUT
 	ret = input_register_handler(&ddr_freq_input_handler);
 	if (ret)
 		ddr.auto_freq = false;
+#endif
 
 	//REGISTER_CLK_NOTIFIER(pd_isp);
 	//REGISTER_CLK_NOTIFIER(pd_vop0);

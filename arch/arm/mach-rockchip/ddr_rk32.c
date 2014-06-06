@@ -24,7 +24,9 @@
 
 typedef uint32_t uint32;
 
+#ifdef CONFIG_FB_ROCKCHIP
 #define DDR_CHANGE_FREQ_IN_LCDC_VSYNC
+#endif
 /***********************************
  * Global Control Macro
  ***********************************/
