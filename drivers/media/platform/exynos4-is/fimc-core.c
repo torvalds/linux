@@ -122,7 +122,7 @@ static struct fimc_fmt fimc_formats[] = {
 	}, {
 		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
-		.depth		= { 12 },
+		.depth		= { 16 },
 		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
 		.colplanes	= 3,

@@ -379,7 +379,7 @@ NOKPROBE_SYMBOL(do_int3);
  * for scheduling or signal handling. The actual stack switch is done in
  * entry.S
  */
-asmlinkage struct pt_regs *sync_regs(struct pt_regs *eregs)
+asmlinkage __visible struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = eregs;
 	/* Did already sync */
@@ -629,11 +629,11 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 #endif
 }
 
-asmlinkage void __attribute__((weak)) smp_thermal_interrupt(void)
+asmlinkage __visible void __attribute__((weak)) smp_thermal_interrupt(void)
 {
 }
 
-asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
+asmlinkage __visible void __attribute__((weak)) smp_threshold_interrupt(void)
 {
 }
 

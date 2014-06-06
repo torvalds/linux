@@ -57,7 +57,7 @@
 #define divider_exists(div)		FLAG_TEST(div, DIV, EXISTS)
 #define divider_is_fixed(div)		FLAG_TEST(div, DIV, FIXED)
 #define divider_has_fraction(div)	(!divider_is_fixed(div) && \
-						(div)->frac_width > 0)
+						(div)->u.s.frac_width > 0)
 
 #define selector_exists(sel)		((sel)->width != 0)
 #define trigger_exists(trig)		FLAG_TEST(trig, TRIG, EXISTS)
@@ -244,9 +244,9 @@ struct bcm_clk_div {
 			u32 frac_width;	/* field fraction width */
 
 			u64 scaled_div;	/* scaled divider value */
-		};
+		} s;
 		u32 fixed;	/* non-zero fixed divider value */
-	};
+	} u;
 	u32 flags;		/* BCM_CLK_DIV_FLAGS_* below */
 };
 
@@ -263,28 +263,28 @@ struct bcm_clk_div {
 /* A fixed (non-zero) divider */
 #define FIXED_DIVIDER(_value)						\
 	{								\
-		.fixed = (_value),					\
+		.u.fixed = (_value),					\
 		.flags = FLAG(DIV, EXISTS)|FLAG(DIV, FIXED),		\
 	}
 
 /* A divider with an integral divisor */
 #define DIVIDER(_offset, _shift, _width)				\
 	{								\
-		.offset = (_offset),					\
-		.shift = (_shift),					\
-		.width = (_width),					\
-		.scaled_div = BAD_SCALED_DIV_VALUE,			\
+		.u.s.offset = (_offset),				\
+		.u.s.shift = (_shift),					\
+		.u.s.width = (_width),					\
+		.u.s.scaled_div = BAD_SCALED_DIV_VALUE,			\
 		.flags = FLAG(DIV, EXISTS),				\
 	}
 
 /* A divider whose divisor has an integer and fractional part */
 #define FRAC_DIVIDER(_offset, _shift, _width, _frac_width)		\
 	{								\
-		.offset = (_offset),					\
-		.shift = (_shift),					\
-		.width = (_width),					\
-		.frac_width = (_frac_width),				\
-		.scaled_div = BAD_SCALED_DIV_VALUE,			\
+		.u.s.offset = (_offset),				\
+		.u.s.shift = (_shift),					\
+		.u.s.width = (_width),					\
+		.u.s.frac_width = (_frac_width),			\
+		.u.s.scaled_div = BAD_SCALED_DIV_VALUE,			\
 		.flags = FLAG(DIV, EXISTS),				\
 	}
 
@@ -380,7 +380,7 @@ struct kona_clk {
 	union {
 		void *data;
 		struct peri_clk_data *peri;
-	};
+	} u;
 };
 #define to_kona_clk(_hw) \
 	container_of(_hw, struct kona_clk, hw)

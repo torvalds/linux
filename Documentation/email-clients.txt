@@ -201,20 +201,15 @@ To beat some sense out of the internal editor, do this:
 
 - Edit your Thunderbird config settings so that it won't use format=flowed.
   Go to "edit->preferences->advanced->config editor" to bring up the
-  thunderbird's registry editor, and set "mailnews.send_plaintext_flowed" to
-  "false".
+  thunderbird's registry editor.
 
-- Disable HTML Format: Set "mail.identity.id1.compose_html" to "false".
+- Set "mailnews.send_plaintext_flowed" to "false"
 
-- Enable "preformat" mode: Set "editor.quotesPreformatted" to "true".
+- Set "mailnews.wraplength" from "72" to "0"
 
-- Enable UTF8: Set "prefs.converted-to-utf8" to "true".
+- "View" > "Message Body As" > "Plain Text"
 
-- Install the "toggle wordwrap" extension.  Download the file from:
-    https://addons.mozilla.org/thunderbird/addon/2351/
-  Then go to "tools->add ons", select "install" at the bottom of the screen,
-  and browse to where you saved the .xul file.  This adds an "Enable
-  Wordwrap" entry under the Options menu of the message composer.
+- "View" > "Character Encoding" > "Unicode (UTF-8)"
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 TkRat (GUI)

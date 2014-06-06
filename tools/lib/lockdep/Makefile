@@ -1,8 +1,7 @@
 # file format version
 FILE_VERSION = 1
 
-MAKEFLAGS += --no-print-directory
-LIBLOCKDEP_VERSION=$(shell make -sC ../../.. kernelversion)
+LIBLOCKDEP_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -231,7 +230,7 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d
+	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d
 	$(RM) tags TAGS
 
 endif # skip-makefile

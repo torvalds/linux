@@ -37,7 +37,7 @@ __visible struct {
  * kernel begins at offset 3GB...
  */
 
-asmlinkage void pnp_bios_callfunc(void);
+asmlinkage __visible void pnp_bios_callfunc(void);
 
 __asm__(".text			\n"
 	__ALIGN_STR "\n"

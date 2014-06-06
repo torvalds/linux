@@ -104,7 +104,7 @@ static inline unsigned long idx_to_kaddr(struct xenvif *vif,
 
 /* Find the containing VIF's structure from a pointer in pending_tx_info array
  */
-static inline struct xenvif* ubuf_to_vif(struct ubuf_info *ubuf)
+static inline struct xenvif *ubuf_to_vif(const struct ubuf_info *ubuf)
 {
 	u16 pending_idx = ubuf->desc;
 	struct pending_tx_info *temp =
@@ -323,6 +323,35 @@ static void xenvif_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 }
 
 /*
+ * Find the grant ref for a given frag in a chain of struct ubuf_info's
+ * skb: the skb itself
+ * i: the frag's number
+ * ubuf: a pointer to an element in the chain. It should not be NULL
+ *
+ * Returns a pointer to the element in the chain where the page were found. If
+ * not found, returns NULL.
+ * See the definition of callback_struct in common.h for more details about
+ * the chain.
+ */
+static const struct ubuf_info *xenvif_find_gref(const struct sk_buff *const skb,
+						const int i,
+						const struct ubuf_info *ubuf)
+{
+	struct xenvif *foreign_vif = ubuf_to_vif(ubuf);
+
+	do {
+		u16 pending_idx = ubuf->desc;
+
+		if (skb_shinfo(skb)->frags[i].page.p ==
+		    foreign_vif->mmap_pages[pending_idx])
+			break;
+		ubuf = (struct ubuf_info *) ubuf->ctx;
+	} while (ubuf);
+
+	return ubuf;
+}
+
+/*
  * Prepare an SKB to be transmitted to the frontend.
  *
  * This function is responsible for allocating grant operations, meta
@@ -346,9 +375,8 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	int head = 1;
 	int old_meta_prod;
 	int gso_type;
-	struct ubuf_info *ubuf = skb_shinfo(skb)->destructor_arg;
-	grant_ref_t foreign_grefs[MAX_SKB_FRAGS];
-	struct xenvif *foreign_vif = NULL;
+	const struct ubuf_info *ubuf = skb_shinfo(skb)->destructor_arg;
+	const struct ubuf_info *const head_ubuf = ubuf;
 
 	old_meta_prod = npo->meta_prod;
 
@@ -386,19 +414,6 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	npo->copy_off = 0;
 	npo->copy_gref = req->gref;
 
-	if ((skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) &&
-		 (ubuf->callback == &xenvif_zerocopy_callback)) {
-		int i = 0;
-		foreign_vif = ubuf_to_vif(ubuf);
-
-		do {
-			u16 pending_idx = ubuf->desc;
-			foreign_grefs[i++] =
-				foreign_vif->pending_tx_info[pending_idx].req.gref;
-			ubuf = (struct ubuf_info *) ubuf->ctx;
-		} while (ubuf);
-	}
-
 	data = skb->data;
 	while (data < skb_tail_pointer(skb)) {
 		unsigned int offset = offset_in_page(data);
@@ -415,13 +430,60 @@ static int xenvif_gop_skb(struct sk_buff *skb,
 	}
 
 	for (i = 0; i < nr_frags; i++) {
+		/* This variable also signals whether foreign_gref has a real
+		 * value or not.
+		 */
+		struct xenvif *foreign_vif = NULL;
+		grant_ref_t foreign_gref;
+
+		if ((skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) &&
+			(ubuf->callback == &xenvif_zerocopy_callback)) {
+			const struct ubuf_info *const startpoint = ubuf;
+
+			/* Ideally ubuf points to the chain element which
+			 * belongs to this frag. Or if frags were removed from
+			 * the beginning, then shortly before it.
+			 */
+			ubuf = xenvif_find_gref(skb, i, ubuf);
+
+			/* Try again from the beginning of the list, if we
+			 * haven't tried from there. This only makes sense in
+			 * the unlikely event of reordering the original frags.
+			 * For injected local pages it's an unnecessary second
+			 * run.
+			 */
+			if (unlikely(!ubuf) && startpoint != head_ubuf)
+				ubuf = xenvif_find_gref(skb, i, head_ubuf);
+
+			if (likely(ubuf)) {
+				u16 pending_idx = ubuf->desc;
+
+				foreign_vif = ubuf_to_vif(ubuf);
+				foreign_gref = foreign_vif->pending_tx_info[pending_idx].req.gref;
+				/* Just a safety measure. If this was the last
+				 * element on the list, the for loop will
+				 * iterate again if a local page were added to
+				 * the end. Using head_ubuf here prevents the
+				 * second search on the chain. Or the original
+				 * frags changed order, but that's less likely.
+				 * In any way, ubuf shouldn't be NULL.
+				 */
+				ubuf = ubuf->ctx ?
+					(struct ubuf_info *) ubuf->ctx :
+					head_ubuf;
+			} else
+				/* This frag was a local page, added to the
+				 * array after the skb left netback.
+				 */
+				ubuf = head_ubuf;
+		}
 		xenvif_gop_frag_copy(vif, skb, npo,
 				     skb_frag_page(&skb_shinfo(skb)->frags[i]),
 				     skb_frag_size(&skb_shinfo(skb)->frags[i]),
 				     skb_shinfo(skb)->frags[i].page_offset,
 				     &head,
 				     foreign_vif,
-				     foreign_grefs[i]);
+				     foreign_vif ? foreign_gref : UINT_MAX);
 	}
 
 	return npo->meta_prod - old_meta_prod;
@@ -654,7 +716,7 @@ done:
 		notify_remote_via_irq(vif->rx_irq);
 }
 
-void xenvif_check_rx_xenvif(struct xenvif *vif)
+void xenvif_napi_schedule_or_enable_events(struct xenvif *vif)
 {
 	int more_to_do;
 
@@ -688,7 +750,7 @@ static void tx_credit_callback(unsigned long data)
 {
 	struct xenvif *vif = (struct xenvif *)data;
 	tx_add_credit(vif);
-	xenvif_check_rx_xenvif(vif);
+	xenvif_napi_schedule_or_enable_events(vif);
 }
 
 static void xenvif_tx_err(struct xenvif *vif,

@@ -641,7 +641,7 @@
 				trigger@3 {
 					reg = <3>;
 					trigger-name = "external";
-					trigger-value = <0x13>;
+					trigger-value = <0xd>;
 					trigger-external;
 				};
 			};

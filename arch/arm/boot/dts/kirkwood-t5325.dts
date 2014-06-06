@@ -127,11 +127,6 @@
 
 		i2c@11000 {
 			status = "okay";
-
-			alc5621: alc5621@1a {
-				compatible = "realtek,alc5621";
-				reg = <0x1a>;
-			};
 		};
 
 		serial@12000 {

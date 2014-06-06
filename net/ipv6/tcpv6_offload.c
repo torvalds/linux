@@ -42,7 +42,7 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 	if (NAPI_GRO_CB(skb)->flush)
 		goto skip_csum;
 
-	wsum = skb->csum;
+	wsum = NAPI_GRO_CB(skb)->csum;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:

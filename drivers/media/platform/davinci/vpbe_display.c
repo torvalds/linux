@@ -372,18 +372,32 @@ static int vpbe_stop_streaming(struct vb2_queue *vq)
 {
 	struct vpbe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpbe_layer *layer = fh->layer;
+	struct vpbe_display *disp = fh->disp_dev;
+	unsigned long flags;
 
 	if (!vb2_is_streaming(vq))
 		return 0;
 
 	/* release all active buffers */
+	spin_lock_irqsave(&disp->dma_queue_lock, flags);
+	if (layer->cur_frm == layer->next_frm) {
+		vb2_buffer_done(&layer->cur_frm->vb, VB2_BUF_STATE_ERROR);
+	} else {
+		if (layer->cur_frm != NULL)
+			vb2_buffer_done(&layer->cur_frm->vb,
+					VB2_BUF_STATE_ERROR);
+		if (layer->next_frm != NULL)
+			vb2_buffer_done(&layer->next_frm->vb,
+					VB2_BUF_STATE_ERROR);
+	}
+
 	while (!list_empty(&layer->dma_queue)) {
 		layer->next_frm = list_entry(layer->dma_queue.next,
 						struct vpbe_disp_buffer, list);
 		list_del(&layer->next_frm->list);
 		vb2_buffer_done(&layer->next_frm->vb, VB2_BUF_STATE_ERROR);
 	}
-
+	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 	return 0;
 }
 

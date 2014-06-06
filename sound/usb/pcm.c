@@ -1501,9 +1501,8 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 	 * The error should be lower than 2ms since the estimate relies
 	 * on two reads of a counter updated every ms.
 	 */
-	if (printk_ratelimit() &&
-	    abs(est_delay - subs->last_delay) * 1000 > runtime->rate * 2)
-		dev_dbg(&subs->dev->dev,
+	if (abs(est_delay - subs->last_delay) * 1000 > runtime->rate * 2)
+		dev_dbg_ratelimited(&subs->dev->dev,
 			"delay: estimated %d, actual %d\n",
 			est_delay, subs->last_delay);
 

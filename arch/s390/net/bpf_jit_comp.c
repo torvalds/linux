@@ -811,7 +811,7 @@ static struct bpf_binary_header *bpf_alloc_binary(unsigned int bpfsize,
 		return NULL;
 	memset(header, 0, sz);
 	header->pages = sz / PAGE_SIZE;
-	hole = sz - (bpfsize + sizeof(*header));
+	hole = min(sz - (bpfsize + sizeof(*header)), PAGE_SIZE - sizeof(*header));
 	/* Insert random number of illegal instructions before BPF code
 	 * and make sure the first instruction starts at an even address.
 	 */
