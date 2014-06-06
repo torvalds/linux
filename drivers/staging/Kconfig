@@ -90,6 +90,8 @@ source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
 
+source "drivers/staging/emxx_udc/Kconfig"
+
 source "drivers/staging/keucr/Kconfig"
 
 source "drivers/staging/bcm/Kconfig"
