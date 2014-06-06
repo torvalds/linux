@@ -3067,37 +3067,25 @@ COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
 #endif
 
 /*
- * Let kernel threads use this to say that they allow a certain signal.
- * Must not be used if kthread was cloned with CLONE_SIGHAND.
+ * For kthreads only, must not be used if cloned with CLONE_SIGHAND
  */
-void allow_signal(int sig)
+void kernel_sigaction(int sig, __sighandler_t action)
 {
-	/*
-	 * Kernel threads handle their own signals. Let the signal code
-	 * know it'll be handled, so that they don't get converted to
-	 * SIGKILL or just silently dropped.
-	 */
 	spin_lock_irq(&current->sighand->siglock);
-	current->sighand->action[(sig)-1].sa.sa_handler = (void __user *)2;
+	current->sighand->action[sig - 1].sa.sa_handler = action;
+	if (action == SIG_IGN) {
+		sigset_t mask;
+
+		sigemptyset(&mask);
+		sigaddset(&mask, sig);
+
+		flush_sigqueue_mask(&mask, &current->signal->shared_pending);
+		flush_sigqueue_mask(&mask, &current->pending);
+		recalc_sigpending();
+	}
 	spin_unlock_irq(&current->sighand->siglock);
 }
-EXPORT_SYMBOL(allow_signal);
-
-void disallow_signal(int sig)
-{
-	sigset_t mask;
-
-	sigemptyset(&mask);
-	sigaddset(&mask, sig);
-
-	spin_lock_irq(&current->sighand->siglock);
-	current->sighand->action[(sig)-1].sa.sa_handler = SIG_IGN;
-	flush_sigqueue_mask(&mask, &current->signal->shared_pending);
-	flush_sigqueue_mask(&mask, &current->pending);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-}
-EXPORT_SYMBOL(disallow_signal);
+EXPORT_SYMBOL(kernel_sigaction);
 
 int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 {
