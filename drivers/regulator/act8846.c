@@ -803,6 +803,7 @@ int act8846_device_shutdown(void)
 #if 1
 	if (act8846->pmic_hold_gpio) {
 			gpio_direction_output(act8846->pmic_hold_gpio,0);
+			msleep(100);
 			arm_pm_restart('h', "charge");
 	}
 	
