@@ -16,7 +16,10 @@ static u64 bm_last;
 static u64 bm_max;
 static u64 bm_min;
 static u64 bm_first;
-static s64 bm_cnt;
+static u64 bm_cnt;
+static u64 bm_stddev;
+static unsigned int bm_avg;
+static unsigned int bm_std;
 
 /*
  * This gets called in a loop recording the time it took to write
@@ -66,13 +69,26 @@ static void trace_do_benchmark(void)
 
 	bm_last = delta;
 
-	bm_total += delta;
-	bm_totalsq += delta * delta;
-
 	if (delta > bm_max)
 		bm_max = delta;
 	if (!bm_min || delta < bm_min)
 		bm_min = delta;
+
+	/*
+	 * When bm_cnt is greater than UINT_MAX, it breaks the statistics
+	 * accounting. Freeze the statistics when that happens.
+	 * We should have enough data for the avg and stddev anyway.
+	 */
+	if (bm_cnt > UINT_MAX) {
+		scnprintf(bm_str, BENCHMARK_EVENT_STRLEN,
+		    "last=%llu first=%llu max=%llu min=%llu ** avg=%u std=%d std^2=%lld",
+			  bm_last, bm_first, bm_max, bm_min, bm_avg, bm_std, bm_stddev);
+		return;
+	}
+
+	bm_total += delta;
+	bm_totalsq += delta * delta;
+
 
 	if (bm_cnt > 1) {
 		/*
@@ -80,8 +96,8 @@ static void trace_do_benchmark(void)
 		 * s^2 = 1 / (n * (n-1)) * (n * \Sum (x_i)^2 - (\Sum x_i)^2)
 		 */
 		stddev = (u64)bm_cnt * bm_totalsq - bm_total * bm_total;
-		do_div(stddev, bm_cnt);
-		do_div(stddev, bm_cnt - 1);
+		do_div(stddev, (u32)bm_cnt);
+		do_div(stddev, (u32)bm_cnt - 1);
 	} else
 		stddev = 0;
 
@@ -119,6 +135,10 @@ static void trace_do_benchmark(void)
 	scnprintf(bm_str, BENCHMARK_EVENT_STRLEN,
 		  "last=%llu first=%llu max=%llu min=%llu avg=%u std=%d std^2=%lld",
 		  bm_last, bm_first, bm_max, bm_min, avg, std, stddev);
+
+	bm_std = std;
+	bm_avg = avg;
+	bm_stddev = stddev;
 }
 
 static int benchmark_event_kthread(void *arg)
@@ -170,6 +190,9 @@ void trace_benchmark_unreg(void)
 	bm_max = 0;
 	bm_min = 0;
 	bm_cnt = 0;
-	/* bm_first doesn't need to be reset but reset it anyway */
+	/* These don't need to be reset but reset them anyway */
 	bm_first = 0;
+	bm_std = 0;
+	bm_avg = 0;
+	bm_stddev = 0;
 }
