@@ -52,16 +52,6 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 
 MODULE_DEVICE_TABLE(usb, rtw_usb_id_tbl);
 
-static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
-{
-	mutex_init(&dvobj->usb_vendor_req_mutex);
-	dvobj->usb_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
-	if (!dvobj->usb_vendor_req_buf)
-		return _FAIL;
-
-	return _SUCCESS;
-}
-
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 {
 	int	i;
@@ -125,7 +115,10 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	else
 		pdvobjpriv->ishighspeed = false;
 
-	if (rtw_init_intf_priv(pdvobjpriv) == _FAIL)
+	mutex_init(&pdvobjpriv->usb_vendor_req_mutex);
+	pdvobjpriv->usb_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
+
+	if (!pdvobjpriv->usb_vendor_req_buf)
 		goto free_dvobj;
 
 	rtw_reset_continual_urb_error(pdvobjpriv);
