@@ -451,10 +451,10 @@ affs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
-	printk(KERN_CRIT "AFFS error (device %s): %s(): %s\n", sb->s_id,
+	pr_crit("error (device %s): %s(): %s\n", sb->s_id,
 		function,ErrorBuffer);
 	if (!(sb->s_flags & MS_RDONLY))
-		printk(KERN_WARNING "AFFS: Remounting filesystem read-only\n");
+		pr_warn("Remounting filesystem read-only\n");
 	sb->s_flags |= MS_RDONLY;
 }
 
@@ -467,7 +467,7 @@ affs_warning(struct super_block *sb, const char *function, const char *fmt, ...)
 	vsnprintf(ErrorBuffer,sizeof(ErrorBuffer),fmt,args);
 	va_end(args);
 
-	printk(KERN_WARNING "AFFS warning (device %s): %s(): %s\n", sb->s_id,
+	pr_warn("(device %s): %s(): %s\n", sb->s_id,
 		function,ErrorBuffer);
 }
 

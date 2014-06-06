@@ -220,7 +220,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 				return 0;
 			if (n != 512 && n != 1024 && n != 2048
 			    && n != 4096) {
-				printk ("AFFS: Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
+				pr_warn("Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
 				return 0;
 			}
 			*blocksize = n;
@@ -285,8 +285,8 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 		 	/* Silently ignore the quota options */
 			break;
 		default:
-			printk("AFFS: Unrecognized mount option \"%s\" "
-					"or missing value\n", p);
+			pr_warn("Unrecognized mount option \"%s\" or missing value\n",
+				p);
 			return 0;
 		}
 	}
@@ -339,7 +339,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,
 				sbi->s_volume, &mount_flags)) {
-		printk(KERN_ERR "AFFS: Error parsing options\n");
+		pr_err("Error parsing options\n");
 		return -EINVAL;
 	}
 	/* N.B. after this point s_prefix must be released */
@@ -407,8 +407,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 	if (!silent)
-		printk(KERN_ERR "AFFS: No valid root block on device %s\n",
-			sb->s_id);
+		pr_err("No valid root block on device %s\n", sb->s_id);
 	return -EINVAL;
 
 	/* N.B. after this point bh must be released */
@@ -420,7 +419,7 @@ got_root:
 	/* Find out which kind of FS we have */
 	boot_bh = sb_bread(sb, 0);
 	if (!boot_bh) {
-		printk(KERN_ERR "AFFS: Cannot read boot block\n");
+		pr_err("Cannot read boot block\n");
 		return -EINVAL;
 	}
 	memcpy(sig, boot_bh->b_data, 4);
@@ -433,8 +432,7 @@ got_root:
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
 	     || chksum == MUFS_DCOFS) && !(sb->s_flags & MS_RDONLY)) {
-		printk(KERN_NOTICE "AFFS: Dircache FS - mounting %s read only\n",
-			sb->s_id);
+		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
 		sb->s_flags |= MS_RDONLY;
 	}
 	switch (chksum) {
@@ -468,14 +466,14 @@ got_root:
 			sb->s_flags |= MS_NOEXEC;
 			break;
 		default:
-			printk(KERN_ERR "AFFS: Unknown filesystem on device %s: %08X\n",
-				sb->s_id, chksum);
+			pr_err("Unknown filesystem on device %s: %08X\n",
+			       sb->s_id, chksum);
 			return -EINVAL;
 	}
 
 	if (mount_flags & SF_VERBOSE) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
-		printk(KERN_NOTICE "AFFS: Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
+		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
 			AFFS_ROOT_TAIL(sb, root_bh)->disk_name + 1,
 			sig, sig[3] + '0', blocksize);
@@ -506,7 +504,7 @@ got_root:
 
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
-		printk(KERN_ERR "AFFS: Get root inode failed\n");
+		pr_err("AFFS: Get root inode failed\n");
 		return -ENOMEM;
 	}
 
