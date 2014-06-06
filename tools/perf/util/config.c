@@ -286,6 +286,21 @@ static int parse_unit_factor(const char *end, unsigned long *val)
 	return 0;
 }
 
+static int perf_parse_llong(const char *value, long long *ret)
+{
+	if (value && *value) {
+		char *end;
+		long long val = strtoll(value, &end, 0);
+		unsigned long factor = 1;
+
+		if (!parse_unit_factor(end, &factor))
+			return 0;
+		*ret = val * factor;
+		return 1;
+	}
+	return 0;
+}
+
 static int perf_parse_long(const char *value, long *ret)
 {
 	if (value && *value) {
@@ -305,6 +320,15 @@ static void die_bad_config(const char *name)
 	if (config_file_name)
 		die("bad config value for '%s' in %s", name, config_file_name);
 	die("bad config value for '%s'", name);
+}
+
+u64 perf_config_u64(const char *name, const char *value)
+{
+	long long ret = 0;
+
+	if (!perf_parse_llong(value, &ret))
+		die_bad_config(name);
+	return (u64) ret;
 }
 
 int perf_config_int(const char *name, const char *value)
