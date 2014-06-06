@@ -1484,14 +1484,6 @@ static void intel_reset_dpio(struct drm_device *dev)
 	if (!IS_VALLEYVIEW(dev))
 		return;
 
-	/*
-	 * Enable the CRI clock source so we can get at the display and the
-	 * reference clock for VGA hotplug / manual detection.
-	 */
-	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-		   DPLL_REFA_CLK_ENABLE_VLV |
-		   DPLL_INTEGRATED_CRI_CLK_VLV);
-
 	if (IS_CHERRYVIEW(dev)) {
 		enum dpio_phy phy;
 		u32 val;
@@ -1516,17 +1508,23 @@ static void intel_reset_dpio(struct drm_device *dev)
 
 	} else {
 		/*
-		 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
-		 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
-		 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
-		 *   b.	The other bits such as sfr settings / modesel may all
-		 *	be set to 0.
-		 *
-		 * This should only be done on init and resume from S3 with
-		 * both PLLs disabled, or we risk losing DPIO and PLL
-		 * synchronization.
+		 * If DPIO has already been reset, e.g. by BIOS, just skip all
+		 * this.
 		 */
-		I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+		if (I915_READ(DPIO_CTL) & DPIO_CMNRST)
+			return;
+
+		/*
+		 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
+		 * Need to assert and de-assert PHY SB reset by gating the
+		 * common lane power, then un-gating it.
+		 * Simply ungating isn't enough to reset the PHY enough to get
+		 * ports and lanes running.
+		 */
+		__vlv_set_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC,
+				     false);
+		__vlv_set_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC,
+				     true);
 	}
 }
 
@@ -7868,29 +7866,33 @@ static void i845_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	bool visible = base != 0;
-	u32 cntl;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible == visible)
-		return;
-
-	cntl = I915_READ(_CURACNTR);
-	if (visible) {
+	if (base != intel_crtc->cursor_base) {
 		/* On these chipsets we can only modify the base whilst
 		 * the cursor is disabled.
 		 */
+		if (intel_crtc->cursor_cntl) {
+			I915_WRITE(_CURACNTR, 0);
+			POSTING_READ(_CURACNTR);
+			intel_crtc->cursor_cntl = 0;
+		}
+
 		I915_WRITE(_CURABASE, base);
+		POSTING_READ(_CURABASE);
+	}
 
-		cntl &= ~(CURSOR_FORMAT_MASK);
-		/* XXX width must be 64, stride 256 => 0x00 << 28 */
-		cntl |= CURSOR_ENABLE |
+	/* XXX width must be 64, stride 256 => 0x00 << 28 */
+	cntl = 0;
+	if (base)
+		cntl = (CURSOR_ENABLE |
 			CURSOR_GAMMA_ENABLE |
-			CURSOR_FORMAT_ARGB;
-	} else
-		cntl &= ~(CURSOR_ENABLE | CURSOR_GAMMA_ENABLE);
-	I915_WRITE(_CURACNTR, cntl);
-
-	intel_crtc->cursor_visible = visible;
+			CURSOR_FORMAT_ARGB);
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(_CURACNTR, cntl);
+		POSTING_READ(_CURACNTR);
+		intel_crtc->cursor_cntl = cntl;
+	}
 }
 
 static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
@@ -7899,16 +7901,12 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	bool visible = base != 0;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible != visible) {
-		int16_t width = intel_crtc->cursor_width;
-		uint32_t cntl = I915_READ(CURCNTR(pipe));
-		if (base) {
-			cntl &= ~(CURSOR_MODE | MCURSOR_PIPE_SELECT);
-			cntl |= MCURSOR_GAMMA_ENABLE;
-
-			switch (width) {
+	cntl = 0;
+	if (base) {
+		cntl = MCURSOR_GAMMA_ENABLE;
+		switch (intel_crtc->cursor_width) {
 			case 64:
 				cntl |= CURSOR_MODE_64_ARGB_AX;
 				break;
@@ -7921,18 +7919,16 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 			default:
 				WARN_ON(1);
 				return;
-			}
-			cntl |= pipe << 28; /* Connect to correct pipe */
-		} else {
-			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			cntl |= CURSOR_MODE_DISABLE;
 		}
-		I915_WRITE(CURCNTR(pipe), cntl);
-
-		intel_crtc->cursor_visible = visible;
+		cntl |= pipe << 28; /* Connect to correct pipe */
 	}
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(CURCNTR(pipe), cntl);
+		POSTING_READ(CURCNTR(pipe));
+		intel_crtc->cursor_cntl = cntl;
+	}
+
 	/* and commit changes on next vblank */
-	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
 	POSTING_READ(CURBASE(pipe));
 }
@@ -7943,15 +7939,12 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	bool visible = base != 0;
+	uint32_t cntl;
 
-	if (intel_crtc->cursor_visible != visible) {
-		int16_t width = intel_crtc->cursor_width;
-		uint32_t cntl = I915_READ(CURCNTR(pipe));
-		if (base) {
-			cntl &= ~CURSOR_MODE;
-			cntl |= MCURSOR_GAMMA_ENABLE;
-			switch (width) {
+	cntl = 0;
+	if (base) {
+		cntl = MCURSOR_GAMMA_ENABLE;
+		switch (intel_crtc->cursor_width) {
 			case 64:
 				cntl |= CURSOR_MODE_64_ARGB_AX;
 				break;
@@ -7964,21 +7957,18 @@ static void ivb_update_cursor(struct drm_crtc *crtc, u32 base)
 			default:
 				WARN_ON(1);
 				return;
-			}
-		} else {
-			cntl &= ~(CURSOR_MODE | MCURSOR_GAMMA_ENABLE);
-			cntl |= CURSOR_MODE_DISABLE;
 		}
-		if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
-			cntl |= CURSOR_PIPE_CSC_ENABLE;
-			cntl &= ~CURSOR_TRICKLE_FEED_DISABLE;
-		}
-		I915_WRITE(CURCNTR(pipe), cntl);
-
-		intel_crtc->cursor_visible = visible;
 	}
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+		cntl |= CURSOR_PIPE_CSC_ENABLE;
+
+	if (intel_crtc->cursor_cntl != cntl) {
+		I915_WRITE(CURCNTR(pipe), cntl);
+		POSTING_READ(CURCNTR(pipe));
+		intel_crtc->cursor_cntl = cntl;
+	}
+
 	/* and commit changes on next vblank */
-	POSTING_READ(CURCNTR(pipe));
 	I915_WRITE(CURBASE(pipe), base);
 	POSTING_READ(CURBASE(pipe));
 }
@@ -7994,7 +7984,6 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	int x = intel_crtc->cursor_x;
 	int y = intel_crtc->cursor_y;
 	u32 base = 0, pos = 0;
-	bool visible;
 
 	if (on)
 		base = intel_crtc->cursor_addr;
@@ -8023,8 +8012,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	}
 	pos |= y << CURSOR_Y_SHIFT;
 
-	visible = base != 0;
-	if (!visible && !intel_crtc->cursor_visible)
+	if (base == 0 && intel_crtc->cursor_base == 0)
 		return;
 
 	I915_WRITE(CURPOS(pipe), pos);
@@ -8035,6 +8023,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		i845_update_cursor(crtc, base);
 	else
 		i9xx_update_cursor(crtc, base);
+	intel_crtc->cursor_base = base;
 }
 
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
@@ -10990,6 +10979,9 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		intel_crtc->plane = !pipe;
 	}
 
+	intel_crtc->cursor_base = ~0;
+	intel_crtc->cursor_cntl = ~0;
+
 	init_waitqueue_head(&intel_crtc->vbl_wait);
 
 	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
@@ -11103,7 +11095,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_lvds_init(dev);
 
-	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev))
+	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev) && dev_priv->vbt.int_crt_support)
 		intel_crt_init(dev);
 
 	if (HAS_DDI(dev)) {
@@ -11617,9 +11609,6 @@ static struct intel_quirk intel_quirks[] = {
 
 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
-
-	/* 830 needs to leave pipe A & dpll A up */
-	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },

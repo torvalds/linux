@@ -2353,10 +2353,14 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 			active = cursor_position(dev, crtc->pipe, &x, &y);
 			seq_printf(m, "\tcursor visible? %s, position (%d, %d), addr 0x%08x, active? %s\n",
-				   yesno(crtc->cursor_visible),
+				   yesno(crtc->cursor_base),
 				   x, y, crtc->cursor_addr,
 				   yesno(active));
 		}
+
+		seq_printf(m, "\tunderrun reporting: cpu=%s pch=%s \n",
+			   yesno(!crtc->cpu_fifo_underrun_disabled),
+			   yesno(!crtc->pch_fifo_underrun_disabled));
 	}
 
 	seq_printf(m, "\n");

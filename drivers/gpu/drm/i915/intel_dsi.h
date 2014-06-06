@@ -133,4 +133,6 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 extern void vlv_enable_dsi_pll(struct intel_encoder *encoder);
 extern void vlv_disable_dsi_pll(struct intel_encoder *encoder);
 
+extern struct intel_dsi_dev_ops vbt_generic_dsi_display_ops;
+
 #endif /* _INTEL_DSI_H */

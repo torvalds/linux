@@ -744,6 +744,10 @@ parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	int i, panel_id, seq_size;
 	u16 block_size;
 
+	/* parse MIPI blocks only if LFP type is MIPI */
+	if (!dev_priv->vbt.has_mipi)
+		return;
+
 	/* Initialize this to undefined indicating no generic MIPI support */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_UNDEFINED_PANEL_ID;
 
@@ -1059,6 +1063,15 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 			/* skip the device block if device type is invalid */
 			continue;
 		}
+
+		if (p_child->common.dvo_port >= DVO_PORT_MIPIA
+		    && p_child->common.dvo_port <= DVO_PORT_MIPID
+		    &&p_child->common.device_type & DEVICE_TYPE_MIPI_OUTPUT) {
+			DRM_DEBUG_KMS("Found MIPI as LFP\n");
+			dev_priv->vbt.has_mipi = 1;
+			dev_priv->vbt.dsi.port = p_child->common.dvo_port;
+		}
+
 		child_dev_ptr = dev_priv->vbt.child_dev + count;
 		count++;
 		memcpy((void *)child_dev_ptr, (void *)p_child,
