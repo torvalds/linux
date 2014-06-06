@@ -17,7 +17,7 @@ affs_count_free_blocks(struct super_block *sb)
 	u32 free;
 	int i;
 
-	pr_debug("AFFS: count_free_blocks()\n");
+	pr_debug("%s()\n", __func__);
 
 	if (sb->s_flags & MS_RDONLY)
 		return 0;
@@ -43,7 +43,7 @@ affs_free_block(struct super_block *sb, u32 block)
 	u32 blk, bmap, bit, mask, tmp;
 	__be32 *data;
 
-	pr_debug("AFFS: free_block(%u)\n", block);
+	pr_debug("%s(%u)\n", __func__, block);
 
 	if (block > sbi->s_partition_size)
 		goto err_range;
@@ -125,7 +125,7 @@ affs_alloc_block(struct inode *inode, u32 goal)
 	sb = inode->i_sb;
 	sbi = AFFS_SB(sb);
 
-	pr_debug("AFFS: balloc(inode=%lu,goal=%u): ", inode->i_ino, goal);
+	pr_debug("balloc(inode=%lu,goal=%u): ", inode->i_ino, goal);
 
 	if (AFFS_I(inode)->i_pa_cnt) {
 		pr_debug("%d\n", AFFS_I(inode)->i_lastalloc+1);
@@ -291,7 +291,7 @@ int affs_init_bitmap(struct super_block *sb, int *flags)
 			*flags |= MS_RDONLY;
 			goto out;
 		}
-		pr_debug("AFFS: read bitmap block %d: %d\n", blk, bm->bm_key);
+		pr_debug("read bitmap block %d: %d\n", blk, bm->bm_key);
 		bm->bm_free = memweight(bh->b_data + 4, sb->s_blocksize - 4);
 
 		/* Don't try read the extension if this is the last block,

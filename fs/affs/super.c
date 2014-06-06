@@ -46,7 +46,7 @@ static void
 affs_put_super(struct super_block *sb)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
-	pr_debug("AFFS: put_super()\n");
+	pr_debug("%s()\n", __func__);
 
 	cancel_delayed_work_sync(&sbi->sb_work);
 }
@@ -319,7 +319,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 
 	save_mount_options(sb, data);
 
-	pr_debug("AFFS: read_super(%s)\n",data ? (const char *)data : "no options");
+	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
 
 	sb->s_magic             = AFFS_SUPER_MAGIC;
 	sb->s_op                = &affs_sops;
@@ -356,7 +356,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 
 	size = sb->s_bdev->bd_inode->i_size >> 9;
-	pr_debug("AFFS: initial blocksize=%d, #blocks=%d\n", 512, size);
+	pr_debug("initial blocksize=%d, #blocks=%d\n", 512, size);
 
 	affs_set_blocksize(sb, PAGE_SIZE);
 	/* Try to find root block. Its location depends on the block size. */
@@ -371,7 +371,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		sbi->s_root_block = root_block;
 		if (root_block < 0)
 			sbi->s_root_block = (reserved + size - 1) / 2;
-		pr_debug("AFFS: setting blocksize to %d\n", blocksize);
+		pr_debug("setting blocksize to %d\n", blocksize);
 		affs_set_blocksize(sb, blocksize);
 		sbi->s_partition_size = size;
 
@@ -386,7 +386,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		 * block behind the calculated one. So we check this one, too.
 		 */
 		for (num_bm = 0; num_bm < 2; num_bm++) {
-			pr_debug("AFFS: Dev %s, trying root=%u, bs=%d, "
+			pr_debug("Dev %s, trying root=%u, bs=%d, "
 				"size=%d, reserved=%d\n",
 				sb->s_id,
 				sbi->s_root_block + num_bm,
@@ -508,7 +508,7 @@ got_root:
 		return -ENOMEM;
 	}
 
-	pr_debug("AFFS: s_flags=%lX\n",sb->s_flags);
+	pr_debug("s_flags=%lX\n", sb->s_flags);
 	return 0;
 }
 
@@ -528,7 +528,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	char			 volume[32];
 	char			*prefix = NULL;
 
-	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
+	pr_debug("%s(flags=0x%x,opts=\"%s\")\n", __func__, *flags, data);
 
 	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
@@ -576,8 +576,9 @@ affs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	int		 free;
 	u64		 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
-	pr_debug("AFFS: statfs() partsize=%d, reserved=%d\n",AFFS_SB(sb)->s_partition_size,
-	     AFFS_SB(sb)->s_reserved);
+	pr_debug("%s() partsize=%d, reserved=%d\n",
+		 __func__, AFFS_SB(sb)->s_partition_size,
+		 AFFS_SB(sb)->s_reserved);
 
 	free          = affs_count_free_blocks(sb);
 	buf->f_type    = AFFS_SUPER_MAGIC;
