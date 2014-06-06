@@ -285,6 +285,7 @@ int mac802154_llsec_key_del(struct mac802154_llsec *sec,
 		mkey = container_of(pos->key, struct mac802154_llsec_key, key);
 
 		if (llsec_key_id_equal(&pos->id, key)) {
+			list_del_rcu(&pos->list);
 			llsec_key_put(mkey);
 			return 0;
 		}
