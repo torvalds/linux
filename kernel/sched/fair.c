@@ -1707,18 +1707,19 @@ no_join:
 void task_numa_free(struct task_struct *p)
 {
 	struct numa_group *grp = p->numa_group;
-	int i;
 	void *numa_faults = p->numa_faults_memory;
+	unsigned long flags;
+	int i;
 
 	if (grp) {
-		spin_lock_irq(&grp->lock);
+		spin_lock_irqsave(&grp->lock, flags);
 		for (i = 0; i < NR_NUMA_HINT_FAULT_STATS * nr_node_ids; i++)
 			grp->faults[i] -= p->numa_faults_memory[i];
 		grp->total_faults -= p->total_numa_faults;
 
 		list_del(&p->numa_entry);
 		grp->nr_tasks--;
-		spin_unlock_irq(&grp->lock);
+		spin_unlock_irqrestore(&grp->lock, flags);
 		rcu_assign_pointer(p->numa_group, NULL);
 		put_numa_group(grp);
 	}
@@ -3129,7 +3130,7 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 		 */
 		if (!cfs_b->timer_active) {
 			__refill_cfs_bandwidth_runtime(cfs_b);
-			__start_cfs_bandwidth(cfs_b);
+			__start_cfs_bandwidth(cfs_b, false);
 		}
 
 		if (cfs_b->runtime > 0) {
@@ -3308,7 +3309,7 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	raw_spin_lock(&cfs_b->lock);
 	list_add_tail_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
 	if (!cfs_b->timer_active)
-		__start_cfs_bandwidth(cfs_b);
+		__start_cfs_bandwidth(cfs_b, false);
 	raw_spin_unlock(&cfs_b->lock);
 }
 
@@ -3690,7 +3691,7 @@ static void init_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 }
 
 /* requires cfs_b->lock, may release to reprogram timer */
-void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
+void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b, bool force)
 {
 	/*
 	 * The timer may be active because we're trying to set a new bandwidth
@@ -3705,7 +3706,7 @@ void __start_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 		cpu_relax();
 		raw_spin_lock(&cfs_b->lock);
 		/* if someone else restarted the timer then we're done */
-		if (cfs_b->timer_active)
+		if (!force && cfs_b->timer_active)
 			return;
 	}
 
