@@ -91,7 +91,7 @@ static int pch_gbe_get_settings(struct net_device *netdev,
 	ecmd->advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ethtool_cmd_speed_set(ecmd, -1);
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
 	return ret;
 }
 
