@@ -43,11 +43,6 @@
 struct page *empty_zero_page;
 EXPORT_SYMBOL(empty_zero_page);
 
-pgprot_t pgprot_default;
-EXPORT_SYMBOL(pgprot_default);
-
-static pmdval_t prot_sect_kernel;
-
 struct cachepolicy {
 	const char	policy[16];
 	u64		mair;
@@ -122,33 +117,6 @@ static int __init early_cachepolicy(char *p)
 }
 early_param("cachepolicy", early_cachepolicy);
 
-/*
- * Adjust the PMD section entries according to the CPU in use.
- */
-void __init init_mem_pgprot(void)
-{
-	pteval_t default_pgprot;
-	int i;
-
-	default_pgprot = PTE_ATTRINDX(MT_NORMAL);
-	prot_sect_kernel = PMD_TYPE_SECT | PMD_SECT_AF | PMD_ATTRINDX(MT_NORMAL);
-
-#ifdef CONFIG_SMP
-	/*
-	 * Mark memory with the "shared" attribute for SMP systems
-	 */
-	default_pgprot |= PTE_SHARED;
-	prot_sect_kernel |= PMD_SECT_S;
-#endif
-
-	for (i = 0; i < 16; i++) {
-		unsigned long v = pgprot_val(protection_map[i]);
-		protection_map[i] = __pgprot(v | default_pgprot);
-	}
-
-	pgprot_default = __pgprot(PTE_TYPE_PAGE | PTE_AF | default_pgprot);
-}
-
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -196,11 +164,10 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 	pgprot_t prot_pte;
 
 	if (map_io) {
-		prot_sect = PMD_TYPE_SECT | PMD_SECT_AF |
-			    PMD_ATTRINDX(MT_DEVICE_nGnRE);
+		prot_sect = PROT_SECT_DEVICE_nGnRE;
 		prot_pte = __pgprot(PROT_DEVICE_nGnRE);
 	} else {
-		prot_sect = prot_sect_kernel;
+		prot_sect = PROT_SECT_NORMAL_EXEC;
 		prot_pte = PAGE_KERNEL_EXEC;
 	}
 
@@ -242,7 +209,30 @@ static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
 
 	do {
 		next = pud_addr_end(addr, end);
-		alloc_init_pmd(pud, addr, next, phys, map_io);
+
+		/*
+		 * For 4K granule only, attempt to put down a 1GB block
+		 */
+		if (!map_io && (PAGE_SHIFT == 12) &&
+		    ((addr | next | phys) & ~PUD_MASK) == 0) {
+			pud_t old_pud = *pud;
+			set_pud(pud, __pud(phys | PROT_SECT_NORMAL_EXEC));
+
+			/*
+			 * If we have an old value for a pud, it will
+			 * be pointing to a pmd table that we no longer
+			 * need (from swapper_pg_dir).
+			 *
+			 * Look up the old pmd table and free it.
+			 */
+			if (!pud_none(old_pud)) {
+				phys_addr_t table = __pa(pmd_offset(&old_pud, 0));
+				memblock_free(table, PAGE_SIZE);
+				flush_tlb_all();
+			}
+		} else {
+			alloc_init_pmd(pud, addr, next, phys, map_io);
+		}
 		phys += next - addr;
 	} while (pud++, addr = next, addr != end);
 }
@@ -399,6 +389,9 @@ int kern_addr_valid(unsigned long addr)
 	if (pud_none(*pud))
 		return 0;
 
+	if (pud_sect(*pud))
+		return pfn_valid(pud_pfn(*pud));
+
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd))
 		return 0;
@@ -446,7 +439,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 			if (!p)
 				return -ENOMEM;
 
-			set_pmd(pmd, __pmd(__pa(p) | prot_sect_kernel));
+			set_pmd(pmd, __pmd(__pa(p) | PROT_SECT_NORMAL));
 		} else
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
 	} while (addr = next, addr != end);

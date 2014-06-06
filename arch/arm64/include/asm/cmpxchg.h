@@ -72,7 +72,12 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 }
 
 #define xchg(ptr,x) \
-	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
+({ \
+	__typeof__(*(ptr)) __ret; \
+	__ret = (__typeof__(*(ptr))) \
+		__xchg((unsigned long)(x), (ptr), sizeof(*(ptr))); \
+	__ret; \
+})
 
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, int size)
