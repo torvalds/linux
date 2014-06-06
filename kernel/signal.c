@@ -3072,16 +3072,13 @@ COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
  */
 void allow_signal(int sig)
 {
-	spin_lock_irq(&current->sighand->siglock);
-	/* This is only needed for daemonize()'ed kthreads */
-	sigdelset(&current->blocked, sig);
 	/*
 	 * Kernel threads handle their own signals. Let the signal code
 	 * know it'll be handled, so that they don't get converted to
 	 * SIGKILL or just silently dropped.
 	 */
+	spin_lock_irq(&current->sighand->siglock);
 	current->sighand->action[(sig)-1].sa.sa_handler = (void __user *)2;
-	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 }
 EXPORT_SYMBOL(allow_signal);
