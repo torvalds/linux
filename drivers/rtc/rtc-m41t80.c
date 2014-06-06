@@ -66,8 +66,6 @@
 #define M41T80_FEATURE_WD	(1 << 3)	/* Extra watchdog resolution */
 #define M41T80_FEATURE_SQ_ALT	(1 << 4)	/* RSx bits are in reg 4 */
 
-#define DRV_VERSION "0.05"
-
 static DEFINE_MUTEX(m41t80_rtc_mutex);
 static const struct i2c_device_id m41t80_id[] = {
 	{ "m41t62", M41T80_FEATURE_SQ | M41T80_FEATURE_SQ_ALT },
@@ -634,9 +632,6 @@ static int m41t80_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	dev_info(&client->dev,
-		 "chip found, driver version " DRV_VERSION "\n");
-
 	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
 				GFP_KERNEL);
 	if (!clientdata) {
@@ -750,4 +745,3 @@ module_i2c_driver(m41t80_driver);
 MODULE_AUTHOR("Alexander Bigga <ab@mycable.de>");
 MODULE_DESCRIPTION("ST Microelectronics M41T80 series RTC I2C Client Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
