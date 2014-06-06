@@ -630,7 +630,6 @@ static int rspi_rz_transfer_one(struct spi_master *master,
 				struct spi_transfer *xfer)
 {
 	struct rspi_data *rspi = spi_master_get_devdata(master);
-	int ret;
 
 	rspi_rz_receive_init(rspi);
 
