@@ -627,37 +627,28 @@ static int m41t80_probe(struct i2c_client *client,
 	struct m41t80_data *clientdata = NULL;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C
-				     | I2C_FUNC_SMBUS_BYTE_DATA)) {
-		rc = -ENODEV;
-		goto exit;
-	}
+				     | I2C_FUNC_SMBUS_BYTE_DATA))
+		return -ENODEV;
 
 	clientdata = devm_kzalloc(&client->dev, sizeof(*clientdata),
 				GFP_KERNEL);
-	if (!clientdata) {
-		rc = -ENOMEM;
-		goto exit;
-	}
+	if (!clientdata)
+		return -ENOMEM;
 
 	clientdata->features = id->driver_data;
 	i2c_set_clientdata(client, clientdata);
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
 					&m41t80_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		rc = PTR_ERR(rtc);
-		rtc = NULL;
-		goto exit;
-	}
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
 
 	clientdata->rtc = rtc;
 
 	/* Make sure HT (Halt Update) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_HOUR);
-	if (rc < 0)
-		goto ht_err;
 
-	if (rc & M41T80_ALHOUR_HT) {
+	if (rc >= 0 && rc & M41T80_ALHOUR_HT) {
 		if (clientdata->features & M41T80_FEATURE_HT) {
 			m41t80_get_datetime(client, &tm);
 			dev_info(&client->dev, "HT bit was set!\n");
@@ -668,53 +659,44 @@ static int m41t80_probe(struct i2c_client *client,
 				 tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
 				 tm.tm_min, tm.tm_sec);
 		}
-		if (i2c_smbus_write_byte_data(client,
-					      M41T80_REG_ALARM_HOUR,
-					      rc & ~M41T80_ALHOUR_HT) < 0)
-			goto ht_err;
+		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_HOUR,
+					      rc & ~M41T80_ALHOUR_HT);
+	}
+
+	if (rc < 0) {
+		dev_err(&client->dev, "Can't clear HT bit\n");
+		return -EIO;
 	}
 
 	/* Make sure ST (stop) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_SEC);
-	if (rc < 0)
-		goto st_err;
 
-	if (rc & M41T80_SEC_ST) {
-		if (i2c_smbus_write_byte_data(client, M41T80_REG_SEC,
-					      rc & ~M41T80_SEC_ST) < 0)
-			goto st_err;
+	if (rc >= 0 && rc & M41T80_SEC_ST)
+		rc = i2c_smbus_write_byte_data(client, M41T80_REG_SEC,
+					      rc & ~M41T80_SEC_ST);
+	if (rc < 0) {
+		dev_err(&client->dev, "Can't clear ST bit\n");
+		return -EIO;
 	}
 
 	rc = m41t80_sysfs_register(&client->dev);
 	if (rc)
-		goto exit;
+		return rc;
 
 #ifdef CONFIG_RTC_DRV_M41T80_WDT
 	if (clientdata->features & M41T80_FEATURE_HT) {
 		save_client = client;
 		rc = misc_register(&wdt_dev);
 		if (rc)
-			goto exit;
+			return rc;
 		rc = register_reboot_notifier(&wdt_notifier);
 		if (rc) {
 			misc_deregister(&wdt_dev);
-			goto exit;
+			return rc;
 		}
 	}
 #endif
 	return 0;
-
-st_err:
-	rc = -EIO;
-	dev_err(&client->dev, "Can't clear ST bit\n");
-	goto exit;
-ht_err:
-	rc = -EIO;
-	dev_err(&client->dev, "Can't clear HT bit\n");
-	goto exit;
-
-exit:
-	return rc;
 }
 
 static int m41t80_remove(struct i2c_client *client)
