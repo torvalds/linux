@@ -1187,7 +1187,7 @@ static void _ReadRFType(struct adapter *Adapter)
 	haldata->rf_chip = RF_6052;
 }
 
-static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
+static void _ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	u32 start = jiffies;
 
@@ -1197,13 +1197,6 @@ static int _ReadAdapterInfo8188EU(struct adapter *Adapter)
 	_ReadPROMContent(Adapter);
 
 	MSG_88E("<==== %s in %d ms\n", __func__, rtw_get_passing_time_ms(start));
-
-	return _SUCCESS;
-}
-
-static void ReadAdapterInfo8188EU(struct adapter *Adapter)
-{
-	_ReadAdapterInfo8188EU(Adapter);
 }
 
 #define GPIO_DEBUG_PORT_NUM 0
@@ -2249,7 +2242,7 @@ void rtl8188eu_set_hal_ops(struct adapter *adapt)
 
 	halfunc->init_default_value = &rtl8188eu_init_default_value;
 	halfunc->intf_chip_configure = &rtl8188eu_interface_configure;
-	halfunc->read_adapter_info = &ReadAdapterInfo8188EU;
+	halfunc->read_adapter_info = &_ReadAdapterInfo8188EU;
 
 	halfunc->SetHwRegHandler = &SetHwReg8188EU;
 	halfunc->GetHwRegHandler = &GetHwReg8188EU;
