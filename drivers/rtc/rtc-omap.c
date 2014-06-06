@@ -96,6 +96,9 @@
 #define OMAP_RTC_INTERRUPTS_IT_ALARM	BIT(3)
 #define OMAP_RTC_INTERRUPTS_IT_TIMER	BIT(2)
 
+/* OMAP_RTC_OSC_REG bit fields: */
+#define OMAP_RTC_OSC_32KCLK_EN		BIT(6)
+
 /* OMAP_RTC_IRQWAKEEN bit fields: */
 #define OMAP_RTC_IRQWAKEEN_ALARM_WAKEEN	BIT(1)
 
@@ -110,6 +113,12 @@
  * generation for event Alarm.
  */
 #define	OMAP_RTC_HAS_IRQWAKEEN		BIT(1)
+
+/*
+ * Some RTC IP revisions (like those in AM335x and DRA7x) need
+ * the 32KHz clock to be explicitly enabled.
+ */
+#define OMAP_RTC_HAS_32KCLK_EN		BIT(2)
 
 static void __iomem	*rtc_base;
 
@@ -319,7 +328,8 @@ static struct platform_device_id omap_rtc_devtype[] = {
 	},
 	[OMAP_RTC_DATA_AM3352_IDX] = {
 		.name	= "am3352-rtc",
-		.driver_data = OMAP_RTC_HAS_KICKER | OMAP_RTC_HAS_IRQWAKEEN,
+		.driver_data = OMAP_RTC_HAS_KICKER | OMAP_RTC_HAS_IRQWAKEEN |
+			       OMAP_RTC_HAS_32KCLK_EN,
 	},
 	[OMAP_RTC_DATA_DA830_IDX] = {
 		.name	= "da830-rtc",
@@ -397,6 +407,10 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	 * which we'll use instead of update irqs
 	 */
 	rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
+
+	/* enable RTC functional clock */
+	if (id_entry->driver_data & OMAP_RTC_HAS_32KCLK_EN)
+		rtc_writel(OMAP_RTC_OSC_32KCLK_EN, OMAP_RTC_OSC_REG);
 
 	/* clear old status */
 	reg = rtc_read(OMAP_RTC_STATUS_REG);
