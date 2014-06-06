@@ -12,6 +12,12 @@
 #ifndef _LINUX_CODA_FS
 #define _LINUX_CODA_FS
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/mm.h>

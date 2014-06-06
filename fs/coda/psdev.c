@@ -120,7 +120,7 @@ static ssize_t coda_psdev_write(struct file *file, const char __user *buf,
 			goto out;
 		}
 		if ( nbytes > size ) {
-			pr_warn("Coda: downcall opc %d, uniq %d, too much!",
+			pr_warn("downcall opc %d, uniq %d, too much!",
 				hdr.opcode, hdr.unique);
 		        nbytes = size;
 		}
@@ -400,7 +400,7 @@ static int __init init_coda(void)
 	
 	status = register_filesystem(&coda_fs_type);
 	if (status) {
-		pr_warn("coda: failed to register filesystem!\n");
+		pr_warn("failed to register filesystem!\n");
 		goto out;
 	}
 	return 0;
@@ -422,7 +422,7 @@ static void __exit exit_coda(void)
 
 	err = unregister_filesystem(&coda_fs_type);
 	if (err != 0)
-		pr_warn("coda: failed to unregister filesystem\n");
+		pr_warn("failed to unregister filesystem\n");
 	for (i = 0; i < MAX_CODADEVS; i++)
 		device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
 	class_destroy(coda_psdev_class);

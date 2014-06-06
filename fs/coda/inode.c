@@ -247,7 +247,7 @@ static void coda_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 	mutex_unlock(&vcp->vc_mutex);
 
-	pr_info("Coda: Bye bye.\n");
+	pr_info("Bye bye.\n");
 }
 
 static void coda_evict_inode(struct inode *inode)

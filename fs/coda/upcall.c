@@ -675,7 +675,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	mutex_lock(&vcp->vc_mutex);
 
 	if (!vcp->vc_inuse) {
-		pr_notice("coda: Venus dead, not sending upcall\n");
+		pr_notice("Venus dead, not sending upcall\n");
 		error = -ENXIO;
 		goto exit;
 	}
@@ -725,7 +725,7 @@ static int coda_upcall(struct venus_comm *vcp,
 
 	error = -EINTR;
 	if ((req->uc_flags & CODA_REQ_ABORT) || !signal_pending(current)) {
-		pr_warn("coda: Unexpected interruption.\n");
+		pr_warn("Unexpected interruption.\n");
 		goto exit;
 	}
 
@@ -735,7 +735,7 @@ static int coda_upcall(struct venus_comm *vcp,
 
 	/* Venus saw the upcall, make sure we can send interrupt signal */
 	if (!vcp->vc_inuse) {
-		pr_info("coda: Venus dead, not sending signal.\n");
+		pr_info("Venus dead, not sending signal.\n");
 		goto exit;
 	}
 
