@@ -863,7 +863,7 @@
 		};
 
 		i2c0: i2c@01c2ac00 {
-			compatible = "allwinner,sun4i-i2c";
+			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <0 7 4>;
 			clocks = <&apb1_gates 0>;
@@ -874,7 +874,7 @@
 		};
 
 		i2c1: i2c@01c2b000 {
-			compatible = "allwinner,sun4i-i2c";
+			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b000 0x400>;
 			interrupts = <0 8 4>;
 			clocks = <&apb1_gates 1>;
@@ -885,7 +885,7 @@
 		};
 
 		i2c2: i2c@01c2b400 {
-			compatible = "allwinner,sun4i-i2c";
+			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b400 0x400>;
 			interrupts = <0 9 4>;
 			clocks = <&apb1_gates 2>;
@@ -896,7 +896,7 @@
 		};
 
 		i2c3: i2c@01c2b800 {
-			compatible = "allwinner,sun4i-i2c";
+			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b800 0x400>;
 			interrupts = <0 88 4>;
 			clocks = <&apb1_gates 3>;
@@ -907,7 +907,7 @@
 		};
 
 		i2c4: i2c@01c2c000 {
-			compatible = "allwinner,sun4i-i2c";
+			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2c000 0x400>;
 			interrupts = <0 89 4>;
 			clocks = <&apb1_gates 15>;

@@ -732,10 +732,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
-	if (!i2c_dev) {
-		dev_err(&pdev->dev, "Could not allocate struct tegra_i2c_dev");
+	if (!i2c_dev)
 		return -ENOMEM;
-	}
 
 	i2c_dev->base = base;
 	i2c_dev->div_clk = div_clk;

@@ -379,10 +379,8 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	u32 clk_rate;
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
-	if (!i2c_dev) {
-		dev_err(&pdev->dev, "device memory allocation failed\n");
+	if (!i2c_dev)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
@@ -454,7 +452,7 @@ static int wmt_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id wmt_i2c_dt_ids[] = {
+static const struct of_device_id wmt_i2c_dt_ids[] = {
 	{ .compatible = "wm,wm8505-i2c" },
 	{ /* Sentinel */ },
 };

@@ -320,10 +320,8 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
-	if (!ddata) {
-		dev_dbg(&pdev->dev, "failed to allocate private data\n");
+	if (!ddata)
 		return -ENOMEM;
-	}
 	platform_set_drvdata(pdev, ddata);
 
 	init_completion(&ddata->done);
