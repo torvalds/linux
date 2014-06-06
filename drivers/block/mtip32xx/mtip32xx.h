@@ -493,19 +493,19 @@ struct driver_data {
 
 	struct workqueue_struct *isr_workq;
 
-	struct mtip_work work[MTIP_MAX_SLOT_GROUPS];
-
 	atomic_t irq_workers_active;
+
+	struct mtip_work work[MTIP_MAX_SLOT_GROUPS];
 
 	int isr_binding;
 
 	struct block_device *bdev;
 
-	int unal_qdepth; /* qdepth of unaligned IO queue */
-
 	struct list_head online_list; /* linkage for online list */
 
 	struct list_head remove_list; /* linkage for removing list */
+
+	int unal_qdepth; /* qdepth of unaligned IO queue */
 };
 
 #endif
