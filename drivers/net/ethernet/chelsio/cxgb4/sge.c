@@ -2515,6 +2515,10 @@ void t4_free_sge_resources(struct adapter *adap)
 		if (oq->rspq.desc)
 			free_rspq_fl(adap, &oq->rspq, &oq->fl);
 	}
+	for (i = 0, oq = adap->sge.rdmaciq; i < adap->sge.rdmaciqs; i++, oq++) {
+		if (oq->rspq.desc)
+			free_rspq_fl(adap, &oq->rspq, &oq->fl);
+	}
 
 	/* clean up offload Tx queues */
 	for (i = 0; i < ARRAY_SIZE(adap->sge.ofldtxq); i++) {

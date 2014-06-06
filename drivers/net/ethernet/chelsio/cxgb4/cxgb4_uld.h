@@ -232,8 +232,10 @@ struct cxgb4_lld_info {
 	const struct cxgb4_virt_res *vr;     /* assorted HW resources */
 	const unsigned short *mtus;          /* MTU table */
 	const unsigned short *rxq_ids;       /* the ULD's Rx queue ids */
+	const unsigned short *ciq_ids;       /* the ULD's concentrator IQ ids */
 	unsigned short nrxq;                 /* # of Rx queues */
 	unsigned short ntxq;                 /* # of Tx queues */
+	unsigned short nciq;		     /* # of concentrator IQ */
 	unsigned char nchan:4;               /* # of channels */
 	unsigned char nports:4;              /* # of ports */
 	unsigned char wr_cred;               /* WR 16-byte credits */
