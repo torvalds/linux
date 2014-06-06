@@ -1476,7 +1476,7 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		goto out_dma;
 	}
 	id_ctrl = mem;
-	lowest_pow_st = id_ctrl->npss - 1;
+	lowest_pow_st = max(POWER_STATE_0, (int)(id_ctrl->npss - 1));
 
 	switch (pc) {
 	case NVME_POWER_STATE_START_VALID:
@@ -1493,20 +1493,19 @@ static int nvme_trans_power_state(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		break;
 	case NVME_POWER_STATE_IDLE:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1,2] */
-		/* min of desired state and (lps-1) because lps is STOP */
 		if (pcmod == 0x0)
-			ps_desired = min(POWER_STATE_1, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_1;
 		else if (pcmod == 0x1)
-			ps_desired = min(POWER_STATE_2, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_2;
 		else if (pcmod == 0x2)
-			ps_desired = min(POWER_STATE_3, (lowest_pow_st - 1));
+			ps_desired = POWER_STATE_3;
 		break;
 	case NVME_POWER_STATE_STANDBY:
 		/* Action unspecified if POWER CONDITION MODIFIER != [0,1] */
 		if (pcmod == 0x0)
-			ps_desired = max(0, (lowest_pow_st - 2));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 2));
 		else if (pcmod == 0x1)
-			ps_desired = max(0, (lowest_pow_st - 1));
+			ps_desired = max(POWER_STATE_0, (lowest_pow_st - 1));
 		break;
 	case NVME_POWER_STATE_LU_CONTROL:
 	default:
