@@ -145,7 +145,7 @@ static void idr_layer_rcu_free(struct rcu_head *head)
 
 static inline void free_layer(struct idr *idr, struct idr_layer *p)
 {
-	if (idr->hint && idr->hint == p)
+	if (idr->hint == p)
 		RCU_INIT_POINTER(idr->hint, NULL);
 	call_rcu(&p->rcu_head, idr_layer_rcu_free);
 }
