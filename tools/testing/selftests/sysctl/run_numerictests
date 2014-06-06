@@ -1,0 +1,10 @@
+#!/bin/sh
+
+SYSCTL="/proc/sys"
+TARGET="${SYSCTL}/vm/swappiness"
+ORIG=$(cat "${TARGET}")
+TEST_STR=$(( $ORIG + 1 ))
+
+. ./common_tests
+
+exit $rc
