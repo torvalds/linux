@@ -280,7 +280,6 @@ static int rk3288_hdmi_drv_init(struct hdmi *hdmi_drv)
 static void rk3288_hdmi_early_suspend(void)
 {
 	struct hdmi *hdmi_drv = &hdmi_dev->driver;
-	struct pinctrl_state *gpio_state;
 
 	if (hdmi_drv->suspend)
 		return;
@@ -305,8 +304,8 @@ static void rk3288_hdmi_early_suspend(void)
 	flush_delayed_work(&hdmi_drv->delay_work);
 
 	/* iomux to gpio and pull down when suspend */
-	gpio_state = pinctrl_lookup_state(hdmi_dev->dev->pins->p, "gpio");
-	pinctrl_select_state(hdmi_dev->dev->pins->p, gpio_state);
+	pinctrl_select_state(hdmi_dev->dev->pins->p,
+			     hdmi_dev->dev->pins->sleep_state);
 	rk3288_hdmi_clk_disable(hdmi_dev);
 	return;
 }
