@@ -146,9 +146,7 @@ xfs_da_mount(
 
 	/* XXX: these are to be removed as code is converted to use geo */
 	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
-	mp->m_dir_magicpct = mp->m_dir_geo->magicpct;
 	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
-	mp->m_attr_magicpct = mp->m_attr_geo->magicpct;
 	return 0;
 }
 

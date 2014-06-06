@@ -1949,7 +1949,7 @@ xfs_attr3_leaf_remove(
 	tmp = ichdr.usedbytes + xfs_attr3_leaf_hdr_size(leaf) +
 	      ichdr.count * sizeof(xfs_attr_leaf_entry_t);
 
-	return tmp < mp->m_attr_magicpct; /* leaf is < 37% full */
+	return tmp < args->geo->magicpct; /* leaf is < 37% full */
 }
 
 /*

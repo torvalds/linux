@@ -1312,7 +1312,7 @@ xfs_dir2_leafn_remove(
 	 */
 	*rval = (dp->d_ops->leaf_hdr_size +
 		 (uint)sizeof(ents[0]) * (leafhdr.count - leafhdr.stale)) <
-		mp->m_dir_magicpct;
+		args->geo->magicpct;
 	return 0;
 }
 
