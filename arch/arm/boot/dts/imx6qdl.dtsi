@@ -466,8 +466,10 @@
 			};
 
 			kpp: kpp@020b8000 {
+				compatible = "fsl,imx6q-kpp", "fsl,imx21-kpp";
 				reg = <0x020b8000 0x4000>;
 				interrupts = <0 82 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks 62>;
 			};
 
 			wdog1: wdog@020bc000 {
