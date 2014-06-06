@@ -230,7 +230,7 @@ static ssize_t m41t80_sysfs_show_flags(struct device *dev,
 
 	val = i2c_smbus_read_byte_data(client, M41T80_REG_FLAGS);
 	if (val < 0)
-		return -EIO;
+		return val;
 	return sprintf(buf, "%#x\n", val);
 }
 static DEVICE_ATTR(flags, S_IRUGO, m41t80_sysfs_show_flags, NULL);
@@ -250,7 +250,7 @@ static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
 		reg_sqw = M41T80_REG_WDAY;
 	val = i2c_smbus_read_byte_data(client, reg_sqw);
 	if (val < 0)
-		return -EIO;
+		return val;
 	val = (val >> 4) & 0xf;
 	switch (val) {
 	case 0:
@@ -269,7 +269,7 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct m41t80_data *clientdata = i2c_get_clientdata(client);
-	int almon, sqw, reg_sqw;
+	int almon, sqw, reg_sqw, rc;
 	int val = simple_strtoul(buf, NULL, 0);
 
 	if (!(clientdata->features & M41T80_FEATURE_SQ))
@@ -289,21 +289,30 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 	/* disable SQW, set SQW frequency & re-enable */
 	almon = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_MON);
 	if (almon < 0)
-		return -EIO;
+		return almon;
 	reg_sqw = M41T80_REG_SQW;
 	if (clientdata->features & M41T80_FEATURE_SQ_ALT)
 		reg_sqw = M41T80_REG_WDAY;
 	sqw = i2c_smbus_read_byte_data(client, reg_sqw);
 	if (sqw < 0)
-		return -EIO;
+		return sqw;
 	sqw = (sqw & 0x0f) | (val << 4);
-	if (i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-				      almon & ~M41T80_ALMON_SQWE) < 0 ||
-	    i2c_smbus_write_byte_data(client, reg_sqw, sqw) < 0)
-		return -EIO;
-	if (val && i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
-					     almon | M41T80_ALMON_SQWE) < 0)
-		return -EIO;
+
+	rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+				      almon & ~M41T80_ALMON_SQWE);
+	if (rc < 0)
+		return rc;
+
+	if (val) {
+		rc = i2c_smbus_write_byte_data(client, reg_sqw, sqw);
+		if (rc < 0)
+			return rc;
+
+		rc = i2c_smbus_write_byte_data(client, M41T80_REG_ALARM_MON,
+					     almon | M41T80_ALMON_SQWE);
+		if (rc <0)
+			return rc;
+	}
 	return count;
 }
 static DEVICE_ATTR(sqwfreq, S_IRUGO | S_IWUSR,
@@ -665,7 +674,7 @@ static int m41t80_probe(struct i2c_client *client,
 
 	if (rc < 0) {
 		dev_err(&client->dev, "Can't clear HT bit\n");
-		return -EIO;
+		return rc;
 	}
 
 	/* Make sure ST (stop) bit is cleared */
@@ -676,7 +685,7 @@ static int m41t80_probe(struct i2c_client *client,
 					      rc & ~M41T80_SEC_ST);
 	if (rc < 0) {
 		dev_err(&client->dev, "Can't clear ST bit\n");
-		return -EIO;
+		return rc;
 	}
 
 	rc = m41t80_sysfs_register(&client->dev);
