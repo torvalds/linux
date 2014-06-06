@@ -111,15 +111,15 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static struct nouveau_i2c_port *
-nouveau_connector_ddc_detect(struct drm_connector *connector,
-			     struct nouveau_encoder **pnv_encoder)
+static struct nouveau_encoder *
+nouveau_connector_ddc_detect(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_gpio *gpio = nouveau_gpio(drm->device);
-	struct nouveau_i2c_port *port = NULL;
+	struct nouveau_encoder *nv_encoder;
+	struct drm_mode_object *obj;
 	int i, panel = -ENODEV;
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
@@ -134,13 +134,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		}
 	}
 
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_encoder *nv_encoder;
-		struct drm_mode_object *obj;
-		int id;
-
-		id = connector->encoder_ids[i];
-		if (!id)
+	for (i = 0; nv_encoder = NULL, i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+		int id = connector->encoder_ids[i];
+		if (id == 0)
 			break;
 
 		obj = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
@@ -148,22 +144,24 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
 
-		port = nv_encoder->i2c;
-		if (port && nv_probe_i2c(port, 0x50)) {
-			*pnv_encoder = nv_encoder;
-			break;
+		if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
+			int ret = nouveau_dp_detect(nv_encoder);
+			if (ret == 0)
+				break;
+		} else
+		if (nv_encoder->i2c) {
+			if (nv_probe_i2c(nv_encoder->i2c, 0x50))
+				break;
 		}
-
-		port = NULL;
 	}
 
 	/* eDP panel not detected, restore panel power GPIO to previous
 	 * state to avoid confusing the SOR for other output types.
 	 */
-	if (!port && panel == 0)
+	if (!nv_encoder && panel == 0)
 		gpio->set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, panel);
 
-	return port;
+	return nv_encoder;
 }
 
 static struct nouveau_encoder *
@@ -262,8 +260,8 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 	if (ret < 0 && ret != -EACCES)
 		return conn_status;
 
-	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
-	if (i2c) {
+	nv_encoder = nouveau_connector_ddc_detect(connector);
+	if (nv_encoder && (i2c = nv_encoder->i2c) != NULL) {
 		nv_connector->edid = drm_get_edid(connector, &i2c->adapter);
 		drm_mode_connector_update_edid_property(connector,
 							nv_connector->edid);
@@ -271,14 +269,6 @@ nouveau_connector_detect(struct drm_connector *connector, bool force)
 			NV_ERROR(drm, "DDC responded, but no EDID for %s\n",
 				 connector->name);
 			goto detect_analog;
-		}
-
-		if (nv_encoder->dcb->type == DCB_OUTPUT_DP &&
-		    !nouveau_dp_detect(to_drm_encoder(nv_encoder))) {
-			NV_ERROR(drm, "Detected %s, but failed init\n",
-				 connector->name);
-			conn_status = connector_status_disconnected;
-			goto out;
 		}
 
 		/* Override encoder type for DVI-I based on whether EDID
