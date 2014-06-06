@@ -409,17 +409,14 @@ static int rga2_MapION(struct sg_table *sg,
 
     status = 0;
     Address = 0;
-    //printk("pageCount=%d\n", pageCount);
     do {
         len = sg_dma_len(sgl) >> PAGE_SHIFT;
         Address = sg_phys(sgl);
-        //printk("len = %d\n", len);
-        //printk("Address = %.8x\n", Address);
+
         for(i=0; i<len; i++) {
             Memory[mapped_size + i] = Address + (i << PAGE_SHIFT);
         }
 
-        //printk("mapped_size = %d\n", mapped_size);
         mapped_size += len;
         sg_num += 1;
     }
