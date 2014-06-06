@@ -127,13 +127,12 @@ static void msm_iommu_reset(void __iomem *base, int ncb)
 
 static int msm_iommu_probe(struct platform_device *pdev)
 {
-	struct resource *r, *r2;
+	struct resource *r;
 	struct clk *iommu_clk;
 	struct clk *iommu_pclk;
 	struct msm_iommu_drvdata *drvdata;
 	struct msm_iommu_dev *iommu_dev = pdev->dev.platform_data;
 	void __iomem *regs_base;
-	resource_size_t	len;
 	int ret, irq, par;
 
 	if (pdev->id == -1) {
@@ -178,35 +177,16 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		iommu_clk = NULL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "physbase");
-
-	if (!r) {
-		ret = -ENODEV;
+	regs_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(regs_base)) {
+		ret = PTR_ERR(regs_base);
 		goto fail_clk;
-	}
-
-	len = resource_size(r);
-
-	r2 = request_mem_region(r->start, len, r->name);
-	if (!r2) {
-		pr_err("Could not request memory region: start=%p, len=%d\n",
-							(void *) r->start, len);
-		ret = -EBUSY;
-		goto fail_clk;
-	}
-
-	regs_base = ioremap(r2->start, len);
-
-	if (!regs_base) {
-		pr_err("Could not ioremap: start=%p, len=%d\n",
-			 (void *) r2->start, len);
-		ret = -EBUSY;
-		goto fail_mem;
 	}
 
 	irq = platform_get_irq_byname(pdev, "secure_irq");
 	if (irq < 0) {
 		ret = -ENODEV;
-		goto fail_io;
+		goto fail_clk;
 	}
 
 	msm_iommu_reset(regs_base, iommu_dev->ncb);
@@ -222,14 +202,14 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	if (!par) {
 		pr_err("%s: Invalid PAR value detected\n", iommu_dev->name);
 		ret = -ENODEV;
-		goto fail_io;
+		goto fail_clk;
 	}
 
 	ret = request_irq(irq, msm_iommu_fault_handler, 0,
 			"msm_iommu_secure_irpt_handler", drvdata);
 	if (ret) {
 		pr_err("Request IRQ %d failed with ret=%d\n", irq, ret);
-		goto fail_io;
+		goto fail_clk;
 	}
 
 
@@ -250,10 +230,6 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	clk_disable(iommu_pclk);
 
 	return 0;
-fail_io:
-	iounmap(regs_base);
-fail_mem:
-	release_mem_region(r->start, len);
 fail_clk:
 	if (iommu_clk) {
 		clk_disable(iommu_clk);
