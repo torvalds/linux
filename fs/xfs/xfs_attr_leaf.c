@@ -1076,8 +1076,7 @@ xfs_attr3_leaf_add(
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(&ichdr, leaf);
 	ASSERT(args->index >= 0 && args->index <= ichdr.count);
-	entsize = xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-			   args->geo->blksize, NULL);
+	entsize = xfs_attr_leaf_newentsize(args, NULL);
 
 	/*
 	 * Search through freemap for first-fit on new name length.
@@ -1179,14 +1178,11 @@ xfs_attr3_leaf_add_work(
 	ASSERT(ichdr->freemap[mapindex].base < XFS_LBSIZE(mp));
 	ASSERT((ichdr->freemap[mapindex].base & 0x3) == 0);
 	ASSERT(ichdr->freemap[mapindex].size >=
-		xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-					 args->geo->blksize, NULL));
+		xfs_attr_leaf_newentsize(args, NULL));
 	ASSERT(ichdr->freemap[mapindex].size < XFS_LBSIZE(mp));
 	ASSERT((ichdr->freemap[mapindex].size & 0x3) == 0);
 
-	ichdr->freemap[mapindex].size -=
-			xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-						 args->geo->blksize, &tmp);
+	ichdr->freemap[mapindex].size -= xfs_attr_leaf_newentsize(args, &tmp);
 
 	entry->nameidx = cpu_to_be16(ichdr->freemap[mapindex].base +
 				     ichdr->freemap[mapindex].size);
@@ -1594,9 +1590,7 @@ xfs_attr3_leaf_figure_balance(
 	max = ichdr1->count + ichdr2->count;
 	half = (max + 1) * sizeof(*entry);
 	half += ichdr1->usedbytes + ichdr2->usedbytes +
-			xfs_attr_leaf_newentsize(state->args->namelen,
-						 state->args->valuelen,
-						 state->blocksize, NULL);
+			xfs_attr_leaf_newentsize(state->args, NULL);
 	half /= 2;
 	lastdelta = state->blocksize;
 	entry = xfs_attr3_leaf_entryp(leaf1);
@@ -1608,10 +1602,7 @@ xfs_attr3_leaf_figure_balance(
 		 */
 		if (count == blk1->index) {
 			tmp = totallen + sizeof(*entry) +
-				xfs_attr_leaf_newentsize(
-						state->args->namelen,
-						state->args->valuelen,
-						state->blocksize, NULL);
+				xfs_attr_leaf_newentsize(state->args, NULL);
 			if (XFS_ATTR_ABS(half - tmp) > lastdelta)
 				break;
 			lastdelta = XFS_ATTR_ABS(half - tmp);
@@ -1647,10 +1638,7 @@ xfs_attr3_leaf_figure_balance(
 	totallen -= count * sizeof(*entry);
 	if (foundit) {
 		totallen -= sizeof(*entry) +
-				xfs_attr_leaf_newentsize(
-						state->args->namelen,
-						state->args->valuelen,
-						state->blocksize, NULL);
+				xfs_attr_leaf_newentsize(state->args, NULL);
 	}
 
 	*countarg = count;
@@ -2441,22 +2429,21 @@ xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index)
  * a "local" or a "remote" attribute.
  */
 int
-xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize, int *local)
+xfs_attr_leaf_newentsize(
+	struct xfs_da_args	*args,
+	int			*local)
 {
-	int size;
+	int			size;
 
-	size = xfs_attr_leaf_entsize_local(namelen, valuelen);
-	if (size < xfs_attr_leaf_entsize_local_max(blocksize)) {
-		if (local) {
+	size = xfs_attr_leaf_entsize_local(args->namelen, args->valuelen);
+	if (size < xfs_attr_leaf_entsize_local_max(args->geo->blksize)) {
+		if (local)
 			*local = 1;
-		}
-	} else {
-		size = xfs_attr_leaf_entsize_remote(namelen);
-		if (local) {
-			*local = 0;
-		}
+		return size;
 	}
-	return size;
+	if (local)
+		*local = 0;
+	return xfs_attr_leaf_entsize_remote(args->namelen);
 }
 
 
