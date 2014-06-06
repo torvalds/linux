@@ -62,15 +62,6 @@ static u8 rtw_init_intf_priv(struct dvobj_priv *dvobj)
 	return _SUCCESS;
 }
 
-static u8 rtw_deinit_intf_priv(struct dvobj_priv *dvobj)
-{
-	u8 rst = _SUCCESS;
-
-	kfree(dvobj->usb_vendor_req_buf);
-	mutex_destroy(&dvobj->usb_vendor_req_mutex);
-	return rst;
-}
-
 static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 {
 	int	i;
@@ -175,7 +166,9 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 				usb_reset_device(interface_to_usbdev(usb_intf));
 			}
 		}
-		rtw_deinit_intf_priv(dvobj);
+
+		kfree(dvobj->usb_vendor_req_buf);
+		mutex_destroy(&dvobj->usb_vendor_req_mutex);
 		kfree(dvobj);
 	}
 
