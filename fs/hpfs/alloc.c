@@ -316,7 +316,7 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	/*printk("2 - ");*/
+	/*pr_info("2 - ");*/
 	if (!n) return;
 	if (sec < 0x12) {
 		hpfs_error(s, "Trying to free reserved sector %08x", sec);

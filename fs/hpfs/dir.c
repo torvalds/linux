@@ -36,7 +36,7 @@ static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 	mutex_lock(&i->i_mutex);
 	hpfs_lock(s);
 
-	/*printk("dir lseek\n");*/
+	/*pr_info("dir lseek\n");*/
 	if (new_off == 0 || new_off == 1 || new_off == 11 || new_off == 12 || new_off == 13) goto ok;
 	pos = ((loff_t) hpfs_de_as_down_as_possible(s, hpfs_inode->i_dno) << 4) + 1;
 	while (pos != new_off) {
@@ -51,7 +51,7 @@ ok:
 	mutex_unlock(&i->i_mutex);
 	return new_off;
 fail:
-	/*printk("illegal lseek: %016llx\n", new_off);*/
+	/*pr_warn("illegal lseek: %016llx\n", new_off);*/
 	hpfs_unlock(s);
 	mutex_unlock(&i->i_mutex);
 	return -ESPIPE;
@@ -127,7 +127,7 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 		if (ctx->pos == 12)
 			goto out;
 		if (ctx->pos == 3 || ctx->pos == 4 || ctx->pos == 5) {
-			printk("HPFS: warning: pos==%d\n",(int)ctx->pos);
+			pr_err("pos==%d\n", (int)ctx->pos);
 			goto out;
 		}
 		if (ctx->pos == 0) {

@@ -149,6 +149,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	int has_write_lock = 0;
 	vm_flags_t vm_flags = 0;
 
+	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
+			"See Documentation/vm/remap_file_pages.txt.\n",
+			current->comm, current->pid);
+
 	if (prot)
 		return err;
 	/*

@@ -51,7 +51,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 	}
 
 	if (ret != -EEXIST) {
-		kerror("Can't set xattr on %*.*s [%lu] (err %d)",
+		pr_err("Can't set xattr on %*.*s [%lu] (err %d)",
 		       dentry->d_name.len, dentry->d_name.len,
 		       dentry->d_name.name, dentry->d_inode->i_ino,
 		       -ret);
@@ -64,7 +64,7 @@ int cachefiles_check_object_type(struct cachefiles_object *object)
 		if (ret == -ERANGE)
 			goto bad_type_length;
 
-		kerror("Can't read xattr on %*.*s [%lu] (err %d)",
+		pr_err("Can't read xattr on %*.*s [%lu] (err %d)",
 		       dentry->d_name.len, dentry->d_name.len,
 		       dentry->d_name.name, dentry->d_inode->i_ino,
 		       -ret);
@@ -85,14 +85,14 @@ error:
 	return ret;
 
 bad_type_length:
-	kerror("Cache object %lu type xattr length incorrect",
+	pr_err("Cache object %lu type xattr length incorrect",
 	       dentry->d_inode->i_ino);
 	ret = -EIO;
 	goto error;
 
 bad_type:
 	xtype[2] = 0;
-	kerror("Cache object %*.*s [%lu] type %s not %s",
+	pr_err("Cache object %*.*s [%lu] type %s not %s",
 	       dentry->d_name.len, dentry->d_name.len,
 	       dentry->d_name.name, dentry->d_inode->i_ino,
 	       xtype, type);
@@ -293,7 +293,7 @@ error:
 	return ret;
 
 bad_type_length:
-	kerror("Cache object %lu xattr length incorrect",
+	pr_err("Cache object %lu xattr length incorrect",
 	       dentry->d_inode->i_ino);
 	ret = -EIO;
 	goto error;
