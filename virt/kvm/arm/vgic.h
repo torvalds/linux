@@ -35,6 +35,8 @@
 #define ACCESS_WRITE_VALUE	(3 << 1)
 #define ACCESS_WRITE_MASK(x)	((x) & (3 << 1))
 
+#define VCPU_NOT_ALLOCATED	((u8)-1)
+
 unsigned long *vgic_bitmap_get_shared_map(struct vgic_bitmap *x);
 
 void vgic_update_state(struct kvm *kvm);
@@ -116,5 +118,6 @@ int vgic_get_common_attr(struct kvm_device *dev, struct kvm_device_attr *attr);
 
 int vgic_init(struct kvm *kvm);
 void vgic_v2_init_emulation(struct kvm *kvm);
+void vgic_v3_init_emulation(struct kvm *kvm);
 
 #endif
