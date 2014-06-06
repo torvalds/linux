@@ -144,16 +144,6 @@
 		states = <3300000 1
 			  1800000 0>;
 	};
-
-	i2c1_pins: i2c1 {
-		renesas,groups = "i2c1";
-		renesas,function = "i2c1";
-	};
-
-	i2c2_pins: i2c2 {
-		renesas,groups = "i2c2";
-		renesas,function = "i2c2";
-	};
 };
 
 &extal_clk {
@@ -213,6 +203,16 @@
 		renesas,groups = "msiof1_clk", "msiof1_sync", "msiof1_rx",
 				 "msiof1_tx";
 		renesas,function = "msiof1";
+	};
+
+	i2c1_pins: i2c1 {
+		renesas,groups = "i2c1";
+		renesas,function = "i2c1";
+	};
+
+	i2c2_pins: i2c2 {
+		renesas,groups = "i2c2";
+		renesas,function = "i2c2";
 	};
 
 	i2c3_pins: i2c3 {
