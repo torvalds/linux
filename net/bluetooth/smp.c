@@ -1399,9 +1399,17 @@ static u8 sc_send_public_key(struct smp_chan *smp)
 {
 	BT_DBG("");
 
-	/* Generate local key pair for Secure Connections */
-	if (!ecc_make_key(smp->local_pk, smp->local_sk))
-		return SMP_UNSPECIFIED;
+	while (true) {
+		/* Generate local key pair for Secure Connections */
+		if (!ecc_make_key(smp->local_pk, smp->local_sk))
+			return SMP_UNSPECIFIED;
+
+		/* This is unlikely, but we need to check that we didn't
+		 * accidentially generate a debug key.
+		 */
+		if (memcmp(smp->local_sk, debug_sk, 32))
+			break;
+	}
 
 	BT_DBG("Local Public Key X: %32phN", smp->local_pk);
 	BT_DBG("Local Public Key Y: %32phN", &smp->local_pk[32]);
