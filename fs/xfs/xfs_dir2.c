@@ -146,7 +146,6 @@ xfs_da_mount(
 
 	/* XXX: these are to be removed as code is converted to use geo */
 	mp->m_dirblksize = mp->m_dir_geo->blksize;
-	mp->m_dirblkfsbs = mp->m_dir_geo->fsbcount;
 	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
 	mp->m_dir_magicpct = mp->m_dir_geo->magicpct;
 	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
@@ -628,7 +627,7 @@ xfs_dir2_grow_inode(
 	 * Set lowest possible block in the space requested.
 	 */
 	bno = XFS_B_TO_FSBT(mp, space * XFS_DIR2_SPACE_SIZE);
-	count = mp->m_dirblkfsbs;
+	count = args->geo->fsbcount;
 
 	error = xfs_da_grow_inode_int(args, &bno, count);
 	if (error)
@@ -719,7 +718,7 @@ xfs_dir2_shrink_inode(
 	/*
 	 * Unmap the fsblock(s).
 	 */
-	if ((error = xfs_bunmapi(tp, dp, da, mp->m_dirblkfsbs,
+	if ((error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount,
 			XFS_BMAPI_METADATA, 0, args->firstblock, args->flist,
 			&done))) {
 		/*

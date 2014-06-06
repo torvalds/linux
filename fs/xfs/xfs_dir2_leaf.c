@@ -1715,7 +1715,7 @@ xfs_dir2_node_to_leaf(
 	if ((error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK))) {
 		return error;
 	}
-	fo -= mp->m_dirblkfsbs;
+	fo -= args->geo->fsbcount;
 	/*
 	 * If there are freespace blocks other than the first one,
 	 * take this opportunity to remove trailing empty freespace blocks
@@ -1727,7 +1727,7 @@ xfs_dir2_node_to_leaf(
 			return error;
 		}
 		if (rval)
-			fo -= mp->m_dirblkfsbs;
+			fo -= args->geo->fsbcount;
 		else
 			return 0;
 	}

@@ -314,12 +314,12 @@ xfs_dir2_leaf_readbuf(
 	if (bp) {
 		xfs_trans_brelse(NULL, bp);
 		bp = NULL;
-		mip->map_blocks -= mp->m_dirblkfsbs;
+		mip->map_blocks -= geo->fsbcount;
 		/*
 		 * Loop to get rid of the extents for the
 		 * directory block.
 		 */
-		for (i = mp->m_dirblkfsbs; i > 0; ) {
+		for (i = geo->fsbcount; i > 0; ) {
 			j = min_t(int, map->br_blockcount, i);
 			map->br_blockcount -= j;
 			map->br_startblock += j;
@@ -410,7 +410,7 @@ xfs_dir2_leaf_readbuf(
 	 */
 	mip->curdb = xfs_dir2_da_to_db(geo, map->br_startoff);
 	error = xfs_dir3_data_read(NULL, dp, map->br_startoff,
-			map->br_blockcount >= mp->m_dirblkfsbs ?
+			map->br_blockcount >= geo->fsbcount ?
 			    XFS_FSB_TO_DADDR(mp, map->br_startblock) : -1, &bp);
 
 	/*
@@ -424,7 +424,7 @@ xfs_dir2_leaf_readbuf(
 	 * was previously ra.
 	 */
 	if (mip->ra_current)
-		mip->ra_current -= mp->m_dirblkfsbs;
+		mip->ra_current -= geo->fsbcount;
 
 	/*
 	 * Do we need more readahead?
@@ -432,13 +432,13 @@ xfs_dir2_leaf_readbuf(
 	blk_start_plug(&plug);
 	for (mip->ra_index = mip->ra_offset = i = 0;
 	     mip->ra_want > mip->ra_current && i < mip->map_blocks;
-	     i += mp->m_dirblkfsbs) {
+	     i += geo->fsbcount) {
 		ASSERT(mip->ra_index < mip->map_valid);
 		/*
 		 * Read-ahead a contiguous directory block.
 		 */
 		if (i > mip->ra_current &&
-		    map[mip->ra_index].br_blockcount >= mp->m_dirblkfsbs) {
+		    map[mip->ra_index].br_blockcount >= geo->fsbcount) {
 			xfs_dir3_data_readahead(dp,
 				map[mip->ra_index].br_startoff + mip->ra_offset,
 				XFS_FSB_TO_DADDR(mp,
@@ -461,12 +461,12 @@ xfs_dir2_leaf_readbuf(
 		/*
 		 * Advance offset through the mapping table.
 		 */
-		for (j = 0; j < mp->m_dirblkfsbs; j += length ) {
+		for (j = 0; j < geo->fsbcount; j += length ) {
 			/*
 			 * The rest of this extent but not more than a dir
 			 * block.
 			 */
-			length = min_t(int, mp->m_dirblkfsbs,
+			length = min_t(int, geo->fsbcount,
 					map[mip->ra_index].br_blockcount -
 							mip->ra_offset);
 			mip->ra_offset += length;

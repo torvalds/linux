@@ -2090,20 +2090,12 @@ xfs_da_grow_inode(
 	xfs_dablk_t		*new_blkno)
 {
 	xfs_fileoff_t		bno;
-	int			count;
 	int			error;
 
 	trace_xfs_da_grow_inode(args);
 
-	if (args->whichfork == XFS_DATA_FORK) {
-		bno = args->geo->leafblk;
-		count = args->dp->i_mount->m_dirblkfsbs;
-	} else {
-		bno = 0;
-		count = 1;
-	}
-
-	error = xfs_da_grow_inode_int(args, &bno, count);
+	bno = args->geo->leafblk;
+	error = xfs_da_grow_inode_int(args, &bno, args->geo->fsbcount);
 	if (!error)
 		*new_blkno = (xfs_dablk_t)bno;
 	return error;
@@ -2170,7 +2162,7 @@ xfs_da3_swap_lastblock(
 	/*
 	 * Read the last block in the btree space.
 	 */
-	last_blkno = (xfs_dablk_t)lastoff - mp->m_dirblkfsbs;
+	last_blkno = (xfs_dablk_t)lastoff - args->geo->fsbcount;
 	error = xfs_da3_node_read(tp, dp, last_blkno, -1, &last_buf, w);
 	if (error)
 		return error;
@@ -2357,10 +2349,7 @@ xfs_da_shrink_inode(
 	w = args->whichfork;
 	tp = args->trans;
 	mp = dp->i_mount;
-	if (w == XFS_DATA_FORK)
-		count = mp->m_dirblkfsbs;
-	else
-		count = 1;
+	count = args->geo->fsbcount;
 	for (;;) {
 		/*
 		 * Remove extents.  If we get ENOSPC for a dir we have to move
@@ -2479,7 +2468,10 @@ xfs_dabuf_map(
 	ASSERT(map && *map);
 	ASSERT(*nmaps == 1);
 
-	nfsb = (whichfork == XFS_DATA_FORK) ? mp->m_dirblkfsbs : 1;
+	if (whichfork == XFS_DATA_FORK)
+		nfsb = mp->m_dir_geo->fsbcount;
+	else
+		nfsb = mp->m_attr_geo->fsbcount;
 
 	/*
 	 * Caller doesn't have a mapping.  -2 means don't complain

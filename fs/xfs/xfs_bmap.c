@@ -1098,10 +1098,11 @@ xfs_bmap_add_attrfork_local(
 
 	if (S_ISDIR(ip->i_d.di_mode)) {
 		memset(&dargs, 0, sizeof(dargs));
+		dargs.geo = ip->i_mount->m_dir_geo;
 		dargs.dp = ip;
 		dargs.firstblock = firstblock;
 		dargs.flist = flist;
-		dargs.total = ip->i_mount->m_dirblkfsbs;
+		dargs.total = dargs.geo->fsbcount;
 		dargs.whichfork = XFS_DATA_FORK;
 		dargs.trans = tp;
 		return xfs_dir2_sf_to_block(&dargs);
