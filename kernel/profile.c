@@ -52,9 +52,9 @@ static DEFINE_MUTEX(profile_flip_mutex);
 
 int profile_setup(char *str)
 {
-	static char schedstr[] = "schedule";
-	static char sleepstr[] = "sleep";
-	static char kvmstr[] = "kvm";
+	static const char schedstr[] = "schedule";
+	static const char sleepstr[] = "sleep";
+	static const char kvmstr[] = "kvm";
 	int par;
 
 	if (!strncmp(str, sleepstr, strlen(sleepstr))) {
