@@ -489,7 +489,6 @@ odm_TXPowerTrackingCallback_ThermalMeter_8188E(
 
 /* 1 7.	IQK */
 #define MAX_TOLERANCE		5
-#define IQK_DELAY_TIME		1		/* ms */
 
 static u8 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
 phy_PathA_IQK_8188E(struct adapter *adapt, bool configPathB)
