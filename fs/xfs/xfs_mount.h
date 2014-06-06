@@ -154,7 +154,6 @@ typedef struct xfs_mount {
 	const struct xfs_nameops *m_dirnameops;	/* vector of dir name ops */
 	const struct xfs_dir_ops *m_dir_inode_ops; /* vector of dir inode ops */
 	const struct xfs_dir_ops *m_nondir_inode_ops; /* !dir inode ops */
-	int			m_dirblksize;	/* directory block sz--bytes */
 	uint			m_chsize;	/* size of next field */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB

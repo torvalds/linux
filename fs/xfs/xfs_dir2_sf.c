@@ -82,8 +82,10 @@ xfs_dir2_block_sfsize(
 	xfs_ino_t		parent = 0;	/* parent inode number */
 	int			size=0;		/* total computed size */
 	int			has_ftype;
+	struct xfs_da_geometry	*geo;
 
 	mp = dp->i_mount;
+	geo = mp->m_dir_geo;
 
 	/*
 	 * if there is a filetype field, add the extra byte to the namelen
@@ -92,7 +94,7 @@ xfs_dir2_block_sfsize(
 	has_ftype = xfs_sb_version_hasftype(&mp->m_sb) ? 1 : 0;
 
 	count = i8count = namelen = 0;
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -105,7 +107,7 @@ xfs_dir2_block_sfsize(
 		 * Calculate the pointer to the entry at hand.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)hdr +
-				xfs_dir2_dataptr_to_off(mp->m_dir_geo, addr));
+				xfs_dir2_dataptr_to_off(geo, addr));
 		/*
 		 * Detect . and .., so we can special-case them.
 		 * . is not included in sf directories.
@@ -195,7 +197,7 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	sfep = xfs_dir2_sf_firstentry(sfp);
@@ -586,7 +588,7 @@ xfs_dir2_sf_addname_pick(
 	 * we'll go back, convert to block, then try the insert and convert
 	 * to leaf.
 	 */
-	if (used + (holefit ? 0 : size) > mp->m_dirblksize)
+	if (used + (holefit ? 0 : size) > args->geo->blksize)
 		return 0;
 	/*
 	 * If changing the inode number size, do it the hard way.
@@ -601,7 +603,7 @@ xfs_dir2_sf_addname_pick(
 	/*
 	 * If it won't fit at the end then do it the hard way (use the hole).
 	 */
-	if (used + size > mp->m_dirblksize)
+	if (used + size > args->geo->blksize)
 		return 2;
 	/*
 	 * Do it the easy way.
@@ -652,7 +654,7 @@ xfs_dir2_sf_check(
 	ASSERT((char *)sfep - (char *)sfp == dp->i_d.di_size);
 	ASSERT(offset +
 	       (sfp->count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t) +
-	       (uint)sizeof(xfs_dir2_block_tail_t) <= mp->m_dirblksize);
+	       (uint)sizeof(xfs_dir2_block_tail_t) <= args->geo->blksize);
 }
 #endif	/* DEBUG */
 

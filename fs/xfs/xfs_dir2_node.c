@@ -327,9 +327,9 @@ xfs_dir2_leaf_to_node(
 	free = fbp->b_addr;
 	dp->d_ops->free_hdr_from_disk(&freehdr, free);
 	leaf = lbp->b_addr;
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	ASSERT(be32_to_cpu(ltp->bestcount) <=
-				(uint)dp->i_d.di_size / mp->m_dirblksize);
+				(uint)dp->i_d.di_size / args->geo->blksize);
 
 	/*
 	 * Copy freespace entries from the leaf block to the new block.
@@ -416,7 +416,7 @@ xfs_dir2_leafn_add(
 	 * a compact.
 	 */
 
-	if (leafhdr.count == dp->d_ops->leaf_max_ents(mp)) {
+	if (leafhdr.count == dp->d_ops->leaf_max_ents(args->geo)) {
 		if (!leafhdr.stale)
 			return XFS_ERROR(ENOSPC);
 		compact = leafhdr.stale > 1;
@@ -472,7 +472,8 @@ xfs_dir2_free_hdr_check(
 
 	dp->d_ops->free_hdr_from_disk(&hdr, bp->b_addr);
 
-	ASSERT((hdr.firstdb % dp->d_ops->free_max_bests(dp->i_mount)) == 0);
+	ASSERT((hdr.firstdb %
+		dp->d_ops->free_max_bests(dp->i_mount->m_dir_geo)) == 0);
 	ASSERT(hdr.firstdb <= db);
 	ASSERT(db < hdr.firstdb + hdr.nvalid);
 }
@@ -595,7 +596,7 @@ xfs_dir2_leafn_lookup_for_addname(
 			 * Convert the data block to the free block
 			 * holding its freespace information.
 			 */
-			newfdb = dp->d_ops->db_to_fdb(mp, newdb);
+			newfdb = dp->d_ops->db_to_fdb(args->geo, newdb);
 			/*
 			 * If it's not the one we have in hand, read it in.
 			 */
@@ -619,7 +620,7 @@ xfs_dir2_leafn_lookup_for_addname(
 			/*
 			 * Get the index for our entry.
 			 */
-			fi = dp->d_ops->db_to_fdindex(mp, curdb);
+			fi = dp->d_ops->db_to_fdindex(args->geo, curdb);
 			/*
 			 * If it has room, return it.
 			 */
@@ -1251,7 +1252,7 @@ xfs_dir2_leafn_remove(
 		 * Convert the data block number to a free block,
 		 * read in the free block.
 		 */
-		fdb = dp->d_ops->db_to_fdb(mp, db);
+		fdb = dp->d_ops->db_to_fdb(args->geo, db);
 		error = xfs_dir2_free_read(tp, dp,
 					   xfs_dir2_db_to_da(args->geo, fdb),
 					   &fbp);
@@ -1262,7 +1263,7 @@ xfs_dir2_leafn_remove(
 	{
 		struct xfs_dir3_icfree_hdr freehdr;
 		dp->d_ops->free_hdr_from_disk(&freehdr, free);
-		ASSERT(freehdr.firstdb == dp->d_ops->free_max_bests(mp) *
+		ASSERT(freehdr.firstdb == dp->d_ops->free_max_bests(args->geo) *
 			(fdb - xfs_dir2_byte_to_db(args->geo,
 						   XFS_DIR2_FREE_OFFSET)));
 	}
@@ -1270,13 +1271,13 @@ xfs_dir2_leafn_remove(
 		/*
 		 * Calculate which entry we need to fix.
 		 */
-		findex = dp->d_ops->db_to_fdindex(mp, db);
+		findex = dp->d_ops->db_to_fdindex(args->geo, db);
 		longest = be16_to_cpu(bf[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
 		 * (usually).
 		 */
-		if (longest == mp->m_dirblksize -
+		if (longest == args->geo->blksize -
 			       dp->d_ops->data_entry_offset) {
 			/*
 			 * Try to punch out the data block.
@@ -1595,7 +1596,7 @@ xfs_dir2_node_addname(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_dirblksize;
+	state->blocksize = state->args->geo->blksize;
 	state->node_ents = state->mp->m_dir_node_ents;
 	/*
 	 * Look up the name.  We're not supposed to find it, but
@@ -1843,7 +1844,7 @@ xfs_dir2_node_addname_int(
 		 * Get the freespace block corresponding to the data block
 		 * that was just allocated.
 		 */
-		fbno = dp->d_ops->db_to_fdb(mp, dbno);
+		fbno = dp->d_ops->db_to_fdb(args->geo, dbno);
 		error = xfs_dir2_free_try_read(tp, dp,
 				       xfs_dir2_db_to_da(args->geo, fbno),
 				       &fbp);
@@ -1860,12 +1861,13 @@ xfs_dir2_node_addname_int(
 			if (error)
 				return error;
 
-			if (unlikely(dp->d_ops->db_to_fdb(mp, dbno) != fbno)) {
+			if (dp->d_ops->db_to_fdb(args->geo, dbno) != fbno) {
 				xfs_alert(mp,
 			"%s: dir ino %llu needed freesp block %lld for\n"
 			"  data block %lld, got %lld ifbno %llu lastfbno %d",
 					__func__, (unsigned long long)dp->i_ino,
-					(long long)dp->d_ops->db_to_fdb(mp, dbno),
+					(long long)dp->d_ops->db_to_fdb(
+								args->geo, dbno),
 					(long long)dbno, (long long)fbno,
 					(unsigned long long)ifbno, lastfbno);
 				if (fblk) {
@@ -1899,7 +1901,7 @@ xfs_dir2_node_addname_int(
 			freehdr.firstdb =
 				(fbno - xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET)) *
-					dp->d_ops->free_max_bests(mp);
+					dp->d_ops->free_max_bests(args->geo);
 		} else {
 			free = fbp->b_addr;
 			bests = dp->d_ops->free_bests_p(free);
@@ -1909,13 +1911,13 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Set the freespace block index from the data block number.
 		 */
-		findex = dp->d_ops->db_to_fdindex(mp, dbno);
+		findex = dp->d_ops->db_to_fdindex(args->geo, dbno);
 		/*
 		 * If it's after the end of the current entries in the
 		 * freespace block, extend that table.
 		 */
 		if (findex >= freehdr.nvalid) {
-			ASSERT(findex < dp->d_ops->free_max_bests(mp));
+			ASSERT(findex < dp->d_ops->free_max_bests(args->geo));
 			freehdr.nvalid = findex + 1;
 			/*
 			 * Tag new entry so nused will go up.
@@ -2040,7 +2042,7 @@ xfs_dir2_node_lookup(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_dirblksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = state->mp->m_dir_node_ents;
 	/*
 	 * Fill in the path to the entry in the cursor.
@@ -2095,7 +2097,7 @@ xfs_dir2_node_removename(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_dirblksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = state->mp->m_dir_node_ents;
 
 	/* Look up the entry we're deleting, set up the cursor. */
@@ -2165,7 +2167,7 @@ xfs_dir2_node_replace(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_dirblksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = state->mp->m_dir_node_ents;
 	inum = args->inumber;
 	/*

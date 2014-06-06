@@ -2169,8 +2169,8 @@ xfs_da3_swap_lastblock(
 	/*
 	 * Copy the last block into the dead buffer and log it.
 	 */
-	memcpy(dead_buf->b_addr, last_buf->b_addr, mp->m_dirblksize);
-	xfs_trans_log_buf(tp, dead_buf, 0, mp->m_dirblksize - 1);
+	memcpy(dead_buf->b_addr, last_buf->b_addr, args->geo->blksize);
+	xfs_trans_log_buf(tp, dead_buf, 0, args->geo->blksize - 1);
 	dead_info = dead_buf->b_addr;
 	/*
 	 * Get values from the moved block.

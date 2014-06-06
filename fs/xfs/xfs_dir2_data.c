@@ -80,7 +80,7 @@ __xfs_dir3_data_check(
 	switch (hdr->magic) {
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
 	case cpu_to_be32(XFS_DIR2_BLOCK_MAGIC):
-		btp = xfs_dir2_block_tail_p(mp, hdr);
+		btp = xfs_dir2_block_tail_p(geo, hdr);
 		lep = xfs_dir2_block_leaf_p(btp);
 		endp = (char *)lep;
 
@@ -96,7 +96,7 @@ __xfs_dir3_data_check(
 		break;
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
-		endp = (char *)hdr + mp->m_dirblksize;
+		endp = (char *)hdr + geo->blksize;
 		break;
 	default:
 		XFS_ERROR_REPORT("Bad Magic", XFS_ERRLEVEL_LOW, mp);
@@ -511,6 +511,7 @@ xfs_dir2_data_freescan(
 	struct xfs_dir2_data_free *bf;
 	char			*endp;		/* end of block's data */
 	char			*p;		/* current entry pointer */
+	struct xfs_da_geometry	*geo = dp->i_mount->m_dir_geo;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
@@ -529,10 +530,10 @@ xfs_dir2_data_freescan(
 	p = (char *)dp->d_ops->data_entry_p(hdr);
 	if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC)) {
-		btp = xfs_dir2_block_tail_p(dp->i_mount, hdr);
+		btp = xfs_dir2_block_tail_p(geo, hdr);
 		endp = (char *)xfs_dir2_block_leaf_p(btp);
 	} else
-		endp = (char *)hdr + dp->i_mount->m_dirblksize;
+		endp = (char *)hdr + geo->blksize;
 	/*
 	 * Loop over the block's entries.
 	 */
@@ -622,7 +623,7 @@ xfs_dir3_data_init(
 	dup = dp->d_ops->data_unused_p(hdr);
 	dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 
-	t = mp->m_dirblksize - (uint)dp->d_ops->data_entry_offset;
+	t = args->geo->blksize - (uint)dp->d_ops->data_entry_offset;
 	bf[0].length = cpu_to_be16(t);
 	dup->length = cpu_to_be16(t);
 	*xfs_dir2_data_unused_tag_p(dup) = cpu_to_be16((char *)dup - (char *)hdr);
@@ -732,22 +733,24 @@ xfs_dir2_data_make_free(
 	xfs_dir2_data_unused_t	*postdup;	/* unused entry after us */
 	xfs_dir2_data_unused_t	*prevdup;	/* unused entry before us */
 	struct xfs_dir2_data_free *bf;
+	struct xfs_da_geometry	*geo;
 
 	mp = tp->t_mountp;
 	hdr = bp->b_addr;
+	geo = mp->m_dir_geo;
 
 	/*
 	 * Figure out where the end of the data area is.
 	 */
 	if (hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	    hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC))
-		endptr = (char *)hdr + mp->m_dirblksize;
+		endptr = (char *)hdr + geo->blksize;
 	else {
 		xfs_dir2_block_tail_t	*btp;	/* block tail */
 
 		ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 			hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
-		btp = xfs_dir2_block_tail_p(mp, hdr);
+		btp = xfs_dir2_block_tail_p(geo, hdr);
 		endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	}
 	/*

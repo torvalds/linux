@@ -427,9 +427,9 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
  * Directory Leaf block operations
  */
 static int
-xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
+xfs_dir2_max_leaf_ents(struct xfs_da_geometry *geo)
 {
-	return (mp->m_dirblksize - sizeof(struct xfs_dir2_leaf_hdr)) /
+	return (geo->blksize - sizeof(struct xfs_dir2_leaf_hdr)) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
 }
 
@@ -440,9 +440,9 @@ xfs_dir2_leaf_ents_p(struct xfs_dir2_leaf *lp)
 }
 
 static int
-xfs_dir3_max_leaf_ents(struct xfs_mount *mp)
+xfs_dir3_max_leaf_ents(struct xfs_da_geometry *geo)
 {
-	return (mp->m_dirblksize - sizeof(struct xfs_dir3_leaf_hdr)) /
+	return (geo->blksize - sizeof(struct xfs_dir3_leaf_hdr)) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
 }
 
@@ -593,9 +593,9 @@ xfs_da3_node_hdr_to_disk(
  * Directory free space block operations
  */
 static int
-xfs_dir2_free_max_bests(struct xfs_mount *mp)
+xfs_dir2_free_max_bests(struct xfs_da_geometry *geo)
 {
-	return (mp->m_dirblksize - sizeof(struct xfs_dir2_free_hdr)) /
+	return (geo->blksize - sizeof(struct xfs_dir2_free_hdr)) /
 		sizeof(xfs_dir2_data_off_t);
 }
 
@@ -609,25 +609,25 @@ xfs_dir2_free_bests_p(struct xfs_dir2_free *free)
  * Convert data space db to the corresponding free db.
  */
 static xfs_dir2_db_t
-xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
+xfs_dir2_db_to_fdb(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 {
-	return xfs_dir2_byte_to_db(mp->m_dir_geo, XFS_DIR2_FREE_OFFSET) +
-			(db / xfs_dir2_free_max_bests(mp));
+	return xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET) +
+			(db / xfs_dir2_free_max_bests(geo));
 }
 
 /*
  * Convert data space db to the corresponding index in a free db.
  */
 static int
-xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
+xfs_dir2_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 {
-	return db % xfs_dir2_free_max_bests(mp);
+	return db % xfs_dir2_free_max_bests(geo);
 }
 
 static int
-xfs_dir3_free_max_bests(struct xfs_mount *mp)
+xfs_dir3_free_max_bests(struct xfs_da_geometry *geo)
 {
-	return (mp->m_dirblksize - sizeof(struct xfs_dir3_free_hdr)) /
+	return (geo->blksize - sizeof(struct xfs_dir3_free_hdr)) /
 		sizeof(xfs_dir2_data_off_t);
 }
 
@@ -641,19 +641,19 @@ xfs_dir3_free_bests_p(struct xfs_dir2_free *free)
  * Convert data space db to the corresponding free db.
  */
 static xfs_dir2_db_t
-xfs_dir3_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
+xfs_dir3_db_to_fdb(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 {
-	return xfs_dir2_byte_to_db(mp->m_dir_geo, XFS_DIR2_FREE_OFFSET) +
-			(db / xfs_dir3_free_max_bests(mp));
+	return xfs_dir2_byte_to_db(geo, XFS_DIR2_FREE_OFFSET) +
+			(db / xfs_dir3_free_max_bests(geo));
 }
 
 /*
  * Convert data space db to the corresponding index in a free db.
  */
 static int
-xfs_dir3_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
+xfs_dir3_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 {
-	return db % xfs_dir3_free_max_bests(mp);
+	return db % xfs_dir3_free_max_bests(geo);
 }
 
 static void

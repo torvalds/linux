@@ -80,7 +80,7 @@ struct xfs_dir_ops {
 				    struct xfs_dir3_icleaf_hdr *from);
 	void	(*leaf_hdr_from_disk)(struct xfs_dir3_icleaf_hdr *to,
 				      struct xfs_dir2_leaf *from);
-	int	(*leaf_max_ents)(struct xfs_mount *mp);
+	int	(*leaf_max_ents)(struct xfs_da_geometry *geo);
 	struct xfs_dir2_leaf_entry *
 		(*leaf_ents_p)(struct xfs_dir2_leaf *lp);
 
@@ -97,10 +97,12 @@ struct xfs_dir_ops {
 				    struct xfs_dir3_icfree_hdr *from);
 	void	(*free_hdr_from_disk)(struct xfs_dir3_icfree_hdr *to,
 				      struct xfs_dir2_free *from);
-	int	(*free_max_bests)(struct xfs_mount *mp);
+	int	(*free_max_bests)(struct xfs_da_geometry *geo);
 	__be16 * (*free_bests_p)(struct xfs_dir2_free *free);
-	xfs_dir2_db_t (*db_to_fdb)(struct xfs_mount *mp, xfs_dir2_db_t db);
-	int	(*db_to_fdindex)(struct xfs_mount *mp, xfs_dir2_db_t db);
+	xfs_dir2_db_t (*db_to_fdb)(struct xfs_da_geometry *geo,
+				   xfs_dir2_db_t db);
+	int	(*db_to_fdindex)(struct xfs_da_geometry *geo,
+				 xfs_dir2_db_t db);
 };
 
 extern const struct xfs_dir_ops *

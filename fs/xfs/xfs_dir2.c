@@ -145,7 +145,6 @@ xfs_da_mount(
 		mp->m_dirnameops = &xfs_default_nameops;
 
 	/* XXX: these are to be removed as code is converted to use geo */
-	mp->m_dirblksize = mp->m_dir_geo->blksize;
 	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
 	mp->m_dir_magicpct = mp->m_dir_geo->magicpct;
 	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
@@ -665,8 +664,8 @@ xfs_dir2_isblock(
 	mp = dp->i_mount;
 	if ((rval = xfs_bmap_last_offset(dp, &last, XFS_DATA_FORK)))
 		return rval;
-	rval = XFS_FSB_TO_B(mp, last) == mp->m_dirblksize;
-	ASSERT(rval == 0 || dp->i_d.di_size == mp->m_dirblksize);
+	rval = XFS_FSB_TO_B(mp, last) == mp->m_dir_geo->blksize;
+	ASSERT(rval == 0 || dp->i_d.di_size == mp->m_dir_geo->blksize);
 	*vp = rval;
 	return 0;
 }

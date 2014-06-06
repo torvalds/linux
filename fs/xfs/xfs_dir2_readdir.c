@@ -216,7 +216,7 @@ xfs_dir2_block_getdents(
 	/*
 	 * Set up values for the loop.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(geo, hdr);
 	ptr = (char *)dp->d_ops->data_entry_p(hdr);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 
@@ -338,7 +338,7 @@ xfs_dir2_leaf_readbuf(
 	/*
 	 * Recalculate the readahead blocks wanted.
 	 */
-	mip->ra_want = howmany(bufsize + mp->m_dirblksize,
+	mip->ra_want = howmany(bufsize + geo->blksize,
 			       mp->m_sb.sb_blocksize) - 1;
 	ASSERT(mip->ra_want >= 0);
 
@@ -526,8 +526,7 @@ xfs_dir2_leaf_getdents(
 	 * buffer size, the directory block size, and the filesystem
 	 * block size.
 	 */
-	length = howmany(bufsize + mp->m_dirblksize,
-				     mp->m_sb.sb_blocksize);
+	length = howmany(bufsize + geo->blksize, mp->m_sb.sb_blocksize);
 	map_info = kmem_zalloc(offsetof(struct xfs_dir2_leaf_map_info, map) +
 				(length * sizeof(struct xfs_bmbt_irec)),
 			       KM_SLEEP | KM_NOFS);
@@ -557,7 +556,7 @@ xfs_dir2_leaf_getdents(
 		 * If we have no buffer, or we're off the end of the
 		 * current buffer, need to get another one.
 		 */
-		if (!bp || ptr >= (char *)bp->b_addr + mp->m_dirblksize) {
+		if (!bp || ptr >= (char *)bp->b_addr + geo->blksize) {
 
 			error = xfs_dir2_leaf_readbuf(dp, bufsize, map_info,
 						      &curoff, &bp);
@@ -618,7 +617,7 @@ xfs_dir2_leaf_getdents(
 					xfs_dir2_db_off_to_byte(geo,
 					    xfs_dir2_byte_to_db(geo, curoff),
 					    (char *)ptr - (char *)hdr);
-				if (ptr >= (char *)hdr + mp->m_dirblksize) {
+				if (ptr >= (char *)hdr + geo->blksize) {
 					continue;
 				}
 			}

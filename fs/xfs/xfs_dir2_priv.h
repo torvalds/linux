@@ -140,17 +140,17 @@ xfs_dir2_da_to_byte(struct xfs_da_geometry *geo, xfs_dablk_t da)
  * Directory tail pointer accessor functions. Based on block geometry.
  */
 static inline struct xfs_dir2_block_tail *
-xfs_dir2_block_tail_p(struct xfs_mount *mp, struct xfs_dir2_data_hdr *hdr)
+xfs_dir2_block_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_data_hdr *hdr)
 {
 	return ((struct xfs_dir2_block_tail *)
-		((char *)hdr + mp->m_dirblksize)) - 1;
+		((char *)hdr + geo->blksize)) - 1;
 }
 
 static inline struct xfs_dir2_leaf_tail *
-xfs_dir2_leaf_tail_p(struct xfs_mount *mp, struct xfs_dir2_leaf *lp)
+xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
 {
 	return (struct xfs_dir2_leaf_tail *)
-		((char *)lp + mp->m_dirblksize -
+		((char *)lp + geo->blksize -
 		  sizeof(struct xfs_dir2_leaf_tail));
 }
 

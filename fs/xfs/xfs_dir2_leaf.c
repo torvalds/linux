@@ -92,6 +92,7 @@ xfs_dir3_leaf_check_int(
 	int			i;
 	const struct xfs_dir_ops *ops;
 	struct xfs_dir3_icleaf_hdr leafhdr;
+	struct xfs_da_geometry	*geo = mp->m_dir_geo;
 
 	/*
 	 * we can be passed a null dp here from a verifier, so we need to go the
@@ -105,14 +106,14 @@ xfs_dir3_leaf_check_int(
 	}
 
 	ents = ops->leaf_ents_p(leaf);
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(geo, leaf);
 
 	/*
 	 * XXX (dgc): This value is not restrictive enough.
 	 * Should factor in the size of the bests table as well.
 	 * We can deduce a value for that from di_size.
 	 */
-	if (hdr->count > ops->leaf_max_ents(mp))
+	if (hdr->count > ops->leaf_max_ents(geo))
 		return false;
 
 	/* Leaves and bests don't overlap in leaf format. */
@@ -323,7 +324,7 @@ xfs_dir3_leaf_init(
 	if (type == XFS_DIR2_LEAF1_MAGIC) {
 		struct xfs_dir2_leaf_tail *ltp;
 
-		ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+		ltp = xfs_dir2_leaf_tail_p(mp->m_dir_geo, leaf);
 		ltp->bestcount = 0;
 		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
 		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DIR_LEAF1_BUF);
@@ -415,7 +416,7 @@ xfs_dir2_block_to_leaf(
 	leaf = lbp->b_addr;
 	hdr = dbp->b_addr;
 	xfs_dir3_data_check(dp, dbp);
-	btp = xfs_dir2_block_tail_p(mp, hdr);
+	btp = xfs_dir2_block_tail_p(args->geo, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	bf = dp->d_ops->data_bestfree_p(hdr);
 	ents = dp->d_ops->leaf_ents_p(leaf);
@@ -443,7 +444,7 @@ xfs_dir2_block_to_leaf(
 	 */
 	xfs_dir2_data_make_free(tp, dp, dbp,
 		(xfs_dir2_data_aoff_t)((char *)blp - (char *)hdr),
-		(xfs_dir2_data_aoff_t)((char *)hdr + mp->m_dirblksize -
+		(xfs_dir2_data_aoff_t)((char *)hdr + args->geo->blksize -
 				       (char *)blp),
 		&needlog, &needscan);
 	/*
@@ -461,7 +462,7 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Set up leaf tail and bests table.
 	 */
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	ltp->bestcount = cpu_to_be32(1);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
 	bestsp[0] =  bf[0].length;
@@ -653,7 +654,7 @@ xfs_dir2_leaf_addname(
 	 */
 	index = xfs_dir2_leaf_search_hash(args, lbp);
 	leaf = lbp->b_addr;
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	ents = dp->d_ops->leaf_ents_p(leaf);
 	dp->d_ops->leaf_hdr_from_disk(&leafhdr, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
@@ -1066,7 +1067,7 @@ xfs_dir3_leaf_log_bests(
 	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAF1_MAGIC) ||
 	       leaf->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAF1_MAGIC));
 
-	ltp = xfs_dir2_leaf_tail_p(tp->t_mountp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(tp->t_mountp->m_dir_geo, leaf);
 	firstb = xfs_dir2_leaf_bests_p(ltp) + first;
 	lastb = xfs_dir2_leaf_bests_p(ltp) + last;
 	xfs_trans_log_buf(tp, bp, (uint)((char *)firstb - (char *)leaf),
@@ -1138,9 +1139,9 @@ xfs_dir3_leaf_log_tail(
 	       leaf->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
 	       leaf->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC));
 
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(mp->m_dir_geo, leaf);
 	xfs_trans_log_buf(tp, bp, (uint)((char *)ltp - (char *)leaf),
-		(uint)(mp->m_dirblksize - 1));
+		(uint)(mp->m_dir_geo->blksize - 1));
 }
 
 /*
@@ -1388,7 +1389,7 @@ xfs_dir2_leaf_removename(
 		xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address)));
 	needscan = needlog = 0;
 	oldbest = be16_to_cpu(bf[0].length);
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
 	ASSERT(be16_to_cpu(bestsp[db]) == oldbest);
 	/*
@@ -1428,7 +1429,7 @@ xfs_dir2_leaf_removename(
 	 * If the data block is now empty then get rid of the data block.
 	 */
 	if (be16_to_cpu(bf[0].length) ==
-			mp->m_dirblksize - dp->d_ops->data_entry_offset) {
+			args->geo->blksize - dp->d_ops->data_entry_offset) {
 		ASSERT(db != args->geo->datablk);
 		if ((error = xfs_dir2_shrink_inode(args, db, dbp))) {
 			/*
@@ -1618,7 +1619,7 @@ xfs_dir2_leaf_trim_data(
 		return error;
 
 	leaf = lbp->b_addr;
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 
 #ifdef DEBUG
 {
@@ -1628,7 +1629,7 @@ xfs_dir2_leaf_trim_data(
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC));
 	ASSERT(be16_to_cpu(bf[0].length) ==
-	       mp->m_dirblksize - dp->d_ops->data_entry_offset);
+	       args->geo->blksize - dp->d_ops->data_entry_offset);
 	ASSERT(db == be32_to_cpu(ltp->bestcount) - 1);
 }
 #endif
@@ -1740,7 +1741,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * If it's not the single leaf block, give up.
 	 */
-	if (XFS_FSB_TO_B(mp, fo) > XFS_DIR2_LEAF_OFFSET + mp->m_dirblksize)
+	if (XFS_FSB_TO_B(mp, fo) > XFS_DIR2_LEAF_OFFSET + args->geo->blksize)
 		return 0;
 	lbp = state->path.blk[0].bp;
 	leaf = lbp->b_addr;
@@ -1764,7 +1765,7 @@ xfs_dir2_node_to_leaf(
 	 * Now see if the leafn and free data will fit in a leaf1.
 	 * If not, release the buffer and give up.
 	 */
-	if (xfs_dir3_leaf_size(&leafhdr, freehdr.nvalid) > mp->m_dirblksize) {
+	if (xfs_dir3_leaf_size(&leafhdr, freehdr.nvalid) > args->geo->blksize) {
 		xfs_trans_brelse(tp, fbp);
 		return 0;
 	}
@@ -1784,7 +1785,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Set up the leaf tail from the freespace block.
 	 */
-	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
+	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	ltp->bestcount = cpu_to_be32(freehdr.nvalid);
 
 	/*
