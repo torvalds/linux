@@ -218,13 +218,31 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 				    be32_to_cpu(entry.folder.id), DT_DIR))
 				break;
 		} else if (type == HFSPLUS_FILE) {
+			u16 mode;
+			unsigned type = DT_UNKNOWN;
+
 			if (fd.entrylength < sizeof(struct hfsplus_cat_file)) {
 				pr_err("small file entry\n");
 				err = -EIO;
 				goto out;
 			}
+
+			mode = be16_to_cpu(entry.file.permissions.mode);
+			if (S_ISREG(mode))
+				type = DT_REG;
+			else if (S_ISLNK(mode))
+				type = DT_LNK;
+			else if (S_ISFIFO(mode))
+				type = DT_FIFO;
+			else if (S_ISCHR(mode))
+				type = DT_CHR;
+			else if (S_ISBLK(mode))
+				type = DT_BLK;
+			else if (S_ISSOCK(mode))
+				type = DT_SOCK;
+
 			if (!dir_emit(ctx, strbuf, len,
-				    be32_to_cpu(entry.file.id), DT_REG))
+				      be32_to_cpu(entry.file.id), type))
 				break;
 		} else {
 			pr_err("bad catalog entry type\n");
