@@ -1717,21 +1717,18 @@ static int _proc_do_string(char *data, int maxlen, int write,
 	}
 
 	if (write) {
+		/* Start writing from beginning of buffer. */
 		len = 0;
+		*ppos += *lenp;
 		p = buffer;
-		while (len < *lenp) {
+		while ((p - buffer) < *lenp && len < maxlen - 1) {
 			if (get_user(c, p++))
 				return -EFAULT;
 			if (c == 0 || c == '\n')
 				break;
-			len++;
+			data[len++] = c;
 		}
-		if (len >= maxlen)
-			len = maxlen-1;
-		if(copy_from_user(data, buffer, len))
-			return -EFAULT;
 		data[len] = 0;
-		*ppos += *lenp;
 	} else {
 		len = strlen(data);
 		if (len > maxlen)
