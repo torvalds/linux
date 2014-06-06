@@ -2503,8 +2503,7 @@ static unsigned int qtimer_val(const struct adapter *adap,
 }
 
 /**
- *	set_rxq_intr_params - set a queue's interrupt holdoff parameters
- *	@adap: the adapter
+ *	set_rspq_intr_params - set a queue's interrupt holdoff parameters
  *	@q: the Rx queue
  *	@us: the hold-off time in us, or 0 to disable timer
  *	@cnt: the hold-off packet count, or 0 to disable counter
@@ -2512,9 +2511,11 @@ static unsigned int qtimer_val(const struct adapter *adap,
  *	Sets an Rx queue's interrupt hold-off time and packet count.  At least
  *	one of the two needs to be enabled for the queue to generate interrupts.
  */
-static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
-			       unsigned int us, unsigned int cnt)
+static int set_rspq_intr_params(struct sge_rspq *q,
+				unsigned int us, unsigned int cnt)
 {
+	struct adapter *adap = q->adap;
+
 	if ((us | cnt) == 0)
 		cnt = 1;
 
@@ -2541,24 +2542,34 @@ static int set_rxq_intr_params(struct adapter *adap, struct sge_rspq *q,
 	return 0;
 }
 
+/**
+ * set_rx_intr_params - set a net devices's RX interrupt holdoff paramete!
+ * @dev: the network device
+ * @us: the hold-off time in us, or 0 to disable timer
+ * @cnt: the hold-off packet count, or 0 to disable counter
+ *
+ * Set the RX interrupt hold-off parameters for a network device.
+ */
+static int set_rx_intr_params(struct net_device *dev,
+			      unsigned int us, unsigned int cnt)
+{
+	int i, err;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	for (i = 0; i < pi->nqsets; i++, q++) {
+		err = set_rspq_intr_params(&q->rspq, us, cnt);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
-	const struct port_info *pi = netdev_priv(dev);
-	struct adapter *adap = pi->adapter;
-	struct sge_rspq *q;
-	int i;
-	int r = 0;
-
-	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++) {
-		q = &adap->sge.ethrxq[i].rspq;
-		r = set_rxq_intr_params(adap, q, c->rx_coalesce_usecs,
-			c->rx_max_coalesced_frames);
-		if (r) {
-			dev_err(&dev->dev, "failed to set coalesce %d\n", r);
-			break;
-		}
-	}
-	return r;
+	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
+				  c->rx_max_coalesced_frames);
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -5812,12 +5823,12 @@ static inline bool is_x_10g_port(const struct link_config *lc)
 	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
 }
 
-static inline void init_rspq(struct sge_rspq *q, u8 timer_idx, u8 pkt_cnt_idx,
+static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
+			     unsigned int us, unsigned int cnt,
 			     unsigned int size, unsigned int iqe_size)
 {
-	q->intr_params = QINTR_TIMER_IDX(timer_idx) |
-			 (pkt_cnt_idx < SGE_NCOUNTERS ? QINTR_CNT_EN : 0);
-	q->pktcnt_idx = pkt_cnt_idx < SGE_NCOUNTERS ? pkt_cnt_idx : 0;
+	q->adap = adap;
+	set_rspq_intr_params(q, us, cnt);
 	q->iqe_len = iqe_size;
 	q->size = size;
 }
@@ -5876,7 +5887,7 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ethrxq); i++) {
 		struct sge_eth_rxq *r = &s->ethrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 10, 1024, 64);
 		r->fl.size = 72;
 	}
 
@@ -5892,7 +5903,7 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->ofldrxq); i++) {
 		struct sge_ofld_rxq *r = &s->ofldrxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 1024, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 1024, 64);
 		r->rspq.uld = CXGB4_ULD_ISCSI;
 		r->fl.size = 72;
 	}
@@ -5900,7 +5911,7 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->rdmarxq); i++) {
 		struct sge_ofld_rxq *r = &s->rdmarxq[i];
 
-		init_rspq(&r->rspq, 0, 0, 511, 64);
+		init_rspq(adap, &r->rspq, 5, 1, 511, 64);
 		r->rspq.uld = CXGB4_ULD_RDMA;
 		r->fl.size = 72;
 	}
@@ -5914,12 +5925,12 @@ static void cfg_queues(struct adapter *adap)
 	for (i = 0; i < ARRAY_SIZE(s->rdmaciq); i++) {
 		struct sge_ofld_rxq *r = &s->rdmaciq[i];
 
-		init_rspq(&r->rspq, 0, 0, ciq_size, 64);
+		init_rspq(adap, &r->rspq, 5, 1, ciq_size, 64);
 		r->rspq.uld = CXGB4_ULD_RDMA;
 	}
 
-	init_rspq(&s->fw_evtq, 6, 0, 512, 64);
-	init_rspq(&s->intrq, 6, 0, 2 * MAX_INGQ, 64);
+	init_rspq(adap, &s->fw_evtq, 0, 1, 1024, 64);
+	init_rspq(adap, &s->intrq, 0, 1, 2 * MAX_INGQ, 64);
 }
 
 /*
