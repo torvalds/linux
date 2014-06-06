@@ -399,6 +399,7 @@
 
 			i2c5_gpio: i2c5-gpio {
 				rockchip,pins = <FUNC_TO_GPIO(EDPHDMII2C_SDA)>, <FUNC_TO_GPIO(EDPHDMII2C_SCL)>;
+				rockchip,pull = <VALUE_PULL_DOWN>;
 				rockchip,drive = <VALUE_DRV_DEFAULT>;
 			};
 		};
