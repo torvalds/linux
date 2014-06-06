@@ -141,6 +141,7 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
 	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
 	u32 status;
+	u32 speed;
 
 	status = rd32(E1000_STATUS);
 	if (hw->phy.media_type == e1000_media_type_copper) {
@@ -215,13 +216,13 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	if (status & E1000_STATUS_LU) {
 		if ((status & E1000_STATUS_2P5_SKU) &&
 		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
-			ecmd->speed = SPEED_2500;
+			speed = SPEED_2500;
 		} else if (status & E1000_STATUS_SPEED_1000) {
-			ecmd->speed = SPEED_1000;
+			speed = SPEED_1000;
 		} else if (status & E1000_STATUS_SPEED_100) {
-			ecmd->speed = SPEED_100;
+			speed = SPEED_100;
 		} else {
-			ecmd->speed = SPEED_10;
+			speed = SPEED_10;
 		}
 		if ((status & E1000_STATUS_FD) ||
 		    hw->phy.media_type != e1000_media_type_copper)
@@ -229,9 +230,10 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = SPEED_UNKNOWN;
+		speed = SPEED_UNKNOWN;
 		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
+	ethtool_cmd_speed_set(ecmd, speed);
 	if ((hw->phy.media_type == e1000_media_type_fiber) ||
 	    hw->mac.autoneg)
 		ecmd->autoneg = AUTONEG_ENABLE;

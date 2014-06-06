@@ -298,7 +298,6 @@ static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	cmd->supported = SUPPORTED_Backplane;
 	cmd->advertising = ADVERTISED_Backplane;
-	cmd->speed = SPEED_UNKNOWN;
 	ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
 	cmd->duplex = DUPLEX_FULL;
 	cmd->port = PORT_OTHER;
