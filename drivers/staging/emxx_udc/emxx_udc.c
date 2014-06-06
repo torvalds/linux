@@ -3356,37 +3356,38 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 {
 	int	status = -ENODEV;
 	struct nbu2ss_udc	*udc;
+	struct resource *r;
+	int irq;
+	void __iomem *mmio_base;
 
 	udc = &udc_controller;
 	memset(udc, 0, sizeof(struct nbu2ss_udc));
 
 	platform_set_drvdata(pdev, udc);
 
-	/* IO Memory Region */
-	if (!request_mem_region(USB_BASE_ADDRESS, USB_BASE_SIZE
-				, driver_name)) {
-
-		ERR("request_mem_region failed\n");
-		return -EBUSY;
+	/* require I/O memory and IRQ to be provided as resources */
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mmio_base = devm_request_and_ioremap(&pdev->dev, r);
+	if (IS_ERR(mmio_base)) {
+		dev_err(&pdev->dev, "failed to map I/O memory\n");
+		return PTR_ERR(mmio_base);
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get IRQ\n");
+		return irq;
+	}
+	status = devm_request_irq(&pdev->dev, irq, _nbu2ss_udc_irq,
+				  0, driver_name, udc);
 
 	/* IO Memory */
-	udc->p_regs = (PT_FC_REGS)ioremap(USB_BASE_ADDRESS, USB_BASE_SIZE);
-	if (!udc->p_regs) {
-		ERR("request_io_mem failed\n");
-		goto cleanup3;
-	}
+	udc->p_regs = (PT_FC_REGS)mmio_base;
 
 	/* USB Function Controller Interrupt */
-	status = request_irq(USB_UDC_IRQ_1,
-				_nbu2ss_udc_irq,
-				IRQF_DISABLED,
-				driver_name,
-				udc);
-
 	if (status != 0) {
 		ERR("request_irq(USB_UDC_IRQ_1) failed\n");
-		goto cleanup2;
+		goto cleanup1;
 	}
 
 	/* Driver Initialization */
@@ -3412,18 +3413,6 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 	return status;
 
 cleanup1:
-	/* Interrupt Handler - Release */
-	free_irq(USB_UDC_IRQ_1, udc);
-
-cleanup2:
-	/* IO Memory - Release */
-	if (udc->p_regs)
-		iounmap(udc->p_regs);
-
-cleanup3:
-	/* IO Memory Region - Release */
-	release_mem_region(USB_BASE_ADDRESS, USB_BASE_SIZE);
-
 	return status;
 }
 
@@ -3456,17 +3445,7 @@ static int __exit nbu2ss_drv_remove(struct platform_device *pdev)
 	}
 
 	/* Interrupt Handler - Release */
-	free_irq(USB_UDC_IRQ_1, udc);
-
-	/* Interrupt Handler - Release */
 	free_irq(INT_VBUS, udc);
-
-	/* IO Memory - Release */
-	if (udc->p_regs)
-		iounmap(udc->p_regs);
-
-	/* IO Memory Region - Release */
-	release_mem_region(USB_BASE_ADDRESS, USB_BASE_SIZE);
 
 	return 0;
 }

@@ -47,20 +47,11 @@
 
 
 /*------------ Board dependence(Resource) */
-#define USB_BASE_ADDRESS	EMXX_USBS1_BASE
-#define USB_BASE_SIZE		0x2000
-
-#define USB_UDC_IRQ_0		INT_USBF0
-#define USB_UDC_IRQ_1		INT_USBF1
 #define	VBUS_VALUE		GPIO_VBUS
 
 /* below hacked up for staging integration */
 #define GPIO_VBUS 0 /* GPIO_P153 on KZM9D */
 #define INT_VBUS 0 /* IRQ for GPIO_P153 */
-#define INT_USBF0 158
-#define INT_USBF1 159
-#define EMXX_USBS0_BASE 0xe2700000
-#define EMXX_USBS1_BASE 0xe2800000
 
 /*------------ Board dependence(Wait) */
 
