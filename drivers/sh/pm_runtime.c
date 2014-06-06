@@ -21,18 +21,43 @@
 #include <linux/slab.h>
 
 #ifdef CONFIG_PM_RUNTIME
-
-static int default_platform_runtime_idle(struct device *dev)
+static int sh_pm_runtime_suspend(struct device *dev)
 {
-	/* suspend synchronously to disable clocks immediately */
+	int ret;
+
+	ret = pm_generic_runtime_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend device\n");
+		return ret;
+	}
+
+	ret = pm_clk_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to suspend clock\n");
+		pm_generic_runtime_resume(dev);
+		return ret;
+	}
+
 	return 0;
+}
+
+static int sh_pm_runtime_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_clk_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume clock\n");
+		return ret;
+	}
+
+	return pm_generic_runtime_resume(dev);
 }
 
 static struct dev_pm_domain default_pm_domain = {
 	.ops = {
-		.runtime_suspend = pm_clk_suspend,
-		.runtime_resume = pm_clk_resume,
-		.runtime_idle = default_platform_runtime_idle,
+		.runtime_suspend = sh_pm_runtime_suspend,
+		.runtime_resume = sh_pm_runtime_resume,
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
@@ -63,6 +88,9 @@ static int __init sh_pm_runtime_init(void)
 		    !of_machine_is_compatible("renesas,r8a7779") &&
 		    !of_machine_is_compatible("renesas,r8a7790") &&
 		    !of_machine_is_compatible("renesas,r8a7791") &&
+		    !of_machine_is_compatible("renesas,r8a7792") &&
+		    !of_machine_is_compatible("renesas,r8a7793") &&
+		    !of_machine_is_compatible("renesas,r8a7794") &&
 		    !of_machine_is_compatible("renesas,sh7372") &&
 		    !of_machine_is_compatible("renesas,sh73a0"))
 			return 0;
