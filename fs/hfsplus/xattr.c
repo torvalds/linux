@@ -70,7 +70,7 @@ static void hfsplus_init_header_node(struct inode *attr_file,
 	loff_t tmp;
 
 	hfs_dbg(ATTR_MOD, "init_hdr_attr_file: clump %u, node_size %u\n",
-				clump_size, node_size);
+		clump_size, node_size);
 
 	/* The end of the node contains list of record offsets */
 	rec_offsets = (__be16 *)(buf + node_size);
