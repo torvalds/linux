@@ -737,7 +737,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
             }
         }
 
-        AllSize = (DstMemSize + 3) & (~3);
+        AllSize = (DstMemSize + 15) & (~15);
 
         pages = kzalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
@@ -757,9 +757,13 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
         MMU_Base = rga2_mmu_buf.buf_virtual + (rga2_mmu_buf.front & (rga2_mmu_buf.size - 1));
         mutex_unlock(&rga2_service.lock);
 
-        if (DstMemSize)
-        {
-            ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0], DstStart, DstMemSize);
+        if (DstMemSize) {
+            if (req->sg_dst) {
+                ret = rga2_MapION(req->sg_dst, &MMU_Base[0], DstMemSize);
+            }
+            else {
+                ret = rga2_MapUserMemory(&pages[0], &MMU_Base[0], DstStart, DstMemSize);
+            }
             if (ret < 0) {
                 pr_err("rga2 map dst memory failed\n");
                 status = ret;
@@ -767,7 +771,7 @@ static int rga2_mmu_info_color_fill_mode(struct rga2_reg *reg, struct rga2_req *
             }
 
             /* change the buf address in req struct */
-            req->mmu_info.src0_base_addr = (((uint32_t)MMU_Base_phys)>>4);
+            req->mmu_info.dst_base_addr = ((uint32_t)MMU_Base_phys);
             req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK));
         }
 
