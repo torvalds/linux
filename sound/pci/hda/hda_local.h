@@ -268,7 +268,8 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 			  const struct hda_input_mux *imux,
 			  struct snd_ctl_elem_value *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val);
-int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+int snd_hda_add_imux_item(struct hda_codec *codec,
+			  struct hda_input_mux *imux, const char *label,
 			  int index, int *type_index_ret);
 
 /*

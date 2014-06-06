@@ -1011,7 +1011,7 @@ static int stac_create_spdif_mux_ctls(struct hda_codec *codec)
 	for (i = 0; i < num_cons; i++) {
 		if (snd_BUG_ON(!labels[i]))
 			return -EINVAL;
-		snd_hda_add_imux_item(&spec->spdif_mux, labels[i], i, NULL);
+		snd_hda_add_imux_item(codec, &spec->spdif_mux, labels[i], i, NULL);
 	}
 
 	kctl = snd_hda_gen_add_kctl(&spec->gen, NULL, &stac_smux_mixer);

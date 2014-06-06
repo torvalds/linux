@@ -3054,7 +3054,7 @@ static int parse_capture_source(struct hda_codec *codec, hda_nid_t pin,
 			if (spec->hp_mic_pin == pin)
 				spec->hp_mic_mux_idx = imux->num_items;
 			spec->imux_pins[imux->num_items] = pin;
-			snd_hda_add_imux_item(imux, label, cfg_idx, NULL);
+			snd_hda_add_imux_item(codec, imux, label, cfg_idx, NULL);
 			imux_added = true;
 			if (spec->dyn_adc_switch)
 				spec->dyn_adc_idx[imux_idx] = c;
