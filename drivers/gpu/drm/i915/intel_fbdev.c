@@ -417,7 +417,7 @@ static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
 		}
 		crtcs[i] = new_crtc;
 
-		DRM_DEBUG_KMS("connector %s on pipe %d [CRTC:%d]: %dx%d%s\n",
+		DRM_DEBUG_KMS("connector %s on pipe %c [CRTC:%d]: %dx%d%s\n",
 			      connector->name,
 			      pipe_name(to_intel_crtc(encoder->crtc)->pipe),
 			      encoder->crtc->base.id,
