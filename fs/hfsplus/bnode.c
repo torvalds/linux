@@ -646,8 +646,8 @@ void hfs_bnode_put(struct hfs_bnode *node)
 		if (test_bit(HFS_BNODE_DELETED, &node->flags)) {
 			hfs_bnode_unhash(node);
 			spin_unlock(&tree->hash_lock);
-			hfs_bnode_clear(node, 0,
-				PAGE_CACHE_SIZE * tree->pages_per_bnode);
+			if (hfs_bnode_need_zeroout(tree))
+				hfs_bnode_clear(node, 0, tree->node_size);
 			hfs_bmap_free(node);
 			hfs_bnode_free(node);
 			return;
@@ -656,3 +656,16 @@ void hfs_bnode_put(struct hfs_bnode *node)
 	}
 }
 
+/*
+ * Unused nodes have to be zeroed if this is the catalog tree and
+ * a corresponding flag in the volume header is set.
+ */
+bool hfs_bnode_need_zeroout(struct hfs_btree *tree)
+{
+	struct super_block *sb = tree->inode->i_sb;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
+	const u32 volume_attr = be32_to_cpu(sbi->s_vhdr->attributes);
+
+	return tree->cnid == HFSPLUS_CAT_CNID &&
+		volume_attr & HFSPLUS_VOL_UNUSED_NODE_FIX;
+}

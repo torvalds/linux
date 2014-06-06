@@ -414,6 +414,7 @@ void hfs_bnode_free(struct hfs_bnode *);
 struct hfs_bnode *hfs_bnode_create(struct hfs_btree *, u32);
 void hfs_bnode_get(struct hfs_bnode *);
 void hfs_bnode_put(struct hfs_bnode *);
+bool hfs_bnode_need_zeroout(struct hfs_btree *);
 
 /* brec.c */
 u16 hfs_brec_lenoff(struct hfs_bnode *, u16, u16 *);
@@ -460,7 +461,7 @@ int hfsplus_ext_write_extent(struct inode *);
 int hfsplus_get_block(struct inode *, sector_t, struct buffer_head *, int);
 int hfsplus_free_fork(struct super_block *, u32,
 		struct hfsplus_fork_raw *, int);
-int hfsplus_file_extend(struct inode *);
+int hfsplus_file_extend(struct inode *, bool zeroout);
 void hfsplus_file_truncate(struct inode *);
 
 /* inode.c */

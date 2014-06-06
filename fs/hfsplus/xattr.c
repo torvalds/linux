@@ -196,7 +196,7 @@ check_attr_tree_state_again:
 	}
 
 	while (hip->alloc_blocks < hip->clump_blocks) {
-		err = hfsplus_file_extend(attr_file);
+		err = hfsplus_file_extend(attr_file, false);
 		if (unlikely(err)) {
 			pr_err("failed to extend attributes file\n");
 			goto end_attr_file_creation;
