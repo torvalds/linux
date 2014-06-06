@@ -147,7 +147,7 @@ int rk_fb_pixel_width(int data_format)
 	case YUV422_A:
 	case YUV420_A:
 	case YUV444_A:
-		pixel_width = 10;
+		pixel_width = 8;
 		break;
 	default:
 		printk(KERN_WARNING "%s:un supported format:0x%x\n",
