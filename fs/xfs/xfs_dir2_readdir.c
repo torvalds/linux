@@ -560,7 +560,8 @@ xfs_dir2_leaf_getdents(
 			/*
 			 * Having done a read, we need to set a new offset.
 			 */
-			newoff = xfs_dir2_db_off_to_byte(mp, map_info->curdb, 0);
+			newoff = xfs_dir2_db_off_to_byte(mp->m_dir_geo,
+							 map_info->curdb, 0);
 			/*
 			 * Start of the current block.
 			 */
@@ -578,7 +579,7 @@ xfs_dir2_leaf_getdents(
 			 * Find our position in the block.
 			 */
 			ptr = (char *)dp->d_ops->data_entry_p(hdr);
-			byteoff = xfs_dir2_byte_to_off(mp, curoff);
+			byteoff = xfs_dir2_byte_to_off(mp->m_dir_geo, curoff);
 			/*
 			 * Skip past the header.
 			 */
@@ -607,7 +608,7 @@ xfs_dir2_leaf_getdents(
 				 * Now set our real offset.
 				 */
 				curoff =
-					xfs_dir2_db_off_to_byte(mp,
+					xfs_dir2_db_off_to_byte(mp->m_dir_geo,
 					    xfs_dir2_byte_to_db(mp, curoff),
 					    (char *)ptr - (char *)hdr);
 				if (ptr >= (char *)hdr + mp->m_dirblksize) {
