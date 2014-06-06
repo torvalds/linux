@@ -129,15 +129,10 @@ static sense_reason_t
 spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
-	u16 len = 0;
+	u16 len;
 
 	if (dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL) {
-		u32 unit_serial_len;
-
-		unit_serial_len = strlen(dev->t10_wwn.unit_serial);
-		unit_serial_len++; /* For NULL Terminator */
-
-		len += sprintf(&buf[4], "%s", dev->t10_wwn.unit_serial);
+		len = sprintf(&buf[4], "%s", dev->t10_wwn.unit_serial);
 		len++; /* Extra Byte for NULL Terminator */
 		buf[3] = len;
 	}
