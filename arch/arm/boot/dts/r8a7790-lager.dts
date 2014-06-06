@@ -29,12 +29,12 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0 0x40000000 0 0x80000000>;
+		reg = <0 0x40000000 0 0x40000000>;
 	};
 
 	memory@180000000 {
 		device_type = "memory";
-		reg = <1 0x80000000 0 0x80000000>;
+		reg = <1 0x40000000 0 0xc0000000>;
 	};
 
 	lbsc {
