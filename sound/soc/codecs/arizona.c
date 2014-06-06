@@ -1127,6 +1127,31 @@ static int arizona_startup(struct snd_pcm_substream *substream,
 					  constraint);
 }
 
+static void arizona_wm5102_set_dac_comp(struct snd_soc_codec *codec,
+					unsigned int rate)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->arizona;
+	struct reg_default dac_comp[] = {
+		{ 0x80, 0x3 },
+		{ ARIZONA_DAC_COMP_1, 0 },
+		{ ARIZONA_DAC_COMP_2, 0 },
+		{ 0x80, 0x0 },
+	};
+
+	mutex_lock(&codec->mutex);
+
+	dac_comp[1].def = arizona->dac_comp_coeff;
+	if (rate >= 176400)
+		dac_comp[2].def = arizona->dac_comp_enabled;
+
+	mutex_unlock(&codec->mutex);
+
+	regmap_multi_reg_write(arizona->regmap,
+			       dac_comp,
+			       ARRAY_SIZE(dac_comp));
+}
+
 static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
@@ -1153,6 +1178,15 @@ static int arizona_hw_params_rate(struct snd_pcm_substream *substream,
 
 	switch (dai_priv->clk) {
 	case ARIZONA_CLK_SYSCLK:
+		switch (priv->arizona->type) {
+		case WM5102:
+			arizona_wm5102_set_dac_comp(codec,
+						    params_rate(params));
+			break;
+		default:
+			break;
+		}
+
 		snd_soc_update_bits(codec, ARIZONA_SAMPLE_RATE_1,
 				    ARIZONA_SAMPLE_RATE_1_MASK, sr_val);
 		if (base)
