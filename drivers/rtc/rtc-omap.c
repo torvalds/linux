@@ -352,6 +352,12 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	if (of_id)
 		pdev->id_entry = of_id->data;
 
+	id_entry = platform_get_device_id(pdev);
+	if (!id_entry) {
+		dev_err(&pdev->dev, "no matching device entry\n");
+		return -ENODEV;
+	}
+
 	omap_rtc_timer = platform_get_irq(pdev, 0);
 	if (omap_rtc_timer <= 0) {
 		pr_debug("%s: no update irq?\n", pdev->name);
@@ -373,8 +379,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	id_entry = platform_get_device_id(pdev);
-	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER)) {
+	if (id_entry->driver_data & OMAP_RTC_HAS_KICKER) {
 		rtc_writel(KICK0_VALUE, OMAP_RTC_KICK0_REG);
 		rtc_writel(KICK1_VALUE, OMAP_RTC_KICK1_REG);
 	}
@@ -452,7 +457,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 fail0:
-	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER))
+	if (id_entry->driver_data & OMAP_RTC_HAS_KICKER)
 		rtc_writel(0, OMAP_RTC_KICK0_REG);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -469,7 +474,7 @@ static int __exit omap_rtc_remove(struct platform_device *pdev)
 	/* leave rtc running, but disable irqs */
 	rtc_write(0, OMAP_RTC_INTERRUPTS_REG);
 
-	if (id_entry && (id_entry->driver_data & OMAP_RTC_HAS_KICKER))
+	if (id_entry->driver_data & OMAP_RTC_HAS_KICKER)
 		rtc_writel(0, OMAP_RTC_KICK0_REG);
 
 	/* Disable the clock/module */
