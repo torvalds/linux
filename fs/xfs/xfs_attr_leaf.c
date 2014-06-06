@@ -1077,7 +1077,7 @@ xfs_attr3_leaf_add(
 	xfs_attr3_leaf_hdr_from_disk(&ichdr, leaf);
 	ASSERT(args->index >= 0 && args->index <= ichdr.count);
 	entsize = xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-			   args->trans->t_mountp->m_sb.sb_blocksize, NULL);
+			   args->geo->blksize, NULL);
 
 	/*
 	 * Search through freemap for first-fit on new name length.
@@ -1180,13 +1180,13 @@ xfs_attr3_leaf_add_work(
 	ASSERT((ichdr->freemap[mapindex].base & 0x3) == 0);
 	ASSERT(ichdr->freemap[mapindex].size >=
 		xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-					 mp->m_sb.sb_blocksize, NULL));
+					 args->geo->blksize, NULL));
 	ASSERT(ichdr->freemap[mapindex].size < XFS_LBSIZE(mp));
 	ASSERT((ichdr->freemap[mapindex].size & 0x3) == 0);
 
 	ichdr->freemap[mapindex].size -=
 			xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-						 mp->m_sb.sb_blocksize, &tmp);
+						 args->geo->blksize, &tmp);
 
 	entry->nameidx = cpu_to_be16(ichdr->freemap[mapindex].base +
 				     ichdr->freemap[mapindex].size);

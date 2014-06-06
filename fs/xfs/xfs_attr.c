@@ -175,11 +175,11 @@ xfs_attr_calc_size(
 	 * "local" or "remote" (note: local != inline).
 	 */
 	size = xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-					mp->m_sb.sb_blocksize, local);
+					args->geo->blksize, local);
 
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	if (*local) {
-		if (size > (mp->m_sb.sb_blocksize >> 1)) {
+		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
 			nblks *= 2;
 		}
@@ -898,7 +898,7 @@ restart:
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = mp;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = args->geo->node_ents;
 
 	/*
@@ -1077,7 +1077,7 @@ restart:
 		state = xfs_da_state_alloc();
 		state->args = args;
 		state->mp = mp;
-		state->blocksize = state->mp->m_sb.sb_blocksize;
+		state->blocksize = args->geo->blksize;
 		state->node_ents = args->geo->node_ents;
 		state->inleaf = 0;
 		error = xfs_da3_node_lookup_int(state, &retval);
@@ -1169,7 +1169,7 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = args->geo->node_ents;
 
 	/*
@@ -1432,7 +1432,7 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
+	state->blocksize = args->geo->blksize;
 	state->node_ents = args->geo->node_ents;
 
 	/*
