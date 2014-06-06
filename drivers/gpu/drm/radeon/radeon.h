@@ -317,6 +317,9 @@ int radeon_atom_get_voltage_table(struct radeon_device *rdev,
 				  struct atom_voltage_table *voltage_table);
 bool radeon_atom_is_voltage_gpio(struct radeon_device *rdev,
 				 u8 voltage_type, u8 voltage_mode);
+int radeon_atom_get_svi2_info(struct radeon_device *rdev,
+			      u8 voltage_type,
+			      u8 *svd_gpio_id, u8 *svc_gpio_id);
 void radeon_atom_update_memory_dll(struct radeon_device *rdev,
 				   u32 mem_clock);
 void radeon_atom_set_ac_timing(struct radeon_device *rdev,
