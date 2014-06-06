@@ -73,7 +73,7 @@ struct iwl_mvm_quota_iterator_data {
 	int colors[MAX_BINDINGS];
 	int low_latency[MAX_BINDINGS];
 	int n_low_latency_bindings;
-	struct ieee80211_vif *skip_vif;
+	struct ieee80211_vif *disabled_vif;
 };
 
 static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
@@ -83,14 +83,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u16 id;
 
-	/*
-	 * We'll account for the new interface (if any) below,
-	 * skip it here in case we're not called from within
-	 * the add_interface callback (otherwise it won't show
-	 * up in iteration)
-	 * Also skip disabled interfaces here immediately.
-	 */
-	if (vif == data->skip_vif)
+	/* skip disabled interfaces here immediately */
+	if (vif == data->disabled_vif)
 		return;
 
 	if (!mvmvif->phy_ctxt)
@@ -172,15 +166,15 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 #endif
 }
 
-int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  enum iwl_mvm_quota_update_type type)
+int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
+			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
 	int i, idx, ret, num_active_macs, quota, quota_rem, n_non_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
-		.skip_vif = vif,
+		.disabled_vif = disabled_vif,
 	};
 
 	lockdep_assert_held(&mvm->mutex);
@@ -192,17 +186,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* iterator data above must match */
 	BUILD_BUG_ON(MAX_BINDINGS != 4);
 
-	if (WARN_ON_ONCE((type != IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR && !vif) ||
-			 (type == IWL_MVM_QUOTA_UPDATE_TYPE_REGULAR && vif)))
-		return -EINVAL;
-
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_quota_iterator, &data);
-	if (type == IWL_MVM_QUOTA_UPDATE_TYPE_NEW) {
-		data.skip_vif = NULL;
-		iwl_mvm_quota_iterator(&data, vif->addr, vif);
-	}
 
 	/*
 	 * The FW's scheduling session consists of
