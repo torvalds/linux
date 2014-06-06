@@ -80,6 +80,7 @@ struct ds1343_priv {
 	struct regmap *map;
 	struct mutex mutex;
 	unsigned int irqen;
+	int irq;
 	int alarm_sec;
 	int alarm_min;
 	int alarm_hour;
@@ -262,28 +263,32 @@ static DEVICE_ATTR(trickle_charger, S_IRUGO, ds1343_show_tricklecharger, NULL);
 
 static int ds1343_sysfs_register(struct device *dev)
 {
+	struct ds1343_priv *priv = dev_get_drvdata(dev);
 	int err;
 
 	err = device_create_file(dev, &dev_attr_glitch_filter);
 	if (err)
 		return err;
 
-	err = device_create_file(dev, &dev_attr_alarm_status);
+	err = device_create_file(dev, &dev_attr_trickle_charger);
 	if (err)
 		goto error1;
+
+	if (priv->irq <= 0)
+		return err;
 
 	err = device_create_file(dev, &dev_attr_alarm_mode);
 	if (err)
 		goto error2;
 
-	err = device_create_file(dev, &dev_attr_trickle_charger);
+	err = device_create_file(dev, &dev_attr_alarm_status);
 	if (!err)
 		return err;
 
 	device_remove_file(dev, &dev_attr_alarm_mode);
 
 error2:
-	device_remove_file(dev, &dev_attr_alarm_status);
+	device_remove_file(dev, &dev_attr_trickle_charger);
 
 error1:
 	device_remove_file(dev, &dev_attr_glitch_filter);
@@ -293,10 +298,16 @@ error1:
 
 static void ds1343_sysfs_unregister(struct device *dev)
 {
+	struct ds1343_priv *priv = dev_get_drvdata(dev);
+
 	device_remove_file(dev, &dev_attr_glitch_filter);
+	device_remove_file(dev, &dev_attr_trickle_charger);
+
+	if (priv->irq <= 0)
+		return;
+
 	device_remove_file(dev, &dev_attr_alarm_status);
 	device_remove_file(dev, &dev_attr_alarm_mode);
-	device_remove_file(dev, &dev_attr_trickle_charger);
 }
 
 static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
@@ -415,11 +426,10 @@ static int ds1343_update_alarm(struct device *dev)
 static int ds1343_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	struct spi_device *spi = priv->spi;
 	int res = 0;
 	unsigned int stat;
 
-	if (spi->irq <= 0)
+	if (priv->irq <= 0)
 		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
@@ -450,10 +460,9 @@ out:
 static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	struct spi_device *spi = priv->spi;
 	int res = 0;
 
-	if (spi->irq <= 0)
+	if (priv->irq <= 0)
 		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
@@ -476,10 +485,9 @@ static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int ds1343_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	struct spi_device *spi = priv->spi;
 	int res = 0;
 
-	if (spi->irq <= 0)
+	if (priv->irq <= 0)
 		return -EINVAL;
 
 	mutex_lock(&priv->mutex);
@@ -593,18 +601,20 @@ static int ds1343_probe(struct spi_device *spi)
 		return PTR_ERR(priv->rtc);
 	}
 
-	if (spi->irq >= 0) {
+	priv->irq = spi->irq;
+
+	if (priv->irq >= 0) {
 		res = devm_request_threaded_irq(&spi->dev, spi->irq, NULL,
 						ds1343_thread,
 						IRQF_NO_SUSPEND | IRQF_ONESHOT,
 						"ds1343", priv);
 		if (res) {
+			priv->irq = -1;
 			dev_err(&spi->dev,
 				"unable to request irq for rtc ds1343\n");
-			return res;
+		} else {
+			device_set_wakeup_capable(&spi->dev, 1);
 		}
-
-		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	res = ds1343_sysfs_register(&spi->dev);
