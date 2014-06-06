@@ -116,7 +116,6 @@
 
 #include <linux/phy.h>
 #include <linux/clk.h>
-#include <asm/cputype.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
