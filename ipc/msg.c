@@ -42,9 +42,7 @@
 #include <linux/uaccess.h>
 #include "util.h"
 
-/*
- * one msg_receiver structure for each sleeping receiver:
- */
+/* one msg_receiver structure for each sleeping receiver */
 struct msg_receiver {
 	struct list_head	r_list;
 	struct task_struct	*r_tsk;
@@ -53,6 +51,12 @@ struct msg_receiver {
 	long			r_msgtype;
 	long			r_maxsize;
 
+	/*
+	 * Mark r_msg volatile so that the compiler
+	 * does not try to get smart and optimize
+	 * it. We rely on this for the lockless
+	 * receive algorithm.
+	 */
 	struct msg_msg		*volatile r_msg;
 };
 
