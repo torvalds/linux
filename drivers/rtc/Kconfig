@@ -573,6 +573,16 @@ config RTC_DRV_DS1305
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1305.
 
+config RTC_DRV_DS1343
+	tristate "Dallas/Maxim DS1343/DS1344"
+	help
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1343 and DS1344 real time clock chips.
+	  Support for trickle charger, alarm is provided.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1343.
+
 config RTC_DRV_DS1347
 	tristate "Dallas/Maxim DS1347"
 	help
