@@ -5076,10 +5076,16 @@ int md_run(struct mddev *mddev)
 	}
 	if (err == 0 && pers->sync_request &&
 	    (mddev->bitmap_info.file || mddev->bitmap_info.offset)) {
-		err = bitmap_create(mddev);
-		if (err)
+		struct bitmap *bitmap;
+
+		bitmap = bitmap_create(mddev, -1);
+		if (IS_ERR(bitmap)) {
+			err = PTR_ERR(bitmap);
 			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
 			       mdname(mddev), err);
+		} else
+			mddev->bitmap = bitmap;
+
 	}
 	if (err) {
 		mddev_detach(mddev);
@@ -6039,9 +6045,13 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 	if (mddev->pers) {
 		mddev->pers->quiesce(mddev, 1);
 		if (fd >= 0) {
-			err = bitmap_create(mddev);
-			if (!err)
+			struct bitmap *bitmap;
+
+			bitmap = bitmap_create(mddev, -1);
+			if (!IS_ERR(bitmap)) {
+				mddev->bitmap = bitmap;
 				err = bitmap_load(mddev);
+			}
 		}
 		if (fd < 0 || err) {
 			bitmap_destroy(mddev);
@@ -6306,6 +6316,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 		if (mddev->recovery || mddev->sync_thread)
 			return -EBUSY;
 		if (info->state & (1<<MD_SB_BITMAP_PRESENT)) {
+			struct bitmap *bitmap;
 			/* add the bitmap */
 			if (mddev->bitmap)
 				return -EEXIST;
@@ -6316,9 +6327,11 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 			mddev->bitmap_info.space =
 				mddev->bitmap_info.default_space;
 			mddev->pers->quiesce(mddev, 1);
-			rv = bitmap_create(mddev);
-			if (!rv)
+			bitmap = bitmap_create(mddev, -1);
+			if (!IS_ERR(bitmap)) {
+				mddev->bitmap = bitmap;
 				rv = bitmap_load(mddev);
+			}
 			if (rv)
 				bitmap_destroy(mddev);
 			mddev->pers->quiesce(mddev, 0);

@@ -233,7 +233,7 @@ struct bitmap {
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
-int  bitmap_create(struct mddev *mddev);
+struct bitmap *bitmap_create(struct mddev *mddev, int slot);
 int bitmap_load(struct mddev *mddev);
 void bitmap_flush(struct mddev *mddev);
 void bitmap_destroy(struct mddev *mddev);
