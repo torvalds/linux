@@ -127,7 +127,7 @@ static int hpfs_readdir(struct file *file, struct dir_context *ctx)
 		if (ctx->pos == 12)
 			goto out;
 		if (ctx->pos == 3 || ctx->pos == 4 || ctx->pos == 5) {
-			pr_warn("pos==%d\n", (int)ctx->pos);
+			pr_err("pos==%d\n", (int)ctx->pos);
 			goto out;
 		}
 		if (ctx->pos == 0) {

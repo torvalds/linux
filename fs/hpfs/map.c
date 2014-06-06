@@ -65,13 +65,13 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 	struct code_page_directory *cp = hpfs_map_sector(s, cps, &bh, 0);
 	if (!cp) return NULL;
 	if (le32_to_cpu(cp->magic) != CP_DIR_MAGIC) {
-		pr_warn("Code page directory magic doesn't match (magic = %08x)\n",
+		pr_err("Code page directory magic doesn't match (magic = %08x)\n",
 			le32_to_cpu(cp->magic));
 		brelse(bh);
 		return NULL;
 	}
 	if (!le32_to_cpu(cp->n_code_pages)) {
-		pr_warn("n_code_pages == 0\n");
+		pr_err("n_code_pages == 0\n");
 		brelse(bh);
 		return NULL;
 	}
@@ -80,19 +80,19 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 	brelse(bh);
 
 	if (cpi >= 3) {
-		pr_warn("Code page index out of array\n");
+		pr_err("Code page index out of array\n");
 		return NULL;
 	}
 	
 	if (!(cpd = hpfs_map_sector(s, cpds, &bh, 0))) return NULL;
 	if (le16_to_cpu(cpd->offs[cpi]) > 0x178) {
-		pr_warn("Code page index out of sector\n");
+		pr_err("Code page index out of sector\n");
 		brelse(bh);
 		return NULL;
 	}
 	ptr = (unsigned char *)cpd + le16_to_cpu(cpd->offs[cpi]) + 6;
 	if (!(cp_table = kmalloc(256, GFP_KERNEL))) {
-		pr_warn("out of memory for code page table\n");
+		pr_err("out of memory for code page table\n");
 		brelse(bh);
 		return NULL;
 	}
@@ -115,7 +115,7 @@ __le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
 	int i;
 	__le32 *b;
 	if (!(b = kmalloc(n * 512, GFP_KERNEL))) {
-		pr_warn("can't allocate memory for bitmap directory\n");
+		pr_err("can't allocate memory for bitmap directory\n");
 		return NULL;
 	}	
 	for (i=0;i<n;i++) {
@@ -283,7 +283,7 @@ struct dnode *hpfs_map_dnode(struct super_block *s, unsigned secno,
 				goto bail;
 			}
 			if (b == 3)
-				pr_warn("unbalanced dnode tree, dnode %08x; see hpfs.txt 4 more info\n",
+				pr_err("unbalanced dnode tree, dnode %08x; see hpfs.txt 4 more info\n",
 					secno);
 		}
 	return dnode;
