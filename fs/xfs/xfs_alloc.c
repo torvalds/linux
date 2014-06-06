@@ -257,16 +257,14 @@ xfs_alloc_fix_len(
 	k = rlen % args->prod;
 	if (k == args->mod)
 		return;
-	if (k > args->mod) {
-		if ((int)(rlen = rlen - k - args->mod) < (int)args->minlen)
-			return;
-	} else {
-		if ((int)(rlen = rlen - args->prod - (args->mod - k)) <
-		    (int)args->minlen)
-			return;
-	}
-	ASSERT(rlen >= args->minlen);
-	ASSERT(rlen <= args->maxlen);
+	if (k > args->mod)
+		rlen = rlen - (k - args->mod);
+	else
+		rlen = rlen - args->prod + (args->mod - k);
+	if ((int)rlen < (int)args->minlen)
+		return;
+	ASSERT(rlen >= args->minlen && rlen <= args->maxlen);
+	ASSERT(rlen % args->prod == args->mod);
 	args->len = rlen;
 }
 
