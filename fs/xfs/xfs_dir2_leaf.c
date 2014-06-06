@@ -350,8 +350,8 @@ xfs_dir3_leaf_get_buf(
 	ASSERT(bno >= xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET) &&
 	       bno < xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET));
 
-	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, bno), -1, &bp,
-			       XFS_DATA_FORK);
+	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, bno),
+			       -1, &bp, XFS_DATA_FORK);
 	if (error)
 		return error;
 
@@ -403,7 +403,7 @@ xfs_dir2_block_to_leaf(
 	if ((error = xfs_da_grow_inode(args, &blkno))) {
 		return error;
 	}
-	ldb = xfs_dir2_da_to_db(mp, blkno);
+	ldb = xfs_dir2_da_to_db(args->geo, blkno);
 	ASSERT(ldb == xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET));
 	/*
 	 * Initialize the leaf block, get a buffer for it.
@@ -828,8 +828,8 @@ xfs_dir2_leaf_addname(
 		 * Just read that one in.
 		 */
 		error = xfs_dir3_data_read(tp, dp,
-					   xfs_dir2_db_to_da(mp, use_block),
-					   -1, &dbp);
+				   xfs_dir2_db_to_da(args->geo, use_block),
+				   -1, &dbp);
 		if (error) {
 			xfs_trans_brelse(tp, lbp);
 			return error;
@@ -1269,8 +1269,8 @@ xfs_dir2_leaf_lookup_int(
 			if (dbp)
 				xfs_trans_brelse(tp, dbp);
 			error = xfs_dir3_data_read(tp, dp,
-						   xfs_dir2_db_to_da(mp, newdb),
-						   -1, &dbp);
+					   xfs_dir2_db_to_da(args->geo, newdb),
+					   -1, &dbp);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
@@ -1310,8 +1310,8 @@ xfs_dir2_leaf_lookup_int(
 		if (cidb != curdb) {
 			xfs_trans_brelse(tp, dbp);
 			error = xfs_dir3_data_read(tp, dp,
-						   xfs_dir2_db_to_da(mp, cidb),
-						   -1, &dbp);
+					   xfs_dir2_db_to_da(args->geo, cidb),
+					   -1, &dbp);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
@@ -1609,7 +1609,8 @@ xfs_dir2_leaf_trim_data(
 	/*
 	 * Read the offending data block.  We need its buffer.
 	 */
-	error = xfs_dir3_data_read(tp, dp, xfs_dir2_db_to_da(mp, db), -1, &dbp);
+	error = xfs_dir3_data_read(tp, dp, xfs_dir2_db_to_da(args->geo, db),
+				   -1, &dbp);
 	if (error)
 		return error;
 

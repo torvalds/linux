@@ -195,17 +195,18 @@ xfs_dir2_free_try_read(
 
 static int
 xfs_dir3_free_get_buf(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
+	xfs_da_args_t		*args,
 	xfs_dir2_db_t		fbno,
 	struct xfs_buf		**bpp)
 {
+	struct xfs_trans	*tp = args->trans;
+	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
 	int			error;
 	struct xfs_dir3_icfree_hdr hdr;
 
-	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, fbno),
+	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, fbno),
 				   -1, &bp, XFS_DATA_FORK);
 	if (error)
 		return error;
@@ -319,7 +320,7 @@ xfs_dir2_leaf_to_node(
 	/*
 	 * Get the buffer for the new freespace block.
 	 */
-	error = xfs_dir3_free_get_buf(tp, dp, fdb, &fbp);
+	error = xfs_dir3_free_get_buf(args, fdb, &fbp);
 	if (error)
 		return error;
 
@@ -605,7 +606,8 @@ xfs_dir2_leafn_lookup_for_addname(
 					xfs_trans_brelse(tp, curbp);
 
 				error = xfs_dir2_free_read(tp, dp,
-						xfs_dir2_db_to_da(mp, newfdb),
+						xfs_dir2_db_to_da(args->geo,
+								  newfdb),
 						&curbp);
 				if (error)
 					return error;
@@ -746,7 +748,8 @@ xfs_dir2_leafn_lookup_for_entry(
 				curbp = state->extrablk.bp;
 			} else {
 				error = xfs_dir3_data_read(tp, dp,
-						xfs_dir2_db_to_da(mp, newdb),
+						xfs_dir2_db_to_da(args->geo,
+								  newdb),
 						-1, &curbp);
 				if (error)
 					return error;
@@ -1246,7 +1249,8 @@ xfs_dir2_leafn_remove(
 		 * read in the free block.
 		 */
 		fdb = dp->d_ops->db_to_fdb(mp, db);
-		error = xfs_dir2_free_read(tp, dp, xfs_dir2_db_to_da(mp, fdb),
+		error = xfs_dir2_free_read(tp, dp,
+					   xfs_dir2_db_to_da(args->geo, fdb),
 					   &fbp);
 		if (error)
 			return error;
@@ -1336,7 +1340,7 @@ xfs_dir2_leafn_split(
 	/*
 	 * Initialize the new leaf block.
 	 */
-	error = xfs_dir3_leaf_get_buf(args, xfs_dir2_da_to_db(mp, blkno),
+	error = xfs_dir3_leaf_get_buf(args, xfs_dir2_da_to_db(args->geo, blkno),
 				      &newblk->bp, XFS_DIR2_LEAFN_MAGIC);
 	if (error)
 		return error;
@@ -1729,7 +1733,7 @@ xfs_dir2_node_addname_int(
 
 		if ((error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK)))
 			return error;
-		lastfbno = xfs_dir2_da_to_db(mp, (xfs_dablk_t)fo);
+		lastfbno = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)fo);
 		fbno = ifbno;
 	}
 	/*
@@ -1766,8 +1770,8 @@ xfs_dir2_node_addname_int(
 			 * to avoid it.
 			 */
 			error = xfs_dir2_free_try_read(tp, dp,
-						xfs_dir2_db_to_da(mp, fbno),
-						&fbp);
+					xfs_dir2_db_to_da(args->geo, fbno),
+					&fbp);
 			if (error)
 				return error;
 			if (!fbp)
@@ -1837,8 +1841,8 @@ xfs_dir2_node_addname_int(
 		 */
 		fbno = dp->d_ops->db_to_fdb(mp, dbno);
 		error = xfs_dir2_free_try_read(tp, dp,
-					       xfs_dir2_db_to_da(mp, fbno),
-					       &fbp);
+				       xfs_dir2_db_to_da(args->geo, fbno),
+				       &fbp);
 		if (error)
 			return error;
 
@@ -1878,7 +1882,7 @@ xfs_dir2_node_addname_int(
 			/*
 			 * Get a buffer for the new block.
 			 */
-			error = xfs_dir3_free_get_buf(tp, dp, fbno, &fbp);
+			error = xfs_dir3_free_get_buf(args, fbno, &fbp);
 			if (error)
 				return error;
 			free = fbp->b_addr;
@@ -1946,7 +1950,8 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Read the data block in.
 		 */
-		error = xfs_dir3_data_read(tp, dp, xfs_dir2_db_to_da(mp, dbno),
+		error = xfs_dir3_data_read(tp, dp,
+					   xfs_dir2_db_to_da(args->geo, dbno),
 					   -1, &dbp);
 		if (error)
 			return error;
@@ -2265,9 +2270,9 @@ xfs_dir2_node_trim_free(
 	/*
 	 * Blow the block away.
 	 */
-	if ((error =
-	    xfs_dir2_shrink_inode(args, xfs_dir2_da_to_db(mp, (xfs_dablk_t)fo),
-		    bp))) {
+	error = xfs_dir2_shrink_inode(args,
+			xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)fo), bp);
+	if (error) {
 		/*
 		 * Can't fail with ENOSPC since that only happens with no
 		 * space reservation, when breaking up an extent into two

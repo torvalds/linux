@@ -396,14 +396,14 @@ xfs_dir2_leaf_readbuf(
 	 * No valid mappings, so no more data blocks.
 	 */
 	if (!mip->map_valid) {
-		*curoff = xfs_dir2_da_to_byte(mp, mip->map_off);
+		*curoff = xfs_dir2_da_to_byte(mp->m_dir_geo, mip->map_off);
 		goto out;
 	}
 
 	/*
 	 * Read the directory block starting at the first mapping.
 	 */
-	mip->curdb = xfs_dir2_da_to_db(mp, map->br_startoff);
+	mip->curdb = xfs_dir2_da_to_db(mp->m_dir_geo, map->br_startoff);
 	error = xfs_dir3_data_read(NULL, dp, map->br_startoff,
 			map->br_blockcount >= mp->m_dirblkfsbs ?
 			    XFS_FSB_TO_DADDR(mp, map->br_startblock) : -1, &bp);
@@ -536,7 +536,7 @@ xfs_dir2_leaf_getdents(
 	 * Force this conversion through db so we truncate the offset
 	 * down to get the start of the data block.
 	 */
-	map_info->map_off = xfs_dir2_db_to_da(mp,
+	map_info->map_off = xfs_dir2_db_to_da(mp->m_dir_geo,
 					      xfs_dir2_byte_to_db(mp, curoff));
 
 	/*

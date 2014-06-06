@@ -632,7 +632,7 @@ xfs_dir2_grow_inode(
 	if (error)
 		return error;
 
-	*dbp = xfs_dir2_da_to_db(mp, (xfs_dablk_t)bno);
+	*dbp = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)bno);
 
 	/*
 	 * Update file's size if this is the data space and it grew.
@@ -713,7 +713,7 @@ xfs_dir2_shrink_inode(
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
-	da = xfs_dir2_db_to_da(mp, db);
+	da = xfs_dir2_db_to_da(args->geo, db);
 	/*
 	 * Unmap the fsblock(s).
 	 */

@@ -95,9 +95,9 @@ xfs_dir2_db_off_to_byte(struct xfs_da_geometry *geo, xfs_dir2_db_t db,
  * Convert block (DB) to block (dablk)
  */
 static inline xfs_dablk_t
-xfs_dir2_db_to_da(struct xfs_mount *mp, xfs_dir2_db_t db)
+xfs_dir2_db_to_da(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 {
-	return (xfs_dablk_t)(db << mp->m_sb.sb_dirblklog);
+	return (xfs_dablk_t)(db << (geo->blklog - geo->fsblog));
 }
 
 /*
@@ -106,7 +106,7 @@ xfs_dir2_db_to_da(struct xfs_mount *mp, xfs_dir2_db_t db)
 static inline xfs_dablk_t
 xfs_dir2_byte_to_da(struct xfs_mount *mp, xfs_dir2_off_t by)
 {
-	return xfs_dir2_db_to_da(mp, xfs_dir2_byte_to_db(mp, by));
+	return xfs_dir2_db_to_da(mp->m_dir_geo, xfs_dir2_byte_to_db(mp, by));
 }
 
 /*
@@ -124,19 +124,18 @@ xfs_dir2_db_off_to_dataptr(struct xfs_mount *mp, xfs_dir2_db_t db,
  * Convert block (dablk) to block (DB)
  */
 static inline xfs_dir2_db_t
-xfs_dir2_da_to_db(struct xfs_mount *mp, xfs_dablk_t da)
+xfs_dir2_da_to_db(struct xfs_da_geometry *geo, xfs_dablk_t da)
 {
-	return (xfs_dir2_db_t)(da >> mp->m_sb.sb_dirblklog);
+	return (xfs_dir2_db_t)(da >> (geo->blklog - geo->fsblog));
 }
 
 /*
  * Convert block (dablk) to byte offset in space
  */
 static inline xfs_dir2_off_t
-xfs_dir2_da_to_byte(struct xfs_mount *mp, xfs_dablk_t da)
+xfs_dir2_da_to_byte(struct xfs_da_geometry *geo, xfs_dablk_t da)
 {
-	return xfs_dir2_db_off_to_byte(mp->m_dir_geo,
-				       xfs_dir2_da_to_db(mp, da), 0);
+	return xfs_dir2_db_off_to_byte(geo, xfs_dir2_da_to_db(geo, da), 0);
 }
 
 /*
