@@ -504,7 +504,7 @@ void transport_deregister_session(struct se_session *se_sess)
 	 * ->acl_free_comp caller to wakeup configfs se_node_acl->acl_group
 	 * removal context.
 	 */
-	if (se_nacl && comp_nacl == true)
+	if (se_nacl && comp_nacl)
 		target_put_nacl(se_nacl);
 
 	transport_free_session(se_sess);
@@ -2363,7 +2363,7 @@ int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
 	 * fabric acknowledgement that requires two target_put_sess_cmd()
 	 * invocations before se_cmd descriptor release.
 	 */
-	if (ack_kref == true) {
+	if (ack_kref) {
 		kref_get(&se_cmd->cmd_kref);
 		se_cmd->se_cmd_flags |= SCF_ACK_KREF;
 	}

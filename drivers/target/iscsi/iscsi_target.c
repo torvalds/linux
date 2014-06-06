@@ -300,7 +300,7 @@ bool iscsit_check_np_match(
 		port = ntohs(sock_in->sin_port);
 	}
 
-	if ((ip_match == true) && (np->np_port == port) &&
+	if (ip_match && (np->np_port == port) &&
 	    (np->np_network_transport == network_transport))
 		return true;
 
@@ -325,7 +325,7 @@ static struct iscsi_np *iscsit_get_np(
 		}
 
 		match = iscsit_check_np_match(sockaddr, np, network_transport);
-		if (match == true) {
+		if (match) {
 			/*
 			 * Increment the np_exports reference count now to
 			 * prevent iscsit_del_np() below from being called
@@ -1120,7 +1120,7 @@ iscsit_get_immediate_data(struct iscsi_cmd *cmd, struct iscsi_scsi_req *hdr,
 	/*
 	 * Special case for Unsupported SAM WRITE Opcodes and ImmediateData=Yes.
 	 */
-	if (dump_payload == true)
+	if (dump_payload)
 		goto after_immediate_data;
 
 	immed_ret = iscsit_handle_immediate_data(cmd, hdr,
@@ -3484,10 +3484,8 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 
 				len = sprintf(buf, "TargetAddress="
 					"%s:%hu,%hu",
-					(inaddr_any == false) ?
-						np->np_ip : conn->local_ip,
-					(inaddr_any == false) ?
-						np->np_port : conn->local_port,
+					inaddr_any ? conn->local_ip : np->np_ip,
+					inaddr_any ? conn->local_port : np->np_port,
 					tpg->tpgt);
 				len += 1;
 

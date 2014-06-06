@@ -450,7 +450,7 @@ static bool iscsit_tpg_check_network_portal(
 
 			match = iscsit_check_np_match(sockaddr, np,
 						network_transport);
-			if (match == true)
+			if (match)
 				break;
 		}
 		spin_unlock(&tpg->tpg_np_lock);
@@ -472,7 +472,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 
 	if (!tpg_np_parent) {
 		if (iscsit_tpg_check_network_portal(tpg->tpg_tiqn, sockaddr,
-				network_transport) == true) {
+				network_transport)) {
 			pr_err("Network Portal: %s already exists on a"
 				" different TPG on %s\n", ip_str,
 				tpg->tpg_tiqn->tiqn);

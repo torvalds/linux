@@ -474,10 +474,10 @@ int iscsi_set_keys_to_negotiate(
 		if (!strcmp(param->name, AUTHMETHOD)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, HEADERDIGEST)) {
-			if (iser == false)
+			if (!iser)
 				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, DATADIGEST)) {
-			if (iser == false)
+			if (!iser)
 				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXCONNECTIONS)) {
 			SET_PSTATE_NEGOTIATE(param);
@@ -497,7 +497,7 @@ int iscsi_set_keys_to_negotiate(
 		} else if (!strcmp(param->name, IMMEDIATEDATA)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXRECVDATASEGMENTLENGTH)) {
-			if (iser == false)
+			if (!iser)
 				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
 			continue;
@@ -528,13 +528,13 @@ int iscsi_set_keys_to_negotiate(
 		} else if (!strcmp(param->name, OFMARKINT)) {
 			SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, RDMAEXTENSIONS)) {
-			if (iser == true)
+			if (iser)
 				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, INITIATORRECVDATASEGMENTLENGTH)) {
-			if (iser == true)
+			if (iser)
 				SET_PSTATE_NEGOTIATE(param);
 		} else if (!strcmp(param->name, TARGETRECVDATASEGMENTLENGTH)) {
-			if (iser == true)
+			if (iser)
 				SET_PSTATE_NEGOTIATE(param);
 		}
 	}
