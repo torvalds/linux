@@ -17,7 +17,7 @@ static loff_t get_pos(struct dnode *d, struct hpfs_dirent *fde)
 		if (de == fde) return ((loff_t) le32_to_cpu(d->self) << 4) | (loff_t)i;
 		i++;
 	}
-	pr_info("get_pos: not_found\n");
+	pr_info("%s(): not_found\n", __func__);
 	return ((loff_t)le32_to_cpu(d->self) << 4) | (loff_t)1;
 }
 
@@ -94,8 +94,8 @@ static void hpfs_pos_ins(loff_t *p, loff_t d, loff_t c)
 	if ((*p & ~0x3f) == (d & ~0x3f) && (*p & 0x3f) >= (d & 0x3f)) {
 		int n = (*p & 0x3f) + c;
 		if (n > 0x3f)
-			pr_warn("hpfs_pos_ins: %08x + %d\n",
-				(int)*p, (int)c >> 8);
+			pr_warn("%s(): %08x + %d\n",
+				__func__, (int)*p, (int)c >> 8);
 		else
 			*p = (*p & ~0x3f) | n;
 	}
@@ -106,8 +106,8 @@ static void hpfs_pos_del(loff_t *p, loff_t d, loff_t c)
 	if ((*p & ~0x3f) == (d & ~0x3f) && (*p & 0x3f) >= (d & 0x3f)) {
 		int n = (*p & 0x3f) - c;
 		if (n < 1)
-			pr_warn("hpfs_pos_ins: %08x - %d\n",
-				(int)*p, (int)c >> 8);
+			pr_warn("%s(): %08x - %d\n",
+				__func__, (int)*p, (int)c >> 8);
 		else
 			*p = (*p & ~0x3f) | n;
 	}
@@ -251,7 +251,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	}
 	go_up:
 	if (namelen >= 256) {
-		hpfs_error(i->i_sb, "hpfs_add_to_dnode: namelen == %d", namelen);
+		hpfs_error(i->i_sb, "%s(): namelen == %d", __func__, namelen);
 		kfree(nd);
 		kfree(nname);
 		return 1;
