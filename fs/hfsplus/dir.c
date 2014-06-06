@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/nls.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
@@ -127,7 +128,7 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	int len, err;
-	char strbuf[HFSPLUS_MAX_STRLEN + 1];
+	char *strbuf;
 	hfsplus_cat_entry entry;
 	struct hfs_find_data fd;
 	struct hfsplus_readdir_data *rd;
@@ -139,6 +140,11 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	if (err)
 		return err;
+	strbuf = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_MAX_STRLEN + 1, GFP_KERNEL);
+	if (!strbuf) {
+		err = -ENOMEM;
+		goto out;
+	}
 	hfsplus_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
 	err = hfs_brec_find(&fd, hfs_find_rec_by_key);
 	if (err)
@@ -193,7 +199,7 @@ static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 		hfs_bnode_read(fd.bnode, &entry, fd.entryoffset,
 			fd.entrylength);
 		type = be16_to_cpu(entry.type);
-		len = HFSPLUS_MAX_STRLEN;
+		len = NLS_MAX_CHARSET_SIZE * HFSPLUS_MAX_STRLEN;
 		err = hfsplus_uni2asc(sb, &fd.key->cat.name, strbuf, &len);
 		if (err)
 			goto out;
@@ -246,6 +252,7 @@ next:
 	}
 	memcpy(&rd->key, fd.key, sizeof(struct hfsplus_cat_key));
 out:
+	kfree(strbuf);
 	hfs_find_exit(&fd);
 	return err;
 }

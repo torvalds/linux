@@ -8,6 +8,7 @@
 
 #include "hfsplus_fs.h"
 #include <linux/posix_acl_xattr.h>
+#include <linux/nls.h>
 #include "xattr.h"
 #include "acl.h"
 
@@ -645,8 +646,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct hfs_find_data fd;
 	u16 key_len = 0;
 	struct hfsplus_attr_key attr_key;
-	char strbuf[HFSPLUS_ATTR_MAX_STRLEN +
-			XATTR_MAC_OSX_PREFIX_LEN + 1] = {0};
+	char *strbuf;
 	int xattr_name_len;
 
 	if ((!S_ISREG(inode->i_mode) &&
@@ -664,6 +664,13 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	if (err) {
 		pr_err("can't init xattr find struct\n");
 		return err;
+	}
+
+	strbuf = kmalloc(NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN +
+			XATTR_MAC_OSX_PREFIX_LEN + 1, GFP_KERNEL);
+	if (!strbuf) {
+		res = -ENOMEM;
+		goto out;
 	}
 
 	err = hfsplus_find_attr(inode->i_sb, inode->i_ino, NULL, &fd);
@@ -692,7 +699,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (be32_to_cpu(attr_key.cnid) != inode->i_ino)
 			goto end_listxattr;
 
-		xattr_name_len = HFSPLUS_ATTR_MAX_STRLEN;
+		xattr_name_len = NLS_MAX_CHARSET_SIZE * HFSPLUS_ATTR_MAX_STRLEN;
 		if (hfsplus_uni2asc(inode->i_sb,
 			(const struct hfsplus_unistr *)&fd.key->attr.key_name,
 					strbuf, &xattr_name_len)) {
@@ -718,6 +725,8 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	}
 
 end_listxattr:
+	kfree(strbuf);
+out:
 	hfs_find_exit(&fd);
 	return res;
 }
