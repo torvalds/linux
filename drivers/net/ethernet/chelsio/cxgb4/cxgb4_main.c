@@ -3428,6 +3428,77 @@ unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 EXPORT_SYMBOL(cxgb4_best_mtu);
 
 /**
+ *     cxgb4_best_aligned_mtu - find best MTU, [hopefully] data size aligned
+ *     @mtus: the HW MTU table
+ *     @header_size: Header Size
+ *     @data_size_max: maximum Data Segment Size
+ *     @data_size_align: desired Data Segment Size Alignment (2^N)
+ *     @mtu_idxp: HW MTU Table Index return value pointer (possibly NULL)
+ *
+ *     Similar to cxgb4_best_mtu() but instead of searching the Hardware
+ *     MTU Table based solely on a Maximum MTU parameter, we break that
+ *     parameter up into a Header Size and Maximum Data Segment Size, and
+ *     provide a desired Data Segment Size Alignment.  If we find an MTU in
+ *     the Hardware MTU Table which will result in a Data Segment Size with
+ *     the requested alignment _and_ that MTU isn't "too far" from the
+ *     closest MTU, then we'll return that rather than the closest MTU.
+ */
+unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
+				    unsigned short header_size,
+				    unsigned short data_size_max,
+				    unsigned short data_size_align,
+				    unsigned int *mtu_idxp)
+{
+	unsigned short max_mtu = header_size + data_size_max;
+	unsigned short data_size_align_mask = data_size_align - 1;
+	int mtu_idx, aligned_mtu_idx;
+
+	/* Scan the MTU Table till we find an MTU which is larger than our
+	 * Maximum MTU or we reach the end of the table.  Along the way,
+	 * record the last MTU found, if any, which will result in a Data
+	 * Segment Length matching the requested alignment.
+	 */
+	for (mtu_idx = 0, aligned_mtu_idx = -1; mtu_idx < NMTUS; mtu_idx++) {
+		unsigned short data_size = mtus[mtu_idx] - header_size;
+
+		/* If this MTU minus the Header Size would result in a
+		 * Data Segment Size of the desired alignment, remember it.
+		 */
+		if ((data_size & data_size_align_mask) == 0)
+			aligned_mtu_idx = mtu_idx;
+
+		/* If we're not at the end of the Hardware MTU Table and the
+		 * next element is larger than our Maximum MTU, drop out of
+		 * the loop.
+		 */
+		if (mtu_idx+1 < NMTUS && mtus[mtu_idx+1] > max_mtu)
+			break;
+	}
+
+	/* If we fell out of the loop because we ran to the end of the table,
+	 * then we just have to use the last [largest] entry.
+	 */
+	if (mtu_idx == NMTUS)
+		mtu_idx--;
+
+	/* If we found an MTU which resulted in the requested Data Segment
+	 * Length alignment and that's "not far" from the largest MTU which is
+	 * less than or equal to the maximum MTU, then use that.
+	 */
+	if (aligned_mtu_idx >= 0 &&
+	    mtu_idx - aligned_mtu_idx <= 1)
+		mtu_idx = aligned_mtu_idx;
+
+	/* If the caller has passed in an MTU Index pointer, pass the
+	 * MTU Index back.  Return the MTU value.
+	 */
+	if (mtu_idxp)
+		*mtu_idxp = mtu_idx;
+	return mtus[mtu_idx];
+}
+EXPORT_SYMBOL(cxgb4_best_aligned_mtu);
+
+/**
  *	cxgb4_port_chan - get the HW channel of a port
  *	@dev: the net device for the port
  *
@@ -5572,13 +5643,41 @@ static int adap_init0(struct adapter *adap)
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
 
-	/*
-	 * These are finalized by FW initialization, load their values now.
+	/* The MTU/MSS Table is initialized by now, so load their values.  If
+	 * we're initializing the adapter, then we'll make any modifications
+	 * we want to the MTU/MSS Table and also initialize the congestion
+	 * parameters.
 	 */
 	t4_read_mtu_tbl(adap, adap->params.mtus, NULL);
-	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
-		     adap->params.b_wnd);
+	if (state != DEV_STATE_INIT) {
+		int i;
 
+		/* The default MTU Table contains values 1492 and 1500.
+		 * However, for TCP, it's better to have two values which are
+		 * a multiple of 8 +/- 4 bytes apart near this popular MTU.
+		 * This allows us to have a TCP Data Payload which is a
+		 * multiple of 8 regardless of what combination of TCP Options
+		 * are in use (always a multiple of 4 bytes) which is
+		 * important for performance reasons.  For instance, if no
+		 * options are in use, then we have a 20-byte IP header and a
+		 * 20-byte TCP header.  In this case, a 1500-byte MSS would
+		 * result in a TCP Data Payload of 1500 - 40 == 1460 bytes
+		 * which is not a multiple of 8.  So using an MSS of 1488 in
+		 * this case results in a TCP Data Payload of 1448 bytes which
+		 * is a multiple of 8.  On the other hand, if 12-byte TCP Time
+		 * Stamps have been negotiated, then an MTU of 1500 bytes
+		 * results in a TCP Data Payload of 1448 bytes which, as
+		 * above, is a multiple of 8 bytes ...
+		 */
+		for (i = 0; i < NMTUS; i++)
+			if (adap->params.mtus[i] == 1492) {
+				adap->params.mtus[i] = 1488;
+				break;
+			}
+
+		t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
+			     adap->params.b_wnd);
+	}
 	t4_init_tp_params(adap);
 	adap->flags |= FW_OK;
 	return 0;
