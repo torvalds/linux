@@ -48,19 +48,18 @@ xfs_dir2_byte_to_dataptr(xfs_dir2_off_t by)
  * Convert byte in space to (DB) block
  */
 static inline xfs_dir2_db_t
-xfs_dir2_byte_to_db(struct xfs_mount *mp, xfs_dir2_off_t by)
+xfs_dir2_byte_to_db(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
 {
-	return (xfs_dir2_db_t)
-		(by >> (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog));
+	return (xfs_dir2_db_t)(by >> geo->blklog);
 }
 
 /*
  * Convert dataptr to a block number
  */
 static inline xfs_dir2_db_t
-xfs_dir2_dataptr_to_db(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
+xfs_dir2_dataptr_to_db(struct xfs_da_geometry *geo, xfs_dir2_dataptr_t dp)
 {
-	return xfs_dir2_byte_to_db(mp, xfs_dir2_dataptr_to_byte(dp));
+	return xfs_dir2_byte_to_db(geo, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
@@ -76,9 +75,9 @@ xfs_dir2_byte_to_off(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
  * Convert dataptr to a byte offset in a block
  */
 static inline xfs_dir2_data_aoff_t
-xfs_dir2_dataptr_to_off(struct xfs_mount *mp, xfs_dir2_dataptr_t dp)
+xfs_dir2_dataptr_to_off(struct xfs_da_geometry *geo, xfs_dir2_dataptr_t dp)
 {
-	return xfs_dir2_byte_to_off(mp->m_dir_geo, xfs_dir2_dataptr_to_byte(dp));
+	return xfs_dir2_byte_to_off(geo, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
@@ -104,20 +103,19 @@ xfs_dir2_db_to_da(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
  * Convert byte in space to (DA) block
  */
 static inline xfs_dablk_t
-xfs_dir2_byte_to_da(struct xfs_mount *mp, xfs_dir2_off_t by)
+xfs_dir2_byte_to_da(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
 {
-	return xfs_dir2_db_to_da(mp->m_dir_geo, xfs_dir2_byte_to_db(mp, by));
+	return xfs_dir2_db_to_da(geo, xfs_dir2_byte_to_db(geo, by));
 }
 
 /*
  * Convert block and offset to dataptr
  */
 static inline xfs_dir2_dataptr_t
-xfs_dir2_db_off_to_dataptr(struct xfs_mount *mp, xfs_dir2_db_t db,
+xfs_dir2_db_off_to_dataptr(struct xfs_da_geometry *geo, xfs_dir2_db_t db,
 			   xfs_dir2_data_aoff_t o)
 {
-	return xfs_dir2_byte_to_dataptr(
-				xfs_dir2_db_off_to_byte(mp->m_dir_geo, db, o));
+	return xfs_dir2_byte_to_dataptr(xfs_dir2_db_off_to_byte(geo, db, o));
 }
 
 /*

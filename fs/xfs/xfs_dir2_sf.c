@@ -104,8 +104,8 @@ xfs_dir2_block_sfsize(
 		/*
 		 * Calculate the pointer to the entry at hand.
 		 */
-		dep = (xfs_dir2_data_entry_t *)
-		      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, addr));
+		dep = (xfs_dir2_data_entry_t *)((char *)hdr +
+				xfs_dir2_dataptr_to_off(mp->m_dir_geo, addr));
 		/*
 		 * Detect . and .., so we can special-case them.
 		 * . is not included in sf directories.

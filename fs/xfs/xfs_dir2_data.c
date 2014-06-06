@@ -172,7 +172,8 @@ __xfs_dir3_data_check(
 		lastfree = 0;
 		if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 		    hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC)) {
-			addr = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
+			addr = xfs_dir2_db_off_to_dataptr(mp->m_dir_geo,
+				mp->m_dirdatablk,
 				(xfs_dir2_data_aoff_t)
 				((char *)dep - (char *)hdr));
 			name.name = dep->name;

@@ -316,7 +316,7 @@ xfs_dir2_leaf_to_node(
 	if ((error = xfs_dir2_grow_inode(args, XFS_DIR2_FREE_SPACE, &fdb))) {
 		return error;
 	}
-	ASSERT(fdb == xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET));
+	ASSERT(fdb == xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET));
 	/*
 	 * Get the buffer for the new freespace block.
 	 */
@@ -451,7 +451,7 @@ xfs_dir2_leafn_add(
 				       highstale, &lfloglow, &lfloghigh);
 
 	lep->hashval = cpu_to_be32(args->hashval);
-	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(mp,
+	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(args->geo,
 				args->blkno, args->index));
 
 	dp->d_ops->leaf_hdr_to_disk(leaf, &leafhdr);
@@ -577,7 +577,8 @@ xfs_dir2_leafn_lookup_for_addname(
 		/*
 		 * Pull the data block number from the entry.
 		 */
-		newdb = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
+		newdb = xfs_dir2_dataptr_to_db(args->geo,
+					       be32_to_cpu(lep->address));
 		/*
 		 * For addname, we're looking for a place to put the new entry.
 		 * We want to use a data block with an entry of equal
@@ -723,7 +724,8 @@ xfs_dir2_leafn_lookup_for_entry(
 		/*
 		 * Pull the data block number from the entry.
 		 */
-		newdb = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
+		newdb = xfs_dir2_dataptr_to_db(args->geo,
+					       be32_to_cpu(lep->address));
 		/*
 		 * Not adding a new entry, so we really want to find
 		 * the name given to us.
@@ -761,7 +763,8 @@ xfs_dir2_leafn_lookup_for_entry(
 		 * Point to the data entry.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)curbp->b_addr +
-			xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+			xfs_dir2_dataptr_to_off(args->geo,
+						be32_to_cpu(lep->address)));
 		/*
 		 * Compare the entry and if it's an exact match, return
 		 * EEXIST immediately. If it's the first case-insensitive
@@ -1196,9 +1199,9 @@ xfs_dir2_leafn_remove(
 	/*
 	 * Extract the data block and offset from the entry.
 	 */
-	db = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
+	db = xfs_dir2_dataptr_to_db(args->geo, be32_to_cpu(lep->address));
 	ASSERT(dblk->blkno == db);
-	off = xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address));
+	off = xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address));
 	ASSERT(dblk->index == off);
 
 	/*
@@ -1260,7 +1263,8 @@ xfs_dir2_leafn_remove(
 		struct xfs_dir3_icfree_hdr freehdr;
 		dp->d_ops->free_hdr_from_disk(&freehdr, free);
 		ASSERT(freehdr.firstdb == dp->d_ops->free_max_bests(mp) *
-			  (fdb - xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET)));
+			(fdb - xfs_dir2_byte_to_db(args->geo,
+						   XFS_DIR2_FREE_OFFSET)));
 	}
 #endif
 		/*
@@ -1751,7 +1755,7 @@ xfs_dir2_node_addname_int(
 			 * us a freespace block to start with.
 			 */
 			if (++fbno == 0)
-				fbno = xfs_dir2_byte_to_db(mp,
+				fbno = xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET);
 			/*
 			 * If it's ifbno we already looked at it.
@@ -1893,7 +1897,7 @@ xfs_dir2_node_addname_int(
 			 * Remember the first slot as our empty slot.
 			 */
 			freehdr.firstdb =
-				(fbno - xfs_dir2_byte_to_db(mp,
+				(fbno - xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET)) *
 					dp->d_ops->free_max_bests(mp);
 		} else {
@@ -2194,7 +2198,8 @@ xfs_dir2_node_replace(
 		       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC));
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)hdr +
-		       xfs_dir2_dataptr_to_off(state->mp, be32_to_cpu(lep->address)));
+		       xfs_dir2_dataptr_to_off(args->geo,
+					       be32_to_cpu(lep->address)));
 		ASSERT(inum != be64_to_cpu(dep->inumber));
 		/*
 		 * Fill in the new inode number and log the entry.

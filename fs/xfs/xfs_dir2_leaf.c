@@ -347,8 +347,8 @@ xfs_dir3_leaf_get_buf(
 	int			error;
 
 	ASSERT(magic == XFS_DIR2_LEAF1_MAGIC || magic == XFS_DIR2_LEAFN_MAGIC);
-	ASSERT(bno >= xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET) &&
-	       bno < xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET));
+	ASSERT(bno >= xfs_dir2_byte_to_db(args->geo, XFS_DIR2_LEAF_OFFSET) &&
+	       bno < xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET));
 
 	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, bno),
 			       -1, &bp, XFS_DATA_FORK);
@@ -404,7 +404,7 @@ xfs_dir2_block_to_leaf(
 		return error;
 	}
 	ldb = xfs_dir2_da_to_db(args->geo, blkno);
-	ASSERT(ldb == xfs_dir2_byte_to_db(mp, XFS_DIR2_LEAF_OFFSET));
+	ASSERT(ldb == xfs_dir2_byte_to_db(args->geo, XFS_DIR2_LEAF_OFFSET));
 	/*
 	 * Initialize the leaf block, get a buffer for it.
 	 */
@@ -670,7 +670,7 @@ xfs_dir2_leaf_addname(
 	     index++, lep++) {
 		if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
-		i = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
+		i = xfs_dir2_dataptr_to_db(args->geo, be32_to_cpu(lep->address));
 		ASSERT(i < be32_to_cpu(ltp->bestcount));
 		ASSERT(bestsp[i] != cpu_to_be16(NULLDATAOFF));
 		if (be16_to_cpu(bestsp[i]) >= length) {
@@ -889,7 +889,8 @@ xfs_dir2_leaf_addname(
 	 * Fill in the new leaf entry.
 	 */
 	lep->hashval = cpu_to_be32(args->hashval);
-	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(mp, use_block,
+	lep->address = cpu_to_be32(
+				xfs_dir2_db_off_to_dataptr(args->geo, use_block,
 				be16_to_cpu(*tagp)));
 	/*
 	 * Log the leaf fields and give up the buffers.
@@ -1185,7 +1186,7 @@ xfs_dir2_leaf_lookup(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)dbp->b_addr +
-	       xfs_dir2_dataptr_to_off(dp->i_mount, be32_to_cpu(lep->address)));
+	       xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address)));
 	/*
 	 * Return the found inode number & CI name if appropriate
 	 */
@@ -1260,7 +1261,8 @@ xfs_dir2_leaf_lookup_int(
 		/*
 		 * Get the new data block number.
 		 */
-		newdb = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
+		newdb = xfs_dir2_dataptr_to_db(args->geo,
+					       be32_to_cpu(lep->address));
 		/*
 		 * If it's not the same as the old data block number,
 		 * need to pitch the old one and read the new one.
@@ -1281,7 +1283,8 @@ xfs_dir2_leaf_lookup_int(
 		 * Point to the data entry.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)dbp->b_addr +
-			xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+			xfs_dir2_dataptr_to_off(args->geo,
+						be32_to_cpu(lep->address)));
 		/*
 		 * Compare name and if it's an exact match, return the index
 		 * and buffer. If it's the first case-insensitive match, store
@@ -1380,9 +1383,9 @@ xfs_dir2_leaf_removename(
 	 * Point to the leaf entry, use that to point to the data entry.
 	 */
 	lep = &ents[index];
-	db = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
-	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+	db = xfs_dir2_dataptr_to_db(args->geo, be32_to_cpu(lep->address));
+	dep = (xfs_dir2_data_entry_t *)((char *)hdr +
+		xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address)));
 	needscan = needlog = 0;
 	oldbest = be16_to_cpu(bf[0].length);
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
@@ -1515,7 +1518,7 @@ xfs_dir2_leaf_replace(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)dbp->b_addr +
-	       xfs_dir2_dataptr_to_off(dp->i_mount, be32_to_cpu(lep->address)));
+	       xfs_dir2_dataptr_to_off(args->geo, be32_to_cpu(lep->address)));
 	ASSERT(args->inumber != be64_to_cpu(dep->inumber));
 	/*
 	 * Put the new inode number in, log it.
@@ -1800,7 +1803,8 @@ xfs_dir2_node_to_leaf(
 	 * Get rid of the freespace block.
 	 */
 	error = xfs_dir2_shrink_inode(args,
-			xfs_dir2_byte_to_db(mp, XFS_DIR2_FREE_OFFSET), fbp);
+			xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET),
+			fbp);
 	if (error) {
 		/*
 		 * This can't fail here because it can only happen when
