@@ -3633,6 +3633,11 @@ void PIE_FUNC(ddr_change_freq_sram)(void *arg)
 }
 EXPORT_PIE_SYMBOL(FUNC(ddr_change_freq_sram));
 
+typedef struct freq_tag{
+    uint32_t nMHz;
+    struct ddr_freq_t *p_ddr_freq_t;
+}freq_t;
+
 static int dclk_div;
 static noinline uint32 ddr_change_freq_sram(void *arg)
 {
@@ -3645,8 +3650,9 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
     uint32 i;
     uint32 gpllvaluel;
-    uint32 nMHz=*(uint32 *)arg;
-    struct ddr_freq_t *p_ddr_freq_t=(struct ddr_freq_t *)((uint32)arg + 4);
+    freq_t *p_freq_t=(freq_t *)arg;    
+    uint32 nMHz=p_freq_t->nMHz;
+    struct ddr_freq_t *p_ddr_freq_t=p_freq_t->p_ddr_freq_t;
 
 
 #if defined(CONFIG_ARCH_RK3066B)
@@ -3966,10 +3972,7 @@ static void ddr_adjust_config(void)
 
 static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
 {
-    struct {
-        uint32_t nMHz;
-        struct ddr_freq_t *p_ddr_freq_t;
-    }freq;
+    freq_t freq;
     int ret = 0;
 
     freq.nMHz = nMHz;
