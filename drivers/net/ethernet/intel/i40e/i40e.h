@@ -414,6 +414,7 @@ struct i40e_vsi {
 	struct i40e_q_vector **q_vectors;
 	int num_q_vectors;
 	int base_vector;
+	bool irqs_ready;
 
 	u16 seid;            /* HW index of this VSI (absolute index) */
 	u16 id;              /* VSI number */

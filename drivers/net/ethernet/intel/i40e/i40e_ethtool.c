@@ -46,6 +46,8 @@ struct i40e_stats {
 		I40E_STAT(struct i40e_pf, _name, _stat)
 #define I40E_VSI_STAT(_name, _stat) \
 		I40E_STAT(struct i40e_vsi, _name, _stat)
+#define I40E_VEB_STAT(_name, _stat) \
+		I40E_STAT(struct i40e_veb, _name, _stat)
 
 static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(rx_packets),
@@ -56,16 +58,34 @@ static const struct i40e_stats i40e_gstrings_net_stats[] = {
 	I40E_NETDEV_STAT(tx_errors),
 	I40E_NETDEV_STAT(rx_dropped),
 	I40E_NETDEV_STAT(tx_dropped),
-	I40E_NETDEV_STAT(multicast),
 	I40E_NETDEV_STAT(collisions),
 	I40E_NETDEV_STAT(rx_length_errors),
 	I40E_NETDEV_STAT(rx_crc_errors),
 };
 
+static const struct i40e_stats i40e_gstrings_veb_stats[] = {
+	I40E_VEB_STAT("rx_bytes", stats.rx_bytes),
+	I40E_VEB_STAT("tx_bytes", stats.tx_bytes),
+	I40E_VEB_STAT("rx_unicast", stats.rx_unicast),
+	I40E_VEB_STAT("tx_unicast", stats.tx_unicast),
+	I40E_VEB_STAT("rx_multicast", stats.rx_multicast),
+	I40E_VEB_STAT("tx_multicast", stats.tx_multicast),
+	I40E_VEB_STAT("rx_broadcast", stats.rx_broadcast),
+	I40E_VEB_STAT("tx_broadcast", stats.tx_broadcast),
+	I40E_VEB_STAT("rx_discards", stats.rx_discards),
+	I40E_VEB_STAT("tx_discards", stats.tx_discards),
+	I40E_VEB_STAT("tx_errors", stats.tx_errors),
+	I40E_VEB_STAT("rx_unknown_protocol", stats.rx_unknown_protocol),
+};
+
 static const struct i40e_stats i40e_gstrings_misc_stats[] = {
-	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
+	I40E_VSI_STAT("rx_unicast", eth_stats.rx_unicast),
+	I40E_VSI_STAT("tx_unicast", eth_stats.tx_unicast),
+	I40E_VSI_STAT("rx_multicast", eth_stats.rx_multicast),
+	I40E_VSI_STAT("tx_multicast", eth_stats.tx_multicast),
 	I40E_VSI_STAT("rx_broadcast", eth_stats.rx_broadcast),
 	I40E_VSI_STAT("tx_broadcast", eth_stats.tx_broadcast),
+	I40E_VSI_STAT("rx_unknown_protocol", eth_stats.rx_unknown_protocol),
 };
 
 static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
@@ -84,6 +104,12 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 static struct i40e_stats i40e_gstrings_stats[] = {
 	I40E_PF_STAT("rx_bytes", stats.eth.rx_bytes),
 	I40E_PF_STAT("tx_bytes", stats.eth.tx_bytes),
+	I40E_PF_STAT("rx_unicast", stats.eth.rx_unicast),
+	I40E_PF_STAT("tx_unicast", stats.eth.tx_unicast),
+	I40E_PF_STAT("rx_multicast", stats.eth.rx_multicast),
+	I40E_PF_STAT("tx_multicast", stats.eth.tx_multicast),
+	I40E_PF_STAT("rx_broadcast", stats.eth.rx_broadcast),
+	I40E_PF_STAT("tx_broadcast", stats.eth.tx_broadcast),
 	I40E_PF_STAT("tx_errors", stats.eth.tx_errors),
 	I40E_PF_STAT("rx_dropped", stats.eth.rx_discards),
 	I40E_PF_STAT("tx_dropped", stats.eth.tx_discards),
@@ -142,6 +168,7 @@ static struct i40e_stats i40e_gstrings_stats[] = {
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_tx) + \
 		 FIELD_SIZEOF(struct i40e_pf, stats.priority_xon_2_xoff)) \
 		 / sizeof(u64))
+#define I40E_VEB_STATS_LEN	ARRAY_SIZE(i40e_gstrings_veb_stats)
 #define I40E_PF_STATS_LEN(n)	(I40E_GLOBAL_STATS_LEN + \
 				 I40E_PFC_STATS_LEN + \
 				 I40E_VSI_STATS_LEN((n)))
@@ -627,10 +654,15 @@ static int i40e_get_sset_count(struct net_device *netdev, int sset)
 	case ETH_SS_TEST:
 		return I40E_TEST_LEN;
 	case ETH_SS_STATS:
-		if (vsi == pf->vsi[pf->lan_vsi])
-			return I40E_PF_STATS_LEN(netdev);
-		else
+		if (vsi == pf->vsi[pf->lan_vsi]) {
+			int len = I40E_PF_STATS_LEN(netdev);
+
+			if (pf->lan_veb != I40E_NO_VEB)
+				len += I40E_VEB_STATS_LEN;
+			return len;
+		} else {
 			return I40E_VSI_STATS_LEN(netdev);
+		}
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -686,23 +718,33 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 		i += 2;
 	}
 	rcu_read_unlock();
-	if (vsi == pf->vsi[pf->lan_vsi]) {
-		for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
-			p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
-			data[i++] = (i40e_gstrings_stats[j].sizeof_stat ==
-				   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	if (vsi != pf->vsi[pf->lan_vsi])
+		return;
+
+	if (pf->lan_veb != I40E_NO_VEB) {
+		struct i40e_veb *veb = pf->veb[pf->lan_veb];
+		for (j = 0; j < I40E_VEB_STATS_LEN; j++) {
+			p = (char *)veb;
+			p += i40e_gstrings_veb_stats[j].stat_offset;
+			data[i++] = (i40e_gstrings_veb_stats[j].sizeof_stat ==
+				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-			data[i++] = pf->stats.priority_xon_tx[j];
-			data[i++] = pf->stats.priority_xoff_tx[j];
-		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
-			data[i++] = pf->stats.priority_xon_rx[j];
-			data[i++] = pf->stats.priority_xoff_rx[j];
-		}
-		for (j = 0; j < I40E_MAX_USER_PRIORITY; j++)
-			data[i++] = pf->stats.priority_xon_2_xoff[j];
 	}
+	for (j = 0; j < I40E_GLOBAL_STATS_LEN; j++) {
+		p = (char *)pf + i40e_gstrings_stats[j].stat_offset;
+		data[i++] = (i40e_gstrings_stats[j].sizeof_stat ==
+			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_tx[j];
+		data[i++] = pf->stats.priority_xoff_tx[j];
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++) {
+		data[i++] = pf->stats.priority_xon_rx[j];
+		data[i++] = pf->stats.priority_xoff_rx[j];
+	}
+	for (j = 0; j < I40E_MAX_USER_PRIORITY; j++)
+		data[i++] = pf->stats.priority_xon_2_xoff[j];
 }
 
 static void i40e_get_strings(struct net_device *netdev, u32 stringset,
@@ -742,33 +784,41 @@ static void i40e_get_strings(struct net_device *netdev, u32 stringset,
 			snprintf(p, ETH_GSTRING_LEN, "rx-%u.rx_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-		if (vsi == pf->vsi[pf->lan_vsi]) {
-			for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
-				snprintf(p, ETH_GSTRING_LEN, "port.%s",
-					 i40e_gstrings_stats[i].stat_string);
+		if (vsi != pf->vsi[pf->lan_vsi])
+			return;
+
+		if (pf->lan_veb != I40E_NO_VEB) {
+			for (i = 0; i < I40E_VEB_STATS_LEN; i++) {
+				snprintf(p, ETH_GSTRING_LEN, "veb.%s",
+					i40e_gstrings_veb_stats[i].stat_string);
 				p += ETH_GSTRING_LEN;
 			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.tx_priority_%u_xon", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.tx_priority_%u_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xon", i);
-				p += ETH_GSTRING_LEN;
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
-			for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
-				snprintf(p, ETH_GSTRING_LEN,
-					 "port.rx_priority_%u_xon_2_xoff", i);
-				p += ETH_GSTRING_LEN;
-			}
+		}
+		for (i = 0; i < I40E_GLOBAL_STATS_LEN; i++) {
+			snprintf(p, ETH_GSTRING_LEN, "port.%s",
+				 i40e_gstrings_stats[i].stat_string);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx_priority_%u_xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.tx_priority_%u_xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xon", i);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xoff", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < I40E_MAX_USER_PRIORITY; i++) {
+			snprintf(p, ETH_GSTRING_LEN,
+				 "port.rx_priority_%u_xon_2_xoff", i);
+			p += ETH_GSTRING_LEN;
 		}
 		/* BUG_ON(p - data != I40E_STATS_LEN * ETH_GSTRING_LEN); */
 		break;

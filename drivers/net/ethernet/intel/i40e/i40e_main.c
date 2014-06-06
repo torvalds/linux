@@ -38,8 +38,8 @@ static const char i40e_driver_string[] =
 #define DRV_KERN "-k"
 
 #define DRV_VERSION_MAJOR 0
-#define DRV_VERSION_MINOR 3
-#define DRV_VERSION_BUILD 46
+#define DRV_VERSION_MINOR 4
+#define DRV_VERSION_BUILD 3
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -854,11 +854,37 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->eth.tx_discards,
 			   &nsd->eth.tx_discards);
+
+	i40e_stat_update48(hw, I40E_GLPRT_UPRCH(hw->port),
+			   I40E_GLPRT_UPRCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.rx_unicast,
+			   &nsd->eth.rx_unicast);
 	i40e_stat_update48(hw, I40E_GLPRT_MPRCH(hw->port),
 			   I40E_GLPRT_MPRCL(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->eth.rx_multicast,
 			   &nsd->eth.rx_multicast);
+	i40e_stat_update48(hw, I40E_GLPRT_BPRCH(hw->port),
+			   I40E_GLPRT_BPRCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.rx_broadcast,
+			   &nsd->eth.rx_broadcast);
+	i40e_stat_update48(hw, I40E_GLPRT_UPTCH(hw->port),
+			   I40E_GLPRT_UPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_unicast,
+			   &nsd->eth.tx_unicast);
+	i40e_stat_update48(hw, I40E_GLPRT_MPTCH(hw->port),
+			   I40E_GLPRT_MPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_multicast,
+			   &nsd->eth.tx_multicast);
+	i40e_stat_update48(hw, I40E_GLPRT_BPTCH(hw->port),
+			   I40E_GLPRT_BPTCL(hw->port),
+			   pf->stat_offsets_loaded,
+			   &osd->eth.tx_broadcast,
+			   &nsd->eth.tx_broadcast);
 
 	i40e_stat_update32(hw, I40E_GLPRT_TDOLD(hw->port),
 			   pf->stat_offsets_loaded,
@@ -2764,6 +2790,7 @@ static int i40e_vsi_request_irq_msix(struct i40e_vsi *vsi, char *basename)
 				      &q_vector->affinity_mask);
 	}
 
+	vsi->irqs_ready = true;
 	return 0;
 
 free_queue_irqs:
@@ -3183,6 +3210,12 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 
 	pf_q = vsi->base_queue;
 	for (i = 0; i < vsi->num_queue_pairs; i++, pf_q++) {
+
+		/* warn the TX unit of coming changes */
+		i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
+		if (!enable)
+			udelay(10);
+
 		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
 			if (((tx_reg >> I40E_QTX_ENA_QENA_REQ_SHIFT) & 1) ==
@@ -3317,6 +3350,10 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 		if (!vsi->q_vectors)
 			return;
 
+		if (!vsi->irqs_ready)
+			return;
+
+		vsi->irqs_ready = false;
 		for (i = 0; i < vsi->num_q_vectors; i++) {
 			u16 vector = i + base;
 
@@ -4103,6 +4140,54 @@ out:
 	return err;
 }
 #endif /* CONFIG_I40E_DCB */
+#define SPEED_SIZE 14
+#define FC_SIZE 8
+/**
+ * i40e_print_link_message - print link up or down
+ * @vsi: the VSI for which link needs a message
+ */
+static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
+{
+	char speed[SPEED_SIZE] = "Unknown";
+	char fc[FC_SIZE] = "RX/TX";
+
+	if (!isup) {
+		netdev_info(vsi->netdev, "NIC Link is Down\n");
+		return;
+	}
+
+	switch (vsi->back->hw.phy.link_info.link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		strncpy(speed, "40 Gbps", SPEED_SIZE);
+		break;
+	case I40E_LINK_SPEED_10GB:
+		strncpy(speed, "10 Gbps", SPEED_SIZE);
+		break;
+	case I40E_LINK_SPEED_1GB:
+		strncpy(speed, "1000 Mbps", SPEED_SIZE);
+		break;
+	default:
+		break;
+	}
+
+	switch (vsi->back->hw.fc.current_mode) {
+	case I40E_FC_FULL:
+		strncpy(fc, "RX/TX", FC_SIZE);
+		break;
+	case I40E_FC_TX_PAUSE:
+		strncpy(fc, "TX", FC_SIZE);
+		break;
+	case I40E_FC_RX_PAUSE:
+		strncpy(fc, "RX", FC_SIZE);
+		break;
+	default:
+		strncpy(fc, "None", FC_SIZE);
+		break;
+	}
+
+	netdev_info(vsi->netdev, "NIC Link is Up %s Full Duplex, Flow Control: %s\n",
+		    speed, fc);
+}
 
 /**
  * i40e_up_complete - Finish the last steps of bringing up a connection
@@ -4129,11 +4214,11 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 
 	if ((pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP) &&
 	    (vsi->netdev)) {
-		netdev_info(vsi->netdev, "NIC Link is Up\n");
+		i40e_print_link_message(vsi, true);
 		netif_tx_start_all_queues(vsi->netdev);
 		netif_carrier_on(vsi->netdev);
 	} else if (vsi->netdev) {
-		netdev_info(vsi->netdev, "NIC Link is Down\n");
+		i40e_print_link_message(vsi, false);
 	}
 
 	/* replay FDIR SB filters */
@@ -4854,10 +4939,8 @@ static void i40e_link_event(struct i40e_pf *pf)
 
 	if (new_link == old_link)
 		return;
-
 	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
-		netdev_info(pf->vsi[pf->lan_vsi]->netdev,
-			    "NIC Link is %s\n", (new_link ? "Up" : "Down"));
+		i40e_print_link_message(pf->vsi[pf->lan_vsi], new_link);
 
 	/* Notify the base of the switch tree connected to
 	 * the link.  Floating VEBs are not notified.
@@ -5351,7 +5434,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
 static int i40e_prep_for_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
-	i40e_status ret;
+	i40e_status ret = 0;
 	u32 v;
 
 	clear_bit(__I40E_RESET_INTR_RECEIVED, &pf->state);
@@ -5371,10 +5454,13 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	i40e_shutdown_adminq(&pf->hw);
 
 	/* call shutdown HMC */
-	ret = i40e_shutdown_lan_hmc(hw);
-	if (ret) {
-		dev_info(&pf->pdev->dev, "shutdown_lan_hmc failed: %d\n", ret);
-		clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
+	if (hw->hmc.hmc_obj) {
+		ret = i40e_shutdown_lan_hmc(hw);
+		if (ret) {
+			dev_warn(&pf->pdev->dev,
+				 "shutdown_lan_hmc failed: %d\n", ret);
+			clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
+		}
 	}
 	return ret;
 }
@@ -5872,6 +5958,7 @@ static int i40e_vsi_mem_alloc(struct i40e_pf *pf, enum i40e_vsi_type type)
 	vsi->netdev_registered = false;
 	vsi->work_limit = I40E_DEFAULT_IRQ_WORK;
 	INIT_LIST_HEAD(&vsi->mac_filter_list);
+	vsi->irqs_ready = false;
 
 	ret = i40e_set_num_rings_in_vsi(vsi);
 	if (ret)
@@ -7735,6 +7822,8 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 	ret = i40e_add_veb(veb, pf->vsi[vsi_idx]);
 	if (ret)
 		goto err_veb;
+	if (vsi_idx == pf->lan_vsi)
+		pf->lan_veb = veb->idx;
 
 	return veb;
 
@@ -8296,6 +8385,10 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i40e_verify_eeprom(pf);
 
+	/* Rev 0 hardware was never productized */
+	if (hw->revision_id < 1)
+		dev_warn(&pdev->dev, "This device is a pre-production adapter/LOM. Please be aware there may be issues with your hardware. If you are experiencing problems please contact your Intel or hardware representative who provided you with this hardware.\n");
+
 	i40e_clear_pxe_mode(hw);
 	err = i40e_get_capabilities(pf);
 	if (err)
@@ -8553,10 +8646,13 @@ static void i40e_remove(struct pci_dev *pdev)
 	}
 
 	/* shutdown and destroy the HMC */
-	ret_code = i40e_shutdown_lan_hmc(&pf->hw);
-	if (ret_code)
-		dev_warn(&pdev->dev,
-			 "Failed to destroy the HMC resources: %d\n", ret_code);
+	if (pf->hw.hmc.hmc_obj) {
+		ret_code = i40e_shutdown_lan_hmc(&pf->hw);
+		if (ret_code)
+			dev_warn(&pdev->dev,
+				 "Failed to destroy the HMC resources: %d\n",
+				 ret_code);
+	}
 
 	/* shutdown the adminq */
 	ret_code = i40e_shutdown_adminq(&pf->hw);
