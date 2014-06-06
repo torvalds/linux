@@ -3085,8 +3085,15 @@ EXPORT_SYMBOL(allow_signal);
 
 void disallow_signal(int sig)
 {
+	sigset_t mask;
+
+	sigemptyset(&mask);
+	sigaddset(&mask, sig);
+
 	spin_lock_irq(&current->sighand->siglock);
 	current->sighand->action[(sig)-1].sa.sa_handler = SIG_IGN;
+	flush_sigqueue_mask(&mask, &current->signal->shared_pending);
+	flush_sigqueue_mask(&mask, &current->pending);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 }
