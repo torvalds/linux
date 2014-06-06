@@ -358,16 +358,12 @@ static void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 			dev_priv->uncore.fifo_count =
 				__raw_i915_read32(dev_priv, GTFIFOCTL) &
 				GT_FIFO_FREE_ENTRIES_MASK;
-	} else {
-		dev_priv->uncore.forcewake_count = 0;
-		dev_priv->uncore.fw_rendercount = 0;
-		dev_priv->uncore.fw_mediacount = 0;
 	}
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void intel_uncore_early_sanitize(struct drm_device *dev)
+void intel_uncore_early_sanitize(struct drm_device *dev, bool restore_forcewake)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -390,7 +386,7 @@ void intel_uncore_early_sanitize(struct drm_device *dev)
 		__raw_i915_write32(dev_priv, GTFIFODBG,
 				   __raw_i915_read32(dev_priv, GTFIFODBG));
 
-	intel_uncore_forcewake_reset(dev, false);
+	intel_uncore_forcewake_reset(dev, restore_forcewake);
 }
 
 void intel_uncore_sanitize(struct drm_device *dev)
@@ -821,7 +817,7 @@ void intel_uncore_init(struct drm_device *dev)
 	setup_timer(&dev_priv->uncore.force_wake_timer,
 		    gen6_force_wake_timer, (unsigned long)dev_priv);
 
-	intel_uncore_early_sanitize(dev);
+	intel_uncore_early_sanitize(dev, false);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;

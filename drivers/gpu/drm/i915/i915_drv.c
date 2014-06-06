@@ -600,7 +600,7 @@ static int i915_drm_thaw_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	intel_uncore_early_sanitize(dev);
+	intel_uncore_early_sanitize(dev, true);
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
 
