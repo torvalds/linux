@@ -144,9 +144,6 @@ xfs_da_mount(
 	else
 		mp->m_dirnameops = &xfs_default_nameops;
 
-	/* XXX: these are to be removed as code is converted to use geo */
-	mp->m_dir_node_ents = mp->m_dir_geo->node_ents;
-	mp->m_attr_node_ents = mp->m_attr_geo->node_ents;
 	return 0;
 }
 

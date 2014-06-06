@@ -1596,8 +1596,8 @@ xfs_dir2_node_addname(
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->args->geo->blksize;
-	state->node_ents = state->mp->m_dir_node_ents;
+	state->blocksize = args->geo->blksize;
+	state->node_ents = args->geo->node_ents;
 	/*
 	 * Look up the name.  We're not supposed to find it, but
 	 * this gives us the insertion point.
@@ -2043,7 +2043,7 @@ xfs_dir2_node_lookup(
 	state->args = args;
 	state->mp = args->dp->i_mount;
 	state->blocksize = args->geo->blksize;
-	state->node_ents = state->mp->m_dir_node_ents;
+	state->node_ents = args->geo->node_ents;
 	/*
 	 * Fill in the path to the entry in the cursor.
 	 */
@@ -2098,7 +2098,7 @@ xfs_dir2_node_removename(
 	state->args = args;
 	state->mp = args->dp->i_mount;
 	state->blocksize = args->geo->blksize;
-	state->node_ents = state->mp->m_dir_node_ents;
+	state->node_ents = args->geo->node_ents;
 
 	/* Look up the entry we're deleting, set up the cursor. */
 	error = xfs_da3_node_lookup_int(state, &rval);
@@ -2168,7 +2168,7 @@ xfs_dir2_node_replace(
 	state->args = args;
 	state->mp = args->dp->i_mount;
 	state->blocksize = args->geo->blksize;
-	state->node_ents = state->mp->m_dir_node_ents;
+	state->node_ents = args->geo->node_ents;
 	inum = args->inumber;
 	/*
 	 * Lookup the entry to change in the btree.

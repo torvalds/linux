@@ -167,8 +167,8 @@ xfs_da3_node_verify(
 	 * we don't know if the node is for and attribute or directory tree,
 	 * so only fail if the count is outside both bounds
 	 */
-	if (ichdr.count > mp->m_dir_node_ents &&
-	    ichdr.count > mp->m_attr_node_ents)
+	if (ichdr.count > mp->m_dir_geo->node_ents &&
+	    ichdr.count > mp->m_attr_geo->node_ents)
 		return false;
 
 	/* XXX: hash order check? */
