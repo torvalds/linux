@@ -52,20 +52,13 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 		goto out;
 	}
 
-	if (is_inode_flag_set(F2FS_I(dir), FI_DIRTY_DIR)) {
-		iput(dir);
-	} else {
-		add_dirty_dir_inode(dir);
-		set_inode_flag(F2FS_I(dir), FI_DELAY_IPUT);
-	}
-
 	name.len = le32_to_cpu(raw_inode->i_namelen);
 	name.name = raw_inode->i_name;
 
 	if (unlikely(name.len > F2FS_NAME_LEN)) {
 		WARN_ON(1);
 		err = -ENAMETOOLONG;
-		goto out;
+		goto out_err;
 	}
 retry:
 	de = f2fs_find_entry(dir, &name, &page);
@@ -90,11 +83,23 @@ retry:
 		goto retry;
 	}
 	err = __f2fs_add_link(dir, &name, inode);
+	if (err)
+		goto out_err;
+
+	if (is_inode_flag_set(F2FS_I(dir), FI_DELAY_IPUT)) {
+		iput(dir);
+	} else {
+		add_dirty_dir_inode(dir);
+		set_inode_flag(F2FS_I(dir), FI_DELAY_IPUT);
+	}
+
 	goto out;
 
 out_unmap_put:
 	kunmap(page);
 	f2fs_put_page(page, 0);
+out_err:
+	iput(dir);
 out:
 	f2fs_msg(inode->i_sb, KERN_NOTICE,
 			"%s: ino = %x, name = %s, dir = %lx, err = %d",
