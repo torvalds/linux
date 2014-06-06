@@ -204,6 +204,8 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	rq->sense = NULL;
 
 	INIT_LIST_HEAD(&rq->timeout_list);
+	rq->timeout = 0;
+
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
 	rq->next_rq = NULL;
