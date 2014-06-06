@@ -101,6 +101,7 @@ extern int radeon_aspm;
 extern int radeon_runtime_pm;
 extern int radeon_hard_reset;
 extern int radeon_vm_size;
+extern int radeon_vm_block_size;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -838,13 +839,8 @@ struct radeon_mec {
 /* maximum number of VMIDs */
 #define RADEON_NUM_VM	16
 
-/* defines number of bits in page table versus page directory,
- * a page is 4KB so we have 12 bits offset, 9 bits in the page
- * table and the remaining 19 bits are in the page directory */
-#define RADEON_VM_BLOCK_SIZE   9
-
 /* number of entries in page table */
-#define RADEON_VM_PTE_COUNT (1 << RADEON_VM_BLOCK_SIZE)
+#define RADEON_VM_PTE_COUNT (1 << radeon_vm_block_size)
 
 /* PTBs (Page Table Blocks) need to be aligned to 32K */
 #define RADEON_VM_PTB_ALIGN_SIZE   32768

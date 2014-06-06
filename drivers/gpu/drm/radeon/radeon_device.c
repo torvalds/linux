@@ -1073,6 +1073,22 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 			 radeon_vm_size);
 		radeon_vm_size = 4096;
 	}
+
+	/* defines number of bits in page table versus page directory,
+	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
+	 * page table and the remaining bits are in the page directory */
+	if (radeon_vm_block_size < 9) {
+		dev_warn(rdev->dev, "VM page table size (%d) to small\n",
+			 radeon_vm_block_size);
+		radeon_vm_block_size = 9;
+	}
+
+	if (radeon_vm_block_size > 24 ||
+	    radeon_vm_size < (1ull << radeon_vm_block_size)) {
+		dev_warn(rdev->dev, "VM page table size (%d) to large\n",
+			 radeon_vm_block_size);
+		radeon_vm_block_size = 9;
+	}
 }
 
 /**
