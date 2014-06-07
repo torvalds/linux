@@ -358,6 +358,93 @@ static void recv_daemon(struct md_thread *thread)
 	dlm_unlock_sync(message_lockres);
 }
 
+/* lock_comm()
+ * Takes the lock on the TOKEN lock resource so no other
+ * node can communicate while the operation is underway.
+ */
+static int lock_comm(struct md_cluster_info *cinfo)
+{
+	int error;
+
+	error = dlm_lock_sync(cinfo->token_lockres, DLM_LOCK_EX);
+	if (error)
+		pr_err("md-cluster(%s:%d): failed to get EX on TOKEN (%d)\n",
+				__func__, __LINE__, error);
+	return error;
+}
+
+static void unlock_comm(struct md_cluster_info *cinfo)
+{
+	dlm_unlock_sync(cinfo->token_lockres);
+}
+
+/* __sendmsg()
+ * This function performs the actual sending of the message. This function is
+ * usually called after performing the encompassing operation
+ * The function:
+ * 1. Grabs the message lockresource in EX mode
+ * 2. Copies the message to the message LVB
+ * 3. Downconverts message lockresource to CR
+ * 4. Upconverts ack lock resource from CR to EX. This forces the BAST on other nodes
+ *    and the other nodes read the message. The thread will wait here until all other
+ *    nodes have released ack lock resource.
+ * 5. Downconvert ack lockresource to CR
+ */
+static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
+{
+	int error;
+	int slot = cinfo->slot_number - 1;
+
+	cmsg->slot = cpu_to_le32(slot);
+	/*get EX on Message*/
+	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_EX);
+	if (error) {
+		pr_err("md-cluster: failed to get EX on MESSAGE (%d)\n", error);
+		goto failed_message;
+	}
+
+	memcpy(cinfo->message_lockres->lksb.sb_lvbptr, (void *)cmsg,
+			sizeof(struct cluster_msg));
+	/*down-convert EX to CR on Message*/
+	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_CR);
+	if (error) {
+		pr_err("md-cluster: failed to convert EX to CR on MESSAGE(%d)\n",
+				error);
+		goto failed_message;
+	}
+
+	/*up-convert CR to EX on Ack*/
+	error = dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_EX);
+	if (error) {
+		pr_err("md-cluster: failed to convert CR to EX on ACK(%d)\n",
+				error);
+		goto failed_ack;
+	}
+
+	/*down-convert EX to CR on Ack*/
+	error = dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_CR);
+	if (error) {
+		pr_err("md-cluster: failed to convert EX to CR on ACK(%d)\n",
+				error);
+		goto failed_ack;
+	}
+
+failed_ack:
+	dlm_unlock_sync(cinfo->message_lockres);
+failed_message:
+	return error;
+}
+
+static int sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
+{
+	int ret;
+
+	lock_comm(cinfo);
+	ret = __sendmsg(cinfo, cmsg);
+	unlock_comm(cinfo);
+	return ret;
+}
+
 static int gather_all_resync_info(struct mddev *mddev, int total_slots)
 {
 	struct md_cluster_info *cinfo = mddev->cluster_info;
