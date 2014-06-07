@@ -314,6 +314,50 @@ static void ack_bast(void *arg, int mode)
 		md_wakeup_thread(cinfo->recv_thread);
 }
 
+static void __remove_suspend_info(struct md_cluster_info *cinfo, int slot)
+{
+	struct suspend_info *s, *tmp;
+
+	list_for_each_entry_safe(s, tmp, &cinfo->suspend_list, list)
+		if (slot == s->slot) {
+			pr_info("%s:%d Deleting suspend_info: %d\n",
+					__func__, __LINE__, slot);
+			list_del(&s->list);
+			kfree(s);
+			break;
+		}
+}
+
+static void remove_suspend_info(struct md_cluster_info *cinfo, int slot)
+{
+	spin_lock_irq(&cinfo->suspend_lock);
+	__remove_suspend_info(cinfo, slot);
+	spin_unlock_irq(&cinfo->suspend_lock);
+}
+
+
+static void process_suspend_info(struct md_cluster_info *cinfo,
+		int slot, sector_t lo, sector_t hi)
+{
+	struct suspend_info *s;
+
+	if (!hi) {
+		remove_suspend_info(cinfo, slot);
+		return;
+	}
+	s = kzalloc(sizeof(struct suspend_info), GFP_KERNEL);
+	if (!s)
+		return;
+	s->slot = slot;
+	s->lo = lo;
+	s->hi = hi;
+	spin_lock_irq(&cinfo->suspend_lock);
+	/* Remove existing entry (if exists) before adding */
+	__remove_suspend_info(cinfo, slot);
+	list_add(&s->list, &cinfo->suspend_list);
+	spin_unlock_irq(&cinfo->suspend_lock);
+}
+
 static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
 	switch (msg->type) {
@@ -325,6 +369,8 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	case RESYNCING:
 		pr_info("%s: %d Received message: RESYNCING from %d\n",
 			__func__, __LINE__, msg->slot);
+		process_suspend_info(mddev->cluster_info, msg->slot,
+				msg->low, msg->high);
 		break;
 	};
 }
