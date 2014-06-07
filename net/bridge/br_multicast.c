@@ -789,6 +789,18 @@ static void br_ip6_multicast_querier_expired(unsigned long data)
 }
 #endif
 
+static void br_multicast_select_own_querier(struct net_bridge *br,
+					    struct br_ip *ip,
+					    struct sk_buff *skb)
+{
+	if (ip->proto == htons(ETH_P_IP))
+		br->ip4_querier.addr.u.ip4 = ip_hdr(skb)->saddr;
+#if IS_ENABLED(CONFIG_IPV6)
+	else
+		br->ip6_querier.addr.u.ip6 = ipv6_hdr(skb)->saddr;
+#endif
+}
+
 static void __br_multicast_send_query(struct net_bridge *br,
 				      struct net_bridge_port *port,
 				      struct br_ip *ip)
@@ -804,8 +816,10 @@ static void __br_multicast_send_query(struct net_bridge *br,
 		skb->dev = port->dev;
 		NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
 			dev_queue_xmit);
-	} else
+	} else {
+		br_multicast_select_own_querier(br, ip, skb);
 		netif_rx(skb);
+	}
 }
 
 static void br_multicast_send_query(struct net_bridge *br,
@@ -1065,6 +1079,62 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 }
 #endif
 
+static bool br_ip4_multicast_select_querier(struct net_bridge *br,
+					    __be32 saddr)
+{
+	if (!timer_pending(&br->ip4_own_query.timer) &&
+	    !timer_pending(&br->ip4_other_query.timer))
+		goto update;
+
+	if (!br->ip4_querier.addr.u.ip4)
+		goto update;
+
+	if (ntohl(saddr) <= ntohl(br->ip4_querier.addr.u.ip4))
+		goto update;
+
+	return false;
+
+update:
+	br->ip4_querier.addr.u.ip4 = saddr;
+
+	return true;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static bool br_ip6_multicast_select_querier(struct net_bridge *br,
+					    struct in6_addr *saddr)
+{
+	if (!timer_pending(&br->ip6_own_query.timer) &&
+	    !timer_pending(&br->ip6_other_query.timer))
+		goto update;
+
+	if (ipv6_addr_cmp(saddr, &br->ip6_querier.addr.u.ip6) <= 0)
+		goto update;
+
+	return false;
+
+update:
+	br->ip6_querier.addr.u.ip6 = *saddr;
+
+	return true;
+}
+#endif
+
+static bool br_multicast_select_querier(struct net_bridge *br,
+					struct br_ip *saddr)
+{
+	switch (saddr->proto) {
+	case htons(ETH_P_IP):
+		return br_ip4_multicast_select_querier(br, saddr->u.ip4);
+#if IS_ENABLED(CONFIG_IPV6)
+	case htons(ETH_P_IPV6):
+		return br_ip6_multicast_select_querier(br, &saddr->u.ip6);
+#endif
+	}
+
+	return false;
+}
+
 static void
 br_multicast_update_query_timer(struct net_bridge *br,
 				struct bridge_mcast_other_query *query,
@@ -1127,15 +1197,13 @@ timer:
 static void br_multicast_query_received(struct net_bridge *br,
 					struct net_bridge_port *port,
 					struct bridge_mcast_other_query *query,
-					int saddr,
-					bool is_general_query,
+					struct br_ip *saddr,
 					unsigned long max_delay)
 {
-	if (saddr && is_general_query)
-		br_multicast_update_query_timer(br, query, max_delay);
-	else if (timer_pending(&query->timer))
+	if (!br_multicast_select_querier(br, saddr))
 		return;
 
+	br_multicast_update_query_timer(br, query, max_delay);
 	br_multicast_mark_router(br, port);
 }
 
@@ -1150,6 +1218,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 	struct igmpv3_query *ih3;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
+	struct br_ip saddr;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
 	__be32 group;
@@ -1191,11 +1260,14 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 		goto out;
 	}
 
-	br_multicast_query_received(br, port, &br->ip4_other_query,
-				    !!iph->saddr, !group, max_delay);
+	if (!group) {
+		saddr.proto = htons(ETH_P_IP);
+		saddr.u.ip4 = iph->saddr;
 
-	if (!group)
+		br_multicast_query_received(br, port, &br->ip4_other_query,
+					    &saddr, max_delay);
 		goto out;
+	}
 
 	mp = br_mdb_ip4_get(mlock_dereference(br->mdb, br), group, vid);
 	if (!mp)
@@ -1235,6 +1307,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	struct mld2_query *mld2q;
 	struct net_bridge_port_group *p;
 	struct net_bridge_port_group __rcu **pp;
+	struct br_ip saddr;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
 	const struct in6_addr *group = NULL;
@@ -1283,12 +1356,14 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		goto out;
 	}
 
-	br_multicast_query_received(br, port, &br->ip6_other_query,
-				    !ipv6_addr_any(&ip6h->saddr),
-				    is_general_query, max_delay);
+	if (is_general_query) {
+		saddr.proto = htons(ETH_P_IPV6);
+		saddr.u.ip6 = ip6h->saddr;
 
-	if (!group)
+		br_multicast_query_received(br, port, &br->ip6_other_query,
+					    &saddr, max_delay);
 		goto out;
+	}
 
 	mp = br_mdb_ip6_get(mlock_dereference(br->mdb, br), group, vid);
 	if (!mp)

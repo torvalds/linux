@@ -78,6 +78,11 @@ struct bridge_mcast_other_query {
 	struct timer_list		timer;
 	unsigned long			delay_time;
 };
+
+/* selected querier */
+struct bridge_mcast_querier {
+	struct br_ip addr;
+};
 #endif
 
 struct net_port_vlans {
@@ -284,9 +289,11 @@ struct net_bridge
 	struct timer_list		multicast_router_timer;
 	struct bridge_mcast_other_query	ip4_other_query;
 	struct bridge_mcast_own_query	ip4_own_query;
+	struct bridge_mcast_querier	ip4_querier;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
+	struct bridge_mcast_querier	ip6_querier;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
