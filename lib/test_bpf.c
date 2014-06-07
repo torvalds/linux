@@ -385,7 +385,7 @@ static struct bpf_test tests[] = {
 	{
 		"LD_NLATTR",
 		.u.insns = {
-			BPF_STMT(BPF_LDX | BPF_IMM, 1),
+			BPF_STMT(BPF_LDX | BPF_IMM, 2),
 			BPF_STMT(BPF_MISC | BPF_TXA, 0),
 			BPF_STMT(BPF_LDX | BPF_IMM, 3),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
@@ -393,42 +393,50 @@ static struct bpf_test tests[] = {
 			BPF_STMT(BPF_RET | BPF_A, 0)
 		},
 		CLASSIC,
-		{ 0xff, 4, 0, 2, 0, 4, 0, 3, 0 },
-		{ { 4, 0 }, { 20, 5 } },
+#ifdef __BIG_ENDIAN
+		{ 0xff, 0xff, 0, 4, 0, 2, 0, 4, 0, 3 },
+#else
+		{ 0xff, 0xff, 4, 0, 2, 0, 4, 0, 3, 0 },
+#endif
+		{ { 4, 0 }, { 20, 6 } },
 	},
 	{
 		"LD_NLATTR_NEST",
 		.u.insns = {
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LDX | BPF_IMM, 3),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
-			BPF_STMT(BPF_LD | BPF_IMM, 1),
+			BPF_STMT(BPF_LD | BPF_IMM, 2),
 			BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
 				 SKF_AD_OFF + SKF_AD_NLATTR_NEST),
 			BPF_STMT(BPF_RET | BPF_A, 0)
 		},
 		CLASSIC,
-		{ 0xff, 12, 0, 1, 0, 4, 0, 2, 0, 4, 0, 3, 0 },
-		{ { 4, 0 }, { 20, 9 } },
+#ifdef __BIG_ENDIAN
+		{ 0xff, 0xff, 0, 12, 0, 1, 0, 4, 0, 2, 0, 4, 0, 3 },
+#else
+		{ 0xff, 0xff, 12, 0, 1, 0, 4, 0, 2, 0, 4, 0, 3, 0 },
+#endif
+		{ { 4, 0 }, { 20, 10 } },
 	},
 	{
 		"LD_PAYLOAD_OFF",
