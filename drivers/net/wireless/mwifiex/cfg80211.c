@@ -2453,6 +2453,16 @@ static int mwifiex_cfg80211_suspend(struct wiphy *wiphy,
 		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
 		if (filt_num)
 			mef_entry->filter[filt_num].filt_action = TYPE_OR;
+
+		filt_num++;
+		mef_entry->filter[filt_num].repeat = 16;
+		memcpy(mef_entry->filter[filt_num].byte_seq, priv->curr_addr,
+		       ETH_ALEN);
+		mef_entry->filter[filt_num].byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] =
+								ETH_ALEN;
+		mef_entry->filter[filt_num].offset = 56;
+		mef_entry->filter[filt_num].filt_type = TYPE_EQ;
+		mef_entry->filter[filt_num].filt_action = TYPE_OR;
 	}
 
 	if (!mef_cfg.criteria)
