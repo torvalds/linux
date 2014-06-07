@@ -13,6 +13,7 @@
 #include <linux/dlm.h>
 #include <linux/sched.h>
 #include "md.h"
+#include "bitmap.h"
 #include "md-cluster.h"
 
 #define LVB_SIZE	64
@@ -49,6 +50,8 @@ struct md_cluster_info {
 	struct dlm_lock_resource *bitmap_lockres;
 	struct list_head suspend_list;
 	spinlock_t suspend_lock;
+	struct md_thread *recovery_thread;
+	unsigned long recovery_map;
 };
 
 static void sync_ast(void *arg)
@@ -184,6 +187,50 @@ out:
 	return s;
 }
 
+void recover_bitmaps(struct md_thread *thread)
+{
+	struct mddev *mddev = thread->mddev;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct dlm_lock_resource *bm_lockres;
+	char str[64];
+	int slot, ret;
+	struct suspend_info *s, *tmp;
+	sector_t lo, hi;
+
+	while (cinfo->recovery_map) {
+		slot = fls64((u64)cinfo->recovery_map) - 1;
+
+		/* Clear suspend_area associated with the bitmap */
+		spin_lock_irq(&cinfo->suspend_lock);
+		list_for_each_entry_safe(s, tmp, &cinfo->suspend_list, list)
+			if (slot == s->slot) {
+				list_del(&s->list);
+				kfree(s);
+			}
+		spin_unlock_irq(&cinfo->suspend_lock);
+
+		snprintf(str, 64, "bitmap%04d", slot);
+		bm_lockres = lockres_init(mddev, str, NULL, 1);
+		if (!bm_lockres) {
+			pr_err("md-cluster: Cannot initialize bitmaps\n");
+			goto clear_bit;
+		}
+
+		ret = dlm_lock_sync(bm_lockres, DLM_LOCK_PW);
+		if (ret) {
+			pr_err("md-cluster: Could not DLM lock %s: %d\n",
+					str, ret);
+			goto clear_bit;
+		}
+		ret = bitmap_copy_from_slot(mddev, slot, &lo, &hi);
+		if (ret)
+			pr_err("md-cluster: Could not copy data from bitmap %d\n", slot);
+		dlm_unlock_sync(bm_lockres);
+clear_bit:
+		clear_bit(slot, &cinfo->recovery_map);
+	}
+}
+
 static void recover_prep(void *arg)
 {
 }
@@ -197,6 +244,16 @@ static void recover_slot(void *arg, struct dlm_slot *slot)
 			mddev->bitmap_info.cluster_name,
 			slot->nodeid, slot->slot,
 			cinfo->slot_number);
+	set_bit(slot->slot - 1, &cinfo->recovery_map);
+	if (!cinfo->recovery_thread) {
+		cinfo->recovery_thread = md_register_thread(recover_bitmaps,
+				mddev, "recover");
+		if (!cinfo->recovery_thread) {
+			pr_warn("md-cluster: Could not create recovery thread\n");
+			return;
+		}
+	}
+	md_wakeup_thread(cinfo->recovery_thread);
 }
 
 static void recover_done(void *arg, struct dlm_slot *slots,
@@ -338,6 +395,7 @@ static int leave(struct mddev *mddev)
 
 	if (!cinfo)
 		return 0;
+	md_unregister_thread(&cinfo->recovery_thread);
 	lockres_free(cinfo->sb_lock);
 	lockres_free(cinfo->bitmap_lockres);
 	dlm_release_lockspace(cinfo->lockspace, 2);
