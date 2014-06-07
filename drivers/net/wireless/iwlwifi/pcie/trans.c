@@ -1573,10 +1573,12 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"hwq %.2d: read=%u write=%u use=%d stop=%d\n",
+				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d%s\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, trans_pcie->queue_used),
-				!!test_bit(cnt, trans_pcie->queue_stopped));
+				 !!test_bit(cnt, trans_pcie->queue_stopped),
+				 txq->need_update,
+				 (cnt == trans_pcie->cmd_queue ? " HCMD" : ""));
 	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -1598,6 +1600,10 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 						rxq->read);
 	pos += scnprintf(buf + pos, bufsz - pos, "write: %u\n",
 						rxq->write);
+	pos += scnprintf(buf + pos, bufsz - pos, "write_actual: %u\n",
+						rxq->write_actual);
+	pos += scnprintf(buf + pos, bufsz - pos, "need_update: %d\n",
+						rxq->need_update);
 	pos += scnprintf(buf + pos, bufsz - pos, "free_count: %u\n",
 						rxq->free_count);
 	if (rxq->rb_stts) {
