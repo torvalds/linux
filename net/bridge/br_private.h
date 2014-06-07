@@ -70,6 +70,7 @@ struct bridge_mcast_other_query {
 /* selected querier */
 struct bridge_mcast_querier {
 	struct br_ip addr;
+	struct net_bridge_port __rcu	*port;
 };
 #endif
 

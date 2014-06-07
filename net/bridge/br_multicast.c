@@ -1081,6 +1081,7 @@ static int br_ip6_multicast_mld2_report(struct net_bridge *br,
 #endif
 
 static bool br_ip4_multicast_select_querier(struct net_bridge *br,
+					    struct net_bridge_port *port,
 					    __be32 saddr)
 {
 	if (!timer_pending(&br->ip4_own_query.timer) &&
@@ -1098,11 +1099,15 @@ static bool br_ip4_multicast_select_querier(struct net_bridge *br,
 update:
 	br->ip4_querier.addr.u.ip4 = saddr;
 
+	/* update protected by general multicast_lock by caller */
+	rcu_assign_pointer(br->ip4_querier.port, port);
+
 	return true;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
 static bool br_ip6_multicast_select_querier(struct net_bridge *br,
+					    struct net_bridge_port *port,
 					    struct in6_addr *saddr)
 {
 	if (!timer_pending(&br->ip6_own_query.timer) &&
@@ -1117,19 +1122,23 @@ static bool br_ip6_multicast_select_querier(struct net_bridge *br,
 update:
 	br->ip6_querier.addr.u.ip6 = *saddr;
 
+	/* update protected by general multicast_lock by caller */
+	rcu_assign_pointer(br->ip6_querier.port, port);
+
 	return true;
 }
 #endif
 
 static bool br_multicast_select_querier(struct net_bridge *br,
+					struct net_bridge_port *port,
 					struct br_ip *saddr)
 {
 	switch (saddr->proto) {
 	case htons(ETH_P_IP):
-		return br_ip4_multicast_select_querier(br, saddr->u.ip4);
+		return br_ip4_multicast_select_querier(br, port, saddr->u.ip4);
 #if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6):
-		return br_ip6_multicast_select_querier(br, &saddr->u.ip6);
+		return br_ip6_multicast_select_querier(br, port, &saddr->u.ip6);
 #endif
 	}
 
@@ -1201,7 +1210,7 @@ static void br_multicast_query_received(struct net_bridge *br,
 					struct br_ip *saddr,
 					unsigned long max_delay)
 {
-	if (!br_multicast_select_querier(br, saddr))
+	if (!br_multicast_select_querier(br, port, saddr))
 		return;
 
 	br_multicast_update_query_timer(br, query, max_delay);
@@ -1804,12 +1813,14 @@ int br_multicast_rcv(struct net_bridge *br, struct net_bridge_port *port,
 }
 
 static void br_multicast_query_expired(struct net_bridge *br,
-				       struct bridge_mcast_own_query *query)
+				       struct bridge_mcast_own_query *query,
+				       struct bridge_mcast_querier *querier)
 {
 	spin_lock(&br->multicast_lock);
 	if (query->startup_sent < br->multicast_startup_query_count)
 		query->startup_sent++;
 
+	rcu_assign_pointer(querier, NULL);
 	br_multicast_send_query(br, NULL, query);
 	spin_unlock(&br->multicast_lock);
 }
@@ -1818,7 +1829,7 @@ static void br_ip4_multicast_query_expired(unsigned long data)
 {
 	struct net_bridge *br = (void *)data;
 
-	br_multicast_query_expired(br, &br->ip4_own_query);
+	br_multicast_query_expired(br, &br->ip4_own_query, &br->ip4_querier);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1826,7 +1837,7 @@ static void br_ip6_multicast_query_expired(unsigned long data)
 {
 	struct net_bridge *br = (void *)data;
 
-	br_multicast_query_expired(br, &br->ip6_own_query);
+	br_multicast_query_expired(br, &br->ip6_own_query, &br->ip6_querier);
 }
 #endif
 
@@ -1849,8 +1860,10 @@ void br_multicast_init(struct net_bridge *br)
 	br->multicast_membership_interval = 260 * HZ;
 
 	br->ip4_other_query.delay_time = 0;
+	br->ip4_querier.port = NULL;
 #if IS_ENABLED(CONFIG_IPV6)
 	br->ip6_other_query.delay_time = 0;
+	br->ip6_querier.port = NULL;
 #endif
 
 	spin_lock_init(&br->multicast_lock);
@@ -2199,3 +2212,50 @@ unlock:
 	return count;
 }
 EXPORT_SYMBOL_GPL(br_multicast_list_adjacent);
+
+/**
+ * br_multicast_has_querier_adjacent - Checks for a querier behind a bridge port
+ * @dev: The bridge port adjacent to which to check for a querier
+ * @proto: The protocol family to check for: IGMP -> ETH_P_IP, MLD -> ETH_P_IPV6
+ *
+ * Checks whether the given interface has a bridge on top and if so returns
+ * true if a selected querier is behind one of the other ports of this
+ * bridge. Otherwise returns false.
+ */
+bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
+{
+	struct net_bridge *br;
+	struct net_bridge_port *port;
+	bool ret = false;
+
+	rcu_read_lock();
+	if (!br_port_exists(dev))
+		goto unlock;
+
+	port = br_port_get_rcu(dev);
+	if (!port || !port->br)
+		goto unlock;
+
+	br = port->br;
+
+	switch (proto) {
+	case ETH_P_IP:
+		if (!timer_pending(&br->ip4_other_query.timer) ||
+		    rcu_dereference(br->ip4_querier.port) == port)
+			goto unlock;
+		break;
+	case ETH_P_IPV6:
+		if (!timer_pending(&br->ip6_other_query.timer) ||
+		    rcu_dereference(br->ip6_querier.port) == port)
+			goto unlock;
+		break;
+	default:
+		goto unlock;
+	}
+
+	ret = true;
+unlock:
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(br_multicast_has_querier_adjacent);
