@@ -723,6 +723,25 @@ static void resync_finish(struct mddev *mddev)
 	resync_send(mddev, RESYNCING, 0, 0);
 }
 
+static int area_resyncing(struct mddev *mddev, sector_t lo, sector_t hi)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	int ret = 0;
+	struct suspend_info *s;
+
+	spin_lock_irq(&cinfo->suspend_lock);
+	if (list_empty(&cinfo->suspend_list))
+		goto out;
+	list_for_each_entry(s, &cinfo->suspend_list, list)
+		if (hi > s->lo && lo < s->hi) {
+			ret = 1;
+			break;
+		}
+out:
+	spin_unlock_irq(&cinfo->suspend_lock);
+	return ret;
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
@@ -733,6 +752,7 @@ static struct md_cluster_operations cluster_ops = {
 	.metadata_update_start = metadata_update_start,
 	.metadata_update_finish = metadata_update_finish,
 	.metadata_update_cancel = metadata_update_cancel,
+	.area_resyncing = area_resyncing,
 };
 
 static int __init cluster_init(void)

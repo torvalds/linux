@@ -17,6 +17,7 @@ struct md_cluster_operations {
 	int (*metadata_update_start)(struct mddev *mddev);
 	int (*metadata_update_finish)(struct mddev *mddev);
 	int (*metadata_update_cancel)(struct mddev *mddev);
+	int (*area_resyncing)(struct mddev *mddev, sector_t lo, sector_t hi);
 };
 
 #endif /* _MD_CLUSTER_H */
