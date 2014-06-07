@@ -68,13 +68,13 @@ struct br_ip
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 /* our own querier */
-struct bridge_mcast_query {
+struct bridge_mcast_own_query {
 	struct timer_list	timer;
 	u32			startup_sent;
 };
 
 /* other querier */
-struct bridge_mcast_querier {
+struct bridge_mcast_other_query {
 	struct timer_list		timer;
 	unsigned long			delay_time;
 };
@@ -178,9 +178,9 @@ struct net_bridge_port
 #define BR_PROMISC		0x00000080
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
-	struct bridge_mcast_query	ip4_query;
+	struct bridge_mcast_own_query	ip4_own_query;
 #if IS_ENABLED(CONFIG_IPV6)
-	struct bridge_mcast_query	ip6_query;
+	struct bridge_mcast_own_query	ip6_own_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 	unsigned char			multicast_router;
 	struct timer_list		multicast_router_timer;
@@ -282,11 +282,11 @@ struct net_bridge
 	struct hlist_head		router_list;
 
 	struct timer_list		multicast_router_timer;
-	struct bridge_mcast_querier	ip4_querier;
-	struct bridge_mcast_query	ip4_query;
+	struct bridge_mcast_other_query	ip4_other_query;
+	struct bridge_mcast_own_query	ip4_own_query;
 #if IS_ENABLED(CONFIG_IPV6)
-	struct bridge_mcast_querier	ip6_querier;
-	struct bridge_mcast_query	ip6_query;
+	struct bridge_mcast_other_query	ip6_other_query;
+	struct bridge_mcast_own_query	ip6_own_query;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
@@ -493,7 +493,7 @@ static inline bool br_multicast_is_router(struct net_bridge *br)
 
 static inline bool
 __br_multicast_querier_exists(struct net_bridge *br,
-			      struct bridge_mcast_querier *querier)
+			      struct bridge_mcast_other_query *querier)
 {
 	return time_is_before_jiffies(querier->delay_time) &&
 	       (br->multicast_querier || timer_pending(&querier->timer));
@@ -504,10 +504,10 @@ static inline bool br_multicast_querier_exists(struct net_bridge *br,
 {
 	switch (eth->h_proto) {
 	case (htons(ETH_P_IP)):
-		return __br_multicast_querier_exists(br, &br->ip4_querier);
+		return __br_multicast_querier_exists(br, &br->ip4_other_query);
 #if IS_ENABLED(CONFIG_IPV6)
 	case (htons(ETH_P_IPV6)):
-		return __br_multicast_querier_exists(br, &br->ip6_querier);
+		return __br_multicast_querier_exists(br, &br->ip6_other_query);
 #endif
 	default:
 		return false;
