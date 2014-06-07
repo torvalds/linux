@@ -1413,14 +1413,14 @@ static int ccdc_sbl_wait_idle(struct isp_ccdc_device *ccdc,
 	return -EBUSY;
 }
 
-/* __ccdc_handle_stopping - Handle CCDC and/or LSC stopping sequence
+/* ccdc_handle_stopping - Handle CCDC and/or LSC stopping sequence
  * @ccdc: Pointer to ISP CCDC device.
  * @event: Pointing which event trigger handler
  *
  * Return 1 when the event and stopping request combination is satisfied,
  * zero otherwise.
  */
-static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
+static int ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 {
 	int rval = 0;
 
@@ -1502,7 +1502,7 @@ static void ccdc_lsc_isr(struct isp_ccdc_device *ccdc, u32 events)
 	if (ccdc->lsc.state == LSC_STATE_STOPPING)
 		ccdc->lsc.state = LSC_STATE_STOPPED;
 
-	if (__ccdc_handle_stopping(ccdc, CCDC_EVENT_LSC_DONE))
+	if (ccdc_handle_stopping(ccdc, CCDC_EVENT_LSC_DONE))
 		goto done;
 
 	if (ccdc->lsc.state != LSC_STATE_RECONFIG)
@@ -1642,7 +1642,7 @@ static void ccdc_vd0_isr(struct isp_ccdc_device *ccdc)
 		restart = ccdc_isr_buffer(ccdc);
 
 	spin_lock_irqsave(&ccdc->lock, flags);
-	if (__ccdc_handle_stopping(ccdc, CCDC_EVENT_VD0)) {
+	if (ccdc_handle_stopping(ccdc, CCDC_EVENT_VD0)) {
 		spin_unlock_irqrestore(&ccdc->lock, flags);
 		return;
 	}
@@ -1702,7 +1702,7 @@ static void ccdc_vd1_isr(struct isp_ccdc_device *ccdc)
 		break;
 	}
 
-	if (__ccdc_handle_stopping(ccdc, CCDC_EVENT_VD1))
+	if (ccdc_handle_stopping(ccdc, CCDC_EVENT_VD1))
 		goto done;
 
 	if (ccdc->lsc.request == NULL)
