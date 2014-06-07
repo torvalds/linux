@@ -6349,8 +6349,7 @@ static int instance_delete(const char *name)
 	event_trace_del_tracer(tr);
 	ftrace_destroy_function_files(tr);
 	debugfs_remove_recursive(tr->dir);
-	free_percpu(tr->trace_buffer.data);
-	ring_buffer_free(tr->trace_buffer.buffer);
+	free_trace_buffers(tr);
 
 	kfree(tr->name);
 	kfree(tr);
