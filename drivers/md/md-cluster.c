@@ -320,6 +320,7 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 	case METADATA_UPDATED:
 		pr_info("%s: %d Received message: METADATA_UPDATE from %d\n",
 			__func__, __LINE__, msg->slot);
+		md_reload_sb(mddev);
 		break;
 	case RESYNCING:
 		pr_info("%s: %d Received message: RESYNCING from %d\n",
