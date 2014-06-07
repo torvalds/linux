@@ -546,7 +546,8 @@ int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 		return -EINVAL;
 
 	for (i = 0; i < PWRDM_MAX_CLKDMS && !ret; i++)
-		ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
+		if (pwrdm->pwrdm_clkdms[i])
+			ret = (*fn)(pwrdm, pwrdm->pwrdm_clkdms[i]);
 
 	return ret;
 }
