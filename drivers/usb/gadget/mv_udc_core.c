@@ -332,7 +332,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 	/* clear active and halt bit, in case set from a previous error */
 	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
 
-	/* Ensure that updates to the QH will occure before priming. */
+	/* Ensure that updates to the QH will occur before priming. */
 	wmb();
 
 	/* Prime the Endpoint */
@@ -1656,7 +1656,7 @@ static void handle_setup_packet(struct mv_udc *udc, u8 ep_num,
 	dev_dbg(&udc->dev->dev, "SETUP %02x.%02x v%04x i%04x l%04x\n",
 			setup->bRequestType, setup->bRequest,
 			setup->wValue, setup->wIndex, setup->wLength);
-	/* We process some stardard setup requests here */
+	/* We process some standard setup requests here */
 	if ((setup->bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD) {
 		switch (setup->bRequest) {
 		case USB_REQ_GET_STATUS:
