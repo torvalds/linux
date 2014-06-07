@@ -934,6 +934,28 @@ static void bitmap_file_clear_bit(struct bitmap *bitmap, sector_t block)
 	}
 }
 
+static int bitmap_file_test_bit(struct bitmap *bitmap, sector_t block)
+{
+	unsigned long bit;
+	struct page *page;
+	void *paddr;
+	unsigned long chunk = block >> bitmap->counts.chunkshift;
+	int set = 0;
+
+	page = filemap_get_page(&bitmap->storage, chunk);
+	if (!page)
+		return -EINVAL;
+	bit = file_page_offset(&bitmap->storage, chunk);
+	paddr = kmap_atomic(page);
+	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
+		set = test_bit(bit, paddr);
+	else
+		set = test_bit_le(bit, paddr);
+	kunmap_atomic(paddr);
+	return set;
+}
+
+
 /* this gets called when the md device is ready to unplug its underlying
  * (slave) device queues -- before we let any writes go down, we need to
  * sync the dirty pages of the bitmap file to disk */
@@ -1581,11 +1603,13 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int n
 		return;
 	}
 	if (!*bmc) {
-		*bmc = 2 | (needed ? NEEDED_MASK : 0);
+		*bmc = 2;
 		bitmap_count_page(&bitmap->counts, offset, 1);
 		bitmap_set_pending(&bitmap->counts, offset);
 		bitmap->allclean = 0;
 	}
+	if (needed)
+		*bmc |= NEEDED_MASK;
 	spin_unlock_irq(&bitmap->counts.lock);
 }
 
@@ -1822,6 +1846,58 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(bitmap_load);
+
+/* Loads the bitmap associated with slot and copies the resync information
+ * to our bitmap
+ */
+int bitmap_copy_from_slot(struct mddev *mddev, int slot,
+		sector_t *low, sector_t *high)
+{
+	int rv = 0, i, j;
+	sector_t block, lo = 0, hi = 0;
+	struct bitmap_counts *counts;
+	struct bitmap *bitmap = bitmap_create(mddev, slot);
+
+	if (IS_ERR(bitmap))
+		return PTR_ERR(bitmap);
+
+	rv = bitmap_read_sb(bitmap);
+	if (rv)
+		goto err;
+
+	rv = bitmap_init_from_disk(bitmap, 0);
+	if (rv)
+		goto err;
+
+	counts = &bitmap->counts;
+	for (j = 0; j < counts->chunks; j++) {
+		block = (sector_t)j << counts->chunkshift;
+		if (bitmap_file_test_bit(bitmap, block)) {
+			if (!lo)
+				lo = block;
+			hi = block;
+			bitmap_file_clear_bit(bitmap, block);
+			bitmap_set_memory_bits(mddev->bitmap, block, 1);
+			bitmap_file_set_bit(mddev->bitmap, block);
+		}
+	}
+
+	bitmap_update_sb(bitmap);
+	/* Setting this for the ev_page should be enough.
+	 * And we do not require both write_all and PAGE_DIRT either
+	 */
+	for (i = 0; i < bitmap->storage.file_pages; i++)
+		set_page_attr(bitmap, i, BITMAP_PAGE_DIRTY);
+	bitmap_write_all(bitmap);
+	bitmap_unplug(bitmap);
+	*low = lo;
+	*high = hi;
+err:
+	bitmap_free(bitmap);
+	return rv;
+}
+EXPORT_SYMBOL_GPL(bitmap_copy_from_slot);
+
 
 void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
 {

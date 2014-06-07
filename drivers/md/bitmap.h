@@ -262,6 +262,8 @@ void bitmap_daemon_work(struct mddev *mddev);
 
 int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
 		  int chunksize, int init);
+int bitmap_copy_from_slot(struct mddev *mddev, int slot,
+				sector_t *lo, sector_t *hi);
 #endif
 
 #endif
