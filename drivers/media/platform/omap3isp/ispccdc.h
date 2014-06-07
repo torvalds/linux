@@ -93,6 +93,10 @@ struct ispccdc_lsc {
 #define CCDC_PAD_SOURCE_VP		2
 #define CCDC_PADS_NUM			3
 
+#define CCDC_FIELD_TOP			1
+#define CCDC_FIELD_BOTTOM		2
+#define CCDC_FIELD_BOTH			3
+
 /*
  * struct isp_ccdc_device - Structure for the CCDC module to store its own
  *			    information
@@ -114,6 +118,7 @@ struct ispccdc_lsc {
  * @update: Bitmask of controls to update during the next interrupt
  * @shadow_update: Controls update in progress by userspace
  * @bt656: Whether the input interface uses BT.656 synchronization
+ * @fields: The fields (CCDC_FIELD_*) stored in the current buffer
  * @underrun: A buffer underrun occurred and a new buffer has been queued
  * @state: Streaming state
  * @lock: Serializes shadow_update with interrupt handler
@@ -143,6 +148,8 @@ struct isp_ccdc_device {
 	unsigned int shadow_update;
 
 	bool bt656;
+	unsigned int fields;
+
 	unsigned int underrun:1;
 	enum isp_pipeline_stream_state state;
 	spinlock_t lock;

@@ -1134,6 +1134,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	u32 ccdc_pattern;
 
 	ccdc->bt656 = false;
+	ccdc->fields = 0;
 
 	pad = media_entity_remote_pad(&ccdc->pads[CCDC_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
@@ -1529,12 +1530,59 @@ done:
 	spin_unlock_irqrestore(&ccdc->lsc.req_lock, flags);
 }
 
+/*
+ * Check whether the CCDC has captured all fields necessary to complete the
+ * buffer.
+ */
+static bool ccdc_has_all_fields(struct isp_ccdc_device *ccdc)
+{
+	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
+	struct isp_device *isp = to_isp_device(ccdc);
+	enum v4l2_field of_field = ccdc->formats[CCDC_PAD_SOURCE_OF].field;
+	enum v4l2_field field;
+
+	/* When the input is progressive fields don't matter. */
+	if (of_field == V4L2_FIELD_NONE)
+		return true;
+
+	/* Read the current field identifier. */
+	field = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE)
+	      & ISPCCDC_SYN_MODE_FLDSTAT
+	      ? V4L2_FIELD_BOTTOM : V4L2_FIELD_TOP;
+
+	/* When capturing fields in alternate order just store the current field
+	 * identifier in the pipeline.
+	 */
+	if (of_field == V4L2_FIELD_ALTERNATE) {
+		pipe->field = field;
+		return true;
+	}
+
+	/* The format is interlaced. Make sure we've captured both fields. */
+	ccdc->fields |= field == V4L2_FIELD_BOTTOM
+		      ? CCDC_FIELD_BOTTOM : CCDC_FIELD_TOP;
+
+	if (ccdc->fields != CCDC_FIELD_BOTH)
+		return false;
+
+	/* Verify that the field just captured corresponds to the last field
+	 * needed based on the desired field order.
+	 */
+	if ((of_field == V4L2_FIELD_INTERLACED_TB && field == V4L2_FIELD_TOP) ||
+	    (of_field == V4L2_FIELD_INTERLACED_BT && field == V4L2_FIELD_BOTTOM))
+		return false;
+
+	/* The buffer can be completed, reset the fields for the next buffer. */
+	ccdc->fields = 0;
+
+	return true;
+}
+
 static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 {
 	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
 	struct isp_device *isp = to_isp_device(ccdc);
 	struct isp_buffer *buffer;
-	enum v4l2_field field;
 
 	/* The CCDC generates VD0 interrupts even when disabled (the datasheet
 	 * doesn't explicitly state if that's supposed to happen or not, so it
@@ -1554,11 +1602,6 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 1;
 	}
 
-	/* Read the current field identifier. */
-	field = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_SYN_MODE)
-	      & ISPCCDC_SYN_MODE_FLDSTAT
-	      ? V4L2_FIELD_BOTTOM : V4L2_FIELD_TOP;
-
 	/* Wait for the CCDC to become idle. */
 	if (ccdc_sbl_wait_idle(ccdc, 1000)) {
 		dev_info(isp->dev, "CCDC won't become idle!\n");
@@ -1567,27 +1610,8 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 0;
 	}
 
-	switch (ccdc->formats[CCDC_PAD_SOURCE_OF].field) {
-	case V4L2_FIELD_ALTERNATE:
-		/* When capturing fields in alternate order store the current
-		 * field identifier in the pipeline.
-		 */
-		pipe->field = field;
-		break;
-
-	case V4L2_FIELD_INTERLACED_TB:
-		/* When interleaving fields only complete the buffer after
-		 * capturing the second field.
-		 */
-		if (field == V4L2_FIELD_TOP)
-			return 1;
-		break;
-
-	case V4L2_FIELD_INTERLACED_BT:
-		if (field == V4L2_FIELD_BOTTOM)
-			return 1;
-		break;
-	}
+	if (!ccdc_has_all_fields(ccdc))
+		return 1;
 
 	buffer = omap3isp_video_buffer_next(&ccdc->video_out);
 	if (buffer != NULL)
