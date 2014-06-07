@@ -1350,7 +1350,7 @@ static void __exit amd_xgbe_phy_exit(void)
 module_init(amd_xgbe_phy_init);
 module_exit(amd_xgbe_phy_exit);
 
-static struct mdio_device_id amd_xgbe_phy_ids[] = {
+static struct mdio_device_id __maybe_unused amd_xgbe_phy_ids[] = {
 	{ XGBE_PHY_ID, XGBE_PHY_MASK },
 	{ }
 };
