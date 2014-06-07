@@ -66,7 +66,8 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 			     (radeon_crtc->lut_b[i] << 0));
 	}
 
-	WREG32(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
+	/* Only change bit 0 of LUT_SEL, other bits are set elsewhere */
+	WREG32_P(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id, ~1);
 }
 
 static void dce4_crtc_load_lut(struct drm_crtc *crtc)

@@ -1136,6 +1136,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1225,6 +1226,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
 #endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
 		break;
 	case DRM_FORMAT_BGRX1010102:
 	case DRM_FORMAT_BGRA1010102:
@@ -1233,6 +1236,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 #ifdef __BIG_ENDIAN
 		fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_8IN32);
 #endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
@@ -1365,6 +1370,18 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 	WREG32(EVERGREEN_GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
 
+	/*
+	 * The LUT only has 256 slots for indexing by a 8 bpc fb. Bypass the LUT
+	 * for > 8 bpc scanout to avoid truncation of fb indices to 8 msb's, to
+	 * retain the full precision throughout the pipeline.
+	 */
+	WREG32_P(EVERGREEN_GRPH_LUT_10BIT_BYPASS_CONTROL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? EVERGREEN_LUT_10BIT_BYPASS_EN : 0),
+		 ~EVERGREEN_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
 	WREG32(EVERGREEN_GRPH_X_START + radeon_crtc->crtc_offset, 0);
@@ -1432,6 +1449,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
 	u32 tmp, viewport_w, viewport_h;
 	int r;
+	bool bypass_lut = false;
 
 	/* no fb bound */
 	if (!atomic && !crtc->primary->fb) {
@@ -1517,6 +1535,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 #ifdef __BIG_ENDIAN
 		fb_swap = R600_D1GRPH_SWAP_ENDIAN_32BIT;
 #endif
+		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
+		bypass_lut = true;
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
@@ -1558,6 +1578,13 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1GRPH_CONTROL + radeon_crtc->crtc_offset, fb_format);
 	if (rdev->family >= CHIP_R600)
 		WREG32(R600_D1GRPH_SWAP_CONTROL + radeon_crtc->crtc_offset, fb_swap);
+
+	/* LUT only has 256 slots for 8 bpc fb. Bypass for > 8 bpc scanout for precision */
+	WREG32_P(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset,
+		 (bypass_lut ? AVIVO_LUT_10BIT_BYPASS_EN : 0), ~AVIVO_LUT_10BIT_BYPASS_EN);
+
+	if (bypass_lut)
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
 
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_X + radeon_crtc->crtc_offset, 0);
 	WREG32(AVIVO_D1GRPH_SURFACE_OFFSET_Y + radeon_crtc->crtc_offset, 0);
