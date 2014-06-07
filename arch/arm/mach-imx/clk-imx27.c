@@ -89,10 +89,9 @@ enum mx27_clks {
 static struct clk *clk[clk_max];
 static struct clk_onecell_data clk_data;
 
-int __init mx27_clocks_init(unsigned long fref)
+static void __init _mx27_clocks_init(unsigned long fref)
 {
-	int i;
-	struct device_node *np;
+	unsigned i;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
@@ -206,12 +205,16 @@ int __init mx27_clocks_init(unsigned long fref)
 			pr_err("i.MX27 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
-	if (np) {
-		clk_data.clks = clk;
-		clk_data.clk_num = ARRAY_SIZE(clk);
-		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	}
+	clk_register_clkdev(clk[cpu_div], NULL, "cpu0");
+
+	clk_prepare_enable(clk[emi_ahb_gate]);
+
+	imx_print_silicon_rev("i.MX27", mx27_revision());
+}
+
+int __init mx27_clocks_init(unsigned long fref)
+{
+	_mx27_clocks_init(fref);
 
 	clk_register_clkdev(clk[uart1_ipg_gate], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[per1_gate], "per", "imx21-uart.0");
@@ -274,13 +277,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[emma_ipg_gate], "emma-ipg", "imx27-camera.0");
 	clk_register_clkdev(clk[emma_ahb_gate], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[emma_ipg_gate], "ipg", "m2m-emmaprp.0");
-	clk_register_clkdev(clk[cpu_div], NULL, "cpu0");
 
 	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
-
-	clk_prepare_enable(clk[emi_ahb_gate]);
-
-	imx_print_silicon_rev("i.MX27", mx27_revision());
 
 	return 0;
 }
@@ -298,5 +296,16 @@ int __init mx27_clocks_init_dt(void)
 			break;
 	}
 
-	return mx27_clocks_init(fref);
+	_mx27_clocks_init(fref);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx27-ccm");
+	BUG_ON(!np);
+
+	clk_data.clks = clk;
+	clk_data.clk_num = ARRAY_SIZE(clk);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
+	mxc_timer_init_dt(of_find_compatible_node(NULL, NULL, "fsl,imx1-gpt"));
+
+	return 0;
 }
