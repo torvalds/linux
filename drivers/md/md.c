@@ -7692,7 +7692,7 @@ void md_do_sync(struct md_thread *thread)
 	update_time = jiffies;
 
 	if (mddev_is_clustered(mddev))
-		md_cluster_ops->resync_info_update(mddev, j, max_sectors);
+		md_cluster_ops->resync_start(mddev, j, max_sectors);
 
 	blk_start_plug(&plug);
 	while (j < max_sectors) {
@@ -7817,7 +7817,7 @@ void md_do_sync(struct md_thread *thread)
 	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
 
 	if (mddev_is_clustered(mddev))
-		md_cluster_ops->resync_info_update(mddev, 0, 0);
+		md_cluster_ops->resync_finish(mddev);
 
 	if (!test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2) {

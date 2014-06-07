@@ -647,11 +647,43 @@ static int metadata_update_cancel(struct mddev *mddev)
 	return dlm_unlock_sync(cinfo->token_lockres);
 }
 
+static int resync_send(struct mddev *mddev, enum msg_type type,
+		sector_t lo, sector_t hi)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg;
+	int slot = cinfo->slot_number - 1;
+
+	pr_info("%s:%d lo: %llu hi: %llu\n", __func__, __LINE__,
+			(unsigned long long)lo,
+			(unsigned long long)hi);
+	resync_info_update(mddev, lo, hi);
+	cmsg.type = cpu_to_le32(type);
+	cmsg.slot = cpu_to_le32(slot);
+	cmsg.low = cpu_to_le64(lo);
+	cmsg.high = cpu_to_le64(hi);
+	return sendmsg(cinfo, &cmsg);
+}
+
+static int resync_start(struct mddev *mddev, sector_t lo, sector_t hi)
+{
+	pr_info("%s:%d\n", __func__, __LINE__);
+	return resync_send(mddev, RESYNCING, lo, hi);
+}
+
+static void resync_finish(struct mddev *mddev)
+{
+	pr_info("%s:%d\n", __func__, __LINE__);
+	resync_send(mddev, RESYNCING, 0, 0);
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
 	.resync_info_update = resync_info_update,
+	.resync_start = resync_start,
+	.resync_finish = resync_finish,
 	.metadata_update_start = metadata_update_start,
 	.metadata_update_finish = metadata_update_finish,
 	.metadata_update_cancel = metadata_update_cancel,
