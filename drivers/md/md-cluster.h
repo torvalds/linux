@@ -12,6 +12,9 @@ struct md_cluster_operations {
 	int (*leave)(struct mddev *mddev);
 	int (*slot_number)(struct mddev *mddev);
 	void (*resync_info_update)(struct mddev *mddev, sector_t lo, sector_t hi);
+	int (*metadata_update_start)(struct mddev *mddev);
+	int (*metadata_update_finish)(struct mddev *mddev);
+	int (*metadata_update_cancel)(struct mddev *mddev);
 };
 
 #endif /* _MD_CLUSTER_H */

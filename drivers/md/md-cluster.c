@@ -621,11 +621,39 @@ static void resync_info_update(struct mddev *mddev, sector_t lo, sector_t hi)
 	dlm_lock_sync(cinfo->bitmap_lockres, DLM_LOCK_PW);
 }
 
+static int metadata_update_start(struct mddev *mddev)
+{
+	return lock_comm(mddev->cluster_info);
+}
+
+static int metadata_update_finish(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg;
+	int ret;
+
+	memset(&cmsg, 0, sizeof(cmsg));
+	cmsg.type = cpu_to_le32(METADATA_UPDATED);
+	ret = __sendmsg(cinfo, &cmsg);
+	unlock_comm(cinfo);
+	return ret;
+}
+
+static int metadata_update_cancel(struct mddev *mddev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	return dlm_unlock_sync(cinfo->token_lockres);
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
 	.resync_info_update = resync_info_update,
+	.metadata_update_start = metadata_update_start,
+	.metadata_update_finish = metadata_update_finish,
+	.metadata_update_cancel = metadata_update_cancel,
 };
 
 static int __init cluster_init(void)
