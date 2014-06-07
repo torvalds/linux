@@ -11,6 +11,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/if_ether.h>
 #include <linux/igmp.h>
 #include <linux/jhash.h>
@@ -2141,3 +2142,60 @@ unlock:
 
 	return err;
 }
+
+/**
+ * br_multicast_list_adjacent - Returns snooped multicast addresses
+ * @dev:	The bridge port adjacent to which to retrieve addresses
+ * @br_ip_list:	The list to store found, snooped multicast IP addresses in
+ *
+ * Creates a list of IP addresses (struct br_ip_list) sensed by the multicast
+ * snooping feature on all bridge ports of dev's bridge device, excluding
+ * the addresses from dev itself.
+ *
+ * Returns the number of items added to br_ip_list.
+ *
+ * Notes:
+ * - br_ip_list needs to be initialized by caller
+ * - br_ip_list might contain duplicates in the end
+ *   (needs to be taken care of by caller)
+ * - br_ip_list needs to be freed by caller
+ */
+int br_multicast_list_adjacent(struct net_device *dev,
+			       struct list_head *br_ip_list)
+{
+	struct net_bridge *br;
+	struct net_bridge_port *port;
+	struct net_bridge_port_group *group;
+	struct br_ip_list *entry;
+	int count = 0;
+
+	rcu_read_lock();
+	if (!br_ip_list || !br_port_exists(dev))
+		goto unlock;
+
+	port = br_port_get_rcu(dev);
+	if (!port || !port->br)
+		goto unlock;
+
+	br = port->br;
+
+	list_for_each_entry_rcu(port, &br->port_list, list) {
+		if (!port->dev || port->dev == dev)
+			continue;
+
+		hlist_for_each_entry_rcu(group, &port->mglist, mglist) {
+			entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+			if (!entry)
+				goto unlock;
+
+			entry->addr = group->addr;
+			list_add(&entry->list, br_ip_list);
+			count++;
+		}
+	}
+
+unlock:
+	rcu_read_unlock();
+	return count;
+}
+EXPORT_SYMBOL_GPL(br_multicast_list_adjacent);
