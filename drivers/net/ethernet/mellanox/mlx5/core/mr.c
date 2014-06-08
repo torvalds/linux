@@ -94,6 +94,11 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	write_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mr->key), mr);
 	write_unlock_irq(&table->lock);
+	if (err) {
+		mlx5_core_warn(dev, "failed radix tree insert of mr 0x%x, %d\n",
+			       mlx5_base_mkey(mr->key), err);
+		mlx5_core_destroy_mkey(dev, mr);
+	}
 
 	return err;
 }
@@ -104,11 +109,21 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr)
 	struct mlx5_mr_table *table = &dev->priv.mr_table;
 	struct mlx5_destroy_mkey_mbox_in in;
 	struct mlx5_destroy_mkey_mbox_out out;
+	struct mlx5_core_mr *deleted_mr;
 	unsigned long flags;
 	int err;
 
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));
+
+	write_lock_irqsave(&table->lock, flags);
+	deleted_mr = radix_tree_delete(&table->tree, mlx5_base_mkey(mr->key));
+	write_unlock_irqrestore(&table->lock, flags);
+	if (!deleted_mr) {
+		mlx5_core_warn(dev, "failed radix tree delete of mr 0x%x\n",
+			       mlx5_base_mkey(mr->key));
+		return -ENOENT;
+	}
 
 	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_DESTROY_MKEY);
 	in.mkey = cpu_to_be32(mlx5_mkey_to_idx(mr->key));
@@ -118,10 +133,6 @@ int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr)
 
 	if (out.hdr.status)
 		return mlx5_cmd_status_to_err(&out.hdr);
-
-	write_lock_irqsave(&table->lock, flags);
-	radix_tree_delete(&table->tree, mlx5_base_mkey(mr->key));
-	write_unlock_irqrestore(&table->lock, flags);
 
 	return err;
 }
