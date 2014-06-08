@@ -155,5 +155,8 @@ struct clk_rcg2 {
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
 
 extern const struct clk_ops clk_rcg2_ops;
+extern const struct clk_ops clk_edp_pixel_ops;
+extern const struct clk_ops clk_byte_ops;
+extern const struct clk_ops clk_pixel_ops;
 
 #endif

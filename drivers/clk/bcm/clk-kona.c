@@ -16,6 +16,14 @@
 
 #include <linux/delay.h>
 
+/*
+ * "Policies" affect the frequencies of bus clocks provided by a
+ * CCU.  (I believe these polices are named "Deep Sleep", "Economy",
+ * "Normal", and "Turbo".)  A lower policy number has lower power
+ * consumption, and policy 2 is the default.
+ */
+#define CCU_POLICY_COUNT	4
+
 #define CCU_ACCESS_PASSWORD      0xA5A500
 #define CLK_GATE_DELAY_LOOP      2000
 
@@ -207,7 +215,152 @@ __ccu_wait_bit(struct ccu_data *ccu, u32 reg_offset, u32 bit, bool want)
 			return true;
 		udelay(1);
 	}
+	pr_warn("%s: %s/0x%04x bit %u was never %s\n", __func__,
+		ccu->name, reg_offset, bit, want ? "set" : "clear");
+
 	return false;
+}
+
+/* Policy operations */
+
+static bool __ccu_policy_engine_start(struct ccu_data *ccu, bool sync)
+{
+	struct bcm_policy_ctl *control = &ccu->policy.control;
+	u32 offset;
+	u32 go_bit;
+	u32 mask;
+	bool ret;
+
+	/* If we don't need to control policy for this CCU, we're done. */
+	if (!policy_ctl_exists(control))
+		return true;
+
+	offset = control->offset;
+	go_bit = control->go_bit;
+
+	/* Ensure we're not busy before we start */
+	ret = __ccu_wait_bit(ccu, offset, go_bit, false);
+	if (!ret) {
+		pr_err("%s: ccu %s policy engine wouldn't go idle\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/*
+	 * If it's a synchronous request, we'll wait for the voltage
+	 * and frequency of the active load to stabilize before
+	 * returning.  To do this we select the active load by
+	 * setting the ATL bit.
+	 *
+	 * An asynchronous request instead ramps the voltage in the
+	 * background, and when that process stabilizes, the target
+	 * load is copied to the active load and the CCU frequency
+	 * is switched.  We do this by selecting the target load
+	 * (ATL bit clear) and setting the request auto-copy (AC bit
+	 * set).
+	 *
+	 * Note, we do NOT read-modify-write this register.
+	 */
+	mask = (u32)1 << go_bit;
+	if (sync)
+		mask |= 1 << control->atl_bit;
+	else
+		mask |= 1 << control->ac_bit;
+	__ccu_write(ccu, offset, mask);
+
+	/* Wait for indication that operation is complete. */
+	ret = __ccu_wait_bit(ccu, offset, go_bit, false);
+	if (!ret)
+		pr_err("%s: ccu %s policy engine never started\n",
+			__func__, ccu->name);
+
+	return ret;
+}
+
+static bool __ccu_policy_engine_stop(struct ccu_data *ccu)
+{
+	struct bcm_lvm_en *enable = &ccu->policy.enable;
+	u32 offset;
+	u32 enable_bit;
+	bool ret;
+
+	/* If we don't need to control policy for this CCU, we're done. */
+	if (!policy_lvm_en_exists(enable))
+		return true;
+
+	/* Ensure we're not busy before we start */
+	offset = enable->offset;
+	enable_bit = enable->bit;
+	ret = __ccu_wait_bit(ccu, offset, enable_bit, false);
+	if (!ret) {
+		pr_err("%s: ccu %s policy engine already stopped\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/* Now set the bit to stop the engine (NO read-modify-write) */
+	__ccu_write(ccu, offset, (u32)1 << enable_bit);
+
+	/* Wait for indication that it has stopped. */
+	ret = __ccu_wait_bit(ccu, offset, enable_bit, false);
+	if (!ret)
+		pr_err("%s: ccu %s policy engine never stopped\n",
+			__func__, ccu->name);
+
+	return ret;
+}
+
+/*
+ * A CCU has four operating conditions ("policies"), and some clocks
+ * can be disabled or enabled based on which policy is currently in
+ * effect.  Such clocks have a bit in a "policy mask" register for
+ * each policy indicating whether the clock is enabled for that
+ * policy or not.  The bit position for a clock is the same for all
+ * four registers, and the 32-bit registers are at consecutive
+ * addresses.
+ */
+static bool policy_init(struct ccu_data *ccu, struct bcm_clk_policy *policy)
+{
+	u32 offset;
+	u32 mask;
+	int i;
+	bool ret;
+
+	if (!policy_exists(policy))
+		return true;
+
+	/*
+	 * We need to stop the CCU policy engine to allow update
+	 * of our policy bits.
+	 */
+	if (!__ccu_policy_engine_stop(ccu)) {
+		pr_err("%s: unable to stop CCU %s policy engine\n",
+			__func__, ccu->name);
+		return false;
+	}
+
+	/*
+	 * For now, if a clock defines its policy bit we just mark
+	 * it "enabled" for all four policies.
+	 */
+	offset = policy->offset;
+	mask = (u32)1 << policy->bit;
+	for (i = 0; i < CCU_POLICY_COUNT; i++) {
+		u32 reg_val;
+
+		reg_val = __ccu_read(ccu, offset);
+		reg_val |= mask;
+		__ccu_write(ccu, offset, reg_val);
+		offset += sizeof(u32);
+	}
+
+	/* We're done updating; fire up the policy engine again. */
+	ret = __ccu_policy_engine_start(ccu, true);
+	if (!ret)
+		pr_err("%s: unable to restart CCU %s policy engine\n",
+			__func__, ccu->name);
+
+	return ret;
 }
 
 /* Gate operations */
@@ -372,6 +525,35 @@ static int clk_gate(struct ccu_data *ccu, const char *name,
 		enable ? "enable" : "disable", name);
 
 	return -EIO;
+}
+
+/* Hysteresis operations */
+
+/*
+ * If a clock gate requires a turn-off delay it will have
+ * "hysteresis" register bits defined.  The first, if set, enables
+ * the delay; and if enabled, the second bit determines whether the
+ * delay is "low" or "high" (1 means high).  For now, if it's
+ * defined for a clock, we set it.
+ */
+static bool hyst_init(struct ccu_data *ccu, struct bcm_clk_hyst *hyst)
+{
+	u32 offset;
+	u32 reg_val;
+	u32 mask;
+
+	if (!hyst_exists(hyst))
+		return true;
+
+	offset = hyst->offset;
+	mask = (u32)1 << hyst->en_bit;
+	mask |= (u32)1 << hyst->val_bit;
+
+	reg_val = __ccu_read(ccu, offset);
+	reg_val |= mask;
+	__ccu_write(ccu, offset, reg_val);
+
+	return true;
 }
 
 /* Trigger operations */
@@ -806,7 +988,7 @@ static int kona_peri_clk_enable(struct clk_hw *hw)
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
-	return clk_gate(bcm_clk->ccu, bcm_clk->name, gate, true);
+	return clk_gate(bcm_clk->ccu, bcm_clk->init_data.name, gate, true);
 }
 
 static void kona_peri_clk_disable(struct clk_hw *hw)
@@ -814,7 +996,7 @@ static void kona_peri_clk_disable(struct clk_hw *hw)
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
 	struct bcm_clk_gate *gate = &bcm_clk->u.peri->gate;
 
-	(void)clk_gate(bcm_clk->ccu, bcm_clk->name, gate, false);
+	(void)clk_gate(bcm_clk->ccu, bcm_clk->init_data.name, gate, false);
 }
 
 static int kona_peri_clk_is_enabled(struct clk_hw *hw)
@@ -849,6 +1031,58 @@ static long kona_peri_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 				rate ? rate : 1, *parent_rate, NULL);
 }
 
+static long kona_peri_clk_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *best_parent_rate, struct clk **best_parent)
+{
+	struct kona_clk *bcm_clk = to_kona_clk(hw);
+	struct clk *clk = hw->clk;
+	struct clk *current_parent;
+	unsigned long parent_rate;
+	unsigned long best_delta;
+	unsigned long best_rate;
+	u32 parent_count;
+	u32 which;
+
+	/*
+	 * If there is no other parent to choose, use the current one.
+	 * Note:  We don't honor (or use) CLK_SET_RATE_NO_REPARENT.
+	 */
+	WARN_ON_ONCE(bcm_clk->init_data.flags & CLK_SET_RATE_NO_REPARENT);
+	parent_count = (u32)bcm_clk->init_data.num_parents;
+	if (parent_count < 2)
+		return kona_peri_clk_round_rate(hw, rate, best_parent_rate);
+
+	/* Unless we can do better, stick with current parent */
+	current_parent = clk_get_parent(clk);
+	parent_rate = __clk_get_rate(current_parent);
+	best_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
+	best_delta = abs(best_rate - rate);
+
+	/* Check whether any other parent clock can produce a better result */
+	for (which = 0; which < parent_count; which++) {
+		struct clk *parent = clk_get_parent_by_index(clk, which);
+		unsigned long delta;
+		unsigned long other_rate;
+
+		BUG_ON(!parent);
+		if (parent == current_parent)
+			continue;
+
+		/* We don't support CLK_SET_RATE_PARENT */
+		parent_rate = __clk_get_rate(parent);
+		other_rate = kona_peri_clk_round_rate(hw, rate, &parent_rate);
+		delta = abs(other_rate - rate);
+		if (delta < best_delta) {
+			best_delta = delta;
+			best_rate = other_rate;
+			*best_parent = parent;
+			*best_parent_rate = parent_rate;
+		}
+	}
+
+	return best_rate;
+}
+
 static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct kona_clk *bcm_clk = to_kona_clk(hw);
@@ -872,12 +1106,13 @@ static int kona_peri_clk_set_parent(struct clk_hw *hw, u8 index)
 
 	ret = selector_write(bcm_clk->ccu, &data->gate, sel, trig, index);
 	if (ret == -ENXIO) {
-		pr_err("%s: gating failure for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: gating failure for %s\n", __func__,
+			bcm_clk->init_data.name);
 		ret = -EIO;	/* Don't proliferate weird errors */
 	} else if (ret == -EIO) {
 		pr_err("%s: %strigger failed for %s\n", __func__,
 			trig == &data->pre_trig ? "pre-" : "",
-			bcm_clk->name);
+			bcm_clk->init_data.name);
 	}
 
 	return ret;
@@ -936,10 +1171,12 @@ static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	ret = divider_write(bcm_clk->ccu, &data->gate, &data->div,
 				&data->trig, scaled_div);
 	if (ret == -ENXIO) {
-		pr_err("%s: gating failure for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: gating failure for %s\n", __func__,
+			bcm_clk->init_data.name);
 		ret = -EIO;	/* Don't proliferate weird errors */
 	} else if (ret == -EIO) {
-		pr_err("%s: trigger failed for %s\n", __func__, bcm_clk->name);
+		pr_err("%s: trigger failed for %s\n", __func__,
+			bcm_clk->init_data.name);
 	}
 
 	return ret;
@@ -950,7 +1187,7 @@ struct clk_ops kona_peri_clk_ops = {
 	.disable = kona_peri_clk_disable,
 	.is_enabled = kona_peri_clk_is_enabled,
 	.recalc_rate = kona_peri_clk_recalc_rate,
-	.round_rate = kona_peri_clk_round_rate,
+	.determine_rate = kona_peri_clk_determine_rate,
 	.set_parent = kona_peri_clk_set_parent,
 	.get_parent = kona_peri_clk_get_parent,
 	.set_rate = kona_peri_clk_set_rate,
@@ -961,13 +1198,22 @@ static bool __peri_clk_init(struct kona_clk *bcm_clk)
 {
 	struct ccu_data *ccu = bcm_clk->ccu;
 	struct peri_clk_data *peri = bcm_clk->u.peri;
-	const char *name = bcm_clk->name;
+	const char *name = bcm_clk->init_data.name;
 	struct bcm_clk_trig *trig;
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);
 
+	if (!policy_init(ccu, &peri->policy)) {
+		pr_err("%s: error initializing policy for %s\n",
+			__func__, name);
+		return false;
+	}
 	if (!gate_init(ccu, &peri->gate)) {
 		pr_err("%s: error initializing gate for %s\n", __func__, name);
+		return false;
+	}
+	if (!hyst_init(ccu, &peri->hyst)) {
+		pr_err("%s: error initializing hyst for %s\n", __func__, name);
 		return false;
 	}
 	if (!div_init(ccu, &peri->gate, &peri->div, &peri->trig)) {
@@ -1014,13 +1260,13 @@ bool __init kona_ccu_init(struct ccu_data *ccu)
 {
 	unsigned long flags;
 	unsigned int which;
-	struct clk **clks = ccu->data.clks;
+	struct clk **clks = ccu->clk_data.clks;
 	bool success = true;
 
 	flags = ccu_lock(ccu);
 	__ccu_write_enable(ccu);
 
-	for (which = 0; which < ccu->data.clk_num; which++) {
+	for (which = 0; which < ccu->clk_data.clk_num; which++) {
 		struct kona_clk *bcm_clk;
 
 		if (!clks[which])
