@@ -220,7 +220,7 @@ static void setup_vbi(struct au8522_state *state, int aud_input)
 
 }
 
-static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
+static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 {
 	int i;
 	int filter_coef_type;
@@ -237,13 +237,10 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 	/* Other decoder registers */
 	au8522_writereg(state, AU8522_TVDEC_INT_MASK_REG010H, 0x00);
 
-	if (input_mode == 0x23) {
-		/* S-Video input mapping */
+	if (is_svideo)
 		au8522_writereg(state, AU8522_VIDEO_MODE_REG011H, 0x04);
-	} else {
-		/* All other modes (CVBS/ATVRF etc.) */
+	else
 		au8522_writereg(state, AU8522_VIDEO_MODE_REG011H, 0x00);
-	}
 
 	au8522_writereg(state, AU8522_TVDEC_PGA_REG012H,
 			AU8522_TVDEC_PGA_REG012H_CVBS);
@@ -275,8 +272,7 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 			AU8522_TVDEC_COMB_HDIF_THR2_REG06AH_CVBS);
 	au8522_writereg(state, AU8522_TVDEC_COMB_HDIF_THR3_REG06BH,
 			AU8522_TVDEC_COMB_HDIF_THR3_REG06BH_CVBS);
-	if (input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH13 ||
-	    input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH24) {
+	if (is_svideo) {
 		au8522_writereg(state, AU8522_TVDEC_COMB_DCDIF_THR1_REG06CH,
 				AU8522_TVDEC_COMB_DCDIF_THR1_REG06CH_SVIDEO);
 		au8522_writereg(state, AU8522_TVDEC_COMB_DCDIF_THR2_REG06DH,
@@ -317,8 +313,7 @@ static void setup_decoder_defaults(struct au8522_state *state, u8 input_mode)
 
 	setup_vbi(state, 0);
 
-	if (input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH13 ||
-	    input_mode == AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH24) {
+	if (is_svideo) {
 		/* Despite what the table says, for the HVR-950q we still need
 		   to be in CVBS mode for the S-Video input (reason unknown). */
 		/* filter_coef_type = 3; */
@@ -360,7 +355,7 @@ static void au8522_setup_cvbs_mode(struct au8522_state *state, u8 input_mode)
 
 	au8522_writereg(state, AU8522_INPUT_CONTROL_REG081H, input_mode);
 
-	setup_decoder_defaults(state, input_mode);
+	setup_decoder_defaults(state, false);
 
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
@@ -386,7 +381,7 @@ static void au8522_setup_cvbs_tuner_mode(struct au8522_state *state,
 	/* Set input mode to CVBS on channel 4 with SIF audio input enabled */
 	au8522_writereg(state, AU8522_INPUT_CONTROL_REG081H, input_mode);
 
-	setup_decoder_defaults(state, input_mode);
+	setup_decoder_defaults(state, false);
 
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
@@ -407,7 +402,7 @@ static void au8522_setup_svideo_mode(struct au8522_state *state,
 	/* Enable clamping control */
 	au8522_writereg(state, AU8522_CLAMPING_CONTROL_REG083H, 0x00);
 
-	setup_decoder_defaults(state, input_mode);
+	setup_decoder_defaults(state, true);
 
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
