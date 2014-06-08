@@ -3071,21 +3071,8 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ab8500_regulator_remove(struct platform_device *pdev)
-{
-	int err;
-
-	/* remove regulator debug */
-	err = ab8500_regulator_debug_exit(pdev);
-	if (err)
-		return err;
-
-	return 0;
-}
-
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
-	.remove = ab8500_regulator_remove,
 	.driver         = {
 		.name   = "ab8500-regulator",
 		.owner  = THIS_MODULE,
