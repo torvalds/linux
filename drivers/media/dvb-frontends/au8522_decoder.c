@@ -429,8 +429,9 @@ static void disable_audio_input(struct au8522_state *state)
 }
 
 /* 0=disable, 1=SIF */
-static void set_audio_input(struct au8522_state *state, int aud_input)
+static void set_audio_input(struct au8522_state *state)
 {
+	int aud_input = state->aud_input;
 	int i;
 
 	/* Note that this function needs to be used in conjunction with setting
@@ -580,8 +581,6 @@ static int au8522_s_stream(struct v4l2_subdev *sd, int enable)
 	struct au8522_state *state = to_state(sd);
 
 	if (enable) {
-		state->operational_mode = AU8522_ANALOG_MODE;
-
 		/*
 		 * Clear out any state associated with the digital side of the
 		 * chip, so that when it gets powered back up it won't think
@@ -596,6 +595,10 @@ static int au8522_s_stream(struct v4l2_subdev *sd, int enable)
 				AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
 
 		au8522_video_set(state);
+
+		set_audio_input(state);
+
+		state->operational_mode = AU8522_ANALOG_MODE;
 	} else {
 		/* This does not completely power down the device
 		   (it only reduces it from around 140ma to 80ma) */
@@ -632,7 +635,12 @@ static int au8522_s_audio_routing(struct v4l2_subdev *sd,
 					u32 input, u32 output, u32 config)
 {
 	struct au8522_state *state = to_state(sd);
-	set_audio_input(state, input);
+
+	state->aud_input = input;
+
+	if (state->operational_mode == AU8522_ANALOG_MODE)
+		set_audio_input(state);
+
 	return 0;
 }
 
