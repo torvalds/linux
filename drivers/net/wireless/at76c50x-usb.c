@@ -1429,6 +1429,8 @@ static int at76_startup_device(struct at76_priv *priv)
 	/* remove BSSID from previous run */
 	memset(priv->bssid, 0, ETH_ALEN);
 
+	priv->scanning = false;
+
 	if (at76_set_radio(priv, 1) == 1)
 		at76_wait_completion(priv, CMD_RADIO_ON);
 
@@ -1502,6 +1504,52 @@ static void at76_work_submit_rx(struct work_struct *work)
 	mutex_unlock(&priv->mtx);
 }
 
+/* This is a workaround to make scan working:
+ * currently mac80211 does not process frames with no frequency
+ * information.
+ * However during scan the HW performs a sweep by itself, and we
+ * are unable to know where the radio is actually tuned.
+ * This function tries to do its best to guess this information..
+ * During scan, If the current frame is a beacon or a probe response,
+ * the channel information is extracted from it.
+ * When not scanning, for other frames, or if it happens that for
+ * whatever reason we fail to parse beacons and probe responses, this
+ * function returns the priv->channel information, that should be correct
+ * at least when we are not scanning.
+ */
+static inline int at76_guess_freq(struct at76_priv *priv)
+{
+	size_t el_off;
+	const u8 *el;
+	int channel = priv->channel;
+	int len = priv->rx_skb->len;
+	struct ieee80211_hdr *hdr = (void *)priv->rx_skb->data;
+
+	if (!priv->scanning)
+		goto exit;
+
+	if (len < 24)
+		goto exit;
+
+	if (ieee80211_is_probe_resp(hdr->frame_control)) {
+		el_off = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+		el = ((struct ieee80211_mgmt *)hdr)->u.probe_resp.variable;
+	} else if (ieee80211_is_beacon(hdr->frame_control)) {
+		el_off = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		el = ((struct ieee80211_mgmt *)hdr)->u.beacon.variable;
+	} else {
+		goto exit;
+	}
+	len -= el_off;
+
+	el = cfg80211_find_ie(WLAN_EID_DS_PARAMS, el, len);
+	if (el && el[1] > 0)
+		channel = el[2];
+
+exit:
+	return ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
+}
+
 static void at76_rx_tasklet(unsigned long param)
 {
 	struct urb *urb = (struct urb *)param;
@@ -1542,6 +1590,8 @@ static void at76_rx_tasklet(unsigned long param)
 	rx_status.signal = buf->rssi;
 	rx_status.flag |= RX_FLAG_DECRYPTED;
 	rx_status.flag |= RX_FLAG_IV_STRIPPED;
+	rx_status.band = IEEE80211_BAND_2GHZ;
+	rx_status.freq = at76_guess_freq(priv);
 
 	at76_dbg(DBG_MAC80211, "calling ieee80211_rx_irqsafe(): %d/%d",
 		 priv->rx_skb->len, priv->rx_skb->data_len);
@@ -1894,6 +1944,8 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 	if (is_valid_ether_addr(priv->bssid))
 		at76_join(priv);
 
+	priv->scanning = false;
+
 	mutex_unlock(&priv->mtx);
 
 	ieee80211_scan_completed(priv->hw, false);
@@ -1948,6 +2000,7 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
+	priv->scanning = true;
 	ieee80211_queue_delayed_work(priv->hw, &priv->dwork_hw_scan,
 				     SCAN_POLL_INTERVAL);
 

@@ -418,6 +418,7 @@ struct at76_priv {
 	int scan_max_time;	/* scan max channel time */
 	int scan_mode;		/* SCAN_TYPE_ACTIVE, SCAN_TYPE_PASSIVE */
 	int scan_need_any;	/* if set, need to scan for any ESSID */
+	bool scanning;		/* if set, the scan is running */
 
 	u16 assoc_id;		/* current association ID, if associated */
 

@@ -4546,10 +4546,16 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
-		if (key->type == MGMT_LTK_UNAUTHENTICATED)
+		switch (key->type) {
+		case MGMT_LTK_UNAUTHENTICATED:
 			authenticated = 0x00;
-		else
+			break;
+		case MGMT_LTK_AUTHENTICATED:
 			authenticated = 0x01;
+			break;
+		default:
+			continue;
+		}
 
 		hci_add_ltk(hdev, &key->addr.bdaddr, addr_type, type,
 			    authenticated, key->val, key->enc_size, key->ediv,
