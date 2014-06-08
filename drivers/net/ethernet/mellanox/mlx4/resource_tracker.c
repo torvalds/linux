@@ -279,7 +279,7 @@ enum qp_transition {
 };
 
 /* For Debug uses */
-static const char *ResourceType(enum mlx4_resource rt)
+static const char *resource_str(enum mlx4_resource rt)
 {
 	switch (rt) {
 	case RES_QP: return "RES_QP";
@@ -307,6 +307,7 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
 	int err = -EINVAL;
 	int allocated, free, reserved, guaranteed, from_free;
+	int from_rsvd;
 
 	if (slave > dev->num_vfs)
 		return -EINVAL;
@@ -321,11 +322,16 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		res_alloc->res_reserved;
 	guaranteed = res_alloc->guaranteed[slave];
 
-	if (allocated + count > res_alloc->quota[slave])
+	if (allocated + count > res_alloc->quota[slave]) {
+		mlx4_warn(dev, "VF %d port %d res %s: quota exceeded, count %d alloc %d quota %d\n",
+			  slave, port, resource_str(res_type), count,
+			  allocated, res_alloc->quota[slave]);
 		goto out;
+	}
 
 	if (allocated + count <= guaranteed) {
 		err = 0;
+		from_rsvd = count;
 	} else {
 		/* portion may need to be obtained from free area */
 		if (guaranteed - allocated > 0)
@@ -333,8 +339,14 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		else
 			from_free = count;
 
-		if (free - from_free > reserved)
+		from_rsvd = count - from_free;
+
+		if (free - from_free >= reserved)
 			err = 0;
+		else
+			mlx4_warn(dev, "VF %d port %d res %s: free pool empty, free %d from_free %d rsvd %d\n",
+				  slave, port, resource_str(res_type), free,
+				  from_free, reserved);
 	}
 
 	if (!err) {
@@ -342,9 +354,11 @@ static inline int mlx4_grant_resource(struct mlx4_dev *dev, int slave,
 		if (port > 0) {
 			res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] += count;
 			res_alloc->res_port_free[port - 1] -= count;
+			res_alloc->res_port_rsvd[port - 1] -= from_rsvd;
 		} else {
 			res_alloc->allocated[slave] += count;
 			res_alloc->res_free -= count;
+			res_alloc->res_reserved -= from_rsvd;
 		}
 	}
 
@@ -360,17 +374,36 @@ static inline void mlx4_release_resource(struct mlx4_dev *dev, int slave,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct resource_allocator *res_alloc =
 		&priv->mfunc.master.res_tracker.res_alloc[res_type];
+	int allocated, guaranteed, from_rsvd;
 
 	if (slave > dev->num_vfs)
 		return;
 
 	spin_lock(&res_alloc->alloc_lock);
+
+	allocated = (port > 0) ?
+		res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] :
+		res_alloc->allocated[slave];
+	guaranteed = res_alloc->guaranteed[slave];
+
+	if (allocated - count >= guaranteed) {
+		from_rsvd = 0;
+	} else {
+		/* portion may need to be returned to reserved area */
+		if (allocated - guaranteed > 0)
+			from_rsvd = count - (allocated - guaranteed);
+		else
+			from_rsvd = count;
+	}
+
 	if (port > 0) {
 		res_alloc->allocated[(port - 1) * (dev->num_vfs + 1) + slave] -= count;
 		res_alloc->res_port_free[port - 1] += count;
+		res_alloc->res_port_rsvd[port - 1] += from_rsvd;
 	} else {
 		res_alloc->allocated[slave] -= count;
 		res_alloc->res_free += count;
+		res_alloc->res_reserved += from_rsvd;
 	}
 
 	spin_unlock(&res_alloc->alloc_lock);
@@ -4135,7 +4168,7 @@ static int _move_all_busy(struct mlx4_dev *dev, int slave,
 					if (print)
 						mlx4_dbg(dev,
 							 "%s id 0x%llx is busy\n",
-							  ResourceType(type),
+							  resource_str(type),
 							  r->res_id);
 					++busy;
 				} else {
