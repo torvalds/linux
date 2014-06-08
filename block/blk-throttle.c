@@ -744,7 +744,7 @@ static inline void throtl_extend_slice(struct throtl_grp *tg, bool rw,
 static bool throtl_slice_used(struct throtl_grp *tg, bool rw)
 {
 	if (time_in_range(jiffies, tg->slice_start[rw], tg->slice_end[rw]))
-		return 0;
+		return false;
 
 	return 1;
 }
@@ -842,7 +842,7 @@ static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
 	if (tg->io_disp[rw] + 1 <= io_allowed) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/* Calc approx time to dispatch */
@@ -880,7 +880,7 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	if (tg->bytes_disp[rw] + bio->bi_iter.bi_size <= bytes_allowed) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/* Calc approx time to dispatch */
@@ -923,7 +923,7 @@ static bool tg_may_dispatch(struct throtl_grp *tg, struct bio *bio,
 	if (tg->bps[rw] == -1 && tg->iops[rw] == -1) {
 		if (wait)
 			*wait = 0;
-		return 1;
+		return true;
 	}
 
 	/*
@@ -1258,7 +1258,7 @@ out_unlock:
  * of throtl_data->service_queue.  Those bio's are ready and issued by this
  * function.
  */
-void blk_throtl_dispatch_work_fn(struct work_struct *work)
+static void blk_throtl_dispatch_work_fn(struct work_struct *work)
 {
 	struct throtl_data *td = container_of(work, struct throtl_data,
 					      dispatch_work);

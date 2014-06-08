@@ -123,19 +123,8 @@ void omap1_pm_idle(void)
 #warning Enable 32kHz OS timer in order to allow sleep states in idle
 	use_idlect1 = use_idlect1 & ~(1 << 9);
 #else
-
-	while (enable_dyn_sleep) {
-
-#ifdef CONFIG_CBUS_TAHVO_USB
-		extern int vbus_active;
-		/* Clock requirements? */
-		if (vbus_active)
-			break;
-#endif
+	if (enable_dyn_sleep)
 		do_sleep = 1;
-		break;
-	}
-
 #endif
 
 #ifdef CONFIG_OMAP_DM_TIMER

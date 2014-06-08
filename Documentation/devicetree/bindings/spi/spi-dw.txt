@@ -1,0 +1,24 @@
+Synopsys DesignWare SPI master
+
+Required properties:
+- compatible: should be "snps,designware-spi"
+- #address-cells: see spi-bus.txt
+- #size-cells: see spi-bus.txt
+- reg: address and length of the spi master registers
+- interrupts: should contain one interrupt
+- clocks: spi clock phandle
+- num-cs: see spi-bus.txt
+
+Optional properties:
+- cs-gpios: see spi-bus.txt
+
+Example:
+
+spi: spi@4020a000 {
+	compatible = "snps,designware-spi";
+	interrupts = <11 1>;
+	reg = <0x4020a000 0x1000>;
+	clocks = <&pclk>;
+	num-cs = <2>;
+	cs-gpios = <&banka 0 0>;
+};

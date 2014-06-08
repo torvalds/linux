@@ -30,7 +30,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 
 #include "common.h"
 #include "media-dev.h"
@@ -125,7 +125,7 @@ static int isp_video_capture_start_streaming(struct vb2_queue *q,
 	return ret;
 }
 
-static int isp_video_capture_stop_streaming(struct vb2_queue *q)
+static void isp_video_capture_stop_streaming(struct vb2_queue *q)
 {
 	struct fimc_isp *isp = vb2_get_drv_priv(q);
 	struct fimc_is *is = fimc_isp_to_is(isp);
@@ -134,7 +134,7 @@ static int isp_video_capture_stop_streaming(struct vb2_queue *q)
 
 	ret = fimc_pipeline_call(&isp->video_capture.ve, set_stream, 0);
 	if (ret < 0)
-		return ret;
+		return;
 
 	dma->cmd = DMA_OUTPUT_COMMAND_DISABLE;
 	dma->notify_dma_done = DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE;
@@ -155,7 +155,6 @@ static int isp_video_capture_stop_streaming(struct vb2_queue *q)
 	clear_bit(ST_ISP_VID_CAP_STREAMING, &isp->state);
 
 	isp->video_capture.buf_count = 0;
-	return 0;
 }
 
 static int isp_video_capture_buffer_prepare(struct vb2_buffer *vb)

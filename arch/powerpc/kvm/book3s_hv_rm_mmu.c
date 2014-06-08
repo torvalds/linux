@@ -42,13 +42,14 @@ static int global_invalidates(struct kvm *kvm, unsigned long flags)
 
 	/*
 	 * If there is only one vcore, and it's currently running,
+	 * as indicated by local_paca->kvm_hstate.kvm_vcpu being set,
 	 * we can use tlbiel as long as we mark all other physical
 	 * cores as potentially having stale TLB entries for this lpid.
 	 * If we're not using MMU notifiers, we never take pages away
 	 * from the guest, so we can use tlbiel if requested.
 	 * Otherwise, don't use tlbiel.
 	 */
-	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcore)
+	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcpu)
 		global = 0;
 	else if (kvm->arch.using_mmu_notifiers)
 		global = 1;

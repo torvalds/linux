@@ -139,52 +139,23 @@
 #define TRACE_SYSCALLS()
 #endif
 
-#ifdef CONFIG_CLKSRC_OF
-#define CLKSRC_OF_TABLES() . = ALIGN(8);				\
-			   VMLINUX_SYMBOL(__clksrc_of_table) = .;	\
-			   *(__clksrc_of_table)				\
-			   *(__clksrc_of_table_end)
-#else
-#define CLKSRC_OF_TABLES()
-#endif
 
-#ifdef CONFIG_IRQCHIP
-#define IRQCHIP_OF_MATCH_TABLE()					\
+#define ___OF_TABLE(cfg, name)	_OF_TABLE_##cfg(name)
+#define __OF_TABLE(cfg, name)	___OF_TABLE(cfg, name)
+#define OF_TABLE(cfg, name)	__OF_TABLE(config_enabled(cfg), name)
+#define _OF_TABLE_0(name)
+#define _OF_TABLE_1(name)						\
 	. = ALIGN(8);							\
-	VMLINUX_SYMBOL(__irqchip_begin) = .;				\
-	*(__irqchip_of_table)		  				\
-	*(__irqchip_of_end)
-#else
-#define IRQCHIP_OF_MATCH_TABLE()
-#endif
+	VMLINUX_SYMBOL(__##name##_of_table) = .;			\
+	*(__##name##_of_table)						\
+	*(__##name##_of_table_end)
 
-#ifdef CONFIG_COMMON_CLK
-#define CLK_OF_TABLES() . = ALIGN(8);				\
-			VMLINUX_SYMBOL(__clk_of_table) = .;	\
-			*(__clk_of_table)			\
-			*(__clk_of_table_end)
-#else
-#define CLK_OF_TABLES()
-#endif
-
-#ifdef CONFIG_OF_RESERVED_MEM
-#define RESERVEDMEM_OF_TABLES()				\
-	. = ALIGN(8);					\
-	VMLINUX_SYMBOL(__reservedmem_of_table) = .;	\
-	*(__reservedmem_of_table)			\
-	*(__reservedmem_of_table_end)
-#else
-#define RESERVEDMEM_OF_TABLES()
-#endif
-
-#ifdef CONFIG_SMP
-#define CPU_METHOD_OF_TABLES() . = ALIGN(8);				    \
-			   VMLINUX_SYMBOL(__cpu_method_of_table_begin) = .; \
-			   *(__cpu_method_of_table)			    \
-			   VMLINUX_SYMBOL(__cpu_method_of_table_end) = .;
-#else
-#define CPU_METHOD_OF_TABLES()
-#endif
+#define CLKSRC_OF_TABLES()	OF_TABLE(CONFIG_CLKSRC_OF, clksrc)
+#define IRQCHIP_OF_MATCH_TABLE() OF_TABLE(CONFIG_IRQCHIP, irqchip)
+#define CLK_OF_TABLES()		OF_TABLE(CONFIG_COMMON_CLK, clk)
+#define RESERVEDMEM_OF_TABLES()	OF_TABLE(CONFIG_OF_RESERVED_MEM, reservedmem)
+#define CPU_METHOD_OF_TABLES()	OF_TABLE(CONFIG_SMP, cpu_method)
+#define EARLYCON_OF_TABLES()	OF_TABLE(CONFIG_SERIAL_EARLYCON, earlycon)
 
 #define KERNEL_DTB()							\
 	STRUCT_ALIGN();							\
@@ -513,7 +484,8 @@
 	CLKSRC_OF_TABLES()						\
 	CPU_METHOD_OF_TABLES()						\
 	KERNEL_DTB()							\
-	IRQCHIP_OF_MATCH_TABLE()
+	IRQCHIP_OF_MATCH_TABLE()					\
+	EARLYCON_OF_TABLES()
 
 #define INIT_TEXT							\
 	*(.init.text)							\

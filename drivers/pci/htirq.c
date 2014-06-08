@@ -87,12 +87,9 @@ void unmask_ht_irq(struct irq_data *data)
 int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 {
 	struct ht_irq_cfg *cfg;
+	int max_irq, pos, irq;
 	unsigned long flags;
 	u32 data;
-	int max_irq;
-	int pos;
-	int irq;
-	int node;
 
 	pos = pci_find_ht_capability(dev, HT_CAPTYPE_IRQ);
 	if (!pos)
@@ -120,10 +117,8 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	cfg->msg.address_lo = 0xffffffff;
 	cfg->msg.address_hi = 0xffffffff;
 
-	node = dev_to_node(&dev->dev);
-	irq = create_irq_nr(0, node);
-
-	if (irq <= 0) {
+	irq = irq_alloc_hwirq(dev_to_node(&dev->dev));
+	if (!irq) {
 		kfree(cfg);
 		return -EBUSY;
 	}
@@ -166,7 +161,7 @@ void ht_destroy_irq(unsigned int irq)
 	cfg = irq_get_handler_data(irq);
 	irq_set_chip(irq, NULL);
 	irq_set_handler_data(irq, NULL);
-	destroy_irq(irq);
+	irq_free_hwirq(irq);
 
 	kfree(cfg);
 }

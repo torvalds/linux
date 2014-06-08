@@ -2060,7 +2060,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 		}
 		do {
 			unlock_page(pages[--do_pages]);
-			mark_page_accessed(pages[do_pages]);
 			page_cache_release(pages[do_pages]);
 		} while (do_pages);
 		if (unlikely(status))

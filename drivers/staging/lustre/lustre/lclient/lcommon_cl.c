@@ -63,7 +63,7 @@
 
 #include "../llite/llite_internal.h"
 
-const struct cl_req_operations ccc_req_ops;
+static const struct cl_req_operations ccc_req_ops;
 
 /*
  * ccc_ prefix stands for "Common Client Code".
@@ -112,12 +112,11 @@ static struct lu_kmem_descr ccc_caches[] = {
  *
  */
 
-void *ccc_key_init(const struct lu_context *ctx,
-			  struct lu_context_key *key)
+void *ccc_key_init(const struct lu_context *ctx, struct lu_context_key *key)
 {
 	struct ccc_thread_info *info;
 
-	OBD_SLAB_ALLOC_PTR_GFP(info, ccc_thread_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(info, ccc_thread_kmem, GFP_NOFS);
 	if (info == NULL)
 		info = ERR_PTR(-ENOMEM);
 	return info;
@@ -135,7 +134,7 @@ void *ccc_session_key_init(const struct lu_context *ctx,
 {
 	struct ccc_session *session;
 
-	OBD_SLAB_ALLOC_PTR_GFP(session, ccc_session_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(session, ccc_session_kmem, GFP_NOFS);
 	if (session == NULL)
 		session = ERR_PTR(-ENOMEM);
 	return session;
@@ -251,7 +250,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
 	struct ccc_req *vrq;
 	int result;
 
-	OBD_SLAB_ALLOC_PTR_GFP(vrq, ccc_req_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(vrq, ccc_req_kmem, GFP_NOFS);
 	if (vrq != NULL) {
 		cl_req_slice_add(req, &vrq->crq_cl, dev, &ccc_req_ops);
 		result = 0;
@@ -327,7 +326,7 @@ struct lu_object *ccc_object_alloc(const struct lu_env *env,
 	struct ccc_object *vob;
 	struct lu_object  *obj;
 
-	OBD_SLAB_ALLOC_PTR_GFP(vob, ccc_object_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(vob, ccc_object_kmem, GFP_NOFS);
 	if (vob != NULL) {
 		struct cl_object_header *hdr;
 
@@ -396,7 +395,7 @@ int ccc_lock_init(const struct lu_env *env,
 
 	CLOBINVRNT(env, obj, ccc_object_invariant(obj));
 
-	OBD_SLAB_ALLOC_PTR_GFP(clk, ccc_lock_kmem, __GFP_IO);
+	OBD_SLAB_ALLOC_PTR_GFP(clk, ccc_lock_kmem, GFP_NOFS);
 	if (clk != NULL) {
 		cl_lock_slice_add(lock, &clk->clk_cl, obj, lkops);
 		result = 0;
@@ -963,7 +962,7 @@ void ccc_req_attr_set(const struct lu_env *env,
 	       JOBSTATS_JOBID_SIZE);
 }
 
-const struct cl_req_operations ccc_req_ops = {
+static const struct cl_req_operations ccc_req_ops = {
 	.cro_attr_set   = ccc_req_attr_set,
 	.cro_completion = ccc_req_completion
 };

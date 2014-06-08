@@ -170,12 +170,12 @@ static irqreturn_t gpmc_handle_irq(int irq, void *dev);
 
 static void gpmc_write_reg(int idx, u32 val)
 {
-	__raw_writel(val, gpmc_base + idx);
+	writel_relaxed(val, gpmc_base + idx);
 }
 
 static u32 gpmc_read_reg(int idx)
 {
-	return __raw_readl(gpmc_base + idx);
+	return readl_relaxed(gpmc_base + idx);
 }
 
 void gpmc_cs_write_reg(int cs, int idx, u32 val)
@@ -183,7 +183,7 @@ void gpmc_cs_write_reg(int cs, int idx, u32 val)
 	void __iomem *reg_addr;
 
 	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
-	__raw_writel(val, reg_addr);
+	writel_relaxed(val, reg_addr);
 }
 
 static u32 gpmc_cs_read_reg(int cs, int idx)
@@ -191,7 +191,7 @@ static u32 gpmc_cs_read_reg(int cs, int idx)
 	void __iomem *reg_addr;
 
 	reg_addr = gpmc_base + GPMC_CS0_OFFSET + (cs * GPMC_CS_SIZE) + idx;
-	return __raw_readl(reg_addr);
+	return readl_relaxed(reg_addr);
 }
 
 /* TODO: Add support for gpmc_fck to clock framework and use it */

@@ -39,7 +39,7 @@
  *         is only needed for handling filters shared across tasks.
  * @prev: points to a previously installed, or inherited, filter
  * @len: the number of instructions in the program
- * @insns: the BPF program instructions to evaluate
+ * @insnsi: the BPF program instructions to evaluate
  *
  * seccomp_filter objects are organized in a tree linked via the @prev
  * pointer.  For any task, it appears to be a singly-linked list starting
@@ -220,7 +220,7 @@ static long seccomp_attach_filter(struct sock_fprog *fprog)
 		return -ENOMEM;
 
 	/*
-	 * Installing a seccomp filter requires that the task have
+	 * Installing a seccomp filter requires that the task has
 	 * CAP_SYS_ADMIN in its namespace or be running with no_new_privs.
 	 * This avoids scenarios where unprivileged tasks can affect the
 	 * behavior of privileged children.

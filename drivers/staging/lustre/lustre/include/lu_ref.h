@@ -69,12 +69,12 @@
  *
  *	// current thread acquired a temporary reference to foo.
  *	foo_get(foo);
- *	lu_ref_add(&foo->reference, __FUNCTION__, current);
+ *	lu_ref_add(&foo->reference, __func__, current);
  *
  *	...
  *
  *	// temporary reference is released.
- *	lu_ref_del(&foo->reference, __FUNCTION__, current);
+ *	lu_ref_del(&foo->reference, __func__, current);
  *	foo_put(foo);
  * \endcode
  *

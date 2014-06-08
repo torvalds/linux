@@ -202,6 +202,7 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcl711_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int data;
 
 	if (!dev->attached) {
@@ -213,12 +214,11 @@ static irqreturn_t pcl711_interrupt(int irq, void *d)
 
 	outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
 
-	if (comedi_buf_put(s->async, data) == 0) {
+	if (comedi_buf_put(s, data) == 0) {
 		s->async->events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 	} else {
 		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-		if (s->async->cmd.stop_src == TRIG_COUNT &&
-		    !(--devpriv->ntrig)) {
+		if (cmd->stop_src == TRIG_COUNT && !(--devpriv->ntrig)) {
 			pcl711_ai_set_mode(dev, PCL711_MODE_SOFTTRIG);
 			s->async->events |= COMEDI_CB_EOA;
 		}
@@ -295,8 +295,8 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	struct pcl711_private *devpriv = dev->private;
-	int tmp;
 	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -344,20 +344,30 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	/* step 4 */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
+		arg = cmd->scan_begin_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_2MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (err)
 		return 4;
 
 	return 0;
+}
+
+static void pcl711_ai_load_counters(struct comedi_device *dev)
+{
+	struct pcl711_private *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + PCL711_TIMER_BASE;
+
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -378,13 +388,8 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   1, devpriv->divisor1, I8254_MODE2 | I8254_BINARY);
-		i8254_load(dev->iobase + PCL711_TIMER_BASE, 0,
-			   2, devpriv->divisor2, I8254_MODE2 | I8254_BINARY);
-
+		pcl711_ai_load_counters(dev);
 		outb(PCL711_INT_STAT_CLR, dev->iobase + PCL711_INT_STAT_REG);
-
 		pcl711_ai_set_mode(dev, PCL711_MODE_PACER_IRQ);
 	} else {
 		pcl711_ai_set_mode(dev, PCL711_MODE_EXT_IRQ);

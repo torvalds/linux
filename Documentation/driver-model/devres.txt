@@ -236,6 +236,9 @@ certainly invest a bit more effort into libata core layer).
 MEM
   devm_kzalloc()
   devm_kfree()
+  devm_kmemdup()
+  devm_get_free_pages()
+  devm_free_pages()
 
 IIO
   devm_iio_device_alloc()
@@ -308,3 +311,10 @@ SLAVE DMA ENGINE
 
 SPI
   devm_spi_register_master()
+
+GPIO
+  devm_gpiod_get()
+  devm_gpiod_get_index()
+  devm_gpiod_get_optional()
+  devm_gpiod_get_index_optional()
+  devm_gpiod_put()

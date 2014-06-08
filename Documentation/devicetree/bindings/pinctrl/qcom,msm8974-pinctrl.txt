@@ -50,7 +50,27 @@ Valid values for pins are:
     Supports bias and drive-strength
 
 Valid values for function are:
-  blsp_i2c2, blsp_i2c6, blsp_i2c11, blsp_spi1, blsp_uart2, blsp_uart8, slimbus
+  cci_i2c0, cci_i2c1, uim1, uim2, uim_batt_alarm,
+  blsp_uim1, blsp_uart1, blsp_i2c1, blsp_spi1,
+  blsp_uim2, blsp_uart2, blsp_i2c2, blsp_spi2,
+  blsp_uim3, blsp_uart3, blsp_i2c3, blsp_spi3,
+  blsp_uim4, blsp_uart4, blsp_i2c4, blsp_spi4,
+  blsp_uim5, blsp_uart5, blsp_i2c5, blsp_spi5,
+  blsp_uim6, blsp_uart6, blsp_i2c6, blsp_spi6,
+  blsp_uim7, blsp_uart7, blsp_i2c7, blsp_spi7,
+  blsp_uim8, blsp_uart8, blsp_i2c8, blsp_spi8,
+  blsp_uim9, blsp_uart9, blsp_i2c9, blsp_spi9,
+  blsp_uim10, blsp_uart10, blsp_i2c10, blsp_spi10,
+  blsp_uim11, blsp_uart11, blsp_i2c11, blsp_spi11,
+  blsp_uim12, blsp_uart12, blsp_i2c12, blsp_spi12,
+  blsp_spi1_cs1, blsp_spi2_cs2, blsp_spi_cs3, blsp_spi2_cs1, blsp_spi2_cs2
+  blsp_spi2_cs3, blsp_spi10_cs1, blsp_spi10_cs2, blsp_spi10_cs3,
+  sdc3, sdc4, gcc_gp_clk1, gcc_gp_clk2, gcc_gp_clk3, cci_timer0, cci_timer1,
+  cci_timer2, cci_timer3, cci_async_in0, cci_async_in1, cci_async_in2,
+  cam_mckl0, cam_mclk1, cam_mclk2, cam_mclk3, mdp_vsync, hdmi_cec, hdmi_ddc,
+  hdmi_hpd, edp_hpd, gp_pdm0, gp_pdm1, gp_pdm2, gp_pdm3, gp0_clk, gp1_clk,
+  gp_mn, tsif1, tsif2, hsic, grfc, audio_ref_clk, qua_mi2s, pri_mi2s, spkr_mi2s,
+  ter_mi2s, sec_mi2s, bt, fm, wlan, slimbus
 
   (Note that this is not yet the complete list of functions)
 

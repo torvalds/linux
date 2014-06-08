@@ -21,6 +21,10 @@ Optional properties:
   number should be provided. If it is externally controlled and no GPIO
   entry then driver will just configure this rails as external control
   and will not provide any enable/disable APIs.
+- ti,overcurrent-wait: This is applicable to FET registers, which have a
+  poorly defined "overcurrent wait" field.  If this property is present it
+  should be between 0 - 3.  If this property isn't present we won't touch the
+  "overcurrent wait" field and we'll leave it to the BIOS/EC to deal with.
 
 Each regulator is defined using the standard binding for regulators.
 

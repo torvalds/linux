@@ -296,7 +296,7 @@ specifies the path to the controller. In order to use these GPIOs in Linux
 we need to translate them to the corresponding Linux GPIO descriptors.
 
 There is a standard GPIO API for that and is documented in
-Documentation/gpio.txt.
+Documentation/gpio/.
 
 In the above example we can get the corresponding two GPIO descriptors with
 a code like this:

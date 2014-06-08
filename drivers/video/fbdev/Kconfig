@@ -360,6 +360,7 @@ config FB_CYBER2000_DDC
 config FB_CYBER2000_I2C
 	bool "CyberPro 2000/2010/5000 I2C support"
 	depends on FB_CYBER2000 && I2C && ARCH_NETWINDER
+	depends on I2C=y || FB_CYBER2000=m
 	select I2C_ALGOBIT
 	help
 	  Enable support for the I2C video decoder interface on the
@@ -966,6 +967,7 @@ config FB_S1D13XXX
 config FB_ATMEL
 	tristate "AT91/AT32 LCD Controller support"
 	depends on FB && HAVE_FB_ATMEL
+	select FB_BACKLIGHT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1971,6 +1973,7 @@ config FB_W100
 config FB_SH_MOBILE_LCDC
 	tristate "SuperH Mobile LCDC framebuffer support"
 	depends on FB && (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	depends on FB_SH_MOBILE_MERAM || !FB_SH_MOBILE_MERAM
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
@@ -1993,7 +1996,7 @@ config FB_SH_MOBILE_HDMI
 
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
-	depends on FB && MFD_CORE
+	depends on FB && (MFD_TMIO || COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2062,7 +2065,7 @@ config FB_S3C2410_DEBUG
 	  through sysfs
 
 config FB_NUC900
-        bool "NUC900 LCD framebuffer support"
+        tristate "NUC900 LCD framebuffer support"
         depends on FB && ARCH_W90X900
         select FB_CFB_FILLRECT
         select FB_CFB_COPYAREA
@@ -2169,7 +2172,7 @@ config FB_XILINX
 
 config FB_GOLDFISH
 	tristate "Goldfish Framebuffer"
-	depends on FB && HAS_DMA
+	depends on FB && HAS_DMA && (GOLDFISH || COMPILE_TEST)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2295,6 +2298,7 @@ endchoice
 config FB_MB862XX_I2C
 	bool "Support I2C bus on MB862XX GDC"
 	depends on FB_MB862XX && I2C
+	depends on FB_MB862XX=m || I2C=y
 	default y
 	help
 	  Selecting this option adds Coral-P(A)/Lime GDC I2C bus adapter
@@ -2332,6 +2336,7 @@ config FB_MX3
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select BACKLIGHT_CLASS_DEVICE
 	default y
 	help
 	  This is a framebuffer device for the i.MX31 LCD Controller. So

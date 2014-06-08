@@ -454,7 +454,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
  */
 int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 {
-	int rc;
+	int rc = 0;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (sgl->fpage) {
@@ -718,7 +718,7 @@ int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
 	int rc;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
-	rc = pci_enable_msi_block(pci_dev, count);
+	rc = pci_enable_msi_exact(pci_dev, count);
 	if (rc == 0)
 		cd->flags |= GENWQE_FLAG_MSI_ENABLED;
 	return rc;

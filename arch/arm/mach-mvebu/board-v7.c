@@ -27,10 +27,28 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+#include <asm/smp_scu.h>
 #include "armada-370-xp.h"
 #include "common.h"
 #include "coherency.h"
 #include "mvebu-soc-id.h"
+
+/*
+ * Enables the SCU when available. Obviously, this is only useful on
+ * Cortex-A based SOCs, not on PJ4B based ones.
+ */
+static void __init mvebu_scu_enable(void)
+{
+	void __iomem *scu_base;
+
+	struct device_node *np =
+		of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	if (np) {
+		scu_base = of_iomap(np, 0);
+		scu_enable(scu_base);
+		of_node_put(np);
+	}
+}
 
 /*
  * Early versions of Armada 375 SoC have a bug where the BootROM
@@ -57,11 +75,9 @@ static void __init mvebu_timer_and_clk_init(void)
 {
 	of_clk_init(NULL);
 	clocksource_of_init();
+	mvebu_scu_enable();
 	coherency_init();
-	BUG_ON(mvebu_mbus_dt_init());
-#ifdef CONFIG_CACHE_L2X0
-	l2x0_of_init(0, ~0UL);
-#endif
+	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
 
 	if (of_machine_is_compatible("marvell,armada375"))
 		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
@@ -78,7 +94,7 @@ static void __init i2c_quirk(void)
 	 * mechanism. We can exit only if we are sure that we can
 	 * get the SoC revision and it is more recent than A0.
 	 */
-	if (mvebu_get_soc_id(&rev, &dev) == 0 && dev > MV78XX0_A0_REV)
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > MV78XX0_A0_REV)
 		return;
 
 	for_each_compatible_node(np, NULL, "marvell,mv78230-i2c") {
@@ -96,10 +112,66 @@ static void __init i2c_quirk(void)
 	return;
 }
 
+#define A375_Z1_THERMAL_FIXUP_OFFSET 0xc
+
+static void __init thermal_quirk(void)
+{
+	struct device_node *np;
+	u32 dev, rev;
+
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
+		return;
+
+	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
+		struct property *prop;
+		__be32 newval, *newprop, *oldprop;
+		int len;
+
+		/*
+		 * The register offset is at a wrong location. This quirk
+		 * creates a new reg property as a clone of the previous
+		 * one and corrects the offset.
+		 */
+		oldprop = (__be32 *)of_get_property(np, "reg", &len);
+		if (!oldprop)
+			continue;
+
+		/* Create a duplicate of the 'reg' property */
+		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+		prop->length = len;
+		prop->name = kstrdup("reg", GFP_KERNEL);
+		prop->value = kzalloc(len, GFP_KERNEL);
+		memcpy(prop->value, oldprop, len);
+
+		/* Fixup the register offset of the second entry */
+		oldprop += 2;
+		newprop = (__be32 *)prop->value + 2;
+		newval = cpu_to_be32(be32_to_cpu(*oldprop) -
+				     A375_Z1_THERMAL_FIXUP_OFFSET);
+		*newprop = newval;
+		of_update_property(np, prop);
+
+		/*
+		 * The thermal controller needs some quirk too, so let's change
+		 * the compatible string to reflect this.
+		 */
+		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+		prop->name = kstrdup("compatible", GFP_KERNEL);
+		prop->length = sizeof("marvell,armada375-z1-thermal");
+		prop->value = kstrdup("marvell,armada375-z1-thermal",
+						GFP_KERNEL);
+		of_update_property(np, prop);
+	}
+	return;
+}
+
 static void __init mvebu_dt_init(void)
 {
 	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
 		i2c_quirk();
+	if (of_machine_is_compatible("marvell,a375-db"))
+		thermal_quirk();
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
@@ -109,6 +181,8 @@ static const char * const armada_370_xp_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= mvebu_dt_init,
 	.init_time	= mvebu_timer_and_clk_init,
@@ -122,7 +196,10 @@ static const char * const armada_375_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_time	= mvebu_timer_and_clk_init,
+	.init_machine	= mvebu_dt_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
 MACHINE_END
@@ -134,6 +211,8 @@ static const char * const armada_38x_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_time	= mvebu_timer_and_clk_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_38x_dt_compat,

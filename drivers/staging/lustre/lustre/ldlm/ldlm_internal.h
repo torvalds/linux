@@ -247,7 +247,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 	struct __##var##__dummy_read {;} /* semicolon catcher */
 
 #define LDLM_POOL_PROC_WRITER(var, type)				    \
-	int lprocfs_wr_##var(struct file *file, const char *buffer,	    \
+	static int lprocfs_wr_##var(struct file *file, const char *buffer,  \
 			     unsigned long count, void *data)		    \
 	{								    \
 		struct ldlm_pool *pl = data;				    \

@@ -33,7 +33,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
 #include <linux/usb/phy.h>
-#include <linux/usb/usb_phy_gen_xceiv.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>

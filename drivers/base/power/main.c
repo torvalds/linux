@@ -479,7 +479,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state, bool asyn
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (dev->power.syscore)
+	if (dev->power.syscore || dev->power.direct_complete)
 		goto Out;
 
 	if (!dev->power.is_noirq_suspended)
@@ -605,7 +605,7 @@ static int device_resume_early(struct device *dev, pm_message_t state, bool asyn
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (dev->power.syscore)
+	if (dev->power.syscore || dev->power.direct_complete)
 		goto Out;
 
 	if (!dev->power.is_late_suspended)
@@ -734,6 +734,12 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
 	if (dev->power.syscore)
 		goto Complete;
+
+	if (dev->power.direct_complete) {
+		/* Match the pm_runtime_disable() in __device_suspend(). */
+		pm_runtime_enable(dev);
+		goto Complete;
+	}
 
 	dpm_wait(dev->parent, async);
 	dpm_watchdog_set(&wd, dev);
@@ -1007,7 +1013,7 @@ static int __device_suspend_noirq(struct device *dev, pm_message_t state, bool a
 		goto Complete;
 	}
 
-	if (dev->power.syscore)
+	if (dev->power.syscore || dev->power.direct_complete)
 		goto Complete;
 
 	dpm_wait_for_children(dev, async);
@@ -1146,7 +1152,7 @@ static int __device_suspend_late(struct device *dev, pm_message_t state, bool as
 		goto Complete;
 	}
 
-	if (dev->power.syscore)
+	if (dev->power.syscore || dev->power.direct_complete)
 		goto Complete;
 
 	dpm_wait_for_children(dev, async);
@@ -1332,6 +1338,17 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	if (dev->power.syscore)
 		goto Complete;
 
+	if (dev->power.direct_complete) {
+		if (pm_runtime_status_suspended(dev)) {
+			pm_runtime_disable(dev);
+			if (pm_runtime_suspended_if_enabled(dev))
+				goto Complete;
+
+			pm_runtime_enable(dev);
+		}
+		dev->power.direct_complete = false;
+	}
+
 	dpm_watchdog_set(&wd, dev);
 	device_lock(dev);
 
@@ -1382,10 +1399,19 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 
  End:
 	if (!error) {
+		struct device *parent = dev->parent;
+
 		dev->power.is_suspended = true;
-		if (dev->power.wakeup_path
-		    && dev->parent && !dev->parent->power.ignore_children)
-			dev->parent->power.wakeup_path = true;
+		if (parent) {
+			spin_lock_irq(&parent->power.lock);
+
+			dev->parent->power.direct_complete = false;
+			if (dev->power.wakeup_path
+			    && !dev->parent->power.ignore_children)
+				dev->parent->power.wakeup_path = true;
+
+			spin_unlock_irq(&parent->power.lock);
+		}
 	}
 
 	device_unlock(dev);
@@ -1487,7 +1513,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 {
 	int (*callback)(struct device *) = NULL;
 	char *info = NULL;
-	int error = 0;
+	int ret = 0;
 
 	if (dev->power.syscore)
 		return 0;
@@ -1523,17 +1549,27 @@ static int device_prepare(struct device *dev, pm_message_t state)
 		callback = dev->driver->pm->prepare;
 	}
 
-	if (callback) {
-		error = callback(dev);
-		suspend_report_result(callback, error);
-	}
+	if (callback)
+		ret = callback(dev);
 
 	device_unlock(dev);
 
-	if (error)
+	if (ret < 0) {
+		suspend_report_result(callback, ret);
 		pm_runtime_put(dev);
-
-	return error;
+		return ret;
+	}
+	/*
+	 * A positive return value from ->prepare() means "this device appears
+	 * to be runtime-suspended and its state is fine, so if it really is
+	 * runtime-suspended, you can leave it in that state provided that you
+	 * will do the same thing with all of its descendants".  This only
+	 * applies to suspend transitions, however.
+	 */
+	spin_lock_irq(&dev->power.lock);
+	dev->power.direct_complete = ret > 0 && state.event == PM_EVENT_SUSPEND;
+	spin_unlock_irq(&dev->power.lock);
+	return 0;
 }
 
 /**

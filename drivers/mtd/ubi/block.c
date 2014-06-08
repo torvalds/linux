@@ -253,7 +253,7 @@ static int do_ubiblock_request(struct ubiblock *dev, struct request *req)
 	 * flash access anyway.
 	 */
 	mutex_lock(&dev->dev_mutex);
-	ret = ubiblock_read(dev, req->buffer, sec, len);
+	ret = ubiblock_read(dev, bio_data(req->bio), sec, len);
 	mutex_unlock(&dev->dev_mutex);
 
 	return ret;

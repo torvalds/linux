@@ -3,4 +3,14 @@
 / {
 	model = "Qualcomm MSM8660 SURF";
 	compatible = "qcom,msm8660-surf", "qcom,msm8660";
+
+	soc {
+		gsbi@19c00000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			serial@19c40000 {
+				status = "ok";
+			};
+		};
+	};
 };

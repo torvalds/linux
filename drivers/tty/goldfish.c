@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/goldfish.h>
 
 enum {
 	GOLDFISH_TTY_PUT_CHAR       = 0x00,
@@ -29,6 +30,7 @@ enum {
 
 	GOLDFISH_TTY_DATA_PTR       = 0x10,
 	GOLDFISH_TTY_DATA_LEN       = 0x14,
+	GOLDFISH_TTY_DATA_PTR_HIGH  = 0x18,
 
 	GOLDFISH_TTY_CMD_INT_DISABLE    = 0,
 	GOLDFISH_TTY_CMD_INT_ENABLE     = 1,
@@ -57,7 +59,8 @@ static void goldfish_tty_do_write(int line, const char *buf, unsigned count)
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
 	void __iomem *base = qtty->base;
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
+	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_WRITE_BUFFER, base + GOLDFISH_TTY_CMD);
 	spin_unlock_irqrestore(&qtty->lock, irq_flags);
@@ -73,12 +76,13 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 	u32 count;
 
 	count = readl(base + GOLDFISH_TTY_BYTES_READY);
-	if(count == 0)
+	if (count == 0)
 		return IRQ_NONE;
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 	spin_lock_irqsave(&qtty->lock, irq_flags);
-	writel((u32)buf, base + GOLDFISH_TTY_DATA_PTR);
+	gf_write64((u64)buf, base + GOLDFISH_TTY_DATA_PTR,
+				base + GOLDFISH_TTY_DATA_PTR_HIGH);
 	writel(count, base + GOLDFISH_TTY_DATA_LEN);
 	writel(GOLDFISH_TTY_CMD_READ_BUFFER, base + GOLDFISH_TTY_CMD);
 	spin_unlock_irqrestore(&qtty->lock, irq_flags);
@@ -88,24 +92,26 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 static int goldfish_tty_activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct goldfish_tty *qtty = container_of(port, struct goldfish_tty, port);
+	struct goldfish_tty *qtty = container_of(port, struct goldfish_tty,
+									port);
 	writel(GOLDFISH_TTY_CMD_INT_ENABLE, qtty->base + GOLDFISH_TTY_CMD);
 	return 0;
 }
 
 static void goldfish_tty_shutdown(struct tty_port *port)
 {
-	struct goldfish_tty *qtty = container_of(port, struct goldfish_tty, port);
+	struct goldfish_tty *qtty = container_of(port, struct goldfish_tty,
+									port);
 	writel(GOLDFISH_TTY_CMD_INT_DISABLE, qtty->base + GOLDFISH_TTY_CMD);
 }
 
-static int goldfish_tty_open(struct tty_struct * tty, struct file * filp)
+static int goldfish_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[tty->index];
 	return tty_port_open(&qtty->port, tty, filp);
 }
 
-static void goldfish_tty_close(struct tty_struct * tty, struct file * filp)
+static void goldfish_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	tty_port_close(tty->port, tty, filp);
 }
@@ -115,7 +121,8 @@ static void goldfish_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int goldfish_tty_write(struct tty_struct * tty, const unsigned char *buf, int count)
+static int goldfish_tty_write(struct tty_struct *tty, const unsigned char *buf,
+								int count)
 {
 	goldfish_tty_do_write(tty->index, buf, count);
 	return count;
@@ -133,12 +140,14 @@ static int goldfish_tty_chars_in_buffer(struct tty_struct *tty)
 	return readl(base + GOLDFISH_TTY_BYTES_READY);
 }
 
-static void goldfish_tty_console_write(struct console *co, const char *b, unsigned count)
+static void goldfish_tty_console_write(struct console *co, const char *b,
+								unsigned count)
 {
 	goldfish_tty_do_write(co->index, b, count);
 }
 
-static struct tty_driver *goldfish_tty_console_device(struct console *c, int *index)
+static struct tty_driver *goldfish_tty_console_device(struct console *c,
+								int *index)
 {
 	*index = c->index;
 	return goldfish_tty_driver;
@@ -146,9 +155,9 @@ static struct tty_driver *goldfish_tty_console_device(struct console *c, int *in
 
 static int goldfish_tty_console_setup(struct console *co, char *options)
 {
-	if((unsigned)co->index > goldfish_tty_line_count)
+	if ((unsigned)co->index > goldfish_tty_line_count)
 		return -ENODEV;
-	if(goldfish_ttys[co->index].base == 0)
+	if (goldfish_ttys[co->index].base == 0)
 		return -ENODEV;
 	return 0;
 }
@@ -158,7 +167,7 @@ static struct tty_port_operations goldfish_port_ops = {
 	.shutdown = goldfish_tty_shutdown
 };
 
-static struct tty_operations goldfish_tty_ops = {
+static const struct tty_operations goldfish_tty_ops = {
 	.open = goldfish_tty_open,
 	.close = goldfish_tty_close,
 	.hangup = goldfish_tty_hangup,
@@ -172,13 +181,14 @@ static int goldfish_tty_create_driver(void)
 	int ret;
 	struct tty_driver *tty;
 
-	goldfish_ttys = kzalloc(sizeof(*goldfish_ttys) * goldfish_tty_line_count, GFP_KERNEL);
-	if(goldfish_ttys == NULL) {
+	goldfish_ttys = kzalloc(sizeof(*goldfish_ttys) *
+				goldfish_tty_line_count, GFP_KERNEL);
+	if (goldfish_ttys == NULL) {
 		ret = -ENOMEM;
 		goto err_alloc_goldfish_ttys_failed;
 	}
 	tty = alloc_tty_driver(goldfish_tty_line_count);
-	if(tty == NULL) {
+	if (tty == NULL) {
 		ret = -ENOMEM;
 		goto err_alloc_tty_driver_failed;
 	}
@@ -187,10 +197,11 @@ static int goldfish_tty_create_driver(void)
 	tty->type = TTY_DRIVER_TYPE_SERIAL;
 	tty->subtype = SERIAL_TYPE_NORMAL;
 	tty->init_termios = tty_std_termios;
-	tty->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	tty->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
+						TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(tty, &goldfish_tty_ops);
 	ret = tty_register_driver(tty);
-	if(ret)
+	if (ret)
 		goto err_tty_register_driver_failed;
 
 	goldfish_tty_driver = tty;
@@ -225,7 +236,7 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	u32 irq;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if(r == NULL)
+	if (r == NULL)
 		return -EINVAL;
 
 	base = ioremap(r->start, 0x1000);
@@ -233,18 +244,18 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 		pr_err("goldfish_tty: unable to remap base\n");
 
 	r = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if(r == NULL)
+	if (r == NULL)
 		goto err_unmap;
 
 	irq = r->start;
 
-	if(pdev->id >= goldfish_tty_line_count)
+	if (pdev->id >= goldfish_tty_line_count)
 		goto err_unmap;
 
 	mutex_lock(&goldfish_tty_lock);
-	if(goldfish_tty_current_line_count == 0) {
+	if (goldfish_tty_current_line_count == 0) {
 		ret = goldfish_tty_create_driver();
-		if(ret)
+		if (ret)
 			goto err_create_driver_failed;
 	}
 	goldfish_tty_current_line_count++;
@@ -258,14 +269,15 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 
 	writel(GOLDFISH_TTY_CMD_INT_DISABLE, base + GOLDFISH_TTY_CMD);
 
-	ret = request_irq(irq, goldfish_tty_interrupt, IRQF_SHARED, "goldfish_tty", pdev);
-	if(ret)
+	ret = request_irq(irq, goldfish_tty_interrupt, IRQF_SHARED,
+						"goldfish_tty", pdev);
+	if (ret)
 		goto err_request_irq_failed;
 
 
 	ttydev = tty_port_register_device(&qtty->port, goldfish_tty_driver,
 							pdev->id, &pdev->dev);
-	if(IS_ERR(ttydev)) {
+	if (IS_ERR(ttydev)) {
 		ret = PTR_ERR(ttydev);
 		goto err_tty_register_device_failed;
 	}
@@ -286,7 +298,7 @@ err_tty_register_device_failed:
 	free_irq(irq, pdev);
 err_request_irq_failed:
 	goldfish_tty_current_line_count--;
-	if(goldfish_tty_current_line_count == 0)
+	if (goldfish_tty_current_line_count == 0)
 		goldfish_tty_delete_driver();
 err_create_driver_failed:
 	mutex_unlock(&goldfish_tty_lock);
@@ -308,7 +320,7 @@ static int goldfish_tty_remove(struct platform_device *pdev)
 	qtty->base = 0;
 	free_irq(qtty->irq, pdev);
 	goldfish_tty_current_line_count--;
-	if(goldfish_tty_current_line_count == 0)
+	if (goldfish_tty_current_line_count == 0)
 		goldfish_tty_delete_driver();
 	mutex_unlock(&goldfish_tty_lock);
 	return 0;

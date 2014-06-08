@@ -210,7 +210,7 @@ i386 and x86_64 syscalls are wired up at the moment, and Ulrich has
 tested the new glibc code (on x86_64 and i386), and it works for his
 robust-mutex testcases.
 
-All other architectures should build just fine too - but they wont have
+All other architectures should build just fine too - but they won't have
 the new syscalls yet.
 
 Architectures need to implement the new futex_atomic_cmpxchg_inatomic()

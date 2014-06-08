@@ -30,6 +30,13 @@
 		bootargs = "console=ttymxc1,115200";
 	};
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm4 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <7>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -154,6 +161,11 @@
 &gpmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
+	status = "okay";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
 	status = "okay";
 };
 
@@ -434,6 +446,12 @@
 			>;
 		};
 
+		pinctrl_pwm4: pwm4grp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__PWM4_OUT		0x1b0b1
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX6QDL_PAD_SD3_DAT7__UART1_TX_DATA	0x1b0b1
@@ -506,6 +524,12 @@
 	eth1: sky2@8 { /* MAC/PHY on bus 8 */
 		compatible = "marvell,sky2";
 	};
+};
+
+&pwm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm4>;
+	status = "okay";
 };
 
 &ssi1 {

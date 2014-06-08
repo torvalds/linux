@@ -431,7 +431,7 @@ static int gfs2_jdata_writepages(struct address_space *mapping,
 
 	ret = gfs2_write_cache_jdata(mapping, wbc);
 	if (ret == 0 && wbc->sync_mode == WB_SYNC_ALL) {
-		gfs2_log_flush(sdp, ip->i_gl);
+		gfs2_log_flush(sdp, ip->i_gl, NORMAL_FLUSH);
 		ret = gfs2_write_cache_jdata(mapping, wbc);
 	}
 	return ret;
@@ -577,7 +577,6 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 		p = kmap_atomic(page);
 		memcpy(buf + copied, p + offset, amt);
 		kunmap_atomic(p);
-		mark_page_accessed(page);
 		page_cache_release(page);
 		copied += amt;
 		index++;

@@ -507,6 +507,43 @@ CLK_OF_DECLARE(sun7i_a20_gmac, "allwinner,sun7i-a20-gmac-clk",
 
 
 /**
+ * clk_sunxi_mmc_phase_control() - configures MMC clock phase control
+ */
+
+void clk_sunxi_mmc_phase_control(struct clk *clk, u8 sample, u8 output)
+{
+	#define to_clk_composite(_hw) container_of(_hw, struct clk_composite, hw)
+	#define to_clk_factors(_hw) container_of(_hw, struct clk_factors, hw)
+
+	struct clk_hw *hw = __clk_get_hw(clk);
+	struct clk_composite *composite = to_clk_composite(hw);
+	struct clk_hw *rate_hw = composite->rate_hw;
+	struct clk_factors *factors = to_clk_factors(rate_hw);
+	unsigned long flags = 0;
+	u32 reg;
+
+	if (factors->lock)
+		spin_lock_irqsave(factors->lock, flags);
+
+	reg = readl(factors->reg);
+
+	/* set sample clock phase control */
+	reg &= ~(0x7 << 20);
+	reg |= ((sample & 0x7) << 20);
+
+	/* set output clock phase control */
+	reg &= ~(0x7 << 8);
+	reg |= ((output & 0x7) << 8);
+
+	writel(reg, factors->reg);
+
+	if (factors->lock)
+		spin_unlock_irqrestore(factors->lock, flags);
+}
+EXPORT_SYMBOL(clk_sunxi_mmc_phase_control);
+
+
+/**
  * sunxi_factors_clk_setup() - Setup function for factor clocks
  */
 
@@ -1278,8 +1315,7 @@ static void __init of_sunxi_table_clock_setup(const struct of_device_id *clk_mat
 	const struct of_device_id *match;
 	void (*setup_function)(struct device_node *, const void *) = function;
 
-	for_each_matching_node(np, clk_match) {
-		match = of_match_node(clk_match, np);
+	for_each_matching_node_and_match(np, clk_match, &match) {
 		data = match->data;
 		setup_function(np, data);
 	}
@@ -1310,7 +1346,7 @@ static void __init sunxi_clock_protect(void)
 	}
 }
 
-static void __init sunxi_init_clocks(void)
+static void __init sunxi_init_clocks(struct device_node *np)
 {
 	/* Register factor clocks */
 	of_sunxi_table_clock_setup(clk_factors_match, sunxi_factors_clk_setup);

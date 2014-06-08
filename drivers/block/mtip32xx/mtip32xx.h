@@ -40,9 +40,11 @@
 #define MTIP_MAX_RETRIES	2
 
 /* Various timeout values in ms */
-#define MTIP_NCQ_COMMAND_TIMEOUT_MS       5000
-#define MTIP_IOCTL_COMMAND_TIMEOUT_MS     5000
-#define MTIP_INTERNAL_COMMAND_TIMEOUT_MS  5000
+#define MTIP_NCQ_CMD_TIMEOUT_MS      15000
+#define MTIP_IOCTL_CMD_TIMEOUT_MS    5000
+#define MTIP_INT_CMD_TIMEOUT_MS      5000
+#define MTIP_QUIESCE_IO_TIMEOUT_MS   (MTIP_NCQ_CMD_TIMEOUT_MS * \
+				     (MTIP_MAX_RETRIES + 1))
 
 /* check for timeouts every 500ms */
 #define MTIP_TIMEOUT_CHECK_PERIOD	500
@@ -331,12 +333,8 @@ struct mtip_cmd {
 	 */
 	void (*comp_func)(struct mtip_port *port,
 				int tag,
-				void *data,
+				struct mtip_cmd *cmd,
 				int status);
-	/* Additional callback function that may be called by comp_func() */
-	void (*async_callback)(void *data, int status);
-
-	void *async_data; /* Addl. data passed to async_callback() */
 
 	int scatter_ents; /* Number of scatter list entries used */
 
@@ -347,10 +345,6 @@ struct mtip_cmd {
 	int retries; /* The number of retries left for this command. */
 
 	int direction; /* Data transfer direction */
-
-	unsigned long comp_time; /* command completion time, in jiffies */
-
-	atomic_t active; /* declares if this command sent to the drive. */
 };
 
 /* Structure used to describe a port. */
@@ -436,12 +430,6 @@ struct mtip_port {
 	 * or error handling is active
 	 */
 	unsigned long cmds_to_issue[SLOTBITS_IN_LONGS];
-	/*
-	 * Array of command slots. Structure includes pointers to the
-	 * command header and command table, and completion function and data
-	 * pointers.
-	 */
-	struct mtip_cmd commands[MTIP_MAX_COMMAND_SLOTS];
 	/* Used by mtip_service_thread to wait for an event */
 	wait_queue_head_t svc_wait;
 	/*
@@ -452,13 +440,7 @@ struct mtip_port {
 	/*
 	 * Timer used to complete commands that have been active for too long.
 	 */
-	struct timer_list cmd_timer;
 	unsigned long ic_pause_timer;
-	/*
-	 * Semaphore used to block threads if there are no
-	 * command slots available.
-	 */
-	struct semaphore cmd_slot;
 
 	/* Semaphore to control queue depth of unaligned IOs */
 	struct semaphore cmd_slot_unal;
@@ -484,6 +466,8 @@ struct driver_data {
 	struct pci_dev *pdev; /* Pointer to the PCI device structure. */
 
 	struct request_queue *queue; /* Our request queue. */
+
+	struct blk_mq_tag_set tags; /* blk_mq tags */
 
 	struct mtip_port *port; /* Pointer to the port data structure. */
 

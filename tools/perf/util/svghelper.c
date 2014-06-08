@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 
 #include "perf.h"
 #include "svghelper.h"

@@ -43,7 +43,7 @@ struct usb_interface_descriptor fsg_intf_desc = {
 	.bInterfaceProtocol =	USB_PR_BULK,	/* Adjusted during fsg_bind() */
 	.iInterface =		FSG_STRING_INTERFACE,
 };
-EXPORT_SYMBOL(fsg_intf_desc);
+EXPORT_SYMBOL_GPL(fsg_intf_desc);
 
 /*
  * Three full-speed endpoint descriptors: bulk-in, bulk-out, and
@@ -58,7 +58,7 @@ struct usb_endpoint_descriptor fsg_fs_bulk_in_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	/* wMaxPacketSize set by autoconfiguration */
 };
-EXPORT_SYMBOL(fsg_fs_bulk_in_desc);
+EXPORT_SYMBOL_GPL(fsg_fs_bulk_in_desc);
 
 struct usb_endpoint_descriptor fsg_fs_bulk_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -68,7 +68,7 @@ struct usb_endpoint_descriptor fsg_fs_bulk_out_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	/* wMaxPacketSize set by autoconfiguration */
 };
-EXPORT_SYMBOL(fsg_fs_bulk_out_desc);
+EXPORT_SYMBOL_GPL(fsg_fs_bulk_out_desc);
 
 struct usb_descriptor_header *fsg_fs_function[] = {
 	(struct usb_descriptor_header *) &fsg_intf_desc,
@@ -76,7 +76,7 @@ struct usb_descriptor_header *fsg_fs_function[] = {
 	(struct usb_descriptor_header *) &fsg_fs_bulk_out_desc,
 	NULL,
 };
-EXPORT_SYMBOL(fsg_fs_function);
+EXPORT_SYMBOL_GPL(fsg_fs_function);
 
 
 /*
@@ -95,7 +95,7 @@ struct usb_endpoint_descriptor fsg_hs_bulk_in_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
-EXPORT_SYMBOL(fsg_hs_bulk_in_desc);
+EXPORT_SYMBOL_GPL(fsg_hs_bulk_in_desc);
 
 struct usb_endpoint_descriptor fsg_hs_bulk_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -106,7 +106,7 @@ struct usb_endpoint_descriptor fsg_hs_bulk_out_desc = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 	.bInterval =		1,	/* NAK every 1 uframe */
 };
-EXPORT_SYMBOL(fsg_hs_bulk_out_desc);
+EXPORT_SYMBOL_GPL(fsg_hs_bulk_out_desc);
 
 
 struct usb_descriptor_header *fsg_hs_function[] = {
@@ -115,7 +115,7 @@ struct usb_descriptor_header *fsg_hs_function[] = {
 	(struct usb_descriptor_header *) &fsg_hs_bulk_out_desc,
 	NULL,
 };
-EXPORT_SYMBOL(fsg_hs_function);
+EXPORT_SYMBOL_GPL(fsg_hs_function);
 
 struct usb_endpoint_descriptor fsg_ss_bulk_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -125,7 +125,7 @@ struct usb_endpoint_descriptor fsg_ss_bulk_in_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
-EXPORT_SYMBOL(fsg_ss_bulk_in_desc);
+EXPORT_SYMBOL_GPL(fsg_ss_bulk_in_desc);
 
 struct usb_ss_ep_comp_descriptor fsg_ss_bulk_in_comp_desc = {
 	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
@@ -133,7 +133,7 @@ struct usb_ss_ep_comp_descriptor fsg_ss_bulk_in_comp_desc = {
 
 	/*.bMaxBurst =		DYNAMIC, */
 };
-EXPORT_SYMBOL(fsg_ss_bulk_in_comp_desc);
+EXPORT_SYMBOL_GPL(fsg_ss_bulk_in_comp_desc);
 
 struct usb_endpoint_descriptor fsg_ss_bulk_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
@@ -143,7 +143,7 @@ struct usb_endpoint_descriptor fsg_ss_bulk_out_desc = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
-EXPORT_SYMBOL(fsg_ss_bulk_out_desc);
+EXPORT_SYMBOL_GPL(fsg_ss_bulk_out_desc);
 
 struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
 	.bLength =		sizeof(fsg_ss_bulk_in_comp_desc),
@@ -151,7 +151,7 @@ struct usb_ss_ep_comp_descriptor fsg_ss_bulk_out_comp_desc = {
 
 	/*.bMaxBurst =		DYNAMIC, */
 };
-EXPORT_SYMBOL(fsg_ss_bulk_out_comp_desc);
+EXPORT_SYMBOL_GPL(fsg_ss_bulk_out_comp_desc);
 
 struct usb_descriptor_header *fsg_ss_function[] = {
 	(struct usb_descriptor_header *) &fsg_intf_desc,
@@ -161,7 +161,7 @@ struct usb_descriptor_header *fsg_ss_function[] = {
 	(struct usb_descriptor_header *) &fsg_ss_bulk_out_comp_desc,
 	NULL,
 };
-EXPORT_SYMBOL(fsg_ss_function);
+EXPORT_SYMBOL_GPL(fsg_ss_function);
 
 
  /*-------------------------------------------------------------------------*/
@@ -179,7 +179,7 @@ void fsg_lun_close(struct fsg_lun *curlun)
 		curlun->filp = NULL;
 	}
 }
-EXPORT_SYMBOL(fsg_lun_close);
+EXPORT_SYMBOL_GPL(fsg_lun_close);
 
 int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
 {
@@ -278,7 +278,7 @@ out:
 	fput(filp);
 	return rc;
 }
-EXPORT_SYMBOL(fsg_lun_open);
+EXPORT_SYMBOL_GPL(fsg_lun_open);
 
 
 /*-------------------------------------------------------------------------*/
@@ -295,7 +295,7 @@ int fsg_lun_fsync_sub(struct fsg_lun *curlun)
 		return 0;
 	return vfs_fsync(filp, 1);
 }
-EXPORT_SYMBOL(fsg_lun_fsync_sub);
+EXPORT_SYMBOL_GPL(fsg_lun_fsync_sub);
 
 void store_cdrom_address(u8 *dest, int msf, u32 addr)
 {
@@ -314,7 +314,7 @@ void store_cdrom_address(u8 *dest, int msf, u32 addr)
 		put_unaligned_be32(addr, dest);
 	}
 }
-EXPORT_SYMBOL(store_cdrom_address);
+EXPORT_SYMBOL_GPL(store_cdrom_address);
 
 /*-------------------------------------------------------------------------*/
 
@@ -325,13 +325,13 @@ ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf)
 				  ? curlun->ro
 				  : curlun->initially_ro);
 }
-EXPORT_SYMBOL(fsg_show_ro);
+EXPORT_SYMBOL_GPL(fsg_show_ro);
 
 ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf)
 {
 	return sprintf(buf, "%u\n", curlun->nofua);
 }
-EXPORT_SYMBOL(fsg_show_nofua);
+EXPORT_SYMBOL_GPL(fsg_show_nofua);
 
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf)
@@ -357,19 +357,19 @@ ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 	up_read(filesem);
 	return rc;
 }
-EXPORT_SYMBOL(fsg_show_file);
+EXPORT_SYMBOL_GPL(fsg_show_file);
 
 ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf)
 {
 	return sprintf(buf, "%u\n", curlun->cdrom);
 }
-EXPORT_SYMBOL(fsg_show_cdrom);
+EXPORT_SYMBOL_GPL(fsg_show_cdrom);
 
 ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf)
 {
 	return sprintf(buf, "%u\n", curlun->removable);
 }
-EXPORT_SYMBOL(fsg_show_removable);
+EXPORT_SYMBOL_GPL(fsg_show_removable);
 
 /*
  * The caller must hold fsg->filesem for reading when calling this function.
@@ -410,7 +410,7 @@ ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 
 	return rc;
 }
-EXPORT_SYMBOL(fsg_store_ro);
+EXPORT_SYMBOL_GPL(fsg_store_ro);
 
 ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count)
 {
@@ -429,7 +429,7 @@ ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count)
 
 	return count;
 }
-EXPORT_SYMBOL(fsg_store_nofua);
+EXPORT_SYMBOL_GPL(fsg_store_nofua);
 
 ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		       const char *buf, size_t count)
@@ -460,7 +460,7 @@ ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 	up_write(filesem);
 	return (rc < 0 ? rc : count);
 }
-EXPORT_SYMBOL(fsg_store_file);
+EXPORT_SYMBOL_GPL(fsg_store_file);
 
 ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 			const char *buf, size_t count)
@@ -483,7 +483,7 @@ ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 
 	return ret;
 }
-EXPORT_SYMBOL(fsg_store_cdrom);
+EXPORT_SYMBOL_GPL(fsg_store_cdrom);
 
 ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
 			    size_t count)
@@ -499,6 +499,6 @@ ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
 
 	return count;
 }
-EXPORT_SYMBOL(fsg_store_removable);
+EXPORT_SYMBOL_GPL(fsg_store_removable);
 
 MODULE_LICENSE("GPL");

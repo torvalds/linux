@@ -26,7 +26,7 @@
 
 struct vexpress_hwmon_data {
 	struct device *hwmon_dev;
-	struct vexpress_config_func *func;
+	struct regmap *reg;
 	const char *name;
 };
 
@@ -53,7 +53,7 @@ static ssize_t vexpress_hwmon_u32_show(struct device *dev,
 	int err;
 	u32 value;
 
-	err = vexpress_config_read(data->func, 0, &value);
+	err = regmap_read(data->reg, 0, &value);
 	if (err)
 		return err;
 
@@ -68,11 +68,11 @@ static ssize_t vexpress_hwmon_u64_show(struct device *dev,
 	int err;
 	u32 value_hi, value_lo;
 
-	err = vexpress_config_read(data->func, 0, &value_lo);
+	err = regmap_read(data->reg, 0, &value_lo);
 	if (err)
 		return err;
 
-	err = vexpress_config_read(data->func, 1, &value_hi);
+	err = regmap_read(data->reg, 1, &value_hi);
 	if (err)
 		return err;
 
@@ -234,9 +234,9 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 	type = match->data;
 	data->name = type->name;
 
-	data->func = vexpress_config_func_get_by_dev(&pdev->dev);
-	if (!data->func)
-		return -ENODEV;
+	data->reg = devm_regmap_init_vexpress_config(&pdev->dev);
+	if (IS_ERR(data->reg))
+		return PTR_ERR(data->reg);
 
 	err = sysfs_create_groups(&pdev->dev.kobj, type->attr_groups);
 	if (err)
@@ -252,7 +252,6 @@ static int vexpress_hwmon_probe(struct platform_device *pdev)
 
 error:
 	sysfs_remove_group(&pdev->dev.kobj, match->data);
-	vexpress_config_func_put(data->func);
 	return err;
 }
 
@@ -265,8 +264,6 @@ static int vexpress_hwmon_remove(struct platform_device *pdev)
 
 	match = of_match_device(vexpress_hwmon_of_match, &pdev->dev);
 	sysfs_remove_group(&pdev->dev.kobj, match->data);
-
-	vexpress_config_func_put(data->func);
 
 	return 0;
 }

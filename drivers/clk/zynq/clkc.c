@@ -53,6 +53,9 @@ static void __iomem *zynq_clkc_base;
 
 #define NUM_MIO_PINS	54
 
+#define DBG_CLK_CTRL_CLKACT_TRC		BIT(0)
+#define DBG_CLK_CTRL_CPU_1XCLKACT	BIT(1)
+
 enum zynq_clk {
 	armpll, ddrpll, iopll,
 	cpu_6or4x, cpu_3or2x, cpu_2x, cpu_1x,
@@ -498,6 +501,15 @@ static void __init zynq_clk_setup(struct device_node *np)
 	clks[dbg_apb] = clk_register_gate(NULL, clk_output_name[dbg_apb],
 			clk_output_name[cpu_1x], 0, SLCR_DBG_CLK_CTRL, 1, 0,
 			&dbgclk_lock);
+
+	/* leave debug clocks in the state the bootloader set them up to */
+	tmp = clk_readl(SLCR_DBG_CLK_CTRL);
+	if (tmp & DBG_CLK_CTRL_CLKACT_TRC)
+		if (clk_prepare_enable(clks[dbg_trc]))
+			pr_warn("%s: trace clk enable failed\n", __func__);
+	if (tmp & DBG_CLK_CTRL_CPU_1XCLKACT)
+		if (clk_prepare_enable(clks[dbg_apb]))
+			pr_warn("%s: debug APB clk enable failed\n", __func__);
 
 	/* One gated clock for all APER clocks. */
 	clks[dma] = clk_register_gate(NULL, clk_output_name[dma],

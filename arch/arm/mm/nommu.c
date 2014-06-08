@@ -88,30 +88,35 @@ static unsigned long irbar_read(void)
 void __init sanity_check_meminfo_mpu(void)
 {
 	int i;
-	struct membank *bank = meminfo.bank;
 	phys_addr_t phys_offset = PHYS_OFFSET;
 	phys_addr_t aligned_region_size, specified_mem_size, rounded_mem_size;
+	struct memblock_region *reg;
+	bool first = true;
+	phys_addr_t mem_start;
+	phys_addr_t mem_end;
 
-	/* Initially only use memory continuous from PHYS_OFFSET */
-	if (bank_phys_start(&bank[0]) != phys_offset)
-		panic("First memory bank must be contiguous from PHYS_OFFSET");
+	for_each_memblock(memory, reg) {
+		if (first) {
+			/*
+			 * Initially only use memory continuous from
+			 * PHYS_OFFSET */
+			if (reg->base != phys_offset)
+				panic("First memory bank must be contiguous from PHYS_OFFSET");
 
-	/* Banks have already been sorted by start address */
-	for (i = 1; i < meminfo.nr_banks; i++) {
-		if (bank[i].start <= bank_phys_end(&bank[0]) &&
-		    bank_phys_end(&bank[i]) > bank_phys_end(&bank[0])) {
-			bank[0].size = bank_phys_end(&bank[i]) - bank[0].start;
+			mem_start = reg->base;
+			mem_end = reg->base + reg->size;
+			specified_mem_size = reg->size;
+			first = false;
 		} else {
-			pr_notice("Ignoring RAM after 0x%.8lx. "
-			"First non-contiguous (ignored) bank start: 0x%.8lx\n",
-				(unsigned long)bank_phys_end(&bank[0]),
-				(unsigned long)bank_phys_start(&bank[i]));
-			break;
+			/*
+			 * memblock auto merges contiguous blocks, remove
+			 * all blocks afterwards
+			 */
+			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
+				  &mem_start, &reg->base);
+			memblock_remove(reg->base, reg->size);
 		}
 	}
-	/* All contiguous banks are now merged in to the first bank */
-	meminfo.nr_banks = 1;
-	specified_mem_size = bank[0].size;
 
 	/*
 	 * MPU has curious alignment requirements: Size must be power of 2, and
@@ -128,23 +133,24 @@ void __init sanity_check_meminfo_mpu(void)
 	 */
 	aligned_region_size = (phys_offset - 1) ^ (phys_offset);
 	/* Find the max power-of-two sized region that fits inside our bank */
-	rounded_mem_size = (1 <<  __fls(bank[0].size)) - 1;
+	rounded_mem_size = (1 <<  __fls(specified_mem_size)) - 1;
 
 	/* The actual region size is the smaller of the two */
 	aligned_region_size = aligned_region_size < rounded_mem_size
 				? aligned_region_size + 1
 				: rounded_mem_size + 1;
 
-	if (aligned_region_size != specified_mem_size)
-		pr_warn("Truncating memory from 0x%.8lx to 0x%.8lx (MPU region constraints)",
-				(unsigned long)specified_mem_size,
-				(unsigned long)aligned_region_size);
+	if (aligned_region_size != specified_mem_size) {
+		pr_warn("Truncating memory from %pa to %pa (MPU region constraints)",
+				&specified_mem_size, &aligned_region_size);
+		memblock_remove(mem_start + aligned_region_size,
+				specified_mem_size - aligned_round_size);
 
-	meminfo.bank[0].size = aligned_region_size;
-	pr_debug("MPU Region from 0x%.8lx size 0x%.8lx (end 0x%.8lx))\n",
-		(unsigned long)phys_offset,
-		(unsigned long)aligned_region_size,
-		(unsigned long)bank_phys_end(&bank[0]));
+		mem_end = mem_start + aligned_region_size;
+	}
+
+	pr_debug("MPU Region from %pa size %pa (end %pa))\n",
+		&phys_offset, &aligned_region_size, &mem_end);
 
 }
 
@@ -292,7 +298,7 @@ void __init sanity_check_meminfo(void)
 {
 	phys_addr_t end;
 	sanity_check_meminfo_mpu();
-	end = bank_phys_end(&meminfo.bank[meminfo.nr_banks - 1]);
+	end = memblock_end_of_DRAM();
 	high_memory = __va(end - 1) + 1;
 }
 

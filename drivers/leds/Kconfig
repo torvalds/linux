@@ -479,6 +479,8 @@ config LEDS_OT200
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
 
+comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
+
 config LEDS_BLINKM
 	tristate "LED support for the BlinkM I2C RGB LED"
 	depends on LEDS_CLASS
@@ -486,6 +488,14 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_VERSATILE
+	tristate "LED support for the ARM Versatile and RealView"
+	depends on ARCH_REALVIEW || ARCH_VERSATILE
+	depends on LEDS_CLASS
+	help
+	  This option enabled support for the LEDs on the ARM Versatile
+	  and RealView boards. Say Y to enabled these.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

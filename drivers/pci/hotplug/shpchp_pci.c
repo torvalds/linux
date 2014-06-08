@@ -34,7 +34,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-int __ref shpchp_configure_device(struct slot *p_slot)
+int shpchp_configure_device(struct slot *p_slot)
 {
 	struct pci_dev *dev;
 	struct controller *ctrl = p_slot->ctrl;
@@ -64,8 +64,7 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 	list_for_each_entry(dev, &parent->devices, bus_list) {
 		if (PCI_SLOT(dev->devfn) != p_slot->device)
 			continue;
-		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
-		    (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS))
+		if (pci_is_bridge(dev))
 			pci_hp_add_bridge(dev);
 	}
 

@@ -504,9 +504,8 @@ void rtl8192_phy_configmac(struct net_device *dev)
 		pdwArray = rtl819XMACPHY_Array;
 	}
 	for (i = 0; i < dwArrayLen; i = i+3) {
-		if (pdwArray[i] == 0x318) {
+		if (pdwArray[i] == 0x318)
 			pdwArray[i+2] = 0x00000800;
-		}
 
 		RT_TRACE(COMP_DBG,
 			 "Rtl8190MACPHY_Array[0]=%x Rtl8190MACPHY_Array[1]=%x Rtl8190MACPHY_Array[2]=%x\n",
@@ -992,7 +991,6 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 {
 
 	int i;
-	u8 ret = 0;
 
 	switch (eRFPath) {
 	case RF90_PATH_A:
@@ -1059,7 +1057,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
 		break;
 	}
 
-	return ret;
+	return 0;
 
 }
 

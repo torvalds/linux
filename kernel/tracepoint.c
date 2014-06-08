@@ -239,6 +239,7 @@ static int tracepoint_remove_func(struct tracepoint *tp,
  * tracepoint_probe_register -  Connect a probe to a tracepoint
  * @tp: tracepoint
  * @probe: probe handler
+ * @data: tracepoint data
  *
  * Returns 0 if ok, error value on error.
  * Note: if @tp is within a module, the caller is responsible for
@@ -264,6 +265,7 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register);
  * tracepoint_probe_unregister -  Disconnect a probe from a tracepoint
  * @tp: tracepoint
  * @probe: probe function pointer
+ * @data: tracepoint data
  *
  * Returns 0 if ok, error value on error.
  */

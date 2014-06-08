@@ -357,7 +357,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 }
 
 /* abort streaming and wait for last buffer */
-static int stop_streaming(struct vb2_queue *vq)
+static void stop_streaming(struct vb2_queue *vq)
 {
 	struct sta2x11_vip *vip = vb2_get_drv_priv(vq);
 	struct vip_buffer *vip_buf, *node;
@@ -374,7 +374,6 @@ static int stop_streaming(struct vb2_queue *vq)
 		list_del(&vip_buf->list);
 	}
 	spin_unlock(&vip->lock);
-	return 0;
 }
 
 static struct vb2_ops vip_video_qops = {
@@ -445,7 +444,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 	int status;
 
 	if (V4L2_STD_ALL == std) {
-		v4l2_subdev_call(vip->decoder, core, s_std, std);
+		v4l2_subdev_call(vip->decoder, video, s_std, std);
 		ssleep(2);
 		v4l2_subdev_call(vip->decoder, video, querystd, &newstd);
 		v4l2_subdev_call(vip->decoder, video, g_input_status, &status);
@@ -468,7 +467,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 			vip->format = formats_50[0];
 	}
 
-	return v4l2_subdev_call(vip->decoder, core, s_std, std);
+	return v4l2_subdev_call(vip->decoder, video, s_std, std);
 }
 
 /**

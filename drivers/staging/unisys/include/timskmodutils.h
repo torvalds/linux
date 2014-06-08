@@ -1,6 +1,6 @@
 /* timskmodutils.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -71,5 +71,7 @@ char *cyclesToSomethingsPerSecond(u64 cycles, u64 cyclesPerSecond,
 				  u64 somethings, char *buf, size_t bufsize);
 struct seq_file *visor_seq_file_new_buffer(void *buf, size_t buf_size);
 void visor_seq_file_done_buffer(struct seq_file *m);
+
+extern int unisys_spar_platform;
 
 #endif

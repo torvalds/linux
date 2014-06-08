@@ -33,15 +33,27 @@ typedef u8 uprobe_opcode_t;
 #define UPROBE_SWBP_INSN		0xcc
 #define UPROBE_SWBP_INSN_SIZE		   1
 
+struct uprobe_xol_ops;
+
 struct arch_uprobe {
-	u16				fixups;
 	union {
 		u8			insn[MAX_UINSN_BYTES];
 		u8			ixol[MAX_UINSN_BYTES];
 	};
+
+	u16				fixups;
+	const struct uprobe_xol_ops	*ops;
+
+	union {
 #ifdef CONFIG_X86_64
-	unsigned long			rip_rela_target_address;
+		unsigned long			rip_rela_target_address;
 #endif
+		struct {
+			s32	offs;
+			u8	ilen;
+			u8	opc1;
+		}				branch;
+	};
 };
 
 struct arch_uprobe_task {

@@ -697,6 +697,12 @@ int ipu_idmac_enable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_enable_channel);
 
+bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno)
+{
+	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chno)) & idma_mask(chno));
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_channel_busy);
+
 int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms)
 {
 	struct ipu_soc *ipu = channel->ipu;
@@ -713,6 +719,22 @@ int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_wait_busy);
+
+int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(ms);
+	ipu_cm_write(ipu, BIT(irq % 32), IPU_INT_STAT(irq / 32));
+	while (!(ipu_cm_read(ipu, IPU_INT_STAT(irq / 32) & BIT(irq % 32)))) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cpu_relax();
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_wait_interrupt);
 
 int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 {
@@ -900,7 +922,8 @@ static void ipu_irq_handle(struct ipu_soc *ipu, const int *regs, int num_regs)
 		status &= ipu_cm_read(ipu, IPU_INT_CTRL(regs[i]));
 
 		for_each_set_bit(bit, &status, 32) {
-			irq = irq_linear_revmap(ipu->domain, regs[i] * 32 + bit);
+			irq = irq_linear_revmap(ipu->domain,
+						regs[i] * 32 + bit);
 			if (irq)
 				generic_handle_irq(irq);
 		}
@@ -933,15 +956,22 @@ static void ipu_err_irq_handler(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+int ipu_map_irq(struct ipu_soc *ipu, int irq)
+{
+	int virq;
+
+	virq = irq_linear_revmap(ipu->domain, irq);
+	if (!virq)
+		virq = irq_create_mapping(ipu->domain, irq);
+
+	return virq;
+}
+EXPORT_SYMBOL_GPL(ipu_map_irq);
+
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq_type)
 {
-	int irq = irq_linear_revmap(ipu->domain, irq_type + channel->num);
-
-	if (!irq)
-		irq = irq_create_mapping(ipu->domain, irq_type + channel->num);
-
-	return irq;
+	return ipu_map_irq(ipu, irq_type + channel->num);
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_channel_irq);
 
@@ -1053,7 +1083,8 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	}
 
 	ret = irq_alloc_domain_generic_chips(ipu->domain, 32, 1, "IPU",
-					     handle_level_irq, 0, IRQF_VALID, 0);
+					     handle_level_irq, 0,
+					     IRQF_VALID, 0);
 	if (ret < 0) {
 		dev_err(ipu->dev, "failed to alloc generic irq chips\n");
 		irq_domain_remove(ipu->domain);

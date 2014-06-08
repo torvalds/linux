@@ -19,14 +19,6 @@ config 8723AU_AP_MODE
 	will never be used as an AP, or the target system has limited memory,
 	"Y" should be selected.
 
-config 8723AU_P2P
-	bool "Realtek RTL8723AU Peer-to-peer mode"
-	default y
-	---help---
-	This option enables peer-to-peer mode for the r8723au driver. Unless you
-	know that peer-to-peer (P2P) mode will never be used, or the target system has
-	limited memory, "Y" should be selected.
-
 config 8723AU_BT_COEXIST
 	bool "Realtek RTL8723AU BlueTooth Coexistence"
 	default y

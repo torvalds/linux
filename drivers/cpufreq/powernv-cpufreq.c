@@ -235,7 +235,7 @@ static void powernv_read_cpu_freq(void *arg)
  * firmware for CPU 'cpu'. This value is reported through the sysfs
  * file cpuinfo_cur_freq.
  */
-unsigned int powernv_cpufreq_get(unsigned int cpu)
+static unsigned int powernv_cpufreq_get(unsigned int cpu)
 {
 	struct powernv_smp_call_data freq_data;
 

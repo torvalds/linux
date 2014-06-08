@@ -195,7 +195,7 @@ static void __init kirkwood_dt_init(void)
 {
 	kirkwood_disable_mbus_error_propagation();
 
-	BUG_ON(mvebu_mbus_dt_init());
+	BUG_ON(mvebu_mbus_dt_init(false));
 
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	feroceon_of_init();

@@ -28,6 +28,7 @@
 
 	chosen {
 		bootargs = "console=ttyS0,115200n8 earlyprintk";
+		stdout-path = &uart0;
 	};
 
 	mbus {
@@ -41,7 +42,7 @@
         };
 
 	ocp@f1000000 {
-		pinctrl@10000 {
+		pin-controller@10000 {
 			pmx_usb_led: pmx-usb-led {
 				marvell,pins = "mpp12";
 				marvell,function = "gpo";
@@ -59,8 +60,6 @@
 		};
 
 		spi@10600 {
-			pinctrl-0 = <&pmx_spi>;
-			pinctrl-names = "default";
 			status = "okay";
 
 			flash@0 {
@@ -74,10 +73,7 @@
 		};
 
 		serial@12000 {
-			pinctrl-0 = <&pmx_uart0>;
-			pinctrl-names = "default";
-			clock-frequency = <200000000>;
-			status = "ok";
+			status = "okay";
 		};
 
 		ehci@50000 {

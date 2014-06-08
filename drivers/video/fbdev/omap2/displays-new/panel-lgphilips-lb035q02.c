@@ -50,9 +50,10 @@ struct panel_drv_data {
 
 	struct omap_video_timings videomode;
 
-	int reset_gpio;
+	/* used for non-DT boot, to be removed */
 	int backlight_gpio;
-	int enable_gpio;
+
+	struct gpio_desc *enable_gpio;
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -158,15 +159,16 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
 	r = in->ops.dpi->enable(in);
 	if (r)
 		return r;
 
-	if (gpio_is_valid(ddata->enable_gpio))
-		gpio_set_value_cansleep(ddata->enable_gpio, 1);
+	if (ddata->enable_gpio)
+		gpiod_set_value_cansleep(ddata->enable_gpio, 1);
 
 	if (gpio_is_valid(ddata->backlight_gpio))
 		gpio_set_value_cansleep(ddata->backlight_gpio, 1);
@@ -184,8 +186,8 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (gpio_is_valid(ddata->enable_gpio))
-		gpio_set_value_cansleep(ddata->enable_gpio, 0);
+	if (ddata->enable_gpio)
+		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 
 	if (gpio_is_valid(ddata->backlight_gpio))
 		gpio_set_value_cansleep(ddata->backlight_gpio, 0);
@@ -243,6 +245,7 @@ static int lb035q02_probe_pdata(struct spi_device *spi)
 	const struct panel_lb035q02_platform_data *pdata;
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev, *in;
+	int r;
 
 	pdata = dev_get_platdata(&spi->dev);
 
@@ -260,8 +263,46 @@ static int lb035q02_probe_pdata(struct spi_device *spi)
 	dssdev = &ddata->dssdev;
 	dssdev->name = pdata->name;
 
-	ddata->enable_gpio = pdata->enable_gpio;
+	r = devm_gpio_request_one(&spi->dev, pdata->enable_gpio,
+					GPIOF_OUT_INIT_LOW, "panel enable");
+	if (r)
+		goto err_gpio;
+
+	ddata->enable_gpio = gpio_to_desc(pdata->enable_gpio);
+
 	ddata->backlight_gpio = pdata->backlight_gpio;
+
+	return 0;
+err_gpio:
+	omap_dss_put_device(ddata->in);
+	return r;
+}
+
+static int lb035q02_probe_of(struct spi_device *spi)
+{
+	struct device_node *node = spi->dev.of_node;
+	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
+	struct omap_dss_device *in;
+	struct gpio_desc *gpio;
+
+	gpio = devm_gpiod_get(&spi->dev, "enable");
+	if (IS_ERR(gpio)) {
+		dev_err(&spi->dev, "failed to parse enable gpio\n");
+		return PTR_ERR(gpio);
+	} else {
+		gpiod_direction_output(gpio, 0);
+		ddata->enable_gpio = gpio;
+	}
+
+	ddata->backlight_gpio = -ENOENT;
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&spi->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
 
 	return 0;
 }
@@ -284,15 +325,12 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 		r = lb035q02_probe_pdata(spi);
 		if (r)
 			return r;
+	} else if (spi->dev.of_node) {
+		r = lb035q02_probe_of(spi);
+		if (r)
+			return r;
 	} else {
 		return -ENODEV;
-	}
-
-	if (gpio_is_valid(ddata->enable_gpio)) {
-		r = devm_gpio_request_one(&spi->dev, ddata->enable_gpio,
-				GPIOF_OUT_INIT_LOW, "panel enable");
-		if (r)
-			goto err_gpio;
 	}
 
 	if (gpio_is_valid(ddata->backlight_gpio)) {
@@ -342,17 +380,26 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id lb035q02_of_match[] = {
+	{ .compatible = "omapdss,lgphilips,lb035q02", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, lb035q02_of_match);
+
 static struct spi_driver lb035q02_spi_driver = {
 	.probe		= lb035q02_panel_spi_probe,
 	.remove		= lb035q02_panel_spi_remove,
 	.driver		= {
 		.name	= "panel_lgphilips_lb035q02",
 		.owner	= THIS_MODULE,
+		.of_match_table = lb035q02_of_match,
 	},
 };
 
 module_spi_driver(lb035q02_spi_driver);
 
+MODULE_ALIAS("spi:lgphilips,lb035q02");
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("LG.Philips LB035Q02 LCD Panel driver");
 MODULE_LICENSE("GPL");

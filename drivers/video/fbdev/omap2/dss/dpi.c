@@ -67,6 +67,7 @@ static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
 	case OMAPDSS_VER_OMAP34xx_ES3:
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
+	case OMAPDSS_VER_AM43xx:
 		return NULL;
 
 	case OMAPDSS_VER_OMAP4430_ES1:
@@ -102,6 +103,8 @@ static enum omap_dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
 	case OMAP_DSS_CHANNEL_LCD:
 		return OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC;
 	case OMAP_DSS_CHANNEL_LCD2:
+		return OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
+	case OMAP_DSS_CHANNEL_LCD3:
 		return OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
 	default:
 		/* this shouldn't happen */
@@ -595,6 +598,7 @@ static enum omap_channel dpi_get_channel(void)
 	case OMAPDSS_VER_OMAP34xx_ES3:
 	case OMAPDSS_VER_OMAP3630:
 	case OMAPDSS_VER_AM35xx:
+	case OMAPDSS_VER_AM43xx:
 		return OMAP_DSS_CHANNEL_LCD;
 
 	case OMAPDSS_VER_OMAP4430_ES1:

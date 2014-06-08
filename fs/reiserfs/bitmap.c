@@ -142,7 +142,6 @@ static int scan_bitmap_block(struct reiserfs_transaction_handle *th,
 	int org = *beg;
 
 	BUG_ON(!th->t_trans_id);
-
 	RFALSE(bmap_n >= reiserfs_bmap_count(s), "Bitmap %u is out of "
 	       "range (0..%u)", bmap_n, reiserfs_bmap_count(s) - 1);
 	PROC_INFO_INC(s, scan_bitmap.bmap);
@@ -321,7 +320,6 @@ static int scan_bitmap(struct reiserfs_transaction_handle *th,
 	unsigned int off_max = s->s_blocksize << 3;
 
 	BUG_ON(!th->t_trans_id);
-
 	PROC_INFO_INC(s, scan_bitmap.call);
 	if (SB_FREE_BLOCKS(s) <= 0)
 		return 0;	// No point in looking for more free blocks
@@ -388,9 +386,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 	unsigned int nr, offset;
 
 	BUG_ON(!th->t_trans_id);
-
 	PROC_INFO_INC(s, free_block);
-
 	rs = SB_DISK_SUPER_BLOCK(s);
 	sbh = SB_BUFFER_WITH_SB(s);
 	apbi = SB_AP_BITMAP(s);
@@ -435,8 +431,8 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th,
 			 int for_unformatted)
 {
 	struct super_block *s = th->t_super;
-	BUG_ON(!th->t_trans_id);
 
+	BUG_ON(!th->t_trans_id);
 	RFALSE(!s, "vs-4061: trying to free block on nonexistent device");
 	if (!is_reusable(s, block, 1))
 		return;
@@ -471,6 +467,7 @@ static void __discard_prealloc(struct reiserfs_transaction_handle *th,
 	unsigned long save = ei->i_prealloc_block;
 	int dirty = 0;
 	struct inode *inode = &ei->vfs_inode;
+
 	BUG_ON(!th->t_trans_id);
 #ifdef CONFIG_REISERFS_CHECK
 	if (ei->i_prealloc_count < 0)
@@ -494,6 +491,7 @@ void reiserfs_discard_prealloc(struct reiserfs_transaction_handle *th,
 			       struct inode *inode)
 {
 	struct reiserfs_inode_info *ei = REISERFS_I(inode);
+
 	BUG_ON(!th->t_trans_id);
 	if (ei->i_prealloc_count)
 		__discard_prealloc(th, ei);
@@ -504,7 +502,6 @@ void reiserfs_discard_all_prealloc(struct reiserfs_transaction_handle *th)
 	struct list_head *plist = &SB_JOURNAL(th->t_super)->j_prealloc_list;
 
 	BUG_ON(!th->t_trans_id);
-
 	while (!list_empty(plist)) {
 		struct reiserfs_inode_info *ei;
 		ei = list_entry(plist->next, struct reiserfs_inode_info,
@@ -562,7 +559,7 @@ int reiserfs_parse_alloc_options(struct super_block *s, char *options)
 		if (!strcmp(this_char, "displacing_new_packing_localities")) {
 			SET_OPTION(displacing_new_packing_localities);
 			continue;
-		};
+		}
 
 		if (!strcmp(this_char, "old_hashed_relocation")) {
 			SET_OPTION(old_hashed_relocation);
@@ -729,6 +726,7 @@ void show_alloc_options(struct seq_file *seq, struct super_block *s)
 static inline void new_hashed_relocation(reiserfs_blocknr_hint_t * hint)
 {
 	char *hash_in;
+
 	if (hint->formatted_node) {
 		hash_in = (char *)&hint->key.k_dir_id;
 	} else {
@@ -757,6 +755,7 @@ static void dirid_groups(reiserfs_blocknr_hint_t * hint)
 	__u32 dirid = 0;
 	int bm = 0;
 	struct super_block *sb = hint->th->t_super;
+
 	if (hint->inode)
 		dirid = le32_to_cpu(INODE_PKEY(hint->inode)->k_dir_id);
 	else if (hint->formatted_node)

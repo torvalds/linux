@@ -384,8 +384,8 @@ void ptlrpc_dispatch_difficult_reply(struct ptlrpc_reply_state *rs)
 void
 ptlrpc_schedule_difficult_reply(struct ptlrpc_reply_state *rs)
 {
-	LASSERT(spin_is_locked(&rs->rs_svcpt->scp_rep_lock));
-	LASSERT(spin_is_locked(&rs->rs_lock));
+	assert_spin_locked(&rs->rs_svcpt->scp_rep_lock);
+	assert_spin_locked(&rs->rs_lock);
 	LASSERT(rs->rs_difficult);
 	rs->rs_scheduled_ever = 1;  /* flag any notification attempt */
 
@@ -842,7 +842,7 @@ static void ptlrpc_server_free_request(struct ptlrpc_request *req)
 		/* NB request buffers use an embedded
 		 * req if the incoming req unlinked the
 		 * MD; this isn't one of them! */
-		OBD_FREE(req, sizeof(*req));
+		ptlrpc_request_cache_free(req);
 	}
 }
 
@@ -1042,9 +1042,6 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
 		return;
 
 	exp->exp_last_request_time = new_time;
-	CDEBUG(D_HA, "updating export %s at "CFS_TIME_T" exp %p\n",
-	       exp->exp_client_uuid.uuid,
-	       exp->exp_last_request_time, exp);
 
 	/* exports may get disconnected from the chain even though the
 	   export has references, so we must keep the spin lock while
@@ -1308,14 +1305,12 @@ static int ptlrpc_at_send_early_reply(struct ptlrpc_request *req)
 	}
 	newdl = cfs_time_current_sec() + at_get(&svcpt->scp_at_estimate);
 
-	OBD_ALLOC(reqcopy, sizeof(*reqcopy));
+	reqcopy = ptlrpc_request_cache_alloc(GFP_NOFS);
 	if (reqcopy == NULL)
 		return -ENOMEM;
 	OBD_ALLOC_LARGE(reqmsg, req->rq_reqlen);
-	if (!reqmsg) {
-		OBD_FREE(reqcopy, sizeof(*reqcopy));
-		return -ENOMEM;
-	}
+	if (!reqmsg)
+		GOTO(out_free, rc = -ENOMEM);
 
 	*reqcopy = *req;
 	reqcopy->rq_reply_state = NULL;
@@ -1372,7 +1367,8 @@ out_put:
 out:
 	sptlrpc_svc_ctx_decref(reqcopy);
 	OBD_FREE_LARGE(reqmsg, req->rq_reqlen);
-	OBD_FREE(reqcopy, sizeof(*reqcopy));
+out_free:
+	ptlrpc_request_cache_free(reqcopy);
 	return rc;
 }
 

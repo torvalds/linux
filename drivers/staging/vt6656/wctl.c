@@ -70,7 +70,7 @@ bool WCTLbIsDuplicate (PSCache pCache, struct ieee80211_hdr *pMACHeader)
             pCacheEntry = &(pCache->asCacheEntry[uIndex]);
             if ((pCacheEntry->wFmSequence == pMACHeader->seq_ctrl) &&
 		ether_addr_equal(pCacheEntry->abyAddr2, pMACHeader->addr2) &&
-                (LOBYTE(pCacheEntry->wFrameCtl) == LOBYTE(pMACHeader->frame_control))
+		(pCacheEntry->wFrameCtl == pMACHeader->frame_control)
                 ) {
                 /* Duplicate match */
                 return true;

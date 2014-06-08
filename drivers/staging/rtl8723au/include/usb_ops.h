@@ -34,19 +34,7 @@ enum {
 #define MAX_VENDOR_REQ_CMD_SIZE	254		/* 8188cu SIE Support */
 #define MAX_USB_IO_CTL_SIZE	(MAX_VENDOR_REQ_CMD_SIZE +ALIGNMENT_UNIT)
 
-#define rtw_usb_control_msg(dev, pipe, request, requesttype, value,	\
-			    index, data, size, timeout_ms)		\
-	usb_control_msg((dev), (pipe), (request), (requesttype),	\
-			(value), (index), (data), (size), (timeout_ms))
-#define rtw_usb_bulk_msg(usb_dev, pipe, data, len, actual_length, timeout_ms) \
-	usb_bulk_msg((usb_dev), (pipe), (data), (len), (actual_length),	\
-		     (timeout_ms))
-
 void rtl8723au_set_hw_type(struct rtw_adapter *padapter);
-#define hal_set_hw_type rtl8723au_set_hw_type
-
-void rtl8723au_set_intf_ops(struct _io_ops *pops);
-#define usb_set_intf_ops rtl8723au_set_intf_ops
 
 void rtl8723au_recv_tasklet(void *priv);
 
@@ -75,23 +63,6 @@ static inline void rtw_reset_continual_urb_error(struct dvobj_priv *dvobj)
 	atomic_set(&dvobj->continual_urb_error, 0);
 }
 
-#define USB_HIGH_SPEED_BULK_SIZE	512
-#define USB_FULL_SPEED_BULK_SIZE	64
-
-static inline u8 rtw_usb_bulk_size_boundary(struct rtw_adapter *padapter,
-					    int buf_len)
-{
-	u8 rst = true;
-	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
-
-	if (pdvobjpriv->ishighspeed)
-		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
-		      true : false;
-	else
-		rst = (0 == (buf_len) % USB_FULL_SPEED_BULK_SIZE) ?
-		      true : false;
-	return rst;
-}
-
+void rtl8723au_chip_configure(struct rtw_adapter *padapter);
 
 #endif /* __USB_OPS_H_ */

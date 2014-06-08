@@ -147,9 +147,6 @@
 				<0x44e10f90 0x40>;
 			interrupts = <12 13 14>;
 			#dma-cells = <1>;
-			dma-channels = <64>;
-			ti,edma-regions = <4>;
-			ti,edma-slots = <256>;
 		};
 
 		gpio0: gpio@44e07000 {
@@ -688,6 +685,7 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
+			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
 				compatible = "ti,davinci_mdio";
@@ -696,6 +694,7 @@
 				ti,hwmods = "davinci_mdio";
 				bus_freq = <1000000>;
 				reg = <0x4a101000 0x100>;
+				status = "disabled";
 			};
 
 			cpsw_emac0: slave@4a100200 {

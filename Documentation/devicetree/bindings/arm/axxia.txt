@@ -1,0 +1,12 @@
+Axxia AXM55xx device tree bindings
+
+Boards using the AXM55xx SoC need to have the following properties:
+
+Required root node property:
+
+  - compatible = "lsi,axm5516"
+
+Boards:
+
+  LSI AXM5516 Validation board (Amarillo)
+	compatible = "lsi,axm5516-amarillo", "lsi,axm5516"

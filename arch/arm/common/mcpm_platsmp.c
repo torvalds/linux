@@ -62,7 +62,7 @@ static int mcpm_cpu_kill(unsigned int cpu)
 
 	cpu_to_pcpu(cpu, &pcpu, &pcluster);
 
-	return !mcpm_cpu_power_down_finish(pcpu, pcluster);
+	return !mcpm_wait_for_cpu_powerdown(pcpu, pcluster);
 }
 
 static int mcpm_cpu_disable(unsigned int cpu)
