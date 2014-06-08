@@ -579,7 +579,7 @@ struct l2cap_chan {
 	struct list_head	global_l;
 
 	void			*data;
-	struct l2cap_ops	*ops;
+	const struct l2cap_ops	*ops;
 	struct mutex		lock;
 };
 
