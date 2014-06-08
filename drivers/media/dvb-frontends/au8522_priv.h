@@ -348,6 +348,7 @@ int au8522_led_ctrl(struct au8522_state *state, int led);
 /* Format control 2 */
 #define AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_AUTODETECT	0x00
 #define AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_NTSC		0x01
+#define AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_PAL_M		0x02
 
 
 #define AU8522_INPUT_CONTROL_REG081H_ATSC               	0xC4

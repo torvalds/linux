@@ -248,12 +248,23 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 			AU8522_TVDEC_COMB_MODE_REG015H_CVBS);
 	au8522_writereg(state, AU8522_TVDED_DBG_MODE_REG060H,
 			AU8522_TVDED_DBG_MODE_REG060H_CVBS);
-	au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL1_REG061H,
-			AU8522_TVDEC_FORMAT_CTRL1_REG061H_FIELD_LEN_525 |
-			AU8522_TVDEC_FORMAT_CTRL1_REG061H_LINE_LEN_63_492 |
-			AU8522_TVDEC_FORMAT_CTRL1_REG061H_SUBCARRIER_NTSC_MN);
-	au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL2_REG062H,
-			AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_NTSC);
+
+	if (state->std == V4L2_STD_PAL_M) {
+		au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL1_REG061H,
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_FIELD_LEN_525 |
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_LINE_LEN_63_492 |
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_SUBCARRIER_NTSC_AUTO);
+		au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL2_REG062H,
+				AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_PAL_M);
+	} else {
+		/* NTSC */
+		au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL1_REG061H,
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_FIELD_LEN_525 |
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_LINE_LEN_63_492 |
+				AU8522_TVDEC_FORMAT_CTRL1_REG061H_SUBCARRIER_NTSC_MN);
+		au8522_writereg(state, AU8522_TVDEC_FORMAT_CTRL2_REG062H,
+				AU8522_TVDEC_FORMAT_CTRL2_REG062H_STD_NTSC);
+	}
 	au8522_writereg(state, AU8522_TVDEC_VCR_DET_LLIM_REG063H,
 			AU8522_TVDEC_VCR_DET_LLIM_REG063H_CVBS);
 	au8522_writereg(state, AU8522_TVDEC_VCR_DET_HLIM_REG064H,
@@ -624,6 +635,21 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int au8522_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
+{
+	struct au8522_state *state = to_state(sd);
+
+	if ((std & (V4L2_STD_PAL_M | V4L2_STD_NTSC_M)) == 0)
+		return -EINVAL;
+
+	state->std = std;
+
+	if (state->operational_mode == AU8522_ANALOG_MODE)
+		au8522_video_set(state);
+
+	return 0;
+}
+
 static int au8522_s_audio_routing(struct v4l2_subdev *sd,
 					u32 input, u32 output, u32 config)
 {
@@ -681,6 +707,7 @@ static const struct v4l2_subdev_audio_ops au8522_audio_ops = {
 static const struct v4l2_subdev_video_ops au8522_video_ops = {
 	.s_routing = au8522_s_video_routing,
 	.s_stream = au8522_s_stream,
+	.s_std = au8522_s_std,
 };
 
 static const struct v4l2_subdev_ops au8522_ops = {
@@ -763,6 +790,7 @@ static int au8522_probe(struct i2c_client *client,
 	}
 
 	state->c = client;
+	state->std = V4L2_STD_NTSC_M;
 	state->vid_input = AU8522_COMPOSITE_CH1;
 	state->aud_input = AU8522_AUDIO_NONE;
 	state->id = 8522;

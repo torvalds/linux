@@ -1364,9 +1364,11 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 
 	i2c_gate_ctrl(dev, 1);
 
-	/* FIXME: when we support something other than NTSC, we are going to
-	   have to make the au0828 bridge adjust the size of its capture
-	   buffer, which is currently hardcoded at 720x480 */
+	/*
+	 * FIXME: when we support something other than 60Hz standards,
+	 * we are going to have to make the au0828 bridge adjust the size
+	 * of its capture buffer, which is currently hardcoded at 720x480
+	 */
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, norm);
 
@@ -1915,7 +1917,7 @@ static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
-	.tvnorms                    = V4L2_STD_NTSC_M,
+	.tvnorms                    = V4L2_STD_NTSC_M | V4L2_STD_PAL_M,
 };
 
 /**************************************************************************/
