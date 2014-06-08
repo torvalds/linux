@@ -11,6 +11,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#include <tools/le_byteshift.h>
+
 #include <linux/elf.h>
 #include <linux/types.h>
 
@@ -56,12 +58,12 @@ static void fail(const char *format, ...)
  */
 #define GLE(x, bits, ifnot)						\
 	__builtin_choose_expr(						\
-		(sizeof(x) == bits/8),					\
-		(__typeof__(x))le##bits##toh(x), ifnot)
+		(sizeof(*(x)) == bits/8),				\
+		(__typeof__(*(x)))get_unaligned_le##bits(x), ifnot)
 
-extern void bad_get_le(uint64_t);
+extern void bad_get_le(void);
 #define LAST_LE(x)							\
-	__builtin_choose_expr(sizeof(x) == 1, (x), bad_get_le(x))
+	__builtin_choose_expr(sizeof(*(x)) == 1, *(x), bad_get_le())
 
 #define GET_LE(x)							\
 	GLE(x, 64, GLE(x, 32, GLE(x, 16, LAST_LE(x))))
