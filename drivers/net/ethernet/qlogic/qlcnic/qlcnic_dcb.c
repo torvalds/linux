@@ -330,8 +330,6 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 		goto out_free_cfg;
 	}
 
-	qlcnic_dcb_get_info(dcb);
-
 	return 0;
 out_free_cfg:
 	kfree(dcb->cfg);
@@ -807,7 +805,7 @@ qlcnic_dcb_get_pg_tc_cfg_tx(struct net_device *netdev, int tc, u8 *prio,
 	    !type->tc_param_valid)
 		return;
 
-	if (tc < 0 || (tc > QLC_DCB_MAX_TC))
+	if (tc < 0 || (tc >= QLC_DCB_MAX_TC))
 		return;
 
 	tc_cfg = &type->tc_cfg[tc];
@@ -843,7 +841,7 @@ static void qlcnic_dcb_get_pg_bwg_cfg_tx(struct net_device *netdev, int pgid,
 	    !type->tc_param_valid)
 		return;
 
-	if (pgid < 0 || pgid > QLC_DCB_MAX_PG)
+	if (pgid < 0 || pgid >= QLC_DCB_MAX_PG)
 		return;
 
 	pgcfg = &type->pg_cfg[pgid];

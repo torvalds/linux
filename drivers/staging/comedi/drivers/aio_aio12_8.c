@@ -101,14 +101,27 @@ struct aio12_8_private {
 	unsigned int ao_readback[4];
 };
 
+static int aio_aio12_8_ai_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + AIO12_8_STATUS_REG);
+	if (status & AIO12_8_STATUS_ADC_EOC)
+		return 0;
+	return -EBUSY;
+}
+
 static int aio_aio12_8_ai_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	unsigned char control;
+	int ret;
 	int n;
 
 	/*
@@ -122,20 +135,13 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 	inb(dev->iobase + AIO12_8_STATUS_REG);
 
 	for (n = 0; n < insn->n; n++) {
-		int timeout = 5;
-
 		/*  Setup and start conversion */
 		outb(control, dev->iobase + AIO12_8_ADC_REG);
 
 		/*  Wait for conversion to complete */
-		do {
-			val = inb(dev->iobase + AIO12_8_STATUS_REG);
-			timeout--;
-			if (timeout == 0) {
-				dev_err(dev->class_dev, "ADC timeout\n");
-				return -ETIMEDOUT;
-			}
-		} while (!(val & AIO12_8_STATUS_ADC_EOC));
+		ret = comedi_timeout(dev, s, insn, aio_aio12_8_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		data[n] = inw(dev->iobase + AIO12_8_ADC_REG) & s->maxdata;
 	}
@@ -246,9 +252,6 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	s = &dev->subdevices[3];
 	/* 8254 counter/timer subdevice */
 	s->type		= COMEDI_SUBD_UNUSED;
-
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
 
 	return 0;
 }

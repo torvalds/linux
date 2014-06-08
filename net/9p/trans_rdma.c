@@ -193,6 +193,8 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
+		if (token == Opt_err)
+			continue;
 		r = match_int(&args[0], &option);
 		if (r < 0) {
 			p9_debug(P9_DEBUG_ERROR,
@@ -305,8 +307,7 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 	}
 
 	req->rc = c->rc;
-	req->status = REQ_STATUS_RCVD;
-	p9_client_cb(client, req);
+	p9_client_cb(client, req, REQ_STATUS_RCVD);
 
 	return;
 
@@ -511,6 +512,11 @@ dont_need_post_recv:
 		goto send_error;
 	}
 
+	/* Mark request as `sent' *before* we actually send it,
+	 * because doing if after could erase the REQ_STATUS_RCVD
+	 * status in case of a very fast reply.
+	 */
+	req->status = REQ_STATUS_SENT;
 	err = ib_post_send(rdma->qp, &wr, &bad_wr);
 	if (err)
 		goto send_error;
@@ -520,6 +526,7 @@ dont_need_post_recv:
 
  /* Handle errors that happened during or while preparing the send: */
  send_error:
+	req->status = REQ_STATUS_ERROR;
 	kfree(c);
 	p9_debug(P9_DEBUG_ERROR, "Error %d in rdma_request()\n", err);
 
@@ -582,10 +589,22 @@ static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)
 	return rdma;
 }
 
-/* its not clear to me we can do anything after send has been posted */
 static int rdma_cancel(struct p9_client *client, struct p9_req_t *req)
 {
+	/* Nothing to do here.
+	 * We will take care of it (if we have to) in rdma_cancelled()
+	 */
 	return 1;
+}
+
+/* A request has been fully flushed without a reply.
+ * That means we have posted one buffer in excess.
+ */
+static int rdma_cancelled(struct p9_client *client, struct p9_req_t *req)
+{
+	struct p9_trans_rdma *rdma = client->trans;
+	atomic_inc(&rdma->excess_rc);
+	return 0;
 }
 
 /**
@@ -721,6 +740,7 @@ static struct p9_trans_module p9_rdma_trans = {
 	.close = rdma_close,
 	.request = rdma_request,
 	.cancel = rdma_cancel,
+	.cancelled = rdma_cancelled,
 };
 
 /**

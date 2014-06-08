@@ -38,6 +38,17 @@ static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static struct hpet_scope ir_hpet[MAX_HPET_TBS];
 static int ir_ioapic_num, ir_hpet_num;
 
+/*
+ * Lock ordering:
+ * ->dmar_global_lock
+ *	->irq_2_ir_lock
+ *		->qi->q_lock
+ *	->iommu->register_lock
+ * Note:
+ * intel_irq_remap_ops.{supported,prepare,enable,disable,reenable} are called
+ * in single-threaded environment with interrupt disabled, so no need to tabke
+ * the dmar_global_lock.
+ */
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 
 static int __init parse_ioapics_under_ir(void);
@@ -307,12 +318,14 @@ static int set_ioapic_sid(struct irte *irte, int apic)
 	if (!irte)
 		return -1;
 
+	down_read(&dmar_global_lock);
 	for (i = 0; i < MAX_IO_APICS; i++) {
 		if (ir_ioapic[i].id == apic) {
 			sid = (ir_ioapic[i].bus << 8) | ir_ioapic[i].devfn;
 			break;
 		}
 	}
+	up_read(&dmar_global_lock);
 
 	if (sid == 0) {
 		pr_warning("Failed to set source-id of IOAPIC (%d)\n", apic);
@@ -332,12 +345,14 @@ static int set_hpet_sid(struct irte *irte, u8 id)
 	if (!irte)
 		return -1;
 
+	down_read(&dmar_global_lock);
 	for (i = 0; i < MAX_HPET_TBS; i++) {
 		if (ir_hpet[i].id == id) {
 			sid = (ir_hpet[i].bus << 8) | ir_hpet[i].devfn;
 			break;
 		}
 	}
+	up_read(&dmar_global_lock);
 
 	if (sid == 0) {
 		pr_warning("Failed to set source-id of HPET block (%d)\n", id);
@@ -794,10 +809,16 @@ static int __init parse_ioapics_under_ir(void)
 
 static int __init ir_dev_scope_init(void)
 {
+	int ret;
+
 	if (!irq_remapping_enabled)
 		return 0;
 
-	return dmar_dev_scope_init();
+	down_write(&dmar_global_lock);
+	ret = dmar_dev_scope_init();
+	up_write(&dmar_global_lock);
+
+	return ret;
 }
 rootfs_initcall(ir_dev_scope_init);
 
@@ -878,23 +899,27 @@ static int intel_setup_ioapic_entry(int irq,
 				    struct io_apic_irq_attr *attr)
 {
 	int ioapic_id = mpc_ioapic_id(attr->ioapic);
-	struct intel_iommu *iommu = map_ioapic_to_ir(ioapic_id);
+	struct intel_iommu *iommu;
 	struct IR_IO_APIC_route_entry *entry;
 	struct irte irte;
 	int index;
 
+	down_read(&dmar_global_lock);
+	iommu = map_ioapic_to_ir(ioapic_id);
 	if (!iommu) {
 		pr_warn("No mapping iommu for ioapic %d\n", ioapic_id);
-		return -ENODEV;
+		index = -ENODEV;
+	} else {
+		index = alloc_irte(iommu, irq, 1);
+		if (index < 0) {
+			pr_warn("Failed to allocate IRTE for ioapic %d\n",
+				ioapic_id);
+			index = -ENOMEM;
+		}
 	}
-
-	entry = (struct IR_IO_APIC_route_entry *)route_entry;
-
-	index = alloc_irte(iommu, irq, 1);
-	if (index < 0) {
-		pr_warn("Failed to allocate IRTE for ioapic %d\n", ioapic_id);
-		return -ENOMEM;
-	}
+	up_read(&dmar_global_lock);
+	if (index < 0)
+		return index;
 
 	prepare_irte(&irte, vector, destination);
 
@@ -913,6 +938,7 @@ static int intel_setup_ioapic_entry(int irq,
 		irte.avail, irte.vector, irte.dest_id,
 		irte.sid, irte.sq, irte.svt);
 
+	entry = (struct IR_IO_APIC_route_entry *)route_entry;
 	memset(entry, 0, sizeof(*entry));
 
 	entry->index2	= (index >> 15) & 0x1;
@@ -1043,20 +1069,23 @@ static int intel_msi_alloc_irq(struct pci_dev *dev, int irq, int nvec)
 	struct intel_iommu *iommu;
 	int index;
 
+	down_read(&dmar_global_lock);
 	iommu = map_dev_to_ir(dev);
 	if (!iommu) {
 		printk(KERN_ERR
 		       "Unable to map PCI %s to iommu\n", pci_name(dev));
-		return -ENOENT;
+		index = -ENOENT;
+	} else {
+		index = alloc_irte(iommu, irq, nvec);
+		if (index < 0) {
+			printk(KERN_ERR
+			       "Unable to allocate %d IRTE for PCI %s\n",
+			       nvec, pci_name(dev));
+			index = -ENOSPC;
+		}
 	}
+	up_read(&dmar_global_lock);
 
-	index = alloc_irte(iommu, irq, nvec);
-	if (index < 0) {
-		printk(KERN_ERR
-		       "Unable to allocate %d IRTE for PCI %s\n", nvec,
-		       pci_name(dev));
-		return -ENOSPC;
-	}
 	return index;
 }
 
@@ -1064,33 +1093,40 @@ static int intel_msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
 			       int index, int sub_handle)
 {
 	struct intel_iommu *iommu;
+	int ret = -ENOENT;
 
+	down_read(&dmar_global_lock);
 	iommu = map_dev_to_ir(pdev);
-	if (!iommu)
-		return -ENOENT;
-	/*
-	 * setup the mapping between the irq and the IRTE
-	 * base index, the sub_handle pointing to the
-	 * appropriate interrupt remap table entry.
-	 */
-	set_irte_irq(irq, iommu, index, sub_handle);
+	if (iommu) {
+		/*
+		 * setup the mapping between the irq and the IRTE
+		 * base index, the sub_handle pointing to the
+		 * appropriate interrupt remap table entry.
+		 */
+		set_irte_irq(irq, iommu, index, sub_handle);
+		ret = 0;
+	}
+	up_read(&dmar_global_lock);
 
-	return 0;
+	return ret;
 }
 
 static int intel_setup_hpet_msi(unsigned int irq, unsigned int id)
 {
-	struct intel_iommu *iommu = map_hpet_to_ir(id);
+	int ret = -1;
+	struct intel_iommu *iommu;
 	int index;
 
-	if (!iommu)
-		return -1;
+	down_read(&dmar_global_lock);
+	iommu = map_hpet_to_ir(id);
+	if (iommu) {
+		index = alloc_irte(iommu, irq, 1);
+		if (index >= 0)
+			ret = 0;
+	}
+	up_read(&dmar_global_lock);
 
-	index = alloc_irte(iommu, irq, 1);
-	if (index < 0)
-		return -1;
-
-	return 0;
+	return ret;
 }
 
 struct irq_remap_ops intel_irq_remap_ops = {

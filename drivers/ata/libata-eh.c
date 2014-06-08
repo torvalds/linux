@@ -95,12 +95,13 @@ enum {
  * represents timeout for that try.  The first try can be soft or
  * hardreset.  All others are hardreset if available.  In most cases
  * the first reset w/ 10sec timeout should succeed.  Following entries
- * are mostly for error handling, hotplug and retarded devices.
+ * are mostly for error handling, hotplug and those outlier devices that
+ * take an exceptionally long time to recover from reset.
  */
 static const unsigned long ata_eh_reset_timeouts[] = {
 	10000,	/* most drives spin up by 10sec */
 	10000,	/* > 99% working drives spin up before 20sec */
-	35000,	/* give > 30 secs of idleness for retarded devices */
+	35000,	/* give > 30 secs of idleness for outlier devices */
 	 5000,	/* and sweet one last chance */
 	ULONG_MAX, /* > 1 min has elapsed, give up */
 };
@@ -4069,7 +4070,7 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 
 	ata_acpi_set_state(ap, ap->pm_mesg);
  out:
-	/* report result */
+	/* update the flags */
 	spin_lock_irqsave(ap->lock, flags);
 
 	ap->pflags &= ~ATA_PFLAG_PM_PENDING;
@@ -4077,11 +4078,6 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 		ap->pflags |= ATA_PFLAG_SUSPENDED;
 	else if (ap->pflags & ATA_PFLAG_FROZEN)
 		ata_port_schedule_eh(ap);
-
-	if (ap->pm_result) {
-		*ap->pm_result = rc;
-		ap->pm_result = NULL;
-	}
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
@@ -4134,13 +4130,9 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	/* tell ACPI that we're resuming */
 	ata_acpi_on_resume(ap);
 
-	/* report result */
+	/* update the flags */
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags &= ~(ATA_PFLAG_PM_PENDING | ATA_PFLAG_SUSPENDED);
-	if (ap->pm_result) {
-		*ap->pm_result = rc;
-		ap->pm_result = NULL;
-	}
 	spin_unlock_irqrestore(ap->lock, flags);
 }
 #endif /* CONFIG_PM */

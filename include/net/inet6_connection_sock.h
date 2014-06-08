@@ -40,7 +40,7 @@ void inet6_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
 
 void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
-int inet6_csk_xmit(struct sk_buff *skb, struct flowi *fl);
+int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);
 
 struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu);
 #endif /* _INET6_CONNECTION_SOCK_H */

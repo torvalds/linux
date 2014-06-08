@@ -613,12 +613,12 @@
  * descriptor list and data buffer
  *
  **********************************************************************/
-typedef struct {
+struct t3e3_rx_desc {
 	u32 rdes0;
 	u32 rdes1;
 	u32 rdes2;
 	u32 rdes3;
-} t3e3_rx_desc_t;
+};
 
 #define SBE_2T3E3_RX_DESC_RING_SIZE			64
 
@@ -648,12 +648,12 @@ typedef struct {
 
 /*********************/
 
-typedef struct {
+struct t3e3_tx_desc {
 	u32 tdes0;
 	u32 tdes1;
 	u32 tdes2;
 	u32 tdes3;
-} t3e3_tx_desc_t;
+};
 
 #define SBE_2T3E3_TX_DESC_RING_SIZE			256
 
@@ -701,7 +701,7 @@ struct channel {
 	} h;
 
 	/* statistics */
-	t3e3_stats_t s;
+	struct t3e3_stats s;
 
 	/* running */
 	struct {
@@ -709,7 +709,7 @@ struct channel {
 	} r;
 
 	/* parameters */
-	t3e3_param_t p;
+	struct t3e3_param p;
 
 	u32 liu_regs[SBE_2T3E3_LIU_REG_MAX];	   /* LIU registers */
 	u32 framer_regs[SBE_2T3E3_FRAMER_REG_MAX]; /* Framer registers */
@@ -723,12 +723,12 @@ struct channel {
 		u32 interrupt_enable_mask;
 
 		/* receive chain/ring */
-		t3e3_rx_desc_t *rx_ring;
+		struct t3e3_rx_desc *rx_ring;
 		struct sk_buff *rx_data[SBE_2T3E3_RX_DESC_RING_SIZE];
 		u32 rx_ring_current_read;
 
 		/* transmit chain/ring */
-		t3e3_tx_desc_t *tx_ring;
+		struct t3e3_tx_desc *tx_ring;
 		struct sk_buff *tx_data[SBE_2T3E3_TX_DESC_RING_SIZE];
 		u32 tx_ring_current_read;
 		u32 tx_ring_current_write;
@@ -760,8 +760,7 @@ void t3e3_init(struct channel *);
 void t3e3_if_up(struct channel *);
 void t3e3_if_down(struct channel *);
 int t3e3_if_start_xmit(struct sk_buff *skb, struct net_device *dev);
-void t3e3_if_config(struct channel *, u32, char *,
-		    t3e3_resp_t *, int *);
+void t3e3_if_config(struct channel *, u32, char *, struct t3e3_resp *, int *);
 void t3e3_set_frame_type(struct channel *, u32);
 u32 t3e3_eeprom_read_word(struct channel *, u32);
 void t3e3_read_card_serial_number(struct channel *);
@@ -838,7 +837,7 @@ static inline int has_two_ports(struct pci_dev *pdev)
 	return pdev->subsystem_device == PCI_SUBDEVICE_ID_SBE_2T3E3_P0;
 }
 
-#define dev_to_priv(dev) (*(struct channel **) ((hdlc_device*)(dev) + 1))
+#define dev_to_priv(dev) (*(struct channel **) ((hdlc_device *)(dev) + 1))
 
 static inline u32 dc_read(unsigned long addr, u32 reg)
 {

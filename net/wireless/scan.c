@@ -659,9 +659,6 @@ static bool cfg80211_combine_bsses(struct cfg80211_registered_device *dev,
 			continue;
 		if (ssidlen && ie[1] != ssidlen)
 			continue;
-		/* that would be odd ... */
-		if (bss->pub.beacon_ies)
-			continue;
 		if (WARN_ON_ONCE(bss->pub.hidden_beacon_bss))
 			continue;
 		if (WARN_ON_ONCE(!list_empty(&bss->hidden_list)))
@@ -680,7 +677,8 @@ static bool cfg80211_combine_bsses(struct cfg80211_registered_device *dev,
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 static struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *dev,
-		    struct cfg80211_internal_bss *tmp)
+		    struct cfg80211_internal_bss *tmp,
+		    bool signal_valid)
 {
 	struct cfg80211_internal_bss *found = NULL;
 
@@ -765,7 +763,12 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		}
 
 		found->pub.beacon_interval = tmp->pub.beacon_interval;
-		found->pub.signal = tmp->pub.signal;
+		/*
+		 * don't update the signal if beacon was heard on
+		 * adjacent channel.
+		 */
+		if (signal_valid)
+			found->pub.signal = tmp->pub.signal;
 		found->pub.capability = tmp->pub.capability;
 		found->ts = tmp->ts;
 	} else {
@@ -869,13 +872,14 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 struct cfg80211_bss*
 cfg80211_inform_bss_width(struct wiphy *wiphy,
-			  struct ieee80211_channel *channel,
+			  struct ieee80211_channel *rx_channel,
 			  enum nl80211_bss_scan_width scan_width,
 			  const u8 *bssid, u64 tsf, u16 capability,
 			  u16 beacon_interval, const u8 *ie, size_t ielen,
 			  s32 signal, gfp_t gfp)
 {
 	struct cfg80211_bss_ies *ies;
+	struct ieee80211_channel *channel;
 	struct cfg80211_internal_bss tmp = {}, *res;
 
 	if (WARN_ON(!wiphy))
@@ -885,7 +889,7 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 			(signal < 0 || signal > 100)))
 		return NULL;
 
-	channel = cfg80211_get_bss_channel(wiphy, ie, ielen, channel);
+	channel = cfg80211_get_bss_channel(wiphy, ie, ielen, rx_channel);
 	if (!channel)
 		return NULL;
 
@@ -913,7 +917,8 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp);
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp,
+				  rx_channel == channel);
 	if (!res)
 		return NULL;
 
@@ -929,20 +934,21 @@ EXPORT_SYMBOL(cfg80211_inform_bss_width);
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 struct cfg80211_bss *
 cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
-				struct ieee80211_channel *channel,
+				struct ieee80211_channel *rx_channel,
 				enum nl80211_bss_scan_width scan_width,
 				struct ieee80211_mgmt *mgmt, size_t len,
 				s32 signal, gfp_t gfp)
 {
 	struct cfg80211_internal_bss tmp = {}, *res;
 	struct cfg80211_bss_ies *ies;
+	struct ieee80211_channel *channel;
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
 
 	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
 			offsetof(struct ieee80211_mgmt, u.beacon.variable));
 
-	trace_cfg80211_inform_bss_width_frame(wiphy, channel, scan_width, mgmt,
+	trace_cfg80211_inform_bss_width_frame(wiphy, rx_channel, scan_width, mgmt,
 					      len, signal);
 
 	if (WARN_ON(!mgmt))
@@ -959,7 +965,7 @@ cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 		return NULL;
 
 	channel = cfg80211_get_bss_channel(wiphy, mgmt->u.beacon.variable,
-					   ielen, channel);
+					   ielen, rx_channel);
 	if (!channel)
 		return NULL;
 
@@ -983,7 +989,8 @@ cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
 	tmp.pub.capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 
-	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp);
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), &tmp,
+				  rx_channel == channel);
 	if (!res)
 		return NULL;
 

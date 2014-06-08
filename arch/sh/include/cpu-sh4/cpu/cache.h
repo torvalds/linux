@@ -17,7 +17,7 @@
 #define SH_CACHE_COMBINED	4
 #define SH_CACHE_ASSOC		8
 
-#define CCR		0xff00001c	/* Address of Cache Control Register */
+#define SH_CCR		0xff00001c	/* Address of Cache Control Register */
 #define CCR_CACHE_OCE	0x0001	/* Operand Cache Enable */
 #define CCR_CACHE_WT	0x0002	/* Write-Through (for P0,U0,P3) (else writeback)*/
 #define CCR_CACHE_CB	0x0004	/* Copy-Back (for P1) (else writethrough) */

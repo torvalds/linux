@@ -959,13 +959,8 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 		qla4xxx_build_ddb_list(ha, is_reset);
 
 	set_bit(AF_ONLINE, &ha->flags);
-exit_init_hba:
-	if (is_qla80XX(ha) && (status == QLA_ERROR)) {
-		/* Since interrupts are registered in start_firmware for
-		 * 80XX, release them here if initialize_adapter fails */
-		qla4xxx_free_irqs(ha);
-	}
 
+exit_init_hba:
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
 	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 	return status;

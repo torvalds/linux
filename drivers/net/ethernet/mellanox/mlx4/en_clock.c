@@ -276,6 +276,7 @@ static const struct ptp_clock_info mlx4_en_ptp_clock_info = {
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
 	.n_per_out	= 0,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= mlx4_en_phc_adjfreq,
 	.adjtime	= mlx4_en_phc_adjtime,

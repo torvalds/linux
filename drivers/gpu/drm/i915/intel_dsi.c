@@ -243,10 +243,15 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	enum intel_display_power_domain power_domain;
 	u32 port, func;
 	enum pipe p;
 
 	DRM_DEBUG_KMS("\n");
+
+	power_domain = intel_display_port_power_domain(encoder);
+	if (!intel_display_power_enabled(dev_priv, power_domain))
+		return false;
 
 	/* XXX: this only works for one DSI output */
 	for (p = PIPE_A; p <= PIPE_B; p++) {
@@ -488,8 +493,19 @@ static enum drm_connector_status
 intel_dsi_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_dsi *intel_dsi = intel_attached_dsi(connector);
+	struct intel_encoder *intel_encoder = &intel_dsi->base;
+	enum intel_display_power_domain power_domain;
+	enum drm_connector_status connector_status;
+	struct drm_i915_private *dev_priv = intel_encoder->base.dev->dev_private;
+
 	DRM_DEBUG_KMS("\n");
-	return intel_dsi->dev.dev_ops->detect(&intel_dsi->dev);
+	power_domain = intel_display_port_power_domain(intel_encoder);
+
+	intel_display_power_get(dev_priv, power_domain);
+	connector_status = intel_dsi->dev.dev_ops->detect(&intel_dsi->dev);
+	intel_display_power_put(dev_priv, power_domain);
+
+	return connector_status;
 }
 
 static int intel_dsi_get_modes(struct drm_connector *connector)
@@ -586,6 +602,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->get_config = intel_dsi_get_config;
 
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	intel_connector->unregister = intel_connector_unregister;
 
 	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
 		dsi = &intel_dsi_devices[i];
@@ -603,7 +620,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	intel_encoder->type = INTEL_OUTPUT_DSI;
 	intel_encoder->crtc_mask = (1 << 0); /* XXX */
 
-	intel_encoder->cloneable = false;
+	intel_encoder->cloneable = 0;
 	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 
@@ -624,7 +641,7 @@ bool intel_dsi_init(struct drm_device *dev)
 	}
 
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
-	intel_panel_init(&intel_connector->panel, fixed_mode);
+	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
 	return true;
 

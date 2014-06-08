@@ -294,7 +294,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		READ32(nace);
 
 		if (nace > NFS4_ACL_MAX)
-			return nfserr_resource;
+			return nfserr_fbig;
 
 		*acl = nfs4_acl_new(nace);
 		if (*acl == NULL)
@@ -1222,7 +1222,6 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	}
 	write->wr_head.iov_base = p;
 	write->wr_head.iov_len = avail;
-	WARN_ON(avail != (XDR_QUADLEN(avail) << 2));
 	write->wr_pagelist = argp->pagelist;
 
 	len = XDR_QUADLEN(write->wr_buflen) << 2;
@@ -2483,6 +2482,8 @@ out_acl:
 			goto out;
 	}
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
+		if ((buflen -= 16) < 0)
+			goto out_resource;
 		WRITE32(3);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD0);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD1);
@@ -2499,8 +2500,10 @@ out:
 		security_release_secctx(context, contextlen);
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(acl);
-	if (tempfh)
+	if (tempfh) {
 		fh_put(tempfh);
+		kfree(tempfh);
+	}
 	return status;
 out_nfserr:
 	status = nfserrno(err);
@@ -3471,6 +3474,9 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_test_stateid_id *stateid, *next;
 	__be32 *p;
 
+	if (nfserr)
+		return nfserr;
+
 	RESERVE_SPACE(4 + (4 * test_stateid->ts_num_ids));
 	*p++ = htonl(test_stateid->ts_num_ids);
 
@@ -3579,8 +3585,6 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 		return 0;
 
 	session = resp->cstate.session;
-	if (session == NULL)
-		return 0;
 
 	if (xb->page_len == 0) {
 		length = (char *)resp->p - (char *)xb->head[0].iov_base + pad;
@@ -3620,7 +3624,7 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	BUG_ON(op->opnum < 0 || op->opnum >= ARRAY_SIZE(nfsd4_enc_ops) ||
 	       !nfsd4_enc_ops[op->opnum]);
 	op->status = nfsd4_enc_ops[op->opnum](resp, op->status, &op->u);
-	/* nfsd4_check_drc_limit guarantees enough room for error status */
+	/* nfsd4_check_resp_size guarantees enough room for error status */
 	if (!op->status)
 		op->status = nfsd4_check_resp_size(resp, 0);
 	if (so) {
@@ -3691,6 +3695,12 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 int
 nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compoundargs *args)
 {
+	if (rqstp->rq_arg.head[0].iov_len % 4) {
+		/* client is nuts */
+		dprintk("%s: compound not properly padded! (peeraddr=%pISc xid=0x%x)",
+			__func__, svc_addr(rqstp), be32_to_cpu(rqstp->rq_xid));
+		return 0;
+	}
 	args->p = p;
 	args->end = rqstp->rq_arg.head[0].iov_base + rqstp->rq_arg.head[0].iov_len;
 	args->pagelist = rqstp->rq_arg.pages;

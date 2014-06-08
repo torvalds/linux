@@ -144,7 +144,7 @@
 #define HOST_TO_DEVICE		0
 #define DEVICE_TO_HOST		1
 
-#define MAX_PHASE		31
+#define RTSX_PHASE_MAX		32
 #define RX_TUNING_CNT		3
 
 /* SG descriptor */

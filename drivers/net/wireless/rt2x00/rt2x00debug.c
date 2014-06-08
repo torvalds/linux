@@ -286,7 +286,7 @@ static ssize_t rt2x00debug_read_queue_dump(struct file *file,
 	if (retval)
 		return retval;
 
-	status = min((size_t)skb->len, length);
+	status = min_t(size_t, skb->len, length);
 	if (copy_to_user(buf, skb->data, status)) {
 		status = -EFAULT;
 		goto exit;

@@ -158,13 +158,6 @@ static const struct coreclk_soc_desc axp_coreclks = {
 	.num_ratios = ARRAY_SIZE(axp_coreclk_ratios),
 };
 
-static void __init axp_coreclk_init(struct device_node *np)
-{
-	mvebu_coreclk_setup(np, &axp_coreclks);
-}
-CLK_OF_DECLARE(axp_core_clk, "marvell,armada-xp-core-clock",
-	       axp_coreclk_init);
-
 /*
  * Clock Gating Control
  */
@@ -202,9 +195,14 @@ static const struct clk_gating_soc_desc axp_gating_desc[] __initconst = {
 	{ }
 };
 
-static void __init axp_clk_gating_init(struct device_node *np)
+static void __init axp_clk_init(struct device_node *np)
 {
-	mvebu_clk_gating_setup(np, axp_gating_desc);
+	struct device_node *cgnp =
+		of_find_compatible_node(NULL, NULL, "marvell,armada-xp-gating-clock");
+
+	mvebu_coreclk_setup(np, &axp_coreclks);
+
+	if (cgnp)
+		mvebu_clk_gating_setup(cgnp, axp_gating_desc);
 }
-CLK_OF_DECLARE(axp_clk_gating, "marvell,armada-xp-gating-clock",
-	       axp_clk_gating_init);
+CLK_OF_DECLARE(axp_clk, "marvell,armada-xp-core-clock", axp_clk_init);

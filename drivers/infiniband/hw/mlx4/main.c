@@ -53,8 +53,8 @@
 #include "user.h"
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
-#define DRV_VERSION	"1.0"
-#define DRV_RELDATE	"April 4, 2008"
+#define DRV_VERSION	"2.2-1"
+#define DRV_RELDATE	"Feb 2014"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF
@@ -1546,7 +1546,7 @@ static int mlx4_ib_addr_event(int event, struct net_device *event_netdev,
 	iboe = &ibdev->iboe;
 	spin_lock(&iboe->lock);
 
-	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
+	for (port = 1; port <= ibdev->dev->caps.num_ports; ++port)
 		if ((netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->masters[port - 1])) ||
 		     (!netif_is_bond_master(real_dev) &&
@@ -1569,14 +1569,14 @@ static u8 mlx4_ib_get_dev_port(struct net_device *dev,
 
 	iboe = &ibdev->iboe;
 
-	for (port = 1; port <= MLX4_MAX_PORTS; ++port)
+	for (port = 1; port <= ibdev->dev->caps.num_ports; ++port)
 		if ((netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->masters[port - 1])) ||
 		     (!netif_is_bond_master(real_dev) &&
 		     (real_dev == iboe->netdevs[port - 1])))
 			break;
 
-	if ((port == 0) || (port > MLX4_MAX_PORTS))
+	if ((port == 0) || (port > ibdev->dev->caps.num_ports))
 		return 0;
 	else
 		return port;
@@ -1626,7 +1626,7 @@ static void mlx4_ib_get_dev_addr(struct net_device *dev,
 	union ib_gid gid;
 
 
-	if ((port == 0) || (port > MLX4_MAX_PORTS))
+	if ((port == 0) || (port > ibdev->dev->caps.num_ports))
 		return;
 
 	/* IPv4 gids */
@@ -1803,7 +1803,7 @@ static void init_pkeys(struct mlx4_ib_dev *ibdev)
 
 static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
-	char name[32];
+	char name[80];
 	int eq_per_port = 0;
 	int added_eqs = 0;
 	int total_eqs = 0;
@@ -1833,8 +1833,8 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	eq = 0;
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
-			sprintf(name, "mlx4-ib-%d-%d@%s",
-				i, j, dev->pdev->bus->name);
+			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%s",
+				 i, j, dev->pdev->bus->name);
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name, NULL,
 					   &ibdev->eq_table[eq])) {
@@ -1887,14 +1887,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int ib_num_ports = 0;
 
 	pr_info_once("%s", mlx4_ib_version);
-
-	mlx4_foreach_non_ib_transport_port(i, dev)
-		num_ports++;
-
-	if (mlx4_is_mfunc(dev) && num_ports) {
-		dev_err(&dev->pdev->dev, "RoCE is not supported over SRIOV as yet\n");
-		return NULL;
-	}
 
 	num_ports = 0;
 	mlx4_foreach_ib_transport_port(i, dev)
@@ -2056,8 +2048,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
 			if (err)
 				ibdev->counters[i] = -1;
-		} else
-				ibdev->counters[i] = -1;
+		} else {
+			ibdev->counters[i] = -1;
+		}
 	}
 
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
@@ -2331,17 +2324,24 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 	struct mlx4_dev *dev = ibdev->dev;
 	int i;
 	unsigned long flags;
+	struct mlx4_active_ports actv_ports;
+	unsigned int ports;
+	unsigned int first_port;
 
 	if (!mlx4_is_master(dev))
 		return;
 
-	dm = kcalloc(dev->caps.num_ports, sizeof *dm, GFP_ATOMIC);
+	actv_ports = mlx4_get_active_ports(dev, slave);
+	ports = bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+	first_port = find_first_bit(actv_ports.ports, dev->caps.num_ports);
+
+	dm = kcalloc(ports, sizeof(*dm), GFP_ATOMIC);
 	if (!dm) {
 		pr_err("failed to allocate memory for tunneling qp update\n");
 		goto out;
 	}
 
-	for (i = 0; i < dev->caps.num_ports; i++) {
+	for (i = 0; i < ports; i++) {
 		dm[i] = kmalloc(sizeof (struct mlx4_ib_demux_work), GFP_ATOMIC);
 		if (!dm[i]) {
 			pr_err("failed to allocate memory for tunneling qp update work struct\n");
@@ -2353,9 +2353,9 @@ static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
 		}
 	}
 	/* initialize or tear down tunnel QPs for the slave */
-	for (i = 0; i < dev->caps.num_ports; i++) {
+	for (i = 0; i < ports; i++) {
 		INIT_WORK(&dm[i]->work, mlx4_ib_tunnels_update_work);
-		dm[i]->port = i + 1;
+		dm[i]->port = first_port + i + 1;
 		dm[i]->slave = slave;
 		dm[i]->do_init = do_init;
 		dm[i]->dev = ibdev;

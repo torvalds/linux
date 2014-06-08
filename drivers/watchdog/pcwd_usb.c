@@ -645,10 +645,8 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device and initialize it */
 	usb_pcwd = kzalloc(sizeof(struct usb_pcwd_private), GFP_KERNEL);
-	if (usb_pcwd == NULL) {
-		pr_err("Out of memory\n");
+	if (usb_pcwd == NULL)
 		goto error;
-	}
 
 	usb_pcwd_device = usb_pcwd;
 

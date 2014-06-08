@@ -151,7 +151,7 @@ static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 					  sizeof(struct dma_desc)));
 }
 
-const struct stmmac_chain_mode_ops chain_mode_ops = {
+const struct stmmac_mode_ops chain_mode_ops = {
 	.init = stmmac_init_dma_chain,
 	.is_jumbo_frm = stmmac_is_jumbo_frm,
 	.jumbo_frm = stmmac_jumbo_frm,

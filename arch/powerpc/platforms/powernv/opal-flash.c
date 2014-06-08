@@ -79,9 +79,6 @@
 /* XXX: Assume candidate image size is <= 1GB */
 #define MAX_IMAGE_SIZE	0x40000000
 
-/* Flash sg list version */
-#define SG_LIST_VERSION (1UL)
-
 /* Image status */
 enum {
 	IMAGE_INVALID,
@@ -131,11 +128,15 @@ static DEFINE_MUTEX(image_data_mutex);
  */
 static inline void opal_flash_validate(void)
 {
-	struct validate_flash_t *args_buf = &validate_flash_data;
+	long ret;
+	void *buf = validate_flash_data.buf;
+	__be32 size, result;
 
-	args_buf->status = opal_validate_flash(__pa(args_buf->buf),
-					       &(args_buf->buf_size),
-					       &(args_buf->result));
+	ret = opal_validate_flash(__pa(buf), &size, &result);
+
+	validate_flash_data.status = ret;
+	validate_flash_data.buf_size = be32_to_cpu(size);
+	validate_flash_data.result = be32_to_cpu(result);
 }
 
 /*
@@ -268,93 +269,11 @@ static ssize_t manage_store(struct kobject *kobj,
 }
 
 /*
- * Free sg list
- */
-static void free_sg_list(struct opal_sg_list *list)
-{
-	struct opal_sg_list *sg1;
-	while (list) {
-		sg1 = list->next;
-		kfree(list);
-		list = sg1;
-	}
-	list = NULL;
-}
-
-/*
- * Build candidate image scatter gather list
- *
- * list format:
- *   -----------------------------------
- *  |  VER (8) | Entry length in bytes  |
- *   -----------------------------------
- *  |  Pointer to next entry            |
- *   -----------------------------------
- *  |  Address of memory area 1         |
- *   -----------------------------------
- *  |  Length of memory area 1          |
- *   -----------------------------------
- *  |   .........                       |
- *   -----------------------------------
- *  |   .........                       |
- *   -----------------------------------
- *  |  Address of memory area N         |
- *   -----------------------------------
- *  |  Length of memory area N          |
- *   -----------------------------------
- */
-static struct opal_sg_list *image_data_to_sglist(void)
-{
-	struct opal_sg_list *sg1, *list = NULL;
-	void *addr;
-	int size;
-
-	addr = image_data.data;
-	size = image_data.size;
-
-	sg1 = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!sg1)
-		return NULL;
-
-	list = sg1;
-	sg1->num_entries = 0;
-	while (size > 0) {
-		/* Translate virtual address to physical address */
-		sg1->entry[sg1->num_entries].data =
-			(void *)(vmalloc_to_pfn(addr) << PAGE_SHIFT);
-
-		if (size > PAGE_SIZE)
-			sg1->entry[sg1->num_entries].length = PAGE_SIZE;
-		else
-			sg1->entry[sg1->num_entries].length = size;
-
-		sg1->num_entries++;
-		if (sg1->num_entries >= SG_ENTRIES_PER_NODE) {
-			sg1->next = kzalloc(PAGE_SIZE, GFP_KERNEL);
-			if (!sg1->next) {
-				pr_err("%s : Failed to allocate memory\n",
-				       __func__);
-				goto nomem;
-			}
-
-			sg1 = sg1->next;
-			sg1->num_entries = 0;
-		}
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	return list;
-nomem:
-	free_sg_list(list);
-	return NULL;
-}
-
-/*
  * OPAL update flash
  */
 static int opal_flash_update(int op)
 {
-	struct opal_sg_list *sg, *list, *next;
+	struct opal_sg_list *list;
 	unsigned long addr;
 	int64_t rc = OPAL_PARAMETER;
 
@@ -364,29 +283,12 @@ static int opal_flash_update(int op)
 		goto flash;
 	}
 
-	list = image_data_to_sglist();
+	list = opal_vmalloc_to_sg_list(image_data.data, image_data.size);
 	if (!list)
 		goto invalid_img;
 
 	/* First entry address */
 	addr = __pa(list);
-
-	/* Translate sg list address to absolute */
-	for (sg = list; sg; sg = next) {
-		next = sg->next;
-		/* Don't translate NULL pointer for last entry */
-		if (sg->next)
-			sg->next = (struct opal_sg_list *)__pa(sg->next);
-		else
-			sg->next = NULL;
-
-		/*
-		 * Convert num_entries to version/length format
-		 * to satisfy OPAL.
-		 */
-		sg->num_entries = (SG_LIST_VERSION << 56) |
-			(sg->num_entries * sizeof(struct opal_sg_entry) + 16);
-	}
 
 	pr_alert("FLASH: Image is %u bytes\n", image_data.size);
 	pr_alert("FLASH: Image update requested\n");

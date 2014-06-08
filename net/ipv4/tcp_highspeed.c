@@ -162,7 +162,6 @@ static struct tcp_congestion_ops tcp_highspeed __read_mostly = {
 	.init		= hstcp_init,
 	.ssthresh	= hstcp_ssthresh,
 	.cong_avoid	= hstcp_cong_avoid,
-	.min_cwnd	= tcp_reno_min_cwnd,
 
 	.owner		= THIS_MODULE,
 	.name		= "highspeed"

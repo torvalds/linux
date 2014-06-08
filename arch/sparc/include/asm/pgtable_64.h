@@ -71,6 +71,23 @@
 
 #include <linux/sched.h>
 
+extern unsigned long sparc64_valid_addr_bitmap[];
+
+/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+static inline bool __kern_addr_valid(unsigned long paddr)
+{
+	if ((paddr >> MAX_PHYS_ADDRESS_BITS) != 0UL)
+		return false;
+	return test_bit(paddr >> ILOG2_4MB, sparc64_valid_addr_bitmap);
+}
+
+static inline bool kern_addr_valid(unsigned long addr)
+{
+	unsigned long paddr = __pa(addr);
+
+	return __kern_addr_valid(paddr);
+}
+
 /* Entries per page directory level. */
 #define PTRS_PER_PTE	(1UL << (PAGE_SHIFT-3))
 #define PTRS_PER_PMD	(1UL << PMD_BITS)
@@ -79,9 +96,12 @@
 /* Kernel has a separate 44bit address space. */
 #define FIRST_USER_ADDRESS	0
 
-#define pte_ERROR(e)	__builtin_trap()
-#define pmd_ERROR(e)	__builtin_trap()
-#define pgd_ERROR(e)	__builtin_trap()
+#define pmd_ERROR(e)							\
+	pr_err("%s:%d: bad pmd %p(%016lx) seen at (%pS)\n",		\
+	       __FILE__, __LINE__, &(e), pmd_val(e), __builtin_return_address(0))
+#define pgd_ERROR(e)							\
+	pr_err("%s:%d: bad pgd %p(%016lx) seen at (%pS)\n",		\
+	       __FILE__, __LINE__, &(e), pgd_val(e), __builtin_return_address(0))
 
 #endif /* !(__ASSEMBLY__) */
 
@@ -258,8 +278,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 {
 	unsigned long mask, tmp;
 
-	/* SUN4U: 0x600307ffffffecb8 (negated == 0x9ffcf80000001347)
-	 * SUN4V: 0x30ffffffffffee17 (negated == 0xcf000000000011e8)
+	/* SUN4U: 0x630107ffffffec38 (negated == 0x9cfef800000013c7)
+	 * SUN4V: 0x33ffffffffffee07 (negated == 0xcc000000000011f8)
 	 *
 	 * Even if we use negation tricks the result is still a 6
 	 * instruction sequence, so don't try to play fancy and just
@@ -289,10 +309,10 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	"	.previous\n"
 	: "=r" (mask), "=r" (tmp)
 	: "i" (_PAGE_PADDR_4U | _PAGE_MODIFIED_4U | _PAGE_ACCESSED_4U |
-	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_E_4U | _PAGE_PRESENT_4U |
+	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_E_4U |
 	       _PAGE_SPECIAL | _PAGE_PMD_HUGE | _PAGE_SZALL_4U),
 	  "i" (_PAGE_PADDR_4V | _PAGE_MODIFIED_4V | _PAGE_ACCESSED_4V |
-	       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_E_4V | _PAGE_PRESENT_4V |
+	       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_E_4V |
 	       _PAGE_SPECIAL | _PAGE_PMD_HUGE | _PAGE_SZALL_4V));
 
 	return __pte((pte_val(pte) & mask) | (pgprot_val(prot) & ~mask));
@@ -633,7 +653,7 @@ static inline unsigned long pmd_large(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
 
-	return (pte_val(pte) & _PAGE_PMD_HUGE) && pte_present(pte);
+	return pte_val(pte) & _PAGE_PMD_HUGE;
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -719,20 +739,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	return __pmd(pte_val(pte));
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
-{
-	unsigned long mask;
-
-	if (tlb_type == hypervisor)
-		mask = _PAGE_PRESENT_4V;
-	else
-		mask = _PAGE_PRESENT_4U;
-
-	pmd_val(pmd) &= ~mask;
-
-	return pmd;
-}
-
 static inline pmd_t pmd_mksplitting(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
@@ -756,6 +762,20 @@ static inline int pmd_present(pmd_t pmd)
 }
 
 #define pmd_none(pmd)			(!pmd_val(pmd))
+
+/* pmd_bad() is only called on non-trans-huge PMDs.  Our encoding is
+ * very simple, it's just the physical address.  PTE tables are of
+ * size PAGE_SIZE so make sure the sub-PAGE_SIZE bits are clear and
+ * the top bits outside of the range of any physical address size we
+ * support are clear as well.  We also validate the physical itself.
+ */
+#define pmd_bad(pmd)			((pmd_val(pmd) & ~PAGE_MASK) || \
+					 !__kern_addr_valid(pmd_val(pmd)))
+
+#define pud_none(pud)			(!pud_val(pud))
+
+#define pud_bad(pud)			((pud_val(pud) & ~PAGE_MASK) || \
+					 !__kern_addr_valid(pud_val(pud)))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
@@ -790,10 +810,7 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pud_page_vaddr(pud)		\
 	((unsigned long) __va(pud_val(pud)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
-#define pmd_bad(pmd)			(0)
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
-#define pud_none(pud)			(!pud_val(pud))
-#define pud_bad(pud)			(0)
 #define pud_present(pud)		(pud_val(pud) != 0U)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0UL)
 
@@ -893,6 +910,10 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 				 pmd_t *pmd);
 
+#define __HAVE_ARCH_PMDP_INVALIDATE
+extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+			    pmd_t *pmdp);
+
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
 extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 				       pgtable_t pgtable);
@@ -918,18 +939,6 @@ extern unsigned long pte_file(pte_t);
 #define pte_to_pgoff(pte)	(pte_val(pte) >> PAGE_SHIFT)
 extern pte_t pgoff_to_pte(unsigned long);
 #define PTE_FILE_MAX_BITS	(64UL - PAGE_SHIFT - 1UL)
-
-extern unsigned long sparc64_valid_addr_bitmap[];
-
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
-static inline bool kern_addr_valid(unsigned long addr)
-{
-	unsigned long paddr = __pa(addr);
-
-	if ((paddr >> 41UL) != 0UL)
-		return false;
-	return test_bit(paddr >> 22, sparc64_valid_addr_bitmap);
-}
 
 extern int page_in_phys_avail(unsigned long paddr);
 

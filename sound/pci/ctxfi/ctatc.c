@@ -1739,8 +1739,6 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	if (err < 0)
 		goto error1;
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*ratc = atc;
 	return 0;
 

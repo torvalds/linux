@@ -1062,12 +1062,13 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 
 static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	spinlock_t *root_lock = qdisc_root_sleeping_lock(sch);
 	struct htb_sched *q = qdisc_priv(sch);
 	struct nlattr *nest;
 	struct tc_htb_glob gopt;
 
-	spin_lock_bh(root_lock);
+	/* Its safe to not acquire qdisc lock. As we hold RTNL,
+	 * no change can happen on the qdisc parameters.
+	 */
 
 	gopt.direct_pkts = q->direct_pkts;
 	gopt.version = HTB_VER;
@@ -1081,13 +1082,10 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (nla_put(skb, TCA_HTB_INIT, sizeof(gopt), &gopt) ||
 	    nla_put_u32(skb, TCA_HTB_DIRECT_QLEN, q->direct_qlen))
 		goto nla_put_failure;
-	nla_nest_end(skb, nest);
 
-	spin_unlock_bh(root_lock);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
-	spin_unlock_bh(root_lock);
 	nla_nest_cancel(skb, nest);
 	return -1;
 }
@@ -1096,11 +1094,12 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	spinlock_t *root_lock = qdisc_root_sleeping_lock(sch);
 	struct nlattr *nest;
 	struct tc_htb_opt opt;
 
-	spin_lock_bh(root_lock);
+	/* Its safe to not acquire qdisc lock. As we hold RTNL,
+	 * no change can happen on the class parameters.
+	 */
 	tcm->tcm_parent = cl->parent ? cl->parent->common.classid : TC_H_ROOT;
 	tcm->tcm_handle = cl->common.classid;
 	if (!cl->level && cl->un.leaf.q)
@@ -1128,12 +1127,9 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	    nla_put_u64(skb, TCA_HTB_CEIL64, cl->ceil.rate_bytes_ps))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, nest);
-	spin_unlock_bh(root_lock);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
-	spin_unlock_bh(root_lock);
 	nla_nest_cancel(skb, nest);
 	return -1;
 }

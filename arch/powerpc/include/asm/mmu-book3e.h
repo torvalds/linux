@@ -287,11 +287,14 @@ extern int mmu_linear_psize;
 extern int mmu_vmemmap_psize;
 
 struct tlb_core_data {
+	/*
+	 * Per-core spinlock for e6500 TLB handlers (no tlbsrx.)
+	 * Must be the first struct element.
+	 */
+	u8 lock;
+
 	/* For software way selection, as on Freescale TLB1 */
 	u8 esel_next, esel_max, esel_first;
-
-	/* Per-core spinlock for e6500 TLB handlers (no tlbsrx.) */
-	u8 lock;
 };
 
 #ifdef CONFIG_PPC64

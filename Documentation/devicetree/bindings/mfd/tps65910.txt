@@ -11,7 +11,7 @@ Required properties:
 - #interrupt-cells: the number of cells to describe an IRQ, this should be 2.
   The first cell is the IRQ number.
   The second cell is the flags, encoded as the trigger masks from
-  Documentation/devicetree/bindings/interrupts.txt
+  Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 - regulators: This is the list of child nodes that specify the regulator
   initialization data for defined regulators. Not all regulators for the given
   device need to be present. The definition for each of these nodes is defined

@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <dt-bindings/clk/exynos-audss-clk.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 
 enum exynos_audss_clk_type {
 	TYPE_EXYNOS4210,

@@ -111,7 +111,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	snprintf(port->adapter.name, sizeof(port->adapter.name),
 		 "nouveau-%s-%d", device->name, index);
 	port->adapter.owner = THIS_MODULE;
-	port->adapter.dev.parent = &device->pdev->dev;
+	port->adapter.dev.parent = nv_device_base(device);
 	port->index = index;
 	port->func = func;
 	i2c_set_adapdata(&port->adapter, i2c);

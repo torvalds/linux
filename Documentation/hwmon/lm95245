@@ -24,8 +24,12 @@ is given within a range of -127 to +127.875 degrees. Remote temperatures are
 given within a range of -127 to +255 degrees. Resolution depends on
 temperature input and range.
 
-Each sensor has its own critical limit, but the hysteresis is common to all
-two channels.
+Each sensor has its own critical limit. Additionally, there is a relative
+hysteresis value common to both critical limits. To make life easier to
+user-space applications, two absolute values are exported, one for each
+channel, but these values are of course linked. Only the local hysteresis
+can be set from user-space, and the same delta applies to the remote
+hysteresis.
 
 The lm95245 driver can change its update interval to a fixed set of values.
 It will round up to the next selectable interval. See the datasheet for exact

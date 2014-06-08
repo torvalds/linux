@@ -17,6 +17,11 @@
 struct mipi_dsi_host;
 struct mipi_dsi_device;
 
+/* request ACK from peripheral */
+#define MIPI_DSI_MSG_REQ_ACK	BIT(0)
+/* use Low Power Mode to transmit message */
+#define MIPI_DSI_MSG_USE_LPM	BIT(1)
+
 /**
  * struct mipi_dsi_msg - read/write DSI buffer
  * @channel: virtual channel id
@@ -29,6 +34,7 @@ struct mipi_dsi_device;
 struct mipi_dsi_msg {
 	u8 channel;
 	u8 type;
+	u16 flags;
 
 	size_t tx_len;
 	const void *tx_buf;

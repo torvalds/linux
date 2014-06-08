@@ -311,9 +311,13 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	} __packed * msg = ap_msg->message;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);
-	int replylen;
+	int replylen, req_sumlen, resp_sumlen;
 	char *req_data = ap_msg->message + sizeof(struct type6_hdr) + rcblen;
 	char *function_code;
+
+	if (CEIL4(xcRB->request_control_blk_length) <
+			xcRB->request_control_blk_length)
+		return -EINVAL; /* overflow after alignment*/
 
 	/* length checks */
 	ap_msg->length = sizeof(struct type6_hdr) +
@@ -321,11 +325,37 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 		xcRB->request_data_length;
 	if (ap_msg->length > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
+
+	/* Overflow check
+	   sum must be greater (or equal) than the largest operand */
+	req_sumlen = CEIL4(xcRB->request_control_blk_length) +
+			xcRB->request_data_length;
+	if ((CEIL4(xcRB->request_control_blk_length) <=
+						xcRB->request_data_length) ?
+		(req_sumlen < xcRB->request_data_length) :
+		(req_sumlen < CEIL4(xcRB->request_control_blk_length))) {
+		return -EINVAL;
+	}
+
+	if (CEIL4(xcRB->reply_control_blk_length) <
+			xcRB->reply_control_blk_length)
+		return -EINVAL; /* overflow after alignment*/
+
 	replylen = sizeof(struct type86_fmt2_msg) +
 		CEIL4(xcRB->reply_control_blk_length) +
 		xcRB->reply_data_length;
 	if (replylen > MSGTYPE06_MAX_MSG_SIZE)
 		return -EINVAL;
+
+	/* Overflow check
+	   sum must be greater (or equal) than the largest operand */
+	resp_sumlen = CEIL4(xcRB->reply_control_blk_length) +
+			xcRB->reply_data_length;
+	if ((CEIL4(xcRB->reply_control_blk_length) <= xcRB->reply_data_length) ?
+		(resp_sumlen < xcRB->reply_data_length) :
+		(resp_sumlen < CEIL4(xcRB->reply_control_blk_length))) {
+		return -EINVAL;
+	}
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_hdrX;
@@ -393,11 +423,17 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
 		unsigned int	dom_val;	/* domain id	   */
 	} __packed * payload_hdr;
 
+	if (CEIL4(xcRB->req_len) < xcRB->req_len)
+		return -EINVAL; /* overflow after alignment*/
+
 	/* length checks */
 	ap_msg->length = sizeof(struct type6_hdr) + xcRB->req_len;
 	if (CEIL4(xcRB->req_len) > MSGTYPE06_MAX_MSG_SIZE -
 				   (sizeof(struct type6_hdr)))
 		return -EINVAL;
+
+	if (CEIL4(xcRB->resp_len) < xcRB->resp_len)
+		return -EINVAL; /* overflow after alignment*/
 
 	if (CEIL4(xcRB->resp_len) > MSGTYPE06_MAX_MSG_SIZE -
 				    (sizeof(struct type86_fmt2_msg)))
@@ -410,7 +446,7 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(struct zcrypt_device *zdev,
 
 	/* Import CPRB data from the ioctl input parameter */
 	if (copy_from_user(&(msg->cprbx.cprb_len),
-			   (char *)xcRB->req, xcRB->req_len)) {
+			   (char __force __user *)xcRB->req, xcRB->req_len)) {
 		return -EFAULT;
 	}
 
@@ -623,7 +659,7 @@ static int convert_type86_ep11_xcrb(struct zcrypt_device *zdev,
 		return -EINVAL;
 
 	/* Copy response CPRB to user */
-	if (copy_to_user((char *)xcRB->resp,
+	if (copy_to_user((char __force __user *)xcRB->resp,
 			 data + msg->fmt2.offset1, msg->fmt2.count1))
 		return -EFAULT;
 	xcRB->resp_len = msg->fmt2.count1;

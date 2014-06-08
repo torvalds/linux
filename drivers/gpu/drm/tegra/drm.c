@@ -104,7 +104,7 @@ static void tegra_drm_context_free(struct tegra_drm_context *context)
 
 static void tegra_drm_lastclose(struct drm_device *drm)
 {
-#ifdef CONFIG_TEGRA_DRM_FBDEV
+#ifdef CONFIG_DRM_TEGRA_FBDEV
 	struct tegra_drm *tegra = drm->dev_private;
 
 	tegra_fbdev_restore_mode(tegra->fbdev);
@@ -665,6 +665,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra114-hdmi", },
 	{ .compatible = "nvidia,tegra114-gr3d", },
 	{ .compatible = "nvidia,tegra124-dc", },
+	{ .compatible = "nvidia,tegra124-sor", },
 	{ /* sentinel */ }
 };
 
@@ -691,13 +692,21 @@ static int __init host1x_drm_init(void)
 	if (err < 0)
 		goto unregister_dc;
 
-	err = platform_driver_register(&tegra_hdmi_driver);
+	err = platform_driver_register(&tegra_sor_driver);
 	if (err < 0)
 		goto unregister_dsi;
 
-	err = platform_driver_register(&tegra_gr2d_driver);
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_sor;
+
+	err = platform_driver_register(&tegra_dpaux_driver);
 	if (err < 0)
 		goto unregister_hdmi;
+
+	err = platform_driver_register(&tegra_gr2d_driver);
+	if (err < 0)
+		goto unregister_dpaux;
 
 	err = platform_driver_register(&tegra_gr3d_driver);
 	if (err < 0)
@@ -707,8 +716,12 @@ static int __init host1x_drm_init(void)
 
 unregister_gr2d:
 	platform_driver_unregister(&tegra_gr2d_driver);
+unregister_dpaux:
+	platform_driver_unregister(&tegra_dpaux_driver);
 unregister_hdmi:
 	platform_driver_unregister(&tegra_hdmi_driver);
+unregister_sor:
+	platform_driver_unregister(&tegra_sor_driver);
 unregister_dsi:
 	platform_driver_unregister(&tegra_dsi_driver);
 unregister_dc:
@@ -723,7 +736,9 @@ static void __exit host1x_drm_exit(void)
 {
 	platform_driver_unregister(&tegra_gr3d_driver);
 	platform_driver_unregister(&tegra_gr2d_driver);
+	platform_driver_unregister(&tegra_dpaux_driver);
 	platform_driver_unregister(&tegra_hdmi_driver);
+	platform_driver_unregister(&tegra_sor_driver);
 	platform_driver_unregister(&tegra_dsi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
 	host1x_driver_unregister(&host1x_drm_driver);

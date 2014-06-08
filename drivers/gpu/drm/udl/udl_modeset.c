@@ -310,7 +310,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_framebuffer *ufb = to_udl_fb(crtc->fb);
+	struct udl_framebuffer *ufb = to_udl_fb(crtc->primary->fb);
 	struct udl_device *udl = dev->dev_private;
 	char *buf;
 	char *wrptr;

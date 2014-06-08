@@ -1081,33 +1081,201 @@ ENTRY(fast_syscall_spill_registers)
 
 	rsr	a0, sar
 	s32i	a3, a2, PT_AREG3
+	s32i	a0, a2, PT_SAR
+
+	/* The spill routine might clobber a4, a7, a8, a11, a12, and a15. */
+
 	s32i	a4, a2, PT_AREG4
-	s32i	a0, a2, PT_AREG5	# store SAR to PT_AREG5
-
-	/* The spill routine might clobber a7, a11, and a15. */
-
 	s32i	a7, a2, PT_AREG7
+	s32i	a8, a2, PT_AREG8
 	s32i	a11, a2, PT_AREG11
+	s32i	a12, a2, PT_AREG12
 	s32i	a15, a2, PT_AREG15
 
-	call0	_spill_registers	# destroys a3, a4, and SAR
+	/*
+	 * Rotate ws so that the current windowbase is at bit 0.
+	 * Assume ws = xxxwww1yy (www1 current window frame).
+	 * Rotate ws right so that a4 = yyxxxwww1.
+	 */
+
+	rsr	a0, windowbase
+	rsr	a3, windowstart		# a3 = xxxwww1yy
+	ssr	a0			# holds WB
+	slli	a0, a3, WSBITS
+	or	a3, a3, a0		# a3 = xxxwww1yyxxxwww1yy
+	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
+
+	/* We are done if there are no more than the current register frame. */
+
+	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
+	movi	a0, (1 << (WSBITS-1))
+	_beqz	a3, .Lnospill		# only one active frame? jump
+
+	/* We want 1 at the top, so that we return to the current windowbase */
+
+	or	a3, a3, a0		# 1yyxxxwww
+
+	/* Skip empty frames - get 'oldest' WINDOWSTART-bit. */
+
+	wsr	a3, windowstart		# save shifted windowstart
+	neg	a0, a3
+	and	a3, a0, a3		# first bit set from right: 000010000
+
+	ffs_ws	a0, a3			# a0: shifts to skip empty frames
+	movi	a3, WSBITS
+	sub	a0, a3, a0		# WSBITS-a0:number of 0-bits from right
+	ssr	a0			# save in SAR for later.
+
+	rsr	a3, windowbase
+	add	a3, a3, a0
+	wsr	a3, windowbase
+	rsync
+
+	rsr	a3, windowstart
+	srl	a3, a3			# shift windowstart
+
+	/* WB is now just one frame below the oldest frame in the register
+	   window. WS is shifted so the oldest frame is in bit 0, thus, WB
+	   and WS differ by one 4-register frame. */
+
+	/* Save frames. Depending what call was used (call4, call8, call12),
+	 * we have to save 4,8. or 12 registers.
+	 */
+
+
+.Lloop: _bbsi.l	a3, 1, .Lc4
+	_bbci.l	a3, 2, .Lc12
+
+.Lc8:	s32e	a4, a13, -16
+	l32e	a4, a5, -12
+	s32e	a8, a4, -32
+	s32e	a5, a13, -12
+	s32e	a6, a13, -8
+	s32e	a7, a13, -4
+	s32e	a9, a4, -28
+	s32e	a10, a4, -24
+	s32e	a11, a4, -20
+	srli	a11, a3, 2		# shift windowbase by 2
+	rotw	2
+	_bnei	a3, 1, .Lloop
+	j	.Lexit
+
+.Lc4:	s32e	a4, a9, -16
+	s32e	a5, a9, -12
+	s32e	a6, a9, -8
+	s32e	a7, a9, -4
+
+	srli	a7, a3, 1
+	rotw	1
+	_bnei	a3, 1, .Lloop
+	j	.Lexit
+
+.Lc12:	_bbci.l	a3, 3, .Linvalid_mask	# bit 2 shouldn't be zero!
+
+	/* 12-register frame (call12) */
+
+	l32e	a0, a5, -12
+	s32e	a8, a0, -48
+	mov	a8, a0
+
+	s32e	a9, a8, -44
+	s32e	a10, a8, -40
+	s32e	a11, a8, -36
+	s32e	a12, a8, -32
+	s32e	a13, a8, -28
+	s32e	a14, a8, -24
+	s32e	a15, a8, -20
+	srli	a15, a3, 3
+
+	/* The stack pointer for a4..a7 is out of reach, so we rotate the
+	 * window, grab the stackpointer, and rotate back.
+	 * Alternatively, we could also use the following approach, but that
+	 * makes the fixup routine much more complicated:
+	 * rotw	1
+	 * s32e	a0, a13, -16
+	 * ...
+	 * rotw 2
+	 */
+
+	rotw	1
+	mov	a4, a13
+	rotw	-1
+
+	s32e	a4, a8, -16
+	s32e	a5, a8, -12
+	s32e	a6, a8, -8
+	s32e	a7, a8, -4
+
+	rotw	3
+
+	_beqi	a3, 1, .Lexit
+	j	.Lloop
+
+.Lexit:
+
+	/* Done. Do the final rotation and set WS */
+
+	rotw	1
+	rsr	a3, windowbase
+	ssl	a3
+	movi	a3, 1
+	sll	a3, a3
+	wsr	a3, windowstart
+.Lnospill:
 
 	/* Advance PC, restore registers and SAR, and return from exception. */
 
-	l32i	a3, a2, PT_AREG5
-	l32i	a4, a2, PT_AREG4
+	l32i	a3, a2, PT_SAR
 	l32i	a0, a2, PT_AREG0
 	wsr	a3, sar
 	l32i	a3, a2, PT_AREG3
 
 	/* Restore clobbered registers. */
 
+	l32i	a4, a2, PT_AREG4
 	l32i	a7, a2, PT_AREG7
+	l32i	a8, a2, PT_AREG8
 	l32i	a11, a2, PT_AREG11
+	l32i	a12, a2, PT_AREG12
 	l32i	a15, a2, PT_AREG15
 
 	movi	a2, 0
 	rfe
+
+.Linvalid_mask:
+
+	/* We get here because of an unrecoverable error in the window
+	 * registers, so set up a dummy frame and kill the user application.
+	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
+	 */
+
+	movi	a0, 1
+	movi	a1, 0
+
+	wsr	a0, windowstart
+	wsr	a1, windowbase
+	rsync
+
+	movi	a0, 0
+
+	rsr	a3, excsave1
+	l32i	a1, a3, EXC_TABLE_KSTK
+
+	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
+	wsr	a4, ps
+	rsync
+
+	movi	a6, SIGSEGV
+	movi	a4, do_exit
+	callx4	a4
+
+	/* shouldn't return, so panic */
+
+	wsr	a0, excsave1
+	movi	a0, unrecoverable_exception
+	callx0	a0		# should not return
+1:	j	1b
+
 
 ENDPROC(fast_syscall_spill_registers)
 
@@ -1116,6 +1284,13 @@ ENDPROC(fast_syscall_spill_registers)
  * We get here if the spill routine causes an exception, e.g. tlb miss.
  * We basically restore WINDOWBASE and WINDOWSTART to the condition when
  * we entered the spill routine and jump to the user exception handler.
+ *
+ * Note that we only need to restore the bits in windowstart that have not
+ * been spilled yet by the _spill_register routine. Luckily, a3 contains a
+ * rotated windowstart with only those bits set for frames that haven't been
+ * spilled yet. Because a3 is rotated such that bit 0 represents the register
+ * frame for the current windowbase - 1, we need to rotate a3 left by the
+ * value of the current windowbase + 1 and move it to windowstart.
  *
  * a0: value of depc, original value in depc
  * a2: trashed, original value in EXC_TABLE_DOUBLE_SAVE
@@ -1131,10 +1306,15 @@ ENTRY(fast_syscall_spill_registers_fixup)
 	/* We need to make sure the current registers (a0-a3) are preserved.
 	 * To do this, we simply set the bit for the current window frame
 	 * in WS, so that the exception handlers save them to the task stack.
+	 *
+	 * Note: we use a3 to set the windowbase, so we take a special care
+	 * of it, saving it in the original _spill_registers frame across
+	 * the exception handler call.
 	 */
 
 	xsr	a3, excsave1	# get spill-mask
 	slli	a3, a3, 1	# shift left by one
+	addi	a3, a3, 1	# set the bit for the current window frame
 
 	slli	a2, a3, 32-WSBITS
 	src	a2, a3, a2	# a2 = xxwww1yyxxxwww1yy......
@@ -1219,209 +1399,6 @@ ENTRY(fast_syscall_spill_registers_fixup_return)
 	rfde
 
 ENDPROC(fast_syscall_spill_registers_fixup_return)
-
-/*
- * spill all registers.
- *
- * This is not a real function. The following conditions must be met:
- *
- *  - must be called with call0.
- *  - uses a3, a4 and SAR.
- *  - the last 'valid' register of each frame are clobbered.
- *  - the caller must have registered a fixup handler
- *    (or be inside a critical section)
- *  - PS_EXCM must be set (PS_WOE cleared?)
- */
-
-ENTRY(_spill_registers)
-
-	/*
-	 * Rotate ws so that the current windowbase is at bit 0.
-	 * Assume ws = xxxwww1yy (www1 current window frame).
-	 * Rotate ws right so that a4 = yyxxxwww1.
-	 */
-
-	rsr	a4, windowbase
-	rsr	a3, windowstart		# a3 = xxxwww1yy
-	ssr	a4			# holds WB
-	slli	a4, a3, WSBITS
-	or	a3, a3, a4		# a3 = xxxwww1yyxxxwww1yy
-	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
-
-	/* We are done if there are no more than the current register frame. */
-
-	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
-	movi	a4, (1 << (WSBITS-1))
-	_beqz	a3, .Lnospill		# only one active frame? jump
-
-	/* We want 1 at the top, so that we return to the current windowbase */
-
-	or	a3, a3, a4		# 1yyxxxwww
-
-	/* Skip empty frames - get 'oldest' WINDOWSTART-bit. */
-
-	wsr	a3, windowstart		# save shifted windowstart
-	neg	a4, a3
-	and	a3, a4, a3		# first bit set from right: 000010000
-
-	ffs_ws	a4, a3			# a4: shifts to skip empty frames
-	movi	a3, WSBITS
-	sub	a4, a3, a4		# WSBITS-a4:number of 0-bits from right
-	ssr	a4			# save in SAR for later.
-
-	rsr	a3, windowbase
-	add	a3, a3, a4
-	wsr	a3, windowbase
-	rsync
-
-	rsr	a3, windowstart
-	srl	a3, a3			# shift windowstart
-
-	/* WB is now just one frame below the oldest frame in the register
-	   window. WS is shifted so the oldest frame is in bit 0, thus, WB
-	   and WS differ by one 4-register frame. */
-
-	/* Save frames. Depending what call was used (call4, call8, call12),
-	 * we have to save 4,8. or 12 registers.
-	 */
-
-	_bbsi.l	a3, 1, .Lc4
-	_bbsi.l	a3, 2, .Lc8
-
-	/* Special case: we have a call12-frame starting at a4. */
-
-	_bbci.l	a3, 3, .Lc12	# bit 3 shouldn't be zero! (Jump to Lc12 first)
-
-	s32e	a4, a1, -16	# a1 is valid with an empty spill area
-	l32e	a4, a5, -12
-	s32e	a8, a4, -48
-	mov	a8, a4
-	l32e	a4, a1, -16
-	j	.Lc12c
-
-.Lnospill:
-	ret
-
-.Lloop: _bbsi.l	a3, 1, .Lc4
-	_bbci.l	a3, 2, .Lc12
-
-.Lc8:	s32e	a4, a13, -16
-	l32e	a4, a5, -12
-	s32e	a8, a4, -32
-	s32e	a5, a13, -12
-	s32e	a6, a13, -8
-	s32e	a7, a13, -4
-	s32e	a9, a4, -28
-	s32e	a10, a4, -24
-	s32e	a11, a4, -20
-
-	srli	a11, a3, 2		# shift windowbase by 2
-	rotw	2
-	_bnei	a3, 1, .Lloop
-
-.Lexit: /* Done. Do the final rotation, set WS, and return. */
-
-	rotw	1
-	rsr	a3, windowbase
-	ssl	a3
-	movi	a3, 1
-	sll	a3, a3
-	wsr	a3, windowstart
-	ret
-
-.Lc4:	s32e	a4, a9, -16
-	s32e	a5, a9, -12
-	s32e	a6, a9, -8
-	s32e	a7, a9, -4
-
-	srli	a7, a3, 1
-	rotw	1
-	_bnei	a3, 1, .Lloop
-	j	.Lexit
-
-.Lc12:	_bbci.l	a3, 3, .Linvalid_mask	# bit 2 shouldn't be zero!
-
-	/* 12-register frame (call12) */
-
-	l32e	a2, a5, -12
-	s32e	a8, a2, -48
-	mov	a8, a2
-
-.Lc12c: s32e	a9, a8, -44
-	s32e	a10, a8, -40
-	s32e	a11, a8, -36
-	s32e	a12, a8, -32
-	s32e	a13, a8, -28
-	s32e	a14, a8, -24
-	s32e	a15, a8, -20
-	srli	a15, a3, 3
-
-	/* The stack pointer for a4..a7 is out of reach, so we rotate the
-	 * window, grab the stackpointer, and rotate back.
-	 * Alternatively, we could also use the following approach, but that
-	 * makes the fixup routine much more complicated:
-	 * rotw	1
-	 * s32e	a0, a13, -16
-	 * ...
-	 * rotw 2
-	 */
-
-	rotw	1
-	mov	a5, a13
-	rotw	-1
-
-	s32e	a4, a9, -16
-	s32e	a5, a9, -12
-	s32e	a6, a9, -8
-	s32e	a7, a9, -4
-
-	rotw	3
-
-	_beqi	a3, 1, .Lexit
-	j	.Lloop
-
-.Linvalid_mask:
-
-	/* We get here because of an unrecoverable error in the window
-	 * registers. If we are in user space, we kill the application,
-	 * however, this condition is unrecoverable in kernel space.
-	 */
-
-	rsr	a0, ps
-	_bbci.l	a0, PS_UM_BIT, 1f
-
-	/* User space: Setup a dummy frame and kill application.
-	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
-	 */
-
-	movi	a0, 1
-	movi	a1, 0
-
-	wsr	a0, windowstart
-	wsr	a1, windowbase
-	rsync
-
-	movi	a0, 0
-
-	rsr	a3, excsave1
-	l32i	a1, a3, EXC_TABLE_KSTK
-
-	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
-	wsr	a4, ps
-	rsync
-
-	movi	a6, SIGSEGV
-	movi	a4, do_exit
-	callx4	a4
-
-1:	/* Kernel space: PANIC! */
-
-	wsr	a0, excsave1
-	movi	a0, unrecoverable_exception
-	callx0	a0		# should not return
-1:	j	1b
-
-ENDPROC(_spill_registers)
 
 #ifdef CONFIG_MMU
 /*
@@ -1794,6 +1771,43 @@ ENTRY(system_call)
 
 ENDPROC(system_call)
 
+/*
+ * Spill live registers on the kernel stack macro.
+ *
+ * Entry condition: ps.woe is set, ps.excm is cleared
+ * Exit condition: windowstart has single bit set
+ * May clobber: a12, a13
+ */
+	.macro	spill_registers_kernel
+
+#if XCHAL_NUM_AREGS > 16
+	call12	1f
+	_j	2f
+	retw
+	.align	4
+1:
+	_entry	a1, 48
+	addi	a12, a0, 3
+#if XCHAL_NUM_AREGS > 32
+	.rept	(XCHAL_NUM_AREGS - 32) / 12
+	_entry	a1, 48
+	mov	a12, a0
+	.endr
+#endif
+	_entry	a1, 48
+#if XCHAL_NUM_AREGS % 12 == 0
+	mov	a8, a8
+#elif XCHAL_NUM_AREGS % 12 == 4
+	mov	a12, a12
+#elif XCHAL_NUM_AREGS % 12 == 8
+	mov	a4, a4
+#endif
+	retw
+2:
+#else
+	mov	a12, a12
+#endif
+	.endm
 
 /*
  * Task switch.
@@ -1806,21 +1820,20 @@ ENTRY(_switch_to)
 
 	entry	a1, 16
 
-	mov	a12, a2			# preserve 'prev' (a2)
-	mov	a13, a3			# and 'next' (a3)
+	mov	a10, a2			# preserve 'prev' (a2)
+	mov	a11, a3			# and 'next' (a3)
 
 	l32i	a4, a2, TASK_THREAD_INFO
 	l32i	a5, a3, TASK_THREAD_INFO
 
-	save_xtregs_user a4 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
+	save_xtregs_user a4 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
-	s32i	a0, a12, THREAD_RA	# save return address
-	s32i	a1, a12, THREAD_SP	# save stack pointer
+	s32i	a0, a10, THREAD_RA	# save return address
+	s32i	a1, a10, THREAD_SP	# save stack pointer
 
 	/* Disable ints while we manipulate the stack pointer. */
 
-	movi	a14, (1 << PS_EXCM_BIT) | LOCKLEVEL
-	xsr	a14, ps
+	rsil	a14, LOCKLEVEL
 	rsr	a3, excsave1
 	rsync
 	s32i	a3, a3, EXC_TABLE_FIXUP	/* enter critical section */
@@ -1835,7 +1848,7 @@ ENTRY(_switch_to)
 
 	/* Flush register file. */
 
-	call0	_spill_registers	# destroys a3, a4, and SAR
+	spill_registers_kernel
 
 	/* Set kernel stack (and leave critical section)
 	 * Note: It's save to set it here. The stack will not be overwritten
@@ -1851,13 +1864,13 @@ ENTRY(_switch_to)
 
 	/* restore context of the task 'next' */
 
-	l32i	a0, a13, THREAD_RA	# restore return address
-	l32i	a1, a13, THREAD_SP	# restore stack pointer
+	l32i	a0, a11, THREAD_RA	# restore return address
+	l32i	a1, a11, THREAD_SP	# restore stack pointer
 
-	load_xtregs_user a5 a6 a8 a9 a10 a11 THREAD_XTREGS_USER
+	load_xtregs_user a5 a6 a8 a9 a12 a13 THREAD_XTREGS_USER
 
 	wsr	a14, ps
-	mov	a2, a12			# return 'prev'
+	mov	a2, a10			# return 'prev'
 	rsync
 
 	retw

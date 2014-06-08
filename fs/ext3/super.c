@@ -527,7 +527,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	ext3_inode_cachep = kmem_cache_create("ext3_inode_cache",
 					     sizeof(struct ext3_inode_info),
@@ -2648,6 +2648,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #ifdef CONFIG_QUOTA
 	int i;
 #endif
+
+	sync_filesystem(sb);
 
 	/* Store the original options */
 	old_sb_flags = sb->s_flags;

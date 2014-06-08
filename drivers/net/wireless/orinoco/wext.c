@@ -444,7 +444,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 		for (i = 0; i < (6 - frq->e); i++)
 			denom *= 10;
 
-		chan = ieee80211_freq_to_dsss_chan(frq->m / denom);
+		chan = ieee80211_frequency_to_channel(frq->m / denom);
 	}
 
 	if ((chan < 1) || (chan > NUM_CHANNELS) ||

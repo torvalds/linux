@@ -104,7 +104,8 @@ struct vbios_data {
 #define BDB_LVDS_LFP_DATA	 42
 #define BDB_LVDS_BACKLIGHT	 43
 #define BDB_LVDS_POWER		 44
-#define BDB_MIPI		 50
+#define BDB_MIPI_CONFIG		 52
+#define BDB_MIPI_SEQUENCE	 53
 #define BDB_SKIP		254 /* VBIOS private block, ignore */
 
 struct bdb_general_features {
@@ -372,6 +373,9 @@ struct bdb_lvds_lfp_data_entry {
 struct bdb_lvds_lfp_data {
 	struct bdb_lvds_lfp_data_entry data[16];
 } __packed;
+
+#define BDB_BACKLIGHT_TYPE_NONE	0
+#define BDB_BACKLIGHT_TYPE_PWM	2
 
 struct bdb_lfp_backlight_data_entry {
 	u8 type:2;
@@ -711,44 +715,159 @@ int intel_parse_bios(struct drm_device *dev);
 #define DVO_PORT_DPD	9
 #define DVO_PORT_DPA	10
 
-/* MIPI DSI panel info */
-struct bdb_mipi {
+/* Block 52 contains MIPI Panel info
+ * 6 such enteries will there. Index into correct
+ * entery is based on the panel_index in #40 LFP
+ */
+#define MAX_MIPI_CONFIGURATIONS	6
+
+#define MIPI_DSI_UNDEFINED_PANEL_ID	0
+#define MIPI_DSI_GENERIC_PANEL_ID	1
+
+struct mipi_config {
 	u16 panel_id;
-	u16 bridge_revision;
 
-	/* General params */
-	u32 dithering:1;
-	u32 bpp_pixel_format:1;
+	/* General Params */
+	u32 enable_dithering:1;
 	u32 rsvd1:1;
-	u32 dphy_valid:1;
-	u32 resvd2:28;
+	u32 is_bridge:1;
 
-	u16 port_info;
-	u16 rsvd3:2;
-	u16 num_lanes:2;
-	u16 rsvd4:12;
+	u32 panel_arch_type:2;
+	u32 is_cmd_mode:1;
 
-	/* DSI config */
-	u16 virt_ch_num:2;
-	u16 vtm:2;
-	u16 rsvd5:12;
+#define NON_BURST_SYNC_PULSE	0x1
+#define NON_BURST_SYNC_EVENTS	0x2
+#define BURST_MODE		0x3
+	u32 video_transfer_mode:2;
 
-	u32 dsi_clock;
+	u32 cabc_supported:1;
+	u32 pwm_blc:1;
+
+	/* Bit 13:10 */
+#define PIXEL_FORMAT_RGB565			0x1
+#define PIXEL_FORMAT_RGB666			0x2
+#define PIXEL_FORMAT_RGB666_LOOSELY_PACKED	0x3
+#define PIXEL_FORMAT_RGB888			0x4
+	u32 videomode_color_format:4;
+
+	/* Bit 15:14 */
+#define ENABLE_ROTATION_0	0x0
+#define ENABLE_ROTATION_90	0x1
+#define ENABLE_ROTATION_180	0x2
+#define ENABLE_ROTATION_270	0x3
+	u32 rotation:2;
+	u32 bta_enabled:1;
+	u32 rsvd2:15;
+
+	/* 2 byte Port Description */
+#define DUAL_LINK_NOT_SUPPORTED	0
+#define DUAL_LINK_FRONT_BACK	1
+#define DUAL_LINK_PIXEL_ALT	2
+	u16 dual_link:2;
+	u16 lane_cnt:2;
+	u16 rsvd3:12;
+
+	u16 rsvd4;
+
+	u8 rsvd5[5];
+	u32 dsi_ddr_clk;
 	u32 bridge_ref_clk;
-	u16 rsvd_pwr;
 
-	/* Dphy Params */
-	u32 prepare_cnt:5;
-	u32 rsvd6:3;
+#define  BYTE_CLK_SEL_20MHZ		0
+#define  BYTE_CLK_SEL_10MHZ		1
+#define  BYTE_CLK_SEL_5MHZ		2
+	u8 byte_clk_sel:2;
+
+	u8 rsvd6:6;
+
+	/* DPHY Flags */
+	u16 dphy_param_valid:1;
+	u16 eot_pkt_disabled:1;
+	u16 enable_clk_stop:1;
+	u16 rsvd7:13;
+
+	u32 hs_tx_timeout;
+	u32 lp_rx_timeout;
+	u32 turn_around_timeout;
+	u32 device_reset_timer;
+	u32 master_init_timer;
+	u32 dbi_bw_timer;
+	u32 lp_byte_clk_val;
+
+	/*  4 byte Dphy Params */
+	u32 prepare_cnt:6;
+	u32 rsvd8:2;
 	u32 clk_zero_cnt:8;
 	u32 trail_cnt:5;
-	u32 rsvd7:3;
+	u32 rsvd9:3;
 	u32 exit_zero_cnt:6;
-	u32 rsvd8:2;
+	u32 rsvd10:2;
 
-	u32 hl_switch_cnt;
-	u32 lp_byte_clk;
 	u32 clk_lane_switch_cnt;
+	u32 hl_switch_cnt;
+
+	u32 rsvd11[6];
+
+	/* timings based on dphy spec */
+	u8 tclk_miss;
+	u8 tclk_post;
+	u8 rsvd12;
+	u8 tclk_pre;
+	u8 tclk_prepare;
+	u8 tclk_settle;
+	u8 tclk_term_enable;
+	u8 tclk_trail;
+	u16 tclk_prepare_clkzero;
+	u8 rsvd13;
+	u8 td_term_enable;
+	u8 teot;
+	u8 ths_exit;
+	u8 ths_prepare;
+	u16 ths_prepare_hszero;
+	u8 rsvd14;
+	u8 ths_settle;
+	u8 ths_skip;
+	u8 ths_trail;
+	u8 tinit;
+	u8 tlpx;
+	u8 rsvd15[3];
+
+	/* GPIOs */
+	u8 panel_enable;
+	u8 bl_enable;
+	u8 pwm_enable;
+	u8 reset_r_n;
+	u8 pwr_down_r;
+	u8 stdby_r_n;
+
 } __packed;
+
+/* Block 52 contains MIPI configuration block
+ * 6 * bdb_mipi_config, followed by 6 pps data
+ * block below
+ *
+ * all delays has a unit of 100us
+ */
+struct mipi_pps_data {
+	u16 panel_on_delay;
+	u16 bl_enable_delay;
+	u16 bl_disable_delay;
+	u16 panel_off_delay;
+	u16 panel_power_cycle_delay;
+};
+
+struct bdb_mipi_config {
+	struct mipi_config config[MAX_MIPI_CONFIGURATIONS];
+	struct mipi_pps_data pps[MAX_MIPI_CONFIGURATIONS];
+};
+
+/* Block 53 contains MIPI sequences as needed by the panel
+ * for enabling it. This block can be variable in size and
+ * can be maximum of 6 blocks
+ */
+struct bdb_mipi_sequence {
+	u8 version;
+	u8 data[0];
+};
 
 #endif /* _I830_BIOS_H_ */

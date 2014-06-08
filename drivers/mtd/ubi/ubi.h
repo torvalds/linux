@@ -22,7 +22,6 @@
 #ifndef __UBI_UBI_H__
 #define __UBI_UBI_H__
 
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -863,6 +862,26 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     int fm_anchor);
+
+/* block.c */
+#ifdef CONFIG_MTD_UBI_BLOCK
+int ubiblock_init(void);
+void ubiblock_exit(void);
+int ubiblock_create(struct ubi_volume_info *vi);
+int ubiblock_remove(struct ubi_volume_info *vi);
+#else
+static inline int ubiblock_init(void) { return 0; }
+static inline void ubiblock_exit(void) {}
+static inline int ubiblock_create(struct ubi_volume_info *vi)
+{
+	return -ENOSYS;
+}
+static inline int ubiblock_remove(struct ubi_volume_info *vi)
+{
+	return -ENOSYS;
+}
+#endif
+
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.

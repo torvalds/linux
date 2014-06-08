@@ -1225,7 +1225,7 @@ static int pc87360_probe(struct platform_device *pdev)
 	int i;
 	struct pc87360_data *data;
 	int err = 0;
-	const char *name = "pc87360";
+	const char *name;
 	int use_thermistors = 0;
 	struct device *dev = &pdev->dev;
 
@@ -1233,13 +1233,14 @@ static int pc87360_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->fannr = 2;
-	data->innr = 0;
-	data->tempnr = 0;
-
 	switch (devid) {
+	default:
+		name = "pc87360";
+		data->fannr = 2;
+		break;
 	case 0xe8:
 		name = "pc87363";
+		data->fannr = 2;
 		break;
 	case 0xe4:
 		name = "pc87364";
@@ -1260,7 +1261,6 @@ static int pc87360_probe(struct platform_device *pdev)
 	}
 
 	data->name = name;
-	data->valid = 0;
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 	platform_set_drvdata(pdev, data);

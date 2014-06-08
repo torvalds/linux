@@ -961,17 +961,31 @@ static void empty(void)
 {
 }
 
-static DECLARE_WORK(floppy_work, NULL);
+static void (*floppy_work_fn)(void);
+
+static void floppy_work_workfn(struct work_struct *work)
+{
+	floppy_work_fn();
+}
+
+static DECLARE_WORK(floppy_work, floppy_work_workfn);
 
 static void schedule_bh(void (*handler)(void))
 {
 	WARN_ON(work_pending(&floppy_work));
 
-	PREPARE_WORK(&floppy_work, (work_func_t)handler);
+	floppy_work_fn = handler;
 	queue_work(floppy_wq, &floppy_work);
 }
 
-static DECLARE_DELAYED_WORK(fd_timer, NULL);
+static void (*fd_timer_fn)(void) = NULL;
+
+static void fd_timer_workfn(struct work_struct *work)
+{
+	fd_timer_fn();
+}
+
+static DECLARE_DELAYED_WORK(fd_timer, fd_timer_workfn);
 
 static void cancel_activity(void)
 {
@@ -982,7 +996,7 @@ static void cancel_activity(void)
 
 /* this function makes sure that the disk stays in the drive during the
  * transfer */
-static void fd_watchdog(struct work_struct *arg)
+static void fd_watchdog(void)
 {
 	debug_dcl(DP->flags, "calling disk change from watchdog\n");
 
@@ -993,7 +1007,7 @@ static void fd_watchdog(struct work_struct *arg)
 		reset_fdc();
 	} else {
 		cancel_delayed_work(&fd_timer);
-		PREPARE_DELAYED_WORK(&fd_timer, fd_watchdog);
+		fd_timer_fn = fd_watchdog;
 		queue_delayed_work(floppy_wq, &fd_timer, HZ / 10);
 	}
 }
@@ -1005,7 +1019,8 @@ static void main_command_interrupt(void)
 }
 
 /* waits for a delay (spinup or select) to pass */
-static int fd_wait_for_completion(unsigned long expires, work_func_t function)
+static int fd_wait_for_completion(unsigned long expires,
+				  void (*function)(void))
 {
 	if (FDCS->reset) {
 		reset_fdc();	/* do the reset during sleep to win time
@@ -1016,7 +1031,7 @@ static int fd_wait_for_completion(unsigned long expires, work_func_t function)
 
 	if (time_before(jiffies, expires)) {
 		cancel_delayed_work(&fd_timer);
-		PREPARE_DELAYED_WORK(&fd_timer, function);
+		fd_timer_fn = function;
 		queue_delayed_work(floppy_wq, &fd_timer, expires - jiffies);
 		return 1;
 	}
@@ -1334,8 +1349,7 @@ static int fdc_dtr(void)
 	 * Pause 5 msec to avoid trouble. (Needs to be 2 jiffies)
 	 */
 	FDCS->dtr = raw_cmd->rate & 3;
-	return fd_wait_for_completion(jiffies + 2UL * HZ / 100,
-				      (work_func_t)floppy_ready);
+	return fd_wait_for_completion(jiffies + 2UL * HZ / 100, floppy_ready);
 }				/* fdc_dtr */
 
 static void tell_sector(void)
@@ -1440,7 +1454,7 @@ static void setup_rw_floppy(void)
 	int flags;
 	int dflags;
 	unsigned long ready_date;
-	work_func_t function;
+	void (*function)(void);
 
 	flags = raw_cmd->flags;
 	if (flags & (FD_RAW_READ | FD_RAW_WRITE))
@@ -1454,9 +1468,9 @@ static void setup_rw_floppy(void)
 		 */
 		if (time_after(ready_date, jiffies + DP->select_delay)) {
 			ready_date -= DP->select_delay;
-			function = (work_func_t)floppy_start;
+			function = floppy_start;
 		} else
-			function = (work_func_t)setup_rw_floppy;
+			function = setup_rw_floppy;
 
 		/* wait until the floppy is spinning fast enough */
 		if (fd_wait_for_completion(ready_date, function))
@@ -1486,7 +1500,7 @@ static void setup_rw_floppy(void)
 		inr = result();
 		cont->interrupt();
 	} else if (flags & FD_RAW_NEED_DISK)
-		fd_watchdog(NULL);
+		fd_watchdog();
 }
 
 static int blind_seek;
@@ -1863,7 +1877,7 @@ static int start_motor(void (*function)(void))
 
 	/* wait_for_completion also schedules reset if needed. */
 	return fd_wait_for_completion(DRS->select_date + DP->select_delay,
-				      (work_func_t)function);
+				      function);
 }
 
 static void floppy_ready(void)
@@ -3053,7 +3067,10 @@ static int raw_cmd_copyout(int cmd, void __user *param,
 	int ret;
 
 	while (ptr) {
-		ret = copy_to_user(param, ptr, sizeof(*ptr));
+		struct floppy_raw_cmd cmd = *ptr;
+		cmd.next = NULL;
+		cmd.kernel_data = NULL;
+		ret = copy_to_user(param, &cmd, sizeof(cmd));
 		if (ret)
 			return -EFAULT;
 		param += sizeof(struct floppy_raw_cmd);
@@ -3107,10 +3124,11 @@ loop:
 		return -ENOMEM;
 	*rcmd = ptr;
 	ret = copy_from_user(ptr, param, sizeof(*ptr));
-	if (ret)
-		return -EFAULT;
 	ptr->next = NULL;
 	ptr->buffer_length = 0;
+	ptr->kernel_data = NULL;
+	if (ret)
+		return -EFAULT;
 	param += sizeof(struct floppy_raw_cmd);
 	if (ptr->cmd_count > 33)
 			/* the command may now also take up the space
@@ -3126,7 +3144,6 @@ loop:
 	for (i = 0; i < 16; i++)
 		ptr->reply[i] = 0;
 	ptr->resultcode = 0;
-	ptr->kernel_data = NULL;
 
 	if (ptr->flags & (FD_RAW_READ | FD_RAW_WRITE)) {
 		if (ptr->length <= 0)

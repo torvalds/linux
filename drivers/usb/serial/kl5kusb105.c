@@ -201,7 +201,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	else {
 		status = get_unaligned_le16(status_buf);
 
-		dev_info(&port->serial->dev->dev, "read status %x %x",
+		dev_info(&port->serial->dev->dev, "read status %x %x\n",
 			 status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
@@ -464,7 +464,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		priv->cfg.baudrate = kl5kusb105a_sio_b115200;
 		break;
 	default:
-		dev_dbg(dev, "KLSI USB->Serial converter: unsupported baudrate request, using default of 9600");
+		dev_dbg(dev, "unsupported baudrate, using 9600\n");
 		priv->cfg.baudrate = kl5kusb105a_sio_b9600;
 		baud = 9600;
 		break;

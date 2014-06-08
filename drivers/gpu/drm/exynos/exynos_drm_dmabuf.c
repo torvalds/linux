@@ -224,7 +224,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	get_dma_buf(dma_buf);
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR_OR_NULL(sgt)) {
+	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto err_buf_detach;
 	}
@@ -263,7 +263,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	buffer->sgt = sgt;
 	exynos_gem_obj->base.import_attach = attach;
 
-	DRM_DEBUG_PRIME("dma_addr = 0x%x, size = 0x%lx\n", buffer->dma_addr,
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = 0x%lx\n", &buffer->dma_addr,
 								buffer->size);
 
 	return &exynos_gem_obj->base;

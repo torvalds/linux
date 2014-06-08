@@ -23,7 +23,6 @@
 #include <linux/genhd.h>
 #include <linux/kallsyms.h>
 #include <linux/mutex.h>
-#include <linux/async.h>
 #include <linux/pm_runtime.h>
 #include <linux/netdevice.h>
 #include <linux/sysfs.h>
@@ -571,6 +570,23 @@ void device_remove_file(struct device *dev,
 EXPORT_SYMBOL_GPL(device_remove_file);
 
 /**
+ * device_remove_file_self - remove sysfs attribute file from its own method.
+ * @dev: device.
+ * @attr: device attribute descriptor.
+ *
+ * See kernfs_remove_self() for details.
+ */
+bool device_remove_file_self(struct device *dev,
+			     const struct device_attribute *attr)
+{
+	if (dev)
+		return sysfs_remove_file_self(&dev->kobj, &attr->attr);
+	else
+		return false;
+}
+EXPORT_SYMBOL_GPL(device_remove_file_self);
+
+/**
  * device_create_bin_file - create sysfs binary attribute file for device.
  * @dev: device.
  * @attr: device binary attribute descriptor.
@@ -597,39 +613,6 @@ void device_remove_bin_file(struct device *dev,
 		sysfs_remove_bin_file(&dev->kobj, attr);
 }
 EXPORT_SYMBOL_GPL(device_remove_bin_file);
-
-/**
- * device_schedule_callback_owner - helper to schedule a callback for a device
- * @dev: device.
- * @func: callback function to invoke later.
- * @owner: module owning the callback routine
- *
- * Attribute methods must not unregister themselves or their parent device
- * (which would amount to the same thing).  Attempts to do so will deadlock,
- * since unregistration is mutually exclusive with driver callbacks.
- *
- * Instead methods can call this routine, which will attempt to allocate
- * and schedule a workqueue request to call back @func with @dev as its
- * argument in the workqueue's process context.  @dev will be pinned until
- * @func returns.
- *
- * This routine is usually called via the inline device_schedule_callback(),
- * which automatically sets @owner to THIS_MODULE.
- *
- * Returns 0 if the request was submitted, -ENOMEM if storage could not
- * be allocated, -ENODEV if a reference to @owner isn't available.
- *
- * NOTE: This routine won't work if CONFIG_SYSFS isn't set!  It uses an
- * underlying sysfs routine (since it is intended for use by attribute
- * methods), and if sysfs isn't available you'll get nothing but -ENOSYS.
- */
-int device_schedule_callback_owner(struct device *dev,
-		void (*func)(struct device *), struct module *owner)
-{
-	return sysfs_schedule_callback(&dev->kobj,
-			(void (*)(void *)) func, dev, owner);
-}
-EXPORT_SYMBOL_GPL(device_schedule_callback_owner);
 
 static void klist_children_get(struct klist_node *n)
 {
@@ -2003,7 +1986,6 @@ void device_shutdown(void)
 		spin_lock(&devices_kset->list_lock);
 	}
 	spin_unlock(&devices_kset->list_lock);
-	async_synchronize_full();
 }
 
 /*
@@ -2058,7 +2040,6 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 
 	return pos;
 }
-EXPORT_SYMBOL(create_syslog_header);
 
 int dev_vprintk_emit(int level, const struct device *dev,
 		     const char *fmt, va_list args)

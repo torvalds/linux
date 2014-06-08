@@ -1642,8 +1642,8 @@ static int cayman_cp_resume(struct radeon_device *rdev)
 		ring = &rdev->ring[ridx[i]];
 		WREG32_P(cp_rb_cntl[i], RB_RPTR_WR_ENA, ~RB_RPTR_WR_ENA);
 
-		ring->rptr = ring->wptr = 0;
-		WREG32(cp_rb_rptr[i], ring->rptr);
+		ring->wptr = 0;
+		WREG32(cp_rb_rptr[i], 0);
 		WREG32(cp_rb_wptr[i], ring->wptr);
 
 		mdelay(1);
@@ -1917,11 +1917,9 @@ bool cayman_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	if (!(reset_mask & (RADEON_RESET_GFX |
 			    RADEON_RESET_COMPUTE |
 			    RADEON_RESET_CP))) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
@@ -2105,7 +2103,8 @@ int cayman_resume(struct radeon_device *rdev)
 	/* init golden registers */
 	ni_init_golden_registers(rdev);
 
-	radeon_pm_resume(rdev);
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume(rdev);
 
 	rdev->accel_working = true;
 	r = cayman_startup(rdev);

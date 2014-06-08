@@ -162,8 +162,8 @@ static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
 	if (outlen < MC_CMD_GET_MAC_ADDRESSES_OUT_LEN)
 		return -EIO;
 
-	memcpy(mac_address,
-	       MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE), ETH_ALEN);
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
 	return 0;
 }
 
@@ -172,8 +172,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data;
 	int i, rc;
 
-	/* We can have one VI for each 8K region.  However we need
-	 * multiple TX queues per channel.
+	/* We can have one VI for each 8K region.  However, until we
+	 * use TX option descriptors we need two TX queues per channel.
 	 */
 	efx->max_channels =
 		min_t(unsigned int,
@@ -565,10 +565,17 @@ static int efx_ef10_dimension_resources(struct efx_nic *efx)
 	 * several of each (in fact that's the only option if host
 	 * page size is >4K).  So we may allocate some extra VIs just
 	 * for writing PIO buffers through.
+	 *
+	 * The UC mapping contains (min_vis - 1) complete VIs and the
+	 * first half of the next VI.  Then the WC mapping begins with
+	 * the second half of this last VI.
 	 */
 	uc_mem_map_size = PAGE_ALIGN((min_vis - 1) * EFX_VI_PAGE_SIZE +
 				     ER_DZ_TX_PIOBUF);
 	if (nic_data->n_piobufs) {
+		/* pio_write_vi_base rounds down to give the number of complete
+		 * VIs inside the UC mapping.
+		 */
 		pio_write_vi_base = uc_mem_map_size / EFX_VI_PAGE_SIZE;
 		wc_mem_map_size = (PAGE_ALIGN((pio_write_vi_base +
 					       nic_data->n_piobufs) *
@@ -731,8 +738,11 @@ static int efx_ef10_reset(struct efx_nic *efx, enum reset_type reset_type)
 	/* If it was a port reset, trigger reallocation of MC resources.
 	 * Note that on an MC reset nothing needs to be done now because we'll
 	 * detect the MC reset later and handle it then.
+	 * For an FLR, we never get an MC reset event, but the MC has reset all
+	 * resources assigned to us, so we have to trigger reallocation now.
 	 */
-	if (reset_type == RESET_TYPE_ALL && !rc)
+	if ((reset_type == RESET_TYPE_ALL ||
+	     reset_type == RESET_TYPE_MCDI_TIMEOUT) && !rc)
 		efx_ef10_reset_mc_allocations(efx);
 	return rc;
 }
@@ -1955,6 +1965,9 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 	int tx_descs = 0;
 	int spent = 0;
 
+	if (quota <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {
@@ -2129,6 +2142,11 @@ static int efx_ef10_fini_dmaq(struct efx_nic *efx)
 	}
 
 	return 0;
+}
+
+static void efx_ef10_prepare_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->active_queues, 0);
 }
 
 static bool efx_ef10_filter_equal(const struct efx_filter_spec *left,
@@ -3145,12 +3163,10 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		table->dev_uc_count = -1;
 	} else {
 		table->dev_uc_count = 1 + netdev_uc_count(net_dev);
-		memcpy(table->dev_uc_list[0].addr, net_dev->dev_addr,
-		       ETH_ALEN);
+		ether_addr_copy(table->dev_uc_list[0].addr, net_dev->dev_addr);
 		i = 1;
 		netdev_for_each_uc_addr(uc, net_dev) {
-			memcpy(table->dev_uc_list[i].addr,
-			       uc->addr, ETH_ALEN);
+			ether_addr_copy(table->dev_uc_list[i].addr, uc->addr);
 			i++;
 		}
 	}
@@ -3162,8 +3178,7 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 		eth_broadcast_addr(table->dev_mc_list[0].addr);
 		i = 1;
 		netdev_for_each_mc_addr(mc, net_dev) {
-			memcpy(table->dev_mc_list[i].addr,
-			       mc->addr, ETH_ALEN);
+			ether_addr_copy(table->dev_mc_list[i].addr, mc->addr);
 			i++;
 		}
 	}
@@ -3596,6 +3611,8 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
 	.fini_dmaq = efx_ef10_fini_dmaq,
+	.prepare_flr = efx_ef10_prepare_flr,
+	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
 	.update_stats = efx_ef10_update_stats,
 	.start_stats = efx_mcdi_mac_start_stats,

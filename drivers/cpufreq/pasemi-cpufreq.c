@@ -60,12 +60,12 @@ static int current_astate;
 
 /* We support 5(A0-A4) power states excluding turbo(A5-A6) modes */
 static struct cpufreq_frequency_table pas_freqs[] = {
-	{0,	0},
-	{1,	0},
-	{2,	0},
-	{3,	0},
-	{4,	0},
-	{0,	CPUFREQ_TABLE_END},
+	{0, 0,	0},
+	{0, 1,	0},
+	{0, 2,	0},
+	{0, 3,	0},
+	{0, 4,	0},
+	{0, 0,	CPUFREQ_TABLE_END},
 };
 
 /*
@@ -234,7 +234,6 @@ static int pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	if (sdcpwr_mapbase)
 		iounmap(sdcpwr_mapbase);
 
-	cpufreq_frequency_table_put_attr(policy->cpu);
 	return 0;
 }
 

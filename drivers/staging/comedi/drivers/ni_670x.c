@@ -246,9 +246,6 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	/* Config of ao registers */
 	writel(0x00, devpriv->mite->daq_io_addr + AO_CONTROL_OFFSET);
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
 }
 

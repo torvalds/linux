@@ -242,7 +242,7 @@ of_at91_clk_master_setup(struct device_node *np, struct at91_pmc *pmc,
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq)
-		return;
+		goto out_free_characteristics;
 
 	clk = at91_clk_register_master(pmc, irq, name, num_parents,
 				       parent_names, layout,

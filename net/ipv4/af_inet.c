@@ -1296,8 +1296,11 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	segs = ERR_PTR(-EPROTONOSUPPORT);
 
-	/* Note : following gso_segment() might change skb->encapsulation */
-	udpfrag = !skb->encapsulation && proto == IPPROTO_UDP;
+	if (skb->encapsulation &&
+	    skb_shinfo(skb)->gso_type & (SKB_GSO_SIT|SKB_GSO_IPIP))
+		udpfrag = proto == IPPROTO_UDP && encap;
+	else
+		udpfrag = proto == IPPROTO_UDP && !skb->encapsulation;
 
 	ops = rcu_dereference(inet_offloads[proto]);
 	if (likely(ops && ops->callbacks.gso_segment))
@@ -1502,9 +1505,9 @@ u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp_offset)
 		bhptr = per_cpu_ptr(mib[0], cpu);
 		syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
 		do {
-			start = u64_stats_fetch_begin_bh(syncp);
+			start = u64_stats_fetch_begin_irq(syncp);
 			v = *(((u64 *) bhptr) + offt);
-		} while (u64_stats_fetch_retry_bh(syncp, start));
+		} while (u64_stats_fetch_retry_irq(syncp, start));
 
 		res += v;
 	}

@@ -828,22 +828,25 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 
-	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd->va);
-	if (rc) {
-		/* Check if the IOCTL needs to be re-issued */
-		if (rc == -EAGAIN)
-			return rc;
-
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BG_%d : mgmt_exec_nonemb_cmd Failed status\n");
-
-		goto free_cmd;
-	}
+	rc = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd);
 
 	if (resp_buf)
 		memcpy(resp_buf, nonemb_cmd->va, resp_buf_len);
 
+	if (rc) {
+		/* Check if the MBX Cmd needs to be re-issued */
+		if (rc == -EAGAIN)
+			return rc;
+
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BG_%d : mgmt_exec_nonemb_cmd Failed status\n");
+
+		if (rc != -EBUSY)
+			goto free_cmd;
+		else
+			return rc;
+	}
 free_cmd:
 	pci_free_consistent(ctrl->pdev, nonemb_cmd->size,
 			    nonemb_cmd->va, nonemb_cmd->dma);
@@ -1348,7 +1351,6 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 {
 	int rc;
 	unsigned int tag;
-	struct be_mcc_wrb *wrb = NULL;
 
 	tag = be_cmd_set_vlan(phba, vlan_tag);
 	if (!tag) {
@@ -1358,7 +1360,7 @@ int mgmt_set_vlan(struct beiscsi_hba *phba,
 		return -EBUSY;
 	}
 
-	rc = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	rc = beiscsi_mccq_compl(phba, tag, NULL, NULL);
 	if (rc) {
 		beiscsi_log(phba, KERN_ERR,
 			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),

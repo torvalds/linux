@@ -118,9 +118,7 @@ extern int mq_init_ns(struct ipc_namespace *ns);
  *     the new maximum will handle anyone else.  I may have to revisit this
  *     in the future.
  */
-#define MIN_QUEUESMAX			1
 #define DFLT_QUEUESMAX		      256
-#define HARD_QUEUESMAX		     1024
 #define MIN_MSGMAX			1
 #define DFLT_MSG		       10U
 #define DFLT_MSGMAX		       10

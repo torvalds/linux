@@ -329,7 +329,9 @@ static int mixart_update_analog_audio_level(struct snd_mixart* chip, int is_capt
 
 	err = snd_mixart_send_msg(chip->mgr, &request, sizeof(resp), &resp);
 	if((err<0) || (resp.error_code)) {
-		snd_printk(KERN_DEBUG "error MSG_PHYSICALIO_SET_LEVEL card(%d) is_capture(%d) error_code(%x)\n", chip->chip_idx, is_capture, resp.error_code);
+		dev_dbg(chip->card->dev,
+			"error MSG_PHYSICALIO_SET_LEVEL card(%d) is_capture(%d) error_code(%x)\n",
+			chip->chip_idx, is_capture, resp.error_code);
 		return -EINVAL;
 	}
 	return 0;
@@ -762,7 +764,9 @@ int mixart_update_playback_stream_level(struct snd_mixart* chip, int is_aes, int
 
 	err = snd_mixart_send_msg(chip->mgr, &request, sizeof(status), &status);
 	if((err<0) || status) {
-		snd_printk(KERN_DEBUG "error MSG_STREAM_SET_OUT_STREAM_LEVEL card(%d) status(%x)\n", chip->chip_idx, status);
+		dev_dbg(chip->card->dev,
+			"error MSG_STREAM_SET_OUT_STREAM_LEVEL card(%d) status(%x)\n",
+			chip->chip_idx, status);
 		return -EINVAL;
 	}
 	return 0;
@@ -805,7 +809,9 @@ int mixart_update_capture_stream_level(struct snd_mixart* chip, int is_aes)
 
 	err = snd_mixart_send_msg(chip->mgr, &request, sizeof(status), &status);
 	if((err<0) || status) {
-		snd_printk(KERN_DEBUG "error MSG_STREAM_SET_IN_AUDIO_LEVEL card(%d) status(%x)\n", chip->chip_idx, status);
+		dev_dbg(chip->card->dev,
+			"error MSG_STREAM_SET_IN_AUDIO_LEVEL card(%d) status(%x)\n",
+			chip->chip_idx, status);
 		return -EINVAL;
 	}
 	return 0;
@@ -977,7 +983,9 @@ static int mixart_update_monitoring(struct snd_mixart* chip, int channel)
 
 	err = snd_mixart_send_msg(chip->mgr, &request, sizeof(resp), &resp);
 	if((err<0) || resp) {
-		snd_printk(KERN_DEBUG "error MSG_CONNECTOR_SET_OUT_AUDIO_LEVEL card(%d) resp(%x)\n", chip->chip_idx, resp);
+		dev_dbg(chip->card->dev,
+			"error MSG_CONNECTOR_SET_OUT_AUDIO_LEVEL card(%d) resp(%x)\n",
+			chip->chip_idx, resp);
 		return -EINVAL;
 	}
 	return 0;

@@ -146,6 +146,38 @@ unsigned long __mfn_to_pfn(unsigned long mfn)
 }
 EXPORT_SYMBOL_GPL(__mfn_to_pfn);
 
+int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
+			    struct gnttab_map_grant_ref *kmap_ops,
+			    struct page **pages, unsigned int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (map_ops[i].status)
+			continue;
+		set_phys_to_machine(map_ops[i].host_addr >> PAGE_SHIFT,
+				    map_ops[i].dev_bus_addr >> PAGE_SHIFT);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
+
+int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
+			      struct gnttab_map_grant_ref *kmap_ops,
+			      struct page **pages, unsigned int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		set_phys_to_machine(unmap_ops[i].host_addr >> PAGE_SHIFT,
+				    INVALID_P2M_ENTRY);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
+
 bool __set_phys_to_machine_multi(unsigned long pfn,
 		unsigned long mfn, unsigned long nr_pages)
 {

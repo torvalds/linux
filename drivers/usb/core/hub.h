@@ -89,7 +89,7 @@ struct usb_hub {
 struct usb_port {
 	struct usb_device *child;
 	struct device dev;
-	struct dev_state *port_owner;
+	struct usb_dev_state *port_owner;
 	enum usb_port_connect_type connect_type;
 	u8 portnum;
 	unsigned power_is_on:1;

@@ -211,22 +211,22 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
-		opcode = __constant_cpu_to_le16(HCI_MON_COMMAND_PKT);
+		opcode = cpu_to_le16(HCI_MON_COMMAND_PKT);
 		break;
 	case HCI_EVENT_PKT:
-		opcode = __constant_cpu_to_le16(HCI_MON_EVENT_PKT);
+		opcode = cpu_to_le16(HCI_MON_EVENT_PKT);
 		break;
 	case HCI_ACLDATA_PKT:
 		if (bt_cb(skb)->incoming)
-			opcode = __constant_cpu_to_le16(HCI_MON_ACL_RX_PKT);
+			opcode = cpu_to_le16(HCI_MON_ACL_RX_PKT);
 		else
-			opcode = __constant_cpu_to_le16(HCI_MON_ACL_TX_PKT);
+			opcode = cpu_to_le16(HCI_MON_ACL_TX_PKT);
 		break;
 	case HCI_SCODATA_PKT:
 		if (bt_cb(skb)->incoming)
-			opcode = __constant_cpu_to_le16(HCI_MON_SCO_RX_PKT);
+			opcode = cpu_to_le16(HCI_MON_SCO_RX_PKT);
 		else
-			opcode = __constant_cpu_to_le16(HCI_MON_SCO_TX_PKT);
+			opcode = cpu_to_le16(HCI_MON_SCO_TX_PKT);
 		break;
 	default:
 		return;
@@ -319,7 +319,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 		bacpy(&ni->bdaddr, &hdev->bdaddr);
 		memcpy(ni->name, hdev->name, 8);
 
-		opcode = __constant_cpu_to_le16(HCI_MON_NEW_INDEX);
+		opcode = cpu_to_le16(HCI_MON_NEW_INDEX);
 		break;
 
 	case HCI_DEV_UNREG:
@@ -327,7 +327,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 		if (!skb)
 			return NULL;
 
-		opcode = __constant_cpu_to_le16(HCI_MON_DEL_INDEX);
+		opcode = cpu_to_le16(HCI_MON_DEL_INDEX);
 		break;
 
 	default:
@@ -716,6 +716,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		err = hci_dev_open(hdev->id);
 		if (err) {
 			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
+			mgmt_index_added(hdev);
 			hci_dev_put(hdev);
 			goto done;
 		}

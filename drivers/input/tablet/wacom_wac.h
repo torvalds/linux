@@ -22,6 +22,7 @@
 #define WACOM_PKGLEN_BBFUN	 9
 #define WACOM_PKGLEN_INTUOS	10
 #define WACOM_PKGLEN_TPC1FG	 5
+#define WACOM_PKGLEN_TPC1FG_B	10
 #define WACOM_PKGLEN_TPC2FG	14
 #define WACOM_PKGLEN_BBTOUCH	20
 #define WACOM_PKGLEN_BBTOUCH3	64
@@ -30,6 +31,7 @@
 #define WACOM_PKGLEN_MTOUCH	62
 #define WACOM_PKGLEN_MTTPC	40
 #define WACOM_PKGLEN_DTUS	68
+#define WACOM_PKGLEN_PENABLED	 8
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -52,6 +54,7 @@
 #define WACOM_REPORT_TPC1FG		6
 #define WACOM_REPORT_TPC2FG		13
 #define WACOM_REPORT_TPCMT		13
+#define WACOM_REPORT_TPCMT2		3
 #define WACOM_REPORT_TPCHID		15
 #define WACOM_REPORT_TPCST		16
 #define WACOM_REPORT_DTUS		17
@@ -105,6 +108,7 @@ enum {
 	TABLETPC2FG,
 	MTSCREEN,
 	MTTPC,
+	MTTPC_B,
 	MAX_TYPE
 };
 
@@ -118,6 +122,8 @@ struct wacom_features {
 	int type;
 	int x_resolution;
 	int y_resolution;
+	int x_min;
+	int y_min;
 	int device_type;
 	int x_phy;
 	int y_phy;

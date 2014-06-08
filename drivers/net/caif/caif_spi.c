@@ -554,7 +554,6 @@ int cfspi_rxfrm(struct cfspi *cfspi, u8 *buf, size_t len)
 
 		skb->protocol = htons(ETH_P_CAIF);
 		skb_reset_mac_header(skb);
-		skb->dev = cfspi->ndev;
 
 		/*
 		 * Push received packet up the stack.

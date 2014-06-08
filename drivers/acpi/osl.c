@@ -52,7 +52,7 @@
 
 #define _COMPONENT		ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osl");
-#define PREFIX		"ACPI: "
+
 struct acpi_os_dpc {
 	acpi_osd_exec_callback function;
 	void *context;
@@ -1168,8 +1168,7 @@ void acpi_os_wait_events_complete(void)
 
 struct acpi_hp_work {
 	struct work_struct work;
-	acpi_hp_callback func;
-	void *data;
+	struct acpi_device *adev;
 	u32 src;
 };
 
@@ -1178,25 +1177,24 @@ static void acpi_hotplug_work_fn(struct work_struct *work)
 	struct acpi_hp_work *hpw = container_of(work, struct acpi_hp_work, work);
 
 	acpi_os_wait_events_complete();
-	hpw->func(hpw->data, hpw->src);
+	acpi_device_hotplug(hpw->adev, hpw->src);
 	kfree(hpw);
 }
 
-acpi_status acpi_hotplug_execute(acpi_hp_callback func, void *data, u32 src)
+acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 {
 	struct acpi_hp_work *hpw;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-		  "Scheduling function [%p(%p, %u)] for deferred execution.\n",
-		  func, data, src));
+		  "Scheduling hotplug event (%p, %u) for deferred execution.\n",
+		  adev, src));
 
 	hpw = kmalloc(sizeof(*hpw), GFP_KERNEL);
 	if (!hpw)
 		return AE_NO_MEMORY;
 
 	INIT_WORK(&hpw->work, acpi_hotplug_work_fn);
-	hpw->func = func;
-	hpw->data = data;
+	hpw->adev = adev;
 	hpw->src = src;
 	/*
 	 * We can't run hotplug code in kacpid_wq/kacpid_notify_wq etc., because
@@ -1221,10 +1219,9 @@ acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
 	struct semaphore *sem = NULL;
 
-	sem = acpi_os_allocate(sizeof(struct semaphore));
+	sem = acpi_os_allocate_zeroed(sizeof(struct semaphore));
 	if (!sem)
 		return AE_NO_MEMORY;
-	memset(sem, 0, sizeof(struct semaphore));
 
 	sema_init(sem, initial_units);
 
@@ -1539,17 +1536,21 @@ static int __init osi_setup(char *str)
 
 __setup("acpi_osi=", osi_setup);
 
-/* enable serialization to combat AE_ALREADY_EXISTS errors */
-static int __init acpi_serialize_setup(char *str)
+/*
+ * Disable the auto-serialization of named objects creation methods.
+ *
+ * This feature is enabled by default.  It marks the AML control methods
+ * that contain the opcodes to create named objects as "Serialized".
+ */
+static int __init acpi_no_auto_serialize_setup(char *str)
 {
-	printk(KERN_INFO PREFIX "serialize enabled\n");
-
-	acpi_gbl_all_methods_serialized = TRUE;
+	acpi_gbl_auto_serialize_methods = FALSE;
+	pr_info("ACPI: auto-serialization disabled\n");
 
 	return 1;
 }
 
-__setup("acpi_serialize", acpi_serialize_setup);
+__setup("acpi_no_auto_serialize", acpi_no_auto_serialize_setup);
 
 /* Check of resource interference between native drivers and ACPI
  * OperationRegions (SystemIO and System Memory only).
@@ -1779,6 +1780,17 @@ static int __init acpi_no_auto_ssdt_setup(char *s)
 }
 
 __setup("acpi_no_auto_ssdt", acpi_no_auto_ssdt_setup);
+
+static int __init acpi_disable_return_repair(char *s)
+{
+	printk(KERN_NOTICE PREFIX
+	       "ACPI: Predefined validation mechanism disabled\n");
+	acpi_gbl_disable_auto_repair = TRUE;
+
+	return 1;
+}
+
+__setup("acpica_no_return_repair", acpi_disable_return_repair);
 
 acpi_status __init acpi_os_initialize(void)
 {

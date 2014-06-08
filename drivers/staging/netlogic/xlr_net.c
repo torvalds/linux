@@ -307,7 +307,8 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 }
 
 static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb,
-				void *accel_priv, select_queue_fallback_t fallback)
+				void *accel_priv,
+				select_queue_fallback_t fallback)
 {
 	return (u16)smp_processor_id();
 }
@@ -614,8 +615,6 @@ static void xlr_config_translate_table(struct xlr_net_priv *priv)
 		k = (k + 1) % j;
 		b2 = bkts[k];
 		k = (k + 1) % j;
-		val = ((c1 << 23) | (b1 << 17) | (use_bkt << 16) |
-				(c2 << 7) | (b2 << 1) | (use_bkt << 0));
 
 		val = ((c1 << 23) | (b1 << 17) | (use_bkt << 16) |
 				(c2 << 7) | (b2 << 1) | (use_bkt << 0));

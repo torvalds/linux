@@ -101,12 +101,11 @@
 struct tbf_sched_data {
 /* Parameters */
 	u32		limit;		/* Maximal length of backlog: bytes */
+	u32		max_size;
 	s64		buffer;		/* Token bucket depth/rate: MUST BE >= MTU/B */
 	s64		mtu;
-	u32		max_size;
 	struct psched_ratecfg rate;
 	struct psched_ratecfg peak;
-	bool peak_present;
 
 /* Variables */
 	s64	tokens;			/* Current number of B tokens */
@@ -222,6 +221,11 @@ static unsigned int tbf_drop(struct Qdisc *sch)
 	return len;
 }
 
+static bool tbf_peak_present(const struct tbf_sched_data *q)
+{
+	return q->peak.rate_bytes_ps;
+}
+
 static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
@@ -238,7 +242,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		now = ktime_to_ns(ktime_get());
 		toks = min_t(s64, now - q->t_c, q->buffer);
 
-		if (q->peak_present) {
+		if (tbf_peak_present(q)) {
 			ptoks = toks + q->ptokens;
 			if (ptoks > q->mtu)
 				ptoks = q->mtu;
@@ -334,18 +338,6 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 			qdisc_put_rtab(qdisc_get_rtab(&qopt->peakrate,
 						      tb[TCA_TBF_PTAB]));
 
-	if (q->qdisc != &noop_qdisc) {
-		err = fifo_set_limit(q->qdisc, qopt->limit);
-		if (err)
-			goto done;
-	} else if (qopt->limit > 0) {
-		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
-		if (IS_ERR(child)) {
-			err = PTR_ERR(child);
-			goto done;
-		}
-	}
-
 	buffer = min_t(u64, PSCHED_TICKS2NS(qopt->buffer), ~0U);
 	mtu = min_t(u64, PSCHED_TICKS2NS(qopt->mtu), ~0U);
 
@@ -378,6 +370,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 		} else {
 			max_size = min_t(u64, max_size, psched_ns_t2l(&peak, mtu));
 		}
+	} else {
+		memset(&peak, 0, sizeof(peak));
 	}
 
 	if (max_size < psched_mtu(qdisc_dev(sch)))
@@ -388,6 +382,18 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	if (!max_size) {
 		err = -EINVAL;
 		goto done;
+	}
+
+	if (q->qdisc != &noop_qdisc) {
+		err = fifo_set_limit(q->qdisc, qopt->limit);
+		if (err)
+			goto done;
+	} else if (qopt->limit > 0) {
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
+		if (IS_ERR(child)) {
+			err = PTR_ERR(child);
+			goto done;
+		}
 	}
 
 	sch_tree_lock(sch);
@@ -410,12 +416,7 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt)
 	q->ptokens = q->mtu;
 
 	memcpy(&q->rate, &rate, sizeof(struct psched_ratecfg));
-	if (qopt->peakrate.rate) {
-		memcpy(&q->peak, &peak, sizeof(struct psched_ratecfg));
-		q->peak_present = true;
-	} else {
-		q->peak_present = false;
-	}
+	memcpy(&q->peak, &peak, sizeof(struct psched_ratecfg));
 
 	sch_tree_unlock(sch);
 	err = 0;
@@ -458,7 +459,7 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	opt.limit = q->limit;
 	psched_ratecfg_getrate(&opt.rate, &q->rate);
-	if (q->peak_present)
+	if (tbf_peak_present(q))
 		psched_ratecfg_getrate(&opt.peakrate, &q->peak);
 	else
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
@@ -469,13 +470,12 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (q->rate.rate_bytes_ps >= (1ULL << 32) &&
 	    nla_put_u64(skb, TCA_TBF_RATE64, q->rate.rate_bytes_ps))
 		goto nla_put_failure;
-	if (q->peak_present &&
+	if (tbf_peak_present(q) &&
 	    q->peak.rate_bytes_ps >= (1ULL << 32) &&
 	    nla_put_u64(skb, TCA_TBF_PRATE64, q->peak.rate_bytes_ps))
 		goto nla_put_failure;
 
-	nla_nest_end(skb, nest);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
 	nla_nest_cancel(skb, nest);

@@ -177,7 +177,7 @@ ptlrpc_grow_req_bufs(struct ptlrpc_service_part *svcpt, int post)
 
 /**
  * Part of Rep-Ack logic.
- * Puts a lock and its mode into reply state assotiated to request reply.
+ * Puts a lock and its mode into reply state associated to request reply.
  */
 void
 ptlrpc_save_lock(struct ptlrpc_request *req,
@@ -252,7 +252,7 @@ struct rs_batch {
 static struct ptlrpc_hr_service		ptlrpc_hr;
 
 /**
- * maximum mumber of replies scheduled in one batch
+ * maximum number of replies scheduled in one batch
  */
 #define MAX_SCHEDULED 256
 
@@ -612,7 +612,7 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	INIT_LIST_HEAD(&svcpt->scp_hist_reqs);
 	INIT_LIST_HEAD(&svcpt->scp_hist_rqbds);
 
-	/* acitve requests and hp requests */
+	/* active requests and hp requests */
 	spin_lock_init(&svcpt->scp_req_lock);
 
 	/* reply states */
@@ -752,7 +752,7 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	spin_lock_init(&service->srv_lock);
 	service->srv_name		= conf->psc_name;
 	service->srv_watchdog_factor	= conf->psc_watchdog_factor;
-	INIT_LIST_HEAD(&service->srv_list); /* for safty of cleanup */
+	INIT_LIST_HEAD(&service->srv_list); /* for safety of cleanup */
 
 	/* buffer configuration */
 	service->srv_nbuf_per_group	= test_req_buffer_pressure ?
@@ -1982,7 +1982,7 @@ put_conn:
 	do_gettimeofday(&work_end);
 	timediff = cfs_timeval_sub(&work_end, &work_start, NULL);
 	CDEBUG(D_RPCTRACE, "Handled RPC pname:cluuid+ref:pid:xid:nid:opc "
-	       "%s:%s+%d:%d:x"LPU64":%s:%d Request procesed in "
+	       "%s:%s+%d:%d:x"LPU64":%s:%d Request processed in "
 	       "%ldus (%ldus total) trans "LPU64" rc %d/%d\n",
 		current_comm(),
 		(request->rq_export ?
@@ -2736,7 +2736,7 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 		spin_lock(&svcpt->scp_lock);
 		--svcpt->scp_nthrs_starting;
 		if (thread_is_stopping(thread)) {
-			/* this ptlrpc_thread is being hanled
+			/* this ptlrpc_thread is being handled
 			 * by ptlrpc_svcpt_stop_threads now
 			 */
 			thread_add_flags(thread, SVC_STOPPED);

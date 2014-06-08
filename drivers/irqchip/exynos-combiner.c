@@ -17,7 +17,6 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <asm/mach/irq.h>
 
 #include "irqchip.h"
 
@@ -81,7 +80,7 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	cascade_irq = irq_find_mapping(combiner_irq_domain, combiner_irq);
 
 	if (unlikely(!cascade_irq))
-		do_bad_IRQ(irq, desc);
+		handle_bad_irq(irq, desc);
 	else
 		generic_handle_irq(cascade_irq);
 

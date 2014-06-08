@@ -241,6 +241,22 @@ struct mlx4_ib_proxy_sqp_hdr {
 	struct mlx4_rcv_tunnel_hdr tun;
 }  __packed;
 
+struct mlx4_roce_smac_vlan_info {
+	u64 smac;
+	int smac_index;
+	int smac_port;
+	u64 candidate_smac;
+	int candidate_smac_index;
+	int candidate_smac_port;
+	u16 vid;
+	int vlan_index;
+	int vlan_port;
+	u16 candidate_vid;
+	int candidate_vlan_index;
+	int candidate_vlan_port;
+	int update_vid;
+};
+
 struct mlx4_ib_qp {
 	struct ib_qp		ibqp;
 	struct mlx4_qp		mqp;
@@ -273,8 +289,9 @@ struct mlx4_ib_qp {
 	struct list_head	gid_list;
 	struct list_head	steering_rules;
 	struct mlx4_ib_buf	*sqp_proxy_rcv;
+	struct mlx4_roce_smac_vlan_info pri;
+	struct mlx4_roce_smac_vlan_info alt;
 	u64			reg_id;
-
 };
 
 struct mlx4_ib_srq {
@@ -720,9 +737,12 @@ void mlx4_ib_tunnels_update_work(struct work_struct *work);
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad);
+
 int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
-			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+			 u32 qkey, struct ib_ah_attr *attr, u8 *s_mac,
+			 struct ib_mad *mad);
+
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,

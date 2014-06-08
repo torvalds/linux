@@ -29,18 +29,8 @@
 #define ST_OFF (_THREAD_SIZE - 32 - PT_SIZE + PT_STATUS)
 
 /*
- * FPU context is saved iff the process has used it's FPU in the current
- * time slice as indicated by _TIF_USEDFPU.  In any case, the CU1 bit for user
- * space STATUS register should be 0, so that a process *always* starts its
- * userland with FPU disabled after each context switch.
- *
- * FPU will be enabled as soon as the process accesses FPU again, through
- * do_cpu() trap.
- */
-
-/*
  * task_struct *resume(task_struct *prev, task_struct *next,
- *		       struct thread_info *next_ti, int usedfpu)
+ *		       struct thread_info *next_ti, s32 fp_save)
  */
 	.align	5
 	LEAF(resume)
@@ -50,23 +40,37 @@
 	LONG_S	ra, THREAD_REG31(a0)
 
 	/*
-	 * check if we need to save FPU registers
+	 * Check whether we need to save any FP context. FP context is saved
+	 * iff the process has used the context with the scalar FPU or the MSA
+	 * ASE in the current time slice, as indicated by _TIF_USEDFPU and
+	 * _TIF_USEDMSA respectively. switch_to will have set fp_save
+	 * accordingly to an FP_SAVE_ enum value.
 	 */
+	beqz	a3, 2f
 
-	beqz	a3, 1f
-
-	PTR_L	t3, TASK_THREAD_INFO(a0)
 	/*
-	 * clear saved user stack CU1 bit
+	 * We do. Clear the saved CU1 bit for prev, such that next time it is
+	 * scheduled it will start in userland with the FPU disabled. If the
+	 * task uses the FPU then it will be enabled again via the do_cpu trap.
+	 * This allows us to lazily restore the FP context.
 	 */
+	PTR_L	t3, TASK_THREAD_INFO(a0)
 	LONG_L	t0, ST_OFF(t3)
 	li	t1, ~ST0_CU1
 	and	t0, t0, t1
 	LONG_S	t0, ST_OFF(t3)
 
+	/* Check whether we're saving scalar or vector context. */
+	bgtz	a3, 1f
+
+	/* Save 128b MSA vector context. */
+	msa_save_all	a0
+	b	2f
+
+1:	/* Save 32b/64b scalar FP context. */
 	fpu_save_double a0 t0 t1		# c0_status passed in t0
 						# clobbers t1
-1:
+2:
 
 #if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	PTR_LA	t8, __stack_chk_guard
@@ -140,6 +144,26 @@ LEAF(_restore_fp)
 	fpu_restore_double a0 t0 t1		# clobbers t1
 	jr	ra
 	END(_restore_fp)
+
+#ifdef CONFIG_CPU_HAS_MSA
+
+/*
+ * Save a thread's MSA vector context.
+ */
+LEAF(_save_msa)
+	msa_save_all	a0
+	jr	ra
+	END(_save_msa)
+
+/*
+ * Restore a thread's MSA vector context.
+ */
+LEAF(_restore_msa)
+	msa_restore_all	a0
+	jr	ra
+	END(_restore_msa)
+
+#endif
 
 /*
  * Load the FPU with signalling NANS.  This bit pattern we're using has
@@ -270,7 +294,7 @@ LEAF(_init_fpu)
 1:	.set    pop
 #endif /* CONFIG_CPU_MIPS32_R2 */
 #else
-	.set	mips3
+	.set	arch=r4000
 	dmtc1	t1, $f0
 	dmtc1	t1, $f2
 	dmtc1	t1, $f4

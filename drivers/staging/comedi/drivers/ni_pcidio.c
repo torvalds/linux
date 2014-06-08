@@ -263,9 +263,6 @@ enum FPGA_Control_Bits {
 #define IntEn (TransferReady|CountExpired|Waited|PrimaryTC|SecondaryTC)
 #endif
 
-static int ni_pcidio_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-
 enum nidio_boardid {
 	BOARD_PCIDIO_32HS,
 	BOARD_PXI6533,
@@ -351,17 +348,6 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 		mmiowb();
 	}
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
-}
-
-static void ni_pcidio_event(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
-{
-	if (s->
-	    async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			     COMEDI_CB_OVERFLOW)) {
-		ni_pcidio_cancel(dev, s);
-	}
-	comedi_event(dev, s);
 }
 
 static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -501,7 +487,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	}
 
 out:
-	ni_pcidio_event(dev, s);
+	cfc_handle_events(dev, s);
 #if 0
 	if (!tag) {
 		writeb(0x03,

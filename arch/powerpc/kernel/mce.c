@@ -70,7 +70,7 @@ static void mce_set_error_info(struct machine_check_event *mce,
  */
 void save_mce_event(struct pt_regs *regs, long handled,
 		    struct mce_error_info *mce_err,
-		    uint64_t addr)
+		    uint64_t nip, uint64_t addr)
 {
 	uint64_t srr1;
 	int index = __get_cpu_var(mce_nest_count)++;
@@ -86,7 +86,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 
 	/* Populate generic machine check info */
 	mce->version = MCE_V1;
-	mce->srr0 = regs->nip;
+	mce->srr0 = nip;
 	mce->srr1 = regs->msr;
 	mce->gpr3 = regs->gpr[3];
 	mce->in_use = 1;

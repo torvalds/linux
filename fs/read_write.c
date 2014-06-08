@@ -264,10 +264,22 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
+static inline struct fd fdget_pos(int fd)
+{
+	return __to_fd(__fdget_pos(fd));
+}
+
+static inline void fdput_pos(struct fd f)
+{
+	if (f.flags & FDPUT_POS_UNLOCK)
+		mutex_unlock(&f.file->f_pos_lock);
+	fdput(f);
+}
+
 SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, whence)
 {
 	off_t retval;
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	if (!f.file)
 		return -EBADF;
 
@@ -278,7 +290,7 @@ SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, whence)
 		if (res != (loff_t)retval)
 			retval = -EOVERFLOW;	/* LFS: should only happen on 32 bit platforms */
 	}
-	fdput(f);
+	fdput_pos(f);
 	return retval;
 }
 
@@ -295,7 +307,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 		unsigned int, whence)
 {
 	int retval;
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	loff_t offset;
 
 	if (!f.file)
@@ -315,7 +327,7 @@ SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 			retval = 0;
 	}
 out_putf:
-	fdput(f);
+	fdput_pos(f);
 	return retval;
 }
 #endif
@@ -498,7 +510,7 @@ static inline void file_pos_write(struct file *file, loff_t pos)
 
 SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
 	if (f.file) {
@@ -506,7 +518,7 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 		ret = vfs_read(f.file, buf, count, &pos);
 		if (ret >= 0)
 			file_pos_write(f.file, pos);
-		fdput(f);
+		fdput_pos(f);
 	}
 	return ret;
 }
@@ -514,7 +526,7 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		size_t, count)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
 	if (f.file) {
@@ -522,7 +534,7 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 		ret = vfs_write(f.file, buf, count, &pos);
 		if (ret >= 0)
 			file_pos_write(f.file, pos);
-		fdput(f);
+		fdput_pos(f);
 	}
 
 	return ret;
@@ -797,7 +809,7 @@ EXPORT_SYMBOL(vfs_writev);
 SYSCALL_DEFINE3(readv, unsigned long, fd, const struct iovec __user *, vec,
 		unsigned long, vlen)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
 	if (f.file) {
@@ -805,7 +817,7 @@ SYSCALL_DEFINE3(readv, unsigned long, fd, const struct iovec __user *, vec,
 		ret = vfs_readv(f.file, vec, vlen, &pos);
 		if (ret >= 0)
 			file_pos_write(f.file, pos);
-		fdput(f);
+		fdput_pos(f);
 	}
 
 	if (ret > 0)
@@ -817,7 +829,7 @@ SYSCALL_DEFINE3(readv, unsigned long, fd, const struct iovec __user *, vec,
 SYSCALL_DEFINE3(writev, unsigned long, fd, const struct iovec __user *, vec,
 		unsigned long, vlen)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
 
 	if (f.file) {
@@ -825,7 +837,7 @@ SYSCALL_DEFINE3(writev, unsigned long, fd, const struct iovec __user *, vec,
 		ret = vfs_writev(f.file, vec, vlen, &pos);
 		if (ret >= 0)
 			file_pos_write(f.file, pos);
-		fdput(f);
+		fdput_pos(f);
 	}
 
 	if (ret > 0)
@@ -968,7 +980,7 @@ COMPAT_SYSCALL_DEFINE3(readv, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret;
 	loff_t pos;
 
@@ -978,13 +990,13 @@ COMPAT_SYSCALL_DEFINE3(readv, compat_ulong_t, fd,
 	ret = compat_readv(f.file, vec, vlen, &pos);
 	if (ret >= 0)
 		f.file->f_pos = pos;
-	fdput(f);
+	fdput_pos(f);
 	return ret;
 }
 
-COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
-		const struct compat_iovec __user *,vec,
-		unsigned long, vlen, loff_t, pos)
+static long __compat_sys_preadv64(unsigned long fd,
+				  const struct compat_iovec __user *vec,
+				  unsigned long vlen, loff_t pos)
 {
 	struct fd f;
 	ssize_t ret;
@@ -1001,12 +1013,22 @@ COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
 	return ret;
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
+COMPAT_SYSCALL_DEFINE4(preadv64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	return __compat_sys_preadv64(fd, vec, vlen, pos);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE5(preadv, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
-	return compat_sys_preadv64(fd, vec, vlen, pos);
+
+	return __compat_sys_preadv64(fd, vec, vlen, pos);
 }
 
 static size_t compat_writev(struct file *file,
@@ -1035,7 +1057,7 @@ COMPAT_SYSCALL_DEFINE3(writev, compat_ulong_t, fd,
 		const struct compat_iovec __user *, vec,
 		compat_ulong_t, vlen)
 {
-	struct fd f = fdget(fd);
+	struct fd f = fdget_pos(fd);
 	ssize_t ret;
 	loff_t pos;
 
@@ -1045,13 +1067,13 @@ COMPAT_SYSCALL_DEFINE3(writev, compat_ulong_t, fd,
 	ret = compat_writev(f.file, vec, vlen, &pos);
 	if (ret >= 0)
 		f.file->f_pos = pos;
-	fdput(f);
+	fdput_pos(f);
 	return ret;
 }
 
-COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
-		const struct compat_iovec __user *,vec,
-		unsigned long, vlen, loff_t, pos)
+static long __compat_sys_pwritev64(unsigned long fd,
+				   const struct compat_iovec __user *vec,
+				   unsigned long vlen, loff_t pos)
 {
 	struct fd f;
 	ssize_t ret;
@@ -1068,12 +1090,22 @@ COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
 	return ret;
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64
+COMPAT_SYSCALL_DEFINE4(pwritev64, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos)
+{
+	return __compat_sys_pwritev64(fd, vec, vlen, pos);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE5(pwritev, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high)
 {
 	loff_t pos = ((loff_t)pos_high << 32) | pos_low;
-	return compat_sys_pwritev64(fd, vec, vlen, pos);
+
+	return __compat_sys_pwritev64(fd, vec, vlen, pos);
 }
 #endif
 

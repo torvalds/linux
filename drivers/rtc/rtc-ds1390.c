@@ -132,10 +132,9 @@ static int ds1390_probe(struct spi_device *spi)
 	spi_setup(spi);
 
 	chip = devm_kzalloc(&spi->dev, sizeof(*chip), GFP_KERNEL);
-	if (!chip) {
-		dev_err(&spi->dev, "unable to allocate device memory\n");
+	if (!chip)
 		return -ENOMEM;
-	}
+
 	spi_set_drvdata(spi, chip);
 
 	res = ds1390_get_reg(&spi->dev, DS1390_REG_SECONDS, &tmp);

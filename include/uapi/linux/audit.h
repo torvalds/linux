@@ -70,7 +70,6 @@
 #define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
 #define AUDIT_SET_FEATURE	1018	/* Turn an audit feature on or off */
 #define AUDIT_GET_FEATURE	1019	/* Get which features are enabled */
-#define AUDIT_FEATURE_CHANGE	1020	/* audit log listing feature changes */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
@@ -109,6 +108,8 @@
 #define AUDIT_NETFILTER_PKT	1324	/* Packets traversing netfilter chains */
 #define AUDIT_NETFILTER_CFG	1325	/* Netfilter chain modifications */
 #define AUDIT_SECCOMP		1326	/* Secure Computing event */
+#define AUDIT_PROCTITLE		1327	/* Proctitle emit event */
+#define AUDIT_FEATURE_CHANGE	1328	/* audit log listing feature changes */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */

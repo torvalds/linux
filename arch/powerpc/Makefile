@@ -74,6 +74,7 @@ override CROSS32AS += -mlittle-endian
 LDEMULATION	:= lppc
 GNUTARGET	:= powerpcle
 MULTIPLEWORD	:= -mno-multiple
+KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-save-toc-indirect)
 else
 ifeq ($(call cc-option-yn,-mbig-endian),y)
 override CC	+= -mbig-endian

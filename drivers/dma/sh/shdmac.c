@@ -443,6 +443,7 @@ static bool sh_dmae_reset(struct sh_dmae_device *shdev)
 	return ret;
 }
 
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARM)
 static irqreturn_t sh_dmae_err(int irq, void *data)
 {
 	struct sh_dmae_device *shdev = data;
@@ -453,6 +454,7 @@ static irqreturn_t sh_dmae_err(int irq, void *data)
 	sh_dmae_reset(shdev);
 	return IRQ_HANDLED;
 }
+#endif
 
 static bool sh_dmae_desc_completed(struct shdma_chan *schan,
 				   struct shdma_desc *sdesc)
@@ -637,7 +639,7 @@ static int sh_dmae_resume(struct device *dev)
 #define sh_dmae_resume NULL
 #endif
 
-const struct dev_pm_ops sh_dmae_pm = {
+static const struct dev_pm_ops sh_dmae_pm = {
 	.suspend		= sh_dmae_suspend,
 	.resume			= sh_dmae_resume,
 	.runtime_suspend	= sh_dmae_runtime_suspend,
@@ -685,9 +687,12 @@ MODULE_DEVICE_TABLE(of, sh_dmae_of_match);
 static int sh_dmae_probe(struct platform_device *pdev)
 {
 	const struct sh_dmae_pdata *pdata;
-	unsigned long irqflags = 0,
-		chan_flag[SH_DMAE_MAX_CHANNELS] = {};
-	int errirq, chan_irq[SH_DMAE_MAX_CHANNELS];
+	unsigned long chan_flag[SH_DMAE_MAX_CHANNELS] = {};
+	int chan_irq[SH_DMAE_MAX_CHANNELS];
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARM)
+	unsigned long irqflags = 0;
+	int errirq;
+#endif
 	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;

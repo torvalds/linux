@@ -78,6 +78,8 @@ struct lpfc_iocbq {
 #define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14
 
+#define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
+
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	uint32_t fcp_wqidx;	/* index to FCP work queue */
 	struct lpfc_vport *vport;/* virtual port pointer */

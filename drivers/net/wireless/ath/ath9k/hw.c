@@ -23,7 +23,6 @@
 
 #include "hw.h"
 #include "hw-ops.h"
-#include "rc.h"
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
 #include "ar9003_phy.h"
@@ -883,7 +882,7 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (AR_SREV_9340(ah) || AR_SREV_9550(ah))
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah))
 		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
@@ -1534,7 +1533,7 @@ EXPORT_SYMBOL(ath9k_hw_check_nav);
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
-	u32 reg;
+	u32 reg, last_val;
 
 	if (AR_SREV_9300(ah))
 		return !ath9k_hw_detect_mac_hang(ah);
@@ -1542,9 +1541,14 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 	if (AR_SREV_9285_12_OR_LATER(ah))
 		return true;
 
+	last_val = REG_READ(ah, AR_OBS_BUS_1);
 	do {
 		reg = REG_READ(ah, AR_OBS_BUS_1);
+		if (reg != last_val)
+			return true;
 
+		udelay(1);
+		last_val = reg;
 		if ((reg & 0x7E7FFFEF) == 0x00702400)
 			continue;
 
@@ -3043,6 +3047,7 @@ static struct {
 	{ AR_SREV_VERSION_9462,         "9462" },
 	{ AR_SREV_VERSION_9550,         "9550" },
 	{ AR_SREV_VERSION_9565,         "9565" },
+	{ AR_SREV_VERSION_9531,         "9531" },
 };
 
 /* For devices with external radios */

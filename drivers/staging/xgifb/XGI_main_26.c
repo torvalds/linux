@@ -1754,8 +1754,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unable request memory size %x\n",
 		       xgifb_info->video_size);
 		dev_err(&pdev->dev,
-			"Fatal error: Unable to reserve frame buffer memory. "
-			"Is there another framebuffer driver active?\n");
+			"Fatal error: Unable to reserve frame buffer memory. Is there another framebuffer driver active?\n");
 		ret = -ENODEV;
 		goto error_disable;
 	}
@@ -2087,23 +2086,19 @@ static struct pci_driver xgifb_driver = {
 
 module_param(mode, charp, 0);
 MODULE_PARM_DESC(mode,
-	"Selects the desired default display mode in the format XxYxDepth "
-	"(eg. 1024x768x16).");
+	"Selects the desired default display mode in the format XxYxDepth (eg. 1024x768x16).");
 
 module_param(forcecrt2type, charp, 0);
 MODULE_PARM_DESC(forcecrt2type,
-	"Force the second display output type. Possible values are NONE, "
-	"LCD, TV, VGA, SVIDEO or COMPOSITE.");
+	"Force the second display output type. Possible values are NONE, LCD, TV, VGA, SVIDEO or COMPOSITE.");
 
 module_param(vesa, int, 0);
 MODULE_PARM_DESC(vesa,
-	"Selects the desired default display mode by VESA mode number "
-	"(eg. 0x117).");
+	"Selects the desired default display mode by VESA mode number (eg. 0x117).");
 
 module_param(filter, int, 0);
 MODULE_PARM_DESC(filter,
-	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). "
-	"Possible values 0-7. Default: [no filter]).");
+	"Selects TV flicker filter type (only for systems with a SiS301 video bridge). Possible values 0-7. Default: [no filter]).");
 
 static int __init xgifb_init(void)
 {

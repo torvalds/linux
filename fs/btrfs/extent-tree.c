@@ -419,7 +419,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 again:
 	mutex_lock(&caching_ctl->mutex);
 	/* need to make sure the commit_root doesn't disappear */
-	down_read(&fs_info->extent_commit_sem);
+	down_read(&fs_info->commit_root_sem);
 
 next:
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
@@ -443,10 +443,10 @@ next:
 				break;
 
 			if (need_resched() ||
-			    rwsem_is_contended(&fs_info->extent_commit_sem)) {
+			    rwsem_is_contended(&fs_info->commit_root_sem)) {
 				caching_ctl->progress = last;
 				btrfs_release_path(path);
-				up_read(&fs_info->extent_commit_sem);
+				up_read(&fs_info->commit_root_sem);
 				mutex_unlock(&caching_ctl->mutex);
 				cond_resched();
 				goto again;
@@ -513,7 +513,7 @@ next:
 
 err:
 	btrfs_free_path(path);
-	up_read(&fs_info->extent_commit_sem);
+	up_read(&fs_info->commit_root_sem);
 
 	free_excluded_extents(extent_root, block_group);
 
@@ -549,7 +549,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	caching_ctl->block_group = cache;
 	caching_ctl->progress = cache->key.objectid;
 	atomic_set(&caching_ctl->count, 1);
-	caching_ctl->work.func = caching_thread;
+	btrfs_init_work(&caching_ctl->work, caching_thread, NULL, NULL);
 
 	spin_lock(&cache->lock);
 	/*
@@ -633,14 +633,14 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 		return 0;
 	}
 
-	down_write(&fs_info->extent_commit_sem);
+	down_write(&fs_info->commit_root_sem);
 	atomic_inc(&caching_ctl->count);
 	list_add_tail(&caching_ctl->list, &fs_info->caching_block_groups);
-	up_write(&fs_info->extent_commit_sem);
+	up_write(&fs_info->commit_root_sem);
 
 	btrfs_get_block_group(cache);
 
-	btrfs_queue_worker(&fs_info->caching_workers, &caching_ctl->work);
+	btrfs_queue_work(fs_info->caching_workers, &caching_ctl->work);
 
 	return ret;
 }
@@ -1542,6 +1542,7 @@ again:
 				ret = 0;
 		}
 		if (ret) {
+			key.objectid = bytenr;
 			key.type = BTRFS_EXTENT_ITEM_KEY;
 			key.offset = num_bytes;
 			btrfs_release_path(path);
@@ -2444,7 +2445,8 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			spin_unlock(&locked_ref->lock);
 			spin_lock(&delayed_refs->lock);
 			spin_lock(&locked_ref->lock);
-			if (rb_first(&locked_ref->ref_root)) {
+			if (rb_first(&locked_ref->ref_root) ||
+			    locked_ref->extent_op) {
 				spin_unlock(&locked_ref->lock);
 				spin_unlock(&delayed_refs->lock);
 				continue;
@@ -3541,11 +3543,13 @@ static u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	return extended_to_chunk(flags | tmp);
 }
 
-static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
+static u64 get_alloc_profile(struct btrfs_root *root, u64 orig_flags)
 {
 	unsigned seq;
+	u64 flags;
 
 	do {
+		flags = orig_flags;
 		seq = read_seqbegin(&root->fs_info->profiles_lock);
 
 		if (flags & BTRFS_BLOCK_GROUP_DATA)
@@ -3971,7 +3975,7 @@ static int can_overcommit(struct btrfs_root *root,
 }
 
 static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
-					 unsigned long nr_pages)
+					 unsigned long nr_pages, int nr_items)
 {
 	struct super_block *sb = root->fs_info->sb;
 
@@ -3986,9 +3990,9 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 * the filesystem is readonly(all dirty pages are written to
 		 * the disk).
 		 */
-		btrfs_start_delalloc_roots(root->fs_info, 0);
+		btrfs_start_delalloc_roots(root->fs_info, 0, nr_items);
 		if (!current->journal_info)
-			btrfs_wait_ordered_roots(root->fs_info, -1);
+			btrfs_wait_ordered_roots(root->fs_info, nr_items);
 	}
 }
 
@@ -4045,7 +4049,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	while (delalloc_bytes && loops < 3) {
 		max_reclaim = min(delalloc_bytes, to_reclaim);
 		nr_pages = max_reclaim >> PAGE_CACHE_SHIFT;
-		btrfs_writeback_inodes_sb_nr(root, nr_pages);
+		btrfs_writeback_inodes_sb_nr(root, nr_pages, items);
 		/*
 		 * We need to wait for the async pages to actually start before
 		 * we do anything.
@@ -4112,13 +4116,9 @@ static int may_commit_transaction(struct btrfs_root *root,
 		goto commit;
 
 	/* See if there is enough pinned space to make this reservation */
-	spin_lock(&space_info->lock);
 	if (percpu_counter_compare(&space_info->total_bytes_pinned,
-				   bytes) >= 0) {
-		spin_unlock(&space_info->lock);
+				   bytes) >= 0)
 		goto commit;
-	}
-	spin_unlock(&space_info->lock);
 
 	/*
 	 * See if there is some space in the delayed insertion reservation for
@@ -4127,16 +4127,13 @@ static int may_commit_transaction(struct btrfs_root *root,
 	if (space_info != delayed_rsv->space_info)
 		return -ENOSPC;
 
-	spin_lock(&space_info->lock);
 	spin_lock(&delayed_rsv->lock);
 	if (percpu_counter_compare(&space_info->total_bytes_pinned,
 				   bytes - delayed_rsv->size) >= 0) {
 		spin_unlock(&delayed_rsv->lock);
-		spin_unlock(&space_info->lock);
 		return -ENOSPC;
 	}
 	spin_unlock(&delayed_rsv->lock);
-	spin_unlock(&space_info->lock);
 
 commit:
 	trans = btrfs_join_transaction(root);
@@ -4181,7 +4178,7 @@ static int flush_space(struct btrfs_root *root,
 		break;
 	case FLUSH_DELALLOC:
 	case FLUSH_DELALLOC_WAIT:
-		shrink_delalloc(root, num_bytes, orig_bytes,
+		shrink_delalloc(root, num_bytes * 2, orig_bytes,
 				state == FLUSH_DELALLOC_WAIT);
 		break;
 	case ALLOC_CHUNK:
@@ -5477,7 +5474,7 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_space_info *space_info;
 
-	down_write(&fs_info->extent_commit_sem);
+	down_write(&fs_info->commit_root_sem);
 
 	list_for_each_entry_safe(caching_ctl, next,
 				 &fs_info->caching_block_groups, list) {
@@ -5496,7 +5493,7 @@ void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	else
 		fs_info->pinned_extents = &fs_info->freed_extents[0];
 
-	up_write(&fs_info->extent_commit_sem);
+	up_write(&fs_info->commit_root_sem);
 
 	list_for_each_entry_rcu(space_info, &fs_info->space_info, list)
 		percpu_counter_set(&space_info->total_bytes_pinned, 0);
@@ -5725,6 +5722,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 
 			if (ret > 0 && skinny_metadata) {
 				skinny_metadata = false;
+				key.objectid = bytenr;
 				key.type = BTRFS_EXTENT_ITEM_KEY;
 				key.offset = num_bytes;
 				btrfs_release_path(path);
@@ -5751,6 +5749,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			"unable to find ref byte nr %llu parent %llu root %llu  owner %llu offset %llu",
 			bytenr, parent, root_objectid, owner_objectid,
 			owner_offset);
+		btrfs_abort_transaction(trans, extent_root, ret);
+		goto out;
 	} else {
 		btrfs_abort_transaction(trans, extent_root, ret);
 		goto out;
@@ -8262,14 +8262,14 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	struct btrfs_caching_control *caching_ctl;
 	struct rb_node *n;
 
-	down_write(&info->extent_commit_sem);
+	down_write(&info->commit_root_sem);
 	while (!list_empty(&info->caching_block_groups)) {
 		caching_ctl = list_entry(info->caching_block_groups.next,
 					 struct btrfs_caching_control, list);
 		list_del(&caching_ctl->list);
 		put_caching_control(caching_ctl);
 	}
-	up_write(&info->extent_commit_sem);
+	up_write(&info->commit_root_sem);
 
 	spin_lock(&info->block_group_cache_lock);
 	while ((n = rb_last(&info->block_group_cache_tree)) != NULL) {
@@ -8343,9 +8343,15 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 			       struct btrfs_block_group_cache *cache)
 {
 	int index = get_block_group_index(cache);
+	bool first = false;
 
 	down_write(&space_info->groups_sem);
-	if (list_empty(&space_info->block_groups[index])) {
+	if (list_empty(&space_info->block_groups[index]))
+		first = true;
+	list_add_tail(&cache->list, &space_info->block_groups[index]);
+	up_write(&space_info->groups_sem);
+
+	if (first) {
 		struct kobject *kobj = &space_info->block_group_kobjs[index];
 		int ret;
 
@@ -8357,8 +8363,6 @@ static void __link_block_group(struct btrfs_space_info *space_info,
 			kobject_put(&space_info->kobj);
 		}
 	}
-	list_add_tail(&cache->list, &space_info->block_groups[index]);
-	up_write(&space_info->groups_sem);
 }
 
 static struct btrfs_block_group_cache *
@@ -8937,4 +8941,39 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 
 	range->len = trimmed;
 	return ret;
+}
+
+/*
+ * btrfs_{start,end}_write() is similar to mnt_{want, drop}_write(),
+ * they are used to prevent the some tasks writing data into the page cache
+ * by nocow before the subvolume is snapshoted, but flush the data into
+ * the disk after the snapshot creation.
+ */
+void btrfs_end_nocow_write(struct btrfs_root *root)
+{
+	percpu_counter_dec(&root->subv_writers->counter);
+	/*
+	 * Make sure counter is updated before we wake up
+	 * waiters.
+	 */
+	smp_mb();
+	if (waitqueue_active(&root->subv_writers->wait))
+		wake_up(&root->subv_writers->wait);
+}
+
+int btrfs_start_nocow_write(struct btrfs_root *root)
+{
+	if (unlikely(atomic_read(&root->will_be_snapshoted)))
+		return 0;
+
+	percpu_counter_inc(&root->subv_writers->counter);
+	/*
+	 * Make sure counter is updated before we check for snapshot creation.
+	 */
+	smp_mb();
+	if (unlikely(atomic_read(&root->will_be_snapshoted))) {
+		btrfs_end_nocow_write(root);
+		return 0;
+	}
+	return 1;
 }

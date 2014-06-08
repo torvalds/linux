@@ -72,19 +72,19 @@ static struct s3c2416_dvfs s3c2416_dvfs_table[] = {
 #endif
 
 static struct cpufreq_frequency_table s3c2416_freq_table[] = {
-	{ SOURCE_HCLK, FREQ_DVS },
-	{ SOURCE_ARMDIV, 133333 },
-	{ SOURCE_ARMDIV, 266666 },
-	{ SOURCE_ARMDIV, 400000 },
-	{ 0, CPUFREQ_TABLE_END },
+	{ 0, SOURCE_HCLK, FREQ_DVS },
+	{ 0, SOURCE_ARMDIV, 133333 },
+	{ 0, SOURCE_ARMDIV, 266666 },
+	{ 0, SOURCE_ARMDIV, 400000 },
+	{ 0, 0, CPUFREQ_TABLE_END },
 };
 
 static struct cpufreq_frequency_table s3c2450_freq_table[] = {
-	{ SOURCE_HCLK, FREQ_DVS },
-	{ SOURCE_ARMDIV, 133500 },
-	{ SOURCE_ARMDIV, 267000 },
-	{ SOURCE_ARMDIV, 534000 },
-	{ 0, CPUFREQ_TABLE_END },
+	{ 0, SOURCE_HCLK, FREQ_DVS },
+	{ 0, SOURCE_ARMDIV, 133500 },
+	{ 0, SOURCE_ARMDIV, 267000 },
+	{ 0, SOURCE_ARMDIV, 534000 },
+	{ 0, 0, CPUFREQ_TABLE_END },
 };
 
 static unsigned int s3c2416_cpufreq_get_speed(unsigned int cpu)

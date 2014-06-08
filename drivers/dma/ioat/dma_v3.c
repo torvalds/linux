@@ -464,8 +464,11 @@ static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
 static void ioat3_cleanup_event(unsigned long data)
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
+	struct ioat_chan_common *chan = &ioat->base;
 
 	ioat3_cleanup(ioat);
+	if (!test_bit(IOAT_RUN, &chan->state))
+		return;
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 

@@ -98,6 +98,7 @@ enum {
 	STAC_92HD83XXX_HP_LED,
 	STAC_92HD83XXX_HP_INV_LED,
 	STAC_92HD83XXX_HP_MIC_LED,
+	STAC_HP_LED_GPIO10,
 	STAC_92HD83XXX_HEADSET_JACK,
 	STAC_92HD83XXX_HP,
 	STAC_HP_ENVY_BASS,
@@ -295,7 +296,7 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
 
-	snd_printdd("%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
+	codec_dbg(codec, "%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
 
 	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
 				       AC_VERB_GET_GPIO_DATA, 0);
@@ -358,7 +359,7 @@ static int stac_vrefout_set(struct hda_codec *codec,
 {
 	int error, pinctl;
 
-	snd_printdd("%s, nid %x ctl %x\n", __func__, nid, new_vref);
+	codec_dbg(codec, "%s, nid %x ctl %x\n", __func__, nid, new_vref);
 	pinctl = snd_hda_codec_read(codec, nid, 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 
@@ -2085,9 +2086,12 @@ static void stac92hd83xxx_fixup_hp(struct hda_codec *codec,
 	}
 
 	if (find_mute_led_cfg(codec, spec->default_polarity))
-		snd_printd("mute LED gpio %d polarity %d\n",
+		codec_dbg(codec, "mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
+
+	/* allow auto-switching of dock line-in */
+	spec->gen.line_in_auto_switch = true;
 }
 
 static void stac92hd83xxx_fixup_hp_zephyr(struct hda_codec *codec,
@@ -2127,6 +2131,17 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
 		/* resetting controller clears GPIO, so we need to keep on */
 		codec->bus->power_keep_link_on = 1;
+	}
+}
+
+static void stac92hd83xxx_fixup_hp_led_gpio10(struct hda_codec *codec,
+				   const struct hda_fixup *fix, int action)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
+		spec->gpio_led = 0x10; /* GPIO4 */
+		spec->default_polarity = 0;
 	}
 }
 
@@ -2624,6 +2639,12 @@ static const struct hda_fixup stac92hd83xxx_fixups[] = {
 		.chained = true,
 		.chain_id = STAC_92HD83XXX_HP,
 	},
+	[STAC_HP_LED_GPIO10] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = stac92hd83xxx_fixup_hp_led_gpio10,
+		.chained = true,
+		.chain_id = STAC_92HD83XXX_HP,
+	},
 	[STAC_92HD83XXX_HEADSET_JACK] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = stac92hd83xxx_fixup_headset_jack,
@@ -2702,6 +2723,8 @@ static const struct snd_pci_quirk stac92hd83xxx_fixup_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1888,
 			  "HP Envy Spectre", STAC_HP_ENVY_BASS),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1899,
+			  "HP Folio 13", STAC_HP_LED_GPIO10),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x18df,
 			  "HP Folio", STAC_HP_BNB13_EQ),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x18F8,
@@ -3057,7 +3080,7 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 	}
 
 	if (find_mute_led_cfg(codec, 1))
-		snd_printd("mute LED gpio %d polarity %d\n",
+		codec_dbg(codec, "mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
@@ -4402,8 +4425,8 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 
 	num_dacs = snd_hda_get_num_conns(codec, 0x0a) - 1;
 	if (num_dacs < 3 || num_dacs > 5) {
-		printk(KERN_WARNING "hda_codec: Could not determine "
-		       "number of channels defaulting to DAC count\n");
+		codec_warn(codec,
+			   "Could not determine number of channels defaulting to DAC count\n");
 		num_dacs = 5;
 	}
 

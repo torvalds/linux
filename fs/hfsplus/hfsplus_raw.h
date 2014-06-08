@@ -261,7 +261,7 @@ struct hfsplus_cat_folder {
 	struct DInfo user_info;
 	struct DXInfo finder_info;
 	__be32 text_encoding;
-	u32 reserved;
+	__be32 subfolders;	/* Subfolder count in HFSX. Reserved in HFS+. */
 } __packed;
 
 /* HFS file info (stolen from hfs.h) */
@@ -301,11 +301,13 @@ struct hfsplus_cat_file {
 	struct hfsplus_fork_raw rsrc_fork;
 } __packed;
 
-/* File attribute bits */
+/* File and folder flag bits */
 #define HFSPLUS_FILE_LOCKED		0x0001
 #define HFSPLUS_FILE_THREAD_EXISTS	0x0002
 #define HFSPLUS_XATTR_EXISTS		0x0004
 #define HFSPLUS_ACL_EXISTS		0x0008
+#define HFSPLUS_HAS_FOLDER_COUNT	0x0010	/* Folder has subfolder count
+						 * (HFSX only) */
 
 /* HFS+ catalog thread (part of a cat_entry) */
 struct hfsplus_cat_thread {

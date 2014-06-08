@@ -1072,8 +1072,8 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	if (!enable[devnum])
 		return -ENODEV;
 
-	err = snd_card_create(index[devnum], id[devnum], THIS_MODULE,
-			      sizeof(snd_card_saa7134_t), &card);
+	err = snd_card_new(&dev->pci->dev, index[devnum], id[devnum],
+			   THIS_MODULE, sizeof(snd_card_saa7134_t), &card);
 	if (err < 0)
 		return err;
 
@@ -1114,8 +1114,6 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 	if ((err = snd_card_saa7134_pcm(chip, 0)) < 0)
 		goto __nodev;
-
-	snd_card_set_dev(card, &chip->pci->dev);
 
 	/* End of "creation" */
 

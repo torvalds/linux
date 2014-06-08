@@ -77,7 +77,7 @@ static int mpl3115_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct mpl3115_data *data = iio_priv(indio_dev);
-	s32 tmp = 0;
+	__be32 tmp = 0;
 	int ret;
 
 	switch (mask) {

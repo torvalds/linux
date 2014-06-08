@@ -129,6 +129,15 @@ static inline void ext4_es_store_status(struct extent_status *es,
 		       (es->es_pblk & ~ES_MASK));
 }
 
+static inline void ext4_es_store_pblock_status(struct extent_status *es,
+					       ext4_fsblk_t pb,
+					       unsigned int status)
+{
+	es->es_pblk = (((ext4_fsblk_t)
+			(status & EXTENT_STATUS_FLAGS) << ES_SHIFT) |
+		       (pb & ~ES_MASK));
+}
+
 extern void ext4_es_register_shrinker(struct ext4_sb_info *sbi);
 extern void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi);
 extern void ext4_es_lru_add(struct inode *inode);

@@ -190,7 +190,6 @@ int bochs_fbdev_init(struct bochs_device *bochs)
 	int ret;
 
 	bochs->fb.helper.funcs = &bochs_fb_helper_funcs;
-	spin_lock_init(&bochs->fb.dirty_lock);
 
 	ret = drm_fb_helper_init(bochs->dev, &bochs->fb.helper,
 				 1, 1);

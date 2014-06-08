@@ -209,7 +209,7 @@ static int write_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 				     index, NULL, 0, MOS_WDR_TIMEOUT);
 	if (status < 0)
 		dev_err(&usbdev->dev,
-			"mos7720: usb_control_msg() failed: %d", status);
+			"mos7720: usb_control_msg() failed: %d\n", status);
 	return status;
 }
 
@@ -240,7 +240,7 @@ static int read_mos_reg(struct usb_serial *serial, unsigned int serial_portnum,
 		*data = *buf;
 	else if (status < 0)
 		dev_err(&usbdev->dev,
-			"mos7720: usb_control_msg() failed: %d", status);
+			"mos7720: usb_control_msg() failed: %d\n", status);
 	kfree(buf);
 
 	return status;
@@ -399,7 +399,7 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
 			      &mos_parport->deferred_urbs);
 		spin_unlock_irqrestore(&mos_parport->listlock, flags);
 		tasklet_schedule(&mos_parport->urb_tasklet);
-		dev_dbg(&usbdev->dev, "tasklet scheduled");
+		dev_dbg(&usbdev->dev, "tasklet scheduled\n");
 		return 0;
 	}
 
@@ -418,7 +418,7 @@ static int write_parport_reg_nonblock(struct mos7715_parport *mos_parport,
 	mutex_unlock(&serial->disc_mutex);
 	if (ret_val) {
 		dev_err(&usbdev->dev,
-			"%s: submit_urb() failed: %d", __func__, ret_val);
+			"%s: submit_urb() failed: %d\n", __func__, ret_val);
 		spin_lock_irqsave(&mos_parport->listlock, flags);
 		list_del(&urbtrack->urblist_entry);
 		spin_unlock_irqrestore(&mos_parport->listlock, flags);
@@ -656,7 +656,7 @@ static size_t parport_mos7715_write_compat(struct parport *pp,
 	parport_epilogue(pp);
 	if (retval) {
 		dev_err(&mos_parport->serial->dev->dev,
-			"mos7720: usb_bulk_msg() failed: %d", retval);
+			"mos7720: usb_bulk_msg() failed: %d\n", retval);
 		return 0;
 	}
 	return actual_len;
@@ -875,7 +875,7 @@ static void mos7715_interrupt_callback(struct urb *urb)
 	if (!(iir & 0x01)) {	/* serial port interrupt pending */
 		switch (iir & 0x0f) {
 		case SERIAL_IIR_RLS:
-			dev_dbg(dev, "Serial Port: Receiver status error or address bit detected in 9-bit mode\n\n");
+			dev_dbg(dev, "Serial Port: Receiver status error or address bit detected in 9-bit mode\n");
 			break;
 		case SERIAL_IIR_CTI:
 			dev_dbg(dev, "Serial Port: Receiver time out\n");

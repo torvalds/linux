@@ -610,6 +610,31 @@ out_and_saveregs:
 	tm_save_sprs(thr);
 }
 
+extern void __tm_recheckpoint(struct thread_struct *thread,
+			      unsigned long orig_msr);
+
+void tm_recheckpoint(struct thread_struct *thread,
+		     unsigned long orig_msr)
+{
+	unsigned long flags;
+
+	/* We really can't be interrupted here as the TEXASR registers can't
+	 * change and later in the trecheckpoint code, we have a userspace R1.
+	 * So let's hard disable over this region.
+	 */
+	local_irq_save(flags);
+	hard_irq_disable();
+
+	/* The TM SPRs are restored here, so that TEXASR.FS can be set
+	 * before the trecheckpoint and no explosion occurs.
+	 */
+	tm_restore_sprs(thread);
+
+	__tm_recheckpoint(thread, orig_msr);
+
+	local_irq_restore(flags);
+}
+
 static inline void tm_recheckpoint_new_task(struct task_struct *new)
 {
 	unsigned long msr;
@@ -628,13 +653,10 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 	if (!new->thread.regs)
 		return;
 
-	/* The TM SPRs are restored here, so that TEXASR.FS can be set
-	 * before the trecheckpoint and no explosion occurs.
-	 */
-	tm_restore_sprs(&new->thread);
-
-	if (!MSR_TM_ACTIVE(new->thread.regs->msr))
+	if (!MSR_TM_ACTIVE(new->thread.regs->msr)){
+		tm_restore_sprs(&new->thread);
 		return;
+	}
 	msr = new->thread.tm_orig_msr;
 	/* Recheckpoint to restore original checkpointed register state. */
 	TM_DEBUG("*** tm_recheckpoint of pid %d "
@@ -1048,6 +1070,15 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	flush_altivec_to_thread(src);
 	flush_vsx_to_thread(src);
 	flush_spe_to_thread(src);
+	/*
+	 * Flush TM state out so we can copy it.  __switch_to_tm() does this
+	 * flush but it removes the checkpointed state from the current CPU and
+	 * transitions the CPU out of TM mode.  Hence we need to call
+	 * tm_recheckpoint_new_task() (on the same task) to restore the
+	 * checkpointed state back and the TM mode.
+	 */
+	__switch_to_tm(src);
+	tm_recheckpoint_new_task(src);
 
 	*dst = *src;
 

@@ -14,9 +14,6 @@
 
 #include "blk.h"
 
-int blk_iopoll_enabled = 1;
-EXPORT_SYMBOL(blk_iopoll_enabled);
-
 static unsigned int blk_iopoll_budget __read_mostly = 256;
 
 static DEFINE_PER_CPU(struct list_head, blk_cpu_iopoll);

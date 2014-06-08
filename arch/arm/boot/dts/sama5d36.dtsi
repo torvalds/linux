@@ -8,8 +8,8 @@
  */
 #include "sama5d3.dtsi"
 #include "sama5d3_can.dtsi"
-#include "sama5d3_emac.dtsi"
 #include "sama5d3_gmac.dtsi"
+#include "sama5d3_emac.dtsi"
 #include "sama5d3_lcd.dtsi"
 #include "sama5d3_mci2.dtsi"
 #include "sama5d3_tcb1.dtsi"

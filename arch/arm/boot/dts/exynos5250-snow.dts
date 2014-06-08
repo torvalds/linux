@@ -14,10 +14,14 @@
 
 / {
 	model = "Google Snow";
-	compatible = "google,snow", "samsung,exynos5250";
+	compatible = "google,snow", "samsung,exynos5250", "samsung,exynos5";
 
 	aliases {
 		i2c104 = &i2c_104;
+	};
+
+	rtc@101E0000 {
+		status = "okay";
 	};
 
 	pinctrl@11400000 {

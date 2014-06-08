@@ -47,6 +47,11 @@
 				1000000	1060000
 				1176000	1160000
 				>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -75,7 +80,7 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is uses for IPs
+	 * The soc node represents the soc top level view. It is used for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
@@ -89,7 +94,7 @@
 	/*
 	 * XXX: Use a flat representation of the SOC interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 * Since that will not bring real advantage to represent that in DT for
+	 * Since it will not bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
 	 */
@@ -147,6 +152,22 @@
 			compatible = "ti,omap-counter32k";
 			reg = <0x4ae04000 0x40>;
 			ti,hwmods = "counter_32k";
+		};
+
+		dra7_ctrl_general: tisyscon@4a002e00 {
+			compatible = "syscon";
+			reg = <0x4a002e00 0x7c>;
+		};
+
+		pbias_regulator: pbias_regulator {
+			compatible = "ti,pbias-omap";
+			reg = <0 0x4>;
+			syscon = <&dra7_ctrl_general>;
+			pbias_mmc_reg: pbias_mmc_omap5 {
+				regulator-name = "pbias_mmc_omap5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3000000>;
+			};
 		};
 
 		dra7_pmx_core: pinmux@4a003400 {
@@ -464,6 +485,20 @@
 			ti,hwmods = "wd_timer2";
 		};
 
+		hwspinlock: spinlock@4a0f6000 {
+			compatible = "ti,omap4-hwspinlock";
+			reg = <0x4a0f6000 0x1000>;
+			ti,hwmods = "spinlock";
+			#hwlock-cells = <1>;
+		};
+
+		dmm@4e000000 {
+			compatible = "ti,omap5-dmm";
+			reg = <0x4e000000 0x800>;
+			interrupts = <0 113 0x4>;
+			ti,hwmods = "dmm";
+		};
+
 		i2c1: i2c@48070000 {
 			compatible = "ti,omap4-i2c";
 			reg = <0x48070000 0x100>;
@@ -524,6 +559,7 @@
 			dmas = <&sdma 61>, <&sdma 62>;
 			dma-names = "tx", "rx";
 			status = "disabled";
+			pbias-supply = <&pbias_mmc_reg>;
 		};
 
 		mmc2: mmc@480b4000 {
@@ -557,6 +593,138 @@
 			dmas = <&sdma 57>, <&sdma 58>;
 			dma-names = "tx", "rx";
 			status = "disabled";
+		};
+
+		abb_mpu: regulator-abb-mpu {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_mpu";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07ddc 0x4>, <0x4ae07de0 0x4>,
+			      <0x4ae06014 0x4>, <0x4a003b20 0x8>,
+			      <0x4ae0c158 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x80>;
+			/* LDOVBBMPU_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBMPU_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1060000		0	0x0	0 0x02000000 0x01F00000
+			1160000		0	0x4	0 0x02000000 0x01F00000
+			1210000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_ivahd: regulator-abb-ivahd {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_ivahd";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07e34 0x4>, <0x4ae07e24 0x4>,
+			      <0x4ae06010 0x4>, <0x4a0025cc 0x8>,
+			      <0x4a002470 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x40000000>;
+			/* LDOVBBIVA_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBIVA_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1055000		0	0x0	0 0x02000000 0x01F00000
+			1150000		0	0x4	0 0x02000000 0x01F00000
+			1250000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_dspeve: regulator-abb-dspeve {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_dspeve";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07e30 0x4>, <0x4ae07e20 0x4>,
+			      <0x4ae06010 0x4>, <0x4a0025e0 0x8>,
+			      <0x4a00246c 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x20000000>;
+			/* LDOVBBDSPEVE_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBDSPEVE_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1055000		0	0x0	0 0x02000000 0x01F00000
+			1150000		0	0x4	0 0x02000000 0x01F00000
+			1250000		0	0x8	0 0x02000000 0x01F00000
+			>;
+		};
+
+		abb_gpu: regulator-abb-gpu {
+			compatible = "ti,abb-v3";
+			regulator-name = "abb_gpu";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			clocks = <&sys_clkin1>;
+			ti,settling-time = <50>;
+			ti,clock-cycles = <16>;
+
+			reg = <0x4ae07de4 0x4>, <0x4ae07de8 0x4>,
+			      <0x4ae06010 0x4>, <0x4a003b08 0x8>,
+			      <0x4ae0c154 0x4>;
+			reg-names = "setup-address", "control-address",
+				    "int-address", "efuse-address",
+				    "ldo-address";
+			ti,tranxdone-status-mask = <0x10000000>;
+			/* LDOVBBGPU_FBB_MUX_CTRL */
+			ti,ldovbb-override-mask = <0x400>;
+			/* LDOVBBGPU_FBB_VSET_OUT */
+			ti,ldovbb-vset-mask = <0x1F>;
+
+			/*
+			 * NOTE: only FBB mode used but actual vset will
+			 * determine final biasing
+			 */
+			ti,abb_info = <
+			/*uV		ABB	efuse	rbb_m fbb_m	vset_m*/
+			1090000		0	0x0	0 0x02000000 0x01F00000
+			1210000		0	0x4	0 0x02000000 0x01F00000
+			1280000		0	0x8	0 0x02000000 0x01F00000
+			>;
 		};
 
 		mcspi1: spi@48098000 {

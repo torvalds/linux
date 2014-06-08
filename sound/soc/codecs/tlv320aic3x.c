@@ -1344,12 +1344,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	INIT_LIST_HEAD(&aic3x->list);
 	aic3x->codec = codec;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++) {
 		aic3x->disable_nb[i].nb.notifier_call = aic3x_regulator_event;
 		aic3x->disable_nb[i].aic3x = aic3x;
@@ -1405,7 +1399,6 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 	}
 
 	aic3x_add_widgets(codec);
-	list_add(&aic3x->list, &reset_list);
 
 	return 0;
 
@@ -1575,7 +1568,13 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_aic3x, &aic3x_dai, 1);
-	return ret;
+
+	if (ret != 0)
+		goto err_gpio;
+
+	list_add(&aic3x->list, &reset_list);
+
+	return 0;
 
 err_gpio:
 	if (gpio_is_valid(aic3x->gpio_reset) &&

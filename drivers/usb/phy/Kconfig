@@ -75,27 +75,6 @@ config NOP_USB_XCEIV
 	  built-in with usb ip or which are autonomous and doesn't require any
 	  phy programming such as ISP1x04 etc.
 
-config OMAP_CONTROL_USB
-	tristate "OMAP CONTROL USB Driver"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	help
-	  Enable this to add support for the USB part present in the control
-	  module. This driver has API to power on the USB2 PHY and to write to
-	  the mailbox. The mailbox is present only in omap4 and the register to
-	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
-	  additional register to power on USB3 PHY.
-
-config OMAP_USB3
-	tristate "OMAP USB3 PHY Driver"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	select OMAP_CONTROL_USB
-	select USB_PHY
-	help
-	  Enable this to support the USB3 PHY that is part of SOC. This
-	  driver takes care of all the PHY functionality apart from comparator.
-	  This driver interacts with the "OMAP Control USB Driver" to power
-	  on/off the PHY.
-
 config AM335X_CONTROL_USB
 	tristate
 

@@ -116,7 +116,7 @@ static int cap_dentry_init_security(struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static int cap_inode_alloc_security(struct inode *inode)
@@ -757,7 +757,8 @@ static void cap_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 static int cap_xfrm_policy_alloc_security(struct xfrm_sec_ctx **ctxp,
-					  struct xfrm_user_sec_ctx *sec_ctx)
+					  struct xfrm_user_sec_ctx *sec_ctx,
+					  gfp_t gfp)
 {
 	return 0;
 }

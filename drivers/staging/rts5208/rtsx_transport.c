@@ -625,8 +625,8 @@ out:
 	return err;
 }
 
-static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf, size_t len,
-		enum dma_data_direction dma_dir, int timeout)
+static int rtsx_transfer_buf(struct rtsx_chip *chip, u8 card, void *buf,
+		size_t len, enum dma_data_direction dma_dir, int timeout)
 {
 	struct rtsx_dev *rtsx = chip->rtsx;
 	struct completion trans_done;

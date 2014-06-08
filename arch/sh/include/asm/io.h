@@ -122,7 +122,7 @@ __BUILD_MEMORY_STRING(__raw_, l, u32)
 
 __BUILD_MEMORY_STRING(__raw_, q, u64)
 
-#ifdef CONFIG_HAS_IOPORT
+#ifdef CONFIG_HAS_IOPORT_MAP
 
 /*
  * Slowdown I/O port space accesses for antique hardware.
@@ -218,7 +218,7 @@ __BUILD_IOPORT_STRING(w, u16)
 __BUILD_IOPORT_STRING(l, u32)
 __BUILD_IOPORT_STRING(q, u64)
 
-#else /* !CONFIG_HAS_IOPORT */
+#else /* !CONFIG_HAS_IOPORT_MAP */
 
 #include <asm/io_noioport.h>
 

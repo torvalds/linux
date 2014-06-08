@@ -164,16 +164,29 @@ struct dmm32at_private {
 
 };
 
+static int dmm32at_ai_status(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + context);
+	if ((status & DMM32AT_STATUS) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int dmm32at_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i;
+	int n;
 	unsigned int d;
-	unsigned char status;
 	unsigned short msb, lsb;
 	unsigned char chan;
 	int range;
+	int ret;
 
 	/* get the channel and range number */
 
@@ -190,26 +203,20 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 	outb(dmm32at_rangebits[range], dev->iobase + DMM32AT_AICONF);
 
 	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
-		status = inb(dev->iobase + DMM32AT_AIRBACK);
-		if ((status & DMM32AT_STATUS) == 0)
-			break;
-	}
-	if (i == 40000)
-		return -ETIMEDOUT;
+	ret = comedi_timeout(dev, s, insn, dmm32at_ai_status, DMM32AT_AIRBACK);
+	if (ret)
+		return ret;
 
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
 		outb(0xff, dev->iobase + DMM32AT_CONV);
+
 		/* wait for conversion to end */
-		for (i = 0; i < 40000; i++) {
-			status = inb(dev->iobase + DMM32AT_AISTAT);
-			if ((status & DMM32AT_STATUS) == 0)
-				break;
-		}
-		if (i == 40000)
-			return -ETIMEDOUT;
+		ret = comedi_timeout(dev, s, insn, dmm32at_ai_status,
+				     DMM32AT_AISTAT);
+		if (ret)
+			return ret;
 
 		/* read data */
 		lsb = inb(dev->iobase + DMM32AT_AILSB);
@@ -403,8 +410,9 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dmm32at_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int i, range;
-	unsigned char chanlo, chanhi, status;
+	int range;
+	unsigned char chanlo, chanhi;
+	int ret;
 
 	if (!cmd->chanlist)
 		return -EINVAL;
@@ -439,14 +447,13 @@ static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 						      * isr */
 	}
 
-	/* wait for circuit to settle */
-	for (i = 0; i < 40000; i++) {
-		status = inb(dev->iobase + DMM32AT_AIRBACK);
-		if ((status & DMM32AT_STATUS) == 0)
-			break;
-	}
-	if (i == 40000)
-		return -ETIMEDOUT;
+	/*
+	 * wait for circuit to settle
+	 * we don't have the 'insn' here but it's not needed
+	 */
+	ret = comedi_timeout(dev, s, NULL, dmm32at_ai_status, DMM32AT_AIRBACK);
+	if (ret)
+		return ret;
 
 	if (devpriv->ai_scans_left > 1) {
 		/* start the clock and enable the interrupts */
@@ -525,6 +532,19 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static int dmm32at_ao_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
+{
+	unsigned char status;
+
+	status = inb(dev->iobase + DMM32AT_DACSTAT);
+	if ((status & DMM32AT_DACBUSY) == 0)
+		return 0;
+	return -EBUSY;
+}
+
 static int dmm32at_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
@@ -533,6 +553,7 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned char hi, lo, status;
+	int ret;
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -549,13 +570,9 @@ static int dmm32at_ao_winsn(struct comedi_device *dev,
 		outb(hi, dev->iobase + DMM32AT_DACMSB);
 
 		/* wait for circuit to settle */
-		for (i = 0; i < 40000; i++) {
-			status = inb(dev->iobase + DMM32AT_DACSTAT);
-			if ((status & DMM32AT_DACBUSY) == 0)
-				break;
-		}
-		if (i == 40000)
-			return -ETIMEDOUT;
+		ret = comedi_timeout(dev, s, insn, dmm32at_ao_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* dummy read to update trigger the output */
 		status = inb(dev->iobase + DMM32AT_DACMSB);

@@ -32,6 +32,7 @@
 #include <linux/vmalloc.h>
 #include <linux/swap.h>
 #include <linux/syscore_ops.h>
+#include <linux/compiler.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -1039,10 +1040,10 @@ void __weak crash_unmap_reserved_pages(void)
 {}
 
 #ifdef CONFIG_COMPAT
-asmlinkage long compat_sys_kexec_load(unsigned long entry,
-				unsigned long nr_segments,
-				struct compat_kexec_segment __user *segments,
-				unsigned long flags)
+COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
+		       compat_ulong_t, nr_segments,
+		       struct compat_kexec_segment __user *, segments,
+		       compat_ulong_t, flags)
 {
 	struct compat_kexec_segment in;
 	struct kexec_segment out, __user *ksegments;
@@ -1235,7 +1236,7 @@ static int __init crash_notes_memory_init(void)
 	}
 	return 0;
 }
-module_init(crash_notes_memory_init)
+subsys_initcall(crash_notes_memory_init);
 
 
 /*
@@ -1551,10 +1552,10 @@ void vmcoreinfo_append_str(const char *fmt, ...)
  * provide an empty default implementation here -- architecture
  * code may override this
  */
-void __attribute__ ((weak)) arch_crash_save_vmcoreinfo(void)
+void __weak arch_crash_save_vmcoreinfo(void)
 {}
 
-unsigned long __attribute__ ((weak)) paddr_vmcoreinfo_note(void)
+unsigned long __weak paddr_vmcoreinfo_note(void)
 {
 	return __pa((unsigned long)(char *)&vmcoreinfo_note);
 }
@@ -1629,7 +1630,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	return 0;
 }
 
-module_init(crash_save_vmcoreinfo_init)
+subsys_initcall(crash_save_vmcoreinfo_init);
 
 /*
  * Move into place and start executing a preloaded standalone

@@ -88,11 +88,14 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 	struct rxpd *local_rx_pd;
 	int hdr_chop;
 	struct ethhdr *eth;
+	u16 rx_pkt_off, rx_pkt_len;
+	u8 *offset;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 
-	rx_pkt_hdr = (void *)local_rx_pd +
-		     le16_to_cpu(local_rx_pd->rx_pkt_offset);
+	rx_pkt_off = le16_to_cpu(local_rx_pd->rx_pkt_offset);
+	rx_pkt_len = le16_to_cpu(local_rx_pd->rx_pkt_length);
+	rx_pkt_hdr = (void *)local_rx_pd + rx_pkt_off;
 
 	if ((!memcmp(&rx_pkt_hdr->rfc1042_hdr, bridge_tunnel_header,
 		     sizeof(bridge_tunnel_header))) ||
@@ -140,6 +143,12 @@ int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 		dev_dbg(priv->adapter->dev, "Bypassed Gratuitous ARP\n");
 		dev_kfree_skb_any(skb);
 		return 0;
+	}
+
+	if (ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
+	    ntohs(rx_pkt_hdr->eth803_hdr.h_proto) == ETH_P_TDLS) {
+		offset = (u8 *)local_rx_pd + rx_pkt_off;
+		mwifiex_process_tdls_action_frame(priv, offset, rx_pkt_len);
 	}
 
 	priv->rxpd_rate = local_rx_pd->rx_rate;
@@ -192,26 +201,7 @@ int mwifiex_process_sta_rx_packet(struct mwifiex_private *priv,
 		return ret;
 	}
 
-	if (rx_pkt_type == PKT_TYPE_AMSDU) {
-		struct sk_buff_head list;
-		struct sk_buff *rx_skb;
-
-		__skb_queue_head_init(&list);
-
-		skb_pull(skb, rx_pkt_offset);
-		skb_trim(skb, rx_pkt_length);
-
-		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
-					 priv->wdev->iftype, 0, false);
-
-		while (!skb_queue_empty(&list)) {
-			rx_skb = __skb_dequeue(&list);
-			ret = mwifiex_recv_packet(priv, rx_skb);
-			if (ret == -1)
-				dev_err(adapter->dev, "Rx of A-MSDU failed");
-		}
-		return 0;
-	} else if (rx_pkt_type == PKT_TYPE_MGMT) {
+	if (rx_pkt_type == PKT_TYPE_MGMT) {
 		ret = mwifiex_process_mgmt_packet(priv, skb);
 		if (ret)
 			dev_err(adapter->dev, "Rx of mgmt packet failed");

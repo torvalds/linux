@@ -122,7 +122,7 @@ static void t3e3_remove_card(struct pci_dev *pdev)
 	struct channel *channel0 = pci_get_drvdata(pdev);
 	struct card *card = channel0->card;
 
-	del_timer(&card->timer);
+	del_timer_sync(&card->timer);
 	if (has_two_ports(channel0->pdev)) {
 		t3e3_remove_channel(&card->channels[1]);
 		pci_dev_put(card->channels[1].pdev);

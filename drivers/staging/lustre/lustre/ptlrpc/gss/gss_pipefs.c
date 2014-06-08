@@ -85,7 +85,7 @@ static void gss_sec_pipe_upcall_fini(struct gss_sec *gsec)
 }
 
 /****************************************
- * internel context helpers	     *
+ * internal context helpers	     *
  ****************************************/
 
 static
@@ -652,7 +652,7 @@ __u32 mech_name2idx(const char *name)
 
 /* pipefs dentries for each mechanisms */
 static struct dentry *de_pipes[MECH_MAX] = { NULL, };
-/* all upcall messgaes linked here */
+/* all upcall messages linked here */
 static struct list_head upcall_lists[MECH_MAX];
 /* and protected by this */
 static spinlock_t upcall_locks[MECH_MAX];

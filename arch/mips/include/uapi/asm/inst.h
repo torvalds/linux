@@ -8,6 +8,7 @@
  * Copyright (C) 1996, 2000 by Ralf Baechle
  * Copyright (C) 2006 by Thiemo Seufer
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2014 Imagination Technologies Ltd.
  */
 #ifndef _UAPI_ASM_INST_H
 #define _UAPI_ASM_INST_H
@@ -73,10 +74,16 @@ enum spec2_op {
 enum spec3_op {
 	ext_op, dextm_op, dextu_op, dext_op,
 	ins_op, dinsm_op, dinsu_op, dins_op,
-	lx_op = 0x0a,
-	bshfl_op = 0x20,
-	dbshfl_op = 0x24,
-	rdhwr_op = 0x3b
+	lx_op     = 0x0a, lwle_op   = 0x19,
+	lwre_op   = 0x1a, cachee_op = 0x1b,
+	sbe_op    = 0x1c, she_op    = 0x1d,
+	sce_op    = 0x1e, swe_op    = 0x1f,
+	bshfl_op  = 0x20, swle_op   = 0x21,
+	swre_op   = 0x22, prefe_op  = 0x23,
+	dbshfl_op = 0x24, lbue_op   = 0x28,
+	lhue_op   = 0x29, lbe_op    = 0x2c,
+	lhe_op    = 0x2d, lle_op    = 0x2e,
+	lwe_op    = 0x2f, rdhwr_op  = 0x3b
 };
 
 /*
@@ -163,8 +170,8 @@ enum cop1_sdw_func {
  */
 enum cop1x_func {
 	lwxc1_op     =	0x00, ldxc1_op	   =  0x01,
-	pfetch_op    =	0x07, swxc1_op	   =  0x08,
-	sdxc1_op     =	0x09, madd_s_op	   =  0x20,
+	swxc1_op     =  0x08, sdxc1_op	   =  0x09,
+	pfetch_op    =	0x0f, madd_s_op	   =  0x20,
 	madd_d_op    =	0x21, madd_e_op	   =  0x22,
 	msub_s_op    =	0x28, msub_d_op	   =  0x29,
 	msub_e_op    =	0x2a, nmadd_s_op   =  0x30,
@@ -592,6 +599,15 @@ struct v_format {				/* MDMX vector format */
 	;)))))))
 };
 
+struct spec3_format {   /* SPEC3 */
+	BITFIELD_FIELD(unsigned int opcode:6,
+	BITFIELD_FIELD(unsigned int rs:5,
+	BITFIELD_FIELD(unsigned int rt:5,
+	BITFIELD_FIELD(signed int simmediate:9,
+	BITFIELD_FIELD(unsigned int func:7,
+	;)))))
+};
+
 /*
  * microMIPS instruction formats (32-bit length)
  *
@@ -863,6 +879,7 @@ union mips_instruction {
 	struct b_format b_format;
 	struct ps_format ps_format;
 	struct v_format v_format;
+	struct spec3_format spec3_format;
 	struct fb_format fb_format;
 	struct fp0_format fp0_format;
 	struct mm_fp0_format mm_fp0_format;

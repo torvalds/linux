@@ -278,13 +278,15 @@ static int dce6_audio_chipset_supported(struct radeon_device *rdev)
 	return !ASIC_IS_NODCE(rdev);
 }
 
-static void dce6_audio_enable(struct radeon_device *rdev,
-			      struct r600_audio_pin *pin,
-			      bool enable)
+void dce6_audio_enable(struct radeon_device *rdev,
+		       struct r600_audio_pin *pin,
+		       bool enable)
 {
+	if (!pin)
+		return;
+
 	WREG32_ENDPOINT(pin->offset, AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL,
-			AUDIO_ENABLED);
-	DRM_INFO("%s audio %d support\n", enable ? "Enabling" : "Disabling", pin->id);
+			enable ? AUDIO_ENABLED : 0);
 }
 
 static const u32 pin_offsets[7] =
@@ -307,11 +309,17 @@ int dce6_audio_init(struct radeon_device *rdev)
 
 	rdev->audio.enabled = true;
 
-	if (ASIC_IS_DCE8(rdev))
+	if (ASIC_IS_DCE81(rdev)) /* KV: 4 streams, 7 endpoints */
+		rdev->audio.num_pins = 7;
+	else if (ASIC_IS_DCE83(rdev)) /* KB: 2 streams, 3 endpoints */
+		rdev->audio.num_pins = 3;
+	else if (ASIC_IS_DCE8(rdev)) /* BN/HW: 6 streams, 7 endpoints */
+		rdev->audio.num_pins = 7;
+	else if (ASIC_IS_DCE61(rdev)) /* TN: 4 streams, 6 endpoints */
 		rdev->audio.num_pins = 6;
-	else if (ASIC_IS_DCE61(rdev))
-		rdev->audio.num_pins = 4;
-	else
+	else if (ASIC_IS_DCE64(rdev)) /* OL: 2 streams, 2 endpoints */
+		rdev->audio.num_pins = 2;
+	else /* SI: 6 streams, 6 endpoints */
 		rdev->audio.num_pins = 6;
 
 	for (i = 0; i < rdev->audio.num_pins; i++) {
@@ -323,7 +331,8 @@ int dce6_audio_init(struct radeon_device *rdev)
 		rdev->audio.pin[i].connected = false;
 		rdev->audio.pin[i].offset = pin_offsets[i];
 		rdev->audio.pin[i].id = i;
-		dce6_audio_enable(rdev, &rdev->audio.pin[i], true);
+		/* disable audio.  it will be set up later */
+		dce6_audio_enable(rdev, &rdev->audio.pin[i], false);
 	}
 
 	return 0;

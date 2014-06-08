@@ -43,6 +43,7 @@ struct mq_attr;
 struct mqstat;
 struct audit_watch;
 struct audit_tree;
+struct sk_buff;
 
 struct audit_krule {
 	int			vers_ops;
@@ -78,6 +79,14 @@ extern int is_audit_feature_set(int which);
 extern int __init audit_register_class(int class, unsigned *list);
 extern int audit_classify_syscall(int abi, unsigned syscall);
 extern int audit_classify_arch(int arch);
+/* only for compat system calls */
+extern unsigned compat_write_class[];
+extern unsigned compat_read_class[];
+extern unsigned compat_dir_class[];
+extern unsigned compat_chattr_class[];
+extern unsigned compat_signal_class[];
+
+extern int __weak audit_classify_compat_syscall(int abi, unsigned syscall);
 
 /* audit_names->type values */
 #define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */
@@ -92,6 +101,12 @@ extern int audit_classify_arch(int arch);
 struct filename;
 
 extern void audit_log_session_info(struct audit_buffer *ab);
+
+#ifdef CONFIG_AUDIT_COMPAT_GENERIC
+#define audit_is_compat(arch)  (!((arch) & __AUDIT_ARCH_64BIT))
+#else
+#define audit_is_compat(arch)  false
+#endif
 
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
@@ -463,7 +478,7 @@ extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
 extern int audit_rule_change(int type, __u32 portid, int seq,
 				void *data, size_t datasz);
-extern int audit_list_rules_send(__u32 portid, int seq);
+extern int audit_list_rules_send(struct sk_buff *request_skb, int seq);
 
 extern u32 audit_enabled;
 #else /* CONFIG_AUDIT */

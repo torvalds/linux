@@ -52,14 +52,6 @@ extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_MAX_CHIPS		8
 
 /*
- * This constant declares the max. oobsize / page, which
- * is supported now. If you add a chip with bigger oobsize/page
- * adjust this accordingly.
- */
-#define NAND_MAX_OOBSIZE	744
-#define NAND_MAX_PAGESIZE	8192
-
-/*
  * Constants for hardware specific CLE/ALE/NCE function
  *
  * These are bits which can be or'ed to set/clear multiple
@@ -350,6 +342,84 @@ struct nand_onfi_vendor_micron {
 	u8 param_revision;
 } __packed;
 
+struct jedec_ecc_info {
+	u8 ecc_bits;
+	u8 codeword_size;
+	__le16 bb_per_lun;
+	__le16 block_endurance;
+	u8 reserved[2];
+} __packed;
+
+/* JEDEC features */
+#define JEDEC_FEATURE_16_BIT_BUS	(1 << 0)
+
+struct nand_jedec_params {
+	/* rev info and features block */
+	/* 'J' 'E' 'S' 'D'  */
+	u8 sig[4];
+	__le16 revision;
+	__le16 features;
+	u8 opt_cmd[3];
+	__le16 sec_cmd;
+	u8 num_of_param_pages;
+	u8 reserved0[18];
+
+	/* manufacturer information block */
+	char manufacturer[12];
+	char model[20];
+	u8 jedec_id[6];
+	u8 reserved1[10];
+
+	/* memory organization block */
+	__le32 byte_per_page;
+	__le16 spare_bytes_per_page;
+	u8 reserved2[6];
+	__le32 pages_per_block;
+	__le32 blocks_per_lun;
+	u8 lun_count;
+	u8 addr_cycles;
+	u8 bits_per_cell;
+	u8 programs_per_page;
+	u8 multi_plane_addr;
+	u8 multi_plane_op_attr;
+	u8 reserved3[38];
+
+	/* electrical parameter block */
+	__le16 async_sdr_speed_grade;
+	__le16 toggle_ddr_speed_grade;
+	__le16 sync_ddr_speed_grade;
+	u8 async_sdr_features;
+	u8 toggle_ddr_features;
+	u8 sync_ddr_features;
+	__le16 t_prog;
+	__le16 t_bers;
+	__le16 t_r;
+	__le16 t_r_multi_plane;
+	__le16 t_ccs;
+	__le16 io_pin_capacitance_typ;
+	__le16 input_pin_capacitance_typ;
+	__le16 clk_pin_capacitance_typ;
+	u8 driver_strength_support;
+	__le16 t_ald;
+	u8 reserved4[36];
+
+	/* ECC and endurance block */
+	u8 guaranteed_good_blocks;
+	__le16 guaranteed_block_endurance;
+	struct jedec_ecc_info ecc_info[4];
+	u8 reserved5[29];
+
+	/* reserved */
+	u8 reserved6[148];
+
+	/* vendor */
+	__le16 vendor_rev_num;
+	u8 reserved7[88];
+
+	/* CRC for Parameter Page */
+	__le16 crc;
+} __packed;
+
 /**
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independent devices
  * @lock:               protection lock
@@ -418,7 +488,7 @@ struct nand_ecc_ctrl {
 	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint8_t *buf, int oob_required, int page);
 	int (*read_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
-			uint32_t offs, uint32_t len, uint8_t *buf);
+			uint32_t offs, uint32_t len, uint8_t *buf, int page);
 	int (*write_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t offset, uint32_t data_len,
 			const uint8_t *data_buf, int oob_required);
@@ -435,17 +505,17 @@ struct nand_ecc_ctrl {
 
 /**
  * struct nand_buffers - buffer structure for read/write
- * @ecccalc:	buffer for calculated ECC
- * @ecccode:	buffer for ECC read from flash
- * @databuf:	buffer for data - dynamically sized
+ * @ecccalc:	buffer pointer for calculated ECC, size is oobsize.
+ * @ecccode:	buffer pointer for ECC read from flash, size is oobsize.
+ * @databuf:	buffer pointer for data, size is (page size + oobsize).
  *
  * Do not change the order of buffers. databuf and oobrbuf must be in
  * consecutive order.
  */
 struct nand_buffers {
-	uint8_t	ecccalc[NAND_MAX_OOBSIZE];
-	uint8_t	ecccode[NAND_MAX_OOBSIZE];
-	uint8_t databuf[NAND_MAX_PAGESIZE + NAND_MAX_OOBSIZE];
+	uint8_t	*ecccalc;
+	uint8_t	*ecccode;
+	uint8_t *databuf;
 };
 
 /**
@@ -523,7 +593,11 @@ struct nand_buffers {
  * @subpagesize:	[INTERN] holds the subpagesize
  * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
  *			non 0 if ONFI supported.
+ * @jedec_version:	[INTERN] holds the chip JEDEC version (BCD encoded),
+ *			non 0 if JEDEC supported.
  * @onfi_params:	[INTERN] holds the ONFI page parameter when ONFI is
+ *			supported, 0 otherwise.
+ * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
  *			supported, 0 otherwise.
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
@@ -597,7 +671,11 @@ struct nand_chip {
 	int badblockbits;
 
 	int onfi_version;
-	struct nand_onfi_params	onfi_params;
+	int jedec_version;
+	union {
+		struct nand_onfi_params	onfi_params;
+		struct nand_jedec_params jedec_params;
+	};
 
 	int read_retries;
 
@@ -839,5 +917,30 @@ static inline int onfi_get_sync_timing_mode(struct nand_chip *chip)
 static inline bool nand_is_slc(struct nand_chip *chip)
 {
 	return chip->bits_per_cell == 1;
+}
+
+/**
+ * Check if the opcode's address should be sent only on the lower 8 bits
+ * @command: opcode to check
+ */
+static inline int nand_opcode_8bits(unsigned int command)
+{
+	switch (command) {
+	case NAND_CMD_READID:
+	case NAND_CMD_PARAM:
+	case NAND_CMD_GET_FEATURES:
+	case NAND_CMD_SET_FEATURES:
+		return 1;
+	default:
+		break;
+	}
+	return 0;
+}
+
+/* return the supported JEDEC features. */
+static inline int jedec_feature(struct nand_chip *chip)
+{
+	return chip->jedec_version ? le16_to_cpu(chip->jedec_params.features)
+		: 0;
 }
 #endif /* __LINUX_MTD_NAND_H */

@@ -11,7 +11,6 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
@@ -204,6 +203,9 @@ static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 				led.default_state = LEDS_GPIO_DEFSTATE_OFF;
 		}
 
+		if (of_get_property(child, "retain-state-suspended", NULL))
+			led.retain_state_suspended = 1;
+
 		ret = create_gpio_led(&led, &priv->leds[priv->num_leds++],
 				      &pdev->dev, NULL);
 		if (ret < 0) {
@@ -224,6 +226,8 @@ static const struct of_device_id of_gpio_leds_match[] = {
 	{ .compatible = "gpio-leds", },
 	{},
 };
+
+MODULE_DEVICE_TABLE(of, of_gpio_leds_match);
 #else /* CONFIG_OF_GPIO */
 static struct gpio_leds_priv *gpio_leds_create_of(struct platform_device *pdev)
 {

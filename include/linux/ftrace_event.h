@@ -7,6 +7,7 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/perf_event.h>
+#include <linux/tracepoint.h>
 
 struct trace_array;
 struct trace_buffer;
@@ -163,6 +164,8 @@ void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
+int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+
 struct event_filter;
 
 enum trace_reg {
@@ -197,6 +200,32 @@ struct ftrace_event_class {
 extern int ftrace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
 
+int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
+			char *fmt, ...);
+
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter);
+
+struct ftrace_event_buffer {
+	struct ring_buffer		*buffer;
+	struct ring_buffer_event	*event;
+	struct ftrace_event_file	*ftrace_file;
+	void				*entry;
+	unsigned long			flags;
+	int				pc;
+};
+
+void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
+				  struct ftrace_event_file *ftrace_file,
+				  unsigned long len);
+
+void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
+
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter);
+
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_CAP_ANY_BIT,
@@ -204,6 +233,7 @@ enum {
 	TRACE_EVENT_FL_IGNORE_ENABLE_BIT,
 	TRACE_EVENT_FL_WAS_ENABLED_BIT,
 	TRACE_EVENT_FL_USE_CALL_FILTER_BIT,
+	TRACE_EVENT_FL_TRACEPOINT_BIT,
 };
 
 /*
@@ -216,6 +246,7 @@ enum {
  *                    (used for module unloading, if a module event is enabled,
  *                     it is best to clear the buffers that used it).
  *  USE_CALL_FILTER - For ftrace internal events, don't use file filter
+ *  TRACEPOINT    - Event is a tracepoint
  */
 enum {
 	TRACE_EVENT_FL_FILTERED		= (1 << TRACE_EVENT_FL_FILTERED_BIT),
@@ -224,12 +255,17 @@ enum {
 	TRACE_EVENT_FL_IGNORE_ENABLE	= (1 << TRACE_EVENT_FL_IGNORE_ENABLE_BIT),
 	TRACE_EVENT_FL_WAS_ENABLED	= (1 << TRACE_EVENT_FL_WAS_ENABLED_BIT),
 	TRACE_EVENT_FL_USE_CALL_FILTER	= (1 << TRACE_EVENT_FL_USE_CALL_FILTER_BIT),
+	TRACE_EVENT_FL_TRACEPOINT	= (1 << TRACE_EVENT_FL_TRACEPOINT_BIT),
 };
 
 struct ftrace_event_call {
 	struct list_head	list;
 	struct ftrace_event_class *class;
-	char			*name;
+	union {
+		char			*name;
+		/* Set TRACE_EVENT_FL_TRACEPOINT flag when using "tp" */
+		struct tracepoint	*tp;
+	};
 	struct trace_event	event;
 	const char		*print_fmt;
 	struct event_filter	*filter;
@@ -243,6 +279,7 @@ struct ftrace_event_call {
 	 *   bit 3:		ftrace internal event (do not enable)
 	 *   bit 4:		Event was enabled by module
 	 *   bit 5:		use call filter rather than file filter
+	 *   bit 6:		Event is a tracepoint
 	 */
 	int			flags; /* static flags of different events */
 
@@ -254,6 +291,15 @@ struct ftrace_event_call {
 			     struct perf_event *);
 #endif
 };
+
+static inline const char *
+ftrace_event_name(struct ftrace_event_call *call)
+{
+	if (call->flags & TRACE_EVENT_FL_TRACEPOINT)
+		return call->tp ? call->tp->name : NULL;
+	else
+		return call->name;
+}
 
 struct trace_array;
 struct ftrace_subsystem_dir;
@@ -325,7 +371,7 @@ struct ftrace_event_file {
 #define __TRACE_EVENT_FLAGS(name, value)				\
 	static int __init trace_init_flags_##name(void)			\
 	{								\
-		event_##name.flags = value;				\
+		event_##name.flags |= value;				\
 		return 0;						\
 	}								\
 	early_initcall(trace_init_flags_##name);
@@ -494,10 +540,6 @@ enum {
 	FILTER_PTR_STRING,
 	FILTER_TRACE_FN,
 };
-
-#define EVENT_STORAGE_SIZE 128
-extern struct mutex event_storage_mutex;
-extern char event_storage[EVENT_STORAGE_SIZE];
 
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,

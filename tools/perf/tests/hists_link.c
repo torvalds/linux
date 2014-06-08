@@ -101,6 +101,7 @@ static struct machine *setup_fake_machine(struct machines *machines)
 			.mmap = {
 				.header = { .misc = PERF_RECORD_MISC_USER, },
 				.pid = fake_mmap_info[i].pid,
+				.tid = fake_mmap_info[i].pid,
 				.start = fake_mmap_info[i].start,
 				.len = 0x1000ULL,
 				.pgoff = 0ULL,

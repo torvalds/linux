@@ -1238,7 +1238,7 @@ static int mcam_vb_sg_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
-static int mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
+static void mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vb->vb2_queue);
 	struct sg_table *sg_table = vb2_dma_sg_plane_desc(vb, 0);
@@ -1246,7 +1246,6 @@ static int mcam_vb_sg_buf_finish(struct vb2_buffer *vb)
 	if (sg_table)
 		dma_unmap_sg(cam->dev, sg_table->sgl,
 				sg_table->nents, DMA_FROM_DEVICE);
-	return 0;
 }
 
 static void mcam_vb_sg_buf_cleanup(struct vb2_buffer *vb)

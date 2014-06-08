@@ -923,7 +923,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc) {
 		dev_err(&pdev->dev,
 			"32-bit PCI DMA addresses not supported by the card!?\n");
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 
 	/* sanity check */
@@ -931,7 +931,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    (pci_resource_len(pdev, 1) < io_size)) {
 		rc = -EIO;
 		dev_err(&pdev->dev, "Insufficient PCI resources, aborting\n");
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 
 	pioaddr = pci_resource_start(pdev, 0);
@@ -942,7 +942,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
 		rc = -ENOMEM;
-		goto err_out;
+		goto err_out_pci_disable;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -1022,7 +1022,7 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops = &rhine_netdev_ops;
-	dev->ethtool_ops = &netdev_ethtool_ops,
+	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
@@ -1084,6 +1084,8 @@ err_out_free_res:
 	pci_release_regions(pdev);
 err_out_free_netdev:
 	free_netdev(dev);
+err_out_pci_disable:
+	pci_disable_device(pdev);
 err_out:
 	return rc;
 }
@@ -1676,7 +1678,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 		/* Must use alignment buffer. */
 		if (skb->len > PKT_BUF_SZ) {
 			/* packet too long, drop it */
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			rp->tx_skbuff[entry] = NULL;
 			dev->stats.tx_dropped++;
 			return NETDEV_TX_OK;
@@ -1696,7 +1698,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 			pci_map_single(rp->pdev, skb->data, skb->len,
 				       PCI_DMA_TODEVICE);
 		if (dma_mapping_error(&rp->pdev->dev, rp->tx_skbuff_dma[entry])) {
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			rp->tx_skbuff_dma[entry] = 0;
 			dev->stats.tx_dropped++;
 			return NETDEV_TX_OK;
@@ -1834,7 +1836,7 @@ static void rhine_tx(struct net_device *dev)
 					 rp->tx_skbuff[entry]->len,
 					 PCI_DMA_TODEVICE);
 		}
-		dev_kfree_skb(rp->tx_skbuff[entry]);
+		dev_consume_skb_any(rp->tx_skbuff[entry]);
 		rp->tx_skbuff[entry] = NULL;
 		entry = (++rp->dirty_tx) % TX_RING_SIZE;
 	}
@@ -2070,16 +2072,16 @@ rhine_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	netdev_stats_to_stats64(stats, &dev->stats);
 
 	do {
-		start = u64_stats_fetch_begin_bh(&rp->rx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&rp->rx_stats.syncp);
 		stats->rx_packets = rp->rx_stats.packets;
 		stats->rx_bytes = rp->rx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&rp->rx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&rp->rx_stats.syncp, start));
 
 	do {
-		start = u64_stats_fetch_begin_bh(&rp->tx_stats.syncp);
+		start = u64_stats_fetch_begin_irq(&rp->tx_stats.syncp);
 		stats->tx_packets = rp->tx_stats.packets;
 		stats->tx_bytes = rp->tx_stats.bytes;
-	} while (u64_stats_fetch_retry_bh(&rp->tx_stats.syncp, start));
+	} while (u64_stats_fetch_retry_irq(&rp->tx_stats.syncp, start));
 
 	return stats;
 }

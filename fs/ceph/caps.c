@@ -622,8 +622,10 @@ retry:
 
 	if (flags & CEPH_CAP_FLAG_AUTH) {
 		if (ci->i_auth_cap == NULL ||
-		    ceph_seq_cmp(ci->i_auth_cap->mseq, mseq) < 0)
+		    ceph_seq_cmp(ci->i_auth_cap->mseq, mseq) < 0) {
 			ci->i_auth_cap = cap;
+			cap->mds_wanted = wanted;
+		}
 		ci->i_cap_exporting_issued = 0;
 	} else {
 		WARN_ON(ci->i_auth_cap == cap);
@@ -885,7 +887,10 @@ int __ceph_caps_mds_wanted(struct ceph_inode_info *ci)
 		cap = rb_entry(p, struct ceph_cap, ci_node);
 		if (!__cap_is_valid(cap))
 			continue;
-		mds_wanted |= cap->mds_wanted;
+		if (cap == ci->i_auth_cap)
+			mds_wanted |= cap->mds_wanted;
+		else
+			mds_wanted |= (cap->mds_wanted & ~CEPH_CAP_ANY_FILE_WR);
 	}
 	return mds_wanted;
 }
@@ -3256,7 +3261,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 			rel->seq = cpu_to_le32(cap->seq);
 			rel->issue_seq = cpu_to_le32(cap->issue_seq),
 			rel->mseq = cpu_to_le32(cap->mseq);
-			rel->caps = cpu_to_le32(cap->issued);
+			rel->caps = cpu_to_le32(cap->implemented);
 			rel->wanted = cpu_to_le32(cap->mds_wanted);
 			rel->dname_len = 0;
 			rel->dname_seq = 0;

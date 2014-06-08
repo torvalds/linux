@@ -66,26 +66,35 @@ struct dt2814_private {
 #define DT2814_TIMEOUT 10
 #define DT2814_MAX_SPEED 100000	/* Arbitrary 10 khz limit */
 
+static int dt2814_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + DT2814_CSR);
+	if (status & DT2814_FINISH)
+		return 0;
+	return -EBUSY;
+}
+
 static int dt2814_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	int n, i, hi, lo;
+	int n, hi, lo;
 	int chan;
-	int status = 0;
+	int ret;
 
 	for (n = 0; n < insn->n; n++) {
 		chan = CR_CHAN(insn->chanspec);
 
 		outb(chan, dev->iobase + DT2814_CSR);
-		for (i = 0; i < DT2814_TIMEOUT; i++) {
-			status = inb(dev->iobase + DT2814_CSR);
-			udelay(10);
-			if (status & DT2814_FINISH)
-				break;
-		}
-		if (i >= DT2814_TIMEOUT)
-			return -ETIMEDOUT;
+
+		ret = comedi_timeout(dev, s, insn, dt2814_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		hi = inb(dev->iobase + DT2814_DATA);
 		lo = inb(dev->iobase + DT2814_DATA);

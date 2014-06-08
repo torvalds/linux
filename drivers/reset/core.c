@@ -43,7 +43,7 @@ struct reset_control {
  * This simple translation function should be used for reset controllers
  * with 1:1 mapping, where reset lines can be indexed by number without gaps.
  */
-int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
+static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 			  const struct of_phandle_args *reset_spec)
 {
 	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
@@ -54,7 +54,6 @@ int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 
 	return reset_spec->args[0];
 }
-EXPORT_SYMBOL_GPL(of_reset_simple_xlate);
 
 /**
  * reset_controller_register - register a reset controller device
@@ -127,15 +126,16 @@ int reset_control_deassert(struct reset_control *rstc)
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
 /**
- * reset_control_get - Lookup and obtain a reference to a reset controller.
- * @dev: device to be reset by the controller
+ * of_reset_control_get - Lookup and obtain a reference to a reset controller.
+ * @node: device to be reset by the controller
  * @id: reset line name
  *
  * Returns a struct reset_control or IS_ERR() condition containing errno.
  *
  * Use of id names is optional.
  */
-struct reset_control *reset_control_get(struct device *dev, const char *id)
+struct reset_control *of_reset_control_get(struct device_node *node,
+					   const char *id)
 {
 	struct reset_control *rstc = ERR_PTR(-EPROBE_DEFER);
 	struct reset_controller_dev *r, *rcdev;
@@ -144,13 +144,10 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 	int rstc_id;
 	int ret;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
 	if (id)
-		index = of_property_match_string(dev->of_node,
+		index = of_property_match_string(node,
 						 "reset-names", id);
-	ret = of_parse_phandle_with_args(dev->of_node, "resets", "#reset-cells",
+	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
 					 index, &args);
 	if (ret)
 		return ERR_PTR(ret);
@@ -167,7 +164,7 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 
 	if (!rcdev) {
 		mutex_unlock(&reset_controller_list_mutex);
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	rstc_id = rcdev->of_xlate(rcdev, &args);
@@ -185,9 +182,32 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	rstc->dev = dev;
 	rstc->rcdev = rcdev;
 	rstc->id = rstc_id;
+
+	return rstc;
+}
+EXPORT_SYMBOL_GPL(of_reset_control_get);
+
+/**
+ * reset_control_get - Lookup and obtain a reference to a reset controller.
+ * @dev: device to be reset by the controller
+ * @id: reset line name
+ *
+ * Returns a struct reset_control or IS_ERR() condition containing errno.
+ *
+ * Use of id names is optional.
+ */
+struct reset_control *reset_control_get(struct device *dev, const char *id)
+{
+	struct reset_control *rstc;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	rstc = of_reset_control_get(dev->of_node, id);
+	if (!IS_ERR(rstc))
+		rstc->dev = dev;
 
 	return rstc;
 }
@@ -242,33 +262,6 @@ struct reset_control *devm_reset_control_get(struct device *dev, const char *id)
 	return rstc;
 }
 EXPORT_SYMBOL_GPL(devm_reset_control_get);
-
-static int devm_reset_control_match(struct device *dev, void *res, void *data)
-{
-	struct reset_control **rstc = res;
-	if (WARN_ON(!rstc || !*rstc))
-		return 0;
-	return *rstc == data;
-}
-
-/**
- * devm_reset_control_put - resource managed reset_control_put()
- * @rstc: reset controller to free
- *
- * Deallocate a reset control allocated withd devm_reset_control_get().
- * This function will not need to be called normally, as devres will take
- * care of freeing the resource.
- */
-void devm_reset_control_put(struct reset_control *rstc)
-{
-	int ret;
-
-	ret = devres_release(rstc->dev, devm_reset_control_release,
-			     devm_reset_control_match, rstc);
-	if (ret)
-		WARN_ON(ret);
-}
-EXPORT_SYMBOL_GPL(devm_reset_control_put);
 
 /**
  * device_reset - find reset controller associated with the device

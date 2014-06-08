@@ -109,7 +109,6 @@ static struct cpufreq_driver cpu0_cpufreq_driver = {
 	.target_index = cpu0_set_target,
 	.get = cpufreq_generic_get,
 	.init = cpu0_cpufreq_init,
-	.exit = cpufreq_generic_exit,
 	.name = "generic_cpu0",
 	.attr = cpufreq_generic_attr,
 };

@@ -339,11 +339,13 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	vma->vm_private_data = bo;
 
 	/*
-	 * PFNMAP is faster than MIXEDMAP due to reduced page
-	 * administration. So use MIXEDMAP only if private VMA, where
-	 * we need to support COW.
+	 * We'd like to use VM_PFNMAP on shared mappings, where
+	 * (vma->vm_flags & VM_SHARED) != 0, for performance reasons,
+	 * but for some reason VM_PFNMAP + x86 PAT + write-combine is very
+	 * bad for performance. Until that has been sorted out, use
+	 * VM_MIXEDMAP on all mappings. See freedesktop.org bug #75719
 	 */
-	vma->vm_flags |= (vma->vm_flags & VM_SHARED) ? VM_PFNMAP : VM_MIXEDMAP;
+	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
 out_unref:
@@ -359,7 +361,7 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 
 	vma->vm_ops = &ttm_bo_vm_ops;
 	vma->vm_private_data = ttm_bo_reference(bo);
-	vma->vm_flags |= (vma->vm_flags & VM_SHARED) ? VM_PFNMAP : VM_MIXEDMAP;
+	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND;
 	return 0;
 }

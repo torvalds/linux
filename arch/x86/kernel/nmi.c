@@ -87,6 +87,7 @@ __setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 #define nmi_to_desc(type) (&nmi_desc[type])
 
 static u64 nmi_longest_ns = 1 * NSEC_PER_MSEC;
+
 static int __init nmi_warning_debugfs(void)
 {
 	debugfs_create_u64("nmi_longest_ns", 0644,
@@ -94,6 +95,20 @@ static int __init nmi_warning_debugfs(void)
 	return 0;
 }
 fs_initcall(nmi_warning_debugfs);
+
+static void nmi_max_handler(struct irq_work *w)
+{
+	struct nmiaction *a = container_of(w, struct nmiaction, irq_work);
+	int remainder_ns, decimal_msecs;
+	u64 whole_msecs = ACCESS_ONCE(a->max_duration);
+
+	remainder_ns = do_div(whole_msecs, (1000 * 1000));
+	decimal_msecs = remainder_ns / 1000;
+
+	printk_ratelimited(KERN_INFO
+		"INFO: NMI handler (%ps) took too long to run: %lld.%03d msecs\n",
+		a->handler, whole_msecs, decimal_msecs);
+}
 
 static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2b)
 {
@@ -110,26 +125,20 @@ static int __kprobes nmi_handle(unsigned int type, struct pt_regs *regs, bool b2
 	 * to handle those situations.
 	 */
 	list_for_each_entry_rcu(a, &desc->head, list) {
-		u64 before, delta, whole_msecs;
-		int remainder_ns, decimal_msecs, thishandled;
+		int thishandled;
+		u64 delta;
 
-		before = sched_clock();
+		delta = sched_clock();
 		thishandled = a->handler(type, regs);
 		handled += thishandled;
-		delta = sched_clock() - before;
+		delta = sched_clock() - delta;
 		trace_nmi_handler(a->handler, (int)delta, thishandled);
 
-		if (delta < nmi_longest_ns)
+		if (delta < nmi_longest_ns || delta < a->max_duration)
 			continue;
 
-		nmi_longest_ns = delta;
-		whole_msecs = delta;
-		remainder_ns = do_div(whole_msecs, (1000 * 1000));
-		decimal_msecs = remainder_ns / 1000;
-		printk_ratelimited(KERN_INFO
-			"INFO: NMI handler (%ps) took too long to run: "
-			"%lld.%03d msecs\n", a->handler, whole_msecs,
-			decimal_msecs);
+		a->max_duration = delta;
+		irq_work_queue(&a->irq_work);
 	}
 
 	rcu_read_unlock();
@@ -145,6 +154,8 @@ int __register_nmi_handler(unsigned int type, struct nmiaction *action)
 
 	if (!action->handler)
 		return -EINVAL;
+
+	init_irq_work(&action->irq_work, nmi_max_handler);
 
 	spin_lock_irqsave(&desc->lock, flags);
 

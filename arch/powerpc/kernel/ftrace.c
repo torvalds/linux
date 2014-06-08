@@ -74,6 +74,7 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
  */
 static int test_24bit_addr(unsigned long ip, unsigned long addr)
 {
+	addr = ppc_function_entry((void *)addr);
 
 	/* use the create_branch to verify that this offset can be branched */
 	return create_branch((unsigned int *)ip, addr, 0);
@@ -531,13 +532,8 @@ void arch_ftrace_update_code(int command)
 		ftrace_disable_ftrace_graph_caller();
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
-	/* caller expects data to be zero */
-	unsigned long *p = data;
-
-	*p = 0;
-
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */

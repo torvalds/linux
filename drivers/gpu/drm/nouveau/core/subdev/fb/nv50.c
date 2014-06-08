@@ -250,10 +250,8 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (priv->r100c08_page) {
-		priv->r100c08 = pci_map_page(device->pdev, priv->r100c08_page,
-					     0, PAGE_SIZE,
-					     PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, priv->r100c08))
+		priv->r100c08 = nv_device_map_page(device, priv->r100c08_page);
+		if (!priv->r100c08)
 			nv_warn(priv, "failed 0x100c08 page map\n");
 	} else {
 		nv_warn(priv, "failed 0x100c08 page alloc\n");
@@ -270,8 +268,7 @@ nv50_fb_dtor(struct nouveau_object *object)
 	struct nv50_fb_priv *priv = (void *)object;
 
 	if (priv->r100c08_page) {
-		pci_unmap_page(device->pdev, priv->r100c08, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
+		nv_device_unmap_page(device, priv->r100c08);
 		__free_page(priv->r100c08_page);
 	}
 

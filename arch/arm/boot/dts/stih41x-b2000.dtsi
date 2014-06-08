@@ -20,6 +20,8 @@
 
 	aliases {
 		ttyAS0 = &serial2;
+		ethernet0 = &ethernet0;
+		ethernet1 = &ethernet1;
 	};
 
 	soc {
@@ -45,6 +47,26 @@
 			i2c-min-sda-pulse-width-us = <5>;
 
 			status = "okay";
+		};
+
+		ethernet0: dwmac@fe810000 {
+			status			= "okay";
+			phy-mode		= "mii";
+			pinctrl-0		= <&pinctrl_mii0>;
+
+			snps,reset-gpio 	= <&PIO106 2>;
+			snps,reset-active-low;
+			snps,reset-delays-us 	= <0 10000 10000>;
+		};
+
+		ethernet1: dwmac@fef08000 {
+			status			= "disabled";
+			phy-mode		= "mii";
+			st,tx-retime-src	= "txclk";
+
+			snps,reset-gpio 	= <&PIO4 7>;
+			snps,reset-active-low;
+			snps,reset-delays-us 	= <0 10000 10000>;
 		};
 	};
 };

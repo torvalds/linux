@@ -62,10 +62,16 @@ int __init db1550_board_setup(void)
 		  DB1550_BCSR_PHYS_ADDR + DB1550_BCSR_HEXLED_OFS);
 
 	whoami = bcsr_read(BCSR_WHOAMI); /* PB1550 hexled offset differs */
-	if ((BCSR_WHOAMI_BOARD(whoami) == BCSR_WHOAMI_PB1550_SDR) ||
-	    (BCSR_WHOAMI_BOARD(whoami) == BCSR_WHOAMI_PB1550_DDR))
+	switch (BCSR_WHOAMI_BOARD(whoami)) {
+	case BCSR_WHOAMI_PB1550_SDR:
+	case BCSR_WHOAMI_PB1550_DDR:
 		bcsr_init(PB1550_BCSR_PHYS_ADDR,
 			  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
+	case BCSR_WHOAMI_DB1550:
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	pr_info("Alchemy/AMD %s Board, CPLD Rev %d Board-ID %d	"	\
 		"Daughtercard ID %d\n", get_system_type(),

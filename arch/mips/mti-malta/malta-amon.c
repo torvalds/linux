@@ -72,7 +72,7 @@ int amon_cpu_start(int cpu,
 	return 0;
 }
 
-#ifdef CONFIG_MIPS_VPE_LOADER
+#ifdef CONFIG_MIPS_VPE_LOADER_CMP
 int vpe_run(struct vpe *v)
 {
 	struct vpe_notifications *n;

@@ -5181,32 +5181,6 @@ static int restart_array(struct mddev *mddev)
 	return 0;
 }
 
-/* similar to deny_write_access, but accounts for our holding a reference
- * to the file ourselves */
-static int deny_bitmap_write_access(struct file * file)
-{
-	struct inode *inode = file->f_mapping->host;
-
-	spin_lock(&inode->i_lock);
-	if (atomic_read(&inode->i_writecount) > 1) {
-		spin_unlock(&inode->i_lock);
-		return -ETXTBSY;
-	}
-	atomic_set(&inode->i_writecount, -1);
-	spin_unlock(&inode->i_lock);
-
-	return 0;
-}
-
-void restore_bitmap_write_access(struct file *file)
-{
-	struct inode *inode = file->f_mapping->host;
-
-	spin_lock(&inode->i_lock);
-	atomic_set(&inode->i_writecount, 1);
-	spin_unlock(&inode->i_lock);
-}
-
 static void md_clean(struct mddev *mddev)
 {
 	mddev->array_sectors = 0;
@@ -5427,7 +5401,6 @@ static int do_md_stop(struct mddev * mddev, int mode,
 
 		bitmap_destroy(mddev);
 		if (mddev->bitmap_info.file) {
-			restore_bitmap_write_access(mddev->bitmap_info.file);
 			fput(mddev->bitmap_info.file);
 			mddev->bitmap_info.file = NULL;
 		}
@@ -5979,7 +5952,7 @@ abort_export:
 
 static int set_bitmap_file(struct mddev *mddev, int fd)
 {
-	int err;
+	int err = 0;
 
 	if (mddev->pers) {
 		if (!mddev->pers->quiesce)
@@ -5991,6 +5964,7 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 
 
 	if (fd >= 0) {
+		struct inode *inode;
 		if (mddev->bitmap)
 			return -EEXIST; /* cannot add when bitmap is present */
 		mddev->bitmap_info.file = fget(fd);
@@ -6001,10 +5975,21 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 			return -EBADF;
 		}
 
-		err = deny_bitmap_write_access(mddev->bitmap_info.file);
-		if (err) {
+		inode = mddev->bitmap_info.file->f_mapping->host;
+		if (!S_ISREG(inode->i_mode)) {
+			printk(KERN_ERR "%s: error: bitmap file must be a regular file\n",
+			       mdname(mddev));
+			err = -EBADF;
+		} else if (!(mddev->bitmap_info.file->f_mode & FMODE_WRITE)) {
+			printk(KERN_ERR "%s: error: bitmap file must open for write\n",
+			       mdname(mddev));
+			err = -EBADF;
+		} else if (atomic_read(&inode->i_writecount) != 1) {
 			printk(KERN_ERR "%s: error: bitmap file is already in use\n",
 			       mdname(mddev));
+			err = -EBUSY;
+		}
+		if (err) {
 			fput(mddev->bitmap_info.file);
 			mddev->bitmap_info.file = NULL;
 			return err;
@@ -6027,10 +6012,8 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 		mddev->pers->quiesce(mddev, 0);
 	}
 	if (fd < 0) {
-		if (mddev->bitmap_info.file) {
-			restore_bitmap_write_access(mddev->bitmap_info.file);
+		if (mddev->bitmap_info.file)
 			fput(mddev->bitmap_info.file);
-		}
 		mddev->bitmap_info.file = NULL;
 	}
 
@@ -7182,11 +7165,14 @@ static int md_seq_open(struct inode *inode, struct file *file)
 	return error;
 }
 
+static int md_unloading;
 static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 {
 	struct seq_file *seq = filp->private_data;
 	int mask;
 
+	if (md_unloading)
+		return POLLIN|POLLRDNORM|POLLERR|POLLPRI;;
 	poll_wait(filp, &md_event_waiters, wait);
 
 	/* always allow read */
@@ -8672,6 +8658,7 @@ static __exit void md_exit(void)
 {
 	struct mddev *mddev;
 	struct list_head *tmp;
+	int delay = 1;
 
 	blk_unregister_region(MKDEV(MD_MAJOR,0), 1U << MINORBITS);
 	blk_unregister_region(MKDEV(mdp_major,0), 1U << MINORBITS);
@@ -8680,7 +8667,19 @@ static __exit void md_exit(void)
 	unregister_blkdev(mdp_major, "mdp");
 	unregister_reboot_notifier(&md_notifier);
 	unregister_sysctl_table(raid_table_header);
+
+	/* We cannot unload the modules while some process is
+	 * waiting for us in select() or poll() - wake them up
+	 */
+	md_unloading = 1;
+	while (waitqueue_active(&md_event_waiters)) {
+		/* not safe to leave yet */
+		wake_up(&md_event_waiters);
+		msleep(delay);
+		delay += delay;
+	}
 	remove_proc_entry("mdstat", NULL);
+
 	for_each_mddev(mddev, tmp) {
 		export_array(mddev);
 		mddev->hold_active = 0;

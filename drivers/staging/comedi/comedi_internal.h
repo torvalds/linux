@@ -19,6 +19,8 @@ void comedi_buf_reset(struct comedi_async *async);
 bool comedi_buf_is_mmapped(struct comedi_async *async);
 void comedi_buf_map_get(struct comedi_buf_map *bm);
 int comedi_buf_map_put(struct comedi_buf_map *bm);
+struct comedi_buf_map *comedi_buf_map_from_subdev_get(
+		struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_allocated(struct comedi_async *async);
 void comedi_device_cancel_all(struct comedi_device *dev);
 
