@@ -219,11 +219,9 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_vsi_queue_config_info) +
 		       (sizeof(struct i40e_virtchnl_queue_pair_info) * pairs);
 	vqci = kzalloc(len, GFP_ATOMIC);
-	if (!vqci) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!vqci)
 		return;
-	}
+
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
 	vqpi = vqci->qpair;
@@ -332,11 +330,8 @@ void i40evf_map_queues(struct i40evf_adapter *adapter)
 	      (adapter->num_msix_vectors *
 		sizeof(struct i40e_virtchnl_vector_map));
 	vimi = kzalloc(len, GFP_ATOMIC);
-	if (!vimi) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!vimi)
 		return;
-	}
 
 	vimi->num_vectors = adapter->num_msix_vectors;
 	/* Queue vectors first */
@@ -393,7 +388,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_ether_addr_list) +
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request.\n",
+		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
 			__func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
@@ -402,11 +397,9 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	}
 
 	veal = kzalloc(len, GFP_ATOMIC);
-	if (!veal) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!veal)
 		return;
-	}
+
 	veal->vsi_id = adapter->vsi_res->vsi_id;
 	veal->num_elements = count;
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
@@ -457,7 +450,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_ether_addr_list) +
 	      (count * sizeof(struct i40e_virtchnl_ether_addr));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request.\n",
+		dev_warn(&adapter->pdev->dev, "%s: Too many MAC address changes in one request\n",
 			__func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_ether_addr_list)) /
@@ -465,11 +458,9 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 		len = I40EVF_MAX_AQ_BUF_SIZE;
 	}
 	veal = kzalloc(len, GFP_ATOMIC);
-	if (!veal) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!veal)
 		return;
-	}
+
 	veal->vsi_id = adapter->vsi_res->vsi_id;
 	veal->num_elements = count;
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
@@ -521,7 +512,7 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_vlan_filter_list) +
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request.\n",
+		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
 			__func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
@@ -529,11 +520,9 @@ void i40evf_add_vlans(struct i40evf_adapter *adapter)
 		len = I40EVF_MAX_AQ_BUF_SIZE;
 	}
 	vvfl = kzalloc(len, GFP_ATOMIC);
-	if (!vvfl) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!vvfl)
 		return;
-	}
+
 	vvfl->vsi_id = adapter->vsi_res->vsi_id;
 	vvfl->num_elements = count;
 	list_for_each_entry(f, &adapter->vlan_filter_list, list) {
@@ -583,7 +572,7 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 	len = sizeof(struct i40e_virtchnl_vlan_filter_list) +
 	      (count * sizeof(u16));
 	if (len > I40EVF_MAX_AQ_BUF_SIZE) {
-		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request.\n",
+		dev_warn(&adapter->pdev->dev, "%s: Too many VLAN changes in one request\n",
 			__func__);
 		count = (I40EVF_MAX_AQ_BUF_SIZE -
 			 sizeof(struct i40e_virtchnl_vlan_filter_list)) /
@@ -591,11 +580,9 @@ void i40evf_del_vlans(struct i40evf_adapter *adapter)
 		len = I40EVF_MAX_AQ_BUF_SIZE;
 	}
 	vvfl = kzalloc(len, GFP_ATOMIC);
-	if (!vvfl) {
-		dev_err(&adapter->pdev->dev, "%s: unable to allocate memory\n",
-			__func__);
+	if (!vvfl)
 		return;
-	}
+
 	vvfl->vsi_id = adapter->vsi_res->vsi_id;
 	vvfl->num_elements = count;
 	list_for_each_entry_safe(f, ftmp, &adapter->vlan_filter_list, list) {
@@ -724,7 +711,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		return;
 	}
 	if (v_opcode != adapter->current_op) {
-		dev_err(&adapter->pdev->dev, "%s: Pending op is %d, received %d.\n",
+		dev_err(&adapter->pdev->dev, "%s: Pending op is %d, received %d\n",
 			__func__, adapter->current_op, v_opcode);
 		/* We're probably completely screwed at this point, but clear
 		 * the current op and try to carry on....
@@ -733,7 +720,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		return;
 	}
 	if (v_retval) {
-		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d!\n",
+		dev_err(&adapter->pdev->dev, "%s: PF returned error %d to our request %d\n",
 			__func__, v_retval, v_opcode);
 	}
 	switch (v_opcode) {
@@ -783,7 +770,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		adapter->aq_pending &= ~(I40EVF_FLAG_AQ_MAP_VECTORS);
 		break;
 	default:
-		dev_warn(&adapter->pdev->dev, "%s: Received unexpected message %d from PF.\n",
+		dev_warn(&adapter->pdev->dev, "%s: Received unexpected message %d from PF\n",
 			__func__, v_opcode);
 		break;
 	} /* switch v_opcode */

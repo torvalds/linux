@@ -117,11 +117,11 @@ enum i40e_dyn_idx_t {
 #define i40e_rx_desc i40e_32byte_rx_desc
 
 #define I40E_MIN_TX_LEN		17
-#define I40E_MAX_DATA_PER_TXD	16383	/* aka 16kB - 1 */
+#define I40E_MAX_DATA_PER_TXD	8192
 
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
-#define DESC_NEEDED ((MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE)) + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)

@@ -1511,9 +1511,7 @@ static int i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size)
 static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 				      struct i40e_ring *tx_ring)
 {
-#if PAGE_SIZE > I40E_MAX_DATA_PER_TXD
 	unsigned int f;
-#endif
 	int count = 0;
 
 	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
@@ -1522,12 +1520,9 @@ static int i40e_xmit_descriptor_count(struct sk_buff *skb,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
 	 */
-#if PAGE_SIZE > I40E_MAX_DATA_PER_TXD
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-#else
-	count += skb_shinfo(skb)->nr_frags;
-#endif
+
 	count += TXD_USE_COUNT(skb_headlen(skb));
 	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
 		tx_ring->tx_stats.tx_busy++;

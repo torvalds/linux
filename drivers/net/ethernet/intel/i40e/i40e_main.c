@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 3
+#define DRV_VERSION_BUILD 5
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -67,12 +67,10 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb);
  */
 static DEFINE_PCI_DEVICE_TABLE(i40e_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_X710), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_A), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_C), 0},
-	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_D), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
@@ -397,7 +395,7 @@ static struct rtnl_link_stats64 *i40e_get_netdev_stats_struct(
 	}
 	rcu_read_unlock();
 
-	/* following stats updated by ixgbe_watchdog_task() */
+	/* following stats updated by i40e_watchdog_subtask() */
 	stats->multicast	= vsi_stats->multicast;
 	stats->tx_errors	= vsi_stats->tx_errors;
 	stats->tx_dropped	= vsi_stats->tx_dropped;
@@ -657,7 +655,7 @@ static void i40e_update_link_xoff_rx(struct i40e_pf *pf)
 	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
-		if (!vsi)
+		if (!vsi || !vsi->tx_rings[0])
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
@@ -711,7 +709,7 @@ static void i40e_update_prio_xoff_rx(struct i40e_pf *pf)
 	for (v = 0; v < pf->hw.func_caps.num_vsis; v++) {
 		struct i40e_vsi *vsi = pf->vsi[v];
 
-		if (!vsi)
+		if (!vsi || !vsi->tx_rings[0])
 			continue;
 
 		for (i = 0; i < vsi->num_queue_pairs; i++) {
@@ -5520,6 +5518,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 		i40e_verify_eeprom(pf);
 	}
 
+	i40e_clear_pxe_mode(hw);
 	ret = i40e_get_capabilities(pf);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "i40e_get_capabilities failed, %d\n",
@@ -5621,8 +5620,6 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 
 	/* tell the firmware that we're starting */
 	i40e_send_version(pf);
-
-	dev_info(&pf->pdev->dev, "reset complete\n");
 
 end_core_reset:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
@@ -6139,8 +6136,6 @@ static int i40e_reserve_msix_vectors(struct i40e_pf *pf, int vectors)
 		vectors = 0;
 	}
 
-	pf->num_msix_entries = vectors;
-
 	return vectors;
 }
 
@@ -6258,7 +6253,7 @@ static int i40e_vsi_alloc_q_vector(struct i40e_vsi *vsi, int v_idx)
 	cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
 	if (vsi->netdev)
 		netif_napi_add(vsi->netdev, &q_vector->napi,
-			       i40e_napi_poll, vsi->work_limit);
+			       i40e_napi_poll, NAPI_POLL_WEIGHT);
 
 	q_vector->rx.latency_range = I40E_LOW_LATENCY;
 	q_vector->tx.latency_range = I40E_LOW_LATENCY;
@@ -8239,11 +8234,12 @@ static void i40e_print_features(struct i40e_pf *pf)
 
 	if (pf->flags & I40E_FLAG_RSS_ENABLED)
 		buf += sprintf(buf, "RSS ");
-	buf += sprintf(buf, "FDir ");
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED)
-		buf += sprintf(buf, "ATR ");
-	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
+		buf += sprintf(buf, "FD_ATR ");
+	if (pf->flags & I40E_FLAG_FD_SB_ENABLED) {
+		buf += sprintf(buf, "FD_SB ");
 		buf += sprintf(buf, "NTUPLE ");
+	}
 	if (pf->flags & I40E_FLAG_DCB_ENABLED)
 		buf += sprintf(buf, "DCB ");
 	if (pf->flags & I40E_FLAG_PTP)
