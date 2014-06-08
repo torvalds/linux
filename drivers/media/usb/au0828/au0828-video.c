@@ -791,7 +791,7 @@ static int au0828_i2s_init(struct au0828_dev *dev)
 static int au0828_analog_stream_enable(struct au0828_dev *d)
 {
 	struct usb_interface *iface;
-	int ret;
+	int ret, h, w;
 
 	dprintk(1, "au0828_analog_stream_enable called\n");
 
@@ -806,20 +806,21 @@ static int au0828_analog_stream_enable(struct au0828_dev *d)
 		}
 	}
 
-	/* FIXME: size should be calculated using d->width, d->height */
+	h = d->height / 2 + 2;
+	w = d->width * 2;
 
 	au0828_writereg(d, AU0828_SENSORCTRL_VBI_103, 0x00);
 	au0828_writereg(d, 0x106, 0x00);
 	/* set x position */
 	au0828_writereg(d, 0x110, 0x00);
 	au0828_writereg(d, 0x111, 0x00);
-	au0828_writereg(d, 0x114, 0xa0);
-	au0828_writereg(d, 0x115, 0x05);
+	au0828_writereg(d, 0x114, w & 0xff);
+	au0828_writereg(d, 0x115, w >> 8);
 	/* set y position */
 	au0828_writereg(d, 0x112, 0x00);
 	au0828_writereg(d, 0x113, 0x00);
-	au0828_writereg(d, 0x116, 0xf2);
-	au0828_writereg(d, 0x117, 0x00);
+	au0828_writereg(d, 0x116, h & 0xff);
+	au0828_writereg(d, 0x117, h >> 8);
 	au0828_writereg(d, AU0828_SENSORCTRL_100, 0xb3);
 
 	return 0;
@@ -1725,6 +1726,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		dev->vid_timeout_running = 0;
 		del_timer_sync(&dev->vid_timeout);
 
+		au0828_analog_stream_disable(dev);
 		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 		rc = au0828_stream_interrupt(dev);
 		if (rc != 0)
@@ -1930,7 +1932,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 	struct usb_endpoint_descriptor *endpoint;
 	int i, ret;
 
-	dprintk(1, "au0828_analog_register called!\n");
+	dprintk(1, "au0828_analog_register called for intf#%d!\n",
+		interface->cur_altsetting->desc.bInterfaceNumber);
 
 	/* set au0828 usb interface0 to as5 */
 	retval = usb_set_interface(dev->usbdev,
@@ -1954,6 +1957,9 @@ int au0828_analog_register(struct au0828_dev *dev,
 			dev->max_pkt_size = (tmp & 0x07ff) *
 				(((tmp & 0x1800) >> 11) + 1);
 			dev->isoc_in_endpointaddr = endpoint->bEndpointAddress;
+			dprintk(1,
+				"Found isoc endpoint 0x%02x, max size = %d\n",
+				dev->isoc_in_endpointaddr, dev->max_pkt_size);
 		}
 	}
 	if (!(dev->isoc_in_endpointaddr)) {
