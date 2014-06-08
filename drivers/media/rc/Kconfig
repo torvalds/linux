@@ -343,4 +343,14 @@ config RC_ST
 
 	 If you're not sure, select N here.
 
+config IR_SUNXI
+    tristate "SUNXI IR remote control"
+    depends on RC_CORE
+    depends on ARCH_SUNXI
+    ---help---
+      Say Y if you want to use sunXi internal IR Controller
+
+      To compile this driver as a module, choose M here: the module will
+      be called sunxi-ir.
+
 endif #RC_DEVICES
