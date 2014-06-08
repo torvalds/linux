@@ -458,8 +458,9 @@ static void set_audio_input(struct au8522_state *state)
 	au8522_writereg(state, AU8522_I2C_CONTROL_REG0_REG090H, 0x84);
 	msleep(150);
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x00);
-	msleep(1);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x9d);
+	msleep(10);
+	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
+			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
 	msleep(50);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
@@ -585,12 +586,9 @@ static int au8522_s_stream(struct v4l2_subdev *sd, int enable)
 
 		au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 				0x01);
-		msleep(1);
-		au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
-				AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
+		msleep(10);
 
 		au8522_video_set(state);
-
 		set_audio_input(state);
 
 		state->operational_mode = AU8522_ANALOG_MODE;
