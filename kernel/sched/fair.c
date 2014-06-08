@@ -1120,7 +1120,7 @@ static bool load_too_imbalanced(long orig_src_load, long orig_dst_load,
 	old_imb = orig_dst_load * 100 - orig_src_load * env->imbalance_pct;
 
 	/* Would this change make things worse? */
-	return (old_imb > imb);
+	return (imb > old_imb);
 }
 
 /*
