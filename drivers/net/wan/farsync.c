@@ -882,20 +882,18 @@ fst_rx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
  *      Receive a frame through the DMA
  */
 static inline void
-fst_rx_dma(struct fst_card_info *card, dma_addr_t skb,
-	   dma_addr_t mem, int len)
+fst_rx_dma(struct fst_card_info *card, dma_addr_t dma, u32 mem, int len)
 {
 	/*
 	 * This routine will setup the DMA and start it
 	 */
 
-	dbg(DBG_RX, "In fst_rx_dma %lx %lx %d\n",
-	    (unsigned long) skb, (unsigned long) mem, len);
+	dbg(DBG_RX, "In fst_rx_dma %x %x %d\n", (u32)dma, mem, len);
 	if (card->dmarx_in_progress) {
 		dbg(DBG_ASS, "In fst_rx_dma while dma in progress\n");
 	}
 
-	outl(skb, card->pci_conf + DMAPADR0);	/* Copy to here */
+	outl(dma, card->pci_conf + DMAPADR0);	/* Copy to here */
 	outl(mem, card->pci_conf + DMALADR0);	/* from here */
 	outl(len, card->pci_conf + DMASIZ0);	/* for this length */
 	outl(0x00000000c, card->pci_conf + DMADPR0);	/* In this direction */
@@ -911,20 +909,19 @@ fst_rx_dma(struct fst_card_info *card, dma_addr_t skb,
  *      Send a frame through the DMA
  */
 static inline void
-fst_tx_dma(struct fst_card_info *card, unsigned char *skb,
-	   unsigned char *mem, int len)
+fst_tx_dma(struct fst_card_info *card, dma_addr_t dma, u32 mem, int len)
 {
 	/*
 	 * This routine will setup the DMA and start it.
 	 */
 
-	dbg(DBG_TX, "In fst_tx_dma %p %p %d\n", skb, mem, len);
+	dbg(DBG_TX, "In fst_tx_dma %x %x %d\n", (u32)dma, mem, len);
 	if (card->dmatx_in_progress) {
 		dbg(DBG_ASS, "In fst_tx_dma while dma in progress\n");
 	}
 
-	outl((unsigned long) skb, card->pci_conf + DMAPADR1);	/* Copy from here */
-	outl((unsigned long) mem, card->pci_conf + DMALADR1);	/* to here */
+	outl(dma, card->pci_conf + DMAPADR1);	/* Copy from here */
+	outl(mem, card->pci_conf + DMALADR1);	/* to here */
 	outl(len, card->pci_conf + DMASIZ1);	/* for this length */
 	outl(0x000000004, card->pci_conf + DMADPR1);	/* In this direction */
 
@@ -1401,9 +1398,7 @@ do_bottom_half_tx(struct fst_card_info *card)
 					card->dma_len_tx = skb->len;
 					card->dma_txpos = port->txpos;
 					fst_tx_dma(card,
-						   (char *) card->
-						   tx_dma_handle_card,
-						   (char *)
+						   card->tx_dma_handle_card,
 						   BUF_OFFSET(txBuffer[pi]
 							      [port->txpos][0]),
 						   skb->len);
