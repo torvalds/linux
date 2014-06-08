@@ -2131,7 +2131,7 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 
 		count = min_t(unsigned int, conn->mtu, len);
 
-		tmp = chan->ops->alloc_skb(chan, count,
+		tmp = chan->ops->alloc_skb(chan, 0, count,
 					   msg->msg_flags & MSG_DONTWAIT);
 		if (IS_ERR(tmp))
 			return PTR_ERR(tmp);
@@ -2166,7 +2166,7 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
-	skb = chan->ops->alloc_skb(chan, count + hlen,
+	skb = chan->ops->alloc_skb(chan, hlen, count,
 				   msg->msg_flags & MSG_DONTWAIT);
 	if (IS_ERR(skb))
 		return skb;
@@ -2197,7 +2197,7 @@ static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan,
 
 	count = min_t(unsigned int, (conn->mtu - L2CAP_HDR_SIZE), len);
 
-	skb = chan->ops->alloc_skb(chan, count + L2CAP_HDR_SIZE,
+	skb = chan->ops->alloc_skb(chan, L2CAP_HDR_SIZE, count,
 				   msg->msg_flags & MSG_DONTWAIT);
 	if (IS_ERR(skb))
 		return skb;
@@ -2239,7 +2239,7 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
-	skb = chan->ops->alloc_skb(chan, count + hlen,
+	skb = chan->ops->alloc_skb(chan, hlen, count,
 				   msg->msg_flags & MSG_DONTWAIT);
 	if (IS_ERR(skb))
 		return skb;
@@ -2360,7 +2360,7 @@ static struct sk_buff *l2cap_create_le_flowctl_pdu(struct l2cap_chan *chan,
 
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
-	skb = chan->ops->alloc_skb(chan, count + hlen,
+	skb = chan->ops->alloc_skb(chan, hlen, count,
 				   msg->msg_flags & MSG_DONTWAIT);
 	if (IS_ERR(skb))
 		return skb;
