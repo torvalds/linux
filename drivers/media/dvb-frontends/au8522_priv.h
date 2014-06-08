@@ -37,6 +37,7 @@
 
 #define AU8522_ANALOG_MODE 0
 #define AU8522_DIGITAL_MODE 1
+#define AU8522_SUSPEND_MODE 2
 
 struct au8522_state {
 	struct i2c_client *c;
