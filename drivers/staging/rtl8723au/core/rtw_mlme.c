@@ -638,8 +638,9 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	u32 len;
 	struct wlan_bssid_ex *pnetwork;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct survey_event *survey = (struct survey_event *)pbuf;
 
-	pnetwork = (struct wlan_bssid_ex *)pbuf;
+	pnetwork = &survey->bss;
 
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,
 		 ("rtw_survey_event_cb23a, ssid=%s\n", pnetwork->Ssid.ssid));
