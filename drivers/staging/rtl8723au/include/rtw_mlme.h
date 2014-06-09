@@ -356,8 +356,8 @@ __le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie);
 
 void rtw_joinbss_reset23a(struct rtw_adapter *padapter);
 
-unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
-				   u8 *out_ie, uint in_len, uint *pout_len);
+bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
+			      u8 *out_ie, uint in_len, uint *pout_len);
 void rtw_update_ht_cap23a(struct rtw_adapter *padapter,
 		       u8 *pie, uint ie_len);
 void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,

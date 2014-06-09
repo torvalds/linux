@@ -2189,8 +2189,8 @@ void rtw_joinbss_reset23a(struct rtw_adapter *padapter)
 }
 
 /* the fucntion is >= passive_level */
-unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
-				      u8 *out_ie, uint in_len, uint *pout_len)
+bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
+			      u8 *out_ie, uint in_len, uint *pout_len)
 {
 	u32 out_len;
 	int max_rx_ampdu_factor;

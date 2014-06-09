@@ -21,7 +21,7 @@
 
 struct ht_priv
 {
-	u32	ht_option;
+	bool	ht_option;
 	u32	ampdu_enable;/* for enable Tx A-MPDU */
 	/* u8	baddbareq_issued[16]; */
 	u32	tx_amsdu_enable;/* for enable Tx A-MSDU */
