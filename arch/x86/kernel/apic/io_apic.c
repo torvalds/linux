@@ -86,6 +86,7 @@ static DEFINE_RAW_SPINLOCK(ioapic_lock);
 static DEFINE_RAW_SPINLOCK(vector_lock);
 static DEFINE_MUTEX(ioapic_mutex);
 static unsigned int ioapic_dynirq_base;
+static int ioapic_initialized;
 
 struct mp_pin_info {
 	int trigger;
@@ -1034,13 +1035,8 @@ static int mp_map_pin_to_irq(u32 gsi, int idx, int ioapic, int pin,
 	struct irq_domain *domain = mp_ioapic_irqdomain(ioapic);
 	struct mp_pin_info *info = mp_pin_info(ioapic, pin);
 
-	if (!domain) {
-		/*
-		 * Provide an identity mapping of gsi == irq except on truly
-		 * weird platforms that have non isa irqs in the first 16 gsis.
-		 */
-		return gsi >= nr_legacy_irqs() ? gsi : gsi_top + gsi;
-	}
+	if (!domain)
+		return -1;
 
 	mutex_lock(&ioapic_mutex);
 
@@ -2986,6 +2982,8 @@ void __init setup_IO_APIC(void)
 	init_IO_APIC_traps();
 	if (nr_legacy_irqs())
 		check_timer();
+
+	ioapic_initialized = 1;
 }
 
 /*
@@ -3461,12 +3459,11 @@ static int __init io_apic_get_redir_entries(int ioapic)
 
 unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
-	unsigned int min = gsi_top + nr_legacy_irqs();
-
-	if (ioapic_dynirq_base)
-		return ioapic_dynirq_base;
-
-	return from < min ? min : from;
+	/*
+	 * dmar_alloc_hwirq() may be called before setup_IO_APIC(), so use
+	 * gsi_top if ioapic_dynirq_base hasn't been initialized yet.
+	 */
+	return ioapic_initialized ? ioapic_dynirq_base : gsi_top;
 }
 
 int __init arch_probe_nr_irqs(void)
@@ -3841,10 +3838,7 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base,
 	ioapics[idx].mp_config.flags = MPC_APIC_USABLE;
 	ioapics[idx].mp_config.apicaddr = address;
 	ioapics[idx].irqdomain = NULL;
-	if (cfg)
-		ioapics[idx].irqdomain_cfg = *cfg;
-	else
-		ioapics[idx].irqdomain_cfg.type = IOAPIC_DOMAIN_INVALID;
+	ioapics[idx].irqdomain_cfg = *cfg;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 
