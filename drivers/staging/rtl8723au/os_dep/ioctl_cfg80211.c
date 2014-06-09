@@ -2117,11 +2117,9 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	int ret = 0;
 	struct list_head *phead, *plist, *ptmp;
 	struct wlan_network *pnetwork = NULL;
-	struct cfg80211_ssid ndis_ssid;
+	struct cfg80211_ssid ssid;
 	u8 *dst_ssid;
-	u8 *src_ssid;
 	u8 *dst_bssid;
-	const u8 *src_bssid;
 	/* u8 matched_by_bssid = false; */
 	/* u8 matched_by_ssid = false; */
 	u8 matched = false;
@@ -2144,21 +2142,13 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto exit;
 	}
 
-	if (!sme->ssid || !sme->ssid_len) {
+	if (!sme->ssid || !sme->ssid_len ||
+	    sme->ssid_len > IEEE80211_MAX_SSID_LEN) {
 		ret = -EINVAL;
 		goto exit;
 	}
 
-	if (sme->ssid_len > IEEE80211_MAX_SSID_LEN) {
-		ret = -E2BIG;
-		goto exit;
-	}
-
-	memset(&ndis_ssid, 0, sizeof(struct cfg80211_ssid));
-	ndis_ssid.ssid_len = sme->ssid_len;
-	memcpy(ndis_ssid.ssid, sme->ssid, sme->ssid_len);
-
-	DBG_8723A("ssid =%s, len =%zu\n", ndis_ssid.ssid, sme->ssid_len);
+	DBG_8723A("ssid =%s, len =%zu\n", sme->ssid, sme->ssid_len);
 
 	if (sme->bssid)
 		DBG_8723A("bssid =" MAC_FMT "\n", MAC_ARG(sme->bssid));
@@ -2172,6 +2162,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
 		rtw_scan_abort23a(padapter);
 	}
+
+	memset(ssid.ssid, 0, sizeof(struct cfg80211_ssid));
 
 	spin_lock_bh(&queue->lock);
 
@@ -2197,28 +2189,24 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		}
 
 		if (sme->bssid) {
-			src_bssid = sme->bssid;
-
-			if (ether_addr_equal(dst_bssid, src_bssid)) {
+			if (ether_addr_equal(dst_bssid, sme->bssid)) {
 				DBG_8723A("matched by bssid\n");
 
-				ndis_ssid.ssid_len =
-				    pnetwork->network.Ssid.ssid_len;
-				memcpy(ndis_ssid.ssid,
-				       pnetwork->network.Ssid.ssid,
+				memcpy(ssid.ssid, pnetwork->network.Ssid.ssid,
 				       pnetwork->network.Ssid.ssid_len);
+				ssid.ssid_len = pnetwork->network.Ssid.ssid_len;
 
 				matched = true;
 				break;
 			}
-
 		} else if (sme->ssid && sme->ssid_len) {
-			src_ssid = ndis_ssid.ssid;
-
-			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.ssid_len)) &&
-			    (pnetwork->network.Ssid.ssid_len ==
-			     ndis_ssid.ssid_len)) {
+			if (!memcmp(dst_ssid, sme->ssid, sme->ssid_len) &&
+			    pnetwork->network.Ssid.ssid_len == sme->ssid_len) {
 				DBG_8723A("matched by ssid\n");
+
+				memcpy(ssid.ssid, sme->ssid, sme->ssid_len);
+				ssid.ssid_len = sme->ssid_len;
+
 				matched = true;
 				break;
 			}
@@ -2227,7 +2215,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 	spin_unlock_bh(&queue->lock);
 
-	if (!matched || (pnetwork == NULL)) {
+	if (!matched || !pnetwork) {
 		ret = -ENOENT;
 		DBG_8723A("connect, matched == false, goto exit\n");
 		goto exit;
@@ -2245,9 +2233,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Open;
 	psecuritypriv->ndisauthtype = Ndis802_11AuthModeOpen;
 
-	ret =
-	    rtw_cfg80211_set_wpa_version(psecuritypriv,
-					 sme->crypto.wpa_versions);
+	ret = rtw_cfg80211_set_wpa_version(psecuritypriv,
+					   sme->crypto.wpa_versions);
 	if (ret < 0)
 		goto exit;
 
@@ -2318,7 +2305,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	ret = rtw_cfg80211_set_cipher(psecuritypriv,
 				      sme->crypto.cipher_group, false);
 	if (ret < 0)
-		return ret;
+		goto exit;
 
 	if (sme->crypto.n_akm_suites) {
 		ret = rtw_cfg80211_set_key_mgt(psecuritypriv,
@@ -2338,7 +2325,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	/* rtw_set_802_11_encryption_mode(padapter,
 	   padapter->securitypriv.ndisencryptstatus); */
 
-	if (rtw_set_ssid(padapter, &ndis_ssid) != _SUCCESS) {
+	if (rtw_set_ssid(padapter, &ssid) != _SUCCESS) {
 		ret = -EBUSY;
 		goto exit;
 	}
