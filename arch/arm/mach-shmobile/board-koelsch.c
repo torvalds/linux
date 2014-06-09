@@ -526,5 +526,6 @@ DT_MACHINE_START(KOELSCH_DT, "koelsch")
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= koelsch_init,
 	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= koelsch_boards_compat_dt,
 MACHINE_END
