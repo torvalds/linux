@@ -473,6 +473,8 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 					/* PNW and CLV go with active low */
 					irq_attr.polarity = 1;
 				}
+				WARN_ON(mp_map_gsi_to_irq(irq,
+						IOAPIC_MAP_ALLOC) < 0);
 				io_apic_set_pci_routing(NULL, irq, &irq_attr);
 			}
 		} else {
