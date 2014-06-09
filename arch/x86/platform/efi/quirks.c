@@ -239,10 +239,10 @@ int __init efi_reuse_config(u64 tables, int nr_tables)
 			((efi_config_table_64_t *)p)->table = data->smbios;
 		p += sz;
 	}
-	early_iounmap(tablep, nr_tables * sz);
+	early_memunmap(tablep, nr_tables * sz);
 
 out_memremap:
-	early_iounmap(data, sizeof(*data));
+	early_memunmap(data, sizeof(*data));
 out:
 	return ret;
 }
