@@ -910,10 +910,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		return _FAIL;
 	}
 
-	if (memcmp(cur_network->network.MacAddress, mgmt->bssid, 6)) {
-		DBG_8723A("Oops: rtw_check_network_encrypt linked but recv "
-			  "other bssid bcn\n" MAC_FMT MAC_FMT,
-			  MAC_ARG(mgmt->bssid),
+	if (!ether_addr_equal(cur_network->network.MacAddress, mgmt->bssid)) {
+		DBG_8723A("%s: linked but recv other bssid bcn"
+			  MAC_FMT MAC_FMT "\n", __func__, MAC_ARG(mgmt->bssid),
 			  MAC_ARG(cur_network->network.MacAddress));
 		return true;
 	}
