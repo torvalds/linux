@@ -317,7 +317,7 @@ struct ieee80211_snap_hdr {
 #define MAX_CHANNEL_NUMBER	161
 
 #define MAX_WPA_IE_LEN		256
-#define MAX_WPS_IE_LEN		512
+#define MAX_WPS_IE_LEN		256
 #define MAX_P2P_IE_LEN		256
 #define MAX_WFD_IE_LEN		128
 

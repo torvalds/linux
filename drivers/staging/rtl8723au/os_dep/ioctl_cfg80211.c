@@ -1479,16 +1479,17 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct rtw_adapter *padapter,
 					       char *buf, int len)
 {
 	int ret = 0;
-	uint wps_ielen = 0;
-	u8 *wps_ie;
+	const u8 *wps_ie;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	DBG_8723A("%s, ielen =%d\n", __func__, len);
 
 	if (len > 0) {
-		wps_ie = rtw_get_wps_ie23a(buf, len, &wps_ielen);
+		wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						 WLAN_OUI_TYPE_MICROSOFT_WPS,
+						 buf, len);
 		if (wps_ie) {
-			DBG_8723A("probe_req_wps_ielen =%d\n", wps_ielen);
+			DBG_8723A("probe_req_wps_ielen =%d\n", wps_ie[1]);
 
 			if (pmlmepriv->wps_probe_req_ie) {
 				pmlmepriv->wps_probe_req_ie_len = 0;
@@ -1496,15 +1497,14 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct rtw_adapter *padapter,
 				pmlmepriv->wps_probe_req_ie = NULL;
 			}
 
-			pmlmepriv->wps_probe_req_ie = kmemdup(wps_ie,
-							      wps_ielen,
+			pmlmepriv->wps_probe_req_ie = kmemdup(wps_ie, wps_ie[1],
 							      GFP_KERNEL);
 			if (pmlmepriv->wps_probe_req_ie == NULL) {
 				DBG_8723A("%s()-%d: kmalloc() ERROR!\n",
 					  __func__, __LINE__);
 				return -EINVAL;
 			}
-			pmlmepriv->wps_probe_req_ie_len = wps_ielen;
+			pmlmepriv->wps_probe_req_ie_len = wps_ie[1];
 		}
 	}
 
@@ -1751,6 +1751,7 @@ static int rtw_cfg80211_set_key_mgt(struct security_priv *psecuritypriv,
 static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 				   size_t ielen)
 {
+	const u8 *wps_ie;
 	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
@@ -1882,22 +1883,17 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		break;
 	}
 
-	{			/* handle wps_ie */
-		uint wps_ielen;
-		u8 *wps_ie;
-
-		wps_ie = rtw_get_wps_ie23a(buf, ielen, &wps_ielen);
-		if (wps_ie && wps_ielen > 0) {
-			DBG_8723A("got wps_ie, wps_ielen:%u\n", wps_ielen);
-			padapter->securitypriv.wps_ie_len =
-				wps_ielen <
-				MAX_WPS_IE_LEN ? wps_ielen : MAX_WPS_IE_LEN;
-			memcpy(padapter->securitypriv.wps_ie, wps_ie,
-			       padapter->securitypriv.wps_ie_len);
-			set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
-		} else {
-			_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
-		}
+	wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					 WLAN_OUI_TYPE_MICROSOFT_WPS,
+					 buf, ielen);
+	if (wps_ie && wps_ie[1] > 0) {
+		DBG_8723A("got wps_ie, wps_ielen:%u\n", wps_ie[1]);
+		padapter->securitypriv.wps_ie_len = wps_ie[1];
+		memcpy(padapter->securitypriv.wps_ie, wps_ie,
+		       padapter->securitypriv.wps_ie_len);
+		set_fwstate(&padapter->mlmepriv, WIFI_UNDER_WPS);
+	} else {
+		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
 	}
 
 	/* TKIP and AES disallow multicast packets until installing group key */
@@ -2825,8 +2821,10 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	len = head_len + tail_len - 24;
 
 	/* check wps ie if inclued */
-	if (rtw_get_wps_ie23a(pbuf + _FIXED_IE_LENGTH_, len - _FIXED_IE_LENGTH_,
-			      &wps_ielen))
+	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				    WLAN_OUI_TYPE_MICROSOFT_WPS,
+				    pbuf + _FIXED_IE_LENGTH_,
+				    len - _FIXED_IE_LENGTH_))
 		DBG_8723A("add bcn, wps_ielen =%d\n", wps_ielen);
 
 	/* pbss_network->IEs will not include p2p_ie, wfd ie */
