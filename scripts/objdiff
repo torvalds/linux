@@ -25,7 +25,7 @@
 #
 # Note: 'make mrproper' will also remove .tmp_objdiff
 
-SRCTREE=$(git rev-parse --show-toplevel 2>/dev/null)
+SRCTREE=$(cd $(git rev-parse --show-toplevel 2>/dev/null); pwd)
 
 if [ -z "$SRCTREE" ]; then
 	echo >&2 "ERROR: Not a git repository."
@@ -42,6 +42,18 @@ usage() {
 	exit 1
 }
 
+get_output_dir() {
+	dir=${1%/*}
+
+	if [ "$dir" = "$1" ]; then
+		dir=.
+	fi
+
+	dir=$(cd $dir; pwd)
+
+	echo $TMPD/$CMT${dir#$SRCTREE}
+}
+
 dorecord() {
 	[ $# -eq 0 ] && usage
 
@@ -50,18 +62,16 @@ dorecord() {
 	CMT="`git rev-parse --short HEAD`"
 
 	OBJDUMP="${CROSS_COMPILE}objdump"
-	OBJDIFFD="$TMPD/$CMT"
 
 	for f in $FILES; do
-		dn="${f%/*}"
+		dir=$(get_output_dir $f)
 		bn="${f##*/}"
 
-		[ ! -d "$OBJDIFFD/$dn" ] && mkdir -p "$OBJDIFFD/$dn"
+		[ ! -d "$dir" ] && mkdir -p $dir
 
 		# remove addresses for a more clear diff
 		# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
-		$OBJDUMP -D "$f" | sed "s/^[[:space:]]\+[0-9a-f]\+//" \
-			>"$OBJDIFFD/$dn/$bn"
+		$OBJDUMP -D $f | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dir/$bn
 	done
 }
 
