@@ -30,8 +30,7 @@ int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 	int res = _SUCCESS;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-		 ("+rtw_set_802_11_bssid23a_list_scan(), fw_state =%x\n",
-		  get_fwstate(pmlmepriv)));
+		 ("+%s: fw_state =%x\n", __func__, get_fwstate(pmlmepriv)));
 
 	if (!padapter) {
 		res = _FAIL;
@@ -40,8 +39,7 @@ int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 	if (padapter->hw_init_completed == false) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-			 ("\n === rtw_set_802_11_bssid23a_list_scan:"
-			  "hw_init_completed == false ===\n"));
+			 ("%s: hw_init_completed == false ===\n", __func__));
 		goto exit;
 	}
 
@@ -49,8 +47,8 @@ int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 	    (pmlmepriv->LinkDetectInfo.bBusyTraffic == true)) {
 		/*  Scan or linking is in progress, do nothing. */
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-			 ("rtw_set_802_11_bssid23a_list_scan fail since fw_state "
-			  "= %x\n", get_fwstate(pmlmepriv)));
+			 ("%s fail since fw_state = %x\n", __func__,
+			  get_fwstate(pmlmepriv)));
 
 		if (check_fwstate(pmlmepriv,
 				  (_FW_UNDER_SURVEY|_FW_UNDER_LINKING))) {
