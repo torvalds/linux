@@ -153,14 +153,12 @@ inline u8 *rtw_set_ie23a_ch_switch (u8 *buf, u32 *buf_len, u8 ch_switch_mode,
 
 inline u8 hal_ch_offset_to_secondary_ch_offset23a(u8 ch_offset)
 {
-	if (ch_offset == HAL_PRIME_CHNL_OFFSET_DONT_CARE)
-		return SCN;
-	else if (ch_offset == HAL_PRIME_CHNL_OFFSET_LOWER)
-		return SCB;
+	if (ch_offset == HAL_PRIME_CHNL_OFFSET_LOWER)
+		return IEEE80211_HT_PARAM_CHA_SEC_BELOW;
 	else if (ch_offset == HAL_PRIME_CHNL_OFFSET_UPPER)
-		return SCA;
+		return IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
 
-	return SCN;
+	return IEEE80211_HT_PARAM_CHA_SEC_NONE;
 }
 
 inline u8 *rtw_set_ie23a_secondary_ch_offset(u8 *buf, u32 *buf_len,

@@ -390,11 +390,6 @@ struct rtw_ieee80211_channel {
 
 u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen);
 
-enum secondary_ch_offset {
-	SCN = 0, /* no secondary channel */
-	SCA = 1, /* secondary channel above */
-	SCB = 3,  /* secondary channel below */
-};
 u8 hal_ch_offset_to_secondary_ch_offset23a(u8 ch_offset);
 u8 *rtw_set_ie23a_ch_switch(u8 *buf, u32 *buf_len, u8 ch_switch_mode, u8 new_ch, u8 ch_switch_cnt);
 u8 *rtw_set_ie23a_secondary_ch_offset(u8 *buf, u32 *buf_len, u8 secondary_ch_offset);
