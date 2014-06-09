@@ -353,10 +353,10 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-
-	error = xfs_buf_geterror(bp);
-	if (error)
+	if (!bp) {
+		error = ENOMEM;
 		goto error1;
+	}
 	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*

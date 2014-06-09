@@ -1165,7 +1165,7 @@ xlog_iodone(xfs_buf_t *bp)
 	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
-	if (XFS_TEST_ERROR((xfs_buf_geterror(bp)), l->l_mp,
+	if (XFS_TEST_ERROR(bp->b_error, l->l_mp,
 			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
 		xfs_buf_ioerror_alert(bp, __func__);
 		xfs_buf_stale(bp);

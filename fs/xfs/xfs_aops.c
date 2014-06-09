@@ -975,7 +975,7 @@ xfs_vm_writepage(
 	 * Given that we do not allow direct reclaim to call us, we should
 	 * never be called while in a filesystem transaction.
 	 */
-	if (WARN_ON(current->flags & PF_FSTRANS))
+	if (WARN_ON_ONCE(current->flags & PF_FSTRANS))
 		goto redirty;
 
 	/* Is this page beyond the end of the file? */
@@ -1225,9 +1225,9 @@ xfs_vm_releasepage(
 
 	xfs_count_page_state(page, &delalloc, &unwritten);
 
-	if (WARN_ON(delalloc))
+	if (WARN_ON_ONCE(delalloc))
 		return 0;
-	if (WARN_ON(unwritten))
+	if (WARN_ON_ONCE(unwritten))
 		return 0;
 
 	return try_to_free_buffers(page);

@@ -2129,7 +2129,6 @@ xfs_read_agi(
 	if (error)
 		return error;
 
-	ASSERT(!xfs_buf_geterror(*bpp));
 	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
 	return 0;
 }

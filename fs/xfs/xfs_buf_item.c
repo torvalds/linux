@@ -1052,7 +1052,7 @@ xfs_buf_iodone_callbacks(
 	static ulong		lasttime;
 	static xfs_buftarg_t	*lasttarg;
 
-	if (likely(!xfs_buf_geterror(bp)))
+	if (likely(!bp->b_error))
 		goto do_callbacks;
 
 	/*

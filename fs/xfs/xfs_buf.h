@@ -298,11 +298,6 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 
 extern int xfs_bioerror_relse(struct xfs_buf *);
 
-static inline int xfs_buf_geterror(xfs_buf_t *bp)
-{
-	return bp ? bp->b_error : ENOMEM;
-}
-
 /* Buffer Utility Routines */
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
 
