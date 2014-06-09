@@ -70,18 +70,18 @@ void nfs_commit_free(struct nfs_commit_data *p)
 }
 EXPORT_SYMBOL_GPL(nfs_commit_free);
 
-static struct nfs_rw_header *nfs_writehdr_alloc(void)
+static struct nfs_pgio_header *nfs_writehdr_alloc(void)
 {
-	struct nfs_rw_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
+	struct nfs_pgio_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOIO);
 
 	if (p)
 		memset(p, 0, sizeof(*p));
 	return p;
 }
 
-static void nfs_writehdr_free(struct nfs_rw_header *whdr)
+static void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 {
-	mempool_free(whdr, nfs_wdata_mempool);
+	mempool_free(hdr, nfs_wdata_mempool);
 }
 
 static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
@@ -1655,7 +1655,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 int __init nfs_init_writepagecache(void)
 {
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-					     sizeof(struct nfs_rw_header),
+					     sizeof(struct nfs_pgio_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_wdata_cachep == NULL)

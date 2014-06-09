@@ -452,95 +452,61 @@ size_t nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 
-static inline struct nfs_rw_header *NFS_RW_HEADER(struct nfs_pgio_header *hdr)
+struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *ops)
 {
-	return container_of(hdr, struct nfs_rw_header, header);
-}
+	struct nfs_pgio_header *hdr = ops->rw_alloc_header();
 
-/**
- * nfs_rw_header_alloc - Allocate a header for a read or write
- * @ops: Read or write function vector
- */
-struct nfs_rw_header *nfs_rw_header_alloc(const struct nfs_rw_ops *ops)
-{
-	struct nfs_rw_header *header = ops->rw_alloc_header();
-
-	if (header) {
-		struct nfs_pgio_header *hdr = &header->header;
-
+	if (hdr) {
 		INIT_LIST_HEAD(&hdr->pages);
 		spin_lock_init(&hdr->lock);
 		atomic_set(&hdr->refcnt, 0);
 		hdr->rw_ops = ops;
 	}
-	return header;
+	return hdr;
 }
-EXPORT_SYMBOL_GPL(nfs_rw_header_alloc);
+EXPORT_SYMBOL_GPL(nfs_pgio_header_alloc);
 
 /*
- * nfs_rw_header_free - Free a read or write header
+ * nfs_pgio_header_free - Free a read or write header
  * @hdr: The header to free
  */
-void nfs_rw_header_free(struct nfs_pgio_header *hdr)
+void nfs_pgio_header_free(struct nfs_pgio_header *hdr)
 {
-	hdr->rw_ops->rw_free_header(NFS_RW_HEADER(hdr));
+	hdr->rw_ops->rw_free_header(hdr);
 }
-EXPORT_SYMBOL_GPL(nfs_rw_header_free);
+EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
 
 /**
  * nfs_pgio_data_alloc - Allocate pageio data
  * @hdr: The header making a request
  * @pagecount: Number of pages to create
  */
-static struct nfs_pgio_data *nfs_pgio_data_alloc(struct nfs_pgio_header *hdr,
-						 unsigned int pagecount)
+static bool nfs_pgio_data_init(struct nfs_pgio_header *hdr,
+			       unsigned int pagecount)
 {
-	struct nfs_pgio_data *data, *prealloc;
-
-	prealloc = &NFS_RW_HEADER(hdr)->rpc_data;
-	if (prealloc->header == NULL)
-		data = prealloc;
-	else
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		goto out;
-
-	if (nfs_pgarray_set(&data->pages, pagecount)) {
-		data->header = hdr;
+	if (nfs_pgarray_set(&hdr->data.pages, pagecount)) {
+		hdr->data.header = hdr;
 		atomic_inc(&hdr->refcnt);
-	} else {
-		if (data != prealloc)
-			kfree(data);
-		data = NULL;
+		return true;
 	}
-out:
-	return data;
+	return false;
 }
 
 /**
- * nfs_pgio_data_release - Properly free pageio data
- * @data: The data to release
+ * nfs_pgio_data_destroy - Properly free pageio data
+ * @data: The data to destroy
  */
-void nfs_pgio_data_release(struct nfs_pgio_data *data)
+void nfs_pgio_data_destroy(struct nfs_pgio_data *data)
 {
 	struct nfs_pgio_header *hdr = data->header;
-	struct nfs_rw_header *pageio_header = NFS_RW_HEADER(hdr);
 
 	put_nfs_open_context(data->args.context);
 	if (data->pages.pagevec != data->pages.page_array)
 		kfree(data->pages.pagevec);
-	if (data == &pageio_header->rpc_data) {
-		data->header = NULL;
-		data = NULL;
-	}
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
-	/* Note: we only free the rpc_task after callbacks are done.
-	 * See the comment in rpc_free_task() for why
-	 */
-	kfree(data);
 }
-EXPORT_SYMBOL_GPL(nfs_pgio_data_release);
+EXPORT_SYMBOL_GPL(nfs_pgio_data_destroy);
 
 /**
  * nfs_pgio_rpcsetup - Set up arguments for a pageio call
@@ -655,8 +621,7 @@ static int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
 			  struct nfs_pgio_header *hdr)
 {
 	set_bit(NFS_IOHDR_REDO, &hdr->flags);
-	nfs_pgio_data_release(hdr->data);
-	hdr->data = NULL;
+	nfs_pgio_data_destroy(&hdr->data);
 	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 	return -ENOMEM;
 }
@@ -670,7 +635,7 @@ static void nfs_pgio_release(void *calldata)
 	struct nfs_pgio_data *data = calldata;
 	if (data->header->rw_ops->rw_release)
 		data->header->rw_ops->rw_release(data);
-	nfs_pgio_data_release(data);
+	nfs_pgio_data_destroy(data);
 }
 
 /**
@@ -746,11 +711,11 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 	struct list_head *head = &desc->pg_list;
 	struct nfs_commit_info cinfo;
 
-	data = nfs_pgio_data_alloc(hdr, nfs_page_array_len(desc->pg_base,
-							   desc->pg_count));
-	if (!data)
+	if (!nfs_pgio_data_init(hdr, nfs_page_array_len(desc->pg_base,
+			   desc->pg_count)))
 		return nfs_pgio_error(desc, hdr);
 
+	data = &hdr->data;
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
 	pages = data->pages.pagevec;
 	while (!list_empty(head)) {
@@ -766,7 +731,6 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 
 	/* Set up the argument struct */
 	nfs_pgio_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
-	hdr->data = data;
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
@@ -774,22 +738,20 @@ EXPORT_SYMBOL_GPL(nfs_generic_pgio);
 
 static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 {
-	struct nfs_rw_header *rw_hdr;
 	struct nfs_pgio_header *hdr;
 	int ret;
 
-	rw_hdr = nfs_rw_header_alloc(desc->pg_rw_ops);
-	if (!rw_hdr) {
+	hdr = nfs_pgio_header_alloc(desc->pg_rw_ops);
+	if (!hdr) {
 		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		return -ENOMEM;
 	}
-	hdr = &rw_hdr->header;
-	nfs_pgheader_init(desc, hdr, nfs_rw_header_free);
+	nfs_pgheader_init(desc, hdr, nfs_pgio_header_free);
 	atomic_inc(&hdr->refcnt);
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
 		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
-					hdr->data, desc->pg_rpc_callops,
+					&hdr->data, desc->pg_rpc_callops,
 					desc->pg_ioflags, 0);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);

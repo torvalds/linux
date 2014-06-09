@@ -33,12 +33,12 @@ static const struct nfs_rw_ops nfs_rw_read_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
-static struct nfs_rw_header *nfs_readhdr_alloc(void)
+static struct nfs_pgio_header *nfs_readhdr_alloc(void)
 {
 	return kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
 }
 
-static void nfs_readhdr_free(struct nfs_rw_header *rhdr)
+static void nfs_readhdr_free(struct nfs_pgio_header *rhdr)
 {
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
@@ -404,7 +404,7 @@ out:
 int __init nfs_init_readpagecache(void)
 {
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
-					     sizeof(struct nfs_rw_header),
+					     sizeof(struct nfs_pgio_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_rdata_cachep == NULL)
