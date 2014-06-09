@@ -24,17 +24,8 @@
 
 int rtw_do_join23a(struct rtw_adapter *padapter)
 {
-	struct list_head *plist, *phead;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct rtw_queue *queue = &pmlmepriv->scanned_queue;
-	int ret = _SUCCESS;
-
-	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
-	phead = get_list_head(queue);
-	plist = phead->next;
-
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("%s: phead = %p; plist = %p\n\n\n", __func__, phead, plist));
+	int ret;
 
 	pmlmepriv->cur_network.join_res = -2;
 
@@ -42,75 +33,25 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 
 	pmlmepriv->to_join = true;
 
-	if (list_empty(&queue->queue)) {
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-		_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
-
-		/* when set_ssid/set_bssid for rtw_do_join23a(), but
-		   scanning queue is empty */
-		/* we try to issue sitesurvey firstly */
-
-		if (pmlmepriv->LinkDetectInfo.bBusyTraffic == false ||
-		    padapter->mlmepriv.to_roaming > 0) {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("%s: site survey if scanned_queue is empty\n",
-					 __func__));
-			/*  submit site_survey23a_cmd */
-			ret = rtw_sitesurvey_cmd23a(padapter,
-						 &pmlmepriv->assoc_ssid, 1,
-						 NULL, 0);
-			if (ret != _SUCCESS) {
-				pmlmepriv->to_join = false;
-				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-					 ("%s: site survey return error\n",
-						 __func__));
-			}
-		} else {
-			pmlmepriv->to_join = false;
-			ret = _FAIL;
-		}
-
-		goto exit;
+	ret = rtw_select_and_join_from_scanned_queue23a(pmlmepriv);
+	if (ret == _SUCCESS) {
+		pmlmepriv->to_join = false;
 	} else {
-		int select_ret;
-		spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-		select_ret = rtw_select_and_join_from_scanned_queue23a(pmlmepriv);
-		if (select_ret == _SUCCESS) {
-			pmlmepriv->to_join = false;
+		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
+			/* switch to ADHOC_MASTER */
+			ret = rtw_do_join_adhoc(padapter);
+			if (ret != _SUCCESS)
+				goto exit;
 		} else {
-			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-				/* switch to ADHOC_MASTER */
-				ret = rtw_do_join_adhoc(padapter);
-				if (ret != _SUCCESS)
-					goto exit;
-			} else {
-				/*  can't associate ; reset under-linking */
-				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+			/*  can't associate ; reset under-linking */
+			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
-				/* when set_ssid/set_bssid for rtw_do_join23a(),
-				   but there are no desired bss in scanning
-				   queue */
-				/* we try to issue sitesurvey firstly */
-				if (pmlmepriv->LinkDetectInfo.bBusyTraffic ==
-				    false || padapter->mlmepriv.to_roaming > 0){
-					/* DBG_8723A("rtw_do_join23a() when   no "
-					   "desired bss in scanning queue\n");
-					*/
-					ret = rtw_sitesurvey_cmd23a(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
-					if (ret != _SUCCESS) {
-						pmlmepriv->to_join = false;
-						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("%s: site survey return error\n", __func__));
-					}
-				} else {
-					ret = _FAIL;
-					pmlmepriv->to_join = false;
-				}
-			}
+			ret = _FAIL;
+			pmlmepriv->to_join = false;
 		}
 	}
 
 exit:
-
 	return ret;
 }
 
