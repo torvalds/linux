@@ -101,7 +101,7 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
 {
 	if (css->flags & CSS_ROOT)
 		return true;
-	return percpu_ref_tryget(&css->refcnt);
+	return percpu_ref_tryget_live(&css->refcnt);
 }
 
 /**
