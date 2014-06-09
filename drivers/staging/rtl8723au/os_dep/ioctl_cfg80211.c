@@ -1806,7 +1806,6 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 				   size_t ielen)
 {
 	const u8 *wps_ie;
-	u8 *buf = NULL;
 	int group_cipher = 0, pairwise_cipher = 0;
 	int ret = 0;
 	const u8 *pwpa, *pwpa2;
@@ -1822,19 +1821,14 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		ret = -EINVAL;
 		goto exit;
 	}
-	buf = kmemdup(pie, ielen, GFP_KERNEL);
-	if (buf == NULL) {
-		ret = -ENOMEM;
-		goto exit;
-	}
 
 	/* dump */
 	DBG_8723A("set wpa_ie(length:%zu):\n", ielen);
 	for (i = 0; i < ielen; i = i + 8)
-		DBG_8723A("0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
-			  buf[i], buf[i + 1],
-			  buf[i + 2], buf[i + 3], buf[i + 4],
-			  buf[i + 5], buf[i + 6], buf[i + 7]);
+		DBG_8723A("0x%.2x 0x%.2x 0x%.2x 0x%.2x "
+			  "0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
+			  pie[i], pie[i + 1], pie[i + 2], pie[i + 3],
+			  pie[i + 4], pie[i + 5], pie[i + 6], pie[i + 7]);
 	if (ielen < RSN_HEADER_LEN) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
 			 ("Ie len too short %d\n", (int)ielen));
@@ -1844,7 +1838,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 
 	pwpa = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 				       WLAN_OUI_TYPE_MICROSOFT_WPA,
-				       buf, ielen);
+				       pie, ielen);
 	if (pwpa && pwpa[1] > 0) {
 		if (rtw_parse_wpa_ie23a(pwpa, pwpa[1] + 2, &group_cipher,
 					&pairwise_cipher, NULL) == _SUCCESS) {
@@ -1859,7 +1853,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		}
 	}
 
-	pwpa2 = cfg80211_find_ie(WLAN_EID_RSN, buf, ielen);
+	pwpa2 = cfg80211_find_ie(WLAN_EID_RSN, pie, ielen);
 	if (pwpa2 && pwpa2[1] > 0) {
 		if (rtw_parse_wpa2_ie23a (pwpa2, pwpa2[1] + 2, &group_cipher,
 					  &pairwise_cipher, NULL) == _SUCCESS) {
@@ -1939,7 +1933,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 
 	wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					 WLAN_OUI_TYPE_MICROSOFT_WPS,
-					 buf, ielen);
+					 pie, ielen);
 	if (wps_ie && wps_ie[1] > 0) {
 		DBG_8723A("got wps_ie, wps_ielen:%u\n", wps_ie[1]);
 		padapter->securitypriv.wps_ie_len = wps_ie[1];
@@ -1967,7 +1961,6 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		  padapter->securitypriv.ndisauthtype));
 
 exit:
-	kfree(buf);
 	if (ret)
 		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
 	return ret;
