@@ -751,8 +751,6 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 						 ("switching to adhoc "
 						  "master\n"));
 
-					memset(&pdev_network->Ssid, 0,
-					       sizeof(struct cfg80211_ssid));
 					memcpy(&pdev_network->Ssid,
 					       &pmlmepriv->assoc_ssid,
 					       sizeof(struct cfg80211_ssid));
