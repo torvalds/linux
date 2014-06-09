@@ -660,9 +660,11 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	/* check if there is wps ie, */
 	/* if there is wpsie in beacon, the hostapd will update beacon twice when stating hostapd, */
 	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
-	if (NULL == rtw_get_wps_ie23a(pnetwork->IEs + _FIXED_IE_LENGTH_,
-				      pnetwork->IELength - _FIXED_IE_LENGTH_,
-				      NULL))
+	if (NULL == cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WPS,
+					    pnetwork->IEs + _FIXED_IE_LENGTH_,
+					    pnetwork->IELength -
+					    _FIXED_IE_LENGTH_))
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
@@ -1226,7 +1228,8 @@ static void update_bcn_wmm_ie(struct rtw_adapter *padapter)
 
 static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 {
-	u8 *pwps_ie = NULL, *pwps_ie_src, *premainder_ie, *pbackup_remainder_ie = NULL;
+	const u8 *pwps_ie, *premainder_ie;
+	u8 *pwps_ie_src, *pbackup_remainder_ie = NULL;
 	uint wps_ielen = 0, wps_offset, remainder_ielen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1241,12 +1244,15 @@ static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 	if (pwps_ie_src == NULL)
 		return;
 
-	pwps_ie = rtw_get_wps_ie23a(ie + _FIXED_IE_LENGTH_,
-				    ielen - _FIXED_IE_LENGTH_, &wps_ielen);
+	pwps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					  WLAN_OUI_TYPE_MICROSOFT_WPS,
+					  ie + _FIXED_IE_LENGTH_,
+					  ielen - _FIXED_IE_LENGTH_);
 
-	if (pwps_ie == NULL || wps_ielen == 0)
+	if (pwps_ie == NULL || pwps_ie[1] == 0)
 		return;
 
+	wps_ielen = pwps_ie[1];
 	wps_offset = (uint)(pwps_ie-ie);
 
 	premainder_ie = pwps_ie + wps_ielen;
@@ -1263,11 +1269,12 @@ static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
 	if ((wps_offset+wps_ielen+2+remainder_ielen)<= MAX_IE_SZ)
 	{
-		memcpy(pwps_ie, pwps_ie_src, wps_ielen+2);
+		memcpy(ie + wps_offset, pwps_ie_src, wps_ielen + 2);
 		pwps_ie += (wps_ielen+2);
 
 		if (pbackup_remainder_ie)
-			memcpy(pwps_ie, pbackup_remainder_ie, remainder_ielen);
+			memcpy(ie + wps_offset + wps_ielen + 2,
+			       pbackup_remainder_ie, remainder_ielen);
 
 		/* update IELength */
 		pnetwork->IELength = wps_offset + (wps_ielen+2) + remainder_ielen;
