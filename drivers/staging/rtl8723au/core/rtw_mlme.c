@@ -831,9 +831,9 @@ static void free_scanqueue(struct mlme_priv *pmlmepriv)
 	phead = get_list_head(scan_queue);
 
 	list_for_each_safe(plist, ptemp, phead) {
-		list_del_init(plist);
 		pnetwork = container_of(plist, struct wlan_network, list);
-		kfree(pnetwork);
+		pnetwork->fixed = false;
+		_rtw_free_network23a(pmlmepriv, pnetwork);
         }
 
 	spin_unlock_bh(&scan_queue->lock);
