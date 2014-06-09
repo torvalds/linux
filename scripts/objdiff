@@ -25,16 +25,14 @@
 #
 # Note: 'make mrproper' will also remove .tmp_objdiff
 
-GIT_DIR="`git rev-parse --git-dir`"
+SRCTREE=$(git rev-parse --show-toplevel 2>/dev/null)
 
-if [ -d "$GIT_DIR" ]; then
-	TMPD="${GIT_DIR%git}tmp_objdiff"
-
-	[ -d "$TMPD" ] || mkdir "$TMPD"
-else
-	echo "ERROR: git directory not found."
+if [ -z "$SRCTREE" ]; then
+	echo "ERROR: Not a git repository."
 	exit 1
 fi
+
+TMPD=$SRCTREE/.tmp_objdiff
 
 usage() {
 	echo "Usage: $0 <command> <args>"
