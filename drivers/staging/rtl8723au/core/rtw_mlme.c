@@ -739,8 +739,6 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 				if (rtw_select_and_join_from_scanned_queue23a(
 					    pmlmepriv) == _SUCCESS) {
-					mod_timer(&pmlmepriv->assoc_timer,
-						  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 				} else {
 					pdev_network = &adapter->registrypriv.dev_network;
 					pibss = adapter->registrypriv.dev_network.MacAddress;
@@ -782,14 +780,10 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 			pmlmepriv->to_join = false;
 			ret = rtw_select_and_join_from_scanned_queue23a(
 				pmlmepriv);
-			if (ret == _SUCCESS) {
-				unsigned long e;
-				e = msecs_to_jiffies(MAX_JOIN_TIMEOUT);
-				mod_timer(&pmlmepriv->assoc_timer, jiffies + e);
-			} else if (ret == 2) {/* there is no need to wait */
+			if (ret == 2) {/* there is no need to wait */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 				rtw_indicate_connect23a(adapter);
-			} else {
+			} else if (ret != _SUCCESS) {
 				DBG_8723A("try_to_join, but select scanning "
 					  "queue fail, to_roaming:%d\n",
 					  adapter->mlmepriv.to_roaming);
@@ -1784,6 +1778,31 @@ exit:
 	return candidate;
 }
 
+
+int rtw_do_join_network(struct rtw_adapter *adapter,
+			struct wlan_network *candidate)
+{
+	int ret;
+
+	/*  check for situation of  _FW_LINKED */
+	if (check_fwstate(&adapter->mlmepriv, _FW_LINKED)) {
+		DBG_8723A("%s: _FW_LINKED while ask_for_joinbss!\n", __func__);
+
+		rtw_disassoc_cmd23a(adapter, 0, true);
+		rtw_indicate_disconnect23a(adapter);
+		rtw_free_assoc_resources23a(adapter, 0);
+	}
+	set_fwstate(&adapter->mlmepriv, _FW_UNDER_LINKING);
+
+	ret = rtw_joinbss_cmd23a(adapter, candidate);
+
+	if (ret == _SUCCESS)
+		mod_timer(&adapter->mlmepriv.assoc_timer,
+			  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
+
+	return ret;
+}
+
 int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 {
 	struct rtw_adapter *adapter;
@@ -1804,16 +1823,7 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 			  candidate->network.DSConfig);
 	}
 
-	/*  check for situation of  _FW_LINKED */
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-		DBG_8723A("%s: _FW_LINKED while ask_for_joinbss!\n", __func__);
-
-		rtw_disassoc_cmd23a(adapter, 0, true);
-		rtw_indicate_disconnect23a(adapter);
-		rtw_free_assoc_resources23a(adapter, 0);
-	}
-	set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-	ret = rtw_joinbss_cmd23a(adapter, candidate);
+	ret = rtw_do_join_network(adapter, candidate);
 
 exit:
 	return ret;

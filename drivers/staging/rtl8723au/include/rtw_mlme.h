@@ -240,6 +240,8 @@ int rtw_init_mlme_priv23a(struct rtw_adapter *adapter);
 
 void rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv);
 
+int rtw_do_join_network(struct rtw_adapter *adapter,
+			struct wlan_network *candidate);
 int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv);
 int rtw_set_key23a(struct rtw_adapter *adapter,
 		struct security_priv *psecuritypriv, int keyid, u8 set_tx);

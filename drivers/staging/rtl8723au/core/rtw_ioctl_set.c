@@ -79,8 +79,6 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 		select_ret = rtw_select_and_join_from_scanned_queue23a(pmlmepriv);
 		if (select_ret == _SUCCESS) {
 			pmlmepriv->to_join = false;
-			mod_timer(&pmlmepriv->assoc_timer,
-				  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
 				struct wlan_bssid_ex *pdev_network;
