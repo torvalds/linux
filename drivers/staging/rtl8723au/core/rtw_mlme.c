@@ -2197,7 +2197,7 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 	unsigned char *pframe;
 	const u8 *p;
 	struct ieee80211_ht_cap ht_capie;
-	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
+	u8 WMM_IE[7] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct ht_priv *phtpriv = &pmlmepriv->htpriv;
 
@@ -2210,8 +2210,9 @@ unsigned int rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 		if (pmlmepriv->qos_option == 0) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,
-					    WLAN_EID_VENDOR_SPECIFIC,
-					    _WMM_IE_Length_, WMM_IE, pout_len);
+					       WLAN_EID_VENDOR_SPECIFIC,
+					       sizeof(WMM_IE), WMM_IE,
+					       pout_len);
 
 			pmlmepriv->qos_option = 1;
 		}
