@@ -1240,15 +1240,15 @@ static int flush_task_priority(int how)
 
 static void nfs_initiate_write(struct nfs_pgio_header *hdr,
 			       struct rpc_message *msg,
+			       const struct nfs_rpc_ops *rpc_ops,
 			       struct rpc_task_setup *task_setup_data, int how)
 {
-	struct inode *inode = hdr->inode;
 	int priority = flush_task_priority(how);
 
 	task_setup_data->priority = priority;
-	NFS_PROTO(inode)->write_setup(hdr, msg);
+	rpc_ops->write_setup(hdr, msg);
 
-	nfs4_state_protect_write(NFS_SERVER(inode)->nfs_client,
+	nfs4_state_protect_write(NFS_SERVER(hdr->inode)->nfs_client,
 				 &task_setup_data->rpc_client, msg, hdr);
 }
 

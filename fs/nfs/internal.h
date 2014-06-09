@@ -251,6 +251,7 @@ void nfs_pgio_header_free(struct nfs_pgio_header *);
 void nfs_pgio_data_destroy(struct nfs_pgio_header *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 int nfs_initiate_pgio(struct rpc_clnt *, struct nfs_pgio_header *,
+		      const struct nfs_rpc_ops *,
 		      const struct rpc_call_ops *, int, int);
 void nfs_free_request(struct nfs_page *req);
 

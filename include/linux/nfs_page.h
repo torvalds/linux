@@ -69,6 +69,7 @@ struct nfs_rw_ops {
 			struct inode *);
 	void (*rw_result)(struct rpc_task *, struct nfs_pgio_header *);
 	void (*rw_initiate)(struct nfs_pgio_header *, struct rpc_message *,
+			    const struct nfs_rpc_ops *,
 			    struct rpc_task_setup *, int);
 };
 

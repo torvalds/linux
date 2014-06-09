@@ -597,6 +597,7 @@ static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 }
 
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
+		      const struct nfs_rpc_ops *rpc_ops,
 		      const struct rpc_call_ops *call_ops, int how, int flags)
 {
 	struct rpc_task *task;
@@ -616,7 +617,7 @@ int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 	};
 	int ret = 0;
 
-	hdr->rw_ops->rw_initiate(hdr, &msg, &task_setup_data, how);
+	hdr->rw_ops->rw_initiate(hdr, &msg, rpc_ops, &task_setup_data, how);
 
 	dprintk("NFS: %5u initiated pgio call "
 		"(req %s/%llu, %u bytes @ offset %llu)\n",
@@ -792,7 +793,8 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
 		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
-					hdr, desc->pg_rpc_callops,
+					hdr, NFS_PROTO(hdr->inode),
+					desc->pg_rpc_callops,
 					desc->pg_ioflags, 0);
 	return ret;
 }
