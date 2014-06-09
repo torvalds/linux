@@ -122,6 +122,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
 		asm("tlbi vaae1is, %0" : : "r"(addr));
 	dsb(ish);
+	isb();
 }
 
 /*
@@ -131,8 +132,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 				    unsigned long addr, pte_t *ptep)
 {
 	/*
-	 * set_pte() does not have a DSB, so make sure that the page table
-	 * write is visible.
+	 * set_pte() does not have a DSB for user mappings, so make sure that
+	 * the page table write is visible.
 	 */
 	dsb(ishst);
 }
