@@ -1771,7 +1771,7 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!pnetwork) {
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-				 ("%s return _FAIL:(pnetwork == NULL)\n",
+				 ("%s: return _FAIL:(pnetwork == NULL)\n",
 				  __func__));
 			ret = _FAIL;
 			goto exit;
@@ -1793,8 +1793,7 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 
 	/*  check for situation of  _FW_LINKED */
 	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-		DBG_8723A("%s: _FW_LINKED while ask_for_joinbss!!!\n",
-			  __func__);
+		DBG_8723A("%s: _FW_LINKED while ask_for_joinbss!\n", __func__);
 
 		rtw_disassoc_cmd23a(adapter, 0, true);
 		rtw_indicate_disconnect23a(adapter);
