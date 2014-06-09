@@ -732,15 +732,13 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	rtw_set_signal_stat_timer(&adapter->recvpriv);
 
 	if (pmlmepriv->to_join == true) {
+		set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-
 			ret = rtw_select_and_join_from_scanned_queue23a(
 				pmlmepriv);
 			if (ret != _SUCCESS)
 				rtw_do_join_adhoc(adapter);
 		} else {
-			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			pmlmepriv->to_join = false;
 			ret = rtw_select_and_join_from_scanned_queue23a(
 				pmlmepriv);
