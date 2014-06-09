@@ -2020,7 +2020,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto exit;
 	}
 
-	if (sme->ssid_len > IW_ESSID_MAX_SIZE) {
+	if (sme->ssid_len > IEEE80211_MAX_SSID_LEN) {
 		ret = -E2BIG;
 		goto exit;
 	}

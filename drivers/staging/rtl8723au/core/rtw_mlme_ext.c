@@ -5945,7 +5945,8 @@ int sitesurvey_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 		for (i = 0; i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (pparm->ssid[i].ssid_len) {
 				memcpy(pmlmeext->sitesurvey_res.ssid[i].ssid,
-				       pparm->ssid[i].ssid, IW_ESSID_MAX_SIZE);
+				       pparm->ssid[i].ssid,
+				       IEEE80211_MAX_SSID_LEN);
 				pmlmeext->sitesurvey_res.ssid[i].ssid_len =
 					pparm->ssid[i].ssid_len;
 			} else {

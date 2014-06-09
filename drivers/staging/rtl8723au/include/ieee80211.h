@@ -309,8 +309,6 @@ struct ieee80211_snap_hdr {
 #define MAX_P2P_IE_LEN		256
 #define MAX_WFD_IE_LEN		128
 
-#define IW_ESSID_MAX_SIZE	32
-
 /*
 join_res:
 -1: authentication fail
