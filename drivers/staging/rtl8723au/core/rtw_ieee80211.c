@@ -752,11 +752,11 @@ u8 *rtw_get_wps_ie23a(u8 *in_ie, uint in_len, uint *wps_ielen)
  *
  * Returns: the address of the specific WPS attribute found, or NULL
  */
-u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
-		     u8 *buf_attr, u32 *len_attr)
+const u8 *rtw_get_wps_attr23a(const u8 *wps_ie, uint wps_ielen,
+			      u16 target_attr_id, u8 *buf_attr, u32 *len_attr)
 {
-	u8 *attr_ptr = NULL;
-	u8 * target_attr_ptr = NULL;
+	const u8 *attr_ptr = NULL;
+	const u8 *target_attr_ptr = NULL;
 	u8 wps_oui[4] = {0x00, 0x50, 0xF2, 0x04};
 
 	if (len_attr)
@@ -808,10 +808,11 @@ u8 *rtw_get_wps_attr23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
  *
  * Returns: the address of the specific WPS attribute content found, or NULL
  */
-u8 *rtw_get_wps_attr_content23a(u8 *wps_ie, uint wps_ielen, u16 target_attr_id,
-				u8 *buf_content, uint *len_content)
+const u8 *rtw_get_wps_attr_content23a(const u8 *wps_ie, uint wps_ielen,
+				      u16 target_attr_id, u8 *buf_content,
+				      uint *len_content)
 {
-	u8 *attr_ptr;
+	const u8 *attr_ptr;
 	u32 attr_len;
 
 	if (len_content)

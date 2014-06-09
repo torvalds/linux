@@ -2460,8 +2460,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	u8 bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 *wps_ie;
-	u32 wps_ielen;
+	const u8 *wps_ie;
 	u8 sr = 0;
 	int len_diff;
 
@@ -2498,6 +2497,8 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
+		u8 *iebuf;
+		int buflen;
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
 		memcpy(pframe, cur_network->IEs, cur_network->IELength);
 		len_diff = update_hidden_ssid(pframe + _BEACON_IE_OFFSET_,
@@ -2507,13 +2508,17 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		pframe += (cur_network->IELength+len_diff);
 		pattrib->pktlen += (cur_network->IELength+len_diff);
 
-		wps_ie = rtw_get_wps_ie23a(pmgntframe->buf_addr + TXDESC_OFFSET+
-					   sizeof (struct ieee80211_hdr_3addr) +
-					   _BEACON_IE_OFFSET_, pattrib->pktlen -
-					   sizeof (struct ieee80211_hdr_3addr) -
-					   _BEACON_IE_OFFSET_, &wps_ielen);
-		if (wps_ie && wps_ielen > 0) {
-			rtw_get_wps_attr_content23a(wps_ie, wps_ielen,
+		iebuf = pmgntframe->buf_addr + TXDESC_OFFSET +
+			sizeof (struct ieee80211_hdr_3addr) +
+			_BEACON_IE_OFFSET_;
+		buflen = pattrib->pktlen - sizeof (struct ieee80211_hdr_3addr) -
+			_BEACON_IE_OFFSET_;
+		wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						 WLAN_OUI_TYPE_MICROSOFT_WPS,
+						 iebuf, buflen);
+
+		if (wps_ie && wps_ie[1] > 0) {
+			rtw_get_wps_attr_content23a(wps_ie, wps_ie[1],
 						    WPS_ATTR_SELECTED_REGISTRAR,
 						    (u8*)&sr, NULL);
 		}
@@ -2619,7 +2624,7 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	unsigned char *mac, *bssid;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 #ifdef CONFIG_8723AU_AP_MODE
-	u8 *pwps_ie;
+	const u8 *pwps_ie;
 	uint wps_ielen;
 	u8 *ssid_ie;
 	int ssid_ielen;
@@ -2673,16 +2678,19 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 
 #ifdef CONFIG_8723AU_AP_MODE
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
-		pwps_ie = rtw_get_wps_ie23a(cur_network->IEs +
-					    _FIXED_IE_LENGTH_,
-					    cur_network->IELength -
-					    _FIXED_IE_LENGTH_, &wps_ielen);
+		pwps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						  WLAN_OUI_TYPE_MICROSOFT_WPS,
+						  cur_network->IEs +
+						  _FIXED_IE_LENGTH_,
+						  cur_network->IELength -
+						  _FIXED_IE_LENGTH_);
 
 		/* inerset & update wps_probe_resp_ie */
-		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && wps_ielen > 0) {
+		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && pwps_ie[1] > 0) {
 			uint wps_offset, remainder_ielen;
-			u8 *premainder_ie;
+			const u8 *premainder_ie;
 
+			wps_ielen = pwps_ie[1];
 			wps_offset = (uint)(pwps_ie - cur_network->IEs);
 
 			premainder_ie = pwps_ie + wps_ielen;
