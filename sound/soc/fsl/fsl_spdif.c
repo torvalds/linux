@@ -1076,7 +1076,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				goto out;
 			} else if (arate / rate[index] == 1) {
 				/* A little bigger than expect */
-				sub = (arate - rate[index]) * 100000;
+				sub = (u64)(arate - rate[index]) * 100000;
 				do_div(sub, rate[index]);
 				if (sub >= savesub)
 					continue;
@@ -1086,7 +1086,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				spdif_priv->txrate[index] = arate;
 			} else if (rate[index] / arate == 1) {
 				/* A little smaller than expect */
-				sub = (rate[index] - arate) * 100000;
+				sub = (u64)(rate[index] - arate) * 100000;
 				do_div(sub, rate[index]);
 				if (sub >= savesub)
 					continue;
