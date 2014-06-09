@@ -742,10 +742,7 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 			pmlmepriv->to_join = false;
 			ret = rtw_select_and_join_from_scanned_queue23a(
 				pmlmepriv);
-			if (ret == 2) {/* there is no need to wait */
-				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
-				rtw_indicate_connect23a(adapter);
-			} else if (ret != _SUCCESS) {
+			if (ret != _SUCCESS) {
 				DBG_8723A("try_to_join, but select scanning "
 					  "queue fail, to_roaming:%d\n",
 					  adapter->mlmepriv.to_roaming);
