@@ -17,10 +17,6 @@
 
 #include <drv_types.h>
 
-int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
-				      struct cfg80211_ssid *pssid,
-				      int ssid_max_num);
-
 s32 FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 
 #endif

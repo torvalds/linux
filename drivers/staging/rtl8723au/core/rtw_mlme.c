@@ -1538,26 +1538,9 @@ void rtw_scan_timeout_handler23a(unsigned long data)
 	rtw_cfg80211_indicate_scan_done(wdev_to_priv(adapter->rtw_wdev), true);
 }
 
-static void rtw_auto_scan_handler(struct rtw_adapter *padapter)
-{
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	/* auto site survey per 60sec */
-	if (pmlmepriv->scan_interval > 0) {
-		pmlmepriv->scan_interval--;
-		if (pmlmepriv->scan_interval == 0) {
-			DBG_8723A("%s\n", __func__);
-			rtw_set_802_11_bssid23a_list_scan(padapter, NULL, 0);
-			/*  30*2 sec = 60sec */
-			pmlmepriv->scan_interval = SCAN_INTERVAL;
-		}
-	}
-}
-
 void rtw_dynamic_check_timer_handler(unsigned long data)
 {
 	struct rtw_adapter *adapter = (struct rtw_adapter *)data;
-	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (adapter->hw_init_completed == false)
 		goto out;
@@ -1571,10 +1554,6 @@ void rtw_dynamic_check_timer_handler(unsigned long data)
 
 	rtw_dynamic_chk_wk_cmd23a(adapter);
 
-	if (pregistrypriv->wifi_spec == 1) {
-		/* auto site survey */
-		rtw_auto_scan_handler(adapter);
-	}
 out:
 	mod_timer(&adapter->mlmepriv.dynamic_chk_timer,
 		  jiffies + msecs_to_jiffies(2000));
