@@ -88,6 +88,7 @@ xfs_attr_args_init(
 		return EINVAL;
 
 	memset(args, 0, sizeof(*args));
+	args->geo = dp->i_mount->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->dp = dp;
 	args->flags = flags;
@@ -173,12 +174,10 @@ xfs_attr_calc_size(
 	 * Determine space new attribute will use, and if it would be
 	 * "local" or "remote" (note: local != inline).
 	 */
-	size = xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
-					mp->m_sb.sb_blocksize, local);
-
+	size = xfs_attr_leaf_newentsize(args, local);
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	if (*local) {
-		if (size > (mp->m_sb.sb_blocksize >> 1)) {
+		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
 			nblks *= 2;
 		}
@@ -864,7 +863,7 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 }
 
 /*========================================================================
- * External routines when attribute list size > XFS_LBSIZE(mp).
+ * External routines when attribute list size > geo->blksize
  *========================================================================*/
 
 /*
@@ -897,8 +896,6 @@ restart:
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = mp;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name already exists, and get back a pointer
@@ -1076,8 +1073,6 @@ restart:
 		state = xfs_da_state_alloc();
 		state->args = args;
 		state->mp = mp;
-		state->blocksize = state->mp->m_sb.sb_blocksize;
-		state->node_ents = state->mp->m_attr_node_ents;
 		state->inleaf = 0;
 		error = xfs_da3_node_lookup_int(state, &retval);
 		if (error)
@@ -1168,8 +1163,6 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
@@ -1431,8 +1424,6 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
