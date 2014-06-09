@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -965,6 +965,13 @@ struct mbx_cmd_32 {
  */
 #define MBC_WRITE_MPI_REGISTER		0x01    /* Write MPI Register. */
 
+/*
+ * ISP8044 mailbox commands
+ */
+#define MBC_SET_GET_ETH_SERDES_REG	0x150
+#define HCS_WRITE_SERDES		0x3
+#define HCS_READ_SERDES			0x4
+
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 
@@ -1622,10 +1629,20 @@ typedef struct {
 #define PO_MODE_DIF_PASS	2
 #define PO_MODE_DIF_REPLACE	3
 #define PO_MODE_DIF_TCP_CKSUM	6
-#define PO_ENABLE_DIF_BUNDLING	BIT_8
 #define PO_ENABLE_INCR_GUARD_SEED	BIT_3
-#define PO_DISABLE_INCR_REF_TAG	BIT_5
 #define PO_DISABLE_GUARD_CHECK	BIT_4
+#define PO_DISABLE_INCR_REF_TAG	BIT_5
+#define PO_DIS_HEADER_MODE	BIT_7
+#define PO_ENABLE_DIF_BUNDLING	BIT_8
+#define PO_DIS_FRAME_MODE	BIT_9
+#define PO_DIS_VALD_APP_ESC	BIT_10 /* Dis validation for escape tag/ffffh */
+#define PO_DIS_VALD_APP_REF_ESC BIT_11
+
+#define PO_DIS_APP_TAG_REPL	BIT_12 /* disable REG Tag replacement */
+#define PO_DIS_REF_TAG_REPL	BIT_13
+#define PO_DIS_APP_TAG_VALD	BIT_14 /* disable REF Tag validation */
+#define PO_DIS_REF_TAG_VALD	BIT_15
+
 /*
  * ISP queue - 64-Bit addressing, continuation crc entry structure definition.
  */
@@ -1748,6 +1765,8 @@ typedef struct {
 #define CS_PORT_CONFIG_CHG	0x2A	/* Port Configuration Changed */
 #define CS_PORT_BUSY		0x2B	/* Port Busy */
 #define CS_COMPLETE_CHKCOND	0x30	/* Error? */
+#define CS_IOCB_ERROR		0x31	/* Generic error for IOCB request
+					   failure */
 #define CS_BAD_PAYLOAD		0x80	/* Driver defined */
 #define CS_UNKNOWN		0x81	/* Driver defined */
 #define CS_RETRY		0x82	/* Driver defined */
@@ -2676,6 +2695,7 @@ struct rsp_que {
 	uint32_t __iomem *rsp_q_out;
 	uint16_t  ring_index;
 	uint16_t  out_ptr;
+	uint16_t  *in_ptr;		/* queue shadow in index */
 	uint16_t  length;
 	uint16_t  options;
 	uint16_t  rid;
@@ -2702,6 +2722,7 @@ struct req_que {
 	uint32_t __iomem *req_q_out;
 	uint16_t  ring_index;
 	uint16_t  in_ptr;
+	uint16_t  *out_ptr;		/* queue shadow out index */
 	uint16_t  cnt;
 	uint16_t  length;
 	uint16_t  options;
@@ -2907,6 +2928,8 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP8031	0x8031
 #define PCI_DEVICE_ID_QLOGIC_ISP2031	0x2031
 #define PCI_DEVICE_ID_QLOGIC_ISP2071	0x2071
+#define PCI_DEVICE_ID_QLOGIC_ISP2271	0x2271
+
 	uint32_t	device_type;
 #define DT_ISP2100                      BIT_0
 #define DT_ISP2200                      BIT_1
@@ -2928,7 +2951,8 @@ struct qla_hw_data {
 #define DT_ISPFX00			BIT_17
 #define DT_ISP8044			BIT_18
 #define DT_ISP2071			BIT_19
-#define DT_ISP_LAST			(DT_ISP2071 << 1)
+#define DT_ISP2271			BIT_20
+#define DT_ISP_LAST			(DT_ISP2271 << 1)
 
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
@@ -2959,6 +2983,7 @@ struct qla_hw_data {
 #define IS_QLA8031(ha)	(DT_MASK(ha) & DT_ISP8031)
 #define IS_QLAFX00(ha)	(DT_MASK(ha) & DT_ISPFX00)
 #define IS_QLA2071(ha)	(DT_MASK(ha) & DT_ISP2071)
+#define IS_QLA2271(ha)	(DT_MASK(ha) & DT_ISP2271)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
@@ -2967,7 +2992,7 @@ struct qla_hw_data {
 #define IS_QLA25XX(ha)  (IS_QLA2532(ha))
 #define IS_QLA83XX(ha)	(IS_QLA2031(ha) || IS_QLA8031(ha))
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
-#define IS_QLA27XX(ha)  (IS_QLA2071(ha))
+#define IS_QLA27XX(ha)  (IS_QLA2071(ha) || IS_QLA2271(ha))
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
 #define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
@@ -3006,6 +3031,7 @@ struct qla_hw_data {
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
 #define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha))
 #define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
+#define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -3136,7 +3162,15 @@ struct qla_hw_data {
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
 	int		fw_dumped;
+	unsigned long	fw_dump_cap_flags;
+#define RISC_PAUSE_CMPL		0
+#define DMA_SHUTDOWN_CMPL	1
+#define ISP_RESET_CMPL		2
+#define RISC_RDY_AFT_RESET	3
+#define RISC_SRAM_DUMP_CMPL	4
+#define RISC_EXT_MEM_DUMP_CMPL	5
 	int		fw_dump_reading;
+	int		prev_minidump_failed;
 	dma_addr_t	eft_dma;
 	void		*eft;
 /* Current size of mctp dump is 0x086064 bytes */

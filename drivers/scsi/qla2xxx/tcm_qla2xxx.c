@@ -472,6 +472,11 @@ static int tcm_qla2xxx_write_pending(struct se_cmd *se_cmd)
 	cmd->sg_cnt = se_cmd->t_data_nents;
 	cmd->sg = se_cmd->t_data_sg;
 
+	cmd->prot_sg_cnt = se_cmd->t_prot_nents;
+	cmd->prot_sg = se_cmd->t_prot_sg;
+	cmd->blk_sz  = se_cmd->se_dev->dev_attrib.block_size;
+	se_cmd->pi_err = 0;
+
 	/*
 	 * qla_target.c:qlt_rdy_to_xfer() will call pci_map_sg() to setup
 	 * the SGL mappings into PCIe memory for incoming FCP WRITE data.
@@ -567,8 +572,13 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 			return;
 		}
 
-		transport_generic_request_failure(&cmd->se_cmd,
-						  TCM_CHECK_CONDITION_ABORT_CMD);
+		if (cmd->se_cmd.pi_err)
+			transport_generic_request_failure(&cmd->se_cmd,
+				cmd->se_cmd.pi_err);
+		else
+			transport_generic_request_failure(&cmd->se_cmd,
+				TCM_CHECK_CONDITION_ABORT_CMD);
+
 		return;
 	}
 
@@ -581,6 +591,27 @@ static void tcm_qla2xxx_handle_data_work(struct work_struct *work)
 static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 {
 	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
+}
+
+static void tcm_qla2xxx_handle_dif_work(struct work_struct *work)
+{
+	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
+
+	/* take an extra kref to prevent cmd free too early.
+	 * need to wait for SCSI status/check condition to
+	 * finish responding generate by transport_generic_request_failure.
+	 */
+	kref_get(&cmd->se_cmd.cmd_kref);
+	transport_generic_request_failure(&cmd->se_cmd, cmd->se_cmd.pi_err);
+}
+
+/*
+ * Called from qla_target.c:qlt_do_ctio_completion()
+ */
+static void tcm_qla2xxx_handle_dif_err(struct qla_tgt_cmd *cmd)
+{
+	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_dif_work);
 	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
@@ -609,6 +640,11 @@ static int tcm_qla2xxx_queue_data_in(struct se_cmd *se_cmd)
 	cmd->sg_cnt = se_cmd->t_data_nents;
 	cmd->sg = se_cmd->t_data_sg;
 	cmd->offset = 0;
+
+	cmd->prot_sg_cnt = se_cmd->t_prot_nents;
+	cmd->prot_sg = se_cmd->t_prot_sg;
+	cmd->blk_sz  = se_cmd->se_dev->dev_attrib.block_size;
+	se_cmd->pi_err = 0;
 
 	/*
 	 * Now queue completed DATA_IN the qla2xxx LLD and response ring
@@ -1600,6 +1636,7 @@ static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
 static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
 	.handle_cmd		= tcm_qla2xxx_handle_cmd,
 	.handle_data		= tcm_qla2xxx_handle_data,
+	.handle_dif_err		= tcm_qla2xxx_handle_dif_err,
 	.handle_tmr		= tcm_qla2xxx_handle_tmr,
 	.free_cmd		= tcm_qla2xxx_free_cmd,
 	.free_mcmd		= tcm_qla2xxx_free_mcmd,

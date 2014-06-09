@@ -155,6 +155,43 @@ void beiscsi_ue_detect(struct beiscsi_hba *phba)
 	}
 }
 
+int be_cmd_modify_eq_delay(struct beiscsi_hba *phba,
+		 struct be_set_eqd *set_eqd, int num)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_modify_eq_delay *req;
+	unsigned int tag = 0;
+	int i;
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_MODIFY_EQ_DELAY, sizeof(*req));
+
+	req->num_eq = cpu_to_le32(num);
+	for (i = 0; i < num; i++) {
+		req->delay[i].eq_id = cpu_to_le32(set_eqd[i].eq_id);
+		req->delay[i].phase = 0;
+		req->delay[i].delay_multiplier =
+				cpu_to_le32(set_eqd[i].delay_multiplier);
+	}
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+	return tag;
+}
+
 /**
  * mgmt_reopen_session()- Reopen a session based on reopen_type
  * @phba: Device priv structure instance
@@ -447,8 +484,8 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct be_dma_mem *nonemb_cmd)
 {
 	struct be_cmd_resp_hdr *resp;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct be_sge *mcc_sge = nonembedded_sgl(wrb);
+	struct be_mcc_wrb *wrb;
+	struct be_sge *mcc_sge;
 	unsigned int tag = 0;
 	struct iscsi_bsg_request *bsg_req = job->request;
 	struct be_bsg_vendor_cmd *req = nonemb_cmd->va;
@@ -465,7 +502,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 	req->sector = sector;
 	req->offset = offset;
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
 
 	switch (bsg_req->rqst_data.h_vendor.vendor_cmd[0]) {
 	case BEISCSI_WRITE_FLASH:
@@ -495,6 +531,8 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 		return tag;
 	}
 
+	wrb = wrb_from_mccq(phba);
+	mcc_sge = nonembedded_sgl(wrb);
 	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false,
 			   job->request_payload.sg_cnt);
 	mcc_sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
@@ -525,7 +563,6 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short ulp_num)
 	int status = 0;
 
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -675,7 +712,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	struct sockaddr_in6 *daddr_in6 = (struct sockaddr_in6 *)dst_addr;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
-	struct tcp_connect_and_offload_in *req;
+	struct tcp_connect_and_offload_in_v1 *req;
 	unsigned short def_hdr_id;
 	unsigned short def_data_id;
 	struct phys_addr template_address = { 0, 0 };
@@ -702,17 +739,16 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		return tag;
 	}
 	wrb = wrb_from_mccq(phba);
-	memset(wrb, 0, sizeof(*wrb));
 	sge = nonembedded_sgl(wrb);
 
 	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
 	wrb->tag0 |= tag;
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
+	be_wrb_hdr_prepare(wrb, nonemb_cmd->size, false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_TCP_CONNECT_AND_OFFLOAD,
-			   sizeof(*req));
+			   nonemb_cmd->size);
 	if (dst_addr->sa_family == PF_INET) {
 		__be32 s_addr = daddr_in->sin_addr.s_addr;
 		req->ip_address.ip_type = BE2_IPV4;
@@ -758,6 +794,13 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
 	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	if (!is_chip_be2_be3r(phba)) {
+		req->hdr.version = MBX_CMD_VER1;
+		req->tcp_window_size = 0;
+		req->tcp_window_scale_count = 2;
+	}
+
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 	return tag;
@@ -804,7 +847,7 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 				int resp_buf_len)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
+	struct be_mcc_wrb *wrb;
 	struct be_sge *sge;
 	unsigned int tag;
 	int rc = 0;
@@ -816,7 +859,8 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 		rc = -ENOMEM;
 		goto free_cmd;
 	}
-	memset(wrb, 0, sizeof(*wrb));
+
+	wrb = wrb_from_mccq(phba);
 	wrb->tag0 |= tag;
 	sge = nonembedded_sgl(wrb);
 

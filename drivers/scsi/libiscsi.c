@@ -1442,9 +1442,9 @@ static int iscsi_xmit_task(struct iscsi_conn *conn)
 		conn->task = NULL;
 	}
 	/* regular RX path uses back_lock */
-	spin_lock_bh(&conn->session->back_lock);
+	spin_lock(&conn->session->back_lock);
 	__iscsi_put_task(task);
-	spin_unlock_bh(&conn->session->back_lock);
+	spin_unlock(&conn->session->back_lock);
 	return rc;
 }
 

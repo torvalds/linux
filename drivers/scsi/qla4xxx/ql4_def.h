@@ -601,6 +601,7 @@ struct scsi_qla_host {
 #define DPC_HA_NEED_QUIESCENT		22 /* 0x00400000 ISP-82xx only*/
 #define DPC_POST_IDC_ACK		23 /* 0x00800000 */
 #define DPC_RESTORE_ACB			24 /* 0x01000000 */
+#define DPC_SYSFS_DDB_EXPORT		25 /* 0x02000000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;

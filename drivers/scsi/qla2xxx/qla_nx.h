@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2013 QLogic Corporation
+ * Copyright (c)  2003-2014 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -332,9 +332,6 @@
 #define ROMUSB_ROM				(QLA82XX_CRB_ROMUSB + 0x10000)
 #define QLA82XX_ROMUSB_ROM_INSTR_OPCODE		(ROMUSB_ROM + 0x0004)
 #define QLA82XX_ROMUSB_GLB_CAS_RST		(ROMUSB_GLB + 0x0038)
-
-/* Lock IDs for ROM lock */
-#define ROM_LOCK_DRIVER       0x0d417340
 
 #define QLA82XX_PCI_CRB_WINDOWSIZE 0x00100000	 /* all are 1MB windows */
 #define QLA82XX_PCI_CRB_WINDOW(A) \
@@ -1186,6 +1183,7 @@ static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8, 0x410000AC,
 #define CRB_NIU_XG_PAUSE_CTL_P1        0x8
 
 #define qla82xx_get_temp_val(x)          ((x) >> 16)
+#define qla82xx_get_temp_val1(x)          ((x) && 0x0000FFFF)
 #define qla82xx_get_temp_state(x)        ((x) & 0xffff)
 #define qla82xx_encode_temp(val, state)  (((val) << 16) | (state))
 
