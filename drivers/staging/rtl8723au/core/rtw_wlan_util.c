@@ -886,9 +886,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
 	struct ieee80211_ht_operation *pht_info;
 	unsigned short val16;
-	u8 encryp_protocol;
+	u8 crypto, bcn_channel;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
-	u32 bcn_channel;
 	int pie_len, ie_offset, ssid_len, privacy;
 	const u8 *p, *ssid;
 
@@ -984,29 +983,23 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	p = cfg80211_find_ie(WLAN_EID_RSN, mgmt->u.beacon.variable, pie_len);
 	if (p && p[1]) {
-		encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	} else if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
-					   WLAN_OUI_TYPE_MICROSOFT_WPA,
-					   mgmt->u.beacon.variable, pie_len)) {
-		encryp_protocol = ENCRYP_PROTOCOL_WPA;
+		crypto = ENCRYP_PROTOCOL_WPA2;
+		if (p && p[1]) {
+			r = rtw_parse_wpa2_ie23a(p, p[1] + 2, &group_cipher,
+						 &pairwise_cipher, &is_8021x);
+			if (r == _SUCCESS)
+				RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
+					 ("%s pnetwork->pairwise_cipher: %d, "
+					  "pnetwork->group_cipher: %d, is_802x "
+					  ": %d\n", __func__, pairwise_cipher,
+					  group_cipher, is_8021x));
+			}
 	} else {
-		if (privacy)
-			encryp_protocol = ENCRYP_PROTOCOL_WEP;
-		else
-			encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
-	}
-
-	if (cur_network->BcnInfo.encryp_protocol != encryp_protocol) {
-		DBG_8723A("%s(): enctyp is not match, return FAIL\n", __func__);
-		goto _mismatch;
-	}
-
-	if (encryp_protocol == ENCRYP_PROTOCOL_WPA ||
-	    encryp_protocol == ENCRYP_PROTOCOL_WPA2) {
 		p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WPA,
 					    mgmt->u.beacon.variable, pie_len);
-		if (p && p[1] > 0) {
+		if (p && p[1]) {
+			crypto = ENCRYP_PROTOCOL_WPA;
 			r = rtw_parse_wpa_ie23a(p, p[1] + 2, &group_cipher,
 						&pairwise_cipher, &is_8021x);
 			if (r == _SUCCESS)
@@ -1016,25 +1009,19 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 					  "%d\n", __func__, pairwise_cipher,
 					  group_cipher, is_8021x));
 		} else {
-			p = cfg80211_find_ie(WLAN_EID_RSN,
-					     mgmt->u.beacon.variable, pie_len);
-
-			if (p && p[1] > 0) {
-				r = rtw_parse_wpa2_ie23a(p, p[1] + 2,
-							 &group_cipher,
-							 &pairwise_cipher,
-							 &is_8021x);
-				if (r == _SUCCESS)
-					RT_TRACE(_module_rtl871x_mlme_c_,
-						 _drv_info_,
-						 ("%s pnetwork->pairwise_cipher"
-						  ": %d, pnetwork->group_cipher"
-						  " is %d, is_802x is %d\n",
-						  __func__, pairwise_cipher,
-						  group_cipher, is_8021x));
-			}
+			if (privacy)
+				crypto = ENCRYP_PROTOCOL_WEP;
+			else
+				crypto = ENCRYP_PROTOCOL_OPENSYS;
 		}
+	}
 
+	if (cur_network->BcnInfo.encryp_protocol != crypto) {
+		DBG_8723A("%s(): encryption mismatch, return FAIL\n", __func__);
+		goto _mismatch;
+	}
+
+	if (crypto == ENCRYP_PROTOCOL_WPA || crypto == ENCRYP_PROTOCOL_WPA2) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 			 ("%s cur_network->group_cipher is %d: %d\n", __func__,
 			  cur_network->BcnInfo.group_cipher, group_cipher));
