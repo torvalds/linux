@@ -4335,8 +4335,6 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	memcpy(bssid->Ssid.ssid, p + 2, p[1]);
 	bssid->Ssid.ssid_len = p[1];
 
-	memset(bssid->SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
-
 	/* checking rate info... */
 	i = 0;
 	p = cfg80211_find_ie(WLAN_EID_SUPP_RATES, bssid->IEs + ie_offset,
