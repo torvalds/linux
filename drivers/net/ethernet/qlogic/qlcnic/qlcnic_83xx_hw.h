@@ -418,7 +418,6 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_GET_FUNC_MODE_FROM_NPAR_INFO(val)	(val & 0x80000000)
 #define QLC_83XX_GET_LRO_CAPABILITY(val)		(val & 0x20)
 #define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
-#define QLC_83XX_GET_LSO_CAPABILITY(val)		(val & 0x40)
 #define QLC_83XX_GET_HW_LRO_CAPABILITY(val)		(val & 0x400)
 #define QLC_83XX_GET_VLAN_ALIGN_CAPABILITY(val)	(val & 0x4000)
 #define QLC_83XX_GET_FW_LRO_MSS_CAPABILITY(val)	(val & 0x20000)
