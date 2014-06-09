@@ -17,8 +17,6 @@
 
 #include <drv_types.h>
 
-int rtw_set_802_11_authentication_mode23a(struct rtw_adapter *pdapter,
-					  enum ndis_802_11_auth_mode authmode);
 int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 				      struct cfg80211_ssid *pssid,
 				      int ssid_max_num);

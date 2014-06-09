@@ -1987,7 +1987,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	int ret = 0;
 	struct list_head *phead, *plist, *ptmp;
 	struct wlan_network *pnetwork = NULL;
-	enum ndis_802_11_auth_mode authmode;
 	struct cfg80211_ssid ndis_ssid;
 	u8 *dst_ssid;
 	u8 *src_ssid;
@@ -2198,8 +2197,13 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 	}
 
-	authmode = psecuritypriv->ndisauthtype;
-	rtw_set_802_11_authentication_mode23a(padapter, authmode);
+	if (psecuritypriv->ndisauthtype > 3)
+		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_8021X;
+
+	if (rtw_set_auth23a(padapter, psecuritypriv) != _SUCCESS) {
+		ret = -EBUSY;
+		goto exit;
+	}
 
 	/* rtw_set_802_11_encryption_mode(padapter,
 	   padapter->securitypriv.ndisencryptstatus); */

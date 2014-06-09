@@ -343,30 +343,6 @@ exit:
 	return res;
 }
 
-int rtw_set_802_11_authentication_mode23a(struct rtw_adapter* padapter,
-					  enum ndis_802_11_auth_mode authmode)
-{
-	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	int res;
-
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("set_802_11_auth.mode(): mode =%x\n", authmode));
-
-	psecuritypriv->ndisauthtype = authmode;
-
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("rtw_set_802_11_authentication_mode23a:"
-		  "psecuritypriv->ndisauthtype =%d",
-		  psecuritypriv->ndisauthtype));
-
-	if (psecuritypriv->ndisauthtype > 3)
-		psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_8021X;
-
-	res = rtw_set_auth23a(padapter, psecuritypriv);
-
-	return res;
-}
-
 /*
 * rtw_get_cur_max_rate23a -
 * @adapter: pointer to _adapter structure
