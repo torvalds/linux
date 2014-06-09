@@ -3892,17 +3892,15 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 			const unsigned char *raddr,
 			unsigned char action, unsigned short status)
 {
-	u8 category = WLAN_CATEGORY_BACK;
 	u16 start_seq;
 	u16 BA_para_set;
-	u16 reason_code;
 	u16 BA_timeout_value;
 	u16 BA_starting_seqctrl;
+	u16 BA_para;
 	int max_rx_ampdu_factor;
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
-	u8 *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -3911,8 +3909,7 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	u8 tendaAPMac[] = {0xC8, 0x3A, 0x35};
 
-	DBG_8723A("%s, category =%d, action =%d, status =%d\n",
-		  __func__, category, action, status);
+	DBG_8723A("%s, action =%d, status =%d\n", __func__, action, status);
 
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
@@ -3924,40 +3921,36 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)(pmgntframe->buf_addr + TXDESC_OFFSET);
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_ACTION);
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ACTION);
 
-	/* memcpy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network), ETH_ALEN); */
-	ether_addr_copy(pwlanhdr->addr1, raddr);
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->da, raddr);
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(&pmlmeinfo->network));
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
+	mgmt->u.action.category = WLAN_CATEGORY_BACK;
 
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &category, &pattrib->pktlen);
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &action, &pattrib->pktlen);
+	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr) + 1;
 
 	status = cpu_to_le16(status);
 
-	if (category != 3)
-		goto out;
+	switch (action) {
+	case WLAN_ACTION_ADDBA_REQ:
+		pattrib->pktlen += sizeof(mgmt->u.action.u.addba_req);
 
-	switch (action)
-	{
-	case 0: /* ADDBA req */
+		mgmt->u.action.u.addba_req.action_code = action;
+
 		do {
 			pmlmeinfo->dialogToken++;
 		} while (pmlmeinfo->dialogToken == 0);
-		pframe = rtw_set_fixed_ie23a(pframe, 1, &pmlmeinfo->dialogToken,
-					     &pattrib->pktlen);
+
+		mgmt->u.action.u.addba_req.dialog_token =
+			pmlmeinfo->dialogToken;
 
 		if (rtl8723a_BT_coexist(padapter) &&
 		    rtl8723a_BT_using_antenna_1(padapter) &&
@@ -3978,51 +3971,60 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 			/* immediate ack & 64 buffer size */
 			BA_para_set = (0x1002 | ((status & 0xf) << 2));
 		}
-		BA_para_set = cpu_to_le16(BA_para_set);
-		pframe = rtw_set_fixed_ie23a(pframe, 2,
-					     (unsigned char *)&BA_para_set,
-					     &pattrib->pktlen);
+
+		put_unaligned_le16(BA_para_set,
+				   &mgmt->u.action.u.addba_req.capab);
 
 		BA_timeout_value = 5000;/*  5ms */
 		BA_timeout_value = cpu_to_le16(BA_timeout_value);
-		pframe = rtw_set_fixed_ie23a(pframe, 2, (unsigned char *)
-					     &BA_timeout_value,
-					     &pattrib->pktlen);
+		put_unaligned_le16(BA_timeout_value,
+				   &mgmt->u.action.u.addba_req.timeout);
 
-		/* if ((psta = rtw_get_stainfo23a(pstapriv,
-		   pmlmeinfo->network.MacAddress)) != NULL) */
-		if ((psta = rtw_get_stainfo23a(pstapriv, raddr))) {
-			start_seq = (psta->sta_xmitpriv.txseq_tid[status & 0x07]&0xfff) + 1;
+		psta = rtw_get_stainfo23a(pstapriv, raddr);
+		if (psta) {
+			int idx;
+
+			idx = status & 0x07;
+			start_seq =
+				(psta->sta_xmitpriv.txseq_tid[idx] & 0xfff) + 1;
 
 			DBG_8723A("BA_starting_seqctrl = %d for TID =%d\n",
-				  start_seq, status & 0x07);
+				  start_seq, idx);
 
-			psta->BA_starting_seqctrl[status & 0x07] = start_seq;
+			psta->BA_starting_seqctrl[idx] = start_seq;
 
 			BA_starting_seqctrl = start_seq << 4;
-		}
+		} else
+			BA_starting_seqctrl = 0;
 
-		BA_starting_seqctrl = cpu_to_le16(BA_starting_seqctrl);
-		pframe = rtw_set_fixed_ie23a(pframe, 2, (unsigned char *)&BA_starting_seqctrl, &pattrib->pktlen);
+		put_unaligned_le16(BA_starting_seqctrl,
+				   &mgmt->u.action.u.addba_req.start_seq_num);
+
 		break;
 
-	case 1: /* ADDBA rsp */
-		pframe = rtw_set_fixed_ie23a(pframe, 1, &pmlmeinfo->ADDBA_req.dialog_token, &pattrib->pktlen);
-		pframe = rtw_set_fixed_ie23a(pframe, 2,
-					     (unsigned char *)&status,
-					     &pattrib->pktlen);
+	case WLAN_ACTION_ADDBA_RESP:
+		pattrib->pktlen += sizeof(mgmt->u.action.u.addba_resp);
+
+		mgmt->u.action.u.addba_resp.action_code = action;
+		mgmt->u.action.u.addba_resp.dialog_token =
+			pmlmeinfo->ADDBA_req.dialog_token;
+		put_unaligned_le16(status,
+				   &mgmt->u.action.u.addba_resp.status);
+
 		GetHalDefVar8192CUsb(padapter, HW_VAR_MAX_RX_AMPDU_FACTOR,
 				     &max_rx_ampdu_factor);
+
+		BA_para = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
 		if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_64K)
-			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
+			BA_para_set = BA_para | 0x1000; /* 64 buffer size */
 		else if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_32K)
-			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0800); /* 32 buffer size */
+			BA_para_set = BA_para | 0x0800; /* 32 buffer size */
 		else if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_16K)
-			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0400); /* 16 buffer size */
+			BA_para_set = BA_para | 0x0400; /* 16 buffer size */
 		else if (max_rx_ampdu_factor == IEEE80211_HT_MAX_AMPDU_8K)
-			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x0200); /* 8 buffer size */
+			BA_para_set = BA_para | 0x0200; /* 8 buffer size */
 		else
-			BA_para_set = ((le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f) | 0x1000); /* 64 buffer size */
+			BA_para_set = BA_para | 0x1000; /* 64 buffer size */
 
 		if (rtl8723a_BT_coexist(padapter) &&
 		    rtl8723a_BT_using_antenna_1(padapter) &&
@@ -4035,36 +4037,33 @@ void issue_action_BA23a(struct rtw_adapter *padapter,
 		}
 
 		if (pregpriv->ampdu_amsdu == 0)/* disabled */
-			BA_para_set = cpu_to_le16(BA_para_set & ~BIT(0));
+			BA_para_set &= ~BIT(0);
 		else if (pregpriv->ampdu_amsdu == 1)/* enabled */
-			BA_para_set = cpu_to_le16(BA_para_set | BIT(0));
-		else /* auto */
-			BA_para_set = cpu_to_le16(BA_para_set);
+			BA_para_set |= BIT(0);
 
-		pframe = rtw_set_fixed_ie23a(pframe, 2,
-					     (unsigned char *)&BA_para_set,
-					     &pattrib->pktlen);
-		pframe = rtw_set_fixed_ie23a(pframe, 2, (unsigned char *)&pmlmeinfo->ADDBA_req.BA_timeout_value, &pattrib->pktlen);
+		put_unaligned_le16(BA_para_set,
+				   &mgmt->u.action.u.addba_resp.capab);
+
+		put_unaligned_le16(pmlmeinfo->ADDBA_req.BA_timeout_value,
+				   &mgmt->u.action.u.addba_resp.timeout);
+
+		pattrib->pktlen += 8;
 		break;
-	case 2:/* DELBA */
-		BA_para_set = (status & 0x1F) << 3;
-		BA_para_set = cpu_to_le16(BA_para_set);
-		pframe = rtw_set_fixed_ie23a(pframe, 2,
-					     (unsigned char *)&BA_para_set,
-					     &pattrib->pktlen);
+	case WLAN_ACTION_DELBA:
+		pattrib->pktlen += sizeof(mgmt->u.action.u.delba);
 
-		reason_code = 37;/* Requested from peer STA as it does not
-				    want to use the mechanism */
-		reason_code = cpu_to_le16(reason_code);
-		pframe = rtw_set_fixed_ie23a(pframe, 2,
-					     (unsigned char *)&reason_code,
-					     &pattrib->pktlen);
+		mgmt->u.action.u.delba.action_code = action;
+		BA_para_set = (status & 0x1F) << 3;
+		mgmt->u.action.u.delba.params = cpu_to_le16(BA_para_set);
+		mgmt->u.action.u.delba.reason_code =
+			cpu_to_le16(WLAN_REASON_QSTA_NOT_USE);
+
+		pattrib->pktlen += 5;
 		break;
 	default:
 		break;
 	}
 
-out:
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe23a(padapter, pmgntframe);
