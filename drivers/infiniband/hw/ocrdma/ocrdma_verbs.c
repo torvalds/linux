@@ -2846,11 +2846,9 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 	if (cq->first_arm) {
 		ocrdma_ring_cq_db(dev, cq_id, arm_needed, sol_needed, 0);
 		cq->first_arm = false;
-		goto skip_defer;
 	}
-	cq->deferred_arm = true;
 
-skip_defer:
+	cq->deferred_arm = true;
 	cq->deferred_sol = sol_needed;
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
