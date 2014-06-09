@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/pci.h>
+#include <linux/irqdomain.h>
 
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
@@ -112,10 +113,17 @@ static void __init MP_bus_info(struct mpc_bus *m)
 		pr_warn("Unknown bustype %s - ignoring\n", str);
 }
 
+static struct irq_domain_ops mp_ioapic_irqdomain_ops;
+
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {
+	struct ioapic_domain_cfg cfg = {
+		.type = IOAPIC_DOMAIN_LEGACY,
+		.ops = &mp_ioapic_irqdomain_ops,
+	};
+
 	if (m->flags & MPC_APIC_USABLE)
-		mp_register_ioapic(m->apicid, m->apicaddr, gsi_top, NULL);
+		mp_register_ioapic(m->apicid, m->apicaddr, gsi_top, &cfg);
 }
 
 static void __init print_mp_irq_info(struct mpc_intsrc *mp_irq)
