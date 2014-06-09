@@ -1087,7 +1087,7 @@ auth_fail:
 	pstat = &stat;
 	memset((char *)pstat, '\0', sizeof(stat));
 	pstat->auth_seq = 2;
-	memcpy(pstat->hwaddr, sa, 6);
+	ether_addr_copy(pstat->hwaddr, sa);
 
 	issue_auth(padapter, pstat, (unsigned short)status);
 
