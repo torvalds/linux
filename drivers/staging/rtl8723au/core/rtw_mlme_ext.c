@@ -4177,11 +4177,10 @@ out:
 static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 {
 	struct list_head *plist, *phead, *ptmp;
-	unsigned char category, action;
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	u8 *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	struct wlan_network *pnetwork;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -4201,9 +4200,6 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 
 	DBG_8723A("%s\n", __func__);
 
-	category = WLAN_CATEGORY_PUBLIC;
-	action = ACT_PUBLIC_BSSCOEXIST;
-
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe)
 		return;
@@ -4215,24 +4211,29 @@ static void issue_action_BSSCoexistPacket(struct rtw_adapter *padapter)
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_ACTION);
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ACTION);
 
-	ether_addr_copy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network));
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->da, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(&pmlmeinfo->network));
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
+	mgmt->u.action.category = WLAN_CATEGORY_PUBLIC;
+	/*
+	 * This is cheating, but as there is currently no coexist_action
+	 * defined in struct struct ieee80211_mgmt, abuse chan_switch
+	 * for now, since it matches.
+	 */
+	mgmt->u.action.u.chan_switch.action_code = ACT_PUBLIC_BSSCOEXIST;
 
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &category, &pattrib->pktlen);
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &action, &pattrib->pktlen);
+	pframe = mgmt->u.action.u.chan_switch.variable;
+	pattrib->pktlen = offsetof(struct ieee80211_mgmt,
+				   u.action.u.chan_switch.variable);
 
 	if (pmlmepriv->num_FortyMHzIntolerant > 0) {
 		u8 iedata = BIT(2);/* 20 MHz BSS Width Request */
