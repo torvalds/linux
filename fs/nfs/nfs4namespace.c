@@ -399,8 +399,11 @@ struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
 		flavor = client->cl_auth->au_flavor;
 	else {
 		rpc_authflavor_t new = nfs4_negotiate_security(dir, name);
-		if ((int)new >= 0)
-			flavor = new;
+		if ((int)new < 0) {
+			mnt = ERR_PTR((int)new);
+			goto out;
+		}
+		flavor = new;
 	}
 	mnt = nfs_do_submount(dentry, fh, fattr, flavor);
 out:
