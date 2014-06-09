@@ -4898,14 +4898,19 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
 
 	psurvey_evt = (struct survey_event*)(pevtcmd + sizeof(struct C2HEvent_Header));
+	psurvey_evt->bss = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+	if (!psurvey_evt->bss) {
+		kfree(pcmd_obj);
+		kfree(pevtcmd);
+	}
 
-	if (collect_bss_info23a(padapter, precv_frame, &psurvey_evt->bss) == _FAIL) {
+	if (collect_bss_info23a(padapter, precv_frame, psurvey_evt->bss) == _FAIL) {
 		kfree(pcmd_obj);
 		kfree(pevtcmd);
 		return;
 	}
 
-	process_80211d(padapter, &psurvey_evt->bss);
+	process_80211d(padapter, psurvey_evt->bss);
 
 	rtw_enqueue_cmd23a(pcmdpriv, pcmd_obj);
 

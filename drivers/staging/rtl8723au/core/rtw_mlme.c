@@ -640,7 +640,7 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct survey_event *survey = (struct survey_event *)pbuf;
 
-	pnetwork = &survey->bss;
+	pnetwork = survey->bss;
 
 	RT_TRACE(_module_rtl871x_mlme_c_,_drv_info_,
 		 ("rtw_survey_event_cb23a, ssid=%s\n", pnetwork->Ssid.ssid));
@@ -690,6 +690,9 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 exit:
 
 	spin_unlock_bh(&pmlmepriv->lock);
+
+	kfree(survey->bss);
+	survey->bss = NULL;
 
 	return;
 }
