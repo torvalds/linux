@@ -669,7 +669,7 @@ xfs_readdir(
 	struct dir_context	*ctx,
 	size_t			bufsize)
 {
-	struct xfs_da_args	args = {0};
+	struct xfs_da_args	args = { NULL };
 	int			rval;
 	int			v;
 	uint			lock_mode;
