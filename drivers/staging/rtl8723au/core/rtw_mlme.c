@@ -1151,8 +1151,6 @@ void rtw_joinbss_event_prehandle23a(struct rtw_adapter *adapter, u8 *pbuf)
 		 ("joinbss event call back received with res=%d\n",
 		  pnetwork->join_res));
 
-	rtw_get_encrypt_decrypt_from_registrypriv23a(adapter);
-
 	if (pmlmepriv->assoc_ssid.ssid_len == 0) {
 		RT_TRACE(_module_rtl871x_mlme_c_,_drv_err_,
 			 ("@@@@@   joinbss event call back  for Any SSid\n"));
@@ -2153,11 +2151,6 @@ void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	/* notes: translate IELength & Length after assign the
 	   Length to cmdsz in createbss_cmd(); */
 	/* pdev_network->IELength = cpu_to_le32(sz); */
-}
-
-void rtw_get_encrypt_decrypt_from_registrypriv23a(struct rtw_adapter* adapter)
-{
-
 }
 
 /* the fucntion is at passive_level */

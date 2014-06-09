@@ -331,8 +331,6 @@ void rtw_init_registrypriv_dev_network23a(struct rtw_adapter *adapter);
 
 void rtw_update_registrypriv_dev_network23a(struct rtw_adapter *adapter);
 
-void rtw_get_encrypt_decrypt_from_registrypriv23a(struct rtw_adapter *adapter);
-
 void rtw_scan_timeout_handler23a(unsigned long data);
 
 void rtw_dynamic_check_timer_handler(unsigned long data);
