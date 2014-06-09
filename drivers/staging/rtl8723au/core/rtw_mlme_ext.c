@@ -3182,7 +3182,7 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 			   struct sta_info *pstat, u16 pkt_type)
 {
 	struct xmit_frame *pmgntframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	unsigned short val;
@@ -3207,37 +3207,30 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | pkt_type);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | pkt_type);
 
-	ether_addr_copy(pwlanhdr->addr1, pstat->hwaddr);
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->da, pstat->hwaddr);
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(&pmlmeinfo->network));
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 
 	pmlmeext->mgnt_seq++;
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen += pattrib->hdrlen;
-	pframe += pattrib->hdrlen;
+	pattrib->pktlen =
+		offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
 
 	/* capability */
 	val = *(unsigned short *)rtw_get_capability23a_from_ie(ie);
 
-	pframe = rtw_set_fixed_ie23a(pframe, _CAPABILITY_,
-				     (unsigned char *)&val, &pattrib->pktlen);
+	mgmt->u.assoc_resp.capab_info = val;
+	mgmt->u.assoc_resp.status_code = cpu_to_le16(status);
+	mgmt->u.assoc_resp.aid = cpu_to_le16(pstat->aid | BIT(14) | BIT(15));
 
-	status = cpu_to_le16(status);
-	pframe = rtw_set_fixed_ie23a(pframe, _STATUS_CODE_,
-				     (unsigned char *)&status,
-				     &pattrib->pktlen);
-
-	val = cpu_to_le16(pstat->aid | BIT(14) | BIT(15));
-	pframe = rtw_set_fixed_ie23a(pframe, _ASOC_ID_, (unsigned char *)&val,
-				     &pattrib->pktlen);
+	pframe = mgmt->u.assoc_resp.variable;
 
 	if (pstat->bssratelen <= 8) {
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_SUPP_RATES,
