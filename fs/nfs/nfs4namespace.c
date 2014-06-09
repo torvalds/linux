@@ -140,10 +140,11 @@ static size_t nfs_parse_server_name(char *string, size_t len,
  * @flavors: List of security tuples returned by SECINFO procedure
  *
  * Return the pseudoflavor of the first security mechanism in
- * "flavors" that is locally supported.  Return RPC_AUTH_UNIX if
- * no matching flavor is found in the array.  The "flavors" array
+ * "flavors" that is locally supported. The "flavors" array
  * is searched in the order returned from the server, per RFC 3530
  * recommendation.
+ *
+ * Return -EPERM if no matching flavor is found in the array.
  */
 static rpc_authflavor_t nfs_find_best_sec(struct nfs_server *server,
 					  struct nfs4_secinfo_flavors *flavors)
@@ -170,11 +171,7 @@ static rpc_authflavor_t nfs_find_best_sec(struct nfs_server *server,
 		}
 	}
 
-	/* if there were any sec= options then nothing matched */
-	if (server->auth_info.flavor_len > 0)
-		return -EPERM;
-
-	return RPC_AUTH_UNIX;
+	return -EPERM;
 }
 
 static rpc_authflavor_t nfs4_negotiate_security(struct inode *inode, struct qstr *name)
