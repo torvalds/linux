@@ -172,6 +172,7 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 	pci_dev_put(amd_smbus_dev);
 	amd_smbus_dev = NULL;
 
+	ohci->flags |= OHCI_QUIRK_GLOBAL_SUSPEND;
 	return 0;
 }
 
