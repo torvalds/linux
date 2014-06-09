@@ -100,10 +100,6 @@ u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter)
 	u8 bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
 	u16 mcs_rate = 0;
 
-	if (!check_fwstate(pmlmepriv, _FW_LINKED) &&
-	    !check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE))
-		return 0;
-
 	if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N|WIRELESS_11_5N)) {
 		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
 				     &pcur_bss->IEs[12],
