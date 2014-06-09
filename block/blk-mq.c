@@ -411,16 +411,7 @@ static void blk_mq_start_request(struct request *rq, bool last)
 	if (unlikely(blk_bidi_rq(rq)))
 		rq->next_rq->resid_len = blk_rq_bytes(rq->next_rq);
 
-	/*
-	 * Just mark start time and set the started bit. Due to memory
-	 * ordering, we know we'll see the correct deadline as long as
-	 * REQ_ATOMIC_STARTED is seen. Use the default queue timeout,
-	 * unless one has been set in the request.
-	 */
-	if (!rq->timeout)
-		rq->deadline = jiffies + q->rq_timeout;
-	else
-		rq->deadline = jiffies + rq->timeout;
+	blk_add_timer(rq);
 
 	/*
 	 * Mark us as started and clear complete. Complete might have been
@@ -972,11 +963,6 @@ static void __blk_mq_insert_request(struct blk_mq_hw_ctx *hctx,
 		list_add_tail(&rq->queuelist, &ctx->rq_list);
 
 	blk_mq_hctx_mark_pending(hctx, ctx);
-
-	/*
-	 * We do this early, to ensure we are on the right CPU.
-	 */
-	blk_add_timer(rq);
 }
 
 void blk_mq_insert_request(struct request *rq, bool at_head, bool run_queue,
@@ -1219,7 +1205,6 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		blk_mq_bio_to_request(rq, bio);
 		blk_mq_start_request(rq, true);
-		blk_add_timer(rq);
 
 		/*
 		 * For OK queue, we are done. For error, kill it. Any other
