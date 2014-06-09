@@ -930,11 +930,6 @@ static int st_pmx_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	return 0;
 }
 
-static void st_pmx_disable(struct pinctrl_dev *pctldev, unsigned selector,
-		unsigned group)
-{
-}
-
 static int st_pmx_set_gpio_direction(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range, unsigned gpio,
 			bool input)
@@ -957,7 +952,6 @@ static struct pinmux_ops st_pmxops = {
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
 	.enable			= st_pmx_enable,
-	.disable		= st_pmx_disable,
 	.gpio_set_direction	= st_pmx_set_gpio_direction,
 };
 

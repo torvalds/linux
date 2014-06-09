@@ -333,13 +333,6 @@ static int samsung_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-/* disable a specified pinmux by writing to registers */
-static void samsung_pinmux_disable(struct pinctrl_dev *pctldev,
-					unsigned selector, unsigned group)
-{
-	samsung_pinmux_setup(pctldev, selector, group, false);
-}
-
 /*
  * The calls to gpio_direction_output() and gpio_direction_input()
  * leads to this function call (via the pinctrl_gpio_direction_{input|output}()
@@ -390,7 +383,6 @@ static const struct pinmux_ops samsung_pinmux_ops = {
 	.get_function_name	= samsung_pinmux_get_fname,
 	.get_function_groups	= samsung_pinmux_get_groups,
 	.enable			= samsung_pinmux_enable,
-	.disable		= samsung_pinmux_disable,
 	.gpio_set_direction	= samsung_pinmux_gpio_set_direction,
 };
 

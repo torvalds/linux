@@ -1765,21 +1765,6 @@ out_glitch:
 	return ret;
 }
 
-static void nmk_pmx_disable(struct pinctrl_dev *pctldev,
-			    unsigned function, unsigned group)
-{
-	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
-	const struct nmk_pingroup *g;
-
-	g = &npct->soc->groups[group];
-
-	if (g->altsetting < 0)
-		return;
-
-	/* Poke out the mux, set the pin to some default state? */
-	dev_dbg(npct->dev, "disable group %s, %u pins\n", g->name, g->npins);
-}
-
 static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
 				   unsigned offset)
@@ -1826,7 +1811,6 @@ static const struct pinmux_ops nmk_pinmux_ops = {
 	.get_function_name = nmk_pmx_get_func_name,
 	.get_function_groups = nmk_pmx_get_func_groups,
 	.enable = nmk_pmx_enable,
-	.disable = nmk_pmx_disable,
 	.gpio_request_enable = nmk_gpio_request_enable,
 	.gpio_disable_free = nmk_gpio_disable_free,
 };

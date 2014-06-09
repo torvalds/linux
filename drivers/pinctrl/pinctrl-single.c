@@ -488,61 +488,6 @@ static int pcs_enable(struct pinctrl_dev *pctldev, unsigned fselector,
 	return 0;
 }
 
-static void pcs_disable(struct pinctrl_dev *pctldev, unsigned fselector,
-					unsigned group)
-{
-	struct pcs_device *pcs;
-	struct pcs_function *func;
-	int i;
-
-	pcs = pinctrl_dev_get_drvdata(pctldev);
-	/* If function mask is null, needn't disable it. */
-	if (!pcs->fmask)
-		return;
-
-	func = radix_tree_lookup(&pcs->ftree, fselector);
-	if (!func) {
-		dev_err(pcs->dev, "%s could not find function%i\n",
-			__func__, fselector);
-		return;
-	}
-
-	/*
-	 * Ignore disable if function-off is not specified. Some hardware
-	 * does not have clearly defined disable function. For pin specific
-	 * off modes, you can use alternate named states as described in
-	 * pinctrl-bindings.txt.
-	 */
-	if (pcs->foff == PCS_OFF_DISABLED) {
-		dev_dbg(pcs->dev, "ignoring disable for %s function%i\n",
-			func->name, fselector);
-		return;
-	}
-
-	dev_dbg(pcs->dev, "disabling function%i %s\n",
-		fselector, func->name);
-
-	for (i = 0; i < func->nvals; i++) {
-		struct pcs_func_vals *vals;
-		unsigned long flags;
-		unsigned val, mask;
-
-		vals = &func->vals[i];
-		raw_spin_lock_irqsave(&pcs->lock, flags);
-		val = pcs->read(vals->reg);
-
-		if (pcs->bits_per_mux)
-			mask = vals->mask;
-		else
-			mask = pcs->fmask;
-
-		val &= ~mask;
-		val |= pcs->foff << pcs->fshift;
-		pcs->write(val, vals->reg);
-		raw_spin_unlock_irqrestore(&pcs->lock, flags);
-	}
-}
-
 static int pcs_request_gpio(struct pinctrl_dev *pctldev,
 			    struct pinctrl_gpio_range *range, unsigned pin)
 {
@@ -575,7 +520,6 @@ static const struct pinmux_ops pcs_pinmux_ops = {
 	.get_function_name = pcs_get_function_name,
 	.get_function_groups = pcs_get_function_groups,
 	.enable = pcs_enable,
-	.disable = pcs_disable,
 	.gpio_request_enable = pcs_request_gpio,
 };
 

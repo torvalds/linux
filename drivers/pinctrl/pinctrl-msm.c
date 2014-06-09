@@ -165,36 +165,11 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static void msm_pinmux_disable(struct pinctrl_dev *pctldev,
-			       unsigned function,
-			       unsigned group)
-{
-	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct msm_pingroup *g;
-	unsigned long flags;
-	u32 val;
-
-	g = &pctrl->soc->groups[group];
-
-	if (WARN_ON(g->mux_bit < 0))
-		return;
-
-	spin_lock_irqsave(&pctrl->lock, flags);
-
-	/* Clear the mux bits to select gpio mode */
-	val = readl(pctrl->regs + g->ctl_reg);
-	val &= ~(0x7 << g->mux_bit);
-	writel(val, pctrl->regs + g->ctl_reg);
-
-	spin_unlock_irqrestore(&pctrl->lock, flags);
-}
-
 static const struct pinmux_ops msm_pinmux_ops = {
 	.get_functions_count	= msm_get_functions_count,
 	.get_function_name	= msm_get_function_name,
 	.get_function_groups	= msm_get_function_groups,
 	.enable			= msm_pinmux_enable,
-	.disable		= msm_pinmux_disable,
 };
 
 static int msm_config_reg(struct msm_pinctrl *pctrl,
