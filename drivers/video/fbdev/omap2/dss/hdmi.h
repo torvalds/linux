@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/hdmi.h>
 #include <video/omapdss.h>
 
 #include "dss.h"
@@ -360,6 +361,7 @@ struct hdmi_core_data {
 	void __iomem *base;
 
 	struct hdmi_core_infoframe_avi avi_cfg;
+	struct hdmi_avi_infoframe avi_infoframe;
 };
 
 static inline void hdmi_write_reg(void __iomem *base_addr, const u32 idx,
