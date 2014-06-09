@@ -35,7 +35,7 @@ create_package() {
 	sparc*)
 		debarch=sparc ;;
 	s390*)
-		debarch=s390 ;;
+		debarch=s390$(grep -q CONFIG_64BIT=y $KCONFIG_CONFIG && echo x || true) ;;
 	ppc*)
 		debarch=powerpc ;;
 	parisc*)
