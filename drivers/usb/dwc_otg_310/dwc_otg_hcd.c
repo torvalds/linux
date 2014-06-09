@@ -276,7 +276,21 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 {
 	gintsts_data_t intr;
 	dwc_otg_hcd_t *dwc_otg_hcd = p;
+	hprt0_data_t hprt0;
 
+	dwc_otg_hcd->non_periodic_qh_ptr = &dwc_otg_hcd->non_periodic_sched_active;
+	dwc_otg_hcd->non_periodic_channels = 0;
+	dwc_otg_hcd->periodic_channels = 0;
+
+	hprt0.d32 = DWC_READ_REG32(dwc_otg_hcd->core_if->host_if->hprt0);
+	/* In some case, we don't disconnect a usb device, but
+	 * disconnect intr was triggered, so check hprt0 here. */
+	if ((!hprt0.b.prtenchng)
+	    && (hprt0.d32 != 0x1000)
+	    && (hprt0.d32 != 0x1100)) {
+		DWC_PRINTF("%s: hprt0 = 0x%08x\n", __func__, hprt0.d32);
+		return 1;
+	}
 	/*
 	 * Set status flags for the hub driver.
 	 */
@@ -313,6 +327,7 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 		/** Delete timers if become device */
 		del_timers(dwc_otg_hcd);
 		dwc_otg_disable_host_interrupts(dwc_otg_hcd->core_if);
+		goto out;
 	}
 
 	/* Respond with an error status to all URBs in the schedule. */
@@ -385,6 +400,7 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 		}
 	}
 
+out:
 	if (dwc_otg_hcd->fops->disconnect) {
 		dwc_otg_hcd->fops->disconnect(dwc_otg_hcd);
 	}

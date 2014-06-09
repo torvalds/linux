@@ -48,7 +48,6 @@
 int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 {
 	int retval = 0;
-	dwc_irqflags_t flags;
 
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	gintsts_data_t gintsts;
@@ -65,12 +64,12 @@ int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 	if (core_if->hibernation_suspend == 1) {
 		return retval;
 	}
-	DWC_SPINLOCK_IRQSAVE(dwc_otg_hcd->lock, &flags);
+	DWC_SPINLOCK(dwc_otg_hcd->lock);
 	/* Check if HOST Mode */
 	if (dwc_otg_is_host_mode(core_if)) {
 		gintsts.d32 = dwc_otg_read_core_intr(core_if);
 		if (!gintsts.d32) {
-			DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
+			DWC_SPINUNLOCK(dwc_otg_hcd->lock);
 			return 0;
 		}
 #ifdef DEBUG
@@ -139,7 +138,7 @@ int32_t dwc_otg_hcd_handle_intr(dwc_otg_hcd_t *dwc_otg_hcd)
 #endif
 
 	}
-	DWC_SPINUNLOCK_IRQRESTORE(dwc_otg_hcd->lock, flags);
+	DWC_SPINUNLOCK(dwc_otg_hcd->lock);
 	return retval;
 }
 
