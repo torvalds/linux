@@ -366,6 +366,13 @@ static void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 
 	mp_save_irq(&mp_irq);
 
+	/*
+	 * Reset default identity mapping if gsi is also an legacy IRQ,
+	 * otherwise there will be more than one entry with the same GSI
+	 * and acpi_isa_irq_to_gsi() may give wrong result.
+	 */
+	if (gsi < NR_IRQS_LEGACY && isa_irq_to_gsi[gsi] == gsi)
+		isa_irq_to_gsi[gsi] = ACPI_INVALID_GSI;
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
 
@@ -621,7 +628,8 @@ EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
-	if (isa_irq < NR_IRQS_LEGACY) {
+	if (isa_irq < NR_IRQS_LEGACY &&
+	    isa_irq_to_gsi[isa_irq] != ACPI_INVALID_GSI) {
 		*gsi = isa_irq_to_gsi[isa_irq];
 		return 0;
 	}
