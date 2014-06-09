@@ -6129,7 +6129,6 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 {
 	int ret;
 	int err = 0;
-	u64 bytenr;
 	u64 extent_start = 0;
 	u64 extent_end = 0;
 	u64 objectid = btrfs_ino(inode);
@@ -6143,7 +6142,7 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_trans_handle *trans = NULL;
-	int compress_type;
+	const bool new_inline = !page || create;
 
 again:
 	read_lock(&em_tree->lock);
@@ -6217,7 +6216,6 @@ again:
 
 	found_type = btrfs_file_extent_type(leaf, item);
 	extent_start = found_key.offset;
-	compress_type = btrfs_file_extent_compression(leaf, item);
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		extent_end = extent_start +
@@ -6252,32 +6250,10 @@ next:
 		goto not_found_em;
 	}
 
-	em->ram_bytes = btrfs_file_extent_ram_bytes(leaf, item);
+	btrfs_extent_item_to_extent_map(inode, path, item, new_inline, em);
+
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
-		em->start = extent_start;
-		em->len = extent_end - extent_start;
-		em->orig_start = extent_start -
-				 btrfs_file_extent_offset(leaf, item);
-		em->orig_block_len = btrfs_file_extent_disk_num_bytes(leaf,
-								      item);
-		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
-		if (bytenr == 0) {
-			em->block_start = EXTENT_MAP_HOLE;
-			goto insert;
-		}
-		if (compress_type != BTRFS_COMPRESS_NONE) {
-			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
-			em->compress_type = compress_type;
-			em->block_start = bytenr;
-			em->block_len = em->orig_block_len;
-		} else {
-			bytenr += btrfs_file_extent_offset(leaf, item);
-			em->block_start = bytenr;
-			em->block_len = em->len;
-			if (found_type == BTRFS_FILE_EXTENT_PREALLOC)
-				set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
-		}
 		goto insert;
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		unsigned long ptr;
@@ -6286,12 +6262,8 @@ next:
 		size_t extent_offset;
 		size_t copy_size;
 
-		em->block_start = EXTENT_MAP_INLINE;
-		if (!page || create) {
-			em->start = extent_start;
-			em->len = extent_end - extent_start;
+		if (new_inline)
 			goto out;
-		}
 
 		size = btrfs_file_extent_inline_len(leaf, path->slots[0], item);
 		extent_offset = page_offset(page) + pg_offset - extent_start;
@@ -6301,10 +6273,6 @@ next:
 		em->len = ALIGN(copy_size, root->sectorsize);
 		em->orig_block_len = em->len;
 		em->orig_start = em->start;
-		if (compress_type) {
-			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
-			em->compress_type = compress_type;
-		}
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
 		if (create == 0 && !PageUptodate(page)) {
 			if (btrfs_file_extent_compression(leaf, item) !=
@@ -6351,8 +6319,6 @@ next:
 		set_extent_uptodate(io_tree, em->start,
 				    extent_map_end(em) - 1, NULL, GFP_NOFS);
 		goto insert;
-	} else {
-		WARN(1, KERN_ERR "btrfs unknown found_type %d\n", found_type);
 	}
 not_found:
 	em->start = start;
