@@ -185,6 +185,7 @@ static void blk_mq_rq_ctx_init(struct request_queue *q, struct blk_mq_ctx *ctx,
 	RB_CLEAR_NODE(&rq->rb_node);
 	rq->rq_disk = NULL;
 	rq->part = NULL;
+	rq->start_time = jiffies;
 #ifdef CONFIG_BLK_CGROUP
 	rq->rl = NULL;
 	set_start_time_ns(rq);
@@ -1104,10 +1105,8 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
 {
 	init_request_from_bio(rq, bio);
 
-	if (blk_do_io_stat(rq)) {
-		rq->start_time = jiffies;
+	if (blk_do_io_stat(rq))
 		blk_account_io_start(rq, 1);
-	}
 }
 
 static inline bool blk_mq_merge_queue_io(struct blk_mq_hw_ctx *hctx,
