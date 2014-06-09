@@ -26,8 +26,6 @@
 #define RTW_MAX_REMAIN_ON_CHANNEL_DURATION 65535	/* ms */
 #define RTW_MAX_NUM_PMKIDS 4
 
-#define RTW_CH_MAX_2G_CHANNEL               14	/* Max channel in 2G band */
-
 static const u32 rtw_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -2593,11 +2591,8 @@ static int rtw_cfg80211_monitor_if_xmit_entry(struct sk_buff *skb,
 			  MAC_ARG(mgmt->da), __func__, ndev->name);
 		category = mgmt->u.action.category;
 		action = mgmt->u.action.u.wme_action.action_code;
-		if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)
-			DBG_8723A("RTW_Tx:%s\n", action_public_str23a(action));
-		else
-			DBG_8723A("RTW_Tx:category(%u), action(%u)\n", category,
-				  action);
+		DBG_8723A("RTW_Tx:category(%u), action(%u)\n",
+			  category, action);
 
 		/* starting alloc mgmt frame to dump it */
 		pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
@@ -3011,34 +3006,6 @@ static int cfg80211_rtw_change_bss(struct wiphy *wiphy, struct net_device *ndev,
 }
 #endif /* CONFIG_8723AU_AP_MODE */
 
-void rtw_cfg80211_rx_action(struct rtw_adapter *adapter, u8 *frame,
-			    uint frame_len, const char *msg)
-{
-	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *)frame;
-	s32 freq;
-	int channel;
-
-	channel = rtw_get_oper_ch23a(adapter);
-
-	DBG_8723A("RTW_Rx:cur_ch =%d\n", channel);
-	if (msg)
-		DBG_8723A("RTW_Rx:%s\n", msg);
-	else
-		DBG_8723A("RTW_Rx:category(%u), action(%u)\n",
-			  hdr->u.action.category,
-			  hdr->u.action.u.wme_action.action_code);
-
-	if (channel <= RTW_CH_MAX_2G_CHANNEL)
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_2GHZ);
-	else
-		freq = ieee80211_channel_to_frequency(channel,
-						      IEEE80211_BAND_5GHZ);
-
-	cfg80211_rx_mgmt(adapter->rtw_wdev, freq, 0, frame, frame_len,
-			 0, GFP_ATOMIC);
-}
-
 static int _cfg80211_rtw_mgmt_tx(struct rtw_adapter *padapter, u8 tx_ch,
 				 const u8 *buf, size_t len)
 {
@@ -3145,11 +3112,7 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		  MAC_ARG(hdr->da));
 	category = hdr->u.action.category;
 	action = hdr->u.action.u.wme_action.action_code;
-	if (category == WLAN_CATEGORY_PUBLIC)
-		DBG_8723A("RTW_Tx:%s\n", action_public_str23a(action));
-	else
-		DBG_8723A("RTW_Tx:category(%u), action(%u)\n",
-			  category, action);
+	DBG_8723A("RTW_Tx:category(%u), action(%u)\n", category, action);
 
 	do {
 		dump_cnt++;

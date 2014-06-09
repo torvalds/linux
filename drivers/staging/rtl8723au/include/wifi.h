@@ -32,7 +32,6 @@
 #define _AUTH_IE_OFFSET_		6
 #define _DEAUTH_IE_OFFSET_		0
 #define _BEACON_IE_OFFSET_		12
-#define _PUBLIC_ACTION_IE_OFFSET_	8
 
 #define _FIXED_IE_LENGTH_		_BEACON_IE_OFFSET_
 

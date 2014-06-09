@@ -2135,136 +2135,32 @@ static int OnAction23a_back23a(struct rtw_adapter *padapter,
 	return _SUCCESS;
 }
 
-static int rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
-{
-	struct rtw_adapter *adapter = recv_frame->adapter;
-	struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
-	struct sk_buff *skb = recv_frame->pkt;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 seq_ctrl;
-
-	seq_ctrl = ((recv_frame->attrib.seq_num&0xffff) << 4) |
-		(recv_frame->attrib.frag_num & 0xf);
-
-	if (ieee80211_has_retry(hdr->frame_control)) {
-		if (token >= 0) {
-			if ((seq_ctrl == mlmeext->action_public_rxseq) &&
-			    (token == mlmeext->action_public_dialog_token)) {
-				DBG_8723A("%s(%s): seq_ctrl = 0x%x, "
-					  "rxseq = 0x%x, token:%d\n", __func__,
-					  adapter->pnetdev->name, seq_ctrl,
-					  mlmeext->action_public_rxseq, token);
-				return _FAIL;
-			}
-		} else {
-			if (seq_ctrl == mlmeext->action_public_rxseq) {
-				DBG_8723A("%s(%s): seq_ctrl = 0x%x, "
-					  "rxseq = 0x%x\n", __func__,
-					  adapter->pnetdev->name, seq_ctrl,
-					  mlmeext->action_public_rxseq);
-				return _FAIL;
-			}
-		}
-	}
-
-	mlmeext->action_public_rxseq = seq_ctrl;
-
-	if (token >= 0)
-		mlmeext->action_public_dialog_token = token;
-
-	return _SUCCESS;
-}
-
-static int on_action_public23a_p2p(struct recv_frame *precv_frame)
-{
-	struct sk_buff *skb = precv_frame->pkt;
-	u8 *pframe = skb->data;
-	u8 *frame_body;
-	u8 dialogToken = 0;
-
-	frame_body = (unsigned char *)
-		(pframe + sizeof(struct ieee80211_hdr_3addr));
-
-	dialogToken = frame_body[7];
-
-	if (rtw_action_public_decache(precv_frame, dialogToken) == _FAIL)
-		return _FAIL;
-
-	return _SUCCESS;
-}
-
-static int on_action_public23a_vendor(struct recv_frame *precv_frame)
-{
-	unsigned int ret = _FAIL;
-	struct sk_buff *skb = precv_frame->pkt;
-	u8 *pframe = skb->data;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
-
-	if (!memcmp(frame_body + 2, P2P_OUI23A, 4)) {
-		ret = on_action_public23a_p2p(precv_frame);
-	}
-
-	return ret;
-}
-
-static unsigned int
-on_action_public23a_default(struct recv_frame *precv_frame, u8 action)
-{
-	unsigned int ret = _FAIL;
-	struct sk_buff *skb = precv_frame->pkt;
-	u8 *pframe = skb->data;
-	uint frame_len = skb->len;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
-	u8 token;
-	struct rtw_adapter *adapter = precv_frame->adapter;
-	int cnt = 0;
-	char msg[64];
-
-	token = frame_body[2];
-
-	if (rtw_action_public_decache(precv_frame, token) == _FAIL)
-		goto exit;
-
-	cnt += sprintf((msg+cnt), "%s(token:%u)",
-		       action_public_str23a(action), token);
-	rtw_cfg80211_rx_action(adapter, pframe, frame_len, msg);
-
-	ret = _SUCCESS;
-
-exit:
-	return ret;
-}
-
 static int on_action_public23a(struct rtw_adapter *padapter,
 			       struct recv_frame *precv_frame)
 {
-	int ret = _FAIL;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u8 *pframe = skb->data;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
-	u8 category, action;
+	int freq, channel;
 
 	/* check RA matches or not */
 	if (!ether_addr_equal(myid(&padapter->eeprompriv), hdr->addr1))
-		goto exit;
+		return _FAIL;
 
-	category = frame_body[0];
-	if (category != WLAN_CATEGORY_PUBLIC)
-		goto exit;
+	channel = rtw_get_oper_ch23a(padapter);
 
-	action = frame_body[1];
-	switch (action) {
-	case ACT_PUBLIC_VENDOR:
-		ret = on_action_public23a_vendor(precv_frame);
-		break;
-	default:
-		ret = on_action_public23a_default(precv_frame, action);
-		break;
-	}
+	if (channel <= RTW_CH_MAX_2G_CHANNEL)
+		freq = ieee80211_channel_to_frequency(channel,
+						      IEEE80211_BAND_2GHZ);
+	else
+		freq = ieee80211_channel_to_frequency(channel,
+						      IEEE80211_BAND_5GHZ);
 
-exit:
-	return ret;
+	if (cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, pframe,
+			     skb->len, 0, GFP_ATOMIC))
+		return _SUCCESS;
+
+	return _FAIL;
 }
 
 static int

@@ -315,6 +315,7 @@ struct ieee80211_snap_hdr {
 #define MAX_RATES_LENGTH	12
 #define MAX_RATES_EX_LENGTH	16
 #define MAX_CHANNEL_NUMBER	161
+#define RTW_CH_MAX_2G_CHANNEL	14	/* Max channel in 2G band */
 
 #define MAX_WPA_IE_LEN		256
 #define MAX_WPS_IE_LEN		256
@@ -334,26 +335,6 @@ join_res:
 #define MAC_ARG(x) ((u8*)(x))[0],((u8*)(x))[1],((u8*)(x))[2],((u8*)(x))[3],((u8*)(x))[4],((u8*)(x))[5]
 
 #define MAXTID	16
-
-enum _PUBLIC_ACTION{
-	ACT_PUBLIC_BSSCOEXIST = 0, /*  20/40 BSS Coexistence */
-	ACT_PUBLIC_DSE_ENABLE = 1,
-	ACT_PUBLIC_DSE_DEENABLE = 2,
-	ACT_PUBLIC_DSE_REG_LOCATION = 3,
-	ACT_PUBLIC_EXT_CHL_SWITCH = 4,
-	ACT_PUBLIC_DSE_MSR_REQ = 5,
-	ACT_PUBLIC_DSE_MSR_RPRT = 6,
-	ACT_PUBLIC_MP = 7, /*  Measurement Pilot */
-	ACT_PUBLIC_DSE_PWR_CONSTRAINT = 8,
-	ACT_PUBLIC_VENDOR = 9, /*  for WIFI_DIRECT */
-	ACT_PUBLIC_GAS_INITIAL_REQ = 10,
-	ACT_PUBLIC_GAS_INITIAL_RSP = 11,
-	ACT_PUBLIC_GAS_COMEBACK_REQ = 12,
-	ACT_PUBLIC_GAS_COMEBACK_RSP = 13,
-	ACT_PUBLIC_TDLS_DISCOVERY_RSP = 14,
-	ACT_PUBLIC_LOCATION_TRACK = 15,
-	ACT_PUBLIC_MAX
-};
 
 #define WME_OUI_TYPE 2
 #define WME_OUI_SUBTYPE_INFORMATION_ELEMENT 0
@@ -445,7 +426,5 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork);
 
 u16 rtw_mcs_rate23a(u8 rf_type, u8 bw_40MHz, u8 short_GI_20, u8 short_GI_40,
 		    struct ieee80211_mcs_info *mcs);
-
-const char *action_public_str23a(u8 action);
 
 #endif /* IEEE80211_H */
