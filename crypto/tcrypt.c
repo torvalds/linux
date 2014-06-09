@@ -1585,6 +1585,12 @@ static int do_test(int m)
 		test_cipher_speed("cbc(des3_ede)", DECRYPT, sec,
 				des3_speed_template, DES3_SPEED_VECTORS,
 				speed_template_24);
+		test_cipher_speed("ctr(des3_ede)", ENCRYPT, sec,
+				des3_speed_template, DES3_SPEED_VECTORS,
+				speed_template_24);
+		test_cipher_speed("ctr(des3_ede)", DECRYPT, sec,
+				des3_speed_template, DES3_SPEED_VECTORS,
+				speed_template_24);
 		break;
 
 	case 202:
