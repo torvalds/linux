@@ -458,15 +458,11 @@ About use_hierarchy, see Section 6.
 
 5.1 force_empty
   memory.force_empty interface is provided to make cgroup's memory usage empty.
-  You can use this interface only when the cgroup has no tasks.
   When writing anything to this
 
   # echo 0 > memory.force_empty
 
-  Almost all pages tracked by this memory cgroup will be unmapped and freed.
-  Some pages cannot be freed because they are locked or in-use. Such pages are
-  moved to parent (if use_hierarchy==1) or root (if use_hierarchy==0) and this
-  cgroup will be empty.
+  the cgroup will be reclaimed and as many pages reclaimed as possible.
 
   The typical use case for this interface is before calling rmdir().
   Because rmdir() moves all pages to parent, some out-of-use page caches can be

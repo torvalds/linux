@@ -1971,7 +1971,7 @@ int bio_associate_current(struct bio *bio)
 	/* associate blkcg if exists */
 	rcu_read_lock();
 	css = task_css(current, blkio_cgrp_id);
-	if (css && css_tryget(css))
+	if (css && css_tryget_online(css))
 		bio->bi_css = css;
 	rcu_read_unlock();
 

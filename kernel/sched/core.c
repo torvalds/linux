@@ -7669,7 +7669,7 @@ cpu_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 static int cpu_cgroup_css_online(struct cgroup_subsys_state *css)
 {
 	struct task_group *tg = css_tg(css);
-	struct task_group *parent = css_tg(css_parent(css));
+	struct task_group *parent = css_tg(css->parent);
 
 	if (parent)
 		sched_online_group(tg, parent);
