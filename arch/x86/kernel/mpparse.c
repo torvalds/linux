@@ -115,7 +115,7 @@ static void __init MP_bus_info(struct mpc_bus *m)
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {
 	if (m->flags & MPC_APIC_USABLE)
-		mp_register_ioapic(m->apicid, m->apicaddr, gsi_top);
+		mp_register_ioapic(m->apicid, m->apicaddr, gsi_top, NULL);
 }
 
 static void __init print_mp_irq_info(struct mpc_intsrc *mp_irq)

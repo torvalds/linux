@@ -85,6 +85,7 @@ int sis_apic_bug = -1;
 static DEFINE_RAW_SPINLOCK(ioapic_lock);
 static DEFINE_RAW_SPINLOCK(vector_lock);
 static DEFINE_MUTEX(ioapic_mutex);
+static unsigned int ioapic_dynirq_base;
 
 static struct ioapic {
 	/*
@@ -2920,8 +2921,35 @@ out:
  */
 #define PIC_IRQS	(1UL << PIC_CASCADE_IR)
 
+static int mp_irqdomain_create(int ioapic)
+{
+	int hwirqs = mp_ioapic_pin_count(ioapic);
+	struct ioapic *ip = &ioapics[ioapic];
+	struct ioapic_domain_cfg *cfg = &ip->irqdomain_cfg;
+	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(ioapic);
+
+	if (cfg->type == IOAPIC_DOMAIN_INVALID)
+		return 0;
+
+	ip->irqdomain = irq_domain_add_linear(cfg->dev, hwirqs, cfg->ops,
+					      (void *)(long)ioapic);
+	if(!ip->irqdomain)
+		return -ENOMEM;
+
+	if (cfg->type == IOAPIC_DOMAIN_LEGACY ||
+	    cfg->type == IOAPIC_DOMAIN_STRICT)
+		ioapic_dynirq_base = max(ioapic_dynirq_base,
+					 gsi_cfg->gsi_end + 1);
+
+	if (gsi_cfg->gsi_base == 0)
+		irq_set_default_host(ip->irqdomain);
+
+	return 0;
+}
+
 void __init setup_IO_APIC(void)
 {
+	int ioapic;
 
 	/*
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
@@ -2929,6 +2957,9 @@ void __init setup_IO_APIC(void)
 	io_apic_irqs = nr_legacy_irqs() ? ~PIC_IRQS : ~0UL;
 
 	apic_printk(APIC_VERBOSE, "ENABLING IO-APIC IRQs\n");
+	for_each_ioapic(ioapic)
+		BUG_ON(mp_irqdomain_create(ioapic));
+
 	/*
          * Set up IO-APIC IRQ routing.
          */
@@ -3437,6 +3468,9 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
 {
 	unsigned int min = gsi_top + nr_legacy_irqs();
 
+	if (ioapic_dynirq_base)
+		return ioapic_dynirq_base;
+
 	return from < min ? min : from;
 }
 
@@ -3812,7 +3846,8 @@ static __init int bad_ioapic_register(int idx)
 	return 0;
 }
 
-void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
+void __init mp_register_ioapic(int id, u32 address, u32 gsi_base,
+			       struct ioapic_domain_cfg *cfg)
 {
 	int idx = 0;
 	int entries;
@@ -3826,6 +3861,11 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	ioapics[idx].mp_config.type = MP_IOAPIC;
 	ioapics[idx].mp_config.flags = MPC_APIC_USABLE;
 	ioapics[idx].mp_config.apicaddr = address;
+	ioapics[idx].irqdomain = NULL;
+	if (cfg)
+		ioapics[idx].irqdomain_cfg = *cfg;
+	else
+		ioapics[idx].irqdomain_cfg.type = IOAPIC_DOMAIN_INVALID;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 

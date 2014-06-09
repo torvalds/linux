@@ -462,7 +462,7 @@ acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
 	acpi_table_print_madt_entry(header);
 
 	mp_register_ioapic(ioapic->id,
-			   ioapic->address, ioapic->global_irq_base);
+			   ioapic->address, ioapic->global_irq_base, NULL);
 
 	return 0;
 }

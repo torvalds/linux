@@ -177,7 +177,7 @@ static void __init dtb_add_ioapic(struct device_node *dn)
 				dn->full_name);
 		return;
 	}
-	mp_register_ioapic(++ioapic_id, r.start, gsi_top);
+	mp_register_ioapic(++ioapic_id, r.start, gsi_top, NULL);
 }
 
 static void __init dtb_ioapic_setup(void)
