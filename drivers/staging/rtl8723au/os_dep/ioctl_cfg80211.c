@@ -2204,7 +2204,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	/* rtw_set_802_11_encryption_mode(padapter,
 	   padapter->securitypriv.ndisencryptstatus); */
 
-	if (rtw_set_802_11_ssid23a(padapter, &ndis_ssid) == false) {
+	if (rtw_set_802_11_ssid23a(padapter, &ndis_ssid) != _SUCCESS) {
 		ret = -1;
 		goto exit;
 	}
