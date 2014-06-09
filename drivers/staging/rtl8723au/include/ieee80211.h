@@ -388,7 +388,6 @@ struct rtw_ieee80211_channel {
 	/*, (channel)->orig_mag*/ \
 	/*, (channel)->orig_mpwr*/ \
 
-u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len, unsigned char *source, unsigned int *frlen);
 u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen);
 
 enum secondary_ch_offset {

@@ -124,14 +124,6 @@ int rtw_check_network_type23a(unsigned char *rate, int ratelen, int channel)
 	}
 }
 
-u8 *rtw_set_fixed_ie23a(unsigned char *pbuf, unsigned int len,
-		     unsigned char *source, unsigned int *frlen)
-{
-	memcpy((void *)pbuf, (void *)source, len);
-	*frlen = *frlen + len;
-	return pbuf + len;
-}
-
 /*  rtw_set_ie23a will update frame length */
 u8 *rtw_set_ie23a(u8 *pbuf, int index, uint len, const u8 *source, uint *frlen)
 {
