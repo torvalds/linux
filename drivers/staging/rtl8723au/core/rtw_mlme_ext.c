@@ -1805,11 +1805,12 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sk_buff *skb = precv_frame->pkt;
 	struct ieee80211_mgmt *pmgmt = (struct ieee80211_mgmt *) skb->data;
-	int res, i;
+	int res;
 	unsigned short status;
-	u8 *p;
+	const u8 *p, *pie;
 	u8 *pframe = skb->data;
 	int pkt_len = skb->len;
+	int pielen;
 
 	DBG_8723A("%s\n", __func__);
 
@@ -1843,37 +1844,44 @@ OnAssocRsp23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	/* AID */
 	res = pmlmeinfo->aid = le16_to_cpu(pmgmt->u.assoc_resp.aid) & 0x3fff;
 
-	/* following are moved to join event callback function */
-	/* to handle HT, WMM, rate adaptive, update MAC reg */
-	/* for not to handle the synchronous IO in the tasklet */
-	for (i = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
-	     i < pkt_len;) {
-		p = pframe + i;
+	pie = pframe + offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
+	pielen = pkt_len -
+		offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
 
-		switch (p[0])
-		{
-		case WLAN_EID_VENDOR_SPECIFIC:
-			if (!memcmp(p + 2, WMM_PARA_OUI23A, 6))/* WMM */
-				WMM_param_handler23a(padapter, p);
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+			     pmgmt->u.assoc_resp.variable, pielen);
+	if (p && p[1])
+		HT_caps_handler23a(padapter, p);
+
+	p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+			     pmgmt->u.assoc_resp.variable, pielen);
+	if (p && p[1])
+		HT_info_handler23a(padapter, p);
+
+	p = cfg80211_find_ie(WLAN_EID_ERP_INFO,
+			     pmgmt->u.assoc_resp.variable, pielen);
+	if (p && p[1])
+		ERP_IE_handler23a(padapter, p);
+
+	pie = pframe + offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
+	while (true) {
+		p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WMM,
+					    pie, pframe + pkt_len - pie);
+		if (!p)
 			break;
 
-		case WLAN_EID_HT_CAPABILITY:	/* HT caps */
-			HT_caps_handler23a(padapter, p);
+		pie = p + p[1] + 2;
+		/* if this IE is too short, try the next */
+		if (p[1] <= 4)
+			continue;
+		/* if this IE is WMM params, we found what we wanted */
+		if (p[6] == 1)
 			break;
-
-		case WLAN_EID_HT_OPERATION:	/* HT info */
-			HT_info_handler23a(padapter, p);
-			break;
-
-		case WLAN_EID_ERP_INFO:
-			ERP_IE_handler23a(padapter, p);
-
-		default:
-			break;
-		}
-
-		i += (p[1] + 2);
 	}
+
+	if (p && p[1])
+		WMM_param_handler23a(padapter, p);
 
 	pmlmeinfo->state &= ~WIFI_FW_ASSOC_STATE;
 	pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
