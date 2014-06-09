@@ -36,7 +36,7 @@ TMPD=$SRCTREE/.tmp_objdiff
 
 usage() {
 	echo >&2 "Usage: $0 <command> <args>"
-	echo >&2 "  record    <list of object files>"
+	echo >&2 "  record    <list of object files or directories>"
 	echo >&2 "  diff      <commitA> <commitB>"
 	echo >&2 "  clean     all | <commit>"
 	exit 1
@@ -54,6 +54,18 @@ get_output_dir() {
 	echo $TMPD/$CMT${dir#$SRCTREE}
 }
 
+do_objdump() {
+	dir=$(get_output_dir $1)
+	base=${1##*/}
+	dis=$dir/${base%.o}.dis
+
+	[ ! -d "$dir" ] && mkdir -p $dir
+
+	# remove addresses for a cleaner diff
+	# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
+	$OBJDUMP -D $1 | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dis
+}
+
 dorecord() {
 	[ $# -eq 0 ] && usage
 
@@ -63,16 +75,15 @@ dorecord() {
 
 	OBJDUMP="${CROSS_COMPILE}objdump"
 
-	for f in $FILES; do
-		dir=$(get_output_dir $f)
-		base=${f##*/}
-		dis=$dir/${base%.o}.dis
-
-		[ ! -d "$dir" ] && mkdir -p $dir
-
-		# remove addresses for a cleaner diff
-		# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
-		$OBJDUMP -D $f | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dis
+	for d in $FILES; do
+		if [ -d "$d" ]; then
+			for f in $(find $d -name '*.o')
+			do
+				do_objdump $f
+			done
+		else
+			do_objdump $d
+		fi
 	done
 }
 
