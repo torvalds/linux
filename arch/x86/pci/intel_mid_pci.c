@@ -208,26 +208,21 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 {
-	u8 pin;
-	struct io_apic_irq_attr irq_attr;
+	int polarity;
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
+		polarity = 0; /* active high */
+	else
+		polarity = 1; /* active low */
 
 	/*
 	 * MRST only have IOAPIC, the PCI irq lines are 1:1 mapped to
 	 * IOAPIC RTE entries, so we just enable RTE for the device.
 	 */
+	if (mp_set_gsi_attr(dev->irq, 1, polarity, dev_to_node(&dev->dev)))
+		return -EBUSY;
 	if (mp_map_gsi_to_irq(dev->irq, IOAPIC_MAP_ALLOC) < 0)
 		return -EBUSY;
-
-	irq_attr.ioapic = mp_find_ioapic(dev->irq);
-	irq_attr.ioapic_pin = dev->irq;
-	irq_attr.trigger = 1; /* level */
-	if (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_TANGIER)
-		irq_attr.polarity = 0; /* active high */
-	else
-		irq_attr.polarity = 1; /* active low */
-	io_apic_set_pci_routing(&dev->dev, dev->irq, &irq_attr);
 
 	return 0;
 }
