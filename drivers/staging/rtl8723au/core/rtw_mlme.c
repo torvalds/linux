@@ -588,19 +588,18 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	u32 desired_encmode;
 	u32 privacy;
-
-	/* u8 wps_ie[512]; */
-	uint wps_ielen;
-
 	int bselected = true;
 
 	desired_encmode = psecuritypriv->ndisencryptstatus;
 	privacy = pnetwork->network.Privacy;
 
 	if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS)) {
-		if (rtw_get_wps_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
-				      pnetwork->network.IELength -
-				      _FIXED_IE_LENGTH_, &wps_ielen))
+		if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					    WLAN_OUI_TYPE_MICROSOFT_WPA,
+					    pnetwork->network.IEs +
+					    _FIXED_IE_LENGTH_,
+					    pnetwork->network.IELength -
+					    _FIXED_IE_LENGTH_))
 			return true;
 		else
 			return false;
