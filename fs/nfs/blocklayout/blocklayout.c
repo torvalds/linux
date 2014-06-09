@@ -445,7 +445,7 @@ static void bl_end_par_io_write(void *data, int num_se)
 	}
 
 	hdr->task.tk_status = hdr->pnfs_error;
-	hdr->writeverf.committed = NFS_FILE_SYNC;
+	hdr->verf.committed = NFS_FILE_SYNC;
 	INIT_WORK(&hdr->task.u.tk_work, bl_write_cleanup);
 	schedule_work(&hdr->task.u.tk_work);
 }

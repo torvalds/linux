@@ -1253,8 +1253,6 @@ enum {
 	NFS_IOHDR_ERROR = 0,
 	NFS_IOHDR_EOF,
 	NFS_IOHDR_REDO,
-	NFS_IOHDR_NEED_COMMIT,
-	NFS_IOHDR_NEED_RESCHED,
 };
 
 struct nfs_pgio_header {
@@ -1284,7 +1282,6 @@ struct nfs_pgio_header {
 	 */
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;
-	struct nfs_writeverf	writeverf;	/* Used for writes */
 	struct nfs_pgio_args	args;		/* argument struct */
 	struct nfs_pgio_res	res;		/* result struct */
 	unsigned long		timestamp;	/* For lease renewal */

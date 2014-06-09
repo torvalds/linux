@@ -328,7 +328,7 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	oir->status = hdr->task.tk_status = status;
 	if (status >= 0) {
 		hdr->res.count = status;
-		hdr->writeverf.committed = oir->committed;
+		hdr->verf.committed = oir->committed;
 	} else {
 		hdr->pnfs_error = status;
 	}
@@ -336,7 +336,7 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	/* must not use oir after this point */
 
 	dprintk("%s: Return status %zd committed %d sync=%d\n", __func__,
-		status, hdr->writeverf.committed, sync);
+		status, hdr->verf.committed, sync);
 
 	if (sync)
 		pnfs_ld_write_done(hdr);

@@ -595,12 +595,11 @@ nfs_clear_request_commit(struct nfs_page *req)
 	}
 }
 
-static inline
 int nfs_write_need_commit(struct nfs_pgio_header *hdr)
 {
-	if (hdr->writeverf.committed == NFS_DATA_SYNC)
+	if (hdr->verf.committed == NFS_DATA_SYNC)
 		return hdr->lseg == NULL;
-	return hdr->writeverf.committed != NFS_FILE_SYNC;
+	return hdr->verf.committed != NFS_FILE_SYNC;
 }
 
 #else
@@ -626,7 +625,6 @@ nfs_clear_request_commit(struct nfs_page *req)
 {
 }
 
-static inline
 int nfs_write_need_commit(struct nfs_pgio_header *hdr)
 {
 	return 0;
@@ -654,11 +652,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 			nfs_context_set_write_error(req->wb_context, hdr->error);
 			goto remove_req;
 		}
-		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags)) {
-			nfs_mark_request_dirty(req);
-			goto next;
-		}
-		if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
+		if (nfs_write_need_commit(hdr)) {
 			memcpy(&req->wb_verf, &hdr->verf.verifier, sizeof(req->wb_verf));
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 			goto next;
@@ -668,7 +662,7 @@ remove_req:
 next:
 		nfs_unlock_request(req);
 		nfs_end_page_writeback(req);
-		do_destroy = !test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags);
+		do_destroy = !nfs_write_need_commit(hdr);
 		nfs_release_request(req);
 	}
 out:
@@ -1088,18 +1082,7 @@ void nfs_commit_prepare(struct rpc_task *task, void *calldata)
 
 static void nfs_writeback_release_common(struct nfs_pgio_header *hdr)
 {
-	int status = hdr->task.tk_status;
-
-	if ((status >= 0) && nfs_write_need_commit(hdr)) {
-		spin_lock(&hdr->lock);
-		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags))
-			; /* Do nothing */
-		else if (!test_and_set_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags))
-			memcpy(&hdr->verf, &hdr->writeverf, sizeof(hdr->verf));
-		else if (memcmp(&hdr->verf, &hdr->writeverf, sizeof(hdr->verf)))
-			set_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags);
-		spin_unlock(&hdr->lock);
-	}
+	/* do nothing! */
 }
 
 /*

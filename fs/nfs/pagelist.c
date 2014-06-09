@@ -545,7 +545,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	hdr->res.fattr   = &hdr->fattr;
 	hdr->res.count   = count;
 	hdr->res.eof     = 0;
-	hdr->res.verf    = &hdr->writeverf;
+	hdr->res.verf    = &hdr->verf;
 	nfs_fattr_init(&hdr->fattr);
 }
 
