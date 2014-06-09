@@ -727,7 +727,7 @@ void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p)
 	if (!p)
 		return;
 
-	if (phtpriv->ht_option == false)
+	if (!phtpriv->ht_option)
 		return;
 
 	pmlmeinfo->HT_caps_enable = 1;
@@ -784,7 +784,7 @@ void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
 	if (!p)
 		return;
 
-	if (phtpriv->ht_option == false)
+	if (!phtpriv->ht_option)
 		return;
 
 	if (p[1] != sizeof(struct ieee80211_ht_operation))

@@ -2409,7 +2409,7 @@ void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,
 
 	phtpriv = &psta->htpriv;
 
-	if (phtpriv->ht_option == true && phtpriv->ampdu_enable == true) {
+	if (phtpriv->ht_option && phtpriv->ampdu_enable == true) {
 		issued = (phtpriv->agg_enable_bitmap>>priority)&0x1;
 		issued |= (phtpriv->candidate_tid_bitmap>>priority)&0x1;
 

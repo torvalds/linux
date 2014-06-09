@@ -1666,7 +1666,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	} else
 		pstat->flags &= ~WLAN_STA_HT;
 
-	if (pmlmepriv->htpriv.ht_option == false && pstat->flags & WLAN_STA_HT){
+	if (!pmlmepriv->htpriv.ht_option && pstat->flags & WLAN_STA_HT){
 		status = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto OnAssocReq23aFail;
 	}
@@ -3479,7 +3479,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 				       &pattrib->pktlen);
 
 	/* HT caps */
-	if (padapter->mlmepriv.htpriv.ht_option == true) {
+	if (padapter->mlmepriv.htpriv.ht_option) {
 		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, pie, pie_len);
 
 		if (p && !is_ap_in_tkip23a(padapter)) {
@@ -5848,7 +5848,7 @@ static void addba_timer_hdl(unsigned long data)
 
 	phtpriv = &psta->htpriv;
 
-	if (phtpriv->ht_option == true && phtpriv->ampdu_enable == true) {
+	if (phtpriv->ht_option && phtpriv->ampdu_enable == true) {
 		if (phtpriv->candidate_tid_bitmap)
 			phtpriv->candidate_tid_bitmap = 0x0;
 	}
