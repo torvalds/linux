@@ -230,7 +230,7 @@ static int xgbe_probe(struct platform_device *pdev)
 	DBGPR("--> xgbe_probe\n");
 
 	netdev = alloc_etherdev_mq(sizeof(struct xgbe_prv_data),
-				   MAX_DMA_CHANNELS);
+				   XGBE_MAX_DMA_CHANNELS);
 	if (!netdev) {
 		dev_err(dev, "alloc_etherdev failed\n");
 		ret = -ENOMEM;
