@@ -3537,7 +3537,11 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			cp.authentication = conn->auth_type;
 
 			/* Request MITM protection if our IO caps allow it
-			 * except for the no-bonding case
+			 * except for the no-bonding case.
+			 * conn->auth_type is not updated here since
+			 * that might cause the user confirmation to be
+			 * rejected in case the remote doesn't have the
+			 * IO capabilities for MITM.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    cp.authentication != HCI_AT_NO_BONDING)
