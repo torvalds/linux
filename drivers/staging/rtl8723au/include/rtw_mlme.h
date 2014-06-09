@@ -308,8 +308,6 @@ static inline void clr_fwstate_ex(struct mlme_priv *pmlmepriv, int state)
 }
 
 u16 rtw_get_capability23a(struct wlan_bssid_ex *bss);
-void rtw_update_scanned_network23a(struct rtw_adapter *adapter,
-				struct wlan_bssid_ex *target);
 void rtw_disconnect_hdl23a_under_linked(struct rtw_adapter *adapter,
 				     struct sta_info *psta, u8 free_assoc);
 void rtw_generate_random_ibss23a(u8 *pibss);

@@ -487,8 +487,8 @@ static void update_current_network(struct rtw_adapter *adapter,
 Caller must hold pmlmepriv->lock first.
 
 */
-void rtw_update_scanned_network23a(struct rtw_adapter *adapter,
-				   struct wlan_bssid_ex *target)
+static void rtw_update_scanned_network(struct rtw_adapter *adapter,
+				       struct wlan_bssid_ex *target)
 {
 	struct list_head *plist, *phead;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
@@ -571,7 +571,7 @@ static void rtw_add_network(struct rtw_adapter *adapter,
 			    struct wlan_bssid_ex *pnetwork)
 {
 	update_current_network(adapter, pnetwork);
-	rtw_update_scanned_network23a(adapter, pnetwork);
+	rtw_update_scanned_network(adapter, pnetwork);
 }
 
 /* select the desired network based on the capability of the (i)bss. */
