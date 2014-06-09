@@ -1526,6 +1526,27 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
+static int mlx4_en_init_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
+{
+	struct mlx4_en_rx_ring *ring = priv->rx_ring[ring_idx];
+	int numa_node = priv->mdev->dev->numa_node;
+	int ret = 0;
+
+	if (!zalloc_cpumask_var(&ring->affinity_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	ret = cpumask_set_cpu_local_first(ring_idx, numa_node,
+					  ring->affinity_mask);
+	if (ret)
+		free_cpumask_var(ring->affinity_mask);
+
+	return ret;
+}
+
+static void mlx4_en_free_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
+{
+	free_cpumask_var(priv->rx_ring[ring_idx]->affinity_mask);
+}
 
 int mlx4_en_start_port(struct net_device *dev)
 {
@@ -1567,9 +1588,16 @@ int mlx4_en_start_port(struct net_device *dev)
 
 		mlx4_en_cq_init_lock(cq);
 
+		err = mlx4_en_init_affinity_hint(priv, i);
+		if (err) {
+			en_err(priv, "Failed preparing IRQ affinity hint\n");
+			goto cq_err;
+		}
+
 		err = mlx4_en_activate_cq(priv, cq, i);
 		if (err) {
 			en_err(priv, "Failed activating Rx CQ\n");
+			mlx4_en_free_affinity_hint(priv, i);
 			goto cq_err;
 		}
 		for (j = 0; j < cq->size; j++)
@@ -1578,6 +1606,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		if (err) {
 			en_err(priv, "Failed setting cq moderation parameters\n");
 			mlx4_en_deactivate_cq(priv, cq);
+			mlx4_en_free_affinity_hint(priv, i);
 			goto cq_err;
 		}
 		mlx4_en_arm_cq(priv, cq);
@@ -1715,8 +1744,10 @@ rss_err:
 mac_err:
 	mlx4_en_put_qp(priv);
 cq_err:
-	while (rx_index--)
+	while (rx_index--) {
 		mlx4_en_deactivate_cq(priv, priv->rx_cq[rx_index]);
+		mlx4_en_free_affinity_hint(priv, i);
+	}
 	for (i = 0; i < priv->rx_ring_num; i++)
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);
 
@@ -1847,6 +1878,8 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 			msleep(1);
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
+
+		mlx4_en_free_affinity_hint(priv, i);
 	}
 }
 
