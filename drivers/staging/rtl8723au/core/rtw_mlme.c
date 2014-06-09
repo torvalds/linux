@@ -1506,8 +1506,6 @@ void rtw_stadel_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 			memcpy(pdev_network, &tgt_network->network,
 			       get_wlan_bssid_ex_sz(&tgt_network->network));
 
-			memset(&pdev_network->Ssid, 0,
-			       sizeof(struct cfg80211_ssid));
 			memcpy(&pdev_network->Ssid, &pmlmepriv->assoc_ssid,
 			       sizeof(struct cfg80211_ssid));
 
