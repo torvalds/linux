@@ -2511,8 +2511,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 					   sizeof (struct ieee80211_hdr_3addr) +
 					   _BEACON_IE_OFFSET_, pattrib->pktlen -
 					   sizeof (struct ieee80211_hdr_3addr) -
-					   _BEACON_IE_OFFSET_, NULL,
-					   &wps_ielen);
+					   _BEACON_IE_OFFSET_, &wps_ielen);
 		if (wps_ie && wps_ielen > 0) {
 			rtw_get_wps_attr_content23a(wps_ie, wps_ielen,
 						    WPS_ATTR_SELECTED_REGISTRAR,
@@ -2677,8 +2676,7 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 		pwps_ie = rtw_get_wps_ie23a(cur_network->IEs +
 					    _FIXED_IE_LENGTH_,
 					    cur_network->IELength -
-					    _FIXED_IE_LENGTH_, NULL,
-					    &wps_ielen);
+					    _FIXED_IE_LENGTH_, &wps_ielen);
 
 		/* inerset & update wps_probe_resp_ie */
 		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && wps_ielen > 0) {

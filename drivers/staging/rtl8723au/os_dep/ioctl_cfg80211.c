@@ -1486,7 +1486,7 @@ static int rtw_cfg80211_set_probe_req_wpsp2pie(struct rtw_adapter *padapter,
 	DBG_8723A("%s, ielen =%d\n", __func__, len);
 
 	if (len > 0) {
-		wps_ie = rtw_get_wps_ie23a(buf, len, NULL, &wps_ielen);
+		wps_ie = rtw_get_wps_ie23a(buf, len, &wps_ielen);
 		if (wps_ie) {
 			DBG_8723A("probe_req_wps_ielen =%d\n", wps_ielen);
 
@@ -1886,7 +1886,7 @@ static int rtw_cfg80211_set_wpa_ie(struct rtw_adapter *padapter, const u8 *pie,
 		uint wps_ielen;
 		u8 *wps_ie;
 
-		wps_ie = rtw_get_wps_ie23a(buf, ielen, NULL, &wps_ielen);
+		wps_ie = rtw_get_wps_ie23a(buf, ielen, &wps_ielen);
 		if (wps_ie && wps_ielen > 0) {
 			DBG_8723A("got wps_ie, wps_ielen:%u\n", wps_ielen);
 			padapter->securitypriv.wps_ie_len =
@@ -2825,9 +2825,8 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	len = head_len + tail_len - 24;
 
 	/* check wps ie if inclued */
-	if (rtw_get_wps_ie23a
-	    (pbuf + _FIXED_IE_LENGTH_, len - _FIXED_IE_LENGTH_, NULL,
-	     &wps_ielen))
+	if (rtw_get_wps_ie23a(pbuf + _FIXED_IE_LENGTH_, len - _FIXED_IE_LENGTH_,
+			      &wps_ielen))
 		DBG_8723A("add bcn, wps_ielen =%d\n", wps_ielen);
 
 	/* pbss_network->IEs will not include p2p_ie, wfd ie */

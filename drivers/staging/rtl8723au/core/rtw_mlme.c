@@ -600,7 +600,7 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS)) {
 		if (rtw_get_wps_ie23a(pnetwork->network.IEs + _FIXED_IE_LENGTH_,
 				      pnetwork->network.IELength -
-				      _FIXED_IE_LENGTH_, NULL, &wps_ielen))
+				      _FIXED_IE_LENGTH_, &wps_ielen))
 			return true;
 		else
 			return false;

@@ -660,7 +660,9 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	/* check if there is wps ie, */
 	/* if there is wpsie in beacon, the hostapd will update beacon twice when stating hostapd, */
 	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
-	if (NULL == rtw_get_wps_ie23a(pnetwork->IEs+_FIXED_IE_LENGTH_, pnetwork->IELength-_FIXED_IE_LENGTH_, NULL, NULL))
+	if (NULL == rtw_get_wps_ie23a(pnetwork->IEs + _FIXED_IE_LENGTH_,
+				      pnetwork->IELength - _FIXED_IE_LENGTH_,
+				      NULL))
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
@@ -1239,7 +1241,8 @@ static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 	if (pwps_ie_src == NULL)
 		return;
 
-	pwps_ie = rtw_get_wps_ie23a(ie+_FIXED_IE_LENGTH_, ielen-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
+	pwps_ie = rtw_get_wps_ie23a(ie + _FIXED_IE_LENGTH_,
+				    ielen - _FIXED_IE_LENGTH_, &wps_ielen);
 
 	if (pwps_ie == NULL || wps_ielen == 0)
 		return;
