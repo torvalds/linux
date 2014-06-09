@@ -2118,8 +2118,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	struct list_head *phead, *plist, *ptmp;
 	struct wlan_network *pnetwork = NULL;
 	struct cfg80211_ssid ssid;
-	u8 *dst_ssid;
-	u8 *dst_bssid;
 	/* u8 matched_by_bssid = false; */
 	/* u8 matched_by_ssid = false; */
 	u8 matched = false;
@@ -2172,9 +2170,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	list_for_each_safe(plist, ptmp, phead) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
-		dst_ssid = pnetwork->network.Ssid.ssid;
-		dst_bssid = pnetwork->network.MacAddress;
-
 		if (sme->bssid) {
 			if (!ether_addr_equal(pnetwork->network.MacAddress,
 					      sme->bssid))
@@ -2189,7 +2184,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 		}
 
 		if (sme->bssid) {
-			if (ether_addr_equal(dst_bssid, sme->bssid)) {
+			if (ether_addr_equal(pnetwork->network.MacAddress,
+					     sme->bssid)) {
 				DBG_8723A("matched by bssid\n");
 
 				memcpy(ssid.ssid, pnetwork->network.Ssid.ssid,
@@ -2200,7 +2196,8 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 				break;
 			}
 		} else if (sme->ssid && sme->ssid_len) {
-			if (!memcmp(dst_ssid, sme->ssid, sme->ssid_len) &&
+			if (!memcmp(pnetwork->network.Ssid.ssid,
+				    sme->ssid, sme->ssid_len) &&
 			    pnetwork->network.Ssid.ssid_len == sme->ssid_len) {
 				DBG_8723A("matched by ssid\n");
 
