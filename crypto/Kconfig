@@ -1019,6 +1019,19 @@ config CRYPTO_DES_SPARC64
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3),
 	  optimized using SPARC64 crypto opcodes.
 
+config CRYPTO_DES3_EDE_X86_64
+	tristate "Triple DES EDE cipher algorithm (x86-64)"
+	depends on X86 && 64BIT
+	select CRYPTO_ALGAPI
+	select CRYPTO_DES
+	help
+	  Triple DES EDE (FIPS 46-3) algorithm.
+
+	  This module provides implementation of the Triple DES EDE cipher
+	  algorithm that is optimized for x86-64 processors. Two versions of
+	  algorithm are provided; regular processing one input block and
+	  one that processes three blocks parallel.
+
 config CRYPTO_FCRYPT
 	tristate "FCrypt cipher algorithm"
 	select CRYPTO_ALGAPI
