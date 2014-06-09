@@ -859,4 +859,4 @@ const struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_OP, radeon_gem_op_ioctl, DRM_AUTH|DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
-int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);
+int radeon_max_kms_ioctl = ARRAY_SIZE(radeon_ioctls_kms);

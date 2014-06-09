@@ -1641,4 +1641,4 @@ const struct drm_ioctl_desc r128_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(R128_GETPARAM, r128_getparam, DRM_AUTH),
 };
 
-int r128_max_ioctl = DRM_ARRAY_SIZE(r128_ioctls);
+int r128_max_ioctl = ARRAY_SIZE(r128_ioctls);

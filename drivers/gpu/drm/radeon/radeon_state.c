@@ -3258,4 +3258,4 @@ struct drm_ioctl_desc radeon_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_CS, r600_cs_legacy_ioctl, DRM_AUTH)
 };
 
-int radeon_max_ioctl = DRM_ARRAY_SIZE(radeon_ioctls);
+int radeon_max_ioctl = ARRAY_SIZE(radeon_ioctls);

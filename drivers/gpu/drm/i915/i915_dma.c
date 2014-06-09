@@ -1986,7 +1986,7 @@ const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_USERPTR, i915_gem_userptr_ioctl, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 };
 
-int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
+int i915_max_ioctl = ARRAY_SIZE(i915_ioctls);
 
 /*
  * This is really ugly: Because old userspace abused the linux agp interface to

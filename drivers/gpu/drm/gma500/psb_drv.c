@@ -477,7 +477,7 @@ static struct drm_driver driver = {
 	.lastclose = psb_driver_lastclose,
 	.preclose = psb_driver_preclose,
 
-	.num_ioctls = DRM_ARRAY_SIZE(psb_ioctls),
+	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.device_is_agp = psb_driver_device_is_agp,
 	.irq_preinstall = psb_irq_preinstall,
 	.irq_postinstall = psb_irq_postinstall,

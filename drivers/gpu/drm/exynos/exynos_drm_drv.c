@@ -573,7 +573,7 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 	int ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	exynos_drm_driver.num_ioctls = DRM_ARRAY_SIZE(exynos_ioctls);
+	exynos_drm_driver.num_ioctls = ARRAY_SIZE(exynos_ioctls);
 
 #ifdef CONFIG_DRM_EXYNOS_FIMD
 	ret = platform_driver_register(&fimd_driver);

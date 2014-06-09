@@ -1099,4 +1099,4 @@ const struct drm_ioctl_desc mga_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MGA_DMA_BOOTSTRAP, mga_dma_bootstrap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 };
 
-int mga_max_ioctl = DRM_ARRAY_SIZE(mga_ioctls);
+int mga_max_ioctl = ARRAY_SIZE(mga_ioctls);
