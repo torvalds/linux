@@ -20,13 +20,13 @@ struct ordered_events {
 	u64			last_flush;
 	u64			next_flush;
 	u64			max_timestamp;
-	struct list_head	samples;
-	struct list_head	sample_cache;
+	struct list_head	events;
+	struct list_head	cache;
 	struct list_head	to_free;
-	struct ordered_event	*sample_buffer;
-	struct ordered_event	*last_sample;
-	int			sample_buffer_idx;
-	unsigned int		nr_samples;
+	struct ordered_event	*buffer;
+	struct ordered_event	*last;
+	int			buffer_idx;
+	unsigned int		nr_events;
 };
 
 struct perf_session {
