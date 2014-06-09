@@ -5848,7 +5848,7 @@ static void addba_timer_hdl(unsigned long data)
 
 	phtpriv = &psta->htpriv;
 
-	if (phtpriv->ht_option && phtpriv->ampdu_enable == true) {
+	if (phtpriv->ht_option && phtpriv->ampdu_enable) {
 		if (phtpriv->candidate_tid_bitmap)
 			phtpriv->candidate_tid_bitmap = 0x0;
 	}

@@ -2291,8 +2291,7 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	ie_len -= bcn_fixed_size;
 
 	/* maybe needs check if ap supports rx ampdu. */
-	if (phtpriv->ampdu_enable == false &&
-	    pregistrypriv->ampdu_enable == 1) {
+	if (!phtpriv->ampdu_enable && pregistrypriv->ampdu_enable == 1) {
 		if (pregistrypriv->wifi_spec == 1)
 			phtpriv->ampdu_enable = false;
 		else
@@ -2409,7 +2408,7 @@ void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,
 
 	phtpriv = &psta->htpriv;
 
-	if (phtpriv->ht_option && phtpriv->ampdu_enable == true) {
+	if (phtpriv->ht_option && phtpriv->ampdu_enable) {
 		issued = (phtpriv->agg_enable_bitmap>>priority)&0x1;
 		issued |= (phtpriv->candidate_tid_bitmap>>priority)&0x1;
 
