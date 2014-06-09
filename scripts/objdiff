@@ -70,7 +70,7 @@ dorecord() {
 
 		[ ! -d "$dir" ] && mkdir -p $dir
 
-		# remove addresses for a more clear diff
+		# remove addresses for a cleaner diff
 		# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
 		$OBJDUMP -D $f | sed "s/^[[:space:]]\+[0-9a-f]\+//" > $dis
 	done
