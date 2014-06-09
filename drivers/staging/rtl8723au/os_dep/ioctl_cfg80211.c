@@ -1981,8 +1981,8 @@ exit:
 	return res;
 }
 
-static int rtw_set_ssid(struct rtw_adapter* padapter,
-			struct cfg80211_ssid *ssid)
+static int rtw_set_ssid(struct rtw_adapter *padapter,
+			struct wlan_network *newnetwork)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *pnetwork = &pmlmepriv->cur_network;
@@ -1990,7 +1990,7 @@ static int rtw_set_ssid(struct rtw_adapter* padapter,
 	u32 cur_time = 0;
 
 	DBG_8723A_LEVEL(_drv_always_, "set ssid [%s] fw_state = 0x%08x\n",
-			ssid->ssid, get_fwstate(pmlmepriv));
+			newnetwork->network.Ssid.ssid, get_fwstate(pmlmepriv));
 
 	if (padapter->hw_init_completed == false) {
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
@@ -2011,9 +2011,11 @@ static int rtw_set_ssid(struct rtw_adapter* padapter,
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("set_ssid: _FW_LINKED||WIFI_ADHOC_MASTER_STATE\n"));
 
-		if (pmlmepriv->assoc_ssid.ssid_len == ssid->ssid_len &&
-		    !memcmp(&pmlmepriv->assoc_ssid.ssid, ssid->ssid,
-			    ssid->ssid_len)) {
+		if (pmlmepriv->assoc_ssid.ssid_len ==
+		    newnetwork->network.Ssid.ssid_len &&
+		    !memcmp(&pmlmepriv->assoc_ssid.ssid,
+			    newnetwork->network.Ssid.ssid,
+			    newnetwork->network.Ssid.ssid_len)) {
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 				RT_TRACE(_module_rtl871x_ioctl_set_c_,
 					 _drv_err_, ("New SSID is same SSID, "
@@ -2056,8 +2058,9 @@ static int rtw_set_ssid(struct rtw_adapter* padapter,
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 				 ("Set SSID not the same ssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("set_ssid =[%s] len = 0x%x\n", ssid->ssid,
-				  ssid->ssid_len));
+				 ("set_ssid =[%s] len = 0x%x\n",
+				  newnetwork->network.Ssid.ssid,
+				  newnetwork->network.Ssid.ssid_len));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 				 ("assoc_ssid =[%s] len = 0x%x\n",
 				  pmlmepriv->assoc_ssid.ssid,
@@ -2093,7 +2096,9 @@ handle_tkip_countermeasure:
 		}
 	}
 
-	memcpy(&pmlmepriv->assoc_ssid, ssid, sizeof(struct cfg80211_ssid));
+	memcpy(&pmlmepriv->assoc_ssid, &newnetwork->network.Ssid,
+	       sizeof(struct cfg80211_ssid));
+
 	pmlmepriv->assoc_by_bssid = false;
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
@@ -2117,7 +2122,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	int ret = 0;
 	struct list_head *phead, *plist, *ptmp;
 	struct wlan_network *pnetwork = NULL;
-	struct cfg80211_ssid ssid;
 	/* u8 matched_by_bssid = false; */
 	/* u8 matched_by_ssid = false; */
 	u8 matched = false;
@@ -2160,8 +2164,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
 		rtw_scan_abort23a(padapter);
 	}
-
-	memset(ssid.ssid, 0, sizeof(struct cfg80211_ssid));
 
 	spin_lock_bh(&queue->lock);
 
@@ -2315,11 +2317,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	/* rtw_set_802_11_encryption_mode(padapter,
 	   padapter->securitypriv.ndisencryptstatus); */
 
-	memcpy(ssid.ssid, pnetwork->network.Ssid.ssid,
-	       pnetwork->network.Ssid.ssid_len);
-	ssid.ssid_len = pnetwork->network.Ssid.ssid_len;
-
-	if (rtw_set_ssid(padapter, &ssid) != _SUCCESS) {
+	if (rtw_set_ssid(padapter, pnetwork) != _SUCCESS) {
 		ret = -EBUSY;
 		goto exit;
 	}
