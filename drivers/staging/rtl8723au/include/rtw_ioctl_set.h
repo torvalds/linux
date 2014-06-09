@@ -23,6 +23,5 @@ int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 
 u16 rtw_get_cur_max_rate23a(struct rtw_adapter *adapter);
 s32 FillH2CCmd(struct rtw_adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
-int rtw_do_join23a(struct rtw_adapter *padapter);
 
 #endif

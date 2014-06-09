@@ -22,39 +22,6 @@
 #include <usb_ops.h>
 #include <linux/ieee80211.h>
 
-int rtw_do_join23a(struct rtw_adapter *padapter)
-{
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int ret;
-
-	pmlmepriv->cur_network.join_res = -2;
-
-	set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-
-	pmlmepriv->to_join = true;
-
-	ret = rtw_select_and_join_from_scanned_queue23a(pmlmepriv);
-	if (ret == _SUCCESS) {
-		pmlmepriv->to_join = false;
-	} else {
-		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-			/* switch to ADHOC_MASTER */
-			ret = rtw_do_join_adhoc(padapter);
-			if (ret != _SUCCESS)
-				goto exit;
-		} else {
-			/*  can't associate ; reset under-linking */
-			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
-
-			ret = _FAIL;
-			pmlmepriv->to_join = false;
-		}
-	}
-
-exit:
-	return ret;
-}
-
 int rtw_set_802_11_bssid23a_list_scan(struct rtw_adapter *padapter,
 				      struct cfg80211_ssid *pssid,
 				      int ssid_max_num)

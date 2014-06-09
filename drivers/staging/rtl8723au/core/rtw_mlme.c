@@ -29,6 +29,7 @@
 
 static struct wlan_network *
 rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv);
+static int rtw_do_join(struct rtw_adapter *padapter);
 
 static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 {
@@ -280,7 +281,7 @@ static void _rtw_roaming(struct rtw_adapter *padapter,
 		pmlmepriv->assoc_by_bssid = false;
 
 		while (1) {
-			do_join_r = rtw_do_join23a(padapter);
+			do_join_r = rtw_do_join(padapter);
 			if (do_join_r == _SUCCESS)
 				break;
 			else {
@@ -1489,7 +1490,7 @@ void rtw23a_join_to_handler (unsigned long data)
 			if (adapter->mlmepriv.to_roaming != 0) {
 				/* try another */
 				DBG_8723A("%s try another roaming\n", __func__);
-				do_join_r = rtw_do_join23a(adapter);
+				do_join_r = rtw_do_join(adapter);
 				if (do_join_r != _SUCCESS) {
 					DBG_8723A("%s roaming do_join return "
 						  "%d\n", __func__ , do_join_r);
@@ -1687,6 +1688,39 @@ The caller must hold the following spinlock
 pmlmepriv->lock
 
 */
+
+static int rtw_do_join(struct rtw_adapter *padapter)
+{
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	int ret;
+
+	pmlmepriv->cur_network.join_res = -2;
+
+	set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
+
+	pmlmepriv->to_join = true;
+
+	ret = rtw_select_and_join_from_scanned_queue23a(pmlmepriv);
+	if (ret == _SUCCESS) {
+		pmlmepriv->to_join = false;
+	} else {
+		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
+			/* switch to ADHOC_MASTER */
+			ret = rtw_do_join_adhoc(padapter);
+			if (ret != _SUCCESS)
+				goto exit;
+		} else {
+			/*  can't associate ; reset under-linking */
+			_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+
+			ret = _FAIL;
+			pmlmepriv->to_join = false;
+		}
+	}
+
+exit:
+	return ret;
+}
 
 static struct wlan_network *
 rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv)
