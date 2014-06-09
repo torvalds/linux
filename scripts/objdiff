@@ -28,17 +28,17 @@
 SRCTREE=$(git rev-parse --show-toplevel 2>/dev/null)
 
 if [ -z "$SRCTREE" ]; then
-	echo "ERROR: Not a git repository."
+	echo >&2 "ERROR: Not a git repository."
 	exit 1
 fi
 
 TMPD=$SRCTREE/.tmp_objdiff
 
 usage() {
-	echo "Usage: $0 <command> <args>"
-	echo "  record    <list of object files>"
-	echo "  diff      <commitA> <commitB>"
-	echo "  clean     all | <commit>"
+	echo >&2 "Usage: $0 <command> <args>"
+	echo >&2 "  record    <list of object files>"
+	echo >&2 "  diff      <commitA> <commitB>"
+	echo >&2 "  clean     all | <commit>"
 	exit 1
 }
 
@@ -88,12 +88,12 @@ dodiff() {
 	DSTD="$TMPD/$DST"
 
 	if [ ! -d "$SRCD" ]; then
-		echo "ERROR: $SRCD doesn't exist"
+		echo >&2 "ERROR: $SRCD doesn't exist"
 		exit 1
 	fi
 
 	if [ ! -d "$DSTD" ]; then
-		echo "ERROR: $DSTD doesn't exist"
+		echo >&2 "ERROR: $DSTD doesn't exist"
 		exit 1
 	fi
 
@@ -112,7 +112,7 @@ doclean() {
 		if [ -d "$TMPD/$CMT" ]; then
 			rm -rf $TMPD/$CMT
 		else
-			echo "$CMT not found"
+			echo >&2 "$CMT not found"
 		fi
 	fi
 }
@@ -133,7 +133,7 @@ case "$1" in
 		doclean $*
 		;;
 	*)
-		echo "Unrecognized command '$1'"
+		echo >&2 "Unrecognized command '$1'"
 		exit 1
 		;;
 esac
