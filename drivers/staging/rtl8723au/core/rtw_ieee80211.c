@@ -857,8 +857,9 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 {
 	unsigned short cap;
 	u8 bencrypt = 0;
-	/* u8 wpa_ie[255], rsn_ie[255]; */
-	u16 wpa_len = 0, rsn_len = 0;
+	int pie_len, ie_offset;
+	u8 *pie;
+	const u8 *p;
 
 	cap = get_unaligned_le16(
 		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
@@ -868,24 +869,22 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	} else
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 
-	rtw_get_sec_ie23a(pnetwork->network.IEs, pnetwork->network.IELength,
-		       NULL, &rsn_len, NULL, &wpa_len);
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("rtw_get_bcn_info23a: ssid =%s\n", pnetwork->network.Ssid.ssid));
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: wpa_len =%d rsn_len =%d\n",
-		  wpa_len, rsn_len));
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: ssid =%s\n", pnetwork->network.Ssid.ssid));
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: wpa_len =%d rsn_len =%d\n",
-		  wpa_len, rsn_len));
 
-	if (rsn_len > 0)
+	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		offsetof(struct ieee80211_mgmt, u);
+	pie = pnetwork->network.IEs + ie_offset;
+	pie_len = pnetwork->network.IELength - ie_offset;
+
+	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
+	if (p && p[1]) {
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	else if (wpa_len > 0)
+	} else if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					   WLAN_OUI_TYPE_MICROSOFT_WPA,
+					   pie, pie_len)) {
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WPA;
-	else {
+	} else {
 		if (bencrypt)
 			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
