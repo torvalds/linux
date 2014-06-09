@@ -43,6 +43,7 @@
 #include <asm/io.h>
 #include <asm/mpspec.h>
 #include <asm/smp.h>
+#include <asm/i8259.h>
 
 #include "sleep.h" /* To include x86_acpi_suspend_lowlevel */
 static int __initdata acpi_force = 0;
@@ -101,10 +102,10 @@ static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 
 static unsigned int gsi_to_irq(unsigned int gsi)
 {
-	unsigned int irq = gsi + NR_IRQS_LEGACY;
+	unsigned int irq = gsi + nr_legacy_irqs();
 	unsigned int i;
 
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+	for (i = 0; i < nr_legacy_irqs(); i++) {
 		if (isa_irq_to_gsi[i] == gsi) {
 			return i;
 		}
@@ -114,7 +115,7 @@ static unsigned int gsi_to_irq(unsigned int gsi)
 	 * except on truly weird platforms that have
 	 * non isa irqs in the first 16 gsis.
 	 */
-	if (gsi >= NR_IRQS_LEGACY)
+	if (gsi >= nr_legacy_irqs())
 		irq = gsi;
 	else
 		irq = gsi_top + gsi;
@@ -371,7 +372,7 @@ static void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 	 * otherwise there will be more than one entry with the same GSI
 	 * and acpi_isa_irq_to_gsi() may give wrong result.
 	 */
-	if (gsi < NR_IRQS_LEGACY && isa_irq_to_gsi[gsi] == gsi)
+	if (gsi < nr_legacy_irqs() && isa_irq_to_gsi[gsi] == gsi)
 		isa_irq_to_gsi[gsi] = ACPI_INVALID_GSI;
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
@@ -628,7 +629,7 @@ EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
 int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
 {
-	if (isa_irq < NR_IRQS_LEGACY &&
+	if (isa_irq < nr_legacy_irqs() &&
 	    isa_irq_to_gsi[isa_irq] != ACPI_INVALID_GSI) {
 		*gsi = isa_irq_to_gsi[isa_irq];
 		return 0;
@@ -1017,7 +1018,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 	 * Use the default configuration for the IRQs 0-15.  Unless
 	 * overridden by (MADT) interrupt source override entries.
 	 */
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+	for (i = 0; i < nr_legacy_irqs(); i++) {
 		int ioapic, pin;
 		unsigned int dstapic;
 		int idx;
