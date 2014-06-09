@@ -152,7 +152,7 @@ static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 		break;
 	default:
 		break;
-	};
+	}
 	ctx->dpms_mode = mode;
 }
 

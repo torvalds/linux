@@ -1083,7 +1083,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 	case AST_DRAM_4Gx16:
 		param->dram_config = 0x133;
 		break;
-	}; /* switch size */
+	} /* switch size */
 
 	switch (param->vram_size) {
 	default:
@@ -1454,7 +1454,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 	case AST_DRAM_4Gx16:
 		param->dram_config = 0x123;
 		break;
-	}; /* switch size */
+	} /* switch size */
 
 	switch (param->vram_size) {
 	default:
