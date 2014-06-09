@@ -947,7 +947,6 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	} while (ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_pageio_add_request);
 
 /*
  * nfs_pageio_resend - Transfer requests to new descriptor and resend
@@ -995,7 +994,6 @@ void nfs_pageio_complete(struct nfs_pageio_descriptor *desc)
 			break;
 	}
 }
-EXPORT_SYMBOL_GPL(nfs_pageio_complete);
 
 /**
  * nfs_pageio_cond_complete - Conditional I/O completion
