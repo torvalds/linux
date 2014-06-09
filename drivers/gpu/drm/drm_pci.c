@@ -1,17 +1,3 @@
-/* drm_pci.h -- PCI DMA memory management wrappers for DRM -*- linux-c -*- */
-/**
- * \file drm_pci.c
- * \brief Functions and ioctls to manage PCI memory
- *
- * \warning These interfaces aren't stable yet.
- *
- * \todo Implement the remaining ioctl's for the PCI pools.
- * \todo The wrappers here are so thin that they would be better off inlined..
- *
- * \author José Fonseca <jrfonseca@tungstengraphics.com>
- * \author Leif Delgass <ldelgass@retinalburn.net>
- */
-
 /*
  * Copyright 2003 José Fonseca.
  * Copyright 2003 Leif Delgass.
@@ -42,12 +28,14 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 
-/**********************************************************************/
-/** \name PCI memory */
-/*@{*/
-
 /**
- * \brief Allocate a PCI consistent memory block, for DMA.
+ * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
+ * @dev: DRM device
+ * @size: size of block to allocate
+ * @align: alignment of block
+ *
+ * Return: A handle to the allocated memory block on success or NULL on
+ * failure.
  */
 drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t align)
 {
@@ -88,8 +76,8 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size, size_t ali
 
 EXPORT_SYMBOL(drm_pci_alloc);
 
-/**
- * \brief Free a PCI consistent memory block without freeing its descriptor.
+/*
+ * Free a PCI consistent memory block without freeing its descriptor.
  *
  * This function is for internal use in the Linux-specific DRM core code.
  */
@@ -111,7 +99,9 @@ void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 }
 
 /**
- * \brief Free a PCI consistent memory block
+ * drm_pci_free - Free a PCI consistent memory block
+ * @dev: DRM device
+ * @dmah: handle to memory block
  */
 void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
@@ -226,17 +216,16 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 }
 
 /**
- * Get interrupt from bus id.
- *
- * \param inode device inode.
- * \param file_priv DRM file private.
- * \param cmd command.
- * \param arg user argument, pointing to a drm_irq_busid structure.
- * \return zero on success or a negative number on failure.
+ * drm_irq_by_busid - Get interrupt from bus ID
+ * @dev: DRM device
+ * @data: IOCTL parameter pointing to a drm_irq_busid structure
+ * @file_priv: DRM file private.
  *
  * Finds the PCI device with the specified bus id and gets its IRQ number.
  * This IOCTL is deprecated, and will now return EINVAL for any busid not equal
  * to that of the device that this DRM instance attached to.
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
 int drm_irq_by_busid(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
@@ -285,15 +274,16 @@ static struct drm_bus drm_pci_bus = {
 };
 
 /**
- * Register.
- *
- * \param pdev - PCI device structure
- * \param ent entry from the PCI ID table with device type flags
- * \return zero on success or a negative number on failure.
+ * drm_get_pci_dev - Register a PCI device with the DRM subsystem
+ * @pdev: PCI device
+ * @ent: entry from the PCI ID table that matches @pdev
+ * @driver: DRM device driver
  *
  * Attempt to gets inter module "drm" information. If we are first
  * then register the character device and inter module information.
  * Try and register, if we fail to register, backout previous work.
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
 int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		    struct drm_driver *driver)
@@ -346,15 +336,14 @@ err_free:
 EXPORT_SYMBOL(drm_get_pci_dev);
 
 /**
- * PCI device initialization. Called direct from modules at load time.
+ * drm_pci_init - Register matching PCI devices with the DRM subsystem
+ * @driver: DRM device driver
+ * @pdriver: PCI device driver
  *
- * \return zero on success or a negative number on failure.
+ * Initializes a drm_device structures, registering the stubs and initializing
+ * the AGP device.
  *
- * Initializes a drm_device structures,registering the
- * stubs and initializing the AGP device.
- *
- * Expands the \c DRIVER_PREINIT and \c DRIVER_POST_INIT macros before and
- * after the initialization for driver customization.
+ * Return: 0 on success or a negative error code on failure.
  */
 int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 {
@@ -458,7 +447,14 @@ int drm_pci_set_unique(struct drm_device *dev,
 
 EXPORT_SYMBOL(drm_pci_init);
 
-/*@}*/
+/**
+ * drm_pci_exit - Unregister matching PCI devices from the DRM subsystem
+ * @driver: DRM device driver
+ * @pdriver: PCI device driver
+ *
+ * Unregisters one or more devices matched by a PCI driver from the DRM
+ * subsystem.
+ */
 void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 {
 	struct drm_device *dev, *tmp;

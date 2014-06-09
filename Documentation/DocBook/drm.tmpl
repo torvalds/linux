@@ -142,6 +142,12 @@
       to register it with the DRM subsystem.
     </para>
     <para>
+      Newer drivers that no longer require a <structname>drm_bus</structname>
+      structure can alternatively use the low-level device initialization and
+      registration functions such as <function>drm_dev_alloc()</function> and
+      <function>drm_dev_register()</function> directly.
+    </para>
+    <para>
       The <structname>drm_driver</structname> structure contains static
       information that describes the driver and features it supports, and
       pointers to methods that the DRM core will call to implement the DRM API.
@@ -280,6 +286,36 @@ char *date;</synopsis>
           DRM_IOCTL_VERSION ioctl.
         </para>
       </sect3>
+    </sect2>
+    <sect2>
+      <title>Device Registration</title>
+      <para>
+        A number of functions are provided to help with device registration.
+        The functions deal with PCI, USB and platform devices, respectively.
+      </para>
+!Edrivers/gpu/drm/drm_pci.c
+!Edrivers/gpu/drm/drm_usb.c
+!Edrivers/gpu/drm/drm_platform.c
+      <para>
+        New drivers that no longer rely on the services provided by the
+        <structname>drm_bus</structname> structure can call the low-level
+        device registration functions directly. The
+        <function>drm_dev_alloc()</function> function can be used to allocate
+        and initialize a new <structname>drm_device</structname> structure.
+        Drivers will typically want to perform some additional setup on this
+        structure, such as allocating driver-specific data and storing a
+        pointer to it in the DRM device's <structfield>dev_private</structfield>
+        field. Drivers should also set the device's unique name using the
+        <function>drm_dev_set_unique()</function> function. After it has been
+        set up a device can be registered with the DRM subsystem by calling
+        <function>drm_dev_register()</function>. This will cause the device to
+        be exposed to userspace and will call the driver's
+        <structfield>.load()</structfield> implementation. When a device is
+        removed, the DRM device can safely be unregistered and freed by calling
+        <function>drm_dev_unregister()</function> followed by a call to
+        <function>drm_dev_unref()</function>.
+      </para>
+!Edrivers/gpu/drm/drm_stub.c
     </sect2>
     <sect2>
       <title>Driver Load</title>

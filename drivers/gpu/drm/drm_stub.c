@@ -1,15 +1,10 @@
-/**
- * \file drm_stub.h
- * Stub support
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- */
-
 /*
  * Created: Fri Jan 19 10:48:35 2001 by faith@acm.org
  *
  * Copyright 2001 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.
+ *
+ * Author Rickard E. (Rik) Faith <faith@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -425,11 +420,15 @@ void drm_minor_release(struct drm_minor *minor)
 }
 
 /**
- * Called via drm_exit() at module unload time or when pci device is
- * unplugged.
+ * drm_put_dev - Unregister and release a DRM device
+ * @dev: DRM device
+ *
+ * Called at module unload time or when a PCI device is unplugged.
+ *
+ * Use of this function is discouraged. It will eventually go away completely.
+ * Please use drm_dev_unregister() and drm_dev_unref() explicitly instead.
  *
  * Cleans up all DRM device, calling drm_lastclose().
- *
  */
 void drm_put_dev(struct drm_device *dev)
 {
@@ -536,7 +535,7 @@ static void drm_fs_inode_free(struct inode *inode)
 }
 
 /**
- * drm_dev_alloc - Allocate new drm device
+ * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
  *
@@ -650,6 +649,7 @@ static void drm_dev_release(struct kref *ref)
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
 	mutex_destroy(&dev->master_mutex);
+	kfree(dev->unique);
 	kfree(dev);
 }
 
@@ -689,6 +689,7 @@ EXPORT_SYMBOL(drm_dev_unref);
 /**
  * drm_dev_register - Register DRM device
  * @dev: Device to register
+ * @flags: Flags passed to the driver's .load() function
  *
  * Register the DRM device @dev with the system, advertise device to user-space
  * and start normal device operation. @dev must be allocated via drm_dev_alloc()
@@ -777,3 +778,28 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
+
+/**
+ * drm_dev_set_unique - Set the unique name of a DRM device
+ * @dev: device of which to set the unique name
+ * @fmt: format string for unique name
+ *
+ * Sets the unique name of a DRM device using the specified format string and
+ * a variable list of arguments. Drivers can use this at driver probe time if
+ * the unique name of the devices they drive is static.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int drm_dev_set_unique(struct drm_device *dev, const char *fmt, ...)
+{
+	va_list ap;
+
+	kfree(dev->unique);
+
+	va_start(ap, fmt);
+	dev->unique = kvasprintf(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+
+	return dev->unique ? 0 : -ENOMEM;
+}
+EXPORT_SYMBOL(drm_dev_set_unique);
