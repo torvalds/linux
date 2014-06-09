@@ -504,7 +504,7 @@ void flush_all_cam_entry23a(struct rtw_adapter *padapter)
 	memset(pmlmeinfo->FW_sta_info, 0, sizeof(pmlmeinfo->FW_sta_info));
 }
 
-int WMM_param_handler23a(struct rtw_adapter *padapter, u8 *p)
+int WMM_param_handler23a(struct rtw_adapter *padapter, const u8 *p)
 {
 	/* struct registry_priv	*pregpriv = &padapter->registrypriv; */
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -712,7 +712,7 @@ static void bwmode_update_check(struct rtw_adapter *padapter, const u8 *p)
 	}
 }
 
-void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p)
+void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p)
 {
 	unsigned int i;
 	u8 rf_type;

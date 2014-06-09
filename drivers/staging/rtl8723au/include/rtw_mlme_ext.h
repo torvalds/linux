@@ -510,10 +510,10 @@ bool is_IBSS_empty23a(struct rtw_adapter *padapter);
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len);
 
-int WMM_param_handler23a(struct rtw_adapter *padapter, u8 *p);
+int WMM_param_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void WMMOnAssocRsp23a(struct rtw_adapter *padapter);
 
-void HT_caps_handler23a(struct rtw_adapter *padapter, u8 *p);
+void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p);
 void HTOnAssocRsp23a(struct rtw_adapter *padapter);
 
