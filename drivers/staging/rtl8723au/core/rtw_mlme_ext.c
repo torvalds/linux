@@ -2931,7 +2931,6 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	unsigned char *pframe;
 	struct ieee80211_mgmt *mgmt;
 	unsigned int val32;
-	unsigned short val16;
 	u16 auth_algo;
 	int use_shared_key = 0;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -2960,6 +2959,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 
 	if (psta) { /*  for AP mode */
 #ifdef CONFIG_8723AU_AP_MODE
+		unsigned short val16;
 		ether_addr_copy(mgmt->da, psta->hwaddr);
 		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
 		ether_addr_copy(mgmt->bssid, myid(&padapter->eeprompriv));
