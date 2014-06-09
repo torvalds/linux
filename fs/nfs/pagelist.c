@@ -949,6 +949,38 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_add_request);
 
+/*
+ * nfs_pageio_resend - Transfer requests to new descriptor and resend
+ * @hdr - the pgio header to move request from
+ * @desc - the pageio descriptor to add requests to
+ *
+ * Try to move each request (nfs_page) from @hdr to @desc then attempt
+ * to send them.
+ *
+ * Returns 0 on success and < 0 on error.
+ */
+int nfs_pageio_resend(struct nfs_pageio_descriptor *desc,
+		      struct nfs_pgio_header *hdr)
+{
+	LIST_HEAD(failed);
+
+	desc->pg_dreq = hdr->dreq;
+	while (!list_empty(&hdr->pages)) {
+		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+
+		nfs_list_remove_request(req);
+		if (!nfs_pageio_add_request(desc, req))
+			nfs_list_add_request(req, &failed);
+	}
+	nfs_pageio_complete(desc);
+	if (!list_empty(&failed)) {
+		list_move(&failed, &hdr->pages);
+		return -EIO;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nfs_pageio_resend);
+
 /**
  * nfs_pageio_complete - Complete I/O on an nfs_pageio_descriptor
  * @desc: pointer to io descriptor
