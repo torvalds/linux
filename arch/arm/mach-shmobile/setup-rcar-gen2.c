@@ -20,8 +20,11 @@
 
 #include <linux/clk/shmobile.h>
 #include <linux/clocksource.h>
+#include <linux/device.h>
+#include <linux/dma-contiguous.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/of_fdt.h>
 #include <asm/mach/arch.h>
 #include "common.h"
 #include "rcar-gen2.h"
