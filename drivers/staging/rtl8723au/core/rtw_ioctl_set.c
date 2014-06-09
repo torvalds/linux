@@ -109,7 +109,7 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 						 _drv_err_,
 						 ("***Error =>do_goin: rtw_creat"
 						  "ebss_cmd status FAIL***\n"));
-					ret =  false;
+					ret = _FAIL;
 					goto exit;
 				}
 
