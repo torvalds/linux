@@ -27,6 +27,9 @@
 #include <rtw_ioctl_set.h>
 #include <rtw_sreset.h>
 
+static struct wlan_network *
+rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv);
+
 static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1754,18 +1757,15 @@ pmlmepriv->lock
 
 */
 
-int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
+static struct wlan_network *
+rtw_select_candidate_from_queue(struct mlme_priv *pmlmepriv)
 {
-	int ret;
-	struct list_head *phead, *plist, *ptmp;
-	struct rtw_adapter *adapter;
+	struct wlan_network *pnetwork, *candidate = NULL;
 	struct rtw_queue *queue = &pmlmepriv->scanned_queue;
-	struct wlan_network *pnetwork;
-	struct wlan_network *candidate = NULL;
+	struct list_head *phead, *plist, *ptmp;
 
 	spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 	phead = get_list_head(queue);
-	adapter = pmlmepriv->nic_hdl;
 
 	list_for_each_safe(plist, ptmp, phead) {
 		pnetwork = container_of(plist, struct wlan_network, list);
@@ -1773,13 +1773,26 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 			RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 				 ("%s: return _FAIL:(pnetwork == NULL)\n",
 				  __func__));
-			ret = _FAIL;
 			goto exit;
 		}
 
 		rtw_check_join_candidate(pmlmepriv, &candidate, pnetwork);
 	}
 
+exit:
+	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
+	return candidate;
+}
+
+int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
+{
+	struct rtw_adapter *adapter;
+	struct wlan_network *candidate = NULL;
+	int ret;
+
+	adapter = pmlmepriv->nic_hdl;
+
+	candidate = rtw_select_candidate_from_queue(pmlmepriv);
 	if (!candidate) {
 		DBG_8723A("%s: return _FAIL(candidate == NULL)\n", __func__);
 		ret = _FAIL;
@@ -1803,8 +1816,6 @@ int rtw_select_and_join_from_scanned_queue23a(struct mlme_priv *pmlmepriv)
 	ret = rtw_joinbss_cmd23a(adapter, candidate);
 
 exit:
-	spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
-
 	return ret;
 }
 
