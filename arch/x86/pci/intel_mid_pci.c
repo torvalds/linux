@@ -227,6 +227,12 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 	return 0;
 }
 
+static void intel_mid_pci_irq_disable(struct pci_dev *dev)
+{
+	if (dev->irq > 0)
+		mp_unmap_irq(dev->irq);
+}
+
 struct pci_ops intel_mid_pci_ops = {
 	.read = pci_read,
 	.write = pci_write,
@@ -243,6 +249,7 @@ int __init intel_mid_pci_init(void)
 	pr_info("Intel MID platform detected, using MID PCI ops\n");
 	pci_mmcfg_late_init();
 	pcibios_enable_irq = intel_mid_pci_irq_enable;
+	pcibios_disable_irq = intel_mid_pci_irq_disable;
 	pci_root_ops = intel_mid_pci_ops;
 	pci_soc_mode = 1;
 	/* Continue with standard init */
