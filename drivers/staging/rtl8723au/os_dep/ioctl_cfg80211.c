@@ -1931,12 +1931,12 @@ static int rtw_cfg80211_add_wep(struct rtw_adapter *padapter,
 	}
 
 	switch (wep->keylen) {
-	case 5:
+	case WLAN_KEY_LEN_WEP40:
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("%s:wep->KeyLength = 5\n", __func__));
 		break;
-	case 13:
+	case WLAN_KEY_LEN_WEP104:
 		psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
 			 ("%s:wep->KeyLength = 13\n", __func__));
