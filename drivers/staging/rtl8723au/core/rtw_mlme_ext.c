@@ -61,6 +61,8 @@ static void start_clnt_assoc(struct rtw_adapter *padapter);
 static void start_clnt_auth(struct rtw_adapter *padapter);
 static void start_clnt_join(struct rtw_adapter *padapter);
 static void start_create_ibss(struct rtw_adapter *padapter);
+static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
+					      struct recv_frame *precv_frame);
 
 #ifdef CONFIG_8723AU_AP_MODE
 static int OnAuth23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame);
@@ -825,16 +827,11 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 		/* we should update current network before auth,
 		   or some IE is wrong */
-		pbss = (struct wlan_bssid_ex *)
-			kmalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+		pbss = collect_bss_info(padapter, precv_frame);
 		if (pbss) {
-			if (collect_bss_info23a(padapter, precv_frame, pbss) ==
-			    _SUCCESS) {
-				update_network23a(
-					&pmlmepriv->cur_network.network, pbss,
-					padapter, true);
-				rtw_get_bcn_info23a(&pmlmepriv->cur_network);
-			}
+			update_network23a(&pmlmepriv->cur_network.network, pbss,
+					  padapter, true);
+			rtw_get_bcn_info23a(&pmlmepriv->cur_network);
 			kfree(pbss);
 		}
 
@@ -4252,9 +4249,8 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 }
 
 /* collect bss info from Beacon and Probe request/response frames. */
-int collect_bss_info23a(struct rtw_adapter *padapter,
-			struct recv_frame *precv_frame,
-			struct wlan_bssid_ex *bssid)
+static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
+					      struct recv_frame *precv_frame)
 {
 	int i;
 	const u8 *p;
@@ -4265,16 +4261,19 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct wlan_bssid_ex *bssid;
 	u16 capab_info;
 
 	length = skb->len - sizeof(struct ieee80211_hdr_3addr);
 
 	if (length > MAX_IE_SZ) {
 		/* DBG_8723A("IE too long for survey event\n"); */
-		return _FAIL;
+		return NULL;
 	}
 
-	memset(bssid, 0, sizeof(struct wlan_bssid_ex));
+	bssid = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
+	if (!bssid)
+		return NULL;
 
 	if (ieee80211_is_beacon(mgmt->frame_control)) {
 		bssid->reserved = 1;
@@ -4325,13 +4324,13 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 
 	if (!p) {
 		DBG_8723A("marc: cannot find SSID for survey event\n");
-		return _FAIL;
+		goto fail;
 	}
 
 	if (p[1] > IEEE80211_MAX_SSID_LEN) {
 		DBG_8723A("%s()-%d: IE too long (%d) for survey "
 			  "event\n", __func__, __LINE__, p[1]);
-		return _FAIL;
+		goto fail;
 	}
 	memcpy(bssid->Ssid.ssid, p + 2, p[1]);
 	bssid->Ssid.ssid_len = p[1];
@@ -4346,7 +4345,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		if (p[1] > NDIS_802_11_LENGTH_RATES_EX) {
 			DBG_8723A("%s()-%d: IE too long (%d) for survey "
 				  "event\n", __func__, __LINE__, p[1]);
-			return _FAIL;
+			goto fail;
 		}
 		memcpy(bssid->SupportedRates, p + 2, p[1]);
 		i = p[1];
@@ -4358,13 +4357,13 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		if (p[1] > (NDIS_802_11_LENGTH_RATES_EX-i)) {
 			DBG_8723A("%s()-%d: IE too long (%d) for survey "
 				  "event\n", __func__, __LINE__, p[1]);
-			return _FAIL;
+			goto fail;
 		}
 		memcpy(bssid->SupportedRates + i, p + 2, p[1]);
 	}
 
 	if (bssid->IELength < 12)
-		return _FAIL;
+		goto fail;
 
 	/*  Checking for DSConfig */
 	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, bssid->IEs + ie_offset,
@@ -4392,7 +4391,7 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 		bssid->ifmode = NL80211_IFTYPE_STATION;
 		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 		bssid->Privacy = 1;
-		return _SUCCESS;
+		return bssid;
 	}
 
 	if (capab_info & WLAN_CAPABILITY_ESS) {
@@ -4434,7 +4433,10 @@ int collect_bss_info23a(struct rtw_adapter *padapter,
 	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
 		bssid->PhyInfo.SignalQuality = 101;
 
-	return _SUCCESS;
+	return bssid;
+fail:
+	kfree (bssid);
+	return NULL;
 }
 
 static void start_create_ibss(struct rtw_adapter* padapter)
@@ -4898,13 +4900,9 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
 
 	psurvey_evt = (struct survey_event*)(pevtcmd + sizeof(struct C2HEvent_Header));
-	psurvey_evt->bss = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
-	if (!psurvey_evt->bss) {
-		kfree(pcmd_obj);
-		kfree(pevtcmd);
-	}
 
-	if (collect_bss_info23a(padapter, precv_frame, psurvey_evt->bss) == _FAIL) {
+	psurvey_evt->bss = collect_bss_info(padapter, precv_frame);
+	if (!psurvey_evt->bss) {
 		kfree(pcmd_obj);
 		kfree(pevtcmd);
 		return;
