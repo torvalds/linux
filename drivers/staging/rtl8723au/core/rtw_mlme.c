@@ -24,7 +24,6 @@
 #include <linux/ieee80211.h>
 #include <wifi.h>
 #include <wlan_bssdef.h>
-#include <rtw_ioctl_set.h>
 #include <rtw_sreset.h>
 
 static struct wlan_network *

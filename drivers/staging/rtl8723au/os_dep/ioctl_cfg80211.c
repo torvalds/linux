@@ -16,7 +16,6 @@
 
 #include <osdep_service.h>
 #include <drv_types.h>
-#include <rtw_ioctl_set.h>
 #include <xmit_osdep.h>
 
 #include "ioctl_cfg80211.h"

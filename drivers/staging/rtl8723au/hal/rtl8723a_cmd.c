@@ -18,7 +18,6 @@
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
-#include <rtw_ioctl_set.h>
 #include <rtl8723a_hal.h>
 #include <usb_ops_linux.h>
 

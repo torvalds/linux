@@ -18,7 +18,6 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <mlme_osdep.h>
-#include <rtw_ioctl_set.h>
 
 static struct rt_pmkid_list backupPMKIDList[NUM_PMKID_CACHE];
 

@@ -14,7 +14,6 @@
  ******************************************************************************/
 #include <drv_types.h>
 #include <rtl8723a_hal.h>
-#include <rtw_ioctl_set.h>
 #include <usb_ops_linux.h>
 
 #define DIS_PS_RX_BCN
