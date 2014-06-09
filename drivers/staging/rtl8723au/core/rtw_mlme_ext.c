@@ -857,7 +857,7 @@ OnBeacon23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 		psta = rtw_get_stainfo23a(pstapriv, mgmt->sa);
 		if (psta) {
 			ret = rtw_check_bcn_info23a(padapter, mgmt, pkt_len);
-			if (!ret) {
+			if (ret != _SUCCESS) {
 				DBG_8723A_LEVEL(_drv_always_, "ap has changed, "
 						"disconnect now\n");
 				receive_disconnect23a(padapter, pmlmeinfo->network.MacAddress, 65535);

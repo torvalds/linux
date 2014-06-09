@@ -885,28 +885,19 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 {
 	struct wlan_network *cur_network = &Adapter->mlmepriv.cur_network;
 	struct ieee80211_ht_operation *pht_info;
-	struct wlan_bssid_ex *bssid;
 	unsigned short val16;
 	u8 encryp_protocol;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
 	u32 bcn_channel;
-	int len, pie_len, ie_offset;
-	const u8 *p;
-	u8 *pie;
+	int pie_len, ie_offset, ssid_len, privacy;
+	const u8 *p, *ssid;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
-		return true;
+		return _SUCCESS;
 
 	if (unlikely(!ieee80211_is_beacon(mgmt->frame_control))) {
 		printk(KERN_WARNING "%s: received a non beacon frame!\n",
 		       __func__);
-		return false;
-	}
-
-	len = pkt_len - sizeof(struct ieee80211_hdr_3addr);
-
-	if (len > MAX_IE_SZ) {
-		DBG_8723A("%s IE too long for survey event\n", __func__);
 		return _FAIL;
 	}
 
@@ -914,36 +905,25 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		DBG_8723A("%s: linked but recv other bssid bcn"
 			  MAC_FMT MAC_FMT "\n", __func__, MAC_ARG(mgmt->bssid),
 			  MAC_ARG(cur_network->network.MacAddress));
-		return true;
-	}
-
-	bssid = kzalloc(sizeof(struct wlan_bssid_ex), GFP_ATOMIC);
-	if (!bssid)
 		return _FAIL;
-
-	bssid->reserved = 1;
-
-	bssid->Length = offsetof(struct wlan_bssid_ex, IEs) + len;
-
-	/* below is to copy the information element */
-	bssid->IELength = len;
-	memcpy(bssid->IEs, &mgmt->u, len);
+	}
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */
 	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
 		offsetof(struct ieee80211_mgmt, u);
-	pie = bssid->IEs + ie_offset;
-	pie_len = pkt_len - ie_offset;
+	pie_len = pkt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
 	/* Checking for channel */
-	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, pie, pie_len);
+	p = cfg80211_find_ie(WLAN_EID_DS_PARAMS, mgmt->u.beacon.variable,
+			     pie_len);
 	if (p)
 		bcn_channel = p[2];
 	else {
 		/* In 5G, some ap do not have DSSET IE checking HT
 		   info for channel */
-		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, pie, pie_len);
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+				     mgmt->u.beacon.variable, pie_len);
 
 		if (p && p[1] > 0) {
 			pht_info = (struct ieee80211_ht_operation *)(p + 2);
@@ -962,60 +942,55 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	}
 
 	/* checking SSID */
-	p = cfg80211_find_ie(WLAN_EID_SSID, pie, pie_len);
+	p = cfg80211_find_ie(WLAN_EID_SSID, mgmt->u.beacon.variable, pie_len);
 	if (p && p[1]) {
-		memcpy(bssid->Ssid.ssid, p + 2, p[1]);
-		bssid->Ssid.ssid_len = p[1];
+		ssid = p + 2;
+		ssid_len = p[1];
 	} else {
 		DBG_8723A("%s marc: cannot find SSID for survey event\n",
 			  __func__);
-		bssid->Ssid.ssid_len = 0;
-		bssid->Ssid.ssid[0] = '\0';
+		ssid = NULL;
+		ssid_len = 0;
 	}
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("%s bssid.Ssid.Ssid:%s bssid.Ssid.SsidLength:%d "
 		  "cur_network->network.Ssid.Ssid:%s len:%d\n", __func__,
-		  bssid->Ssid.ssid, bssid->Ssid.ssid_len,
-		  cur_network->network.Ssid.ssid,
+		  ssid, ssid_len, cur_network->network.Ssid.ssid,
 		  cur_network->network.Ssid.ssid_len));
 
-	if (memcmp(bssid->Ssid.ssid, cur_network->network.Ssid.ssid, 32) ||
-	    bssid->Ssid.ssid_len != cur_network->network.Ssid.ssid_len) {
-		if (bssid->Ssid.ssid[0] != '\0' &&
-		    bssid->Ssid.ssid_len != 0) { /* not hidden ssid */
-			DBG_8723A("%s(), SSID is not match return FAIL\n",
-				  __func__);
-			goto _mismatch;
-		}
+	if (ssid_len != cur_network->network.Ssid.ssid_len || ssid_len > 32 ||
+	    (ssid_len &&
+	     memcmp(ssid, cur_network->network.Ssid.ssid, ssid_len))) {
+		DBG_8723A("%s(), SSID is not match return FAIL\n", __func__);
+		goto _mismatch;
 	}
 
 	/* check encryption info */
-	val16 = rtw_get_capability23a(bssid);
+	val16 = le16_to_cpu(mgmt->u.beacon.capab_info);
 
 	if (val16 & WLAN_CAPABILITY_PRIVACY)
-		bssid->Privacy = 1;
+		privacy = 1;
 	else
-		bssid->Privacy = 0;
+		privacy = 0;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("%s(): cur_network->network.Privacy is %d, bssid.Privacy "
-		  "is %d\n", __func__, cur_network->network.Privacy,
-		  bssid->Privacy));
-	if (cur_network->network.Privacy != bssid->Privacy) {
+		  "is %d\n", __func__, cur_network->network.Privacy, privacy));
+	if (cur_network->network.Privacy != privacy) {
 		DBG_8723A("%s(), privacy is not match return FAIL\n", __func__);
 		goto _mismatch;
 	}
 
-	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
+	p = cfg80211_find_ie(WLAN_EID_RSN, mgmt->u.beacon.variable, pie_len);
 	if (p && p[1]) {
 		encryp_protocol = ENCRYP_PROTOCOL_WPA2;
 	} else if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					   WLAN_OUI_TYPE_MICROSOFT_WPA,
-					   pie, pie_len)) {
+					   mgmt->u.beacon.variable, pie_len)) {
 		encryp_protocol = ENCRYP_PROTOCOL_WPA;
 	} else {
-		if (bssid->Privacy)
+		if (privacy)
 			encryp_protocol = ENCRYP_PROTOCOL_WEP;
 		else
 			encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
@@ -1030,7 +1005,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	    encryp_protocol == ENCRYP_PROTOCOL_WPA2) {
 		p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WPA,
-					    pie, pie_len);
+					    mgmt->u.beacon.variable, pie_len);
 		if (p && p[1] > 0) {
 			r = rtw_parse_wpa_ie23a(p, p[1] + 2, &group_cipher,
 						&pairwise_cipher, &is_8021x);
@@ -1041,7 +1016,8 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 					  "%d\n", __func__, pairwise_cipher,
 					  group_cipher, is_8021x));
 		} else {
-			p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
+			p = cfg80211_find_ie(WLAN_EID_RSN,
+					     mgmt->u.beacon.variable, pie_len);
 
 			if (p && p[1] > 0) {
 				r = rtw_parse_wpa2_ie23a(p, p[1] + 2,
@@ -1080,11 +1056,9 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		}
 	}
 
-	kfree(bssid);
 	return _SUCCESS;
 
 _mismatch:
-	kfree(bssid);
 
 	return _FAIL;
 }
