@@ -1433,33 +1433,37 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
 {
 	unsigned int size;
-	u64 end;
+	u64 seg_end, req_start, seg_left;
 
 	size = nfs_generic_pg_test(pgio, prev, req);
 	if (!size)
 		return 0;
 
 	/*
-	 * Test if a nfs_page is fully contained in the pnfs_layout_range.
-	 * Note that this test makes several assumptions:
-	 * - that the previous nfs_page in the struct nfs_pageio_descriptor
-	 *   is known to lie within the range.
-	 *   - that the nfs_page being tested is known to be contiguous with the
-	 *   previous nfs_page.
-	 *   - Layout ranges are page aligned, so we only have to test the
-	 *   start offset of the request.
+	 * 'size' contains the number of bytes left in the current page (up
+	 * to the original size asked for in @req->wb_bytes).
+	 *
+	 * Calculate how many bytes are left in the layout segment
+	 * and if there are less bytes than 'size', return that instead.
 	 *
 	 * Please also note that 'end_offset' is actually the offset of the
 	 * first byte that lies outside the pnfs_layout_range. FIXME?
 	 *
 	 */
 	if (pgio->pg_lseg) {
-		end = end_offset(pgio->pg_lseg->pls_range.offset,
-				 pgio->pg_lseg->pls_range.length);
-		WARN_ON_ONCE(req_offset(req) > end);
-		if (req_offset(req) >= end)
+		seg_end = end_offset(pgio->pg_lseg->pls_range.offset,
+				     pgio->pg_lseg->pls_range.length);
+		req_start = req_offset(req);
+		WARN_ON_ONCE(req_start > seg_end);
+		/* start of request is past the last byte of this segment */
+		if (req_start >= seg_end)
 			return 0;
-		size = min((unsigned int)(end - req_offset(req)), size);
+
+		/* adjust 'size' iff there are fewer bytes left in the
+		 * segment than what nfs_generic_pg_test returned */
+		seg_left = seg_end - req_start;
+		if (seg_left < size)
+			size = (unsigned int)seg_left;
 	}
 
 	return size;
