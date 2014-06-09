@@ -1010,7 +1010,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin,
 				break;
 
 		if (!test_bit(lbus, mp_bus_not_pci) &&
-		    !mp_irqs[i].irqtype &&
+		    mp_irqs[i].irqtype == mp_INT &&
 		    (bus == lbus) &&
 		    (slot == ((mp_irqs[i].srcbusirq >> 2) & 0x1f))) {
 			int irq = pin_2_irq(i, ioapic_idx, mp_irqs[i].dstirq);
@@ -1359,7 +1359,7 @@ static void __init __io_apic_setup_irqs(unsigned int ioapic_idx)
 
 		irq = pin_2_irq(idx, ioapic_idx, pin);
 
-		if ((ioapic_idx > 0) && (irq > 16))
+		if ((ioapic_idx > 0) && (irq > NR_IRQS_LEGACY))
 			continue;
 
 		/*
@@ -1388,7 +1388,7 @@ static void __init setup_IO_APIC_irqs(void)
 }
 
 /*
- * for the gsit that is not in first ioapic
+ * for the gsi that is not in first ioapic
  * but could not use acpi_register_gsi()
  * like some special sci in IBM x3330
  */
@@ -2225,7 +2225,7 @@ asmlinkage __visible void smp_irq_move_cleanup_interrupt(void)
 			apic->send_IPI_self(IRQ_MOVE_CLEANUP_VECTOR);
 			goto unlock;
 		}
-		__this_cpu_write(vector_irq[vector], -1);
+		__this_cpu_write(vector_irq[vector], VECTOR_UNDEFINED);
 unlock:
 		raw_spin_unlock(&desc->lock);
 	}
@@ -2514,17 +2514,6 @@ static inline void init_IO_APIC_traps(void)
 	struct irq_cfg *cfg;
 	unsigned int irq;
 
-	/*
-	 * NOTE! The local APIC isn't very good at handling
-	 * multiple interrupts at the same interrupt level.
-	 * As the interrupt level is determined by taking the
-	 * vector number and shifting that right by 4, we
-	 * want to spread these out a bit so that they don't
-	 * all fall in the same interrupt level.
-	 *
-	 * Also, we've got to be careful not to trash gate
-	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
-	 */
 	for_each_active_irq(irq) {
 		cfg = irq_get_chip_data(irq);
 		if (IO_APIC_IRQ(irq) && cfg && !cfg->vector) {
@@ -3550,7 +3539,7 @@ void __init setup_ioapic_dest(void)
 			continue;
 		irq = pin_2_irq(irq_entry, ioapic, pin);
 
-		if ((ioapic > 0) && (irq > 16))
+		if ((ioapic > 0) && (irq > NR_IRQS_LEGACY))
 			continue;
 
 		idata = irq_get_irq_data(irq);
