@@ -35,8 +35,7 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 	plist = phead->next;
 
 	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-		 ("\n rtw_do_join23a: phead = %p; plist = %p\n\n\n",
-		  phead, plist));
+		 ("%s: phead = %p; plist = %p\n\n\n", __func__, phead, plist));
 
 	pmlmepriv->cur_network.join_res = -2;
 
@@ -55,8 +54,8 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 		if (pmlmepriv->LinkDetectInfo.bBusyTraffic == false ||
 		    padapter->mlmepriv.to_roaming > 0) {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_,
-				 ("rtw_do_join23a(): site survey if scanned_queue "
-				  "is empty\n."));
+				 ("%s: site survey if scanned_queue is empty\n",
+					 __func__));
 			/*  submit site_survey23a_cmd */
 			ret = rtw_sitesurvey_cmd23a(padapter,
 						 &pmlmepriv->assoc_ssid, 1,
@@ -64,8 +63,8 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 			if (ret != _SUCCESS) {
 				pmlmepriv->to_join = false;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-					 ("rtw_do_join23a(): site survey return "
-					  "error\n."));
+					 ("%s: site survey return error\n",
+						 __func__));
 			}
 		} else {
 			pmlmepriv->to_join = false;
@@ -134,7 +133,7 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 					ret = rtw_sitesurvey_cmd23a(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
 					if (ret != _SUCCESS) {
 						pmlmepriv->to_join = false;
-						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("do_join(): site survey return error\n."));
+						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("%s: site survey return error\n", __func__));
 					}
 				} else {
 					ret = _FAIL;
