@@ -1,5 +1,5 @@
 /*
-* net/tipc/socket.c: TIPC socket API
+ * net/tipc/socket.c: TIPC socket API
  *
  * Copyright (c) 2001-2007, 2012-2014, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
@@ -1431,13 +1431,14 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 {
 	u32 res;
 	struct tipc_sock *tsk = tipc_sk(sk);
+	uint truesize = buf->truesize;
 
 	res = filter_rcv(sk, buf);
 	if (unlikely(res))
 		tipc_reject_msg(buf, res);
 
 	if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
-		atomic_add(buf->truesize, &tsk->dupl_rcvcnt);
+		atomic_add(truesize, &tsk->dupl_rcvcnt);
 
 	return 0;
 }
