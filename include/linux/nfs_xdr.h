@@ -1257,27 +1257,10 @@ enum {
 	NFS_IOHDR_NEED_RESCHED,
 };
 
-struct nfs_pgio_data {
-	struct nfs_pgio_header	*header;
-	struct list_head	list;
-	struct rpc_task		task;
-	struct nfs_fattr	fattr;
-	struct nfs_writeverf	writeverf;	/* Used for writes */
-	struct nfs_pgio_args	args;		/* argument struct */
-	struct nfs_pgio_res	res;		/* result struct */
-	unsigned long		timestamp;	/* For lease renewal */
-	int (*pgio_done_cb)(struct rpc_task *task, struct nfs_pgio_data *data);
-	__u64			mds_offset;	/* Filelayout dense stripe */
-	struct nfs_page_array	page_array;
-	struct nfs_client	*ds_clp;	/* pNFS data server */
-	int			ds_idx;		/* ds index if ds_clp is set */
-};
-
 struct nfs_pgio_header {
 	struct inode		*inode;
 	struct rpc_cred		*cred;
 	struct list_head	pages;
-	struct nfs_pgio_data	data;
 	atomic_t		refcnt;
 	struct nfs_page		*req;
 	struct nfs_writeverf	verf;		/* Used for writes */
@@ -1295,6 +1278,21 @@ struct nfs_pgio_header {
 	int			error;		/* merge with pnfs_error */
 	unsigned long		good_bytes;	/* boundary of good data */
 	unsigned long		flags;
+
+	/*
+	 * rpc data
+	 */
+	struct rpc_task		task;
+	struct nfs_fattr	fattr;
+	struct nfs_writeverf	writeverf;	/* Used for writes */
+	struct nfs_pgio_args	args;		/* argument struct */
+	struct nfs_pgio_res	res;		/* result struct */
+	unsigned long		timestamp;	/* For lease renewal */
+	int (*pgio_done_cb)(struct rpc_task *, struct nfs_pgio_header *);
+	__u64			mds_offset;	/* Filelayout dense stripe */
+	struct nfs_page_array	page_array;
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+	int			ds_idx;		/* ds index if ds_clp is set */
 };
 
 struct nfs_mds_commit_info {
@@ -1426,11 +1424,12 @@ struct nfs_rpc_ops {
 			     struct nfs_pathconf *);
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
 	int	(*decode_dirent)(struct xdr_stream *, struct nfs_entry *, int);
-	int	(*pgio_rpc_prepare)(struct rpc_task *, struct nfs_pgio_data *);
-	void	(*read_setup)   (struct nfs_pgio_data *, struct rpc_message *);
-	int	(*read_done)  (struct rpc_task *, struct nfs_pgio_data *);
-	void	(*write_setup)  (struct nfs_pgio_data *, struct rpc_message *);
-	int	(*write_done)  (struct rpc_task *, struct nfs_pgio_data *);
+	int	(*pgio_rpc_prepare)(struct rpc_task *,
+				    struct nfs_pgio_header *);
+	void	(*read_setup)(struct nfs_pgio_header *, struct rpc_message *);
+	int	(*read_done)(struct rpc_task *, struct nfs_pgio_header *);
+	void	(*write_setup)(struct nfs_pgio_header *, struct rpc_message *);
+	int	(*write_done)(struct rpc_task *, struct nfs_pgio_header *);
 	void	(*commit_setup) (struct nfs_commit_data *, struct rpc_message *);
 	void	(*commit_rpc_prepare)(struct rpc_task *, struct nfs_commit_data *);
 	int	(*commit_done) (struct rpc_task *, struct nfs_commit_data *);

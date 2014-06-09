@@ -578,46 +578,49 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return 0;
 }
 
-static int nfs_read_done(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_read_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
-	struct inode *inode = data->header->inode;
+	struct inode *inode = hdr->inode;
 
 	nfs_invalidate_atime(inode);
 	if (task->tk_status >= 0) {
-		nfs_refresh_inode(inode, data->res.fattr);
+		nfs_refresh_inode(inode, hdr->res.fattr);
 		/* Emulate the eof flag, which isn't normally needed in NFSv2
 		 * as it is guaranteed to always return the file attributes
 		 */
-		if (data->args.offset + data->res.count >= data->res.fattr->size)
-			data->res.eof = 1;
+		if (hdr->args.offset + hdr->res.count >= hdr->res.fattr->size)
+			hdr->res.eof = 1;
 	}
 	return 0;
 }
 
-static void nfs_proc_read_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
+static void nfs_proc_read_setup(struct nfs_pgio_header *hdr,
+				struct rpc_message *msg)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
-static int nfs_proc_pgio_rpc_prepare(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_proc_pgio_rpc_prepare(struct rpc_task *task,
+				     struct nfs_pgio_header *hdr)
 {
 	rpc_call_start(task);
 	return 0;
 }
 
-static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_data *data)
+static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 {
-	struct inode *inode = data->header->inode;
+	struct inode *inode = hdr->inode;
 
 	if (task->tk_status >= 0)
-		nfs_post_op_update_inode_force_wcc(inode, data->res.fattr);
+		nfs_post_op_update_inode_force_wcc(inode, hdr->res.fattr);
 	return 0;
 }
 
-static void nfs_proc_write_setup(struct nfs_pgio_data *data, struct rpc_message *msg)
+static void nfs_proc_write_setup(struct nfs_pgio_header *hdr,
+				 struct rpc_message *msg)
 {
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
-	data->args.stable = NFS_FILE_SYNC;
+	hdr->args.stable = NFS_FILE_SYNC;
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
 }
 

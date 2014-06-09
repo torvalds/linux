@@ -113,8 +113,8 @@ struct pnfs_layoutdriver_type {
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
 	 */
-	enum pnfs_try_status (*read_pagelist) (struct nfs_pgio_data *nfs_data);
-	enum pnfs_try_status (*write_pagelist) (struct nfs_pgio_data *nfs_data, int how);
+	enum pnfs_try_status (*read_pagelist)(struct nfs_pgio_header *);
+	enum pnfs_try_status (*write_pagelist)(struct nfs_pgio_header *, int);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
 
@@ -213,13 +213,13 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
-void pnfs_set_layoutcommit(struct nfs_pgio_data *wdata);
+void pnfs_set_layoutcommit(struct nfs_pgio_header *);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
 int pnfs_commit_and_return_layout(struct inode *);
-void pnfs_ld_write_done(struct nfs_pgio_data *);
-void pnfs_ld_read_done(struct nfs_pgio_data *);
+void pnfs_ld_write_done(struct nfs_pgio_header *);
+void pnfs_ld_read_done(struct nfs_pgio_header *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,

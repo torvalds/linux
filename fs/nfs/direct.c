@@ -148,8 +148,8 @@ static void nfs_direct_set_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data.ds_clp,
-				      hdr->data.ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+				      hdr->ds_idx);
 	WARN_ON_ONCE(verfp->committed >= 0);
 	memcpy(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 	WARN_ON_ONCE(verfp->committed < 0);
@@ -169,8 +169,8 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 {
 	struct nfs_writeverf *verfp;
 
-	verfp = nfs_direct_select_verf(dreq, hdr->data.ds_clp,
-					 hdr->data.ds_idx);
+	verfp = nfs_direct_select_verf(dreq, hdr->ds_clp,
+					 hdr->ds_idx);
 	if (verfp->committed < 0) {
 		nfs_direct_set_hdr_verf(dreq, hdr);
 		return 0;

@@ -484,8 +484,7 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
 static bool nfs_pgio_data_init(struct nfs_pgio_header *hdr,
 			       unsigned int pagecount)
 {
-	if (nfs_pgarray_set(&hdr->data.page_array, pagecount)) {
-		hdr->data.header = hdr;
+	if (nfs_pgarray_set(&hdr->page_array, pagecount)) {
 		atomic_inc(&hdr->refcnt);
 		return true;
 	}
@@ -493,16 +492,14 @@ static bool nfs_pgio_data_init(struct nfs_pgio_header *hdr,
 }
 
 /**
- * nfs_pgio_data_destroy - Properly free pageio data
- * @data: The data to destroy
+ * nfs_pgio_data_destroy - Properly release pageio data
+ * @hdr: The header with data to destroy
  */
-void nfs_pgio_data_destroy(struct nfs_pgio_data *data)
+void nfs_pgio_data_destroy(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
-
-	put_nfs_open_context(data->args.context);
-	if (data->page_array.pagevec != data->page_array.page_array)
-		kfree(data->page_array.pagevec);
+	put_nfs_open_context(hdr->args.context);
+	if (hdr->page_array.pagevec != hdr->page_array.page_array)
+		kfree(hdr->page_array.pagevec);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 }
@@ -510,31 +507,31 @@ EXPORT_SYMBOL_GPL(nfs_pgio_data_destroy);
 
 /**
  * nfs_pgio_rpcsetup - Set up arguments for a pageio call
- * @data: The pageio data
+ * @hdr: The pageio hdr
  * @count: Number of bytes to read
  * @offset: Initial offset
  * @how: How to commit data (writes only)
  * @cinfo: Commit information for the call (writes only)
  */
-static void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
+static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 			      unsigned int count, unsigned int offset,
 			      int how, struct nfs_commit_info *cinfo)
 {
-	struct nfs_page *req = data->header->req;
+	struct nfs_page *req = hdr->req;
 
 	/* Set up the RPC argument and reply structs
-	 * NB: take care not to mess about with data->commit et al. */
+	 * NB: take care not to mess about with hdr->commit et al. */
 
-	data->args.fh     = NFS_FH(data->header->inode);
-	data->args.offset = req_offset(req) + offset;
+	hdr->args.fh     = NFS_FH(hdr->inode);
+	hdr->args.offset = req_offset(req) + offset;
 	/* pnfs_set_layoutcommit needs this */
-	data->mds_offset = data->args.offset;
-	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->page_array.pagevec;
-	data->args.count  = count;
-	data->args.context = get_nfs_open_context(req->wb_context);
-	data->args.lock_context = req->wb_lock_context;
-	data->args.stable  = NFS_UNSTABLE;
+	hdr->mds_offset = hdr->args.offset;
+	hdr->args.pgbase = req->wb_pgbase + offset;
+	hdr->args.pages  = hdr->page_array.pagevec;
+	hdr->args.count  = count;
+	hdr->args.context = get_nfs_open_context(req->wb_context);
+	hdr->args.lock_context = req->wb_lock_context;
+	hdr->args.stable  = NFS_UNSTABLE;
 	switch (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
 	case 0:
 		break;
@@ -542,59 +539,60 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
 		if (nfs_reqs_to_commit(cinfo))
 			break;
 	default:
-		data->args.stable = NFS_FILE_SYNC;
+		hdr->args.stable = NFS_FILE_SYNC;
 	}
 
-	data->res.fattr   = &data->fattr;
-	data->res.count   = count;
-	data->res.eof     = 0;
-	data->res.verf    = &data->writeverf;
-	nfs_fattr_init(&data->fattr);
+	hdr->res.fattr   = &hdr->fattr;
+	hdr->res.count   = count;
+	hdr->res.eof     = 0;
+	hdr->res.verf    = &hdr->writeverf;
+	nfs_fattr_init(&hdr->fattr);
 }
 
 /**
- * nfs_pgio_prepare - Prepare pageio data to go over the wire
+ * nfs_pgio_prepare - Prepare pageio hdr to go over the wire
  * @task: The current task
- * @calldata: pageio data to prepare
+ * @calldata: pageio header to prepare
  */
 static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs_pgio_data *data = calldata;
+	struct nfs_pgio_header *hdr = calldata;
 	int err;
-	err = NFS_PROTO(data->header->inode)->pgio_rpc_prepare(task, data);
+	err = NFS_PROTO(hdr->inode)->pgio_rpc_prepare(task, hdr);
 	if (err)
 		rpc_exit(task, err);
 }
 
-int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_data *data,
+int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
 		      const struct rpc_call_ops *call_ops, int how, int flags)
 {
+	struct inode *inode = hdr->inode;
 	struct rpc_task *task;
 	struct rpc_message msg = {
-		.rpc_argp = &data->args,
-		.rpc_resp = &data->res,
-		.rpc_cred = data->header->cred,
+		.rpc_argp = &hdr->args,
+		.rpc_resp = &hdr->res,
+		.rpc_cred = hdr->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = clnt,
-		.task = &data->task,
+		.task = &hdr->task,
 		.rpc_message = &msg,
 		.callback_ops = call_ops,
-		.callback_data = data,
+		.callback_data = hdr,
 		.workqueue = nfsiod_workqueue,
 		.flags = RPC_TASK_ASYNC | flags,
 	};
 	int ret = 0;
 
-	data->header->rw_ops->rw_initiate(data, &msg, &task_setup_data, how);
+	hdr->rw_ops->rw_initiate(hdr, &msg, &task_setup_data, how);
 
 	dprintk("NFS: %5u initiated pgio call "
 		"(req %s/%llu, %u bytes @ offset %llu)\n",
-		data->task.tk_pid,
-		data->header->inode->i_sb->s_id,
-		(unsigned long long)NFS_FILEID(data->header->inode),
-		data->args.count,
-		(unsigned long long)data->args.offset);
+		hdr->task.tk_pid,
+		inode->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(inode),
+		hdr->args.count,
+		(unsigned long long)hdr->args.offset);
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task)) {
@@ -621,21 +619,21 @@ static int nfs_pgio_error(struct nfs_pageio_descriptor *desc,
 			  struct nfs_pgio_header *hdr)
 {
 	set_bit(NFS_IOHDR_REDO, &hdr->flags);
-	nfs_pgio_data_destroy(&hdr->data);
+	nfs_pgio_data_destroy(hdr);
 	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 	return -ENOMEM;
 }
 
 /**
  * nfs_pgio_release - Release pageio data
- * @calldata: The pageio data to release
+ * @calldata: The pageio header to release
  */
 static void nfs_pgio_release(void *calldata)
 {
-	struct nfs_pgio_data *data = calldata;
-	if (data->header->rw_ops->rw_release)
-		data->header->rw_ops->rw_release(data);
-	nfs_pgio_data_destroy(data);
+	struct nfs_pgio_header *hdr = calldata;
+	if (hdr->rw_ops->rw_release)
+		hdr->rw_ops->rw_release(hdr);
+	nfs_pgio_data_destroy(hdr);
 }
 
 /**
@@ -676,22 +674,22 @@ EXPORT_SYMBOL_GPL(nfs_pageio_init);
 /**
  * nfs_pgio_result - Basic pageio error handling
  * @task: The task that ran
- * @calldata: Pageio data to check
+ * @calldata: Pageio header to check
  */
 static void nfs_pgio_result(struct rpc_task *task, void *calldata)
 {
-	struct nfs_pgio_data *data = calldata;
-	struct inode *inode = data->header->inode;
+	struct nfs_pgio_header *hdr = calldata;
+	struct inode *inode = hdr->inode;
 
 	dprintk("NFS: %s: %5u, (status %d)\n", __func__,
 		task->tk_pid, task->tk_status);
 
-	if (data->header->rw_ops->rw_done(task, data, inode) != 0)
+	if (hdr->rw_ops->rw_done(task, hdr, inode) != 0)
 		return;
 	if (task->tk_status < 0)
-		nfs_set_pgio_error(data->header, task->tk_status, data->args.offset);
+		nfs_set_pgio_error(hdr, task->tk_status, hdr->args.offset);
 	else
-		data->header->rw_ops->rw_result(task, data);
+		hdr->rw_ops->rw_result(task, hdr);
 }
 
 /*
@@ -707,7 +705,6 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 {
 	struct nfs_page		*req;
 	struct page		**pages;
-	struct nfs_pgio_data	*data;
 	struct list_head *head = &desc->pg_list;
 	struct nfs_commit_info cinfo;
 
@@ -715,9 +712,8 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 			   desc->pg_count)))
 		return nfs_pgio_error(desc, hdr);
 
-	data = &hdr->data;
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
-	pages = data->page_array.pagevec;
+	pages = hdr->page_array.pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
@@ -730,7 +726,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
-	nfs_pgio_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
+	nfs_pgio_rpcsetup(hdr, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
 	desc->pg_rpc_callops = &nfs_pgio_common_ops;
 	return 0;
 }
@@ -751,7 +747,7 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
 		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
-					&hdr->data, desc->pg_rpc_callops,
+					hdr, desc->pg_rpc_callops,
 					desc->pg_ioflags, 0);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
