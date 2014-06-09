@@ -26,6 +26,7 @@ static int acer_tm360_irqrouting;
 static struct irq_routing_table *pirq_table;
 
 static int pirq_enable_irq(struct pci_dev *dev);
+static void pirq_disable_irq(struct pci_dev *dev);
 
 /*
  * Never use: 0, 1, 2 (timer, keyboard, and cascade)
@@ -53,7 +54,7 @@ struct irq_router_handler {
 };
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = pirq_enable_irq;
-void (*pcibios_disable_irq)(struct pci_dev *dev) = NULL;
+void (*pcibios_disable_irq)(struct pci_dev *dev) = pirq_disable_irq;
 
 /*
  *  Check passed address for the PCI IRQ Routing Table signature
@@ -1186,7 +1187,7 @@ void pcibios_penalize_isa_irq(int irq, int active)
 
 static int pirq_enable_irq(struct pci_dev *dev)
 {
-	u8 pin;
+	u8 pin = 0;
 
 	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 	if (pin && !pcibios_lookup_irq(dev, 1)) {
@@ -1251,4 +1252,12 @@ static int pirq_enable_irq(struct pci_dev *dev)
 			 'A' + pin - 1, msg);
 	}
 	return 0;
+}
+
+static void pirq_disable_irq(struct pci_dev *dev)
+{
+	if (io_apic_assign_pci_irqs && dev->irq) {
+		mp_unmap_irq(dev->irq);
+		dev->irq = 0;
+	}
 }
