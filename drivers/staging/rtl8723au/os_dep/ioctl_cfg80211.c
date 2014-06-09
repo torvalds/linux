@@ -2099,11 +2099,28 @@ handle_tkip_countermeasure:
 
 	pmlmepriv->assoc_by_bssid = false;
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
-		pmlmepriv->to_join = true;
-	else
-		status = rtw_do_join23a(padapter);
+	pmlmepriv->to_join = true;
 
+	if (!check_fwstate(pmlmepriv, _FW_UNDER_SURVEY)) {
+		pmlmepriv->cur_network.join_res = -2;
+
+		status = rtw_do_join_network(padapter, newnetwork);
+		if (status == _SUCCESS) {
+			pmlmepriv->to_join = false;
+		} else {
+			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
+				/* switch to ADHOC_MASTER */
+				status = rtw_do_join_adhoc(padapter);
+				if (status != _SUCCESS)
+					goto release_mlme_lock;
+			} else {
+				/* can't associate ; reset under-linking */
+				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
+				status = _FAIL;
+				pmlmepriv->to_join = false;
+			}
+		}
+	}
 release_mlme_lock:
 	spin_unlock_bh(&pmlmepriv->lock);
 
