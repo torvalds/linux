@@ -5718,6 +5718,24 @@ again:
 		ret = 0;
 		goto done;
 	}
+	/*
+	 * So the above check misses one case:
+	 * - after releasing the path above, someone has removed the item that
+	 *   used to be at the very end of the block, and balance between leafs
+	 *   gets another one with bigger key.offset to replace it.
+	 *
+	 * This one should be returned as well, or we can get leaf corruption
+	 * later(esp. in __btrfs_drop_extents()).
+	 *
+	 * And a bit more explanation about this check,
+	 * with ret > 0, the key isn't found, the path points to the slot
+	 * where it should be inserted, so the path->slots[0] item must be the
+	 * bigger one.
+	 */
+	if (nritems > 0 && ret > 0 && path->slots[0] == nritems - 1) {
+		ret = 0;
+		goto done;
+	}
 
 	while (level < BTRFS_MAX_LEVEL) {
 		if (!path->nodes[level]) {
