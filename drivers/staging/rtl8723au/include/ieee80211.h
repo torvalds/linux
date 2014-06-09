@@ -219,18 +219,8 @@ struct ieee80211_snap_hdr {
 
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
 
-#define WLAN_FC_GET_TYPE(fc)		(fc & IEEE80211_FCTL_FTYPE)
-#define WLAN_FC_GET_STYPE(fc)		(fc & IEEE80211_FCTL_STYPE)
-
-#define WLAN_QC_GET_TID(qc)		(qc & 0x0f)
-
-#define WLAN_GET_SEQ_FRAG(seq)		(seq & RTW_IEEE80211_SCTL_FRAG)
-#define WLAN_GET_SEQ_SEQ(seq)		(seq & RTW_IEEE80211_SCTL_SEQ)
-
-
 #define WLAN_REASON_JOIN_WRONG_CHANNEL       65534
 #define WLAN_REASON_EXPIRATION_CHK 65535
-
 
 
 #define IEEE80211_STATMASK_SIGNAL (1<<0)
