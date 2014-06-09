@@ -436,7 +436,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	return sz;
 }
 
-int rtw_get_wpa_cipher_suite23a(const u8 *s)
+static int rtw_get_wpa_cipher_suite(const u8 *s)
 {
 	if (!memcmp(s, WPA_CIPHER_SUITE_NONE23A, WPA_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -452,7 +452,7 @@ int rtw_get_wpa_cipher_suite23a(const u8 *s)
 	return 0;
 }
 
-int rtw_get_wpa2_cipher_suite23a(const u8 *s)
+static int rtw_get_wpa2_cipher_suite(const u8 *s)
 {
 	if (!memcmp(s, RSN_CIPHER_SUITE_NONE23A, RSN_SELECTOR_LEN))
 		return WPA_CIPHER_NONE;
@@ -490,7 +490,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 	/* group_cipher */
 	if (left >= WPA_SELECTOR_LEN) {
 
-		*group_cipher = rtw_get_wpa_cipher_suite23a(pos);
+		*group_cipher = rtw_get_wpa_cipher_suite(pos);
 
 		pos += WPA_SELECTOR_LEN;
 		left -= WPA_SELECTOR_LEN;
@@ -518,7 +518,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 		}
 
 		for (i = 0; i < count; i++) {
-			*pairwise_cipher |= rtw_get_wpa_cipher_suite23a(pos);
+			*pairwise_cipher |= rtw_get_wpa_cipher_suite(pos);
 
 			pos += WPA_SELECTOR_LEN;
 			left -= WPA_SELECTOR_LEN;
@@ -567,7 +567,7 @@ int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 
 	/* group_cipher */
 	if (left >= RSN_SELECTOR_LEN) {
-		*group_cipher = rtw_get_wpa2_cipher_suite23a(pos);
+		*group_cipher = rtw_get_wpa2_cipher_suite(pos);
 
 		pos += RSN_SELECTOR_LEN;
 		left -= RSN_SELECTOR_LEN;
@@ -594,7 +594,7 @@ int rtw_parse_wpa2_ie23a(const u8* rsn_ie, int rsn_ie_len, int *group_cipher,
 		}
 
 		for (i = 0; i < count; i++) {
-			*pairwise_cipher |= rtw_get_wpa2_cipher_suite23a(pos);
+			*pairwise_cipher |= rtw_get_wpa2_cipher_suite(pos);
 
 			pos += RSN_SELECTOR_LEN;
 			left -= RSN_SELECTOR_LEN;

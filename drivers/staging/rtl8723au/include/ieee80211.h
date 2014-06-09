@@ -425,8 +425,6 @@ int rtw_ies_remove_ie23a(u8 *ies, uint *ies_len, uint offset, u8 eid, u8 *oui, u
 
 void rtw_set_supported_rate23a(u8* SupportedRates, uint mode) ;
 
-int rtw_get_wpa_cipher_suite23a(const u8 *s);
-int rtw_get_wpa2_cipher_suite23a(const u8 *s);
 int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 int rtw_parse_wpa2_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 
