@@ -138,8 +138,6 @@ static void __init sdv_arch_setup(void)
 static void sdv_pci_init(void)
 {
 	x86_of_pci_init();
-	/* We can't set this earlier, because we need to calibrate the timer */
-	legacy_pic = &null_legacy_pic;
 }
 
 /*
