@@ -140,8 +140,8 @@ struct vgic_dist {
 	/* Interrupt enabled (one bit per IRQ) */
 	struct vgic_bitmap	irq_enabled;
 
-	/* Interrupt 'pin' level */
-	struct vgic_bitmap	irq_state;
+	/* Interrupt state is pending on the distributor */
+	struct vgic_bitmap	irq_pending;
 
 	/* Level-triggered interrupt in progress */
 	struct vgic_bitmap	irq_active;
