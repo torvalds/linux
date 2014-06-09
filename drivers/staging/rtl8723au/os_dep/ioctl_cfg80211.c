@@ -2437,17 +2437,15 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 {
 	s32 freq;
 	int channel;
-	u8 *pmgmt_frame;
 	uint frame_len;
-	struct ieee80211_hdr *pwlanhdr;
-	u8 mgmt_buf[128];
+	struct ieee80211_mgmt mgmt;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct net_device *ndev = padapter->pnetdev;
 
 	DBG_8723A("%s(padapter =%p,%s)\n", __func__, padapter, ndev->name);
 
-	memset(mgmt_buf, 0, 128);
+	memset(&mgmt, 0, sizeof(struct ieee80211_mgmt));
 
 #if defined(RTW_USE_CFG80211_STA_EVENT)
 	cfg80211_del_sta(ndev, da, GFP_ATOMIC);
@@ -2460,29 +2458,21 @@ void rtw_cfg80211_indicate_sta_disassoc(struct rtw_adapter *padapter,
 		freq = ieee80211_channel_to_frequency(channel,
 						      IEEE80211_BAND_5GHZ);
 
-	pmgmt_frame = mgmt_buf;
-	pwlanhdr = (struct ieee80211_hdr *)pmgmt_frame;
-
-	pwlanhdr->frame_control =
+	mgmt.frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_DEAUTH);
 
-	ether_addr_copy(pwlanhdr->addr1, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr2, da);
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt.da, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt.sa, da);
+	ether_addr_copy(mgmt.bssid, get_my_bssid23a(&pmlmeinfo->network));
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt.seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pmgmt_frame += sizeof(struct ieee80211_hdr_3addr);
-	frame_len = sizeof(struct ieee80211_hdr_3addr);
+	mgmt.u.disassoc.reason_code = cpu_to_le16(reason);
 
-	reason = cpu_to_le16(reason);
-	pmgmt_frame = rtw_set_fixed_ie23a(pmgmt_frame,
-				       WLAN_REASON_PREV_AUTH_NOT_VALID,
-				       (unsigned char *)&reason, &frame_len);
+	frame_len = sizeof(struct ieee80211_hdr_3addr) + 2;
 
-	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, mgmt_buf, frame_len,
+	cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, (u8 *)&mgmt, frame_len,
 			 0, GFP_ATOMIC);
 #endif /* defined(RTW_USE_CFG80211_STA_EVENT) */
 }
