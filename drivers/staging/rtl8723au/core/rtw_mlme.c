@@ -705,6 +705,7 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	int ret;
 
 	spin_lock_bh(&pmlmepriv->lock);
 
@@ -732,15 +733,13 @@ rtw_surveydone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 	if (pmlmepriv->to_join == true) {
 		if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-			if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
-				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
+			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
-				if (rtw_select_and_join_from_scanned_queue23a(
-					    pmlmepriv) != _SUCCESS)
-					rtw_do_join_adhoc(adapter);
-			}
+			ret = rtw_select_and_join_from_scanned_queue23a(
+				pmlmepriv);
+			if (ret != _SUCCESS)
+				rtw_do_join_adhoc(adapter);
 		} else {
-			int ret;
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 			pmlmepriv->to_join = false;
 			ret = rtw_select_and_join_from_scanned_queue23a(
