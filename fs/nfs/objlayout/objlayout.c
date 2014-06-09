@@ -329,7 +329,7 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	oir->status = wdata->task.tk_status = status;
 	if (status >= 0) {
 		wdata->res.count = status;
-		wdata->verf.committed = oir->committed;
+		wdata->writeverf.committed = oir->committed;
 	} else {
 		wdata->header->pnfs_error = status;
 	}
@@ -337,7 +337,7 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	/* must not use oir after this point */
 
 	dprintk("%s: Return status %zd committed %d sync=%d\n", __func__,
-		status, wdata->verf.committed, sync);
+		status, wdata->writeverf.committed, sync);
 
 	if (sync)
 		pnfs_ld_write_done(wdata);

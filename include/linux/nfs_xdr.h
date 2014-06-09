@@ -1262,13 +1262,13 @@ struct nfs_pgio_data {
 	struct list_head	list;
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;
-	struct nfs_writeverf	verf;		/* Used for writes */
+	struct nfs_writeverf	writeverf;	/* Used for writes */
 	struct nfs_pgio_args	args;		/* argument struct */
 	struct nfs_pgio_res	res;		/* result struct */
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*pgio_done_cb)(struct rpc_task *task, struct nfs_pgio_data *data);
 	__u64			mds_offset;	/* Filelayout dense stripe */
-	struct nfs_page_array	pages;
+	struct nfs_page_array	page_array;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 	int			ds_idx;		/* ds index if ds_clp is set */
 };

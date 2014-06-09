@@ -258,7 +258,8 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 	const bool is_dio = (header->dreq != NULL);
 
 	dprintk("%s enter nr_pages %u offset %lld count %u\n", __func__,
-	       rdata->pages.npages, f_offset, (unsigned int)rdata->args.count);
+		rdata->page_array.npages, f_offset,
+		(unsigned int)rdata->args.count);
 
 	par = alloc_parallel(rdata);
 	if (!par)
@@ -268,7 +269,7 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 
 	isect = (sector_t) (f_offset >> SECTOR_SHIFT);
 	/* Code assumes extents are page-aligned */
-	for (i = pg_index; i < rdata->pages.npages; i++) {
+	for (i = pg_index; i < rdata->page_array.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -317,7 +318,8 @@ bl_read_pagelist(struct nfs_pgio_data *rdata)
 			struct pnfs_block_extent *be_read;
 
 			be_read = (hole && cow_read) ? cow_read : be;
-			bio = do_add_page_to_bio(bio, rdata->pages.npages - i,
+			bio = do_add_page_to_bio(bio,
+						 rdata->page_array.npages - i,
 						 READ,
 						 isect, pages[i], be_read,
 						 bl_end_io_read, par,
@@ -446,7 +448,7 @@ static void bl_end_par_io_write(void *data, int num_se)
 	}
 
 	wdata->task.tk_status = wdata->header->pnfs_error;
-	wdata->verf.committed = NFS_FILE_SYNC;
+	wdata->writeverf.committed = NFS_FILE_SYNC;
 	INIT_WORK(&wdata->task.u.tk_work, bl_write_cleanup);
 	schedule_work(&wdata->task.u.tk_work);
 }
@@ -699,7 +701,7 @@ bl_write_pagelist(struct nfs_pgio_data *wdata, int sync)
 		dprintk("pnfsblock nonblock aligned DIO writes. Resend MDS\n");
 		goto out_mds;
 	}
-	/* At this point, wdata->pages is a (sequential) list of nfs_pages.
+	/* At this point, wdata->page_aray is a (sequential) list of nfs_pages.
 	 * We want to write each, and if there is an error set pnfs_error
 	 * to have it redone using nfs.
 	 */
@@ -791,7 +793,7 @@ next_page:
 
 	/* Middle pages */
 	pg_index = wdata->args.pgbase >> PAGE_CACHE_SHIFT;
-	for (i = pg_index; i < wdata->pages.npages; i++) {
+	for (i = pg_index; i < wdata->page_array.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -862,7 +864,8 @@ next_page:
 		}
 
 
-		bio = do_add_page_to_bio(bio, wdata->pages.npages - i, WRITE,
+		bio = do_add_page_to_bio(bio, wdata->page_array.npages - i,
+					 WRITE,
 					 isect, pages[i], be,
 					 bl_end_io_write, par,
 					 pg_offset, pg_len);

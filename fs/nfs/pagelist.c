@@ -484,7 +484,7 @@ EXPORT_SYMBOL_GPL(nfs_pgio_header_free);
 static bool nfs_pgio_data_init(struct nfs_pgio_header *hdr,
 			       unsigned int pagecount)
 {
-	if (nfs_pgarray_set(&hdr->data.pages, pagecount)) {
+	if (nfs_pgarray_set(&hdr->data.page_array, pagecount)) {
 		hdr->data.header = hdr;
 		atomic_inc(&hdr->refcnt);
 		return true;
@@ -501,8 +501,8 @@ void nfs_pgio_data_destroy(struct nfs_pgio_data *data)
 	struct nfs_pgio_header *hdr = data->header;
 
 	put_nfs_open_context(data->args.context);
-	if (data->pages.pagevec != data->pages.page_array)
-		kfree(data->pages.pagevec);
+	if (data->page_array.pagevec != data->page_array.page_array)
+		kfree(data->page_array.pagevec);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 }
@@ -530,7 +530,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
 	/* pnfs_set_layoutcommit needs this */
 	data->mds_offset = data->args.offset;
 	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->pages.pagevec;
+	data->args.pages  = data->page_array.pagevec;
 	data->args.count  = count;
 	data->args.context = get_nfs_open_context(req->wb_context);
 	data->args.lock_context = req->wb_lock_context;
@@ -548,7 +548,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_data *data,
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
 	data->res.eof     = 0;
-	data->res.verf    = &data->verf;
+	data->res.verf    = &data->writeverf;
 	nfs_fattr_init(&data->fattr);
 }
 
@@ -717,7 +717,7 @@ int nfs_generic_pgio(struct nfs_pageio_descriptor *desc,
 
 	data = &hdr->data;
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
-	pages = data->pages.pagevec;
+	pages = data->page_array.pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);

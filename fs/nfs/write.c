@@ -598,9 +598,9 @@ nfs_clear_request_commit(struct nfs_page *req)
 static inline
 int nfs_write_need_commit(struct nfs_pgio_data *data)
 {
-	if (data->verf.committed == NFS_DATA_SYNC)
+	if (data->writeverf.committed == NFS_DATA_SYNC)
 		return data->header->lseg == NULL;
-	return data->verf.committed != NFS_FILE_SYNC;
+	return data->writeverf.committed != NFS_FILE_SYNC;
 }
 
 #else
@@ -1095,8 +1095,9 @@ static void nfs_writeback_release_common(struct nfs_pgio_data *data)
 		if (test_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags))
 			; /* Do nothing */
 		else if (!test_and_set_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags))
-			memcpy(&hdr->verf, &data->verf, sizeof(hdr->verf));
-		else if (memcmp(&hdr->verf, &data->verf, sizeof(hdr->verf)))
+			memcpy(&hdr->verf, &data->writeverf, sizeof(hdr->verf));
+		else if (memcmp(&hdr->verf, &data->writeverf,
+			 sizeof(hdr->verf)))
 			set_bit(NFS_IOHDR_NEED_RESCHED, &hdr->flags);
 		spin_unlock(&hdr->lock);
 	}
