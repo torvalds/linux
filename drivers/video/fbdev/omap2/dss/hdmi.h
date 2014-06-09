@@ -142,7 +142,7 @@ enum hdmi_audio_samples_perword {
 	HDMI_AUDIO_ONEWORD_TWOSAMPLES = 1
 };
 
-enum hdmi_audio_sample_size {
+enum hdmi_audio_sample_size_omap {
 	HDMI_AUDIO_SAMPLE_16BITS = 0,
 	HDMI_AUDIO_SAMPLE_24BITS = 1
 };
@@ -260,7 +260,7 @@ struct hdmi_audio_format {
 	enum hdmi_audio_justify			justification;
 	enum hdmi_audio_sample_order		sample_order;
 	enum hdmi_audio_samples_perword		samples_per_word;
-	enum hdmi_audio_sample_size		sample_size;
+	enum hdmi_audio_sample_size_omap	sample_size;
 	enum hdmi_audio_blk_strt_end_sig	en_sig_blk_strt_end;
 };
 
