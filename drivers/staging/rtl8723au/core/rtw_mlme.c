@@ -334,10 +334,10 @@ static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 	_rtw_free_network23a(pmlmepriv, pnetwork);
 }
 
-int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
-			struct wlan_network *pnetwork)
+bool rtw_is_same_ibss23a(struct rtw_adapter *adapter,
+			 struct wlan_network *pnetwork)
 {
-	int ret = true;
+	int ret;
 	struct security_priv *psecuritypriv = &adapter->securitypriv;
 
 	if (psecuritypriv->dot11PrivacyAlgrthm != 0 &&

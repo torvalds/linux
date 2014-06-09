@@ -361,8 +361,8 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter,
 void rtw_issue_addbareq_cmd23a(struct rtw_adapter *padapter,
 			    struct xmit_frame *pxmitframe);
 
-int rtw_is_same_ibss23a(struct rtw_adapter *adapter,
-		     struct wlan_network *pnetwork);
+bool rtw_is_same_ibss23a(struct rtw_adapter *adapter,
+			 struct wlan_network *pnetwork);
 int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst);
 
 void rtw23a_roaming(struct rtw_adapter *adapter,

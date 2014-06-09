@@ -188,26 +188,38 @@ int rtw_set_802_11_ssid23a(struct rtw_adapter* padapter,
 		    !memcmp(&pmlmepriv->assoc_ssid.ssid, ssid->ssid,
 			    ssid->ssid_len)) {
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_,
-					 ("Set SSID is the same ssid, fw_state = 0x%08x\n",
-					  get_fwstate(pmlmepriv)));
+				RT_TRACE(_module_rtl871x_ioctl_set_c_,
+					 _drv_err_, ("New SSID is same SSID, "
+						     "fw_state = 0x%08x\n",
+						     get_fwstate(pmlmepriv)));
 
-				if (rtw_is_same_ibss23a(padapter, pnetwork) == false)
-				{
-					/* if in WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE, create bss or rejoin again */
-					rtw_disassoc_cmd23a(padapter, 0, true);
+				if (rtw_is_same_ibss23a(padapter, pnetwork)) {
+					/*
+					 * it means driver is in
+					 * WIFI_ADHOC_MASTER_STATE, we needn't
+					 * create bss again.
+					 */
+					goto release_mlme_lock;
+				}
 
-					if (check_fwstate(pmlmepriv, _FW_LINKED))
-						rtw_indicate_disconnect23a(padapter);
+				/*
+				 * if in WIFI_ADHOC_MASTER_STATE |
+				 * WIFI_ADHOC_STATE, create bss or
+				 * rejoin again
+				 */
+				rtw_disassoc_cmd23a(padapter, 0, true);
 
-					rtw_free_assoc_resources23a(padapter, 1);
+				if (check_fwstate(pmlmepriv, _FW_LINKED))
+					rtw_indicate_disconnect23a(padapter);
 
-					if (check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE)) {
-						_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
-						set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
-					}
-				} else {
-					goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
+				rtw_free_assoc_resources23a(padapter, 1);
+
+				if (check_fwstate(pmlmepriv,
+						  WIFI_ADHOC_MASTER_STATE)) {
+					_clr_fwstate_(pmlmepriv,
+						      WIFI_ADHOC_MASTER_STATE);
+					set_fwstate(pmlmepriv,
+						    WIFI_ADHOC_STATE);
 				}
 			} else {
 				rtw_lps_ctrl_wk_cmd23a(padapter, LPS_CTRL_JOINBSS, 1);
