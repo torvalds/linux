@@ -887,7 +887,6 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	struct ieee80211_ht_operation *pht_info;
 	struct wlan_bssid_ex *bssid;
 	unsigned short val16;
-	u16 wpa_len = 0, rsn_len = 0;
 	u8 encryp_protocol;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
 	u32 bcn_channel;
@@ -1009,14 +1008,14 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 		goto _mismatch;
 	}
 
-	rtw_get_sec_ie23a(bssid->IEs, bssid->IELength, NULL, &rsn_len, NULL,
-			  &wpa_len);
-
-	if (rsn_len > 0)
+	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
+	if (p && p[1]) {
 		encryp_protocol = ENCRYP_PROTOCOL_WPA2;
-	else if (wpa_len > 0)
+	} else if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					   WLAN_OUI_TYPE_MICROSOFT_WPA,
+					   pie, pie_len)) {
 		encryp_protocol = ENCRYP_PROTOCOL_WPA;
-	else {
+	} else {
 		if (bssid->Privacy)
 			encryp_protocol = ENCRYP_PROTOCOL_WEP;
 		else
