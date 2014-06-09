@@ -27,8 +27,6 @@
 #endif
 
 
-#define MGMT_QUEUE_NUM 5
-
 #ifdef CONFIG_8723AU_AP_MODE
 
 /* STA flags */
@@ -305,7 +303,6 @@ struct ieee80211_snap_hdr {
 #define IEEE80211_OFDM_SHIFT_MASK_A         4
 
 #define WEP_KEYS 4
-#define WEP_KEY_LEN 13
 
 
 /* MAX_RATES_LENGTH needs to be 12.  The spec says 8, and many APs
