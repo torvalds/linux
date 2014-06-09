@@ -3946,10 +3946,9 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	u8 category, action;
 
 	DBG_8723A("%s(%s): ra ="MAC_FMT", ch:%u, offset:%u\n", __func__,
 		  padapter->pnetdev->name, MAC_ARG(ra), new_ch, ch_offset);
@@ -3964,29 +3963,24 @@ void issue_action_spct_ch_switch23a(struct rtw_adapter *padapter,
 
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
-	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)(pmgntframe->buf_addr + TXDESC_OFFSET);
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_ACTION);
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ACTION);
 
-	ether_addr_copy(pwlanhdr->addr1, ra); /* RA */
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv)); /* TA */
-	ether_addr_copy(pwlanhdr->addr3, ra); /* DA = RA */
+	ether_addr_copy(mgmt->da, ra); /* RA */
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv)); /* TA */
+	ether_addr_copy(mgmt->bssid, ra); /* DA = RA */
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
+	mgmt->u.action.category = WLAN_CATEGORY_SPECTRUM_MGMT;
+	mgmt->u.action.u.chan_switch.action_code = WLAN_ACTION_SPCT_CHL_SWITCH;
 
-	/* category, action */
-	category = WLAN_CATEGORY_SPECTRUM_MGMT;
-	action = WLAN_ACTION_SPCT_CHL_SWITCH;
-
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &category, &pattrib->pktlen);
-	pframe = rtw_set_fixed_ie23a(pframe, 1, &action, &pattrib->pktlen);
+	pframe = mgmt->u.action.u.chan_switch.variable;
+	pattrib->pktlen = offsetof(struct ieee80211_mgmt,
+				   u.action.u.chan_switch.variable);
 
 	pframe = rtw_set_ie23a_ch_switch (pframe, &pattrib->pktlen, 0,
 					  new_ch, 0);
