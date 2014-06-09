@@ -2188,10 +2188,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 					     sme->bssid)) {
 				DBG_8723A("matched by bssid\n");
 
-				memcpy(ssid.ssid, pnetwork->network.Ssid.ssid,
-				       pnetwork->network.Ssid.ssid_len);
-				ssid.ssid_len = pnetwork->network.Ssid.ssid_len;
-
 				matched = true;
 				break;
 			}
@@ -2200,9 +2196,6 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 				    sme->ssid, sme->ssid_len) &&
 			    pnetwork->network.Ssid.ssid_len == sme->ssid_len) {
 				DBG_8723A("matched by ssid\n");
-
-				memcpy(ssid.ssid, sme->ssid, sme->ssid_len);
-				ssid.ssid_len = sme->ssid_len;
 
 				matched = true;
 				break;
@@ -2321,6 +2314,10 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* rtw_set_802_11_encryption_mode(padapter,
 	   padapter->securitypriv.ndisencryptstatus); */
+
+	memcpy(ssid.ssid, pnetwork->network.Ssid.ssid,
+	       pnetwork->network.Ssid.ssid_len);
+	ssid.ssid_len = pnetwork->network.Ssid.ssid_len;
 
 	if (rtw_set_ssid(padapter, &ssid) != _SUCCESS) {
 		ret = -EBUSY;
