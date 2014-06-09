@@ -2502,7 +2502,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="19" valign="top" >DRM</td>
+	<td rowspan="20" valign="top" >DRM</td>
 	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2516,6 +2516,14 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >{ “On”, “Standby”, “Suspend”, “Off” }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >Contains DPMS operation mode value.</td>
+	</tr>
+	<tr>
+	<td rowspan="1" valign="top" >Plane</td>
+	<td valign="top" >“type”</td>
+	<td valign="top" >ENUM | IMMUTABLE</td>
+	<td valign="top" >{ "Overlay", "Primary", "Cursor" }</td>
+	<td valign="top" >Plane</td>
+	<td valign="top" >Plane type</td>
 	</tr>
 	<tr>
 	<td rowspan="2" valign="top" >DVI-I</td>
