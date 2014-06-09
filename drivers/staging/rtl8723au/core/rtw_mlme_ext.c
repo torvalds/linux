@@ -3036,9 +3036,10 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	unsigned int val32;
 	unsigned short val16;
+	u16 auth_algo;
 	int use_shared_key = 0;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -3055,23 +3056,20 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_AUTH);
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_AUTH);
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
+	pattrib->pktlen = offsetof(struct ieee80211_mgmt, u.auth.variable);
 
 	if (psta) { /*  for AP mode */
 #ifdef CONFIG_8723AU_AP_MODE
-
-		ether_addr_copy(pwlanhdr->addr1, psta->hwaddr);
-		ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-		ether_addr_copy(pwlanhdr->addr3, myid(&padapter->eeprompriv));
+		ether_addr_copy(mgmt->da, psta->hwaddr);
+		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+		ether_addr_copy(mgmt->bssid, myid(&padapter->eeprompriv));
 
 		/*  setting auth algo number */
 		val16 = (u16)psta->authalg;
@@ -3079,29 +3077,19 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 		if (status != WLAN_STATUS_SUCCESS)
 			val16 = 0;
 
-		if (val16) {
-			val16 = cpu_to_le16(val16);
+		if (val16)
 			use_shared_key = 1;
-		}
 
-		pframe = rtw_set_fixed_ie23a(pframe, _AUTH_ALGM_NUM_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		mgmt->u.auth.auth_alg = cpu_to_le16(val16);
 
 		/*  setting auth seq number */
-		val16 = (u16)psta->auth_seq;
-		val16 = cpu_to_le16(val16);
-		pframe = rtw_set_fixed_ie23a(pframe, _AUTH_SEQ_NUM_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		mgmt->u.auth.auth_transaction =
+			cpu_to_le16((u16)psta->auth_seq);
 
 		/*  setting status code... */
-		val16 = status;
-		val16 = cpu_to_le16(val16);
-		pframe = rtw_set_fixed_ie23a(pframe, _STATUS_CODE_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		mgmt->u.auth.status_code = cpu_to_le16(status);
 
+		pframe = mgmt->u.auth.variable;
 		/*  added challenging text... */
 		if ((psta->auth_seq == 2) &&
 		    (psta->state & WIFI_FW_AUTH_STATE) && (use_shared_key == 1))
@@ -3109,19 +3097,21 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 					       psta->chg_txt, &pattrib->pktlen);
 #endif
 	} else {
-		ether_addr_copy(pwlanhdr->addr1,
-				get_my_bssid23a(&pmlmeinfo->network));
-		ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-		ether_addr_copy(pwlanhdr->addr3,
+		struct ieee80211_mgmt *iv_mgmt;
+
+		ether_addr_copy(mgmt->da, get_my_bssid23a(&pmlmeinfo->network));
+		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+		ether_addr_copy(mgmt->bssid,
 				get_my_bssid23a(&pmlmeinfo->network));
 
 		/*  setting auth algo number */
 		/*  0:OPEN System, 1:Shared key */
-		val16 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)? 1: 0;
-		if (val16) {
-			val16 = cpu_to_le16(val16);
+		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared) {
 			use_shared_key = 1;
-		}
+			auth_algo = WLAN_AUTH_SHARED_KEY;
+		} else
+			auth_algo = WLAN_AUTH_OPEN;
+
 		/* DBG_8723A("%s auth_algo = %s auth_seq =%d\n", __func__,
 		   (pmlmeinfo->auth_algo == 0)?"OPEN":"SHARED",
 		   pmlmeinfo->auth_seq); */
@@ -3130,35 +3120,32 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 		if ((pmlmeinfo->auth_seq == 3) &&
 		    (pmlmeinfo->state & WIFI_FW_AUTH_STATE) &&
 		    (use_shared_key == 1)) {
+			u32 *piv = (u32 *)&mgmt->u.auth;
+
+			iv_mgmt = (struct ieee80211_mgmt *)(pframe + 4);
 			/* DBG_8723A("==> iv(%d), key_index(%d)\n",
 			   pmlmeinfo->iv, pmlmeinfo->key_index); */
-			val32 = ((pmlmeinfo->iv++) |
-				 (pmlmeinfo->key_index << 30));
-			val32 = cpu_to_le32(val32);
-			pframe = rtw_set_fixed_ie23a(pframe, 4,
-						     (unsigned char *)&val32,
-						     &pattrib->pktlen);
+			val32 = (pmlmeinfo->iv & 0x3fffffff) |
+				(pmlmeinfo->key_index << 30);
+			pmlmeinfo->iv++;
+			put_unaligned_le32(val32, piv);
+
+			pattrib->pktlen += 4;
 
 			pattrib->iv_len = IEEE80211_WEP_IV_LEN;
-		}
+		} else
+			iv_mgmt = mgmt;
 
-		pframe = rtw_set_fixed_ie23a(pframe, _AUTH_ALGM_NUM_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		iv_mgmt->u.auth.auth_alg = cpu_to_le16(auth_algo);
 
 		/*  setting auth seq number */
-		val16 = pmlmeinfo->auth_seq;
-		val16 = cpu_to_le16(val16);
-		pframe = rtw_set_fixed_ie23a(pframe, _AUTH_SEQ_NUM_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		iv_mgmt->u.auth.auth_transaction =
+			cpu_to_le16(pmlmeinfo->auth_seq);
 
 		/*  setting status code... */
-		val16 = status;
-		val16 = cpu_to_le16(val16);
-		pframe = rtw_set_fixed_ie23a(pframe, _STATUS_CODE_,
-					     (unsigned char *)&val16,
-					     &pattrib->pktlen);
+		iv_mgmt->u.auth.status_code = cpu_to_le16(status);
+
+		pframe = iv_mgmt->u.auth.variable;
 
 		/*  then checking to see if sending challenging text... */
 		if ((pmlmeinfo->auth_seq == 3) &&
@@ -3168,7 +3155,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 					       pmlmeinfo->chg_txt,
 					       &pattrib->pktlen);
 
-			pwlanhdr->frame_control |=
+			mgmt->frame_control |=
 				cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 			pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
