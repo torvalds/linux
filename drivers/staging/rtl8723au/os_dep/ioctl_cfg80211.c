@@ -1223,6 +1223,63 @@ static int cfg80211_rtw_set_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static u16 rtw_get_cur_max_rate(struct rtw_adapter *adapter)
+{
+	int i = 0;
+	const u8 *p;
+	u16 rate = 0, max_rate = 0;
+	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	struct registry_priv *pregistrypriv = &adapter->registrypriv;
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
+	struct ieee80211_ht_cap *pht_capie;
+	u8 rf_type = 0;
+	u8 bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
+	u16 mcs_rate = 0;
+
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, &pcur_bss->IEs[12],
+			     pcur_bss->IELength - 12);
+	if (p && p[1] > 0) {
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
+
+		memcpy(&mcs_rate, &pht_capie->mcs, 2);
+
+		/* bw_40MHz = (pht_capie->cap_info&
+		   IEEE80211_HT_CAP_SUP_WIDTH_20_40) ? 1:0; */
+		/* cur_bwmod is updated by beacon, pmlmeinfo is
+		   updated by association response */
+		bw_40MHz = (pmlmeext->cur_bwmode &&
+			    (pmlmeinfo->HT_info.ht_param &
+			     IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) ? 1:0;
+
+		/* short_GI = (pht_capie->cap_info & (IEEE80211_HT_CAP
+		   _SGI_20|IEEE80211_HT_CAP_SGI_40)) ? 1 : 0; */
+		short_GI_20 = (pmlmeinfo->ht_cap.cap_info &
+			       cpu_to_le16(IEEE80211_HT_CAP_SGI_20)) ? 1:0;
+		short_GI_40 = (pmlmeinfo->ht_cap.cap_info &
+			       cpu_to_le16(IEEE80211_HT_CAP_SGI_40)) ? 1:0;
+
+		rf_type = rtl8723a_get_rf_type(adapter);
+		max_rate = rtw_mcs_rate23a(rf_type, bw_40MHz &
+					   pregistrypriv->cbw40_enable,
+					   short_GI_20, short_GI_40,
+					   &pmlmeinfo->ht_cap.mcs);
+	} else {
+		while (pcur_bss->SupportedRates[i] != 0 &&
+		       pcur_bss->SupportedRates[i] != 0xFF) {
+			rate = pcur_bss->SupportedRates[i] & 0x7F;
+			if (rate>max_rate)
+				max_rate = rate;
+			i++;
+		}
+
+		max_rate = max_rate * 10 / 2;
+	}
+
+	return max_rate;
+}
+
 static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 				    struct net_device *ndev,
 				    const u8 *mac, struct station_info *sinfo)
@@ -1267,7 +1324,7 @@ static int cfg80211_rtw_get_station(struct wiphy *wiphy,
 							    signal_strength);
 
 		sinfo->filled |= STATION_INFO_TX_BITRATE;
-		sinfo->txrate.legacy = rtw_get_cur_max_rate23a(padapter);
+		sinfo->txrate.legacy = rtw_get_cur_max_rate(padapter);
 
 		sinfo->filled |= STATION_INFO_RX_PACKETS;
 		sinfo->rx_packets = sta_rx_data_pkts(psta);
