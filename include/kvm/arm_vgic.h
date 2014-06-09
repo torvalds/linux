@@ -143,8 +143,8 @@ struct vgic_dist {
 	/* Interrupt state is pending on the distributor */
 	struct vgic_bitmap	irq_pending;
 
-	/* Level-triggered interrupt in progress */
-	struct vgic_bitmap	irq_active;
+	/* Level-triggered interrupt queued on VCPU interface */
+	struct vgic_bitmap	irq_queued;
 
 	/* Interrupt priority. Not used yet. */
 	struct vgic_bytemap	irq_priority;

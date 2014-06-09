@@ -60,12 +60,12 @@
  * the 'line' again. This is achieved as such:
  *
  * - When a level interrupt is moved onto a vcpu, the corresponding
- *   bit in irq_active is set. As long as this bit is set, the line
+ *   bit in irq_queued is set. As long as this bit is set, the line
  *   will be ignored for further interrupts. The interrupt is injected
  *   into the vcpu with the GICH_LR_EOI bit set (generate a
  *   maintenance interrupt on EOI).
  * - When the interrupt is EOIed, the maintenance interrupt fires,
- *   and clears the corresponding bit in irq_active. This allow the
+ *   and clears the corresponding bit in irq_queued. This allows the
  *   interrupt line to be sampled again.
  */
 
@@ -196,25 +196,25 @@ static int vgic_irq_is_enabled(struct kvm_vcpu *vcpu, int irq)
 	return vgic_bitmap_get_irq_val(&dist->irq_enabled, vcpu->vcpu_id, irq);
 }
 
-static int vgic_irq_is_active(struct kvm_vcpu *vcpu, int irq)
+static int vgic_irq_is_queued(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
-	return vgic_bitmap_get_irq_val(&dist->irq_active, vcpu->vcpu_id, irq);
+	return vgic_bitmap_get_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq);
 }
 
-static void vgic_irq_set_active(struct kvm_vcpu *vcpu, int irq)
+static void vgic_irq_set_queued(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
-	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 1);
+	vgic_bitmap_set_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq, 1);
 }
 
-static void vgic_irq_clear_active(struct kvm_vcpu *vcpu, int irq)
+static void vgic_irq_clear_queued(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
-	vgic_bitmap_set_irq_val(&dist->irq_active, vcpu->vcpu_id, irq, 0);
+	vgic_bitmap_set_irq_val(&dist->irq_queued, vcpu->vcpu_id, irq, 0);
 }
 
 static int vgic_dist_irq_is_pending(struct kvm_vcpu *vcpu, int irq)
@@ -254,6 +254,11 @@ static void vgic_cpu_irq_clear(struct kvm_vcpu *vcpu, int irq)
 	else
 		clear_bit(irq - VGIC_NR_PRIVATE_IRQS,
 			  vcpu->arch.vgic_cpu.pending_shared);
+}
+
+static bool vgic_can_sample_irq(struct kvm_vcpu *vcpu, int irq)
+{
+	return vgic_irq_is_edge(vcpu, irq) || !vgic_irq_is_queued(vcpu, irq);
 }
 
 static u32 mmio_data_read(struct kvm_exit_mmio *mmio, u32 mask)
@@ -1079,8 +1084,8 @@ static void vgic_retire_disabled_irqs(struct kvm_vcpu *vcpu)
 
 		if (!vgic_irq_is_enabled(vcpu, vlr.irq)) {
 			vgic_retire_lr(lr, vlr.irq, vcpu);
-			if (vgic_irq_is_active(vcpu, vlr.irq))
-				vgic_irq_clear_active(vcpu, vlr.irq);
+			if (vgic_irq_is_queued(vcpu, vlr.irq))
+				vgic_irq_clear_queued(vcpu, vlr.irq);
 		}
 	}
 }
@@ -1170,7 +1175,7 @@ static bool vgic_queue_sgi(struct kvm_vcpu *vcpu, int irq)
 
 static bool vgic_queue_hwirq(struct kvm_vcpu *vcpu, int irq)
 {
-	if (vgic_irq_is_active(vcpu, irq))
+	if (!vgic_can_sample_irq(vcpu, irq))
 		return true; /* level interrupt, already queued */
 
 	if (vgic_queue_irq(vcpu, 0, irq)) {
@@ -1178,7 +1183,7 @@ static bool vgic_queue_hwirq(struct kvm_vcpu *vcpu, int irq)
 			vgic_dist_irq_clear_pending(vcpu, irq);
 			vgic_cpu_irq_clear(vcpu, irq);
 		} else {
-			vgic_irq_set_active(vcpu, irq);
+			vgic_irq_set_queued(vcpu, irq);
 		}
 
 		return true;
@@ -1262,7 +1267,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 		for_each_set_bit(lr, eisr_ptr, vgic->nr_lr) {
 			struct vgic_lr vlr = vgic_get_lr(vcpu, lr);
 
-			vgic_irq_clear_active(vcpu, vlr.irq);
+			vgic_irq_clear_queued(vcpu, vlr.irq);
 			WARN_ON(vlr.state & LR_STATE_MASK);
 			vlr.state = 0;
 			vgic_set_lr(vcpu, lr, vlr);
@@ -1429,7 +1434,7 @@ static bool vgic_update_irq_pending(struct kvm *kvm, int cpuid,
 		goto out;
 	}
 
-	if (level_triggered && vgic_irq_is_active(vcpu, irq_num)) {
+	if (!vgic_can_sample_irq(vcpu, irq_num)) {
 		/*
 		 * Level interrupt in progress, will be picked up
 		 * when EOId.
