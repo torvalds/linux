@@ -25,7 +25,6 @@
 int rtw_do_join23a(struct rtw_adapter *padapter)
 {
 	struct list_head *plist, *phead;
-	u8* pibss = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct rtw_queue *queue = &pmlmepriv->scanned_queue;
 	int ret = _SUCCESS;
@@ -80,43 +79,10 @@ int rtw_do_join23a(struct rtw_adapter *padapter)
 			pmlmepriv->to_join = false;
 		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {
-				struct wlan_bssid_ex *pdev_network;
-				/*  submit createbss_cmd to change to a
-				    ADHOC_MASTER */
-
-				/* pmlmepriv->lock has been acquired by
-				   caller... */
-				pdev_network =
-					&padapter->registrypriv.dev_network;
-
-				pmlmepriv->fw_state = WIFI_ADHOC_MASTER_STATE;
-
-				pibss = padapter->registrypriv.dev_network.MacAddress;
-
-				memcpy(&pdev_network->Ssid,
-				       &pmlmepriv->assoc_ssid,
-				       sizeof(struct cfg80211_ssid));
-
-				rtw_update_registrypriv_dev_network23a(padapter);
-
-				rtw_generate_random_ibss23a(pibss);
-
-				if (rtw_createbss_cmd23a(padapter) != _SUCCESS) {
-					RT_TRACE(_module_rtl871x_ioctl_set_c_,
-						 _drv_err_,
-						 ("***Error =>do_goin: rtw_creat"
-						  "ebss_cmd status FAIL***\n"));
-					ret = _FAIL;
+				/* switch to ADHOC_MASTER */
+				ret = rtw_do_join_adhoc(padapter);
+				if (ret != _SUCCESS)
 					goto exit;
-				}
-
-				pmlmepriv->to_join = false;
-
-				RT_TRACE(_module_rtl871x_ioctl_set_c_,
-					 _drv_info_,
-					 ("***Error => rtw_select_and_join_from"
-					  "_scanned_queue FAIL under STA_Mode"
-					  "***\n "));
 			} else {
 				/*  can't associate ; reset under-linking */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
