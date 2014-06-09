@@ -52,8 +52,6 @@ dorecord() {
 	OBJDUMP="${CROSS_COMPILE}objdump"
 	OBJDIFFD="$TMPD/$CMT"
 
-	[ ! -d "$OBJDIFFD" ] && mkdir -p "$OBJDIFFD"
-
 	for f in $FILES; do
 		dn="${f%/*}"
 		bn="${f##*/}"
