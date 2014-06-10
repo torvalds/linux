@@ -481,14 +481,13 @@ done:
 static inline int ccdc_lsc_is_configured(struct isp_ccdc_device *ccdc)
 {
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&ccdc->lsc.req_lock, flags);
-	if (ccdc->lsc.active) {
-		spin_unlock_irqrestore(&ccdc->lsc.req_lock, flags);
-		return 1;
-	}
+	ret = ccdc->lsc.active != NULL;
 	spin_unlock_irqrestore(&ccdc->lsc.req_lock, flags);
-	return 0;
+
+	return ret;
 }
 
 static int ccdc_lsc_enable(struct isp_ccdc_device *ccdc)
