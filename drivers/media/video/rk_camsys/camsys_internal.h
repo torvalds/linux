@@ -78,9 +78,11 @@
 *v0.b.0:
 		 1) control ddr freq by marvin self other than by clk unit. 
 *v0.c.0:
-		 1) add flash_trigger_out control
+*        1) add flash_trigger_out control
+*v0.d.0:
+*        1) add Isp_SoftRst for rk3288;
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xc,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0xd,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

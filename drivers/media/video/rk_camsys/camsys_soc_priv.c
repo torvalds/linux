@@ -37,9 +37,15 @@ static int camsys_rk3288_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
             break;
         }
 
-        case Isp_SoftRst:
+        case Isp_SoftRst:         /* ddl@rock-chips.com: v0.d.0 */
         {
+            para_int = (unsigned int*)cfg_para;
 
+            if (para_int)
+                cru_writel(0x40004000,0x1d0);
+            else 
+                cru_writel(0x40000000,0x1d0);
+            camsys_trace(1, "Isp_SoftRst: %d",para_int);
             break;
         }
 
