@@ -1093,7 +1093,7 @@ EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
  * Register @pol with blkcg core.  Might sleep and @pol may be modified on
  * successful registration.  Returns 0 on success and -errno on failure.
  */
-int blkcg_policy_register(struct blkcg_policy *pol)
+int __init blkcg_policy_register(struct blkcg_policy *pol)
 {
 	int i, ret;
 
