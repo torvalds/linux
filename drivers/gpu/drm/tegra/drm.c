@@ -548,6 +548,53 @@ static int tegra_gem_get_tiling(struct drm_device *drm, void *data,
 
 	return err;
 }
+
+static int tegra_gem_set_flags(struct drm_device *drm, void *data,
+			       struct drm_file *file)
+{
+	struct drm_tegra_gem_set_flags *args = data;
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	if (args->flags & ~DRM_TEGRA_GEM_FLAGS)
+		return -EINVAL;
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+	bo->flags = 0;
+
+	if (args->flags & DRM_TEGRA_GEM_BOTTOM_UP)
+		bo->flags |= TEGRA_BO_BOTTOM_UP;
+
+	drm_gem_object_unreference(gem);
+
+	return 0;
+}
+
+static int tegra_gem_get_flags(struct drm_device *drm, void *data,
+			       struct drm_file *file)
+{
+	struct drm_tegra_gem_get_flags *args = data;
+	struct drm_gem_object *gem;
+	struct tegra_bo *bo;
+
+	gem = drm_gem_object_lookup(drm, file, args->handle);
+	if (!gem)
+		return -ENOENT;
+
+	bo = to_tegra_bo(gem);
+	args->flags = 0;
+
+	if (bo->flags & TEGRA_BO_BOTTOM_UP)
+		args->flags |= DRM_TEGRA_GEM_BOTTOM_UP;
+
+	drm_gem_object_unreference(gem);
+
+	return 0;
+}
 #endif
 
 static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
@@ -564,6 +611,8 @@ static const struct drm_ioctl_desc tegra_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(TEGRA_GET_SYNCPT_BASE, tegra_get_syncpt_base, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_TILING, tegra_gem_set_tiling, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(TEGRA_GEM_GET_TILING, tegra_gem_get_tiling, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_SET_FLAGS, tegra_gem_set_flags, DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(TEGRA_GEM_GET_FLAGS, tegra_gem_get_flags, DRM_UNLOCKED),
 #endif
 };
 
