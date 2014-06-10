@@ -36,7 +36,6 @@
 #include <media/videobuf2-vmalloc.h>
 #include <media/saa7115.h>
 
-#include "go7007.h"
 #include "go7007-priv.h"
 
 #define call_all(dev, o, f, args...) \
@@ -189,7 +188,7 @@ static void set_formatting(struct go7007 *go)
 static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 {
 	int sensor_height = 0, sensor_width = 0;
-	int width, height, i;
+	int width, height;
 
 	if (fmt != NULL && !valid_pixelformat(fmt->fmt.pix.pixelformat))
 		return -EINVAL;
@@ -253,10 +252,6 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	go->height = height;
 	go->encoder_h_offset = go->board_info->sensor_h_offset;
 	go->encoder_v_offset = go->board_info->sensor_v_offset;
-	for (i = 0; i < 4; ++i)
-		go->modet[i].enable = 0;
-	for (i = 0; i < 1624; ++i)
-		go->modet_map[i] = 0;
 
 	if (go->board_info->sensor_flags & GO7007_SENSOR_SCALING) {
 		struct v4l2_mbus_framefmt mbus_fmt;
@@ -285,64 +280,6 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	}
 	return 0;
 }
-
-#if 0
-static int clip_to_modet_map(struct go7007 *go, int region,
-		struct v4l2_clip *clip_list)
-{
-	struct v4l2_clip clip, *clip_ptr;
-	int x, y, mbnum;
-
-	/* Check if coordinates are OK and if any macroblocks are already
-	 * used by other regions (besides 0) */
-	clip_ptr = clip_list;
-	while (clip_ptr) {
-		if (copy_from_user(&clip, clip_ptr, sizeof(clip)))
-			return -EFAULT;
-		if (clip.c.left < 0 || (clip.c.left & 0xF) ||
-				clip.c.width <= 0 || (clip.c.width & 0xF))
-			return -EINVAL;
-		if (clip.c.left + clip.c.width > go->width)
-			return -EINVAL;
-		if (clip.c.top < 0 || (clip.c.top & 0xF) ||
-				clip.c.height <= 0 || (clip.c.height & 0xF))
-			return -EINVAL;
-		if (clip.c.top + clip.c.height > go->height)
-			return -EINVAL;
-		for (y = 0; y < clip.c.height; y += 16)
-			for (x = 0; x < clip.c.width; x += 16) {
-				mbnum = (go->width >> 4) *
-						((clip.c.top + y) >> 4) +
-					((clip.c.left + x) >> 4);
-				if (go->modet_map[mbnum] != 0 &&
-						go->modet_map[mbnum] != region)
-					return -EBUSY;
-			}
-		clip_ptr = clip.next;
-	}
-
-	/* Clear old region macroblocks */
-	for (mbnum = 0; mbnum < 1624; ++mbnum)
-		if (go->modet_map[mbnum] == region)
-			go->modet_map[mbnum] = 0;
-
-	/* Claim macroblocks in this list */
-	clip_ptr = clip_list;
-	while (clip_ptr) {
-		if (copy_from_user(&clip, clip_ptr, sizeof(clip)))
-			return -EFAULT;
-		for (y = 0; y < clip.c.height; y += 16)
-			for (x = 0; x < clip.c.width; x += 16) {
-				mbnum = (go->width >> 4) *
-						((clip.c.top + y) >> 4) +
-					((clip.c.left + x) >> 4);
-				go->modet_map[mbnum] = region;
-			}
-		clip_ptr = clip.next;
-	}
-	return 0;
-}
-#endif
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -495,6 +432,7 @@ static int go7007_start_streaming(struct vb2_queue *q, unsigned int count)
 	mutex_lock(&go->hw_lock);
 	go->next_seq = 0;
 	go->active_buf = NULL;
+	go->modet_event_status = 0;
 	q->streaming = 1;
 	if (go7007_start_encoder(go) < 0)
 		ret = -EIO;
@@ -850,41 +788,76 @@ static int vidioc_log_status(struct file *file, void *priv)
 	return call_all(&go->v4l2_dev, core, log_status);
 }
 
-/* FIXME:
-	Those ioctls are private, and not needed, since several standard
-	extended controls already provide streaming control.
-	So, those ioctls should be converted into vidioc_g_ext_ctrls()
-	and vidioc_s_ext_ctrls()
- */
+static int vidioc_subscribe_event(struct v4l2_fh *fh,
+				const struct v4l2_event_subscription *sub)
+{
 
-#if 0
-	case GO7007IOC_S_MD_PARAMS:
-	{
-		struct go7007_md_params *mdp = arg;
-
-		if (mdp->region > 3)
-			return -EINVAL;
-		if (mdp->trigger > 0) {
-			go->modet[mdp->region].pixel_threshold =
-					mdp->pixel_threshold >> 1;
-			go->modet[mdp->region].motion_threshold =
-					mdp->motion_threshold >> 1;
-			go->modet[mdp->region].mb_threshold =
-					mdp->trigger >> 1;
-			go->modet[mdp->region].enable = 1;
-		} else
-			go->modet[mdp->region].enable = 0;
-		/* fall-through */
+	switch (sub->type) {
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subscribe_event(fh, sub);
+	case V4L2_EVENT_MOTION_DET:
+		/* Allow for up to 30 events (1 second for NTSC) to be
+		 * stored. */
+		return v4l2_event_subscribe(fh, sub, 30, NULL);
 	}
-	case GO7007IOC_S_MD_REGION:
-	{
-		struct go7007_md_region *region = arg;
+	return -EINVAL;
+}
 
-		if (region->region < 1 || region->region > 3)
-			return -EINVAL;
-		return clip_to_modet_map(go, region->region, region->clips);
+
+static int go7007_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct go7007 *go =
+		container_of(ctrl->handler, struct go7007, hdl);
+	unsigned y;
+	u8 *mt;
+
+	switch (ctrl->id) {
+	case V4L2_CID_PIXEL_THRESHOLD0:
+		go->modet[0].pixel_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MOTION_THRESHOLD0:
+		go->modet[0].motion_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MB_THRESHOLD0:
+		go->modet[0].mb_threshold = ctrl->val;
+		break;
+	case V4L2_CID_PIXEL_THRESHOLD1:
+		go->modet[1].pixel_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MOTION_THRESHOLD1:
+		go->modet[1].motion_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MB_THRESHOLD1:
+		go->modet[1].mb_threshold = ctrl->val;
+		break;
+	case V4L2_CID_PIXEL_THRESHOLD2:
+		go->modet[2].pixel_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MOTION_THRESHOLD2:
+		go->modet[2].motion_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MB_THRESHOLD2:
+		go->modet[2].mb_threshold = ctrl->val;
+		break;
+	case V4L2_CID_PIXEL_THRESHOLD3:
+		go->modet[3].pixel_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MOTION_THRESHOLD3:
+		go->modet[3].motion_threshold = ctrl->val;
+		break;
+	case V4L2_CID_MB_THRESHOLD3:
+		go->modet[3].mb_threshold = ctrl->val;
+		break;
+	case V4L2_CID_DETECT_MD_REGION_GRID:
+		mt = go->modet_map;
+		for (y = 0; y < go->height / 16; y++, mt += go->width / 16)
+			memcpy(mt, ctrl->p_new.p_u8 + y * (720 / 16), go->width / 16);
+		break;
+	default:
+		return -EINVAL;
 	}
-#endif
+	return 0;
+}
 
 static struct v4l2_file_operations go7007_fops = {
 	.owner		= THIS_MODULE,
@@ -926,7 +899,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_framesizes   = vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
 	.vidioc_log_status        = vidioc_log_status,
-	.vidioc_subscribe_event   = v4l2_ctrl_subscribe_event,
+	.vidioc_subscribe_event   = vidioc_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
@@ -938,12 +911,144 @@ static struct video_device go7007_template = {
 	.tvnorms	= V4L2_STD_ALL,
 };
 
+static const struct v4l2_ctrl_ops go7007_ctrl_ops = {
+	.s_ctrl = go7007_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config go7007_pixel_threshold0_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_PIXEL_THRESHOLD0,
+	.name = "Pixel Threshold Region 0",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 20,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_motion_threshold0_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MOTION_THRESHOLD0,
+	.name = "Motion Threshold Region 0",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 80,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_mb_threshold0_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MB_THRESHOLD0,
+	.name = "MB Threshold Region 0",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 200,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_pixel_threshold1_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_PIXEL_THRESHOLD1,
+	.name = "Pixel Threshold Region 1",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 20,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_motion_threshold1_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MOTION_THRESHOLD1,
+	.name = "Motion Threshold Region 1",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 80,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_mb_threshold1_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MB_THRESHOLD1,
+	.name = "MB Threshold Region 1",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 200,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_pixel_threshold2_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_PIXEL_THRESHOLD2,
+	.name = "Pixel Threshold Region 2",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 20,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_motion_threshold2_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MOTION_THRESHOLD2,
+	.name = "Motion Threshold Region 2",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 80,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_mb_threshold2_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MB_THRESHOLD2,
+	.name = "MB Threshold Region 2",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 200,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_pixel_threshold3_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_PIXEL_THRESHOLD3,
+	.name = "Pixel Threshold Region 3",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 20,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_motion_threshold3_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MOTION_THRESHOLD3,
+	.name = "Motion Threshold Region 3",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 80,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_mb_threshold3_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_MB_THRESHOLD3,
+	.name = "MB Threshold Region 3",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 200,
+	.max = 32767,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config go7007_mb_regions_ctrl = {
+	.ops = &go7007_ctrl_ops,
+	.id = V4L2_CID_DETECT_MD_REGION_GRID,
+	.dims = { 576 / 16, 720 / 16 },
+	.max = 3,
+	.step = 1,
+};
+
 int go7007_v4l2_ctrl_init(struct go7007 *go)
 {
 	struct v4l2_ctrl_handler *hdl = &go->hdl;
 	struct v4l2_ctrl *ctrl;
 
-	v4l2_ctrl_handler_init(hdl, 13);
+	v4l2_ctrl_handler_init(hdl, 22);
 	go->mpeg_video_gop_size = v4l2_ctrl_new_std(hdl, NULL,
 			V4L2_CID_MPEG_VIDEO_GOP_SIZE, 0, 34, 1, 15);
 	go->mpeg_video_gop_closure = v4l2_ctrl_new_std(hdl, NULL,
@@ -968,6 +1073,24 @@ int go7007_v4l2_ctrl_init(struct go7007 *go)
 			V4L2_JPEG_ACTIVE_MARKER_DHT);
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	v4l2_ctrl_new_custom(hdl, &go7007_pixel_threshold0_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_motion_threshold0_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_mb_threshold0_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_pixel_threshold1_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_motion_threshold1_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_mb_threshold1_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_pixel_threshold2_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_motion_threshold2_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_mb_threshold2_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_pixel_threshold3_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_motion_threshold3_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_mb_threshold3_ctrl, NULL);
+	v4l2_ctrl_new_custom(hdl, &go7007_mb_regions_ctrl, NULL);
+	go->modet_mode = v4l2_ctrl_new_std_menu(hdl, NULL,
+			V4L2_CID_DETECT_MD_MODE,
+			V4L2_DETECT_MD_MODE_REGION_GRID,
+			1 << V4L2_DETECT_MD_MODE_THRESHOLD_GRID,
+			V4L2_DETECT_MD_MODE_DISABLED);
 	if (hdl->error) {
 		int rv = hdl->error;
 

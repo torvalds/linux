@@ -32,6 +32,7 @@
 #include <linux/videodev2.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-event.h>
 
 #include "go7007-priv.h"
 
@@ -332,20 +333,33 @@ EXPORT_SYMBOL(go7007_register_encoder);
 int go7007_start_encoder(struct go7007 *go)
 {
 	u8 *fw;
-	int fw_len, rv = 0, i;
+	int fw_len, rv = 0, i, x, y;
 	u16 intr_val, intr_data;
 
 	go->modet_enable = 0;
-	if (!go->dvd_mode)
-		for (i = 0; i < 4; ++i) {
-			if (go->modet[i].enable) {
-				go->modet_enable = 1;
-				continue;
+	for (i = 0; i < 4; i++)
+		go->modet[i].enable = 0;
+
+	switch (v4l2_ctrl_g_ctrl(go->modet_mode)) {
+	case V4L2_DETECT_MD_MODE_GLOBAL:
+		memset(go->modet_map, 0, sizeof(go->modet_map));
+		go->modet[0].enable = 1;
+		go->modet_enable = 1;
+		break;
+	case V4L2_DETECT_MD_MODE_REGION_GRID:
+		for (y = 0; y < go->height / 16; y++) {
+			for (x = 0; x < go->width / 16; x++) {
+				int idx = y * go->width / 16 + x;
+
+				go->modet[go->modet_map[idx]].enable = 1;
 			}
-			go->modet[i].pixel_threshold = 32767;
-			go->modet[i].motion_threshold = 32767;
-			go->modet[i].mb_threshold = 32767;
 		}
+		go->modet_enable = 1;
+		break;
+	}
+
+	if (go->dvd_mode)
+		go->modet_enable = 0;
 
 	if (go7007_construct_fw_image(go, &fw, &fw_len) < 0)
 		return -1;
@@ -383,44 +397,89 @@ static inline void store_byte(struct go7007_buffer *vb, u8 byte)
 	}
 }
 
+static void go7007_set_motion_regions(struct go7007 *go, struct go7007_buffer *vb,
+		u32 motion_regions)
+{
+	if (motion_regions != go->modet_event_status) {
+		struct v4l2_event ev = {
+			.type = V4L2_EVENT_MOTION_DET,
+			.u.motion_det = {
+				.flags = V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ,
+				.frame_sequence = vb->vb.v4l2_buf.sequence,
+				.region_mask = motion_regions,
+			},
+		};
+
+		v4l2_event_queue(&go->vdev, &ev);
+		go->modet_event_status = motion_regions;
+	}
+}
+
+/*
+ * Determine regions with motion and send a motion detection event
+ * in case of changes.
+ */
+static void go7007_motion_regions(struct go7007 *go, struct go7007_buffer *vb)
+{
+	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
+	unsigned motion[4] = { 0, 0, 0, 0 };
+	u32 motion_regions = 0;
+	unsigned stride = (go->width + 7) >> 3;
+	unsigned x, y;
+	int i;
+
+	for (i = 0; i < 216; ++i)
+		store_byte(vb, go->active_map[i]);
+	for (y = 0; y < go->height / 16; y++) {
+		for (x = 0; x < go->width / 16; x++) {
+			if (!(go->active_map[y * stride + (x >> 3)] & (1 << (x & 7))))
+				continue;
+			motion[go->modet_map[y * (go->width / 16) + x]]++;
+		}
+	}
+	motion_regions = ((motion[0] > 0) << 0) |
+			 ((motion[1] > 0) << 1) |
+			 ((motion[2] > 0) << 2) |
+			 ((motion[3] > 0) << 3);
+	*bytesused -= 216;
+	go7007_set_motion_regions(go, vb, motion_regions);
+}
+
 /*
  * Deliver the last video buffer and get a new one to start writing to.
  */
 static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buffer *vb)
 {
-	struct go7007_buffer *vb_tmp = NULL;
 	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
-	int i;
+	struct go7007_buffer *vb_tmp = NULL;
 
-	if (vb) {
-		if (vb->modet_active) {
-			if (*bytesused + 216 < GO7007_BUF_SIZE) {
-				for (i = 0; i < 216; ++i)
-					store_byte(vb, go->active_map[i]);
-				*bytesused -= 216;
-			} else
-				vb->modet_active = 0;
-		}
-		vb->vb.v4l2_buf.sequence = go->next_seq++;
-		v4l2_get_timestamp(&vb->vb.v4l2_buf.timestamp);
-		vb_tmp = vb;
+	if (vb == NULL) {
 		spin_lock(&go->spinlock);
-		list_del(&vb->list);
-		if (list_empty(&go->vidq_active))
-			vb = NULL;
-		else
-			vb = list_first_entry(&go->vidq_active, struct go7007_buffer, list);
-		go->active_buf = vb;
+		if (!list_empty(&go->vidq_active))
+			vb = go->active_buf =
+				list_first_entry(&go->vidq_active, struct go7007_buffer, list);
 		spin_unlock(&go->spinlock);
-		vb2_buffer_done(&vb_tmp->vb, VB2_BUF_STATE_DONE);
+		go->next_seq++;
 		return vb;
 	}
+
+	vb->vb.v4l2_buf.sequence = go->next_seq++;
+	if (vb->modet_active && *bytesused + 216 < GO7007_BUF_SIZE)
+		go7007_motion_regions(go, vb);
+	else
+		go7007_set_motion_regions(go, vb, 0);
+
+	v4l2_get_timestamp(&vb->vb.v4l2_buf.timestamp);
+	vb_tmp = vb;
 	spin_lock(&go->spinlock);
-	if (!list_empty(&go->vidq_active))
-		vb = go->active_buf =
-			list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+	list_del(&vb->list);
+	if (list_empty(&go->vidq_active))
+		vb = NULL;
+	else
+		vb = list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+	go->active_buf = vb;
 	spin_unlock(&go->spinlock);
-	go->next_seq++;
+	vb2_buffer_done(&vb_tmp->vb, VB2_BUF_STATE_DONE);
 	return vb;
 }
 

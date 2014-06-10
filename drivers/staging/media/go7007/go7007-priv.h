@@ -75,6 +75,20 @@ struct go7007;
 #define GO7007_AUDIO_I2S_MASTER		(1<<16)
 #define GO7007_AUDIO_OKI_MODE		(1<<17)
 
+#define GO7007_CID_CUSTOM_BASE		(V4L2_CID_DETECT_CLASS_BASE + 0x1000)
+#define V4L2_CID_PIXEL_THRESHOLD0	(GO7007_CID_CUSTOM_BASE+1)
+#define V4L2_CID_MOTION_THRESHOLD0	(GO7007_CID_CUSTOM_BASE+2)
+#define V4L2_CID_MB_THRESHOLD0		(GO7007_CID_CUSTOM_BASE+3)
+#define V4L2_CID_PIXEL_THRESHOLD1	(GO7007_CID_CUSTOM_BASE+4)
+#define V4L2_CID_MOTION_THRESHOLD1	(GO7007_CID_CUSTOM_BASE+5)
+#define V4L2_CID_MB_THRESHOLD1		(GO7007_CID_CUSTOM_BASE+6)
+#define V4L2_CID_PIXEL_THRESHOLD2	(GO7007_CID_CUSTOM_BASE+7)
+#define V4L2_CID_MOTION_THRESHOLD2	(GO7007_CID_CUSTOM_BASE+8)
+#define V4L2_CID_MB_THRESHOLD2		(GO7007_CID_CUSTOM_BASE+9)
+#define V4L2_CID_PIXEL_THRESHOLD3	(GO7007_CID_CUSTOM_BASE+10)
+#define V4L2_CID_MOTION_THRESHOLD3	(GO7007_CID_CUSTOM_BASE+11)
+#define V4L2_CID_MB_THRESHOLD3		(GO7007_CID_CUSTOM_BASE+12)
+
 struct go7007_board_info {
 	unsigned int flags;
 	int hpi_buffer_cap;
@@ -168,6 +182,7 @@ struct go7007 {
 	struct v4l2_ctrl *mpeg_video_aspect_ratio;
 	struct v4l2_ctrl *mpeg_video_b_frames;
 	struct v4l2_ctrl *mpeg_video_rep_seqheader;
+	struct v4l2_ctrl *modet_mode;
 	enum { STATUS_INIT, STATUS_ONLINE, STATUS_SHUTDOWN } status;
 	spinlock_t spinlock;
 	struct mutex hw_lock;
@@ -216,6 +231,7 @@ struct go7007 {
 	} modet[4];
 	unsigned char modet_map[1624];
 	unsigned char active_map[216];
+	u32 modet_event_status;
 
 	/* Video streaming */
 	struct mutex queue_lock;

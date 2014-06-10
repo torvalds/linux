@@ -1432,22 +1432,26 @@ static int audio_to_package(struct go7007 *go, __le16 *code, int space)
 
 static int modet_to_package(struct go7007 *go, __le16 *code, int space)
 {
+	bool has_modet0 = go->modet[0].enable;
+	bool has_modet1 = go->modet[1].enable;
+	bool has_modet2 = go->modet[2].enable;
+	bool has_modet3 = go->modet[3].enable;
 	int ret, mb, i, addr, cnt = 0;
 	u16 pack[32];
 	u16 thresholds[] = {
 		0x200e,		0,
-		0xbf82,		go->modet[0].pixel_threshold,
-		0xbf83,		go->modet[1].pixel_threshold,
-		0xbf84,		go->modet[2].pixel_threshold,
-		0xbf85,		go->modet[3].pixel_threshold,
-		0xbf86,		go->modet[0].motion_threshold,
-		0xbf87,		go->modet[1].motion_threshold,
-		0xbf88,		go->modet[2].motion_threshold,
-		0xbf89,		go->modet[3].motion_threshold,
-		0xbf8a,		go->modet[0].mb_threshold,
-		0xbf8b,		go->modet[1].mb_threshold,
-		0xbf8c,		go->modet[2].mb_threshold,
-		0xbf8d,		go->modet[3].mb_threshold,
+		0xbf82,		has_modet0 ? go->modet[0].pixel_threshold : 32767,
+		0xbf83,		has_modet1 ? go->modet[1].pixel_threshold : 32767,
+		0xbf84,		has_modet2 ? go->modet[2].pixel_threshold : 32767,
+		0xbf85,		has_modet3 ? go->modet[3].pixel_threshold : 32767,
+		0xbf86,		has_modet0 ? go->modet[0].motion_threshold : 32767,
+		0xbf87,		has_modet1 ? go->modet[1].motion_threshold : 32767,
+		0xbf88,		has_modet2 ? go->modet[2].motion_threshold : 32767,
+		0xbf89,		has_modet3 ? go->modet[3].motion_threshold : 32767,
+		0xbf8a,		has_modet0 ? go->modet[0].mb_threshold : 32767,
+		0xbf8b,		has_modet1 ? go->modet[1].mb_threshold : 32767,
+		0xbf8c,		has_modet2 ? go->modet[2].mb_threshold : 32767,
+		0xbf8d,		has_modet3 ? go->modet[3].mb_threshold : 32767,
 		0xbf8e,		0,
 		0xbf8f,		0,
 		0,		0,
