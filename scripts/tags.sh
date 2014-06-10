@@ -281,7 +281,7 @@ xtags()
 		emacs $1
 	else
 		all_target_sources | xargs $1 -a
-        fi
+	fi
 }
 
 # Support um (which uses SUBARCH)
