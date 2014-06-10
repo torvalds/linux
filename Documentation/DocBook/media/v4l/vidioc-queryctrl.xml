@@ -289,7 +289,8 @@ accepts values 0-511 and the driver reports 0-65535, step should be
 	    <entry>The default value of a
 <constant>V4L2_CTRL_TYPE_INTEGER</constant>, <constant>_INTEGER64</constant>,
 <constant>_BOOLEAN</constant>, <constant>_BITMASK</constant>,
-<constant>_MENU</constant> or <constant>_INTEGER_MENU</constant> control.
+<constant>_MENU</constant>, <constant>_INTEGER_MENU</constant>,
+<constant>_U8</constant> or <constant>_U16</constant> control.
 Not valid for other types of controls.
 Note that drivers reset controls to their default value only when the
 driver is first loaded, never afterwards.
@@ -509,6 +510,26 @@ equal to a control class code (see <xref linkend="ctrl-class" />) + 1, the
 ioctl returns the name of the control class and this control type.
 Older drivers which do not support this feature return an
 &EINVAL;.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_U8</constant></entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>An unsigned 8-bit valued control ranging from minimum to
+maximum inclusive. The step value indicates the increment between
+values which are actually different on the hardware. This type is only used
+in array controls.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_TYPE_U16</constant></entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>any</entry>
+	    <entry>An unsigned 16-bit valued control ranging from minimum to
+maximum inclusive. The step value indicates the increment between
+values which are actually different on the hardware. This type is only used
+in array controls.</entry>
 	  </row>
 	</tbody>
       </tgroup>
