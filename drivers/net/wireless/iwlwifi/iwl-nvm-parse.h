@@ -90,7 +90,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
  * the regdomain returned here with kfree.
  */
 struct ieee80211_regdomain *
-iwl_parse_nvm_mcc_info(struct device *dev, int num_of_ch, __le32 *channels,
-		       u16 fw_mcc);
+iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+		       int num_of_ch, __le32 *channels, u16 fw_mcc);
 
 #endif /* __iwl_nvm_parse_h__ */

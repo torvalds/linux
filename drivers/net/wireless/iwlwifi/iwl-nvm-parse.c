@@ -709,12 +709,13 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u8 *nvm_chan,
 }
 
 struct ieee80211_regdomain *
-iwl_parse_nvm_mcc_info(struct device *dev, int num_of_ch, __le32 *channels,
-		       u16 fw_mcc)
+iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
+		       int num_of_ch, __le32 *channels, u16 fw_mcc)
 {
 	int ch_idx;
 	u16 ch_flags, prev_ch_flags = 0;
-	const u8 *nvm_chan = iwl_nvm_channels; /* TODO: 8000 series differs */
+	const u8 *nvm_chan = cfg->device_family == IWL_DEVICE_FAMILY_8000 ?
+			     iwl_nvm_channels_family_8000 : iwl_nvm_channels;
 	struct ieee80211_regdomain *regd;
 	int size_of_regd;
 	struct ieee80211_reg_rule *rule;
