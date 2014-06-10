@@ -131,8 +131,6 @@ static struct clk_onecell_data clk_data;
 
 static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 {
-	int i;
-
 	imx5_pm_set_ccm_base(ccm_base);
 
 	clk[IMX5_CLK_DUMMY]		= imx_clk_fixed("dummy", 0);
@@ -287,11 +285,6 @@ static void __init mx5_clocks_common_init(void __iomem *ccm_base)
 	clk[IMX5_CLK_SAHARA_IPG_GATE]	= imx_clk_gate2("sahara_ipg_gate", "ipg", MXC_CCM_CCGR4, 14);
 	clk[IMX5_CLK_SATA_REF]		= imx_clk_fixed_factor("sata_ref", "usb_phy1_gate", 1, 1);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX5 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
-
 	clk_register_clkdev(clk[IMX5_CLK_UART1_PER_GATE], "per", "imx21-uart.0");
 	clk_register_clkdev(clk[IMX5_CLK_UART1_IPG_GATE], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[IMX5_CLK_UART2_PER_GATE], "per", "imx21-uart.1");
@@ -366,7 +359,6 @@ static void __init mx50_clocks_init(struct device_node *np)
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
 	unsigned long r;
-	int i;
 
 	pll_base = ioremap(MX53_DPLL1_BASE, SZ_16K);
 	WARN_ON(!pll_base);
@@ -382,6 +374,8 @@ static void __init mx50_clocks_init(struct device_node *np)
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
+
+	mx5_clocks_common_init(ccm_base);
 
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 10, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -403,16 +397,11 @@ static void __init mx50_clocks_init(struct device_node *np)
 	clk[IMX5_CLK_CKO2_PODF]		= imx_clk_divider("cko2_podf", "cko2_sel", MXC_CCM_CCOSR, 21, 3);
 	clk[IMX5_CLK_CKO2]		= imx_clk_gate2("cko2", "cko2_podf", MXC_CCM_CCOSR, 24);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX50 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	mx5_clocks_common_init(ccm_base);
 
 	/* set SDHC root clock to 200MHZ*/
 	clk_set_rate(clk[IMX5_CLK_ESDHC_A_PODF], 200000000);
@@ -433,7 +422,6 @@ static void __init mx51_clocks_init(struct device_node *np)
 {
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
-	int i;
 	u32 val;
 
 	pll_base = ioremap(MX51_DPLL1_BASE, SZ_16K);
@@ -450,6 +438,8 @@ static void __init mx51_clocks_init(struct device_node *np)
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
+
+	mx5_clocks_common_init(ccm_base);
 
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -483,16 +473,11 @@ static void __init mx51_clocks_init(struct device_node *np)
 						mx51_spdif1_com_sel, ARRAY_SIZE(mx51_spdif1_com_sel));
 	clk[IMX5_CLK_SPDIF1_GATE]	= imx_clk_gate2("spdif1_gate", "spdif1_com_sel", MXC_CCM_CCGR5, 28);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX51 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	mx5_clocks_common_init(ccm_base);
 
 	clk_register_clkdev(clk[IMX5_CLK_HSI2C_GATE], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[IMX5_CLK_MX51_MIPI], "mipi_hsp", NULL);
@@ -546,7 +531,6 @@ static void __init mx53_clocks_init(struct device_node *np)
 {
 	void __iomem *ccm_base;
 	void __iomem *pll_base;
-	int i;
 	unsigned long r;
 
 	pll_base = ioremap(MX53_DPLL1_BASE, SZ_16K);
@@ -567,6 +551,8 @@ static void __init mx53_clocks_init(struct device_node *np)
 
 	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
+
+	mx5_clocks_common_init(ccm_base);
 
 	clk[IMX5_CLK_LP_APM]		= imx_clk_mux("lp_apm", MXC_CCM_CCSR, 10, 1,
 						lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -617,16 +603,11 @@ static void __init mx53_clocks_init(struct device_node *np)
 	clk[IMX5_CLK_SPDIF_XTAL_SEL]	= imx_clk_mux("spdif_xtal_sel", MXC_CCM_CSCMR1, 2, 2,
 						mx53_spdif_xtal_sel, ARRAY_SIZE(mx53_spdif_xtal_sel));
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX53 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-
-	mx5_clocks_common_init(ccm_base);
 
 	clk_register_clkdev(clk[IMX5_CLK_I2C3_GATE], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[IMX5_CLK_FEC_GATE], NULL, "imx25-fec.0");

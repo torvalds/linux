@@ -70,8 +70,6 @@ static struct clk *clk[clk_max];
  */
 int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 {
-	int i;
-
 	clk[ckil] = imx_clk_fixed("ckil", lref);
 	clk[ckih] = imx_clk_fixed("ckih", href);
 	clk[fpm] = imx_clk_fixed_factor("fpm", "ckil", 512, 1);
@@ -126,10 +124,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk[owire_gate] = imx_clk_gate("owire_gate", "ipg", CCM_PCCR1, 31);
 	clk[rtc_gate] = imx_clk_gate("rtc_gate", "ipg", CCM_PCCR1, 29);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX21 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_register_clkdev(clk[per1], "per1", NULL);
 	clk_register_clkdev(clk[per2], "per2", NULL);

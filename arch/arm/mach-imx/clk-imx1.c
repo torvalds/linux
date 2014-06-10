@@ -44,8 +44,6 @@ static void __iomem *ccm __initdata;
 
 static void __init _mx1_clocks_init(unsigned long fref)
 {
-	unsigned i;
-
 	clk[IMX1_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clk[IMX1_CLK_CLK32] = imx_obtain_fixed_clock("clk32", fref);
 	clk[IMX1_CLK_CLK16M_EXT] = imx_clk_fixed("clk16m_ext", 16000000);
@@ -72,10 +70,7 @@ static void __init _mx1_clocks_init(unsigned long fref)
 	clk[IMX1_CLK_MMA_GATE] = imx_clk_gate("mma_gate", "hclk", SCM_GCCR, 1);
 	clk[IMX1_CLK_USBD_GATE] = imx_clk_gate("usbd_gate", "clk48m", SCM_GCCR, 0);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("imx1 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 }
 
 int __init mx1_clocks_init(unsigned long fref)

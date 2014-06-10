@@ -93,8 +93,6 @@ static struct clk *clk[clk_max];
 
 static int __init __mx25_clocks_init(unsigned long osc_rate)
 {
-	int i;
-
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[osc] = imx_clk_fixed("osc", osc_rate);
 	clk[mpll] = imx_clk_pllv1("mpll", "osc", ccm(CCM_MPCTL));
@@ -224,10 +222,7 @@ static int __init __mx25_clocks_init(unsigned long osc_rate)
 	/* CCM_CGCR2(19): reserved in datasheet, but used as wdt in FSL kernel */
 	clk[wdt_ipg] = imx_clk_gate("wdt_ipg", "ipg", ccm(CCM_CGCR2), 19);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX25 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_prepare_enable(clk[emi_ahb]);
 

@@ -90,8 +90,6 @@ static struct clk_onecell_data clk_data;
 
 static void __init _mx27_clocks_init(unsigned long fref)
 {
-	unsigned i;
-
 	BUG_ON(!ccm);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
@@ -201,10 +199,7 @@ static void __init _mx27_clocks_init(unsigned long fref)
 	clk[uart2_ipg_gate] = imx_clk_gate("uart2_ipg_gate", "ipg", CCM_PCCR1, 30);
 	clk[uart1_ipg_gate] = imx_clk_gate("uart1_ipg_gate", "ipg", CCM_PCCR1, 31);
 
-	for (i = 0; i < ARRAY_SIZE(clk); i++)
-		if (IS_ERR(clk[i]))
-			pr_err("i.MX27 clk %d: register failed with %ld\n",
-				i, PTR_ERR(clk[i]));
+	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
 	clk_register_clkdev(clk[cpu_div], NULL, "cpu0");
 
