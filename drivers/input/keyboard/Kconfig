@@ -524,6 +524,17 @@ config KEYBOARD_STOWAWAY
 	  To compile this driver as a module, choose M here: the
 	  module will be called stowaway.
 
+config KEYBOARD_ST_KEYSCAN
+	tristate "STMicroelectronics keyscan support"
+	depends on ARCH_STI || COMPILE_TEST
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here if you want to use a keypad attached to the keyscan block
+	  on some STMicroelectronics SoC devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called st-keyscan.
+
 config KEYBOARD_SUNKBD
 	tristate "Sun Type 4 and Type 5 keyboard"
 	select SERIO
@@ -578,7 +589,7 @@ config KEYBOARD_OMAP
 
 config KEYBOARD_OMAP4
 	tristate "TI OMAP4+ keypad support"
-	depends on ARCH_OMAP2PLUS
+	depends on OF || ARCH_OMAP2PLUS
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use the OMAP4+ keypad.
