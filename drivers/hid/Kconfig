@@ -810,7 +810,7 @@ config HID_ZYDACRON
 
 config HID_SENSOR_HUB
 	tristate "HID Sensors framework support"
-	depends on HID
+	depends on HID && HAS_IOMEM
 	select MFD_CORE
 	default n
 	---help---
