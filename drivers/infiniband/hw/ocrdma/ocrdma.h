@@ -236,6 +236,9 @@ struct ocrdma_dev {
 	struct rcu_head rcu;
 	int id;
 	u64 stag_arr[OCRDMA_MAX_STAG];
+	u8 sl; /* service level */
+	bool pfc_state;
+	atomic_t update_sl;
 	u16 pvid;
 	u32 asic_id;
 
@@ -516,6 +519,24 @@ static inline u8 ocrdma_get_asic_type(struct ocrdma_dev *dev)
 
 	return (dev->asic_id & OCRDMA_SLI_ASIC_GEN_NUM_MASK) >>
 				OCRDMA_SLI_ASIC_GEN_NUM_SHIFT;
+}
+
+static inline u8 ocrdma_get_pfc_prio(u8 *pfc, u8 prio)
+{
+	return *(pfc + prio);
+}
+
+static inline u8 ocrdma_get_app_prio(u8 *app_prio, u8 prio)
+{
+	return *(app_prio + prio);
+}
+
+static inline u8 ocrdma_is_enabled_and_synced(u32 state)
+{	/* May also be used to interpret TC-state, QCN-state
+	 * Appl-state and Logical-link-state in future.
+	 */
+	return (state & OCRDMA_STATE_FLAG_ENABLED) &&
+		(state & OCRDMA_STATE_FLAG_SYNC);
 }
 
 #endif

@@ -422,7 +422,12 @@ struct ocrdma_ae_qp_mcqe {
 
 #define OCRDMA_ASYNC_RDMA_EVE_CODE 0x14
 #define OCRDMA_ASYNC_GRP5_EVE_CODE 0x5
-#define OCRDMA_ASYNC_EVENT_PVID_STATE 0x3
+
+enum ocrdma_async_grp5_events {
+	OCRDMA_ASYNC_EVENT_QOS_VALUE	= 0x01,
+	OCRDMA_ASYNC_EVENT_COS_VALUE	= 0x02,
+	OCRDMA_ASYNC_EVENT_PVID_STATE	= 0x03
+};
 
 enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_CQ_ERROR			= 0x00,
@@ -1949,5 +1954,79 @@ struct ocrdma_get_ctrl_attribs_rsp {
 	struct mgmt_controller_attrib ctrl_attribs;
 };
 
+#define OCRDMA_SUBSYS_DCBX 0x10
+
+enum OCRDMA_DCBX_OPCODE {
+	OCRDMA_CMD_GET_DCBX_CONFIG = 0x01
+};
+
+enum OCRDMA_DCBX_PARAM_TYPE {
+	OCRDMA_PARAMETER_TYPE_ADMIN	= 0x00,
+	OCRDMA_PARAMETER_TYPE_OPER	= 0x01,
+	OCRDMA_PARAMETER_TYPE_PEER	= 0x02
+};
+
+enum OCRDMA_DCBX_APP_PROTO {
+	OCRDMA_APP_PROTO_ROCE	= 0x8915
+};
+
+enum OCRDMA_DCBX_PROTO {
+	OCRDMA_PROTO_SELECT_L2	= 0x00,
+	OCRDMA_PROTO_SELECT_L4	= 0x01
+};
+
+enum OCRDMA_DCBX_APP_PARAM {
+	OCRDMA_APP_PARAM_APP_PROTO_MASK = 0xFFFF,
+	OCRDMA_APP_PARAM_PROTO_SEL_MASK = 0xFF,
+	OCRDMA_APP_PARAM_PROTO_SEL_SHIFT = 0x10,
+	OCRDMA_APP_PARAM_VALID_MASK	= 0xFF,
+	OCRDMA_APP_PARAM_VALID_SHIFT	= 0x18
+};
+
+enum OCRDMA_DCBX_STATE_FLAGS {
+	OCRDMA_STATE_FLAG_ENABLED	= 0x01,
+	OCRDMA_STATE_FLAG_ADDVERTISED	= 0x02,
+	OCRDMA_STATE_FLAG_WILLING	= 0x04,
+	OCRDMA_STATE_FLAG_SYNC		= 0x08,
+	OCRDMA_STATE_FLAG_UNSUPPORTED	= 0x40000000,
+	OCRDMA_STATE_FLAG_NEG_FAILD	= 0x80000000
+};
+
+enum OCRDMA_TCV_AEV_OPV_ST {
+	OCRDMA_DCBX_TC_SUPPORT_MASK	= 0xFF,
+	OCRDMA_DCBX_TC_SUPPORT_SHIFT	= 0x18,
+	OCRDMA_DCBX_APP_ENTRY_SHIFT	= 0x10,
+	OCRDMA_DCBX_OP_PARAM_SHIFT	= 0x08,
+	OCRDMA_DCBX_STATE_MASK		= 0xFF
+};
+
+struct ocrdma_app_parameter {
+	u32 valid_proto_app;
+	u32 oui;
+	u32 app_prio[2];
+};
+
+struct ocrdma_dcbx_cfg {
+	u32 tcv_aev_opv_st;
+	u32 tc_state;
+	u32 pfc_state;
+	u32 qcn_state;
+	u32 appl_state;
+	u32 ll_state;
+	u32 tc_bw[2];
+	u32 tc_prio[8];
+	u32 pfc_prio[2];
+	struct ocrdma_app_parameter app_param[15];
+};
+
+struct ocrdma_get_dcbx_cfg_req {
+	struct ocrdma_mbx_hdr hdr;
+	u32 param_type;
+} __packed;
+
+struct ocrdma_get_dcbx_cfg_rsp {
+	struct ocrdma_mbx_rsp hdr;
+	struct ocrdma_dcbx_cfg cfg;
+} __packed;
 
 #endif				/* __OCRDMA_SLI_H__ */

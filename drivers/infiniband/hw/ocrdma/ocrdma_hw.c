@@ -771,6 +771,10 @@ static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
 					OCRDMA_AE_PVID_MCQE_TAG_MASK) >>
 					OCRDMA_AE_PVID_MCQE_TAG_SHIFT);
 		break;
+
+	case OCRDMA_ASYNC_EVENT_COS_VALUE:
+		atomic_set(&dev->update_sl, 1);
+		break;
 	default:
 		/* Not interested evts. */
 		break;
@@ -2265,6 +2269,8 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 
 	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
 		return -EINVAL;
+	if (atomic_cmpxchg(&qp->dev->update_sl, 1, 0))
+		ocrdma_init_service_level(qp->dev);
 	cmd->params.tclass_sq_psn |=
 	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
@@ -2298,6 +2304,10 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
+		/* override the sl with default priority if 0 */
+		cmd->params.rnt_rc_sl_fl |=
+			(ah_attr->sl ? ah_attr->sl :
+				qp->dev->sl) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
 	return 0;
 }
@@ -2603,6 +2613,168 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq)
 				  srq->rq.va, srq->rq.pa);
 	kfree(cmd);
 	return status;
+}
+
+static int ocrdma_mbx_get_dcbx_config(struct ocrdma_dev *dev, u32 ptype,
+				      struct ocrdma_dcbx_cfg *dcbxcfg)
+{
+	int status = 0;
+	dma_addr_t pa;
+	struct ocrdma_mqe cmd;
+
+	struct ocrdma_get_dcbx_cfg_req *req = NULL;
+	struct ocrdma_get_dcbx_cfg_rsp *rsp = NULL;
+	struct pci_dev *pdev = dev->nic_info.pdev;
+	struct ocrdma_mqe_sge *mqe_sge = cmd.u.nonemb_req.sge;
+
+	memset(&cmd, 0, sizeof(struct ocrdma_mqe));
+	cmd.hdr.pyld_len = max_t (u32, sizeof(struct ocrdma_get_dcbx_cfg_rsp),
+					sizeof(struct ocrdma_get_dcbx_cfg_req));
+	req = dma_alloc_coherent(&pdev->dev, cmd.hdr.pyld_len, &pa, GFP_KERNEL);
+	if (!req) {
+		status = -ENOMEM;
+		goto mem_err;
+	}
+
+	cmd.hdr.spcl_sge_cnt_emb |= (1 << OCRDMA_MQE_HDR_SGE_CNT_SHIFT) &
+					OCRDMA_MQE_HDR_SGE_CNT_MASK;
+	mqe_sge->pa_lo = (u32) (pa & 0xFFFFFFFFUL);
+	mqe_sge->pa_hi = (u32) upper_32_bits(pa);
+	mqe_sge->len = cmd.hdr.pyld_len;
+
+	memset(req, 0, sizeof(struct ocrdma_get_dcbx_cfg_req));
+	ocrdma_init_mch(&req->hdr, OCRDMA_CMD_GET_DCBX_CONFIG,
+			OCRDMA_SUBSYS_DCBX, cmd.hdr.pyld_len);
+	req->param_type = ptype;
+
+	status = ocrdma_mbx_cmd(dev, &cmd);
+	if (status)
+		goto mbx_err;
+
+	rsp = (struct ocrdma_get_dcbx_cfg_rsp *)req;
+	ocrdma_le32_to_cpu(rsp, sizeof(struct ocrdma_get_dcbx_cfg_rsp));
+	memcpy(dcbxcfg, &rsp->cfg, sizeof(struct ocrdma_dcbx_cfg));
+
+mbx_err:
+	dma_free_coherent(&pdev->dev, cmd.hdr.pyld_len, req, pa);
+mem_err:
+	return status;
+}
+
+#define OCRDMA_MAX_SERVICE_LEVEL_INDEX	0x08
+#define OCRDMA_DEFAULT_SERVICE_LEVEL	0x05
+
+static int ocrdma_parse_dcbxcfg_rsp(struct ocrdma_dev *dev, int ptype,
+				    struct ocrdma_dcbx_cfg *dcbxcfg,
+				    u8 *srvc_lvl)
+{
+	int status = -EINVAL, indx, slindx;
+	int ventry_cnt;
+	struct ocrdma_app_parameter *app_param;
+	u8 valid, proto_sel;
+	u8 app_prio, pfc_prio;
+	u16 proto;
+
+	if (!(dcbxcfg->tcv_aev_opv_st & OCRDMA_DCBX_STATE_MASK)) {
+		pr_info("%s ocrdma%d DCBX is disabled\n",
+			dev_name(&dev->nic_info.pdev->dev), dev->id);
+		goto out;
+	}
+
+	if (!ocrdma_is_enabled_and_synced(dcbxcfg->pfc_state)) {
+		pr_info("%s ocrdma%d priority flow control(%s) is %s%s\n",
+			dev_name(&dev->nic_info.pdev->dev), dev->id,
+			(ptype > 0 ? "operational" : "admin"),
+			(dcbxcfg->pfc_state & OCRDMA_STATE_FLAG_ENABLED) ?
+			"enabled" : "disabled",
+			(dcbxcfg->pfc_state & OCRDMA_STATE_FLAG_SYNC) ?
+			"" : ", not sync'ed");
+		goto out;
+	} else {
+		pr_info("%s ocrdma%d priority flow control is enabled and sync'ed\n",
+			dev_name(&dev->nic_info.pdev->dev), dev->id);
+	}
+
+	ventry_cnt = (dcbxcfg->tcv_aev_opv_st >>
+				OCRDMA_DCBX_APP_ENTRY_SHIFT)
+				& OCRDMA_DCBX_STATE_MASK;
+
+	for (indx = 0; indx < ventry_cnt; indx++) {
+		app_param = &dcbxcfg->app_param[indx];
+		valid = (app_param->valid_proto_app >>
+				OCRDMA_APP_PARAM_VALID_SHIFT)
+				& OCRDMA_APP_PARAM_VALID_MASK;
+		proto_sel = (app_param->valid_proto_app
+				>>  OCRDMA_APP_PARAM_PROTO_SEL_SHIFT)
+				& OCRDMA_APP_PARAM_PROTO_SEL_MASK;
+		proto = app_param->valid_proto_app &
+				OCRDMA_APP_PARAM_APP_PROTO_MASK;
+
+		if (
+			valid && proto == OCRDMA_APP_PROTO_ROCE &&
+			proto_sel == OCRDMA_PROTO_SELECT_L2) {
+			for (slindx = 0; slindx <
+				OCRDMA_MAX_SERVICE_LEVEL_INDEX; slindx++) {
+				app_prio = ocrdma_get_app_prio(
+						(u8 *)app_param->app_prio,
+						slindx);
+				pfc_prio = ocrdma_get_pfc_prio(
+						(u8 *)dcbxcfg->pfc_prio,
+						slindx);
+
+				if (app_prio && pfc_prio) {
+					*srvc_lvl = slindx;
+					status = 0;
+					goto out;
+				}
+			}
+			if (slindx == OCRDMA_MAX_SERVICE_LEVEL_INDEX) {
+				pr_info("%s ocrdma%d application priority not set for 0x%x protocol\n",
+					dev_name(&dev->nic_info.pdev->dev),
+					dev->id, proto);
+			}
+		}
+	}
+
+out:
+	return status;
+}
+
+void ocrdma_init_service_level(struct ocrdma_dev *dev)
+{
+	int status = 0, indx;
+	struct ocrdma_dcbx_cfg dcbxcfg;
+	u8 srvc_lvl = OCRDMA_DEFAULT_SERVICE_LEVEL;
+	int ptype = OCRDMA_PARAMETER_TYPE_OPER;
+
+	for (indx = 0; indx < 2; indx++) {
+		status = ocrdma_mbx_get_dcbx_config(dev, ptype, &dcbxcfg);
+		if (status) {
+			pr_err("%s(): status=%d\n", __func__, status);
+			ptype = OCRDMA_PARAMETER_TYPE_ADMIN;
+			continue;
+		}
+
+		status = ocrdma_parse_dcbxcfg_rsp(dev, ptype,
+						  &dcbxcfg, &srvc_lvl);
+		if (status) {
+			ptype = OCRDMA_PARAMETER_TYPE_ADMIN;
+			continue;
+		}
+
+		break;
+	}
+
+	if (status)
+		pr_info("%s ocrdma%d service level default\n",
+			dev_name(&dev->nic_info.pdev->dev), dev->id);
+	else
+		pr_info("%s ocrdma%d service level %d\n",
+			dev_name(&dev->nic_info.pdev->dev), dev->id,
+			srvc_lvl);
+
+	dev->pfc_state = ocrdma_is_enabled_and_synced(dcbxcfg.pfc_state);
+	dev->sl = srvc_lvl;
 }
 
 int ocrdma_alloc_av(struct ocrdma_dev *dev, struct ocrdma_ah *ah)

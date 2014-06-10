@@ -399,6 +399,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (status)
 		goto alloc_err;
 
+	ocrdma_init_service_level(dev);
 	status = ocrdma_register_device(dev);
 	if (status)
 		goto alloc_err;
