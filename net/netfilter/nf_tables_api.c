@@ -1796,7 +1796,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 				goto err2;
 			}
 			nft_rule_disactivate_next(net, old_rule);
-			list_add_tail(&rule->list, &old_rule->list);
+			list_add_tail_rcu(&rule->list, &old_rule->list);
 		} else {
 			err = -ENOENT;
 			goto err2;
