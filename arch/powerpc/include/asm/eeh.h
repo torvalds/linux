@@ -25,6 +25,7 @@
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/time.h>
+#include <linux/atomic.h>
 
 struct pci_dev;
 struct pci_bus;
@@ -84,6 +85,7 @@ struct eeh_pe {
 	int freeze_count;		/* Times of froze up		*/
 	struct timeval tstamp;		/* Time on first-time freeze	*/
 	int false_positives;		/* Times of reported #ff's	*/
+	atomic_t pass_dev_cnt;		/* Count of passed through devs	*/
 	struct eeh_pe *parent;		/* Parent PE			*/
 	struct list_head child_list;	/* Link PE to the child list	*/
 	struct list_head edevs;		/* Link list of EEH devices	*/
@@ -92,6 +94,11 @@ struct eeh_pe {
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
 		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
+
+static inline bool eeh_pe_passed(struct eeh_pe *pe)
+{
+	return pe ? !!atomic_read(&pe->pass_dev_cnt) : false;
+}
 
 /*
  * The struct is used to trace EEH state for the associated
