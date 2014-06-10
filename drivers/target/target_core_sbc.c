@@ -914,8 +914,10 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case VERIFY:
 		size = 0;
+		sectors = transport_get_sectors_10(cdb);
+		cmd->t_task_lba = transport_lba_32(cdb);
 		cmd->execute_cmd = sbc_emulate_noop;
-		break;
+		goto check_lba;
 	case REZERO_UNIT:
 	case SEEK_6:
 	case SEEK_10:
