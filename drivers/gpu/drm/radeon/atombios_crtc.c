@@ -962,6 +962,9 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 		struct radeon_connector_atom_dig *dig_connector =
 			radeon_connector->con_priv;
 		int dp_clock;
+
+		/* Assign mode clock for hdmi deep color max clock limit check */
+		radeon_connector->pixelclock_for_modeset = mode->clock;
 		radeon_crtc->bpc = radeon_get_monitor_bpc(connector);
 
 		switch (encoder_mode) {
