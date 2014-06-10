@@ -1399,7 +1399,6 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 	int entry = mdp->cur_rx % mdp->num_rx_ring;
 	int boguscnt = (mdp->dirty_rx + mdp->num_rx_ring) - mdp->cur_rx;
 	struct sk_buff *skb;
-	int exceeded = 0;
 	u16 pkt_len = 0;
 	u32 desc_status;
 
@@ -1411,10 +1410,9 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		if (--boguscnt < 0)
 			break;
 
-		if (*quota <= 0) {
-			exceeded = 1;
+		if (*quota <= 0)
 			break;
-		}
+
 		(*quota)--;
 
 		if (!(desc_status & RDFEND))
@@ -1508,7 +1506,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		sh_eth_write(ndev, EDRRR_R, EDRRR);
 	}
 
-	return exceeded;
+	return *quota <= 0;
 }
 
 static void sh_eth_rcv_snd_disable(struct net_device *ndev)
