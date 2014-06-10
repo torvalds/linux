@@ -1111,7 +1111,7 @@ nve0_ram_prog(struct nouveau_fb *pfb)
 	struct nouveau_device *device = nv_device(pfb);
 	struct nve0_ram *ram = (void *)pfb->ram;
 	struct nve0_ramfuc *fuc = &ram->fuc;
-	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", false));
+	ram_exec(fuc, nouveau_boolopt(device->cfgopt, "NvMemExec", true));
 	return (ram->base.next == &ram->base.xition);
 }
 

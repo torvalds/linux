@@ -44,7 +44,7 @@ nve0_gpio_intr(struct nouveau_subdev *subdev)
 	}
 
 	nv_wr32(priv, 0xdc00, intr0);
-	nv_wr32(priv, 0xdc88, intr1);
+	nv_wr32(priv, 0xdc80, intr1);
 }
 
 void
@@ -52,8 +52,8 @@ nve0_gpio_intr_enable(struct nouveau_event *event, int line)
 {
 	const u32 addr = line < 16 ? 0xdc00 : 0xdc80;
 	const u32 mask = 0x00010001 << (line & 0xf);
-	nv_wr32(event->priv, addr + 0x08, mask);
-	nv_mask(event->priv, addr + 0x00, mask, mask);
+	nv_wr32(event->priv, addr + 0x00, mask);
+	nv_mask(event->priv, addr + 0x08, mask, mask);
 }
 
 void
@@ -61,8 +61,8 @@ nve0_gpio_intr_disable(struct nouveau_event *event, int line)
 {
 	const u32 addr = line < 16 ? 0xdc00 : 0xdc80;
 	const u32 mask = 0x00010001 << (line & 0xf);
-	nv_wr32(event->priv, addr + 0x08, mask);
-	nv_mask(event->priv, addr + 0x00, mask, 0x00000000);
+	nv_mask(event->priv, addr + 0x08, mask, 0x00000000);
+	nv_wr32(event->priv, addr + 0x00, mask);
 }
 
 int
