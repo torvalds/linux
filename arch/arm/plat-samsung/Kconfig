@@ -35,27 +35,15 @@ config SAMSUNG_PM
 	  Base platform power management code for samsung code
 
 if PLAT_SAMSUNG
+menu "Samsung Common options"
 
 # boot configurations
 
 comment "Boot options"
 
-config S3C_BOOT_ERROR_RESET
-	bool "S3C Reboot on decompression error"
-	help
-	  Say y here to use the watchdog to reset the system if the
-	  kernel decompressor detects an error during decompression.
-
-config S3C_BOOT_UART_FORCE_FIFO
-       bool "Force UART FIFO on during boot process"
-       default y
-       help
-         Say Y here to force the UART FIFOs on during the kernel
-	 uncompressor
-
-
 config S3C_LOWLEVEL_UART_PORT
 	int "S3C UART to use for low-level messages"
+	depends on ARCH_S3C64XX
 	default 0
 	help
 	  Choice of which UART port to use for the low-level messages,
@@ -502,4 +490,5 @@ config DEBUG_S3C_UART
 	default "2" if DEBUG_S3C_UART2
 	default "3" if DEBUG_S3C_UART3
 
+endmenu
 endif
