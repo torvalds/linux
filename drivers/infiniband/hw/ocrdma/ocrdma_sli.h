@@ -1236,7 +1236,6 @@ struct ocrdma_destroy_srq {
 
 enum {
 	OCRDMA_ALLOC_PD_ENABLE_DPP	= BIT(16),
-	OCRDMA_PD_MAX_DPP_ENABLED_QP	= 8,
 	OCRDMA_DPP_PAGE_SIZE		= 4096
 };
 
