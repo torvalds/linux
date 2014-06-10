@@ -445,9 +445,11 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5640=y
 	default y if SND_SOC_RT5645=y
 	default y if SND_SOC_RT5651=y
+	default y if SND_SOC_RT5677=y
 	default m if SND_SOC_RT5640=m
 	default m if SND_SOC_RT5645=m
 	default m if SND_SOC_RT5651=m
+	default m if SND_SOC_RT5677=m
 
 config SND_SOC_RT5631
 	tristate

@@ -27,6 +27,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include "rl6231.h"
 #include "rt5677.h"
 
 #define RT5677_DEVICE_ID 0x6327
@@ -2798,21 +2799,6 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "PDM2R", NULL, "PDM2 R Mux" },
 };
 
-static int get_clk_info(int sclk, int rate)
-{
-	int i, pd[] = {1, 2, 3, 4, 6, 8, 12, 16};
-
-	if (sclk <= 0 || rate <= 0)
-		return -EINVAL;
-
-	rate = rate << 8;
-	for (i = 0; i < ARRAY_SIZE(pd); i++)
-		if (sclk == rate * pd[i])
-			return i;
-
-	return -EINVAL;
-}
-
 static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
@@ -2822,7 +2808,7 @@ static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	int pre_div, bclk_ms, frame_size;
 
 	rt5677->lrck[dai->id] = params_rate(params);
-	pre_div = get_clk_info(rt5677->sysclk, rt5677->lrck[dai->id]);
+	pre_div = rl6231_get_clk_info(rt5677->sysclk, rt5677->lrck[dai->id]);
 	if (pre_div < 0) {
 		dev_err(codec->dev, "Unsupported clock setting\n");
 		return -EINVAL;
