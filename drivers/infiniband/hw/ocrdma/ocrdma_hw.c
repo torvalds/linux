@@ -2206,7 +2206,8 @@ int ocrdma_mbx_create_qp(struct ocrdma_qp *qp, struct ib_qp_init_attr *attrs,
 				OCRDMA_CREATE_QP_REQ_RQ_CQID_MASK;
 	qp->rq_cq = cq;
 
-	if (pd->dpp_enabled && pd->num_dpp_qp) {
+	if (pd->dpp_enabled && attrs->cap.max_inline_data && pd->num_dpp_qp &&
+	    (attrs->cap.max_inline_data <= dev->attr.max_inline_data)) {
 		ocrdma_set_create_qp_dpp_cmd(cmd, pd, qp, enable_dpp_cq,
 					     dpp_cq_id);
 	}
