@@ -2700,6 +2700,15 @@ S:	Orphan
 F:	Documentation/networking/decnet.txt
 F:	net/decnet/
 
+DECSTATION PLATFORM SUPPORT
+M:	"Maciej W. Rozycki" <macro@linux-mips.org>
+L:	linux-mips@linux-mips.org
+W:	http://www.linux-mips.org/wiki/DECstation
+S:	Maintained
+F:	arch/mips/dec/
+F:	arch/mips/include/asm/dec/
+F:	arch/mips/include/asm/mach-dec/
+
 DEFXX FDDI NETWORK DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 S:	Maintained

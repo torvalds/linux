@@ -67,6 +67,12 @@ void __init plat_mem_setup(void)
 	case ALCHEMY_CPU_AU1500:
 	case ALCHEMY_CPU_AU1100:
 		coherentio = 0;
+		break;
+	case ALCHEMY_CPU_AU1200:
+		/* Au1200 AB USB does not support coherent memory */
+		if (0 == (read_c0_prid() & PRID_REV_MASK))
+			coherentio = 0;
+		break;
 	}
 
 	board_setup();	/* board specific setup */
