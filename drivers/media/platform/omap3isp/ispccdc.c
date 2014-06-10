@@ -1637,6 +1637,16 @@ static void ccdc_vd0_isr(struct isp_ccdc_device *ccdc)
 	unsigned long flags;
 	int restart = 0;
 
+	/* In BT.656 mode the CCDC doesn't generate an HS/VS interrupt. We thus
+	 * need to increment the frame counter here.
+	 */
+	if (ccdc->bt656) {
+		struct isp_pipeline *pipe =
+			to_isp_pipeline(&ccdc->subdev.entity);
+
+		atomic_inc(&pipe->frame_number);
+	}
+
 	if (ccdc->output & CCDC_OUTPUT_MEMORY)
 		restart = ccdc_isr_buffer(ccdc);
 
@@ -1661,16 +1671,6 @@ static void ccdc_vd0_isr(struct isp_ccdc_device *ccdc)
 static void ccdc_vd1_isr(struct isp_ccdc_device *ccdc)
 {
 	unsigned long flags;
-
-	/* In BT.656 mode the CCDC doesn't generate an HS/VS interrupt. We thus
-	 * need to increment the frame counter here.
-	 */
-	if (ccdc->bt656) {
-		struct isp_pipeline *pipe =
-			to_isp_pipeline(&ccdc->subdev.entity);
-
-		atomic_inc(&pipe->frame_number);
-	}
 
 	spin_lock_irqsave(&ccdc->lsc.req_lock, flags);
 
