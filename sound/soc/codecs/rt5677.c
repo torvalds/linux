@@ -1657,6 +1657,13 @@ static int rt5677_set_micbias1_event(struct snd_soc_dapm_widget *w,
 			RT5677_PWR_CLK_MB, RT5677_PWR_CLK_MB1 |
 			RT5677_PWR_PP_MB1 | RT5677_PWR_CLK_MB);
 		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
+			RT5677_PWR_CLK_MB1 | RT5677_PWR_PP_MB1 |
+			RT5677_PWR_CLK_MB, 0);
+		break;
+
 	default:
 		return 0;
 	}
@@ -1673,7 +1680,8 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	/* Input Side */
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("MICBIAS1", RT5677_PWR_ANLG2, RT5677_PWR_MB1_BIT,
-		0, rt5677_set_micbias1_event, SND_SOC_DAPM_POST_PMU),
+		0, rt5677_set_micbias1_event, SND_SOC_DAPM_PRE_PMD |
+		SND_SOC_DAPM_POST_PMU),
 
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC L1"),
