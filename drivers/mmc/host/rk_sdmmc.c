@@ -919,9 +919,6 @@ static int dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 	        if(ret < 0)
 			return -EAGAIN;
-
-                if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
-                        goto normal;
                         
                 if(clock <= 400*1000){
 	                MMC_DBG_BOOT_FUNC(host->mmc,
@@ -976,8 +973,7 @@ static int dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 	                        
 	        }
-	        
-normal:                
+	                       
 		/* set clock to desired speed */
 		mci_writel(host, CLKDIV, div);
 
