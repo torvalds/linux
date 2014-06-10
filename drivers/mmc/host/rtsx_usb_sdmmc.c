@@ -34,7 +34,8 @@
 #include <linux/mfd/rtsx_usb.h>
 #include <asm/unaligned.h>
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#if defined(CONFIG_LEDS_CLASS) || (defined(CONFIG_LEDS_CLASS_MODULE) && \
+		defined(CONFIG_MMC_REALTEK_USB_MODULE))
 #include <linux/leds.h>
 #include <linux/workqueue.h>
 #define RTSX_USB_USE_LEDS_CLASS
@@ -59,7 +60,7 @@ struct rtsx_usb_sdmmc {
 
 	unsigned char		power_mode;
 
-#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+#ifdef RTSX_USB_USE_LEDS_CLASS
 	struct led_classdev	led;
 	char			led_name[32];
 	struct work_struct	led_work;

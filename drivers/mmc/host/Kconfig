@@ -168,7 +168,7 @@ config MMC_SDHCI_ESDHC_IMX
 
 config MMC_SDHCI_DOVE
 	tristate "SDHCI support on Marvell's Dove SoC"
-	depends on ARCH_DOVE
+	depends on ARCH_DOVE || MACH_DOVE
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
@@ -282,6 +282,15 @@ config MMC_SDHCI_BCM2835
 	  platform with SD or MMC devices, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_MOXART
+	tristate "MOXART SD/MMC Host Controller support"
+	depends on ARCH_MOXART && MMC
+	help
+	  This selects support for the MOXART SD/MMC Host Controller.
+	  MOXA provides one multi-functional card reader which can
+	  be found on some embedded hardware such as UC-7112-LX.
+	  If you have a controller with this interface, say Y here.
 
 config MMC_OMAP
 	tristate "TI OMAP Multimedia Card Interface support"
@@ -687,6 +696,12 @@ config MMC_WMT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wmt-sdmmc.
+
+config MMC_USDHI6ROL0
+	tristate "Renesas USDHI6ROL0 SD/SDIO Host Controller support"
+	help
+	  This selects support for the Renesas USDHI6ROL0 SD/SDIO
+	  Host Controller
 
 config MMC_REALTEK_PCI
 	tristate "Realtek PCI-E SD/MMC Card Interface Driver"
