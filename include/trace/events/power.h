@@ -93,6 +93,17 @@ TRACE_EVENT(pstate_sample,
 #define PWR_EVENT_EXIT -1
 #endif
 
+#define pm_verb_symbolic(event) \
+	__print_symbolic(event, \
+		{ PM_EVENT_SUSPEND, "suspend" }, \
+		{ PM_EVENT_RESUME, "resume" }, \
+		{ PM_EVENT_FREEZE, "freeze" }, \
+		{ PM_EVENT_QUIESCE, "quiesce" }, \
+		{ PM_EVENT_HIBERNATE, "hibernate" }, \
+		{ PM_EVENT_THAW, "thaw" }, \
+		{ PM_EVENT_RESTORE, "restore" }, \
+		{ PM_EVENT_RECOVER, "recover" })
+
 DEFINE_EVENT(cpu, cpu_frequency,
 
 	TP_PROTO(unsigned int frequency, unsigned int cpu_id),
@@ -100,41 +111,54 @@ DEFINE_EVENT(cpu, cpu_frequency,
 	TP_ARGS(frequency, cpu_id)
 );
 
-TRACE_EVENT(device_pm_report_time,
+TRACE_EVENT(device_pm_callback_start,
 
-	TP_PROTO(struct device *dev, const char *pm_ops, s64 ops_time,
-		 char *pm_event_str, int error),
+	TP_PROTO(struct device *dev, const char *pm_ops, int event),
 
-	TP_ARGS(dev, pm_ops, ops_time, pm_event_str, error),
+	TP_ARGS(dev, pm_ops, event),
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
 		__string(driver, dev_driver_string(dev))
 		__string(parent, dev->parent ? dev_name(dev->parent) : "none")
 		__string(pm_ops, pm_ops ? pm_ops : "none ")
-		__string(pm_event_str, pm_event_str)
-		__field(s64, ops_time)
+		__field(int, event)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(dev));
+		__assign_str(driver, dev_driver_string(dev));
+		__assign_str(parent,
+			dev->parent ? dev_name(dev->parent) : "none");
+		__assign_str(pm_ops, pm_ops ? pm_ops : "none ");
+		__entry->event = event;
+	),
+
+	TP_printk("%s %s, parent: %s, %s[%s]", __get_str(driver),
+		__get_str(device), __get_str(parent), __get_str(pm_ops),
+		pm_verb_symbolic(__entry->event))
+);
+
+TRACE_EVENT(device_pm_callback_end,
+
+	TP_PROTO(struct device *dev, int error),
+
+	TP_ARGS(dev, error),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(dev))
+		__string(driver, dev_driver_string(dev))
 		__field(int, error)
 	),
 
 	TP_fast_assign(
-		const char *tmp = dev->parent ? dev_name(dev->parent) : "none";
-		const char *tmp_i = pm_ops ? pm_ops : "none ";
-
 		__assign_str(device, dev_name(dev));
 		__assign_str(driver, dev_driver_string(dev));
-		__assign_str(parent, tmp);
-		__assign_str(pm_ops, tmp_i);
-		__assign_str(pm_event_str, pm_event_str);
-		__entry->ops_time = ops_time;
 		__entry->error = error;
 	),
 
-	/* ops_str has an extra space at the end */
-	TP_printk("%s %s parent=%s state=%s ops=%snsecs=%lld err=%d",
-		__get_str(driver), __get_str(device), __get_str(parent),
-		__get_str(pm_event_str), __get_str(pm_ops),
-		__entry->ops_time, __entry->error)
+	TP_printk("%s %s, err=%d",
+		__get_str(driver), __get_str(device), __entry->error)
 );
 
 TRACE_EVENT(suspend_resume,
