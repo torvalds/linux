@@ -335,7 +335,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	spin_unlock(&cifs_file_list_lock);
 
 	if (fid->purge_cache)
-		cifs_invalidate_mapping(inode);
+		cifs_zap_mapping(inode);
 
 	file->private_data = cfile;
 	return cfile;
@@ -392,7 +392,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 		 * again and get at least level II oplock.
 		 */
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
-			CIFS_I(inode)->invalid_mapping = true;
+			set_bit(CIFS_INO_INVALID_MAPPING, &cifsi->flags);
 		cifs_set_oplock_level(cifsi, 0);
 	}
 	spin_unlock(&cifs_file_list_lock);
@@ -1529,7 +1529,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 		 */
 		if (!CIFS_CACHE_WRITE(CIFS_I(inode)) &&
 					CIFS_CACHE_READ(CIFS_I(inode))) {
-			cifs_invalidate_mapping(inode);
+			cifs_zap_mapping(inode);
 			cifs_dbg(FYI, "Set no oplock for inode=%p due to mand locks\n",
 				 inode);
 			CIFS_I(inode)->oplock = 0;
@@ -2218,7 +2218,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 		 file->f_path.dentry->d_name.name, datasync);
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
-		rc = cifs_invalidate_mapping(inode);
+		rc = cifs_zap_mapping(inode);
 		if (rc) {
 			cifs_dbg(FYI, "rc: %d during invalidate phase\n", rc);
 			rc = 0; /* don't care about it in fsync */
@@ -2562,7 +2562,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 
 	written = cifs_iovec_write(iocb->ki_filp, iov, nr_segs, &pos);
 	if (written > 0) {
-		CIFS_I(inode)->invalid_mapping = true;
+		set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(inode)->flags);
 		iocb->ki_pos = pos;
 	}
 
@@ -2649,7 +2649,7 @@ cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 		 * request comes - break it on the client to prevent reading
 		 * an old data.
 		 */
-		cifs_invalidate_mapping(inode);
+		cifs_zap_mapping(inode);
 		cifs_dbg(FYI, "Set no oplock for inode=%p after a write operation\n",
 			 inode);
 		cinode->oplock = 0;
@@ -3112,7 +3112,7 @@ int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 	xid = get_xid();
 
 	if (!CIFS_CACHE_READ(CIFS_I(inode))) {
-		rc = cifs_invalidate_mapping(inode);
+		rc = cifs_zap_mapping(inode);
 		if (rc)
 			return rc;
 	}
@@ -3670,7 +3670,7 @@ void cifs_oplock_break(struct work_struct *work)
 		if (!CIFS_CACHE_READ(cinode)) {
 			rc = filemap_fdatawait(inode->i_mapping);
 			mapping_set_error(inode->i_mapping, rc);
-			cifs_invalidate_mapping(inode);
+			cifs_zap_mapping(inode);
 		}
 		cifs_dbg(FYI, "Oplock flush inode %p rc %d\n", inode, rc);
 	}
