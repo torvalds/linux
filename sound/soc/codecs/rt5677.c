@@ -1672,7 +1672,7 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 
 	/* Input Side */
 	/* micbias */
-	SND_SOC_DAPM_SUPPLY("micbias1", RT5677_PWR_ANLG2, RT5677_PWR_MB1_BIT,
+	SND_SOC_DAPM_SUPPLY("MICBIAS1", RT5677_PWR_ANLG2, RT5677_PWR_MB1_BIT,
 		0, rt5677_set_micbias1_event, SND_SOC_DAPM_POST_PMU),
 
 	/* Input Lines */
