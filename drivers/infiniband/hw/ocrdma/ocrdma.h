@@ -236,7 +236,7 @@ struct ocrdma_dev {
 	struct list_head entry;
 	struct rcu_head rcu;
 	int id;
-	u64 stag_arr[OCRDMA_MAX_STAG];
+	u64 *stag_arr;
 	u8 sl; /* service level */
 	bool pfc_state;
 	atomic_t update_sl;
