@@ -41,6 +41,10 @@
 
 #include "drm_crtc_internal.h"
 
+static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
+							struct drm_mode_fb_cmd2 *r,
+							struct drm_file *file_priv);
+
 /**
  * drm_modeset_lock_all - take all modeset locks
  * @dev: drm device
@@ -2827,6 +2831,49 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 	return 0;
 }
 
+static struct drm_framebuffer *add_framebuffer_internal(struct drm_device *dev,
+							struct drm_mode_fb_cmd2 *r,
+							struct drm_file *file_priv)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_framebuffer *fb;
+	int ret;
+
+	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
+		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if ((config->min_width > r->width) || (r->width > config->max_width)) {
+		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
+			  r->width, config->min_width, config->max_width);
+		return ERR_PTR(-EINVAL);
+	}
+	if ((config->min_height > r->height) || (r->height > config->max_height)) {
+		DRM_DEBUG_KMS("bad framebuffer height %d, should be >= %d && <= %d\n",
+			  r->height, config->min_height, config->max_height);
+		return ERR_PTR(-EINVAL);
+	}
+
+	ret = framebuffer_check(r);
+	if (ret)
+		return ERR_PTR(ret);
+
+	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
+	if (IS_ERR(fb)) {
+		DRM_DEBUG_KMS("could not create framebuffer\n");
+		return fb;
+	}
+
+	mutex_lock(&file_priv->fbs_lock);
+	r->fb_id = fb->base.id;
+	list_add(&fb->filp_head, &file_priv->fbs);
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
+	mutex_unlock(&file_priv->fbs_lock);
+
+	return fb;
+}
+
 /**
  * drm_mode_addfb2 - add an FB to the graphics configuration
  * @dev: drm device for the ioctl
@@ -2845,48 +2892,16 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 int drm_mode_addfb2(struct drm_device *dev,
 		    void *data, struct drm_file *file_priv)
 {
-	struct drm_mode_fb_cmd2 *r = data;
-	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_framebuffer *fb;
-	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
-		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
-		return -EINVAL;
-	}
-
-	if ((config->min_width > r->width) || (r->width > config->max_width)) {
-		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
-			  r->width, config->min_width, config->max_width);
-		return -EINVAL;
-	}
-	if ((config->min_height > r->height) || (r->height > config->max_height)) {
-		DRM_DEBUG_KMS("bad framebuffer height %d, should be >= %d && <= %d\n",
-			  r->height, config->min_height, config->max_height);
-		return -EINVAL;
-	}
-
-	ret = framebuffer_check(r);
-	if (ret)
-		return ret;
-
-	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
-	if (IS_ERR(fb)) {
-		DRM_DEBUG_KMS("could not create framebuffer\n");
+	fb = add_framebuffer_internal(dev, data, file_priv);
+	if (IS_ERR(fb))
 		return PTR_ERR(fb);
-	}
 
-	mutex_lock(&file_priv->fbs_lock);
-	r->fb_id = fb->base.id;
-	list_add(&fb->filp_head, &file_priv->fbs);
-	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
-	mutex_unlock(&file_priv->fbs_lock);
-
-
-	return ret;
+	return 0;
 }
 
 /**
