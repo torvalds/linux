@@ -1596,6 +1596,7 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 
 	arizona_init_spk(codec);
 	arizona_init_gpio(codec);
+	arizona_init_mono(codec);
 
 	ret = snd_soc_add_codec_controls(codec, wm_adsp2_fw_controls, 8);
 	if (ret != 0)
