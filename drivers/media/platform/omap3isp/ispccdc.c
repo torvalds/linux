@@ -1789,6 +1789,8 @@ int omap3isp_ccdc_isr(struct isp_ccdc_device *ccdc, u32 events)
 static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 {
 	struct isp_ccdc_device *ccdc = &video->isp->isp_ccdc;
+	unsigned long flags;
+	bool restart = false;
 
 	if (!(ccdc->output & CCDC_OUTPUT_MEMORY))
 		return -ENODEV;
@@ -1797,9 +1799,20 @@ static int ccdc_video_queue(struct isp_video *video, struct isp_buffer *buffer)
 
 	/* We now have a buffer queued on the output, restart the pipeline
 	 * on the next CCDC interrupt if running in continuous mode (or when
-	 * starting the stream).
+	 * starting the stream) in external sync mode, or immediately in BT.656
+	 * sync mode as no CCDC interrupt is generated when the CCDC is stopped
+	 * in that case.
 	 */
-	ccdc->underrun = 1;
+	spin_lock_irqsave(&ccdc->lock, flags);
+	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && !ccdc->running &&
+	    ccdc->bt656)
+		restart = 1;
+	else
+		ccdc->underrun = 1;
+	spin_unlock_irqrestore(&ccdc->lock, flags);
+
+	if (restart)
+		ccdc_enable(ccdc);
 
 	return 0;
 }
