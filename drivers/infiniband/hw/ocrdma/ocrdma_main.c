@@ -519,6 +519,12 @@ static int ocrdma_close(struct ocrdma_dev *dev)
 	return 0;
 }
 
+static void ocrdma_shutdown(struct ocrdma_dev *dev)
+{
+	ocrdma_close(dev);
+	ocrdma_remove(dev);
+}
+
 /* event handling via NIC driver ensures that all the NIC specific
  * initialization done before RoCE driver notifies
  * event to stack.
@@ -531,6 +537,9 @@ static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 		break;
 	case BE_DEV_DOWN:
 		ocrdma_close(dev);
+		break;
+	case BE_DEV_SHUTDOWN:
+		ocrdma_shutdown(dev);
 		break;
 	}
 }
