@@ -903,8 +903,9 @@ static int do_writepage(struct page *page, int len)
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 #ifdef UBIFS_DEBUG
+	struct ubifs_inode *ui = ubifs_inode(inode);
 	spin_lock(&ui->ui_lock);
-	ubifs_assert(page->index <= ui->synced_i_size << PAGE_CACHE_SIZE);
+	ubifs_assert(page->index <= ui->synced_i_size >> PAGE_CACHE_SHIFT);
 	spin_unlock(&ui->ui_lock);
 #endif
 
@@ -1525,8 +1526,7 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
 	}
 
 	wait_for_stable_page(page);
-	unlock_page(page);
-	return 0;
+	return VM_FAULT_LOCKED;
 
 out_unlock:
 	unlock_page(page);
