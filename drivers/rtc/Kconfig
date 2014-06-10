@@ -530,11 +530,11 @@ config RTC_DRV_RV3029C2
 	  will be called rtc-rv3029c2.
 
 config RTC_DRV_S5M
-	tristate "Samsung S5M series"
+	tristate "Samsung S2M/S5M series"
 	depends on MFD_SEC_CORE
 	help
 	  If you say yes here you will get support for the
-	  RTC of Samsung S5M PMIC series.
+	  RTC of Samsung S2MPS14 and S5M PMIC series.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-s5m.
