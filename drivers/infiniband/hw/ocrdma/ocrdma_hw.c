@@ -966,8 +966,12 @@ static int ocrdma_wait_mqe_cmpl(struct ocrdma_dev *dev)
 				    msecs_to_jiffies(30000));
 	if (status)
 		return 0;
-	else
+	else {
+		dev->mqe_ctx.fw_error_state = true;
+		pr_err("%s(%d) mailbox timeout: fw not responding\n",
+		       __func__, dev->id);
 		return -1;
+	}
 }
 
 /* issue a mailbox command on the MQ */
@@ -979,6 +983,8 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 	struct ocrdma_mbx_rsp *rsp = NULL;
 
 	mutex_lock(&dev->mqe_ctx.lock);
+	if (dev->mqe_ctx.fw_error_state)
+		goto mbx_err;
 	ocrdma_post_mqe(dev, mqe);
 	status = ocrdma_wait_mqe_cmpl(dev);
 	if (status)

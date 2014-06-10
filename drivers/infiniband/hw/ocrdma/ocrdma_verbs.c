@@ -329,7 +329,10 @@ static int ocrdma_dealloc_ucontext_pd(struct ocrdma_ucontext *uctx)
 	struct ocrdma_pd *pd = uctx->cntxt_pd;
 	struct ocrdma_dev *dev = get_ocrdma_dev(pd->ibpd.device);
 
-	BUG_ON(uctx->pd_in_use);
+	if (uctx->pd_in_use) {
+		pr_err("%s(%d) Freeing in use pdid=0x%x.\n",
+		       __func__, dev->id, pd->id);
+	}
 	uctx->cntxt_pd = NULL;
 	status = _ocrdma_dealloc_pd(dev, pd);
 	return status;
@@ -844,6 +847,13 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr)
 	if (mr->umem)
 		ib_umem_release(mr->umem);
 	kfree(mr);
+
+	/* Don't stop cleanup, in case FW is unresponsive */
+	if (dev->mqe_ctx.fw_error_state) {
+		status = 0;
+		pr_err("%s(%d) fw not responding.\n",
+		       __func__, dev->id);
+	}
 	return status;
 }
 

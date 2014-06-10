@@ -137,6 +137,7 @@ struct mqe_ctx {
 	u16 cqe_status;
 	u16 ext_status;
 	bool cmd_done;
+	bool fw_error_state;
 };
 
 struct ocrdma_hw_mr {
