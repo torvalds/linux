@@ -1572,6 +1572,25 @@ static int atmel_hw_nand_init_params(struct platform_device *pdev,
 	return 0;
 }
 
+static inline u32 nfc_read_status(struct atmel_nand_host *host)
+{
+	u32 err_flags = NFC_SR_DTOE | NFC_SR_UNDEF | NFC_SR_AWB | NFC_SR_ASE;
+	u32 nfc_status = nfc_readl(host->nfc->hsmc_regs, SR);
+
+	if (unlikely(nfc_status & err_flags)) {
+		if (nfc_status & NFC_SR_DTOE)
+			dev_err(host->dev, "NFC: Waiting Nand R/B Timeout Error\n");
+		else if (nfc_status & NFC_SR_UNDEF)
+			dev_err(host->dev, "NFC: Access Undefined Area Error\n");
+		else if (nfc_status & NFC_SR_AWB)
+			dev_err(host->dev, "NFC: Access memory While NFC is busy\n");
+		else if (nfc_status & NFC_SR_ASE)
+			dev_err(host->dev, "NFC: Access memory Size Error\n");
+	}
+
+	return nfc_status;
+}
+
 /* SMC interrupt service routine */
 static irqreturn_t hsmc_interrupt(int irq, void *dev_id)
 {
@@ -1579,7 +1598,7 @@ static irqreturn_t hsmc_interrupt(int irq, void *dev_id)
 	u32 status, mask, pending;
 	irqreturn_t ret = IRQ_HANDLED;
 
-	status = nfc_readl(host->nfc->hsmc_regs, SR);
+	status = nfc_read_status(host);
 	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
 	pending = status & mask;
 
@@ -2208,6 +2227,9 @@ static int atmel_nand_nfc_probe(struct platform_device *pdev)
 						"atmel,write-by-sram");
 		}
 	}
+
+	nfc_writel(nfc->hsmc_regs, IDR, 0xffffffff);
+	nfc_readl(nfc->hsmc_regs, SR);	/* clear the NFC_SR */
 
 	nfc->is_initialized = true;
 	dev_info(&pdev->dev, "NFC is probed.\n");
