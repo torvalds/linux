@@ -1730,6 +1730,9 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 		if (!create || nlh->nlmsg_flags & NLM_F_REPLACE)
 			return -EINVAL;
 		handle = nf_tables_alloc_handle(table);
+
+		if (chain->use == UINT_MAX)
+			return -EOVERFLOW;
 	}
 
 	if (nla[NFTA_RULE_POSITION]) {
