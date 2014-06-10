@@ -856,7 +856,7 @@ struct drm_prop_enum_list {
 extern int drm_crtc_init_with_planes(struct drm_device *dev,
 				     struct drm_crtc *crtc,
 				     struct drm_plane *primary,
-				     void *cursor,
+				     struct drm_plane *cursor,
 				     const struct drm_crtc_funcs *funcs);
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
