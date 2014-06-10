@@ -525,6 +525,21 @@ static void v4l_print_queryctrl(const void *arg, bool write_only)
 			p->step, p->default_value, p->flags);
 }
 
+static void v4l_print_query_ext_ctrl(const void *arg, bool write_only)
+{
+	const struct v4l2_query_ext_ctrl *p = arg;
+
+	pr_cont("id=0x%x, type=%d, name=%.*s, min/max=%lld/%lld, "
+		"step=%lld, default=%lld, flags=0x%08x, elem_size=%u, elems=%u, "
+		"nr_of_dims=%u, dims=%u,%u,%u,%u,%u,%u,%u,%u\n",
+			p->id, p->type, (int)sizeof(p->name), p->name,
+			p->minimum, p->maximum,
+			p->step, p->default_value, p->flags,
+			p->elem_size, p->elems, p->nr_of_dims,
+			p->dims[0], p->dims[1], p->dims[2], p->dims[3],
+			p->dims[4], p->dims[5], p->dims[6], p->dims[7]);
+}
+
 static void v4l_print_querymenu(const void *arg, bool write_only)
 {
 	const struct v4l2_querymenu *p = arg;
@@ -1561,6 +1576,23 @@ static int v4l_queryctrl(const struct v4l2_ioctl_ops *ops,
 	return -ENOTTY;
 }
 
+static int v4l_query_ext_ctrl(const struct v4l2_ioctl_ops *ops,
+				struct file *file, void *fh, void *arg)
+{
+	struct video_device *vfd = video_devdata(file);
+	struct v4l2_query_ext_ctrl *p = arg;
+	struct v4l2_fh *vfh =
+		test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags) ? fh : NULL;
+
+	if (vfh && vfh->ctrl_handler)
+		return v4l2_query_ext_ctrl(vfh->ctrl_handler, p);
+	if (vfd->ctrl_handler)
+		return v4l2_query_ext_ctrl(vfd->ctrl_handler, p);
+	if (ops->vidioc_query_ext_ctrl)
+		return ops->vidioc_query_ext_ctrl(file, fh, p);
+	return -ENOTTY;
+}
+
 static int v4l_querymenu(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -2121,6 +2153,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_INFO, v4l_dbg_g_chip_info, v4l_print_dbg_chip_info, INFO_FL_CLEAR(v4l2_dbg_chip_info, match)),
+	IOCTL_INFO_FNC(VIDIOC_QUERY_EXT_CTRL, v4l_query_ext_ctrl, v4l_print_query_ext_ctrl, INFO_FL_CTRL | INFO_FL_CLEAR(v4l2_query_ext_ctrl, id)),
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 

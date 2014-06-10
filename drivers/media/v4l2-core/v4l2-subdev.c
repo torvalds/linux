@@ -139,6 +139,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_QUERYCTRL:
 		return v4l2_queryctrl(vfh->ctrl_handler, arg);
 
+	case VIDIOC_QUERY_EXT_CTRL:
+		return v4l2_query_ext_ctrl(vfh->ctrl_handler, arg);
+
 	case VIDIOC_QUERYMENU:
 		return v4l2_querymenu(vfh->ctrl_handler, arg);
 

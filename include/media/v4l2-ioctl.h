@@ -158,6 +158,8 @@ struct v4l2_ioctl_ops {
 		/* Control handling */
 	int (*vidioc_queryctrl)        (struct file *file, void *fh,
 					struct v4l2_queryctrl *a);
+	int (*vidioc_query_ext_ctrl)   (struct file *file, void *fh,
+					struct v4l2_query_ext_ctrl *a);
 	int (*vidioc_g_ctrl)           (struct file *file, void *fh,
 					struct v4l2_control *a);
 	int (*vidioc_s_ctrl)           (struct file *file, void *fh,

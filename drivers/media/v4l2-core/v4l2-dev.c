@@ -575,6 +575,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	   be valid if the filehandle passed the control handler. */
 	if (vdev->ctrl_handler || ops->vidioc_queryctrl)
 		set_bit(_IOC_NR(VIDIOC_QUERYCTRL), valid_ioctls);
+	if (vdev->ctrl_handler || ops->vidioc_query_ext_ctrl)
+		set_bit(_IOC_NR(VIDIOC_QUERY_EXT_CTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_g_ctrl || ops->vidioc_g_ext_ctrls)
 		set_bit(_IOC_NR(VIDIOC_G_CTRL), valid_ioctls);
 	if (vdev->ctrl_handler || ops->vidioc_s_ctrl || ops->vidioc_s_ext_ctrls)
