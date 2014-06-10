@@ -1,16 +1,15 @@
 /*
- * include/linux/nfsd/export.h
- * 
- * Public declarations for NFS exports. The definitions for the
- * syscall interface are in nfsctl.h
- *
  * Copyright (C) 1995-1997 Olaf Kirch <okir@monad.swb.de>
  */
 #ifndef NFSD_EXPORT_H
 #define NFSD_EXPORT_H
 
-# include <linux/nfsd/nfsfh.h>
+#include <linux/sunrpc/cache.h>
 #include <uapi/linux/nfsd/export.h>
+
+struct knfsd_fh;
+struct svc_fh;
+struct svc_rqst;
 
 /*
  * FS Locations
@@ -38,6 +37,7 @@ struct nfsd4_fs_locations {
  * spkm3i, and spkm3p (and using all 8 at once should be rare).
  */
 #define MAX_SECINFO_LIST	8
+#define EX_UUID_LEN		16
 
 struct exp_flavor_info {
 	u32	pseudoflavor;
@@ -54,7 +54,7 @@ struct svc_export {
 	int			ex_fsid;
 	unsigned char *		ex_uuid; /* 16 byte fsid */
 	struct nfsd4_fs_locations ex_fslocs;
-	int			ex_nflavors;
+	uint32_t		ex_nflavors;
 	struct exp_flavor_info	ex_flavors[MAX_SECINFO_LIST];
 	struct cache_detail	*cd;
 };
