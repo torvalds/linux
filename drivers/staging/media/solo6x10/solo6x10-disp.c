@@ -211,7 +211,7 @@ int solo_set_motion_threshold(struct solo_dev *solo_dev, u8 ch, u16 val)
 }
 
 int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
-		const struct solo_motion_thresholds *thresholds)
+		const u16 *thresholds)
 {
 	u32 off = SOLO_MOT_FLAG_AREA + ch * SOLO_MOT_THRESH_SIZE * 2;
 	u16 buf[64];
@@ -221,7 +221,7 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 	memset(buf, 0, sizeof(buf));
 	for (y = 0; y < SOLO_MOTION_SZ; y++) {
 		for (x = 0; x < SOLO_MOTION_SZ; x++)
-			buf[x] = cpu_to_le16(thresholds->thresholds[y][x]);
+			buf[x] = cpu_to_le16(thresholds[y * SOLO_MOTION_SZ + x]);
 		ret |= solo_p2m_dma(solo_dev, 1, buf,
 			SOLO_MOTION_EXT_ADDR(solo_dev) + off + y * sizeof(buf),
 			sizeof(buf), 0, 0);
