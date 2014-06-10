@@ -1214,10 +1214,11 @@ int perf_evlist__strerror_open(struct perf_evlist *evlist __maybe_unused,
 					     "For your workloads it needs to be <= 1\nHint:\t");
 		}
 		printed += scnprintf(buf + printed, size - printed,
-				     "For system wide tracing it needs to be set to -1");
+				     "For system wide tracing it needs to be set to -1.\n");
 
 		printed += scnprintf(buf + printed, size - printed,
-				    ".\nHint:\tThe current value is %d.", value);
+				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paranoid\"'\n"
+				    "Hint:\tThe current value is %d.", value);
 		break;
 	default:
 		scnprintf(buf, size, "%s", emsg);
