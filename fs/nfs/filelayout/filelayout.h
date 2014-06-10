@@ -30,7 +30,7 @@
 #ifndef FS_NFS_NFS4FILELAYOUT_H
 #define FS_NFS_NFS4FILELAYOUT_H
 
-#include "pnfs.h"
+#include "../pnfs.h"
 
 /*
  * Default data server connection timeout and retrans vaules.
