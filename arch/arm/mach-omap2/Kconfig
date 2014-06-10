@@ -1,3 +1,6 @@
+menu "TI OMAP/AM/DM/DRA Family"
+	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
+
 config ARCH_OMAP
 	bool
 
@@ -341,3 +344,5 @@ config OMAP4_ERRATA_I688
 endmenu
 
 endif
+
+endmenu
