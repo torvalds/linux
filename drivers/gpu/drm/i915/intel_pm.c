@@ -3513,15 +3513,11 @@ static void gen8_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
-	/* WaDisablePwrmtrEvent:chv (pre-production hw) */
-	I915_WRITE(0xA80C, I915_READ(0xA80C) & 0x00ffffff);
-	I915_WRITE(0xA810, I915_READ(0xA810) & 0xffffff00);
-
 	/* 5: Enable RPS */
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_TURBO |
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-		   GEN6_RP_MEDIA_IS_GFX | /* WaSetMaskForGfxBusyness:chv (pre-production hw ?) */
+		   GEN6_RP_MEDIA_IS_GFX |
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
@@ -4015,10 +4011,14 @@ static void cherryview_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
 
+	/* WaDisablePwrmtrEvent:chv (pre-production hw) */
+	I915_WRITE(0xA80C, I915_READ(0xA80C) & 0x00ffffff);
+	I915_WRITE(0xA810, I915_READ(0xA810) & 0xffffff00);
+
 	/* 5: Enable RPS */
 	I915_WRITE(GEN6_RP_CONTROL,
 		   GEN6_RP_MEDIA_HW_NORMAL_MODE |
-		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_MEDIA_IS_GFX | /* WaSetMaskForGfxBusyness:chv (pre-production hw ?) */
 		   GEN6_RP_ENABLE |
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
