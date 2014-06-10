@@ -172,6 +172,11 @@ enum {
 #define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
 #define EEH_STATE_MMIO_ENABLED	(1 << 5)	/* MMIO enabled		*/
 #define EEH_STATE_DMA_ENABLED	(1 << 6)	/* DMA enabled		*/
+#define EEH_PE_STATE_NORMAL		0	/* Normal state		*/
+#define EEH_PE_STATE_RESET		1	/* PE reset asserted	*/
+#define EEH_PE_STATE_STOPPED_IO_DMA	2	/* Frozen PE		*/
+#define EEH_PE_STATE_STOPPED_DMA	4	/* Stopped DMA, Enabled IO */
+#define EEH_PE_STATE_UNAVAIL		5	/* Unavailable		*/
 #define EEH_RESET_DEACTIVATE	0	/* Deactivate the PE reset	*/
 #define EEH_RESET_HOT		1	/* Hot reset			*/
 #define EEH_RESET_FUNDAMENTAL	3	/* Fundamental reset		*/
@@ -279,6 +284,13 @@ void eeh_add_device_late(struct pci_dev *);
 void eeh_add_device_tree_late(struct pci_bus *);
 void eeh_add_sysfs_files(struct pci_bus *);
 void eeh_remove_device(struct pci_dev *);
+int eeh_dev_open(struct pci_dev *pdev);
+void eeh_dev_release(struct pci_dev *pdev);
+struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group);
+int eeh_pe_set_option(struct eeh_pe *pe, int option);
+int eeh_pe_get_state(struct eeh_pe *pe);
+int eeh_pe_reset(struct eeh_pe *pe, int option);
+int eeh_pe_configure(struct eeh_pe *pe);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.
