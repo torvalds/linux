@@ -388,6 +388,58 @@ static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
 		device_remove_file(&dev->ibdev.dev, ocrdma_attributes[i]);
 }
 
+static void ocrdma_init_ipv4_gids(struct ocrdma_dev *dev,
+				  struct net_device *net)
+{
+	struct in_device *in_dev;
+	union ib_gid gid;
+	in_dev = in_dev_get(net);
+	if (in_dev) {
+		for_ifa(in_dev) {
+			ipv6_addr_set_v4mapped(ifa->ifa_address,
+					       (struct in6_addr *)&gid);
+			ocrdma_add_sgid(dev, &gid);
+		}
+		endfor_ifa(in_dev);
+		in_dev_put(in_dev);
+	}
+}
+
+static void ocrdma_init_ipv6_gids(struct ocrdma_dev *dev,
+				  struct net_device *net)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	struct inet6_dev *in6_dev;
+	union ib_gid  *pgid;
+	struct inet6_ifaddr *ifp;
+	in6_dev = in6_dev_get(net);
+	if (in6_dev) {
+		read_lock_bh(&in6_dev->lock);
+		list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
+			pgid = (union ib_gid *)&ifp->addr;
+			ocrdma_add_sgid(dev, pgid);
+		}
+		read_unlock_bh(&in6_dev->lock);
+		in6_dev_put(in6_dev);
+	}
+#endif
+}
+
+static void ocrdma_init_gid_table(struct ocrdma_dev *dev)
+{
+	struct  net_device *net_dev;
+
+	for_each_netdev(&init_net, net_dev) {
+		struct net_device *real_dev = rdma_vlan_dev_real_dev(net_dev) ?
+				rdma_vlan_dev_real_dev(net_dev) : net_dev;
+
+		if (real_dev == dev->nic_info.netdev) {
+			ocrdma_init_ipv4_gids(dev, net_dev);
+			ocrdma_init_ipv6_gids(dev, net_dev);
+		}
+	}
+}
+
 static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 {
 	int status = 0, i;
@@ -416,6 +468,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		goto alloc_err;
 
 	ocrdma_init_service_level(dev);
+	ocrdma_init_gid_table(dev);
 	status = ocrdma_register_device(dev);
 	if (status)
 		goto alloc_err;
