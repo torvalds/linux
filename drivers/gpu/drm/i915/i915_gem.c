@@ -1561,14 +1561,26 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret)
 		goto unpin;
 
-	obj->fault_mappable = true;
-
+	/* Finally, remap it using the new GTT offset */
 	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
 	pfn >>= PAGE_SHIFT;
-	pfn += page_offset;
 
-	/* Finally, remap it using the new GTT offset */
-	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+	if (!obj->fault_mappable) {
+		int i;
+
+		for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+			ret = vm_insert_pfn(vma,
+					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+					    pfn + i);
+			if (ret)
+				break;
+		}
+
+		obj->fault_mappable = true;
+	} else
+		ret = vm_insert_pfn(vma,
+				    (unsigned long)vmf->virtual_address,
+				    pfn + page_offset);
 unpin:
 	i915_gem_object_ggtt_unpin(obj);
 unlock:
