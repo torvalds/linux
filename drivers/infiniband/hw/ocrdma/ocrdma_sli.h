@@ -530,8 +530,8 @@ struct ocrdma_mbx_query_config {
 	u32 max_ird_ord_per_qp;
 	u32 max_shared_ird_ord;
 	u32 max_mr;
-	u32 max_mr_size_lo;
 	u32 max_mr_size_hi;
+	u32 max_mr_size_lo;
 	u32 max_num_mr_pbl;
 	u32 max_mw;
 	u32 max_fmr;
