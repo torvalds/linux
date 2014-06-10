@@ -1298,7 +1298,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 * Don't use the deferral mechanism for NFSv4; compounds make it
 	 * too hard to avoid non-idempotency problems.
 	 */
-	rqstp->rq_usedeferral = 0;
+	rqstp->rq_usedeferral = false;
 
 	/*
 	 * According to RFC3010, this takes precedence over all other errors.
@@ -1417,7 +1417,7 @@ encode_op:
 	BUG_ON(cstate->replay_owner);
 out:
 	/* Reset deferral mechanism for RPC deferrals */
-	rqstp->rq_usedeferral = 1;
+	rqstp->rq_usedeferral = true;
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
