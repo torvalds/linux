@@ -3134,9 +3134,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	len = maxcount;
 	v = 0;
 
-	thislen = (void *)xdr->end - (void *)xdr->p;
-	if (len < thislen)
-		thislen = len;
+	thislen = min(len, ((void *)xdr->end - (void *)xdr->p));
 	p = xdr_reserve_space(xdr, (thislen+3)&~3);
 	WARN_ON_ONCE(!p);
 	resp->rqstp->rq_vec[v].iov_base = p;
@@ -3203,10 +3201,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	xdr_commit_encode(xdr);
 
 	maxcount = svc_max_payload(resp->rqstp);
-	if (maxcount > xdr->buf->buflen - xdr->buf->len)
-		maxcount = xdr->buf->buflen - xdr->buf->len;
-	if (maxcount > read->rd_length)
-		maxcount = read->rd_length;
+	maxcount = min_t(unsigned long, maxcount, (xdr->buf->buflen - xdr->buf->len));
+	maxcount = min_t(unsigned long, maxcount, read->rd_length);
 
 	if (!read->rd_filp) {
 		err = nfsd_get_tmp_read_open(resp->rqstp, read->rd_fhp,

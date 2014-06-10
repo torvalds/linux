@@ -369,8 +369,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 
 	if (maxsize < NFS_FHSIZE)
 		return -EINVAL;
-	if (maxsize > NFS3_FHSIZE)
-		maxsize = NFS3_FHSIZE;
+	maxsize = min(maxsize, NFS3_FHSIZE);
 
 	if (qword_get(&mesg, mesg, size)>0)
 		return -EINVAL;
@@ -871,10 +870,8 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		/* force bsize into allowed range and
 		 * required alignment.
 		 */
-		if (bsize < 1024)
-			bsize = 1024;
-		if (bsize > NFSSVC_MAXBLKSIZE)
-			bsize = NFSSVC_MAXBLKSIZE;
+		bsize = max_t(int, bsize, 1024);
+		bsize = min_t(int, bsize, NFSSVC_MAXBLKSIZE);
 		bsize &= ~(1024-1);
 		mutex_lock(&nfsd_mutex);
 		if (nn->nfsd_serv) {

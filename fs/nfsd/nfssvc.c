@@ -469,8 +469,7 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 	/* enforce a global maximum number of threads */
 	tot = 0;
 	for (i = 0; i < n; i++) {
-		if (nthreads[i] > NFSD_MAXSERVS)
-			nthreads[i] = NFSD_MAXSERVS;
+		nthreads[i] = min(nthreads[i], NFSD_MAXSERVS);
 		tot += nthreads[i];
 	}
 	if (tot > NFSD_MAXSERVS) {
@@ -519,11 +518,11 @@ nfsd_svc(int nrservs, struct net *net)
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
-	if (nrservs <= 0)
-		nrservs = 0;
-	if (nrservs > NFSD_MAXSERVS)
-		nrservs = NFSD_MAXSERVS;
+
+	nrservs = max(nrservs, 0);
+	nrservs = min(nrservs, NFSD_MAXSERVS);
 	error = 0;
+
 	if (nrservs == 0 && nn->nfsd_serv == NULL)
 		goto out;
 
