@@ -1661,11 +1661,19 @@ static int nfc_send_command(struct atmel_nand_host *host,
 
 static int nfc_device_ready(struct mtd_info *mtd)
 {
+	u32 status, mask;
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
-	if (!nfc_wait_interrupt(host, NFC_SR_RB_EDGE))
-		return 1;
-	return 0;
+
+	status = nfc_read_status(host);
+	mask = nfc_readl(host->nfc->hsmc_regs, IMR);
+
+	/* The mask should be 0. If not we may lost interrupts */
+	if (unlikely(mask & status))
+		dev_err(host->dev, "Lost the interrupt flags: 0x%08x\n",
+				mask & status);
+
+	return status & NFC_SR_RB_EDGE;
 }
 
 static void nfc_select_chip(struct mtd_info *mtd, int chip)
