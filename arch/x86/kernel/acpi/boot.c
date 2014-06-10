@@ -419,7 +419,7 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 
 	irq = map_gsi_to_irq(gsi);
 	if (irq < 0)
-		return ACPI_INVALID_GSI;
+		return irq;
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
@@ -444,11 +444,10 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
 	ret = io_apic_set_pci_routing(dev, irq, &irq_attr);
 	if (ret < 0)
-		gsi = ACPI_INVALID_GSI;
+		irq = -1;
 
-	return gsi;
+	return irq;
 }
-
 
 static int __init
 acpi_parse_ioapic(struct acpi_subtable_header * header, const unsigned long end)
@@ -652,11 +651,13 @@ static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
 static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 				    int trigger, int polarity)
 {
+	int irq = gsi;
+
 #ifdef CONFIG_X86_IO_APIC
-	gsi = mp_register_gsi(dev, gsi, trigger, polarity);
+	irq = mp_register_gsi(dev, gsi, trigger, polarity);
 #endif
 
-	return gsi;
+	return irq;
 }
 
 int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
@@ -674,13 +675,7 @@ int (*acpi_suspend_lowlevel)(void);
  */
 int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 {
-	unsigned int plat_gsi;
-
-	plat_gsi = __acpi_register_gsi(dev, gsi, trigger, polarity);
-	if (plat_gsi != ACPI_INVALID_GSI)
-		return map_gsi_to_irq(plat_gsi);
-
-	return -1;
+	return __acpi_register_gsi(dev, gsi, trigger, polarity);
 }
 EXPORT_SYMBOL_GPL(acpi_register_gsi);
 
