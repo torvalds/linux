@@ -1505,6 +1505,7 @@ static void ocrdma_mbx_delete_ah_tbl(struct ocrdma_dev *dev)
 	ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	dma_free_coherent(&pdev->dev, dev->av_tbl.size, dev->av_tbl.va,
 			  dev->av_tbl.pa);
+	dev->av_tbl.va = NULL;
 	dma_free_coherent(&pdev->dev, PAGE_SIZE, dev->av_tbl.pbl.va,
 			  dev->av_tbl.pbl.pa);
 	kfree(cmd);
@@ -2882,13 +2883,15 @@ int ocrdma_init_hw(struct ocrdma_dev *dev)
 		goto conf_err;
 	status = ocrdma_mbx_get_phy_info(dev);
 	if (status)
-		goto conf_err;
+		goto info_attrb_err;
 	status = ocrdma_mbx_get_ctrl_attribs(dev);
 	if (status)
-		goto conf_err;
+		goto info_attrb_err;
 
 	return 0;
 
+info_attrb_err:
+	ocrdma_mbx_delete_ah_tbl(dev);
 conf_err:
 	ocrdma_destroy_mq(dev);
 mq_err:
