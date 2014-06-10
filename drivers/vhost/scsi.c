@@ -1144,7 +1144,8 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		}
 
 		cmd = vhost_scsi_get_tag(vq, tpg, cdb, tag, lun, task_attr,
-					 exp_data_len, data_direction);
+					 exp_data_len + prot_bytes,
+					 data_direction);
 		if (IS_ERR(cmd)) {
 			vq_err(vq, "vhost_scsi_get_tag failed %ld\n",
 					PTR_ERR(cmd));
