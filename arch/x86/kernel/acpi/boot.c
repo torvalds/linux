@@ -97,6 +97,8 @@ static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 };
 
+#define	ACPI_INVALID_GSI		INT_MIN
+
 static unsigned int gsi_to_irq(unsigned int gsi)
 {
 	unsigned int irq = gsi + NR_IRQS_LEGACY;
@@ -441,7 +443,7 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
 	ret = io_apic_set_pci_routing(dev, gsi_to_irq(gsi), &irq_attr);
 	if (ret < 0)
-		gsi = INT_MIN;
+		gsi = ACPI_INVALID_GSI;
 
 	return gsi;
 }
@@ -666,13 +668,13 @@ int (*acpi_suspend_lowlevel)(void);
  */
 int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 {
-	unsigned int irq;
-	unsigned int plat_gsi = gsi;
+	unsigned int plat_gsi;
 
-	plat_gsi = (*__acpi_register_gsi)(dev, gsi, trigger, polarity);
-	irq = gsi_to_irq(plat_gsi);
+	plat_gsi = __acpi_register_gsi(dev, gsi, trigger, polarity);
+	if (plat_gsi != ACPI_INVALID_GSI)
+		return gsi_to_irq(plat_gsi);
 
-	return irq;
+	return -1;
 }
 EXPORT_SYMBOL_GPL(acpi_register_gsi);
 
