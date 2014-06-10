@@ -68,7 +68,6 @@ MODULE_VERSION(DRV_VERSION);
 int max_mtu = 9000;
 int interrupt_mod_interval = 0;
 
-
 /* Interoperability */
 int mpa_version = 1;
 module_param(mpa_version, int, 0644);
@@ -111,6 +110,16 @@ static struct pci_device_id nes_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, nes_pci_table);
+
+/* registered nes netlink callbacks */
+static struct ibnl_client_cbs nes_nl_cb_table[] = {
+	[RDMA_NL_IWPM_REG_PID] = {.dump = iwpm_register_pid_cb},
+	[RDMA_NL_IWPM_ADD_MAPPING] = {.dump = iwpm_add_mapping_cb},
+	[RDMA_NL_IWPM_QUERY_MAPPING] = {.dump = iwpm_add_and_query_mapping_cb},
+	[RDMA_NL_IWPM_HANDLE_ERR] = {.dump = iwpm_mapping_error_cb},
+	[RDMA_NL_IWPM_MAPINFO] = {.dump = iwpm_mapping_info_cb},
+	[RDMA_NL_IWPM_MAPINFO_NUM] = {.dump = iwpm_ack_mapping_info_cb}
+};
 
 static int nes_inetaddr_event(struct notifier_block *, unsigned long, void *);
 static int nes_net_event(struct notifier_block *, unsigned long, void *);
@@ -672,6 +681,17 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	}
 	nes_notifiers_registered++;
 
+	if (ibnl_add_client(RDMA_NL_NES, RDMA_NL_IWPM_NUM_OPS, nes_nl_cb_table))
+		printk(KERN_ERR PFX "%s[%u]: Failed to add netlink callback\n",
+			__func__, __LINE__);
+
+	ret = iwpm_init(RDMA_NL_NES);
+	if (ret) {
+		printk(KERN_ERR PFX "%s: port mapper initialization failed\n",
+				pci_name(pcidev));
+		goto bail7;
+	}
+
 	INIT_DELAYED_WORK(&nesdev->work, nes_recheck_link_status);
 
 	/* Initialize network devices */
@@ -710,6 +730,7 @@ static int nes_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	nes_debug(NES_DBG_INIT, "netdev_count=%d, nesadapter->netdev_count=%d\n",
 			nesdev->netdev_count, nesdev->nesadapter->netdev_count);
+	ibnl_remove_client(RDMA_NL_NES);
 
 	nes_notifiers_registered--;
 	if (nes_notifiers_registered == 0) {
@@ -773,6 +794,8 @@ static void nes_remove(struct pci_dev *pcidev)
 				nesdev->nesadapter->netdev_count--;
 			}
 		}
+	ibnl_remove_client(RDMA_NL_NES);
+	iwpm_exit(RDMA_NL_NES);
 
 	nes_notifiers_registered--;
 	if (nes_notifiers_registered == 0) {
