@@ -498,5 +498,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	 */
 
 	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
-	acpi_unregister_gsi(gsi);
+	if (gsi >= 0 && dev->irq > 0)
+		acpi_unregister_gsi(gsi);
 }
