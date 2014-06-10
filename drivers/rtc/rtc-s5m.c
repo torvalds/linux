@@ -666,7 +666,7 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	struct sec_platform_data *pdata = s5m87xx->pdata;
 	struct s5m_rtc_info *info;
 	const struct regmap_config *regmap_cfg;
-	int ret;
+	int ret, alarm_irq;
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "Platform data not supplied\n");
@@ -681,14 +681,17 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	case S2MPS14X:
 		regmap_cfg = &s2mps14_rtc_regmap_config;
 		info->regs = &s2mps_rtc_regs;
+		alarm_irq = S2MPS14_IRQ_RTCA0;
 		break;
 	case S5M8763X:
 		regmap_cfg = &s5m_rtc_regmap_config;
 		info->regs = &s5m_rtc_regs;
+		alarm_irq = S5M8763_IRQ_ALARM0;
 		break;
 	case S5M8767X:
 		regmap_cfg = &s5m_rtc_regmap_config;
 		info->regs = &s5m_rtc_regs;
+		alarm_irq = S5M8767_IRQ_RTCA1;
 		break;
 	default:
 		dev_err(&pdev->dev, "Device type is not supported by RTC driver\n");
@@ -714,25 +717,11 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 	info->device_type = s5m87xx->device_type;
 	info->wtsr_smpl = s5m87xx->wtsr_smpl;
 
-	switch (pdata->device_type) {
-	case S2MPS14X:
-		info->irq = regmap_irq_get_virq(s5m87xx->irq_data,
-				S2MPS14_IRQ_RTCA0);
-		break;
-
-	case S5M8763X:
-		info->irq = regmap_irq_get_virq(s5m87xx->irq_data,
-				S5M8763_IRQ_ALARM0);
-		break;
-
-	case S5M8767X:
-		info->irq = regmap_irq_get_virq(s5m87xx->irq_data,
-				S5M8767_IRQ_RTCA1);
-		break;
-
-	default:
+	info->irq = regmap_irq_get_virq(s5m87xx->irq_data, alarm_irq);
+	if (info->irq <= 0) {
 		ret = -EINVAL;
-		dev_err(&pdev->dev, "Unsupported device type: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to get virtual IRQ %d\n",
+				alarm_irq);
 		goto err;
 	}
 
