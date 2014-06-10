@@ -1100,9 +1100,7 @@ static int clean_up_hci_state(struct hci_dev *hdev)
 	if (test_bit(HCI_ADVERTISING, &hdev->dev_flags))
 		disable_advertising(&req);
 
-	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
-		hci_req_add_le_scan_disable(&req);
-	}
+	hci_stop_discovery(&req);
 
 	list_for_each_entry(conn, &hdev->conn_hash.list, list) {
 		struct hci_cp_disconnect dc;
