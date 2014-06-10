@@ -6242,22 +6242,25 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 	return 0;
 }
 
+static void free_trace_buffer(struct trace_buffer *buf)
+{
+	if (buf->buffer) {
+		ring_buffer_free(buf->buffer);
+		buf->buffer = NULL;
+		free_percpu(buf->data);
+		buf->data = NULL;
+	}
+}
+
 static void free_trace_buffers(struct trace_array *tr)
 {
 	if (!tr)
 		return;
 
-	if (tr->trace_buffer.buffer) {
-		ring_buffer_free(tr->trace_buffer.buffer);
-		tr->trace_buffer.buffer = NULL;
-		free_percpu(tr->trace_buffer.data);
-	}
+	free_trace_buffer(&tr->trace_buffer);
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-	if (tr->max_buffer.buffer) {
-		ring_buffer_free(tr->max_buffer.buffer);
-		tr->max_buffer.buffer = NULL;
-	}
+	free_trace_buffer(&tr->max_buffer);
 #endif
 }
 
