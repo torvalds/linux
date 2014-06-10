@@ -177,7 +177,7 @@ fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 	fh_put(dst);
 	dget(src->fh_dentry);
 	if (src->fh_export)
-		cache_get(&src->fh_export->h);
+		exp_get(src->fh_export);
 	*dst = *src;
 }
 
@@ -918,8 +918,8 @@ nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstat
 	default:
 		return nfserr_inval;
 	}
-	exp_get(cstate->current_fh.fh_export);
-	sin->sin_exp = cstate->current_fh.fh_export;
+
+	sin->sin_exp = exp_get(cstate->current_fh.fh_export);
 	fh_put(&cstate->current_fh);
 	return nfs_ok;
 }
