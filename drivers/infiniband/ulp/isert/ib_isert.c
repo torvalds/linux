@@ -1053,7 +1053,9 @@ isert_put_login_tx(struct iscsi_conn *conn, struct iscsi_login *login,
 	}
 	if (!login->login_failed) {
 		if (login->login_complete) {
-			if (isert_conn->conn_device->use_fastreg) {
+			if (!conn->sess->sess_ops->SessionType &&
+			    isert_conn->conn_device->use_fastreg) {
+				/* Normal Session and fastreg is used */
 				u8 pi_support = login->np->tpg_np->tpg->tpg_attrib.t10_pi;
 
 				ret = isert_conn_create_fastreg_pool(isert_conn,
