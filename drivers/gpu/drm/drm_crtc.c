@@ -2122,45 +2122,32 @@ out:
 	return ret;
 }
 
-/**
- * drm_mode_setplane - configure a plane's configuration
- * @dev: DRM device
- * @data: ioctl data*
- * @file_priv: DRM file info
+/*
+ * setplane_internal - setplane handler for internal callers
  *
- * Set plane configuration, including placement, fb, scaling, and other factors.
- * Or pass a NULL fb to disable.
+ * Note that we assume an extra reference has already been taken on fb.  If the
+ * update fails, this reference will be dropped before return; if it succeeds,
+ * the previous framebuffer (if any) will be unreferenced instead.
  *
- * Returns:
- * Zero on success, errno on failure.
+ * src_{x,y,w,h} are provided in 16.16 fixed point format
  */
-int drm_mode_setplane(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv)
+static int setplane_internal(struct drm_crtc *crtc,
+			     struct drm_plane *plane,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     /* src_{x,y,w,h} values are 16.16 fixed point */
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h)
 {
-	struct drm_mode_set_plane *plane_req = data;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb = NULL, *old_fb = NULL;
+	struct drm_device *dev = crtc->dev;
+	struct drm_framebuffer *old_fb = NULL;
 	int ret = 0;
 	unsigned int fb_width, fb_height;
 	int i;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
-	/*
-	 * First, find the plane, crtc, and fb objects.  If not available,
-	 * we don't bother to call the driver.
-	 */
-	plane = drm_plane_find(dev, plane_req->plane_id);
-	if (!plane) {
-		DRM_DEBUG_KMS("Unknown plane ID %d\n",
-			      plane_req->plane_id);
-		return -ENOENT;
-	}
-
 	/* No fb means shut it down */
-	if (!plane_req->fb_id) {
+	if (!fb) {
 		drm_modeset_lock_all(dev);
 		old_fb = plane->fb;
 		ret = plane->funcs->disable_plane(plane);
@@ -2174,26 +2161,10 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	crtc = drm_crtc_find(dev, plane_req->crtc_id);
-	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown crtc ID %d\n",
-			      plane_req->crtc_id);
-		ret = -ENOENT;
-		goto out;
-	}
-
 	/* Check whether this plane is usable on this CRTC */
 	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
 		DRM_DEBUG_KMS("Invalid crtc for plane\n");
 		ret = -EINVAL;
-		goto out;
-	}
-
-	fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
-	if (!fb) {
-		DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
-			      plane_req->fb_id);
-		ret = -ENOENT;
 		goto out;
 	}
 
@@ -2212,43 +2183,25 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	fb_height = fb->height << 16;
 
 	/* Make sure source coordinates are inside the fb. */
-	if (plane_req->src_w > fb_width ||
-	    plane_req->src_x > fb_width - plane_req->src_w ||
-	    plane_req->src_h > fb_height ||
-	    plane_req->src_y > fb_height - plane_req->src_h) {
+	if (src_w > fb_width ||
+	    src_x > fb_width - src_w ||
+	    src_h > fb_height ||
+	    src_y > fb_height - src_h) {
 		DRM_DEBUG_KMS("Invalid source coordinates "
 			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
-			      plane_req->src_w >> 16,
-			      ((plane_req->src_w & 0xffff) * 15625) >> 10,
-			      plane_req->src_h >> 16,
-			      ((plane_req->src_h & 0xffff) * 15625) >> 10,
-			      plane_req->src_x >> 16,
-			      ((plane_req->src_x & 0xffff) * 15625) >> 10,
-			      plane_req->src_y >> 16,
-			      ((plane_req->src_y & 0xffff) * 15625) >> 10);
+			      src_w >> 16, ((src_w & 0xffff) * 15625) >> 10,
+			      src_h >> 16, ((src_h & 0xffff) * 15625) >> 10,
+			      src_x >> 16, ((src_x & 0xffff) * 15625) >> 10,
+			      src_y >> 16, ((src_y & 0xffff) * 15625) >> 10);
 		ret = -ENOSPC;
-		goto out;
-	}
-
-	/* Give drivers some help against integer overflows */
-	if (plane_req->crtc_w > INT_MAX ||
-	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
-	    plane_req->crtc_h > INT_MAX ||
-	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      plane_req->crtc_w, plane_req->crtc_h,
-			      plane_req->crtc_x, plane_req->crtc_y);
-		ret = -ERANGE;
 		goto out;
 	}
 
 	drm_modeset_lock_all(dev);
 	old_fb = plane->fb;
 	ret = plane->funcs->update_plane(plane, crtc, fb,
-					 plane_req->crtc_x, plane_req->crtc_y,
-					 plane_req->crtc_w, plane_req->crtc_h,
-					 plane_req->src_x, plane_req->src_y,
-					 plane_req->src_w, plane_req->src_h);
+					 crtc_x, crtc_y, crtc_w, crtc_h,
+					 src_x, src_y, src_w, src_h);
 	if (!ret) {
 		plane->crtc = crtc;
 		plane->fb = fb;
@@ -2265,6 +2218,81 @@ out:
 		drm_framebuffer_unreference(old_fb);
 
 	return ret;
+
+}
+
+/**
+ * drm_mode_setplane - configure a plane's configuration
+ * @dev: DRM device
+ * @data: ioctl data*
+ * @file_priv: DRM file info
+ *
+ * Set plane configuration, including placement, fb, scaling, and other factors.
+ * Or pass a NULL fb to disable (planes may be disabled without providing a
+ * valid crtc).
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_setplane(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv)
+{
+	struct drm_mode_set_plane *plane_req = data;
+	struct drm_mode_object *obj;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc = NULL;
+	struct drm_framebuffer *fb = NULL;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	/* Give drivers some help against integer overflows */
+	if (plane_req->crtc_w > INT_MAX ||
+	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
+	    plane_req->crtc_h > INT_MAX ||
+	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      plane_req->crtc_w, plane_req->crtc_h,
+			      plane_req->crtc_x, plane_req->crtc_y);
+		return -ERANGE;
+	}
+
+	/*
+	 * First, find the plane, crtc, and fb objects.  If not available,
+	 * we don't bother to call the driver.
+	 */
+	obj = drm_mode_object_find(dev, plane_req->plane_id,
+				   DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+			      plane_req->plane_id);
+		return -ENOENT;
+	}
+	plane = obj_to_plane(obj);
+
+	if (plane_req->fb_id) {
+		fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
+		if (!fb) {
+			DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
+				      plane_req->fb_id);
+			return -ENOENT;
+		}
+
+		obj = drm_mode_object_find(dev, plane_req->crtc_id,
+					   DRM_MODE_OBJECT_CRTC);
+		if (!obj) {
+			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
+				      plane_req->crtc_id);
+			return -ENOENT;
+		}
+		crtc = obj_to_crtc(obj);
+	}
+
+	return setplane_internal(crtc, plane, fb,
+				 plane_req->crtc_x, plane_req->crtc_y,
+				 plane_req->crtc_w, plane_req->crtc_h,
+				 plane_req->src_x, plane_req->src_y,
+				 plane_req->src_w, plane_req->src_h);
 }
 
 /**
