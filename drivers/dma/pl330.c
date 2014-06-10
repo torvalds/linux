@@ -3188,7 +3188,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pd->device_prep_slave_sg = pl330_prep_slave_sg;
 	pd->device_control = pl330_control;
 	pd->device_issue_pending = pl330_issue_pending;
-#ifdef drivers/dma/pl330.c
+#ifdef CONFIG_ARCH_ROCKCHIP
 	pd->dma_getposition = pl330_dma_getposition;
 #endif
 
