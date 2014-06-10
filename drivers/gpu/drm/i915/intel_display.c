@@ -8089,21 +8089,26 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	intel_crtc->cursor_base = base;
 }
 
-static int intel_crtc_cursor_set(struct drm_crtc *crtc,
-				 struct drm_file *file,
-				 uint32_t handle,
-				 uint32_t width, uint32_t height)
+/*
+ * intel_crtc_cursor_set_obj - Set cursor to specified GEM object
+ *
+ * Note that the object's reference will be consumed if the update fails.  If
+ * the update succeeds, the reference of the old object (if any) will be
+ * consumed.
+ */
+static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
+				     struct drm_i915_gem_object *obj,
+				     uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_i915_gem_object *obj;
 	unsigned old_width;
 	uint32_t addr;
 	int ret;
 
 	/* if we want to turn off the cursor ignore width and height */
-	if (!handle) {
+	if (!obj) {
 		DRM_DEBUG_KMS("cursor off\n");
 		addr = 0;
 		obj = NULL;
@@ -8119,12 +8124,8 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
-	if (&obj->base == NULL)
-		return -ENOENT;
-
 	if (obj->base.size < width * height * 4) {
-		DRM_DEBUG_KMS("buffer is to small\n");
+		DRM_DEBUG_KMS("buffer is too small\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -8205,6 +8206,25 @@ fail_locked:
 fail:
 	drm_gem_object_unreference_unlocked(&obj->base);
 	return ret;
+}
+
+static int intel_crtc_cursor_set(struct drm_crtc *crtc,
+				 struct drm_file *file,
+				 uint32_t handle,
+				 uint32_t width, uint32_t height)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_gem_object *obj;
+
+	if (handle) {
+		obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
+		if (&obj->base == NULL)
+			return -ENOENT;
+	} else {
+		obj = NULL;
+	}
+
+	return intel_crtc_cursor_set_obj(crtc, obj, width, height);
 }
 
 static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
