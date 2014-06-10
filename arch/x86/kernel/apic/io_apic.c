@@ -959,28 +959,25 @@ static int irq_trigger(int idx)
 	return trigger;
 }
 
+int mp_map_gsi_to_irq(u32 gsi)
+{
+	/*
+	 * Provide an identity mapping of gsi == irq except on truly weird
+	 * platforms that have non isa irqs in the first 16 gsis.
+	 */
+	return gsi >= nr_legacy_irqs() ? gsi : gsi_top + gsi;
+}
+
 static int pin_2_irq(int idx, int apic, int pin)
 {
 	int irq;
 	int bus = mp_irqs[idx].srcbus;
-	struct mp_ioapic_gsi *gsi_cfg = mp_ioapic_gsi_routing(apic);
 
 	/*
 	 * Debugging check, we are in big trouble if this message pops up!
 	 */
 	if (mp_irqs[idx].dstirq != pin)
 		pr_err("broken BIOS or MPTABLE parser, ayiee!!\n");
-
-	if (test_bit(bus, mp_bus_not_pci)) {
-		irq = mp_irqs[idx].srcbusirq;
-	} else {
-		u32 gsi = gsi_cfg->gsi_base + pin;
-
-		if (gsi >= nr_legacy_irqs())
-			irq = gsi;
-		else
-			irq = gsi_top + gsi;
-	}
 
 #ifdef CONFIG_X86_32
 	/*
@@ -996,10 +993,16 @@ static int pin_2_irq(int idx, int apic, int pin)
 				apic_printk(APIC_VERBOSE, KERN_DEBUG
 						"using PIRQ%d -> IRQ %d\n",
 						pin-16, irq);
+				return irq;
 			}
 		}
 	}
 #endif
+
+	if (test_bit(bus, mp_bus_not_pci))
+		irq = mp_irqs[idx].srcbusirq;
+	else
+		irq = mp_map_gsi_to_irq(mp_pin_to_gsi(apic, pin));
 
 	return irq;
 }

@@ -100,27 +100,15 @@ static u32 isa_irq_to_gsi[NR_IRQS_LEGACY] __read_mostly = {
 
 #define	ACPI_INVALID_GSI		INT_MIN
 
-static unsigned int gsi_to_irq(unsigned int gsi)
+static int map_gsi_to_irq(unsigned int gsi)
 {
-	unsigned int irq = gsi + nr_legacy_irqs();
-	unsigned int i;
+	int i;
 
-	for (i = 0; i < nr_legacy_irqs(); i++) {
-		if (isa_irq_to_gsi[i] == gsi) {
+	for (i = 0; i < nr_legacy_irqs(); i++)
+		if (isa_irq_to_gsi[i] == gsi)
 			return i;
-		}
-	}
 
-	/* Provide an identity mapping of gsi == irq
-	 * except on truly weird platforms that have
-	 * non isa irqs in the first 16 gsis.
-	 */
-	if (gsi >= nr_legacy_irqs())
-		irq = gsi;
-	else
-		irq = gsi_top + gsi;
-
-	return irq;
+	return mp_map_gsi_to_irq(gsi);
 }
 
 /*
@@ -416,6 +404,7 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 			   int polarity)
 {
+	int irq;
 	int ioapic;
 	int ioapic_pin;
 	struct io_apic_irq_attr irq_attr;
@@ -427,6 +416,10 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_gbl_FADT.sci_interrupt == gsi)
 		return gsi;
+
+	irq = map_gsi_to_irq(gsi);
+	if (irq < 0)
+		return ACPI_INVALID_GSI;
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
@@ -449,7 +442,7 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 	set_io_apic_irq_attr(&irq_attr, ioapic, ioapic_pin,
 			     trigger == ACPI_EDGE_SENSITIVE ? 0 : 1,
 			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
-	ret = io_apic_set_pci_routing(dev, gsi_to_irq(gsi), &irq_attr);
+	ret = io_apic_set_pci_routing(dev, irq, &irq_attr);
 	if (ret < 0)
 		gsi = ACPI_INVALID_GSI;
 
@@ -614,16 +607,20 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	outb(new >> 8, 0x4d1);
 }
 
-int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
+int acpi_gsi_to_irq(u32 gsi, unsigned int *irqp)
 {
-	*irq = gsi_to_irq(gsi);
+	int irq = map_gsi_to_irq(gsi);
 
+	if (irq >= 0) {
 #ifdef CONFIG_X86_IO_APIC
-	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
-		setup_IO_APIC_irq_extra(gsi);
+		if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
+			setup_IO_APIC_irq_extra(gsi);
 #endif
+		*irqp = irq;
+		return 0;
+	}
 
-	return 0;
+	return -1;
 }
 EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
 
@@ -681,7 +678,7 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 
 	plat_gsi = __acpi_register_gsi(dev, gsi, trigger, polarity);
 	if (plat_gsi != ACPI_INVALID_GSI)
-		return gsi_to_irq(plat_gsi);
+		return map_gsi_to_irq(plat_gsi);
 
 	return -1;
 }
