@@ -71,9 +71,12 @@ static int tegra_target_intermediate(struct cpufreq_policy *policy,
 	/*
 	 * Take an extra reference to the main pll so it doesn't turn
 	 * off when we move the cpu off of it as enabling it again while we
-	 * switch to it from tegra_target() would take additional time. Though
-	 * when target-freq is intermediate freq, we don't need to take this
-	 * reference.
+	 * switch to it from tegra_target() would take additional time.
+	 *
+	 * When target-freq is equal to intermediate freq we don't need to
+	 * switch to an intermediate freq and so this routine isn't called.
+	 * Also, we wouldn't be using pll_x anymore and must not take extra
+	 * reference to it, as it can be disabled now to save some power.
 	 */
 	clk_prepare_enable(pll_x_clk);
 
