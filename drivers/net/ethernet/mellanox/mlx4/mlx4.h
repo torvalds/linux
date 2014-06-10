@@ -133,6 +133,11 @@ enum {
 	MLX4_COMM_CMD_FLR = 254
 };
 
+enum {
+	MLX4_VF_SMI_DISABLED,
+	MLX4_VF_SMI_ENABLED
+};
+
 /*The flag indicates that the slave should delay the RESET cmd*/
 #define MLX4_DELAY_RESET_SLAVE 0xbbbbbbb
 /*indicates how many retries will be done if we are in the middle of FLR*/
@@ -488,6 +493,7 @@ struct mlx4_vport_state {
 
 struct mlx4_vf_admin_state {
 	struct mlx4_vport_state vport[MLX4_MAX_PORTS + 1];
+	u8 enable_smi[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_vport_oper_state {
@@ -495,8 +501,10 @@ struct mlx4_vport_oper_state {
 	int mac_idx;
 	int vlan_idx;
 };
+
 struct mlx4_vf_oper_state {
 	struct mlx4_vport_oper_state vport[MLX4_MAX_PORTS + 1];
+	u8 smi_enabled[MLX4_MAX_PORTS + 1];
 };
 
 struct slave_list {
@@ -888,7 +896,7 @@ void mlx4_cleanup_cq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_qp_table(struct mlx4_dev *dev);
 void mlx4_cleanup_srq_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mcg_table(struct mlx4_dev *dev);
-int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn);
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp);
 void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn);
 int __mlx4_cq_alloc_icm(struct mlx4_dev *dev, int *cqn);
 void __mlx4_cq_free_icm(struct mlx4_dev *dev, int cqn);
@@ -896,7 +904,7 @@ int __mlx4_srq_alloc_icm(struct mlx4_dev *dev, int *srqn);
 void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn);
 int __mlx4_mpt_reserve(struct mlx4_dev *dev);
 void __mlx4_mpt_release(struct mlx4_dev *dev, u32 index);
-int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index);
+int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index, gfp_t gfp);
 void __mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index);
 u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order);
 void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 first_seg, int order);

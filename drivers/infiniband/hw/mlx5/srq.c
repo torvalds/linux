@@ -35,6 +35,7 @@
 #include <linux/mlx5/srq.h>
 #include <linux/slab.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "mlx5_ib.h"
 #include "user.h"
@@ -78,16 +79,27 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd;
+	size_t ucmdlen;
 	int err;
 	int npages;
 	int page_shift;
 	int ncont;
 	u32 offset;
 
-	if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
+	ucmdlen =
+		(udata->inlen - sizeof(struct ib_uverbs_cmd_hdr) <
+		 sizeof(ucmd)) ? (sizeof(ucmd) -
+				  sizeof(ucmd.reserved)) : sizeof(ucmd);
+
+	if (ib_copy_from_udata(&ucmd, udata, ucmdlen)) {
 		mlx5_ib_dbg(dev, "failed copy udata\n");
 		return -EFAULT;
 	}
+
+	if (ucmdlen == sizeof(ucmd) &&
+	    ucmd.reserved != 0)
+		return -EINVAL;
+
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
 	srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr, buf_size,

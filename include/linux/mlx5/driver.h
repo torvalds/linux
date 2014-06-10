@@ -427,7 +427,6 @@ struct mlx5_core_mr {
 	u64			size;
 	u32			key;
 	u32			pd;
-	u32			access;
 };
 
 struct mlx5_core_srq {

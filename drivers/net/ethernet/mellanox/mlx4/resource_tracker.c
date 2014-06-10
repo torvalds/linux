@@ -1532,7 +1532,7 @@ static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 			return err;
 
 		if (!fw_reserved(dev, qpn)) {
-			err = __mlx4_qp_alloc_icm(dev, qpn);
+			err = __mlx4_qp_alloc_icm(dev, qpn, GFP_KERNEL);
 			if (err) {
 				res_abort_move(dev, slave, RES_QP, qpn);
 				return err;
@@ -1619,7 +1619,7 @@ static int mpt_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 		if (err)
 			return err;
 
-		err = __mlx4_mpt_alloc_icm(dev, mpt->key);
+		err = __mlx4_mpt_alloc_icm(dev, mpt->key, GFP_KERNEL);
 		if (err) {
 			res_abort_move(dev, slave, RES_MPT, id);
 			return err;
@@ -2827,10 +2827,12 @@ static int get_containing_mtt(struct mlx4_dev *dev, int slave, int start,
 }
 
 static int verify_qp_parameters(struct mlx4_dev *dev,
+				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
 				enum qp_transition transition, u8 slave)
 {
 	u32			qp_type;
+	u32			qpn;
 	struct mlx4_qp_context	*qp_ctx;
 	enum mlx4_qp_optpar	optpar;
 	int port;
@@ -2873,8 +2875,22 @@ static int verify_qp_parameters(struct mlx4_dev *dev,
 		default:
 			break;
 		}
-
 		break;
+
+	case MLX4_QP_ST_MLX:
+		qpn = vhcr->in_modifier & 0x7fffff;
+		port = (qp_ctx->pri_path.sched_queue >> 6 & 1) + 1;
+		if (transition == QP_TRANS_INIT2RTR &&
+		    slave != mlx4_master_func_num(dev) &&
+		    mlx4_is_qp_reserved(dev, qpn) &&
+		    !mlx4_vf_smi_enabled(dev, slave, port)) {
+			/* only enabled VFs may create MLX proxy QPs */
+			mlx4_err(dev, "%s: unprivileged slave %d attempting to create an MLX proxy special QP on port %d\n",
+				 __func__, slave, port);
+			return -EPERM;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -3454,7 +3470,7 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, qpc, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_INIT2RTR, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_INIT2RTR, slave);
 	if (err)
 		return err;
 
@@ -3508,7 +3524,7 @@ int mlx4_RTR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTR2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_RTR2RTS, slave);
 	if (err)
 		return err;
 
@@ -3530,7 +3546,7 @@ int mlx4_RTS2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_RTS2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_RTS2RTS, slave);
 	if (err)
 		return err;
 
@@ -3567,7 +3583,7 @@ int mlx4_SQD2SQD_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2SQD, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_SQD2SQD, slave);
 	if (err)
 		return err;
 
@@ -3589,7 +3605,7 @@ int mlx4_SQD2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = adjust_qp_sched_queue(dev, slave, context, inbox);
 	if (err)
 		return err;
-	err = verify_qp_parameters(dev, inbox, QP_TRANS_SQD2RTS, slave);
+	err = verify_qp_parameters(dev, vhcr, inbox, QP_TRANS_SQD2RTS, slave);
 	if (err)
 		return err;
 

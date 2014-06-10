@@ -705,20 +705,28 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	struct ib_smp *smp = inbox->buf;
 	u32 index;
 	u8 port;
+	u8 opcode_modifier;
 	u16 *table;
 	int err;
 	int vidx, pidx;
+	int network_view;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct ib_smp *outsmp = outbox->buf;
 	__be16 *outtab = (__be16 *)(outsmp->data);
 	__be32 slave_cap_mask;
 	__be64 slave_node_guid;
+
 	port = vhcr->in_modifier;
+
+	/* network-view bit is for driver use only, and should not be passed to FW */
+	opcode_modifier = vhcr->op_modifier & ~0x8; /* clear netw view bit */
+	network_view = !!(vhcr->op_modifier & 0x8);
 
 	if (smp->base_version == 1 &&
 	    smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
 	    smp->class_version == 1) {
-		if (smp->method	== IB_MGMT_METHOD_GET) {
+		/* host view is paravirtualized */
+		if (!network_view && smp->method == IB_MGMT_METHOD_GET) {
 			if (smp->attr_id == IB_SMP_ATTR_PKEY_TABLE) {
 				index = be32_to_cpu(smp->attr_mod);
 				if (port < 1 || port > dev->caps.num_ports)
@@ -743,7 +751,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				/*get the slave specific caps:*/
 				/*do the command */
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					    vhcr->in_modifier, vhcr->op_modifier,
+					    vhcr->in_modifier, opcode_modifier,
 					    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				/* modify the response for slaves */
 				if (!err && slave != mlx4_master_func_num(dev)) {
@@ -760,7 +768,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				smp->attr_mod = cpu_to_be32(slave / 8);
 				/* execute cmd */
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, vhcr->op_modifier,
+					     vhcr->in_modifier, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					/* if needed, move slave gid to index 0 */
@@ -774,7 +782,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, vhcr->op_modifier,
+					     vhcr->in_modifier, opcode_modifier,
 					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 				if (!err) {
 					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
@@ -784,19 +792,24 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 			}
 		}
 	}
+
+	/* Non-privileged VFs are only allowed "host" view LID-routed 'Get' MADs.
+	 * These are the MADs used by ib verbs (such as ib_query_gids).
+	 */
 	if (slave != mlx4_master_func_num(dev) &&
-	    ((smp->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) ||
-	     (smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
-	      smp->method == IB_MGMT_METHOD_SET))) {
-		mlx4_err(dev, "slave %d is trying to execute a Subnet MGMT MAD, "
-			 "class 0x%x, method 0x%x for attr 0x%x. Rejecting\n",
-			 slave, smp->method, smp->mgmt_class,
-			 be16_to_cpu(smp->attr_id));
-		return -EPERM;
+	    !mlx4_vf_smi_enabled(dev, slave, port)) {
+		if (!(smp->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED &&
+		      smp->method == IB_MGMT_METHOD_GET) || network_view) {
+			mlx4_err(dev, "Unprivileged slave %d is trying to execute a Subnet MGMT MAD, class 0x%x, method 0x%x, view=%s for attr 0x%x. Rejecting\n",
+				 slave, smp->method, smp->mgmt_class,
+				 network_view ? "Network" : "Host",
+				 be16_to_cpu(smp->attr_id));
+			return -EPERM;
+		}
 	}
-	/*default:*/
+
 	return mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-				    vhcr->in_modifier, vhcr->op_modifier,
+				    vhcr->in_modifier, opcode_modifier,
 				    vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
 }
 
@@ -1653,6 +1666,8 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 	for (port = min_port; port <= max_port; port++) {
 		if (!test_bit(port - 1, actv_ports.ports))
 			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			priv->mfunc.master.vf_admin[slave].enable_smi[port];
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		vp_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 		vp_oper->state = *vp_admin;
@@ -1704,6 +1719,8 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 	for (port = min_port; port <= max_port; port++) {
 		if (!test_bit(port - 1, actv_ports.ports))
 			continue;
+		priv->mfunc.master.vf_oper[slave].smi_enabled[port] =
+			MLX4_VF_SMI_DISABLED;
 		vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 		if (NO_INDX != vp_oper->vlan_idx) {
 			__mlx4_unregister_vlan(&priv->dev,
@@ -2537,3 +2554,50 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_link_state);
+
+int mlx4_vf_smi_enabled(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_oper[slave].smi_enabled[port] ==
+		MLX4_VF_SMI_ENABLED;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_smi_enabled);
+
+int mlx4_vf_get_enable_smi_admin(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 1;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS)
+		return 0;
+
+	return priv->mfunc.master.vf_admin[slave].enable_smi[port] ==
+		MLX4_VF_SMI_ENABLED;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_get_enable_smi_admin);
+
+int mlx4_vf_set_enable_smi_admin(struct mlx4_dev *dev, int slave, int port,
+				 int enabled)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (slave == mlx4_master_func_num(dev))
+		return 0;
+
+	if (slave < 1 || slave >= dev->num_slaves ||
+	    port < 1 || port > MLX4_MAX_PORTS ||
+	    enabled < 0 || enabled > 1)
+		return -EINVAL;
+
+	priv->mfunc.master.vf_admin[slave].enable_smi[port] = enabled;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_vf_set_enable_smi_admin);

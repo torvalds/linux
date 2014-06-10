@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2009-2014 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -46,6 +46,8 @@
 #include <net/tcp.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+
+#include <rdma/ib_addr.h>
 
 #include "iw_cxgb4.h"
 
@@ -294,6 +296,12 @@ void _c4iw_free_ep(struct kref *kref)
 		dst_release(ep->dst);
 		cxgb4_l2t_release(ep->l2t);
 	}
+	if (test_bit(RELEASE_MAPINFO, &ep->com.flags)) {
+		print_addr(&ep->com, __func__, "remove_mapinfo/mapping");
+		iwpm_remove_mapinfo(&ep->com.local_addr,
+				    &ep->com.mapped_local_addr);
+		iwpm_remove_mapping(&ep->com.local_addr, RDMA_NL_C4IW);
+	}
 	kfree(ep);
 }
 
@@ -341,10 +349,7 @@ static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 
 static struct net_device *get_real_dev(struct net_device *egress_dev)
 {
-	struct net_device *phys_dev = egress_dev;
-	if (egress_dev->priv_flags & IFF_802_1Q_VLAN)
-		phys_dev = vlan_dev_real_dev(egress_dev);
-	return phys_dev;
+	return rdma_vlan_dev_real_dev(egress_dev) ? : egress_dev;
 }
 
 static int our_interface(struct c4iw_dev *dev, struct net_device *egress_dev)
@@ -528,6 +533,38 @@ static int send_abort(struct c4iw_ep *ep, struct sk_buff *skb, gfp_t gfp)
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
 
+/*
+ * c4iw_form_pm_msg - Form a port mapper message with mapping info
+ */
+static void c4iw_form_pm_msg(struct c4iw_ep *ep,
+				struct iwpm_sa_data *pm_msg)
+{
+	memcpy(&pm_msg->loc_addr, &ep->com.local_addr,
+		sizeof(ep->com.local_addr));
+	memcpy(&pm_msg->rem_addr, &ep->com.remote_addr,
+		sizeof(ep->com.remote_addr));
+}
+
+/*
+ * c4iw_form_reg_msg - Form a port mapper message with dev info
+ */
+static void c4iw_form_reg_msg(struct c4iw_dev *dev,
+				struct iwpm_dev_data *pm_msg)
+{
+	memcpy(pm_msg->dev_name, dev->ibdev.name, IWPM_DEVNAME_SIZE);
+	memcpy(pm_msg->if_name, dev->rdev.lldi.ports[0]->name,
+				IWPM_IFNAME_SIZE);
+}
+
+static void c4iw_record_pm_msg(struct c4iw_ep *ep,
+			struct iwpm_sa_data *pm_msg)
+{
+	memcpy(&ep->com.mapped_local_addr, &pm_msg->mapped_loc_addr,
+		sizeof(ep->com.mapped_local_addr));
+	memcpy(&ep->com.mapped_remote_addr, &pm_msg->mapped_rem_addr,
+		sizeof(ep->com.mapped_remote_addr));
+}
+
 static int send_connect(struct c4iw_ep *ep)
 {
 	struct cpl_act_open_req *req;
@@ -546,10 +583,14 @@ static int send_connect(struct c4iw_ep *ep)
 	int sizev6 = is_t4(ep->com.dev->rdev.lldi.adapter_type) ?
 				sizeof(struct cpl_act_open_req6) :
 				sizeof(struct cpl_t5_act_open_req6);
-	struct sockaddr_in *la = (struct sockaddr_in *)&ep->com.local_addr;
-	struct sockaddr_in *ra = (struct sockaddr_in *)&ep->com.remote_addr;
-	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
-	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	struct sockaddr_in *la = (struct sockaddr_in *)
+				 &ep->com.mapped_local_addr;
+	struct sockaddr_in *ra = (struct sockaddr_in *)
+				 &ep->com.mapped_remote_addr;
+	struct sockaddr_in6 *la6 = (struct sockaddr_in6 *)
+				   &ep->com.mapped_local_addr;
+	struct sockaddr_in6 *ra6 = (struct sockaddr_in6 *)
+				   &ep->com.mapped_remote_addr;
 
 	wrlen = (ep->com.remote_addr.ss_family == AF_INET) ?
 			roundup(sizev4, 16) :
@@ -1627,10 +1668,10 @@ static void send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 	req->le.filter = cpu_to_be32(cxgb4_select_ntuple(
 				     ep->com.dev->rdev.lldi.ports[0],
 				     ep->l2t));
-	sin = (struct sockaddr_in *)&ep->com.local_addr;
+	sin = (struct sockaddr_in *)&ep->com.mapped_local_addr;
 	req->le.lport = sin->sin_port;
 	req->le.u.ipv4.lip = sin->sin_addr.s_addr;
-	sin = (struct sockaddr_in *)&ep->com.remote_addr;
+	sin = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
 	req->le.pport = sin->sin_port;
 	req->le.u.ipv4.pip = sin->sin_addr.s_addr;
 	req->tcb.t_state_to_astid =
@@ -1746,16 +1787,16 @@ static int import_ep(struct c4iw_ep *ep, int iptype, __u8 *peer_ip,
 		if (!ep->l2t)
 			goto out;
 		ep->mtu = dst_mtu(dst);
-		ep->tx_chan = cxgb4_port_chan(n->dev);
-		ep->smac_idx = (cxgb4_port_viid(n->dev) & 0x7F) << 1;
+		ep->tx_chan = cxgb4_port_chan(pdev);
+		ep->smac_idx = (cxgb4_port_viid(pdev) & 0x7F) << 1;
 		step = cdev->rdev.lldi.ntxq /
 			cdev->rdev.lldi.nchan;
-		ep->txq_idx = cxgb4_port_idx(n->dev) * step;
-		ep->ctrlq_idx = cxgb4_port_idx(n->dev);
+		ep->txq_idx = cxgb4_port_idx(pdev) * step;
+		ep->ctrlq_idx = cxgb4_port_idx(pdev);
 		step = cdev->rdev.lldi.nrxq /
 			cdev->rdev.lldi.nchan;
 		ep->rss_qid = cdev->rdev.lldi.rxq_ids[
-			cxgb4_port_idx(n->dev) * step];
+			cxgb4_port_idx(pdev) * step];
 
 		if (clear_mpa_v1) {
 			ep->retry_with_mpa_v1 = 0;
@@ -1870,10 +1911,10 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct sockaddr_in6 *ra6;
 
 	ep = lookup_atid(t, atid);
-	la = (struct sockaddr_in *)&ep->com.local_addr;
-	ra = (struct sockaddr_in *)&ep->com.remote_addr;
-	la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
-	ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	la = (struct sockaddr_in *)&ep->com.mapped_local_addr;
+	ra = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
+	la6 = (struct sockaddr_in6 *)&ep->com.mapped_local_addr;
+	ra6 = (struct sockaddr_in6 *)&ep->com.mapped_remote_addr;
 
 	PDBG("%s ep %p atid %u status %u errno %d\n", __func__, ep, atid,
 	     status, status2errno(status));
@@ -2730,13 +2771,15 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep;
 	int err = 0;
-	struct sockaddr_in *laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	struct sockaddr_in *raddr = (struct sockaddr_in *)&cm_id->remote_addr;
-	struct sockaddr_in6 *laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
-	struct sockaddr_in6 *raddr6 = (struct sockaddr_in6 *)
-				      &cm_id->remote_addr;
+	struct sockaddr_in *laddr;
+	struct sockaddr_in *raddr;
+	struct sockaddr_in6 *laddr6;
+	struct sockaddr_in6 *raddr6;
+	struct iwpm_dev_data pm_reg_msg;
+	struct iwpm_sa_data pm_msg;
 	__u8 *ra;
 	int iptype;
+	int iwpm_err = 0;
 
 	if ((conn_param->ord > c4iw_max_read_depth) ||
 	    (conn_param->ird > c4iw_max_read_depth)) {
@@ -2767,7 +2810,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!ep->com.qp) {
 		PDBG("%s qpn 0x%x not found!\n", __func__, conn_param->qpn);
 		err = -EINVAL;
-		goto fail2;
+		goto fail1;
 	}
 	ref_qp(ep);
 	PDBG("%s qpn 0x%x qp %p cm_id %p\n", __func__, conn_param->qpn,
@@ -2780,9 +2823,49 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (ep->atid == -1) {
 		printk(KERN_ERR MOD "%s - cannot alloc atid.\n", __func__);
 		err = -ENOMEM;
-		goto fail2;
+		goto fail1;
 	}
 	insert_handle(dev, &dev->atid_idr, ep, ep->atid);
+
+	memcpy(&ep->com.local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.local_addr));
+	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
+	       sizeof(ep->com.remote_addr));
+
+	/* No port mapper available, go with the specified peer information */
+	memcpy(&ep->com.mapped_local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.mapped_local_addr));
+	memcpy(&ep->com.mapped_remote_addr, &cm_id->remote_addr,
+	       sizeof(ep->com.mapped_remote_addr));
+
+	c4iw_form_reg_msg(dev, &pm_reg_msg);
+	iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_C4IW);
+	if (iwpm_err) {
+		PDBG("%s: Port Mapper reg pid fail (err = %d).\n",
+			__func__, iwpm_err);
+	}
+	if (iwpm_valid_pid() && !iwpm_err) {
+		c4iw_form_pm_msg(ep, &pm_msg);
+		iwpm_err = iwpm_add_and_query_mapping(&pm_msg, RDMA_NL_C4IW);
+		if (iwpm_err)
+			PDBG("%s: Port Mapper query fail (err = %d).\n",
+				__func__, iwpm_err);
+		else
+			c4iw_record_pm_msg(ep, &pm_msg);
+	}
+	if (iwpm_create_mapinfo(&ep->com.local_addr,
+				&ep->com.mapped_local_addr, RDMA_NL_C4IW)) {
+		iwpm_remove_mapping(&ep->com.local_addr, RDMA_NL_C4IW);
+		err = -ENOMEM;
+		goto fail1;
+	}
+	print_addr(&ep->com, __func__, "add_query/create_mapinfo");
+	set_bit(RELEASE_MAPINFO, &ep->com.flags);
+
+	laddr = (struct sockaddr_in *)&ep->com.mapped_local_addr;
+	raddr = (struct sockaddr_in *)&ep->com.mapped_remote_addr;
+	laddr6 = (struct sockaddr_in6 *)&ep->com.mapped_local_addr;
+	raddr6 = (struct sockaddr_in6 *) &ep->com.mapped_remote_addr;
 
 	if (cm_id->remote_addr.ss_family == AF_INET) {
 		iptype = 4;
@@ -2794,7 +2877,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if ((__force int)raddr->sin_addr.s_addr == INADDR_ANY) {
 			err = pick_local_ipaddrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail1;
 		}
 
 		/* find a route */
@@ -2814,7 +2897,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		if (ipv6_addr_type(&raddr6->sin6_addr) == IPV6_ADDR_ANY) {
 			err = pick_local_ip6addrs(dev, cm_id);
 			if (err)
-				goto fail2;
+				goto fail1;
 		}
 
 		/* find a route */
@@ -2830,13 +2913,13 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!ep->dst) {
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
-		goto fail3;
+		goto fail2;
 	}
 
 	err = import_ep(ep, iptype, ra, ep->dst, ep->com.dev, true);
 	if (err) {
 		printk(KERN_ERR MOD "%s - cannot alloc l2e.\n", __func__);
-		goto fail4;
+		goto fail3;
 	}
 
 	PDBG("%s txq_idx %u tx_chan %u smac_idx %u rss_qid %u l2t_idx %u\n",
@@ -2845,10 +2928,6 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
-	memcpy(&ep->com.local_addr, &cm_id->local_addr,
-	       sizeof(ep->com.local_addr));
-	memcpy(&ep->com.remote_addr, &cm_id->remote_addr,
-	       sizeof(ep->com.remote_addr));
 
 	/* send connect request to rnic */
 	err = send_connect(ep);
@@ -2856,12 +2935,12 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 
 	cxgb4_l2t_release(ep->l2t);
-fail4:
-	dst_release(ep->dst);
 fail3:
+	dst_release(ep->dst);
+fail2:
 	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
-fail2:
+fail1:
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);
 out:
@@ -2871,7 +2950,8 @@ out:
 static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 {
 	int err;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)
+				    &ep->com.mapped_local_addr;
 
 	c4iw_init_wr_wait(&ep->com.wr_wait);
 	err = cxgb4_create_server6(ep->com.dev->rdev.lldi.ports[0],
@@ -2892,7 +2972,8 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 static int create_server4(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 {
 	int err;
-	struct sockaddr_in *sin = (struct sockaddr_in *)&ep->com.local_addr;
+	struct sockaddr_in *sin = (struct sockaddr_in *)
+				  &ep->com.mapped_local_addr;
 
 	if (dev->rdev.lldi.enable_fw_ofld_conn) {
 		do {
@@ -2927,6 +3008,9 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	int err = 0;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_listen_ep *ep;
+	struct iwpm_dev_data pm_reg_msg;
+	struct iwpm_sa_data pm_msg;
+	int iwpm_err = 0;
 
 	might_sleep();
 
@@ -2961,6 +3045,37 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail2;
 	}
 	insert_handle(dev, &dev->stid_idr, ep, ep->stid);
+
+	/* No port mapper available, go with the specified info */
+	memcpy(&ep->com.mapped_local_addr, &cm_id->local_addr,
+	       sizeof(ep->com.mapped_local_addr));
+
+	c4iw_form_reg_msg(dev, &pm_reg_msg);
+	iwpm_err = iwpm_register_pid(&pm_reg_msg, RDMA_NL_C4IW);
+	if (iwpm_err) {
+		PDBG("%s: Port Mapper reg pid fail (err = %d).\n",
+			__func__, iwpm_err);
+	}
+	if (iwpm_valid_pid() && !iwpm_err) {
+		memcpy(&pm_msg.loc_addr, &ep->com.local_addr,
+				sizeof(ep->com.local_addr));
+		iwpm_err = iwpm_add_mapping(&pm_msg, RDMA_NL_C4IW);
+		if (iwpm_err)
+			PDBG("%s: Port Mapper query fail (err = %d).\n",
+				__func__, iwpm_err);
+		else
+			memcpy(&ep->com.mapped_local_addr,
+				&pm_msg.mapped_loc_addr,
+				sizeof(ep->com.mapped_local_addr));
+	}
+	if (iwpm_create_mapinfo(&ep->com.local_addr,
+				&ep->com.mapped_local_addr, RDMA_NL_C4IW)) {
+		err = -ENOMEM;
+		goto fail3;
+	}
+	print_addr(&ep->com, __func__, "add_mapping/create_mapinfo");
+
+	set_bit(RELEASE_MAPINFO, &ep->com.flags);
 	state_set(&ep->com, LISTEN);
 	if (ep->com.local_addr.ss_family == AF_INET)
 		err = create_server4(dev, ep);
@@ -2970,6 +3085,8 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		cm_id->provider_data = ep;
 		goto out;
 	}
+
+fail3:
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid,
 			ep->com.local_addr.ss_family);
 fail2:

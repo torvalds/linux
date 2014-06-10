@@ -99,6 +99,7 @@ MODULE_PARM_DESC(pi_enable, "Enable T10-PI offload support (default:disabled)");
 module_param_named(pi_guard, iser_pi_guard, int, 0644);
 MODULE_PARM_DESC(pi_guard, "T10-PI guard_type, 0:CRC|1:IP_CSUM (default:CRC)");
 
+static struct workqueue_struct *release_wq;
 struct iser_global ig;
 
 void
@@ -337,24 +338,6 @@ iscsi_iser_conn_create(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	return cls_conn;
 }
 
-static void
-iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
-{
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iser_conn *ib_conn = conn->dd_data;
-
-	iscsi_conn_teardown(cls_conn);
-	/*
-	 * Userspace will normally call the stop callback and
-	 * already have freed the ib_conn, but if it goofed up then
-	 * we free it here.
-	 */
-	if (ib_conn) {
-		ib_conn->iscsi_conn = NULL;
-		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
-	}
-}
-
 static int
 iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 		     struct iscsi_cls_conn *cls_conn, uint64_t transport_eph,
@@ -392,8 +375,20 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	conn->dd_data = ib_conn;
 	ib_conn->iscsi_conn = conn;
 
-	iser_conn_get(ib_conn); /* ref iscsi/ib conn binding */
 	return 0;
+}
+
+static int
+iscsi_iser_conn_start(struct iscsi_cls_conn *cls_conn)
+{
+	struct iscsi_conn *iscsi_conn;
+	struct iser_conn *ib_conn;
+
+	iscsi_conn = cls_conn->dd_data;
+	ib_conn = iscsi_conn->dd_data;
+	reinit_completion(&ib_conn->stop_completion);
+
+	return iscsi_conn_start(cls_conn);
 }
 
 static void
@@ -402,19 +397,17 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iser_conn *ib_conn = conn->dd_data;
 
+	iser_dbg("stopping iscsi_conn: %p, ib_conn: %p\n", conn, ib_conn);
+	iscsi_conn_stop(cls_conn, flag);
+
 	/*
 	 * Userspace may have goofed up and not bound the connection or
 	 * might have only partially setup the connection.
 	 */
 	if (ib_conn) {
-		iscsi_conn_stop(cls_conn, flag);
-		/*
-		 * There is no unbind event so the stop callback
-		 * must release the ref from the bind.
-		 */
-		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
+		conn->dd_data = NULL;
+		complete(&ib_conn->stop_completion);
 	}
-	conn->dd_data = NULL;
 }
 
 static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
@@ -515,28 +508,28 @@ iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_HDRDGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("DataDigest wasn't negotiated to None");
+			iser_err("DataDigest wasn't negotiated to None\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_DATADGST_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("DataDigest wasn't negotiated to None");
+			iser_err("DataDigest wasn't negotiated to None\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_IFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("IFMarker wasn't negotiated to No");
+			iser_err("IFMarker wasn't negotiated to No\n");
 			return -EPROTO;
 		}
 		break;
 	case ISCSI_PARAM_OFMARKER_EN:
 		sscanf(buf, "%d", &value);
 		if (value) {
-			iser_err("OFMarker wasn't negotiated to No");
+			iser_err("OFMarker wasn't negotiated to No\n");
 			return -EPROTO;
 		}
 		break;
@@ -652,19 +645,20 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	struct iser_conn *ib_conn;
 
 	ib_conn = ep->dd_data;
-	if (ib_conn->iscsi_conn)
-		/*
-		 * Must suspend xmit path if the ep is bound to the
-		 * iscsi_conn, so we know we are not accessing the ib_conn
-		 * when we free it.
-		 *
-		 * This may not be bound if the ep poll failed.
-		 */
-		iscsi_suspend_tx(ib_conn->iscsi_conn);
-
-
-	iser_info("ib conn %p state %d\n", ib_conn, ib_conn->state);
+	iser_info("ep %p ib conn %p state %d\n", ep, ib_conn, ib_conn->state);
 	iser_conn_terminate(ib_conn);
+
+	/*
+	 * if iser_conn and iscsi_conn are bound, we must wait iscsi_conn_stop
+	 * call and ISER_CONN_DOWN state before freeing the iser resources.
+	 * otherwise we are safe to free resources immediately.
+	 */
+	if (ib_conn->iscsi_conn) {
+		INIT_WORK(&ib_conn->release_work, iser_release_work);
+		queue_work(release_wq, &ib_conn->release_work);
+	} else {
+		iser_conn_release(ib_conn);
+	}
 }
 
 static umode_t iser_attr_is_visible(int param_type, int param)
@@ -748,13 +742,13 @@ static struct iscsi_transport iscsi_iser_transport = {
 	/* connection management */
 	.create_conn            = iscsi_iser_conn_create,
 	.bind_conn              = iscsi_iser_conn_bind,
-	.destroy_conn           = iscsi_iser_conn_destroy,
+	.destroy_conn           = iscsi_conn_teardown,
 	.attr_is_visible	= iser_attr_is_visible,
 	.set_param              = iscsi_iser_set_param,
 	.get_conn_param		= iscsi_conn_get_param,
 	.get_ep_param		= iscsi_iser_get_ep_param,
 	.get_session_param	= iscsi_session_get_param,
-	.start_conn             = iscsi_conn_start,
+	.start_conn             = iscsi_iser_conn_start,
 	.stop_conn              = iscsi_iser_conn_stop,
 	/* iscsi host params */
 	.get_host_param		= iscsi_host_get_param,
@@ -801,6 +795,12 @@ static int __init iser_init(void)
 	mutex_init(&ig.connlist_mutex);
 	INIT_LIST_HEAD(&ig.connlist);
 
+	release_wq = alloc_workqueue("release workqueue", 0, 0);
+	if (!release_wq) {
+		iser_err("failed to allocate release workqueue\n");
+		return -ENOMEM;
+	}
+
 	iscsi_iser_scsi_transport = iscsi_register_transport(
 							&iscsi_iser_transport);
 	if (!iscsi_iser_scsi_transport) {
@@ -819,7 +819,24 @@ register_transport_failure:
 
 static void __exit iser_exit(void)
 {
+	struct iser_conn *ib_conn, *n;
+	int connlist_empty;
+
 	iser_dbg("Removing iSER datamover...\n");
+	destroy_workqueue(release_wq);
+
+	mutex_lock(&ig.connlist_mutex);
+	connlist_empty = list_empty(&ig.connlist);
+	mutex_unlock(&ig.connlist_mutex);
+
+	if (!connlist_empty) {
+		iser_err("Error cleanup stage completed but we still have iser "
+			 "connections, destroying them anyway.\n");
+		list_for_each_entry_safe(ib_conn, n, &ig.connlist, conn_list) {
+			iser_conn_release(ib_conn);
+		}
+	}
+
 	iscsi_unregister_transport(&iscsi_iser_transport);
 	kmem_cache_destroy(ig.desc_cache);
 }
