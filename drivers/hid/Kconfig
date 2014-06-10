@@ -785,7 +785,7 @@ config HID_XINMO
 	depends on HID
 	---help---
 	Support for Xin-Mo devices that are not fully compliant with the HID
-	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
 	if you have a Xin-Mo Dual Arcade controller.
 
 config HID_ZEROPLUS
