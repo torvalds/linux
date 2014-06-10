@@ -75,11 +75,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 		goto out;
 
 	session->repipe = repipe;
-	INIT_LIST_HEAD(&session->ordered_events.events);
-	INIT_LIST_HEAD(&session->ordered_events.cache);
-	INIT_LIST_HEAD(&session->ordered_events.to_free);
-	session->ordered_events.max_alloc_size = (u64) -1;
-	session->ordered_events.cur_alloc_size = 0;
+	ordered_events__init(&session->ordered_events);
 	machines__init(&session->machines);
 
 	if (file) {

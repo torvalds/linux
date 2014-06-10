@@ -38,4 +38,5 @@ struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timesta
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
 int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 			  enum oe_flush how);
+void ordered_events__init(struct ordered_events *oe);
 #endif /* __ORDERED_EVENTS_H */

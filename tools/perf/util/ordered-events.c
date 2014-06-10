@@ -193,3 +193,12 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 
 	return err;
 }
+
+void ordered_events__init(struct ordered_events *oe)
+{
+	INIT_LIST_HEAD(&oe->events);
+	INIT_LIST_HEAD(&oe->cache);
+	INIT_LIST_HEAD(&oe->to_free);
+	oe->max_alloc_size = (u64) -1;
+	oe->cur_alloc_size = 0;
+}
