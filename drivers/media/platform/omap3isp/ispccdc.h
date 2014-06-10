@@ -124,6 +124,7 @@ struct ispccdc_lsc {
  * @lock: Serializes shadow_update with interrupt handler
  * @wait: Wait queue used to stop the module
  * @stopping: Stopping state
+ * @running: Is the CCDC hardware running
  * @ioctl_lock: Serializes ioctl calls and LSC requests freeing
  */
 struct isp_ccdc_device {
@@ -155,6 +156,7 @@ struct isp_ccdc_device {
 	spinlock_t lock;
 	wait_queue_head_t wait;
 	unsigned int stopping;
+	bool running;
 	struct mutex ioctl_lock;
 };
 

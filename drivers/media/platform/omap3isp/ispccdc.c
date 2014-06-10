@@ -1320,6 +1320,8 @@ static void __ccdc_enable(struct isp_ccdc_device *ccdc, int enable)
 
 	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_PCR,
 			ISPCCDC_PCR_EN, enable ? ISPCCDC_PCR_EN : 0);
+
+	ccdc->running = enable;
 }
 
 static int ccdc_disable(struct isp_ccdc_device *ccdc)
@@ -1330,6 +1332,8 @@ static int ccdc_disable(struct isp_ccdc_device *ccdc)
 	spin_lock_irqsave(&ccdc->lock, flags);
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS)
 		ccdc->stopping = CCDC_STOP_REQUEST;
+	if (!ccdc->running)
+		ccdc->stopping = CCDC_STOP_FINISHED;
 	spin_unlock_irqrestore(&ccdc->lock, flags);
 
 	ret = wait_event_timeout(ccdc->wait,
