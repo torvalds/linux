@@ -378,6 +378,7 @@ void br_dev_setup(struct net_device *dev)
 
 	br->stp_enabled = BR_NO_STP;
 	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;
+	br->group_fwd_mask_required = BR_GROUPFWD_DEFAULT;
 
 	br->designated_root = br->bridge_id;
 	br->bridge_max_age = br->max_age = 20 * HZ;

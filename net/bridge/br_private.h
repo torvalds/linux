@@ -35,6 +35,8 @@
 #define BR_GROUPFWD_DEFAULT	0
 /* Don't allow forwarding control protocols like STP and LLDP */
 #define BR_GROUPFWD_RESTRICTED	0x4007u
+/* The Nearest Customer Bridge Group Address, 01-80-C2-00-00-[00,0B,0C,0D,0F] */
+#define BR_GROUPFWD_8021AD	0xB801u
 
 /* Path to usermode spanning tree program */
 #define BR_STP_PROG	"/sbin/bridge-stp"
@@ -226,6 +228,7 @@ struct net_bridge
 	bool				nf_call_arptables;
 #endif
 	u16				group_fwd_mask;
+	u16				group_fwd_mask_required;
 
 	/* STP */
 	bridge_id			designated_root;
