@@ -180,7 +180,7 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 		flags |= DMA_PREP_INTERRUPT;
 
 	prtd->pos = 0;
-#if CONFIG_ARCH_ROCKCHIP
+#ifdef CONFIG_ARCH_ROCKCHIP
 	//printk("soc dma buffersize = %d , periodsize=%d, periods=%d\n",
 	//	snd_pcm_lib_buffer_bytes(substream),
 	//	snd_pcm_lib_period_bytes(substream),
@@ -259,6 +259,15 @@ EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	dma_addr_t src, dst;
+
+	prtd->dma_chan->device->dma_getposition(prtd->dma_chan, &src, &dst);
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		prtd->pos = dst - substream->runtime->dma_addr;
+	else
+		prtd->pos = src - substream->runtime->dma_addr;
+#endif
 	return bytes_to_frames(substream->runtime, prtd->pos);
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_no_residue);

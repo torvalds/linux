@@ -601,6 +601,10 @@ struct dma_device {
 	enum dma_status (*device_tx_status)(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *txstate);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	int (*dma_getposition)(struct dma_chan *chan,
+		dma_addr_t *src, dma_addr_t *dst);
+#endif
 	void (*device_issue_pending)(struct dma_chan *chan);
 };
 
