@@ -1799,6 +1799,7 @@ static int nf_tables_newrule(struct sock *nlsk, struct sk_buff *skb,
 				goto err2;
 			}
 			nft_rule_disactivate_next(net, old_rule);
+			chain->use--;
 			list_add_tail_rcu(&rule->list, &old_rule->list);
 		} else {
 			err = -ENOENT;
@@ -1829,6 +1830,7 @@ err3:
 		list_del_rcu(&nft_trans_rule(trans)->list);
 		nft_rule_clear(net, nft_trans_rule(trans));
 		nft_trans_destroy(trans);
+		chain->use++;
 	}
 err2:
 	nf_tables_rule_destroy(&ctx, rule);
