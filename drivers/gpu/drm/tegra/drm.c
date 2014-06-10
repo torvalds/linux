@@ -132,6 +132,45 @@ host1x_bo_lookup(struct drm_device *drm, struct drm_file *file, u32 handle)
 	return &bo->base;
 }
 
+static int host1x_reloc_copy_from_user(struct host1x_reloc *dest,
+				       struct drm_tegra_reloc __user *src,
+				       struct drm_device *drm,
+				       struct drm_file *file)
+{
+	u32 cmdbuf, target;
+	int err;
+
+	err = get_user(cmdbuf, &src->cmdbuf.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->cmdbuf.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(target, &src->target.handle);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->target.offset, &src->cmdbuf.offset);
+	if (err < 0)
+		return err;
+
+	err = get_user(dest->shift, &src->shift);
+	if (err < 0)
+		return err;
+
+	dest->cmdbuf.bo = host1x_bo_lookup(drm, file, cmdbuf);
+	if (!dest->cmdbuf.bo)
+		return -ENOENT;
+
+	dest->target.bo = host1x_bo_lookup(drm, file, target);
+	if (!dest->target.bo)
+		return -ENOENT;
+
+	return 0;
+}
+
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file)
@@ -184,26 +223,13 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		cmdbufs++;
 	}
 
-	if (copy_from_user(job->relocarray, relocs,
-			   sizeof(*relocs) * num_relocs)) {
-		err = -EFAULT;
-		goto fail;
-	}
-
+	/* copy and resolve relocations from submit */
 	while (num_relocs--) {
-		struct host1x_reloc *reloc = &job->relocarray[num_relocs];
-		struct host1x_bo *cmdbuf, *target;
-
-		cmdbuf = host1x_bo_lookup(drm, file, (u32)reloc->cmdbuf);
-		target = host1x_bo_lookup(drm, file, (u32)reloc->target);
-
-		reloc->cmdbuf = cmdbuf;
-		reloc->target = target;
-
-		if (!reloc->target || !reloc->cmdbuf) {
-			err = -ENOENT;
+		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
+						  &relocs[num_relocs], drm,
+						  file);
+		if (err < 0)
 			goto fail;
-		}
 	}
 
 	if (copy_from_user(job->waitchk, waitchks,
