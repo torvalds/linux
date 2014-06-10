@@ -202,3 +202,14 @@ void ordered_events__init(struct ordered_events *oe)
 	oe->max_alloc_size = (u64) -1;
 	oe->cur_alloc_size = 0;
 }
+
+void ordered_events__free(struct ordered_events *oe)
+{
+	while (!list_empty(&oe->to_free)) {
+		struct ordered_event *event;
+
+		event = list_entry(oe->to_free.next, struct ordered_event, list);
+		list_del(&event->list);
+		free(event);
+	}
+}

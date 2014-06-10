@@ -39,4 +39,5 @@ void ordered_events__delete(struct ordered_events *oe, struct ordered_event *eve
 int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 			  enum oe_flush how);
 void ordered_events__init(struct ordered_events *oe);
+void ordered_events__free(struct ordered_events *oe);
 #endif /* __ORDERED_EVENTS_H */
