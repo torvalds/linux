@@ -68,6 +68,11 @@ static const uint32_t intel_primary_formats_gen4[] = {
 	DRM_FORMAT_ABGR2101010,
 };
 
+/* Cursor formats */
+static const uint32_t intel_cursor_formats[] = {
+	DRM_FORMAT_ARGB8888,
+};
+
 #define DIV_ROUND_CLOSEST_ULL(ll, d)	\
 ({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
 
@@ -8044,8 +8049,8 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	int x = intel_crtc->cursor_x;
-	int y = intel_crtc->cursor_y;
+	int x = crtc->cursor_x;
+	int y = crtc->cursor_y;
 	u32 base = 0, pos = 0;
 
 	if (on)
@@ -8180,7 +8185,6 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 	if (intel_crtc->cursor_bo) {
 		if (!INTEL_INFO(dev)->cursor_needs_physical)
 			i915_gem_object_unpin_from_display_plane(intel_crtc->cursor_bo);
-		drm_gem_object_unreference(&intel_crtc->cursor_bo->base);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -8206,38 +8210,6 @@ fail_locked:
 fail:
 	drm_gem_object_unreference_unlocked(&obj->base);
 	return ret;
-}
-
-static int intel_crtc_cursor_set(struct drm_crtc *crtc,
-				 struct drm_file *file,
-				 uint32_t handle,
-				 uint32_t width, uint32_t height)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_gem_object *obj;
-
-	if (handle) {
-		obj = to_intel_bo(drm_gem_object_lookup(dev, file, handle));
-		if (&obj->base == NULL)
-			return -ENOENT;
-	} else {
-		obj = NULL;
-	}
-
-	return intel_crtc_cursor_set_obj(crtc, obj, width, height);
-}
-
-static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->cursor_x = clamp_t(int, x, SHRT_MIN, SHRT_MAX);
-	intel_crtc->cursor_y = clamp_t(int, y, SHRT_MIN, SHRT_MAX);
-
-	if (intel_crtc->active)
-		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
-
-	return 0;
 }
 
 static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
@@ -8884,8 +8856,6 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 		cancel_work_sync(&work->work);
 		kfree(work);
 	}
-
-	intel_crtc_cursor_set(crtc, NULL, 0, 0, 0);
 
 	drm_crtc_cleanup(crtc);
 
@@ -10942,8 +10912,6 @@ out_config:
 }
 
 static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.cursor_set = intel_crtc_cursor_set,
-	.cursor_move = intel_crtc_cursor_move,
 	.gamma_set = intel_crtc_gamma_set,
 	.set_config = intel_crtc_set_config,
 	.destroy = intel_crtc_destroy,
@@ -11196,7 +11164,8 @@ intel_primary_plane_setplane(struct drm_plane *plane, struct drm_crtc *crtc,
 	return 0;
 }
 
-static void intel_primary_plane_destroy(struct drm_plane *plane)
+/* Common destruction function for both primary and cursor planes */
+static void intel_plane_destroy(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	drm_plane_cleanup(plane);
@@ -11206,7 +11175,7 @@ static void intel_primary_plane_destroy(struct drm_plane *plane)
 static const struct drm_plane_funcs intel_primary_plane_funcs = {
 	.update_plane = intel_primary_plane_setplane,
 	.disable_plane = intel_primary_plane_disable,
-	.destroy = intel_primary_plane_destroy,
+	.destroy = intel_plane_destroy,
 };
 
 static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
@@ -11242,11 +11211,100 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	return &primary->base;
 }
 
+static int
+intel_cursor_plane_disable(struct drm_plane *plane)
+{
+	if (!plane->fb)
+		return 0;
+
+	BUG_ON(!plane->crtc);
+
+	return intel_crtc_cursor_set_obj(plane->crtc, NULL, 0, 0);
+}
+
+static int
+intel_cursor_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+			  struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+			  unsigned int crtc_w, unsigned int crtc_h,
+			  uint32_t src_x, uint32_t src_y,
+			  uint32_t src_w, uint32_t src_h)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_rect dest = {
+		/* integer pixels */
+		.x1 = crtc_x,
+		.y1 = crtc_y,
+		.x2 = crtc_x + crtc_w,
+		.y2 = crtc_y + crtc_h,
+	};
+	struct drm_rect src = {
+		/* 16.16 fixed point */
+		.x1 = src_x,
+		.y1 = src_y,
+		.x2 = src_x + src_w,
+		.y2 = src_y + src_h,
+	};
+	const struct drm_rect clip = {
+		/* integer pixels */
+		.x2 = intel_crtc->config.pipe_src_w,
+		.y2 = intel_crtc->config.pipe_src_h,
+	};
+	bool visible;
+	int ret;
+
+	ret = drm_plane_helper_check_update(plane, crtc, fb,
+					    &src, &dest, &clip,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    DRM_PLANE_HELPER_NO_SCALING,
+					    true, true, &visible);
+	if (ret)
+		return ret;
+
+	crtc->cursor_x = crtc_x;
+	crtc->cursor_y = crtc_y;
+	if (fb != crtc->cursor->fb) {
+		return intel_crtc_cursor_set_obj(crtc, obj, crtc_w, crtc_h);
+	} else {
+		intel_crtc_update_cursor(crtc, visible);
+		return 0;
+	}
+}
+static const struct drm_plane_funcs intel_cursor_plane_funcs = {
+	.update_plane = intel_cursor_plane_update,
+	.disable_plane = intel_cursor_plane_disable,
+	.destroy = intel_plane_destroy,
+};
+
+static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
+						   int pipe)
+{
+	struct intel_plane *cursor;
+
+	cursor = kzalloc(sizeof(*cursor), GFP_KERNEL);
+	if (cursor == NULL)
+		return NULL;
+
+	cursor->can_scale = false;
+	cursor->max_downscale = 1;
+	cursor->pipe = pipe;
+	cursor->plane = pipe;
+
+	drm_universal_plane_init(dev, &cursor->base, 0,
+				 &intel_cursor_plane_funcs,
+				 intel_cursor_formats,
+				 ARRAY_SIZE(intel_cursor_formats),
+				 DRM_PLANE_TYPE_CURSOR);
+	return &cursor->base;
+}
+
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc;
-	struct drm_plane *primary;
+	struct drm_plane *primary = NULL;
+	struct drm_plane *cursor = NULL;
 	int i, ret;
 
 	intel_crtc = kzalloc(sizeof(*intel_crtc), GFP_KERNEL);
@@ -11254,13 +11312,17 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 		return;
 
 	primary = intel_primary_plane_create(dev, pipe);
+	if (!primary)
+		goto fail;
+
+	cursor = intel_cursor_plane_create(dev, pipe);
+	if (!cursor)
+		goto fail;
+
 	ret = drm_crtc_init_with_planes(dev, &intel_crtc->base, primary,
-					NULL, &intel_crtc_funcs);
-	if (ret) {
-		drm_plane_cleanup(primary);
-		kfree(intel_crtc);
-		return;
-	}
+					cursor, &intel_crtc_funcs);
+	if (ret)
+		goto fail;
 
 	drm_mode_crtc_set_gamma_size(&intel_crtc->base, 256);
 	for (i = 0; i < 256; i++) {
@@ -11293,6 +11355,14 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
 	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
+	return;
+
+fail:
+	if (primary)
+		drm_plane_cleanup(primary);
+	if (cursor)
+		drm_plane_cleanup(cursor);
+	kfree(intel_crtc);
 }
 
 enum pipe intel_get_pipe_from_connector(struct intel_connector *connector)
