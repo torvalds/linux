@@ -290,7 +290,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 		 * done before we pop in the zero below
 		 */
 		btrfs_init_reloc_root(trans, root);
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(BTRFS_ROOT_IN_TRANS_SETUP, &root->state);
 	}
 	return 0;
@@ -1060,7 +1060,7 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 
 			/* see comments in should_cow_block() */
 			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 
 			if (root->commit_root != root->node) {
 				list_add_tail(&root->dirty_list,
