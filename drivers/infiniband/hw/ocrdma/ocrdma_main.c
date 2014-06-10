@@ -353,15 +353,25 @@ static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
 {
 	struct ocrdma_dev *dev = dev_get_drvdata(device);
 
-	return scnprintf(buf, PAGE_SIZE, "%s", &dev->attr.fw_ver[0]);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->attr.fw_ver[0]);
+}
+
+static ssize_t show_hca_type(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ocrdma_dev *dev = dev_get_drvdata(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
 static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
+static DEVICE_ATTR(hca_type, S_IRUGO, show_hca_type, NULL);
 
 static struct device_attribute *ocrdma_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver
+	&dev_attr_fw_ver,
+	&dev_attr_hca_type
 };
 
 static void ocrdma_remove_sysfiles(struct ocrdma_dev *dev)
