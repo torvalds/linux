@@ -208,3 +208,56 @@ void omap2xxx_clkt_vps_late_init(void)
 		clk_put(c);
 	}
 }
+
+#ifdef CONFIG_OF
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
+
+static const struct clk_ops virt_prcm_set_ops = {
+	.recalc_rate	= &omap2_table_mpu_recalc,
+	.set_rate	= &omap2_select_table_rate,
+	.round_rate	= &omap2_round_to_table_rate,
+};
+
+/**
+ * omap2xxx_clkt_vps_init - initialize virt_prcm_set clock
+ *
+ * Does a manual init for the virtual prcm DVFS clock for OMAP2. This
+ * function is called only from omap2 DT clock init, as the virtual
+ * node is not modelled in the DT clock data.
+ */
+void omap2xxx_clkt_vps_init(void)
+{
+	struct clk_init_data init = { NULL };
+	struct clk_hw_omap *hw = NULL;
+	struct clk *clk;
+	const char *parent_name = "mpu_ck";
+	struct clk_lookup *lookup = NULL;
+
+	omap2xxx_clkt_vps_late_init();
+	omap2xxx_clkt_vps_check_bootloader_rates();
+
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
+	lookup = kzalloc(sizeof(*lookup), GFP_KERNEL);
+	if (!hw || !lookup)
+		goto cleanup;
+	init.name = "virt_prcm_set";
+	init.ops = &virt_prcm_set_ops;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	hw->hw.init = &init;
+
+	clk = clk_register(NULL, &hw->hw);
+
+	lookup->dev_id = NULL;
+	lookup->con_id = "cpufreq_ck";
+	lookup->clk = clk;
+
+	clkdev_add(lookup);
+	return;
+cleanup:
+	kfree(hw);
+	kfree(lookup);
+}
+#endif
