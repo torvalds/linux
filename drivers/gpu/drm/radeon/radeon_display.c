@@ -462,9 +462,6 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	/* We borrow the event spin lock for protecting flip_work */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
-	/* update crtc fb */
-	crtc->primary->fb = fb;
-
 	/* set the proper interrupt */
 	radeon_irq_kms_pflip_irq_get(rdev, radeon_crtc->crtc_id);
 
@@ -538,6 +535,9 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 	radeon_crtc->flip_work = work;
+
+	/* update crtc fb */
+	crtc->primary->fb = fb;
 
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
