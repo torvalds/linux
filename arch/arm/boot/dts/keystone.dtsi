@@ -66,9 +66,21 @@
 		ranges = <0x0 0x0 0x0 0xc0000000>;
 		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
 
+		pllctrl: pll-controller@02310000 {
+			compatible = "ti,keystone-pllctrl", "syscon";
+			reg = <0x02310000 0x200>;
+		};
+
+		devctrl: device-state-control@02620000 {
+			compatible = "ti,keystone-devctrl", "syscon";
+			reg = <0x02620000 0x1000>;
+		};
+
 		rstctrl: reset-controller {
 			compatible = "ti,keystone-reset";
-			reg = <0x023100e8 4>;	/* pll reset control reg */
+			ti,syscon-pll = <&pllctrl 0xe4>;
+			ti,syscon-dev = <&devctrl 0x328>;
+			ti,wdt-list = <0>;
 		};
 
 		/include/ "keystone-clocks.dtsi"

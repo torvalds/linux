@@ -45,7 +45,7 @@ static void __init orion5x_dt_init(void)
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
 
-	BUG_ON(mvebu_mbus_dt_init());
+	BUG_ON(mvebu_mbus_dt_init(false));
 
 	/*
 	 * Setup Orion address map
