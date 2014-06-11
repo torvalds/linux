@@ -77,17 +77,27 @@ STATIC int xfs_attr_refillstate(xfs_da_state_t *state);
 
 
 STATIC int
-xfs_attr_name_to_xname(
-	struct xfs_name	*xname,
-	const unsigned char *aname)
+xfs_attr_args_init(
+	struct xfs_da_args	*args,
+	struct xfs_inode	*dp,
+	const unsigned char	*name,
+	int			flags)
 {
-	if (!aname)
+
+	if (!name)
 		return EINVAL;
-	xname->name = aname;
-	xname->len = strlen((char *)aname);
-	if (xname->len >= MAXNAMELEN)
+
+	memset(args, 0, sizeof(*args));
+	args->geo = dp->i_mount->m_attr_geo;
+	args->whichfork = XFS_ATTR_FORK;
+	args->dp = dp;
+	args->flags = flags;
+	args->name = name;
+	args->namelen = strlen((const char *)name);
+	if (args->namelen >= MAXNAMELEN)
 		return EFAULT;		/* match IRIX behaviour */
 
+	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	return 0;
 }
 
@@ -106,79 +116,46 @@ xfs_inode_hasattr(
  * Overall external interface routines.
  *========================================================================*/
 
-STATIC int
-xfs_attr_get_int(
+int
+xfs_attr_get(
 	struct xfs_inode	*ip,
-	struct xfs_name		*name,
+	const unsigned char	*name,
 	unsigned char		*value,
 	int			*valuelenp,
 	int			flags)
 {
-	xfs_da_args_t   args;
-	int             error;
-
-	if (!xfs_inode_hasattr(ip))
-		return ENOATTR;
-
-	/*
-	 * Fill in the arg structure for this request.
-	 */
-	memset((char *)&args, 0, sizeof(args));
-	args.name = name->name;
-	args.namelen = name->len;
-	args.value = value;
-	args.valuelen = *valuelenp;
-	args.flags = flags;
-	args.hashval = xfs_da_hashname(args.name, args.namelen);
-	args.dp = ip;
-	args.whichfork = XFS_ATTR_FORK;
-
-	/*
-	 * Decide on what work routines to call based on the inode size.
-	 */
-	if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_attr_shortform_getvalue(&args);
-	} else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK)) {
-		error = xfs_attr_leaf_get(&args);
-	} else {
-		error = xfs_attr_node_get(&args);
-	}
-
-	/*
-	 * Return the number of bytes in the value to the caller.
-	 */
-	*valuelenp = args.valuelen;
-
-	if (error == EEXIST)
-		error = 0;
-	return(error);
-}
-
-int
-xfs_attr_get(
-	xfs_inode_t	*ip,
-	const unsigned char *name,
-	unsigned char	*value,
-	int		*valuelenp,
-	int		flags)
-{
-	int		error;
-	struct xfs_name	xname;
-	uint		lock_mode;
+	struct xfs_da_args	args;
+	uint			lock_mode;
+	int			error;
 
 	XFS_STATS_INC(xs_attr_get);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return(EIO);
+		return EIO;
 
-	error = xfs_attr_name_to_xname(&xname, name);
+	if (!xfs_inode_hasattr(ip))
+		return ENOATTR;
+
+	error = xfs_attr_args_init(&args, ip, name, flags);
 	if (error)
 		return error;
 
+	args.value = value;
+	args.valuelen = *valuelenp;
+
 	lock_mode = xfs_ilock_attr_map_shared(ip);
-	error = xfs_attr_get_int(ip, &xname, value, valuelenp, flags);
+	if (!xfs_inode_hasattr(ip))
+		error = ENOATTR;
+	else if (ip->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+		error = xfs_attr_shortform_getvalue(&args);
+	else if (xfs_bmap_one_block(ip, XFS_ATTR_FORK))
+		error = xfs_attr_leaf_get(&args);
+	else
+		error = xfs_attr_node_get(&args);
 	xfs_iunlock(ip, lock_mode);
-	return(error);
+
+	*valuelenp = args.valuelen;
+	return error == EEXIST ? 0 : error;
 }
 
 /*
@@ -186,12 +163,10 @@ xfs_attr_get(
  */
 STATIC int
 xfs_attr_calc_size(
-	struct xfs_inode 	*ip,
-	int			namelen,
-	int			valuelen,
+	struct xfs_da_args	*args,
 	int			*local)
 {
-	struct xfs_mount 	*mp = ip->i_mount;
+	struct xfs_mount	*mp = args->dp->i_mount;
 	int			size;
 	int			nblks;
 
@@ -199,12 +174,10 @@ xfs_attr_calc_size(
 	 * Determine space new attribute will use, and if it would be
 	 * "local" or "remote" (note: local != inline).
 	 */
-	size = xfs_attr_leaf_newentsize(namelen, valuelen,
-					mp->m_sb.sb_blocksize, local);
-
+	size = xfs_attr_leaf_newentsize(args, local);
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	if (*local) {
-		if (size > (mp->m_sb.sb_blocksize >> 1)) {
+		if (size > (args->geo->blksize / 2)) {
 			/* Double split possible */
 			nblks *= 2;
 		}
@@ -213,7 +186,7 @@ xfs_attr_calc_size(
 		 * Out of line attribute, cannot double split, but
 		 * make room for the attribute value itself.
 		 */
-		uint	dblocks = xfs_attr3_rmt_blocks(mp, valuelen);
+		uint	dblocks = xfs_attr3_rmt_blocks(mp, args->valuelen);
 		nblks += dblocks;
 		nblks += XFS_NEXTENTADD_SPACE_RES(mp, dblocks, XFS_ATTR_FORK);
 	}
@@ -221,26 +194,38 @@ xfs_attr_calc_size(
 	return nblks;
 }
 
-STATIC int
-xfs_attr_set_int(
-	struct xfs_inode *dp,
-	struct xfs_name	*name,
-	unsigned char	*value,
-	int		valuelen,
-	int		flags)
+int
+xfs_attr_set(
+	struct xfs_inode	*dp,
+	const unsigned char	*name,
+	unsigned char		*value,
+	int			valuelen,
+	int			flags)
 {
-	xfs_da_args_t		args;
-	xfs_fsblock_t		firstblock;
-	xfs_bmap_free_t		flist;
-	int			error, err2, committed;
 	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_da_args	args;
+	struct xfs_bmap_free	flist;
 	struct xfs_trans_res	tres;
+	xfs_fsblock_t		firstblock;
 	int			rsvd = (flags & ATTR_ROOT) != 0;
-	int			local;
+	int			error, err2, committed, local;
 
-	/*
-	 * Attach the dquots to the inode.
-	 */
+	XFS_STATS_INC(xs_attr_set);
+
+	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+		return EIO;
+
+	error = xfs_attr_args_init(&args, dp, name, flags);
+	if (error)
+		return error;
+
+	args.value = value;
+	args.valuelen = valuelen;
+	args.firstblock = &firstblock;
+	args.flist = &flist;
+	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
+	args.total = xfs_attr_calc_size(&args, &local);
+
 	error = xfs_qm_dqattach(dp, 0);
 	if (error)
 		return error;
@@ -251,30 +236,12 @@ xfs_attr_set_int(
 	 */
 	if (XFS_IFORK_Q(dp) == 0) {
 		int sf_size = sizeof(xfs_attr_sf_hdr_t) +
-			      XFS_ATTR_SF_ENTSIZE_BYNAME(name->len, valuelen);
+			XFS_ATTR_SF_ENTSIZE_BYNAME(args.namelen, valuelen);
 
-		if ((error = xfs_bmap_add_attrfork(dp, sf_size, rsvd)))
-			return(error);
+		error = xfs_bmap_add_attrfork(dp, sf_size, rsvd);
+		if (error)
+			return error;
 	}
-
-	/*
-	 * Fill in the arg structure for this request.
-	 */
-	memset((char *)&args, 0, sizeof(args));
-	args.name = name->name;
-	args.namelen = name->len;
-	args.value = value;
-	args.valuelen = valuelen;
-	args.flags = flags;
-	args.hashval = xfs_da_hashname(args.name, args.namelen);
-	args.dp = dp;
-	args.firstblock = &firstblock;
-	args.flist = &flist;
-	args.whichfork = XFS_ATTR_FORK;
-	args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
-
-	/* Size is now blocks for attribute data */
-	args.total = xfs_attr_calc_size(dp, name->len, valuelen, &local);
 
 	/*
 	 * Start our first transaction of the day.
@@ -303,7 +270,7 @@ xfs_attr_set_int(
 	error = xfs_trans_reserve(args.trans, &tres, args.total, 0);
 	if (error) {
 		xfs_trans_cancel(args.trans, 0);
-		return(error);
+		return error;
 	}
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 
@@ -313,7 +280,7 @@ xfs_attr_set_int(
 	if (error) {
 		xfs_iunlock(dp, XFS_ILOCK_EXCL);
 		xfs_trans_cancel(args.trans, XFS_TRANS_RELEASE_LOG_RES);
-		return (error);
+		return error;
 	}
 
 	xfs_trans_ijoin(args.trans, dp, 0);
@@ -322,9 +289,9 @@ xfs_attr_set_int(
 	 * If the attribute list is non-existent or a shortform list,
 	 * upgrade it to a single-leaf-block attribute list.
 	 */
-	if ((dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) ||
-	    ((dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS) &&
-	     (dp->i_d.di_anextents == 0))) {
+	if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL ||
+	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
+	     dp->i_d.di_anextents == 0)) {
 
 		/*
 		 * Build initial attribute list (if required).
@@ -349,9 +316,8 @@ xfs_attr_set_int(
 			 * the transaction goes to disk before returning
 			 * to the user.
 			 */
-			if (mp->m_flags & XFS_MOUNT_WSYNC) {
+			if (mp->m_flags & XFS_MOUNT_WSYNC)
 				xfs_trans_set_sync(args.trans);
-			}
 
 			if (!error && (flags & ATTR_KERNOTIME) == 0) {
 				xfs_trans_ichgtime(args.trans, dp,
@@ -361,7 +327,7 @@ xfs_attr_set_int(
 						 XFS_TRANS_RELEASE_LOG_RES);
 			xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-			return(error == 0 ? err2 : error);
+			return error ? error : err2;
 		}
 
 		/*
@@ -399,22 +365,19 @@ xfs_attr_set_int(
 
 	}
 
-	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
+	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
 		error = xfs_attr_leaf_addname(&args);
-	} else {
+	else
 		error = xfs_attr_node_addname(&args);
-	}
-	if (error) {
+	if (error)
 		goto out;
-	}
 
 	/*
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC) {
+	if (mp->m_flags & XFS_MOUNT_WSYNC)
 		xfs_trans_set_sync(args.trans);
-	}
 
 	if ((flags & ATTR_KERNOTIME) == 0)
 		xfs_trans_ichgtime(args.trans, dp, XFS_ICHGTIME_CHG);
@@ -426,65 +389,47 @@ xfs_attr_set_int(
 	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-	return(error);
+	return error;
 
 out:
-	if (args.trans)
+	if (args.trans) {
 		xfs_trans_cancel(args.trans,
 			XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
+	}
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	return(error);
-}
-
-int
-xfs_attr_set(
-	xfs_inode_t	*dp,
-	const unsigned char *name,
-	unsigned char	*value,
-	int		valuelen,
-	int		flags)
-{
-	int             error;
-	struct xfs_name	xname;
-
-	XFS_STATS_INC(xs_attr_set);
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return (EIO);
-
-	error = xfs_attr_name_to_xname(&xname, name);
-	if (error)
-		return error;
-
-	return xfs_attr_set_int(dp, &xname, value, valuelen, flags);
+	return error;
 }
 
 /*
  * Generic handler routine to remove a name from an attribute list.
  * Transitions attribute list from Btree to shortform as necessary.
  */
-STATIC int
-xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
+int
+xfs_attr_remove(
+	struct xfs_inode	*dp,
+	const unsigned char	*name,
+	int			flags)
 {
-	xfs_da_args_t	args;
-	xfs_fsblock_t	firstblock;
-	xfs_bmap_free_t	flist;
-	int		error;
-	xfs_mount_t	*mp = dp->i_mount;
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_da_args	args;
+	struct xfs_bmap_free	flist;
+	xfs_fsblock_t		firstblock;
+	int			error;
 
-	/*
-	 * Fill in the arg structure for this request.
-	 */
-	memset((char *)&args, 0, sizeof(args));
-	args.name = name->name;
-	args.namelen = name->len;
-	args.flags = flags;
-	args.hashval = xfs_da_hashname(args.name, args.namelen);
-	args.dp = dp;
+	XFS_STATS_INC(xs_attr_remove);
+
+	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+		return EIO;
+
+	if (!xfs_inode_hasattr(dp))
+		return ENOATTR;
+
+	error = xfs_attr_args_init(&args, dp, name, flags);
+	if (error)
+		return error;
+
 	args.firstblock = &firstblock;
 	args.flist = &flist;
-	args.total = 0;
-	args.whichfork = XFS_ATTR_FORK;
 
 	/*
 	 * we have no control over the attribute names that userspace passes us
@@ -493,9 +438,6 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	 */
 	args.op_flags = XFS_DA_OP_OKNOENT;
 
-	/*
-	 * Attach the dquots to the inode.
-	 */
 	error = xfs_qm_dqattach(dp, 0);
 	if (error)
 		return error;
@@ -524,7 +466,7 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 				  XFS_ATTRRM_SPACE_RES(mp), 0);
 	if (error) {
 		xfs_trans_cancel(args.trans, 0);
-		return(error);
+		return error;
 	}
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
@@ -534,35 +476,26 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	 */
 	xfs_trans_ijoin(args.trans, dp, 0);
 
-	/*
-	 * Decide on what work routines to call based on the inode size.
-	 */
 	if (!xfs_inode_hasattr(dp)) {
 		error = XFS_ERROR(ENOATTR);
-		goto out;
-	}
-	if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
+	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
 		error = xfs_attr_shortform_remove(&args);
-		if (error) {
-			goto out;
-		}
 	} else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {
 		error = xfs_attr_leaf_removename(&args);
 	} else {
 		error = xfs_attr_node_removename(&args);
 	}
-	if (error) {
+
+	if (error)
 		goto out;
-	}
 
 	/*
 	 * If this is a synchronous mount, make sure that the
 	 * transaction goes to disk before returning to the user.
 	 */
-	if (mp->m_flags & XFS_MOUNT_WSYNC) {
+	if (mp->m_flags & XFS_MOUNT_WSYNC)
 		xfs_trans_set_sync(args.trans);
-	}
 
 	if ((flags & ATTR_KERNOTIME) == 0)
 		xfs_trans_ichgtime(args.trans, dp, XFS_ICHGTIME_CHG);
@@ -574,44 +507,16 @@ xfs_attr_remove_int(xfs_inode_t *dp, struct xfs_name *name, int flags)
 	error = xfs_trans_commit(args.trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-	return(error);
+	return error;
 
 out:
-	if (args.trans)
+	if (args.trans) {
 		xfs_trans_cancel(args.trans,
 			XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
-	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	return(error);
-}
-
-int
-xfs_attr_remove(
-	xfs_inode_t	*dp,
-	const unsigned char *name,
-	int		flags)
-{
-	int		error;
-	struct xfs_name	xname;
-
-	XFS_STATS_INC(xs_attr_remove);
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return (EIO);
-
-	error = xfs_attr_name_to_xname(&xname, name);
-	if (error)
-		return error;
-
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!xfs_inode_hasattr(dp)) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return XFS_ERROR(ENOATTR);
 	}
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
-
-	return xfs_attr_remove_int(dp, &xname, flags);
+	xfs_iunlock(dp, XFS_ILOCK_EXCL);
+	return error;
 }
-
 
 /*========================================================================
  * External routines when attribute list is inside the inode
@@ -958,7 +863,7 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 }
 
 /*========================================================================
- * External routines when attribute list size > XFS_LBSIZE(mp).
+ * External routines when attribute list size > geo->blksize
  *========================================================================*/
 
 /*
@@ -991,8 +896,6 @@ restart:
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = mp;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name already exists, and get back a pointer
@@ -1170,8 +1073,6 @@ restart:
 		state = xfs_da_state_alloc();
 		state->args = args;
 		state->mp = mp;
-		state->blocksize = state->mp->m_sb.sb_blocksize;
-		state->node_ents = state->mp->m_attr_node_ents;
 		state->inleaf = 0;
 		error = xfs_da3_node_lookup_int(state, &retval);
 		if (error)
@@ -1262,8 +1163,6 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
@@ -1525,8 +1424,6 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
-	state->blocksize = state->mp->m_sb.sb_blocksize;
-	state->node_ents = state->mp->m_attr_node_ents;
 
 	/*
 	 * Search to see if name exists, and get back a pointer to it.
