@@ -1502,13 +1502,13 @@ machine_check_handle_early:
 unrecover_mce:
 	/* Invoke machine_check_exception to print MCE event and panic. */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.machine_check_exception
+	bl	machine_check_exception
 	/*
 	 * We will not reach here. Even if we did, there is no way out. Call
 	 * unrecoverable_exception and die.
 	 */
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
+	bl	unrecoverable_exception
 	b	1b
 /*
  * r13 points to the PACA, r9 contains the saved CR,
