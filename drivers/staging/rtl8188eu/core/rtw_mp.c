@@ -33,7 +33,7 @@ u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 		val = rtw_read8(padapter, addr);
 		break;
 	case 2:
-		val = rtw_read16(padapter, addr);
+		val = usb_read16(padapter, addr);
 		break;
 	case 4:
 		val = usb_read32(padapter, addr);

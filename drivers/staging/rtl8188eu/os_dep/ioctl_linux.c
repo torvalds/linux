@@ -2183,7 +2183,7 @@ static int rtw_wx_read32(struct net_device *dev,
 		sprintf(extra, "0x%02X", data32);
 		break;
 	case 2:
-		data32 = rtw_read16(padapter, addr);
+		data32 = usb_read16(padapter, addr);
 		sprintf(extra, "0x%04X", data32);
 		break;
 	case 4:
@@ -2356,7 +2356,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 			RegRWStruct->value = rtw_read8(padapter, RegRWStruct->offset);
 			break;
 		case 2:
-			RegRWStruct->value = rtw_read16(padapter, RegRWStruct->offset);
+			RegRWStruct->value = usb_read16(padapter, RegRWStruct->offset);
 			break;
 		case 4:
 			RegRWStruct->value = usb_read32(padapter, RegRWStruct->offset);
@@ -4112,7 +4112,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_88E("rtw_read8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
 			break;
 		case 2:
-			DBG_88E("rtw_read16(0x%x) = 0x%04x\n", arg, rtw_read16(padapter, arg));
+			DBG_88E("usb_read16(0x%x) = 0x%04x\n", arg, usb_read16(padapter, arg));
 			break;
 		case 4:
 			DBG_88E("usb_read32(0x%x) = 0x%08x\n", arg, usb_read32(padapter, arg));
@@ -4127,7 +4127,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		case 2:
 			usb_write16(padapter, arg, extra_arg);
-			DBG_88E("usb_write16(0x%x) = 0x%04x\n", arg, rtw_read16(padapter, arg));
+			DBG_88E("usb_write16(0x%x) = 0x%04x\n", arg, usb_read16(padapter, arg));
 			break;
 		case 4:
 			usb_write32(padapter, arg, extra_arg);
@@ -4256,7 +4256,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			if (_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000, 0))
 				ret = -EPERM;
 
-			final = rtw_read16(padapter, reg);
+			final = usb_read16(padapter, reg);
 			if (start_value+write_num-1 == final)
 				DBG_88E("continuous IOL_CMD_WW_REG to 0x%x %u times Success, start:%u, final:%u\n", reg, write_num, start_value, final);
 			else
@@ -6499,7 +6499,7 @@ static int rtw_mp_read_reg(struct net_device *dev,
 		break;
 	case 'w':
 		/*  2 bytes */
-		sprintf(data, "%04x\n", rtw_read16(padapter, addr));
+		sprintf(data, "%04x\n", usb_read16(padapter, addr));
 		for (i = 0; i <= strlen(data); i++) {
 			if (i%2 == 0) {
 				tmp[j] = ' ';

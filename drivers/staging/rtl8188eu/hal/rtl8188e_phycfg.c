@@ -603,7 +603,7 @@ PHY_BBConfig8188E(
 
 
 	/*  Enable BB and RF */
-	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
+	RegVal = usb_read16(Adapter, REG_SYS_FUNC_EN);
 	usb_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
 	/*  20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF. */
