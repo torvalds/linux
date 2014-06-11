@@ -131,10 +131,12 @@ static __sum16 gro_skb_checksum(struct sk_buff *skb)
 		csum_partial(skb->data, skb_gro_offset(skb), 0));
 	sum = csum_fold(NAPI_GRO_CB(skb)->csum);
 	if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE)) {
-		if (unlikely(!sum))
+		if (unlikely(!sum) && !skb->csum_complete_sw)
 			netdev_rx_csum_fault(skb->dev);
-	} else
+	} else {
 		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum_complete_sw = 1;
+	}
 
 	return sum;
 }
