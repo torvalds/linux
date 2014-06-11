@@ -320,13 +320,7 @@ static void __smiapp_update_exposure_limits(struct smiapp_sensor *sensor)
 		+ sensor->vblank->val
 		- sensor->limits[SMIAPP_LIMIT_COARSE_INTEGRATION_TIME_MAX_MARGIN];
 
-	ctrl->maximum = max;
-	if (ctrl->default_value > max)
-		ctrl->default_value = max;
-	if (ctrl->val > max)
-		ctrl->val = max;
-	if (ctrl->cur.val > max)
-		ctrl->cur.val = max;
+	__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, max, ctrl->step, max);
 }
 
 /*
@@ -834,36 +828,25 @@ static void smiapp_update_blanking(struct smiapp_sensor *sensor)
 {
 	struct v4l2_ctrl *vblank = sensor->vblank;
 	struct v4l2_ctrl *hblank = sensor->hblank;
+	int min, max;
 
-	vblank->minimum =
-		max_t(int,
-		      sensor->limits[SMIAPP_LIMIT_MIN_FRAME_BLANKING_LINES],
-		      sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN] -
-		      sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height);
-	vblank->maximum =
-		sensor->limits[SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN] -
+	min = max_t(int,
+		    sensor->limits[SMIAPP_LIMIT_MIN_FRAME_BLANKING_LINES],
+		    sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN] -
+		    sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height);
+	max = sensor->limits[SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN] -
 		sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].height;
 
-	vblank->val = clamp_t(int, vblank->val,
-			      vblank->minimum, vblank->maximum);
-	vblank->default_value = vblank->minimum;
-	vblank->val = vblank->val;
-	vblank->cur.val = vblank->val;
+	__v4l2_ctrl_modify_range(vblank, min, max, vblank->step, min);
 
-	hblank->minimum =
-		max_t(int,
-		      sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN] -
-		      sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width,
-		      sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN]);
-	hblank->maximum =
-		sensor->limits[SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK_BIN] -
+	min = max_t(int,
+		    sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN] -
+		    sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width,
+		    sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN]);
+	max = sensor->limits[SMIAPP_LIMIT_MAX_LINE_LENGTH_PCK_BIN] -
 		sensor->pixel_array->crop[SMIAPP_PA_PAD_SRC].width;
 
-	hblank->val = clamp_t(int, hblank->val,
-			      hblank->minimum, hblank->maximum);
-	hblank->default_value = hblank->minimum;
-	hblank->val = hblank->val;
-	hblank->cur.val = hblank->val;
+	__v4l2_ctrl_modify_range(hblank, min, max, hblank->step, min);
 
 	__smiapp_update_exposure_limits(sensor);
 }
