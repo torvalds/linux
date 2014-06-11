@@ -2222,7 +2222,7 @@ static int rtw_wx_write32(struct net_device *dev,
 
 	switch (bytes) {
 	case 1:
-		rtw_write8(padapter, addr, (u8)data32);
+		usb_write8(padapter, addr, (u8)data32);
 		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%02X\n", __func__, addr, (u8)data32);
 		break;
 	case 2:
@@ -2370,7 +2370,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 		RegRWStruct = (struct mp_rw_reg *)pdata;
 		switch (RegRWStruct->width) {
 		case 1:
-			rtw_write8(padapter, RegRWStruct->offset, (u8)RegRWStruct->value);
+			usb_write8(padapter, RegRWStruct->offset, (u8)RegRWStruct->value);
 			break;
 		case 2:
 			usb_write16(padapter, RegRWStruct->offset, (u16)RegRWStruct->value);
@@ -4122,8 +4122,8 @@ static int rtw_dbg_port(struct net_device *dev,
 	case 0x71:/* write_reg */
 		switch (minor_cmd) {
 		case 1:
-			rtw_write8(padapter, arg, extra_arg);
-			DBG_88E("rtw_write8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
+			usb_write8(padapter, arg, extra_arg);
+			DBG_88E("usb_write8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
 			break;
 		case 2:
 			usb_write16(padapter, arg, extra_arg);
@@ -4576,9 +4576,9 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 
 		case 0xfd:
-			rtw_write8(padapter, 0xc50, arg);
+			usb_write8(padapter, 0xc50, arg);
 			DBG_88E("wr(0xc50) = 0x%x\n", rtw_read8(padapter, 0xc50));
-			rtw_write8(padapter, 0xc58, arg);
+			usb_write8(padapter, 0xc58, arg);
 			DBG_88E("wr(0xc58) = 0x%x\n", rtw_read8(padapter, 0xc58));
 			break;
 		case 0xfe:
@@ -6414,7 +6414,7 @@ static int rtw_mp_write_reg(struct net_device *dev,
 			ret = -EINVAL;
 			break;
 		}
-		rtw_write8(padapter, addr, data);
+		usb_write8(padapter, addr, data);
 		break;
 	case 'w':
 		/*  2 bytes */

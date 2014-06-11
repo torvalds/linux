@@ -50,7 +50,7 @@ void write_macreg(struct adapter *padapter, u32 addr, u32 val, u32 sz)
 {
 	switch (sz) {
 	case 1:
-		rtw_write8(padapter, addr, (u8)val);
+		usb_write8(padapter, addr, (u8)val);
 		break;
 	case 2:
 		usb_write16(padapter, addr, (u16)val);
@@ -304,7 +304,7 @@ static void disable_dm(struct adapter *padapter)
 	/*  disable Power Training, Rate Adaptive */
 	v8 = rtw_read8(padapter, REG_BCN_CTRL);
 	v8 &= ~EN_BCN_FUNCTION;
-	rtw_write8(padapter, REG_BCN_CTRL, v8);
+	usb_write8(padapter, REG_BCN_CTRL, v8);
 
 	/* 3 2. disable driver dynamic mechanism */
 	/*  disable Dynamic Initial Gain */
@@ -423,7 +423,7 @@ end_of_mp_start_test:
 		/*  set MSR to WIFI_FW_ADHOC_STATE */
 		val8 = rtw_read8(padapter, MSR) & 0xFC; /*  0x0102 */
 		val8 |= WIFI_FW_ADHOC_STATE;
-		rtw_write8(padapter, MSR, val8); /*  Link in ad hoc network */
+		usb_write8(padapter, MSR, val8); /*  Link in ad hoc network */
 	}
 	return res;
 }

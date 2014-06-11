@@ -63,7 +63,7 @@ int proc_set_write_reg(struct file *file, const char __user *buffer,
 		}
 		switch (len) {
 		case 1:
-			rtw_write8(padapter, addr, (u8)val);
+			usb_write8(padapter, addr, (u8)val);
 			break;
 		case 2:
 			usb_write16(padapter, addr, (u16)val);

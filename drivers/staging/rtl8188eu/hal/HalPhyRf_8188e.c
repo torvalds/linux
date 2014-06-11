@@ -848,7 +848,7 @@ _PHY_ReloadMACRegisters(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,  ("Reload MAC parameters !\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
+		usb_write8(adapt, MACReg[i], (u8)MACBackup[i]);
 	}
 	usb_write32(adapt, MACReg[i], MACBackup[i]);
 }
@@ -892,12 +892,12 @@ _PHY_MACSettingCalibration(
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("MAC settings for Calibration.\n"));
 
-	rtw_write8(adapt, MACReg[i], 0x3F);
+	usb_write8(adapt, MACReg[i], 0x3F);
 
 	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
-		rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
+		usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT3)));
 	}
-	rtw_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
+	usb_write8(adapt, MACReg[i], (u8)(MACBackup[i]&(~BIT5)));
 }
 
 void
@@ -1208,9 +1208,9 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	tmpreg = rtw_read8(adapt, 0xd03);
 
 	if ((tmpreg&0x70) != 0)			/* Deal with contisuous TX case */
-		rtw_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
+		usb_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
 	else							/*  Deal with Packet TX case */
-		rtw_write8(adapt, REG_TXPAUSE, 0xFF);			/*  block all queues */
+		usb_write8(adapt, REG_TXPAUSE, 0xFF);			/*  block all queues */
 
 	if ((tmpreg&0x70) != 0) {
 		/* 1. Read original RF mode */
@@ -1242,7 +1242,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	if ((tmpreg&0x70) != 0) {
 		/* Deal with continuous TX case */
 		/* Path-A */
-		rtw_write8(adapt, 0xd03, tmpreg);
+		usb_write8(adapt, 0xd03, tmpreg);
 		PHY_SetRFReg(adapt, RF_PATH_A, RF_AC, bMask12Bits, RF_Amode);
 
 		/* Path-B */
@@ -1250,7 +1250,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 			PHY_SetRFReg(adapt, RF_PATH_B, RF_AC, bMask12Bits, RF_Bmode);
 	} else {
 		/*  Deal with Packet TX case */
-		rtw_write8(adapt, REG_TXPAUSE, 0x00);
+		usb_write8(adapt, REG_TXPAUSE, 0x00);
 	}
 }
 
@@ -1447,7 +1447,7 @@ static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2
 	if (!adapt->hw_init_completed) {
 		u8 u1btmp;
 		u1btmp = rtw_read8(adapt, REG_LEDCFG2) | BIT7;
-		rtw_write8(adapt, REG_LEDCFG2, u1btmp);
+		usb_write8(adapt, REG_LEDCFG2, u1btmp);
 		PHY_SetBBReg(adapt, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 	}
 

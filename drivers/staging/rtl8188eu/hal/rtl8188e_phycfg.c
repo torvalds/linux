@@ -608,9 +608,9 @@ PHY_BBConfig8188E(
 
 	/*  20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF. */
 
-	rtw_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
+	usb_write8(Adapter, REG_RF_CTRL, RF_EN|RF_RSTB|RF_SDMRSTB);
 
-	rtw_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
+	usb_write8(Adapter, REG_SYS_FUNC_EN, FEN_USBA | FEN_USBD | FEN_BB_GLB_RSTn | FEN_BBRSTB);
 
 	/*  Config BB and AGC */
 	rtStatus = phy_BB8188E_Config_ParaFile(Adapter);
@@ -799,14 +799,14 @@ _PHY_SetBWMode92C(
 	case HT_CHANNEL_WIDTH_20:
 		regBwOpMode |= BW_OPMODE_20MHZ;
 		/*  2007/02/07 Mark by Emily because we have not verify whether this register works */
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		usb_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		break;
 	case HT_CHANNEL_WIDTH_40:
 		regBwOpMode &= ~BW_OPMODE_20MHZ;
 		/*  2007/02/07 Mark by Emily because we have not verify whether this register works */
-		rtw_write8(Adapter, REG_BWOPMODE, regBwOpMode);
+		usb_write8(Adapter, REG_BWOPMODE, regBwOpMode);
 		regRRSR_RSC = (regRRSR_RSC&0x90) | (pHalData->nCur40MhzPrimeSC<<5);
-		rtw_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
+		usb_write8(Adapter, REG_RRSR+2, regRRSR_RSC);
 		break;
 	default:
 		break;

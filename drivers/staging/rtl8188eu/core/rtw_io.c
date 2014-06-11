@@ -88,19 +88,6 @@ u32 _rtw_read32(struct adapter *adapter, u32 addr)
 	return r_val;
 }
 
-int _rtw_write8(struct adapter *adapter, u32 addr, u8 val)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct	intf_hdl		*pintfhdl = &(pio_priv->intf);
-	int (*_write8)(struct adapter *pintfhdl, u32 addr, u8 val);
-	int ret;
-	_write8 = pintfhdl->io_ops._write8;
-
-	ret = _write8(adapter, addr, val);
-
-	return RTW_STATUS_CODE(ret);
-}
-
 int rtw_init_io_priv(struct adapter *padapter, void (*set_intf_ops)(struct _io_ops *pops))
 {
 	struct io_priv	*piopriv = &padapter->iopriv;

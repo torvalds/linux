@@ -328,7 +328,7 @@ void hal_init_macaddr(struct adapter *adapter)
 
 void c2h_evt_clear(struct adapter *adapter)
 {
-	rtw_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
+	usb_write8(adapter, REG_C2HEVT_CLEAR, C2H_EVT_HOST_CLOSE);
 }
 
 s32 c2h_evt_read(struct adapter *adapter, u8 *buf)

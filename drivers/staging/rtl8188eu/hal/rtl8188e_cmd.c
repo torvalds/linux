@@ -106,13 +106,13 @@ static s32 FillH2CCmd_88E(struct adapter *adapt, u8 ElementID, u32 CmdLen, u8 *p
 			/* Write Ext command */
 			msgbox_ex_addr = REG_HMEBOX_EXT_0 + (h2c_box_num * RTL88E_EX_MESSAGE_BOX_SIZE);
 			for (cmd_idx = 0; cmd_idx < ext_cmd_len; cmd_idx++) {
-				rtw_write8(adapt, msgbox_ex_addr+cmd_idx, *((u8 *)(&h2c_cmd_ex)+cmd_idx));
+				usb_write8(adapt, msgbox_ex_addr+cmd_idx, *((u8 *)(&h2c_cmd_ex)+cmd_idx));
 			}
 		}
 		/*  Write command */
 		msgbox_addr = REG_HMEBOX_0 + (h2c_box_num * RTL88E_MESSAGE_BOX_SIZE);
 		for (cmd_idx = 0; cmd_idx < RTL88E_MESSAGE_BOX_SIZE; cmd_idx++) {
-			rtw_write8(adapt, msgbox_addr+cmd_idx, *((u8 *)(&h2c_cmd)+cmd_idx));
+			usb_write8(adapt, msgbox_addr+cmd_idx, *((u8 *)(&h2c_cmd)+cmd_idx));
 		}
 		bcmd_down = true;
 
@@ -620,13 +620,13 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 
 		/* Set REG_CR bit 8. DMA beacon by SW. */
 		haldata->RegCR_1 |= BIT0;
-		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
+		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 
 		/*  Disable Hw protection for a time which revserd for Hw sending beacon. */
 		/*  Fix download reserved page packet fail that access collision with the protection time. */
 		/*  2010.05.11. Added by tynli. */
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(3)));
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(4));
+		usb_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(3)));
+		usb_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(4));
 
 		if (haldata->RegFwHwTxQCtrl&BIT6) {
 			DBG_88E("HalDownloadRSVDPage(): There is an Adapter is sending beacon.\n");
@@ -634,7 +634,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		}
 
 		/*  Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame. */
-		rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT6)));
+		usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl&(~BIT6)));
 		haldata->RegFwHwTxQCtrl &= (~BIT6);
 
 		/*  Clear beacon valid check bit. */
@@ -668,8 +668,8 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  */
 
 		/*  Enable Bcn */
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(3));
-		rtw_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(4)));
+		usb_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)|BIT(3));
+		usb_write8(adapt, REG_BCN_CTRL, rtw_read8(adapt, REG_BCN_CTRL)&(~BIT(4)));
 
 		/*  To make sure that if there exists an adapter which would like to send beacon. */
 		/*  If exists, the origianl value of 0x422[6] will be 1, we should check this to */
@@ -677,7 +677,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  the beacon cannot be sent by HW. */
 		/*  2010.06.23. Added by tynli. */
 		if (bSendBeacon) {
-			rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl|BIT6));
+			usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl|BIT6));
 			haldata->RegFwHwTxQCtrl |= BIT6;
 		}
 
@@ -690,7 +690,7 @@ void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *adapt, u8 mstatus)
 		/*  Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli. */
 		/*  Clear CR[8] or beacon packet will not be send to TxBuf anymore. */
 		haldata->RegCR_1 &= (~BIT0);
-		rtw_write8(adapt,  REG_CR+1, haldata->RegCR_1);
+		usb_write8(adapt,  REG_CR+1, haldata->RegCR_1);
 	}
 }
 
@@ -713,13 +713,13 @@ void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
 		/*  update CTWindow value. */
 		if (pwdinfo->ctwindow > 0) {
 			p2p_ps_offload->CTWindow_En = 1;
-			rtw_write8(adapt, REG_P2P_CTWIN, pwdinfo->ctwindow);
+			usb_write8(adapt, REG_P2P_CTWIN, pwdinfo->ctwindow);
 		}
 
 		/*  hw only support 2 set of NoA */
 		for (i = 0; i < pwdinfo->noa_num; i++) {
 			/*  To control the register setting for which NOA */
-			rtw_write8(adapt, REG_NOA_DESC_SEL, (i << 4));
+			usb_write8(adapt, REG_NOA_DESC_SEL, (i << 4));
 			if (i == 0)
 				p2p_ps_offload->NoA0_En = 1;
 			else
@@ -729,12 +729,12 @@ void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
 			usb_write32(adapt, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
 			usb_write32(adapt, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
 			usb_write32(adapt, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
-			rtw_write8(adapt, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
+			usb_write8(adapt, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
 		}
 
 		if ((pwdinfo->opp_ps == 1) || (pwdinfo->noa_num > 0)) {
 			/*  rst p2p circuit */
-			rtw_write8(adapt, REG_DUAL_TSF_RST, BIT(4));
+			usb_write8(adapt, REG_DUAL_TSF_RST, BIT(4));
 
 			p2p_ps_offload->Offload_En = 1;
 

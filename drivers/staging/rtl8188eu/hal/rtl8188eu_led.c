@@ -35,7 +35,7 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
 	LedCfg = rtw_read8(padapter, REG_LEDCFG2);
-	rtw_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT5|BIT6); /*  SW control led0 on. */
+	usb_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0)|BIT5|BIT6); /*  SW control led0 on. */
 	pLed->bLedOn = true;
 }
 
@@ -54,12 +54,12 @@ void SwLedOff(struct adapter *padapter, struct LED_871x *pLed)
 	if (pHalData->bLedOpenDrain) {
 			/*  Open-drain arrangement for controlling the LED) */
 		LedCfg &= 0x90; /*  Set to software control. */
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
+		usb_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3));
 		LedCfg = rtw_read8(padapter, REG_MAC_PINMUX_CFG);
 		LedCfg &= 0xFE;
-		rtw_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
+		usb_write8(padapter, REG_MAC_PINMUX_CFG, LedCfg);
 	} else {
-		rtw_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5|BIT6));
+		usb_write8(padapter, REG_LEDCFG2, (LedCfg|BIT3|BIT5|BIT6));
 	}
 exit:
 	pLed->bLedOn = false;

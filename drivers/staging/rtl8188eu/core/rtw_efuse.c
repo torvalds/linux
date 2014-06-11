@@ -181,13 +181,13 @@ ReadEFuseByte(
 	}
 
 	/* Write Address */
-	rtw_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
+	usb_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
 	readbyte = rtw_read8(Adapter, EFUSE_CTRL+2);
-	rtw_write8(Adapter, EFUSE_CTRL+2, ((_offset >> 8) & 0x03) | (readbyte & 0xfc));
+	usb_write8(Adapter, EFUSE_CTRL+2, ((_offset >> 8) & 0x03) | (readbyte & 0xfc));
 
 	/* Write bit 32 0 */
 	readbyte = rtw_read8(Adapter, EFUSE_CTRL+3);
-	rtw_write8(Adapter, EFUSE_CTRL+3, (readbyte & 0x7f));
+	usb_write8(Adapter, EFUSE_CTRL+3, (readbyte & 0x7f));
 
 	/* Check bit 32 read-ready */
 	retry = 0;
@@ -263,16 +263,16 @@ u8 EFUSE_Read1Byte(struct adapter *Adapter, u16 Address)
 	if (Address < contentLen) {	/* E-fuse 512Byte */
 		/* Write E-fuse Register address bit0~7 */
 		temp = Address & 0xFF;
-		rtw_write8(Adapter, EFUSE_CTRL+1, temp);
+		usb_write8(Adapter, EFUSE_CTRL+1, temp);
 		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+2);
 		/* Write E-fuse Register address bit8~9 */
 		temp = ((Address >> 8) & 0x03) | (Bytetemp & 0xFC);
-		rtw_write8(Adapter, EFUSE_CTRL+2, temp);
+		usb_write8(Adapter, EFUSE_CTRL+2, temp);
 
 		/* Write 0x30[31]= 0 */
 		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
 		temp = Bytetemp & 0x7F;
-		rtw_write8(Adapter, EFUSE_CTRL+3, temp);
+		usb_write8(Adapter, EFUSE_CTRL+3, temp);
 
 		/* Wait Write-ready (0x30[31]= 1) */
 		Bytetemp = rtw_read8(Adapter, EFUSE_CTRL+3);
@@ -304,11 +304,11 @@ u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data, bool pseudo)
 	}
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
-	rtw_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr & 0xff));
-	rtw_write8(pAdapter, EFUSE_CTRL+2, ((u8)((addr>>8) & 0x03)) |
+	usb_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr & 0xff));
+	usb_write8(pAdapter, EFUSE_CTRL+2, ((u8)((addr>>8) & 0x03)) |
 		   (rtw_read8(pAdapter, EFUSE_CTRL+2) & 0xFC));
 
-	rtw_write8(pAdapter, EFUSE_CTRL+3,  0x72);/* read cmd */
+	usb_write8(pAdapter, EFUSE_CTRL+3,  0x72);/* read cmd */
 
 	while (!(0x80 & rtw_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx < 100))
 		tmpidx++;
@@ -335,13 +335,13 @@ u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data, bool pseudo)
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
-	rtw_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
-	rtw_write8(pAdapter, EFUSE_CTRL+2,
+	usb_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr&0xff));
+	usb_write8(pAdapter, EFUSE_CTRL+2,
 		   (rtw_read8(pAdapter, EFUSE_CTRL+2) & 0xFC) |
 		   (u8)((addr>>8) & 0x03));
-	rtw_write8(pAdapter, EFUSE_CTRL, data);/* data */
+	usb_write8(pAdapter, EFUSE_CTRL, data);/* data */
 
-	rtw_write8(pAdapter, EFUSE_CTRL+3, 0xF2);/* write cmd */
+	usb_write8(pAdapter, EFUSE_CTRL+3, 0xF2);/* write cmd */
 
 	while ((0x80 &  rtw_read8(pAdapter, EFUSE_CTRL+3)) && (tmpidx < 100))
 		tmpidx++;

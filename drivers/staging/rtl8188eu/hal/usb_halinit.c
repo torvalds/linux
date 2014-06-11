@@ -159,7 +159,7 @@ static void _InitInterrupt(struct adapter *Adapter)
 	else
 		usb_opt = usb_opt | (INT_BULK_SEL);
 
-	rtw_write8(Adapter, REG_USB_SPECIAL_OPTION, usb_opt);
+	usb_write8(Adapter, REG_USB_SPECIAL_OPTION, usb_opt);
 }
 
 static void _InitQueueReservedPage(struct adapter *Adapter)
@@ -185,7 +185,7 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 		if (haldata->OutEpQueueSel & TX_SELE_NQ)
 			numNQ = 0x1C;
 		value8 = (u8)_NPQ(numNQ);
-		rtw_write8(Adapter, REG_RQPN_NPQ, value8);
+		usb_write8(Adapter, REG_RQPN_NPQ, value8);
 
 		numPubQ = 0xA8 - numHQ - numLQ - numNQ;
 
@@ -201,11 +201,11 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 
 static void _InitTxBufferBoundary(struct adapter *Adapter, u8 txpktbuf_bndy)
 {
-	rtw_write8(Adapter, REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TXPKTBUF_MGQ_BDNY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TXPKTBUF_WMAC_LBK_BF_HD, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TRXFF_BNDY, txpktbuf_bndy);
-	rtw_write8(Adapter, REG_TDECTRL+1, txpktbuf_bndy);
+	usb_write8(Adapter, REG_TXPKTBUF_BCNQ_BDNY, txpktbuf_bndy);
+	usb_write8(Adapter, REG_TXPKTBUF_MGQ_BDNY, txpktbuf_bndy);
+	usb_write8(Adapter, REG_TXPKTBUF_WMAC_LBK_BF_HD, txpktbuf_bndy);
+	usb_write8(Adapter, REG_TRXFF_BNDY, txpktbuf_bndy);
+	usb_write8(Adapter, REG_TDECTRL+1, txpktbuf_bndy);
 }
 
 static void _InitPageBoundary(struct adapter *Adapter)
@@ -354,12 +354,12 @@ static void _InitTransferPageSize(struct adapter *Adapter)
 
 	u8 value8;
 	value8 = _PSRX(PBP_128) | _PSTX(PBP_128);
-	rtw_write8(Adapter, REG_PBP, value8);
+	usb_write8(Adapter, REG_PBP, value8);
 }
 
 static void _InitDriverInfoSize(struct adapter *Adapter, u8 drvInfoSize)
 {
-	rtw_write8(Adapter, REG_RX_DRVINFO_SZ, drvInfoSize);
+	usb_write8(Adapter, REG_RX_DRVINFO_SZ, drvInfoSize);
 }
 
 static void _InitWMACSetting(struct adapter *Adapter)
@@ -422,9 +422,9 @@ static void _InitEDCA(struct adapter *Adapter)
 
 static void _InitRDGSetting(struct adapter *Adapter)
 {
-	rtw_write8(Adapter, REG_RD_CTRL, 0xFF);
+	usb_write8(Adapter, REG_RD_CTRL, 0xFF);
 	usb_write16(Adapter, REG_RD_NAV_NXT, 0x200);
-	rtw_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
+	usb_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
 }
 
 static void _InitRxSetting(struct adapter *Adapter)
@@ -439,10 +439,10 @@ static void _InitRetryFunction(struct adapter *Adapter)
 
 	value8 = rtw_read8(Adapter, REG_FWHW_TXQ_CTRL);
 	value8 |= EN_AMPDU_RTY_NEW;
-	rtw_write8(Adapter, REG_FWHW_TXQ_CTRL, value8);
+	usb_write8(Adapter, REG_FWHW_TXQ_CTRL, value8);
 
 	/*  Set ACK timeout */
-	rtw_write8(Adapter, REG_ACKTO, 0x40);
+	usb_write8(Adapter, REG_ACKTO, 0x40);
 }
 
 /*-----------------------------------------------------------------------------
@@ -524,23 +524,23 @@ usb_AggSettingRxUpdate(
 		break;
 	}
 
-	rtw_write8(Adapter, REG_TRXDMA_CTRL, valueDMA);
-	rtw_write8(Adapter, REG_USB_SPECIAL_OPTION, valueUSB);
+	usb_write8(Adapter, REG_TRXDMA_CTRL, valueDMA);
+	usb_write8(Adapter, REG_USB_SPECIAL_OPTION, valueUSB);
 
 	switch (haldata->UsbRxAggMode) {
 	case USB_RX_AGG_DMA:
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH+1, haldata->UsbRxAggPageTimeout);
+		usb_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
+		usb_write8(Adapter, REG_RXDMA_AGG_PG_TH+1, haldata->UsbRxAggPageTimeout);
 		break;
 	case USB_RX_AGG_USB:
-		rtw_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
-		rtw_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
+		usb_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
+		usb_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
 		break;
 	case USB_RX_AGG_MIX:
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
-		rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH+1, (haldata->UsbRxAggPageTimeout & 0x1F));/* 0x280[12:8] */
-		rtw_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
-		rtw_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
+		usb_write8(Adapter, REG_RXDMA_AGG_PG_TH, haldata->UsbRxAggPageCount);
+		usb_write8(Adapter, REG_RXDMA_AGG_PG_TH+1, (haldata->UsbRxAggPageTimeout & 0x1F));/* 0x280[12:8] */
+		usb_write8(Adapter, REG_USB_AGG_TH, haldata->UsbRxAggBlockCount);
+		usb_write8(Adapter, REG_USB_AGG_TO, haldata->UsbRxAggBlockTimeout);
 		break;
 	case USB_RX_AGG_DISABLE:
 	default:
@@ -591,8 +591,8 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 
 	/*  TODO: Remove these magic number */
 	usb_write16(Adapter, REG_TBTT_PROHIBIT, 0x6404);/*  ms */
-	rtw_write8(Adapter, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);/*  5ms */
-	rtw_write8(Adapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME); /*  2ms */
+	usb_write8(Adapter, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);/*  5ms */
+	usb_write8(Adapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME); /*  2ms */
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the largest number */
 	/*  beacause test chip does not contension before sending beacon. by tynli. 2009.11.03 */
@@ -608,9 +608,9 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 static void _BeaconFunctionEnable(struct adapter *Adapter,
 				  bool Enable, bool Linked)
 {
-	rtw_write8(Adapter, REG_BCN_CTRL, (BIT4 | BIT3 | BIT1));
+	usb_write8(Adapter, REG_BCN_CTRL, (BIT4 | BIT3 | BIT1));
 
-	rtw_write8(Adapter, REG_RD_CTRL+1, 0x6F);
+	usb_write8(Adapter, REG_RD_CTRL+1, 0x6F);
 }
 
 /*  Set CCK and OFDM Block "ON" */
@@ -668,7 +668,7 @@ enum rt_rf_power_state RfOnOffDetect(struct adapter *adapt)
 		DBG_88E("pwrdown, 0x5c(BIT7)=%02x\n", val8);
 		rfpowerstate = (val8 & BIT7) ? rf_off : rf_on;
 	} else { /*  rf on/off */
-		rtw_write8(adapt, REG_MAC_PINMUX_CFG, rtw_read8(adapt, REG_MAC_PINMUX_CFG)&~(BIT3));
+		usb_write8(adapt, REG_MAC_PINMUX_CFG, rtw_read8(adapt, REG_MAC_PINMUX_CFG)&~(BIT3));
 		val8 = rtw_read8(adapt, REG_GPIO_IO_SEL);
 		DBG_88E("GPIO_IN=%02x\n", val8);
 		rfpowerstate = (val8 & BIT3) ? rf_on : rf_off;
@@ -825,7 +825,7 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/*  Enable MACTXEN/MACRXEN block */
 	value16 = rtw_read16(Adapter, REG_CR);
 	value16 |= (MACTXEN | MACRXEN);
-	rtw_write8(Adapter, REG_CR, value16);
+	usb_write8(Adapter, REG_CR, value16);
 
 	if (haldata->bRDGEnable)
 		_InitRDGSetting(Adapter);
@@ -833,13 +833,13 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/* Enable TX Report */
 	/* Enable Tx Report Timer */
 	value8 = rtw_read8(Adapter, REG_TX_RPT_CTRL);
-	rtw_write8(Adapter,  REG_TX_RPT_CTRL, (value8|BIT1|BIT0));
+	usb_write8(Adapter,  REG_TX_RPT_CTRL, (value8|BIT1|BIT0));
 	/* Set MAX RPT MACID */
-	rtw_write8(Adapter,  REG_TX_RPT_CTRL+1, 2);/* FOR sta mode ,0: bc/mc ,1:AP */
+	usb_write8(Adapter,  REG_TX_RPT_CTRL+1, 2);/* FOR sta mode ,0: bc/mc ,1:AP */
 	/* Tx RPT Timer. Unit: 32us */
 	usb_write16(Adapter, REG_TX_RPT_TIME, 0xCdf0);
 
-	rtw_write8(Adapter, REG_EARLY_MODE_CONTROL, 0);
+	usb_write8(Adapter, REG_EARLY_MODE_CONTROL, 0);
 
 	usb_write16(Adapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
 	usb_write16(Adapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
@@ -871,13 +871,13 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 
 	/*  HW SEQ CTRL */
 	/* set 0x0 to 0xFF by tynli. Default enable HW SEQ NUM. */
-	rtw_write8(Adapter, REG_HWSEQ_CTRL, 0xFF);
+	usb_write8(Adapter, REG_HWSEQ_CTRL, 0xFF);
 
 	if (pregistrypriv->wifi_spec)
 		usb_write16(Adapter, REG_FAST_EDCA_CTRL, 0);
 
 	/* Nav limit , suggest by scott */
-	rtw_write8(Adapter, 0x652, 0x0);
+	usb_write8(Adapter, 0x652, 0x0);
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 	rtl8188e_InitHalDm(Adapter);
@@ -896,10 +896,10 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 		pwrctrlpriv->rf_pwrstate = rf_on;
 
 		/*  enable Tx report. */
-		rtw_write8(Adapter,  REG_FWHW_TXQ_CTRL+1, 0x0F);
+		usb_write8(Adapter,  REG_FWHW_TXQ_CTRL+1, 0x0F);
 
 		/*  Suggested by SD1 pisa. Added by tynli. 2011.10.21. */
-		rtw_write8(Adapter, REG_EARLY_MODE_CONTROL+3, 0x01);/* Pretx_en, for WEP/TKIP SEC */
+		usb_write8(Adapter, REG_EARLY_MODE_CONTROL+3, 0x01);/* Pretx_en, for WEP/TKIP SEC */
 
 		/* tynli_test_tx_report. */
 		usb_write16(Adapter, REG_TX_RPT_TIME, 0x3DF0);
@@ -928,7 +928,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 
 /* HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_PABIAS); */
 /*	_InitPABias(Adapter); */
-	rtw_write8(Adapter, REG_USB_HRPWM, 0);
+	usb_write8(Adapter, REG_USB_HRPWM, 0);
 
 	/* ack for xmit mgmt frames. */
 	usb_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
@@ -951,10 +951,10 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 
 	/* Stop Tx Report Timer. 0x4EC[Bit1]=b'0 */
 	val8 = rtw_read8(Adapter, REG_TX_RPT_CTRL);
-	rtw_write8(Adapter, REG_TX_RPT_CTRL, val8&(~BIT1));
+	usb_write8(Adapter, REG_TX_RPT_CTRL, val8&(~BIT1));
 
 	/*  stop rx */
-	rtw_write8(Adapter, REG_CR, 0x0);
+	usb_write8(Adapter, REG_CR, 0x0);
 
 	/*  Run LPS WL RFOFF flow */
 	HalPwrSeqCmdParsing(Adapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8188E_NIC_LPS_ENTER_FLOW);
@@ -966,35 +966,35 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 		/*  Reset MCU 0x2[10]=0. */
 		val8 = rtw_read8(Adapter, REG_SYS_FUNC_EN+1);
 		val8 &= ~BIT(2);	/*  0x2[10], FEN_CPUEN */
-		rtw_write8(Adapter, REG_SYS_FUNC_EN+1, val8);
+		usb_write8(Adapter, REG_SYS_FUNC_EN+1, val8);
 	}
 
 	/*  reset MCU ready status */
-	rtw_write8(Adapter, REG_MCUFWDL, 0);
+	usb_write8(Adapter, REG_MCUFWDL, 0);
 
 	/* YJ,add,111212 */
 	/* Disable 32k */
 	val8 = rtw_read8(Adapter, REG_32K_CTRL);
-	rtw_write8(Adapter, REG_32K_CTRL, val8&(~BIT0));
+	usb_write8(Adapter, REG_32K_CTRL, val8&(~BIT0));
 
 	/*  Card disable power action flow */
 	HalPwrSeqCmdParsing(Adapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_USB_MSK, Rtl8188E_NIC_DISABLE_FLOW);
 
 	/*  Reset MCU IO Wrapper */
 	val8 = rtw_read8(Adapter, REG_RSV_CTRL+1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, (val8&(~BIT3)));
+	usb_write8(Adapter, REG_RSV_CTRL+1, (val8&(~BIT3)));
 	val8 = rtw_read8(Adapter, REG_RSV_CTRL+1);
-	rtw_write8(Adapter, REG_RSV_CTRL+1, val8|BIT3);
+	usb_write8(Adapter, REG_RSV_CTRL+1, val8|BIT3);
 
 	/* YJ,test add, 111207. For Power Consumption. */
 	val8 = rtw_read8(Adapter, GPIO_IN);
-	rtw_write8(Adapter, GPIO_OUT, val8);
-	rtw_write8(Adapter, GPIO_IO_SEL, 0xFF);/* Reg0x46 */
+	usb_write8(Adapter, GPIO_OUT, val8);
+	usb_write8(Adapter, GPIO_IO_SEL, 0xFF);/* Reg0x46 */
 
 	val8 = rtw_read8(Adapter, REG_GPIO_IO_SEL);
-	rtw_write8(Adapter, REG_GPIO_IO_SEL, (val8<<4));
+	usb_write8(Adapter, REG_GPIO_IO_SEL, (val8<<4));
 	val8 = rtw_read8(Adapter, REG_GPIO_IO_SEL+1);
-	rtw_write8(Adapter, REG_GPIO_IO_SEL+1, val8|0x0F);/* Reg0x43 */
+	usb_write8(Adapter, REG_GPIO_IO_SEL+1, val8|0x0F);/* Reg0x43 */
 	usb_write32(Adapter, REG_BB_PAD_CTRL, 0x00080808);/* set LNA ,TRSW,EX_PA Pin to output mode */
 	haldata->bMacPwrCtrlOn = false;
 	Adapter->bFWReady = false;
@@ -1005,7 +1005,7 @@ static void rtl8192cu_hw_power_down(struct adapter *adapt)
 	/*  Then enable power down control bit of register 0x04 BIT4 and BIT15 as 1. */
 
 	/*  Enable register area 0x0-0xc. */
-	rtw_write8(adapt, REG_RSV_CTRL, 0x0);
+	usb_write8(adapt, REG_RSV_CTRL, 0x0);
 	usb_write16(adapt, REG_APS_FSMCO, 0x8812);
 }
 
@@ -1206,11 +1206,11 @@ static void ResumeTxBeacon(struct adapter *adapt)
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
 
-	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) | BIT6);
+	usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) | BIT6);
 	haldata->RegFwHwTxQCtrl |= BIT6;
-	rtw_write8(adapt, REG_TBTT_PROHIBIT+1, 0xff);
+	usb_write8(adapt, REG_TBTT_PROHIBIT+1, 0xff);
 	haldata->RegReg542 |= BIT0;
-	rtw_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
+	usb_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
 }
 
 static void StopTxBeacon(struct adapter *adapt)
@@ -1220,11 +1220,11 @@ static void StopTxBeacon(struct adapter *adapt)
 	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
 	/*  which should be read from register to a global variable. */
 
-	rtw_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) & (~BIT6));
+	usb_write8(adapt, REG_FWHW_TXQ_CTRL+2, (haldata->RegFwHwTxQCtrl) & (~BIT6));
 	haldata->RegFwHwTxQCtrl &= (~BIT6);
-	rtw_write8(adapt, REG_TBTT_PROHIBIT+1, 0x64);
+	usb_write8(adapt, REG_TBTT_PROHIBIT+1, 0x64);
 	haldata->RegReg542 &= ~(BIT0);
-	rtw_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
+	usb_write8(adapt, REG_TBTT_PROHIBIT+2, haldata->RegReg542);
 
 	 /* todo: CheckFwRsvdPageContent(Adapter);  2010.06.23. Added by tynli. */
 }
@@ -1235,26 +1235,26 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 	u8 mode = *((u8 *)val);
 
 	/*  disable Port0 TSF update */
-	rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
+	usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
 
 	/*  set net_type */
 	val8 = rtw_read8(Adapter, MSR)&0x0c;
 	val8 |= mode;
-	rtw_write8(Adapter, MSR, val8);
+	usb_write8(Adapter, MSR, val8);
 
 	DBG_88E("%s()-%d mode = %d\n", __func__, __LINE__, mode);
 
 	if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
 		StopTxBeacon(Adapter);
 
-		rtw_write8(Adapter, REG_BCN_CTRL, 0x19);/* disable atim wnd */
+		usb_write8(Adapter, REG_BCN_CTRL, 0x19);/* disable atim wnd */
 	} else if ((mode == _HW_STATE_ADHOC_)) {
 		ResumeTxBeacon(Adapter);
-		rtw_write8(Adapter, REG_BCN_CTRL, 0x1a);
+		usb_write8(Adapter, REG_BCN_CTRL, 0x1a);
 	} else if (mode == _HW_STATE_AP_) {
 		ResumeTxBeacon(Adapter);
 
-		rtw_write8(Adapter, REG_BCN_CTRL, 0x12);
+		usb_write8(Adapter, REG_BCN_CTRL, 0x12);
 
 		/* Set RCR */
 		usb_write32(Adapter, REG_RCR, 0x7000208e);/* CBSSID_DATA must set to 0,reject ICV_ERR packet */
@@ -1264,25 +1264,25 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 		usb_write16(Adapter, REG_RXFLTMAP1, 0x0400);
 
 		/* Beacon Control related register for first time */
-		rtw_write8(Adapter, REG_BCNDMATIM, 0x02); /*  2ms */
+		usb_write8(Adapter, REG_BCNDMATIM, 0x02); /*  2ms */
 
-		rtw_write8(Adapter, REG_ATIMWND, 0x0a); /*  10ms */
+		usb_write8(Adapter, REG_ATIMWND, 0x0a); /*  10ms */
 		usb_write16(Adapter, REG_BCNTCFG, 0x00);
 		usb_write16(Adapter, REG_TBTT_PROHIBIT, 0xff04);
 		usb_write16(Adapter, REG_TSFTR_SYN_OFFSET, 0x7fff);/*  +32767 (~32ms) */
 
 		/* reset TSF */
-		rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(0));
+		usb_write8(Adapter, REG_DUAL_TSF_RST, BIT(0));
 
 		/* BIT3 - If set 0, hw will clr bcnq when tx becon ok/fail or port 0 */
-		rtw_write8(Adapter, REG_MBID_NUM, rtw_read8(Adapter, REG_MBID_NUM) | BIT(3) | BIT(4));
+		usb_write8(Adapter, REG_MBID_NUM, rtw_read8(Adapter, REG_MBID_NUM) | BIT(3) | BIT(4));
 
 		/* enable BCN0 Function for if1 */
 		/* don't enable update TSF0 for if1 (due to TSF update when beacon/probe rsp are received) */
-		rtw_write8(Adapter, REG_BCN_CTRL, (DIS_TSF_UDT0_NORMAL_CHIP|EN_BCN_FUNCTION | BIT(1)));
+		usb_write8(Adapter, REG_BCN_CTRL, (DIS_TSF_UDT0_NORMAL_CHIP|EN_BCN_FUNCTION | BIT(1)));
 
 		/* dis BCN1 ATIM  WND if if2 is station */
-		rtw_write8(Adapter, REG_BCN_CTRL_1, rtw_read8(Adapter, REG_BCN_CTRL_1) | BIT(0));
+		usb_write8(Adapter, REG_BCN_CTRL_1, rtw_read8(Adapter, REG_BCN_CTRL_1) | BIT(0));
 	}
 }
 
@@ -1294,7 +1294,7 @@ static void hw_var_set_macaddr(struct adapter *Adapter, u8 variable, u8 *val)
 	reg_macid = REG_MACID;
 
 	for (idx = 0; idx < 6; idx++)
-		rtw_write8(Adapter, (reg_macid+idx), val[idx]);
+		usb_write8(Adapter, (reg_macid+idx), val[idx]);
 }
 
 static void hw_var_set_bssid(struct adapter *Adapter, u8 variable, u8 *val)
@@ -1305,7 +1305,7 @@ static void hw_var_set_bssid(struct adapter *Adapter, u8 variable, u8 *val)
 	reg_bssid = REG_BSSID;
 
 	for (idx = 0; idx < 6; idx++)
-		rtw_write8(Adapter, (reg_bssid+idx), val[idx]);
+		usb_write8(Adapter, (reg_bssid+idx), val[idx]);
 }
 
 static void hw_var_set_bcn_func(struct adapter *Adapter, u8 variable, u8 *val)
@@ -1315,9 +1315,9 @@ static void hw_var_set_bcn_func(struct adapter *Adapter, u8 variable, u8 *val)
 	bcn_ctrl_reg = REG_BCN_CTRL;
 
 	if (*((u8 *)val))
-		rtw_write8(Adapter, bcn_ctrl_reg, (EN_BCN_FUNCTION | EN_TXBCN_RPT));
+		usb_write8(Adapter, bcn_ctrl_reg, (EN_BCN_FUNCTION | EN_TXBCN_RPT));
 	else
-		rtw_write8(Adapter, bcn_ctrl_reg, rtw_read8(Adapter, bcn_ctrl_reg)&(~(EN_BCN_FUNCTION | EN_TXBCN_RPT)));
+		usb_write8(Adapter, bcn_ctrl_reg, rtw_read8(Adapter, bcn_ctrl_reg)&(~(EN_BCN_FUNCTION | EN_TXBCN_RPT)));
 }
 
 static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
@@ -1333,7 +1333,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			val8 = rtw_read8(Adapter, MSR)&0x0c;
 			val8 |= *((u8 *)val);
-			rtw_write8(Adapter, MSR, val8);
+			usb_write8(Adapter, MSR, val8);
 		}
 		break;
 	case HW_VAR_MEDIA_STATUS1:
@@ -1342,7 +1342,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			val8 = rtw_read8(Adapter, MSR) & 0x03;
 			val8 |= *((u8 *)val) << 2;
-			rtw_write8(Adapter, MSR, val8);
+			usb_write8(Adapter, MSR, val8);
 		}
 		break;
 	case HW_VAR_SET_OPMODE:
@@ -1376,9 +1376,9 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			BrateCfg |= 0x01; /*  default enable 1M ACK rate */
 			/*  Set RRSR rate table. */
-			rtw_write8(Adapter, REG_RRSR, BrateCfg & 0xff);
-			rtw_write8(Adapter, REG_RRSR+1, (BrateCfg >> 8) & 0xff);
-			rtw_write8(Adapter, REG_RRSR+2, rtw_read8(Adapter, REG_RRSR+2)&0xf0);
+			usb_write8(Adapter, REG_RRSR, BrateCfg & 0xff);
+			usb_write8(Adapter, REG_RRSR+1, (BrateCfg >> 8) & 0xff);
+			usb_write8(Adapter, REG_RRSR+2, rtw_read8(Adapter, REG_RRSR+2)&0xf0);
 
 			/*  Set RTS initial rate */
 			while (BrateCfg > 0x1) {
@@ -1386,11 +1386,11 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				RateIndex++;
 			}
 			/*  Ziv - Check */
-			rtw_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
+			usb_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
 		}
 		break;
 	case HW_VAR_TXPAUSE:
-		rtw_write8(Adapter, REG_TXPAUSE, *((u8 *)val));
+		usb_write8(Adapter, REG_TXPAUSE, *((u8 *)val));
 		break;
 	case HW_VAR_BCN_FUNC:
 		hw_var_set_bcn_func(Adapter, variable, val);
@@ -1407,13 +1407,13 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				StopTxBeacon(Adapter);
 
 			/* disable related TSF function */
-			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(3)));
+			usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(3)));
 
 			usb_write32(Adapter, REG_TSFTR, tsf);
 			usb_write32(Adapter, REG_TSFTR+4, tsf>>32);
 
 			/* enable related TSF function */
-			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(3));
+			usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(3));
 
 			if (((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE) || ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE))
 				ResumeTxBeacon(Adapter);
@@ -1438,10 +1438,10 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
 		/* reset TSF */
-		rtw_write8(Adapter, REG_DUAL_TSF_RST, (BIT(0)|BIT(1)));
+		usb_write8(Adapter, REG_DUAL_TSF_RST, (BIT(0)|BIT(1)));
 
 		/* disable update TSF */
-		rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
+		usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
 		break;
 	case HW_VAR_MLME_SITESURVEY:
 		if (*((u8 *)val)) { /* under sitesurvey */
@@ -1453,7 +1453,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
 			/* disable update TSF */
-			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
+			usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
 		} else { /* sitesurvey done */
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 			struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
@@ -1464,11 +1464,11 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 
 				/* enable update TSF */
-				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
+				usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 			} else if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
 				usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 				/* enable update TSF */
-				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
+				usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 			}
 			if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
 				usb_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_BCN);
@@ -1511,7 +1511,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			} else if (type == 2) {
 				/* sta add event call back */
 				/* enable update TSF */
-				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
+				usb_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 
 				if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE))
 					RetryLimit = 0x7;
@@ -1528,7 +1528,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 			struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
-			rtw_write8(Adapter, REG_SLOT, val[0]);
+			usb_write8(Adapter, REG_SLOT, val[0]);
 
 			if (pmlmeinfo->WMM_enable == 0) {
 				if (pmlmeext->cur_wireless_mode == WIRELESS_11B)
@@ -1539,20 +1539,20 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				u1bAIFS = aSifsTime + (2 * pmlmeinfo->slotTime);
 
 				/*  <Roger_EXP> Temporary removed, 2008.06.20. */
-				rtw_write8(Adapter, REG_EDCA_VO_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_VI_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_BE_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_BK_PARAM, u1bAIFS);
+				usb_write8(Adapter, REG_EDCA_VO_PARAM, u1bAIFS);
+				usb_write8(Adapter, REG_EDCA_VI_PARAM, u1bAIFS);
+				usb_write8(Adapter, REG_EDCA_BE_PARAM, u1bAIFS);
+				usb_write8(Adapter, REG_EDCA_BK_PARAM, u1bAIFS);
 			}
 		}
 		break;
 	case HW_VAR_RESP_SIFS:
 		/* RESP_SIFS for CCK */
-		rtw_write8(Adapter, REG_R2T_SIFS, val[0]); /*  SIFS_T2T_CCK (0x08) */
-		rtw_write8(Adapter, REG_R2T_SIFS+1, val[1]); /* SIFS_R2T_CCK(0x08) */
+		usb_write8(Adapter, REG_R2T_SIFS, val[0]); /*  SIFS_T2T_CCK (0x08) */
+		usb_write8(Adapter, REG_R2T_SIFS+1, val[1]); /* SIFS_R2T_CCK(0x08) */
 		/* RESP_SIFS for OFDM */
-		rtw_write8(Adapter, REG_T2T_SIFS, val[2]); /* SIFS_T2T_OFDM (0x0a) */
-		rtw_write8(Adapter, REG_T2T_SIFS+1, val[3]); /* SIFS_R2T_OFDM(0x0a) */
+		usb_write8(Adapter, REG_T2T_SIFS, val[2]); /* SIFS_T2T_OFDM (0x0a) */
+		usb_write8(Adapter, REG_T2T_SIFS+1, val[3]); /* SIFS_R2T_OFDM(0x0a) */
 		break;
 	case HW_VAR_ACK_PREAMBLE:
 		{
@@ -1563,11 +1563,11 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			if (bShortPreamble)
 				regTmp |= 0x80;
 
-			rtw_write8(Adapter, REG_RRSR+2, regTmp);
+			usb_write8(Adapter, REG_RRSR+2, regTmp);
 		}
 		break;
 	case HW_VAR_SEC_CFG:
-		rtw_write8(Adapter, REG_SECCFG, *((u8 *)val));
+		usb_write8(Adapter, REG_SECCFG, *((u8 *)val));
 		break;
 	case HW_VAR_DM_FLAG:
 		podmpriv->SupportAbility = *((u8 *)val);
@@ -1662,7 +1662,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				AcmCtrl &= (~AcmHw_BeqEn);
 
 			DBG_88E("[HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl);
-			rtw_write8(Adapter, REG_ACMHWCTRL, AcmCtrl);
+			usb_write8(Adapter, REG_ACMHWCTRL, AcmCtrl);
 		}
 		break;
 	case HW_VAR_AMPDU_MIN_SPACE:
@@ -1689,7 +1689,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				}
 				if (MinSpacingToSet < SecMinSpace)
 					MinSpacingToSet = SecMinSpace;
-				rtw_write8(Adapter, REG_AMPDU_MIN_SPACE, (rtw_read8(Adapter, REG_AMPDU_MIN_SPACE) & 0xf8) | MinSpacingToSet);
+				usb_write8(Adapter, REG_AMPDU_MIN_SPACE, (rtw_read8(Adapter, REG_AMPDU_MIN_SPACE) & 0xf8) | MinSpacingToSet);
 			}
 		}
 		break;
@@ -1714,7 +1714,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 					if ((pRegToSet[index] & 0x0f) > FactorToSet)
 						pRegToSet[index] = (pRegToSet[index] & 0xf0) | (FactorToSet);
 
-					rtw_write8(Adapter, (REG_AGGLEN_LMT+index), pRegToSet[index]);
+					usb_write8(Adapter, (REG_AGGLEN_LMT+index), pRegToSet[index]);
 				}
 			}
 		}
@@ -1724,7 +1724,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			u8 threshold = *((u8 *)val);
 			if (threshold == 0)
 				threshold = haldata->UsbRxAggPageCount;
-			rtw_write8(Adapter, REG_RXDMA_AGG_PG_TH, threshold);
+			usb_write8(Adapter, REG_RXDMA_AGG_PG_TH, threshold);
 		}
 		break;
 	case HW_VAR_SET_RPWM:
@@ -1798,7 +1798,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			u8 trycnt = 100;
 
 			/* pause tx */
-			rtw_write8(Adapter, REG_TXPAUSE, 0xff);
+			usb_write8(Adapter, REG_TXPAUSE, 0xff);
 
 			/* keep sn */
 			Adapter->xmitpriv.nqos_ssn = rtw_read16(Adapter, REG_NQOS_SEQ);
@@ -1830,7 +1830,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		{
 			u8 maxMacid = *val;
 			DBG_88E("### MacID(%d),Set Max Tx RPT MID(%d)\n", maxMacid, maxMacid+1);
-			rtw_write8(Adapter, REG_TX_RPT_CTRL+1, maxMacid+1);
+			usb_write8(Adapter, REG_TX_RPT_CTRL+1, maxMacid+1);
 		}
 		break;
 	case HW_VAR_H2C_MEDIA_STATUS_RPT:
@@ -1838,7 +1838,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_BCN_VALID:
 		/* BCN_VALID, BIT16 of REG_TDECTRL = BIT0 of REG_TDECTRL+2, write 1 to clear, Clear by sw */
-		rtw_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0);
+		usb_write8(Adapter, REG_TDECTRL+2, rtw_read8(Adapter, REG_TDECTRL+2) | BIT0);
 		break;
 	default:
 		break;
@@ -2163,11 +2163,11 @@ static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 
 	/* BCN interval */
 	usb_write16(adapt, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
-	rtw_write8(adapt, REG_ATIMWND, 0x02);/*  2ms */
+	usb_write8(adapt, REG_ATIMWND, 0x02);/*  2ms */
 
 	_InitBeaconParameters(adapt);
 
-	rtw_write8(adapt, REG_SLOT, 0x09);
+	usb_write8(adapt, REG_SLOT, 0x09);
 
 	value32 = rtw_read32(adapt, REG_TCR);
 	value32 &= ~TSFRST;
@@ -2177,14 +2177,14 @@ static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 	usb_write32(adapt, REG_TCR, value32);
 
 	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
-	rtw_write8(adapt,  REG_RXTSF_OFFSET_CCK, 0x50);
-	rtw_write8(adapt, REG_RXTSF_OFFSET_OFDM, 0x50);
+	usb_write8(adapt,  REG_RXTSF_OFFSET_CCK, 0x50);
+	usb_write8(adapt, REG_RXTSF_OFFSET_OFDM, 0x50);
 
 	_BeaconFunctionEnable(adapt, true, true);
 
 	ResumeTxBeacon(adapt);
 
-	rtw_write8(adapt, bcn_ctrl_reg, rtw_read8(adapt, bcn_ctrl_reg)|BIT(1));
+	usb_write8(adapt, bcn_ctrl_reg, rtw_read8(adapt, bcn_ctrl_reg)|BIT(1));
 }
 
 static void rtl8188eu_init_default_value(struct adapter *adapt)
