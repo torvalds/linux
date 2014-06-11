@@ -432,7 +432,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		if (owner && !mutex_spin_on_owner(lock, owner))
 			break;
 
-		if ((atomic_read(&lock->count) == 1) &&
+		/* Try to acquire the mutex if it is unlocked. */
+		if (!mutex_is_locked(lock) &&
 		    (atomic_cmpxchg(&lock->count, 1, 0) == 1)) {
 			lock_acquired(&lock->dep_map, ip);
 			if (use_ww_ctx) {
@@ -479,9 +480,9 @@ slowpath:
 
 	/*
 	 * Once more, try to acquire the lock. Only try-lock the mutex if
-	 * lock->count >= 0 to reduce unnecessary xchg operations.
+	 * it is unlocked to reduce unnecessary xchg() operations.
 	 */
-	if (atomic_read(&lock->count) >= 0 && (atomic_xchg(&lock->count, 0) == 1))
+	if (!mutex_is_locked(lock) && (atomic_xchg(&lock->count, 0) == 1))
 		goto skip_wait;
 
 	debug_mutex_lock_common(lock, &waiter);
