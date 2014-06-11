@@ -31,6 +31,7 @@
 #include <asm/xics.h>
 #include <asm/opal.h>
 #include <asm/runlatch.h>
+#include <asm/code-patching.h>
 
 #include "powernv.h"
 
@@ -50,8 +51,8 @@ static void pnv_smp_setup_cpu(int cpu)
 int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
-	unsigned long start_here = __pa(*((unsigned long *)
-					  generic_secondary_smp_init));
+	unsigned long start_here =
+			__pa(ppc_function_entry(generic_secondary_smp_init));
 	long rc;
 
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
@@ -158,17 +159,19 @@ static void pnv_smp_cpu_kill_self(void)
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
 		ppc64_runlatch_off();
-		power7_nap();
+		power7_nap(1);
 		ppc64_runlatch_on();
-		if (!generic_check_cpu_restart(cpu)) {
+
+		/* Reenable IRQs briefly to clear the IPI that woke us */
+		local_irq_enable();
+		local_irq_disable();
+		mb();
+
+		if (cpu_core_split_required())
+			continue;
+
+		if (!generic_check_cpu_restart(cpu))
 			DBG("CPU%d Unexpected exit while offline !\n", cpu);
-			/* We may be getting an IPI, so we re-enable
-			 * interrupts to process it, it will be ignored
-			 * since we aren't online (hopefully)
-			 */
-			local_irq_enable();
-			local_irq_disable();
-		}
 	}
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
 	DBG("CPU%d coming online...\n", cpu);

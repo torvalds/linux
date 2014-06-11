@@ -142,3 +142,4 @@ wm	Wondermedia Technologies, Inc.
 xes	Extreme Engineering Solutions (X-ES)
 xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
+zarlink	Zarlink Semiconductor

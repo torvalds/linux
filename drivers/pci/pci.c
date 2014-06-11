@@ -3179,14 +3179,7 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 	return 0;
 }
 
-/**
- * pci_reset_bridge_secondary_bus - Reset the secondary bus on a PCI bridge.
- * @dev: Bridge device
- *
- * Use the bridge control register to assert reset on the secondary bus.
- * Devices on the secondary bus are left in power-on state.
- */
-void pci_reset_bridge_secondary_bus(struct pci_dev *dev)
+void __weak pcibios_reset_secondary_bus(struct pci_dev *dev)
 {
 	u16 ctrl;
 
@@ -3210,6 +3203,18 @@ void pci_reset_bridge_secondary_bus(struct pci_dev *dev)
 	 * but we don't make use of them yet.
 	 */
 	ssleep(1);
+}
+
+/**
+ * pci_reset_bridge_secondary_bus - Reset the secondary bus on a PCI bridge.
+ * @dev: Bridge device
+ *
+ * Use the bridge control register to assert reset on the secondary bus.
+ * Devices on the secondary bus are left in power-on state.
+ */
+void pci_reset_bridge_secondary_bus(struct pci_dev *dev)
+{
+	pcibios_reset_secondary_bus(dev);
 }
 EXPORT_SYMBOL_GPL(pci_reset_bridge_secondary_bus);
 

@@ -30,6 +30,7 @@ extern u32 epapr_ev_idle_start[];
 #endif
 
 bool epapr_paravirt_enabled;
+static bool __maybe_unused epapr_has_idle;
 
 static int __init early_init_dt_scan_epapr(unsigned long node,
 					   const char *uname,
@@ -56,7 +57,7 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 
 #if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
 	if (of_get_flat_dt_prop(node, "has-idle", NULL))
-		ppc_md.power_save = epapr_ev_idle;
+		epapr_has_idle = true;
 #endif
 
 	epapr_paravirt_enabled = true;
@@ -71,3 +72,14 @@ int __init epapr_paravirt_early_init(void)
 	return 0;
 }
 
+static int __init epapr_idle_init(void)
+{
+#if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
+	if (epapr_has_idle)
+		ppc_md.power_save = epapr_ev_idle;
+#endif
+
+	return 0;
+}
+
+postcore_initcall(epapr_idle_init);

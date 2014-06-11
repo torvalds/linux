@@ -154,6 +154,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_LPC_READ				67
 #define OPAL_LPC_WRITE				68
 #define OPAL_RETURN_CPU				69
+#define OPAL_REINIT_CPUS			70
 #define OPAL_ELOG_READ				71
 #define OPAL_ELOG_WRITE				72
 #define OPAL_ELOG_ACK				73
@@ -509,7 +510,7 @@ enum OpalMemErr_DynErrType {
 struct OpalMemoryErrorData {
 	enum OpalMemErr_Version	version:8;	/* 0x00 */
 	enum OpalMemErrType	type:8;		/* 0x01 */
-	uint16_t		flags;		/* 0x02 */
+	__be16			flags;		/* 0x02 */
 	uint8_t			reserved_1[4];	/* 0x04 */
 
 	union {
@@ -517,15 +518,15 @@ struct OpalMemoryErrorData {
 		struct {
 			enum OpalMemErr_ResilErrType resil_err_type:8;
 			uint8_t		reserved_1[7];
-			uint64_t	physical_address_start;
-			uint64_t	physical_address_end;
+			__be64		physical_address_start;
+			__be64		physical_address_end;
 		} resilience;
 		/* Dynamic memory deallocation error info */
 		struct {
 			enum OpalMemErr_DynErrType dyn_err_type:8;
 			uint8_t		reserved_1[7];
-			uint64_t	physical_address_start;
-			uint64_t	physical_address_end;
+			__be64		physical_address_start;
+			__be64		physical_address_end;
 		} dyn_dealloc;
 	} u;
 };
@@ -725,6 +726,11 @@ struct OpalIoPhb3ErrorData {
 	uint64_t pestB[OPAL_PHB3_NUM_PEST_REGS];
 };
 
+enum {
+	OPAL_REINIT_CPUS_HILE_BE	= (1 << 0),
+	OPAL_REINIT_CPUS_HILE_LE	= (1 << 1),
+};
+
 typedef struct oppanel_line {
 	const char * 	line;
 	uint64_t 	line_len;
@@ -849,6 +855,7 @@ int64_t opal_pci_next_error(uint64_t phb_id, uint64_t *first_frozen_pe,
 			    uint16_t *pci_error_type, uint16_t *severity);
 int64_t opal_pci_poll(uint64_t phb_id);
 int64_t opal_return_cpu(void);
+int64_t opal_reinit_cpus(uint64_t flags);
 
 int64_t opal_xscom_read(uint32_t gcid, uint64_t pcb_addr, __be64 *val);
 int64_t opal_xscom_write(uint32_t gcid, uint64_t pcb_addr, uint64_t val);
@@ -916,6 +923,7 @@ extern void opal_get_rtc_time(struct rtc_time *tm);
 extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
 extern void opal_flash_init(void);
+extern void opal_flash_term_callback(void);
 extern int opal_elog_init(void);
 extern void opal_platform_dump_init(void);
 extern void opal_sys_param_init(void);

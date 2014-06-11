@@ -422,6 +422,7 @@ config CPU_BIG_ENDIAN
 
 config CPU_LITTLE_ENDIAN
 	bool "Build little endian kernel"
+	select PPC64_BOOT_WRAPPER
 	help
 	  Build a little endian kernel.
 
@@ -430,3 +431,7 @@ config CPU_LITTLE_ENDIAN
 	  little endian powerpc.
 
 endchoice
+
+config PPC64_BOOT_WRAPPER
+	def_bool n
+	depends on CPU_LITTLE_ENDIAN

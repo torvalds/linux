@@ -131,65 +131,60 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoP7IOCPhbErrorData *)common;
-	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n\n",
+	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n",
 		hose->global_number, common->version);
 
 	if (data->brdgCtl)
-		pr_info("  brdgCtl:     %08x\n",
+		pr_info("brdgCtl:     %08x\n",
 			data->brdgCtl);
 	if (data->portStatusReg || data->rootCmplxStatus ||
 	    data->busAgentStatus)
-		pr_info("  UtlSts:      %08x %08x %08x\n",
+		pr_info("UtlSts:      %08x %08x %08x\n",
 			data->portStatusReg, data->rootCmplxStatus,
 			data->busAgentStatus);
 	if (data->deviceStatus || data->slotStatus   ||
 	    data->linkStatus   || data->devCmdStatus ||
 	    data->devSecStatus)
-		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+		pr_info("RootSts:     %08x %08x %08x %08x %08x\n",
 			data->deviceStatus, data->slotStatus,
 			data->linkStatus, data->devCmdStatus,
 			data->devSecStatus);
 	if (data->rootErrorStatus   || data->uncorrErrorStatus ||
 	    data->corrErrorStatus)
-		pr_info("  RootErrSts:  %08x %08x %08x\n",
+		pr_info("RootErrSts:  %08x %08x %08x\n",
 			data->rootErrorStatus, data->uncorrErrorStatus,
 			data->corrErrorStatus);
 	if (data->tlpHdr1 || data->tlpHdr2 ||
 	    data->tlpHdr3 || data->tlpHdr4)
-		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+		pr_info("RootErrLog:  %08x %08x %08x %08x\n",
 			data->tlpHdr1, data->tlpHdr2,
 			data->tlpHdr3, data->tlpHdr4);
 	if (data->sourceId || data->errorClass ||
 	    data->correlator)
-		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+		pr_info("RootErrLog1: %08x %016llx %016llx\n",
 			data->sourceId, data->errorClass,
 			data->correlator);
 	if (data->p7iocPlssr || data->p7iocCsr)
-		pr_info("  PhbSts:      %016llx %016llx\n",
+		pr_info("PhbSts:      %016llx %016llx\n",
 			data->p7iocPlssr, data->p7iocCsr);
-	if (data->lemFir || data->lemErrorMask ||
-	    data->lemWOF)
-		pr_info("  Lem:         %016llx %016llx %016llx\n",
+	if (data->lemFir)
+		pr_info("Lem:         %016llx %016llx %016llx\n",
 			data->lemFir, data->lemErrorMask,
 			data->lemWOF);
-	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
-	    data->phbErrorLog0   || data->phbErrorLog1)
-		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->phbErrorStatus)
+		pr_info("PhbErr:      %016llx %016llx %016llx %016llx\n",
 			data->phbErrorStatus, data->phbFirstErrorStatus,
 			data->phbErrorLog0, data->phbErrorLog1);
-	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
-	    data->mmioErrorLog0   || data->mmioErrorLog1)
-		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->mmioErrorStatus)
+		pr_info("OutErr:      %016llx %016llx %016llx %016llx\n",
 			data->mmioErrorStatus, data->mmioFirstErrorStatus,
 			data->mmioErrorLog0, data->mmioErrorLog1);
-	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
-	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
-		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma0ErrorStatus)
+		pr_info("InAErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
 			data->dma0ErrorLog0, data->dma0ErrorLog1);
-	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
-	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
-		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma1ErrorStatus)
+		pr_info("InBErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
 			data->dma1ErrorLog0, data->dma1ErrorLog1);
 
@@ -198,7 +193,7 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 		    (data->pestB[i] >> 63) == 0)
 			continue;
 
-		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+		pr_info("PE[%3d] A/B: %016llx %016llx\n",
 			i, data->pestA[i], data->pestB[i]);
 	}
 }
@@ -210,69 +205,63 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoPhb3ErrorData*)common;
-	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n\n",
+	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n",
 		hose->global_number, common->version);
 	if (data->brdgCtl)
-		pr_info("  brdgCtl:     %08x\n",
+		pr_info("brdgCtl:     %08x\n",
 			data->brdgCtl);
 	if (data->portStatusReg || data->rootCmplxStatus ||
 	    data->busAgentStatus)
-		pr_info("  UtlSts:      %08x %08x %08x\n",
+		pr_info("UtlSts:      %08x %08x %08x\n",
 			data->portStatusReg, data->rootCmplxStatus,
 			data->busAgentStatus);
 	if (data->deviceStatus || data->slotStatus   ||
 	    data->linkStatus   || data->devCmdStatus ||
 	    data->devSecStatus)
-		pr_info("  RootSts:     %08x %08x %08x %08x %08x\n",
+		pr_info("RootSts:     %08x %08x %08x %08x %08x\n",
 			data->deviceStatus, data->slotStatus,
 			data->linkStatus, data->devCmdStatus,
 			data->devSecStatus);
 	if (data->rootErrorStatus || data->uncorrErrorStatus ||
 	    data->corrErrorStatus)
-		pr_info("  RootErrSts:  %08x %08x %08x\n",
+		pr_info("RootErrSts:  %08x %08x %08x\n",
 			data->rootErrorStatus, data->uncorrErrorStatus,
 			data->corrErrorStatus);
 	if (data->tlpHdr1 || data->tlpHdr2 ||
 	    data->tlpHdr3 || data->tlpHdr4)
-		pr_info("  RootErrLog:  %08x %08x %08x %08x\n",
+		pr_info("RootErrLog:  %08x %08x %08x %08x\n",
 			data->tlpHdr1, data->tlpHdr2,
 			data->tlpHdr3, data->tlpHdr4);
 	if (data->sourceId || data->errorClass ||
 	    data->correlator)
-		pr_info("  RootErrLog1: %08x %016llx %016llx\n",
+		pr_info("RootErrLog1: %08x %016llx %016llx\n",
 			data->sourceId, data->errorClass,
 			data->correlator);
-	if (data->nFir || data->nFirMask ||
-	    data->nFirWOF)
-		pr_info("  nFir:        %016llx %016llx %016llx\n",
+	if (data->nFir)
+		pr_info("nFir:        %016llx %016llx %016llx\n",
 			data->nFir, data->nFirMask,
 			data->nFirWOF);
 	if (data->phbPlssr || data->phbCsr)
-		pr_info("  PhbSts:      %016llx %016llx\n",
+		pr_info("PhbSts:      %016llx %016llx\n",
 			data->phbPlssr, data->phbCsr);
-	if (data->lemFir || data->lemErrorMask ||
-	    data->lemWOF)
-		pr_info("  Lem:         %016llx %016llx %016llx\n",
+	if (data->lemFir)
+		pr_info("Lem:         %016llx %016llx %016llx\n",
 			data->lemFir, data->lemErrorMask,
 			data->lemWOF);
-	if (data->phbErrorStatus || data->phbFirstErrorStatus ||
-	    data->phbErrorLog0   || data->phbErrorLog1)
-		pr_info("  PhbErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->phbErrorStatus)
+		pr_info("PhbErr:      %016llx %016llx %016llx %016llx\n",
 			data->phbErrorStatus, data->phbFirstErrorStatus,
 			data->phbErrorLog0, data->phbErrorLog1);
-	if (data->mmioErrorStatus || data->mmioFirstErrorStatus ||
-	    data->mmioErrorLog0   || data->mmioErrorLog1)
-		pr_info("  OutErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->mmioErrorStatus)
+		pr_info("OutErr:      %016llx %016llx %016llx %016llx\n",
 			data->mmioErrorStatus, data->mmioFirstErrorStatus,
 			data->mmioErrorLog0, data->mmioErrorLog1);
-	if (data->dma0ErrorStatus || data->dma0FirstErrorStatus ||
-	    data->dma0ErrorLog0   || data->dma0ErrorLog1)
-		pr_info("  InAErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma0ErrorStatus)
+		pr_info("InAErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma0ErrorStatus, data->dma0FirstErrorStatus,
 			data->dma0ErrorLog0, data->dma0ErrorLog1);
-	if (data->dma1ErrorStatus || data->dma1FirstErrorStatus ||
-	    data->dma1ErrorLog0   || data->dma1ErrorLog1)
-		pr_info("  InBErr:      %016llx %016llx %016llx %016llx\n",
+	if (data->dma1ErrorStatus)
+		pr_info("InBErr:      %016llx %016llx %016llx %016llx\n",
 			data->dma1ErrorStatus, data->dma1FirstErrorStatus,
 			data->dma1ErrorLog0, data->dma1ErrorLog1);
 
@@ -281,7 +270,7 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 		    (data->pestB[i] >> 63) == 0)
 			continue;
 
-		pr_info("  PE[%3d] A/B: %016llx %016llx\n",
+		pr_info("PE[%3d] A/B: %016llx %016llx\n",
 			i, data->pestA[i], data->pestB[i]);
 	}
 }
@@ -384,9 +373,6 @@ int pnv_pci_cfg_read(struct device_node *dn,
 	struct pci_dn *pdn = PCI_DN(dn);
 	struct pnv_phb *phb = pdn->phb->private_data;
 	u32 bdfn = (pdn->busno << 8) | pdn->devfn;
-#ifdef CONFIG_EEH
-	struct eeh_pe *phb_pe = NULL;
-#endif
 	s64 rc;
 
 	switch (size) {
@@ -412,31 +398,9 @@ int pnv_pci_cfg_read(struct device_node *dn,
 	default:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
+
 	cfg_dbg("%s: bus: %x devfn: %x +%x/%x -> %08x\n",
 		__func__, pdn->busno, pdn->devfn, where, size, *val);
-
-	/*
-	 * Check if the specified PE has been put into frozen
-	 * state. On the other hand, we needn't do that while
-	 * the PHB has been put into frozen state because of
-	 * PHB-fatal errors.
-	 */
-#ifdef CONFIG_EEH
-	phb_pe = eeh_phb_pe_get(pdn->phb);
-	if (phb_pe && (phb_pe->state & EEH_PE_ISOLATED))
-		return PCIBIOS_SUCCESSFUL;
-
-	if (phb->eeh_state & PNV_EEH_STATE_ENABLED) {
-		if (*val == EEH_IO_ERROR_VALUE(size) &&
-		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
-			return PCIBIOS_DEVICE_NOT_FOUND;
-	} else {
-		pnv_pci_config_check_eeh(phb, dn);
-	}
-#else
-	pnv_pci_config_check_eeh(phb, dn);
-#endif
-
 	return PCIBIOS_SUCCESSFUL;
 }
 
@@ -463,16 +427,40 @@ int pnv_pci_cfg_write(struct device_node *dn,
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 	}
 
-	/* Check if the PHB got frozen due to an error (no response) */
-#ifdef CONFIG_EEH
-	if (!(phb->eeh_state & PNV_EEH_STATE_ENABLED))
-		pnv_pci_config_check_eeh(phb, dn);
-#else
-	pnv_pci_config_check_eeh(phb, dn);
-#endif
-
 	return PCIBIOS_SUCCESSFUL;
 }
+
+#if CONFIG_EEH
+static bool pnv_pci_cfg_check(struct pci_controller *hose,
+			      struct device_node *dn)
+{
+	struct eeh_dev *edev = NULL;
+	struct pnv_phb *phb = hose->private_data;
+
+	/* EEH not enabled ? */
+	if (!(phb->flags & PNV_PHB_FLAG_EEH))
+		return true;
+
+	/* PE reset or device removed ? */
+	edev = of_node_to_eeh_dev(dn);
+	if (edev) {
+		if (edev->pe &&
+		    (edev->pe->state & EEH_PE_RESET))
+			return false;
+
+		if (edev->mode & EEH_DEV_REMOVED)
+			return false;
+	}
+
+	return true;
+}
+#else
+static inline pnv_pci_cfg_check(struct pci_controller *hose,
+				struct device_node *dn)
+{
+	return true;
+}
+#endif /* CONFIG_EEH */
 
 static int pnv_pci_read_config(struct pci_bus *bus,
 			       unsigned int devfn,
@@ -480,16 +468,33 @@ static int pnv_pci_read_config(struct pci_bus *bus,
 {
 	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
 	struct pci_dn *pdn;
-
-	for (dn = busdn->child; dn; dn = dn->sibling) {
-		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn)
-			return pnv_pci_cfg_read(dn, where, size, val);
-	}
+	struct pnv_phb *phb;
+	bool found = false;
+	int ret;
 
 	*val = 0xFFFFFFFF;
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn) {
+			phb = pdn->phb->private_data;
+			found = true;
+			break;
+		}
+	}
 
+	if (!found || !pnv_pci_cfg_check(pdn->phb, dn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	ret = pnv_pci_cfg_read(dn, where, size, val);
+	if (phb->flags & PNV_PHB_FLAG_EEH) {
+		if (*val == EEH_IO_ERROR_VALUE(size) &&
+		    eeh_dev_check_failure(of_node_to_eeh_dev(dn)))
+                        return PCIBIOS_DEVICE_NOT_FOUND;
+	} else {
+		pnv_pci_config_check_eeh(phb, dn);
+	}
+
+	return ret;
 }
 
 static int pnv_pci_write_config(struct pci_bus *bus,
@@ -498,14 +503,27 @@ static int pnv_pci_write_config(struct pci_bus *bus,
 {
 	struct device_node *dn, *busdn = pci_bus_to_OF_node(bus);
 	struct pci_dn *pdn;
+	struct pnv_phb *phb;
+	bool found = false;
+	int ret;
 
 	for (dn = busdn->child; dn; dn = dn->sibling) {
 		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn)
-			return pnv_pci_cfg_write(dn, where, size, val);
+		if (pdn && pdn->devfn == devfn) {
+			phb = pdn->phb->private_data;
+			found = true;
+			break;
+		}
 	}
 
-	return PCIBIOS_DEVICE_NOT_FOUND;
+	if (!found || !pnv_pci_cfg_check(pdn->phb, dn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	ret = pnv_pci_cfg_write(dn, where, size, val);
+	if (!(phb->flags & PNV_PHB_FLAG_EEH))
+		pnv_pci_config_check_eeh(phb, dn);
+
+	return ret;
 }
 
 struct pci_ops pnv_pci_ops = {

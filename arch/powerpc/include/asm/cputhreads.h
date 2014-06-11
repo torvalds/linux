@@ -18,10 +18,12 @@
 
 #ifdef CONFIG_SMP
 extern int threads_per_core;
+extern int threads_per_subcore;
 extern int threads_shift;
 extern cpumask_t threads_core_mask;
 #else
 #define threads_per_core	1
+#define threads_per_subcore	1
 #define threads_shift		0
 #define threads_core_mask	(CPU_MASK_CPU0)
 #endif
@@ -72,6 +74,11 @@ static inline int cpu_first_thread_of_core(int core) { return core; }
 static inline int cpu_thread_in_core(int cpu)
 {
 	return cpu & (threads_per_core - 1);
+}
+
+static inline int cpu_thread_in_subcore(int cpu)
+{
+	return cpu & (threads_per_subcore - 1);
 }
 
 static inline int cpu_first_thread_sibling(int cpu)

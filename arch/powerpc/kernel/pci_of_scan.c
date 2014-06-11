@@ -304,6 +304,9 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 	struct pci_dev *dev = NULL;
 	const __be32 *reg;
 	int reglen, devfn;
+#ifdef CONFIG_EEH
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+#endif
 
 	pr_debug("  * %s\n", dn->full_name);
 	if (!of_device_is_available(dn))
@@ -320,6 +323,12 @@ static struct pci_dev *of_scan_pci_dev(struct pci_bus *bus,
 		pci_dev_put(dev);
 		return dev;
 	}
+
+	/* Device removed permanently ? */
+#ifdef CONFIG_EEH
+	if (edev && (edev->mode & EEH_DEV_REMOVED))
+		return NULL;
+#endif
 
 	/* create a new pci_dev for this device */
 	dev = of_create_pci_dev(dn, bus, devfn);

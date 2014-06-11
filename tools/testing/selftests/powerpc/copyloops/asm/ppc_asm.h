@@ -46,12 +46,15 @@
 #define R20 r20
 #define R21 r21
 #define R22 r22
+#define R29 r29
+#define R30 r30
+#define R31 r31
 
 #define STACKFRAMESIZE	256
-#define STK_PARAM(i)	(48 + ((i)-3)*8)
 #define STK_REG(i)	(112 + ((i)-14)*8)
 
 #define _GLOBAL(A) FUNC_START(test_ ## A)
+#define _GLOBAL_TOC(A) _GLOBAL(A)
 
 #define PPC_MTOCRF(A, B)	mtocrf A, B
 
