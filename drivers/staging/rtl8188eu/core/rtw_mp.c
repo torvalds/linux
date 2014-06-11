@@ -56,7 +56,7 @@ void write_macreg(struct adapter *padapter, u32 addr, u32 val, u32 sz)
 		rtw_write16(padapter, addr, (u16)val);
 		break;
 	case 4:
-		rtw_write32(padapter, addr, val);
+		usb_write32(padapter, addr, val);
 		break;
 	default:
 		break;
@@ -221,7 +221,7 @@ s32 MPT_InitializeAdapter(struct adapter *pAdapter, u8 Channel)
 	/*  */
 
 	/*  Don't accept any packets */
-	rtw_write32(pAdapter, REG_RCR, 0);
+	usb_write32(pAdapter, REG_RCR, 0);
 
 	PHY_IQCalibrate(pAdapter, false);
 	dm_CheckTXPowerTracking(&pHalData->odmpriv);	/* trigger thermal meter */
@@ -788,12 +788,12 @@ void SetPacketRx(struct adapter *pAdapter, u8 bStartRx)
 
 		pHalData->ReceiveConfig |= ACRC32;
 
-		rtw_write32(pAdapter, REG_RCR, pHalData->ReceiveConfig);
+		usb_write32(pAdapter, REG_RCR, pHalData->ReceiveConfig);
 
 		/*  Accept all data frames */
 		rtw_write16(pAdapter, REG_RXFLTMAP2, 0xFFFF);
 	} else {
-		rtw_write32(pAdapter, REG_RCR, 0);
+		usb_write32(pAdapter, REG_RCR, 0);
 	}
 }
 
@@ -805,7 +805,7 @@ void ResetPhyRxPktCount(struct adapter *pAdapter)
 		phyrx_set = 0;
 		phyrx_set |= _RXERR_RPT_SEL(i);	/* select */
 		phyrx_set |= RXERR_RPT_RST;	/*  set counter to zero */
-		rtw_write32(pAdapter, REG_RXERR_RPT, phyrx_set);
+		usb_write32(pAdapter, REG_RXERR_RPT, phyrx_set);
 	}
 }
 
@@ -815,7 +815,7 @@ static u32 GetPhyRxPktCounts(struct adapter *pAdapter, u32 selbit)
 	u32 phyrx_set = 0, count = 0;
 
 	phyrx_set = _RXERR_RPT_SEL(selbit & 0xF);
-	rtw_write32(pAdapter, REG_RXERR_RPT, phyrx_set);
+	usb_write32(pAdapter, REG_RXERR_RPT, phyrx_set);
 
 	/* Read packet count */
 	count = rtw_read32(pAdapter, REG_RXERR_RPT) & RXERR_COUNTER_MASK;
@@ -857,11 +857,11 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 	psd_val &= 0xFFBFFC00;
 	psd_val |= point;
 
-	rtw_write32(pAdapter, 0x808, psd_val);
+	usb_write32(pAdapter, 0x808, psd_val);
 	mdelay(1);
 	psd_val |= 0x00400000;
 
-	rtw_write32(pAdapter, 0x808, psd_val);
+	usb_write32(pAdapter, 0x808, psd_val);
 	mdelay(1);
 	psd_val = rtw_read32(pAdapter, 0x8B4);
 

@@ -139,14 +139,14 @@ static void _InitInterrupt(struct adapter *Adapter)
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
 
 	/* HISR write one to clear */
-	rtw_write32(Adapter, REG_HISR_88E, 0xFFFFFFFF);
+	usb_write32(Adapter, REG_HISR_88E, 0xFFFFFFFF);
 	/*  HIMR - */
 	imr = IMR_PSTIMEOUT_88E | IMR_TBDER_88E | IMR_CPWM_88E | IMR_CPWM2_88E;
-	rtw_write32(Adapter, REG_HIMR_88E, imr);
+	usb_write32(Adapter, REG_HIMR_88E, imr);
 	haldata->IntrMask[0] = imr;
 
 	imr_ex = IMR_TXERR_88E | IMR_RXERR_88E | IMR_TXFOVW_88E | IMR_RXFOVW_88E;
-	rtw_write32(Adapter, REG_HIMRE_88E, imr_ex);
+	usb_write32(Adapter, REG_HIMRE_88E, imr_ex);
 	haldata->IntrMask[1] = imr_ex;
 
 	/*  REG_USB_SPECIAL_OPTION - BIT(4) */
@@ -191,11 +191,11 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 
 		/*  TX DMA */
 		value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
-		rtw_write32(Adapter, REG_RQPN, value32);
+		usb_write32(Adapter, REG_RQPN, value32);
 	} else {
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0000);/* Just follow MP Team,??? Georgia 03/28 */
 		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0d);
-		rtw_write32(Adapter, REG_RQPN, 0x808E000d);/* reserve 7 page for LPS */
+		usb_write32(Adapter, REG_RQPN, 0x808E000d);/* reserve 7 page for LPS */
 	}
 }
 
@@ -345,7 +345,7 @@ static void _InitNetworkType(struct adapter *Adapter)
 	/*  TODO: use the other function to set network type */
 	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
 
-	rtw_write32(Adapter, REG_CR, value32);
+	usb_write32(Adapter, REG_CR, value32);
 }
 
 static void _InitTransferPageSize(struct adapter *Adapter)
@@ -372,11 +372,11 @@ static void _InitWMACSetting(struct adapter *Adapter)
 				  RCR_APP_MIC | RCR_APP_PHYSTS;
 
 	/*  some REG_RCR will be modified later by phy_ConfigMACWithHeaderFile() */
-	rtw_write32(Adapter, REG_RCR, haldata->ReceiveConfig);
+	usb_write32(Adapter, REG_RCR, haldata->ReceiveConfig);
 
 	/*  Accept all multicast address */
-	rtw_write32(Adapter, REG_MAR, 0xFFFFFFFF);
-	rtw_write32(Adapter, REG_MAR + 4, 0xFFFFFFFF);
+	usb_write32(Adapter, REG_MAR, 0xFFFFFFFF);
+	usb_write32(Adapter, REG_MAR + 4, 0xFFFFFFFF);
 }
 
 static void _InitAdaptiveCtrl(struct adapter *Adapter)
@@ -388,7 +388,7 @@ static void _InitAdaptiveCtrl(struct adapter *Adapter)
 	value32 = rtw_read32(Adapter, REG_RRSR);
 	value32 &= ~RATE_BITMAP_ALL;
 	value32 |= RATE_RRSR_CCK_ONLY_1M;
-	rtw_write32(Adapter, REG_RRSR, value32);
+	usb_write32(Adapter, REG_RRSR, value32);
 
 	/*  CF-END Threshold */
 
@@ -414,10 +414,10 @@ static void _InitEDCA(struct adapter *Adapter)
 	rtw_write16(Adapter, REG_SIFS_TRX, 0x100a);
 
 	/*  TXOP */
-	rtw_write32(Adapter, REG_EDCA_BE_PARAM, 0x005EA42B);
-	rtw_write32(Adapter, REG_EDCA_BK_PARAM, 0x0000A44F);
-	rtw_write32(Adapter, REG_EDCA_VI_PARAM, 0x005EA324);
-	rtw_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
+	usb_write32(Adapter, REG_EDCA_BE_PARAM, 0x005EA42B);
+	usb_write32(Adapter, REG_EDCA_BK_PARAM, 0x0000A44F);
+	usb_write32(Adapter, REG_EDCA_VI_PARAM, 0x005EA324);
+	usb_write32(Adapter, REG_EDCA_VO_PARAM, 0x002FA226);
 }
 
 static void _InitRDGSetting(struct adapter *Adapter)
@@ -429,8 +429,8 @@ static void _InitRDGSetting(struct adapter *Adapter)
 
 static void _InitRxSetting(struct adapter *Adapter)
 {
-	rtw_write32(Adapter, REG_MACID, 0x87654321);
-	rtw_write32(Adapter, 0x0700, 0x87654321);
+	usb_write32(Adapter, REG_MACID, 0x87654321);
+	usb_write32(Adapter, 0x0700, 0x87654321);
 }
 
 static void _InitRetryFunction(struct adapter *Adapter)
@@ -473,7 +473,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 		value32 = value32 & ~(BLK_DESC_NUM_MASK << BLK_DESC_NUM_SHIFT);
 		value32 |= ((haldata->UsbTxAggDescNum & BLK_DESC_NUM_MASK) << BLK_DESC_NUM_SHIFT);
 
-		rtw_write32(Adapter, REG_TDECTRL, value32);
+		usb_write32(Adapter, REG_TDECTRL, value32);
 	}
 }	/*  usb_AggSettingTxUpdate */
 
@@ -633,7 +633,7 @@ static void _InitAntenna_Selection(struct adapter *Adapter)
 		return;
 	DBG_88E("==>  %s ....\n", __func__);
 
-	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0)|BIT23);
+	usb_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0)|BIT23);
 	PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 
 	if (PHY_QueryBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
@@ -867,7 +867,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	/*  Disable BAR, suggested by Scott */
 	/*  2010.04.09 add by hpfan */
 	/*  */
-	rtw_write32(Adapter, REG_BAR_MODE_CTRL, 0x0201ffff);
+	usb_write32(Adapter, REG_BAR_MODE_CTRL, 0x0201ffff);
 
 	/*  HW SEQ CTRL */
 	/* set 0x0 to 0xFF by tynli. Default enable HW SEQ NUM. */
@@ -931,7 +931,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_LCK);
 	rtw_write8(Adapter, REG_USB_HRPWM, 0);
 
 	/* ack for xmit mgmt frames. */
-	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
+	usb_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL)|BIT(12));
 
 exit:
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_END);
@@ -995,7 +995,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	rtw_write8(Adapter, REG_GPIO_IO_SEL, (val8<<4));
 	val8 = rtw_read8(Adapter, REG_GPIO_IO_SEL+1);
 	rtw_write8(Adapter, REG_GPIO_IO_SEL+1, val8|0x0F);/* Reg0x43 */
-	rtw_write32(Adapter, REG_BB_PAD_CTRL, 0x00080808);/* set LNA ,TRSW,EX_PA Pin to output mode */
+	usb_write32(Adapter, REG_BB_PAD_CTRL, 0x00080808);/* set LNA ,TRSW,EX_PA Pin to output mode */
 	haldata->bMacPwrCtrlOn = false;
 	Adapter->bFWReady = false;
 }
@@ -1014,8 +1014,8 @@ static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
 
 	DBG_88E("==> %s\n", __func__);
 
-	rtw_write32(Adapter, REG_HIMR_88E, IMR_DISABLED_88E);
-	rtw_write32(Adapter, REG_HIMRE_88E, IMR_DISABLED_88E);
+	usb_write32(Adapter, REG_HIMR_88E, IMR_DISABLED_88E);
+	usb_write32(Adapter, REG_HIMRE_88E, IMR_DISABLED_88E);
 
 	DBG_88E("bkeepfwalive(%x)\n", Adapter->pwrctrlpriv.bkeepfwalive);
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
@@ -1257,7 +1257,7 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 		rtw_write8(Adapter, REG_BCN_CTRL, 0x12);
 
 		/* Set RCR */
-		rtw_write32(Adapter, REG_RCR, 0x7000208e);/* CBSSID_DATA must set to 0,reject ICV_ERR packet */
+		usb_write32(Adapter, REG_RCR, 0x7000208e);/* CBSSID_DATA must set to 0,reject ICV_ERR packet */
 		/* enable to rx data frame */
 		rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 		/* enable to rx ps-poll */
@@ -1409,8 +1409,8 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/* disable related TSF function */
 			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(3)));
 
-			rtw_write32(Adapter, REG_TSFTR, tsf);
-			rtw_write32(Adapter, REG_TSFTR+4, tsf>>32);
+			usb_write32(Adapter, REG_TSFTR, tsf);
+			usb_write32(Adapter, REG_TSFTR+4, tsf>>32);
 
 			/* enable related TSF function */
 			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(3));
@@ -1421,7 +1421,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_CHECK_BSSID:
 		if (*((u8 *)val)) {
-			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_DATA|RCR_CBSSID_BCN);
+			usb_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_DATA|RCR_CBSSID_BCN);
 		} else {
 			u32 val32;
 
@@ -1429,7 +1429,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			val32 &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 
-			rtw_write32(Adapter, REG_RCR, val32);
+			usb_write32(Adapter, REG_RCR, val32);
 		}
 		break;
 	case HW_VAR_MLME_DISCONNECT:
@@ -1448,7 +1448,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			/* config RCR to receive different BSSID & not to receive data frame */
 			u32 v = rtw_read32(Adapter, REG_RCR);
 			v &= ~(RCR_CBSSID_BCN);
-			rtw_write32(Adapter, REG_RCR, v);
+			usb_write32(Adapter, REG_RCR, v);
 			/* reject all data frame */
 			rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
@@ -1471,14 +1471,14 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 			}
 			if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
-				rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_BCN);
+				usb_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_BCN);
 			} else {
 				if (Adapter->in_cta_test) {
 					u32 v = rtw_read32(Adapter, REG_RCR);
 					v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
-					rtw_write32(Adapter, REG_RCR, v);
+					usb_write32(Adapter, REG_RCR, v);
 				} else {
-					rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_BCN);
+					usb_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_BCN);
 				}
 			}
 		}
@@ -1496,9 +1496,9 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				if (Adapter->in_cta_test) {
 					u32 v = rtw_read32(Adapter, REG_RCR);
 					v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
-					rtw_write32(Adapter, REG_RCR, v);
+					usb_write32(Adapter, REG_RCR, v);
 				} else {
-					rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_DATA|RCR_CBSSID_BCN);
+					usb_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR)|RCR_CBSSID_DATA|RCR_CBSSID_BCN);
 				}
 
 				if (check_fwstate(pmlmepriv, WIFI_STATION_STATE))
@@ -1607,36 +1607,36 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				ulCommand = CAM_CONTENT_COUNT*ucIndex+i;
 				ulCommand = ulCommand | CAM_POLLINIG|CAM_WRITE;
 				/*  write content 0 is equall to mark invalid */
-				rtw_write32(Adapter, WCAMI, ulContent);  /* delay_ms(40); */
-				rtw_write32(Adapter, RWCAM, ulCommand);  /* delay_ms(40); */
+				usb_write32(Adapter, WCAMI, ulContent);  /* delay_ms(40); */
+				usb_write32(Adapter, RWCAM, ulCommand);  /* delay_ms(40); */
 			}
 		}
 		break;
 	case HW_VAR_CAM_INVALID_ALL:
-		rtw_write32(Adapter, RWCAM, BIT(31)|BIT(30));
+		usb_write32(Adapter, RWCAM, BIT(31)|BIT(30));
 		break;
 	case HW_VAR_CAM_WRITE:
 		{
 			u32 cmd;
 			u32 *cam_val = (u32 *)val;
-			rtw_write32(Adapter, WCAMI, cam_val[0]);
+			usb_write32(Adapter, WCAMI, cam_val[0]);
 
 			cmd = CAM_POLLINIG | CAM_WRITE | cam_val[1];
-			rtw_write32(Adapter, RWCAM, cmd);
+			usb_write32(Adapter, RWCAM, cmd);
 		}
 		break;
 	case HW_VAR_AC_PARAM_VO:
-		rtw_write32(Adapter, REG_EDCA_VO_PARAM, ((u32 *)(val))[0]);
+		usb_write32(Adapter, REG_EDCA_VO_PARAM, ((u32 *)(val))[0]);
 		break;
 	case HW_VAR_AC_PARAM_VI:
-		rtw_write32(Adapter, REG_EDCA_VI_PARAM, ((u32 *)(val))[0]);
+		usb_write32(Adapter, REG_EDCA_VI_PARAM, ((u32 *)(val))[0]);
 		break;
 	case HW_VAR_AC_PARAM_BE:
 		haldata->AcParam_BE = ((u32 *)(val))[0];
-		rtw_write32(Adapter, REG_EDCA_BE_PARAM, ((u32 *)(val))[0]);
+		usb_write32(Adapter, REG_EDCA_BE_PARAM, ((u32 *)(val))[0]);
 		break;
 	case HW_VAR_AC_PARAM_BK:
-		rtw_write32(Adapter, REG_EDCA_BK_PARAM, ((u32 *)(val))[0]);
+		usb_write32(Adapter, REG_EDCA_BK_PARAM, ((u32 *)(val))[0]);
 		break;
 	case HW_VAR_ACM_CTRL:
 		{
@@ -1805,7 +1805,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			if (!pwrpriv->bkeepfwalive) {
 				/* RX DMA stop */
-				rtw_write32(Adapter, REG_RXPKT_NUM, (rtw_read32(Adapter, REG_RXPKT_NUM)|RW_RELEASE_EN));
+				usb_write32(Adapter, REG_RXPKT_NUM, (rtw_read32(Adapter, REG_RXPKT_NUM)|RW_RELEASE_EN));
 				do {
 					if (!(rtw_read32(Adapter, REG_RXPKT_NUM)&RXDMA_IDLE))
 						break;
@@ -1815,7 +1815,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 				/* RQPN Load 0 */
 				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
-				rtw_write32(Adapter, REG_RQPN, 0x80000000);
+				usb_write32(Adapter, REG_RQPN, 0x80000000);
 				mdelay(10);
 			}
 		}
@@ -2171,10 +2171,10 @@ static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 
 	value32 = rtw_read32(adapt, REG_TCR);
 	value32 &= ~TSFRST;
-	rtw_write32(adapt,  REG_TCR, value32);
+	usb_write32(adapt,  REG_TCR, value32);
 
 	value32 |= TSFRST;
-	rtw_write32(adapt, REG_TCR, value32);
+	usb_write32(adapt, REG_TCR, value32);
 
 	/*  NOTE: Fix test chip's bug (about contention windows's randomness) */
 	rtw_write8(adapt,  REG_RXTSF_OFFSET_CCK, 0x50);

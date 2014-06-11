@@ -2230,7 +2230,7 @@ static int rtw_wx_write32(struct net_device *dev,
 		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%04X\n", __func__, addr, (u16)data32);
 		break;
 	case 4:
-		rtw_write32(padapter, addr, data32);
+		usb_write32(padapter, addr, data32);
 		DBG_88E(KERN_INFO "%s: addr = 0x%08X data = 0x%08X\n", __func__, addr, data32);
 		break;
 	default:
@@ -2376,7 +2376,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 			rtw_write16(padapter, RegRWStruct->offset, (u16)RegRWStruct->value);
 			break;
 		case 4:
-			rtw_write32(padapter, RegRWStruct->offset, (u32)RegRWStruct->value);
+			usb_write32(padapter, RegRWStruct->offset, (u32)RegRWStruct->value);
 			break;
 		default:
 			break;
@@ -3948,12 +3948,12 @@ static int rtw_cta_test_start(struct net_device *dev,
 	if (padapter->in_cta_test) {
 		u32 v = rtw_read32(padapter, REG_RCR);
 		v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
-		rtw_write32(padapter, REG_RCR, v);
+		usb_write32(padapter, REG_RCR, v);
 		DBG_88E("enable RCR_ADF\n");
 	} else {
 		u32 v = rtw_read32(padapter, REG_RCR);
 		v |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;/*  RCR_ADF */
-		rtw_write32(padapter, REG_RCR, v);
+		usb_write32(padapter, REG_RCR, v);
 		DBG_88E("disable RCR_ADF\n");
 	}
 	return ret;
@@ -4130,8 +4130,8 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_88E("rtw_write16(0x%x) = 0x%04x\n", arg, rtw_read16(padapter, arg));
 			break;
 		case 4:
-			rtw_write32(padapter, arg, extra_arg);
-			DBG_88E("rtw_write32(0x%x) = 0x%08x\n", arg, rtw_read32(padapter, arg));
+			usb_write32(padapter, arg, extra_arg);
+			DBG_88E("usb_write32(0x%x) = 0x%08x\n", arg, rtw_read32(padapter, arg));
 			break;
 		}
 		break;
@@ -6426,7 +6426,7 @@ static int rtw_mp_write_reg(struct net_device *dev,
 		break;
 	case 'd':
 		/*  4 bytes */
-		rtw_write32(padapter, addr, data);
+		usb_write32(padapter, addr, data);
 		break;
 	default:
 		ret = -EINVAL;

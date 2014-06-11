@@ -129,7 +129,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}
 
-	rtw_write32(Adapter, RegAddr, Data);
+	usb_write32(Adapter, RegAddr, Data);
 }
 
 

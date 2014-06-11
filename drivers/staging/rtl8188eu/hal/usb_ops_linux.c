@@ -227,7 +227,7 @@ static int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 	return ret;
 }
 
-static int usb_write32(struct adapter *adapter, u32 addr, u32 val)
+int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -671,5 +671,4 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	pops->_read32 = &usb_read32;
 	pops->_write8 = &usb_write8;
 	pops->_write16 = &usb_write16;
-	pops->_write32 = &usb_write32;
 }

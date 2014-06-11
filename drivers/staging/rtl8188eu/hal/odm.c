@@ -1363,7 +1363,7 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 			else
 				edca_param = EDCAParam[HT_IOT_PEER_UNKNOWN][trafficIndex];
 
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
+			usb_write32(Adapter, REG_EDCA_BE_PARAM, edca_param);
 
 			pDM_Odm->DM_EDCA_Table.prv_traffic_idx = trafficIndex;
 		}
@@ -1373,7 +1373,7 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 		/*  Turn Off EDCA turbo here. */
 		/*  Restore original EDCA according to the declaration of AP. */
 		 if (pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA) {
-			rtw_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
+			usb_write32(Adapter, REG_EDCA_BE_PARAM, pHalData->AcParam_BE);
 			pDM_Odm->DM_EDCA_Table.bCurrentTurboEDCA = false;
 		}
 	}

@@ -69,7 +69,7 @@ int proc_set_write_reg(struct file *file, const char __user *buffer,
 			rtw_write16(padapter, addr, (u16)val);
 			break;
 		case 4:
-			rtw_write32(padapter, addr, val);
+			usb_write32(padapter, addr, val);
 			break;
 		default:
 			DBG_88E("error write length =%d", len);

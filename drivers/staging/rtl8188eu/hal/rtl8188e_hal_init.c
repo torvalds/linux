@@ -372,7 +372,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 	rtw_write8(Adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 	if (pbuf) {
 		for (addr = 0; addr < data_cnts; addr++) {
-			rtw_write32(Adapter, 0x140, addr);
+			usb_write32(Adapter, 0x140, addr);
 			msleep(1);
 			loop = 0;
 			do {
@@ -563,7 +563,7 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 	value32 = rtw_read32(padapter, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
-	rtw_write32(padapter, REG_MCUFWDL, value32);
+	usb_write32(padapter, REG_MCUFWDL, value32);
 
 	_8051Reset88E(padapter);
 
@@ -1903,7 +1903,7 @@ static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 	u32	value = _LLT_INIT_ADDR(address) | _LLT_INIT_DATA(data) | _LLT_OP(_LLT_WRITE_ACCESS);
 	u16	LLTReg = REG_LLT_INIT;
 
-	rtw_write32(padapter, LLTReg, value);
+	usb_write32(padapter, LLTReg, value);
 
 	/* polling */
 	do {

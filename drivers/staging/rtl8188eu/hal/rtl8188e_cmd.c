@@ -726,9 +726,9 @@ void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state)
 				p2p_ps_offload->NoA1_En = 1;
 
 			/*  config P2P NoA Descriptor Register */
-			rtw_write32(adapt, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
-			rtw_write32(adapt, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
-			rtw_write32(adapt, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
+			usb_write32(adapt, REG_NOA_DESC_DURATION, pwdinfo->noa_duration[i]);
+			usb_write32(adapt, REG_NOA_DESC_INTERVAL, pwdinfo->noa_interval[i]);
+			usb_write32(adapt, REG_NOA_DESC_START, pwdinfo->noa_start_time[i]);
 			rtw_write8(adapt, REG_NOA_DESC_COUNT, pwdinfo->noa_count[i]);
 		}
 

@@ -850,7 +850,7 @@ _PHY_ReloadMACRegisters(
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
 		rtw_write8(adapt, MACReg[i], (u8)MACBackup[i]);
 	}
-	rtw_write32(adapt, MACReg[i], MACBackup[i]);
+	usb_write32(adapt, MACReg[i], MACBackup[i]);
 }
 
 void
