@@ -2502,7 +2502,7 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >Description/Restrictions</td>
 	</tr>
 	<tr>
-	<td rowspan="20" valign="top" >DRM</td>
+	<td rowspan="21" valign="top" >DRM</td>
 	<td rowspan="2" valign="top" >Generic</td>
 	<td valign="top" >“EDID”</td>
 	<td valign="top" >BLOB | IMMUTABLE</td>
@@ -2633,12 +2633,21 @@ void intel_crt_init(struct drm_device *dev)
 	<td valign="top" >TBD</td>
 	</tr>
 	<tr>
-	<td rowspan="2" valign="top" >Optional</td>
+	<td rowspan="3" valign="top" >Optional</td>
 	<td valign="top" >“scaling mode”</td>
 	<td valign="top" >ENUM</td>
 	<td valign="top" >{ "None", "Full", "Center", "Full aspect" }</td>
 	<td valign="top" >Connector</td>
 	<td valign="top" >TBD</td>
+	</tr>
+	<tr>
+	<td valign="top" >"aspect ratio"</td>
+	<td valign="top" >ENUM</td>
+	<td valign="top" >{ "None", "4:3", "16:9" }</td>
+	<td valign="top" >Connector</td>
+	<td valign="top" >DRM property to set aspect ratio from user space app.
+		This enum is made generic to allow addition of custom aspect
+		ratios.</td>
 	</tr>
 	<tr>
 	<td valign="top" >“dirty”</td>
