@@ -182,7 +182,7 @@ static u64 notrace rcu_trace_clock_local(void)
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 static unsigned long boost_starttime;	/* jiffies of next boost test start. */
-DEFINE_MUTEX(boost_mutex);		/* protect setting boost_starttime */
+static DEFINE_MUTEX(boost_mutex);	/* protect setting boost_starttime */
 					/*  and boost task create/destroy. */
 static atomic_t barrier_cbs_count;	/* Barrier callbacks registered. */
 static bool barrier_phase;		/* Test phase. */
