@@ -67,7 +67,7 @@
 #define DW_MCI_FREQ_MAX	50000000//200000000	/* unit: HZ */
 #define DW_MCI_FREQ_MIN	300000//400000		/* unit: HZ */
 
-#define SDMMC_DATA_TIMEOUT_SD	500; /*max is 250ms showed in Spec; Maybe adapt the value for the sick card.*/
+#define SDMMC_DATA_TIMEOUT_SD	500 /*max is 250ms showed in Spec; Maybe adapt the value for the sick card.*/
 #define SDMMC_DATA_TIMEOUT_SDIO	250
 #define SDMMC_DATA_TIMEOUT_EMMC	2500
 
@@ -884,8 +884,11 @@ static int dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
-		ret = mci_send_cmd(slot,
-			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+
+		if(host->svi_flags == 0)
+		        ret = mci_send_cmd(slot, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+                else
+		        ret = 0;
 		if(ret < 0)
 			return -EAGAIN;
 	} else if (clock != host->current_speed || force_clkinit) {
@@ -1050,32 +1053,19 @@ int dw_mci_card_busy(struct mmc_host *mmc)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
-    unsigned int    timeout= SDMMC_DATA_TIMEOUT_SDIO;
-    unsigned long   time_loop;
-    unsigned int    status;
-    int ret= 0;
     
-    if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
-        timeout = SDMMC_DATA_TIMEOUT_EMMC;
-    else if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)
-        timeout = SDMMC_DATA_TIMEOUT_SD;  
-    timeout = 250*1000;//test    
-    time_loop = jiffies + msecs_to_jiffies(timeout);
+        /* svi toggle*/
+        if(host->svi_flags == 0){
+                /*first svi*/
+                host->svi_flags = 1;
+                return host->svi_flags;           
     
-    MMC_DBG_INFO_FUNC(host->mmc, "line%d: dw_mci_wait_unbusy,timeloop=%lu, status=0x%x ",
-        __LINE__, time_loop, mci_readl(host, STATUS));
-    do {
-    	status = mci_readl(host, STATUS);
-    	if (!(status & (SDMMC_STAUTS_DATA_BUSY|SDMMC_STAUTS_MC_BUSY))){
-    	    ret = 1;//card is unbusy.
-    		break;
+        }else{
+                host->svi_flags = 0;
+                return host->svi_flags;   
     	}
     	//MMC_DBG_INFO_FUNC("dw_mci_wait_unbusy, waiting for......");	
-    } while (time_before(jiffies, time_loop));
-    MMC_DBG_INFO_FUNC(host->mmc, "line%d: dw_mci_wait_unbusy,ret=%d,  status=0x%x ",
-        __LINE__,ret,mci_readl(host, STATUS));
 
-    return ret;
 }
 
 static void __dw_mci_start_request(struct dw_mci *host,
@@ -1194,12 +1184,17 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static int dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct dw_mci *host = slot->host;
 	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 regs;
 #ifdef SDMMC_WAIT_FOR_UNBUSY	
-    unsigned long   time_loop = jiffies + msecs_to_jiffies(SDMMC_WAIT_FOR_UNBUSY);
+        unsigned long   time_loop; 
     bool ret=0;
 
+        if(host->svi_flags == 1)
+                time_loop = jiffies + msecs_to_jiffies(SDMMC_DATA_TIMEOUT_SD);
+        else
+                time_loop = jiffies + msecs_to_jiffies(SDMMC_WAIT_FOR_UNBUSY);
     if(!test_bit(DW_MMC_CARD_PRESENT, &slot->flags)){
         printk("%d..%s:  no card. [%s]\n", \
             __LINE__, __FUNCTION__, mmc_hostname(mmc));
@@ -1213,7 +1208,8 @@ static int dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     } ;
     if(!ret)
     {
-        printk("slot->flags=%d ", slot->flags);
+                printk("slot->flags=%d \n", slot->flags);
+                if(host->svi_flags != 1)
         dump_stack();
         printk("%d..%s:  wait for unbusy timeout....... STATUS = 0x%x[%s]\n", \
             __LINE__, __FUNCTION__, regs, mmc_hostname(mmc));
@@ -1446,6 +1442,30 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	}
 }
 
+enum{
+        IO_DOMAIN_12 = 1200,
+        IO_DOMAIN_18 = 1800,
+        IO_DOMAIN_33 = 3300,
+};
+static void dw_mci_do_grf_io_domain_switch(struct dw_mci *host, u32 voltage)
+{
+        if(cpu_is_rk3288()){
+        	if(voltage == IO_DOMAIN_33)
+                        voltage = 0;
+                else if(voltage == IO_DOMAIN_18)
+                        voltage = 1;
+                else
+                     MMC_DBG_ERR_FUNC(host->mmc,"%s : err io domain voltage [%s]\n", 
+        		   __FUNCTION__, mmc_hostname(host->mmc));
+                if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)	   
+                        grf_writel((voltage << 7) | (1 << 23), RK3288_GRF_IO_VSEL);
+                else
+                        return 0;
+        }else{
+                 MMC_DBG_ERR_FUNC(host->mmc,"%s : unknown chip [%s]\n", 
+        		   __FUNCTION__, mmc_hostname(host->mmc));
+        }
+}
 
 static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
 						struct mmc_ios *ios)
@@ -1474,18 +1494,21 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         		MMC_DBG_SW_VOL_FUNC(host->mmc,"%s   =%dmV  set 3.3end, ret=%d  \n", 
         		    __func__, regulator_get_voltage(host->vmmc), ret);
         		if (ret) {
-        			pr_warning("%s: Switching to 3.3V signalling voltage "
+        			MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: Switching to 3.3V signalling voltage "
         					" failed\n", mmc_hostname(host->mmc));
         			return -EIO;
         		}
+        		dw_mci_do_grf_io_domain_switch(host, IO_DOMAIN_33);
         	}
             MMC_DBG_SW_VOL_FUNC(host->mmc,"%d..%s: [%s]\n",__LINE__, __FUNCTION__, mmc_hostname(host->mmc));
 
         	//set High-power mode
         	value = mci_readl(host, CLKENA);
-        	mci_writel(host,CLKENA , value& ~SDMMC_CLKEN_LOW_PWR);
+        	value &= ~SDMMC_CLKEN_LOW_PWR;
+        	mci_writel(host,CLKENA , value);
         	//SDMMC_UHS_REG
-        	mci_writel(host,UHS_REG , uhs_reg & ~SDMMC_UHS_VOLT_REG_18);
+        	uhs_reg &= ~SDMMC_UHS_VOLT_REG_18; 
+        	mci_writel(host,UHS_REG , uhs_reg);
         	
         	/* Wait for 5ms */
         	usleep_range(5000, 5500);
@@ -1495,7 +1518,7 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
             if( !(uhs_reg & SDMMC_UHS_VOLT_REG_18))
                 return 0;	
 
-        	pr_warning("%s: 3.3V regulator output did not became stable\n",
+        	MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: 3.3V regulator output did not became stable\n",
         			mmc_hostname(host->mmc));
 
         	return -EAGAIN;
@@ -1507,10 +1530,11 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         		MMC_DBG_SW_VOL_FUNC(host->mmc,"%d..%s   =%dmV  set 1.8end, ret=%d . \n",
         		    __LINE__, __func__, regulator_get_voltage(host->vmmc), ret);
         		if (ret) {
-        			pr_warning("%s: Switching to 1.8V signalling voltage "
+        			MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: Switching to 1.8V signalling voltage "
         					" failed\n", mmc_hostname(host->mmc));
         			return -EIO;
         		}
+        		dw_mci_do_grf_io_domain_switch(host, IO_DOMAIN_18);
         	}
 
         	/*
@@ -1530,7 +1554,7 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
                 return 0;
             }
 
-        	pr_warning("%s: 1.8V regulator output did not became stable\n",
+        	MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: 1.8V regulator output did not became stable\n",
         			mmc_hostname(host->mmc));
 
         	return -EAGAIN;
@@ -1538,7 +1562,7 @@ static int dw_mci_do_start_signal_voltage_switch(struct dw_mci *host,
         	if (host->vmmc) {
         		ret = io_domain_regulator_set_voltage(host->vmmc, 1200000, 1200000);
         		if (ret) {
-        			pr_warning("%s: Switching to 1.2V signalling voltage "
+        			MMC_DBG_SW_VOL_FUNC(host->mmc, "%s: Switching to 1.2V signalling voltage "
         					" failed\n", mmc_hostname(host->mmc));
         			return -EIO;
         		}
@@ -1627,8 +1651,8 @@ static const struct mmc_host_ops dw_mci_ops = {
 	.hw_reset       = dw_mci_hw_reset,
 	.enable_sdio_irq	= dw_mci_enable_sdio_irq,
 	.execute_tuning		= dw_mci_execute_tuning,
-	//.start_signal_voltage_switch	= dw_mci_start_signal_voltage_switch,
-	//.card_busy  = dw_mci_card_busy,
+	.start_signal_voltage_switch	= dw_mci_start_signal_voltage_switch,
+	.card_busy  = dw_mci_card_busy,
 };
 
 static void dw_mci_enable_irq(struct dw_mci *host, bool irqflag)
@@ -2982,6 +3006,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
     		if (ret) {
     			dev_err(host->dev,
     				"failed to enable regulator: %d\n", ret);
+    		        host->vmmc = NULL;
     			goto err_setup_bus;
     		}
     	}
@@ -3317,6 +3342,7 @@ int dw_mci_probe(struct dw_mci *host)
         host->irq_state = true;
         host->set_speed = 0;
         host->set_div = 0;
+        host->svi_flags = 0;
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);

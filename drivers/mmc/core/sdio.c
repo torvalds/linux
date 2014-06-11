@@ -33,6 +33,13 @@
 #include <linux/mmc/sdio_ids.h>
 #endif
 
+/*
+  Fixme: AP6335 doesn't follow standard sdio3.0 flow, 
+         temp workaround, Broadcom Inc. SHOULD fix it!!
+ */
+
+#define CONFIG_SDIO30_FOR_AP6335
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
@@ -673,6 +680,9 @@ try_again:
 	 * systems that claim 1.8v signalling in fact do not support
 	 * it.
 	 */
+	#ifdef CONFIG_SDIO30_FOR_AP6335   
+	rocr &= ~R4_18V_PRESENT ;  
+	#endif
 	if (!powered_resume && (rocr & ocr & R4_18V_PRESENT)) {
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
 					ocr);
@@ -688,7 +698,11 @@ try_again:
 		}
 		err = 0;
 	} else {
+		#ifdef CONFIG_SDIO30_FOR_AP6335
+		/*nothing to do*/
+		#else	
 		ocr &= ~R4_18V_PRESENT;
+		#endif
 	}
 
 	/*
