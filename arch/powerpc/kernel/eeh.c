@@ -330,8 +330,8 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
 
-	pr_err("EEH: PHB#%x failure detected\n",
-		phb_pe->phb->global_number);
+	pr_err("EEH: PHB#%x failure detected, location: %s\n",
+		phb_pe->phb->global_number, eeh_pe_loc_get(phb_pe));
 	dump_stack();
 	eeh_send_failure_event(phb_pe);
 
@@ -362,7 +362,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
-	struct eeh_pe *pe, *parent_pe;
+	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
 	const char *location;
 
@@ -481,8 +481,11 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
-		pe->addr, pe->phb->global_number);
+	phb_pe = eeh_phb_pe_get(pe->phb);
+	pr_err("EEH: Frozen PHB#%x-PE#%x detected\n",
+	       pe->phb->global_number, pe->addr);
+	pr_err("EEH: PE location: %s, PHB location: %s\n",
+	       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
 	dump_stack();
 
 	eeh_send_failure_event(pe);

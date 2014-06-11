@@ -774,19 +774,24 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		case OPAL_EEH_PHB_ERROR:
 			if (be16_to_cpu(severity) == OPAL_EEH_SEV_PHB_DEAD) {
 				*pe = phb_pe;
-				pr_err("EEH: dead PHB#%x detected\n",
-					hose->global_number);
+				pr_err("EEH: dead PHB#%x detected, "
+				       "location: %s\n",
+				       hose->global_number,
+				       eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_DEAD_PHB;
 			} else if (be16_to_cpu(severity) ==
 						OPAL_EEH_SEV_PHB_FENCED) {
 				*pe = phb_pe;
-				pr_err("EEH: fenced PHB#%x detected\n",
-					hose->global_number);
+				pr_err("EEH: Fenced PHB#%x detected, "
+				       "location: %s\n",
+				       hose->global_number,
+				       eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_FENCED_PHB;
 			} else if (be16_to_cpu(severity) == OPAL_EEH_SEV_INF) {
 				pr_info("EEH: PHB#%x informative error "
-					"detected\n",
-					hose->global_number);
+					"detected, location: %s\n",
+					hose->global_number,
+					eeh_pe_loc_get(phb_pe));
 				ioda_eeh_phb_diag(hose);
 				ret = EEH_NEXT_ERR_NONE;
 			}
@@ -802,6 +807,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 				/* Try best to clear it */
 				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
 					hose->global_number, frozen_pe_no);
+				pr_info("EEH: PHB location: %s\n",
+					eeh_pe_loc_get(phb_pe));
 				opal_pci_eeh_freeze_clear(phb->opal_id, frozen_pe_no,
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
@@ -810,6 +817,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			} else {
 				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
 					(*pe)->addr, (*pe)->phb->global_number);
+				pr_err("EEH: PE location: %s, PHB location: %s\n",
+					eeh_pe_loc_get(*pe), eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_FROZEN_PE;
 			}
 
