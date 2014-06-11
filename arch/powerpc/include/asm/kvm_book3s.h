@@ -162,9 +162,9 @@ extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn, bool writing,
 			bool *writable);
 extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 			unsigned long *rmap, long pte_index, int realmode);
-extern void kvmppc_invalidate_hpte(struct kvm *kvm, unsigned long *hptep,
+extern void kvmppc_invalidate_hpte(struct kvm *kvm, __be64 *hptep,
 			unsigned long pte_index);
-void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
+void kvmppc_clear_ref_hpte(struct kvm *kvm, __be64 *hptep,
 			unsigned long pte_index);
 extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 			unsigned long *nb_ret);

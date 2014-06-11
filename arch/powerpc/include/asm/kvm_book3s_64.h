@@ -59,20 +59,29 @@ extern unsigned long kvm_rma_pages;
 /* These bits are reserved in the guest view of the HPTE */
 #define HPTE_GR_RESERVED	HPTE_GR_MODIFIED
 
-static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
+static inline long try_lock_hpte(__be64 *hpte, unsigned long bits)
 {
 	unsigned long tmp, old;
+	__be64 be_lockbit, be_bits;
+
+	/*
+	 * We load/store in native endian, but the HTAB is in big endian. If
+	 * we byte swap all data we apply on the PTE we're implicitly correct
+	 * again.
+	 */
+	be_lockbit = cpu_to_be64(HPTE_V_HVLOCK);
+	be_bits = cpu_to_be64(bits);
 
 	asm volatile("	ldarx	%0,0,%2\n"
 		     "	and.	%1,%0,%3\n"
 		     "	bne	2f\n"
-		     "	ori	%0,%0,%4\n"
+		     "	or	%0,%0,%4\n"
 		     "  stdcx.	%0,0,%2\n"
 		     "	beq+	2f\n"
 		     "	mr	%1,%3\n"
 		     "2:	isync"
 		     : "=&r" (tmp), "=&r" (old)
-		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
+		     : "r" (hpte), "r" (be_bits), "r" (be_lockbit)
 		     : "cc", "memory");
 	return old == 0;
 }
