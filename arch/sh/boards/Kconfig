@@ -371,7 +371,7 @@ if SH_MAGIC_PANEL_R2
 menu "Magic Panel R2 options"
 
 config SH_MAGIC_PANEL_R2_VERSION
-	int SH_MAGIC_PANEL_R2_VERSION
+	int "Magic Panel R2 Version"
 	default "3"
 	help
 	  Set the version of the Magic Panel R2
