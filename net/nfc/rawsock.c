@@ -378,8 +378,8 @@ void nfc_send_to_raw_sock(struct nfc_dev *dev, struct sk_buff *skb,
 
 	sk_for_each(sk, &raw_sk_list.head) {
 		if (!skb_copy) {
-			skb_copy = __pskb_copy(skb, NFC_RAW_HEADER_SIZE,
-				     GFP_ATOMIC);
+			skb_copy = __pskb_copy_fclone(skb, NFC_RAW_HEADER_SIZE,
+						      GFP_ATOMIC, true);
 			if (!skb_copy)
 				continue;
 
