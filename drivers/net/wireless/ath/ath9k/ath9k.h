@@ -355,6 +355,10 @@ struct ath_offchannel {
 	struct ieee80211_vif *roc_vif;
 	int roc_duration;
 };
+#define ath_for_each_chanctx(_sc, _ctx)                             \
+	for (ctx = &sc->chanctx[0];                                 \
+	     ctx <= &sc->chanctx[ARRAY_SIZE(sc->chanctx) - 1];      \
+	     ctx++)
 
 void ath9k_fill_chanctx_ops(void);
 static inline struct ath_chanctx *
@@ -373,7 +377,8 @@ void ath_offchannel_timer(unsigned long data);
 void ath_offchannel_channel_change(struct ath_softc *sc);
 void ath_chanctx_offchan_switch(struct ath_softc *sc,
 				struct ieee80211_channel *chan);
-struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc);
+struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
+					      bool active);
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);

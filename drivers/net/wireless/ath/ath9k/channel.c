@@ -293,13 +293,17 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 	ath_set_channel(sc);
 }
 
-struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc)
+struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc, bool active)
 {
-	u8 i;
+	struct ath_chanctx *ctx;
 
-	for (i = 0; i < ARRAY_SIZE(sc->chanctx); i++) {
-		if (!list_empty(&sc->chanctx[i].vifs))
-			return &sc->chanctx[i];
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		if (active && !ctx->active)
+			continue;
+
+		return ctx;
 	}
 
 	return &sc->chanctx[0];

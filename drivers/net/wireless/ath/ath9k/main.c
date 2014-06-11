@@ -2161,7 +2161,8 @@ ath_scan_next_channel(struct ath_softc *sc)
 
 	if (sc->offchannel.scan_idx >= req->n_channels) {
 		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
-		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
+		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc, false),
+				   NULL);
 		return;
 	}
 
@@ -2184,7 +2185,8 @@ static void ath_offchannel_next(struct ath_softc *sc)
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
 		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
 	} else {
-		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
+		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc, false),
+				   NULL);
 		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
 		if (sc->ps_idle)
 			ath_cancel_work(sc);
@@ -2310,13 +2312,15 @@ void ath_offchannel_channel_change(struct ath_softc *sc)
 void ath_offchannel_timer(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
-	struct ath_chanctx *ctx = ath_chanctx_get_oper_chan(sc);
+	struct ath_chanctx *ctx;
 
 	switch (sc->offchannel.state) {
 	case ATH_OFFCHANNEL_PROBE_WAIT:
 		if (!sc->offchannel.scan_req)
 			return;
 
+		/* get first active channel context */
+		ctx = ath_chanctx_get_oper_chan(sc, true);
 		if (ctx->active) {
 			sc->offchannel.state = ATH_OFFCHANNEL_SUSPEND;
 			ath_chanctx_switch(sc, ctx, NULL);
@@ -2332,6 +2336,7 @@ void ath_offchannel_timer(unsigned long data)
 		break;
 	case ATH_OFFCHANNEL_ROC_START:
 	case ATH_OFFCHANNEL_ROC_WAIT:
+		ctx = ath_chanctx_get_oper_chan(sc, false);
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_DONE;
 		ath_chanctx_switch(sc, ctx, NULL);
 		break;
@@ -2432,26 +2437,22 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_chanctx *ctx, **ptr;
-	int i;
 
 	mutex_lock(&sc->mutex);
-	for (i = 0; i < ATH9K_NUM_CHANCTX; i++) {
-		if (!sc->chanctx[i].assigned)
-			break;
-	}
-	if (i == ATH9K_NUM_CHANCTX) {
+
+	ath_for_each_chanctx(sc, ctx) {
+		if (ctx->assigned)
+			continue;
+
+		ptr = (void *) conf->drv_priv;
+		*ptr = ctx;
+		ctx->assigned = true;
+		ath_chanctx_set_channel(sc, ctx, &conf->def);
 		mutex_unlock(&sc->mutex);
-		return -ENOSPC;
+		return 0;
 	}
-
-	ctx = &sc->chanctx[i];
-	ptr = (void *) conf->drv_priv;
-	*ptr = ctx;
-	ctx->assigned = true;
-	ath_chanctx_set_channel(sc, ctx, &conf->def);
 	mutex_unlock(&sc->mutex);
-
-	return 0;
+	return -ENOSPC;
 }
 
 
