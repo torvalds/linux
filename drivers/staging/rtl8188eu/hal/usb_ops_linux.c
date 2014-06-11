@@ -673,6 +673,5 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	pops->_write16 = &usb_write16;
 	pops->_write32 = &usb_write32;
 	pops->_write_port = &usb_write_port;
-	pops->_read_port_cancel = &usb_read_port_cancel;
 	pops->_write_port_cancel = &usb_write_port_cancel;
 }

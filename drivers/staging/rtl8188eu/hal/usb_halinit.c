@@ -1071,7 +1071,7 @@ static unsigned int rtl8188eu_inirp_deinit(struct adapter *Adapter)
 {
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("\n ===> usb_rx_deinit\n"));
 
-	rtw_read_port_cancel(Adapter);
+	usb_read_port_cancel(Adapter);
 
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("\n <=== usb_rx_deinit\n"));
 

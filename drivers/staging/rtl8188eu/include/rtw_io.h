@@ -52,7 +52,6 @@ struct _io_ops {
 	int (*_write32)(struct adapter *pintfhdl, u32 addr, u32 val);
 	u32 (*_write_port)(struct adapter *pintfhdl, u32 addr, u32 cnt,
 			   u8 *pmem);
-	void (*_read_port_cancel)(struct adapter *pintfhdl);
 	void (*_write_port_cancel)(struct adapter *pintfhdl);
 };
 
@@ -89,7 +88,7 @@ u8 _rtw_read8(struct adapter *adapter, u32 addr);
 u16 _rtw_read16(struct adapter *adapter, u32 addr);
 u32 _rtw_read32(struct adapter *adapter, u32 addr);
 u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void _rtw_read_port_cancel(struct adapter *adapter);
+void usb_read_port_cancel(struct adapter *adapter);
 
 int _rtw_write8(struct adapter *adapter, u32 addr, u8 val);
 int _rtw_write16(struct adapter *adapter, u32 addr, u16 val);
@@ -102,7 +101,6 @@ void _rtw_write_port_cancel(struct adapter *adapter);
 #define rtw_read8(adapter, addr) _rtw_read8((adapter), (addr))
 #define rtw_read16(adapter, addr) _rtw_read16((adapter), (addr))
 #define rtw_read32(adapter, addr) _rtw_read32((adapter), (addr))
-#define rtw_read_port_cancel(adapter) _rtw_read_port_cancel((adapter))
 
 #define  rtw_write8(adapter, addr, val)					\
 	_rtw_write8((adapter), (addr), (val))
