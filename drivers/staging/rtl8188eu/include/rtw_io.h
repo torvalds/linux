@@ -33,48 +33,6 @@
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 
-#define rtw_usb_buffer_alloc(dev, size, dma)				\
-	usb_alloc_coherent((dev), (size), (in_interrupt() ?		\
-			   GFP_ATOMIC : GFP_KERNEL), (dma))
-#define rtw_usb_buffer_free(dev, size, addr, dma)			\
-	usb_free_coherent((dev), (size), (addr), (dma))
-
-
-struct intf_priv;
-struct intf_hdl;
-
-struct _io_ops {
-};
-
-struct io_req {
-	struct list_head list;
-	u32	addr;
-	u32	val;
-	u32	command;
-	u32	status;
-	u8	*pbuf;
-	struct semaphore sema;
-
-	void (*_async_io_callback)(struct adapter *padater,
-				   struct io_req *pio_req, u8 *cnxt);
-	u8 *cnxt;
-};
-
-struct	intf_hdl {
-	struct adapter *padapter;
-	struct dvobj_priv *pintf_dev;
-	struct _io_ops	io_ops;
-};
-
-/*
-Below is the data structure used by _io_handler
-*/
-
-struct io_priv {
-	struct adapter *padapter;
-	struct intf_hdl intf;
-};
-
 u8 usb_read8(struct adapter *adapter, u32 addr);
 u16 usb_read16(struct adapter *adapter, u32 addr);
 u32 usb_read32(struct adapter *adapter, u32 addr);
