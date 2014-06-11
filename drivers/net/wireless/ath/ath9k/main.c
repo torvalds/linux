@@ -1043,6 +1043,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	/* XXX - will be removed once chanctx ops are added */
 	avp->chanctx = sc->cur_chan;
 	list_add_tail(&avp->list, &sc->cur_chan->vifs);
+	ath_chanctx_check_active(sc, avp->chanctx);
 
 	an->sc = sc;
 	an->sta = NULL;
@@ -1061,6 +1062,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
 
 	mutex_lock(&sc->mutex);
 
@@ -1083,6 +1085,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
+	ath_chanctx_check_active(sc, avp->chanctx);
 
 	mutex_unlock(&sc->mutex);
 	return 0;
@@ -1141,6 +1144,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath9k_ps_restore(sc);
 
 	ath_tx_node_cleanup(sc, &avp->mcast_node);
+	ath_chanctx_check_active(sc, avp->chanctx);
 
 	mutex_unlock(&sc->mutex);
 }
@@ -1733,6 +1737,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			if (ath9k_hw_mci_is_enabled(sc->sc_ah))
 				ath9k_mci_update_wlan_channels(sc, true);
 		}
+
+		ath_chanctx_check_active(sc, avp->chanctx);
 	}
 
 	if (changed & BSS_CHANGED_IBSS) {

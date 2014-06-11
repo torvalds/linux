@@ -329,6 +329,7 @@ struct ath_chanctx {
 	u16 txpower;
 	bool offchannel;
 	bool stopped;
+	bool active;
 };
 
 void ath_chanctx_init(struct ath_softc *sc);
@@ -336,6 +337,8 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef);
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 			struct cfg80211_chan_def *chandef);
+void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
+
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);

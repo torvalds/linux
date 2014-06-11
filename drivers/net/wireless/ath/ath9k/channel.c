@@ -101,10 +101,99 @@ static int ath_set_channel(struct ath_softc *sc)
 	return 0;
 }
 
+static bool
+ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
+			      bool powersave)
+{
+	struct ieee80211_vif *vif = avp->vif;
+	struct ieee80211_sta *sta = NULL;
+	struct ieee80211_hdr_3addr *nullfunc;
+	struct ath_tx_control txctl;
+	struct sk_buff *skb;
+	int band = sc->cur_chan->chandef.chan->band;
+
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (!vif->bss_conf.assoc)
+			return false;
+
+		skb = ieee80211_nullfunc_get(sc->hw, vif);
+		if (!skb)
+			return false;
+
+		nullfunc = (struct ieee80211_hdr_3addr *) skb->data;
+		if (powersave)
+			nullfunc->frame_control |=
+				cpu_to_le16(IEEE80211_FCTL_PM);
+
+		skb_set_queue_mapping(skb, IEEE80211_AC_VO);
+		if (!ieee80211_tx_prepare_skb(sc->hw, vif, skb, band, &sta)) {
+			dev_kfree_skb_any(skb);
+			return false;
+		}
+		break;
+	default:
+		return false;
+	}
+
+	memset(&txctl, 0, sizeof(txctl));
+	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
+	txctl.sta = sta;
+	txctl.force_channel = true;
+	if (ath_tx_start(sc->hw, skb, &txctl)) {
+		ieee80211_free_txskb(sc->hw, skb);
+		return false;
+	}
+
+	return true;
+}
+
+void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
+{
+	struct ath_vif *avp;
+	bool active = false;
+
+	if (!ctx)
+		return;
+
+	list_for_each_entry(avp, &ctx->vifs, list) {
+		struct ieee80211_vif *vif = avp->vif;
+
+		switch (vif->type) {
+		case NL80211_IFTYPE_P2P_CLIENT:
+		case NL80211_IFTYPE_STATION:
+			if (vif->bss_conf.assoc)
+				active = true;
+			break;
+		default:
+			active = true;
+			break;
+		}
+	}
+	ctx->active = active;
+}
+
+static bool
+ath_chanctx_send_ps_frame(struct ath_softc *sc, bool powersave)
+{
+	struct ath_vif *avp;
+	bool sent = false;
+
+	rcu_read_lock();
+	list_for_each_entry(avp, &sc->cur_chan->vifs, list) {
+		if (ath_chanctx_send_vif_ps_frame(sc, avp, powersave))
+			sent = true;
+	}
+	rcu_read_unlock();
+
+	return sent;
+}
+
 void ath_chanctx_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    chanctx_work);
+	bool send_ps = false;
 
 	mutex_lock(&sc->mutex);
 	spin_lock_bh(&sc->chan_lock);
@@ -120,6 +209,10 @@ void ath_chanctx_work(struct work_struct *work)
 
 		__ath9k_flush(sc->hw, ~0, true);
 
+		if (ath_chanctx_send_ps_frame(sc, true))
+			__ath9k_flush(sc->hw, BIT(IEEE80211_AC_VO), false);
+
+		send_ps = true;
 		spin_lock_bh(&sc->chan_lock);
 	}
 	sc->cur_chan = sc->next_chan;
@@ -131,6 +224,10 @@ void ath_chanctx_work(struct work_struct *work)
 	    memcmp(&sc->cur_chandef, &sc->cur_chan->chandef,
 		   sizeof(sc->cur_chandef)))
 		ath_set_channel(sc);
+
+	if (send_ps)
+		ath_chanctx_send_ps_frame(sc, false);
+
 	mutex_unlock(&sc->mutex);
 }
 
