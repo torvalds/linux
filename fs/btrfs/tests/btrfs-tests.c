@@ -135,7 +135,7 @@ restart:
 	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter, 0) {
 		struct extent_buffer *eb;
 
-		eb = radix_tree_deref_slot(slot);
+		eb = radix_tree_deref_slot_protected(slot, &fs_info->buffer_lock);
 		if (!eb)
 			continue;
 		/* Shouldn't happen but that kind of thinking creates CVE's */
