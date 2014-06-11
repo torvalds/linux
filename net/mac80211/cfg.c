@@ -997,9 +997,12 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		}
 	}
 
-	ret = sta_apply_auth_flags(local, sta, mask, set);
-	if (ret)
-		return ret;
+	/* auth flags will be set later for TDLS stations */
+	if (!test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		ret = sta_apply_auth_flags(local, sta, mask, set);
+		if (ret)
+			return ret;
+	}
 
 	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
 		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
@@ -1134,6 +1137,13 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 							     params->local_pm);
 		ieee80211_mbss_info_change_notify(sdata, changed);
 #endif
+	}
+
+	/* set the STA state after all sta info from usermode has been set */
+	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
+		ret = sta_apply_auth_flags(local, sta, mask, set);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
