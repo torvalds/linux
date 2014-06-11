@@ -20,7 +20,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 struct ipu_di {
