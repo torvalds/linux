@@ -1373,6 +1373,8 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 		br_multicast_query_received(br, port, &br->ip6_other_query,
 					    &saddr, max_delay);
 		goto out;
+	} else if (!group) {
+		goto out;
 	}
 
 	mp = br_mdb_ip6_get(mlock_dereference(br->mdb, br), group, vid);
