@@ -153,6 +153,10 @@ static void __init rk3288_dt_map_io(void)
 	writel_relaxed(1, RK3288_TIMER7_VIRT + 0x10);
 	dsb();
 
+	/* power up/down GPU domain wait 1us */
+	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRDWN_CNT);
+	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRUP_CNT);
+
 	rk3288_boot_mode_init();
 }
 
