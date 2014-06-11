@@ -892,6 +892,11 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		return -EINVAL;
 	}
 
+	if (rx_stats->is_mybeacon) {
+		sc->sched.next_tbtt = rx_stats->rs_tstamp;
+		ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_BEACON_RECEIVED);
+	}
+
 	ath9k_cmn_process_rssi(common, hw, rx_stats, rx_status);
 
 	rx_status->band = ah->curchan->chan->band;

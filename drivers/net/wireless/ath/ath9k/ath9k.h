@@ -335,6 +335,7 @@ struct ath_chanctx {
 	struct ath9k_hw_cal_data caldata;
 	struct timespec tsf_ts;
 	u64 tsf_val;
+	u32 last_beacon;
 
 	u16 txpower;
 	bool offchannel;
@@ -348,6 +349,7 @@ enum ath_chanctx_event {
 	ATH_CHANCTX_EVENT_BEACON_PREPARE,
 	ATH_CHANCTX_EVENT_BEACON_SENT,
 	ATH_CHANCTX_EVENT_TSF_TIMER,
+	ATH_CHANCTX_EVENT_BEACON_RECEIVED,
 };
 
 enum ath_chanctx_state {

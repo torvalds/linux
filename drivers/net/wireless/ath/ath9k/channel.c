@@ -382,10 +382,51 @@ void ath_chanctx_offchan_switch(struct ath_softc *sc,
 	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
 }
 
+static struct ath_chanctx *
+ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
+{
+	int idx = ctx - &sc->chanctx[0];
+
+	return &sc->chanctx[!idx];
+}
+
+static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
+{
+	struct ath_chanctx *prev, *cur;
+	struct timespec ts;
+	u32 cur_tsf, prev_tsf, beacon_int;
+	s32 offset;
+
+	beacon_int = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+
+	cur = sc->cur_chan;
+	prev = ath_chanctx_get_next(sc, cur);
+
+	getrawmonotonic(&ts);
+	cur_tsf = (u32) cur->tsf_val +
+		  ath9k_hw_get_tsf_offset(&cur->tsf_ts, &ts);
+
+	prev_tsf = prev->last_beacon - (u32) prev->tsf_val + cur_tsf;
+	prev_tsf -= ath9k_hw_get_tsf_offset(&prev->tsf_ts, &ts);
+
+	/* Adjust the TSF time of the AP chanctx to keep its beacons
+	 * at half beacon interval offset relative to the STA chanctx.
+	 */
+	offset = cur_tsf - prev_tsf;
+
+	/* Ignore stale data or spurious timestamps */
+	if (offset < 0 || offset > 3 * beacon_int)
+		return;
+
+	offset = beacon_int / 2 - (offset % beacon_int);
+	prev->tsf_val += offset;
+}
+
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = NULL;
 	u32 tsf_time;
 	bool noa_changed = false;
@@ -410,6 +451,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		tsf_time = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
 		tsf_time = sc->sched.next_tbtt + tsf_time / 4;
 		sc->sched.switch_start_time = tsf_time;
+		sc->cur_chan->last_beacon = sc->sched.next_tbtt;
 
 		if (sc->sched.offchannel_duration) {
 			noa_changed = true;
@@ -440,6 +482,12 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 		sc->sched.state = ATH_CHANCTX_STATE_SWITCH;
 		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
+		break;
+	case ATH_CHANCTX_EVENT_BEACON_RECEIVED:
+		if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+			break;
+
+		ath_chanctx_adjust_tbtt_delta(sc);
 		break;
 	}
 
