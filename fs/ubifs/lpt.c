@@ -2198,6 +2198,7 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 					  lprops->dirty);
 				return -EINVAL;
 			}
+			break;
 		case LPROPS_FREEABLE:
 		case LPROPS_FRDI_IDX:
 			if (lprops->free + lprops->dirty != c->leb_size) {
@@ -2206,6 +2207,7 @@ static int dbg_chk_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 					  lprops->dirty);
 				return -EINVAL;
 			}
+			break;
 		}
 	}
 	return 0;
