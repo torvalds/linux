@@ -805,6 +805,8 @@ struct c4iw_ep {
 	u8 retry_with_mpa_v1;
 	u8 tried_with_mpa_v1;
 	unsigned int retry_count;
+	int snd_win;
+	int rcv_win;
 };
 
 static inline struct c4iw_ep *to_ep(struct iw_cm_id *cm_id)

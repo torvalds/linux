@@ -2215,7 +2215,6 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->cntxt_id = ntohs(c.iqid);
 	iq->abs_id = ntohs(c.physiqid);
 	iq->size--;                           /* subtract status entry */
-	iq->adap = adap;
 	iq->netdev = dev;
 	iq->handler = hnd;
 
@@ -2512,6 +2511,10 @@ void t4_free_sge_resources(struct adapter *adap)
 			free_rspq_fl(adap, &oq->rspq, &oq->fl);
 	}
 	for (i = 0, oq = adap->sge.rdmarxq; i < adap->sge.rdmaqs; i++, oq++) {
+		if (oq->rspq.desc)
+			free_rspq_fl(adap, &oq->rspq, &oq->fl);
+	}
+	for (i = 0, oq = adap->sge.rdmaciq; i < adap->sge.rdmaciqs; i++, oq++) {
 		if (oq->rspq.desc)
 			free_rspq_fl(adap, &oq->rspq, &oq->fl);
 	}
