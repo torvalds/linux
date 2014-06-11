@@ -1249,7 +1249,7 @@ static void balance_leaf_new_nodes(struct tree_balance *tb,
 		       || buffer_journal_dirty(tb->S_new[i])
 		       || buffer_dirty(tb->S_new[i]),
 		       "PAP-12247: S_new[%d] : (%b)",
-		       i, format_bh(tb->S_new[i]));
+		       i, tb->S_new[i]);
 	}
 }
 
