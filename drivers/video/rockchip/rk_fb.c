@@ -1578,7 +1578,7 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 	}
 
 	if (dev_drv->wait_fs && list_empty(&dev_drv->update_regs_list))
-		wake_up_interruptible_all(&dev_drv->update_regs_wait);
+		wake_up(&dev_drv->update_regs_wait);
 }
 
 static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
@@ -1938,12 +1938,11 @@ static int rk_fb_set_win_config(struct fb_info *info,
 					list_empty(&saved_list);
 		mutex_unlock(&dev_drv->update_regs_list_lock);
 		if (!list_is_empty)
-			ret = wait_event_interruptible(dev_drv->update_regs_wait,
+			wait_event(dev_drv->update_regs_wait,
 				list_empty(&dev_drv->update_regs_list) && list_empty(&saved_list));
-		if (!ret) {
-			rk_fb_update_reg(dev_drv, regs);
-			kfree(regs);
-		}
+
+		rk_fb_update_reg(dev_drv, regs);
+		kfree(regs);
 	}
 
 err:
