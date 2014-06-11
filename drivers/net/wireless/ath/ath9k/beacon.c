@@ -374,12 +374,19 @@ void ath9k_beacon_tasklet(unsigned long data)
 	vif = sc->beacon.bslot[slot];
 
 	/* EDMA devices check that in the tx completion function. */
-	if (!edma && ath9k_csa_is_finished(sc, vif))
-		return;
+	if (!edma) {
+		if (sc->sched.beacon_pending)
+			ath_chanctx_event(sc, NULL,
+					  ATH_CHANCTX_EVENT_BEACON_SENT);
+
+		if (ath9k_csa_is_finished(sc, vif))
+			return;
+	}
 
 	if (!vif || !vif->bss_conf.enable_beacon)
 		return;
 
+	ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_BEACON_PREPARE);
 	bf = ath9k_beacon_generate(sc->hw, vif);
 
 	if (sc->beacon.bmisscnt != 0) {

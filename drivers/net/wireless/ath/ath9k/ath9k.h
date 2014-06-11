@@ -341,6 +341,28 @@ struct ath_chanctx {
 	bool stopped;
 	bool active;
 	bool assigned;
+	bool switch_after_beacon;
+};
+
+enum ath_chanctx_event {
+	ATH_CHANCTX_EVENT_BEACON_PREPARE,
+	ATH_CHANCTX_EVENT_BEACON_SENT,
+	ATH_CHANCTX_EVENT_TSF_TIMER,
+};
+
+enum ath_chanctx_state {
+	ATH_CHANCTX_STATE_IDLE,
+	ATH_CHANCTX_STATE_WAIT_FOR_BEACON,
+	ATH_CHANCTX_STATE_WAIT_FOR_TIMER,
+	ATH_CHANCTX_STATE_SWITCH,
+};
+
+struct ath_chanctx_sched {
+	bool beacon_pending;
+	enum ath_chanctx_state state;
+
+	u32 next_tbtt;
+	unsigned int channel_switch_time;
 };
 
 enum ath_offchannel_state {
@@ -388,6 +410,8 @@ void ath_chanctx_offchan_switch(struct ath_softc *sc,
 				struct ieee80211_channel *chan);
 struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
 					      bool active);
+void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
+		       enum ath_chanctx_event ev);
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
@@ -826,6 +850,7 @@ struct ath_softc {
 	struct ath_chanctx *next_chan;
 	spinlock_t chan_lock;
 	struct ath_offchannel offchannel;
+	struct ath_chanctx_sched sched;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

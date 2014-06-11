@@ -2617,6 +2617,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 
+			ath_chanctx_event(sc, NULL,
+					  ATH_CHANCTX_EVENT_BEACON_SENT);
 			ath9k_csa_update(sc);
 			continue;
 		}

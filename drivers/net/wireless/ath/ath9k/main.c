@@ -1047,10 +1047,14 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 
 	ath9k_hw_setopmode(ah);
 
+	ctx->switch_after_beacon = false;
 	if ((iter_data.nstations + iter_data.nadhocs + iter_data.nmeshes) > 0)
 		ah->imask |= ATH9K_INT_TSFOOR;
-	else
+	else {
 		ah->imask &= ~ATH9K_INT_TSFOOR;
+		if (iter_data.naps == 1 && iter_data.beacons)
+			ctx->switch_after_beacon = true;
+	}
 
 	ah->imask &= ~ATH9K_INT_SWBA;
 	if (ah->opmode == NL80211_IFTYPE_STATION) {
@@ -1663,6 +1667,9 @@ void ath9k_p2p_ps_timer(void *priv)
 	struct ieee80211_sta *sta;
 	struct ath_node *an;
 	u32 tsf;
+
+	ath9k_hw_gen_timer_stop(sc->sc_ah, sc->p2p_ps_timer);
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
 
 	if (!avp || avp->chanctx != sc->cur_chan)
 		return;

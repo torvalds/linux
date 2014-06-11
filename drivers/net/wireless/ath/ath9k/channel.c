@@ -202,10 +202,33 @@ ath_chanctx_send_ps_frame(struct ath_softc *sc, bool powersave)
 	return sent;
 }
 
+static bool ath_chanctx_defer_switch(struct ath_softc *sc)
+{
+	if (sc->cur_chan == &sc->offchannel.chan)
+		return false;
+
+	switch (sc->sched.state) {
+	case ATH_CHANCTX_STATE_SWITCH:
+		return false;
+	case ATH_CHANCTX_STATE_IDLE:
+		if (!sc->cur_chan->switch_after_beacon)
+			return false;
+
+		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
 void ath_chanctx_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    chanctx_work);
+	struct timespec ts;
+	bool measure_time = false;
 	bool send_ps = false;
 
 	mutex_lock(&sc->mutex);
@@ -216,10 +239,20 @@ void ath_chanctx_work(struct work_struct *work)
 		return;
 	}
 
+	if (ath_chanctx_defer_switch(sc)) {
+		spin_unlock_bh(&sc->chan_lock);
+		mutex_unlock(&sc->mutex);
+		return;
+	}
+
 	if (sc->cur_chan != sc->next_chan) {
 		sc->cur_chan->stopped = true;
 		spin_unlock_bh(&sc->chan_lock);
 
+		if (sc->next_chan == &sc->offchannel.chan) {
+			getrawmonotonic(&ts);
+			measure_time = true;
+		}
 		__ath9k_flush(sc->hw, ~0, true);
 
 		if (ath_chanctx_send_ps_frame(sc, true))
@@ -236,13 +269,17 @@ void ath_chanctx_work(struct work_struct *work)
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
+	sc->sched.state = ATH_CHANCTX_STATE_IDLE;
 	spin_unlock_bh(&sc->chan_lock);
 
 	if (sc->sc_ah->chip_fullsleep ||
 	    memcmp(&sc->cur_chandef, &sc->cur_chan->chandef,
-		   sizeof(sc->cur_chandef)))
+		   sizeof(sc->cur_chandef))) {
 		ath_set_channel(sc);
-
+		if (measure_time)
+			sc->sched.channel_switch_time =
+				ath9k_hw_get_tsf_offset(&ts, NULL);
+	}
 	if (send_ps)
 		ath_chanctx_send_ps_frame(sc, false);
 
@@ -334,4 +371,47 @@ void ath_chanctx_offchan_switch(struct ath_softc *sc,
 	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
 
 	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
+}
+
+void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
+		       enum ath_chanctx_event ev)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	u32 tsf_time;
+
+	spin_lock_bh(&sc->chan_lock);
+
+	switch (ev) {
+	case ATH_CHANCTX_EVENT_BEACON_PREPARE:
+		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
+			break;
+
+		sc->sched.beacon_pending = true;
+		sc->sched.next_tbtt = REG_READ(ah, AR_NEXT_TBTT_TIMER);
+		break;
+	case ATH_CHANCTX_EVENT_BEACON_SENT:
+		if (!sc->sched.beacon_pending)
+			break;
+
+		sc->sched.beacon_pending = false;
+		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
+			break;
+
+		/* defer channel switch by a quarter beacon interval */
+		tsf_time = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+		tsf_time = sc->sched.next_tbtt + tsf_time / 4;
+		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
+		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time,
+				1000000);
+		break;
+	case ATH_CHANCTX_EVENT_TSF_TIMER:
+		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_TIMER)
+			break;
+
+		sc->sched.state = ATH_CHANCTX_STATE_SWITCH;
+		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
+		break;
+	}
+
+	spin_unlock_bh(&sc->chan_lock);
 }
