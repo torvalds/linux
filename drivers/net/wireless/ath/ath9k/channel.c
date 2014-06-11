@@ -101,6 +101,39 @@ static int ath_set_channel(struct ath_softc *sc)
 	return 0;
 }
 
+void ath_chanctx_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    chanctx_work);
+
+	mutex_lock(&sc->mutex);
+	spin_lock_bh(&sc->chan_lock);
+	if (!sc->next_chan) {
+		spin_unlock_bh(&sc->chan_lock);
+		mutex_unlock(&sc->mutex);
+		return;
+	}
+
+	if (sc->cur_chan != sc->next_chan) {
+		sc->cur_chan->stopped = true;
+		spin_unlock_bh(&sc->chan_lock);
+
+		__ath9k_flush(sc->hw, ~0, true);
+
+		spin_lock_bh(&sc->chan_lock);
+	}
+	sc->cur_chan = sc->next_chan;
+	sc->cur_chan->stopped = false;
+	sc->next_chan = NULL;
+	spin_unlock_bh(&sc->chan_lock);
+
+	if (sc->sc_ah->chip_fullsleep ||
+	    memcmp(&sc->cur_chandef, &sc->cur_chan->chandef,
+		   sizeof(sc->cur_chandef)))
+		ath_set_channel(sc);
+	mutex_unlock(&sc->mutex);
+}
+
 void ath_chanctx_init(struct ath_softc *sc)
 {
 	struct ath_chanctx *ctx;
@@ -125,12 +158,31 @@ void ath_chanctx_init(struct ath_softc *sc)
 	sc->cur_chan = &sc->chanctx[0];
 }
 
-int ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
-			      struct cfg80211_chan_def *chandef)
+void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
+			struct cfg80211_chan_def *chandef)
 {
-	memcpy(&ctx->chandef, chandef, sizeof(ctx->chandef));
-	if (ctx != sc->cur_chan)
-		return 0;
 
-	return ath_set_channel(sc);
+	spin_lock_bh(&sc->chan_lock);
+	sc->next_chan = ctx;
+	if (chandef)
+		ctx->chandef = *chandef;
+	spin_unlock_bh(&sc->chan_lock);
+	ieee80211_queue_work(sc->hw, &sc->chanctx_work);
+}
+
+void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
+			     struct cfg80211_chan_def *chandef)
+{
+	bool cur_chan;
+
+	spin_lock_bh(&sc->chan_lock);
+	if (chandef)
+		memcpy(&ctx->chandef, chandef, sizeof(*chandef));
+	cur_chan = sc->cur_chan == ctx;
+	spin_unlock_bh(&sc->chan_lock);
+
+	if (!cur_chan)
+		return;
+
+	ath_set_channel(sc);
 }

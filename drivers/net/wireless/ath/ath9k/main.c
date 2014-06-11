@@ -290,6 +290,12 @@ int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (!ath_prepare_reset(sc))
 		fastcc = false;
 
+	if (hchan) {
+		spin_lock_bh(&sc->chan_lock);
+		sc->cur_chandef = sc->cur_chan->chandef;
+		spin_unlock_bh(&sc->chan_lock);
+	}
+
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
 		hchan->channel, IS_CHAN_HT40(hchan), fastcc);
 
@@ -630,8 +636,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	memcpy(&ctx->chandef, &hw->conf.chandef, sizeof(ctx->chandef));
 	init_channel = ath9k_cmn_get_channel(hw, ah, &ctx->chandef);
+	sc->cur_chandef = hw->conf.chandef;
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, false);
@@ -794,6 +800,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool prev_idle;
 
+	cancel_work_sync(&sc->chanctx_work);
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
@@ -1308,12 +1315,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
 		ctx->offchannel = !!(conf->flags & IEEE80211_CONF_OFFCHANNEL);
-		if (ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef) < 0) {
-			ath_err(common, "Unable to set channel\n");
-			mutex_unlock(&sc->mutex);
-			ath9k_ps_restore(sc);
-			return -EINVAL;
-		}
+		ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -1948,23 +1950,29 @@ static void ath9k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			u32 queues, bool drop)
 {
 	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+	__ath9k_flush(hw, queues, drop);
+	mutex_unlock(&sc->mutex);
+}
+
+void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+{
+	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	int timeout = HZ / 5; /* 200 ms */
 	bool drain_txq;
 
-	mutex_lock(&sc->mutex);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (ah->ah_flags & AH_UNPLUGGED) {
 		ath_dbg(common, ANY, "Device has been unplugged!\n");
-		mutex_unlock(&sc->mutex);
 		return;
 	}
 
 	if (test_bit(ATH_OP_INVALID, &common->op_flags)) {
 		ath_dbg(common, ANY, "Device not present\n");
-		mutex_unlock(&sc->mutex);
 		return;
 	}
 
@@ -1986,7 +1994,6 @@ static void ath9k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
-	mutex_unlock(&sc->mutex);
 }
 
 static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)

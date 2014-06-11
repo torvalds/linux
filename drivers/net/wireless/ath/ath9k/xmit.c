@@ -1826,17 +1826,23 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	if (txq->mac80211_qnum < 0)
 		return;
 
+	spin_lock_bh(&sc->chan_lock);
 	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
+	spin_unlock_bh(&sc->chan_lock);
 
 	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
 	    list_empty(ac_list))
 		return;
 
+	spin_lock_bh(&sc->chan_lock);
 	rcu_read_lock();
 
 	last_ac = list_entry(ac_list->prev, struct ath_atx_ac, list);
 	while (!list_empty(ac_list)) {
 		bool stop = false;
+
+		if (sc->cur_chan->stopped)
+			break;
 
 		ac = list_first_entry(ac_list, struct ath_atx_ac, list);
 		last_tid = list_entry(ac->tid_q.prev, struct ath_atx_tid, list);
@@ -1883,6 +1889,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	}
 
 	rcu_read_unlock();
+	spin_unlock_bh(&sc->chan_lock);
 }
 
 void ath_txq_schedule_all(struct ath_softc *sc)

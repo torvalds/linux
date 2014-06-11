@@ -327,11 +327,14 @@ struct ath_chanctx {
 
 	u16 txpower;
 	bool offchannel;
+	bool stopped;
 };
 
 void ath_chanctx_init(struct ath_softc *sc);
-int ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
-			      struct cfg80211_chan_def *chandef);
+void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
+			     struct cfg80211_chan_def *chandef);
+void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
+			struct cfg80211_chan_def *chandef);
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
@@ -470,6 +473,7 @@ void ath9k_csa_update(struct ath_softc *sc);
 #define ATH_PAPRD_TIMEOUT         100 /* msecs */
 #define ATH_PLL_WORK_INTERVAL     100
 
+void ath_chanctx_work(struct work_struct *work);
 void ath_tx_complete_poll_work(struct work_struct *work);
 void ath_reset_work(struct work_struct *work);
 bool ath_hw_check(struct ath_softc *sc);
@@ -485,6 +489,7 @@ void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 void ath_ps_full_sleep(unsigned long data);
 void ath9k_p2p_ps_timer(void *priv);
 void ath9k_update_p2p_ps(struct ath_softc *sc, struct ieee80211_vif *vif);
+void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop);
 
 /**********/
 /* BTCOEX */
@@ -734,6 +739,7 @@ struct ath_softc {
 	struct mutex mutex;
 	struct work_struct paprd_work;
 	struct work_struct hw_reset_work;
+	struct work_struct chanctx_work;
 	struct completion paprd_complete;
 	wait_queue_head_t tx_wait;
 
@@ -756,8 +762,11 @@ struct ath_softc {
 	struct ath_tx tx;
 	struct ath_beacon beacon;
 
+	struct cfg80211_chan_def cur_chandef;
 	struct ath_chanctx chanctx[ATH9K_NUM_CHANCTX];
 	struct ath_chanctx *cur_chan;
+	struct ath_chanctx *next_chan;
+	spinlock_t chan_lock;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;
