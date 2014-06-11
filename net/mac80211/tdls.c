@@ -332,6 +332,19 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		goto exit;
 	}
 
+	/*
+	 * make sure we have a STA representing the peer so we drop or buffer
+	 * non-TDLS-setup frames to the peer. We can't send other packets
+	 * during setup through the AP path
+	 */
+	rcu_read_lock();
+	if (!sta_info_get(sdata, peer)) {
+		rcu_read_unlock();
+		ret = -ENOLINK;
+		goto exit;
+	}
+	rcu_read_unlock();
+
 	ieee80211_flush_queues(local, sdata);
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
