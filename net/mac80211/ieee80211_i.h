@@ -794,6 +794,9 @@ struct ieee80211_sub_if_data {
 	bool radar_required;
 	struct delayed_work dfs_cac_timer_work;
 
+	u8 tdls_peer[ETH_ALEN] __aligned(2);
+	struct delayed_work tdls_peer_del_work;
+
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for
@@ -1878,3 +1881,4 @@ extern const struct ethtool_ops ieee80211_ethtool_ops;
 #endif
 
 #endif /* IEEE80211_I_H */
+void ieee80211_tdls_peer_del_work(struct work_struct *wk);
