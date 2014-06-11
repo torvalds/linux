@@ -1811,7 +1811,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
 	bool wme_sta = false, authorized = false, tdls_auth = false;
-	bool tdls_direct = false;
+	bool tdls_peer = false, tdls_setup_frame = false;
 	bool multicast;
 	u32 info_flags = 0;
 	u16 info_id = 0;
@@ -1953,34 +1953,35 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 #endif
 	case NL80211_IFTYPE_STATION:
 		if (sdata->wdev.wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) {
-			bool tdls_peer = false;
-
 			sta = sta_info_get(sdata, skb->data);
 			if (sta) {
 				authorized = test_sta_flag(sta,
 							WLAN_STA_AUTHORIZED);
 				wme_sta = test_sta_flag(sta, WLAN_STA_WME);
 				tdls_peer = test_sta_flag(sta,
-							 WLAN_STA_TDLS_PEER);
+							  WLAN_STA_TDLS_PEER);
 				tdls_auth = test_sta_flag(sta,
 						WLAN_STA_TDLS_PEER_AUTH);
 			}
 
-			/*
-			 * If the TDLS link is enabled, send everything
-			 * directly. Otherwise, allow TDLS setup frames
-			 * to be transmitted indirectly.
-			 */
-			tdls_direct = tdls_peer && (tdls_auth ||
-				 !(ethertype == ETH_P_TDLS && skb->len > 14 &&
-				   skb->data[14] == WLAN_TDLS_SNAP_RFTYPE));
+			if (tdls_peer)
+				tdls_setup_frame =
+					ethertype == ETH_P_TDLS &&
+					skb->len > 14 &&
+					skb->data[14] == WLAN_TDLS_SNAP_RFTYPE;
 		}
 
-		if (tdls_direct) {
-			/* link during setup - throw out frames to peer */
-			if (!tdls_auth)
-				goto fail_rcu;
+		/*
+		 * TDLS link during setup - throw out frames to peer. We allow
+		 * TDLS-setup frames to unauthorized peers for the special case
+		 * of a link teardown after a TDLS sta is removed due to being
+		 * unreachable.
+		 */
+		if (tdls_peer && !tdls_auth && !tdls_setup_frame)
+			goto fail_rcu;
 
+		/* send direct packets to authorized TDLS peers */
+		if (tdls_peer && tdls_auth) {
 			/* DA SA BSSID */
 			memcpy(hdr.addr1, skb->data, ETH_ALEN);
 			memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
