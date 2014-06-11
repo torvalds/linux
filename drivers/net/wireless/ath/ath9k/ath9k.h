@@ -350,6 +350,10 @@ enum ath_chanctx_event {
 	ATH_CHANCTX_EVENT_BEACON_SENT,
 	ATH_CHANCTX_EVENT_TSF_TIMER,
 	ATH_CHANCTX_EVENT_BEACON_RECEIVED,
+	ATH_CHANCTX_EVENT_ASSOC,
+	ATH_CHANCTX_EVENT_SWITCH,
+	ATH_CHANCTX_EVENT_UNASSIGN,
+	ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL,
 };
 
 enum ath_chanctx_state {
@@ -362,6 +366,7 @@ enum ath_chanctx_state {
 
 struct ath_chanctx_sched {
 	bool beacon_pending;
+	bool offchannel_pending;
 	enum ath_chanctx_state state;
 
 	u32 next_tbtt;

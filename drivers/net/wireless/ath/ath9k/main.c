@@ -1747,6 +1747,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->bssid, bss_conf->assoc);
 
 		ath9k_calculate_summary_state(sc, avp->chanctx);
+		if (bss_conf->assoc)
+			ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_ASSOC);
 	}
 
 	if (changed & BSS_CHANGED_IBSS) {
@@ -2492,6 +2494,7 @@ static void ath9k_remove_chanctx(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ctx->assigned = false;
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_UNASSIGN);
 	mutex_unlock(&sc->mutex);
 }
 

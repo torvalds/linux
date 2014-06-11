@@ -180,10 +180,13 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		n_active++;
 	}
 
-	if (n_active > 1)
-		set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
-	else
+	if (n_active <= 1) {
 		clear_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
+		return;
+	}
+	if (test_and_set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		return;
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL);
 }
 
 static bool
@@ -282,6 +285,7 @@ static void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		ath_chanctx_send_ps_frame(sc, false);
 
 	ath_offchannel_channel_change(sc);
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_SWITCH);
 }
 
 void ath_chanctx_work(struct work_struct *work)
@@ -357,8 +361,17 @@ void ath9k_chanctx_force_active(struct ieee80211_hw *hw,
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 			struct cfg80211_chan_def *chandef)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	spin_lock_bh(&sc->chan_lock);
+
+	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) &&
+	    (sc->cur_chan != ctx) && (ctx == &sc->offchannel.chan)) {
+		sc->sched.offchannel_pending = true;
+		spin_unlock_bh(&sc->chan_lock);
+		return;
+	}
+
 	sc->next_chan = ctx;
 	if (chandef)
 		ctx->chandef = *chandef;
@@ -462,6 +475,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = NULL;
+	struct ath_chanctx *ctx;
 	u32 tsf_time;
 	bool noa_changed = false;
 
@@ -474,6 +488,25 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	case ATH_CHANCTX_EVENT_BEACON_PREPARE:
 		if (avp->offchannel_duration)
 			avp->offchannel_duration = 0;
+
+		if (avp->chanctx != sc->cur_chan)
+			break;
+
+		if (sc->sched.offchannel_pending) {
+			sc->sched.offchannel_pending = false;
+			sc->next_chan = &sc->offchannel.chan;
+			sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
+		}
+
+		ctx = ath_chanctx_get_next(sc, sc->cur_chan);
+		if (ctx->active && sc->sched.state == ATH_CHANCTX_STATE_IDLE) {
+			sc->next_chan = ctx;
+			sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
+		}
+
+		/* if the timer missed its window, use the next interval */
+		if (sc->sched.state == ATH_CHANCTX_STATE_WAIT_FOR_TIMER)
+			sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
 
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
 			break;
@@ -518,10 +551,64 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 		break;
 	case ATH_CHANCTX_EVENT_BEACON_RECEIVED:
-		if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) ||
+		    sc->cur_chan == &sc->offchannel.chan)
 			break;
 
 		ath_chanctx_adjust_tbtt_delta(sc);
+		break;
+	case ATH_CHANCTX_EVENT_ASSOC:
+		if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE ||
+		    avp->chanctx != sc->cur_chan)
+			break;
+
+		sc->sched.state = ATH_CHANCTX_STATE_IDLE;
+		/* fall through */
+	case ATH_CHANCTX_EVENT_SWITCH:
+		if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags) ||
+		    sc->sched.state == ATH_CHANCTX_STATE_FORCE_ACTIVE ||
+		    sc->cur_chan->switch_after_beacon ||
+		    sc->cur_chan == &sc->offchannel.chan)
+			break;
+
+		/* If this is a station chanctx, stay active for a half
+		 * beacon period (minus channel switch time)
+		 */
+		sc->next_chan = ath_chanctx_get_next(sc, sc->cur_chan);
+
+		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
+		tsf_time = ath9k_hw_gettsf32(sc->sc_ah);
+		tsf_time +=
+			TU_TO_USEC(sc->cur_chan->beacon.beacon_interval) / 2;
+		tsf_time -= sc->sched.channel_switch_time;
+		sc->sched.switch_start_time = tsf_time;
+
+		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
+					 tsf_time, 1000000);
+		break;
+	case ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL:
+		if (sc->cur_chan == &sc->offchannel.chan ||
+		    sc->cur_chan->switch_after_beacon)
+			break;
+
+		sc->next_chan = ath_chanctx_get_next(sc, sc->cur_chan);
+		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
+		break;
+	case ATH_CHANCTX_EVENT_UNASSIGN:
+		if (sc->cur_chan->assigned) {
+			if (sc->next_chan && !sc->next_chan->assigned &&
+			    sc->next_chan != &sc->offchannel.chan)
+				sc->sched.state = ATH_CHANCTX_STATE_IDLE;
+			break;
+		}
+
+		ctx = ath_chanctx_get_next(sc, sc->cur_chan);
+		sc->sched.state = ATH_CHANCTX_STATE_IDLE;
+		if (!ctx->assigned)
+			break;
+
+		sc->next_chan = ctx;
+		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 		break;
 	}
 
