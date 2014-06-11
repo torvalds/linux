@@ -44,20 +44,20 @@ struct intf_priv;
 struct intf_hdl;
 
 struct _io_ops {
-	u8 (*_read8)(struct intf_hdl *pintfhdl, u32 addr);
-	u16 (*_read16)(struct intf_hdl *pintfhdl, u32 addr);
-	u32 (*_read32)(struct intf_hdl *pintfhdl, u32 addr);
-	int (*_write8)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
-	int (*_write16)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
-	int (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
-	int (*_writeN)(struct intf_hdl *pintfhdl, u32 addr, u32 length,
+	u8 (*_read8)(struct adapter *pintfhdl, u32 addr);
+	u16 (*_read16)(struct adapter *pintfhdl, u32 addr);
+	u32 (*_read32)(struct adapter *pintfhdl, u32 addr);
+	int (*_write8)(struct adapter *pintfhdl, u32 addr, u8 val);
+	int (*_write16)(struct adapter *pintfhdl, u32 addr, u16 val);
+	int (*_write32)(struct adapter *pintfhdl, u32 addr, u32 val);
+	int (*_writeN)(struct adapter *pintfhdl, u32 addr, u32 length,
 		       u8 *pdata);
-	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
+	u32 (*_read_port)(struct adapter *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
-	u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
+	u32 (*_write_port)(struct adapter *pintfhdl, u32 addr, u32 cnt,
 			   u8 *pmem);
-	void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
-	void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
+	void (*_read_port_cancel)(struct adapter *pintfhdl);
+	void (*_write_port_cancel)(struct adapter *pintfhdl);
 };
 
 struct io_req {

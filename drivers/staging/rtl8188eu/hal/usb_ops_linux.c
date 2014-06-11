@@ -26,9 +26,8 @@
 #include <recv_osdep.h>
 #include <rtl8188e_hal.h>
 
-static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u8 request, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
+static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
 {
-	struct adapter	*adapt = pintfhdl->padapter;
 	struct dvobj_priv  *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
 	unsigned int pipe;
@@ -116,7 +115,7 @@ exit:
 	return status;
 }
 
-static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
+static u8 usb_read8(struct adapter *adapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -133,14 +132,14 @@ static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 1;
 
-	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
 
 	return data;
 
 }
 
-static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
+static u16 usb_read16(struct adapter *adapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -154,12 +153,12 @@ static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 	index = 0;/* n/a */
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 2;
-	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
 	return (u16)(le32_to_cpu(data)&0xffff);
 }
 
-static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
+static u32 usb_read32(struct adapter *adapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -176,13 +175,13 @@ static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 4;
 
-	usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
 
 	return le32_to_cpu(data);
 }
 
-static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
+static int usb_write8(struct adapter *adapter, u32 addr, u8 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -198,11 +197,11 @@ static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 	wvalue = (u16)(addr&0x0000ffff);
 	len = 1;
 	data = val;
-	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 	return ret;
 }
 
-static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
+static int usb_write16(struct adapter *adapter, u32 addr, u16 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -222,13 +221,13 @@ static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 
 	data = cpu_to_le32(val & 0x0000ffff);
 
-	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
 
 	return ret;
 }
 
-static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
+static int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 {
 	u8 request;
 	u8 requesttype;
@@ -247,13 +246,13 @@ static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	len = 4;
 	data = cpu_to_le32(val);
 
-	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, &data, len, requesttype);
+	ret = usbctrl_vendorreq(adapter, request, wvalue, index, &data, len, requesttype);
 
 
 	return ret;
 }
 
-static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata)
+static int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata)
 {
 	u8 request;
 	u8 requesttype;
@@ -272,7 +271,7 @@ static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata
 	len = length;
 	 memcpy(buf, pdata, len);
 
-	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index, buf, len, requesttype);
+	ret = usbctrl_vendorreq(adapter, request, wvalue, index, buf, len, requesttype);
 
 
 	return ret;
@@ -565,11 +564,10 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	}
 }
 
-static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
+static u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *rmem)
 {
 	struct urb *purb = NULL;
 	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
-	struct adapter		*adapter = pintfhdl->padapter;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv	*precvpriv = &adapter->recvpriv;
 	struct usb_device	*pusbd = pdvobj->pusbdev;
