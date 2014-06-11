@@ -78,6 +78,8 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 	INIT_LIST_HEAD(&session->ordered_events.events);
 	INIT_LIST_HEAD(&session->ordered_events.cache);
 	INIT_LIST_HEAD(&session->ordered_events.to_free);
+	session->ordered_events.max_alloc_size = (u64) -1;
+	session->ordered_events.cur_alloc_size = 0;
 	machines__init(&session->machines);
 
 	if (file) {
@@ -518,7 +520,7 @@ static void queue_event(struct ordered_events *oe, struct ordered_event *new)
 static struct ordered_event *alloc_event(struct ordered_events *oe)
 {
 	struct list_head *cache = &oe->cache;
-	struct ordered_event *new;
+	struct ordered_event *new = NULL;
 
 	if (!list_empty(cache)) {
 		new = list_entry(cache->next, struct ordered_event, list);
@@ -527,10 +529,14 @@ static struct ordered_event *alloc_event(struct ordered_events *oe)
 		new = oe->buffer + oe->buffer_idx;
 		if (++oe->buffer_idx == MAX_SAMPLE_BUFFER)
 			oe->buffer = NULL;
-	} else {
-		oe->buffer = malloc(MAX_SAMPLE_BUFFER * sizeof(*new));
+	} else if (oe->cur_alloc_size < oe->max_alloc_size) {
+		size_t size = MAX_SAMPLE_BUFFER * sizeof(*new);
+
+		oe->buffer = malloc(size);
 		if (!oe->buffer)
 			return NULL;
+
+		oe->cur_alloc_size += size;
 		list_add(&oe->buffer->list, &oe->to_free);
 
 		/* First entry is abused to maintain the to_free list. */

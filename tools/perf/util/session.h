@@ -20,6 +20,8 @@ struct ordered_events {
 	u64			last_flush;
 	u64			next_flush;
 	u64			max_timestamp;
+	u64			max_alloc_size;
+	u64			cur_alloc_size;
 	struct list_head	events;
 	struct list_head	cache;
 	struct list_head	to_free;
