@@ -150,8 +150,10 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp;
 	bool active = false;
+	u8 n_active = 0;
 
 	if (!ctx)
 		return;
@@ -171,6 +173,17 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		}
 	}
 	ctx->active = active;
+
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		n_active++;
+	}
+
+	if (n_active > 1)
+		set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
+	else
+		clear_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
 }
 
 static bool
