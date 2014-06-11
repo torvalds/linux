@@ -357,6 +357,7 @@ enum ath_chanctx_state {
 	ATH_CHANCTX_STATE_WAIT_FOR_BEACON,
 	ATH_CHANCTX_STATE_WAIT_FOR_TIMER,
 	ATH_CHANCTX_STATE_SWITCH,
+	ATH_CHANCTX_STATE_FORCE_ACTIVE,
 };
 
 struct ath_chanctx_sched {
@@ -397,6 +398,8 @@ struct ath_offchannel {
 	     ctx++)
 
 void ath9k_fill_chanctx_ops(void);
+void ath9k_chanctx_force_active(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif);
 static inline struct ath_chanctx *
 ath_chanctx_get(struct ieee80211_chanctx_conf *ctx)
 {

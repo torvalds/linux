@@ -2553,6 +2553,7 @@ void ath9k_fill_chanctx_ops(void)
 	ath9k_ops.change_chanctx     = ath9k_change_chanctx;
 	ath9k_ops.assign_vif_chanctx = ath9k_assign_vif_chanctx;
 	ath9k_ops.unassign_vif_chanctx = ath9k_unassign_vif_chanctx;
+	ath9k_ops.mgd_prepare_tx = ath9k_chanctx_force_active;
 }
 
 struct ieee80211_ops ath9k_ops = {

@@ -223,25 +223,20 @@ static bool ath_chanctx_defer_switch(struct ath_softc *sc)
 	return true;
 }
 
-void ath_chanctx_work(struct work_struct *work)
+static void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
-	struct ath_softc *sc = container_of(work, struct ath_softc,
-					    chanctx_work);
 	struct timespec ts;
 	bool measure_time = false;
 	bool send_ps = false;
 
-	mutex_lock(&sc->mutex);
 	spin_lock_bh(&sc->chan_lock);
 	if (!sc->next_chan) {
 		spin_unlock_bh(&sc->chan_lock);
-		mutex_unlock(&sc->mutex);
 		return;
 	}
 
-	if (ath_chanctx_defer_switch(sc)) {
+	if (!force && ath_chanctx_defer_switch(sc)) {
 		spin_unlock_bh(&sc->chan_lock);
-		mutex_unlock(&sc->mutex);
 		return;
 	}
 
@@ -269,8 +264,9 @@ void ath_chanctx_work(struct work_struct *work)
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
-	sc->sched.state = ATH_CHANCTX_STATE_IDLE;
 	sc->sched.offchannel_duration = 0;
+	if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE)
+		sc->sched.state = ATH_CHANCTX_STATE_IDLE;
 
 	spin_unlock_bh(&sc->chan_lock);
 
@@ -286,6 +282,14 @@ void ath_chanctx_work(struct work_struct *work)
 		ath_chanctx_send_ps_frame(sc, false);
 
 	ath_offchannel_channel_change(sc);
+}
+
+void ath_chanctx_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    chanctx_work);
+	mutex_lock(&sc->mutex);
+	ath_chanctx_set_next(sc, false);
 	mutex_unlock(&sc->mutex);
 }
 
@@ -318,6 +322,36 @@ void ath_chanctx_init(struct ath_softc *sc)
 		INIT_LIST_HEAD(&ctx->acq[j]);
 	sc->offchannel.chan.offchannel = true;
 
+}
+
+void ath9k_chanctx_force_active(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (struct ath_vif *) vif->drv_priv;
+	bool changed = false;
+
+	if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+		return;
+
+	if (!avp->chanctx)
+		return;
+
+	mutex_lock(&sc->mutex);
+
+	spin_lock_bh(&sc->chan_lock);
+	if (sc->next_chan || (sc->cur_chan != avp->chanctx)) {
+		sc->next_chan = avp->chanctx;
+		changed = true;
+	}
+	sc->sched.state = ATH_CHANCTX_STATE_FORCE_ACTIVE;
+	spin_unlock_bh(&sc->chan_lock);
+
+	if (changed)
+		ath_chanctx_set_next(sc, true);
+
+	mutex_unlock(&sc->mutex);
 }
 
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
