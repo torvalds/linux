@@ -89,8 +89,4 @@ int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata);
 u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void usb_write_port_cancel(struct adapter *adapter);
 
-
-int rtw_init_io_priv(struct adapter *padapter,
-		     void (*set_intf_ops)(struct _io_ops *pops));
-
 #endif	/* _RTL8711_IO_H_ */

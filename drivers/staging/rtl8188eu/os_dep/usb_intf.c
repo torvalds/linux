@@ -396,9 +396,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->intf_start = &usb_intf_start;
 	padapter->intf_stop = &usb_intf_stop;
 
-	/* step init_io_priv */
-	rtw_init_io_priv(padapter, usb_set_intf_ops);
-
 	/* step read_chip_version */
 	rtw_hal_read_chip_version(padapter);
 
