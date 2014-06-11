@@ -328,6 +328,9 @@ struct ath_chanctx {
 	struct list_head vifs;
 	struct list_head acq[IEEE80211_NUM_ACS];
 
+	/* do not dereference, use for comparison only */
+	struct ieee80211_vif *primary_sta;
+
 	struct ath_beacon_config beacon;
 	struct ath9k_hw_cal_data caldata;
 	struct timespec tsf_ts;
@@ -438,7 +441,6 @@ struct ath_vif {
 	struct ieee80211_vif *vif;
 	struct ath_node mcast_node;
 	int av_bslot;
-	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
 	struct ath_chanctx *chanctx;
@@ -451,17 +453,22 @@ struct ath9k_vif_iter_data {
 	u8 hw_macaddr[ETH_ALEN]; /* address of the first vif */
 	u8 mask[ETH_ALEN]; /* bssid mask */
 	bool has_hw_macaddr;
+	u8 slottime;
+	bool beacons;
 
 	int naps;      /* number of AP vifs */
 	int nmeshes;   /* number of mesh vifs */
 	int nstations; /* number of station vifs */
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
+	struct ieee80211_vif *primary_sta;
 };
 
-void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
+void ath9k_calculate_iter_data(struct ath_softc *sc,
+			       struct ath_chanctx *ctx,
 			       struct ath9k_vif_iter_data *iter_data);
+void ath9k_calculate_summary_state(struct ath_softc *sc,
+				   struct ath_chanctx *ctx);
 
 /*******************/
 /* Beacon Handling */
