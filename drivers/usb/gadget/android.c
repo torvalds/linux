@@ -347,6 +347,9 @@ static void functionfs_closed_callback(struct ffs_data *ffs)
 	config->opened = false;
 	config->data = NULL;
 
+	if (!WARN_ON(!ffs->gadget)) {
+		dev->cdev->next_string_id -= ffs->strings_count;
+	}
 	functionfs_unbind(ffs);
 
 	mutex_unlock(&dev->mutex);
