@@ -2350,7 +2350,18 @@ kvmppc_read_intr:
 	cmpdi	r6, 0
 	beq-	1f
 	lwzcix	r0, r6, r7
-	rlwinm.	r3, r0, 0, 0xffffff
+	/*
+	 * Save XIRR for later. Since we get in in reverse endian on LE
+	 * systems, save it byte reversed and fetch it back in host endian.
+	 */
+	li	r3, HSTATE_SAVED_XIRR
+	STWX_BE	r0, r3, r13
+#ifdef __LITTLE_ENDIAN__
+	lwz	r3, HSTATE_SAVED_XIRR(r13)
+#else
+	mr	r3, r0
+#endif
+	rlwinm.	r3, r3, 0, 0xffffff
 	sync
 	beq	1f			/* if nothing pending in the ICP */
 
@@ -2382,10 +2393,9 @@ kvmppc_read_intr:
 	li	r3, -1
 1:	blr
 
-42:	/* It's not an IPI and it's for the host, stash it in the PACA
-	 * before exit, it will be picked up by the host ICP driver
+42:	/* It's not an IPI and it's for the host. We saved a copy of XIRR in
+	 * the PACA earlier, it will be picked up by the host ICP driver
 	 */
-	stw	r0, HSTATE_SAVED_XIRR(r13)
 	li	r3, 1
 	b	1b
 
