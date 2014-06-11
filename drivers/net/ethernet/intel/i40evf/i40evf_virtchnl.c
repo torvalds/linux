@@ -233,6 +233,9 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->txq.queue_id = i;
 		vqpi->txq.ring_len = adapter->tx_rings[i]->count;
 		vqpi->txq.dma_ring_addr = adapter->tx_rings[i]->dma;
+		vqpi->txq.headwb_enabled = 1;
+		vqpi->txq.dma_headwb_addr = vqpi->txq.dma_ring_addr +
+		    (vqpi->txq.ring_len * sizeof(struct i40e_tx_desc));
 
 		vqpi->rxq.vsi_id = vqci->vsi_id;
 		vqpi->rxq.queue_id = i;
@@ -404,7 +407,7 @@ void i40evf_add_ether_addrs(struct i40evf_adapter *adapter)
 	veal->num_elements = count;
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
 		if (f->add) {
-			memcpy(veal->list[i].addr, f->macaddr, ETH_ALEN);
+			ether_addr_copy(veal->list[i].addr, f->macaddr);
 			i++;
 			f->add = false;
 		}
@@ -465,7 +468,7 @@ void i40evf_del_ether_addrs(struct i40evf_adapter *adapter)
 	veal->num_elements = count;
 	list_for_each_entry_safe(f, ftmp, &adapter->mac_filter_list, list) {
 		if (f->remove) {
-			memcpy(veal->list[i].addr, f->macaddr, ETH_ALEN);
+			ether_addr_copy(veal->list[i].addr, f->macaddr);
 			i++;
 			list_del(&f->list);
 			kfree(f);

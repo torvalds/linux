@@ -36,7 +36,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710 X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.31"
+#define DRV_VERSION "0.9.34"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -772,7 +772,7 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 			return NULL;
 		}
 
-		memcpy(f->macaddr, macaddr, ETH_ALEN);
+		ether_addr_copy(f->macaddr, macaddr);
 
 		list_add(&f->list, &adapter->mac_filter_list);
 		f->add = true;
@@ -805,9 +805,8 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 
 	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
-		memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
-		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
-		       netdev->addr_len);
+		ether_addr_copy(hw->mac.addr, addr->sa_data);
+		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
 	}
 
 	return (f == NULL) ? -ENOMEM : 0;
@@ -967,6 +966,9 @@ void i40evf_down(struct i40evf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct i40evf_mac_filter *f;
+
+	if (adapter->state == __I40EVF_DOWN)
+		return;
 
 	/* remove all MAC filters */
 	list_for_each_entry(f, &adapter->mac_filter_list, list) {
@@ -1588,6 +1590,7 @@ static void i40evf_adminq_task(struct work_struct *work)
 	struct i40e_arq_event_info event;
 	struct i40e_virtchnl_msg *v_msg;
 	i40e_status ret;
+	u32 val, oldval;
 	u16 pending;
 
 	if (adapter->flags & I40EVF_FLAG_PF_COMMS_FAILED)
@@ -1614,6 +1617,41 @@ static void i40evf_adminq_task(struct work_struct *work)
 			memset(event.msg_buf, 0, I40EVF_MAX_AQ_BUF_SIZE);
 		}
 	} while (pending);
+
+	/* check for error indications */
+	val = rd32(hw, hw->aq.arq.len);
+	oldval = val;
+	if (val & I40E_VF_ARQLEN_ARQVFE_MASK) {
+		dev_info(&adapter->pdev->dev, "ARQ VF Error detected\n");
+		val &= ~I40E_VF_ARQLEN_ARQVFE_MASK;
+	}
+	if (val & I40E_VF_ARQLEN_ARQOVFL_MASK) {
+		dev_info(&adapter->pdev->dev, "ARQ Overflow Error detected\n");
+		val &= ~I40E_VF_ARQLEN_ARQOVFL_MASK;
+	}
+	if (val & I40E_VF_ARQLEN_ARQCRIT_MASK) {
+		dev_info(&adapter->pdev->dev, "ARQ Critical Error detected\n");
+		val &= ~I40E_VF_ARQLEN_ARQCRIT_MASK;
+	}
+	if (oldval != val)
+		wr32(hw, hw->aq.arq.len, val);
+
+	val = rd32(hw, hw->aq.asq.len);
+	oldval = val;
+	if (val & I40E_VF_ATQLEN_ATQVFE_MASK) {
+		dev_info(&adapter->pdev->dev, "ASQ VF Error detected\n");
+		val &= ~I40E_VF_ATQLEN_ATQVFE_MASK;
+	}
+	if (val & I40E_VF_ATQLEN_ATQOVFL_MASK) {
+		dev_info(&adapter->pdev->dev, "ASQ Overflow Error detected\n");
+		val &= ~I40E_VF_ATQLEN_ATQOVFL_MASK;
+	}
+	if (val & I40E_VF_ATQLEN_ATQCRIT_MASK) {
+		dev_info(&adapter->pdev->dev, "ASQ Critical Error detected\n");
+		val &= ~I40E_VF_ATQLEN_ATQCRIT_MASK;
+	}
+	if (oldval != val)
+		wr32(hw, hw->aq.asq.len, val);
 
 	/* re-enable Admin queue interrupt cause */
 	i40evf_misc_irq_enable(adapter);
@@ -1785,12 +1823,11 @@ static int i40evf_close(struct net_device *netdev)
 	if (adapter->state <= __I40EVF_DOWN)
 		return 0;
 
-	/* signal that we are down to the interrupt handler */
-	adapter->state = __I40EVF_DOWN;
 
 	set_bit(__I40E_DOWN, &adapter->vsi.state);
 
 	i40evf_down(adapter);
+	adapter->state = __I40EVF_DOWN;
 	i40evf_free_traffic_irqs(adapter);
 
 	i40evf_free_all_tx_resources(adapter);
@@ -2057,8 +2094,8 @@ static void i40evf_init_task(struct work_struct *work)
 			 adapter->hw.mac.addr);
 		random_ether_addr(adapter->hw.mac.addr);
 	}
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
+	ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
+	ether_addr_copy(netdev->perm_addr, adapter->hw.mac.addr);
 
 	INIT_LIST_HEAD(&adapter->mac_filter_list);
 	INIT_LIST_HEAD(&adapter->vlan_filter_list);
@@ -2066,7 +2103,7 @@ static void i40evf_init_task(struct work_struct *work)
 	if (NULL == f)
 		goto err_sw_init;
 
-	memcpy(f->macaddr, adapter->hw.mac.addr, ETH_ALEN);
+	ether_addr_copy(f->macaddr, adapter->hw.mac.addr);
 	f->add = true;
 	adapter->aq_required |= I40EVF_FLAG_AQ_ADD_MAC_FILTER;
 

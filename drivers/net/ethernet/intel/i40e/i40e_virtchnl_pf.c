@@ -248,9 +248,8 @@ static int i40e_config_vsi_tx_queue(struct i40e_vf *vf, u16 vsi_idx,
 	tx_ctx.qlen = info->ring_len;
 	tx_ctx.rdylist = le16_to_cpu(pf->vsi[vsi_idx]->info.qs_handle[0]);
 	tx_ctx.rdylist_act = 0;
-	tx_ctx.head_wb_ena = 1;
-	tx_ctx.head_wb_addr = info->dma_ring_addr +
-			      (info->ring_len * sizeof(struct i40e_tx_desc));
+	tx_ctx.head_wb_ena = info->headwb_enabled;
+	tx_ctx.head_wb_addr = info->dma_headwb_addr;
 
 	/* clear the context in the HMC */
 	ret = i40e_clear_lan_tx_queue_context(hw, pf_queue_id);
@@ -2076,7 +2075,7 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 		ret = -EIO;
 		goto error_param;
 	}
-	memcpy(vf->default_lan_addr.addr, mac, ETH_ALEN);
+	ether_addr_copy(vf->default_lan_addr.addr, mac);
 	vf->pf_set_mac = true;
 	dev_info(&pf->pdev->dev, "Reload the VF driver to make this change effective.\n");
 	ret = 0;

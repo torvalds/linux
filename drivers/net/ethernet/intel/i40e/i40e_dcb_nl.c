@@ -302,8 +302,8 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	struct net_device *dev = vsi->netdev;
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
-	/* DCB not enabled */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
+	/* Not DCB capable */
+	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
 		return;
 
 	/* Do not setup DCB NL ops for MFP mode */

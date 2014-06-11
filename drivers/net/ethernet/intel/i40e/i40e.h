@@ -154,11 +154,23 @@ struct i40e_lump_tracking {
 #define I40E_FDIR_BUFFER_FULL_MARGIN	10
 #define I40E_FDIR_BUFFER_HEAD_ROOM	200
 
+enum i40e_fd_stat_idx {
+	I40E_FD_STAT_ATR,
+	I40E_FD_STAT_SB,
+	I40E_FD_STAT_PF_COUNT
+};
+#define I40E_FD_STAT_PF_IDX(pf_id) ((pf_id) * I40E_FD_STAT_PF_COUNT)
+#define I40E_FD_ATR_STAT_IDX(pf_id) \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_ATR)
+#define I40E_FD_SB_STAT_IDX(pf_id)  \
+			(I40E_FD_STAT_PF_IDX(pf_id) + I40E_FD_STAT_SB)
+
 struct i40e_fdir_filter {
 	struct hlist_node fdir_node;
 	/* filter ipnut set */
 	u8 flow_type;
 	u8 ip4_proto;
+	/* TX packet view of src and dst */
 	__be32 dst_ip[4];
 	__be32 src_ip[4];
 	__be16 src_port;
@@ -222,6 +234,8 @@ struct i40e_pf {
 
 	struct hlist_head fdir_filter_list;
 	u16 fdir_pf_active_filters;
+	u16 fd_sb_cnt_idx;
+	u16 fd_atr_cnt_idx;
 
 #ifdef CONFIG_I40E_VXLAN
 	__be16  vxlan_ports[I40E_MAX_PF_UDP_OFFLOAD_PORTS];
@@ -263,6 +277,7 @@ struct i40e_pf {
 #ifdef CONFIG_I40E_VXLAN
 #define I40E_FLAG_VXLAN_FILTER_SYNC            (u64)(1 << 27)
 #endif
+#define I40E_FLAG_DCB_CAPABLE                  (u64)(1 << 29)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;

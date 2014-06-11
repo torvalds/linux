@@ -2738,7 +2738,7 @@ static int igb_get_module_info(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 status = E1000_SUCCESS;
+	u32 status = 0;
 	u16 sff8472_rev, addr_mode;
 	bool page_swap = false;
 
@@ -2748,12 +2748,12 @@ static int igb_get_module_info(struct net_device *netdev,
 
 	/* Check whether we support SFF-8472 or not */
 	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_COMP, &sff8472_rev);
-	if (status != E1000_SUCCESS)
+	if (status)
 		return -EIO;
 
 	/* addressing mode is not supported */
 	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_SWAP, &addr_mode);
-	if (status != E1000_SUCCESS)
+	if (status)
 		return -EIO;
 
 	/* addressing mode is not supported */
@@ -2780,7 +2780,7 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 status = E1000_SUCCESS;
+	u32 status = 0;
 	u16 *dataword;
 	u16 first_word, last_word;
 	int i = 0;
@@ -2799,7 +2799,7 @@ static int igb_get_module_eeprom(struct net_device *netdev,
 	/* Read EEPROM block, SFF-8079/SFF-8472, word at a time */
 	for (i = 0; i < last_word - first_word + 1; i++) {
 		status = igb_read_phy_reg_i2c(hw, first_word + i, &dataword[i]);
-		if (status != E1000_SUCCESS) {
+		if (status) {
 			/* Error occurred while reading module */
 			kfree(dataword);
 			return -EIO;
