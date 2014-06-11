@@ -233,7 +233,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
-	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) && start) {
+	if (!sc->cur_chan->offchannel && start) {
 		if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
 			goto work;
 
@@ -266,7 +266,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	return true;
 }
 
-static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
+int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -279,7 +279,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	tasklet_disable(&sc->intr_tq);
 	spin_lock_bh(&sc->sc_pcu_lock);
 
-	if (!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)) {
+	if (!sc->cur_chan->offchannel) {
 		fastcc = false;
 		caldata = &sc->caldata;
 	}
@@ -307,7 +307,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	}
 
 	if (ath9k_hw_mci_is_enabled(sc->sc_ah) &&
-	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+	    sc->cur_chan->offchannel)
 		ath9k_mci_set_txpower(sc, true, false);
 
 	if (!ath_complete_reset(sc, true))
@@ -318,98 +318,6 @@ out:
 	tasklet_enable(&sc->intr_tq);
 
 	return r;
-}
-
-
-/*
- * Set/change channels.  If the channel is really being changed, it's done
- * by reseting the chip.  To accomplish this we must first cleanup any pending
- * DMA, then restart stuff.
-*/
-static int ath_set_channel(struct ath_softc *sc, struct cfg80211_chan_def *chandef)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_hw *hw = sc->hw;
-	struct ath9k_channel *hchan;
-	struct ieee80211_channel *chan = chandef->chan;
-	bool offchannel;
-	int pos = chan->hw_value;
-	int old_pos = -1;
-	int r;
-
-	if (test_bit(ATH_OP_INVALID, &common->op_flags))
-		return -EIO;
-
-	offchannel = !!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL);
-
-	if (ah->curchan)
-		old_pos = ah->curchan - &ah->channels[0];
-
-	ath_dbg(common, CONFIG, "Set channel: %d MHz width: %d\n",
-		chan->center_freq, chandef->width);
-
-	/* update survey stats for the old channel before switching */
-	spin_lock_bh(&common->cc_lock);
-	ath_update_survey_stats(sc);
-	spin_unlock_bh(&common->cc_lock);
-
-	ath9k_cmn_get_channel(hw, ah, chandef);
-
-	/*
-	 * If the operating channel changes, change the survey in-use flags
-	 * along with it.
-	 * Reset the survey data for the new channel, unless we're switching
-	 * back to the operating channel from an off-channel operation.
-	 */
-	if (!offchannel && sc->cur_survey != &sc->survey[pos]) {
-		if (sc->cur_survey)
-			sc->cur_survey->filled &= ~SURVEY_INFO_IN_USE;
-
-		sc->cur_survey = &sc->survey[pos];
-
-		memset(sc->cur_survey, 0, sizeof(struct survey_info));
-		sc->cur_survey->filled |= SURVEY_INFO_IN_USE;
-	} else if (!(sc->survey[pos].filled & SURVEY_INFO_IN_USE)) {
-		memset(&sc->survey[pos], 0, sizeof(struct survey_info));
-	}
-
-	hchan = &sc->sc_ah->channels[pos];
-	r = ath_reset_internal(sc, hchan);
-	if (r)
-		return r;
-
-	/*
-	 * The most recent snapshot of channel->noisefloor for the old
-	 * channel is only available after the hardware reset. Copy it to
-	 * the survey stats now.
-	 */
-	if (old_pos >= 0)
-		ath_update_survey_nf(sc, old_pos);
-
-	/*
-	 * Enable radar pulse detection if on a DFS channel. Spectral
-	 * scanning and radar detection can not be used concurrently.
-	 */
-	if (hw->conf.radar_enabled) {
-		u32 rxfilter;
-
-		/* set HW specific DFS configuration */
-		ath9k_hw_set_radar_params(ah);
-		rxfilter = ath9k_hw_getrxfilter(ah);
-		rxfilter |= ATH9K_RX_FILTER_PHYRADAR |
-				ATH9K_RX_FILTER_PHYERR;
-		ath9k_hw_setrxfilter(ah, rxfilter);
-		ath_dbg(common, DFS, "DFS enabled at freq %d\n",
-			chan->center_freq);
-	} else {
-		/* perform spectral scan if requested. */
-		if (test_bit(ATH_OP_SCANNING, &common->op_flags) &&
-			sc->spectral_mode == SPECTRAL_CHANSCAN)
-			ath9k_spectral_scan_trigger(hw);
-	}
-
-	return 0;
 }
 
 static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
@@ -713,6 +621,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	struct ath_chanctx *ctx = sc->cur_chan;
 	struct ath9k_channel *init_channel;
 	int r;
 
@@ -723,7 +632,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	init_channel = ath9k_cmn_get_channel(hw, ah, &hw->conf.chandef);
+	memcpy(&ctx->chandef, &hw->conf.chandef, sizeof(ctx->chandef));
+	init_channel = ath9k_cmn_get_channel(hw, ah, &ctx->chandef);
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, false);
@@ -934,7 +844,8 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	}
 
 	if (!ah->curchan)
-		ah->curchan = ath9k_cmn_get_channel(hw, ah, &hw->conf.chandef);
+		ah->curchan = ath9k_cmn_get_channel(hw, ah,
+						    &sc->cur_chan->chandef);
 
 	ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	ath9k_hw_phy_disable(ah);
@@ -1345,6 +1256,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ath_chanctx *ctx = sc->cur_chan;
 	bool reset_channel = false;
 
 	ath9k_ps_wakeup(sc);
@@ -1392,7 +1304,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
-		if (ath_set_channel(sc, &hw->conf.chandef) < 0) {
+		ctx->offchannel = !!(conf->flags & IEEE80211_CONF_OFFCHANNEL);
+		if (ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef) < 0) {
 			ath_err(common, "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
 			ath9k_ps_restore(sc);

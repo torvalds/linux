@@ -416,7 +416,7 @@ void ath_start_ani(struct ath_softc *sc)
 
 	if (common->disable_ani ||
 	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags) ||
-	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+	    sc->cur_chan->offchannel)
 		return;
 
 	common->ani.longcal_timer = timestamp;

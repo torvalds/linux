@@ -325,6 +325,16 @@ struct ath_rx {
 	u32 ampdu_ref;
 };
 
+struct ath_chanctx {
+	struct cfg80211_chan_def chandef;
+	struct list_head vifs;
+	bool offchannel;
+};
+
+void ath_chanctx_init(struct ath_softc *sc);
+int ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
+			      struct cfg80211_chan_def *chandef);
+int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
@@ -370,12 +380,15 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 /********/
 
 struct ath_vif {
+	struct list_head list;
+
 	struct ieee80211_vif *vif;
 	struct ath_node mcast_node;
 	int av_bslot;
 	bool primary_sta_vif;
 	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
 	struct ath_buf *av_bcbuf;
+	struct ath_chanctx *chanctx;
 
 	/* P2P Client */
 	struct ieee80211_noa_data noa;
@@ -702,6 +715,8 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 #define PS_BEACON_SYNC            BIT(4)
 #define PS_WAIT_FOR_ANI           BIT(5)
 
+#define ATH9K_NUM_CHANCTX  2 /* supports 2 operating channels */
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -742,6 +757,9 @@ struct ath_softc {
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
+
+	struct ath_chanctx chanctx[ATH9K_NUM_CHANCTX];
+	struct ath_chanctx *cur_chan;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

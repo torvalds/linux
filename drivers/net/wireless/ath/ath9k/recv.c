@@ -259,7 +259,7 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_HP);
 	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_LP);
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(sc->sc_ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
+	ath9k_hw_startpcureceive(sc->sc_ah, sc->cur_chan->offchannel);
 }
 
 static void ath_edma_stop_recv(struct ath_softc *sc)
@@ -457,7 +457,7 @@ int ath_startrecv(struct ath_softc *sc)
 
 start_recv:
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
+	ath9k_hw_startpcureceive(ah, sc->cur_chan->offchannel);
 
 	return 0;
 }
