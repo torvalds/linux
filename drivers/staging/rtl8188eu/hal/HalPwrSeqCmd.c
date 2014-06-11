@@ -35,6 +35,7 @@ Major Change History:
 --*/
 
 #include <HalPwrSeqCmd.h>
+#include <usb_ops_linux.h>
 
 /*	Description: */
 /*		This routine deals with the Power Configuration CMDs parsing

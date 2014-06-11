@@ -44,9 +44,19 @@
 
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr);
 
-void usb_read_port_cancel(struct adapter *padapter);
+u8 usb_read8(struct adapter *adapter, u32 addr);
+u16 usb_read16(struct adapter *adapter, u32 addr);
+u32 usb_read32(struct adapter *adapter, u32 addr);
 
-u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, u8 *wmem);
-void usb_write_port_cancel(struct adapter *padapter);
+u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+void usb_read_port_cancel(struct adapter *adapter);
+
+int usb_write8(struct adapter *adapter, u32 addr, u8 val);
+int usb_write16(struct adapter *adapter, u32 addr, u16 val);
+int usb_write32(struct adapter *adapter, u32 addr, u32 val);
+int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata);
+
+u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+void usb_write_port_cancel(struct adapter *adapter);
 
 #endif

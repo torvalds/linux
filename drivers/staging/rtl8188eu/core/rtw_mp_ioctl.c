@@ -22,7 +22,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <mlme_osdep.h>
-
+#include <usb_ops_linux.h>
 /* include <rtw_mp.h> */
 #include <rtw_mp_ioctl.h>
 

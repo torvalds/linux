@@ -22,6 +22,7 @@
 #include <drv_types.h>
 #include <rtl8188e_hal.h>
 #include <rtl8188e_led.h>
+#include <usb_ops_linux.h>
 
 /*  LED object. */
 

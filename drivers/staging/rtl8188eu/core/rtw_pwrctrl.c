@@ -22,6 +22,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <osdep_intf.h>
+#include <usb_ops_linux.h>
 #include <linux/usb.h>
 #include <usb_osintf.h>
 

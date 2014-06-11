@@ -20,7 +20,7 @@
 #define _RTW_MP_C_
 
 #include <drv_types.h>
-
+#include <usb_ops_linux.h>
 #include "rtl8188e_hal.h"
 #include <linux/vmalloc.h>
 

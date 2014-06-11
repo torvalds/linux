@@ -22,8 +22,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
-
-
+#include <usb_ops_linux.h>
 
 /*------------------------Define local variable------------------------------*/
 u8 fakeEfuseBank;

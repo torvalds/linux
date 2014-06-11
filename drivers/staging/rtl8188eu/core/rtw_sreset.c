@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <rtw_sreset.h>
+#include <usb_ops_linux.h>
 
 void sreset_init_value(struct adapter *padapter)
 {
