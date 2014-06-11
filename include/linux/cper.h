@@ -36,6 +36,13 @@
 #define CPER_RECORD_REV				0x0100
 
 /*
+ * CPER record length contains the CPER fields which are relevant for further
+ * handling of a memory error in userspace (we don't carry all the fields
+ * defined in the UEFI spec because some of them don't make any sense.)
+ * Currently, a length of 256 should be more than enough.
+ */
+#define CPER_REC_LEN					256
+/*
  * Severity difinition for error_severity in struct cper_record_header
  * and section_severity in struct cper_section_descriptor
  */
@@ -395,6 +402,8 @@ struct cper_sec_pcie {
 #pragma pack()
 
 u64 cper_next_record_id(void);
+const char *cper_severity_str(unsigned int);
+const char *cper_mem_err_type_str(unsigned int);
 void cper_print_bits(const char *prefix, unsigned int bits,
 		     const char * const strs[], unsigned int strs_size);
 
