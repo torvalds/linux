@@ -200,6 +200,7 @@ unflush:
 	}
 
 	skb_gro_pull(skb, sizeof(struct udphdr)); /* pull encapsulating udp header */
+	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
 	pp = uo_priv->offload->callbacks.gro_receive(head, skb);
 
 out_unlock:
