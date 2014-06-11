@@ -478,6 +478,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	struct ath_vif *avp = NULL;
 	struct ath_chanctx *ctx;
 	u32 tsf_time;
+	u32 beacon_int;
 	bool noa_changed = false;
 
 	if (vif)
@@ -516,9 +517,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		sc->sched.next_tbtt = REG_READ(ah, AR_NEXT_TBTT_TIMER);
 
 		cur_conf = &sc->cur_chan->beacon;
+		beacon_int = TU_TO_USEC(cur_conf->beacon_interval);
+
 		/* defer channel switch by a quarter beacon interval */
-		tsf_time = TU_TO_USEC(cur_conf->beacon_interval);
-		tsf_time = sc->sched.next_tbtt + tsf_time / 4;
+		tsf_time = sc->sched.next_tbtt + beacon_int / 4;
 		sc->sched.switch_start_time = tsf_time;
 		sc->cur_chan->last_beacon = sc->sched.next_tbtt;
 
@@ -537,6 +539,13 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			avp->periodic_noa_duration = 0;
 			noa_changed = true;
 		}
+
+		/* If at least two consecutive beacons were missed on the STA
+		 * chanctx, stay on the STA channel for one extra beacon period,
+		 * to resync the timer properly.
+		 */
+		if (ctx->active && sc->sched.beacon_miss >= 2)
+			sc->sched.offchannel_duration = 3 * beacon_int / 2;
 
 		if (sc->sched.offchannel_duration) {
 			noa_changed = true;
@@ -565,6 +574,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_TIMER)
 			break;
 
+		if (!sc->cur_chan->switch_after_beacon &&
+		    sc->sched.beacon_pending)
+			sc->sched.beacon_miss++;
+
 		sc->sched.state = ATH_CHANCTX_STATE_SWITCH;
 		ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 		break;
@@ -574,6 +587,8 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			break;
 
 		ath_chanctx_adjust_tbtt_delta(sc);
+		sc->sched.beacon_pending = false;
+		sc->sched.beacon_miss = 0;
 		break;
 	case ATH_CHANCTX_EVENT_ASSOC:
 		if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE ||
@@ -596,13 +611,20 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		cur_conf = &sc->cur_chan->beacon;
 
 		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
-		tsf_time = ath9k_hw_gettsf32(sc->sc_ah);
-		tsf_time += TU_TO_USEC(cur_conf->beacon_interval) / 2;
+
+		tsf_time = TU_TO_USEC(cur_conf->beacon_interval) / 2;
+		if (sc->sched.beacon_miss >= 2) {
+			sc->sched.beacon_miss = 0;
+			tsf_time *= 3;
+		}
+
 		tsf_time -= sc->sched.channel_switch_time;
+		tsf_time += ath9k_hw_gettsf32(sc->sc_ah);
 		sc->sched.switch_start_time = tsf_time;
 
 		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
 					 tsf_time, 1000000);
+		sc->sched.beacon_pending = true;
 		break;
 	case ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL:
 		if (sc->cur_chan == &sc->offchannel.chan ||
