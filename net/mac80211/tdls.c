@@ -193,13 +193,14 @@ static int
 ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *peer, u8 action_code,
 				u8 dialog_token, u16 status_code,
-				u32 peer_capability, const u8 *extra_ies,
-				size_t extra_ies_len)
+				u32 peer_capability, bool initiator,
+				const u8 *extra_ies, size_t extra_ies_len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = NULL;
 	bool send_direct;
+	const u8 *init_addr, *rsp_addr;
 	int ret;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
@@ -242,26 +243,41 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	if (extra_ies_len)
 		memcpy(skb_put(skb, extra_ies_len), extra_ies, extra_ies_len);
 
-	/* the TDLS link IE is always added last */
+	/* sanity check for initiator */
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
 	case WLAN_TDLS_SETUP_CONFIRM:
-	case WLAN_TDLS_TEARDOWN:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
-		/* we are the initiator */
-		ieee80211_tdls_add_link_ie(skb, sdata->vif.addr, peer,
-					   sdata->u.mgd.bssid);
+		if (!initiator) {
+			ret = -EINVAL;
+			goto fail;
+		}
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		/* we are the responder */
-		ieee80211_tdls_add_link_ie(skb, peer, sdata->vif.addr,
-					   sdata->u.mgd.bssid);
+		if (initiator) {
+			ret = -EINVAL;
+			goto fail;
+		}
+		break;
+	case WLAN_TDLS_TEARDOWN:
+		/* any value is ok */
 		break;
 	default:
 		ret = -ENOTSUPP;
 		goto fail;
 	}
+
+	if (initiator) {
+		init_addr = sdata->vif.addr;
+		rsp_addr = peer;
+	} else {
+		init_addr = peer;
+		rsp_addr = sdata->vif.addr;
+	}
+
+	ieee80211_tdls_add_link_ie(skb, init_addr, rsp_addr,
+				   sdata->u.mgd.bssid);
 
 	if (send_direct) {
 		ieee80211_tx_skb(sdata, skb);
@@ -327,8 +343,8 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
-					      peer_capability, extra_ies,
-					      extra_ies_len);
+					      peer_capability, initiator,
+					      extra_ies, extra_ies_len);
 	if (ret < 0)
 		goto exit;
 
