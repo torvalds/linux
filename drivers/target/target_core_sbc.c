@@ -647,8 +647,19 @@ sbc_check_prot(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb,
 
 	cmd->prot_type = dev->dev_attrib.pi_prot_type;
 	cmd->prot_length = dev->prot_length * sectors;
-	pr_debug("%s: prot_type=%d, prot_length=%d prot_op=%d prot_checks=%d\n",
-		 __func__, cmd->prot_type, cmd->prot_length,
+
+	/**
+	 * In case protection information exists over the wire
+	 * we modify command data length to describe pure data.
+	 * The actual transfer length is data length + protection
+	 * length
+	 **/
+	if (protect)
+		cmd->data_length = sectors * dev->dev_attrib.block_size;
+
+	pr_debug("%s: prot_type=%d, data_length=%d, prot_length=%d "
+		 "prot_op=%d prot_checks=%d\n",
+		 __func__, cmd->prot_type, cmd->data_length, cmd->prot_length,
 		 cmd->prot_op, cmd->prot_checks);
 
 	return true;
