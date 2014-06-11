@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
+#include <linux/time.h>
 
 #include "common.h"
 #include "debug.h"
@@ -328,6 +329,8 @@ struct ath_chanctx {
 	struct list_head acq[IEEE80211_NUM_ACS];
 
 	struct ath9k_hw_cal_data caldata;
+	struct timespec tsf_ts;
+	u64 tsf_val;
 
 	u16 txpower;
 	bool offchannel;

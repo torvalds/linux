@@ -227,6 +227,11 @@ void ath_chanctx_work(struct work_struct *work)
 
 		send_ps = true;
 		spin_lock_bh(&sc->chan_lock);
+
+		if (sc->cur_chan != &sc->offchannel.chan) {
+			getrawmonotonic(&sc->cur_chan->tsf_ts);
+			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
+		}
 	}
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;

@@ -240,6 +240,16 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_enable_interrupts(ah);
 
 	if (!sc->cur_chan->offchannel && start) {
+		/* restore per chanctx TSF timer */
+		if (sc->cur_chan->tsf_val) {
+			u32 offset;
+
+			offset = ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts,
+							 NULL);
+			ath9k_hw_settsf64(ah, sc->cur_chan->tsf_val + offset);
+		}
+
+
 		if (!test_bit(ATH_OP_BEACONS, &common->op_flags))
 			goto work;
 
