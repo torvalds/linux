@@ -1400,7 +1400,7 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 		   (plane_sr << DSPFW_SR_SHIFT) |
 		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   planea_wm);
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
@@ -1457,7 +1457,7 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 		   (plane_sr << DSPFW_SR_SHIFT) |
 		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
 		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
-		   planea_wm);
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
 	I915_WRITE(DSPFW2,
 		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
 		   (cursora_wm << DSPFW_CURSORA_SHIFT));
@@ -1531,8 +1531,11 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 
 	/* 965 has limitations... */
 	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) |
-		   (8 << 16) | (8 << 8) | (8 << 0));
-	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
+		   (8 << DSPFW_CURSORB_SHIFT) |
+		   (8 << DSPFW_PLANEB_SHIFT) |
+		   (8 << DSPFW_PLANEA_SHIFT));
+	I915_WRITE(DSPFW2, (8 << DSPFW_CURSORA_SHIFT) |
+		   (8 << DSPFW_PLANEC_SHIFT_OLD));
 	/* update cursor SR watermark */
 	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 

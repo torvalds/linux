@@ -3865,28 +3865,136 @@ enum punit_power_well {
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
 
+/* pnv/gen4/g4x/vlv/chv */
 #define DSPFW1			(dev_priv->info.display_mmio_offset + 0x70034)
-#define   DSPFW_SR_SHIFT	23
-#define   DSPFW_SR_MASK		(0x1ff<<23)
-#define   DSPFW_CURSORB_SHIFT	16
-#define   DSPFW_CURSORB_MASK	(0x3f<<16)
-#define   DSPFW_PLANEB_SHIFT	8
-#define   DSPFW_PLANEB_MASK	(0x7f<<8)
-#define   DSPFW_PLANEA_MASK	(0x7f)
+#define   DSPFW_SR_SHIFT		23
+#define   DSPFW_SR_MASK			(0x1ff<<23)
+#define   DSPFW_CURSORB_SHIFT		16
+#define   DSPFW_CURSORB_MASK		(0x3f<<16)
+#define   DSPFW_PLANEB_SHIFT		8
+#define   DSPFW_PLANEB_MASK		(0x7f<<8)
+#define   DSPFW_PLANEB_MASK_VLV		(0xff<<8) /* vlv/chv */
+#define   DSPFW_PLANEA_SHIFT		0
+#define   DSPFW_PLANEA_MASK		(0x7f<<0)
+#define   DSPFW_PLANEA_MASK_VLV		(0xff<<0) /* vlv/chv */
 #define DSPFW2			(dev_priv->info.display_mmio_offset + 0x70038)
-#define   DSPFW_CURSORA_MASK	0x00003f00
-#define   DSPFW_CURSORA_SHIFT	8
-#define   DSPFW_PLANEC_MASK	(0x7f)
+#define   DSPFW_FBC_SR_EN		(1<<31)	  /* g4x */
+#define   DSPFW_FBC_SR_SHIFT		28
+#define   DSPFW_FBC_SR_MASK		(0x7<<28) /* g4x */
+#define   DSPFW_FBC_HPLL_SR_SHIFT	24
+#define   DSPFW_FBC_HPLL_SR_MASK	(0xf<<24) /* g4x */
+#define   DSPFW_SPRITEB_SHIFT		(16)
+#define   DSPFW_SPRITEB_MASK		(0x7f<<16) /* g4x */
+#define   DSPFW_SPRITEB_MASK_VLV	(0xff<<16) /* vlv/chv */
+#define   DSPFW_CURSORA_SHIFT		8
+#define   DSPFW_CURSORA_MASK		(0x3f<<8)
+#define   DSPFW_PLANEC_SHIFT_OLD	0
+#define   DSPFW_PLANEC_MASK_OLD		(0x7f<<0) /* pre-gen4 sprite C */
+#define   DSPFW_SPRITEA_SHIFT		0
+#define   DSPFW_SPRITEA_MASK		(0x7f<<0) /* g4x */
+#define   DSPFW_SPRITEA_MASK_VLV	(0xff<<0) /* vlv/chv */
 #define DSPFW3			(dev_priv->info.display_mmio_offset + 0x7003c)
-#define   DSPFW_HPLL_SR_EN	(1<<31)
-#define   DSPFW_CURSOR_SR_SHIFT	24
+#define   DSPFW_HPLL_SR_EN		(1<<31)
 #define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
+#define   DSPFW_CURSOR_SR_SHIFT		24
 #define   DSPFW_CURSOR_SR_MASK		(0x3f<<24)
 #define   DSPFW_HPLL_CURSOR_SHIFT	16
 #define   DSPFW_HPLL_CURSOR_MASK	(0x3f<<16)
-#define   DSPFW_HPLL_SR_MASK		(0x1ff)
-#define DSPFW4			(dev_priv->info.display_mmio_offset + 0x70070)
-#define DSPFW7			(dev_priv->info.display_mmio_offset + 0x7007c)
+#define   DSPFW_HPLL_SR_SHIFT		0
+#define   DSPFW_HPLL_SR_MASK		(0x1ff<<0)
+
+/* vlv/chv */
+#define DSPFW4			(VLV_DISPLAY_BASE + 0x70070)
+#define   DSPFW_SPRITEB_WM1_SHIFT	16
+#define   DSPFW_SPRITEB_WM1_MASK	(0xff<<16)
+#define   DSPFW_CURSORA_WM1_SHIFT	8
+#define   DSPFW_CURSORA_WM1_MASK	(0x3f<<8)
+#define   DSPFW_SPRITEA_WM1_SHIFT	0
+#define   DSPFW_SPRITEA_WM1_MASK	(0xff<<0)
+#define DSPFW5			(VLV_DISPLAY_BASE + 0x70074)
+#define   DSPFW_PLANEB_WM1_SHIFT	24
+#define   DSPFW_PLANEB_WM1_MASK		(0xff<<24)
+#define   DSPFW_PLANEA_WM1_SHIFT	16
+#define   DSPFW_PLANEA_WM1_MASK		(0xff<<16)
+#define   DSPFW_CURSORB_WM1_SHIFT	8
+#define   DSPFW_CURSORB_WM1_MASK	(0x3f<<8)
+#define   DSPFW_CURSOR_SR_WM1_SHIFT	0
+#define   DSPFW_CURSOR_SR_WM1_MASK	(0x3f<<0)
+#define DSPFW6			(VLV_DISPLAY_BASE + 0x70078)
+#define   DSPFW_SR_WM1_SHIFT		0
+#define   DSPFW_SR_WM1_MASK		(0x1ff<<0)
+#define DSPFW7			(VLV_DISPLAY_BASE + 0x7007c)
+#define DSPFW7_CHV		(VLV_DISPLAY_BASE + 0x700b4) /* wtf #1? */
+#define   DSPFW_SPRITED_WM1_SHIFT	24
+#define   DSPFW_SPRITED_WM1_MASK	(0xff<<24)
+#define   DSPFW_SPRITED_SHIFT		16
+#define   DSPFW_SPRITED_MASK		(0xff<<16)
+#define   DSPFW_SPRITEC_WM1_SHIFT	8
+#define   DSPFW_SPRITEC_WM1_MASK	(0xff<<8)
+#define   DSPFW_SPRITEC_SHIFT		0
+#define   DSPFW_SPRITEC_MASK		(0xff<<0)
+#define DSPFW8_CHV		(VLV_DISPLAY_BASE + 0x700b8)
+#define   DSPFW_SPRITEF_WM1_SHIFT	24
+#define   DSPFW_SPRITEF_WM1_MASK	(0xff<<24)
+#define   DSPFW_SPRITEF_SHIFT		16
+#define   DSPFW_SPRITEF_MASK		(0xff<<16)
+#define   DSPFW_SPRITEE_WM1_SHIFT	8
+#define   DSPFW_SPRITEE_WM1_MASK	(0xff<<8)
+#define   DSPFW_SPRITEE_SHIFT		0
+#define   DSPFW_SPRITEE_MASK		(0xff<<0)
+#define DSPFW9_CHV		(VLV_DISPLAY_BASE + 0x7007c) /* wtf #2? */
+#define   DSPFW_PLANEC_WM1_SHIFT	24
+#define   DSPFW_PLANEC_WM1_MASK		(0xff<<24)
+#define   DSPFW_PLANEC_SHIFT		16
+#define   DSPFW_PLANEC_MASK		(0xff<<16)
+#define   DSPFW_CURSORC_WM1_SHIFT	8
+#define   DSPFW_CURSORC_WM1_MASK	(0x3f<<16)
+#define   DSPFW_CURSORC_SHIFT		0
+#define   DSPFW_CURSORC_MASK		(0x3f<<0)
+
+/* vlv/chv high order bits */
+#define DSPHOWM			(VLV_DISPLAY_BASE + 0x70064)
+#define   DSPFW_SR_HI_SHIFT		24
+#define   DSPFW_SR_HI_MASK		(1<<24)
+#define   DSPFW_SPRITEF_HI_SHIFT	23
+#define   DSPFW_SPRITEF_HI_MASK		(1<<23)
+#define   DSPFW_SPRITEE_HI_SHIFT	22
+#define   DSPFW_SPRITEE_HI_MASK		(1<<22)
+#define   DSPFW_PLANEC_HI_SHIFT		21
+#define   DSPFW_PLANEC_HI_MASK		(1<<21)
+#define   DSPFW_SPRITED_HI_SHIFT	20
+#define   DSPFW_SPRITED_HI_MASK		(1<<20)
+#define   DSPFW_SPRITEC_HI_SHIFT	16
+#define   DSPFW_SPRITEC_HI_MASK		(1<<16)
+#define   DSPFW_PLANEB_HI_SHIFT		12
+#define   DSPFW_PLANEB_HI_MASK		(1<<12)
+#define   DSPFW_SPRITEB_HI_SHIFT	8
+#define   DSPFW_SPRITEB_HI_MASK		(1<<8)
+#define   DSPFW_SPRITEA_HI_SHIFT	4
+#define   DSPFW_SPRITEA_HI_MASK		(1<<4)
+#define   DSPFW_PLANEA_HI_SHIFT		0
+#define   DSPFW_PLANEA_HI_MASK		(1<<0)
+#define DSPHOWM1		(VLV_DISPLAY_BASE + 0x70068)
+#define   DSPFW_SR_WM1_HI_SHIFT		24
+#define   DSPFW_SR_WM1_HI_MASK		(1<<24)
+#define   DSPFW_SPRITEF_WM1_HI_SHIFT	23
+#define   DSPFW_SPRITEF_WM1_HI_MASK	(1<<23)
+#define   DSPFW_SPRITEE_WM1_HI_SHIFT	22
+#define   DSPFW_SPRITEE_WM1_HI_MASK	(1<<22)
+#define   DSPFW_PLANEC_WM1_HI_SHIFT	21
+#define   DSPFW_PLANEC_WM1_HI_MASK	(1<<21)
+#define   DSPFW_SPRITED_WM1_HI_SHIFT	20
+#define   DSPFW_SPRITED_WM1_HI_MASK	(1<<20)
+#define   DSPFW_SPRITEC_WM1_HI_SHIFT	16
+#define   DSPFW_SPRITEC_WM1_HI_MASK	(1<<16)
+#define   DSPFW_PLANEB_WM1_HI_SHIFT	12
+#define   DSPFW_PLANEB_WM1_HI_MASK	(1<<12)
+#define   DSPFW_SPRITEB_WM1_HI_SHIFT	8
+#define   DSPFW_SPRITEB_WM1_HI_MASK	(1<<8)
+#define   DSPFW_SPRITEA_WM1_HI_SHIFT	4
+#define   DSPFW_SPRITEA_WM1_HI_MASK	(1<<4)
+#define   DSPFW_PLANEA_WM1_HI_SHIFT	0
+#define   DSPFW_PLANEA_WM1_HI_MASK	(1<<0)
 
 /* drain latency register values*/
 #define DRAIN_LATENCY_PRECISION_32	32
