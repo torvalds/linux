@@ -304,7 +304,6 @@ static int layout_cnodes(struct ubifs_info *c)
 			ubifs_assert(lnum >= c->lpt_first &&
 				     lnum <= c->lpt_last);
 		}
-		done_ltab = 1;
 		c->ltab_lnum = lnum;
 		c->ltab_offs = offs;
 		offs += c->ltab_sz;
@@ -514,7 +513,6 @@ static int write_cnodes(struct ubifs_info *c)
 			if (err)
 				return err;
 		}
-		done_ltab = 1;
 		ubifs_pack_ltab(c, buf + offs, c->ltab_cmt);
 		offs += c->ltab_sz;
 		dbg_chk_lpt_sz(c, 1, c->ltab_sz);
