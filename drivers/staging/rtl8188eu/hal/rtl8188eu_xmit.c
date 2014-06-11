@@ -397,7 +397,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 		}
 		ff_hwaddr = rtw_get_ff_hwaddr(pxmitframe);
 
-		inner_ret = rtw_write_port(adapt, ff_hwaddr, w_sz, (unsigned char *)pxmitbuf);
+		inner_ret = usb_write_port(adapt, ff_hwaddr, w_sz, (unsigned char *)pxmitbuf);
 
 		rtw_count_tx_stats(adapt, pxmitframe, sz);
 
@@ -608,7 +608,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 
 	/* 3 4. write xmit buffer to USB FIFO */
 	ff_hwaddr = rtw_get_ff_hwaddr(pfirstframe);
-	rtw_write_port(adapt, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
+	usb_write_port(adapt, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
 
 	/* 3 5. update statisitc */
 	pbuf_tail -= (pfirstframe->agg_num * TXDESC_SIZE);
