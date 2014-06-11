@@ -236,7 +236,7 @@ static void efuse_read_phymap_from_txpktbuf(
 	dbg_addr = bcnhead*128/8; /* 8-bytes addressing */
 
 	while (1) {
-		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr+i);
+		usb_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr+i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		start = jiffies;
@@ -766,20 +766,20 @@ hal_EfusePowerSwitch_RTL8188E(
 		tmpV16 = rtw_read16(pAdapter, REG_SYS_ISO_CTRL);
 		if (!(tmpV16 & PWC_EV12V)) {
 			tmpV16 |= PWC_EV12V;
-			 rtw_write16(pAdapter, REG_SYS_ISO_CTRL, tmpV16);
+			 usb_write16(pAdapter, REG_SYS_ISO_CTRL, tmpV16);
 		}
 		/*  Reset: 0x0000h[28], default valid */
 		tmpV16 =  rtw_read16(pAdapter, REG_SYS_FUNC_EN);
 		if (!(tmpV16 & FEN_ELDR)) {
 			tmpV16 |= FEN_ELDR;
-			rtw_write16(pAdapter, REG_SYS_FUNC_EN, tmpV16);
+			usb_write16(pAdapter, REG_SYS_FUNC_EN, tmpV16);
 		}
 
 		/*  Clock: Gated(0x0008h[5]) 8M(0x0008h[1]) clock from ANA, default valid */
 		tmpV16 = rtw_read16(pAdapter, REG_SYS_CLKR);
 		if ((!(tmpV16 & LOADER_CLK_EN))  || (!(tmpV16 & ANA8M))) {
 			tmpV16 |= (LOADER_CLK_EN | ANA8M);
-			rtw_write16(pAdapter, REG_SYS_CLKR, tmpV16);
+			usb_write16(pAdapter, REG_SYS_CLKR, tmpV16);
 		}
 
 		if (bWrite) {

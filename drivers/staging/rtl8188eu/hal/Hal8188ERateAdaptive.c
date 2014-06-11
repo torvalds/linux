@@ -670,7 +670,7 @@ void ODM_RA_Set_TxRPT_Time(struct odm_dm_struct *dm_odm, u16 minRptTime)
 {
 	struct adapter *adapt = dm_odm->Adapter;
 
-	rtw_write16(adapt, REG_TX_RPT_TIME, minRptTime);
+	usb_write16(adapt, REG_TX_RPT_TIME, minRptTime);
 }
 
 void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 TxRPT_Len, u32 macid_entry0, u32 macid_entry1)

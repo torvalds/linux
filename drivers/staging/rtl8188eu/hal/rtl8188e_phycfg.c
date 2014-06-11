@@ -386,7 +386,7 @@ s32 PHY_MACConfig8188E(struct adapter *Adapter)
 		rtStatus = _FAIL;
 
 	/*  2010.07.13 AMPDU aggregation number B */
-	rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
+	usb_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM);
 
 	return rtStatus;
 }
@@ -604,7 +604,7 @@ PHY_BBConfig8188E(
 
 	/*  Enable BB and RF */
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
-	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
+	usb_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
 	/*  20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF. */
 

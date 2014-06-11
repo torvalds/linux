@@ -860,7 +860,7 @@ int rtl8188eu_oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 			status = NDIS_STATUS_NOT_ACCEPTED;
 			break;
 		}
-		rtw_write16(padapter, offset, (u16)value);
+		usb_write16(padapter, offset, (u16)value);
 		break;
 	case 4:
 		usb_write32(padapter, offset, value);

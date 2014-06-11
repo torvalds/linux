@@ -101,19 +101,6 @@ int _rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 	return RTW_STATUS_CODE(ret);
 }
 
-int _rtw_write16(struct adapter *adapter, u32 addr, u16 val)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct	intf_hdl		*pintfhdl = &(pio_priv->intf);
-	int (*_write16)(struct adapter *pintfhdl, u32 addr, u16 val);
-	int ret;
-	_write16 = pintfhdl->io_ops._write16;
-
-	ret = _write16(adapter, addr, val);
-
-	return RTW_STATUS_CODE(ret);
-}
-
 int rtw_init_io_priv(struct adapter *padapter, void (*set_intf_ops)(struct _io_ops *pops))
 {
 	struct io_priv	*piopriv = &padapter->iopriv;

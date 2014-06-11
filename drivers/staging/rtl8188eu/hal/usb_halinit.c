@@ -117,7 +117,7 @@ static u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
 	/*  Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy. Added by tynli. 2011.08.31. */
-	rtw_write16(adapt, REG_CR, 0x00);  /* suggseted by zhouzhou, by page, 20111230 */
+	usb_write16(adapt, REG_CR, 0x00);  /* suggseted by zhouzhou, by page, 20111230 */
 
 		/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
 	value16 = rtw_read16(adapt, REG_CR);
@@ -125,7 +125,7 @@ static u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 				| PROTOCOL_EN | SCHEDULE_EN | ENSEC | CALTMR_EN);
 	/*  for SDIO - Set CR bit10 to enable 32k calibration. Suggested by SD1 Gimmy. Added by tynli. 2011.08.31. */
 
-	rtw_write16(adapt, REG_CR, value16);
+	usb_write16(adapt, REG_CR, value16);
 	haldata->bMacPwrCtrlOn = true;
 
 	return _SUCCESS;
@@ -193,8 +193,8 @@ static void _InitQueueReservedPage(struct adapter *Adapter)
 		value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
 		usb_write32(Adapter, REG_RQPN, value32);
 	} else {
-		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0000);/* Just follow MP Team,??? Georgia 03/28 */
-		rtw_write16(Adapter, REG_RQPN_NPQ, 0x0d);
+		usb_write16(Adapter, REG_RQPN_NPQ, 0x0000);/* Just follow MP Team,??? Georgia 03/28 */
+		usb_write16(Adapter, REG_RQPN_NPQ, 0x0d);
 		usb_write32(Adapter, REG_RQPN, 0x808E000d);/* reserve 7 page for LPS */
 	}
 }
@@ -214,7 +214,7 @@ static void _InitPageBoundary(struct adapter *Adapter)
 	/*  */
 	u16 rxff_bndy = MAX_RX_DMA_BUFFER_SIZE_88E-1;
 
-	rtw_write16(Adapter, (REG_TRXFF_BNDY + 2), rxff_bndy);
+	usb_write16(Adapter, (REG_TRXFF_BNDY + 2), rxff_bndy);
 }
 
 static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
@@ -227,7 +227,7 @@ static void _InitNormalChipRegPriority(struct adapter *Adapter, u16 beQ,
 		   _TXDMA_VIQ_MAP(viQ)	| _TXDMA_VOQ_MAP(voQ) |
 		   _TXDMA_MGQ_MAP(mgtQ) | _TXDMA_HIQ_MAP(hiQ);
 
-	rtw_write16(Adapter, REG_TRXDMA_CTRL, value16);
+	usb_write16(Adapter, REG_TRXDMA_CTRL, value16);
 }
 
 static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
@@ -394,24 +394,24 @@ static void _InitAdaptiveCtrl(struct adapter *Adapter)
 
 	/*  SIFS (used in NAV) */
 	value16 = _SPEC_SIFS_CCK(0x10) | _SPEC_SIFS_OFDM(0x10);
-	rtw_write16(Adapter, REG_SPEC_SIFS, value16);
+	usb_write16(Adapter, REG_SPEC_SIFS, value16);
 
 	/*  Retry Limit */
 	value16 = _LRL(0x30) | _SRL(0x30);
-	rtw_write16(Adapter, REG_RL, value16);
+	usb_write16(Adapter, REG_RL, value16);
 }
 
 static void _InitEDCA(struct adapter *Adapter)
 {
 	/*  Set Spec SIFS (used in NAV) */
-	rtw_write16(Adapter, REG_SPEC_SIFS, 0x100a);
-	rtw_write16(Adapter, REG_MAC_SPEC_SIFS, 0x100a);
+	usb_write16(Adapter, REG_SPEC_SIFS, 0x100a);
+	usb_write16(Adapter, REG_MAC_SPEC_SIFS, 0x100a);
 
 	/*  Set SIFS for CCK */
-	rtw_write16(Adapter, REG_SIFS_CTX, 0x100a);
+	usb_write16(Adapter, REG_SIFS_CTX, 0x100a);
 
 	/*  Set SIFS for OFDM */
-	rtw_write16(Adapter, REG_SIFS_TRX, 0x100a);
+	usb_write16(Adapter, REG_SIFS_TRX, 0x100a);
 
 	/*  TXOP */
 	usb_write32(Adapter, REG_EDCA_BE_PARAM, 0x005EA42B);
@@ -423,7 +423,7 @@ static void _InitEDCA(struct adapter *Adapter)
 static void _InitRDGSetting(struct adapter *Adapter)
 {
 	rtw_write8(Adapter, REG_RD_CTRL, 0xFF);
-	rtw_write16(Adapter, REG_RD_NAV_NXT, 0x200);
+	usb_write16(Adapter, REG_RD_NAV_NXT, 0x200);
 	rtw_write8(Adapter, REG_RD_RESP_PKT_TH, 0x05);
 }
 
@@ -587,16 +587,16 @@ static void _InitBeaconParameters(struct adapter *Adapter)
 {
 	struct hal_data_8188e	*haldata = GET_HAL_DATA(Adapter);
 
-	rtw_write16(Adapter, REG_BCN_CTRL, 0x1010);
+	usb_write16(Adapter, REG_BCN_CTRL, 0x1010);
 
 	/*  TODO: Remove these magic number */
-	rtw_write16(Adapter, REG_TBTT_PROHIBIT, 0x6404);/*  ms */
+	usb_write16(Adapter, REG_TBTT_PROHIBIT, 0x6404);/*  ms */
 	rtw_write8(Adapter, REG_DRVERLYINT, DRIVER_EARLY_INT_TIME);/*  5ms */
 	rtw_write8(Adapter, REG_BCNDMATIM, BCN_DMA_ATIME_INT_TIME); /*  2ms */
 
 	/*  Suggested by designer timchen. Change beacon AIFS to the largest number */
 	/*  beacause test chip does not contension before sending beacon. by tynli. 2009.11.03 */
-	rtw_write16(Adapter, REG_BCNTCFG, 0x660F);
+	usb_write16(Adapter, REG_BCNTCFG, 0x660F);
 
 	haldata->RegBcnCtrlVal = rtw_read8(Adapter, REG_BCN_CTRL);
 	haldata->RegTxPause = rtw_read8(Adapter, REG_TXPAUSE);
@@ -837,12 +837,12 @@ static u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	/* Set MAX RPT MACID */
 	rtw_write8(Adapter,  REG_TX_RPT_CTRL+1, 2);/* FOR sta mode ,0: bc/mc ,1:AP */
 	/* Tx RPT Timer. Unit: 32us */
-	rtw_write16(Adapter, REG_TX_RPT_TIME, 0xCdf0);
+	usb_write16(Adapter, REG_TX_RPT_TIME, 0xCdf0);
 
 	rtw_write8(Adapter, REG_EARLY_MODE_CONTROL, 0);
 
-	rtw_write16(Adapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
-	rtw_write16(Adapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
+	usb_write16(Adapter, REG_PKT_VO_VI_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
+	usb_write16(Adapter, REG_PKT_BE_BK_LIFE_TIME, 0x0400);	/*  unit: 256us. 256ms */
 
 	/* Keep RfRegChnlVal for later use. */
 	haldata->RfRegChnlVal[0] = PHY_QueryRFReg(Adapter, (enum rf_radio_path)0, RF_CHNLBW, bRFRegOffsetMask);
@@ -874,7 +874,7 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_MISC11);
 	rtw_write8(Adapter, REG_HWSEQ_CTRL, 0xFF);
 
 	if (pregistrypriv->wifi_spec)
-		rtw_write16(Adapter, REG_FAST_EDCA_CTRL, 0);
+		usb_write16(Adapter, REG_FAST_EDCA_CTRL, 0);
 
 	/* Nav limit , suggest by scott */
 	rtw_write8(Adapter, 0x652, 0x0);
@@ -902,10 +902,10 @@ HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_INIT_HAL_DM);
 		rtw_write8(Adapter, REG_EARLY_MODE_CONTROL+3, 0x01);/* Pretx_en, for WEP/TKIP SEC */
 
 		/* tynli_test_tx_report. */
-		rtw_write16(Adapter, REG_TX_RPT_TIME, 0x3DF0);
+		usb_write16(Adapter, REG_TX_RPT_TIME, 0x3DF0);
 
 		/* enable tx DMA to drop the redundate data of packet */
-		rtw_write16(Adapter, REG_TXDMA_OFFSET_CHK, (rtw_read16(Adapter, REG_TXDMA_OFFSET_CHK) | DROP_DATA_EN));
+		usb_write16(Adapter, REG_TXDMA_OFFSET_CHK, (rtw_read16(Adapter, REG_TXDMA_OFFSET_CHK) | DROP_DATA_EN));
 
 HAL_INIT_PROFILE_TAG(HAL_INIT_STAGES_IQK);
 		/*  2010/08/26 MH Merge from 8192CE. */
@@ -1006,7 +1006,7 @@ static void rtl8192cu_hw_power_down(struct adapter *adapt)
 
 	/*  Enable register area 0x0-0xc. */
 	rtw_write8(adapt, REG_RSV_CTRL, 0x0);
-	rtw_write16(adapt, REG_APS_FSMCO, 0x8812);
+	usb_write16(adapt, REG_APS_FSMCO, 0x8812);
 }
 
 static u32 rtl8188eu_hal_deinit(struct adapter *Adapter)
@@ -1259,17 +1259,17 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 variable, u8 *val)
 		/* Set RCR */
 		usb_write32(Adapter, REG_RCR, 0x7000208e);/* CBSSID_DATA must set to 0,reject ICV_ERR packet */
 		/* enable to rx data frame */
-		rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
+		usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 		/* enable to rx ps-poll */
-		rtw_write16(Adapter, REG_RXFLTMAP1, 0x0400);
+		usb_write16(Adapter, REG_RXFLTMAP1, 0x0400);
 
 		/* Beacon Control related register for first time */
 		rtw_write8(Adapter, REG_BCNDMATIM, 0x02); /*  2ms */
 
 		rtw_write8(Adapter, REG_ATIMWND, 0x0a); /*  10ms */
-		rtw_write16(Adapter, REG_BCNTCFG, 0x00);
-		rtw_write16(Adapter, REG_TBTT_PROHIBIT, 0xff04);
-		rtw_write16(Adapter, REG_TSFTR_SYN_OFFSET, 0x7fff);/*  +32767 (~32ms) */
+		usb_write16(Adapter, REG_BCNTCFG, 0x00);
+		usb_write16(Adapter, REG_TBTT_PROHIBIT, 0xff04);
+		usb_write16(Adapter, REG_TSFTR_SYN_OFFSET, 0x7fff);/*  +32767 (~32ms) */
 
 		/* reset TSF */
 		rtw_write8(Adapter, REG_DUAL_TSF_RST, BIT(0));
@@ -1435,7 +1435,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_MLME_DISCONNECT:
 		/* Set RCR to not to receive data frame when NO LINK state */
 		/* reject all data frames */
-		rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
+		usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
 		/* reset TSF */
 		rtw_write8(Adapter, REG_DUAL_TSF_RST, (BIT(0)|BIT(1)));
@@ -1450,7 +1450,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			v &= ~(RCR_CBSSID_BCN);
 			usb_write32(Adapter, REG_RCR, v);
 			/* reject all data frame */
-			rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
+			usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 
 			/* disable update TSF */
 			rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)|BIT(4));
@@ -1461,12 +1461,12 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			if ((is_client_associated_to_ap(Adapter)) ||
 			    ((pmlmeinfo->state&0x03) == WIFI_FW_ADHOC_STATE)) {
 				/* enable to rx data frame */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
+				usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 
 				/* enable update TSF */
 				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 			} else if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
+				usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 				/* enable update TSF */
 				rtw_write8(Adapter, REG_BCN_CTRL, rtw_read8(Adapter, REG_BCN_CTRL)&(~BIT(4)));
 			}
@@ -1491,7 +1491,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			if (type == 0) { /*  prepare to join */
 				/* enable to rx data frame.Accept all data frame */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
+				usb_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
 
 				if (Adapter->in_cta_test) {
 					u32 v = rtw_read32(Adapter, REG_RCR);
@@ -1507,7 +1507,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 					RetryLimit = 0x7;
 			} else if (type == 1) {
 				/* joinbss_event call back when join res < 0 */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
+				usb_write16(Adapter, REG_RXFLTMAP2, 0x00);
 			} else if (type == 2) {
 				/* sta add event call back */
 				/* enable update TSF */
@@ -1516,11 +1516,11 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE))
 					RetryLimit = 0x7;
 			}
-			rtw_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
+			usb_write16(Adapter, REG_RL, RetryLimit << RETRY_LIMIT_SHORT_SHIFT | RetryLimit << RETRY_LIMIT_LONG_SHIFT);
 		}
 		break;
 	case HW_VAR_BEACON_INTERVAL:
-		rtw_write16(Adapter, REG_BCN_INTERVAL, *((u16 *)val));
+		usb_write16(Adapter, REG_BCN_INTERVAL, *((u16 *)val));
 		break;
 	case HW_VAR_SLOT_TIME:
 		{
@@ -1814,7 +1814,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 					DBG_88E("Stop RX DMA failed......\n");
 
 				/* RQPN Load 0 */
-				rtw_write16(Adapter, REG_RQPN_NPQ, 0x0);
+				usb_write16(Adapter, REG_RQPN_NPQ, 0x0);
 				usb_write32(Adapter, REG_RQPN, 0x80000000);
 				mdelay(10);
 			}
@@ -2162,7 +2162,7 @@ static void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 	/* reset TSF, enable update TSF, correcting TSF On Beacon */
 
 	/* BCN interval */
-	rtw_write16(adapt, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
+	usb_write16(adapt, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);
 	rtw_write8(adapt, REG_ATIMWND, 0x02);/*  2ms */
 
 	_InitBeaconParameters(adapt);

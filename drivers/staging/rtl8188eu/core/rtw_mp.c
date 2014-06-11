@@ -53,7 +53,7 @@ void write_macreg(struct adapter *padapter, u32 addr, u32 val, u32 sz)
 		rtw_write8(padapter, addr, (u8)val);
 		break;
 	case 2:
-		rtw_write16(padapter, addr, (u16)val);
+		usb_write16(padapter, addr, (u16)val);
 		break;
 	case 4:
 		usb_write32(padapter, addr, val);
@@ -234,8 +234,8 @@ s32 MPT_InitializeAdapter(struct adapter *pAdapter, u8 Channel)
 	pMptCtx->backup0x52_RF_B = (u8)PHY_QueryRFReg(pAdapter, RF_PATH_A, RF_0x52, 0x000F0);
 
 	/* set ant to wifi side in mp mode */
-	rtw_write16(pAdapter, 0x870, 0x300);
-	rtw_write16(pAdapter, 0x860, 0x110);
+	usb_write16(pAdapter, 0x870, 0x300);
+	usb_write16(pAdapter, 0x860, 0x110);
 
 	if (pAdapter->registrypriv.mp_mode == 1)
 		pmlmepriv->fw_state = WIFI_MP_STATE;
@@ -791,7 +791,7 @@ void SetPacketRx(struct adapter *pAdapter, u8 bStartRx)
 		usb_write32(pAdapter, REG_RCR, pHalData->ReceiveConfig);
 
 		/*  Accept all data frames */
-		rtw_write16(pAdapter, REG_RXFLTMAP2, 0xFFFF);
+		usb_write16(pAdapter, REG_RXFLTMAP2, 0xFFFF);
 	} else {
 		usb_write32(pAdapter, REG_RCR, 0);
 	}
