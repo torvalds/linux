@@ -484,7 +484,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	strlcpy(ac.ac_comm, current->comm, sizeof(ac.ac_comm));
 
 	/* calculate run_time in nsec*/
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	run_time = (u64)uptime.tv_sec*NSEC_PER_SEC + uptime.tv_nsec;
 	run_time -= (u64)current->group_leader->start_time.tv_sec * NSEC_PER_SEC
 		       + current->group_leader->start_time.tv_nsec;
