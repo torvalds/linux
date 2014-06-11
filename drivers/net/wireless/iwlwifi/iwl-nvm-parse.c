@@ -63,6 +63,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/etherdevice.h>
+#include <linux/pci.h>
 #include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
@@ -87,8 +88,10 @@ enum wkp_nvm_offsets {
 
 enum family_8000_nvm_offsets {
 	/* NVM HW-Section offset (in words) definitions */
-	HW_ADDR0_FAMILY_8000 = 0x12,
-	HW_ADDR1_FAMILY_8000 = 0x16,
+	HW_ADDR0_WFPM_FAMILY_8000 = 0x12,
+	HW_ADDR1_WFPM_FAMILY_8000 = 0x16,
+	HW_ADDR0_PCIE_FAMILY_8000 = 0x8A,
+	HW_ADDR1_PCIE_FAMILY_8000 = 0x8E,
 	MAC_ADDRESS_OVERRIDE_FAMILY_8000 = 1,
 
 	/* NVM SW-Section offset (in words) definitions */
@@ -504,16 +507,49 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	}
 
 	if (nvm_hw) {
-		/* take the MAC address from the OTP */
-		hw_addr = (const u8 *)(nvm_hw + HW_ADDR0_FAMILY_8000);
-		data->hw_addr[0] = hw_addr[3];
-		data->hw_addr[1] = hw_addr[2];
-		data->hw_addr[2] = hw_addr[1];
-		data->hw_addr[3] = hw_addr[0];
+		/* read the MAC address from OTP */
+		if (!dev_is_pci(dev) || (data->nvm_version < 0xE08)) {
+			/* read the mac address from the WFPM location */
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR0_WFPM_FAMILY_8000);
+			data->hw_addr[0] = hw_addr[3];
+			data->hw_addr[1] = hw_addr[2];
+			data->hw_addr[2] = hw_addr[1];
+			data->hw_addr[3] = hw_addr[0];
 
-		hw_addr = (const u8 *)(nvm_hw + HW_ADDR1_FAMILY_8000);
-		data->hw_addr[4] = hw_addr[1];
-		data->hw_addr[5] = hw_addr[0];
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR1_WFPM_FAMILY_8000);
+			data->hw_addr[4] = hw_addr[1];
+			data->hw_addr[5] = hw_addr[0];
+		} else if ((data->nvm_version >= 0xE08) &&
+			   (data->nvm_version < 0xE0B)) {
+			/* read "reverse order"  from the PCIe location */
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR0_PCIE_FAMILY_8000);
+			data->hw_addr[5] = hw_addr[2];
+			data->hw_addr[4] = hw_addr[1];
+			data->hw_addr[3] = hw_addr[0];
+
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR1_PCIE_FAMILY_8000);
+			data->hw_addr[2] = hw_addr[3];
+			data->hw_addr[1] = hw_addr[2];
+			data->hw_addr[0] = hw_addr[1];
+		} else {
+			/* read from the PCIe location */
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR0_PCIE_FAMILY_8000);
+			data->hw_addr[5] = hw_addr[0];
+			data->hw_addr[4] = hw_addr[1];
+			data->hw_addr[3] = hw_addr[2];
+
+			hw_addr = (const u8 *)(nvm_hw +
+					       HW_ADDR1_PCIE_FAMILY_8000);
+			data->hw_addr[2] = hw_addr[1];
+			data->hw_addr[1] = hw_addr[2];
+			data->hw_addr[0] = hw_addr[3];
+		}
+
 		return;
 	}
 
