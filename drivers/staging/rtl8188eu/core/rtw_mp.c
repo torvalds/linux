@@ -36,7 +36,7 @@ u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 		val = rtw_read16(padapter, addr);
 		break;
 	case 4:
-		val = rtw_read32(padapter, addr);
+		val = usb_read32(padapter, addr);
 		break;
 	default:
 		val = 0xffffffff;
@@ -818,7 +818,7 @@ static u32 GetPhyRxPktCounts(struct adapter *pAdapter, u32 selbit)
 	usb_write32(pAdapter, REG_RXERR_RPT, phyrx_set);
 
 	/* Read packet count */
-	count = rtw_read32(pAdapter, REG_RXERR_RPT) & RXERR_COUNTER_MASK;
+	count = usb_read32(pAdapter, REG_RXERR_RPT) & RXERR_COUNTER_MASK;
 
 	return count;
 }
@@ -853,7 +853,7 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 	int psd_val;
 
 
-	psd_val = rtw_read32(pAdapter, 0x808);
+	psd_val = usb_read32(pAdapter, 0x808);
 	psd_val &= 0xFFBFFC00;
 	psd_val |= point;
 
@@ -863,7 +863,7 @@ static u32 rtw_GetPSDData(struct adapter *pAdapter, u32 point)
 
 	usb_write32(pAdapter, 0x808, psd_val);
 	mdelay(1);
-	psd_val = rtw_read32(pAdapter, 0x8B4);
+	psd_val = usb_read32(pAdapter, 0x8B4);
 
 	psd_val &= 0x0000FFFF;
 

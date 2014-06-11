@@ -36,7 +36,7 @@ u8 sreset_get_wifi_status(struct adapter *padapter)
 	u8 status = WIFI_STATUS_SUCCESS;
 	u32 val32 = 0;
 
-	val32 = rtw_read32(padapter, REG_TXDMA_STATUS);
+	val32 = usb_read32(padapter, REG_TXDMA_STATUS);
 	if (val32 == 0xeaeaeaea) {
 		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
 	} else if (val32 != 0) {

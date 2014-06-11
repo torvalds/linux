@@ -158,7 +158,7 @@ static u16 usb_read16(struct adapter *adapter, u32 addr)
 	return (u16)(le32_to_cpu(data)&0xffff);
 }
 
-static u32 usb_read32(struct adapter *adapter, u32 addr)
+u32 usb_read32(struct adapter *adapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -668,5 +668,4 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	_rtw_memset((u8 *)pops, 0, sizeof(struct _io_ops));
 	pops->_read8 = &usb_read8;
 	pops->_read16 = &usb_read16;
-	pops->_read32 = &usb_read32;
 }

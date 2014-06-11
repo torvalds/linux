@@ -2187,7 +2187,7 @@ static int rtw_wx_read32(struct net_device *dev,
 		sprintf(extra, "0x%04X", data32);
 		break;
 	case 4:
-		data32 = rtw_read32(padapter, addr);
+		data32 = usb_read32(padapter, addr);
 		sprintf(extra, "0x%08X", data32);
 		break;
 	default:
@@ -2359,7 +2359,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 			RegRWStruct->value = rtw_read16(padapter, RegRWStruct->offset);
 			break;
 		case 4:
-			RegRWStruct->value = rtw_read32(padapter, RegRWStruct->offset);
+			RegRWStruct->value = usb_read32(padapter, RegRWStruct->offset);
 			break;
 		default:
 			break;
@@ -3946,12 +3946,12 @@ static int rtw_cta_test_start(struct net_device *dev,
 		padapter->in_cta_test = 0;
 
 	if (padapter->in_cta_test) {
-		u32 v = rtw_read32(padapter, REG_RCR);
+		u32 v = usb_read32(padapter, REG_RCR);
 		v &= ~(RCR_CBSSID_DATA | RCR_CBSSID_BCN);/*  RCR_ADF */
 		usb_write32(padapter, REG_RCR, v);
 		DBG_88E("enable RCR_ADF\n");
 	} else {
-		u32 v = rtw_read32(padapter, REG_RCR);
+		u32 v = usb_read32(padapter, REG_RCR);
 		v |= RCR_CBSSID_DATA | RCR_CBSSID_BCN;/*  RCR_ADF */
 		usb_write32(padapter, REG_RCR, v);
 		DBG_88E("disable RCR_ADF\n");
@@ -4025,14 +4025,14 @@ static void mac_reg_dump(struct adapter *padapter)
 	for (i = 0x0; i < 0x300; i += 4) {
 		if (j%4 == 1)
 			pr_info("0x%02x", i);
-		pr_info(" 0x%08x ", rtw_read32(padapter, i));
+		pr_info(" 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			pr_info("\n");
 	}
 	for (i = 0x400; i < 0x800; i += 4) {
 		if (j%4 == 1)
 			pr_info("0x%02x", i);
-		pr_info(" 0x%08x ", rtw_read32(padapter, i));
+		pr_info(" 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			pr_info("\n");
 	}
@@ -4046,7 +4046,7 @@ static void bb_reg_dump(struct adapter *padapter)
 		if (j%4 == 1)
 			pr_info("0x%02x", i);
 
-		pr_info(" 0x%08x ", rtw_read32(padapter, i));
+		pr_info(" 0x%08x ", usb_read32(padapter, i));
 		if ((j++)%4 == 0)
 			pr_info("\n");
 	}
@@ -4115,7 +4115,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_88E("rtw_read16(0x%x) = 0x%04x\n", arg, rtw_read16(padapter, arg));
 			break;
 		case 4:
-			DBG_88E("rtw_read32(0x%x) = 0x%08x\n", arg, rtw_read32(padapter, arg));
+			DBG_88E("usb_read32(0x%x) = 0x%08x\n", arg, usb_read32(padapter, arg));
 			break;
 		}
 		break;
@@ -4131,7 +4131,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			break;
 		case 4:
 			usb_write32(padapter, arg, extra_arg);
-			DBG_88E("usb_write32(0x%x) = 0x%08x\n", arg, rtw_read32(padapter, arg));
+			DBG_88E("usb_write32(0x%x) = 0x%08x\n", arg, usb_read32(padapter, arg));
 			break;
 		}
 		break;
@@ -4284,7 +4284,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			if (_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000, 0))
 				ret = -EPERM;
 
-			final = rtw_read32(padapter, reg);
+			final = usb_read32(padapter, reg);
 			if (start_value+write_num-1 == final)
 				DBG_88E("continuous IOL_CMD_WD_REG to 0x%x %u times Success, start:%u, final:%u\n",
 					reg, write_num, start_value, final);
@@ -4586,30 +4586,30 @@ static int rtw_dbg_port(struct net_device *dev,
 			DBG_88E("rd(0xc58) = 0x%x\n", rtw_read8(padapter, 0xc58));
 			break;
 		case 0xff:
-			DBG_88E("dbg(0x210) = 0x%x\n", rtw_read32(padapter, 0x210));
-			DBG_88E("dbg(0x608) = 0x%x\n", rtw_read32(padapter, 0x608));
-			DBG_88E("dbg(0x280) = 0x%x\n", rtw_read32(padapter, 0x280));
-			DBG_88E("dbg(0x284) = 0x%x\n", rtw_read32(padapter, 0x284));
-			DBG_88E("dbg(0x288) = 0x%x\n", rtw_read32(padapter, 0x288));
+			DBG_88E("dbg(0x210) = 0x%x\n", usb_read32(padapter, 0x210));
+			DBG_88E("dbg(0x608) = 0x%x\n", usb_read32(padapter, 0x608));
+			DBG_88E("dbg(0x280) = 0x%x\n", usb_read32(padapter, 0x280));
+			DBG_88E("dbg(0x284) = 0x%x\n", usb_read32(padapter, 0x284));
+			DBG_88E("dbg(0x288) = 0x%x\n", usb_read32(padapter, 0x288));
 
-			DBG_88E("dbg(0x664) = 0x%x\n", rtw_read32(padapter, 0x664));
+			DBG_88E("dbg(0x664) = 0x%x\n", usb_read32(padapter, 0x664));
 
 			DBG_88E("\n");
 
-			DBG_88E("dbg(0x430) = 0x%x\n", rtw_read32(padapter, 0x430));
-			DBG_88E("dbg(0x438) = 0x%x\n", rtw_read32(padapter, 0x438));
+			DBG_88E("dbg(0x430) = 0x%x\n", usb_read32(padapter, 0x430));
+			DBG_88E("dbg(0x438) = 0x%x\n", usb_read32(padapter, 0x438));
 
-			DBG_88E("dbg(0x440) = 0x%x\n", rtw_read32(padapter, 0x440));
+			DBG_88E("dbg(0x440) = 0x%x\n", usb_read32(padapter, 0x440));
 
-			DBG_88E("dbg(0x458) = 0x%x\n", rtw_read32(padapter, 0x458));
+			DBG_88E("dbg(0x458) = 0x%x\n", usb_read32(padapter, 0x458));
 
-			DBG_88E("dbg(0x484) = 0x%x\n", rtw_read32(padapter, 0x484));
-			DBG_88E("dbg(0x488) = 0x%x\n", rtw_read32(padapter, 0x488));
+			DBG_88E("dbg(0x484) = 0x%x\n", usb_read32(padapter, 0x484));
+			DBG_88E("dbg(0x488) = 0x%x\n", usb_read32(padapter, 0x488));
 
-			DBG_88E("dbg(0x444) = 0x%x\n", rtw_read32(padapter, 0x444));
-			DBG_88E("dbg(0x448) = 0x%x\n", rtw_read32(padapter, 0x448));
-			DBG_88E("dbg(0x44c) = 0x%x\n", rtw_read32(padapter, 0x44c));
-			DBG_88E("dbg(0x450) = 0x%x\n", rtw_read32(padapter, 0x450));
+			DBG_88E("dbg(0x444) = 0x%x\n", usb_read32(padapter, 0x444));
+			DBG_88E("dbg(0x448) = 0x%x\n", usb_read32(padapter, 0x448));
+			DBG_88E("dbg(0x44c) = 0x%x\n", usb_read32(padapter, 0x44c));
+			DBG_88E("dbg(0x450) = 0x%x\n", usb_read32(padapter, 0x450));
 			break;
 		}
 		break;
@@ -6530,7 +6530,7 @@ static int rtw_mp_read_reg(struct net_device *dev,
 		break;
 	case 'd':
 		/*  4 bytes */
-		sprintf(data, "%08x", rtw_read32(padapter, addr));
+		sprintf(data, "%08x", usb_read32(padapter, addr));
 		/* add read data format blank */
 		for (i = 0; i <= strlen(data); i++) {
 			if (i%2 == 0) {
@@ -7253,14 +7253,14 @@ static int rtw_mp_dump(struct net_device *dev,
 		for (i = 0x0; i < 0x300; i += 4) {
 			if (j%4 == 1)
 				DBG_88E("0x%02x", i);
-			DBG_88E(" 0x%08x ", rtw_read32(padapter, i));
+			DBG_88E(" 0x%08x ", usb_read32(padapter, i));
 			if ((j++)%4 == 0)
 				DBG_88E("\n");
 		}
 		for (i = 0x400; i < 0x1000; i += 4) {
 			if (j%4 == 1)
 				DBG_88E("0x%02x", i);
-			DBG_88E(" 0x%08x ", rtw_read32(padapter, i));
+			DBG_88E(" 0x%08x ", usb_read32(padapter, i));
 			if ((j++)%4 == 0)
 				DBG_88E("\n");
 		}

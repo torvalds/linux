@@ -94,7 +94,7 @@ rtl8188e_PHY_QueryBBReg(
 {
 	u32 ReturnValue = 0, OriginalValue, BitShift;
 
-	OriginalValue = rtw_read32(Adapter, RegAddr);
+	OriginalValue = usb_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 	return ReturnValue;
@@ -124,7 +124,7 @@ void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr, u32 BitMask, u3
 	u32 OriginalValue, BitShift;
 
 	if (BitMask != bMaskDWord) { /* if not "double word" write */
-		OriginalValue = rtw_read32(Adapter, RegAddr);
+		OriginalValue = usb_read32(Adapter, RegAddr);
 		BitShift = phy_CalculateBitShift(BitMask);
 		Data = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 	}

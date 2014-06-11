@@ -808,7 +808,7 @@ int rtl8188eu_oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
 		break;
 	default:
 		width = 4;
-		RegRWStruct->value = rtw_read32(Adapter, offset);
+		RegRWStruct->value = usb_read32(Adapter, offset);
 		break;
 	}
 	RT_TRACE(_module_mp_, _drv_notice_,
