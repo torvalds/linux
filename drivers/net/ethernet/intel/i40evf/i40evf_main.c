@@ -36,7 +36,7 @@ char i40evf_driver_name[] = "i40evf";
 static const char i40evf_driver_string[] =
 	"Intel(R) XL710 X710 Virtual Function Network Driver";
 
-#define DRV_VERSION "0.9.29"
+#define DRV_VERSION "0.9.31"
 const char i40evf_driver_version[] = DRV_VERSION;
 static const char i40evf_copyright[] =
 	"Copyright (c) 2013 - 2014 Intel Corporation.";
@@ -1395,7 +1395,7 @@ restart_watchdog:
 }
 
 /**
- * i40evf_configure_rss - increment to next available tx queue
+ * next_queue - increment to next available tx queue
  * @adapter: board private structure
  * @j: queue counter
  *
