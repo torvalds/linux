@@ -563,7 +563,7 @@ out:
 }
 EXPORT_SYMBOL(__qdisc_calculate_pkt_len);
 
-void qdisc_warn_nonwc(char *txt, struct Qdisc *qdisc)
+void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc)
 {
 	if (!(qdisc->flags & TCQ_F_WARN_NONWC)) {
 		pr_warn("%s: %s qdisc %X: is non-work-conserving?\n",
