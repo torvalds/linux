@@ -7,6 +7,7 @@
 
 struct atmel_ssc_platform_data {
 	int			use_dma;
+	int			has_fslen_ext;
 };
 
 struct ssc_device {
