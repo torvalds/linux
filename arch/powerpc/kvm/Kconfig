@@ -75,7 +75,6 @@ config KVM_BOOK3S_64
 config KVM_BOOK3S_64_HV
 	tristate "KVM support for POWER7 and PPC970 using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
-	depends on !CPU_LITTLE_ENDIAN
 	select KVM_BOOK3S_HV_POSSIBLE
 	select MMU_NOTIFIER
 	select CMA
