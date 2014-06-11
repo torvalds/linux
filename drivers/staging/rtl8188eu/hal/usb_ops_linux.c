@@ -252,7 +252,7 @@ static int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 	return ret;
 }
 
-static int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata)
+int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata)
 {
 	u8 request;
 	u8 requesttype;
@@ -274,7 +274,7 @@ static int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata)
 	ret = usbctrl_vendorreq(adapter, request, wvalue, index, buf, len, requesttype);
 
 
-	return ret;
+	return RTW_STATUS_CODE(ret);
 }
 
 static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbuf)
@@ -673,7 +673,6 @@ void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 	pops->_write8 = &usb_write8;
 	pops->_write16 = &usb_write16;
 	pops->_write32 = &usb_write32;
-	pops->_writeN = &usb_writeN;
 	pops->_write_port = &usb_write_port;
 	pops->_read_port_cancel = &usb_read_port_cancel;
 	pops->_write_port_cancel = &usb_write_port_cancel;

@@ -441,7 +441,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 	}
 
 	for (i = 0; i < blockCount_p1; i++) {
-		ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (bufferPtr + i * blockSize_p1));
+		ret = usb_writeN(padapter, (FW_8188E_START_ADDRESS + i * blockSize_p1), blockSize_p1, (bufferPtr + i * blockSize_p1));
 		if (ret == _FAIL)
 			goto exit;
 	}
@@ -460,7 +460,7 @@ static int _BlockWrite(struct adapter *padapter, void *buffer, u32 buffSize)
 		}
 
 		for (i = 0; i < blockCount_p2; i++) {
-			ret = rtw_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i*blockSize_p2), blockSize_p2, (bufferPtr + offset + i*blockSize_p2));
+			ret = usb_writeN(padapter, (FW_8188E_START_ADDRESS + offset + i*blockSize_p2), blockSize_p2, (bufferPtr + offset + i*blockSize_p2));
 
 			if (ret == _FAIL)
 				goto exit;

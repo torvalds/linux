@@ -126,19 +126,6 @@ int _rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 	return RTW_STATUS_CODE(ret);
 }
 
-int _rtw_writeN(struct adapter *adapter, u32 addr , u32 length , u8 *pdata)
-{
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct	intf_hdl *pintfhdl = (struct intf_hdl *)(&(pio_priv->intf));
-	int (*_writeN)(struct adapter *pintfhdl, u32 addr, u32 length, u8 *pdata);
-	int ret;
-	_writeN = pintfhdl->io_ops._writeN;
-
-	ret = _writeN(adapter, addr, length, pdata);
-
-	return RTW_STATUS_CODE(ret);
-}
-
 void _rtw_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
 {
 	u32 (*_read_port)(struct adapter *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
