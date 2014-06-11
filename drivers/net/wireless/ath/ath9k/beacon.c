@@ -249,7 +249,7 @@ void ath9k_beacon_remove_slot(struct ath_softc *sc, struct ieee80211_vif *vif)
 static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	u16 intval;
 	u32 tsftu;
 	u64 tsf;
@@ -277,7 +277,7 @@ static int ath9k_beacon_choose_slot(struct ath_softc *sc)
 static void ath9k_set_tsfadjust(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	u32 tsfadjust;
 
@@ -528,7 +528,7 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 				      struct ieee80211_bss_conf *bss_conf)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 
 	ath_dbg(common, BEACON,
 		"Caching beacon data for BSS: %pM\n", bss_conf->bssid);
@@ -564,7 +564,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 			 u32 changed)
 {
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
         struct ath_hw *ah = sc->sc_ah;
         struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
@@ -631,7 +631,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif,
 void ath9k_set_beacon(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 
 	switch (sc->sc_ah->opmode) {
 	case NL80211_IFTYPE_AP:

@@ -1694,7 +1694,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_cabq_update(struct ath_softc *sc)
 {
 	struct ath9k_tx_queue_info qi;
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 	int qnum = sc->beacon.cabq->axq_qnum;
 
 	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
@@ -2301,8 +2301,8 @@ void ath_tx_cabq(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int max_duration;
 
 	max_duration =
-		sc->cur_beacon_conf.beacon_interval * 1000 *
-		sc->cur_beacon_conf.dtim_period / ATH_BCBUF;
+		sc->cur_chan->beacon.beacon_interval * 1000 *
+		sc->cur_chan->beacon.dtim_period / ATH_BCBUF;
 
 	do {
 		struct ath_frame_info *fi = get_frame_info(skb);

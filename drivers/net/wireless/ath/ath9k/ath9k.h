@@ -328,6 +328,7 @@ struct ath_chanctx {
 	struct list_head vifs;
 	struct list_head acq[IEEE80211_NUM_ACS];
 
+	struct ath_beacon_config beacon;
 	struct ath9k_hw_cal_data caldata;
 	struct timespec tsf_ts;
 	u64 tsf_val;
@@ -828,7 +829,6 @@ struct ath_softc {
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;
 #endif
-	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
 	struct timer_list sleep_timer;

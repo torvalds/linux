@@ -271,7 +271,6 @@ void ath_chanctx_init(struct ath_softc *sc)
 		for (j = 0; j < ARRAY_SIZE(ctx->acq); j++)
 			INIT_LIST_HEAD(&ctx->acq[j]);
 	}
-	sc->cur_chan = &sc->chanctx[0];
 	ctx = &sc->offchannel.chan;
 	cfg80211_chandef_create(&ctx->chandef, chan, NL80211_CHAN_HT20);
 	INIT_LIST_HEAD(&ctx->vifs);
