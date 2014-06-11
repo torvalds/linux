@@ -428,6 +428,7 @@ static int rmi_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int rmi_post_reset(struct hid_device *hdev)
 {
 	return rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
@@ -437,6 +438,7 @@ static int rmi_post_resume(struct hid_device *hdev)
 {
 	return rmi_set_mode(hdev, RMI_MODE_ATTN_REPORTS);
 }
+#endif /* CONFIG_PM */
 
 #define RMI4_MAX_PAGE 0xff
 #define RMI4_PAGE_SIZE 0x0100
