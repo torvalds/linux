@@ -2246,11 +2246,13 @@ bool br_multicast_has_querier_adjacent(struct net_device *dev, int proto)
 		    rcu_dereference(br->ip4_querier.port) == port)
 			goto unlock;
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case ETH_P_IPV6:
 		if (!timer_pending(&br->ip6_other_query.timer) ||
 		    rcu_dereference(br->ip6_querier.port) == port)
 			goto unlock;
 		break;
+#endif
 	default:
 		goto unlock;
 	}
