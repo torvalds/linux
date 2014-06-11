@@ -22,6 +22,7 @@
 #define _OSDEP_SERVICE_C_
 
 #include <osdep_service.h>
+#include <osdep_intf.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <linux/vmalloc.h>

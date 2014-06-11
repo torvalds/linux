@@ -20,6 +20,7 @@
 #define _OS_INTFS_C_
 
 #include <osdep_service.h>
+#include <osdep_intf.h>
 #include <drv_types.h>
 #include <xmit_osdep.h>
 #include <recv_osdep.h>

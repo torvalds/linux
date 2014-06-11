@@ -40,7 +40,6 @@
 #include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
-#include <rtw_io.h>
 #include <rtw_eeprom.h>
 #include <sta_info.h>
 #include <rtw_mlme.h>
