@@ -30,7 +30,7 @@ u32 read_macreg(struct adapter *padapter, u32 addr, u32 sz)
 
 	switch (sz) {
 	case 1:
-		val = rtw_read8(padapter, addr);
+		val = usb_read8(padapter, addr);
 		break;
 	case 2:
 		val = usb_read16(padapter, addr);
@@ -302,7 +302,7 @@ static void disable_dm(struct adapter *padapter)
 
 	/* 3 1. disable firmware dynamic mechanism */
 	/*  disable Power Training, Rate Adaptive */
-	v8 = rtw_read8(padapter, REG_BCN_CTRL);
+	v8 = usb_read8(padapter, REG_BCN_CTRL);
 	v8 &= ~EN_BCN_FUNCTION;
 	usb_write8(padapter, REG_BCN_CTRL, v8);
 
@@ -421,7 +421,7 @@ end_of_mp_start_test:
 
 	if (res == _SUCCESS) {
 		/*  set MSR to WIFI_FW_ADHOC_STATE */
-		val8 = rtw_read8(padapter, MSR) & 0xFC; /*  0x0102 */
+		val8 = usb_read8(padapter, MSR) & 0xFC; /*  0x0102 */
 		val8 |= WIFI_FW_ADHOC_STATE;
 		usb_write8(padapter, MSR, val8); /*  Link in ad hoc network */
 	}

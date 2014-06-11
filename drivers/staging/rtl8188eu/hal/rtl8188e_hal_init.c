@@ -36,7 +36,7 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 
 	if (enable) {
 		/* Enable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		reg_0xf0 = usb_read8(padapter, REG_SYS_CFG);
 		usb_write8(padapter, REG_SYS_CFG, reg_0xf0|SW_OFFLOAD_EN);
 
 		if (!padapter->bFWReady) {
@@ -46,7 +46,7 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 
 	} else {
 		/* disable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		reg_0xf0 = usb_read8(padapter, REG_SYS_CFG);
 		usb_write8(padapter, REG_SYS_CFG, reg_0xf0 & ~SW_OFFLOAD_EN);
 	}
 }
@@ -58,16 +58,16 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 	u32 start = 0, passing_time = 0;
 
 	control = control&0x0f;
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0);
 	usb_write8(padapter, REG_HMEBOX_E0,  reg_0x88|control);
 
 	start = jiffies;
-	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
+	while ((reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0)) & control &&
 	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 		;
 	}
 
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	reg_0x88 = usb_read8(padapter, REG_HMEBOX_E0);
 	status = (reg_0x88 & control) ? _FAIL : _SUCCESS;
 	if (reg_0x88 & control<<4)
 		status = _FAIL;
@@ -227,7 +227,7 @@ static void efuse_read_phymap_from_txpktbuf(
 	u8 *pos = content;
 
 	if (bcnhead < 0) /* if not valid */
-		bcnhead = rtw_read8(adapter, REG_TDECTRL+1);
+		bcnhead = usb_read8(adapter, REG_TDECTRL+1);
 
 	DBG_88E("%s bcnhead:%d\n", __func__, bcnhead);
 
@@ -240,9 +240,9 @@ static void efuse_read_phymap_from_txpktbuf(
 
 		usb_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		start = jiffies;
-		while (!(reg_0x143 = rtw_read8(adapter, REG_TXPKTBUF_DBG)) &&
+		while (!(reg_0x143 = usb_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
-			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, rtw_read8(adapter, 0x106));
+			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, usb_read8(adapter, 0x106));
 			msleep(1);
 		}
 
@@ -253,8 +253,8 @@ static void efuse_read_phymap_from_txpktbuf(
 			u8 lenc[2];
 			u16 lenbak, aaabak;
 			u16 aaa;
-			lenc[0] = rtw_read8(adapter, REG_PKTBUF_DBG_DATA_L);
-			lenc[1] = rtw_read8(adapter, REG_PKTBUF_DBG_DATA_L+1);
+			lenc[0] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L);
+			lenc[1] = usb_read8(adapter, REG_PKTBUF_DBG_DATA_L+1);
 
 			aaabak = le16_to_cpup((__le16 *)lenc);
 			lenbak = le16_to_cpu(*((__le16 *)lenc));
@@ -399,15 +399,15 @@ static void _FWDownloadEnable(struct adapter *padapter, bool enable)
 
 	if (enable) {
 		/*  MCU firmware download enable. */
-		tmp = rtw_read8(padapter, REG_MCUFWDL);
+		tmp = usb_read8(padapter, REG_MCUFWDL);
 		usb_write8(padapter, REG_MCUFWDL, tmp | 0x01);
 
 		/*  8051 reset */
-		tmp = rtw_read8(padapter, REG_MCUFWDL+2);
+		tmp = usb_read8(padapter, REG_MCUFWDL+2);
 		usb_write8(padapter, REG_MCUFWDL+2, tmp&0xf7);
 	} else {
 		/*  MCU firmware download disable. */
-		tmp = rtw_read8(padapter, REG_MCUFWDL);
+		tmp = usb_read8(padapter, REG_MCUFWDL);
 		usb_write8(padapter, REG_MCUFWDL, tmp&0xfe);
 
 		/*  Reserved for fw extension. */
@@ -494,7 +494,7 @@ static int _PageWrite(struct adapter *padapter, u32 page, void *buffer, u32 size
 	u8 value8;
 	u8 u8Page = (u8)(page & 0x07);
 
-	value8 = (rtw_read8(padapter, REG_MCUFWDL+2) & 0xF8) | u8Page;
+	value8 = (usb_read8(padapter, REG_MCUFWDL+2) & 0xF8) | u8Page;
 	usb_write8(padapter, REG_MCUFWDL+2, value8);
 
 	return _BlockWrite(padapter, buffer, size);
@@ -536,7 +536,7 @@ void _8051Reset88E(struct adapter *padapter)
 {
 	u8 u1bTmp;
 
-	u1bTmp = rtw_read8(padapter, REG_SYS_FUNC_EN+1);
+	u1bTmp = usb_read8(padapter, REG_SYS_FUNC_EN+1);
 	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp&(~BIT2));
 	usb_write8(padapter, REG_SYS_FUNC_EN+1, u1bTmp|(BIT2));
 	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
@@ -666,7 +666,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 
 	/*  Suggested by Filen. If 8051 is running in RAM code, driver should inform Fw to reset by itself, */
 	/*  or it will cause download Fw fail. 2010.02.01. by tynli. */
-	if (rtw_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) { /* 8051 RAM code */
+	if (usb_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) { /* 8051 RAM code */
 		usb_write8(padapter, REG_MCUFWDL, 0x00);
 		_8051Reset88E(padapter);
 	}
@@ -675,7 +675,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	fwdl_start_time = jiffies;
 	while (1) {
 		/* reset the FWDL chksum */
-		usb_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
+		usb_write8(padapter, REG_MCUFWDL, usb_read8(padapter, REG_MCUFWDL) | FWDL_ChkSum_rpt);
 
 		rtStatus = _WriteFW(padapter, pFirmwareBuf, FirmwareLen);
 
@@ -784,7 +784,7 @@ hal_EfusePowerSwitch_RTL8188E(
 
 		if (bWrite) {
 			/*  Enable LDO 2.5V before read/write action */
-			tempval = rtw_read8(pAdapter, EFUSE_TEST+3);
+			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
 			tempval &= 0x0F;
 			tempval |= (VOLTAGE_V25 << 4);
 			usb_write8(pAdapter, EFUSE_TEST+3, (tempval | 0x80));
@@ -794,7 +794,7 @@ hal_EfusePowerSwitch_RTL8188E(
 
 		if (bWrite) {
 			/*  Disable LDO 2.5V after read/write action */
-			tempval = rtw_read8(pAdapter, EFUSE_TEST+3);
+			tempval = usb_read8(pAdapter, EFUSE_TEST+3);
 			usb_write8(pAdapter, EFUSE_TEST+3, (tempval & 0x7F));
 		}
 	}
@@ -1827,10 +1827,10 @@ static void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 {
 	if (enable) {
 		DBG_88E("Enable notch filter\n");
-		usb_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
+		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
 	} else {
 		DBG_88E("Disable notch filter\n");
-		usb_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
+		usb_write8(adapter, rOFDM0_RxDSP+1, usb_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
 	}
 }
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)

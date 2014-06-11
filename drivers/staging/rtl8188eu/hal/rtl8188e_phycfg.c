@@ -792,8 +792,8 @@ _PHY_SetBWMode92C(
 	/* 3<1>Set MAC register */
 	/* 3 */
 
-	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
-	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR+2);
+	regBwOpMode = usb_read8(Adapter, REG_BWOPMODE);
+	regRRSR_RSC = usb_read8(Adapter, REG_RRSR+2);
 
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:

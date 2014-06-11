@@ -341,7 +341,7 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 	if (buf == NULL)
 		goto exit;
 
-	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
+	trigger = usb_read8(adapter, REG_C2HEVT_CLEAR);
 
 	if (trigger == C2H_EVT_HOST_CLOSE)
 		goto exit; /* Not ready */
@@ -352,15 +352,15 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 
 	_rtw_memset(c2h_evt, 0, 16);
 
-	*buf = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
-	*(buf+1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
+	*buf = usb_read8(adapter, REG_C2HEVT_MSG_NORMAL);
+	*(buf+1) = usb_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
 
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_, "c2h_evt_read(): ",
 		      &c2h_evt , sizeof(c2h_evt));
 
 	/* Read the content */
 	for (i = 0; i < c2h_evt->plen; i++)
-		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL +
+		c2h_evt->payload[i] = usb_read8(adapter, REG_C2HEVT_MSG_NORMAL +
 						sizeof(*c2h_evt) + i);
 
 	RT_PRINT_DATA(_module_hal_init_c_, _drv_info_,

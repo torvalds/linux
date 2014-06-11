@@ -819,7 +819,7 @@ static void _PHY_SaveMACRegisters(
 	struct odm_dm_struct *dm_odm = &pHalData->odmpriv;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD, ("Save MAC parameters.\n"));
 	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
-		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
+		MACBackup[i] = usb_read8(adapt, MACReg[i]);
 	}
 	MACBackup[i] = usb_read32(adapt, MACReg[i]);
 }
@@ -1205,7 +1205,7 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt, bool is2t)
 	u32 RF_Amode = 0, RF_Bmode = 0, LC_Cal;
 
 	/* Check continuous TX and Packet TX */
-	tmpreg = rtw_read8(adapt, 0xd03);
+	tmpreg = usb_read8(adapt, 0xd03);
 
 	if ((tmpreg&0x70) != 0)			/* Deal with contisuous TX case */
 		usb_write8(adapt, 0xd03, tmpreg&0x8F);	/* disable all continuous TX */
@@ -1446,7 +1446,7 @@ static void phy_setrfpathswitch_8188e(struct adapter *adapt, bool main, bool is2
 {
 	if (!adapt->hw_init_completed) {
 		u8 u1btmp;
-		u1btmp = rtw_read8(adapt, REG_LEDCFG2) | BIT7;
+		u1btmp = usb_read8(adapt, REG_LEDCFG2) | BIT7;
 		usb_write8(adapt, REG_LEDCFG2, u1btmp);
 		PHY_SetBBReg(adapt, rFPGA0_XAB_RFParameter, BIT13, 0x01);
 	}

@@ -115,7 +115,7 @@ exit:
 	return status;
 }
 
-static u8 usb_read8(struct adapter *adapter, u32 addr)
+u8 usb_read8(struct adapter *adapter, u32 addr)
 {
 	u8 request;
 	u8 requesttype;
@@ -666,5 +666,4 @@ void rtl8188eu_xmit_tasklet(void *priv)
 void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
 {
 	_rtw_memset((u8 *)pops, 0, sizeof(struct _io_ops));
-	pops->_read8 = &usb_read8;
 }

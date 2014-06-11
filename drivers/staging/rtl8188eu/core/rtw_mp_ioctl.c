@@ -801,7 +801,7 @@ int rtl8188eu_oid_rt_pro_read_register_hdl(struct oid_par_priv *poid_par_priv)
 
 	switch (width) {
 	case 1:
-		RegRWStruct->value = rtw_read8(Adapter, offset);
+		RegRWStruct->value = usb_read8(Adapter, offset);
 		break;
 	case 2:
 		RegRWStruct->value = usb_read16(Adapter, offset);

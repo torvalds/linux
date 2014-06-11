@@ -2179,7 +2179,7 @@ static int rtw_wx_read32(struct net_device *dev,
 
 	switch (bytes) {
 	case 1:
-		data32 = rtw_read8(padapter, addr);
+		data32 = usb_read8(padapter, addr);
 		sprintf(extra, "0x%02X", data32);
 		break;
 	case 2:
@@ -2353,7 +2353,7 @@ static void rtw_dbg_mode_hdl(struct adapter *padapter, u32 id, u8 *pdata, u32 le
 		RegRWStruct = (struct mp_rw_reg *)pdata;
 		switch (RegRWStruct->width) {
 		case 1:
-			RegRWStruct->value = rtw_read8(padapter, RegRWStruct->offset);
+			RegRWStruct->value = usb_read8(padapter, RegRWStruct->offset);
 			break;
 		case 2:
 			RegRWStruct->value = usb_read16(padapter, RegRWStruct->offset);
@@ -4109,7 +4109,7 @@ static int rtw_dbg_port(struct net_device *dev,
 	case 0x70:/* read_reg */
 		switch (minor_cmd) {
 		case 1:
-			DBG_88E("rtw_read8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
+			DBG_88E("usb_read8(0x%x) = 0x%02x\n", arg, usb_read8(padapter, arg));
 			break;
 		case 2:
 			DBG_88E("usb_read16(0x%x) = 0x%04x\n", arg, usb_read16(padapter, arg));
@@ -4123,7 +4123,7 @@ static int rtw_dbg_port(struct net_device *dev,
 		switch (minor_cmd) {
 		case 1:
 			usb_write8(padapter, arg, extra_arg);
-			DBG_88E("usb_write8(0x%x) = 0x%02x\n", arg, rtw_read8(padapter, arg));
+			DBG_88E("usb_write8(0x%x) = 0x%02x\n", arg, usb_read8(padapter, arg));
 			break;
 		case 2:
 			usb_write16(padapter, arg, extra_arg);
@@ -4227,7 +4227,7 @@ static int rtw_dbg_port(struct net_device *dev,
 			if (_SUCCESS != rtw_IOL_exec_cmds_sync(padapter, xmit_frame, 5000, 0))
 				ret = -EPERM;
 
-			final = rtw_read8(padapter, reg);
+			final = usb_read8(padapter, reg);
 			if (start_value+write_num-1 == final)
 				DBG_88E("continuous IOL_CMD_WB_REG to 0x%x %u times Success, start:%u, final:%u\n", reg, write_num, start_value, final);
 			else
@@ -4577,13 +4577,13 @@ static int rtw_dbg_port(struct net_device *dev,
 
 		case 0xfd:
 			usb_write8(padapter, 0xc50, arg);
-			DBG_88E("wr(0xc50) = 0x%x\n", rtw_read8(padapter, 0xc50));
+			DBG_88E("wr(0xc50) = 0x%x\n", usb_read8(padapter, 0xc50));
 			usb_write8(padapter, 0xc58, arg);
-			DBG_88E("wr(0xc58) = 0x%x\n", rtw_read8(padapter, 0xc58));
+			DBG_88E("wr(0xc58) = 0x%x\n", usb_read8(padapter, 0xc58));
 			break;
 		case 0xfe:
-			DBG_88E("rd(0xc50) = 0x%x\n", rtw_read8(padapter, 0xc50));
-			DBG_88E("rd(0xc58) = 0x%x\n", rtw_read8(padapter, 0xc58));
+			DBG_88E("rd(0xc50) = 0x%x\n", usb_read8(padapter, 0xc50));
+			DBG_88E("rd(0xc58) = 0x%x\n", usb_read8(padapter, 0xc58));
 			break;
 		case 0xff:
 			DBG_88E("dbg(0x210) = 0x%x\n", usb_read32(padapter, 0x210));
@@ -6494,7 +6494,7 @@ static int rtw_mp_read_reg(struct net_device *dev,
 	switch (width) {
 	case 'b':
 		/*  1 byte */
-		sprintf(extra, "%d\n",  rtw_read8(padapter, addr));
+		sprintf(extra, "%d\n",  usb_read8(padapter, addr));
 		wrqu->length = strlen(extra);
 		break;
 	case 'w':
@@ -7078,7 +7078,7 @@ static int rtw_mp_arx(struct net_device *dev,
 		OFDM_FA = read_bbreg(padapter, 0xda4, 0x0000FFFF);
 		OFDM_FA = read_bbreg(padapter, 0xda4, 0xFFFF0000);
 		OFDM_FA = read_bbreg(padapter, 0xda8, 0x0000FFFF);
-		CCK_FA = (rtw_read8(padapter, 0xa5b)<<8) | (rtw_read8(padapter, 0xa5c));
+		CCK_FA = (usb_read8(padapter, 0xa5b)<<8) | (usb_read8(padapter, 0xa5c));
 
 		sprintf(extra, "Phy Received packet OK:%d CRC error:%d FA Counter: %d", cckok+ofdmok+htok, cckcrc+ofdmcrc+htcrc, OFDM_FA+CCK_FA);
 	}

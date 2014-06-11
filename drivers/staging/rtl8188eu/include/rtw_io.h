@@ -44,7 +44,6 @@ struct intf_priv;
 struct intf_hdl;
 
 struct _io_ops {
-	u8 (*_read8)(struct adapter *pintfhdl, u32 addr);
 };
 
 struct io_req {
@@ -76,7 +75,7 @@ struct io_priv {
 	struct intf_hdl intf;
 };
 
-u8 _rtw_read8(struct adapter *adapter, u32 addr);
+u8 usb_read8(struct adapter *adapter, u32 addr);
 u16 usb_read16(struct adapter *adapter, u32 addr);
 u32 usb_read32(struct adapter *adapter, u32 addr);
 u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
@@ -90,7 +89,6 @@ int usb_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata);
 u32 usb_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void usb_write_port_cancel(struct adapter *adapter);
 
-#define rtw_read8(adapter, addr) _rtw_read8((adapter), (addr))
 
 int rtw_init_io_priv(struct adapter *padapter,
 		     void (*set_intf_ops)(struct _io_ops *pops));
