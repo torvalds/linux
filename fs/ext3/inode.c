@@ -1716,17 +1716,17 @@ static int ext3_journalled_writepage(struct page *page,
 	WARN_ON_ONCE(IS_RDONLY(inode) &&
 		     !(EXT3_SB(inode->i_sb)->s_mount_state & EXT3_ERROR_FS));
 
-	if (ext3_journal_current_handle())
-		goto no_write;
-
 	trace_ext3_journalled_writepage(page);
-	handle = ext3_journal_start(inode, ext3_writepage_trans_blocks(inode));
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		goto no_write;
-	}
-
 	if (!page_has_buffers(page) || PageChecked(page)) {
+		if (ext3_journal_current_handle())
+			goto no_write;
+
+		handle = ext3_journal_start(inode,
+					    ext3_writepage_trans_blocks(inode));
+		if (IS_ERR(handle)) {
+			ret = PTR_ERR(handle);
+			goto no_write;
+		}
 		/*
 		 * It's mmapped pagecache.  Add buffers and journal it.  There
 		 * doesn't seem much point in redirtying the page here.
@@ -1749,17 +1749,18 @@ static int ext3_journalled_writepage(struct page *page,
 		atomic_set(&EXT3_I(inode)->i_datasync_tid,
 			   handle->h_transaction->t_tid);
 		unlock_page(page);
+		err = ext3_journal_stop(handle);
+		if (!ret)
+			ret = err;
 	} else {
 		/*
-		 * It may be a page full of checkpoint-mode buffers.  We don't
-		 * really know unless we go poke around in the buffer_heads.
-		 * But block_write_full_page will do the right thing.
+		 * It is a page full of checkpoint-mode buffers. Go and write
+		 * them. They should have been already mapped when they went
+		 * to the journal so provide NULL get_block function to catch
+		 * errors.
 		 */
-		ret = block_write_full_page(page, ext3_get_block, wbc);
+		ret = block_write_full_page(page, NULL, wbc);
 	}
-	err = ext3_journal_stop(handle);
-	if (!ret)
-		ret = err;
 out:
 	return ret;
 
