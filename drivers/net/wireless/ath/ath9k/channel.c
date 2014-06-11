@@ -589,6 +589,17 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		ath_chanctx_adjust_tbtt_delta(sc);
 		sc->sched.beacon_pending = false;
 		sc->sched.beacon_miss = 0;
+
+		/* TSF time might have been updated by the incoming beacon,
+		 * need update the channel switch timer to reflect the change.
+		 */
+		tsf_time = sc->sched.switch_start_time;
+		tsf_time -= (u32) sc->cur_chan->tsf_val +
+			ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
+		tsf_time += ath9k_hw_gettsf32(ah);
+
+		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
+					 tsf_time, 1000000);
 		break;
 	case ATH_CHANCTX_EVENT_ASSOC:
 		if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE ||
