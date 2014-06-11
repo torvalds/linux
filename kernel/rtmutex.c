@@ -81,12 +81,64 @@ static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 		owner = *p;
 	} while (cmpxchg(p, owner, owner | RT_MUTEX_HAS_WAITERS) != owner);
 }
+
+/*
+ * Safe fastpath aware unlock:
+ * 1) Clear the waiters bit
+ * 2) Drop lock->wait_lock
+ * 3) Try to unlock the lock with cmpxchg
+ */
+static inline bool unlock_rt_mutex_safe(struct rt_mutex *lock)
+	__releases(lock->wait_lock)
+{
+	struct task_struct *owner = rt_mutex_owner(lock);
+
+	clear_rt_mutex_waiters(lock);
+	raw_spin_unlock(&lock->wait_lock);
+	/*
+	 * If a new waiter comes in between the unlock and the cmpxchg
+	 * we have two situations:
+	 *
+	 * unlock(wait_lock);
+	 *					lock(wait_lock);
+	 * cmpxchg(p, owner, 0) == owner
+	 *					mark_rt_mutex_waiters(lock);
+	 *					acquire(lock);
+	 * or:
+	 *
+	 * unlock(wait_lock);
+	 *					lock(wait_lock);
+	 *					mark_rt_mutex_waiters(lock);
+	 *
+	 * cmpxchg(p, owner, 0) != owner
+	 *					enqueue_waiter();
+	 *					unlock(wait_lock);
+	 * lock(wait_lock);
+	 * wake waiter();
+	 * unlock(wait_lock);
+	 *					lock(wait_lock);
+	 *					acquire(lock);
+	 */
+	return rt_mutex_cmpxchg(lock, owner, NULL);
+}
+
 #else
 # define rt_mutex_cmpxchg(l,c,n)	(0)
 static inline void mark_rt_mutex_waiters(struct rt_mutex *lock)
 {
 	lock->owner = (struct task_struct *)
 			((unsigned long)lock->owner | RT_MUTEX_HAS_WAITERS);
+}
+
+/*
+ * Simple slow path only version: lock->owner is protected by lock->wait_lock.
+ */
+static inline bool unlock_rt_mutex_safe(struct rt_mutex *lock)
+	__releases(lock->wait_lock)
+{
+	lock->owner = NULL;
+	raw_spin_unlock(&lock->wait_lock);
+	return true;
 }
 #endif
 
@@ -519,7 +571,8 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 /*
  * Wake up the next waiter on the lock.
  *
- * Remove the top waiter from the current tasks waiter list and wake it up.
+ * Remove the top waiter from the current tasks pi waiter list and
+ * wake it up.
  *
  * Called with lock->wait_lock held.
  */
@@ -540,10 +593,23 @@ static void wakeup_next_waiter(struct rt_mutex *lock)
 	 */
 	plist_del(&waiter->pi_list_entry, &current->pi_waiters);
 
-	rt_mutex_set_owner(lock, NULL);
+	/*
+	 * As we are waking up the top waiter, and the waiter stays
+	 * queued on the lock until it gets the lock, this lock
+	 * obviously has waiters. Just set the bit here and this has
+	 * the added benefit of forcing all new tasks into the
+	 * slow path making sure no task of lower priority than
+	 * the top waiter can steal this lock.
+	 */
+	lock->owner = (void *) RT_MUTEX_HAS_WAITERS;
 
 	raw_spin_unlock_irqrestore(&current->pi_lock, flags);
 
+	/*
+	 * It's safe to dereference waiter as it cannot go away as
+	 * long as we hold lock->wait_lock. The waiter task needs to
+	 * acquire it in order to dequeue the waiter.
+	 */
 	wake_up_process(waiter->task);
 }
 
@@ -796,12 +862,49 @@ rt_mutex_slowunlock(struct rt_mutex *lock)
 
 	rt_mutex_deadlock_account_unlock(current);
 
-	if (!rt_mutex_has_waiters(lock)) {
-		lock->owner = NULL;
-		raw_spin_unlock(&lock->wait_lock);
-		return;
+	/*
+	 * We must be careful here if the fast path is enabled. If we
+	 * have no waiters queued we cannot set owner to NULL here
+	 * because of:
+	 *
+	 * foo->lock->owner = NULL;
+	 *			rtmutex_lock(foo->lock);   <- fast path
+	 *			free = atomic_dec_and_test(foo->refcnt);
+	 *			rtmutex_unlock(foo->lock); <- fast path
+	 *			if (free)
+	 *				kfree(foo);
+	 * raw_spin_unlock(foo->lock->wait_lock);
+	 *
+	 * So for the fastpath enabled kernel:
+	 *
+	 * Nothing can set the waiters bit as long as we hold
+	 * lock->wait_lock. So we do the following sequence:
+	 *
+	 *	owner = rt_mutex_owner(lock);
+	 *	clear_rt_mutex_waiters(lock);
+	 *	raw_spin_unlock(&lock->wait_lock);
+	 *	if (cmpxchg(&lock->owner, owner, 0) == owner)
+	 *		return;
+	 *	goto retry;
+	 *
+	 * The fastpath disabled variant is simple as all access to
+	 * lock->owner is serialized by lock->wait_lock:
+	 *
+	 *	lock->owner = NULL;
+	 *	raw_spin_unlock(&lock->wait_lock);
+	 */
+	while (!rt_mutex_has_waiters(lock)) {
+		/* Drops lock->wait_lock ! */
+		if (unlock_rt_mutex_safe(lock) == true)
+			return;
+		/* Relock the rtmutex and try again */
+		raw_spin_lock(&lock->wait_lock);
 	}
 
+	/*
+	 * The wakeup next waiter path does not suffer from the above
+	 * race. See the comments there.
+	 */
 	wakeup_next_waiter(lock);
 
 	raw_spin_unlock(&lock->wait_lock);
