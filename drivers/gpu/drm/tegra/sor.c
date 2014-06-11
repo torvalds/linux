@@ -516,7 +516,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		if (err < 0) {
 			dev_err(sor->dev, "failed to probe eDP link: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 	}
 
