@@ -45,14 +45,14 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 		return;
 
 	/* Sanity check */
-	n = min_t(u32, slb->persistent, SLB_MIN_SIZE);
+	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
 	if ((void *) &slb->save_area[n] > vcpu->arch.slb_shadow.pinned_end)
 		return;
 
 	/* Load up the SLB from that */
 	for (i = 0; i < n; ++i) {
-		unsigned long rb = slb->save_area[i].esid;
-		unsigned long rs = slb->save_area[i].vsid;
+		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
+		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
 
 		rb = (rb & ~0xFFFul) | i;	/* insert entry number */
 		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));

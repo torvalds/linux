@@ -272,7 +272,7 @@ struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
 static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
 {
 	vpa->__old_status |= LPPACA_OLD_SHARED_PROC;
-	vpa->yield_count = 1;
+	vpa->yield_count = cpu_to_be32(1);
 }
 
 static int set_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *v,
@@ -295,8 +295,8 @@ static int set_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *v,
 struct reg_vpa {
 	u32 dummy;
 	union {
-		u16 hword;
-		u32 word;
+		__be16 hword;
+		__be32 word;
 	} length;
 };
 
@@ -335,9 +335,9 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 		if (va == NULL)
 			return H_PARAMETER;
 		if (subfunc == H_VPA_REG_VPA)
-			len = ((struct reg_vpa *)va)->length.hword;
+			len = be16_to_cpu(((struct reg_vpa *)va)->length.hword);
 		else
-			len = ((struct reg_vpa *)va)->length.word;
+			len = be32_to_cpu(((struct reg_vpa *)va)->length.word);
 		kvmppc_unpin_guest_page(kvm, va, vpa, false);
 
 		/* Check length */
@@ -542,18 +542,18 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 		return;
 	memset(dt, 0, sizeof(struct dtl_entry));
 	dt->dispatch_reason = 7;
-	dt->processor_id = vc->pcpu + vcpu->arch.ptid;
-	dt->timebase = now + vc->tb_offset;
-	dt->enqueue_to_dispatch_time = stolen;
-	dt->srr0 = kvmppc_get_pc(vcpu);
-	dt->srr1 = vcpu->arch.shregs.msr;
+	dt->processor_id = cpu_to_be16(vc->pcpu + vcpu->arch.ptid);
+	dt->timebase = cpu_to_be64(now + vc->tb_offset);
+	dt->enqueue_to_dispatch_time = cpu_to_be32(stolen);
+	dt->srr0 = cpu_to_be64(kvmppc_get_pc(vcpu));
+	dt->srr1 = cpu_to_be64(vcpu->arch.shregs.msr);
 	++dt;
 	if (dt == vcpu->arch.dtl.pinned_end)
 		dt = vcpu->arch.dtl.pinned_addr;
 	vcpu->arch.dtl_ptr = dt;
 	/* order writing *dt vs. writing vpa->dtl_idx */
 	smp_wmb();
-	vpa->dtl_idx = ++vcpu->arch.dtl_index;
+	vpa->dtl_idx = cpu_to_be64(++vcpu->arch.dtl_index);
 	vcpu->arch.dtl.dirty = true;
 }
 
