@@ -4003,16 +4003,6 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 		strcpy(buf, "Tx");
 	}
 
-	if (!QLCNIC_IS_MSI_FAMILY(adapter)) {
-		netdev_err(netdev, "No RSS/TSS support in INT-x mode\n");
-		return -EINVAL;
-	}
-
-	if (adapter->flags & QLCNIC_MSI_ENABLED) {
-		netdev_err(netdev, "No RSS/TSS support in MSI mode\n");
-		return -EINVAL;
-	}
-
 	if (!is_power_of_2(ring_cnt)) {
 		netdev_err(netdev, "%s rings value should be a power of 2\n",
 			   buf);
