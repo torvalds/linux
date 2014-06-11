@@ -110,16 +110,12 @@ static inline int __hpte_actual_psize(unsigned int lp, int psize)
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {
-	int b_psize, a_psize;
+	int b_psize = MMU_PAGE_4K, a_psize = MMU_PAGE_4K;
 	unsigned int penc;
 	unsigned long rb = 0, va_low, sllp;
 	unsigned int lp = (r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
-	if (!(v & HPTE_V_LARGE)) {
-		/* both base and actual psize is 4k */
-		b_psize = MMU_PAGE_4K;
-		a_psize = MMU_PAGE_4K;
-	} else {
+	if (v & HPTE_V_LARGE) {
 		for (b_psize = 0; b_psize < MMU_PAGE_COUNT; b_psize++) {
 
 			/* valid entries have a shift value */
