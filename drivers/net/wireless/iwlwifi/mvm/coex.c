@@ -587,6 +587,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 			cpu_to_le32(BT_COEX_MPLUT_BOOST_ENABLED);
 	}
 
+	bt_cmd->enabled_modules |= cpu_to_le32(BT_COEX_HIGH_BAND_RET);
+
 	if (mvm->cfg->bt_shared_single_ant)
 		memcpy(&bt_cmd->decision_lut, iwl_single_shared_ant,
 		       sizeof(iwl_single_shared_ant));
