@@ -52,7 +52,6 @@ struct _io_ops {
 	int (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
 	int (*_writeN)(struct intf_hdl *pintfhdl, u32 addr, u32 length,
 		       u8 *pdata);
-	int (*_write32_async)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
 	u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
 			  u8 *pmem);
 	u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt,
@@ -101,8 +100,6 @@ int _rtw_write16(struct adapter *adapter, u32 addr, u16 val);
 int _rtw_write32(struct adapter *adapter, u32 addr, u32 val);
 int _rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *pdata);
 
-int _rtw_write32_async(struct adapter *adapter, u32 addr, u32 val);
-
 u32 _rtw_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 u32 _rtw_write_port_and_wait(struct adapter *adapter, u32 addr, u32 cnt,
 			     u8 *pmem, int timeout_ms);
@@ -123,8 +120,6 @@ void _rtw_write_port_cancel(struct adapter *adapter);
 	_rtw_write32((adapter), (addr), (val))
 #define  rtw_writeN(adapter, addr, length, data)			\
 	_rtw_writeN((adapter), (addr), (length), (data))
-#define rtw_write32_async(adapter, addr, val)				\
-	_rtw_write32_async((adapter), (addr), (val))
 #define rtw_write_port(adapter, addr, cnt, mem)				\
 	_rtw_write_port((adapter), (addr), (cnt), (mem))
 #define rtw_write_port_and_wait(adapter, addr, cnt, mem, timeout_ms)	\
