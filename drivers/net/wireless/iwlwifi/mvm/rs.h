@@ -349,16 +349,6 @@ struct iwl_lq_sta {
 	struct iwl_lq_cmd lq;
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
 	u8 tx_agg_tid_en;
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *rs_sta_dbgfs_scale_table_file;
-	struct dentry *rs_sta_dbgfs_stats_table_file;
-	struct dentry *rs_sta_dbgfs_drv_tx_stats_file;
-	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
-	struct dentry *rs_sta_dbgfs_reduced_txp_file;
-	u32 dbg_fixed_rate;
-	u8 dbg_fixed_txp_reduction;
-#endif
-	struct iwl_mvm *drv;
 
 	/* used to be in sta_info */
 	int last_txrate_idx;
@@ -369,6 +359,20 @@ struct iwl_lq_sta {
 
 	/* tx power reduce for this sta */
 	int tpc_reduce;
+
+	/* persistent fields - initialized only once - keep last! */
+	struct {
+#ifdef CONFIG_MAC80211_DEBUGFS
+		struct dentry *rs_sta_dbgfs_scale_table_file;
+		struct dentry *rs_sta_dbgfs_stats_table_file;
+		struct dentry *rs_sta_dbgfs_drv_tx_stats_file;
+		struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
+		struct dentry *rs_sta_dbgfs_reduced_txp_file;
+		u32 dbg_fixed_rate;
+		u8 dbg_fixed_txp_reduction;
+#endif
+		struct iwl_mvm *drv;
+	} pers;
 };
 
 /* Initialize station's rate scaling information after adding station */
