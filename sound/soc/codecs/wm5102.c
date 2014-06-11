@@ -615,7 +615,7 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	uint16_t data;
 
@@ -630,7 +630,7 @@ static int wm5102_out_comp_coeff_get(struct snd_kcontrol *kcontrol,
 static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
 	mutex_lock(&codec->mutex);
@@ -645,7 +645,7 @@ static int wm5102_out_comp_coeff_put(struct snd_kcontrol *kcontrol,
 static int wm5102_out_comp_switch_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
 	mutex_lock(&codec->mutex);
@@ -658,7 +658,7 @@ static int wm5102_out_comp_switch_get(struct snd_kcontrol *kcontrol,
 static int wm5102_out_comp_switch_put(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 
 	mutex_lock(&codec->mutex);
