@@ -279,7 +279,7 @@ int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 
 	if (!sc->cur_chan->offchannel) {
 		fastcc = false;
-		caldata = &sc->caldata;
+		caldata = &sc->cur_chan->caldata;
 	}
 
 	if (!hchan) {

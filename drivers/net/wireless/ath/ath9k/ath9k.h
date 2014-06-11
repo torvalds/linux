@@ -327,6 +327,8 @@ struct ath_chanctx {
 	struct list_head vifs;
 	struct list_head acq[IEEE80211_NUM_ACS];
 
+	struct ath9k_hw_cal_data caldata;
+
 	u16 txpower;
 	bool offchannel;
 	bool stopped;
@@ -819,8 +821,6 @@ struct ath_softc {
 	char led_name[32];
 	struct led_classdev led_cdev;
 #endif
-
-	struct ath9k_hw_cal_data caldata;
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct ath9k_debug debug;

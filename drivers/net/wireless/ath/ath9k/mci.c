@@ -706,7 +706,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		return;
 
 	if (setchannel) {
-		struct ath9k_hw_cal_data *caldata = &sc->caldata;
+		struct ath9k_hw_cal_data *caldata = &sc->cur_chan->caldata;
 		if (IS_CHAN_HT40PLUS(ah->curchan) &&
 		    (ah->curchan->channel > caldata->channel) &&
 		    (ah->curchan->channel <= caldata->channel + 20))

@@ -1080,7 +1080,7 @@ static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_nfcal_hist *h = sc->caldata.nfCalHist;
+	struct ath9k_nfcal_hist *h = sc->cur_chan->caldata.nfCalHist;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	u32 len = 0, size = 1500;
