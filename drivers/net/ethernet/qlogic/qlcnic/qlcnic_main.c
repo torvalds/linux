@@ -2087,12 +2087,20 @@ err_out:
 
 static void qlcnic_free_adapter_resources(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
 	kfree(adapter->recv_ctx);
 	adapter->recv_ctx = NULL;
 
-	if (adapter->ahw->fw_dump.tmpl_hdr) {
-		vfree(adapter->ahw->fw_dump.tmpl_hdr);
-		adapter->ahw->fw_dump.tmpl_hdr = NULL;
+	if (fw_dump->tmpl_hdr) {
+		vfree(fw_dump->tmpl_hdr);
+		fw_dump->tmpl_hdr = NULL;
+	}
+
+	if (fw_dump->dma_buffer) {
+		dma_free_coherent(&adapter->pdev->dev, QLC_PEX_DMA_READ_SIZE,
+				  fw_dump->dma_buffer, fw_dump->phys_addr);
+		fw_dump->dma_buffer = NULL;
 	}
 
 	kfree(adapter->ahw->reset.buff);
@@ -3993,16 +4001,6 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 		max_hw_rings = adapter->max_tx_rings;
 		cur_rings = adapter->drv_tx_rings;
 		strcpy(buf, "Tx");
-	}
-
-	if (!QLCNIC_IS_MSI_FAMILY(adapter)) {
-		netdev_err(netdev, "No RSS/TSS support in INT-x mode\n");
-		return -EINVAL;
-	}
-
-	if (adapter->flags & QLCNIC_MSI_ENABLED) {
-		netdev_err(netdev, "No RSS/TSS support in MSI mode\n");
-		return -EINVAL;
 	}
 
 	if (!is_power_of_2(ring_cnt)) {

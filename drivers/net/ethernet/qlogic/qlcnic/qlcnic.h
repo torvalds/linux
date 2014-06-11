@@ -39,8 +39,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 59
-#define QLCNIC_LINUX_VERSIONID  "5.3.59"
+#define _QLCNIC_LINUX_SUBVERSION 60
+#define QLCNIC_LINUX_VERSIONID  "5.3.60"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -440,6 +440,8 @@ struct qlcnic_82xx_dump_template_hdr {
 	u32	capabilities;
 	u32	rsvd1[0];
 };
+
+#define QLC_PEX_DMA_READ_SIZE	(PAGE_SIZE * 16)
 
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
