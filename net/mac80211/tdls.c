@@ -331,6 +331,8 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 		goto exit;
 	}
 
+	ieee80211_flush_queues(local, sdata);
+
 	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
 					      dialog_token, status_code,
 					      peer_capability, initiator,
@@ -346,6 +348,52 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 exit:
 	mutex_unlock(&local->mtx);
 	return ret;
+}
+
+static int
+ieee80211_tdls_mgmt_teardown(struct wiphy *wiphy, struct net_device *dev,
+			     const u8 *peer, u8 action_code, u8 dialog_token,
+			     u16 status_code, u32 peer_capability,
+			     bool initiator, const u8 *extra_ies,
+			     size_t extra_ies_len)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+	int ret;
+
+	/*
+	 * No packets can be transmitted to the peer via the AP during setup -
+	 * the STA is set as a TDLS peer, but is not authorized.
+	 * During teardown, we prevent direct transmissions by stopping the
+	 * queues and flushing all direct packets.
+	 */
+	ieee80211_stop_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
+	ieee80211_flush_queues(local, sdata);
+
+	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
+					      dialog_token, status_code,
+					      peer_capability, initiator,
+					      extra_ies, extra_ies_len);
+	if (ret < 0)
+		sdata_err(sdata, "Failed sending TDLS teardown packet %d\n",
+			  ret);
+
+	/*
+	 * Remove the STA AUTH flag to force further traffic through the AP. If
+	 * the STA was unreachable, it was already removed.
+	 */
+	rcu_read_lock();
+	sta = sta_info_get(sdata, peer);
+	if (sta)
+		clear_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
+	rcu_read_unlock();
+
+	ieee80211_wake_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
+
+	return 0;
 }
 
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
@@ -374,6 +422,12 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 						extra_ies, extra_ies_len);
 		break;
 	case WLAN_TDLS_TEARDOWN:
+		ret = ieee80211_tdls_mgmt_teardown(wiphy, dev, peer,
+						   action_code, dialog_token,
+						   status_code,
+						   peer_capability, initiator,
+						   extra_ies, extra_ies_len);
+		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
@@ -442,6 +496,9 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		ret = 0;
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
+		/* flush a potentially queued teardown packet */
+		ieee80211_flush_queues(local, sdata);
+
 		ret = sta_info_destroy_addr(sdata, peer);
 		break;
 	default:
