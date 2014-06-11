@@ -4815,4 +4815,17 @@ int ieee80211_parse_p2p_noa(const struct ieee80211_p2p_noa_attr *attr,
  */
 void ieee80211_update_p2p_noa(struct ieee80211_noa_data *data, u32 tsf);
 
+/**
+ * ieee80211_tdls_oper - request userspace to perform a TDLS operation
+ * @vif: virtual interface
+ * @peer: the peer's destination address
+ * @oper: the requested TDLS operation
+ * @reason_code: reason code for the operation, valid for TDLS teardown
+ * @gfp: allocation flags
+ *
+ * See cfg80211_tdls_oper_request().
+ */
+void ieee80211_tdls_oper_request(struct ieee80211_vif *vif, const u8 *peer,
+				 enum nl80211_tdls_operation oper,
+				 u16 reason_code, gfp_t gfp);
 #endif /* MAC80211_H */
