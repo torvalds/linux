@@ -751,15 +751,15 @@ static inline int rdev_tdls_mgmt(struct cfg80211_registered_device *rdev,
 				 struct net_device *dev, u8 *peer,
 				 u8 action_code, u8 dialog_token,
 				 u16 status_code, u32 peer_capability,
-				 const u8 *buf, size_t len)
+				 bool initiator, const u8 *buf, size_t len)
 {
 	int ret;
 	trace_rdev_tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
 			     dialog_token, status_code, peer_capability,
-			     buf, len);
+			     initiator, buf, len);
 	ret = rdev->ops->tdls_mgmt(&rdev->wiphy, dev, peer, action_code,
 				   dialog_token, status_code, peer_capability,
-				   buf, len);
+				   initiator, buf, len);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
