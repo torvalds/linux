@@ -628,14 +628,14 @@ static int mbxfb_ioctl(struct fb_info *info, unsigned int cmd,
 		case MBXFB_IOCS_PLANEORDER:
 			if (copy_from_user(&porder, (void __user*)arg,
 					sizeof(struct mbxfb_planeorder)))
-			return -EFAULT;
+				return -EFAULT;
 
 			return mbxfb_ioctl_planeorder(&porder);
 
 		case MBXFB_IOCS_ALPHA:
 			if (copy_from_user(&alpha, (void __user*)arg,
 					sizeof(struct mbxfb_alphaCtl)))
-			return -EFAULT;
+				return -EFAULT;
 
 			return mbxfb_ioctl_alphactl(&alpha);
 
