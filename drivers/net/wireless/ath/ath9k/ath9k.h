@@ -331,6 +331,7 @@ struct ath_chanctx {
 	bool offchannel;
 	bool stopped;
 	bool active;
+	bool assigned;
 };
 
 enum ath_offchannel_state {
@@ -356,6 +357,12 @@ struct ath_offchannel {
 };
 
 void ath9k_fill_chanctx_ops(void);
+static inline struct ath_chanctx *
+ath_chanctx_get(struct ieee80211_chanctx_conf *ctx)
+{
+	struct ath_chanctx **ptr = (void *) ctx->drv_priv;
+	return *ptr;
+}
 void ath_chanctx_init(struct ath_softc *sc);
 void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef);

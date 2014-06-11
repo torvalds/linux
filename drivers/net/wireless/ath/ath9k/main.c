@@ -624,7 +624,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	struct ieee80211_channel *curchan = sc->cur_chan->chandef.chan;
 	struct ath_chanctx *ctx = sc->cur_chan;
 	struct ath9k_channel *init_channel;
 	int r;
@@ -1039,11 +1039,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ath9k_beacon_assign_slot(sc, vif);
 
 	avp->vif = vif;
-
-	/* XXX - will be removed once chanctx ops are added */
-	avp->chanctx = sc->cur_chan;
-	list_add_tail(&avp->list, &sc->cur_chan->vifs);
-	ath_chanctx_check_active(sc, avp->chanctx);
+	if (!ath9k_use_chanctx)
+		avp->chanctx = sc->cur_chan;
 
 	an->sc = sc;
 	an->sta = NULL;
@@ -1132,7 +1129,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	}
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	list_del(&avp->list);
 	sc->nvifs--;
 	sc->tx99_vif = NULL;
 
@@ -1144,7 +1140,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath9k_ps_restore(sc);
 
 	ath_tx_node_cleanup(sc, &avp->mcast_node);
-	ath_chanctx_check_active(sc, avp->chanctx);
 
 	mutex_unlock(&sc->mutex);
 }
@@ -1271,7 +1266,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ath_chanctx *ctx = sc->cur_chan;
-	bool reset_channel = false;
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
@@ -1287,7 +1281,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			 * The chip needs a reset to properly wake up from
 			 * full sleep
 			 */
-			reset_channel = ah->chip_fullsleep;
+			ath_chanctx_set_channel(sc, ctx, &ctx->chandef);
 		}
 	}
 
@@ -1317,7 +1311,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
+	if (!ath9k_use_chanctx && (changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
 		ctx->offchannel = !!(conf->flags & IEEE80211_CONF_OFFCHANNEL);
 		ath_chanctx_set_channel(sc, ctx, &hw->conf.chandef);
 	}
@@ -2433,6 +2427,89 @@ static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	return 0;
 }
 
+static int ath9k_add_chanctx(struct ieee80211_hw *hw,
+			     struct ieee80211_chanctx_conf *conf)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_chanctx *ctx, **ptr;
+	int i;
+
+	mutex_lock(&sc->mutex);
+	for (i = 0; i < ATH9K_NUM_CHANCTX; i++) {
+		if (!sc->chanctx[i].assigned)
+			break;
+	}
+	if (i == ATH9K_NUM_CHANCTX) {
+		mutex_unlock(&sc->mutex);
+		return -ENOSPC;
+	}
+
+	ctx = &sc->chanctx[i];
+	ptr = (void *) conf->drv_priv;
+	*ptr = ctx;
+	ctx->assigned = true;
+	ath_chanctx_set_channel(sc, ctx, &conf->def);
+	mutex_unlock(&sc->mutex);
+
+	return 0;
+}
+
+
+static void ath9k_remove_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_chanctx_conf *conf)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+
+	mutex_lock(&sc->mutex);
+	ctx->assigned = false;
+	mutex_unlock(&sc->mutex);
+}
+
+static void ath9k_change_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_chanctx_conf *conf,
+				 u32 changed)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+
+	mutex_lock(&sc->mutex);
+	ath_chanctx_set_channel(sc, ctx, &conf->def);
+	mutex_unlock(&sc->mutex);
+}
+
+static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_chanctx_conf *conf)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+
+	mutex_lock(&sc->mutex);
+	avp->chanctx = ctx;
+	list_add_tail(&avp->list, &ctx->vifs);
+	ath_chanctx_check_active(sc, ctx);
+	mutex_unlock(&sc->mutex);
+
+	return 0;
+}
+
+static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_chanctx_conf *conf)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+
+	mutex_lock(&sc->mutex);
+	avp->chanctx = NULL;
+	list_del(&avp->list);
+	ath_chanctx_check_active(sc, ctx);
+	mutex_unlock(&sc->mutex);
+}
+
 void ath9k_fill_chanctx_ops(void)
 {
 	if (!ath9k_use_chanctx)
@@ -2442,6 +2519,11 @@ void ath9k_fill_chanctx_ops(void)
 	ath9k_ops.cancel_hw_scan = ath9k_cancel_hw_scan;
 	ath9k_ops.remain_on_channel  = ath9k_remain_on_channel;
 	ath9k_ops.cancel_remain_on_channel = ath9k_cancel_remain_on_channel;
+	ath9k_ops.add_chanctx        = ath9k_add_chanctx;
+	ath9k_ops.remove_chanctx     = ath9k_remove_chanctx;
+	ath9k_ops.change_chanctx     = ath9k_change_chanctx;
+	ath9k_ops.assign_vif_chanctx = ath9k_assign_vif_chanctx;
+	ath9k_ops.unassign_vif_chanctx = ath9k_unassign_vif_chanctx;
 }
 
 struct ieee80211_ops ath9k_ops = {
