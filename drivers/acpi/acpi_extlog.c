@@ -12,6 +12,7 @@
 #include <linux/cper.h>
 #include <linux/ratelimit.h>
 #include <linux/edac.h>
+#include <linux/ras.h>
 #include <asm/cpu.h>
 #include <asm/mce.h>
 
@@ -154,7 +155,11 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 	estatus->block_status = 0;
 
 	tmp = (struct acpi_generic_status *)elog_buf;
-	print_extlog_rcd(NULL, tmp, cpu);
+
+	if (!ras_userspace_consumers()) {
+		print_extlog_rcd(NULL, tmp, cpu);
+		goto out;
+	}
 
 	/* log event via trace */
 	err_seq++;
@@ -171,6 +176,7 @@ static int extlog_print(struct notifier_block *nb, unsigned long val,
 					       (u8)gdata->error_severity);
 	}
 
+out:
 	return NOTIFY_STOP;
 }
 
