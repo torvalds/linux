@@ -1,1 +1,1 @@
-obj-$(CONFIG_RAS) += ras.o
+obj-$(CONFIG_RAS) += ras.o debugfs.o
