@@ -157,6 +157,10 @@ static void __init rk3288_dt_map_io(void)
 	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRDWN_CNT);
 	writel_relaxed(24, RK_PMU_VIRT + RK3288_PMU_GPU_PWRUP_CNT);
 
+	/* power down GPU domain by default */
+	v = readl_relaxed(RK_PMU_VIRT + RK3288_PMU_PWRDN_CON);
+	writel_relaxed(v | BIT(9), RK_PMU_VIRT + RK3288_PMU_PWRDN_CON);
+
 	rk3288_boot_mode_init();
 }
 
