@@ -2185,12 +2185,17 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txctl->sta;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct ath_vif *avp = NULL;
 	struct ath_softc *sc = hw->priv;
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
+	bool queue;
 	int q;
 	int ret;
+
+	if (vif)
+		avp = (void *)vif->drv_priv;
 
 	ret = ath_tx_prepare(hw, skb, txctl);
 	if (ret)
@@ -2212,15 +2217,28 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		txq->stopped = true;
 	}
 
-	if (txctl->an && ieee80211_is_data_present(hdr->frame_control))
+	queue = ieee80211_is_data_present(hdr->frame_control);
+
+	/* Force queueing of all frames that belong to a virtual interface on
+	 * a different channel context, to ensure that they are sent on the
+	 * correct channel.
+	 */
+	if (((avp && avp->chanctx != sc->cur_chan) ||
+	     sc->cur_chan->stopped) && !txctl->force_channel) {
+		if (!txctl->an)
+			txctl->an = &avp->mcast_node;
+		info->flags &= ~IEEE80211_TX_CTL_PS_RESPONSE;
+		queue = true;
+	}
+
+	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
 	if (info->flags & IEEE80211_TX_CTL_PS_RESPONSE) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);
-	} else if (txctl->an &&
-		   ieee80211_is_data_present(hdr->frame_control)) {
+	} else if (txctl->an && queue) {
 		WARN_ON(tid->ac->txq != txctl->txq);
 
 		if (info->flags & IEEE80211_TX_CTL_CLEAR_PS_FILT)
