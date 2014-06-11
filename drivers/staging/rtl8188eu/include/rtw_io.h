@@ -122,51 +122,8 @@ void _rtw_write_port_cancel(struct adapter *adapter);
 	_rtw_write_port((adapter), (addr), (cnt), (mem))
 #define rtw_write_port_cancel(adapter) _rtw_write_port_cancel((adapter))
 
-void rtw_write_scsi(struct adapter *adapter, u32 cnt, u8 *pmem);
-
-/* ioreq */
-void ioreq_read8(struct adapter *adapter, u32 addr, u8 *pval);
-void ioreq_read16(struct adapter *adapter, u32 addr, u16 *pval);
-void ioreq_read32(struct adapter *adapter, u32 addr, u32 *pval);
-void ioreq_write8(struct adapter *adapter, u32 addr, u8 val);
-void ioreq_write16(struct adapter *adapter, u32 addr, u16 val);
-void ioreq_write32(struct adapter *adapter, u32 addr, u32 val);
-
-uint async_read8(struct adapter *adapter, u32 addr, u8 *pbuff,
-		 void (*_async_io_callback)(struct adapter *padater,
-					    struct io_req *pio_req,
-					    u8 *cnxt), u8 *cnxt);
-uint async_read16(struct adapter *adapter, u32 addr,  u8 *pbuff,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-uint async_read32(struct adapter *adapter, u32 addr,  u8 *pbuff,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-
-void async_read_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void async_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-
-void async_write8(struct adapter *adapter, u32 addr, u8 val,
-		  void (*_async_io_callback)(struct adapter *padater,
-					     struct io_req *pio_req,
-					     u8 *cnxt), u8 *cnxt);
-void async_write16(struct adapter *adapter, u32 addr, u16 val,
-		   void (*_async_io_callback)(struct adapter *padater,
-					      struct io_req *pio_req,
-					      u8 *cnxt), u8 *cnxt);
-void async_write32(struct adapter *adapter, u32 addr, u32 val,
-		   void (*_async_io_callback)(struct adapter *padater,
-					      struct io_req *pio_req,
-					      u8 *cnxt), u8 *cnxt);
-
-void async_write_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
-void async_write_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
 int rtw_init_io_priv(struct adapter *padapter,
 		     void (*set_intf_ops)(struct _io_ops *pops));
-
-void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #endif	/* _RTL8711_IO_H_ */
