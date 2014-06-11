@@ -1,5 +1,5 @@
 /*
- * include/linux/keyreset.h - platform data structure for resetkeys driver
+ * include/linux/keycombo.h - platform data structure for keycombo driver
  *
  * Copyright (C) 2014 Google, Inc.
  *
@@ -14,16 +14,23 @@
  *
  */
 
-#ifndef _LINUX_KEYRESET_H
-#define _LINUX_KEYRESET_H
+#ifndef _LINUX_KEYCOMBO_H
+#define _LINUX_KEYCOMBO_H
 
-#define KEYRESET_NAME "keyreset"
+#define KEYCOMBO_NAME "keycombo"
 
-struct keyreset_platform_data {
-	int (*reset_fn)(void);
-	int key_down_delay;
+/*
+ * if key_down_fn and key_up_fn are both present, you are guaranteed that
+ * key_down_fn will return before key_up_fn is called, and that key_up_fn
+ * is called iff key_down_fn is called.
+ */
+struct keycombo_platform_data {
+	void (*key_down_fn)(void *);
+	void (*key_up_fn)(void *);
+	void *priv;
+	int key_down_delay; /* Time in ms */
 	int *keys_up;
 	int keys_down[]; /* 0 terminated */
 };
 
-#endif /* _LINUX_KEYRESET_H */
+#endif /* _LINUX_KEYCOMBO_H */
