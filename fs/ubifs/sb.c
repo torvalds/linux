@@ -332,6 +332,8 @@ static int create_default_filesystem(struct ubifs_info *c)
 	cs->ch.node_type = UBIFS_CS_NODE;
 	err = ubifs_write_node(c, cs, UBIFS_CS_NODE_SZ, UBIFS_LOG_LNUM, 0);
 	kfree(cs);
+	if (err)
+		return err;
 
 	ubifs_msg("default file-system created");
 	return 0;
