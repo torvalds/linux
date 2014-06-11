@@ -163,7 +163,6 @@ struct ath_txq {
 	u32 axq_ampdu_depth;
 	bool stopped;
 	bool axq_tx_inprogress;
-	struct list_head axq_acq;
 	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
 	u8 txq_headidx;
 	u8 txq_tailidx;
@@ -324,6 +323,8 @@ struct ath_rx {
 struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
+	struct list_head acq[IEEE80211_NUM_ACS];
+
 	u16 txpower;
 	bool offchannel;
 };
@@ -348,6 +349,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
+void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);

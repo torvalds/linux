@@ -63,9 +63,16 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 
-	if (txq->axq_depth || !list_empty(&txq->axq_acq))
+	if (txq->axq_depth)
 		pending = true;
 
+	if (txq->mac80211_qnum >= 0) {
+		struct list_head *list;
+
+		list = &sc->cur_chan->acq[txq->mac80211_qnum];
+		if (!list_empty(list))
+			pending = true;
+	}
 	spin_unlock_bh(&txq->axq_lock);
 	return pending;
 }
@@ -219,7 +226,6 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
-	int i;
 
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
@@ -247,15 +253,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		}
 	work:
 		ath_restart_work(sc);
-
-		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-			if (!ATH_TXQ_SETUP(sc, i))
-				continue;
-
-			spin_lock_bh(&sc->tx.txq[i].axq_lock);
-			ath_txq_schedule(sc, &sc->tx.txq[i]);
-			spin_unlock_bh(&sc->tx.txq[i].axq_lock);
-		}
+		ath_txq_schedule_all(sc);
 	}
 
 	sc->gtt_cnt = 0;
@@ -1035,6 +1033,10 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	avp->vif = vif;
 
+	/* XXX - will be removed once chanctx ops are added */
+	avp->chanctx = sc->cur_chan;
+	list_add_tail(&avp->list, &sc->cur_chan->vifs);
+
 	an->sc = sc;
 	an->sta = NULL;
 	an->vif = vif;
@@ -1120,6 +1122,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	}
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
+	list_del(&avp->list);
 	sc->nvifs--;
 	sc->tx99_vif = NULL;
 
