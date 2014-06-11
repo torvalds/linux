@@ -124,7 +124,7 @@ static ssize_t sta_connected_time_read(struct file *file, char __user *userbuf,
 	long connected_time_secs;
 	char buf[100];
 	int res;
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	connected_time_secs = uptime.tv_sec - sta->last_connected;
 	time_to_tm(connected_time_secs, 0, &result);
 	result.tm_year -= 70;

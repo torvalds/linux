@@ -350,7 +350,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta_state = IEEE80211_STA_NONE;
 
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
 	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
@@ -1747,7 +1747,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 			STATION_INFO_STA_FLAGS |
 			STATION_INFO_BEACON_LOSS_COUNT;
 
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
