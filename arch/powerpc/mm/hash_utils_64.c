@@ -243,7 +243,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-static int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 		      int psize, int ssize)
 {
 	unsigned long vaddr;

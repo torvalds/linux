@@ -212,6 +212,13 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 	for (i = 0; i < page_size; i += PAGE_SIZE)
 		BUG_ON(map_kernel_page(start + i, phys, flags));
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static void vmemmap_remove_mapping(unsigned long start,
+				   unsigned long page_size)
+{
+}
+#endif
 #else /* CONFIG_PPC_BOOK3E */
 static void __meminit vmemmap_create_mapping(unsigned long start,
 					     unsigned long page_size,
@@ -223,6 +230,21 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 					mmu_kernel_ssize);
 	BUG_ON(mapped < 0);
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+			int psize, int ssize);
+
+static void vmemmap_remove_mapping(unsigned long start,
+				   unsigned long page_size)
+{
+	int mapped = htab_remove_mapping(start, start + page_size,
+					 mmu_vmemmap_psize,
+					 mmu_kernel_ssize);
+	BUG_ON(mapped < 0);
+}
+#endif
+
 #endif /* CONFIG_PPC_BOOK3E */
 
 struct vmemmap_backing *vmemmap_list;
