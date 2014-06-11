@@ -374,6 +374,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 
 u32 ath_calcrxfilter(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	u32 rfilt;
 
 	if (config_enabled(CONFIG_ATH9K_TX99))
@@ -423,6 +424,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 	if (AR_SREV_9550(sc->sc_ah) || AR_SREV_9531(sc->sc_ah))
 		rfilt |= ATH9K_RX_FILTER_4ADDRESS;
+
+	if (ath9k_use_chanctx &&
+	    test_bit(ATH_OP_SCANNING, &common->op_flags))
+		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	return rfilt;
 

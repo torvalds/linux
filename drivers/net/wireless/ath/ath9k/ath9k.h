@@ -35,6 +35,7 @@ extern struct ieee80211_ops ath9k_ops;
 extern int ath9k_modparam_nohwcrypt;
 extern int led_blink;
 extern bool is_ath9k_unloaded;
+extern int ath9k_use_chanctx;
 
 /*************************/
 /* Descriptor Management */
@@ -332,12 +333,34 @@ struct ath_chanctx {
 	bool active;
 };
 
+enum ath_offchannel_state {
+	ATH_OFFCHANNEL_IDLE,
+	ATH_OFFCHANNEL_PROBE_SEND,
+	ATH_OFFCHANNEL_PROBE_WAIT,
+	ATH_OFFCHANNEL_SUSPEND,
+};
+
+struct ath_offchannel {
+	struct ath_chanctx chan;
+	struct timer_list timer;
+	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_vif *scan_vif;
+	int scan_idx;
+	enum ath_offchannel_state state;
+};
+
+void ath9k_fill_chanctx_ops(void);
 void ath_chanctx_init(struct ath_softc *sc);
 void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 			     struct cfg80211_chan_def *chandef);
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 			struct cfg80211_chan_def *chandef);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
+void ath_offchannel_timer(unsigned long data);
+void ath_offchannel_channel_change(struct ath_softc *sc);
+void ath_chanctx_offchan_switch(struct ath_softc *sc,
+				struct ieee80211_channel *chan);
+struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc);
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);
@@ -771,6 +794,7 @@ struct ath_softc {
 	struct ath_chanctx *cur_chan;
 	struct ath_chanctx *next_chan;
 	spinlock_t chan_lock;
+	struct ath_offchannel offchannel;
 
 #ifdef CONFIG_MAC80211_LEDS
 	bool led_registered;

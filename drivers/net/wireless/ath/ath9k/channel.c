@@ -228,6 +228,7 @@ void ath_chanctx_work(struct work_struct *work)
 	if (send_ps)
 		ath_chanctx_send_ps_frame(sc, false);
 
+	ath_offchannel_channel_change(sc);
 	mutex_unlock(&sc->mutex);
 }
 
@@ -253,6 +254,14 @@ void ath_chanctx_init(struct ath_softc *sc)
 			INIT_LIST_HEAD(&ctx->acq[j]);
 	}
 	sc->cur_chan = &sc->chanctx[0];
+	ctx = &sc->offchannel.chan;
+	cfg80211_chandef_create(&ctx->chandef, chan, NL80211_CHAN_HT20);
+	INIT_LIST_HEAD(&ctx->vifs);
+	ctx->txpower = ATH_TXPOWER_MAX;
+	for (j = 0; j < ARRAY_SIZE(ctx->acq); j++)
+		INIT_LIST_HEAD(&ctx->acq[j]);
+	sc->offchannel.chan.offchannel = true;
+
 }
 
 void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
@@ -282,4 +291,26 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 		return;
 
 	ath_set_channel(sc);
+}
+
+struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc)
+{
+	u8 i;
+
+	for (i = 0; i < ARRAY_SIZE(sc->chanctx); i++) {
+		if (!list_empty(&sc->chanctx[i].vifs))
+			return &sc->chanctx[i];
+	}
+
+	return &sc->chanctx[0];
+}
+
+void ath_chanctx_offchan_switch(struct ath_softc *sc,
+				struct ieee80211_channel *chan)
+{
+	struct cfg80211_chan_def chandef;
+
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+
+	ath_chanctx_switch(sc, &sc->offchannel.chan, &chandef);
 }

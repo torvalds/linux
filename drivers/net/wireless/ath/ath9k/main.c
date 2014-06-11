@@ -2159,6 +2159,193 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
+static void
+ath_scan_next_channel(struct ath_softc *sc)
+{
+	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
+	struct ieee80211_channel *chan;
+
+	if (sc->offchannel.scan_idx >= req->n_channels) {
+		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
+		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
+		return;
+	}
+
+	chan = req->channels[sc->offchannel.scan_idx++];
+	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_SEND;
+	ath_chanctx_offchan_switch(sc, chan);
+}
+
+static void ath_scan_complete(struct ath_softc *sc, bool abort)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
+	sc->offchannel.scan_req = NULL;
+	sc->offchannel.scan_vif = NULL;
+	sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
+	ieee80211_scan_completed(sc->hw, abort);
+	clear_bit(ATH_OP_SCANNING, &common->op_flags);
+	ath9k_ps_restore(sc);
+
+	if (!sc->ps_idle)
+		return;
+
+	ath_cancel_work(sc);
+}
+
+static void ath_scan_send_probe(struct ath_softc *sc,
+				struct cfg80211_ssid *ssid)
+{
+	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
+	struct ieee80211_vif *vif = sc->offchannel.scan_vif;
+	struct ath_tx_control txctl = {};
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
+	int band = sc->offchannel.chan.chandef.chan->band;
+
+	skb = ieee80211_probereq_get(sc->hw, vif,
+			ssid->ssid, ssid->ssid_len, req->ie_len);
+	if (!skb)
+		return;
+
+	info = IEEE80211_SKB_CB(skb);
+	if (req->no_cck)
+		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
+
+	if (req->ie_len)
+		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
+
+	skb_set_queue_mapping(skb, IEEE80211_AC_VO);
+
+	if (!ieee80211_tx_prepare_skb(sc->hw, vif, skb, band, NULL))
+		goto error;
+
+	txctl.txq = sc->tx.txq_map[IEEE80211_AC_VO];
+	txctl.force_channel = true;
+	if (ath_tx_start(sc->hw, skb, &txctl))
+		goto error;
+
+	return;
+
+error:
+	ieee80211_free_txskb(sc->hw, skb);
+}
+
+static void ath_scan_channel_start(struct ath_softc *sc)
+{
+	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
+	int i, dwell;
+
+	if ((sc->cur_chan->chandef.chan->flags & IEEE80211_CHAN_NO_IR) ||
+			!req->n_ssids) {
+		dwell = HZ / 9; /* ~110 ms */
+	} else {
+		dwell = HZ / 16; /* ~60 ms */
+
+		for (i = 0; i < req->n_ssids; i++)
+			ath_scan_send_probe(sc, &req->ssids[i]);
+	}
+
+	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_WAIT;
+	mod_timer(&sc->offchannel.timer, jiffies + dwell);
+}
+
+void ath_offchannel_channel_change(struct ath_softc *sc)
+{
+	if (!sc->offchannel.scan_req)
+		return;
+
+	switch (sc->offchannel.state) {
+	case ATH_OFFCHANNEL_PROBE_SEND:
+		if (sc->cur_chan->chandef.chan !=
+		    sc->offchannel.chan.chandef.chan)
+			return;
+
+		ath_scan_channel_start(sc);
+		break;
+	case ATH_OFFCHANNEL_IDLE:
+		ath_scan_complete(sc, false);
+		break;
+	default:
+		break;
+	}
+}
+
+void ath_offchannel_timer(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_chanctx *ctx = ath_chanctx_get_oper_chan(sc);
+
+	if (!sc->offchannel.scan_req)
+		return;
+
+	switch (sc->offchannel.state) {
+	case ATH_OFFCHANNEL_PROBE_WAIT:
+		if (ctx->active) {
+			sc->offchannel.state = ATH_OFFCHANNEL_SUSPEND;
+			ath_chanctx_switch(sc, ctx, NULL);
+			mod_timer(&sc->offchannel.timer, jiffies + HZ / 10);
+			break;
+		}
+		/* fall through */
+	case ATH_OFFCHANNEL_SUSPEND:
+		ath_scan_next_channel(sc);
+		break;
+	default:
+		break;
+	}
+}
+
+static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct cfg80211_scan_request *req)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	int ret = 0;
+
+	mutex_lock(&sc->mutex);
+
+	if (WARN_ON(sc->offchannel.scan_req)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ath9k_ps_wakeup(sc);
+	set_bit(ATH_OP_SCANNING, &common->op_flags);
+	sc->offchannel.scan_vif = vif;
+	sc->offchannel.scan_req = req;
+	sc->offchannel.scan_idx = 0;
+	sc->offchannel.chan.txpower = vif->bss_conf.txpower;
+
+	ath_scan_next_channel(sc);
+
+out:
+	mutex_unlock(&sc->mutex);
+
+	return ret;
+}
+
+static void ath9k_cancel_hw_scan(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif)
+{
+	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+	del_timer_sync(&sc->offchannel.timer);
+	ath_scan_complete(sc, true);
+	mutex_unlock(&sc->mutex);
+}
+
+void ath9k_fill_chanctx_ops(void)
+{
+	if (!ath9k_use_chanctx)
+		return;
+
+	ath9k_ops.hw_scan = ath9k_hw_scan;
+	ath9k_ops.cancel_hw_scan = ath9k_cancel_hw_scan;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,

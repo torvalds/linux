@@ -61,7 +61,7 @@ static int ath9k_ps_enable;
 module_param_named(ps_enable, ath9k_ps_enable, int, 0444);
 MODULE_PARM_DESC(ps_enable, "Enable WLAN PowerSave");
 
-static int ath9k_use_chanctx;
+int ath9k_use_chanctx;
 module_param_named(use_chanctx, ath9k_use_chanctx, int, 0444);
 MODULE_PARM_DESC(use_chanctx, "Enable channel context for concurrency");
 
@@ -566,6 +566,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_WORK(&sc->chanctx_work, ath_chanctx_work);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);
+	setup_timer(&sc->offchannel.timer, ath_offchannel_timer,
+		    (unsigned long)sc);
 
 	/*
 	 * Cache line size is used to size and align various
@@ -745,8 +747,11 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		if (!ath9k_use_chanctx) {
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 			hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_WDS);
-		} else
+		} else {
 			hw->wiphy->n_iface_combinations = 1;
+			hw->wiphy->max_scan_ssids = 255;
+			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		}
 	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
