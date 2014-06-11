@@ -67,7 +67,7 @@ static void ordered_data_tree_panic(struct inode *inode, int errno,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	btrfs_panic(fs_info, errno, "Inconsistency in ordered tree at offset "
-		    "%llu\n", offset);
+		    "%llu", offset);
 }
 
 /*
