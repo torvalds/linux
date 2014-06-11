@@ -567,7 +567,6 @@ static int mac802154_parse_frame_start(struct sk_buff *skb,
 void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 {
 	int ret;
-	struct sk_buff *sskb;
 	struct mac802154_sub_if_data *sdata;
 	struct ieee802154_hdr hdr;
 
@@ -579,12 +578,16 @@ void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &priv->slaves, list) {
-		if (sdata->type != IEEE802154_DEV_WPAN)
+		if (sdata->type != IEEE802154_DEV_WPAN ||
+		    !netif_running(sdata->dev))
 			continue;
 
-		sskb = skb_clone(skb, GFP_ATOMIC);
-		if (sskb)
-			mac802154_subif_frame(sdata, sskb, &hdr);
+		mac802154_subif_frame(sdata, skb, &hdr);
+		skb = NULL;
+		break;
 	}
 	rcu_read_unlock();
+
+	if (skb)
+		kfree_skb(skb);
 }
