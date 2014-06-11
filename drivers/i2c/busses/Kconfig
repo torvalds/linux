@@ -676,6 +676,16 @@ config I2C_RIIC
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-riic.
 
+config I2C_RK3X
+	tristate "Rockchip RK3xxx I2C adapter"
+	depends on OF
+	help
+	  Say Y here to include support for the I2C adapter in Rockchip RK3xxx
+	  SoCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-rk3x.
+
 config HAVE_S3C2410_I2C
 	bool
 	help
