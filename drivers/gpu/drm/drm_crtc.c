@@ -182,6 +182,12 @@ static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] =
 	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
+static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
+	{ DRM_MODE_PICTURE_ASPECT_NONE, "Automatic" },
+	{ DRM_MODE_PICTURE_ASPECT_4_3, "4:3" },
+	{ DRM_MODE_PICTURE_ASPECT_16_9, "16:9" },
+};
+
 /*
  * Non-global properties, but "required" for certain connectors.
  */
@@ -1389,6 +1395,33 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * drm_mode_create_aspect_ratio_property - create aspect ratio property
+ * @dev: DRM device
+ *
+ * Called by a driver the first time it's needed, must be attached to desired
+ * connectors.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_create_aspect_ratio_property(struct drm_device *dev)
+{
+	if (dev->mode_config.aspect_ratio_property)
+		return 0;
+
+	dev->mode_config.aspect_ratio_property =
+		drm_property_create_enum(dev, 0, "aspect ratio",
+				drm_aspect_ratio_enum_list,
+				ARRAY_SIZE(drm_aspect_ratio_enum_list));
+
+	if (dev->mode_config.aspect_ratio_property == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
 
 /**
  * drm_mode_create_dirty_property - create dirty property
