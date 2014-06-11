@@ -614,9 +614,9 @@ static inline struct mvebu_pcie *sys_to_pcie(struct pci_sys_data *sys)
 	return sys->private_data;
 }
 
-static struct mvebu_pcie_port *
-mvebu_pcie_find_port(struct mvebu_pcie *pcie, struct pci_bus *bus,
-		     int devfn)
+static struct mvebu_pcie_port *mvebu_pcie_find_port(struct mvebu_pcie *pcie,
+						    struct pci_bus *bus,
+						    int devfn)
 {
 	int i;
 
@@ -781,10 +781,10 @@ static void mvebu_pcie_add_bus(struct pci_bus *bus)
 }
 
 static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
-						const struct resource *res,
-						resource_size_t start,
-						resource_size_t size,
-						resource_size_t align)
+						 const struct resource *res,
+						 resource_size_t start,
+						 resource_size_t size,
+						 resource_size_t align)
 {
 	if (dev->bus->number != 0)
 		return start;
@@ -834,7 +834,8 @@ static void mvebu_pcie_enable(struct mvebu_pcie *pcie)
  * found, maps it.
  */
 static void __iomem *mvebu_pcie_map_registers(struct platform_device *pdev,
-		      struct device_node *np, struct mvebu_pcie_port *port)
+					      struct device_node *np,
+					      struct mvebu_pcie_port *port)
 {
 	struct resource regs;
 	int ret = 0;

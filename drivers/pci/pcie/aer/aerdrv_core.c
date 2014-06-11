@@ -542,8 +542,7 @@ static void aer_recover_work_func(struct work_struct *work);
 #define AER_RECOVER_RING_ORDER		4
 #define AER_RECOVER_RING_SIZE		(1 << AER_RECOVER_RING_ORDER)
 
-struct aer_recover_entry
-{
+struct aer_recover_entry {
 	u8	bus;
 	u8	devfn;
 	u16	domain;
