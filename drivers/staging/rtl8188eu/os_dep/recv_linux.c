@@ -199,7 +199,7 @@ void rtw_os_read_port(struct adapter *padapter, struct recv_buf *precvbuf)
 	dev_kfree_skb_any(precvbuf->pskb);
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	rtw_read_port(padapter, precvpriv->ff_hwaddr, 0,
+	usb_read_port(padapter, precvpriv->ff_hwaddr, 0,
 			(unsigned char *)precvbuf);
 }
 

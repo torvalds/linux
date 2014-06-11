@@ -126,26 +126,6 @@ int _rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 	return RTW_STATUS_CODE(ret);
 }
 
-void _rtw_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem)
-{
-	u32 (*_read_port)(struct adapter *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-	struct io_priv *pio_priv = &adapter->iopriv;
-	struct	intf_hdl		*pintfhdl = &(pio_priv->intf);
-
-
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
-		RT_TRACE(_module_rtl871x_io_c_, _drv_info_,
-			 ("rtw_read_port:bDriverStopped(%d) OR bSurpriseRemoved(%d)",
-			 adapter->bDriverStopped, adapter->bSurpriseRemoved));
-	     return;
-	}
-
-	_read_port = pintfhdl->io_ops._read_port;
-
-	_read_port(adapter, addr, cnt, pmem);
-
-}
-
 void _rtw_read_port_cancel(struct adapter *adapter)
 {
 	void (*_read_port_cancel)(struct adapter *pintfhdl);
