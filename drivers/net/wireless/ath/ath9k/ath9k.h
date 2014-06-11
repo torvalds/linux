@@ -489,6 +489,9 @@ struct ath_vif {
 	u8 noa_index;
 	u32 offchannel_start;
 	u32 offchannel_duration;
+
+	u32 periodic_noa_start;
+	u32 periodic_noa_duration;
 };
 
 struct ath9k_vif_iter_data {

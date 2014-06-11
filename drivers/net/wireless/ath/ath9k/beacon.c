@@ -122,11 +122,14 @@ static void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	};
 
 	struct ieee80211_p2p_noa_attr *noa;
-	int noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc);
+	int noa_len, noa_desc, i = 0;
 	u8 *hdr;
 
-	if (!avp->offchannel_duration)
+	if (!avp->offchannel_duration && !avp->periodic_noa_duration)
 		return;
+
+	noa_desc = !!avp->offchannel_duration + !!avp->periodic_noa_duration;
+	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
 
 	hdr = skb_put(skb, sizeof(noa_ie_hdr));
 	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
@@ -137,9 +140,21 @@ static void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 	memset(noa, 0, noa_len);
 
 	noa->index = avp->noa_index;
-	noa->desc[0].count = 1;
-	noa->desc[0].duration = cpu_to_le32(avp->offchannel_duration);
-	noa->desc[0].start_time = cpu_to_le32(avp->offchannel_start);
+	if (avp->periodic_noa_duration) {
+		u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+
+		noa->desc[i].count = 255;
+		noa->desc[i].start_time = cpu_to_le32(avp->periodic_noa_start);
+		noa->desc[i].duration = cpu_to_le32(avp->periodic_noa_duration);
+		noa->desc[i].interval = cpu_to_le32(interval);
+		i++;
+	}
+
+	if (avp->offchannel_duration) {
+		noa->desc[i].count = 1;
+		noa->desc[i].start_time = cpu_to_le32(avp->offchannel_start);
+		noa->desc[i].duration = cpu_to_le32(avp->offchannel_duration);
+	}
 }
 
 static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
