@@ -367,7 +367,7 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 
 	if (!phydev->drv || (phydev->drv->phy_id == 0)) {
 		netdev_err(netdev, "phy_id not valid\n");
-		return -ENODEV;
+		ret = -ENODEV;
 		goto err_phy_connect;
 	}
 	DBGPR("  phy_connect_direct succeeded for PHY %s, link=%d\n",
