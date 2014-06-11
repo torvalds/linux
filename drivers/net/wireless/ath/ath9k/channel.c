@@ -365,7 +365,8 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc, bool active)
 		if (active && !ctx->active)
 			continue;
 
-		return ctx;
+		if (ctx->switch_after_beacon)
+			return ctx;
 	}
 
 	return &sc->chanctx[0];
