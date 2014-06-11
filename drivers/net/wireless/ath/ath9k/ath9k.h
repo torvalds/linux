@@ -374,6 +374,9 @@ struct ath_chanctx_sched {
 	u32 switch_start_time;
 	unsigned int offchannel_duration;
 	unsigned int channel_switch_time;
+
+	/* backup, in case the hardware timer fails */
+	struct timer_list timer;
 };
 
 enum ath_offchannel_state {
@@ -426,6 +429,7 @@ struct ath_chanctx *ath_chanctx_get_oper_chan(struct ath_softc *sc,
 					      bool active);
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev);
+void ath_chanctx_timer(unsigned long data);
 
 int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 int ath_startrecv(struct ath_softc *sc);

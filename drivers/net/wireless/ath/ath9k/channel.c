@@ -469,6 +469,27 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	prev->tsf_val += offset;
 }
 
+void ath_chanctx_timer(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *) data;
+
+	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
+}
+
+/* Configure the TSF based hardware timer for a channel switch.
+ * Also set up backup software timer, in case the gen timer fails.
+ * This could be caused by a hardware reset.
+ */
+static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
+{
+	struct ath_hw *ah = sc->sc_ah;
+
+	ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time, 1000000);
+	tsf_time -= ath9k_hw_gettsf32(ah);
+	tsf_time = msecs_to_jiffies(tsf_time / 1000) + 1;
+	mod_timer(&sc->sched.timer, tsf_time);
+}
+
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
@@ -566,9 +587,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			break;
 
 		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
-		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
-					 sc->sched.switch_start_time,
-					 1000000);
+		ath_chanctx_setup_timer(sc, sc->sched.switch_start_time);
 		break;
 	case ATH_CHANCTX_EVENT_TSF_TIMER:
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_TIMER)
@@ -598,8 +617,8 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
 		tsf_time += ath9k_hw_gettsf32(ah);
 
-		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
-					 tsf_time, 1000000);
+
+		ath_chanctx_setup_timer(sc, tsf_time);
 		break;
 	case ATH_CHANCTX_EVENT_ASSOC:
 		if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE ||
@@ -633,8 +652,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		tsf_time += ath9k_hw_gettsf32(sc->sc_ah);
 		sc->sched.switch_start_time = tsf_time;
 
-		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
-					 tsf_time, 1000000);
+		ath_chanctx_setup_timer(sc, tsf_time);
 		sc->sched.beacon_pending = true;
 		break;
 	case ATH_CHANCTX_EVENT_ENABLE_MULTICHANNEL:
