@@ -327,6 +327,7 @@ struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
 	struct list_head acq[IEEE80211_NUM_ACS];
+	int hw_queue_base;
 
 	/* do not dereference, use for comparison only */
 	struct ieee80211_vif *primary_sta;

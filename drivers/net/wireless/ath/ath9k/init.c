@@ -511,6 +511,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	sc->tx99_power = MAX_RATE_POWER + 1;
 	init_waitqueue_head(&sc->tx_wait);
 	sc->cur_chan = &sc->chanctx[0];
+	if (!ath9k_use_chanctx)
+		sc->cur_chan->hw_queue_base = 0;
 
 	if (!pdata || pdata->use_eeprom) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -718,6 +720,7 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_SPECTRUM_MGMT |
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SUPPORTS_RC_TABLE |
+		IEEE80211_HW_QUEUE_CONTROL |
 		IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (ath9k_ps_enable)
@@ -769,7 +772,12 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
 
-	hw->queues = 4;
+	/* allow 4 queues per channel context +
+	 * 1 cab queue + 1 offchannel tx queue
+	 */
+	hw->queues = 10;
+	/* last queue for offchannel */
+	hw->offchannel_tx_hw_queue = hw->queues - 1;
 	hw->max_rates = 4;
 	hw->max_listen_interval = 1;
 	hw->max_rate_tries = 10;

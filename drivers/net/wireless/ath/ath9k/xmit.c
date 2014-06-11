@@ -156,7 +156,8 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
-	int q;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int q, hw_queue;
 
 	q = skb_get_queue_mapping(skb);
 	if (txq == sc->tx.uapsdq)
@@ -168,9 +169,10 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 	if (WARN_ON(--txq->pending_frames < 0))
 		txq->pending_frames = 0;
 
+	hw_queue = (info->hw_queue >= sc->hw->queues - 2) ? q : info->hw_queue;
 	if (txq->stopped &&
 	    txq->pending_frames < sc->tx.txq_max_pending[q]) {
-		ieee80211_wake_queue(sc->hw, q);
+		ieee80211_wake_queue(sc->hw, hw_queue);
 		txq->stopped = false;
 	}
 }
@@ -2191,7 +2193,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
 	bool queue;
-	int q;
+	int q, hw_queue;
 	int ret;
 
 	if (vif)
@@ -2211,12 +2213,13 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 
 	q = skb_get_queue_mapping(skb);
+	hw_queue = (info->hw_queue >= sc->hw->queues - 2) ? q : info->hw_queue;
 
 	ath_txq_lock(sc, txq);
 	if (txq == sc->tx.txq_map[q] &&
 	    ++txq->pending_frames > sc->tx.txq_max_pending[q] &&
 	    !txq->stopped) {
-		ieee80211_stop_queue(sc->hw, q);
+		ieee80211_stop_queue(sc->hw, hw_queue);
 		txq->stopped = true;
 	}
 

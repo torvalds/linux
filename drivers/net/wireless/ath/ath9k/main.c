@@ -223,6 +223,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned long flags;
+	int i;
 
 	if (ath_startrecv(sc) != 0) {
 		ath_err(common, "Unable to restart recv logic\n");
@@ -267,7 +268,20 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
 
-	ieee80211_wake_queues(sc->hw);
+	if (!ath9k_use_chanctx)
+		ieee80211_wake_queues(sc->hw);
+	else {
+		if (sc->cur_chan == &sc->offchannel.chan)
+			ieee80211_wake_queue(sc->hw,
+					sc->hw->offchannel_tx_hw_queue);
+		else {
+			for (i = 0; i < IEEE80211_NUM_ACS; i++)
+				ieee80211_wake_queue(sc->hw,
+					sc->cur_chan->hw_queue_base + i);
+		}
+		if (ah->opmode == NL80211_IFTYPE_AP)
+			ieee80211_wake_queue(sc->hw, sc->hw->queues - 2);
+	}
 
 	ath9k_p2p_ps_timer(sc);
 
@@ -1108,6 +1122,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_node *an = &avp->mcast_node;
+	int i;
 
 	mutex_lock(&sc->mutex);
 
@@ -1130,6 +1145,12 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		avp->chanctx = sc->cur_chan;
 		list_add_tail(&avp->list, &avp->chanctx->vifs);
 	}
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		vif->hw_queue[i] = i;
+	if (vif->type == NL80211_IFTYPE_AP)
+		vif->cab_queue = hw->queues - 2;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 
 	an->sc = sc;
 	an->sta = NULL;
@@ -1149,6 +1170,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
+	int i;
 
 	mutex_lock(&sc->mutex);
 
@@ -1167,6 +1189,14 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 
 	if (ath9k_uses_beacons(vif->type))
 		ath9k_beacon_assign_slot(sc, vif);
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		vif->hw_queue[i] = i;
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		vif->cab_queue = hw->queues - 2;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 
 	ath9k_calculate_summary_state(sc, avp->chanctx);
 
@@ -1984,6 +2014,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int timeout = HZ / 5; /* 200 ms */
 	bool drain_txq;
+	int i;
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
@@ -2011,7 +2042,10 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			ath_reset(sc);
 
 		ath9k_ps_restore(sc);
-		ieee80211_wake_queues(hw);
+		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+			ieee80211_wake_queue(sc->hw,
+					     sc->cur_chan->hw_queue_base + i);
+		}
 	}
 
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
@@ -2468,6 +2502,7 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_chanctx *ctx, **ptr;
+	int pos;
 
 	mutex_lock(&sc->mutex);
 
@@ -2478,6 +2513,8 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 		ptr = (void *) conf->drv_priv;
 		*ptr = ctx;
 		ctx->assigned = true;
+		pos = ctx - &sc->chanctx[0];
+		ctx->hw_queue_base = pos * IEEE80211_NUM_ACS;
 		ath_chanctx_set_channel(sc, ctx, &conf->def);
 		mutex_unlock(&sc->mutex);
 		return 0;
@@ -2495,6 +2532,7 @@ static void ath9k_remove_chanctx(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ctx->assigned = false;
+	ctx->hw_queue_base = -1;
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_UNASSIGN);
 	mutex_unlock(&sc->mutex);
 }
@@ -2518,11 +2556,14 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+	int i;
 
 	mutex_lock(&sc->mutex);
 	avp->chanctx = ctx;
 	list_add_tail(&avp->list, &ctx->vifs);
 	ath9k_calculate_summary_state(sc, ctx);
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		vif->hw_queue[i] = ctx->hw_queue_base + i;
 	mutex_unlock(&sc->mutex);
 
 	return 0;
@@ -2535,11 +2576,14 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	struct ath_chanctx *ctx = ath_chanctx_get(conf);
+	int ac;
 
 	mutex_lock(&sc->mutex);
 	avp->chanctx = NULL;
 	list_del(&avp->list);
 	ath9k_calculate_summary_state(sc, ctx);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		vif->hw_queue[ac] = IEEE80211_INVAL_HW_QUEUE;
 	mutex_unlock(&sc->mutex);
 }
 
