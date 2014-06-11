@@ -2171,6 +2171,17 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
+static int ath_scan_channel_duration(struct ath_softc *sc,
+				     struct ieee80211_channel *chan)
+{
+	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
+
+	if (!req->n_ssids || (chan->flags & IEEE80211_CHAN_NO_IR))
+		return (HZ / 9); /* ~110 ms */
+
+	return (HZ / 16); /* ~60 ms */
+}
+
 static void
 ath_scan_next_channel(struct ath_softc *sc)
 {
@@ -2185,6 +2196,7 @@ ath_scan_next_channel(struct ath_softc *sc)
 	}
 
 	chan = req->channels[sc->offchannel.scan_idx++];
+	sc->offchannel.duration = ath_scan_channel_duration(sc, chan);
 	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_SEND;
 	ath_chanctx_offchan_switch(sc, chan);
 }
@@ -2200,6 +2212,7 @@ static void ath_offchannel_next(struct ath_softc *sc)
 	} else if (sc->offchannel.roc_vif) {
 		vif = sc->offchannel.roc_vif;
 		sc->offchannel.chan.txpower = vif->bss_conf.txpower;
+		sc->offchannel.duration = sc->offchannel.roc_duration;
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
 		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
 	} else {
@@ -2275,20 +2288,17 @@ error:
 static void ath_scan_channel_start(struct ath_softc *sc)
 {
 	struct cfg80211_scan_request *req = sc->offchannel.scan_req;
-	int i, dwell;
+	int i;
 
-	if ((sc->cur_chan->chandef.chan->flags & IEEE80211_CHAN_NO_IR) ||
-			!req->n_ssids) {
-		dwell = HZ / 9; /* ~110 ms */
-	} else {
-		dwell = HZ / 16; /* ~60 ms */
-
+	if (!(sc->cur_chan->chandef.chan->flags & IEEE80211_CHAN_NO_IR) &&
+	    req->n_ssids) {
 		for (i = 0; i < req->n_ssids; i++)
 			ath_scan_send_probe(sc, &req->ssids[i]);
+
 	}
 
 	sc->offchannel.state = ATH_OFFCHANNEL_PROBE_WAIT;
-	mod_timer(&sc->offchannel.timer, jiffies + dwell);
+	mod_timer(&sc->offchannel.timer, jiffies + sc->offchannel.duration);
 }
 
 void ath_offchannel_channel_change(struct ath_softc *sc)
@@ -2316,7 +2326,7 @@ void ath_offchannel_channel_change(struct ath_softc *sc)
 
 		sc->offchannel.state = ATH_OFFCHANNEL_ROC_WAIT;
 		mod_timer(&sc->offchannel.timer, jiffies +
-			  msecs_to_jiffies(sc->offchannel.roc_duration));
+			  msecs_to_jiffies(sc->offchannel.duration));
 		ieee80211_ready_on_channel(sc->hw);
 		break;
 	case ATH_OFFCHANNEL_ROC_DONE:

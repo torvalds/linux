@@ -385,6 +385,7 @@ struct ath_offchannel {
 	struct ieee80211_channel *roc_chan;
 	struct ieee80211_vif *roc_vif;
 	int roc_duration;
+	int duration;
 };
 #define ath_for_each_chanctx(_sc, _ctx)                             \
 	for (ctx = &sc->chanctx[0];                                 \
