@@ -970,6 +970,22 @@ static inline void drv_mgd_prepare_tx(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void
+drv_mgd_protect_tdls_discover(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION);
+
+	trace_drv_mgd_protect_tdls_discover(local, sdata);
+	if (local->ops->mgd_protect_tdls_discover)
+		local->ops->mgd_protect_tdls_discover(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
 static inline int drv_add_chanctx(struct ieee80211_local *local,
 				  struct ieee80211_chanctx *ctx)
 {

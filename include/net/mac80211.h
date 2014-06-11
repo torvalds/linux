@@ -2764,6 +2764,15 @@ enum ieee80211_roc_type {
  *	mac80211 will transmit the frame right away.
  *	The callback is optional and can (should!) sleep.
  *
+ * @mgd_protect_tdls_discover: Protect a TDLS discovery session. After sending
+ *	a TDLS discovery-request, we expect a reply to arrive on the AP's
+ *	channel. We must stay on the channel (no PSM, scan, etc.), since a TDLS
+ *	setup-response is a direct packet not buffered by the AP.
+ *	mac80211 will call this function just before the transmission of a TDLS
+ *	discovery-request. The recommended period of protection is at least
+ *	2 * (DTIM period).
+ *	The callback is optional and can sleep.
+ *
  * @add_chanctx: Notifies device driver about new channel context creation.
  * @remove_chanctx: Notifies device driver about channel context destruction.
  * @change_chanctx: Notifies device driver about channel context changes that
@@ -2980,6 +2989,9 @@ struct ieee80211_ops {
 
 	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif);
+
+	void	(*mgd_protect_tdls_discover)(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif);
 
 	int (*add_chanctx)(struct ieee80211_hw *hw,
 			   struct ieee80211_chanctx_conf *ctx);
