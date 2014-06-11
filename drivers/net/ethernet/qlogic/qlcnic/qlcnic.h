@@ -441,6 +441,8 @@ struct qlcnic_82xx_dump_template_hdr {
 	u32	rsvd1[0];
 };
 
+#define QLC_PEX_DMA_READ_SIZE	(PAGE_SIZE * 16)
+
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
 	bool	enable; /* enable/disable dump */
