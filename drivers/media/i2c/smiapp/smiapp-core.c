@@ -298,8 +298,9 @@ static int smiapp_pll_update(struct smiapp_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	*sensor->pixel_rate_parray->p_cur.p_s64 = pll->vt_pix_clk_freq_hz;
-	*sensor->pixel_rate_csi->p_cur.p_s64 = pll->pixel_rate_csi;
+	__v4l2_ctrl_s_ctrl_int64(sensor->pixel_rate_parray,
+				 pll->vt_pix_clk_freq_hz);
+	__v4l2_ctrl_s_ctrl_int64(sensor->pixel_rate_csi, pll->pixel_rate_csi);
 
 	return 0;
 }
@@ -508,6 +509,10 @@ static int smiapp_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_TEST_PATTERN_GREENB:
 		return smiapp_write(
 			sensor, SMIAPP_REG_U16_TEST_DATA_GREENB, ctrl->val);
+
+	case V4L2_CID_PIXEL_RATE:
+		/* For v4l2_ctrl_s_ctrl_int64() used internally. */
+		return 0;
 
 	default:
 		return -EINVAL;
