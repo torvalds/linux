@@ -13,8 +13,7 @@
 #define DPCD_RC0E_AUX_RD_INTERVAL                                       0x0000e
 
 /* DPCD Link Configuration */
-#define DPCD_LC00                                                       0x00100
-#define DPCD_LC00_LINK_BW_SET                                              0xff
+#define DPCD_LC00_LINK_BW_SET                                           0x00100
 #define DPCD_LC01                                                       0x00101
 #define DPCD_LC01_ENHANCED_FRAME_EN                                        0x80
 #define DPCD_LC01_LANE_COUNT_SET                                           0x1f
@@ -25,6 +24,16 @@
 #define DPCD_LC03_PRE_EMPHASIS_SET                                         0x18
 #define DPCD_LC03_MAX_SWING_REACHED                                        0x04
 #define DPCD_LC03_VOLTAGE_SWING_SET                                        0x03
+#define DPCD_LC0F                                                       0x0010f
+#define DPCD_LC0F_LANE1_MAX_POST_CURSOR2_REACHED                           0x40
+#define DPCD_LC0F_LANE1_POST_CURSOR2_SET                                   0x30
+#define DPCD_LC0F_LANE0_MAX_POST_CURSOR2_REACHED                           0x04
+#define DPCD_LC0F_LANE0_POST_CURSOR2_SET                                   0x03
+#define DPCD_LC10                                                       0x00110
+#define DPCD_LC10_LANE3_MAX_POST_CURSOR2_REACHED                           0x40
+#define DPCD_LC10_LANE3_POST_CURSOR2_SET                                   0x30
+#define DPCD_LC10_LANE2_MAX_POST_CURSOR2_REACHED                           0x04
+#define DPCD_LC10_LANE2_POST_CURSOR2_SET                                   0x03
 
 /* DPCD Link/Sink Status */
 #define DPCD_LS02                                                       0x00202
@@ -55,24 +64,12 @@
 #define DPCD_LS07_LANE3_VOLTAGE_SWING                                      0x30
 #define DPCD_LS07_LANE2_PRE_EMPHASIS                                       0x0c
 #define DPCD_LS07_LANE2_VOLTAGE_SWING                                      0x03
+#define DPCD_LS0C                                                       0x0020c
+#define DPCD_LS0C_LANE3_POST_CURSOR2                                       0xc0
+#define DPCD_LS0C_LANE2_POST_CURSOR2                                       0x30
+#define DPCD_LS0C_LANE1_POST_CURSOR2                                       0x0c
+#define DPCD_LS0C_LANE0_POST_CURSOR2                                       0x03
 
-struct nouveau_disp;
-struct dcb_output;
-
-struct nouveau_dp_func {
-	int (*pattern)(struct nouveau_disp *, struct dcb_output *,
-		       int head, int pattern);
-	int (*lnk_ctl)(struct nouveau_disp *, struct dcb_output *, int head,
-		       int link_nr, int link_bw, bool enh_frame);
-	int (*drv_ctl)(struct nouveau_disp *, struct dcb_output *, int head,
-		       int lane, int swing, int preem);
-};
-
-extern const struct nouveau_dp_func nv94_sor_dp_func;
-extern const struct nouveau_dp_func nvd0_sor_dp_func;
-extern const struct nouveau_dp_func nv50_pior_dp_func;
-
-int nouveau_dp_train(struct nouveau_disp *, const struct nouveau_dp_func *,
-		     struct dcb_output *, int, u32);
+void nouveau_dp_train(struct work_struct *);
 
 #endif
