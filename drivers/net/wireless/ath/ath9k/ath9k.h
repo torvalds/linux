@@ -338,6 +338,9 @@ enum ath_offchannel_state {
 	ATH_OFFCHANNEL_PROBE_SEND,
 	ATH_OFFCHANNEL_PROBE_WAIT,
 	ATH_OFFCHANNEL_SUSPEND,
+	ATH_OFFCHANNEL_ROC_START,
+	ATH_OFFCHANNEL_ROC_WAIT,
+	ATH_OFFCHANNEL_ROC_DONE,
 };
 
 struct ath_offchannel {
@@ -347,6 +350,9 @@ struct ath_offchannel {
 	struct ieee80211_vif *scan_vif;
 	int scan_idx;
 	enum ath_offchannel_state state;
+	struct ieee80211_channel *roc_chan;
+	struct ieee80211_vif *roc_vif;
+	int roc_duration;
 };
 
 void ath9k_fill_chanctx_ops(void);

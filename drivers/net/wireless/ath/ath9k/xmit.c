@@ -2197,6 +2197,9 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (vif)
 		avp = (void *)vif->drv_priv;
 
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		txctl->force_channel = true;
+
 	ret = ath_tx_prepare(hw, skb, txctl);
 	if (ret)
 	    return ret;
@@ -2234,7 +2237,8 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
-	if (info->flags & IEEE80211_TX_CTL_PS_RESPONSE) {
+	if (info->flags & (IEEE80211_TX_CTL_PS_RESPONSE |
+			   IEEE80211_TX_CTL_TX_OFFCHAN)) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);

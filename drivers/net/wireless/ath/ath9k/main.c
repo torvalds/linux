@@ -2176,22 +2176,48 @@ ath_scan_next_channel(struct ath_softc *sc)
 	ath_chanctx_offchan_switch(sc, chan);
 }
 
+static void ath_offchannel_next(struct ath_softc *sc)
+{
+	struct ieee80211_vif *vif;
+
+	if (sc->offchannel.scan_req) {
+		vif = sc->offchannel.scan_vif;
+		sc->offchannel.chan.txpower = vif->bss_conf.txpower;
+		ath_scan_next_channel(sc);
+	} else if (sc->offchannel.roc_vif) {
+		vif = sc->offchannel.roc_vif;
+		sc->offchannel.chan.txpower = vif->bss_conf.txpower;
+		sc->offchannel.state = ATH_OFFCHANNEL_ROC_START;
+		ath_chanctx_offchan_switch(sc, sc->offchannel.roc_chan);
+	} else {
+		ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
+		sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
+		if (sc->ps_idle)
+			ath_cancel_work(sc);
+	}
+}
+
+static void ath_roc_complete(struct ath_softc *sc, bool abort)
+{
+	sc->offchannel.roc_vif = NULL;
+	sc->offchannel.roc_chan = NULL;
+	if (!abort)
+		ieee80211_remain_on_channel_expired(sc->hw);
+	ath_offchannel_next(sc);
+	ath9k_ps_restore(sc);
+}
+
 static void ath_scan_complete(struct ath_softc *sc, bool abort)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	ath_chanctx_switch(sc, ath_chanctx_get_oper_chan(sc), NULL);
 	sc->offchannel.scan_req = NULL;
 	sc->offchannel.scan_vif = NULL;
 	sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
 	ieee80211_scan_completed(sc->hw, abort);
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
+	ath_offchannel_next(sc);
 	ath9k_ps_restore(sc);
-
-	if (!sc->ps_idle)
-		return;
-
-	ath_cancel_work(sc);
 }
 
 static void ath_scan_send_probe(struct ath_softc *sc,
@@ -2253,11 +2279,11 @@ static void ath_scan_channel_start(struct ath_softc *sc)
 
 void ath_offchannel_channel_change(struct ath_softc *sc)
 {
-	if (!sc->offchannel.scan_req)
-		return;
-
 	switch (sc->offchannel.state) {
 	case ATH_OFFCHANNEL_PROBE_SEND:
+		if (!sc->offchannel.scan_req)
+			return;
+
 		if (sc->cur_chan->chandef.chan !=
 		    sc->offchannel.chan.chandef.chan)
 			return;
@@ -2265,7 +2291,22 @@ void ath_offchannel_channel_change(struct ath_softc *sc)
 		ath_scan_channel_start(sc);
 		break;
 	case ATH_OFFCHANNEL_IDLE:
+		if (!sc->offchannel.scan_req)
+			return;
+
 		ath_scan_complete(sc, false);
+		break;
+	case ATH_OFFCHANNEL_ROC_START:
+		if (sc->cur_chan != &sc->offchannel.chan)
+			break;
+
+		sc->offchannel.state = ATH_OFFCHANNEL_ROC_WAIT;
+		mod_timer(&sc->offchannel.timer, jiffies +
+			  msecs_to_jiffies(sc->offchannel.roc_duration));
+		ieee80211_ready_on_channel(sc->hw);
+		break;
+	case ATH_OFFCHANNEL_ROC_DONE:
+		ath_roc_complete(sc, false);
 		break;
 	default:
 		break;
@@ -2277,11 +2318,11 @@ void ath_offchannel_timer(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_chanctx *ctx = ath_chanctx_get_oper_chan(sc);
 
-	if (!sc->offchannel.scan_req)
-		return;
-
 	switch (sc->offchannel.state) {
 	case ATH_OFFCHANNEL_PROBE_WAIT:
+		if (!sc->offchannel.scan_req)
+			return;
+
 		if (ctx->active) {
 			sc->offchannel.state = ATH_OFFCHANNEL_SUSPEND;
 			ath_chanctx_switch(sc, ctx, NULL);
@@ -2290,7 +2331,15 @@ void ath_offchannel_timer(unsigned long data)
 		}
 		/* fall through */
 	case ATH_OFFCHANNEL_SUSPEND:
+		if (!sc->offchannel.scan_req)
+			return;
+
 		ath_scan_next_channel(sc);
+		break;
+	case ATH_OFFCHANNEL_ROC_START:
+	case ATH_OFFCHANNEL_ROC_WAIT:
+		sc->offchannel.state = ATH_OFFCHANNEL_ROC_DONE;
+		ath_chanctx_switch(sc, ctx, NULL);
 		break;
 	default:
 		break;
@@ -2316,9 +2365,9 @@ static int ath9k_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sc->offchannel.scan_vif = vif;
 	sc->offchannel.scan_req = req;
 	sc->offchannel.scan_idx = 0;
-	sc->offchannel.chan.txpower = vif->bss_conf.txpower;
 
-	ath_scan_next_channel(sc);
+	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE)
+		ath_offchannel_next(sc);
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -2337,6 +2386,53 @@ static void ath9k_cancel_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&sc->mutex);
 }
 
+static int ath9k_remain_on_channel(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_channel *chan, int duration,
+				   enum ieee80211_roc_type type)
+{
+	struct ath_softc *sc = hw->priv;
+	int ret = 0;
+
+	mutex_lock(&sc->mutex);
+
+	if (WARN_ON(sc->offchannel.roc_vif)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ath9k_ps_wakeup(sc);
+	sc->offchannel.roc_vif = vif;
+	sc->offchannel.roc_chan = chan;
+	sc->offchannel.roc_duration = duration;
+
+	if (sc->offchannel.state == ATH_OFFCHANNEL_IDLE)
+		ath_offchannel_next(sc);
+
+out:
+	mutex_unlock(&sc->mutex);
+
+	return ret;
+}
+
+static int ath9k_cancel_remain_on_channel(struct ieee80211_hw *hw)
+{
+	struct ath_softc *sc = hw->priv;
+
+	mutex_lock(&sc->mutex);
+
+	del_timer_sync(&sc->offchannel.timer);
+
+	if (sc->offchannel.roc_vif) {
+		if (sc->offchannel.state >= ATH_OFFCHANNEL_ROC_START)
+			ath_roc_complete(sc, true);
+	}
+
+	mutex_unlock(&sc->mutex);
+
+	return 0;
+}
+
 void ath9k_fill_chanctx_ops(void)
 {
 	if (!ath9k_use_chanctx)
@@ -2344,6 +2440,8 @@ void ath9k_fill_chanctx_ops(void)
 
 	ath9k_ops.hw_scan = ath9k_hw_scan;
 	ath9k_ops.cancel_hw_scan = ath9k_cancel_hw_scan;
+	ath9k_ops.remain_on_channel  = ath9k_remain_on_channel;
+	ath9k_ops.cancel_remain_on_channel = ath9k_cancel_remain_on_channel;
 }
 
 struct ieee80211_ops ath9k_ops = {
