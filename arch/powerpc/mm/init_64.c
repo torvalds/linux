@@ -298,6 +298,37 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+{
+	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
+
+	/* Align to the page size of the linear mapping. */
+	start = _ALIGN_DOWN(start, page_size);
+
+	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+
+	for (; start < end; start += page_size) {
+		void *p;
+
+		if (vmemmap_populated(start, page_size))
+			continue;
+
+		p = vmemmap_alloc_block(page_size, node);
+		if (!p)
+			return -ENOMEM;
+
+		vmemmap_list_populate(__pa(p), start, node);
+
+		pr_debug("      * %016lx..%016lx allocated at %p\n",
+			 start, start + page_size, p);
+
+		vmemmap_create_mapping(start, page_size, __pa(p));
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
 static unsigned long vmemmap_list_free(unsigned long start)
 {
 	struct vmemmap_backing *vmem_back, *vmem_back_prev;
@@ -330,40 +361,52 @@ static unsigned long vmemmap_list_free(unsigned long start)
 	return vmem_back->phys;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+void __ref vmemmap_free(unsigned long start, unsigned long end)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
-	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
 
-	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+	pr_debug("vmemmap_free %lx...%lx\n", start, end);
 
 	for (; start < end; start += page_size) {
-		void *p;
+		unsigned long addr;
 
+		/*
+		 * the section has already be marked as invalid, so
+		 * vmemmap_populated() true means some other sections still
+		 * in this page, so skip it.
+		 */
 		if (vmemmap_populated(start, page_size))
 			continue;
 
-		p = vmemmap_alloc_block(page_size, node);
-		if (!p)
-			return -ENOMEM;
+		addr = vmemmap_list_free(start);
+		if (addr) {
+			struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
 
-		vmemmap_list_populate(__pa(p), start, node);
+			if (PageReserved(page)) {
+				/* allocated from bootmem */
+				if (page_size < PAGE_SIZE) {
+					/*
+					 * this shouldn't happen, but if it is
+					 * the case, leave the memory there
+					 */
+					WARN_ON_ONCE(1);
+				} else {
+					unsigned int nr_pages =
+						1 << get_order(page_size);
+					while (nr_pages--)
+						free_reserved_page(page++);
+				}
+			} else
+				free_pages((unsigned long)(__va(addr)),
+							get_order(page_size));
 
-		pr_debug("      * %016lx..%016lx allocated at %p\n",
-			 start, start + page_size, p);
-
-		vmemmap_create_mapping(start, page_size, __pa(p));
+			vmemmap_remove_mapping(start, page_size);
+		}
 	}
-
-	return 0;
 }
-
-void vmemmap_free(unsigned long start, unsigned long end)
-{
-}
-
+#endif
 void register_page_bootmem_memmap(unsigned long section_nr,
 				  struct page *start_page, unsigned long size)
 {
