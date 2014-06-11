@@ -227,7 +227,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	}
 
 	ath9k_cmn_update_txpow(ah, sc->curtxpow,
-			       sc->config.txpowlimit, &sc->curtxpow);
+			       sc->cur_chan->txpower, &sc->curtxpow);
 
 	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
 	ath9k_hw_set_interrupts(ah);
@@ -1315,9 +1315,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		ath_dbg(common, CONFIG, "Set power: %d\n", conf->power_level);
-		sc->config.txpowlimit = 2 * conf->power_level;
+		sc->cur_chan->txpower = 2 * conf->power_level;
 		ath9k_cmn_update_txpow(ah, sc->curtxpow,
-				       sc->config.txpowlimit, &sc->curtxpow);
+				       sc->cur_chan->txpower, &sc->curtxpow);
 	}
 
 	mutex_unlock(&sc->mutex);

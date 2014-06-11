@@ -36,10 +36,6 @@ extern int ath9k_modparam_nohwcrypt;
 extern int led_blink;
 extern bool is_ath9k_unloaded;
 
-struct ath_config {
-	u16 txpowlimit;
-};
-
 /*************************/
 /* Descriptor Management */
 /*************************/
@@ -328,6 +324,7 @@ struct ath_rx {
 struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
+	u16 txpower;
 	bool offchannel;
 };
 
@@ -753,7 +750,6 @@ struct ath_softc {
 	short nvifs;
 	unsigned long ps_usecount;
 
-	struct ath_config config;
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;

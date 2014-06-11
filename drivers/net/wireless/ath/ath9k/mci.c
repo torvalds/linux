@@ -720,7 +720,7 @@ void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
 		mci_hw->concur_tx = concur_tx;
 
 	if (old_concur_tx != mci_hw->concur_tx)
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
 }
 
 static void ath9k_mci_stomp_audio(struct ath_softc *sc)

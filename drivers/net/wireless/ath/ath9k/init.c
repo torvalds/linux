@@ -169,9 +169,9 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 
 	/* Set tx power */
 	if (ah->curchan) {
-		sc->config.txpowlimit = 2 * ah->curchan->chan->max_power;
+		sc->cur_chan->txpower = 2 * ah->curchan->chan->max_power;
 		ath9k_ps_wakeup(sc);
-		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		ath9k_hw_set_txpowerlimit(ah, sc->cur_chan->txpower, false);
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 		/* synchronize DFS detector if regulatory domain changed */
 		if (sc->dfs_detector != NULL)
@@ -335,7 +335,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	common->last_rssi = ATH_RSSI_DUMMY_MARKER;
-	sc->config.txpowlimit = ATH_TXPOWER_MAX;
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
