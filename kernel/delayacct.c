@@ -46,16 +46,6 @@ void __delayacct_tsk_init(struct task_struct *tsk)
 }
 
 /*
- * Start accounting for a delay statistic using
- * its starting timestamp (@start)
- */
-
-static inline void delayacct_start(struct timespec *start)
-{
-	do_posix_clock_monotonic_gettime(start);
-}
-
-/*
  * Finish delay accounting for a statistic using
  * its timestamps (@start, @end), accumalator (@total) and @count
  */
@@ -67,7 +57,7 @@ static void delayacct_end(struct timespec *start, struct timespec *end,
 	s64 ns;
 	unsigned long flags;
 
-	do_posix_clock_monotonic_gettime(end);
+	ktime_get_ts(end);
 	ts = timespec_sub(*end, *start);
 	ns = timespec_to_ns(&ts);
 	if (ns < 0)
@@ -81,7 +71,7 @@ static void delayacct_end(struct timespec *start, struct timespec *end,
 
 void __delayacct_blkio_start(void)
 {
-	delayacct_start(&current->delays->blkio_start);
+	ktime_get_ts(&current->delays->blkio_start);
 }
 
 void __delayacct_blkio_end(void)
@@ -169,7 +159,7 @@ __u64 __delayacct_blkio_ticks(struct task_struct *tsk)
 
 void __delayacct_freepages_start(void)
 {
-	delayacct_start(&current->delays->freepages_start);
+	ktime_get_ts(&current->delays->freepages_start);
 }
 
 void __delayacct_freepages_end(void)
