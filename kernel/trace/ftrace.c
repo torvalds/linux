@@ -2637,7 +2637,8 @@ ftrace_allocate_pages(unsigned long num_to_init)
 	return start_pg;
 
  free_pages:
-	while (start_pg) {
+	pg = start_pg;
+	while (pg) {
 		order = get_count_order(pg->size / ENTRIES_PER_PAGE);
 		free_pages((unsigned long)pg->records, order);
 		start_pg = pg->next;
