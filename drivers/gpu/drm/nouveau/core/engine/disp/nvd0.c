@@ -962,7 +962,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 	return NULL;
 }
 
-static bool
+static struct nvkm_output *
 exec_script(struct nv50_disp_priv *priv, int head, int id)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
@@ -979,7 +979,7 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	}
 
 	if (or == 8)
-		return false;
+		return NULL;
 
 	outp = exec_lookup(priv, head, or, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
 	if (outp) {
@@ -992,10 +992,10 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 			.execute = 1,
 		};
 
-		return nvbios_exec(&init) == 0;
+		nvbios_exec(&init);
 	}
 
-	return false;
+	return outp;
 }
 
 static struct nvkm_output *
@@ -1069,7 +1069,23 @@ nvd0_disp_intr_unk1_0(struct nv50_disp_priv *priv, int head)
 static void
 nvd0_disp_intr_unk2_0(struct nv50_disp_priv *priv, int head)
 {
-	exec_script(priv, head, 2);
+	struct nvkm_output *outp = exec_script(priv, head, 2);
+
+	/* see note in nv50_disp_intr_unk20_0() */
+	if (outp && outp->info.type == DCB_OUTPUT_DP) {
+		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = nouveau_bios(priv),
+			.outp = &outp->info,
+			.crtc = head,
+			.offset = outpdp->info.script[4],
+			.execute = 1,
+		};
+
+		nvbios_exec(&init);
+		atomic_set(&outpdp->lt.done, 0);
+	}
 }
 
 static void

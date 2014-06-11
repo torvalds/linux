@@ -1171,7 +1171,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int or, u32 ctrl,
 	return NULL;
 }
 
-static bool
+static struct nvkm_output *
 exec_script(struct nv50_disp_priv *priv, int head, int id)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
@@ -1208,7 +1208,7 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 	}
 
 	if (!(ctrl & (1 << head)))
-		return false;
+		return NULL;
 	i--;
 
 	outp = exec_lookup(priv, head, i, ctrl, &data, &ver, &hdr, &cnt, &len, &info);
@@ -1222,10 +1222,10 @@ exec_script(struct nv50_disp_priv *priv, int head, int id)
 			.execute = 1,
 		};
 
-		return nvbios_exec(&init) == 0;
+		nvbios_exec(&init);
 	}
 
-	return false;
+	return outp;
 }
 
 static struct nvkm_output *
@@ -1325,7 +1325,35 @@ nv50_disp_intr_unk10_0(struct nv50_disp_priv *priv, int head)
 static void
 nv50_disp_intr_unk20_0(struct nv50_disp_priv *priv, int head)
 {
-	exec_script(priv, head, 2);
+	struct nvkm_output *outp = exec_script(priv, head, 2);
+
+	/* the binary driver does this outside of the supervisor handling
+	 * (after the third supervisor from a detach).  we (currently?)
+	 * allow both detach/attach to happen in the same set of
+	 * supervisor interrupts, so it would make sense to execute this
+	 * (full power down?) script after all the detach phases of the
+	 * supervisor handling.  like with training if needed from the
+	 * second supervisor, nvidia doesn't do this, so who knows if it's
+	 * entirely safe, but it does appear to work..
+	 *
+	 * without this script being run, on some configurations i've
+	 * seen, switching from DP to TMDS on a DP connector may result
+	 * in a blank screen (SOR_PWR off/on can restore it)
+	 */
+	if (outp && outp->info.type == DCB_OUTPUT_DP) {
+		struct nvkm_output_dp *outpdp = (void *)outp;
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = nouveau_bios(priv),
+			.outp = &outp->info,
+			.crtc = head,
+			.offset = outpdp->info.script[4],
+			.execute = 1,
+		};
+
+		nvbios_exec(&init);
+		atomic_set(&outpdp->lt.done, 0);
+	}
 }
 
 static void
