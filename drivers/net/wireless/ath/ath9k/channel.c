@@ -270,6 +270,8 @@ void ath_chanctx_work(struct work_struct *work)
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
 	sc->sched.state = ATH_CHANCTX_STATE_IDLE;
+	sc->sched.offchannel_duration = 0;
+
 	spin_unlock_bh(&sc->chan_lock);
 
 	if (sc->sc_ah->chip_fullsleep ||
@@ -326,6 +328,12 @@ void ath_chanctx_switch(struct ath_softc *sc, struct ath_chanctx *ctx,
 	sc->next_chan = ctx;
 	if (chandef)
 		ctx->chandef = *chandef;
+
+	if (sc->next_chan == &sc->offchannel.chan) {
+		sc->sched.offchannel_duration =
+			TU_TO_USEC(sc->offchannel.duration) +
+			sc->sched.channel_switch_time;
+	}
 	spin_unlock_bh(&sc->chan_lock);
 	ieee80211_queue_work(sc->hw, &sc->chanctx_work);
 }
@@ -377,17 +385,40 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_vif *avp = NULL;
 	u32 tsf_time;
+	bool noa_changed = false;
+
+	if (vif)
+		avp = (struct ath_vif *) vif->drv_priv;
 
 	spin_lock_bh(&sc->chan_lock);
 
 	switch (ev) {
 	case ATH_CHANCTX_EVENT_BEACON_PREPARE:
+		if (avp->offchannel_duration)
+			avp->offchannel_duration = 0;
+
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
 			break;
 
 		sc->sched.beacon_pending = true;
 		sc->sched.next_tbtt = REG_READ(ah, AR_NEXT_TBTT_TIMER);
+
+		/* defer channel switch by a quarter beacon interval */
+		tsf_time = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
+		tsf_time = sc->sched.next_tbtt + tsf_time / 4;
+		sc->sched.switch_start_time = tsf_time;
+
+		if (sc->sched.offchannel_duration) {
+			noa_changed = true;
+			avp->offchannel_start = tsf_time;
+			avp->offchannel_duration =
+				sc->sched.offchannel_duration;
+		}
+
+		if (noa_changed)
+			avp->noa_index++;
 		break;
 	case ATH_CHANCTX_EVENT_BEACON_SENT:
 		if (!sc->sched.beacon_pending)
@@ -397,12 +428,10 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
 			break;
 
-		/* defer channel switch by a quarter beacon interval */
-		tsf_time = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
-		tsf_time = sc->sched.next_tbtt + tsf_time / 4;
 		sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_TIMER;
-		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer, tsf_time,
-				1000000);
+		ath9k_hw_gen_timer_start(ah, sc->p2p_ps_timer,
+					 sc->sched.switch_start_time,
+					 1000000);
 		break;
 	case ATH_CHANCTX_EVENT_TSF_TIMER:
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_TIMER)

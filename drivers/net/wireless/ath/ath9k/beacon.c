@@ -108,6 +108,40 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	ath9k_hw_set_txdesc(ah, bf->bf_desc, &info);
 }
 
+static void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
+				 struct sk_buff *skb)
+{
+	static const u8 noa_ie_hdr[] = {
+		WLAN_EID_VENDOR_SPECIFIC,	/* type */
+		0,				/* length */
+		0x50, 0x6f, 0x9a,		/* WFA OUI */
+		0x09,				/* P2P subtype */
+		0x0c,				/* Notice of Absence */
+		0x00,				/* LSB of little-endian len */
+		0x00,				/* MSB of little-endian len */
+	};
+
+	struct ieee80211_p2p_noa_attr *noa;
+	int noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc);
+	u8 *hdr;
+
+	if (!avp->offchannel_duration)
+		return;
+
+	hdr = skb_put(skb, sizeof(noa_ie_hdr));
+	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
+	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
+	hdr[7] = noa_len;
+
+	noa = (void *) skb_put(skb, noa_len);
+	memset(noa, 0, noa_len);
+
+	noa->index = avp->noa_index;
+	noa->desc[0].count = 1;
+	noa->desc[0].duration = cpu_to_le32(avp->offchannel_duration);
+	noa->desc[0].start_time = cpu_to_le32(avp->offchannel_start);
+}
+
 static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif)
 {
@@ -154,6 +188,9 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
 	}
+
+	if (vif->p2p)
+		ath9k_beacon_add_noa(sc, avp, skb);
 
 	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);

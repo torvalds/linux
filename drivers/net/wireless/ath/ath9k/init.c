@@ -754,6 +754,8 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 			hw->wiphy->max_remain_on_channel_duration = 10000;
 			hw->chanctx_data_size = sizeof(void *);
+			hw->extra_beacon_tailroom =
+				sizeof(struct ieee80211_p2p_noa_attr) + 9;
 		}
 	}
 

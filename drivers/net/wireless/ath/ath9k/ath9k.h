@@ -362,6 +362,8 @@ struct ath_chanctx_sched {
 	enum ath_chanctx_state state;
 
 	u32 next_tbtt;
+	u32 switch_start_time;
+	unsigned int offchannel_duration;
 	unsigned int channel_switch_time;
 };
 
@@ -472,6 +474,11 @@ struct ath_vif {
 
 	/* P2P Client */
 	struct ieee80211_noa_data noa;
+
+	/* P2P GO */
+	u8 noa_index;
+	u32 offchannel_start;
+	u32 offchannel_duration;
 };
 
 struct ath9k_vif_iter_data {
