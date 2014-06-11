@@ -194,7 +194,7 @@ static void usb_intf_stop(struct adapter *padapter)
 	rtw_hal_inirp_deinit(padapter);
 
 	/* cancel out irp */
-	rtw_write_port_cancel(padapter);
+	usb_write_port_cancel(padapter);
 
 	/* todo:cancel other irps */
 
