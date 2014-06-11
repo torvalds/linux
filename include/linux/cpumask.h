@@ -600,7 +600,7 @@ static inline int cpulist_scnprintf(char *buf, int len,
 static inline int cpumask_parse(const char *buf, struct cpumask *dstp)
 {
 	char *nl = strchr(buf, '\n');
-	int len = nl ? nl - buf : strlen(buf);
+	unsigned int len = nl ? (unsigned int)(nl - buf) : strlen(buf);
 
 	return bitmap_parse(buf, len, cpumask_bits(dstp), nr_cpumask_bits);
 }
