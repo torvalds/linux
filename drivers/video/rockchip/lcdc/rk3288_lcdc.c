@@ -1271,7 +1271,7 @@ static int rk3288_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	val = v_FS_INTR_CLR(1) | v_FS_INTR_EN(1) | v_LINE_FLAG_INTR_CLR(1) |
 	    v_LINE_FLAG_INTR_EN(1) | v_BUS_ERROR_INTR_CLR(1) | v_BUS_ERROR_INTR_EN(0) |
 	    v_DSP_LINE_FLAG_NUM(screen->mode.vsync_len + screen->mode.upper_margin +
-	    screen->mode.yres -1);
+	    screen->mode.yres);
 	lcdc_msk_reg(lcdc_dev, INTR_CTRL0, mask, val);	
 #if 0
 		 mask = m_WIN0_EMPTY_INTR_EN | m_WIN1_EMPTY_INTR_EN | m_WIN2_EMPTY_INTR_EN |
@@ -3093,6 +3093,9 @@ int rk3288_lcdc_poll_vblank(struct rk_lcdc_driver *dev_drv)
 	if (lcdc_dev->clk_on &&(!dev_drv->suspend_flag)){
 		int_reg = lcdc_readl(lcdc_dev, INTR_CTRL0);
 		if (int_reg & m_LINE_FLAG_INTR_STS) {
+			lcdc_dev->driver.frame_time.last_framedone_t =
+					lcdc_dev->driver.frame_time.framedone_t;
+			lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
 			lcdc_msk_reg(lcdc_dev, INTR_CTRL0, m_LINE_FLAG_INTR_CLR,
 				     v_LINE_FLAG_INTR_CLR(1));
 			ret = RK_LF_STATUS_FC;
@@ -3445,6 +3448,7 @@ static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 	    (struct lcdc_device *)dev_id;
 	ktime_t timestamp = ktime_get();
 	u32 intr0_reg;
+
 	intr0_reg = lcdc_readl(lcdc_dev, INTR_CTRL0);
 
 	if(intr0_reg & m_FS_INTR_STS){
@@ -3464,6 +3468,9 @@ static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
 
 	}else if(intr0_reg & m_LINE_FLAG_INTR_STS){
+		lcdc_dev->driver.frame_time.last_framedone_t =
+				lcdc_dev->driver.frame_time.framedone_t;
+		lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
 		lcdc_msk_reg(lcdc_dev, INTR_CTRL0, m_LINE_FLAG_INTR_CLR,
 			     v_LINE_FLAG_INTR_CLR(1));
 	}else if(intr0_reg & m_BUS_ERROR_INTR_STS){

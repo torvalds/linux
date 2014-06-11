@@ -103,7 +103,9 @@ extern struct ion_client *rockchip_ion_client_create(const char * name);
 #endif
 
 extern int rk_fb_poll_prmry_screen_vblank(void);
-extern int rk_fb_get_prmry_screen_ft(void);
+extern u32 rk_fb_get_prmry_screen_ft(void);
+extern u32 rk_fb_get_prmry_screen_vbt(void);
+extern u64 rk_fb_get_prmry_screen_framedone_t(void);
 extern bool rk_fb_poll_wait_frame_complete(void);
 
 /********************************************************************
@@ -240,6 +242,12 @@ struct rk_fb_rgb {
 	struct fb_bitfield green;
 	struct fb_bitfield blue;
 	struct fb_bitfield transp;
+};
+
+struct rk_fb_frame_time {
+	u64 last_framedone_t;
+	u64 framedone_t;
+	u32 ft;
 };
 
 struct rk_fb_vsync {
@@ -533,6 +541,7 @@ struct rk_lcdc_driver {
 	spinlock_t cpl_lock;	//lock for completion  frame done
 	int first_frame;
 	struct rk_fb_vsync vsync_info;
+	struct rk_fb_frame_time frame_time;
 	int wait_fs;		//wait for new frame start in kernel
 	struct sw_sync_timeline *timeline;
 	int			timeline_max;

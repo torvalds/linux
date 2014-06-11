@@ -512,27 +512,75 @@ static struct rk_lcdc_driver *rk_get_prmry_lcdc_drv(void)
 	return dev_drv;
 }
 
-int rk_fb_get_prmry_screen_ft(void)
+/*
+ * get one frame time of the prmry screen, unit: us
+ */
+u32 rk_fb_get_prmry_screen_ft(void)
 {
 	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
-	uint32_t htotal, vtotal, pix_total, ft_us, pixclock_ns;
+	uint32_t htotal, vtotal, pixclock_ps;
+	u64 pix_total, ft_us;
 
 	if (unlikely(!dev_drv))
 		return 0;
 
-	pixclock_ns = dev_drv->pixclock / 1000;
+	pixclock_ps = dev_drv->pixclock;
 
-	htotal = (dev_drv->cur_screen->mode.upper_margin +
+	vtotal = (dev_drv->cur_screen->mode.upper_margin +
 		 dev_drv->cur_screen->mode.lower_margin +
 		 dev_drv->cur_screen->mode.yres +
 		 dev_drv->cur_screen->mode.vsync_len);
-	vtotal = (dev_drv->cur_screen->mode.left_margin +
+	htotal = (dev_drv->cur_screen->mode.left_margin +
 		 dev_drv->cur_screen->mode.right_margin +
 		 dev_drv->cur_screen->mode.xres +
 		 dev_drv->cur_screen->mode.hsync_len);
-	pix_total = htotal * vtotal / 1000;
-	ft_us = pix_total * pixclock_ns;
-	return ft_us;
+	pix_total = htotal * vtotal;
+	ft_us = pix_total * pixclock_ps;
+	do_div(ft_us, 1000000);
+	if (dev_drv->frame_time.ft == 0)
+		dev_drv->frame_time.ft = ft_us;
+
+	ft_us = dev_drv->frame_time.framedone_t - dev_drv->frame_time.last_framedone_t;
+	do_div(ft_us, 1000);
+	dev_drv->frame_time.ft = min(dev_drv->frame_time.ft, ft_us);
+	return dev_drv->frame_time.ft;
+}
+
+/*
+ * get the vblanking time of the prmry screen, unit: us
+ */
+u32 rk_fb_get_prmry_screen_vbt(void)
+{
+	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+	uint32_t htotal, vblank, pixclock_ps;
+	u64 pix_blank, vbt_us;
+
+	if (unlikely(!dev_drv))
+		return 0;
+
+	pixclock_ps = dev_drv->pixclock;
+
+	htotal = (dev_drv->cur_screen->mode.left_margin +
+		 dev_drv->cur_screen->mode.right_margin +
+		 dev_drv->cur_screen->mode.xres +
+		 dev_drv->cur_screen->mode.hsync_len);
+	vblank = (dev_drv->cur_screen->mode.upper_margin +
+		 dev_drv->cur_screen->mode.lower_margin +
+		 dev_drv->cur_screen->mode.vsync_len);
+	pix_blank = htotal * vblank;
+	vbt_us = pix_blank * pixclock_ps;
+	do_div(vbt_us, 1000000);
+	return (u32)vbt_us;
+}
+
+/*
+ * get the frame done time of the prmry screen, unit: us
+ */
+u64 rk_fb_get_prmry_screen_framedone_t(void)
+{
+	struct rk_lcdc_driver *dev_drv = rk_get_prmry_lcdc_drv();
+
+	return dev_drv->frame_time.framedone_t;
 }
 
 static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
@@ -591,12 +639,10 @@ bool rk_fb_poll_wait_frame_complete(void)
 		}
 		return false;
 	}
-
 	while (!(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FR) && --timeout)
 		;
 	while (!(rk_fb_poll_prmry_screen_vblank() == RK_LF_STATUS_FC) && --timeout)
 		;
-
 	if (likely(dev_drv)) {
 		if (dev_drv->ops->set_irq_to_cpu)
 			dev_drv->ops->set_irq_to_cpu(dev_drv, 1);
