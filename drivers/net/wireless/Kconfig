@@ -84,6 +84,7 @@ choice
 	config AP6441
 		bool "AP6441"
 		depends on RKWIFI
+		select BCM2079X_NFC
 
 	config AP6476
 		bool "AP6476"
@@ -92,6 +93,7 @@ choice
 	config AP6493
 		bool "AP6493"
 		depends on RKWIFI
+		select BCM2079X_NFC
 
 	config GB86302I
 		bool "GB86302I"

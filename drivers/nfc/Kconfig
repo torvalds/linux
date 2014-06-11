@@ -5,6 +5,14 @@
 menu "Near Field Communication (NFC) devices"
 	depends on NFC
 
+config BCM2079X_NFC
+    tristate "bcm2079x NFC driver"
+    depends on AP6493 && AP6441
+    default n
+    ---help---
+      Say yes if you want bcm2079x Near Field Communication driver.
+      This is for i2c connected version. If unsure, say N here.
+
 config NFC_PN533
 	tristate "NXP PN533 USB driver"
 	depends on USB
