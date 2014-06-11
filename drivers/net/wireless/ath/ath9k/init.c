@@ -672,12 +672,28 @@ static const struct ieee80211_iface_limit wds_limits[] = {
 	{ .max = 2048,	.types = BIT(NL80211_IFTYPE_WDS) },
 };
 
+static const struct ieee80211_iface_limit if_limits_multi[] = {
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_STATION) },
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
 static const struct ieee80211_iface_limit if_dfs_limits[] = {
 	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) |
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
 				 BIT(NL80211_IFTYPE_ADHOC) },
+};
+
+static const struct ieee80211_iface_combination if_comb_multi[] = {
+	{
+		.limits = if_limits_multi,
+		.n_limits = ARRAY_SIZE(if_limits_multi),
+		.max_interfaces = 2,
+		.num_different_channels = 2,
+		.beacon_int_infra_match = true,
+	},
 };
 
 static const struct ieee80211_iface_combination if_comb[] = {
@@ -748,12 +764,14 @@ static void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_ADHOC) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
-		hw->wiphy->iface_combinations = if_comb;
 		if (!ath9k_use_chanctx) {
+			hw->wiphy->iface_combinations = if_comb;
 			hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 			hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_WDS);
 		} else {
-			hw->wiphy->n_iface_combinations = 1;
+			hw->wiphy->iface_combinations = if_comb_multi;
+			hw->wiphy->n_iface_combinations =
+				ARRAY_SIZE(if_comb_multi);
 			hw->wiphy->max_scan_ssids = 255;
 			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 			hw->wiphy->max_remain_on_channel_duration = 10000;
