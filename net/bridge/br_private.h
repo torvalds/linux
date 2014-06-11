@@ -35,6 +35,8 @@
 #define BR_GROUPFWD_DEFAULT	0
 /* Don't allow forwarding control protocols like STP and LLDP */
 #define BR_GROUPFWD_RESTRICTED	0x4007u
+/* The Nearest Customer Bridge Group Address, 01-80-C2-00-00-[00,0B,0C,0D,0F] */
+#define BR_GROUPFWD_8021AD	0xB801u
 
 /* Path to usermode spanning tree program */
 #define BR_STP_PROG	"/sbin/bridge-stp"
@@ -226,6 +228,7 @@ struct net_bridge
 	bool				nf_call_arptables;
 #endif
 	u16				group_fwd_mask;
+	u16				group_fwd_mask_required;
 
 	/* STP */
 	bridge_id			designated_root;
@@ -240,6 +243,7 @@ struct net_bridge
 	unsigned long			bridge_forward_delay;
 
 	u8				group_addr[ETH_ALEN];
+	bool				group_addr_set;
 	u16				root_port;
 
 	enum {
@@ -294,6 +298,7 @@ struct net_bridge
 	u32				auto_cnt;
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	u8				vlan_enabled;
+	__be16				vlan_proto;
 	struct net_port_vlans __rcu	*vlan_info;
 #endif
 };
@@ -593,7 +598,10 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags);
 int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
 bool br_vlan_find(struct net_bridge *br, u16 vid);
+void br_recalculate_fwd_mask(struct net_bridge *br);
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val);
+int br_vlan_set_proto(struct net_bridge *br, unsigned long val);
+void br_vlan_init(struct net_bridge *br);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags);
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 void nbp_vlan_flush(struct net_bridge_port *port);
@@ -687,6 +695,14 @@ static inline void br_vlan_flush(struct net_bridge *br)
 static inline bool br_vlan_find(struct net_bridge *br, u16 vid)
 {
 	return false;
+}
+
+static inline void br_recalculate_fwd_mask(struct net_bridge *br)
+{
+}
+
+static inline void br_vlan_init(struct net_bridge *br)
+{
 }
 
 static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags)
