@@ -543,6 +543,7 @@ struct rk_lcdc_driver {
 	struct kthread_worker	update_regs_worker;
 	struct task_struct	*update_regs_thread;
 	struct kthread_work	update_regs_work;
+	wait_queue_head_t 	update_regs_wait;
 
 	struct mutex		output_lock;
 	struct rk29fb_info *screen_ctr_info;

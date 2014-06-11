@@ -1557,8 +1557,6 @@ ext_win_exit:
 	g_last_win_num = regs->win_num;
 	g_first_buf = 0;
 
-	if (dev_drv->wait_fs == 1)
-		kfree(regs);
 }
 
 static void rk_fb_update_regs_handler(struct kthread_work *work)
@@ -1578,6 +1576,9 @@ static void rk_fb_update_regs_handler(struct kthread_work *work)
 		list_del(&data->list);
 		kfree(data);
 	}
+
+	if (dev_drv->wait_fs && list_empty(&dev_drv->update_regs_list))
+		wake_up_interruptible_all(&dev_drv->update_regs_wait);
 }
 
 static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
@@ -1843,7 +1844,8 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	struct sync_pt *retire_sync_pt;
 	char fence_name[20];
 #endif
-	int ret, i, j = 0;
+	int ret = 0, i, j = 0;
+	int list_is_empty = 0;
 
 	regs = kzalloc(sizeof(struct rk_fb_reg_data), GFP_KERNEL);
 	if (!regs) {
@@ -1879,6 +1881,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	mutex_lock(&dev_drv->output_lock);
 	if (!(dev_drv->suspend_flag == 0)) {
 		rk_fb_update_reg(dev_drv, regs);
+		kfree(regs);
 		printk(KERN_INFO "suspend_flag = 1\n");
 		goto err;
 	}
@@ -1930,7 +1933,17 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		queue_kthread_work(&dev_drv->update_regs_worker,
 				   &dev_drv->update_regs_work);
 	} else {
-		rk_fb_update_reg(dev_drv, regs);
+		mutex_lock(&dev_drv->update_regs_list_lock);
+		list_is_empty = list_empty(&dev_drv->update_regs_list) &&
+					list_empty(&saved_list);
+		mutex_unlock(&dev_drv->update_regs_list_lock);
+		if (!list_is_empty)
+			ret = wait_event_interruptible(dev_drv->update_regs_wait,
+				list_empty(&dev_drv->update_regs_list) && list_empty(&saved_list));
+		if (!ret) {
+			rk_fb_update_reg(dev_drv, regs);
+			kfree(regs);
+		}
 	}
 
 err:
@@ -3355,6 +3368,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		if (i == 0) {
 			init_waitqueue_head(&dev_drv->vsync_info.wait);
+			init_waitqueue_head(&dev_drv->update_regs_wait);
 			ret = device_create_file(fbi->dev, &dev_attr_vsync);
 			if (ret)
 				dev_err(fbi->dev,
