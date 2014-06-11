@@ -1224,13 +1224,41 @@ static u8 sctp_trans_score(const struct sctp_transport *trans)
 	return sctp_trans_state_to_prio_map[trans->state];
 }
 
+static struct sctp_transport *sctp_trans_elect_tie(struct sctp_transport *trans1,
+						   struct sctp_transport *trans2)
+{
+	if (trans1->error_count > trans2->error_count) {
+		return trans2;
+	} else if (trans1->error_count == trans2->error_count &&
+		   ktime_after(trans2->last_time_heard,
+			       trans1->last_time_heard)) {
+		return trans2;
+	} else {
+		return trans1;
+	}
+}
+
 static struct sctp_transport *sctp_trans_elect_best(struct sctp_transport *curr,
 						    struct sctp_transport *best)
 {
+	u8 score_curr, score_best;
+
 	if (best == NULL)
 		return curr;
 
-	return sctp_trans_score(curr) > sctp_trans_score(best) ? curr : best;
+	score_curr = sctp_trans_score(curr);
+	score_best = sctp_trans_score(best);
+
+	/* First, try a score-based selection if both transport states
+	 * differ. If we're in a tie, lets try to make a more clever
+	 * decision here based on error counts and last time heard.
+	 */
+	if (score_curr > score_best)
+		return curr;
+	else if (score_curr == score_best)
+		return sctp_trans_elect_tie(curr, best);
+	else
+		return best;
 }
 
 void sctp_assoc_update_retran_path(struct sctp_association *asoc)
@@ -1274,14 +1302,23 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 static void sctp_select_active_and_retran_path(struct sctp_association *asoc)
 {
 	struct sctp_transport *trans, *trans_pri = NULL, *trans_sec = NULL;
+	struct sctp_transport *trans_pf = NULL;
 
 	/* Look for the two most recently used active transports. */
 	list_for_each_entry(trans, &asoc->peer.transport_addr_list,
 			    transports) {
+		/* Skip uninteresting transports. */
 		if (trans->state == SCTP_INACTIVE ||
-		    trans->state == SCTP_UNCONFIRMED ||
-		    trans->state == SCTP_PF)
+		    trans->state == SCTP_UNCONFIRMED)
 			continue;
+		/* Keep track of the best PF transport from our
+		 * list in case we don't find an active one.
+		 */
+		if (trans->state == SCTP_PF) {
+			trans_pf = sctp_trans_elect_best(trans, trans_pf);
+			continue;
+		}
+		/* For active transports, pick the most recent ones. */
 		if (trans_pri == NULL ||
 		    ktime_after(trans->last_time_heard,
 				trans_pri->last_time_heard)) {
@@ -1317,10 +1354,13 @@ static void sctp_select_active_and_retran_path(struct sctp_association *asoc)
 		trans_sec = trans_pri;
 
 	/* If we failed to find a usable transport, just camp on the
-	 * primary, even if they are inactive.
+	 * primary or retran, even if they are inactive, if possible
+	 * pick a PF iff it's the better choice.
 	 */
 	if (trans_pri == NULL) {
-		trans_pri = asoc->peer.primary_path;
+		trans_pri = sctp_trans_elect_best(asoc->peer.primary_path,
+						  asoc->peer.retran_path);
+		trans_pri = sctp_trans_elect_best(trans_pri, trans_pf);
 		trans_sec = asoc->peer.primary_path;
 	}
 
