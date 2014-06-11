@@ -73,6 +73,7 @@ static LIST_HEAD(dev_list);
 static struct task_struct *nvme_thread;
 static struct workqueue_struct *nvme_workq;
 static wait_queue_head_t nvme_kthread_wait;
+static struct notifier_block nvme_nb;
 
 static void nvme_reset_failed_dev(struct work_struct *ws);
 
@@ -2115,14 +2116,25 @@ static size_t db_bar_size(struct nvme_dev *dev, unsigned nr_io_queues)
 	return 4096 + ((nr_io_queues + 1) * 8 * dev->db_stride);
 }
 
+static void nvme_cpu_workfn(struct work_struct *work)
+{
+	struct nvme_dev *dev = container_of(work, struct nvme_dev, cpu_work);
+	if (dev->initialized)
+		nvme_assign_io_queues(dev);
+}
+
 static int nvme_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
-	struct nvme_dev *dev = container_of(self, struct nvme_dev, nb);
+	struct nvme_dev *dev;
+
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_DEAD:
-		nvme_assign_io_queues(dev);
+		spin_lock(&dev_list_lock);
+		list_for_each_entry(dev, &dev_list, node)
+			schedule_work(&dev->cpu_work);
+		spin_unlock(&dev_list_lock);
 		break;
 	}
 	return NOTIFY_OK;
@@ -2190,11 +2202,6 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	/* Free previously allocated queues that are no longer usable */
 	nvme_free_queues(dev, nr_io_queues + 1);
 	nvme_assign_io_queues(dev);
-
-	dev->nb.notifier_call = &nvme_cpu_notify;
-	result = register_hotcpu_notifier(&dev->nb);
-	if (result)
-		goto free_queues;
 
 	return 0;
 
@@ -2495,8 +2502,6 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 	int i;
 
 	dev->initialized = 0;
-	unregister_hotcpu_notifier(&dev->nb);
-
 	nvme_dev_list_remove(dev);
 
 	if (!dev->bar || (dev->bar && readl(&dev->bar->csts) == -1)) {
@@ -2767,6 +2772,7 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->reset_workfn = nvme_reset_failed_dev;
 	INIT_WORK(&dev->reset_work, nvme_reset_workfn);
+	INIT_WORK(&dev->cpu_work, nvme_cpu_workfn);
 	dev->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
 	result = nvme_set_instance(dev);
@@ -2836,6 +2842,7 @@ static void nvme_remove(struct pci_dev *pdev)
 
 	pci_set_drvdata(pdev, NULL);
 	flush_work(&dev->reset_work);
+	flush_work(&dev->cpu_work);
 	misc_deregister(&dev->miscdev);
 	nvme_dev_remove(dev);
 	nvme_dev_shutdown(dev);
@@ -2923,11 +2930,18 @@ static int __init nvme_init(void)
 	else if (result > 0)
 		nvme_major = result;
 
-	result = pci_register_driver(&nvme_driver);
+	nvme_nb.notifier_call = &nvme_cpu_notify;
+	result = register_hotcpu_notifier(&nvme_nb);
 	if (result)
 		goto unregister_blkdev;
+
+	result = pci_register_driver(&nvme_driver);
+	if (result)
+		goto unregister_hotcpu;
 	return 0;
 
+ unregister_hotcpu:
+	unregister_hotcpu_notifier(&nvme_nb);
  unregister_blkdev:
 	unregister_blkdev(nvme_major, "nvme");
  kill_workq:
@@ -2938,6 +2952,7 @@ static int __init nvme_init(void)
 static void __exit nvme_exit(void)
 {
 	pci_unregister_driver(&nvme_driver);
+	unregister_hotcpu_notifier(&nvme_nb);
 	unregister_blkdev(nvme_major, "nvme");
 	destroy_workqueue(nvme_workq);
 	BUG_ON(nvme_thread && !IS_ERR(nvme_thread));
