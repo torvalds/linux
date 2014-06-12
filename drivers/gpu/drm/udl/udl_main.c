@@ -294,6 +294,7 @@ int udl_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = udl;
 
 	if (!udl_parse_vendor_descriptor(dev, dev->usbdev)) {
+		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;
 	}

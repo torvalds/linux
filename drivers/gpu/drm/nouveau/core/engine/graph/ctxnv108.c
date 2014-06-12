@@ -545,10 +545,12 @@ nv108_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	mmio_list(0x408010, 0x80000000,  0, 0);
 	mmio_list(0x419004, 0x00000000,  8, 1);
 	mmio_list(0x419008, 0x00000000,  0, 0);
+	mmio_list(0x4064cc, 0x80000000,  0, 0);
 	mmio_list(0x408004, 0x00000000,  8, 0);
 	mmio_list(0x408008, 0x80000030,  0, 0);
 	mmio_list(0x418808, 0x00000000,  8, 0);
 	mmio_list(0x41880c, 0x80000030,  0, 0);
+	mmio_list(0x4064c8, 0x00c20200,  0, 0);
 	mmio_list(0x418810, 0x80000000, 12, 2);
 	mmio_list(0x419848, 0x10000000, 12, 2);
 

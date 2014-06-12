@@ -22,7 +22,7 @@ struct ipu_soc;
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 
 #define IPUV3_CHANNEL_CSI0			 0
 #define IPUV3_CHANNEL_CSI1			 1
@@ -151,6 +151,8 @@ struct ipuv3_channel {
 struct ipu_dc_priv;
 struct ipu_dmfc_priv;
 struct ipu_di;
+struct ipu_smfc_priv;
+
 struct ipu_devtype;
 
 struct ipu_soc {
@@ -178,6 +180,7 @@ struct ipu_soc {
 	struct ipu_dp_priv	*dp_priv;
 	struct ipu_dmfc_priv	*dmfc_priv;
 	struct ipu_di		*di_priv[2];
+	struct ipu_smfc_priv	*smfc_priv;
 };
 
 void ipu_srm_dp_sync_update(struct ipu_soc *ipu);
@@ -205,5 +208,8 @@ void ipu_dc_exit(struct ipu_soc *ipu);
 
 int ipu_cpmem_init(struct ipu_soc *ipu, struct device *dev, unsigned long base);
 void ipu_cpmem_exit(struct ipu_soc *ipu);
+
+int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base);
+void ipu_smfc_exit(struct ipu_soc *ipu);
 
 #endif				/* __IPU_PRV_H__ */

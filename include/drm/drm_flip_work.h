@@ -57,6 +57,7 @@ typedef void (*drm_flip_func_t)(struct drm_flip_work *work, void *val);
  * @count: number of committed items
  * @func: callback fxn called for each committed item
  * @worker: worker which calls @func
+ * @fifo: queue of committed items
  */
 struct drm_flip_work {
 	const char *name;

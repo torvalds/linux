@@ -31,7 +31,7 @@
 
 #include <drm/drm_fourcc.h>
 
-#include "imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
 #include "ipu-prv.h"
 
 static inline u32 ipu_cm_read(struct ipu_soc *ipu, unsigned offset)
@@ -661,6 +661,39 @@ int ipu_module_disable(struct ipu_soc *ipu, u32 mask)
 }
 EXPORT_SYMBOL_GPL(ipu_module_disable);
 
+int ipu_csi_enable(struct ipu_soc *ipu, int csi)
+{
+	return ipu_module_enable(ipu, csi ? IPU_CONF_CSI1_EN : IPU_CONF_CSI0_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_csi_enable);
+
+int ipu_csi_disable(struct ipu_soc *ipu, int csi)
+{
+	return ipu_module_disable(ipu, csi ? IPU_CONF_CSI1_EN : IPU_CONF_CSI0_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_csi_disable);
+
+int ipu_smfc_enable(struct ipu_soc *ipu)
+{
+	return ipu_module_enable(ipu, IPU_CONF_SMFC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_smfc_enable);
+
+int ipu_smfc_disable(struct ipu_soc *ipu)
+{
+	return ipu_module_disable(ipu, IPU_CONF_SMFC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_smfc_disable);
+
+int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned int chno = channel->num;
+
+	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chno)) & idma_mask(chno)) ? 1 : 0;
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_get_current_buffer);
+
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
 	struct ipu_soc *ipu = channel->ipu;
@@ -896,8 +929,17 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 		goto err_dp;
 	}
 
+	ret = ipu_smfc_init(ipu, dev, ipu_base +
+			devtype->cm_ofs + IPU_CM_SMFC_REG_OFS);
+	if (ret) {
+		unit = "smfc";
+		goto err_smfc;
+	}
+
 	return 0;
 
+err_smfc:
+	ipu_dp_exit(ipu);
 err_dp:
 	ipu_dmfc_exit(ipu);
 err_dmfc:
@@ -977,6 +1019,7 @@ EXPORT_SYMBOL_GPL(ipu_idmac_channel_irq);
 
 static void ipu_submodules_exit(struct ipu_soc *ipu)
 {
+	ipu_smfc_exit(ipu);
 	ipu_dp_exit(ipu);
 	ipu_dmfc_exit(ipu);
 	ipu_dc_exit(ipu);
@@ -1001,6 +1044,7 @@ static void platform_device_unregister_children(struct platform_device *pdev)
 struct ipu_platform_reg {
 	struct ipu_client_platformdata pdata;
 	const char *name;
+	int reg_offset;
 };
 
 static const struct ipu_platform_reg client_reg[] = {
@@ -1022,13 +1066,29 @@ static const struct ipu_platform_reg client_reg[] = {
 			.dma[1] = -EINVAL,
 		},
 		.name = "imx-ipuv3-crtc",
+	}, {
+		.pdata = {
+			.csi = 0,
+			.dma[0] = IPUV3_CHANNEL_CSI0,
+			.dma[1] = -EINVAL,
+		},
+		.reg_offset = IPU_CM_CSI0_REG_OFS,
+		.name = "imx-ipuv3-camera",
+	}, {
+		.pdata = {
+			.csi = 1,
+			.dma[0] = IPUV3_CHANNEL_CSI1,
+			.dma[1] = -EINVAL,
+		},
+		.reg_offset = IPU_CM_CSI1_REG_OFS,
+		.name = "imx-ipuv3-camera",
 	},
 };
 
 static DEFINE_MUTEX(ipu_client_id_mutex);
 static int ipu_client_id;
 
-static int ipu_add_client_devices(struct ipu_soc *ipu)
+static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 {
 	struct device *dev = ipu->dev;
 	unsigned i;
@@ -1042,9 +1102,19 @@ static int ipu_add_client_devices(struct ipu_soc *ipu)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		const struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
+		struct resource res;
 
-		pdev = platform_device_register_data(dev, reg->name,
-			id++, &reg->pdata, sizeof(reg->pdata));
+		if (reg->reg_offset) {
+			memset(&res, 0, sizeof(res));
+			res.flags = IORESOURCE_MEM;
+			res.start = ipu_base + ipu->devtype->cm_ofs + reg->reg_offset;
+			res.end = res.start + PAGE_SIZE - 1;
+			pdev = platform_device_register_resndata(dev, reg->name,
+				id++, &res, 1, &reg->pdata, sizeof(reg->pdata));
+		} else {
+			pdev = platform_device_register_data(dev, reg->name,
+				id++, &reg->pdata, sizeof(reg->pdata));
+		}
 
 		if (IS_ERR(pdev))
 			goto err_register;
@@ -1241,7 +1311,7 @@ static int ipu_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_submodules_init;
 
-	ret = ipu_add_client_devices(ipu);
+	ret = ipu_add_client_devices(ipu, ipu_base);
 	if (ret) {
 		dev_err(&pdev->dev, "adding client devices failed with %d\n",
 				ret);

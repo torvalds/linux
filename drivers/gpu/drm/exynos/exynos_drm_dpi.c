@@ -40,20 +40,10 @@ exynos_dpi_detect(struct drm_connector *connector, bool force)
 {
 	struct exynos_dpi *ctx = connector_to_dpi(connector);
 
-	/* panels supported only by boot-loader are always connected */
-	if (!ctx->panel_node)
-		return connector_status_connected;
+	if (!ctx->panel->connector)
+		drm_panel_attach(ctx->panel, &ctx->connector);
 
-	if (!ctx->panel) {
-		ctx->panel = of_drm_find_panel(ctx->panel_node);
-		if (ctx->panel)
-			drm_panel_attach(ctx->panel, &ctx->connector);
-	}
-
-	if (ctx->panel)
-		return connector_status_connected;
-
-	return connector_status_disconnected;
+	return connector_status_connected;
 }
 
 static void exynos_dpi_connector_destroy(struct drm_connector *connector)
@@ -94,12 +84,6 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int exynos_dpi_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static struct drm_encoder *
 exynos_dpi_best_encoder(struct drm_connector *connector)
 {
@@ -110,7 +94,6 @@ exynos_dpi_best_encoder(struct drm_connector *connector)
 
 static struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 	.get_modes = exynos_dpi_get_modes,
-	.mode_valid = exynos_dpi_mode_valid,
 	.best_encoder = exynos_dpi_best_encoder,
 };
 
@@ -123,10 +106,7 @@ static int exynos_dpi_create_connector(struct exynos_drm_display *display,
 
 	ctx->encoder = encoder;
 
-	if (ctx->panel_node)
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-	else
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(encoder->dev, connector,
 				 &exynos_dpi_connector_funcs,
@@ -172,7 +152,7 @@ static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 		break;
 	default:
 		break;
-	};
+	}
 	ctx->dpms_mode = mode;
 }
 
@@ -294,8 +274,10 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 			return -ENOMEM;
 
 		ret = of_get_videomode(dn, vm, 0);
-		if (ret < 0)
+		if (ret < 0) {
+			devm_kfree(dev, vm);
 			return ret;
+		}
 
 		ctx->vm = vm;
 
@@ -308,32 +290,58 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 	return 0;
 }
 
-int exynos_dpi_probe(struct device *dev)
+struct exynos_drm_display *exynos_dpi_probe(struct device *dev)
 {
 	struct exynos_dpi *ctx;
 	int ret;
 
+	ret = exynos_drm_component_add(dev,
+					EXYNOS_DEVICE_TYPE_CONNECTOR,
+					exynos_dpi_display.type);
+	if (ret)
+		return ERR_PTR(ret);
+
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		goto err_del_component;
 
 	ctx->dev = dev;
 	exynos_dpi_display.ctx = ctx;
 	ctx->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	ret = exynos_dpi_parse_dt(ctx);
-	if (ret < 0)
-		return ret;
+	if (ret < 0) {
+		devm_kfree(dev, ctx);
+		goto err_del_component;
+	}
 
-	exynos_drm_display_register(&exynos_dpi_display);
+	if (ctx->panel_node) {
+		ctx->panel = of_drm_find_panel(ctx->panel_node);
+		if (!ctx->panel) {
+			exynos_drm_component_del(dev,
+						EXYNOS_DEVICE_TYPE_CONNECTOR);
+			return ERR_PTR(-EPROBE_DEFER);
+		}
+	}
 
-	return 0;
+	return &exynos_dpi_display;
+
+err_del_component:
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
+
+	return NULL;
 }
 
 int exynos_dpi_remove(struct device *dev)
 {
+	struct drm_encoder *encoder = exynos_dpi_display.encoder;
+	struct exynos_dpi *ctx = exynos_dpi_display.ctx;
+
 	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
-	exynos_drm_display_unregister(&exynos_dpi_display);
+	encoder->funcs->destroy(encoder);
+	drm_connector_cleanup(&ctx->connector);
+
+	exynos_drm_component_del(dev, EXYNOS_DEVICE_TYPE_CONNECTOR);
 
 	return 0;
 }
