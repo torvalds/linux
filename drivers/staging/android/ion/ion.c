@@ -36,7 +36,7 @@
 #include <linux/dma-buf.h>
 #include <linux/idr.h>
 #include <linux/rockchip_ion.h>
-#include <asm-generic/dma-contiguous.h>
+#include <linux/dma-contiguous.h>
 
 #include "ion.h"
 #include "ion_priv.h"

@@ -155,12 +155,12 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	if (cpu_ops[cpu]->cpu_postboot)
 		cpu_ops[cpu]->cpu_postboot();
 
-	smp_store_cpu_info(cpu);
-
 	/*
 	 * Enable GIC and timers.
 	 */
 	notify_cpu_starting(cpu);
+
+	smp_store_cpu_info(cpu);
 
 	/*
 	 * OK, now it's safe to let the boot CPU continue.  Wait for
@@ -170,6 +170,10 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
+	local_irq_enable();
+	local_fiq_enable();
+
+	local_dbg_enable();
 	local_irq_enable();
 	local_fiq_enable();
 
@@ -408,7 +412,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	smp_store_cpu_info(smp_processor_id());
 
-
 	/*
 	 * are we trying to boot more cores than exist?
 	 */
@@ -478,7 +481,7 @@ void show_ipi_list(struct seq_file *p, int prec)
 	for (i = 0; i < NR_IPI; i++) {
 		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i + IPI_RESCHEDULE,
 			   prec >= 4 ? " " : "");
-		for_each_present_cpu(cpu)
+		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ",
 				   __get_irq_stat(cpu, ipi_irqs[i]));
 		seq_printf(p, "      %s\n", ipi_types[i]);

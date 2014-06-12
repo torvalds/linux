@@ -494,6 +494,7 @@ static void adf_obj_destroy(struct adf_obj *obj, struct idr *idr)
 		struct adf_event_refcount *refcount =
 				container_of(node, struct adf_event_refcount,
 						node);
+		rb_erase(&refcount->node, &obj->event_refcount);
 		kfree(refcount);
 		node = rb_first(&obj->event_refcount);
 	}

@@ -19,6 +19,7 @@ config ARCH_ROCKCHIP
 	select ARM_AMBA
 	select DMADEVICES
 	select PL330_DMA
+	select FIQ_GLUE
 
 if ARCH_ROCKCHIP
 

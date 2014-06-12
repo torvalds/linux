@@ -150,7 +150,7 @@ ENDPROC(cpu_do_resume)
 #endif
 
 /*
- *	cpu_switch_mm(pgd_phys, tsk)
+ *	cpu_do_switch_mm(pgd_phys, tsk)
  *
  *	Set the translation table base pointer to be pgd_phys.
  *
@@ -173,19 +173,13 @@ ENDPROC(cpu_do_switch_mm)
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
-	/*
-	 * Preserve the link register across the function call.
-	 */
-	mov	x28, lr
-	bl	__flush_dcache_all
-	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
+	tlbi	vmalle1is			// invalidate I + D TLBs
 	dsb	sy
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	msr	mdscr_el1, xzr			// Reset mdscr_el1
-	tlbi	vmalle1is			// invalidate I + D TLBs
 	/*
 	 * Memory region attributes for LPAE:
 	 *

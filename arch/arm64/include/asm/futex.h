@@ -30,6 +30,7 @@
 "	cbnz	%w3, 1b\n"						\
 "3:\n"									\
 "	.pushsection .fixup,\"ax\"\n"					\
+"	.align	2\n"							\
 "4:	mov	%w0, %w5\n"						\
 "	b	3b\n"							\
 "	.popsection\n"							\
@@ -39,7 +40,7 @@
 "	.popsection\n"							\
 	: "=&r" (ret), "=&r" (oldval), "+Q" (*uaddr), "=&r" (tmp)	\
 	: "r" (oparg), "Ir" (-EFAULT)					\
-	: "cc", "memory")
+	: "memory")
 
 static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
@@ -126,7 +127,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 "	.popsection\n"
 	: "+r" (ret), "=&r" (val), "+Q" (*uaddr), "=&r" (tmp)
 	: "r" (oldval), "r" (newval), "Ir" (-EFAULT)
-	: "cc", "memory");
+	: "memory");
 
 	*uval = val;
 	return ret;

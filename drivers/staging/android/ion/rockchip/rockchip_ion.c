@@ -21,7 +21,7 @@
 #include <linux/uaccess.h>
 #include "../ion_priv.h"
 #include <linux/dma-buf.h>
-#include <asm-generic/dma-contiguous.h>
+#include <linux/dma-contiguous.h>
 #include <linux/memblock.h>
 
 #ifdef CONFIG_OF

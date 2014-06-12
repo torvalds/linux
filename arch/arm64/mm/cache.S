@@ -30,7 +30,7 @@
  *
  *	Corrupted registers: x0-x7, x9-x11
  */
-ENTRY(__flush_dcache_all)
+__flush_dcache_all:
 	dsb	sy				// ensure ordering with previous memory accesses
 	mrs	x0, clidr_el1			// read clidr
 	and	x3, x0, #0x7000000		// extract loc from clidr
@@ -146,7 +146,7 @@ ENDPROC(flush_icache_range)
 ENDPROC(__flush_cache_user_range)
 
 /*
- *	__flush_kern_dcache_page(kaddr)
+ *	__flush_dcache_area(kaddr, size)
  *
  *	Ensure that the data held in the page kaddr is written back to the
  *	page in question.
@@ -175,12 +175,19 @@ ENDPROC(__flush_dcache_area)
 __dma_inv_range:
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
-	bic	x0, x0, x3
+	tst	x1, x3				// end cache line aligned?
 	bic	x1, x1, x3
-1:	dc	ivac, x0			// invalidate D / U line
-	add	x0, x0, x2
+	b.eq	1f
+	dc	civac, x1			// clean & invalidate D / U line
+1:	tst	x0, x3				// start cache line aligned?
+	bic	x0, x0, x3
+	b.eq	2f
+	dc	civac, x0			// clean & invalidate D / U line
+	b	3f
+2:	dc	ivac, x0			// invalidate D / U line
+3:	add	x0, x0, x2
 	cmp	x0, x1
-	b.lo	1b
+	b.lo	2b
 	dsb	sy
 	ret
 ENDPROC(__dma_inv_range)

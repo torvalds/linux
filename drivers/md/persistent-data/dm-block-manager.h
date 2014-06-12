@@ -105,8 +105,7 @@ int dm_bm_unlock(struct dm_block *b);
  *
  * This method always blocks.
  */
-int dm_bm_flush_and_unlock(struct dm_block_manager *bm,
-			   struct dm_block *superblock);
+int dm_bm_flush(struct dm_block_manager *bm);
 
 /*
  * Switches the bm to a read only mode.  Once read-only mode

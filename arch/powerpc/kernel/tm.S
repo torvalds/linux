@@ -296,7 +296,7 @@ dont_backup_fp:
 	 *	Call with IRQs off, stacks get all out of sync for
 	 *	some periods in here!
 	 */
-_GLOBAL(tm_recheckpoint)
+_GLOBAL(__tm_recheckpoint)
 	mfcr	r5
 	mflr	r0
 	std	r5, 8(r1)

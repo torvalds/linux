@@ -1,7 +1,7 @@
 /*
  * arch/arm64/kernel/topology.c
  *
- * Copyright (C) 2011,2013 Linaro Limited.
+ * Copyright (C) 2011,2013,2014 Linaro Limited.
  *
  * Based on the arm32 version written by Vincent Guittot in turn based on
  * arch/sh/kernel/topology.c
@@ -13,6 +13,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/node.h>
@@ -21,14 +22,10 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/topology.h>
 #include <asm/cputype.h>
+#include <asm/topology.h>
 #include <asm/smp_plat.h>
 
-
-/*
- * cpu power scale management
- */
 
 /*
  * cpu power table
@@ -53,7 +50,144 @@ static void set_power_scale(unsigned int cpu, unsigned long power)
 	per_cpu(cpu_scale, cpu) = power;
 }
 
-#ifdef CONFIG_OF
+static int __init get_cpu_for_node(struct device_node *node)
+{
+	struct device_node *cpu_node;
+	int cpu;
+
+	cpu_node = of_parse_phandle(node, "cpu", 0);
+	if (!cpu_node)
+		return -1;
+
+	for_each_possible_cpu(cpu) {
+		if (of_get_cpu_node(cpu, NULL) == cpu_node) {
+			of_node_put(cpu_node);
+			return cpu;
+		}
+	}
+
+	pr_crit("Unable to find CPU node for %s\n", cpu_node->full_name);
+
+	of_node_put(cpu_node);
+	return -1;
+}
+
+static int __init parse_core(struct device_node *core, int cluster_id,
+			     int core_id)
+{
+	char name[10];
+	bool leaf = true;
+	int i = 0;
+	int cpu;
+	struct device_node *t;
+
+	do {
+		snprintf(name, sizeof(name), "thread%d", i);
+		t = of_get_child_by_name(core, name);
+		if (t) {
+			leaf = false;
+			cpu = get_cpu_for_node(t);
+			if (cpu >= 0) {
+				cpu_topology[cpu].cluster_id = cluster_id;
+				cpu_topology[cpu].core_id = core_id;
+				cpu_topology[cpu].thread_id = i;
+			} else {
+				pr_err("%s: Can't get CPU for thread\n",
+				       t->full_name);
+				of_node_put(t);
+				return -EINVAL;
+			}
+			of_node_put(t);
+		}
+		i++;
+	} while (t);
+
+	cpu = get_cpu_for_node(core);
+	if (cpu >= 0) {
+		if (!leaf) {
+			pr_err("%s: Core has both threads and CPU\n",
+			       core->full_name);
+			return -EINVAL;
+		}
+
+		cpu_topology[cpu].cluster_id = cluster_id;
+		cpu_topology[cpu].core_id = core_id;
+	} else if (leaf) {
+		pr_err("%s: Can't get CPU for leaf core\n", core->full_name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int __init parse_cluster(struct device_node *cluster, int depth)
+{
+	char name[10];
+	bool leaf = true;
+	bool has_cores = false;
+	struct device_node *c;
+	static int cluster_id __initdata;
+	int core_id = 0;
+	int i, ret;
+
+	/*
+	 * First check for child clusters; we currently ignore any
+	 * information about the nesting of clusters and present the
+	 * scheduler with a flat list of them.
+	 */
+	i = 0;
+	do {
+		snprintf(name, sizeof(name), "cluster%d", i);
+		c = of_get_child_by_name(cluster, name);
+		if (c) {
+			leaf = false;
+			ret = parse_cluster(c, depth + 1);
+			of_node_put(c);
+			if (ret != 0)
+				return ret;
+		}
+		i++;
+	} while (c);
+
+	/* Now check for cores */
+	i = 0;
+	do {
+		snprintf(name, sizeof(name), "core%d", i);
+		c = of_get_child_by_name(cluster, name);
+		if (c) {
+			has_cores = true;
+
+			if (depth == 0) {
+				pr_err("%s: cpu-map children should be clusters\n",
+				       c->full_name);
+				of_node_put(c);
+				return -EINVAL;
+			}
+
+			if (leaf) {
+				ret = parse_core(c, cluster_id, core_id++);
+			} else {
+				pr_err("%s: Non-leaf cluster with core %s\n",
+				       cluster->full_name, name);
+				ret = -EINVAL;
+			}
+
+			of_node_put(c);
+			if (ret != 0)
+				return ret;
+		}
+		i++;
+	} while (c);
+
+	if (leaf && !has_cores)
+		pr_warn("%s: empty cluster\n", cluster->full_name);
+
+	if (leaf)
+		cluster_id++;
+
+	return 0;
+}
+
 struct cpu_efficiency {
 	const char *compatible;
 	unsigned long efficiency;
@@ -79,125 +213,6 @@ static unsigned long *__cpu_capacity;
 #define cpu_capacity(cpu)	__cpu_capacity[cpu]
 
 static unsigned long middle_capacity = 1;
-static int cluster_id;
-
-static int __init get_cpu_for_node(struct device_node *node)
-{
-	struct device_node *cpu_node;
-	int cpu;
-
-	cpu_node = of_parse_phandle(node, "cpu", 0);
-	if (!cpu_node) {
-		pr_crit("%s: Unable to parse CPU phandle\n", node->full_name);
-		return -1;
-	}
-
-	for_each_possible_cpu(cpu) {
-		if (of_get_cpu_node(cpu, NULL) == cpu_node)
-			return cpu;
-	}
-
-	pr_crit("Unable to find CPU node for %s\n", cpu_node->full_name);
-	return -1;
-}
-
-static void __init parse_core(struct device_node *core, int core_id)
-{
-	char name[10];
-	bool leaf = true;
-	int i, cpu;
-	struct device_node *t;
-
-	i = 0;
-	do {
-		snprintf(name, sizeof(name), "thread%d", i);
-		t = of_get_child_by_name(core, name);
-		if (t) {
-			leaf = false;
-			cpu = get_cpu_for_node(t);
-			if (cpu >= 0) {
-				pr_info("CPU%d: socket %d core %d thread %d\n",
-					cpu, cluster_id, core_id, i);
-				cpu_topology[cpu].socket_id = cluster_id;
-				cpu_topology[cpu].core_id = core_id;
-				cpu_topology[cpu].thread_id = i;
-			} else {
-				pr_err("%s: Can't get CPU for thread\n",
-				       t->full_name);
-			}
-		}
-		i++;
-	} while (t);
-
-	cpu = get_cpu_for_node(core);
-	if (cpu >= 0) {
-		if (!leaf) {
-			pr_err("%s: Core has both threads and CPU\n",
-			       core->full_name);
-			return;
-		}
-
-		pr_info("CPU%d: socket %d core %d\n",
-			cpu, cluster_id, core_id);
-		cpu_topology[cpu].socket_id = cluster_id;
-		cpu_topology[cpu].core_id = core_id;
-	} else if (leaf) {
-		pr_err("%s: Can't get CPU for leaf core\n", core->full_name);
-	}
-}
-
-static void __init parse_cluster(struct device_node *cluster, int depth)
-{
-	char name[10];
-	bool leaf = true;
-	bool has_cores = false;
-	struct device_node *c;
-	int core_id = 0;
-	int i;
-
-	/*
-	 * First check for child clusters; we currently ignore any
-	 * information about the nesting of clusters and present the
-	 * scheduler with a flat list of them.
-	 */
-	i = 0;
-	do {
-		snprintf(name, sizeof(name), "cluster%d", i);
-		c = of_get_child_by_name(cluster, name);
-		if (c) {
-			parse_cluster(c, depth + 1);
-			leaf = false;
-		}
-		i++;
-	} while (c);
-
-	/* Now check for cores */
-	i = 0;
-	do {
-		snprintf(name, sizeof(name), "core%d", i);
-		c = of_get_child_by_name(cluster, name);
-		if (c) {
-			has_cores = true;
-
-			if (depth == 0)
-				pr_err("%s: cpu-map children should be clusters\n",
-				       c->full_name);
-
-			if (leaf)
-				parse_core(c, core_id++);
-			else
-				pr_err("%s: Non-leaf cluster with core %s\n",
-				       cluster->full_name, name);
-		}
-		i++;
-	} while (c);
-
-	if (leaf && !has_cores)
-		pr_warn("%s: empty cluster\n", cluster->full_name);
-
-	if (leaf)
-		cluster_id++;
-}
 
 /*
  * Iterate all CPUs' descriptor in DT and compute the efficiency
@@ -207,32 +222,60 @@ static void __init parse_cluster(struct device_node *cluster, int depth)
  * 'average' CPU is of middle power. Also see the comments near
  * table_efficiency[] and update_cpu_power().
  */
-static void __init parse_dt_topology(void)
+static int __init parse_dt_topology(void)
 {
-	const struct cpu_efficiency *cpu_eff;
-	struct device_node *cn = NULL;
-	unsigned long min_capacity = (unsigned long)(-1);
-	unsigned long max_capacity = 0;
-	unsigned long capacity = 0;
-	int alloc_size, cpu;
-
-	alloc_size = nr_cpu_ids * sizeof(*__cpu_capacity);
-	__cpu_capacity = kzalloc(alloc_size, GFP_NOWAIT);
+	struct device_node *cn, *map;
+	int ret = 0;
+	int cpu;
 
 	cn = of_find_node_by_path("/cpus");
 	if (!cn) {
 		pr_err("No CPU information found in DT\n");
-		return;
+		return 0;
 	}
 
 	/*
-	 * If topology is provided as a cpu-map it is essentially a
-	 * root cluster.
+	 * When topology is provided cpu-map is essentially a root
+	 * cluster with restricted subnodes.
 	 */
-	cn = of_find_node_by_name(cn, "cpu-map");
-	if (!cn)
-		return;
-	parse_cluster(cn, 0);
+	map = of_get_child_by_name(cn, "cpu-map");
+	if (!map)
+		goto out;
+
+	ret = parse_cluster(map, 0);
+	if (ret != 0)
+		goto out_map;
+
+	/*
+	 * Check that all cores are in the topology; the SMP code will
+	 * only mark cores described in the DT as possible.
+	 */
+	for_each_possible_cpu(cpu) {
+		if (cpu_topology[cpu].cluster_id == -1) {
+			pr_err("CPU%d: No topology information specified\n",
+			       cpu);
+			ret = -EINVAL;
+		}
+	}
+
+out_map:
+	of_node_put(map);
+out:
+	of_node_put(cn);
+	return ret;
+}
+
+static void __init parse_dt_cpu_power(void)
+{
+	const struct cpu_efficiency *cpu_eff;
+	struct device_node *cn;
+	unsigned long min_capacity = ULONG_MAX;
+	unsigned long max_capacity = 0;
+	unsigned long capacity = 0;
+	int cpu;
+
+	__cpu_capacity = kcalloc(nr_cpu_ids, sizeof(*__cpu_capacity),
+				 GFP_NOWAIT);
 
 	for_each_possible_cpu(cpu) {
 		const u32 *rate;
@@ -244,10 +287,6 @@ static void __init parse_dt_topology(void)
 			pr_err("Missing device node for CPU %d\n", cpu);
 			continue;
 		}
-
-		/* check if the cpu is marked as "disabled", if so ignore */
-		if (!of_device_is_available(cn))
-			continue;
 
 		for (cpu_eff = table_efficiency; cpu_eff->compatible; cpu_eff++)
 			if (of_device_is_compatible(cn, cpu_eff->compatible))
@@ -293,7 +332,6 @@ static void __init parse_dt_topology(void)
 	else
 		middle_capacity = ((max_capacity / 3)
 				>> (SCHED_POWER_SHIFT-1)) + 1;
-
 }
 
 /*
@@ -312,15 +350,10 @@ static void update_cpu_power(unsigned int cpu)
 		cpu, arch_scale_freq_power(NULL, cpu));
 }
 
-#else
-static inline void parse_dt_topology(void) {}
-static inline void update_cpu_power(unsigned int cpuid) {}
-#endif
-
 /*
  * cpu topology table
  */
-struct cputopo_arm cpu_topology[NR_CPUS];
+struct cpu_topology cpu_topology[NR_CPUS];
 EXPORT_SYMBOL_GPL(cpu_topology);
 
 const struct cpumask *cpu_coregroup_mask(int cpu)
@@ -330,14 +363,22 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 
 static void update_siblings_masks(unsigned int cpuid)
 {
-	struct cputopo_arm *cpu_topo, *cpuid_topo = &cpu_topology[cpuid];
+	struct cpu_topology *cpu_topo, *cpuid_topo = &cpu_topology[cpuid];
 	int cpu;
+
+	if (cpuid_topo->cluster_id == -1) {
+		/*
+		 * DT does not contain topology information for this cpu.
+		 */
+		pr_debug("CPU%u: No topology information configured\n", cpuid);
+		return;
+	}
 
 	/* update core and thread sibling masks */
 	for_each_possible_cpu(cpu) {
 		cpu_topo = &cpu_topology[cpu];
 
-		if (cpuid_topo->socket_id != cpu_topo->socket_id)
+		if (cpuid_topo->cluster_id != cpu_topo->cluster_id)
 			continue;
 
 		cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
@@ -351,20 +392,6 @@ static void update_siblings_masks(unsigned int cpuid)
 		if (cpu != cpuid)
 			cpumask_set_cpu(cpu, &cpuid_topo->thread_sibling);
 	}
-	smp_wmb();
-}
-
-void store_cpu_topology(unsigned int cpuid)
-{
-	struct cputopo_arm *cpuid_topo = &cpu_topology[cpuid];
-
-	/* Something should have picked a topology by the time we get here */
-	if (cpuid_topo->core_id == -1)
-		pr_warn("CPU%u: No topology information configured\n", cpuid);
-	else
-		update_siblings_masks(cpuid);
-
-	update_cpu_power(cpuid);
 }
 
 #ifdef CONFIG_SCHED_HMP
@@ -515,40 +542,49 @@ int cluster_to_logical_mask(unsigned int socket_id, cpumask_t *cluster_mask)
 	return -EINVAL;
 }
 
-/*
- * init_cpu_topology is called at boot when only one cpu is running
- * which prevent simultaneous write access to cpu_topology array
- */
-void __init init_cpu_topology(void)
+void store_cpu_topology(unsigned int cpuid)
+{
+	update_siblings_masks(cpuid);
+	update_cpu_power(cpuid);
+}
+
+static void __init reset_cpu_topology(void)
 {
 	unsigned int cpu;
 
-	/* init core mask and power*/
 	for_each_possible_cpu(cpu) {
-		struct cputopo_arm *cpu_topo = &(cpu_topology[cpu]);
+		struct cpu_topology *cpu_topo = &cpu_topology[cpu];
 
 		cpu_topo->thread_id = -1;
-		cpu_topo->core_id =  -1;
-		cpu_topo->socket_id = -1;
+		cpu_topo->core_id = 0;
+		cpu_topo->cluster_id = -1;
+
 		cpumask_clear(&cpu_topo->core_sibling);
+		cpumask_set_cpu(cpu, &cpu_topo->core_sibling);
 		cpumask_clear(&cpu_topo->thread_sibling);
-
-		set_power_scale(cpu, SCHED_POWER_SCALE);
+		cpumask_set_cpu(cpu, &cpu_topo->thread_sibling);
 	}
-	smp_wmb();
+}
 
-	parse_dt_topology();
+static void __init reset_cpu_power(void)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		set_power_scale(cpu, SCHED_POWER_SCALE);
+}
+
+void __init init_cpu_topology(void)
+{
+	reset_cpu_topology();
 
 	/*
-	 * Assign all remaining CPUs to a cluster so the scheduler
-	 * doesn't get confused.
+	 * Discard anything that was parsed if we hit an error so we
+	 * don't use partial information.
 	 */
-	for_each_possible_cpu(cpu) {
-		struct cputopo_arm *cpu_topo = &cpu_topology[cpu];
+	if (parse_dt_topology())
+		reset_cpu_topology();
 
-		if (cpu_topo->socket_id == -1) {
-			cpu_topo->socket_id = INT_MAX;
-			cpu_topo->core_id = cpu;
-		}
-	}
+	reset_cpu_power();
+	parse_dt_cpu_power();
 }

@@ -97,7 +97,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on (ARM || SUPERH || BLACKFIN || MIPS || MN10300)
+	depends on HAS_IOMEM
 	select CRC32
 	select NET_CORE
 	select MII
