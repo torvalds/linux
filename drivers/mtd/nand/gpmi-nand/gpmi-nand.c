@@ -1180,7 +1180,7 @@ static int gpmi_ecc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 		/* Handle block mark swapping. */
 		block_mark_swapping(this,
-				(void *) payload_virt, (void *) auxiliary_virt);
+				(void *)payload_virt, (void *)auxiliary_virt);
 	} else {
 		/*
 		 * If control arrives here, we're not doing block mark swapping,
@@ -1760,16 +1760,16 @@ err_out:
 static const struct of_device_id gpmi_nand_id_table[] = {
 	{
 		.compatible = "fsl,imx23-gpmi-nand",
-		.data = (void *)&gpmi_devdata_imx23,
+		.data = &gpmi_devdata_imx23,
 	}, {
 		.compatible = "fsl,imx28-gpmi-nand",
-		.data = (void *)&gpmi_devdata_imx28,
+		.data = &gpmi_devdata_imx28,
 	}, {
 		.compatible = "fsl,imx6q-gpmi-nand",
-		.data = (void *)&gpmi_devdata_imx6q,
+		.data = &gpmi_devdata_imx6q,
 	}, {
 		.compatible = "fsl,imx6sx-gpmi-nand",
-		.data = (void *)&gpmi_devdata_imx6sx,
+		.data = &gpmi_devdata_imx6sx,
 	}, {}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
