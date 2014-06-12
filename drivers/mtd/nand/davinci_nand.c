@@ -523,6 +523,7 @@ static struct nand_ecclayout hwecc4_2048 = {
 #if defined(CONFIG_OF)
 static const struct of_device_id davinci_nand_of_match[] = {
 	{.compatible = "ti,davinci-nand", },
+	{.compatible = "ti,keystone-nand", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
@@ -581,6 +582,11 @@ static struct davinci_nand_pdata
 		    of_property_read_bool(pdev->dev.of_node,
 			"ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
+
+		if (of_device_is_compatible(pdev->dev.of_node,
+					    "ti,keystone-nand")) {
+			pdata->options |= NAND_NO_SUBPAGE_WRITE;
+		}
 	}
 
 	return dev_get_platdata(&pdev->dev);

@@ -314,10 +314,9 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 	    !is_multicast_ether_addr(hdr->addr1))
 		txflags |= IEEE80211_RADIOTAP_F_TX_FAIL;
 
-	if ((info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
-	    (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		txflags |= IEEE80211_RADIOTAP_F_TX_CTS;
-	else if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+	if (info->status.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		txflags |= IEEE80211_RADIOTAP_F_TX_RTS;
 
 	put_unaligned_le16(txflags, pos);

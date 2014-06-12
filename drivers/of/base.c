@@ -1831,6 +1831,10 @@ int of_update_property(struct device_node *np, struct property *newprop)
 	if (!found)
 		return -ENODEV;
 
+	/* At early boot, bail out and defer setup to of_init() */
+	if (!of_kset)
+		return found ? 0 : -ENODEV;
+
 	/* Update the sysfs attribute */
 	sysfs_remove_bin_file(&np->kobj, &oldprop->attr);
 	__of_add_property_sysfs(np, newprop);

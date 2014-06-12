@@ -20,8 +20,8 @@
 #include "altera_sgdmahw.h"
 #include "altera_sgdma.h"
 
-static void sgdma_setup_descrip(struct sgdma_descrip *desc,
-				struct sgdma_descrip *ndesc,
+static void sgdma_setup_descrip(struct sgdma_descrip __iomem *desc,
+				struct sgdma_descrip __iomem *ndesc,
 				dma_addr_t ndesc_phys,
 				dma_addr_t raddr,
 				dma_addr_t waddr,
@@ -31,17 +31,17 @@ static void sgdma_setup_descrip(struct sgdma_descrip *desc,
 				int wfixed);
 
 static int sgdma_async_write(struct altera_tse_private *priv,
-			      struct sgdma_descrip *desc);
+			      struct sgdma_descrip __iomem *desc);
 
 static int sgdma_async_read(struct altera_tse_private *priv);
 
 static dma_addr_t
 sgdma_txphysaddr(struct altera_tse_private *priv,
-		 struct sgdma_descrip *desc);
+		 struct sgdma_descrip __iomem *desc);
 
 static dma_addr_t
 sgdma_rxphysaddr(struct altera_tse_private *priv,
-		 struct sgdma_descrip *desc);
+		 struct sgdma_descrip __iomem *desc);
 
 static int sgdma_txbusy(struct altera_tse_private *priv);
 
@@ -79,7 +79,8 @@ int sgdma_initialize(struct altera_tse_private *priv)
 	priv->rxdescphys = (dma_addr_t) 0;
 	priv->txdescphys = (dma_addr_t) 0;
 
-	priv->rxdescphys = dma_map_single(priv->device, priv->rx_dma_desc,
+	priv->rxdescphys = dma_map_single(priv->device,
+					  (void __force *)priv->rx_dma_desc,
 					  priv->rxdescmem, DMA_BIDIRECTIONAL);
 
 	if (dma_mapping_error(priv->device, priv->rxdescphys)) {
@@ -88,7 +89,8 @@ int sgdma_initialize(struct altera_tse_private *priv)
 		return -EINVAL;
 	}
 
-	priv->txdescphys = dma_map_single(priv->device, priv->tx_dma_desc,
+	priv->txdescphys = dma_map_single(priv->device,
+					  (void __force *)priv->tx_dma_desc,
 					  priv->txdescmem, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(priv->device, priv->txdescphys)) {
@@ -98,8 +100,8 @@ int sgdma_initialize(struct altera_tse_private *priv)
 	}
 
 	/* Initialize descriptor memory to all 0's, sync memory to cache */
-	memset(priv->tx_dma_desc, 0, priv->txdescmem);
-	memset(priv->rx_dma_desc, 0, priv->rxdescmem);
+	memset_io(priv->tx_dma_desc, 0, priv->txdescmem);
+	memset_io(priv->rx_dma_desc, 0, priv->rxdescmem);
 
 	dma_sync_single_for_device(priv->device, priv->txdescphys,
 				   priv->txdescmem, DMA_TO_DEVICE);
@@ -126,22 +128,15 @@ void sgdma_uninitialize(struct altera_tse_private *priv)
  */
 void sgdma_reset(struct altera_tse_private *priv)
 {
-	u32 *ptxdescripmem = (u32 *)priv->tx_dma_desc;
-	u32 txdescriplen   = priv->txdescmem;
-	u32 *prxdescripmem = (u32 *)priv->rx_dma_desc;
-	u32 rxdescriplen   = priv->rxdescmem;
-	struct sgdma_csr *ptxsgdma = (struct sgdma_csr *)priv->tx_dma_csr;
-	struct sgdma_csr *prxsgdma = (struct sgdma_csr *)priv->rx_dma_csr;
-
 	/* Initialize descriptor memory to 0 */
-	memset(ptxdescripmem, 0, txdescriplen);
-	memset(prxdescripmem, 0, rxdescriplen);
+	memset_io(priv->tx_dma_desc, 0, priv->txdescmem);
+	memset_io(priv->rx_dma_desc, 0, priv->rxdescmem);
 
-	iowrite32(SGDMA_CTRLREG_RESET, &ptxsgdma->control);
-	iowrite32(0, &ptxsgdma->control);
+	csrwr32(SGDMA_CTRLREG_RESET, priv->tx_dma_csr, sgdma_csroffs(control));
+	csrwr32(0, priv->tx_dma_csr, sgdma_csroffs(control));
 
-	iowrite32(SGDMA_CTRLREG_RESET, &prxsgdma->control);
-	iowrite32(0, &prxsgdma->control);
+	csrwr32(SGDMA_CTRLREG_RESET, priv->rx_dma_csr, sgdma_csroffs(control));
+	csrwr32(0, priv->rx_dma_csr, sgdma_csroffs(control));
 }
 
 /* For SGDMA, interrupts remain enabled after initially enabling,
@@ -167,14 +162,14 @@ void sgdma_disable_txirq(struct altera_tse_private *priv)
 
 void sgdma_clear_rxirq(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->rx_dma_csr;
-	tse_set_bit(&csr->control, SGDMA_CTRLREG_CLRINT);
+	tse_set_bit(priv->rx_dma_csr, sgdma_csroffs(control),
+		    SGDMA_CTRLREG_CLRINT);
 }
 
 void sgdma_clear_txirq(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->tx_dma_csr;
-	tse_set_bit(&csr->control, SGDMA_CTRLREG_CLRINT);
+	tse_set_bit(priv->tx_dma_csr, sgdma_csroffs(control),
+		    SGDMA_CTRLREG_CLRINT);
 }
 
 /* transmits buffer through SGDMA. Returns number of buffers
@@ -184,12 +179,11 @@ void sgdma_clear_txirq(struct altera_tse_private *priv)
  */
 int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *buffer)
 {
-	int pktstx = 0;
-	struct sgdma_descrip *descbase =
-		(struct sgdma_descrip *)priv->tx_dma_desc;
+	struct sgdma_descrip __iomem *descbase =
+		(struct sgdma_descrip __iomem *)priv->tx_dma_desc;
 
-	struct sgdma_descrip *cdesc = &descbase[0];
-	struct sgdma_descrip *ndesc = &descbase[1];
+	struct sgdma_descrip __iomem *cdesc = &descbase[0];
+	struct sgdma_descrip __iomem *ndesc = &descbase[1];
 
 	/* wait 'til the tx sgdma is ready for the next transmit request */
 	if (sgdma_txbusy(priv))
@@ -205,7 +199,7 @@ int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *buffer)
 			    0,				/* read fixed */
 			    SGDMA_CONTROL_WR_FIXED);	/* Generate SOP */
 
-	pktstx = sgdma_async_write(priv, cdesc);
+	sgdma_async_write(priv, cdesc);
 
 	/* enqueue the request to the pending transmit queue */
 	queue_tx(priv, buffer);
@@ -219,10 +213,10 @@ int sgdma_tx_buffer(struct altera_tse_private *priv, struct tse_buffer *buffer)
 u32 sgdma_tx_completions(struct altera_tse_private *priv)
 {
 	u32 ready = 0;
-	struct sgdma_descrip *desc = (struct sgdma_descrip *)priv->tx_dma_desc;
 
 	if (!sgdma_txbusy(priv) &&
-	    ((desc->control & SGDMA_CONTROL_HW_OWNED) == 0) &&
+	    ((csrrd8(priv->tx_dma_desc, sgdma_descroffs(control))
+	     & SGDMA_CONTROL_HW_OWNED) == 0) &&
 	    (dequeue_tx(priv))) {
 		ready = 1;
 	}
@@ -246,32 +240,31 @@ void sgdma_add_rx_desc(struct altera_tse_private *priv,
  */
 u32 sgdma_rx_status(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->rx_dma_csr;
-	struct sgdma_descrip *base = (struct sgdma_descrip *)priv->rx_dma_desc;
-	struct sgdma_descrip *desc = NULL;
-	int pktsrx;
-	unsigned int rxstatus = 0;
-	unsigned int pktlength = 0;
-	unsigned int pktstatus = 0;
+	struct sgdma_descrip __iomem *base =
+		(struct sgdma_descrip __iomem *)priv->rx_dma_desc;
+	struct sgdma_descrip __iomem *desc = NULL;
 	struct tse_buffer *rxbuffer = NULL;
+	unsigned int rxstatus = 0;
 
-	u32 sts = ioread32(&csr->status);
+	u32 sts = csrrd32(priv->rx_dma_csr, sgdma_csroffs(status));
 
 	desc = &base[0];
 	if (sts & SGDMA_STSREG_EOP) {
+		unsigned int pktlength = 0;
+		unsigned int pktstatus = 0;
 		dma_sync_single_for_cpu(priv->device,
 					priv->rxdescphys,
 					priv->sgdmadesclen,
 					DMA_FROM_DEVICE);
 
-		pktlength = desc->bytes_xferred;
-		pktstatus = desc->status & 0x3f;
-		rxstatus = pktstatus;
+		pktlength = csrrd16(desc, sgdma_descroffs(bytes_xferred));
+		pktstatus = csrrd8(desc, sgdma_descroffs(status));
+		rxstatus = pktstatus & ~SGDMA_STATUS_EOP;
 		rxstatus = rxstatus << 16;
 		rxstatus |= (pktlength & 0xffff);
 
 		if (rxstatus) {
-			desc->status = 0;
+			csrwr8(0, desc, sgdma_descroffs(status));
 
 			rxbuffer = dequeue_rx(priv);
 			if (rxbuffer == NULL)
@@ -279,12 +272,12 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 					    "sgdma rx and rx queue empty!\n");
 
 			/* Clear control */
-			iowrite32(0, &csr->control);
+			csrwr32(0, priv->rx_dma_csr, sgdma_csroffs(control));
 			/* clear status */
-			iowrite32(0xf, &csr->status);
+			csrwr32(0xf, priv->rx_dma_csr, sgdma_csroffs(status));
 
 			/* kick the rx sgdma after reaping this descriptor */
-			pktsrx = sgdma_async_read(priv);
+			sgdma_async_read(priv);
 
 		} else {
 			/* If the SGDMA indicated an end of packet on recv,
@@ -298,10 +291,11 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 			 */
 			netdev_err(priv->dev,
 				   "SGDMA RX Error Info: %x, %x, %x\n",
-				   sts, desc->status, rxstatus);
+				   sts, csrrd8(desc, sgdma_descroffs(status)),
+				   rxstatus);
 		}
 	} else if (sts == 0) {
-		pktsrx = sgdma_async_read(priv);
+		sgdma_async_read(priv);
 	}
 
 	return rxstatus;
@@ -309,8 +303,8 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 
 
 /* Private functions */
-static void sgdma_setup_descrip(struct sgdma_descrip *desc,
-				struct sgdma_descrip *ndesc,
+static void sgdma_setup_descrip(struct sgdma_descrip __iomem *desc,
+				struct sgdma_descrip __iomem *ndesc,
 				dma_addr_t ndesc_phys,
 				dma_addr_t raddr,
 				dma_addr_t waddr,
@@ -320,27 +314,30 @@ static void sgdma_setup_descrip(struct sgdma_descrip *desc,
 				int wfixed)
 {
 	/* Clear the next descriptor as not owned by hardware */
-	u32 ctrl = ndesc->control;
-	ctrl &= ~SGDMA_CONTROL_HW_OWNED;
-	ndesc->control = ctrl;
 
-	ctrl = 0;
+	u32 ctrl = csrrd8(ndesc, sgdma_descroffs(control));
+	ctrl &= ~SGDMA_CONTROL_HW_OWNED;
+	csrwr8(ctrl, ndesc, sgdma_descroffs(control));
+
 	ctrl = SGDMA_CONTROL_HW_OWNED;
 	ctrl |= generate_eop;
 	ctrl |= rfixed;
 	ctrl |= wfixed;
 
 	/* Channel is implicitly zero, initialized to 0 by default */
+	csrwr32(lower_32_bits(raddr), desc, sgdma_descroffs(raddr));
+	csrwr32(lower_32_bits(waddr), desc, sgdma_descroffs(waddr));
 
-	desc->raddr = raddr;
-	desc->waddr = waddr;
-	desc->next = lower_32_bits(ndesc_phys);
-	desc->control = ctrl;
-	desc->status = 0;
-	desc->rburst = 0;
-	desc->wburst = 0;
-	desc->bytes = length;
-	desc->bytes_xferred = 0;
+	csrwr32(0, desc, sgdma_descroffs(pad1));
+	csrwr32(0, desc, sgdma_descroffs(pad2));
+	csrwr32(lower_32_bits(ndesc_phys), desc, sgdma_descroffs(next));
+
+	csrwr8(ctrl, desc, sgdma_descroffs(control));
+	csrwr8(0, desc, sgdma_descroffs(status));
+	csrwr8(0, desc, sgdma_descroffs(wburst));
+	csrwr8(0, desc, sgdma_descroffs(rburst));
+	csrwr16(length, desc, sgdma_descroffs(bytes));
+	csrwr16(0, desc, sgdma_descroffs(bytes_xferred));
 }
 
 /* If hardware is busy, don't restart async read.
@@ -351,12 +348,11 @@ static void sgdma_setup_descrip(struct sgdma_descrip *desc,
  */
 static int sgdma_async_read(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->rx_dma_csr;
-	struct sgdma_descrip *descbase =
-		(struct sgdma_descrip *)priv->rx_dma_desc;
+	struct sgdma_descrip __iomem *descbase =
+		(struct sgdma_descrip __iomem *)priv->rx_dma_desc;
 
-	struct sgdma_descrip *cdesc = &descbase[0];
-	struct sgdma_descrip *ndesc = &descbase[1];
+	struct sgdma_descrip __iomem *cdesc = &descbase[0];
+	struct sgdma_descrip __iomem *ndesc = &descbase[1];
 
 	struct tse_buffer *rxbuffer = NULL;
 
@@ -382,11 +378,13 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 					   priv->sgdmadesclen,
 					   DMA_TO_DEVICE);
 
-		iowrite32(lower_32_bits(sgdma_rxphysaddr(priv, cdesc)),
-			  &csr->next_descrip);
+		csrwr32(lower_32_bits(sgdma_rxphysaddr(priv, cdesc)),
+			priv->rx_dma_csr,
+			sgdma_csroffs(next_descrip));
 
-		iowrite32((priv->rxctrlreg | SGDMA_CTRLREG_START),
-			  &csr->control);
+		csrwr32((priv->rxctrlreg | SGDMA_CTRLREG_START),
+			priv->rx_dma_csr,
+			sgdma_csroffs(control));
 
 		return 1;
 	}
@@ -395,32 +393,32 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 }
 
 static int sgdma_async_write(struct altera_tse_private *priv,
-			     struct sgdma_descrip *desc)
+			     struct sgdma_descrip __iomem *desc)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->tx_dma_csr;
-
 	if (sgdma_txbusy(priv))
 		return 0;
 
 	/* clear control and status */
-	iowrite32(0, &csr->control);
-	iowrite32(0x1f, &csr->status);
+	csrwr32(0, priv->tx_dma_csr, sgdma_csroffs(control));
+	csrwr32(0x1f, priv->tx_dma_csr, sgdma_csroffs(status));
 
 	dma_sync_single_for_device(priv->device, priv->txdescphys,
 				   priv->sgdmadesclen, DMA_TO_DEVICE);
 
-	iowrite32(lower_32_bits(sgdma_txphysaddr(priv, desc)),
-		  &csr->next_descrip);
+	csrwr32(lower_32_bits(sgdma_txphysaddr(priv, desc)),
+		priv->tx_dma_csr,
+		sgdma_csroffs(next_descrip));
 
-	iowrite32((priv->txctrlreg | SGDMA_CTRLREG_START),
-		  &csr->control);
+	csrwr32((priv->txctrlreg | SGDMA_CTRLREG_START),
+		priv->tx_dma_csr,
+		sgdma_csroffs(control));
 
 	return 1;
 }
 
 static dma_addr_t
 sgdma_txphysaddr(struct altera_tse_private *priv,
-		 struct sgdma_descrip *desc)
+		 struct sgdma_descrip __iomem *desc)
 {
 	dma_addr_t paddr = priv->txdescmem_busaddr;
 	uintptr_t offs = (uintptr_t)desc - (uintptr_t)priv->tx_dma_desc;
@@ -429,7 +427,7 @@ sgdma_txphysaddr(struct altera_tse_private *priv,
 
 static dma_addr_t
 sgdma_rxphysaddr(struct altera_tse_private *priv,
-		 struct sgdma_descrip *desc)
+		 struct sgdma_descrip __iomem *desc)
 {
 	dma_addr_t paddr = priv->rxdescmem_busaddr;
 	uintptr_t offs = (uintptr_t)desc - (uintptr_t)priv->rx_dma_desc;
@@ -518,8 +516,8 @@ queue_rx_peekhead(struct altera_tse_private *priv)
  */
 static int sgdma_rxbusy(struct altera_tse_private *priv)
 {
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->rx_dma_csr;
-	return ioread32(&csr->status) & SGDMA_STSREG_BUSY;
+	return csrrd32(priv->rx_dma_csr, sgdma_csroffs(status))
+		       & SGDMA_STSREG_BUSY;
 }
 
 /* waits for the tx sgdma to finish it's current operation, returns 0
@@ -528,13 +526,14 @@ static int sgdma_rxbusy(struct altera_tse_private *priv)
 static int sgdma_txbusy(struct altera_tse_private *priv)
 {
 	int delay = 0;
-	struct sgdma_csr *csr = (struct sgdma_csr *)priv->tx_dma_csr;
 
 	/* if DMA is busy, wait for current transactino to finish */
-	while ((ioread32(&csr->status) & SGDMA_STSREG_BUSY) && (delay++ < 100))
+	while ((csrrd32(priv->tx_dma_csr, sgdma_csroffs(status))
+		& SGDMA_STSREG_BUSY) && (delay++ < 100))
 		udelay(1);
 
-	if (ioread32(&csr->status) & SGDMA_STSREG_BUSY) {
+	if (csrrd32(priv->tx_dma_csr, sgdma_csroffs(status))
+	    & SGDMA_STSREG_BUSY) {
 		netdev_err(priv->dev, "timeout waiting for tx dma\n");
 		return 1;
 	}

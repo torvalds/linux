@@ -107,6 +107,7 @@
 					regulator-name = "VDD_IOPERI_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 					op_mode = <1>;
 				};
 

@@ -77,7 +77,6 @@ static inline xpaddr_t machine_to_phys(xmaddr_t machine)
 }
 /* VIRT <-> MACHINE conversion */
 #define virt_to_machine(v)	(phys_to_machine(XPADDR(__pa(v))))
-#define virt_to_pfn(v)          (PFN_DOWN(__pa(v)))
 #define virt_to_mfn(v)		(pfn_to_mfn(virt_to_pfn(v)))
 #define mfn_to_virt(m)		(__va(mfn_to_pfn(m) << PAGE_SHIFT))
 

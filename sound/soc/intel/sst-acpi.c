@@ -138,6 +138,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 
 	sst_pdata = &sst_acpi->sst_pdata;
 	sst_pdata->id = desc->sst_id;
+	sst_pdata->dma_dev = dev;
 	sst_acpi->desc = desc;
 	sst_acpi->mach = mach;
 

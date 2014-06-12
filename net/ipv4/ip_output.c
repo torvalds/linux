@@ -211,6 +211,48 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	return -EINVAL;
 }
 
+static int ip_finish_output_gso(struct sk_buff *skb)
+{
+	netdev_features_t features;
+	struct sk_buff *segs;
+	int ret = 0;
+
+	/* common case: locally created skb or seglen is <= mtu */
+	if (((IPCB(skb)->flags & IPSKB_FORWARDED) == 0) ||
+	      skb_gso_network_seglen(skb) <= ip_skb_dst_mtu(skb))
+		return ip_finish_output2(skb);
+
+	/* Slowpath -  GSO segment length is exceeding the dst MTU.
+	 *
+	 * This can happen in two cases:
+	 * 1) TCP GRO packet, DF bit not set
+	 * 2) skb arrived via virtio-net, we thus get TSO/GSO skbs directly
+	 * from host network stack.
+	 */
+	features = netif_skb_features(skb);
+	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
+	if (IS_ERR(segs)) {
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+
+	consume_skb(skb);
+
+	do {
+		struct sk_buff *nskb = segs->next;
+		int err;
+
+		segs->next = NULL;
+		err = ip_fragment(segs, ip_finish_output2);
+
+		if (err && ret == 0)
+			ret = err;
+		segs = nskb;
+	} while (segs);
+
+	return ret;
+}
+
 static int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
@@ -220,10 +262,13 @@ static int ip_finish_output(struct sk_buff *skb)
 		return dst_output(skb);
 	}
 #endif
-	if (skb->len > ip_skb_dst_mtu(skb) && !skb_is_gso(skb))
+	if (skb_is_gso(skb))
+		return ip_finish_output_gso(skb);
+
+	if (skb->len > ip_skb_dst_mtu(skb))
 		return ip_fragment(skb, ip_finish_output2);
-	else
-		return ip_finish_output2(skb);
+
+	return ip_finish_output2(skb);
 }
 
 int ip_mc_output(struct sock *sk, struct sk_buff *skb)

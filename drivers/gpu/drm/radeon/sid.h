@@ -107,8 +107,8 @@
 #define		SPLL_CHG_STATUS				(1 << 1)
 #define	SPLL_CNTL_MODE					0x618
 #define		SPLL_SW_DIR_CONTROL			(1 << 0)
-#	define SPLL_REFCLK_SEL(x)			((x) << 8)
-#	define SPLL_REFCLK_SEL_MASK			0xFF00
+#	define SPLL_REFCLK_SEL(x)			((x) << 26)
+#	define SPLL_REFCLK_SEL_MASK			(3 << 26)
 
 #define	CG_SPLL_SPREAD_SPECTRUM				0x620
 #define		SSEN					(1 << 0)

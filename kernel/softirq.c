@@ -223,7 +223,7 @@ static inline bool lockdep_softirq_start(void) { return false; }
 static inline void lockdep_softirq_end(bool in_hardirq) { }
 #endif
 
-asmlinkage void __do_softirq(void)
+asmlinkage __visible void __do_softirq(void)
 {
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	unsigned long old_flags = current->flags;
@@ -299,7 +299,7 @@ restart:
 	tsk_restore_flags(current, old_flags, PF_MEMALLOC);
 }
 
-asmlinkage void do_softirq(void)
+asmlinkage __visible void do_softirq(void)
 {
 	__u32 pending;
 	unsigned long flags;

@@ -127,6 +127,7 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg);
 void rt6_ifdown(struct net *net, struct net_device *dev);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
+void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);
 
 
 /*

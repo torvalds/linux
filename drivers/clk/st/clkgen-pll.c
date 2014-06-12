@@ -521,8 +521,10 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	gate->lock = odf_lock;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
-	if (!div)
+	if (!div) {
+		kfree(gate);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	div->flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO;
 	div->reg = reg + pll_data->odf[odf].offset;

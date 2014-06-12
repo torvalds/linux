@@ -349,7 +349,7 @@ int of_device_is_stdout_path(struct device_node *dn);
 
 #else /* CONFIG_OF */
 
-static inline const char* of_node_full_name(struct device_node *np)
+static inline const char* of_node_full_name(const struct device_node *np)
 {
 	return "<no-node>";
 }

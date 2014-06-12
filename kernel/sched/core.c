@@ -2192,7 +2192,7 @@ static inline void post_schedule(struct rq *rq)
  * schedule_tail - first thing a freshly forked thread must call.
  * @prev: the thread we just switched away from.
  */
-asmlinkage void schedule_tail(struct task_struct *prev)
+asmlinkage __visible void schedule_tail(struct task_struct *prev)
 	__releases(rq->lock)
 {
 	struct rq *rq = this_rq();
@@ -2592,8 +2592,14 @@ pick_next_task(struct rq *rq, struct task_struct *prev)
 	if (likely(prev->sched_class == class &&
 		   rq->nr_running == rq->cfs.h_nr_running)) {
 		p = fair_sched_class.pick_next_task(rq, prev);
-		if (likely(p && p != RETRY_TASK))
-			return p;
+		if (unlikely(p == RETRY_TASK))
+			goto again;
+
+		/* assumes fair_sched_class->next == idle_sched_class */
+		if (unlikely(!p))
+			p = idle_sched_class.pick_next_task(rq, prev);
+
+		return p;
 	}
 
 again:
@@ -2741,7 +2747,7 @@ static inline void sched_submit_work(struct task_struct *tsk)
 		blk_schedule_flush_plug(tsk);
 }
 
-asmlinkage void __sched schedule(void)
+asmlinkage __visible void __sched schedule(void)
 {
 	struct task_struct *tsk = current;
 
@@ -2751,7 +2757,7 @@ asmlinkage void __sched schedule(void)
 EXPORT_SYMBOL(schedule);
 
 #ifdef CONFIG_CONTEXT_TRACKING
-asmlinkage void __sched schedule_user(void)
+asmlinkage __visible void __sched schedule_user(void)
 {
 	/*
 	 * If we come here after a random call to set_need_resched(),
@@ -2783,7 +2789,7 @@ void __sched schedule_preempt_disabled(void)
  * off of preempt_enable. Kernel preemptions off return from interrupt
  * occur there and call schedule directly.
  */
-asmlinkage void __sched notrace preempt_schedule(void)
+asmlinkage __visible void __sched notrace preempt_schedule(void)
 {
 	/*
 	 * If there is a non-zero preempt_count or interrupts are disabled,
@@ -2813,7 +2819,7 @@ EXPORT_SYMBOL(preempt_schedule);
  * Note, that this is called and return with irqs disabled. This will
  * protect us against recursive calling from irq.
  */
-asmlinkage void __sched preempt_schedule_irq(void)
+asmlinkage __visible void __sched preempt_schedule_irq(void)
 {
 	enum ctx_state prev_state;
 
@@ -3124,6 +3130,7 @@ __setparam_dl(struct task_struct *p, const struct sched_attr *attr)
 	dl_se->dl_bw = to_ratio(dl_se->dl_period, dl_se->dl_runtime);
 	dl_se->dl_throttled = 0;
 	dl_se->dl_new = 1;
+	dl_se->dl_yielded = 0;
 }
 
 static void __setscheduler_params(struct task_struct *p,
@@ -3639,6 +3646,7 @@ SYSCALL_DEFINE2(sched_setparam, pid_t, pid, struct sched_param __user *, param)
  * sys_sched_setattr - same as above, but with extended sched_attr
  * @pid: the pid in question.
  * @uattr: structure containing the extended parameters.
+ * @flags: for future extension.
  */
 SYSCALL_DEFINE3(sched_setattr, pid_t, pid, struct sched_attr __user *, uattr,
 			       unsigned int, flags)
@@ -3783,6 +3791,7 @@ err_size:
  * @pid: the pid in question.
  * @uattr: structure containing the extended parameters.
  * @size: sizeof(attr) for fwd/bwd comp.
+ * @flags: for future extension.
  */
 SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
 		unsigned int, size, unsigned int, flags)
@@ -6017,6 +6026,8 @@ sd_numa_init(struct sched_domain_topology_level *tl, int cpu)
 					,
 		.last_balance		= jiffies,
 		.balance_interval	= sd_weight,
+		.max_newidle_lb_cost	= 0,
+		.next_decay_max_lb_cost	= jiffies,
 	};
 	SD_INIT_NAME(sd, NUMA);
 	sd->private = &tl->data;

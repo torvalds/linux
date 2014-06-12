@@ -329,6 +329,11 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	dout("crush decode tunable chooseleaf_descend_once = %d",
 	     c->chooseleaf_descend_once);
 
+	ceph_decode_need(p, end, sizeof(u8), done);
+	c->chooseleaf_vary_r = ceph_decode_8(p);
+	dout("crush decode tunable chooseleaf_vary_r = %d",
+	     c->chooseleaf_vary_r);
+
 done:
 	dout("crush_decode success\n");
 	return c;

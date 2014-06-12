@@ -1077,9 +1077,18 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
 
 	rcu_read_lock();
 	do {
-		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-		if (unlikely(!memcg))
+		/*
+		 * Page cache insertions can happen withou an
+		 * actual mm context, e.g. during disk probing
+		 * on boot, loopback IO, acct() writes etc.
+		 */
+		if (unlikely(!mm))
 			memcg = root_mem_cgroup;
+		else {
+			memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+			if (unlikely(!memcg))
+				memcg = root_mem_cgroup;
+		}
 	} while (!css_tryget(&memcg->css));
 	rcu_read_unlock();
 	return memcg;
@@ -3958,17 +3967,9 @@ int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
 		return 0;
 	}
 
-	/*
-	 * Page cache insertions can happen without an actual mm
-	 * context, e.g. during disk probing on boot.
-	 */
-	if (unlikely(!mm))
-		memcg = root_mem_cgroup;
-	else {
-		memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
-		if (!memcg)
-			return -ENOMEM;
-	}
+	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
+	if (!memcg)
+		return -ENOMEM;
 	__mem_cgroup_commit_charge(memcg, page, 1, type, false);
 	return 0;
 }

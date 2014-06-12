@@ -734,7 +734,7 @@ static int spi_qup_remove(struct platform_device *pdev)
 	int ret;
 
 	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	ret = spi_qup_set_state(controller, QUP_STATE_RESET);

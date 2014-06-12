@@ -995,8 +995,11 @@ retry:
 		ibytes = min_t(size_t, ibytes, have_bytes - reserved);
 	if (ibytes < min)
 		ibytes = 0;
-	entropy_count = max_t(int, 0,
-			      entropy_count - (ibytes << (ENTROPY_SHIFT + 3)));
+	if (have_bytes >= ibytes + reserved)
+		entropy_count -= ibytes << (ENTROPY_SHIFT + 3);
+	else
+		entropy_count = reserved << (ENTROPY_SHIFT + 3);
+
 	if (cmpxchg(&r->entropy_count, orig, entropy_count) != orig)
 		goto retry;
 

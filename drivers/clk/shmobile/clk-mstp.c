@@ -156,6 +156,7 @@ cpg_mstp_clock_register(const char *name, const char *parent_name,
 static void __init cpg_mstp_clocks_init(struct device_node *np)
 {
 	struct mstp_clock_group *group;
+	const char *idxname;
 	struct clk **clks;
 	unsigned int i;
 
@@ -184,6 +185,11 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	for (i = 0; i < MSTP_MAX_CLOCKS; ++i)
 		clks[i] = ERR_PTR(-ENOENT);
 
+	if (of_find_property(np, "clock-indices", &i))
+		idxname = "clock-indices";
+	else
+		idxname = "renesas,clock-indices";
+
 	for (i = 0; i < MSTP_MAX_CLOCKS; ++i) {
 		const char *parent_name;
 		const char *name;
@@ -197,8 +203,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 			continue;
 
 		parent_name = of_clk_get_parent_name(np, i);
-		ret = of_property_read_u32_index(np, "renesas,clock-indices", i,
-						 &clkidx);
+		ret = of_property_read_u32_index(np, idxname, i, &clkidx);
 		if (parent_name == NULL || ret < 0)
 			break;
 

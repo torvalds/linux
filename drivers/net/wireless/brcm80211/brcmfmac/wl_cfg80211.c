@@ -4948,7 +4948,7 @@ static int brcmf_enable_bw40_2g(struct brcmf_if *ifp)
 	if (!err) {
 		/* only set 2G bandwidth using bw_cap command */
 		band_bwcap.band = cpu_to_le32(WLC_BAND_2G);
-		band_bwcap.bw_cap = cpu_to_le32(WLC_BW_40MHZ_BIT);
+		band_bwcap.bw_cap = cpu_to_le32(WLC_BW_CAP_40MHZ);
 		err = brcmf_fil_iovar_data_set(ifp, "bw_cap", &band_bwcap,
 					       sizeof(band_bwcap));
 	} else {

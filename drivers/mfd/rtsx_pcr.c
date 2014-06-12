@@ -338,27 +338,57 @@ int rtsx_pci_transfer_data(struct rtsx_pcr *pcr, struct scatterlist *sglist,
 		int num_sg, bool read, int timeout)
 {
 	struct completion trans_done;
-	int err = 0, count;
+	u8 dir;
+	int err = 0, i, count;
 	long timeleft;
 	unsigned long flags;
+	struct scatterlist *sg;
+	enum dma_data_direction dma_dir;
+	u32 val;
+	dma_addr_t addr;
+	unsigned int len;
 
-	count = rtsx_pci_dma_map_sg(pcr, sglist, num_sg, read);
+	dev_dbg(&(pcr->pci->dev), "--> %s: num_sg = %d\n", __func__, num_sg);
+
+	/* don't transfer data during abort processing */
+	if (pcr->remove_pci)
+		return -EINVAL;
+
+	if ((sglist == NULL) || (num_sg <= 0))
+		return -EINVAL;
+
+	if (read) {
+		dir = DEVICE_TO_HOST;
+		dma_dir = DMA_FROM_DEVICE;
+	} else {
+		dir = HOST_TO_DEVICE;
+		dma_dir = DMA_TO_DEVICE;
+	}
+
+	count = dma_map_sg(&(pcr->pci->dev), sglist, num_sg, dma_dir);
 	if (count < 1) {
 		dev_err(&(pcr->pci->dev), "scatterlist map failed\n");
 		return -EINVAL;
 	}
 	dev_dbg(&(pcr->pci->dev), "DMA mapping count: %d\n", count);
 
+	val = ((u32)(dir & 0x01) << 29) | TRIG_DMA | ADMA_MODE;
+	pcr->sgi = 0;
+	for_each_sg(sglist, sg, count, i) {
+		addr = sg_dma_address(sg);
+		len = sg_dma_len(sg);
+		rtsx_pci_add_sg_tbl(pcr, addr, len, i == count - 1);
+	}
 
 	spin_lock_irqsave(&pcr->lock, flags);
 
 	pcr->done = &trans_done;
 	pcr->trans_result = TRANS_NOT_READY;
 	init_completion(&trans_done);
+	rtsx_pci_writel(pcr, RTSX_HDBAR, pcr->host_sg_tbl_addr);
+	rtsx_pci_writel(pcr, RTSX_HDBCTLR, val);
 
 	spin_unlock_irqrestore(&pcr->lock, flags);
-
-	rtsx_pci_dma_transfer(pcr, sglist, count, read);
 
 	timeleft = wait_for_completion_interruptible_timeout(
 			&trans_done, msecs_to_jiffies(timeout));
@@ -383,7 +413,7 @@ out:
 	pcr->done = NULL;
 	spin_unlock_irqrestore(&pcr->lock, flags);
 
-	rtsx_pci_dma_unmap_sg(pcr, sglist, num_sg, read);
+	dma_unmap_sg(&(pcr->pci->dev), sglist, num_sg, dma_dir);
 
 	if ((err < 0) && (err != -ENODEV))
 		rtsx_pci_stop_cmd(pcr);
@@ -394,73 +424,6 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtsx_pci_transfer_data);
-
-int rtsx_pci_dma_map_sg(struct rtsx_pcr *pcr, struct scatterlist *sglist,
-		int num_sg, bool read)
-{
-	enum dma_data_direction dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-
-	if (pcr->remove_pci)
-		return -EINVAL;
-
-	if ((sglist == NULL) || num_sg < 1)
-		return -EINVAL;
-
-	return dma_map_sg(&(pcr->pci->dev), sglist, num_sg, dir);
-}
-EXPORT_SYMBOL_GPL(rtsx_pci_dma_map_sg);
-
-int rtsx_pci_dma_unmap_sg(struct rtsx_pcr *pcr, struct scatterlist *sglist,
-		int num_sg, bool read)
-{
-	enum dma_data_direction dir = read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-
-	if (pcr->remove_pci)
-		return -EINVAL;
-
-	if (sglist == NULL || num_sg < 1)
-		return -EINVAL;
-
-	dma_unmap_sg(&(pcr->pci->dev), sglist, num_sg, dir);
-	return num_sg;
-}
-EXPORT_SYMBOL_GPL(rtsx_pci_dma_unmap_sg);
-
-int rtsx_pci_dma_transfer(struct rtsx_pcr *pcr, struct scatterlist *sglist,
-		int sg_count, bool read)
-{
-	struct scatterlist *sg;
-	dma_addr_t addr;
-	unsigned int len;
-	int i;
-	u32 val;
-	u8 dir = read ? DEVICE_TO_HOST : HOST_TO_DEVICE;
-	unsigned long flags;
-
-	if (pcr->remove_pci)
-		return -EINVAL;
-
-	if ((sglist == NULL) || (sg_count < 1))
-		return -EINVAL;
-
-	val = ((u32)(dir & 0x01) << 29) | TRIG_DMA | ADMA_MODE;
-	pcr->sgi = 0;
-	for_each_sg(sglist, sg, sg_count, i) {
-		addr = sg_dma_address(sg);
-		len = sg_dma_len(sg);
-		rtsx_pci_add_sg_tbl(pcr, addr, len, i == sg_count - 1);
-	}
-
-	spin_lock_irqsave(&pcr->lock, flags);
-
-	rtsx_pci_writel(pcr, RTSX_HDBAR, pcr->host_sg_tbl_addr);
-	rtsx_pci_writel(pcr, RTSX_HDBCTLR, val);
-
-	spin_unlock_irqrestore(&pcr->lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rtsx_pci_dma_transfer);
 
 int rtsx_pci_read_ppbuf(struct rtsx_pcr *pcr, u8 *buf, int buf_len)
 {
@@ -873,8 +836,6 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 	int_reg = rtsx_pci_readl(pcr, RTSX_BIPR);
 	/* Clear interrupt flag */
 	rtsx_pci_writel(pcr, RTSX_BIPR, int_reg);
-	dev_dbg(&pcr->pci->dev, "=========== BIPR 0x%8x ==========\n", int_reg);
-
 	if ((int_reg & pcr->bier) == 0) {
 		spin_unlock(&pcr->lock);
 		return IRQ_NONE;
@@ -905,27 +866,16 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 	}
 
 	if (int_reg & (NEED_COMPLETE_INT | DELINK_INT)) {
-		if (int_reg & (TRANS_FAIL_INT | DELINK_INT))
+		if (int_reg & (TRANS_FAIL_INT | DELINK_INT)) {
 			pcr->trans_result = TRANS_RESULT_FAIL;
-		else if (int_reg & TRANS_OK_INT)
+			if (pcr->done)
+				complete(pcr->done);
+		} else if (int_reg & TRANS_OK_INT) {
 			pcr->trans_result = TRANS_RESULT_OK;
-
-		if (pcr->done)
-			complete(pcr->done);
-
-		if (int_reg & SD_EXIST) {
-			struct rtsx_slot *slot = &pcr->slots[RTSX_SD_CARD];
-			if (slot && slot->done_transfer)
-				slot->done_transfer(slot->p_dev);
-		}
-
-		if (int_reg & MS_EXIST) {
-			struct rtsx_slot *slot = &pcr->slots[RTSX_SD_CARD];
-			if (slot && slot->done_transfer)
-				slot->done_transfer(slot->p_dev);
+			if (pcr->done)
+				complete(pcr->done);
 		}
 	}
-
 
 	if (pcr->card_inserted || pcr->card_removed)
 		schedule_delayed_work(&pcr->carddet_work,

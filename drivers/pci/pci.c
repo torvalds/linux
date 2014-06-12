@@ -3067,7 +3067,8 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 	if (!pci_is_pcie(dev))
 		return 1;
 
-	return pci_wait_for_pending(dev, PCI_EXP_DEVSTA, PCI_EXP_DEVSTA_TRPND);
+	return pci_wait_for_pending(dev, pci_pcie_cap(dev) + PCI_EXP_DEVSTA,
+				    PCI_EXP_DEVSTA_TRPND);
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
@@ -3109,7 +3110,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 		return 0;
 
 	/* Wait for Transaction Pending bit clean */
-	if (pci_wait_for_pending(dev, PCI_AF_STATUS, PCI_AF_STATUS_TP))
+	if (pci_wait_for_pending(dev, pos + PCI_AF_STATUS, PCI_AF_STATUS_TP))
 		goto clear;
 
 	dev_err(&dev->dev, "transaction is not cleared; "

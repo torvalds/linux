@@ -353,15 +353,46 @@ void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 }
 EXPORT_SYMBOL_GPL(__rtnl_link_unregister);
 
+/* Return with the rtnl_lock held when there are no network
+ * devices unregistering in any network namespace.
+ */
+static void rtnl_lock_unregistering_all(void)
+{
+	struct net *net;
+	bool unregistering;
+	DEFINE_WAIT(wait);
+
+	for (;;) {
+		prepare_to_wait(&netdev_unregistering_wq, &wait,
+				TASK_UNINTERRUPTIBLE);
+		unregistering = false;
+		rtnl_lock();
+		for_each_net(net) {
+			if (net->dev_unreg_count > 0) {
+				unregistering = true;
+				break;
+			}
+		}
+		if (!unregistering)
+			break;
+		__rtnl_unlock();
+		schedule();
+	}
+	finish_wait(&netdev_unregistering_wq, &wait);
+}
+
 /**
  * rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
  * @ops: struct rtnl_link_ops * to unregister
  */
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
-	rtnl_lock();
+	/* Close the race with cleanup_net() */
+	mutex_lock(&net_mutex);
+	rtnl_lock_unregistering_all();
 	__rtnl_link_unregister(ops);
 	rtnl_unlock();
+	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(rtnl_link_unregister);
 

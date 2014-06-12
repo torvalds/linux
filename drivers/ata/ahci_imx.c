@@ -29,9 +29,25 @@
 #include "ahci.h"
 
 enum {
-	PORT_PHY_CTL = 0x178,			/* Port0 PHY Control */
-	PORT_PHY_CTL_PDDQ_LOC = 0x100000,	/* PORT_PHY_CTL bits */
-	HOST_TIMER1MS = 0xe0,			/* Timer 1-ms */
+	/* Timer 1-ms Register */
+	IMX_TIMER1MS				= 0x00e0,
+	/* Port0 PHY Control Register */
+	IMX_P0PHYCR				= 0x0178,
+	IMX_P0PHYCR_TEST_PDDQ			= 1 << 20,
+	IMX_P0PHYCR_CR_READ			= 1 << 19,
+	IMX_P0PHYCR_CR_WRITE			= 1 << 18,
+	IMX_P0PHYCR_CR_CAP_DATA			= 1 << 17,
+	IMX_P0PHYCR_CR_CAP_ADDR			= 1 << 16,
+	/* Port0 PHY Status Register */
+	IMX_P0PHYSR				= 0x017c,
+	IMX_P0PHYSR_CR_ACK			= 1 << 18,
+	IMX_P0PHYSR_CR_DATA_OUT			= 0xffff << 0,
+	/* Lane0 Output Status Register */
+	IMX_LANE0_OUT_STAT			= 0x2003,
+	IMX_LANE0_OUT_STAT_RX_PLL_STATE		= 1 << 1,
+	/* Clock Reset Register */
+	IMX_CLOCK_RESET				= 0x7f3f,
+	IMX_CLOCK_RESET_RESET			= 1 << 0,
 };
 
 enum ahci_imx_type {
@@ -54,9 +70,149 @@ MODULE_PARM_DESC(hotplug, "AHCI IMX hot-plug support (0=Don't support, 1=support
 
 static void ahci_imx_host_stop(struct ata_host *host);
 
+static int imx_phy_crbit_assert(void __iomem *mmio, u32 bit, bool assert)
+{
+	int timeout = 10;
+	u32 crval;
+	u32 srval;
+
+	/* Assert or deassert the bit */
+	crval = readl(mmio + IMX_P0PHYCR);
+	if (assert)
+		crval |= bit;
+	else
+		crval &= ~bit;
+	writel(crval, mmio + IMX_P0PHYCR);
+
+	/* Wait for the cr_ack signal */
+	do {
+		srval = readl(mmio + IMX_P0PHYSR);
+		if ((assert ? srval : ~srval) & IMX_P0PHYSR_CR_ACK)
+			break;
+		usleep_range(100, 200);
+	} while (--timeout);
+
+	return timeout ? 0 : -ETIMEDOUT;
+}
+
+static int imx_phy_reg_addressing(u16 addr, void __iomem *mmio)
+{
+	u32 crval = addr;
+	int ret;
+
+	/* Supply the address on cr_data_in */
+	writel(crval, mmio + IMX_P0PHYCR);
+
+	/* Assert the cr_cap_addr signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_ADDR, true);
+	if (ret)
+		return ret;
+
+	/* Deassert cr_cap_addr */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_ADDR, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int imx_phy_reg_write(u16 val, void __iomem *mmio)
+{
+	u32 crval = val;
+	int ret;
+
+	/* Supply the data on cr_data_in */
+	writel(crval, mmio + IMX_P0PHYCR);
+
+	/* Assert the cr_cap_data signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_DATA, true);
+	if (ret)
+		return ret;
+
+	/* Deassert cr_cap_data */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_DATA, false);
+	if (ret)
+		return ret;
+
+	if (val & IMX_CLOCK_RESET_RESET) {
+		/*
+		 * In case we're resetting the phy, it's unable to acknowledge,
+		 * so we return immediately here.
+		 */
+		crval |= IMX_P0PHYCR_CR_WRITE;
+		writel(crval, mmio + IMX_P0PHYCR);
+		goto out;
+	}
+
+	/* Assert the cr_write signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_WRITE, true);
+	if (ret)
+		return ret;
+
+	/* Deassert cr_write */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_WRITE, false);
+	if (ret)
+		return ret;
+
+out:
+	return 0;
+}
+
+static int imx_phy_reg_read(u16 *val, void __iomem *mmio)
+{
+	int ret;
+
+	/* Assert the cr_read signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_READ, true);
+	if (ret)
+		return ret;
+
+	/* Capture the data from cr_data_out[] */
+	*val = readl(mmio + IMX_P0PHYSR) & IMX_P0PHYSR_CR_DATA_OUT;
+
+	/* Deassert cr_read */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_READ, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int imx_sata_phy_reset(struct ahci_host_priv *hpriv)
+{
+	void __iomem *mmio = hpriv->mmio;
+	int timeout = 10;
+	u16 val;
+	int ret;
+
+	/* Reset SATA PHY by setting RESET bit of PHY register CLOCK_RESET */
+	ret = imx_phy_reg_addressing(IMX_CLOCK_RESET, mmio);
+	if (ret)
+		return ret;
+	ret = imx_phy_reg_write(IMX_CLOCK_RESET_RESET, mmio);
+	if (ret)
+		return ret;
+
+	/* Wait for PHY RX_PLL to be stable */
+	do {
+		usleep_range(100, 200);
+		ret = imx_phy_reg_addressing(IMX_LANE0_OUT_STAT, mmio);
+		if (ret)
+			return ret;
+		ret = imx_phy_reg_read(&val, mmio);
+		if (ret)
+			return ret;
+		if (val & IMX_LANE0_OUT_STAT_RX_PLL_STATE)
+			break;
+	} while (--timeout);
+
+	return timeout ? 0 : -ETIMEDOUT;
+}
+
 static int imx_sata_enable(struct ahci_host_priv *hpriv)
 {
 	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
+	struct device *dev = &imxpriv->ahci_pdev->dev;
 	int ret;
 
 	if (imxpriv->no_device)
@@ -101,6 +257,14 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN);
+
+		usleep_range(100, 200);
+
+		ret = imx_sata_phy_reset(hpriv);
+		if (ret) {
+			dev_err(dev, "failed to reset phy: %d\n", ret);
+			goto disable_regulator;
+		}
 	}
 
 	usleep_range(1000, 2000);
@@ -156,8 +320,8 @@ static void ahci_imx_error_handler(struct ata_port *ap)
 	 * without full reset once the pddq mode is enabled making it
 	 * impossible to use as part of libata LPM.
 	 */
-	reg_val = readl(mmio + PORT_PHY_CTL);
-	writel(reg_val | PORT_PHY_CTL_PDDQ_LOC, mmio + PORT_PHY_CTL);
+	reg_val = readl(mmio + IMX_P0PHYCR);
+	writel(reg_val | IMX_P0PHYCR_TEST_PDDQ, mmio + IMX_P0PHYCR);
 	imx_sata_disable(hpriv);
 	imxpriv->no_device = true;
 }
@@ -217,6 +381,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	if (!imxpriv)
 		return -ENOMEM;
 
+	imxpriv->ahci_pdev = pdev;
 	imxpriv->no_device = false;
 	imxpriv->first_time = true;
 	imxpriv->type = (enum ahci_imx_type)of_id->data;
@@ -248,7 +413,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 
 	/*
 	 * Configure the HWINIT bits of the HOST_CAP and HOST_PORTS_IMPL,
-	 * and IP vendor specific register HOST_TIMER1MS.
+	 * and IP vendor specific register IMX_TIMER1MS.
 	 * Configure CAP_SSS (support stagered spin up).
 	 * Implement the port0.
 	 * Get the ahb clock rate, and configure the TIMER1MS register.
@@ -265,7 +430,7 @@ static int imx_ahci_probe(struct platform_device *pdev)
 	}
 
 	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
-	writel(reg_val, hpriv->mmio + HOST_TIMER1MS);
+	writel(reg_val, hpriv->mmio + IMX_TIMER1MS);
 
 	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info, 0, 0);
 	if (ret)

@@ -562,6 +562,7 @@ int cik_copy_dma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
+		radeon_semaphore_free(rdev, &sem, NULL);
 		return r;
 	}
 

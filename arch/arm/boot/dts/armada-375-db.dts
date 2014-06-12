@@ -79,6 +79,11 @@
 				};
 			};
 
+			sata@a0000 {
+				status = "okay";
+				nr-ports = <2>;
+			};
+
 			nand: nand@d0000 {
 				pinctrl-0 = <&nand_pins>;
 				pinctrl-names = "default";

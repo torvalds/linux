@@ -1308,19 +1308,19 @@ static struct platform_device at91_adc_device = {
 static struct at91_adc_trigger at91_adc_triggers[] = {
 	[0] = {
 		.name = "timer-counter-0",
-		.value = AT91_ADC_TRGSEL_TC0 | AT91_ADC_TRGEN,
+		.value = 0x1,
 	},
 	[1] = {
 		.name = "timer-counter-1",
-		.value = AT91_ADC_TRGSEL_TC1 | AT91_ADC_TRGEN,
+		.value = 0x3,
 	},
 	[2] = {
 		.name = "timer-counter-2",
-		.value = AT91_ADC_TRGSEL_TC2 | AT91_ADC_TRGEN,
+		.value = 0x5,
 	},
 	[3] = {
 		.name = "external",
-		.value = AT91_ADC_TRGSEL_EXTERNAL | AT91_ADC_TRGEN,
+		.value = 0xd,
 		.is_external = true,
 	},
 };

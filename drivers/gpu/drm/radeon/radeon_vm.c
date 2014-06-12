@@ -595,7 +595,7 @@ int radeon_vm_update_page_directory(struct radeon_device *rdev,
 	ndw = 64;
 
 	/* assume the worst case */
-	ndw += vm->max_pde_used * 12;
+	ndw += vm->max_pde_used * 16;
 
 	/* update too big for an IB */
 	if (ndw > 0xfffff)

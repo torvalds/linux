@@ -5780,7 +5780,6 @@ int si_irq_set(struct radeon_device *rdev)
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
 	u32 hpd1 = 0, hpd2 = 0, hpd3 = 0, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 	u32 grbm_int_cntl = 0;
-	u32 grph1 = 0, grph2 = 0, grph3 = 0, grph4 = 0, grph5 = 0, grph6 = 0;
 	u32 dma_cntl, dma_cntl1;
 	u32 thermal_int = 0;
 
@@ -5919,16 +5918,22 @@ int si_irq_set(struct radeon_device *rdev)
 	}
 
 	if (rdev->num_crtc >= 2) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET, grph1);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET, grph2);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC1_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
 	}
 	if (rdev->num_crtc >= 4) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET, grph3);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET, grph4);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC2_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC3_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
 	}
 	if (rdev->num_crtc >= 6) {
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET, grph5);
-		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, grph6);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC4_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
+		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET,
+		       GRPH_PFLIP_INT_MASK);
 	}
 
 	if (!ASIC_IS_NODCE(rdev)) {
@@ -6291,6 +6296,15 @@ restart_ih:
 				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+			break;
+		case 8: /* D1 page flip */
+		case 10: /* D2 page flip */
+		case 12: /* D3 page flip */
+		case 14: /* D4 page flip */
+		case 16: /* D5 page flip */
+		case 18: /* D6 page flip */
+			DRM_DEBUG("IH: D%d flip\n", ((src_id - 8) >> 1) + 1);
+			radeon_crtc_handle_flip(rdev, (src_id - 8) >> 1);
 			break;
 		case 42: /* HPD hotplug */
 			switch (src_data) {

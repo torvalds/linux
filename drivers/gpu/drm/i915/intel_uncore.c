@@ -185,6 +185,8 @@ static void vlv_force_wake_reset(struct drm_i915_private *dev_priv)
 {
 	__raw_i915_write32(dev_priv, FORCEWAKE_VLV,
 			   _MASKED_BIT_DISABLE(0xffff));
+	__raw_i915_write32(dev_priv, FORCEWAKE_MEDIA_VLV,
+			   _MASKED_BIT_DISABLE(0xffff));
 	/* something from same cacheline, but !FORCEWAKE_VLV */
 	__raw_posting_read(dev_priv, FORCEWAKE_ACK_VLV);
 }

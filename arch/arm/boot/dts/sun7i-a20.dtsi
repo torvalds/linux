@@ -87,7 +87,7 @@
 
 		pll4: clk@01c20018 {
 			#clock-cells = <0>;
-			compatible = "allwinner,sun4i-a10-pll1-clk";
+			compatible = "allwinner,sun7i-a20-pll4-clk";
 			reg = <0x01c20018 0x4>;
 			clocks = <&osc24M>;
 			clock-output-names = "pll4";
@@ -107,6 +107,14 @@
 			reg = <0x01c20028 0x4>;
 			clocks = <&osc24M>;
 			clock-output-names = "pll6_sata", "pll6_other", "pll6";
+		};
+
+		pll8: clk@01c20040 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun7i-a20-pll4-clk";
+			reg = <0x01c20040 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll8";
 		};
 
 		cpu: cpu@01c20054 {
@@ -805,9 +813,9 @@
 			status = "disabled";
 		};
 
-		i2c4: i2c@01c2bc00 {
+		i2c4: i2c@01c2c000 {
 			compatible = "allwinner,sun4i-i2c";
-			reg = <0x01c2bc00 0x400>;
+			reg = <0x01c2c000 0x400>;
 			interrupts = <0 89 4>;
 			clocks = <&apb1_gates 15>;
 			clock-frequency = <100000>;

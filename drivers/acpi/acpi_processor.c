@@ -405,7 +405,6 @@ static int acpi_processor_add(struct acpi_device *device,
 		goto err;
 
 	pr->dev = dev;
-	dev->offline = pr->flags.need_hotplug_init;
 
 	/* Trigger the processor driver's .probe() if present. */
 	if (device_attach(dev) >= 0)

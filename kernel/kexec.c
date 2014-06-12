@@ -1683,6 +1683,14 @@ int kernel_kexec(void)
 		kexec_in_progress = true;
 		kernel_restart_prepare(NULL);
 		migrate_to_reboot_cpu();
+
+		/*
+		 * migrate_to_reboot_cpu() disables CPU hotplug assuming that
+		 * no further code needs to use CPU hotplug (which is true in
+		 * the reboot case). However, the kexec path depends on using
+		 * CPU hotplug again; so re-enable it here.
+		 */
+		cpu_hotplug_enable();
 		printk(KERN_EMERG "Starting new kernel\n");
 		machine_shutdown();
 	}

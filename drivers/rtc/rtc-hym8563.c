@@ -569,6 +569,9 @@ static int hym8563_probe(struct i2c_client *client,
 	if (IS_ERR(hym8563->rtc))
 		return PTR_ERR(hym8563->rtc);
 
+	/* the hym8563 alarm only supports a minute accuracy */
+	hym8563->rtc->uie_unsupported = 1;
+
 #ifdef CONFIG_COMMON_CLK
 	hym8563_clkout_register_clk(hym8563);
 #endif

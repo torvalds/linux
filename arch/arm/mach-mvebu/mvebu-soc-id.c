@@ -108,7 +108,18 @@ static int __init mvebu_soc_id_init(void)
 	iounmap(pci_base);
 
 res_ioremap:
-	clk_disable_unprepare(clk);
+	/*
+	 * If the PCIe unit is actually enabled and we have PCI
+	 * support in the kernel, we intentionally do not release the
+	 * reference to the clock. We want to keep it running since
+	 * the bootloader does some PCIe link configuration that the
+	 * kernel is for now unable to do, and gating the clock would
+	 * make us loose this precious configuration.
+	 */
+	if (!of_device_is_available(child) || !IS_ENABLED(CONFIG_PCI_MVEBU)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 
 clk_err:
 	of_node_put(child);

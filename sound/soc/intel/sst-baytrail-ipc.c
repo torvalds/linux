@@ -542,16 +542,20 @@ struct sst_byt_stream *sst_byt_stream_new(struct sst_byt *byt, int id,
 	void *data)
 {
 	struct sst_byt_stream *stream;
+	struct sst_dsp *sst = byt->dsp;
+	unsigned long flags;
 
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (stream == NULL)
 		return NULL;
 
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_add(&stream->node, &byt->stream_list);
 	stream->notify_position = notify_position;
 	stream->pdata = data;
 	stream->byt = byt;
 	stream->str_id = id;
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return stream;
 }
@@ -630,6 +634,8 @@ int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream)
 {
 	u64 header;
 	int ret = 0;
+	struct sst_dsp *sst = byt->dsp;
+	unsigned long flags;
 
 	if (!stream->commited)
 		goto out;
@@ -644,8 +650,10 @@ int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream)
 
 	stream->commited = false;
 out:
+	spin_lock_irqsave(&sst->spinlock, flags);
 	list_del(&stream->node);
 	kfree(stream);
+	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return ret;
 }

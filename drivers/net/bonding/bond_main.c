@@ -2126,10 +2126,10 @@ static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
  */
 static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 			  __be32 dest_ip, __be32 src_ip,
-			  struct bond_vlan_tag *inner,
-			  struct bond_vlan_tag *outer)
+			  struct bond_vlan_tag *tags)
 {
 	struct sk_buff *skb;
+	int i;
 
 	pr_debug("arp %d on slave %s: dst %pI4 src %pI4\n",
 		 arp_op, slave_dev->name, &dest_ip, &src_ip);
@@ -2141,21 +2141,26 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 		net_err_ratelimited("ARP packet allocation failed\n");
 		return;
 	}
-	if (outer->vlan_id) {
-		if (inner->vlan_id) {
-			pr_debug("inner tag: proto %X vid %X\n",
-				 ntohs(inner->vlan_proto), inner->vlan_id);
-			skb = __vlan_put_tag(skb, inner->vlan_proto,
-					     inner->vlan_id);
-			if (!skb) {
-				net_err_ratelimited("failed to insert inner VLAN tag\n");
-				return;
-			}
-		}
 
-		pr_debug("outer reg: proto %X vid %X\n",
-			 ntohs(outer->vlan_proto), outer->vlan_id);
-		skb = vlan_put_tag(skb, outer->vlan_proto, outer->vlan_id);
+	/* Go through all the tags backwards and add them to the packet */
+	for (i = BOND_MAX_VLAN_ENCAP - 1; i > 0; i--) {
+		if (!tags[i].vlan_id)
+			continue;
+
+		pr_debug("inner tag: proto %X vid %X\n",
+			 ntohs(tags[i].vlan_proto), tags[i].vlan_id);
+		skb = __vlan_put_tag(skb, tags[i].vlan_proto,
+				     tags[i].vlan_id);
+		if (!skb) {
+			net_err_ratelimited("failed to insert inner VLAN tag\n");
+			return;
+		}
+	}
+	/* Set the outer tag */
+	if (tags[0].vlan_id) {
+		pr_debug("outer tag: proto %X vid %X\n",
+			 ntohs(tags[0].vlan_proto), tags[0].vlan_id);
+		skb = vlan_put_tag(skb, tags[0].vlan_proto, tags[0].vlan_id);
 		if (!skb) {
 			net_err_ratelimited("failed to insert outer VLAN tag\n");
 			return;
@@ -2164,22 +2169,52 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op,
 	arp_xmit(skb);
 }
 
+/* Validate the device path between the @start_dev and the @end_dev.
+ * The path is valid if the @end_dev is reachable through device
+ * stacking.
+ * When the path is validated, collect any vlan information in the
+ * path.
+ */
+static bool bond_verify_device_path(struct net_device *start_dev,
+				    struct net_device *end_dev,
+				    struct bond_vlan_tag *tags)
+{
+	struct net_device *upper;
+	struct list_head  *iter;
+	int  idx;
+
+	if (start_dev == end_dev)
+		return true;
+
+	netdev_for_each_upper_dev_rcu(start_dev, upper, iter) {
+		if (bond_verify_device_path(upper, end_dev, tags)) {
+			if (is_vlan_dev(upper)) {
+				idx = vlan_get_encap_level(upper);
+				if (idx >= BOND_MAX_VLAN_ENCAP)
+					return false;
+
+				tags[idx].vlan_proto =
+						    vlan_dev_vlan_proto(upper);
+				tags[idx].vlan_id = vlan_dev_vlan_id(upper);
+			}
+			return true;
+		}
+	}
+
+	return false;
+}
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
-	struct net_device *upper, *vlan_upper;
-	struct list_head *iter, *vlan_iter;
 	struct rtable *rt;
-	struct bond_vlan_tag inner, outer;
+	struct bond_vlan_tag tags[BOND_MAX_VLAN_ENCAP];
 	__be32 *targets = bond->params.arp_targets, addr;
 	int i;
+	bool ret;
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS && targets[i]; i++) {
 		pr_debug("basa: target %pI4\n", &targets[i]);
-		inner.vlan_proto = 0;
-		inner.vlan_id = 0;
-		outer.vlan_proto = 0;
-		outer.vlan_id = 0;
+		memset(tags, 0, sizeof(tags));
 
 		/* Find out through which dev should the packet go */
 		rt = ip_route_output(dev_net(bond->dev), targets[i], 0,
@@ -2192,7 +2227,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 				net_warn_ratelimited("%s: no route to arp_ip_target %pI4 and arp_validate is set\n",
 						     bond->dev->name,
 						     &targets[i]);
-			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i], 0, &inner, &outer);
+			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
+				      0, tags);
 			continue;
 		}
 
@@ -2201,51 +2237,11 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 			goto found;
 
 		rcu_read_lock();
-		/* first we search only for vlan devices. for every vlan
-		 * found we verify its upper dev list, searching for the
-		 * rt->dst.dev. If found we save the tag of the vlan and
-		 * proceed to send the packet.
-		 */
-		netdev_for_each_all_upper_dev_rcu(bond->dev, vlan_upper,
-						  vlan_iter) {
-			if (!is_vlan_dev(vlan_upper))
-				continue;
-
-			if (vlan_upper == rt->dst.dev) {
-				outer.vlan_proto = vlan_dev_vlan_proto(vlan_upper);
-				outer.vlan_id = vlan_dev_vlan_id(vlan_upper);
-				rcu_read_unlock();
-				goto found;
-			}
-			netdev_for_each_all_upper_dev_rcu(vlan_upper, upper,
-							  iter) {
-				if (upper == rt->dst.dev) {
-					/* If the upper dev is a vlan dev too,
-					 *  set the vlan tag to inner tag.
-					 */
-					if (is_vlan_dev(upper)) {
-						inner.vlan_proto = vlan_dev_vlan_proto(upper);
-						inner.vlan_id = vlan_dev_vlan_id(upper);
-					}
-					outer.vlan_proto = vlan_dev_vlan_proto(vlan_upper);
-					outer.vlan_id = vlan_dev_vlan_id(vlan_upper);
-					rcu_read_unlock();
-					goto found;
-				}
-			}
-		}
-
-		/* if the device we're looking for is not on top of any of
-		 * our upper vlans, then just search for any dev that
-		 * matches, and in case it's a vlan - save the id
-		 */
-		netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
-			if (upper == rt->dst.dev) {
-				rcu_read_unlock();
-				goto found;
-			}
-		}
+		ret = bond_verify_device_path(bond->dev, rt->dst.dev, tags);
 		rcu_read_unlock();
+
+		if (ret)
+			goto found;
 
 		/* Not our device - skip */
 		pr_debug("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
@@ -2259,7 +2255,7 @@ found:
 		addr = bond_confirm_addr(rt->dst.dev, targets[i], 0);
 		ip_rt_put(rt);
 		bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
-			      addr, &inner, &outer);
+			      addr, tags);
 	}
 }
 

@@ -732,26 +732,12 @@ static u32 c_can_adjust_pending(u32 pend)
 static inline void c_can_rx_object_get(struct net_device *dev,
 				       struct c_can_priv *priv, u32 obj)
 {
-#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
-	if (obj < C_CAN_MSG_RX_LOW_LAST)
-		c_can_object_get(dev, IF_RX, obj, IF_COMM_RCV_LOW);
-	else
-#endif
 		c_can_object_get(dev, IF_RX, obj, priv->comm_rcv_high);
 }
 
 static inline void c_can_rx_finalize(struct net_device *dev,
 				     struct c_can_priv *priv, u32 obj)
 {
-#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
-	if (obj < C_CAN_MSG_RX_LOW_LAST)
-		priv->rxmasked |= BIT(obj - 1);
-	else if (obj == C_CAN_MSG_RX_LOW_LAST) {
-		priv->rxmasked = 0;
-		/* activate all lower message objects */
-		c_can_activate_all_lower_rx_msg_obj(dev, IF_RX);
-	}
-#endif
 	if (priv->type != BOSCH_D_CAN)
 		c_can_object_get(dev, IF_RX, obj, IF_COMM_CLR_NEWDAT);
 }
@@ -799,9 +785,6 @@ static inline u32 c_can_get_pending(struct c_can_priv *priv)
 {
 	u32 pend = priv->read_reg(priv, C_CAN_NEWDAT1_REG);
 
-#ifdef CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING
-	pend &= ~priv->rxmasked;
-#endif
 	return pend;
 }
 
@@ -813,25 +796,6 @@ static inline u32 c_can_get_pending(struct c_can_priv *priv)
  * INTPND are set for this message object indicating that a new message
  * has arrived. To work-around this issue, we keep two groups of message
  * objects whose partitioning is defined by C_CAN_MSG_OBJ_RX_SPLIT.
- *
- * If CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING = y
- *
- * To ensure in-order frame reception we use the following
- * approach while re-activating a message object to receive further
- * frames:
- * - if the current message object number is lower than
- *   C_CAN_MSG_RX_LOW_LAST, do not clear the NEWDAT bit while clearing
- *   the INTPND bit.
- * - if the current message object number is equal to
- *   C_CAN_MSG_RX_LOW_LAST then clear the NEWDAT bit of all lower
- *   receive message objects.
- * - if the current message object number is greater than
- *   C_CAN_MSG_RX_LOW_LAST then clear the NEWDAT bit of
- *   only this message object.
- *
- * This can cause packet loss!
- *
- * If CONFIG_CAN_C_CAN_STRICT_FRAME_ORDERING = n
  *
  * We clear the newdat bit right away.
  *
