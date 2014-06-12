@@ -762,7 +762,7 @@ el1_trap:
 	mrs	x2, far_el2
 
 2:	mrs	x0, tpidr_el2
-	str	x1, [x0, #VCPU_ESR_EL2]
+	str	w1, [x0, #VCPU_ESR_EL2]
 	str	x2, [x0, #VCPU_FAR_EL2]
 	str	x3, [x0, #VCPU_HPFAR_EL2]
 
