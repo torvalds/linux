@@ -1349,8 +1349,9 @@ static void rhine_set_carrier(struct mii_if_info *mii)
 		/* autoneg is off: Link is always assumed to be up */
 		if (!netif_carrier_ok(dev))
 			netif_carrier_on(dev);
-	} else	/* Let MMI library update carrier status */
-		rhine_check_media(dev, 0);
+	}
+
+	rhine_check_media(dev, 0);
 
 	netif_info(rp, link, dev, "force_media %d, carrier %d\n",
 		   mii->force_media, netif_carrier_ok(dev));
