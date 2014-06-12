@@ -733,8 +733,6 @@ static void bcache_device_detach(struct bcache_device *d)
 static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 				 unsigned id)
 {
-	BUG_ON(test_bit(CACHE_SET_STOPPING, &c->flags));
-
 	d->id = id;
 	d->c = c;
 	c->devices[id] = d;
@@ -1771,6 +1769,7 @@ found:
 		pr_debug("set version = %llu", c->sb.version);
 	}
 
+	kobject_get(&ca->kobj);
 	ca->set = c;
 	ca->set->cache[ca->sb.nr_this_dev] = ca;
 	c->cache_by_alloc[c->caches_loaded++] = ca;
@@ -1888,10 +1887,12 @@ static void register_cache(struct cache_sb *sb, struct page *sb_page,
 		goto err;
 
 	pr_info("registered cache device %s", bdevname(bdev, name));
+out:
+	kobject_put(&ca->kobj);
 	return;
 err:
 	pr_notice("error opening %s: %s", bdevname(bdev, name), err);
-	kobject_put(&ca->kobj);
+	goto out;
 }
 
 /* Global interfaces/init */
