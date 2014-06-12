@@ -173,10 +173,6 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 #endif
 #endif /* CONFIG_M5272 */
 
-#if (((RX_RING_SIZE + TX_RING_SIZE) * 32) > PAGE_SIZE)
-#error "FEC: descriptor ring size constants too large"
-#endif
-
 /* Interrupt events/masks. */
 #define FEC_ENET_HBERR	((uint)0x80000000)	/* Heartbeat error */
 #define FEC_ENET_BABR	((uint)0x40000000)	/* Babbling receiver */
@@ -2048,9 +2044,21 @@ static int fec_enet_init(struct net_device *ndev)
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
 	struct bufdesc *cbd_base;
+	int bd_size;
+
+	/* init the tx & rx ring size */
+	fep->tx_ring_size = TX_RING_SIZE;
+	fep->rx_ring_size = RX_RING_SIZE;
+
+	if (fep->bufdesc_ex)
+		fep->bufdesc_size = sizeof(struct bufdesc_ex);
+	else
+		fep->bufdesc_size = sizeof(struct bufdesc);
+	bd_size = (fep->tx_ring_size + fep->rx_ring_size) *
+			fep->bufdesc_size;
 
 	/* Allocate memory for buffer descriptors. */
-	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
+	cbd_base = dma_alloc_coherent(NULL, bd_size, &fep->bd_dma,
 				      GFP_KERNEL);
 	if (!cbd_base)
 		return -ENOMEM;
@@ -2064,20 +2072,13 @@ static int fec_enet_init(struct net_device *ndev)
 	/* make sure MAC we just acquired is programmed into the hw */
 	fec_set_mac_address(ndev, NULL);
 
-	/* init the tx & rx ring size */
-	fep->tx_ring_size = TX_RING_SIZE;
-	fep->rx_ring_size = RX_RING_SIZE;
-
 	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
-	if (fep->bufdesc_ex) {
+	if (fep->bufdesc_ex)
 		fep->tx_bd_base = (struct bufdesc *)
 			(((struct bufdesc_ex *)cbd_base) + fep->rx_ring_size);
-		fep->bufdesc_size = sizeof(struct bufdesc_ex);
-	} else {
+	else
 		fep->tx_bd_base = cbd_base + fep->rx_ring_size;
-		fep->bufdesc_size = sizeof(struct bufdesc);
-	}
 
 	/* The FEC Ethernet specific entries in the device structure */
 	ndev->watchdog_timeo = TX_TIMEOUT;
