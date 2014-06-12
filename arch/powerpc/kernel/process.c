@@ -1581,7 +1581,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
 			lr = regs->link;
-			printk("--- Exception: %lx at %pS\n    LR = %pS\n",
+			printk("--- interrupt: %lx at %pS\n    LR = %pS\n",
 			       regs->trap, (void *)regs->nip, (void *)lr);
 			firstframe = 1;
 		}
