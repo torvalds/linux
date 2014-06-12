@@ -44,6 +44,7 @@
 
 /* BYT_CONF0_REG register bits */
 #define BYT_IODEN		BIT(31)
+#define BYT_DIRECT_IRQ_EN	BIT(27)
 #define BYT_TRIG_NEG		BIT(26)
 #define BYT_TRIG_POS		BIT(25)
 #define BYT_TRIG_LVL		BIT(24)
@@ -303,11 +304,21 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned gpio, int value)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
+	void __iomem *conf_reg = byt_gpio_reg(chip, gpio, BYT_CONF0_REG);
 	void __iomem *reg = byt_gpio_reg(chip, gpio, BYT_VAL_REG);
 	unsigned long flags;
 	u32 reg_val;
 
 	spin_lock_irqsave(&vg->lock, flags);
+
+	/*
+	 * Before making any direction modifications, do a check if gpio
+	 * is set for direct IRQ.  On baytrail, setting GPIO to output does
+	 * not make sense, so let's at least warn the caller before they shoot
+	 * themselves in the foot.
+	 */
+	WARN(readl(conf_reg) & BYT_DIRECT_IRQ_EN,
+		"Potential Error: Setting GPIO with direct_irq_en to output");
 
 	reg_val = readl(reg) | BYT_DIR_MASK;
 	reg_val &= ~BYT_OUTPUT_EN;
