@@ -12,23 +12,15 @@
  *    -- Initial Write (Borrowed heavily from ARM)
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
-#include <linux/errno.h>
-#include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
-#include <linux/smp.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
 #include <linux/atomic.h>
-#include <linux/percpu.h>
 #include <linux/cpumask.h>
-#include <linux/spinlock_types.h>
 #include <linux/reboot.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
