@@ -736,7 +736,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 				enable_irq_wake(irq);
 		}
 	}
-#if 0
+
 	/*register otg_id irq */
 	irq = platform_get_irq_byname(pdev, "otg_id");
 	if (irq > 0) {
@@ -750,7 +750,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 				enable_irq_wake(irq);
 		}
 	}
-
+#if 0
 	/*register otg_linestate irq */
 	irq = platform_get_irq_byname(pdev, "otg_linestate");
 	if (irq > 0) {
