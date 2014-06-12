@@ -37,6 +37,7 @@ MODULE_DEVICE_TABLE(usb, eucr_usb_ids);
 static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
+
 	pr_info("--- eucr_suspend ---\n");
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
@@ -51,8 +52,8 @@ static int eucr_suspend(struct usb_interface *iface, pm_message_t message)
 static int eucr_resume(struct usb_interface *iface)
 {
 	u8    tmp = 0;
-
 	struct us_data *us = usb_get_intfdata(iface);
+
 	pr_info("--- eucr_resume---\n");
 	mutex_lock(&us->dev_mutex);
 
