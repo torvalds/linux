@@ -108,16 +108,19 @@ static void __init rk3288_boot_mode_init(void)
 static void usb_uart_init(void)
 {
 	u32 soc_status2;
+
 	writel_relaxed(0x00c00000, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
-#ifdef CONFIG_RK_USB_UART
 	soc_status2 = (readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2));
-	if(!(soc_status2 & (1<<14)) && (soc_status2 & (1<<17)))
-	{
-		writel_relaxed(0x00040004, RK_GRF_VIRT + RK3288_GRF_UOC0_CON2); //software control usb phy enable 
-		writel_relaxed(0x003f002a, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3); //usb phy enter suspend
+
+#ifdef CONFIG_RK_USB_UART
+	if (!(soc_status2 & (1<<14)) && (soc_status2 & (1<<17))) {
+		/* software control usb phy enable */
+		writel_relaxed(0x00040004, RK_GRF_VIRT + RK3288_GRF_UOC0_CON2);
+		/* usb phy enter suspend */
+		writel_relaxed(0x003f002a, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 		writel_relaxed(0x00c000c0, RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 	}
-#endif // end of CONFIG_RK_USB_UART
+#endif
 }
 
 extern void secondary_startup(void);
