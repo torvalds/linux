@@ -39,7 +39,7 @@ gk20a_graph_oclass = &(struct nvc0_graph_oclass) {
 		.ctor = nvc0_graph_ctor,
 		.dtor = nvc0_graph_dtor,
 		.init = nve4_graph_init,
-		.fini = nve4_graph_fini,
+		.fini = _nouveau_graph_fini,
 	},
 	.cclass = &gk20a_grctx_oclass,
 	.sclass = gk20a_graph_sclass,

@@ -22,6 +22,8 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
+#include <subdev/pwr.h>
+
 #include "nvc0.h"
 #include "ctxnvc0.h"
 
@@ -190,38 +192,18 @@ nve4_graph_pack_mmio[] = {
  ******************************************************************************/
 
 int
-nve4_graph_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nvc0_graph_priv *priv = (void *)object;
-
-	/*XXX: this is a nasty hack to power on gr on certain boards
-	 *     where it's disabled by therm, somehow.  ideally it'd
-	 *     be nice to know when we should be doing this, and why,
-	 *     but, it's yet to be determined.  for now we test for
-	 *     the particular mmio error that occurs in the situation,
-	 *     and then bash therm in the way nvidia do.
-	 */
-	nv_mask(priv, 0x000200, 0x08001000, 0x08001000);
-	nv_rd32(priv, 0x000200);
-	if (nv_rd32(priv, 0x400700) == 0xbadf1000) {
-		nv_mask(priv, 0x000200, 0x08001000, 0x00000000);
-		nv_rd32(priv, 0x000200);
-		nv_mask(priv, 0x020004, 0xc0000000, 0x40000000);
-	}
-
-	return nouveau_graph_fini(&priv->base, suspend);
-}
-
-int
 nve4_graph_init(struct nouveau_object *object)
 {
 	struct nvc0_graph_oclass *oclass = (void *)object->oclass;
 	struct nvc0_graph_priv *priv = (void *)object;
+	struct nouveau_pwr *ppwr = nouveau_pwr(priv);
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
 	u32 data[TPC_MAX / 8] = {};
 	u8  tpcnr[GPC_MAX];
 	int gpc, tpc, rop;
 	int ret, i;
+
+	ppwr->pgob(ppwr, false);
 
 	ret = nouveau_graph_init(&priv->base);
 	if (ret)
@@ -350,7 +332,7 @@ nve4_graph_oclass = &(struct nvc0_graph_oclass) {
 		.ctor = nvc0_graph_ctor,
 		.dtor = nvc0_graph_dtor,
 		.init = nve4_graph_init,
-		.fini = nve4_graph_fini,
+		.fini = _nouveau_graph_fini,
 	},
 	.cclass = &nve4_grctx_oclass,
 	.sclass = nve4_graph_sclass,
