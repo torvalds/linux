@@ -599,9 +599,10 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	 * For user-installed GPE Block Devices, the gpe_block_base_number
 	 * is always zero
 	 */
-	status =
-	    acpi_ev_create_gpe_block(node, gpe_block_address, register_count, 0,
-				     interrupt_number, &gpe_block);
+	status = acpi_ev_create_gpe_block(node, gpe_block_address->address,
+					  gpe_block_address->space_id,
+					  register_count, 0, interrupt_number,
+					  &gpe_block);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}

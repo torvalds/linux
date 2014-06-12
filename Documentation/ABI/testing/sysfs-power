@@ -7,19 +7,30 @@ Description:
 		subsystem.
 
 What:		/sys/power/state
-Date:		August 2006
+Date:		May 2014
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
-		The /sys/power/state file controls the system power state.
-		Reading from this file returns what states are supported,
-		which is hard-coded to 'freeze' (Low-Power Idle), 'standby'
-		(Power-On Suspend), 'mem' (Suspend-to-RAM), and 'disk'
-		(Suspend-to-Disk).
+		The /sys/power/state file controls system sleep states.
+		Reading from this file returns the available sleep state
+		labels, which may be "mem", "standby", "freeze" and "disk"
+		(hibernation).  The meanings of the first three labels depend on
+		the relative_sleep_states command line argument as follows:
+		 1) relative_sleep_states = 1
+		    "mem", "standby", "freeze" represent non-hibernation sleep
+		    states from the deepest ("mem", always present) to the
+		    shallowest ("freeze").  "standby" and "freeze" may or may
+		    not be present depending on the capabilities of the
+		    platform.  "freeze" can only be present if "standby" is
+		    present.
+		 2) relative_sleep_states = 0 (default)
+		    "mem" - "suspend-to-RAM", present if supported.
+		    "standby" - "power-on suspend", present if supported.
+		    "freeze" - "suspend-to-idle", always present.
 
 		Writing to this file one of these strings causes the system to
-		transition into that state. Please see the file
-		Documentation/power/states.txt for a description of each of
-		these states.
+		transition into the corresponding state, if available.  See
+		Documentation/power/states.txt for a description of what
+		"suspend-to-RAM", "power-on suspend" and "suspend-to-idle" mean.
 
 What:		/sys/power/disk
 Date:		September 2006

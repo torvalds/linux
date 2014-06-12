@@ -101,19 +101,13 @@ static int cpuidle_idle_call(void)
 	rcu_idle_enter();
 
 	/*
-	 * Check if the cpuidle framework is ready, otherwise fallback
-	 * to the default arch specific idle method
+	 * Ask the cpuidle framework to choose a convenient idle state.
+	 * Fall back to the default arch specific idle method on errors.
 	 */
-	ret = cpuidle_enabled(drv, dev);
+	next_state = cpuidle_select(drv, dev);
 
-	if (!ret) {
-		/*
-		 * Ask the governor to choose an idle state it thinks
-		 * it is convenient to go to. There is *always* a
-		 * convenient idle state
-		 */
-		next_state = cpuidle_select(drv, dev);
-
+	ret = next_state;
+	if (ret >= 0) {
 		/*
 		 * The idle task must be scheduled, it is pointless to
 		 * go to idle, just update no idle residency and get
@@ -140,7 +134,7 @@ static int cpuidle_idle_call(void)
 					CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
 					&dev->cpu);
 
-			if (!ret) {
+			if (ret >= 0) {
 				trace_cpu_idle_rcuidle(next_state, dev->cpu);
 
 				/*
@@ -175,7 +169,7 @@ static int cpuidle_idle_call(void)
 	 * We can't use the cpuidle framework, let's use the default
 	 * idle routine
 	 */
-	if (ret)
+	if (ret < 0)
 		arch_cpu_idle();
 
 	__current_set_polling();
