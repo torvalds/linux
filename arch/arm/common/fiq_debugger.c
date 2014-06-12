@@ -1220,13 +1220,17 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	 * and make uart controller enter infinite fiq loop 
 	 */
 #ifdef CONFIG_RK_USB_UART
-	if(cpu_is_rk3188()){
-		if(!(readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0) & (1 << 13))){//id low
-			writel_relaxed((0x0300 << 16), RK_GRF_VIRT + RK3188_GRF_UOC0_CON0);   //enter usb phy
+	if (cpu_is_rk3188()) {
+		if (!(readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0) & (1 << 13)) ||
+		     (readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0) & (1 << 10))) {
+			/* id low or bvalid high, enter usb phy */
+			writel_relaxed((0x0300 << 16), RK_GRF_VIRT + RK3188_GRF_UOC0_CON0);
 		}
-	}else if(cpu_is_rk3288()){
-		if(!(readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2) & (1 << 17))){//id low
-			writel_relaxed((0x00c0 << 16), RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);//enter usb phy
+	} else if (cpu_is_rk3288()) {
+		if (!(readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2) & (1 << 17)) ||
+		     (readl_relaxed(RK_GRF_VIRT + RK3288_GRF_SOC_STATUS2) & (1 << 14))) {
+			/* id low or bvalid high, enter usb phy */
+			writel_relaxed((0x00c0 << 16), RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
 		}
 	}
 #endif
