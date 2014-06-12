@@ -144,8 +144,11 @@ static int __init early_serial8250_setup(struct earlycon_device *device,
 	if (!(device->port.membase || device->port.iobase))
 		return 0;
 
-	if (!device->baud)
+	if (!device->baud) {
 		device->baud = probe_baud(&device->port);
+		snprintf(device->options, sizeof(device->options), "%u",
+			 device->baud);
+	}
 
 	init_port(device);
 
