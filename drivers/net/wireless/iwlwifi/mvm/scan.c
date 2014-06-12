@@ -1099,6 +1099,7 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				       struct iwl_scan_req_unified_lmac *cmd,
 				       struct iwl_mvm_scan_params *params)
 {
+	memset(cmd, 0, ksize(cmd));
 	cmd->active_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].active;
 	cmd->passive_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].passive;
 	/* TODO: Use params; now fragmented isn't used. */
@@ -1107,14 +1108,19 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
 	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
-	cmd->channel_opt[0].flags = mvm->last_ebs_successful ?
-				cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS &
-					    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE &
-					    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD) :
-				0;
-	cmd->channel_opt[0].non_ebs_ratio = 0;
 	cmd->iter_num = cpu_to_le32(1);
-	cmd->delay = 0;
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
+	    mvm->last_ebs_successful) {
+		cmd->channel_opt[0].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[1].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+	}
 }
 
 int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
