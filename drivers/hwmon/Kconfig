@@ -608,6 +608,18 @@ config SENSORS_JC42
 	  This driver can also be built as a module.  If so, the module
 	  will be called jc42.
 
+config SENSORS_POWR1220
+	tristate "Lattice POWR1220 Power Monitoring"
+	depends on I2C
+	default n
+	help
+	  If you say yes here you get access to the hardware monitoring
+	  functions of the Lattice POWR1220 isp Power Supply Monitoring,
+	  Sequencing and Margining Controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called powr1220.
+
 config SENSORS_LINEAGE
 	tristate "Lineage Compact Power Line Power Entry Module"
 	depends on I2C
