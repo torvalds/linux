@@ -1071,8 +1071,10 @@ void bnx2x_iov_init_dq(struct bnx2x *bp)
 	REG_WR(bp, DORQ_REG_VF_TYPE_MIN_MCID_0, 0);
 	REG_WR(bp, DORQ_REG_VF_TYPE_MAX_MCID_0, 0x1ffff);
 
-	/* set the VF doorbell threshold */
-	REG_WR(bp, DORQ_REG_VF_USAGE_CT_LIMIT, 4);
+	/* set the VF doorbell threshold. This threshold represents the amount
+	 * of doorbells allowed in the main DORQ fifo for a specific VF.
+	 */
+	REG_WR(bp, DORQ_REG_VF_USAGE_CT_LIMIT, 64);
 }
 
 void bnx2x_iov_init_dmae(struct bnx2x *bp)
