@@ -78,10 +78,17 @@ static void __init mvebu_timer_and_clk_init(void)
 	mvebu_scu_enable();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
+}
 
-	if (of_machine_is_compatible("marvell,armada375"))
-		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
-				"imprecise external abort");
+static void __init external_abort_quirk(void)
+{
+	u32 dev, rev;
+
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
+		return;
+
+	hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
+			"imprecise external abort");
 }
 
 static void __init i2c_quirk(void)
@@ -169,8 +176,10 @@ static void __init mvebu_dt_init(void)
 {
 	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
 		i2c_quirk();
-	if (of_machine_is_compatible("marvell,a375-db"))
+	if (of_machine_is_compatible("marvell,a375-db")) {
+		external_abort_quirk();
 		thermal_quirk();
+	}
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
