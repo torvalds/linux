@@ -781,6 +781,36 @@ static void mac80211_hwsim_monitor_ack(struct ieee80211_channel *chan,
 	netif_rx(skb);
 }
 
+struct mac80211_hwsim_addr_match_data {
+	u8 addr[ETH_ALEN];
+	bool ret;
+};
+
+static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct mac80211_hwsim_addr_match_data *md = data;
+
+	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
+		md->ret = true;
+}
+
+static bool mac80211_hwsim_addr_match(struct mac80211_hwsim_data *data,
+				      const u8 *addr)
+{
+	struct mac80211_hwsim_addr_match_data md = {
+		.ret = false,
+	};
+
+	memcpy(md.addr, addr, ETH_ALEN);
+
+	ieee80211_iterate_active_interfaces_atomic(data->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   mac80211_hwsim_addr_iter,
+						   &md);
+
+	return md.ret;
+}
 
 static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
 			   struct sk_buff *skb)
@@ -798,8 +828,7 @@ static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
 		/* Allow unicast frames to own address if there is a pending
 		 * PS-Poll */
 		if (data->ps_poll_pending &&
-		    memcmp(data->hw->wiphy->perm_addr, skb->data + 4,
-			   ETH_ALEN) == 0) {
+		    mac80211_hwsim_addr_match(data, skb->data + 4)) {
 			data->ps_poll_pending = false;
 			return true;
 		}
@@ -807,39 +836,6 @@ static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
 	}
 
 	return true;
-}
-
-
-struct mac80211_hwsim_addr_match_data {
-	bool ret;
-	const u8 *addr;
-};
-
-static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
-				     struct ieee80211_vif *vif)
-{
-	struct mac80211_hwsim_addr_match_data *md = data;
-	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
-		md->ret = true;
-}
-
-
-static bool mac80211_hwsim_addr_match(struct mac80211_hwsim_data *data,
-				      const u8 *addr)
-{
-	struct mac80211_hwsim_addr_match_data md;
-
-	if (memcmp(addr, data->hw->wiphy->perm_addr, ETH_ALEN) == 0)
-		return true;
-
-	md.ret = false;
-	md.addr = addr;
-	ieee80211_iterate_active_interfaces_atomic(data->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   mac80211_hwsim_addr_iter,
-						   &md);
-
-	return md.ret;
 }
 
 static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
