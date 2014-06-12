@@ -23,6 +23,7 @@
 #include <linux/mbus.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
+#include <linux/irqchip.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -71,10 +72,9 @@ static int armada_375_external_abort_wa(unsigned long addr, unsigned int fsr,
 	return 1;
 }
 
-static void __init mvebu_timer_and_clk_init(void)
+static void __init mvebu_init_irq(void)
 {
-	of_clk_init(NULL);
-	clocksource_of_init();
+	irqchip_init();
 	mvebu_scu_enable();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
@@ -194,7 +194,7 @@ DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= mvebu_dt_init,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END
@@ -207,7 +207,7 @@ static const char * const armada_375_dt_compat[] = {
 DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.init_machine	= mvebu_dt_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
@@ -222,7 +222,7 @@ static const char * const armada_38x_dt_compat[] = {
 DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_38x_dt_compat,
 MACHINE_END
