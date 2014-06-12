@@ -314,6 +314,7 @@ fec_enet_clear_csum(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(skb_cow_head(skb, 0)))
 		return -1;
 
+	ip_hdr(skb)->check = 0;
 	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) = 0;
 
 	return 0;
@@ -395,7 +396,7 @@ static int txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 			 * are done by the kernel
 			 */
 			if (skb->ip_summed == CHECKSUM_PARTIAL)
-				ebdp->cbd_esc |= BD_ENET_TX_PINS;
+				ebdp->cbd_esc |= BD_ENET_TX_PINS | BD_ENET_TX_IINS;
 		}
 	}
 
