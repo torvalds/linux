@@ -608,6 +608,7 @@ static const struct of_device_id rk3x_i2c_match[] = {
 	{ .compatible = "rockchip,rk3066-i2c", .data = (void *)&soc_data[0] },
 	{ .compatible = "rockchip,rk3188-i2c", .data = (void *)&soc_data[1] },
 	{ .compatible = "rockchip,rk3288-i2c", .data = (void *)&soc_data[2] },
+	{},
 };
 
 static int rk3x_i2c_probe(struct platform_device *pdev)
