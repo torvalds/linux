@@ -18,6 +18,9 @@
 
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -39,18 +42,58 @@ static phys_addr_t fuse_phys;
 static struct clk *fuse_clk;
 static void __iomem __initdata *fuse_base;
 
+static DEFINE_MUTEX(apb_dma_lock);
+static DECLARE_COMPLETION(apb_dma_wait);
+static struct dma_chan *apb_dma_chan;
+static struct dma_slave_config dma_sconfig;
+static u32 *apb_buffer;
+static dma_addr_t apb_buffer_phys;
+
+static void apb_dma_complete(void *args)
+{
+	complete(&apb_dma_wait);
+}
+
 static u32 tegra20_fuse_readl(const unsigned int offset)
 {
 	int ret;
-	u32 val;
+	u32 val = 0;
+	struct dma_async_tx_descriptor *dma_desc;
+
+	mutex_lock(&apb_dma_lock);
+
+	dma_sconfig.src_addr = fuse_phys + FUSE_BEGIN + offset;
+	ret = dmaengine_slave_config(apb_dma_chan, &dma_sconfig);
+	if (ret)
+		goto out;
+
+	dma_desc = dmaengine_prep_slave_single(apb_dma_chan, apb_buffer_phys,
+			sizeof(u32), DMA_DEV_TO_MEM,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!dma_desc)
+		goto out;
+
+	dma_desc->callback = apb_dma_complete;
+	dma_desc->callback_param = NULL;
+
+	reinit_completion(&apb_dma_wait);
 
 	clk_prepare_enable(fuse_clk);
 
-	ret = tegra_apb_readl_using_dma(fuse_phys + FUSE_BEGIN + offset, &val);
+	dmaengine_submit(dma_desc);
+	dma_async_issue_pending(apb_dma_chan);
+	ret = wait_for_completion_timeout(&apb_dma_wait, msecs_to_jiffies(50));
+
+	if (WARN(ret == 0, "apb read dma timed out"))
+		dmaengine_terminate_all(apb_dma_chan);
+	else
+		val = *apb_buffer;
 
 	clk_disable_unprepare(fuse_clk);
+out:
+	mutex_unlock(&apb_dma_lock);
 
-	return (ret < 0) ? 0 : val;
+	return val;
 }
 
 static const struct of_device_id tegra20_fuse_of_match[] = {
@@ -58,9 +101,35 @@ static const struct of_device_id tegra20_fuse_of_match[] = {
 	{},
 };
 
+static int apb_dma_init(void)
+{
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	apb_dma_chan = dma_request_channel(mask, NULL, NULL);
+	if (!apb_dma_chan)
+		return -EPROBE_DEFER;
+
+	apb_buffer = dma_alloc_coherent(NULL, sizeof(u32), &apb_buffer_phys,
+					GFP_KERNEL);
+	if (!apb_buffer) {
+		dma_release_channel(apb_dma_chan);
+		return -ENOMEM;
+	}
+
+	dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dma_sconfig.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	dma_sconfig.src_maxburst = 1;
+	dma_sconfig.dst_maxburst = 1;
+
+	return 0;
+}
+
 static int tegra20_fuse_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	int err;
 
 	fuse_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(fuse_clk)) {
@@ -72,6 +141,10 @@ static int tegra20_fuse_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 	fuse_phys = res->start;
+
+	err = apb_dma_init();
+	if (err)
+		return err;
 
 	if (tegra_fuse_create_sysfs(&pdev->dev, FUSE_SIZE, tegra20_fuse_readl))
 		return -ENODEV;
