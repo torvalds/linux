@@ -299,6 +299,12 @@ struct fec_enet_private {
 	unsigned short bufdesc_size;
 	unsigned short tx_ring_size;
 	unsigned short rx_ring_size;
+	unsigned short tx_stop_threshold;
+	unsigned short tx_wake_threshold;
+
+	/* Software TSO */
+	char *tso_hdrs;
+	dma_addr_t tso_hdrs_dma;
 
 	struct	platform_device *pdev;
 
