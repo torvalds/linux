@@ -126,7 +126,7 @@ static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
 	const __be32 *reg, *endp;
 	int l;
 	struct memory_reserve_config *mrc = data;
-	u64 lpae_start = (u64)1 << 32;
+	u64 lpae_start = 1ULL << 32;
 
 	/* We are scanning "memory" nodes only */
 	if (type == NULL) {
