@@ -2424,6 +2424,10 @@ static void target_release_cmd_kref(struct kref *kref)
  */
 int target_put_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd)
 {
+	if (!se_sess) {
+		se_cmd->se_tfo->release_cmd(se_cmd);
+		return 1;
+	}
 	return kref_put_spinlock_irqsave(&se_cmd->cmd_kref, target_release_cmd_kref,
 			&se_sess->sess_cmd_lock);
 }
