@@ -22,6 +22,9 @@
 #define TEGRA114	0x35
 #define TEGRA124	0x40
 
+#define TEGRA_FUSE_SKU_CALIB_0	0xf0
+#define TEGRA30_FUSE_SATA_CALIB	0x124
+
 #ifndef __ASSEMBLY__
 
 u32 tegra_read_chipid(void);
@@ -37,11 +40,26 @@ enum tegra_revision {
 	TEGRA_REVISION_MAX,
 };
 
+struct tegra_sku_info {
+	int sku_id;
+	int cpu_process_id;
+	int cpu_speedo_id;
+	int cpu_speedo_value;
+	int cpu_iddq_value;
+	int core_process_id;
+	int soc_speedo_id;
+	int gpu_speedo_id;
+	int gpu_process_id;
+	int gpu_speedo_value;
+	enum tegra_revision revision;
+};
+
 u32 tegra_read_straps(void);
 u32 tegra_read_chipid(void);
 void tegra_init_fuse(void);
+int tegra_fuse_readl(unsigned long offset, u32 *value);
 
-extern enum tegra_revision tegra_revision;
+extern struct tegra_sku_info tegra_sku_info;
 
 #if defined(CONFIG_TEGRA20_APB_DMA)
 int tegra_apb_readl_using_dma(unsigned long offset, u32 *value);

@@ -25,7 +25,6 @@
 #include <asm/firmware.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include "fuse.h"
 #include "iomap.h"
 #include "irammap.h"
 #include "reset.h"
