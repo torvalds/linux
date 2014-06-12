@@ -25,7 +25,7 @@
 #include <asm/serial.h>
 
 static struct console early_con = {
-	.name =		"earlycon",
+	.name =		"uart", /* 8250 console switch requires this name */
 	.flags =	CON_PRINTBUFFER | CON_BOOT,
 	.index =	-1,
 };
