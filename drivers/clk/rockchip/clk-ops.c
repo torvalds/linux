@@ -594,6 +594,7 @@ static int clk_3288_dclk_lcdc0_set_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long parent_rate)
 {
 	struct clk* aclk_vio0 = clk_get(NULL, "aclk_vio0");
+	struct clk* hclk_vio = clk_get(NULL, "hclk_vio");
 	struct clk* parent;
 
 	clk_divider_ops.set_rate(hw, rate, parent_rate);
@@ -606,6 +607,7 @@ static int clk_3288_dclk_lcdc0_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	clk_set_parent(aclk_vio0, parent);
 	clk_set_rate(aclk_vio0, __clk_get_rate(parent));
+	clk_set_rate(hclk_vio, 100*MHZ);
 
 	return 0;
 }
