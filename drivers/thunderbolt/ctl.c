@@ -439,7 +439,7 @@ rx:
  */
 static struct tb_cfg_result tb_ctl_rx(struct tb_ctl *ctl, void *buffer,
 				      size_t length, int timeout_msec,
-				      u8 route, enum tb_cfg_pkg_type type)
+				      u64 route, enum tb_cfg_pkg_type type)
 {
 	struct tb_cfg_result res;
 	struct ctl_pkg *pkg;

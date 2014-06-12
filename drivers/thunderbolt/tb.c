@@ -38,6 +38,11 @@ static void tb_scan_port(struct tb_port *port)
 		return;
 	if (port->config.type != TB_TYPE_PORT)
 		return;
+	if (port->dual_link_port && port->link_nr)
+		return; /*
+			 * Downstream switch is reachable through two ports.
+			 * Only scan on the primary port (link_nr == 0).
+			 */
 	if (tb_wait_for_port(port, false) <= 0)
 		return;
 	if (port->remote) {

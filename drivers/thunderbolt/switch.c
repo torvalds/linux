@@ -180,20 +180,17 @@ int tb_port_clear_counter(struct tb_port *port, int counter)
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-static int tb_init_port(struct tb_switch *sw, u8 port_nr)
+static int tb_init_port(struct tb_port *port)
 {
 	int res;
 	int cap;
-	struct tb_port *port = &sw->ports[port_nr];
-	port->sw = sw;
-	port->port = port_nr;
-	port->remote = NULL;
+
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res)
 		return res;
 
 	/* Port 0 is the switch itself and has no PHY. */
-	if (port->config.type == TB_TYPE_PORT && port_nr != 0) {
+	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
 		cap = tb_find_cap(port, TB_CFG_PORT, TB_CAP_PHY);
 
 		if (cap > 0)
@@ -202,7 +199,7 @@ static int tb_init_port(struct tb_switch *sw, u8 port_nr)
 			tb_port_WARN(port, "non switch port without a PHY\n");
 	}
 
-	tb_dump_port(sw->tb, &port->config);
+	tb_dump_port(port->sw->tb, &port->config);
 
 	/* TODO: Read dual link port, DP port and more from EEPROM. */
 	return 0;
@@ -329,6 +326,7 @@ void tb_switch_free(struct tb_switch *sw)
 		tb_plug_events_active(sw, false);
 
 	kfree(sw->ports);
+	kfree(sw->drom);
 	kfree(sw);
 }
 
@@ -381,17 +379,15 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 
 	/* initialize ports */
 	sw->ports = kcalloc(sw->config.max_port_number + 1, sizeof(*sw->ports),
-	GFP_KERNEL);
+				GFP_KERNEL);
 	if (!sw->ports)
 		goto err;
 
 	for (i = 0; i <= sw->config.max_port_number; i++) {
-		if (tb_init_port(sw, i))
-			goto err;
-		/* TODO: check if port is disabled (EEPROM) */
+		/* minimum setup for tb_find_cap and tb_drom_read to work */
+		sw->ports[i].sw = sw;
+		sw->ports[i].port = i;
 	}
-
-	/* TODO: I2C, IECS, EEPROM, link controller */
 
 	cap = tb_find_cap(&sw->ports[0], TB_CFG_SWITCH, TB_CAP_PLUG_EVENTS);
 	if (cap < 0) {
@@ -400,10 +396,21 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	}
 	sw->cap_plug_events = cap;
 
-	if (tb_drom_read_uid_only(sw, &sw->uid))
-		tb_sw_warn(sw, "could not read uid from eeprom\n");
-	else
-		tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+	/* read drom */
+	if (tb_drom_read(sw))
+		tb_sw_warn(sw, "tb_eeprom_read_rom failed, continuing\n");
+	tb_sw_info(sw, "uid: %#llx\n", sw->uid);
+
+	for (i = 0; i <= sw->config.max_port_number; i++) {
+		if (sw->ports[i].disabled) {
+			tb_port_info(&sw->ports[i], "disabled by eeprom\n");
+			continue;
+		}
+		if (tb_init_port(&sw->ports[i]))
+			goto err;
+	}
+
+	/* TODO: I2C, IECS, link controller */
 
 	if (tb_plug_events_active(sw, true))
 		goto err;
@@ -411,6 +418,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	return sw;
 err:
 	kfree(sw->ports);
+	kfree(sw->drom);
 	kfree(sw);
 	return NULL;
 }
