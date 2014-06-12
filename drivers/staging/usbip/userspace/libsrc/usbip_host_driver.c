@@ -47,7 +47,8 @@ static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 	snprintf(status_attr_path, SYSFS_PATH_MAX, "%s/usbip_status",
 		 udev->path);
 
-	if ((fd = open(status_attr_path, O_RDONLY)) < 0) {
+	fd = open(status_attr_path, O_RDONLY);
+	if (fd < 0) {
 		err("error opening attribute %s", status_attr_path);
 		return -1;
 	}
