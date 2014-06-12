@@ -458,6 +458,7 @@ int main(int argc, const char **argv)
 
 	/* The page_size is placed in util object. */
 	page_size = sysconf(_SC_PAGE_SIZE);
+	cacheline_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 
 	cmd = perf_extract_argv0_path(argv[0]);
 	if (!cmd)
