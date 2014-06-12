@@ -177,6 +177,9 @@ struct rcu_node {
 				/*  to carry out the boosting is fully */
 				/*  released with no future boostee accesses */
 				/*  before that rt_mutex is re-initialized. */
+	struct rt_mutex boost_mtx;
+				/* Used only for the priority-boosting */
+				/*  side effect, not as a lock. */
 	unsigned long boost_time;
 				/* When to start boosting (jiffies). */
 	struct task_struct *boost_kthread_task;
