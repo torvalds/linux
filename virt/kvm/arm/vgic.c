@@ -98,14 +98,34 @@ static void vgic_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 static const struct vgic_ops *vgic_ops;
 static const struct vgic_params *vgic;
 
+/*
+ * struct vgic_bitmap contains unions that provide two views of
+ * the same data. In one case it is an array of registers of
+ * u32's, and in the other case it is a bitmap of unsigned
+ * longs.
+ *
+ * This does not work on 64-bit BE systems, because the bitmap access
+ * will store two consecutive 32-bit words with the higher-addressed
+ * register's bits at the lower index and the lower-addressed register's
+ * bits at the higher index.
+ *
+ * Therefore, swizzle the register index when accessing the 32-bit word
+ * registers to access the right register's value.
+ */
+#if defined(CONFIG_CPU_BIG_ENDIAN) && BITS_PER_LONG == 64
+#define REG_OFFSET_SWIZZLE	1
+#else
+#define REG_OFFSET_SWIZZLE	0
+#endif
+
 static u32 *vgic_bitmap_get_reg(struct vgic_bitmap *x,
 				int cpuid, u32 offset)
 {
 	offset >>= 2;
 	if (!offset)
-		return x->percpu[cpuid].reg;
+		return x->percpu[cpuid].reg + (offset ^ REG_OFFSET_SWIZZLE);
 	else
-		return x->shared.reg + offset - 1;
+		return x->shared.reg + ((offset - 1) ^ REG_OFFSET_SWIZZLE);
 }
 
 static int vgic_bitmap_get_irq_val(struct vgic_bitmap *x,
