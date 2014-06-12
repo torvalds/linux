@@ -1805,9 +1805,6 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 	    intel_edp_is_psr_enabled(dev))
 		return;
 
-	/* Setup PSR once */
-	intel_edp_psr_setup(intel_dp);
-
 	/* Enable PSR on the panel */
 	intel_edp_psr_enable_sink(intel_dp);
 
@@ -1823,6 +1820,9 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
 		return;
 	}
+
+	/* Setup PSR once */
+	intel_edp_psr_setup(intel_dp);
 
 	if (intel_edp_psr_match_conditions(intel_dp) &&
 	    !intel_edp_is_psr_enabled(dev))
@@ -1848,10 +1848,14 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 
 void intel_edp_psr_update(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	struct intel_dp *intel_dp = NULL;
 
 	if (!HAS_PSR(dev))
+		return;
+
+	if (!dev_priv->psr.setup_done)
 		return;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
