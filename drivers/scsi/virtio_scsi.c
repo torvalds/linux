@@ -393,11 +393,10 @@ static void virtscsi_event_done(struct virtqueue *vq)
  * @cmd		: command structure
  * @req_size	: size of the request buffer
  * @resp_size	: size of the response buffer
- * @gfp	: flags to use for memory allocations
  */
 static int virtscsi_add_cmd(struct virtqueue *vq,
 			    struct virtio_scsi_cmd *cmd,
-			    size_t req_size, size_t resp_size, gfp_t gfp)
+			    size_t req_size, size_t resp_size)
 {
 	struct scsi_cmnd *sc = cmd->sc;
 	struct scatterlist *sgs[4], req, resp;
@@ -429,19 +428,19 @@ static int virtscsi_add_cmd(struct virtqueue *vq,
 	if (in)
 		sgs[out_num + in_num++] = in->sgl;
 
-	return virtqueue_add_sgs(vq, sgs, out_num, in_num, cmd, gfp);
+	return virtqueue_add_sgs(vq, sgs, out_num, in_num, cmd, GFP_ATOMIC);
 }
 
 static int virtscsi_kick_cmd(struct virtio_scsi_vq *vq,
 			     struct virtio_scsi_cmd *cmd,
-			     size_t req_size, size_t resp_size, gfp_t gfp)
+			     size_t req_size, size_t resp_size)
 {
 	unsigned long flags;
 	int err;
 	bool needs_kick = false;
 
 	spin_lock_irqsave(&vq->vq_lock, flags);
-	err = virtscsi_add_cmd(vq->vq, cmd, req_size, resp_size, gfp);
+	err = virtscsi_add_cmd(vq->vq, cmd, req_size, resp_size);
 	if (!err)
 		needs_kick = virtqueue_kick_prepare(vq->vq);
 
@@ -484,8 +483,7 @@ static int virtscsi_queuecommand(struct virtio_scsi *vscsi,
 	memcpy(cmd->req.cmd.cdb, sc->cmnd, sc->cmd_len);
 
 	if (virtscsi_kick_cmd(req_vq, cmd,
-			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd,
-			      GFP_ATOMIC) != 0)
+			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd) != 0)
 		return SCSI_MLQUEUE_HOST_BUSY;
 	return 0;
 }
@@ -542,8 +540,7 @@ static int virtscsi_tmf(struct virtio_scsi *vscsi, struct virtio_scsi_cmd *cmd)
 
 	cmd->comp = &comp;
 	if (virtscsi_kick_cmd(&vscsi->ctrl_vq, cmd,
-			      sizeof cmd->req.tmf, sizeof cmd->resp.tmf,
-			      GFP_NOIO) < 0)
+			      sizeof cmd->req.tmf, sizeof cmd->resp.tmf) < 0)
 		goto out;
 
 	wait_for_completion(&comp);
