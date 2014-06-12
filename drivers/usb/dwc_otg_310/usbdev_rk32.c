@@ -684,7 +684,8 @@ static irqreturn_t id_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/***** handler for otg line status change *****/
+#ifdef USB_LINESTATE_IRQ
+/***** handler for usb line status change *****/
 
 static irqreturn_t line_irq_handler(int irq, void *dev_id)
 {
@@ -708,6 +709,7 @@ static irqreturn_t line_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 /************* register usb detection irqs **************/
 static int otg_irq_detect_init(struct platform_device *pdev)
@@ -750,7 +752,7 @@ static int otg_irq_detect_init(struct platform_device *pdev)
 				enable_irq_wake(irq);
 		}
 	}
-#if 0
+#ifdef USB_LINESTATE_IRQ
 	/*register otg_linestate irq */
 	irq = platform_get_irq_byname(pdev, "otg_linestate");
 	if (irq > 0) {

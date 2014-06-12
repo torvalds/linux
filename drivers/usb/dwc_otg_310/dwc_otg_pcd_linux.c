@@ -1646,9 +1646,11 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 {
 
 	struct dwc_otg_device *otg_dev = pcd->otg_dev;
-	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	pcd->vbus_status = USB_BC_TYPE_DISCNT;
 	pcd->phy_suspend = USB_PHY_ENABLED;
+#ifdef CONFIG_RK_USB_UART
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
+#endif
 
 	INIT_DELAYED_WORK(&pcd->reconnect, dwc_phy_reconnect);
 	INIT_DELAYED_WORK(&pcd->check_vbus_work, dwc_otg_pcd_check_vbus_work);

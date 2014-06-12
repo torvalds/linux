@@ -1067,7 +1067,7 @@ static int do_synchronize_cache(struct fsg_common *common)
 }
 
 /*-------------------------------------------------------------------------*/
-
+#ifndef CONFIG_ARCH_ROCKCHIP
 static void invalidate_sub(struct fsg_lun *curlun)
 {
 	struct file *filp = curlun->filp;
@@ -1175,6 +1175,7 @@ static int do_verify(struct fsg_common *common)
 	}
 	return 0;
 }
+#endif
 
 /*-------------------------------------------------------------------------*/
 
