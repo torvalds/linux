@@ -34,6 +34,7 @@
 #include <subdev/vm.h>
 #include <subdev/bar.h>
 #include <subdev/timer.h>
+#include <subdev/mc.h>
 
 #include <engine/fifo.h>
 #include <engine/graph.h>

@@ -969,17 +969,16 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 {
 	struct nvc0_graph_oclass *oclass = (void *)nv_object(priv)->oclass;
 	struct nvc0_grctx_oclass *cclass = (void *)nv_engine(priv)->cclass;
-	u32 r000260;
 	int i;
 
 	if (priv->firmware) {
 		/* load fuc microcode */
-		r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+		nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 		nvc0_graph_init_fw(priv, 0x409000, &priv->fuc409c,
 						   &priv->fuc409d);
 		nvc0_graph_init_fw(priv, 0x41a000, &priv->fuc41ac,
 						   &priv->fuc41ad);
-		nv_wr32(priv, 0x000260, r000260);
+		nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 
 		/* start both of them running */
 		nv_wr32(priv, 0x409840, 0xffffffff);
@@ -1066,7 +1065,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 	}
 
 	/* load HUB microcode */
-	r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 	nv_wr32(priv, 0x4091c0, 0x01000000);
 	for (i = 0; i < oclass->fecs.ucode->data.size / 4; i++)
 		nv_wr32(priv, 0x4091c4, oclass->fecs.ucode->data.data[i]);
@@ -1089,7 +1088,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 			nv_wr32(priv, 0x41a188, i >> 6);
 		nv_wr32(priv, 0x41a184, oclass->gpccs.ucode->code.data[i]);
 	}
-	nv_wr32(priv, 0x000260, r000260);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 
 	/* load register lists */
 	nvc0_graph_init_csdata(priv, cclass->hub, 0x409000, 0x000, 0x000000);

@@ -1170,7 +1170,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	struct nvc0_grctx_oclass *oclass = (void *)nv_engine(priv)->cclass;
 
-	nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 0);
 
 	nvc0_graph_mmio(priv, oclass->hub);
 	nvc0_graph_mmio(priv, oclass->gpc);
@@ -1192,7 +1192,7 @@ nvc0_grctx_generate_main(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	nvc0_graph_icmd(priv, oclass->icmd);
 	nv_wr32(priv, 0x404154, 0x00000400);
 	nvc0_graph_mthd(priv, oclass->mthd);
-	nv_mask(priv, 0x000260, 0x00000001, 0x00000001);
+	nouveau_mc(priv)->unk260(nouveau_mc(priv), 1);
 }
 
 int

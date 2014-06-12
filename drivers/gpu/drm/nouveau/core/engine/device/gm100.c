@@ -68,7 +68,7 @@ gm100_identify(struct nouveau_device *device)
 #endif
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] =  gm107_devinit_oclass;
-		device->oclass[NVDEV_SUBDEV_MC     ] =  nvc3_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_MC     ] =  gk20a_mc_oclass;
 		device->oclass[NVDEV_SUBDEV_BUS    ] =  nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &gk20a_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] =  gm107_fb_oclass;

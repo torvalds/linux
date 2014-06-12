@@ -161,6 +161,7 @@ nouveau-y += core/subdev/mc/nv94.o
 nouveau-y += core/subdev/mc/nv98.o
 nouveau-y += core/subdev/mc/nvc0.o
 nouveau-y += core/subdev/mc/nvc3.o
+nouveau-y += core/subdev/mc/gk20a.o
 nouveau-y += core/subdev/mxm/base.o
 nouveau-y += core/subdev/mxm/mxms.o
 nouveau-y += core/subdev/mxm/nv50.o
