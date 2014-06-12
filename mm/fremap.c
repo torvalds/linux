@@ -202,7 +202,8 @@ get_write_lock:
 		 */
 		if (mapping_cap_account_dirty(mapping)) {
 			unsigned long addr;
-			struct file *file = vma->vm_file;
+			struct file *file = vma->vm_file,
+				*prfile = vma->vm_prfile;
 
 			vma_get_file(vma);
 			addr = mmap_region(file, start, size,
@@ -212,6 +213,14 @@ get_write_lock:
 				err = addr;
 			} else {
 				BUG_ON(addr != start);
+				if (prfile) {
+					struct vm_area_struct *new_vma;
+					new_vma = find_vma(mm, addr);
+					if (!new_vma->vm_prfile)
+						new_vma->vm_prfile = prfile;
+					if (new_vma != vma)
+						get_file(prfile);
+				}
 				err = 0;
 			}
 			goto out;
