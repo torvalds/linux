@@ -378,6 +378,7 @@ static int rk808_rtc_update_irq_enable(struct device *dev,
  * bit 2: every hour
  * bit 3: every day
  */
+#if 0
 static int rk808_rtc_irq_set_freq(struct device *dev, int freq)
 {	
 	struct rk808_rtc *rk808_rtc = dev_get_drvdata(dev);
@@ -403,7 +404,7 @@ static int rk808_rtc_irq_set_freq(struct device *dev, int freq)
 	
 	return ret;
 }
-
+#endif
 static irqreturn_t rk808_alm_irq(int irq, void *data)
 {
 	struct rk808_rtc *rk808_rtc = data;

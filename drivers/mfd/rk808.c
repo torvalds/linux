@@ -1044,16 +1044,16 @@ static struct rk808_attribute rk808_attrs[] = {
 	__ATTR(rk808_test,	S_IRUGO | S_IWUSR,	rk808_test_show,	rk808_test_store),
 };
 #endif
-
-extern void rk28_send_wakeup_key(void);
+#if 0
+extern void rk_send_wakeup_key(void);
 static irqreturn_t rk808_vbat_lo_irq(int irq, void *data)
 {
         printk("rk808 vbat low %s:irq=%d\n",__func__,irq);
 	rk808_set_bits(g_rk808,0x4c,(0x1 << 1),(0x1 <<1));
-//	rk28_send_wakeup_key();
+//	rk_send_wakeup_key();
         return IRQ_HANDLED;
 }
-
+#endif
 #ifdef CONFIG_OF
 static struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk808"},
@@ -1166,8 +1166,7 @@ static struct syscore_ops rk808_syscore_ops = {
 
 static void rk808_device_shutdown(void)
 {
-	int ret,i,val;
-	int err = -1;
+	int ret,i;
 	u8 reg = 0;
 	struct rk808 *rk808 = g_rk808;
 	for(i=0;i < 10;i++){
@@ -1363,7 +1362,8 @@ static int rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *i
 	struct regulator_dev *rk808_rdev;
 	struct regulator_init_data *reg_data;
 	const char *rail_name = NULL;
-	int ret,vlow_irq,i=0;
+	int ret,i=0;
+//	int vlow_irq;
 	
 	printk("%s,line=%d\n", __func__,__LINE__);
 
