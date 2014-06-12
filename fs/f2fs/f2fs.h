@@ -641,7 +641,8 @@ static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
  */
 static inline int check_nid_range(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	WARN_ON((nid >= NM_I(sbi)->max_nid));
+	if (unlikely(nid < F2FS_ROOT_INO(sbi)))
+		return -EINVAL;
 	if (unlikely(nid >= NM_I(sbi)->max_nid))
 		return -EINVAL;
 	return 0;
