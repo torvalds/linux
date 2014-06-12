@@ -344,6 +344,7 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 {
 	const int index = TAG_TO_INDEX(bt, tag);
 	struct bt_wait_state *bs;
+	int wait_cnt;
 
 	/*
 	 * The unlock memory barrier need to order access to req in free
@@ -352,10 +353,19 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 	clear_bit_unlock(TAG_TO_BIT(bt, tag), &bt->map[index].word);
 
 	bs = bt_wake_ptr(bt);
-	if (bs && atomic_dec_and_test(&bs->wait_cnt)) {
-		atomic_set(&bs->wait_cnt, bt->wake_cnt);
+	if (!bs)
+		return;
+
+	wait_cnt = atomic_dec_return(&bs->wait_cnt);
+	if (wait_cnt == 0) {
+wake:
+		atomic_add(bt->wake_cnt, &bs->wait_cnt);
 		bt_index_atomic_inc(&bt->wake_index);
 		wake_up(&bs->wait);
+	} else if (wait_cnt < 0) {
+		wait_cnt = atomic_inc_return(&bs->wait_cnt);
+		if (!wait_cnt)
+			goto wake;
 	}
 }
 
