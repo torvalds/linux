@@ -1747,11 +1747,6 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 
 	dev_priv->psr.source_ok = false;
 
-	if (!HAS_PSR(dev)) {
-		DRM_DEBUG_KMS("PSR not supported on this platform\n");
-		return false;
-	}
-
 	if ((intel_encoder->type != INTEL_OUTPUT_EDP) ||
 	    (dig_port->port != PORT_A)) {
 		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
@@ -1824,6 +1819,11 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
+	if (!HAS_PSR(dev)) {
+		DRM_DEBUG_KMS("PSR not supported on this platform\n");
+		return;
+	}
+
 	if (intel_edp_psr_match_conditions(intel_dp) &&
 	    !intel_edp_is_psr_enabled(dev))
 		intel_edp_psr_do_enable(intel_dp);
@@ -1850,6 +1850,9 @@ void intel_edp_psr_update(struct drm_device *dev)
 {
 	struct intel_encoder *encoder;
 	struct intel_dp *intel_dp = NULL;
+
+	if (!HAS_PSR(dev))
+		return;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
 		if (encoder->type == INTEL_OUTPUT_EDP) {
