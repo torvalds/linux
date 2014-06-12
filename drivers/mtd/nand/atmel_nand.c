@@ -861,12 +861,11 @@ static int pmecc_correction(struct mtd_info *mtd, u32 pmecc_stat, uint8_t *buf,
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct atmel_nand_host *host = nand_chip->priv;
-	int i, err_nbr, eccbytes;
+	int i, err_nbr;
 	uint8_t *buf_pos;
 	int total_err = 0;
 
-	eccbytes = nand_chip->ecc.bytes;
-	for (i = 0; i < eccbytes; i++)
+	for (i = 0; i < nand_chip->ecc.total; i++)
 		if (ecc[i] != 0xff)
 			goto normal_check;
 	/* Erased page, return OK */
@@ -928,7 +927,7 @@ static int atmel_nand_pmecc_read_page(struct mtd_info *mtd,
 	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
 {
 	struct atmel_nand_host *host = chip->priv;
-	int eccsize = chip->ecc.size;
+	int eccsize = chip->ecc.size * chip->ecc.steps;
 	uint8_t *oob = chip->oob_poi;
 	uint32_t *eccpos = chip->ecc.layout->eccpos;
 	uint32_t stat;
@@ -1169,8 +1168,7 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* ECC is calculated for the whole page (1 step) */
-	nand_chip->ecc.size = mtd->writesize;
+	nand_chip->ecc.size = sector_size;
 
 	/* set ECC page size and oob layout */
 	switch (mtd->writesize) {
@@ -1185,18 +1183,20 @@ static int atmel_pmecc_nand_init_params(struct platform_device *pdev,
 		host->pmecc_index_of = host->pmecc_rom_base +
 			host->pmecc_lookup_table_offset;
 
-		nand_chip->ecc.steps = 1;
+		nand_chip->ecc.steps = host->pmecc_sector_number;
 		nand_chip->ecc.strength = cap;
-		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector *
+		nand_chip->ecc.bytes = host->pmecc_bytes_per_sector;
+		nand_chip->ecc.total = host->pmecc_bytes_per_sector *
 				       host->pmecc_sector_number;
-		if (nand_chip->ecc.bytes > mtd->oobsize - 2) {
+		if (nand_chip->ecc.total > mtd->oobsize - 2) {
 			dev_err(host->dev, "No room for ECC bytes\n");
 			err_no = -EINVAL;
 			goto err;
 		}
 		pmecc_config_ecc_layout(&atmel_pmecc_oobinfo,
 					mtd->oobsize,
-					nand_chip->ecc.bytes);
+					nand_chip->ecc.total);
+
 		nand_chip->ecc.layout = &atmel_pmecc_oobinfo;
 		break;
 	case 512:
