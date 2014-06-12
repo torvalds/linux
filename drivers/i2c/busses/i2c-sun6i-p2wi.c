@@ -240,7 +240,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	snprintf(p2wi->adapter.name, sizeof(p2wi->adapter.name), pdev->name);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "failed to retrieve irq: %d\n", ret);
+		dev_err(dev, "failed to retrieve irq: %d\n", irq);
 		return irq;
 	}
 
