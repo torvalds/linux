@@ -620,6 +620,11 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
   */
 void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
 
+
+/** __v4l2_ctrl_modify_range() - Unlocked variant of v4l2_ctrl_modify_range() */
+int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+			     s64 min, s64 max, u64 step, s64 def);
+
 /** v4l2_ctrl_modify_range() - Update the range of a control.
   * @ctrl:	The control to update.
   * @min:	The control's minimum value.
@@ -637,8 +642,17 @@ void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
   * This function assumes that the control handler is not locked and will
   * take the lock itself.
   */
-int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
-			s64 min, s64 max, u64 step, s64 def);
+static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+					 s64 min, s64 max, u64 step, s64 def)
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_modify_range(ctrl, min, max, step, def);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
 
 /** v4l2_ctrl_notify() - Function to set a notify callback for a control.
   * @ctrl:	The control.
