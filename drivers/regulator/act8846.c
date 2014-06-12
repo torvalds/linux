@@ -54,7 +54,9 @@ struct act8846 {
 	struct i2c_client *i2c;
 	int num_regulators;
 	struct regulator_dev **rdev;
-//	struct early_suspend act8846_suspend;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend act8846_suspend;
+#endif
 	int irq_base;
 	int chip_irq;
 	int pmic_sleep_gpio; /* */
@@ -459,8 +461,7 @@ static int act8846_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 static int act8846_dcdc_set_voltage_time_sel(struct regulator_dev *dev,   unsigned int old_selector,
 				     unsigned int new_selector)
 {
-	struct act8846 *act8846 = rdev_get_drvdata(dev);
-	int ret =0,old_volt, new_volt;
+	int old_volt, new_volt;
 	
 	old_volt = act8846_dcdc_list_voltage(dev, old_selector);
 	if (old_volt < 0)
@@ -793,10 +794,8 @@ static struct act8846_board *act8846_parse_dt(struct i2c_client *i2c)
 #endif
 
 
-int act8846_device_shutdown(void)
+void act8846_device_shutdown(void)
 {
-	int ret;
-	int err = -1;
 	struct act8846 *act8846 = g_act8846;
 	
 	printk("%s\n",__func__);
@@ -816,7 +815,6 @@ int act8846_device_shutdown(void)
 		return err;
 	}
 #endif
-	return 0;	
 }
 EXPORT_SYMBOL_GPL(act8846_device_shutdown);
 

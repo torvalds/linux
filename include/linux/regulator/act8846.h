@@ -27,7 +27,7 @@
 #define act8846_NUM_REGULATORS 12
 struct act8846;
 
-int act8846_device_shutdown(void);
+void act8846_device_shutdown(void);
 
 struct act8846_board {
 	int irq;

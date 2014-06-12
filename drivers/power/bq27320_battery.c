@@ -1175,7 +1175,7 @@ static void bq27320_battery_work(struct work_struct *work)
 	#endif
 	schedule_delayed_work(&di->work, 1*HZ);
 }
-
+#if 0
 static void bq27320_set(void)
 {
 	struct bq27320_device_info *di;
@@ -1220,7 +1220,7 @@ static void bq27320_set(void)
 	else
 		printk("bq27320 write 0x21 success\n");
 }
-
+#endif
 
 static int bq27320_battery_suspend(struct i2c_client *client, pm_message_t mesg)
 {
@@ -1233,6 +1233,7 @@ static int bq27320_battery_resume(struct i2c_client *client)
 	schedule_delayed_work(&bq27320_di->work, msecs_to_jiffies(50));
 	return 0;
 }
+#if 0
 static int bq27320_is_in_rom_mode(void)
 {
 	int ret = 0;
@@ -1247,7 +1248,7 @@ static int bq27320_is_in_rom_mode(void)
 	else 
 		return 0;
 }
-
+#endif
 #ifdef CONFIG_OF
 static struct of_device_id bq27320_battery_of_match[] = {
 	{ .compatible = "ti,bq27320"},
@@ -1261,7 +1262,6 @@ static int bq27320_battery_probe(struct i2c_client *client,
 {
 	struct bq27320_device_info *di;
 	int retval = 0;
-	struct bq27320_board *pdev;
 	struct device_node *bq27320_node;
 	u8 buf[2];
 

@@ -445,7 +445,7 @@ static struct syr82x_board *syr82x_parse_dt(struct syr82x *syr82x)
 	struct syr82x_board *pdata;
 	struct device_node *regs;
 	struct device_node *syr82x_np;
-	int gpio,count;
+	int count;
 	DBG("%s,line=%d\n", __func__,__LINE__);	
 	
 	syr82x_np = of_node_get(syr82x->dev->of_node);
