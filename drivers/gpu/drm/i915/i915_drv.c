@@ -28,6 +28,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/acpi.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -499,6 +500,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
+	pci_power_t opregion_target_state;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -547,6 +549,12 @@ static int i915_drm_freeze(struct drm_device *dev)
 	i915_gem_suspend_gtt_mappings(dev);
 
 	i915_save_state(dev);
+
+	if (acpi_target_system_state() >= ACPI_STATE_S3)
+		opregion_target_state = PCI_D3cold;
+	else
+		opregion_target_state = PCI_D1;
+	intel_opregion_notify_adapter(dev, opregion_target_state);
 
 	intel_uncore_forcewake_reset(dev, false);
 	intel_opregion_fini(dev);
@@ -679,6 +687,8 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_DONE;
 	mutex_unlock(&dev_priv->modeset_restore_lock);
+
+	intel_opregion_notify_adapter(dev, PCI_D0);
 
 	intel_runtime_pm_put(dev_priv);
 	return 0;
