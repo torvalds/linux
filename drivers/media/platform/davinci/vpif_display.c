@@ -233,6 +233,7 @@ err:
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_QUEUED);
 	}
+	spin_unlock_irqrestore(&common->irqlock, flags);
 
 	return ret;
 }
