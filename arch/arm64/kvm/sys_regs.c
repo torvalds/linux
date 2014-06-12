@@ -776,17 +776,15 @@ static struct sys_reg_desc invariant_sys_regs[] = {
 	  NULL, get_ctr_el0 },
 };
 
-static int reg_from_user(void *val, const void __user *uaddr, u64 id)
+static int reg_from_user(u64 *val, const void __user *uaddr, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_from_user(val, uaddr, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
 }
 
-static int reg_to_user(void __user *uaddr, const void *val, u64 id)
+static int reg_to_user(void __user *uaddr, const u64 *val, u64 id)
 {
-	/* This Just Works because we are little endian. */
 	if (copy_to_user(uaddr, val, KVM_REG_SIZE(id)) != 0)
 		return -EFAULT;
 	return 0;
