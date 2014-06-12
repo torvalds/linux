@@ -88,8 +88,8 @@ struct usbip_exported_device *usbip_exported_device_new(const char *sdevpath)
 		goto err;
 
 	/* reallocate buffer to include usb interface data */
-	size = sizeof(struct usbip_exported_device) + edev->udev.bNumInterfaces *
-		sizeof(struct usbip_usb_interface);
+	size = sizeof(struct usbip_exported_device) +
+		edev->udev.bNumInterfaces * sizeof(struct usbip_usb_interface);
 
 	edev_old = edev;
 	edev = realloc(edev, size);
