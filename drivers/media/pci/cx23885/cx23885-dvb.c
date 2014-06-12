@@ -44,6 +44,7 @@
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "dib7000p.h"
+#include "dib0070.h"
 #include "dibx000_common.h"
 #include "zl10353.h"
 #include "stv0900.h"
@@ -746,6 +747,106 @@ static int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 	return 0;
 };
 
+static int dib7070_tuner_reset(struct dvb_frontend *fe, int onoff)
+{
+	struct dib7000p_ops *dib7000p_ops = fe->sec_priv;
+
+	return dib7000p_ops->set_gpio(fe, 8, 0, !onoff);
+}
+
+static int dib7070_tuner_sleep(struct dvb_frontend *fe, int onoff)
+{
+	return 0;
+}
+
+static struct dib0070_config dib7070p_dib0070_config = {
+	.i2c_address = DEFAULT_DIB0070_I2C_ADDRESS,
+	.reset = dib7070_tuner_reset,
+	.sleep = dib7070_tuner_sleep,
+	.clock_khz = 12000,
+	.freq_offset_khz_vhf = 950,
+	.freq_offset_khz_vhf = 550,
+	/* .flip_chip = 1, */
+};
+
+/* DIB7070 generic */
+static struct dibx000_agc_config dib7070_agc_config = {
+	.band_caps = BAND_UHF | BAND_VHF | BAND_LBAND | BAND_SBAND,
+
+	/*
+	 * P_agc_use_sd_mod1=0, P_agc_use_sd_mod2=0, P_agc_freq_pwm_div=5,
+	 * P_agc_inv_pwm1=0, P_agc_inv_pwm2=0, P_agc_inh_dc_rv_est=0,
+	 * P_agc_time_est=3, P_agc_freeze=0, P_agc_nb_est=5, P_agc_write=0
+	 */
+	.setup = (0 << 15) | (0 << 14) | (5 << 11) | (0 << 10) | (0 << 9) |
+		 (0 << 8) | (3 << 5) | (0 << 4) | (5 << 1) | (0 << 0),
+	.inv_gain = 600,
+	.time_stabiliz = 10,
+	.alpha_level = 0,
+	.thlock = 118,
+	.wbd_inv = 0,
+	.wbd_ref = 3530,
+	.wbd_sel = 1,
+	.wbd_alpha = 5,
+	.agc1_max = 65535,
+	.agc1_min = 0,
+	.agc2_max = 65535,
+	.agc2_min = 0,
+	.agc1_pt1 = 0,
+	.agc1_pt2 = 40,
+	.agc1_pt3 = 183,
+	.agc1_slope1 = 206,
+	.agc1_slope2 = 255,
+	.agc2_pt1 = 72,
+	.agc2_pt2 = 152,
+	.agc2_slope1 = 88,
+	.agc2_slope2 = 90,
+	.alpha_mant = 17,
+	.alpha_exp = 27,
+	.beta_mant = 23,
+	.beta_exp = 51,
+	.perform_agc_softsplit = 0,
+};
+
+static struct dibx000_bandwidth_config dib7070_bw_config_12_mhz = {
+	.internal = 60000,
+	.sampling = 15000,
+	.pll_prediv = 1,
+	.pll_ratio = 20,
+	.pll_range = 3,
+	.pll_reset = 1,
+	.pll_bypass = 0,
+	.enable_refdiv = 0,
+	.bypclk_div = 0,
+	.IO_CLK_en_core = 1,
+	.ADClkSrc = 1,
+	.modulo = 2,
+	/* refsel, sel, freq_15k */
+	.sad_cfg = (3 << 14) | (1 << 12) | (524 << 0),
+	.ifreq = (0 << 25) | 0,
+	.timf = 20452225,
+	.xtal_hz = 12000000,
+};
+
+static struct dib7000p_config dib7070p_dib7000p_config = {
+	/* .output_mode = OUTMODE_MPEG2_FIFO, */
+	.output_mode = OUTMODE_MPEG2_SERIAL,
+	/* .output_mode = OUTMODE_MPEG2_PAR_GATED_CLK, */
+	.output_mpeg2_in_188_bytes = 1,
+
+	.agc_config_count = 1,
+	.agc = &dib7070_agc_config,
+	.bw  = &dib7070_bw_config_12_mhz,
+	.tuner_is_baseband = 1,
+	.spur_protect = 1,
+
+	.gpio_dir = 0xfcef, /* DIB7000P_GPIO_DEFAULT_DIRECTIONS, */
+	.gpio_val = 0x0110, /* DIB7000P_GPIO_DEFAULT_VALUES, */
+	.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
+
+	.hostbus_diversity = 1,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct dib7000p_ops dib7000p_ops;
@@ -990,6 +1091,30 @@ static int dvb_register(struct cx23885_tsport *port)
 					&cfg);
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
+		}
+		break;
+	}
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2: {
+		i2c_bus = &dev->i2c_bus[port->nr - 1];
+		/* cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0); */
+		/* cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1); */
+
+		if (!dvb_attach(dib7000p_attach, &dib7000p_ops))
+			return -ENODEV;
+
+		if (dib7000p_ops.i2c_enumeration(&i2c_bus->i2c_adap, 1, 0x12, &dib7070p_dib7000p_config) < 0) {
+			printk(KERN_WARNING "Unable to enumerate dib7000p\n");
+			return -ENODEV;
+		}
+		fe0->dvb.frontend = dib7000p_ops.init(&i2c_bus->i2c_adap, 0x80, &dib7070p_dib7000p_config);
+		if (fe0->dvb.frontend != NULL) {
+			struct i2c_adapter *tun_i2c;
+
+			fe0->dvb.frontend->sec_priv = kmalloc(sizeof(dib7000p_ops), GFP_KERNEL);
+			memcpy(fe0->dvb.frontend->sec_priv, &dib7000p_ops, sizeof(dib7000p_ops));
+			tun_i2c = dib7000p_ops.get_i2c_master(fe0->dvb.frontend, DIBX000_I2C_INTERFACE_TUNER, 1);
+			if (!dvb_attach(dib0070_attach, fe0->dvb.frontend, tun_i2c, &dib7070p_dib0070_config))
+				return -ENODEV;
 		}
 		break;
 	}

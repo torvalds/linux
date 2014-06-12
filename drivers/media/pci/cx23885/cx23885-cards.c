@@ -650,6 +650,11 @@ struct cx23885_board cx23885_boards[] = {
 			.amux   = CX25840_AUDIO6,
 		} },
 	},
+	[CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2] = {
+		.name		= "DViCO FusionHDTV DVB-T Dual Express2",
+		.portb		= CX23885_MPEG_DVB,
+		.portc		= CX23885_MPEG_DVB,
+	},
 	[CX23885_BOARD_HAUPPAUGE_IMPACTVCBE] = {
 		.name		= "Hauppauge ImpactVCB-e",
 		.tuner_type	= TUNER_ABSENT,
@@ -920,6 +925,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x7133,
 		.card      = CX23885_BOARD_HAUPPAUGE_IMPACTVCBE,
+	}, {
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb98,
+		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1163,6 +1172,7 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2:
 		/* Two identical tuners on two different i2c buses,
 		 * we need to reset the correct gpio. */
 		if (port->nr == 1)
@@ -1306,6 +1316,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_set(GP0_IO, 0x000f000f);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2:
 		/* GPIO-0 portb xc3028 reset */
 		/* GPIO-1 portb zl10353 reset */
 		/* GPIO-2 portc xc3028 reset */
@@ -1611,6 +1622,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 				 ir_rxtx_pin_cfg_count, ir_rxtx_pin_cfg);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2:
 		request_module("ir-kbd-i2c");
 		break;
 	}
@@ -1747,6 +1759,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2:
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
