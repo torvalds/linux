@@ -373,17 +373,13 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 
 static struct acpiphp_bridge *acpiphp_dev_to_bridge(struct acpi_device *adev)
 {
-	struct acpiphp_context *context;
 	struct acpiphp_bridge *bridge = NULL;
 
 	acpi_lock_hp_context();
-	context = acpiphp_get_context(adev);
-	if (context) {
-		bridge = context->bridge;
+	if (adev->hp) {
+		bridge = to_acpiphp_root_context(adev->hp)->root_bridge;
 		if (bridge)
 			get_bridge(bridge);
-
-		acpiphp_put_context(context);
 	}
 	acpi_unlock_hp_context();
 	return bridge;
@@ -881,7 +877,17 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 	 */
 	get_device(&bus->dev);
 
-	if (!pci_is_root_bus(bridge->pci_bus)) {
+	acpi_lock_hp_context();
+	if (pci_is_root_bus(bridge->pci_bus)) {
+		struct acpiphp_root_context *root_context;
+
+		root_context = kzalloc(sizeof(*root_context), GFP_KERNEL);
+		if (!root_context)
+			goto err;
+
+		root_context->root_bridge = bridge;
+		acpi_set_hp_context(adev, &root_context->hp, NULL, NULL, NULL);
+	} else {
 		struct acpiphp_context *context;
 
 		/*
@@ -890,21 +896,16 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		 * parent is going to be handled by pciehp, in which case this
 		 * bridge is not interesting to us either.
 		 */
-		acpi_lock_hp_context();
 		context = acpiphp_get_context(adev);
-		if (!context) {
-			acpi_unlock_hp_context();
-			put_device(&bus->dev);
-			pci_dev_put(bridge->pci_dev);
-			kfree(bridge);
-			return;
-		}
+		if (!context)
+			goto err;
+
 		bridge->context = context;
 		context->bridge = bridge;
 		/* Get a reference to the parent bridge. */
 		get_bridge(context->func.parent);
-		acpi_unlock_hp_context();
 	}
+	acpi_unlock_hp_context();
 
 	/* Must be added to the list prior to calling acpiphp_add_context(). */
 	mutex_lock(&bridge_mutex);
@@ -919,6 +920,30 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 		cleanup_bridge(bridge);
 		put_bridge(bridge);
 	}
+	return;
+
+ err:
+	acpi_unlock_hp_context();
+	put_device(&bus->dev);
+	pci_dev_put(bridge->pci_dev);
+	kfree(bridge);
+}
+
+void acpiphp_drop_bridge(struct acpiphp_bridge *bridge)
+{
+	if (pci_is_root_bus(bridge->pci_bus)) {
+		struct acpiphp_root_context *root_context;
+		struct acpi_device *adev;
+
+		acpi_lock_hp_context();
+		adev = ACPI_COMPANION(bridge->pci_bus->bridge);
+		root_context = to_acpiphp_root_context(adev->hp);
+		adev->hp = NULL;
+		acpi_unlock_hp_context();
+		kfree(root_context);
+	}
+	cleanup_bridge(bridge);
+	put_bridge(bridge);
 }
 
 /**
@@ -936,8 +961,7 @@ void acpiphp_remove_slots(struct pci_bus *bus)
 	list_for_each_entry(bridge, &bridge_list, list)
 		if (bridge->pci_bus == bus) {
 			mutex_unlock(&bridge_mutex);
-			cleanup_bridge(bridge);
-			put_bridge(bridge);
+			acpiphp_drop_bridge(bridge);
 			return;
 		}
 
