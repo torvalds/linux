@@ -3328,7 +3328,7 @@ bool css_has_online_children(struct cgroup_subsys_state *css)
 
 	rcu_read_lock();
 	css_for_each_child(child, css) {
-		if (css->flags & CSS_ONLINE) {
+		if (child->flags & CSS_ONLINE) {
 			ret = true;
 			break;
 		}
