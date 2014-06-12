@@ -254,8 +254,8 @@ void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	if (validate_index(dev, table, index))
 		goto out;
 	if (--table->refs[index]) {
-		mlx4_dbg(dev, "Have more references for index %d,"
-			 "no need to modify mac table\n", index);
+		mlx4_dbg(dev, "Have more references for index %d, no need to modify mac table\n",
+			 index);
 		goto out;
 	}
 
@@ -453,9 +453,8 @@ void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, u16 vlan)
 	}
 
 	if (--table->refs[index]) {
-		mlx4_dbg(dev, "Have %d more references for index %d,"
-			 "no need to modify vlan table\n", table->refs[index],
-			 index);
+		mlx4_dbg(dev, "Have %d more references for index %d, no need to modify vlan table\n",
+			 table->refs[index], index);
 		goto out;
 	}
 	table->entries[index] = 0;
@@ -796,8 +795,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 					if (!memcmp(gid_entry_mbox->raw, gid_entry_tbl->raw,
 						    sizeof(gid_entry_tbl->raw))) {
 						/* found duplicate */
-						mlx4_warn(dev, "requested gid entry for slave:%d "
-							  "is a duplicate of gid at index %d\n",
+						mlx4_warn(dev, "requested gid entry for slave:%d is a duplicate of gid at index %d\n",
 							  slave, i);
 						mutex_unlock(&(priv->port[port].gid_table.mutex));
 						return -EINVAL;

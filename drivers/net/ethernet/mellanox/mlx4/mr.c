@@ -250,8 +250,8 @@ static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 						       MLX4_CMD_TIME_CLASS_A,
 						       MLX4_CMD_WRAPPED);
 		if (err)
-			mlx4_warn(dev, "Failed to free mtt range at:"
-				  "%d order:%d\n", offset, order);
+			mlx4_warn(dev, "Failed to free mtt range at:%d order:%d\n",
+				  offset, order);
 		return;
 	}
 	 __mlx4_free_mtt_range(dev, offset, order);
@@ -436,8 +436,8 @@ static int mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 				     key_to_hw_index(mr->key) &
 				     (dev->caps.num_mpts - 1));
 		if (err) {
-			mlx4_warn(dev, "HW2SW_MPT failed (%d),", err);
-			mlx4_warn(dev, "MR has MWs bound to it.\n");
+			mlx4_warn(dev, "HW2SW_MPT failed (%d), MR has MWs bound to it\n",
+				  err);
 			return err;
 		}
 
@@ -774,7 +774,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 			mlx4_alloc_mtt_range(dev,
 					     fls(dev->caps.reserved_mtts - 1));
 		if (priv->reserved_mtts < 0) {
-			mlx4_warn(dev, "MTT table of order %u is too small.\n",
+			mlx4_warn(dev, "MTT table of order %u is too small\n",
 				  mr_table->mtt_buddy.max_order);
 			err = -ENOMEM;
 			goto err_reserve_mtts;
@@ -955,8 +955,7 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
 		err = PTR_ERR(mailbox);
-		printk(KERN_WARNING "mlx4_ib: mlx4_alloc_cmd_mailbox"
-		       " failed (%d)\n", err);
+		pr_warn("mlx4_ib: mlx4_alloc_cmd_mailbox failed (%d)\n", err);
 		return;
 	}
 
@@ -965,8 +964,7 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 			     (dev->caps.num_mpts - 1));
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	if (err) {
-		printk(KERN_WARNING "mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n",
-		       err);
+		pr_warn("mlx4_ib: mlx4_HW2SW_MPT failed (%d)\n", err);
 		return;
 	}
 	fmr->mr.enabled = MLX4_MPT_EN_SW;

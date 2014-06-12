@@ -214,6 +214,8 @@
 
 #define TX_ECHO_SKB_MAX	1
 
+#define MCP251X_OST_DELAY_MS	(5)
+
 #define DEVICE_NAME "mcp251x"
 
 static int mcp251x_enable_dma; /* Enable SPI DMA. Default: 0 (Off) */
@@ -624,50 +626,45 @@ static int mcp251x_setup(struct net_device *net, struct mcp251x_priv *priv,
 static int mcp251x_hw_reset(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
+	u8 reg;
 	int ret;
-	unsigned long timeout;
+
+	/* Wait for oscillator startup timer after power up */
+	mdelay(MCP251X_OST_DELAY_MS);
 
 	priv->spi_tx_buf[0] = INSTRUCTION_RESET;
-	ret = spi_write(spi, priv->spi_tx_buf, 1);
-	if (ret) {
-		dev_err(&spi->dev, "reset failed: ret = %d\n", ret);
-		return -EIO;
-	}
+	ret = mcp251x_spi_trans(spi, 1);
+	if (ret)
+		return ret;
 
-	/* Wait for reset to finish */
-	timeout = jiffies + HZ;
-	mdelay(10);
-	while ((mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK)
-	       != CANCTRL_REQOP_CONF) {
-		schedule();
-		if (time_after(jiffies, timeout)) {
-			dev_err(&spi->dev, "MCP251x didn't"
-				" enter in conf mode after reset\n");
-			return -EBUSY;
-		}
-	}
+	/* Wait for oscillator startup timer after reset */
+	mdelay(MCP251X_OST_DELAY_MS);
+	
+	reg = mcp251x_read_reg(spi, CANSTAT);
+	if ((reg & CANCTRL_REQOP_MASK) != CANCTRL_REQOP_CONF)
+		return -ENODEV;
+
 	return 0;
 }
 
 static int mcp251x_hw_probe(struct spi_device *spi)
 {
-	int st1, st2;
+	u8 ctrl;
+	int ret;
 
-	mcp251x_hw_reset(spi);
+	ret = mcp251x_hw_reset(spi);
+	if (ret)
+		return ret;
 
-	/*
-	 * Please note that these are "magic values" based on after
-	 * reset defaults taken from data sheet which allows us to see
-	 * if we really have a chip on the bus (we avoid common all
-	 * zeroes or all ones situations)
-	 */
-	st1 = mcp251x_read_reg(spi, CANSTAT) & 0xEE;
-	st2 = mcp251x_read_reg(spi, CANCTRL) & 0x17;
+	ctrl = mcp251x_read_reg(spi, CANCTRL);
 
-	dev_dbg(&spi->dev, "CANSTAT 0x%02x CANCTRL 0x%02x\n", st1, st2);
+	dev_dbg(&spi->dev, "CANCTRL 0x%02x\n", ctrl);
 
-	/* Check for power up default values */
-	return (st1 == 0x80 && st2 == 0x07) ? 1 : 0;
+	/* Check for power up default value */
+	if ((ctrl & 0x17) != 0x07)
+		return -ENODEV;
+
+	return 0;
 }
 
 static int mcp251x_power_enable(struct regulator *reg, int enable)
@@ -776,7 +773,6 @@ static void mcp251x_restart_work_handler(struct work_struct *ws)
 
 	mutex_lock(&priv->mcp_lock);
 	if (priv->after_suspend) {
-		mdelay(10);
 		mcp251x_hw_reset(spi);
 		mcp251x_setup(net, priv, spi);
 		if (priv->after_suspend & AFTER_SUSPEND_RESTART) {
@@ -955,7 +951,7 @@ static int mcp251x_open(struct net_device *net)
 	priv->tx_len = 0;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
-				   flags, DEVICE_NAME, priv);
+				   flags | IRQF_ONESHOT, DEVICE_NAME, priv);
 	if (ret) {
 		dev_err(&spi->dev, "failed to acquire irq %d\n", spi->irq);
 		mcp251x_power_enable(priv->transceiver, 0);
@@ -1032,8 +1028,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct net_device *net;
 	struct mcp251x_priv *priv;
-	int freq, ret = -ENODEV;
 	struct clk *clk;
+	int freq, ret;
 
 	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
@@ -1076,6 +1072,18 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	priv->net = net;
 	priv->clk = clk;
 
+	spi_set_drvdata(spi, priv);
+
+	/* Configure the SPI bus */
+	spi->bits_per_word = 8;
+	if (mcp251x_is_2510(spi))
+		spi->max_speed_hz = spi->max_speed_hz ? : 5 * 1000 * 1000;
+	else
+		spi->max_speed_hz = spi->max_speed_hz ? : 10 * 1000 * 1000;
+	ret = spi_setup(spi);
+	if (ret)
+		goto out_clk;
+
 	priv->power = devm_regulator_get(&spi->dev, "vdd");
 	priv->transceiver = devm_regulator_get(&spi->dev, "xceiver");
 	if ((PTR_ERR(priv->power) == -EPROBE_DEFER) ||
@@ -1087,8 +1095,6 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	ret = mcp251x_power_enable(priv->power, 1);
 	if (ret)
 		goto out_clk;
-
-	spi_set_drvdata(spi, priv);
 
 	priv->spi = spi;
 	mutex_init(&priv->mcp_lock);
@@ -1134,20 +1140,11 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	SET_NETDEV_DEV(net, &spi->dev);
 
-	/* Configure the SPI bus */
-	spi->mode = spi->mode ? : SPI_MODE_0;
-	if (mcp251x_is_2510(spi))
-		spi->max_speed_hz = spi->max_speed_hz ? : 5 * 1000 * 1000;
-	else
-		spi->max_speed_hz = spi->max_speed_hz ? : 10 * 1000 * 1000;
-	spi->bits_per_word = 8;
-	spi_setup(spi);
-
 	/* Here is OK to not lock the MCP, no one knows about it yet */
-	if (!mcp251x_hw_probe(spi)) {
-		ret = -ENODEV;
+	ret = mcp251x_hw_probe(spi);
+	if (ret)
 		goto error_probe;
-	}
+
 	mcp251x_hw_sleep(spi);
 
 	ret = register_candev(net);
@@ -1156,7 +1153,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	devm_can_led_init(net);
 
-	return ret;
+	return 0;
 
 error_probe:
 	if (mcp251x_enable_dma)

@@ -224,9 +224,8 @@ int digital_in_send_atr_req(struct nfc_digital_dev *ddev,
 
 	ddev->skb_add_crc(skb);
 
-	digital_in_send_cmd(ddev, skb, 500, digital_in_recv_atr_res, target);
-
-	return 0;
+	return digital_in_send_cmd(ddev, skb, 500, digital_in_recv_atr_res,
+				   target);
 }
 
 static int digital_in_send_rtox(struct nfc_digital_dev *ddev,

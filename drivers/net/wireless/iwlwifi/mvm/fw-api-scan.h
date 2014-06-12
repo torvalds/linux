@@ -169,8 +169,12 @@ enum iwl_scan_type {
 	SCAN_TYPE_DISCOVERY_FORCED	= 6,
 }; /* SCAN_ACTIVITY_TYPE_E_VER_1 */
 
-/* Maximal number of channels to scan */
-#define MAX_NUM_SCAN_CHANNELS 0x24
+/**
+ * Maximal number of channels to scan
+ * it should be equal to:
+ * max(IWL_NUM_CHANNELS, IWL_NUM_CHANNELS_FAMILY_8000)
+ */
+#define MAX_NUM_SCAN_CHANNELS 50
 
 /**
  * struct iwl_scan_cmd - scan request command
@@ -534,13 +538,16 @@ struct iwl_scan_offload_schedule {
  *
  * IWL_SCAN_OFFLOAD_FLAG_PASS_ALL: pass all results - no filtering.
  * IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL: add cached channels to partial scan.
- * IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN: use energy based scan before partial scan
- *	on A band.
+ * IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE: EBS duration is 100mSec - typical
+ *	beacon period. Finding channel activity in this mode is not guaranteed.
+ * IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE: EBS duration is 200mSec.
+ *	Assuming beacon period is 100ms finding channel activity is guaranteed.
  */
 enum iwl_scan_offload_flags {
 	IWL_SCAN_OFFLOAD_FLAG_PASS_ALL		= BIT(0),
 	IWL_SCAN_OFFLOAD_FLAG_CACHED_CHANNEL	= BIT(2),
-	IWL_SCAN_OFFLOAD_FLAG_ENERGY_SCAN	= BIT(3),
+	IWL_SCAN_OFFLOAD_FLAG_EBS_QUICK_MODE	= BIT(5),
+	IWL_SCAN_OFFLOAD_FLAG_EBS_ACCURATE_MODE	= BIT(6),
 };
 
 /**
@@ -563,17 +570,24 @@ enum iwl_scan_offload_compleate_status {
 	IWL_SCAN_OFFLOAD_ABORTED	= 2,
 };
 
+enum iwl_scan_ebs_status {
+	IWL_SCAN_EBS_SUCCESS,
+	IWL_SCAN_EBS_FAILED,
+	IWL_SCAN_EBS_CHAN_NOT_FOUND,
+};
+
 /**
  * iwl_scan_offload_complete - SCAN_OFFLOAD_COMPLETE_NTF_API_S_VER_1
  * @last_schedule_line:		last schedule line executed (fast or regular)
  * @last_schedule_iteration:	last scan iteration executed before scan abort
  * @status:			enum iwl_scan_offload_compleate_status
+ * @ebs_status: last EBS status, see IWL_SCAN_EBS_*
  */
 struct iwl_scan_offload_complete {
 	u8 last_schedule_line;
 	u8 last_schedule_iteration;
 	u8 status;
-	u8 reserved;
+	u8 ebs_status;
 } __packed;
 
 /**

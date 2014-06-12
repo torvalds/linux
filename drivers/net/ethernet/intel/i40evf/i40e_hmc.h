@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 Intel Corporation.
+ * Copyright(c) 2013 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -11,6 +11,9 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
@@ -160,11 +163,6 @@ struct i40e_hmc_info {
 	    (((sd_idx) << I40E_PFHMC_PDINV_PMSDIDX_SHIFT) |		\
 	     ((pd_idx) << I40E_PFHMC_PDINV_PMPDIDX_SHIFT)))
 
-#define I40E_INVALIDATE_VF_HMC_PD(hw, sd_idx, pd_idx, hmc_fn_id)	   \
-	wr32((hw), I40E_GLHMC_VFPDINV((hmc_fn_id) - I40E_FIRST_VF_FPM_ID), \
-	     (((sd_idx) << I40E_PFHMC_PDINV_PMSDIDX_SHIFT) |		   \
-	      ((pd_idx) << I40E_PFHMC_PDINV_PMPDIDX_SHIFT)))
-
 /**
  * I40E_FIND_SD_INDEX_LIMIT - finds segment descriptor index limit
  * @hmc_info: pointer to the HMC configuration information structure
@@ -223,7 +221,7 @@ i40e_status i40e_add_pd_table_entry(struct i40e_hw *hw,
 					      u32 pd_index);
 i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 					struct i40e_hmc_info *hmc_info,
-					u32 idx, bool is_pf);
+					u32 idx);
 i40e_status i40e_prep_remove_sd_bp(struct i40e_hmc_info *hmc_info,
 					     u32 idx);
 i40e_status i40e_remove_sd_bp_new(struct i40e_hw *hw,

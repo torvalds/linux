@@ -42,8 +42,6 @@
 
 #define REPLY_TRUNCATED "<truncated>\n"
 
-static DEFINE_MUTEX(config_mutex);
-
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */
 static int rep_headroom;		/* reply message headroom to use */
@@ -179,8 +177,10 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
-	tipc_net_start(addr);
-	return tipc_cfg_reply_none();
+	if (!tipc_net_start(addr))
+		return tipc_cfg_reply_none();
+
+	return tipc_cfg_reply_error_string("cannot change to network mode");
 }
 
 static struct sk_buff *cfg_set_max_ports(void)
@@ -223,7 +223,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 {
 	struct sk_buff *rep_tlv_buf;
 
-	mutex_lock(&config_mutex);
+	rtnl_lock();
 
 	/* Save request and reply details in a well-known location */
 	req_tlv_area = request_area;
@@ -337,6 +337,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 
 	/* Return reply buffer */
 exit:
-	mutex_unlock(&config_mutex);
+	rtnl_unlock();
 	return rep_tlv_buf;
 }

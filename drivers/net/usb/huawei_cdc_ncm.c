@@ -172,24 +172,11 @@ err:
 	return ret;
 }
 
-static int huawei_cdc_ncm_check_connect(struct usbnet *usbnet_dev)
-{
-	struct cdc_ncm_ctx *ctx;
-
-	ctx = (struct cdc_ncm_ctx *)usbnet_dev->data[0];
-
-	if (ctx == NULL)
-		return 1; /* disconnected */
-
-	return !ctx->connected;
-}
-
 static const struct driver_info huawei_cdc_ncm_info = {
 	.description = "Huawei CDC NCM device",
 	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
 	.bind = huawei_cdc_ncm_bind,
 	.unbind = huawei_cdc_ncm_unbind,
-	.check_connect = huawei_cdc_ncm_check_connect,
 	.manage_power = huawei_cdc_ncm_manage_power,
 	.rx_fixup = cdc_ncm_rx_fixup,
 	.tx_fixup = cdc_ncm_tx_fixup,

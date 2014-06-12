@@ -1636,6 +1636,19 @@ config TEST_USER_COPY
 
 	  If unsure, say N.
 
+config TEST_BPF
+	tristate "Test BPF filter functionality"
+	default n
+	depends on m && NET
+	help
+	  This builds the "test_bpf" module that runs various test vectors
+	  against the BPF interpreter or BPF JIT compiler depending on the
+	  current setting. This is in particular useful for BPF JIT compiler
+	  development, but also to run regression tests against changes in
+	  the interpreter code.
+
+	  If unsure, say N.
+
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"

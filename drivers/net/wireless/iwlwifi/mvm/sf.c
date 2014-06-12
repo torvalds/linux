@@ -237,9 +237,6 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 		.sta_vif_ap_sta_id = IWL_MVM_STATION_COUNT,
 	};
 
-	if (IWL_UCODE_API(mvm->fw->ucode_ver) < 8)
-		return 0;
-
 	/*
 	 * Ignore the call if we are in HW Restart flow, or if the handled
 	 * vif is a p2p device.

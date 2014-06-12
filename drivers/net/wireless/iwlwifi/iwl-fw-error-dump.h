@@ -71,10 +71,15 @@
  * enum iwl_fw_error_dump_type - types of data in the dump file
  * @IWL_FW_ERROR_DUMP_SRAM:
  * @IWL_FW_ERROR_DUMP_REG:
+ * @IWL_FW_ERROR_DUMP_RXF:
+ * @IWL_FW_ERROR_DUMP_TXCMD: last TX command data, structured as
+ *	&struct iwl_fw_error_dump_txcmd packets
  */
 enum iwl_fw_error_dump_type {
 	IWL_FW_ERROR_DUMP_SRAM = 0,
 	IWL_FW_ERROR_DUMP_REG = 1,
+	IWL_FW_ERROR_DUMP_RXF = 2,
+	IWL_FW_ERROR_DUMP_TXCMD = 3,
 
 	IWL_FW_ERROR_DUMP_MAX,
 };
@@ -89,7 +94,7 @@ struct iwl_fw_error_dump_data {
 	__le32 type;
 	__le32 len;
 	__u8 data[];
-} __packed __aligned(4);
+} __packed;
 
 /**
  * struct iwl_fw_error_dump_file - the layout of the header of the file
@@ -101,6 +106,29 @@ struct iwl_fw_error_dump_file {
 	__le32 barker;
 	__le32 file_len;
 	u8 data[0];
-} __packed __aligned(4);
+} __packed;
+
+/**
+ * struct iwl_fw_error_dump_txcmd - TX command data
+ * @cmdlen: original length of command
+ * @caplen: captured length of command (may be less)
+ * @data: captured command data, @caplen bytes
+ */
+struct iwl_fw_error_dump_txcmd {
+	__le32 cmdlen;
+	__le32 caplen;
+	u8 data[];
+} __packed;
+
+/**
+ * iwl_mvm_fw_error_next_data - advance fw error dump data pointer
+ * @data: previous data block
+ * Returns: next data block
+ */
+static inline struct iwl_fw_error_dump_data *
+iwl_mvm_fw_error_next_data(struct iwl_fw_error_dump_data *data)
+{
+	return (void *)(data->data + le32_to_cpu(data->len));
+}
 
 #endif /* __fw_error_dump_h__ */

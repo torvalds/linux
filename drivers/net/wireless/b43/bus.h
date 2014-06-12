@@ -5,7 +5,9 @@ enum b43_bus_type {
 #ifdef CONFIG_B43_BCMA
 	B43_BUS_BCMA,
 #endif
+#ifdef CONFIG_B43_SSB
 	B43_BUS_SSB,
+#endif
 };
 
 struct b43_bus_dev {
@@ -52,13 +54,21 @@ struct b43_bus_dev {
 
 static inline bool b43_bus_host_is_pcmcia(struct b43_bus_dev *dev)
 {
+#ifdef CONFIG_B43_SSB
 	return (dev->bus_type == B43_BUS_SSB &&
 		dev->sdev->bus->bustype == SSB_BUSTYPE_PCMCIA);
+#else
+	return false;
+#endif
 }
 static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 {
+#ifdef CONFIG_B43_SSB
 	return (dev->bus_type == B43_BUS_SSB &&
 		dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO);
+#else
+	return false;
+#endif
 }
 
 struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core);

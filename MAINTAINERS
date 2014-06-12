@@ -604,6 +604,13 @@ L:	amd64-microcode@amd64.org
 S:	Maintained
 F:	arch/x86/kernel/microcode_amd.c
 
+AMD XGBE DRIVER
+M:	Tom Lendacky <thomas.lendacky@amd.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/amd/xgbe/
+F:	drivers/net/phy/amd-xgbe-phy.c
+
 AMS (Apple Motion Sensor) DRIVER
 M:	Michael Hanselmann <linux-kernel@hansmi.ch>
 S:	Supported
@@ -1894,7 +1901,7 @@ F:	drivers/net/ethernet/broadcom/bnx2.*
 F:	drivers/net/ethernet/broadcom/bnx2_*
 
 BROADCOM BNX2X 10 GIGABIT ETHERNET DRIVER
-M:	Ariel Elior <ariele@broadcom.com>
+M:	Ariel Elior <ariel.elior@qlogic.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2x/
@@ -1973,6 +1980,12 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/bcma/
 F:	include/linux/bcma/
+
+BROADCOM SYSTEMPORT ETHERNET DRIVER
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/ethernet/broadcom/bcmsysport.*
 
 BROCADE BFA FC SCSI DRIVER
 M:	Anil Gurumurthy <anil.gurumurthy@qlogic.com>
@@ -2230,9 +2243,8 @@ F:	drivers/platform/chrome/
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Sujith Sankar <ssujith@cisco.com>
-M:	Govindarajulu Varadarajan <govindarajulu90@gmail.com>
+M:	Govindarajulu Varadarajan <_govind@gmx.com>
 M:	Neel Patel <neepatel@cisco.com>
-M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
@@ -6168,6 +6180,7 @@ F:	include/uapi/linux/netdevice.h
 F:	tools/net/
 F:	tools/testing/selftests/net/
 F:	lib/random32.c
+F:	lib/test_bpf.c
 
 NETWORKING [IPv4/IPv6]
 M:	"David S. Miller" <davem@davemloft.net>

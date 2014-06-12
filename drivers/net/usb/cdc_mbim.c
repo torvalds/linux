@@ -24,13 +24,21 @@
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 
+/* alternative VLAN for IP session 0 if not untagged */
+#define MBIM_IPS0_VID	4094
+
 /* driver specific data - must match cdc_ncm usage */
 struct cdc_mbim_state {
 	struct cdc_ncm_ctx *ctx;
 	atomic_t pmcount;
 	struct usb_driver *subdriver;
-	struct usb_interface *control;
-	struct usb_interface *data;
+	unsigned long _unused;
+	unsigned long flags;
+};
+
+/* flags for the cdc_mbim_state.flags field */
+enum cdc_mbim_flags {
+	FLAG_IPS0_VLAN = 1 << 0,	/* IP session 0 is tagged  */
 };
 
 /* using a counter to merge subdriver requests with our own into a combined state */
@@ -62,16 +70,91 @@ static int cdc_mbim_wdm_manage_power(struct usb_interface *intf, int status)
 	return cdc_mbim_manage_power(dev, status);
 }
 
+static int cdc_mbim_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct cdc_mbim_state *info = (void *)&dev->data;
+
+	/* creation of this VLAN is a request to tag IP session 0 */
+	if (vid == MBIM_IPS0_VID)
+		info->flags |= FLAG_IPS0_VLAN;
+	else
+		if (vid >= 512)	/* we don't map these to MBIM session */
+			return -EINVAL;
+	return 0;
+}
+
+static int cdc_mbim_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
+{
+	struct usbnet *dev = netdev_priv(netdev);
+	struct cdc_mbim_state *info = (void *)&dev->data;
+
+	/* this is a request for an untagged IP session 0 */
+	if (vid == MBIM_IPS0_VID)
+		info->flags &= ~FLAG_IPS0_VLAN;
+	return 0;
+}
+
+static const struct net_device_ops cdc_mbim_netdev_ops = {
+	.ndo_open             = usbnet_open,
+	.ndo_stop             = usbnet_stop,
+	.ndo_start_xmit       = usbnet_start_xmit,
+	.ndo_tx_timeout       = usbnet_tx_timeout,
+	.ndo_change_mtu       = usbnet_change_mtu,
+	.ndo_set_mac_address  = eth_mac_addr,
+	.ndo_validate_addr    = eth_validate_addr,
+	.ndo_vlan_rx_add_vid  = cdc_mbim_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = cdc_mbim_rx_kill_vid,
+};
+
+/* Change the control interface altsetting and update the .driver_info
+ * pointer if the matching entry after changing class codes points to
+ * a different struct
+ */
+static int cdc_mbim_set_ctrlalt(struct usbnet *dev, struct usb_interface *intf, u8 alt)
+{
+	struct usb_driver *driver = to_usb_driver(intf->dev.driver);
+	const struct usb_device_id *id;
+	struct driver_info *info;
+	int ret;
+
+	ret = usb_set_interface(dev->udev,
+				intf->cur_altsetting->desc.bInterfaceNumber,
+				alt);
+	if (ret)
+		return ret;
+
+	id = usb_match_id(intf, driver->id_table);
+	if (!id)
+		return -ENODEV;
+
+	info = (struct driver_info *)id->driver_info;
+	if (info != dev->driver_info) {
+		dev_dbg(&intf->dev, "driver_info updated to '%s'\n",
+			info->description);
+		dev->driver_info = info;
+	}
+	return 0;
+}
 
 static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *subdriver = ERR_PTR(-ENODEV);
 	int ret = -ENODEV;
-	u8 data_altsetting = cdc_ncm_select_altsetting(dev, intf);
+	u8 data_altsetting = 1;
 	struct cdc_mbim_state *info = (void *)&dev->data;
 
-	/* Probably NCM, defer for cdc_ncm_bind */
+	/* should we change control altsetting on a NCM/MBIM function? */
+	if (cdc_ncm_select_altsetting(intf) == CDC_NCM_COMM_ALTSETTING_MBIM) {
+		data_altsetting = CDC_NCM_DATA_ALTSETTING_MBIM;
+		ret = cdc_mbim_set_ctrlalt(dev, intf, CDC_NCM_COMM_ALTSETTING_MBIM);
+		if (ret)
+			goto err;
+		ret = -ENODEV;
+	}
+
+	/* we will hit this for NCM/MBIM functions if prefer_mbim is false */
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
 		goto err;
 
@@ -101,7 +184,10 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->flags |= IFF_NOARP;
 
 	/* no need to put the VLAN tci in the packet headers */
-	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX;
+	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	/* monitor VLAN additions and removals */
+	dev->net->netdev_ops = &cdc_mbim_netdev_ops;
 err:
 	return ret;
 }
@@ -164,12 +250,24 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 			skb_pull(skb, ETH_HLEN);
 		}
 
+		/* Is IP session <0> tagged too? */
+		if (info->flags & FLAG_IPS0_VLAN) {
+			/* drop all untagged packets */
+			if (!tci)
+				goto error;
+			/* map MBIM_IPS0_VID to IPS<0> */
+			if (tci == MBIM_IPS0_VID)
+				tci = 0;
+		}
+
 		/* mapping VLANs to MBIM sessions:
-		 *   no tag     => IPS session <0>
+		 *   no tag     => IPS session <0> if !FLAG_IPS0_VLAN
 		 *   1 - 255    => IPS session <vlanid>
 		 *   256 - 511  => DSS session <vlanid - 256>
-		 *   512 - 4095 => unsupported, drop
+		 *   512 - 4093 => unsupported, drop
+		 *   4094       => IPS session <0> if FLAG_IPS0_VLAN
 		 */
+
 		switch (tci & 0x0f00) {
 		case 0x0000: /* VLAN ID 0 - 255 */
 			if (!is_ip)
@@ -178,6 +276,8 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 			c[3] = tci;
 			break;
 		case 0x0100: /* VLAN ID 256 - 511 */
+			if (is_ip)
+				goto error;
 			sign = cpu_to_le32(USB_CDC_MBIM_NDP16_DSS_SIGN);
 			c = (u8 *)&sign;
 			c[3] = tci;
@@ -223,8 +323,8 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	/* need to send the NA on the VLAN dev, if any */
 	rcu_read_lock();
 	if (tci) {
-		netdev = __vlan_find_dev_deep(dev->net, htons(ETH_P_8021Q),
-					      tci);
+		netdev = __vlan_find_dev_deep_rcu(dev->net, htons(ETH_P_8021Q),
+						  tci);
 		if (!netdev) {
 			rcu_read_unlock();
 			return;
@@ -268,7 +368,7 @@ static struct sk_buff *cdc_mbim_process_dgram(struct usbnet *dev, u8 *buf, size_
 	__be16 proto = htons(ETH_P_802_3);
 	struct sk_buff *skb = NULL;
 
-	if (tci < 256) { /* IPS session? */
+	if (tci < 256 || tci == MBIM_IPS0_VID) { /* IPS session? */
 		if (len < sizeof(struct iphdr))
 			goto err;
 
@@ -320,6 +420,7 @@ static int cdc_mbim_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 	struct usb_cdc_ncm_dpe16 *dpe16;
 	int ndpoffset;
 	int loopcount = 50; /* arbitrary max preventing infinite loop */
+	u32 payload = 0;
 	u8 *c;
 	u16 tci;
 
@@ -338,6 +439,9 @@ next_ndp:
 	case cpu_to_le32(USB_CDC_MBIM_NDP16_IPS_SIGN):
 		c = (u8 *)&ndp16->dwSignature;
 		tci = c[3];
+		/* tag IPS<0> packets too if MBIM_IPS0_VID exists */
+		if (!tci && info->flags & FLAG_IPS0_VLAN)
+			tci = MBIM_IPS0_VID;
 		break;
 	case cpu_to_le32(USB_CDC_MBIM_NDP16_DSS_SIGN):
 		c = (u8 *)&ndp16->dwSignature;
@@ -379,6 +483,7 @@ next_ndp:
 			if (!skb)
 				goto error;
 			usbnet_skb_return(dev, skb);
+			payload += len;	/* count payload bytes in this NTB */
 		}
 	}
 err_ndp:
@@ -386,6 +491,10 @@ err_ndp:
 	ndpoffset = le16_to_cpu(ndp16->wNextNdpIndex);
 	if (ndpoffset && loopcount--)
 		goto next_ndp;
+
+	/* update stats */
+	ctx->rx_overhead += skb_in->len - payload;
+	ctx->rx_ntbs++;
 
 	return 1;
 error:

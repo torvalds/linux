@@ -135,8 +135,8 @@ static int ixgbevf_get_settings(struct net_device *netdev,
 		ethtool_cmd_speed_set(ecmd, speed);
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(ecmd, -1);
-		ecmd->duplex = -1;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	return 0;
@@ -813,5 +813,5 @@ static const struct ethtool_ops ixgbevf_ethtool_ops = {
 
 void ixgbevf_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &ixgbevf_ethtool_ops);
+	netdev->ethtool_ops = &ixgbevf_ethtool_ops;
 }
