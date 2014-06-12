@@ -51,7 +51,7 @@ static struct lprocfs_vars lprocfs_echo_module_vars[] = {
 
 void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->module_vars  = lprocfs_echo_module_vars;
-    lvars->obd_vars     = lprocfs_echo_obd_vars;
+	lvars->module_vars  = lprocfs_echo_module_vars;
+	lvars->obd_vars     = lprocfs_echo_obd_vars;
 }
 #endif /* LPROCFS */
