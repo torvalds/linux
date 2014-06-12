@@ -679,6 +679,8 @@ void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void 
   */
 s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
 
+/** __v4l2_ctrl_s_ctrl() - Unlocked variant of v4l2_ctrl_s_ctrl(). */
+int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 /** v4l2_ctrl_s_ctrl() - Helper function to set the control's value from within a driver.
   * @ctrl:	The control.
   * @val:	The new value.
@@ -689,7 +691,16 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
   *
   * This function is for integer type controls only.
   */
-int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
+static inline int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_s_ctrl(ctrl, val);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
 
 /** v4l2_ctrl_g_ctrl_int64() - Helper function to get a 64-bit control's value from within a driver.
   * @ctrl:	The control.
@@ -702,6 +713,9 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
   */
 s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl);
 
+/** __v4l2_ctrl_s_ctrl_int64() - Unlocked variant of v4l2_ctrl_s_ctrl_int64(). */
+int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
+
 /** v4l2_ctrl_s_ctrl_int64() - Helper function to set a 64-bit control's value from within a driver.
   * @ctrl:	The control.
   * @val:	The new value.
@@ -712,7 +726,16 @@ s64 v4l2_ctrl_g_ctrl_int64(struct v4l2_ctrl *ctrl);
   *
   * This function is for 64-bit integer type controls only.
   */
-int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
+static inline int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_s_ctrl_int64(ctrl, val);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
 
 /* Internal helper functions that deal with control events. */
 extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;

@@ -3175,27 +3175,41 @@ int v4l2_subdev_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *control)
 }
 EXPORT_SYMBOL(v4l2_subdev_s_ctrl);
 
-int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
+int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 {
 	struct v4l2_ext_control c;
+	int rval;
+
+	lockdep_assert_held(ctrl->handler->lock);
 
 	/* It's a driver bug if this happens. */
 	WARN_ON(!ctrl->is_int);
 	c.value = val;
-	return set_ctrl_lock(NULL, ctrl, &c);
-}
-EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
+	rval = set_ctrl(NULL, ctrl, &c, 0);
+	if (!rval)
+		cur_to_user(&c, ctrl);
 
-int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
+	return rval;
+}
+EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl);
+
+int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
 {
 	struct v4l2_ext_control c;
+	int rval;
+
+	lockdep_assert_held(ctrl->handler->lock);
 
 	/* It's a driver bug if this happens. */
 	WARN_ON(ctrl->is_ptr || ctrl->type != V4L2_CTRL_TYPE_INTEGER64);
 	c.value64 = val;
-	return set_ctrl_lock(NULL, ctrl, &c);
+	rval = set_ctrl(NULL, ctrl, &c, 0);
+	if (!rval)
+		cur_to_user(&c, ctrl);
+
+	return rval;
 }
-EXPORT_SYMBOL(v4l2_ctrl_s_ctrl_int64);
+EXPORT_SYMBOL(__v4l2_ctrl_s_ctrl_int64);
 
 void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
 {
