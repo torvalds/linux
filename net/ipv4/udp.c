@@ -1861,6 +1861,10 @@ static struct sock *__udp4_lib_mcast_demux_lookup(struct net *net,
 	unsigned int count, slot = udp_hashfn(net, hnum, udp_table.mask);
 	struct udp_hslot *hslot = &udp_table.hash[slot];
 
+	/* Do not bother scanning a too big list */
+	if (hslot->count > 10)
+		return NULL;
+
 	rcu_read_lock();
 begin:
 	count = 0;
