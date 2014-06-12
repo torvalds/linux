@@ -12,6 +12,15 @@ config APQ_GCC_8084
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2c, USB, SD/eMMC, SATA, PCIe, etc.
 
+config APQ_MMCC_8084
+	tristate "APQ8084 Multimedia Clock Controller"
+	select APQ_GCC_8084
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the multimedia clock controller on apq8084 devices.
+	  Say Y if you want to support multimedia devices such as display,
+	  graphics, video encode/decode, camera, etc.
+
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
 	depends on COMMON_CLK_QCOM
