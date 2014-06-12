@@ -2033,7 +2033,6 @@ static int ion_snapshot_save(struct ion_device *idev)
 {
 	static struct seq_file seqf;
 	struct ion_heap *heap;
-	struct rb_node *n;
 
 	if (!seqf.buf) {
 		seqf.buf = rockchip_ion_snapshot_get(&seqf.size);
