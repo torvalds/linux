@@ -61,32 +61,32 @@ struct lu_kmem_descr osc_caches[] = {
 	{
 		.ckd_cache = &osc_lock_kmem,
 		.ckd_name  = "osc_lock_kmem",
-		.ckd_size  = sizeof (struct osc_lock)
+		.ckd_size  = sizeof(struct osc_lock)
 	},
 	{
 		.ckd_cache = &osc_object_kmem,
 		.ckd_name  = "osc_object_kmem",
-		.ckd_size  = sizeof (struct osc_object)
+		.ckd_size  = sizeof(struct osc_object)
 	},
 	{
 		.ckd_cache = &osc_thread_kmem,
 		.ckd_name  = "osc_thread_kmem",
-		.ckd_size  = sizeof (struct osc_thread_info)
+		.ckd_size  = sizeof(struct osc_thread_info)
 	},
 	{
 		.ckd_cache = &osc_session_kmem,
 		.ckd_name  = "osc_session_kmem",
-		.ckd_size  = sizeof (struct osc_session)
+		.ckd_size  = sizeof(struct osc_session)
 	},
 	{
 		.ckd_cache = &osc_req_kmem,
 		.ckd_name  = "osc_req_kmem",
-		.ckd_size  = sizeof (struct osc_req)
+		.ckd_size  = sizeof(struct osc_req)
 	},
 	{
 		.ckd_cache = &osc_extent_kmem,
 		.ckd_name  = "osc_extent_kmem",
-		.ckd_size  = sizeof (struct osc_extent)
+		.ckd_size  = sizeof(struct osc_extent)
 	},
 	{
 		.ckd_cache = &osc_quota_kmem,
