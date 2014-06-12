@@ -1950,18 +1950,18 @@ static int qtaguid_ctrl_proc_show(struct seq_file *m, void *v)
 			   "match_found_no_sk_in_ct=%llu "
 			   "match_no_sk=%llu "
 			   "match_no_sk_file=%llu\n",
-			   atomic64_read(&qtu_events.sockets_tagged),
-			   atomic64_read(&qtu_events.sockets_untagged),
-			   atomic64_read(&qtu_events.counter_set_changes),
-			   atomic64_read(&qtu_events.delete_cmds),
-			   atomic64_read(&qtu_events.iface_events),
-			   atomic64_read(&qtu_events.match_calls),
-			   atomic64_read(&qtu_events.match_calls_prepost),
-			   atomic64_read(&qtu_events.match_found_sk),
-			   atomic64_read(&qtu_events.match_found_sk_in_ct),
-			   atomic64_read(&qtu_events.match_found_no_sk_in_ct),
-			   atomic64_read(&qtu_events.match_no_sk),
-			   atomic64_read(&qtu_events.match_no_sk_file));
+			   (u64)atomic64_read(&qtu_events.sockets_tagged),
+			   (u64)atomic64_read(&qtu_events.sockets_untagged),
+			   (u64)atomic64_read(&qtu_events.counter_set_changes),
+			   (u64)atomic64_read(&qtu_events.delete_cmds),
+			   (u64)atomic64_read(&qtu_events.iface_events),
+			   (u64)atomic64_read(&qtu_events.match_calls),
+			   (u64)atomic64_read(&qtu_events.match_calls_prepost),
+			   (u64)atomic64_read(&qtu_events.match_found_sk),
+			   (u64)atomic64_read(&qtu_events.match_found_sk_in_ct),
+			   (u64)atomic64_read(&qtu_events.match_found_no_sk_in_ct),
+			   (u64)atomic64_read(&qtu_events.match_no_sk),
+			   (u64)atomic64_read(&qtu_events.match_no_sk_file));
 
 		/* Count the following as part of the last item_index */
 		prdebug_full_state(0, "proc ctrl");
