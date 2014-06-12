@@ -15,7 +15,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r4p1-01dev0"
+MALI_RELEASE_NAME ?= "r4p1-02dev0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -66,9 +66,11 @@ else
 DEFINES +=-DMALI_KBASE_THIRDPARTY_PATH=$(src)/platform/$(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME)
 endif
 
+DEFINES += -I$(srctree)/drivers/staging/android
+
 # Use our defines when compiling
-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/drivers/staging/android
-subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(OSK_PATH) -I$(UMP_PATH)
+ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
+subdir-ccflags-y += $(DEFINES) -I$(KBASE_PATH)   -I$(KBASE_PLATFORM_PATH) -I$(OSK_PATH) -I$(UMP_PATH) -I$(srctree)/include/linux
 
 SRC := \
 	mali_kbase_device.c \

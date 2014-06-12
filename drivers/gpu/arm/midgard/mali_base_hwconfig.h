@@ -235,7 +235,7 @@ typedef enum base_hw_issue {
 	/* sometimes HW doesn't invalidate cached VPDs when it has to */
 	BASE_HW_ISSUE_10684,
 
-	/* Chicken bit on (t67x_r1p0 and t72x) to work for a HW workaround in compiler */
+	/* Chicken bit on t72x to work for a HW workaround in compiler */
 	BASE_HW_ISSUE_10797,
 
 	/* Soft-stopping fragment jobs might fail with TILE_RANGE_FAULT */
@@ -281,29 +281,8 @@ typedef enum base_hw_issue {
 	/* Partial 16xMSAA support */
 	BASE_HW_ISSUE_T76X_26,
 
-	/* Forward pixel kill doesn't work with MRT */
-	BASE_HW_ISSUE_T76X_2121,
-
-	/* CRC not working with MFBD and more than one render target */
-	BASE_HW_ISSUE_T76X_2315,
-
-	/* Some indexed formats not supported for MFBD preload. */
-	BASE_HW_ISSUE_T76X_2686,
-
-	/* Must disable CRC if the tile output size is 8 bytes or less. */
-	BASE_HW_ISSUE_T76X_2712,
-
-	/* DBD clean pixel enable bit is reserved */
-	BASE_HW_ISSUE_T76X_2772,
-
-	/* AFBC is not supported for T76X beta. */
-	BASE_HW_ISSUE_T76X_2906,
-
 	/* RTD doesn't specify the row stride for AFBC surfaces. */
 	BASE_HW_ISSUE_T76X_3086,
-
-	/* Prevent MMU deadlock for T76X beta. */
-	BASE_HW_ISSUE_T76X_3285,
 
 	/* Clear encoder state for a hard stopped fragment job which is AFBC
 	 * encoded by soft resetting the GPU. Only for T76X r0p0, r0p1 and r0p1_50rel0
@@ -317,9 +296,6 @@ typedef enum base_hw_issue {
 
 	/* T76X cannot disable uses_discard even if depth and stencil are read-only. */
 	BASE_HW_ISSUE_T76X_3700,
-
-	/* ST_TILEBUFFER is not supported on T76X-r0p0-beta */
-	BASE_HW_ISSUE_T76X_3759,
 
 	/* Preload ignores any size or bounding box restrictions of the output image. */
 	BASE_HW_ISSUE_T76X_3793,
@@ -515,8 +491,9 @@ static const base_hw_issue base_hw_issues_t62x_r1p0[] = {
 	BASE_HW_ISSUE_END
 };
 
-/* Mali T67x r1p0 */
-static const base_hw_issue base_hw_issues_t67x_r1p0[] = {
+/* Mali T62x r1p1 */
+static const base_hw_issue base_hw_issues_t62x_r1p1[] =
+{
 	BASE_HW_ISSUE_6402,
 	BASE_HW_ISSUE_8803,
 	BASE_HW_ISSUE_9435,
@@ -524,41 +501,12 @@ static const base_hw_issue base_hw_issues_t67x_r1p0[] = {
 	BASE_HW_ISSUE_10472,
 	BASE_HW_ISSUE_10649,
 	BASE_HW_ISSUE_10684,
-	BASE_HW_ISSUE_10797,
 	BASE_HW_ISSUE_10821,
 	BASE_HW_ISSUE_10883,
 	BASE_HW_ISSUE_10931,
 	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_10959,
 	BASE_HW_ISSUE_11012,
-	BASE_HW_ISSUE_11020,
-	BASE_HW_ISSUE_11024,
-	/* List of hardware issues must end with BASE_HW_ISSUE_END */
-	BASE_HW_ISSUE_END
-};
-
-/* Mali T76x r0p0 beta */
-static const base_hw_issue base_hw_issues_t76x_r0p0_beta[] = {
-	BASE_HW_ISSUE_8803,
-	BASE_HW_ISSUE_9435,
-	BASE_HW_ISSUE_10649,
-	BASE_HW_ISSUE_10821,
-	BASE_HW_ISSUE_10883,
-	BASE_HW_ISSUE_10946,
-	BASE_HW_ISSUE_10959,
-	BASE_HW_ISSUE_11020,
-	BASE_HW_ISSUE_11024,
-	BASE_HW_ISSUE_T76X_26,
-	BASE_HW_ISSUE_T76X_2121,
-	BASE_HW_ISSUE_T76X_2315,
-	BASE_HW_ISSUE_T76X_2686,
-	BASE_HW_ISSUE_T76X_2712,
-	BASE_HW_ISSUE_T76X_2772,
-	BASE_HW_ISSUE_T76X_2906,
-	BASE_HW_ISSUE_T76X_3285,
-	BASE_HW_ISSUE_T76X_3700,
-	BASE_HW_ISSUE_T76X_3759,
-	BASE_HW_ISSUE_T76X_3793,
 	/* List of hardware issues must end with BASE_HW_ISSUE_END */
 	BASE_HW_ISSUE_END
 };
@@ -612,6 +560,7 @@ static const base_hw_issue base_hw_issues_t76x_r0p1_50rel0[] = {
 	BASE_HW_ISSUE_10883,
 	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_T76X_26,
+	BASE_HW_ISSUE_T76X_3086,
 	BASE_HW_ISSUE_T76X_3542,
 	BASE_HW_ISSUE_T76X_3556,
 	BASE_HW_ISSUE_T76X_3700,
@@ -649,6 +598,7 @@ static const base_hw_issue base_hw_issues_t76x_r0p3[] = {
 	BASE_HW_ISSUE_10883,
 	BASE_HW_ISSUE_10946,
 	BASE_HW_ISSUE_T76X_26,
+	BASE_HW_ISSUE_T76X_3086,
 	BASE_HW_ISSUE_T76X_3542,
 	BASE_HW_ISSUE_T76X_3556,
 	BASE_HW_ISSUE_T76X_3700,

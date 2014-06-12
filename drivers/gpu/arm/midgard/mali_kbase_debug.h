@@ -22,30 +22,6 @@
 
 #include <linux/bug.h>
 
-extern int mali_debug_level;
-/**
- * @def KBASEP_LOG(level, ...)
- * @brief Logs a debug message using dev_dbg().
- *
- * Logs a debug message using dev_dbg if the debug level specified for the
- * message is lower or equal than the current debug level. Use higher
- * numbers to log messages with increasing verbosity.
- *
- * The current debug level is controlled by the module parameter
- * 'mali_debug_level' which is 0 by default.
- * 
- * No special meaning is assigned to debug levels but the recommendation is
- * 0 = driver init/exit messages
- * 1 = function entry/exit messages
- * 2 = function detailed messages
- * 3 = irq/callback messages
- * 4 = register read/write messages
- *
- * @param level debug level for the message    
- * @param ... Arguments you would normally pass to dev_dbg()
- */
-#define KBASE_LOG(level, ...) if ((level) <= mali_debug_level) dev_dbg(__VA_ARGS__)
-
 /** @brief If equals to 0, a trace containing the file, line, and function will be displayed before each message. */
 #define KBASE_DEBUG_SKIP_TRACE 0
 

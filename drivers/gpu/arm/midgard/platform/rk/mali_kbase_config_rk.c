@@ -312,6 +312,7 @@ static kbase_attribute config_attributes[] = {
 
 #ifdef CONFIG_MALI_DEBUG
 /* Use more aggressive scheduling timeouts in debug builds for testing purposes */
+#if 0
 	{
 	 KBASE_CONFIG_ATTR_JS_SCHEDULING_TICK_NS,
 	 KBASE_VE_JS_SCHEDULING_TICK_NS_DEBUG},
@@ -335,6 +336,7 @@ static kbase_attribute config_attributes[] = {
 	{
 	 KBASE_CONFIG_ATTR_JS_RESET_TICKS_NSS,
 	 KBASE_VE_JS_RESET_TICKS_NSS_DEBUG},
+#endif
 #else				/* CONFIG_MALI_DEBUG */
 /* In release builds same as the defaults but scaled for 5MHz FPGA */
 #if 0

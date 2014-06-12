@@ -42,7 +42,6 @@
 #endif				/* CONFIG_KDS */
 
 #ifdef CONFIG_SYNC
-//#include <linux/sync.h>
 #include "sync.h"
 #endif				/* CONFIG_SYNC */
 

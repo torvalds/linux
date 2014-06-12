@@ -295,10 +295,27 @@ mali_bool kbasep_js_ctx_attr_ctx_release_atom(kbase_device *kbdev, kbase_context
 	if (kbasep_js_atom_retained_state_is_valid(katom_retained_state) == MALI_FALSE)
 		return MALI_FALSE;
 
-	if (core_req & BASE_JD_REQ_ONLY_COMPUTE)
+	if (core_req & BASE_JD_REQ_ONLY_COMPUTE) {
+		unsigned long flags;
+		int device_nr = (core_req & BASE_JD_REQ_SPECIFIC_COHERENT_GROUP) ? katom_retained_state->device_nr : 0;
+		KBASE_DEBUG_ASSERT(device_nr < 2);
+
+		spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+		kbasep_pm_record_job_status(kbdev);
+		kbdev->pm.metrics.active_cl_ctx[device_nr]--;
+		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+
 		runpool_state_changed |= kbasep_js_ctx_attr_ctx_release_attr(kbdev, kctx, KBASEP_JS_CTX_ATTR_COMPUTE);
-	else
+	} else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+		kbasep_pm_record_job_status(kbdev);
+		kbdev->pm.metrics.active_gl_ctx--;
+		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+
 		runpool_state_changed |= kbasep_js_ctx_attr_ctx_release_attr(kbdev, kctx, KBASEP_JS_CTX_ATTR_NON_COMPUTE);
+	}
 
 	if ((core_req & (BASE_JD_REQ_CS | BASE_JD_REQ_ONLY_COMPUTE | BASE_JD_REQ_T)) != 0 && (core_req & (BASE_JD_REQ_COHERENT_GROUP | BASE_JD_REQ_SPECIFIC_COHERENT_GROUP)) == 0) {
 		/* Atom that can run on slot1 or slot2, and can use all cores */

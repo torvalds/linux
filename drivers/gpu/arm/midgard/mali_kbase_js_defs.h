@@ -448,6 +448,8 @@ typedef struct kbasep_js_atom_retained_state {
 	base_jd_core_req core_req;
 	/** Job Slot to retry submitting to if submission from IRQ handler failed */
 	int retry_submit_on_slot;
+	/* Core group atom was executed on */
+	u32 device_nr;
 
 } kbasep_js_atom_retained_state;
 

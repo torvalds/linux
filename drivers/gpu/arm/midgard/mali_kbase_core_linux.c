@@ -85,7 +85,7 @@ EXPORT_SYMBOL(shared_kernel_test_data);
 #endif /* MALI_UNIT_TEST */
 
 #define KBASE_DRV_NAME "mali"
-#define ROCKCHIP_VERSION 1
+#define ROCKCHIP_VERSION 2
 static const char kbase_drv_name[] = KBASE_DRV_NAME;
 
 static int kbase_dev_nr;
@@ -3019,11 +3019,6 @@ module_exit(kbase_driver_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MALI_RELEASE_NAME);
-
-/* Module parameter to control log level */
-int mali_debug_level = 0;
-module_param(mali_debug_level, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw-rw-r-- */
-MODULE_PARM_DESC(mali_debug_level, "Higher number, more dmesg output");
 
 #ifdef CONFIG_MALI_GATOR_SUPPORT
 /* Create the trace points (otherwise we just get code to call a tracepoint) */

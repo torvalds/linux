@@ -20,7 +20,6 @@
 #include <mali_kbase.h>
 
 #ifdef CONFIG_SYNC
-//#include <linux/sync.h>
 #include "sync.h"
 #include <linux/syscalls.h>
 #include "mali_kbase_sync.h"

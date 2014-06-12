@@ -110,10 +110,16 @@ void kbase_pm_term(struct kbase_device *kbdev);
 typedef struct kbasep_pm_metrics_data {
 	int vsync_hit;
 	int utilisation;
+	int util_gl_share;
+	int util_cl_share[2]; /* 2 is a max number of core groups we can have */
 	ktime_t time_period_start;
 	u32 time_busy;
 	u32 time_idle;
 	mali_bool gpu_active;
+	u32 busy_cl[2];
+	u32 busy_gl;
+	u32 active_cl_ctx[2];
+	u32 active_gl_ctx;
 
 	spinlock_t lock;
 
@@ -660,6 +666,16 @@ mali_error kbasep_pm_metrics_init(struct kbase_device *kbdev);
  */
 void kbasep_pm_metrics_term(struct kbase_device *kbdev);
 
+/** Record state of jobs currently active on GPU.
+ *
+ * This function record time spent executing jobs split per GL and CL
+ * contexts, per core group (only CL jobs).
+ *
+ * @param kbdev     The kbase device structure for the device
+ *                  (must be a valid pointer)
+ */
+void kbasep_pm_record_job_status(struct kbase_device *kbdev);
+
 /** Record that the GPU is active.
  *
  * This records that the GPU is now active. The previous GPU state must have been idle, the function will assert if
@@ -839,11 +855,14 @@ void kbase_pm_do_poweroff(struct kbase_device *kbdev, mali_bool is_suspend);
  * Function provided by platform specific code when DVFS is enabled to allow
  * the power management metrics system to report utilisation.
  *
- * @param kbdev        The kbase device structure for the device (must be a valid pointer)
- * @param utilisation  The current calculated utilisation by the metrics system.
- * @return             Returns 0 on failure and non zero on success.
+ * @param kbdev           The kbase device structure for the device (must be a valid pointer)
+ * @param utilisation     The current calculated utilisation by the metrics system.
+ * @param util_gl_share   The current calculated gl share of utilisation.
+ * @param util_cl_share   The current calculated cl share of utilisation per core group.
+ * @return                Returns 0 on failure and non zero on success.
  */
 
-int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation);
+int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,
+	u32 util_gl_share, u32 util_cl_share[2]);
 #endif
 #endif				/* _KBASE_PM_H_ */

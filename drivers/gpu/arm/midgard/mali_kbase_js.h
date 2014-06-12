@@ -752,6 +752,7 @@ static INLINE void kbasep_js_atom_retained_state_copy(kbasep_js_atom_retained_st
 	retained_state->event_code = katom->event_code;
 	retained_state->core_req = katom->core_req;
 	retained_state->retry_submit_on_slot = katom->retry_submit_on_slot;
+	retained_state->device_nr = katom->device_nr;
 }
 
 /**

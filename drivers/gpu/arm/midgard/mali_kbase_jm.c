@@ -146,10 +146,30 @@ static void kbase_job_hw_submit(kbase_device *kbdev, kbase_jd_atom *katom, int j
 void kbase_job_submit_nolock(kbase_device *kbdev, kbase_jd_atom *katom, int js)
 {
 	kbase_jm_slot *jm_slots;
+	base_jd_core_req core_req;
 
 	KBASE_DEBUG_ASSERT(kbdev);
+	KBASE_DEBUG_ASSERT(katom);
 
 	jm_slots = kbdev->jm_slots;
+
+	core_req = katom->core_req;
+	if (core_req & BASE_JD_REQ_ONLY_COMPUTE) {
+		unsigned long flags;
+		int device_nr = (core_req & BASE_JD_REQ_SPECIFIC_COHERENT_GROUP) ? katom->device_nr : 0;
+		KBASE_DEBUG_ASSERT(device_nr < 2);
+		spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+		kbasep_pm_record_job_status(kbdev);
+		kbdev->pm.metrics.active_cl_ctx[device_nr]++;
+		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+	} else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
+		kbasep_pm_record_job_status(kbdev);
+		kbdev->pm.metrics.active_gl_ctx++;
+		spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
+	}
 
 	/*
 	 * We can have:

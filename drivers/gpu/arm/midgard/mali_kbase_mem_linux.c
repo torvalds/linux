@@ -1404,7 +1404,7 @@ int kbase_mmap(struct file *file, struct vm_area_struct *vma)
 			     !(reg->flags & KBASE_REG_CPU_WR))) {
 				/* VM flags inconsistent with region flags */
 				err = -EPERM;
-				printk(KERN_ERR "%s:%d inconsistent VM flags\n",
+				dev_err(dev, "%s:%d inconsistent VM flags\n",
 					__FILE__, __LINE__);
 				goto out_unlock;
 			}

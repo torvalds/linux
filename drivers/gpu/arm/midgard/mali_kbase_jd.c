@@ -834,6 +834,7 @@ mali_bool jd_submit_atom(kbase_context *kctx,
 	katom->nr_extres = user_atom->nr_extres;
 	katom->extres = NULL;
 	katom->device_nr = user_atom->device_nr;
+
 	katom->affinity = 0;
 	katom->jc = user_atom->jc;
 	katom->coreref_state = KBASE_ATOM_COREREF_STATE_NO_CORES_REQUESTED;
@@ -897,9 +898,17 @@ mali_bool jd_submit_atom(kbase_context *kctx,
 	katom->status = KBASE_JD_ATOM_STATE_QUEUED;
 
 	/* Reject atoms with job chain = NULL, as these cause issues with soft-stop */
-	if (0 == katom->jc && (katom->core_req & BASEP_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_DEP)
-	{
+	if (0 == katom->jc && (katom->core_req & BASEP_JD_REQ_ATOM_TYPE) != BASE_JD_REQ_DEP) {
 		dev_warn(kctx->kbdev->dev, "Rejecting atom with jc = NULL");
+		katom->event_code = BASE_JD_EVENT_JOB_INVALID;
+		ret = jd_done_nolock(katom);
+		goto out;
+	}
+
+	/* Reject atoms with an invalid device_nr */
+	if ((katom->core_req & BASE_JD_REQ_SPECIFIC_COHERENT_GROUP) &&
+	    (katom->device_nr >= kctx->kbdev->gpu_props.num_core_groups)) {
+		dev_warn(kctx->kbdev->dev, "Rejecting atom with invalid device_nr %d", katom->device_nr);
 		katom->event_code = BASE_JD_EVENT_JOB_INVALID;
 		ret = jd_done_nolock(katom);
 		goto out;

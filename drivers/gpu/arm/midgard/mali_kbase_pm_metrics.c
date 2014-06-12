@@ -69,12 +69,21 @@ mali_error kbasep_pm_metrics_init(kbase_device *kbdev)
 	kbdev->pm.metrics.kbdev = kbdev;
 	kbdev->pm.metrics.vsync_hit = 0;
 	kbdev->pm.metrics.utilisation = 0;
+	kbdev->pm.metrics.util_cl_share[0] = 0;
+	kbdev->pm.metrics.util_cl_share[1] = 0;
+	kbdev->pm.metrics.util_gl_share = 0;
 
 	kbdev->pm.metrics.time_period_start = ktime_get();
 	kbdev->pm.metrics.time_busy = 0;
 	kbdev->pm.metrics.time_idle = 0;
 	kbdev->pm.metrics.gpu_active = MALI_TRUE;
 	kbdev->pm.metrics.timer_active = MALI_TRUE;
+	kbdev->pm.metrics.active_cl_ctx[0] = 0;
+	kbdev->pm.metrics.active_cl_ctx[1] = 0;
+	kbdev->pm.metrics.active_gl_ctx = 0;
+	kbdev->pm.metrics.busy_cl[0] = 0;
+	kbdev->pm.metrics.busy_cl[1] = 0;
+	kbdev->pm.metrics.busy_gl = 0;
 
 	spin_lock_init(&kbdev->pm.metrics.lock);
 
@@ -109,11 +118,31 @@ void kbasep_pm_metrics_term(kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbasep_pm_metrics_term)
 
+/*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
+void kbasep_pm_record_job_status(kbase_device *kbdev)
+{
+	ktime_t now;
+	ktime_t diff;
+	u32 ns_time;
+
+	KBASE_DEBUG_ASSERT(kbdev != NULL);
+
+	now = ktime_get();
+	diff = ktime_sub(now, kbdev->pm.metrics.time_period_start);
+
+	ns_time = (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
+	kbdev->pm.metrics.time_busy += ns_time;
+	kbdev->pm.metrics.busy_gl += ns_time * kbdev->pm.metrics.active_gl_ctx;
+	kbdev->pm.metrics.busy_cl[0] += ns_time * kbdev->pm.metrics.active_cl_ctx[0];
+	kbdev->pm.metrics.busy_cl[1] += ns_time * kbdev->pm.metrics.active_cl_ctx[1];
+	kbdev->pm.metrics.time_period_start = now;
+}
+
+KBASE_EXPORT_TEST_API(kbasep_pm_record_job_status)
+
 void kbasep_pm_record_gpu_idle(kbase_device *kbdev)
 {
 	unsigned long flags;
-	ktime_t now;
-	ktime_t diff;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -123,11 +152,7 @@ void kbasep_pm_record_gpu_idle(kbase_device *kbdev)
 
 	kbdev->pm.metrics.gpu_active = MALI_FALSE;
 
-	now = ktime_get();
-	diff = ktime_sub(now, kbdev->pm.metrics.time_period_start);
-
-	kbdev->pm.metrics.time_busy += (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
-	kbdev->pm.metrics.time_period_start = now;
+	kbasep_pm_record_job_status(kbdev);
 
 	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
 }
@@ -172,9 +197,10 @@ void kbase_pm_report_vsync(kbase_device *kbdev, int buffer_updated)
 KBASE_EXPORT_TEST_API(kbase_pm_report_vsync)
 
 /*caller needs to hold kbdev->pm.metrics.lock before calling this function*/
-int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev)
+int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev, int *util_gl_share, int util_cl_share[2])
 {
 	int utilisation = 0;
+	int busy;
 	ktime_t now = ktime_get();
 	ktime_t diff;
 
@@ -183,7 +209,11 @@ int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev)
 	diff = ktime_sub(now, kbdev->pm.metrics.time_period_start);
 
 	if (kbdev->pm.metrics.gpu_active) {
-		kbdev->pm.metrics.time_busy += (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
+		u32 ns_time = (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
+		kbdev->pm.metrics.time_busy += ns_time;
+		kbdev->pm.metrics.busy_cl[0] += ns_time * kbdev->pm.metrics.active_cl_ctx[0];
+		kbdev->pm.metrics.busy_cl[1] += ns_time * kbdev->pm.metrics.active_cl_ctx[1];
+		kbdev->pm.metrics.busy_gl += ns_time * kbdev->pm.metrics.active_gl_ctx;
 		kbdev->pm.metrics.time_period_start = now;
 	} else {
 		kbdev->pm.metrics.time_idle += (u32) (ktime_to_ns(diff) >> KBASE_PM_TIME_SHIFT);
@@ -193,15 +223,49 @@ int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev)
 	if (kbdev->pm.metrics.time_idle + kbdev->pm.metrics.time_busy == 0) {
 		/* No data - so we return NOP */
 		utilisation = -1;
+		if (util_gl_share)
+			*util_gl_share = -1;
+		if (util_cl_share) {
+			util_cl_share[0] = -1;
+			util_cl_share[1] = -1;
+		}
 		goto out;
 	}
 
-	utilisation = (100 * kbdev->pm.metrics.time_busy) / (kbdev->pm.metrics.time_idle + kbdev->pm.metrics.time_busy);
+	utilisation = (100 * kbdev->pm.metrics.time_busy) /
+			(kbdev->pm.metrics.time_idle +
+			 kbdev->pm.metrics.time_busy);
 
- out:
+	busy = kbdev->pm.metrics.busy_gl +
+		kbdev->pm.metrics.busy_cl[0] +
+		kbdev->pm.metrics.busy_cl[1];
+
+	if (busy != 0) {
+		if (util_gl_share)
+			*util_gl_share =
+				(100 * kbdev->pm.metrics.busy_gl) / busy;
+		if (util_cl_share) {
+			util_cl_share[0] =
+				(100 * kbdev->pm.metrics.busy_cl[0]) / busy;
+			util_cl_share[1] =
+				(100 * kbdev->pm.metrics.busy_cl[1]) / busy;
+		}
+	} else {
+		if (util_gl_share)
+			*util_gl_share = -1;
+		if (util_cl_share) {
+			util_cl_share[0] = -1;
+			util_cl_share[1] = -1;
+		}
+	}
+
+out:
 
 	kbdev->pm.metrics.time_idle = 0;
 	kbdev->pm.metrics.time_busy = 0;
+	kbdev->pm.metrics.busy_cl[0] = 0;
+	kbdev->pm.metrics.busy_cl[1] = 0;
+	kbdev->pm.metrics.busy_gl = 0;
 
 	return utilisation;
 }
@@ -209,18 +273,22 @@ int kbase_pm_get_dvfs_utilisation(kbase_device *kbdev)
 kbase_pm_dvfs_action kbase_pm_get_dvfs_action(kbase_device *kbdev)
 {
 	unsigned long flags;
-	int utilisation;
+	int utilisation, util_gl_share;
+	int util_cl_share[2];
 	kbase_pm_dvfs_action action;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	spin_lock_irqsave(&kbdev->pm.metrics.lock, flags);
 
-	utilisation = kbase_pm_get_dvfs_utilisation(kbdev);
+	utilisation = kbase_pm_get_dvfs_utilisation(kbdev, &util_gl_share, util_cl_share);
 
-	if (utilisation < 0) {
+	if (utilisation < 0 || util_gl_share < 0 || util_cl_share < 0) {
 		action = KBASE_PM_DVFS_NOP;
 		utilisation = 0;
+		util_gl_share = 0;
+		util_cl_share[0] = 0;
+		util_cl_share[1] = 0;
 		goto out;
 	}
 
@@ -243,12 +311,18 @@ kbase_pm_dvfs_action kbase_pm_get_dvfs_action(kbase_device *kbdev)
 	}
 
 	kbdev->pm.metrics.utilisation = utilisation;
- out:
+	kbdev->pm.metrics.util_cl_share[0] = util_cl_share[0];
+	kbdev->pm.metrics.util_cl_share[1] = util_cl_share[1];
+	kbdev->pm.metrics.util_gl_share = util_gl_share;
+out:
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	kbase_platform_dvfs_event(kbdev, utilisation);
+	kbase_platform_dvfs_event(kbdev, utilisation, util_gl_share, util_cl_share);
 #endif				/*CONFIG_MALI_MIDGARD_DVFS */
 	kbdev->pm.metrics.time_idle = 0;
 	kbdev->pm.metrics.time_busy = 0;
+	kbdev->pm.metrics.busy_cl[0] = 0;
+	kbdev->pm.metrics.busy_cl[1] = 0;
+	kbdev->pm.metrics.busy_gl = 0;
 	spin_unlock_irqrestore(&kbdev->pm.metrics.lock, flags);
 
 	return action;

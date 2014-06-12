@@ -438,7 +438,6 @@
 /* Values for GPU_ID_VERSION_PRODUCT_ID bitfield */
 #define GPU_ID_PI_T60X                    0x6956
 #define GPU_ID_PI_T62X                    0x0620
-#define GPU_ID_PI_T67X                    0x0670
 #define GPU_ID_PI_T76X                    0x0750
 #define GPU_ID_PI_T72X                    0x0720
 

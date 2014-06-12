@@ -762,10 +762,6 @@ static void kbase_pm_hw_issues(kbase_device *kbdev)
 	if (DEFAULT_ALTERNATIVE_HWC)
 		value |= SC_ALT_COUNTERS;
 
-	/* Use software control of forward pixel kill when needed. See MIDEUR-174. */
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_T76X_2121))
-		value |= SC_OVERRIDE_FWD_PIXEL_KILL;
-
 	/* Needed due to MIDBASE-2795. ENABLE_TEXGRD_FLAGS. See PRLAM-10797. */
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10797))
 		value |= SC_ENABLE_TEXGRD_FLAGS;

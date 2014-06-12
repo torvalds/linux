@@ -27,6 +27,7 @@
 
 #define MEMPOOL_PAGES 16384
 
+
 /**
  * @brief Create a kernel base context.
  *
@@ -125,7 +126,7 @@ free_jd:
 free_allocator:
 	kbase_mem_allocator_term(&kctx->osalloc);
 free_kctx:
-    vfree(kctx);
+	vfree(kctx);
 out:
 	return NULL;
 

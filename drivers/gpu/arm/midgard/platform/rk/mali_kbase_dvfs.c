@@ -222,7 +222,7 @@ static void mali_dvfs_event_proc(struct work_struct *w)
 
 static DECLARE_WORK(mali_dvfs_work, mali_dvfs_event_proc);
 
-int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation)
+int kbase_platform_dvfs_event(struct kbase_device *kbdev, u32 utilisation,u32 util_gl_share_no_use,u32 util_cl_share_no_use[2])
 {
 	unsigned long flags;
 	struct rk_context *platform;
