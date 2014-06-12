@@ -799,6 +799,25 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		addr += 0x10; /* shift for the 2nd tuner params */
 	}
 
+	/*
+	 * These AVerMedia devices has a bad EEPROM content :-(
+	 * Override some wrong values here.
+	 */
+	if (le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) {
+		switch (le16_to_cpu(d->udev->descriptor.idProduct)) {
+		case USB_PID_AVERMEDIA_A835B_1835:
+		case USB_PID_AVERMEDIA_A835B_2835:
+		case USB_PID_AVERMEDIA_A835B_3835:
+			dev_info(&d->udev->dev,
+				 "%s: overriding tuner from %02x to %02x\n",
+				 KBUILD_MODNAME, state->af9033_config[0].tuner,
+				 AF9033_TUNER_IT9135_60);
+
+			state->af9033_config[0].tuner = AF9033_TUNER_IT9135_60;
+			break;
+		}
+	}
+
 skip_eeprom:
 	/* get demod clock */
 	ret = af9035_rd_reg(d, 0x00d800, &tmp);
