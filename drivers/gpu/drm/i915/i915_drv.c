@@ -529,7 +529,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 		drm_irq_uninstall(dev);
 		dev_priv->enable_hotplug_processing = false;
 
-		intel_disable_gt_powersave(dev);
+		intel_suspend_gt_powersave(dev);
 
 		/*
 		 * Disable CRTCs directly since we want to preserve sw state
@@ -548,8 +548,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
+	intel_uncore_forcewake_reset(dev, false);
 	intel_opregion_fini(dev);
-	intel_uncore_fini(dev);
 
 	console_lock();
 	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED);

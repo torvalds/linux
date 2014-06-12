@@ -315,7 +315,7 @@ static void gen6_force_wake_timer(unsigned long arg)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
+void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;

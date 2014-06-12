@@ -4675,6 +4675,26 @@ void intel_cleanup_gt_powersave(struct drm_device *dev)
 		valleyview_cleanup_gt_powersave(dev);
 }
 
+/**
+ * intel_suspend_gt_powersave - suspend PM work and helper threads
+ * @dev: drm device
+ *
+ * We don't want to disable RC6 or other features here, we just want
+ * to make sure any work we've queued has finished and won't bother
+ * us while we're suspended.
+ */
+void intel_suspend_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Interrupts should be disabled already to avoid re-arming. */
+	WARN_ON(dev->irq_enabled);
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+	cancel_work_sync(&dev_priv->rps.work);
+}
+
 void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
