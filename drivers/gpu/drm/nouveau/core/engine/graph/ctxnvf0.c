@@ -279,7 +279,7 @@ nvf0_grctx_init_icmd_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_pack
+const struct nvc0_graph_pack
 nvf0_grctx_pack_icmd[] = {
 	{ nvf0_grctx_init_icmd_0 },
 	{}
@@ -668,7 +668,7 @@ nvf0_grctx_init_be_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_pack
+const struct nvc0_graph_pack
 nvf0_grctx_pack_hub[] = {
 	{ nvc0_grctx_init_main_0 },
 	{ nvf0_grctx_init_fe_0 },
@@ -704,7 +704,7 @@ nvf0_grctx_init_gpc_unk_2[] = {
 	{}
 };
 
-static const struct nvc0_graph_pack
+const struct nvc0_graph_pack
 nvf0_grctx_pack_gpc[] = {
 	{ nvc0_grctx_init_gpc_unk_0 },
 	{ nvd9_grctx_init_prop_0 },
@@ -718,7 +718,7 @@ nvf0_grctx_pack_gpc[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nvf0_grctx_init_tex_0[] = {
 	{ 0x419a00,   1, 0x04, 0x000000f0 },
 	{ 0x419a04,   1, 0x04, 0x00000001 },
@@ -797,7 +797,7 @@ nvf0_grctx_init_cbm_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_pack
+const struct nvc0_graph_pack
 nvf0_grctx_pack_ppc[] = {
 	{ nve4_grctx_init_pes_0 },
 	{ nvf0_grctx_init_cbm_0 },
@@ -809,7 +809,7 @@ nvf0_grctx_pack_ppc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
-static void
+void
 nvf0_grctx_generate_mods(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	u32 magic[GPC_MAX][4];

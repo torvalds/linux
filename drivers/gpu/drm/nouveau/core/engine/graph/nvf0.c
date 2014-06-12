@@ -29,7 +29,7 @@
  * Graphics object classes
  ******************************************************************************/
 
-static struct nouveau_oclass
+struct nouveau_oclass
 nvf0_graph_sclass[] = {
 	{ 0x902d, &nouveau_object_ofuncs },
 	{ 0xa140, &nouveau_object_ofuncs },
@@ -50,7 +50,7 @@ nvf0_graph_init_fe_0[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nvf0_graph_init_ds_0[] = {
 	{ 0x405844,   1, 0x04, 0x00ffffff },
 	{ 0x405850,   1, 0x04, 0x00000000 },
@@ -88,7 +88,7 @@ nvf0_graph_init_gpc_unk_1[] = {
 	{}
 };
 
-static const struct nvc0_graph_init
+const struct nvc0_graph_init
 nvf0_graph_init_tex_0[] = {
 	{ 0x419ab0,   1, 0x04, 0x00000000 },
 	{ 0x419ac8,   1, 0x04, 0x00000000 },
@@ -170,7 +170,7 @@ nvf0_graph_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static int
+int
 nvf0_graph_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nvc0_graph_priv *priv = (void *)object;
@@ -209,7 +209,7 @@ nvf0_graph_fini(struct nouveau_object *object, bool suspend)
 
 #include "fuc/hubnvf0.fuc.h"
 
-static struct nvc0_graph_ucode
+struct nvc0_graph_ucode
 nvf0_graph_fecs_ucode = {
 	.code.data = nvf0_grhub_code,
 	.code.size = sizeof(nvf0_grhub_code),
@@ -219,7 +219,7 @@ nvf0_graph_fecs_ucode = {
 
 #include "fuc/gpcnvf0.fuc.h"
 
-static struct nvc0_graph_ucode
+struct nvc0_graph_ucode
 nvf0_graph_gpccs_ucode = {
 	.code.data = nvf0_grgpc_code,
 	.code.size = sizeof(nvf0_grgpc_code),

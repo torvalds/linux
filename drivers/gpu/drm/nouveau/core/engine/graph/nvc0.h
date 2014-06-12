@@ -121,9 +121,11 @@ int  nvc0_graph_init(struct nouveau_object *);
 int  nve4_graph_fini(struct nouveau_object *, bool);
 int  nve4_graph_init(struct nouveau_object *);
 
-extern struct nouveau_oclass nvc0_graph_sclass[];
+int  nvf0_graph_fini(struct nouveau_object *, bool);
 
+extern struct nouveau_oclass nvc0_graph_sclass[];
 extern struct nouveau_oclass nvc8_graph_sclass[];
+extern struct nouveau_oclass nvf0_graph_sclass[];
 
 struct nvc0_graph_init {
 	u32 addr;
@@ -148,6 +150,9 @@ struct nvc0_graph_ucode {
 
 extern struct nvc0_graph_ucode nvc0_graph_fecs_ucode;
 extern struct nvc0_graph_ucode nvc0_graph_gpccs_ucode;
+
+extern struct nvc0_graph_ucode nvf0_graph_fecs_ucode;
+extern struct nvc0_graph_ucode nvf0_graph_gpccs_ucode;
 
 struct nvc0_graph_oclass {
 	struct nouveau_oclass base;
@@ -223,9 +228,11 @@ extern const struct nvc0_graph_init nve4_graph_init_be_0[];
 extern const struct nvc0_graph_pack nve4_graph_pack_mmio[];
 
 extern const struct nvc0_graph_init nvf0_graph_init_fe_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_ds_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_cwd_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvf0_graph_init_tex_0[];
 extern const struct nvc0_graph_init nvf0_graph_init_sm_0[];
 
 extern const struct nvc0_graph_init nv108_graph_init_gpc_unk_0[];
