@@ -12472,6 +12472,7 @@ static int bnx2x_avoid_link_flap(struct link_params *params,
 	u32 dont_clear_stat, lfa_sts;
 	struct bnx2x *bp = params->bp;
 
+	bnx2x_set_mdio_emac_per_phy(bp, params);
 	/* Sync the link parameters */
 	bnx2x_link_status_update(params, vars);
 
