@@ -1973,10 +1973,12 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink_Support: %s\n", yesno(dev_priv->psr.sink_support));
 	seq_printf(m, "Source_OK: %s\n", yesno(dev_priv->psr.source_ok));
+	seq_printf(m, "Enabled: %s\n", yesno(dev_priv->psr.enabled));
+	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 
 	enabled = HAS_PSR(dev) &&
 		I915_READ(EDP_PSR_CTL(dev)) & EDP_PSR_ENABLE;
-	seq_printf(m, "Enabled: %s\n", yesno(enabled));
+	seq_printf(m, "HW Enabled & Active bit: %s\n", yesno(enabled));
 
 	if (HAS_PSR(dev))
 		psrperf = I915_READ(EDP_PSR_PERF_CNT(dev)) &
