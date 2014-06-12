@@ -53,7 +53,7 @@ static void handle_vq(struct vhost_test *n)
 	vhost_disable_notify(&n->dev, vq);
 
 	for (;;) {
-		head = vhost_get_vq_desc(&n->dev, vq, vq->iov,
+		head = vhost_get_vq_desc(vq, vq->iov,
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 NULL, NULL);
@@ -241,15 +241,18 @@ done:
 
 static int vhost_test_set_features(struct vhost_test *n, u64 features)
 {
+	struct vhost_virtqueue *vq;
+
 	mutex_lock(&n->dev.mutex);
 	if ((features & (1 << VHOST_F_LOG_ALL)) &&
 	    !vhost_log_access_ok(&n->dev)) {
 		mutex_unlock(&n->dev.mutex);
 		return -EFAULT;
 	}
-	n->dev.acked_features = features;
-	smp_wmb();
-	vhost_test_flush(n);
+	vq = &n->vqs[VHOST_TEST_VQ];
+	mutex_lock(&vq->mutex);
+	vq->acked_features = features;
+	mutex_unlock(&vq->mutex);
 	mutex_unlock(&n->dev.mutex);
 	return 0;
 }
