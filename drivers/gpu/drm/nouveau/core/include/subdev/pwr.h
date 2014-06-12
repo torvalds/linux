@@ -8,18 +8,6 @@ struct nouveau_pwr {
 	struct nouveau_subdev base;
 
 	struct {
-		u32 limit;
-		u32 *data;
-		u32  size;
-	} code;
-
-	struct {
-		u32 limit;
-		u32 *data;
-		u32  size;
-	} data;
-
-	struct {
 		u32 base;
 		u32 size;
 	} send;
@@ -44,29 +32,10 @@ nouveau_pwr(void *obj)
 	return (void *)nv_device(obj)->subdev[NVDEV_SUBDEV_PWR];
 }
 
-#define nouveau_pwr_create(p, e, o, d)                                         \
-	nouveau_pwr_create_((p), (e), (o), sizeof(**d), (void **)d)
-#define nouveau_pwr_destroy(p)                                                 \
-	nouveau_subdev_destroy(&(p)->base)
-#define nouveau_pwr_init(p) ({                                                 \
-	struct nouveau_pwr *ppwr = (p);                                        \
-	_nouveau_pwr_init(nv_object(ppwr));                                    \
-})
-#define nouveau_pwr_fini(p,s) ({                                               \
-	struct nouveau_pwr *ppwr = (p);                                        \
-	_nouveau_pwr_fini(nv_object(ppwr), (s));                               \
-})
-
-int nouveau_pwr_create_(struct nouveau_object *, struct nouveau_object *,
-			   struct nouveau_oclass *, int, void **);
-#define _nouveau_pwr_dtor _nouveau_subdev_dtor
-int _nouveau_pwr_init(struct nouveau_object *);
-int _nouveau_pwr_fini(struct nouveau_object *, bool);
-
-extern struct nouveau_oclass nva3_pwr_oclass;
-extern struct nouveau_oclass nvc0_pwr_oclass;
-extern struct nouveau_oclass nvd0_pwr_oclass;
-extern struct nouveau_oclass nv108_pwr_oclass;
+extern struct nouveau_oclass *nva3_pwr_oclass;
+extern struct nouveau_oclass *nvc0_pwr_oclass;
+extern struct nouveau_oclass *nvd0_pwr_oclass;
+extern struct nouveau_oclass *nv108_pwr_oclass;
 
 /* interface to MEMX process running on PPWR */
 struct nouveau_memx;
