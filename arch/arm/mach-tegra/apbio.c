@@ -32,8 +32,8 @@ static u32 *tegra_apb_bb;
 static dma_addr_t tegra_apb_bb_phys;
 static DECLARE_COMPLETION(tegra_apb_wait);
 
-static u32 tegra_apb_readl_direct(unsigned long offset);
-static void tegra_apb_writel_direct(u32 value, unsigned long offset);
+static int tegra_apb_readl_direct(unsigned long offset, u32 *value);
+static int tegra_apb_writel_direct(u32 value, unsigned long offset);
 
 static struct dma_chan *tegra_apb_dma_chan;
 static struct dma_slave_config dma_sconfig;
@@ -128,58 +128,64 @@ static int do_dma_transfer(unsigned long apb_add,
 	return 0;
 }
 
-static u32 tegra_apb_readl_using_dma(unsigned long offset)
+int tegra_apb_readl_using_dma(unsigned long offset, u32 *value)
 {
 	int ret;
 
 	if (!tegra_apb_dma_chan && !tegra_apb_dma_init())
-		return tegra_apb_readl_direct(offset);
+		return tegra_apb_readl_direct(offset, value);
 
 	mutex_lock(&tegra_apb_dma_lock);
 	ret = do_dma_transfer(offset, DMA_DEV_TO_MEM);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("error in reading offset 0x%08lx using dma\n", offset);
-		*(u32 *)tegra_apb_bb = 0;
-	}
+	else
+		*value = *tegra_apb_bb;
+
 	mutex_unlock(&tegra_apb_dma_lock);
-	return *((u32 *)tegra_apb_bb);
+
+	return ret;
 }
 
-static void tegra_apb_writel_using_dma(u32 value, unsigned long offset)
+int tegra_apb_writel_using_dma(u32 value, unsigned long offset)
 {
 	int ret;
 
-	if (!tegra_apb_dma_chan && !tegra_apb_dma_init()) {
-		tegra_apb_writel_direct(value, offset);
-		return;
-	}
+	if (!tegra_apb_dma_chan && !tegra_apb_dma_init())
+		return tegra_apb_writel_direct(value, offset);
 
 	mutex_lock(&tegra_apb_dma_lock);
 	*((u32 *)tegra_apb_bb) = value;
 	ret = do_dma_transfer(offset, DMA_MEM_TO_DEV);
+	mutex_unlock(&tegra_apb_dma_lock);
 	if (ret < 0)
 		pr_err("error in writing offset 0x%08lx using dma\n", offset);
-	mutex_unlock(&tegra_apb_dma_lock);
+
+	return ret;
 }
 #else
 #define tegra_apb_readl_using_dma tegra_apb_readl_direct
 #define tegra_apb_writel_using_dma tegra_apb_writel_direct
 #endif
 
-typedef u32 (*apbio_read_fptr)(unsigned long offset);
-typedef void (*apbio_write_fptr)(u32 value, unsigned long offset);
+typedef int (*apbio_read_fptr)(unsigned long offset, u32 *value);
+typedef int (*apbio_write_fptr)(u32 value, unsigned long offset);
 
 static apbio_read_fptr apbio_read;
 static apbio_write_fptr apbio_write;
 
-static u32 tegra_apb_readl_direct(unsigned long offset)
+static int tegra_apb_readl_direct(unsigned long offset, u32 *value)
 {
-	return readl(IO_ADDRESS(offset));
+	*value = readl(IO_ADDRESS(offset));
+
+	return 0;
 }
 
-static void tegra_apb_writel_direct(u32 value, unsigned long offset)
+static int tegra_apb_writel_direct(u32 value, unsigned long offset)
 {
 	writel(value, IO_ADDRESS(offset));
+
+	return 0;
 }
 
 void tegra_apb_io_init(void)
@@ -197,7 +203,12 @@ void tegra_apb_io_init(void)
 
 u32 tegra_apb_readl(unsigned long offset)
 {
-	return apbio_read(offset);
+	u32 val;
+
+	if (apbio_read(offset, &val) < 0)
+		return 0;
+	else
+		return val;
 }
 
 void tegra_apb_writel(u32 value, unsigned long offset)

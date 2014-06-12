@@ -27,6 +27,20 @@
 u32 tegra_read_chipid(void);
 u8 tegra_get_chip_id(void);
 
+#if defined(CONFIG_TEGRA20_APB_DMA)
+int tegra_apb_readl_using_dma(unsigned long offset, u32 *value);
+int tegra_apb_writel_using_dma(u32 value, unsigned long offset);
+#else
+static inline int tegra_apb_readl_using_dma(unsigned long offset, u32 *value)
+{
+	return -EINVAL;
+}
+static inline int tegra_apb_writel_using_dma(u32 value, unsigned long offset)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_TEGRA20_APB_DMA */
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __SOC_TEGRA_FUSE_H__ */
