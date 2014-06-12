@@ -129,14 +129,7 @@ static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
 	u64 lpae_start = 1ULL << 32;
 
 	/* We are scanning "memory" nodes only */
-	if (type == NULL) {
-		/*
-		 * The longtrail doesn't have a device_type on the
-		 * /memory node, so look for the node called /memory@0.
-		 */
-		if (depth != 1 || strcmp(uname, "memory@0") != 0)
-			return 0;
-	} else if (strcmp(type, "memory") != 0)
+	if (type == NULL || strcmp(type, "memory"))
 		return 0;
 
 	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
