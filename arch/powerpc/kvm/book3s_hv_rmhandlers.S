@@ -1913,8 +1913,8 @@ hcall_try_real_mode:
 	lwax	r3,r3,r4
 	cmpwi	r3,0
 	beq	guest_exit_cont
-	add	r3,r3,r4
-	mtctr	r3
+	add	r12,r3,r4
+	mtctr	r12
 	mr	r3,r9		/* get vcpu pointer */
 	ld	r4,VCPU_GPR(R4)(r9)
 	bctrl
