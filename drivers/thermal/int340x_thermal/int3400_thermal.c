@@ -14,33 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/thermal.h>
-
-struct art {
-	acpi_handle source;
-	acpi_handle target;
-	u64 weight;
-	u64 ac0_max;
-	u64 ac1_max;
-	u64 ac2_max;
-	u64 ac3_max;
-	u64 ac4_max;
-	u64 ac5_max;
-	u64 ac6_max;
-	u64 ac7_max;
-	u64 ac8_max;
-	u64 ac9_max;
-};
-
-struct trt {
-	acpi_handle source;
-	acpi_handle target;
-	u64 influence;
-	u64 sampling_period;
-	u64 reverved1;
-	u64 reverved2;
-	u64 reverved3;
-	u64 reverved4;
-};
+#include "acpi_thermal_rel.h"
 
 enum int3400_thermal_uuid {
 	INT3400_THERMAL_PASSIVE_1,
@@ -68,6 +42,7 @@ struct int3400_thermal_priv {
 	int trt_count;
 	struct trt *trts;
 	u8 uuid_bitmap;
+	int rel_misc_dev_res;
 };
 
 static int int3400_thermal_get_uuids(struct int3400_thermal_priv *priv)
@@ -146,136 +121,6 @@ static int int3400_thermal_run_osc(acpi_handle handle,
 	return result;
 }
 
-
-static int parse_art(struct int3400_thermal_priv *priv)
-{
-	acpi_handle handle = priv->adev->handle;
-	acpi_status status;
-	int result = 0;
-	int i;
-	struct acpi_device *adev;
-	union acpi_object *p;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_buffer element = { 0, NULL };
-	struct acpi_buffer art_format = {
-				sizeof("RRNNNNNNNNNNN"), "RRNNNNNNNNNNN" };
-
-	if (!acpi_has_method(handle, "_ART"))
-		return 0;
-
-	status = acpi_evaluate_object(handle, "_ART", NULL, &buffer);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	p = buffer.pointer;
-	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
-		pr_err("Invalid _ART data\n");
-		result = -EFAULT;
-		goto end;
-	}
-
-	/* ignore p->package.elements[0], as this is _ART Revision field */
-	priv->art_count = p->package.count - 1;
-	priv->arts = kzalloc(sizeof(struct art) * priv->art_count, GFP_KERNEL);
-	if (!priv->arts) {
-		result = -ENOMEM;
-		goto end;
-	}
-
-	for (i = 0; i < priv->art_count; i++) {
-		struct art *art = &(priv->arts[i]);
-
-		element.length = sizeof(struct art);
-		element.pointer = art;
-
-		status = acpi_extract_package(&(p->package.elements[i + 1]),
-					      &art_format, &element);
-		if (ACPI_FAILURE(status)) {
-			pr_err("Invalid _ART data");
-			result = -EFAULT;
-			kfree(priv->arts);
-			goto end;
-		}
-		result = acpi_bus_get_device(art->source, &adev);
-		if (!result)
-			acpi_create_platform_device(adev, NULL);
-		else
-			pr_warn("Failed to get source ACPI device\n");
-		result = acpi_bus_get_device(art->target, &adev);
-		if (!result)
-			acpi_create_platform_device(adev, NULL);
-		else
-			pr_warn("Failed to get source ACPI device\n");
-	}
-end:
-	kfree(buffer.pointer);
-	return result;
-}
-
-static int parse_trt(struct int3400_thermal_priv *priv)
-{
-	acpi_handle handle = priv->adev->handle;
-	acpi_status status;
-	int result = 0;
-	int i;
-	struct acpi_device *adev;
-	union acpi_object *p;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct acpi_buffer element = { 0, NULL };
-	struct acpi_buffer trt_format = { sizeof("RRNNNNNN"), "RRNNNNNN" };
-
-	if (!acpi_has_method(handle, "_TRT"))
-		return 0;
-
-	status = acpi_evaluate_object(handle, "_TRT", NULL, &buffer);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	p = buffer.pointer;
-	if (!p || (p->type != ACPI_TYPE_PACKAGE)) {
-		pr_err("Invalid _TRT data\n");
-		result = -EFAULT;
-		goto end;
-	}
-
-	priv->trt_count = p->package.count;
-	priv->trts = kzalloc(sizeof(struct trt) * priv->trt_count, GFP_KERNEL);
-	if (!priv->trts) {
-		result = -ENOMEM;
-		goto end;
-	}
-
-	for (i = 0; i < priv->trt_count; i++) {
-		struct trt *trt = &(priv->trts[i]);
-
-		element.length = sizeof(struct trt);
-		element.pointer = trt;
-
-		status = acpi_extract_package(&(p->package.elements[i]),
-					      &trt_format, &element);
-		if (ACPI_FAILURE(status)) {
-			pr_err("Invalid _ART data");
-			result = -EFAULT;
-			kfree(priv->trts);
-			goto end;
-		}
-
-		result = acpi_bus_get_device(trt->source, &adev);
-		if (!result)
-			acpi_create_platform_device(adev, NULL);
-		else
-			pr_warn("Failed to get source ACPI device\n");
-		result = acpi_bus_get_device(trt->target, &adev);
-		if (!result)
-			acpi_create_platform_device(adev, NULL);
-		else
-			pr_warn("Failed to get target ACPI device\n");
-	}
-end:
-	kfree(buffer.pointer);
-	return result;
-}
-
 static int int3400_thermal_get_temp(struct thermal_zone_device *thermal,
 			unsigned long *temp)
 {
@@ -350,11 +195,14 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (result)
 		goto free_priv;
 
-	result = parse_art(priv);
+	result = acpi_parse_art(priv->adev->handle, &priv->art_count,
+				&priv->arts, true);
 	if (result)
 		goto free_priv;
 
-	result = parse_trt(priv);
+
+	result = acpi_parse_trt(priv->adev->handle, &priv->trt_count,
+				&priv->trts, true);
 	if (result)
 		goto free_art;
 
@@ -372,6 +220,9 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 		goto free_trt;
 	}
 
+	priv->rel_misc_dev_res = acpi_thermal_rel_misc_device_add(
+							priv->adev->handle);
+
 	return 0;
 free_trt:
 	kfree(priv->trts);
@@ -385,6 +236,9 @@ free_priv:
 static int int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+
+	if (!priv->rel_misc_dev_res)
+		acpi_thermal_rel_misc_device_remove(priv->adev->handle);
 
 	thermal_zone_device_unregister(priv->thermal);
 	kfree(priv->trts);
