@@ -557,6 +557,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	dev_priv->suspend_count++;
 
+	intel_display_set_init_power(dev_priv, false);
+
 	return 0;
 }
 
