@@ -1776,6 +1776,10 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	/* Below limitations aren't valid for Broadwell */
+	if (IS_BROADWELL(dev))
+		goto out;
+
 	if (I915_READ(SPRCTL(intel_crtc->pipe)) & SPRITE_ENABLE) {
 		DRM_DEBUG_KMS("PSR condition failed: Sprite is Enabled\n");
 		return false;
@@ -1792,6 +1796,7 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+ out:
 	dev_priv->psr.source_ok = true;
 	return true;
 }
