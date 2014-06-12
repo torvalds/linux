@@ -53,12 +53,6 @@ Some very frequently asked questions about linuxtv-dvb
 
 3. Which other DVB applications exist?
 
-	http://www.cadsoft.de/people/kls/vdr/
-		Klaus Schmidinger's Video Disk Recorder
-
-	http://www.metzlerbros.org/dvb/
-		Metzler Bros. DVB development; alternate drivers and
-		DVB utilities, include dvb-mpegtools and tuxzap.
 
 	http://sourceforge.net/projects/dvbtools/
 		Dave Chapman's dvbtools package, including
@@ -71,11 +65,6 @@ Some very frequently asked questions about linuxtv-dvb
 	http://www.dbox2.info/
 		LinuxDVB on the dBox2
 
-	http://www.tuxbox.org/
-	http://cvs.tuxbox.org/
-		the TuxBox CVS many interesting DVB applications and the dBox2
-		DVB source
-
 	http://www.linuxtv.org/downloads/	
 		DVB Swiss Army Knife library and utilities
 
@@ -86,7 +75,6 @@ Some very frequently asked questions about linuxtv-dvb
 		mplayer
 
 	http://xine.sourceforge.net/
-	http://xinehq.de/
 		xine
 
 	http://www.mythtv.org/
@@ -155,5 +143,3 @@ Some very frequently asked questions about linuxtv-dvb
 
 	- dvb-ttpci: The main driver for AV7110 based, full-featured
 	  DVB-S/C/T cards
-
-eof
