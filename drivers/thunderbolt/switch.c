@@ -400,7 +400,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 	}
 	sw->cap_plug_events = cap;
 
-	if (tb_eeprom_read_uid(sw, &sw->uid))
+	if (tb_drom_read_uid_only(sw, &sw->uid))
 		tb_sw_warn(sw, "could not read uid from eeprom\n");
 	else
 		tb_sw_info(sw, "uid: %#llx\n", sw->uid);
@@ -442,7 +442,7 @@ int tb_switch_resume(struct tb_switch *sw)
 	u64 uid;
 	tb_sw_info(sw, "resuming switch\n");
 
-	err = tb_eeprom_read_uid(sw, &uid);
+	err = tb_drom_read_uid_only(sw, &uid);
 	if (err) {
 		tb_sw_warn(sw, "uid read failed\n");
 		return err;

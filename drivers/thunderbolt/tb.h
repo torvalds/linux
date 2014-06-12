@@ -22,6 +22,7 @@ struct tb_switch {
 	u64 uid;
 	int cap_plug_events; /* offset, zero if not found */
 	bool is_unplugged; /* unplugged, will go away */
+	u8 *drom;
 };
 
 /**
@@ -33,6 +34,9 @@ struct tb_port {
 	struct tb_port *remote; /* remote port, NULL if not connected */
 	int cap_phy; /* offset, zero if not found */
 	u8 port; /* port number on switch */
+	bool disabled; /* disabled by eeprom */
+	struct tb_port *dual_link_port;
+	u8 link_nr:1;
 };
 
 /**
@@ -237,7 +241,8 @@ int tb_path_activate(struct tb_path *path);
 void tb_path_deactivate(struct tb_path *path);
 bool tb_path_is_invalid(struct tb_path *path);
 
-int tb_eeprom_read_uid(struct tb_switch *sw, u64 *uid);
+int tb_drom_read(struct tb_switch *sw);
+int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid);
 
 
 static inline int tb_route_length(u64 route)
