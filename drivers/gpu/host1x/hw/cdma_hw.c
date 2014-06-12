@@ -26,7 +26,7 @@
 #include "../debug.h"
 
 /*
- * Put the restart at the end of pushbuffer memor
+ * Put the restart at the end of pushbuffer memory
  */
 static void push_buffer_init(struct push_buffer *pb)
 {
