@@ -67,7 +67,7 @@ static struct mfd_cell ricoh619s[] = {
 
 #define SLEEP_INIT(_id, _reg)		\
 	[RICOH619_DS_##_id] = {.reg_add = _reg}
-
+/*
 static struct sleep_control_data sleep_data[] = {
 	SLEEP_INIT(DC1, 0x16),
 	SLEEP_INIT(DC2, 0x17),
@@ -91,6 +91,7 @@ static struct sleep_control_data sleep_data[] = {
 	SLEEP_INIT(PSO4, 0x29),
 	SLEEP_INIT(LDORTC1, 0x2A),
 };
+*/
 static inline int __ricoh619_read(struct i2c_client *client,
 				  u8 reg, uint8_t *val)
 {
@@ -463,6 +464,7 @@ static void ricoh619_power_off(void)
 }
 EXPORT_SYMBOL_GPL(ricoh619_power_off);
 
+#if 0
 static int ricoh619_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
 	struct ricoh619 *ricoh619 = container_of(gc, struct ricoh619, gpio_chip);
@@ -515,7 +517,6 @@ static int ricoh619_gpio_to_irq(struct gpio_chip *gc, unsigned off)
 
 	return -EIO;
 }
-
 
 static void ricoh619_gpio_init(struct ricoh619 *ricoh619,
 	struct ricoh619_platform_data *pdata)
@@ -589,7 +590,7 @@ static void ricoh619_gpio_init(struct ricoh619 *ricoh619,
 	if (ret)
 		dev_warn(ricoh619->dev, "GPIO registration failed: %d\n", ret);
 }
-
+#endif
 static int ricoh619_remove_subdev(struct device *dev, void *unused)
 {
 	platform_device_unregister(to_platform_device(dev));
@@ -601,7 +602,7 @@ static int ricoh619_remove_subdevs(struct ricoh619 *ricoh619)
 	return device_for_each_child(ricoh619->dev, NULL,
 				     ricoh619_remove_subdev);
 }
-
+#if 0
 static int ricoh619_add_subdevs(struct ricoh619 *ricoh619,
 				struct ricoh619_platform_data *pdata)
 {
@@ -627,7 +628,7 @@ failed:
 	ricoh619_remove_subdevs(ricoh619);
 	return ret;
 }
-
+#endif
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -729,8 +730,7 @@ static void __init ricoh619_debuginit(struct ricoh619 *ricoh)
 static struct ricoh619_platform_data *ricoh619_parse_dt(struct ricoh619 *ricoh619)
 {
 	struct ricoh619_platform_data *pdata;
-	struct device_node *regs,*ricoh619_pmic_np;
-	int i, count;
+	struct device_node *ricoh619_pmic_np;
 
 	ricoh619_pmic_np = of_node_get(ricoh619->dev->of_node);
 	if (!ricoh619_pmic_np) {
@@ -785,7 +785,6 @@ static void ricoh619_noe_init(struct ricoh619 *ricoh)
 static int ricoh619_pre_init(struct ricoh619 *ricoh619)
 {
 	int ret=0;
-	u8 val;
 	 printk("%s,line=%d\n", __func__,__LINE__);
 	 /*
 	ret = ricoh619_read(ricoh619->dev,0x09,&val);
@@ -922,9 +921,9 @@ static int ricoh619_i2c_suspend(struct i2c_client *client, pm_message_t state)
 }
 static int ricoh619_i2c_resume(struct i2c_client *client)
 {
+	/*
 	uint8_t reg_val;
 	int ret;
-	/*
 	ret = __ricoh619_read(client, RICOH619_INT_IR_SYS, &reg_val);
 	if(ricoh619_pwr_key_reg & 0x01) { //If PWR_KEY wakeup
 		//printk("PMU: %s: PWR_KEY Wakeup %08x\n",__func__,ricoh619_pwr_key_reg);

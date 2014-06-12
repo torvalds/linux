@@ -45,7 +45,7 @@
 /* define for function */
 #define ENABLE_FUEL_GAUGE_FUNCTION
 #define ENABLE_LOW_BATTERY_DETECTION
-#define ENABLE_FACTORY_MODE
+//#define ENABLE_FACTORY_MODE
 #define DISABLE_CHARGER_TIMER
 /* #define ENABLE_FG_KEEP_ON_MODE */
 /* #define ENABLE_OCV_TABLE_CALIB */
@@ -296,7 +296,7 @@ static int get_battery_temp(struct ricoh619_battery_info *info);
 static int get_battery_temp_2(struct ricoh619_battery_info *info);
 static int check_jeita_status(struct ricoh619_battery_info *info, bool *is_jeita_updated);
 static void ricoh619_scaling_OCV_table(struct ricoh619_battery_info *info, int cutoff_vol, int full_vol, int *start_per, int *end_per);
-static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info);
+//static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info);
 
 static int calc_ocv(struct ricoh619_battery_info *info)
 {
@@ -313,7 +313,7 @@ static int calc_ocv(struct ricoh619_battery_info *info)
 	return ocv;
 }
 
-
+#if 0
 static int set_Rlow(struct ricoh619_battery_info *info)
 {
 	int err;
@@ -420,6 +420,7 @@ static int Set_back_ocv_table(struct ricoh619_battery_info *info)
 
 /**
 **/
+
 static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info)
 {
 	int ocv_table[11]; // HEX value
@@ -476,7 +477,7 @@ static int ricoh619_Check_OCV_Offset(struct ricoh619_battery_info *info)
 	
 	return 0;
 }
-
+#endif
 static int reset_FG_process(struct ricoh619_battery_info *info)
 {
 	int err;
@@ -723,7 +724,7 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	int i,j;
 	int ocv_table[11];
 	int temp;
-	int Target_Cutoff_Vol = 0;
+//	int Target_Cutoff_Vol = 0;
 	int Ocv_ZeroPer_now;
 	int Ibat_now;
 	int fa_cap,use_cap;
@@ -733,10 +734,10 @@ static int get_target_use_cap(struct ricoh619_battery_info *info)
 	int CC_OnePer_step;
 	int Ibat_min;
 
-	int Ocv_now;
+//	int Ocv_now;
 	int Ocv_now_table;
-	int soc_per;
-	int use_cap_now;
+//	int soc_per;
+//	int use_cap_now;
 	int Rsys_now;
 
 	/* get const value */
@@ -3179,7 +3180,7 @@ static void charger_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info
 		 = container_of(work, struct ricoh619_battery_info, irq_work);
-	int ret = 0,i;
+	int ret = 0;
 	uint8_t reg_val;
 	RICOH_FG_DBG("PMU:%s In\n", __func__);
 
@@ -3193,6 +3194,7 @@ static void charger_irq_work(struct work_struct *work)
 		ricoh619_read(info->dev->parent, CHGSTATE_REG, &reg_val);
 		if (reg_val & 0x40) { /* USE ADP */	
 			#ifdef SUPPORT_USB_CONNECT_TO_ADP
+				int i;
 				for(i =0;i<60;i++){
 				RICOH_FG_DBG("PMU:%s usb det dwc_otg_check_dpdm =%d\n", __func__,dwc_otg_check_dpdm(0));
 				if(2 == dwc_otg_check_dpdm(0)){
@@ -3807,7 +3809,7 @@ out:
 	new_temp = get_battery_temp(info);
 	return new_temp;
 }
-
+#if 0
 static int get_time_to_empty(struct ricoh619_battery_info *info)
 {
 	int ret = 0;
@@ -3841,7 +3843,7 @@ static int get_time_to_full(struct ricoh619_battery_info *info)
 
 	return  ret;
 }
-
+#endif
 /* battery voltage is get from Fuel gauge */
 static int measure_vbatt_FG(struct ricoh619_battery_info *info, int *data)
 {
@@ -4028,16 +4030,18 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 			return ret;
 		}
 		#ifdef SUPPORT_USB_CONNECT_TO_ADP
-			if (psy->type == POWER_SUPPLY_TYPE_MAINS)
+			if (psy->type == POWER_SUPPLY_TYPE_MAINS){
 				if((2 == dwc_otg_check_dpdm(0)) && (status & 0x40))
 					val->intval =1;
 				else 
 					val->intval =0;
-			else if (psy->type == POWER_SUPPLY_TYPE_USB)
+			}
+			else if (psy->type == POWER_SUPPLY_TYPE_USB){
 				if((1 == dwc_otg_check_dpdm(0)) && (status & 0x40))
 					val->intval =1;
 				else 
 					val->intval =0;
+			}
 		#else
 			if (psy->type == POWER_SUPPLY_TYPE_MAINS)
 				val->intval = (status & 0x40 ? 1 : 0);
@@ -4223,7 +4227,6 @@ ricoh619_battery_dt_init(struct platform_device *pdev)
 	struct device_node *nproot = pdev->dev.parent->of_node;
 	struct device_node *np;
 	struct ricoh619_battery_platform_data *pdata;
-	int temp;
 
 	if (!nproot)
 		return pdev->dev.platform_data;
@@ -4243,7 +4246,7 @@ ricoh619_battery_dt_init(struct platform_device *pdev)
 
 	/* check rage of b,.attery type */
 	type_n = Battery_Type();
-	RICOH_FG_DBG("%s type_n=%d,temp is %d\n", __func__, type_n,temp);
+	RICOH_FG_DBG("%s type_n=%d\n", __func__, type_n);
 
 	switch (type_n) {
 	case (0):
@@ -4584,7 +4587,9 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 #ifdef RICOH619_VADP_DROP_WORK
 	cancel_delayed_work(&info->vadp_drop_work);
 #endif
+#ifdef ENABLE_FACTORY_MODE
 	cancel_delayed_work(&info->factory_mode_work);
+#endif
 	cancel_delayed_work(&info->jeita_work);
 	cancel_delayed_work(&info->charge_complete_ready);
 	
@@ -4594,12 +4599,15 @@ static int ricoh619_battery_remove(struct platform_device *pdev)
 	flush_workqueue(info->monitor_wqueue);
 	flush_workqueue(info->workqueue);
 	flush_workqueue(info->usb_workqueue);
+#ifdef ENABLE_FACTORY_MODE
 	flush_workqueue(info->factory_mode_wqueue);
-
+#endif
 	destroy_workqueue(info->monitor_wqueue);
 	destroy_workqueue(info->workqueue);
 	destroy_workqueue(info->usb_workqueue);
+#ifdef ENABLE_FACTORY_MODE
 	destroy_workqueue(info->factory_mode_wqueue);
+#endif
 
 	power_supply_unregister(&info->battery);
 	kfree(info);
@@ -4728,7 +4736,9 @@ static int ricoh619_battery_suspend(struct device *dev)
 	cancel_delayed_work(&info->low_battery_work);
 #endif
 	cancel_delayed_work(&info->charge_complete_ready);
+#ifdef ENABLE_FACTORY_MODE
 	cancel_delayed_work(&info->factory_mode_work);
+#endif
 	cancel_delayed_work(&info->jeita_work);
 #ifdef RICOH619_VADP_DROP_WORK
 	cancel_delayed_work(&info->vadp_drop_work);

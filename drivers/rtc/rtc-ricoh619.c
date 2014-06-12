@@ -201,7 +201,8 @@ static int ricoh619_rtc_Pon_get_clr(struct device *dev, uint8_t *Pon_f)
 }
 
 // 0-12hour, 1-24hour
-static int ricoh619_rtc_hour_mode_get(struct device *dev, int *mode)
+/*
+static int ricoh619_rtc_hour_mode_get(struct device *dev, uint8_t *mode)
 {
 	int err;
 
@@ -216,7 +217,7 @@ static int ricoh619_rtc_hour_mode_get(struct device *dev, int *mode)
 	
 	return err;
 }
-
+*/
 // 0-12hour, 1-24hour
 static int ricoh619_rtc_hour_mode_set(struct device *dev, int mode)
 {
@@ -325,7 +326,6 @@ static int ricoh619_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 static int ricoh619_rtc_alarm_is_enabled(struct device *dev,  uint8_t *enabled)
 {
-	struct ricoh619_rtc *rtc = dev_get_drvdata(dev);
 	int err;
 	uint8_t reg_data;
 
@@ -362,13 +362,13 @@ static int ricoh619_rtc_alarm_enable(struct device *dev, unsigned int enabled)
 		err = ricoh619_read_regs(dev, rtc_ctrl1, 1,&reg_data);
 		if(err < 0)
 		{
-			dev_err(dev->parent, "read rtc_ctrl1 error 0x%lx\n", err);
+			dev_err(dev->parent, "read rtc_ctrl1 error =%d\n", err);
 			goto ERR;
 		}
 		reg_data |= 0x40;// set DALE
 		err = ricoh619_write_regs(dev, rtc_ctrl1, 1,&reg_data);
 		if(dev < 0)
-			dev_err(dev->parent, "write rtc_ctrl1 error 0x%lx\n", err);
+			dev_err(dev->parent, "write rtc_ctrl1 error =%d\n", err);
 	}
 	else
 	{
@@ -376,13 +376,13 @@ static int ricoh619_rtc_alarm_enable(struct device *dev, unsigned int enabled)
 		err = ricoh619_read_regs(dev, rtc_ctrl1, 1,&reg_data);
 		if(err < 0)
 		{
-			dev_err(dev->parent, "read rtc_ctrl1 error 0x%lx\n", err);
+			dev_err(dev->parent, "read rtc_ctrl1 error =%d\n", err);
 			goto ERR;
 		}
 		reg_data &= 0xbf;// clear DALE
 		err = ricoh619_write_regs(dev, rtc_ctrl1, 1,&reg_data);
 		if(dev < 0)
-			dev_err(dev->parent, "write rtc_ctrl1 error 0x%lx\n", err);
+			dev_err(dev->parent, "write rtc_ctrl1 error =%d\n", err);
 	}
 
 ERR:
@@ -422,14 +422,14 @@ static int ricoh619_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	err = ricoh619_read_regs(dev, rtc_alarm_y_sec, sizeof(buff), buff);
 	if(err <0)
 	{
-		dev_err(dev->parent, "RTC: %s *** read rtc_alarm timer error 0x%lx\n", __func__, err);
+		dev_err(dev->parent, "RTC: %s *** read rtc_alarm timer error =%d\n", __func__, err);
 		return err;
 	}
 	
 	err = ricoh619_read_regs(dev, rtc_ctrl1, 1,&enabled_flag);
 	if(err<0)
 	{
-		dev_err(dev->parent, "RTC: %s *** read rtc_enable flag error 0x%lx\n", __func__, err);
+		dev_err(dev->parent, "RTC: %s *** read rtc_enable flag error =%d\n", __func__, err);
 		return err;
 	}
 	if(enabled_flag & 0x40)

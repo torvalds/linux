@@ -344,7 +344,7 @@ struct ricoh619_platform_data {
 /* ==================================== */
 struct ricoh619_pwrkey_platform_data {
 	int irq;
-	unsigned long delay_ms;
+	unsigned  delay_ms;
 };
 extern int ricoh619_pwrkey_wakeup;
 extern struct ricoh619 *g_ricoh619;

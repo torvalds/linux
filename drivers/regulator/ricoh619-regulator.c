@@ -77,14 +77,14 @@ static inline struct device *to_ricoh619_dev(struct regulator_dev *rdev)
 {
 	return rdev_get_dev(rdev)->parent->parent;
 }
-
+/*
 static int ricoh619_regulator_enable_time(struct regulator_dev *rdev)
 {
 	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
 
 	return ri->delay;
 }
-
+*/
 static int ricoh619_reg_is_enabled(struct regulator_dev *rdev)
 {
 	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
@@ -363,7 +363,6 @@ static int ricoh619_reg_suspend_enable(struct regulator_dev *rdev)
 	struct ricoh619_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_ricoh619_dev(rdev);
 	int ret;
-	u8 vout_val;
 	ret = ricoh619_set_bits(parent, (0x16 + ri->id), (0xf << 0));
 	if (ret < 0) {
 		dev_err(&rdev->dev, "Error in updating the STATE register\n");
@@ -515,7 +514,7 @@ static inline struct ricoh619_regulator *find_regulator_info(int id)
 	}
 	return NULL;
 }
-
+#if 0
 static int ricoh619_regulator_preinit(struct device *parent,
 		struct ricoh619_regulator *ri,
 		struct ricoh619_regulator_platform_data *ricoh619_pdata)
@@ -550,7 +549,7 @@ static int ricoh619_regulator_preinit(struct device *parent,
 
 	return ret;
 }
-
+#endif
 static inline int ricoh619_cache_regulator_register(struct device *parent,
 	struct ricoh619_regulator *ri)
 {
@@ -615,7 +614,6 @@ static int ricoh619_regulator_probe(struct platform_device *pdev)
 	struct ricoh619_regulator *ri = NULL;
 	struct regulator_dev *rdev;
 	struct regulator_config config = { };
-	struct regulator_init_data *pdata_regulator = dev_get_platdata(&pdev->dev);
 	int err,id=0;
 	
 	rdev = devm_kzalloc(&pdev->dev, RICOH619_NUM_REGULATOR *
@@ -637,12 +635,12 @@ static int ricoh619_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.driver_data = ri;
 
-	if (ricoh619_regulator_matches)
-		config.of_node = ricoh619_regulator_matches[id].of_node;
+	config.of_node = ricoh619_regulator_matches[id].of_node;
 
-	if (ricoh619_regulator_dt_init(pdev, &config, id))
-		if (pdata_regulator)
-			config.init_data = &pdata_regulator;
+	err = ricoh619_regulator_dt_init(pdev, &config, id);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to regulator dt init\n");
+	}
 
 	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR_OR_NULL(rdev)) {
