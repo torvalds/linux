@@ -266,6 +266,12 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 	int err;
 	int i;
 
+	err = device_register(&rockchip_ion_cma_dev);
+	if (err) {
+		pr_err("Could not register %s\n", dev_name(&rockchip_ion_cma_dev));
+		return err;
+	}
+
 	if (pdev->dev.of_node) {
 		pdata = rockchip_ion_parse_dt(&pdev->dev);
 		if (IS_ERR(pdata)) {
