@@ -357,7 +357,7 @@ static void *usdhi6_sg_map(struct usdhi6_host *host)
 
 	WARN(host->pg.page, "%p not properly unmapped!\n", host->pg.page);
 	if (WARN(sg_dma_len(sg) % data->blksz,
-		 "SG size %zd isn't a multiple of block size %zd\n",
+		 "SG size %u isn't a multiple of block size %u\n",
 		 sg_dma_len(sg), data->blksz))
 		return NULL;
 
@@ -459,7 +459,7 @@ static void usdhi6_sg_advance(struct usdhi6_host *host)
 	done = (host->page_idx << PAGE_SHIFT) + host->offset;
 	total = host->sg->offset + sg_dma_len(host->sg);
 
-	dev_dbg(mmc_dev(host->mmc), "%s(): %zu of %zu @ %u\n", __func__,
+	dev_dbg(mmc_dev(host->mmc), "%s(): %zu of %zu @ %zu\n", __func__,
 		done, total, host->offset);
 
 	if (done < total && host->offset) {
@@ -489,7 +489,7 @@ static void usdhi6_sg_advance(struct usdhi6_host *host)
 		host->sg = next;
 
 		if (WARN(next && sg_dma_len(next) % data->blksz,
-			 "SG size %zd isn't a multiple of block size %zd\n",
+			 "SG size %u isn't a multiple of block size %u\n",
 			 sg_dma_len(next), data->blksz))
 			data->error = -EINVAL;
 
@@ -896,7 +896,7 @@ static void usdhi6_request_done(struct usdhi6_host *host)
 	struct mmc_data *data = mrq->data;
 
 	if (WARN(host->pg.page || host->head_pg.page,
-		 "Page %p or %p not unmapped: wait %u, CMD%d(%c) @ +0x%x %ux%u in SG%u!\n",
+		 "Page %p or %p not unmapped: wait %u, CMD%d(%c) @ +0x%zx %ux%u in SG%u!\n",
 		 host->pg.page, host->head_pg.page, host->wait, mrq->cmd->opcode,
 		 data ? (data->flags & MMC_DATA_READ ? 'R' : 'W') : '-',
 		 data ? host->offset : 0, data ? data->blocks : 0,
@@ -1666,7 +1666,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	case USDHI6_WAIT_FOR_READ:
 	case USDHI6_WAIT_FOR_WRITE:
 		dev_dbg(mmc_dev(host->mmc),
-			"%c: page #%u @ +0x%x %ux%u in SG%u. Current SG %u bytes @ %u\n",
+			"%c: page #%u @ +0x%zx %ux%u in SG%u. Current SG %u bytes @ %u\n",
 			data->flags & MMC_DATA_READ ? 'R' : 'W', host->page_idx,
 			host->offset, data->blocks, data->blksz, data->sg_len,
 			sg_dma_len(host->sg), host->sg->offset);
