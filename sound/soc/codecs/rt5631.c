@@ -1379,7 +1379,7 @@ static int rt5631_add_widgets(struct snd_soc_codec *codec)
 
 	return 0;
 }
-
+#if 0
 static int voltab[2][16] = 
 {
     //spk
@@ -1387,9 +1387,10 @@ static int voltab[2][16] =
     //hp
     {0x1f, 0x1c, 0x1a, 0x18, 0x16, 0x14, 0x12, 0x10, 0x0e, 0x0c, 0x0a, 0x08, 0x06, 0x04, 0x02, 0x01},
 };
-static int gvolume = 0;
+#endif
 
-#if 1
+#if defined(CONFIG_ADJUST_VOL_BY_CODEC)
+static int gvolume = 0;
 static int get_vol(int max, int min, int stage_num, int stage)
 {
 	int ret, step=((max-min)<<8)/(stage_num-1);
@@ -1458,9 +1459,8 @@ static void rt5631_set_eq(int on)
 	DBG("------- rt5631_set_eq: write Reg0C = 0x%04x\n", Reg0C);
 	rt5631_write(codec, RT5631_STEREO_DAC_VOL_1, Reg0C);
 }
-
-#else
-
+#endif
+#if 0
 static void rt5631_set_volume(int vollevel)
 {
 	struct snd_soc_codec *codec = rt5631_codec;
