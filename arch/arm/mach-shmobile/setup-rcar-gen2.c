@@ -113,3 +113,79 @@ void __init rcar_gen2_timer_init(void)
 #endif
 	clocksource_of_init();
 }
+
+struct memory_reserve_config {
+	u64 reserved;
+	u64 base, size;
+};
+
+static int __init rcar_gen2_scan_mem(unsigned long node, const char *uname,
+				     int depth, void *data)
+{
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *reg, *endp;
+	int l;
+	struct memory_reserve_config *mrc = data;
+	u64 lpae_start = (u64)1 << 32;
+
+	/* We are scanning "memory" nodes only */
+	if (type == NULL) {
+		/*
+		 * The longtrail doesn't have a device_type on the
+		 * /memory node, so look for the node called /memory@0.
+		 */
+		if (depth != 1 || strcmp(uname, "memory@0") != 0)
+			return 0;
+	} else if (strcmp(type, "memory") != 0)
+		return 0;
+
+	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (reg == NULL)
+		reg = of_get_flat_dt_prop(node, "reg", &l);
+	if (reg == NULL)
+		return 0;
+
+	endp = reg + (l / sizeof(__be32));
+	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+		u64 base, size;
+
+		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+		size = dt_mem_next_cell(dt_root_size_cells, &reg);
+
+		if (base >= lpae_start)
+			continue;
+
+		if ((base + size) >= lpae_start)
+			size = lpae_start - base;
+
+		if (size < mrc->reserved)
+			continue;
+
+		if (base < mrc->base)
+			continue;
+
+		/* keep the area at top near the 32-bit legacy limit */
+		mrc->base = base + size - mrc->reserved;
+		mrc->size = mrc->reserved;
+	}
+
+	return 0;
+}
+
+struct cma *rcar_gen2_dma_contiguous;
+
+void __init rcar_gen2_reserve(void)
+{
+	struct memory_reserve_config mrc;
+
+	/* reserve 256 MiB at the top of the physical legacy 32-bit space */
+	memset(&mrc, 0, sizeof(mrc));
+	mrc.reserved = SZ_256M;
+
+	of_scan_flat_dt(rcar_gen2_scan_mem, &mrc);
+#ifdef CONFIG_DMA_CMA
+	if (mrc.size)
+		dma_contiguous_reserve_area(mrc.size, mrc.base, 0,
+					    &rcar_gen2_dma_contiguous);
+#endif
+}
