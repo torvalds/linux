@@ -266,7 +266,7 @@ static const struct dev_pm_ops bcmsdh_sdmmc_pm_ops = {
 
 #if defined(BCMLXSDMMC)
 static struct semaphore *notify_semaphore = NULL;
-
+/*
 static int dummy_probe(struct sdio_func *func,
                               const struct sdio_device_id *id)
 {
@@ -285,7 +285,7 @@ static struct sdio_driver dummy_sdmmc_driver = {
 	.name		= "dummy_sdmmc",
 	.id_table	= bcmsdh_sdmmc_ids,
 	};
-
+*/
 int sdio_func_reg_notify(void* semaphore)
 {
 	notify_semaphore = semaphore;
