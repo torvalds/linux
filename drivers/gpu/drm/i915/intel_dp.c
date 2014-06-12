@@ -1613,11 +1613,9 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 	}
 }
 
-static bool is_edp_psr(struct drm_device *dev)
+static bool is_edp_psr(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	return dev_priv->psr.sink_support;
+	return intel_dp->psr_dpcd[0] & DP_PSR_IS_SUPPORTED;
 }
 
 static bool intel_edp_is_psr_enabled(struct drm_device *dev)
@@ -1821,6 +1819,11 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 		return;
 	}
 
+	if (!is_edp_psr(intel_dp)) {
+		DRM_DEBUG_KMS("PSR not supported by this panel\n");
+		return;
+	}
+
 	/* Setup PSR once */
 	intel_edp_psr_setup(intel_dp);
 
@@ -1861,9 +1864,6 @@ void intel_edp_psr_update(struct drm_device *dev)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
 		if (encoder->type == INTEL_OUTPUT_EDP) {
 			intel_dp = enc_to_intel_dp(&encoder->base);
-
-			if (!is_edp_psr(dev))
-				return;
 
 			if (!intel_edp_psr_match_conditions(intel_dp))
 				intel_edp_psr_disable(intel_dp);
