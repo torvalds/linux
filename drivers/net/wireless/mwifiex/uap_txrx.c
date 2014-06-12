@@ -96,7 +96,6 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 	int hdr_chop;
-	struct timeval tv;
 	struct ethhdr *p_ethhdr;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
@@ -192,8 +191,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 		tx_info->pkt_len = skb->len;
 	}
 
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&adapter->tx_pending);
 	atomic_inc(&adapter->pending_bridged_pkts);
