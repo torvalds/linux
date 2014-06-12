@@ -1683,16 +1683,21 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 
 static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
 	int precharge = 0x3;
 	int msg_size = 5;       /* Header(4) + Message(1) */
+	bool only_standby = false;
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
+	if (IS_BROADWELL(dev) && dig_port->port != PORT_A)
+		only_standby = true;
+
 	/* Enable PSR in sink */
-	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT)
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT || only_standby)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE & ~DP_PSR_MAIN_LINK_ACTIVE);
 	else
@@ -1711,14 +1716,19 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 
 static void intel_edp_psr_enable_source(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t max_sleep_time = 0x1f;
 	uint32_t idle_frames = 1;
 	uint32_t val = 0x0;
 	const uint32_t link_entry_time = EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
+	bool only_standby = false;
 
-	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT) {
+	if (IS_BROADWELL(dev) && dig_port->port != PORT_A)
+		only_standby = true;
+
+	if (intel_dp->psr_dpcd[1] & DP_PSR_NO_TRAIN_ON_EXIT || only_standby) {
 		val |= EDP_PSR_LINK_STANDBY;
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
 		val |= EDP_PSR_TP1_TIME_0us;
@@ -1746,8 +1756,13 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 
 	dev_priv->psr.source_ok = false;
 
-	if ((intel_encoder->type != INTEL_OUTPUT_EDP) ||
-	    (dig_port->port != PORT_A)) {
+	if (!HAS_PSR(dev)) {
+		DRM_DEBUG_KMS("PSR not supported on this platform\n");
+		return false;
+	}
+
+	if (IS_HASWELL(dev) && (intel_encoder->type != INTEL_OUTPUT_EDP ||
+				dig_port->port != PORT_A)) {
 		DRM_DEBUG_KMS("HSW ties PSR to DDI A (eDP)\n");
 		return false;
 	}
