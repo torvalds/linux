@@ -520,7 +520,7 @@ ARM_BE8(rev	r6, r6  )
 	mcr	p15, 0, r2, c14, c3, 1	@ CNTV_CTL
 	isb
 
-	mrrc	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	mrrc	p15, 3, rr_lo_hi(r2, r3), c14	@ CNTV_CVAL
 	ldr	r4, =VCPU_TIMER_CNTV_CVAL
 	add	r5, vcpu, r4
 	strd	r2, r3, [r5]
@@ -560,12 +560,12 @@ ARM_BE8(rev	r6, r6  )
 
 	ldr	r2, [r4, #KVM_TIMER_CNTVOFF]
 	ldr	r3, [r4, #(KVM_TIMER_CNTVOFF + 4)]
-	mcrr	p15, 4, r2, r3, c14	@ CNTVOFF
+	mcrr	p15, 4, rr_lo_hi(r2, r3), c14	@ CNTVOFF
 
 	ldr	r4, =VCPU_TIMER_CNTV_CVAL
 	add	r5, vcpu, r4
 	ldrd	r2, r3, [r5]
-	mcrr	p15, 3, r2, r3, c14	@ CNTV_CVAL
+	mcrr	p15, 3, rr_lo_hi(r2, r3), c14	@ CNTV_CVAL
 	isb
 
 	ldr	r2, [vcpu, #VCPU_TIMER_CNTV_CTL]
