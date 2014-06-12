@@ -4706,10 +4706,8 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
 	} else if (IS_GEN6(dev) || IS_GEN7(dev) || IS_BROADWELL(dev)) {
-		if (cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work))
-			intel_runtime_pm_put(dev_priv);
+		intel_suspend_gt_powersave(dev);
 
-		cancel_work_sync(&dev_priv->rps.work);
 		mutex_lock(&dev_priv->rps.hw_lock);
 		if (IS_VALLEYVIEW(dev))
 			valleyview_disable_rps(dev);
