@@ -62,9 +62,9 @@ void __init alloc_legacy_irqno(void)
 
 void free_irqno(unsigned int irq)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(irq, irq_map);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 /*

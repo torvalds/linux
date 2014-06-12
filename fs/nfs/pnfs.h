@@ -275,7 +275,7 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
 		atomic_inc(&lseg->pls_refcount);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 	}
 	return lseg;
 }

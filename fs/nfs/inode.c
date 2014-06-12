@@ -1085,7 +1085,7 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 	trace_nfs_invalidate_mapping_exit(inode, ret);
 
 	clear_bit_unlock(NFS_INO_INVALIDATING, bitlock);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	wake_up_bit(bitlock, NFS_INO_INVALIDATING);
 out:
 	return ret;

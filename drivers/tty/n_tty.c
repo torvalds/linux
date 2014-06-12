@@ -2041,7 +2041,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	if (found)
 		clear_bit(eol, ldata->read_flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 	ldata->read_tail += c;
 
 	if (found) {
