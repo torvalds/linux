@@ -187,6 +187,12 @@ extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
 extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
 				 void *data);
+struct device *iommu_device_create(struct device *parent, void *drvdata,
+				   const struct attribute_group **groups,
+				   const char *fmt, ...);
+void iommu_device_destroy(struct device *dev);
+int iommu_device_link(struct device *dev, struct device *link);
+void iommu_device_unlink(struct device *dev, struct device *link);
 
 /* Window handling function prototypes */
 extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
@@ -395,6 +401,26 @@ static inline int iommu_domain_set_attr(struct iommu_domain *domain,
 					enum iommu_attr attr, void *data)
 {
 	return -EINVAL;
+}
+
+struct device *iommu_device_create(struct device *parent, void *drvdata,
+				   const struct attribute_group **groups,
+				   const char *fmt, ...)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+void iommu_device_destroy(struct device *dev)
+{
+}
+
+int iommu_device_link(struct device *dev, struct device *link)
+{
+	return -EINVAL;
+}
+
+void iommu_device_unlink(struct device *dev, struct device *link)
+{
 }
 
 #endif /* CONFIG_IOMMU_API */
