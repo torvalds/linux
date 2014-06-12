@@ -278,8 +278,13 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2x00usb_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
-				      data + offset, length);
+	if (rt2800usb_autorun_detect(rt2x00dev)) {
+		rt2x00_info(rt2x00dev,
+			    "Firmware loading not required - NIC in AutoRun mode\n");
+	} else {
+		rt2x00usb_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+					      data + offset, length);
+	}
 
 	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
