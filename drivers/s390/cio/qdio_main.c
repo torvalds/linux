@@ -1233,12 +1233,10 @@ int qdio_free(struct ccw_device *cdev)
 		return -ENODEV;
 
 	DBF_EVENT("qfree:%4x", cdev->private->schid.sch_no);
+	DBF_DEV_EVENT(DBF_ERR, irq_ptr, "dbf abandoned");
 	mutex_lock(&irq_ptr->setup_mutex);
 
-	if (irq_ptr->debug_area != NULL) {
-		debug_unregister(irq_ptr->debug_area);
-		irq_ptr->debug_area = NULL;
-	}
+	irq_ptr->debug_area = NULL;
 	cdev->private->qdio_data = NULL;
 	mutex_unlock(&irq_ptr->setup_mutex);
 
@@ -1275,7 +1273,8 @@ int qdio_allocate(struct qdio_initialize *init_data)
 		goto out_err;
 
 	mutex_init(&irq_ptr->setup_mutex);
-	qdio_allocate_dbf(init_data, irq_ptr);
+	if (qdio_allocate_dbf(init_data, irq_ptr))
+		goto out_rel;
 
 	/*
 	 * Allocate a page for the chsc calls in qdio_establish.
