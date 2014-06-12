@@ -26,6 +26,14 @@
 
 #include "priv.h"
 
+static void
+nouveau_pwr_pgob(struct nouveau_pwr *ppwr, bool enable)
+{
+	const struct nvkm_pwr_impl *impl = (void *)nv_oclass(ppwr);
+	if (impl->pgob)
+		impl->pgob(ppwr, enable);
+}
+
 static int
 nouveau_pwr_send(struct nouveau_pwr *ppwr, u32 reply[2],
 		 u32 process, u32 message, u32 data0, u32 data1)
@@ -188,6 +196,7 @@ _nouveau_pwr_init(struct nouveau_object *object)
 
 	nv_subdev(ppwr)->intr = nouveau_pwr_intr;
 	ppwr->message = nouveau_pwr_send;
+	ppwr->pgob = nouveau_pwr_pgob;
 
 	/* prevent previous ucode from running, wait for idle, reset */
 	nv_wr32(ppwr, 0x10a014, 0x0000ffff); /* INTR_EN_CLR = ALL */

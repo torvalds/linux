@@ -37,6 +37,8 @@ struct nvkm_pwr_impl {
 		u32 *data;
 		u32  size;
 	} data;
+
+	void (*pgob)(struct nouveau_pwr *, bool);
 };
 
 #endif

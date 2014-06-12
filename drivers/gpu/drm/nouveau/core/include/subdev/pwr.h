@@ -23,7 +23,8 @@ struct nouveau_pwr {
 		u32 data[2];
 	} recv;
 
-	int (*message)(struct nouveau_pwr *, u32[2], u32, u32, u32, u32);
+	int  (*message)(struct nouveau_pwr *, u32[2], u32, u32, u32, u32);
+	void (*pgob)(struct nouveau_pwr *, bool);
 };
 
 static inline struct nouveau_pwr *
@@ -35,6 +36,7 @@ nouveau_pwr(void *obj)
 extern struct nouveau_oclass *nva3_pwr_oclass;
 extern struct nouveau_oclass *nvc0_pwr_oclass;
 extern struct nouveau_oclass *nvd0_pwr_oclass;
+extern struct nouveau_oclass *gk104_pwr_oclass;
 extern struct nouveau_oclass *nv108_pwr_oclass;
 
 /* interface to MEMX process running on PPWR */
