@@ -27,6 +27,22 @@
 u32 tegra_read_chipid(void);
 u8 tegra_get_chip_id(void);
 
+enum tegra_revision {
+	TEGRA_REVISION_UNKNOWN = 0,
+	TEGRA_REVISION_A01,
+	TEGRA_REVISION_A02,
+	TEGRA_REVISION_A03,
+	TEGRA_REVISION_A03p,
+	TEGRA_REVISION_A04,
+	TEGRA_REVISION_MAX,
+};
+
+u32 tegra_read_straps(void);
+u32 tegra_read_chipid(void);
+void tegra_init_fuse(void);
+
+extern enum tegra_revision tegra_revision;
+
 #if defined(CONFIG_TEGRA20_APB_DMA)
 int tegra_apb_readl_using_dma(unsigned long offset, u32 *value);
 int tegra_apb_writel_using_dma(u32 value, unsigned long offset);

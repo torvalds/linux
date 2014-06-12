@@ -17,6 +17,8 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 
+#include <soc/tegra/fuse.h>
+
 #include "fuse.h"
 
 #define CPU_SPEEDO_LSBIT		20

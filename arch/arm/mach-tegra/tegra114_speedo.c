@@ -17,6 +17,8 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 
+#include <soc/tegra/fuse.h>
+
 #include "fuse.h"
 
 #define CORE_PROCESS_CORNERS_NUM	2
