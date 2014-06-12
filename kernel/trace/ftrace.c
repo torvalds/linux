@@ -4089,7 +4089,12 @@ static int g_show(struct seq_file *m, void *v)
 		return 0;
 
 	if (ptr == (unsigned long *)1) {
-		seq_printf(m, "#### all functions enabled ####\n");
+		struct ftrace_graph_data *fgd = m->private;
+
+		if (fgd->table == ftrace_graph_funcs)
+			seq_printf(m, "#### all functions enabled ####\n");
+		else
+			seq_printf(m, "#### no functions disabled ####\n");
 		return 0;
 	}
 
