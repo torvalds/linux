@@ -73,6 +73,12 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
   *		members are in 'automatic' mode or 'manual' mode. This is
   *		used for autogain/gain type clusters. Drivers should never
   *		set this flag directly.
+  * @is_int:    If set, then this control has a simple integer value (i.e. it
+  *		uses ctrl->val).
+  * @is_string: If set, then this control has type V4L2_CTRL_TYPE_STRING.
+  * @is_ptr:	If set, then this control is an array and/or has type >= V4L2_CTRL_COMPOUND_TYPES
+  *		and/or has type V4L2_CTRL_TYPE_STRING. In other words, struct
+  *		v4l2_ext_control uses field p to point to the data.
   * @has_volatiles: If set, then one or more members of the cluster are volatile.
   *		Drivers should never touch this flag.
   * @call_notify: If set, then call the handler's notify function whenever the
@@ -90,6 +96,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
   * @maximum:	The control's maximum value.
   * @default_value: The control's default value.
   * @step:	The control's step value for non-menu controls.
+  * @elem_size:	The size in bytes of the control.
   * @menu_skip_mask: The control's skip mask for menu controls. This makes it
   *		easy to skip menu items that are not valid. If bit X is set,
   *		then menu item X is skipped. Of course, this only works for
@@ -104,7 +111,6 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
   * @cur:	The control's current value.
   * @val:	The control's new s32 value.
   * @val64:	The control's new s64 value.
-  * @string:	The control's new string value.
   * @priv:	The control's private pointer. For use by the driver. It is
   *		untouched by the control framework. Note that this pointer is
   *		not freed when the control is deleted. Should this be needed
@@ -123,6 +129,9 @@ struct v4l2_ctrl {
 	unsigned int is_new:1;
 	unsigned int is_private:1;
 	unsigned int is_auto:1;
+	unsigned int is_int:1;
+	unsigned int is_string:1;
+	unsigned int is_ptr:1;
 	unsigned int has_volatiles:1;
 	unsigned int call_notify:1;
 	unsigned int manual_mode_value:8;
@@ -132,6 +141,7 @@ struct v4l2_ctrl {
 	const char *name;
 	enum v4l2_ctrl_type type;
 	s64 minimum, maximum, default_value;
+	u32 elem_size;
 	union {
 		u64 step;
 		u64 menu_skip_mask;
@@ -141,17 +151,19 @@ struct v4l2_ctrl {
 		const s64 *qmenu_int;
 	};
 	unsigned long flags;
-	union {
-		s32 val;
-		s64 val64;
-		char *string;
-	} cur;
-	union {
-		s32 val;
-		s64 val64;
-		char *string;
-	};
 	void *priv;
+	union {
+		s32 val;
+		s64 val64;
+		char *string;
+		void *p;
+	};
+	union {
+		s32 val;
+		s64 val64;
+		char *string;
+		void *p;
+	} cur;
 };
 
 /** struct v4l2_ctrl_ref - The control reference.
@@ -212,6 +224,7 @@ struct v4l2_ctrl_handler {
   * @max:	The control's maximum value.
   * @step:	The control's step value for non-menu controls.
   * @def: 	The control's default value.
+  * @elem_size:	The size in bytes of the control.
   * @flags:	The control's flags.
   * @menu_skip_mask: The control's skip mask for menu controls. This makes it
   *		easy to skip menu items that are not valid. If bit X is set,
@@ -235,6 +248,7 @@ struct v4l2_ctrl_config {
 	s64 max;
 	u64 step;
 	s64 def;
+	u32 elem_size;
 	u32 flags;
 	u64 menu_skip_mask;
 	const char * const *qmenu;
@@ -659,6 +673,7 @@ unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
 
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);
+int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctrl *qc);
 int v4l2_querymenu(struct v4l2_ctrl_handler *hdl, struct v4l2_querymenu *qm);
 int v4l2_g_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_control *ctrl);
 int v4l2_s_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
