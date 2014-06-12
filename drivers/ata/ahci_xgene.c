@@ -440,16 +440,6 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
 
-	/*
-	 * Setup DMA mask. This is preliminary until the DMA range is sorted
-	 * out.
-	 */
-	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (rc) {
-		dev_err(dev, "Unable to set dma mask\n");
-		goto disable_resources;
-	}
-
 	hflags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
 
 	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
