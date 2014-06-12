@@ -287,6 +287,12 @@ struct bufdesc *fec_enet_get_prevdesc(struct bufdesc *bdp, struct fec_enet_priva
 		return (new_bd < base) ? (new_bd + ring_size) : new_bd;
 }
 
+static int fec_enet_get_bd_index(struct bufdesc *base, struct bufdesc *bdp,
+				struct fec_enet_private *fep)
+{
+	return ((const char *)bdp - (const char *)base) / fep->bufdesc_size;
+}
+
 static void *swap_buffer(void *bufaddr, int len)
 {
 	int i;
@@ -313,8 +319,7 @@ fec_enet_clear_csum(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 }
 
-static netdev_tx_t
-fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static int txq_submit_skb(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	const struct platform_device_id *id_entry =
@@ -329,14 +334,6 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	status = bdp->cbd_sc;
 
-	if (status & BD_ENET_TX_READY) {
-		/* Ooops.  All transmit buffers are full.  Bail out.
-		 * This should not happen, since ndev->tbusy should be set.
-		 */
-		netdev_err(ndev, "tx queue full!\n");
-		return NETDEV_TX_BUSY;
-	}
-
 	/* Protocol checksum off-load for TCP and UDP. */
 	if (fec_enet_clear_csum(skb, ndev)) {
 		dev_kfree_skb_any(skb);
@@ -350,16 +347,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	bufaddr = skb->data;
 	bdp->cbd_datlen = skb->len;
 
-	/*
-	 * On some FEC implementations data must be aligned on
-	 * 4-byte boundaries. Use bounce buffers to copy data
-	 * and get it aligned. Ugh.
-	 */
-	if (fep->bufdesc_ex)
-		index = (struct bufdesc_ex *)bdp -
-			(struct bufdesc_ex *)fep->tx_bd_base;
-	else
-		index = bdp - fep->tx_bd_base;
+	index = fec_enet_get_bd_index(fep->tx_bd_base, bdp, fep);
 
 	if (((unsigned long) bufaddr) & FEC_ALIGNMENT) {
 		memcpy(fep->tx_bounce[index], skb->data, skb->len);
@@ -433,11 +421,39 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	fep->cur_tx = bdp;
 
-	if (fep->cur_tx == fep->dirty_tx)
-		netif_stop_queue(ndev);
-
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
+
+	return NETDEV_TX_OK;
+}
+
+static netdev_tx_t
+fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+	struct bufdesc *bdp;
+	unsigned short	status;
+	int ret;
+
+	/* Fill in a Tx ring entry */
+	bdp = fep->cur_tx;
+
+	status = bdp->cbd_sc;
+
+	if (status & BD_ENET_TX_READY) {
+		/* Ooops.  All transmit buffers are full.  Bail out.
+		 * This should not happen, since ndev->tbusy should be set.
+		 */
+		netdev_err(ndev, "tx queue full!\n");
+		return NETDEV_TX_BUSY;
+	}
+
+	ret = txq_submit_skb(skb, ndev);
+	if (ret == -EBUSY)
+		return NETDEV_TX_BUSY;
+
+	if (fep->cur_tx == fep->dirty_tx)
+		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;
 }
@@ -770,11 +786,7 @@ fec_enet_tx(struct net_device *ndev)
 		if (bdp == fep->cur_tx)
 			break;
 
-		if (fep->bufdesc_ex)
-			index = (struct bufdesc_ex *)bdp -
-				(struct bufdesc_ex *)fep->tx_bd_base;
-		else
-			index = bdp - fep->tx_bd_base;
+		index = fec_enet_get_bd_index(fep->tx_bd_base, bdp, fep);
 
 		skb = fep->tx_skbuff[index];
 		dma_unmap_single(&fep->pdev->dev, bdp->cbd_bufaddr, skb->len,
@@ -921,11 +933,7 @@ fec_enet_rx(struct net_device *ndev, int budget)
 		pkt_len = bdp->cbd_datlen;
 		ndev->stats.rx_bytes += pkt_len;
 
-		if (fep->bufdesc_ex)
-			index = (struct bufdesc_ex *)bdp -
-				(struct bufdesc_ex *)fep->rx_bd_base;
-		else
-			index = bdp - fep->rx_bd_base;
+		index = fec_enet_get_bd_index(fep->rx_bd_base, bdp, fep);
 		data = fep->rx_skbuff[index]->data;
 		dma_sync_single_for_cpu(&fep->pdev->dev, bdp->cbd_bufaddr,
 					FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
@@ -2061,11 +2069,14 @@ static int fec_enet_init(struct net_device *ndev)
 
 	/* Set receive and transmit descriptor base. */
 	fep->rx_bd_base = cbd_base;
-	if (fep->bufdesc_ex)
+	if (fep->bufdesc_ex) {
 		fep->tx_bd_base = (struct bufdesc *)
 			(((struct bufdesc_ex *)cbd_base) + fep->rx_ring_size);
-	else
+		fep->bufdesc_size = sizeof(struct bufdesc_ex);
+	} else {
 		fep->tx_bd_base = cbd_base + fep->rx_ring_size;
+		fep->bufdesc_size = sizeof(struct bufdesc);
+	}
 
 	/* The FEC Ethernet specific entries in the device structure */
 	ndev->watchdog_timeo = TX_TIMEOUT;

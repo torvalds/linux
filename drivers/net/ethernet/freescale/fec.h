@@ -296,6 +296,7 @@ struct fec_enet_private {
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
 
+	unsigned short bufdesc_size;
 	unsigned short tx_ring_size;
 	unsigned short rx_ring_size;
 
