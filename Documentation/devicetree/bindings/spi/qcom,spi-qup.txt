@@ -23,6 +23,12 @@ Optional properties:
 - spi-max-frequency: Specifies maximum SPI clock frequency,
                      Units - Hz. Definition as per
                      Documentation/devicetree/bindings/spi/spi-bus.txt
+- num-cs:	total number of chipselects
+- cs-gpios:	should specify GPIOs used for chipselects.
+		The gpios will be referred to as reg = <index> in the SPI child
+		nodes.  If unspecified, a single SPI device without a chip
+		select can be used.
+
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt

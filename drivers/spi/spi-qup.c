@@ -424,31 +424,6 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	return 0;
 }
 
-static void spi_qup_set_cs(struct spi_device *spi, bool enable)
-{
-	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-
-	u32 iocontol, mask;
-
-	iocontol = readl_relaxed(controller->base + SPI_IO_CONTROL);
-
-	/* Disable auto CS toggle and use manual */
-	iocontol &= ~SPI_IO_C_MX_CS_MODE;
-	iocontol |= SPI_IO_C_FORCE_CS;
-
-	iocontol &= ~SPI_IO_C_CS_SELECT_MASK;
-	iocontol |= SPI_IO_C_CS_SELECT(spi->chip_select);
-
-	mask = SPI_IO_C_CS_N_POLARITY_0 << spi->chip_select;
-
-	if (enable)
-		iocontol |= mask;
-	else
-		iocontol &= ~mask;
-
-	writel_relaxed(iocontol, controller->base + SPI_IO_CONTROL);
-}
-
 static int spi_qup_transfer_one(struct spi_master *master,
 			      struct spi_device *spi,
 			      struct spi_transfer *xfer)
@@ -571,12 +546,16 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	/* use num-cs unless not present or out of range */
+	if (of_property_read_u16(dev->of_node, "num-cs",
+			&master->num_chipselect) ||
+			(master->num_chipselect > SPI_NUM_CHIPSELECTS))
+		master->num_chipselect = SPI_NUM_CHIPSELECTS;
+
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
-	master->num_chipselect = SPI_NUM_CHIPSELECTS;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->max_speed_hz = max_freq;
-	master->set_cs = spi_qup_set_cs;
 	master->transfer_one = spi_qup_transfer_one;
 	master->dev.of_node = pdev->dev.of_node;
 	master->auto_runtime_pm = true;
