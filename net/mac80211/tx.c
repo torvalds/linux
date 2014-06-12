@@ -2961,19 +2961,16 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(ieee80211_nullfunc_get);
 
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
+				       const u8 *src_addr,
 				       const u8 *ssid, size_t ssid_len,
 				       size_t tailroom)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local;
+	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_hdr_3addr *hdr;
 	struct sk_buff *skb;
 	size_t ie_ssid_len;
 	u8 *pos;
 
-	sdata = vif_to_sdata(vif);
-	local = sdata->local;
 	ie_ssid_len = 2 + ssid_len;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*hdr) +
@@ -2988,7 +2985,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_REQ);
 	eth_broadcast_addr(hdr->addr1);
-	memcpy(hdr->addr2, vif->addr, ETH_ALEN);
+	memcpy(hdr->addr2, src_addr, ETH_ALEN);
 	eth_broadcast_addr(hdr->addr3);
 
 	pos = skb_put(skb, ie_ssid_len);

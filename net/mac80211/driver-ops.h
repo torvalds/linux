@@ -380,23 +380,26 @@ static inline int drv_sched_scan_stop(struct ieee80211_local *local,
 	return ret;
 }
 
-static inline void drv_sw_scan_start(struct ieee80211_local *local)
+static inline void drv_sw_scan_start(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     const u8 *mac_addr)
 {
 	might_sleep();
 
-	trace_drv_sw_scan_start(local);
+	trace_drv_sw_scan_start(local, sdata, mac_addr);
 	if (local->ops->sw_scan_start)
-		local->ops->sw_scan_start(&local->hw);
+		local->ops->sw_scan_start(&local->hw, &sdata->vif, mac_addr);
 	trace_drv_return_void(local);
 }
 
-static inline void drv_sw_scan_complete(struct ieee80211_local *local)
+static inline void drv_sw_scan_complete(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata)
 {
 	might_sleep();
 
-	trace_drv_sw_scan_complete(local);
+	trace_drv_sw_scan_complete(local, sdata);
 	if (local->ops->sw_scan_complete)
-		local->ops->sw_scan_complete(&local->hw);
+		local->ops->sw_scan_complete(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
 

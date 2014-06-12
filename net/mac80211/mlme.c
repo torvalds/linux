@@ -2225,7 +2225,8 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		else
 			ssid_len = ssid[1];
 
-		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid_len, NULL,
+		ieee80211_send_probe_req(sdata, sdata->vif.addr, NULL,
+					 ssid + 2, ssid_len, NULL,
 					 0, (u32) -1, true, 0,
 					 ifmgd->associated->channel, false);
 		rcu_read_unlock();
@@ -2328,7 +2329,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 	else
 		ssid_len = ssid[1];
 
-	skb = ieee80211_build_probe_req(sdata, cbss->bssid,
+	skb = ieee80211_build_probe_req(sdata, sdata->vif.addr, cbss->bssid,
 					(u32) -1, cbss->channel,
 					ssid + 2, ssid_len,
 					NULL, 0, true);
@@ -3649,7 +3650,8 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		 * Direct probe is sent to broadcast address as some APs
 		 * will not answer to direct packet in unassociated state.
 		 */
-		ieee80211_send_probe_req(sdata, NULL, ssidie + 2, ssidie[1],
+		ieee80211_send_probe_req(sdata, sdata->vif.addr, NULL,
+					 ssidie + 2, ssidie[1],
 					 NULL, 0, (u32) -1, true, 0,
 					 auth_data->bss->channel, false);
 		rcu_read_unlock();

@@ -1145,7 +1145,7 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	wl1271_debug(DEBUG_SCAN, "build probe request band %d", band);
 
-	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
+	skb = ieee80211_probereq_get(wl->hw, vif->addr, ssid, ssid_len,
 				     ie0_len + ie1_len);
 	if (!skb) {
 		ret = -ENOMEM;

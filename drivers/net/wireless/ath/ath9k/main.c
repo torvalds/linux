@@ -2180,14 +2180,17 @@ static int ath9k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	return 0;
 }
 
-static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
+static void ath9k_sw_scan_start(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				const u8 *mac_addr)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	set_bit(ATH_OP_SCANNING, &common->op_flags);
 }
 
-static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
+static void ath9k_sw_scan_complete(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);

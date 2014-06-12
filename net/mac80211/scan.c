@@ -184,9 +184,21 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		return;
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
-		/* ignore ProbeResp to foreign address */
-		if ((!sdata1 || !ether_addr_equal(mgmt->da, sdata1->vif.addr)) &&
-		    (!sdata2 || !ether_addr_equal(mgmt->da, sdata2->vif.addr)))
+		struct cfg80211_scan_request *scan_req;
+		struct cfg80211_sched_scan_request *sched_scan_req;
+
+		scan_req = rcu_dereference(local->scan_req);
+		sched_scan_req = rcu_dereference(local->sched_scan_req);
+
+		/* ignore ProbeResp to foreign address unless scanning
+		 * with randomised address
+		 */
+		if (!(sdata1 &&
+		      (ether_addr_equal(mgmt->da, sdata1->vif.addr) ||
+		       scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)) &&
+		    !(sdata2 &&
+		      (ether_addr_equal(mgmt->da, sdata2->vif.addr) ||
+		       sched_scan_req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)))
 			return;
 
 		elements = mgmt->u.probe_resp.variable;
@@ -284,6 +296,9 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 					 bands_used, req->rates, &chandef);
 	local->hw_scan_req->req.ie_len = ielen;
 	local->hw_scan_req->req.no_cck = req->no_cck;
+	ether_addr_copy(local->hw_scan_req->req.mac_addr, req->mac_addr);
+	ether_addr_copy(local->hw_scan_req->req.mac_addr_mask,
+			req->mac_addr_mask);
 
 	return true;
 }
@@ -294,6 +309,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	bool hw_scan = local->ops->hw_scan;
 	bool was_scanning = local->scanning;
 	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_sub_if_data *scan_sdata;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -332,6 +348,9 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	if (scan_req != local->int_scan_req)
 		cfg80211_scan_done(scan_req, aborted);
 	RCU_INIT_POINTER(local->scan_req, NULL);
+
+	scan_sdata = rcu_dereference_protected(local->scan_sdata,
+					       lockdep_is_held(&local->mtx));
 	RCU_INIT_POINTER(local->scan_sdata, NULL);
 
 	local->scanning = 0;
@@ -342,7 +361,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 
 	if (!hw_scan) {
 		ieee80211_configure_filter(local);
-		drv_sw_scan_complete(local);
+		drv_sw_scan_complete(local, scan_sdata);
 		ieee80211_offchannel_return(local);
 	}
 
@@ -368,7 +387,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
 
-static int ieee80211_start_sw_scan(struct ieee80211_local *local)
+static int ieee80211_start_sw_scan(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata)
 {
 	/* Software scan is not supported in multi-channel cases */
 	if (local->use_chanctx)
@@ -387,7 +407,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	 * nullfunc frames and probe requests will be dropped in
 	 * ieee80211_tx_h_check_assoc().
 	 */
-	drv_sw_scan_start(local);
+	drv_sw_scan_start(local, sdata, local->scan_addr);
 
 	local->leave_oper_channel_time = jiffies;
 	local->next_scan_state = SCAN_DECISION;
@@ -463,7 +483,7 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 
 	for (i = 0; i < scan_req->n_ssids; i++)
 		ieee80211_send_probe_req(
-			sdata, NULL,
+			sdata, local->scan_addr, NULL,
 			scan_req->ssids[i].ssid, scan_req->ssids[i].ssid_len,
 			scan_req->ie, scan_req->ie_len,
 			scan_req->rates[band], false,
@@ -543,6 +563,13 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	rcu_assign_pointer(local->scan_req, req);
 	rcu_assign_pointer(local->scan_sdata, sdata);
 
+	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
+		get_random_mask_addr(local->scan_addr,
+				     req->mac_addr,
+				     req->mac_addr_mask);
+	else
+		memcpy(local->scan_addr, sdata->vif.addr, ETH_ALEN);
+
 	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
@@ -559,7 +586,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 		/* Notify driver scan is starting, keep order of operations
 		 * same as normal software scan, in case that matters. */
-		drv_sw_scan_start(local);
+		drv_sw_scan_start(local, sdata, local->scan_addr);
 
 		ieee80211_configure_filter(local); /* accept probe-responses */
 
@@ -589,8 +616,9 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->ops->hw_scan) {
 		WARN_ON(!ieee80211_prep_hw_scan(local));
 		rc = drv_hw_scan(local, sdata, local->hw_scan_req);
-	} else
-		rc = ieee80211_start_sw_scan(local);
+	} else {
+		rc = ieee80211_start_sw_scan(local, sdata);
+	}
 
 	if (rc) {
 		kfree(local->hw_scan_req);

@@ -1437,8 +1437,11 @@ int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta);
-void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw);
-void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw);
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     const u8 *mac_addr);
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,

@@ -1802,7 +1802,7 @@ static void hw_scan_work(struct work_struct *work)
 			struct sk_buff *probe;
 
 			probe = ieee80211_probereq_get(hwsim->hw,
-						       hwsim->hw_scan_vif,
+						       hwsim->hw_scan_vif->addr,
 						       req->ssids[i].ssid,
 						       req->ssids[i].ssid_len,
 						       req->ie_len);
@@ -1866,7 +1866,9 @@ static void mac80211_hwsim_cancel_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&hwsim->mutex);
 }
 
-static void mac80211_hwsim_sw_scan(struct ieee80211_hw *hw)
+static void mac80211_hwsim_sw_scan(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   const u8 *mac_addr)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
 
@@ -1884,7 +1886,8 @@ out:
 	mutex_unlock(&hwsim->mutex);
 }
 
-static void mac80211_hwsim_sw_scan_complete(struct ieee80211_hw *hw)
+static void mac80211_hwsim_sw_scan_complete(struct ieee80211_hw *hw,
+					    struct ieee80211_vif *vif)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
 

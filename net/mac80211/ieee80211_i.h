@@ -1249,6 +1249,7 @@ struct ieee80211_local {
 	struct work_struct sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
 	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
+	u8 scan_addr[ETH_ALEN];
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
@@ -1901,12 +1902,14 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 			     u8 bands_used, u32 *rate_masks,
 			     struct cfg80211_chan_def *chandef);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst, u32 ratemask,
+					  const u8 *src, const u8 *dst,
+					  u32 ratemask,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  bool directed);
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
+			      const u8 *src, const u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, u32 tx_flags,

@@ -2622,7 +2622,9 @@ enum ieee80211_reconfig_type {
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.
- *	The callback can sleep.
+ *	The mac_addr parameter allows supporting NL80211_SCAN_FLAG_RANDOM_ADDR,
+ *	the driver may set the NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR flag if it
+ *	can use this parameter. The callback can sleep.
  *
  * @sw_scan_complete: Notifier function that is called just after a
  *	software scan finished. Can be NULL, if the driver doesn't need
@@ -3016,8 +3018,11 @@ struct ieee80211_ops {
 				struct ieee80211_scan_ies *ies);
 	int (*sched_scan_stop)(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif);
-	void (*sw_scan_start)(struct ieee80211_hw *hw);
-	void (*sw_scan_complete)(struct ieee80211_hw *hw);
+	void (*sw_scan_start)(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      const u8 *mac_addr);
+	void (*sw_scan_complete)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
@@ -3820,7 +3825,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 /**
  * ieee80211_probereq_get - retrieve a Probe Request template
  * @hw: pointer obtained from ieee80211_alloc_hw().
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @src_addr: source MAC address
  * @ssid: SSID buffer
  * @ssid_len: length of SSID
  * @tailroom: tailroom to reserve at end of SKB for IEs
@@ -3831,7 +3836,7 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
  * Return: The Probe Request template. %NULL on error.
  */
 struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
+				       const u8 *src_addr,
 				       const u8 *ssid, size_t ssid_len,
 				       size_t tailroom);
 

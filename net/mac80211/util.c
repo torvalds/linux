@@ -1523,7 +1523,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 };
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst, u32 ratemask,
+					  const u8 *src, const u8 *dst,
+					  u32 ratemask,
 					  struct ieee80211_channel *chan,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
@@ -1548,8 +1549,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	else
 		chandef.chan = chan;
 
-	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
-				     ssid, ssid_len, 100 + ie_len);
+	skb = ieee80211_probereq_get(&local->hw, src, ssid, ssid_len,
+				     100 + ie_len);
 	if (!skb)
 		return NULL;
 
@@ -1571,7 +1572,8 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 	return skb;
 }
 
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata,
+			      const u8 *src, const u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, u32 tx_flags,
@@ -1579,7 +1581,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ratemask, channel,
+	skb = ieee80211_build_probe_req(sdata, src, dst, ratemask, channel,
 					ssid, ssid_len,
 					ie, ie_len, directed);
 	if (skb) {
