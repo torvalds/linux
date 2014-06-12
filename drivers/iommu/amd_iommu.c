@@ -379,6 +379,9 @@ static int iommu_init_device(struct device *dev)
 
 	dev->archdata.iommu = dev_data;
 
+	iommu_device_link(amd_iommu_rlookup_table[dev_data->devid]->iommu_dev,
+			  dev);
+
 	return 0;
 }
 
@@ -402,6 +405,9 @@ static void iommu_uninit_device(struct device *dev)
 
 	if (!dev_data)
 		return;
+
+	iommu_device_unlink(amd_iommu_rlookup_table[dev_data->devid]->iommu_dev,
+			    dev);
 
 	iommu_group_remove_device(dev);
 

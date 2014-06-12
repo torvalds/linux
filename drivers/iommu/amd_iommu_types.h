@@ -577,6 +577,9 @@ struct amd_iommu {
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
 
+	/* IOMMU sysfs device */
+	struct device *iommu_dev;
+
 	/*
 	 * We can't rely on the BIOS to restore all values on reinit, so we
 	 * need to stash them
