@@ -169,6 +169,7 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 {
 	struct ordered_events *oe = &s->ordered_events;
 	static const char * const str[] = {
+		"NONE",
 		"FINAL",
 		"ROUND",
 		"HALF ",
@@ -198,6 +199,7 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 	}
 
 	case OE_FLUSH__ROUND:
+	case OE_FLUSH__NONE:
 	default:
 		break;
 	};
@@ -211,6 +213,8 @@ int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 	if (!err) {
 		if (how == OE_FLUSH__ROUND)
 			oe->next_flush = oe->max_timestamp;
+
+		oe->last_flush_type = how;
 	}
 
 	pr_oe_time(oe->next_flush, "next_flush - ordered_events__flush POST %s, nr_events %u\n",

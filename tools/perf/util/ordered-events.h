@@ -14,6 +14,7 @@ struct ordered_event {
 };
 
 enum oe_flush {
+	OE_FLUSH__NONE,
 	OE_FLUSH__FINAL,
 	OE_FLUSH__ROUND,
 	OE_FLUSH__HALF,
@@ -32,6 +33,7 @@ struct ordered_events {
 	struct ordered_event	*last;
 	int			buffer_idx;
 	unsigned int		nr_events;
+	enum oe_flush		last_flush_type;
 };
 
 struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp);
