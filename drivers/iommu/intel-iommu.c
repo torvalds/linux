@@ -3944,6 +3944,63 @@ static struct notifier_block intel_iommu_memory_nb = {
 	.priority = 0
 };
 
+
+static ssize_t intel_iommu_show_version(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct intel_iommu *iommu = dev_get_drvdata(dev);
+	u32 ver = readl(iommu->reg + DMAR_VER_REG);
+	return sprintf(buf, "%d:%d\n",
+		       DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver));
+}
+static DEVICE_ATTR(version, S_IRUGO, intel_iommu_show_version, NULL);
+
+static ssize_t intel_iommu_show_address(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct intel_iommu *iommu = dev_get_drvdata(dev);
+	return sprintf(buf, "%llx\n", iommu->reg_phys);
+}
+static DEVICE_ATTR(address, S_IRUGO, intel_iommu_show_address, NULL);
+
+static ssize_t intel_iommu_show_cap(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct intel_iommu *iommu = dev_get_drvdata(dev);
+	return sprintf(buf, "%llx\n", iommu->cap);
+}
+static DEVICE_ATTR(cap, S_IRUGO, intel_iommu_show_cap, NULL);
+
+static ssize_t intel_iommu_show_ecap(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct intel_iommu *iommu = dev_get_drvdata(dev);
+	return sprintf(buf, "%llx\n", iommu->ecap);
+}
+static DEVICE_ATTR(ecap, S_IRUGO, intel_iommu_show_ecap, NULL);
+
+static struct attribute *intel_iommu_attrs[] = {
+	&dev_attr_version.attr,
+	&dev_attr_address.attr,
+	&dev_attr_cap.attr,
+	&dev_attr_ecap.attr,
+	NULL,
+};
+
+static struct attribute_group intel_iommu_group = {
+	.name = "intel-iommu",
+	.attrs = intel_iommu_attrs,
+};
+
+const struct attribute_group *intel_iommu_groups[] = {
+	&intel_iommu_group,
+	NULL,
+};
+
 int __init intel_iommu_init(void)
 {
 	int ret = -ENODEV;
@@ -4014,6 +4071,11 @@ int __init intel_iommu_init(void)
 	dma_ops = &intel_dma_ops;
 
 	init_iommu_pm_ops();
+
+	for_each_active_iommu(iommu, drhd)
+		iommu->iommu_dev = iommu_device_create(NULL, iommu,
+						       intel_iommu_groups,
+						       iommu->name);
 
 	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 	bus_register_notifier(&pci_bus_type, &device_nb);
@@ -4358,11 +4420,15 @@ static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
 
 static int intel_iommu_add_device(struct device *dev)
 {
+	struct intel_iommu *iommu;
 	struct iommu_group *group;
 	u8 bus, devfn;
 
-	if (!device_to_iommu(dev, &bus, &devfn))
+	iommu = device_to_iommu(dev, &bus, &devfn);
+	if (!iommu)
 		return -ENODEV;
+
+	iommu_device_link(iommu->iommu_dev, dev);
 
 	group = iommu_group_get_for_dev(dev);
 
@@ -4375,7 +4441,16 @@ static int intel_iommu_add_device(struct device *dev)
 
 static void intel_iommu_remove_device(struct device *dev)
 {
+	struct intel_iommu *iommu;
+	u8 bus, devfn;
+
+	iommu = device_to_iommu(dev, &bus, &devfn);
+	if (!iommu)
+		return;
+
 	iommu_group_remove_device(dev);
+
+	iommu_device_unlink(iommu->iommu_dev, dev);
 }
 
 static struct iommu_ops intel_iommu_ops = {
