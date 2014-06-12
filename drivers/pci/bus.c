@@ -226,6 +226,7 @@ int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 					 type_mask, alignf, alignf_data,
 					 &pci_32_bit);
 }
+EXPORT_SYMBOL(pci_bus_alloc_resource);
 
 void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
@@ -253,6 +254,7 @@ void pci_bus_add_device(struct pci_dev *dev)
 
 	dev->is_added = 1;
 }
+EXPORT_SYMBOL_GPL(pci_bus_add_device);
 
 /**
  * pci_bus_add_devices - start driver for PCI devices
@@ -279,6 +281,7 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 			pci_bus_add_devices(child);
 	}
 }
+EXPORT_SYMBOL(pci_bus_add_devices);
 
 /** pci_walk_bus - walk devices on/under bus, calling callback.
  *  @top      bus whose devices should be walked
@@ -344,6 +347,3 @@ void pci_bus_put(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_put);
 
-EXPORT_SYMBOL(pci_bus_alloc_resource);
-EXPORT_SYMBOL_GPL(pci_bus_add_device);
-EXPORT_SYMBOL(pci_bus_add_devices);

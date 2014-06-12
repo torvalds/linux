@@ -351,11 +351,9 @@ static acpi_status acpiphp_add_context(acpi_handle handle, u32 lvl, void *data,
 			slot->slot = NULL;
 			bridge->nr_slots--;
 			if (retval == -EBUSY)
-				pr_warn("Slot %llu already registered by another "
-					"hotplug driver\n", sun);
+				pr_warn("Slot %llu already registered by another hotplug driver\n", sun);
 			else
-				pr_warn("acpiphp_register_hotplug_slot failed "
-					"(err code = 0x%x)\n", retval);
+				pr_warn("acpiphp_register_hotplug_slot failed (err code = 0x%x)\n", retval);
 		}
 		/* Even if the slot registration fails, we can still use it. */
 	}
