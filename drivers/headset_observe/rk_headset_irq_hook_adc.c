@@ -222,7 +222,7 @@ out:
 	enable_irq(headset_info->irq[HEADSET]);
 	return IRQ_HANDLED;
 }
-
+#if 0
 static int headset_change_irqtype(int type,unsigned int irq_type)
 {
 	int ret = 0;
@@ -243,7 +243,7 @@ static int headset_change_irqtype(int type,unsigned int irq_type)
 	}
 	return ret;
 }
-
+#endif
 static void hook_once_work(struct work_struct *work)
 {
 	int ret,val;

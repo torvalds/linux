@@ -102,7 +102,7 @@
 #define CFGR_JUSTIFIED_LEFT         (1<<3)
 #define CFGR_JUSTIFIED_MASK         (1<<3)
 
-/* CSE:channel status enable *
+/* CSE:channel status enable */
 /* The bit should be set to 1 when the channel conveys non-linear PCM */
 #define CFGR_CSE_DISABLE            (0<<6)
 #define CFGR_CSE_ENABLE             (1<<6)

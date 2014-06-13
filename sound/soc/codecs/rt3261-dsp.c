@@ -59,7 +59,7 @@ static const u16 rt3261_dsp_rate_tab[] = {
 };
 #define RT3261_DSP_RATE_NUM (sizeof(rt3261_dsp_rate_tab) / sizeof(rt3261_dsp_rate_tab[0]))
 
-static const u16 rt3261_dsp_aec_ns_fens[][2] = {
+unsigned short rt3261_dsp_aec_ns_fens[][2] = {
 	{0x22F8, 0x8005},
 	{0x2309, 0x0400},
 	{0x2310, 0x0824},
@@ -120,7 +120,7 @@ static const u16 rt3261_dsp_aec_ns_fens[][2] = {
 #define RT3261_DSP_AEC_NUM \
 	(sizeof(rt3261_dsp_aec_ns_fens) / sizeof(rt3261_dsp_aec_ns_fens[0]))
 
-static const u16 rt3261_dsp_hfbf[][2] = {
+unsigned short rt3261_dsp_hfbf[][2] = {
 	{0x22f8, 0x8004}, {0x22a0, 0x1205}, {0x22a1, 0x0f00}, {0x22a2, 0x1000},
 	{0x22a3, 0x1000}, {0x22a4, 0x1000}, {0x22aa, 0x0006}, {0x22ad, 0x0060},
 	{0x22ae, 0x0080}, {0x22af, 0x0000}, {0x22b0, 0x000e}, {0x22b1, 0x0010},
@@ -142,7 +142,7 @@ static const u16 rt3261_dsp_hfbf[][2] = {
 #define RT3261_DSP_HFBF_NUM \
 	(sizeof(rt3261_dsp_hfbf) / sizeof(rt3261_dsp_hfbf[0]))
 
-static const u16 rt3261_dsp_ffp[][2] = {
+unsigned short rt3261_dsp_ffp[][2] = {
 	{0x22f8, 0x8005}, {0x2303, 0x1971}, {0x2304, 0x8312}, {0x2305, 0x0005},
 	{0x2309, 0x0200}, {0x230a, 0x1b00}, {0x230c, 0x0800}, {0x230d, 0x0400},
 	{0x2325, 0x5000}, {0x2326, 0x0040}, {0x232f, 0x0080}, {0x2332, 0x0100},
