@@ -329,6 +329,7 @@ static int aic31xx_wait_bits(struct aic31xx_priv *aic31xx, unsigned int reg,
 	unsigned int bits;
 	int counter = count;
 	int ret = regmap_read(aic31xx->regmap, reg, &bits);
+
 	while ((bits & mask) != wbits && counter && !ret) {
 		usleep_range(sleep, sleep * 2);
 		ret = regmap_read(aic31xx->regmap, reg, &bits);
@@ -435,6 +436,7 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* change mic bias voltage to user defined */
