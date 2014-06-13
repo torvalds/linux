@@ -554,10 +554,15 @@ static void remap_and_issue(struct thin_c *tc, struct bio *bio,
 struct dm_thin_new_mapping {
 	struct list_head list;
 
-	bool quiesced:1;
-	bool prepared:1;
 	bool pass_discard:1;
 	bool definitely_not_shared:1;
+
+	/*
+	 * Track quiescing, copying and zeroing preparation actions.  When this
+	 * counter hits zero the block is prepared and can be inserted into the
+	 * btree.
+	 */
+	atomic_t prepare_actions;
 
 	int err;
 	struct thin_c *tc;
@@ -575,11 +580,11 @@ struct dm_thin_new_mapping {
 	bio_end_io_t *saved_bi_end_io;
 };
 
-static void __maybe_add_mapping(struct dm_thin_new_mapping *m)
+static void __complete_mapping_preparation(struct dm_thin_new_mapping *m)
 {
 	struct pool *pool = m->tc->pool;
 
-	if (m->quiesced && m->prepared) {
+	if (atomic_dec_and_test(&m->prepare_actions)) {
 		list_add_tail(&m->list, &pool->prepared_mappings);
 		wake_worker(pool);
 	}
@@ -594,8 +599,7 @@ static void copy_complete(int read_err, unsigned long write_err, void *context)
 	m->err = read_err || write_err ? -EIO : 0;
 
 	spin_lock_irqsave(&pool->lock, flags);
-	m->prepared = true;
-	__maybe_add_mapping(m);
+	__complete_mapping_preparation(m);
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
@@ -609,8 +613,7 @@ static void overwrite_endio(struct bio *bio, int err)
 	m->err = err;
 
 	spin_lock_irqsave(&pool->lock, flags);
-	m->prepared = true;
-	__maybe_add_mapping(m);
+	__complete_mapping_preparation(m);
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
@@ -836,7 +839,9 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 	m->cell = cell;
 
 	if (!dm_deferred_set_add_work(pool->shared_read_ds, &m->list))
-		m->quiesced = true;
+		atomic_set(&m->prepare_actions, 1); /* copy only */
+	else
+		atomic_set(&m->prepare_actions, 2); /* quiesce + copy */
 
 	/*
 	 * IO to pool_dev remaps to the pool target's data_dev.
@@ -896,8 +901,7 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
-	m->quiesced = true;
-	m->prepared = false;
+	atomic_set(&m->prepare_actions, 1); /* no need to quiesce */
 	m->tc = tc;
 	m->virt_block = virt_block;
 	m->data_block = data_block;
@@ -3361,8 +3365,7 @@ static int thin_endio(struct dm_target *ti, struct bio *bio, int err)
 		spin_lock_irqsave(&pool->lock, flags);
 		list_for_each_entry_safe(m, tmp, &work, list) {
 			list_del(&m->list);
-			m->quiesced = true;
-			__maybe_add_mapping(m);
+			__complete_mapping_preparation(m);
 		}
 		spin_unlock_irqrestore(&pool->lock, flags);
 	}
