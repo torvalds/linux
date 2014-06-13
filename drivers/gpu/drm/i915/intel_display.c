@@ -4485,7 +4485,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val, cmd;
 
-	WARN_ON(valleyview_cur_cdclk(dev_priv) != dev_priv->vlv_cdclk_freq);
+	WARN_ON(dev_priv->display.get_display_clock_speed(dev) != dev_priv->vlv_cdclk_freq);
 	dev_priv->vlv_cdclk_freq = cdclk;
 
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
@@ -4540,24 +4540,6 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 
 	/* Since we changed the CDclk, we need to update the GMBUSFREQ too */
 	intel_i2c_reset(dev);
-}
-
-int valleyview_cur_cdclk(struct drm_i915_private *dev_priv)
-{
-	int cur_cdclk, vco;
-	int divider;
-
-	vco = valleyview_get_vco(dev_priv);
-
-	mutex_lock(&dev_priv->dpio_lock);
-	divider = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
-	mutex_unlock(&dev_priv->dpio_lock);
-
-	divider &= DISPLAY_FREQUENCY_VALUES;
-
-	cur_cdclk = DIV_ROUND_CLOSEST(vco << 1, divider + 1);
-
-	return cur_cdclk;
 }
 
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
@@ -5269,7 +5251,18 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 
 static int valleyview_get_display_clock_speed(struct drm_device *dev)
 {
-	return 400000; /* FIXME */
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int vco = valleyview_get_vco(dev_priv);
+	u32 val;
+	int divider;
+
+	mutex_lock(&dev_priv->dpio_lock);
+	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	divider = val & DISPLAY_FREQUENCY_VALUES;
+
+	return DIV_ROUND_CLOSEST(vco << 1, divider + 1);
 }
 
 static int i945_get_display_clock_speed(struct drm_device *dev)
