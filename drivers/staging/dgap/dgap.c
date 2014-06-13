@@ -190,6 +190,7 @@ static void dgap_do_conc_load(struct board_t *brd, u8 *uaddr, int len);
 #endif
 static int dgap_after_config_loaded(struct board_t *brd);
 static int dgap_request_irq(struct board_t *brd);
+static void dgap_free_irq(struct board_t *brd);
 
 static void dgap_get_vpd(struct board_t *brd);
 static void dgap_do_reset_board(struct board_t *brd);
@@ -634,8 +635,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return;
 
-	if (brd->intr_used && brd->irq)
-		free_irq(brd->irq, brd);
+	dgap_free_irq(brd);
 
 	tasklet_kill(&brd->helper_tasklet);
 
@@ -814,6 +814,12 @@ static int dgap_request_irq(struct board_t *brd)
 	}
 
 	return 0;
+}
+
+static void dgap_free_irq(struct board_t *brd)
+{
+	if (brd->intr_used && brd->irq)
+		free_irq(brd->irq, brd);
 }
 
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
