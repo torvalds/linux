@@ -1462,7 +1462,20 @@ ath5k_receive_frame_ok(struct ath5k_hw *ah, struct ath5k_rx_status *rs)
 			ah->stats.rxerr_phy++;
 			if (rs->rs_phyerr > 0 && rs->rs_phyerr < 32)
 				ah->stats.rxerr_phy_code[rs->rs_phyerr]++;
-			return false;
+
+			/*
+			 * Treat packets that underwent a CCK or OFDM reset as having a bad CRC.
+			 * These restarts happen when the radio resynchronizes to a stronger frame
+			 * while receiving a weaker frame. Here we receive the prefix of the weak
+			 * frame. Since these are incomplete packets, mark their CRC as invalid.
+			 */
+			if (rs->rs_phyerr == AR5K_RX_PHY_ERROR_OFDM_RESTART ||
+			    rs->rs_phyerr == AR5K_RX_PHY_ERROR_CCK_RESTART) {
+				rs->rs_status |= AR5K_RXERR_CRC;
+				rs->rs_status &= ~AR5K_RXERR_PHY;
+			} else {
+				return false;
+			}
 		}
 		if (rs->rs_status & AR5K_RXERR_DECRYPT) {
 			/*
