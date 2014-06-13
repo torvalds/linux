@@ -381,7 +381,7 @@ out:
 static struct notifier_block cpufreq_pm_notifier = {
 	.notifier_call = cpufreq_pm_notifier_event,
 };
-
+#if 0
 static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
@@ -395,7 +395,7 @@ static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 
 	return NOTIFY_OK;
 }
-
+#endif
 int rockchip_cpufreq_reboot_limit_freq(void)
 {
 	dvfs_disable_temp_limit();
@@ -405,11 +405,11 @@ int rockchip_cpufreq_reboot_limit_freq(void)
 
 	return 0;
 }
-
+#if 0
 static struct notifier_block cpufreq_reboot_notifier = {
 	.notifier_call = cpufreq_reboot_notifier_event,
 };
-
+#endif
 static int clk_pd_vio_notifier_call(struct notifier_block *nb, unsigned long event, void *ptr)
 {
 	switch (event) {
