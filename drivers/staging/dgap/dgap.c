@@ -174,7 +174,7 @@ static void dgap_remove_tty_sysfs(struct device *c);
 /*
  * Function prototypes from dgap_parse.h
  */
-static int dgap_parsefile(char **in, int remove);
+static int dgap_parsefile(char **in);
 static struct cnode *dgap_find_config(int type, int bus, int slot);
 static uint dgap_config_get_num_prts(struct board_t *bd);
 static char *dgap_create_config_string(struct board_t *bd, char *string);
@@ -852,7 +852,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		 */
 		tmp_ptr = dgap_config_buf;
 
-		if (dgap_parsefile(&tmp_ptr, TRUE) != 0) {
+		if (dgap_parsefile(&tmp_ptr) != 0) {
 			kfree(dgap_config_buf);
 			return -EINVAL;
 		}
@@ -6427,7 +6427,7 @@ static void dgap_remove_tty_sysfs(struct device *c)
 /*
  * Parse a configuration file read into memory as a string.
  */
-static int dgap_parsefile(char **in, int remove)
+static int dgap_parsefile(char **in)
 {
 	struct cnode *p, *brd, *line, *conc;
 	int rc;
