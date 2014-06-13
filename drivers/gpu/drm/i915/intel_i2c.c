@@ -86,7 +86,7 @@ static void gmbus_set_freq(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev));
 
-	vco = valleyview_get_vco(dev_priv);
+	vco = valleyview_get_vco(dev_priv) / 1000;
 
 	/* Get the CDCLK divide ratio */
 	cdclk_div = get_disp_clk_div(dev_priv, CDCLK);

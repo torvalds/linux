@@ -4465,6 +4465,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 	intel_display_set_init_power(dev_priv, false);
 }
 
+/* returns HPLL frequency in kHz */
 int valleyview_get_vco(struct drm_i915_private *dev_priv)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
@@ -4475,7 +4476,7 @@ int valleyview_get_vco(struct drm_i915_private *dev_priv)
 		CCK_FUSE_HPLL_FREQ_MASK;
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	return vco_freq[hpll_freq];
+	return vco_freq[hpll_freq] * 1000;
 }
 
 /* Adjust CDclk dividers to allow high res or save power if possible */
@@ -4487,9 +4488,9 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	WARN_ON(valleyview_cur_cdclk(dev_priv) != dev_priv->vlv_cdclk_freq);
 	dev_priv->vlv_cdclk_freq = cdclk;
 
-	if (cdclk >= 320) /* jump to highest voltage for 400MHz too */
+	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
 		cmd = 2;
-	else if (cdclk == 266)
+	else if (cdclk == 266667)
 		cmd = 1;
 	else
 		cmd = 0;
@@ -4506,11 +4507,11 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	if (cdclk == 400) {
+	if (cdclk == 400000) {
 		u32 divider, vco;
 
 		vco = valleyview_get_vco(dev_priv);
-		divider = ((vco << 1) / cdclk) - 1;
+		divider = DIV_ROUND_CLOSEST(vco << 1, cdclk) - 1;
 
 		mutex_lock(&dev_priv->dpio_lock);
 		/* adjust cdclk divider */
@@ -4530,7 +4531,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	 * For high bandwidth configs, we set a higher latency in the bunit
 	 * so that the core display fetch happens in time to avoid underruns.
 	 */
-	if (cdclk == 400)
+	if (cdclk == 400000)
 		val |= 4500 / 250; /* 4.5 usec */
 	else
 		val |= 3000 / 250; /* 3.0 usec */
@@ -4554,7 +4555,7 @@ int valleyview_cur_cdclk(struct drm_i915_private *dev_priv)
 
 	divider &= 0xf;
 
-	cur_cdclk = (vco << 1) / (divider + 1);
+	cur_cdclk = DIV_ROUND_CLOSEST(vco << 1, divider + 1);
 
 	return cur_cdclk;
 }
@@ -4571,12 +4572,12 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 	 * So we check to see whether we're above 90% of the lower bin and
 	 * adjust if needed.
 	 */
-	if (max_pixclk > 288000) {
-		return 400;
-	} else if (max_pixclk > 240000) {
-		return 320;
-	} else
-		return 266;
+	if (max_pixclk > 320000*9/10)
+		return 400000;
+	else if (max_pixclk > 266667*9/10)
+		return 320000;
+	else
+		return 266667;
 	/* Looks like the 200MHz CDclk freq doesn't work on some configs */
 }
 
