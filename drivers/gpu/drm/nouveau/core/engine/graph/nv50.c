@@ -991,10 +991,10 @@ nv50_graph_init(struct nouveau_object *object)
 
 	/* zero out zcull regions */
 	for (i = 0; i < 8; i++) {
-		nv_wr32(priv, 0x402c20 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c24 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c28 + (i * 8), 0x00000000);
-		nv_wr32(priv, 0x402c2c + (i * 8), 0x00000000);
+		nv_wr32(priv, 0x402c20 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c24 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c28 + (i * 0x10), 0x00000000);
+		nv_wr32(priv, 0x402c2c + (i * 0x10), 0x00000000);
 	}
 	return 0;
 }
