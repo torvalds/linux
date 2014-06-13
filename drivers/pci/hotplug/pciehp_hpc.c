@@ -168,6 +168,9 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 
 	mutex_lock(&ctrl->ctrl_lock);
 
+	/* Wait for any previous command that might still be in progress */
+	pcie_wait_cmd(ctrl);
+
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 	if (slot_status & PCI_EXP_SLTSTA_CC) {
 		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
@@ -200,10 +203,6 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
 	ctrl->slot_ctrl = slot_ctrl;
 
-	/*
-	 * Wait for command completion.
-	 */
-	pcie_wait_cmd(ctrl);
 	mutex_unlock(&ctrl->ctrl_lock);
 }
 
