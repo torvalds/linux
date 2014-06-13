@@ -123,6 +123,7 @@ static void dgap_tty_send_xchar(struct tty_struct *tty, char ch);
 
 static int dgap_tty_register(struct board_t *brd);
 static int dgap_tty_init(struct board_t *);
+static void dgap_tty_free(struct board_t *);
 static void dgap_cleanup_tty(struct board_t *);
 static void dgap_carrier(struct channel_t *ch);
 static void dgap_input(struct channel_t *ch);
@@ -960,8 +961,10 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		return ret;
 
 	ret = dgap_tty_register_ports(brd);
-	if (ret)
+	if (ret) {
+		dgap_tty_free(brd);
 		return ret;
+	}
 
 	brd->state = BOARD_READY;
 	brd->dpastatus = BD_RUNNING;
@@ -1487,6 +1490,18 @@ free_chan:
 	return ret;
 }
 
+/*
+ * dgap_tty_free()
+ *
+ * Free the channles which are allocated in dgap_tty_init().
+ */
+static void dgap_tty_free(struct board_t *brd)
+{
+	int i;
+
+	for (i = 0; i < brd->nasync; i++)
+		kfree(brd->channels[i]);
+}
 /*
  * dgap_cleanup_tty()
  *
