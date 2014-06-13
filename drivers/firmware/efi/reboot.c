@@ -5,6 +5,8 @@
 #include <linux/efi.h>
 #include <linux/reboot.h>
 
+int efi_reboot_quirk_mode = -1;
+
 void efi_reboot(enum reboot_mode reboot_mode, const char *__unused)
 {
 	int efi_mode;
@@ -21,6 +23,12 @@ void efi_reboot(enum reboot_mode reboot_mode, const char *__unused)
 		efi_mode = EFI_RESET_COLD;
 		break;
 	}
+
+	/*
+	 * If a quirk forced an EFI reset mode, always use that.
+	 */
+	if (efi_reboot_quirk_mode != -1)
+		efi_mode = efi_reboot_quirk_mode;
 
 	efi.reset_system(efi_mode, EFI_SUCCESS, 0, NULL);
 }

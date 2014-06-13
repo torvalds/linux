@@ -878,6 +878,7 @@ extern void efi_reserve_boot_services(void);
 extern int efi_get_fdt_params(struct efi_fdt_params *params, int verbose);
 extern struct efi_memory_map memmap;
 
+extern int efi_reboot_quirk_mode;
 extern bool efi_poweroff_required(void);
 
 /* Iterate through an efi_memory_map */

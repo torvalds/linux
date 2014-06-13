@@ -183,6 +183,8 @@ extern struct efi_config *efi_early;
 #define efi_call_early(f, ...)						\
 	efi_early->call(efi_early->f, __VA_ARGS__);
 
+extern bool efi_reboot_required(void);
+
 #else
 /*
  * IF EFI is not configured, have the EFI calls return -ENOSYS.
@@ -195,6 +197,10 @@ extern struct efi_config *efi_early;
 #define efi_call5(_f, _a1, _a2, _a3, _a4, _a5)		(-ENOSYS)
 #define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
+static inline bool efi_reboot_required(void)
+{
+	return false;
+}
 #endif /* CONFIG_EFI */
 
 #endif /* _ASM_X86_EFI_H */

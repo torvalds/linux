@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
+#include <linux/acpi.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
@@ -264,4 +265,26 @@ void __init efi_apply_memmap_quirks(void)
 	 */
 	if (is_uv_system())
 		set_bit(EFI_OLD_MEMMAP, &efi.flags);
+}
+
+/*
+ * For most modern platforms the preferred method of powering off is via
+ * ACPI. However, there are some that are known to require the use of
+ * EFI runtime services and for which ACPI does not work at all.
+ *
+ * Using EFI is a last resort, to be used only if no other option
+ * exists.
+ */
+bool efi_reboot_required(void)
+{
+	if (!acpi_gbl_reduced_hardware)
+		return false;
+
+	efi_reboot_quirk_mode = EFI_RESET_WARM;
+	return true;
+}
+
+bool efi_poweroff_required(void)
+{
+	return !!acpi_gbl_reduced_hardware;
 }
