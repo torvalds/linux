@@ -626,21 +626,18 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, AIC32X4_MICBIAS, AIC32X4_MICBIAS_LDOIN |
 						      AIC32X4_MICBIAS_2075V);
 	}
-	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE) {
+	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE)
 		snd_soc_write(codec, AIC32X4_PWRCFG, AIC32X4_AVDDWEAKDISABLE);
-	}
 
 	tmp_reg = (aic32x4->power_cfg & AIC32X4_PWR_AIC32X4_LDO_ENABLE) ?
 			AIC32X4_LDOCTLEN : 0;
 	snd_soc_write(codec, AIC32X4_LDOCTL, tmp_reg);
 
 	tmp_reg = snd_soc_read(codec, AIC32X4_CMMODE);
-	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36) {
+	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36)
 		tmp_reg |= AIC32X4_LDOIN_18_36;
-	}
-	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED) {
+	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED)
 		tmp_reg |= AIC32X4_LDOIN2HP;
-	}
 	snd_soc_write(codec, AIC32X4_CMMODE, tmp_reg);
 
 	/* Mic PGA routing */
