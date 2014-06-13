@@ -5275,6 +5275,10 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 
 	divider = val & DISPLAY_FREQUENCY_VALUES;
 
+	WARN((val & DISPLAY_FREQUENCY_STATUS) !=
+	     (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
+	     "cdclk change in progress\n");
+
 	return DIV_ROUND_CLOSEST(vco << 1, divider + 1);
 }
 
