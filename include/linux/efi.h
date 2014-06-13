@@ -20,6 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/pfn.h>
 #include <linux/pstore.h>
+#include <linux/reboot.h>
 
 #include <asm/page.h>
 
@@ -928,11 +929,14 @@ static inline bool efi_enabled(int feature)
 {
 	return test_bit(feature, &efi.flags) != 0;
 }
+extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
 #else
 static inline bool efi_enabled(int feature)
 {
 	return false;
 }
+static inline void
+efi_reboot(enum reboot_mode reboot_mode, const char *__unused) {}
 #endif
 
 /*
