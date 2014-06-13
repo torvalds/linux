@@ -159,7 +159,7 @@ static int process_measurement(struct file *file, const char *filename,
 {
 	struct inode *inode = file_inode(file);
 	struct integrity_iint_cache *iint;
-	struct ima_template_desc *template_desc = ima_template_desc_current();
+	struct ima_template_desc *template_desc;
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise, _func;
@@ -203,6 +203,7 @@ static int process_measurement(struct file *file, const char *filename,
 		goto out_digsig;
 	}
 
+	template_desc = ima_template_desc_current();
 	if (strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) == 0) {
 		if (action & IMA_APPRAISE_SUBMASK)
 			xattr_ptr = &xattr_value;
