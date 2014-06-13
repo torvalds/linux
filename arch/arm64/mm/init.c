@@ -144,6 +144,7 @@ static void arm64_memory_present(void)
 void __init arm64_memblock_init(void)
 {
 	u64 *reserve_map, base, size;
+	phys_addr_t dma_phys_limit = 0;
 
 	/*
 	 * Register the kernel text, kernel data, initrd, and initial
