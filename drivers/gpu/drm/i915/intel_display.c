@@ -4466,7 +4466,7 @@ static void modeset_update_crtc_power_domains(struct drm_device *dev)
 }
 
 /* returns HPLL frequency in kHz */
-int valleyview_get_vco(struct drm_i915_private *dev_priv)
+static int valleyview_get_vco(struct drm_i915_private *dev_priv)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
@@ -4479,6 +4479,22 @@ int valleyview_get_vco(struct drm_i915_private *dev_priv)
 	return vco_freq[hpll_freq] * 1000;
 }
 
+static void vlv_update_cdclk(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->vlv_cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
+	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz",
+			 dev_priv->vlv_cdclk_freq);
+
+	/*
+	 * Program the gmbus_freq based on the cdclk frequency.
+	 * BSpec erroneously claims we should aim for 4MHz, but
+	 * in fact 1MHz is the correct frequency.
+	 */
+	I915_WRITE(GMBUSFREQ_VLV, dev_priv->vlv_cdclk_freq);
+}
+
 /* Adjust CDclk dividers to allow high res or save power if possible */
 static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 {
@@ -4486,7 +4502,6 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	u32 val, cmd;
 
 	WARN_ON(dev_priv->display.get_display_clock_speed(dev) != dev_priv->vlv_cdclk_freq);
-	dev_priv->vlv_cdclk_freq = cdclk;
 
 	if (cdclk >= 320000) /* jump to highest voltage for 400MHz too */
 		cmd = 2;
@@ -4543,8 +4558,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	/* Since we changed the CDclk, we need to update the GMBUSFREQ too */
-	intel_i2c_reset(dev);
+	vlv_update_cdclk(dev);
 }
 
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
@@ -12439,6 +12453,9 @@ static void i915_disable_vga(struct drm_device *dev)
 void intel_modeset_init_hw(struct drm_device *dev)
 {
 	intel_prepare_ddi(dev);
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_update_cdclk(dev);
 
 	intel_init_clock_gating(dev);
 
