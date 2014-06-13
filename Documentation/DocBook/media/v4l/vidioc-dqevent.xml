@@ -100,6 +100,12 @@
 	  </row>
 	  <row>
 	    <entry></entry>
+	    <entry>&v4l2-event-src-change;</entry>
+            <entry><structfield>src_change</structfield></entry>
+	    <entry>Event data for event V4L2_EVENT_SOURCE_CHANGE.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
 	    <entry>__u8</entry>
             <entry><structfield>data</structfield>[64]</entry>
 	    <entry>Event data. Defined by the event type. The union
