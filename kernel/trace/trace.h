@@ -252,7 +252,7 @@ static inline struct trace_array *top_trace_array(void)
 {
 	struct trace_array *tr;
 
-	if (list_empty(ftrace_trace_arrays.prev))
+	if (list_empty(&ftrace_trace_arrays))
 		return NULL;
 
 	tr = list_entry(ftrace_trace_arrays.prev,
