@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
+#include <linux/power_supply.h>
 
 #include <asm/unaligned.h>
 

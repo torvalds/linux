@@ -41,7 +41,10 @@ nouveau_control_mthd_pstate_info(struct nouveau_object *object, u32 mthd,
 
 	if (clk) {
 		args->count  = clk->state_nr;
-		args->ustate = clk->ustate;
+		if (clk->pwrsrc)
+			args->ustate = clk->ustate_ac;
+		else
+			args->ustate = clk->ustate_dc;
 		args->pstate = clk->pstate;
 	} else {
 		args->count  = 0;
@@ -123,7 +126,7 @@ nouveau_control_mthd_pstate_user(struct nouveau_object *object, u32 mthd,
 	if (size < sizeof(*args) || !clk)
 		return -EINVAL;
 
-	return nouveau_clock_ustate(clk, args->state);
+	return nouveau_clock_ustate(clk, args->state, clk->pwrsrc);
 }
 
 struct nouveau_oclass

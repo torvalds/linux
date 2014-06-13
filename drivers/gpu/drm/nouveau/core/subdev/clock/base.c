@@ -202,12 +202,15 @@ nouveau_pstate_work(struct work_struct *work)
 
 	if (!atomic_xchg(&clk->waiting, 0))
 		return;
+	clk->pwrsrc = power_supply_is_system_supplied();
 
-	nv_trace(clk, "P %d U %d A %d T %d D %d\n", clk->pstate,
-		 clk->ustate, clk->astate, clk->tstate, clk->dstate);
+	nv_trace(clk, "P %d PWR %d U(AC) %d U(DC) %d A %d T %d D %d\n",
+		 clk->pstate, clk->pwrsrc, clk->ustate_ac, clk->ustate_dc,
+		 clk->astate, clk->tstate, clk->dstate);
 
-	if (clk->state_nr && clk->ustate != -1) {
-		pstate = (clk->ustate < 0) ? clk->astate : clk->ustate;
+	pstate = clk->pwrsrc ? clk->ustate_ac : clk->ustate_dc;
+	if (clk->state_nr && pstate != -1) {
+		pstate = (pstate < 0) ? clk->astate : pstate;
 		pstate = min(pstate, clk->state_nr - 1 - clk->tstate);
 		pstate = max(pstate, clk->dstate);
 	} else {
@@ -224,6 +227,7 @@ nouveau_pstate_work(struct work_struct *work)
 	}
 
 	wake_up_all(&clk->wait);
+	nouveau_event_get(clk->pwrsrc_ntfy);
 }
 
 static int
@@ -381,17 +385,40 @@ nouveau_clock_ustate_update(struct nouveau_clock *clk, int req)
 		req = i;
 	}
 
-	clk->ustate = req;
-	return 0;
+	return req + 2;
+}
+
+static int
+nouveau_clock_nstate(struct nouveau_clock *clk, const char *mode, int arglen)
+{
+	int ret = 1;
+
+	if (strncasecmpz(mode, "disabled", arglen)) {
+		char save = mode[arglen];
+		long v;
+
+		((char *)mode)[arglen] = '\0';
+		if (!kstrtol(mode, 0, &v)) {
+			ret = nouveau_clock_ustate_update(clk, v);
+			if (ret < 0)
+				ret = 1;
+		}
+		((char *)mode)[arglen] = save;
+	}
+
+	return ret - 2;
 }
 
 int
-nouveau_clock_ustate(struct nouveau_clock *clk, int req)
+nouveau_clock_ustate(struct nouveau_clock *clk, int req, int pwr)
 {
 	int ret = nouveau_clock_ustate_update(clk, req);
-	if (ret)
-		return ret;
-	return nouveau_pstate_calc(clk, true);
+	if (ret >= 0) {
+		if (ret -= 2, pwr) clk->ustate_ac = ret;
+		else		   clk->ustate_dc = ret;
+		return nouveau_pstate_calc(clk, true);
+	}
+	return ret;
 }
 
 int
@@ -424,15 +451,36 @@ nouveau_clock_dstate(struct nouveau_clock *clk, int req, int rel)
 	return nouveau_pstate_calc(clk, true);
 }
 
+static int
+nouveau_clock_pwrsrc(void *data, u32 mask, int type)
+{
+	struct nouveau_clock *clk = data;
+	nouveau_pstate_calc(clk, false);
+	return NVKM_EVENT_DROP;
+}
+
 /******************************************************************************
  * subdev base class implementation
  *****************************************************************************/
+
+int
+_nouveau_clock_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nouveau_clock *clk = (void *)object;
+	nouveau_event_put(clk->pwrsrc_ntfy);
+	return nouveau_subdev_fini(&clk->base, suspend);
+}
+
 int
 _nouveau_clock_init(struct nouveau_object *object)
 {
 	struct nouveau_clock *clk = (void *)object;
 	struct nouveau_clocks *clock = clk->domains;
 	int ret;
+
+	ret = nouveau_subdev_init(&clk->base);
+	if (ret)
+		return ret;
 
 	memset(&clk->bstate, 0x00, sizeof(clk->bstate));
 	INIT_LIST_HEAD(&clk->bstate.list);
@@ -464,6 +512,8 @@ _nouveau_clock_dtor(struct nouveau_object *object)
 	struct nouveau_clock *clk = (void *)object;
 	struct nouveau_pstate *pstate, *temp;
 
+	nouveau_event_ref(NULL, &clk->pwrsrc_ntfy);
+
 	list_for_each_entry_safe(pstate, temp, &clk->states, head) {
 		nouveau_pstate_del(pstate);
 	}
@@ -492,7 +542,8 @@ nouveau_clock_create_(struct nouveau_object *parent,
 
 	INIT_LIST_HEAD(&clk->states);
 	clk->domains = clocks;
-	clk->ustate = -1;
+	clk->ustate_ac = -1;
+	clk->ustate_dc = -1;
 
 	INIT_WORK(&clk->work, nouveau_pstate_work);
 	init_waitqueue_head(&clk->wait);
@@ -505,20 +556,26 @@ nouveau_clock_create_(struct nouveau_object *parent,
 
 	clk->allow_reclock = allow_reclock;
 
+	ret = nouveau_event_new(device->ntfy, 1, NVKM_DEVICE_NTFY_POWER,
+				nouveau_clock_pwrsrc, clk,
+			       &clk->pwrsrc_ntfy);
+	if (ret)
+		return ret;
+
 	mode = nouveau_stropt(device->cfgopt, "NvClkMode", &arglen);
 	if (mode) {
-		if (!strncasecmpz(mode, "disabled", arglen)) {
-			clk->ustate = -1;
-		} else {
-			char save = mode[arglen];
-			long v;
-
-			((char *)mode)[arglen] = '\0';
-			if (!kstrtol(mode, 0, &v))
-				nouveau_clock_ustate_update(clk, v);
-			((char *)mode)[arglen] = save;
-		}
+		clk->ustate_ac = nouveau_clock_nstate(clk, mode, arglen);
+		clk->ustate_dc = nouveau_clock_nstate(clk, mode, arglen);
 	}
+
+	mode = nouveau_stropt(device->cfgopt, "NvClkModeAC", &arglen);
+	if (mode)
+		clk->ustate_ac = nouveau_clock_nstate(clk, mode, arglen);
+
+	mode = nouveau_stropt(device->cfgopt, "NvClkModeDC", &arglen);
+	if (mode)
+		clk->ustate_dc = nouveau_clock_nstate(clk, mode, arglen);
+
 
 	return 0;
 }
