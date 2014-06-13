@@ -129,16 +129,27 @@ static int pcie_poll_cmd(struct controller *ctrl)
 	return 0;	/* timeout */
 }
 
-static void pcie_wait_cmd(struct controller *ctrl, int poll)
+static void pcie_wait_cmd(struct controller *ctrl)
 {
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
 	unsigned long timeout = msecs_to_jiffies(msecs);
 	int rc;
 
-	if (poll)
-		rc = pcie_poll_cmd(ctrl);
-	else
+	/*
+	 * If the controller does not generate notifications for command
+	 * completions, we never need to wait between writes.
+	 */
+	if (ctrl->no_cmd_complete)
+		return;
+
+	if (!ctrl->cmd_busy)
+		return;
+
+	if (ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE &&
+	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
+	else
+		rc = pcie_poll_cmd(ctrl);
 	if (!rc)
 		ctrl_dbg(ctrl, "Command not completed in 1000 msec\n");
 }
@@ -187,22 +198,12 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	ctrl->cmd_busy = 1;
 	smp_mb();
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
+	ctrl->slot_ctrl = slot_ctrl;
 
 	/*
 	 * Wait for command completion.
 	 */
-	if (!ctrl->no_cmd_complete) {
-		int poll = 0;
-		/*
-		 * if hotplug interrupt is not enabled or command
-		 * completed interrupt is not enabled, we need to poll
-		 * command completed event.
-		 */
-		if (!(slot_ctrl & PCI_EXP_SLTCTL_HPIE) ||
-		    !(slot_ctrl & PCI_EXP_SLTCTL_CCIE))
-			poll = 1;
-		pcie_wait_cmd(ctrl, poll);
-	}
+	pcie_wait_cmd(ctrl);
 	mutex_unlock(&ctrl->ctrl_lock);
 }
 
