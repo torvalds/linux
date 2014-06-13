@@ -1818,10 +1818,11 @@ static bool intel_edp_psr_match_conditions(struct intel_dp *intel_dp)
 
 static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!intel_edp_psr_match_conditions(intel_dp) ||
-	    intel_edp_is_psr_enabled(dev))
+	if (intel_edp_is_psr_enabled(dev))
 		return;
 
 	/* Enable PSR on the panel */
@@ -1829,6 +1830,9 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 
 	/* Enable PSR on the host */
 	intel_edp_psr_enable_source(intel_dp);
+
+	dev_priv->psr.enabled = true;
+	dev_priv->psr.active = true;
 }
 
 void intel_edp_psr_enable(struct intel_dp *intel_dp)
@@ -1848,8 +1852,7 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 	/* Setup PSR once */
 	intel_edp_psr_setup(intel_dp);
 
-	if (intel_edp_psr_match_conditions(intel_dp) &&
-	    !intel_edp_is_psr_enabled(dev))
+	if (intel_edp_psr_match_conditions(intel_dp))
 		intel_edp_psr_do_enable(intel_dp);
 }
 
@@ -1858,7 +1861,7 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!intel_edp_is_psr_enabled(dev))
+	if (!dev_priv->psr.enabled)
 		return;
 
 	I915_WRITE(EDP_PSR_CTL(dev),
@@ -1868,19 +1871,30 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	if (_wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev)) &
 		       EDP_PSR_STATUS_STATE_MASK) == 0, 2000, 10))
 		DRM_ERROR("Timed out waiting for PSR Idle State\n");
+
+	dev_priv->psr.enabled = false;
 }
 
 void intel_edp_psr_update(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *encoder;
-	struct intel_dp *intel_dp = NULL;
 
 	if (!HAS_PSR(dev))
 		return;
 
 	if (!dev_priv->psr.setup_done)
 		return;
+
+	intel_edp_psr_exit(dev, true);
+}
+
+void intel_edp_psr_work(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), psr.work.work);
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp = NULL;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head)
 		if (encoder->type == INTEL_OUTPUT_EDP) {
@@ -1889,9 +1903,66 @@ void intel_edp_psr_update(struct drm_device *dev)
 			if (!intel_edp_psr_match_conditions(intel_dp))
 				intel_edp_psr_disable(intel_dp);
 			else
-				if (!intel_edp_is_psr_enabled(dev))
-					intel_edp_psr_do_enable(intel_dp);
+				intel_edp_psr_do_enable(intel_dp);
 		}
+}
+
+void intel_edp_psr_inactivate(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_connector *connector;
+	struct intel_encoder *encoder;
+	struct intel_crtc *intel_crtc;
+	struct intel_dp *intel_dp = NULL;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list,
+			    base.head) {
+
+		if (connector->base.dpms != DRM_MODE_DPMS_ON)
+			continue;
+
+		encoder = to_intel_encoder(connector->base.encoder);
+		if (encoder->type == INTEL_OUTPUT_EDP) {
+
+			intel_dp = enc_to_intel_dp(&encoder->base);
+			intel_crtc = to_intel_crtc(encoder->base.crtc);
+
+			dev_priv->psr.active = false;
+
+			I915_WRITE(EDP_PSR_CTL(dev), I915_READ(EDP_PSR_CTL(dev))
+				   & ~EDP_PSR_ENABLE);
+		}
+	}
+}
+
+void intel_edp_psr_exit(struct drm_device *dev, bool schedule_back)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!HAS_PSR(dev))
+		return;
+
+	if (!dev_priv->psr.setup_done)
+		return;
+
+	cancel_delayed_work_sync(&dev_priv->psr.work);
+
+	if (dev_priv->psr.active)
+		intel_edp_psr_inactivate(dev);
+
+	if (schedule_back)
+		schedule_delayed_work(&dev_priv->psr.work,
+				      msecs_to_jiffies(100));
+}
+
+void intel_edp_psr_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!HAS_PSR(dev))
+		return;
+
+	INIT_DELAYED_WORK(&dev_priv->psr.work, intel_edp_psr_work);
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder)

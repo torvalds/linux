@@ -8818,11 +8818,14 @@ out:
 	intel_runtime_pm_put(dev_priv);
 }
 
+
 void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_crtc *crtc;
+
+	intel_edp_psr_exit(dev, true);
 
 	if (!i915.powersave)
 		return;
@@ -9289,6 +9292,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work = kzalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
+
+	/* Exit PSR early in page flip */
+	intel_edp_psr_exit(dev, true);
 
 	work->event = event;
 	work->crtc = crtc;
@@ -11580,6 +11586,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	if (SUPPORTS_TV(dev))
 		intel_tv_init(dev);
+
+	intel_edp_psr_init(dev);
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
 		encoder->base.possible_crtcs = encoder->crtc_mask;
