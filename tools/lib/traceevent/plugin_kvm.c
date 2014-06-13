@@ -330,19 +330,13 @@ static int kvm_emulate_insn_handler(struct trace_seq *s,
 static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_record *record,
 					    struct event_format *event, void *context)
 {
-	unsigned long long val;
-
-	pevent_print_num_field(s, " rip %0x016llx", event, "rip", record, 1);
-
-	if (pevent_get_field_val(s, event, "exit_code", record, &val, 1) < 0)
+	if (print_exit_reason(s, record, event, "exit_code") < 0)
 		return -1;
 
-	trace_seq_printf(s, "reason %s", find_exit_reason(2, val));
-
-	pevent_print_num_field(s, " ext_inf1: %0x016llx", event, "exit_info1", record, 1);
-	pevent_print_num_field(s, " ext_inf2: %0x016llx", event, "exit_info2", record, 1);
-	pevent_print_num_field(s, " ext_int: %0x016llx", event, "exit_int_info", record, 1);
-	pevent_print_num_field(s, " ext_int_err: %0x016llx", event, "exit_int_info_err", record, 1);
+	pevent_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
+	pevent_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
+	pevent_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
+	pevent_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
 
 	return 0;
 }
@@ -350,7 +344,7 @@ static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_r
 static int kvm_nested_vmexit_handler(struct trace_seq *s, struct pevent_record *record,
 				     struct event_format *event, void *context)
 {
-	pevent_print_num_field(s, " rip %0x016llx", event, "rip", record, 1);
+	pevent_print_num_field(s, "rip %lx ", event, "rip", record, 1);
 
 	return kvm_nested_vmexit_inject_handler(s, record, event, context);
 }
