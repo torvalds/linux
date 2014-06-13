@@ -844,7 +844,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
 

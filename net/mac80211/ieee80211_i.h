@@ -922,6 +922,8 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 	IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL,
 	IEEE80211_QUEUE_STOP_REASON_FLUSH,
+
+	IEEE80211_QUEUE_STOP_REASONS,
 };
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -1018,6 +1020,7 @@ struct ieee80211_local {
 	struct workqueue_struct *workqueue;
 
 	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
+	int q_stop_reasons[IEEE80211_MAX_QUEUES][IEEE80211_QUEUE_STOP_REASONS];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 
@@ -1715,14 +1718,18 @@ void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 				     unsigned long queues,
-				     enum queue_stop_reason reason);
+				     enum queue_stop_reason reason,
+				     bool refcounted);
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 				     unsigned long queues,
-				     enum queue_stop_reason reason);
+				     enum queue_stop_reason reason,
+				     bool refcounted);
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason);
+				    enum queue_stop_reason reason,
+				    bool refcounted);
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason);
+				    enum queue_stop_reason reason,
+				    bool refcounted);
 void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue);
 void ieee80211_add_pending_skb(struct ieee80211_local *local,
 			       struct sk_buff *skb);

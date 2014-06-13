@@ -983,7 +983,8 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
@@ -1115,7 +1116,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	if (sdata->csa_block_tx)
 		ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 
 	if (local->ops->channel_switch) {
@@ -1385,7 +1387,8 @@ void ieee80211_dynamic_ps_disable_work(struct work_struct *work)
 
 	ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_PS);
+					IEEE80211_QUEUE_STOP_REASON_PS,
+					false);
 }
 
 void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
@@ -1833,7 +1836,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
@@ -2082,7 +2086,8 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 
 	cfg80211_tx_mlme_mgmt(sdata->dev, frame_buf,

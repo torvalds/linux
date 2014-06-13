@@ -837,7 +837,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 	mutex_unlock(&local->mtx);
 
 	kfree(sdata->u.ap.next_beacon);
@@ -2828,7 +2829,8 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	if (!ieee80211_csa_needs_block_tx(local))
 		ieee80211_wake_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 
 	return 0;
 }
@@ -3060,7 +3062,8 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->csa_block_tx)
 		ieee80211_stop_queues_by_reason(&local->hw,
 					IEEE80211_MAX_QUEUE_MAP,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
+					IEEE80211_QUEUE_STOP_REASON_CSA,
+					false);
 
 	if (changed) {
 		ieee80211_bss_info_change_notify(sdata, changed);
