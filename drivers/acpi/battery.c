@@ -930,7 +930,10 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 		goto end;
 	}
 	alarm_string[count] = '\0';
-	battery->alarm = simple_strtol(alarm_string, NULL, 0);
+	if (kstrtoint(alarm_string, 0, &battery->alarm)) {
+		result = -EINVAL;
+		goto end;
+	}
 	result = acpi_battery_set_alarm(battery);
       end:
 	if (!result)
