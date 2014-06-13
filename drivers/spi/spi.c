@@ -352,7 +352,6 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 
 	spi = kzalloc(sizeof(*spi), GFP_KERNEL);
 	if (!spi) {
-		dev_err(dev, "cannot alloc spi_device\n");
 		spi_master_put(master);
 		return NULL;
 	}
