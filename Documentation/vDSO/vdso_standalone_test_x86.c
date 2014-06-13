@@ -6,7 +6,7 @@
  * You can amuse yourself by compiling with:
  * gcc -std=gnu99 -nostdlib
  *     -Os -fno-asynchronous-unwind-tables -flto
- *      vdso_test.c parse_vdso.c -o vdso_test
+ *      vdso_standalone_test_x86.c parse_vdso.c
  * to generate a small binary with no dependencies at all.
  */
 
