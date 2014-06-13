@@ -88,8 +88,6 @@ static void ima_rdwr_violation_check(struct file *file)
 	if (!S_ISREG(inode->i_mode) || !ima_initialized)
 		return;
 
-	mutex_lock(&inode->i_mutex);	/* file metadata: permissions, xattr */
-
 	if (mode & FMODE_WRITE) {
 		if (atomic_read(&inode->i_readcount) && IS_IMA(inode)) {
 			struct integrity_iint_cache *iint;
@@ -103,8 +101,6 @@ static void ima_rdwr_violation_check(struct file *file)
 		    ima_must_measure(inode, MAY_READ, FILE_CHECK))
 			send_writers = true;
 	}
-
-	mutex_unlock(&inode->i_mutex);
 
 	if (!send_tomtou && !send_writers)
 		return;
