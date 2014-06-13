@@ -6010,9 +6010,10 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-void __vlv_set_power_well(struct drm_i915_private *dev_priv,
-			  enum punit_power_well power_well_id, bool enable)
+static void vlv_set_power_well(struct drm_i915_private *dev_priv,
+			       struct i915_power_well *power_well, bool enable)
 {
+	enum punit_power_well power_well_id = power_well->data;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
@@ -6043,14 +6044,6 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
-}
-
-static void vlv_set_power_well(struct drm_i915_private *dev_priv,
-			       struct i915_power_well *power_well, bool enable)
-{
-	enum punit_power_well power_well_id = power_well->data;
-
-	__vlv_set_power_well(dev_priv, power_well_id, enable);
 }
 
 static void vlv_power_well_sync_hw(struct drm_i915_private *dev_priv,
@@ -6508,6 +6501,21 @@ static struct i915_power_well vlv_power_wells[] = {
 	},
 };
 
+static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
+						 enum punit_power_well power_well_id)
+{
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+	struct i915_power_well *power_well;
+	int i;
+
+	for_each_power_well(i, power_well, POWER_DOMAIN_MASK, power_domains) {
+		if (power_well->data == power_well_id)
+			return power_well;
+	}
+
+	return NULL;
+}
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -6558,11 +6566,50 @@ static void intel_power_domains_resume(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 }
 
+static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
+{
+	struct i915_power_well *cmn =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DPIO_CMN_BC);
+	struct i915_power_well *disp2d =
+		lookup_power_well(dev_priv, PUNIT_POWER_WELL_DISP2D);
+
+	/* nothing to do if common lane is already off */
+	if (!cmn->ops->is_enabled(dev_priv, cmn))
+		return;
+
+	/* If the display might be already active skip this */
+	if (disp2d->ops->is_enabled(dev_priv, disp2d) &&
+	    I915_READ(DPIO_CTL) & DPIO_CMNRST)
+		return;
+
+	DRM_DEBUG_KMS("toggling display PHY side reset\n");
+
+	/* cmnlane needs DPLL registers */
+	disp2d->ops->enable(dev_priv, disp2d);
+
+	/*
+	 * From VLV2A0_DP_eDP_HDMI_DPIO_driver_vbios_notes_11.docx:
+	 * Need to assert and de-assert PHY SB reset by gating the
+	 * common lane power, then un-gating it.
+	 * Simply ungating isn't enough to reset the PHY enough to get
+	 * ports and lanes running.
+	 */
+	cmn->ops->disable(dev_priv, cmn);
+}
+
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 
 	power_domains->initializing = true;
+
+	if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev)) {
+		mutex_lock(&power_domains->lock);
+		vlv_cmnlane_wa(dev_priv);
+		mutex_unlock(&power_domains->lock);
+	}
+
 	/* For now, we need the power well to be always enabled. */
 	intel_display_set_init_power(dev_priv, true);
 	intel_power_domains_resume(dev_priv);
