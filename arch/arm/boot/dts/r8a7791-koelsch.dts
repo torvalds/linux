@@ -426,6 +426,14 @@
 	};
 };
 
+&pcie_bus_clk {
+	status = "okay";
+};
+
+&pciec {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu0-supply = <&vdd_dvfs>;
 };
