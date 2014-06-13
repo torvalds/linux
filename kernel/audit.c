@@ -1301,19 +1301,9 @@ err:
  */
 unsigned int audit_serial(void)
 {
-	static DEFINE_SPINLOCK(serial_lock);
-	static unsigned int serial = 0;
+	static atomic_t serial = ATOMIC_INIT(0);
 
-	unsigned long flags;
-	unsigned int ret;
-
-	spin_lock_irqsave(&serial_lock, flags);
-	do {
-		ret = ++serial;
-	} while (unlikely(!ret));
-	spin_unlock_irqrestore(&serial_lock, flags);
-
-	return ret;
+	return atomic_add_return(1, &serial);
 }
 
 static inline void audit_get_stamp(struct audit_context *ctx,
