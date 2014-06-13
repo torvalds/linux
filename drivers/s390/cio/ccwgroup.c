@@ -586,11 +586,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 					 __ccwgroup_match_all))) {
 		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
-		mutex_lock(&gdev->reg_mutex);
-		__ccwgroup_remove_symlinks(gdev);
-		device_unregister(dev);
-		__ccwgroup_remove_cdev_refs(gdev);
-		mutex_unlock(&gdev->reg_mutex);
+		ccwgroup_ungroup(gdev);
 		put_device(dev);
 	}
 	driver_unregister(&cdriver->driver);
@@ -637,13 +633,7 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	get_device(&gdev->dev);
 	spin_unlock_irq(cdev->ccwlock);
 	/* Unregister group device. */
-	mutex_lock(&gdev->reg_mutex);
-	if (device_is_registered(&gdev->dev)) {
-		__ccwgroup_remove_symlinks(gdev);
-		device_unregister(&gdev->dev);
-		__ccwgroup_remove_cdev_refs(gdev);
-	}
-	mutex_unlock(&gdev->reg_mutex);
+	ccwgroup_ungroup(gdev);
 	/* Release ccwgroup device reference for local processing. */
 	put_device(&gdev->dev);
 }
