@@ -192,9 +192,9 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream)
 	return ret_val;
 }
 
-static void sst_period_elapsed(void *mad_substream)
+static void sst_period_elapsed(void *arg)
 {
-	struct snd_pcm_substream *substream = mad_substream;
+	struct snd_pcm_substream *substream = arg;
 	struct sst_runtime_stream *stream;
 	int status;
 
@@ -218,7 +218,7 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 	pr_debug("setting buffer ptr param\n");
 	sst_set_stream_status(stream, SST_PLATFORM_INIT);
 	stream->stream_info.period_elapsed = sst_period_elapsed;
-	stream->stream_info.mad_substream = substream;
+	stream->stream_info.arg = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
 	ret_val = stream->ops->device_control(
@@ -255,7 +255,7 @@ static int sst_media_open(struct snd_pcm_substream *substream,
 
 	stream->stream_info.str_id = 0;
 
-	stream->stream_info.mad_substream = substream;
+	stream->stream_info.arg = substream;
 	/* allocate memory for SST API set */
 	runtime->private_data = stream;
 
@@ -363,7 +363,7 @@ static int sst_platform_pcm_trigger(struct snd_pcm_substream *substream,
 		pr_debug("sst: Trigger Start\n");
 		str_cmd = SST_SND_START;
 		status = SST_PLATFORM_RUNNING;
-		stream->stream_info.mad_substream = substream;
+		stream->stream_info.arg = substream;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("sst: in stop\n");
