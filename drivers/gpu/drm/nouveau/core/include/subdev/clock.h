@@ -71,6 +71,10 @@ struct nouveau_clock {
 	struct list_head states;
 	int state_nr;
 
+	struct work_struct work;
+	wait_queue_head_t wait;
+	atomic_t waiting;
+
 	int pstate; /* current */
 	int ustate; /* user-requested (-1 disabled, -2 perfmon) */
 	int astate; /* perfmon adjustment (base) */

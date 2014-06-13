@@ -194,10 +194,14 @@ nouveau_pstate_prog(struct nouveau_clock *clk, int pstatei)
 	return nouveau_cstate_prog(clk, pstate, 0);
 }
 
-static int
-nouveau_pstate_calc(struct nouveau_clock *clk)
+static void
+nouveau_pstate_work(struct work_struct *work)
 {
-	int pstate, ret = 0;
+	struct nouveau_clock *clk = container_of(work, typeof(*clk), work);
+	int pstate;
+
+	if (!atomic_xchg(&clk->waiting, 0))
+		return;
 
 	nv_trace(clk, "P %d U %d A %d T %d D %d\n", clk->pstate,
 		 clk->ustate, clk->astate, clk->tstate, clk->dstate);
@@ -211,9 +215,25 @@ nouveau_pstate_calc(struct nouveau_clock *clk)
 	}
 
 	nv_trace(clk, "-> %d\n", pstate);
-	if (pstate != clk->pstate)
-		ret = nouveau_pstate_prog(clk, pstate);
-	return ret;
+	if (pstate != clk->pstate) {
+		int ret = nouveau_pstate_prog(clk, pstate);
+		if (ret) {
+			nv_error(clk, "error setting pstate %d: %d\n",
+				 pstate, ret);
+		}
+	}
+
+	wake_up_all(&clk->wait);
+}
+
+static int
+nouveau_pstate_calc(struct nouveau_clock *clk, bool wait)
+{
+	atomic_set(&clk->waiting, 1);
+	schedule_work(&clk->work);
+	if (wait)
+		wait_event(clk->wait, !atomic_read(&clk->waiting));
+	return 0;
 }
 
 static void
@@ -371,7 +391,7 @@ nouveau_clock_ustate(struct nouveau_clock *clk, int req)
 	int ret = nouveau_clock_ustate_update(clk, req);
 	if (ret)
 		return ret;
-	return nouveau_pstate_calc(clk);
+	return nouveau_pstate_calc(clk, true);
 }
 
 int
@@ -381,7 +401,7 @@ nouveau_clock_astate(struct nouveau_clock *clk, int req, int rel)
 	if ( rel) clk->astate += rel;
 	clk->astate = min(clk->astate, clk->state_nr - 1);
 	clk->astate = max(clk->astate, 0);
-	return nouveau_pstate_calc(clk);
+	return nouveau_pstate_calc(clk, true);
 }
 
 int
@@ -391,7 +411,7 @@ nouveau_clock_tstate(struct nouveau_clock *clk, int req, int rel)
 	if ( rel) clk->tstate += rel;
 	clk->tstate = min(clk->tstate, 0);
 	clk->tstate = max(clk->tstate, -(clk->state_nr - 1));
-	return nouveau_pstate_calc(clk);
+	return nouveau_pstate_calc(clk, true);
 }
 
 int
@@ -401,7 +421,7 @@ nouveau_clock_dstate(struct nouveau_clock *clk, int req, int rel)
 	if ( rel) clk->dstate += rel;
 	clk->dstate = min(clk->dstate, clk->state_nr - 1);
 	clk->dstate = max(clk->dstate, 0);
-	return nouveau_pstate_calc(clk);
+	return nouveau_pstate_calc(clk, true);
 }
 
 /******************************************************************************
@@ -434,7 +454,7 @@ _nouveau_clock_init(struct nouveau_object *object)
 	clk->tstate = 0;
 	clk->dstate = 0;
 	clk->pstate = -1;
-	nouveau_pstate_calc(clk);
+	nouveau_pstate_calc(clk, true);
 	return 0;
 }
 
@@ -473,6 +493,10 @@ nouveau_clock_create_(struct nouveau_object *parent,
 	INIT_LIST_HEAD(&clk->states);
 	clk->domains = clocks;
 	clk->ustate = -1;
+
+	INIT_WORK(&clk->work, nouveau_pstate_work);
+	init_waitqueue_head(&clk->wait);
+	atomic_set(&clk->waiting, 0);
 
 	idx = 0;
 	do {
