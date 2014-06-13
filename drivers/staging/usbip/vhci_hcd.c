@@ -304,7 +304,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	case GetHubStatus:
 		usbip_dbg_vhci_rh(" GetHubStatus\n");
-		*(__le32 *) buf = __constant_cpu_to_le32(0);
+		*(__le32 *) buf = cpu_to_le32(0);
 		break;
 	case GetPortStatus:
 		usbip_dbg_vhci_rh(" GetPortStatus port %x\n", wIndex);
