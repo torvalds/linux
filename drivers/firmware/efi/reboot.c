@@ -24,3 +24,25 @@ void efi_reboot(enum reboot_mode reboot_mode, const char *__unused)
 
 	efi.reset_system(efi_mode, EFI_SUCCESS, 0, NULL);
 }
+
+bool __weak efi_poweroff_required(void)
+{
+	return false;
+}
+
+static void efi_power_off(void)
+{
+	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
+}
+
+static int __init efi_shutdown_init(void)
+{
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		return -ENODEV;
+
+	if (efi_poweroff_required())
+		pm_power_off = efi_power_off;
+
+	return 0;
+}
+late_initcall(efi_shutdown_init);
