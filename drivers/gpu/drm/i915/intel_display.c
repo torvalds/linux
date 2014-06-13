@@ -4556,14 +4556,19 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 	 *   400MHz
 	 * So we check to see whether we're above 90% of the lower bin and
 	 * adjust if needed.
+	 *
+	 * We seem to get an unstable or solid color picture at 200MHz.
+	 * Not sure what's wrong. For now use 200MHz only when all pipes
+	 * are off.
 	 */
 	if (max_pixclk > freq_320*9/10)
 		return 400000;
 	else if (max_pixclk > 266667*9/10)
 		return freq_320;
-	else
+	else if (max_pixclk > 0)
 		return 266667;
-	/* Looks like the 200MHz CDclk freq doesn't work on some configs */
+	else
+		return 200000;
 }
 
 /* compute the max pixel clock for new configuration */
