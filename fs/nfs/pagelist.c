@@ -597,14 +597,14 @@ static void nfs_pgio_prepare(struct rpc_task *task, void *calldata)
 }
 
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
-		      const struct nfs_rpc_ops *rpc_ops,
+		      struct rpc_cred *cred, const struct nfs_rpc_ops *rpc_ops,
 		      const struct rpc_call_ops *call_ops, int how, int flags)
 {
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &hdr->args,
 		.rpc_resp = &hdr->res,
-		.rpc_cred = hdr->cred,
+		.rpc_cred = cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = clnt,
@@ -793,7 +793,9 @@ static int nfs_generic_pg_pgios(struct nfs_pageio_descriptor *desc)
 	ret = nfs_generic_pgio(desc, hdr);
 	if (ret == 0)
 		ret = nfs_initiate_pgio(NFS_CLIENT(hdr->inode),
-					hdr, NFS_PROTO(hdr->inode),
+					hdr,
+					hdr->cred,
+					NFS_PROTO(hdr->inode),
 					desc->pg_rpc_callops,
 					desc->pg_ioflags, 0);
 	return ret;
