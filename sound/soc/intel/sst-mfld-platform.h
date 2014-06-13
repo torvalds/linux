@@ -42,6 +42,7 @@ struct pcm_stream_info {
 	void *arg;
 	void (*period_elapsed) (void *arg);
 	unsigned long long buffer_ptr;
+	unsigned long long pcm_delay;
 	int sfreq;
 };
 

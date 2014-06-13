@@ -409,6 +409,7 @@ static snd_pcm_uframes_t sst_platform_pcm_pointer
 		pr_err("sst: error code = %d\n", ret_val);
 		return ret_val;
 	}
+	substream->runtime->delay = str_info->pcm_delay;
 	return str_info->buffer_ptr;
 }
 
