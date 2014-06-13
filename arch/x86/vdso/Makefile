@@ -15,12 +15,8 @@ vdso-install-$(VDSO32-y)	+= $(vdso32-images)
 
 
 # files to link into the vdso
-vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o
-
-vobjs-$(VDSOX32-y) += $(vobjx32s-compat)
-
-# Filter out x32 objects.
-vobj64s := $(filter-out $(vobjx32s-compat),$(vobjs-y))
+vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vdso-fakesections.o
+vobjs-nox32 := vdso-fakesections.o
 
 # files to link into kernel
 obj-y				+= vma.o
@@ -34,7 +30,7 @@ vdso_img-$(VDSO32-y)		+= 32-sysenter
 
 obj-$(VDSO32-y)			+= vdso32-setup.o
 
-vobjs := $(foreach F,$(vobj64s),$(obj)/$F)
+vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
@@ -104,7 +100,13 @@ VDSO_LDFLAGS_vdsox32.lds = -Wl,-m,elf32_x86_64 \
 			   -Wl,-z,max-page-size=4096 \
 			   -Wl,-z,common-page-size=4096
 
-vobjx32s-y := $(vobj64s:.o=-x32.o)
+# 64-bit objects to re-brand as x32
+vobjs64-for-x32 := $(filter-out $(vobjs-nox32),$(vobjs-y))
+
+# x32-rebranded versions
+vobjx32s-y := $(vobjs64-for-x32:.o=-x32.o)
+
+# same thing, but in the output directory
 vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
 
 # Convert 64bit object file to x32 for x32 vDSO.
