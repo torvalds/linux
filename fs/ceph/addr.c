@@ -211,18 +211,15 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 		SetPageError(page);
 		ceph_fscache_readpage_cancel(inode, page);
 		goto out;
-	} else {
-		if (err < PAGE_CACHE_SIZE) {
-		/* zero fill remainder of page */
-			zero_user_segment(page, err, PAGE_CACHE_SIZE);
-		} else {
-			flush_dcache_page(page);
-		}
 	}
-	SetPageUptodate(page);
+	if (err < PAGE_CACHE_SIZE)
+		/* zero fill remainder of page */
+		zero_user_segment(page, err, PAGE_CACHE_SIZE);
+	else
+		flush_dcache_page(page);
 
-	if (err >= 0)
-		ceph_readpage_to_fscache(inode, page);
+	SetPageUptodate(page);
+	ceph_readpage_to_fscache(inode, page);
 
 out:
 	return err < 0 ? err : 0;
