@@ -294,7 +294,7 @@ EXPORT_SYMBOL_GPL(mbox_send_message);
  * Return: Pointer to the channel assigned to the client if successful.
  *		ERR_PTR for request failure.
  */
-struct mbox_chan *mbox_request_channel(const struct mbox_client *cl)
+struct mbox_chan *mbox_request_channel(struct mbox_client *cl)
 {
 	struct device *dev = cl->dev;
 	struct mbox_controller *mbox;

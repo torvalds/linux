@@ -37,7 +37,7 @@ struct mbox_client {
 	bool knows_txdone;
 };
 
-struct mbox_chan *mbox_request_channel(const struct mbox_client *cl);
+struct mbox_chan *mbox_request_channel(struct mbox_client *cl);
 int mbox_send_message(struct mbox_chan *chan, void *mssg);
 void mbox_client_txdone(struct mbox_chan *chan, int r);
 bool mbox_client_peek_data(struct mbox_chan *chan);
