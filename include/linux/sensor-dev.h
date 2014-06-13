@@ -197,7 +197,7 @@ struct sensor_platform_data {
 	unsigned long irq_flags;
 	signed char orientation[9];
 	short m_layout[4][3][3];
-	char* project_name;
+	int* project_name;
 };
 
  struct gsensor_platform_data {

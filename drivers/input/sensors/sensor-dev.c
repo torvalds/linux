@@ -1693,7 +1693,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	of_property_read_u32(np,"layout",&(pdata->layout));
 
 	of_property_read_u8(np,"address",&(pdata->address));
-	pdata->project_name = of_get_property(np, "project_name", NULL);
+	of_get_property(np, "project_name", pdata->project_name);
 
 
 	switch(pdata->layout)
