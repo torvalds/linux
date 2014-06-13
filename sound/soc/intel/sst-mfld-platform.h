@@ -149,8 +149,10 @@ struct sst_device {
 };
 
 struct sst_data;
-
 void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
+int sst_fill_stream_params(void *substream, const struct sst_data *ctx,
+			   struct snd_sst_params *str_params, bool is_compress);
+
 struct sst_algo_int_control_v2 {
 	struct soc_mixer_control mc;
 	u16 module_id; /* module identifieer */
@@ -158,14 +160,11 @@ struct sst_algo_int_control_v2 {
 	u16 instance_id;
 	unsigned int value; /* Value received is stored here */
 };
-
 struct sst_data {
 	struct platform_device *pdev;
 	struct sst_platform_data *pdata;
 	struct mutex lock;
 };
-
 int sst_register_dsp(struct sst_device *sst);
 int sst_unregister_dsp(struct sst_device *sst);
-
 #endif
