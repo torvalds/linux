@@ -60,6 +60,7 @@
 
 #define USB_CHARGER_MODE        1
 #define AC_CHARGER_MODE         2
+#define   CW_QUICKSTART         0
 
 extern int dwc_otg_check_dpdm(void);
 extern int get_gadget_connect_flag(void);
@@ -362,6 +363,7 @@ static void cw_update_time_member_capacity_change(struct cw_battery *cw_bat)
         cw_bat->sleep_time_capacity_change = new_sleep_time; 
 }
 
+#if(CW_QUICKSTART)
 static int cw_quickstart(struct cw_battery *cw_bat)
 {
         int ret = 0;
@@ -381,7 +383,7 @@ static int cw_quickstart(struct cw_battery *cw_bat)
         }
         return 1;
 }
-
+#endif
 static int cw_get_capacity(struct cw_battery *cw_bat)
 {
         int cw_capacity;
@@ -1258,7 +1260,6 @@ static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *i
         int irq;
         int irq_flags;
 	int level = 0;
-        int loop = 0;
 
         cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
         if (!cw_bat) {
