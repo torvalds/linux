@@ -6013,31 +6013,9 @@ static bool i9xx_always_on_power_well_enabled(struct drm_i915_private *dev_priv,
 void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 			  enum punit_power_well power_well_id, bool enable)
 {
-	struct drm_device *dev = dev_priv->dev;
 	u32 mask;
 	u32 state;
 	u32 ctrl;
-	enum pipe pipe;
-
-	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC) {
-		if (enable) {
-			/*
-			 * Enable the CRI clock source so we can get at the
-			 * display and the reference clock for VGA
-			 * hotplug / manual detection.
-			 */
-			I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
-				   DPLL_REFA_CLK_ENABLE_VLV |
-				   DPLL_INTEGRATED_CRI_CLK_VLV);
-			udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
-		} else {
-			for_each_pipe(pipe)
-				assert_pll_disabled(dev_priv, pipe);
-			/* Assert common reset */
-			I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) &
-				   ~DPIO_CMNRST);
-		}
-	}
 
 	mask = PUNIT_PWRGT_MASK(power_well_id);
 	state = enable ? PUNIT_PWRGT_PWR_ON(power_well_id) :
@@ -6065,20 +6043,6 @@ void __vlv_set_power_well(struct drm_i915_private *dev_priv,
 
 out:
 	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	/*
-	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
-	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
-	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
-	 *   b.	The other bits such as sfr settings / modesel may all
-	 *	be set to 0.
-	 *
-	 * This should only be done on init and resume from S3 with
-	 * both PLLs disabled, or we risk losing DPIO and PLL
-	 * synchronization.
-	 */
-	if (power_well_id == PUNIT_POWER_WELL_DPIO_CMN_BC && enable)
-		I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
 }
 
 static void vlv_set_power_well(struct drm_i915_private *dev_priv,
@@ -6174,6 +6138,53 @@ static void vlv_display_power_well_disable(struct drm_i915_private *dev_priv,
 	spin_lock_irq(&dev_priv->irq_lock);
 	valleyview_disable_display_irqs(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
+
+	vlv_set_power_well(dev_priv, power_well, false);
+}
+
+static void vlv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
+					   struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
+
+	/*
+	 * Enable the CRI clock source so we can get at the
+	 * display and the reference clock for VGA
+	 * hotplug / manual detection.
+	 */
+	I915_WRITE(DPLL(PIPE_B), I915_READ(DPLL(PIPE_B)) |
+		   DPLL_REFA_CLK_ENABLE_VLV | DPLL_INTEGRATED_CRI_CLK_VLV);
+	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
+
+	vlv_set_power_well(dev_priv, power_well, true);
+
+	/*
+	 * From VLV2A0_DP_eDP_DPIO_driver_vbios_notes_10.docx -
+	 *  6.	De-assert cmn_reset/side_reset. Same as VLV X0.
+	 *   a.	GUnit 0x2110 bit[0] set to 1 (def 0)
+	 *   b.	The other bits such as sfr settings / modesel may all
+	 *	be set to 0.
+	 *
+	 * This should only be done on init and resume from S3 with
+	 * both PLLs disabled, or we risk losing DPIO and PLL
+	 * synchronization.
+	 */
+	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) | DPIO_CMNRST);
+}
+
+static void vlv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
+					    struct i915_power_well *power_well)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum pipe pipe;
+
+	WARN_ON_ONCE(power_well->data != PUNIT_POWER_WELL_DPIO_CMN_BC);
+
+	for_each_pipe(pipe)
+		assert_pll_disabled(dev_priv, pipe);
+
+	/* Assert common reset */
+	I915_WRITE(DPIO_CTL, I915_READ(DPIO_CTL) & ~DPIO_CMNRST);
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
@@ -6426,6 +6437,13 @@ static const struct i915_power_well_ops vlv_display_power_well_ops = {
 	.is_enabled = vlv_power_well_enabled,
 };
 
+static const struct i915_power_well_ops vlv_dpio_cmn_power_well_ops = {
+	.sync_hw = vlv_power_well_sync_hw,
+	.enable = vlv_dpio_cmn_power_well_enable,
+	.disable = vlv_dpio_cmn_power_well_disable,
+	.is_enabled = vlv_power_well_enabled,
+};
+
 static const struct i915_power_well_ops vlv_dpio_power_well_ops = {
 	.sync_hw = vlv_power_well_sync_hw,
 	.enable = vlv_power_well_enable,
@@ -6486,7 +6504,7 @@ static struct i915_power_well vlv_power_wells[] = {
 		.name = "dpio-common",
 		.domains = VLV_DPIO_CMN_BC_POWER_DOMAINS,
 		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
-		.ops = &vlv_dpio_power_well_ops,
+		.ops = &vlv_dpio_cmn_power_well_ops,
 	},
 };
 
