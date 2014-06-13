@@ -4545,19 +4545,22 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 				 int max_pixclk)
 {
+	int vco = valleyview_get_vco(dev_priv);
+	int freq_320 = (vco <<  1) % 320000 != 0 ? 333333 : 320000;
+
 	/*
 	 * Really only a few cases to deal with, as only 4 CDclks are supported:
 	 *   200MHz
 	 *   267MHz
-	 *   320MHz
+	 *   320/333MHz (depends on HPLL freq)
 	 *   400MHz
 	 * So we check to see whether we're above 90% of the lower bin and
 	 * adjust if needed.
 	 */
-	if (max_pixclk > 320000*9/10)
+	if (max_pixclk > freq_320*9/10)
 		return 400000;
 	else if (max_pixclk > 266667*9/10)
-		return 320000;
+		return freq_320;
 	else
 		return 266667;
 	/* Looks like the 200MHz CDclk freq doesn't work on some configs */
