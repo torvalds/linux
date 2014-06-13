@@ -1,13 +1,14 @@
 /*
- * vdso_test.c: Sample code to test parse_vdso.c on x86_64
- * Copyright (c) 2011 Andy Lutomirski
+ * vdso_test.c: Sample code to test parse_vdso.c on x86
+ * Copyright (c) 2011-2014 Andy Lutomirski
  * Subject to the GNU General Public License, version 2
  *
  * You can amuse yourself by compiling with:
  * gcc -std=gnu99 -nostdlib
- *     -Os -fno-asynchronous-unwind-tables -flto
+ *     -Os -fno-asynchronous-unwind-tables -flto -lgcc_s
  *      vdso_standalone_test_x86.c parse_vdso.c
- * to generate a small binary with no dependencies at all.
+ * to generate a small binary.  On x86_64, you can omit -lgcc_s
+ * if you want the binary to be completely standalone.
  */
 
 #include <sys/syscall.h>
@@ -35,21 +36,31 @@ int strcmp(const char *a, const char *b)
 	return 0;
 }
 
-/* ...and two syscalls.  This is x86_64-specific. */
-static inline long linux_write(int fd, const void *data, size_t len)
+/* ...and two syscalls.  This is x86-specific. */
+static inline long x86_syscall3(long nr, long a0, long a1, long a2)
 {
-
 	long ret;
-	asm volatile ("syscall" : "=a" (ret) : "a" (__NR_write),
-		      "D" (fd), "S" (data), "d" (len) :
+#ifdef __x86_64__
+	asm volatile ("syscall" : "=a" (ret) : "a" (nr),
+		      "D" (a0), "S" (a1), "d" (a2) :
 		      "cc", "memory", "rcx",
 		      "r8", "r9", "r10", "r11" );
+#else
+	asm volatile ("int $0x80" : "=a" (ret) : "a" (nr),
+		      "b" (a0), "c" (a1), "d" (a2) :
+		      "cc", "memory" );
+#endif
 	return ret;
+}
+
+static inline long linux_write(int fd, const void *data, size_t len)
+{
+	return x86_syscall3(__NR_write, fd, (long)data, (long)len);
 }
 
 static inline void linux_exit(int code)
 {
-	asm volatile ("syscall" : : "a" (__NR_exit), "D" (code));
+	x86_syscall3(__NR_exit, code, 0, 0);
 }
 
 void to_base10(char *lastdig, uint64_t n)
@@ -104,8 +115,14 @@ __attribute__((externally_visible)) void c_main(void **stack)
 asm (
 	".text\n"
 	".global _start\n"
-        ".type _start,@function\n"
-        "_start:\n\t"
-        "mov %rsp,%rdi\n\t"
-        "jmp c_main"
+	".type _start,@function\n"
+	"_start:\n\t"
+#ifdef __x86_64__
+	"mov %rsp,%rdi\n\t"
+	"jmp c_main"
+#else
+	"push %esp\n\t"
+	"call c_main\n\t"
+	"int $3"
+#endif
 	);
