@@ -184,7 +184,7 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
-	int rc;
+	int rc = 0;
 
 	/* Prevent concurrent online/offline processing and ungrouping. */
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
@@ -196,11 +196,12 @@ static ssize_t ccwgroup_ungroup_store(struct device *dev,
 
 	if (device_remove_file_self(dev, attr))
 		ccwgroup_ungroup(gdev);
+	else
+		rc = -ENODEV;
 out:
 	if (rc) {
-		if (rc != -EAGAIN)
-			/* Release onoff "lock" when ungrouping failed. */
-			atomic_set(&gdev->onoff, 0);
+		/* Release onoff "lock" when ungrouping failed. */
+		atomic_set(&gdev->onoff, 0);
 		return rc;
 	}
 	return count;
