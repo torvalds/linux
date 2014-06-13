@@ -291,7 +291,9 @@ static int au_do_open_sp(struct file *file, int flags)
 	struct super_block *sb;
 	struct file *h_file;
 	struct inode *h_inode;
+	struct au_finfo *finfo;
 
+	finfo = au_fi(file);
 	err = au_fi_sp_add(file);
 	if (unlikely(err))
 		goto out;
@@ -329,6 +331,7 @@ static int au_do_open_sp(struct file *file, int flags)
 
 out_del:
 	au_fi_sp_del(file);
+	file->private_data = finfo;
 out:
 	return err;
 }
