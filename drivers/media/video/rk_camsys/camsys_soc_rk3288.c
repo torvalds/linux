@@ -60,12 +60,12 @@ static int camsys_rk3288_mipiphy0_wr_reg(unsigned char addr, unsigned char data)
     }
     return 0;
 }
-
+#if 0
 static int camsys_rk3288_mipiphy0_rd_reg(unsigned char addr)
 {
     return read_grf_reg(GRF_SOC_STATUS21);
 }
-
+#endif
 static int camsys_rk3288_mipiphy1_wr_reg(unsigned int phy_virt,unsigned char addr, unsigned char data)
 {
     
