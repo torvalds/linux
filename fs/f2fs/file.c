@@ -659,13 +659,13 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	off_start = offset & (PAGE_CACHE_SIZE - 1);
 	off_end = (offset + len) & (PAGE_CACHE_SIZE - 1);
 
+	f2fs_lock_op(sbi);
+
 	for (index = pg_start; index <= pg_end; index++) {
 		struct dnode_of_data dn;
 
-		f2fs_lock_op(sbi);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		ret = f2fs_reserve_block(&dn, index);
-		f2fs_unlock_op(sbi);
 		if (ret)
 			break;
 
@@ -683,8 +683,9 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 		i_size_read(inode) < new_size) {
 		i_size_write(inode, new_size);
 		mark_inode_dirty(inode);
-		f2fs_write_inode(inode, NULL);
+		update_inode_page(inode);
 	}
+	f2fs_unlock_op(sbi);
 
 	return ret;
 }
