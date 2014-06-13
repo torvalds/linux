@@ -43,11 +43,11 @@
 					vsync-active = <1>;
 				};
 			};
-		};
 
-		port {
-			display1_in: endpoint {
-				remote-endpoint = <&ipu_di1_disp1>;
+			port {
+				display1_in: endpoint {
+					remote-endpoint = <&ipu_di1_disp1>;
+				};
 			};
 		};
 	};
