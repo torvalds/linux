@@ -125,7 +125,7 @@ struct compress_sst_ops {
 };
 
 struct sst_ops {
-	int (*open) (struct sst_stream_params *str_param);
+	int (*open) (struct snd_sst_params *str_param);
 	int (*device_control) (int cmd, void *arg);
 	int (*close) (unsigned int str_id);
 };
