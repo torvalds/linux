@@ -976,7 +976,6 @@ nv50_graph_init(struct nouveau_object *object)
 		break;
 	case 0xa0:
 	default:
-		nv_wr32(priv, 0x402cc0, 0x00000000);
 		if (nv_device(priv)->chipset == 0xa0 ||
 		    nv_device(priv)->chipset == 0xaa ||
 		    nv_device(priv)->chipset == 0xac) {
