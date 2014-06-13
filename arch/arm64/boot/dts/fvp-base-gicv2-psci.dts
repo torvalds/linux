@@ -54,7 +54,7 @@
 	psci {
 		compatible = "arm,psci";
 		method = "smc";
-		cpu_suspend = <0xc4000001>;
+		cpu_suspend = <0x84000001>;
 		cpu_off = <0x84000002>;
 		cpu_on = <0xc4000003>;
 	};
@@ -63,12 +63,33 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
+		idle-states {
+			entry-method = "arm,psci";
+
+			CPU_SLEEP_0: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				entry-method-param = <0x0010000>;
+				entry-latency-us = <40>;
+				exit-latency-us = <100>;
+				min-residency-us = <150>;
+			};
+
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "arm,idle-state";
+				entry-method-param = <0x1010000>;
+				entry-latency-us = <500>;
+				exit-latency-us = <1000>;
+				min-residency-us = <2500>;
+			};
+		};
+
 		big0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a57", "arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		big1: cpu@1 {
 			device_type = "cpu";
@@ -76,6 +97,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		big2: cpu@2 {
 			device_type = "cpu";
@@ -83,6 +105,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		big3: cpu@3 {
 			device_type = "cpu";
@@ -90,6 +113,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		little0: cpu@100 {
 			device_type = "cpu";
@@ -97,6 +121,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		little1: cpu@101 {
 			device_type = "cpu";
@@ -104,6 +129,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		little2: cpu@102 {
 			device_type = "cpu";
@@ -111,6 +137,7 @@
 			reg = <0x0 0x102>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 		little3: cpu@103 {
 			device_type = "cpu";
@@ -118,6 +145,7 @@
 			reg = <0x0 0x103>;
 			enable-method = "psci";
 			clock-frequency = <1000000>;
+			cpu-idle-states = <&CPU_SLEEP_0 &CLUSTER_SLEEP_0>;
 		};
 
 		cpu-map {
