@@ -4,6 +4,7 @@
 #include <core/object.h>
 #include <core/subdev.h>
 #include <core/engine.h>
+#include <core/event.h>
 
 enum nv_subdev_type {
 	NVDEV_ENGINE_DEVICE,
@@ -61,6 +62,11 @@ enum nv_subdev_type {
 	NVDEV_SUBDEV_NR,
 };
 
+enum nvkm_device_ntfy {
+	NVKM_DEVICE_NTFY_POWER = 0,
+	NVKM_DEVICE_NTFY
+};
+
 struct nouveau_device {
 	struct nouveau_engine base;
 	struct list_head head;
@@ -68,6 +74,8 @@ struct nouveau_device {
 	struct pci_dev *pdev;
 	struct platform_device *platformdev;
 	u64 handle;
+
+	struct nouveau_event *ntfy;
 
 	const char *cfgopt;
 	const char *dbgopt;
@@ -93,6 +101,10 @@ struct nouveau_device {
 
 	struct nouveau_oclass *oclass[NVDEV_SUBDEV_NR];
 	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
+
+	struct {
+		struct notifier_block nb;
+	} acpi;
 };
 
 static inline struct nouveau_device *

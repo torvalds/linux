@@ -30,6 +30,7 @@
 #include <core/class.h>
 
 #include "priv.h"
+#include "acpi.h"
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
@@ -386,7 +387,7 @@ nouveau_device_fini(struct nouveau_object *object, bool suspend)
 		}
 	}
 
-	ret = 0;
+	ret = nvkm_acpi_fini(device, suspend);
 fail:
 	for (; ret && i < NVDEV_SUBDEV_NR; i++) {
 		if ((subdev = device->subdev[i])) {
@@ -407,7 +408,11 @@ nouveau_device_init(struct nouveau_object *object)
 {
 	struct nouveau_device *device = (void *)object;
 	struct nouveau_object *subdev;
-	int ret, i;
+	int ret, i = 0;
+
+	ret = nvkm_acpi_init(device);
+	if (ret)
+		goto fail;
 
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if ((subdev = device->subdev[i])) {
@@ -430,6 +435,8 @@ fail:
 		}
 	}
 
+	if (ret)
+		nvkm_acpi_fini(device, false);
 	return ret;
 }
 
@@ -437,6 +444,8 @@ static void
 nouveau_device_dtor(struct nouveau_object *object)
 {
 	struct nouveau_device *device = (void *)object;
+
+	nouveau_event_destroy(&device->ntfy);
 
 	mutex_lock(&nv_devices_mutex);
 	list_del(&device->head);
@@ -560,6 +569,8 @@ nouveau_device_create_(void *dev, enum nv_bus_type type, u64 name,
 	nv_subdev(device)->debug = nouveau_dbgopt(device->dbgopt, "DEVICE");
 	nv_engine(device)->sclass = nouveau_device_sclass;
 	list_add(&device->head, &nv_devices);
+
+	ret = nouveau_event_create(1, NVKM_DEVICE_NTFY, &device->ntfy);
 done:
 	mutex_unlock(&nv_devices_mutex);
 	return ret;
