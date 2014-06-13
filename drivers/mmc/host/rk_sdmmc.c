@@ -1371,23 +1371,93 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 
 static void dw_mci_hw_reset(struct mmc_host *mmc)
 {
-    struct dw_mci_slot *slot = mmc_priv(mmc);
+        struct dw_mci_slot *slot = mmc_priv(mmc);
+        struct dw_mci *host = slot->host;
+        u32 cmd_flags, timeout, regs;
+        bool ret = true;
 
-    /* 
-     * According to eMMC spec 
-     * tRstW >= 1us ;   RST_n pulse width
-     * tRSCA >= 200us ; RST_n to Command time
-     * tRSTH >= 1us ;   RST_n high period
-     */
+        /* (1) CMD12 to end any transfer in process */
+        cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC
+			| SDMMC_CMD_RESP_EXP | MMC_STOP_TRANSMISSION;
 
-    mci_writel(slot->host, RST_n, 0x1);
-    dsb();
-    udelay(10); //10us for bad quality eMMc.
+	if(host->mmc->hold_reg_flag)
+		cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
+	mci_writel(host, CMDARG, 0);
+	wmb();
+	mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+	wmb();
+	timeout = jiffies + msecs_to_jiffies(500);
+	while(ret){
+                ret = time_before(jiffies, timeout);
+                if(!(mci_readl(host, CMD) & SDMMC_CMD_START))
+                        break;
+	}
+	
+	if(false == ret)
+		MMC_DBG_ERR_FUNC(host->mmc,
+			"%s dw_mci_hw_reset: STOP_TRANSMISSION failed!!! [%s]\n",
+			__func__, mmc_hostname(host->mmc));
 
-    mci_writel(slot->host, RST_n, 0x0);
-    dsb();
-    usleep_range(300, 1000); //ay least 300(> 200us)
-    
+	/* (2) wait DTO, even if no response is sent back by card */
+	ret = true;
+	timeout = jiffies + msecs_to_jiffies(5);
+	while(ret){
+		ret = time_before(jiffies, timeout);
+		if(!(mci_readl(host, MINTSTS) & SDMMC_INT_DATA_OVER)){
+			mci_writel(host, RINTSTS, SDMMC_INT_DATA_OVER);
+			break;
+		}
+	}
+
+	/* (3) Reset following: DONNOT CHANGE RESET ORDER!*/
+
+	/* Software reset - BMOD[0] for IDMA only */
+	regs = mci_readl(host, BMOD);
+	regs |= SDMMC_IDMAC_SWRESET;
+	mci_writel(host, BMOD, regs);
+	udelay(1); /* Auto cleared after 1 cycle, 1us is enough for hclk_mmc */
+	regs = mci_readl(host, BMOD);
+	if(regs & SDMMC_IDMAC_SWRESET)
+		MMC_DBG_WARN_FUNC(host->mmc,
+			"%s dw_mci_hw_reset: SDMMC_IDMAC_SWRESET failed!!! [%s]\n",
+			__func__, mmc_hostname(host->mmc));
+
+	/* DMA reset - CTRL[2] */
+	regs = mci_readl(host, CTRL);
+	regs |= SDMMC_CTRL_DMA_RESET;
+	mci_writel(host, CTRL, regs);
+	udelay(1); /* Auto cleared after 2 AHB clocks, 1us is enough plus mci_readl access */
+	regs = mci_readl(host, CTRL);
+	if(regs & SDMMC_CTRL_DMA_RESET)
+		MMC_DBG_WARN_FUNC(host->mmc,
+			"%s dw_mci_hw_reset: SDMMC_CTRL_DMA_RESET failed!!! [%s]\n",
+			__func__, mmc_hostname(host->mmc));
+
+	/* FIFO reset - CTRL[1] */
+	regs = mci_readl(host, CTRL);
+	regs |= SDMMC_CTRL_FIFO_RESET;
+	mci_writel(host, CTRL, regs);
+	mdelay(1); /* no timing limited, 1ms is random value */
+	regs = mci_readl(host, CTRL);
+	if(regs & SDMMC_CTRL_FIFO_RESET)
+		MMC_DBG_WARN_FUNC(host->mmc,
+			"%s dw_mci_hw_reset: SDMMC_CTRL_DMA_RESET failed!!! [%s]\n",
+			__func__, mmc_hostname(host->mmc));
+
+	/* (4) CARD_RESET
+	According to eMMC spec
+	tRstW >= 1us ;   RST_n pulse width
+	tRSCA >= 200us ; RST_n to Command time
+	tRSTH >= 1us ;   RST_n high period
+	*/
+
+	mci_writel(slot->host, RST_n, 0x1);
+	dsb();
+	udelay(10); /* 10us for bad quality eMMc. */
+
+	mci_writel(slot->host, RST_n, 0x0);
+	dsb();
+	usleep_range(500, 1000); /* at least 500(> 200us) */
 }
 
 /*
