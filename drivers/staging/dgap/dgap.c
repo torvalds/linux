@@ -684,7 +684,6 @@ static int dgap_found_board(struct pci_dev *pdev, int id, int boardnum)
 	/* store the info for the board we've found */
 	brd->magic = DGAP_BOARD_MAGIC;
 	brd->boardnum = boardnum;
-	brd->firstminor = 0;
 	brd->vendor = dgap_pci_tbl[id].vendor;
 	brd->device = dgap_pci_tbl[id].device;
 	brd->pdev = pdev;
@@ -4168,8 +4167,8 @@ static int dgap_tty_register_ports(struct board_t *brd)
 		struct device *classp;
 
 		classp = tty_port_register_device(&brd->serial_ports[i],
-					brd->serial_driver,
-					brd->firstminor + i, NULL);
+						  brd->serial_driver,
+						  i, NULL);
 
 		if (IS_ERR(classp)) {
 			ret = PTR_ERR(classp);
@@ -4180,8 +4179,8 @@ static int dgap_tty_register_ports(struct board_t *brd)
 		ch->ch_tun.un_sysfs = classp;
 
 		classp = tty_port_register_device(&brd->printer_ports[i],
-					brd->print_driver,
-					brd->firstminor + i, NULL);
+						  brd->print_driver,
+						  i, NULL);
 
 		if (IS_ERR(classp)) {
 			ret = PTR_ERR(classp);

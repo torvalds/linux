@@ -529,7 +529,6 @@ struct macounter {
 struct board_t {
 	int		magic;		/* Board Magic number.  */
 	int		boardnum;	/* Board number: 0-3 */
-	int		firstminor;	/* First minor, e.g. 0, 30, 60 */
 
 	int		type;		/* Type of board */
 	char		*name;		/* Product Name */
