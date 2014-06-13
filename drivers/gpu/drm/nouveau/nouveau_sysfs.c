@@ -68,7 +68,9 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 		if (i < info.count)
 			snappendf(buf, cnt, "%02x:", attr.state);
 		else
-			snappendf(buf, cnt, "--:");
+			snappendf(buf, cnt, "%s:", info.pwrsrc == 0 ? "DC" :
+						   info.pwrsrc == 1 ? "AC" :
+						   "--");
 
 		attr.index = 0;
 		do {
@@ -84,9 +86,20 @@ nouveau_sysfs_pstate_get(struct device *d, struct device_attribute *a, char *b)
 			snappendf(buf, cnt, " %s", attr.unit);
 		} while (attr.index);
 
-		if ((state >= 0 && info.pstate == state) ||
-		    (state <  0 && info.ustate < 0))
-			snappendf(buf, cnt, " *");
+		if (state >= 0) {
+			if (info.ustate_ac == state)
+				snappendf(buf, cnt, " AC");
+			if (info.ustate_dc == state)
+				snappendf(buf, cnt, " DC");
+			if (info.pstate == state)
+				snappendf(buf, cnt, " *");
+		} else {
+			if (info.ustate_ac < -1)
+				snappendf(buf, cnt, " AC");
+			if (info.ustate_dc < -1)
+				snappendf(buf, cnt, " DC");
+		}
+
 		snappendf(buf, cnt, "\n");
 	}
 
@@ -98,23 +111,32 @@ nouveau_sysfs_pstate_set(struct device *d, struct device_attribute *a,
 			 const char *buf, size_t count)
 {
 	struct nouveau_sysfs *sysfs = nouveau_sysfs(drm_device(d));
-	struct nv_control_pstate_user args;
+	struct nv_control_pstate_user args = { .pwrsrc = -EINVAL };
 	long value, ret;
 	char *tmp;
 
 	if ((tmp = strchr(buf, '\n')))
 		*tmp = '\0';
 
+	if (!strncasecmp(buf, "dc:", 3)) {
+		args.pwrsrc = 0;
+		buf += 3;
+	} else
+	if (!strncasecmp(buf, "ac:", 3)) {
+		args.pwrsrc = 1;
+		buf += 3;
+	}
+
 	if (!strcasecmp(buf, "none"))
-		args.state = NV_CONTROL_PSTATE_USER_STATE_UNKNOWN;
+		args.ustate = NV_CONTROL_PSTATE_USER_STATE_UNKNOWN;
 	else
 	if (!strcasecmp(buf, "auto"))
-		args.state = NV_CONTROL_PSTATE_USER_STATE_PERFMON;
+		args.ustate = NV_CONTROL_PSTATE_USER_STATE_PERFMON;
 	else {
 		ret = kstrtol(buf, 16, &value);
 		if (ret)
 			return ret;
-		args.state = value;
+		args.ustate = value;
 	}
 
 	ret = nv_exec(sysfs->ctrl, NV_CONTROL_PSTATE_USER, &args, sizeof(args));

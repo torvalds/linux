@@ -40,15 +40,16 @@ nouveau_control_mthd_pstate_info(struct nouveau_object *object, u32 mthd,
 		return -EINVAL;
 
 	if (clk) {
-		args->count  = clk->state_nr;
-		if (clk->pwrsrc)
-			args->ustate = clk->ustate_ac;
-		else
-			args->ustate = clk->ustate_dc;
+		args->count = clk->state_nr;
+		args->ustate_ac = clk->ustate_ac;
+		args->ustate_dc = clk->ustate_dc;
+		args->pwrsrc = clk->pwrsrc;
 		args->pstate = clk->pstate;
 	} else {
-		args->count  = 0;
-		args->ustate = NV_CONTROL_PSTATE_INFO_USTATE_DISABLE;
+		args->count = 0;
+		args->ustate_ac = NV_CONTROL_PSTATE_INFO_USTATE_DISABLE;
+		args->ustate_dc = NV_CONTROL_PSTATE_INFO_USTATE_DISABLE;
+		args->pwrsrc = -ENOSYS;
 		args->pstate = NV_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN;
 	}
 
@@ -122,11 +123,19 @@ nouveau_control_mthd_pstate_user(struct nouveau_object *object, u32 mthd,
 {
 	struct nouveau_clock *clk = nouveau_clock(object);
 	struct nv_control_pstate_user *args = data;
+	int ret = 0;
 
 	if (size < sizeof(*args) || !clk)
 		return -EINVAL;
 
-	return nouveau_clock_ustate(clk, args->state, clk->pwrsrc);
+	if (args->pwrsrc >= 0) {
+		ret |= nouveau_clock_ustate(clk, args->ustate, args->pwrsrc);
+	} else {
+		ret |= nouveau_clock_ustate(clk, args->ustate, 0);
+		ret |= nouveau_clock_ustate(clk, args->ustate, 1);
+	}
+
+	return ret;
 }
 
 struct nouveau_oclass

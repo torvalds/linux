@@ -148,7 +148,9 @@ struct nv_perfctr_read {
 
 struct nv_control_pstate_info {
 	u32 count; /* out: number of power states */
-	s32 ustate; /* out: current target pstate index */
+	s32 ustate_ac; /* out: target pstate index */
+	s32 ustate_dc; /* out: target pstate index */
+	s32 pwrsrc; /* out: current power source */
 	u32 pstate; /* out: current pstate index */
 };
 
@@ -166,7 +168,8 @@ struct nv_control_pstate_attr {
 };
 
 struct nv_control_pstate_user {
-	s32 state; /*  in: pstate identifier */
+	s32 ustate; /*  in: pstate identifier */
+	s32 pwrsrc; /*  in: target power source */
 };
 
 /* DMA FIFO channel classes
