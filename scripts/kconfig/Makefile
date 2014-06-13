@@ -319,4 +319,3 @@ $(obj)/%.moc: $(src)/%.h $(obj)/.tmp_qtcheck
 $(obj)/gconf.glade.h: $(obj)/gconf.glade
 	$(Q)intltool-extract --type=gettext/glade --srcdir=$(srctree) \
 	$(obj)/gconf.glade
-
