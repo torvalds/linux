@@ -330,8 +330,8 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	eeh_pe_state_mark(phb_pe, EEH_PE_ISOLATED);
 	eeh_serialize_unlock(flags);
 
-	pr_err("EEH: PHB#%x failure detected\n",
-		phb_pe->phb->global_number);
+	pr_err("EEH: PHB#%x failure detected, location: %s\n",
+		phb_pe->phb->global_number, eeh_pe_loc_get(phb_pe));
 	dump_stack();
 	eeh_send_failure_event(phb_pe);
 
@@ -358,10 +358,11 @@ out:
 int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
-	struct eeh_pe *pe;
+	struct eeh_pe *pe, *parent_pe, *phb_pe;
 	int rc = 0;
 	const char *location;
 
@@ -439,12 +440,32 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 */
 	if ((ret < 0) ||
 	    (ret == EEH_STATE_NOT_SUPPORT) ||
-	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
-	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+	    ((ret & active_flags) == active_flags)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
 		goto dn_unlock;
+	}
+
+	/*
+	 * It should be corner case that the parent PE has been
+	 * put into frozen state as well. We should take care
+	 * that at first.
+	 */
+	parent_pe = pe->parent;
+	while (parent_pe) {
+		/* Hit the ceiling ? */
+		if (parent_pe->type & EEH_PE_PHB)
+			break;
+
+		/* Frozen parent PE ? */
+		ret = eeh_ops->get_state(parent_pe, NULL);
+		if (ret > 0 &&
+		    (ret & active_flags) != active_flags)
+			pe = parent_pe;
+
+		/* Next parent level */
+		parent_pe = parent_pe->parent;
 	}
 
 	eeh_stats.slot_resets++;
@@ -460,8 +481,11 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out.
 	 */
-	pr_err("EEH: Frozen PE#%x detected on PHB#%x\n",
-		pe->addr, pe->phb->global_number);
+	phb_pe = eeh_phb_pe_get(pe->phb);
+	pr_err("EEH: Frozen PHB#%x-PE#%x detected\n",
+	       pe->phb->global_number, pe->addr);
+	pr_err("EEH: PE location: %s, PHB location: %s\n",
+	       eeh_pe_loc_get(pe), eeh_pe_loc_get(phb_pe));
 	dump_stack();
 
 	eeh_send_failure_event(pe);
