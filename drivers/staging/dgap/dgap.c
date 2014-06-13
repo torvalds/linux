@@ -188,7 +188,7 @@ static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
 static void dgap_do_conc_load(struct board_t *brd, u8 *uaddr, int len);
 #endif
-static int dgap_after_config_loaded(struct board_t *brd);
+static int dgap_alloc_flipbuf(struct board_t *brd);
 static int dgap_request_irq(struct board_t *brd);
 static void dgap_free_irq(struct board_t *brd);
 
@@ -865,7 +865,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type)
 		kfree(dgap_config_buf);
 	}
 
-	ret = dgap_after_config_loaded(brd);
+	ret = dgap_alloc_flipbuf(brd);
 	if (ret)
 		return ret;
 	/*
@@ -4133,7 +4133,7 @@ static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 }
 
-static int dgap_after_config_loaded(struct board_t *brd)
+static int dgap_alloc_flipbuf(struct board_t *brd)
 {
 	/*
 	 * Initialize KME waitqueues...
