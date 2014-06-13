@@ -414,6 +414,7 @@ static int spdif_probe(struct platform_device *pdev)
 {
 	struct resource *mem_res;
 	struct rockchip_spdif_info *spdif;
+	struct clk *spdif_hclk;
 	int ret;
 
 	RK_SPDIF_DBG("Entered %s\n", __func__);
@@ -434,7 +435,7 @@ static int spdif_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	spdif->clk = clk_get(&pdev->dev, "spdif_mclk");
+	spdif->clk = clk_get(&pdev->dev, "spdif_8ch_mclk");
 	if (IS_ERR(spdif->clk)) {
 		dev_err(&pdev->dev, "Can't retrieve spdif clock\n");
 		return PTR_ERR(spdif->clk);
@@ -443,6 +444,12 @@ static int spdif_probe(struct platform_device *pdev)
 	clk_set_rate(spdif->clk, 11289600);
 	clk_prepare_enable(spdif->clk);
 
+	spdif_hclk = clk_get(&pdev->dev, "spdif_hclk");
+	if(IS_ERR(spdif_hclk) ) {
+		dev_err(&pdev->dev, "get spdif_hclk failed.\n");
+	} else {
+		clk_prepare_enable(spdif_hclk);
+	}
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,

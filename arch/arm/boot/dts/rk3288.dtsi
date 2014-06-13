@@ -810,8 +810,8 @@
 		compatible = "rockchip-spdif";
 		reg = <0xff8b0000 0x10000>;	//8channel
 		//reg = <ff880000 0x10000>;//2channel
-		clocks = <&clk_spdif>, <&clk_spdif_8ch>;
-		clock-names = "spdif_mclk","spdif_8ch_mclk";
+		clocks = <&clk_spdif>, <&clk_spdif_8ch>,<&clk_gates10 11>;
+		clock-names = "spdif_mclk","spdif_8ch_mclk","spdif_hclk";
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma0 3>;
 		//dmas = <&pdma0 2>; //2channel
