@@ -266,18 +266,14 @@ static int cros_ec_command_spi_xfer(struct cros_ec_device *ec_dev,
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 	}
 
-	/* turn off CS */
+	/*
+	 * Turn off CS, possibly adding a delay to ensure the rising edge
+	 * doesn't come too soon after the end of the data.
+	 */
 	spi_message_init(&msg);
-
-	if (ec_spi->end_of_msg_delay) {
-		/*
-		 * Add delay for last transaction, to ensure the rising edge
-		 * doesn't come too soon after the end of the data.
-		 */
-		memset(&trans, 0, sizeof(trans));
-		trans.delay_usecs = ec_spi->end_of_msg_delay;
-		spi_message_add_tail(&trans, &msg);
-	}
+	memset(&trans, 0, sizeof(trans));
+	trans.delay_usecs = ec_spi->end_of_msg_delay;
+	spi_message_add_tail(&trans, &msg);
 
 	final_ret = spi_sync(ec_spi->spi, &msg);
 	ktime_get_ts(&ts);
