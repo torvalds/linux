@@ -721,14 +721,18 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* If mcasp is BCLK master we need to set BCLK divider */
-	if (mcasp->bclk_master) {
+	if (mcasp->bclk_master && mcasp->sysclk_freq) {
 		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
+		unsigned int div = mcasp->sysclk_freq / bclk_freq;
 		if (mcasp->sysclk_freq % bclk_freq != 0) {
-			dev_err(mcasp->dev, "Can't produce required BCLK\n");
-			return -EINVAL;
+			if (((mcasp->sysclk_freq / div) - bclk_freq) >
+			    (bclk_freq - (mcasp->sysclk_freq / (div+1))))
+				div++;
+			dev_warn(mcasp->dev,
+				 "Inaccurate BCLK: %u Hz / %u != %u Hz\n",
+				 mcasp->sysclk_freq, div, bclk_freq);
 		}
-		davinci_mcasp_set_clkdiv(
-			cpu_dai, 1, mcasp->sysclk_freq / bclk_freq);
+		davinci_mcasp_set_clkdiv(cpu_dai, 1, div);
 	}
 
 	ret = mcasp_common_hw_param(mcasp, substream->stream,
