@@ -5159,7 +5159,7 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 			{0x1d, 0x40700001},
 			{0x1e, 0x411111f0},
 		},
-		.value = ALC269_FIXUP_DELL1_MIC_NO_PRESENCE,
+		.value = ALC293_FIXUP_DELL1_MIC_NO_PRESENCE,
 	},
 	{}
 };
