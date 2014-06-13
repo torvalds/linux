@@ -1501,6 +1501,8 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	struct qla_tgt_sess *sess = qla_tgt_sess;
 	unsigned char port_name[36];
 	unsigned long flags;
+	int num_tags = (ha->fw_xcb_count) ? ha->fw_xcb_count :
+		       TCM_QLA2XXX_DEFAULT_TAGS;
 
 	lport = vha->vha_tgt.target_lport_ptr;
 	if (!lport) {
@@ -1518,7 +1520,9 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	}
 	se_tpg = &tpg->se_tpg;
 
-	se_sess = transport_init_session(TARGET_PROT_NORMAL);
+	se_sess = transport_init_session_tags(num_tags,
+					      sizeof(struct qla_tgt_cmd),
+					      TARGET_PROT_NORMAL);
 	if (IS_ERR(se_sess)) {
 		pr_err("Unable to initialize struct se_session\n");
 		return PTR_ERR(se_sess);

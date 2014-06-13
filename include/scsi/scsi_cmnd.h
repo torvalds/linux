@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
+#include <scsi/scsi_device.h>
 
 struct Scsi_Host;
 struct scsi_device;
@@ -313,6 +314,22 @@ static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 {
 	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
+}
+
+static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
+{
+	unsigned int xfer_len = blk_rq_bytes(scmd->request);
+	unsigned int prot_op = scsi_get_prot_op(scmd);
+	unsigned int sector_size = scmd->device->sector_size;
+
+	switch (prot_op) {
+	case SCSI_PROT_NORMAL:
+	case SCSI_PROT_WRITE_STRIP:
+	case SCSI_PROT_READ_INSERT:
+		return xfer_len;
+	}
+
+	return xfer_len + (xfer_len >> ilog2(sector_size)) * 8;
 }
 
 #endif /* _SCSI_SCSI_CMND_H */

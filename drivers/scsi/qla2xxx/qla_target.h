@@ -870,6 +870,12 @@ struct qla_tgt {
 	struct list_head tgt_list_entry;
 };
 
+struct qla_tgt_sess_op {
+	struct scsi_qla_host *vha;
+	struct atio_from_isp atio;
+	struct work_struct work;
+};
+
 /*
  * Equivilant to IT Nexus (Initiator-Target)
  */
