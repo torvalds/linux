@@ -487,6 +487,15 @@
 			clock-output-names = "extal";
 		};
 
+		/* External PCIe clock - can be overridden by the board */
+		pcie_bus_clk: pcie_bus_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			clock-output-names = "pcie_bus";
+			status = "disabled";
+		};
+
 		/*
 		 * The external audio clocks are configured as 0 Hz fixed frequency clocks by
 		 * default. Boards that provide audio clocks should override them.
