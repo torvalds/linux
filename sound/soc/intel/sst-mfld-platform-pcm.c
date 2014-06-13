@@ -1,7 +1,7 @@
 /*
  *  sst_mfld_platform.c - Intel MID Platform driver
  *
- *  Copyright (C) 2010-2013 Intel Corp
+ *  Copyright (C) 2010-2014 Intel Corp
  *  Author: Vinod Koul <vinod.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -27,7 +27,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/compress_driver.h>
+#include <asm/platform_sst_audio.h>
 #include "sst-mfld-platform.h"
+#include "sst-atom-controls.h"
 
 struct sst_device *sst;
 static DEFINE_MUTEX(sst_lock);
@@ -90,6 +92,13 @@ static struct snd_pcm_hardware sst_platform_pcm_hw = {
 	.periods_min = SST_MIN_PERIODS,
 	.periods_max = SST_MAX_PERIODS,
 	.fifo_size = SST_FIFO_SIZE,
+};
+
+static struct sst_dev_stream_map dpcm_strm_map[] = {
+	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, /* Reserved, not in use */
+	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA1_IN, SST_TASK_ID_MEDIA, 0},
+	{MERR_DPCM_COMPR, 0, SNDRV_PCM_STREAM_PLAYBACK, PIPE_MEDIA0_IN, SST_TASK_ID_MEDIA, 0},
+	{MERR_DPCM_AUDIO, 0, SNDRV_PCM_STREAM_CAPTURE, PIPE_PCM1_OUT, SST_TASK_ID_MEDIA, 0},
 };
 
 /* MFLD - MSIC */
@@ -175,11 +184,35 @@ static void sst_fill_pcm_params(struct snd_pcm_substream *substream,
 	memset(param->uc.pcm_params.channel_map, 0, sizeof(u8));
 
 }
-int sst_fill_stream_params(void *substream,
-	struct snd_sst_params *str_params, bool is_compress)
+
+static int sst_get_stream_mapping(int dev, int sdev, int dir,
+	struct sst_dev_stream_map *map, int size)
 {
+	int i;
+
+	if (map == NULL)
+		return -EINVAL;
+
+
+	/* index 0 is not used in stream map */
+	for (i = 1; i < size; i++) {
+		if ((map[i].dev_num == dev) && (map[i].direction == dir))
+			return i;
+	}
+	return 0;
+}
+
+int sst_fill_stream_params(void *substream,
+	const struct sst_data *ctx, struct snd_sst_params *str_params, bool is_compress)
+{
+	int map_size;
+	int index;
+	struct sst_dev_stream_map *map;
 	struct snd_pcm_substream *pstream = NULL;
 	struct snd_compr_stream *cstream = NULL;
+
+	map = ctx->pdata->pdev_strm_map;
+	map_size = ctx->pdata->strm_map_size;
 
 	if (is_compress == true)
 		cstream = (struct snd_compr_stream *)substream;
@@ -189,11 +222,32 @@ int sst_fill_stream_params(void *substream,
 	str_params->stream_type = SST_STREAM_TYPE_MUSIC;
 
 	/* For pcm streams */
-	if (pstream)
-		str_params->ops = (u8)pstream->stream;
-	if (cstream)
-		str_params->ops = (u8)cstream->direction;
+	if (pstream) {
+		index = sst_get_stream_mapping(pstream->pcm->device,
+					  pstream->number, pstream->stream,
+					  map, map_size);
+		if (index <= 0)
+			return -EINVAL;
 
+		str_params->stream_id = index;
+		str_params->device_type = map[index].device_id;
+		str_params->task = map[index].task_id;
+
+		str_params->ops = (u8)pstream->stream;
+	}
+
+	if (cstream) {
+		index = sst_get_stream_mapping(cstream->device->device,
+					       0, cstream->direction,
+					       map, map_size);
+		if (index <= 0)
+			return -EINVAL;
+		str_params->stream_id = index;
+		str_params->device_type = map[index].device_id;
+		str_params->task = map[index].task_id;
+
+		str_params->ops = (u8)cstream->direction;
+	}
 	return 0;
 }
 
@@ -206,6 +260,7 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 	struct snd_sst_params str_params = {0};
 	struct snd_sst_alloc_params_ext alloc_params = {0};
 	int ret_val = 0;
+	struct sst_data *ctx = snd_soc_platform_get_drvdata(platform);
 
 	/* set codec params and inform SST driver the same */
 	sst_fill_pcm_params(substream, &param);
@@ -216,7 +271,7 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 	str_params.codec = SST_CODEC_TYPE_PCM;
 
 	/* fill the device type and stream id to pass to SST driver */
-	ret_val = sst_fill_stream_params(substream, &str_params, false);
+	ret_val = sst_fill_stream_params(substream, ctx, &str_params, false);
 	if (ret_val < 0)
 		return ret_val;
 
@@ -321,7 +376,22 @@ static void sst_media_close(struct snd_pcm_substream *substream,
 		ret_val = stream->ops->close(str_id);
 	module_put(sst->dev->driver->owner);
 	kfree(stream);
-	return;
+}
+
+static inline unsigned int get_current_pipe_id(struct snd_soc_platform *platform,
+					       struct snd_pcm_substream *substream)
+{
+	struct sst_data *sst = snd_soc_platform_get_drvdata(platform);
+	struct sst_dev_stream_map *map = sst->pdata->pdev_strm_map;
+	struct sst_runtime_stream *stream =
+			substream->runtime->private_data;
+	u32 str_id = stream->stream_info.str_id;
+	unsigned int pipe_id;
+	pipe_id = map[str_id].device_id;
+
+	pr_debug("%s: got pipe_id = %#x for str_id = %d\n",
+		 __func__, pipe_id, str_id);
+	return pipe_id;
 }
 
 static int sst_media_prepare(struct snd_pcm_substream *substream,
@@ -498,10 +568,22 @@ static const struct snd_soc_component_driver sst_component = {
 
 static int sst_platform_probe(struct platform_device *pdev)
 {
+	struct sst_data *drv;
 	int ret;
+	struct sst_platform_data *pdata = pdev->dev.platform_data;
 
-	pr_debug("sst_platform_probe called\n");
-	sst = NULL;
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	if (sst == NULL) {
+		pr_err("kzalloc failed\n");
+		return -ENOMEM;
+	}
+
+	pdata->pdev_strm_map = dpcm_strm_map;
+	pdata->strm_map_size = ARRAY_SIZE(dpcm_strm_map);
+	drv->pdata = pdata;
+	mutex_init(&drv->lock);
+	dev_set_drvdata(&pdev->dev, drv);
+
 	ret = snd_soc_register_platform(&pdev->dev, &sst_soc_platform_drv);
 	if (ret) {
 		pr_err("registering soc platform failed\n");
