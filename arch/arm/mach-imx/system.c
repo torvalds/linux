@@ -42,7 +42,7 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
-	if (wdog_clk)
+	if (!IS_ERR(wdog_clk))
 		clk_enable(wdog_clk);
 
 	if (cpu_is_mx1())
@@ -79,13 +79,10 @@ void __init mxc_arch_reset_init(void __iomem *base)
 	wdog_base = base;
 
 	wdog_clk = clk_get_sys("imx2-wdt.0", NULL);
-	if (IS_ERR(wdog_clk)) {
+	if (IS_ERR(wdog_clk))
 		pr_warn("%s: failed to get wdog clock\n", __func__);
-		wdog_clk = NULL;
-		return;
-	}
-
-	clk_prepare(wdog_clk);
+	else
+		clk_prepare(wdog_clk);
 }
 
 void __init mxc_arch_reset_init_dt(void)
@@ -97,13 +94,10 @@ void __init mxc_arch_reset_init_dt(void)
 	WARN_ON(!wdog_base);
 
 	wdog_clk = of_clk_get(np, 0);
-	if (IS_ERR(wdog_clk)) {
+	if (IS_ERR(wdog_clk))
 		pr_warn("%s: failed to get wdog clock\n", __func__);
-		wdog_clk = NULL;
-		return;
-	}
-
-	clk_prepare(wdog_clk);
+	else
+		clk_prepare(wdog_clk);
 }
 
 #ifdef CONFIG_CACHE_L2X0
