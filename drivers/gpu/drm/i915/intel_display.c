@@ -4818,6 +4818,16 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	if (IS_GEN2(dev))
 		intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
 
+	/*
+	 * Vblank time updates from the shadow to live plane control register
+	 * are blocked if the memory self-refresh mode is active at that
+	 * moment. So to make sure the plane gets truly disabled, disable
+	 * first the self-refresh mode. The self-refresh enable bit in turn
+	 * will be checked/applied by the HW only at the next frame start
+	 * event which is after the vblank start event, so we need to have a
+	 * wait-for-vblank between disabling the plane and the pipe.
+	 */
+	intel_set_memory_cxsr(dev_priv, false);
 	intel_crtc_disable_planes(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -4826,9 +4836,10 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	/*
 	 * On gen2 planes are double buffered but the pipe isn't, so we must
 	 * wait for planes to fully turn off before disabling the pipe.
+	 * We also need to wait on all gmch platforms because of the
+	 * self-refresh mode constraint explained above.
 	 */
-	if (IS_GEN2(dev))
-		intel_wait_for_vblank(dev, pipe);
+	intel_wait_for_vblank(dev, pipe);
 
 	intel_disable_pipe(dev_priv, pipe);
 
