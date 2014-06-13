@@ -1460,10 +1460,11 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 #define SEP_EMPTY
 #define PRINT_FLAG(name) info->name ? #name "," : ""
 #define SEP_COMMA ,
-	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x flags="
+	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x rev=0x%02x flags="
 			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
 			 info->gen,
 			 dev_priv->dev->pdev->device,
+			 dev_priv->dev->pdev->revision,
 			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
 #undef PRINT_S
 #undef SEP_EMPTY
