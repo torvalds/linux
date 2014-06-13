@@ -2319,11 +2319,7 @@ intel_dp_get_link_status(struct intel_dp *intel_dp, uint8_t link_status[DP_LINK_
 				       DP_LINK_STATUS_SIZE) == DP_LINK_STATUS_SIZE;
 }
 
-/*
- * These are source-specific values; current Intel hardware supports
- * a maximum voltage of 800mV and a maximum pre-emphasis of 6dB
- */
-
+/* These are source-specific values. */
 static uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
