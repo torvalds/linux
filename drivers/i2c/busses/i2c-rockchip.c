@@ -625,7 +625,6 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 	 */
 	int msleep_time = 400 * 1000 / i2c->scl_rate;	// ms
 	int can_sleep = !(in_atomic() || irqs_disabled());
-	int cpu = smp_processor_id();
 
 	if (i2c->suspended) {
 		dev_err(i2c->dev, "i2c is suspended\n");
@@ -678,6 +677,7 @@ static int rockchip_i2c_doxfer(struct rockchip_i2c *i2c,
 		}
 		timeout = ret;
 	} else {
+		int cpu = raw_smp_processor_id();
 		int tmo = I2C_WAIT_TIMEOUT * USEC_PER_MSEC;
 		while (tmo-- && i2c->is_busy != 0) {
 			spin_unlock_irqrestore(&i2c->lock, flags);
