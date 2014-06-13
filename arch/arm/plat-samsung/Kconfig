@@ -407,16 +407,15 @@ config SAMSUNG_PM_GPIO
 	  Include legacy GPIO power management code for platforms not using
 	  pinctrl-samsung driver.
 
-endif
-
 config SAMSUNG_DMADEV
-	bool
-	select ARM_AMBA
+	bool "Use legacy Samsung DMA abstraction"
+	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S5P64X0 || ARCH_S3C64XX
 	select DMADEVICES
-	select PL330_DMA if (ARCH_EXYNOS5 || ARCH_EXYNOS4 || CPU_S5PV210 || CPU_S5PC100 || \
-					CPU_S5P6450 || CPU_S5P6440)
+	default y
 	help
 	  Use DMA device engine for PL330 DMAC.
+
+endif
 
 config S5P_DEV_MFC
 	bool
