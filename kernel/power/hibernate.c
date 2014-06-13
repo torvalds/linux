@@ -1153,6 +1153,11 @@ static int __init nohibernate_setup(char *str)
 	return 1;
 }
 
+static int __init kaslr_nohibernate_setup(char *str)
+{
+	return nohibernate_setup(str);
+}
+
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
@@ -1160,3 +1165,4 @@ __setup("hibernate=", hibernate_setup);
 __setup("resumewait", resumewait_setup);
 __setup("resumedelay=", resumedelay_setup);
 __setup("nohibernate", nohibernate_setup);
+__setup("kaslr", kaslr_nohibernate_setup);

@@ -289,10 +289,17 @@ unsigned char *choose_kernel_location(unsigned char *input,
 	unsigned long choice = (unsigned long)output;
 	unsigned long random;
 
-	if (cmdline_find_option_bool("nokaslr")) {
-		debug_putstr("KASLR disabled...\n");
+#ifdef CONFIG_HIBERNATION
+	if (!cmdline_find_option_bool("kaslr")) {
+		debug_putstr("KASLR disabled by default...\n");
 		goto out;
 	}
+#else
+	if (cmdline_find_option_bool("nokaslr")) {
+		debug_putstr("KASLR disabled by cmdline...\n");
+		goto out;
+	}
+#endif
 
 	/* Record the various known unsafe memory ranges. */
 	mem_avoid_init((unsigned long)input, input_size,
