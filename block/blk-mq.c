@@ -120,7 +120,7 @@ static void __blk_mq_drain_queue(struct request_queue *q)
 
 		if (count == 0)
 			break;
-		blk_mq_run_queues(q, false);
+		blk_mq_start_hw_queues(q);
 		msleep(10);
 	}
 }
