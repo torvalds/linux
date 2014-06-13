@@ -42,6 +42,9 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 {
 	unsigned int wcr_enable;
 
+	if (!wdog_base)
+		goto reset_fallback;
+
 	if (!IS_ERR(wdog_clk))
 		clk_enable(wdog_clk);
 
@@ -70,6 +73,7 @@ void mxc_restart(enum reboot_mode mode, const char *cmd)
 	/* delay to allow the serial port to show the message */
 	mdelay(50);
 
+reset_fallback:
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);
 }
