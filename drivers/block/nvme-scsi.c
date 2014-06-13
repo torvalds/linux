@@ -239,7 +239,6 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define READ_CAP_16_RESP_SIZE				32
 
 /* NVMe Namespace and Command Defines */
-#define NVME_GET_SMART_LOG_PAGE				0x02
 #define BYTES_TO_DWORDS					4
 #define NVME_MAX_FIRMWARE_SLOT				7
 
@@ -1019,7 +1018,7 @@ static int nvme_trans_log_info_exceptions(struct nvme_ns *ns,
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
 	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) - 1) << 16) | NVME_GET_SMART_LOG_PAGE);
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c = LOG_TEMP_UNKNOWN;
@@ -1087,7 +1086,7 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.common.nsid = cpu_to_le32(0xFFFFFFFF);
 	c.common.prp1 = cpu_to_le64(dma_addr);
 	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
-			BYTES_TO_DWORDS) - 1) << 16) | NVME_GET_SMART_LOG_PAGE);
+			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
 	res = nvme_submit_admin_cmd(dev, &c, NULL);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c_cur = LOG_TEMP_UNKNOWN;
