@@ -2184,6 +2184,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			in certain environments such as networked servers or
 			real-time systems.
 
+	nohibernate	[HIBERNATION] Disable hibernation and resume.
+
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
 			Default: on
@@ -2980,6 +2982,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		noresume	Don't check if there's a hibernation image
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
+		no		Disable hibernation and resume.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 
