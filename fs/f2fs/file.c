@@ -664,11 +664,14 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	for (index = pg_start; index <= pg_end; index++) {
 		struct dnode_of_data dn;
 
+		if (index == pg_end && !off_end)
+			goto noalloc;
+
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		ret = f2fs_reserve_block(&dn, index);
 		if (ret)
 			break;
-
+noalloc:
 		if (pg_start == pg_end)
 			new_size = offset + len;
 		else if (index == pg_start && off_start)
