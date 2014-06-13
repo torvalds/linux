@@ -73,24 +73,27 @@ static void __init rk3188_boot_mode_init(void)
 }
 static void usb_uart_init(void)
 {
-    u32 soc_status0;
+	u32 soc_status0;
+
 	writel_relaxed(0x03100000, RK_GRF_VIRT + RK3188_GRF_UOC0_CON0);
+	soc_status0 = (readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0));
+
 #ifdef CONFIG_RK_USB_UART
-    soc_status0 = (readl_relaxed(RK_GRF_VIRT + RK3188_GRF_SOC_STATUS0));
-    if(!(soc_status0 & (1<<10)) && (soc_status0 & (1<<13)))
-    {
-        writel_relaxed(0x00040004, RK_GRF_VIRT + RK3188_GRF_UOC0_CON2); //software control usb phy enable 
-		writel_relaxed(0x003f002a, RK_GRF_VIRT + RK3188_GRF_UOC0_CON3); //usb phy enter suspend
+	if (!(soc_status0 & (1<<10)) && (soc_status0 & (1<<13))) {
+		/* software control usb phy enable */
+		writel_relaxed(0x00040004, RK_GRF_VIRT + RK3188_GRF_UOC0_CON2);
+		/* usb phy enter suspend */
+		writel_relaxed(0x003f002a, RK_GRF_VIRT + RK3188_GRF_UOC0_CON3);
 		writel_relaxed(0x03000300, RK_GRF_VIRT + RK3188_GRF_UOC0_CON0);
     }    
-#endif // end of CONFIG_RK_USB_UART
+#endif
 }
 
 static void __init rk3188_dt_map_io(void)
 {
 	iotable_init(rk3188_io_desc, ARRAY_SIZE(rk3188_io_desc));
 	debug_ll_io_init();
-    usb_uart_init();
+	usb_uart_init();
 
 	rockchip_soc_id = ROCKCHIP_SOC_RK3188;
 	if (readl_relaxed(RK_ROM_VIRT + 0x27f0) == 0x33313042

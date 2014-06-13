@@ -591,7 +591,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	 */
 	hcc_params = ehci_readl(ehci, &ehci->caps->hcc_params);
 	if (HCC_64BIT_ADDR(hcc_params)) {
-#if CONFIG_ARM64
+#ifdef CONFIG_ARM64
 		ehci_writel(ehci, ehci->periodic_dma >> 32, &ehci->regs->segment);
 		/*
 		 * this is deeply broken on almost all architectures
