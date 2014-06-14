@@ -168,11 +168,11 @@ struct dbll_attrs {
 	 *  These file manipulation functions should be compatible with the
 	 *  "C" run time library functions of the same name.
 	 */
-	 s32(*fread) (void *, size_t, size_t, void *);
-	 s32(*fseek) (void *, long, int);
-	 s32(*ftell) (void *);
-	 s32(*fclose) (void *);
-	void *(*fopen) (const char *, const char *);
+	 s32 (*fread)(void *ptr, size_t size, size_t count, void *filp);
+	 s32 (*fseek)(void *filp, long offset, int origin);
+	 s32 (*ftell)(void *filp);
+	 s32 (*fclose)(void *filp);
+	 void *(*fopen)(const char *path, const char *mode);
 };
 
 /*
