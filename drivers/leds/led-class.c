@@ -15,10 +15,10 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
-#include <linux/timer.h>
 #include <linux/err.h>
 #include <linux/ctype.h>
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 #include "leds.h"
 
 static struct class *leds_class;
@@ -97,9 +97,10 @@ static const struct attribute_group *led_groups[] = {
 	NULL,
 };
 
-static void led_timer_function(unsigned long data)
+static void led_work_function(struct work_struct *ws)
 {
-	struct led_classdev *led_cdev = (void *)data;
+	struct led_classdev *led_cdev =
+		container_of(ws, struct led_classdev, blink_work.work);
 	unsigned long brightness;
 	unsigned long delay;
 
@@ -143,7 +144,8 @@ static void led_timer_function(unsigned long data)
 		}
 	}
 
-	mod_timer(&led_cdev->blink_timer, jiffies + msecs_to_jiffies(delay));
+	queue_delayed_work(system_wq, &led_cdev->blink_work,
+			   msecs_to_jiffies(delay));
 }
 
 static void set_brightness_delayed(struct work_struct *ws)
@@ -231,9 +233,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 
 	INIT_WORK(&led_cdev->set_brightness_work, set_brightness_delayed);
 
-	init_timer(&led_cdev->blink_timer);
-	led_cdev->blink_timer.function = led_timer_function;
-	led_cdev->blink_timer.data = (unsigned long)led_cdev;
+	INIT_DELAYED_WORK(&led_cdev->blink_work, led_work_function);
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	led_trigger_set_default(led_cdev);
