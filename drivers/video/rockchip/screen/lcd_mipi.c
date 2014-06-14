@@ -71,6 +71,8 @@ static void rk_mipi_screen_pwr_disable(struct mipi_screen *screen)
 static void rk_mipi_screen_pwr_enable(struct mipi_screen *screen)
 {   
 	if(screen->lcd_en_gpio != INVALID_GPIO){
+		gpio_direction_output(screen->lcd_en_gpio, !screen->lcd_en_atv_val);
+		msleep(screen->lcd_en_delay);
 		gpio_direction_output(screen->lcd_en_gpio, screen->lcd_en_atv_val);
 		msleep(screen->lcd_en_delay);
 	}

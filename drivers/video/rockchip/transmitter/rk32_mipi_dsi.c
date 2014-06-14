@@ -195,7 +195,7 @@ static int rk32_dsi_set_bits(struct dsi *dsi, u32 data, u32 reg)
 	
 	return 0;
 }
-
+#if 0
 static int rk32_dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 {
 	int val = 0;
@@ -212,7 +212,7 @@ static int rk32_dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 
 	return val;
 }
-
+#endif
 static int rk32_dwc_phy_test_wr(struct dsi *dsi, unsigned char test_code, unsigned char *test_data, unsigned char size)
 {
 	int i = 0;
@@ -1060,7 +1060,7 @@ int reg_proc_write(struct file *file, const char __user *buff, size_t count, lof
 						MIPI_TRACE("payload entry is larger than 32\n");
 						break;
 					}	
-					sscanf(data, "%x,", str + i);   //-c 1,29,02,03,05,06,> pro
+					sscanf(data, "%x,", (unsigned int *)(str + i));   //-c 1,29,02,03,05,06,> pro
 					data = strstr(data, ",");
 					if(data == NULL)
 						break;
@@ -1200,7 +1200,7 @@ int reg_proc_write1(struct file *file, const char __user *buff, size_t count, lo
 						MIPI_TRACE("payload entry is larger than 32\n");
 						break;
 					}	
-					sscanf(data, "%x,", str + i);   //-c 1,29,02,03,05,06,> pro
+					sscanf(data, "%x,", (unsigned int *)(str + i));   //-c 1,29,02,03,05,06,> pro
 					data = strstr(data, ",");
 					if(data == NULL)
 						break;
@@ -1267,7 +1267,7 @@ struct file_operations reg_proc_fops1 = {
 	.read   = reg_proc_read1,
 };
 #endif
-#ifdef CONFIG_MIPI_DSI_LINUX
+#if 0//def CONFIG_MIPI_DSI_LINUX
 static irqreturn_t rk32_mipi_dsi_irq_handler(int irq, void *data)
 {
 	printk("-------rk32_mipi_dsi_irq_handler-------\n");
@@ -1294,13 +1294,11 @@ int rk32_dsi_sync(void)
 }
 
 #endif
+#if 0
 static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 {
     int val = 0;
 
-
-
-     
     rk32_dsi_set_bits(dsi, 0x10000 | test_code, PHY_TEST_CTRL1);
     rk32_dsi_set_bits(dsi, 0x2, PHY_TEST_CTRL0);
     rk32_dsi_set_bits(dsi, 0x0, PHY_TEST_CTRL0);
@@ -1310,7 +1308,7 @@ static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 
     return val;
 }
-
+#endif
 static int rk32_dsi_enable(void)
 {
 	MIPI_DBG("rk32_dsi_enable-------\n");
@@ -1524,7 +1522,7 @@ int rk32_mipi_enable(vidinfo_t *vid)
 	
 }
 #endif
-int rk32_mipi_power_down_DDR()
+int rk32_mipi_power_down_DDR(void)
 {	
 	dsi_is_enable(0, 0);	
 	if (rk_mipi_get_dsi_num() ==2)	    
@@ -1532,7 +1530,7 @@ int rk32_mipi_power_down_DDR()
 	return 0;   
 }
 EXPORT_SYMBOL(rk32_mipi_power_down_DDR);
-int rk32_mipi_power_up_DDR()
+int rk32_mipi_power_up_DDR(void)
 {	
 	dsi_is_enable(0, 0);	
 	if (rk_mipi_get_dsi_num() ==2)	    
