@@ -2857,15 +2857,6 @@ static int get_tree_block_key(struct reloc_control *rc,
 	return 0;
 }
 
-static int reada_tree_block(struct reloc_control *rc,
-			    struct tree_block *block)
-{
-	BUG_ON(block->key_ready);
-	readahead_tree_block(rc->extent_root, block->bytenr,
-			block->key.objectid);
-	return 0;
-}
-
 /*
  * helper function to relocate a tree block
  */
@@ -2945,7 +2936,8 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	while (rb_node) {
 		block = rb_entry(rb_node, struct tree_block, rb_node);
 		if (!block->key_ready)
-			reada_tree_block(rc, block);
+			readahead_tree_block(rc->extent_root, block->bytenr,
+					block->key.objectid);
 		rb_node = rb_next(rb_node);
 	}
 
