@@ -130,7 +130,7 @@ typedef s32(*dbll_seek_fxn) (void *, long, int);
  *      FALSE:          Failed to find symbol.
  */
 typedef bool(*dbll_sym_lookup) (void *handle, void *parg, void *rmm_handle,
-				const char *name, struct dbll_sym_val ** sym);
+				const char *name, struct dbll_sym_val **sym);
 
 /*
  *  ======== dbll_tell_fxn ========
@@ -309,7 +309,7 @@ typedef bool(*dbll_get_c_addr_fxn) (struct dbll_library_obj *lib, char *name,
  *  Ensures:
  */
 typedef int(*dbll_get_sect_fxn) (struct dbll_library_obj *lib,
-					char *name, u32 * addr, u32 * size);
+					char *name, u32 *addr, u32 *size);
 
 /*
  *  ======== dbll_init ========
