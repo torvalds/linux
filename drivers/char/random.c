@@ -548,9 +548,9 @@ static void mix_pool_bytes(struct entropy_store *r, const void *in,
 struct fast_pool {
 	__u32		pool[4];
 	unsigned long	last;
-	unsigned short	count;
+	unsigned char	count;
+	unsigned char	notimer_count;
 	unsigned char	rotate;
-	unsigned char	last_timer_intr;
 };
 
 /*
@@ -850,15 +850,23 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	input[3] = ip >> 32;
 
 	fast_mix(fast_pool, input);
+	if ((irq_flags & __IRQF_TIMER) == 0)
+		fast_pool->notimer_count++;
 
-	if ((fast_pool->count & 63) && !time_after(now, fast_pool->last + HZ))
-		return;
+	if (cycles) {
+		if ((fast_pool->count < 64) &&
+		    !time_after(now, fast_pool->last + HZ))
+			return;
+	} else {
+		/* CPU does not have a cycle counting register :-( */
+		if (fast_pool->count < 64)
+			return;
+	}
 
 	r = nonblocking_pool.initialized ? &input_pool : &nonblocking_pool;
-	if (!spin_trylock(&r->lock)) {
-		fast_pool->count--;
+	if (!spin_trylock(&r->lock))
 		return;
-	}
+
 	fast_pool->last = now;
 	__mix_pool_bytes(r, &fast_pool->pool, sizeof(fast_pool->pool));
 
@@ -874,19 +882,15 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	spin_unlock(&r->lock);
 
 	/*
-	 * If we don't have a valid cycle counter, and we see
-	 * back-to-back timer interrupts, then skip giving credit for
-	 * any entropy, otherwise credit 1 bit.
+	 * If we have a valid cycle counter or if the majority of
+	 * interrupts collected were non-timer interrupts, then give
+	 * an entropy credit of 1 bit.  Yes, this is being very
+	 * conservative.
 	 */
-	credit++;
-	if (cycles == 0) {
-		if (irq_flags & __IRQF_TIMER) {
-			if (fast_pool->last_timer_intr)
-				credit--;
-			fast_pool->last_timer_intr = 1;
-		} else
-			fast_pool->last_timer_intr = 0;
-	}
+	if (cycles || (fast_pool->notimer_count >= 32))
+		credit++;
+
+	fast_pool->count = fast_pool->notimer_count = 0;
 
 	credit_entropy_bits(r, credit);
 }
