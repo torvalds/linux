@@ -454,7 +454,7 @@ static bool handle_mmio_set_pending_reg(struct kvm_vcpu *vcpu,
 					struct kvm_exit_mmio *mmio,
 					phys_addr_t offset)
 {
-	u32 *reg;
+	u32 *reg, orig;
 	u32 level_mask;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
@@ -463,6 +463,7 @@ static bool handle_mmio_set_pending_reg(struct kvm_vcpu *vcpu,
 
 	/* Mark both level and edge triggered irqs as pending */
 	reg = vgic_bitmap_get_reg(&dist->irq_pending, vcpu->vcpu_id, offset);
+	orig = *reg;
 	vgic_reg_access(mmio, reg, offset,
 			ACCESS_READ_VALUE | ACCESS_WRITE_SETBIT);
 
@@ -473,6 +474,12 @@ static bool handle_mmio_set_pending_reg(struct kvm_vcpu *vcpu,
 		vgic_reg_access(mmio, reg, offset,
 				ACCESS_READ_VALUE | ACCESS_WRITE_SETBIT);
 		*reg &= level_mask;
+
+		/* Ignore writes to SGIs */
+		if (offset < 2) {
+			*reg &= ~0xffff;
+			*reg |= orig & 0xffff;
+		}
 
 		vgic_update_state(vcpu->kvm);
 		return true;
@@ -486,10 +493,11 @@ static bool handle_mmio_clear_pending_reg(struct kvm_vcpu *vcpu,
 					  phys_addr_t offset)
 {
 	u32 *level_active;
-	u32 *reg;
+	u32 *reg, orig;
 	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
 
 	reg = vgic_bitmap_get_reg(&dist->irq_pending, vcpu->vcpu_id, offset);
+	orig = *reg;
 	vgic_reg_access(mmio, reg, offset,
 			ACCESS_READ_VALUE | ACCESS_WRITE_CLEARBIT);
 	if (mmio->is_write) {
@@ -499,6 +507,12 @@ static bool handle_mmio_clear_pending_reg(struct kvm_vcpu *vcpu,
 		reg = vgic_bitmap_get_reg(&dist->irq_pending,
 					  vcpu->vcpu_id, offset);
 		*reg |= *level_active;
+
+		/* Ignore writes to SGIs */
+		if (offset < 2) {
+			*reg &= ~0xffff;
+			*reg |= orig & 0xffff;
+		}
 
 		/* Clear soft-pending flags */
 		reg = vgic_bitmap_get_reg(&dist->irq_soft_pend,
