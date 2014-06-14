@@ -94,6 +94,7 @@ struct controller {
 	u32 slot_cap;
 	u32 slot_ctrl;
 	struct timer_list poll_timer;
+	unsigned long cmd_started;	/* jiffies */
 	unsigned int cmd_busy:1;
 	unsigned int no_cmd_complete:1;
 	unsigned int link_active_reporting:1;

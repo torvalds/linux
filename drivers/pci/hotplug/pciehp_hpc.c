@@ -104,11 +104,10 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 		free_irq(ctrl->pcie->irq, ctrl);
 }
 
-static int pcie_poll_cmd(struct controller *ctrl)
+static int pcie_poll_cmd(struct controller *ctrl, int timeout)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
 	u16 slot_status;
-	int timeout = 1000;
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
 	if (slot_status & PCI_EXP_SLTSTA_CC) {
@@ -132,7 +131,9 @@ static int pcie_poll_cmd(struct controller *ctrl)
 static void pcie_wait_cmd(struct controller *ctrl)
 {
 	unsigned int msecs = pciehp_poll_mode ? 2500 : 1000;
-	unsigned long timeout = msecs_to_jiffies(msecs);
+	unsigned long duration = msecs_to_jiffies(msecs);
+	unsigned long cmd_timeout = ctrl->cmd_started + duration;
+	unsigned long now, timeout;
 	int rc;
 
 	/*
@@ -145,13 +146,34 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	if (!ctrl->cmd_busy)
 		return;
 
+	/*
+	 * Even if the command has already timed out, we want to call
+	 * pcie_poll_cmd() so it can clear PCI_EXP_SLTSTA_CC.
+	 */
+	now = jiffies;
+	if (time_before_eq(cmd_timeout, now))
+		timeout = 1;
+	else
+		timeout = cmd_timeout - now;
+
 	if (ctrl->slot_ctrl & PCI_EXP_SLTCTL_HPIE &&
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
 	else
-		rc = pcie_poll_cmd(ctrl);
+		rc = pcie_poll_cmd(ctrl, timeout);
+
+	/*
+	 * Controllers with errata like Intel CF118 don't generate
+	 * completion notifications unless the power/indicator/interlock
+	 * control bits are changed.  On such controllers, we'll emit this
+	 * timeout message when we wait for completion of commands that
+	 * don't change those bits, e.g., commands that merely enable
+	 * interrupts.
+	 */
 	if (!rc)
-		ctrl_dbg(ctrl, "Command not completed in 1000 msec\n");
+		ctrl_info(ctrl, "Timeout on hotplug command %#010x (issued %u msec ago)\n",
+			  ctrl->slot_ctrl,
+			  jiffies_to_msecs(now - ctrl->cmd_started));
 }
 
 /**
@@ -201,6 +223,7 @@ static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	ctrl->cmd_busy = 1;
 	smp_mb();
 	pcie_capability_write_word(pdev, PCI_EXP_SLTCTL, slot_ctrl);
+	ctrl->cmd_started = jiffies;
 	ctrl->slot_ctrl = slot_ctrl;
 
 	mutex_unlock(&ctrl->ctrl_lock);
