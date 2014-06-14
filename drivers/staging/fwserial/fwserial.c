@@ -2615,7 +2615,6 @@ cleanup:
 	if (port)
 		fwserial_release_port(port, false);
 	kfree(pkt);
-	return;
 }
 
 static void fwserial_handle_unplug_req(struct work_struct *work)
@@ -2667,7 +2666,6 @@ cleanup:
 	if (port)
 		fwserial_release_port(port, true);
 	kfree(pkt);
-	return;
 }
 
 static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
