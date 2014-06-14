@@ -185,37 +185,12 @@ static void pcie_wait_cmd(struct controller *ctrl)
 static void pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 {
 	struct pci_dev *pdev = ctrl_dev(ctrl);
-	u16 slot_status;
 	u16 slot_ctrl;
 
 	mutex_lock(&ctrl->ctrl_lock);
 
 	/* Wait for any previous command that might still be in progress */
 	pcie_wait_cmd(ctrl);
-
-	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &slot_status);
-	if (slot_status & PCI_EXP_SLTSTA_CC) {
-		pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
-					   PCI_EXP_SLTSTA_CC);
-		if (!ctrl->no_cmd_complete) {
-			/*
-			 * After 1 sec and CMD_COMPLETED still not set, just
-			 * proceed forward to issue the next command according
-			 * to spec. Just print out the error message.
-			 */
-			ctrl_dbg(ctrl, "CMD_COMPLETED not clear after 1 sec\n");
-		} else if (!NO_CMD_CMPL(ctrl)) {
-			/*
-			 * This controller seems to notify of command completed
-			 * event even though it supports none of power
-			 * controller, attention led, power led and EMI.
-			 */
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to wait for command completed event\n");
-			ctrl->no_cmd_complete = 0;
-		} else {
-			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe the controller is broken\n");
-		}
-	}
 
 	pcie_capability_read_word(pdev, PCI_EXP_SLTCTL, &slot_ctrl);
 	slot_ctrl &= ~mask;
@@ -796,14 +771,14 @@ struct controller *pcie_init(struct pcie_device *dev)
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
+
 	/*
 	 * Controller doesn't notify of command completion if the "No
-	 * Command Completed Support" bit is set in Slot Capability
-	 * register or the controller supports none of power
-	 * controller, attention led, power led and EMI.
+	 * Command Completed Support" bit is set in Slot Capabilities.
+	 * If set, it means the controller can accept hotplug commands
+	 * with no delay between them.
 	 */
-	if (NO_CMD_CMPL(ctrl) ||
-	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
+	if (NO_CMD_CMPL(ctrl))
 		ctrl->no_cmd_complete = 1;
 
 	/* Check if Data Link Layer Link Active Reporting is implemented */
