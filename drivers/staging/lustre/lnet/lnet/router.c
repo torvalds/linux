@@ -866,7 +866,6 @@ lnet_create_rc_data_locked(lnet_peer_t *gateway)
 	if (pi == NULL)
 		goto out;
 
-	memset(pi, 0, LNET_PINGINFO_SIZE);
 	for (i = 0; i < LNET_MAX_RTR_NIS; i++) {
 		pi->pi_ni[i].ns_nid = LNET_NID_ANY;
 		pi->pi_ni[i].ns_status = LNET_NI_STATUS_INVALID;

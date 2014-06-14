@@ -113,8 +113,6 @@ ksocknal_create_peer (ksock_peer_t **peerp, lnet_ni_t *ni, lnet_process_id_t id)
 	if (peer == NULL)
 		return -ENOMEM;
 
-	memset (peer, 0, sizeof (*peer));       /* NULL pointers/clear flags etc */
-
 	peer->ksnp_ni = ni;
 	peer->ksnp_id = id;
 	atomic_set (&peer->ksnp_refcount, 1);   /* 1 ref for caller */
@@ -1039,8 +1037,6 @@ ksocknal_create_conn (lnet_ni_t *ni, ksock_route_t *route,
 		rc = -ENOMEM;
 		goto failed_0;
 	}
-
-	memset (conn, 0, sizeof (*conn));
 
 	conn->ksnc_peer = NULL;
 	conn->ksnc_route = NULL;

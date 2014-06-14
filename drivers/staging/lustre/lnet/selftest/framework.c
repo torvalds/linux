@@ -149,7 +149,6 @@ sfw_register_test (srpc_service_t *service, sfw_test_client_ops_t *cliops)
 	if (tsc == NULL)
 		return -ENOMEM;
 
-	memset(tsc, 0, sizeof(sfw_test_case_t));
 	tsc->tsc_cli_ops     = cliops;
 	tsc->tsc_srv_service = service;
 
@@ -747,7 +746,6 @@ sfw_add_test_instance (sfw_batch_t *tsb, srpc_server_rpc_t *rpc)
 		return -ENOMEM;
 	}
 
-	memset(tsi, 0, sizeof(*tsi));
 	spin_lock_init(&tsi->tsi_lock);
 	atomic_set(&tsi->tsi_nactive, 0);
 	INIT_LIST_HEAD(&tsi->tsi_units);

@@ -2430,8 +2430,6 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 		return -ENOMEM;
 	}
 
-	memset(hdev->ibh_mrs, 0, sizeof(*hdev->ibh_mrs) * hdev->ibh_nmrs);
-
 	for (i = 0; i < hdev->ibh_nmrs; i++) {
 		struct ib_phys_buf ipb;
 		__u64	      iova;
@@ -2704,7 +2702,6 @@ kiblnd_create_dev(char *ifname)
 	if (dev == NULL)
 		return NULL;
 
-	memset(dev, 0, sizeof(*dev));
 	netdev = dev_get_by_name(&init_net, ifname);
 	if (netdev == NULL) {
 		dev->ibd_can_failover = 0;
@@ -3087,8 +3084,6 @@ kiblnd_startup (lnet_ni_t *ni)
 	ni->ni_data = net;
 	if (net == NULL)
 		goto failed;
-
-	memset(net, 0, sizeof(*net));
 
 	do_gettimeofday(&tv);
 	net->ibn_incarnation = (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;

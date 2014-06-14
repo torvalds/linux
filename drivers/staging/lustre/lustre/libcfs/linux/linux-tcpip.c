@@ -183,8 +183,6 @@ libcfs_ipif_enumerate (char ***namesp)
 		rc = -ENOMEM;
 		goto out1;
 	}
-	/* NULL out all names[i] */
-	memset (names, 0, nfound * sizeof(*names));
 
 	for (i = 0; i < nfound; i++) {
 

@@ -204,9 +204,6 @@ lstcon_group_alloc(char *name, lstcon_group_t **grpp)
 	if (grp == NULL)
 		return -ENOMEM;
 
-	memset(grp, 0, offsetof(lstcon_group_t,
-				grp_ndl_hash[LST_NODE_HASHSIZE]));
-
 	grp->grp_ref = 1;
 	if (name != NULL)
 		strcpy(grp->grp_name, name);
@@ -815,8 +812,6 @@ lstcon_group_info(char *name, lstcon_ndlist_ent_t *gents_p,
 		return -ENOMEM;
 	}
 
-	memset(gentp, 0, sizeof(lstcon_ndlist_ent_t));
-
 	list_for_each_entry(ndl, &grp->grp_ndl_list, ndl_link)
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, gentp);
 
@@ -970,8 +965,6 @@ lstcon_batch_info(char *name, lstcon_test_batch_ent_t *ent_up, int server,
 	LIBCFS_ALLOC(entp, sizeof(lstcon_test_batch_ent_t));
 	if (entp == NULL)
 		return -ENOMEM;
-
-	memset(entp, 0, sizeof(lstcon_test_batch_ent_t));
 
 	if (test == NULL) {
 		entp->u.tbe_batch.bae_ntest = bat->bat_ntest;
@@ -1319,7 +1312,6 @@ lstcon_test_add(char *batch_name, int type, int loop,
 		goto out;
 	}
 
-	memset(test, 0, offsetof(lstcon_test_t, tes_param[paramlen]));
 	test->tes_hdr.tsb_id	= batch->bat_hdr.tsb_id;
 	test->tes_batch		= batch;
 	test->tes_type		= type;
@@ -1788,8 +1780,6 @@ lstcon_session_info(lst_sid_t *sid_up, int *key_up, unsigned *featp,
 	LIBCFS_ALLOC(entp, sizeof(*entp));
 	if (entp == NULL)
 		return -ENOMEM;
-
-	memset(entp, 0, sizeof(*entp));
 
 	list_for_each_entry(ndl, &console_session.ses_ndl_list, ndl_link)
 		LST_NODE_STATE_COUNTER(ndl->ndl_node, entp);
