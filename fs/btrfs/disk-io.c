@@ -1324,8 +1324,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root->root_key.offset = 0;
 
-	leaf = btrfs_alloc_free_block(trans, root, root->nodesize,
-				      0, objectid, NULL, 0, 0, 0);
+	leaf = btrfs_alloc_tree_block(trans, root, 0, objectid, NULL, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
 		leaf = NULL;
@@ -1412,9 +1411,8 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	 * updated (along with back refs to the log tree).
 	 */
 
-	leaf = btrfs_alloc_free_block(trans, root, root->nodesize, 0,
-				      BTRFS_TREE_LOG_OBJECTID, NULL,
-				      0, 0, 0);
+	leaf = btrfs_alloc_tree_block(trans, root, 0, BTRFS_TREE_LOG_OBJECTID,
+			NULL, 0, 0, 0);
 	if (IS_ERR(leaf)) {
 		kfree(root);
 		return ERR_CAST(leaf);

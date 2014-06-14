@@ -7322,8 +7322,8 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
  *
  * returns the tree buffer or NULL.
  */
-struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					struct btrfs_root *root, u32 blocksize,
+struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
+					struct btrfs_root *root,
 					u64 parent, u64 root_objectid,
 					struct btrfs_disk_key *key, int level,
 					u64 hint, u64 empty_size)
@@ -7333,6 +7333,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	struct extent_buffer *buf;
 	u64 flags = 0;
 	int ret;
+	u32 blocksize = root->nodesize;
 	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
 						 SKINNY_METADATA);
 
