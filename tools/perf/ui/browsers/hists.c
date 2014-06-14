@@ -26,6 +26,7 @@ struct hist_browser {
 	struct map_symbol   *selection;
 	int		     print_seq;
 	bool		     show_dso;
+	bool		     show_headers;
 	float		     min_pcnt;
 	u64		     nr_non_filtered_entries;
 	u64		     nr_callchain_rows;
@@ -56,6 +57,21 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	return nr_entries + hb->nr_callchain_rows;
 }
 
+static void hist_browser__update_rows(struct hist_browser *hb)
+{
+	struct ui_browser *browser = &hb->b;
+	u16 header_offset = hb->show_headers ? 1 : 0, index_row;
+
+	browser->rows = browser->height - header_offset;
+	/*
+	 * Verify if we were at the last line and that line isn't
+	 * visibe because we now show the header line(s).
+	 */
+	index_row = browser->index - browser->top_idx;
+	if (index_row >= browser->rows)
+		browser->index -= index_row - browser->rows + 1;
+}
+
 static void hist_browser__refresh_dimensions(struct ui_browser *browser)
 {
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
@@ -69,11 +85,14 @@ static void hist_browser__refresh_dimensions(struct ui_browser *browser)
  	 *	  changeset.
  	 */
 	ui_browser__refresh_dimensions(browser);
+	hist_browser__update_rows(hb);
 }
 
 static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
 {
-	ui_browser__gotorc(&browser->b, row, column);
+	u16 header_offset = browser->show_headers ? 1 : 0;
+
+	ui_browser__gotorc(&browser->b, row + header_offset, column);
 }
 
 static void hist_browser__reset(struct hist_browser *browser)
@@ -420,6 +439,10 @@ static int hist_browser__run(struct hist_browser *browser,
 		case 'E':
 			/* Expand the whole world. */
 			hist_browser__set_folding(browser, true);
+			break;
+		case 'H':
+			browser->show_headers = !browser->show_headers;
+			hist_browser__update_rows(browser);
 			break;
 		case K_ENTER:
 			if (hist_browser__toggle_fold(browser))
@@ -799,6 +822,13 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	return printed;
 }
 
+static void hist_browser__show_headers(struct hist_browser *browser)
+{
+	ui_browser__gotorc(&browser->b, 0, 0);
+	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+	slsmg_write_nstring(" ", browser->b.width + 1);
+}
+
 static void ui_browser__hists_init_top(struct ui_browser *browser)
 {
 	if (browser->top == NULL) {
@@ -812,8 +842,14 @@ static void ui_browser__hists_init_top(struct ui_browser *browser)
 static unsigned int hist_browser__refresh(struct ui_browser *browser)
 {
 	unsigned row = 0;
+	u16 header_offset = 0;
 	struct rb_node *nd;
 	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
+
+	if (hb->show_headers) {
+		hist_browser__show_headers(hb);
+		header_offset = 1;
+	}
 
 	ui_browser__hists_init_top(browser);
 
@@ -833,7 +869,7 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			break;
 	}
 
-	return row;
+	return row + header_offset;
 }
 
 static struct rb_node *hists__filter_entries(struct rb_node *nd,
@@ -1205,6 +1241,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		browser->b.refresh_dimensions = hist_browser__refresh_dimensions;
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
+		browser->show_headers = false;
 	}
 
 	return browser;
@@ -1434,6 +1471,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"d             Zoom into current DSO\n"				\
 	"E             Expand all callchains\n"				\
 	"F             Toggle percentage of filtered entries\n"		\
+	"H             Display column headers\n"			\
 
 	/* help messages are sorted by lexical order of the hotkey */
 	const char report_help[] = HIST_BROWSER_HELP_COMMON
