@@ -1138,12 +1138,12 @@ int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
 }
 
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
-				      u32 blocksize, u64 parent_transid)
+				      u64 parent_transid)
 {
 	struct extent_buffer *buf = NULL;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
 	if (!buf)
 		return NULL;
 
@@ -1484,7 +1484,6 @@ static struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_path *path;
 	u64 generation;
-	u32 blocksize;
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -1509,9 +1508,8 @@ static struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 	}
 
 	generation = btrfs_root_generation(&root->root_item);
-	blocksize = root->nodesize;
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
-				     blocksize, generation);
+				     generation);
 	if (!root->node) {
 		ret = -ENOMEM;
 		goto find_fail;
@@ -2139,7 +2137,6 @@ int open_ctree(struct super_block *sb,
 {
 	u32 sectorsize;
 	u32 nodesize;
-	u32 blocksize;
 	u32 stripesize;
 	u64 generation;
 	u64 features;
@@ -2643,7 +2640,6 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	blocksize = tree_root->nodesize;
 	generation = btrfs_super_chunk_root_generation(disk_super);
 
 	__setup_root(nodesize, sectorsize, stripesize, chunk_root,
@@ -2651,7 +2647,7 @@ int open_ctree(struct super_block *sb,
 
 	chunk_root->node = read_tree_block(chunk_root,
 					   btrfs_super_chunk_root(disk_super),
-					   blocksize, generation);
+					   generation);
 	if (!chunk_root->node ||
 	    !test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
 		printk(KERN_WARNING "BTRFS: failed to read chunk root on %s\n",
@@ -2684,12 +2680,11 @@ int open_ctree(struct super_block *sb,
 	}
 
 retry_root_backup:
-	blocksize = tree_root->nodesize;
 	generation = btrfs_super_generation(disk_super);
 
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super),
-					  blocksize, generation);
+					  generation);
 	if (!tree_root->node ||
 	    !test_bit(EXTENT_BUFFER_UPTODATE, &tree_root->node->bflags)) {
 		printk(KERN_WARNING "BTRFS: failed to read tree root on %s\n",
@@ -2858,7 +2853,6 @@ retry_root_backup:
 			err = -EIO;
 			goto fail_qgroup;
 		}
-		blocksize = tree_root->nodesize;
 
 		log_tree_root = btrfs_alloc_root(fs_info);
 		if (!log_tree_root) {
@@ -2870,7 +2864,6 @@ retry_root_backup:
 			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
 		log_tree_root->node = read_tree_block(tree_root, bytenr,
-						      blocksize,
 						      generation + 1);
 		if (!log_tree_root->node ||
 		    !extent_buffer_uptodate(log_tree_root->node)) {
