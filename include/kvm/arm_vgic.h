@@ -140,8 +140,22 @@ struct vgic_dist {
 	/* Interrupt enabled (one bit per IRQ) */
 	struct vgic_bitmap	irq_enabled;
 
-	/* Interrupt state is pending on the distributor */
+	/* Level-triggered interrupt external input is asserted */
+	struct vgic_bitmap	irq_level;
+
+	/*
+	 * Interrupt state is pending on the distributor
+	 */
 	struct vgic_bitmap	irq_pending;
+
+	/*
+	 * Tracks writes to GICD_ISPENDRn and GICD_ICPENDRn for level-triggered
+	 * interrupts.  Essentially holds the state of the flip-flop in
+	 * Figure 4-10 on page 4-101 in ARM IHI 0048B.b.
+	 * Once set, it is only cleared for level-triggered interrupts on
+	 * guest ACKs (when we queue it) or writes to GICD_ICPENDRn.
+	 */
+	struct vgic_bitmap	irq_soft_pend;
 
 	/* Level-triggered interrupt queued on VCPU interface */
 	struct vgic_bitmap	irq_queued;
