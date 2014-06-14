@@ -2539,7 +2539,7 @@ static int qe_udc_probe(struct platform_device *ofdev)
 		goto err2;
 
 	/* create a buf for ZLP send, need to remain zeroed */
-	udc->nullbuf = kzalloc(256, GFP_KERNEL);
+	udc->nullbuf = devm_kzalloc(&ofdev->dev, 256, GFP_KERNEL);
 	if (udc->nullbuf == NULL) {
 		dev_err(udc->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
@@ -2547,10 +2547,10 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	}
 
 	/* buffer for data of get_status request */
-	udc->statusbuf = kzalloc(2, GFP_KERNEL);
+	udc->statusbuf = devm_kzalloc(&ofdev->dev, 2, GFP_KERNEL);
 	if (udc->statusbuf == NULL) {
 		ret = -ENOMEM;
-		goto err4;
+		goto err3;
 	}
 
 	udc->nullp = virt_to_phys((void *)udc->nullbuf);
@@ -2581,13 +2581,13 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	if (ret) {
 		dev_err(udc->dev, "cannot request irq %d err %d\n",
 				udc->usb_irq, ret);
-		goto err5;
+		goto err4;
 	}
 
 	ret = usb_add_gadget_udc_release(&ofdev->dev, &udc->gadget,
 			qe_udc_release);
 	if (ret)
-		goto err6;
+		goto err5;
 
 	platform_set_drvdata(ofdev, udc);
 	dev_info(udc->dev,
@@ -2595,9 +2595,9 @@ static int qe_udc_probe(struct platform_device *ofdev)
 			(udc->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
-err6:
-	free_irq(udc->usb_irq, udc);
 err5:
+	free_irq(udc->usb_irq, udc);
+err4:
 	irq_dispose_mapping(udc->usb_irq);
 err_noirq:
 	if (udc->nullmap) {
@@ -2610,9 +2610,6 @@ err_noirq:
 			udc->nullp, 256,
 				DMA_TO_DEVICE);
 	}
-	kfree(udc->statusbuf);
-err4:
-	kfree(udc->nullbuf);
 err3:
 	ep = &udc->eps[0];
 	cpm_muram_free(cpm_muram_offset(ep->rxbase));
@@ -2660,8 +2657,6 @@ static int qe_udc_remove(struct platform_device *ofdev)
 			udc->nullp, 256,
 				DMA_TO_DEVICE);
 	}
-	kfree(udc->statusbuf);
-	kfree(udc->nullbuf);
 
 	ep = &udc->eps[0];
 	cpm_muram_free(cpm_muram_offset(ep->rxbase));
