@@ -667,8 +667,10 @@ static void vgic_unqueue_irqs(struct kvm_vcpu *vcpu)
 		 * active), then the LR does not hold any useful info and can
 		 * be marked as free for other use.
 		 */
-		if (!(lr.state & LR_STATE_MASK))
+		if (!(lr.state & LR_STATE_MASK)) {
 			vgic_retire_lr(i, lr.irq, vcpu);
+			vgic_irq_clear_queued(vcpu, lr.irq);
+		}
 
 		/* Finally update the VGIC state. */
 		vgic_update_state(vcpu->kvm);
