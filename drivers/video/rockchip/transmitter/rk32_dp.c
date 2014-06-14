@@ -38,7 +38,7 @@
 #endif
 
 /*#define EDP_BIST_MODE*/
-
+/*#define SW_LT*/
 static struct rk32_edp *rk32_edp;
 
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
@@ -110,6 +110,7 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 	return 0;
 }
 
+#if 0
 static int rk32_edp_detect_hpd(struct rk32_edp *edp)
 {
 	int timeout_loop = 0;
@@ -129,7 +130,7 @@ static int rk32_edp_detect_hpd(struct rk32_edp *edp)
 
 	return 0;
 }
-
+#endif
 static int rk32_edp_read_edid(struct rk32_edp *edp)
 {
 	unsigned char edid[EDID_LENGTH * 2];
@@ -252,6 +253,7 @@ static int rk32_edp_read_edid(struct rk32_edp *edp)
 	return 0;
 }
 
+#if 0
 static int rk32_edp_handle_edid(struct rk32_edp *edp)
 {
 	u8 buf[12];
@@ -274,6 +276,7 @@ static int rk32_edp_handle_edid(struct rk32_edp *edp)
 
 	return retval;
 }
+
 
 static int rk32_edp_enable_rx_to_enhanced_mode(struct rk32_edp *edp,
 						bool enable)
@@ -316,6 +319,7 @@ void rk32_edp_rx_control(struct rk32_edp *edp, bool enable)
 	}*/
 }
 
+
 static int rk32_edp_is_enhanced_mode_available(struct rk32_edp *edp)
 {
 	u8 data;
@@ -328,6 +332,7 @@ static int rk32_edp_is_enhanced_mode_available(struct rk32_edp *edp)
 
 	return DPCD_ENHANCED_FRAME_CAP(data);
 }
+
 
 static void rk32_edp_disable_rx_zmux(struct rk32_edp *edp)
 {
@@ -357,7 +362,9 @@ static int rk32_edp_set_enhanced_mode(struct rk32_edp *edp)
 
 	return 0;
 }
+#endif
 
+#if defined(SW_LT)
 static int rk32_edp_training_pattern_dis(struct rk32_edp *edp)
 {
 	int retval;
@@ -832,7 +839,7 @@ reduce_link_rate:
 	rk32_edp_reduce_link_rate(edp);
 	return -EIO;
 }
-
+#endif
 static int rk32_edp_get_max_rx_bandwidth(struct rk32_edp *edp,
 					u8 *bandwidth)
 {
@@ -916,6 +923,7 @@ static int rk32_edp_init_training(struct rk32_edp *edp)
 	return 0;
 }
 
+#if defined(SW_LT)
 static int rk32_edp_sw_link_training(struct rk32_edp *edp)
 {
 	int retval = 0;
@@ -952,7 +960,7 @@ static int rk32_edp_sw_link_training(struct rk32_edp *edp)
 	return retval;
 }
 
-
+#else
 static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 {
 	u32 cnt = 50;
@@ -977,6 +985,8 @@ static int rk32_edp_hw_link_training(struct rk32_edp *edp)
 	return val;
 
 }
+#endif
+
 static int rk32_edp_set_link_train(struct rk32_edp *edp)
 {
 	int retval;
@@ -984,7 +994,7 @@ static int rk32_edp_set_link_train(struct rk32_edp *edp)
 	retval = rk32_edp_init_training(edp);
 	if (retval < 0)
 		dev_err(edp->dev, "DP LT init failed!\n");
-#if 0
+#if defined(SW_LT)
 	retval = rk32_edp_sw_link_training(edp);
 #else
 	retval = rk32_edp_hw_link_training(edp);
@@ -1065,6 +1075,7 @@ static int rk32_edp_config_video(struct rk32_edp *edp,
 	return retval;
 }
 
+#if 0
 static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
 {
 	u8 data;
@@ -1102,6 +1113,7 @@ static int rk32_edp_enable_scramble(struct rk32_edp *edp, bool enable)
 
 	return 0;
 }
+#endif
 
 static irqreturn_t rk32_edp_isr(int irq, void *arg)
 {

@@ -176,7 +176,7 @@ static int get_dp_chip_id(struct i2c_client *client)
 	return (id<<8)|c1;
 }
 
-
+#if defined(BIST_MODE)
 static int anx980x_bist_mode(struct i2c_client *client)
 {
 	char val,i;
@@ -364,7 +364,7 @@ static int anx980x_bist_mode(struct i2c_client *client)
 
 	return 0;
 }
-
+#endif
 static int anx980x_aux_rst(struct i2c_client *client)
 {
 	char val;
@@ -625,7 +625,7 @@ static int anx980x_init(struct i2c_client *client)
 	return 0;
 }
 
-
+#if defined(BIST_MODE)
 static int anx6345_bist_mode(struct i2c_client *client)
 {
 	struct edp_anx6345 *anx6345 = i2c_get_clientdata(client);
@@ -684,7 +684,7 @@ static int anx6345_bist_mode(struct i2c_client *client)
 
 	return 0;
 }
-
+#endif
 
 int anx6345_start_aux_transaction(struct i2c_client  *client)
 {
