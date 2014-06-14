@@ -1108,7 +1108,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 }
 
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
-					    u64 bytenr, u32 blocksize)
+					    u64 bytenr)
 {
 	return find_extent_buffer(root->fs_info, bytenr);
 }
@@ -4002,8 +4002,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 
 		clear_extent_bits(dirty_pages, start, end, mark, GFP_NOFS);
 		while (start <= end) {
-			eb = btrfs_find_tree_block(root, start,
-						   root->nodesize);
+			eb = btrfs_find_tree_block(root, start);
 			start += root->nodesize;
 			if (!eb)
 				continue;

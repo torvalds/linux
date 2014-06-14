@@ -7825,7 +7825,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	blocksize = root->nodesize;
 
-	next = btrfs_find_tree_block(root, bytenr, blocksize);
+	next = btrfs_find_tree_block(root, bytenr);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
 		if (!next)
