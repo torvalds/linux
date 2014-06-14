@@ -2861,13 +2861,8 @@ static int reada_tree_block(struct reloc_control *rc,
 			    struct tree_block *block)
 {
 	BUG_ON(block->key_ready);
-	if (block->key.type == BTRFS_METADATA_ITEM_KEY)
-		readahead_tree_block(rc->extent_root, block->bytenr,
-				     block->key.objectid,
-				     rc->extent_root->nodesize);
-	else
-		readahead_tree_block(rc->extent_root, block->bytenr,
-				     block->key.objectid, block->key.offset);
+	readahead_tree_block(rc->extent_root, block->bytenr,
+			block->key.objectid);
 	return 0;
 }
 

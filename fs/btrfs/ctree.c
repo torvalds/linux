@@ -2298,7 +2298,7 @@ static void reada_for_search(struct btrfs_root *root,
 		if ((search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
 			gen = btrfs_node_ptr_generation(node, nr);
-			readahead_tree_block(root, search, blocksize, gen);
+			readahead_tree_block(root, search, blocksize);
 			nread += blocksize;
 		}
 		nscan++;
@@ -2350,9 +2350,9 @@ static noinline void reada_for_balance(struct btrfs_root *root,
 	}
 
 	if (block1)
-		readahead_tree_block(root, block1, blocksize, 0);
+		readahead_tree_block(root, block1, blocksize);
 	if (block2)
-		readahead_tree_block(root, block2, blocksize, 0);
+		readahead_tree_block(root, block2, blocksize);
 }
 
 
