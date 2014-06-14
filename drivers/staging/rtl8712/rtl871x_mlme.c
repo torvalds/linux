@@ -1212,11 +1212,11 @@ sint r8712_set_auth(struct _adapter *adapter,
 	struct cmd_obj *pcmd;
 	struct setauth_parm *psetauthparm;
 
-	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
+	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
 
-	psetauthparm = kzalloc(sizeof(struct setauth_parm), GFP_ATOMIC);
+	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
 	if (psetauthparm == NULL) {
 		kfree((unsigned char *)pcmd);
 		return _FAIL;
@@ -1242,10 +1242,10 @@ sint r8712_set_key(struct _adapter *adapter,
 	u8 keylen;
 	sint ret = _SUCCESS;
 
-	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
+	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return _FAIL;
-	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_ATOMIC);
+	psetkeyparm = kzalloc(sizeof(*psetkeyparm), GFP_ATOMIC);
 	if (psetkeyparm == NULL) {
 		ret = _FAIL;
 		goto err_free_cmd;
