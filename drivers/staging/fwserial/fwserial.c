@@ -785,6 +785,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 		len = dma_fifo_out_level(&port->tx_fifo);
 		if (len) {
 			unsigned long delay = (n == -ENOMEM) ? HZ : 1;
+
 			schedule_delayed_work(&port->drain, delay);
 		}
 		len = dma_fifo_level(&port->tx_fifo);
@@ -1995,6 +1996,7 @@ static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
 
 	list_for_each_entry_rcu(peer, &serial->peer_list, list) {
 		int g = peer->generation;
+
 		smp_rmb();
 		if (generation == g && id == peer->node_id)
 			return peer;
@@ -2015,6 +2017,7 @@ static void __dump_peer_list(struct fw_card *card)
 
 	list_for_each_entry_rcu(peer, &serial->peer_list, list) {
 		int g = peer->generation;
+
 		smp_rmb();
 		fwtty_dbg(card, "peer(%d:%x) guid: %016llx\n",
 			  g, peer->node_id, (unsigned long long) peer->guid);
@@ -2120,6 +2123,7 @@ static int fwserial_add_peer(struct fw_serial *serial, struct fw_unit *unit)
 		serial->self = peer;
 		if (create_loop_dev) {
 			struct fwtty_port *port;
+
 			port = fwserial_claim_port(peer, num_ttys);
 			if (!IS_ERR(port)) {
 				struct virt_plug_params params;
