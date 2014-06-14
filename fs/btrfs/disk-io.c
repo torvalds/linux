@@ -1062,19 +1062,17 @@ static const struct address_space_operations btree_aops = {
 	.set_page_dirty = btree_set_page_dirty,
 };
 
-int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
+void readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	int ret = 0;
 
 	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
-		return 0;
+		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 				 buf, 0, WAIT_NONE, btree_get_extent, 0);
 	free_extent_buffer(buf);
-	return ret;
 }
 
 int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,

@@ -7486,9 +7486,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 				continue;
 		}
 reada:
-		ret = readahead_tree_block(root, bytenr, blocksize);
-		if (ret)
-			break;
+		readahead_tree_block(root, bytenr, blocksize);
 		nread++;
 	}
 	wc->reada_slot = slot;
