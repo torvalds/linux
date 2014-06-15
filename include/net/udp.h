@@ -111,7 +111,9 @@ struct sk_buff;
  */
 static inline __sum16 __udp_lib_checksum_complete(struct sk_buff *skb)
 {
-	return __skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov);
+	return (UDP_SKB_CB(skb)->cscov == skb->len ?
+		__skb_checksum_complete(skb) :
+		__skb_checksum_complete_head(skb, UDP_SKB_CB(skb)->cscov));
 }
 
 static inline int udp_lib_checksum_complete(struct sk_buff *skb)
