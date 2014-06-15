@@ -1078,7 +1078,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
@@ -1094,7 +1094,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return 0;
 
@@ -1125,12 +1125,12 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 }
 
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
-						 u64 bytenr, u32 blocksize)
+						 u64 bytenr)
 {
 	if (btrfs_test_is_dummy_root(root))
 		return alloc_test_extent_buffer(root->fs_info, bytenr,
-						blocksize);
-	return alloc_extent_buffer(root->fs_info, bytenr, blocksize);
+						root->nodesize);
+	return alloc_extent_buffer(root->fs_info, bytenr, root->nodesize);
 }
 
 
@@ -1152,7 +1152,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	struct extent_buffer *buf = NULL;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
+	buf = btrfs_find_create_tree_block(root, bytenr);
 	if (!buf)
 		return NULL;
 
