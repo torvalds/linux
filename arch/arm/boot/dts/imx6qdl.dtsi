@@ -181,7 +181,7 @@
 					       <&sdma 15 18 0>;
 					dma-names = "rx", "tx";
 					clocks = <&clks 197>, <&clks 3>,
-						 <&clks 197>, <&clks 107>,
+						 <&clks 197>, <&clks 0>,
 						 <&clks 0>,   <&clks 118>,
 						 <&clks 0>,  <&clks 139>,
 						 <&clks 0>;
