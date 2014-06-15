@@ -419,7 +419,7 @@ int btrfs_test_qgroups(void)
 	 * Can't use bytenr 0, some things freak out
 	 * *cough*backref walking code*cough*
 	 */
-	root->node = alloc_test_extent_buffer(root->fs_info, 4096, 4096);
+	root->node = alloc_test_extent_buffer(root->fs_info, 4096);
 	if (!root->node) {
 		test_msg("Couldn't allocate dummy buffer\n");
 		ret = -ENOMEM;

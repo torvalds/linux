@@ -262,7 +262,7 @@ int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
 void set_page_extent_mapped(struct page *page);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
-					  u64 start, unsigned long len);
+					  u64 start);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 		u64 start);
 struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src);
@@ -378,5 +378,5 @@ noinline u64 find_lock_delalloc_range(struct inode *inode,
 				      u64 *end, u64 max_bytes);
 #endif
 struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
-					       u64 start, unsigned long len);
+					       u64 start);
 #endif
