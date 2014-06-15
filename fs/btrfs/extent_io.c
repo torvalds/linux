@@ -4598,11 +4598,11 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 
 static struct extent_buffer *
 __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
-		      unsigned long len, gfp_t mask)
+		      unsigned long len)
 {
 	struct extent_buffer *eb = NULL;
 
-	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
+	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS);
 	if (eb == NULL)
 		return NULL;
 	eb->start = start;
@@ -4643,7 +4643,7 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
 	struct extent_buffer *new;
 	unsigned long num_pages = num_extent_pages(src->start, src->len);
 
-	new = __alloc_extent_buffer(NULL, src->start, src->len, GFP_NOFS);
+	new = __alloc_extent_buffer(NULL, src->start, src->len);
 	if (new == NULL)
 		return NULL;
 
@@ -4672,7 +4672,7 @@ struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len)
 	unsigned long num_pages = num_extent_pages(0, len);
 	unsigned long i;
 
-	eb = __alloc_extent_buffer(NULL, start, len, GFP_NOFS);
+	eb = __alloc_extent_buffer(NULL, start, len);
 	if (!eb)
 		return NULL;
 
@@ -4824,7 +4824,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (eb)
 		return eb;
 
-	eb = __alloc_extent_buffer(fs_info, start, len, GFP_NOFS);
+	eb = __alloc_extent_buffer(fs_info, start, len);
 	if (!eb)
 		return NULL;
 
