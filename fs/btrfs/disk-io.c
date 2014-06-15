@@ -1086,7 +1086,7 @@ void readahead_tree_block(struct btrfs_root *root, u64 bytenr)
 	free_extent_buffer(buf);
 }
 
-int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
+int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr,
 			 int mirror_num, struct extent_buffer **eb)
 {
 	struct extent_buffer *buf = NULL;
@@ -1094,7 +1094,7 @@ int reada_tree_block_flagged(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 	struct extent_io_tree *io_tree = &BTRFS_I(btree_inode)->io_tree;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
 	if (!buf)
 		return 0;
 
