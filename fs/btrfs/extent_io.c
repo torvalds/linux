@@ -4643,7 +4643,7 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
 	struct extent_buffer *new;
 	unsigned long num_pages = num_extent_pages(src->start, src->len);
 
-	new = __alloc_extent_buffer(NULL, src->start, src->len);
+	new = __alloc_extent_buffer(src->fs_info, src->start, src->len);
 	if (new == NULL)
 		return NULL;
 
@@ -4666,13 +4666,26 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
 	return new;
 }
 
-struct extent_buffer *alloc_dummy_extent_buffer(u64 start, unsigned long len)
+struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
+						u64 start)
 {
 	struct extent_buffer *eb;
-	unsigned long num_pages = num_extent_pages(0, len);
+	unsigned long len;
+	unsigned long num_pages;
 	unsigned long i;
 
-	eb = __alloc_extent_buffer(NULL, start, len);
+	if (!fs_info) {
+		/*
+		 * Called only from tests that don't always have a fs_info
+		 * available, but we know that nodesize is 4096
+		 */
+		len = 4096;
+	} else {
+		len = fs_info->tree_root->nodesize;
+	}
+	num_pages = num_extent_pages(0, len);
+
+	eb = __alloc_extent_buffer(fs_info, start, len);
 	if (!eb)
 		return NULL;
 
@@ -4770,7 +4783,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
-	eb = alloc_dummy_extent_buffer(start, len);
+	eb = alloc_dummy_extent_buffer(fs_info, start);
 	if (!eb)
 		return NULL;
 	eb->fs_info = fs_info;
