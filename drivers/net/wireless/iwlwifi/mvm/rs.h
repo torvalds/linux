@@ -363,11 +363,6 @@ struct iwl_lq_sta {
 	/* persistent fields - initialized only once - keep last! */
 	struct {
 #ifdef CONFIG_MAC80211_DEBUGFS
-		struct dentry *rs_sta_dbgfs_scale_table_file;
-		struct dentry *rs_sta_dbgfs_stats_table_file;
-		struct dentry *rs_sta_dbgfs_drv_tx_stats_file;
-		struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
-		struct dentry *rs_sta_dbgfs_reduced_txp_file;
 		u32 dbg_fixed_rate;
 		u8 dbg_fixed_txp_reduction;
 #endif

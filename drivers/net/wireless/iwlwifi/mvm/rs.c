@@ -3185,31 +3185,20 @@ static const struct file_operations rs_sta_dbgfs_drv_tx_stats_ops = {
 static void rs_add_debugfs(void *mvm, void *mvm_sta, struct dentry *dir)
 {
 	struct iwl_lq_sta *lq_sta = mvm_sta;
-	lq_sta->pers.rs_sta_dbgfs_scale_table_file =
-		debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
-				    lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	lq_sta->pers.rs_sta_dbgfs_stats_table_file =
-		debugfs_create_file("rate_stats_table", S_IRUSR, dir,
-				    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	lq_sta->pers.rs_sta_dbgfs_drv_tx_stats_file =
-		debugfs_create_file("drv_tx_stats", S_IRUSR | S_IWUSR, dir,
-				    lq_sta, &rs_sta_dbgfs_drv_tx_stats_ops);
-	lq_sta->pers.rs_sta_dbgfs_tx_agg_tid_en_file =
-		debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
-				  &lq_sta->tx_agg_tid_en);
-	lq_sta->pers.rs_sta_dbgfs_reduced_txp_file =
-		debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
-				  &lq_sta->pers.dbg_fixed_txp_reduction);
+	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
+			    lq_sta, &rs_sta_dbgfs_scale_table_ops);
+	debugfs_create_file("rate_stats_table", S_IRUSR, dir,
+			    lq_sta, &rs_sta_dbgfs_stats_table_ops);
+	debugfs_create_file("drv_tx_stats", S_IRUSR | S_IWUSR, dir,
+			    lq_sta, &rs_sta_dbgfs_drv_tx_stats_ops);
+	debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
+			  &lq_sta->tx_agg_tid_en);
+	debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
+			  &lq_sta->pers.dbg_fixed_txp_reduction);
 }
 
 static void rs_remove_debugfs(void *mvm, void *mvm_sta)
 {
-	struct iwl_lq_sta *lq_sta = mvm_sta;
-	debugfs_remove(lq_sta->pers.rs_sta_dbgfs_scale_table_file);
-	debugfs_remove(lq_sta->pers.rs_sta_dbgfs_stats_table_file);
-	debugfs_remove(lq_sta->pers.rs_sta_dbgfs_drv_tx_stats_file);
-	debugfs_remove(lq_sta->pers.rs_sta_dbgfs_tx_agg_tid_en_file);
-	debugfs_remove(lq_sta->pers.rs_sta_dbgfs_reduced_txp_file);
 }
 #endif
 
