@@ -99,7 +99,7 @@ struct fsl_spdif_priv {
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	bool dpll_locked;
-	u16 txrate[SPDIF_TXRATE_MAX];
+	u32 txrate[SPDIF_TXRATE_MAX];
 	u8 txclk_df[SPDIF_TXRATE_MAX];
 	u8 sysclk_df[SPDIF_TXRATE_MAX];
 	u8 txclk_src[SPDIF_TXRATE_MAX];
@@ -391,6 +391,14 @@ static int spdif_set_sample_rate(struct snd_pcm_substream *substream,
 	case 48000:
 		rate = SPDIF_TXRATE_48000;
 		csfs = IEC958_AES3_CON_FS_48000;
+		break;
+	case 96000:
+		rate = SPDIF_TXRATE_96000;
+		csfs = IEC958_AES3_CON_FS_96000;
+		break;
+	case 192000:
+		rate = SPDIF_TXRATE_192000;
+		csfs = IEC958_AES3_CON_FS_192000;
 		break;
 	default:
 		dev_err(&pdev->dev, "unsupported sample rate %d\n", sample_rate);
@@ -1044,7 +1052,7 @@ static u32 fsl_spdif_txclk_caldiv(struct fsl_spdif_priv *spdif_priv,
 				struct clk *clk, u64 savesub,
 				enum spdif_txrate index, bool round)
 {
-	const u32 rate[] = { 32000, 44100, 48000 };
+	const u32 rate[] = { 32000, 44100, 48000, 96000, 192000 };
 	bool is_sysclk = clk == spdif_priv->sysclk;
 	u64 rate_ideal, rate_actual, sub;
 	u32 sysclk_dfmin, sysclk_dfmax;
@@ -1103,7 +1111,7 @@ out:
 static int fsl_spdif_probe_txclk(struct fsl_spdif_priv *spdif_priv,
 				enum spdif_txrate index)
 {
-	const u32 rate[] = { 32000, 44100, 48000 };
+	const u32 rate[] = { 32000, 44100, 48000, 96000, 192000 };
 	struct platform_device *pdev = spdif_priv->pdev;
 	struct device *dev = &pdev->dev;
 	u64 savesub = 100000, ret;
