@@ -78,6 +78,9 @@ enum {
 	EC_FLAGS_BLOCKED,		/* Transactions are blocked */
 };
 
+#define ACPI_EC_COMMAND_POLL		0x01 /* Available for command byte */
+#define ACPI_EC_COMMAND_COMPLETE	0x02 /* Completed last byte */
+
 /* ec.c is compiled in acpi namespace so this shows up as acpi.ec_delay param */
 static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
 module_param(ec_delay, uint, 0644);
@@ -109,7 +112,7 @@ struct transaction {
 	u8 ri;
 	u8 wlen;
 	u8 rlen;
-	bool done;
+	u8 flags;
 };
 
 struct acpi_ec *boot_ec, *first_ec;
@@ -150,63 +153,68 @@ static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 	outb(data, ec->data_addr);
 }
 
-static int ec_transaction_done(struct acpi_ec *ec)
+static int ec_transaction_completed(struct acpi_ec *ec)
 {
 	unsigned long flags;
 	int ret = 0;
 	spin_lock_irqsave(&ec->lock, flags);
-	if (!ec->curr || ec->curr->done)
+	if (!ec->curr || (ec->curr->flags & ACPI_EC_COMMAND_COMPLETE))
 		ret = 1;
 	spin_unlock_irqrestore(&ec->lock, flags);
 	return ret;
 }
 
-static void start_transaction(struct acpi_ec *ec)
-{
-	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
-	ec->curr->done = false;
-	acpi_ec_write_cmd(ec, ec->curr->command);
-}
-
 static void advance_transaction(struct acpi_ec *ec)
 {
-	unsigned long flags;
 	struct transaction *t;
 	u8 status;
 
-	spin_lock_irqsave(&ec->lock, flags);
 	pr_debug("===== %s =====\n", in_interrupt() ? "IRQ" : "TASK");
 	status = acpi_ec_read_status(ec);
 	t = ec->curr;
 	if (!t)
-		goto unlock;
-	if (t->wlen > t->wi) {
-		if ((status & ACPI_EC_FLAG_IBF) == 0)
-			acpi_ec_write_data(ec,
-				t->wdata[t->wi++]);
-		else
-			goto err;
-	} else if (t->rlen > t->ri) {
-		if ((status & ACPI_EC_FLAG_OBF) == 1) {
-			t->rdata[t->ri++] = acpi_ec_read_data(ec);
-			if (t->rlen == t->ri)
-				t->done = true;
+		goto err;
+	if (t->flags & ACPI_EC_COMMAND_POLL) {
+		if (t->wlen > t->wi) {
+			if ((status & ACPI_EC_FLAG_IBF) == 0)
+				acpi_ec_write_data(ec, t->wdata[t->wi++]);
+			else
+				goto err;
+		} else if (t->rlen > t->ri) {
+			if ((status & ACPI_EC_FLAG_OBF) == 1) {
+				t->rdata[t->ri++] = acpi_ec_read_data(ec);
+				if (t->rlen == t->ri)
+					t->flags |= ACPI_EC_COMMAND_COMPLETE;
+			} else
+				goto err;
+		} else if (t->wlen == t->wi &&
+			   (status & ACPI_EC_FLAG_IBF) == 0)
+			t->flags |= ACPI_EC_COMMAND_COMPLETE;
+		return;
+	} else {
+		if ((status & ACPI_EC_FLAG_IBF) == 0) {
+			acpi_ec_write_cmd(ec, t->command);
+			t->flags |= ACPI_EC_COMMAND_POLL;
 		} else
 			goto err;
-	} else if (t->wlen == t->wi &&
-		   (status & ACPI_EC_FLAG_IBF) == 0)
-		t->done = true;
-	goto unlock;
+		return;
+	}
 err:
 	/*
 	 * If SCI bit is set, then don't think it's a false IRQ
 	 * otherwise will take a not handled IRQ as a false one.
 	 */
-	if (in_interrupt() && !(status & ACPI_EC_FLAG_SCI))
-		++t->irq_count;
+	if (!(status & ACPI_EC_FLAG_SCI)) {
+		if (in_interrupt() && t)
+			++t->irq_count;
+	}
+}
 
-unlock:
-	spin_unlock_irqrestore(&ec->lock, flags);
+static void start_transaction(struct acpi_ec *ec)
+{
+	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
+	ec->curr->flags = 0;
+	advance_transaction(ec);
 }
 
 static int acpi_ec_sync_query(struct acpi_ec *ec, u8 *data);
@@ -231,15 +239,17 @@ static int ec_poll(struct acpi_ec *ec)
 			/* don't sleep with disabled interrupts */
 			if (EC_FLAGS_MSI || irqs_disabled()) {
 				udelay(ACPI_EC_MSI_UDELAY);
-				if (ec_transaction_done(ec))
+				if (ec_transaction_completed(ec))
 					return 0;
 			} else {
 				if (wait_event_timeout(ec->wait,
-						ec_transaction_done(ec),
+						ec_transaction_completed(ec),
 						msecs_to_jiffies(1)))
 					return 0;
 			}
+			spin_lock_irqsave(&ec->lock, flags);
 			advance_transaction(ec);
+			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
 		pr_debug("controller reset, restart transaction\n");
 		spin_lock_irqsave(&ec->lock, flags);
@@ -637,10 +647,13 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 	u32 gpe_number, void *data)
 {
+	unsigned long flags;
 	struct acpi_ec *ec = data;
 
+	spin_lock_irqsave(&ec->lock, flags);
 	advance_transaction(ec);
-	if (ec_transaction_done(ec) &&
+	spin_unlock_irqrestore(&ec->lock, flags);
+	if (ec_transaction_completed(ec) &&
 	    (acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) == 0) {
 		wake_up(&ec->wait);
 		ec_check_sci(ec, acpi_ec_read_status(ec));
