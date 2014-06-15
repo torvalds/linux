@@ -76,7 +76,7 @@ struct sdmmc_reg
   u32      addr;
   char   * name;
 };
-
+#if 0
 static struct sdmmc_reg dw_mci_regs[] =
 {
   { 0x0000, "      CTRL" },
@@ -121,6 +121,7 @@ static struct sdmmc_reg dw_mci_regs[] =
   { 0x0104, "BackEndPwr" },
   { 0, 0 }
 };
+#endif
 
 /* Control register defines */
 #define SDMMC_CTRL_USE_IDMAC		BIT(25)

@@ -1184,8 +1184,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 	}
 	pm_runtime_enable(&host->card->dev);
 
-out:
-	mmc_release_host(host);
 	return err;
 }
 

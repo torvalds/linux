@@ -1531,6 +1531,7 @@ static int mmc_resume(struct mmc_host *host)
 		pm_runtime_mark_last_busy(&host->card->dev);
 	}
 	pm_runtime_enable(&host->card->dev);
+	return err;
 }
 /*
  * Shutdown callback

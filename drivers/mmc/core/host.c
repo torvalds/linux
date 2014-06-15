@@ -624,5 +624,5 @@ int mmc_host_rescan(struct mmc_host *host, int val)
 	
     return 0;
 }
-EXPORT_SYSMBOL(mmc_host_rescan);
+EXPORT_SYMBOL(mmc_host_rescan);
 

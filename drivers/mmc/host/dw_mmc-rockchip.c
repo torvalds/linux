@@ -211,22 +211,8 @@ static inline u8 dw_mci_rockchip_move_next_clksmpl(struct dw_mci *host, u8 con_i
 }
 
 
-static u8 dw_mci_rockchip_get_best_clksmpl(u8 *candiates)
-{
-        u8 pos, i;
-        u8 bestval =0;
     
-        for(pos = 31; pos > 0; pos--){
-                if(candiates[pos] != 0) {
-                        for(i = 7; i > 0; i--){
-                                if(candiates[pos]& (1<<i))
-                                bestval = pos*8+i; 
-                        }          
-                }
-        }
         
-        return bestval;
-}
 
 static int inline __dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 					u8 *blk_test, unsigned int blksz)
@@ -281,11 +267,11 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	u8 index = 0;
 	u8 start_degree = 0;
 	u32 start_delayline = 0;
-	u8 *blk_pattern = tuning_data->blk_pattern;
-        u8 *blk_test;
-        int ret = -1;
-        int ref = 0;
-        unsigned int blksz = tuning_data->blksz;
+	const u8 *blk_pattern = tuning_data->blk_pattern;
+	u8 *blk_test;
+	int ret = -1;
+	int ref = 0;
+	unsigned int blksz = tuning_data->blksz;
 
         MMC_DBG_INFO_FUNC(host->mmc,"execute tuning:  [%s]", mmc_hostname(host->mmc));
        
