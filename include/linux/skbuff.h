@@ -1854,6 +1854,18 @@ static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
 	return pskb_may_pull(skb, skb_network_offset(skb) + len);
 }
 
+static inline void skb_pop_rcv_encapsulation(struct sk_buff *skb)
+{
+	/* Only continue with checksum unnecessary if device indicated
+	 * it is valid across encapsulation (skb->encapsulation was set).
+	 */
+	if (skb->ip_summed == CHECKSUM_UNNECESSARY && !skb->encapsulation)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	skb->encapsulation = 0;
+	skb->csum_valid = 0;
+}
+
 /*
  * CPUs often take a performance hit when accessing unaligned memory
  * locations. The actual performance hit varies, it can be small if the
