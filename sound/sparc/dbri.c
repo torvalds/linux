@@ -2534,12 +2534,10 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->op = op;
 	dbri->irq = irq;
 
-	dbri->dma = dma_alloc_coherent(&op->dev,
-				       sizeof(struct dbri_dma),
-				       &dbri->dma_dvma, GFP_ATOMIC);
+	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
+					&dbri->dma_dvma, GFP_ATOMIC);
 	if (!dbri->dma)
 		return -ENOMEM;
-	memset((void *)dbri->dma, 0, sizeof(struct dbri_dma));
 
 	dprintk(D_GEN, "DMA Cmd Block 0x%p (0x%08x)\n",
 		dbri->dma, dbri->dma_dvma);
