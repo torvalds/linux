@@ -1052,7 +1052,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	int encoder_mode = atombios_get_encoder_mode(radeon_crtc->encoder);
 
 	/* pass the actual clock to atombios_crtc_program_pll for DCE5,6 for HDMI */
-	if (ASIC_IS_DCE5(rdev) && !ASIC_IS_DCE8(rdev) &&
+	if (ASIC_IS_DCE5(rdev) &&
 	    (encoder_mode == ATOM_ENCODER_MODE_HDMI) &&
 	    (radeon_crtc->bpc > 8))
 		clock = radeon_crtc->adjusted_clock;
