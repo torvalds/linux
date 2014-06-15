@@ -413,15 +413,13 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 	struct mxs_dma_engine *mxs_dma = mxs_chan->mxs_dma;
 	int ret;
 
-	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev,
-				CCW_BLOCK_SIZE, &mxs_chan->ccw_phys,
-				GFP_KERNEL);
+	mxs_chan->ccw = dma_zalloc_coherent(mxs_dma->dma_device.dev,
+					    CCW_BLOCK_SIZE,
+					    &mxs_chan->ccw_phys, GFP_KERNEL);
 	if (!mxs_chan->ccw) {
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
-
-	memset(mxs_chan->ccw, 0, CCW_BLOCK_SIZE);
 
 	if (mxs_chan->chan_irq != NO_IRQ) {
 		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
