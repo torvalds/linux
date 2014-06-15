@@ -1025,6 +1025,7 @@ static struct samsung_gate_clock exynos4_gate_clks[] __initdata = {
 	GATE(CLK_PPMUDMC1, "ppmudmc1", "aclk133", GATE_IP_DMC, 9, 0, 0),
 	GATE(CLK_PPMUCPU, "ppmucpu", "aclk133", GATE_IP_DMC, 10, 0, 0),
 	GATE(CLK_PPMUACP, "ppmuacp", "aclk133", GATE_IP_DMC, 16, 0, 0),
+	GATE(CLK_SSS, "sss", "aclk133", GATE_IP_DMC, 4, 0, 0),
 
 	GATE(CLK_OUT_LEFTBUS, "clkout_leftbus", "div_clkout_leftbus",
 			CLKOUT_CMU_LEFTBUS, 16, CLK_SET_RATE_PARENT, 0),

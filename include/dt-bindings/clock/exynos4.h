@@ -255,6 +255,9 @@
 #define CLK_PPMUCPU		414
 #define CLK_PPMUACP		415
 
+/* gate clocks - security sub system */
+#define CLK_SSS			416
+
 /* div clocks */
 #define CLK_DIV_ISP0		450 /* Exynos4x12 only */
 #define CLK_DIV_ISP1		451 /* Exynos4x12 only */
