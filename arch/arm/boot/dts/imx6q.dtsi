@@ -43,8 +43,11 @@
 				396000	1175000
 			>;
 			clock-latency = <61036>; /* two CLK32 periods */
-			clocks = <&clks 104>, <&clks 6>, <&clks 16>,
-				 <&clks 17>, <&clks 170>;
+			clocks = <&clks IMX6QDL_CLK_ARM>,
+				 <&clks IMX6QDL_CLK_PLL2_PFD2_396M>,
+				 <&clks IMX6QDL_CLK_STEP>,
+				 <&clks IMX6QDL_CLK_PLL1_SW>,
+				 <&clks IMX6QDL_CLK_PLL1_SYS>;
 			clock-names = "arm", "pll2_pfd2_396m", "step",
 				      "pll1_sw", "pll1_sys";
 			arm-supply = <&reg_arm>;
@@ -78,7 +81,7 @@
 		ocram: sram@00900000 {
 			compatible = "mmio-sram";
 			reg = <0x00900000 0x40000>;
-			clocks = <&clks 142>;
+			clocks = <&clks IMX6QDL_CLK_OCRAM>;
 		};
 
 		aips-bus@02000000 { /* AIPS1 */
@@ -89,7 +92,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02018000 0x4000>;
 					interrupts = <0 35 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clks 116>, <&clks 116>;
+					clocks = <&clks IMX6Q_CLK_ECSPI5>,
+						 <&clks IMX6Q_CLK_ECSPI5>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -140,7 +144,9 @@
 			compatible = "fsl,imx6q-ahci";
 			reg = <0x02200000 0x4000>;
 			interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
-			clocks =  <&clks 154>, <&clks 187>, <&clks 105>;
+			clocks = <&clks IMX6QDL_CLK_SATA>,
+				 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+				 <&clks IMX6QDL_CLK_AHB>;
 			clock-names = "sata", "sata_ref", "ahb";
 			status = "disabled";
 		};
@@ -152,7 +158,9 @@
 			reg = <0x02800000 0x400000>;
 			interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
 				     <0 7 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clks 133>, <&clks 134>, <&clks 137>;
+			clocks = <&clks IMX6QDL_CLK_IPU2>,
+				 <&clks IMX6QDL_CLK_IPU2_DI0>,
+				 <&clks IMX6QDL_CLK_IPU2_DI1>;
 			clock-names = "bus", "di0", "di1";
 			resets = <&src 4>;
 
@@ -238,9 +246,10 @@
 };
 
 &ldb {
-	clocks = <&clks 33>, <&clks 34>,
-		 <&clks 39>, <&clks 40>, <&clks 41>, <&clks 42>,
-		 <&clks 135>, <&clks 136>;
+	clocks = <&clks IMX6QDL_CLK_LDB_DI0_SEL>, <&clks IMX6QDL_CLK_LDB_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU1_DI0_SEL>, <&clks IMX6QDL_CLK_IPU1_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_IPU2_DI0_SEL>, <&clks IMX6QDL_CLK_IPU2_DI1_SEL>,
+		 <&clks IMX6QDL_CLK_LDB_DI0>, <&clks IMX6QDL_CLK_LDB_DI1>;
 	clock-names = "di0_pll", "di1_pll",
 		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
 		      "di0", "di1";
