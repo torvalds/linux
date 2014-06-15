@@ -1961,9 +1961,9 @@ int of_attach_node(struct device_node *np)
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
-	np->allnext = of_allnodes;
+	np->allnext = np->parent->allnext;
+	np->parent->allnext = np;
 	np->parent->child = np;
-	of_allnodes = np;
 	of_node_clear_flag(np, OF_DETACHED);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 
