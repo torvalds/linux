@@ -65,10 +65,9 @@ void        musycc_update_timeslots(mpi_t *);
 /*******************************************************************/
 
 static int
-musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
+musycc_dump_rxbuffer_ring_locked(mch_t *ch)
 {
 	struct mdesc *m;
-	unsigned long flags = 0;
 
 	u_int32_t status;
 	int         n;
@@ -77,8 +76,6 @@ musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 	u_int32_t *dp;
 	int len = 0;
 #endif
-	if (lockit)
-		spin_lock_irqsave(&ch->ch_rxlock, flags);
 	if (ch->rxd_num == 0)
 		pr_info("  ZERO receive buffers allocated for this channel.");
 	else {
@@ -127,16 +124,26 @@ musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 	}
 	pr_info("\n");
 
-	if (lockit)
-		spin_unlock_irqrestore(&ch->ch_rxlock, flags);
 	return 0;
 }
 
 static int
-musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
+musycc_dump_rxbuffer_ring(mch_t *ch)
+{
+	unsigned long flags = 0;
+	int ret;
+
+	spin_lock_irqsave(&ch->ch_rxlock, flags);
+	ret = musycc_dump_rxbuffer_ring_locked(ch);
+	spin_unlock_irqrestore(&ch->ch_rxlock, flags);
+
+	return ret;
+}
+
+static int
+musycc_dump_txbuffer_ring_locked(mch_t *ch)
 {
 	struct mdesc *m;
-	unsigned long flags = 0;
 	u_int32_t   status;
 	int         n;
 #ifdef RLD_DUMP_BUFDATA
@@ -144,8 +151,6 @@ musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
 	int len = 0;
 #endif
 
-	if (lockit)
-		spin_lock_irqsave(&ch->ch_txlock, flags);
 	if (ch->txd_num == 0)
 		pr_info("  ZERO transmit buffers allocated for this channel.");
 	else {
@@ -188,9 +193,20 @@ musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
 	}                               /* -for- */
 	pr_info("\n");
 
-	if (lockit)
-		spin_unlock_irqrestore(&ch->ch_txlock, flags);
 	return 0;
+}
+
+static int
+musycc_dump_txbuffer_ring(mch_t *ch)
+{
+	unsigned long flags = 0;
+	int ret;
+
+	spin_lock_irqsave(&ch->ch_txlock, flags);
+	ret = musycc_dump_txbuffer_ring_locked(ch);
+	spin_unlock_irqrestore(&ch->ch_txlock, flags);
+
+	return ret;
 }
 
 /*
@@ -234,11 +250,11 @@ musycc_dump_ring(ci_t *ci, unsigned int chan)
 		ch->user, ch->txd_irq_srv, ch->txd_usr_add,
 		sd_queue_stopped(ch->user),
 		ch->ch_start_tx, ch->tx_full, ch->txd_free, ch->p.chan_mode);
-	musycc_dump_txbuffer_ring(ch, 1);
+	musycc_dump_txbuffer_ring(ch);
 	pr_info("RX Buffer Ring - Channel %d, rxd_num %d. IRQ_SRV[%d] 0x%p, start_rx %x rxpkt %lu\n",
 		chan, ch->rxd_num, ch->rxix_irq_srv,
 		&ch->mdr[ch->rxix_irq_srv], ch->ch_start_rx, ch->s.rx_packets);
-	musycc_dump_rxbuffer_ring(ch, 1);
+	musycc_dump_rxbuffer_ring(ch);
 
 	return SBE_DRVR_SUCCESS;
 }
@@ -380,7 +396,7 @@ musycc_wq_chan_restart(void *arg)      /* channel private structure */
 				ch->channum, ch->rxix_irq_srv,
 				md, le32_to_cpu(md->status),
 				ch->s.rx_packets);
-			musycc_dump_rxbuffer_ring(ch, 1);      /* RLD DEBUG */
+			musycc_dump_rxbuffer_ring(ch);      /* RLD DEBUG */
 #endif
 		}
 #endif
@@ -420,7 +436,7 @@ musycc_wq_chan_restart(void *arg)      /* channel private structure */
 				ch->channum, md,
 				le32_to_cpu(md->status),
 				le32_to_cpu(md->data), ch->ch_start_tx);
-			musycc_dump_txbuffer_ring(ch, 0);
+			musycc_dump_txbuffer_ring_locked(ch);
 		}
 #endif
 	}
@@ -903,7 +919,7 @@ musycc_bh_tx_eom(mpi_t *pi, int gchan)
 						sd_queue_stopped(ch->user),
 						ch->ch_start_tx, ch->tx_full,
 						ch->txd_free, ch->p.chan_mode);
-					musycc_dump_txbuffer_ring(ch, 0);
+					musycc_dump_txbuffer_ring_locked(ch);
 				}
 				break;              /* Not our mdesc, done */
 			} else {
@@ -1412,7 +1428,7 @@ musycc_intr_bh_tasklet(ci_t *ci)
 							ch->tx_full,
 							ch->txd_free,
 							ch->p.chan_mode);
-						musycc_dump_txbuffer_ring(ch, 0);
+						musycc_dump_txbuffer_ring_locked(ch);
 					}
 #endif
 				}
@@ -1432,7 +1448,7 @@ musycc_intr_bh_tasklet(ci_t *ci)
 						ci->devname, ch->channum,
 						ch->p.chan_mode);
 #ifdef RLD_DEBUG
-					musycc_dump_rxbuffer_ring(ch, 0);
+					musycc_dump_rxbuffer_ring_locked(ch);
 #endif
 				}
 			}
