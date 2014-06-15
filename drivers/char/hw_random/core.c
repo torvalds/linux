@@ -56,11 +56,15 @@ static LIST_HEAD(rng_list);
 static DEFINE_MUTEX(rng_mutex);
 static int data_avail;
 static u8 *rng_buffer, *rng_fillbuf;
-static unsigned short current_quality = 700; /* an arbitrary 70% */
+static unsigned short current_quality;
+static unsigned short default_quality; /* = 0; default to "off" */
 
 module_param(current_quality, ushort, 0644);
 MODULE_PARM_DESC(current_quality,
 		 "current hwrng entropy estimation per mill");
+module_param(default_quality, ushort, 0644);
+MODULE_PARM_DESC(default_quality,
+		 "default entropy content of hwrng per mill");
 
 static void start_khwrngd(void);
 
@@ -79,6 +83,11 @@ static inline int hwrng_init(struct hwrng *rng)
 			return err;
 	}
 
+	current_quality = rng->quality ? : default_quality;
+	current_quality &= 1023;
+
+	if (current_quality == 0 && hwrng_fill)
+		kthread_stop(hwrng_fill);
 	if (current_quality > 0 && !hwrng_fill)
 		start_khwrngd();
 
