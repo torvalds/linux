@@ -551,9 +551,8 @@ static void mix_pool_bytes(struct entropy_store *r, const void *in,
 struct fast_pool {
 	__u32		pool[4];
 	unsigned long	last;
+	unsigned short	reg_idx;
 	unsigned char	count;
-	unsigned char	notimer_count;
-	unsigned char	rotate;
 };
 
 /*
@@ -857,6 +856,17 @@ static void add_interrupt_bench(cycles_t start)
 #define add_interrupt_bench(x)
 #endif
 
+static __u32 get_reg(struct fast_pool *f, struct pt_regs *regs)
+{
+	__u32 *ptr = (__u32 *) regs;
+
+	if (regs == NULL)
+		return 0;
+	if (f->reg_idx >= sizeof(struct pt_regs) / sizeof(__u32))
+		f->reg_idx = 0;
+	return *(ptr + f->reg_idx++);
+}
+
 void add_interrupt_randomness(int irq, int irq_flags)
 {
 	struct entropy_store	*r;
@@ -869,28 +879,23 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	unsigned long		seed;
 	int			credit = 0;
 
+	if (cycles == 0)
+		cycles = get_reg(fast_pool, regs);
 	c_high = (sizeof(cycles) > 4) ? cycles >> 32 : 0;
 	j_high = (sizeof(now) > 4) ? now >> 32 : 0;
 	fast_pool->pool[0] ^= cycles ^ j_high ^ irq;
 	fast_pool->pool[1] ^= now ^ c_high;
 	ip = regs ? instruction_pointer(regs) : _RET_IP_;
 	fast_pool->pool[2] ^= ip;
-	fast_pool->pool[3] ^= ip >> 32;
+	fast_pool->pool[3] ^= (sizeof(ip) > 4) ? ip >> 32 :
+		get_reg(fast_pool, regs);
 
 	fast_mix(fast_pool);
-	if ((irq_flags & __IRQF_TIMER) == 0)
-		fast_pool->notimer_count++;
 	add_interrupt_bench(cycles);
 
-	if (cycles) {
-		if ((fast_pool->count < 64) &&
-		    !time_after(now, fast_pool->last + HZ))
-			return;
-	} else {
-		/* CPU does not have a cycle counting register :-( */
-		if (fast_pool->count < 64)
-			return;
-	}
+	if ((fast_pool->count < 64) &&
+	    !time_after(now, fast_pool->last + HZ))
+		return;
 
 	r = nonblocking_pool.initialized ? &input_pool : &nonblocking_pool;
 	if (!spin_trylock(&r->lock))
@@ -910,18 +915,10 @@ void add_interrupt_randomness(int irq, int irq_flags)
 	}
 	spin_unlock(&r->lock);
 
-	/*
-	 * If we have a valid cycle counter or if the majority of
-	 * interrupts collected were non-timer interrupts, then give
-	 * an entropy credit of 1 bit.  Yes, this is being very
-	 * conservative.
-	 */
-	if (cycles || (fast_pool->notimer_count >= 32))
-		credit++;
+	fast_pool->count = 0;
 
-	fast_pool->count = fast_pool->notimer_count = 0;
-
-	credit_entropy_bits(r, credit);
+	/* award one bit for the contents of the fast pool */
+	credit_entropy_bits(r, credit + 1);
 }
 
 #ifdef CONFIG_BLOCK
