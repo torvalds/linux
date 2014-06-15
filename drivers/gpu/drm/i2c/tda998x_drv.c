@@ -25,6 +25,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder_slave.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_of.h>
 #include <drm/i2c/tda998x.h>
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
@@ -1515,6 +1516,7 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct drm_device *drm = data;
 	struct tda998x_priv2 *priv;
+	uint32_t crtcs = 0;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -1523,9 +1525,18 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 
 	dev_set_drvdata(dev, priv);
 
+	if (dev->of_node)
+		crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+
+	/* If no CRTCs were found, fall back to our old behaviour */
+	if (crtcs == 0) {
+		dev_warn(dev, "Falling back to first CRTC\n");
+		crtcs = 1 << 0;
+	}
+
 	priv->base.encoder = &priv->encoder;
 	priv->connector.interlace_allowed = 1;
-	priv->encoder.possible_crtcs = 1 << 0;
+	priv->encoder.possible_crtcs = crtcs;
 
 	ret = tda998x_create(client, &priv->base);
 	if (ret)
