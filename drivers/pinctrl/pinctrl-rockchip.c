@@ -70,6 +70,7 @@ enum rockchip_pinctrl_type {
 #define IOMUX_GPIO_ONLY		BIT(0)
 #define IOMUX_WIDTH_4BIT	BIT(1)
 #define IOMUX_SOURCE_PMU	BIT(2)
+#define IOMUX_UNROUTED		BIT(3)
 
 /**
  * @type: iomux variant using IOMUX_* constants
@@ -386,6 +387,11 @@ static int rockchip_get_mux(struct rockchip_pin_bank *bank, int pin)
 	if (iomux_num > 3)
 		return -EINVAL;
 
+	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
+		dev_err(info->dev, "pin %d is unrouted\n", pin);
+		return -EINVAL;
+	}
+
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY)
 		return RK_FUNC_GPIO;
 
@@ -435,6 +441,11 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 
 	if (iomux_num > 3)
 		return -EINVAL;
+
+	if (bank->iomux[iomux_num].type & IOMUX_UNROUTED) {
+		dev_err(info->dev, "pin %d is unrouted\n", pin);
+		return -EINVAL;
+	}
 
 	if (bank->iomux[iomux_num].type & IOMUX_GPIO_ONLY) {
 		if (mux != RK_FUNC_GPIO) {
