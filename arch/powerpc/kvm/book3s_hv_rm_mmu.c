@@ -814,13 +814,10 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 			r = hpte[i+1];
 
 			/*
-			 * Check the HPTE again, including large page size
-			 * Since we don't currently allow any MPSS (mixed
-			 * page-size segment) page sizes, it is sufficient
-			 * to check against the actual page size.
+			 * Check the HPTE again, including base page size
 			 */
 			if ((v & valid) && (v & mask) == val &&
-			    hpte_page_size(v, r) == (1ul << pshift))
+			    hpte_base_page_size(v, r) == (1ul << pshift))
 				/* Return with the HPTE still locked */
 				return (hash << 3) + (i >> 1);
 
