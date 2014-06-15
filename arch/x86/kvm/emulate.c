@@ -4688,8 +4688,9 @@ special_insn:
 		break;
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (ctxt->dst.addr.reg == reg_rmw(ctxt, VCPU_REGS_RAX))
-			break;
-		rc = em_xchg(ctxt);
+			ctxt->dst.type = OP_NONE;
+		else
+			rc = em_xchg(ctxt);
 		break;
 	case 0x98: /* cbw/cwde/cdqe */
 		switch (ctxt->op_bytes) {
