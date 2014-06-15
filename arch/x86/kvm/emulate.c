@@ -3923,7 +3923,7 @@ static const struct opcode twobyte_table[256] = {
 	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
-	X16(D(DstReg | SrcMem | ModRM | Mov)),
+	X16(D(DstReg | SrcMem | ModRM)),
 	/* 0x50 - 0x5F */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0x60 - 0x6F */
@@ -4824,8 +4824,10 @@ twobyte_insn:
 		ops->get_dr(ctxt, ctxt->modrm_reg, &ctxt->dst.val);
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
-		ctxt->dst.val = ctxt->dst.orig_val = ctxt->src.val;
-		if (!test_cc(ctxt->b, ctxt->eflags))
+		if (test_cc(ctxt->b, ctxt->eflags))
+			ctxt->dst.val = ctxt->src.val;
+		else if (ctxt->mode != X86EMUL_MODE_PROT64 ||
+			 ctxt->op_bytes != 4)
 			ctxt->dst.type = OP_NONE; /* no writeback */
 		break;
 	case 0x80 ... 0x8f: /* jnz rel, etc*/
