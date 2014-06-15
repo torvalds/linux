@@ -1459,17 +1459,12 @@ static int r8711_wx_get_rate(struct net_device *dev,
 				RTL8712_RF_2T2R == rf_type)
 				max_rate = (bw_40MHz) ? ((short_GI) ? 300 :
 					    270) : ((short_GI) ? 144 : 130);
-			else if (mcs_rate & 0x0080) /* MCS7 */
-				max_rate = (bw_40MHz) ? ((short_GI) ? 150 :
-					    135) : ((short_GI) ? 72 : 65);
 			else /* default MCS7 */
 				max_rate = (bw_40MHz) ? ((short_GI) ? 150 :
 					    135) : ((short_GI) ? 72 : 65);
 			max_rate *= 2; /* Mbps/2 */
-			wrqu->bitrate.value = max_rate * 500000;
-		} else {
-			wrqu->bitrate.value = max_rate * 500000;
 		}
+		wrqu->bitrate.value = max_rate * 500000;
 	} else
 		return -ENOLINK;
 	return 0;
