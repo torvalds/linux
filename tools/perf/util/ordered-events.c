@@ -96,8 +96,7 @@ ordered_events__new(struct ordered_events *oe, u64 timestamp)
 
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event)
 {
-	list_del(&event->list);
-	list_add(&event->list, &oe->cache);
+	list_move(&event->list, &oe->cache);
 	oe->nr_events--;
 }
 
