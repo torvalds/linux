@@ -7215,11 +7215,11 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 
 static struct extent_buffer *
 btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		      u64 bytenr, u32 blocksize, int level)
+		      u64 bytenr, int level)
 {
 	struct extent_buffer *buf;
 
-	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	buf = btrfs_find_create_tree_block(root, bytenr, root->nodesize);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 	btrfs_set_header_generation(buf, trans->transid);
@@ -7338,7 +7338,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 
 	if (btrfs_test_is_dummy_root(root)) {
 		buf = btrfs_init_new_buffer(trans, root, root->alloc_bytenr,
-					    blocksize, level);
+					    level);
 		if (!IS_ERR(buf))
 			root->alloc_bytenr += blocksize;
 		return buf;
@@ -7355,8 +7355,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		return ERR_PTR(ret);
 	}
 
-	buf = btrfs_init_new_buffer(trans, root, ins.objectid,
-				    blocksize, level);
+	buf = btrfs_init_new_buffer(trans, root, ins.objectid, level);
 	BUG_ON(IS_ERR(buf)); /* -ENOMEM */
 
 	if (root_objectid == BTRFS_TREE_RELOC_OBJECTID) {
