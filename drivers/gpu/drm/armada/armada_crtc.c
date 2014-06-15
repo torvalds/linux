@@ -910,6 +910,8 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ENA);
 
+	of_node_put(dcrtc->crtc.port);
+
 	kfree(dcrtc);
 }
 
@@ -1050,7 +1052,8 @@ static int armada_drm_crtc_create_properties(struct drm_device *dev)
 }
 
 int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
-	struct resource *res, int irq, const struct armada_variant *variant)
+	struct resource *res, int irq, const struct armada_variant *variant,
+	struct device_node *port)
 {
 	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
@@ -1123,6 +1126,7 @@ int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 	priv->dcrtc[dcrtc->num] = dcrtc;
 
+	dcrtc->crtc.port = port;
 	drm_crtc_init(drm, &dcrtc->crtc, &armada_crtc_funcs);
 	drm_crtc_helper_add(&dcrtc->crtc, &armada_crtc_helper_funcs);
 
@@ -1142,6 +1146,7 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
 	const struct armada_variant *variant;
+	struct device_node *port = NULL;
 
 	if (irq < 0)
 		return irq;
@@ -1156,15 +1161,27 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		variant = (const struct armada_variant *)id->driver_data;
 	} else {
 		const struct of_device_id *match;
+		struct device_node *np, *parent = dev->of_node;
 
 		match = of_match_device(dev->driver->of_match_table, dev);
 		if (!match)
 			return -ENXIO;
 
+		np = of_get_child_by_name(parent, "ports");
+		if (np)
+			parent = np;
+		port = of_get_child_by_name(parent, "port");
+		of_node_put(np);
+		if (!port) {
+			dev_err(dev, "no port node found in %s\n",
+				parent->full_name);
+			return -ENXIO;
+		}
+
 		variant = match->data;
 	}
 
-	return armada_drm_crtc_create(drm, dev, res, irq, variant);
+	return armada_drm_crtc_create(drm, dev, res, irq, variant, port);
 }
 
 static void

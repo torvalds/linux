@@ -169,7 +169,7 @@ static int armada_drm_load(struct drm_device *dev, unsigned long flags)
 			goto err_kms;
 
 		ret = armada_drm_crtc_create(dev, dev->dev, res[n], irq,
-					     variant);
+					     variant, NULL);
 		if (ret)
 			goto err_kms;
 	}
