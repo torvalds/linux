@@ -2354,7 +2354,7 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 {
 	int uptodate = (err == 0);
 	struct extent_io_tree *tree;
-	int ret;
+	int ret = 0;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
@@ -5066,6 +5066,43 @@ void read_extent_buffer(struct extent_buffer *eb, void *dstv,
 		offset = 0;
 		i++;
 	}
+}
+
+int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dstv,
+			unsigned long start,
+			unsigned long len)
+{
+	size_t cur;
+	size_t offset;
+	struct page *page;
+	char *kaddr;
+	char __user *dst = (char __user *)dstv;
+	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
+	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
+	int ret = 0;
+
+	WARN_ON(start > eb->len);
+	WARN_ON(start + len > eb->start + eb->len);
+
+	offset = (start_offset + start) & (PAGE_CACHE_SIZE - 1);
+
+	while (len > 0) {
+		page = extent_buffer_page(eb, i);
+
+		cur = min(len, (PAGE_CACHE_SIZE - offset));
+		kaddr = page_address(page);
+		if (copy_to_user(dst, kaddr + offset, cur)) {
+			ret = -EFAULT;
+			break;
+		}
+
+		dst += cur;
+		len -= cur;
+		offset = 0;
+		i++;
+	}
+
+	return ret;
 }
 
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,

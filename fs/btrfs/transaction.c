@@ -1284,11 +1284,13 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	pending->error = btrfs_qgroup_inherit(trans, fs_info,
-					      root->root_key.objectid,
-					      objectid, pending->inherit);
-	if (pending->error)
-		goto no_free_objectid;
+	ret = btrfs_qgroup_inherit(trans, fs_info,
+				   root->root_key.objectid,
+				   objectid, pending->inherit);
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto fail;
+	}
 
 	/* see comments in should_cow_block() */
 	set_bit(BTRFS_ROOT_FORCE_COW, &root->state);
