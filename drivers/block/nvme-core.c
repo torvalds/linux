@@ -1275,11 +1275,10 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	if (!nvmeq)
 		return NULL;
 
-	nvmeq->cqes = dma_alloc_coherent(dmadev, CQ_SIZE(depth),
-					&nvmeq->cq_dma_addr, GFP_KERNEL);
+	nvmeq->cqes = dma_zalloc_coherent(dmadev, CQ_SIZE(depth),
+					  &nvmeq->cq_dma_addr, GFP_KERNEL);
 	if (!nvmeq->cqes)
 		goto free_nvmeq;
-	memset((void *)nvmeq->cqes, 0, CQ_SIZE(depth));
 
 	nvmeq->sq_cmds = dma_alloc_coherent(dmadev, SQ_SIZE(depth),
 					&nvmeq->sq_dma_addr, GFP_KERNEL);
