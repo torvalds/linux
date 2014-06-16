@@ -1542,9 +1542,14 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 
 		if (ext_win->area[0].xact < ext_win->area[0].yact) {
+			int pixel_width, vir_width_bit, stride;
 			ext_win->area[0].xact = win->area[0].yact;
 			ext_win->area[0].yact = win->area[0].xact;
 			ext_win->area[0].xvir = win->area[0].yact;
+			pixel_width = rk_fb_pixel_width(ext_win->format);
+			vir_width_bit = pixel_width * ext_win->area[0].xvir;
+			stride = ALIGN_N_TIMES(vir_width_bit, 32) / 8;
+			ext_win->area[0].y_vir_stride = stride >> 2;
 		}
 #if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 		rk_fb_win_rotate(ext_win, win);
