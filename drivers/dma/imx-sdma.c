@@ -271,6 +271,7 @@ struct sdma_channel {
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
 	struct tasklet_struct		tasklet;
+	struct imx_dma_data		data;
 };
 
 #define IMX_DMA_SG_LOOP		BIT(0)
@@ -1413,12 +1414,14 @@ err_dma_alloc:
 
 static bool sdma_filter_fn(struct dma_chan *chan, void *fn_param)
 {
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
 	struct imx_dma_data *data = fn_param;
 
 	if (!imx_dma_is_general_purpose(chan))
 		return false;
 
-	chan->private = data;
+	sdmac->data = *data;
+	chan->private = &sdmac->data;
 
 	return true;
 }
