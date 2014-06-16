@@ -473,6 +473,7 @@ void wil_link_on(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_carrier_on(ndev);
+	wil_dbg_misc(wil, "netif_tx_wake : link on\n");
 	netif_tx_wake_all_queues(ndev);
 }
 
@@ -483,6 +484,7 @@ void wil_link_off(struct wil6210_priv *wil)
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	netif_tx_stop_all_queues(ndev);
+	wil_dbg_misc(wil, "netif_tx_stop : link off\n");
 	netif_carrier_off(ndev);
 }
 

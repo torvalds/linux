@@ -1038,8 +1038,10 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	rc = wil_tx_vring(wil, vring, skb);
 
 	/* do we still have enough room in the vring? */
-	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))
+	if (wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring)) {
 		netif_tx_stop_all_queues(wil_to_ndev(wil));
+		wil_dbg_txrx(wil, "netif_tx_stop : ring full\n");
+	}
 
 	switch (rc) {
 	case 0:
@@ -1153,8 +1155,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		txdata->last_idle = get_cycles();
 	}
 
-	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring))
+	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring)) {
+		wil_dbg_txrx(wil, "netif_tx_wake : ring not full\n");
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
+	}
 
 	return done;
 }

@@ -859,6 +859,7 @@ static int wil_info_debugfs_show(struct seq_file *s, void *data)
 	static ulong rxf_old, txf_old;
 	ulong rxf = ndev->stats.rx_packets;
 	ulong txf = ndev->stats.tx_packets;
+	unsigned int i;
 
 	/* >0 : AC; 0 : battery; <0 : error */
 	seq_printf(s, "AC powered : %d\n", is_ac);
@@ -867,6 +868,21 @@ static int wil_info_debugfs_show(struct seq_file *s, void *data)
 	rxf_old = rxf;
 	txf_old = txf;
 
+
+#define CHECK_QSTATE(x) (state & BIT(__QUEUE_STATE_ ## x)) ? \
+	" " __stringify(x) : ""
+
+	for (i = 0; i < ndev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(ndev, i);
+		unsigned long state = txq->state;
+
+		seq_printf(s, "Tx queue[%i] state : 0x%lx%s%s%s\n", i, state,
+			   CHECK_QSTATE(DRV_XOFF),
+			   CHECK_QSTATE(STACK_XOFF),
+			   CHECK_QSTATE(FROZEN)
+			  );
+	}
+#undef CHECK_QSTATE
 	return 0;
 }
 
