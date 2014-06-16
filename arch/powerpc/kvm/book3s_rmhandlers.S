@@ -36,7 +36,11 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define FUNC(name) 		name
+#else
 #define FUNC(name) 		GLUE(.,name)
+#endif
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
