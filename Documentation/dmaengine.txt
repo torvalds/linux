@@ -84,16 +84,16 @@ The slave DMA usage consists of following steps:
    the given transaction.
 
    Interface:
-	struct dma_async_tx_descriptor *(*chan->device->device_prep_slave_sg)(
+	struct dma_async_tx_descriptor *dmaengine_prep_slave_sg(
 		struct dma_chan *chan, struct scatterlist *sgl,
 		unsigned int sg_len, enum dma_data_direction direction,
 		unsigned long flags);
 
-	struct dma_async_tx_descriptor *(*chan->device->device_prep_dma_cyclic)(
+	struct dma_async_tx_descriptor *dmaengine_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_data_direction direction);
 
-	struct dma_async_tx_descriptor *(*device_prep_interleaved_dma)(
+	struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
 		struct dma_chan *chan, struct dma_interleaved_template *xt,
 		unsigned long flags);
 
@@ -107,8 +107,7 @@ The slave DMA usage consists of following steps:
 	if (nr_sg == 0)
 		/* error */
 
-	desc = chan->device->device_prep_slave_sg(chan, sgl, nr_sg,
-			direction, flags);
+	desc = dmaengine_prep_slave_sg(chan, sgl, nr_sg, direction, flags);
 
    Once a descriptor has been obtained, the callback information can be
    added and the descriptor must then be submitted.  Some DMA engine
@@ -188,7 +187,7 @@ Further APIs:
    description of this API.
 
    This can be used in conjunction with dma_async_is_complete() and
-   the cookie returned from 'descriptor->submit()' to check for
+   the cookie returned from dmaengine_submit() to check for
    completion of a specific DMA transaction.
 
    Note:
