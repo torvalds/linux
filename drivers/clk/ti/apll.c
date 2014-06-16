@@ -338,7 +338,7 @@ static void __init of_omap2_apll_setup(struct device_node *node)
 	const char *parent_name;
 	u32 val;
 
-	ad = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	ad = kzalloc(sizeof(*ad), GFP_KERNEL);
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	init = kzalloc(sizeof(*init), GFP_KERNEL);
 
