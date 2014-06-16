@@ -755,8 +755,8 @@ static int wil_temp_debugfs_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	print_temp(s, "MAC temperature   :", t_m);
-	print_temp(s, "Radio temperature :", t_r);
+	print_temp(s, "T_mac   =", t_m);
+	print_temp(s, "T_radio =", t_r);
 
 	return 0;
 }
