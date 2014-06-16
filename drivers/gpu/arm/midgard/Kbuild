@@ -105,12 +105,15 @@ SRC := \
 	mali_kbase_mem_lowlevel.c \
 	mali_kbase_debug.c \
 	mali_kbase_trace_timeline.c \
-	mali_kbase_gpu_memory_debugfs.c \
 	mali_kbase_mem_linux.c \
 	mali_kbase_core_linux.c \
 	mali_kbase_sync.c \
 	mali_kbase_sync_user.c \
 	mali_kbase_replay.c \
+
+ifeq ($(CONFIG_DEBUG_FS),y)
+SRC += mali_kbase_gpu_memory_debugfs.c
+endif
 
 ifeq ($(MALI_CUSTOMER_RELEASE),0)
 SRC += \
