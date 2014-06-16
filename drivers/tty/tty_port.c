@@ -348,6 +348,11 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *	do carrier detect and the dtr_rts method if it supports software
  *	management of these lines. Note that the dtr/rts raise is done each
  *	iteration as a hangup may have previously dropped them while we wait.
+ *
+ *	Caller holds tty lock.
+ *
+ *      NB: May drop and reacquire tty lock when blocking, so tty and tty_port
+ *      may have changed state (eg., may have been hung up).
  */
 
 int tty_port_block_til_ready(struct tty_port *port,
