@@ -103,4 +103,7 @@ static inline bool setup_remapped_irq(int irq,
 }
 #endif /* CONFIG_IRQ_REMAP */
 
+#define dmar_alloc_hwirq()	irq_alloc_hwirq(-1)
+#define dmar_free_hwirq		irq_free_hwirq
+
 #endif /* __X86_IRQ_REMAPPING_H */

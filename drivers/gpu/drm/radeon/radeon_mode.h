@@ -191,6 +191,7 @@ struct radeon_i2c_chan {
 	struct radeon_i2c_bus_rec rec;
 	struct drm_dp_aux aux;
 	bool has_aux;
+	struct mutex mutex;
 };
 
 /* mostly for macs, but really any system without connector tables */
@@ -324,8 +325,8 @@ struct radeon_crtc {
 	struct drm_display_mode native_mode;
 	int pll_id;
 	/* page flipping */
-	struct radeon_unpin_work *unpin_work;
-	int deferred_flip_completion;
+	struct workqueue_struct *flip_queue;
+	struct radeon_flip_work *flip_work;
 	/* pll sharing */
 	struct radeon_atom_ss ss;
 	bool ss_enabled;
@@ -505,6 +506,7 @@ struct radeon_connector {
 	struct radeon_i2c_chan *router_bus;
 	enum radeon_connector_audio audio;
 	enum radeon_connector_dither dither;
+	int pixelclock_for_modeset;
 };
 
 struct radeon_framebuffer {
@@ -906,6 +908,7 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);
 
+void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id);
 void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled);

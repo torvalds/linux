@@ -395,6 +395,8 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 	payload.offset = 0;
 	payload.length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
+	if (!payload.func_specific)
+		return -ENOMEM;
 	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
 	wait_for_completion(&completion);
 	virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
@@ -402,6 +404,7 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 		bios_index++)
 		str += sprintf(str, "%c",
 			*((u8 *)((u8 *)virt_addr+bios_index)));
+	kfree(payload.func_specific);
 	return str - buf;
 }
 static DEVICE_ATTR(bios_version, S_IRUGO, pm8001_ctl_bios_version_show, NULL);
@@ -729,7 +732,7 @@ static ssize_t pm8001_show_update_fw(struct device *cdev,
 			flash_error_table[i].reason);
 }
 
-static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUGO,
+static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
 struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_interface_rev,

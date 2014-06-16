@@ -114,7 +114,7 @@ struct drm_encoder_helper_funcs {
 /**
  * drm_connector_helper_funcs - helper operations for connectors
  * @get_modes: get mode list for this connector
- * @mode_valid: is this mode valid on the given connector?
+ * @mode_valid (optional): is this mode valid on the given connector?
  *
  * The helper operations are called by the mid-layer CRTC helper.
  */
@@ -165,6 +165,10 @@ extern void drm_helper_resume_force_mode(struct drm_device *dev);
 extern int drm_helper_probe_single_connector_modes(struct drm_connector
 						   *connector, uint32_t maxX,
 						   uint32_t maxY);
+extern int drm_helper_probe_single_connector_modes_nomerge(struct drm_connector
+							   *connector,
+							   uint32_t maxX,
+							   uint32_t maxY);
 extern void drm_kms_helper_poll_init(struct drm_device *dev);
 extern void drm_kms_helper_poll_fini(struct drm_device *dev);
 extern bool drm_helper_hpd_irq_event(struct drm_device *dev);

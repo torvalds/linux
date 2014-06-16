@@ -514,9 +514,10 @@ free_fb:
 static int grvga_remove(struct platform_device *device)
 {
 	struct fb_info *info = dev_get_drvdata(&device->dev);
-	struct grvga_par *par = info->par;
+	struct grvga_par *par;
 
 	if (info) {
+		par = info->par;
 		unregister_framebuffer(info);
 		fb_dealloc_cmap(&info->cmap);
 

@@ -16,6 +16,8 @@ typedef struct {
 	unsigned long vdso_base;
 	/* The mmu context has extended page tables. */
 	unsigned int has_pgste:1;
+	/* The mmu context uses storage keys. */
+	unsigned int use_skey:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						      \

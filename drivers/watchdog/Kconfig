@@ -272,7 +272,7 @@ config PNX4008_WATCHDOG
 
 config IOP_WATCHDOG
 	tristate "IOP Watchdog"
-	depends on PLAT_IOP
+	depends on ARCH_IOP13XX
 	select WATCHDOG_NOWAYOUT if (ARCH_IOP32X || ARCH_IOP33X)
 	help
 	  Say Y here if to include support for the watchdog timer
@@ -378,6 +378,8 @@ config MAX63XX_WATCHDOG
 config IMX2_WDT
 	tristate "IMX2+ Watchdog"
 	depends on ARCH_MXC
+	select REGMAP_MMIO
+	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog
 	  on the Freescale IMX2 and later processors.
@@ -663,6 +665,19 @@ config INTEL_SCU_WATCHDOG
 
 	  To compile this driver as a module, choose M here.
 
+config INTEL_MID_WATCHDOG
+	tristate "Intel MID Watchdog Timer"
+	depends on X86_INTEL_MID
+	select WATCHDOG_CORE
+	---help---
+	  Watchdog timer driver built into the Intel SCU for Intel MID
+	  Platforms.
+
+	  This driver currently supports only the watchdog evolution
+	  implementation in SCU, available for Merrifield generation.
+
+	  To compile this driver as a module, choose M here.
+
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
@@ -835,7 +850,7 @@ config 60XX_WDT
 
 config SBC8360_WDT
 	tristate "SBC8360 Watchdog Timer"
-	depends on X86
+	depends on X86_32
 	---help---
 
 	  This is the driver for the hardware watchdog on the SBC8360 Single
@@ -935,36 +950,6 @@ config W83627HF_WDT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w83627hf_wdt.
-
-	  Most people will say N.
-
-config W83697HF_WDT
-	tristate "W83697HF/W83697HG Watchdog Timer"
-	depends on X86
-	---help---
-	  This is the driver for the hardware watchdog on the W83697HF/HG
-	  chipset as used in Dedibox/VIA motherboards (and likely others).
-	  This watchdog simply watches your kernel to make sure it doesn't
-	  freeze, and if it does, it reboots your computer after a certain
-	  amount of time.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w83697hf_wdt.
-
-	  Most people will say N.
-
-config W83697UG_WDT
-	tristate "W83697UG/W83697UF Watchdog Timer"
-	depends on X86
-	---help---
-	  This is the driver for the hardware watchdog on the W83697UG/UF
-	  chipset as used in MSI Fuzzy CX700 VIA motherboards (and likely others).
-	  This watchdog simply watches your kernel to make sure it doesn't
-	  freeze, and if it does, it reboots your computer after a certain
-	  amount of time.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w83697ug_wdt.
 
 	  Most people will say N.
 

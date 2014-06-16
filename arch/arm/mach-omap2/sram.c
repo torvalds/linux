@@ -70,16 +70,16 @@ static int is_sram_locked(void)
 	if (OMAP2_DEVICE_TYPE_GP == omap_type()) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
-			__raw_writel(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
-			__raw_writel(0xCFDE, OMAP24XX_VA_READPERM0);  /* all i-read */
-			__raw_writel(0xCFDE, OMAP24XX_VA_WRITEPERM0); /* all i-write */
+			writel_relaxed(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
+			writel_relaxed(0xCFDE, OMAP24XX_VA_READPERM0);  /* all i-read */
+			writel_relaxed(0xCFDE, OMAP24XX_VA_WRITEPERM0); /* all i-write */
 		}
 		if (cpu_is_omap34xx()) {
-			__raw_writel(0xFFFF, OMAP34XX_VA_REQINFOPERM0); /* all q-vects */
-			__raw_writel(0xFFFF, OMAP34XX_VA_READPERM0);  /* all i-read */
-			__raw_writel(0xFFFF, OMAP34XX_VA_WRITEPERM0); /* all i-write */
-			__raw_writel(0x0, OMAP34XX_VA_ADDR_MATCH2);
-			__raw_writel(0xFFFFFFFF, OMAP34XX_VA_SMS_RG_ATT0);
+			writel_relaxed(0xFFFF, OMAP34XX_VA_REQINFOPERM0); /* all q-vects */
+			writel_relaxed(0xFFFF, OMAP34XX_VA_READPERM0);  /* all i-read */
+			writel_relaxed(0xFFFF, OMAP34XX_VA_WRITEPERM0); /* all i-write */
+			writel_relaxed(0x0, OMAP34XX_VA_ADDR_MATCH2);
+			writel_relaxed(0xFFFFFFFF, OMAP34XX_VA_SMS_RG_ATT0);
 		}
 		return 0;
 	} else

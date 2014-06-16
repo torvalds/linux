@@ -17,7 +17,6 @@
 #include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
-#include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/pnp.h>
 

@@ -7,11 +7,11 @@
  */
 /dts-v1/;
 
-#include "dra7.dtsi"
+#include "dra74x.dtsi"
 
 / {
-	model = "TI DRA7";
-	compatible = "ti,dra7-evm", "ti,dra752", "ti,dra7";
+	model = "TI DRA742";
+	compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7";
 
 	memory {
 		device_type = "memory";
@@ -91,6 +91,64 @@
 		pinctrl-single,pins = <
 			0x248 (PIN_INPUT_SLEW | MUX_MODE0) /* uart3_rxd */
 			0x24c (PIN_INPUT_SLEW | MUX_MODE0) /* uart3_txd */
+		>;
+	};
+
+	qspi1_pins: pinmux_qspi1_pins {
+		pinctrl-single,pins = <
+			0x4c (PIN_INPUT | MUX_MODE1)  /* gpmc_a3.qspi1_cs2 */
+			0x50 (PIN_INPUT | MUX_MODE1)  /* gpmc_a4.qspi1_cs3 */
+			0x74 (PIN_INPUT | MUX_MODE1)  /* gpmc_a13.qspi1_rtclk */
+			0x78 (PIN_INPUT | MUX_MODE1)  /* gpmc_a14.qspi1_d3 */
+			0x7c (PIN_INPUT | MUX_MODE1)  /* gpmc_a15.qspi1_d2 */
+			0x80 (PIN_INPUT | MUX_MODE1) /* gpmc_a16.qspi1_d1 */
+			0x84 (PIN_INPUT | MUX_MODE1)  /* gpmc_a17.qspi1_d0 */
+			0x88 (PIN_INPUT | MUX_MODE1)  /* qpmc_a18.qspi1_sclk */
+			0xb8 (PIN_INPUT_PULLUP | MUX_MODE1)  /* gpmc_cs2.qspi1_cs0 */
+			0xbc (PIN_INPUT_PULLUP | MUX_MODE1)  /* gpmc_cs3.qspi1_cs1 */
+		>;
+	};
+
+	usb1_pins: pinmux_usb1_pins {
+                pinctrl-single,pins = <
+			0x280 (PIN_INPUT_SLEW | MUX_MODE0) /* usb1_drvvbus */
+                >;
+        };
+
+	usb2_pins: pinmux_usb2_pins {
+                pinctrl-single,pins = <
+			0x284 (PIN_INPUT_SLEW | MUX_MODE0) /* usb2_drvvbus */
+                >;
+        };
+
+	nand_flash_x16: nand_flash_x16 {
+		/* On DRA7 EVM, GPMC_WPN and NAND_BOOTn comes from DIP switch
+		 * So NAND flash requires following switch settings:
+		 * SW5.9 (GPMC_WPN) = LOW
+		 * SW5.1 (NAND_BOOTn) = HIGH */
+		pinctrl-single,pins = <
+			0x0 	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad0	*/
+			0x4 	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad1	*/
+			0x8 	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad2	*/
+			0xc 	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad3	*/
+			0x10	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad4	*/
+			0x14	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad5	*/
+			0x18	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad6	*/
+			0x1c	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad7	*/
+			0x20	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad8	*/
+			0x24	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad9	*/
+			0x28	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad10	*/
+			0x2c	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad11	*/
+			0x30	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad12	*/
+			0x34	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad13	*/
+			0x38	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad14	*/
+			0x3c	(PIN_INPUT  | MUX_MODE0)	/* gpmc_ad15	*/
+			0xd8	(PIN_INPUT_PULLUP  | MUX_MODE0)	/* gpmc_wait0	*/
+			0xcc	(PIN_OUTPUT | MUX_MODE0)	/* gpmc_wen	*/
+			0xb4	(PIN_OUTPUT_PULLUP | MUX_MODE0)	/* gpmc_csn0	*/
+			0xc4	(PIN_OUTPUT | MUX_MODE0)	/* gpmc_advn_ale */
+			0xc8	(PIN_OUTPUT | MUX_MODE0)	/* gpmc_oen_ren	 */
+			0xd0	(PIN_OUTPUT | MUX_MODE0)	/* gpmc_be0n_cle */
 		>;
 	};
 };
@@ -272,4 +330,168 @@
 
 &cpu0 {
 	cpu0-supply = <&smps123_reg>;
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi1_pins>;
+
+	spi-max-frequency = <48000000>;
+	m25p80@0 {
+		compatible = "s25fl256s1";
+		spi-max-frequency = <48000000>;
+		reg = <0>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+		spi-cpol;
+		spi-cpha;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* MTD partition table.
+		 * The ROM checks the first four physical blocks
+		 * for a valid file to boot and the flash here is
+		 * 64KiB block size.
+		 */
+		partition@0 {
+			label = "QSPI.SPL";
+			reg = <0x00000000 0x000010000>;
+		};
+		partition@1 {
+			label = "QSPI.SPL.backup1";
+			reg = <0x00010000 0x00010000>;
+		};
+		partition@2 {
+			label = "QSPI.SPL.backup2";
+			reg = <0x00020000 0x00010000>;
+		};
+		partition@3 {
+			label = "QSPI.SPL.backup3";
+			reg = <0x00030000 0x00010000>;
+		};
+		partition@4 {
+			label = "QSPI.u-boot";
+			reg = <0x00040000 0x00100000>;
+		};
+		partition@5 {
+			label = "QSPI.u-boot-spl-os";
+			reg = <0x00140000 0x00010000>;
+		};
+		partition@6 {
+			label = "QSPI.u-boot-env";
+			reg = <0x00150000 0x00010000>;
+		};
+		partition@7 {
+			label = "QSPI.u-boot-env.backup1";
+			reg = <0x00160000 0x0010000>;
+		};
+		partition@8 {
+			label = "QSPI.kernel";
+			reg = <0x00170000 0x0800000>;
+		};
+		partition@9 {
+			label = "QSPI.file-system";
+			reg = <0x00970000 0x01690000>;
+		};
+	};
+};
+
+&usb1 {
+	dr_mode = "peripheral";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins>;
+};
+
+&usb2 {
+	dr_mode = "host";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_pins>;
+};
+
+&elm {
+	status = "okay";
+};
+
+&gpmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_flash_x16>;
+	ranges = <0 0 0 0x01000000>;	/* minimum GPMC partition = 16MB */
+	nand@0,0 {
+		reg = <0 0 4>;		/* device IO registers */
+		ti,nand-ecc-opt = "bch8";
+		ti,elm-id = <&elm>;
+		nand-bus-width = <16>;
+		gpmc,device-width = <2>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <40>;
+		gpmc,cs-wr-off-ns = <40>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <30>;
+		gpmc,adv-wr-off-ns = <30>;
+		gpmc,we-on-ns = <5>;
+		gpmc,we-off-ns = <25>;
+		gpmc,oe-on-ns = <2>;
+		gpmc,oe-off-ns = <20>;
+		gpmc,access-ns = <20>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,rd-cycle-ns = <40>;
+		gpmc,wr-cycle-ns = <40>;
+		gpmc,wait-pin = <0>;
+		gpmc,wait-on-read;
+		gpmc,wait-on-write;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		/* MTD partition table */
+		/* All SPL-* partitions are sized to minimal length
+		 * which can be independently programmable. For
+		 * NAND flash this is equal to size of erase-block */
+		#address-cells = <1>;
+		#size-cells = <1>;
+		partition@0 {
+			label = "NAND.SPL";
+			reg = <0x00000000 0x000020000>;
+		};
+		partition@1 {
+			label = "NAND.SPL.backup1";
+			reg = <0x00020000 0x00020000>;
+		};
+		partition@2 {
+			label = "NAND.SPL.backup2";
+			reg = <0x00040000 0x00020000>;
+		};
+		partition@3 {
+			label = "NAND.SPL.backup3";
+			reg = <0x00060000 0x00020000>;
+		};
+		partition@4 {
+			label = "NAND.u-boot-spl-os";
+			reg = <0x00080000 0x00040000>;
+		};
+		partition@5 {
+			label = "NAND.u-boot";
+			reg = <0x000c0000 0x00100000>;
+		};
+		partition@6 {
+			label = "NAND.u-boot-env";
+			reg = <0x001c0000 0x00020000>;
+		};
+		partition@7 {
+			label = "NAND.u-boot-env";
+			reg = <0x001e0000 0x00020000>;
+		};
+		partition@8 {
+			label = "NAND.kernel";
+			reg = <0x00200000 0x00800000>;
+		};
+		partition@9 {
+			label = "NAND.file-system";
+			reg = <0x00a00000 0x0f600000>;
+		};
+	};
 };

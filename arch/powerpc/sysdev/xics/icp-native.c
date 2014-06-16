@@ -26,6 +26,7 @@
 #include <asm/errno.h>
 #include <asm/xics.h>
 #include <asm/kvm_ppc.h>
+#include <asm/dbell.h>
 
 struct icp_ipl {
 	union {
@@ -145,7 +146,13 @@ static unsigned int icp_native_get_irq(void)
 static void icp_native_cause_ipi(int cpu, unsigned long data)
 {
 	kvmppc_set_host_ipi(cpu, 1);
-	icp_native_set_qirr(cpu, IPI_PRIORITY);
+#ifdef CONFIG_PPC_DOORBELL
+	if (cpu_has_feature(CPU_FTR_DBELL) &&
+	    (cpumask_test_cpu(cpu, cpu_sibling_mask(smp_processor_id()))))
+		doorbell_cause_ipi(cpu, data);
+	else
+#endif
+		icp_native_set_qirr(cpu, IPI_PRIORITY);
 }
 
 void xics_wake_cpu(int cpu)

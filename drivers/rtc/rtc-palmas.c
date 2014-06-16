@@ -352,7 +352,7 @@ static SIMPLE_DEV_PM_OPS(palmas_rtc_pm_ops, palmas_rtc_suspend,
 			 palmas_rtc_resume);
 
 #ifdef CONFIG_OF
-static struct of_device_id of_palmas_rtc_match[] = {
+static const struct of_device_id of_palmas_rtc_match[] = {
 	{ .compatible = "ti,palmas-rtc"},
 	{ },
 };

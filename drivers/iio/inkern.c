@@ -417,12 +417,24 @@ static int iio_channel_read(struct iio_channel *chan, int *val, int *val2,
 	enum iio_chan_info_enum info)
 {
 	int unused;
+	int vals[INDIO_MAX_RAW_ELEMENTS];
+	int ret;
+	int val_len = 2;
 
 	if (val2 == NULL)
 		val2 = &unused;
 
-	return chan->indio_dev->info->read_raw(chan->indio_dev, chan->channel,
-						val, val2, info);
+	if (chan->indio_dev->info->read_raw_multi) {
+		ret = chan->indio_dev->info->read_raw_multi(chan->indio_dev,
+					chan->channel, INDIO_MAX_RAW_ELEMENTS,
+					vals, &val_len, info);
+		*val = vals[0];
+		*val2 = vals[1];
+	} else
+		ret = chan->indio_dev->info->read_raw(chan->indio_dev,
+					chan->channel, val, val2, info);
+
+	return ret;
 }
 
 int iio_read_channel_raw(struct iio_channel *chan, int *val)
@@ -442,6 +454,24 @@ err_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_read_channel_raw);
+
+int iio_read_channel_average_raw(struct iio_channel *chan, int *val)
+{
+	int ret;
+
+	mutex_lock(&chan->indio_dev->info_exist_lock);
+	if (chan->indio_dev->info == NULL) {
+		ret = -ENODEV;
+		goto err_unlock;
+	}
+
+	ret = iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_AVERAGE_RAW);
+err_unlock:
+	mutex_unlock(&chan->indio_dev->info_exist_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iio_read_channel_average_raw);
 
 static int iio_convert_raw_to_processed_unlocked(struct iio_channel *chan,
 	int raw, int *processed, unsigned int scale)

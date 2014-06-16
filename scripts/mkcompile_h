@@ -68,7 +68,7 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 
 ( echo /\* This file is auto generated, version $VERSION \*/
   if [ -n "$CONFIG_FLAGS" ] ; then echo "/* $CONFIG_FLAGS */"; fi
-  
+
   echo \#define UTS_MACHINE \"$ARCH\"
 
   echo \#define UTS_VERSION \"`echo $UTS_VERSION | $UTS_TRUNCATE`\"
@@ -84,7 +84,7 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 # recompilations.
 # We don't consider the file changed if only the date/time changed.
 # A kernel config change will increase the generation number, thus
-# causing compile.h to be updated (including date/time) due to the 
+# causing compile.h to be updated (including date/time) due to the
 # changed comment in the
 # first line.
 

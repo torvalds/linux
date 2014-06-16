@@ -556,15 +556,6 @@ failed:
 /*
  * netdev sysfs
  */
-static ssize_t show_channel(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct net_device *ndev = to_net_dev(dev);
-	struct softing_priv *priv = netdev2softing(ndev);
-
-	return sprintf(buf, "%i\n", priv->index);
-}
-
 static ssize_t show_chip(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -609,12 +600,10 @@ static ssize_t store_output(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static const DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
 static const DEVICE_ATTR(chip, S_IRUGO, show_chip, NULL);
 static const DEVICE_ATTR(output, S_IRUGO | S_IWUSR, show_output, store_output);
 
 static const struct attribute *const netdev_sysfs_attrs[] = {
-	&dev_attr_channel.attr,
 	&dev_attr_chip.attr,
 	&dev_attr_output.attr,
 	NULL,
@@ -679,17 +668,20 @@ static int softing_netdev_register(struct net_device *netdev)
 {
 	int ret;
 
-	netdev->sysfs_groups[0] = &netdev_sysfs_group;
 	ret = register_candev(netdev);
 	if (ret) {
 		dev_alert(&netdev->dev, "register failed\n");
 		return ret;
 	}
+	if (sysfs_create_group(&netdev->dev.kobj, &netdev_sysfs_group) < 0)
+		netdev_alert(netdev, "sysfs group failed\n");
+
 	return 0;
 }
 
 static void softing_netdev_cleanup(struct net_device *netdev)
 {
+	sysfs_remove_group(&netdev->dev.kobj, &netdev_sysfs_group);
 	unregister_candev(netdev);
 	free_candev(netdev);
 }
@@ -721,8 +713,6 @@ DEV_ATTR_RO(firmware_version, id.fw_version);
 DEV_ATTR_RO_STR(hardware, pdat->name);
 DEV_ATTR_RO(hardware_version, id.hw_version);
 DEV_ATTR_RO(license, id.license);
-DEV_ATTR_RO(frequency, id.freq);
-DEV_ATTR_RO(txpending, tx.pending);
 
 static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_serial.attr,
@@ -731,8 +721,6 @@ static struct attribute *softing_pdev_attrs[] = {
 	&dev_attr_hardware.attr,
 	&dev_attr_hardware_version.attr,
 	&dev_attr_license.attr,
-	&dev_attr_frequency.attr,
-	&dev_attr_txpending.attr,
 	NULL,
 };
 

@@ -1052,6 +1052,43 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 		radeon_agpmode = 0;
 		break;
 	}
+
+	if (!radeon_check_pot_argument(radeon_vm_size)) {
+		dev_warn(rdev->dev, "VM size (%d) must be a power of 2\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
+
+	if (radeon_vm_size < 4) {
+		dev_warn(rdev->dev, "VM size (%d) to small, min is 4MB\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
+
+       /*
+        * Max GPUVM size for Cayman, SI and CI are 40 bits.
+        */
+	if (radeon_vm_size > 1024*1024) {
+		dev_warn(rdev->dev, "VM size (%d) to large, max is 1TB\n",
+			 radeon_vm_size);
+		radeon_vm_size = 4096;
+	}
+
+	/* defines number of bits in page table versus page directory,
+	 * a page is 4KB so we have 12 bits offset, minimum 9 bits in the
+	 * page table and the remaining bits are in the page directory */
+	if (radeon_vm_block_size < 9) {
+		dev_warn(rdev->dev, "VM page table size (%d) to small\n",
+			 radeon_vm_block_size);
+		radeon_vm_block_size = 9;
+	}
+
+	if (radeon_vm_block_size > 24 ||
+	    radeon_vm_size < (1ull << radeon_vm_block_size)) {
+		dev_warn(rdev->dev, "VM page table size (%d) to large\n",
+			 radeon_vm_block_size);
+		radeon_vm_block_size = 9;
+	}
 }
 
 /**
@@ -1126,12 +1163,13 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	bool can_switch;
 
-	spin_lock(&dev->count_lock);
-	can_switch = (dev->open_count == 0);
-	spin_unlock(&dev->count_lock);
-	return can_switch;
+	/*
+	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
+	 * locking inversion with the driver load path. And the access here is
+	 * completely racy anyway. So don't bother with locking for now.
+	 */
+	return dev->open_count == 0;
 }
 
 static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
@@ -1196,17 +1234,16 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 
+	radeon_check_arguments(rdev);
 	/* Adjust VM size here.
-	 * Currently set to 4GB ((1 << 20) 4k pages).
-	 * Max GPUVM size for cayman and SI is 40 bits.
+	 * Max GPUVM size for cayman+ is 40 bits.
 	 */
-	rdev->vm_manager.max_pfn = 1 << 20;
+	rdev->vm_manager.max_pfn = radeon_vm_size << 8;
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
 	if (r)
 		return r;
-	radeon_check_arguments(rdev);
 
 	/* all of the newer IGP chips have an internal gart
 	 * However some rs4xx report as AGP, so remove that here.
@@ -1557,6 +1594,10 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	drm_kms_helper_poll_enable(dev);
+
+	/* set the power state here in case we are a PX system or headless */
+	if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled)
+		radeon_pm_compute_clocks(rdev);
 
 	if (fbcon) {
 		radeon_fbdev_set_suspend(rdev, 0);

@@ -250,3 +250,24 @@ Description:
 		valid.  For example, writing a 2 to this file when sriov_numvfs
 		is not 0 and not 2 already will return an error. Writing a 10
 		when the value of sriov_totalvfs is 8 will return an error.
+
+What:		/sys/bus/pci/devices/.../driver_override
+Date:		April 2014
+Contact:	Alex Williamson <alex.williamson@redhat.com>
+Description:
+		This file allows the driver for a device to be specified which
+		will override standard static and dynamic ID matching.  When
+		specified, only a driver with a name matching the value written
+		to driver_override will have an opportunity to bind to the
+		device.  The override is specified by writing a string to the
+		driver_override file (echo pci-stub > driver_override) and
+		may be cleared with an empty string (echo > driver_override).
+		This returns the device to standard matching rules binding.
+		Writing to driver_override does not automatically unbind the
+		device from its current driver or make any attempt to
+		automatically load the specified driver.  If no driver with a
+		matching name is currently loaded in the kernel, the device
+		will not bind to any driver.  This also allows devices to
+		opt-out of driver binding using a driver_override name such as
+		"none".  Only a single driver may be specified in the override,
+		there is no support for parsing delimiters.

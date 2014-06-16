@@ -591,7 +591,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 
 	pr_debug("***sctp_transmit_packet*** skb->len:%d\n", nskb->len);
 
-	nskb->local_df = packet->ipfragok;
+	nskb->ignore_df = packet->ipfragok;
 	tp->af_specific->sctp_xmit(nskb, tp);
 
 out:

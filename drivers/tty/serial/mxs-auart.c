@@ -200,7 +200,7 @@ static void dma_tx_callback(void *param)
 
 	/* clear the bit used to serialize the DMA tx. */
 	clear_bit(MXS_AUART_DMA_TX_SYNC, &s->flags);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 
 	/* wake up the possible processes. */
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -275,7 +275,7 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 			mxs_auart_dma_tx(s, i);
 		} else {
 			clear_bit(MXS_AUART_DMA_TX_SYNC, &s->flags);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 		}
 		return;
 	}

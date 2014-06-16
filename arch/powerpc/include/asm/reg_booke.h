@@ -583,6 +583,7 @@
 
 /* Bit definitions for L1CSR0. */
 #define L1CSR0_CPE	0x00010000	/* Data Cache Parity Enable */
+#define L1CSR0_CUL	0x00000400	/* Data Cache Unable to Lock */
 #define L1CSR0_CLFC	0x00000100	/* Cache Lock Bits Flash Clear */
 #define L1CSR0_DCFI	0x00000002	/* Data Cache Flash Invalidate */
 #define L1CSR0_CFI	0x00000002	/* Cache Flash Invalidate */

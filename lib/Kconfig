@@ -331,6 +331,20 @@ config TEXTSEARCH_FSM
 config BTREE
 	boolean
 
+config INTERVAL_TREE
+	boolean
+	help
+	  Simple, embeddable, interval-tree. Can find the start of an
+	  overlapping range in log(n) time and then iterate over all
+	  overlapping nodes. The algorithm is implemented as an
+	  augmented rbtree.
+
+	  See:
+
+		Documentation/rbtree.txt
+
+	  for more information.
+
 config ASSOCIATIVE_ARRAY
 	bool
 	help

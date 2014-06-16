@@ -179,7 +179,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
 	struct scatterlist *sgl_bidi = NULL;
-	u32 sgl_bidi_count = 0;
+	u32 sgl_bidi_count = 0, transfer_length;
 	int rc;
 
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
@@ -213,12 +213,21 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	}
 
-	if (!scsi_prot_sg_count(sc) && scsi_get_prot_op(sc) != SCSI_PROT_NORMAL)
+	transfer_length = scsi_transfer_length(sc);
+	if (!scsi_prot_sg_count(sc) &&
+	    scsi_get_prot_op(sc) != SCSI_PROT_NORMAL) {
 		se_cmd->prot_pto = true;
+		/*
+		 * loopback transport doesn't support
+		 * WRITE_GENERATE, READ_STRIP protection
+		 * information operations, go ahead unprotected.
+		 */
+		transfer_length = scsi_bufflen(sc);
+	}
 
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
-			scsi_bufflen(sc), tcm_loop_sam_attr(sc),
+			transfer_length, tcm_loop_sam_attr(sc),
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
 			sgl_bidi, sgl_bidi_count,
@@ -951,7 +960,7 @@ static int tcm_loop_port_link(
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	atomic_inc(&tl_tpg->tl_tpg_port_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 	/*
 	 * Add Linux/SCSI struct scsi_device by HCTL
 	 */
@@ -986,7 +995,7 @@ static void tcm_loop_port_unlink(
 	scsi_device_put(sd);
 
 	atomic_dec(&tl_tpg->tl_tpg_port_count);
-	smp_mb__after_atomic_dec();
+	smp_mb__after_atomic();
 
 	pr_debug("TCM_Loop_ConfigFS: Port Unlink Successful\n");
 }

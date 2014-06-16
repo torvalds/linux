@@ -34,6 +34,8 @@
  *    Sridhar Samudrala     <sri@us.ibm.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <net/sctp/structs.h>
 #include <net/sctp/sctp.h>
 #include <linux/sysctl.h>
@@ -46,6 +48,11 @@ static int sack_timer_min = 1;
 static int sack_timer_max = 500;
 static int addr_scope_max = 3; /* check sctp_scope_policy_t in include/net/sctp/constants.h for max entries */
 static int rwnd_scale_max = 16;
+static int rto_alpha_min = 0;
+static int rto_beta_min = 0;
+static int rto_alpha_max = 1000;
+static int rto_beta_max = 1000;
+
 static unsigned long max_autoclose_min = 0;
 static unsigned long max_autoclose_max =
 	(MAX_SCHEDULE_TIMEOUT / HZ > UINT_MAX)
@@ -64,6 +71,9 @@ static int proc_sctp_do_rto_min(struct ctl_table *ctl, int write,
 static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp,
 				loff_t *ppos);
+static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
+				   void __user *buffer, size_t *lenp,
+				   loff_t *ppos);
 static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 			     void __user *buffer, size_t *lenp,
 			     loff_t *ppos);
@@ -126,15 +136,19 @@ static struct ctl_table sctp_net_table[] = {
 		.procname	= "rto_alpha_exp_divisor",
 		.data		= &init_net.sctp.rto_alpha,
 		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.mode		= 0644,
+		.proc_handler	= proc_sctp_do_alpha_beta,
+		.extra1		= &rto_alpha_min,
+		.extra2		= &rto_alpha_max,
 	},
 	{
 		.procname	= "rto_beta_exp_divisor",
 		.data		= &init_net.sctp.rto_beta,
 		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.mode		= 0644,
+		.proc_handler	= proc_sctp_do_alpha_beta,
+		.extra1		= &rto_beta_min,
+		.extra2		= &rto_beta_max,
 	},
 	{
 		.procname	= "max_burst",
@@ -403,6 +417,16 @@ static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
+				   void __user *buffer, size_t *lenp,
+				   loff_t *ppos)
+{
+	pr_warn_once("Changing rto_alpha or rto_beta may lead to "
+		     "suboptimal rtt/srtt estimations!\n");
+
+	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+}
+
 static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 			     void __user *buffer, size_t *lenp,
 			     loff_t *ppos)
@@ -436,20 +460,21 @@ static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 
 int sctp_sysctl_net_register(struct net *net)
 {
-	struct ctl_table *table = sctp_net_table;
+	struct ctl_table *table;
+	int i;
 
-	if (!net_eq(net, &init_net)) {
-		int i;
+	table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
 
-		table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
-		if (!table)
-			return -ENOMEM;
-
-		for (i = 0; table[i].data; i++)
-			table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
-	}
+	for (i = 0; table[i].data; i++)
+		table[i].data += (char *)(&net->sctp) - (char *)&init_net.sctp;
 
 	net->sctp.sysctl_header = register_net_sysctl(net, "net/sctp", table);
+	if (net->sctp.sysctl_header == NULL) {
+		kfree(table);
+		return -ENOMEM;
+	}
 	return 0;
 }
 

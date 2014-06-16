@@ -5,7 +5,6 @@
 #include "../../video/fbdev/sis/vgatypes.h"
 #include "../../video/fbdev/sis/sis.h"		/* for LCD_TYPE */
 
-#ifndef XGI_VB_CHIP_TYPE
 enum XGI_VB_CHIP_TYPE {
 	VB_CHIP_Legacy = 0,
 	VB_CHIP_301,
@@ -19,7 +18,6 @@ enum XGI_VB_CHIP_TYPE {
 	VB_CHIP_UNKNOWN, /* other video bridge or no video bridge */
 	MAX_VB_CHIP
 };
-#endif
 
 struct xgi_hw_device_info {
 	unsigned long ulExternalChip; /* NO VB or other video bridge*/

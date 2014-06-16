@@ -1379,7 +1379,7 @@ static inline int check_desc_avail(struct adapter *adap, struct sge_txq *q,
 		struct sge_qset *qs = txq_to_qset(q, qid);
 
 		set_bit(qid, &qs->txq_stopped);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		if (should_restart_tx(q) &&
 		    test_and_clear_bit(qid, &qs->txq_stopped))
@@ -1492,7 +1492,7 @@ static void restart_ctrlq(unsigned long data)
 
 	if (!skb_queue_empty(&q->sendq)) {
 		set_bit(TXQ_CTRL, &qs->txq_stopped);
-		smp_mb__after_clear_bit();
+		smp_mb__after_atomic();
 
 		if (should_restart_tx(q) &&
 		    test_and_clear_bit(TXQ_CTRL, &qs->txq_stopped))
@@ -1697,7 +1697,7 @@ again:	reclaim_completed_tx(adap, q, TX_RECLAIM_CHUNK);
 
 		if (unlikely(q->size - q->in_use < ndesc)) {
 			set_bit(TXQ_OFLD, &qs->txq_stopped);
-			smp_mb__after_clear_bit();
+			smp_mb__after_atomic();
 
 			if (should_restart_tx(q) &&
 			    test_and_clear_bit(TXQ_OFLD, &qs->txq_stopped))

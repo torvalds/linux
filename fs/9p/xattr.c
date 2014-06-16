@@ -156,7 +156,7 @@ int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
 		offset += write_count;
 		value_len -= write_count;
 	}
-	retval = offset;
+	retval = 0;
 err:
 	p9_client_clunk(fid);
 	return retval;

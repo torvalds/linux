@@ -41,8 +41,7 @@ An interrupt controller driver creates and registers an irq_domain by
 calling one of the irq_domain_add_*() functions (each mapping method
 has a different allocator function, more on that later).  The function
 will return a pointer to the irq_domain on success.  The caller must
-provide the allocator function with an irq_domain_ops structure with
-the .map callback populated as a minimum.
+provide the allocator function with an irq_domain_ops structure.
 
 In most cases, the irq_domain will begin empty without any mappings
 between hwirq and IRQ numbers.  Mappings are added to the irq_domain

@@ -25,7 +25,7 @@
 
 #define ERROR(s, args...)	pr_err("SQUASHFS error: "s, ## args)
 
-#define WARNING(s, args...)	pr_warning("SQUASHFS: "s, ## args)
+#define WARNING(s, args...)	pr_warn("SQUASHFS: "s, ## args)
 
 /* block.c */
 extern int squashfs_read_data(struct super_block *, u64, int, u64 *,

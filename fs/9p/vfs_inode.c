@@ -147,7 +147,7 @@ static umode_t p9mode2unixmode(struct v9fs_session_info *v9ses,
 		int major = -1, minor = -1;
 
 		strlcpy(ext, stat->extension, sizeof(ext));
-		sscanf(ext, "%c %u %u", &type, &major, &minor);
+		sscanf(ext, "%c %i %i", &type, &major, &minor);
 		switch (type) {
 		case 'c':
 			res |= S_IFCHR;
@@ -580,7 +580,7 @@ static int v9fs_at_to_dotl_flags(int flags)
  * v9fs_remove - helper function to remove files and directories
  * @dir: directory inode that is being deleted
  * @dentry:  dentry that is being deleted
- * @rmdir: removing a directory
+ * @flags: removing a directory
  *
  */
 
@@ -778,7 +778,7 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
  * v9fs_vfs_lookup - VFS lookup hook to "walk" to a new inode
  * @dir:  inode that is being walked from
  * @dentry: dentry that is being walked to?
- * @nameidata: path data
+ * @flags: lookup flags (unused)
  *
  */
 
@@ -1324,7 +1324,7 @@ v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
  * v9fs_vfs_mkspecial - create a special file
  * @dir: inode to create special file in
  * @dentry: dentry to create
- * @mode: mode to create special file
+ * @perm: mode to create special file
  * @extension: 9p2000.u format extension string representing special file
  *
  */

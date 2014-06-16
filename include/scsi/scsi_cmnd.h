@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
+#include <scsi/scsi_device.h>
 
 struct Scsi_Host;
 struct scsi_device;
@@ -132,6 +133,15 @@ struct scsi_cmnd {
 
 	unsigned char tag;	/* SCSI-II queued command tag */
 };
+
+/*
+ * Return the driver private allocation behind the command.
+ * Only works if cmd_size is set in the host template.
+ */
+static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
+{
+	return cmd + 1;
+}
 
 /* make sure not to use it with REQ_TYPE_BLOCK_PC commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
@@ -304,6 +314,22 @@ static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 {
 	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
+}
+
+static inline unsigned scsi_transfer_length(struct scsi_cmnd *scmd)
+{
+	unsigned int xfer_len = blk_rq_bytes(scmd->request);
+	unsigned int prot_op = scsi_get_prot_op(scmd);
+	unsigned int sector_size = scmd->device->sector_size;
+
+	switch (prot_op) {
+	case SCSI_PROT_NORMAL:
+	case SCSI_PROT_WRITE_STRIP:
+	case SCSI_PROT_READ_INSERT:
+		return xfer_len;
+	}
+
+	return xfer_len + (xfer_len >> ilog2(sector_size)) * 8;
 }
 
 #endif /* _SCSI_SCSI_CMND_H */

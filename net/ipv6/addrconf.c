@@ -275,19 +275,14 @@ static int snmp6_alloc_dev(struct inet6_dev *idev)
 {
 	int i;
 
-	if (snmp_mib_init((void __percpu **)idev->stats.ipv6,
-			  sizeof(struct ipstats_mib),
-			  __alignof__(struct ipstats_mib)) < 0)
+	idev->stats.ipv6 = alloc_percpu(struct ipstats_mib);
+	if (!idev->stats.ipv6)
 		goto err_ip;
 
 	for_each_possible_cpu(i) {
 		struct ipstats_mib *addrconf_stats;
-		addrconf_stats = per_cpu_ptr(idev->stats.ipv6[0], i);
+		addrconf_stats = per_cpu_ptr(idev->stats.ipv6, i);
 		u64_stats_init(&addrconf_stats->syncp);
-#if SNMP_ARRAY_SZ == 2
-		addrconf_stats = per_cpu_ptr(idev->stats.ipv6[1], i);
-		u64_stats_init(&addrconf_stats->syncp);
-#endif
 	}
 
 
@@ -305,7 +300,7 @@ static int snmp6_alloc_dev(struct inet6_dev *idev)
 err_icmpmsg:
 	kfree(idev->stats.icmpv6dev);
 err_icmp:
-	snmp_mib_free((void __percpu **)idev->stats.ipv6);
+	free_percpu(idev->stats.ipv6);
 err_ip:
 	return -ENOMEM;
 }
@@ -2504,8 +2499,8 @@ static int inet6_addr_add(struct net *net, int ifindex,
 	return PTR_ERR(ifp);
 }
 
-static int inet6_addr_del(struct net *net, int ifindex, const struct in6_addr *pfx,
-			  unsigned int plen)
+static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
+			  const struct in6_addr *pfx, unsigned int plen)
 {
 	struct inet6_ifaddr *ifp;
 	struct inet6_dev *idev;
@@ -2528,7 +2523,12 @@ static int inet6_addr_del(struct net *net, int ifindex, const struct in6_addr *p
 			in6_ifa_hold(ifp);
 			read_unlock_bh(&idev->lock);
 
+			if (!(ifp->flags & IFA_F_TEMPORARY) &&
+			    (ifa_flags & IFA_F_MANAGETEMPADDR))
+				manage_tempaddrs(idev, ifp, 0, 0, false,
+						 jiffies);
 			ipv6_del_addr(ifp);
+			addrconf_verify_rtnl();
 			return 0;
 		}
 	}
@@ -2568,7 +2568,7 @@ int addrconf_del_ifaddr(struct net *net, void __user *arg)
 		return -EFAULT;
 
 	rtnl_lock();
-	err = inet6_addr_del(net, ireq.ifr6_ifindex, &ireq.ifr6_addr,
+	err = inet6_addr_del(net, ireq.ifr6_ifindex, 0, &ireq.ifr6_addr,
 			     ireq.ifr6_prefixlen);
 	rtnl_unlock();
 	return err;
@@ -2812,18 +2812,6 @@ static void addrconf_gre_config(struct net_device *dev)
 		addrconf_prefix_route(&addr, 64, dev, 0, 0);
 }
 #endif
-
-static inline int
-ipv6_inherit_linklocal(struct inet6_dev *idev, struct net_device *link_dev)
-{
-	struct in6_addr lladdr;
-
-	if (!ipv6_get_lladdr(link_dev, &lladdr, IFA_F_TENTATIVE)) {
-		addrconf_add_linklocal(idev, &lladdr);
-		return 0;
-	}
-	return -1;
-}
 
 static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			   void *ptr)
@@ -3743,6 +3731,7 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *pfx, *peer_pfx;
+	u32 ifa_flags;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy);
@@ -3754,7 +3743,13 @@ inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (pfx == NULL)
 		return -EINVAL;
 
-	return inet6_addr_del(net, ifm->ifa_index, pfx, ifm->ifa_prefixlen);
+	ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) : ifm->ifa_flags;
+
+	/* We ignore other flags so far. */
+	ifa_flags &= IFA_F_MANAGETEMPADDR;
+
+	return inet6_addr_del(net, ifm->ifa_index, ifa_flags, pfx,
+			      ifm->ifa_prefixlen);
 }
 
 static int inet6_addr_modify(struct inet6_ifaddr *ifp, u32 ifa_flags,
@@ -4363,7 +4358,7 @@ static inline void __snmp6_fill_statsdev(u64 *stats, atomic_long_t *mib,
 	memset(&stats[items], 0, pad);
 }
 
-static inline void __snmp6_fill_stats64(u64 *stats, void __percpu **mib,
+static inline void __snmp6_fill_stats64(u64 *stats, void __percpu *mib,
 				      int items, int bytes, size_t syncpoff)
 {
 	int i;
@@ -4383,7 +4378,7 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 {
 	switch (attrtype) {
 	case IFLA_INET6_STATS:
-		__snmp6_fill_stats64(stats, (void __percpu **)idev->stats.ipv6,
+		__snmp6_fill_stats64(stats, idev->stats.ipv6,
 				     IPSTATS_MIB_MAX, bytes, offsetof(struct ipstats_mib, syncp));
 		break;
 	case IFLA_INET6_ICMP6STATS:

@@ -10,7 +10,7 @@
  */
 
 #include <linux/module.h>
-#include <media/s5p_fimc.h>
+#include <media/exynos-fimc.h>
 #include "common.h"
 
 /* Called with the media graph mutex held or entity->stream_count > 0. */

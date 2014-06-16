@@ -461,6 +461,7 @@ static int ii20k_attach(struct comedi_device *dev,
 	id = readb(devpriv->ioaddr + II20K_ID_REG);
 	switch (id & II20K_ID_MASK) {
 	case II20K_ID_PCI20001C_1A:
+		has_dio = false;
 		break;
 	case II20K_ID_PCI20001C_2A:
 		has_dio = true;

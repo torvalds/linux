@@ -1153,19 +1153,20 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	pipe_config->pixel_multiplier =
 		intel_sdvo_get_pixel_multiplier(adjusted_mode);
 
+	pipe_config->has_hdmi_sink = intel_sdvo->has_hdmi_monitor;
+
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
 		/* FIXME: This bit is only valid when using TMDS encoding and 8
 		 * bit per color mode. */
-		if (intel_sdvo->has_hdmi_monitor &&
+		if (pipe_config->has_hdmi_sink &&
 		    drm_match_cea_mode(adjusted_mode) > 1)
-			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
-		else
-			intel_sdvo->color_range = 0;
+			pipe_config->limited_color_range = true;
+	} else {
+		if (pipe_config->has_hdmi_sink &&
+		    intel_sdvo->color_range == HDMI_COLOR_RANGE_16_235)
+			pipe_config->limited_color_range = true;
 	}
-
-	if (intel_sdvo->color_range)
-		pipe_config->limited_color_range = true;
 
 	/* Clock computation needs to happen after pixel multiplier. */
 	if (intel_sdvo->is_tv)
@@ -1174,7 +1175,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
+static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1223,7 +1224,7 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (intel_sdvo->has_hdmi_monitor) {
+	if (crtc->config.has_hdmi_sink) {
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
@@ -1258,8 +1259,8 @@ static void intel_sdvo_mode_set(struct intel_encoder *intel_encoder)
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (!HAS_PCH_SPLIT(dev) && intel_sdvo->is_hdmi)
-			sdvox |= intel_sdvo->color_range;
+		if (!HAS_PCH_SPLIT(dev) && crtc->config.limited_color_range)
+			sdvox |= HDMI_COLOR_RANGE_16_235;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
 	} else {
@@ -1349,6 +1350,8 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	u8 val;
 	bool ret;
 
+	sdvox = I915_READ(intel_sdvo->sdvo_reg);
+
 	ret = intel_sdvo_get_input_timing(intel_sdvo, &dtd);
 	if (!ret) {
 		/* Some sdvo encoders are not spec compliant and don't
@@ -1377,7 +1380,6 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	 * other platfroms.
 	 */
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
-		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		pipe_config->pixel_multiplier =
 			((sdvox & SDVO_PORT_MULTIPLY_MASK)
 			 >> SDVO_PORT_MULTIPLY_SHIFT) + 1;
@@ -1404,6 +1406,15 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			encoder_pixel_multiplier = 4;
 			break;
 		}
+	}
+
+	if (sdvox & HDMI_COLOR_RANGE_16_235)
+		pipe_config->limited_color_range = true;
+
+	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE,
+				 &val, 1)) {
+		if (val == SDVO_ENCODE_HDMI)
+			pipe_config->has_hdmi_sink = true;
 	}
 
 	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
@@ -1732,7 +1743,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status ret;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
@@ -1794,7 +1805,7 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 	struct edid *edid;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/* set the bus switch and get the modes */
 	edid = intel_sdvo_get_edid(connector);
@@ -1892,7 +1903,7 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	int i;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/* Read the list of supported input resolutions for the selected TV
 	 * format.
@@ -1929,7 +1940,7 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	struct drm_display_mode *newmode;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, drm_get_connector_name(connector));
+		      connector->base.id, connector->name);
 
 	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
@@ -2999,7 +3010,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
 	intel_encoder->disable = intel_disable_sdvo;
-	intel_encoder->mode_set = intel_sdvo_mode_set;
+	intel_encoder->pre_enable = intel_sdvo_pre_enable;
 	intel_encoder->enable = intel_enable_sdvo;
 	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;
 	intel_encoder->get_config = intel_sdvo_get_config;

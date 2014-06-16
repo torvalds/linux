@@ -120,13 +120,10 @@ static int adp5520_led_probe(struct platform_device *pdev)
 
 	led = devm_kzalloc(&pdev->dev, sizeof(*led) * pdata->num_leds,
 				GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&pdev->dev, "failed to alloc memory\n");
+	if (!led)
 		return -ENOMEM;
-	}
 
 	ret = adp5520_led_prepare(pdev);
-
 	if (ret) {
 		dev_err(&pdev->dev, "failed to write\n");
 		return ret;

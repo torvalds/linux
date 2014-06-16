@@ -23,6 +23,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/sizes.h>
 
+#include <asm/cp15.h>
 #include <asm/mach-types.h>
 #include <asm/memblock.h>
 #include <asm/prom.h>
@@ -35,6 +36,14 @@
 #include <asm/mach/map.h>
 
 #include "mm.h"
+
+#ifdef CONFIG_CPU_CP15_MMU
+unsigned long __init __clear_cr(unsigned long mask)
+{
+	cr_alignment = cr_alignment & ~mask;
+	return cr_alignment;
+}
+#endif
 
 static phys_addr_t phys_initrd_start __initdata = 0;
 static unsigned long phys_initrd_size __initdata = 0;
@@ -81,24 +90,21 @@ __tagtable(ATAG_INITRD2, parse_tag_initrd2);
  * initialization functions, as well as show_mem() for the skipping
  * of holes in the memory map.  It is populated by arm_add_memory().
  */
-struct meminfo meminfo;
-
 void show_mem(unsigned int filter)
 {
 	int free = 0, total = 0, reserved = 0;
-	int shared = 0, cached = 0, slab = 0, i;
-	struct meminfo * mi = &meminfo;
+	int shared = 0, cached = 0, slab = 0;
+	struct memblock_region *reg;
 
 	printk("Mem-info:\n");
 	show_free_areas(filter);
 
-	for_each_bank (i, mi) {
-		struct membank *bank = &mi->bank[i];
+	for_each_memblock (memory, reg) {
 		unsigned int pfn1, pfn2;
 		struct page *page, *end;
 
-		pfn1 = bank_pfn_start(bank);
-		pfn2 = bank_pfn_end(bank);
+		pfn1 = memblock_region_memory_base_pfn(reg);
+		pfn2 = memblock_region_memory_end_pfn(reg);
 
 		page = pfn_to_page(pfn1);
 		end  = pfn_to_page(pfn2 - 1) + 1;
@@ -115,8 +121,9 @@ void show_mem(unsigned int filter)
 				free++;
 			else
 				shared += page_count(page) - 1;
-			page++;
-		} while (page < end);
+			pfn1++;
+			page = pfn_to_page(pfn1);
+		} while (pfn1 < pfn2);
 	}
 
 	printk("%d pages of RAM\n", total);
@@ -130,16 +137,9 @@ void show_mem(unsigned int filter)
 static void __init find_limits(unsigned long *min, unsigned long *max_low,
 			       unsigned long *max_high)
 {
-	struct meminfo *mi = &meminfo;
-	int i;
-
-	/* This assumes the meminfo array is properly sorted */
-	*min = bank_pfn_start(&mi->bank[0]);
-	for_each_bank (i, mi)
-		if (mi->bank[i].highmem)
-				break;
-	*max_low = bank_pfn_end(&mi->bank[i - 1]);
-	*max_high = bank_pfn_end(&mi->bank[mi->nr_banks - 1]);
+	*max_low = PFN_DOWN(memblock_get_current_limit());
+	*min = PFN_UP(memblock_start_of_DRAM());
+	*max_high = PFN_DOWN(memblock_end_of_DRAM());
 }
 
 #ifdef CONFIG_ZONE_DMA
@@ -274,14 +274,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
 	return phys;
 }
 
-void __init arm_memblock_init(struct meminfo *mi,
-	const struct machine_desc *mdesc)
+void __init arm_memblock_init(const struct machine_desc *mdesc)
 {
-	int i;
-
-	for (i = 0; i < mi->nr_banks; i++)
-		memblock_add(mi->bank[i].start, mi->bank[i].size);
-
 	/* Register the kernel text, kernel data and initrd with memblock. */
 #ifdef CONFIG_XIP_KERNEL
 	memblock_reserve(__pa(_sdata), _end - _sdata);
@@ -317,7 +311,6 @@ void __init arm_memblock_init(struct meminfo *mi,
 #endif
 
 	arm_mm_memblock_reserve();
-	arm_dt_memblock_reserve();
 
 	/* reserve any platform specific memblock areas */
 	if (mdesc->reserve)
@@ -413,54 +406,53 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 /*
  * The mem_map array can get very big.  Free the unused area of the memory map.
  */
-static void __init free_unused_memmap(struct meminfo *mi)
+static void __init free_unused_memmap(void)
 {
-	unsigned long bank_start, prev_bank_end = 0;
-	unsigned int i;
+	unsigned long start, prev_end = 0;
+	struct memblock_region *reg;
 
 	/*
 	 * This relies on each bank being in address order.
 	 * The banks are sorted previously in bootmem_init().
 	 */
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-
-		bank_start = bank_pfn_start(bank);
+	for_each_memblock(memory, reg) {
+		start = memblock_region_memory_base_pfn(reg);
 
 #ifdef CONFIG_SPARSEMEM
 		/*
 		 * Take care not to free memmap entries that don't exist
 		 * due to SPARSEMEM sections which aren't present.
 		 */
-		bank_start = min(bank_start,
-				 ALIGN(prev_bank_end, PAGES_PER_SECTION));
+		start = min(start,
+				 ALIGN(prev_end, PAGES_PER_SECTION));
 #else
 		/*
 		 * Align down here since the VM subsystem insists that the
 		 * memmap entries are valid from the bank start aligned to
 		 * MAX_ORDER_NR_PAGES.
 		 */
-		bank_start = round_down(bank_start, MAX_ORDER_NR_PAGES);
+		start = round_down(start, MAX_ORDER_NR_PAGES);
 #endif
 		/*
 		 * If we had a previous bank, and there is a space
 		 * between the current bank and the previous, free it.
 		 */
-		if (prev_bank_end && prev_bank_end < bank_start)
-			free_memmap(prev_bank_end, bank_start);
+		if (prev_end && prev_end < start)
+			free_memmap(prev_end, start);
 
 		/*
 		 * Align up here since the VM subsystem insists that the
 		 * memmap entries are valid from the bank end aligned to
 		 * MAX_ORDER_NR_PAGES.
 		 */
-		prev_bank_end = ALIGN(bank_pfn_end(bank), MAX_ORDER_NR_PAGES);
+		prev_end = ALIGN(memblock_region_memory_end_pfn(reg),
+				 MAX_ORDER_NR_PAGES);
 	}
 
 #ifdef CONFIG_SPARSEMEM
-	if (!IS_ALIGNED(prev_bank_end, PAGES_PER_SECTION))
-		free_memmap(prev_bank_end,
-			    ALIGN(prev_bank_end, PAGES_PER_SECTION));
+	if (!IS_ALIGNED(prev_end, PAGES_PER_SECTION))
+		free_memmap(prev_end,
+			    ALIGN(prev_end, PAGES_PER_SECTION));
 #endif
 }
 
@@ -536,7 +528,7 @@ void __init mem_init(void)
 	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
 
 	/* this will put all unused low memory onto the freelists */
-	free_unused_memmap(&meminfo);
+	free_unused_memmap();
 	free_all_bootmem();
 
 #ifdef CONFIG_SA1111

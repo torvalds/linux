@@ -25,6 +25,7 @@ enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy);
 
 int regulatory_hint_user(const char *alpha2,
 			 enum nl80211_user_reg_hint_type user_reg_hint_type);
+int regulatory_hint_indoor_user(void);
 
 void wiphy_regulatory_register(struct wiphy *wiphy);
 void wiphy_regulatory_deregister(struct wiphy *wiphy);
@@ -103,5 +104,22 @@ void regulatory_hint_country_ie(struct wiphy *wiphy,
  * Must be called from process context.
  */
 void regulatory_hint_disconnect(void);
+
+/**
+ * cfg80211_get_unii - get the U-NII band for the frequency
+ * @freq: the frequency for which we want to get the UNII band.
+
+ * Get a value specifying the U-NII band frequency belongs to.
+ * U-NII bands are defined by the FCC in C.F.R 47 part 15.
+ *
+ * Returns -EINVAL if freq is invalid, 0 for UNII-1, 1 for UNII-2A,
+ * 2 for UNII-2B, 3 for UNII-2C and 4 for UNII-3.
+ */
+int cfg80211_get_unii(int freq);
+
+/**
+ * regulatory_indoor_allowed - is indoor operation allowed
+ */
+bool regulatory_indoor_allowed(void);
 
 #endif  /* __NET_WIRELESS_REG_H */

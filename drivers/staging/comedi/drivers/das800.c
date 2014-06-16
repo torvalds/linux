@@ -224,7 +224,6 @@ struct das800_private {
 	unsigned int divisor1;	/* counter 1 value for timed conversions */
 	unsigned int divisor2;	/* counter 2 value for timed conversions */
 	unsigned int do_bits;	/* digital output bits */
-	bool forever;		/* flag that we should take data forever */
 };
 
 static void das800_ind_write(struct comedi_device *dev,
@@ -275,28 +274,51 @@ static void das800_disable(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-static int das800_set_frequency(struct comedi_device *dev)
+static void das800_set_frequency(struct comedi_device *dev)
 {
 	struct das800_private *devpriv = dev->private;
-	int err = 0;
+	unsigned long timer_base = dev->iobase + DAS800_8254;
 
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2))
-		err++;
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 2, devpriv->divisor2, 2))
-		err++;
-	if (err)
-		return -1;
-
-	return 0;
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das800_private *devpriv = dev->private;
 
-	devpriv->forever = false;
 	devpriv->count = 0;
 	das800_disable(dev);
+	return 0;
+}
+
+static int das800_ai_check_chanlist(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	unsigned int range0 = CR_RANGE(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+		unsigned int range = CR_RANGE(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i) % s->n_chan) {
+			dev_dbg(dev->class_dev,
+				"chanlist must be consecutive, counting upwards\n");
+			return -EINVAL;
+		}
+
+		if (range != range0) {
+			dev_dbg(dev->class_dev,
+				"chanlist must all have the same gain\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -307,6 +329,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -352,41 +375,20 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		int tmp = cmd->convert_arg;
-
-		/* calculate counter values that give desired timing */
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_1MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
 		return 4;
 
-	/*  check channel/gain list against card's limitations */
-	if (cmd->chanlist) {
-		unsigned int chan = CR_CHAN(cmd->chanlist[0]);
-		unsigned int range = CR_RANGE(cmd->chanlist[0]);
-		unsigned int next;
-		int i;
-
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			next = cmd->chanlist[i];
-			if (CR_CHAN(next) != (chan + i) % N_CHAN_AI) {
-				dev_err(dev->class_dev,
-					"chanlist must be consecutive, counting upwards\n");
-				err++;
-			}
-			if (CR_RANGE(next) != range) {
-				dev_err(dev->class_dev,
-					"chanlist must all have the same gain\n");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das800_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -400,9 +402,10 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
-	unsigned int gain = CR_RANGE(async->cmd.chanlist[0]);
-	unsigned int start_chan = CR_CHAN(async->cmd.chanlist[0]);
-	unsigned int end_chan = (start_chan + async->cmd.chanlist_len - 1) % 8;
+	struct comedi_cmd *cmd = &async->cmd;
+	unsigned int gain = CR_RANGE(cmd->chanlist[0]);
+	unsigned int start_chan = CR_CHAN(cmd->chanlist[0]);
+	unsigned int end_chan = (start_chan + cmd->chanlist_len - 1) % 8;
 	unsigned int scan_chans = (end_chan << 3) | start_chan;
 	int conv_bits;
 	unsigned long irq_flags;
@@ -420,28 +423,22 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	if (async->cmd.stop_src == TRIG_COUNT) {
-		devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
-		devpriv->forever = false;
-	} else {	/* TRIG_NONE */
-		devpriv->forever = true;
+	if (cmd->stop_src == TRIG_COUNT)
+		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+	else	/* TRIG_NONE */
 		devpriv->count = 0;
-	}
 
 	/* enable auto channel scan, send interrupts on end of conversion
 	 * and set clock source to internal or external
 	 */
 	conv_bits = 0;
 	conv_bits |= EACS | IEOC;
-	if (async->cmd.start_src == TRIG_EXT)
+	if (cmd->start_src == TRIG_EXT)
 		conv_bits |= DTEN;
-	if (async->cmd.convert_src == TRIG_TIMER) {
+	if (cmd->convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
-		if (das800_set_frequency(dev) < 0) {
-			comedi_error(dev, "Error setting up counters");
-			return -1;
-		}
+		das800_set_frequency(dev);
 	}
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
@@ -465,7 +462,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct das800_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_async *async = s ? s->async : NULL;
+	struct comedi_async *async;
+	struct comedi_cmd *cmd;
 	unsigned long irq_flags;
 	unsigned int status;
 	unsigned int val;
@@ -478,6 +476,9 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		return IRQ_NONE;
 	if (!dev->attached)
 		return IRQ_HANDLED;
+
+	async = s->async;
+	cmd = &async->cmd;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	status = das800_ind_read(dev, CONTROL1) & STATUS2_HCEN;
@@ -510,7 +511,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 			val >>= 4;	/* 12-bit sample */
 
 		/* if there are more data points to collect */
-		if (devpriv->count > 0 || devpriv->forever) {
+		if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
 			/* write data point to buffer */
 			cfc_write_to_buffer(s, val & s->maxdata);
 			devpriv->count--;
@@ -525,7 +526,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	if (devpriv->count > 0 || devpriv->forever) {
+	if (cmd->stop_src == TRIG_NONE || devpriv->count > 0) {
 		/* Re-enable card's interrupt.
 		 * We already have spinlock, so indirect addressing is safe */
 		das800_ind_write(dev, CONTROL1_INTE | devpriv->do_bits,
@@ -673,7 +674,7 @@ static int das800_probe(struct comedi_device *dev)
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
+	const struct das800_board *thisboard;
 	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int irq = it->options[1];

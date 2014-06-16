@@ -30,12 +30,16 @@
 
 u32 rcar_gen2_read_mode_pins(void)
 {
-	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
-	u32 mode;
+	static u32 mode;
+	static bool mode_valid;
 
-	BUG_ON(!modemr);
-	mode = ioread32(modemr);
-	iounmap(modemr);
+	if (!mode_valid) {
+		void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+		BUG_ON(!modemr);
+		mode = ioread32(modemr);
+		iounmap(modemr);
+		mode_valid = true;
+	}
 
 	return mode;
 }

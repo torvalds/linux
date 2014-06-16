@@ -1608,8 +1608,8 @@ static ssize_t dps1_insert_key(struct device *dev,
 #define FLOOR_SYSFS(id) { \
 	__ATTR(f##id##_dps0_is_keylocked, S_IRUGO, dps0_is_key_locked, NULL), \
 	__ATTR(f##id##_dps1_is_keylocked, S_IRUGO, dps1_is_key_locked, NULL), \
-	__ATTR(f##id##_dps0_protection_key, S_IWUGO, NULL, dps0_insert_key), \
-	__ATTR(f##id##_dps1_protection_key, S_IWUGO, NULL, dps1_insert_key), \
+	__ATTR(f##id##_dps0_protection_key, S_IWUSR|S_IWGRP, NULL, dps0_insert_key), \
+	__ATTR(f##id##_dps1_protection_key, S_IWUSR|S_IWGRP, NULL, dps1_insert_key), \
 }
 
 static struct device_attribute doc_sys_attrs[DOC_MAX_NBFLOORS][4] = {

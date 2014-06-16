@@ -70,6 +70,7 @@ struct mxs_mmc_host {
 	unsigned char			bus_width;
 	spinlock_t			lock;
 	int				sdio_irq_en;
+	bool				broken_cd;
 };
 
 static int mxs_mmc_get_cd(struct mmc_host *mmc)
@@ -77,6 +78,9 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	struct mxs_ssp *ssp = &host->ssp;
 	int present, ret;
+
+	if (host->broken_cd)
+		return -ENOSYS;
 
 	ret = mmc_gpio_get_cd(mmc);
 	if (ret >= 0)
@@ -568,6 +572,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_mmc_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	struct resource *iores;
@@ -633,6 +638,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	mmc->ops = &mxs_mmc_ops;
 	mmc->caps = MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED |
 		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
+
+	host->broken_cd = of_property_read_bool(np, "broken-cd");
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;

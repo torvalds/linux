@@ -30,12 +30,7 @@
 #include "wifi.h"
 #include "cam.h"
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 #define GET_INODE_DATA(__node)		PDE_DATA(__node)
-#else
-#define GET_INODE_DATA(__node)		PDE(__node)->data
-#endif
-
 
 void rtl_dbgp_flag_init(struct ieee80211_hw *hw)
 {

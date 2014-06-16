@@ -1,31 +1,58 @@
 config ARCH_BCM
-	bool "Broadcom SoC Support"
-	depends on ARCH_MULTIPLATFORM
+	bool "Broadcom SoC Support" if ARCH_MULTI_V6_V7
 	help
-	  This enables support for Broadcom ARM based SoC
-          chips
-
-if ARCH_BCM
+	  This enables support for Broadcom ARM based SoC chips
 
 menu "Broadcom SoC Selection"
+	depends on ARCH_BCM
 
 config ARCH_BCM_MOBILE
-	bool "Broadcom Mobile SoC" if ARCH_MULTI_V7
-	depends on MMU
+	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_775420
 	select ARM_GIC
 	select GPIO_BCM_KONA
 	select TICK_ONESHOT
-	select CACHE_L2X0
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
-	  It currently supports the 'BCM281XX' family, which includes
-	  BCM11130, BCM11140, BCM11351, BCM28145 and
-	  BCM28155 variants.
+
+if ARCH_BCM_MOBILE
+
+menu "Broadcom Mobile SoC Selection"
+
+config ARCH_BCM_281XX
+	bool "Broadcom BCM281XX SoC family"
+	default y
+	help
+	  Enable support for the the BCM281XX family, which includes
+	  BCM11130, BCM11140, BCM11351, BCM28145 and BCM28155
+	  variants.
+
+config ARCH_BCM_21664
+	bool "Broadcom BCM21664 SoC family"
+	default y
+	help
+	  Enable support for the the BCM21664 family, which includes
+	  BCM21663 and BCM21664 variants.
+
+config ARCH_BCM_MOBILE_L2_CACHE
+	bool "Broadcom mobile SoC level 2 cache support"
+	depends on (ARCH_BCM_281XX || ARCH_BCM_21664)
+	default y
+	select CACHE_L2X0
+	select ARCH_BCM_MOBILE_SMC
+
+config ARCH_BCM_MOBILE_SMC
+	bool
+	depends on ARCH_BCM_281XX || ARCH_BCM_21664
+
+endmenu
+
+endif
 
 config ARCH_BCM2835
 	bool "Broadcom BCM2835 family" if ARCH_MULTI_V6
@@ -33,10 +60,7 @@ config ARCH_BCM2835
 	select ARM_AMBA
 	select ARM_ERRATA_411920
 	select ARM_TIMER_SP804
-	select CLKDEV_LOOKUP
 	select CLKSRC_OF
-	select CPU_V6
-	select GENERIC_CLOCKEVENTS
 	select PINCTRL
 	select PINCTRL_BCM2835
 	help
@@ -45,17 +69,12 @@ config ARCH_BCM2835
 
 config ARCH_BCM_5301X
 	bool "Broadcom BCM470X / BCM5301X ARM SoC" if ARCH_MULTI_V7
-	depends on MMU
 	select ARM_GIC
 	select CACHE_L2X0
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
 	select ARM_GLOBAL_TIMER
 	select CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-	select MIGHT_HAVE_PCI
 	help
 	  Support for Broadcom BCM470X and BCM5301X SoCs with ARM CPU cores.
 
@@ -70,5 +89,3 @@ config ARCH_BCM_5301X
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
 endmenu
-
-endif

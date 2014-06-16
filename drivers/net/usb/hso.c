@@ -2425,7 +2425,7 @@ static void hso_net_init(struct net_device *net)
 	net->type = ARPHRD_NONE;
 	net->mtu = DEFAULT_MTU - 14;
 	net->tx_queue_len = 10;
-	SET_ETHTOOL_OPS(net, &ops);
+	net->ethtool_ops = &ops;
 
 	/* and initialize the semaphore */
 	spin_lock_init(&hso_net->net_lock);

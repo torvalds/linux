@@ -37,6 +37,7 @@
 #include <linux/atmel-mci.h>
 #include <linux/atmel_pdc.h>
 
+#include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
@@ -820,16 +821,9 @@ static void atmci_pdc_complete(struct atmel_mci *host)
 
 	atmci_pdc_cleanup(host);
 
-	/*
-	 * If the card was removed, data will be NULL. No point trying
-	 * to send the stop command or waiting for NBUSY in this case.
-	 */
-	if (host->data) {
-		dev_dbg(&host->pdev->dev,
-		        "(%s) set pending xfer complete\n", __func__);
-		atmci_set_pending(host, EVENT_XFER_COMPLETE);
-		tasklet_schedule(&host->tasklet);
-	}
+	dev_dbg(&host->pdev->dev, "(%s) set pending xfer complete\n", __func__);
+	atmci_set_pending(host, EVENT_XFER_COMPLETE);
+	tasklet_schedule(&host->tasklet);
 }
 
 static void atmci_dma_cleanup(struct atmel_mci *host)

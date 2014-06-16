@@ -1,17 +1,14 @@
 /*
  * Linker script for 32-bit vDSO.
  * We #include the file to define the layout details.
- * Here we only choose the prelinked virtual address.
  *
  * This file defines the version script giving the user-exported symbols in
- * the DSO.  We can define local symbols here called VDSO* to make their
- * values visible using the asm-x86/vdso.h macros from the kernel proper.
+ * the DSO.
  */
 
 #include <asm/page.h>
 
 #define BUILD_VDSO32
-#define VDSO_PRELINK 0
 
 #include "../vdso-layout.lds.S"
 
@@ -38,13 +35,3 @@ VERSION
 	local: *;
 	};
 }
-
-/*
- * Symbols we define here called VDSO* get their values into vdso32-syms.h.
- */
-VDSO32_vsyscall		= __kernel_vsyscall;
-VDSO32_sigreturn	= __kernel_sigreturn;
-VDSO32_rt_sigreturn	= __kernel_rt_sigreturn;
-VDSO32_clock_gettime	= clock_gettime;
-VDSO32_gettimeofday	= gettimeofday;
-VDSO32_time		= time;

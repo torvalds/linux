@@ -125,8 +125,9 @@ static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
 		*flags |= WMI_DATA_HDR_FLAGS_UAPSD;
 		spin_unlock_bh(&conn->psq_lock);
 		return false;
-	} else if (!conn->apsd_info)
+	} else if (!conn->apsd_info) {
 		return false;
+	}
 
 	if (test_bit(WMM_ENABLED, &vif->flags)) {
 		ether_type = be16_to_cpu(datap->h_proto);
@@ -316,8 +317,9 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 		cookie = NULL;
 		ath6kl_err("wmi ctrl ep full, dropping pkt : 0x%p, len:%d\n",
 			   skb, skb->len);
-	} else
+	} else {
 		cookie = ath6kl_alloc_cookie(ar);
+	}
 
 	if (cookie == NULL) {
 		spin_unlock_bh(&ar->lock);
@@ -359,7 +361,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	u32 map_no = 0;
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
-	u8 ac = 99 ; /* initialize to unmapped ac */
+	u8 ac = 99; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false;
 	int ret;
 	struct wmi_tx_meta_v2 meta_v2;
@@ -449,8 +451,9 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			if (ret)
 				goto fail_tx;
 		}
-	} else
+	} else {
 		goto fail_tx;
+	}
 
 	spin_lock_bh(&ar->lock);
 
@@ -702,7 +705,6 @@ void ath6kl_tx_complete(struct htc_target *target,
 
 	/* reap completed packets */
 	while (!list_empty(packet_queue)) {
-
 		packet = list_first_entry(packet_queue, struct htc_packet,
 					  list);
 		list_del(&packet->list);
@@ -1089,8 +1091,9 @@ static void aggr_deque_frms(struct aggr_info_conn *agg_conn, u8 tid,
 			else
 				skb_queue_tail(&rxtid->q, node->skb);
 			node->skb = NULL;
-		} else
+		} else {
 			stats->num_hole++;
+		}
 
 		rxtid->seq_next = ATH6KL_NEXT_SEQ_NO(rxtid->seq_next);
 		idx = AGGR_WIN_IDX(rxtid->seq_next, rxtid->hold_q_sz);
@@ -1211,7 +1214,7 @@ static bool aggr_process_recv_frm(struct aggr_info_conn *agg_conn, u8 tid,
 		return is_queued;
 
 	spin_lock_bh(&rxtid->lock);
-	for (idx = 0 ; idx < rxtid->hold_q_sz; idx++) {
+	for (idx = 0; idx < rxtid->hold_q_sz; idx++) {
 		if (rxtid->hold_q[idx].skb) {
 			/*
 			 * There is a frame in the queue and no
@@ -1265,7 +1268,6 @@ static void ath6kl_uapsd_trigger_frame_rx(struct ath6kl_vif *vif,
 	is_apsdq_empty_at_start = is_apsdq_empty;
 
 	while ((!is_apsdq_empty) && (num_frames_to_deliver)) {
-
 		spin_lock_bh(&conn->psq_lock);
 		skb = skb_dequeue(&conn->apsdq);
 		is_apsdq_empty = skb_queue_empty(&conn->apsdq);
@@ -1606,16 +1608,18 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			if (!conn)
 				return;
 			aggr_conn = conn->aggr_conn;
-		} else
+		} else {
 			aggr_conn = vif->aggr_cntxt->aggr_conn;
+		}
 
 		if (aggr_process_recv_frm(aggr_conn, tid, seq_no,
 					  is_amsdu, skb)) {
 			/* aggregation code will handle the skb */
 			return;
 		}
-	} else if (!is_broadcast_ether_addr(datap->h_dest))
+	} else if (!is_broadcast_ether_addr(datap->h_dest)) {
 		vif->net_stats.multicast++;
+	}
 
 	ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);
 }
@@ -1710,8 +1714,9 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 		sta = ath6kl_find_sta_by_aid(vif->ar, aid);
 		if (sta)
 			aggr_conn = sta->aggr_conn;
-	} else
+	} else {
 		aggr_conn = vif->aggr_cntxt->aggr_conn;
+	}
 
 	if (!aggr_conn)
 		return;
@@ -1766,7 +1771,6 @@ void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
 		skb_queue_head_init(&rxtid->q);
 		spin_lock_init(&rxtid->lock);
 	}
-
 }
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif)
@@ -1806,8 +1810,9 @@ void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid_mux)
 		sta = ath6kl_find_sta_by_aid(vif->ar, aid);
 		if (sta)
 			aggr_conn = sta->aggr_conn;
-	} else
+	} else {
 		aggr_conn = vif->aggr_cntxt->aggr_conn;
+	}
 
 	if (!aggr_conn)
 		return;

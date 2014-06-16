@@ -51,7 +51,6 @@
 			};
 
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 
@@ -76,6 +75,10 @@
 				phy1: ethernet-phy@1 {
 					reg = <1>;
 				};
+			};
+
+			usb3@f0000 {
+				status = "okay";
 			};
 		};
 

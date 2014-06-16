@@ -868,10 +868,8 @@ static int stu300_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct stu300_dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&pdev->dev, "could not allocate device struct\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	bus_nr = pdev->id;
 	dev->clk = devm_clk_get(&pdev->dev, NULL);

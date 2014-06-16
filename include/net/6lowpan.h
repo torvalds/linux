@@ -54,6 +54,7 @@
 #define __6LOWPAN_H__
 
 #include <net/ipv6.h>
+#include <net/net_namespace.h>
 
 #define UIP_802154_SHORTADDR_LEN	2  /* compressed ipv6 address length */
 #define UIP_IPH_LEN			40 /* ipv6 fixed header size */

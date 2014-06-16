@@ -174,7 +174,7 @@ static void start_caching(struct btrfs_root *root)
 				       BTRFS_LAST_FREE_OBJECTID - objectid + 1);
 	}
 
-	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
+	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu",
 			  root->root_key.objectid);
 	if (IS_ERR(tsk)) {
 		btrfs_warn(root->fs_info, "failed to start inode caching task");

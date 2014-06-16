@@ -82,7 +82,7 @@
 			interrupts	= <0 197 0>;
 			pinctrl-names 	= "default";
 			pinctrl-0 	= <&pinctrl_serial2>;
-			clocks		= <&CLKS_ICN_REG_0>;
+			clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
 		};
 
 		/* SBC comms block ASCs in SASG1 */
@@ -91,7 +91,7 @@
 			status 		= "disabled";
 			reg		= <0xfe531000 0x2c>;
 			interrupts	= <0 210 0>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_sbc_serial1>;
 		};
@@ -100,7 +100,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfed40000 0x110>;
 			interrupts	= <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLKS_ICN_REG_0>;
+			clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -113,7 +113,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfed41000 0x110>;
 			interrupts	= <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLKS_ICN_REG_0>;
+			clocks		= <&clk_s_a0_ls CLK_ICN_REG>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -126,7 +126,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe540000 0x110>;
 			interrupts	= <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -139,7 +139,7 @@
 			compatible	= "st,comms-ssc4-i2c";
 			reg		= <0xfe541000 0x110>;
 			interrupts	= <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			clock-names	= "ssc";
 			clock-frequency = <400000>;
 			pinctrl-names	= "default";
@@ -170,7 +170,7 @@
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_mii0>;
 			clock-names	= "stmmaceth";
-			clocks		= <&CLKS_GMAC0_PHY>;
+			clocks		= <&clk_s_a1_ls CLK_GMAC0_PHY>;
 		};
 
 		ethernet1: dwmac@fef08000 {
@@ -193,18 +193,30 @@
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_mii1>;
 			clock-names	= "stmmaceth";
-			clocks		= <&CLKS_ETH1_PHY>;
+			clocks		= <&clk_s_a0_ls CLK_ETH1_PHY>;
 		};
 
 		rc: rc@fe518000 {
 			compatible	= "st,comms-irb";
 			reg		= <0xfe518000 0x234>;
 			interrupts	=  <0 203 0>;
-			clocks		= <&CLK_SYSIN>;
+			clocks		= <&clk_sysin>;
 			rx-mode		= "infrared";
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_ir>;
 			resets		= <&softreset STIH415_IRB_SOFTRESET>;
+		};
+
+		keyscan: keyscan@fe4b0000 {
+			compatible = "st,sti-keyscan";
+			status = "disabled";
+			reg = <0xfe4b0000 0x2000>;
+			interrupts = <GIC_SPI 212 IRQ_TYPE_NONE>;
+			clocks = <&clk_sysin>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_keyscan>;
+			resets	= <&powerdown STIH415_KEYSCAN_POWERDOWN>,
+				  <&softreset STIH415_KEYSCAN_SOFTRESET>;
 		};
 	};
 };

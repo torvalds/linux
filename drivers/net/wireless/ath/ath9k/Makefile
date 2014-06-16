@@ -53,7 +53,8 @@ obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
 ath9k_common-y:=	common.o \
 			common-init.o \
-			common-beacon.o
+			common-beacon.o \
+			common-debug.o
 
 ath9k_htc-y +=	htc_hst.o \
 		hif_usb.o \

@@ -2,6 +2,7 @@ Runtime Power Management Framework for I/O Devices
 
 (C) 2009-2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
 (C) 2010 Alan Stern <stern@rowland.harvard.edu>
+(C) 2014 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 1. Introduction
 
@@ -444,6 +445,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
   bool pm_runtime_status_suspended(struct device *dev);
     - return true if the device's runtime PM status is 'suspended'
 
+  bool pm_runtime_suspended_if_enabled(struct device *dev);
+    - return true if the device's runtime PM status is 'suspended' and its
+      'power.disable_depth' field is equal to 1
+
   void pm_runtime_allow(struct device *dev);
     - set the power.runtime_auto flag for the device and decrease its usage
       counter (used by the /sys/devices/.../power/control interface to
@@ -644,19 +649,33 @@ place (in particular, if the system is not waking up from hibernation), it may
 be more efficient to leave the devices that had been suspended before the system
 suspend began in the suspended state.
 
+To this end, the PM core provides a mechanism allowing some coordination between
+different levels of device hierarchy.  Namely, if a system suspend .prepare()
+callback returns a positive number for a device, that indicates to the PM core
+that the device appears to be runtime-suspended and its state is fine, so it
+may be left in runtime suspend provided that all of its descendants are also
+left in runtime suspend.  If that happens, the PM core will not execute any
+system suspend and resume callbacks for all of those devices, except for the
+complete callback, which is then entirely responsible for handling the device
+as appropriate.  This only applies to system suspend transitions that are not
+related to hibernation (see Documentation/power/devices.txt for more
+information).
+
 The PM core does its best to reduce the probability of race conditions between
 the runtime PM and system suspend/resume (and hibernation) callbacks by carrying
 out the following operations:
 
-  * During system suspend it calls pm_runtime_get_noresume() and
-    pm_runtime_barrier() for every device right before executing the
-    subsystem-level .suspend() callback for it.  In addition to that it calls
-    __pm_runtime_disable() with 'false' as the second argument for every device
-    right before executing the subsystem-level .suspend_late() callback for it.
+  * During system suspend pm_runtime_get_noresume() is called for every device
+    right before executing the subsystem-level .prepare() callback for it and
+    pm_runtime_barrier() is called for every device right before executing the
+    subsystem-level .suspend() callback for it.  In addition to that the PM core
+    calls  __pm_runtime_disable() with 'false' as the second argument for every
+    device right before executing the subsystem-level .suspend_late() callback
+    for it.
 
-  * During system resume it calls pm_runtime_enable() and pm_runtime_put()
-    for every device right after executing the subsystem-level .resume_early()
-    callback and right after executing the subsystem-level .resume() callback
+  * During system resume pm_runtime_enable() and pm_runtime_put() are called for
+    every device right after executing the subsystem-level .resume_early()
+    callback and right after executing the subsystem-level .complete() callback
     for it, respectively.
 
 7. Generic subsystem callbacks

@@ -110,8 +110,6 @@ static int itg3200_read_raw(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-
-	return ret;
 }
 
 static ssize_t itg3200_read_frequency(struct device *dev,

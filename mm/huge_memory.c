@@ -5,6 +5,8 @@
  *  the COPYING file in the top-level directory.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>
@@ -151,8 +153,7 @@ static int start_khugepaged(void)
 			khugepaged_thread = kthread_run(khugepaged, NULL,
 							"khugepaged");
 		if (unlikely(IS_ERR(khugepaged_thread))) {
-			printk(KERN_ERR
-			       "khugepaged: kthread_run(khugepaged) failed\n");
+			pr_err("khugepaged: kthread_run(khugepaged) failed\n");
 			err = PTR_ERR(khugepaged_thread);
 			khugepaged_thread = NULL;
 		}
@@ -584,19 +585,19 @@ static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
 
 	*hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
 	if (unlikely(!*hugepage_kobj)) {
-		printk(KERN_ERR "hugepage: failed to create transparent hugepage kobject\n");
+		pr_err("failed to create transparent hugepage kobject\n");
 		return -ENOMEM;
 	}
 
 	err = sysfs_create_group(*hugepage_kobj, &hugepage_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed to register transparent hugepage group\n");
+		pr_err("failed to register transparent hugepage group\n");
 		goto delete_obj;
 	}
 
 	err = sysfs_create_group(*hugepage_kobj, &khugepaged_attr_group);
 	if (err) {
-		printk(KERN_ERR "hugepage: failed to register transparent hugepage group\n");
+		pr_err("failed to register transparent hugepage group\n");
 		goto remove_hp_group;
 	}
 
@@ -689,8 +690,7 @@ static int __init setup_transparent_hugepage(char *str)
 	}
 out:
 	if (!ret)
-		printk(KERN_WARNING
-		       "transparent_hugepage= cannot parse, ignored\n");
+		pr_warn("transparent_hugepage= cannot parse, ignored\n");
 	return ret;
 }
 __setup("transparent_hugepage=", setup_transparent_hugepage);
@@ -1830,10 +1830,11 @@ static void __split_huge_page(struct page *page,
 	 * the newly established pmd of the child later during the
 	 * walk, to be able to set it as pmd_trans_splitting too.
 	 */
-	if (mapcount != page_mapcount(page))
-		printk(KERN_ERR "mapcount %d page_mapcount %d\n",
-		       mapcount, page_mapcount(page));
-	BUG_ON(mapcount != page_mapcount(page));
+	if (mapcount != page_mapcount(page)) {
+		pr_err("mapcount %d page_mapcount %d\n",
+			mapcount, page_mapcount(page));
+		BUG();
+	}
 
 	__split_huge_page_refcount(page, list);
 
@@ -1844,10 +1845,11 @@ static void __split_huge_page(struct page *page,
 		BUG_ON(is_vma_temporary_stack(vma));
 		mapcount2 += __split_huge_page_map(page, vma, addr);
 	}
-	if (mapcount != mapcount2)
-		printk(KERN_ERR "mapcount %d mapcount2 %d page_mapcount %d\n",
-		       mapcount, mapcount2, page_mapcount(page));
-	BUG_ON(mapcount != mapcount2);
+	if (mapcount != mapcount2) {
+		pr_err("mapcount %d mapcount2 %d page_mapcount %d\n",
+			mapcount, mapcount2, page_mapcount(page));
+		BUG();
+	}
 }
 
 /*
@@ -2740,7 +2742,7 @@ static int khugepaged(void *none)
 	struct mm_slot *mm_slot;
 
 	set_freezable();
-	set_user_nice(current, 19);
+	set_user_nice(current, MAX_NICE);
 
 	while (!kthread_should_stop()) {
 		khugepaged_do_scan();

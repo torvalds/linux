@@ -15,8 +15,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef CAN_NETLINK_H
-#define CAN_NETLINK_H
+#ifndef _UAPI_CAN_NETLINK_H
+#define _UAPI_CAN_NETLINK_H
 
 #include <linux/types.h>
 
@@ -130,4 +130,4 @@ enum {
 
 #define IFLA_CAN_MAX	(__IFLA_CAN_MAX - 1)
 
-#endif /* CAN_NETLINK_H */
+#endif /* !_UAPI_CAN_NETLINK_H */

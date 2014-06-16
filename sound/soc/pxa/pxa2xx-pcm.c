@@ -15,6 +15,8 @@
 #include <linux/dmaengine.h>
 #include <linux/of.h>
 
+#include <mach/dma.h>
+
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/pxa2xx-lib.h>

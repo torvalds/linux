@@ -522,7 +522,6 @@ static void usb_dnld_complete(struct urb *urb)
 static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 			  u8 **pUcFile, long word_length)
 {
-	int Status = 0;
 	int byte_length;
 
 	byte_length = word_length * 4;
@@ -547,7 +546,7 @@ static int write_blk_fifo(struct ft1000_usb *ft1000dev, u16 **pUsFile,
 	*pUsFile = *pUsFile + (word_length << 1);
 	*pUcFile = *pUcFile + (word_length << 2);
 
-	return Status;
+	return 0;
 }
 
 static int scram_start_dwnld(struct ft1000_usb *ft1000dev, u16 *hshake,

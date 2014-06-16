@@ -901,7 +901,7 @@ nv50_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		nv_engine(priv)->sclass = nvaf_graph_sclass;
 		break;
 
-	};
+	}
 
 	/* unfortunate hw bug workaround... */
 	if (nv_device(priv)->chipset != 0x50 &&

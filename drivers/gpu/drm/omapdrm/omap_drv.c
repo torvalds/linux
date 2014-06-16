@@ -588,9 +588,7 @@ static void dev_lastclose(struct drm_device *dev)
 		}
 	}
 
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-	drm_modeset_unlock_all(dev);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 	if (ret)
 		DBG("failed to restore crtc mode");
 }

@@ -5,13 +5,13 @@
  * IIO features supported by the driver:
  *
  * Read-only raw channels:
- *   - illiminance_clear [lux]
- *   - illiminance_ir
+ *   - illuminance_clear [lux]
+ *   - illuminance_ir
  *   - proximity
  *
  * Triggered buffer:
- *   - illiminance_clear
- *   - illiminance_ir
+ *   - illuminance_clear
+ *   - illuminance_ir
  *   - proximity
  *
  * Events:
