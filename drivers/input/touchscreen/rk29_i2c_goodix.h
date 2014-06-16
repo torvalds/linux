@@ -111,7 +111,9 @@ struct goodix_ts_data {
 
 static const char *rk_ts_name = "Goodix Capacitive TouchScreen";
 struct i2c_client * i2c_connect_client = NULL; 
+#ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
 static struct proc_dir_entry *goodix_proc_entry;
+#endif
 //static struct kobject *goodix_debug_kobj;
 	
 

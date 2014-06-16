@@ -519,18 +519,20 @@ static int rk_ts_resume(struct i2c_client *client)
 
 
 
-static void rk_ts_early_suspend(struct tp_device *tp_d)
+static int rk_ts_early_suspend(struct tp_device *tp_d)
 {
 	struct rk_ts_data *ts;
 	ts = container_of(tp_d, struct rk_ts_data, tp);
 	rk_ts_suspend(ts->client, PMSG_SUSPEND);
+	return 0;
 }
 
-static void rk_ts_early_resume(struct tp_device *tp_d)
+static int rk_ts_early_resume(struct tp_device *tp_d)
 {
 	struct rk_ts_data *ts;
 	ts = container_of(tp_d, struct rk_ts_data, tp);
 	rk_ts_resume(ts->client);
+	return 0;
 }
 
 
