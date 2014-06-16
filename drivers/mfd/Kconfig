@@ -1069,7 +1069,7 @@ config MFD_LM3533
 config MFD_TIMBERDALE
 	tristate "Timberdale FPGA"
 	select MFD_CORE
-	depends on PCI && GPIOLIB
+	depends on PCI && GPIOLIB && (X86_32 || COMPILE_TEST)
 	---help---
 	This is the core driver for the timberdale FPGA. This device is a
 	multifunction device which exposes numerous platform devices.
