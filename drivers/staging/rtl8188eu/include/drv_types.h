@@ -255,14 +255,6 @@ struct adapter {
 	struct mutex hw_init_mutex;
 
 	spinlock_t br_ext_lock;
-	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
-	unsigned char			pppoe_addr[MACADDRLEN];
-	unsigned char			scdb_mac[MACADDRLEN];
-	unsigned char			scdb_ip[4];
-	struct nat25_network_db_entry	*scdb_entry;
-	unsigned char			br_mac[MACADDRLEN];
-	unsigned char			br_ip[4];
-	struct br_ext_info		ethBrExtInfo;
 
 	u8	fix_rate;
 
