@@ -257,6 +257,7 @@ static void wil_notify_fw_error(struct wil6210_priv *wil)
 		[1] = "EVENT=FW_ERROR",
 		[2] = NULL,
 	};
+	wil_err(wil, "Notify about firmware error\n");
 	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 
