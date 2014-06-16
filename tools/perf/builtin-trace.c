@@ -1629,7 +1629,6 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 		return -1;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
-	ttrace = thread->priv;
 
 	if (ttrace->entry_str == NULL) {
 		ttrace->entry_str = malloc(1024);
@@ -1686,8 +1685,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		trace->last_vfs_getname = NULL;
 		++trace->stats.vfs_getname;
 	}
-
-	ttrace = thread->priv;
 
 	ttrace->exit_time = sample->time;
 
