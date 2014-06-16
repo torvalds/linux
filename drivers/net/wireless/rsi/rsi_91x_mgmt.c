@@ -217,6 +217,7 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->min_rate = 0xffff;
 	common->fsm_state = FSM_CARD_NOT_READY;
 	common->iface_down = true;
+	common->endpoint = EP_2GHZ_20MHZ;
 }
 
 /**

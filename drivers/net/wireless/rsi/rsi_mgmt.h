@@ -123,6 +123,11 @@
 #define BW_20MHZ                        0
 #define BW_40MHZ                        1
 
+#define EP_2GHZ_20MHZ			0
+#define EP_2GHZ_40MHZ			1
+#define EP_5GHZ_20MHZ			2
+#define EP_5GHZ_40MHZ			3
+
 #define RSI_SUPP_FILTERS	(FIF_ALLMULTI | FIF_PROBE_REQ |\
 				 FIF_BCN_PRBRESP_PROMISC)
 enum opmode {
