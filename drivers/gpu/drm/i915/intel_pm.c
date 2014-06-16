@@ -530,7 +530,10 @@ void intel_update_fbc(struct drm_device *dev)
 		goto out_disable;
 	}
 
-	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	if (INTEL_INFO(dev)->gen >= 8 || IS_HASWELL(dev)) {
+		max_width = 4096;
+		max_height = 4096;
+	} else if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		max_width = 4096;
 		max_height = 2048;
 	} else {
