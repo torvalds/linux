@@ -214,7 +214,7 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 		hash_start = 1;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
-			cause = "IMA signature required";
+			cause = "IMA-signature-required";
 			status = INTEGRITY_FAIL;
 			break;
 		}
