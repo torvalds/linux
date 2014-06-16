@@ -897,7 +897,7 @@ struct snd_soc_dai_link {
 	 * only for codec to codec links, or systems using device tree.
 	 */
 	const char *cpu_name;
-	const struct device_node *cpu_of_node;
+	struct device_node *cpu_of_node;
 	/*
 	 * You MAY specify the DAI name of the CPU DAI. If this information is
 	 * omitted, the CPU-side DAI is matched using .cpu_name/.cpu_of_node
@@ -909,7 +909,7 @@ struct snd_soc_dai_link {
 	 * DT/OF node, but not both.
 	 */
 	const char *codec_name;
-	const struct device_node *codec_of_node;
+	struct device_node *codec_of_node;
 	/* You MUST specify the DAI name within the codec */
 	const char *codec_dai_name;
 
@@ -922,7 +922,7 @@ struct snd_soc_dai_link {
 	 * do not need a platform.
 	 */
 	const char *platform_name;
-	const struct device_node *platform_of_node;
+	struct device_node *platform_of_node;
 	int be_id;	/* optional ID for machine driver BE identification */
 
 	const struct snd_soc_pcm_stream *params;
