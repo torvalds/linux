@@ -412,6 +412,7 @@ struct wil6210_priv {
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
 	/* statistics */
 	struct wil6210_stats stats;
+	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
 	struct dentry *debug;
 	struct debugfs_blob_wrapper fw_code_blob;

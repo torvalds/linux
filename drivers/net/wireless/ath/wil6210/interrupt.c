@@ -208,6 +208,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 
 	/* Rx IRQ will be enabled when NAPI processing finished */
 
+	atomic_inc(&wil->isr_count_rx);
 	return IRQ_HANDLED;
 }
 
@@ -246,6 +247,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 
 	/* Tx IRQ will be enabled when NAPI processing finished */
 
+	atomic_inc(&wil->isr_count_tx);
 	return IRQ_HANDLED;
 }
 

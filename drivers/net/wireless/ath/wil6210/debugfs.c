@@ -851,10 +851,21 @@ static const struct file_operations fops_link = {
 /*---------info------------*/
 static int wil_info_debugfs_show(struct seq_file *s, void *data)
 {
+	struct wil6210_priv *wil = s->private;
+	struct net_device *ndev = wil_to_ndev(wil);
 	int is_ac = power_supply_is_system_supplied();
+	int rx = atomic_xchg(&wil->isr_count_rx, 0);
+	int tx = atomic_xchg(&wil->isr_count_tx, 0);
+	static ulong rxf_old, txf_old;
+	ulong rxf = ndev->stats.rx_packets;
+	ulong txf = ndev->stats.tx_packets;
 
 	/* >0 : AC; 0 : battery; <0 : error */
 	seq_printf(s, "AC powered : %d\n", is_ac);
+	seq_printf(s, "Rx irqs:packets : %8d : %8ld\n", rx, rxf - rxf_old);
+	seq_printf(s, "Tx irqs:packets : %8d : %8ld\n", tx, txf - txf_old);
+	rxf_old = rxf;
+	txf_old = txf;
 
 	return 0;
 }
