@@ -683,14 +683,12 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 
 	for (n = 0;; n++) {
 		u16 len;
+		bool q;
 
 		r->head = ioread32(wil->csr + HOST_MBOX +
 				   offsetof(struct wil6210_mbox_ctl, rx.head));
-		if (r->tail == r->head) {
-			if (n == 0)
-				wil_dbg_wmi(wil, "No events?\n");
-			return;
-		}
+		if (r->tail == r->head)
+			break;
 
 		wil_dbg_wmi(wil, "Mbox head %08x tail %08x\n",
 			    r->head, r->tail);
@@ -699,14 +697,14 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 				     sizeof(struct wil6210_mbox_ring_desc));
 		if (d_tail.sync == 0) {
 			wil_err(wil, "Mbox evt not owned by FW?\n");
-			return;
+			break;
 		}
 
 		/* read cmd header from descriptor */
 		if (0 != wmi_read_hdr(wil, d_tail.addr, &hdr)) {
 			wil_err(wil, "Mbox evt at 0x%08x?\n",
 				le32_to_cpu(d_tail.addr));
-			return;
+			break;
 		}
 		len = le16_to_cpu(hdr.len);
 		wil_dbg_wmi(wil, "Mbox evt %04x %04x %04x %02x\n",
@@ -720,7 +718,7 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 					     event.wmi) + len, 4),
 			      GFP_KERNEL);
 		if (!evt)
-			return;
+			break;
 
 		evt->event.hdr = hdr;
 		cmd = (void *)&evt->event.wmi;
@@ -752,14 +750,11 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 		spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 		list_add_tail(&evt->list, &wil->pending_wmi_ev);
 		spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
-		{
-			int q =	queue_work(wil->wmi_wq,
-					   &wil->wmi_event_worker);
-			wil_dbg_wmi(wil, "queue_work -> %d\n", q);
-		}
+		q = queue_work(wil->wmi_wq, &wil->wmi_event_worker);
+		wil_dbg_wmi(wil, "queue_work -> %d\n", q);
 	}
-	if (n > 1)
-		wil_dbg_wmi(wil, "%s -> %d events processed\n", __func__, n);
+	/* normally, 1 event per IRQ should be processed */
+	wil_dbg_wmi(wil, "%s -> %d events queued\n", __func__, n);
 }
 
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
