@@ -56,6 +56,9 @@ struct anatop_regulator {
 	u32 enable_bit;
 };
 
+static struct anatop_regulator *vddpu;
+static struct anatop_regulator *vddsoc;
+
 static int anatop_regmap_set_voltage_time_sel(struct regulator_dev *reg,
 	unsigned int old_sel,
 	unsigned int new_sel)
@@ -86,6 +89,13 @@ static int anatop_core_regmap_enable(struct regulator_dev *reg)
 {
 	struct anatop_regulator *anatop_reg = rdev_get_drvdata(reg);
 	int sel;
+
+	/*
+	 * The vddpu has to stay at the same voltage level as vddsoc
+	 * whenever it's about to be enabled.
+	 */
+	if (anatop_reg == vddpu && vddsoc)
+		anatop_reg->sel = vddsoc->sel;
 
 	sel = anatop_reg->bypass ? LDO_FET_FULL_ON : anatop_reg->sel;
 	return regulator_set_voltage_sel_regmap(reg, sel);
@@ -238,6 +248,11 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 
 	initdata = of_get_regulator_init_data(dev, np, rdesc);
 	sreg->initdata = initdata;
+
+	if (strcmp(sreg->name, "vddpu") == 0)
+		vddpu = sreg;
+	else if (strcmp(sreg->name, "vddsoc") == 0)
+		vddsoc = sreg;
 
 	anatop_np = of_get_parent(np);
 	if (!anatop_np)
