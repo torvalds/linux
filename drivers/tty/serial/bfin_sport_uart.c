@@ -495,6 +495,13 @@ static void sport_set_termios(struct uart_port *port,
 
 	pr_debug("%s enter, c_cflag:%08x\n", __func__, termios->c_cflag);
 
+#ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+	if (old == NULL && up->cts_pin != -1)
+		termios->c_cflag |= CRTSCTS;
+	else if (up->cts_pin == -1)
+		termios->c_cflag &= ~CRTSCTS;
+#endif
+
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
 		up->csize = 8;
@@ -807,10 +814,8 @@ static int sport_uart_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			sport->cts_pin = -1;
-		else {
+		else
 			sport->cts_pin = res->start;
-			sport->port.flags |= ASYNC_CTS_FLOW;
-		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)

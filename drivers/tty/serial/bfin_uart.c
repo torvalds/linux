@@ -785,6 +785,13 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int ier, lcr = 0;
 	unsigned long timeout;
 
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	if (old == NULL && uart->cts_pin != -1)
+		termios->c_cflag |= CRTSCTS;
+	else if (uart->cts_pin == -1)
+		termios->c_cflag &= ~CRTSCTS;
+#endif
+
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
 		lcr = WLS(8);
@@ -1316,12 +1323,8 @@ static int bfin_serial_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			uart->cts_pin = -1;
-		else {
+		else
 			uart->cts_pin = res->start;
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-			uart->port.flags |= ASYNC_CTS_FLOW;
-#endif
-		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)
