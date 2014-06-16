@@ -115,6 +115,7 @@ struct wmm_qinfo {
 	s32 weight;
 	s32 wme_params;
 	s32 pkt_contended;
+	s32 txop;
 };
 
 struct transmit_q_stats {
@@ -192,6 +193,8 @@ struct rsi_common {
 	u8 selected_qnum;
 	u32 pkt_cnt;
 	u8 min_weight;
+
+	bool hw_data_qs_blocked;
 };
 
 struct rsi_hw {
