@@ -888,6 +888,8 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 		return 0;
 
 	smp = smp_chan_create(conn);
+	if (!smp)
+		return SMP_UNSPECIFIED;
 
 	skb_pull(skb, sizeof(*rp));
 
