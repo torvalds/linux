@@ -208,6 +208,17 @@
 
 };
 
+&nandc0 {
+	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+};
+&nandc1 {
+	status = "disabled"; // used nand set "disabled" ,used emmc set "okay"
+};   
+
+&nandc0reg {
+	status = "okay"; // used nand set "disabled" ,used emmc set "okay"
+};
+
 &emmc {
 	clock-frequency = <100000000>;
 	clock-freq-min-max = <400000 100000000>;
