@@ -131,11 +131,11 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 		return -ENOMEM;
 	}
 
-	link->resource[0]->end  = HCF_NUM_IO_PORTS;
-	link->resource[0]->flags= IO_DATA_PATH_WIDTH_16;
-	link->config_flags     |= CONF_ENABLE_IRQ;
-	link->config_index      = 5;
-	link->config_regs       = PRESENT_OPTION;
+	link->resource[0]->end   = HCF_NUM_IO_PORTS;
+	link->resource[0]->flags = IO_DATA_PATH_WIDTH_16;
+	link->config_flags      |= CONF_ENABLE_IRQ;
+	link->config_index       = 5;
+	link->config_regs        = PRESENT_OPTION;
 
 	link->priv = dev;
 	lp = wl_priv(dev);
