@@ -520,6 +520,240 @@ select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 	}
 }
 
+struct sess_data {
+	unsigned int xid;
+	struct cifs_ses *ses;
+	struct nls_table *nls_cp;
+	void (*func)(struct sess_data *);
+	int result;
+
+	/* we will send the SMB in three pieces:
+	 * a fixed length beginning part, an optional
+	 * SPNEGO blob (which can be zero length), and a
+	 * last part which will include the strings
+	 * and rest of bcc area. This allows us to avoid
+	 * a large buffer 17K allocation
+	 */
+	int buf0_type;
+	struct kvec iov[3];
+};
+
+static int
+sess_alloc_buffer(struct sess_data *sess_data, int wct)
+{
+	int rc;
+	struct cifs_ses *ses = sess_data->ses;
+	struct smb_hdr *smb_buf;
+
+	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
+				  (void **)&smb_buf);
+
+	if (rc)
+		return rc;
+
+	sess_data->iov[0].iov_base = (char *)smb_buf;
+	sess_data->iov[0].iov_len = be32_to_cpu(smb_buf->smb_buf_length) + 4;
+	/*
+	 * This variable will be used to clear the buffer
+	 * allocated above in case of any error in the calling function.
+	 */
+	sess_data->buf0_type = CIFS_SMALL_BUFFER;
+
+	/* 2000 big enough to fit max user, domain, NOS name etc. */
+	sess_data->iov[2].iov_base = kmalloc(2000, GFP_KERNEL);
+	if (!sess_data->iov[2].iov_base) {
+		rc = -ENOMEM;
+		goto out_free_smb_buf;
+	}
+
+	return 0;
+
+out_free_smb_buf:
+	kfree(smb_buf);
+	sess_data->iov[0].iov_base = NULL;
+	sess_data->iov[0].iov_len = 0;
+	sess_data->buf0_type = CIFS_NO_BUFFER;
+	return rc;
+}
+
+static void
+sess_free_buffer(struct sess_data *sess_data)
+{
+
+	free_rsp_buf(sess_data->buf0_type, sess_data->iov[0].iov_base);
+	sess_data->buf0_type = CIFS_NO_BUFFER;
+	kfree(sess_data->iov[2].iov_base);
+}
+
+static int
+sess_establish_session(struct sess_data *sess_data)
+{
+	struct cifs_ses *ses = sess_data->ses;
+
+	mutex_lock(&ses->server->srv_mutex);
+	if (!ses->server->session_estab) {
+		if (ses->server->sign) {
+			ses->server->session_key.response =
+				kmemdup(ses->auth_key.response,
+				ses->auth_key.len, GFP_KERNEL);
+			if (!ses->server->session_key.response) {
+				mutex_unlock(&ses->server->srv_mutex);
+				return -ENOMEM;
+			}
+			ses->server->session_key.len =
+						ses->auth_key.len;
+		}
+		ses->server->sequence_number = 0x2;
+		ses->server->session_estab = true;
+	}
+	mutex_unlock(&ses->server->srv_mutex);
+
+	cifs_dbg(FYI, "CIFS session established successfully\n");
+	spin_lock(&GlobalMid_Lock);
+	ses->status = CifsGood;
+	ses->need_reconnect = false;
+	spin_unlock(&GlobalMid_Lock);
+
+	return 0;
+}
+
+static int
+sess_sendreceive(struct sess_data *sess_data)
+{
+	int rc;
+	struct smb_hdr *smb_buf = (struct smb_hdr *) sess_data->iov[0].iov_base;
+	__u16 count;
+
+	count = sess_data->iov[1].iov_len + sess_data->iov[2].iov_len;
+	smb_buf->smb_buf_length =
+		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
+	put_bcc(count, smb_buf);
+
+	rc = SendReceive2(sess_data->xid, sess_data->ses,
+			  sess_data->iov, 3 /* num_iovecs */,
+			  &sess_data->buf0_type,
+			  CIFS_LOG_ERROR);
+
+	return rc;
+}
+
+/*
+ * LANMAN and plaintext are less secure and off by default.
+ * So we make this explicitly be turned on in kconfig (in the
+ * build) and turned on at runtime (changed from the default)
+ * in proc/fs/cifs or via mount parm.  Unfortunately this is
+ * needed for old Win (e.g. Win95), some obscure NAS and OS/2
+ */
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+static void
+sess_auth_lanman(struct sess_data *sess_data)
+{
+	int rc = 0;
+	struct smb_hdr *smb_buf;
+	SESSION_SETUP_ANDX *pSMB;
+	char *bcc_ptr;
+	struct cifs_ses *ses = sess_data->ses;
+	char lnm_session_key[CIFS_AUTH_RESP_SIZE];
+	__u32 capabilities;
+	__u16 bytes_remaining;
+
+	/* lanman 2 style sessionsetup */
+	/* wct = 10 */
+	rc = sess_alloc_buffer(sess_data, 10);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	bcc_ptr = sess_data->iov[2].iov_base;
+	capabilities = cifs_ssetup_hdr(ses, pSMB);
+
+	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
+
+	/* no capabilities flags in old lanman negotiation */
+	pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
+
+	/* Calculate hash with password and copy into bcc_ptr.
+	 * Encryption Key (stored as in cryptkey) gets used if the
+	 * security mode bit in Negottiate Protocol response states
+	 * to use challenge/response method (i.e. Password bit is 1).
+	 */
+	rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
+			      ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
+			      true : false, lnm_session_key);
+
+	memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
+	bcc_ptr += CIFS_AUTH_RESP_SIZE;
+
+	/*
+	 * can not sign if LANMAN negotiated so no need
+	 * to calculate signing key? but what if server
+	 * changed to do higher than lanman dialect and
+	 * we reconnected would we ever calc signing_key?
+	 */
+
+	cifs_dbg(FYI, "Negotiating LANMAN setting up strings\n");
+	/* Unicode not allowed for LANMAN dialects */
+	ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+
+	sess_data->iov[2].iov_len = (long) bcc_ptr -
+			(long) sess_data->iov[2].iov_base;
+
+	rc = sess_sendreceive(sess_data);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
+
+	/* lanman response has a word count of 3 */
+	if (smb_buf->WordCount != 3) {
+		rc = -EIO;
+		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
+		goto out;
+	}
+
+	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
+		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
+
+	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
+	cifs_dbg(FYI, "UID = %llu\n", ses->Suid);
+
+	bytes_remaining = get_bcc(smb_buf);
+	bcc_ptr = pByteArea(smb_buf);
+
+	/* BB check if Unicode and decode strings */
+	if (bytes_remaining == 0) {
+		/* no string area to decode, do nothing */
+	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+		/* unicode string area must be word-aligned */
+		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+			++bcc_ptr;
+			--bytes_remaining;
+		}
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
+				      sess_data->nls_cp);
+	} else {
+		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
+				    sess_data->nls_cp);
+	}
+
+	rc = sess_establish_session(sess_data);
+out:
+	sess_data->result = rc;
+	sess_data->func = NULL;
+	sess_free_buffer(sess_data);
+}
+
+#else
+
+static void
+sess_auth_lanman(struct sess_data *sess_data)
+{
+	sess_data->result = -EOPNOTSUPP;
+	sess_data->func = NULL;
+}
+#endif
+
 int
 CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	       const struct nls_table *nls_cp)
@@ -540,11 +774,20 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
 	u16 blob_len;
 	char *ntlmsspblob = NULL;
+	struct sess_data *sess_data;
 
 	if (ses == NULL) {
 		WARN(1, "%s: ses == NULL!", __func__);
 		return -EINVAL;
 	}
+
+	sess_data = kzalloc(sizeof(struct sess_data), GFP_KERNEL);
+	if (!sess_data)
+		return -ENOMEM;
+	sess_data->xid = xid;
+	sess_data->ses = ses;
+	sess_data->buf0_type = CIFS_NO_BUFFER;
+	sess_data->nls_cp = (struct nls_table *) nls_cp;
 
 	type = select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
@@ -552,6 +795,14 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		cifs_dbg(VFS,
 			"Unable to select appropriate authentication method!");
 		return -EINVAL;
+	}
+
+	switch (type) {
+	case LANMAN:
+		sess_auth_lanman(sess_data);
+		goto out;
+	default:
+		cifs_dbg(FYI, "Continuing with CIFS_SessSetup\n");
 	}
 
 	if (type == RawNTLMSSP) {
@@ -569,17 +820,7 @@ ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
 		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */
 
-	if (type == LANMAN) {
-#ifndef CONFIG_CIFS_WEAK_PW_HASH
-		/* LANMAN and plaintext are less secure and off by default.
-		So we make this explicitly be turned on in kconfig (in the
-		build) and turned on at runtime (changed from the default)
-		in proc/fs/cifs or via mount parm.  Unfortunately this is
-		needed for old Win (e.g. Win95), some obscure NAS and OS/2 */
-		return -EOPNOTSUPP;
-#endif
-		wct = 10; /* lanman 2 style sessionsetup */
-	} else if ((type == NTLM) || (type == NTLMv2)) {
+	if ((type == NTLM) || (type == NTLMv2)) {
 		/* For NTLMv2 failures eventually may need to retry NTLM */
 		wct = 13; /* old style NTLM sessionsetup */
 	} else /* same size: negotiate or auth, NTLMSSP or extended security */
@@ -618,39 +859,7 @@ ssetup_ntlmssp_authenticate:
 	iov[1].iov_base = NULL;
 	iov[1].iov_len = 0;
 
-	if (type == LANMAN) {
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-		char lnm_session_key[CIFS_AUTH_RESP_SIZE];
-
-		pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
-
-		/* no capabilities flags in old lanman negotiation */
-
-		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-
-		/* Calculate hash with password and copy into bcc_ptr.
-		 * Encryption Key (stored as in cryptkey) gets used if the
-		 * security mode bit in Negottiate Protocol response states
-		 * to use challenge/response method (i.e. Password bit is 1).
-		 */
-
-		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
-				 ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
-					true : false, lnm_session_key);
-
-		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-
-		/* can not sign if LANMAN negotiated so no need
-		to calculate signing key? but what if server
-		changed to do higher than lanman dialect and
-		we reconnected would we ever calc signing_key? */
-
-		cifs_dbg(FYI, "Negotiating LANMAN setting up strings\n");
-		/* Unicode not allowed for LANMAN dialects */
-		ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
-#endif
-	} else if (type == NTLM) {
+	if (type == NTLM) {
 		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
 		pSMB->req_no_secext.CaseInsensitivePasswordLength =
 			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
@@ -889,7 +1098,6 @@ ssetup_ntlmssp_authenticate:
 		}
 		if (phase == NtLmChallenge) {
 			rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
-			/* now goto beginning for ntlmssp authenticate phase */
 			if (rc)
 				goto ssetup_exit;
 		}
@@ -961,5 +1169,10 @@ keycp_exit:
 	ses->auth_key.response = NULL;
 	kfree(ses->ntlmssp);
 
+	return rc;
+
+out:
+	rc = sess_data->result;
+	kfree(sess_data);
 	return rc;
 }
