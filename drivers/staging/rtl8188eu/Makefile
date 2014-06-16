@@ -1,6 +1,5 @@
 r8188eu-y :=				\
 		core/rtw_ap.o		\
-		core/rtw_br_ext.o	\
 		core/rtw_cmd.o		\
 		core/rtw_debug.o	\
 		core/rtw_efuse.o	\
