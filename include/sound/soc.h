@@ -706,6 +706,10 @@ struct snd_soc_component {
 	int val_bytes;
 
 	struct mutex io_mutex;
+
+	/* Don't use these, use snd_soc_component_get_dapm() */
+	struct snd_soc_dapm_context dapm;
+	struct snd_soc_dapm_context *dapm_ptr;
 };
 
 /* SoC Audio Codec device */
@@ -1161,6 +1165,21 @@ static inline struct snd_soc_platform *snd_soc_component_to_platform(
 }
 
 /**
+ * snd_soc_dapm_to_component() - Casts a DAPM context to the component it is
+ *  embedded in
+ * @dapm: The DAPM context to cast to the component
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a component (e.g. in a component driver). Otherwise the behavior is
+ * undefined.
+ */
+static inline struct snd_soc_component *snd_soc_dapm_to_component(
+	struct snd_soc_dapm_context *dapm)
+{
+	return container_of(dapm, struct snd_soc_component, dapm);
+}
+
+/**
  * snd_soc_dapm_to_codec() - Casts a DAPM context to the CODEC it is embedded in
  * @dapm: The DAPM context to cast to the CODEC
  *
@@ -1185,6 +1204,17 @@ static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
 	struct snd_soc_dapm_context *dapm)
 {
 	return container_of(dapm, struct snd_soc_platform, dapm);
+}
+
+/**
+ * snd_soc_component_get_dapm() - Returns the DAPM context associated with a
+ *  component
+ * @component: The component for which to get the DAPM context
+ */
+static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
+	struct snd_soc_component *component)
+{
+	return component->dapm_ptr;
 }
 
 /* codec IO */

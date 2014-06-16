@@ -350,12 +350,27 @@ static bool dapm_kcontrol_set_value(const struct snd_kcontrol *kcontrol,
 }
 
 /**
+ * snd_soc_dapm_kcontrol_dapm() - Returns the dapm context associated to a
+ *  kcontrol
+ * @kcontrol: The kcontrol
+ *
+ * Note: This function must only be used on kcontrols that are known to have
+ * been registered for a CODEC. Otherwise the behaviour is undefined.
+ */
+struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
+	struct snd_kcontrol *kcontrol)
+{
+	return dapm_kcontrol_get_wlist(kcontrol)->widgets[0]->dapm;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_dapm);
+
+/**
  * snd_soc_dapm_kcontrol_codec() - Returns the codec associated to a kcontrol
  * @kcontrol: The kcontrol
  */
 struct snd_soc_codec *snd_soc_dapm_kcontrol_codec(struct snd_kcontrol *kcontrol)
 {
-	return dapm_kcontrol_get_wlist(kcontrol)->widgets[0]->codec;
+	return snd_soc_dapm_to_codec(snd_soc_dapm_kcontrol_dapm(kcontrol));
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_codec);
 
@@ -382,21 +397,29 @@ static const char *soc_dapm_prefix(struct snd_soc_dapm_context *dapm)
 	return dapm->component->name_prefix;
 }
 
-static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg,
+static int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg,
 	unsigned int *value)
 {
-	if (!w->dapm->component)
+	if (!dapm->component)
 		return -EIO;
-	return snd_soc_component_read(w->dapm->component, reg, value);
+	return snd_soc_component_read(dapm->component, reg, value);
 }
 
-static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
+static int soc_dapm_update_bits(struct snd_soc_dapm_context *dapm,
 	int reg, unsigned int mask, unsigned int value)
 {
-	if (!w->dapm->component)
+	if (!dapm->component)
 		return -EIO;
-	return snd_soc_component_update_bits_async(w->dapm->component, reg,
+	return snd_soc_component_update_bits_async(dapm->component, reg,
 		mask, value);
+}
+
+static int soc_dapm_test_bits(struct snd_soc_dapm_context *dapm,
+	int reg, unsigned int mask, unsigned int value)
+{
+	if (!dapm->component)
+		return -EIO;
+	return snd_soc_component_test_bits(dapm->component, reg, mask, value);
 }
 
 static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
@@ -454,7 +477,7 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 	int i;
 
 	if (e->reg != SND_SOC_NOPM) {
-		soc_widget_read(dest, e->reg, &val);
+		soc_dapm_read(dapm, e->reg, &val);
 		val = (val >> e->shift_l) & e->mask;
 		item = snd_soc_enum_val_to_item(e, val);
 	} else {
@@ -498,7 +521,7 @@ static void dapm_set_mixer_path_status(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 
 	if (reg != SND_SOC_NOPM) {
-		soc_widget_read(w, reg, &val);
+		soc_dapm_read(w->dapm, reg, &val);
 		val = (val >> shift) & mask;
 		if (invert)
 			val = max - val;
@@ -1306,16 +1329,18 @@ static void dapm_seq_check_event(struct snd_soc_card *card,
 static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 				   struct list_head *pending)
 {
+	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_dapm_widget *w;
 	int reg;
 	unsigned int value = 0;
 	unsigned int mask = 0;
 
-	reg = list_first_entry(pending, struct snd_soc_dapm_widget,
-			       power_list)->reg;
+	w = list_first_entry(pending, struct snd_soc_dapm_widget, power_list);
+	reg = w->reg;
+	dapm = w->dapm;
 
 	list_for_each_entry(w, pending, power_list) {
-		WARN_ON(reg != w->reg);
+		WARN_ON(reg != w->reg || dapm != w->dapm);
 		w->power = w->new_power;
 
 		mask |= w->mask << w->shift;
@@ -1324,7 +1349,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 		else
 			value |= w->off_val << w->shift;
 
-		pop_dbg(w->dapm->dev, card->pop_time,
+		pop_dbg(dapm->dev, card->pop_time,
 			"pop test : Queue %s: reg=0x%x, 0x%x/0x%x\n",
 			w->name, reg, value, mask);
 
@@ -1337,14 +1362,12 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
 		/* Any widget will do, they should all be updating the
 		 * same register.
 		 */
-		w = list_first_entry(pending, struct snd_soc_dapm_widget,
-				     power_list);
 
-		pop_dbg(w->dapm->dev, card->pop_time,
+		pop_dbg(dapm->dev, card->pop_time,
 			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
 			value, mask, reg, card->pop_time);
 		pop_wait(card->pop_time);
-		soc_widget_update_bits(w, reg, mask, value);
+		soc_dapm_update_bits(dapm, reg, mask, value);
 	}
 
 	list_for_each_entry(w, pending, power_list) {
@@ -1490,7 +1513,8 @@ static void dapm_widget_update(struct snd_soc_card *card)
 	if (!w)
 		return;
 
-	ret = soc_widget_update_bits(w, update->reg, update->mask, update->val);
+	ret = soc_dapm_update_bits(w->dapm, update->reg, update->mask,
+		update->val);
 	if (ret < 0)
 		dev_err(w->dapm->dev, "ASoC: %s DAPM update failed: %d\n",
 			w->name, ret);
@@ -2672,7 +2696,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_card *card)
 
 		/* Read the initial power state from the device */
 		if (w->reg >= 0) {
-			soc_widget_read(w, w->reg, &val);
+			soc_dapm_read(w->dapm, w->reg, &val);
 			val = val >> w->shift;
 			val &= w->mask;
 			if (val == w->on_val)
@@ -2703,8 +2727,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_new_widgets);
 int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int reg = mc->reg;
@@ -2713,17 +2737,20 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	unsigned int val;
+	int ret = 0;
 
 	if (snd_soc_volsw_is_stereo(mc))
-		dev_warn(codec->dapm.dev,
+		dev_warn(dapm->dev,
 			 "ASoC: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-	if (dapm_kcontrol_is_powered(kcontrol) && reg != SND_SOC_NOPM)
-		val = (snd_soc_read(codec, reg) >> shift) & mask;
-	else
+	if (dapm_kcontrol_is_powered(kcontrol) && reg != SND_SOC_NOPM) {
+		ret = soc_dapm_read(dapm, reg, &val);
+		val = (val >> shift) & mask;
+	} else {
 		val = dapm_kcontrol_get_value(kcontrol);
+	}
 	mutex_unlock(&card->dapm_mutex);
 
 	if (invert)
@@ -2731,7 +2758,7 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 	else
 		ucontrol->value.integer.value[0] = val;
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw);
 
@@ -2747,8 +2774,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw);
 int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int reg = mc->reg;
@@ -2762,7 +2789,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	int ret = 0;
 
 	if (snd_soc_volsw_is_stereo(mc))
-		dev_warn(codec->dapm.dev,
+		dev_warn(dapm->dev,
 			 "ASoC: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
@@ -2780,7 +2807,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 		mask = mask << shift;
 		val = val << shift;
 
-		reg_change = snd_soc_test_bits(codec, reg, mask, val);
+		reg_change = soc_dapm_test_bits(dapm, reg, mask, val);
 	}
 
 	if (change || reg_change) {
@@ -2819,12 +2846,13 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int reg_val, val;
+	int ret = 0;
 
 	if (e->reg != SND_SOC_NOPM)
-		reg_val = snd_soc_read(codec, e->reg);
+		ret = soc_dapm_read(dapm, e->reg, &reg_val);
 	else
 		reg_val = dapm_kcontrol_get_value(kcontrol);
 
@@ -2836,7 +2864,7 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 		ucontrol->value.enumerated.item[1] = val;
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_double);
 
@@ -2852,8 +2880,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_double);
 int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_card *card = dapm->card;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
 	unsigned int val, change;
@@ -2876,7 +2904,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	if (e->reg != SND_SOC_NOPM)
-		change = snd_soc_test_bits(codec, e->reg, mask, val);
+		change = soc_dapm_test_bits(dapm, e->reg, mask, val);
 	else
 		change = dapm_kcontrol_set_value(kcontrol, val);
 

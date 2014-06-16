@@ -3997,6 +3997,8 @@ err:
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
+	struct snd_soc_dapm_context *dapm;
+
 	component->name = fmt_single_name(dev, &component->id);
 	if (!component->name) {
 		dev_err(dev, "ASoC: Failed to allocate name\n");
@@ -4005,6 +4007,14 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	component->dev = dev;
 	component->driver = driver;
+
+	if (!component->dapm_ptr)
+		component->dapm_ptr = &component->dapm;
+
+	dapm = component->dapm_ptr;
+	dapm->dev = dev;
+	dapm->component = component;
+	dapm->bias_level = SND_SOC_BIAS_OFF;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
@@ -4131,6 +4141,8 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 {
 	int ret;
 
+	platform->component.dapm_ptr = &platform->dapm;
+
 	ret = snd_soc_component_initialize(&platform->component,
 			&platform_drv->component_driver, dev);
 	if (ret)
@@ -4138,9 +4150,7 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 
 	platform->dev = dev;
 	platform->driver = platform_drv;
-	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
-	platform->dapm.component = &platform->component;
 	platform->dapm.stream_event = platform_drv->stream_event;
 	if (platform_drv->write)
 		platform->component.write = snd_soc_platform_drv_write;
@@ -4314,6 +4324,8 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec == NULL)
 		return -ENOMEM;
 
+	codec->component.dapm_ptr = &codec->dapm;
+
 	ret = snd_soc_component_initialize(&codec->component,
 			&codec_drv->component_driver, dev);
 	if (ret)
@@ -4324,10 +4336,7 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec_drv->read)
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
-	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
-	codec->dapm.dev = dev;
 	codec->dapm.codec = codec;
-	codec->dapm.component = &codec->component;
 	codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	codec->dapm.stream_event = codec_drv->stream_event;
 	if (codec_drv->set_bias_level)
