@@ -573,8 +573,7 @@ static u8 smp_random(struct smp_chan *smp)
 		 * STK never needs to be stored).
 		 */
 		hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
-			    HCI_SMP_STK, auth, stk, smp->enc_key_size,
-			    ediv, rand);
+			    SMP_STK, auth, stk, smp->enc_key_size, ediv, rand);
 	}
 
 	return 0;
@@ -1027,7 +1026,7 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 	authenticated = (hcon->sec_level == BT_SECURITY_HIGH);
-	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, HCI_SMP_LTK,
+	ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type, SMP_LTK,
 			  authenticated, smp->tk, smp->enc_key_size,
 			  rp->ediv, rp->rand);
 	smp->ltk = ltk;
@@ -1343,7 +1342,7 @@ int smp_distribute_keys(struct l2cap_conn *conn)
 
 		authenticated = hcon->sec_level == BT_SECURITY_HIGH;
 		ltk = hci_add_ltk(hdev, &hcon->dst, hcon->dst_type,
-				  HCI_SMP_LTK_SLAVE, authenticated, enc.ltk,
+				  SMP_LTK_SLAVE, authenticated, enc.ltk,
 				  smp->enc_key_size, ediv, rand);
 		smp->slave_ltk = ltk;
 

@@ -32,6 +32,7 @@
 
 #include "a2mp.h"
 #include "amp.h"
+#include "smp.h"
 
 /* Handle HCI Event packets */
 
@@ -4241,7 +4242,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 * distribute the keys. Later, security can be re-established
 	 * using a distributed LTK.
 	 */
-	if (ltk->type == HCI_SMP_STK) {
+	if (ltk->type == SMP_STK) {
 		list_del(&ltk->list);
 		kfree(ltk);
 	}

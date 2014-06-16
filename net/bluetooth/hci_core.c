@@ -2974,7 +2974,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 
 static bool ltk_type_master(u8 type)
 {
-	if (type == HCI_SMP_STK || type == HCI_SMP_LTK)
+	if (type == SMP_STK || type == SMP_LTK)
 		return true;
 
 	return false;

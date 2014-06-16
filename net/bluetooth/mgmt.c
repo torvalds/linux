@@ -4550,9 +4550,9 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			addr_type = ADDR_LE_DEV_RANDOM;
 
 		if (key->master)
-			type = HCI_SMP_LTK;
+			type = SMP_LTK;
 		else
-			type = HCI_SMP_LTK_SLAVE;
+			type = SMP_LTK_SLAVE;
 
 		switch (key->type) {
 		case MGMT_LTK_UNAUTHENTICATED:
@@ -5279,7 +5279,7 @@ void mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, bool persistent)
 	ev.key.ediv = key->ediv;
 	ev.key.rand = key->rand;
 
-	if (key->type == HCI_SMP_LTK)
+	if (key->type == SMP_LTK)
 		ev.key.master = 1;
 
 	memcpy(ev.key.val, key->val, sizeof(key->val));
