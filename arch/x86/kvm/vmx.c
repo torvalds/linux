@@ -2461,7 +2461,7 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		*pdata = -1ULL;
 		break;
 	case MSR_IA32_VMX_VMCS_ENUM:
-		*pdata = 0x1f;
+		*pdata = 0x2e; /* highest index: VMX_PREEMPTION_TIMER_VALUE */
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
 		*pdata = vmx_control_msr(nested_vmx_secondary_ctls_low,
