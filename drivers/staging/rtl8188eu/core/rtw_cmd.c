@@ -2059,8 +2059,7 @@ void rtw_disassoc_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 
 		RT_TRACE(_module_rtl871x_cmd_c_, _drv_err_, ("\n ***Error: disconnect_cmd_callback Fail ***\n."));
 		return;
-	} else /* clear bridge database */
-		nat25_db_cleanup(padapter);
+	}
 
 	/*  free cmd */
 	rtw_free_cmd_obj(pcmd);

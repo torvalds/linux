@@ -247,32 +247,6 @@ static inline void __network_hash_unlink(struct nat25_network_db_entry *ent)
  *	NAT2.5 interface
  */
 
-void nat25_db_cleanup(struct adapter *priv)
-{
-	int i;
-
-	spin_lock_bh(&priv->br_ext_lock);
-
-	for (i = 0; i < NAT25_HASH_SIZE; i++) {
-		struct nat25_network_db_entry *f;
-		f = priv->nethash[i];
-		while (f != NULL) {
-			struct nat25_network_db_entry *g;
-
-			g = f->next_hash;
-			if (priv->scdb_entry == f) {
-				memset(priv->scdb_mac, 0, ETH_ALEN);
-				memset(priv->scdb_ip, 0, 4);
-				priv->scdb_entry = NULL;
-			}
-			__network_hash_unlink(f);
-			kfree(f);
-			f = g;
-		}
-	}
-	spin_unlock_bh(&priv->br_ext_lock);
-}
-
 void nat25_db_expire(struct adapter *priv)
 {
 	int i;

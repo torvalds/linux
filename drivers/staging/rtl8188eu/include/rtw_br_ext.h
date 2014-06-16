@@ -61,6 +61,4 @@ struct br_ext_info {
 	unsigned int	nat25sc_disable;
 };
 
-void nat25_db_cleanup(struct adapter *priv);
-
 #endif /*  _RTW_BR_EXT_H_ */

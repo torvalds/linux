@@ -1228,8 +1228,6 @@ int netdev_close(struct net_device *pnetdev)
 		rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
 
-	nat25_db_cleanup(padapter);
-
 #ifdef CONFIG_88EU_P2P
 	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
 #endif /* CONFIG_88EU_P2P */
