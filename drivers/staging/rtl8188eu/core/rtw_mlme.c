@@ -1546,13 +1546,6 @@ void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
 	    (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == true)) {
 		/*  expire NAT2.5 entry */
 		nat25_db_expire(adapter);
-
-		if (adapter->pppoe_connection_in_progress > 0)
-			adapter->pppoe_connection_in_progress--;
-
-		/*  due to rtw_dynamic_check_timer_handlder() is called every 2 seconds */
-		if (adapter->pppoe_connection_in_progress > 0)
-			adapter->pppoe_connection_in_progress--;
 	}
 
 	rcu_read_unlock();

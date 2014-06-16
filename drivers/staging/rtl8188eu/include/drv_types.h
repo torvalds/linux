@@ -256,7 +256,6 @@ struct adapter {
 
 	spinlock_t br_ext_lock;
 	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
-	int				pppoe_connection_in_progress;
 	unsigned char			pppoe_addr[MACADDRLEN];
 	unsigned char			scdb_mac[MACADDRLEN];
 	unsigned char			scdb_ip[4];
