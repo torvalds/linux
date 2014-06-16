@@ -314,7 +314,7 @@ static void soc_init_platform_debugfs(struct snd_soc_platform *platform)
 		return;
 	}
 
-	snd_soc_dapm_debugfs_init(&platform->dapm,
+	snd_soc_dapm_debugfs_init(&platform->component.dapm,
 		platform->debugfs_platform_root);
 }
 
@@ -974,7 +974,7 @@ static int soc_remove_platform(struct snd_soc_platform *platform)
 	}
 
 	/* Make sure all DAPM widgets are freed */
-	snd_soc_dapm_free(&platform->dapm);
+	snd_soc_dapm_free(&platform->component.dapm);
 
 	soc_cleanup_platform_debugfs(platform);
 	platform->probed = 0;
@@ -1210,7 +1210,7 @@ static int soc_probe_platform(struct snd_soc_card *card,
 	struct snd_soc_dai *dai;
 
 	platform->card = card;
-	platform->dapm.card = card;
+	platform->component.dapm.card = card;
 
 	if (!try_module_get(platform->dev->driver->owner))
 		return -ENODEV;
@@ -1218,7 +1218,7 @@ static int soc_probe_platform(struct snd_soc_card *card,
 	soc_init_platform_debugfs(platform);
 
 	if (driver->dapm_widgets)
-		snd_soc_dapm_new_controls(&platform->dapm,
+		snd_soc_dapm_new_controls(&platform->component.dapm,
 			driver->dapm_widgets, driver->num_dapm_widgets);
 
 	/* Create DAPM widgets for each DAI stream */
@@ -1226,10 +1226,11 @@ static int soc_probe_platform(struct snd_soc_card *card,
 		if (component->dev != platform->dev)
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list)
-			snd_soc_dapm_new_dai_widgets(&platform->dapm, dai);
+			snd_soc_dapm_new_dai_widgets(&platform->component.dapm,
+				dai);
 	}
 
-	platform->dapm.idle_bias_off = 1;
+	platform->component.dapm.idle_bias_off = 1;
 
 	if (driver->probe) {
 		ret = driver->probe(platform);
@@ -1244,13 +1245,13 @@ static int soc_probe_platform(struct snd_soc_card *card,
 		snd_soc_add_platform_controls(platform, driver->controls,
 				     driver->num_controls);
 	if (driver->dapm_routes)
-		snd_soc_dapm_add_routes(&platform->dapm, driver->dapm_routes,
-					driver->num_dapm_routes);
+		snd_soc_dapm_add_routes(&platform->component.dapm,
+			driver->dapm_routes, driver->num_dapm_routes);
 
 	/* mark platform as probed and add to card platform list */
 	platform->probed = 1;
 	list_add(&platform->card_list, &card->platform_dev_list);
-	list_add(&platform->dapm.list, &card->dapm_list);
+	list_add(&platform->component.dapm.list, &card->dapm_list);
 
 	return 0;
 
@@ -4141,8 +4142,6 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 {
 	int ret;
 
-	platform->component.dapm_ptr = &platform->dapm;
-
 	ret = snd_soc_component_initialize(&platform->component,
 			&platform_drv->component_driver, dev);
 	if (ret)
@@ -4150,8 +4149,8 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 
 	platform->dev = dev;
 	platform->driver = platform_drv;
-	platform->dapm.platform = platform;
-	platform->dapm.stream_event = platform_drv->stream_event;
+	platform->component.dapm.platform = platform;
+	platform->component.dapm.stream_event = platform_drv->stream_event;
 	if (platform_drv->write)
 		platform->component.write = snd_soc_platform_drv_write;
 	if (platform_drv->read)

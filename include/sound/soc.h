@@ -862,8 +862,6 @@ struct snd_soc_platform {
 
 	struct snd_soc_component component;
 
-	struct snd_soc_dapm_context dapm;
-
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_platform_root;
 #endif
@@ -1203,7 +1201,7 @@ static inline struct snd_soc_codec *snd_soc_dapm_to_codec(
 static inline struct snd_soc_platform *snd_soc_dapm_to_platform(
 	struct snd_soc_dapm_context *dapm)
 {
-	return container_of(dapm, struct snd_soc_platform, dapm);
+	return snd_soc_component_to_platform(snd_soc_dapm_to_component(dapm));
 }
 
 /**
