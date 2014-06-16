@@ -52,14 +52,14 @@ static struct rt5616_init_reg init_list[] = {
 	{RT5616_HP_VOL		, 0x8888}, //unmute HPVOL
 	//{RT5616_OUT_L3_MIXER	, 0x0278}, //DACL1 -> OUTMIXL
 	//{RT5616_OUT_R3_MIXER	, 0x0278}, //DACR1 -> OUTMIXR
-	/*LOUT*/
+    /*LOUT*/
+	{RT5616_LOUT_CTRL2	, 0x8000}, // for line out diff mode
 	//{RT5616_LOUT_MIXER	, 0x3000},
-        //{RT5616_DEPOP_M1    , 0x8019},
-	//{RT5616_DEPOP_M2    , 0x3100},
-        {RT5616_DEPOP_M3   , 0x0636},//0424
-	{RT5616_CHARGE_PUMP   , 0x0f00},
-        {RT5616_PWR_DIG1   , 0x8000},//0424
-        {RT5616_PWR_ANLG1   , 0xe818},//0424
+    // {RT5616_DEPOP_M1    , 0x0084},//
+	{RT5616_CHARGE_PUMP   , 0x0e00},//
+    {RT5616_DEPOP_M3   , 0x0636},//0424
+    {RT5616_PWR_DIG1   , 0x8000},//0424
+    {RT5616_PWR_ANLG1   , 0xe818},//
 	/*Capture*/
 	//{RT5616_REC_L2_MIXER	, 0x006d}, //MIC1 -> RECMIXL
 	//{RT5616_REC_R2_MIXER	, 0x006d}, //MIC1 -> RECMIXR
@@ -1292,8 +1292,7 @@ static int rt5616_digital_mute(struct snd_soc_dai *dai, int mute)
 	if (mute) {
 		rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, 0);
 	} else {
-		if (rt5616->spk_gpio_level)
-			rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, rt5616->spk_gpio_level);
+        rt5616_set_gpio(rt5616,rt5616_CODEC_SET_SPK, 1);
 	}
 
 	return 0;
@@ -1772,7 +1771,7 @@ static int rt5616_codec_parse_dt_property(struct device *dev,
 		}
 		ret = gpio_direction_output(rt5616->spk_ctl_gpio , 0); //set gpio to low level
 		if(ret < 0){
-			printk("%s() %s set ERROR\n", __FUNCTION__);
+			printk("%s() set ERROR\n", __FUNCTION__);
 			return ret;
 		}
 	}
@@ -1845,6 +1844,7 @@ static void rt5616_i2c_shutdown(struct i2c_client *client)
 		mdelay(100);
 		snd_soc_write(codec, RT5616_HP_VOL, 0xc8c8);
 		snd_soc_write(codec, RT5616_LOUT_CTRL1, 0xc8c8);
+		mdelay(100);
 		rt5616_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	}
 
