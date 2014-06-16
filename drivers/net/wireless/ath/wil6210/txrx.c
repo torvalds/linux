@@ -525,6 +525,17 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		ndev->stats.rx_bytes += len;
 		stats->rx_bytes += len;
 	}
+	{
+		static const char * const gro_res_str[] = {
+			[GRO_MERGED]		= "GRO_MERGED",
+			[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
+			[GRO_HELD]		= "GRO_HELD",
+			[GRO_NORMAL]		= "GRO_NORMAL",
+			[GRO_DROP]		= "GRO_DROP",
+		};
+		wil_dbg_txrx(wil, "Rx complete %d bytes => %s,\n",
+			     len, gro_res_str[rc]);
+	}
 }
 
 /**
