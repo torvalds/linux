@@ -601,6 +601,8 @@ struct snd_soc_dapm_context {
 	struct list_head list;
 
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
+	int (*set_bias_level)(struct snd_soc_dapm_context *dapm,
+			      enum snd_soc_bias_level level);
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
