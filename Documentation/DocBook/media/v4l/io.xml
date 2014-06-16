@@ -1066,7 +1066,7 @@ state, in the application domain so to say.</entry>
 	  <entry>Drivers set or clear this flag when calling the
 <constant>VIDIOC_DQBUF</constant> ioctl. It may be set by video
 capture devices when the buffer contains a compressed image which is a
-key frame (or field), &ie; can be decompressed on its own. Also know as
+key frame (or field), &ie; can be decompressed on its own. Also known as
 an I-frame.  Applications can set this bit when <structfield>type</structfield>
 refers to an output stream.</entry>
 	  </row>
