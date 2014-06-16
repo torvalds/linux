@@ -391,6 +391,9 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (!hw)
 		return NULL;
 
+	if (cfg->max_rx_agg_size)
+		hw->max_rx_aggregation_subframes = cfg->max_rx_agg_size;
+
 	op_mode = hw->priv;
 	op_mode->ops = &iwl_mvm_ops;
 
