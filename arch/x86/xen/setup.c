@@ -594,13 +594,7 @@ void xen_enable_syscall(void)
 	}
 #endif /* CONFIG_X86_64 */
 }
-void xen_enable_nmi(void)
-{
-#ifdef CONFIG_X86_64
-	if (register_callback(CALLBACKTYPE_nmi, (char *)nmi))
-		BUG();
-#endif
-}
+
 void __init xen_pvmmu_arch_setup(void)
 {
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
@@ -615,7 +609,6 @@ void __init xen_pvmmu_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-	xen_enable_nmi();
 }
 
 /* This function is not called for HVM domains */
