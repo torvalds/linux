@@ -1888,7 +1888,7 @@ void intel_edp_psr_update(struct drm_device *dev)
 	intel_edp_psr_exit(dev, true);
 }
 
-void intel_edp_psr_work(struct work_struct *work)
+static void intel_edp_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
@@ -1907,7 +1907,7 @@ void intel_edp_psr_work(struct work_struct *work)
 		}
 }
 
-void intel_edp_psr_inactivate(struct drm_device *dev)
+static void intel_edp_psr_inactivate(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_connector *connector;
