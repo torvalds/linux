@@ -2347,8 +2347,6 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 		printk("%s(%d):mgslpc_close(%s) entry, count=%d\n",
 			 __FILE__, __LINE__, info->device_name, port->count);
 
-	WARN_ON(!port->count);
-
 	if (tty_port_close_start(port, tty, filp) == 0)
 		goto cleanup;
 
