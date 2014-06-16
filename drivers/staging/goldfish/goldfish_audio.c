@@ -203,10 +203,10 @@ static int goldfish_audio_open(struct inode *ip, struct file *fp)
 					     AUDIO_INT_WRITE_BUFFER_2_EMPTY);
 		AUDIO_WRITE(audio_data, AUDIO_INT_ENABLE, AUDIO_INT_MASK);
 		return 0;
-	} else {
-		atomic_dec(&open_count);
-		return -EBUSY;
 	}
+
+	atomic_dec(&open_count);
+	return -EBUSY;
 }
 
 static int goldfish_audio_release(struct inode *ip, struct file *fp)
@@ -223,8 +223,8 @@ static long goldfish_audio_ioctl(struct file *fp, unsigned int cmd,
 	/* temporary workaround, until we switch to the ALSA API */
 	if (cmd == 315)
 		return -1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static irqreturn_t goldfish_audio_interrupt(int irq, void *dev_id)
