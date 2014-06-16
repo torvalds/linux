@@ -416,11 +416,6 @@ config HISAX_FRITZ_PCIPNP
 	  (the latter also needs you to select "ISA Plug and Play support"
 	  from the menu "Plug and Play configuration")
 
-config HISAX_AVM_A1_PCMCIA
-	bool
-	depends on HISAX_AVM_A1_CS
-	default y
-
 endif
 
 endmenu
