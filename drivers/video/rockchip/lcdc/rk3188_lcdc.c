@@ -128,8 +128,11 @@ static int rk3188_lcdc_clk_disable(struct lcdc_device *lcdc_dev)
 	return 0;
 }
 
-static void rk3188_lcdc_reg_dump(struct lcdc_device *lcdc_dev)
+static int rk3188_lcdc_reg_dump(struct rk_lcdc_driver *dev_drv)
 {
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						struct lcdc_device,
+						driver);
 	int *cbase = (int *)lcdc_dev->regs;
 	int *regsbak = (int *)lcdc_dev->regsbak;
 	int i, j;
@@ -147,7 +150,7 @@ static void rk3188_lcdc_reg_dump(struct lcdc_device *lcdc_dev)
 			printk("%08x  ", readl_relaxed(cbase + i * 4 + j));
 		printk("\n");
 	}
-
+	return 0;
 }
 
 static void rk3188_lcdc_read_reg_defalut_cfg(struct lcdc_device
@@ -1463,6 +1466,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dpi_status 		= rk3188_lcdc_dpi_status,
 	.get_dsp_addr 		= rk3188_lcdc_get_dsp_addr,
 	.cfg_done		= rk3188_lcdc_cfg_done,
+	.dump_reg 		= rk3188_lcdc_reg_dump,
 };
 
 static irqreturn_t rk3188_lcdc_isr(int irq, void *dev_id)

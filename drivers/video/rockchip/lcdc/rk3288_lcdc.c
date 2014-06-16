@@ -2447,7 +2447,9 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	u16 left_margin = screen->mode.left_margin;
 	u16 vsync_len = screen->mode.vsync_len;
 	u16 upper_margin = screen->mode.upper_margin;
-	u32 fmt_id,h_pw_bp,v_pw_bp;
+	u32 h_pw_bp = hsync_len + left_margin;
+	u32 v_pw_bp = vsync_len + upper_margin;
+	u32 fmt_id;
 	char format_w0[9] = "NULL";
 	char format_w1[9] = "NULL";
 	char format_w2[9] = "NULL";
@@ -2457,8 +2459,6 @@ static ssize_t rk3288_lcdc_get_disp_info(struct rk_lcdc_driver *dev_drv,
 	u8 w0_state,w1_state,w2_state,w3_state;
 	u8 w2_0_state,w2_1_state,w2_2_state,w2_3_state;
 	u8 w3_0_state,w3_1_state,w3_2_state,w3_3_state;
-	h_pw_bp = hsync_len + left_margin;
-	v_pw_bp = vsync_len + upper_margin;
 
 	u32 w0_vir_y,w0_vir_uv,w0_act_x,w0_act_y,w0_dsp_x,w0_dsp_y,w0_st_x=h_pw_bp,w0_st_y=v_pw_bp;
 	u32 w1_vir_y,w1_vir_uv,w1_act_x,w1_act_y,w1_dsp_x,w1_dsp_y,w1_st_x=h_pw_bp,w1_st_y=v_pw_bp;
@@ -3408,6 +3408,8 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.cfg_done		= rk3288_lcdc_config_done,
 	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,
 };
+
+#ifdef LCDC_IRQ_DEBUG
 static int rk3288_lcdc_parse_irq(struct lcdc_device *lcdc_dev,unsigned int reg_val)
 {
 	if (reg_val & m_WIN0_EMPTY_INTR_STS) {
@@ -3442,6 +3444,8 @@ static int rk3288_lcdc_parse_irq(struct lcdc_device *lcdc_dev,unsigned int reg_v
 
 	return 0;
 }
+#endif
+
 static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 {
 	struct lcdc_device *lcdc_dev =
@@ -3480,12 +3484,12 @@ static irqreturn_t rk3288_lcdc_isr(int irq, void *dev_id)
 	}
 
 	/*for debug*/
-	#if 0
-		intr1_reg = lcdc_readl(lcdc_dev, INTR_CTRL1);
-		if(intr1_reg != 0){
-			rk3288_lcdc_parse_irq(lcdc_dev,intr1_reg);
-		}
-	#endif	
+#ifdef LCDC_IRQ_DEBUG
+	intr1_reg = lcdc_readl(lcdc_dev, INTR_CTRL1);
+	if (intr1_reg != 0) {
+		rk3288_lcdc_parse_irq(lcdc_dev,intr1_reg);
+	}
+#endif
 	return IRQ_HANDLED;
 }
 
