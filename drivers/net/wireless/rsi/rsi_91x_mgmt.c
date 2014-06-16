@@ -942,7 +942,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	struct ieee80211_hw *hw = common->priv->hw;
 	u8 band = hw->conf.chandef.chan->band;
 	u8 num_supported_rates = 0;
-	u8 rate_offset = 0;
+	u8 rate_table_offset, rate_offset = 0;
 	u32 rate_bitmap = common->bitrate_mask[band];
 
 	u16 *selected_rates, min_rate;
@@ -978,14 +978,18 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 	if (common->channel_width == BW_40MHZ)
 		auto_rate->desc_word[7] |= cpu_to_le16(1);
 
-	if (band == IEEE80211_BAND_2GHZ)
-		min_rate = STD_RATE_01;
-	else
-		min_rate = STD_RATE_06;
+	if (band == IEEE80211_BAND_2GHZ) {
+		min_rate = RSI_RATE_1;
+		rate_table_offset = 0;
+	} else {
+		min_rate = RSI_RATE_6;
+		rate_table_offset = 4;
+	}
 
 	for (ii = 0, jj = 0; ii < ARRAY_SIZE(rsi_rates); ii++) {
 		if (rate_bitmap & BIT(ii)) {
-			selected_rates[jj++] = (rsi_rates[ii].bitrate / 5);
+			selected_rates[jj++] =
+			(rsi_rates[ii + rate_table_offset].bitrate / 5);
 			rate_offset++;
 		}
 	}
@@ -996,13 +1000,6 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 			selected_rates[jj++] = mcs[ii];
 		num_supported_rates += ARRAY_SIZE(mcs);
 		rate_offset += ARRAY_SIZE(mcs);
-	}
-
-	if (rate_offset < (RSI_TBL_SZ / 2) - 1) {
-		for (ii = jj; ii < (RSI_TBL_SZ / 2); ii++) {
-			selected_rates[jj++] = min_rate;
-			rate_offset++;
-		}
 	}
 
 	sort(selected_rates, jj, sizeof(u16), &rsi_compare, NULL);
@@ -1020,24 +1017,24 @@ static int rsi_send_auto_rate_request(struct rsi_common *common)
 
 	/* loading HT rates in the bottom half of the auto rate table */
 	if (common->vif_info[0].is_ht) {
-		if (common->vif_info[0].sgi)
-			auto_rate->supported_rates[rate_offset++] =
-				cpu_to_le16(RSI_RATE_MCS7_SG);
-
 		for (ii = rate_offset, kk = ARRAY_SIZE(rsi_mcsrates) - 1;
 		     ii < rate_offset + 2 * ARRAY_SIZE(rsi_mcsrates); ii++) {
-			if (common->vif_info[0].sgi)
+			if (common->vif_info[0].sgi ||
+			    conf_is_ht40(&common->priv->hw->conf))
 				auto_rate->supported_rates[ii++] =
 					cpu_to_le16(rsi_mcsrates[kk] | BIT(9));
 			auto_rate->supported_rates[ii] =
 				cpu_to_le16(rsi_mcsrates[kk--]);
 		}
 
-		for (; ii < RSI_TBL_SZ; ii++) {
+		for (; ii < (RSI_TBL_SZ - 1); ii++) {
 			auto_rate->supported_rates[ii] =
 				cpu_to_le16(rsi_mcsrates[0]);
 		}
 	}
+
+	for (; ii < RSI_TBL_SZ; ii++)
+		auto_rate->supported_rates[ii] = min_rate;
 
 	auto_rate->num_supported_rates = cpu_to_le16(num_supported_rates * 2);
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
