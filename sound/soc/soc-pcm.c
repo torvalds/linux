@@ -376,7 +376,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		ret = platform->driver->ops->open(substream);
 		if (ret < 0) {
 			dev_err(platform->dev, "ASoC: can't open platform"
-				" %s: %d\n", platform->name, ret);
+				" %s: %d\n", platform->component.name, ret);
 			goto platform_err;
 		}
 	}
@@ -707,7 +707,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		ret = platform->driver->ops->hw_params(substream, params);
 		if (ret < 0) {
 			dev_err(platform->dev, "ASoC: %s hw params failed: %d\n",
-			       platform->name, ret);
+			       platform->component.name, ret);
 			goto platform_err;
 		}
 	}

@@ -274,7 +274,7 @@ static void soc_init_codec_debugfs(struct snd_soc_codec *codec)
 {
 	struct dentry *debugfs_card_root = codec->card->debugfs_card_root;
 
-	codec->debugfs_codec_root = debugfs_create_dir(codec->name,
+	codec->debugfs_codec_root = debugfs_create_dir(codec->component.name,
 						       debugfs_card_root);
 	if (!codec->debugfs_codec_root) {
 		dev_warn(codec->dev,
@@ -306,8 +306,8 @@ static void soc_init_platform_debugfs(struct snd_soc_platform *platform)
 {
 	struct dentry *debugfs_card_root = platform->card->debugfs_card_root;
 
-	platform->debugfs_platform_root = debugfs_create_dir(platform->name,
-						       debugfs_card_root);
+	platform->debugfs_platform_root = debugfs_create_dir(
+		platform->component.name, debugfs_card_root);
 	if (!platform->debugfs_platform_root) {
 		dev_warn(platform->dev,
 			"ASoC: Failed to create platform debugfs directory\n");
@@ -335,7 +335,7 @@ static ssize_t codec_list_read_file(struct file *file, char __user *user_buf,
 
 	list_for_each_entry(codec, &codec_list, list) {
 		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       codec->name);
+			       codec->component.name);
 		if (len >= 0)
 			ret += len;
 		if (ret > PAGE_SIZE) {
@@ -406,7 +406,7 @@ static ssize_t platform_list_read_file(struct file *file,
 
 	list_for_each_entry(platform, &platform_list, list) {
 		len = snprintf(buf + ret, PAGE_SIZE - ret, "%s\n",
-			       platform->name);
+			       platform->component.name);
 		if (len >= 0)
 			ret += len;
 		if (ret > PAGE_SIZE) {
@@ -528,7 +528,7 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	codec->ac97->dev.release = soc_ac97_device_release;
 
 	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
-		     codec->card->snd_card->number, 0, codec->name);
+		     codec->card->snd_card->number, 0, codec->component.name);
 	err = device_register(&codec->ac97->dev);
 	if (err < 0) {
 		dev_err(codec->dev, "ASoC: Can't register ac97 bus\n");
@@ -857,7 +857,7 @@ static struct snd_soc_codec *soc_find_codec(const struct device_node *codec_of_n
 			if (codec->dev->of_node != codec_of_node)
 				continue;
 		} else {
-			if (strcmp(codec->name, codec_name))
+			if (strcmp(codec->component.name, codec_name))
 				continue;
 		}
 
@@ -945,7 +945,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 			    dai_link->platform_of_node)
 				continue;
 		} else {
-			if (strcmp(platform->name, platform_name))
+			if (strcmp(platform->component.name, platform_name))
 				continue;
 		}
 
@@ -1177,7 +1177,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 		WARN(codec->dapm.idle_bias_off &&
 			codec->dapm.bias_level != SND_SOC_BIAS_OFF,
 			"codec %s can not start from non-off bias with idle_bias_off==1\n",
-			codec->name);
+			codec->component.name);
 	}
 
 	if (driver->controls)
@@ -1647,7 +1647,8 @@ static struct snd_soc_codec *soc_find_matching_codec(struct snd_soc_card *card,
 		if (aux_dev->codec_of_node &&
 		   (codec->dev->of_node != aux_dev->codec_of_node))
 			continue;
-		if (aux_dev->codec_name && strcmp(codec->name, aux_dev->codec_name))
+		if (aux_dev->codec_name &&
+			strcmp(codec->component.name, aux_dev->codec_name))
 			continue;
 		return codec;
 	}
@@ -4131,11 +4132,6 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 {
 	int ret;
 
-	/* create platform component name */
-	platform->name = fmt_single_name(dev, &platform->id);
-	if (platform->name == NULL)
-		return -ENOMEM;
-
 	platform->dev = dev;
 	platform->driver = platform_drv;
 	platform->dapm.dev = dev;
@@ -4161,7 +4157,8 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 	list_add(&platform->list, &platform_list);
 	mutex_unlock(&client_mutex);
 
-	dev_dbg(dev, "ASoC: Registered platform '%s'\n", platform->name);
+	dev_dbg(dev, "ASoC: Registered platform '%s'\n",
+		platform->component.name);
 
 	return 0;
 }
@@ -4205,8 +4202,7 @@ void snd_soc_remove_platform(struct snd_soc_platform *platform)
 	mutex_unlock(&client_mutex);
 
 	dev_dbg(platform->dev, "ASoC: Unregistered platform '%s'\n",
-		platform->name);
-	kfree(platform->name);
+		platform->component.name);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_platform);
 
@@ -4312,13 +4308,6 @@ int snd_soc_register_codec(struct device *dev,
 	if (codec == NULL)
 		return -ENOMEM;
 
-	/* create CODEC component name */
-	codec->name = fmt_single_name(dev, &codec->id);
-	if (codec->name == NULL) {
-		ret = -ENOMEM;
-		goto fail_codec;
-	}
-
 	if (codec_drv->write)
 		codec->component.write = snd_soc_codec_drv_write;
 	if (codec_drv->read)
@@ -4368,19 +4357,17 @@ int snd_soc_register_codec(struct device *dev,
 					   codec, dai_drv, num_dai, false);
 	if (ret < 0) {
 		dev_err(codec->dev, "ASoC: Failed to regster component: %d\n", ret);
-		goto fail_codec_name;
+		goto fail_codec;
 	}
 
-	dev_dbg(codec->dev, "ASoC: Registered codec '%s'\n", codec->name);
+	dev_dbg(codec->dev, "ASoC: Registered codec '%s'\n",
+		codec->component.name);
 	return 0;
 
-fail_codec_name:
+fail_codec:
 	mutex_lock(&client_mutex);
 	list_del(&codec->list);
 	mutex_unlock(&client_mutex);
-
-	kfree(codec->name);
-fail_codec:
 	kfree(codec);
 	return ret;
 }
@@ -4408,10 +4395,10 @@ found:
 	list_del(&codec->list);
 	mutex_unlock(&client_mutex);
 
-	dev_dbg(codec->dev, "ASoC: Unregistered codec '%s'\n", codec->name);
+	dev_dbg(codec->dev, "ASoC: Unregistered codec '%s'\n",
+			codec->component.name);
 
 	snd_soc_cache_exit(codec);
-	kfree(codec->name);
 	kfree(codec);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_codec);

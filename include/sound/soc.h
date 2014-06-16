@@ -710,8 +710,6 @@ struct snd_soc_component {
 
 /* SoC Audio Codec device */
 struct snd_soc_codec {
-	const char *name;
-	int id;
 	struct device *dev;
 	const struct snd_soc_codec_driver *driver;
 
@@ -848,8 +846,6 @@ struct snd_soc_platform_driver {
 };
 
 struct snd_soc_platform {
-	const char *name;
-	int id;
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
 

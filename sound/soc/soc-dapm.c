@@ -3400,8 +3400,8 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 			source = cpu_dai->playback_widget;
 			sink = codec_dai->playback_widget;
 			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-				cpu_dai->codec->name, source->name,
-				codec_dai->platform->name, sink->name);
+				cpu_dai->component->name, source->name,
+				codec_dai->component->name, sink->name);
 
 			snd_soc_dapm_add_path(&card->dapm, source, sink,
 				NULL, NULL);
@@ -3412,8 +3412,8 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 			source = codec_dai->capture_widget;
 			sink = cpu_dai->capture_widget;
 			dev_dbg(rtd->dev, "connected DAI link %s:%s -> %s:%s\n",
-				codec_dai->codec->name, source->name,
-				cpu_dai->platform->name, sink->name);
+				codec_dai->component->name, source->name,
+				cpu_dai->component->name, sink->name);
 
 			snd_soc_dapm_add_path(&card->dapm, source, sink,
 				NULL, NULL);
