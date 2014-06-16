@@ -443,10 +443,9 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 	return rc;
 }
 
-static int wil_cfg80211_mgmt_tx(struct wiphy *wiphy,
-				struct wireless_dev *wdev,
-				struct cfg80211_mgmt_tx_params *params,
-				u64 *cookie)
+int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			 struct cfg80211_mgmt_tx_params *params,
+			 u64 *cookie)
 {
 	const u8 *buf = params->buf;
 	size_t len = params->len;

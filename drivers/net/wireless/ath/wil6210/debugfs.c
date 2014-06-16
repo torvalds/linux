@@ -397,6 +397,84 @@ static const struct file_operations fops_reset = {
 	.write = wil_write_file_reset,
 	.open  = simple_open,
 };
+/*---write channel 1..4 to rxon for it, 0 to rxoff---*/
+static ssize_t wil_write_file_rxon(struct file *file, const char __user *buf,
+				   size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int rc;
+	long channel;
+	bool on;
+
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+	if (!kbuf)
+		return -ENOMEM;
+	if (copy_from_user(kbuf, buf, len))
+		return -EIO;
+
+	kbuf[len] = '\0';
+	rc = kstrtol(kbuf, 0, &channel);
+	kfree(kbuf);
+	if (rc)
+		return rc;
+
+	if ((channel < 0) || (channel > 4)) {
+		wil_err(wil, "Invalid channel %ld\n", channel);
+		return -EINVAL;
+	}
+	on = !!channel;
+
+	if (on) {
+		rc = wmi_set_channel(wil, (int)channel);
+		if (rc)
+			return rc;
+	}
+
+	rc = wmi_rxon(wil, on);
+	if (rc)
+		return rc;
+
+	return len;
+}
+
+static const struct file_operations fops_rxon = {
+	.write = wil_write_file_rxon,
+	.open  = simple_open,
+};
+/*---tx_mgmt---*/
+/* Write mgmt frame to this file to send it */
+static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
+				     size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct cfg80211_mgmt_tx_params params;
+	int rc;
+
+	void *frame = kmalloc(len, GFP_KERNEL);
+	if (!frame)
+		return -ENOMEM;
+
+	if (copy_from_user(frame, buf, len))
+		return -EIO;
+
+	params.buf = frame;
+	params.len = len;
+	params.chan = wdev->preset_chandef.chan;
+
+	rc = wil_cfg80211_mgmt_tx(wiphy, wdev, &params, NULL);
+
+	kfree(frame);
+	wil_info(wil, "%s() -> %d\n", __func__, rc);
+
+	return len;
+}
+
+static const struct file_operations fops_txmgmt = {
+	.write = wil_write_file_txmgmt,
+	.open  = simple_open,
+};
 
 static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
 			    const char *prefix)
@@ -719,6 +797,8 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("mem_val", S_IRUGO, dbg, wil, &fops_memread);
 
 	debugfs_create_file("reset", S_IWUSR, dbg, wil, &fops_reset);
+	debugfs_create_file("rxon", S_IWUSR, dbg, wil, &fops_rxon);
+	debugfs_create_file("tx_mgmt", S_IWUSR, dbg, wil, &fops_txmgmt);
 	debugfs_create_file("temp", S_IRUGO, dbg, wil, &fops_temp);
 
 	wil->rgf_blob.data = (void * __force)wil->csr + 0;
