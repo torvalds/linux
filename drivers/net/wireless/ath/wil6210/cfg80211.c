@@ -104,8 +104,8 @@ int wil_iftype_nl2wmi(enum nl80211_iftype type)
 	return -EOPNOTSUPP;
 }
 
-static int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
-			      struct station_info *sinfo)
+int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
+		       struct station_info *sinfo)
 {
 	struct wmi_notify_req_cmd cmd = {
 		.cid = cid,
