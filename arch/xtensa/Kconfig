@@ -62,7 +62,9 @@ config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config MMU
-	def_bool n
+	bool
+	default n if !XTENSA_VARIANT_CUSTOM
+	default XTENSA_VARIANT_MMU if XTENSA_VARIANT_CUSTOM
 
 config VARIANT_IRQ_SWITCH
 	def_bool n
@@ -102,7 +104,39 @@ config XTENSA_VARIANT_S6000
 	select VARIANT_IRQ_SWITCH
 	select ARCH_REQUIRE_GPIOLIB
 	select XTENSA_CALIBRATE_CCOUNT
+
+config XTENSA_VARIANT_CUSTOM
+	bool "Custom Xtensa processor configuration"
+	select MAY_HAVE_SMP
+	select HAVE_XTENSA_GPIO32
+	help
+	  Select this variant to use a custom Xtensa processor configuration.
+	  You will be prompted for a processor variant CORENAME.
 endchoice
+
+config XTENSA_VARIANT_CUSTOM_NAME
+	string "Xtensa Processor Custom Core Variant Name"
+	depends on XTENSA_VARIANT_CUSTOM
+	help
+	  Provide the name of a custom Xtensa processor variant.
+	  This CORENAME selects arch/xtensa/variant/CORENAME.
+	  Dont forget you have to select MMU if you have one.
+
+config XTENSA_VARIANT_NAME
+	string
+	default "dc232b"			if XTENSA_VARIANT_DC232B
+	default "dc233c"			if XTENSA_VARIANT_DC233C
+	default "fsf"				if XTENSA_VARIANT_FSF
+	default "s6000"				if XTENSA_VARIANT_S6000
+	default XTENSA_VARIANT_CUSTOM_NAME	if XTENSA_VARIANT_CUSTOM
+
+config XTENSA_VARIANT_MMU
+	bool "Core variant has a Full MMU (TLB, Pages, Protection, etc)"
+	depends on XTENSA_VARIANT_CUSTOM
+	default y
+	help
+	  Build a Conventional Kernel with full MMU support,
+	  ie: it supports a TLB with auto-loading, page protection.
 
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in use space"
