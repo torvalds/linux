@@ -15,7 +15,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/debugfs.h>
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
 
