@@ -177,7 +177,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 	sbands->ht_cap.cap = (IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 			      IEEE80211_HT_CAP_SGI_20 |
 			      IEEE80211_HT_CAP_SGI_40);
-	sbands->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
+	sbands->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
 	sbands->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
 	sbands->ht_cap.mcs.rx_mask[0] = 0xff;
 	sbands->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;

@@ -277,7 +277,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 {
 	struct rsi_radio_caps *radio_caps;
 	struct rsi_hw *adapter = common->priv;
-	struct ieee80211_hw *hw = adapter->hw;
 	u16 inx = 0;
 	u8 ii;
 	u8 radio_id = 0;
@@ -286,7 +285,6 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 		      0xf0, 0xf0, 0xf0, 0xf0,
 		      0xf0, 0xf0, 0xf0, 0xf0,
 		      0xf0, 0xf0, 0xf0, 0xf0};
-	struct ieee80211_conf *conf = &hw->conf;
 	struct sk_buff *skb;
 
 	rsi_dbg(INFO_ZONE, "%s: Sending rate symbol req frame\n", __func__);
@@ -308,26 +306,26 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	if (common->channel_width == BW_40MHZ) {
 		radio_caps->desc_word[7] |= cpu_to_le16(RSI_LMAC_CLOCK_80MHZ);
 		radio_caps->desc_word[7] |= cpu_to_le16(RSI_ENABLE_40MHZ);
-		if (common->channel_width) {
-			radio_caps->desc_word[5] =
-				cpu_to_le16(common->channel_width << 12);
-			radio_caps->desc_word[5] |= cpu_to_le16(FULL40M_ENABLE);
-		}
 
-		if (conf_is_ht40_minus(conf)) {
-			radio_caps->desc_word[5] = 0;
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(LOWER_20_ENABLE);
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(LOWER_20_ENABLE >> 12);
-		}
-
-		if (conf_is_ht40_plus(conf)) {
-			radio_caps->desc_word[5] = 0;
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(UPPER_20_ENABLE);
-			radio_caps->desc_word[5] |=
-				cpu_to_le16(UPPER_20_ENABLE >> 12);
+		if (common->fsm_state == FSM_MAC_INIT_DONE) {
+			struct ieee80211_hw *hw = adapter->hw;
+			struct ieee80211_conf *conf = &hw->conf;
+			if (conf_is_ht40_plus(conf)) {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(LOWER_20_ENABLE);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(LOWER_20_ENABLE >> 12);
+			} else if (conf_is_ht40_minus(conf)) {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(UPPER_20_ENABLE);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(UPPER_20_ENABLE >> 12);
+			} else {
+				radio_caps->desc_word[5] =
+					cpu_to_le16(BW_40MHZ << 12);
+				radio_caps->desc_word[5] |=
+					cpu_to_le16(FULL40M_ENABLE);
+			}
 		}
 	}
 
