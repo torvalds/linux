@@ -754,6 +754,216 @@ sess_auth_lanman(struct sess_data *sess_data)
 }
 #endif
 
+static void
+sess_auth_ntlm(struct sess_data *sess_data)
+{
+	int rc = 0;
+	struct smb_hdr *smb_buf;
+	SESSION_SETUP_ANDX *pSMB;
+	char *bcc_ptr;
+	struct cifs_ses *ses = sess_data->ses;
+	__u32 capabilities;
+	__u16 bytes_remaining;
+
+	/* old style NTLM sessionsetup */
+	/* wct = 13 */
+	rc = sess_alloc_buffer(sess_data, 13);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	bcc_ptr = sess_data->iov[2].iov_base;
+	capabilities = cifs_ssetup_hdr(ses, pSMB);
+
+	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+	pSMB->req_no_secext.CaseInsensitivePasswordLength =
+			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
+	pSMB->req_no_secext.CaseSensitivePasswordLength =
+			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
+
+	/* calculate ntlm response and session key */
+	rc = setup_ntlm_response(ses, sess_data->nls_cp);
+	if (rc) {
+		cifs_dbg(VFS, "Error %d during NTLM authentication\n",
+				 rc);
+		goto out;
+	}
+
+	/* copy ntlm response */
+	memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+			CIFS_AUTH_RESP_SIZE);
+	bcc_ptr += CIFS_AUTH_RESP_SIZE;
+	memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+			CIFS_AUTH_RESP_SIZE);
+	bcc_ptr += CIFS_AUTH_RESP_SIZE;
+
+	if (ses->capabilities & CAP_UNICODE) {
+		/* unicode strings must be word aligned */
+		if (sess_data->iov[0].iov_len % 2) {
+			*bcc_ptr = 0;
+			bcc_ptr++;
+		}
+		unicode_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+	} else {
+		ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+	}
+
+
+	sess_data->iov[2].iov_len = (long) bcc_ptr -
+			(long) sess_data->iov[2].iov_base;
+
+	rc = sess_sendreceive(sess_data);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
+
+	if (smb_buf->WordCount != 3) {
+		rc = -EIO;
+		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
+		goto out;
+	}
+
+	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
+		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
+
+	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
+	cifs_dbg(FYI, "UID = %llu\n", ses->Suid);
+
+	bytes_remaining = get_bcc(smb_buf);
+	bcc_ptr = pByteArea(smb_buf);
+
+	/* BB check if Unicode and decode strings */
+	if (bytes_remaining == 0) {
+		/* no string area to decode, do nothing */
+	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+		/* unicode string area must be word-aligned */
+		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+			++bcc_ptr;
+			--bytes_remaining;
+		}
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
+				      sess_data->nls_cp);
+	} else {
+		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
+				    sess_data->nls_cp);
+	}
+
+	rc = sess_establish_session(sess_data);
+out:
+	sess_data->result = rc;
+	sess_data->func = NULL;
+	sess_free_buffer(sess_data);
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+}
+
+static void
+sess_auth_ntlmv2(struct sess_data *sess_data)
+{
+	int rc = 0;
+	struct smb_hdr *smb_buf;
+	SESSION_SETUP_ANDX *pSMB;
+	char *bcc_ptr;
+	struct cifs_ses *ses = sess_data->ses;
+	__u32 capabilities;
+	__u16 bytes_remaining;
+
+	/* old style NTLM sessionsetup */
+	/* wct = 13 */
+	rc = sess_alloc_buffer(sess_data, 13);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	bcc_ptr = sess_data->iov[2].iov_base;
+	capabilities = cifs_ssetup_hdr(ses, pSMB);
+
+	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
+
+	/* LM2 password would be here if we supported it */
+	pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
+
+	/* calculate nlmv2 response and session key */
+	rc = setup_ntlmv2_rsp(ses, sess_data->nls_cp);
+	if (rc) {
+		cifs_dbg(VFS, "Error %d during NTLMv2 authentication\n", rc);
+		goto out;
+	}
+
+	memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
+			ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+	bcc_ptr += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
+
+	/* set case sensitive password length after tilen may get
+	 * assigned, tilen is 0 otherwise.
+	 */
+	pSMB->req_no_secext.CaseSensitivePasswordLength =
+		cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
+
+	if (ses->capabilities & CAP_UNICODE) {
+		if (sess_data->iov[0].iov_len % 2) {
+			*bcc_ptr = 0;
+			bcc_ptr++;
+		}
+		unicode_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+	} else {
+		ascii_ssetup_strings(&bcc_ptr, ses, sess_data->nls_cp);
+	}
+
+
+	sess_data->iov[2].iov_len = (long) bcc_ptr -
+			(long) sess_data->iov[2].iov_base;
+
+	rc = sess_sendreceive(sess_data);
+	if (rc)
+		goto out;
+
+	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
+	smb_buf = (struct smb_hdr *)sess_data->iov[0].iov_base;
+
+	if (smb_buf->WordCount != 3) {
+		rc = -EIO;
+		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
+		goto out;
+	}
+
+	if (le16_to_cpu(pSMB->resp.Action) & GUEST_LOGIN)
+		cifs_dbg(FYI, "Guest login\n"); /* BB mark SesInfo struct? */
+
+	ses->Suid = smb_buf->Uid;   /* UID left in wire format (le) */
+	cifs_dbg(FYI, "UID = %llu\n", ses->Suid);
+
+	bytes_remaining = get_bcc(smb_buf);
+	bcc_ptr = pByteArea(smb_buf);
+
+	/* BB check if Unicode and decode strings */
+	if (bytes_remaining == 0) {
+		/* no string area to decode, do nothing */
+	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+		/* unicode string area must be word-aligned */
+		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+			++bcc_ptr;
+			--bytes_remaining;
+		}
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses,
+				      sess_data->nls_cp);
+	} else {
+		decode_ascii_ssetup(&bcc_ptr, bytes_remaining, ses,
+				    sess_data->nls_cp);
+	}
+
+	rc = sess_establish_session(sess_data);
+out:
+	sess_data->result = rc;
+	sess_data->func = NULL;
+	sess_free_buffer(sess_data);
+	kfree(ses->auth_key.response);
+	ses->auth_key.response = NULL;
+}
+
+
 int
 CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	       const struct nls_table *nls_cp)
@@ -801,6 +1011,12 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	case LANMAN:
 		sess_auth_lanman(sess_data);
 		goto out;
+	case NTLM:
+		sess_auth_ntlm(sess_data);
+		goto out;
+	case NTLMv2:
+		sess_auth_ntlmv2(sess_data);
+		goto out;
 	default:
 		cifs_dbg(FYI, "Continuing with CIFS_SessSetup\n");
 	}
@@ -820,11 +1036,8 @@ ssetup_ntlmssp_authenticate:
 	if (phase == NtLmChallenge)
 		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */
 
-	if ((type == NTLM) || (type == NTLMv2)) {
-		/* For NTLMv2 failures eventually may need to retry NTLM */
-		wct = 13; /* old style NTLM sessionsetup */
-	} else /* same size: negotiate or auth, NTLMSSP or extended security */
-		wct = 12;
+	/* same size: negotiate or auth, NTLMSSP or extended security */
+	wct = 12;
 
 	rc = small_smb_init_no_tc(SMB_COM_SESSION_SETUP_ANDX, wct, ses,
 			    (void **)&smb_buf);
@@ -859,70 +1072,7 @@ ssetup_ntlmssp_authenticate:
 	iov[1].iov_base = NULL;
 	iov[1].iov_len = 0;
 
-	if (type == NTLM) {
-		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
-		pSMB->req_no_secext.CaseInsensitivePasswordLength =
-			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(CIFS_AUTH_RESP_SIZE);
-
-		/* calculate ntlm response and session key */
-		rc = setup_ntlm_response(ses, nls_cp);
-		if (rc) {
-			cifs_dbg(VFS, "Error %d during NTLM authentication\n",
-				 rc);
-			goto ssetup_exit;
-		}
-
-		/* copy ntlm response */
-		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-				CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-				CIFS_AUTH_RESP_SIZE);
-		bcc_ptr += CIFS_AUTH_RESP_SIZE;
-
-		if (ses->capabilities & CAP_UNICODE) {
-			/* unicode strings must be word aligned */
-			if (iov[0].iov_len % 2) {
-				*bcc_ptr = 0;
-				bcc_ptr++;
-			}
-			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
-		} else
-			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
-	} else if (type == NTLMv2) {
-		pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
-
-		/* LM2 password would be here if we supported it */
-		pSMB->req_no_secext.CaseInsensitivePasswordLength = 0;
-
-		/* calculate nlmv2 response and session key */
-		rc = setup_ntlmv2_rsp(ses, nls_cp);
-		if (rc) {
-			cifs_dbg(VFS, "Error %d during NTLMv2 authentication\n",
-				 rc);
-			goto ssetup_exit;
-		}
-		memcpy(bcc_ptr, ses->auth_key.response + CIFS_SESS_KEY_SIZE,
-				ses->auth_key.len - CIFS_SESS_KEY_SIZE);
-		bcc_ptr += ses->auth_key.len - CIFS_SESS_KEY_SIZE;
-
-		/* set case sensitive password length after tilen may get
-		 * assigned, tilen is 0 otherwise.
-		 */
-		pSMB->req_no_secext.CaseSensitivePasswordLength =
-			cpu_to_le16(ses->auth_key.len - CIFS_SESS_KEY_SIZE);
-
-		if (ses->capabilities & CAP_UNICODE) {
-			if (iov[0].iov_len % 2) {
-				*bcc_ptr = 0;
-				bcc_ptr++;
-			}
-			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
-		} else
-			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
-	} else if (type == Kerberos) {
+	if (type == Kerberos) {
 #ifdef CONFIG_CIFS_UPCALL
 		struct cifs_spnego_msg *msg;
 
@@ -1073,7 +1223,7 @@ ssetup_ntlmssp_authenticate:
 	if (rc)
 		goto ssetup_exit;
 
-	if ((smb_buf->WordCount != 3) && (smb_buf->WordCount != 4)) {
+	if (smb_buf->WordCount != 4) {
 		rc = -EIO;
 		cifs_dbg(VFS, "bad word count %d\n", smb_buf->WordCount);
 		goto ssetup_exit;
@@ -1088,22 +1238,20 @@ ssetup_ntlmssp_authenticate:
 	bytes_remaining = get_bcc(smb_buf);
 	bcc_ptr = pByteArea(smb_buf);
 
-	if (smb_buf->WordCount == 4) {
-		blob_len = le16_to_cpu(pSMB->resp.SecurityBlobLength);
-		if (blob_len > bytes_remaining) {
-			cifs_dbg(VFS, "bad security blob length %d\n",
-				 blob_len);
-			rc = -EINVAL;
-			goto ssetup_exit;
-		}
-		if (phase == NtLmChallenge) {
-			rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
-			if (rc)
-				goto ssetup_exit;
-		}
-		bcc_ptr += blob_len;
-		bytes_remaining -= blob_len;
+	blob_len = le16_to_cpu(pSMB->resp.SecurityBlobLength);
+	if (blob_len > bytes_remaining) {
+		cifs_dbg(VFS, "bad security blob length %d\n",
+			 blob_len);
+		rc = -EINVAL;
+		goto ssetup_exit;
 	}
+	if (phase == NtLmChallenge) {
+		rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
+		if (rc)
+			goto ssetup_exit;
+	}
+	bcc_ptr += blob_len;
+	bytes_remaining -= blob_len;
 
 	/* BB check if Unicode and decode strings */
 	if (bytes_remaining == 0) {
