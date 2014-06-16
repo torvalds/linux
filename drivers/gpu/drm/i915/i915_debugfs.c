@@ -2220,9 +2220,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder;
 
-	seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
-		   crtc->primary->fb->base.id, crtc->x, crtc->y,
-		   crtc->primary->fb->width, crtc->primary->fb->height);
+	if (crtc->primary->fb)
+		seq_printf(m, "\tfb: %d, pos: %dx%d, size: %dx%d\n",
+			   crtc->primary->fb->base.id, crtc->x, crtc->y,
+			   crtc->primary->fb->width, crtc->primary->fb->height);
+	else
+		seq_puts(m, "\tprimary plane disabled\n");
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder)
 		intel_encoder_info(m, intel_crtc, intel_encoder);
 }
