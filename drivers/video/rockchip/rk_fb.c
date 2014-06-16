@@ -231,7 +231,6 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 	enum of_gpio_flags flags;
 	u32 val = 0;
 	u32 debug = 0;
-	u32 mirror = 0;
 	int ret;
 
 	INIT_LIST_HEAD(&dev_drv->pwrlist_head);
@@ -271,22 +270,6 @@ int rk_disp_pwr_ctr_parse_dt(struct rk_lcdc_driver *dev_drv)
 		of_property_read_u32(child, "rockchip,delay", &val);
 		pwr_ctr->pwr_ctr.delay = val;
 		list_add_tail(&pwr_ctr->list, &dev_drv->pwrlist_head);
-	}
-
-	of_property_read_u32(root, "rockchip,mirror", &mirror);
-
-	if (mirror == NO_MIRROR) {
-		dev_drv->screen0->x_mirror = 0;
-		dev_drv->screen0->y_mirror = 0;
-	} else if (mirror == X_MIRROR) {
-		dev_drv->screen0->x_mirror = 1;
-		dev_drv->screen0->y_mirror = 0;
-	} else if (mirror == Y_MIRROR) {
-		dev_drv->screen0->x_mirror = 0;
-		dev_drv->screen0->y_mirror = 1;
-	} else if (mirror == X_Y_MIRROR) {
-		dev_drv->screen0->x_mirror = 1;
-		dev_drv->screen0->y_mirror = 1;
 	}
 
 	of_property_read_u32(root, "rockchip,debug", &debug);
