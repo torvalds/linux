@@ -72,6 +72,7 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 				   partial ? ctx->buf : NULL);
 		kernel_neon_end();
 		src += blocks * GHASH_BLOCK_SIZE;
+		partial = 0;
 	}
 	if (len)
 		memcpy(ctx->buf + partial, src, len);
