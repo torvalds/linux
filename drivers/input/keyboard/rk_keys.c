@@ -59,7 +59,7 @@ enum  rk_key_type{
 struct rk_keys_button {
 	u32 type;  //TYPE_GPIO, TYPE_ADC
     u32 code;  // key code
-    char *desc;//key label
+    const char *desc;//key label
 	u32 state; //key up & down state
     int gpio;  //gpio only
     int adc_value; //adc only
@@ -163,12 +163,14 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#if 0
 static ssize_t adc_value_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct rk_keys_drvdata *ddata = dev_get_drvdata(dev);
 	return sprintf(buf, "adc_value: %d\n", ddata->result);
 }
 static DEVICE_ATTR(get_adc_value, S_IRUGO | S_IWUSR, adc_value_show, NULL);
+#endif
 
 static const struct of_device_id rk_key_match[] = {
 	{ .compatible = "rockchip,key", .data = NULL},
@@ -359,6 +361,8 @@ static int  keys_probe(struct platform_device *pdev)
 		struct rk_keys_button *button = &ddata->button[i];
 
 		if(button->type == TYPE_GPIO) {
+			int irq;
+
 			error = devm_gpio_request(dev, button->gpio, button->desc ?: "keys");
 			if (error < 0) {
 				pr_err("gpio-keys: failed to request GPIO %d,"
@@ -375,7 +379,7 @@ static int  keys_probe(struct platform_device *pdev)
 				goto fail1;
 			}
 
-			int irq = gpio_to_irq(button->gpio);
+			irq = gpio_to_irq(button->gpio);
 			if (irq < 0) {
 				error = irq;
 				pr_err("gpio-keys: Unable to get irq number"
