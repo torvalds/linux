@@ -7,6 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
 #include <asm/io.h>
+#include <asm/cacheflush.h>
 #include <linux/platform_device.h>
 #include <linux/semaphore.h>
 #include <linux/clk.h>
@@ -136,28 +137,36 @@ int rk_nand_get_device(struct rknand_info ** prknand_Info)
 }
 EXPORT_SYMBOL(rk_nand_get_device);
 
-int rknand_dma_map_single(unsigned long ptr,int size,int dir)
+unsigned long rknand_dma_flush_dcache(unsigned long ptr,int size,int dir)
 {
-    return dma_map_single(NULL, ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+     __cpuc_flush_dcache_area((void*)ptr, size + 63);
+    return ((unsigned long )virt_to_phys((void *)ptr));
+}
+EXPORT_SYMBOL(rknand_dma_flush_dcache);
+
+unsigned long rknand_dma_map_single(unsigned long ptr,int size,int dir)
+{
+    return dma_map_single(NULL,(void*)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(rknand_dma_map_single);
 
 void rknand_dma_unmap_single(unsigned long ptr,int size,int dir)
 {
-    dma_unmap_single(NULL, ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+    dma_unmap_single(NULL, (dma_addr_t)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
 }
 EXPORT_SYMBOL(rknand_dma_unmap_single);
 
 int rknand_flash_cs_init(int id)
 {
-
+    return 0;
 }
 EXPORT_SYMBOL(rknand_flash_cs_init);
 
 int rknand_get_reg_addr(int *pNandc0,int *pNandc1,int *pSDMMC0,int *pSDMMC1,int *pSDMMC2)
 {
-	*pNandc0 = g_nandc_info[0].reg_base;
-	*pNandc1 = g_nandc_info[1].reg_base;
+	*pNandc0 = (int)g_nandc_info[0].reg_base;
+	*pNandc1 = (int)g_nandc_info[1].reg_base;
+	return 0;
 }
 EXPORT_SYMBOL(rknand_get_reg_addr);
 
@@ -166,11 +175,11 @@ int rknand_nandc_irq_init(int id,int mode,void * pfun)
     int ret = 0;
     int irq= g_nandc_info[id].irq;
 
-    if(mode) //init
+    if(mode)
     {
         ret = request_irq(irq, pfun, 0, "nandc", g_nandc_info[id].reg_base);
         //if(ret)
-            printk("request IRQ_NANDC %x irq %x, ret=%x.........\n",id,irq, ret);
+        //printk("request IRQ_NANDC %x irq %x, ret=%x.........\n",id,irq, ret);
     }
     else //deinit
     {
@@ -186,17 +195,21 @@ static int rknand_probe(struct platform_device *pdev)
 	int irq ;
 	struct resource		*mem;
 	void __iomem    *membase;
-	
+
+    if(gpNandInfo == NULL)
+    {
+        gpNandInfo = kzalloc(sizeof(struct rknand_info), GFP_KERNEL);
+        if (!gpNandInfo)
+            return -ENOMEM;
+	}
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	membase = devm_request_and_ioremap(&pdev->dev, mem);
-
-    irq = platform_get_irq(pdev, 0);
-	printk("nand irq: %d\n",irq);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
-		return irq;
+	if (membase == 0) 
+	{
+		dev_err(&pdev->dev, "no reg resource?\n");
+		return -1;
 	}
-
+	//printk("rknand_probe %d %x %x\n", pdev->id,(int)mem,(int)membase);
 #ifdef CONFIG_OF
 	if(0==of_property_read_u32(pdev->dev.of_node, "nandc_id", &id))
 	{
@@ -204,14 +217,22 @@ static int rknand_probe(struct platform_device *pdev)
 	}
     pdev->id = id;
 #endif
-	printk("rknand_probe %d %x\n", pdev->id,mem);
-	
-	if(id == 0)
+    if(id == 0)
 	{
         memcpy(vendor0,membase+0x1400,0x200);
         memcpy(sn_data,membase+0x1600,0x200);
 	}
+	else if(id >= 2)
+	{
+		dev_err(&pdev->dev, "nandc id = %d error!\n",id);
+	}
 
+    irq = platform_get_irq(pdev, 0);
+	//printk("nand irq: %d\n",irq);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "no irq resource?\n");
+		return irq;
+	}
     g_nandc_info[id].id = id;
     g_nandc_info[id].irq = irq;
     g_nandc_info[id].reg_base = membase;
@@ -234,21 +255,26 @@ static int rknand_probe(struct platform_device *pdev)
 	clk_prepare_enable( g_nandc_info[id].clk );
 	clk_prepare_enable( g_nandc_info[id].hclk);
 	clk_prepare_enable( g_nandc_info[id].gclk);
-
 	return 0;
 }
 
 static int rknand_suspend(struct platform_device *pdev, pm_message_t state)
 {
     if(gpNandInfo->rknand_suspend)
-        gpNandInfo->rknand_suspend();  
+    {
+        gpNandInfo->rknand_suspend();
+        //TODO:nandc clk disable
+	}
 	return 0;
 }
 
 static int rknand_resume(struct platform_device *pdev)
 {
     if(gpNandInfo->rknand_resume)
+    {
+       //TODO:nandc clk enable
        gpNandInfo->rknand_resume();  
+	}
 	return 0;
 }
 
@@ -303,11 +329,9 @@ static int __init rknand_part_init(void)
 
 	cmdline = strstr(saved_command_line, "mtdparts=") + 9;
 
-	gpNandInfo = kzalloc(sizeof(struct rknand_info), GFP_KERNEL);
-	if (!gpNandInfo)
-		return -ENOMEM;
-    //memset(gpNandInfo,0,sizeof(struct rknand_info));// no need
-    
+	gpNandInfo = NULL;
+    memset(g_nandc_info,0,sizeof(g_nandc_info));
+
 	ret = platform_driver_register(&rknand_driver);
 	printk("rknand_driver:ret = %x \n",ret);
 	return ret;
