@@ -20,7 +20,7 @@ struct  tp_device{
 	struct mutex ops_lock;
 };
 
-static int fb_notifier_callback(struct notifier_block *self,
+static inline int fb_notifier_callback(struct notifier_block *self,
 				unsigned long action, void *data)
 {
 	struct tp_device *tp;
@@ -63,7 +63,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static int tp_register_fb(struct tp_device *tp)
+static inline int tp_register_fb(struct tp_device *tp)
 {
 	memset(&tp->fb_notif, 0, sizeof(tp->fb_notif));
 	tp->fb_notif.notifier_call = fb_notifier_callback;
@@ -72,7 +72,7 @@ static int tp_register_fb(struct tp_device *tp)
 	return fb_register_client(&tp->fb_notif);
 }
 
-static void tp_unregister_fb(struct tp_device *tp)
+static inline void tp_unregister_fb(struct tp_device *tp)
 {
 	fb_unregister_client(&tp->fb_notif);
 }
