@@ -372,8 +372,10 @@ static int kxcjk1013_read_raw(struct iio_dev *indio_dev,
 			int sleep_val;
 
 			ret = kxcjk1013_set_mode(data, OPERATION);
-			if (ret < 0)
+			if (ret < 0) {
+				mutex_unlock(&data->mutex);
 				return ret;
+			}
 			++data->power_state;
 			sleep_val = kxcjk1013_get_startup_times(data);
 			if (sleep_val < 20000)
@@ -527,8 +529,10 @@ static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		kxcjk1013_set_mode(data, OPERATION);
 		++data->power_state;
 	} else {
-		if (--data->power_state)
+		if (--data->power_state) {
+			mutex_unlock(&data->mutex);
 			return 0;
+		}
 		kxcjk1013_chip_setup_interrupt(data, false);
 		kxcjk1013_set_mode(data, STANDBY);
 	}
