@@ -94,7 +94,10 @@ static int hdmi_edid_parse_dtd(unsigned char *block, struct fb_videomode *mode)
 static int hdmi_edid_parse_base(unsigned char *buf, int *extend_num,
 				struct hdmi_edid *pedid)
 {
-	int rc, i;
+	int rc;
+#ifdef DEBUG
+	int i = 0;
+#endif
 
 	if (buf == NULL || extend_num == NULL)
 		return E_HDMI_EDID_PARAM;

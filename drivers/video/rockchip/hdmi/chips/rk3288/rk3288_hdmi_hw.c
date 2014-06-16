@@ -557,6 +557,7 @@ int rk3288_hdmi_video_sampler(struct hdmi *hdmi_drv,
 	return 0;
 }
 
+#ifdef HDMI_DEBUG
 static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev,
 				int reg_addr)
 {
@@ -600,6 +601,7 @@ static int rk3288_hdmi_read_phy(struct rk3288_hdmi_device *hdmi_dev,
 
 	return -1;
 }
+#endif
 
 static int rk3288_hdmi_write_phy(struct rk3288_hdmi_device *hdmi_dev,
 				 int reg_addr, int val)

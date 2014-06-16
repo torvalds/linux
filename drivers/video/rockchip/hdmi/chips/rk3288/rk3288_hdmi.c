@@ -485,7 +485,9 @@ static int rk3288_hdmi_probe(struct platform_device *pdev)
 	dev_info(hdmi_dev->dev, "rk3288 hdmi probe sucess.\n");
 	return 0;
 
+#ifndef HDMI_INT_USE_POLL
 err1:
+#endif
 	fb_unregister_client(&rk3288_hdmi_fb_notifier);
 #ifdef CONFIG_SWITCH
 	switch_dev_unregister(&(dev_drv->switch_hdmi));

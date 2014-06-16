@@ -173,6 +173,7 @@ int hdmi_set_info(struct rk_screen *screen, unsigned int vic)
 	return 0;
 }
 
+#ifdef HDMI_DEBUG
 static void hdmi_show_sink_info(struct hdmi *hdmi)
 {
 	struct list_head *pos, *head = &hdmi->edid.modelist;
@@ -265,6 +266,7 @@ static void hdmi_show_sink_info(struct hdmi *hdmi)
 	}
 	hdmi_dbg(hdmi->dev, "******** Show Sink Info ********\n");
 }
+#endif
 
 /**
  * hdmi_ouputmode_select - select hdmi transmitter output mode: hdmi or dvi?
