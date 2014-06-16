@@ -2709,7 +2709,7 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (opcode != HCI_OP_NOP)
-		del_timer(&hdev->cmd_timer);
+		cancel_delayed_work(&hdev->cmd_timer);
 
 	hci_req_cmd_complete(hdev, opcode, status);
 
@@ -2800,7 +2800,7 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (opcode != HCI_OP_NOP)
-		del_timer(&hdev->cmd_timer);
+		cancel_delayed_work(&hdev->cmd_timer);
 
 	if (ev->status ||
 	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req.event))

@@ -2432,7 +2432,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_req_lock(hdev);
 
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
-		del_timer_sync(&hdev->cmd_timer);
+		cancel_delayed_work_sync(&hdev->cmd_timer);
 		hci_req_unlock(hdev);
 		return 0;
 	}
@@ -2488,7 +2488,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	/* Drop last sent command */
 	if (hdev->sent_cmd) {
-		del_timer_sync(&hdev->cmd_timer);
+		cancel_delayed_work_sync(&hdev->cmd_timer);
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
@@ -3205,9 +3205,10 @@ void hci_remove_irk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type)
 }
 
 /* HCI command timer function */
-static void hci_cmd_timeout(unsigned long arg)
+static void hci_cmd_timeout(struct work_struct *work)
 {
-	struct hci_dev *hdev = (void *) arg;
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    cmd_timer.work);
 
 	if (hdev->sent_cmd) {
 		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
@@ -3884,7 +3885,7 @@ struct hci_dev *hci_alloc_dev(void)
 
 	init_waitqueue_head(&hdev->req_wait_q);
 
-	setup_timer(&hdev->cmd_timer, hci_cmd_timeout, (unsigned long) hdev);
+	INIT_DELAYED_WORK(&hdev->cmd_timer, hci_cmd_timeout);
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
@@ -5287,10 +5288,10 @@ static void hci_cmd_work(struct work_struct *work)
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(hdev, skb);
 			if (test_bit(HCI_RESET, &hdev->flags))
-				del_timer(&hdev->cmd_timer);
+				cancel_delayed_work(&hdev->cmd_timer);
 			else
-				mod_timer(&hdev->cmd_timer,
-					  jiffies + HCI_CMD_TIMEOUT);
+				schedule_delayed_work(&hdev->cmd_timer,
+						      HCI_CMD_TIMEOUT);
 		} else {
 			skb_queue_head(&hdev->cmd_q, skb);
 			queue_work(hdev->workqueue, &hdev->cmd_work);
