@@ -38,7 +38,7 @@ int shmobile_suspend_init(void);
 void shmobile_smp_apmu_suspend_init(void);
 #else
 static inline int shmobile_suspend_init(void) { return 0; }
-static inline void shmobile_smp_apmu_suspend_init(void) { return 0; }
+static inline void shmobile_smp_apmu_suspend_init(void) { }
 #endif
 
 #ifdef CONFIG_CPU_IDLE
