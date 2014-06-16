@@ -1108,7 +1108,7 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 }
 
 static void soc_set_name_prefix(struct snd_soc_card *card,
-				struct snd_soc_codec *codec)
+				struct snd_soc_component *component)
 {
 	int i;
 
@@ -1117,11 +1117,11 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 
 	for (i = 0; i < card->num_configs; i++) {
 		struct snd_soc_codec_conf *map = &card->codec_conf[i];
-		if (map->of_node && codec->dev->of_node != map->of_node)
+		if (map->of_node && component->dev->of_node != map->of_node)
 			continue;
-		if (map->dev_name && strcmp(codec->name, map->dev_name))
+		if (map->dev_name && strcmp(component->name, map->dev_name))
 			continue;
-		codec->name_prefix = map->name_prefix;
+		component->name_prefix = map->name_prefix;
 		break;
 	}
 }
@@ -1135,7 +1135,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 
 	codec->card = card;
 	codec->dapm.card = card;
-	soc_set_name_prefix(card, codec);
+	soc_set_name_prefix(card, &codec->component);
 
 	if (!try_module_get(codec->dev->driver->owner))
 		return -ENODEV;
@@ -2403,7 +2403,7 @@ int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
 	struct snd_card *card = codec->card->snd_card;
 
 	return snd_soc_add_controls(card, codec->dev, controls, num_controls,
-			codec->name_prefix, &codec->component);
+			codec->component.name_prefix, &codec->component);
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_codec_controls);
 

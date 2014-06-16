@@ -375,6 +375,13 @@ static void dapm_reset(struct snd_soc_card *card)
 	}
 }
 
+static const char *soc_dapm_prefix(struct snd_soc_dapm_context *dapm)
+{
+	if (!dapm->component)
+		return NULL;
+	return dapm->component->name_prefix;
+}
+
 static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg,
 	unsigned int *value)
 {
@@ -570,11 +577,7 @@ static int dapm_create_or_share_mixmux_kcontrol(struct snd_soc_dapm_widget *w,
 	const char *name;
 	int ret;
 
-	if (dapm->codec)
-		prefix = dapm->codec->name_prefix;
-	else
-		prefix = NULL;
-
+	prefix = soc_dapm_prefix(dapm);
 	if (prefix)
 		prefix_len = strlen(prefix) + 1;
 	else
@@ -2371,14 +2374,16 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	const char *source;
 	char prefixed_sink[80];
 	char prefixed_source[80];
+	const char *prefix;
 	int ret;
 
-	if (dapm->codec && dapm->codec->name_prefix) {
+	prefix = soc_dapm_prefix(dapm);
+	if (prefix) {
 		snprintf(prefixed_sink, sizeof(prefixed_sink), "%s %s",
-			 dapm->codec->name_prefix, route->sink);
+			 prefix, route->sink);
 		sink = prefixed_sink;
 		snprintf(prefixed_source, sizeof(prefixed_source), "%s %s",
-			 dapm->codec->name_prefix, route->source);
+			 prefix, route->source);
 		source = prefixed_source;
 	} else {
 		sink = route->sink;
@@ -2439,6 +2444,7 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 	const char *source;
 	char prefixed_sink[80];
 	char prefixed_source[80];
+	const char *prefix;
 
 	if (route->control) {
 		dev_err(dapm->dev,
@@ -2446,12 +2452,13 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 		return -EINVAL;
 	}
 
-	if (dapm->codec && dapm->codec->name_prefix) {
+	prefix = soc_dapm_prefix(dapm);
+	if (prefix) {
 		snprintf(prefixed_sink, sizeof(prefixed_sink), "%s %s",
-			 dapm->codec->name_prefix, route->sink);
+			 prefix, route->sink);
 		sink = prefixed_sink;
 		snprintf(prefixed_source, sizeof(prefixed_source), "%s %s",
-			 dapm->codec->name_prefix, route->source);
+			 prefix, route->source);
 		source = prefixed_source;
 	} else {
 		sink = route->sink;
@@ -2968,6 +2975,7 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
+	const char *prefix;
 	int ret;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
@@ -3008,9 +3016,9 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		break;
 	}
 
-	if (dapm->codec && dapm->codec->name_prefix)
-		w->name = kasprintf(GFP_KERNEL, "%s %s",
-			dapm->codec->name_prefix, widget->name);
+	prefix = soc_dapm_prefix(dapm);
+	if (prefix)
+		w->name = kasprintf(GFP_KERNEL, "%s %s", prefix, widget->name);
 	else
 		w->name = kasprintf(GFP_KERNEL, "%s", widget->name);
 
