@@ -1898,21 +1898,27 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (master_ctl == 0 && iir == 0)
 			break;
 
+		ret = IRQ_HANDLED;
+
 		I915_WRITE(GEN8_MASTER_IRQ, 0);
+
+		/* Find, clear, then process each source of interrupt */
+
+		if (iir) {
+			/* Consume port before clearing IIR or we'll miss events */
+			if (iir & I915_DISPLAY_PORT_INTERRUPT)
+				i9xx_hpd_irq_handler(dev);
+			I915_WRITE(VLV_IIR, iir);
+		}
 
 		gen8_gt_irq_handler(dev, dev_priv, master_ctl);
 
+		/* Call regardless, as some status bits might not be
+		 * signalled in iir */
 		valleyview_pipestat_irq_handler(dev, iir);
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		i9xx_hpd_irq_handler(dev);
-
-		I915_WRITE(VLV_IIR, iir);
 
 		I915_WRITE(GEN8_MASTER_IRQ, DE_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
-
-		ret = IRQ_HANDLED;
 	}
 
 	return ret;
