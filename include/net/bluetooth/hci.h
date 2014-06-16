@@ -348,10 +348,6 @@ enum {
 #define HCI_LK_UNAUTH_COMBINATION_P256	0x07
 #define HCI_LK_AUTH_COMBINATION_P256	0x08
 
-/* Long Term Key types */
-#define HCI_LTK_UNAUTH			0x00
-#define HCI_LTK_AUTH			0x01
-
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
 #define HCI_ERROR_MEMORY_EXCEEDED	0x07
