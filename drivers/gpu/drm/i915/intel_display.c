@@ -11339,7 +11339,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	/*
 	 * On gen2/3 only plane A can do fbc, but the panel fitter and lvds port
-	 * is hooked to plane B. Hence we want plane A feeding pipe B.
+	 * is hooked to pipe B. Hence we want plane A feeding pipe B.
 	 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
