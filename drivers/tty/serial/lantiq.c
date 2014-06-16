@@ -703,7 +703,7 @@ lqasc_probe(struct platform_device *pdev)
 	port = &ltq_port->port;
 
 	port->iotype	= SERIAL_IO_MEM;
-	port->flags	= ASYNC_BOOT_AUTOCONF | UPF_IOREMAP;
+	port->flags	= UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	port->ops	= &lqasc_pops;
 	port->fifosize	= 16;
 	port->type	= PORT_LTQ_ASC,

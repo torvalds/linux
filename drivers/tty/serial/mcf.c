@@ -537,7 +537,7 @@ int __init early_mcf_setup(struct mcf_platform_uart *platp)
 		port->iotype = SERIAL_IO_MEM;
 		port->irq = platp[i].irq;
 		port->uartclk = MCF_BUSCLK;
-		port->flags = ASYNC_BOOT_AUTOCONF;
+		port->flags = UPF_BOOT_AUTOCONF;
 		port->ops = &mcf_uart_ops;
 	}
 
@@ -662,7 +662,7 @@ static int mcf_probe(struct platform_device *pdev)
 		port->irq = platp[i].irq;
 		port->uartclk = MCF_BUSCLK;
 		port->ops = &mcf_uart_ops;
-		port->flags = ASYNC_BOOT_AUTOCONF;
+		port->flags = UPF_BOOT_AUTOCONF;
 
 		uart_add_one_port(&mcf_driver, port);
 	}
