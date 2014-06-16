@@ -771,7 +771,7 @@ static struct vring *wil_tx_bcast(struct wil6210_priv *wil,
 		goto found;
 	}
 
-	wil_err(wil, "Tx while no vrings active?\n");
+	wil_dbg_txrx(wil, "Tx while no vrings active?\n");
 
 	return NULL;
 
@@ -1031,7 +1031,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		vring = wil_tx_bcast(wil, skb);
 	}
 	if (!vring) {
-		wil_err(wil, "No Tx VRING found for %pM\n", eth->h_dest);
+		wil_dbg_txrx(wil, "No Tx VRING found for %pM\n", eth->h_dest);
 		goto drop;
 	}
 	/* set up vring entry */
