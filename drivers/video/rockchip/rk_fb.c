@@ -3249,6 +3249,7 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv,
 static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 				   struct rk_lcdc_win *def_win, int index)
 {
+	u32 mirror = 0;
 	struct rk_lcdc_driver *dev_drv = rk_fb->lcdc_dev_drv[index];
 	struct rk_screen *screen = devm_kzalloc(dev_drv->dev,
 						sizeof(struct rk_screen),
@@ -3265,6 +3266,12 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	screen->overscan.top = 100;
 	screen->overscan.right = 100;
 	screen->overscan.bottom = 100;
+	if (of_property_read_u32(dev_drv->dev->of_node, "rockchip,mirror", &mirror))
+		mirror = NO_MIRROR;
+
+	screen->x_mirror = mirror & X_MIRROR;
+	screen->y_mirror = mirror & Y_MIRROR;
+
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
 	/* devie use one lcdc + rk61x scaler for dual display */

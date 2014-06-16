@@ -3512,31 +3512,11 @@ static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 {
 	struct device_node *np = lcdc_dev->dev->of_node;
 	int val;
-	int mirror;
 
 	if (of_property_read_u32(np, "rockchip,prop", &val))
 		lcdc_dev->prop = PRMRY;	/*default set it as primary */
 	else
 		lcdc_dev->prop = val;
-
-	if (of_property_read_u32(np, "rockchip,mirror", &val))
-		mirror = NO_MIRROR;
-	else
-		mirror = val;
-
-	if (mirror == NO_MIRROR) {
-		lcdc_dev->driver.screen0->x_mirror = 0;
-		lcdc_dev->driver.screen0->y_mirror = 0;
-	} else if (mirror == X_MIRROR) {
-		lcdc_dev->driver.screen0->x_mirror = 1;
-		lcdc_dev->driver.screen0->y_mirror = 0;
-	} else if (mirror == Y_MIRROR) {
-		lcdc_dev->driver.screen0->x_mirror = 0;
-		lcdc_dev->driver.screen0->y_mirror = 1;
-	} else if (mirror == X_Y_MIRROR) {
-		lcdc_dev->driver.screen0->x_mirror = 1;
-		lcdc_dev->driver.screen0->y_mirror = 1;
-	}
 
 	if (of_property_read_u32(np, "rockchip,cabc_mode", &val))
 		lcdc_dev->driver.cabc_mode = 0;	/* default set close cabc */
