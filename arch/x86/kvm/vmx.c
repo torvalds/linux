@@ -2239,6 +2239,7 @@ static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
  * or other means.
  */
 static u32 nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high;
+static u32 nested_vmx_true_procbased_ctls_low;
 static u32 nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high;
 static u32 nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high;
 static u32 nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high;
@@ -2328,6 +2329,10 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	 */
 	nested_vmx_procbased_ctls_high |= CPU_BASED_USE_MSR_BITMAPS;
 
+	/* We support free control of CR3 access interception. */
+	nested_vmx_true_procbased_ctls_low = nested_vmx_procbased_ctls_low &
+		~(CPU_BASED_CR3_LOAD_EXITING | CPU_BASED_CR3_STORE_EXITING);
+
 	/* secondary cpu-based controls */
 	rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2,
 		nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high);
@@ -2395,6 +2400,9 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 					nested_vmx_pinbased_ctls_high);
 		break;
 	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+		*pdata = vmx_control_msr(nested_vmx_true_procbased_ctls_low,
+					nested_vmx_procbased_ctls_high);
+		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS:
 		*pdata = vmx_control_msr(nested_vmx_procbased_ctls_low,
 					nested_vmx_procbased_ctls_high);
@@ -8127,7 +8135,8 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	if (!vmx_control_verify(vmcs12->cpu_based_vm_exec_control,
-	      nested_vmx_procbased_ctls_low, nested_vmx_procbased_ctls_high) ||
+				nested_vmx_true_procbased_ctls_low,
+				nested_vmx_procbased_ctls_high) ||
 	    !vmx_control_verify(vmcs12->secondary_vm_exec_control,
 	      nested_vmx_secondary_ctls_low, nested_vmx_secondary_ctls_high) ||
 	    !vmx_control_verify(vmcs12->pin_based_vm_exec_control,
