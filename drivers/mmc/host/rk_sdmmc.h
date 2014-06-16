@@ -17,65 +17,66 @@
 #define _DW_MMC_H_
 #include "rk_sdmmc_dbg.h"
 
-#define DW_MMC_240A			0x240a
+#define DW_MMC_240A             0x240a
+#define DW_MMC_270A             0x270a
 
-#define SDMMC_CTRL			0x000
-#define SDMMC_PWREN			0x004
-#define SDMMC_CLKDIV		0x008
-#define SDMMC_CLKSRC		0x00c
-#define SDMMC_CLKENA		0x010
-#define SDMMC_TMOUT			0x014
-#define SDMMC_CTYPE			0x018
-#define SDMMC_BLKSIZ		0x01c
-#define SDMMC_BYTCNT		0x020
-#define SDMMC_INTMASK		0x024
-#define SDMMC_CMDARG		0x028
-#define SDMMC_CMD			0x02c
-#define SDMMC_RESP0			0x030
-#define SDMMC_RESP1			0x034
-#define SDMMC_RESP2			0x038
-#define SDMMC_RESP3			0x03c
-#define SDMMC_MINTSTS		0x040
+#define SDMMC_CTRL              0x000
+#define SDMMC_PWREN             0x004
+#define SDMMC_CLKDIV            0x008
+#define SDMMC_CLKSRC            0x00c
+#define SDMMC_CLKENA            0x010
+#define SDMMC_TMOUT             0x014
+#define SDMMC_CTYPE             0x018
+#define SDMMC_BLKSIZ            0x01c
+#define SDMMC_BYTCNT            0x020
+#define SDMMC_INTMASK           0x024
+#define SDMMC_CMDARG            0x028
+#define SDMMC_CMD               0x02c
+#define SDMMC_RESP0             0x030
+#define SDMMC_RESP1             0x034
+#define SDMMC_RESP2             0x038
+#define SDMMC_RESP3             0x03c
+#define SDMMC_MINTSTS           0x040
 #define SDMMC_RINTSTS		0x044
 #define SDMMC_STATUS		0x048
 #define SDMMC_FIFOTH		0x04c
 #define SDMMC_CDETECT		0x050
 #define SDMMC_WRTPRT		0x054
-#define SDMMC_GPIO			0x058
-#define SDMMC_TCBCNT		0x05c
+#define SDMMC_GPIO              0x058
+#define SDMMC_TCBCNT            0x05c
 #define SDMMC_TBBCNT		0x060
 #define SDMMC_DEBNCE		0x064
-#define SDMMC_USRID			0x068
-#define SDMMC_VERID			0x06c
-#define SDMMC_HCON			0x070
+#define SDMMC_USRID             0x068
+#define SDMMC_VERID             0x06c
+#define SDMMC_HCON              0x070
 #define SDMMC_UHS_REG		0x074
-#define SDMMC_RST_n     	0x078
-#define SDMMC_BMOD			0x080
-#define SDMMC_PLDMND		0x084
+#define SDMMC_RST_N             0x078
+#define SDMMC_BMOD              0x080
+#define SDMMC_PLDMND            0x084
 #define SDMMC_DBADDR		0x088
-#define SDMMC_IDSTS			0x08c
-#define SDMMC_IDINTEN		0x090
-#define SDMMC_DSCADDR		0x094
-#define SDMMC_BUFADDR		0x098
-#define SDMMC_CDTHRCTL		0x100
-#define SDMMC_DATA(x)		(x)
+#define SDMMC_IDSTS             0x08c
+#define SDMMC_IDINTEN           0x090
+#define SDMMC_DSCADDR           0x094
+#define SDMMC_BUFADDR           0x098
+#define SDMMC_CDTHRCTL          0x100
+#define SDMMC_DATA(x)           (x)
 
 /*
  * Data offset is difference according to Version
  * Lower than 2.40a : data register offest is 0x100
  */
-#define DATA_OFFSET		0x100
+#define DATA_OFFSET             0x100
 #define DATA_240A_OFFSET	0x200
 
 /* shift bit field */
-#define _SBF(f, v)		((v) << (f))
+#define _SBF(f, v)      ((v) << (f))
 
 
-struct sdmmc_reg
-{
-  u32      addr;
-  char   * name;
+struct sdmmc_reg {
+u32   addr;
+char    *name;
 };
+
 #if 0
 static struct sdmmc_reg dw_mci_regs[] =
 {
@@ -156,7 +157,7 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_INT_HLE			BIT(12)
 #define SDMMC_INT_FRUN			BIT(11)
 #define SDMMC_INT_HTO			BIT(10)
-#define SDMMC_INT_VSI           SDMMC_INT_HTO   // VSI => Voltage Switch Interrupt,Volt_Switch_int
+#define SDMMC_INT_VSI                   SDMMC_INT_HTO   // VSI => Voltage Switch Interrupt,Volt_Switch_int
 #define SDMMC_INT_DRTO			BIT(9)
 #define SDMMC_INT_RTO			BIT(8)
 #define SDMMC_INT_DCRC			BIT(7)
@@ -169,14 +170,14 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_INT_CD			BIT(0)
 #define SDMMC_INT_ERROR			0xbfc2
 /* Command register defines */
-#define SDMMC_CMD_START			BIT(31)
-#define SDMMC_CMD_USE_HOLD_REG	BIT(29)
-#define SDMMC_CMD_VOLT_SWITCH       BIT(28)      //Voltage switch bit
-#define SDMMC_CMD_VOLT_SWITCH       BIT(28)      //Voltage switch bit
-#define SDMMC_CMD_BOOT_MODE         BIT(27)      //set boot mode.
-#define SDMMC_CMD_DISABLE_BOOT      BIT(26)      //disable boot.
-#define SDMMC_CMD_EXPECT_BOOT_ACK   BIT(25)      //Expect Boot Acknowledge.
-#define SDMMC_CMD_ENABLE_BOOT       BIT(24)      //be set only for mandatory boot mode.
+#define SDMMC_CMD_START                 BIT(31)
+#define SDMMC_CMD_USE_HOLD_REG          BIT(29)
+#define SDMMC_CMD_VOLT_SWITCH           BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_VOLT_SWITCH           BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_BOOT_MODE             BIT(27)      //set boot mode.
+#define SDMMC_CMD_DISABLE_BOOT          BIT(26)      //disable boot.
+#define SDMMC_CMD_EXPECT_BOOT_ACK       BIT(25)      //Expect Boot Acknowledge.
+#define SDMMC_CMD_ENABLE_BOOT           BIT(24)      //be set only for mandatory boot mode.
 #define SDMMC_CMD_CCS_EXP		BIT(23)
 #define SDMMC_CMD_CEATA_RD		BIT(22)
 #define SDMMC_CMD_UPD_CLK		BIT(21)
@@ -192,17 +193,17 @@ static struct sdmmc_reg dw_mci_regs[] =
 #define SDMMC_CMD_RESP_EXP		BIT(6)
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
-#define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
-#define SDMMC_STAUTS_MC_BUSY	    BIT(10)
-#define SDMMC_STAUTS_DATA_BUSY	    BIT(9)          //Card busy
-#define SDMMC_CMD_FSM_MASK		    (0x0F << 4)	    //Command FSM status mask
-#define SDMMC_CMD_FSM_IDLE          (0x00)			//CMD FSM is IDLE
-#define SDMMC_STAUTS_FIFO_FULL	    BIT(3)          //FIFO is full status
-#define SDMMC_STAUTS_FIFO_EMPTY	    BIT(2)          //FIFO is empty status
+#define SDMMC_GET_FCNT(x)               (((x)>>17) & 0x1FFF)
+#define SDMMC_STAUTS_MC_BUSY            BIT(10)
+#define SDMMC_STAUTS_DATA_BUSY          BIT(9)          //Card busy
+#define SDMMC_CMD_FSM_MASK              (0x0F << 4)	    //Command FSM status mask
+#define SDMMC_CMD_FSM_IDLE              (0x00)			//CMD FSM is IDLE
+#define SDMMC_STAUTS_FIFO_FULL          BIT(3)          //FIFO is full status
+#define SDMMC_STAUTS_FIFO_EMPTY         BIT(2)          //FIFO is empty status
 
 /* Control SDMMC_UHS_REG defines (base+ 0x74)*/
-#define SDMMC_UHS_DDR_MODE      BIT(16)     // 0--Non DDR Mode; 1--DDR mode 
-#define SDMMC_UHS_VOLT_REG_18   BIT(0)      // 0--3.3v; 1--1.8V
+#define SDMMC_UHS_DDR_MODE              BIT(16)     // 0--Non DDR Mode; 1--DDR mode 
+#define SDMMC_UHS_VOLT_REG_18           BIT(0)      // 0--3.3v; 1--1.8V
 
 /* FIFOTH register defines */
 #define SDMMC_SET_FIFOTH(m, r, t)	(((m) & 0x7) << 28 | \

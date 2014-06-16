@@ -1357,6 +1357,10 @@ static int dw_mci_get_cd(struct mmc_host *mmc)
 	return present;
 }
 
+
+/*
+ * Dts Should caps emmc controller with poll-hw-reset
+ */
 static void dw_mci_hw_reset(struct mmc_host *mmc)
 {
         struct dw_mci_slot *slot = mmc_priv(mmc);
@@ -1439,12 +1443,13 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 	tRSCA >= 200us ; RST_n to Command time
 	tRSTH >= 1us ;   RST_n high period
 	*/
-
-	mci_writel(slot->host, RST_n, 0x1);
+	mci_writel(slot->host, PWREN, 0x0);
+	mci_writel(slot->host, RST_N, 0x0);
 	dsb();
 	udelay(10); /* 10us for bad quality eMMc. */
 
-	mci_writel(slot->host, RST_n, 0x0);
+	mci_writel(slot->host, PWREN, 0x1);
+	mci_writel(slot->host, RST_N, 0x1);
 	dsb();
 	usleep_range(500, 1000); /* at least 500(> 200us) */
 }
@@ -3724,10 +3729,9 @@ static void __exit dw_mci_exit(void)
 module_init(dw_mci_init);
 module_exit(dw_mci_exit);
 
-MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
-
+MODULE_DESCRIPTION("Rockchip specific DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
 MODULE_AUTHOR("Imagination Technologies Ltd");
+MODULE_AUTHOR("Shawn Lin <lintao@rock-chips.com>");
 MODULE_AUTHOR("Rockchip Electronics£¬Bangwang Xie < xbw@rock-chips.com> ");
-
 MODULE_LICENSE("GPL v2");
