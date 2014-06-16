@@ -1516,7 +1516,6 @@ static void rtw_auto_scan_handler(struct adapter *padapter)
 
 void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
 {
-	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (!adapter)
@@ -1539,16 +1538,6 @@ void rtw_dynamic_check_timer_handlder(struct adapter *adapter)
 			rtw_auto_scan_handler(adapter);
 		}
 	}
-
-	rcu_read_lock();
-
-	if (rcu_dereference(adapter->pnetdev->rx_handler_data) &&
-	    (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == true)) {
-		/*  expire NAT2.5 entry */
-		nat25_db_expire(adapter);
-	}
-
-	rcu_read_unlock();
 }
 
 #define RTW_SCAN_RESULT_EXPIRE 2000
