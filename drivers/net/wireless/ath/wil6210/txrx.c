@@ -1132,6 +1132,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 			done++;
 		}
 	}
+
+	if (wil_vring_is_empty(vring))
+		wil_dbg_txrx(wil, "Ring[%2d] empty\n", ringid);
+
 	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring))
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
 

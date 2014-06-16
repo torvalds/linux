@@ -72,11 +72,16 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 		if (vring->va) {
 			int cid = wil->vring2cid_tid[i][0];
 			int tid = wil->vring2cid_tid[i][1];
+			u32 swhead = vring->swhead;
+			u32 swtail = vring->swtail;
+			int used = (vring->size + swhead - swtail)
+				   % vring->size;
+			int avail = vring->size - used - 1;
 			char name[10];
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			seq_printf(s, "\n%pM CID %d TID %d\n",
-				   wil->sta[cid].addr, cid, tid);
+			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d]\n",
+				   wil->sta[cid].addr, cid, tid, used, avail);
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
 	}
