@@ -185,7 +185,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 }
 
 /**
- * rsi_mac80211_attach() - This function is used to de-initialize the
+ * rsi_mac80211_detach() - This function is used to de-initialize the
  *			   Mac80211 stack.
  * @adapter: Pointer to the adapter structure.
  *
