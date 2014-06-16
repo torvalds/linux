@@ -2139,6 +2139,14 @@ static void ivb_display_irq_handler(struct drm_device *dev, u32 de_iir)
 	}
 }
 
+/*
+ * To handle irqs with the minimum potential races with fresh interrupts, we:
+ * 1 - Disable Master Interrupt Control.
+ * 2 - Find the source(s) of the interrupt.
+ * 3 - Clear the Interrupt Identity bits (IIR).
+ * 4 - Process the interrupt(s) that had bits set in the IIRs.
+ * 5 - Re-enable Master Interrupt Control.
+ */
 static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -2166,32 +2174,34 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		POSTING_READ(SDEIER);
 	}
 
+	/* Find, clear, then process each source of interrupt */
+
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
+		I915_WRITE(GTIIR, gt_iir);
+		ret = IRQ_HANDLED;
 		if (INTEL_INFO(dev)->gen >= 6)
 			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		else
 			ilk_gt_irq_handler(dev, dev_priv, gt_iir);
-		I915_WRITE(GTIIR, gt_iir);
-		ret = IRQ_HANDLED;
 	}
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
+		I915_WRITE(DEIIR, de_iir);
+		ret = IRQ_HANDLED;
 		if (INTEL_INFO(dev)->gen >= 7)
 			ivb_display_irq_handler(dev, de_iir);
 		else
 			ilk_display_irq_handler(dev, de_iir);
-		I915_WRITE(DEIIR, de_iir);
-		ret = IRQ_HANDLED;
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		u32 pm_iir = I915_READ(GEN6_PMIIR);
 		if (pm_iir) {
-			gen6_rps_irq_handler(dev_priv, pm_iir);
 			I915_WRITE(GEN6_PMIIR, pm_iir);
 			ret = IRQ_HANDLED;
+			gen6_rps_irq_handler(dev_priv, pm_iir);
 		}
 	}
 
