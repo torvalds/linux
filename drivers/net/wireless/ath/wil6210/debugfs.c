@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/pci.h>
 #include <linux/rtnetlink.h>
+#include <linux/power_supply.h>
 
 #include "wil6210.h"
 #include "txrx.h"
@@ -847,6 +848,29 @@ static const struct file_operations fops_link = {
 	.llseek		= seq_lseek,
 };
 
+/*---------info------------*/
+static int wil_info_debugfs_show(struct seq_file *s, void *data)
+{
+	int is_ac = power_supply_is_system_supplied();
+
+	/* >0 : AC; 0 : battery; <0 : error */
+	seq_printf(s, "AC powered : %d\n", is_ac);
+
+	return 0;
+}
+
+static int wil_info_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_info_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_info = {
+	.open		= wil_info_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*---------Station matrix------------*/
 static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 {
@@ -956,6 +980,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("temp", S_IRUGO, dbg, wil, &fops_temp);
 	debugfs_create_file("freq", S_IRUGO, dbg, wil, &fops_freq);
 	debugfs_create_file("link", S_IRUGO, dbg, wil, &fops_link);
+	debugfs_create_file("info", S_IRUGO, dbg, wil, &fops_info);
 
 	wil->rgf_blob.data = (void * __force)wil->csr + 0;
 	wil->rgf_blob.size = 0xa000;
