@@ -104,11 +104,9 @@ static struct rockchip_spi_info *rockchip_spi_parse_dt(struct device *dev)
 static int rockchip_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res;
-	struct resource	*res;
 	struct rockchip_spi_driver_data *sdd;
 	struct rockchip_spi_info *info = pdev->dev.platform_data;
 	struct dw_spi *dws;
-	struct spi_master *master;
 	int ret, irq;
 	char clk_name[16];
 

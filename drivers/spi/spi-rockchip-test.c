@@ -156,8 +156,6 @@ static struct spi_board_info *rockchip_spi_parse_dt(struct device *dev)
 static int rockchip_spi_test_probe(struct spi_device *spi)
 {	
 	int ret;
-	int i =0;
-	char txbuf[256],rxbuf[256];	
 	int id = 0;
 	static struct dw_spi_chip *spi_chip_data;
 	struct spi_test_data *spi_test_data;

@@ -74,7 +74,6 @@ static ssize_t spi_write_proc_data(struct file *file, const char __user *buffer,
 {	
 	struct dw_spi *dws;
 	char *buf;
-	u32 len = 0;
 	ssize_t ret;
 	int reg = 0,value = 0;
 	
@@ -248,7 +247,7 @@ static void flush(struct dw_spi *dws)
 /* Return the max entries we can fill into tx fifo */
 static inline u32 tx_max(struct dw_spi *dws)
 {
-	u32 tx_left, tx_room, rxtx_gap;
+	u32 tx_left, tx_room;
 
 	tx_left = (dws->tx_end - dws->tx) / dws->n_bytes;
 	tx_room = dws->fifo_len - dw_readw(dws, SPIM_TXFLR);
@@ -336,7 +335,6 @@ static void dw_reader(struct dw_spi *dws)
 
 static int reader_all(struct dw_spi *dws)
 {
-	u16 rxw;
 	while (!(dw_readw(dws, SPIM_SR) & SR_RF_EMPT)
 		&& (dws->rx < dws->rx_end)) {
 			dw_reader(dws);		
@@ -572,7 +570,6 @@ static void pump_transfers(unsigned long data)
 	u32 speed = 0;
 	u32 cr0 = 0;	
 	u16 dma_ctrl = 0;
-	int ret = 0;
 
 
 	/* Get current state information */
@@ -1039,7 +1036,7 @@ int dw_spi_add_host(struct dw_spi *dws)
 err_queue_alloc:
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);
-err_diable_hw:
+/* err_diable_hw: */
 	spi_enable_chip(dws, 0);
 	free_irq(dws->irq, dws);
 err_free_master:
@@ -1051,8 +1048,6 @@ EXPORT_SYMBOL_GPL(dw_spi_add_host);
 
 void dw_spi_remove_host(struct dw_spi *dws)
 {
-	int status = 0;
-
 	if (!dws)
 		return;
 	

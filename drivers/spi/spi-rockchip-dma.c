@@ -68,7 +68,6 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 {
 	struct spi_dma *dw_dma = dws->dma_priv;
 	struct spi_dma_slave *rxs, *txs;
-	dma_cap_mask_t mask;
 	
 	DBG_SPI("%s:start\n",__func__);
 
@@ -87,10 +86,10 @@ static int mid_spi_dma_init(struct dw_spi *dws)
 
 	/* 2. Init tx channel */
 	dws->txchan = dma_request_slave_channel(dws->parent_dev, "tx");
-	if (!dws->rxchan)
+	if (!dws->txchan)
 	{
-		dev_err(dws->parent_dev, "Failed to get RX DMA channel\n");
-		goto err_exit;
+		dev_err(dws->parent_dev, "Failed to get TX DMA channel\n");
+		goto free_rxchan;
 	}
 	txs = &dw_dma->dmas_tx;
 	dws->txchan->private = txs;
@@ -202,7 +201,6 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	struct dma_async_tx_descriptor *txdesc = NULL, *rxdesc = NULL;
 	struct dma_chan *txchan, *rxchan;
 	struct dma_slave_config txconf, rxconf;
-	u16 dma_ctrl = 0;
 	int ret = 0;
 	
 	enum dma_slave_buswidth width;
