@@ -349,7 +349,7 @@ static ssize_t set_dsp_bcsh(struct device *dev, struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_driver *dev_drv =
 	    (struct rk_lcdc_driver *)fbi->par;
-	int brightness, contrast, sat_con, hue, ret, open, sin_hue, cos_hue;
+	int brightness, contrast, sat_con, ret, sin_hue, cos_hue;
 	if (!strncmp(buf, "open", 4)) {
 		ret = dev_drv->ops->open_bcsh(dev_drv, 1);
 	} else if (!strncmp(buf, "close", 5)) {

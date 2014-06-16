@@ -542,7 +542,7 @@ u32 rk_fb_get_prmry_screen_ft(void)
 
 	ft_us = dev_drv->frame_time.framedone_t - dev_drv->frame_time.last_framedone_t;
 	do_div(ft_us, 1000);
-	dev_drv->frame_time.ft = min(dev_drv->frame_time.ft, ft_us);
+	dev_drv->frame_time.ft = min(dev_drv->frame_time.ft, (u32)ft_us);
 	return dev_drv->frame_time.ft;
 }
 
@@ -583,6 +583,7 @@ u64 rk_fb_get_prmry_screen_framedone_t(void)
 	return dev_drv->frame_time.framedone_t;
 }
 
+#if 0
 static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 {
 	struct rk_fb *inf = NULL;
@@ -603,6 +604,7 @@ static struct rk_lcdc_driver *rk_get_extend_lcdc_drv(void)
 
 	return dev_drv;
 }
+#endif
 
 u32 rk_fb_get_prmry_screen_pixclock(void)
 {
@@ -715,6 +717,8 @@ static int rk_fb_close(struct fb_info *info, int user)
 
 	return 0;
 }
+
+#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 
 #if defined(CONFIG_RK29_IPP)
 static int get_ipp_format(int fmt)
@@ -1049,7 +1053,6 @@ static void fb_copy_by_rga(struct fb_info *dst_info, struct fb_info *src_info,
 
 #endif
 
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 static int rk_fb_rotate(struct fb_info *dst_info,
 			struct fb_info *src_info, int offset)
 {
@@ -1449,7 +1452,6 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	struct rk_lcdc_driver *ext_dev_drv;
 	struct rk_lcdc_win *ext_win;
 	struct rk_fb_reg_win_data *win_data;
-	struct rk_fb_reg_win_data *last_win_data;
 	bool wait_for_vsync;
 	int count = 100;
 	unsigned int dsp_addr[4];
@@ -2004,23 +2006,25 @@ static int cfgdone_lasttime;
 
 int rk_get_real_fps(int before)
 {
-	if (before > 100)
-		before = 100;
-	if (before < 0)
-		before = 0;
-
 	struct timespec now;
-	getnstimeofday(&now);
-	int dist_curr =
-	    (now.tv_sec * 1000000 + now.tv_nsec / 1000) - cfgdone_lasttime;
+	int dist_curr;
 	int dist_total = 0;
 	int dist_count = 0;
 	int dist_first = 0;
 
 	int index = cfgdone_index;
 	int i = 0, fps = 0;
-	int total = dist_curr;
+	int total;
 
+	if (before > 100)
+		before = 100;
+	if (before < 0)
+		before = 0;
+
+	getnstimeofday(&now);
+	dist_curr = (now.tv_sec * 1000000 + now.tv_nsec / 1000) -
+			cfgdone_lasttime;
+	total = dist_curr;
 	/*
 	   printk("fps: ");
 	 */
@@ -3219,6 +3223,7 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	return ret;
 }
 
+#if 0
 static int rk_release_fb_buffer(struct fb_info *fbi)
 {
 	/* buffer for fb1 and fb3 are alloc by android */
@@ -3229,6 +3234,7 @@ static int rk_release_fb_buffer(struct fb_info *fbi)
 	return 0;
 
 }
+#endif
 
 static int init_lcdc_win(struct rk_lcdc_driver *dev_drv,
 			 struct rk_lcdc_win *def_win)
