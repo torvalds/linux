@@ -450,6 +450,7 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 		return;
 
 	termios = &tty->termios;
+	uport->ops->set_termios(uport, termios, old_termios);
 
 	/*
 	 * Set flags based on termios cflag
@@ -463,8 +464,6 @@ static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 		clear_bit(ASYNCB_CHECK_CD, &port->flags);
 	else
 		set_bit(ASYNCB_CHECK_CD, &port->flags);
-
-	uport->ops->set_termios(uport, termios, old_termios);
 }
 
 static inline int __uart_put_char(struct uart_port *port,
@@ -1282,6 +1281,8 @@ static void uart_set_termios(struct tty_struct *tty,
 	}
 
 	uart_change_speed(tty, state, old_termios);
+	/* reload cflag from termios; port driver may have overriden flags */
+	cflag = tty->termios.c_cflag;
 
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD))
