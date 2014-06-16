@@ -596,7 +596,7 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 
 	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
 	mgmt_frame->desc_word[1] = cpu_to_le16(BBP_PROG_IN_TA);
-	mgmt_frame->desc_word[4] = cpu_to_le16(common->endpoint << 8);
+	mgmt_frame->desc_word[4] = cpu_to_le16(common->endpoint);
 
 	if (common->rf_reset) {
 		mgmt_frame->desc_word[7] =  cpu_to_le16(RF_RESET_ENABLE);
@@ -849,23 +849,6 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 	rsi_dbg(MGMT_TX_ZONE,
 		"%s: Sending scan req frame\n", __func__);
 
-	if (common->band == IEEE80211_BAND_5GHZ) {
-		if ((channel >= 36) && (channel <= 64))
-			channel = ((channel - 32) / 4);
-		else if ((channel > 64) && (channel <= 140))
-			channel = ((channel - 102) / 4) + 8;
-		else if (channel >= 149)
-			channel = ((channel - 151) / 4) + 18;
-		else
-			return -EINVAL;
-	} else {
-		if (channel > 14) {
-			rsi_dbg(ERR_ZONE, "%s: Invalid chno %d, band = %d\n",
-				__func__, channel, common->band);
-			return -EINVAL;
-		}
-	}
-
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
 	if (!skb) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
@@ -885,6 +868,7 @@ int rsi_set_channel(struct rsi_common *common, u16 channel)
 					       (RSI_RF_TYPE << 4));
 
 	mgmt_frame->desc_word[5] = cpu_to_le16(0x01);
+	mgmt_frame->desc_word[6] = cpu_to_le16(0x12);
 
 	if (common->channel_width == BW_40MHZ)
 		mgmt_frame->desc_word[5] |= cpu_to_le16(0x1 << 8);
