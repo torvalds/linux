@@ -309,16 +309,6 @@ small_smb2_init(__le16 smb2_command, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static void
-free_rsp_buf(int resp_buftype, void *rsp)
-{
-	if (resp_buftype == CIFS_SMALL_BUFFER)
-		cifs_small_buf_release(rsp);
-	else if (resp_buftype == CIFS_LARGE_BUFFER)
-		cifs_buf_release(rsp);
-}
-
-
 /*
  *
  *	SMB2 Worker functions follow:

@@ -1734,10 +1734,7 @@ CIFSSMBRead(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 /*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	if (*buf) {
-		if (resp_buf_type == CIFS_SMALL_BUFFER)
-			cifs_small_buf_release(iov[0].iov_base);
-		else if (resp_buf_type == CIFS_LARGE_BUFFER)
-			cifs_buf_release(iov[0].iov_base);
+		free_rsp_buf(resp_buf_type, iov[0].iov_base);
 	} else if (resp_buf_type != CIFS_NO_BUFFER) {
 		/* return buffer to caller to free */
 		*buf = iov[0].iov_base;
@@ -2203,10 +2200,7 @@ CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 	}
 
 /*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
-	if (resp_buf_type == CIFS_SMALL_BUFFER)
-		cifs_small_buf_release(iov[0].iov_base);
-	else if (resp_buf_type == CIFS_LARGE_BUFFER)
-		cifs_buf_release(iov[0].iov_base);
+	free_rsp_buf(resp_buf_type, iov[0].iov_base);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */
@@ -2451,10 +2445,7 @@ plk_err_exit:
 	if (pSMB)
 		cifs_small_buf_release(pSMB);
 
-	if (resp_buf_type == CIFS_SMALL_BUFFER)
-		cifs_small_buf_release(iov[0].iov_base);
-	else if (resp_buf_type == CIFS_LARGE_BUFFER)
-		cifs_buf_release(iov[0].iov_base);
+	free_rsp_buf(resp_buf_type, iov[0].iov_base);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 	   since file handle passed in no longer valid */
@@ -3838,10 +3829,7 @@ CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon, __u16 fid,
 		}
 	}
 qsec_out:
-	if (buf_type == CIFS_SMALL_BUFFER)
-		cifs_small_buf_release(iov[0].iov_base);
-	else if (buf_type == CIFS_LARGE_BUFFER)
-		cifs_buf_release(iov[0].iov_base);
+	free_rsp_buf(buf_type, iov[0].iov_base);
 /*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	return rc;
 }
