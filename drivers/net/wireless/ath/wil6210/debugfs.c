@@ -69,6 +69,8 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		struct vring *vring = &(wil->vring_tx[i]);
+		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+
 		if (vring->va) {
 			int cid = wil->vring2cid_tid[i][0];
 			int tid = wil->vring2cid_tid[i][1];
@@ -78,10 +80,20 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 				   % vring->size;
 			int avail = vring->size - used - 1;
 			char name[10];
+			/* performance monitoring */
+			cycles_t now = get_cycles();
+			cycles_t idle = txdata->idle;
+			cycles_t total = now - txdata->begin;
+
+			txdata->begin = now;
+			txdata->idle = 0ULL;
+
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d]\n",
-				   wil->sta[cid].addr, cid, tid, used, avail);
+			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d] idle %3d%%\n",
+				   wil->sta[cid].addr, cid, tid, used, avail,
+				   (int)((idle*100)/total));
+
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}
 	}

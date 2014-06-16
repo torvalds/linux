@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
+#include <linux/timex.h>
 
 #define WIL_NAME "wil6210"
 
@@ -251,7 +252,7 @@ struct vring {
  */
 struct vring_tx_data {
 	int enabled;
-
+	cycles_t idle, last_idle, begin;
 };
 
 enum { /* for wil6210_priv.status */

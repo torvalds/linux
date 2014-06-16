@@ -881,6 +881,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	uint f = 0;
 	int vring_index = vring - wil->vring_tx;
+	struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
 	uint i = swhead;
 	dma_addr_t pa;
 
@@ -952,6 +953,9 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	wil_hex_dump_txrx("Tx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
+
+	if (wil_vring_is_empty(vring)) /* performance monitoring */
+		txdata->idle += get_cycles() - txdata->last_idle;
 
 	/* advance swhead */
 	wil_vring_advance_head(vring, nr_frags + 1);
@@ -1133,8 +1137,10 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		}
 	}
 
-	if (wil_vring_is_empty(vring))
+	if (wil_vring_is_empty(vring)) { /* performance monitoring */
 		wil_dbg_txrx(wil, "Ring[%2d] empty\n", ringid);
+		txdata->last_idle = get_cycles();
+	}
 
 	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring))
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
