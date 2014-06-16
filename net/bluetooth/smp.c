@@ -568,8 +568,12 @@ static u8 smp_random(struct smp_chan *smp)
 		else
 			auth = 0;
 
+		/* Even though there's no _SLAVE suffix this is the
+		 * slave STK we're adding for later lookup (the master
+		 * STK never needs to be stored).
+		 */
 		hci_add_ltk(hcon->hdev, &hcon->dst, hcon->dst_type,
-			    HCI_SMP_STK_SLAVE, auth, stk, smp->enc_key_size,
+			    HCI_SMP_STK, auth, stk, smp->enc_key_size,
 			    ediv, rand);
 	}
 

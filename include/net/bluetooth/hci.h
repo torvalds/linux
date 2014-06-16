@@ -349,7 +349,6 @@ enum {
 #define HCI_LK_AUTH_COMBINATION_P256	0x08
 /* The spec doesn't define types for SMP keys, the _MASTER suffix is implied */
 #define HCI_SMP_STK			0x80
-#define HCI_SMP_STK_SLAVE		0x81
 #define HCI_SMP_LTK			0x82
 #define HCI_SMP_LTK_SLAVE		0x83
 
