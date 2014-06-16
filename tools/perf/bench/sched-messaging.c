@@ -332,5 +332,7 @@ int bench_sched_messaging(int argc, const char **argv,
 		break;
 	}
 
+	free(pth_tab);
+
 	return 0;
 }
