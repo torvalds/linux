@@ -284,7 +284,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 			pLeader->Status == CM_CONTROL_NEWDSX_MULTICLASSIFIER_REQ) {
 
 			if ((pLeader->Status == LINK_UP_CONTROL_REQ) && (pLinkReq->szData[0] == LINK_DOWN_REQ_PAYLOAD))	{
-				if ((pLinkReq->szData[1] == LINK_SYNC_DOWN_SUBTYPE)) {
+				if (pLinkReq->szData[1] == LINK_SYNC_DOWN_SUBTYPE) {
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Link Down Sent in Idle Mode\n");
 					Adapter->usIdleModePattern = ABORT_IDLE_SYNCDOWN; /* LINK DOWN sent in Idle Mode */
 				} else {
@@ -630,7 +630,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 	}
 
 	status = CopyBufferToControlPacket(Adapter, &stIdleResponse);
-	if ((status != STATUS_SUCCESS)) {
+	if (status != STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "fail to send the Idle mode Request\n");
 		Adapter->bPreparingForLowPowerMode = false;
 		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
@@ -1393,7 +1393,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 	}
 
 	Status = CopyBufferToControlPacket(Adapter, &stShutdownResponse);
-	if ((Status != STATUS_SUCCESS)) {
+	if (Status != STATUS_SUCCESS) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "fail to send the Idle mode Request\n");
 		Adapter->bPreparingForLowPowerMode = false;
 		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
