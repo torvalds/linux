@@ -253,7 +253,7 @@ int chip_function(enum cmd_index cmd_index,unsigned char *rx_buf,unsigned char l
 }
 
 /***************flash********************/
-
+#if 0
 static int chip_flash_init(struct i2c_client *client)
 {
 	unsigned char buf[2];
@@ -267,6 +267,7 @@ static int chip_flash_init(struct i2c_client *client)
 	
 	return ret;
 }
+#endif
 
 static int chip_read_bus_status(struct i2c_client *client,unsigned char *rx_buf)
 {
@@ -446,7 +447,9 @@ int chip_get_fwchksum(struct i2c_client *client,int *fwchksum)
 static int chip_write_flash(struct i2c_client *client)
 {
 	unsigned char buf[14];
+#if 0
 	unsigned char bus_status[1];
+#endif
 	int sec,cod,sec_8byte_num;
 	int flash_addr;
 	int ret = 0;

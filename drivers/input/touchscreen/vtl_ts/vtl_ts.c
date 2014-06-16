@@ -84,17 +84,15 @@ static struct i2c_board_info i2c_info[] = {
 
 static int vtl_ts_config(struct ts_info *ts)
 {
-	struct device *dev;
+	struct device *dev = &ts->driver->client->dev;
 	//struct ts_config_info *ts_config_info;	
 	int err;
-	
-	DEBUG();
-	dev = &ts->driver->client->dev;
-	
 	struct device_node *np = dev->of_node;
 	enum of_gpio_flags rst_flags;
 	unsigned long irq_flags;
 	int val;
+
+	DEBUG();
 	/* ts config */
 	ts->config_info.touch_point_number = TOUCH_POINT_NUM;
 	if(dev->platform_data !=NULL)
@@ -146,6 +144,7 @@ struct ts_info	* vtl_ts_get_object(void)
 	
 	return pg_ts;
 }
+#if 0
 static void vtl_ts_free_gpio(void)
 {
 	struct ts_info *ts;
@@ -154,6 +153,7 @@ static void vtl_ts_free_gpio(void)
 	
 	gpio_free(ts->config_info.rst_gpio_number);	
 }
+#endif
 
 void vtl_ts_hw_reset(void)
 {
@@ -230,7 +230,6 @@ static int vtl_ts_read_xy_data(struct ts_info *ts)
 
 static void vtl_ts_report_xy_coord(struct ts_info *ts)
 {
-	int i;
 	int id;
 	int sync;
 	int x, y;
@@ -365,7 +364,7 @@ int vtl_ts_resume(struct i2c_client *client)
 	return 0;
 }
 
-static void vtl_ts_early_suspend(struct early_suspend *handler)
+static int vtl_ts_early_suspend(struct tp_device *tp)
 {
 	struct ts_info *ts;	
 	ts =pg_ts;
@@ -373,15 +372,19 @@ static void vtl_ts_early_suspend(struct early_suspend *handler)
 	DEBUG();
 
 	vtl_ts_suspend(ts->driver->client, PMSG_SUSPEND);
+
+	return 0;
 }
 
-static void vtl_ts_early_resume(struct early_suspend *handler)
+static int vtl_ts_early_resume(struct tp_device *tp)
 {
 	struct ts_info *ts;	
 	ts =pg_ts;
 	DEBUG();
 
 	vtl_ts_resume(ts->driver->client);
+
+	return 0;
 }
 
 int  vtl_ts_remove(struct i2c_client *client)
@@ -588,7 +591,7 @@ ERR_IRQ_REQ:
 		ts->driver->proc_entry = NULL;
 	}
 
-ERR_PROC_ENTRY:
+/* ERR_PROC_ENTRY: */
 	if(ts->driver->input_dev){
 		input_unregister_device(ts->driver->input_dev);
 		input_free_device(ts->driver->input_dev);
@@ -609,7 +612,6 @@ ERR_TS_CONFIG:
 int vtl_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int err = -1;
-	unsigned char chip_id = 0xff;
 	struct ts_info *ts;
 	struct device *dev;
 
