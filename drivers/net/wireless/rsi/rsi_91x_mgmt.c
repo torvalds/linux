@@ -331,6 +331,13 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 		}
 	}
 
+	radio_caps->sifs_tx_11n = cpu_to_le16(SIFS_TX_11N_VALUE);
+	radio_caps->sifs_tx_11b = cpu_to_le16(SIFS_TX_11B_VALUE);
+	radio_caps->slot_rx_11n = cpu_to_le16(SHORT_SLOT_VALUE);
+	radio_caps->ofdm_ack_tout = cpu_to_le16(OFDM_ACK_TOUT_VALUE);
+	radio_caps->cck_ack_tout = cpu_to_le16(CCK_ACK_TOUT_VALUE);
+	radio_caps->preamble_type = cpu_to_le16(LONG_PREAMBLE);
+
 	radio_caps->desc_word[7] |= cpu_to_le16(radio_id << 8);
 
 	for (ii = 0; ii < MAX_HW_QUEUES; ii++) {

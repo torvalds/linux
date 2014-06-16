@@ -128,6 +128,15 @@
 #define EP_5GHZ_20MHZ			2
 #define EP_5GHZ_40MHZ			3
 
+#define SIFS_TX_11N_VALUE		580
+#define SIFS_TX_11B_VALUE		346
+#define SHORT_SLOT_VALUE		360
+#define LONG_SLOT_VALUE			640
+#define OFDM_ACK_TOUT_VALUE		2720
+#define CCK_ACK_TOUT_VALUE		9440
+#define LONG_PREAMBLE			0x0000
+#define SHORT_PREAMBLE			0x0001
+
 #define RSI_SUPP_FILTERS	(FIF_ALLMULTI | FIF_PROBE_REQ |\
 				 FIF_BCN_PRBRESP_PROMISC)
 enum opmode {
@@ -243,6 +252,12 @@ struct rsi_radio_caps {
 	u8 num_11n_rates;
 	u8 num_11ac_rates;
 	__le16 gcpd_per_rate[20];
+	__le16 sifs_tx_11n;
+	__le16 sifs_tx_11b;
+	__le16 slot_rx_11n;
+	__le16 ofdm_ack_tout;
+	__le16 cck_ack_tout;
+	__le16 preamble_type;
 } __packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
