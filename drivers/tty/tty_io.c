@@ -688,7 +688,7 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 			for (n = 0; n < closecount; n++)
 				tty->ops->close(tty, cons_filp);
 	} else if (tty->ops->hangup)
-		(tty->ops->hangup)(tty);
+		tty->ops->hangup(tty);
 	/*
 	 * We don't want to have driver/ldisc interactions beyond
 	 * the ones we did here. The driver layer expects no
