@@ -556,6 +556,15 @@ config MMC_DW_ROCKCHIP
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on RK32XX SoC's.
 
+config MMC_DW_ROCKCHIP_SWITCH_VOLTAGE
+	tristate "Supoort voltage switch for higher level standard"
+	depends on MMC_DW_ROCKCHIP
+	default n 
+	help
+          This selects support for Rockchip RK32XX Soc specific extensions to voltage
+	  switch squence
+
+
 config MMC_DW_EXYNOS
 	tristate "Exynos specific extensions for Synopsys DW Memory Card Interface"
 	depends on MMC_DW

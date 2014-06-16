@@ -464,10 +464,12 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 		goto done;  
                 #endif            
         }else{
-              MMC_DBG_ERR_FUNC(host->mmc,
+                MMC_DBG_ERR_FUNC(host->mmc,
                                 "execute tuning: candidates_degree beyong limited case! [%s]",
-                                mmc_hostname(host->mmc)); 
-              BUG();
+                                mmc_hostname(host->mmc));
+                if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+                        BUG();
+                return -EAGAIN;
         }
 
 delayline:
