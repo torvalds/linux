@@ -513,6 +513,46 @@ static const struct file_operations fops_txmgmt = {
 	.open  = simple_open,
 };
 
+/* Write WMI command (w/o mbox header) to this file to send it
+ * WMI starts from wil6210_mbox_hdr_wmi header
+ */
+static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
+				  size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	struct wil6210_mbox_hdr_wmi *wmi;
+	void *cmd;
+	int cmdlen = len - sizeof(struct wil6210_mbox_hdr_wmi);
+	u16 cmdid;
+	int rc, rc1;
+
+	if (cmdlen <= 0)
+		return -EINVAL;
+
+	wmi = kmalloc(len, GFP_KERNEL);
+	if (!wmi)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(wmi, len, ppos, buf, len);
+	if (rc < 0)
+		return rc;
+
+	cmd = &wmi[1];
+	cmdid = le16_to_cpu(wmi->id);
+
+	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
+	kfree(wmi);
+
+	wil_info(wil, "%s(0x%04x[%d]) -> %d\n", __func__, cmdid, cmdlen, rc1);
+
+	return rc;
+}
+
+static const struct file_operations fops_wmi = {
+	.write = wil_write_file_wmi,
+	.open  = simple_open,
+};
+
 static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
 			    const char *prefix)
 {
@@ -838,6 +878,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("reset", S_IWUSR, dbg, wil, &fops_reset);
 	debugfs_create_file("rxon", S_IWUSR, dbg, wil, &fops_rxon);
 	debugfs_create_file("tx_mgmt", S_IWUSR, dbg, wil, &fops_txmgmt);
+	debugfs_create_file("wmi_send", S_IWUSR, dbg, wil, &fops_wmi);
 	debugfs_create_file("temp", S_IRUGO, dbg, wil, &fops_temp);
 
 	wil->rgf_blob.data = (void * __force)wil->csr + 0;
