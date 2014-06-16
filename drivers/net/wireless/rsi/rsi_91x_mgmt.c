@@ -1153,7 +1153,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				common->fsm_state = FSM_EEPROM_READ_MAC_ADDR;
 			}
 		} else {
-			rsi_dbg(ERR_ZONE,
+			rsi_dbg(INFO_ZONE,
 				"%s: Received bootup params cfm in %d state\n",
 				 __func__, common->fsm_state);
 			return 0;
@@ -1216,7 +1216,7 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 					__func__);
 			}
 		} else {
-			rsi_dbg(ERR_ZONE,
+			rsi_dbg(INFO_ZONE,
 				"%s: Received radio caps cfm in %d state\n",
 				 __func__, common->fsm_state);
 			return 0;
@@ -1234,7 +1234,10 @@ static int rsi_handle_ta_confirm_type(struct rsi_common *common,
 				return rsi_mac80211_attach(common);
 			}
 		} else {
-			goto out;
+			rsi_dbg(INFO_ZONE,
+				"%s: Received bbb_rf cfm in %d state\n",
+				 __func__, common->fsm_state);
+			return 0;
 		}
 		break;
 
