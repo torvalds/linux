@@ -321,11 +321,11 @@ static int wil6210_debugfs_create_ITR_CNT(struct wil6210_priv *wil,
 	if (IS_ERR_OR_NULL(d))
 		return -ENODEV;
 
-	wil_debugfs_create_iomem_x32("TRSH", S_IRUGO, d, wil->csr +
+	wil_debugfs_create_iomem_x32("TRSH", S_IRUGO | S_IWUSR, d, wil->csr +
 				     HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
-	wil_debugfs_create_iomem_x32("DATA", S_IRUGO, d, wil->csr +
+	wil_debugfs_create_iomem_x32("DATA", S_IRUGO | S_IWUSR, d, wil->csr +
 				     HOSTADDR(RGF_DMA_ITR_CNT_DATA));
-	wil_debugfs_create_iomem_x32("CTL", S_IRUGO, d, wil->csr +
+	wil_debugfs_create_iomem_x32("CTL", S_IRUGO | S_IWUSR, d, wil->csr +
 				     HOSTADDR(RGF_DMA_ITR_CNT_CRL));
 
 	return 0;
