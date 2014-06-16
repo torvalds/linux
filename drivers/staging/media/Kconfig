@@ -35,8 +35,6 @@ source "drivers/staging/media/msi3101/Kconfig"
 
 source "drivers/staging/media/omap24xx/Kconfig"
 
-source "drivers/staging/media/sn9c102/Kconfig"
-
 source "drivers/staging/media/solo6x10/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
