@@ -677,6 +677,9 @@ struct snd_soc_component_driver {
 	int (*of_xlate_dai_name)(struct snd_soc_component *component,
 				 struct of_phandle_args *args,
 				 const char **dai_name);
+	void (*seq_notifier)(struct snd_soc_component *, enum snd_soc_dapm_type,
+		int subseq);
+	int (*stream_event)(struct snd_soc_component *, int event);
 };
 
 struct snd_soc_component {
@@ -792,9 +795,6 @@ struct snd_soc_codec_driver {
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
 
-	/* codec stream completion event */
-	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
-
 	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
 
 	/* probe ordering - for components with runtime dependencies */
@@ -835,9 +835,6 @@ struct snd_soc_platform_driver {
 
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
-
-	/* platform stream completion event */
-	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;

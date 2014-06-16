@@ -3995,6 +3995,22 @@ err:
 	return ret;
 }
 
+static void snd_soc_component_seq_notifier(struct snd_soc_dapm_context *dapm,
+	enum snd_soc_dapm_type type, int subseq)
+{
+	struct snd_soc_component *component = dapm->component;
+
+	component->driver->seq_notifier(component, type, subseq);
+}
+
+static int snd_soc_component_stream_event(struct snd_soc_dapm_context *dapm,
+	int event)
+{
+	struct snd_soc_component *component = dapm->component;
+
+	return component->driver->stream_event(component, event);
+}
+
 static int snd_soc_component_initialize(struct snd_soc_component *component,
 	const struct snd_soc_component_driver *driver, struct device *dev)
 {
@@ -4016,6 +4032,10 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	dapm->dev = dev;
 	dapm->component = component;
 	dapm->bias_level = SND_SOC_BIAS_OFF;
+	if (driver->seq_notifier)
+		dapm->seq_notifier = snd_soc_component_seq_notifier;
+	if (driver->stream_event)
+		dapm->stream_event = snd_soc_component_stream_event;
 
 	INIT_LIST_HEAD(&component->dai_list);
 	mutex_init(&component->io_mutex);
@@ -4150,7 +4170,6 @@ int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 	platform->dev = dev;
 	platform->driver = platform_drv;
 	platform->component.dapm.platform = platform;
-	platform->component.dapm.stream_event = platform_drv->stream_event;
 	if (platform_drv->write)
 		platform->component.write = snd_soc_platform_drv_write;
 	if (platform_drv->read)
@@ -4336,8 +4355,8 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 	codec->dapm.codec = codec;
-	codec->dapm.seq_notifier = codec_drv->seq_notifier;
-	codec->dapm.stream_event = codec_drv->stream_event;
+	if (codec_drv->seq_notifier)
+		codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	if (codec_drv->set_bias_level)
 		codec->dapm.set_bias_level = snd_soc_codec_set_bias_level;
 	codec->dev = dev;
