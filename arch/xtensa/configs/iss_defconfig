@@ -308,7 +308,7 @@ CONFIG_MISC_DEVICES=y
 # EEPROM support
 #
 # CONFIG_EEPROM_93CX6 is not set
-CONFIG_HAVE_IDE=y
+# CONFIG_HAVE_IDE is not set
 # CONFIG_IDE is not set
 
 #
