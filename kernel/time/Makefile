@@ -13,6 +13,7 @@ obj-$(CONFIG_TICK_ONESHOT)			+= tick-oneshot.o
 obj-$(CONFIG_TICK_ONESHOT)			+= tick-sched.o
 obj-$(CONFIG_TIMER_STATS)			+= timer_stats.o
 obj-$(CONFIG_DEBUG_FS)				+= timekeeping_debug.o
+obj-$(CONFIG_TEST_UDELAY)			+= udelay_test.o
 
 $(obj)/time.o: $(obj)/timeconst.h
 
@@ -29,3 +30,4 @@ quiet_cmd_bc  = BC      $@
 targets += timeconst.h
 $(obj)/timeconst.h: $(obj)/hz.bc $(src)/timeconst.bc FORCE
 	$(call if_changed,bc)
+
