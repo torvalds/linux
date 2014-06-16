@@ -2004,6 +2004,66 @@ static int __init rkclk_init_enable(void)
 	return ret;
 }
 
+static int uboot_logo_on = 0;
+
+static void __init rk_get_uboot_display_flag(void)
+{
+       struct device_node *node;
+
+       node = of_find_node_by_name(NULL, "fb");
+       if (node)
+               of_property_read_u32(node, "rockchip,uboot-logo-on", &uboot_logo_on);
+
+       printk("%s: uboot_logo_on = %d\n", __FUNCTION__, uboot_logo_on);
+}
+
+static const char *of_clk_uboot_has_init_get_name(struct device_node *np, int index)
+{
+	struct of_phandle_args clkspec;
+	const char *clk_name;
+	int rc;
+
+	if (index < 0)
+		return NULL;
+
+	rc = of_parse_phandle_with_args(np, "rockchip,clocks-uboot-has-init", 
+		"#clock-cells", index, &clkspec);
+	if (rc)
+		return NULL;
+
+	if (of_property_read_string_index(clkspec.np, "clock-output-names",
+					  clkspec.args_count ? clkspec.args[0] : 0,
+					  &clk_name) < 0)
+		clk_name = NULL;
+
+	of_node_put(clkspec.np);
+	return clk_name;
+}
+
+/* If clk has been inited, return 1; else return 0. */
+static int rkclk_uboot_has_init(struct device_node *np, const char *clk_name)
+{
+	int cnt, i;
+	const char *name;
+
+
+	if ((!np) || (!clk_name))
+		return 0;
+
+	cnt = of_count_phandle_with_args(np, "rockchip,clocks-uboot-has-init", 
+		"#clock-cells");
+	if (cnt < 0)
+		return 0;
+
+	for (i = 0; i < cnt ; i++) {
+		name = of_clk_uboot_has_init_get_name(np, i);
+		if (name && (!strcmp(clk_name, name)))
+			return 1;
+	}
+
+	return 0;
+}
+
 void __init rkclk_init_clks(struct device_node *np)
 {
 	//struct device_node *np;
@@ -2014,10 +2074,12 @@ void __init rkclk_init_clks(struct device_node *np)
 	const char *clk_name, *clk_parent_name;
 
 
+	rk_get_uboot_display_flag();
+
 	cnt_parent = of_count_phandle_with_args(np,
 			"rockchip,clocks-init-parent", "#clock-init-cells");
 
-	clk_debug("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
+	printk("%s: cnt_parent = %d\n",__FUNCTION__,cnt_parent);
 
 	for (i = 0; i < cnt_parent; i++) {
 		clk_parent_name=NULL;
@@ -2034,20 +2096,26 @@ void __init rkclk_init_clks(struct device_node *np)
 
 		clk_set_parent(clk_c, clk_p);
 
-		printk("%s: set %s parent = %s\n", __FUNCTION__, clk_name,
+		clk_debug("%s: set %s parent = %s\n", __FUNCTION__, clk_name,
 				clk_parent_name);
 	}
 
 	cnt_rate = of_count_phandle_with_args(np, "rockchip,clocks-init-rate",
 			"#clock-init-cells");
 
-	clk_debug("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
+	printk("%s: cnt_rate = %d\n",__FUNCTION__,cnt_rate);
 
 	for (i = 0; i < cnt_rate; i++) {
 		clk_name=of_clk_init_rate_get_info(np, i, &clk_rate);
 
-		if(clk_name==NULL)
+		if (clk_name==NULL)
 			continue;
+
+		if (uboot_logo_on && rkclk_uboot_has_init(np, clk_name)) {
+			printk("%s: %s has been inited in uboot, ingored\n", 
+				__FUNCTION__, clk_name);
+			continue;
+		}
 
 		clk_c = clk_get(NULL, clk_name);
 

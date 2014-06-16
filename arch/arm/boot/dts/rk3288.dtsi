@@ -495,6 +495,8 @@
 			<&clk_edp 200000000>, <&clk_isp 200000000>,
 			<&clk_isp_jpe 400000000>, <&clk_tsp 80000000>,
 			<&clk_tspout 80000000>, <&clk_mac 125000000>;
+		rockchip,clocks-uboot-has-init =
+			<&aclk_vio1>;
 	};
 
 	clocks-enable {
