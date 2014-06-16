@@ -458,6 +458,10 @@ static void tty_port_drain_delay(struct tty_port *port, struct tty_struct *tty)
 	schedule_timeout_interruptible(timeout);
 }
 
+/* Caller holds tty lock.
+ * NB: may drop and reacquire tty lock (in tty_wait_until_sent_from_close())
+ * so tty and tty port may have changed state (but not hung up or reopened).
+ */
 int tty_port_close_start(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp)
 {
@@ -506,6 +510,7 @@ int tty_port_close_start(struct tty_port *port,
 }
 EXPORT_SYMBOL(tty_port_close_start);
 
+/* Caller holds tty lock */
 void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 {
 	unsigned long flags;
@@ -528,6 +533,15 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 }
 EXPORT_SYMBOL(tty_port_close_end);
 
+/**
+ * tty_port_close
+ *
+ * Caller holds tty lock
+ *
+ * NB: may drop and reacquire tty lock (in tty_port_close_start()->
+ * tty_wait_until_sent_from_close()) so tty and tty_port may have changed
+ * state (but not hung up or reopened).
+ */
 void tty_port_close(struct tty_port *port, struct tty_struct *tty,
 							struct file *filp)
 {
