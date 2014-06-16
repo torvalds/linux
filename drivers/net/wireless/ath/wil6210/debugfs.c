@@ -231,6 +231,26 @@ static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
 				   &fops_iomem_x32);
 }
 
+static int wil_debugfs_ulong_set(void *data, u64 val)
+{
+	*(ulong *)data = val;
+	return 0;
+}
+static int wil_debugfs_ulong_get(void *data, u64 *val)
+{
+	*val = *(ulong *)data;
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(wil_fops_ulong, wil_debugfs_ulong_get,
+			wil_debugfs_ulong_set, "%llu\n");
+
+static struct dentry *wil_debugfs_create_ulong(const char *name, umode_t mode,
+					       struct dentry *parent,
+					       ulong *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &wil_fops_ulong);
+}
+
 static int wil6210_debugfs_create_ISR(struct wil6210_priv *wil,
 				      const char *name,
 				      struct dentry *parent, u32 off)
@@ -781,6 +801,8 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	debugfs_create_file("ssid", S_IRUGO | S_IWUSR, dbg, wil, &fops_ssid);
 	debugfs_create_u32("secure_pcp", S_IRUGO | S_IWUSR, dbg,
 			   &wil->secure_pcp);
+	wil_debugfs_create_ulong("status", S_IRUGO | S_IWUSR, dbg,
+				 &wil->status);
 
 	wil6210_debugfs_create_ISR(wil, "USER_ICR", dbg,
 				   HOSTADDR(RGF_USER_USER_ICR));
