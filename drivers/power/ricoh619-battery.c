@@ -1171,7 +1171,7 @@ static void ricoh619_displayed_work(struct work_struct *work)
 			info->soca->soc = calc_capacity(info) * 100;
 		}
 	}
-	if (RICOH619_SOCA_DISP == info->soca->status) {
+	else if (RICOH619_SOCA_DISP == info->soca->status) {
 
 		info->soca->soc = calc_capacity_2(info);
 
@@ -4099,9 +4099,9 @@ static int ricoh619_batt_get_prop(struct power_supply *psy,
 		if (info->entry_factory_mode){
 			val->intval = 100;
 			info->capacity = 100;
-		} else if (info->soca->displayed_soc < 0) {
-			val->intval = 10;
-			info->capacity = 10;
+		} else if ((info->soca->displayed_soc < 0) || (info->cur_voltage == 0)) {
+			val->intval = 50;
+			info->capacity = 50;
 		} else {
 			if(info->chg_complete_tm_ov_flag == 1)
 			{

@@ -1157,7 +1157,7 @@ static void rk808_shutdown(void)
 	ret = rk808_set_bits(rk808, RK808_INT_STS_MSK_REG1,(0x3<<5),(0x3<<5)); //close rtc int when power off
 	ret = rk808_clear_bits(rk808, RK808_RTC_INT_REG,(0x3<<2)); //close rtc int when power off
 	mutex_lock(&rk808->io_lock);
-	msleep(100);
+	mdelay(100);
 }
 
 static struct syscore_ops rk808_syscore_ops = {

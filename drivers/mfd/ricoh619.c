@@ -426,7 +426,7 @@ static void ricoh619_device_shutdown(struct i2c_client *client)
        ret = ricoh619_write(ricoh619->dev, RICOH619_INTC_INTEN, 0); 
 	ret = ricoh619_clr_bits(ricoh619->dev,RICOH619_PWR_REP_CNT,(0x1<<0));//Not repeat power ON after power off(Power Off/N_OE)
 	mutex_lock(&ricoh619->io_lock);
-	msleep(100);
+	mdelay(100);
 }
 EXPORT_SYMBOL_GPL(ricoh619_device_shutdown);
 static void ricoh619_power_off(void)
