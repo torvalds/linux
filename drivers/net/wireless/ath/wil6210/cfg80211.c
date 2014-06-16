@@ -451,6 +451,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	size_t len = params->len;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	int rc;
+	bool tx_status = false;
 	struct ieee80211_mgmt *mgmt_frame = (void *)buf;
 	struct wmi_sw_tx_req_cmd *cmd;
 	struct {
@@ -459,8 +460,10 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	} __packed evt;
 
 	cmd = kmalloc(sizeof(*cmd) + len, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
+	if (!cmd) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	memcpy(cmd->dst_mac, mgmt_frame->da, WMI_MAC_LEN);
 	cmd->len = cpu_to_le16(len);
@@ -469,10 +472,12 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, cmd, sizeof(*cmd) + len,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (rc == 0)
-		rc = evt.evt.status;
+		tx_status = !evt.evt.status;
 
 	kfree(cmd);
-
+ out:
+	cfg80211_mgmt_tx_status(wdev, cookie ? *cookie : 0, buf, len,
+				tx_status, GFP_KERNEL);
 	return rc;
 }
 
