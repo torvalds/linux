@@ -69,6 +69,7 @@
 
 #define RSI_LMAC_CLOCK_80MHZ            0x1
 #define RSI_ENABLE_40MHZ                (0x1 << 3)
+#define ENABLE_SHORTGI_RATE		BIT(9)
 
 #define RX_BA_INDICATION                1
 #define RSI_TBL_SZ                      40

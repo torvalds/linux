@@ -81,6 +81,12 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 		/* Send fixed rate */
 		frame_desc[3] = cpu_to_le16(RATE_INFO_ENABLE);
 		frame_desc[4] = cpu_to_le16(common->min_rate);
+		if (common->vif_info[0].sgi) {
+			if (common->min_rate & 0x100) /* Only MCS rates */
+				frame_desc[4] |=
+					cpu_to_le16(ENABLE_SHORTGI_RATE);
+		}
+
 	}
 
 	frame_desc[6] |= cpu_to_le16(seq_num & 0xfff);
