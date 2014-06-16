@@ -1048,11 +1048,8 @@ static void soc_remove_link_dais(struct snd_soc_card *card, int num, int order)
 					cpu_dai->name, err);
 		}
 		cpu_dai->probed = 0;
-
-		if (!cpu_dai->codec) {
-			snd_soc_dapm_free(&cpu_dai->dapm);
+		if (!cpu_dai->codec)
 			module_put(cpu_dai->dev->driver->owner);
-		}
 	}
 }
 
@@ -1510,11 +1507,8 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	if (!cpu_dai->probed &&
 			cpu_dai->driver->probe_order == order) {
 		if (!cpu_dai->codec) {
-			cpu_dai->dapm.card = card;
 			if (!try_module_get(cpu_dai->dev->driver->owner))
 				return -ENODEV;
-
-			list_add(&cpu_dai->dapm.list, &card->dapm_list);
 		}
 
 		if (cpu_dai->driver->probe) {
@@ -3975,12 +3969,8 @@ static int snd_soc_register_dais(struct snd_soc_component *component,
 		dai->component = component;
 		dai->dev = dev;
 		dai->driver = &dai_drv[i];
-		dai->dapm.dev = dev;
 		if (!dai->driver->ops)
 			dai->driver->ops = &null_dai_ops;
-
-		if (!dai->codec)
-			dai->dapm.idle_bias_off = 1;
 
 		list_add(&dai->list, &component->dai_list);
 
