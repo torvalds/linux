@@ -21,7 +21,6 @@ static void default_wimax_protocol_initialize(struct bcm_mini_adapter *Adapter)
 	Adapter->LinkStatus = SYNC_UP_REQUEST;
 	Adapter->TransferMode = IP_PACKET_ONLY_MODE;
 	Adapter->usBestEffortQueueIndex = -1;
-	return;
 }
 
 int InitAdapter(struct bcm_mini_adapter *psAdapter)
@@ -460,7 +459,6 @@ void StatisticsResponse(struct bcm_mini_adapter *Adapter, void *pvBuffer)
 	Adapter->StatisticsPointer = ntohl(*(__be32 *)pvBuffer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Stats at %x", (unsigned int)Adapter->StatisticsPointer);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "%s <====", __func__);
-	return;
 }
 
 /**********************************************************************
@@ -545,7 +543,6 @@ void LinkControlResponseMessage(struct bcm_mini_adapter *Adapter, PUCHAR pucBuff
 		memcpy(Adapter->dev->dev_addr, puMacAddr, MAC_ADDRESS_SIZE);
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "%s <=====", __func__);
-	return;
 }
 
 void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
@@ -776,8 +773,6 @@ void DumpPackInfo(struct bcm_mini_adapter *Adapter)
 
 	for (uiLoopIndex = 0; uiLoopIndex < MIBS_MAX_HIST_ENTRIES; uiLoopIndex++)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_INFO, DBG_LVL_ALL, "Adapter->aTxPktSizeHist[%x] = %x\n", uiLoopIndex, Adapter->aTxPktSizeHist[uiLoopIndex]);
-
-	return;
 }
 
 int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
@@ -1426,7 +1421,6 @@ static void HandleShutDownModeRequest(struct bcm_mini_adapter *Adapter, PUCHAR p
 	}
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "<====\n");
-	return;
 }
 
 void ResetCounters(struct bcm_mini_adapter *Adapter)
