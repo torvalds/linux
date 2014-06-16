@@ -24,7 +24,6 @@
 #include <recv_osdep.h>
 #include <cmd_osdep.h>
 #include <mlme_osdep.h>
-#include <rtw_br_ext.h>
 #include <rtw_mlme_ext.h>
 
 /*

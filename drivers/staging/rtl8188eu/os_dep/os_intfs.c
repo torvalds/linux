@@ -29,7 +29,6 @@
 
 #include <usb_osintf.h>
 #include <usb_hal.h>
-#include <rtw_br_ext.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
