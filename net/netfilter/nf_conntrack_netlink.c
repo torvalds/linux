@@ -597,6 +597,9 @@ ctnetlink_nlmsg_size(const struct nf_conn *ct)
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_MARK */
 #endif
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	       + nla_total_size(sizeof(u_int16_t)) /* CTA_ZONE */
+#endif
 	       + ctnetlink_proto_size(ct)
 	       + ctnetlink_label_size(ct)
 	       ;
@@ -2039,6 +2042,9 @@ ctnetlink_nfqueue_build_size(const struct nf_conn *ct)
 #endif
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	       + nla_total_size(sizeof(u_int32_t)) /* CTA_MARK */
+#endif
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	       + nla_total_size(sizeof(u_int16_t)) /* CTA_ZONE */
 #endif
 	       + ctnetlink_proto_size(ct)
 	       ;
