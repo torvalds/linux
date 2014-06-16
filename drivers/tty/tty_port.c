@@ -572,6 +572,14 @@ int tty_port_install(struct tty_port *port, struct tty_driver *driver,
 }
 EXPORT_SYMBOL_GPL(tty_port_install);
 
+/**
+ * tty_port_open
+ *
+ * Caller holds tty lock.
+ *
+ * NB: may drop and reacquire tty lock (in tty_port_block_til_ready()) so
+ * tty and tty_port may have changed state (eg., may be hung up now)
+ */
 int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 							struct file *filp)
 {
