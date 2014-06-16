@@ -4,7 +4,15 @@ Required properties:
 - compatible : "snps,dw-apb-uart"
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
+
+Clock handling:
+The clock rate of the input clock needs to be supplied by one of
 - clock-frequency : the input clock frequency for the UART.
+- clocks : phandle to the input clock
+
+The supplying peripheral clock can also be handled, needing a second property
+- clock-names: tuple listing input clock names.
+	Required elements: "baudclk", "apb_pclk"
 
 Optional properties:
 - reg-shift : quantity to shift the register offsets by.  If this property is
@@ -19,6 +27,29 @@ Example:
 		compatible = "snps,dw-apb-uart";
 		reg = <0x80230000 0x100>;
 		clock-frequency = <3686400>;
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+Example with one clock:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clocks = <&baudclk>;
+		interrupts = <10>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+Example with two clocks:
+
+	uart@80230000 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x80230000 0x100>;
+		clocks = <&baudclk>, <&apb_pclk>;
+		clock-names = "baudclk", "apb_pclk";
 		interrupts = <10>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
