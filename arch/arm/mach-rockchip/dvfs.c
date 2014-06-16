@@ -1318,7 +1318,7 @@ static int dump_dbg_map(char *buf)
 						" enable_dvfs = %s\n",
 						clk_dvfs_node->name, clk_dvfs_node->set_freq, clk_dvfs_node->set_volt,
 						clk_dvfs_node->enable_count == 0 ? "DISABLE" : "ENABLE");
-				printk( "|  |  |- clk limit(%s):[%u, %u]; last set rate = %u\n",
+				printk( "|  |  |- clk limit(%s):[%u, %u]; last set rate = %lu\n",
 						clk_dvfs_node->freq_limit_en ? "enable" : "disable",
 						clk_dvfs_node->min_rate, clk_dvfs_node->max_rate,
 						clk_dvfs_node->last_set_rate/1000);
