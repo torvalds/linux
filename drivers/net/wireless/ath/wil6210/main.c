@@ -552,6 +552,8 @@ static int __wil_down(struct wil6210_priv *wil)
 	napi_disable(&wil->napi_tx);
 
 	if (wil->scan_request) {
+		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
+			     wil->scan_request);
 		del_timer_sync(&wil->scan_timer);
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;
