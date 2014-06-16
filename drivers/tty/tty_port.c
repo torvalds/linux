@@ -227,6 +227,8 @@ out:
  *
  *	Perform port level tty hangup flag and count changes. Drop the tty
  *	reference.
+ *
+ *	Caller holds tty lock.
  */
 
 void tty_port_hangup(struct tty_port *port)
