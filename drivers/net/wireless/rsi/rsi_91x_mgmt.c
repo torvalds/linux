@@ -623,6 +623,9 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_vap_caps *vap_caps;
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_hw *hw = adapter->hw;
+	struct ieee80211_conf *conf = &hw->conf;
 	u16 vap_id = 0;
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending VAP capabilities frame\n", __func__);
@@ -652,13 +655,24 @@ int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode)
 	vap_caps->frag_threshold = cpu_to_le16(IEEE80211_MAX_FRAG_THRESHOLD);
 
 	vap_caps->rts_threshold = cpu_to_le16(common->rts_threshold);
-	vap_caps->default_mgmt_rate = 0;
-	if (conf_is_ht40(&common->priv->hw->conf)) {
-		vap_caps->default_ctrl_rate =
-				cpu_to_le32(RSI_RATE_6 | FULL40M_ENABLE << 16);
-	} else {
+	vap_caps->default_mgmt_rate = cpu_to_le32(RSI_RATE_6);
+
+	if (common->band == IEEE80211_BAND_5GHZ) {
 		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_6);
+		if (conf_is_ht40(&common->priv->hw->conf)) {
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(FULL40M_ENABLE << 16);
+		}
+	} else {
+		vap_caps->default_ctrl_rate = cpu_to_le32(RSI_RATE_1);
+		if (conf_is_ht40_minus(conf))
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(UPPER_20_ENABLE << 16);
+		else if (conf_is_ht40_plus(conf))
+			vap_caps->default_ctrl_rate |=
+				cpu_to_le32(LOWER_20_ENABLE << 16);
 	}
+
 	vap_caps->default_data_rate = 0;
 	vap_caps->beacon_interval = cpu_to_le16(200);
 	vap_caps->dtim_period = cpu_to_le16(4);
@@ -832,6 +846,63 @@ static int rsi_send_reset_mac(struct rsi_common *common)
 	skb_put(skb, FRAME_DESC_SZ);
 
 	return rsi_send_internal_mgmt_frame(common, skb);
+}
+
+/**
+ * rsi_band_check() - This function programs the band
+ * @common: Pointer to the driver private structure.
+ *
+ * Return: 0 on success, corresponding error code on failure.
+ */
+int rsi_band_check(struct rsi_common *common)
+{
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_hw *hw = adapter->hw;
+	u8 prev_bw = common->channel_width;
+	u8 prev_ep = common->endpoint;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	int status = 0;
+
+	if (common->band != curchan->band) {
+		common->rf_reset = 1;
+		common->band = curchan->band;
+	}
+
+	if ((hw->conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT) ||
+	    (hw->conf.chandef.width == NL80211_CHAN_WIDTH_20))
+		common->channel_width = BW_20MHZ;
+	else
+		common->channel_width = BW_40MHZ;
+
+	if (common->band == IEEE80211_BAND_2GHZ) {
+		if (common->channel_width)
+			common->endpoint = EP_2GHZ_40MHZ;
+		else
+			common->endpoint = EP_2GHZ_20MHZ;
+	} else {
+		if (common->channel_width)
+			common->endpoint = EP_5GHZ_40MHZ;
+		else
+			common->endpoint = EP_5GHZ_20MHZ;
+	}
+
+	if (common->endpoint != prev_ep) {
+		status = rsi_program_bb_rf(common);
+		if (status)
+			return status;
+	}
+
+	if (common->channel_width != prev_bw) {
+		status = rsi_load_bootup_params(common);
+		if (status)
+			return status;
+
+		status = rsi_load_radio_caps(common);
+		if (status)
+			return status;
+	}
+
+	return status;
 }
 
 /**

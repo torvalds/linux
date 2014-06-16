@@ -723,17 +723,17 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	enum ieee80211_band band = hw->conf.chandef.chan->band;
 
 	mutex_lock(&common->mutex);
+	common->fixedrate_mask[band] = 0;
 
-	common->fixedrate_mask[IEEE80211_BAND_2GHZ] = 0;
-
-	if (mask->control[IEEE80211_BAND_2GHZ].legacy == 0xfff) {
-		common->fixedrate_mask[IEEE80211_BAND_2GHZ] =
-			(mask->control[IEEE80211_BAND_2GHZ].ht_mcs[0] << 12);
+	if (mask->control[band].legacy == 0xfff) {
+		common->fixedrate_mask[band] =
+			(mask->control[band].ht_mcs[0] << 12);
 	} else {
-		common->fixedrate_mask[IEEE80211_BAND_2GHZ] =
-			mask->control[IEEE80211_BAND_2GHZ].legacy;
+		common->fixedrate_mask[band] =
+			mask->control[band].legacy;
 	}
 	mutex_unlock(&common->mutex);
 
@@ -980,6 +980,7 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	hw->max_tx_aggregation_subframes = 6;
 	rsi_register_rates_channels(adapter, IEEE80211_BAND_2GHZ);
+	rsi_register_rates_channels(adapter, IEEE80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";
 
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
@@ -997,6 +998,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->available_antennas_tx = 1;
 	wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&adapter->sbands[IEEE80211_BAND_2GHZ];
+	wiphy->bands[IEEE80211_BAND_5GHZ] =
+		&adapter->sbands[IEEE80211_BAND_5GHZ];
 
 	status = ieee80211_register_hw(hw);
 	if (status)
