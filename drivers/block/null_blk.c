@@ -227,7 +227,10 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_softirq_done_fn(struct request *rq)
 {
-	end_cmd(blk_mq_rq_to_pdu(rq));
+	if (queue_mode == NULL_Q_MQ)
+		end_cmd(blk_mq_rq_to_pdu(rq));
+	else
+		end_cmd(rq->special);
 }
 
 static inline void null_handle_cmd(struct nullb_cmd *cmd)
