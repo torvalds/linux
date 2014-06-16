@@ -1288,17 +1288,15 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_D) ||
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_B))
 			return MODE_OK;
-		else if (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_A) {
-			if (ASIC_IS_DCE6(rdev)) {
-				/* HDMI 1.3+ supports max clock of 340 Mhz */
-				if (mode->clock > 340000)
-					return MODE_CLOCK_HIGH;
-				else
-					return MODE_OK;
-			} else
+		else if (ASIC_IS_DCE6(rdev) && drm_detect_hdmi_monitor(radeon_connector->edid)) {
+			/* HDMI 1.3+ supports max clock of 340 Mhz */
+			if (mode->clock > 340000)
 				return MODE_CLOCK_HIGH;
-		} else
+			else
+				return MODE_OK;
+		} else {
 			return MODE_CLOCK_HIGH;
+		}
 	}
 
 	/* check against the max pixel clock */
