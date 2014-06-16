@@ -67,7 +67,7 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 		blocks = len / GHASH_BLOCK_SIZE;
 		len %= GHASH_BLOCK_SIZE;
 
-		kernel_neon_begin_partial(6);
+		kernel_neon_begin_partial(8);
 		pmull_ghash_update(blocks, ctx->digest, src, key,
 				   partial ? ctx->buf : NULL);
 		kernel_neon_end();
@@ -89,7 +89,7 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 
 		memset(ctx->buf + partial, 0, GHASH_BLOCK_SIZE - partial);
 
-		kernel_neon_begin_partial(6);
+		kernel_neon_begin_partial(8);
 		pmull_ghash_update(1, ctx->digest, ctx->buf, key, NULL);
 		kernel_neon_end();
 	}
