@@ -2594,7 +2594,7 @@ S:	Supported
 F:	drivers/infiniband/hw/cxgb3/
 
 CXGB4 ETHERNET DRIVER (CXGB4)
-M:	Dimitris Michailidis <dm@chelsio.com>
+M:	Hariprasad S <hariprasad@chelsio.com>
 L:	netdev@vger.kernel.org
 W:	http://www.chelsio.com
 S:	Supported

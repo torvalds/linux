@@ -338,17 +338,18 @@ enum {
 
 	SKB_GSO_GRE = 1 << 6,
 
-	SKB_GSO_IPIP = 1 << 7,
+	SKB_GSO_GRE_CSUM = 1 << 7,
 
-	SKB_GSO_SIT = 1 << 8,
+	SKB_GSO_IPIP = 1 << 8,
 
-	SKB_GSO_UDP_TUNNEL = 1 << 9,
+	SKB_GSO_SIT = 1 << 9,
 
-	SKB_GSO_MPLS = 1 << 10,
+	SKB_GSO_UDP_TUNNEL = 1 << 10,
 
 	SKB_GSO_UDP_TUNNEL_CSUM = 1 << 11,
 
-	SKB_GSO_GRE_CSUM = 1 << 12,
+	SKB_GSO_MPLS = 1 << 12,
+
 };
 
 #if BITS_PER_LONG > 32
@@ -1851,6 +1852,18 @@ static inline int skb_inner_network_offset(const struct sk_buff *skb)
 static inline int pskb_network_may_pull(struct sk_buff *skb, unsigned int len)
 {
 	return pskb_may_pull(skb, skb_network_offset(skb) + len);
+}
+
+static inline void skb_pop_rcv_encapsulation(struct sk_buff *skb)
+{
+	/* Only continue with checksum unnecessary if device indicated
+	 * it is valid across encapsulation (skb->encapsulation was set).
+	 */
+	if (skb->ip_summed == CHECKSUM_UNNECESSARY && !skb->encapsulation)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	skb->encapsulation = 0;
+	skb->csum_valid = 0;
 }
 
 /*

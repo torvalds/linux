@@ -1156,15 +1156,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	if (!vs)
 		goto drop;
 
-	/* If the NIC driver gave us an encapsulated packet
-	 * with the encapsulation mark, the device checksummed it
-	 * for us. Otherwise force the upper layers to verify it.
-	 */
-	if ((skb->ip_summed != CHECKSUM_UNNECESSARY && skb->ip_summed != CHECKSUM_PARTIAL) ||
-	    !skb->encapsulation)
-		skb->ip_summed = CHECKSUM_NONE;
-
-	skb->encapsulation = 0;
+	skb_pop_rcv_encapsulation(skb);
 
 	vs->rcv(vs, skb, vxh->vx_vni);
 	return 0;
@@ -1201,6 +1193,7 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 	skb_reset_mac_header(skb);
 	skb_scrub_packet(skb, !net_eq(vxlan->net, dev_net(vxlan->dev)));
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
+	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	/* Ignore packet loops (and multicast echo) */
 	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
@@ -2247,9 +2240,9 @@ static void vxlan_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
 	if (vxlan->default_dst.remote_ip.sa.sa_family == AF_INET6)
-		dev->hard_header_len = ETH_HLEN + VXLAN6_HEADROOM;
+		dev->needed_headroom = ETH_HLEN + VXLAN6_HEADROOM;
 	else
-		dev->hard_header_len = ETH_HLEN + VXLAN_HEADROOM;
+		dev->needed_headroom = ETH_HLEN + VXLAN_HEADROOM;
 
 	dev->netdev_ops = &vxlan_netdev_ops;
 	dev->destructor = free_netdev;
@@ -2646,8 +2639,7 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 		if (!tb[IFLA_MTU])
 			dev->mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 
-		/* update header length based on lower device */
-		dev->hard_header_len = lowerdev->hard_header_len +
+		dev->needed_headroom = lowerdev->hard_header_len +
 				       (use_ipv6 ? VXLAN6_HEADROOM : VXLAN_HEADROOM);
 	} else if (use_ipv6)
 		vxlan->flags |= VXLAN_F_IPV6;
