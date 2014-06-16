@@ -168,7 +168,7 @@ enum cmd_frame_type {
 	SCAN_REQUEST,
 	TSF_UPDATE,
 	PEER_NOTIFY,
-	BLOCK_UNBLOCK,
+	BLOCK_HW_QUEUE,
 	SET_KEY_REQ,
 	AUTO_RATE_IND,
 	BOOTUP_PARAMS_REQUEST,
@@ -293,6 +293,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
 		     u8 key_type, u8 key_id, u32 cipher);
 int rsi_set_channel(struct rsi_common *common, u16 chno);
+int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
 void rsi_inform_bss_status(struct rsi_common *common, u8 status,
 			   const u8 *bssid, u8 qos_enable, u16 aid);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);

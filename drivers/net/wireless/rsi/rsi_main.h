@@ -142,6 +142,12 @@ struct rsi_thread {
 	atomic_t thread_done;
 };
 
+struct cqm_info {
+	s8 last_cqm_event_rssi;
+	int rssi_thold;
+	u32 rssi_hyst;
+};
+
 struct rsi_hw;
 
 struct rsi_common {
@@ -193,6 +199,9 @@ struct rsi_common {
 	u8 selected_qnum;
 	u32 pkt_cnt;
 	u8 min_weight;
+
+	/* bgscan related */
+	struct cqm_info cqm_info;
 
 	bool hw_data_qs_blocked;
 };

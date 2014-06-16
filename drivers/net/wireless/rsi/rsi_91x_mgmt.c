@@ -1201,6 +1201,49 @@ static int rsi_eeprom_read(struct rsi_common *common)
 }
 
 /**
+ * This function sends a frame to block/unblock
+ * data queues in the firmware
+ *
+ * @param common Pointer to the driver private structure.
+ * @param block event - block if true, unblock if false
+ * @return 0 on success, -1 on failure.
+ */
+int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
+{
+	struct rsi_mac_frame *mgmt_frame;
+	struct sk_buff *skb;
+
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending block/unblock frame\n", __func__);
+
+	skb = dev_alloc_skb(FRAME_DESC_SZ);
+	if (!skb) {
+		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of skb\n",
+			__func__);
+		return -ENOMEM;
+	}
+
+	memset(skb->data, 0, FRAME_DESC_SZ);
+	mgmt_frame = (struct rsi_mac_frame *)skb->data;
+
+	mgmt_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
+	mgmt_frame->desc_word[1] = cpu_to_le16(BLOCK_HW_QUEUE);
+
+	if (block_event == true) {
+		rsi_dbg(INFO_ZONE, "blocking the data qs\n");
+		mgmt_frame->desc_word[4] = cpu_to_le16(0xf);
+	} else {
+		rsi_dbg(INFO_ZONE, "unblocking the data qs\n");
+		mgmt_frame->desc_word[5] = cpu_to_le16(0xf);
+	}
+
+	skb_put(skb, FRAME_DESC_SZ);
+
+	return rsi_send_internal_mgmt_frame(common, skb);
+
+}
+
+
+/**
  * rsi_handle_ta_confirm_type() - This function handles the confirm frames.
  * @common: Pointer to the driver private structure.
  * @msg: Pointer to received packet.
