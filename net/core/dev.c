@@ -5432,12 +5432,8 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags)
 	 */
 
 	ret = 0;
-	if ((old_flags ^ flags) & IFF_UP) {	/* Bit is different  ? */
+	if ((old_flags ^ flags) & IFF_UP)
 		ret = ((old_flags & IFF_UP) ? __dev_close : __dev_open)(dev);
-
-		if (!ret)
-			dev_set_rx_mode(dev);
-	}
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
 		int inc = (flags & IFF_PROMISC) ? 1 : -1;
