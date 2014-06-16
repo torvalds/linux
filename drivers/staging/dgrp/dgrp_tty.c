@@ -632,16 +632,6 @@ static int dgrp_tty_open(struct tty_struct *tty, struct file *file)
 	tty->driver_data = un;
 
 	/*
-	 * If we are in the middle of hanging up,
-	 * then return an error
-	 */
-	if (tty_hung_up_p(file)) {
-		retval = ((un->un_flag & UN_HUP_NOTIFY) ?
-			   -EAGAIN : -ERESTARTSYS);
-		goto done;
-	}
-
-	/*
 	 * If the port is in the middle of closing, then block
 	 * until it is done, then try again.
 	 */
