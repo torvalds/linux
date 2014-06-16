@@ -56,7 +56,7 @@
 
 
 #if 1
-#define DBG_PINCTRL(x...) if((((atomic_read(&info->bank_debug_flag) == (bank->bank_num + 1)) && (atomic_read(&info->pin_debug_flag) == (pin + 1))) || ((atomic_read(&info->pin_debug_flag) == 0) && (atomic_read(&info->bank_debug_flag) == (bank->bank_num + 1)))) && bank && info) printk(x)
+#define DBG_PINCTRL(x...) do { if((((atomic_read(&info->bank_debug_flag) == (bank->bank_num + 1)) && (atomic_read(&info->pin_debug_flag) == (pin + 1))) || ((atomic_read(&info->pin_debug_flag) == 0) && (atomic_read(&info->bank_debug_flag) == (bank->bank_num + 1)))) && bank && info) printk(x); } while (0)
 #else
 #define DBG_PINCTRL(x...)
 #endif
@@ -265,9 +265,7 @@ static ssize_t pinctrl_write_proc_data(struct file *file, const char __user *buf
 {	
 	struct rockchip_pinctrl *info;
 	char *buf;
-	u32 len = 0;
 	ssize_t ret;
-	int reg = 0;
 	int bank_value, pin_value;
 	
 	info = file->private_data;
@@ -311,7 +309,7 @@ static ssize_t pinctrl_write_proc_data(struct file *file, const char __user *buf
 
 			if((bank_value < 0))
 			{
-				printk("%s:error:bank is out of range %d\n",__func__, bank_value,info->ctrl->nr_banks-1);
+				printk("%s:error:bank%d is out of range %d\n",__func__, bank_value,info->ctrl->nr_banks-1);
 			}
 			else
 			{
@@ -443,11 +441,13 @@ static int pinctrl_debugfs_init(struct rockchip_pinctrl *info)
 	return 0;
 }
 
+#if 0
 static void pinctrl_debugfs_remove(struct rockchip_pinctrl*info)
 {
 	if (info->debugfs)
 		debugfs_remove_recursive(info->debugfs);
 }
+#endif
 
 #else
 static inline int pinctrl_debugfs_init(struct rockchip_pinctrl*info)
@@ -455,9 +455,11 @@ static inline int pinctrl_debugfs_init(struct rockchip_pinctrl*info)
 	return 0;
 }
 
+#if 0
 static inline void pinctrl_debugfs_remove(struct rockchip_pinctrl*info)
 {
 }
+#endif
 #endif /* CONFIG_DEBUG_FS */
 
 
@@ -625,7 +627,6 @@ static int rk32_iomux_bit_op(struct rockchip_pin_bank *bank, int pin, int mux, v
 	u8 bit;
 	unsigned long flags;	
 	struct rockchip_pinctrl *info = bank->drvdata;
-	void __iomem *reg0 = reg;
 	
 	if(bits == 2)
 	{	
@@ -693,9 +694,6 @@ static int rockchip_set_rk32_mux(struct rockchip_pin_bank *bank, int pin, int mu
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
 	void __iomem *reg = info->reg_mux;
-	unsigned long flags;
-	u8 bit;
-	u32 data;
 	struct union_mode m;
 	u8 bits = 0;
 
@@ -949,6 +947,7 @@ static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
+#if 0
 static void rockchip_pmx_disable(struct pinctrl_dev *pctldev,
 					unsigned selector, unsigned group)
 {
@@ -967,6 +966,7 @@ static void rockchip_pmx_disable(struct pinctrl_dev *pctldev,
 		rockchip_set_mux(bank, pins[cnt] - bank->pin_base, FUNC_TO_GPIO(data[cnt].func));
 	}
 }
+#endif
 
 /*
  * The calls to gpio_direction_output() and gpio_direction_input()
@@ -1211,7 +1211,7 @@ static void rk3288_calc_drv_reg_and_bit(struct rockchip_pin_bank *bank,
 }
 
 
-
+#if 0
 static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
@@ -1257,6 +1257,7 @@ static int rockchip_get_pull(struct rockchip_pin_bank *bank, int pin_num)
 
 	DBG_PINCTRL("%s:GPIO%d-%d pull is 0x%x\n", __func__, bank->bank_num, pin_num, data);
 }
+#endif
 
 static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 					int pin_num, int pull)
@@ -1349,6 +1350,7 @@ static bool rockchip_pinconf_pull_valid(struct rockchip_pin_ctrl *ctrl,
 	return false;
 }
 
+#if 0
 static int _rockchip_pinconf_get(struct rockchip_pin_bank *bank,
 					int pin_num, unsigned long *config, int config_type, unsigned group)
 {
@@ -1530,7 +1532,7 @@ static int _rockchip_pinconf_get(struct rockchip_pin_bank *bank,
 	
 	return 0;
 }
-
+#endif
 
 
 static int _rockchip_pinconf_set(struct rockchip_pin_bank *bank,
@@ -1786,6 +1788,7 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return 0;
 }
 
+#if 0
 /* get the pin config settings for a specified pin */
 static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 							unsigned long *config, unsigned group)
@@ -1842,6 +1845,7 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	return 0;
 }
+#endif
 
 /* set the pin config settings for a specified pin group */
 static int rockchip_pinconf_group_set(struct pinctrl_dev *pctldev,
@@ -2892,12 +2896,13 @@ static int rockchip_pinctrl_suspend(void)
 	struct rockchip_pinctrl *info = g_info;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	int n, i = 0;
+	int n;
 	//int value = 0;
 		
 	for(n=0; n<ctrl->nr_banks-1; n++)
 	{
 #if 0
+		int i;
 		for(i=0; i<0x60; i=i+4)
 		{
 			value = readl_relaxed(bank->reg_base + i);
@@ -2924,16 +2929,16 @@ static void rockchip_pinctrl_resume(void)
 	struct rockchip_pinctrl *info = g_info;
 	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 	struct rockchip_pin_bank *bank = ctrl->pin_banks;
-	int n, i = 0;
-	int value = 0;	
+	int n;
 	u32 isr;
 
 	for(n=0; n<ctrl->nr_banks-1; n++)
 	{
 #if 0
+		int i;
 		for(i=0; i<0x60; i=i+4)
 		{
-			value = readl_relaxed(bank->reg_base + i);
+			u32 value = readl_relaxed(bank->reg_base + i);
 			printk("%s:bank_num=%d,reg[0x%x+0x%x]=0x%x,bank_name=%s\n",__func__,bank->bank_num, bank->reg_base, i, value, bank->name);
 		}
 #endif		
@@ -2959,9 +2964,7 @@ static struct gpio_init_config *
 of_get_gpio_init_config(struct device *dev, struct device_node *np)
 {
 	struct gpio_init_config *config;
-	struct property *prop;
-	const char *regtype;
-	int proplen, gpio, i;	
+	int gpio, i;	
 	enum of_gpio_flags flags;
 
 	config = devm_kzalloc(dev,
@@ -2987,7 +2990,7 @@ of_get_gpio_init_config(struct device *dev, struct device_node *np)
 		config->gpios[i].gpio = gpio;	
 		config->gpios[i].flags = flags & OF_GPIO_ACTIVE_LOW;
 		
-		printk("%s:gpio[%d] = %d, value = %d\n",__func__, i, gpio, config->gpios[i].flags);
+		printk("%s:gpio[%d] = %d, value = %lu\n",__func__, i, gpio, config->gpios[i].flags);
 	}
 
 	return config;
@@ -3097,7 +3100,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 			break;
 			
-		defualt:
+		default:
 			printk("%s:unknown chip type %d\n",__func__, (int)ctrl->type);
 			return -1;
 
