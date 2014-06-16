@@ -38,14 +38,14 @@ void tegra20_init_fuse_early(void);
 u32 tegra20_fuse_early(const unsigned int offset);
 #else
 static inline void tegra20_init_speedo_data(struct tegra_sku_info *sku_info) {}
-static inline bool tegra20_spare_fuse_early(int spare_bit, void *fuse_base)
+static inline bool tegra20_spare_fuse_early(int spare_bit)
 {
-			return false;
+	return false;
 }
-static inline void tegra20_init_fuse_early(void);
-static inline tegra20_fuse_early(const unsigned int offset);
+static inline void tegra20_init_fuse_early(void) {}
+static inline u32 tegra20_fuse_early(const unsigned int offset)
 {
-			return 0;
+	return 0;
 }
 #endif
 
