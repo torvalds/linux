@@ -9,8 +9,8 @@
  * (at your option) any later version.
  */
  
-#ifndef __RK_SDMMC_OF_H
-#define __RK_SDMMC_OF_H
+#ifndef __RK_SDMMC_DBG_H
+#define __RK_SDMMC_DBG_H
 
 #include <linux/of_gpio.h>
 #include <linux/of_i2c.h>
@@ -21,7 +21,6 @@
 #define DRIVER_NAME "rk_sdmmc"
 #define DRIVER_PREFIX DRIVER_NAME ": "
 #define DRIVER_VER  "Dw-mci-rockchip"
-#define DW_MMC_OF_PROBE 0
 
 enum MMC_DBG_MASK{
      MMC_DBG_NONE = 0,
@@ -112,19 +111,5 @@ extern char dbg_flag[];
                    ##arg); \
            } while (0)
 #endif
-
-#if DW_MMC_OF_PROBE
-struct rk_sdmmc_of
-{
-    u32 mmc_caps;
-    u32 mmc_int_type;
-    u32 mmc_ocr;
-    u32 mmc_dma_is_used[2]; /*Bit 1: use dma or not ; Bit 2:general dma or idma*/
-    u32 emmc_is_selected;
-    u32 mmc_dma_chn;
-    const char *mmc_dma_name;
-
-};
-#endif /*DW_MMC_OF_PROBE*/
 
 #endif

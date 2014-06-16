@@ -15,7 +15,7 @@
 
 #ifndef _DW_MMC_H_
 #define _DW_MMC_H_
-#include "rk_sdmmc_of.h"
+#include "rk_sdmmc_dbg.h"
 
 #define DW_MMC_240A			0x240a
 

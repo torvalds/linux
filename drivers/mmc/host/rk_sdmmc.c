@@ -44,7 +44,7 @@
 #include <linux/rockchip/cpu.h>
 
 #include "rk_sdmmc.h"
-#include "rk_sdmmc_of.h"
+#include "rk_sdmmc_dbg.h"
 #include <linux/regulator/rockchip_io_vol_domain.h>
 #include "../../clk/rockchip/clk-ops.h"
 
