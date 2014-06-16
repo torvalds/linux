@@ -73,8 +73,8 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/delay.h>
-#include <asm/io.h>
-#include <asm/bitops.h>
+#include <linux/io.h>
+#include <linux/bitops.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
