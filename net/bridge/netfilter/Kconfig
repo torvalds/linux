@@ -202,22 +202,6 @@ config BRIDGE_EBT_LOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config BRIDGE_EBT_ULOG
-	tristate "ebt: ulog support (OBSOLETE)"
-	help
-	  This option enables the old bridge-specific "ebt_ulog" implementation
-	  which has been obsoleted by the new "nfnetlink_log" code (see
-	  CONFIG_NETFILTER_NETLINK_LOG).
-
-	  This option adds the ulog watcher, that you can use in any rule
-	  in any ebtables table. The packet is passed to a userspace
-	  logging daemon using netlink multicast sockets. This differs
-	  from the log watcher in the sense that the complete packet is
-	  sent to userspace instead of a descriptive text and that
-	  netlink multicast sockets are used instead of the syslog.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config BRIDGE_EBT_NFLOG
 	tristate "ebt: nflog support"
 	help
