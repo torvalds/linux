@@ -1816,26 +1816,28 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 
-	if (IS_G4X(dev)) {
-		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
+	if (hotplug_status) {
+		I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+		/*
+		 * Make sure hotplug status is cleared before we clear IIR, or else we
+		 * may miss hotplug events.
+		 */
+		POSTING_READ(PORT_HOTPLUG_STAT);
 
-		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
-	} else {
-		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
+		if (IS_G4X(dev)) {
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
-		intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_g4x);
+		} else {
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
+
+			intel_hpd_irq_handler(dev, hotplug_trigger, hpd_status_i915);
+		}
+
+		if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
+		    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+			dp_aux_irq_handler(dev);
 	}
-
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
-	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		dp_aux_irq_handler(dev);
-
-	I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-	/*
-	 * Make sure hotplug status is cleared before we clear IIR, or else we
-	 * may miss hotplug events.
-	 */
-	POSTING_READ(PORT_HOTPLUG_STAT);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
@@ -1846,29 +1848,36 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	irqreturn_t ret = IRQ_NONE;
 
 	while (true) {
-		iir = I915_READ(VLV_IIR);
+		/* Find, clear, then process each source of interrupt */
+
 		gt_iir = I915_READ(GTIIR);
+		if (gt_iir)
+			I915_WRITE(GTIIR, gt_iir);
+
 		pm_iir = I915_READ(GEN6_PMIIR);
+		if (pm_iir)
+			I915_WRITE(GEN6_PMIIR, pm_iir);
+
+		iir = I915_READ(VLV_IIR);
+		if (iir) {
+			/* Consume port before clearing IIR or we'll miss events */
+			if (iir & I915_DISPLAY_PORT_INTERRUPT)
+				i9xx_hpd_irq_handler(dev);
+			I915_WRITE(VLV_IIR, iir);
+		}
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
 			goto out;
 
 		ret = IRQ_HANDLED;
 
-		snb_gt_irq_handler(dev, dev_priv, gt_iir);
-
-		valleyview_pipestat_irq_handler(dev, iir);
-
-		/* Consume port.  Then clear IIR or we'll miss events */
-		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			i9xx_hpd_irq_handler(dev);
-
+		if (gt_iir)
+			snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		if (pm_iir)
 			gen6_rps_irq_handler(dev_priv, pm_iir);
-
-		I915_WRITE(GTIIR, gt_iir);
-		I915_WRITE(GEN6_PMIIR, pm_iir);
-		I915_WRITE(VLV_IIR, iir);
+		/* Call regardless, as some status bits might not be
+		 * signalled in iir */
+		valleyview_pipestat_irq_handler(dev, iir);
 	}
 
 out:
