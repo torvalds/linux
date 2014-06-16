@@ -2265,21 +2265,13 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	/* pin-based controls */
 	rdmsr(MSR_IA32_VMX_PINBASED_CTLS,
 	      nested_vmx_pinbased_ctls_low, nested_vmx_pinbased_ctls_high);
-	/*
-	 * According to the Intel spec, if bit 55 of VMX_BASIC is off (as it is
-	 * in our case), bits 1, 2 and 4 (i.e., 0x16) must be 1 in this MSR.
-	 */
 	nested_vmx_pinbased_ctls_low |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_pinbased_ctls_high &= PIN_BASED_EXT_INTR_MASK |
 		PIN_BASED_NMI_EXITING | PIN_BASED_VIRTUAL_NMIS;
 	nested_vmx_pinbased_ctls_high |= PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
 
-	/*
-	 * Exit controls
-	 * If bit 55 of VMX_BASIC is off, bits 0-8 and 10, 11, 13, 14, 16 and
-	 * 17 must be 1.
-	 */
+	/* exit controls */
 	rdmsr(MSR_IA32_VMX_EXIT_CTLS,
 		nested_vmx_exit_ctls_low, nested_vmx_exit_ctls_high);
 	nested_vmx_exit_ctls_low = VM_EXIT_ALWAYSON_WITHOUT_TRUE_MSR;
@@ -2299,7 +2291,6 @@ static __init void nested_vmx_setup_ctls_msrs(void)
 	/* entry controls */
 	rdmsr(MSR_IA32_VMX_ENTRY_CTLS,
 		nested_vmx_entry_ctls_low, nested_vmx_entry_ctls_high);
-	/* If bit 55 of VMX_BASIC is off, bits 0-8 and 12 must be 1. */
 	nested_vmx_entry_ctls_low = VM_ENTRY_ALWAYSON_WITHOUT_TRUE_MSR;
 	nested_vmx_entry_ctls_high &=
 #ifdef CONFIG_X86_64
@@ -2394,7 +2385,7 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 		 * guest, and the VMCS structure we give it - not about the
 		 * VMX support of the underlying hardware.
 		 */
-		*pdata = VMCS12_REVISION |
+		*pdata = VMCS12_REVISION | VMX_BASIC_TRUE_CTLS |
 			   ((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
 			   (VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
 		break;
