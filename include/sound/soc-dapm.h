@@ -431,7 +431,7 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
 					   const char *pin);
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin);
-void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec);
+void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card);
 
 /* Mostly internal - should not normally be used */
 void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm);

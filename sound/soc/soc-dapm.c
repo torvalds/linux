@@ -3763,36 +3763,31 @@ static bool snd_soc_dapm_widget_in_card_paths(struct snd_soc_card *card,
 }
 
 /**
- * snd_soc_dapm_auto_nc_codec_pins - call snd_soc_dapm_nc_pin for unused pins
- * @codec: The codec whose pins should be processed
+ * snd_soc_dapm_auto_nc_pins - call snd_soc_dapm_nc_pin for unused pins
+ * @card: The card whose pins should be processed
  *
- * Automatically call snd_soc_dapm_nc_pin() for any external pins in the codec
- * which are unused. Pins are used if they are connected externally to the
- * codec, whether that be to some other device, or a loop-back connection to
- * the codec itself.
+ * Automatically call snd_soc_dapm_nc_pin() for any external pins in the card
+ * which are unused. Pins are used if they are connected externally to a
+ * component, whether that be to some other device, or a loop-back connection to
+ * the component itself.
  */
-void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec)
+void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card)
 {
-	struct snd_soc_card *card = codec->card;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_dapm_widget *w;
 
-	dev_dbg(codec->dev, "ASoC: Auto NC: DAPMs: card:%p codec:%p\n",
-		&card->dapm, &codec->dapm);
+	dev_dbg(card->dev, "ASoC: Auto NC: DAPMs: card:%p\n", &card->dapm);
 
 	list_for_each_entry(w, &card->widgets, list) {
-		if (w->dapm != dapm)
-			continue;
 		switch (w->id) {
 		case snd_soc_dapm_input:
 		case snd_soc_dapm_output:
 		case snd_soc_dapm_micbias:
-			dev_dbg(codec->dev, "ASoC: Auto NC: Checking widget %s\n",
+			dev_dbg(card->dev, "ASoC: Auto NC: Checking widget %s\n",
 				w->name);
 			if (!snd_soc_dapm_widget_in_card_paths(card, w)) {
-				dev_dbg(codec->dev,
+				dev_dbg(card->dev,
 					"... Not in map; disabling\n");
-				snd_soc_dapm_nc_pin(dapm, w->name);
+				snd_soc_dapm_nc_pin(w->dapm, w->name);
 			}
 			break;
 		default:
