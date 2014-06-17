@@ -105,7 +105,7 @@ __ftrace_make_nop(struct module *mod,
 		  struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int op;
-	unsigned long ptr;
+	unsigned long entry, ptr;
 	unsigned long ip = rec->ip;
 	void *tramp;
 
@@ -136,10 +136,11 @@ __ftrace_make_nop(struct module *mod,
 
 	pr_devel("trampoline target %lx", ptr);
 
+	entry = ppc_global_function_entry((void *)addr);
 	/* This should match what was called */
-	if (ptr != ppc_function_entry((void *)addr)) {
+	if (ptr != entry) {
 		printk(KERN_ERR "addr %lx does not match expected %lx\n",
-			ptr, ppc_function_entry((void *)addr));
+			ptr, entry);
 		return -EINVAL;
 	}
 
