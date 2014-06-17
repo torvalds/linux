@@ -2,8 +2,6 @@
 #define __ASM_R8A7779_H__
 
 #include <linux/sh_clk.h>
-#include <linux/pm_domain.h>
-#include <mach/pm-rcar.h>
 
 /* HPB-DMA slave IDs */
 enum {
@@ -11,16 +9,6 @@ enum {
 	HPBDMA_SLAVE_SDHI0_TX,
 	HPBDMA_SLAVE_SDHI0_RX,
 };
-
-struct r8a7779_pm_domain {
-	struct generic_pm_domain genpd;
-	struct rcar_sysc_ch ch;
-};
-
-static inline struct rcar_sysc_ch *to_r8a7779_ch(struct generic_pm_domain *d)
-{
-	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
-}
 
 extern void r8a7779_init_delay(void);
 extern void r8a7779_init_irq_extpin(int irlm);
