@@ -20,6 +20,7 @@ config BCM47XX_SSB
 config BCM47XX_BCMA
 	bool "BCMA Support for Broadcom BCM47XX"
 	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_HIGHMEM
 	select CPU_MIPSR2_IRQ_VI
 	select BCMA
 	select BCMA_HOST_SOC
