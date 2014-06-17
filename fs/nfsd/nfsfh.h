@@ -73,8 +73,15 @@ enum fsid_source {
 extern enum fsid_source fsid_source(struct svc_fh *fhp);
 
 
-/* This might look a little large to "inline" but in all calls except
+/*
+ * This might look a little large to "inline" but in all calls except
  * one, 'vers' is constant so moste of the function disappears.
+ *
+ * In some cases the values are considered to be host endian and in
+ * others, net endian. fsidv is always considered to be u32 as the
+ * callers don't know which it will be. So we must use __force to keep
+ * sparse from complaining. Since these values are opaque to the
+ * client, that shouldn't be a problem.
  */
 static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 			   u32 fsid, unsigned char *uuid)
@@ -82,7 +89,7 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 	u32 *up;
 	switch(vers) {
 	case FSID_DEV:
-		fsidv[0] = htonl((MAJOR(dev)<<16) |
+		fsidv[0] = (__force __u32)htonl((MAJOR(dev)<<16) |
 				 MINOR(dev));
 		fsidv[1] = ino_t_to_u32(ino);
 		break;
@@ -90,8 +97,8 @@ static inline void mk_fsid(int vers, u32 *fsidv, dev_t dev, ino_t ino,
 		fsidv[0] = fsid;
 		break;
 	case FSID_MAJOR_MINOR:
-		fsidv[0] = htonl(MAJOR(dev));
-		fsidv[1] = htonl(MINOR(dev));
+		fsidv[0] = (__force __u32)htonl(MAJOR(dev));
+		fsidv[1] = (__force __u32)htonl(MINOR(dev));
 		fsidv[2] = ino_t_to_u32(ino);
 		break;
 
