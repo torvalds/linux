@@ -215,24 +215,14 @@
 	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset)); \
 })
 
-/*
- * A percpu variable may point to a discarded regions. The following are
- * established ways to produce a usable pointer from the percpu variable
- * offset.
- */
-#define per_cpu(var, cpu) \
-	(*SHIFT_PERCPU_PTR(&(var), per_cpu_offset(cpu)))
-
-#define raw_cpu_ptr(ptr) arch_raw_cpu_ptr(ptr)
+#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+#define raw_cpu_ptr(ptr)	arch_raw_cpu_ptr(ptr)
 
 #ifdef CONFIG_DEBUG_PREEMPT
 #define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
 #else
 #define this_cpu_ptr(ptr) raw_cpu_ptr(ptr)
 #endif
-
-#define __get_cpu_var(var) (*this_cpu_ptr(&(var)))
-#define __raw_get_cpu_var(var) (*raw_cpu_ptr(&(var)))
 
 #else	/* CONFIG_SMP */
 
@@ -241,13 +231,15 @@
 	(typeof(*(__p)) __kernel __force *)(__p);	\
 })
 
-#define per_cpu(var, cpu)	(*((void)(cpu), VERIFY_PERCPU_PTR(&(var))))
-#define __get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
-#define __raw_get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
-#define this_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
-#define raw_cpu_ptr(ptr)	this_cpu_ptr(ptr)
+#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
+#define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
+#define this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 
 #endif	/* CONFIG_SMP */
+
+#define per_cpu(var, cpu)	(*per_cpu_ptr(&(var), cpu))
+#define __raw_get_cpu_var(var)	(*raw_cpu_ptr(&(var)))
+#define __get_cpu_var(var)	(*this_cpu_ptr(&(var)))
 
 /* keep until we have removed all uses of __this_cpu_ptr */
 #define __this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
@@ -277,12 +269,6 @@
 	(void)(var);					\
 	preempt_enable();				\
 } while (0)
-
-#ifdef CONFIG_SMP
-#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
-#else
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
-#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* _LINUX_PERCPU_DEFS_H */
