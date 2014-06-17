@@ -22,9 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/clock.h>
 #include <mach/common.h>
 #include <mach/r8a7790.h>
+#include "clock.h"
 
 /*
  *   MD		EXTAL		PLL0	PLL1	PLL3
