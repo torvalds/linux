@@ -41,6 +41,7 @@
 #include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
+#include "pm-rmobile.h"
 
 static struct map_desc sh7372_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xe6xxxxxx

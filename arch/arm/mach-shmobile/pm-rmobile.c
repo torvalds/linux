@@ -17,7 +17,7 @@
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <asm/io.h>
-#include <mach/pm-rmobile.h>
+#include "pm-rmobile.h"
 
 /* SYSC */
 #define SPDCR		IOMEM(0xe6180008)

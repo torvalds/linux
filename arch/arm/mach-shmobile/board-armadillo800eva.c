@@ -61,6 +61,7 @@
 #include <sound/simple_card.h>
 #include "common.h"
 #include "irqs.h"
+#include "pm-rmobile.h"
 #include "sh-gpio.h"
 
 /*

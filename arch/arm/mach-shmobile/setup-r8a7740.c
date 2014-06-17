@@ -32,7 +32,6 @@
 #include <linux/sh_timer.h>
 #include <linux/platform_data/sh_ipmmu.h>
 #include <mach/r8a7740.h>
-#include <mach/pm-rmobile.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
@@ -40,6 +39,7 @@
 #include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
+#include "pm-rmobile.h"
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*

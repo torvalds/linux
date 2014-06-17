@@ -10,8 +10,8 @@
  */
 #include <linux/console.h>
 #include <linux/suspend.h>
-#include <mach/pm-rmobile.h>
 #include "common.h"
+#include "pm-rmobile.h"
 
 #ifdef CONFIG_PM
 static int r8a7740_pd_a4s_suspend(void)
