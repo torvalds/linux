@@ -248,17 +248,11 @@ static int bt_get(struct blk_mq_alloc_data *data,
 
 	bs = bt_wait_ptr(bt, hctx);
 	do {
-		bool was_empty;
-
-		was_empty = list_empty(&wait.task_list);
 		prepare_to_wait(&bs->wait, &wait, TASK_UNINTERRUPTIBLE);
 
 		tag = __bt_get(hctx, bt, last_tag);
 		if (tag != -1)
 			break;
-
-		if (was_empty)
-			atomic_set(&bs->wait_cnt, bt->wake_cnt);
 
 		blk_mq_put_ctx(data->ctx);
 
@@ -519,10 +513,13 @@ static int bt_alloc(struct blk_mq_bitmap_tags *bt, unsigned int depth,
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < BT_WAIT_QUEUES; i++)
-		init_waitqueue_head(&bt->bs[i].wait);
-
 	bt_update_count(bt, depth);
+
+	for (i = 0; i < BT_WAIT_QUEUES; i++) {
+		init_waitqueue_head(&bt->bs[i].wait);
+		atomic_set(&bt->bs[i].wait_cnt, bt->wake_cnt);
+	}
+
 	return 0;
 }
 
