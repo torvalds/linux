@@ -198,7 +198,8 @@
  * + 0 is required in order to convert the pointer type from a
  * potential array type to a pointer to a single item of the array.
  */
-#define __verify_pcpu_ptr(ptr)	do {					\
+#define __verify_pcpu_ptr(ptr)						\
+do {									\
 	const void __percpu *__vpp_verify = (typeof((ptr) + 0))NULL;	\
 	(void)__vpp_verify;						\
 } while (0)
@@ -210,12 +211,13 @@
  * to prevent the compiler from making incorrect assumptions about the
  * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
-#define SHIFT_PERCPU_PTR(__p, __offset)	({				\
-	__verify_pcpu_ptr((__p));					\
+#define SHIFT_PERCPU_PTR(__p, __offset)					\
+({									\
+	__verify_pcpu_ptr(__p);						\
 	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset)); \
 })
 
-#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR(ptr, per_cpu_offset(cpu))
 #define raw_cpu_ptr(ptr)	arch_raw_cpu_ptr(ptr)
 
 #ifdef CONFIG_DEBUG_PREEMPT
@@ -226,12 +228,13 @@
 
 #else	/* CONFIG_SMP */
 
-#define VERIFY_PERCPU_PTR(__p) ({			\
-	__verify_pcpu_ptr((__p));			\
-	(typeof(*(__p)) __kernel __force *)(__p);	\
+#define VERIFY_PERCPU_PTR(__p)						\
+({									\
+	__verify_pcpu_ptr(__p);						\
+	(typeof(*(__p)) __kernel __force *)(__p);			\
 })
 
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
+#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR(ptr); })
 #define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
 #define this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 
@@ -248,26 +251,32 @@
  * Must be an lvalue. Since @var must be a simple identifier,
  * we force a syntax error here if it isn't.
  */
-#define get_cpu_var(var) (*({				\
-	preempt_disable();				\
-	this_cpu_ptr(&var); }))
+#define get_cpu_var(var)						\
+(*({									\
+	preempt_disable();						\
+	this_cpu_ptr(&var);						\
+}))
 
 /*
  * The weird & is necessary because sparse considers (void)(var) to be
  * a direct dereference of percpu variable (var).
  */
-#define put_cpu_var(var) do {				\
-	(void)&(var);					\
-	preempt_enable();				\
+#define put_cpu_var(var)						\
+do {									\
+	(void)&(var);							\
+	preempt_enable();						\
 } while (0)
 
-#define get_cpu_ptr(var) ({				\
-	preempt_disable();				\
-	this_cpu_ptr(var); })
+#define get_cpu_ptr(var)						\
+({									\
+	preempt_disable();						\
+	this_cpu_ptr(var);						\
+})
 
-#define put_cpu_ptr(var) do {				\
-	(void)(var);					\
-	preempt_enable();				\
+#define put_cpu_ptr(var)						\
+do {									\
+	(void)(var);							\
+	preempt_enable();						\
 } while (0)
 
 /*
@@ -284,15 +293,16 @@ static inline void __this_cpu_preempt_check(const char *op) { }
 #endif
 
 #define __pcpu_size_call_return(stem, variable)				\
-({	typeof(variable) pscr_ret__;					\
+({									\
+	typeof(variable) pscr_ret__;					\
 	__verify_pcpu_ptr(&(variable));					\
 	switch(sizeof(variable)) {					\
-	case 1: pscr_ret__ = stem##1(variable);break;			\
-	case 2: pscr_ret__ = stem##2(variable);break;			\
-	case 4: pscr_ret__ = stem##4(variable);break;			\
-	case 8: pscr_ret__ = stem##8(variable);break;			\
+	case 1: pscr_ret__ = stem##1(variable); break;			\
+	case 2: pscr_ret__ = stem##2(variable); break;			\
+	case 4: pscr_ret__ = stem##4(variable); break;			\
+	case 8: pscr_ret__ = stem##8(variable); break;			\
 	default:							\
-		__bad_size_call_parameter();break;			\
+		__bad_size_call_parameter(); break;			\
 	}								\
 	pscr_ret__;							\
 })
@@ -323,11 +333,11 @@ static inline void __this_cpu_preempt_check(const char *op) { }
 #define __pcpu_double_call_return_bool(stem, pcp1, pcp2, ...)		\
 ({									\
 	bool pdcrb_ret__;						\
-	__verify_pcpu_ptr(&pcp1);					\
+	__verify_pcpu_ptr(&(pcp1));					\
 	BUILD_BUG_ON(sizeof(pcp1) != sizeof(pcp2));			\
-	VM_BUG_ON((unsigned long)(&pcp1) % (2 * sizeof(pcp1)));		\
-	VM_BUG_ON((unsigned long)(&pcp2) !=				\
-		  (unsigned long)(&pcp1) + sizeof(pcp1));		\
+	VM_BUG_ON((unsigned long)(&(pcp1)) % (2 * sizeof(pcp1)));	\
+	VM_BUG_ON((unsigned long)(&(pcp2)) !=				\
+		  (unsigned long)(&(pcp1)) + sizeof(pcp1));		\
 	switch(sizeof(pcp1)) {						\
 	case 1: pdcrb_ret__ = stem##1(pcp1, pcp2, __VA_ARGS__); break;	\
 	case 2: pdcrb_ret__ = stem##2(pcp1, pcp2, __VA_ARGS__); break;	\
@@ -367,117 +377,132 @@ do {									\
  * cpu atomic operations for 2 byte sized RMW actions. If arch code does
  * not provide operations for a scalar size then the fallback in the
  * generic code will be used.
- */
-
-/*
- * Generic percpu operations for contexts where we do not want to do
- * any checks for preemptiosn.
  *
- * If there is no other protection through preempt disable and/or
- * disabling interupts then one of these RMW operations can show unexpected
- * behavior because the execution thread was rescheduled on another processor
- * or an interrupt occurred and the same percpu variable was modified from
- * the interrupt context.
+ * cmpxchg_double replaces two adjacent scalars at once.  The first two
+ * parameters are per cpu variables which have to be of the same size.  A
+ * truth value is returned to indicate success or failure (since a double
+ * register result is difficult to handle).  There is very limited hardware
+ * support for these operations, so only certain sizes may work.
  */
-# define raw_cpu_read(pcp)	__pcpu_size_call_return(raw_cpu_read_, (pcp))
-# define raw_cpu_write(pcp, val)	__pcpu_size_call(raw_cpu_write_, (pcp), (val))
-# define raw_cpu_add(pcp, val)	__pcpu_size_call(raw_cpu_add_, (pcp), (val))
-# define raw_cpu_sub(pcp, val)	raw_cpu_add((pcp), -(val))
-# define raw_cpu_inc(pcp)		raw_cpu_add((pcp), 1)
-# define raw_cpu_dec(pcp)		raw_cpu_sub((pcp), 1)
-# define raw_cpu_and(pcp, val)	__pcpu_size_call(raw_cpu_and_, (pcp), (val))
-# define raw_cpu_or(pcp, val)	__pcpu_size_call(raw_cpu_or_, (pcp), (val))
-# define raw_cpu_add_return(pcp, val)	\
-	__pcpu_size_call_return2(raw_cpu_add_return_, pcp, val)
-#define raw_cpu_sub_return(pcp, val)	raw_cpu_add_return(pcp, -(typeof(pcp))(val))
-#define raw_cpu_inc_return(pcp)	raw_cpu_add_return(pcp, 1)
-#define raw_cpu_dec_return(pcp)	raw_cpu_add_return(pcp, -1)
-# define raw_cpu_xchg(pcp, nval)	\
-	__pcpu_size_call_return2(raw_cpu_xchg_, (pcp), nval)
-# define raw_cpu_cmpxchg(pcp, oval, nval)	\
-	__pcpu_size_call_return2(raw_cpu_cmpxchg_, pcp, oval, nval)
-# define raw_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	__pcpu_double_call_return_bool(raw_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
 
 /*
- * Generic percpu operations for context that are safe from preemption/interrupts.
+ * Operations for contexts where we do not want to do any checks for
+ * preemptions.  Unless strictly necessary, always use [__]this_cpu_*()
+ * instead.
+ *
+ * If there is no other protection through preempt disable and/or disabling
+ * interupts then one of these RMW operations can show unexpected behavior
+ * because the execution thread was rescheduled on another processor or an
+ * interrupt occurred and the same percpu variable was modified from the
+ * interrupt context.
  */
-# define __this_cpu_read(pcp) \
-	(__this_cpu_preempt_check("read"),raw_cpu_read(pcp))
+#define raw_cpu_read(pcp)		__pcpu_size_call_return(raw_cpu_read_, pcp)
+#define raw_cpu_write(pcp, val)		__pcpu_size_call(raw_cpu_write_, pcp, val)
+#define raw_cpu_add(pcp, val)		__pcpu_size_call(raw_cpu_add_, pcp, val)
+#define raw_cpu_and(pcp, val)		__pcpu_size_call(raw_cpu_and_, pcp, val)
+#define raw_cpu_or(pcp, val)		__pcpu_size_call(raw_cpu_or_, pcp, val)
+#define raw_cpu_add_return(pcp, val)	__pcpu_size_call_return2(raw_cpu_add_return_, pcp, val)
+#define raw_cpu_xchg(pcp, nval)		__pcpu_size_call_return2(raw_cpu_xchg_, pcp, nval)
+#define raw_cpu_cmpxchg(pcp, oval, nval) \
+	__pcpu_size_call_return2(raw_cpu_cmpxchg_, pcp, oval, nval)
+#define raw_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	__pcpu_double_call_return_bool(raw_cpu_cmpxchg_double_, pcp1, pcp2, oval1, oval2, nval1, nval2)
 
-# define __this_cpu_write(pcp, val)					\
-do { __this_cpu_preempt_check("write");					\
-     raw_cpu_write(pcp, val);						\
-} while (0)
+#define raw_cpu_sub(pcp, val)		raw_cpu_add(pcp, -(val))
+#define raw_cpu_inc(pcp)		raw_cpu_add(pcp, 1)
+#define raw_cpu_dec(pcp)		raw_cpu_sub(pcp, 1)
+#define raw_cpu_sub_return(pcp, val)	raw_cpu_add_return(pcp, -(typeof(pcp))(val))
+#define raw_cpu_inc_return(pcp)		raw_cpu_add_return(pcp, 1)
+#define raw_cpu_dec_return(pcp)		raw_cpu_add_return(pcp, -1)
 
-# define __this_cpu_add(pcp, val)					 \
-do { __this_cpu_preempt_check("add");					\
+/*
+ * Operations for contexts that are safe from preemption/interrupts.  These
+ * operations verify that preemption is disabled.
+ */
+#define __this_cpu_read(pcp)						\
+({									\
+	__this_cpu_preempt_check("read");				\
+	raw_cpu_read(pcp);						\
+})
+
+#define __this_cpu_write(pcp, val)					\
+({									\
+	__this_cpu_preempt_check("write");				\
+	raw_cpu_write(pcp, val);					\
+})
+
+#define __this_cpu_add(pcp, val)					\
+({									\
+	__this_cpu_preempt_check("add");				\
 	raw_cpu_add(pcp, val);						\
-} while (0)
+})
 
-# define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(typeof(pcp))(val))
-# define __this_cpu_inc(pcp)		__this_cpu_add((pcp), 1)
-# define __this_cpu_dec(pcp)		__this_cpu_sub((pcp), 1)
-
-# define __this_cpu_and(pcp, val)					\
-do { __this_cpu_preempt_check("and");					\
+#define __this_cpu_and(pcp, val)					\
+({									\
+	__this_cpu_preempt_check("and");				\
 	raw_cpu_and(pcp, val);						\
-} while (0)
+})
 
-# define __this_cpu_or(pcp, val)					\
-do { __this_cpu_preempt_check("or");					\
+#define __this_cpu_or(pcp, val)						\
+({									\
+	__this_cpu_preempt_check("or");					\
 	raw_cpu_or(pcp, val);						\
-} while (0)
+})
 
-# define __this_cpu_add_return(pcp, val)	\
-	(__this_cpu_preempt_check("add_return"),raw_cpu_add_return(pcp, val))
+#define __this_cpu_add_return(pcp, val)					\
+({									\
+	__this_cpu_preempt_check("add_return");				\
+	raw_cpu_add_return(pcp, val);					\
+})
 
+#define __this_cpu_xchg(pcp, nval)					\
+({									\
+	__this_cpu_preempt_check("xchg");				\
+	raw_cpu_xchg(pcp, nval);					\
+})
+
+#define __this_cpu_cmpxchg(pcp, oval, nval)				\
+({									\
+	__this_cpu_preempt_check("cmpxchg");				\
+	raw_cpu_cmpxchg(pcp, oval, nval);				\
+})
+
+#define __this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+({	__this_cpu_preempt_check("cmpxchg_double");			\
+	raw_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2);	\
+})
+
+#define __this_cpu_sub(pcp, val)	__this_cpu_add(pcp, -(typeof(pcp))(val))
+#define __this_cpu_inc(pcp)		__this_cpu_add(pcp, 1)
+#define __this_cpu_dec(pcp)		__this_cpu_sub(pcp, 1)
 #define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(typeof(pcp))(val))
 #define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
 #define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
 
-# define __this_cpu_xchg(pcp, nval)	\
-	(__this_cpu_preempt_check("xchg"),raw_cpu_xchg(pcp, nval))
-
-# define __this_cpu_cmpxchg(pcp, oval, nval)	\
-	(__this_cpu_preempt_check("cmpxchg"),raw_cpu_cmpxchg(pcp, oval, nval))
-
-# define __this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	(__this_cpu_preempt_check("cmpxchg_double"),raw_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2))
-
 /*
- * this_cpu_*() operations are used for accesses that must be done in a
- * preemption safe way since we know that the context is not preempt
- * safe. Interrupts may occur. If the interrupt modifies the variable too
- * then RMW actions will not be reliable.
+ * Operations with implied preemption protection.  These operations can be
+ * used without worrying about preemption.  Note that interrupts may still
+ * occur while an operation is in progress and if the interrupt modifies
+ * the variable too then RMW actions may not be reliable.
  */
-# define this_cpu_read(pcp)	__pcpu_size_call_return(this_cpu_read_, (pcp))
-# define this_cpu_write(pcp, val)	__pcpu_size_call(this_cpu_write_, (pcp), (val))
-# define this_cpu_add(pcp, val)		__pcpu_size_call(this_cpu_add_, (pcp), (val))
-# define this_cpu_sub(pcp, val)		this_cpu_add((pcp), -(typeof(pcp))(val))
-# define this_cpu_inc(pcp)		this_cpu_add((pcp), 1)
-# define this_cpu_dec(pcp)		this_cpu_sub((pcp), 1)
-# define this_cpu_and(pcp, val)		__pcpu_size_call(this_cpu_and_, (pcp), (val))
-# define this_cpu_or(pcp, val)		__pcpu_size_call(this_cpu_or_, (pcp), (val))
-# define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+#define this_cpu_read(pcp)		__pcpu_size_call_return(this_cpu_read_, pcp)
+#define this_cpu_write(pcp, val)	__pcpu_size_call(this_cpu_write_, pcp, val)
+#define this_cpu_add(pcp, val)		__pcpu_size_call(this_cpu_add_, pcp, val)
+#define this_cpu_and(pcp, val)		__pcpu_size_call(this_cpu_and_, pcp, val)
+#define this_cpu_or(pcp, val)		__pcpu_size_call(this_cpu_or_, pcp, val)
+#define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+#define this_cpu_xchg(pcp, nval)	__pcpu_size_call_return2(this_cpu_xchg_, pcp, nval)
+#define this_cpu_cmpxchg(pcp, oval, nval) \
+	__pcpu_size_call_return2(this_cpu_cmpxchg_, pcp, oval, nval)
+#define this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	__pcpu_double_call_return_bool(this_cpu_cmpxchg_double_, pcp1, pcp2, oval1, oval2, nval1, nval2)
+
+#define this_cpu_sub(pcp, val)		this_cpu_add(pcp, -(typeof(pcp))(val))
+#define this_cpu_inc(pcp)		this_cpu_add(pcp, 1)
+#define this_cpu_dec(pcp)		this_cpu_sub(pcp, 1)
 #define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(typeof(pcp))(val))
 #define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
 #define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
-# define this_cpu_xchg(pcp, nval)	\
-	__pcpu_size_call_return2(this_cpu_xchg_, (pcp), nval)
-# define this_cpu_cmpxchg(pcp, oval, nval)	\
-	__pcpu_size_call_return2(this_cpu_cmpxchg_, pcp, oval, nval)
-
-/*
- * cmpxchg_double replaces two adjacent scalars at once.  The first
- * two parameters are per cpu variables which have to be of the same
- * size.  A truth value is returned to indicate success or failure
- * (since a double register result is difficult to handle).  There is
- * very limited hardware support for these operations, so only certain
- * sizes may work.
- */
-# define this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	__pcpu_double_call_return_bool(this_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
 
 #endif /* __ASSEMBLY__ */
 #endif /* _LINUX_PERCPU_DEFS_H */

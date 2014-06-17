@@ -77,333 +77,344 @@ do {									\
 })
 
 #define raw_cpu_generic_xchg(pcp, nval)					\
-({	typeof(pcp) ret__;						\
-	ret__ = raw_cpu_read(pcp);					\
+({									\
+	typeof(pcp) __ret;						\
+	__ret = raw_cpu_read(pcp);					\
 	raw_cpu_write(pcp, nval);					\
-	ret__;								\
+	__ret;								\
 })
 
 #define raw_cpu_generic_cmpxchg(pcp, oval, nval)			\
 ({									\
-	typeof(pcp) ret__;						\
-	ret__ = raw_cpu_read(pcp);					\
-	if (ret__ == (oval))						\
+	typeof(pcp) __ret;						\
+	__ret = raw_cpu_read(pcp);					\
+	if (__ret == (oval))						\
 		raw_cpu_write(pcp, nval);				\
-	ret__;								\
+	__ret;								\
 })
 
-#define raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#define raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2) \
 ({									\
 	int __ret = 0;							\
 	if (raw_cpu_read(pcp1) == (oval1) &&				\
 			 raw_cpu_read(pcp2)  == (oval2)) {		\
-		raw_cpu_write(pcp1, (nval1));				\
-		raw_cpu_write(pcp2, (nval2));				\
+		raw_cpu_write(pcp1, nval1);				\
+		raw_cpu_write(pcp2, nval2);				\
 		__ret = 1;						\
 	}								\
 	(__ret);							\
 })
 
-#define _this_cpu_generic_read(pcp)					\
-({	typeof(pcp) ret__;						\
+#define this_cpu_generic_read(pcp)					\
+({									\
+	typeof(pcp) __ret;						\
 	preempt_disable();						\
-	ret__ = *this_cpu_ptr(&(pcp));					\
+	__ret = *this_cpu_ptr(&(pcp));					\
 	preempt_enable();						\
-	ret__;								\
+	__ret;								\
 })
 
-#define _this_cpu_generic_to_op(pcp, val, op)				\
+#define this_cpu_generic_to_op(pcp, val, op)				\
 do {									\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
 	*raw_cpu_ptr(&(pcp)) op val;					\
-	raw_local_irq_restore(flags);					\
+	raw_local_irq_restore(__flags);					\
 } while (0)
 
-#define _this_cpu_generic_add_return(pcp, val)				\
+#define this_cpu_generic_add_return(pcp, val)				\
 ({									\
-	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	raw_cpu_add(pcp, val);					\
-	ret__ = raw_cpu_read(pcp);					\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
+	typeof(pcp) __ret;						\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	raw_cpu_add(pcp, val);						\
+	__ret = raw_cpu_read(pcp);					\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
 })
 
-#define _this_cpu_generic_xchg(pcp, nval)				\
-({	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_read(pcp);					\
+#define this_cpu_generic_xchg(pcp, nval)				\
+({									\
+	typeof(pcp) __ret;						\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	__ret = raw_cpu_read(pcp);					\
 	raw_cpu_write(pcp, nval);					\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
 })
 
-#define _this_cpu_generic_cmpxchg(pcp, oval, nval)			\
+#define this_cpu_generic_cmpxchg(pcp, oval, nval)			\
 ({									\
-	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_read(pcp);					\
-	if (ret__ == (oval))						\
+	typeof(pcp) __ret;						\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	__ret = raw_cpu_read(pcp);					\
+	if (__ret == (oval))						\
 		raw_cpu_write(pcp, nval);				\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
 })
 
-#define _this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#define this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
 ({									\
-	int ret__;							\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
+	int __ret;							\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	__ret = raw_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
 			oval1, oval2, nval1, nval2);			\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
 })
 
-# ifndef raw_cpu_read_1
-#  define raw_cpu_read_1(pcp)	(*raw_cpu_ptr(&(pcp)))
-# endif
-# ifndef raw_cpu_read_2
-#  define raw_cpu_read_2(pcp)	(*raw_cpu_ptr(&(pcp)))
-# endif
-# ifndef raw_cpu_read_4
-#  define raw_cpu_read_4(pcp)	(*raw_cpu_ptr(&(pcp)))
-# endif
-# ifndef raw_cpu_read_8
-#  define raw_cpu_read_8(pcp)	(*raw_cpu_ptr(&(pcp)))
-# endif
+#ifndef raw_cpu_read_1
+#define raw_cpu_read_1(pcp)		(*raw_cpu_ptr(&(pcp)))
+#endif
+#ifndef raw_cpu_read_2
+#define raw_cpu_read_2(pcp)		(*raw_cpu_ptr(&(pcp)))
+#endif
+#ifndef raw_cpu_read_4
+#define raw_cpu_read_4(pcp)		(*raw_cpu_ptr(&(pcp)))
+#endif
+#ifndef raw_cpu_read_8
+#define raw_cpu_read_8(pcp)		(*raw_cpu_ptr(&(pcp)))
+#endif
 
-# ifndef raw_cpu_write_1
-#  define raw_cpu_write_1(pcp, val)	raw_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef raw_cpu_write_2
-#  define raw_cpu_write_2(pcp, val)	raw_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef raw_cpu_write_4
-#  define raw_cpu_write_4(pcp, val)	raw_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef raw_cpu_write_8
-#  define raw_cpu_write_8(pcp, val)	raw_cpu_generic_to_op((pcp), (val), =)
-# endif
+#ifndef raw_cpu_write_1
+#define raw_cpu_write_1(pcp, val)	raw_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef raw_cpu_write_2
+#define raw_cpu_write_2(pcp, val)	raw_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef raw_cpu_write_4
+#define raw_cpu_write_4(pcp, val)	raw_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef raw_cpu_write_8
+#define raw_cpu_write_8(pcp, val)	raw_cpu_generic_to_op(pcp, val, =)
+#endif
 
-# ifndef raw_cpu_add_1
-#  define raw_cpu_add_1(pcp, val)	raw_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef raw_cpu_add_2
-#  define raw_cpu_add_2(pcp, val)	raw_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef raw_cpu_add_4
-#  define raw_cpu_add_4(pcp, val)	raw_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef raw_cpu_add_8
-#  define raw_cpu_add_8(pcp, val)	raw_cpu_generic_to_op((pcp), (val), +=)
-# endif
+#ifndef raw_cpu_add_1
+#define raw_cpu_add_1(pcp, val)		raw_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef raw_cpu_add_2
+#define raw_cpu_add_2(pcp, val)		raw_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef raw_cpu_add_4
+#define raw_cpu_add_4(pcp, val)		raw_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef raw_cpu_add_8
+#define raw_cpu_add_8(pcp, val)		raw_cpu_generic_to_op(pcp, val, +=)
+#endif
 
-# ifndef raw_cpu_and_1
-#  define raw_cpu_and_1(pcp, val)	raw_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef raw_cpu_and_2
-#  define raw_cpu_and_2(pcp, val)	raw_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef raw_cpu_and_4
-#  define raw_cpu_and_4(pcp, val)	raw_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef raw_cpu_and_8
-#  define raw_cpu_and_8(pcp, val)	raw_cpu_generic_to_op((pcp), (val), &=)
-# endif
+#ifndef raw_cpu_and_1
+#define raw_cpu_and_1(pcp, val)		raw_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef raw_cpu_and_2
+#define raw_cpu_and_2(pcp, val)		raw_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef raw_cpu_and_4
+#define raw_cpu_and_4(pcp, val)		raw_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef raw_cpu_and_8
+#define raw_cpu_and_8(pcp, val)		raw_cpu_generic_to_op(pcp, val, &=)
+#endif
 
-# ifndef raw_cpu_or_1
-#  define raw_cpu_or_1(pcp, val)	raw_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef raw_cpu_or_2
-#  define raw_cpu_or_2(pcp, val)	raw_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef raw_cpu_or_4
-#  define raw_cpu_or_4(pcp, val)	raw_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef raw_cpu_or_8
-#  define raw_cpu_or_8(pcp, val)	raw_cpu_generic_to_op((pcp), (val), |=)
-# endif
+#ifndef raw_cpu_or_1
+#define raw_cpu_or_1(pcp, val)		raw_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef raw_cpu_or_2
+#define raw_cpu_or_2(pcp, val)		raw_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef raw_cpu_or_4
+#define raw_cpu_or_4(pcp, val)		raw_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef raw_cpu_or_8
+#define raw_cpu_or_8(pcp, val)		raw_cpu_generic_to_op(pcp, val, |=)
+#endif
 
-# ifndef raw_cpu_add_return_1
-#  define raw_cpu_add_return_1(pcp, val)	raw_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef raw_cpu_add_return_2
-#  define raw_cpu_add_return_2(pcp, val)	raw_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef raw_cpu_add_return_4
-#  define raw_cpu_add_return_4(pcp, val)	raw_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef raw_cpu_add_return_8
-#  define raw_cpu_add_return_8(pcp, val)	raw_cpu_generic_add_return(pcp, val)
-# endif
+#ifndef raw_cpu_add_return_1
+#define raw_cpu_add_return_1(pcp, val)	raw_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef raw_cpu_add_return_2
+#define raw_cpu_add_return_2(pcp, val)	raw_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef raw_cpu_add_return_4
+#define raw_cpu_add_return_4(pcp, val)	raw_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef raw_cpu_add_return_8
+#define raw_cpu_add_return_8(pcp, val)	raw_cpu_generic_add_return(pcp, val)
+#endif
 
-# ifndef raw_cpu_xchg_1
-#  define raw_cpu_xchg_1(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef raw_cpu_xchg_2
-#  define raw_cpu_xchg_2(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef raw_cpu_xchg_4
-#  define raw_cpu_xchg_4(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef raw_cpu_xchg_8
-#  define raw_cpu_xchg_8(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
-# endif
+#ifndef raw_cpu_xchg_1
+#define raw_cpu_xchg_1(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef raw_cpu_xchg_2
+#define raw_cpu_xchg_2(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef raw_cpu_xchg_4
+#define raw_cpu_xchg_4(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef raw_cpu_xchg_8
+#define raw_cpu_xchg_8(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
+#endif
 
-# ifndef raw_cpu_cmpxchg_1
-#  define raw_cpu_cmpxchg_1(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef raw_cpu_cmpxchg_2
-#  define raw_cpu_cmpxchg_2(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef raw_cpu_cmpxchg_4
-#  define raw_cpu_cmpxchg_4(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef raw_cpu_cmpxchg_8
-#  define raw_cpu_cmpxchg_8(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
+#ifndef raw_cpu_cmpxchg_1
+#define raw_cpu_cmpxchg_1(pcp, oval, nval) \
+	raw_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef raw_cpu_cmpxchg_2
+#define raw_cpu_cmpxchg_2(pcp, oval, nval) \
+	raw_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef raw_cpu_cmpxchg_4
+#define raw_cpu_cmpxchg_4(pcp, oval, nval) \
+	raw_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef raw_cpu_cmpxchg_8
+#define raw_cpu_cmpxchg_8(pcp, oval, nval) \
+	raw_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
 
-# ifndef raw_cpu_cmpxchg_double_1
-#  define raw_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#ifndef raw_cpu_cmpxchg_double_1
+#define raw_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2) \
 	raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef raw_cpu_cmpxchg_double_2
-#  define raw_cpu_cmpxchg_double_2(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#endif
+#ifndef raw_cpu_cmpxchg_double_2
+#define raw_cpu_cmpxchg_double_2(pcp1, pcp2, oval1, oval2, nval1, nval2) \
 	raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef raw_cpu_cmpxchg_double_4
-#  define raw_cpu_cmpxchg_double_4(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#endif
+#ifndef raw_cpu_cmpxchg_double_4
+#define raw_cpu_cmpxchg_double_4(pcp1, pcp2, oval1, oval2, nval1, nval2) \
 	raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef raw_cpu_cmpxchg_double_8
-#  define raw_cpu_cmpxchg_double_8(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+#endif
+#ifndef raw_cpu_cmpxchg_double_8
+#define raw_cpu_cmpxchg_double_8(pcp1, pcp2, oval1, oval2, nval1, nval2) \
 	raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
+#endif
 
-# ifndef this_cpu_read_1
-#  define this_cpu_read_1(pcp)	_this_cpu_generic_read(pcp)
-# endif
-# ifndef this_cpu_read_2
-#  define this_cpu_read_2(pcp)	_this_cpu_generic_read(pcp)
-# endif
-# ifndef this_cpu_read_4
-#  define this_cpu_read_4(pcp)	_this_cpu_generic_read(pcp)
-# endif
-# ifndef this_cpu_read_8
-#  define this_cpu_read_8(pcp)	_this_cpu_generic_read(pcp)
-# endif
+#ifndef this_cpu_read_1
+#define this_cpu_read_1(pcp)		this_cpu_generic_read(pcp)
+#endif
+#ifndef this_cpu_read_2
+#define this_cpu_read_2(pcp)		this_cpu_generic_read(pcp)
+#endif
+#ifndef this_cpu_read_4
+#define this_cpu_read_4(pcp)		this_cpu_generic_read(pcp)
+#endif
+#ifndef this_cpu_read_8
+#define this_cpu_read_8(pcp)		this_cpu_generic_read(pcp)
+#endif
 
-# ifndef this_cpu_write_1
-#  define this_cpu_write_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef this_cpu_write_2
-#  define this_cpu_write_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef this_cpu_write_4
-#  define this_cpu_write_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
-# endif
-# ifndef this_cpu_write_8
-#  define this_cpu_write_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
-# endif
+#ifndef this_cpu_write_1
+#define this_cpu_write_1(pcp, val)	this_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef this_cpu_write_2
+#define this_cpu_write_2(pcp, val)	this_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef this_cpu_write_4
+#define this_cpu_write_4(pcp, val)	this_cpu_generic_to_op(pcp, val, =)
+#endif
+#ifndef this_cpu_write_8
+#define this_cpu_write_8(pcp, val)	this_cpu_generic_to_op(pcp, val, =)
+#endif
 
-# ifndef this_cpu_add_1
-#  define this_cpu_add_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef this_cpu_add_2
-#  define this_cpu_add_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef this_cpu_add_4
-#  define this_cpu_add_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef this_cpu_add_8
-#  define this_cpu_add_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), +=)
-# endif
+#ifndef this_cpu_add_1
+#define this_cpu_add_1(pcp, val)	this_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef this_cpu_add_2
+#define this_cpu_add_2(pcp, val)	this_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef this_cpu_add_4
+#define this_cpu_add_4(pcp, val)	this_cpu_generic_to_op(pcp, val, +=)
+#endif
+#ifndef this_cpu_add_8
+#define this_cpu_add_8(pcp, val)	this_cpu_generic_to_op(pcp, val, +=)
+#endif
 
-# ifndef this_cpu_and_1
-#  define this_cpu_and_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef this_cpu_and_2
-#  define this_cpu_and_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef this_cpu_and_4
-#  define this_cpu_and_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef this_cpu_and_8
-#  define this_cpu_and_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), &=)
-# endif
+#ifndef this_cpu_and_1
+#define this_cpu_and_1(pcp, val)	this_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef this_cpu_and_2
+#define this_cpu_and_2(pcp, val)	this_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef this_cpu_and_4
+#define this_cpu_and_4(pcp, val)	this_cpu_generic_to_op(pcp, val, &=)
+#endif
+#ifndef this_cpu_and_8
+#define this_cpu_and_8(pcp, val)	this_cpu_generic_to_op(pcp, val, &=)
+#endif
 
-# ifndef this_cpu_or_1
-#  define this_cpu_or_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef this_cpu_or_2
-#  define this_cpu_or_2(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef this_cpu_or_4
-#  define this_cpu_or_4(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef this_cpu_or_8
-#  define this_cpu_or_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
-# endif
+#ifndef this_cpu_or_1
+#define this_cpu_or_1(pcp, val)		this_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef this_cpu_or_2
+#define this_cpu_or_2(pcp, val)		this_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef this_cpu_or_4
+#define this_cpu_or_4(pcp, val)		this_cpu_generic_to_op(pcp, val, |=)
+#endif
+#ifndef this_cpu_or_8
+#define this_cpu_or_8(pcp, val)		this_cpu_generic_to_op(pcp, val, |=)
+#endif
 
-# ifndef this_cpu_add_return_1
-#  define this_cpu_add_return_1(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_2
-#  define this_cpu_add_return_2(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_4
-#  define this_cpu_add_return_4(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_8
-#  define this_cpu_add_return_8(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
+#ifndef this_cpu_add_return_1
+#define this_cpu_add_return_1(pcp, val)	this_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef this_cpu_add_return_2
+#define this_cpu_add_return_2(pcp, val)	this_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef this_cpu_add_return_4
+#define this_cpu_add_return_4(pcp, val)	this_cpu_generic_add_return(pcp, val)
+#endif
+#ifndef this_cpu_add_return_8
+#define this_cpu_add_return_8(pcp, val)	this_cpu_generic_add_return(pcp, val)
+#endif
 
-# ifndef this_cpu_xchg_1
-#  define this_cpu_xchg_1(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef this_cpu_xchg_2
-#  define this_cpu_xchg_2(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef this_cpu_xchg_4
-#  define this_cpu_xchg_4(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
-# endif
-# ifndef this_cpu_xchg_8
-#  define this_cpu_xchg_8(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
-# endif
+#ifndef this_cpu_xchg_1
+#define this_cpu_xchg_1(pcp, nval)	this_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef this_cpu_xchg_2
+#define this_cpu_xchg_2(pcp, nval)	this_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef this_cpu_xchg_4
+#define this_cpu_xchg_4(pcp, nval)	this_cpu_generic_xchg(pcp, nval)
+#endif
+#ifndef this_cpu_xchg_8
+#define this_cpu_xchg_8(pcp, nval)	this_cpu_generic_xchg(pcp, nval)
+#endif
 
-# ifndef this_cpu_cmpxchg_1
-#  define this_cpu_cmpxchg_1(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef this_cpu_cmpxchg_2
-#  define this_cpu_cmpxchg_2(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef this_cpu_cmpxchg_4
-#  define this_cpu_cmpxchg_4(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef this_cpu_cmpxchg_8
-#  define this_cpu_cmpxchg_8(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
+#ifndef this_cpu_cmpxchg_1
+#define this_cpu_cmpxchg_1(pcp, oval, nval) \
+	this_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef this_cpu_cmpxchg_2
+#define this_cpu_cmpxchg_2(pcp, oval, nval) \
+	this_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef this_cpu_cmpxchg_4
+#define this_cpu_cmpxchg_4(pcp, oval, nval) \
+	this_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
+#ifndef this_cpu_cmpxchg_8
+#define this_cpu_cmpxchg_8(pcp, oval, nval) \
+	this_cpu_generic_cmpxchg(pcp, oval, nval)
+#endif
 
-# ifndef this_cpu_cmpxchg_double_1
-#  define this_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	_this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef this_cpu_cmpxchg_double_2
-#  define this_cpu_cmpxchg_double_2(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	_this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef this_cpu_cmpxchg_double_4
-#  define this_cpu_cmpxchg_double_4(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	_this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef this_cpu_cmpxchg_double_8
-#  define this_cpu_cmpxchg_double_8(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	_this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
+#ifndef this_cpu_cmpxchg_double_1
+#define this_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
+#endif
+#ifndef this_cpu_cmpxchg_double_2
+#define this_cpu_cmpxchg_double_2(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
+#endif
+#ifndef this_cpu_cmpxchg_double_4
+#define this_cpu_cmpxchg_double_4(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
+#endif
+#ifndef this_cpu_cmpxchg_double_8
+#define this_cpu_cmpxchg_double_8(pcp1, pcp2, oval1, oval2, nval1, nval2) \
+	this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
+#endif
 
 #endif /* _ASM_GENERIC_PERCPU_H_ */
