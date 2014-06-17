@@ -24,6 +24,7 @@
 #include "public_key.h"
 #include "x509_parser.h"
 
+static bool use_builtin_keys;
 static char *ca_keyid;
 
 #ifndef MODULE
@@ -34,6 +35,8 @@ static int __init ca_keys_setup(char *str)
 
 	if (strncmp(str, "id:", 3) == 0)
 		ca_keyid = str;	/* owner key 'id:xxxxxx' */
+	else if (strcmp(str, "builtin") == 0)
+		use_builtin_keys = true;
 
 	return 1;
 }
@@ -180,7 +183,6 @@ EXPORT_SYMBOL_GPL(x509_check_signature);
 static int x509_validate_trust(struct x509_certificate *cert,
 			       struct key *trust_keyring)
 {
-	const struct public_key *pk;
 	struct key *key;
 	int ret = 1;
 
@@ -195,8 +197,9 @@ static int x509_validate_trust(struct x509_certificate *cert,
 					  cert->authority,
 					  strlen(cert->authority));
 	if (!IS_ERR(key))  {
-		pk = key->payload.data;
-		ret = x509_check_signature(pk, cert);
+		if (!use_builtin_keys
+		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))
+			ret = x509_check_signature(key->payload.data, cert);
 		key_put(key);
 	}
 	return ret;

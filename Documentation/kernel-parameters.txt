@@ -569,7 +569,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ca_keys=	[KEYS] This parameter identifies a specific key(s) on
 			the system trusted keyring to be used for certificate
 			trust validation.
-			format: id:<keyid>
+			format: { id:<keyid> | builtin }
 
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
