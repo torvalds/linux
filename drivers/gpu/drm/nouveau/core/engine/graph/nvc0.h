@@ -38,6 +38,8 @@
 #include <engine/fifo.h>
 #include <engine/graph.h>
 
+#include "fuc/os.h"
+
 #define GPC_MAX 32
 #define TPC_MAX (GPC_MAX * 8)
 
