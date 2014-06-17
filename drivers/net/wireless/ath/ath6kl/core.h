@@ -136,6 +136,15 @@ enum ath6kl_fw_capability {
 	 */
 	ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL,
 
+	/* WMI_SET_TX_SELECT_RATES_CMDID uses 64 bit size rate table */
+	ATH6KL_FW_CAPABILITY_64BIT_RATES,
+
+	/* WMI_AP_CONN_INACT_CMDID uses minutes as units */
+	ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS,
+
+	/* use low priority endpoint for all data */
+	ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
@@ -149,9 +158,6 @@ struct ath6kl_fw_ie {
 };
 
 enum ath6kl_hw_flags {
-	ATH6KL_HW_64BIT_RATES		= BIT(0),
-	ATH6KL_HW_AP_INACTIVITY_MINS	= BIT(1),
-	ATH6KL_HW_MAP_LP_ENDPOINT	= BIT(2),
 	ATH6KL_HW_SDIO_CRC_ERROR_WAR	= BIT(3),
 };
 

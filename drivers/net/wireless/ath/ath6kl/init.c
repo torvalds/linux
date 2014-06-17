@@ -93,8 +93,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x433900,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 
 		.fw = {
 			.dir		= AR6004_HW_1_0_FW_DIR,
@@ -114,8 +113,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x43d400,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 		.fw = {
 			.dir		= AR6004_HW_1_1_FW_DIR,
 			.fw		= AR6004_HW_1_1_FIRMWARE_FILE,
@@ -134,8 +132,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x435c00,
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS,
+		.flags				= 0,
 
 		.fw = {
 			.dir		= AR6004_HW_1_2_FW_DIR,
@@ -154,9 +151,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.board_addr			= 0x436400,
 		.refclk_hz                      = 40000000,
 		.uarttx_pin                     = 11,
-		.flags				= ATH6KL_HW_64BIT_RATES |
-						  ATH6KL_HW_AP_INACTIVITY_MINS |
-						  ATH6KL_HW_MAP_LP_ENDPOINT,
+		.flags				= 0,
 
 		.fw = {
 			.dir            = AR6004_HW_1_3_FW_DIR,
@@ -1575,6 +1570,9 @@ static const struct fw_capa_str_map {
 	{ ATH6KL_FW_CAPABILITY_REGDOMAIN, "regdomain" },
 	{ ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2, "sched-scan-v2" },
 	{ ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL, "hb-poll" },
+	{ ATH6KL_FW_CAPABILITY_64BIT_RATES, "64bit-rates" },
+	{ ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS, "ap-inactivity-mins" },
+	{ ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT, "map-lp-endpoint" },
 };
 
 static const char *ath6kl_init_get_fw_capa_name(unsigned int id)

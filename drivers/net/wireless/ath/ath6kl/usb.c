@@ -802,7 +802,8 @@ static int ath6kl_usb_map_service_pipe(struct ath6kl *ar, u16 svc_id,
 		break;
 	case WMI_DATA_VI_SVC:
 
-		if (ar->hw.flags & ATH6KL_HW_MAP_LP_ENDPOINT)
+		if (test_bit(ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
+			     ar->fw_capabilities))
 			*ul_pipe = ATH6KL_USB_PIPE_TX_DATA_LP;
 		else
 			*ul_pipe = ATH6KL_USB_PIPE_TX_DATA_MP;
@@ -814,7 +815,8 @@ static int ath6kl_usb_map_service_pipe(struct ath6kl *ar, u16 svc_id,
 		break;
 	case WMI_DATA_VO_SVC:
 
-		if (ar->hw.flags & ATH6KL_HW_MAP_LP_ENDPOINT)
+		if (test_bit(ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
+			     ar->fw_capabilities))
 			*ul_pipe = ATH6KL_USB_PIPE_TX_DATA_LP;
 		else
 			*ul_pipe = ATH6KL_USB_PIPE_TX_DATA_MP;
