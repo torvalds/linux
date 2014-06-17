@@ -416,10 +416,9 @@ static int rk_lpmode_enter(unsigned long arg)
 
 
 int cpu_suspend(unsigned long arg, int (*fn)(unsigned long));
-static u32 test_count=0;
 static int rkpm_enter(suspend_state_t state)
 {
-
+	//static u32 test_count=0;
         // printk(KERN_DEBUG"pm: ");
         printk("%s:\n",__FUNCTION__);
         //printk("pm test times=%d\n",++test_count);
@@ -505,12 +504,14 @@ static int rkpm_enter(suspend_state_t state)
         return 0;
 }
 
+#if 0
 static int rkpm_enter_tst(void)
 {
 
        return rkpm_enter(0);
 
 }
+#endif
 
 static int rkpm_suspend_prepare(void)
 {
