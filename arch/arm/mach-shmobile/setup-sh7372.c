@@ -29,7 +29,6 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
-#include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>

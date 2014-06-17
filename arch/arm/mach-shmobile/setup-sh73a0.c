@@ -29,7 +29,6 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
-#include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <linux/platform_data/sh_ipmmu.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
