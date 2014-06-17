@@ -131,6 +131,8 @@ config BCM47XX
 	select SYS_SUPPORTS_MIPS16
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
+	select GPIOLIB
+	select LEDS_GPIO_REGISTER
 	help
 	 Support for BCM47XX based boards
 
