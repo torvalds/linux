@@ -1253,7 +1253,7 @@ static int phs_decompress(unsigned char *in_buf,
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, PHS_RECEIVE, DBG_LVL_ALL, "====>\n");
 	*header_size = 0;
 
-	if ((decomp_phs_rules == NULL))
+	if (decomp_phs_rules == NULL)
 		return 0;
 
 	tmp_memb = decomp_phs_rules;
