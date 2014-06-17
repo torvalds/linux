@@ -624,9 +624,12 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		return status;
 
 	/* Configure target refclk_hz */
-	status = ath6kl_bmi_write_hi32(ar, hi_refclk_hz, ar->hw.refclk_hz);
-	if (status)
-		return status;
+	if (ar->hw.refclk_hz != 0) {
+		status = ath6kl_bmi_write_hi32(ar, hi_refclk_hz,
+					       ar->hw.refclk_hz);
+		if (status)
+			return status;
+	}
 
 	return 0;
 }
