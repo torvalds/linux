@@ -28,9 +28,7 @@
 #include <fdtdec.h>
 #include <errno.h>
 #include <asm/io.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/reg.h>
-#include <asm/arch/gpio.h>
+#include <asm/arch/rkplat.h>
 #include <lcd.h>
 #include "../transmitter/mipi_dsi.h"
 #endif
@@ -43,6 +41,7 @@
 #define	MIPI_SCREEN_DBG(x...)  
 #endif
 #ifdef CONFIG_RK_3288_DSI_UBOOT
+DECLARE_GLOBAL_DATA_PTR;
 #define msleep(a) udelay(a * 1000)
 #define	printk(x...)	//printf(x)
 #endif
@@ -70,6 +69,7 @@ static void rk_mipi_screen_pwr_disable(struct mipi_screen *screen)
 
 static void rk_mipi_screen_pwr_enable(struct mipi_screen *screen)
 {   
+
 	if(screen->lcd_en_gpio != INVALID_GPIO){
 		gpio_direction_output(screen->lcd_en_gpio, !screen->lcd_en_atv_val);
 		msleep(screen->lcd_en_delay);
@@ -91,10 +91,26 @@ static void rk_mipi_screen_pwr_enable(struct mipi_screen *screen)
 
 static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 {
-	u8 len, i, cmds[25] = {0}; 
+	u8 len, i;
+	u8 *cmds;
 	struct list_head *screen_pos;
 	struct mipi_dcs_cmd_ctr_list  *dcs_cmd;
-	
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+	cmds = calloc(1,0x400);
+	if(!cmds) {
+		printf("request cmds fail!\n");
+		return;
+	}
+#endif
+
+#ifdef CONFIG_LCD_MIPI
+	cmds = kmalloc(0x400, GFP_KERNEL);
+	if(!cmds) {
+		printk("request cmds fail!\n");
+		return ;
+	}
+#endif
+		
 	list_for_each(screen_pos, &screen->cmdlist_head){
 	
 		dcs_cmd = list_entry(screen_pos, struct mipi_dcs_cmd_ctr_list, list);
@@ -151,13 +167,20 @@ static void rk_mipi_screen_cmd_init(struct mipi_screen *screen)
 		else
 		    MIPI_SCREEN_DBG("cmd type err.\n");
 	}
+
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+	free(cmds);
+#endif
+#ifdef CONFIG_LCD_MIPI
+	kfree(cmds);
+#endif
+
 }
 
 int rk_mipi_screen(void) 
 {
 	u8 dcs[16] = {0}, rk_dsi_num;
 	rk_dsi_num = gmipi_screen->mipi_dsi_num;
-	
 	if(gmipi_screen->screen_init == 0){
 	
 		dsi_enable_hs_clk(0,1);
@@ -539,19 +562,21 @@ int rk_mipi_get_dsi_clk(void)
 EXPORT_SYMBOL(rk_mipi_get_dsi_clk);
 #endif
 #ifdef CONFIG_RK_3288_DSI_UBOOT
+#ifdef CONFIG_OF_LIBFDT
 static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 {
     struct mipi_dcs_cmd_ctr_list  *dcs_cmd;
-    u32 i,cmds[20],length;
+    u32 i,cmds[20];
+    int length;
     int err;
     int node;
-    void *blob;
+    const void *blob;
     struct fdt_gpio_state gpio_val;
     int noffset;
     
     INIT_LIST_HEAD(&screen->cmdlist_head);
 
-    blob = getenv_hex("fdtaddr", 0);
+    blob = gd->fdt_blob;//getenv_hex("fdtaddr", 0);
     node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_MIPI_INIT);
     if(node < 0){
     	MIPI_SCREEN_DBG("Can not get node of COMPAT_ROCKCHIP_MIPI_INIT\n");
@@ -686,7 +711,7 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 	    MIPI_SCREEN_DBG("dcs_cmd.type=%02x\n",dcs_cmd->dcs_cmd.type);
 	    dcs_cmd->dcs_cmd.dsi_id = fdtdec_get_int(blob, noffset, "rockchip,dsi_id", -1);
 	    MIPI_SCREEN_DBG("dcs_cmd.dsi_id=%02x\n",dcs_cmd->dcs_cmd.dsi_id);
-	    err = fdt_getprop(blob, noffset, "rockchip,cmd", &length);
+	    fdt_getprop(blob, noffset, "rockchip,cmd", &length);
 	    dcs_cmd->dcs_cmd.cmd_len =	length / sizeof(u32) ;
 	    err = fdtdec_get_int_array(blob, noffset, "rockchip,cmd", cmds, dcs_cmd->dcs_cmd.cmd_len);
 	    MIPI_SCREEN_DBG("length=%d,cmd_len = %d  err = %d\n",length,dcs_cmd->dcs_cmd.cmd_len,err);
@@ -703,6 +728,7 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 
     return 0; 
 }
+#endif /* CONFIG_OF_LIBFDT */
 
 int rk_mipi_screen_probe(void)
 {
@@ -712,18 +738,20 @@ int rk_mipi_screen_probe(void)
 		printf("request struct screen fail!\n");
 		return -ENOMEM;
 	}
-    ret = rk_mipi_screen_init_dt(gmipi_screen);
-    if(ret < 0){
-        printf(" rk_mipi_screen_init_dt fail!\n");
-        return -1;
-    }
-    
+#ifdef CONFIG_OF_LIBFDT
+	ret = rk_mipi_screen_init_dt(gmipi_screen);
+	if(ret < 0){
+		printf(" rk_mipi_screen_init_dt fail!\n");
+		return -1;
+	}
+#endif /* CONFIG_OF_LIBFDT */
+
 //    MIPI_SCREEN_DBG("---rk_mipi_screen_probe--end\n");
 
 	return 0;
 }
 
-#endif
+#endif /* CONFIG_RK_3288_DSI_UBOOT */
 #ifdef CONFIG_LCD_MIPI
 static int __init rk_mipi_screen_probe(struct platform_device *pdev)
 {

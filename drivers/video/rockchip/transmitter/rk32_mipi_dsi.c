@@ -39,6 +39,7 @@
 #include <fdtdec.h>
 #include <linux/fb.h>
 #include <linux/rk_screen.h>
+#include <malloc.h>
 #else
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -90,7 +91,7 @@
 *
 */
 
-#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.0 2014-05-16"
+#define RK_MIPI_DSI_VERSION_AND_TIME  "rockchip mipi_dsi v1.1 2014-06-17"
 
 static struct dsi *dsi0;
 static struct dsi *dsi1;
@@ -103,6 +104,9 @@ static int rk32_mipi_dsi_is_enable(void *arg, u32 enable);
 int rk_mipi_screen_standby(u8 enable);
 
 #ifdef CONFIG_RK_3288_DSI_UBOOT
+DECLARE_GLOBAL_DATA_PTR;
+extern int rk_mipi_screen_probe(void);
+extern void writel_relaxed(uint32 val, uint32 addr);
 #define msleep(a) udelay(a * 1000)
 /* 
 dsihost0:
@@ -124,6 +128,7 @@ int rk32_mipi_dsi_clk_enable(struct dsi *dsi)
 	else
 		val = (1 << 21);
 	writel(val, RK3288_CRU_PHYS + 0x1a0); /*pclk*/
+	return 0;
 }
 int rk32_mipi_dsi_clk_disable(struct dsi *dsi)
 {
@@ -135,7 +140,9 @@ int rk32_mipi_dsi_clk_disable(struct dsi *dsi)
 	writel(val, RK3288_CRU_PHYS + 0x1a0); /*pclk*/
 	
 	val = 0x80008000;//bit31~bit16 
-	writel(val, RK3288_CRU_PHYS + 0x174); /*24M*/}
+	writel(val, RK3288_CRU_PHYS + 0x174); /*24M*/
+	return 0;
+}
 
 #endif
 static int rk32_dsi_read_reg(struct dsi *dsi, u16 reg, u32 *pval)
@@ -751,17 +758,28 @@ static int rk32_mipi_dsi_is_active(void *arg)
 static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length)
 {
 	struct dsi *dsi = arg;
-	unsigned char regs[25] = {0}; 
+	unsigned char *regs;
 	u32 type, liTmp = 0, i = 0, j = 0, data = 0;
 
 	if(rk32_dsi_get_bits(dsi, gen_cmd_full) == 1) {
 		MIPI_TRACE("gen_cmd_full\n");
 		return -1;
 	}
-	
-	for(i = 0; i < length; i++){
-		regs[i] = cmds[i];
+#ifdef CONFIG_MIPI_DSI_LINUX
+	regs = kmalloc(0x400, GFP_KERNEL);
+	if(!regs) {
+		printk("request regs fail!\n");
+		return -ENOMEM;
 	}
+#endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+	regs = calloc(1, 0x400);
+	if(!regs) {
+		printf("request regs fail!\n");
+		return -ENOMEM;
+	}
+#endif
+	memcpy(regs,cmds,length);
 	
 	liTmp	= length - 2;
 	type	= regs[1];
@@ -889,7 +907,12 @@ static int rk32_mipi_dsi_send_packet(void *arg, unsigned char cmds[], u32 length
 		udelay(10);
 	}
 	udelay(10);
-
+#ifdef CONFIG_MIPI_DSI_LINUX
+	kfree(regs);
+#endif
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+	free(regs);
+#endif
 	return 0;
 }
 
@@ -1291,6 +1314,7 @@ int rk32_dsi_sync(void)
     dsi_is_enable(0, 1);
     if (rk_mipi_get_dsi_num() ==2)
 	dsi_is_enable(1, 1);
+    return 0;
 }
 
 #endif
@@ -1336,6 +1360,7 @@ static int rk32_dsi_enable(void)
 	return 0;
 }
 
+#ifdef CONFIG_MIPI_DSI_LINUX
 static int rk32_dsi_disable(void)
 {
 	MIPI_DBG("rk32_dsi_disable-------\n");
@@ -1348,7 +1373,6 @@ static int rk32_dsi_disable(void)
 	return 0;
 }
 
-#ifdef CONFIG_MIPI_DSI_LINUX
 static struct rk_fb_trsm_ops trsm_dsi_ops = 
 {
 	.enable = rk32_dsi_enable,
@@ -1386,27 +1410,36 @@ static void rk32_init_phy_mode(int lcdc_id)
 	}
 }
 #ifdef CONFIG_RK_3288_DSI_UBOOT
+#ifdef CONFIG_OF_LIBFDT
 int rk_dsi_host_parse_dt(const void *blob, struct dsi *dsi)
 {
 	int node;
-	void *handle;
-	int length;
 
 	node = fdtdec_next_compatible(blob, 0, COMPAT_ROCKCHIP_DSIHOST);
+	if(node<0) {
+		printf("mipi dts get node failed, node = %d.\n", node);
+		return -1;
+	}
+
 	do{
 		if(fdtdec_get_int(blob, node, "rockchip,prop", -1) != dsi->dsi_id){
 			node = fdtdec_next_compatible(blob, node, COMPAT_ROCKCHIP_DSIHOST);
+			if(node<0) {
+				printf("mipi dts get node failed, node = %d.\n", node);
+				return -1;
+			}
 		}else{
 			break;
 		}
 	}while(1);
 	
 	//fdtdec_get_addr_size(blob,node,"reg",&length);
-	dsi->host.membase = fdtdec_get_int(blob, node, "reg", -1);
+	dsi->host.membase = (void __iomem *)fdtdec_get_int(blob, node, "reg", -1);
 	//fdt_getprop(blob, node, "reg", &length);
-	MIPI_DBG("dsi->host.membase 0x%08x, length %d\n",dsi->host.membase,length);
+	MIPI_DBG("dsi->host.membase 0x%08lx.\n",(unsigned long)dsi->host.membase);
 	return 0;
 }
+#endif /* #ifdef CONFIG_OF_LIBFDT */
 
 int rk32_mipi_enable(vidinfo_t *vid)
 {
@@ -1427,8 +1460,9 @@ int rk32_mipi_enable(vidinfo_t *vid)
 		}
 
 		dsi->dsi_id = id;
-		rk_dsi_host_parse_dt(getenv_hex("fdtaddr", 0),dsi);
-
+#ifdef CONFIG_OF_LIBFDT
+		rk_dsi_host_parse_dt(gd->fdt_blob,dsi);
+#endif /* #ifdef CONFIG_OF_LIBFDT */
 		screen = calloc(1, sizeof(struct rk_screen));
 		if(!screen) {
 		  MIPI_DBG("request struct rk_screen fail!\n");
@@ -1522,6 +1556,7 @@ int rk32_mipi_enable(vidinfo_t *vid)
 	
 }
 #endif
+#ifdef CONFIG_MIPI_DSI_LINUX
 int rk32_mipi_power_down_DDR(void)
 {	
 	dsi_is_enable(0, 0);	
@@ -1544,7 +1579,6 @@ int rk32_mipi_power_up_DDR(void)
 }
 EXPORT_SYMBOL(rk32_mipi_power_up_DDR);
 
-#ifdef CONFIG_MIPI_DSI_LINUX
 static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 {
 	int ret = 0; 

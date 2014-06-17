@@ -4,7 +4,15 @@ drivers/video/rockchip/transmitter/rk32_mipi_dsi.h
 
 #ifndef RK32_MIPI_DSI_H
 #define RK32_MIPI_DSI_H
-#ifndef CONFIG_RK_3288_DSI_UBOOT
+
+#ifdef CONFIG_RK_3288_DSI_UBOOT
+#include <asm/arch/rkplat.h>
+#define RK_GRF_VIRT			RKIO_GRF_PHYS
+#define RK3288_CRU_PHYS			RKIO_CRU_PHYS
+
+#define RK3288_GRF_SOC_CON6             GRF_SOC_CON6
+#define RK3288_GRF_SOC_CON14            GRF_SOC_CON14
+#else
 #include <linux/rockchip/grf.h>
 #endif
 #define MIPI_DSI_HOST_OFFSET	0x1000
