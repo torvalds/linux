@@ -355,7 +355,7 @@ static void start_daemon_mode()
 	disable_tui();
 
 	/* change the file mode mask */
-	umask(0);
+	umask(S_IWGRP | S_IWOTH);
 
 	/* new SID for the daemon process */
 	sid = setsid();
