@@ -2766,6 +2766,10 @@ static int set_io_capability(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("");
 
+	if (cp->io_capability > SMP_IO_KEYBOARD_DISPLAY)
+		return cmd_complete(sk, hdev->id, MGMT_OP_SET_IO_CAPABILITY,
+				    MGMT_STATUS_INVALID_PARAMS, NULL, 0);
+
 	hci_dev_lock(hdev);
 
 	hdev->io_capability = cp->io_capability;
@@ -2874,6 +2878,11 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	rp.addr.type = cp->addr.type;
 
 	if (!bdaddr_type_is_valid(cp->addr.type))
+		return cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
+				    MGMT_STATUS_INVALID_PARAMS,
+				    &rp, sizeof(rp));
+
+	if (cp->io_cap > SMP_IO_KEYBOARD_DISPLAY)
 		return cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
 				    MGMT_STATUS_INVALID_PARAMS,
 				    &rp, sizeof(rp));
