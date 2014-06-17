@@ -60,6 +60,8 @@
 #define HIX5HD2_SD_CIU_CLK		136
 #define HIX5HD2_SD_BIU_CLK		137
 #define HIX5HD2_SD_CIU_RST		138
+#define HIX5HD2_WDG0_CLK		139
+#define HIX5HD2_WDG0_RST		140
 
 /* complex */
 #define HIX5HD2_MAC0_CLK		192

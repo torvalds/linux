@@ -95,6 +95,11 @@ static struct hisi_gate_clock hix5hd2_gate_clks[] __initdata = {
 	{ HIX5HD2_FWD_SYS_CLK, "clk_fwd_sys", "clk_fwd_bus", 0, 0xcc, 5, 0, },
 	{ HIX5HD2_MAC0_PHY_CLK, "clk_fephy", "clk_fwd_sys",
 		 CLK_SET_RATE_PARENT, 0x120, 0, 0, },
+	/* wdg0 */
+	{ HIX5HD2_WDG0_CLK, "clk_wdg0", "24m",
+		CLK_SET_RATE_PARENT, 0x178, 0, 0, },
+	{ HIX5HD2_WDG0_RST, "rst_wdg0", "clk_wdg0",
+		CLK_SET_RATE_PARENT, 0x178, 4, CLK_GATE_SET_TO_DISABLE, },
 };
 
 enum hix5hd2_clk_type {
