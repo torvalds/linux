@@ -595,7 +595,7 @@ static void init_amd(struct cpuinfo_x86 *c)
 
 	/* Enable workaround for FXSAVE leak */
 	if (c->x86 >= 6)
-		set_cpu_cap(c, X86_FEATURE_FXSAVE_LEAK);
+		set_cpu_bug(c, X86_BUG_FXSAVE_LEAK);
 
 	if (!c->x86_model_id[0]) {
 		switch (c->x86) {
