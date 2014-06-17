@@ -3458,7 +3458,8 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		struct usb_device *udev = port_dev->child;
 
 		if (udev && udev->can_submit) {
-			dev_warn(&port_dev->dev, "not suspended yet\n");
+			dev_warn(&port_dev->dev, "device %s not suspended yet\n",
+					dev_name(&udev->dev));
 			if (PMSG_IS_AUTO(msg))
 				return -EBUSY;
 		}
