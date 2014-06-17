@@ -1826,8 +1826,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
-	if (r8a66597->pdata->sudmac)
-		iounmap(r8a66597->sudmac_reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 
@@ -1849,15 +1847,10 @@ static int __init r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 	struct resource *res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
-	if (!res) {
-		dev_err(&pdev->dev, "platform_get_resource error(sudmac).\n");
-		return -ENODEV;
-	}
-
-	r8a66597->sudmac_reg = ioremap(res->start, resource_size(res));
-	if (r8a66597->sudmac_reg == NULL) {
+	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(r8a66597->sudmac_reg)) {
 		dev_err(&pdev->dev, "ioremap error(sudmac).\n");
-		return -ENOMEM;
+		return PTR_ERR(r8a66597->sudmac_reg);
 	}
 
 	return 0;
@@ -1987,8 +1980,6 @@ clean_up2:
 	}
 clean_up:
 	if (r8a66597) {
-		if (r8a66597->sudmac_reg)
-			iounmap(r8a66597->sudmac_reg);
 		if (r8a66597->ep0_req)
 			r8a66597_free_request(&r8a66597->ep[0].ep,
 						r8a66597->ep0_req);
