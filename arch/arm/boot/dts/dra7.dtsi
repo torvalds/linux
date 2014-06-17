@@ -773,7 +773,6 @@
 			clocks = <&qspi_gfclk_div>;
 			clock-names = "fck";
 			num-cs = <4>;
-			interrupts = <0 343 0x4>;
 			status = "disabled";
 		};
 
