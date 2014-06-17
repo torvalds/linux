@@ -358,6 +358,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	spin_unlock_irqrestore(&rdev->ddev->event_lock, flags);
 
+	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
 	radeon_fence_unref(&work->fence);
 	radeon_irq_kms_pflip_irq_get(rdev, work->crtc_id);
 	queue_work(radeon_crtc->flip_queue, &work->unpin_work);
@@ -460,6 +461,12 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		base &= ~7;
 	}
 
+	r = drm_vblank_get(crtc->dev, radeon_crtc->crtc_id);
+	if (r) {
+		DRM_ERROR("failed to get vblank before flip\n");
+		goto pflip_cleanup;
+	}
+
 	/* We borrow the event spin lock for protecting flip_work */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
@@ -473,6 +480,16 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	up_read(&rdev->exclusive_lock);
 
 	return;
+
+pflip_cleanup:
+	if (unlikely(radeon_bo_reserve(work->new_rbo, false) != 0)) {
+		DRM_ERROR("failed to reserve new rbo in error path\n");
+		goto cleanup;
+	}
+	if (unlikely(radeon_bo_unpin(work->new_rbo) != 0)) {
+		DRM_ERROR("failed to unpin new rbo in error path\n");
+	}
+	radeon_bo_unreserve(work->new_rbo);
 
 cleanup:
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
