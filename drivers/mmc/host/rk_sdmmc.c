@@ -1365,11 +1365,13 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 {
         struct dw_mci_slot *slot = mmc_priv(mmc);
         struct dw_mci *host = slot->host;
-        u32 cmd_flags, regs;
-	unsigned long timeout;
-	bool ret = true;
+        u32 regs;
 
         #if 0
+        u32 cmd_flags;
+        unsigned long timeout;
+        bool ret = true;
+
         /* (1) CMD12 to end any transfer in process */
         cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC
 			| SDMMC_CMD_RESP_EXP | MMC_STOP_TRANSMISSION;
