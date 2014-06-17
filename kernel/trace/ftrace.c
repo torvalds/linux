@@ -1306,25 +1306,15 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	struct ftrace_hash *new_hash;
 	int size = src->count;
 	int bits = 0;
-	int ret;
 	int i;
-
-	/*
-	 * Remove the current set, update the hash and add
-	 * them back.
-	 */
-	ftrace_hash_rec_disable(ops, enable);
 
 	/*
 	 * If the new source is empty, just free dst and assign it
 	 * the empty_hash.
 	 */
 	if (!src->count) {
-		free_ftrace_hash_rcu(*dst);
-		rcu_assign_pointer(*dst, EMPTY_HASH);
-		/* still need to update the function records */
-		ret = 0;
-		goto out;
+		new_hash = EMPTY_HASH;
+		goto update;
 	}
 
 	/*
@@ -1337,10 +1327,9 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 	if (bits > FTRACE_HASH_MAX_BITS)
 		bits = FTRACE_HASH_MAX_BITS;
 
-	ret = -ENOMEM;
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
-		goto out;
+		return -ENOMEM;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1351,20 +1340,20 @@ ftrace_hash_move(struct ftrace_ops *ops, int enable,
 		}
 	}
 
+update:
+	/*
+	 * Remove the current set, update the hash and add
+	 * them back.
+	 */
+	ftrace_hash_rec_disable(ops, enable);
+
 	old_hash = *dst;
 	rcu_assign_pointer(*dst, new_hash);
 	free_ftrace_hash_rcu(old_hash);
 
-	ret = 0;
- out:
-	/*
-	 * Enable regardless of ret:
-	 *  On success, we enable the new hash.
-	 *  On failure, we re-enable the original hash.
-	 */
 	ftrace_hash_rec_enable(ops, enable);
 
-	return ret;
+	return 0;
 }
 
 /*
