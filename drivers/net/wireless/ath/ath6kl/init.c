@@ -1576,6 +1576,7 @@ static const struct fw_capa_str_map {
 	{ ATH6KL_FW_CAPABILITY_64BIT_RATES, "64bit-rates" },
 	{ ATH6KL_FW_CAPABILITY_AP_INACTIVITY_MINS, "ap-inactivity-mins" },
 	{ ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT, "map-lp-endpoint" },
+	{ ATH6KL_FW_CAPABILITY_RATETABLE_MCS15, "ratetable-mcs15" },
 };
 
 static const char *ath6kl_init_get_fw_capa_name(unsigned int id)

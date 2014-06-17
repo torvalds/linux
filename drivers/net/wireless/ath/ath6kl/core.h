@@ -145,6 +145,9 @@ enum ath6kl_fw_capability {
 	/* use low priority endpoint for all data */
 	ATH6KL_FW_CAPABILITY_MAP_LP_ENDPOINT,
 
+	/* ratetable is the 2 stream version (max MCS15) */
+	ATH6KL_FW_CAPABILITY_RATETABLE_MCS15,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
