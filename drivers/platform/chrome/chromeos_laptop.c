@@ -45,6 +45,8 @@ static const char *i2c_adapter_names[] = {
 	"SMBus I801 adapter",
 	"i915 gmbus vga",
 	"i915 gmbus panel",
+	"i2c-designware-pci",
+	"i2c-designware-pci",
 };
 
 /* Keep this enum consistent with i2c_adapter_names */
@@ -52,6 +54,8 @@ enum i2c_adapter_type {
 	I2C_ADAPTER_SMBUS = 0,
 	I2C_ADAPTER_VGADDC,
 	I2C_ADAPTER_PANEL,
+	I2C_ADAPTER_DESIGNWARE_0,
+	I2C_ADAPTER_DESIGNWARE_1,
 };
 
 struct i2c_peripheral {
@@ -172,29 +176,42 @@ static struct i2c_client *__add_probed_i2c_device(
 	return client;
 }
 
+struct i2c_lookup {
+	const char *name;
+	int instance;
+	int n;
+};
+
 static int __find_i2c_adap(struct device *dev, void *data)
 {
-	const char *name = data;
+	struct i2c_lookup *lookup = data;
 	static const char *prefix = "i2c-";
 	struct i2c_adapter *adapter;
 	if (strncmp(dev_name(dev), prefix, strlen(prefix)) != 0)
 		return 0;
 	adapter = to_i2c_adapter(dev);
-	return (strncmp(adapter->name, name, strlen(name)) == 0);
+	if (strncmp(adapter->name, lookup->name, strlen(lookup->name)) == 0 &&
+	    lookup->n++ == lookup->instance)
+		return 1;
+	return 0;
 }
 
 static int find_i2c_adapter_num(enum i2c_adapter_type type)
 {
 	struct device *dev = NULL;
 	struct i2c_adapter *adapter;
-	const char *name = i2c_adapter_names[type];
+	struct i2c_lookup lookup;
+
+	memset(&lookup, 0, sizeof(lookup));
+	lookup.name = i2c_adapter_names[type];
+	lookup.instance = (type == I2C_ADAPTER_DESIGNWARE_1) ? 1 : 0;
+
 	/* find the adapter by name */
-	dev = bus_find_device(&i2c_bus_type, NULL, (void *)name,
-			      __find_i2c_adap);
+	dev = bus_find_device(&i2c_bus_type, NULL, &lookup, __find_i2c_adap);
 	if (!dev) {
 		/* Adapters may appear later. Deferred probing will retry */
 		pr_notice("%s: i2c adapter %s not found on system.\n", __func__,
-			  name);
+			  lookup.name);
 		return -ENODEV;
 	}
 	adapter = to_i2c_adapter(dev);
@@ -377,6 +394,15 @@ static struct chromeos_laptop acer_ac700 = {
 	},
 };
 
+static struct chromeos_laptop acer_c720 = {
+	.i2c_peripherals = {
+		/* Touchpad. */
+		{ .add = setup_cyapa_tp, I2C_ADAPTER_DESIGNWARE_0 },
+		/* Light Sensor. */
+		{ .add = setup_isl29018_als, I2C_ADAPTER_DESIGNWARE_1 },
+	},
+};
+
 static struct chromeos_laptop hp_pavilion_14_chromebook = {
 	.i2c_peripherals = {
 		/* Touchpad. */
@@ -432,6 +458,13 @@ static struct dmi_system_id chromeos_laptop_dmi_table[] __initdata = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZGB"),
 		},
 		_CBDD(acer_ac700),
+	},
+	{
+		.ident = "Acer C720",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Peppy"),
+		},
+		_CBDD(acer_c720),
 	},
 	{
 		.ident = "HP Pavilion 14 Chromebook",
