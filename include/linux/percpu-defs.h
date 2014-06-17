@@ -403,16 +403,16 @@ do {									\
  * Generic percpu operations for context that are safe from preemption/interrupts.
  */
 # define __this_cpu_read(pcp) \
-	(__this_cpu_preempt_check("read"),__pcpu_size_call_return(raw_cpu_read_, (pcp)))
+	(__this_cpu_preempt_check("read"),raw_cpu_read(pcp))
 
 # define __this_cpu_write(pcp, val)					\
 do { __this_cpu_preempt_check("write");					\
-     __pcpu_size_call(raw_cpu_write_, (pcp), (val));			\
+     raw_cpu_write(pcp, val);						\
 } while (0)
 
 # define __this_cpu_add(pcp, val)					 \
 do { __this_cpu_preempt_check("add");					\
-	__pcpu_size_call(raw_cpu_add_, (pcp), (val));			\
+	raw_cpu_add(pcp, val);						\
 } while (0)
 
 # define __this_cpu_sub(pcp, val)	__this_cpu_add((pcp), -(typeof(pcp))(val))
@@ -421,29 +421,29 @@ do { __this_cpu_preempt_check("add");					\
 
 # define __this_cpu_and(pcp, val)					\
 do { __this_cpu_preempt_check("and");					\
-	__pcpu_size_call(raw_cpu_and_, (pcp), (val));			\
+	raw_cpu_and(pcp, val);						\
 } while (0)
 
 # define __this_cpu_or(pcp, val)					\
 do { __this_cpu_preempt_check("or");					\
-	__pcpu_size_call(raw_cpu_or_, (pcp), (val));			\
+	raw_cpu_or(pcp, val);						\
 } while (0)
 
 # define __this_cpu_add_return(pcp, val)	\
-	(__this_cpu_preempt_check("add_return"),__pcpu_size_call_return2(raw_cpu_add_return_, pcp, val))
+	(__this_cpu_preempt_check("add_return"),raw_cpu_add_return(pcp, val))
 
 #define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(typeof(pcp))(val))
 #define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
 #define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
 
 # define __this_cpu_xchg(pcp, nval)	\
-	(__this_cpu_preempt_check("xchg"),__pcpu_size_call_return2(raw_cpu_xchg_, (pcp), nval))
+	(__this_cpu_preempt_check("xchg"),raw_cpu_xchg(pcp, nval))
 
 # define __this_cpu_cmpxchg(pcp, oval, nval)	\
-	(__this_cpu_preempt_check("cmpxchg"),__pcpu_size_call_return2(raw_cpu_cmpxchg_, pcp, oval, nval))
+	(__this_cpu_preempt_check("cmpxchg"),raw_cpu_cmpxchg(pcp, oval, nval))
 
 # define __this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	(__this_cpu_preempt_check("cmpxchg_double"),__pcpu_double_call_return_bool(raw_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2)))
+	(__this_cpu_preempt_check("cmpxchg_double"),raw_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2))
 
 /*
  * this_cpu_*() operations are used for accesses that must be done in a
