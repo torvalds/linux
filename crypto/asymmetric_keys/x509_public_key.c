@@ -24,6 +24,22 @@
 #include "public_key.h"
 #include "x509_parser.h"
 
+static char *ca_keyid;
+
+#ifndef MODULE
+static int __init ca_keys_setup(char *str)
+{
+	if (!str)		/* default system keyring */
+		return 1;
+
+	if (strncmp(str, "id:", 3) == 0)
+		ca_keyid = str;	/* owner key 'id:xxxxxx' */
+
+	return 1;
+}
+__setup("ca_keys=", ca_keys_setup);
+#endif
+
 /*
  * Find a key in the given keyring by issuer and authority.
  */
@@ -170,6 +186,9 @@ static int x509_validate_trust(struct x509_certificate *cert,
 
 	if (!trust_keyring)
 		return -EOPNOTSUPP;
+
+	if (ca_keyid && !asymmetric_keyid_match(cert->authority, ca_keyid))
+		return -EPERM;
 
 	key = x509_request_asymmetric_key(trust_keyring,
 					  cert->issuer, strlen(cert->issuer),

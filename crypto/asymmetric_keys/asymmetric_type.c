@@ -49,6 +49,7 @@ int asymmetric_keyid_match(const char *kid, const char *id)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(asymmetric_keyid_match);
 
 /*
  * Match asymmetric keys on (part of) their name

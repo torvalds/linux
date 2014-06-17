@@ -566,6 +566,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
+	ca_keys=	[KEYS] This parameter identifies a specific key(s) on
+			the system trusted keyring to be used for certificate
+			trust validation.
+			format: id:<keyid>
+
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
 
