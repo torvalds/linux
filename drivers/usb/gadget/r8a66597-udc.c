@@ -1826,7 +1826,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 
 	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
-	iounmap(r8a66597->reg);
 	if (r8a66597->pdata->sudmac)
 		iounmap(r8a66597->sudmac_reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
@@ -1877,11 +1876,9 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	unsigned long irq_trigger;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "platform_get_resource error.\n");
-		goto clean_up;
-	}
+	reg = devm_ioremap_resource(&pdev->dev, res);
+	if (!reg)
+		return -ENODEV;
 
 	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	irq = ires->start;
@@ -1890,13 +1887,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	if (irq < 0) {
 		ret = -ENODEV;
 		dev_err(&pdev->dev, "platform_get_irq error.\n");
-		goto clean_up;
-	}
-
-	reg = ioremap(res->start, resource_size(res));
-	if (reg == NULL) {
-		ret = -ENOMEM;
-		dev_err(&pdev->dev, "ioremap error.\n");
 		goto clean_up;
 	}
 
@@ -2007,8 +1997,6 @@ clean_up:
 						r8a66597->ep0_req);
 		kfree(r8a66597);
 	}
-	if (reg)
-		iounmap(reg);
 
 	return ret;
 }
