@@ -1293,6 +1293,8 @@ static const struct net_device_ops ath6kl_netdev_ops = {
 
 void init_netdev(struct net_device *dev)
 {
+	struct ath6kl *ar = ath6kl_priv(dev);
+
 	dev->netdev_ops = &ath6kl_netdev_ops;
 	dev->destructor = free_netdev;
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
@@ -1304,7 +1306,9 @@ void init_netdev(struct net_device *dev)
 					WMI_MAX_TX_META_SZ +
 					ATH6KL_HTC_ALIGN_BYTES, 4);
 
-	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+	if (!test_bit(ATH6KL_FW_CAPABILITY_NO_IP_CHECKSUM,
+		      ar->fw_capabilities))
+		dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
 	return;
 }

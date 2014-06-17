@@ -1210,6 +1210,7 @@ static int ath6kl_usb_pm_reset_resume(struct usb_interface *intf)
 
 /* table of devices that work with this driver */
 static struct usb_device_id ath6kl_usb_ids[] = {
+	{USB_DEVICE(0x0cf3, 0x9375)},
 	{USB_DEVICE(0x0cf3, 0x9374)},
 	{ /* Terminating entry */ },
 };
