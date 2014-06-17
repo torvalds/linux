@@ -120,10 +120,6 @@ MODULE_PARM_DESC(prism2_reset_settletime, "reset settle time in ms");
 
 MODULE_LICENSE("Dual MPL/GPL");
 
-void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
-void prism2_disconnected(wlandevice_t *wlandev);
-void prism2_roamed(wlandevice_t *wlandev);
-
 static int prism2sta_open(wlandevice_t *wlandev);
 static int prism2sta_close(wlandevice_t *wlandev);
 static void prism2sta_reset(wlandevice_t *wlandev);
@@ -405,8 +401,9 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, struct p80211msg *msg)
 			break;
 		}
 	default:
-		printk(KERN_WARNING "Unknown mgmt request message 0x%08x",
-		       msg->msgcode);
+		netdev_warn(wlandev->netdev,
+			    "Unknown mgmt request message 0x%08x",
+			    msg->msgcode);
 		break;
 	}
 
@@ -469,7 +466,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_RUNNING:
-			printk(KERN_WARNING
+			netdev_warn(wlandev->netdev,
 			       "Cannot enter fwload state from enable state,"
 			       "you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
@@ -1431,7 +1428,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 	default:
 		/* This is bad, IO port problems? */
-		printk(KERN_WARNING
+		netdev_warn(wlandev->netdev,
 		       "unknown linkstatus=0x%02x\n", hw->link_status);
 		return;
 	}
@@ -1513,7 +1510,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 
 	if (i >= hw->authlist.cnt) {
 		if (rec.assocstatus != HFA384x_ASSOCSTATUS_AUTHFAIL)
-			printk(KERN_WARNING
+			netdev_warn(wlandev->netdev,
 	"assocstatus info frame received for non-authenticated station.\n");
 	} else {
 		hw->authlist.assoc[i] =
@@ -1521,7 +1518,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 		     rec.assocstatus == HFA384x_ASSOCSTATUS_REASSOC);
 
 		if (rec.assocstatus == HFA384x_ASSOCSTATUS_AUTHFAIL)
-			printk(KERN_WARNING
+			netdev_warn(wlandev->netdev,
 "authfail assocstatus info frame received for authenticated station.\n");
 	}
 }
@@ -1791,16 +1788,16 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 		prism2sta_inf_psusercnt(wlandev, inf);
 		break;
 	case HFA384x_IT_KEYIDCHANGED:
-		printk(KERN_WARNING "Unhandled IT_KEYIDCHANGED\n");
+		netdev_warn(wlandev->netdev, "Unhandled IT_KEYIDCHANGED\n");
 		break;
 	case HFA384x_IT_ASSOCREQ:
-		printk(KERN_WARNING "Unhandled IT_ASSOCREQ\n");
+		netdev_warn(wlandev->netdev, "Unhandled IT_ASSOCREQ\n");
 		break;
 	case HFA384x_IT_MICFAILURE:
-		printk(KERN_WARNING "Unhandled IT_MICFAILURE\n");
+		netdev_warn(wlandev->netdev, "Unhandled IT_MICFAILURE\n");
 		break;
 	default:
-		printk(KERN_WARNING
+		netdev_warn(wlandev->netdev,
 		       "Unknown info type=0x%02x\n", inf->infotype);
 		break;
 	}

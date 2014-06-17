@@ -214,7 +214,7 @@ static int orion_nand_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id orion_nand_of_match_table[] = {
+static const struct of_device_id orion_nand_of_match_table[] = {
 	{ .compatible = "marvell,orion-nand", },
 	{},
 };

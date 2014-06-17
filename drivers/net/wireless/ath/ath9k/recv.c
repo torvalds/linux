@@ -34,7 +34,8 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
  * buffer (or rx fifo). This can incorrectly acknowledge packets
  * to a sender if last desc is self-linked.
  */
-static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf)
+static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf,
+			    bool flush)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -59,18 +60,19 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf)
 			     common->rx_bufsize,
 			     0);
 
-	if (sc->rx.rxlink == NULL)
-		ath9k_hw_putrxbuf(ah, bf->bf_daddr);
-	else
+	if (sc->rx.rxlink)
 		*sc->rx.rxlink = bf->bf_daddr;
+	else if (!flush)
+		ath9k_hw_putrxbuf(ah, bf->bf_daddr);
 
 	sc->rx.rxlink = &ds->ds_link;
 }
 
-static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_rxbuf *bf)
+static void ath_rx_buf_relink(struct ath_softc *sc, struct ath_rxbuf *bf,
+			      bool flush)
 {
 	if (sc->rx.buf_hold)
-		ath_rx_buf_link(sc, sc->rx.buf_hold);
+		ath_rx_buf_link(sc, sc->rx.buf_hold, flush);
 
 	sc->rx.buf_hold = bf;
 }
@@ -442,7 +444,7 @@ int ath_startrecv(struct ath_softc *sc)
 	sc->rx.buf_hold = NULL;
 	sc->rx.rxlink = NULL;
 	list_for_each_entry_safe(bf, tbf, &sc->rx.rxbuf, list) {
-		ath_rx_buf_link(sc, bf);
+		ath_rx_buf_link(sc, bf, false);
 	}
 
 	/* We could have deleted elements so the list may be empty now */
@@ -538,7 +540,10 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_BEACON_SYNC;
 		ath_dbg(common, PS,
 			"Reconfigure beacon timers based on synchronized timestamp\n");
-		ath9k_set_beacon(sc);
+		if (!(WARN_ON_ONCE(sc->cur_beacon_conf.beacon_interval == 0)))
+			ath9k_set_beacon(sc);
+		if (sc->p2p_ps_vif)
+			ath9k_update_p2p_ps(sc, sc->p2p_ps_vif->vif);
 	}
 
 	if (ath_beacon_dtim_pending_cab(skb)) {
@@ -1115,12 +1120,12 @@ requeue_drop_frag:
 requeue:
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
 
-		if (edma) {
-			ath_rx_edma_buf_link(sc, qtype);
-		} else {
-			ath_rx_buf_relink(sc, bf);
+		if (!edma) {
+			ath_rx_buf_relink(sc, bf, flush);
 			if (!flush)
 				ath9k_hw_rxena(ah);
+		} else if (!flush) {
+			ath_rx_edma_buf_link(sc, qtype);
 		}
 
 		if (!budget--)

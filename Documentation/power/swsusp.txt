@@ -220,7 +220,10 @@ Q: After resuming, system is paging heavily, leading to very bad interactivity.
 
 A: Try running
 
-cat `cat /proc/[0-9]*/maps | grep / | sed 's:.* /:/:' | sort -u` > /dev/null
+cat /proc/[0-9]*/maps | grep / | sed 's:.* /:/:' | sort -u | while read file
+do
+  test -f "$file" && cat "$file" > /dev/null
+done
 
 after resume. swapoff -a; swapon -a may also be useful.
 

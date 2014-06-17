@@ -335,7 +335,7 @@ static SOC_ENUM_SINGLE_DECL(da7210_hp_mode_sel,
 static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 
 	if (ucontrol->value.integer.value[0]) {
 		/* Check if noise suppression is enabled */
@@ -358,7 +358,7 @@ static int da7210_put_alc_sw(struct snd_kcontrol *kcontrol,
 static int da7210_put_noise_sup_sw(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	u8 val;
 
 	if (ucontrol->value.integer.value[0]) {

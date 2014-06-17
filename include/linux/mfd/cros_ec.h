@@ -29,8 +29,8 @@ enum {
 	EC_MSG_RX_PROTO_BYTES	= 3,
 
 	/* Max length of messages */
-	EC_MSG_BYTES		= EC_HOST_PARAM_SIZE + EC_MSG_TX_PROTO_BYTES,
-
+	EC_MSG_BYTES		= EC_PROTO2_MAX_PARAM_SIZE +
+					EC_MSG_TX_PROTO_BYTES,
 };
 
 /**

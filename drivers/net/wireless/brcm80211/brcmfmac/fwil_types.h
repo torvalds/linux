@@ -53,6 +53,14 @@
 #define BRCMF_OBSS_COEX_OFF		0
 #define BRCMF_OBSS_COEX_ON		1
 
+/* join preference types for join_pref iovar */
+enum brcmf_join_pref_types {
+	BRCMF_JOIN_PREF_RSSI = 1,
+	BRCMF_JOIN_PREF_WPA,
+	BRCMF_JOIN_PREF_BAND,
+	BRCMF_JOIN_PREF_RSSI_DELTA,
+};
+
 enum brcmf_fil_p2p_if_types {
 	BRCMF_FIL_P2P_IF_CLIENT,
 	BRCMF_FIL_P2P_IF_GO,
@@ -280,6 +288,22 @@ struct brcmf_assoc_params_le {
 	__le32 chanspec_num;
 	/* list of chanspecs */
 	__le16 chanspec_list[1];
+};
+
+/**
+ * struct join_pref params - parameters for preferred join selection.
+ *
+ * @type: preference type (see enum brcmf_join_pref_types).
+ * @len: length of bytes following (currently always 2).
+ * @rssi_gain: signal gain for selection (only when @type is RSSI_DELTA).
+ * @band: band to which selection preference applies.
+ *	This is used if @type is BAND or RSSI_DELTA.
+ */
+struct brcmf_join_pref_params {
+	u8 type;
+	u8 len;
+	u8 rssi_gain;
+	u8 band;
 };
 
 /* used for join with or without a specific bssid and channel list */

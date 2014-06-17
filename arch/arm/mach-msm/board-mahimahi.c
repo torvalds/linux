@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/memblock.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -52,16 +53,10 @@ static void __init mahimahi_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init mahimahi_fixup(struct tag *tags, char **cmdline,
-				  struct meminfo *mi)
+static void __init mahimahi_fixup(struct tag *tags, char **cmdline)
 {
-	mi->nr_banks = 2;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
-	mi->bank[0].size = (219*1024*1024);
-	mi->bank[1].start = MSM_HIGHMEM_BASE;
-	mi->bank[1].node = PHYS_TO_NID(MSM_HIGHMEM_BASE);
-	mi->bank[1].size = MSM_HIGHMEM_SIZE;
+	memblock_add(PHYS_OFFSET, 219*SZ_1M);
+	memblock_add(MSM_HIGHMEM_BASE, MSM_HIGHMEM_SIZE);
 }
 
 static void __init mahimahi_map_io(void)

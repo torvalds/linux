@@ -13,10 +13,16 @@
 /dts-v1/;
 #include "r8a7791.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Koelsch";
 	compatible = "renesas,koelsch", "renesas,r8a7791";
+
+	aliases {
+		serial6 = &scif0;
+		serial7 = &scif1;
+	};
 
 	chosen {
 		bootargs = "console=ttySC6,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
@@ -40,51 +46,79 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
+		key-1 {
+			gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW2-1";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW2-2";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW2-3";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW2-4";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
 		key-a {
 			gpios = <&gpio7 0 GPIO_ACTIVE_LOW>;
-			linux,code = <30>;
+			linux,code = <KEY_A>;
 			label = "SW30";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-b {
 			gpios = <&gpio7 1 GPIO_ACTIVE_LOW>;
-			linux,code = <48>;
+			linux,code = <KEY_B>;
 			label = "SW31";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-c {
 			gpios = <&gpio7 2 GPIO_ACTIVE_LOW>;
-			linux,code = <46>;
+			linux,code = <KEY_C>;
 			label = "SW32";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-d {
 			gpios = <&gpio7 3 GPIO_ACTIVE_LOW>;
-			linux,code = <32>;
+			linux,code = <KEY_D>;
 			label = "SW33";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-e {
 			gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
-			linux,code = <18>;
+			linux,code = <KEY_E>;
 			label = "SW34";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-f {
 			gpios = <&gpio7 5 GPIO_ACTIVE_LOW>;
-			linux,code = <33>;
+			linux,code = <KEY_F>;
 			label = "SW35";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
 		};
 		key-g {
 			gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
-			linux,code = <34>;
+			linux,code = <KEY_G>;
 			label = "SW36";
 			gpio-key,wakeup;
 			debounce-interval = <20>;
@@ -195,11 +229,16 @@
 	};
 };
 
+&i2c6 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
 &pfc {
-	pinctrl-0 = <&du_pins &scif0_pins &scif1_pins>;
+	pinctrl-0 = <&du_pins>;
 	pinctrl-names = "default";
 
-	i2c2_pins: i2c {
+	i2c2_pins: i2c2 {
 		renesas,groups = "i2c2";
 		renesas,function = "i2c2";
 	};
@@ -244,9 +283,15 @@
 		renesas,function = "sdhi2";
 	};
 
-	qspi_pins: spi {
+	qspi_pins: spi0 {
 		renesas,groups = "qspi_ctrl", "qspi_data4";
 		renesas,function = "qspi";
+	};
+
+	msiof0_pins: spi1 {
+		renesas,groups = "msiof0_clk", "msiof0_sync", "msiof0_rx",
+				 "msiof0_tx";
+		renesas,function = "msiof0";
 	};
 };
 
@@ -262,10 +307,25 @@
 		reg = <1>;
 		interrupt-parent = <&irqc0>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		micrel,led-mode = <1>;
 	};
 };
 
 &sata0 {
+	status = "okay";
+};
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&scif1 {
+	pinctrl-0 = <&scif1_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
 
@@ -301,7 +361,7 @@
 	status = "okay";
 };
 
-&spi {
+&qspi {
 	pinctrl-0 = <&qspi_pins>;
 	pinctrl-names = "default";
 
@@ -313,6 +373,8 @@
 		compatible = "spansion,s25fl512s";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
 		m25p,fast-read;
 
 		partition@0 {
@@ -329,5 +391,20 @@
 			label = "data";
 			reg = <0x00100000 0x03f00000>;
 		};
+	};
+};
+
+&msiof0 {
+	pinctrl-0 = <&msiof0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	pmic: pmic@0 {
+		compatible = "renesas,r2a11302ft";
+		reg = <0>;
+		spi-max-frequency = <6000000>;
+		spi-cpol;
+		spi-cpha;
 	};
 };

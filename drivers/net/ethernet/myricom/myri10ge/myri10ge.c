@@ -4112,7 +4112,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
 		    (unsigned long)mgp);
 
-	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
+	netdev->ethtool_ops = &myri10ge_ethtool_ops;
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
 	if (status != 0) {

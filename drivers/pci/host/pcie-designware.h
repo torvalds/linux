@@ -41,7 +41,6 @@ struct pcie_port {
 	void __iomem		*va_cfg1_base;
 	u64			io_base;
 	u64			mem_base;
-	spinlock_t		conf_lock;
 	struct resource		cfg;
 	struct resource		io;
 	struct resource		mem;
@@ -68,7 +67,7 @@ struct pcie_host_ops {
 
 int dw_pcie_cfg_read(void __iomem *addr, int where, int size, u32 *val);
 int dw_pcie_cfg_write(void __iomem *addr, int where, int size, u32 val);
-void dw_handle_msi_irq(struct pcie_port *pp);
+irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);
 void dw_pcie_msi_init(struct pcie_port *pp);
 int dw_pcie_link_up(struct pcie_port *pp);
 void dw_pcie_setup_rc(struct pcie_port *pp);

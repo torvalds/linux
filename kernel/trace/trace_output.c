@@ -126,6 +126,34 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
 EXPORT_SYMBOL_GPL(trace_seq_printf);
 
 /**
+ * trace_seq_bitmask - put a list of longs as a bitmask print output
+ * @s:		trace sequence descriptor
+ * @maskp:	points to an array of unsigned longs that represent a bitmask
+ * @nmaskbits:	The number of bits that are valid in @maskp
+ *
+ * It returns 0 if the trace oversizes the buffer's free
+ * space, 1 otherwise.
+ *
+ * Writes a ASCII representation of a bitmask string into @s.
+ */
+int
+trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
+		  int nmaskbits)
+{
+	int len = (PAGE_SIZE - 1) - s->len;
+	int ret;
+
+	if (s->full || !len)
+		return 0;
+
+	ret = bitmap_scnprintf(s->buffer, len, maskp, nmaskbits);
+	s->len += ret;
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(trace_seq_bitmask);
+
+/**
  * trace_seq_vprintf - sequence printing of trace information
  * @s: trace sequence descriptor
  * @fmt: printf format string
@@ -397,6 +425,19 @@ ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 }
 EXPORT_SYMBOL(ftrace_print_symbols_seq_u64);
 #endif
+
+const char *
+ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+			 unsigned int bitmask_size)
+{
+	const char *ret = p->buffer + p->len;
+
+	trace_seq_bitmask(p, bitmask_ptr, bitmask_size * 8);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ftrace_print_bitmask_seq);
 
 const char *
 ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)

@@ -839,6 +839,43 @@ void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 }
 EXPORT_SYMBOL_GPL(snd_hda_apply_fixup);
 
+static bool pin_config_match(struct hda_codec *codec,
+			     const struct hda_pintbl *pins)
+{
+	for (; pins->nid; pins++) {
+		u32 def_conf = snd_hda_codec_get_pincfg(codec, pins->nid);
+		if (pins->val != def_conf)
+			return false;
+	}
+	return true;
+}
+
+void snd_hda_pick_pin_fixup(struct hda_codec *codec,
+			    const struct snd_hda_pin_quirk *pin_quirk,
+			    const struct hda_fixup *fixlist)
+{
+	const struct snd_hda_pin_quirk *pq;
+
+	if (codec->fixup_forced)
+		return;
+
+	for (pq = pin_quirk; pq->subvendor; pq++) {
+		if ((codec->subsystem_id & 0xffff0000) != (pq->subvendor << 16))
+			continue;
+		if (codec->vendor_id != pq->codec)
+			continue;
+		if (pin_config_match(codec, pq->pins)) {
+			codec->fixup_id = pq->value;
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+			codec->fixup_name = pq->name;
+#endif
+			codec->fixup_list = fixlist;
+			return;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
+
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
 			const struct snd_pci_quirk *quirk,
@@ -852,15 +889,17 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
 		codec->fixup_list = NULL;
 		codec->fixup_id = -1;
+		codec->fixup_forced = 1;
 		return;
 	}
 
 	if (codec->modelname && models) {
 		while (models->name) {
 			if (!strcmp(codec->modelname, models->name)) {
-				id = models->id;
-				name = models->name;
-				break;
+				codec->fixup_id = models->id;
+				codec->fixup_name = models->name;
+				codec->fixup_forced = 1;
+				return;
 			}
 			models++;
 		}
@@ -889,6 +928,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 		}
 	}
 
+	codec->fixup_forced = 0;
 	codec->fixup_id = id;
 	if (id >= 0) {
 		codec->fixup_list = fixlist;

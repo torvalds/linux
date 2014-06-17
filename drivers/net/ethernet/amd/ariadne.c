@@ -718,7 +718,6 @@ static int ariadne_init_one(struct zorro_dev *z,
 	unsigned long mem_start = board + ARIADNE_RAM;
 	struct resource *r1, *r2;
 	struct net_device *dev;
-	struct ariadne_private *priv;
 	u32 serial;
 	int err;
 
@@ -737,8 +736,6 @@ static int ariadne_init_one(struct zorro_dev *z,
 		release_mem_region(mem_start, ARIADNE_RAM_SIZE);
 		return -ENOMEM;
 	}
-
-	priv = netdev_priv(dev);
 
 	r1->name = dev->name;
 	r2->name = dev->name;

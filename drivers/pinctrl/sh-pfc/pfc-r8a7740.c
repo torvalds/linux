@@ -22,7 +22,9 @@
 #include <linux/kernel.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#ifndef CONFIG_ARCH_MULTIPLATFORM
 #include <mach/irqs.h>
+#endif
 
 #include "core.h"
 #include "sh_pfc.h"

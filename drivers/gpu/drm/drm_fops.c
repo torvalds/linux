@@ -43,8 +43,7 @@
 DEFINE_MUTEX(drm_global_mutex);
 EXPORT_SYMBOL(drm_global_mutex);
 
-static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_minor *minor);
+static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
 static int drm_setup(struct drm_device * dev)
 {
@@ -95,7 +94,7 @@ int drm_open(struct inode *inode, struct file *filp)
 	/* share address_space across all char-devs of a single device */
 	filp->f_mapping = dev->anon_inode->i_mapping;
 
-	retcode = drm_open_helper(inode, filp, minor);
+	retcode = drm_open_helper(filp, minor);
 	if (retcode)
 		goto err_undo;
 	if (need_setup) {
@@ -171,7 +170,6 @@ static int drm_cpu_valid(void)
 /**
  * Called whenever a process opens /dev/drm.
  *
- * \param inode device inode.
  * \param filp file pointer.
  * \param minor acquired minor-object.
  * \return zero on success or a negative number on failure.
@@ -179,8 +177,7 @@ static int drm_cpu_valid(void)
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
-static int drm_open_helper(struct inode *inode, struct file *filp,
-			   struct drm_minor *minor)
+static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	struct drm_file *priv;

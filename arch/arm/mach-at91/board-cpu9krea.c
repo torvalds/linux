@@ -48,6 +48,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 static void __init cpu9krea_init_early(void)
 {

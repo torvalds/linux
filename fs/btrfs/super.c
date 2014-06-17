@@ -511,7 +511,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			} else if (compress) {
 				if (!btrfs_test_opt(root, COMPRESS))
 					btrfs_info(root->fs_info,
-						   "btrfs: use %s compression\n",
+						   "btrfs: use %s compression",
 						   compress_type);
 			}
 			break;
@@ -580,8 +580,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			}
 			break;
 		case Opt_acl:
+#ifdef CONFIG_BTRFS_FS_POSIX_ACL
 			root->fs_info->sb->s_flags |= MS_POSIXACL;
 			break;
+#else
+			btrfs_err(root->fs_info,
+				"support for ACL not compiled in!");
+			ret = -EINVAL;
+			goto out;
+#endif
 		case Opt_noacl:
 			root->fs_info->sb->s_flags &= ~MS_POSIXACL;
 			break;
@@ -1413,6 +1420,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		 * this also happens on 'umount -rf' or on shutdown, when
 		 * the filesystem is busy.
 		 */
+		cancel_work_sync(&fs_info->async_reclaim_work);
 
 		/* wait for the uuid_scan task to finish */
 		down(&fs_info->uuid_tree_rescan_sem);
@@ -1894,6 +1902,9 @@ static int btrfs_run_sanity_tests(void)
 	if (ret)
 		goto out;
 	ret = btrfs_test_inodes();
+	if (ret)
+		goto out;
+	ret = btrfs_test_qgroups();
 out:
 	btrfs_destroy_test_fs();
 	return ret;

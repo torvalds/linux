@@ -26,6 +26,7 @@ Contents:
 1.4  target/target_index or setpolicy?
 1.5  target/target_index
 1.6  setpolicy
+1.7  get_intermediate and target_intermediate
 2.   Frequency Table Helpers
 
 
@@ -78,6 +79,10 @@ cpufreq_driver.resume -		A pointer to a per-CPU resume function
 cpufreq_driver.attr -		A pointer to a NULL-terminated list of
 				"struct freq_attr" which allow to
 				export values to sysfs.
+
+cpufreq_driver.get_intermediate
+and target_intermediate		Used to switch to stable frequency while
+				changing CPU frequency.
 
 
 1.2 Per-CPU Initialization
@@ -151,7 +156,7 @@ Some cpufreq-capable processors switch the frequency between certain
 limits on their own. These shall use the ->setpolicy call
 
 
-1.4. target/target_index
+1.5. target/target_index
 -------------
 
 The target_index call has two arguments: struct cpufreq_policy *policy,
@@ -159,6 +164,9 @@ and unsigned int index (into the exposed frequency table).
 
 The CPUfreq driver must set the new frequency when called here. The
 actual frequency must be determined by freq_table[index].frequency.
+
+It should always restore to earlier frequency (i.e. policy->restore_freq) in
+case of errors, even if we switched to intermediate frequency earlier.
 
 Deprecated:
 ----------
@@ -179,7 +187,7 @@ Here again the frequency table helper might assist you - see section 2
 for details.
 
 
-1.5 setpolicy
+1.6 setpolicy
 ---------------
 
 The setpolicy call only takes a struct cpufreq_policy *policy as
@@ -190,6 +198,23 @@ setting when policy->policy is CPUFREQ_POLICY_PERFORMANCE, and a
 powersaving-oriented setting when CPUFREQ_POLICY_POWERSAVE. Also check
 the reference implementation in drivers/cpufreq/longrun.c
 
+1.7 get_intermediate and target_intermediate
+--------------------------------------------
+
+Only for drivers with target_index() and CPUFREQ_ASYNC_NOTIFICATION unset.
+
+get_intermediate should return a stable intermediate frequency platform wants to
+switch to, and target_intermediate() should set CPU to to that frequency, before
+jumping to the frequency corresponding to 'index'. Core will take care of
+sending notifications and driver doesn't have to handle them in
+target_intermediate() or target_index().
+
+Drivers can return '0' from get_intermediate() in case they don't wish to switch
+to intermediate frequency for some target frequency. In that case core will
+directly call ->target_index().
+
+NOTE: ->target_index() should restore to policy->restore_freq in case of
+failures as core would send notifications for that.
 
 
 2. Frequency Table Helpers
@@ -228,3 +253,22 @@ is the corresponding frequency table helper for the ->target
 stage. Just pass the values to this function, and the unsigned int
 index returns the number of the frequency table entry which contains
 the frequency the CPU shall be set to.
+
+The following macros can be used as iterators over cpufreq_frequency_table:
+
+cpufreq_for_each_entry(pos, table) - iterates over all entries of frequency
+table.
+
+cpufreq-for_each_valid_entry(pos, table) - iterates over all entries,
+excluding CPUFREQ_ENTRY_INVALID frequencies.
+Use arguments "pos" - a cpufreq_frequency_table * as a loop cursor and
+"table" - the cpufreq_frequency_table * you want to iterate over.
+
+For example:
+
+	struct cpufreq_frequency_table *pos, *driver_freq_table;
+
+	cpufreq_for_each_entry(pos, driver_freq_table) {
+		/* Do something with pos */
+		pos->frequency = ...
+	}

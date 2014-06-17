@@ -1,0 +1,8 @@
+skein/threefish TODO
+
+ - move macros into appropriate header files
+ - add / pass test vectors
+ - module support
+
+Please send patches to Jason Cooper <jason@lakedaemon.net> in addition to the
+staging tree mailinglist.

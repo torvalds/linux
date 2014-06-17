@@ -45,7 +45,7 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 		return;
 
 	clear_bit(HCI_INQUIRY, &hdev->flags);
-	smp_mb__after_clear_bit(); /* wake_up_bit advises about this barrier */
+	smp_mb__after_atomic(); /* wake_up_bit advises about this barrier */
 	wake_up_bit(&hdev->flags, HCI_INQUIRY);
 
 	hci_conn_check_pending(hdev);
@@ -991,10 +991,25 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
+	if (status)
+		return;
+
 	hci_dev_lock(hdev);
 
-	if (!status)
-		mgmt_advertising(hdev, *sent);
+	/* If we're doing connection initation as peripheral. Set a
+	 * timeout in case something goes wrong.
+	 */
+	if (*sent) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT);
+		if (conn)
+			queue_delayed_work(hdev->workqueue,
+					   &conn->le_conn_timeout,
+					   HCI_LE_CONN_TIMEOUT);
+	}
+
+	mgmt_advertising(hdev, *sent);
 
 	hci_dev_unlock(hdev);
 }
@@ -1018,6 +1033,33 @@ static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 }
 
+static bool has_pending_adv_report(struct hci_dev *hdev)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	return bacmp(&d->last_adv_addr, BDADDR_ANY);
+}
+
+static void clear_pending_adv_report(struct hci_dev *hdev)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	bacpy(&d->last_adv_addr, BDADDR_ANY);
+	d->last_adv_data_len = 0;
+}
+
+static void store_pending_adv_report(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				     u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
+{
+	struct discovery_state *d = &hdev->discovery;
+
+	bacpy(&d->last_adv_addr, bdaddr);
+	d->last_adv_addr_type = bdaddr_type;
+	d->last_adv_rssi = rssi;
+	memcpy(d->last_adv_data, data, len);
+	d->last_adv_data_len = len;
+}
+
 static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 				      struct sk_buff *skb)
 {
@@ -1036,9 +1078,25 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
+		if (hdev->le_scan_type == LE_SCAN_ACTIVE)
+			clear_pending_adv_report(hdev);
 		break;
 
 	case LE_SCAN_DISABLE:
+		/* We do this here instead of when setting DISCOVERY_STOPPED
+		 * since the latter would potentially require waiting for
+		 * inquiry to stop too.
+		 */
+		if (has_pending_adv_report(hdev)) {
+			struct discovery_state *d = &hdev->discovery;
+
+			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+					  d->last_adv_addr_type, NULL,
+					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_data,
+					  d->last_adv_data_len, NULL, 0);
+		}
+
 		/* Cancel this timer so that we don't try to disable scanning
 		 * when it's already disabled.
 		 */
@@ -1185,6 +1243,59 @@ static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,
 		return;
 
 	amp_write_rem_assoc_continue(hdev, rp->phy_handle);
+}
+
+static void hci_cc_read_rssi(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_read_rssi *rp = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
+	if (conn)
+		conn->rssi = rp->rssi;
+
+	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_read_tx_power(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_cp_read_tx_power *sent;
+	struct hci_rp_read_tx_power *rp = (void *) skb->data;
+	struct hci_conn *conn;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_READ_TX_POWER);
+	if (!sent)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
+	if (!conn)
+		goto unlock;
+
+	switch (sent->type) {
+	case 0x00:
+		conn->tx_power = rp->tx_power;
+		break;
+	case 0x01:
+		conn->max_tx_power = rp->tx_power;
+		break;
+	}
+
+unlock:
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
@@ -1342,6 +1453,7 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 	 * is requested.
 	 */
 	if (!hci_conn_ssp_enabled(conn) && !(conn->auth_type & 0x01) &&
+	    conn->pending_sec_level != BT_SECURITY_FIPS &&
 	    conn->pending_sec_level != BT_SECURITY_HIGH &&
 	    conn->pending_sec_level != BT_SECURITY_MEDIUM)
 		return 0;
@@ -1768,7 +1880,7 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
 		return;
 
-	smp_mb__after_clear_bit(); /* wake_up_bit advises about this barrier */
+	smp_mb__after_atomic(); /* wake_up_bit advises about this barrier */
 	wake_up_bit(&hdev->flags, HCI_INQUIRY);
 
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
@@ -1827,7 +1939,7 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		name_known = hci_inquiry_cache_update(hdev, &data, false, &ssp);
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 				  info->dev_class, 0, !name_known, ssp, NULL,
-				  0);
+				  0, NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -2579,6 +2691,14 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_write_remote_amp_assoc(hdev, skb);
 		break;
 
+	case HCI_OP_READ_RSSI:
+		hci_cc_read_rssi(hdev, skb);
+		break;
+
+	case HCI_OP_READ_TX_POWER:
+		hci_cc_read_tx_power(hdev, skb);
+		break;
+
 	default:
 		BT_DBG("%s opcode 0x%4.4x", hdev->name, opcode);
 		break;
@@ -2957,7 +3077,8 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		}
 
 		if (key->type == HCI_LK_COMBINATION && key->pin_len < 16 &&
-		    conn->pending_sec_level == BT_SECURITY_HIGH) {
+		    (conn->pending_sec_level == BT_SECURITY_HIGH ||
+		     conn->pending_sec_level == BT_SECURITY_FIPS)) {
 			BT_DBG("%s ignoring key unauthenticated for high security",
 			       hdev->name);
 			goto not_found;
@@ -3102,7 +3223,7 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 							      false, &ssp);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 					  info->dev_class, info->rssi,
-					  !name_known, ssp, NULL, 0);
+					  !name_known, ssp, NULL, 0, NULL, 0);
 		}
 	} else {
 		struct inquiry_info_with_rssi *info = (void *) (skb->data + 1);
@@ -3120,7 +3241,7 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 							      false, &ssp);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 					  info->dev_class, info->rssi,
-					  !name_known, ssp, NULL, 0);
+					  !name_known, ssp, NULL, 0, NULL, 0);
 		}
 	}
 
@@ -3309,7 +3430,7 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 		eir_len = eir_get_length(info->data, sizeof(info->data));
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 				  info->dev_class, info->rssi, !name_known,
-				  ssp, info->data, eir_len);
+				  ssp, info->data, eir_len, NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -3367,24 +3488,20 @@ unlock:
 
 static u8 hci_get_auth_req(struct hci_conn *conn)
 {
-	/* If remote requests dedicated bonding follow that lead */
-	if (conn->remote_auth == HCI_AT_DEDICATED_BONDING ||
-	    conn->remote_auth == HCI_AT_DEDICATED_BONDING_MITM) {
-		/* If both remote and local IO capabilities allow MITM
-		 * protection then require it, otherwise don't */
-		if (conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT ||
-		    conn->io_capability == HCI_IO_NO_INPUT_OUTPUT)
-			return HCI_AT_DEDICATED_BONDING;
-		else
-			return HCI_AT_DEDICATED_BONDING_MITM;
-	}
-
 	/* If remote requests no-bonding follow that lead */
 	if (conn->remote_auth == HCI_AT_NO_BONDING ||
 	    conn->remote_auth == HCI_AT_NO_BONDING_MITM)
 		return conn->remote_auth | (conn->auth_type & 0x01);
 
-	return conn->auth_type;
+	/* If both remote and local have enough IO capabilities, require
+	 * MITM protection
+	 */
+	if (conn->remote_cap != HCI_IO_NO_INPUT_OUTPUT &&
+	    conn->io_capability != HCI_IO_NO_INPUT_OUTPUT)
+		return conn->remote_auth | 0x01;
+
+	/* No MITM protection possible so ignore remote requirement */
+	return (conn->remote_auth & ~0x01) | (conn->auth_type & 0x01);
 }
 
 static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3414,8 +3531,21 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		 * to DisplayYesNo as it is not supported by BT spec. */
 		cp.capability = (conn->io_capability == 0x04) ?
 				HCI_IO_DISPLAY_YESNO : conn->io_capability;
-		conn->auth_type = hci_get_auth_req(conn);
-		cp.authentication = conn->auth_type;
+
+		/* If we are initiators, there is no remote information yet */
+		if (conn->remote_auth == 0xff) {
+			cp.authentication = conn->auth_type;
+
+			/* Request MITM protection if our IO caps allow it
+			 * except for the no-bonding case
+			 */
+			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
+			    cp.authentication != HCI_AT_NO_BONDING)
+				cp.authentication |= 0x01;
+		} else {
+			conn->auth_type = hci_get_auth_req(conn);
+			cp.authentication = conn->auth_type;
+		}
 
 		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
@@ -3483,12 +3613,9 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	rem_mitm = (conn->remote_auth & 0x01);
 
 	/* If we require MITM but the remote device can't provide that
-	 * (it has NoInputNoOutput) then reject the confirmation
-	 * request. The only exception is when we're dedicated bonding
-	 * initiators (connect_cfm_cb set) since then we always have the MITM
-	 * bit set. */
-	if (!conn->connect_cfm_cb && loc_mitm &&
-	    conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
+	 * (it has NoInputNoOutput) then reject the confirmation request
+	 */
+	if (loc_mitm && conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) {
 		BT_DBG("Rejecting request: remote device can't provide MITM");
 		hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_NEG_REPLY,
 			     sizeof(ev->bdaddr), &ev->bdaddr);
@@ -3846,17 +3973,6 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		conn->dst_type = ev->bdaddr_type;
 
-		/* The advertising parameters for own address type
-		 * define which source address and source address
-		 * type this connections has.
-		 */
-		if (bacmp(&conn->src, BDADDR_ANY)) {
-			conn->src_type = ADDR_LE_DEV_PUBLIC;
-		} else {
-			bacpy(&conn->src, &hdev->static_addr);
-			conn->src_type = ADDR_LE_DEV_RANDOM;
-		}
-
 		if (ev->role == LE_CONN_ROLE_MASTER) {
 			conn->out = true;
 			conn->link_mode |= HCI_LM_MASTER;
@@ -3881,27 +3997,24 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 							  &conn->init_addr,
 							  &conn->init_addr_type);
 			}
-		} else {
-			/* Set the responder (our side) address type based on
-			 * the advertising address type.
-			 */
-			conn->resp_addr_type = hdev->adv_addr_type;
-			if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM)
-				bacpy(&conn->resp_addr, &hdev->random_addr);
-			else
-				bacpy(&conn->resp_addr, &hdev->bdaddr);
-
-			conn->init_addr_type = ev->bdaddr_type;
-			bacpy(&conn->init_addr, &ev->bdaddr);
 		}
 	} else {
 		cancel_delayed_work(&conn->le_conn_timeout);
 	}
 
-	/* Ensure that the hci_conn contains the identity address type
-	 * regardless of which address the connection was made with.
-	 */
-	hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
+	if (!conn->out) {
+		/* Set the responder (our side) address type based on
+		 * the advertising address type.
+		 */
+		conn->resp_addr_type = hdev->adv_addr_type;
+		if (hdev->adv_addr_type == ADDR_LE_DEV_RANDOM)
+			bacpy(&conn->resp_addr, &hdev->random_addr);
+		else
+			bacpy(&conn->resp_addr, &hdev->bdaddr);
+
+		conn->init_addr_type = ev->bdaddr_type;
+		bacpy(&conn->init_addr, &ev->bdaddr);
+	}
 
 	/* Lookup the identity address from the stored connection
 	 * address and address type.
@@ -3981,25 +4094,97 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	}
 }
 
+static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
+			       u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
+{
+	struct discovery_state *d = &hdev->discovery;
+	bool match;
+
+	/* Passive scanning shouldn't trigger any device found events */
+	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
+		if (type == LE_ADV_IND || type == LE_ADV_DIRECT_IND)
+			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
+		return;
+	}
+
+	/* If there's nothing pending either store the data from this
+	 * event or send an immediate device found event if the data
+	 * should not be stored for later.
+	 */
+	if (!has_pending_adv_report(hdev)) {
+		/* If the report will trigger a SCAN_REQ store it for
+		 * later merging.
+		 */
+		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
+			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
+						 rssi, data, len);
+			return;
+		}
+
+		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
+				  rssi, 0, 1, data, len, NULL, 0);
+		return;
+	}
+
+	/* Check if the pending report is for the same device as the new one */
+	match = (!bacmp(bdaddr, &d->last_adv_addr) &&
+		 bdaddr_type == d->last_adv_addr_type);
+
+	/* If the pending data doesn't match this report or this isn't a
+	 * scan response (e.g. we got a duplicate ADV_IND) then force
+	 * sending of the pending data.
+	 */
+	if (type != LE_ADV_SCAN_RSP || !match) {
+		/* Send out whatever is in the cache, but skip duplicates */
+		if (!match)
+			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+					  d->last_adv_addr_type, NULL,
+					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_data,
+					  d->last_adv_data_len, NULL, 0);
+
+		/* If the new report will trigger a SCAN_REQ store it for
+		 * later merging.
+		 */
+		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
+			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
+						 rssi, data, len);
+			return;
+		}
+
+		/* The advertising reports cannot be merged, so clear
+		 * the pending report and send out a device found event.
+		 */
+		clear_pending_adv_report(hdev);
+		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
+				  rssi, 0, 1, data, len, NULL, 0);
+		return;
+	}
+
+	/* If we get here we've got a pending ADV_IND or ADV_SCAN_IND and
+	 * the new event is a SCAN_RSP. We can therefore proceed with
+	 * sending a merged device found event.
+	 */
+	mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
+			  d->last_adv_addr_type, NULL, rssi, 0, 1, data, len,
+			  d->last_adv_data, d->last_adv_data_len);
+	clear_pending_adv_report(hdev);
+}
+
 static void hci_le_adv_report_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	u8 num_reports = skb->data[0];
 	void *ptr = &skb->data[1];
-	s8 rssi;
 
 	hci_dev_lock(hdev);
 
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
-
-		if (ev->evt_type == LE_ADV_IND ||
-		    ev->evt_type == LE_ADV_DIRECT_IND)
-			check_pending_le_conn(hdev, &ev->bdaddr,
-					      ev->bdaddr_type);
+		s8 rssi;
 
 		rssi = ev->data[ev->length];
-		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
-				  NULL, rssi, 0, 1, ev->data, ev->length);
+		process_adv_report(hdev, ev->evt_type, &ev->bdaddr,
+				   ev->bdaddr_type, rssi, ev->data, ev->length);
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}

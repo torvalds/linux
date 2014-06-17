@@ -255,6 +255,7 @@ struct map_lookup {
 #define BTRFS_BALANCE_ARGS_DEVID	(1ULL << 2)
 #define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
 #define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
+#define BTRFS_BALANCE_ARGS_LIMIT	(1ULL << 5)
 
 /*
  * Profile changing flags.  When SOFT is set we won't relocate chunk if

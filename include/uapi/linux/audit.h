@@ -357,7 +357,7 @@ enum {
 #define AUDIT_ARCH_MIPS64N32	(EM_MIPS|__AUDIT_ARCH_64BIT|\
 				 __AUDIT_ARCH_CONVENTION_MIPS64_N32)
 #define AUDIT_ARCH_MIPSEL64	(EM_MIPS|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
-#define AUDIT_ARCH_MIPSEL64N32	(EM_MIPS|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE\
+#define AUDIT_ARCH_MIPSEL64N32	(EM_MIPS|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE|\
 				 __AUDIT_ARCH_CONVENTION_MIPS64_N32)
 #define AUDIT_ARCH_OPENRISC	(EM_OPENRISC)
 #define AUDIT_ARCH_PARISC	(EM_PARISC)
@@ -384,6 +384,14 @@ enum {
  * max header+body+tailer: 44 + 29 + 32 + 262 + 7 + pad
  */
 #define AUDIT_MESSAGE_TEXT_MAX	8560
+
+/* Multicast Netlink socket groups (default up to 32) */
+enum audit_nlgrps {
+	AUDIT_NLGRP_NONE,	/* Group 0 not used */
+	AUDIT_NLGRP_READLOG,	/* "best effort" read only socket */
+	__AUDIT_NLGRP_MAX
+};
+#define AUDIT_NLGRP_MAX                (__AUDIT_NLGRP_MAX - 1)
 
 struct audit_status {
 	__u32		mask;		/* Bit mask for valid entries */

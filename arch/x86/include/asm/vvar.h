@@ -29,30 +29,12 @@
 
 #else
 
-#ifdef BUILD_VDSO32
+extern char __vvar_page;
 
 #define DECLARE_VVAR(offset, type, name)				\
 	extern type vvar_ ## name __attribute__((visibility("hidden")));
 
 #define VVAR(name) (vvar_ ## name)
-
-#else
-
-extern char __vvar_page;
-
-/* Base address of vvars.  This is not ABI. */
-#ifdef CONFIG_X86_64
-#define VVAR_ADDRESS (-10*1024*1024 - 4096)
-#else
-#define VVAR_ADDRESS (&__vvar_page)
-#endif
-
-#define DECLARE_VVAR(offset, type, name)				\
-	static type const * const vvaraddr_ ## name =			\
-		(void *)(VVAR_ADDRESS + (offset));
-
-#define VVAR(name) (*vvaraddr_ ## name)
-#endif
 
 #define DEFINE_VVAR(type, name)						\
 	type name							\

@@ -329,6 +329,15 @@ typedef u32 acpi_physical_address;
  *
  ******************************************************************************/
 
+#ifdef ACPI_NO_MEM_ALLOCATIONS
+
+#define ACPI_ALLOCATE(a)                NULL
+#define ACPI_ALLOCATE_ZEROED(a)         NULL
+#define ACPI_FREE(a)
+#define ACPI_MEM_TRACKING(a)
+
+#else				/* ACPI_NO_MEM_ALLOCATIONS */
+
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 /*
  * Memory allocation tracking (used by acpi_exec to detect memory leaks)
@@ -349,6 +358,8 @@ typedef u32 acpi_physical_address;
 #define ACPI_MEM_TRACKING(a)
 
 #endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
+
+#endif				/* ACPI_NO_MEM_ALLOCATIONS */
 
 /******************************************************************************
  *
@@ -928,8 +939,18 @@ struct acpi_object_list {
  * Miscellaneous common Data Structures used by the interfaces
  */
 #define ACPI_NO_BUFFER              0
+
+#ifdef ACPI_NO_MEM_ALLOCATIONS
+
+#define ACPI_ALLOCATE_BUFFER        (acpi_size) (0)
+#define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (0)
+
+#else				/* ACPI_NO_MEM_ALLOCATIONS */
+
 #define ACPI_ALLOCATE_BUFFER        (acpi_size) (-1)	/* Let ACPICA allocate buffer */
 #define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (-2)	/* For internal use only (enables tracking) */
+
+#endif				/* ACPI_NO_MEM_ALLOCATIONS */
 
 struct acpi_buffer {
 	acpi_size length;	/* Length in bytes of the buffer */

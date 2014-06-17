@@ -29,6 +29,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/clk-realview.h>
 #include <linux/reboot.h>
+#include <linux/memblock.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -325,23 +326,19 @@ static void __init realview_pbx_timer_init(void)
 	realview_pbx_twd_init();
 }
 
-static void realview_pbx_fixup(struct tag *tags, char **from,
-			       struct meminfo *meminfo)
+static void realview_pbx_fixup(struct tag *tags, char **from)
 {
 #ifdef CONFIG_SPARSEMEM
 	/*
 	 * Memory configuration with SPARSEMEM enabled on RealView PBX (see
 	 * asm/mach/memory.h for more information).
 	 */
-	meminfo->bank[0].start = 0;
-	meminfo->bank[0].size = SZ_256M;
-	meminfo->bank[1].start = 0x20000000;
-	meminfo->bank[1].size = SZ_512M;
-	meminfo->bank[2].start = 0x80000000;
-	meminfo->bank[2].size = SZ_256M;
-	meminfo->nr_banks = 3;
+
+	memblock_add(0, SZ_256M);
+	memblock_add(0x20000000, SZ_512M);
+	memblock_add(0x80000000, SZ_256M);
 #else
-	realview_fixup(tags, from, meminfo);
+	realview_fixup(tags, from);
 #endif
 }
 
@@ -370,8 +367,8 @@ static void __init realview_pbx_init(void)
 			__io_address(REALVIEW_PBX_TILE_L220_BASE);
 
 		/* set RAM latencies to 1 cycle for eASIC */
-		writel(0, l2x0_base + L2X0_TAG_LATENCY_CTRL);
-		writel(0, l2x0_base + L2X0_DATA_LATENCY_CTRL);
+		writel(0, l2x0_base + L310_TAG_LATENCY_CTRL);
+		writel(0, l2x0_base + L310_DATA_LATENCY_CTRL);
 
 		/* 16KB way size, 8-way associativity, parity disabled
 		 * Bits:  .. 0 0 0 0 1 00 1 0 1 001 0 000 0 .... .... .... */
@@ -385,6 +382,7 @@ static void __init realview_pbx_init(void)
 	realview_eth_register(NULL, realview_pbx_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
+	platform_device_register(&realview_leds_device);
 	realview_usb_register(realview_pbx_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {

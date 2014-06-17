@@ -100,14 +100,34 @@ xfs_fs_set_xstate(
 		if (!XFS_IS_QUOTA_ON(mp))
 			return -EINVAL;
 		return -xfs_qm_scall_quotaoff(mp, flags);
-	case Q_XQUOTARM:
-		if (XFS_IS_QUOTA_ON(mp))
-			return -EINVAL;
-		return -xfs_qm_scall_trunc_qfiles(mp, flags);
 	}
 
 	return -EINVAL;
 }
+
+STATIC int
+xfs_fs_rm_xquota(
+	struct super_block	*sb,
+	unsigned int		uflags)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+	unsigned int		flags = 0;
+	
+	if (sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	if (XFS_IS_QUOTA_ON(mp))
+		return -EINVAL;
+
+	if (uflags & FS_USER_QUOTA)
+		flags |= XFS_DQ_USER;
+	if (uflags & FS_GROUP_QUOTA)
+		flags |= XFS_DQ_GROUP;
+	if (uflags & FS_USER_QUOTA)
+		flags |= XFS_DQ_PROJ;
+
+	return -xfs_qm_scall_trunc_qfiles(mp, flags);
+}	
 
 STATIC int
 xfs_fs_get_dqblk(
@@ -149,6 +169,7 @@ const struct quotactl_ops xfs_quotactl_operations = {
 	.get_xstatev		= xfs_fs_get_xstatev,
 	.get_xstate		= xfs_fs_get_xstate,
 	.set_xstate		= xfs_fs_set_xstate,
+	.rm_xquota		= xfs_fs_rm_xquota,
 	.get_dqblk		= xfs_fs_get_dqblk,
 	.set_dqblk		= xfs_fs_set_dqblk,
 };

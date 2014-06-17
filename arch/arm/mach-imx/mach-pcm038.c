@@ -351,7 +351,6 @@ MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= pcm038_timer_init,
 	.init_machine = pcm038_init,
 	.restart	= mxc_restart,

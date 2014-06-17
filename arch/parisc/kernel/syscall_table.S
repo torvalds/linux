@@ -432,7 +432,7 @@
 	ENTRY_SAME(sched_setattr)
 	ENTRY_SAME(sched_getattr)	/* 335 */
 	ENTRY_COMP(utimes)
-	ENTRY_COMP(renameat2)
+	ENTRY_SAME(renameat2)
 
 	/* Nothing yet */
 

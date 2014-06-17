@@ -64,6 +64,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_8688 = {
 	.io_port_0 = 0x00,
 	.io_port_1 = 0x01,
 	.io_port_2 = 0x02,
+	.int_read_to_clear = false,
 };
 static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.cfg = 0x00,
@@ -80,6 +81,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.io_port_0 = 0x78,
 	.io_port_1 = 0x79,
 	.io_port_2 = 0x7a,
+	.int_read_to_clear = false,
 };
 
 static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
@@ -97,6 +99,9 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
 	.io_port_0 = 0xd8,
 	.io_port_1 = 0xd9,
 	.io_port_2 = 0xda,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x01,
+	.card_misc_cfg = 0xcc,
 };
 
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
@@ -667,6 +672,53 @@ static int btmrvl_sdio_process_int_status(struct btmrvl_private *priv)
 	return 0;
 }
 
+static int btmrvl_sdio_read_to_clear(struct btmrvl_sdio_card *card, u8 *ireg)
+{
+	struct btmrvl_adapter *adapter = card->priv->adapter;
+	int ret;
+
+	ret = sdio_readsb(card->func, adapter->hw_regs, 0, SDIO_BLOCK_SIZE);
+	if (ret) {
+		BT_ERR("sdio_readsb: read int hw_regs failed: %d", ret);
+		return ret;
+	}
+
+	*ireg = adapter->hw_regs[card->reg->host_intstatus];
+	BT_DBG("hw_regs[%#x]=%#x", card->reg->host_intstatus, *ireg);
+
+	return 0;
+}
+
+static int btmrvl_sdio_write_to_clear(struct btmrvl_sdio_card *card, u8 *ireg)
+{
+	int ret;
+
+	*ireg = sdio_readb(card->func, card->reg->host_intstatus, &ret);
+	if (ret) {
+		BT_ERR("sdio_readb: read int status failed: %d", ret);
+		return ret;
+	}
+
+	if (*ireg) {
+		/*
+		 * DN_LD_HOST_INT_STATUS and/or UP_LD_HOST_INT_STATUS
+		 * Clear the interrupt status register and re-enable the
+		 * interrupt.
+		 */
+		BT_DBG("int_status = 0x%x", *ireg);
+
+		sdio_writeb(card->func, ~(*ireg) & (DN_LD_HOST_INT_STATUS |
+						    UP_LD_HOST_INT_STATUS),
+			    card->reg->host_intstatus, &ret);
+		if (ret) {
+			BT_ERR("sdio_writeb: clear int status failed: %d", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void btmrvl_sdio_interrupt(struct sdio_func *func)
 {
 	struct btmrvl_private *priv;
@@ -684,28 +736,13 @@ static void btmrvl_sdio_interrupt(struct sdio_func *func)
 
 	priv = card->priv;
 
-	ireg = sdio_readb(card->func, card->reg->host_intstatus, &ret);
-	if (ret) {
-		BT_ERR("sdio_readb: read int status register failed");
+	if (card->reg->int_read_to_clear)
+		ret = btmrvl_sdio_read_to_clear(card, &ireg);
+	else
+		ret = btmrvl_sdio_write_to_clear(card, &ireg);
+
+	if (ret)
 		return;
-	}
-
-	if (ireg != 0) {
-		/*
-		 * DN_LD_HOST_INT_STATUS and/or UP_LD_HOST_INT_STATUS
-		 * Clear the interrupt status register and re-enable the
-		 * interrupt.
-		 */
-		BT_DBG("ireg = 0x%x", ireg);
-
-		sdio_writeb(card->func, ~(ireg) & (DN_LD_HOST_INT_STATUS |
-					UP_LD_HOST_INT_STATUS),
-				card->reg->host_intstatus, &ret);
-		if (ret) {
-			BT_ERR("sdio_writeb: clear int status register failed");
-			return;
-		}
-	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	sdio_ireg |= ireg;
@@ -776,6 +813,30 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 	card->ioport |= (reg << 16);
 
 	BT_DBG("SDIO FUNC%d IO port: 0x%x", func->num, card->ioport);
+
+	if (card->reg->int_read_to_clear) {
+		reg = sdio_readb(func, card->reg->host_int_rsr, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+		sdio_writeb(func, reg | 0x3f, card->reg->host_int_rsr, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+
+		reg = sdio_readb(func, card->reg->card_misc_cfg, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+		sdio_writeb(func, reg | 0x10, card->reg->card_misc_cfg, &ret);
+		if (ret < 0) {
+			ret = -EIO;
+			goto release_irq;
+		}
+	}
 
 	sdio_set_drvdata(func, card);
 

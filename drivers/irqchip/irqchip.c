@@ -19,11 +19,11 @@
  * special section.
  */
 static const struct of_device_id
-irqchip_of_match_end __used __section(__irqchip_of_end);
+irqchip_of_match_end __used __section(__irqchip_of_table_end);
 
-extern struct of_device_id __irqchip_begin[];
+extern struct of_device_id __irqchip_of_table[];
 
 void __init irqchip_init(void)
 {
-	of_irq_init(__irqchip_begin);
+	of_irq_init(__irqchip_of_table);
 }

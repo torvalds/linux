@@ -927,7 +927,7 @@ static int adi_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-const struct irq_domain_ops adi_gpio_irq_domain_ops = {
+static const struct irq_domain_ops adi_gpio_irq_domain_ops = {
 	.map = adi_gpio_irq_map,
 	.xlate = irq_domain_xlate_onecell,
 };

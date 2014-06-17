@@ -254,6 +254,7 @@ static ssize_t global_rsv_reserved_show(struct kobject *kobj,
 BTRFS_ATTR(global_rsv_reserved, 0444, global_rsv_reserved_show);
 
 #define to_space_info(_kobj) container_of(_kobj, struct btrfs_space_info, kobj)
+#define to_raid_kobj(_kobj) container_of(_kobj, struct raid_kobject, kobj)
 
 static ssize_t raid_bytes_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf);
@@ -266,7 +267,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
 	struct btrfs_block_group_cache *block_group;
-	int index = kobj - sinfo->block_group_kobjs;
+	int index = to_raid_kobj(kobj)->raid_type;
 	u64 val = 0;
 
 	down_read(&sinfo->groups_sem);
@@ -288,7 +289,7 @@ static struct attribute *raid_attributes[] = {
 
 static void release_raid_kobj(struct kobject *kobj)
 {
-	kobject_put(kobj->parent);
+	kfree(to_raid_kobj(kobj));
 }
 
 struct kobj_type btrfs_raid_ktype = {
@@ -374,11 +375,8 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	struct btrfs_root *root = fs_info->fs_root;
 	int ret;
 
-	if (len >= BTRFS_LABEL_SIZE) {
-		pr_err("BTRFS: unable to set label with more than %d bytes\n",
-		       BTRFS_LABEL_SIZE - 1);
+	if (len >= BTRFS_LABEL_SIZE)
 		return -EINVAL;
-	}
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans))
@@ -396,8 +394,48 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 }
 BTRFS_ATTR_RW(label, 0644, btrfs_label_show, btrfs_label_store);
 
+static ssize_t btrfs_no_store(struct kobject *kobj,
+				 struct kobj_attribute *a,
+				 const char *buf, size_t len)
+{
+	return -EPERM;
+}
+
+static ssize_t btrfs_nodesize_show(struct kobject *kobj,
+				struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->nodesize);
+}
+
+BTRFS_ATTR_RW(nodesize, 0444, btrfs_nodesize_show, btrfs_no_store);
+
+static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
+				struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
+}
+
+BTRFS_ATTR_RW(sectorsize, 0444, btrfs_sectorsize_show, btrfs_no_store);
+
+static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
+				struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", fs_info->super_copy->sectorsize);
+}
+
+BTRFS_ATTR_RW(clone_alignment, 0444, btrfs_clone_alignment_show, btrfs_no_store);
+
 static struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(label),
+	BTRFS_ATTR_PTR(nodesize),
+	BTRFS_ATTR_PTR(sectorsize),
+	BTRFS_ATTR_PTR(clone_alignment),
 	NULL,
 };
 

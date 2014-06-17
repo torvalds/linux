@@ -24,6 +24,12 @@
 #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
 #define RPC_MAX_SLOT_TABLE	RPC_MAX_SLOT_TABLE_LIMIT
 
+#define RPC_CWNDSHIFT		(8U)
+#define RPC_CWNDSCALE		(1U << RPC_CWNDSHIFT)
+#define RPC_INITCWND		RPC_CWNDSCALE
+#define RPC_MAXCWND(xprt)	((xprt)->max_reqs << RPC_CWNDSHIFT)
+#define RPCXPRT_CONGESTED(xprt) ((xprt)->cong >= (xprt)->cwnd)
+
 /*
  * This describes a timeout strategy
  */
@@ -379,9 +385,9 @@ static inline int xprt_test_and_clear_connected(struct rpc_xprt *xprt)
 
 static inline void xprt_clear_connecting(struct rpc_xprt *xprt)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(XPRT_CONNECTING, &xprt->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static inline int xprt_connecting(struct rpc_xprt *xprt)
@@ -411,9 +417,9 @@ static inline void xprt_clear_bound(struct rpc_xprt *xprt)
 
 static inline void xprt_clear_binding(struct rpc_xprt *xprt)
 {
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(XPRT_BINDING, &xprt->state);
-	smp_mb__after_clear_bit();
+	smp_mb__after_atomic();
 }
 
 static inline int xprt_test_and_set_binding(struct rpc_xprt *xprt)

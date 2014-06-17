@@ -36,7 +36,7 @@ struct extent_status;
 
 #define show_map_flags(flags) __print_flags(flags, "|",			\
 	{ EXT4_GET_BLOCKS_CREATE,		"CREATE" },		\
-	{ EXT4_GET_BLOCKS_UNINIT_EXT,		"UNINIT" },		\
+	{ EXT4_GET_BLOCKS_UNWRIT_EXT,		"UNWRIT" },		\
 	{ EXT4_GET_BLOCKS_DELALLOC_RESERVE,	"DELALLOC" },		\
 	{ EXT4_GET_BLOCKS_PRE_IO,		"PRE_IO" },		\
 	{ EXT4_GET_BLOCKS_CONVERT,		"CONVERT" },		\
@@ -51,7 +51,6 @@ struct extent_status;
 	{ EXT4_MAP_MAPPED,	"M" },			\
 	{ EXT4_MAP_UNWRITTEN,	"U" },			\
 	{ EXT4_MAP_BOUNDARY,	"B" },			\
-	{ EXT4_MAP_UNINIT,	"u" },			\
 	{ EXT4_MAP_FROM_CLUSTER, "C" })
 
 #define show_free_flags(flags) __print_flags(flags, "|",	\
@@ -1497,7 +1496,7 @@ DEFINE_EVENT(ext4__truncate, ext4_truncate_exit,
 	TP_ARGS(inode)
 );
 
-/* 'ux' is the uninitialized extent. */
+/* 'ux' is the unwritten extent. */
 TRACE_EVENT(ext4_ext_convert_to_initialized_enter,
 	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map,
 		 struct ext4_extent *ux),
@@ -1533,7 +1532,7 @@ TRACE_EVENT(ext4_ext_convert_to_initialized_enter,
 );
 
 /*
- * 'ux' is the uninitialized extent.
+ * 'ux' is the unwritten extent.
  * 'ix' is the initialized extent to which blocks are transferred.
  */
 TRACE_EVENT(ext4_ext_convert_to_initialized_fastpath,
@@ -1811,7 +1810,7 @@ DEFINE_EVENT(ext4__trim, ext4_trim_all_free,
 	TP_ARGS(sb, group, start, len)
 );
 
-TRACE_EVENT(ext4_ext_handle_uninitialized_extents,
+TRACE_EVENT(ext4_ext_handle_unwritten_extents,
 	TP_PROTO(struct inode *inode, struct ext4_map_blocks *map, int flags,
 		 unsigned int allocated, ext4_fsblk_t newblock),
 

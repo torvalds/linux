@@ -333,7 +333,8 @@ static const struct nla_policy route4_policy[TCA_ROUTE4_MAX + 1] = {
 static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 			    unsigned long base, struct route4_filter *f,
 			    u32 handle, struct route4_head *head,
-			    struct nlattr **tb, struct nlattr *est, int new)
+			    struct nlattr **tb, struct nlattr *est, int new,
+			    bool ovr)
 {
 	int err;
 	u32 id = 0, to = 0, nhandle = 0x8000;
@@ -343,7 +344,7 @@ static int route4_set_parms(struct net *net, struct tcf_proto *tp,
 	struct tcf_exts e;
 
 	tcf_exts_init(&e, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
-	err = tcf_exts_validate(net, tp, tb, est, &e);
+	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
 		return err;
 
@@ -428,7 +429,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
-		       unsigned long *arg)
+		       unsigned long *arg, bool ovr)
 {
 	struct route4_head *head = tp->root;
 	struct route4_filter *f, *f1, **fp;
@@ -455,7 +456,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 			old_handle = f->handle;
 
 		err = route4_set_parms(net, tp, base, f, handle, head, tb,
-			tca[TCA_RATE], 0);
+			tca[TCA_RATE], 0, ovr);
 		if (err < 0)
 			return err;
 
@@ -479,7 +480,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 
 	tcf_exts_init(&f->exts, TCA_ROUTE4_ACT, TCA_ROUTE4_POLICE);
 	err = route4_set_parms(net, tp, base, f, handle, head, tb,
-		tca[TCA_RATE], 1);
+		tca[TCA_RATE], 1, ovr);
 	if (err < 0)
 		goto errout;
 

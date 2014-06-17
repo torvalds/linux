@@ -357,11 +357,17 @@ enum {
 	MAX_OFLD_QSETS = 16,          /* # of offload Tx/Rx queue sets */
 	MAX_CTRL_QUEUES = NCHAN,      /* # of control Tx queues */
 	MAX_RDMA_QUEUES = NCHAN,      /* # of streaming RDMA Rx queues */
+	MAX_RDMA_CIQS = NCHAN,        /* # of  RDMA concentrator IQs */
+	MAX_ISCSI_QUEUES = NCHAN,     /* # of streaming iSCSI Rx queues */
 };
 
 enum {
-	MAX_EGRQ = 128,         /* max # of egress queues, including FLs */
-	MAX_INGQ = 64           /* max # of interrupt-capable ingress queues */
+	INGQ_EXTRAS = 2,        /* firmware event queue and */
+				/*   forwarded interrupts */
+	MAX_EGRQ = MAX_ETH_QSETS*2 + MAX_OFLD_QSETS*2
+		   + MAX_CTRL_QUEUES + MAX_RDMA_QUEUES + MAX_ISCSI_QUEUES,
+	MAX_INGQ = MAX_ETH_QSETS + MAX_OFLD_QSETS + MAX_RDMA_QUEUES
+		   + MAX_RDMA_CIQS + MAX_ISCSI_QUEUES + INGQ_EXTRAS,
 };
 
 struct adapter;
@@ -538,6 +544,7 @@ struct sge {
 	struct sge_eth_rxq ethrxq[MAX_ETH_QSETS];
 	struct sge_ofld_rxq ofldrxq[MAX_OFLD_QSETS];
 	struct sge_ofld_rxq rdmarxq[MAX_RDMA_QUEUES];
+	struct sge_ofld_rxq rdmaciq[MAX_RDMA_CIQS];
 	struct sge_rspq fw_evtq ____cacheline_aligned_in_smp;
 
 	struct sge_rspq intrq ____cacheline_aligned_in_smp;
@@ -548,8 +555,10 @@ struct sge {
 	u16 ethtxq_rover;           /* Tx queue to clean up next */
 	u16 ofldqsets;              /* # of active offload queue sets */
 	u16 rdmaqs;                 /* # of available RDMA Rx queues */
+	u16 rdmaciqs;               /* # of available RDMA concentrator IQs */
 	u16 ofld_rxq[MAX_OFLD_QSETS];
 	u16 rdma_rxq[NCHAN];
+	u16 rdma_ciq[NCHAN];
 	u16 timer_val[SGE_NTIMERS];
 	u8 counter_val[SGE_NCOUNTERS];
 	u32 fl_pg_order;            /* large page allocation size */
@@ -577,6 +586,7 @@ struct sge {
 #define for_each_ethrxq(sge, i) for (i = 0; i < (sge)->ethqsets; i++)
 #define for_each_ofldrxq(sge, i) for (i = 0; i < (sge)->ofldqsets; i++)
 #define for_each_rdmarxq(sge, i) for (i = 0; i < (sge)->rdmaqs; i++)
+#define for_each_rdmaciq(sge, i) for (i = 0; i < (sge)->rdmaciqs; i++)
 
 struct l2t_data;
 

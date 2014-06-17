@@ -12,9 +12,9 @@
  * license other than the GPL, without Broadcom's express prior written
  * consent.
  *
- * Maintained by: Eilon Greenstein <eilong@broadcom.com>
- * Written by: Shmulik Ravid <shmulikr@broadcom.com>
- *	       Ariel Elior <ariele@broadcom.com>
+ * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
+ * Written by: Shmulik Ravid
+ *	       Ariel Elior <ariel.elior@qlogic.com>
  */
 
 #include "bnx2x.h"
@@ -747,7 +747,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
 
-	return 0;
+	return rc;
 }
 
 /* request pf to config rss table for vf queues*/

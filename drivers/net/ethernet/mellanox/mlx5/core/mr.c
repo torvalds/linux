@@ -73,7 +73,7 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 	}
 
 	if (err) {
-		mlx5_core_dbg(dev, "cmd exec faile %d\n", err);
+		mlx5_core_dbg(dev, "cmd exec failed %d\n", err);
 		return err;
 	}
 
@@ -82,7 +82,11 @@ int mlx5_core_create_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mr *mr,
 		return mlx5_cmd_status_to_err(&lout.hdr);
 	}
 
+	mr->iova = be64_to_cpu(in->seg.start_addr);
+	mr->size = be64_to_cpu(in->seg.len);
 	mr->key = mlx5_idx_to_mkey(be32_to_cpu(lout.mkey) & 0xffffff) | key;
+	mr->pd = be32_to_cpu(in->seg.flags_pd) & 0xffffff;
+
 	mlx5_core_dbg(dev, "out 0x%x, key 0x%x, mkey 0x%x\n",
 		      be32_to_cpu(lout.mkey), key, mr->key);
 
@@ -191,7 +195,8 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 	}
 
 	if (out.hdr.status) {
-		mlx5_core_err(dev, "create_psv bad status %d\n", out.hdr.status);
+		mlx5_core_err(dev, "create_psv bad status %d\n",
+			      out.hdr.status);
 		return mlx5_cmd_status_to_err(&out.hdr);
 	}
 
@@ -220,7 +225,8 @@ int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
 	}
 
 	if (out.hdr.status) {
-		mlx5_core_err(dev, "destroy_psv bad status %d\n", out.hdr.status);
+		mlx5_core_err(dev, "destroy_psv bad status %d\n",
+			      out.hdr.status);
 		err = mlx5_cmd_status_to_err(&out.hdr);
 		goto out;
 	}

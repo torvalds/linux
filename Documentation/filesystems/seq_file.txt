@@ -54,6 +54,15 @@ how the mechanism works without getting lost in other details.  (Those
 wanting to see the full source for this module can find it at
 http://lwn.net/Articles/22359/).
 
+Deprecated create_proc_entry
+
+Note that the above article uses create_proc_entry which was removed in
+kernel 3.10. Current versions require the following update
+
+-	entry = create_proc_entry("sequence", 0, NULL);
+-	if (entry)
+-		entry->proc_fops = &ct_file_ops;
++	entry = proc_create("sequence", 0, NULL, &ct_file_ops);
 
 The iterator interface
 

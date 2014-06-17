@@ -449,7 +449,7 @@ config I2C_EFM32
 
 config I2C_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) I2C"
-	depends on PCI
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	help
 	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
 	  is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -569,13 +569,6 @@ config I2C_NOMADIK
 	  If you say yes to this option, support will be included for the
 	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures,
 	  as well as the STA2X11 PCIe I/O HUB.
-
-config I2C_NUC900
-	tristate "NUC900 I2C Driver"
-	depends on ARCH_W90X900
-	help
-	  Say Y here to include support for I2C controller in the
-	  Winbond/Nuvoton NUC900 based System-on-Chip devices.
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
@@ -992,6 +985,15 @@ config I2C_SIBYTE
 	depends on SIBYTE_SB1xxx_SOC
 	help
 	  Supports the SiByte SOC on-chip I2C interfaces (2 channels).
+
+config I2C_CROS_EC_TUNNEL
+	tristate "ChromeOS EC tunnel I2C bus"
+	depends on MFD_CROS_EC
+	help
+	  If you say yes here you get an I2C bus that will tunnel i2c commands
+	  through to the other side of the ChromeOS EC to the i2c bus
+	  connected there. This will work whatever the interface used to
+	  talk to the EC (SPI, I2C or LPC).
 
 config SCx200_I2C
 	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"

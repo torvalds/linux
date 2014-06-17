@@ -1,0 +1,33 @@
+* Renesas usdhi6rol0 SD/SDIO host controller
+
+Required properties:
+
+- compatible:	must be
+		"renesas,usdhi6rol0"
+- interrupts:	3 interrupts, named "card detect", "data" and "SDIO" must be
+		specified
+- clocks:	a clock binding for the IMCLK input
+
+Optional properties:
+
+- vmmc-supply:	a phandle of a regulator, supplying Vcc to the card
+- vqmmc-supply:	a phandle of a regulator, supplying VccQ to the card
+
+Additionally any standard mmc bindings from mmc.txt can be used.
+
+Example:
+
+sd0: sd@ab000000 {
+	compatible = "renesas,usdhi6rol0";
+	reg = <0xab000000 0x200>;
+	interrupts = <0 23 0x4
+		      0 24 0x4
+		      0 25 0x4>;
+	interrupt-names = "card detect", "data", "SDIO";
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	cap-power-off-card;
+	clocks = <&imclk>;
+	vmmc-supply = <&vcc_sd0>;
+	vqmmc-supply = <&vccq_sd0>;
+};

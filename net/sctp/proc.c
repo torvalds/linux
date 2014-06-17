@@ -78,7 +78,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 
 	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
-			   snmp_fold_field((void __percpu **)net->sctp.sctp_statistics,
+			   snmp_fold_field(net->sctp.sctp_statistics,
 				      sctp_snmp_list[i].entry));
 
 	return 0;

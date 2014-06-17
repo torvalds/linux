@@ -181,10 +181,8 @@ void armada_fbdev_lastclose(struct drm_device *dev)
 {
 	struct armada_private *priv = dev->dev_private;
 
-	drm_modeset_lock_all(dev);
 	if (priv->fbdev)
-		drm_fb_helper_restore_fbdev_mode(priv->fbdev);
-	drm_modeset_unlock_all(dev);
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev);
 }
 
 void armada_fbdev_fini(struct drm_device *dev)

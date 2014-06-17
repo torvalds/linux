@@ -1093,6 +1093,7 @@ leaf_item_out_of_bounce_error:
 					next_stack =
 					    btrfsic_stack_frame_alloc();
 					if (NULL == next_stack) {
+						sf->error = -1;
 						btrfsic_release_block_ctx(
 								&sf->
 								next_block_ctx);
@@ -1190,8 +1191,10 @@ continue_with_current_node_stack_frame:
 				    sf->next_block_ctx.datav[0];
 
 				next_stack = btrfsic_stack_frame_alloc();
-				if (NULL == next_stack)
+				if (NULL == next_stack) {
+					sf->error = -1;
 					goto one_stack_frame_backwards;
+				}
 
 				next_stack->i = -1;
 				next_stack->block = sf->next_block;

@@ -483,8 +483,8 @@ void wimax_report_rfkill_sw(struct wimax_dev *, enum wimax_rf_state);
  * Be sure not to modify skb->data in the middle (ie: don't use
  * skb_push()/skb_pull()/skb_reserve() on the skb).
  *
- * "pipe_name" is any string, than can be interpreted as the name of
- * the pipe or destinatary; the interpretation of it is driver
+ * "pipe_name" is any string, that can be interpreted as the name of
+ * the pipe or recipient; the interpretation of it is driver
  * specific, so the recipient can multiplex it as wished. It can be
  * NULL, it won't be used - an example is using a "diagnostics" tag to
  * send diagnostics information that a device-specific diagnostics

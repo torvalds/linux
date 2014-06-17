@@ -39,6 +39,7 @@
 
 #define MAX_NODES 4096
 #define WSIZE 32
+#define TIPC_BCLINK_RESET 1
 
 /**
  * struct tipc_node_map - set of node identifiers
@@ -69,9 +70,6 @@ struct tipc_node;
 
 extern const char tipc_bclink_name[];
 
-void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node);
-void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node);
-
 /**
  * tipc_nmap_equal - test for equality of node maps
  */
@@ -84,8 +82,9 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a,
 void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
 void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
-void tipc_bclink_init(void);
+int tipc_bclink_init(void);
 void tipc_bclink_stop(void);
+void tipc_bclink_set_flags(unsigned int flags);
 void tipc_bclink_add_node(u32 addr);
 void tipc_bclink_remove_node(u32 addr);
 struct tipc_node *tipc_bclink_retransmit_to(void);
@@ -98,6 +97,6 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent);
 int  tipc_bclink_stats(char *stats_buf, const u32 buf_size);
 int  tipc_bclink_reset_stats(void);
 int  tipc_bclink_set_queue_limits(u32 limit);
-void tipc_bcbearer_sort(void);
+void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action);
 
 #endif

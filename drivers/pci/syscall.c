@@ -99,7 +99,7 @@ SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
 	if (!dev)
 		return -ENODEV;
 
-	switch(len) {
+	switch (len) {
 	case 1:
 		err = get_user(byte, (u8 __user *)buf);
 		if (err)

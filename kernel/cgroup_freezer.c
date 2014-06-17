@@ -59,7 +59,7 @@ static inline struct freezer *task_freezer(struct task_struct *task)
 
 static struct freezer *parent_freezer(struct freezer *freezer)
 {
-	return css_freezer(css_parent(&freezer->css));
+	return css_freezer(freezer->css.parent);
 }
 
 bool cgroup_freezing(struct task_struct *task)
@@ -73,10 +73,6 @@ bool cgroup_freezing(struct task_struct *task)
 	return ret;
 }
 
-/*
- * cgroups_write_string() limits the size of freezer state strings to
- * CGROUP_LOCAL_BUFFER_SIZE
- */
 static const char *freezer_state_strs(unsigned int state)
 {
 	if (state & CGROUP_FROZEN)
@@ -304,7 +300,7 @@ static int freezer_read(struct seq_file *m, void *v)
 
 	/* update states bottom-up */
 	css_for_each_descendant_post(pos, css) {
-		if (!css_tryget(pos))
+		if (!css_tryget_online(pos))
 			continue;
 		rcu_read_unlock();
 
@@ -404,7 +400,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 		struct freezer *pos_f = css_freezer(pos);
 		struct freezer *parent = parent_freezer(pos_f);
 
-		if (!css_tryget(pos))
+		if (!css_tryget_online(pos))
 			continue;
 		rcu_read_unlock();
 
@@ -423,20 +419,22 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 	mutex_unlock(&freezer_mutex);
 }
 
-static int freezer_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			 char *buffer)
+static ssize_t freezer_write(struct kernfs_open_file *of,
+			     char *buf, size_t nbytes, loff_t off)
 {
 	bool freeze;
 
-	if (strcmp(buffer, freezer_state_strs(0)) == 0)
+	buf = strstrip(buf);
+
+	if (strcmp(buf, freezer_state_strs(0)) == 0)
 		freeze = false;
-	else if (strcmp(buffer, freezer_state_strs(CGROUP_FROZEN)) == 0)
+	else if (strcmp(buf, freezer_state_strs(CGROUP_FROZEN)) == 0)
 		freeze = true;
 	else
 		return -EINVAL;
 
-	freezer_change_state(css_freezer(css), freeze);
-	return 0;
+	freezer_change_state(css_freezer(of_css(of)), freeze);
+	return nbytes;
 }
 
 static u64 freezer_self_freezing_read(struct cgroup_subsys_state *css,
@@ -460,7 +458,7 @@ static struct cftype files[] = {
 		.name = "state",
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.seq_show = freezer_read,
-		.write_string = freezer_write,
+		.write = freezer_write,
 	},
 	{
 		.name = "self_freezing",

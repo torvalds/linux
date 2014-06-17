@@ -50,16 +50,13 @@
 #include <lustre/lustre_idl.h>
 #include <lustre_dlm.h>
 #include <lustre_mds.h>
-#include <lustre_debug.h>
 #include <obd_class.h>
-#include <obd_lov.h>
 #include <obd_ost.h>
 #include <lprocfs_status.h>
 #include <lustre_param.h>
 #include <cl_object.h>
 #include <lclient.h> /* for cl_client_lru */
 #include <lustre/ll_fiemap.h>
-#include <lustre_log.h>
 #include <lustre_fid.h>
 
 #include "lov_internal.h"
@@ -280,7 +277,7 @@ static int lov_disconnect_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 
 	osc_obd = class_exp2obd(tgt->ltd_exp);
 	CDEBUG(D_CONFIG, "%s: disconnecting target %s\n",
-	       obd->obd_name, osc_obd->obd_name);
+		obd->obd_name, osc_obd ? osc_obd->obd_name : "NULL");
 
 	if (tgt->ltd_active) {
 		tgt->ltd_active = 0;
@@ -288,11 +285,11 @@ static int lov_disconnect_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 		tgt->ltd_exp->exp_obd->obd_inactive = 1;
 	}
 
-	lov_proc_dir = obd->obd_proc_private;
-	if (lov_proc_dir)
-		lprocfs_remove_proc_entry(osc_obd->obd_name, lov_proc_dir);
-
 	if (osc_obd) {
+		lov_proc_dir = obd->obd_proc_private;
+		if (lov_proc_dir) {
+			lprocfs_remove_proc_entry(osc_obd->obd_name, lov_proc_dir);
+		}
 		/* Pass it on to our clients.
 		 * XXX This should be an argument to disconnect,
 		 * XXX not a back-door flag on the OBD.  Ah well.
@@ -726,8 +723,8 @@ void lov_fix_desc_stripe_size(__u64 *val)
 		if (*val != 0)
 			LCONSOLE_INFO("Increasing default stripe size to "
 				      "minimum %u\n",
-				      LOV_DEFAULT_STRIPE_SIZE);
-		*val = LOV_DEFAULT_STRIPE_SIZE;
+				      LOV_DESC_STRIPE_SIZE_DEFAULT);
+		*val = LOV_DESC_STRIPE_SIZE_DEFAULT;
 	} else if (*val & (LOV_MIN_STRIPE_SIZE - 1)) {
 		*val &= ~(LOV_MIN_STRIPE_SIZE - 1);
 		LCONSOLE_WARN("Changing default stripe size to "LPU64" (a "
@@ -753,9 +750,8 @@ void lov_fix_desc_pattern(__u32 *val)
 
 void lov_fix_desc_qos_maxage(__u32 *val)
 {
-	/* fix qos_maxage */
 	if (*val == 0)
-		*val = QOS_DEFAULT_MAXAGE;
+		*val = LOV_DESC_QOS_MAXAGE_DEFAULT;
 }
 
 void lov_fix_desc(struct lov_desc *desc)
@@ -861,12 +857,10 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		}
 		break;
 	}
-	case OBD_CLEANUP_EXPORTS:
-		rc = obd_llog_finish(obd, 0);
-		if (rc != 0)
-			CERROR("failed to cleanup llogging subsystems\n");
+	default:
 		break;
 	}
+
 	return rc;
 }
 
@@ -2254,11 +2248,12 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	if (fm_end_offset == -EINVAL)
 		GOTO(out, rc = -EINVAL);
 
+	if (fiemap_count_to_size(fiemap->fm_extent_count) > *vallen)
+		fiemap->fm_extent_count = fiemap_size_to_count(*vallen);
 	if (fiemap->fm_extent_count == 0) {
 		get_num_extents = 1;
 		count_local = 0;
 	}
-
 	/* Check each stripe */
 	for (cur_stripe = start_stripe, i = 0; i < stripe_count;
 	     i++, cur_stripe = (cur_stripe + 1) % lsm->lsm_stripe_count) {
@@ -2808,8 +2803,6 @@ struct obd_ops lov_obd_ops = {
 	.o_get_info	    = lov_get_info,
 	.o_set_info_async      = lov_set_info_async,
 	.o_extent_calc	 = lov_extent_calc,
-	.o_llog_init	   = lov_llog_init,
-	.o_llog_finish	 = lov_llog_finish,
 	.o_notify	      = lov_notify,
 	.o_pool_new	    = lov_pool_new,
 	.o_pool_rem	    = lov_pool_remove,

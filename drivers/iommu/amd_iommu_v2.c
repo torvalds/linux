@@ -45,6 +45,8 @@ struct pri_queue {
 struct pasid_state {
 	struct list_head list;			/* For global state-list */
 	atomic_t count;				/* Reference count */
+	atomic_t mmu_notifier_count;		/* Counting nested mmu_notifier
+						   calls */
 	struct task_struct *task;		/* Task bound to this PASID */
 	struct mm_struct *mm;			/* mm_struct for the faults */
 	struct mmu_notifier mn;                 /* mmu_otifier handle */
@@ -56,6 +58,8 @@ struct pasid_state {
 };
 
 struct device_state {
+	struct list_head list;
+	u16 devid;
 	atomic_t count;
 	struct pci_dev *pdev;
 	struct pasid_state **states;
@@ -81,12 +85,8 @@ struct fault {
 	u16 flags;
 };
 
-static struct device_state **state_table;
+static LIST_HEAD(state_list);
 static spinlock_t state_lock;
-
-/* List and lock for all pasid_states */
-static LIST_HEAD(pasid_state_list);
-static DEFINE_SPINLOCK(ps_lock);
 
 static struct workqueue_struct *iommu_wq;
 
@@ -99,7 +99,6 @@ static u64 *empty_page_table;
 
 static void free_pasid_states(struct device_state *dev_state);
 static void unbind_pasid(struct device_state *dev_state, int pasid);
-static int task_exit(struct notifier_block *nb, unsigned long e, void *data);
 
 static u16 device_id(struct pci_dev *pdev)
 {
@@ -111,13 +110,25 @@ static u16 device_id(struct pci_dev *pdev)
 	return devid;
 }
 
+static struct device_state *__get_device_state(u16 devid)
+{
+	struct device_state *dev_state;
+
+	list_for_each_entry(dev_state, &state_list, list) {
+		if (dev_state->devid == devid)
+			return dev_state;
+	}
+
+	return NULL;
+}
+
 static struct device_state *get_device_state(u16 devid)
 {
 	struct device_state *dev_state;
 	unsigned long flags;
 
 	spin_lock_irqsave(&state_lock, flags);
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state != NULL)
 		atomic_inc(&dev_state->count);
 	spin_unlock_irqrestore(&state_lock, flags);
@@ -156,29 +167,6 @@ static void put_device_state_wait(struct device_state *dev_state)
 	finish_wait(&dev_state->wq, &wait);
 
 	free_device_state(dev_state);
-}
-
-static struct notifier_block profile_nb = {
-	.notifier_call = task_exit,
-};
-
-static void link_pasid_state(struct pasid_state *pasid_state)
-{
-	spin_lock(&ps_lock);
-	list_add_tail(&pasid_state->list, &pasid_state_list);
-	spin_unlock(&ps_lock);
-}
-
-static void __unlink_pasid_state(struct pasid_state *pasid_state)
-{
-	list_del(&pasid_state->list);
-}
-
-static void unlink_pasid_state(struct pasid_state *pasid_state)
-{
-	spin_lock(&ps_lock);
-	__unlink_pasid_state(pasid_state);
-	spin_unlock(&ps_lock);
 }
 
 /* Must be called under dev_state->lock */
@@ -337,7 +325,6 @@ static void unbind_pasid(struct device_state *dev_state, int pasid)
 	if (pasid_state == NULL)
 		return;
 
-	unlink_pasid_state(pasid_state);
 	__unbind_pasid(pasid_state);
 	put_pasid_state_wait(pasid_state); /* Reference taken in this function */
 }
@@ -379,7 +366,12 @@ static void free_pasid_states(struct device_state *dev_state)
 			continue;
 
 		put_pasid_state(pasid_state);
-		unbind_pasid(dev_state, i);
+
+		/*
+		 * This will call the mn_release function and
+		 * unbind the PASID
+		 */
+		mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 	}
 
 	if (dev_state->pasid_levels == 2)
@@ -443,8 +435,11 @@ static void mn_invalidate_range_start(struct mmu_notifier *mn,
 	pasid_state = mn_to_state(mn);
 	dev_state   = pasid_state->device_state;
 
-	amd_iommu_domain_set_gcr3(dev_state->domain, pasid_state->pasid,
-				  __pa(empty_page_table));
+	if (atomic_add_return(1, &pasid_state->mmu_notifier_count) == 1) {
+		amd_iommu_domain_set_gcr3(dev_state->domain,
+					  pasid_state->pasid,
+					  __pa(empty_page_table));
+	}
 }
 
 static void mn_invalidate_range_end(struct mmu_notifier *mn,
@@ -457,11 +452,31 @@ static void mn_invalidate_range_end(struct mmu_notifier *mn,
 	pasid_state = mn_to_state(mn);
 	dev_state   = pasid_state->device_state;
 
-	amd_iommu_domain_set_gcr3(dev_state->domain, pasid_state->pasid,
-				  __pa(pasid_state->mm->pgd));
+	if (atomic_dec_and_test(&pasid_state->mmu_notifier_count)) {
+		amd_iommu_domain_set_gcr3(dev_state->domain,
+					  pasid_state->pasid,
+					  __pa(pasid_state->mm->pgd));
+	}
+}
+
+static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
+{
+	struct pasid_state *pasid_state;
+	struct device_state *dev_state;
+
+	might_sleep();
+
+	pasid_state = mn_to_state(mn);
+	dev_state   = pasid_state->device_state;
+
+	if (pasid_state->device_state->inv_ctx_cb)
+		dev_state->inv_ctx_cb(dev_state->pdev, pasid_state->pasid);
+
+	unbind_pasid(dev_state, pasid_state->pasid);
 }
 
 static struct mmu_notifier_ops iommu_mn = {
+	.release		= mn_release,
 	.clear_flush_young      = mn_clear_flush_young,
 	.change_pte             = mn_change_pte,
 	.invalidate_page        = mn_invalidate_page,
@@ -606,53 +621,6 @@ static struct notifier_block ppr_nb = {
 	.notifier_call = ppr_notifier,
 };
 
-static int task_exit(struct notifier_block *nb, unsigned long e, void *data)
-{
-	struct pasid_state *pasid_state;
-	struct task_struct *task;
-
-	task = data;
-
-	/*
-	 * Using this notifier is a hack - but there is no other choice
-	 * at the moment. What I really want is a sleeping notifier that
-	 * is called when an MM goes down. But such a notifier doesn't
-	 * exist yet. The notifier needs to sleep because it has to make
-	 * sure that the device does not use the PASID and the address
-	 * space anymore before it is destroyed. This includes waiting
-	 * for pending PRI requests to pass the workqueue. The
-	 * MMU-Notifiers would be a good fit, but they use RCU and so
-	 * they are not allowed to sleep. Lets see how we can solve this
-	 * in a more intelligent way in the future.
-	 */
-again:
-	spin_lock(&ps_lock);
-	list_for_each_entry(pasid_state, &pasid_state_list, list) {
-		struct device_state *dev_state;
-		int pasid;
-
-		if (pasid_state->task != task)
-			continue;
-
-		/* Drop Lock and unbind */
-		spin_unlock(&ps_lock);
-
-		dev_state = pasid_state->device_state;
-		pasid     = pasid_state->pasid;
-
-		if (pasid_state->device_state->inv_ctx_cb)
-			dev_state->inv_ctx_cb(dev_state->pdev, pasid);
-
-		unbind_pasid(dev_state, pasid);
-
-		/* Task may be in the list multiple times */
-		goto again;
-	}
-	spin_unlock(&ps_lock);
-
-	return NOTIFY_OK;
-}
-
 int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 			 struct task_struct *task)
 {
@@ -682,6 +650,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 		goto out;
 
 	atomic_set(&pasid_state->count, 1);
+	atomic_set(&pasid_state->mmu_notifier_count, 0);
 	init_waitqueue_head(&pasid_state->wq);
 	spin_lock_init(&pasid_state->lock);
 
@@ -705,8 +674,6 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 	if (ret)
 		goto out_clear_state;
 
-	link_pasid_state(pasid_state);
-
 	return 0;
 
 out_clear_state:
@@ -727,6 +694,7 @@ EXPORT_SYMBOL(amd_iommu_bind_pasid);
 
 void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 {
+	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
 	u16 devid;
 
@@ -743,7 +711,17 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	if (pasid < 0 || pasid >= dev_state->max_pasids)
 		goto out;
 
-	unbind_pasid(dev_state, pasid);
+	pasid_state = get_pasid_state(dev_state, pasid);
+	if (pasid_state == NULL)
+		goto out;
+	/*
+	 * Drop reference taken here. We are safe because we still hold
+	 * the reference taken in the amd_iommu_bind_pasid function.
+	 */
+	put_pasid_state(pasid_state);
+
+	/* This will call the mn_release function and unbind the PASID */
+	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 out:
 	put_device_state(dev_state);
@@ -773,7 +751,8 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 
 	spin_lock_init(&dev_state->lock);
 	init_waitqueue_head(&dev_state->wq);
-	dev_state->pdev = pdev;
+	dev_state->pdev  = pdev;
+	dev_state->devid = devid;
 
 	tmp = pasids;
 	for (dev_state->pasid_levels = 0; (tmp - 1) & ~0x1ff; tmp >>= 9)
@@ -803,13 +782,13 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	if (state_table[devid] != NULL) {
+	if (__get_device_state(devid) != NULL) {
 		spin_unlock_irqrestore(&state_lock, flags);
 		ret = -EBUSY;
 		goto out_free_domain;
 	}
 
-	state_table[devid] = dev_state;
+	list_add_tail(&dev_state->list, &state_list);
 
 	spin_unlock_irqrestore(&state_lock, flags);
 
@@ -841,13 +820,13 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL) {
 		spin_unlock_irqrestore(&state_lock, flags);
 		return;
 	}
 
-	state_table[devid] = NULL;
+	list_del(&dev_state->list);
 
 	spin_unlock_irqrestore(&state_lock, flags);
 
@@ -874,7 +853,7 @@ int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL)
 		goto out_unlock;
 
@@ -905,7 +884,7 @@ int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = state_table[devid];
+	dev_state = __get_device_state(devid);
 	if (dev_state == NULL)
 		goto out_unlock;
 
@@ -922,7 +901,6 @@ EXPORT_SYMBOL(amd_iommu_set_invalidate_ctx_cb);
 
 static int __init amd_iommu_v2_init(void)
 {
-	size_t state_table_size;
 	int ret;
 
 	pr_info("AMD IOMMUv2 driver by Joerg Roedel <joerg.roedel@amd.com>\n");
@@ -938,16 +916,10 @@ static int __init amd_iommu_v2_init(void)
 
 	spin_lock_init(&state_lock);
 
-	state_table_size = MAX_DEVICES * sizeof(struct device_state *);
-	state_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-					       get_order(state_table_size));
-	if (state_table == NULL)
-		return -ENOMEM;
-
 	ret = -ENOMEM;
 	iommu_wq = create_workqueue("amd_iommu_v2");
 	if (iommu_wq == NULL)
-		goto out_free;
+		goto out;
 
 	ret = -ENOMEM;
 	empty_page_table = (u64 *)get_zeroed_page(GFP_KERNEL);
@@ -955,29 +927,24 @@ static int __init amd_iommu_v2_init(void)
 		goto out_destroy_wq;
 
 	amd_iommu_register_ppr_notifier(&ppr_nb);
-	profile_event_register(PROFILE_TASK_EXIT, &profile_nb);
 
 	return 0;
 
 out_destroy_wq:
 	destroy_workqueue(iommu_wq);
 
-out_free:
-	free_pages((unsigned long)state_table, get_order(state_table_size));
-
+out:
 	return ret;
 }
 
 static void __exit amd_iommu_v2_exit(void)
 {
 	struct device_state *dev_state;
-	size_t state_table_size;
 	int i;
 
 	if (!amd_iommu_v2_supported())
 		return;
 
-	profile_event_unregister(PROFILE_TASK_EXIT, &profile_nb);
 	amd_iommu_unregister_ppr_notifier(&ppr_nb);
 
 	flush_workqueue(iommu_wq);
@@ -999,9 +966,6 @@ static void __exit amd_iommu_v2_exit(void)
 	}
 
 	destroy_workqueue(iommu_wq);
-
-	state_table_size = MAX_DEVICES * sizeof(struct device_state *);
-	free_pages((unsigned long)state_table, get_order(state_table_size));
 
 	free_page((unsigned long)empty_page_table);
 }

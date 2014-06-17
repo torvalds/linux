@@ -56,6 +56,7 @@ config GPIO_ACPI
 	depends on ACPI
 
 config GPIOLIB_IRQCHIP
+	select IRQ_DOMAIN
 	bool
 
 config DEBUG_GPIO
@@ -243,6 +244,15 @@ config GPIO_OCTEON
 	  Say yes here to support the on-chip GPIO lines on the OCTEON
 	  family of SOCs.
 
+config GPIO_OMAP
+	bool "TI OMAP GPIO support" if COMPILE_TEST && !ARCH_OMAP2PLUS
+	default y if ARCH_OMAP
+	depends on ARM
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to enable GPIO support for TI OMAP SoCs.
+
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
@@ -259,7 +269,7 @@ config GPIO_PXA
 
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
-	depends on ARM
+	depends on ARM && (ARCH_SHMOBILE || COMPILE_TEST)
 	help
 	  Say yes here to support GPIO on Renesas R-Car SoCs.
 
@@ -510,6 +520,7 @@ config GPIO_PCA953X
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
 	depends on GPIO_PCA953X=y
+	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable the pca953x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
@@ -579,6 +590,7 @@ config GPIO_STP_XWAY
 config GPIO_TC3589X
 	bool "TC3589X GPIOs"
 	depends on MFD_TC3589X
+	select GPIOLIB_IRQCHIP
 	help
 	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
@@ -699,13 +711,13 @@ config GPIO_AMD8111
 config GPIO_INTEL_MID
 	bool "Intel Mid GPIO support"
 	depends on PCI && X86
-	select IRQ_DOMAIN
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to support Intel Mid GPIO.
 
 config GPIO_PCH
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7223/ML7831) GPIO"
-	depends on PCI && X86
+	depends on PCI && (X86_32 || COMPILE_TEST)
 	select GENERIC_IRQ_CHIP
 	help
 	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
@@ -739,7 +751,7 @@ config GPIO_SODAVILLE
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
-	depends on MFD_TIMBERDALE && HAS_IOMEM
+	depends on MFD_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 

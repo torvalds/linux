@@ -1053,7 +1053,7 @@ config SENSORS_PC87427
 
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support"
-	depends on (!OF && !IIO) || (OF && IIO)
+	depends on !OF || IIO=n || IIO
 	help
 	  This driver supports NTC thermistors sensor reading and its
 	  interpretation. The driver can also monitor the temperature and
@@ -1064,6 +1064,16 @@ config SENSORS_NTC_THERMISTOR
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ntc-thermistor.
+
+config SENSORS_NCT6683
+	tristate "Nuvoton NCT6683D"
+	depends on !PPC
+	help
+	  If you say yes here you get support for the hardware monitoring
+	  functionality of the Nuvoton NCT6683D eSIO chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called nct6683.
 
 config SENSORS_NCT6775
 	tristate "Nuvoton NCT6775F and compatibles"
@@ -1113,6 +1123,16 @@ config SENSORS_SHT21
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sht21.
+
+config SENSORS_SHTC1
+	tristate "Sensiron humidity and temperature sensors. SHTC1 and compat."
+	depends on I2C
+	help
+	  If you say yes here you get support for the Sensiron SHTC1 and SHTW1
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called shtc1.
 
 config SENSORS_S3C
 	tristate "Samsung built-in ADC"

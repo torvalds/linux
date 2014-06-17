@@ -510,6 +510,11 @@ struct hv_context {
 	 * basis.
 	 */
 	struct tasklet_struct *event_dpc[NR_CPUS];
+	/*
+	 * To optimize the mapping of relid to channel, maintain
+	 * per-cpu list of the channels based on their CPU affinity.
+	 */
+	struct list_head percpu_list[NR_CPUS];
 };
 
 extern struct hv_context hv_context;
@@ -644,9 +649,9 @@ extern struct vmbus_connection vmbus_connection;
 
 /* General vmbus interface */
 
-struct hv_device *vmbus_device_create(uuid_le *type,
-					 uuid_le *instance,
-					 struct vmbus_channel *channel);
+struct hv_device *vmbus_device_create(const uuid_le *type,
+				      const uuid_le *instance,
+				      struct vmbus_channel *channel);
 
 int vmbus_device_register(struct hv_device *child_device_obj);
 void vmbus_device_unregister(struct hv_device *device_obj);

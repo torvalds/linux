@@ -208,13 +208,6 @@ out:
 	return err;
 }
 
-static int si476x_codec_probe(struct snd_soc_codec *codec)
-{
-	struct regmap *regmap = dev_get_regmap(codec->dev->parent, NULL);
-
-	return snd_soc_codec_set_cache_io(codec, regmap);
-}
-
 static struct snd_soc_dai_ops si476x_dai_ops = {
 	.hw_params	= si476x_codec_hw_params,
 	.set_fmt	= si476x_codec_set_dai_fmt,
@@ -238,8 +231,13 @@ static struct snd_soc_dai_driver si476x_dai = {
 	.ops		= &si476x_dai_ops,
 };
 
+static struct regmap *si476x_get_regmap(struct device *dev)
+{
+	return dev_get_regmap(dev->parent, NULL);
+}
+
 static struct snd_soc_codec_driver soc_codec_dev_si476x = {
-	.probe  = si476x_codec_probe,
+	.get_regmap = si476x_get_regmap,
 	.dapm_widgets = si476x_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
 	.dapm_routes = si476x_dapm_routes,

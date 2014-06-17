@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/nfc.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
@@ -67,14 +68,14 @@
  * only the SRX bit set, it means that all of the data has been received
  * (once what's in the fifo has been read).  However, depending on timing
  * an interrupt status with only the SRX bit set may not be recived.  In
- * those cases, the timeout mechanism is used to wait 5 ms in case more
- * data arrives.  After 5 ms, it is assumed that all of the data has been
+ * those cases, the timeout mechanism is used to wait 20 ms in case more
+ * data arrives.  After 20 ms, it is assumed that all of the data has been
  * received and the accumulated rx data is sent upstream.  The
  * 'TRF7970A_ST_WAIT_FOR_RX_DATA_CONT' state is used for this purpose
  * (i.e., it indicates that some data has been received but we're not sure
  * if there is more coming so a timeout in this state means all data has
- * been received and there isn't an error).  The delay is 5 ms since delays
- * over 2 ms have been observed during testing (a little extra just in case).
+ * been received and there isn't an error).  The delay is 20 ms since delays
+ * of ~16 ms have been observed during testing.
  *
  * Type 2 write and sector select commands respond with a 4-bit ACK or NACK.
  * Having only 4 bits in the FIFO won't normally generate an interrupt so
@@ -104,7 +105,10 @@
 
 #define TRF7970A_SUPPORTED_PROTOCOLS \
 		(NFC_PROTO_MIFARE_MASK | NFC_PROTO_ISO14443_MASK |	\
+		 NFC_PROTO_ISO14443_B_MASK | NFC_PROTO_FELICA_MASK | \
 		 NFC_PROTO_ISO15693_MASK)
+
+#define TRF7970A_AUTOSUSPEND_DELAY		30000 /* 30 seconds */
 
 /* TX data must be prefixed with a FIFO reset cmd, a cmd that depends
  * on what the current framing is, the address of the TX length byte 1
@@ -120,7 +124,7 @@
 /* TX length is 3 nibbles long ==> 4KB - 1 bytes max */
 #define TRF7970A_TX_MAX				(4096 - 1)
 
-#define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	5
+#define TRF7970A_WAIT_FOR_RX_DATA_TIMEOUT	20
 #define TRF7970A_WAIT_FOR_FIFO_DRAIN_TIMEOUT	3
 #define TRF7970A_WAIT_TO_ISSUE_ISO15693_EOF	20
 
@@ -330,13 +334,15 @@ struct trf7970a {
 	struct regulator		*regulator;
 	struct nfc_digital_dev		*ddev;
 	u32				quirks;
-	bool				powering_up;
 	bool				aborting;
 	struct sk_buff			*tx_skb;
 	struct sk_buff			*rx_skb;
 	nfc_digital_cmd_complete_t	cb;
 	void				*cb_arg;
+	u8				chip_status_ctrl;
 	u8				iso_ctrl;
+	u8				iso_ctrl_tech;
+	u8				modulator_sys_clk_ctrl;
 	u8				special_fcn_reg1;
 	int				technology;
 	int				framing;
@@ -681,7 +687,9 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			trf->ignore_timeout =
 				!cancel_delayed_work(&trf->timeout_work);
 			trf7970a_drain_fifo(trf, status);
-		} else if (!(status & TRF7970A_IRQ_STATUS_TX)) {
+		} else if (status == TRF7970A_IRQ_STATUS_TX) {
+			trf7970a_cmd(trf, TRF7970A_CMD_FIFO_RESET);
+		} else {
 			trf7970a_send_err_upstream(trf, -EIO);
 		}
 		break;
@@ -757,8 +765,8 @@ static int trf7970a_init(struct trf7970a *trf)
 	if (ret)
 		goto err_out;
 
-	ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
-			TRF7970A_MODULATOR_DEPTH_OOK);
+	/* Must clear NFC Target Detection Level reg due to erratum */
+	ret = trf7970a_write(trf, TRF7970A_NFC_TARGET_LEVEL, 0);
 	if (ret)
 		goto err_out;
 
@@ -774,12 +782,7 @@ static int trf7970a_init(struct trf7970a *trf)
 
 	trf->special_fcn_reg1 = 0;
 
-	ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
-			TRF7970A_CHIP_STATUS_RF_ON |
-				TRF7970A_CHIP_STATUS_VRS5_3);
-	if (ret)
-		goto err_out;
-
+	trf->iso_ctrl = 0xff;
 	return 0;
 
 err_out:
@@ -791,53 +794,29 @@ static void trf7970a_switch_rf_off(struct trf7970a *trf)
 {
 	dev_dbg(trf->dev, "Switching rf off\n");
 
-	gpio_set_value(trf->en_gpio, 0);
-	gpio_set_value(trf->en2_gpio, 0);
+	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
+
+	trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL, trf->chip_status_ctrl);
 
 	trf->aborting = false;
 	trf->state = TRF7970A_ST_OFF;
+
+	pm_runtime_mark_last_busy(trf->dev);
+	pm_runtime_put_autosuspend(trf->dev);
 }
 
-static int trf7970a_switch_rf_on(struct trf7970a *trf)
+static void trf7970a_switch_rf_on(struct trf7970a *trf)
 {
-	unsigned long delay;
-	int ret;
-
 	dev_dbg(trf->dev, "Switching rf on\n");
 
-	if (trf->powering_up)
-		usleep_range(5000, 6000);
+	pm_runtime_get_sync(trf->dev);
 
-	gpio_set_value(trf->en2_gpio, 1);
-	usleep_range(1000, 2000);
-	gpio_set_value(trf->en_gpio, 1);
-
-	/* The delay between enabling the trf7970a and issuing the first
-	 * command is significantly longer the very first time after powering
-	 * up.  Make sure the longer delay is only done the first time.
-	 */
-	if (trf->powering_up) {
-		delay = 20000;
-		trf->powering_up = false;
-	} else {
-		delay = 5000;
-	}
-
-	usleep_range(delay, delay + 1000);
-
-	ret = trf7970a_init(trf);
-	if (ret)
-		trf7970a_switch_rf_off(trf);
-	else
-		trf->state = TRF7970A_ST_IDLE;
-
-	return ret;
+	trf->state = TRF7970A_ST_IDLE;
 }
 
 static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
-	int ret = 0;
 
 	dev_dbg(trf->dev, "Switching RF - state: %d, on: %d\n", trf->state, on);
 
@@ -846,7 +825,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	if (on) {
 		switch (trf->state) {
 		case TRF7970A_ST_OFF:
-			ret = trf7970a_switch_rf_on(trf);
+			trf7970a_switch_rf_on(trf);
 			break;
 		case TRF7970A_ST_IDLE:
 		case TRF7970A_ST_IDLE_RX_BLOCKED:
@@ -871,7 +850,7 @@ static int trf7970a_switch_rf(struct nfc_digital_dev *ddev, bool on)
 	}
 
 	mutex_unlock(&trf->lock);
-	return ret;
+	return 0;
 }
 
 static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
@@ -882,10 +861,24 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
-		trf->iso_ctrl = TRF7970A_ISO_CTRL_14443A_106;
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		break;
+	case NFC_DIGITAL_RF_TECH_106B:
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443B_106;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		break;
+	case NFC_DIGITAL_RF_TECH_212F:
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_212;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		break;
+	case NFC_DIGITAL_RF_TECH_424F:
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_424;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
 		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
-		trf->iso_ctrl = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
+		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
+		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
@@ -899,24 +892,31 @@ static int trf7970a_config_rf_tech(struct trf7970a *trf, int tech)
 
 static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 {
+	u8 iso_ctrl = trf->iso_ctrl_tech;
+	int ret;
+
 	dev_dbg(trf->dev, "framing: %d\n", framing);
 
 	switch (framing) {
 	case NFC_DIGITAL_FRAMING_NFCA_SHORT:
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT_NO_CRC;
-		trf->iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_STANDARD_WITH_CRC_A:
 	case NFC_DIGITAL_FRAMING_NFCA_T4T:
+	case NFC_DIGITAL_FRAMING_NFCB:
+	case NFC_DIGITAL_FRAMING_NFCB_T4T:
+	case NFC_DIGITAL_FRAMING_NFCF:
+	case NFC_DIGITAL_FRAMING_NFCF_T3T:
 	case NFC_DIGITAL_FRAMING_ISO15693_INVENTORY:
 	case NFC_DIGITAL_FRAMING_ISO15693_T5T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
-		trf->iso_ctrl &= ~TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl &= ~TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	case NFC_DIGITAL_FRAMING_NFCA_T2T:
 		trf->tx_cmd = TRF7970A_CMD_TRANSMIT;
-		trf->iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
+		iso_ctrl |= TRF7970A_ISO_CTRL_RX_CRC_N;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported Framing: %d\n", framing);
@@ -925,24 +925,46 @@ static int trf7970a_config_framing(struct trf7970a *trf, int framing)
 
 	trf->framing = framing;
 
-	return trf7970a_write(trf, TRF7970A_ISO_CTRL, trf->iso_ctrl);
+	if (iso_ctrl != trf->iso_ctrl) {
+		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+		if (ret)
+			return ret;
+
+		trf->iso_ctrl = iso_ctrl;
+
+		ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
+				trf->modulator_sys_clk_ctrl);
+		if (ret)
+			return ret;
+	}
+
+	if (!(trf->chip_status_ctrl & TRF7970A_CHIP_STATUS_RF_ON)) {
+		ret = trf7970a_write(trf, TRF7970A_CHIP_STATUS_CTRL,
+				trf->chip_status_ctrl |
+					TRF7970A_CHIP_STATUS_RF_ON);
+		if (ret)
+			return ret;
+
+		trf->chip_status_ctrl |= TRF7970A_CHIP_STATUS_RF_ON;
+
+		usleep_range(5000, 6000);
+	}
+
+	return 0;
 }
 
 static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 		int param)
 {
 	struct trf7970a *trf = nfc_digital_get_drvdata(ddev);
-	int ret = 0;
+	int ret;
 
 	dev_dbg(trf->dev, "Configure hw - type: %d, param: %d\n", type, param);
 
 	mutex_lock(&trf->lock);
 
-	if (trf->state == TRF7970A_ST_OFF) {
-		ret = trf7970a_switch_rf_on(trf);
-		if (ret)
-			goto err_out;
-	}
+	if (trf->state == TRF7970A_ST_OFF)
+		trf7970a_switch_rf_on(trf);
 
 	switch (type) {
 	case NFC_DIGITAL_CONFIG_RF_TECH:
@@ -956,7 +978,6 @@ static int trf7970a_in_configure_hw(struct nfc_digital_dev *ddev, int type,
 		ret = -EINVAL;
 	}
 
-err_out:
 	mutex_unlock(&trf->lock);
 	return ret;
 }
@@ -1191,7 +1212,18 @@ static void trf7970a_abort_cmd(struct nfc_digital_dev *ddev)
 	dev_dbg(trf->dev, "Abort process initiated\n");
 
 	mutex_lock(&trf->lock);
-	trf->aborting = true;
+
+	switch (trf->state) {
+	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA:
+	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
+	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
+		trf->aborting = true;
+		break;
+	default:
+		break;
+	}
+
 	mutex_unlock(&trf->lock);
 }
 
@@ -1206,12 +1238,25 @@ static struct nfc_digital_ops trf7970a_nfc_ops = {
 	.abort_cmd		= trf7970a_abort_cmd,
 };
 
+static int trf7970a_get_autosuspend_delay(struct device_node *np)
+{
+	int autosuspend_delay, ret;
+
+	ret = of_property_read_u32(np, "autosuspend-delay", &autosuspend_delay);
+	if (ret)
+		autosuspend_delay = TRF7970A_AUTOSUSPEND_DELAY;
+
+	of_node_put(np);
+
+	return autosuspend_delay;
+}
+
 static int trf7970a_probe(struct spi_device *spi)
 {
 	struct device_node *np = spi->dev.of_node;
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct trf7970a *trf;
-	int ret;
+	int uvolts, autosuspend_delay, ret;
 
 	if (!np) {
 		dev_err(&spi->dev, "No Device Tree entry\n");
@@ -1281,7 +1326,10 @@ static int trf7970a_probe(struct spi_device *spi)
 		goto err_destroy_lock;
 	}
 
-	trf->powering_up = true;
+	uvolts = regulator_get_voltage(trf->regulator);
+
+	if (uvolts > 4000000)
+		trf->chip_status_ctrl = TRF7970A_CHIP_STATUS_VRS5_3;
 
 	trf->ddev = nfc_digital_allocate_device(&trf7970a_nfc_ops,
 			TRF7970A_SUPPORTED_PROTOCOLS,
@@ -1297,6 +1345,12 @@ static int trf7970a_probe(struct spi_device *spi)
 	nfc_digital_set_drvdata(trf->ddev, trf);
 	spi_set_drvdata(spi, trf);
 
+	autosuspend_delay = trf7970a_get_autosuspend_delay(np);
+
+	pm_runtime_set_autosuspend_delay(trf->dev, autosuspend_delay);
+	pm_runtime_use_autosuspend(trf->dev);
+	pm_runtime_enable(trf->dev);
+
 	ret = nfc_digital_register_device(trf->ddev);
 	if (ret) {
 		dev_err(trf->dev, "Can't register NFC digital device: %d\n",
@@ -1307,6 +1361,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	return 0;
 
 err_free_ddev:
+	pm_runtime_disable(trf->dev);
 	nfc_digital_free_device(trf->ddev);
 err_disable_regulator:
 	regulator_disable(trf->regulator);
@@ -1321,21 +1376,24 @@ static int trf7970a_remove(struct spi_device *spi)
 
 	mutex_lock(&trf->lock);
 
-	trf7970a_switch_rf_off(trf);
-	trf7970a_init(trf);
-
 	switch (trf->state) {
 	case TRF7970A_ST_WAIT_FOR_TX_FIFO:
 	case TRF7970A_ST_WAIT_FOR_RX_DATA:
 	case TRF7970A_ST_WAIT_FOR_RX_DATA_CONT:
 	case TRF7970A_ST_WAIT_TO_ISSUE_EOF:
 		trf7970a_send_err_upstream(trf, -ECANCELED);
+		/* FALLTHROUGH */
+	case TRF7970A_ST_IDLE:
+	case TRF7970A_ST_IDLE_RX_BLOCKED:
+		pm_runtime_put_sync(trf->dev);
 		break;
 	default:
 		break;
 	}
 
 	mutex_unlock(&trf->lock);
+
+	pm_runtime_disable(trf->dev);
 
 	nfc_digital_unregister_device(trf->ddev);
 	nfc_digital_free_device(trf->ddev);
@@ -1346,6 +1404,70 @@ static int trf7970a_remove(struct spi_device *spi)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_RUNTIME
+static int trf7970a_pm_runtime_suspend(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret;
+
+	dev_dbg(dev, "Runtime suspend\n");
+
+	if (trf->state != TRF7970A_ST_OFF) {
+		dev_dbg(dev, "Can't suspend - not in OFF state (%d)\n",
+				trf->state);
+		return -EBUSY;
+	}
+
+	gpio_set_value(trf->en_gpio, 0);
+	gpio_set_value(trf->en2_gpio, 0);
+
+	ret = regulator_disable(trf->regulator);
+	if (ret)
+		dev_err(dev, "%s - Can't disable VIN: %d\n", __func__, ret);
+
+	return ret;
+}
+
+static int trf7970a_pm_runtime_resume(struct device *dev)
+{
+	struct spi_device *spi = container_of(dev, struct spi_device, dev);
+	struct trf7970a *trf = spi_get_drvdata(spi);
+	int ret;
+
+	dev_dbg(dev, "Runtime resume\n");
+
+	ret = regulator_enable(trf->regulator);
+	if (ret) {
+		dev_err(dev, "%s - Can't enable VIN: %d\n", __func__, ret);
+		return ret;
+	}
+
+	usleep_range(5000, 6000);
+
+	gpio_set_value(trf->en2_gpio, 1);
+	usleep_range(1000, 2000);
+	gpio_set_value(trf->en_gpio, 1);
+
+	usleep_range(20000, 21000);
+
+	ret = trf7970a_init(trf);
+	if (ret) {
+		dev_err(dev, "%s - Can't initialize: %d\n", __func__, ret);
+		return ret;
+	}
+
+	pm_runtime_mark_last_busy(dev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops trf7970a_pm_ops = {
+	SET_RUNTIME_PM_OPS(trf7970a_pm_runtime_suspend,
+			trf7970a_pm_runtime_resume, NULL)
+};
 
 static const struct spi_device_id trf7970a_id_table[] = {
 	{ "trf7970a", TRF7970A_QUIRK_IRQ_STATUS_READ_ERRATA },
@@ -1360,6 +1482,7 @@ static struct spi_driver trf7970a_spi_driver = {
 	.driver		= {
 		.name	= "trf7970a",
 		.owner	= THIS_MODULE,
+		.pm	= &trf7970a_pm_ops,
 	},
 };
 

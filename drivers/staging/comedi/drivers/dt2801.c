@@ -545,7 +545,7 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 */
 static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct dt2801_board *board = comedi_board(dev);
+	const struct dt2801_board *board;
 	struct dt2801_private *devpriv;
 	struct comedi_subdevice *s;
 	int board_code, type;

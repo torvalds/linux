@@ -535,7 +535,7 @@ static struct net_device *brnf_get_logical_dev(struct sk_buff *skb, const struct
 	if (brnf_pass_vlan_indev == 0 || !vlan_tx_tag_present(skb))
 		return br;
 
-	vlan = __vlan_find_dev_deep(br, skb->vlan_proto,
+	vlan = __vlan_find_dev_deep_rcu(br, skb->vlan_proto,
 				    vlan_tx_tag_get(skb) & VLAN_VID_MASK);
 
 	return vlan ? vlan : br;
@@ -859,12 +859,12 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 	return NF_STOLEN;
 }
 
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV4)
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
 	int ret;
 
-	if (skb->nfct != NULL && skb->protocol == htons(ETH_P_IP) &&
+	if (skb->protocol == htons(ETH_P_IP) &&
 	    skb->len + nf_bridge_mtu_reduction(skb) > skb->dev->mtu &&
 	    !skb_is_gso(skb)) {
 		if (br_parse_ip_options(skb))

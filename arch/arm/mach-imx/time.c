@@ -28,6 +28,9 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/sched_clock.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 
@@ -327,4 +330,16 @@ void __init mxc_timer_init(void __iomem *base, int irq)
 
 	/* Make irqs happen */
 	setup_irq(irq, &mxc_timer_irq);
+}
+
+void __init mxc_timer_init_dt(struct device_node *np)
+{
+	void __iomem *base;
+	int irq;
+
+	base = of_iomap(np, 0);
+	WARN_ON(!base);
+	irq = irq_of_parse_and_map(np, 0);
+
+	mxc_timer_init(base, irq);
 }

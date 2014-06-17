@@ -20,24 +20,45 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/firmware.h>
 
-#include <plat/cpu.h>
-
 #include "common.h"
 #include "regs-pmu.h"
 
 extern void exynos4_secondary_startup(void);
 
+void __iomem *sysram_base_addr;
+void __iomem *sysram_ns_base_addr;
+
+static void __init exynos_smp_prepare_sysram(void)
+{
+	struct device_node *node;
+
+	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram") {
+		if (!of_device_is_available(node))
+			continue;
+		sysram_base_addr = of_iomap(node, 0);
+		break;
+	}
+
+	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram-ns") {
+		if (!of_device_is_available(node))
+			continue;
+		sysram_ns_base_addr = of_iomap(node, 0);
+		break;
+	}
+}
+
 static inline void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
 		return S5P_INFORM5;
-	return S5P_VA_SYSRAM;
+	return sysram_base_addr;
 }
 
 static inline void __iomem *cpu_boot_reg(int cpu)
@@ -45,9 +66,11 @@ static inline void __iomem *cpu_boot_reg(int cpu)
 	void __iomem *boot_reg;
 
 	boot_reg = cpu_boot_reg_base();
+	if (!boot_reg)
+		return ERR_PTR(-ENODEV);
 	if (soc_is_exynos4412())
 		boot_reg += 4*cpu;
-	else if (soc_is_exynos5420())
+	else if (soc_is_exynos5420() || soc_is_exynos5800())
 		boot_reg += 4;
 	return boot_reg;
 }
@@ -90,6 +113,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
 	unsigned long phys_cpu = cpu_logical_map(cpu);
+	int ret = -ENOSYS;
 
 	/*
 	 * Set synchronisation state between this boot processor
@@ -107,15 +131,12 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	write_pen_release(phys_cpu);
 
-	if (!(__raw_readl(S5P_ARM_CORE1_STATUS) & S5P_CORE_LOCAL_PWR_EN)) {
-		__raw_writel(S5P_CORE_LOCAL_PWR_EN,
-			     S5P_ARM_CORE1_CONFIGURATION);
-
+	if (!exynos_cpu_power_state(cpu)) {
+		exynos_cpu_power_up(cpu);
 		timeout = 10;
 
 		/* wait max 10 ms until cpu1 is on */
-		while ((__raw_readl(S5P_ARM_CORE1_STATUS)
-			& S5P_CORE_LOCAL_PWR_EN) != S5P_CORE_LOCAL_PWR_EN) {
+		while (exynos_cpu_power_state(cpu) != S5P_CORE_LOCAL_PWR_EN) {
 			if (timeout-- == 0)
 				break;
 
@@ -146,8 +167,18 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		 * Try to set boot address using firmware first
 		 * and fall back to boot register if it fails.
 		 */
-		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
+		ret = call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr);
+		if (ret && ret != -ENOSYS)
+			goto fail;
+		if (ret == -ENOSYS) {
+			void __iomem *boot_reg = cpu_boot_reg(phys_cpu);
+
+			if (IS_ERR(boot_reg)) {
+				ret = PTR_ERR(boot_reg);
+				goto fail;
+			}
 			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+		}
 
 		call_firmware_op(cpu_boot, phys_cpu);
 
@@ -163,9 +194,10 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * now the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
+fail:
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	return pen_release != -1 ? ret : 0;
 }
 
 /*
@@ -205,6 +237,8 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
 
+	exynos_smp_prepare_sysram();
+
 	/*
 	 * Write the address of secondary startup into the
 	 * system-wide flags register. The boot monitor waits
@@ -217,12 +251,21 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 1; i < max_cpus; ++i) {
 		unsigned long phys_cpu;
 		unsigned long boot_addr;
+		int ret;
 
 		phys_cpu = cpu_logical_map(i);
 		boot_addr = virt_to_phys(exynos4_secondary_startup);
 
-		if (call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr))
+		ret = call_firmware_op(set_cpu_boot_addr, phys_cpu, boot_addr);
+		if (ret && ret != -ENOSYS)
+			break;
+		if (ret == -ENOSYS) {
+			void __iomem *boot_reg = cpu_boot_reg(phys_cpu);
+
+			if (IS_ERR(boot_reg))
+				break;
 			__raw_writel(boot_addr, cpu_boot_reg(phys_cpu));
+		}
 	}
 }
 

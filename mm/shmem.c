@@ -1132,7 +1132,7 @@ repeat:
 			goto decused;
 		}
 
-		SetPageSwapBacked(page);
+		__SetPageSwapBacked(page);
 		__set_page_locked(page);
 		error = mem_cgroup_charge_file(page, current->mm,
 						gfp & GFP_RECLAIM_MASK);
@@ -1372,9 +1372,13 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int ret;
 	struct inode *inode = mapping->host;
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+	if (ret == 0 && *pagep)
+		init_page_accessed(*pagep);
+	return ret;
 }
 
 static int
@@ -1402,8 +1406,7 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-static ssize_t shmem_file_aio_read(struct kiocb *iocb,
-		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
+static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -1412,15 +1415,8 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	unsigned long offset;
 	enum sgp_type sgp = SGP_READ;
 	int error = 0;
-	ssize_t retval;
-	size_t count;
+	ssize_t retval = 0;
 	loff_t *ppos = &iocb->ki_pos;
-	struct iov_iter iter;
-
-	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
-	if (retval)
-		return retval;
-	iov_iter_init(&iter, iov, nr_segs, count, 0);
 
 	/*
 	 * Might this read be for a stacking filesystem?  Then when reading
@@ -1496,14 +1492,14 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 		 * Ok, we have the page, and it's up-to-date, so
 		 * now we can copy it to user space...
 		 */
-		ret = copy_page_to_iter(page, offset, nr, &iter);
+		ret = copy_page_to_iter(page, offset, nr, to);
 		retval += ret;
 		offset += ret;
 		index += offset >> PAGE_CACHE_SHIFT;
 		offset &= ~PAGE_CACHE_MASK;
 
 		page_cache_release(page);
-		if (!iov_iter_count(&iter))
+		if (!iov_iter_count(to))
 			break;
 		if (ret < nr) {
 			error = -EFAULT;
@@ -2625,13 +2621,13 @@ static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
 #ifdef CONFIG_TMPFS
 	.llseek		= shmem_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= shmem_file_aio_read,
-	.aio_write	= generic_file_aio_write,
+	.read		= new_sync_read,
+	.write		= new_sync_write,
+	.read_iter	= shmem_file_read_iter,
+	.write_iter	= generic_file_write_iter,
 	.fsync		= noop_fsync,
 	.splice_read	= shmem_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_write	= iter_file_splice_write,
 	.fallocate	= shmem_fallocate,
 #endif
 };

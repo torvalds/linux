@@ -162,7 +162,7 @@ static ssize_t contrast_show(struct device *dev,
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct wm8505fb_info *fbi = to_wm8505fb_info(info);
 
-	return sprintf(buf, "%d\n", fbi->contrast);
+	return sprintf(buf, "%u\n", fbi->contrast);
 }
 
 static ssize_t contrast_store(struct device *dev,

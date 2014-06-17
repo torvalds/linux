@@ -276,6 +276,10 @@ typedef int (*regmap_hw_async_write)(void *context,
 typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef int (*regmap_hw_reg_read)(void *context, unsigned int reg,
+				  unsigned int *val);
+typedef int (*regmap_hw_reg_write)(void *context, unsigned int reg,
+				   unsigned int val);
 typedef struct regmap_async *(*regmap_hw_async_alloc)(void);
 typedef void (*regmap_hw_free_context)(void *context);
 
@@ -309,7 +313,9 @@ struct regmap_bus {
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_async_write async_write;
+	regmap_hw_reg_write reg_write;
 	regmap_hw_read read;
+	regmap_hw_reg_read reg_read;
 	regmap_hw_free_context free_context;
 	regmap_hw_async_alloc async_alloc;
 	u8 read_flag_mask;

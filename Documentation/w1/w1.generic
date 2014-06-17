@@ -82,7 +82,7 @@ driver             - (standard) symlink to the w1 driver
 w1_master_add      - Manually register a slave device
 w1_master_attempts - the number of times a search was attempted
 w1_master_max_slave_count
-                   - the maximum slaves that may be attached to a master
+                   - maximum number of slaves to search for at a time
 w1_master_name     - the name of the device (w1_bus_masterX)
 w1_master_pullup   - 5V strong pullup 0 enabled, 1 disabled
 w1_master_remove   - Manually remove a slave device

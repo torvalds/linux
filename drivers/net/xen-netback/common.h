@@ -99,22 +99,43 @@ struct xenvif_rx_meta {
  */
 #define XEN_NETBK_LEGACY_SLOTS_MAX XEN_NETIF_NR_SLOTS_MIN
 
-struct xenvif {
-	/* Unique identifier for this interface. */
-	domid_t          domid;
-	unsigned int     handle;
+/* Queue name is interface name with "-qNNN" appended */
+#define QUEUE_NAME_SIZE (IFNAMSIZ + 5)
 
-	/* Is this interface disabled? True when backend discovers
-	 * frontend is rogue.
+/* IRQ name is queue name with "-tx" or "-rx" appended */
+#define IRQ_NAME_SIZE (QUEUE_NAME_SIZE + 3)
+
+struct xenvif;
+
+struct xenvif_stats {
+	/* Stats fields to be updated per-queue.
+	 * A subset of struct net_device_stats that contains only the
+	 * fields that are updated in netback.c for each queue.
 	 */
-	bool disabled;
+	unsigned int rx_bytes;
+	unsigned int rx_packets;
+	unsigned int tx_bytes;
+	unsigned int tx_packets;
+
+	/* Additional stats used by xenvif */
+	unsigned long rx_gso_checksum_fixup;
+	unsigned long tx_zerocopy_sent;
+	unsigned long tx_zerocopy_success;
+	unsigned long tx_zerocopy_fail;
+	unsigned long tx_frag_overflow;
+};
+
+struct xenvif_queue { /* Per-queue data for xenvif */
+	unsigned int id; /* Queue ID, 0-based */
+	char name[QUEUE_NAME_SIZE]; /* DEVNAME-qN */
+	struct xenvif *vif; /* Parent VIF */
 
 	/* Use NAPI for guest TX */
 	struct napi_struct napi;
 	/* When feature-split-event-channels = 0, tx_irq = rx_irq. */
 	unsigned int tx_irq;
 	/* Only used when feature-split-event-channels = 1 */
-	char tx_irq_name[IFNAMSIZ+4]; /* DEVNAME-tx */
+	char tx_irq_name[IRQ_NAME_SIZE]; /* DEVNAME-qN-tx */
 	struct xen_netif_tx_back_ring tx;
 	struct sk_buff_head tx_queue;
 	struct page *mmap_pages[MAX_PENDING_REQS];
@@ -150,7 +171,7 @@ struct xenvif {
 	/* When feature-split-event-channels = 0, tx_irq = rx_irq. */
 	unsigned int rx_irq;
 	/* Only used when feature-split-event-channels = 1 */
-	char rx_irq_name[IFNAMSIZ+4]; /* DEVNAME-rx */
+	char rx_irq_name[IRQ_NAME_SIZE]; /* DEVNAME-qN-rx */
 	struct xen_netif_rx_back_ring rx;
 	struct sk_buff_head rx_queue;
 	RING_IDX rx_last_skb_slots;
@@ -158,13 +179,28 @@ struct xenvif {
 
 	struct timer_list wake_queue;
 
-	/* This array is allocated seperately as it is large */
-	struct gnttab_copy *grant_copy_op;
+	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
 	/* We create one meta structure per ring request we consume, so
 	 * the maximum number is the same as the ring size.
 	 */
 	struct xenvif_rx_meta meta[XEN_NETIF_RX_RING_SIZE];
+
+	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
+	unsigned long   credit_bytes;
+	unsigned long   credit_usec;
+	unsigned long   remaining_credit;
+	struct timer_list credit_timeout;
+	u64 credit_window_start;
+
+	/* Statistics */
+	struct xenvif_stats stats;
+};
+
+struct xenvif {
+	/* Unique identifier for this interface. */
+	domid_t          domid;
+	unsigned int     handle;
 
 	u8               fe_dev_addr[6];
 
@@ -179,19 +215,13 @@ struct xenvif {
 	/* Internal feature information. */
 	u8 can_queue:1;	    /* can queue packets for receiver? */
 
-	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
-	unsigned long   credit_bytes;
-	unsigned long   credit_usec;
-	unsigned long   remaining_credit;
-	struct timer_list credit_timeout;
-	u64 credit_window_start;
+	/* Is this interface disabled? True when backend discovers
+	 * frontend is rogue.
+	 */
+	bool disabled;
 
-	/* Statistics */
-	unsigned long rx_gso_checksum_fixup;
-	unsigned long tx_zerocopy_sent;
-	unsigned long tx_zerocopy_success;
-	unsigned long tx_zerocopy_fail;
-	unsigned long tx_frag_overflow;
+	/* Queues */
+	struct xenvif_queue *queues;
 
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
@@ -206,7 +236,10 @@ struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,
 			    unsigned int handle);
 
-int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
+int xenvif_init_queue(struct xenvif_queue *queue);
+void xenvif_deinit_queue(struct xenvif_queue *queue);
+
+int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
 		   unsigned int rx_evtchn);
 void xenvif_disconnect(struct xenvif *vif);
@@ -217,44 +250,47 @@ void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
-int xenvif_must_stop_queue(struct xenvif *vif);
+int xenvif_must_stop_queue(struct xenvif_queue *queue);
+
+int xenvif_queue_stopped(struct xenvif_queue *queue);
+void xenvif_wake_queue(struct xenvif_queue *queue);
 
 /* (Un)Map communication rings. */
-void xenvif_unmap_frontend_rings(struct xenvif *vif);
-int xenvif_map_frontend_rings(struct xenvif *vif,
+void xenvif_unmap_frontend_rings(struct xenvif_queue *queue);
+int xenvif_map_frontend_rings(struct xenvif_queue *queue,
 			      grant_ref_t tx_ring_ref,
 			      grant_ref_t rx_ring_ref);
 
 /* Check for SKBs from frontend and schedule backend processing */
-void xenvif_check_rx_xenvif(struct xenvif *vif);
+void xenvif_napi_schedule_or_enable_events(struct xenvif_queue *queue);
 
 /* Prevent the device from generating any further traffic. */
 void xenvif_carrier_off(struct xenvif *vif);
 
-int xenvif_tx_action(struct xenvif *vif, int budget);
+int xenvif_tx_action(struct xenvif_queue *queue, int budget);
 
 int xenvif_kthread_guest_rx(void *data);
-void xenvif_kick_thread(struct xenvif *vif);
+void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
 
 /* Determine whether the needed number of slots (req) are available,
  * and set req_event if not.
  */
-bool xenvif_rx_ring_slots_available(struct xenvif *vif, int needed);
+bool xenvif_rx_ring_slots_available(struct xenvif_queue *queue, int needed);
 
-void xenvif_stop_queue(struct xenvif *vif);
+void xenvif_carrier_on(struct xenvif *vif);
 
 /* Callback from stack when TX packet can be released */
 void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success);
 
 /* Unmap a pending page and release it back to the guest */
-void xenvif_idx_unmap(struct xenvif *vif, u16 pending_idx);
+void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx);
 
-static inline pending_ring_idx_t nr_pending_reqs(struct xenvif *vif)
+static inline pending_ring_idx_t nr_pending_reqs(struct xenvif_queue *queue)
 {
 	return MAX_PENDING_REQS -
-		vif->pending_prod + vif->pending_cons;
+		queue->pending_prod + queue->pending_cons;
 }
 
 /* Callback from stack when TX packet can be released */
@@ -264,5 +300,6 @@ extern bool separate_tx_rx_irq;
 
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_drain_timeout_jiffies;
+extern unsigned int xenvif_max_queues;
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

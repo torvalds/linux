@@ -1,6 +1,6 @@
 /* parser.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
 #include "controlvmchannel.h"
 #include <linux/ctype.h>
 #include <linux/mm.h>
+#include <linux/uuid.h>
 
 #define MYDRVNAME "visorchipset_parser"
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_parser_c
@@ -191,7 +192,7 @@ parser_byteStream_get(PARSER_CONTEXT *ctx, ulong *nbytes)
 	return (void *) ctx->data;
 }
 
-GUID
+uuid_le
 parser_id_get(PARSER_CONTEXT *ctx)
 {
 	ULTRA_CONTROLVM_PARAMETERS_HEADER *phdr = NULL;
@@ -199,7 +200,7 @@ parser_id_get(PARSER_CONTEXT *ctx)
 	if (ctx == NULL) {
 		ERRDRV("%s (%s:%d) - no context",
 		       __func__, __FILE__, __LINE__);
-		return Guid0;
+		return NULL_UUID_LE;
 	}
 	phdr = (ULTRA_CONTROLVM_PARAMETERS_HEADER *) (ctx->data);
 	return phdr->Id;

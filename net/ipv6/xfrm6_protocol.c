@@ -50,6 +50,10 @@ int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err)
 {
 	int ret;
 	struct xfrm6_protocol *handler;
+	struct xfrm6_protocol __rcu **head = proto_handlers(protocol);
+
+	if (!head)
+		return 0;
 
 	for_each_protocol_rcu(*proto_handlers(protocol), handler)
 		if ((ret = handler->cb_handler(skb, err)) <= 0)
@@ -184,9 +188,11 @@ int xfrm6_protocol_register(struct xfrm6_protocol *handler,
 	struct xfrm6_protocol __rcu **pprev;
 	struct xfrm6_protocol *t;
 	bool add_netproto = false;
-
 	int ret = -EEXIST;
 	int priority = handler->priority;
+
+	if (!proto_handlers(protocol) || !netproto(protocol))
+		return -EINVAL;
 
 	mutex_lock(&xfrm6_protocol_mutex);
 
@@ -229,6 +235,9 @@ int xfrm6_protocol_deregister(struct xfrm6_protocol *handler,
 	struct xfrm6_protocol __rcu **pprev;
 	struct xfrm6_protocol *t;
 	int ret = -ENOENT;
+
+	if (!proto_handlers(protocol) || !netproto(protocol))
+		return -EINVAL;
 
 	mutex_lock(&xfrm6_protocol_mutex);
 

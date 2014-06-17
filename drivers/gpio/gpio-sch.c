@@ -97,8 +97,6 @@ static int sch_gpio_core_direction_out(struct gpio_chip *gc,
 	u8 curr_dirs;
 	unsigned short offset, bit;
 
-	sch_gpio_core_set(gc, gpio_num, val);
-
 	spin_lock(&gpio_lock);
 
 	offset = CGIO + gpio_num / 8;
@@ -109,6 +107,17 @@ static int sch_gpio_core_direction_out(struct gpio_chip *gc,
 		outb(curr_dirs & ~(1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
+
+	/*
+	 * according to the datasheet, writing to the level register has no
+	 * effect when GPIO is programmed as input.
+	 * Actually the the level register is read-only when configured as input.
+	 * Thus presetting the output level before switching to output is _NOT_ possible.
+	 * Hence we set the level after configuring the GPIO as output.
+	 * But we cannot prevent a short low pulse if direction is set to high
+	 * and an external pull-up is connected.
+	 */
+	sch_gpio_core_set(gc, gpio_num, val);
 	return 0;
 }
 
@@ -178,8 +187,6 @@ static int sch_gpio_resume_direction_out(struct gpio_chip *gc,
 	u8 curr_dirs;
 	unsigned short offset, bit;
 
-	sch_gpio_resume_set(gc, gpio_num, val);
-
 	offset = RGIO + gpio_num / 8;
 	bit = gpio_num % 8;
 
@@ -190,6 +197,17 @@ static int sch_gpio_resume_direction_out(struct gpio_chip *gc,
 		outb(curr_dirs & ~(1 << bit), gpio_ba + offset);
 
 	spin_unlock(&gpio_lock);
+
+	/*
+	* according to the datasheet, writing to the level register has no
+	* effect when GPIO is programmed as input.
+	* Actually the the level register is read-only when configured as input.
+	* Thus presetting the output level before switching to output is _NOT_ possible.
+	* Hence we set the level after configuring the GPIO as output.
+	* But we cannot prevent a short low pulse if direction is set to high
+	* and an external pull-up is connected.
+	*/
+	sch_gpio_resume_set(gc, gpio_num, val);
 	return 0;
 }
 
