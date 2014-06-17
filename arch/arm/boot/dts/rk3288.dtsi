@@ -207,8 +207,8 @@
 		reg = <0xff800000 0x100>;
 		clocks = <&pclk_pd_alive>;
 		clock-names = "pclk_wdt";
-		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
-		rockchip,irq = <0>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,irq = <1>;
 		rockchip,timeout = <60>;
 		rockchip,atboot = <1>;
 		rockchip,debug = <0>;
