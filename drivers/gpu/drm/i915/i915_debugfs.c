@@ -513,6 +513,11 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	unsigned long flags;
 	struct intel_crtc *crtc;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	for_each_intel_crtc(dev, crtc) {
 		const char pipe = pipe_name(crtc->pipe);
@@ -553,6 +558,8 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
+
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
