@@ -34,10 +34,10 @@
 #include <linux/sh_clk.h>
 #include <linux/smsc911x.h>
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r8a73a4.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include "irqs.h"
 
 /* LEDS */
 static struct gpio_led ape6evm_leds[] = {

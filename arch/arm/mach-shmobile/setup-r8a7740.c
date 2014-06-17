@@ -34,12 +34,12 @@
 #include <mach/r8a7740.h>
 #include <mach/pm-rmobile.h>
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include "dma-register.h"
+#include "irqs.h"
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*

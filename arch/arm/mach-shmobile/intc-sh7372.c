@@ -22,10 +22,10 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include "intc.h"
+#include "irqs.h"
 
 enum {
 	UNUSED_INTCA = 0,

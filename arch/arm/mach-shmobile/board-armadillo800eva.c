@@ -46,7 +46,6 @@
 #include <linux/i2c-gpio.h>
 #include <linux/reboot.h>
 #include <mach/common.h>
-#include <mach/irqs.h>
 #include <mach/r8a7740.h>
 #include <media/mt9t112.h>
 #include <media/sh_mobile_ceu.h>
@@ -61,7 +60,7 @@
 #include <video/sh_mobile_hdmi.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-
+#include "irqs.h"
 #include "sh-gpio.h"
 
 /*
