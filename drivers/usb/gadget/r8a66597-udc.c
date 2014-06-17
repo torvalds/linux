@@ -1836,7 +1836,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		clk_put(r8a66597->clk);
 	}
 
-	kfree(r8a66597);
 	return 0;
 }
 
@@ -1892,11 +1891,9 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	}
 
 	/* initialize ucd */
-	r8a66597 = kzalloc(sizeof(struct r8a66597), GFP_KERNEL);
-	if (r8a66597 == NULL) {
-		ret = -ENOMEM;
-		goto clean_up;
-	}
+	r8a66597 = devm_kzalloc(dev, sizeof(struct r8a66597), GFP_KERNEL);
+	if (r8a66597 == NULL)
+		return -ENOMEM;
 
 	spin_lock_init(&r8a66597->lock);
 	platform_set_drvdata(pdev, r8a66597);
@@ -1995,7 +1992,6 @@ clean_up:
 		if (r8a66597->ep0_req)
 			r8a66597_free_request(&r8a66597->ep[0].ep,
 						r8a66597->ep0_req);
-		kfree(r8a66597);
 	}
 
 	return ret;
