@@ -1098,7 +1098,7 @@ static inline int tcp_full_space(const struct sock *sk)
 
 static inline void tcp_openreq_init(struct request_sock *req,
 				    struct tcp_options_received *rx_opt,
-				    struct sk_buff *skb)
+				    struct sk_buff *skb, struct sock *sk)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 
@@ -1117,6 +1117,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	ireq->ecn_ok = 0;
 	ireq->ir_rmt_port = tcp_hdr(skb)->source;
 	ireq->ir_num = ntohs(tcp_hdr(skb)->dest);
+	ireq->ir_mark = inet_request_mark(sk, skb);
 }
 
 extern void tcp_openreq_init_rwin(struct request_sock *req,
