@@ -1448,7 +1448,9 @@ static __sramdata uint32 clkr;
 static __sramdata uint32 clkf;
 static __sramdata uint32 clkod;
 uint32 DEFINE_PIE_DATA(ddr_select_gpll_div); // 0-Disable, 1-1:1, 2-2:1, 4-4:1
+#if defined(ENABLE_DDR_CLCOK_GPLL_PATH)
 static uint32 *p_ddr_select_gpll_div;
+#endif
 
 static void __sramfunc ddr_delayus(uint32 us);
 
@@ -2104,8 +2106,8 @@ static noinline uint32 ddr_get_parameter(uint32 nMHz)
     uint32 cwl;
     PCTL_TIMING_T *p_pctl_timing=&(p_ddr_reg->pctl.pctl_timing);
     PHY_TIMING_T  *p_publ_timing=&(p_ddr_reg->publ.phy_timing);
-    NOC_TIMING_T  *p_noc_timing=&(p_ddr_reg->noc[0].ddrtiming);
-    NOC_ACTIVATE_T  *p_noc_activate=&(p_ddr_reg->noc[0].activate);
+    volatile NOC_TIMING_T  *p_noc_timing=&(p_ddr_reg->noc[0].ddrtiming);
+    volatile NOC_ACTIVATE_T  *p_noc_activate=&(p_ddr_reg->noc[0].activate);
     uint32 ch;
     uint32 mem_type;
     uint32 ddr_speed_bin=DDR3_DEFAULT;
@@ -3273,8 +3275,8 @@ static uint32 __sramfunc ddr_update_timing(uint32 ch)
     uint32 i,bl_tmp=0;
     PCTL_TIMING_T *p_pctl_timing=&(DATA(ddr_reg).pctl.pctl_timing);
     PHY_TIMING_T  *p_publ_timing=&(DATA(ddr_reg).publ.phy_timing);
-    NOC_TIMING_T  *p_noc_timing=&(DATA(ddr_reg).noc[0].ddrtiming);    
-    NOC_ACTIVATE_T  *p_noc_activate=&(DATA(ddr_reg).noc[0].activate);
+    volatile NOC_TIMING_T  *p_noc_timing=&(DATA(ddr_reg).noc[0].ddrtiming);
+    volatile NOC_ACTIVATE_T  *p_noc_activate=&(DATA(ddr_reg).noc[0].activate);
     pDDR_REG_T    pDDR_Reg = DATA(ddr_ch[ch]).pDDR_Reg;
     pDDRPHY_REG_T pPHY_Reg = DATA(ddr_ch[ch]).pPHY_Reg;
     pMSCH_REG     pMSCH_Reg= DATA(ddr_ch[ch]).pMSCH_Reg;
@@ -3989,6 +3991,7 @@ static int _ddr_change_freq(uint32 nMHz)
 {
 	struct ddr_freq_t ddr_freq_t;
 	int test_count=0;
+	int ret;
 
 	ddr_freq_t.screen_ft_us = 0;
 	ddr_freq_t.t0 = 0;
@@ -4010,10 +4013,13 @@ static int _ddr_change_freq(uint32 nMHz)
 
 			flush_tlb_all();
 		}
-	}while(__ddr_change_freq(nMHz, ddr_freq_t)==0);
+		ret = __ddr_change_freq(nMHz, ddr_freq_t);
+	} while (ret == 0);
 #else
-	return __ddr_change_freq(nMHz, ddr_freq_t);
+	ret = __ddr_change_freq(nMHz, ddr_freq_t);
 #endif
+
+	return ret;
 }
 
 static long _ddr_round_rate(uint32 nMHz)
@@ -4035,10 +4041,10 @@ static void _ddr_set_auto_self_refresh(bool en)
 
 #define PERI_PCLK_DIV_MASK 0x3
 #define PERI_PCLK_DIV_OFF 12
+#if 0
 static __sramdata u32 cru_sel32_sram;
 static void __sramfunc ddr_suspend(void)
 {
-#if 0
     u32 i;
     volatile u32 n;
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
@@ -4081,12 +4087,10 @@ static void __sramfunc ddr_suspend(void)
     				   |CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK);
     }
     pPHY_Reg->DSGCR = pPHY_Reg->DSGCR&(~((0x1<<28)|(0x1<<29)));  //CKOE
-#endif
 }
 
 static void __sramfunc ddr_resume(void)
 {
-#if 0
     int delay=1000;
     int pll_id;
 
@@ -4111,8 +4115,8 @@ static void __sramfunc ddr_resume(void)
     dsb();
 
     ddr_selfrefresh_exit();
-#endif
 }
+#endif
 
 //pArg:指针内容表示pll pd or not。
 void ddr_reg_save(uint32 *pArg)
