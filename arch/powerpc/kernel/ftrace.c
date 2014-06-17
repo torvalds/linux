@@ -320,7 +320,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	/* Ensure branch is within 24 bits */
-	if (create_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
+	if (!create_branch(ip, rec->arch.mod->arch.tramp, BRANCH_SET_LINK)) {
 		printk(KERN_ERR "Branch out of range");
 		return -EINVAL;
 	}
