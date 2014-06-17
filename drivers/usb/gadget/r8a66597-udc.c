@@ -1831,7 +1831,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 
 	if (r8a66597->pdata->on_chip) {
 		clk_disable_unprepare(r8a66597->clk);
-		clk_put(r8a66597->clk);
 	}
 
 	return 0;
@@ -1903,11 +1902,10 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	if (r8a66597->pdata->on_chip) {
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
-		r8a66597->clk = clk_get(dev, clk_name);
+		r8a66597->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR(r8a66597->clk)) {
 			dev_err(dev, "cannot get clock \"%s\"\n", clk_name);
-			ret = PTR_ERR(r8a66597->clk);
-			goto clean_up;
+			return PTR_ERR(r8a66597->clk);
 		}
 		clk_prepare_enable(r8a66597->clk);
 	}
@@ -1973,10 +1971,8 @@ err_add_udc:
 clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:
-	if (r8a66597->pdata->on_chip) {
+	if (r8a66597->pdata->on_chip)
 		clk_disable_unprepare(r8a66597->clk);
-		clk_put(r8a66597->clk);
-	}
 clean_up:
 	if (r8a66597->ep0_req)
 		r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
