@@ -116,6 +116,7 @@ static int tilcdc_unload(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_module *mod, *cur;
 
+	drm_fbdev_cma_fini(priv->fbdev);
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
