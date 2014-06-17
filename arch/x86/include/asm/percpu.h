@@ -55,7 +55,6 @@
 #define arch_raw_cpu_ptr(ptr)				\
 ({							\
 	unsigned long tcp_ptr__;			\
-	__verify_pcpu_ptr(ptr);				\
 	asm volatile("add " __percpu_arg(1) ", %0"	\
 		     : "=r" (tcp_ptr__)			\
 		     : "m" (this_cpu_off), "0" (ptr));	\

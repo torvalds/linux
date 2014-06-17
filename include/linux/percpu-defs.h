@@ -191,9 +191,12 @@
 #ifndef __ASSEMBLY__
 
 /*
- * Macro which verifies @ptr is a percpu pointer without evaluating
- * @ptr.  This is to be used in percpu accessors to verify that the
- * input parameter is a percpu pointer.
+ * __verify_pcpu_ptr() verifies @ptr is a percpu pointer without evaluating
+ * @ptr and is invoked once before a percpu area is accessed by all
+ * accessors and operations.  This is performed in the generic part of
+ * percpu and arch overrides don't need to worry about it; however, if an
+ * arch wants to implement an arch-specific percpu accessor or operation,
+ * it may use __verify_pcpu_ptr() to verify the parameters.
  *
  * + 0 is required in order to convert the pointer type from a
  * potential array type to a pointer to a single item of the array.
@@ -212,16 +215,26 @@ do {									\
  * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
 #define SHIFT_PERCPU_PTR(__p, __offset)					\
+	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
+
+#define per_cpu_ptr(ptr, cpu)						\
 ({									\
-	__verify_pcpu_ptr(__p);						\
-	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset)); \
+	__verify_pcpu_ptr(ptr);						\
+	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)));			\
 })
 
-#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR(ptr, per_cpu_offset(cpu))
-#define raw_cpu_ptr(ptr)	arch_raw_cpu_ptr(ptr)
+#define raw_cpu_ptr(ptr)						\
+({									\
+	__verify_pcpu_ptr(ptr);						\
+	arch_raw_cpu_ptr(ptr);						\
+})
 
 #ifdef CONFIG_DEBUG_PREEMPT
-#define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
+#define this_cpu_ptr(ptr)						\
+({									\
+	__verify_pcpu_ptr(ptr);						\
+	SHIFT_PERCPU_PTR(ptr, my_cpu_offset);				\
+})
 #else
 #define this_cpu_ptr(ptr) raw_cpu_ptr(ptr)
 #endif
