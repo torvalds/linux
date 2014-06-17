@@ -53,9 +53,16 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 #define per_cpu(var, cpu) \
 	(*SHIFT_PERCPU_PTR(&(var), per_cpu_offset(cpu)))
 
-#ifndef raw_cpu_ptr
-#define raw_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, __my_cpu_offset)
+/*
+ * Arch may define arch_raw_cpu_ptr() to provide more efficient address
+ * translations for raw_cpu_ptr().
+ */
+#ifndef arch_raw_cpu_ptr
+#define arch_raw_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, __my_cpu_offset)
 #endif
+
+#define raw_cpu_ptr(ptr) arch_raw_cpu_ptr(ptr)
+
 #ifdef CONFIG_DEBUG_PREEMPT
 #define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
 #else
