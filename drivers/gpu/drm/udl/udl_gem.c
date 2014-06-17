@@ -60,7 +60,7 @@ int udl_dumb_create(struct drm_file *file,
 		    struct drm_device *dev,
 		    struct drm_mode_create_dumb *args)
 {
-	args->pitch = args->width * ((args->bpp + 1) / 8);
+	args->pitch = args->width * DIV_ROUND_UP(args->bpp, 8);
 	args->size = args->pitch * args->height;
 	return udl_gem_create(file, dev,
 			      args->size, &args->handle);

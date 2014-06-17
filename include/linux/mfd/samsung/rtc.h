@@ -1,12 +1,17 @@
-/*  rtc.h
+/* rtc.h
  *
- * Copyright (c) 2011 Samsung Electronics Co., Ltd
+ * Copyright (c) 2011-2014 Samsung Electronics Co., Ltd
  *              http://www.samsung.com
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
  */
 
@@ -43,6 +48,39 @@ enum sec_rtc_reg {
 	SEC_RTC_STATUS,
 	SEC_WTSR_SMPL_CNTL,
 	SEC_RTC_UDR_CON,
+
+	SEC_RTC_REG_MAX,
+};
+
+enum s2mps_rtc_reg {
+	S2MPS_RTC_CTRL,
+	S2MPS_WTSR_SMPL_CNTL,
+	S2MPS_RTC_UDR_CON,
+	S2MPS_RSVD,
+	S2MPS_RTC_SEC,
+	S2MPS_RTC_MIN,
+	S2MPS_RTC_HOUR,
+	S2MPS_RTC_WEEKDAY,
+	S2MPS_RTC_DATE,
+	S2MPS_RTC_MONTH,
+	S2MPS_RTC_YEAR,
+	S2MPS_ALARM0_SEC,
+	S2MPS_ALARM0_MIN,
+	S2MPS_ALARM0_HOUR,
+	S2MPS_ALARM0_WEEKDAY,
+	S2MPS_ALARM0_DATE,
+	S2MPS_ALARM0_MONTH,
+	S2MPS_ALARM0_YEAR,
+	S2MPS_ALARM1_SEC,
+	S2MPS_ALARM1_MIN,
+	S2MPS_ALARM1_HOUR,
+	S2MPS_ALARM1_WEEKDAY,
+	S2MPS_ALARM1_DATE,
+	S2MPS_ALARM1_MONTH,
+	S2MPS_ALARM1_YEAR,
+	S2MPS_OFFSRC,
+
+	S2MPS_RTC_REG_MAX,
 };
 
 #define RTC_I2C_ADDR		(0x0C >> 1)
@@ -54,6 +92,9 @@ enum sec_rtc_reg {
 #define ALARM1_STATUS		(1 << 2)
 #define UPDATE_AD		(1 << 0)
 
+#define S2MPS_ALARM0_STATUS	(1 << 2)
+#define S2MPS_ALARM1_STATUS	(1 << 1)
+
 /* RTC Control Register */
 #define BCD_EN_SHIFT		0
 #define BCD_EN_MASK		(1 << BCD_EN_SHIFT)
@@ -62,6 +103,10 @@ enum sec_rtc_reg {
 /* RTC Update Register1 */
 #define RTC_UDR_SHIFT		0
 #define RTC_UDR_MASK		(1 << RTC_UDR_SHIFT)
+#define S2MPS_RTC_WUDR_SHIFT	4
+#define S2MPS_RTC_WUDR_MASK	(1 << S2MPS_RTC_WUDR_SHIFT)
+#define S2MPS_RTC_RUDR_SHIFT	0
+#define S2MPS_RTC_RUDR_MASK	(1 << S2MPS_RTC_RUDR_SHIFT)
 #define RTC_TCON_SHIFT		1
 #define RTC_TCON_MASK		(1 << RTC_TCON_SHIFT)
 #define RTC_TIME_EN_SHIFT	3

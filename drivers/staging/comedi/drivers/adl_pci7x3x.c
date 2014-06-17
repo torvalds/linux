@@ -239,9 +239,6 @@ static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	dev_info(dev->class_dev, "%s attached (%d inputs/%d outputs)\n",
-		dev->board_name, board->di_nchan, board->do_nchan);
-
 	return 0;
 }
 

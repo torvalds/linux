@@ -33,8 +33,8 @@ struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 	/*                   N  P  A    M  L  V                      H  */
 	[QETH_DBF_SETUP] = {"qeth_setup",
 				8, 1,   8, 5, &debug_hex_ascii_view, NULL},
-	[QETH_DBF_MSG]   = {"qeth_msg",
-				8, 1, 128, 3, &debug_sprintf_view,   NULL},
+	[QETH_DBF_MSG]	 = {"qeth_msg", 8, 1, 11 * sizeof(long), 3,
+			    &debug_sprintf_view, NULL},
 	[QETH_DBF_CTRL]  = {"qeth_control",
 		8, 1, QETH_DBF_CTRL_LEN, 5, &debug_hex_ascii_view, NULL},
 };
@@ -4610,8 +4610,8 @@ out:
 }
 EXPORT_SYMBOL_GPL(qeth_query_oat_command);
 
-int qeth_query_card_info_cb(struct qeth_card *card,
-			struct qeth_reply *reply, unsigned long data)
+static int qeth_query_card_info_cb(struct qeth_card *card,
+				   struct qeth_reply *reply, unsigned long data)
 {
 	struct qeth_ipa_cmd *cmd;
 	struct qeth_query_card_info *card_info;

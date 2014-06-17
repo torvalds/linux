@@ -237,7 +237,7 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 
 		/* Wakeup parent, send SIGIO */
 		if (state == DCCP_RESPOND && child->sk_state != state)
-			parent->sk_data_ready(parent, 0);
+			parent->sk_data_ready(parent);
 	} else {
 		/* Alas, it is possible again, because we do lookup
 		 * in main socket hash table and lock on listening

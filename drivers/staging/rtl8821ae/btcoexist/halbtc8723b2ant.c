@@ -1830,7 +1830,7 @@ void halbtc8723b2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		result = 0;
 		wait_count = 0;
 	} else {
-		/*accquire the BT TRx retry count from BT_Info byte2*/
+		/*acquire the BT TRx retry count from BT_Info byte2*/
 		retryCount = coex_sta->bt_retry_cnt;
 		BTC_PRINT(BTC_MSG_ALGORITHM, ALGO_TRACE_FW_DETAIL,
 			  "[BTCoex], retryCount = %d\n", retryCount);

@@ -55,25 +55,13 @@
  * for Linux kernel.
  */
 
-int    cfs_curproc_groups_nr(void)
-{
-	int nr;
-
-	task_lock(current);
-	nr = current_cred()->group_info->ngroups;
-	task_unlock(current);
-	return nr;
-}
-
-/* Currently all the CFS_CAP_* defines match CAP_* ones. */
-#define cfs_cap_pack(cap) (cap)
-#define cfs_cap_unpack(cap) (cap)
-
 void cfs_cap_raise(cfs_cap_t cap)
 {
 	struct cred *cred;
-	if ((cred = prepare_creds())) {
-		cap_raise(cred->cap_effective, cfs_cap_unpack(cap));
+
+	cred = prepare_creds();
+	if (cred) {
+		cap_raise(cred->cap_effective, cap);
 		commit_creds(cred);
 	}
 }
@@ -81,42 +69,28 @@ void cfs_cap_raise(cfs_cap_t cap)
 void cfs_cap_lower(cfs_cap_t cap)
 {
 	struct cred *cred;
-	if ((cred = prepare_creds())) {
-		cap_lower(cred->cap_effective, cfs_cap_unpack(cap));
+
+	cred = prepare_creds();
+	if (cred) {
+		cap_lower(cred->cap_effective, cap);
 		commit_creds(cred);
 	}
 }
 
 int cfs_cap_raised(cfs_cap_t cap)
 {
-	return cap_raised(current_cap(), cfs_cap_unpack(cap));
+	return cap_raised(current_cap(), cap);
 }
 
 void cfs_kernel_cap_pack(kernel_cap_t kcap, cfs_cap_t *cap)
 {
-#if defined (_LINUX_CAPABILITY_VERSION) && _LINUX_CAPABILITY_VERSION == 0x19980330
-	*cap = cfs_cap_pack(kcap);
-#elif defined (_LINUX_CAPABILITY_VERSION) && _LINUX_CAPABILITY_VERSION == 0x20071026
-	*cap = cfs_cap_pack(kcap[0]);
-#elif defined(_KERNEL_CAPABILITY_VERSION) && _KERNEL_CAPABILITY_VERSION == 0x20080522
 	/* XXX lost high byte */
-	*cap = cfs_cap_pack(kcap.cap[0]);
-#else
-	#error "need correct _KERNEL_CAPABILITY_VERSION "
-#endif
+	*cap = kcap.cap[0];
 }
 
 void cfs_kernel_cap_unpack(kernel_cap_t *kcap, cfs_cap_t cap)
 {
-#if defined (_LINUX_CAPABILITY_VERSION) && _LINUX_CAPABILITY_VERSION == 0x19980330
-	*kcap = cfs_cap_unpack(cap);
-#elif defined (_LINUX_CAPABILITY_VERSION) && _LINUX_CAPABILITY_VERSION == 0x20071026
-	(*kcap)[0] = cfs_cap_unpack(cap);
-#elif defined(_KERNEL_CAPABILITY_VERSION) && _KERNEL_CAPABILITY_VERSION == 0x20080522
-	kcap->cap[0] = cfs_cap_unpack(cap);
-#else
-	#error "need correct _KERNEL_CAPABILITY_VERSION "
-#endif
+	kcap->cap[0] = cap;
 }
 
 cfs_cap_t cfs_curproc_cap_pack(void)
@@ -124,20 +98,6 @@ cfs_cap_t cfs_curproc_cap_pack(void)
 	cfs_cap_t cap;
 	cfs_kernel_cap_pack(current_cap(), &cap);
 	return cap;
-}
-
-void cfs_curproc_cap_unpack(cfs_cap_t cap)
-{
-	struct cred *cred;
-	if ((cred = prepare_creds())) {
-		cfs_kernel_cap_unpack(&cred->cap_effective, cap);
-		commit_creds(cred);
-	}
-}
-
-int cfs_capable(cfs_cap_t cap)
-{
-	return capable(cfs_cap_unpack(cap));
 }
 
 static int cfs_access_process_vm(struct task_struct *tsk, unsigned long addr,
@@ -292,13 +252,10 @@ out:
 }
 EXPORT_SYMBOL(cfs_get_environ);
 
-EXPORT_SYMBOL(cfs_curproc_groups_nr);
 EXPORT_SYMBOL(cfs_cap_raise);
 EXPORT_SYMBOL(cfs_cap_lower);
 EXPORT_SYMBOL(cfs_cap_raised);
 EXPORT_SYMBOL(cfs_curproc_cap_pack);
-EXPORT_SYMBOL(cfs_curproc_cap_unpack);
-EXPORT_SYMBOL(cfs_capable);
 
 /*
  * Local variables:

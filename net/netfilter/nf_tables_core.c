@@ -25,9 +25,8 @@ static void nft_cmp_fast_eval(const struct nft_expr *expr,
 			      struct nft_data data[NFT_REG_MAX + 1])
 {
 	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
-	u32 mask;
+	u32 mask = nft_cmp_fast_mask(priv->len);
 
-	mask = ~0U >> (sizeof(priv->data) * BITS_PER_BYTE - priv->len);
 	if ((data[priv->sreg].data[0] & mask) == priv->data)
 		return;
 	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
@@ -67,20 +66,6 @@ struct nft_jumpstack {
 	int			rulenum;
 };
 
-static inline void
-nft_chain_stats(const struct nft_chain *this, const struct nft_pktinfo *pkt,
-		struct nft_jumpstack *jumpstack, unsigned int stackptr)
-{
-	struct nft_stats __percpu *stats;
-	const struct nft_chain *chain = stackptr ? jumpstack[0].chain : this;
-
-	rcu_read_lock_bh();
-	stats = rcu_dereference(nft_base_chain(chain)->stats);
-	__this_cpu_inc(stats->pkts);
-	__this_cpu_add(stats->bytes, pkt->skb->len);
-	rcu_read_unlock_bh();
-}
-
 enum nft_trace {
 	NFT_TRACE_RULE,
 	NFT_TRACE_RETURN,
@@ -118,13 +103,14 @@ static void nft_trace_packet(const struct nft_pktinfo *pkt,
 unsigned int
 nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 {
-	const struct nft_chain *chain = ops->priv;
+	const struct nft_chain *chain = ops->priv, *basechain = chain;
 	const struct nft_rule *rule;
 	const struct nft_expr *expr, *last;
 	struct nft_data data[NFT_REG_MAX + 1];
 	unsigned int stackptr = 0;
 	struct nft_jumpstack jumpstack[NFT_JUMP_STACK_SIZE];
-	int rulenum = 0;
+	struct nft_stats __percpu *stats;
+	int rulenum;
 	/*
 	 * Cache cursor to avoid problems in case that the cursor is updated
 	 * while traversing the ruleset.
@@ -132,6 +118,7 @@ nft_do_chain(struct nft_pktinfo *pkt, const struct nf_hook_ops *ops)
 	unsigned int gencursor = ACCESS_ONCE(chain->net->nft.gencursor);
 
 do_chain:
+	rulenum = 0;
 	rule = list_entry(&chain->rules, struct nft_rule, list);
 next_rule:
 	data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
@@ -157,8 +144,10 @@ next_rule:
 		switch (data[NFT_REG_VERDICT].verdict) {
 		case NFT_BREAK:
 			data[NFT_REG_VERDICT].verdict = NFT_CONTINUE;
-			/* fall through */
+			continue;
 		case NFT_CONTINUE:
+			if (unlikely(pkt->skb->nf_trace))
+				nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
 			continue;
 		}
 		break;
@@ -184,37 +173,44 @@ next_rule:
 		jumpstack[stackptr].rule  = rule;
 		jumpstack[stackptr].rulenum = rulenum;
 		stackptr++;
-		/* fall through */
+		chain = data[NFT_REG_VERDICT].chain;
+		goto do_chain;
 	case NFT_GOTO:
+		if (unlikely(pkt->skb->nf_trace))
+			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RULE);
+
 		chain = data[NFT_REG_VERDICT].chain;
 		goto do_chain;
 	case NFT_RETURN:
 		if (unlikely(pkt->skb->nf_trace))
 			nft_trace_packet(pkt, chain, rulenum, NFT_TRACE_RETURN);
-
-		/* fall through */
+		break;
 	case NFT_CONTINUE:
+		if (unlikely(pkt->skb->nf_trace && !(chain->flags & NFT_BASE_CHAIN)))
+			nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_RETURN);
 		break;
 	default:
 		WARN_ON(1);
 	}
 
 	if (stackptr > 0) {
-		if (unlikely(pkt->skb->nf_trace))
-			nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_RETURN);
-
 		stackptr--;
 		chain = jumpstack[stackptr].chain;
 		rule  = jumpstack[stackptr].rule;
 		rulenum = jumpstack[stackptr].rulenum;
 		goto next_rule;
 	}
-	nft_chain_stats(chain, pkt, jumpstack, stackptr);
 
 	if (unlikely(pkt->skb->nf_trace))
-		nft_trace_packet(pkt, chain, ++rulenum, NFT_TRACE_POLICY);
+		nft_trace_packet(pkt, basechain, -1, NFT_TRACE_POLICY);
 
-	return nft_base_chain(chain)->policy;
+	rcu_read_lock_bh();
+	stats = rcu_dereference(nft_base_chain(basechain)->stats);
+	__this_cpu_inc(stats->pkts);
+	__this_cpu_add(stats->bytes, pkt->skb->len);
+	rcu_read_unlock_bh();
+
+	return nft_base_chain(basechain)->policy;
 }
 EXPORT_SYMBOL_GPL(nft_do_chain);
 

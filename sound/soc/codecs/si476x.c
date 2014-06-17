@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <linux/regmap.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
 
@@ -209,8 +210,9 @@ out:
 
 static int si476x_codec_probe(struct snd_soc_codec *codec)
 {
-	codec->control_data = dev_get_regmap(codec->dev->parent, NULL);
-	return snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
+	struct regmap *regmap = dev_get_regmap(codec->dev->parent, NULL);
+
+	return snd_soc_codec_set_cache_io(codec, regmap);
 }
 
 static struct snd_soc_dai_ops si476x_dai_ops = {

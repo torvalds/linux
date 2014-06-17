@@ -239,7 +239,7 @@ static void i40e_ptp_tx_work(struct work_struct *work)
 		dev_kfree_skb_any(pf->ptp_tx_skb);
 		pf->ptp_tx_skb = NULL;
 		pf->tx_hwtstamp_timeouts++;
-		dev_warn(&pf->pdev->dev, "clearing Tx timestamp hang");
+		dev_warn(&pf->pdev->dev, "clearing Tx timestamp hang\n");
 		return;
 	}
 
@@ -321,7 +321,7 @@ void i40e_ptp_rx_hang(struct i40e_vsi *vsi)
 		pf->last_rx_ptp_check = jiffies;
 		pf->rx_hwtstamp_cleared++;
 		dev_warn(&vsi->back->pdev->dev,
-			 "%s: clearing Rx timestamp hang",
+			 "%s: clearing Rx timestamp hang\n",
 			 __func__);
 	}
 }

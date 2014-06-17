@@ -257,20 +257,36 @@ static int radeon_test_create_and_emit_fence(struct radeon_device *rdev,
 					     struct radeon_ring *ring,
 					     struct radeon_fence **fence)
 {
+	uint32_t handle = ring->idx ^ 0xdeafbeef;
 	int r;
 
 	if (ring->idx == R600_RING_TYPE_UVD_INDEX) {
-		r = radeon_uvd_get_create_msg(rdev, ring->idx, 1, NULL);
+		r = radeon_uvd_get_create_msg(rdev, ring->idx, handle, NULL);
 		if (r) {
 			DRM_ERROR("Failed to get dummy create msg\n");
 			return r;
 		}
 
-		r = radeon_uvd_get_destroy_msg(rdev, ring->idx, 1, fence);
+		r = radeon_uvd_get_destroy_msg(rdev, ring->idx, handle, fence);
 		if (r) {
 			DRM_ERROR("Failed to get dummy destroy msg\n");
 			return r;
 		}
+
+	} else if (ring->idx == TN_RING_TYPE_VCE1_INDEX ||
+		   ring->idx == TN_RING_TYPE_VCE2_INDEX) {
+		r = radeon_vce_get_create_msg(rdev, ring->idx, handle, NULL);
+		if (r) {
+			DRM_ERROR("Failed to get dummy create msg\n");
+			return r;
+		}
+
+		r = radeon_vce_get_destroy_msg(rdev, ring->idx, handle, fence);
+		if (r) {
+			DRM_ERROR("Failed to get dummy destroy msg\n");
+			return r;
+		}
+
 	} else {
 		r = radeon_ring_lock(rdev, ring, 64);
 		if (r) {
@@ -486,6 +502,16 @@ out_cleanup:
 		printk(KERN_WARNING "Error while testing ring sync (%d).\n", r);
 }
 
+static bool radeon_test_sync_possible(struct radeon_ring *ringA,
+				      struct radeon_ring *ringB)
+{
+	if (ringA->idx == TN_RING_TYPE_VCE2_INDEX &&
+	    ringB->idx == TN_RING_TYPE_VCE1_INDEX)
+		return false;
+
+	return true;
+}
+
 void radeon_test_syncing(struct radeon_device *rdev)
 {
 	int i, j, k;
@@ -500,6 +526,9 @@ void radeon_test_syncing(struct radeon_device *rdev)
 			if (!ringB->ready)
 				continue;
 
+			if (!radeon_test_sync_possible(ringA, ringB))
+				continue;
+
 			DRM_INFO("Testing syncing between rings %d and %d...\n", i, j);
 			radeon_test_ring_sync(rdev, ringA, ringB);
 
@@ -509,6 +538,12 @@ void radeon_test_syncing(struct radeon_device *rdev)
 			for (k = 0; k < j; ++k) {
 				struct radeon_ring *ringC = &rdev->ring[k];
 				if (!ringC->ready)
+					continue;
+
+				if (!radeon_test_sync_possible(ringA, ringC))
+					continue;
+
+				if (!radeon_test_sync_possible(ringB, ringC))
 					continue;
 
 				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", i, j, k);

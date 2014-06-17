@@ -50,6 +50,7 @@
 #include <xen/xenbus.h>
 #include <xen/xen.h>
 #include "xenbus_comms.h"
+#include "xenbus_probe.h"
 
 struct xs_stored_msg {
 	struct list_head list;
@@ -139,6 +140,29 @@ static int get_error(const char *errorstring)
 	return xsd_errors[i].errnum;
 }
 
+static bool xenbus_ok(void)
+{
+	switch (xen_store_domain_type) {
+	case XS_LOCAL:
+		switch (system_state) {
+		case SYSTEM_POWER_OFF:
+		case SYSTEM_RESTART:
+		case SYSTEM_HALT:
+			return false;
+		default:
+			break;
+		}
+		return true;
+	case XS_PV:
+	case XS_HVM:
+		/* FIXME: Could check that the remote domain is alive,
+		 * but it is normally initial domain. */
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
 static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 {
 	struct xs_stored_msg *msg;
@@ -148,9 +172,20 @@ static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 
 	while (list_empty(&xs_state.reply_list)) {
 		spin_unlock(&xs_state.reply_lock);
-		/* XXX FIXME: Avoid synchronous wait for response here. */
-		wait_event(xs_state.reply_waitq,
-			   !list_empty(&xs_state.reply_list));
+		if (xenbus_ok())
+			/* XXX FIXME: Avoid synchronous wait for response here. */
+			wait_event_timeout(xs_state.reply_waitq,
+					   !list_empty(&xs_state.reply_list),
+					   msecs_to_jiffies(500));
+		else {
+			/*
+			 * If we are in the process of being shut-down there is
+			 * no point of trying to contact XenBus - it is either
+			 * killed (xenstored application) or the other domain
+			 * has been killed or is unreachable.
+			 */
+			return ERR_PTR(-EIO);
+		}
 		spin_lock(&xs_state.reply_lock);
 	}
 
@@ -214,6 +249,9 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 		ret = read_reply(&msg->type, &msg->len);
 
 	mutex_unlock(&xs_state.request_mutex);
+
+	if (IS_ERR(ret))
+		return ret;
 
 	if ((msg->type == XS_TRANSACTION_END) ||
 	    ((req_msg.type == XS_TRANSACTION_START) &&

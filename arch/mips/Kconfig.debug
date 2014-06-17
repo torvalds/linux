@@ -21,12 +21,16 @@ config EARLY_PRINTK
 	  unless you want to debug such a crash.
 
 config EARLY_PRINTK_8250
-	bool "8250/16550 and compatible serial early printk driver"
-	depends on EARLY_PRINTK
-	default n
+	bool
+	depends on EARLY_PRINTK && USE_GENERIC_EARLY_PRINTK_8250
+	default y
 	help
+	  "8250/16550 and compatible serial early printk driver"
 	  If you say Y here, it will be possible to use a 8250/16550 serial
 	  port as the boot console.
+
+config USE_GENERIC_EARLY_PRINTK_8250
+	bool
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"

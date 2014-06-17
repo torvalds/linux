@@ -117,11 +117,18 @@ enum {
 	HCI_SERVICE_CACHE,
 	HCI_DEBUG_KEYS,
 	HCI_DUT_MODE,
+	HCI_FORCE_SC,
+	HCI_FORCE_STATIC_ADDR,
 	HCI_UNREGISTER,
 	HCI_USER_CHANNEL,
 
 	HCI_LE_SCAN,
 	HCI_SSP_ENABLED,
+	HCI_SC_ENABLED,
+	HCI_SC_ONLY,
+	HCI_PRIVACY,
+	HCI_RPA_EXPIRED,
+	HCI_RPA_RESOLVING,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
 	HCI_ADVERTISING,
@@ -133,6 +140,7 @@ enum {
 	HCI_FAST_CONNECTABLE,
 	HCI_BREDR_ENABLED,
 	HCI_6LOWPAN_ENABLED,
+	HCI_LE_SCAN_INTERRUPTED,
 };
 
 /* A mask for the flags that are supposed to remain when a reset happens
@@ -175,6 +183,8 @@ enum {
 #define HCI_CMD_TIMEOUT		msecs_to_jiffies(2000)	/* 2 seconds */
 #define HCI_ACL_TX_TIMEOUT	msecs_to_jiffies(45000)	/* 45 seconds */
 #define HCI_AUTO_OFF_TIMEOUT	msecs_to_jiffies(2000)	/* 2 seconds */
+#define HCI_POWER_OFF_TIMEOUT	msecs_to_jiffies(5000)	/* 5 seconds */
+#define HCI_LE_CONN_TIMEOUT	msecs_to_jiffies(20000)	/* 20 seconds */
 
 /* HCI data types */
 #define HCI_COMMAND_PKT		0x01
@@ -282,10 +292,14 @@ enum {
 #define LMP_SYNC_TRAIN	0x04
 #define LMP_SYNC_SCAN	0x08
 
+#define LMP_SC		0x01
+#define LMP_PING	0x02
+
 /* Host features */
 #define LMP_HOST_SSP		0x01
 #define LMP_HOST_LE		0x02
 #define LMP_HOST_LE_BREDR	0x04
+#define LMP_HOST_SC		0x08
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -307,6 +321,7 @@ enum {
 #define HCI_LM_TRUSTED	0x0008
 #define HCI_LM_RELIABLE	0x0010
 #define HCI_LM_SECURE	0x0020
+#define HCI_LM_FIPS	0x0040
 
 /* Authentication types */
 #define HCI_AT_NO_BONDING		0x00
@@ -327,17 +342,24 @@ enum {
 #define HCI_LK_LOCAL_UNIT		0x01
 #define HCI_LK_REMOTE_UNIT		0x02
 #define HCI_LK_DEBUG_COMBINATION	0x03
-#define HCI_LK_UNAUTH_COMBINATION	0x04
-#define HCI_LK_AUTH_COMBINATION		0x05
+#define HCI_LK_UNAUTH_COMBINATION_P192	0x04
+#define HCI_LK_AUTH_COMBINATION_P192	0x05
 #define HCI_LK_CHANGED_COMBINATION	0x06
+#define HCI_LK_UNAUTH_COMBINATION_P256	0x07
+#define HCI_LK_AUTH_COMBINATION_P256	0x08
 /* The spec doesn't define types for SMP keys, the _MASTER suffix is implied */
 #define HCI_SMP_STK			0x80
 #define HCI_SMP_STK_SLAVE		0x81
 #define HCI_SMP_LTK			0x82
 #define HCI_SMP_LTK_SLAVE		0x83
 
+/* Long Term Key types */
+#define HCI_LTK_UNAUTH			0x00
+#define HCI_LTK_AUTH			0x01
+
 /* ---- HCI Error Codes ---- */
 #define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_MEMORY_EXCEEDED	0x07
 #define HCI_ERROR_CONNECTION_TIMEOUT	0x08
 #define HCI_ERROR_REJ_BAD_ADDR		0x0f
 #define HCI_ERROR_REMOTE_USER_TERM	0x13
@@ -660,6 +682,15 @@ struct hci_rp_set_csb {
 
 #define HCI_OP_START_SYNC_TRAIN		0x0443
 
+#define HCI_OP_REMOTE_OOB_EXT_DATA_REPLY	0x0445
+struct hci_cp_remote_oob_ext_data_reply {
+	bdaddr_t bdaddr;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
+} __packed;
+
 #define HCI_OP_SNIFF_MODE		0x0803
 struct hci_cp_sniff_mode {
 	__le16   handle;
@@ -933,6 +964,26 @@ struct hci_rp_write_sync_train_params {
 	__le16	sync_train_int;
 } __packed;
 
+#define HCI_OP_READ_SC_SUPPORT		0x0c79
+struct hci_rp_read_sc_support {
+	__u8	status;
+	__u8	support;
+} __packed;
+
+#define HCI_OP_WRITE_SC_SUPPORT		0x0c7a
+struct hci_cp_write_sc_support {
+	__u8	support;
+} __packed;
+
+#define HCI_OP_READ_LOCAL_OOB_EXT_DATA	0x0c7d
+struct hci_rp_read_local_oob_ext_data {
+	__u8     status;
+	__u8     hash192[16];
+	__u8     randomizer192[16];
+	__u8     hash256[16];
+	__u8     randomizer256[16];
+} __packed;
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
@@ -1133,6 +1184,9 @@ struct hci_cp_le_set_scan_enable {
 	__u8     filter_dup;
 } __packed;
 
+#define HCI_LE_USE_PEER_ADDR		0x00
+#define HCI_LE_USE_WHITELIST		0x01
+
 #define HCI_OP_LE_CREATE_CONN		0x200d
 struct hci_cp_le_create_conn {
 	__le16   scan_interval;
@@ -1157,6 +1211,20 @@ struct hci_rp_le_read_white_list_size {
 	__u8	size;
 } __packed;
 
+#define HCI_OP_LE_CLEAR_WHITE_LIST	0x2010
+
+#define HCI_OP_LE_ADD_TO_WHITE_LIST	0x2011
+struct hci_cp_le_add_to_white_list {
+	__u8     bdaddr_type;
+	bdaddr_t bdaddr;
+} __packed;
+
+#define HCI_OP_LE_DEL_FROM_WHITE_LIST	0x2012
+struct hci_cp_le_del_from_white_list {
+	__u8     bdaddr_type;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_LE_CONN_UPDATE		0x2013
 struct hci_cp_le_conn_update {
 	__le16   handle;
@@ -1171,7 +1239,7 @@ struct hci_cp_le_conn_update {
 #define HCI_OP_LE_START_ENC		0x2019
 struct hci_cp_le_start_enc {
 	__le16	handle;
-	__u8	rand[8];
+	__le64	rand;
 	__le16	ediv;
 	__u8	ltk[16];
 } __packed;
@@ -1583,7 +1651,7 @@ struct hci_ev_le_conn_complete {
 #define HCI_EV_LE_LTK_REQ		0x05
 struct hci_ev_le_ltk_req {
 	__le16	handle;
-	__u8	random[8];
+	__le64	rand;
 	__le16	ediv;
 } __packed;
 

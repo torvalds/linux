@@ -279,7 +279,7 @@ static int analyze_baud_rate(struct usb_serial_port *port, speed_t new_rate)
 			 * the generic firmware, but are not used with
 			 * NMEA and SiRF protocols */
 			dev_dbg(&port->dev,
-				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS",
+				"%s - failed setting baud rate, unsupported speed of %d on Earthmate GPS\n",
 				__func__, new_rate);
 			return -1;
 		}
@@ -1224,7 +1224,6 @@ static void cypress_write_int_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &urb->dev->dev;
-	int result;
 	int status = urb->status;
 
 	switch (status) {
@@ -1239,21 +1238,9 @@ static void cypress_write_int_callback(struct urb *urb)
 			__func__, status);
 		priv->write_urb_in_use = 0;
 		return;
-	case -EPIPE: /* no break needed; clear halt and resubmit */
-		if (!priv->comm_is_ok)
-			break;
-		usb_clear_halt(port->serial->dev, 0x02);
-		/* error in the urb, so we have to resubmit it */
-		dev_dbg(dev, "%s - nonzero write bulk status received: %d\n",
-			__func__, status);
-		port->interrupt_out_urb->transfer_buffer_length = 1;
-		result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
-		if (!result)
-			return;
-		dev_err(dev, "%s - failed resubmitting write urb, error %d\n",
-			__func__, result);
-		cypress_set_dead(port);
-		break;
+	case -EPIPE:
+		/* Cannot call usb_clear_halt while in_interrupt */
+		/* FALLTHROUGH */
 	default:
 		dev_err(dev, "%s - unexpected nonzero write status received: %d\n",
 			__func__, status);

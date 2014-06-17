@@ -252,38 +252,45 @@ static void mtip_async_complete(struct mtip_port *port,
 				void *data,
 				int status)
 {
-	struct mtip_cmd *command;
+	struct mtip_cmd *cmd;
 	struct driver_data *dd = data;
-	int cb_status = status ? -EIO : 0;
+	int unaligned, cb_status = status ? -EIO : 0;
+	void (*func)(void *, int);
 
 	if (unlikely(!dd) || unlikely(!port))
 		return;
 
-	command = &port->commands[tag];
+	cmd = &port->commands[tag];
 
 	if (unlikely(status == PORT_IRQ_TF_ERR)) {
 		dev_warn(&port->dd->pdev->dev,
 			"Command tag %d failed due to TFE\n", tag);
 	}
 
-	/* Upper layer callback */
-	if (likely(command->async_callback))
-		command->async_callback(command->async_data, cb_status);
-
-	command->async_callback = NULL;
-	command->comp_func = NULL;
-
-	/* Unmap the DMA scatter list entries */
-	dma_unmap_sg(&dd->pdev->dev,
-		command->sg,
-		command->scatter_ents,
-		command->direction);
-
-	/* Clear the allocated and active bits for the command */
+	/* Clear the active flag */
 	atomic_set(&port->commands[tag].active, 0);
-	release_slot(port, tag);
 
-	up(&port->cmd_slot);
+	/* Upper layer callback */
+	func = cmd->async_callback;
+	if (likely(func && cmpxchg(&cmd->async_callback, func, 0) == func)) {
+
+		/* Unmap the DMA scatter list entries */
+		dma_unmap_sg(&dd->pdev->dev,
+			cmd->sg,
+			cmd->scatter_ents,
+			cmd->direction);
+
+		func(cmd->async_data, cb_status);
+		unaligned = cmd->unaligned;
+
+		/* Clear the allocated bit for the command */
+		release_slot(port, tag);
+
+		if (unlikely(unaligned))
+			up(&port->cmd_slot_unal);
+		else
+			up(&port->cmd_slot);
+	}
 }
 
 /*
@@ -660,11 +667,12 @@ static void mtip_timeout_function(unsigned long int data)
 {
 	struct mtip_port *port = (struct mtip_port *) data;
 	struct host_to_dev_fis *fis;
-	struct mtip_cmd *command;
-	int tag, cmdto_cnt = 0;
+	struct mtip_cmd *cmd;
+	int unaligned, tag, cmdto_cnt = 0;
 	unsigned int bit, group;
 	unsigned int num_command_slots;
 	unsigned long to, tagaccum[SLOTBITS_IN_LONGS];
+	void (*func)(void *, int);
 
 	if (unlikely(!port))
 		return;
@@ -694,8 +702,8 @@ static void mtip_timeout_function(unsigned long int data)
 			group = tag >> 5;
 			bit = tag & 0x1F;
 
-			command = &port->commands[tag];
-			fis = (struct host_to_dev_fis *) command->command;
+			cmd = &port->commands[tag];
+			fis = (struct host_to_dev_fis *) cmd->command;
 
 			set_bit(tag, tagaccum);
 			cmdto_cnt++;
@@ -709,27 +717,30 @@ static void mtip_timeout_function(unsigned long int data)
 			 */
 			writel(1 << bit, port->completed[group]);
 
-			/* Call the async completion callback. */
-			if (likely(command->async_callback))
-				command->async_callback(command->async_data,
-							 -EIO);
-			command->async_callback = NULL;
-			command->comp_func = NULL;
-
-			/* Unmap the DMA scatter list entries */
-			dma_unmap_sg(&port->dd->pdev->dev,
-					command->sg,
-					command->scatter_ents,
-					command->direction);
-
-			/*
-			 * Clear the allocated bit and active tag for the
-			 * command.
-			 */
+			/* Clear the active flag for the command */
 			atomic_set(&port->commands[tag].active, 0);
-			release_slot(port, tag);
 
-			up(&port->cmd_slot);
+			func = cmd->async_callback;
+			if (func &&
+			    cmpxchg(&cmd->async_callback, func, 0) == func) {
+
+				/* Unmap the DMA scatter list entries */
+				dma_unmap_sg(&port->dd->pdev->dev,
+						cmd->sg,
+						cmd->scatter_ents,
+						cmd->direction);
+
+				func(cmd->async_data, -EIO);
+				unaligned = cmd->unaligned;
+
+				/* Clear the allocated bit for the command. */
+				release_slot(port, tag);
+
+				if (unaligned)
+					up(&port->cmd_slot_unal);
+				else
+					up(&port->cmd_slot);
+			}
 		}
 	}
 
@@ -4213,6 +4224,7 @@ skip_create_disk:
 	blk_queue_max_hw_sectors(dd->queue, 0xffff);
 	blk_queue_max_segment_size(dd->queue, 0x400000);
 	blk_queue_io_min(dd->queue, 4096);
+	blk_queue_bounce_limit(dd->queue, dd->pdev->dma_mask);
 
 	/*
 	 * write back cache is not supported in the device. FUA depends on
@@ -4615,7 +4627,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	if (rv) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
-		goto block_initialize_err;
+		goto msi_initialize_err;
 	}
 
 	/* Initialize the block layer. */
@@ -4645,6 +4657,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 
 block_initialize_err:
 	pci_disable_msi(pdev);
+
+msi_initialize_err:
 	if (dd->isr_workq) {
 		flush_workqueue(dd->isr_workq);
 		destroy_workqueue(dd->isr_workq);

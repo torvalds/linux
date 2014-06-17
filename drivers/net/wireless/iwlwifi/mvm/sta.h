@@ -195,24 +195,33 @@ struct iwl_mvm;
 /**
  * DOC: AP mode - PS
  *
- * When a station is asleep, the fw will set it as "asleep". All the
- * non-aggregation frames to that station will be dropped by the fw
- * (%TX_STATUS_FAIL_DEST_PS failure code).
- * AMPDUs are in a separate queue that is stopped by the fw. We just need to
- * let mac80211 know how many frames we have in these queues so that it can
- * properly handle trigger frames.
- * When the a trigger frame is received, mac80211 tells the driver to send
- * frames from the AMPDU queues or AC queue depending on which queue are
- * delivery-enabled and what TID has frames to transmit (Note that mac80211 has
- * all the knowledege since all the non-agg frames are buffered / filtered, and
- * the driver tells mac80211 about agg frames). The driver needs to tell the fw
- * to let frames out even if the station is asleep. This is done by
- * %iwl_mvm_sta_modify_sleep_tx_count.
- * When we receive a frame from that station with PM bit unset, the
- * driver needs to let the fw know that this station isn't alseep any more.
- * This is done by %iwl_mvm_sta_modify_ps_wake.
+ * When a station is asleep, the fw will set it as "asleep". All frames on
+ * shared queues (i.e. non-aggregation queues) to that station will be dropped
+ * by the fw (%TX_STATUS_FAIL_DEST_PS failure code).
  *
- * TODO - EOSP handling
+ * AMPDUs are in a separate queue that is stopped by the fw. We just need to
+ * let mac80211 know when there are frames in these queues so that it can
+ * properly handle trigger frames.
+ *
+ * When a trigger frame is received, mac80211 tells the driver to send frames
+ * from the AMPDU queues or sends frames to non-aggregation queues itself,
+ * depending on which ACs are delivery-enabled and what TID has frames to
+ * transmit. Note that mac80211 has all the knowledege since all the non-agg
+ * frames are buffered / filtered, and the driver tells mac80211 about agg
+ * frames). The driver needs to tell the fw to let frames out even if the
+ * station is asleep. This is done by %iwl_mvm_sta_modify_sleep_tx_count.
+ *
+ * When we receive a frame from that station with PM bit unset, the driver
+ * needs to let the fw know that this station isn't asleep any more. This is
+ * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signalling the
+ * station's wakeup.
+ *
+ * For a GO, the Service Period might be cut short due to an absence period
+ * of the GO. In this (and all other cases) the firmware notifies us with the
+ * EOSP_NOTIFICATION, and we notify mac80211 of that. Further frames that we
+ * already sent to the device will be rejected again.
+ *
+ * See also "AP support for powersaving clients" in mac80211.h.
  */
 
 /**
@@ -261,6 +270,12 @@ struct iwl_mvm_tid_data {
 	u16 ssn;
 };
 
+static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
+{
+	return ieee80211_sn_sub(IEEE80211_SEQ_TO_SN(tid_data->seq_number),
+				tid_data->next_reclaimed);
+}
+
 /**
  * struct iwl_mvm_sta - representation of a station in the driver
  * @sta_id: the index of the station in the fw (will be replaced by id_n_color)
@@ -269,7 +284,11 @@ struct iwl_mvm_tid_data {
  * @tid_disable_agg: bitmap: if bit(tid) is set, the fw won't send ampdus for
  *	tid.
  * @max_agg_bufsize: the maximal size of the AGG buffer for this station
+ * @bt_reduced_txpower_dbg: debug mode in which %bt_reduced_txpower is forced
+ *	by debugfs.
  * @bt_reduced_txpower: is reduced tx power enabled for this station
+ * @next_status_eosp: the next reclaimed packet is a PS-Poll response and
+ *	we need to signal the EOSP
  * @lock: lock to protect the whole struct. Since %tid_data is access from Tx
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data. Look at %iwl_mvm_tid_data.
@@ -287,7 +306,9 @@ struct iwl_mvm_sta {
 	u32 mac_id_n_color;
 	u16 tid_disable_agg;
 	u8 max_agg_bufsize;
+	bool bt_reduced_txpower_dbg;
 	bool bt_reduced_txpower;
+	bool next_status_eosp;
 	spinlock_t lock;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT];
 	struct iwl_lq_sta lq_sta;
@@ -345,6 +366,10 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta, u32 iv32,
 			     u16 *phase1key);
 
+int iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb,
+			  struct iwl_device_cmd *cmd);
+
 /* AMPDU */
 int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       int tid, u16 ssn, bool start);
@@ -359,7 +384,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm);
 int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
-			     u32 qmask);
+			     u32 qmask, enum nl80211_iftype iftype);
 void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
 			     struct iwl_mvm_int_sta *sta);
 int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -375,7 +400,8 @@ void iwl_mvm_sta_modify_ps_wake(struct iwl_mvm *mvm,
 void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				       struct ieee80211_sta *sta,
 				       enum ieee80211_frame_release_type reason,
-				       u16 cnt);
+				       u16 cnt, u16 tids, bool more_data,
+				       bool agg);
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain);
 

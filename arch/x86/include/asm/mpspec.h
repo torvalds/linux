@@ -25,12 +25,6 @@ extern int pic_mode;
 
 extern unsigned int def_to_bigsmp;
 
-#ifdef CONFIG_X86_NUMAQ
-extern int mp_bus_id_to_node[MAX_MP_BUSSES];
-extern int mp_bus_id_to_local[MAX_MP_BUSSES];
-extern int quad_local_to_mp_bus_id [NR_CPUS/4][4];
-#endif
-
 #else /* CONFIG_X86_64: */
 
 #define MAX_MP_BUSSES		256

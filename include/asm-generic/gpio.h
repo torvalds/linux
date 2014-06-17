@@ -69,7 +69,7 @@ static inline int gpio_direction_input(unsigned gpio)
 }
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
-	return gpiod_direction_output(gpio_to_desc(gpio), value);
+	return gpiod_direction_output_raw(gpio_to_desc(gpio), value);
 }
 
 static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)

@@ -422,7 +422,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 	ir->rc = rc;
 
 	/* input setup */
-	rc->allowed_protos = RC_BIT_RC5 | RC_BIT_NEC;
+	rc_set_allowed_protocols(rc, RC_BIT_RC5 | RC_BIT_NEC);
 	/* Neded, in order to support NEC remotes with 24 or 32 bits */
 	rc->scanmask = 0xffff;
 	rc->priv = ir;

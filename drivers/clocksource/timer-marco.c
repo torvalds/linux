@@ -19,7 +19,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/sched_clock.h>
-#include <asm/mach/time.h>
+
+#define MARCO_CLOCK_FREQ 1000000
 
 #define SIRFSOC_TIMER_32COUNTER_0_CTRL			0x0000
 #define SIRFSOC_TIMER_32COUNTER_1_CTRL			0x0004
@@ -191,14 +192,14 @@ static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 	ce->rating = 200;
 	ce->set_mode = sirfsoc_timer_set_mode;
 	ce->set_next_event = sirfsoc_timer_set_next_event;
-	clockevents_calc_mult_shift(ce, CLOCK_TICK_RATE, 60);
+	clockevents_calc_mult_shift(ce, MARCO_CLOCK_FREQ, 60);
 	ce->max_delta_ns = clockevent_delta2ns(-2, ce);
 	ce->min_delta_ns = clockevent_delta2ns(2, ce);
 	ce->cpumask = cpumask_of(cpu);
 
 	action->dev_id = ce;
 	BUG_ON(setup_irq(ce->irq, action));
-	irq_set_affinity(action->irq, cpumask_of(cpu));
+	irq_force_affinity(action->irq, cpumask_of(cpu));
 
 	clockevents_register_device(ce);
 	return 0;
@@ -263,11 +264,11 @@ static void __init sirfsoc_marco_timer_init(void)
 	BUG_ON(IS_ERR(clk));
 	rate = clk_get_rate(clk);
 
-	BUG_ON(rate < CLOCK_TICK_RATE);
-	BUG_ON(rate % CLOCK_TICK_RATE);
+	BUG_ON(rate < MARCO_CLOCK_FREQ);
+	BUG_ON(rate % MARCO_CLOCK_FREQ);
 
 	/* Initialize the timer dividers */
-	timer_div = rate / CLOCK_TICK_RATE - 1;
+	timer_div = rate / MARCO_CLOCK_FREQ - 1;
 	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_64COUNTER_CTRL);
 	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL);
 	writel_relaxed(timer_div << 16, sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_1_CTRL);
@@ -283,7 +284,7 @@ static void __init sirfsoc_marco_timer_init(void)
 	/* Clear all interrupts */
 	writel_relaxed(0xFFFF, sirfsoc_timer_base + SIRFSOC_TIMER_INTR_STATUS);
 
-	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, CLOCK_TICK_RATE));
+	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, MARCO_CLOCK_FREQ));
 
 	sirfsoc_clockevent_init();
 }

@@ -220,6 +220,9 @@ struct adv7842_platform_data {
 	unsigned sdp_free_run_cbar_en:1;
 	unsigned sdp_free_run_force:1;
 
+	/* HPA manual (0) or auto (1), affects HDMI register 0x69 */
+	unsigned hpa_auto:1;
+
 	struct adv7842_sdp_csc_coeff sdp_csc_coeff;
 
 	struct adv7842_sdp_io_sync_adjustment sdp_io_sync_625;

@@ -48,6 +48,11 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops)
 	return 0;
 }
 
+bool mcpm_is_available(void)
+{
+	return (platform_ops) ? true : false;
+}
+
 int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 {
 	if (!platform_ops)

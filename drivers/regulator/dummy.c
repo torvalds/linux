@@ -25,7 +25,11 @@
 
 struct regulator_dev *dummy_regulator_rdev;
 
-static struct regulator_init_data dummy_initdata;
+static struct regulator_init_data dummy_initdata = {
+	.constraints = {
+		.always_on = 1,
+	},
+};
 
 static struct regulator_ops dummy_ops;
 

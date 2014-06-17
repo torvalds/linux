@@ -280,7 +280,7 @@ static void qtet_akm_write(struct snd_akm4xxx *ak, int chip,
 
 	if (snd_BUG_ON(chip < 0 || chip >= 4))
 		return;
-	/*printk(KERN_DEBUG "Writing to AK4620: chip=%d, addr=0x%x,
+	/*dev_dbg(ice->card->dev, "Writing to AK4620: chip=%d, addr=0x%x,
 	  data=0x%x\n", chip, addr, data);*/
 	orig_dir = ice->gpio.get_dir(ice);
 	ice->gpio.set_dir(ice, orig_dir | GPIO_SPI_ALL);
@@ -898,7 +898,7 @@ static void qtet_set_rate(struct snd_ice1712 *ice, unsigned int rate)
 	new =  (get_cpld(ice) & ~CPLD_CKS_MASK) | get_cks_val(rate);
 	/* switch to internal clock, drop CPLD_SYNC_SEL */
 	new &= ~CPLD_SYNC_SEL;
-	/* printk(KERN_DEBUG "QT - set_rate: old %x, new %x\n",
+	/* dev_dbg(ice->card->dev, "QT - set_rate: old %x, new %x\n",
 	   get_cpld(ice), new); */
 	set_cpld(ice, new);
 }
@@ -978,7 +978,7 @@ static void qtet_ak4113_change(struct ak4113 *ak4113, unsigned char c0,
 			c1) {
 		/* only for SPDIF master mode, rate was changed */
 		rate = snd_ak4113_external_rate(ak4113);
-		/* printk(KERN_DEBUG "ak4113 - input rate changed to %d\n",
+		/* dev_dbg(ice->card->dev, "ak4113 - input rate changed to %d\n",
 		   rate); */
 		qtet_akm_set_rate_val(ice->akm, rate);
 	}

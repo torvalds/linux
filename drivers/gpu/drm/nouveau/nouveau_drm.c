@@ -33,6 +33,7 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 #include <core/class.h>
+#include <core/option.h>
 
 #include <engine/device.h>
 #include <engine/disp.h>
@@ -81,7 +82,7 @@ module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 static struct drm_driver driver;
 
 static u64
-nouveau_name(struct pci_dev *pdev)
+nouveau_pci_name(struct pci_dev *pdev)
 {
 	u64 name = (u64)pci_domain_nr(pdev->bus) << 32;
 	name |= pdev->bus->number << 16;
@@ -89,15 +90,30 @@ nouveau_name(struct pci_dev *pdev)
 	return name | PCI_FUNC(pdev->devfn);
 }
 
+static u64
+nouveau_platform_name(struct platform_device *platformdev)
+{
+	return platformdev->id;
+}
+
+static u64
+nouveau_name(struct drm_device *dev)
+{
+	if (dev->pdev)
+		return nouveau_pci_name(dev->pdev);
+	else
+		return nouveau_platform_name(dev->platformdev);
+}
+
 static int
-nouveau_cli_create(struct pci_dev *pdev, const char *name,
+nouveau_cli_create(u64 name, const char *sname,
 		   int size, void **pcli)
 {
 	struct nouveau_cli *cli;
 	int ret;
 
 	*pcli = NULL;
-	ret = nouveau_client_create_(name, nouveau_name(pdev), nouveau_config,
+	ret = nouveau_client_create_(sname, name, nouveau_config,
 				     nouveau_debug, size, pcli);
 	cli = *pcli;
 	if (ret) {
@@ -281,7 +297,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
-	ret = nouveau_device_create(pdev, nouveau_name(pdev), pci_name(pdev),
+	ret = nouveau_device_create(pdev, NOUVEAU_BUS_PCI,
+				    nouveau_pci_name(pdev), pci_name(pdev),
 				    nouveau_config, nouveau_debug, &device);
 	if (ret)
 		return ret;
@@ -300,22 +317,27 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 #define PCI_CLASS_MULTIMEDIA_HD_AUDIO 0x0403
 
 static void
-nouveau_get_hdmi_dev(struct drm_device *dev)
+nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 {
-	struct nouveau_drm *drm = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
+	struct pci_dev *pdev = drm->dev->pdev;
+
+	if (!pdev) {
+		DRM_INFO("not a PCI device; no HDMI\n");
+		drm->hdmi_device = NULL;
+		return;
+	}
 
 	/* subfunction one is a hdmi audio device? */
 	drm->hdmi_device = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
 						PCI_DEVFN(PCI_SLOT(pdev->devfn), 1));
 
 	if (!drm->hdmi_device) {
-		DRM_INFO("hdmi device  not found %d %d %d\n", pdev->bus->number, PCI_SLOT(pdev->devfn), 1);
+		NV_DEBUG(drm, "hdmi device not found %d %d %d\n", pdev->bus->number, PCI_SLOT(pdev->devfn), 1);
 		return;
 	}
 
 	if ((drm->hdmi_device->class >> 8) != PCI_CLASS_MULTIMEDIA_HD_AUDIO) {
-		DRM_INFO("possible hdmi device  not audio %d\n", drm->hdmi_device->class);
+		NV_DEBUG(drm, "possible hdmi device not audio %d\n", drm->hdmi_device->class);
 		pci_dev_put(drm->hdmi_device);
 		drm->hdmi_device = NULL;
 		return;
@@ -330,22 +352,24 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	struct nouveau_drm *drm;
 	int ret;
 
-	ret = nouveau_cli_create(pdev, "DRM", sizeof(*drm), (void**)&drm);
+	ret = nouveau_cli_create(nouveau_name(dev), "DRM", sizeof(*drm),
+				 (void **)&drm);
 	if (ret)
 		return ret;
 
 	dev->dev_private = drm;
 	drm->dev = dev;
+	nouveau_client(drm)->debug = nouveau_dbgopt(nouveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
 
-	nouveau_get_hdmi_dev(dev);
+	nouveau_get_hdmi_dev(drm);
 
 	/* make sure AGP controller is in a consistent state before we
 	 * (possibly) execute vbios init tables (see nouveau_agp.h)
 	 */
-	if (drm_pci_device_is_agp(dev) && dev->agp) {
+	if (pdev && drm_pci_device_is_agp(dev) && dev->agp) {
 		/* dummy device object, doesn't init anything, but allows
 		 * agp code access to registers
 		 */
@@ -486,13 +510,13 @@ nouveau_drm_remove(struct pci_dev *pdev)
 }
 
 static int
-nouveau_do_suspend(struct drm_device *dev)
+nouveau_do_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
 	int ret;
 
-	if (dev->mode_config.num_crtc) {
+	if (dev->mode_config.num_crtc && !runtime) {
 		NV_INFO(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev);
 		if (ret)
@@ -566,7 +590,7 @@ int nouveau_pmops_suspend(struct device *dev)
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 1);
 
-	ret = nouveau_do_suspend(drm_dev);
+	ret = nouveau_do_suspend(drm_dev, false);
 	if (ret)
 		return ret;
 
@@ -646,7 +670,7 @@ static int nouveau_pmops_freeze(struct device *dev)
 	if (drm_dev->mode_config.num_crtc)
 		nouveau_fbcon_set_suspend(drm_dev, 1);
 
-	ret = nouveau_do_suspend(drm_dev);
+	ret = nouveau_do_suspend(drm_dev, false);
 	return ret;
 }
 
@@ -671,7 +695,6 @@ static int nouveau_pmops_thaw(struct device *dev)
 static int
 nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 {
-	struct pci_dev *pdev = dev->pdev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_cli *cli;
 	char name[32], tmpname[TASK_COMM_LEN];
@@ -679,13 +702,15 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 
 	/* need to bring up power immediately if opening device */
 	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -EACCES)
 		return ret;
 
 	get_task_comm(tmpname, current);
 	snprintf(name, sizeof(name), "%s[%d]", tmpname, pid_nr(fpriv->pid));
 
-	ret = nouveau_cli_create(pdev, name, sizeof(*cli), (void **)&cli);
+	ret = nouveau_cli_create(nouveau_name(dev), name, sizeof(*cli),
+			(void **)&cli);
+
 	if (ret)
 		goto out_suspend;
 
@@ -762,7 +787,7 @@ long nouveau_drm_ioctl(struct file *filp,
 	dev = file_priv->minor->dev;
 
 	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0)
+	if (ret < 0 && ret != -EACCES)
 		return ret;
 
 	ret = drm_ioctl(filp, cmd, arg);
@@ -882,7 +907,7 @@ static int nouveau_pmops_runtime_suspend(struct device *dev)
 	drm_kms_helper_poll_disable(drm_dev);
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 	nouveau_switcheroo_optimus_dsm();
-	ret = nouveau_do_suspend(drm_dev);
+	ret = nouveau_do_suspend(drm_dev, true);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
@@ -908,8 +933,6 @@ static int nouveau_pmops_runtime_resume(struct device *dev)
 	pci_set_master(pdev);
 
 	ret = nouveau_do_resume(drm_dev);
-	if (drm_dev->mode_config.num_crtc)
-		nouveau_display_resume(drm_dev);
 	drm_kms_helper_poll_enable(drm_dev);
 	/* do magic */
 	nv_mask(device, 0x88488, (1 << 25), (1 << 25));
@@ -979,6 +1002,25 @@ nouveau_drm_pci_driver = {
 	.remove = nouveau_drm_remove,
 	.driver.pm = &nouveau_pm_ops,
 };
+
+int nouveau_drm_platform_probe(struct platform_device *pdev)
+{
+	struct nouveau_device *device;
+	int ret;
+
+	ret = nouveau_device_create(pdev, NOUVEAU_BUS_PLATFORM,
+				    nouveau_platform_name(pdev),
+				    dev_name(&pdev->dev), nouveau_config,
+				    nouveau_debug, &device);
+
+	ret = drm_platform_init(&driver, pdev);
+	if (ret) {
+		nouveau_object_ref(NULL, (struct nouveau_object **)&device);
+		return ret;
+	}
+
+	return ret;
+}
 
 static int __init
 nouveau_drm_init(void)

@@ -425,7 +425,7 @@ static int ads7845_read12_ser(struct device *dev, unsigned command)
 name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
 	struct ads7846 *ts = dev_get_drvdata(dev); \
-	ssize_t v = ads7846_read12_ser(dev, \
+	ssize_t v = ads7846_read12_ser(&ts->spi->dev, \
 			READ_12BIT_SER(var)); \
 	if (v < 0) \
 		return v; \

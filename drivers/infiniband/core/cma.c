@@ -1284,15 +1284,6 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	struct rdma_id_private *listen_id, *conn_id;
 	struct rdma_cm_event event;
 	int offset, ret;
-	u8 smac[ETH_ALEN];
-	u8 alt_smac[ETH_ALEN];
-	u8 *psmac = smac;
-	u8 *palt_smac = alt_smac;
-	int is_iboe = ((rdma_node_get_transport(cm_id->device->node_type) ==
-			RDMA_TRANSPORT_IB) &&
-		       (rdma_port_get_link_layer(cm_id->device,
-			ib_event->param.req_rcvd.port) ==
-			IB_LINK_LAYER_ETHERNET));
 
 	listen_id = cm_id->context;
 	if (!cma_check_req_qp_type(&listen_id->id, ib_event))
@@ -1336,28 +1327,11 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (ret)
 		goto err3;
-
-	if (is_iboe) {
-		if (ib_event->param.req_rcvd.primary_path != NULL)
-			rdma_addr_find_smac_by_sgid(
-				&ib_event->param.req_rcvd.primary_path->sgid,
-				psmac, NULL);
-		else
-			psmac = NULL;
-		if (ib_event->param.req_rcvd.alternate_path != NULL)
-			rdma_addr_find_smac_by_sgid(
-				&ib_event->param.req_rcvd.alternate_path->sgid,
-				palt_smac, NULL);
-		else
-			palt_smac = NULL;
-	}
 	/*
 	 * Acquire mutex to prevent user executing rdma_destroy_id()
 	 * while we're accessing the cm_id.
 	 */
 	mutex_lock(&lock);
-	if (is_iboe)
-		ib_update_cm_av(cm_id, psmac, palt_smac);
 	if (cma_comp(conn_id, RDMA_CM_CONNECT) &&
 	    (conn_id->id.qp_type != IB_QPT_UD))
 		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);

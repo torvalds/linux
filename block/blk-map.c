@@ -188,7 +188,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
-			struct rq_map_data *map_data, struct sg_iovec *iov,
+			struct rq_map_data *map_data, const struct sg_iovec *iov,
 			int iov_count, unsigned int len, gfp_t gfp_mask)
 {
 	struct bio *bio;
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *
  * Description:
  *    Data will be mapped directly if possible. Otherwise a bounce
- *    buffer is used. Can be called multple times to append multple
+ *    buffer is used. Can be called multiple times to append multiple
  *    buffers.
  */
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,

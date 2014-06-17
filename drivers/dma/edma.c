@@ -182,11 +182,13 @@ static void edma_execute(struct edma_chan *echan)
 				  echan->ecc->dummy_slot);
 	}
 
-	edma_resume(echan->ch_num);
-
 	if (edesc->processed <= MAX_NR_SG) {
 		dev_dbg(dev, "first transfer starting %d\n", echan->ch_num);
 		edma_start(echan->ch_num);
+	} else {
+		dev_dbg(dev, "chan: %d: completed %d elements, resuming\n",
+			echan->ch_num, edesc->processed);
+		edma_resume(echan->ch_num);
 	}
 
 	/*
@@ -539,6 +541,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 				edma_alloc_slot(EDMA_CTLR(echan->ch_num),
 						EDMA_SLOT_ANY);
 			if (echan->slot[i] < 0) {
+				kfree(edesc);
 				dev_err(dev, "Failed to allocate slot\n");
 				return NULL;
 			}
@@ -553,8 +556,10 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 		ret = edma_config_pset(chan, &edesc->pset[i], src_addr,
 				       dst_addr, burst, dev_width, period_len,
 				       direction);
-		if (ret < 0)
+		if (ret < 0) {
+			kfree(edesc);
 			return NULL;
+		}
 
 		if (direction == DMA_DEV_TO_MEM)
 			dst_addr += period_len;

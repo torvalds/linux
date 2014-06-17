@@ -41,7 +41,7 @@ ncp_get_fs_info(struct ncp_server * server, struct inode *inode,
 		return -EFAULT;
 
 	if (info.version != NCP_GET_FS_INFO_VERSION) {
-		DPRINTK("info.version invalid: %d\n", info.version);
+		ncp_dbg(1, "info.version invalid: %d\n", info.version);
 		return -EINVAL;
 	}
 	/* TODO: info.addr = server->m.serv_addr; */
@@ -66,7 +66,7 @@ ncp_get_fs_info_v2(struct ncp_server * server, struct inode *inode,
 		return -EFAULT;
 
 	if (info2.version != NCP_GET_FS_INFO_VERSION_V2) {
-		DPRINTK("info.version invalid: %d\n", info2.version);
+		ncp_dbg(1, "info.version invalid: %d\n", info2.version);
 		return -EINVAL;
 	}
 	info2.mounted_uid   = from_kuid_munged(current_user_ns(), server->m.mounted_uid);
@@ -132,7 +132,7 @@ ncp_get_compat_fs_info_v2(struct ncp_server * server, struct inode *inode,
 		return -EFAULT;
 
 	if (info2.version != NCP_GET_FS_INFO_VERSION_V2) {
-		DPRINTK("info.version invalid: %d\n", info2.version);
+		ncp_dbg(1, "info.version invalid: %d\n", info2.version);
 		return -EINVAL;
 	}
 	info2.mounted_uid   = from_kuid_munged(current_user_ns(), server->m.mounted_uid);
@@ -308,8 +308,7 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 		else
 			result = server->reply_size;
 		ncp_unlock_server(server);
-		DPRINTK("ncp_ioctl: copy %d bytes\n",
-			result);
+		ncp_dbg(1, "copy %d bytes\n", result);
 		if (result >= 0)
 			if (copy_to_user(request.data, bouncebuffer, result))
 				result = -EFAULT;
@@ -385,9 +384,9 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 						sr.namespace = server->name_space[sr.volNumber];
 						result = 0;
 					} else
-						DPRINTK("ncpfs: s_root->d_inode==NULL\n");
+						ncp_dbg(1, "s_root->d_inode==NULL\n");
 				} else
-					DPRINTK("ncpfs: s_root==NULL\n");
+					ncp_dbg(1, "s_root==NULL\n");
 			} else {
 				sr.volNumber = -1;
 				sr.namespace = 0;
@@ -440,11 +439,11 @@ static long __ncp_ioctl(struct inode *inode, unsigned int cmd, unsigned long arg
 							NCP_FINFO(s_inode)->DosDirNum = dosde;
 							server->root_setuped = 1;
 						} else {
-							DPRINTK("ncpfs: s_root->d_inode==NULL\n");
+							ncp_dbg(1, "s_root->d_inode==NULL\n");
 							result = -EIO;
 						}
 					} else {
-						DPRINTK("ncpfs: s_root==NULL\n");
+						ncp_dbg(1, "s_root==NULL\n");
 						result = -EIO;
 					}
 				}

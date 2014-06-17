@@ -1171,7 +1171,8 @@ static int dm_thread_func(void *dm_dev)
 	int t;
 
 	while (!kthread_should_stop()) {
-		t = wait_for_completion_timeout(&dm_device.config_event, 1*HZ);
+		t = wait_for_completion_interruptible_timeout(
+						&dm_device.config_event, 1*HZ);
 		/*
 		 * The host expects us to post information on the memory
 		 * pressure every second.

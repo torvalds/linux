@@ -192,7 +192,7 @@ err:
 }
 
 static void
-nft_target_destroy(const struct nft_expr *expr)
+nft_target_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	struct xt_target *target = expr->ops->data;
 
@@ -379,7 +379,7 @@ err:
 }
 
 static void
-nft_match_destroy(const struct nft_expr *expr)
+nft_match_destroy(const struct nft_ctx *ctx, const struct nft_expr *expr)
 {
 	struct xt_match *match = expr->ops->data;
 

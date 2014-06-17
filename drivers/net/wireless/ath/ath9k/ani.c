@@ -155,6 +155,9 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 		ATH9K_ANI_RSSI_THR_LOW,
 		ATH9K_ANI_RSSI_THR_HIGH);
 
+	if (AR_SREV_9100(ah) && immunityLevel < ATH9K_ANI_OFDM_DEF_LEVEL)
+		immunityLevel = ATH9K_ANI_OFDM_DEF_LEVEL;
+
 	if (!scan)
 		aniState->ofdmNoiseImmunityLevel = immunityLevel;
 
@@ -176,16 +179,26 @@ static void ath9k_hw_set_ofdm_nil(struct ath_hw *ah, u8 immunityLevel,
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_HIGH)
 		weak_sig = true;
-
 	/*
-	 * OFDM Weak signal detection is always enabled for AP mode.
+	 * Newer chipsets are better at dealing with high PHY error counts -
+	 * keep weak signal detection enabled when no RSSI threshold is
+	 * available to determine if it is needed (mode != STA)
 	 */
-	if (ah->opmode != NL80211_IFTYPE_AP &&
-	    aniState->ofdmWeakSigDetect != weak_sig) {
-		ath9k_hw_ani_control(ah,
-				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-				     entry_ofdm->ofdm_weak_signal_on);
-	}
+	else if (AR_SREV_9300_20_OR_LATER(ah) &&
+		 ah->opmode != NL80211_IFTYPE_STATION)
+		weak_sig = true;
+
+	/* Older chipsets are more sensitive to high PHY error counts */
+	else if (!AR_SREV_9300_20_OR_LATER(ah) &&
+		 aniState->ofdmNoiseImmunityLevel >= 8)
+		weak_sig = false;
+
+	if (aniState->ofdmWeakSigDetect != weak_sig)
+		ath9k_hw_ani_control(ah, ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
+				     weak_sig);
+
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		return;
 
 	if (aniState->ofdmNoiseImmunityLevel >= ATH9K_ANI_OFDM_DEF_LEVEL) {
 		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
@@ -224,6 +237,9 @@ static void ath9k_hw_set_cck_nil(struct ath_hw *ah, u_int8_t immunityLevel,
 		aniState->cckNoiseImmunityLevel, immunityLevel,
 		BEACON_RSSI(ah), ATH9K_ANI_RSSI_THR_LOW,
 		ATH9K_ANI_RSSI_THR_HIGH);
+
+	if (AR_SREV_9100(ah) && immunityLevel < ATH9K_ANI_CCK_DEF_LEVEL)
+		immunityLevel = ATH9K_ANI_CCK_DEF_LEVEL;
 
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    BEACON_RSSI(ah) <= ATH9K_ANI_RSSI_THR_LOW &&
@@ -307,17 +323,6 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 
 	BUG_ON(aniState == NULL);
 	ah->stats.ast_ani_reset++;
-
-	/* only allow a subset of functions in AP mode */
-	if (ah->opmode == NL80211_IFTYPE_AP) {
-		if (IS_CHAN_2GHZ(chan)) {
-			ah->ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
-					    ATH9K_ANI_FIRSTEP_LEVEL);
-			if (AR_SREV_9300_20_OR_LATER(ah))
-				ah->ani_function |= ATH9K_ANI_MRC_CCK;
-		} else
-			ah->ani_function = 0;
-	}
 
 	ofdm_nil = max_t(int, ATH9K_ANI_OFDM_DEF_LEVEL,
 			 aniState->ofdmNoiseImmunityLevel);
@@ -483,10 +488,17 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 
 	ath_dbg(common, ANI, "Initialize ANI\n");
 
-	ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
-	ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW;
-	ah->config.cck_trig_high = ATH9K_ANI_CCK_TRIG_HIGH;
-	ah->config.cck_trig_low = ATH9K_ANI_CCK_TRIG_LOW;
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH;
+		ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW;
+		ah->config.cck_trig_high = ATH9K_ANI_CCK_TRIG_HIGH;
+		ah->config.cck_trig_low = ATH9K_ANI_CCK_TRIG_LOW;
+	} else {
+		ah->config.ofdm_trig_high = ATH9K_ANI_OFDM_TRIG_HIGH_OLD;
+		ah->config.ofdm_trig_low = ATH9K_ANI_OFDM_TRIG_LOW_OLD;
+		ah->config.cck_trig_high = ATH9K_ANI_CCK_TRIG_HIGH_OLD;
+		ah->config.cck_trig_low = ATH9K_ANI_CCK_TRIG_LOW_OLD;
+	}
 
 	ani->spurImmunityLevel = ATH9K_ANI_SPUR_IMMUNE_LVL;
 	ani->firstepLevel = ATH9K_ANI_FIRSTEP_LVL;

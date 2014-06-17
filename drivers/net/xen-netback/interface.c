@@ -38,6 +38,7 @@
 
 #include <xen/events.h>
 #include <asm/xen/hypercall.h>
+#include <xen/balloon.h>
 
 #define XENVIF_QUEUE_LENGTH 32
 #define XENVIF_NAPI_WEIGHT  64
@@ -62,35 +63,20 @@ static int xenvif_poll(struct napi_struct *napi, int budget)
 	struct xenvif *vif = container_of(napi, struct xenvif, napi);
 	int work_done;
 
+	/* This vif is rogue, we pretend we've there is nothing to do
+	 * for this vif to deschedule it from NAPI. But this interface
+	 * will be turned off in thread context later.
+	 */
+	if (unlikely(vif->disabled)) {
+		napi_complete(napi);
+		return 0;
+	}
+
 	work_done = xenvif_tx_action(vif, budget);
 
 	if (work_done < budget) {
-		int more_to_do = 0;
-		unsigned long flags;
-
-		/* It is necessary to disable IRQ before calling
-		 * RING_HAS_UNCONSUMED_REQUESTS. Otherwise we might
-		 * lose event from the frontend.
-		 *
-		 * Consider:
-		 *   RING_HAS_UNCONSUMED_REQUESTS
-		 *   <frontend generates event to trigger napi_schedule>
-		 *   __napi_complete
-		 *
-		 * This handler is still in scheduled state so the
-		 * event has no effect at all. After __napi_complete
-		 * this handler is descheduled and cannot get
-		 * scheduled again. We lose event in this case and the ring
-		 * will be completely stalled.
-		 */
-
-		local_irq_save(flags);
-
-		RING_FINAL_CHECK_FOR_REQUESTS(&vif->tx, more_to_do);
-		if (!more_to_do)
-			__napi_complete(napi);
-
-		local_irq_restore(flags);
+		napi_complete(napi);
+		xenvif_napi_schedule_or_enable_events(vif);
 	}
 
 	return work_done;
@@ -113,6 +99,18 @@ static irqreturn_t xenvif_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void xenvif_wake_queue(unsigned long data)
+{
+	struct xenvif *vif = (struct xenvif *)data;
+
+	if (netif_queue_stopped(vif->dev)) {
+		netdev_err(vif->dev, "draining TX queue\n");
+		vif->rx_queue_purge = true;
+		xenvif_kick_thread(vif);
+		netif_wake_queue(vif->dev);
+	}
+}
+
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
@@ -121,7 +119,9 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	BUG_ON(skb->dev != dev);
 
 	/* Drop the packet if vif is not ready */
-	if (vif->task == NULL || !xenvif_schedulable(vif))
+	if (vif->task == NULL ||
+	    vif->dealloc_task == NULL ||
+	    !xenvif_schedulable(vif))
 		goto drop;
 
 	/* At best we'll need one slot for the header and one for each
@@ -139,8 +139,13 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * then turn off the queue to give the ring a chance to
 	 * drain.
 	 */
-	if (!xenvif_rx_ring_slots_available(vif, min_slots_needed))
+	if (!xenvif_rx_ring_slots_available(vif, min_slots_needed)) {
+		vif->wake_queue.function = xenvif_wake_queue;
+		vif->wake_queue.data = (unsigned long)vif;
 		xenvif_stop_queue(vif);
+		mod_timer(&vif->wake_queue,
+			jiffies + rx_drain_timeout_jiffies);
+	}
 
 	skb_queue_tail(&vif->rx_queue, skb);
 	xenvif_kick_thread(vif);
@@ -165,7 +170,7 @@ static void xenvif_up(struct xenvif *vif)
 	enable_irq(vif->tx_irq);
 	if (vif->tx_irq != vif->rx_irq)
 		enable_irq(vif->rx_irq);
-	xenvif_check_rx_xenvif(vif);
+	xenvif_napi_schedule_or_enable_events(vif);
 }
 
 static void xenvif_down(struct xenvif *vif)
@@ -232,6 +237,28 @@ static const struct xenvif_stat {
 	{
 		"rx_gso_checksum_fixup",
 		offsetof(struct xenvif, rx_gso_checksum_fixup)
+	},
+	/* If (sent != success + fail), there are probably packets never
+	 * freed up properly!
+	 */
+	{
+		"tx_zerocopy_sent",
+		offsetof(struct xenvif, tx_zerocopy_sent),
+	},
+	{
+		"tx_zerocopy_success",
+		offsetof(struct xenvif, tx_zerocopy_success),
+	},
+	{
+		"tx_zerocopy_fail",
+		offsetof(struct xenvif, tx_zerocopy_fail)
+	},
+	/* Number of packets exceeding MAX_SKB_FRAG slots. You should use
+	 * a guest with the same MAX_SKB_FRAG
+	 */
+	{
+		"tx_frag_overflow",
+		offsetof(struct xenvif, tx_frag_overflow)
 	},
 };
 
@@ -321,10 +348,14 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->ip_csum = 1;
 	vif->dev = dev;
 
+	vif->disabled = false;
+
 	vif->credit_bytes = vif->remaining_credit = ~0UL;
 	vif->credit_usec  = 0UL;
 	init_timer(&vif->credit_timeout);
 	vif->credit_window_start = get_jiffies_64();
+
+	init_timer(&vif->wake_queue);
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
@@ -342,8 +373,26 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->pending_prod = MAX_PENDING_REQS;
 	for (i = 0; i < MAX_PENDING_REQS; i++)
 		vif->pending_ring[i] = i;
-	for (i = 0; i < MAX_PENDING_REQS; i++)
-		vif->mmap_pages[i] = NULL;
+	spin_lock_init(&vif->callback_lock);
+	spin_lock_init(&vif->response_lock);
+	/* If ballooning is disabled, this will consume real memory, so you
+	 * better enable it. The long term solution would be to use just a
+	 * bunch of valid page descriptors, without dependency on ballooning
+	 */
+	err = alloc_xenballooned_pages(MAX_PENDING_REQS,
+				       vif->mmap_pages,
+				       false);
+	if (err) {
+		netdev_err(dev, "Could not reserve mmap_pages\n");
+		return ERR_PTR(-ENOMEM);
+	}
+	for (i = 0; i < MAX_PENDING_REQS; i++) {
+		vif->pending_tx_info[i].callback_struct = (struct ubuf_info)
+			{ .callback = xenvif_zerocopy_callback,
+			  .ctx = NULL,
+			  .desc = i };
+		vif->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
+	}
 
 	/*
 	 * Initialise a dummy MAC address. We choose the numerically
@@ -381,12 +430,14 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 
 	BUG_ON(vif->tx_irq);
 	BUG_ON(vif->task);
+	BUG_ON(vif->dealloc_task);
 
 	err = xenvif_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
 		goto err;
 
 	init_waitqueue_head(&vif->wq);
+	init_waitqueue_head(&vif->dealloc_wq);
 
 	if (tx_evtchn == rx_evtchn) {
 		/* feature-split-event-channels == 0 */
@@ -420,8 +471,8 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 		disable_irq(vif->rx_irq);
 	}
 
-	task = kthread_create(xenvif_kthread,
-			      (void *)vif, "%s", vif->dev->name);
+	task = kthread_create(xenvif_kthread_guest_rx,
+			      (void *)vif, "%s-guest-rx", vif->dev->name);
 	if (IS_ERR(task)) {
 		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
 		err = PTR_ERR(task);
@@ -429,6 +480,16 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	}
 
 	vif->task = task;
+
+	task = kthread_create(xenvif_dealloc_kthread,
+			      (void *)vif, "%s-dealloc", vif->dev->name);
+	if (IS_ERR(task)) {
+		pr_warn("Could not allocate kthread for %s\n", vif->dev->name);
+		err = PTR_ERR(task);
+		goto err_rx_unbind;
+	}
+
+	vif->dealloc_task = task;
 
 	rtnl_lock();
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
@@ -440,6 +501,7 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	rtnl_unlock();
 
 	wake_up_process(vif->task);
+	wake_up_process(vif->dealloc_task);
 
 	return 0;
 
@@ -473,8 +535,14 @@ void xenvif_disconnect(struct xenvif *vif)
 		xenvif_carrier_off(vif);
 
 	if (vif->task) {
+		del_timer_sync(&vif->wake_queue);
 		kthread_stop(vif->task);
 		vif->task = NULL;
+	}
+
+	if (vif->dealloc_task) {
+		kthread_stop(vif->dealloc_task);
+		vif->dealloc_task = NULL;
 	}
 
 	if (vif->tx_irq) {
@@ -492,6 +560,43 @@ void xenvif_disconnect(struct xenvif *vif)
 
 void xenvif_free(struct xenvif *vif)
 {
+	int i, unmap_timeout = 0;
+	/* Here we want to avoid timeout messages if an skb can be legitimately
+	 * stuck somewhere else. Realistically this could be an another vif's
+	 * internal or QDisc queue. That another vif also has this
+	 * rx_drain_timeout_msecs timeout, but the timer only ditches the
+	 * internal queue. After that, the QDisc queue can put in worst case
+	 * XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS skbs into that another vif's
+	 * internal queue, so we need several rounds of such timeouts until we
+	 * can be sure that no another vif should have skb's from us. We are
+	 * not sending more skb's, so newly stuck packets are not interesting
+	 * for us here.
+	 */
+	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000) *
+		DIV_ROUND_UP(XENVIF_QUEUE_LENGTH, (XEN_NETIF_RX_RING_SIZE / MAX_SKB_FRAGS));
+
+	for (i = 0; i < MAX_PENDING_REQS; ++i) {
+		if (vif->grant_tx_handle[i] != NETBACK_INVALID_HANDLE) {
+			unmap_timeout++;
+			schedule_timeout(msecs_to_jiffies(1000));
+			if (unmap_timeout > worst_case_skb_lifetime &&
+			    net_ratelimit())
+				netdev_err(vif->dev,
+					   "Page still granted! Index: %x\n",
+					   i);
+			/* If there are still unmapped pages, reset the loop to
+			 * start checking again. We shouldn't exit here until
+			 * dealloc thread and NAPI instance release all the
+			 * pages. If a kernel bug causes the skbs to stall
+			 * somewhere, the interface cannot be brought down
+			 * properly.
+			 */
+			i = -1;
+		}
+	}
+
+	free_xenballooned_pages(MAX_PENDING_REQS, vif->mmap_pages);
+
 	netif_napi_del(&vif->napi);
 
 	unregister_netdev(vif->dev);

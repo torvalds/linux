@@ -101,7 +101,7 @@ struct swsusp_header {
 	unsigned int flags;	/* Flags to pass to the "boot" kernel */
 	char	orig_sig[10];
 	char	sig[10];
-} __attribute__((packed));
+} __packed;
 
 static struct swsusp_header *swsusp_header;
 

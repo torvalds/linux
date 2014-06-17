@@ -94,6 +94,14 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 		    target->sensf_res))
 		goto nla_put_failure;
 
+	if (target->is_iso15693) {
+		if (nla_put_u8(msg, NFC_ATTR_TARGET_ISO15693_DSFID,
+			       target->iso15693_dsfid) ||
+		    nla_put(msg, NFC_ATTR_TARGET_ISO15693_UID,
+			    sizeof(target->iso15693_uid), target->iso15693_uid))
+			goto nla_put_failure;
+	}
+
 	return genlmsg_end(msg, hdr);
 
 nla_put_failure:

@@ -285,7 +285,7 @@ int pm_generic_restore(struct device *dev)
 EXPORT_SYMBOL_GPL(pm_generic_restore);
 
 /**
- * pm_generic_complete - Generic routine competing a device power transition.
+ * pm_generic_complete - Generic routine completing a device power transition.
  * @dev: Device to handle.
  *
  * Complete a device power transition during a system-wide power transition.

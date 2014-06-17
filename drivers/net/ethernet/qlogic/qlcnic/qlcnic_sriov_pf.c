@@ -15,6 +15,7 @@
 #define QLC_MAC_OPCODE_MASK	0x7
 #define QLC_VF_FLOOD_BIT	BIT_16
 #define QLC_FLOOD_MODE		0x5
+#define QLC_SRIOV_ALLOW_VLAN0	BIT_19
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -335,8 +336,11 @@ static int qlcnic_sriov_pf_cfg_vlan_filtering(struct qlcnic_adapter *adapter,
 		return err;
 
 	cmd.req.arg[1] = 0x4;
-	if (enable)
+	if (enable) {
 		cmd.req.arg[1] |= BIT_16;
+		if (qlcnic_84xx_check(adapter))
+			cmd.req.arg[1] |= QLC_SRIOV_ALLOW_VLAN0;
+	}
 
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
@@ -456,6 +460,16 @@ void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter)
 static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+
+	if (pci_vfs_assigned(adapter->pdev)) {
+		netdev_err(adapter->netdev,
+			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can not be disabled on this port\n",
+			   adapter->portnum);
+		netdev_info(adapter->netdev,
+			    "Please detach SR-IOV VFs belonging to port %d from VMs, and then try to disable SR-IOV on this port\n",
+			    adapter->portnum);
+		return -EPERM;
+	}
 
 	rtnl_lock();
 	if (netif_running(netdev))

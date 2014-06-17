@@ -252,9 +252,17 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
 	struct kernfs_open_file *of = kernfs_of(file);
-	ssize_t len = min_t(size_t, count, PAGE_SIZE);
 	const struct kernfs_ops *ops;
+	size_t len;
 	char *buf;
+
+	if (of->atomic_write_len) {
+		len = count;
+		if (len > of->atomic_write_len)
+			return -E2BIG;
+	} else {
+		len = min_t(size_t, count, PAGE_SIZE);
+	}
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
@@ -476,6 +484,8 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 
 	ops = kernfs_ops(of->kn);
 	rc = ops->mmap(of, vma);
+	if (rc)
+		goto out_put;
 
 	/*
 	 * PowerPC's pci_mmap of legacy_mem uses shmem_zero_setup()
@@ -600,6 +610,7 @@ static void kernfs_put_open_node(struct kernfs_node *kn,
 static int kernfs_fop_open(struct inode *inode, struct file *file)
 {
 	struct kernfs_node *kn = file->f_path.dentry->d_fsdata;
+	struct kernfs_root *root = kernfs_root(kn);
 	const struct kernfs_ops *ops;
 	struct kernfs_open_file *of;
 	bool has_read, has_write, has_mmap;
@@ -614,14 +625,16 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	has_write = ops->write || ops->mmap;
 	has_mmap = ops->mmap;
 
-	/* check perms and supported operations */
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (!(inode->i_mode & S_IWUGO) || !has_write))
-		goto err_out;
+	/* see the flag definition for details */
+	if (root->flags & KERNFS_ROOT_EXTRA_OPEN_PERM_CHECK) {
+		if ((file->f_mode & FMODE_WRITE) &&
+		    (!(inode->i_mode & S_IWUGO) || !has_write))
+			goto err_out;
 
-	if ((file->f_mode & FMODE_READ) &&
-	    (!(inode->i_mode & S_IRUGO) || !has_read))
-		goto err_out;
+		if ((file->f_mode & FMODE_READ) &&
+		    (!(inode->i_mode & S_IRUGO) || !has_read))
+			goto err_out;
+	}
 
 	/* allocate a kernfs_open_file for the file */
 	error = -ENOMEM;
@@ -651,6 +664,12 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	of->kn = kn;
 	of->file = file;
+
+	/*
+	 * Write path needs to atomic_write_len outside active reference.
+	 * Cache it in open_file.  See kernfs_fop_write() for details.
+	 */
+	of->atomic_write_len = ops->atomic_write_len;
 
 	/*
 	 * Always instantiate seq_file even if read access doesn't use
@@ -820,7 +839,6 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 bool name_is_static,
 					 struct lock_class_key *key)
 {
-	struct kernfs_addrm_cxt acxt;
 	struct kernfs_node *kn;
 	unsigned flags;
 	int rc;
@@ -855,10 +873,7 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 	if (ops->mmap)
 		kn->flags |= KERNFS_HAS_MMAP;
 
-	kernfs_addrm_start(&acxt);
-	rc = kernfs_add_one(&acxt, kn);
-	kernfs_addrm_finish(&acxt);
-
+	rc = kernfs_add_one(kn);
 	if (rc) {
 		kernfs_put(kn);
 		return ERR_PTR(rc);

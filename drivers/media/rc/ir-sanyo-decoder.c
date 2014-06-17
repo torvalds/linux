@@ -1,6 +1,6 @@
 /* ir-sanyo-decoder.c - handle SANYO IR Pulse/Space protocol
  *
- * Copyright (C) 2011 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2011 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	u8 address, command, not_command;
 
-	if (!(dev->enabled_protocols & RC_BIT_SANYO))
+	if (!rc_protocols_enabled(dev, RC_BIT_SANYO))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -200,6 +200,6 @@ module_init(ir_sanyo_decode_init);
 module_exit(ir_sanyo_decode_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("SANYO IR protocol decoder");

@@ -269,9 +269,9 @@ bool AESbGenCCMP(u8 *pbyRxKey, u8 *pbyFrame, u16 wFrameSize)
 	/* MIC_HDR1 */
 	MIC_HDR1[0] = (u8)(wHLen >> 8);
 	MIC_HDR1[1] = (u8)(wHLen & 0xff);
-	byTmp = (u8)(pMACHeader->frame_control & 0xff);
+	byTmp = (u8)(le16_to_cpu(pMACHeader->frame_control) >> 8);
 	MIC_HDR1[2] = byTmp & 0x8f;
-	byTmp = (u8)(pMACHeader->frame_control >> 8);
+	byTmp = (u8)(le16_to_cpu(pMACHeader->frame_control) & 0xff);
 	byTmp &= 0x87;
 	MIC_HDR1[3] = byTmp | 0x40;
 	memcpy(&(MIC_HDR1[4]), pMACHeader->addr1, ETH_ALEN);
@@ -279,7 +279,7 @@ bool AESbGenCCMP(u8 *pbyRxKey, u8 *pbyFrame, u16 wFrameSize)
 
 	/* MIC_HDR2 */
 	memcpy(&(MIC_HDR2[0]), pMACHeader->addr3, ETH_ALEN);
-	byTmp = (u8)(pMACHeader->seq_ctrl & 0xff);
+	byTmp = (u8)(le16_to_cpu(pMACHeader->seq_ctrl) >> 8);
 	MIC_HDR2[6] = byTmp & 0x0f;
 	MIC_HDR2[7] = 0;
 

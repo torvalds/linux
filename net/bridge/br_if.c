@@ -366,7 +366,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err2;
 
-	err = br_netpoll_enable(p, GFP_KERNEL);
+	err = br_netpoll_enable(p);
 	if (err)
 		goto err3;
 

@@ -647,6 +647,11 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
 		if (old & _PAGE_HASHPTE)
 			hpte_do_hugepage_flush(vma->vm_mm, address, pmdp);
 	}
+	/*
+	 * This ensures that generic code that rely on IRQ disabling
+	 * to prevent a parallel THP split work as expected.
+	 */
+	kick_all_cpus_sync();
 }
 
 /*

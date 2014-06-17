@@ -955,12 +955,18 @@ void __init dm646x_init(void)
 
 static int __init dm646x_init_devices(void)
 {
+	int ret = 0;
+
 	if (!cpu_is_davinci_dm646x())
 		return 0;
 
 	platform_device_register(&dm646x_mdio_device);
 	platform_device_register(&dm646x_emac_device);
 
-	return 0;
+	ret = davinci_init_wdt();
+	if (ret)
+		pr_warn("%s: watchdog init failed: %d\n", __func__, ret);
+
+	return ret;
 }
 postcore_initcall(dm646x_init_devices);

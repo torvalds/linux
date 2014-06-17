@@ -11,11 +11,10 @@ if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
 fi
 
-# This is a duplicate of RCS_FIND_IGNORE without escaped '()'
-ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
-          -name CVS  -o -name .pc       -o -name .hg  -o \
-          -name .git )                                   \
-          -prune -o"
+# RCS_FIND_IGNORE has escaped ()s -- remove them.
+ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
+# tags and cscope files should also ignore MODVERSION *.mod.c files
+ignore="$ignore ( -name *.mod.c ) -prune -o"
 
 # Do not use full path if we do not use O=.. builds
 # Use make O=. {tags|cscope}

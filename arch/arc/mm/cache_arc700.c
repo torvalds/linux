@@ -100,10 +100,9 @@
 #define DC_CTRL_INV_MODE_FLUSH  0x40
 #define DC_CTRL_FLUSH_STATUS    0x100
 
-char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
+char *arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	int n = 0;
-	unsigned int c = smp_processor_id();
 
 #define PR_CACHE(p, enb, str)						\
 {									\

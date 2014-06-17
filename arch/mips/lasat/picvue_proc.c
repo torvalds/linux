@@ -175,7 +175,7 @@ static void pvc_proc_cleanup(void)
 	remove_proc_entry("scroll", pvc_display_dir);
 	remove_proc_entry(DISPLAY_DIR_NAME, NULL);
 
-	del_timer(&timer);
+	del_timer_sync(&timer);
 }
 
 static int __init pvc_proc_init(void)

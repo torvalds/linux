@@ -138,7 +138,11 @@ static void __touch_watchdog(void)
 
 void touch_softlockup_watchdog(void)
 {
-	__this_cpu_write(watchdog_touch_ts, 0);
+	/*
+	 * Preemption can be enabled.  It doesn't matter which CPU's timestamp
+	 * gets zeroed here, so use the raw_ operation.
+	 */
+	raw_cpu_write(watchdog_touch_ts, 0);
 }
 EXPORT_SYMBOL(touch_softlockup_watchdog);
 
@@ -158,14 +162,14 @@ void touch_all_softlockup_watchdogs(void)
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 void touch_nmi_watchdog(void)
 {
-	if (watchdog_user_enabled) {
-		unsigned cpu;
-
-		for_each_present_cpu(cpu) {
-			if (per_cpu(watchdog_nmi_touch, cpu) != true)
-				per_cpu(watchdog_nmi_touch, cpu) = true;
-		}
-	}
+	/*
+	 * Using __raw here because some code paths have
+	 * preemption enabled.  If preemption is enabled
+	 * then interrupts should be enabled too, in which
+	 * case we shouldn't have to worry about the watchdog
+	 * going off.
+	 */
+	__raw_get_cpu_var(watchdog_nmi_touch) = true;
 	touch_softlockup_watchdog();
 }
 EXPORT_SYMBOL(touch_nmi_watchdog);
@@ -505,7 +509,6 @@ static void restart_watchdog_hrtimer(void *info)
 
 static void update_timers(int cpu)
 {
-	struct call_single_data data = {.func = restart_watchdog_hrtimer};
 	/*
 	 * Make sure that perf event counter will adopt to a new
 	 * sampling period. Updating the sampling period directly would
@@ -515,7 +518,7 @@ static void update_timers(int cpu)
 	 * might be late already so we have to restart the timer as well.
 	 */
 	watchdog_nmi_disable(cpu);
-	__smp_call_function_single(cpu, &data, 1);
+	smp_call_function_single(cpu, restart_watchdog_hrtimer, NULL, 1);
 	watchdog_nmi_enable(cpu);
 }
 

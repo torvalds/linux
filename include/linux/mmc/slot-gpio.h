@@ -22,4 +22,10 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
 			unsigned int debounce);
 void mmc_gpio_free_cd(struct mmc_host *host);
 
+int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
+			 unsigned int idx, bool override_active_level,
+			 unsigned int debounce);
+void mmc_gpiod_free_cd(struct mmc_host *host);
+void mmc_gpiod_request_cd_irq(struct mmc_host *host);
+
 #endif

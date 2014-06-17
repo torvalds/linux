@@ -1664,15 +1664,36 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	i2c_stop(dev);
 }
 
+static int cb_pcidas64_ai_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->main_iobase + HW_STATUS_REG);
+	if (thisboard->layout == LAYOUT_4020) {
+		status = readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG);
+		if (status)
+			return 0;
+	} else {
+		if (pipe_full_bits(status))
+			return 0;
+	}
+	return -EBUSY;
+}
+
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int bits = 0, n, i;
+	unsigned int bits = 0, n;
 	unsigned int channel, range, aref;
 	unsigned long flags;
-	static const int timeout = 100;
+	int ret;
 
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
@@ -1770,23 +1791,10 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		       devpriv->main_iobase + ADC_CONVERT_REG);
 
 		/*  wait for data */
-		for (i = 0; i < timeout; i++) {
-			bits = readw(devpriv->main_iobase + HW_STATUS_REG);
-			if (thisboard->layout == LAYOUT_4020) {
-				if (readw(devpriv->main_iobase +
-					  ADC_WRITE_PNTR_REG))
-					break;
-			} else {
-				if (pipe_full_bits(bits))
-					break;
-			}
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, " analog input read insn timed out");
-			dev_info(dev->class_dev, "status 0x%x\n", bits);
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, cb_pcidas64_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		if (thisboard->layout == LAYOUT_4020)
 			data[n] = readl(devpriv->dio_counter_iobase +
 					ADC_FIFO_REG) & 0xffff;
@@ -3816,16 +3824,19 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (thisboard->has_8255) {
 		if (thisboard->layout == LAYOUT_4020) {
 			dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
-			subdev_8255_init(dev, s, dio_callback_4020,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback_4020,
+					       (unsigned long)dio_8255_iobase);
 		} else {
 			dio_8255_iobase =
 				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
-			subdev_8255_init(dev, s, dio_callback,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback,
+					       (unsigned long)dio_8255_iobase);
 		}
-	} else
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  8 channel dio for 60xx */
 	s = &dev->subdevices[5];

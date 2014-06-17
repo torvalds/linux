@@ -132,6 +132,7 @@
 #define NV_PGRAPH_GPCX_GPCCS_FIFO_CMD                                  0x41a068
 #define NV_PGRAPH_GPCX_GPCCS_FIFO_ACK                                  0x41a074
 #define NV_PGRAPH_GPCX_GPCCS_UNITS                                     0x41a608
+#define NV_PGRAPH_GPCX_GPCCS_CAPS                                      0x41a108
 #define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH                                0x41a614
 #define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_UNK11                        0x00000800
 #define NV_PGRAPH_GPCX_GPCCS_RED_SWITCH_ENABLE                       0x00000200

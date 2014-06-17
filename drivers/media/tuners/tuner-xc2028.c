@@ -1107,6 +1107,10 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 				offset += 200000;
 		}
 #endif
+		break;
+	default:
+		tuner_err("Unsupported tuner type %d.\n", new_type);
+		break;
 	}
 
 	div = (freq - offset + DIV / 2) / DIV;

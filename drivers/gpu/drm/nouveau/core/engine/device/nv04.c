@@ -60,7 +60,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_graph_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	case 0x05:
 		device->cname = "NV05";
@@ -78,7 +78,7 @@ nv04_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_FIFO   ] =  nv04_fifo_oclass;
 		device->oclass[NVDEV_ENGINE_SW     ] =  nv04_software_oclass;
 		device->oclass[NVDEV_ENGINE_GR     ] = &nv04_graph_oclass;
-		device->oclass[NVDEV_ENGINE_DISP   ] = &nv04_disp_oclass;
+		device->oclass[NVDEV_ENGINE_DISP   ] =  nv04_disp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown RIVA chipset\n");

@@ -18,6 +18,7 @@ Optional properties:
 - vbus-supply: regulator for vbus
 - disable-over-current: disable over current detect
 - external-vbus-divider: enables off-chip resistor divider for Vbus
+- maximum-speed: limit the maximum connection speed to "full-speed".
 
 Examples:
 usb@02184000 { /* USB OTG */
@@ -28,4 +29,5 @@ usb@02184000 { /* USB OTG */
 	fsl,usbmisc = <&usbmisc 0>;
 	disable-over-current;
 	external-vbus-divider;
+	maximum-speed = "full-speed";
 };

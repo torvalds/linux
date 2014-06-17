@@ -46,7 +46,8 @@ nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 		u8  unk0 = !!(data & 0x02000000);
 		u8  unk1 = !!(data & 0x04000000);
 		u32 val = (unk1 << 16) | unk0;
-		u32 reg = regs[line >> 4]; line &= 0x0f;
+		u32 reg = regs[line >> 4];
+		u32 lsh = line & 0x0f;
 
 		if ( func  == DCB_GPIO_UNUSED ||
 		    (match != DCB_GPIO_UNUSED && match != func))
@@ -54,7 +55,7 @@ nv50_gpio_reset(struct nouveau_gpio *gpio, u8 match)
 
 		gpio->set(gpio, 0, func, line, defs);
 
-		nv_mask(priv, reg, 0x00010001 << line, val << line);
+		nv_mask(priv, reg, 0x00010001 << lsh, val << lsh);
 	}
 }
 
@@ -79,7 +80,7 @@ nv50_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 	if (nv50_gpio_location(line, &reg, &shift))
 		return -EINVAL;
 
-	nv_mask(gpio, reg, 7 << shift, (((dir ^ 1) << 1) | out) << shift);
+	nv_mask(gpio, reg, 3 << shift, (((dir ^ 1) << 1) | out) << shift);
 	return 0;
 }
 

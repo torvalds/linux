@@ -18,11 +18,15 @@
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
+/*
+ * Time till a connection expires after last use (in seconds).
+ */
+unsigned rxrpc_connection_expiry = 10 * 60;
+
 static void rxrpc_connection_reaper(struct work_struct *work);
 
 LIST_HEAD(rxrpc_connections);
 DEFINE_RWLOCK(rxrpc_connection_lock);
-static unsigned long rxrpc_connection_timeout = 10 * 60;
 static DECLARE_DELAYED_WORK(rxrpc_connection_reap, rxrpc_connection_reaper);
 
 /*
@@ -862,7 +866,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 
 		spin_lock(&conn->trans->client_lock);
 		write_lock(&conn->trans->conn_lock);
-		reap_time = conn->put_time + rxrpc_connection_timeout;
+		reap_time = conn->put_time + rxrpc_connection_expiry;
 
 		if (atomic_read(&conn->usage) > 0) {
 			;
@@ -916,7 +920,7 @@ void __exit rxrpc_destroy_all_connections(void)
 {
 	_enter("");
 
-	rxrpc_connection_timeout = 0;
+	rxrpc_connection_expiry = 0;
 	cancel_delayed_work(&rxrpc_connection_reap);
 	rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
 

@@ -231,17 +231,27 @@ enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT		= BIT(8),
 	IWL_WOWLAN_WAKEUP_REMOTE_LINK_LOSS		= BIT(9),
 	IWL_WOWLAN_WAKEUP_REMOTE_SIGNATURE_TABLE	= BIT(10),
-	/* BIT(11) reserved */
+	IWL_WOWLAN_WAKEUP_REMOTE_TCP_EXTERNAL		= BIT(11),
 	IWL_WOWLAN_WAKEUP_REMOTE_WAKEUP_PACKET		= BIT(12),
+	IWL_WOWLAN_WAKEUP_IOAC_MAGIC_PACKET		= BIT(13),
+	IWL_WOWLAN_WAKEUP_HOST_TIMER			= BIT(14),
+	IWL_WOWLAN_WAKEUP_RX_FRAME			= BIT(15),
+	IWL_WOWLAN_WAKEUP_BCN_FILTERING			= BIT(16),
 }; /* WOWLAN_WAKEUP_FILTER_API_E_VER_4 */
 
-struct iwl_wowlan_config_cmd {
+struct iwl_wowlan_config_cmd_v2 {
 	__le32 wakeup_filter;
 	__le16 non_qos_seq;
 	__le16 qos_seq[8];
 	u8 wowlan_ba_teardown_tids;
 	u8 is_11n_connection;
 } __packed; /* WOWLAN_CONFIG_API_S_VER_2 */
+
+struct iwl_wowlan_config_cmd_v3 {
+	struct iwl_wowlan_config_cmd_v2 common;
+	u8 offloading_tid;
+	u8 reserved[3];
+} __packed; /* WOWLAN_CONFIG_API_S_VER_3 */
 
 /*
  * WOWLAN_TSC_RSC_PARAMS

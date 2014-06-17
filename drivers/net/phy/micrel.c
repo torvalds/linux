@@ -148,15 +148,52 @@ static int ks8737_config_intr(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
+static int kszphy_setup_led(struct phy_device *phydev,
+			    unsigned int reg, unsigned int shift)
+{
+
+	struct device *dev = &phydev->dev;
+	struct device_node *of_node = dev->of_node;
+	int rc, temp;
+	u32 val;
+
+	if (!of_node && dev->parent->of_node)
+		of_node = dev->parent->of_node;
+
+	if (of_property_read_u32(of_node, "micrel,led-mode", &val))
+		return 0;
+
+	temp = phy_read(phydev, reg);
+	if (temp < 0)
+		return temp;
+
+	temp &= ~(3 << shift);
+	temp |= val << shift;
+	rc = phy_write(phydev, reg, temp);
+
+	return rc < 0 ? rc : 0;
+}
+
 static int kszphy_config_init(struct phy_device *phydev)
 {
 	return 0;
 }
 
+static int kszphy_config_init_led8041(struct phy_device *phydev)
+{
+	/* single led control, register 0x1e bits 15..14 */
+	return kszphy_setup_led(phydev, 0x1e, 14);
+}
+
 static int ksz8021_config_init(struct phy_device *phydev)
 {
-	int rc;
 	const u16 val = KSZPHY_OMSO_B_CAST_OFF | KSZPHY_OMSO_RMII_OVERRIDE;
+	int rc;
+
+	rc = kszphy_setup_led(phydev, 0x1f, 4);
+	if (rc)
+		dev_err(&phydev->dev, "failed to set led mode\n");
+
 	phy_write(phydev, MII_KSZPHY_OMSO, val);
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
@@ -165,6 +202,10 @@ static int ksz8021_config_init(struct phy_device *phydev)
 static int ks8051_config_init(struct phy_device *phydev)
 {
 	int rc;
+
+	rc = kszphy_setup_led(phydev, 0x1f, 4);
+	if (rc)
+		dev_err(&phydev->dev, "failed to set led mode\n");
 
 	rc = ksz_config_flags(phydev);
 	return rc < 0 ? rc : 0;
@@ -205,13 +246,13 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 	if (val1 != -1)
 		newval = ((newval & 0xfff0) | ((val1 / PS_TO_REG) & 0xf) << 0);
 
-	if (val2 != -1)
+	if (val2 != -2)
 		newval = ((newval & 0xff0f) | ((val2 / PS_TO_REG) & 0xf) << 4);
 
-	if (val3 != -1)
+	if (val3 != -3)
 		newval = ((newval & 0xf0ff) | ((val3 / PS_TO_REG) & 0xf) << 8);
 
-	if (val4 != -1)
+	if (val4 != -4)
 		newval = ((newval & 0x0fff) | ((val4 / PS_TO_REG) & 0xf) << 12);
 
 	return kszphy_extended_write(phydev, reg, newval);
@@ -327,7 +368,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
 				| SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -342,7 +383,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= PHY_BASIC_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,
@@ -371,7 +412,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00ffffff,
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
-	.config_init	= kszphy_config_init,
+	.config_init	= kszphy_config_init_led8041,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
 	.ack_interrupt	= kszphy_ack_interrupt,

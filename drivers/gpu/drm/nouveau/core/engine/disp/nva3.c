@@ -29,6 +29,10 @@
 
 #include "nv50.h"
 
+/*******************************************************************************
+ * Base display object
+ ******************************************************************************/
+
 static struct nouveau_oclass
 nva3_disp_sclass[] = {
 	{ NVA3_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
@@ -59,6 +63,10 @@ nva3_disp_base_oclass[] = {
 	{ NVA3_DISP_CLASS, &nv50_disp_base_ofuncs, nva3_disp_base_omthds },
 	{}
 };
+
+/*******************************************************************************
+ * Display engine implementation
+ ******************************************************************************/
 
 static int
 nva3_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -94,13 +102,17 @@ nva3_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-struct nouveau_oclass
-nva3_disp_oclass = {
-	.handle = NV_ENGINE(DISP, 0x85),
-	.ofuncs = &(struct nouveau_ofuncs) {
+struct nouveau_oclass *
+nva3_disp_oclass = &(struct nv50_disp_impl) {
+	.base.base.handle = NV_ENGINE(DISP, 0x85),
+	.base.base.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nva3_disp_ctor,
 		.dtor = _nouveau_disp_dtor,
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
-};
+	.mthd.core = &nv94_disp_mast_mthd_chan,
+	.mthd.base = &nv84_disp_sync_mthd_chan,
+	.mthd.ovly = &nv84_disp_ovly_mthd_chan,
+	.mthd.prev = 0x000004,
+}.base.base;

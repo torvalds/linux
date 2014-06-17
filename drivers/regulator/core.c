@@ -2138,7 +2138,7 @@ EXPORT_SYMBOL_GPL(regulator_is_enabled);
  * @regulator: regulator source
  *
  * Returns positive if the regulator driver backing the source/client
- * can change its voltage, false otherwise. Usefull for detecting fixed
+ * can change its voltage, false otherwise. Useful for detecting fixed
  * or dummy regulators and disabling voltage change logic in the client
  * driver.
  */
@@ -2399,6 +2399,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
 	int old_min_uV, old_max_uV;
+	int current_uV;
 
 	mutex_lock(&rdev->mutex);
 
@@ -2408,6 +2409,19 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	 */
 	if (regulator->min_uV == min_uV && regulator->max_uV == max_uV)
 		goto out;
+
+	/* If we're trying to set a range that overlaps the current voltage,
+	 * return succesfully even though the regulator does not support
+	 * changing the voltage.
+	 */
+	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE)) {
+		current_uV = _regulator_get_voltage(rdev);
+		if (min_uV <= current_uV && current_uV <= max_uV) {
+			regulator->min_uV = min_uV;
+			regulator->max_uV = max_uV;
+			goto out;
+		}
+	}
 
 	/* sanity check */
 	if (!rdev->desc->ops->set_voltage &&

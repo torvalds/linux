@@ -1020,7 +1020,7 @@ out:
 
 /**
  * This function is used to make the extent prepared for transfer.
- * A race with flusing page - ll_writepage() has to be handled cautiously.
+ * A race with flushing page - ll_writepage() has to be handled cautiously.
  */
 static int osc_extent_make_ready(const struct lu_env *env,
 				 struct osc_extent *ext)
@@ -2146,7 +2146,7 @@ int osc_prep_async_page(struct osc_object *osc, struct osc_page *ops,
 	oap->oap_obj_off = offset;
 	LASSERT(!(offset & ~CFS_PAGE_MASK));
 
-	if (!client_is_remote(exp) && cfs_capable(CFS_CAP_SYS_RESOURCE))
+	if (!client_is_remote(exp) && capable(CFS_CAP_SYS_RESOURCE))
 		oap->oap_brw_flags = OBD_BRW_NOQUOTA;
 
 	INIT_LIST_HEAD(&oap->oap_pending_item);
@@ -2186,7 +2186,7 @@ int osc_queue_async_io(const struct lu_env *env, struct cl_io *io,
 	/* Set the OBD_BRW_SRVLOCK before the page is queued. */
 	brw_flags |= ops->ops_srvlock ? OBD_BRW_SRVLOCK : 0;
 	if (!client_is_remote(osc_export(osc)) &&
-	    cfs_capable(CFS_CAP_SYS_RESOURCE)) {
+	    capable(CFS_CAP_SYS_RESOURCE)) {
 		brw_flags |= OBD_BRW_NOQUOTA;
 		cmd |= OBD_BRW_NOQUOTA;
 	}
@@ -2394,6 +2394,12 @@ int osc_flush_async_page(const struct lu_env *env, struct cl_io *io,
 		 * really sending the RPC. */
 	case OES_TRUNC:
 		/* race with truncate, page will be redirtied */
+	case OES_ACTIVE:
+		/* The extent is active so we need to abort and let the caller
+		 * re-dirty the page. If we continued on here, and we were the
+		 * one making the extent active, we could deadlock waiting for
+		 * the page writeback to clear but it won't because the extent
+		 * is active and won't be written out. */
 		GOTO(out, rc = -EAGAIN);
 	default:
 		break;

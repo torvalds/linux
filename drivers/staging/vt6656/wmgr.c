@@ -2164,12 +2164,12 @@ void vMgrCreateOwnIBSS(struct vnt_private *pDevice, PCMD_STATUS pStatus)
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_ESS(1);
         pMgmt->byDTIMPeriod = DEFAULT_DTIM_PERIOD;
         pMgmt->byDTIMCount = pMgmt->byDTIMPeriod - 1;
-        pDevice->eOPMode = OP_MODE_AP;
+	pDevice->op_mode = NL80211_IFTYPE_AP;
     }
 
     if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
         pMgmt->wCurrCapInfo |= WLAN_SET_CAP_INFO_IBSS(1);
-        pDevice->eOPMode = OP_MODE_ADHOC;
+	pDevice->op_mode = NL80211_IFTYPE_ADHOC;
     }
 
     if (pDevice->bEncryptionEnable) {
@@ -2359,7 +2359,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
 
             pMgmt->eCurrState = WMAC_STATE_JOINTED;
             // Adopt BSS state in Adapter Device Object
-            pDevice->eOPMode = OP_MODE_INFRASTRUCTURE;
+	    pDevice->op_mode = NL80211_IFTYPE_STATION;
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);
 
             // Add current BSS to Candidate list
@@ -2500,7 +2500,7 @@ void vMgrJoinBSSBegin(struct vnt_private *pDevice, PCMD_STATUS pStatus)
             pMgmt->eCurrMode = WMAC_MODE_IBSS_STA;
             pMgmt->eCurrState = WMAC_STATE_STARTED;
             // Adopt BSS state in Adapter Device Object
-            pDevice->eOPMode = OP_MODE_ADHOC;
+	    pDevice->op_mode = NL80211_IFTYPE_ADHOC;
             pDevice->bLinkPass = true;
             ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_INTER);
             memcpy(pDevice->abyBSSID, pCurr->abyBSSID, WLAN_BSSID_LEN);

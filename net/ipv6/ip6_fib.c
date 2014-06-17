@@ -9,14 +9,12 @@
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
- */
-
-/*
- * 	Changes:
- * 	Yuji SEKIYA @USAGI:	Support default route on router node;
- * 				remove ip6_null_entry from the top of
- * 				routing table.
- * 	Ville Nuorvala:		Fixed routing subtrees.
+ *
+ *	Changes:
+ *	Yuji SEKIYA @USAGI:	Support default route on router node;
+ *				remove ip6_null_entry from the top of
+ *				routing table.
+ *	Ville Nuorvala:		Fixed routing subtrees.
  */
 
 #define pr_fmt(fmt) "IPv6: " fmt
@@ -46,10 +44,9 @@
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
 
-static struct kmem_cache * fib6_node_kmem __read_mostly;
+static struct kmem_cache *fib6_node_kmem __read_mostly;
 
-enum fib_walk_state_t
-{
+enum fib_walk_state_t {
 #ifdef CONFIG_IPV6_SUBTREES
 	FWS_S,
 #endif
@@ -59,8 +56,7 @@ enum fib_walk_state_t
 	FWS_U
 };
 
-struct fib6_cleaner_t
-{
+struct fib6_cleaner_t {
 	struct fib6_walker_t w;
 	struct net *net;
 	int (*func)(struct rt6_info *, void *arg);
@@ -138,7 +134,7 @@ static __inline__ __be32 addr_bit_set(const void *token, int fn_bit)
 	const __be32 *addr = token;
 	/*
 	 * Here,
-	 * 	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
+	 *	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
 	 * is optimized version of
 	 *	htonl(1 << ((~fn_bit)&0x1F))
 	 * See include/asm-generic/bitops/le.h.
@@ -147,7 +143,7 @@ static __inline__ __be32 addr_bit_set(const void *token, int fn_bit)
 	       addr[fn_bit >> 5];
 }
 
-static __inline__ struct fib6_node * node_alloc(void)
+static __inline__ struct fib6_node *node_alloc(void)
 {
 	struct fib6_node *fn;
 
@@ -156,7 +152,7 @@ static __inline__ struct fib6_node * node_alloc(void)
 	return fn;
 }
 
-static __inline__ void node_free(struct fib6_node * fn)
+static __inline__ void node_free(struct fib6_node *fn)
 {
 	kmem_cache_free(fib6_node_kmem, fn);
 }
@@ -292,7 +288,7 @@ static int fib6_dump_node(struct fib6_walker_t *w)
 
 static void fib6_dump_end(struct netlink_callback *cb)
 {
-	struct fib6_walker_t *w = (void*)cb->args[2];
+	struct fib6_walker_t *w = (void *)cb->args[2];
 
 	if (w) {
 		if (cb->args[4]) {
@@ -302,7 +298,7 @@ static void fib6_dump_end(struct netlink_callback *cb)
 		cb->args[2] = 0;
 		kfree(w);
 	}
-	cb->done = (void*)cb->args[3];
+	cb->done = (void *)cb->args[3];
 	cb->args[1] = 3;
 }
 
@@ -485,7 +481,7 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 		fn->fn_sernum = sernum;
 		dir = addr_bit_set(addr, fn->fn_bit);
 		pn = fn;
-		fn = dir ? fn->right: fn->left;
+		fn = dir ? fn->right : fn->left;
 	} while (fn);
 
 	if (!allow_create) {
@@ -638,12 +634,41 @@ static inline bool rt6_qualify_for_ecmp(struct rt6_info *rt)
 	       RTF_GATEWAY;
 }
 
+static int fib6_commit_metrics(struct dst_entry *dst,
+			       struct nlattr *mx, int mx_len)
+{
+	struct nlattr *nla;
+	int remaining;
+	u32 *mp;
+
+	if (dst->flags & DST_HOST) {
+		mp = dst_metrics_write_ptr(dst);
+	} else {
+		mp = kzalloc(sizeof(u32) * RTAX_MAX, GFP_KERNEL);
+		if (!mp)
+			return -ENOMEM;
+		dst_init_metrics(dst, mp, 0);
+	}
+
+	nla_for_each_attr(nla, mx, mx_len, remaining) {
+		int type = nla_type(nla);
+
+		if (type) {
+			if (type > RTAX_MAX)
+				return -EINVAL;
+
+			mp[type - 1] = nla_get_u32(nla);
+		}
+	}
+	return 0;
+}
+
 /*
  *	Insert routing information in a node.
  */
 
 static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
-			    struct nl_info *info)
+			    struct nl_info *info, struct nlattr *mx, int mx_len)
 {
 	struct rt6_info *iter = NULL;
 	struct rt6_info **ins;
@@ -653,6 +678,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		   (info->nlh->nlmsg_flags & NLM_F_CREATE));
 	int found = 0;
 	bool rt_can_ecmp = rt6_qualify_for_ecmp(rt);
+	int err;
 
 	ins = &fn->leaf;
 
@@ -751,6 +777,11 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 			pr_warn("NLM_F_CREATE should be set when creating new route\n");
 
 add:
+		if (mx) {
+			err = fib6_commit_metrics(&rt->dst, mx, mx_len);
+			if (err)
+				return err;
+		}
 		rt->dst.rt6_next = iter;
 		*ins = rt;
 		rt->rt6i_node = fn;
@@ -769,6 +800,11 @@ add:
 				goto add;
 			pr_warn("NLM_F_REPLACE set, but no existing node found!\n");
 			return -ENOENT;
+		}
+		if (mx) {
+			err = fib6_commit_metrics(&rt->dst, mx, mx_len);
+			if (err)
+				return err;
 		}
 		*ins = rt;
 		rt->rt6i_node = fn;
@@ -806,7 +842,8 @@ void fib6_force_start_gc(struct net *net)
  *	with source addr info in sub-trees
  */
 
-int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
+int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
+	     struct nlattr *mx, int mx_len)
 {
 	struct fib6_node *fn, *pn = NULL;
 	int err = -ENOMEM;
@@ -900,7 +937,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info)
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, info);
+	err = fib6_add_rt2node(fn, rt, info, mx, mx_len);
 	if (!err) {
 		fib6_start_gc(info->nl_net, rt);
 		if (!(rt->rt6i_flags & RTF_CACHE))
@@ -955,8 +992,8 @@ struct lookup_args {
 	const struct in6_addr	*addr;		/* search key			*/
 };
 
-static struct fib6_node * fib6_lookup_1(struct fib6_node *root,
-					struct lookup_args *args)
+static struct fib6_node *fib6_lookup_1(struct fib6_node *root,
+				       struct lookup_args *args)
 {
 	struct fib6_node *fn;
 	__be32 dir;
@@ -1018,8 +1055,8 @@ backtrack:
 	return NULL;
 }
 
-struct fib6_node * fib6_lookup(struct fib6_node *root, const struct in6_addr *daddr,
-			       const struct in6_addr *saddr)
+struct fib6_node *fib6_lookup(struct fib6_node *root, const struct in6_addr *daddr,
+			      const struct in6_addr *saddr)
 {
 	struct fib6_node *fn;
 	struct lookup_args args[] = {
@@ -1051,9 +1088,9 @@ struct fib6_node * fib6_lookup(struct fib6_node *root, const struct in6_addr *da
  */
 
 
-static struct fib6_node * fib6_locate_1(struct fib6_node *root,
-					const struct in6_addr *addr,
-					int plen, int offset)
+static struct fib6_node *fib6_locate_1(struct fib6_node *root,
+				       const struct in6_addr *addr,
+				       int plen, int offset)
 {
 	struct fib6_node *fn;
 
@@ -1081,9 +1118,9 @@ static struct fib6_node * fib6_locate_1(struct fib6_node *root,
 	return NULL;
 }
 
-struct fib6_node * fib6_locate(struct fib6_node *root,
-			       const struct in6_addr *daddr, int dst_len,
-			       const struct in6_addr *saddr, int src_len)
+struct fib6_node *fib6_locate(struct fib6_node *root,
+			      const struct in6_addr *daddr, int dst_len,
+			      const struct in6_addr *saddr, int src_len)
 {
 	struct fib6_node *fn;
 
@@ -1151,8 +1188,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 
 		children = 0;
 		child = NULL;
-		if (fn->right) child = fn->right, children |= 1;
-		if (fn->left) child = fn->left, children |= 2;
+		if (fn->right)
+			child = fn->right, children |= 1;
+		if (fn->left)
+			child = fn->left, children |= 2;
 
 		if (children == 3 || FIB6_SUBTREE(fn)
 #ifdef CONFIG_IPV6_SUBTREES
@@ -1180,8 +1219,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		} else {
 			WARN_ON(fn->fn_flags & RTN_ROOT);
 #endif
-			if (pn->right == fn) pn->right = child;
-			else if (pn->left == fn) pn->left = child;
+			if (pn->right == fn)
+				pn->right = child;
+			else if (pn->left == fn)
+				pn->left = child;
 #if RT6_DEBUG >= 2
 			else
 				WARN_ON(1);
@@ -1213,10 +1254,10 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 					w->node = child;
 					if (children&2) {
 						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
-						w->state = w->state>=FWS_R ? FWS_U : FWS_INIT;
+						w->state = w->state >= FWS_R ? FWS_U : FWS_INIT;
 					} else {
 						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
-						w->state = w->state>=FWS_C ? FWS_U : FWS_INIT;
+						w->state = w->state >= FWS_C ? FWS_U : FWS_INIT;
 					}
 				}
 			}
@@ -1314,7 +1355,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 	struct rt6_info **rtp;
 
 #if RT6_DEBUG >= 2
-	if (rt->dst.obsolete>0) {
+	if (rt->dst.obsolete > 0) {
 		WARN_ON(fn != NULL);
 		return -ENOENT;
 	}
@@ -1418,7 +1459,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 
 				if (w->skip) {
 					w->skip--;
-					continue;
+					goto skip;
 				}
 
 				err = w->func(w);
@@ -1428,6 +1469,7 @@ static int fib6_walk_continue(struct fib6_walker_t *w)
 				w->count++;
 				continue;
 			}
+skip:
 			w->state = FWS_U;
 		case FWS_U:
 			if (fn == w->root)
@@ -1707,7 +1749,7 @@ out_rt6_stats:
 	kfree(net->ipv6.rt6_stats);
 out_timer:
 	return -ENOMEM;
- }
+}
 
 static void fib6_net_exit(struct net *net)
 {

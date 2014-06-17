@@ -90,18 +90,18 @@ static void ft_free_cmd(struct ft_cmd *cmd)
 {
 	struct fc_frame *fp;
 	struct fc_lport *lport;
-	struct se_session *se_sess;
+	struct ft_sess *sess;
 
 	if (!cmd)
 		return;
-	se_sess = cmd->sess->se_sess;
+	sess = cmd->sess;
 	fp = cmd->req_frame;
 	lport = fr_dev(fp);
 	if (fr_seq(fp))
 		lport->tt.seq_release(fr_seq(fp));
 	fc_frame_free(fp);
-	percpu_ida_free(&se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
-	ft_sess_put(cmd->sess);	/* undo get from lookup at recv */
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	ft_sess_put(sess);	/* undo get from lookup at recv */
 }
 
 void ft_release_cmd(struct se_cmd *se_cmd)
@@ -424,6 +424,11 @@ void ft_queue_tm_resp(struct se_cmd *se_cmd)
 	pr_debug("tmr fn %d resp %d fcp code %d\n",
 		  tmr->function, tmr->response, code);
 	ft_send_resp_code(cmd, code);
+}
+
+void ft_aborted_task(struct se_cmd *se_cmd)
+{
+	return;
 }
 
 static void ft_send_work(struct work_struct *work);

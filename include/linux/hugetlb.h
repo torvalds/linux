@@ -6,6 +6,8 @@
 #include <linux/fs.h>
 #include <linux/hugetlb_inline.h>
 #include <linux/cgroup.h>
+#include <linux/list.h>
+#include <linux/kref.h>
 
 struct ctl_table;
 struct user_struct;
@@ -22,6 +24,14 @@ struct hugepage_subpool {
 	long count;
 	long max_hpages, used_hpages;
 };
+
+struct resv_map {
+	struct kref refs;
+	spinlock_t lock;
+	struct list_head regions;
+};
+extern struct resv_map *resv_map_alloc(void);
+void resv_map_release(struct kref *ref);
 
 extern spinlock_t hugetlb_lock;
 extern int hugetlb_max_hstate __read_mostly;
@@ -400,6 +410,16 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 		return pmd_lockptr(mm, (pmd_t *) pte);
 	VM_BUG_ON(huge_page_size(h) == PAGE_SIZE);
 	return &mm->page_table_lock;
+}
+
+static inline bool hugepages_supported(void)
+{
+	/*
+	 * Some platform decide whether they support huge pages at boot
+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+	 * there is no such support
+	 */
+	return HPAGE_SHIFT != 0;
 }
 
 #else	/* CONFIG_HUGETLB_PAGE */

@@ -188,6 +188,9 @@ shift
 #define CP_METHODREF 10
 #define CP_INTERFACEMETHODREF 11
 #define CP_NAMEANDTYPE 12
+#define CP_METHODHANDLE 15
+#define CP_METHODTYPE 16
+#define CP_INVOKEDYNAMIC 18
 
 /* Define some commonly used error messages */
 
@@ -242,7 +245,11 @@ void skip_constant(FILE *classfile, u_int16_t *cur)
 		break;
 	case CP_CLASS:
 	case CP_STRING:
+	case CP_METHODTYPE:
 		seekerr = fseek(classfile, 2, SEEK_CUR);
+		break;
+	case CP_METHODHANDLE:
+		seekerr = fseek(classfile, 3, SEEK_CUR);
 		break;
 	case CP_INTEGER:
 	case CP_FLOAT:
@@ -250,6 +257,7 @@ void skip_constant(FILE *classfile, u_int16_t *cur)
 	case CP_METHODREF:
 	case CP_INTERFACEMETHODREF:
 	case CP_NAMEANDTYPE:
+	case CP_INVOKEDYNAMIC:
 		seekerr = fseek(classfile, 4, SEEK_CUR);
 		break;
 	case CP_LONG:

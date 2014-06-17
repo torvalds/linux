@@ -1,0 +1,141 @@
+#!/bin/bash
+
+# objdiff - a small script for validating that a commit or series of commits
+# didn't change object code.
+#
+# Copyright 2014, Jason Cooper <jason@lakedaemon.net>
+#
+# Licensed under the terms of the GNU GPL version 2
+
+# usage example:
+#
+# $ git checkout COMMIT_A
+# $ <your fancy build command here>
+# $ ./scripts/objdiff record path/to/*.o
+#
+# $ git checkout COMMIT_B
+# $ <your fancy build command here>
+# $ ./scripts/objdiff record path/to/*.o
+#
+# $ ./scripts/objdiff diff COMMIT_A COMMIT_B
+# $
+
+# And to clean up (everything is in .tmp_objdiff/*)
+# $ ./scripts/objdiff clean all
+#
+# Note: 'make mrproper' will also remove .tmp_objdiff
+
+GIT_DIR="`git rev-parse --git-dir`"
+
+if [ -d "$GIT_DIR" ]; then
+	TMPD="${GIT_DIR%git}tmp_objdiff"
+
+	[ -d "$TMPD" ] || mkdir "$TMPD"
+else
+	echo "ERROR: git directory not found."
+	exit 1
+fi
+
+usage() {
+	echo "Usage: $0 <command> <args>"
+	echo "  record    <list of object files>"
+	echo "  diff      <commitA> <commitB>"
+	echo "  clean     all | <commit>"
+	exit 1
+}
+
+dorecord() {
+	[ $# -eq 0 ] && usage
+
+	FILES="$*"
+
+	CMT="`git rev-parse --short HEAD`"
+
+	OBJDUMP="${CROSS_COMPILE}objdump"
+	OBJDIFFD="$TMPD/$CMT"
+
+	[ ! -d "$OBJDIFFD" ] && mkdir -p "$OBJDIFFD"
+
+	for f in $FILES; do
+		dn="${f%/*}"
+		bn="${f##*/}"
+
+		[ ! -d "$OBJDIFFD/$dn" ] && mkdir -p "$OBJDIFFD/$dn"
+
+		# remove addresses for a more clear diff
+		# http://dummdida.tumblr.com/post/60924060451/binary-diff-between-libc-from-scientificlinux-and
+		$OBJDUMP -D "$f" | sed "s/^[[:space:]]\+[0-9a-f]\+//" \
+			>"$OBJDIFFD/$dn/$bn"
+	done
+}
+
+dodiff() {
+	[ $# -ne 2 ] && [ $# -ne 0 ] && usage
+
+	if [ $# -eq 0 ]; then
+		SRC="`git rev-parse --short HEAD^`"
+		DST="`git rev-parse --short HEAD`"
+	else
+		SRC="`git rev-parse --short $1`"
+		DST="`git rev-parse --short $2`"
+	fi
+
+	DIFF="`which colordiff`"
+
+	if [ ${#DIFF} -eq 0 ] || [ ! -x "$DIFF" ]; then
+		DIFF="`which diff`"
+	fi
+
+	SRCD="$TMPD/$SRC"
+	DSTD="$TMPD/$DST"
+
+	if [ ! -d "$SRCD" ]; then
+		echo "ERROR: $SRCD doesn't exist"
+		exit 1
+	fi
+
+	if [ ! -d "$DSTD" ]; then
+		echo "ERROR: $DSTD doesn't exist"
+		exit 1
+	fi
+
+	$DIFF -Nurd $SRCD $DSTD
+}
+
+doclean() {
+	[ $# -eq 0 ] && usage
+	[ $# -gt 1 ] && usage
+
+	if [ "x$1" = "xall" ]; then
+		rm -rf $TMPD/*
+	else
+		CMT="`git rev-parse --short $1`"
+
+		if [ -d "$TMPD/$CMT" ]; then
+			rm -rf $TMPD/$CMT
+		else
+			echo "$CMT not found"
+		fi
+	fi
+}
+
+[ $# -eq 0 ] &&	usage
+
+case "$1" in
+	record)
+		shift
+		dorecord $*
+		;;
+	diff)
+		shift
+		dodiff $*
+		;;
+	clean)
+		shift
+		doclean $*
+		;;
+	*)
+		echo "Unrecognized command '$1'"
+		exit 1
+		;;
+esac

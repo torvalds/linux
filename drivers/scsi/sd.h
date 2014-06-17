@@ -104,6 +104,12 @@ static inline struct scsi_disk *scsi_disk(struct gendisk *disk)
 		    (sdsk)->disk->disk_name, ##a) :			\
 	sdev_printk(prefix, (sdsk)->device, fmt, ##a)
 
+#define sd_first_printk(prefix, sdsk, fmt, a...)			\
+	do {								\
+		if ((sdkp)->first_scan)					\
+			sd_printk(prefix, sdsk, fmt, ##a);		\
+	} while (0)
+
 static inline int scsi_medium_access_command(struct scsi_cmnd *scmd)
 {
 	switch (scmd->cmnd[0]) {

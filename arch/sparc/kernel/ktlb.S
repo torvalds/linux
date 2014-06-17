@@ -277,7 +277,7 @@ kvmap_dtlb_load:
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 kvmap_vmemmap:
 	sub		%g4, %g5, %g5
-	srlx		%g5, 22, %g5
+	srlx		%g5, ILOG2_4MB, %g5
 	sethi		%hi(vmemmap_table), %g1
 	sllx		%g5, 3, %g5
 	or		%g1, %lo(vmemmap_table), %g1

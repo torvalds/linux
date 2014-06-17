@@ -1,0 +1,30 @@
+PCM512x audio CODECs
+
+These devices support both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+
+  - compatible : One of "ti,pcm5121" or "ti,pcm5122"
+
+  - reg : the I2C address of the device for I2C, the chip select
+          number for SPI.
+
+  - AVDD-supply, DVDD-supply, and CPVDD-supply : power supplies for the
+    device, as covered in bindings/regulator/regulator.txt
+
+Optional properties:
+
+  - clocks : A clock specifier for the clock connected as SCLK.  If this
+    is absent the device will be configured to clock from BCLK.
+
+Example:
+
+	pcm5122: pcm5122@4c {
+		compatible = "ti,pcm5122";
+		reg = <0x4c>;
+
+		AVDD-supply = <&reg_3v3_analog>;
+		DVDD-supply = <&reg_1v8>;
+		CPVDD-supply = <&reg_3v3>;
+	};

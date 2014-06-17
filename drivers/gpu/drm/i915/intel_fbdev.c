@@ -62,6 +62,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 {
 	struct intel_fbdev *ifbdev =
 		container_of(helper, struct intel_fbdev, helper);
+	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
@@ -93,18 +94,22 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	/* Flush everything out, we'll be doing GTT only from now on */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
-		DRM_ERROR("failed to pin fb: %d\n", ret);
+		DRM_ERROR("failed to pin obj: %d\n", ret);
 		goto out_unref;
 	}
 
-	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
-	if (ret)
+	fb = __intel_framebuffer_create(dev, &mode_cmd, obj);
+	if (IS_ERR(fb)) {
+		ret = PTR_ERR(fb);
 		goto out_unpin;
+	}
+
+	ifbdev->fb = to_intel_framebuffer(fb);
 
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 out_unref:
 	drm_gem_object_unreference(&obj->base);
 out:
@@ -116,23 +121,36 @@ static int intelfb_create(struct drm_fb_helper *helper,
 {
 	struct intel_fbdev *ifbdev =
 		container_of(helper, struct intel_fbdev, helper);
-	struct intel_framebuffer *intel_fb = &ifbdev->ifb;
+	struct intel_framebuffer *intel_fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_i915_gem_object *obj;
 	int size, ret;
+	bool prealloc = false;
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (!intel_fb->obj) {
+	if (intel_fb &&
+	    (sizes->fb_width > intel_fb->base.width ||
+	     sizes->fb_height > intel_fb->base.height)) {
+		DRM_DEBUG_KMS("BIOS fb too small (%dx%d), we require (%dx%d),"
+			      " releasing it\n",
+			      intel_fb->base.width, intel_fb->base.height,
+			      sizes->fb_width, sizes->fb_height);
+		drm_framebuffer_unreference(&intel_fb->base);
+		intel_fb = ifbdev->fb = NULL;
+	}
+	if (!intel_fb || WARN_ON(!intel_fb->obj)) {
 		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
 			goto out_unlock;
+		intel_fb = ifbdev->fb;
 	} else {
 		DRM_DEBUG_KMS("re-using BIOS fb\n");
+		prealloc = true;
 		sizes->fb_width = intel_fb->base.width;
 		sizes->fb_height = intel_fb->base.height;
 	}
@@ -148,7 +166,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	info->par = helper;
 
-	fb = &ifbdev->ifb.base;
+	fb = &ifbdev->fb->base;
 
 	ifbdev->helper.fb = fb;
 	ifbdev->helper.fbdev = info;
@@ -194,7 +212,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (ifbdev->ifb.obj->stolen)
+	if (ifbdev->fb->obj->stolen && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -208,7 +226,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_ggtt_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
@@ -236,7 +254,202 @@ static void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = intel_crtc->lut_b[regno] << 8;
 }
 
+static struct drm_fb_helper_crtc *
+intel_fb_helper_crtc(struct drm_fb_helper *fb_helper, struct drm_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		if (fb_helper->crtc_info[i].mode_set.crtc == crtc)
+			return &fb_helper->crtc_info[i];
+
+	return NULL;
+}
+
+/*
+ * Try to read the BIOS display configuration and use it for the initial
+ * fb configuration.
+ *
+ * The BIOS or boot loader will generally create an initial display
+ * configuration for us that includes some set of active pipes and displays.
+ * This routine tries to figure out which pipes and connectors are active
+ * and stuffs them into the crtcs and modes array given to us by the
+ * drm_fb_helper code.
+ *
+ * The overall sequence is:
+ *   intel_fbdev_init - from driver load
+ *     intel_fbdev_init_bios - initialize the intel_fbdev using BIOS data
+ *     drm_fb_helper_init - build fb helper structs
+ *     drm_fb_helper_single_add_all_connectors - more fb helper structs
+ *   intel_fbdev_initial_config - apply the config
+ *     drm_fb_helper_initial_config - call ->probe then register_framebuffer()
+ *         drm_setup_crtcs - build crtc config for fbdev
+ *           intel_fb_initial_config - find active connectors etc
+ *         drm_fb_helper_single_fb_probe - set up fbdev
+ *           intelfb_create - re-use or alloc fb, build out fbdev structs
+ *
+ * Note that we don't make special consideration whether we could actually
+ * switch to the selected modes without a full modeset. E.g. when the display
+ * is in VGA mode we need to recalculate watermarks and set a new high-res
+ * framebuffer anyway.
+ */
+static bool intel_fb_initial_config(struct drm_fb_helper *fb_helper,
+				    struct drm_fb_helper_crtc **crtcs,
+				    struct drm_display_mode **modes,
+				    bool *enabled, int width, int height)
+{
+	struct drm_device *dev = fb_helper->dev;
+	int i, j;
+	bool *save_enabled;
+	bool fallback = true;
+	int num_connectors_enabled = 0;
+	int num_connectors_detected = 0;
+
+	/*
+	 * If the user specified any force options, just bail here
+	 * and use that config.
+	 */
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+
+		if (!enabled[i])
+			continue;
+
+		if (connector->force != DRM_FORCE_UNSPECIFIED)
+			return false;
+	}
+
+	save_enabled = kcalloc(dev->mode_config.num_connector, sizeof(bool),
+			       GFP_KERNEL);
+	if (!save_enabled)
+		return false;
+
+	memcpy(save_enabled, enabled, dev->mode_config.num_connector);
+
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_fb_helper_connector *fb_conn;
+		struct drm_connector *connector;
+		struct drm_encoder *encoder;
+		struct drm_fb_helper_crtc *new_crtc;
+
+		fb_conn = fb_helper->connector_info[i];
+		connector = fb_conn->connector;
+
+		if (connector->status == connector_status_connected)
+			num_connectors_detected++;
+
+		if (!enabled[i]) {
+			DRM_DEBUG_KMS("connector %d not enabled, skipping\n",
+				      connector->base.id);
+			continue;
+		}
+
+		encoder = connector->encoder;
+		if (!encoder || WARN_ON(!encoder->crtc)) {
+			DRM_DEBUG_KMS("connector %d has no encoder or crtc, skipping\n",
+				      connector->base.id);
+			enabled[i] = false;
+			continue;
+		}
+
+		num_connectors_enabled++;
+
+		new_crtc = intel_fb_helper_crtc(fb_helper, encoder->crtc);
+
+		/*
+		 * Make sure we're not trying to drive multiple connectors
+		 * with a single CRTC, since our cloning support may not
+		 * match the BIOS.
+		 */
+		for (j = 0; j < fb_helper->connector_count; j++) {
+			if (crtcs[j] == new_crtc) {
+				DRM_DEBUG_KMS("fallback: cloned configuration\n");
+				fallback = true;
+				goto out;
+			}
+		}
+
+		DRM_DEBUG_KMS("looking for cmdline mode on connector %d\n",
+			      fb_conn->connector->base.id);
+
+		/* go for command line mode first */
+		modes[i] = drm_pick_cmdline_mode(fb_conn, width, height);
+
+		/* try for preferred next */
+		if (!modes[i]) {
+			DRM_DEBUG_KMS("looking for preferred mode on connector %d\n",
+				      fb_conn->connector->base.id);
+			modes[i] = drm_has_preferred_mode(fb_conn, width,
+							  height);
+		}
+
+		/* No preferred mode marked by the EDID? Are there any modes? */
+		if (!modes[i] && !list_empty(&connector->modes)) {
+			DRM_DEBUG_KMS("using first mode listed on connector %s\n",
+				      drm_get_connector_name(connector));
+			modes[i] = list_first_entry(&connector->modes,
+						    struct drm_display_mode,
+						    head);
+		}
+
+		/* last resort: use current mode */
+		if (!modes[i]) {
+			/*
+			 * IMPORTANT: We want to use the adjusted mode (i.e.
+			 * after the panel fitter upscaling) as the initial
+			 * config, not the input mode, which is what crtc->mode
+			 * usually contains. But since our current fastboot
+			 * code puts a mode derived from the post-pfit timings
+			 * into crtc->mode this works out correctly. We don't
+			 * use hwmode anywhere right now, so use it for this
+			 * since the fb helper layer wants a pointer to
+			 * something we own.
+			 */
+			intel_mode_from_pipe_config(&encoder->crtc->hwmode,
+						    &to_intel_crtc(encoder->crtc)->config);
+			modes[i] = &encoder->crtc->hwmode;
+		}
+		crtcs[i] = new_crtc;
+
+		DRM_DEBUG_KMS("connector %s on crtc %d: %s\n",
+			      drm_get_connector_name(connector),
+			      encoder->crtc->base.id,
+			      modes[i]->name);
+
+		fallback = false;
+	}
+
+	/*
+	 * If the BIOS didn't enable everything it could, fall back to have the
+	 * same user experiencing of lighting up as much as possible like the
+	 * fbdev helper library.
+	 */
+	if (num_connectors_enabled != num_connectors_detected &&
+	    num_connectors_enabled < INTEL_INFO(dev)->num_pipes) {
+		DRM_DEBUG_KMS("fallback: Not all outputs enabled\n");
+		DRM_DEBUG_KMS("Enabled: %i, detected: %i\n", num_connectors_enabled,
+			      num_connectors_detected);
+		fallback = true;
+	}
+
+out:
+	if (fallback) {
+		DRM_DEBUG_KMS("Not using firmware configuration\n");
+		memcpy(enabled, save_enabled, dev->mode_config.num_connector);
+		kfree(save_enabled);
+		return false;
+	}
+
+	kfree(save_enabled);
+	return true;
+}
+
 static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+	.initial_config = intel_fb_initial_config,
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,
 	.fb_probe = intelfb_create,
@@ -258,8 +471,139 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	drm_framebuffer_unregister_private(&ifbdev->ifb.base);
-	intel_framebuffer_fini(&ifbdev->ifb);
+	drm_framebuffer_unregister_private(&ifbdev->fb->base);
+	drm_framebuffer_remove(&ifbdev->fb->base);
+}
+
+/*
+ * Build an intel_fbdev struct using a BIOS allocated framebuffer, if possible.
+ * The core display code will have read out the current plane configuration,
+ * so we use that to figure out if there's an object for us to use as the
+ * fb, and if so, we re-use it for the fbdev configuration.
+ *
+ * Note we only support a single fb shared across pipes for boot (mostly for
+ * fbcon), so we just find the biggest and use that.
+ */
+static bool intel_fbdev_init_bios(struct drm_device *dev,
+				 struct intel_fbdev *ifbdev)
+{
+	struct intel_framebuffer *fb = NULL;
+	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+	struct intel_plane_config *plane_config = NULL;
+	unsigned int max_size = 0;
+
+	if (!i915.fastboot)
+		return false;
+
+	/* Find the largest fb */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active || !crtc->primary->fb) {
+			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
+				      pipe_name(intel_crtc->pipe));
+			continue;
+		}
+
+		if (intel_crtc->plane_config.size > max_size) {
+			DRM_DEBUG_KMS("found possible fb from plane %c\n",
+				      pipe_name(intel_crtc->pipe));
+			plane_config = &intel_crtc->plane_config;
+			fb = to_intel_framebuffer(crtc->primary->fb);
+			max_size = plane_config->size;
+		}
+	}
+
+	if (!fb) {
+		DRM_DEBUG_KMS("no active fbs found, not using BIOS config\n");
+		goto out;
+	}
+
+	/* Now make sure all the pipes will fit into it */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		unsigned int cur_size;
+
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active) {
+			DRM_DEBUG_KMS("pipe %c not active, skipping\n",
+				      pipe_name(intel_crtc->pipe));
+			continue;
+		}
+
+		DRM_DEBUG_KMS("checking plane %c for BIOS fb\n",
+			      pipe_name(intel_crtc->pipe));
+
+		/*
+		 * See if the plane fb we found above will fit on this
+		 * pipe.  Note we need to use the selected fb's pitch and bpp
+		 * rather than the current pipe's, since they differ.
+		 */
+		cur_size = intel_crtc->config.adjusted_mode.crtc_hdisplay;
+		cur_size = cur_size * fb->base.bits_per_pixel / 8;
+		if (fb->base.pitches[0] < cur_size) {
+			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
+				      pipe_name(intel_crtc->pipe),
+				      cur_size, fb->base.pitches[0]);
+			plane_config = NULL;
+			fb = NULL;
+			break;
+		}
+
+		cur_size = intel_crtc->config.adjusted_mode.crtc_vdisplay;
+		cur_size = ALIGN(cur_size, plane_config->tiled ? (IS_GEN2(dev) ? 16 : 8) : 1);
+		cur_size *= fb->base.pitches[0];
+		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
+			      pipe_name(intel_crtc->pipe),
+			      intel_crtc->config.adjusted_mode.crtc_hdisplay,
+			      intel_crtc->config.adjusted_mode.crtc_vdisplay,
+			      fb->base.bits_per_pixel,
+			      cur_size);
+
+		if (cur_size > max_size) {
+			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",
+				      pipe_name(intel_crtc->pipe),
+				      cur_size, max_size);
+			plane_config = NULL;
+			fb = NULL;
+			break;
+		}
+
+		DRM_DEBUG_KMS("fb big enough for plane %c (%d >= %d)\n",
+			      pipe_name(intel_crtc->pipe),
+			      max_size, cur_size);
+	}
+
+	if (!fb) {
+		DRM_DEBUG_KMS("BIOS fb not suitable for all pipes, not using\n");
+		goto out;
+	}
+
+	ifbdev->preferred_bpp = fb->base.bits_per_pixel;
+	ifbdev->fb = fb;
+
+	drm_framebuffer_reference(&ifbdev->fb->base);
+
+	/* Final pass to check if any active pipes don't have fbs */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		intel_crtc = to_intel_crtc(crtc);
+
+		if (!intel_crtc->active)
+			continue;
+
+		WARN(!crtc->primary->fb,
+		     "re-used BIOS config but lost an fb on crtc %d\n",
+		     crtc->base.id);
+	}
+
+
+	DRM_DEBUG_KMS("using BIOS fb for initial console\n");
+	return true;
+
+out:
+
+	return false;
 }
 
 int intel_fbdev_init(struct drm_device *dev)
@@ -268,21 +612,25 @@ int intel_fbdev_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ifbdev = kzalloc(sizeof(*ifbdev), GFP_KERNEL);
-	if (!ifbdev)
+	if (WARN_ON(INTEL_INFO(dev)->num_pipes == 0))
+		return -ENODEV;
+
+	ifbdev = kzalloc(sizeof(struct intel_fbdev), GFP_KERNEL);
+	if (ifbdev == NULL)
 		return -ENOMEM;
 
-	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
+	if (!intel_fbdev_init_bios(dev, ifbdev))
+		ifbdev->preferred_bpp = 32;
 
 	ret = drm_fb_helper_init(dev, &ifbdev->helper,
-				 INTEL_INFO(dev)->num_pipes,
-				 4);
+				 INTEL_INFO(dev)->num_pipes, 4);
 	if (ret) {
 		kfree(ifbdev);
 		return ret;
 	}
 
+	dev_priv->fbdev = ifbdev;
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 
 	return 0;
@@ -291,9 +639,10 @@ int intel_fbdev_init(struct drm_device *dev)
 void intel_fbdev_initial_config(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
-	drm_fb_helper_initial_config(&dev_priv->fbdev->helper, 32);
+	drm_fb_helper_initial_config(&ifbdev->helper, ifbdev->preferred_bpp);
 }
 
 void intel_fbdev_fini(struct drm_device *dev)
@@ -322,7 +671,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 	 * been restored from swap. If the object is stolen however, it will be
 	 * full of whatever garbage was left in there.
 	 */
-	if (state == FBINFO_STATE_RUNNING && ifbdev->ifb.obj->stolen)
+	if (state == FBINFO_STATE_RUNNING && ifbdev->fb->obj->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	fb_set_suspend(info, state);
@@ -331,7 +680,8 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
+	if (dev_priv->fbdev)
+		drm_fb_helper_hotplug_event(&dev_priv->fbdev->helper);
 }
 
 void intel_fbdev_restore_mode(struct drm_device *dev)
@@ -339,7 +689,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 	int ret;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->num_pipes == 0)
+	if (!dev_priv->fbdev)
 		return;
 
 	drm_modeset_lock_all(dev);

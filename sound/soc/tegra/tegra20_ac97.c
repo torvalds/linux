@@ -37,7 +37,6 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include "tegra_asoc_utils.h"
 #include "tegra20_ac97.h"
 
 #define DRV_NAME "tegra20-ac97"
@@ -306,7 +305,7 @@ static const struct regmap_config tegra20_ac97_regmap_config = {
 	.readable_reg = tegra20_ac97_wr_rd_reg,
 	.volatile_reg = tegra20_ac97_volatile_reg,
 	.precious_reg = tegra20_ac97_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int tegra20_ac97_platform_probe(struct platform_device *pdev)
@@ -376,18 +375,10 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ac97->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	ac97->playback_dma_data.maxburst = 4;
 
-	ret = tegra_asoc_utils_init(&ac97->util_data, &pdev->dev);
-	if (ret)
-		goto err_clk_put;
-
-	ret = tegra_asoc_utils_set_ac97_rate(&ac97->util_data);
-	if (ret)
-		goto err_asoc_utils_fini;
-
 	ret = clk_prepare_enable(ac97->clk_ac97);
 	if (ret) {
 		dev_err(&pdev->dev, "clk_enable failed: %d\n", ret);
-		goto err_asoc_utils_fini;
+		goto err;
 	}
 
 	ret = snd_soc_set_ac97_ops(&tegra20_ac97_ops);
@@ -419,8 +410,6 @@ err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
 err_clk_disable_unprepare:
 	clk_disable_unprepare(ac97->clk_ac97);
-err_asoc_utils_fini:
-	tegra_asoc_utils_fini(&ac97->util_data);
 err_clk_put:
 err:
 	snd_soc_set_ac97_ops(NULL);
@@ -433,8 +422,6 @@ static int tegra20_ac97_platform_remove(struct platform_device *pdev)
 
 	tegra_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
-
-	tegra_asoc_utils_fini(&ac97->util_data);
 
 	clk_disable_unprepare(ac97->clk_ac97);
 

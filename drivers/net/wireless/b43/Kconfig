@@ -92,7 +92,7 @@ config B43_SDIO
 # if we can do DMA.
 config B43_BCMA_PIO
 	bool
-	depends on B43_BCMA
+	depends on B43 && B43_BCMA
 	select BCMA_BLOCKIO
 	default y
 

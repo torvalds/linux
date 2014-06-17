@@ -160,7 +160,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 	u8 hw_init_completed = false;
 	struct hal_data_8188e *hal_data = GET_HAL_DATA(Adapter);
 
-	_func_enter_;
 	hw_init_completed = Adapter->hw_init_completed;
 
 	if (!hw_init_completed)
@@ -178,7 +177,6 @@ void rtl8188e_HalDmWatchDog(struct adapter *Adapter)
 		/*  Calculate Tx/Rx statistics. */
 		dm_CheckStatistics(Adapter);
 
-	_func_exit_;
 	}
 
 	/* ODM */

@@ -30,8 +30,24 @@ static inline struct mwifiex_txinfo *MWIFIEX_SKB_TXCB(struct sk_buff *skb)
 	return (struct mwifiex_txinfo *)(skb->cb + sizeof(dma_addr_t));
 }
 
-static inline void MWIFIEX_SKB_PACB(struct sk_buff *skb, dma_addr_t *buf_pa)
+struct mwifiex_dma_mapping {
+	dma_addr_t addr;
+	size_t len;
+};
+
+static inline void MWIFIEX_SKB_PACB(struct sk_buff *skb,
+					struct mwifiex_dma_mapping *mapping)
 {
-	memcpy(buf_pa, skb->cb, sizeof(dma_addr_t));
+	memcpy(mapping, skb->cb, sizeof(*mapping));
 }
+
+static inline dma_addr_t MWIFIEX_SKB_DMA_ADDR(struct sk_buff *skb)
+{
+	struct mwifiex_dma_mapping mapping;
+
+	MWIFIEX_SKB_PACB(skb, &mapping);
+
+	return mapping.addr;
+}
+
 #endif /* !_MWIFIEX_UTIL_H_ */

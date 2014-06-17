@@ -211,7 +211,6 @@ static int intel_scu_set_heartbeat(u32 t)
 	int			 ipc_ret;
 	int			 retry_count;
 	u32			 soft_value;
-	u32			 hw_pre_value;
 	u32			 hw_value;
 
 	watchdog_device.timer_set = t;
@@ -273,8 +272,7 @@ static int intel_scu_set_heartbeat(u32 t)
 			watchdog_device.timer_load_count_addr);
 
 		/* read count value before starting timer */
-		hw_pre_value = ioread32(watchdog_device.timer_load_count_addr);
-		hw_pre_value = hw_pre_value & 0xFFFF0000;
+		ioread32(watchdog_device.timer_load_count_addr);
 
 		/* Start the timer */
 		iowrite32(0x00000003, watchdog_device.timer_control_addr);

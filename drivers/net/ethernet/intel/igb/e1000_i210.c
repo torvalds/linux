@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2013 Intel Corporation.
+  Copyright(c) 2007-2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -13,8 +13,7 @@
   more details.
 
   You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+  this program; if not, see <http://www.gnu.org/licenses/>.
 
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
@@ -34,6 +33,8 @@
 
 #include "e1000_hw.h"
 #include "e1000_i210.h"
+
+static s32 igb_update_flash_i210(struct e1000_hw *hw);
 
 /**
  * igb_get_hw_semaphore_i210 - Acquire hardware semaphore
@@ -111,7 +112,7 @@ static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
  *  Return successful if access grant bit set, else clear the request for
  *  EEPROM access and return -E1000_ERR_NVM (-1).
  **/
-s32 igb_acquire_nvm_i210(struct e1000_hw *hw)
+static s32 igb_acquire_nvm_i210(struct e1000_hw *hw)
 {
 	return igb_acquire_swfw_sync_i210(hw, E1000_SWFW_EEP_SM);
 }
@@ -123,7 +124,7 @@ s32 igb_acquire_nvm_i210(struct e1000_hw *hw)
  *  Stop any current commands to the EEPROM and clear the EEPROM request bit,
  *  then release the semaphores acquired.
  **/
-void igb_release_nvm_i210(struct e1000_hw *hw)
+static void igb_release_nvm_i210(struct e1000_hw *hw)
 {
 	igb_release_swfw_sync_i210(hw, E1000_SWFW_EEP_SM);
 }
@@ -206,8 +207,8 @@ void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
  *  Reads a 16 bit word from the Shadow Ram using the EERD register.
  *  Uses necessary synchronization semaphores.
  **/
-s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
-			     u16 *data)
+static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
+				  u16 *data)
 {
 	s32 status = E1000_SUCCESS;
 	u16 i, count;
@@ -306,8 +307,8 @@ out:
  *  If error code is returned, data and Shadow RAM may be inconsistent - buffer
  *  partially written.
  **/
-s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
-			      u16 *data)
+static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
+				   u16 *data)
 {
 	s32 status = E1000_SUCCESS;
 	u16 i, count;
@@ -364,7 +365,7 @@ static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 			word_address = INVM_DWORD_TO_WORD_ADDRESS(invm_dword);
 			if (word_address == address) {
 				*data = INVM_DWORD_TO_WORD_DATA(invm_dword);
-				hw_dbg("Read INVM Word 0x%02x = %x",
+				hw_dbg("Read INVM Word 0x%02x = %x\n",
 					  address, *data);
 				status = E1000_SUCCESS;
 				break;
@@ -555,7 +556,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
  *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
  *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
  **/
-s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
+static s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
 	s32 (*read_op_ptr)(struct e1000_hw *, u16, u16, u16 *);
@@ -590,7 +591,7 @@ s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
  *  up to the checksum.  Then calculates the EEPROM checksum and writes the
  *  value to the EEPROM. Next commit EEPROM data onto the Flash.
  **/
-s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
+static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 	u16 checksum = 0;
@@ -684,7 +685,7 @@ bool igb_get_flash_presence_i210(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  **/
-s32 igb_update_flash_i210(struct e1000_hw *hw)
+static s32 igb_update_flash_i210(struct e1000_hw *hw)
 {
 	s32 ret_val = E1000_SUCCESS;
 	u32 flup;

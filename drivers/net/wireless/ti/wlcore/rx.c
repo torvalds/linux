@@ -203,9 +203,9 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length,
 	return is_data;
 }
 
-int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
+int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status)
 {
-	unsigned long active_hlids[BITS_TO_LONGS(WL12XX_MAX_LINKS)] = {0};
+	unsigned long active_hlids[BITS_TO_LONGS(WLCORE_MAX_LINKS)] = {0};
 	u32 buf_size;
 	u32 fw_rx_counter = status->fw_rx_counter % wl->num_rx_desc;
 	u32 drv_rx_counter = wl->rx_counter % wl->num_rx_desc;
@@ -263,12 +263,12 @@ int wlcore_rx(struct wl1271 *wl, struct wl_fw_status_1 *status)
 						  wl->aggr_buf + pkt_offset,
 						  pkt_len, rx_align,
 						  &hlid) == 1) {
-				if (hlid < WL12XX_MAX_LINKS)
+				if (hlid < wl->num_links)
 					__set_bit(hlid, active_hlids);
 				else
 					WARN(1,
-					     "hlid exceeded WL12XX_MAX_LINKS "
-					     "(%d)\n", hlid);
+					     "hlid (%d) exceeded MAX_LINKS\n",
+					     hlid);
 			}
 
 			wl->rx_counter++;
@@ -302,7 +302,7 @@ int wl1271_rx_filter_enable(struct wl1271 *wl,
 {
 	int ret;
 
-	if (wl->rx_filter_enabled[index] == enable) {
+	if (!!test_bit(index, wl->rx_filter_enabled) == enable) {
 		wl1271_warning("Request to enable an already "
 			     "enabled rx filter %d", index);
 		return 0;
@@ -316,7 +316,10 @@ int wl1271_rx_filter_enable(struct wl1271 *wl,
 		return ret;
 	}
 
-	wl->rx_filter_enabled[index] = enable;
+	if (enable)
+		__set_bit(index, wl->rx_filter_enabled);
+	else
+		__clear_bit(index, wl->rx_filter_enabled);
 
 	return 0;
 }
@@ -326,7 +329,7 @@ int wl1271_rx_filter_clear_all(struct wl1271 *wl)
 	int i, ret = 0;
 
 	for (i = 0; i < WL1271_MAX_RX_FILTERS; i++) {
-		if (!wl->rx_filter_enabled[i])
+		if (!test_bit(i, wl->rx_filter_enabled))
 			continue;
 		ret = wl1271_rx_filter_enable(wl, i, 0, NULL);
 		if (ret)

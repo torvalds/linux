@@ -1511,6 +1511,14 @@ static int do_test(int m)
 		ret += tcrypt_test("authenc(hmac(sha1),cbc(aes))");
 		break;
 
+	case 156:
+		ret += tcrypt_test("authenc(hmac(md5),ecb(cipher_null))");
+		break;
+
+	case 157:
+		ret += tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))");
+		break;
+
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);

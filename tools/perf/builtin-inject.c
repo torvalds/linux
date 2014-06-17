@@ -312,7 +312,6 @@ found:
 	sample_sw.period = sample->period;
 	sample_sw.time	 = sample->time;
 	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
-				      evsel->attr.sample_regs_user,
 				      evsel->attr.read_format, &sample_sw,
 				      false);
 	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);

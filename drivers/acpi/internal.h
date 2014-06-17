@@ -37,9 +37,15 @@ void acpi_container_init(void);
 static inline void acpi_container_init(void) {}
 #endif
 #ifdef CONFIG_ACPI_DOCK
-void acpi_dock_init(void);
+void register_dock_dependent_device(struct acpi_device *adev,
+				    acpi_handle dshandle);
+int dock_notify(struct acpi_device *adev, u32 event);
+void acpi_dock_add(struct acpi_device *adev);
 #else
-static inline void acpi_dock_init(void) {}
+static inline void register_dock_dependent_device(struct acpi_device *adev,
+						  acpi_handle dshandle) {}
+static inline int dock_notify(struct acpi_device *adev, u32 event) { return -ENODEV; }
+static inline void acpi_dock_add(struct acpi_device *adev) {}
 #endif
 #ifdef CONFIG_ACPI_HOTPLUG_MEMORY
 void acpi_memory_hotplug_init(void);
@@ -72,7 +78,9 @@ void acpi_lpss_init(void);
 static inline void acpi_lpss_init(void) {}
 #endif
 
+acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src);
 bool acpi_queue_hotplug_work(struct work_struct *work);
+void acpi_device_hotplug(struct acpi_device *adev, u32 src);
 bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 
 /* --------------------------------------------------------------------------
@@ -90,6 +98,7 @@ void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 int acpi_bind_one(struct device *dev, struct acpi_device *adev);
 int acpi_unbind_one(struct device *dev);
 bool acpi_device_is_present(struct acpi_device *adev);
+bool acpi_device_is_battery(struct acpi_device *adev);
 
 /* --------------------------------------------------------------------------
                                   Power Resource

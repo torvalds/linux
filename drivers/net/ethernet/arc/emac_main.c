@@ -574,6 +574,18 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
+static void arc_emac_set_address_internal(struct net_device *ndev)
+{
+	struct arc_emac_priv *priv = netdev_priv(ndev);
+	unsigned int addr_low, addr_hi;
+
+	addr_low = le32_to_cpu(*(__le32 *) &ndev->dev_addr[0]);
+	addr_hi = le16_to_cpu(*(__le16 *) &ndev->dev_addr[4]);
+
+	arc_reg_set(priv, R_ADDRL, addr_low);
+	arc_reg_set(priv, R_ADDRH, addr_hi);
+}
+
 /**
  * arc_emac_set_address - Set the MAC address for this device.
  * @ndev:	Pointer to net_device structure.
@@ -587,9 +599,7 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
  */
 static int arc_emac_set_address(struct net_device *ndev, void *p)
 {
-	struct arc_emac_priv *priv = netdev_priv(ndev);
 	struct sockaddr *addr = p;
-	unsigned int addr_low, addr_hi;
 
 	if (netif_running(ndev))
 		return -EBUSY;
@@ -599,11 +609,7 @@ static int arc_emac_set_address(struct net_device *ndev, void *p)
 
 	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
 
-	addr_low = le32_to_cpu(*(__le32 *) &ndev->dev_addr[0]);
-	addr_hi = le16_to_cpu(*(__le16 *) &ndev->dev_addr[4]);
-
-	arc_reg_set(priv, R_ADDRL, addr_low);
-	arc_reg_set(priv, R_ADDRH, addr_hi);
+	arc_emac_set_address_internal(ndev);
 
 	return 0;
 }
@@ -643,13 +649,6 @@ static int arc_emac_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Get CPU clock frequency from device tree */
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-				 &clock_frequency)) {
-		dev_err(&pdev->dev, "failed to retrieve <clock-frequency> from device tree\n");
-		return -EINVAL;
-	}
-
 	/* Get IRQ from device tree */
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq) {
@@ -677,9 +676,28 @@ static int arc_emac_probe(struct platform_device *pdev)
 	priv->regs = devm_ioremap_resource(&pdev->dev, &res_regs);
 	if (IS_ERR(priv->regs)) {
 		err = PTR_ERR(priv->regs);
-		goto out;
+		goto out_netdev;
 	}
 	dev_dbg(&pdev->dev, "Registers base address is 0x%p\n", priv->regs);
+
+	priv->clk = of_clk_get(pdev->dev.of_node, 0);
+	if (IS_ERR(priv->clk)) {
+		/* Get CPU clock frequency from device tree */
+		if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+					&clock_frequency)) {
+			dev_err(&pdev->dev, "failed to retrieve <clock-frequency> from device tree\n");
+			err = -EINVAL;
+			goto out_netdev;
+		}
+	} else {
+		err = clk_prepare_enable(priv->clk);
+		if (err) {
+			dev_err(&pdev->dev, "failed to enable clock\n");
+			goto out_clkget;
+		}
+
+		clock_frequency = clk_get_rate(priv->clk);
+	}
 
 	id = arc_reg_get(priv, R_ID);
 
@@ -687,7 +705,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	if (!(id == 0x0005fd02 || id == 0x0007fd02)) {
 		dev_err(&pdev->dev, "ARC EMAC not detected, id=0x%x\n", id);
 		err = -ENODEV;
-		goto out;
+		goto out_clken;
 	}
 	dev_info(&pdev->dev, "ARC EMAC detected with id: 0x%x\n", id);
 
@@ -702,7 +720,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 			       ndev->name, ndev);
 	if (err) {
 		dev_err(&pdev->dev, "could not allocate IRQ\n");
-		goto out;
+		goto out_clken;
 	}
 
 	/* Get MAC address from device tree */
@@ -713,6 +731,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	else
 		eth_hw_addr_random(ndev);
 
+	arc_emac_set_address_internal(ndev);
 	dev_info(&pdev->dev, "MAC address is now %pM\n", ndev->dev_addr);
 
 	/* Do 1 allocation instead of 2 separate ones for Rx and Tx BD rings */
@@ -722,7 +741,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	if (!priv->rxbd) {
 		dev_err(&pdev->dev, "failed to allocate data buffers\n");
 		err = -ENOMEM;
-		goto out;
+		goto out_clken;
 	}
 
 	priv->txbd = priv->rxbd + RX_BD_NUM;
@@ -734,7 +753,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	err = arc_mdio_probe(pdev, priv);
 	if (err) {
 		dev_err(&pdev->dev, "failed to probe MII bus\n");
-		goto out;
+		goto out_clken;
 	}
 
 	priv->phy_dev = of_phy_connect(ndev, phy_node, arc_emac_adjust_link, 0,
@@ -742,7 +761,7 @@ static int arc_emac_probe(struct platform_device *pdev)
 	if (!priv->phy_dev) {
 		dev_err(&pdev->dev, "of_phy_connect() failed\n");
 		err = -ENODEV;
-		goto out;
+		goto out_mdio;
 	}
 
 	dev_info(&pdev->dev, "connected to %s phy with id 0x%x\n",
@@ -752,14 +771,25 @@ static int arc_emac_probe(struct platform_device *pdev)
 
 	err = register_netdev(ndev);
 	if (err) {
-		netif_napi_del(&priv->napi);
 		dev_err(&pdev->dev, "failed to register network device\n");
-		goto out;
+		goto out_netif_api;
 	}
 
 	return 0;
 
-out:
+out_netif_api:
+	netif_napi_del(&priv->napi);
+	phy_disconnect(priv->phy_dev);
+	priv->phy_dev = NULL;
+out_mdio:
+	arc_mdio_remove(priv);
+out_clken:
+	if (!IS_ERR(priv->clk))
+		clk_disable_unprepare(priv->clk);
+out_clkget:
+	if (!IS_ERR(priv->clk))
+		clk_put(priv->clk);
+out_netdev:
 	free_netdev(ndev);
 	return err;
 }
@@ -774,6 +804,12 @@ static int arc_emac_remove(struct platform_device *pdev)
 	arc_mdio_remove(priv);
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi);
+
+	if (!IS_ERR(priv->clk)) {
+		clk_disable_unprepare(priv->clk);
+		clk_put(priv->clk);
+	}
+
 	free_netdev(ndev);
 
 	return 0;

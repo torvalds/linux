@@ -54,6 +54,7 @@ int mei_hbm_start_req(struct mei_device *dev);
 int mei_hbm_start_wait(struct mei_device *dev);
 int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl);
+int mei_hbm_cl_disconnect_rsp(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl);
 bool mei_hbm_version_is_supported(struct mei_device *dev);
 

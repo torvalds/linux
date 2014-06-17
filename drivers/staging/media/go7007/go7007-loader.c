@@ -28,7 +28,7 @@ struct fw_config {
 	const char * const fw_name2;
 };
 
-struct fw_config fw_configs[] = {
+static struct fw_config fw_configs[] = {
 	{ 0x1943, 0xa250, "go7007/s2250-1.fw", "go7007/s2250-2.fw" },
 	{ 0x093b, 0xa002, "go7007/px-m402u.fw", NULL },
 	{ 0x093b, 0xa004, "go7007/px-tv402u.fw", NULL },

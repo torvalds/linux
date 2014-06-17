@@ -1255,7 +1255,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		/* fallthrough, tiled memory */
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
-		mem->bus.base = pci_resource_start(dev->pdev, 1);
+		mem->bus.base = nv_device_resource_start(nouveau_dev(dev), 1);
 		mem->bus.is_iomem = true;
 		if (nv_device(drm->device)->card_type >= NV_50) {
 			struct nouveau_bar *bar = nouveau_bar(drm->device);
@@ -1293,7 +1293,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_device *device = nv_device(drm->device);
-	u32 mappable = pci_resource_len(device->pdev, 1) >> PAGE_SHIFT;
+	u32 mappable = nv_device_resource_len(device, 1) >> PAGE_SHIFT;
 	int ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
@@ -1331,6 +1331,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
+	struct nouveau_device *device;
 	struct drm_device *dev;
 	unsigned i;
 	int r;
@@ -1348,6 +1349,7 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	drm = nouveau_bdev(ttm->bdev);
+	device = nv_device(drm->device);
 	dev = drm->dev;
 
 #if __OS_HAS_AGP
@@ -1368,13 +1370,12 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	for (i = 0; i < ttm->num_pages; i++) {
-		ttm_dma->dma_address[i] = pci_map_page(dev->pdev, ttm->pages[i],
-						   0, PAGE_SIZE,
-						   PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(dev->pdev, ttm_dma->dma_address[i])) {
+		ttm_dma->dma_address[i] = nv_device_map_page(device,
+							     ttm->pages[i]);
+		if (!ttm_dma->dma_address[i]) {
 			while (--i) {
-				pci_unmap_page(dev->pdev, ttm_dma->dma_address[i],
-					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+				nv_device_unmap_page(device,
+						     ttm_dma->dma_address[i]);
 				ttm_dma->dma_address[i] = 0;
 			}
 			ttm_pool_unpopulate(ttm);
@@ -1389,6 +1390,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct ttm_dma_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
+	struct nouveau_device *device;
 	struct drm_device *dev;
 	unsigned i;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1397,6 +1399,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	drm = nouveau_bdev(ttm->bdev);
+	device = nv_device(drm->device);
 	dev = drm->dev;
 
 #if __OS_HAS_AGP
@@ -1415,8 +1418,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; i++) {
 		if (ttm_dma->dma_address[i]) {
-			pci_unmap_page(dev->pdev, ttm_dma->dma_address[i],
-				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+			nv_device_unmap_page(device, ttm_dma->dma_address[i]);
 		}
 	}
 

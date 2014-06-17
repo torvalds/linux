@@ -83,14 +83,24 @@ EBU Armada family
         88F6710
         88F6707
         88F6W11
+    Product Brief: http://www.marvell.com/embedded-processors/armada-300/assets/Marvell_ARMADA_370_SoC.pdf
+
+  Armada 375 Flavors:
+	88F6720
+    Product Brief: http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA_375_SoC-01_product_brief.pdf
+
+  Armada 380/385 Flavors:
+	88F6810
+	88F6820
+	88F6828
 
   Armada XP Flavors:
         MV78230
         MV78260
         MV78460
     NOTE: not to be confused with the non-SMP 78xx0 SoCs
+    Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
 
-  Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
   No public datasheet available.
 
   Core: Sheeva ARMv7 compatible

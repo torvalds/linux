@@ -103,7 +103,7 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 }
 
 static int tcp_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
-			    const char *buffer)
+			    char *buffer)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	unsigned long long val;
@@ -219,7 +219,7 @@ static struct cftype tcp_files[] = {
 
 static int __init tcp_memcontrol_init(void)
 {
-	WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys, tcp_files));
+	WARN_ON(cgroup_add_cftypes(&memory_cgrp_subsys, tcp_files));
 	return 0;
 }
 __initcall(tcp_memcontrol_init);

@@ -207,6 +207,10 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
 
+		/* Make kvm guest trampolines executable */
+		if (overlaps_kvm_tmp(vaddr, vaddr + step))
+			tprot &= ~HPTE_R_N;
+
 		/*
 		 * If relocatable, check if it overlaps interrupt vectors that
 		 * are copied down to real 0. For relocatable kernel

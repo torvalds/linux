@@ -25,9 +25,8 @@ available from the following download page.  At least "mkfs.nilfs2",
 cleaner or garbage collector) are required.  Details on the tools are
 described in the man pages included in the package.
 
-Project web page:    http://www.nilfs.org/en/
-Download page:       http://www.nilfs.org/en/download.html
-Git tree web page:   http://www.nilfs.org/git/
+Project web page:    http://nilfs.sourceforge.net/
+Download page:       http://nilfs.sourceforge.net/en/download.html
 List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
@@ -110,6 +109,13 @@ Table of NILFS2 specific ioctls
 			        segments. This ioctl is used in lssu,
 			        nilfs_resize utilities and by nilfs_cleanerd
 			        daemon.
+
+ NILFS_IOCTL_SET_SUINFO         Modify segment usage info of requested
+				segments. This ioctl is used by
+				nilfs_cleanerd daemon to skip unnecessary
+				cleaning operation of segments and reduce
+				performance penalty or wear of flash device
+				due to redundant move of in-use blocks.
 
  NILFS_IOCTL_GET_SUSTAT         Return segment usage statistics. This ioctl
 			        is used in lssu, nilfs_resize utilities and

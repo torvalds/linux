@@ -19,11 +19,84 @@
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/irqchip.h>
-#include <linux/kexec.h>
+#include <asm/hardware/cache-feroceon-l2.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
 #include <plat/common.h>
-#include "common.h"
+#include <plat/pcie.h>
+#include "pm.h"
+
+static struct map_desc kirkwood_io_desc[] __initdata = {
+	{
+		.virtual	= (unsigned long) KIRKWOOD_REGS_VIRT_BASE,
+		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
+		.length		= KIRKWOOD_REGS_SIZE,
+		.type		= MT_DEVICE,
+	},
+};
+
+static void __init kirkwood_map_io(void)
+{
+	iotable_init(kirkwood_io_desc, ARRAY_SIZE(kirkwood_io_desc));
+}
+
+static struct resource kirkwood_cpufreq_resources[] = {
+	[0] = {
+		.start  = CPU_CONTROL_PHYS,
+		.end    = CPU_CONTROL_PHYS + 3,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_cpufreq_device = {
+	.name		= "kirkwood-cpufreq",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(kirkwood_cpufreq_resources),
+	.resource	= kirkwood_cpufreq_resources,
+};
+
+static void __init kirkwood_cpufreq_init(void)
+{
+	platform_device_register(&kirkwood_cpufreq_device);
+}
+
+static struct resource kirkwood_cpuidle_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= DDR_OPERATION_BASE,
+		.end	= DDR_OPERATION_BASE + 3,
+	},
+};
+
+static struct platform_device kirkwood_cpuidle = {
+	.name		= "kirkwood_cpuidle",
+	.id		= -1,
+	.resource	= kirkwood_cpuidle_resource,
+	.num_resources	= 1,
+};
+
+static void __init kirkwood_cpuidle_init(void)
+{
+	platform_device_register(&kirkwood_cpuidle);
+}
+
+/* Temporary here since mach-mvebu has a function we can use */
+static void kirkwood_restart(enum reboot_mode mode, const char *cmd)
+{
+	/*
+	 * Enable soft reset to assert RSTOUTn.
+	 */
+	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
+
+	/*
+	 * Assert soft reset.
+	 */
+	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
+
+	while (1)
+		;
+}
 
 #define MV643XX_ETH_MAC_ADDR_LOW	0x0414
 #define MV643XX_ETH_MAC_ADDR_HIGH	0x0418
@@ -104,34 +177,34 @@ eth_fixup_skip:
 	}
 }
 
+/*
+ * Disable propagation of mbus errors to the CPU local bus, as this
+ * causes mbus errors (which can occur for example for PCI aborts) to
+ * throw CPU aborts, which we're not set up to deal with.
+ */
+static void __init kirkwood_disable_mbus_error_propagation(void)
+{
+	void __iomem *cpu_config;
+
+	cpu_config = ioremap(CPU_CONFIG_PHYS, 4);
+	writel(readl(cpu_config) & ~CPU_CONFIG_ERROR_PROP, cpu_config);
+	iounmap(cpu_config);
+}
+
 static void __init kirkwood_dt_init(void)
 {
-	pr_info("Kirkwood: %s.\n", kirkwood_id());
-
-	/*
-	 * Disable propagation of mbus errors to the CPU local bus,
-	 * as this causes mbus errors (which can occur for example
-	 * for PCI aborts) to throw CPU aborts, which we're not set
-	 * up to deal with.
-	 */
-	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
+	kirkwood_disable_mbus_error_propagation();
 
 	BUG_ON(mvebu_mbus_dt_init());
 
-	kirkwood_l2_init();
-
+#ifdef CONFIG_CACHE_FEROCEON_L2
+	feroceon_of_init();
+#endif
 	kirkwood_cpufreq_init();
 	kirkwood_cpuidle_init();
 
 	kirkwood_pm_init();
 	kirkwood_dt_eth_fixup();
-
-#ifdef CONFIG_KEXEC
-	kexec_reinit = kirkwood_enable_pcie;
-#endif
-
-	if (of_machine_is_compatible("marvell,mv88f6281gtw-ge"))
-		mv88f6281gtw_ge_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }

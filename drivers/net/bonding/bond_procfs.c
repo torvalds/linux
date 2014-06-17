@@ -65,13 +65,11 @@ static void bond_info_seq_stop(struct seq_file *seq, void *v)
 static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
-	struct bond_opt_value *optval;
+	const struct bond_opt_value *optval;
 	struct slave *curr;
 	int i;
 
-	read_lock(&bond->curr_slave_lock);
-	curr = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
+	curr = rcu_dereference(bond->curr_active_slave);
 
 	seq_printf(seq, "Bonding Mode: %s",
 		   bond_mode_name(bond->params.mode));
@@ -254,8 +252,8 @@ void bond_create_proc_entry(struct bonding *bond)
 						    S_IRUGO, bn->proc_dir,
 						    &bond_info_fops, bond);
 		if (bond->proc_entry == NULL)
-			pr_warning("Warning: Cannot create /proc/net/%s/%s\n",
-				   DRV_NAME, bond_dev->name);
+			pr_warn("Warning: Cannot create /proc/net/%s/%s\n",
+				DRV_NAME, bond_dev->name);
 		else
 			memcpy(bond->proc_file_name, bond_dev->name, IFNAMSIZ);
 	}
@@ -281,8 +279,8 @@ void __net_init bond_create_proc_dir(struct bond_net *bn)
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
 		if (!bn->proc_dir)
-			pr_warning("Warning: cannot create /proc/net/%s\n",
-				   DRV_NAME);
+			pr_warn("Warning: Cannot create /proc/net/%s\n",
+				DRV_NAME);
 	}
 }
 

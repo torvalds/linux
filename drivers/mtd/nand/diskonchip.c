@@ -698,7 +698,8 @@ static void doc2001plus_command(struct mtd_info *mtd, unsigned command, int colu
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			WriteDOC(column, docptr, Mplus_FlashAddress);
 		}
@@ -1438,7 +1439,7 @@ static int __init doc_probe(unsigned long physadr)
 	int reg, len, numchips;
 	int ret = 0;
 
-	if (!request_mem_region(physadr, DOC_IOREMAP_LEN, NULL))
+	if (!request_mem_region(physadr, DOC_IOREMAP_LEN, "DiskOnChip"))
 		return -EBUSY;
 	virtadr = ioremap(physadr, DOC_IOREMAP_LEN);
 	if (!virtadr) {

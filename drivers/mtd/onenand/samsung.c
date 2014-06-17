@@ -872,10 +872,8 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 
 	size = sizeof(struct mtd_info) + sizeof(struct onenand_chip);
 	mtd = kzalloc(size, GFP_KERNEL);
-	if (!mtd) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!mtd)
 		return -ENOMEM;
-	}
 
 	onenand = kzalloc(sizeof(struct s3c_onenand), GFP_KERNEL);
 	if (!onenand) {

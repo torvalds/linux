@@ -64,7 +64,7 @@ void update_cr_regs(struct task_struct *task)
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
 			cr_new &= ~(1UL << 55);
 		if (cr_new != cr)
-			__ctl_load(cr, 0, 0);
+			__ctl_load(cr_new, 0, 0);
 		/* Set or clear transaction execution TDC bits 62 and 63. */
 		__ctl_store(cr, 2, 2);
 		cr_new = cr & ~3UL;
@@ -85,7 +85,10 @@ void update_cr_regs(struct task_struct *task)
 
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
 	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP)) {
-		new.control |= PER_EVENT_IFETCH;
+		if (test_tsk_thread_flag(task, TIF_BLOCK_STEP))
+			new.control |= PER_EVENT_BRANCH;
+		else
+			new.control |= PER_EVENT_IFETCH;
 #ifdef CONFIG_64BIT
 		new.control |= PER_CONTROL_SUSPENSION;
 		new.control |= PER_EVENT_TRANSACTION_END;
@@ -107,12 +110,20 @@ void update_cr_regs(struct task_struct *task)
 
 void user_enable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
 }
 
 void user_disable_single_step(struct task_struct *task)
 {
+	clear_tsk_thread_flag(task, TIF_BLOCK_STEP);
 	clear_tsk_thread_flag(task, TIF_SINGLE_STEP);
+}
+
+void user_enable_block_step(struct task_struct *task)
+{
+	set_tsk_thread_flag(task, TIF_SINGLE_STEP);
+	set_tsk_thread_flag(task, TIF_BLOCK_STEP);
 }
 
 /*

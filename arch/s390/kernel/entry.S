@@ -38,11 +38,12 @@ __PT_R14     =	__PT_GPRS + 56
 __PT_R15     =	__PT_GPRS + 60
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING | _TIF_PER_TRAP )
+		 _TIF_MCCK_PENDING | _TIF_PER_TRAP | _TIF_ASCE)
 _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
-		 _TIF_MCCK_PENDING)
+		 _TIF_MCCK_PENDING | _TIF_ASCE)
 _TIF_TRACE    = (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		 _TIF_SYSCALL_TRACEPOINT)
+_TIF_TRANSFER = (_TIF_MCCK_PENDING | _TIF_TLB_WAIT)
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
@@ -159,10 +160,12 @@ ENTRY(__switch_to)
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3)	# store pid of next
 	l	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
-	tm	__TI_flags+3(%r4),_TIF_MCCK_PENDING # machine check pending?
+	lhi	%r6,_TIF_TRANSFER		# transfer TIF bits
+	n	%r6,__TI_flags(%r4)		# isolate TIF bits
 	jz	0f
-	ni	__TI_flags+3(%r4),255-_TIF_MCCK_PENDING	# clear flag in prev
-	oi	__TI_flags+3(%r5),_TIF_MCCK_PENDING	# set it in next
+	o	%r6,__TI_flags(%r5)		# set TIF bits of next
+	st	%r6,__TI_flags(%r5)
+	ni	__TI_flags+3(%r4),255-_TIF_TRANSFER # clear TIF bits of prev
 0:	lm	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	br	%r14
 
@@ -238,6 +241,8 @@ sysc_work:
 	jo	sysc_sigpending
 	tm	__TI_flags+3(%r12),_TIF_NOTIFY_RESUME
 	jo	sysc_notify_resume
+	tm	__TI_flags+3(%r12),_TIF_ASCE
+	jo	sysc_uaccess
 	j	sysc_return		# beware of critical section cleanup
 
 #
@@ -255,6 +260,14 @@ sysc_mcck_pending:
 	l	%r1,BASED(.Lhandle_mcck)
 	la	%r14,BASED(sysc_return)
 	br	%r1			# TIF bit will be cleared by handler
+
+#
+# _TIF_ASCE is set, load user space asce
+#
+sysc_uaccess:
+	ni	__TI_flags+3(%r12),255-_TIF_ASCE
+	lctl	%c1,%c1,__LC_USER_ASCE	# load primary asce
+	j	sysc_return
 
 #
 # _TIF_SIGPENDING is set, call do_signal
@@ -519,6 +532,8 @@ io_work_tif:
 	jo	io_sigpending
 	tm	__TI_flags+3(%r12),_TIF_NOTIFY_RESUME
 	jo	io_notify_resume
+	tm	__TI_flags+3(%r12),_TIF_ASCE
+	jo	io_uaccess
 	j	io_return		# beware of critical section cleanup
 
 #
@@ -529,6 +544,14 @@ io_mcck_pending:
 	l	%r1,BASED(.Lhandle_mcck)
 	basr	%r14,%r1		# TIF bit will be cleared by handler
 	TRACE_IRQS_OFF
+	j	io_return
+
+#
+# _TIF_ASCE is set, load user space asce
+#
+io_uaccess:
+	ni	__TI_flags+3(%r12),255-_TIF_ASCE
+	lctl	%c1,%c1,__LC_USER_ASCE	# load primary asce
 	j	io_return
 
 #

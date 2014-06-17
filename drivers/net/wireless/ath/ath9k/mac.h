@@ -155,12 +155,8 @@ struct ath_htc_rx_status {
 	u8 rs_status;
 	u8 rs_phyerr;
 	int8_t rs_rssi;
-	int8_t rs_rssi_ctl0;
-	int8_t rs_rssi_ctl1;
-	int8_t rs_rssi_ctl2;
-	int8_t rs_rssi_ext0;
-	int8_t rs_rssi_ext1;
-	int8_t rs_rssi_ext2;
+	int8_t rs_rssi_ctl[3];
+	int8_t rs_rssi_ext[3];
 	u8 rs_keyix;
 	u8 rs_rate;
 	u8 rs_antenna;
@@ -170,6 +166,7 @@ struct ath_htc_rx_status {
 	u8 rs_num_delims;
 	u8 rs_flags;
 	u8 rs_dummy;
+	/* FIXME: evm* never used? */
 	__be32 evm0;
 	__be32 evm1;
 	__be32 evm2;

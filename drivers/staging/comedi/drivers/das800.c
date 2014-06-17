@@ -420,17 +420,12 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	gain &= 0xf;
 	outb(gain, dev->iobase + DAS800_GAIN);
 
-	switch (async->cmd.stop_src) {
-	case TRIG_COUNT:
+	if (async->cmd.stop_src == TRIG_COUNT) {
 		devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
 		devpriv->forever = false;
-		break;
-	case TRIG_NONE:
+	} else {	/* TRIG_NONE */
 		devpriv->forever = true;
 		devpriv->count = 0;
-		break;
-	default:
-		break;
 	}
 
 	/* enable auto channel scan, send interrupts on end of conversion
@@ -440,26 +435,19 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	conv_bits |= EACS | IEOC;
 	if (async->cmd.start_src == TRIG_EXT)
 		conv_bits |= DTEN;
-	switch (async->cmd.convert_src) {
-	case TRIG_TIMER:
+	if (async->cmd.convert_src == TRIG_TIMER) {
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
 		if (das800_set_frequency(dev) < 0) {
 			comedi_error(dev, "Error setting up counters");
 			return -1;
 		}
-		break;
-	case TRIG_EXT:
-		break;
-	default:
-		break;
 	}
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	das800_ind_write(dev, conv_bits, CONV_CONTROL);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	async->events = 0;
 	das800_enable(dev);
 	return 0;
 }
@@ -532,10 +520,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 
 	if (fifo_overflow) {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		das800_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
-		async->events = 0;
+		cfc_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -551,20 +537,21 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		das800_disable(dev);
 		async->events |= COMEDI_CB_EOA;
 	}
-	comedi_event(dev, s);
-	async->events = 0;
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
-static int das800_wait_for_conv(struct comedi_device *dev, int timeout)
+static int das800_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
-	int i;
+	unsigned int status;
 
-	for (i = 0; i < timeout; i++) {
-		if (!(inb(dev->iobase + DAS800_STATUS) & BUSY))
-			return 0;
-	}
-	return -ETIME;
+	status = inb(dev->iobase + DAS800_STATUS);
+	if ((status & BUSY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int das800_ai_insn_read(struct comedi_device *dev,
@@ -599,7 +586,7 @@ static int das800_ai_insn_read(struct comedi_device *dev,
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS800_MSB);
 
-		ret = das800_wait_for_conv(dev, 1000);
+		ret = comedi_timeout(dev, s, insn, das800_ai_eoc, 0);
 		if (ret)
 			return ret;
 

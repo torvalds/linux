@@ -19,13 +19,13 @@
 #include <linux/irqchip.h>
 #include <linux/of_platform.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 
 #include <asm/mach/arch.h>
 #include <mach/map.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/regs-serial.h>
 
 #include "common.h"
 

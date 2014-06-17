@@ -191,7 +191,7 @@ int obdo_cmp_md(struct obdo *dst, struct obdo *src, obd_flag compare)
 	}
 	if ( compare & OBD_MD_FLGENER )
 		res = (res || (dst->o_parent_oid != src->o_parent_oid));
-	/* XXX Don't know if thses should be included here - wasn't previously
+	/* XXX Don't know if these should be included here - wasn't previously
 	if ( compare & OBD_MD_FLINLINE )
 		res = (res || memcmp(dst->o_inline, src->o_inline));
 	*/
@@ -233,7 +233,7 @@ void obdo_from_iattr(struct obdo *oa, struct iattr *attr, unsigned int ia_valid)
 		oa->o_mode = attr->ia_mode;
 		oa->o_valid |= OBD_MD_FLTYPE | OBD_MD_FLMODE;
 		if (!in_group_p(make_kgid(&init_user_ns, oa->o_gid)) &&
-		    !cfs_capable(CFS_CAP_FSETID))
+		    !capable(CFS_CAP_FSETID))
 			oa->o_mode &= ~S_ISGID;
 	}
 	if (ia_valid & ATTR_UID) {
@@ -282,7 +282,7 @@ void iattr_from_obdo(struct iattr *attr, struct obdo *oa, obd_flag valid)
 		attr->ia_mode = (attr->ia_mode & S_IFMT)|(oa->o_mode & ~S_IFMT);
 		attr->ia_valid |= ATTR_MODE;
 		if (!in_group_p(make_kgid(&init_user_ns, oa->o_gid)) &&
-		    !cfs_capable(CFS_CAP_FSETID))
+		    !capable(CFS_CAP_FSETID))
 			attr->ia_mode &= ~S_ISGID;
 	}
 	if (valid & OBD_MD_FLUID) {

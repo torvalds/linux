@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/timer.h>
 #include <linux/io.h>
 #include <linux/mmc/host.h>
@@ -43,7 +44,6 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/i2c-s3c2410.h>
-#include <plat/regs-serial.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>

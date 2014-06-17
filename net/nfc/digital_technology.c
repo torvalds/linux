@@ -30,6 +30,7 @@
 
 #define DIGITAL_SEL_RES_NFCID1_COMPLETE(sel_res) (!((sel_res) & 0x04))
 #define DIGITAL_SEL_RES_IS_T2T(sel_res) (!((sel_res) & 0x60))
+#define DIGITAL_SEL_RES_IS_T4T(sel_res) ((sel_res) & 0x20)
 #define DIGITAL_SEL_RES_IS_NFC_DEP(sel_res) ((sel_res) & 0x40)
 
 #define DIGITAL_SENS_RES_IS_T1T(sens_res) (((sens_res) & 0x0C00) == 0x0C00)
@@ -50,6 +51,34 @@
 #define DIGITAL_SENSF_REQ_RC_NONE 0
 #define DIGITAL_SENSF_REQ_RC_SC   1
 #define DIGITAL_SENSF_REQ_RC_AP   2
+
+#define DIGITAL_CMD_ISO15693_INVENTORY_REQ	0x01
+
+#define DIGITAL_ISO15693_REQ_FLAG_DATA_RATE	BIT(1)
+#define DIGITAL_ISO15693_REQ_FLAG_INVENTORY	BIT(2)
+#define DIGITAL_ISO15693_REQ_FLAG_NB_SLOTS	BIT(5)
+#define DIGITAL_ISO15693_RES_FLAG_ERROR		BIT(0)
+#define DIGITAL_ISO15693_RES_IS_VALID(flags) \
+	(!((flags) & DIGITAL_ISO15693_RES_FLAG_ERROR))
+
+#define DIGITAL_ISO_DEP_I_PCB	 0x02
+#define DIGITAL_ISO_DEP_PNI(pni) ((pni) & 0x01)
+
+#define DIGITAL_ISO_DEP_PCB_TYPE(pcb) ((pcb) & 0xC0)
+
+#define DIGITAL_ISO_DEP_I_BLOCK 0x00
+
+#define DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb) ((pcb) & 0x08)
+
+static const u8 digital_ats_fsc[] = {
+	 16,  24,  32,  40,  48,  64,  96, 128,
+};
+
+#define DIGITAL_ATS_FSCI(t0) ((t0) & 0x0F)
+#define DIGITAL_ATS_MAX_FSC  256
+
+#define DIGITAL_RATS_BYTE1 0xE0
+#define DIGITAL_RATS_PARAM 0x80
 
 struct digital_sdd_res {
 	u8 nfcid1[4];
@@ -82,8 +111,126 @@ struct digital_sensf_res {
 	u8 rd[2];
 } __packed;
 
+struct digital_iso15693_inv_req {
+	u8 flags;
+	u8 cmd;
+	u8 mask_len;
+	u64 mask;
+} __packed;
+
+struct digital_iso15693_inv_res {
+	u8 flags;
+	u8 dsfid;
+	u64 uid;
+} __packed;
+
 static int digital_in_send_sdd_req(struct nfc_digital_dev *ddev,
 				   struct nfc_target *target);
+
+int digital_in_iso_dep_pull_sod(struct nfc_digital_dev *ddev,
+				struct sk_buff *skb)
+{
+	u8 pcb;
+	u8 block_type;
+
+	if (skb->len < 1)
+		return -EIO;
+
+	pcb = *skb->data;
+	block_type = DIGITAL_ISO_DEP_PCB_TYPE(pcb);
+
+	/* No support fo R-block nor S-block */
+	if (block_type != DIGITAL_ISO_DEP_I_BLOCK) {
+		pr_err("ISO_DEP R-block and S-block not supported\n");
+		return -EIO;
+	}
+
+	if (DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb)) {
+		pr_err("DID field in ISO_DEP PCB not supported\n");
+		return -EIO;
+	}
+
+	skb_pull(skb, 1);
+
+	return 0;
+}
+
+int digital_in_iso_dep_push_sod(struct nfc_digital_dev *ddev,
+				struct sk_buff *skb)
+{
+	/*
+	 * Chaining not supported so skb->len + 1 PCB byte + 2 CRC bytes must
+	 * not be greater than remote FSC
+	 */
+	if (skb->len + 3 > ddev->target_fsc)
+		return -EIO;
+
+	skb_push(skb, 1);
+
+	*skb->data = DIGITAL_ISO_DEP_I_PCB | ddev->curr_nfc_dep_pni;
+
+	ddev->curr_nfc_dep_pni =
+		DIGITAL_ISO_DEP_PNI(ddev->curr_nfc_dep_pni + 1);
+
+	return 0;
+}
+
+static void digital_in_recv_ats(struct nfc_digital_dev *ddev, void *arg,
+				struct sk_buff *resp)
+{
+	struct nfc_target *target = arg;
+	u8 fsdi;
+	int rc;
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+		resp = NULL;
+		goto exit;
+	}
+
+	if (resp->len < 2) {
+		rc = -EIO;
+		goto exit;
+	}
+
+	fsdi = DIGITAL_ATS_FSCI(resp->data[1]);
+	if (fsdi >= 8)
+		ddev->target_fsc = DIGITAL_ATS_MAX_FSC;
+	else
+		ddev->target_fsc = digital_ats_fsc[fsdi];
+
+	ddev->curr_nfc_dep_pni = 0;
+
+	rc = digital_target_found(ddev, target, NFC_PROTO_ISO14443);
+
+exit:
+	dev_kfree_skb(resp);
+	kfree(target);
+
+	if (rc)
+		digital_poll_next_tech(ddev);
+}
+
+static int digital_in_send_rats(struct nfc_digital_dev *ddev,
+				struct nfc_target *target)
+{
+	int rc;
+	struct sk_buff *skb;
+
+	skb = digital_skb_alloc(ddev, 2);
+	if (!skb)
+		return -ENOMEM;
+
+	*skb_put(skb, 1) = DIGITAL_RATS_BYTE1;
+	*skb_put(skb, 1) = DIGITAL_RATS_PARAM;
+
+	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_ats,
+				 target);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
 
 static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 				    struct sk_buff *resp)
@@ -122,16 +269,25 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		goto exit_free_skb;
 	}
 
+	target->sel_res = sel_res;
+
 	if (DIGITAL_SEL_RES_IS_T2T(sel_res)) {
 		nfc_proto = NFC_PROTO_MIFARE;
+	} else if (DIGITAL_SEL_RES_IS_T4T(sel_res)) {
+		rc = digital_in_send_rats(ddev, target);
+		if (rc)
+			goto exit;
+		/*
+		 * Skip target_found and don't free it for now. This will be
+		 * done when receiving the ATS
+		 */
+		goto exit_free_skb;
 	} else if (DIGITAL_SEL_RES_IS_NFC_DEP(sel_res)) {
 		nfc_proto = NFC_PROTO_NFC_DEP;
 	} else {
 		rc = -EOPNOTSUPP;
 		goto exit;
 	}
-
-	target->sel_res = sel_res;
 
 	rc = digital_target_found(ddev, target, nfc_proto);
 
@@ -467,6 +623,93 @@ int digital_in_send_sensf_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 
 	rc = digital_in_send_cmd(ddev, skb, 30, digital_in_recv_sensf_res,
 				 NULL);
+	if (rc)
+		kfree_skb(skb);
+
+	return rc;
+}
+
+static void digital_in_recv_iso15693_inv_res(struct nfc_digital_dev *ddev,
+		void *arg, struct sk_buff *resp)
+{
+	struct digital_iso15693_inv_res *res;
+	struct nfc_target *target = NULL;
+	int rc;
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+		resp = NULL;
+		goto out_free_skb;
+	}
+
+	if (resp->len != sizeof(*res)) {
+		rc = -EIO;
+		goto out_free_skb;
+	}
+
+	res = (struct digital_iso15693_inv_res *)resp->data;
+
+	if (!DIGITAL_ISO15693_RES_IS_VALID(res->flags)) {
+		PROTOCOL_ERR("ISO15693 - 10.3.1");
+		rc = -EINVAL;
+		goto out_free_skb;
+	}
+
+	target = kzalloc(sizeof(*target), GFP_KERNEL);
+	if (!target) {
+		rc = -ENOMEM;
+		goto out_free_skb;
+	}
+
+	target->is_iso15693 = 1;
+	target->iso15693_dsfid = res->dsfid;
+	memcpy(target->iso15693_uid, &res->uid, sizeof(target->iso15693_uid));
+
+	rc = digital_target_found(ddev, target, NFC_PROTO_ISO15693);
+
+	kfree(target);
+
+out_free_skb:
+	dev_kfree_skb(resp);
+
+	if (rc)
+		digital_poll_next_tech(ddev);
+}
+
+int digital_in_send_iso15693_inv_req(struct nfc_digital_dev *ddev, u8 rf_tech)
+{
+	struct digital_iso15693_inv_req *req;
+	struct sk_buff *skb;
+	int rc;
+
+	rc = digital_in_configure_hw(ddev, NFC_DIGITAL_CONFIG_RF_TECH,
+				     NFC_DIGITAL_RF_TECH_ISO15693);
+	if (rc)
+		return rc;
+
+	rc = digital_in_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				     NFC_DIGITAL_FRAMING_ISO15693_INVENTORY);
+	if (rc)
+		return rc;
+
+	skb = digital_skb_alloc(ddev, sizeof(*req));
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, sizeof(*req) - sizeof(req->mask)); /* No mask */
+	req = (struct digital_iso15693_inv_req *)skb->data;
+
+	/* Single sub-carrier, high data rate, no AFI, single slot
+	 * Inventory command
+	 */
+	req->flags = DIGITAL_ISO15693_REQ_FLAG_DATA_RATE |
+		     DIGITAL_ISO15693_REQ_FLAG_INVENTORY |
+		     DIGITAL_ISO15693_REQ_FLAG_NB_SLOTS;
+	req->cmd = DIGITAL_CMD_ISO15693_INVENTORY_REQ;
+	req->mask_len = 0;
+
+	rc = digital_in_send_cmd(ddev, skb, 30,
+				 digital_in_recv_iso15693_inv_res, NULL);
 	if (rc)
 		kfree_skb(skb);
 

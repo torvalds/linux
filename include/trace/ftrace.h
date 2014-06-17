@@ -265,11 +265,9 @@ static notrace enum print_line_t					\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 			 struct trace_event *event)			\
 {									\
-	struct trace_seq *s = &iter->seq;				\
 	struct ftrace_raw_##template *field;				\
 	struct trace_entry *entry;					\
 	struct trace_seq *p = &iter->tmp_seq;				\
-	int ret;							\
 									\
 	entry = iter->ent;						\
 									\
@@ -281,13 +279,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 	field = (typeof(field))entry;					\
 									\
 	trace_seq_init(p);						\
-	ret = trace_seq_printf(s, "%s: ", #call);			\
-	if (ret)							\
-		ret = trace_seq_printf(s, print);			\
-	if (!ret)							\
-		return TRACE_TYPE_PARTIAL_LINE;				\
-									\
-	return TRACE_TYPE_HANDLED;					\
+	return ftrace_output_call(iter, #call, print);			\
 }									\
 static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 	.trace			= ftrace_raw_output_##call,		\
@@ -370,10 +362,11 @@ ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 
 #undef __dynamic_array
 #define __dynamic_array(type, item, len)				\
+	__item_length = (len) * sizeof(type);				\
 	__data_offsets->item = __data_size +				\
 			       offsetof(typeof(*entry), __data);	\
-	__data_offsets->item |= (len * sizeof(type)) << 16;		\
-	__data_size += (len) * sizeof(type);
+	__data_offsets->item |= __item_length << 16;			\
+	__data_size += __item_length;
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item,			\
@@ -385,6 +378,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
 	struct ftrace_data_offsets_##call *__data_offsets, proto)       \
 {									\
 	int __data_size = 0;						\
+	int __maybe_unused __item_length;				\
 	struct ftrace_raw_##call __maybe_unused *entry;			\
 									\
 	tstruct;							\
@@ -476,10 +470,13 @@ static inline notrace int ftrace_get_offsets_##call(			\
  * };
  *
  * static struct ftrace_event_call event_<call> = {
- *	.name			= "<call>",
  *	.class			= event_class_<template>,
+ *	{
+ *		.tp			= &__tracepoint_<call>,
+ *	},
  *	.event			= &ftrace_event_type_<call>,
  *	.print_fmt		= print_fmt_<call>,
+ *	.flags			= TRACE_EVENT_FL_TRACEPOINT,
  * };
  * // its only safe to use pointers when doing linker tricks to
  * // create an array.
@@ -541,37 +538,27 @@ static notrace void							\
 ftrace_raw_event_##call(void *__data, proto)				\
 {									\
 	struct ftrace_event_file *ftrace_file = __data;			\
-	struct ftrace_event_call *event_call = ftrace_file->event_call;	\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	struct ring_buffer_event *event;				\
+	struct ftrace_event_buffer fbuffer;				\
 	struct ftrace_raw_##call *entry;				\
-	struct ring_buffer *buffer;					\
-	unsigned long irq_flags;					\
 	int __data_size;						\
-	int pc;								\
 									\
 	if (ftrace_trigger_soft_disabled(ftrace_file))			\
 		return;							\
 									\
-	local_save_flags(irq_flags);					\
-	pc = preempt_count();						\
-									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,	\
-				 event_call->event.type,		\
-				 sizeof(*entry) + __data_size,		\
-				 irq_flags, pc);			\
-	if (!event)							\
+	entry = ftrace_event_buffer_reserve(&fbuffer, ftrace_file,	\
+				 sizeof(*entry) + __data_size);		\
+									\
+	if (!entry)							\
 		return;							\
-	entry	= ring_buffer_event_data(event);			\
 									\
 	tstruct								\
 									\
 	{ assign; }							\
 									\
-	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, \
-				    irq_flags, pc);		       \
+	ftrace_event_buffer_commit(&fbuffer);				\
 }
 /*
  * The ftrace_test_probe is compiled out, it is only here as a build time check
@@ -621,10 +608,13 @@ static struct ftrace_event_class __used __refdata event_class_##call = { \
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
 static struct ftrace_event_call __used event_##call = {			\
-	.name			= #call,				\
 	.class			= &event_class_##template,		\
+	{								\
+		.tp			= &__tracepoint_##call,		\
+	},								\
 	.event.funcs		= &ftrace_event_type_funcs_##template,	\
 	.print_fmt		= print_fmt_##template,			\
+	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
 static struct ftrace_event_call __used					\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
@@ -635,10 +625,13 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 static const char print_fmt_##call[] = print;				\
 									\
 static struct ftrace_event_call __used event_##call = {			\
-	.name			= #call,				\
 	.class			= &event_class_##template,		\
+	{								\
+		.tp			= &__tracepoint_##call,		\
+	},								\
 	.event.funcs		= &ftrace_event_type_funcs_##call,	\
 	.print_fmt		= print_fmt_##call,			\
+	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
 static struct ftrace_event_call __used					\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call

@@ -14,7 +14,7 @@
 #include "net_driver.h"
 #include "filter.h"
 
-/* Solarstorm controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
+/* All controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
 #define EFX_MEM_BAR 2
 
 /* TX */

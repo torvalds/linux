@@ -22,7 +22,6 @@
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
 #ifndef __ASSEMBLY__
-#include <asm/cacheflush.h>
 
 /*
  * __boot_cpu_mode records what mode CPUs were booted in.
@@ -38,20 +37,9 @@ extern u32 __boot_cpu_mode[2];
 void __hyp_set_vectors(phys_addr_t phys_vector_base);
 phys_addr_t __hyp_get_vectors(void);
 
-static inline void sync_boot_mode(void)
-{
-	/*
-	 * As secondaries write to __boot_cpu_mode with caches disabled, we
-	 * must flush the corresponding cache entries to ensure the visibility
-	 * of their writes.
-	 */
-	__flush_dcache_area(__boot_cpu_mode, sizeof(__boot_cpu_mode));
-}
-
 /* Reports the availability of HYP mode */
 static inline bool is_hyp_mode_available(void)
 {
-	sync_boot_mode();
 	return (__boot_cpu_mode[0] == BOOT_CPU_MODE_EL2 &&
 		__boot_cpu_mode[1] == BOOT_CPU_MODE_EL2);
 }
@@ -59,7 +47,6 @@ static inline bool is_hyp_mode_available(void)
 /* Check if the bootloader has booted CPUs in different modes */
 static inline bool is_hyp_mode_mismatched(void)
 {
-	sync_boot_mode();
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
 }
 

@@ -1,6 +1,6 @@
 /* ir-rc5-decoder.c - handle RC5(x) IR Pulse/Space protocol
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u8 toggle;
 	u32 scancode;
 
-	if (!(dev->enabled_protocols & (RC_BIT_RC5 | RC_BIT_RC5X)))
+	if (!rc_protocols_enabled(dev, RC_BIT_RC5 | RC_BIT_RC5X))
 		return 0;
 
 	if (!is_timing_event(ev)) {
@@ -128,7 +128,7 @@ again:
 		if (data->wanted_bits == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5X)) {
+			if (!rc_protocols_enabled(dev, RC_BIT_RC5X)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -145,7 +145,7 @@ again:
 		} else {
 			/* RC5 */
 			u8 command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5)) {
+			if (!rc_protocols_enabled(dev, RC_BIT_RC5)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -193,6 +193,6 @@ module_init(ir_rc5_decode_init);
 module_exit(ir_rc5_decode_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
 MODULE_DESCRIPTION("RC5(x) IR protocol decoder");

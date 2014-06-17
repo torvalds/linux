@@ -29,12 +29,12 @@ static unsigned int exynos4210_volt_table[] = {
 };
 
 static struct cpufreq_frequency_table exynos4210_freq_table[] = {
-	{L0, 1200 * 1000},
-	{L1, 1000 * 1000},
-	{L2,  800 * 1000},
-	{L3,  500 * 1000},
-	{L4,  200 * 1000},
-	{0, CPUFREQ_TABLE_END},
+	{0, L0, 1200 * 1000},
+	{0, L1, 1000 * 1000},
+	{0, L2,  800 * 1000},
+	{0, L3,  500 * 1000},
+	{0, L4,  200 * 1000},
+	{0, 0, CPUFREQ_TABLE_END},
 };
 
 static struct apll_freq apll_freq_4210[] = {

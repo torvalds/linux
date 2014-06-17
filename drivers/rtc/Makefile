@@ -40,6 +40,7 @@ obj-$(CONFIG_RTC_DRV_DS1286)	+= rtc-ds1286.o
 obj-$(CONFIG_RTC_DRV_DS1302)	+= rtc-ds1302.o
 obj-$(CONFIG_RTC_DRV_DS1305)	+= rtc-ds1305.o
 obj-$(CONFIG_RTC_DRV_DS1307)	+= rtc-ds1307.o
+obj-$(CONFIG_RTC_DRV_DS1347)	+= rtc-ds1347.o
 obj-$(CONFIG_RTC_DRV_DS1374)	+= rtc-ds1374.o
 obj-$(CONFIG_RTC_DRV_DS1390)	+= rtc-ds1390.o
 obj-$(CONFIG_RTC_DRV_DS1511)	+= rtc-ds1511.o

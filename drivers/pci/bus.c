@@ -132,7 +132,7 @@ static void pci_clip_resource_to_region(struct pci_bus *bus,
 
 static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
-		resource_size_t min, unsigned int type_mask,
+		resource_size_t min, unsigned long type_mask,
 		resource_size_t (*alignf)(void *,
 					  const struct resource *,
 					  resource_size_t,
@@ -144,7 +144,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 	struct resource *r, avail;
 	resource_size_t max;
 
-	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+	type_mask |= IORESOURCE_TYPE_BITS;
 
 	pci_bus_for_each_resource(bus, r, i) {
 		if (!r)
@@ -200,7 +200,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
  */
 int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		resource_size_t size, resource_size_t align,
-		resource_size_t min, unsigned int type_mask,
+		resource_size_t min, unsigned long type_mask,
 		resource_size_t (*alignf)(void *,
 					  const struct resource *,
 					  resource_size_t,

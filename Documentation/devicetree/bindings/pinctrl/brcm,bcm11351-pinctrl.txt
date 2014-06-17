@@ -119,7 +119,7 @@ Optional Properties (for HDMI pins):
 Example:
 // pin controller node
 pinctrl@35004800 {
-	compatible = "brcmbcm11351-pinctrl";
+	compatible = "brcm,bcm11351-pinctrl";
 	reg = <0x35004800 0x430>;
 
 	// pin configuration node

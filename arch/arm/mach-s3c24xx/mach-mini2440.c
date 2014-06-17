@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/dm9000.h>
 #include <linux/platform_data/at24.h>
 #include <linux/platform_device.h>
@@ -37,7 +38,6 @@
 #include <mach/fb.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-lcd.h>

@@ -201,7 +201,7 @@ static int validate_identity(void);
 *	0	- success
 *	~0	- failure
 ----------------------------------------------------------------*/
-int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
+static int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 {
 	const struct firmware *fw_entry = NULL;
 

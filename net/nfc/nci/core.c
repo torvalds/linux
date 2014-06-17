@@ -74,7 +74,7 @@ static int __nci_request(struct nci_dev *ndev,
 
 	ndev->req_status = NCI_REQ_PEND;
 
-	init_completion(&ndev->req_completion);
+	reinit_completion(&ndev->req_completion);
 	req(ndev, opt);
 	completion_rc =
 		wait_for_completion_interruptible_timeout(&ndev->req_completion,
@@ -709,6 +709,7 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 	ndev->ops = ops;
 	ndev->tx_headroom = tx_headroom;
 	ndev->tx_tailroom = tx_tailroom;
+	init_completion(&ndev->req_completion);
 
 	ndev->nfc_dev = nfc_allocate_device(&nci_nfc_ops,
 					    supported_protocols,

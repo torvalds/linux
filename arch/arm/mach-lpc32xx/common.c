@@ -99,6 +99,7 @@ u32 lpc32xx_return_iram_size(void)
 
 	return iram_size;
 }
+EXPORT_SYMBOL_GPL(lpc32xx_return_iram_size);
 
 /*
  * Computes PLL rate from PLL register and input clock

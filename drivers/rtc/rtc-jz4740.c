@@ -38,7 +38,6 @@
 #define JZ_RTC_CTRL_ENABLE	BIT(0)
 
 struct jz4740_rtc {
-	struct resource *mem;
 	void __iomem *base;
 
 	struct rtc_device *rtc;
@@ -216,6 +215,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 	int ret;
 	struct jz4740_rtc *rtc;
 	uint32_t scratchpad;
+	struct resource *mem;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
@@ -227,25 +227,10 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	rtc->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!rtc->mem) {
-		dev_err(&pdev->dev, "Failed to get platform mmio memory\n");
-		return -ENOENT;
-	}
-
-	rtc->mem = devm_request_mem_region(&pdev->dev, rtc->mem->start,
-					resource_size(rtc->mem), pdev->name);
-	if (!rtc->mem) {
-		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		return -EBUSY;
-	}
-
-	rtc->base = devm_ioremap_nocache(&pdev->dev, rtc->mem->start,
-					resource_size(rtc->mem));
-	if (!rtc->base) {
-		dev_err(&pdev->dev, "Failed to ioremap mmio memory\n");
-		return -EBUSY;
-	}
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	rtc->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(rtc->base))
+		return PTR_ERR(rtc->base);
 
 	spin_lock_init(&rtc->lock);
 

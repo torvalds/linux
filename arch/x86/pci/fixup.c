@@ -25,9 +25,9 @@ static void pci_fixup_i450nx(struct pci_dev *d)
 		dev_dbg(&d->dev, "i450NX PXB %d: %02x/%02x/%02x\n", pxb, busno,
 			suba, subb);
 		if (busno)
-			pci_scan_bus_with_sysdata(busno);	/* Bus A */
+			pcibios_scan_root(busno);	/* Bus A */
 		if (suba < subb)
-			pci_scan_bus_with_sysdata(suba+1);	/* Bus B */
+			pcibios_scan_root(suba+1);	/* Bus B */
 	}
 	pcibios_last_bus = -1;
 }
@@ -42,7 +42,7 @@ static void pci_fixup_i450gx(struct pci_dev *d)
 	u8 busno;
 	pci_read_config_byte(d, 0x4a, &busno);
 	dev_info(&d->dev, "i440KX/GX host bridge; secondary bus %02x\n", busno);
-	pci_scan_bus_with_sysdata(busno);
+	pcibios_scan_root(busno);
 	pcibios_last_bus = -1;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454GX, pci_fixup_i450gx);
@@ -313,9 +313,10 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_MCH_PC1,	pcie_r
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
  * the main ROM may be compressed or combined with another image.
- * See pci_map_rom() for use of this flag. IORESOURCE_ROM_SHADOW
- * is marked here since the boot video device will be the only enabled
- * video device at this point.
+ * See pci_map_rom() for use of this flag. Before marking the device
+ * with IORESOURCE_ROM_SHADOW check if a vga_default_device is already set
+ * by either arch cde or vga-arbitration, if so only apply the fixup to this
+ * already determined primary video card.
  */
 
 static void pci_fixup_video(struct pci_dev *pdev)
@@ -346,12 +347,13 @@ static void pci_fixup_video(struct pci_dev *pdev)
 		}
 		bus = bus->parent;
 	}
-	pci_read_config_word(pdev, PCI_COMMAND, &config);
-	if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
-		pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
-		dev_printk(KERN_DEBUG, &pdev->dev, "Boot video device\n");
-		if (!vga_default_device())
+	if (!vga_default_device() || pdev == vga_default_device()) {
+		pci_read_config_word(pdev, PCI_COMMAND, &config);
+		if (config & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) {
+			pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
+			dev_printk(KERN_DEBUG, &pdev->dev, "Boot video device\n");
 			vga_set_default_device(pdev);
+		}
 	}
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,

@@ -1,6 +1,8 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
+generic-y += resource.h
+
 header-y += bitsperlong.h
 header-y += byteorder.h
 header-y += errno.h
@@ -13,7 +15,6 @@ header-y += msgbuf.h
 header-y += pdc.h
 header-y += posix_types.h
 header-y += ptrace.h
-header-y += resource.h
 header-y += sembuf.h
 header-y += setup.h
 header-y += shmbuf.h

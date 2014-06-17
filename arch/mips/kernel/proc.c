@@ -17,8 +17,24 @@
 
 unsigned int vced_count, vcei_count;
 
+/*
+ *  * No lock; only written during early bootup by CPU 0.
+ *   */
+static RAW_NOTIFIER_HEAD(proc_cpuinfo_chain);
+
+int __ref register_proc_cpuinfo_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&proc_cpuinfo_chain, nb);
+}
+
+int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v)
+{
+	return raw_notifier_call_chain(&proc_cpuinfo_chain, val, v);
+}
+
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
+	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int version = cpu_data[n].processor_id;
 	unsigned int fp_vers = cpu_data[n].fpu_id;
@@ -95,6 +111,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
 	if (cpu_has_mmips)	seq_printf(m, "%s", " micromips");
 	if (cpu_has_vz)		seq_printf(m, "%s", " vz");
+	if (cpu_has_msa)	seq_printf(m, "%s", " msa");
+	if (cpu_has_eva)	seq_printf(m, "%s", " eva");
 	seq_printf(m, "\n");
 
 	if (cpu_has_mmips) {
@@ -106,18 +124,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "kscratch registers\t: %d\n",
 		      hweight8(cpu_data[n].kscratch_mask));
 	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
-#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
-	if (cpu_has_mipsmt) {
-		seq_printf(m, "VPE\t\t\t: %d\n", cpu_data[n].vpe_id);
-#if defined(CONFIG_MIPS_MT_SMTC)
-		seq_printf(m, "TC\t\t\t: %d\n", cpu_data[n].tc_id);
-#endif
-	}
-#endif
+
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 		      cpu_has_vce ? "%u" : "not available");
 	seq_printf(m, fmt, 'D', vced_count);
 	seq_printf(m, fmt, 'I', vcei_count);
+
+	proc_cpuinfo_notifier_args.m = m;
+	proc_cpuinfo_notifier_args.n = n;
+
+	raw_notifier_call_chain(&proc_cpuinfo_chain, 0,
+				&proc_cpuinfo_notifier_args);
+
 	seq_printf(m, "\n");
 
 	return 0;

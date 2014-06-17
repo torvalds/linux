@@ -173,8 +173,7 @@ static struct css_driver chsc_subchannel_driver = {
 
 static int __init chsc_init_dbfs(void)
 {
-	chsc_debug_msg_id = debug_register("chsc_msg", 16, 1,
-					   16 * sizeof(long));
+	chsc_debug_msg_id = debug_register("chsc_msg", 8, 1, 4 * sizeof(long));
 	if (!chsc_debug_msg_id)
 		goto out;
 	debug_register_view(chsc_debug_msg_id, &debug_sprintf_view);

@@ -311,7 +311,6 @@ static inline void efx_farch_push_tx_desc(struct efx_tx_queue *tx_queue,
  */
 void efx_farch_tx_write(struct efx_tx_queue *tx_queue)
 {
-
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
@@ -741,6 +740,28 @@ int efx_farch_fini_dmaq(struct efx_nic *efx)
 
 	return rc;
 }
+
+/* Reset queue and flush accounting after FLR
+ *
+ * One possible cause of FLR recovery is that DMA may be failing (eg. if bus
+ * mastering was disabled), in which case we don't receive (RXQ) flush
+ * completion events.  This means that efx->rxq_flush_outstanding remained at 4
+ * after the FLR; also, efx->active_queues was non-zero (as no flush completion
+ * events were received, and we didn't go through efx_check_tx_flush_complete())
+ * If we don't fix this up, on the next call to efx_realloc_channels() we won't
+ * flush any RX queues because efx->rxq_flush_outstanding is at the limit of 4
+ * for batched flush requests; and the efx->active_queues gets messed up because
+ * we keep incrementing for the newly initialised queues, but it never went to
+ * zero previously.  Then we get a timeout every time we try to restart the
+ * queues, as it doesn't go back to zero when we should be flushing the queues.
+ */
+void efx_farch_finish_flr(struct efx_nic *efx)
+{
+	atomic_set(&efx->rxq_flush_pending, 0);
+	atomic_set(&efx->rxq_flush_outstanding, 0);
+	atomic_set(&efx->active_queues, 0);
+}
+
 
 /**************************************************************************
  *
@@ -1249,6 +1270,9 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	int tx_packets = 0;
 	int spent = 0;
 
+	if (budget <= 0)
+		return spent;
+
 	read_ptr = channel->eventq_read_ptr;
 
 	for (;;) {
@@ -1608,7 +1632,6 @@ irqreturn_t efx_farch_msi_interrupt(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-
 
 /* Setup RSS indirection table.
  * This maps from the hash value of the packet to RXQ

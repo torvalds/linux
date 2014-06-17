@@ -101,7 +101,8 @@ void mdp_irq_wait(struct mdp_kms *mdp_kms, uint32_t irqmask)
 		.count = 1,
 	};
 	mdp_irq_register(mdp_kms, &wait.irq);
-	wait_event(wait_event, (wait.count <= 0));
+	wait_event_timeout(wait_event, (wait.count <= 0),
+			msecs_to_jiffies(100));
 	mdp_irq_unregister(mdp_kms, &wait.irq);
 }
 
