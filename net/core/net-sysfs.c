@@ -1200,8 +1200,8 @@ static int register_queue_kobjects(struct net_device *net)
 #ifdef CONFIG_SYSFS
 	net->queues_kset = kset_create_and_add("queues",
 	    NULL, &net->dev.kobj);
-	if (!net->queues_kset)
-		return -ENOMEM;
+	if (IS_ERR(net->queues_kset))
+		return PTR_ERR(net->queues_kset);
 	real_rx = net->real_num_rx_queues;
 #endif
 	real_tx = net->real_num_tx_queues;
