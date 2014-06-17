@@ -1056,9 +1056,15 @@ static int aufs_update_time(struct inode *inode, struct timespec *ts, int flags)
 	h_inode = au_h_iptr(inode, au_ibstart(inode));
 	err = vfsub_update_time(h_inode, ts, flags);
 	lockdep_off();
+	if (!err)
+		au_cpup_attr_timesizes(inode);
 	ii_write_unlock(inode);
 	si_read_unlock(sb);
 	lockdep_on();
+
+	if (!err && (flags & S_VERSION))
+		inode_inc_iversion(inode);
+
 	return err;
 }
 
