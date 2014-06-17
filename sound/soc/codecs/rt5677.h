@@ -1425,14 +1425,6 @@ enum {
 	RT5677_AIFS,
 };
 
-struct rt5677_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
-	bool k_bp; /* Indicates bypass k code or not. */
-	int m_code;
-	int n_code;
-	int k_code;
-};
-
 struct rt5677_priv {
 	struct snd_soc_codec *codec;
 	struct rt5677_platform_data pdata;

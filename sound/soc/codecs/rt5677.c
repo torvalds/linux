@@ -2996,62 +2996,12 @@ static int rt5677_set_dai_sysclk(struct snd_soc_dai *dai,
  * Returns 0 for success or negative error code.
  */
 static int rt5677_pll_calc(const unsigned int freq_in,
-	const unsigned int freq_out, struct rt5677_pll_code *pll_code)
+	const unsigned int freq_out, struct rl6231_pll_code *pll_code)
 {
-	int max_n = RT5677_PLL_N_MAX, max_m = RT5677_PLL_M_MAX;
-	int k, red, n_t, pll_out, in_t;
-	int n = 0, m = 0, m_t = 0;
-	int out_t, red_t = abs(freq_out - freq_in);
-	bool m_bp = false, k_bp = false;
-
-	if (RT5677_PLL_INP_MAX < freq_in || RT5677_PLL_INP_MIN > freq_in)
+	if (RT5677_PLL_INP_MIN > freq_in)
 		return -EINVAL;
 
-	k = 100000000 / freq_out - 2;
-	if (k > RT5677_PLL_K_MAX)
-		k = RT5677_PLL_K_MAX;
-	for (n_t = 0; n_t <= max_n; n_t++) {
-		in_t = freq_in / (k + 2);
-		pll_out = freq_out / (n_t + 2);
-		if (in_t < 0)
-			continue;
-		if (in_t == pll_out) {
-			m_bp = true;
-			n = n_t;
-			goto code_find;
-		}
-		red = abs(in_t - pll_out);
-		if (red < red_t) {
-			m_bp = true;
-			n = n_t;
-			m = m_t;
-			if (red == 0)
-				goto code_find;
-			red_t = red;
-		}
-		for (m_t = 0; m_t <= max_m; m_t++) {
-			out_t = in_t / (m_t + 2);
-			red = abs(out_t - pll_out);
-			if (red < red_t) {
-				m_bp = false;
-				n = n_t;
-				m = m_t;
-				if (red == 0)
-					goto code_find;
-				red_t = red;
-			}
-		}
-	}
-	pr_debug("Only get approximation about PLL\n");
-
-code_find:
-
-	pll_code->m_bp = m_bp;
-	pll_code->k_bp = k_bp;
-	pll_code->m_code = m;
-	pll_code->n_code = n;
-	pll_code->k_code = k;
-	return 0;
+	return rl6231_pll_calc(freq_in, freq_out, pll_code);
 }
 
 static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
@@ -3059,7 +3009,7 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
-	struct rt5677_pll_code pll_code;
+	struct rl6231_pll_code pll_code;
 	int ret;
 
 	if (source == rt5677->pll_src && freq_in == rt5677->pll_in &&
@@ -3117,15 +3067,12 @@ static int rt5677_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		return ret;
 	}
 
-	dev_dbg(codec->dev, "m_bypass=%d k_bypass=%d m=%d n=%d k=%d\n",
-		pll_code.m_bp, pll_code.k_bp,
-		(pll_code.m_bp ? 0 : pll_code.m_code), pll_code.n_code,
-		(pll_code.k_bp ? 0 : pll_code.k_code));
+	dev_dbg(codec->dev, "m_bypass=%d m=%d n=%d k=%d\n",
+		pll_code.m_bp, (pll_code.m_bp ? 0 : pll_code.m_code),
+		pll_code.n_code, pll_code.k_code);
 
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL1,
-		pll_code.n_code << RT5677_PLL_N_SFT |
-		pll_code.k_bp << RT5677_PLL_K_BP_SFT |
-		(pll_code.k_bp ? 0 : pll_code.k_code));
+		pll_code.n_code << RT5677_PLL_N_SFT | pll_code.k_code);
 	regmap_write(rt5677->regmap, RT5677_PLL1_CTRL2,
 		(pll_code.m_bp ? 0 : pll_code.m_code) << RT5677_PLL_M_SFT |
 		pll_code.m_bp << RT5677_PLL_M_BP_SFT);
