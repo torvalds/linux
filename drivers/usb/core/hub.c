@@ -1577,6 +1577,12 @@ static int hub_configure(struct usb_hub *hub,
 		}
 	}
 	hdev->maxchild = i;
+	for (i = 0; i < hdev->maxchild; i++) {
+		struct usb_port *port_dev = hub->ports[i];
+
+		pm_runtime_put(&port_dev->dev);
+	}
+
 	mutex_unlock(&usb_port_peer_mutex);
 	if (ret < 0)
 		goto fail;
