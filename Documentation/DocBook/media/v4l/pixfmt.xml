@@ -279,7 +279,7 @@ has just as many pad bytes after it as the other rows.</para>
 
     <para>In V4L2 each format has an identifier which looks like
 <constant>PIX_FMT_XXX</constant>, defined in the <link
-linkend="videodev">videodev.h</link> header file. These identifiers
+linkend="videodev">videodev2.h</link> header file. These identifiers
 represent <link linkend="v4l2-fourcc">four character (FourCC) codes</link>
 which are also listed below, however they are not the same as those
 used in the Windows world.</para>
