@@ -403,6 +403,54 @@ out:
 	return err;
 }
 
+static long aufs_fallocate(struct file *file, int mode, loff_t offset,
+			   loff_t len)
+{
+	long err;
+	struct au_pin pin;
+	struct dentry *dentry;
+	struct super_block *sb;
+	struct inode *inode;
+	struct file *h_file;
+
+	dentry = file->f_dentry;
+	sb = dentry->d_sb;
+	inode = dentry->d_inode;
+	au_mtx_and_read_lock(inode);
+
+	err = au_reval_and_lock_fdi(file, au_reopen_nondir, /*wlock*/1);
+	if (unlikely(err))
+		goto out;
+
+	err = au_ready_to_write(file, -1, &pin);
+	di_downgrade_lock(dentry, AuLock_IR);
+	if (unlikely(err)) {
+		di_read_unlock(dentry, AuLock_IR);
+		fi_write_unlock(file);
+		goto out;
+	}
+
+	h_file = au_hf_top(file);
+	get_file(h_file);
+	au_unpin(&pin);
+	di_read_unlock(dentry, AuLock_IR);
+	fi_write_unlock(file);
+
+	lockdep_off();
+	err = do_fallocate(h_file, mode, offset, len);
+	lockdep_on();
+	ii_write_lock_child(inode);
+	au_cpup_attr_timesizes(inode);
+	inode->i_mode = file_inode(h_file)->i_mode;
+	ii_write_unlock(inode);
+	fput(h_file);
+
+out:
+	si_read_unlock(sb);
+	mutex_unlock(&inode->i_mutex);
+	return err;
+}
+
 /* ---------------------------------------------------------------------- */
 
 /*
@@ -704,6 +752,7 @@ const struct file_operations aufs_file_fop = {
 	.splice_read	= aufs_splice_read,
 #if 0
 	.aio_splice_write = aufs_aio_splice_write,
-	.aio_splice_read  = aufs_aio_splice_read
+	.aio_splice_read  = aufs_aio_splice_read,
 #endif
+	.fallocate	= aufs_fallocate
 };
