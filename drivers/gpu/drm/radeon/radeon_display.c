@@ -360,7 +360,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 
 	drm_vblank_put(rdev->ddev, radeon_crtc->crtc_id);
 	radeon_fence_unref(&work->fence);
-	radeon_irq_kms_pflip_irq_get(rdev, work->crtc_id);
+	radeon_irq_kms_pflip_irq_put(rdev, work->crtc_id);
 	queue_work(radeon_crtc->flip_queue, &work->unpin_work);
 }
 
