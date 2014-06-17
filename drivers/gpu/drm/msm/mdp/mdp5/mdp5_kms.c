@@ -368,5 +368,11 @@ static struct mdp5_platform_config *mdp5_get_config(struct platform_device *dev)
 #ifdef CONFIG_OF
 	/* TODO */
 #endif
+	config.iommu = iommu_domain_alloc(&platform_bus_type);
+	/* TODO hard-coded in downstream mdss, but should it be? */
+	config.max_clk = 200000000;
+	/* TODO get from DT: */
+	config.smp_blk_cnt = 22;
+
 	return &config;
 }
