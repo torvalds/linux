@@ -33,11 +33,11 @@
 #include <linux/platform_data/sh_ipmmu.h>
 #include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <mach/sh73a0.h>
-#include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
 

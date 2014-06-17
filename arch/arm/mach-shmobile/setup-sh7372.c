@@ -34,11 +34,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/sh_ipmmu.h>
 #include <mach/sh7372.h>
-#include <mach/common.h>
 #include <asm/mach/map.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
 

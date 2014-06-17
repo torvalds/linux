@@ -19,9 +19,9 @@
 #include <linux/interrupt.h>
 #include <linux/console.h>
 #include <asm/io.h>
-#include <mach/common.h>
 #include <mach/pm-rcar.h>
 #include <mach/r8a7779.h>
+#include "common.h"
 
 /* SYSC */
 #define SYSCIER 0x0c

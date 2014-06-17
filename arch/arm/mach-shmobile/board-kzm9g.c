@@ -44,11 +44,11 @@
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 #include <mach/sh73a0.h>
-#include <mach/common.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <video/sh_mobile_lcdc.h>
+#include "common.h"
 #include "irqs.h"
 
 /*

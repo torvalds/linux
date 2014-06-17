@@ -38,9 +38,9 @@
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/dma-mapping.h>
 #include <mach/r8a7778.h>
-#include <mach/common.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
+#include "common.h"
 #include "irqs.h"
 
 /* SCIF */

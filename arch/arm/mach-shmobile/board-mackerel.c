@@ -57,10 +57,10 @@
 #include <media/soc_camera_platform.h>
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
-#include <mach/common.h>
 #include <mach/sh7372.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
+#include "common.h"
 #include "irqs.h"
 #include "sh-gpio.h"
 

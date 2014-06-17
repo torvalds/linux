@@ -24,9 +24,9 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-#include <mach/common.h>
 #include <mach/r8a73a4.h>
 #include <asm/mach/arch.h>
+#include "common.h"
 #include "dma-register.h"
 #include "irqs.h"
 

@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/common.h>
+#include "common.h"
 #include "clock.h"
 
 #define CPG_BASE 0xe6150000

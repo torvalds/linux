@@ -49,8 +49,8 @@ void __init shmobile_clk_workaround(const struct clk_name *clks,
 #else /* CONFIG_COMMON_CLK */
 #include <linux/sh_clk.h>
 #include <linux/export.h>
-#include <mach/common.h>
 #include "clock.h"
+#include "common.h"
 
 unsigned long shmobile_fixed_ratio_clk_recalc(struct clk *clk)
 {

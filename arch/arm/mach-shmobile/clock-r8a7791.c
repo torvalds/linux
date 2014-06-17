@@ -23,9 +23,9 @@
 #include <linux/kernel.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
-#include <mach/common.h>
 #include <mach/rcar-gen2.h>
 #include "clock.h"
+#include "common.h"
 
 /*
  *   MD		EXTAL		PLL0	PLL1	PLL3
