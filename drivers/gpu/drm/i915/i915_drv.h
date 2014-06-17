@@ -1661,6 +1661,12 @@ struct drm_i915_gem_object {
 	unsigned int pin_display:1;
 
 	/*
+	 * Is the object to be mapped as read-only to the GPU
+	 * Only honoured if hardware has relevant pte bit
+	 */
+	unsigned long gt_ro:1;
+
+	/*
 	 * Is the GPU currently using a fence to access this buffer,
 	 */
 	unsigned int pending_fenced_gpu_access:1;
