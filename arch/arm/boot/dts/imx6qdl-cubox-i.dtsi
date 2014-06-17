@@ -12,6 +12,19 @@
 		pinctrl-0 = <&pinctrl_cubox_i_ir>;
 	};
 
+	pwmleds {
+		compatible = "pwm-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_cubox_i_pwm1>;
+
+		front {
+			active-low;
+			label = "imx6:red:front";
+			max-brightness = <248>;
+			pwms = <&pwm1 0 50000>;
+		};
+	};
+
 	regulators {
 		compatible = "simple-bus";
 
@@ -107,6 +120,10 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_DA9__GPIO3_IO09 0x80000000
 			>;
+		};
+
+		pinctrl_cubox_i_pwm1: cubox-i-pwm1-front-led {
+			fsl,pins = <MX6QDL_PAD_DISP0_DAT8__PWM1_OUT 0x1b0b0>;
 		};
 
 		pinctrl_cubox_i_spdif: cubox-i-spdif {
