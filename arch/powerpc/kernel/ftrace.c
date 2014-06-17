@@ -307,7 +307,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 * The load offset is different depending on the ABI. For simplicity
 	 * just mask it out when doing the compare.
 	 */
-	if ((op[0] != 0x48000008) || ((op[1] & 0xffff00000) != 0xe8410000)) {
+	if ((op[0] != 0x48000008) || ((op[1] & 0xffff0000) != 0xe8410000)) {
 		printk(KERN_ERR "Unexpected call sequence: %x %x\n",
 			op[0], op[1]);
 		return -EINVAL;
