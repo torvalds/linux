@@ -21,6 +21,8 @@
 
 #include "hub.h"
 
+static int usb_port_block_power_off;
+
 static const struct attribute_group *port_dev_group[];
 
 static ssize_t connect_type_show(struct device *dev,
@@ -142,6 +144,9 @@ static int usb_port_runtime_suspend(struct device *dev)
 			== PM_QOS_FLAGS_ALL)
 		return -EAGAIN;
 
+	if (usb_port_block_power_off)
+		return -EBUSY;
+
 	usb_autopm_get_interface(intf);
 	retval = usb_hub_set_port_power(hdev, hub, port1, false);
 	usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_CONNECTION);
@@ -190,11 +195,19 @@ static int link_peers(struct usb_port *left, struct usb_port *right)
 	if (left->peer || right->peer) {
 		struct usb_port *lpeer = left->peer;
 		struct usb_port *rpeer = right->peer;
+		char *method;
 
-		WARN(1, "failed to peer %s and %s (%s -> %p) (%s -> %p)\n",
-			dev_name(&left->dev), dev_name(&right->dev),
-			dev_name(&left->dev), lpeer,
-			dev_name(&right->dev), rpeer);
+		if (left->location && left->location == right->location)
+			method = "location";
+		else
+			method = "default";
+
+		pr_warn("usb: failed to peer %s and %s by %s (%s:%s) (%s:%s)\n",
+			dev_name(&left->dev), dev_name(&right->dev), method,
+			dev_name(&left->dev),
+			lpeer ? dev_name(&lpeer->dev) : "none",
+			dev_name(&right->dev),
+			rpeer ? dev_name(&rpeer->dev) : "none");
 		return -EBUSY;
 	}
 
@@ -251,6 +264,7 @@ static void link_peers_report(struct usb_port *left, struct usb_port *right)
 		dev_warn(&left->dev, "failed to peer to %s (%d)\n",
 				dev_name(&right->dev), rc);
 		pr_warn_once("usb: port power management may be unreliable\n");
+		usb_port_block_power_off = 1;
 	}
 }
 
