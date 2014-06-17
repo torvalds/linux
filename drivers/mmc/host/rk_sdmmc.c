@@ -1369,6 +1369,7 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 	unsigned long timeout;
 	bool ret = true;
 
+        #if 0
         /* (1) CMD12 to end any transfer in process */
         cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC
 			| SDMMC_CMD_RESP_EXP | MMC_STOP_TRANSMISSION;
@@ -1390,7 +1391,7 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 		MMC_DBG_ERR_FUNC(host->mmc,
 			"%s dw_mci_hw_reset: STOP_TRANSMISSION failed!!! [%s]\n",
 			__func__, mmc_hostname(host->mmc));
-
+        
 	/* (2) wait DTO, even if no response is sent back by card */
 	ret = true;
 	timeout = jiffies + msecs_to_jiffies(5);
@@ -1401,8 +1402,9 @@ static void dw_mci_hw_reset(struct mmc_host *mmc)
 			break;
 		}
 	}
+        #endif
 
-	/* (3) Reset following: DONNOT CHANGE RESET ORDER!*/
+        /* (3) Reset following: DONNOT CHANGE RESET ORDER!*/
 
 	/* Software reset - BMOD[0] for IDMA only */
 	regs = mci_readl(host, BMOD);
