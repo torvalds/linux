@@ -272,7 +272,6 @@
 					       <&sdma 38 1 0>;
 					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <38 37>;
 					status = "disabled";
 				};
 
@@ -287,7 +286,6 @@
 					       <&sdma 42 1 0>;
 					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <42 41>;
 					status = "disabled";
 				};
 
@@ -302,7 +300,6 @@
 					       <&sdma 46 1 0>;
 					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <46 45>;
 					status = "disabled";
 				};
 
