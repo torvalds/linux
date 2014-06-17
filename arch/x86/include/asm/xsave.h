@@ -70,7 +70,7 @@ extern int init_fpu(struct task_struct *child);
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static int xsave_state_booting(struct xsave_struct *fx, u64 mask)
+static inline int xsave_state_booting(struct xsave_struct *fx, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
