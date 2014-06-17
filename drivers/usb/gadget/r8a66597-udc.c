@@ -1878,9 +1878,8 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	irq_trigger = ires->flags & IRQF_TRIGGER_MASK;
 
 	if (irq < 0) {
-		ret = -ENODEV;
 		dev_err(dev, "platform_get_irq error.\n");
-		goto clean_up;
+		return -ENODEV;
 	}
 
 	/* initialize ucd */
@@ -1979,11 +1978,8 @@ clean_up2:
 		clk_put(r8a66597->clk);
 	}
 clean_up:
-	if (r8a66597) {
-		if (r8a66597->ep0_req)
-			r8a66597_free_request(&r8a66597->ep[0].ep,
-						r8a66597->ep0_req);
-	}
+	if (r8a66597->ep0_req)
+		r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 
 	return ret;
 }
