@@ -65,6 +65,105 @@ extern void setup_per_cpu_areas(void);
 #define PER_CPU_DEF_ATTRIBUTES
 #endif
 
+#define raw_cpu_generic_to_op(pcp, val, op)				\
+do {									\
+	*raw_cpu_ptr(&(pcp)) op val;					\
+} while (0)
+
+#define raw_cpu_generic_add_return(pcp, val)				\
+({									\
+	raw_cpu_add(pcp, val);						\
+	raw_cpu_read(pcp);						\
+})
+
+#define raw_cpu_generic_xchg(pcp, nval)					\
+({	typeof(pcp) ret__;						\
+	ret__ = raw_cpu_read(pcp);					\
+	raw_cpu_write(pcp, nval);					\
+	ret__;								\
+})
+
+#define raw_cpu_generic_cmpxchg(pcp, oval, nval)			\
+({									\
+	typeof(pcp) ret__;						\
+	ret__ = raw_cpu_read(pcp);					\
+	if (ret__ == (oval))						\
+		raw_cpu_write(pcp, nval);				\
+	ret__;								\
+})
+
+#define raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+({									\
+	int __ret = 0;							\
+	if (raw_cpu_read(pcp1) == (oval1) &&				\
+			 raw_cpu_read(pcp2)  == (oval2)) {		\
+		raw_cpu_write(pcp1, (nval1));				\
+		raw_cpu_write(pcp2, (nval2));				\
+		__ret = 1;						\
+	}								\
+	(__ret);							\
+})
+
+#define _this_cpu_generic_read(pcp)					\
+({	typeof(pcp) ret__;						\
+	preempt_disable();						\
+	ret__ = *this_cpu_ptr(&(pcp));					\
+	preempt_enable();						\
+	ret__;								\
+})
+
+#define _this_cpu_generic_to_op(pcp, val, op)				\
+do {									\
+	unsigned long flags;						\
+	raw_local_irq_save(flags);					\
+	*raw_cpu_ptr(&(pcp)) op val;					\
+	raw_local_irq_restore(flags);					\
+} while (0)
+
+#define _this_cpu_generic_add_return(pcp, val)				\
+({									\
+	typeof(pcp) ret__;						\
+	unsigned long flags;						\
+	raw_local_irq_save(flags);					\
+	raw_cpu_add(pcp, val);					\
+	ret__ = raw_cpu_read(pcp);					\
+	raw_local_irq_restore(flags);					\
+	ret__;								\
+})
+
+#define _this_cpu_generic_xchg(pcp, nval)				\
+({	typeof(pcp) ret__;						\
+	unsigned long flags;						\
+	raw_local_irq_save(flags);					\
+	ret__ = raw_cpu_read(pcp);					\
+	raw_cpu_write(pcp, nval);					\
+	raw_local_irq_restore(flags);					\
+	ret__;								\
+})
+
+#define _this_cpu_generic_cmpxchg(pcp, oval, nval)			\
+({									\
+	typeof(pcp) ret__;						\
+	unsigned long flags;						\
+	raw_local_irq_save(flags);					\
+	ret__ = raw_cpu_read(pcp);					\
+	if (ret__ == (oval))						\
+		raw_cpu_write(pcp, nval);				\
+	raw_local_irq_restore(flags);					\
+	ret__;								\
+})
+
+#define _this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
+({									\
+	int ret__;							\
+	unsigned long flags;						\
+	raw_local_irq_save(flags);					\
+	ret__ = raw_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
+			oval1, oval2, nval1, nval2);			\
+	raw_local_irq_restore(flags);					\
+	ret__;								\
+})
+
 # ifndef raw_cpu_read_1
 #  define raw_cpu_read_1(pcp)	(*raw_cpu_ptr(&(pcp)))
 # endif
@@ -77,11 +176,6 @@ extern void setup_per_cpu_areas(void);
 # ifndef raw_cpu_read_8
 #  define raw_cpu_read_8(pcp)	(*raw_cpu_ptr(&(pcp)))
 # endif
-
-#define raw_cpu_generic_to_op(pcp, val, op)				\
-do {									\
-	*raw_cpu_ptr(&(pcp)) op val;					\
-} while (0)
 
 # ifndef raw_cpu_write_1
 #  define raw_cpu_write_1(pcp, val)	raw_cpu_generic_to_op((pcp), (val), =)
@@ -135,12 +229,6 @@ do {									\
 #  define raw_cpu_or_8(pcp, val)	raw_cpu_generic_to_op((pcp), (val), |=)
 # endif
 
-#define raw_cpu_generic_add_return(pcp, val)				\
-({									\
-	raw_cpu_add(pcp, val);						\
-	raw_cpu_read(pcp);						\
-})
-
 # ifndef raw_cpu_add_return_1
 #  define raw_cpu_add_return_1(pcp, val)	raw_cpu_generic_add_return(pcp, val)
 # endif
@@ -153,13 +241,6 @@ do {									\
 # ifndef raw_cpu_add_return_8
 #  define raw_cpu_add_return_8(pcp, val)	raw_cpu_generic_add_return(pcp, val)
 # endif
-
-#define raw_cpu_generic_xchg(pcp, nval)					\
-({	typeof(pcp) ret__;						\
-	ret__ = raw_cpu_read(pcp);					\
-	raw_cpu_write(pcp, nval);					\
-	ret__;								\
-})
 
 # ifndef raw_cpu_xchg_1
 #  define raw_cpu_xchg_1(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
@@ -174,15 +255,6 @@ do {									\
 #  define raw_cpu_xchg_8(pcp, nval)	raw_cpu_generic_xchg(pcp, nval)
 # endif
 
-#define raw_cpu_generic_cmpxchg(pcp, oval, nval)			\
-({									\
-	typeof(pcp) ret__;						\
-	ret__ = raw_cpu_read(pcp);					\
-	if (ret__ == (oval))						\
-		raw_cpu_write(pcp, nval);				\
-	ret__;								\
-})
-
 # ifndef raw_cpu_cmpxchg_1
 #  define raw_cpu_cmpxchg_1(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
 # endif
@@ -195,18 +267,6 @@ do {									\
 # ifndef raw_cpu_cmpxchg_8
 #  define raw_cpu_cmpxchg_8(pcp, oval, nval)	raw_cpu_generic_cmpxchg(pcp, oval, nval)
 # endif
-
-#define raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-({									\
-	int __ret = 0;							\
-	if (raw_cpu_read(pcp1) == (oval1) &&				\
-			 raw_cpu_read(pcp2)  == (oval2)) {		\
-		raw_cpu_write(pcp1, (nval1));				\
-		raw_cpu_write(pcp2, (nval2));				\
-		__ret = 1;						\
-	}								\
-	(__ret);							\
-})
 
 # ifndef raw_cpu_cmpxchg_double_1
 #  define raw_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
@@ -225,14 +285,6 @@ do {									\
 	raw_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
 # endif
 
-#define _this_cpu_generic_read(pcp)					\
-({	typeof(pcp) ret__;						\
-	preempt_disable();						\
-	ret__ = *this_cpu_ptr(&(pcp));					\
-	preempt_enable();						\
-	ret__;								\
-})
-
 # ifndef this_cpu_read_1
 #  define this_cpu_read_1(pcp)	_this_cpu_generic_read(pcp)
 # endif
@@ -245,14 +297,6 @@ do {									\
 # ifndef this_cpu_read_8
 #  define this_cpu_read_8(pcp)	_this_cpu_generic_read(pcp)
 # endif
-
-#define _this_cpu_generic_to_op(pcp, val, op)				\
-do {									\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	*raw_cpu_ptr(&(pcp)) op val;					\
-	raw_local_irq_restore(flags);					\
-} while (0)
 
 # ifndef this_cpu_write_1
 #  define this_cpu_write_1(pcp, val)	_this_cpu_generic_to_op((pcp), (val), =)
@@ -306,17 +350,6 @@ do {									\
 #  define this_cpu_or_8(pcp, val)	_this_cpu_generic_to_op((pcp), (val), |=)
 # endif
 
-#define _this_cpu_generic_add_return(pcp, val)				\
-({									\
-	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	raw_cpu_add(pcp, val);					\
-	ret__ = raw_cpu_read(pcp);					\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
-})
-
 # ifndef this_cpu_add_return_1
 #  define this_cpu_add_return_1(pcp, val)	_this_cpu_generic_add_return(pcp, val)
 # endif
@@ -329,16 +362,6 @@ do {									\
 # ifndef this_cpu_add_return_8
 #  define this_cpu_add_return_8(pcp, val)	_this_cpu_generic_add_return(pcp, val)
 # endif
-
-#define _this_cpu_generic_xchg(pcp, nval)				\
-({	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_read(pcp);					\
-	raw_cpu_write(pcp, nval);					\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
-})
 
 # ifndef this_cpu_xchg_1
 #  define this_cpu_xchg_1(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
@@ -353,18 +376,6 @@ do {									\
 #  define this_cpu_xchg_8(pcp, nval)	_this_cpu_generic_xchg(pcp, nval)
 # endif
 
-#define _this_cpu_generic_cmpxchg(pcp, oval, nval)			\
-({									\
-	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_read(pcp);					\
-	if (ret__ == (oval))						\
-		raw_cpu_write(pcp, nval);				\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
-})
-
 # ifndef this_cpu_cmpxchg_1
 #  define this_cpu_cmpxchg_1(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
 # endif
@@ -377,17 +388,6 @@ do {									\
 # ifndef this_cpu_cmpxchg_8
 #  define this_cpu_cmpxchg_8(pcp, oval, nval)	_this_cpu_generic_cmpxchg(pcp, oval, nval)
 # endif
-
-#define _this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-({									\
-	int ret__;							\
-	unsigned long flags;						\
-	raw_local_irq_save(flags);					\
-	ret__ = raw_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
-			oval1, oval2, nval1, nval2);			\
-	raw_local_irq_restore(flags);					\
-	ret__;								\
-})
 
 # ifndef this_cpu_cmpxchg_double_1
 #  define this_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
