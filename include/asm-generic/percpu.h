@@ -36,17 +36,14 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 #endif
 
 /*
- * Add a offset to a pointer but keep the pointer as is.
- *
- * Only S390 provides its own means of moving the pointer.
+ * Add an offset to a pointer but keep the pointer as-is.  Use RELOC_HIDE()
+ * to prevent the compiler from making incorrect assumptions about the
+ * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
-#ifndef SHIFT_PERCPU_PTR
-/* Weird cast keeps both GCC and sparse happy. */
 #define SHIFT_PERCPU_PTR(__p, __offset)	({				\
 	__verify_pcpu_ptr((__p));					\
 	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset)); \
 })
-#endif
 
 /*
  * A percpu variable may point to a discarded regions. The following are
