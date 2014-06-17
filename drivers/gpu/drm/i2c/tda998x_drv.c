@@ -1183,7 +1183,6 @@ static void
 tda998x_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct tda998x_priv *priv = to_tda998x_priv(encoder);
-	drm_i2c_encoder_destroy(encoder);
 
 	/* disable all IRQs and free the IRQ handler */
 	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
@@ -1193,6 +1192,7 @@ tda998x_encoder_destroy(struct drm_encoder *encoder)
 
 	if (priv->cec)
 		i2c_unregister_device(priv->cec);
+	drm_i2c_encoder_destroy(encoder);
 	kfree(priv);
 }
 
