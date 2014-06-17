@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/boot/compressed/vmlinux.lds.in
- *
  *  Copyright (C) 2000 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
@@ -87,4 +85,3 @@ SECTIONS
   .stab.indexstr 0	: { *(.stab.indexstr) }
   .comment 0		: { *(.comment) }
 }
-
