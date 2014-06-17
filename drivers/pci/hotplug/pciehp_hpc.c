@@ -783,7 +783,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA,
 		PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 		PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
-		PCI_EXP_SLTSTA_CC);
+		PCI_EXP_SLTSTA_CC | PCI_EXP_SLTSTA_DLLSC);
 
 	/* Disable software notification */
 	pcie_disable_notification(ctrl);
