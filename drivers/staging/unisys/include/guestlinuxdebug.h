@@ -168,15 +168,15 @@ do {									\
 
 /* MOST COMMON */
 #define POSTCODE_LINUX_2(EVENT_PC, severity)				\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, 0x0000, severity);
+	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, 0x0000, severity)
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity);
+	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity)
 
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
 	POSTCODE_LINUX_B(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
-			 pc16bit2, severity);
+			 pc16bit2, severity)
 
 #endif
 #endif
