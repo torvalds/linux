@@ -221,7 +221,7 @@ struct bufdesc_ex {
 #define BD_ENET_TX_RCMASK       ((ushort)0x003c)
 #define BD_ENET_TX_UN           ((ushort)0x0002)
 #define BD_ENET_TX_CSL          ((ushort)0x0001)
-#define BD_ENET_TX_STATS        ((ushort)0x03ff)        /* All status bits */
+#define BD_ENET_TX_STATS        ((ushort)0x0fff)        /* All status bits */
 
 /*enhanced buffer descriptor control/status used by Ethernet transmit*/
 #define BD_ENET_TX_INT          0x40000000
@@ -246,8 +246,8 @@ struct bufdesc_ex {
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
 #define FEC_ENET_TX_FRSIZE	2048
 #define FEC_ENET_TX_FRPPG	(PAGE_SIZE / FEC_ENET_TX_FRSIZE)
-#define TX_RING_SIZE		16	/* Must be power of two */
-#define TX_RING_MOD_MASK	15	/*   for this to work */
+#define TX_RING_SIZE		512	/* Must be power of two */
+#define TX_RING_MOD_MASK	511	/*   for this to work */
 
 #define BD_ENET_RX_INT          0x00800000
 #define BD_ENET_RX_PTP          ((ushort)0x0400)
@@ -296,8 +296,15 @@ struct fec_enet_private {
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
 
+	unsigned short bufdesc_size;
 	unsigned short tx_ring_size;
 	unsigned short rx_ring_size;
+	unsigned short tx_stop_threshold;
+	unsigned short tx_wake_threshold;
+
+	/* Software TSO */
+	char *tso_hdrs;
+	dma_addr_t tso_hdrs_dma;
 
 	struct	platform_device *pdev;
 

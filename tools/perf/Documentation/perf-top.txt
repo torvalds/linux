@@ -119,7 +119,7 @@ Default is to monitor all CPUS.
 --fields=::
 	Specify output field - multiple keys can be specified in CSV format.
 	Following fields are available:
-	overhead, overhead_sys, overhead_us, sample and period.
+	overhead, overhead_sys, overhead_us, overhead_children, sample and period.
 	Also it can contain any sort key(s).
 
 	By default, every sort keys not specified in --field will be appended
@@ -160,6 +160,12 @@ Default is to monitor all CPUS.
 --call-graph::
 	Setup and enable call-graph (stack chain/backtrace) recording,
 	implies -g.
+
+--children::
+	Accumulate callchain of children to parent entry so that then can
+	show up in the output.  The output will have a new "Children" column
+	and will be sorted on the data.  It requires -g/--call-graph option
+	enabled.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything

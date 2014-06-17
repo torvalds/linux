@@ -175,7 +175,7 @@ void pciehp_handle_linkstate_change(struct slot *p_slot)
    hotplug controller logic
  */
 
-static void set_slot_off(struct controller *ctrl, struct slot * pslot)
+static void set_slot_off(struct controller *ctrl, struct slot *pslot)
 {
 	/* turn off slot, turn on Amber LED, turn off Green LED if supported*/
 	if (POWER_CTRL(ctrl)) {
@@ -376,14 +376,12 @@ static void handle_button_press_event(struct slot *p_slot)
 		pciehp_get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
-			ctrl_info(ctrl,
-				  "PCI slot #%s - powering off due to button "
-				  "press.\n", slot_name(p_slot));
+			ctrl_info(ctrl, "PCI slot #%s - powering off due to button press\n",
+				  slot_name(p_slot));
 		} else {
 			p_slot->state = BLINKINGON_STATE;
-			ctrl_info(ctrl,
-				  "PCI slot #%s - powering on due to button "
-				  "press.\n", slot_name(p_slot));
+			ctrl_info(ctrl, "PCI slot #%s - powering on due to button press\n",
+				  slot_name(p_slot));
 		}
 		/* blink green LED and turn off amber */
 		pciehp_green_led_blink(p_slot);
@@ -404,8 +402,8 @@ static void handle_button_press_event(struct slot *p_slot)
 		else
 			pciehp_green_led_off(p_slot);
 		pciehp_set_attention_status(p_slot, 0);
-		ctrl_info(ctrl, "PCI slot #%s - action canceled "
-			  "due to button press\n", slot_name(p_slot));
+		ctrl_info(ctrl, "PCI slot #%s - action canceled due to button press\n",
+			  slot_name(p_slot));
 		p_slot->state = STATIC_STATE;
 		break;
 	case POWEROFF_STATE:

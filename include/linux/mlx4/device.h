@@ -450,7 +450,6 @@ struct mlx4_caps {
 	int                     reserved_qps_base[MLX4_NUM_QP_REGION];
 	int                     log_num_macs;
 	int                     log_num_vlans;
-	int                     log_num_prios;
 	enum mlx4_port_type	port_type[MLX4_MAX_PORTS + 1];
 	u8			supported_type[MLX4_MAX_PORTS + 1];
 	u8                      suggested_type[MLX4_MAX_PORTS + 1];
@@ -577,6 +576,9 @@ struct mlx4_cq {
 	struct mlx4_uar	       *uar;
 
 	u32			cons_index;
+
+	u16                     irq;
+	bool                    irq_affinity_change;
 
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;

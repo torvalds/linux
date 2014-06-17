@@ -57,6 +57,10 @@
 			ethernet@30000 {
 				status = "okay";
 				phy-mode = "sgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 
 			pcie-controller {

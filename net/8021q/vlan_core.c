@@ -63,7 +63,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 }
 
 /* Must be invoked with rcu_read_lock. */
-struct net_device *__vlan_find_dev_deep(struct net_device *dev,
+struct net_device *__vlan_find_dev_deep_rcu(struct net_device *dev,
 					__be16 vlan_proto, u16 vlan_id)
 {
 	struct vlan_info *vlan_info = rcu_dereference(dev->vlan_info);
@@ -81,13 +81,13 @@ struct net_device *__vlan_find_dev_deep(struct net_device *dev,
 
 		upper_dev = netdev_master_upper_dev_get_rcu(dev);
 		if (upper_dev)
-			return __vlan_find_dev_deep(upper_dev,
+			return __vlan_find_dev_deep_rcu(upper_dev,
 						    vlan_proto, vlan_id);
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL(__vlan_find_dev_deep);
+EXPORT_SYMBOL(__vlan_find_dev_deep_rcu);
 
 struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {

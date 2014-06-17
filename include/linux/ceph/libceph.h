@@ -222,8 +222,6 @@ extern void ceph_copy_to_page_vector(struct page **pages,
 extern void ceph_copy_from_page_vector(struct page **pages,
 				    void *data,
 				    loff_t off, size_t len);
-extern int ceph_copy_page_vector_to_user(struct page **pages, void __user *data,
-				    loff_t off, size_t len);
 extern void ceph_zero_page_vector_range(int off, int len, struct page **pages);
 
 

@@ -112,11 +112,9 @@ static void psb_driver_lastclose(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_fbdev *fbdev = dev_priv->fbdev;
 
-	drm_modeset_lock_all(dev);
-	ret = drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(&fbdev->psb_fb_helper);
 	if (ret)
 		DRM_DEBUG("failed to restore crtc mode\n");
-	drm_modeset_unlock_all(dev);
 
 	return;
 }
@@ -354,7 +352,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
 
-	drm_irq_install(dev);
+	drm_irq_install(dev, dev->pdev->irq);
 
 	dev->vblank_disable_allowed = true;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
@@ -479,7 +477,7 @@ static struct drm_driver driver = {
 	.lastclose = psb_driver_lastclose,
 	.preclose = psb_driver_preclose,
 
-	.num_ioctls = DRM_ARRAY_SIZE(psb_ioctls),
+	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.device_is_agp = psb_driver_device_is_agp,
 	.irq_preinstall = psb_irq_preinstall,
 	.irq_postinstall = psb_irq_postinstall,

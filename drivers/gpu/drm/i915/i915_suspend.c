@@ -328,8 +328,6 @@ int i915_save_state(struct drm_device *dev)
 		}
 	}
 
-	intel_disable_gt_powersave(dev);
-
 	/* Cache mode state */
 	if (INTEL_INFO(dev)->gen < 7)
 		dev_priv->regfile.saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);

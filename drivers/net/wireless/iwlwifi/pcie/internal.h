@@ -102,7 +102,7 @@ struct iwl_rxq {
 	u32 write_actual;
 	struct list_head rx_free;
 	struct list_head rx_used;
-	int need_update;
+	bool need_update;
 	struct iwl_rb_status *rb_stts;
 	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
@@ -117,21 +117,19 @@ struct iwl_dma_ptr {
 /**
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_queue_inc_wrap(int index, int n_bd)
+static inline int iwl_queue_inc_wrap(int index)
 {
-	return ++index & (n_bd - 1);
+	return ++index & (TFD_QUEUE_SIZE_MAX - 1);
 }
 
 /**
  * iwl_queue_dec_wrap - decrement queue index, wrap back to end
  * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
  */
-static inline int iwl_queue_dec_wrap(int index, int n_bd)
+static inline int iwl_queue_dec_wrap(int index)
 {
-	return --index & (n_bd - 1);
+	return --index & (TFD_QUEUE_SIZE_MAX - 1);
 }
 
 struct iwl_cmd_meta {
@@ -145,13 +143,13 @@ struct iwl_cmd_meta {
  *
  * Contains common data for Rx and Tx queues.
  *
- * Note the difference between n_bd and n_window: the hardware
- * always assumes 256 descriptors, so n_bd is always 256 (unless
+ * Note the difference between TFD_QUEUE_SIZE_MAX and n_window: the hardware
+ * always assumes 256 descriptors, so TFD_QUEUE_SIZE_MAX is always 256 (unless
  * there might be HW changes in the future). For the normal TX
  * queues, n_window, which is the size of the software queue data
  * is also 256; however, for the command queue, n_window is only
  * 32 since we don't need so many commands pending. Since the HW
- * still uses 256 BDs for DMA though, n_bd stays 256. As a result,
+ * still uses 256 BDs for DMA though, TFD_QUEUE_SIZE_MAX stays 256. As a result,
  * the software buffers (in the variables @meta, @txb in struct
  * iwl_txq) only have 32 entries, while the HW buffers (@tfds in
  * the same struct) have 256.
@@ -162,7 +160,6 @@ struct iwl_cmd_meta {
  * data is a window overlayed over the HW queue.
  */
 struct iwl_queue {
-	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
 	/* use for monitoring and recovering the stuck queue */
@@ -231,7 +228,7 @@ struct iwl_txq {
 	spinlock_t lock;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
-	u8 need_update;
+	bool need_update;
 	u8 active;
 	bool ampdu;
 };
@@ -269,6 +266,9 @@ struct iwl_trans_pcie {
 	struct work_struct rx_replenish;
 	struct iwl_trans *trans;
 	struct iwl_drv *drv;
+
+	struct net_device napi_dev;
+	struct napi_struct napi;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
@@ -362,13 +362,20 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int queue);
 int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		      struct iwl_device_cmd *dev_cmd, int txq_id);
-void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq);
+void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans);
 int iwl_trans_pcie_send_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 			    struct iwl_rx_cmd_buffer *rxb, int handler_status);
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs);
 void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
+
+static inline u16 iwl_pcie_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+
+	return le16_to_cpu(tb->hi_n_len) >> 4;
+}
 
 /*****************************************************
 * Error handling

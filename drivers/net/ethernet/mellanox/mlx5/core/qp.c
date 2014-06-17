@@ -79,7 +79,7 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 
 	err = mlx5_cmd_exec(dev, in, inlen, &out, sizeof(out));
 	if (err) {
-		mlx5_core_warn(dev, "ret %d", err);
+		mlx5_core_warn(dev, "ret %d\n", err);
 		return err;
 	}
 
@@ -96,7 +96,7 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	err = radix_tree_insert(&table->tree, qp->qpn, qp);
 	spin_unlock_irq(&table->lock);
 	if (err) {
-		mlx5_core_warn(dev, "err %d", err);
+		mlx5_core_warn(dev, "err %d\n", err);
 		goto err_cmd;
 	}
 

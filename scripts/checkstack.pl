@@ -173,4 +173,3 @@ while (my $line = <STDIN>) {
 
 # Sort output by size (last field)
 print sort { ($b =~ /:\t*(\d+)$/)[0] <=> ($a =~ /:\t*(\d+)$/)[0] } @stack;
-

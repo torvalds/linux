@@ -267,7 +267,7 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 {
 	s64 ret = 0;
 	u8 fstate;
-	u16 pcierr;
+	__be16 pcierr;
 	u32 pe_no;
 	int result;
 	struct pci_controller *hose = pe->phb;
@@ -316,7 +316,7 @@ static int ioda_eeh_get_state(struct eeh_pe *pe)
 		result = 0;
 		result &= ~EEH_STATE_RESET_ACTIVE;
 
-		if (pcierr != OPAL_EEH_PHB_ERROR) {
+		if (be16_to_cpu(pcierr) != OPAL_EEH_PHB_ERROR) {
 			result |= EEH_STATE_MMIO_ACTIVE;
 			result |= EEH_STATE_DMA_ACTIVE;
 			result |= EEH_STATE_MMIO_ENABLED;
@@ -705,18 +705,19 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 {
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
-	struct eeh_pe *phb_pe;
-	u64 frozen_pe_no;
-	u16 err_type, severity;
+	struct eeh_pe *phb_pe, *parent_pe;
+	__be64 frozen_pe_no;
+	__be16 err_type, severity;
+	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	long rc;
-	int ret = EEH_NEXT_ERR_NONE;
+	int state, ret = EEH_NEXT_ERR_NONE;
 
 	/*
 	 * While running here, it's safe to purge the event queue.
 	 * And we should keep the cached OPAL notifier event sychronized
 	 * between the kernel and firmware.
 	 */
-	eeh_remove_event(NULL);
+	eeh_remove_event(NULL, false);
 	opal_notifier_update_evt(OPAL_EVENT_PCI_ERROR, 0x0ul);
 
 	list_for_each_entry(hose, &hose_list, list_node) {
@@ -742,8 +743,8 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		}
 
 		/* If the PHB doesn't have error, stop processing */
-		if (err_type == OPAL_EEH_NO_ERROR ||
-		    severity == OPAL_EEH_SEV_NO_ERROR) {
+		if (be16_to_cpu(err_type) == OPAL_EEH_NO_ERROR ||
+		    be16_to_cpu(severity) == OPAL_EEH_SEV_NO_ERROR) {
 			pr_devel("%s: No error found on PHB#%x\n",
 				 __func__, hose->global_number);
 			continue;
@@ -755,14 +756,14 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		 * specific PHB.
 		 */
 		pr_devel("%s: Error (%d, %d, %llu) on PHB#%x\n",
-			 __func__, err_type, severity,
-			 frozen_pe_no, hose->global_number);
-		switch (err_type) {
+			 __func__, be16_to_cpu(err_type), be16_to_cpu(severity),
+			 be64_to_cpu(frozen_pe_no), hose->global_number);
+		switch (be16_to_cpu(err_type)) {
 		case OPAL_EEH_IOC_ERROR:
-			if (severity == OPAL_EEH_SEV_IOC_DEAD) {
+			if (be16_to_cpu(severity) == OPAL_EEH_SEV_IOC_DEAD) {
 				pr_err("EEH: dead IOC detected\n");
 				ret = EEH_NEXT_ERR_DEAD_IOC;
-			} else if (severity == OPAL_EEH_SEV_INF) {
+			} else if (be16_to_cpu(severity) == OPAL_EEH_SEV_INF) {
 				pr_info("EEH: IOC informative error "
 					"detected\n");
 				ioda_eeh_hub_diag(hose);
@@ -771,20 +772,26 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 
 			break;
 		case OPAL_EEH_PHB_ERROR:
-			if (severity == OPAL_EEH_SEV_PHB_DEAD) {
+			if (be16_to_cpu(severity) == OPAL_EEH_SEV_PHB_DEAD) {
 				*pe = phb_pe;
-				pr_err("EEH: dead PHB#%x detected\n",
-					hose->global_number);
+				pr_err("EEH: dead PHB#%x detected, "
+				       "location: %s\n",
+				       hose->global_number,
+				       eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_DEAD_PHB;
-			} else if (severity == OPAL_EEH_SEV_PHB_FENCED) {
+			} else if (be16_to_cpu(severity) ==
+						OPAL_EEH_SEV_PHB_FENCED) {
 				*pe = phb_pe;
-				pr_err("EEH: fenced PHB#%x detected\n",
-					hose->global_number);
+				pr_err("EEH: Fenced PHB#%x detected, "
+				       "location: %s\n",
+				       hose->global_number,
+				       eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_FENCED_PHB;
-			} else if (severity == OPAL_EEH_SEV_INF) {
+			} else if (be16_to_cpu(severity) == OPAL_EEH_SEV_INF) {
 				pr_info("EEH: PHB#%x informative error "
-					"detected\n",
-					hose->global_number);
+					"detected, location: %s\n",
+					hose->global_number,
+					eeh_pe_loc_get(phb_pe));
 				ioda_eeh_phb_diag(hose);
 				ret = EEH_NEXT_ERR_NONE;
 			}
@@ -792,34 +799,33 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 			break;
 		case OPAL_EEH_PE_ERROR:
 			/*
-			 * If we can't find the corresponding PE, the
-			 * PEEV / PEST would be messy. So we force an
-			 * fenced PHB so that it can be recovered.
-			 *
-			 * If the PE has been marked as isolated, that
-			 * should have been removed permanently or in
-			 * progress with recovery. We needn't report
-			 * it again.
+			 * If we can't find the corresponding PE, we
+			 * just try to unfreeze.
 			 */
-			if (ioda_eeh_get_pe(hose, frozen_pe_no, pe)) {
-				*pe = phb_pe;
-				pr_err("EEH: Escalated fenced PHB#%x "
-				       "detected for PE#%llx\n",
-					hose->global_number,
-					frozen_pe_no);
-				ret = EEH_NEXT_ERR_FENCED_PHB;
+			if (ioda_eeh_get_pe(hose,
+					    be64_to_cpu(frozen_pe_no), pe)) {
+				/* Try best to clear it */
+				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
+					hose->global_number, frozen_pe_no);
+				pr_info("EEH: PHB location: %s\n",
+					eeh_pe_loc_get(phb_pe));
+				opal_pci_eeh_freeze_clear(phb->opal_id, frozen_pe_no,
+					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
+				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED) {
 				ret = EEH_NEXT_ERR_NONE;
 			} else {
 				pr_err("EEH: Frozen PE#%x on PHB#%x detected\n",
 					(*pe)->addr, (*pe)->phb->global_number);
+				pr_err("EEH: PE location: %s, PHB location: %s\n",
+					eeh_pe_loc_get(*pe), eeh_pe_loc_get(phb_pe));
 				ret = EEH_NEXT_ERR_FROZEN_PE;
 			}
 
 			break;
 		default:
 			pr_warn("%s: Unexpected error type %d\n",
-				__func__, err_type);
+				__func__, be16_to_cpu(err_type));
 		}
 
 		/*
@@ -834,6 +840,31 @@ static int ioda_eeh_next_error(struct eeh_pe **pe)
 		    !((*pe)->state & EEH_PE_ISOLATED)) {
 			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
 			ioda_eeh_phb_diag(hose);
+		}
+
+		/*
+		 * We probably have the frozen parent PE out there and
+		 * we need have to handle frozen parent PE firstly.
+		 */
+		if (ret == EEH_NEXT_ERR_FROZEN_PE) {
+			parent_pe = (*pe)->parent;
+			while (parent_pe) {
+				/* Hit the ceiling ? */
+				if (parent_pe->type & EEH_PE_PHB)
+					break;
+
+				/* Frozen parent PE ? */
+				state = ioda_eeh_get_state(parent_pe);
+				if (state > 0 &&
+				    (state & active_flags) != active_flags)
+					*pe = parent_pe;
+
+				/* Next parent level */
+				parent_pe = parent_pe->parent;
+			}
+
+			/* We possibly migrate to another PE */
+			eeh_pe_state_mark(*pe, EEH_PE_ISOLATED);
 		}
 
 		/*

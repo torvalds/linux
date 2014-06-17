@@ -15,7 +15,7 @@ config NOKIA_MODEM
 
 config SSI_PROTOCOL
 	tristate "SSI protocol"
-	depends on HSI && PHONET && (OMAP_SSI=y || OMAP_SSI=m)
+	depends on HSI && PHONET && OMAP_SSI
 	help
 	If you say Y here, you will enable the SSI protocol aka McSAAB.
 

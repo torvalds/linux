@@ -446,7 +446,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->robj;
 		if (!bo->pin_count) {
-			u32 domain = lobj->domain;
+			u32 domain = lobj->prefered_domains;
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
 
@@ -458,7 +458,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			 * into account. We don't want to disallow buffer moves
 			 * completely.
 			 */
-			if ((lobj->alt_domain & current_domain) != 0 &&
+			if ((lobj->allowed_domains & current_domain) != 0 &&
 			    (domain & current_domain) == 0 && /* will be moved */
 			    bytes_moved > bytes_moved_threshold) {
 				/* don't move it */
@@ -476,8 +476,9 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 				       initial_bytes_moved;
 
 			if (unlikely(r)) {
-				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
-					domain = lobj->alt_domain;
+				if (r != -ERESTARTSYS &&
+				    domain != lobj->allowed_domains) {
+					domain = lobj->allowed_domains;
 					goto retry;
 				}
 				ttm_eu_backoff_reservation(ticket, head);
@@ -730,7 +731,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
 	if (unlikely(r != 0))
 		return r;
 	spin_lock(&bo->tbo.bdev->fence_lock);

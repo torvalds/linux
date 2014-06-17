@@ -134,17 +134,17 @@ struct ec_bhf_priv {
 
 	struct pci_dev *dev;
 
-	void * __iomem io;
-	void * __iomem dma_io;
+	void __iomem *io;
+	void __iomem *dma_io;
 
 	struct hrtimer hrtimer;
 
 	int tx_dma_chan;
 	int rx_dma_chan;
-	void * __iomem ec_io;
-	void * __iomem fifo_io;
-	void * __iomem mii_io;
-	void * __iomem mac_io;
+	void __iomem *ec_io;
+	void __iomem *fifo_io;
+	void __iomem *mii_io;
+	void __iomem *mac_io;
 
 	struct bhf_dma rx_buf;
 	struct rx_desc *rx_descs;
@@ -297,7 +297,7 @@ static int ec_bhf_setup_offsets(struct ec_bhf_priv *priv)
 {
 	struct device *dev = PRIV_TO_DEV(priv);
 	unsigned block_count, i;
-	void * __iomem ec_info;
+	void __iomem *ec_info;
 
 	dev_dbg(dev, "Info block:\n");
 	dev_dbg(dev, "Type of function: %x\n", (unsigned)ioread16(priv->io));
@@ -569,8 +569,8 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct net_device *net_dev;
 	struct ec_bhf_priv *priv;
-	void * __iomem dma_io;
-	void * __iomem io;
+	void __iomem *dma_io;
+	void __iomem *io;
 	int err = 0;
 
 	err = pci_enable_device(dev);
@@ -615,7 +615,7 @@ static int ec_bhf_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	net_dev = alloc_etherdev(sizeof(struct ec_bhf_priv));
-	if (net_dev == 0) {
+	if (net_dev == NULL) {
 		err = -ENOMEM;
 		goto err_unmap_dma_io;
 	}

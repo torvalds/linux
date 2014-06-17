@@ -404,7 +404,7 @@ static u32  next_vp;
  * performance critical channels (IDE, SCSI and Network) will be uniformly
  * distributed across all available CPUs.
  */
-static void init_vp_index(struct vmbus_channel *channel, uuid_le *type_guid)
+static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;

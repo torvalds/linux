@@ -755,15 +755,15 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	WARN_ON(!irqs_disabled());
 
-	/* Back up the TAR across context switches.
+	/* Back up the TAR and DSCR across context switches.
 	 * Note that the TAR is not available for use in the kernel.  (To
 	 * provide this, the TAR should be backed up/restored on exception
 	 * entry/exit instead, and be in pt_regs.  FIXME, this should be in
 	 * pt_regs anyway (for debug).)
-	 * Save the TAR here before we do treclaim/trecheckpoint as these
-	 * will change the TAR.
+	 * Save the TAR and DSCR here before we do treclaim/trecheckpoint as
+	 * these will change them.
 	 */
-	save_tar(&prev->thread);
+	save_early_sprs(&prev->thread);
 
 	__switch_to_tm(prev);
 

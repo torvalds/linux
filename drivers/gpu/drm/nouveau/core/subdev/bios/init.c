@@ -98,15 +98,16 @@ static u8
 init_conn(struct nvbios_init *init)
 {
 	struct nouveau_bios *bios = init->bios;
-	u8  ver, len;
-	u16 conn;
+	struct nvbios_connE connE;
+	u8  ver, hdr;
+	u32 conn;
 
 	if (init_exec(init)) {
 		if (init->outp) {
 			conn = init->outp->connector;
-			conn = dcb_conn(bios, conn, &ver, &len);
+			conn = nvbios_connEp(bios, conn, &ver, &hdr, &connE);
 			if (conn)
-				return nv_ro08(bios, conn);
+				return connE.type;
 		}
 
 		error("script needs connector type\n");

@@ -8,32 +8,6 @@
 #include <net/addrconf.h>
 #include <net/secure_seq.h>
 
-void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
-{
-	static atomic_t ipv6_fragmentation_id;
-	struct in6_addr addr;
-	int ident;
-
-#if IS_ENABLED(CONFIG_IPV6)
-	struct inet_peer *peer;
-	struct net *net;
-
-	net = dev_net(rt->dst.dev);
-	peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
-	if (peer) {
-		fhdr->identification = htonl(inet_getid(peer, 0));
-		inet_putpeer(peer);
-		return;
-	}
-#endif
-	ident = atomic_inc_return(&ipv6_fragmentation_id);
-
-	addr = rt->rt6i_dst.addr;
-	addr.s6_addr32[0] ^= (__force __be32)ident;
-	fhdr->identification = htonl(secure_ipv6_id(addr.s6_addr32));
-}
-EXPORT_SYMBOL(ipv6_select_ident);
-
 int ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr)
 {
 	u16 offset = sizeof(struct ipv6hdr);
@@ -104,6 +78,7 @@ int __ip6_local_out(struct sk_buff *skb)
 	if (len > IPV6_MAXPLEN)
 		len = 0;
 	ipv6_hdr(skb)->payload_len = htons(len);
+	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 
 	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
 		       skb_dst(skb)->dev, dst_output);

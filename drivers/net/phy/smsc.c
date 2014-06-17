@@ -249,8 +249,7 @@ static int __init smsc_init(void)
 
 static void __exit smsc_exit(void)
 {
-	return phy_drivers_unregister(smsc_phy_driver,
-		ARRAY_SIZE(smsc_phy_driver));
+	phy_drivers_unregister(smsc_phy_driver, ARRAY_SIZE(smsc_phy_driver));
 }
 
 MODULE_DESCRIPTION("SMSC PHY driver");

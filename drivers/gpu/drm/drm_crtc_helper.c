@@ -93,8 +93,10 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	 * We can expect this mutex to be locked if we are not panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
-	if (!oops_in_progress)
+	if (!oops_in_progress) {
 		WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+		WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		if (connector->encoder == encoder)
@@ -153,20 +155,14 @@ drm_encoder_disable(struct drm_encoder *encoder)
 static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder)
-			continue;
-	}
-
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (!drm_helper_encoder_in_use(encoder)) {
 			drm_encoder_disable(encoder);
-			/* disconnector encoder from any connector */
+			/* disconnect encoder from any connector */
 			encoder->crtc = NULL;
 		}
 	}
@@ -349,7 +345,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 			continue;
 
 		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
-			encoder->base.id, drm_get_encoder_name(encoder),
+			encoder->base.id, encoder->name,
 			mode->base.id, mode->name);
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
@@ -400,8 +396,7 @@ done:
 }
 EXPORT_SYMBOL(drm_crtc_helper_set_mode);
 
-
-static int
+static void
 drm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -430,7 +425,6 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 	}
 
 	__drm_helper_disable_unused_functions(dev);
-	return 0;
 }
 
 /**
@@ -481,7 +475,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 				(int)set->num_connectors, set->x, set->y);
 	} else {
 		DRM_DEBUG_KMS("[CRTC:%d] [NOFB]\n", set->crtc->base.id);
-		return drm_crtc_helper_disable(set->crtc);
+		drm_crtc_helper_disable(set->crtc);
+		return 0;
 	}
 
 	dev = set->crtc->dev;
@@ -620,11 +615,11 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 		if (new_crtc) {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [CRTC:%d]\n",
-				connector->base.id, drm_get_connector_name(connector),
+				connector->base.id, connector->name,
 				new_crtc->base.id);
 		} else {
 			DRM_DEBUG_KMS("[CONNECTOR:%d:%s] to [NOCRTC]\n",
-				connector->base.id, drm_get_connector_name(connector));
+				connector->base.id, connector->name);
 		}
 	}
 
@@ -650,7 +645,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("Setting connector DPMS state to on\n");
 			for (i = 0; i < set->num_connectors; i++) {
 				DRM_DEBUG_KMS("\t[CONNECTOR:%d:%s] set DPMS on\n", set->connectors[i]->base.id,
-					      drm_get_connector_name(set->connectors[i]));
+					      set->connectors[i]->name);
 				set->connectors[i]->funcs->dpms(set->connectors[i], DRM_MODE_DPMS_ON);
 			}
 		}

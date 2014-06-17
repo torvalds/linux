@@ -86,6 +86,7 @@ static void batadv_nc_tvlv_container_update(struct batadv_priv *bat_priv)
 void batadv_nc_status_update(struct net_device *net_dev)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+
 	batadv_nc_tvlv_container_update(bat_priv);
 }
 
@@ -1343,7 +1344,7 @@ static void batadv_nc_skb_store_before_coding(struct batadv_priv *bat_priv,
 	struct ethhdr *ethhdr;
 
 	/* Copy skb header to change the mac header */
-	skb = pskb_copy(skb, GFP_ATOMIC);
+	skb = pskb_copy_for_clone(skb, GFP_ATOMIC);
 	if (!skb)
 		return;
 

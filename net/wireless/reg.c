@@ -65,11 +65,26 @@
 #define REG_DBG_PRINT(args...)
 #endif
 
+/**
+ * enum reg_request_treatment - regulatory request treatment
+ *
+ * @REG_REQ_OK: continue processing the regulatory request
+ * @REG_REQ_IGNORE: ignore the regulatory request
+ * @REG_REQ_INTERSECT: the regulatory domain resulting from this request should
+ *	be intersected with the current one.
+ * @REG_REQ_ALREADY_SET: the regulatory request will not change the current
+ *	regulatory settings, and no further processing is required.
+ * @REG_REQ_USER_HINT_HANDLED: a non alpha2  user hint was handled and no
+ *	further processing is required, i.e., not need to update last_request
+ *	etc. This should be used for user hints that do not provide an alpha2
+ *	but some other type of regulatory hint, i.e., indoor operation.
+ */
 enum reg_request_treatment {
 	REG_REQ_OK,
 	REG_REQ_IGNORE,
 	REG_REQ_INTERSECT,
 	REG_REQ_ALREADY_SET,
+	REG_REQ_USER_HINT_HANDLED,
 };
 
 static struct regulatory_request core_request_world = {
@@ -105,6 +120,14 @@ const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
  * (protected by RTNL)
  */
 static int reg_num_devs_support_basehint;
+
+/*
+ * State variable indicating if the platform on which the devices
+ * are attached is operating in an indoor environment. The state variable
+ * is relevant for all registered devices.
+ * (protected by RTNL)
+ */
+static bool reg_is_indoor;
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
@@ -240,8 +263,16 @@ static char user_alpha2[2];
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
 
-static void reg_free_request(struct regulatory_request *lr)
+static void reg_free_request(struct regulatory_request *request)
 {
+	if (request != get_last_request())
+		kfree(request);
+}
+
+static void reg_free_last_request(void)
+{
+	struct regulatory_request *lr = get_last_request();
+
 	if (lr != &core_request_world && lr)
 		kfree_rcu(lr, rcu_head);
 }
@@ -254,7 +285,7 @@ static void reg_update_last_request(struct regulatory_request *request)
 	if (lr == request)
 		return;
 
-	reg_free_request(lr);
+	reg_free_last_request();
 	rcu_assign_pointer(last_request, request);
 }
 
@@ -873,6 +904,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_RADAR;
 	if (rd_flags & NL80211_RRF_NO_OFDM)
 		channel_flags |= IEEE80211_CHAN_NO_OFDM;
+	if (rd_flags & NL80211_RRF_NO_OUTDOOR)
+		channel_flags |= IEEE80211_CHAN_INDOOR_ONLY;
 	return channel_flags;
 }
 
@@ -902,7 +935,7 @@ freq_reg_info_regd(struct wiphy *wiphy, u32 center_freq,
 		if (!band_rule_found)
 			band_rule_found = freq_in_rule_band(fr, center_freq);
 
-		bw_fits = reg_does_bw_fit(fr, center_freq, MHZ_TO_KHZ(20));
+		bw_fits = reg_does_bw_fit(fr, center_freq, MHZ_TO_KHZ(5));
 
 		if (band_rule_found && bw_fits)
 			return rr;
@@ -986,10 +1019,10 @@ static void chan_reg_rule_print_dbg(const struct ieee80211_regdomain *regd,
 }
 #endif
 
-/*
- * Note that right now we assume the desired channel bandwidth
- * is always 20 MHz for each individual channel (HT40 uses 20 MHz
- * per channel, the primary and the extension channel).
+/* Find an ieee80211_reg_rule such that a 5MHz channel with frequency
+ * chan->center_freq fits there.
+ * If there is no such reg_rule, disable the channel, otherwise set the
+ * flags corresponding to the bandwidths allowed in the particular reg_rule
  */
 static void handle_channel(struct wiphy *wiphy,
 			   enum nl80211_reg_initiator initiator,
@@ -1050,8 +1083,12 @@ static void handle_channel(struct wiphy *wiphy,
 	if (reg_rule->flags & NL80211_RRF_AUTO_BW)
 		max_bandwidth_khz = reg_get_max_bandwidth(regd, reg_rule);
 
+	if (max_bandwidth_khz < MHZ_TO_KHZ(10))
+		bw_flags = IEEE80211_CHAN_NO_10MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(20))
+		bw_flags |= IEEE80211_CHAN_NO_20MHZ;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(40))
-		bw_flags = IEEE80211_CHAN_NO_HT40;
+		bw_flags |= IEEE80211_CHAN_NO_HT40;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(80))
 		bw_flags |= IEEE80211_CHAN_NO_80MHZ;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(160))
@@ -1071,6 +1108,13 @@ static void handle_channel(struct wiphy *wiphy,
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
 		chan->max_reg_power = chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
+
+		if (chan->flags & IEEE80211_CHAN_RADAR) {
+			chan->dfs_cac_ms = IEEE80211_DFS_MIN_CAC_TIME_MS;
+			if (reg_rule->dfs_cac_ms)
+				chan->dfs_cac_ms = reg_rule->dfs_cac_ms;
+		}
+
 		return;
 	}
 
@@ -1126,12 +1170,19 @@ static bool reg_request_cell_base(struct regulatory_request *request)
 	return request->user_reg_hint_type == NL80211_USER_REG_HINT_CELL_BASE;
 }
 
+static bool reg_request_indoor(struct regulatory_request *request)
+{
+	if (request->initiator != NL80211_REGDOM_SET_BY_USER)
+		return false;
+	return request->user_reg_hint_type == NL80211_USER_REG_HINT_INDOOR;
+}
+
 bool reg_last_request_cell_base(void)
 {
 	return reg_request_cell_base(get_last_request());
 }
 
-#ifdef CONFIG_CFG80211_CERTIFICATION_ONUS
+#ifdef CONFIG_CFG80211_REG_CELLULAR_HINTS
 /* Core specific check */
 static enum reg_request_treatment
 reg_ignore_cell_hint(struct regulatory_request *pending_request)
@@ -1471,8 +1522,12 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	if (reg_rule->flags & NL80211_RRF_AUTO_BW)
 		max_bandwidth_khz = reg_get_max_bandwidth(regd, reg_rule);
 
+	if (max_bandwidth_khz < MHZ_TO_KHZ(10))
+		bw_flags = IEEE80211_CHAN_NO_10MHZ;
+	if (max_bandwidth_khz < MHZ_TO_KHZ(20))
+		bw_flags |= IEEE80211_CHAN_NO_20MHZ;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(40))
-		bw_flags = IEEE80211_CHAN_NO_HT40;
+		bw_flags |= IEEE80211_CHAN_NO_HT40;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(80))
 		bw_flags |= IEEE80211_CHAN_NO_80MHZ;
 	if (max_bandwidth_khz < MHZ_TO_KHZ(160))
@@ -1568,6 +1623,11 @@ __reg_process_hint_user(struct regulatory_request *user_request)
 {
 	struct regulatory_request *lr = get_last_request();
 
+	if (reg_request_indoor(user_request)) {
+		reg_is_indoor = true;
+		return REG_REQ_USER_HINT_HANDLED;
+	}
+
 	if (reg_request_cell_base(user_request))
 		return reg_ignore_cell_hint(user_request);
 
@@ -1615,8 +1675,9 @@ reg_process_hint_user(struct regulatory_request *user_request)
 
 	treatment = __reg_process_hint_user(user_request);
 	if (treatment == REG_REQ_IGNORE ||
-	    treatment == REG_REQ_ALREADY_SET) {
-		kfree(user_request);
+	    treatment == REG_REQ_ALREADY_SET ||
+	    treatment == REG_REQ_USER_HINT_HANDLED) {
+		reg_free_request(user_request);
 		return treatment;
 	}
 
@@ -1676,14 +1737,15 @@ reg_process_hint_driver(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
-		kfree(driver_request);
+	case REG_REQ_USER_HINT_HANDLED:
+		reg_free_request(driver_request);
 		return treatment;
 	case REG_REQ_INTERSECT:
 		/* fall through */
 	case REG_REQ_ALREADY_SET:
 		regd = reg_copy_regd(get_cfg80211_regdom());
 		if (IS_ERR(regd)) {
-			kfree(driver_request);
+			reg_free_request(driver_request);
 			return REG_REQ_IGNORE;
 		}
 		rcu_assign_pointer(wiphy->regd, regd);
@@ -1775,12 +1837,13 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 	case REG_REQ_OK:
 		break;
 	case REG_REQ_IGNORE:
+	case REG_REQ_USER_HINT_HANDLED:
 		/* fall through */
 	case REG_REQ_ALREADY_SET:
-		kfree(country_ie_request);
+		reg_free_request(country_ie_request);
 		return treatment;
 	case REG_REQ_INTERSECT:
-		kfree(country_ie_request);
+		reg_free_request(country_ie_request);
 		/*
 		 * This doesn't happen yet, not sure we
 		 * ever want to support it for this case.
@@ -1813,7 +1876,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	case NL80211_REGDOM_SET_BY_USER:
 		treatment = reg_process_hint_user(reg_request);
 		if (treatment == REG_REQ_IGNORE ||
-		    treatment == REG_REQ_ALREADY_SET)
+		    treatment == REG_REQ_ALREADY_SET ||
+		    treatment == REG_REQ_USER_HINT_HANDLED)
 			return;
 		queue_delayed_work(system_power_efficient_wq,
 				   &reg_timeout, msecs_to_jiffies(3142));
@@ -1841,7 +1905,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	return;
 
 out_free:
-	kfree(reg_request);
+	reg_free_request(reg_request);
 }
 
 /*
@@ -1857,7 +1921,7 @@ static void reg_process_pending_hints(void)
 
 	/* When last_request->processed becomes true this will be rescheduled */
 	if (lr && !lr->processed) {
-		REG_DBG_PRINT("Pending regulatory request, waiting for it to be processed...\n");
+		reg_process_hint(lr);
 		return;
 	}
 
@@ -1962,6 +2026,22 @@ int regulatory_hint_user(const char *alpha2,
 	request->initiator = NL80211_REGDOM_SET_BY_USER;
 	request->user_reg_hint_type = user_reg_hint_type;
 
+	queue_regulatory_request(request);
+
+	return 0;
+}
+
+int regulatory_hint_indoor_user(void)
+{
+	struct regulatory_request *request;
+
+	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->wiphy_idx = WIPHY_IDX_INVALID;
+	request->initiator = NL80211_REGDOM_SET_BY_USER;
+	request->user_reg_hint_type = NL80211_USER_REG_HINT_INDOOR;
 	queue_regulatory_request(request);
 
 	return 0;
@@ -2133,6 +2213,8 @@ static void restore_regulatory_settings(bool reset_user)
 	struct cfg80211_registered_device *rdev;
 
 	ASSERT_RTNL();
+
+	reg_is_indoor = false;
 
 	reset_regdomains(true, &world_regdom);
 	restore_alpha2(alpha2, reset_user);
@@ -2594,7 +2676,7 @@ void wiphy_regulatory_deregister(struct wiphy *wiphy)
 		reg_num_devs_support_basehint--;
 
 	rcu_free_regdom(get_wiphy_regdom(wiphy));
-	rcu_assign_pointer(wiphy->regd, NULL);
+	RCU_INIT_POINTER(wiphy->regd, NULL);
 
 	if (lr)
 		request_wiphy = wiphy_idx_to_wiphy(lr->wiphy_idx);
@@ -2612,6 +2694,40 @@ static void reg_timeout_work(struct work_struct *work)
 	rtnl_lock();
 	restore_regulatory_settings(true);
 	rtnl_unlock();
+}
+
+/*
+ * See http://www.fcc.gov/document/5-ghz-unlicensed-spectrum-unii, for
+ * UNII band definitions
+ */
+int cfg80211_get_unii(int freq)
+{
+	/* UNII-1 */
+	if (freq >= 5150 && freq <= 5250)
+		return 0;
+
+	/* UNII-2A */
+	if (freq > 5250 && freq <= 5350)
+		return 1;
+
+	/* UNII-2B */
+	if (freq > 5350 && freq <= 5470)
+		return 2;
+
+	/* UNII-2C */
+	if (freq > 5470 && freq <= 5725)
+		return 3;
+
+	/* UNII-3 */
+	if (freq > 5725 && freq <= 5825)
+		return 4;
+
+	return -EINVAL;
+}
+
+bool regulatory_indoor_allowed(void)
+{
+	return reg_is_indoor;
 }
 
 int __init regulatory_init(void)

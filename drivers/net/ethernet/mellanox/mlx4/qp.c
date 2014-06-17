@@ -264,8 +264,8 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 			       MLX4_CMD_FREE_RES,
 			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err) {
-			mlx4_warn(dev, "Failed to release qp range"
-				  " base:%d cnt:%d\n", base_qpn, cnt);
+			mlx4_warn(dev, "Failed to release qp range base:%d cnt:%d\n",
+				  base_qpn, cnt);
 		}
 	} else
 		 __mlx4_qp_release_range(dev, base_qpn, cnt);
@@ -612,8 +612,7 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		err = mlx4_qp_modify(dev, mtt, states[i], states[i + 1],
 				     context, 0, 0, qp);
 		if (err) {
-			mlx4_err(dev, "Failed to bring QP to state: "
-				 "%d with error: %d\n",
+			mlx4_err(dev, "Failed to bring QP to state: %d with error: %d\n",
 				 states[i + 1], err);
 			return err;
 		}

@@ -1648,16 +1648,16 @@ typedef struct {
  */
 struct crc_context {
 	uint32_t handle;		/* System handle. */
-	uint32_t ref_tag;
-	uint16_t app_tag;
+	__le32 ref_tag;
+	__le16 app_tag;
 	uint8_t ref_tag_mask[4];	/* Validation/Replacement Mask*/
 	uint8_t app_tag_mask[2];	/* Validation/Replacement Mask*/
-	uint16_t guard_seed;		/* Initial Guard Seed */
-	uint16_t prot_opts;		/* Requested Data Protection Mode */
-	uint16_t blk_size;		/* Data size in bytes */
+	__le16 guard_seed;		/* Initial Guard Seed */
+	__le16 prot_opts;		/* Requested Data Protection Mode */
+	__le16 blk_size;		/* Data size in bytes */
 	uint16_t runt_blk_guard;	/* Guard value for runt block (tape
 					 * only) */
-	uint32_t byte_count;		/* Total byte count/ total data
+	__le32 byte_count;		/* Total byte count/ total data
 					 * transfer count */
 	union {
 		struct {
@@ -1671,10 +1671,10 @@ struct crc_context {
 			uint32_t	reserved_6;
 		} nobundling;
 		struct {
-			uint32_t	dif_byte_count;	/* Total DIF byte
+			__le32	dif_byte_count;	/* Total DIF byte
 							 * count */
 			uint16_t	reserved_1;
-			uint16_t	dseg_count;	/* Data segment count */
+			__le16	dseg_count;	/* Data segment count */
 			uint32_t	reserved_2;
 			uint32_t	data_address[2];
 			uint32_t	data_length;

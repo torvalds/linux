@@ -1,0 +1,34 @@
+* AMD 10GbE driver (amd-xgbe)
+
+Required properties:
+- compatible: Should be "amd,xgbe-seattle-v1a"
+- reg: Address and length of the register sets for the device
+   - MAC registers
+   - PCS registers
+- interrupt-parent: Should be the phandle for the interrupt controller
+  that services interrupts for this device
+- interrupts: Should contain the amd-xgbe interrupt
+- clocks: Should be the DMA clock for the amd-xgbe device (used for
+  calculating the correct Rx interrupt watchdog timer value on a DMA
+  channel for coalescing)
+- clock-names: Should be the name of the DMA clock, "dma_clk"
+- phy-handle: See ethernet.txt file in the same directory
+- phy-mode: See ethernet.txt file in the same directory
+
+Optional properties:
+- mac-address: mac address to be assigned to the device. Can be overridden
+  by UEFI.
+
+Example:
+	xgbe@e0700000 {
+		compatible = "amd,xgbe-seattle-v1a";
+		reg = <0 0xe0700000 0 0x80000>,
+		      <0 0xe0780000 0 0x80000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 325 4>;
+		clocks = <&xgbe_clk>;
+		clock-names = "dma_clk";
+		phy-handle = <&phy>;
+		phy-mode = "xgmii";
+		mac-address = [ 02 a1 a2 a3 a4 a5 ];
+	};

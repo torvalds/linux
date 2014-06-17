@@ -1673,7 +1673,7 @@ static int ezusb_probe(struct usb_interface *interface,
 		firmware.code = fw_entry->data;
 	}
 	if (firmware.size && firmware.code) {
-		if (ezusb_firmware_download(upriv, &firmware))
+		if (ezusb_firmware_download(upriv, &firmware) < 0)
 			goto error;
 	} else {
 		err("No firmware to download");

@@ -391,8 +391,10 @@ static struct sk_buff *drr_dequeue(struct Qdisc *sch)
 	while (1) {
 		cl = list_first_entry(&q->active, struct drr_class, alist);
 		skb = cl->qdisc->ops->peek(cl->qdisc);
-		if (skb == NULL)
+		if (skb == NULL) {
+			qdisc_warn_nonwc(__func__, cl->qdisc);
 			goto out;
+		}
 
 		len = qdisc_pkt_len(skb);
 		if (len <= cl->deficit) {

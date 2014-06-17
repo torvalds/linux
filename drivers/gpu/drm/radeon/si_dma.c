@@ -79,7 +79,25 @@ void si_dma_vm_set_page(struct radeon_device *rdev,
 
 	trace_radeon_vm_set_page(pe, addr, count, incr, flags);
 
-	if (flags & R600_PTE_SYSTEM) {
+	if (flags == R600_PTE_GART) {
+		uint64_t src = rdev->gart.table_addr + (addr >> 12) * 8;
+		while (count) {
+			unsigned bytes = count * 8;
+			if (bytes > 0xFFFF8)
+				bytes = 0xFFFF8;
+
+			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
+							      1, 0, 0, bytes);
+			ib->ptr[ib->length_dw++] = lower_32_bits(pe);
+			ib->ptr[ib->length_dw++] = lower_32_bits(src);
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+			ib->ptr[ib->length_dw++] = upper_32_bits(src) & 0xff;
+
+			pe += bytes;
+			src += bytes;
+			count -= bytes / 8;
+		}
+	} else if (flags & R600_PTE_SYSTEM) {
 		while (count) {
 			ndw = count * 2;
 			if (ndw > 0xFFFFE)
@@ -202,8 +220,8 @@ int si_copy_dma(struct radeon_device *rdev,
 			cur_size_in_bytes = 0xFFFFF;
 		size_in_bytes -= cur_size_in_bytes;
 		radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_COPY, 1, 0, 0, cur_size_in_bytes));
-		radeon_ring_write(ring, dst_offset & 0xffffffff);
-		radeon_ring_write(ring, src_offset & 0xffffffff);
+		radeon_ring_write(ring, lower_32_bits(dst_offset));
+		radeon_ring_write(ring, lower_32_bits(src_offset));
 		radeon_ring_write(ring, upper_32_bits(dst_offset) & 0xff);
 		radeon_ring_write(ring, upper_32_bits(src_offset) & 0xff);
 		src_offset += cur_size_in_bytes;

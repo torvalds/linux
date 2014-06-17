@@ -792,6 +792,66 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
 }
 
 /**
+ * eeh_pe_loc_get - Retrieve location code binding to the given PE
+ * @pe: EEH PE
+ *
+ * Retrieve the location code of the given PE. If the primary PE bus
+ * is root bus, we will grab location code from PHB device tree node
+ * or root port. Otherwise, the upstream bridge's device tree node
+ * of the primary PE bus will be checked for the location code.
+ */
+const char *eeh_pe_loc_get(struct eeh_pe *pe)
+{
+	struct pci_controller *hose;
+	struct pci_bus *bus = eeh_pe_bus_get(pe);
+	struct pci_dev *pdev;
+	struct device_node *dn;
+	const char *loc;
+
+	if (!bus)
+		return "N/A";
+
+	/* PHB PE or root PE ? */
+	if (pci_is_root_bus(bus)) {
+		hose = pci_bus_to_host(bus);
+		loc = of_get_property(hose->dn,
+				"ibm,loc-code", NULL);
+		if (loc)
+			return loc;
+		loc = of_get_property(hose->dn,
+				"ibm,io-base-loc-code", NULL);
+		if (loc)
+			return loc;
+
+		pdev = pci_get_slot(bus, 0x0);
+	} else {
+		pdev = bus->self;
+	}
+
+	if (!pdev) {
+		loc = "N/A";
+		goto out;
+	}
+
+	dn = pci_device_to_OF_node(pdev);
+	if (!dn) {
+		loc = "N/A";
+		goto out;
+	}
+
+	loc = of_get_property(dn, "ibm,loc-code", NULL);
+	if (!loc)
+		loc = of_get_property(dn, "ibm,slot-location-code", NULL);
+	if (!loc)
+		loc = "N/A";
+
+out:
+	if (pci_is_root_bus(bus) && pdev)
+		pci_dev_put(pdev);
+	return loc;
+}
+
+/**
  * eeh_pe_bus_get - Retrieve PCI bus according to the given PE
  * @pe: EEH PE
  *
