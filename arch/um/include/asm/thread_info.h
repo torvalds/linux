@@ -60,8 +60,6 @@ static inline struct thread_info *current_thread_info(void)
 
 #endif
 
-#define PREEMPT_ACTIVE		0x10000000
-
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */

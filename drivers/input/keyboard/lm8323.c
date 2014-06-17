@@ -398,7 +398,7 @@ static irqreturn_t lm8323_irq(int irq, void *_lm)
 			lm8323_configure(lm);
 		}
 		for (i = 0; i < LM8323_NUM_PWMS; i++) {
-			if (ints & (1 << (INT_PWM1 + i))) {
+			if (ints & (INT_PWM1 << i)) {
 				dev_vdbg(&lm->client->dev,
 					 "pwm%d engine completed\n", i);
 				pwm_done(&lm->pwm[i]);
@@ -627,7 +627,7 @@ static DEVICE_ATTR(disable_kp, 0644, lm8323_show_disable, lm8323_set_disable);
 static int lm8323_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm8323_platform_data *pdata = client->dev.platform_data;
+	struct lm8323_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct input_dev *idev;
 	struct lm8323_chip *lm;
 	int pwm;

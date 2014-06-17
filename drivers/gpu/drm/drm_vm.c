@@ -43,18 +43,19 @@
 static void drm_vm_open(struct vm_area_struct *vma);
 static void drm_vm_close(struct vm_area_struct *vma);
 
-static pgprot_t drm_io_prot(uint32_t map_type, struct vm_area_struct *vma)
+static pgprot_t drm_io_prot(struct drm_local_map *map,
+			    struct vm_area_struct *vma)
 {
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__i386__) || defined(__x86_64__)
-	if (boot_cpu_data.x86 > 3 && map_type != _DRM_AGP) {
-		pgprot_val(tmp) |= _PAGE_PCD;
-		pgprot_val(tmp) &= ~_PAGE_PWT;
-	}
+	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
+		tmp = pgprot_noncached(tmp);
+	else
+		tmp = pgprot_writecombine(tmp);
 #elif defined(__powerpc__)
 	pgprot_val(tmp) |= _PAGE_NO_CACHE;
-	if (map_type == _DRM_REGISTERS)
+	if (map->type == _DRM_REGISTERS)
 		pgprot_val(tmp) |= _PAGE_GUARDED;
 #elif defined(__ia64__)
 	if (efi_range_is_wc(vma->vm_start, vma->vm_end -
@@ -100,7 +101,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	/*
 	 * Find the right map
 	 */
-	if (!drm_core_has_AGP(dev))
+	if (!dev->agp)
 		goto vm_fault_error;
 
 	if (!dev->agp || !dev->agp->cant_use_aperture)
@@ -219,7 +220,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	map = vma->vm_private_data;
 
@@ -250,13 +250,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 			switch (map->type) {
 			case _DRM_REGISTERS:
 			case _DRM_FRAME_BUFFER:
-				if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
-					int retcode;
-					retcode = mtrr_del(map->mtrr,
-							   map->offset,
-							   map->size);
-					DRM_DEBUG("mtrr_del = %d\n", retcode);
-				}
+				arch_phys_wc_del(map->mtrr);
 				iounmap(map->handle);
 				break;
 			case _DRM_SHM:
@@ -270,9 +264,6 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.busaddr = map->offset;
 				dmah.size = map->size;
 				__drm_pci_free(dev, &dmah);
-				break;
-			case _DRM_GEM:
-				DRM_ERROR("tried to rmmap GEM object\n");
 				break;
 			}
 			kfree(map);
@@ -306,7 +297,7 @@ static int drm_do_vm_dma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	offset = (unsigned long)vmf->virtual_address - vma->vm_start;	/* vm_[pg]off[set] should be 0 */
 	page_nr = offset >> PAGE_SHIFT; /* page_nr could just be vmf->pgoff */
-	page = virt_to_page((dma->pagelist[page_nr] + (offset & (~PAGE_MASK))));
+	page = virt_to_page((void *)dma->pagelist[page_nr]);
 
 	get_page(page);
 	vmf->page = page;
@@ -413,7 +404,6 @@ void drm_vm_open_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_inc(&dev->vma_count);
 
 	vma_entry = kmalloc(sizeof(*vma_entry), GFP_KERNEL);
 	if (vma_entry) {
@@ -422,6 +412,7 @@ void drm_vm_open_locked(struct drm_device *dev,
 		list_add(&vma_entry->head, &dev->vmalist);
 	}
 }
+EXPORT_SYMBOL_GPL(drm_vm_open_locked);
 
 static void drm_vm_open(struct vm_area_struct *vma)
 {
@@ -440,7 +431,6 @@ void drm_vm_close_locked(struct drm_device *dev,
 
 	DRM_DEBUG("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
-	atomic_dec(&dev->vma_count);
 
 	list_for_each_entry_safe(pt, temp, &dev->vmalist, head) {
 		if (pt->vma == vma) {
@@ -599,7 +589,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	switch (map->type) {
 #if !defined(__arm__)
 	case _DRM_AGP:
-		if (drm_core_has_AGP(dev) && dev->agp->cant_use_aperture) {
+		if (dev->agp && dev->agp->cant_use_aperture) {
 			/*
 			 * On some platforms we can't talk to bus dma address from the CPU, so for
 			 * memory of type DRM_AGP, we'll deal with sorting out the real physical
@@ -616,8 +606,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 		offset = drm_core_get_reg_ofs(dev);
-		vma->vm_flags |= VM_IO;	/* not in core dump */
-		vma->vm_page_prot = drm_io_prot(map->type, vma);
+		vma->vm_page_prot = drm_io_prot(map, vma);
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,

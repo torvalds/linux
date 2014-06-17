@@ -37,6 +37,7 @@
 #include <linux/tty.h>
 #include <linux/sched.h>
 #include <asm/unaligned.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 
@@ -49,27 +50,13 @@ static ssize_t dgrp_mon_read(struct file *, char __user *, size_t, loff_t *);
 static long dgrp_mon_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg);
 
-static const struct file_operations mon_ops = {
+const struct file_operations dgrp_mon_ops = {
 	.owner   = THIS_MODULE,
 	.read    = dgrp_mon_read,
 	.unlocked_ioctl = dgrp_mon_ioctl,
 	.open    = dgrp_mon_open,
 	.release = dgrp_mon_release,
 };
-
-static struct inode_operations mon_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-void dgrp_register_mon_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &mon_inode_ops;
-	de->proc_fops = &mon_ops;
-	node->nd_mon_de = de;
-	sema_init(&node->nd_mon_semaphore, 1);
-}
 
 /**
  * dgrp_mon_open() -- open /proc/dgrp/ports device for a PortServer
@@ -81,7 +68,6 @@ void dgrp_register_mon_hook(struct proc_dir_entry *de)
 static int dgrp_mon_open(struct inode *inode, struct file *file)
 {
 	struct nd_struct *nd;
-	struct proc_dir_entry *de;
 	struct timeval tv;
 	uint32_t time;
 	u8 *buf;
@@ -109,13 +95,7 @@ static int dgrp_mon_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-
-	nd = (struct nd_struct *)de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;

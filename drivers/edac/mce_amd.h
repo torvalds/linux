@@ -14,6 +14,7 @@
 #define TLB_ERROR(x)			(((x) & 0xFFF0) == 0x0010)
 #define MEM_ERROR(x)			(((x) & 0xFF00) == 0x0100)
 #define BUS_ERROR(x)			(((x) & 0xF800) == 0x0800)
+#define INT_ERROR(x)			(((x) & 0xF4FF) == 0x0400)
 
 #define TT(x)				(((x) >> 2) & 0x3)
 #define TT_MSG(x)			tt_msgs[TT(x)]
@@ -25,12 +26,16 @@
 #define TO_MSG(x)			to_msgs[TO(x)]
 #define PP(x)				(((x) >> 9) & 0x3)
 #define PP_MSG(x)			pp_msgs[PP(x)]
+#define UU(x)				(((x) >> 8) & 0x3)
+#define UU_MSG(x)			uu_msgs[UU(x)]
 
 #define R4(x)				(((x) >> 4) & 0xf)
 #define R4_MSG(x)			((R4(x) < 9) ?  rrrr_msgs[R4(x)] : "Wrong R4!")
 
 #define MCI_STATUS_DEFERRED		BIT_64(44)
 #define MCI_STATUS_POISON		BIT_64(43)
+
+extern const char * const pp_msgs[];
 
 enum tt_ids {
 	TT_INSTR = 0,
@@ -65,19 +70,13 @@ enum rrrr_ids {
 	R4_SNOOP,
 };
 
-extern const char * const tt_msgs[];
-extern const char * const ll_msgs[];
-extern const char * const rrrr_msgs[];
-extern const char * const pp_msgs[];
-extern const char * const to_msgs[];
-extern const char * const ii_msgs[];
-
 /*
  * per-family decoder ops
  */
 struct amd_decoder_ops {
 	bool (*mc0_mce)(u16, u8);
 	bool (*mc1_mce)(u16, u8);
+	bool (*mc2_mce)(u16, u8);
 };
 
 void amd_report_gart_errors(bool);

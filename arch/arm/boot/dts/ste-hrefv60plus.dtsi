@@ -1,0 +1,242 @@
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "ste-dbx5x0.dtsi"
+#include "ste-href-ab8500.dtsi"
+#include "ste-href.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) platform with Device Tree";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+
+	soc {
+		// External Micro SD slot
+		sdi0_per1@80126000 {
+			cd-gpios  = <&gpio2 31 0x4>; // 95
+		};
+
+		vmmci: regulator-gpio {
+			gpios = <&gpio0 5 0x4>;
+			enable-gpio = <&gpio5 9 0x4>;
+		};
+
+		pinctrl {
+			/*
+			 * Set this up using hogs, as time goes by and as seems fit, these
+			 * can be moved over to being controlled by respective device.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&ipgpio_hrefv60_mode>,
+				  <&accel_hrefv60_mode>,
+				  <&magneto_hrefv60_mode>,
+				  <&etm_hrefv60_mode>,
+				  <&nahj_hrefv60_mode>,
+				  <&nfc_hrefv60_mode>,
+				  <&force_hrefv60_mode>,
+				  <&dipro_hrefv60_mode>,
+				  <&vaudio_hf_hrefv60_mode>,
+				  <&gbf_hrefv60_mode>,
+				  <&hdtv_hrefv60_mode>,
+				  <&touch_hrefv60_mode>;
+
+			sdi0 {
+				/* SD card detect GPIO pin, extend default state */
+				sdi0_default_mode: sdi0_default {
+					default_hrefv60_cfg1 {
+						ste,pins = "GPIO95_E8";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			ipgpio {
+				/*
+				 * XENON Flashgun on image processor GPIO (controlled from image
+				 * processor firmware), mux in these image processor GPIO lines 0
+				 * (XENON_FLASH_ID), 1 (XENON_READY) and there is an assistant
+				 * LED on IP GPIO 4 (XENON_EN2) on altfunction C, that need bias
+				 * from GPIO21 so pull up 0, 1 and drive 4 and GPIO21 low as output.
+				 */
+				ipgpio_hrefv60_mode: ipgpio_hrefv60 {
+					hrefv60_mux {
+						ste,function = "ipgpio";
+						ste,pins = "ipgpio0_c_1", "ipgpio1_c_1", "ipgpio4_c_1";
+					};
+					hrefv60_cfg1 {
+						ste,pins = "GPIO6_AF6", "GPIO7_AG5";
+						ste,config = <&in_pu>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO21_AB3";
+						ste,config = <&gpio_out_lo>;
+					};
+					hrefv60_cfg3 {
+						ste,pins = "GPIO64_F3";
+						ste,config = <&out_lo>;
+					};
+				};
+			};
+			accelerometer {
+				accel_hrefv60_mode: accel_hrefv60 {
+					/* Accelerometer interrupt lines 1 & 2 */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO82_C1", "GPIO83_D3";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_hrefv60_mode: magneto_hrefv60 {
+					/* Magnetometer uses GPIO 31 and 32, pull these up/down respectively */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO31_V3";
+						ste,config = <&gpio_in_pu>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO32_V2";
+						ste,config = <&gpio_in_pd>;
+					};
+				};
+			};
+			etm {
+				/*
+				 * Drive D19-D23 for the ETM PTM trace interface low,
+				 * (presumably pins are unconnected therefore grounded here,
+				 * the "other alt C1" setting enables these pins)
+				 */
+				etm_hrefv60_mode: etm_hrefv60 {
+					hrefv60_cfg1 {
+						ste,pins =
+						"GPIO70_G5",
+						"GPIO71_G4",
+						"GPIO72_H4",
+						"GPIO73_H3",
+						"GPIO74_J3";
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			nahj {
+				nahj_hrefv60_mode: nahj_hrefv60 {
+					/* NAHJ CTRL on GPIO76 to low, CTRL_INV on GPIO216 to high */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO76_J2";
+						ste,config = <&gpio_out_lo>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO216_AG12";
+						ste,config = <&gpio_out_hi>;
+					};
+				 };
+			};
+			nfc {
+				nfc_hrefv60_mode: nfc_hrefv60 {
+					/* NFC ENA and RESET to low, pulldown IRQ line */
+					hrefv60_cfg1 {
+						ste,pins =
+						"GPIO77_H1", /* NFC_ENA */
+						"GPIO142_C11"; /* NFC_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO144_B13"; /* NFC_IRQ */
+						ste,config = <&gpio_in_pd>;
+					};
+				 };
+			};
+			force {
+				force_hrefv60_mode: force_hrefv60 {
+					hrefv60_cfg1 {
+						ste,pins = "GPIO91_B6"; /* FORCE_SENSING_INT */
+						ste,config = <&gpio_in_pu>;
+					};
+					hrefv60_cfg2 {
+						ste,pins =
+						"GPIO92_D6", /* FORCE_SENSING_RST */
+						"GPIO97_D9"; /* FORCE_SENSING_WU */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			dipro {
+				dipro_hrefv60_mode: dipro_hrefv60 {
+					hrefv60_cfg1 {
+						ste,pins = "GPIO139_C9"; /* DIPRO_INT */
+						ste,config = <&gpio_in_pu>;
+					};
+				 };
+			};
+			vaudio_hf {
+				vaudio_hf_hrefv60_mode: vaudio_hf_hrefv60 {
+					/* Audio Amplifier HF enable GPIO */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO149_B14"; /* VAUDIO_HF_EN, enable MAX8968 */
+						ste,config = <&gpio_out_hi>;
+					};
+				 };
+			};
+			gbf {
+				gbf_hrefv60_mode: gbf_hrefv60 {
+					/*
+					 * GBF (GPS, Bluetooth, FM-radio) interface,
+					 * pull low to reset state
+					 */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			hdtv {
+				hdtv_hrefv60_mode: hdtv_hrefv60 {
+					/* MSP : HDTV INTERFACE GPIO line */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO192_AJ27";
+						ste,config = <&gpio_in_pd>;
+					};
+				 };
+			};
+			touch {
+				touch_hrefv60_mode: touch_hrefv60 {
+					/*
+					 * Touch screen uses GPIO 143 for RST1, GPIO 146 for RST2 and
+					 * GPIO 67 for interrupts. Pull-up the IRQ line and drive both
+					 * reset signals low.
+					 */
+					hrefv60_cfg1 {
+						ste,pins = "GPIO143_D12", "GPIO146_D13";
+						ste,config = <&gpio_out_lo>;
+					};
+					hrefv60_cfg2 {
+						ste,pins = "GPIO67_G2";
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			mcde {
+				lcd_hrefv60_mode: lcd_hrefv60 {
+					/*
+					 * Display Interface 1 uses GPIO 65 for RST (reset).
+					 * Display Interface 2 uses GPIO 66 for RST (reset).
+					 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
+					 */
+					hrefv60_cfg1 {
+						ste,pins ="GPIO65_F1";
+						ste,config = <&gpio_out_hi>;
+					};
+					hrefv60_cfg2 {
+						ste,pins ="GPIO66_G3";
+						ste,config = <&gpio_out_lo>;
+					};
+				};
+			};
+		};
+	};
+};

@@ -20,7 +20,7 @@
  *  upage: 1 page consisting of a user struct that tells gdb
  *	what is present in the file.  Directly after this is a
  *	copy of the task_struct, which is currently not used by gdb,
- *	but it may come in handy at some point.  All of the registers
+ *	but it may come in handy at some point.	 All of the registers
  *	are stored as part of the upage.  The upage should always be
  *	only one page long.
  *  data: The data segment follows next.  We use current->end_text to

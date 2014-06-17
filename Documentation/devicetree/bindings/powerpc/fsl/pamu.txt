@@ -1,0 +1,150 @@
+Freescale Peripheral Management Access Unit (PAMU) Device Tree Binding
+
+DESCRIPTION
+
+The PAMU is an I/O MMU that provides device-to-memory access control and
+address translation capabilities.
+
+Required properties:
+
+- compatible	: <string>
+		  First entry is a version-specific string, such as
+		  "fsl,pamu-v1.0".  The second is "fsl,pamu".
+- ranges	: <prop-encoded-array>
+		  A standard property. Utilized to describe the memory mapped
+		  I/O space utilized by the controller.  The size should
+		  be set to the total size of the register space of all
+		  physically present PAMU controllers.  For example, for
+		  PAMU v1.0, on an SOC that has five PAMU devices, the size
+		  is 0x5000.
+- interrupts	: <prop-encoded-array>
+		  Interrupt mappings.  The first tuple is the normal PAMU
+		  interrupt, used for reporting access violations.  The second
+		  is for PAMU hardware errors, such as PAMU operation errors
+		  and ECC errors.
+- #address-cells: <u32>
+		  A standard property.
+- #size-cells	: <u32>
+		  A standard property.
+
+Optional properties:
+- reg		: <prop-encoded-array>
+		  A standard property.   It represents the CCSR registers of
+		  all child PAMUs combined.  Include it to provide support
+		  for legacy drivers.
+- interrupt-parent : <phandle>
+		  Phandle to interrupt controller
+- fsl,portid-mapping : <u32>
+		  The Coherency Subdomain ID Port Mapping Registers and
+		  Snoop ID Port Mapping registers, which are part of the
+		  CoreNet Coherency fabric (CCF), provide a CoreNet
+		  Coherency Subdomain ID/CoreNet Snoop ID to pamu mapping
+		  functions.  Certain bits from these registers should be
+		  set if PAMUs should be snooped.  This property defines
+		  a bitmask which selects the bits that should be set if
+		  PAMUs should be snooped.
+
+Child nodes:
+
+Each child node represents one PAMU controller.  Each SOC device that is
+connected to a specific PAMU device should have a "fsl,pamu-phandle" property
+that links to the corresponding specific child PAMU controller.
+
+- reg		: <prop-encoded-array>
+		  A standard property.  Specifies the physical address and
+		  length (relative to the parent 'ranges' property) of this
+		  PAMU controller's configuration registers.  The size should
+		  be set to the size of this PAMU controllers's register space.
+		  For PAMU v1.0, this size is 0x1000.
+- fsl,primary-cache-geometry
+		: <prop-encoded-array>
+		  Two cells that specify the geometry of the primary PAMU
+		  cache.  The first is the number of cache lines, and the
+		  second is the number of "ways".  For direct-mapped caches,
+		  specify a value of 1.
+- fsl,secondary-cache-geometry
+		: <prop-encoded-array>
+		  Two cells that specify the geometry of the secondary PAMU
+		  cache.  The first is the number of cache lines, and the
+		  second is the number of "ways".  For direct-mapped caches,
+		  specify a value of 1.
+
+Device nodes:
+
+Devices that have LIODNs need to specify links to the parent PAMU controller
+(the actual PAMU controller that this device is connected to) and a pointer to
+the LIODN register, if applicable.
+
+- fsl,iommu-parent
+		: <phandle>
+		Phandle to the single, specific PAMU controller node to which
+		this device is connect.  The PAMU topology is represented in
+		the device tree to assist code that dynamically determines the
+		best LIODN values to minimize PAMU cache thrashing.
+
+- fsl,liodn-reg : <prop-encoded-array>
+		  Two cells that specify the location of the LIODN register
+		  for this device.  Required for devices that have a single
+		  LIODN.  The first cell is a phandle to a node that contains
+		  the registers where the LIODN is to be set.  The second is
+		  the offset from the first "reg" resource of the node where
+		  the specific LIODN register is located.
+
+
+Example:
+
+	iommu@20000 {
+		compatible = "fsl,pamu-v1.0", "fsl,pamu";
+		reg = <0x20000 0x5000>;
+		ranges = <0 0x20000 0x5000>;
+		fsl,portid-mapping = <0xf80000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupts = <
+			24 2 0 0
+			16 2 1 30>;
+
+		pamu0: pamu@0 {
+			reg = <0 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu1: pamu@1000 {
+			reg = <0x1000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu2: pamu@2000 {
+			reg = <0x2000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu3: pamu@3000 {
+			reg = <0x3000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu4: pamu@4000 {
+			reg = <0x4000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+	};
+
+	guts: global-utilities@e0000 {
+		compatible = "fsl,qoriq-device-config-1.0";
+		reg = <0xe0000 0xe00>;
+		fsl,has-rstcr;
+		#sleep-cells = <1>;
+		fsl,liodn-bits = <12>;
+	};
+
+/include/ "qoriq-dma-0.dtsi"
+	dma@100300 {
+		fsl,iommu-parent = <&pamu0>;
+		fsl,liodn-reg = <&guts 0x584>; /* DMA2LIODNR */
+	};

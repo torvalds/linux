@@ -19,7 +19,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -800,7 +799,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 	else
 		netdev_info(ndev, "using RMII interface\n");
 	phydev = phy_connect(ndev, dev_name(&phydev->dev),
-			     &lpc_handle_link_change, 0,
+			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 
 	if (IS_ERR(phydev)) {
@@ -1239,9 +1238,10 @@ static int lpc_eth_open(struct net_device *ndev)
 static void lpc_eth_ethtool_getdrvinfo(struct net_device *ndev,
 	struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, dev_name(ndev->dev.parent));
+	strlcpy(info->driver, MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, dev_name(ndev->dev.parent),
+		sizeof(info->bus_info));
 }
 
 static u32 lpc_eth_ethtool_getmsglevel(struct net_device *ndev)
@@ -1361,7 +1361,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	__lpc_eth_clock_enable(pldat, true);
 
 	/* Map IO space */
-	pldat->net_base = ioremap(res->start, res->end - res->start + 1);
+	pldat->net_base = ioremap(res->start, resource_size(res));
 	if (!pldat->net_base) {
 		dev_err(&pdev->dev, "failed to map registers\n");
 		ret = -ENOMEM;
@@ -1398,8 +1398,10 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	}
 
 	if (pldat->dma_buff_base_v == 0) {
-		pldat->pdev->dev.coherent_dma_mask = 0xFFFFFFFF;
-		pldat->pdev->dev.dma_mask = &pldat->pdev->dev.coherent_dma_mask;
+		ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (ret)
+			goto err_out_free_irq;
+
 		pldat->dma_buff_size = PAGE_ALIGN(pldat->dma_buff_size);
 
 		/* Allocate a chunk of memory for the DMA ethernet buffers
@@ -1408,19 +1410,15 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 			dma_alloc_coherent(&pldat->pdev->dev,
 					   pldat->dma_buff_size, &dma_handle,
 					   GFP_KERNEL);
-
 		if (pldat->dma_buff_base_v == NULL) {
-			dev_err(&pdev->dev, "error getting DMA region.\n");
 			ret = -ENOMEM;
 			goto err_out_free_irq;
 		}
 	}
 	pldat->dma_buff_base_p = dma_handle;
 
-	netdev_dbg(ndev, "IO address start     :0x%08x\n",
-			res->start);
-	netdev_dbg(ndev, "IO address size      :%d\n",
-			res->end - res->start + 1);
+	netdev_dbg(ndev, "IO address space     :%pR\n", res);
+	netdev_dbg(ndev, "IO address size      :%d\n", resource_size(res));
 	netdev_dbg(ndev, "IO address (mapped)  :0x%p\n",
 			pldat->net_base);
 	netdev_dbg(ndev, "IRQ number           :%d\n", ndev->irq);
@@ -1433,13 +1431,11 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	/* Get MAC address from current HW setting (POR state is all zeros) */
 	__lpc_get_mac(pldat, ndev->dev_addr);
 
-#ifdef CONFIG_OF_NET
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		const char *macaddr = of_get_mac_address(pdev->dev.of_node);
 		if (macaddr)
 			memcpy(ndev->dev_addr, macaddr, ETH_ALEN);
 	}
-#endif
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 
@@ -1471,7 +1467,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, ndev);
 
-	if (lpc_mii_init(pldat) != 0)
+	ret = lpc_mii_init(pldat);
+	if (ret)
 		goto err_out_unregister_netdev;
 
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",
@@ -1485,7 +1482,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	return 0;
 
 err_out_unregister_netdev:
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(ndev);
 err_out_dma_unmap:
 	if (!use_iram_for_net(&pldat->pdev->dev) ||
@@ -1513,7 +1509,6 @@ static int lpc_eth_drv_remove(struct platform_device *pdev)
 	struct netdata_local *pldat = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	if (!use_iram_for_net(&pldat->pdev->dev) ||
 	    pldat->dma_buff_size > lpc32xx_return_iram_size())

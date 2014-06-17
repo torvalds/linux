@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 /*
  * userns count is 1 for root user, 1 for init_uts_ns,
@@ -47,12 +47,14 @@ struct user_namespace init_user_ns = {
 			.count = 4294967295U,
 		},
 	},
-	.kref = {
-		.refcount	= ATOMIC_INIT(3),
-	},
+	.count = ATOMIC_INIT(3),
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
 	.proc_inum = PROC_USER_INIT_INO,
+#ifdef CONFIG_PERSISTENT_KEYRINGS
+	.persistent_keyring_register_sem =
+	__RWSEM_INITIALIZER(init_user_ns.persistent_keyring_register_sem),
+#endif
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
 
@@ -85,7 +87,6 @@ static DEFINE_SPINLOCK(uidhash_lock);
 struct user_struct root_user = {
 	.__count	= ATOMIC_INIT(1),
 	.processes	= ATOMIC_INIT(1),
-	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
 	.uid		= GLOBAL_ROOT_UID,
@@ -107,9 +108,8 @@ static void uid_hash_remove(struct user_struct *up)
 static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
 {
 	struct user_struct *user;
-	struct hlist_node *h;
 
-	hlist_for_each_entry(user, h, hashent, uidhash_node) {
+	hlist_for_each_entry(user, hashent, uidhash_node) {
 		if (uid_eq(user->uid, uid)) {
 			atomic_inc(&user->__count);
 			return user;
@@ -221,5 +221,4 @@ static int __init uid_cache_init(void)
 
 	return 0;
 }
-
-module_init(uid_cache_init);
+subsys_initcall(uid_cache_init);

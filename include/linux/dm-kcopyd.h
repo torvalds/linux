@@ -21,11 +21,34 @@
 
 #define DM_KCOPYD_IGNORE_ERROR 1
 
+struct dm_kcopyd_throttle {
+	unsigned throttle;
+	unsigned num_io_jobs;
+	unsigned io_period;
+	unsigned total_period;
+	unsigned last_jiffies;
+};
+
+/*
+ * kcopyd clients that want to support throttling must pass an initialised
+ * dm_kcopyd_throttle struct into dm_kcopyd_client_create().
+ * Two or more clients may share the same instance of this struct between
+ * them if they wish to be throttled as a group.
+ *
+ * This macro also creates a corresponding module parameter to configure
+ * the amount of throttling.
+ */
+#define DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(name, description)	\
+static struct dm_kcopyd_throttle dm_kcopyd_throttle = { 100, 0, 0, 0, 0 }; \
+module_param_named(name, dm_kcopyd_throttle.throttle, uint, 0644); \
+MODULE_PARM_DESC(name, description)
+
 /*
  * To use kcopyd you must first create a dm_kcopyd_client object.
+ * throttle can be NULL if you don't want any throttling.
  */
 struct dm_kcopyd_client;
-struct dm_kcopyd_client *dm_kcopyd_client_create(void);
+struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *throttle);
 void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc);
 
 /*

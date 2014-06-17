@@ -1,6 +1,7 @@
 #ifndef _ASM_X86_NMI_H
 #define _ASM_X86_NMI_H
 
+#include <linux/irq_work.h>
 #include <linux/pm.h>
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -18,9 +19,7 @@ extern int proc_nmi_enabled(struct ctl_table *, int ,
 			void __user *, size_t *, loff_t *);
 extern int unknown_nmi_panic;
 
-void arch_trigger_all_cpu_backtrace(void);
-#define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace
-#endif
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 #define NMI_FLAG_FIRST	1
 
@@ -40,6 +39,8 @@ typedef int (*nmi_handler_t)(unsigned int, struct pt_regs *);
 struct nmiaction {
 	struct list_head	list;
 	nmi_handler_t		handler;
+	u64			max_duration;
+	struct irq_work		irq_work;
 	unsigned long		flags;
 	const char		*name;
 };

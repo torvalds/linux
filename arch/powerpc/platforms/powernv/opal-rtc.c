@@ -18,6 +18,7 @@
 
 #include <asm/opal.h>
 #include <asm/firmware.h>
+#include <asm/machdep.h>
 
 static void opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
 {
@@ -37,17 +38,24 @@ unsigned long __init opal_get_boot_time(void)
 	struct rtc_time tm;
 	u32 y_m_d;
 	u64 h_m_s_ms;
+	__be32 __y_m_d;
+	__be64 __h_m_s_ms;
 	long rc = OPAL_BUSY;
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_rtc_read(&y_m_d, &h_m_s_ms);
+		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
 		if (rc == OPAL_BUSY_EVENT)
 			opal_poll_events(NULL);
 		else
 			mdelay(10);
 	}
-	if (rc != OPAL_SUCCESS)
+	if (rc != OPAL_SUCCESS) {
+		ppc_md.get_rtc_time = NULL;
+		ppc_md.set_rtc_time = NULL;
 		return 0;
+	}
+	y_m_d = be32_to_cpu(__y_m_d);
+	h_m_s_ms = be64_to_cpu(__h_m_s_ms);
 	opal_to_tm(y_m_d, h_m_s_ms, &tm);
 	return mktime(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 		      tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -58,9 +66,11 @@ void opal_get_rtc_time(struct rtc_time *tm)
 	long rc = OPAL_BUSY;
 	u32 y_m_d;
 	u64 h_m_s_ms;
+	__be32 __y_m_d;
+	__be64 __h_m_s_ms;
 
 	while (rc == OPAL_BUSY || rc == OPAL_BUSY_EVENT) {
-		rc = opal_rtc_read(&y_m_d, &h_m_s_ms);
+		rc = opal_rtc_read(&__y_m_d, &__h_m_s_ms);
 		if (rc == OPAL_BUSY_EVENT)
 			opal_poll_events(NULL);
 		else
@@ -68,6 +78,8 @@ void opal_get_rtc_time(struct rtc_time *tm)
 	}
 	if (rc != OPAL_SUCCESS)
 		return;
+	y_m_d = be32_to_cpu(__y_m_d);
+	h_m_s_ms = be64_to_cpu(__h_m_s_ms);
 	opal_to_tm(y_m_d, h_m_s_ms, tm);
 }
 

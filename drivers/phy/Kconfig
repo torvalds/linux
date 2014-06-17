@@ -1,0 +1,181 @@
+#
+# PHY
+#
+
+menu "PHY Subsystem"
+
+config GENERIC_PHY
+	bool "PHY Core"
+	help
+	  Generic PHY support.
+
+	  This framework is designed to provide a generic interface for PHY
+	  devices present in the kernel. This layer will have the generic
+	  API by which phy drivers can create PHY using the phy framework and
+	  phy users can obtain reference to the PHY. All the users of this
+	  framework should select this config.
+
+config PHY_EXYNOS_MIPI_VIDEO
+	tristate "S5P/EXYNOS SoC series MIPI CSI-2/DSI PHY driver"
+	depends on HAS_IOMEM
+	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
+	select GENERIC_PHY
+	default y if ARCH_S5PV210 || ARCH_EXYNOS
+	help
+	  Support for MIPI CSI-2 and MIPI DSI DPHY found on Samsung S5P
+	  and EXYNOS SoCs.
+
+config PHY_MVEBU_SATA
+	def_bool y
+	depends on ARCH_KIRKWOOD || ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
+	depends on OF
+	select GENERIC_PHY
+
+config OMAP_CONTROL_PHY
+	tristate "OMAP CONTROL PHY Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	help
+	  Enable this to add support for the PHY part present in the control
+	  module. This driver has API to power on the USB2 PHY and to write to
+	  the mailbox. The mailbox is present only in omap4 and the register to
+	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
+	  additional register to power on USB3 PHY/SATA PHY/PCIE PHY
+	  (PIPE3 PHY).
+
+config OMAP_USB2
+	tristate "OMAP USB2 PHY Driver"
+	depends on ARCH_OMAP2PLUS
+	depends on USB_PHY
+	select GENERIC_PHY
+	select OMAP_CONTROL_PHY
+	depends on OMAP_OCP2SCP
+	help
+	  Enable this to support the transceiver that is part of SOC. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  The USB OTG controller communicates with the comparator using this
+	  driver.
+
+config TI_PIPE3
+	tristate "TI PIPE3 PHY Driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	select GENERIC_PHY
+	select OMAP_CONTROL_PHY
+	depends on OMAP_OCP2SCP
+	help
+	  Enable this to support the PIPE3 PHY that is part of TI SOCs. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  This driver interacts with the "OMAP Control PHY Driver" to power
+	  on/off the PHY.
+
+config TWL4030_USB
+	tristate "TWL4030 USB Transceiver Driver"
+	depends on TWL4030_CORE && REGULATOR_TWL4030 && USB_MUSB_OMAP2PLUS
+	depends on USB_PHY
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB OTG transceiver on TWL4030
+	  family chips (including the TWL5030 and TPS659x0 devices).
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
+
+config PHY_EXYNOS_DP_VIDEO
+	tristate "EXYNOS SoC series Display Port PHY driver"
+	depends on OF
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	default ARCH_EXYNOS
+	select GENERIC_PHY
+	help
+	  Support for Display Port PHY found on Samsung EXYNOS SoCs.
+
+config BCM_KONA_USB2_PHY
+	tristate "Broadcom Kona USB2 PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support the Broadcom Kona USB 2.0 PHY.
+
+config PHY_EXYNOS5250_SATA
+	tristate "Exynos5250 Sata SerDes/PHY driver"
+	depends on SOC_EXYNOS5250
+	depends on HAS_IOMEM
+	depends on OF
+	select GENERIC_PHY
+	select I2C
+	select I2C_S3C2410
+	select MFD_SYSCON
+	help
+	  Enable this to support SATA SerDes/Phy found on Samsung's
+	  Exynos5250 based SoCs.This SerDes/Phy supports SATA 1.5 Gb/s,
+	  SATA 3.0 Gb/s, SATA 6.0 Gb/s speeds. It supports one SATA host
+	  port to accept one SATA device.
+
+config PHY_SUN4I_USB
+	tristate "Allwinner sunxi SoC USB PHY driver"
+	depends on ARCH_SUNXI && HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the transceiver that is part of Allwinner
+	  sunxi SoCs.
+
+	  This driver controls the entire USB PHY block, both the USB OTG
+	  parts, as well as the 2 regular USB 2 host PHYs.
+
+config PHY_SAMSUNG_USB2
+	tristate "Samsung USB 2.0 PHY driver"
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the Samsung USB 2.0 PHY driver for Samsung
+	  SoCs. This driver provides the interface for USB 2.0 PHY. Support for
+	  particular SoCs has to be enabled in addition to this driver. Number
+	  and type of supported phys depends on the SoC.
+
+config PHY_EXYNOS4210_USB2
+	bool "Support for Exynos 4210"
+	depends on PHY_SAMSUNG_USB2
+	depends on CPU_EXYNOS4210
+	help
+	  Enable USB PHY support for Exynos 4210. This option requires that
+	  Samsung USB 2.0 PHY driver is enabled and means that support for this
+	  particular SoC is compiled in the driver. In case of Exynos 4210 four
+	  phys are available - device, host, HSIC0 and HSIC1.
+
+config PHY_EXYNOS4X12_USB2
+	bool "Support for Exynos 4x12"
+	depends on PHY_SAMSUNG_USB2
+	depends on (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	help
+	  Enable USB PHY support for Exynos 4x12. This option requires that
+	  Samsung USB 2.0 PHY driver is enabled and means that support for this
+	  particular SoC is compiled in the driver. In case of Exynos 4x12 four
+	  phys are available - device, host, HSIC0 and HSIC1.
+
+config PHY_EXYNOS5250_USB2
+	bool "Support for Exynos 5250"
+	depends on PHY_SAMSUNG_USB2
+	depends on SOC_EXYNOS5250
+	help
+	  Enable USB PHY support for Exynos 5250. This option requires that
+	  Samsung USB 2.0 PHY driver is enabled and means that support for this
+	  particular SoC is compiled in the driver. In case of Exynos 5250 four
+	  phys are available - device, host, HSIC0 and HSIC.
+
+config PHY_EXYNOS5_USBDRD
+	tristate "Exynos5 SoC series USB DRD PHY driver"
+	depends on ARCH_EXYNOS5 && OF
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable USB DRD PHY support for Exynos 5 SoC series.
+	  This driver provides PHY interface for USB 3.0 DRD controller
+	  present on Exynos5 SoC series.
+
+config PHY_XGENE
+	tristate "APM X-Gene 15Gbps PHY support"
+	depends on HAS_IOMEM && OF && (ARM64 || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  This option enables support for APM X-Gene SoC multi-purpose PHY.
+
+endmenu

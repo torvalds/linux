@@ -44,8 +44,14 @@ typedef union
      * descriptors toggles each time the ring tail pointer wraps.
      */
     uint_reg_t gen        : 1;
+    /**
+     * For devices with EDMA reorder support, this field allows the
+     * descriptor to select the egress FIFO.  The associated DMA ring must
+     * have ALLOW_EFIFO_SEL enabled.
+     */
+    uint_reg_t efifo_sel  : 6;
     /** Reserved.  Must be zero. */
-    uint_reg_t r0         : 7;
+    uint_reg_t r0         : 1;
     /** Checksum generation enabled for this transfer. */
     uint_reg_t csum       : 1;
     /**
@@ -110,7 +116,8 @@ typedef union
     uint_reg_t notif      : 1;
     uint_reg_t ns         : 1;
     uint_reg_t csum       : 1;
-    uint_reg_t r0         : 7;
+    uint_reg_t r0         : 1;
+    uint_reg_t efifo_sel  : 6;
     uint_reg_t gen        : 1;
 #endif
 
@@ -126,14 +133,16 @@ typedef union
     /** Reserved. */
     uint_reg_t __reserved_1 : 3;
     /**
-     * Instance ID.  For devices that support more than one mPIPE instance,
-     * this field indicates the buffer owner.  If the INST field does not
-     * match the mPIPE's instance number when a packet is egressed, buffers
-     * with HWB set will be returned to the other mPIPE instance.
+     * Instance ID.  For devices that support automatic buffer return between
+     * mPIPE instances, this field indicates the buffer owner.  If the INST
+     * field does not match the mPIPE's instance number when a packet is
+     * egressed, buffers with HWB set will be returned to the other mPIPE
+     * instance.  Note that not all devices support multi-mPIPE buffer
+     * return.  The MPIPE_EDMA_INFO.REMOTE_BUFF_RTN_SUPPORT bit indicates
+     * whether the INST field in the buffer descriptor is populated by iDMA
+     * hardware.
      */
-    uint_reg_t inst         : 1;
-    /** Reserved. */
-    uint_reg_t __reserved_2 : 1;
+    uint_reg_t inst         : 2;
     /**
      * Always set to one by hardware in iDMA packet descriptors.  For eDMA,
      * indicates whether the buffer will be released to the buffer stack
@@ -166,8 +175,7 @@ typedef union
     uint_reg_t c            : 2;
     uint_reg_t size         : 3;
     uint_reg_t hwb          : 1;
-    uint_reg_t __reserved_2 : 1;
-    uint_reg_t inst         : 1;
+    uint_reg_t inst         : 2;
     uint_reg_t __reserved_1 : 3;
     uint_reg_t stack_idx    : 5;
     uint_reg_t __reserved_0 : 6;
@@ -408,7 +416,10 @@ typedef union
     /**
      * Sequence number applied when packet is distributed.   Classifier
      * selects which sequence number is to be applied by writing the 13-bit
-     * SQN-selector into this field.
+     * SQN-selector into this field.  For devices that support EXT_SQN (as
+     * indicated in IDMA_INFO.EXT_SQN_SUPPORT), the GP_SQN can be extended to
+     * 32-bits via the IDMA_CTL.EXT_SQN register.  In this case the
+     * PACKET_SQN will be reduced to 32 bits.
      */
     uint_reg_t gp_sqn     : 16;
     /**
@@ -451,14 +462,16 @@ typedef union
     /** Reserved. */
     uint_reg_t __reserved_5 : 3;
     /**
-     * Instance ID.  For devices that support more than one mPIPE instance,
-     * this field indicates the buffer owner.  If the INST field does not
-     * match the mPIPE's instance number when a packet is egressed, buffers
-     * with HWB set will be returned to the other mPIPE instance.
+     * Instance ID.  For devices that support automatic buffer return between
+     * mPIPE instances, this field indicates the buffer owner.  If the INST
+     * field does not match the mPIPE's instance number when a packet is
+     * egressed, buffers with HWB set will be returned to the other mPIPE
+     * instance.  Note that not all devices support multi-mPIPE buffer
+     * return.  The MPIPE_EDMA_INFO.REMOTE_BUFF_RTN_SUPPORT bit indicates
+     * whether the INST field in the buffer descriptor is populated by iDMA
+     * hardware.
      */
-    uint_reg_t inst         : 1;
-    /** Reserved. */
-    uint_reg_t __reserved_6 : 1;
+    uint_reg_t inst         : 2;
     /**
      * Always set to one by hardware in iDMA packet descriptors.  For eDMA,
      * indicates whether the buffer will be released to the buffer stack
@@ -491,8 +504,7 @@ typedef union
     uint_reg_t c            : 2;
     uint_reg_t size         : 3;
     uint_reg_t hwb          : 1;
-    uint_reg_t __reserved_6 : 1;
-    uint_reg_t inst         : 1;
+    uint_reg_t inst         : 2;
     uint_reg_t __reserved_5 : 3;
     uint_reg_t stack_idx    : 5;
     uint_reg_t __reserved_4 : 6;

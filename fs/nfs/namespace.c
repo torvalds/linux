@@ -177,11 +177,31 @@ out_nofree:
 	return mnt;
 }
 
+static int
+nfs_namespace_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+{
+	if (NFS_FH(dentry->d_inode)->size != 0)
+		return nfs_getattr(mnt, dentry, stat);
+	generic_fillattr(dentry->d_inode, stat);
+	return 0;
+}
+
+static int
+nfs_namespace_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	if (NFS_FH(dentry->d_inode)->size != 0)
+		return nfs_setattr(dentry, attr);
+	return -EACCES;
+}
+
 const struct inode_operations nfs_mountpoint_inode_operations = {
 	.getattr	= nfs_getattr,
+	.setattr	= nfs_setattr,
 };
 
 const struct inode_operations nfs_referral_inode_operations = {
+	.getattr	= nfs_namespace_getattr,
+	.setattr	= nfs_namespace_setattr,
 };
 
 static void nfs_expire_automounts(struct work_struct *work)
@@ -233,9 +253,8 @@ struct vfsmount *nfs_do_submount(struct dentry *dentry, struct nfs_fh *fh,
 
 	dprintk("--> nfs_do_submount()\n");
 
-	dprintk("%s: submounting on %s/%s\n", __func__,
-			dentry->d_parent->d_name.name,
-			dentry->d_name.name);
+	dprintk("%s: submounting on %pd2\n", __func__,
+			dentry);
 	if (page == NULL)
 		goto out;
 	devname = nfs_devname(dentry, page, PAGE_SIZE);
@@ -260,7 +279,7 @@ struct vfsmount *nfs_submount(struct nfs_server *server, struct dentry *dentry,
 	struct dentry *parent = dget_parent(dentry);
 
 	/* Look it up again to get its attributes */
-	err = server->nfs_client->rpc_ops->lookup(parent->d_inode, &dentry->d_name, fh, fattr);
+	err = server->nfs_client->rpc_ops->lookup(parent->d_inode, &dentry->d_name, fh, fattr, NULL);
 	dput(parent);
 	if (err != 0)
 		return ERR_PTR(err);

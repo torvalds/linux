@@ -1,0 +1,61 @@
+Tegra SOC USB PHY
+
+The device node for Tegra SOC USB PHY:
+
+Required properties :
+ - compatible : Should be "nvidia,tegra<chip>-usb-phy".
+ - reg : Defines the following set of registers, in the order listed:
+   - The PHY's own register set.
+     Always present.
+   - The register set of the PHY containing the UTMI pad control registers.
+     Present if-and-only-if phy_type == utmi.
+ - phy_type : Should be one of "utmi", "ulpi" or "hsic".
+ - clocks : Defines the clocks listed in the clock-names property.
+ - clock-names : The following clock names must be present:
+   - reg: The clock needed to access the PHY's own registers. This is the
+     associated EHCI controller's clock. Always present.
+   - pll_u: PLL_U. Always present.
+   - timer: The timeout clock (clk_m). Present if phy_type == utmi.
+   - utmi-pads: The clock needed to access the UTMI pad control registers.
+     Present if phy_type == utmi.
+   - ulpi-link: The clock Tegra provides to the ULPI PHY (cdev2).
+     Present if phy_type == ulpi, and ULPI link mode is in use.
+
+Required properties for phy_type == ulpi:
+  - nvidia,phy-reset-gpio : The GPIO used to reset the PHY.
+
+Required PHY timing params for utmi phy, for all chips:
+  - nvidia,hssync-start-delay : Number of 480 Mhz clock cycles to wait before
+    start of sync launches RxActive
+  - nvidia,elastic-limit : Variable FIFO Depth of elastic input store
+  - nvidia,idle-wait-delay : Number of 480 Mhz clock cycles of idle to wait
+    before declare IDLE.
+  - nvidia,term-range-adj : Range adjusment on terminations
+  - Either one of the following for HS driver output control:
+    - nvidia,xcvr-setup : integer, uses the provided value.
+    - nvidia,xcvr-setup-use-fuses : boolean, indicates that the value is read
+      from the on-chip fuses
+    If both are provided, nvidia,xcvr-setup-use-fuses takes precedence.
+  - nvidia,xcvr-lsfslew : LS falling slew rate control.
+  - nvidia,xcvr-lsrslew :  LS rising slew rate control.
+
+Required PHY timing params for utmi phy, only on Tegra30 and above:
+  - nvidia,xcvr-hsslew : HS slew rate control.
+  - nvidia,hssquelch-level : HS squelch detector level.
+  - nvidia,hsdiscon-level : HS disconnect detector level.
+
+Optional properties:
+  - nvidia,has-legacy-mode : boolean indicates whether this controller can
+    operate in legacy mode (as APX 2500 / 2600). In legacy mode some
+    registers are accessed through the APB_MISC base address instead of
+    the USB controller.
+  - nvidia,is-wired : boolean. Indicates whether we can do certain kind of power
+    optimizations for the devices that are always connected. e.g. modem.
+  - dr_mode : dual role mode. Indicates the working mode for the PHY. Can be
+    "host", "peripheral", or "otg". Defaults to "host" if not defined.
+      host means this is a host controller
+      peripheral means it is device controller
+      otg means it can operate as either ("on the go")
+
+VBUS control (required for dr_mode == otg, optional for dr_mode == host):
+  - vbus-supply: regulator for VBUS

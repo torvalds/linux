@@ -113,6 +113,15 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 	 * notify the AP about us leaving the channel and stop all
 	 * STA interfaces.
 	 */
+
+	/*
+	 * Stop queues and transmit all frames queued by the driver
+	 * before sending nullfunc to enable powersave at the AP.
+	 */
+	ieee80211_stop_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
+	ieee80211_flush_queues(local, NULL);
+
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!ieee80211_sdata_running(sdata))
@@ -125,18 +134,17 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 			set_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
 
 		/* Check to see if we should disable beaconing. */
-		if (sdata->vif.type == NL80211_IFTYPE_AP ||
-		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
-		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		if (sdata->vif.bss_conf.enable_beacon) {
+			set_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
+				&sdata->state);
+			sdata->vif.bss_conf.enable_beacon = false;
 			ieee80211_bss_info_change_notify(
 				sdata, BSS_CHANGED_BEACON_ENABLED);
-
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-			netif_tx_stop_all_queues(sdata->dev);
-			if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-			    sdata->u.mgd.associated)
-				ieee80211_offchannel_ps_enable(sdata);
 		}
+
+		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+		    sdata->u.mgd.associated)
+			ieee80211_offchannel_ps_enable(sdata);
 	}
 	mutex_unlock(&local->iflist_mtx);
 }
@@ -164,27 +172,17 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 		    sdata->u.mgd.associated)
 			ieee80211_offchannel_ps_disable(sdata);
 
-		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-			/*
-			 * This may wake up queues even though the driver
-			 * currently has them stopped. This is not very
-			 * likely, since the driver won't have gotten any
-			 * (or hardly any) new packets while we weren't
-			 * on the right channel, and even if it happens
-			 * it will at most lead to queueing up one more
-			 * packet per queue in mac80211 rather than on
-			 * the interface qdisc.
-			 */
-			netif_tx_wake_all_queues(sdata->dev);
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP ||
-		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
-		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		if (test_and_clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
+				       &sdata->state)) {
+			sdata->vif.bss_conf.enable_beacon = true;
 			ieee80211_bss_info_change_notify(
 				sdata, BSS_CHANGED_BEACON_ENABLED);
+		}
 	}
 	mutex_unlock(&local->iflist_mtx);
+
+	ieee80211_wake_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
 }
 
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc)
@@ -279,7 +277,7 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 			duration = 10;
 
 		ret = drv_remain_on_channel(local, roc->sdata, roc->chan,
-					    duration);
+					    duration, roc->type);
 
 		roc->started = true;
 
@@ -299,9 +297,12 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 	}
 }
 
-void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
+void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc, bool free)
 {
 	struct ieee80211_roc_work *dep, *tmp;
+
+	if (WARN_ON(roc->to_be_freed))
+		return;
 
 	/* was never transmitted */
 	if (roc->frame) {
@@ -318,9 +319,12 @@ void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc)
 						   GFP_KERNEL);
 
 	list_for_each_entry_safe(dep, tmp, &roc->dependents, list)
-		ieee80211_roc_notify_destroy(dep);
+		ieee80211_roc_notify_destroy(dep, true);
 
-	kfree(roc);
+	if (free)
+		kfree(roc);
+	else
+		roc->to_be_freed = true;
 }
 
 void ieee80211_sw_roc_work(struct work_struct *work)
@@ -329,9 +333,12 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		container_of(work, struct ieee80211_roc_work, work.work);
 	struct ieee80211_sub_if_data *sdata = roc->sdata;
 	struct ieee80211_local *local = sdata->local;
-	bool started;
+	bool started, on_channel;
 
 	mutex_lock(&local->mtx);
+
+	if (roc->to_be_freed)
+		goto out_unlock;
 
 	if (roc->abort)
 		goto finish;
@@ -347,13 +354,26 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 	if (!roc->started) {
 		struct ieee80211_roc_work *dep;
 
-		/* start this ROC */
+		WARN_ON(local->use_chanctx);
 
-		/* switch channel etc */
+		/* If actually operating on the desired channel (with at least
+		 * 20 MHz channel width) don't stop all the operations but still
+		 * treat it as though the ROC operation started properly, so
+		 * other ROC operations won't interfere with this one.
+		 */
+		roc->on_channel = roc->chan == local->_oper_chandef.chan &&
+				  local->_oper_chandef.width != NL80211_CHAN_WIDTH_5 &&
+				  local->_oper_chandef.width != NL80211_CHAN_WIDTH_10;
+
+		/* start this ROC */
 		ieee80211_recalc_idle(local);
 
-		local->tmp_channel = roc->chan;
-		ieee80211_hw_config(local, 0);
+		if (!roc->on_channel) {
+			ieee80211_offchannel_stop_vifs(local);
+
+			local->tmp_channel = roc->chan;
+			ieee80211_hw_config(local, 0);
+		}
 
 		/* tell userspace or send frame */
 		ieee80211_handle_roc_started(roc);
@@ -372,10 +392,11 @@ void ieee80211_sw_roc_work(struct work_struct *work)
  finish:
 		list_del(&roc->list);
 		started = roc->started;
-		ieee80211_roc_notify_destroy(roc);
+		on_channel = roc->on_channel;
+		ieee80211_roc_notify_destroy(roc, !roc->abort);
 
-		if (started) {
-			drv_flush(local, false);
+		if (started && !on_channel) {
+			ieee80211_flush_queues(local, NULL);
 
 			local->tmp_channel = NULL;
 			ieee80211_hw_config(local, 0);
@@ -387,6 +408,8 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 
 		if (started)
 			ieee80211_start_next_roc(local);
+		else if (list_empty(&local->roc_list))
+			ieee80211_run_deferred_scan(local);
 	}
 
  out_unlock:
@@ -412,7 +435,7 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 
 	list_del(&roc->list);
 
-	ieee80211_roc_notify_destroy(roc);
+	ieee80211_roc_notify_destroy(roc, true);
 
 	/* if there's another roc, start it now */
 	ieee80211_start_next_roc(local);
@@ -438,15 +461,15 @@ void ieee80211_roc_setup(struct ieee80211_local *local)
 	INIT_LIST_HEAD(&local->roc_list);
 }
 
-void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
+void ieee80211_roc_purge(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_roc_work *roc, *tmp;
 	LIST_HEAD(tmp_list);
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
-		if (roc->sdata != sdata)
+		if (sdata && roc->sdata != sdata)
 			continue;
 
 		if (roc->started && local->ops->remain_on_channel) {
@@ -462,12 +485,14 @@ void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
 	list_for_each_entry_safe(roc, tmp, &tmp_list, list) {
 		if (local->ops->remain_on_channel) {
 			list_del(&roc->list);
-			ieee80211_roc_notify_destroy(roc);
+			ieee80211_roc_notify_destroy(roc, true);
 		} else {
 			ieee80211_queue_delayed_work(&local->hw, &roc->work, 0);
 
 			/* work will clean up etc */
 			flush_delayed_work(&roc->work);
+			WARN_ON(!roc->to_be_freed);
+			kfree(roc);
 		}
 	}
 

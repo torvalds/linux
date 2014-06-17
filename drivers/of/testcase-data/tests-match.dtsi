@@ -1,0 +1,19 @@
+
+/ {
+	testcase-data {
+		match-node {
+			name0 { };
+			name1 { device_type = "type1"; };
+			a { name2 { device_type = "type1"; }; };
+			b { name2 { }; };
+			c { name2 { device_type = "type2"; }; };
+			name3 { compatible = "compat3"; };
+			name4 { compatible = "compat2", "compat3"; };
+			name5 { compatible = "compat2", "compat3"; };
+			name6 { compatible = "compat1", "compat2", "compat3"; };
+			name7 { compatible = "compat2"; device_type = "type1"; };
+			name8 { compatible = "compat2"; device_type = "type1"; };
+			name9 { compatible = "compat2"; };
+		};
+	};
+};

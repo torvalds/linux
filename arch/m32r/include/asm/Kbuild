@@ -1,5 +1,9 @@
 
 generic-y += clkdev.h
+generic-y += cputime.h
 generic-y += exec.h
+generic-y += hash.h
+generic-y += mcs_spinlock.h
 generic-y += module.h
+generic-y += preempt.h
 generic-y += trace_clock.h

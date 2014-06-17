@@ -20,6 +20,7 @@ cond_syscall(sys_quotactl);
 cond_syscall(sys32_quotactl);
 cond_syscall(sys_acct);
 cond_syscall(sys_lookup_dcookie);
+cond_syscall(compat_sys_lookup_dcookie);
 cond_syscall(sys_swapon);
 cond_syscall(sys_swapoff);
 cond_syscall(sys_kexec_load);
@@ -134,6 +135,8 @@ cond_syscall(sys_setresgid16);
 cond_syscall(sys_setresuid16);
 cond_syscall(sys_setreuid16);
 cond_syscall(sys_setuid16);
+cond_syscall(sys_sgetmask);
+cond_syscall(sys_ssetmask);
 cond_syscall(sys_vm86old);
 cond_syscall(sys_vm86);
 cond_syscall(sys_ipc);
@@ -145,17 +148,19 @@ cond_syscall(sys_io_destroy);
 cond_syscall(sys_io_submit);
 cond_syscall(sys_io_cancel);
 cond_syscall(sys_io_getevents);
+cond_syscall(sys_sysfs);
 cond_syscall(sys_syslog);
 cond_syscall(sys_process_vm_readv);
 cond_syscall(sys_process_vm_writev);
 cond_syscall(compat_sys_process_vm_readv);
 cond_syscall(compat_sys_process_vm_writev);
+cond_syscall(sys_uselib);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);
 cond_syscall(sys_pciconfig_write);
 cond_syscall(sys_pciconfig_iobase);
-cond_syscall(sys32_ipc);
+cond_syscall(compat_sys_s390_ipc);
 cond_syscall(ppc_rtas);
 cond_syscall(sys_spu_run);
 cond_syscall(sys_spu_create);
@@ -199,6 +204,7 @@ cond_syscall(sys_perf_event_open);
 /* fanotify! */
 cond_syscall(sys_fanotify_init);
 cond_syscall(sys_fanotify_mark);
+cond_syscall(compat_sys_fanotify_mark);
 
 /* open by handle */
 cond_syscall(sys_name_to_handle_at);

@@ -3,7 +3,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
@@ -20,18 +19,19 @@ static int set_x2apic_phys_mode(char *arg)
 }
 early_param("x2apic_phys", set_x2apic_phys_mode);
 
+static bool x2apic_fadt_phys(void)
+{
+	if ((acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) &&
+		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL)) {
+		printk(KERN_DEBUG "System requires x2apic physical mode\n");
+		return true;
+	}
+	return false;
+}
+
 static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	if (x2apic_phys)
-		return x2apic_enabled();
-	else if ((acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) &&
-		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL) &&
-		x2apic_enabled()) {
-		printk(KERN_DEBUG "System requires x2apic physical mode\n");
-		return 1;
-	}
-	else
-		return 0;
+	return x2apic_enabled() && (x2apic_phys || x2apic_fadt_phys());
 }
 
 static void
@@ -82,7 +82,7 @@ static void init_x2apic_ldr(void)
 
 static int x2apic_phys_probe(void)
 {
-	if (x2apic_mode && x2apic_phys)
+	if (x2apic_mode && (x2apic_phys || x2apic_fadt_phys()))
 		return 1;
 
 	return apic == &apic_x2apic_phys;
@@ -133,7 +133,7 @@ static struct apic apic_x2apic_phys = {
 
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
-	.wait_for_init_deassert		= NULL,
+	.wait_for_init_deassert		= false,
 	.smp_callin_clear_local_apic	= NULL,
 	.inquire_remote_apic		= NULL,
 

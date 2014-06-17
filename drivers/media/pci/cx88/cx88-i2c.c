@@ -139,8 +139,7 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 	if (i2c_udelay<5)
 		i2c_udelay=5;
 
-	memcpy(&core->i2c_algo, &cx8800_i2c_algo_template,
-	       sizeof(core->i2c_algo));
+	core->i2c_algo = cx8800_i2c_algo_template;
 
 
 	core->i2c_adap.dev.parent = &pci->dev;

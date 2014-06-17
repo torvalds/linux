@@ -75,8 +75,10 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	atomic_set(&dev->refcnt, 2);
 
 	INIT_LIST_HEAD(&dev->slist);
+	INIT_LIST_HEAD(&dev->async_list);
 	mutex_init(&dev->mutex);
 	mutex_init(&dev->bus_mutex);
+	mutex_init(&dev->list_mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
 	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
@@ -103,6 +105,10 @@ static void w1_free_dev(struct w1_master *dev)
 	device_unregister(&dev->dev);
 }
 
+/**
+ * w1_add_master_device() - registers a new master device
+ * @master:	master bus device to register
+ */
 int w1_add_master_device(struct w1_bus_master *master)
 {
 	struct w1_master *dev, *entry;
@@ -117,18 +123,6 @@ int w1_add_master_device(struct w1_bus_master *master)
 		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
 		return(-EINVAL);
         }
-	/* While it would be electrically possible to make a device that
-	 * generated a strong pullup in bit bang mode, only hardware that
-	 * controls 1-wire time frames are even expected to support a strong
-	 * pullup.  w1_io.c would need to support calling set_pullup before
-	 * the last write_bit operation of a w1_write_8 which it currently
-	 * doesn't.
-	 */
-	if (!master->write_byte && !master->touch_bit && master->set_pullup) {
-		printk(KERN_ERR "w1_add_master_device: set_pullup requires "
-			"write_byte or touch_bit, disabling\n");
-		master->set_pullup = NULL;
-	}
 
 	/* Lock until the device is added (or not) to w1_masters. */
 	mutex_lock(&w1_mlock);
@@ -184,6 +178,7 @@ int w1_add_master_device(struct w1_bus_master *master)
 
 #if 0 /* Thread cleanup code, not required currently. */
 err_out_kill_thread:
+	set_bit(W1_ABORT_SEARCH, &dev->flags);
 	kthread_stop(dev->thread);
 #endif
 err_out_rm_attr:
@@ -199,16 +194,22 @@ void __w1_remove_master_device(struct w1_master *dev)
 	struct w1_netlink_msg msg;
 	struct w1_slave *sl, *sln;
 
-	kthread_stop(dev->thread);
-
 	mutex_lock(&w1_mlock);
 	list_del(&dev->w1_master_entry);
 	mutex_unlock(&w1_mlock);
 
+	set_bit(W1_ABORT_SEARCH, &dev->flags);
+	kthread_stop(dev->thread);
+
 	mutex_lock(&dev->mutex);
-	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry)
+	mutex_lock(&dev->list_mutex);
+	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
+		mutex_unlock(&dev->list_mutex);
 		w1_slave_detach(sl);
+		mutex_lock(&dev->list_mutex);
+	}
 	w1_destroy_master_attributes(dev);
+	mutex_unlock(&dev->list_mutex);
 	mutex_unlock(&dev->mutex);
 	atomic_dec(&dev->refcnt);
 
@@ -218,7 +219,13 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 		if (msleep_interruptible(1000))
 			flush_signals(current);
+		mutex_lock(&dev->list_mutex);
+		w1_process_callbacks(dev);
+		mutex_unlock(&dev->list_mutex);
 	}
+	mutex_lock(&dev->list_mutex);
+	w1_process_callbacks(dev);
+	mutex_unlock(&dev->list_mutex);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;
@@ -228,6 +235,10 @@ void __w1_remove_master_device(struct w1_master *dev)
 	w1_free_dev(dev);
 }
 
+/**
+ * w1_remove_master_device() - unregister a master device
+ * @bm:	master bus device to remove
+ */
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
 	struct w1_master *dev, *found = NULL;

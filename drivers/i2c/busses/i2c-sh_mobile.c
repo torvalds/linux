@@ -27,32 +27,32 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/of_i2c.h>
 #include <linux/err.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <linux/i2c/i2c-sh_mobile.h>
 
 /* Transmit operation:                                                      */
 /*                                                                          */
 /* 0 byte transmit                                                          */
-/* BUS:     S     A8     ACK   P                                            */
+/* BUS:     S     A8     ACK   P(*)                                         */
 /* IRQ:       DTE   WAIT                                                    */
 /* ICIC:                                                                    */
 /* ICCR: 0x94 0x90                                                          */
 /* ICDR:      A8                                                            */
 /*                                                                          */
 /* 1 byte transmit                                                          */
-/* BUS:     S     A8     ACK   D8(1)   ACK   P                              */
+/* BUS:     S     A8     ACK   D8(1)   ACK   P(*)                           */
 /* IRQ:       DTE   WAIT         WAIT                                       */
 /* ICIC:      -DTE                                                          */
 /* ICCR: 0x94       0x90                                                    */
 /* ICDR:      A8    D8(1)                                                   */
 /*                                                                          */
 /* 2 byte transmit                                                          */
-/* BUS:     S     A8     ACK   D8(1)   ACK   D8(2)   ACK   P                */
+/* BUS:     S     A8     ACK   D8(1)   ACK   D8(2)   ACK   P(*)             */
 /* IRQ:       DTE   WAIT         WAIT          WAIT                         */
 /* ICIC:      -DTE                                                          */
 /* ICCR: 0x94                    0x90                                       */
@@ -66,20 +66,20 @@
 /* 0 byte receive - not supported since slave may hold SDA low              */
 /*                                                                          */
 /* 1 byte receive       [TX] | [RX]                                         */
-/* BUS:     S     A8     ACK | D8(1)   ACK   P                              */
+/* BUS:     S     A8     ACK | D8(1)   ACK   P(*)                           */
 /* IRQ:       DTE   WAIT     |   WAIT     DTE                               */
 /* ICIC:      -DTE           |   +DTE                                       */
 /* ICCR: 0x94       0x81     |   0xc0                                       */
 /* ICDR:      A8             |            D8(1)                             */
 /*                                                                          */
 /* 2 byte receive        [TX]| [RX]                                         */
-/* BUS:     S     A8     ACK | D8(1)   ACK   D8(2)   ACK   P                */
+/* BUS:     S     A8     ACK | D8(1)   ACK   D8(2)   ACK   P(*)             */
 /* IRQ:       DTE   WAIT     |   WAIT          WAIT     DTE                 */
 /* ICIC:      -DTE           |                 +DTE                         */
 /* ICCR: 0x94       0x81     |                 0xc0                         */
 /* ICDR:      A8             |                 D8(1)    D8(2)               */
 /*                                                                          */
-/* 3 byte receive       [TX] | [RX]                                         */
+/* 3 byte receive       [TX] | [RX]                                     (*) */
 /* BUS:     S     A8     ACK | D8(1)   ACK   D8(2)   ACK   D8(3)   ACK    P */
 /* IRQ:       DTE   WAIT     |   WAIT          WAIT         WAIT      DTE   */
 /* ICIC:      -DTE           |                              +DTE            */
@@ -94,7 +94,7 @@
 /* SDA ___\___XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXAAAAAAAAA___/                 */
 /* SCL      \_/1\_/2\_/3\_/4\_/5\_/6\_/7\_/8\___/9\_____/                   */
 /*                                                                          */
-/*        S   D7  D6  D5  D4  D3  D2  D1  D0              P                 */
+/*        S   D7  D6  D5  D4  D3  D2  D1  D0              P(*)              */
 /*                                           ___                            */
 /* WAIT IRQ ________________________________/   \___________                */
 /* TACK IRQ ____________________________________/   \_______                */
@@ -102,6 +102,11 @@
 /* AL   IRQ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX                */
 /*         _______________________________________________                  */
 /* BUSY __/                                               \_                */
+/*                                                                          */
+/* (*) The STOP condition is only sent by the master at the end of the last */
+/* I2C message or if the I2C_M_STOP flag is set. Similarly, the BUSY bit is */
+/* only cleared after the STOP condition, so, between messages we have to   */
+/* poll for the DTE bit.                                                    */
 /*                                                                          */
 
 enum sh_mobile_i2c_op {
@@ -132,6 +137,11 @@ struct sh_mobile_i2c_data {
 	struct i2c_msg *msg;
 	int pos;
 	int sr;
+	bool send_stop;
+};
+
+struct sh_mobile_dt_config {
+	int clks_per_count;
 };
 
 #define IIC_FLAG_HAS_ICIC67	(1 << 0)
@@ -189,7 +199,7 @@ static void iic_set_clr(struct sh_mobile_i2c_data *pd, int offs,
 	iic_wr(pd, offs, (iic_rd(pd, offs) | set) & ~clr);
 }
 
-static u32 sh_mobile_i2c_iccl(unsigned long count_khz, u32 tLOW, u32 tf, int offset)
+static u32 sh_mobile_i2c_iccl(unsigned long count_khz, u32 tLOW, u32 tf)
 {
 	/*
 	 * Conditional expression:
@@ -201,10 +211,10 @@ static u32 sh_mobile_i2c_iccl(unsigned long count_khz, u32 tLOW, u32 tf, int off
 	 * account the fall time of SCL signal (tf).  Default tf value
 	 * should be 0.3 us, for safety.
 	 */
-	return (((count_khz * (tLOW + tf)) + 5000) / 10000) + offset;
+	return (((count_khz * (tLOW + tf)) + 5000) / 10000);
 }
 
-static u32 sh_mobile_i2c_icch(unsigned long count_khz, u32 tHIGH, u32 tf, int offset)
+static u32 sh_mobile_i2c_icch(unsigned long count_khz, u32 tHIGH, u32 tf)
 {
 	/*
 	 * Conditional expression:
@@ -220,59 +230,65 @@ static u32 sh_mobile_i2c_icch(unsigned long count_khz, u32 tHIGH, u32 tf, int of
 	 * to take into account the fall time of SDA signal (tf) at START
 	 * condition, in order to meet both tHIGH and tHD;STA specs.
 	 */
-	return (((count_khz * (tHIGH + tf)) + 5000) / 10000) + offset;
+	return (((count_khz * (tHIGH + tf)) + 5000) / 10000);
 }
 
-static void sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
+static int sh_mobile_i2c_init(struct sh_mobile_i2c_data *pd)
 {
 	unsigned long i2c_clk_khz;
 	u32 tHIGH, tLOW, tf;
-	int offset;
+	uint16_t max_val;
 
 	/* Get clock rate after clock is enabled */
-	clk_enable(pd->clk);
+	clk_prepare_enable(pd->clk);
 	i2c_clk_khz = clk_get_rate(pd->clk) / 1000;
+	clk_disable_unprepare(pd->clk);
 	i2c_clk_khz /= pd->clks_per_count;
 
 	if (pd->bus_speed == STANDARD_MODE) {
 		tLOW	= 47;	/* tLOW = 4.7 us */
 		tHIGH	= 40;	/* tHD;STA = tHIGH = 4.0 us */
 		tf	= 3;	/* tf = 0.3 us */
-		offset	= 0;	/* No offset */
 	} else if (pd->bus_speed == FAST_MODE) {
 		tLOW	= 13;	/* tLOW = 1.3 us */
 		tHIGH	= 6;	/* tHD;STA = tHIGH = 0.6 us */
 		tf	= 3;	/* tf = 0.3 us */
-		offset	= 0;	/* No offset */
 	} else {
 		dev_err(pd->dev, "unrecognized bus speed %lu Hz\n",
 			pd->bus_speed);
-		goto out;
+		return -EINVAL;
 	}
 
-	pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf, offset);
+	pd->iccl = sh_mobile_i2c_iccl(i2c_clk_khz, tLOW, tf);
+	pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf);
+
+	max_val = pd->flags & IIC_FLAG_HAS_ICIC67 ? 0x1ff : 0xff;
+	if (pd->iccl > max_val || pd->icch > max_val) {
+		dev_err(pd->dev, "timing values out of range: L/H=0x%x/0x%x\n",
+			pd->iccl, pd->icch);
+		return -EINVAL;
+	}
+
 	/* one more bit of ICCL in ICIC */
-	if ((pd->iccl > 0xff) && (pd->flags & IIC_FLAG_HAS_ICIC67))
+	if (pd->iccl & 0x100)
 		pd->icic |= ICIC_ICCLB8;
 	else
 		pd->icic &= ~ICIC_ICCLB8;
 
-	pd->icch = sh_mobile_i2c_icch(i2c_clk_khz, tHIGH, tf, offset);
 	/* one more bit of ICCH in ICIC */
-	if ((pd->icch > 0xff) && (pd->flags & IIC_FLAG_HAS_ICIC67))
+	if (pd->icch & 0x100)
 		pd->icic |= ICIC_ICCHB8;
 	else
 		pd->icic &= ~ICIC_ICCHB8;
 
-out:
-	clk_disable(pd->clk);
+	return 0;
 }
 
 static void activate_ch(struct sh_mobile_i2c_data *pd)
 {
 	/* Wake up device and enable clock */
 	pm_runtime_get_sync(pd->dev);
-	clk_enable(pd->clk);
+	clk_prepare_enable(pd->clk);
 
 	/* Enable channel and configure rx ack */
 	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
@@ -295,7 +311,7 @@ static void deactivate_ch(struct sh_mobile_i2c_data *pd)
 	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
 	/* Disable clock and mark device as idle */
-	clk_disable(pd->clk);
+	clk_disable_unprepare(pd->clk);
 	pm_runtime_put_sync(pd->dev);
 }
 
@@ -311,7 +327,7 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 
 	switch (op) {
 	case OP_START: /* issue start and trigger DTE interrupt */
-		iic_wr(pd, ICCR, 0x94);
+		iic_wr(pd, ICCR, ICCR_ICE | ICCR_TRS | ICCR_BBSY);
 		break;
 	case OP_TX_FIRST: /* disable DTE interrupt and write data */
 		iic_wr(pd, ICIC, ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
@@ -322,10 +338,11 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 		break;
 	case OP_TX_STOP: /* write data and issue a stop afterwards */
 		iic_wr(pd, ICDR, data);
-		iic_wr(pd, ICCR, 0x90);
+		iic_wr(pd, ICCR, pd->send_stop ? ICCR_ICE | ICCR_TRS
+					       : ICCR_ICE | ICCR_TRS | ICCR_BBSY);
 		break;
 	case OP_TX_TO_RX: /* select read mode */
-		iic_wr(pd, ICCR, 0x81);
+		iic_wr(pd, ICCR, ICCR_ICE | ICCR_SCP);
 		break;
 	case OP_RX: /* just read data */
 		ret = iic_rd(pd, ICDR);
@@ -333,13 +350,13 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 	case OP_RX_STOP: /* enable DTE interrupt, issue stop */
 		iic_wr(pd, ICIC,
 		       ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
-		iic_wr(pd, ICCR, 0xc0);
+		iic_wr(pd, ICCR, ICCR_ICE | ICCR_RACK);
 		break;
 	case OP_RX_STOP_DATA: /* enable DTE interrupt, read data, issue stop */
 		iic_wr(pd, ICIC,
 		       ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
 		ret = iic_rd(pd, ICDR);
-		iic_wr(pd, ICCR, 0xc0);
+		iic_wr(pd, ICCR, ICCR_ICE | ICCR_RACK);
 		break;
 	}
 
@@ -349,20 +366,14 @@ static unsigned char i2c_op(struct sh_mobile_i2c_data *pd,
 	return ret;
 }
 
-static int sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
+static bool sh_mobile_i2c_is_first_byte(struct sh_mobile_i2c_data *pd)
 {
-	if (pd->pos == -1)
-		return 1;
-
-	return 0;
+	return pd->pos == -1;
 }
 
-static int sh_mobile_i2c_is_last_byte(struct sh_mobile_i2c_data *pd)
+static bool sh_mobile_i2c_is_last_byte(struct sh_mobile_i2c_data *pd)
 {
-	if (pd->pos == (pd->msg->len - 1))
-		return 1;
-
-	return 0;
+	return pd->pos == pd->msg->len - 1;
 }
 
 static void sh_mobile_i2c_get_data(struct sh_mobile_i2c_data *pd,
@@ -475,22 +486,25 @@ static irqreturn_t sh_mobile_i2c_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg)
+static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
+		    bool do_init)
 {
 	if (usr_msg->len == 0 && (usr_msg->flags & I2C_M_RD)) {
 		dev_err(pd->dev, "Unsupported zero length i2c read\n");
-		return -EIO;
+		return -EOPNOTSUPP;
 	}
 
-	/* Initialize channel registers */
-	iic_set_clr(pd, ICCR, 0, ICCR_ICE);
+	if (do_init) {
+		/* Initialize channel registers */
+		iic_set_clr(pd, ICCR, 0, ICCR_ICE);
 
-	/* Enable channel and configure rx ack */
-	iic_set_clr(pd, ICCR, ICCR_ICE, 0);
+		/* Enable channel and configure rx ack */
+		iic_set_clr(pd, ICCR, ICCR_ICE, 0);
 
-	/* Set the clock */
-	iic_wr(pd, ICCL, pd->iccl & 0xff);
-	iic_wr(pd, ICCH, pd->icch & 0xff);
+		/* Set the clock */
+		iic_wr(pd, ICCL, pd->iccl & 0xff);
+		iic_wr(pd, ICCH, pd->icch & 0xff);
+	}
 
 	pd->msg = usr_msg;
 	pd->pos = -1;
@@ -501,38 +515,31 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg)
 	return 0;
 }
 
-static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
-			      struct i2c_msg *msgs,
-			      int num)
+static int poll_dte(struct sh_mobile_i2c_data *pd)
 {
-	struct sh_mobile_i2c_data *pd = i2c_get_adapdata(adapter);
-	struct i2c_msg	*msg;
-	int err = 0;
-	u_int8_t val;
-	int i, k, retry_count;
+	int i;
 
-	activate_ch(pd);
+	for (i = 1000; i; i--) {
+		u_int8_t val = iic_rd(pd, ICSR);
 
-	/* Process all messages */
-	for (i = 0; i < num; i++) {
-		msg = &msgs[i];
-
-		err = start_ch(pd, msg);
-		if (err)
+		if (val & ICSR_DTE)
 			break;
 
-		i2c_op(pd, OP_START, 0);
+		if (val & ICSR_TACK)
+			return -ENXIO;
 
-		/* The interrupt handler takes care of the rest... */
-		k = wait_event_timeout(pd->wait,
-				       pd->sr & (ICSR_TACK | SW_DONE),
-				       5 * HZ);
-		if (!k)
-			dev_err(pd->dev, "Transfer request timed out\n");
+		udelay(10);
+	}
 
-		retry_count = 1000;
-again:
-		val = iic_rd(pd, ICSR);
+	return i ? 0 : -ETIMEDOUT;
+}
+
+static int poll_busy(struct sh_mobile_i2c_data *pd)
+{
+	int i;
+
+	for (i = 1000; i; i--) {
+		u_int8_t val = iic_rd(pd, ICSR);
 
 		dev_dbg(pd->dev, "val 0x%02x pd->sr 0x%02x\n", val, pd->sr);
 
@@ -540,21 +547,62 @@ again:
 		 * transfer is finished, so poll the hardware
 		 * until we're done.
 		 */
-		if (val & ICSR_BUSY) {
-			udelay(10);
-			if (retry_count--)
-				goto again;
-
-			err = -EIO;
-			dev_err(pd->dev, "Polling timed out\n");
+		if (!(val & ICSR_BUSY)) {
+			/* handle missing acknowledge and arbitration lost */
+			val |= pd->sr;
+			if (val & ICSR_TACK)
+				return -ENXIO;
+			if (val & ICSR_AL)
+				return -EAGAIN;
 			break;
 		}
 
-		/* handle missing acknowledge and arbitration lost */
-		if ((val | pd->sr) & (ICSR_TACK | ICSR_AL)) {
-			err = -EIO;
+		udelay(10);
+	}
+
+	return i ? 0 : -ETIMEDOUT;
+}
+
+static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
+			      struct i2c_msg *msgs,
+			      int num)
+{
+	struct sh_mobile_i2c_data *pd = i2c_get_adapdata(adapter);
+	struct i2c_msg	*msg;
+	int err = 0;
+	int i, k;
+
+	activate_ch(pd);
+
+	/* Process all messages */
+	for (i = 0; i < num; i++) {
+		bool do_start = pd->send_stop || !i;
+		msg = &msgs[i];
+		pd->send_stop = i == num - 1 || msg->flags & I2C_M_STOP;
+
+		err = start_ch(pd, msg, do_start);
+		if (err)
+			break;
+
+		if (do_start)
+			i2c_op(pd, OP_START, 0);
+
+		/* The interrupt handler takes care of the rest... */
+		k = wait_event_timeout(pd->wait,
+				       pd->sr & (ICSR_TACK | SW_DONE),
+				       5 * HZ);
+		if (!k) {
+			dev_err(pd->dev, "Transfer request timed out\n");
+			err = -ETIMEDOUT;
 			break;
 		}
+
+		if (pd->send_stop)
+			err = poll_busy(pd);
+		else
+			err = poll_dte(pd);
+		if (err < 0)
+			break;
 	}
 
 	deactivate_ch(pd);
@@ -566,7 +614,7 @@ again:
 
 static u32 sh_mobile_i2c_func(struct i2c_adapter *adapter)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_PROTOCOL_MANGLING;
 }
 
 static struct i2c_algorithm sh_mobile_i2c_algorithm = {
@@ -574,106 +622,110 @@ static struct i2c_algorithm sh_mobile_i2c_algorithm = {
 	.master_xfer	= sh_mobile_i2c_xfer,
 };
 
-static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
+static const struct sh_mobile_dt_config default_dt_config = {
+	.clks_per_count = 1,
+};
+
+static const struct sh_mobile_dt_config rcar_gen2_dt_config = {
+	.clks_per_count = 2,
+};
+
+static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
+	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
+	{ .compatible = "renesas,iic-r8a7790", .data = &rcar_gen2_dt_config },
+	{ .compatible = "renesas,iic-r8a7791", .data = &rcar_gen2_dt_config },
+	{ .compatible = "renesas,iic-r8a7792", .data = &rcar_gen2_dt_config },
+	{ .compatible = "renesas,iic-r8a7793", .data = &rcar_gen2_dt_config },
+	{ .compatible = "renesas,iic-r8a7794", .data = &rcar_gen2_dt_config },
+	{},
+};
+MODULE_DEVICE_TABLE(of, sh_mobile_i2c_dt_ids);
+
+static int sh_mobile_i2c_hook_irqs(struct platform_device *dev)
 {
 	struct resource *res;
-	int ret = -ENXIO;
-	int n, k = 0;
+	resource_size_t n;
+	int k = 0, ret;
 
 	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
-		for (n = res->start; hook && n <= res->end; n++) {
-			if (request_irq(n, sh_mobile_i2c_isr, 0,
-					dev_name(&dev->dev), dev)) {
-				for (n--; n >= res->start; n--)
-					free_irq(n, dev);
-
-				goto rollback;
+		for (n = res->start; n <= res->end; n++) {
+			ret = devm_request_irq(&dev->dev, n, sh_mobile_i2c_isr,
+					  0, dev_name(&dev->dev), dev);
+			if (ret) {
+				dev_err(&dev->dev, "cannot request IRQ %pa\n", &n);
+				return ret;
 			}
 		}
 		k++;
 	}
 
-	if (hook)
-		return k > 0 ? 0 : -ENOENT;
-
-	ret = 0;
-
- rollback:
-	k--;
-
-	while (k >= 0) {
-		res = platform_get_resource(dev, IORESOURCE_IRQ, k);
-		for (n = res->start; n <= res->end; n++)
-			free_irq(n, dev);
-
-		k--;
-	}
-
-	return ret;
+	return k > 0 ? 0 : -ENOENT;
 }
 
 static int sh_mobile_i2c_probe(struct platform_device *dev)
 {
-	struct i2c_sh_mobile_platform_data *pdata = dev->dev.platform_data;
+	struct i2c_sh_mobile_platform_data *pdata = dev_get_platdata(&dev->dev);
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
 	struct resource *res;
-	int size;
 	int ret;
+	u32 bus_speed;
 
-	pd = kzalloc(sizeof(struct sh_mobile_i2c_data), GFP_KERNEL);
-	if (pd == NULL) {
-		dev_err(&dev->dev, "cannot allocate private data\n");
+	pd = devm_kzalloc(&dev->dev, sizeof(struct sh_mobile_i2c_data), GFP_KERNEL);
+	if (!pd)
 		return -ENOMEM;
-	}
 
-	pd->clk = clk_get(&dev->dev, NULL);
+	pd->clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(pd->clk)) {
 		dev_err(&dev->dev, "cannot get clock\n");
-		ret = PTR_ERR(pd->clk);
-		goto err;
+		return PTR_ERR(pd->clk);
 	}
 
-	ret = sh_mobile_i2c_hook_irqs(dev, 1);
-	if (ret) {
-		dev_err(&dev->dev, "cannot request IRQ\n");
-		goto err_clk;
-	}
+	ret = sh_mobile_i2c_hook_irqs(dev);
+	if (ret)
+		return ret;
 
 	pd->dev = &dev->dev;
 	platform_set_drvdata(dev, pd);
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&dev->dev, "cannot find IO resource\n");
-		ret = -ENOENT;
-		goto err_irq;
-	}
 
-	size = resource_size(res);
-
-	pd->reg = ioremap(res->start, size);
-	if (pd->reg == NULL) {
-		dev_err(&dev->dev, "cannot map IO\n");
-		ret = -ENXIO;
-		goto err_irq;
-	}
+	pd->reg = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(pd->reg))
+		return PTR_ERR(pd->reg);
 
 	/* Use platform data bus speed or STANDARD_MODE */
-	pd->bus_speed = STANDARD_MODE;
-	if (pdata && pdata->bus_speed)
-		pd->bus_speed = pdata->bus_speed;
+	ret = of_property_read_u32(dev->dev.of_node, "clock-frequency", &bus_speed);
+	pd->bus_speed = ret ? STANDARD_MODE : bus_speed;
+
 	pd->clks_per_count = 1;
-	if (pdata && pdata->clks_per_count)
-		pd->clks_per_count = pdata->clks_per_count;
+
+	if (dev->dev.of_node) {
+		const struct of_device_id *match;
+
+		match = of_match_device(sh_mobile_i2c_dt_ids, &dev->dev);
+		if (match) {
+			const struct sh_mobile_dt_config *config;
+
+			config = match->data;
+			pd->clks_per_count = config->clks_per_count;
+		}
+	} else {
+		if (pdata && pdata->bus_speed)
+			pd->bus_speed = pdata->bus_speed;
+		if (pdata && pdata->clks_per_count)
+			pd->clks_per_count = pdata->clks_per_count;
+	}
 
 	/* The IIC blocks on SH-Mobile ARM processors
 	 * come with two new bits in ICIC.
 	 */
-	if (size > 0x17)
+	if (resource_size(res) > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
-	sh_mobile_i2c_init(pd);
+	ret = sh_mobile_i2c_init(pd);
+	if (ret)
+		return ret;
 
 	/* Enable Runtime PM for this device.
 	 *
@@ -707,25 +759,14 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {
 		dev_err(&dev->dev, "cannot add numbered adapter\n");
-		goto err_all;
+		return ret;
 	}
 
 	dev_info(&dev->dev,
-		 "I2C adapter %d with bus speed %lu Hz (L/H=%x/%x)\n",
+		 "I2C adapter %d with bus speed %lu Hz (L/H=0x%x/0x%x)\n",
 		 adap->nr, pd->bus_speed, pd->iccl, pd->icch);
 
-	of_i2c_register_devices(adap);
 	return 0;
-
- err_all:
-	iounmap(pd->reg);
- err_irq:
-	sh_mobile_i2c_hook_irqs(dev, 0);
- err_clk:
-	clk_put(pd->clk);
- err:
-	kfree(pd);
-	return ret;
 }
 
 static int sh_mobile_i2c_remove(struct platform_device *dev)
@@ -733,11 +774,7 @@ static int sh_mobile_i2c_remove(struct platform_device *dev)
 	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&pd->adap);
-	iounmap(pd->reg);
-	sh_mobile_i2c_hook_irqs(dev, 0);
-	clk_put(pd->clk);
 	pm_runtime_disable(&dev->dev);
-	kfree(pd);
 	return 0;
 }
 
@@ -757,12 +794,6 @@ static const struct dev_pm_ops sh_mobile_i2c_dev_pm_ops = {
 	.runtime_suspend = sh_mobile_i2c_runtime_nop,
 	.runtime_resume = sh_mobile_i2c_runtime_nop,
 };
-
-static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
-	{ .compatible = "renesas,rmobile-iic", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, sh_mobile_i2c_dt_ids);
 
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {

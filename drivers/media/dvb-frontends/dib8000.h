@@ -33,11 +33,13 @@ struct dib8000_config {
 	u8 output_mode;
 	u8 refclksel;
 	u8 enMpegOutput:1;
+
+	struct dibx000_bandwidth_config *plltable;
 };
 
 #define DEFAULT_DIB8000_I2C_ADDRESS 18
 
-#if defined(CONFIG_DVB_DIB8000) || (defined(CONFIG_DVB_DIB8000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DIB8000)
 extern struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 extern struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 
@@ -58,7 +60,7 @@ extern int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ);
 extern u32 dib8000_ctrl_timf(struct dvb_frontend *fe,
 		uint8_t op, uint32_t timf);
 extern int dib8000_update_pll(struct dvb_frontend *fe,
-		struct dibx000_bandwidth_config *pll);
+		struct dibx000_bandwidth_config *pll, u32 bw, u8 ratio);
 extern int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
 extern int dib8000_remove_slave_frontend(struct dvb_frontend *fe);
 extern struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index);
@@ -147,7 +149,7 @@ static inline u32 dib8000_ctrl_timf(struct dvb_frontend *fe,
 	return 0;
 }
 static inline int dib8000_update_pll(struct dvb_frontend *fe,
-		struct dibx000_bandwidth_config *pll)
+		struct dibx000_bandwidth_config *pll, u32 bw, u8 ratio)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;

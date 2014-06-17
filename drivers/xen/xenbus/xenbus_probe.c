@@ -30,6 +30,8 @@
  * IN THE SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DPRINTK(fmt, args...)				\
 	pr_debug("xenbus_probe (%s:%d) " fmt ".\n",	\
 		 __func__, __LINE__, ##args)
@@ -68,6 +70,9 @@ EXPORT_SYMBOL_GPL(xen_store_evtchn);
 
 struct xenstore_domain_interface *xen_store_interface;
 EXPORT_SYMBOL_GPL(xen_store_interface);
+
+enum xenstore_init xen_store_domain_type;
+EXPORT_SYMBOL_GPL(xen_store_domain_type);
 
 static unsigned long xen_store_mfn;
 
@@ -277,15 +282,15 @@ void xenbus_dev_shutdown(struct device *_dev)
 
 	get_device(&dev->dev);
 	if (dev->state != XenbusStateConnected) {
-		printk(KERN_INFO "%s: %s: %s != Connected, skipping\n", __func__,
-		       dev->nodename, xenbus_strstate(dev->state));
+		pr_info("%s: %s: %s != Connected, skipping\n",
+			__func__, dev->nodename, xenbus_strstate(dev->state));
 		goto out;
 	}
 	xenbus_switch_state(dev, XenbusStateClosing);
 	timeout = wait_for_completion_timeout(&dev->down, timeout);
 	if (!timeout)
-		printk(KERN_INFO "%s: %s timeout closing device\n",
-		       __func__, dev->nodename);
+		pr_info("%s: %s timeout closing device\n",
+			__func__, dev->nodename);
  out:
 	put_device(&dev->dev);
 }
@@ -379,12 +384,14 @@ static ssize_t nodename_show(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->nodename);
 }
+static DEVICE_ATTR_RO(nodename);
 
 static ssize_t devtype_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->devicetype);
 }
+static DEVICE_ATTR_RO(devtype);
 
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
@@ -392,14 +399,24 @@ static ssize_t modalias_show(struct device *dev,
 	return sprintf(buf, "%s:%s\n", dev->bus->name,
 		       to_xenbus_device(dev)->devicetype);
 }
+static DEVICE_ATTR_RO(modalias);
 
-struct device_attribute xenbus_dev_attrs[] = {
-	__ATTR_RO(nodename),
-	__ATTR_RO(devtype),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *xenbus_dev_attrs[] = {
+	&dev_attr_nodename.attr,
+	&dev_attr_devtype.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
-EXPORT_SYMBOL_GPL(xenbus_dev_attrs);
+
+static const struct attribute_group xenbus_dev_group = {
+	.attrs = xenbus_dev_attrs,
+};
+
+const struct attribute_group *xenbus_dev_groups[] = {
+	&xenbus_dev_group,
+	NULL,
+};
+EXPORT_SYMBOL_GPL(xenbus_dev_groups);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
@@ -444,7 +461,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	if (err)
 		goto fail;
 
-	dev_set_name(&xendev->dev, devname);
+	dev_set_name(&xendev->dev, "%s", devname);
 
 	/* Register with generic device framework. */
 	err = device_register(&xendev->dev);
@@ -576,8 +593,7 @@ int xenbus_dev_suspend(struct device *dev)
 	if (drv->suspend)
 		err = drv->suspend(xdev);
 	if (err)
-		printk(KERN_WARNING
-		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
+		pr_warn("suspend %s failed: %i\n", dev_name(dev), err);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_suspend);
@@ -596,9 +612,8 @@ int xenbus_dev_resume(struct device *dev)
 	drv = to_xenbus_driver(dev->driver);
 	err = talk_to_otherend(xdev);
 	if (err) {
-		printk(KERN_WARNING
-		       "xenbus: resume (talk_to_otherend) %s failed: %i\n",
-		       dev_name(dev), err);
+		pr_warn("resume (talk_to_otherend) %s failed: %i\n",
+			dev_name(dev), err);
 		return err;
 	}
 
@@ -607,18 +622,15 @@ int xenbus_dev_resume(struct device *dev)
 	if (drv->resume) {
 		err = drv->resume(xdev);
 		if (err) {
-			printk(KERN_WARNING
-			       "xenbus: resume %s failed: %i\n",
-			       dev_name(dev), err);
+			pr_warn("resume %s failed: %i\n", dev_name(dev), err);
 			return err;
 		}
 	}
 
 	err = watch_otherend(xdev);
 	if (err) {
-		printk(KERN_WARNING
-		       "xenbus_probe: resume (watch_otherend) %s failed: "
-		       "%d.\n", dev_name(dev), err);
+		pr_warn("resume (watch_otherend) %s failed: %d.\n",
+			dev_name(dev), err);
 		return err;
 	}
 
@@ -719,17 +731,11 @@ static int __init xenstored_local_init(void)
 	return err;
 }
 
-enum xenstore_init {
-	UNKNOWN,
-	PV,
-	HVM,
-	LOCAL,
-};
 static int __init xenbus_init(void)
 {
 	int err = 0;
-	enum xenstore_init usage = UNKNOWN;
 	uint64_t v = 0;
+	xen_store_domain_type = XS_UNKNOWN;
 
 	if (!xen_domain())
 		return -ENODEV;
@@ -737,29 +743,29 @@ static int __init xenbus_init(void)
 	xenbus_ring_ops_init();
 
 	if (xen_pv_domain())
-		usage = PV;
+		xen_store_domain_type = XS_PV;
 	if (xen_hvm_domain())
-		usage = HVM;
+		xen_store_domain_type = XS_HVM;
 	if (xen_hvm_domain() && xen_initial_domain())
-		usage = LOCAL;
+		xen_store_domain_type = XS_LOCAL;
 	if (xen_pv_domain() && !xen_start_info->store_evtchn)
-		usage = LOCAL;
+		xen_store_domain_type = XS_LOCAL;
 	if (xen_pv_domain() && xen_start_info->store_evtchn)
 		xenstored_ready = 1;
 
-	switch (usage) {
-	case LOCAL:
+	switch (xen_store_domain_type) {
+	case XS_LOCAL:
 		err = xenstored_local_init();
 		if (err)
 			goto out_error;
 		xen_store_interface = mfn_to_virt(xen_store_mfn);
 		break;
-	case PV:
+	case XS_PV:
 		xen_store_evtchn = xen_start_info->store_evtchn;
 		xen_store_mfn = xen_start_info->store_mfn;
 		xen_store_interface = mfn_to_virt(xen_store_mfn);
 		break;
-	case HVM:
+	case XS_HVM:
 		err = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN, &v);
 		if (err)
 			goto out_error;
@@ -769,7 +775,7 @@ static int __init xenbus_init(void)
 			goto out_error;
 		xen_store_mfn = (unsigned long)v;
 		xen_store_interface =
-			ioremap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
+			xen_remap(xen_store_mfn << PAGE_SHIFT, PAGE_SIZE);
 		break;
 	default:
 		pr_warn("Xenstore state unknown\n");
@@ -779,8 +785,7 @@ static int __init xenbus_init(void)
 	/* Initialize the interface to xenstore. */
 	err = xs_init();
 	if (err) {
-		printk(KERN_WARNING
-		       "XENBUS: Error initializing xenstore comms: %i\n", err);
+		pr_warn("Error initializing xenstore comms: %i\n", err);
 		goto out_error;
 	}
 

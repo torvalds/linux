@@ -29,7 +29,7 @@
 #include <asm/kdebug.h>
 #include <asm/inst.h>
 
-#define  __ARCH_WANT_KPROBES_INSN_SLOT
+#define	 __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct kprobe;
 struct pt_regs;

@@ -3,8 +3,8 @@
 #
 
 menuconfig TIPC
-	tristate "The TIPC Protocol (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "The TIPC Protocol"
+	depends on INET
 	---help---
 	  The Transparent Inter Process Communication (TIPC) protocol is
 	  specially designed for intra cluster communication. This protocol
@@ -31,3 +31,10 @@ config TIPC_PORTS
 
 	  Setting this to a smaller value saves some memory,
 	  setting it to higher allows for more ports.
+
+config TIPC_MEDIA_IB
+	bool "InfiniBand media type support"
+	depends on TIPC && INFINIBAND_IPOIB
+	help
+	  Saying Y here will enable support for running TIPC on
+	  IP-over-InfiniBand devices.

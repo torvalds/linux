@@ -577,8 +577,7 @@ struct ipw2100_priv {
 	struct delayed_work wx_event_work;
 	struct delayed_work hang_check;
 	struct delayed_work rf_kill;
-	struct work_struct scan_event_now;
-	struct delayed_work scan_event_later;
+	struct delayed_work scan_event;
 
 	int user_requested_scan;
 

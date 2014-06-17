@@ -165,8 +165,10 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 				    struct pm860x_backlight_data *data,
 				    char *name)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node, *np;
+	struct device_node *nproot, *np;
 	int iset = 0;
+
+	nproot = of_node_get(pdev->dev.parent->of_node);
 	if (!nproot)
 		return -ENODEV;
 	nproot = of_find_node_by_name(nproot, "backlights");
@@ -184,6 +186,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 			break;
 		}
 	}
+	of_node_put(nproot);
 	return 0;
 }
 #else
@@ -193,7 +196,7 @@ static int pm860x_backlight_dt_init(struct platform_device *pdev,
 static int pm860x_backlight_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
-	struct pm860x_backlight_pdata *pdata = pdev->dev.platform_data;
+	struct pm860x_backlight_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct pm860x_backlight_data *data;
 	struct backlight_device *bl;
 	struct resource *res;
@@ -240,7 +243,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHTNESS;
-	bl = backlight_device_register(name, &pdev->dev, data,
+	bl = devm_backlight_device_register(&pdev->dev, name, &pdev->dev, data,
 					&pm860x_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
@@ -253,20 +256,9 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	/* read current backlight */
 	ret = pm860x_backlight_get_brightness(bl);
 	if (ret < 0)
-		goto out_brt;
+		return ret;
 
 	backlight_update_status(bl);
-	return 0;
-out_brt:
-	backlight_device_unregister(bl);
-	return ret;
-}
-
-static int pm860x_backlight_remove(struct platform_device *pdev)
-{
-	struct backlight_device *bl = platform_get_drvdata(pdev);
-
-	backlight_device_unregister(bl);
 	return 0;
 }
 
@@ -276,7 +268,6 @@ static struct platform_driver pm860x_backlight_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pm860x_backlight_probe,
-	.remove		= pm860x_backlight_remove,
 };
 
 module_platform_driver(pm860x_backlight_driver);

@@ -279,7 +279,7 @@ int wimax_msg_send(struct wimax_dev *wimax_dev, struct sk_buff *skb)
 
 	d_printf(1, dev, "CTX: wimax msg, %zu bytes\n", size);
 	d_dump(2, dev, msg, size);
-	genlmsg_multicast(skb, 0, wimax_gnl_mcg.id, GFP_KERNEL);
+	genlmsg_multicast(&wimax_gnl_family, skb, 0, 0, GFP_KERNEL);
 	d_printf(1, dev, "CTX: genl multicast done\n");
 	return 0;
 }
@@ -321,17 +321,6 @@ int wimax_msg(struct wimax_dev *wimax_dev, const char *pipe_name,
 }
 EXPORT_SYMBOL_GPL(wimax_msg);
 
-
-static const struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
-	[WIMAX_GNL_MSG_IFIDX] = {
-		.type = NLA_U32,
-	},
-	[WIMAX_GNL_MSG_DATA] = {
-		.type = NLA_UNSPEC,	/* libnl doesn't grok BINARY yet */
-	},
-};
-
-
 /*
  * Relays a message from user space to the driver
  *
@@ -340,7 +329,6 @@ static const struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
  *
  * This call will block while handling/relaying the message.
  */
-static
 int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 {
 	int result, ifindex;
@@ -417,17 +405,4 @@ error_no_wimax_dev:
 	d_fnend(3, NULL, "(skb %p info %p) = %d\n", skb, info, result);
 	return result;
 }
-
-
-/*
- * Generic Netlink glue
- */
-
-struct genl_ops wimax_gnl_msg_from_user = {
-	.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
-	.flags = GENL_ADMIN_PERM,
-	.policy = wimax_gnl_msg_policy,
-	.doit = wimax_gnl_doit_msg_from_user,
-	.dumpit = NULL,
-};
 

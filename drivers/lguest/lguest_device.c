@@ -229,7 +229,7 @@ struct lguest_vq_info {
  * make a hypercall.  We hand the physical address of the virtqueue so the Host
  * knows which virtqueue we're talking about.
  */
-static void lg_notify(struct virtqueue *vq)
+static bool lg_notify(struct virtqueue *vq)
 {
 	/*
 	 * We store our virtqueue information in the "priv" pointer of the
@@ -238,6 +238,7 @@ static void lg_notify(struct virtqueue *vq)
 	struct lguest_vq_info *lvq = vq->priv;
 
 	hcall(LHCALL_NOTIFY, lvq->config.pfn << PAGE_SHIFT, 0, 0, 0);
+	return true;
 }
 
 /* An extern declaration inside a C file is bad form.  Don't do it. */
@@ -396,7 +397,7 @@ static const char *lg_bus_name(struct virtio_device *vdev)
 }
 
 /* The ops structure which hooks everything together. */
-static struct virtio_config_ops lguest_config_ops = {
+static const struct virtio_config_ops lguest_config_ops = {
 	.get_features = lg_get_features,
 	.finalize_features = lg_finalize_features,
 	.get = lg_get,

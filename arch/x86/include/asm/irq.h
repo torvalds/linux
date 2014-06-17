@@ -25,6 +25,7 @@ extern void irq_ctx_init(int cpu);
 
 #ifdef CONFIG_HOTPLUG_CPU
 #include <linux/cpumask.h>
+extern int check_irq_vectors_for_cpu_disable(void);
 extern void fixup_irqs(void);
 extern void irq_force_complete_move(int);
 #endif
@@ -33,12 +34,17 @@ extern void (*x86_platform_ipi_callback)(void);
 extern void native_init_IRQ(void);
 extern bool handle_irq(unsigned irq, struct pt_regs *regs);
 
-extern unsigned int do_IRQ(struct pt_regs *regs);
+extern __visible unsigned int do_IRQ(struct pt_regs *regs);
 
 /* Interrupt vector management */
 extern DECLARE_BITMAP(used_vectors, NR_VECTORS);
 extern int vector_used_by_percpu_irq(unsigned int vector);
 
 extern void init_ISA_irqs(void);
+
+#ifdef CONFIG_X86_LOCAL_APIC
+void arch_trigger_all_cpu_backtrace(void);
+#define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace
+#endif
 
 #endif /* _ASM_X86_IRQ_H */

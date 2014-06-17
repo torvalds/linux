@@ -23,7 +23,8 @@
 enum { REG_RE, REG_FE, REG_IE };
 
 #define CACHE_NR_REGS	3
-#define CACHE_NR_BANKS	(STMPE_NR_GPIOS / 8)
+/* No variant has more than 24 GPIOs */
+#define CACHE_NR_BANKS	(24 / 8)
 
 struct stmpe_gpio {
 	struct gpio_chip chip;
@@ -31,8 +32,6 @@ struct stmpe_gpio {
 	struct device *dev;
 	struct mutex irq_lock;
 	struct irq_domain *domain;
-
-	int irq_base;
 	unsigned norequest_mask;
 
 	/* Caches of interrupt control registers for bus_lock */
@@ -129,7 +128,7 @@ static struct gpio_chip template_chip = {
 	.set			= stmpe_gpio_set,
 	.to_irq			= stmpe_gpio_to_irq,
 	.request		= stmpe_gpio_request,
-	.can_sleep		= 1,
+	.can_sleep		= true,
 };
 
 static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -254,9 +253,10 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		while (stat) {
 			int bit = __ffs(stat);
 			int line = bank * 8 + bit;
-			int virq = irq_find_mapping(stmpe_gpio->domain, line);
+			int child_irq = irq_find_mapping(stmpe_gpio->domain,
+							 line);
 
-			handle_nested_irq(virq);
+			handle_nested_irq(child_irq);
 			stat &= ~(1 << bit);
 		}
 
@@ -271,34 +271,34 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-int stmpe_gpio_irq_map(struct irq_domain *d, unsigned int virq,
-		       irq_hw_number_t hwirq)
+static int stmpe_gpio_irq_map(struct irq_domain *d, unsigned int irq,
+			      irq_hw_number_t hwirq)
 {
 	struct stmpe_gpio *stmpe_gpio = d->host_data;
 
 	if (!stmpe_gpio)
 		return -EINVAL;
 
-	irq_set_chip_data(hwirq, stmpe_gpio);
-	irq_set_chip_and_handler(hwirq, &stmpe_gpio_irq_chip,
+	irq_set_chip_data(irq, stmpe_gpio);
+	irq_set_chip_and_handler(irq, &stmpe_gpio_irq_chip,
 				 handle_simple_irq);
-	irq_set_nested_thread(hwirq, 1);
+	irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
-	set_irq_flags(hwirq, IRQF_VALID);
+	set_irq_flags(irq, IRQF_VALID);
 #else
-	irq_set_noprobe(hwirq);
+	irq_set_noprobe(irq);
 #endif
 
 	return 0;
 }
 
-void stmpe_gpio_irq_unmap(struct irq_domain *d, unsigned int virq)
+static void stmpe_gpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 #ifdef CONFIG_ARM
-	set_irq_flags(virq, 0);
+	set_irq_flags(irq, 0);
 #endif
-	irq_set_chip_and_handler(virq, NULL, NULL);
-	irq_set_chip_data(virq, NULL);
+	irq_set_chip_and_handler(irq, NULL, NULL);
+	irq_set_chip_data(irq, NULL);
 }
 
 static const struct irq_domain_ops stmpe_gpio_irq_simple_ops = {
@@ -307,12 +307,11 @@ static const struct irq_domain_ops stmpe_gpio_irq_simple_ops = {
 	.xlate = irq_domain_xlate_twocell,
 };
 
-static int stmpe_gpio_irq_init(struct stmpe_gpio *stmpe_gpio)
+static int stmpe_gpio_irq_init(struct stmpe_gpio *stmpe_gpio,
+		struct device_node *np)
 {
-	int base = stmpe_gpio->irq_base;
-
-	stmpe_gpio->domain = irq_domain_add_simple(NULL,
-				stmpe_gpio->chip.ngpio, base,
+	stmpe_gpio->domain = irq_domain_add_simple(np,
+				stmpe_gpio->chip.ngpio, 0,
 				&stmpe_gpio_irq_simple_ops, stmpe_gpio);
 	if (!stmpe_gpio->domain) {
 		dev_err(stmpe_gpio->dev, "failed to create irqdomain\n");
@@ -346,7 +345,10 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
 	stmpe_gpio->chip.dev = &pdev->dev;
-	stmpe_gpio->chip.base = pdata ? pdata->gpio_base : -1;
+#ifdef CONFIG_OF
+	stmpe_gpio->chip.of_node = np;
+#endif
+	stmpe_gpio->chip.base = -1;
 
 	if (pdata)
 		stmpe_gpio->norequest_mask = pdata->norequest_mask;
@@ -354,9 +356,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		of_property_read_u32(np, "st,norequest-mask",
 				&stmpe_gpio->norequest_mask);
 
-	if (irq >= 0)
-		stmpe_gpio->irq_base = stmpe->irq_base + STMPE_INT_GPIO(0);
-	else
+	if (irq < 0)
 		dev_info(&pdev->dev,
 			"device configured in no-irq mode; "
 			"irqs are not available\n");
@@ -366,7 +366,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		goto out_free;
 
 	if (irq >= 0) {
-		ret = stmpe_gpio_irq_init(stmpe_gpio);
+		ret = stmpe_gpio_irq_init(stmpe_gpio, np);
 		if (ret)
 			goto out_disable;
 
@@ -424,7 +424,6 @@ static int stmpe_gpio_remove(struct platform_device *pdev)
 	if (irq >= 0)
 		free_irq(irq, stmpe_gpio);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(stmpe_gpio);
 
 	return 0;

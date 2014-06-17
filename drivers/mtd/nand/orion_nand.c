@@ -87,7 +87,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	nc = kzalloc(sizeof(struct nand_chip) + sizeof(struct mtd_info), GFP_KERNEL);
 	if (!nc) {
-		printk(KERN_ERR "orion_nand: failed to allocate device structure.\n");
 		ret = -ENOMEM;
 		goto no_res;
 	}
@@ -101,7 +100,7 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 
 	io_base = ioremap(res->start, resource_size(res));
 	if (!io_base) {
-		printk(KERN_ERR "orion_nand: ioremap failed\n");
+		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EIO;
 		goto no_res;
 	}
@@ -110,7 +109,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		board = devm_kzalloc(&pdev->dev, sizeof(struct orion_nand_data),
 					GFP_KERNEL);
 		if (!board) {
-			printk(KERN_ERR "orion_nand: failed to allocate board structure.\n");
 			ret = -ENOMEM;
 			goto no_res;
 		}
@@ -130,8 +128,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		if (!of_property_read_u32(pdev->dev.of_node,
 						"chip-delay", &val))
 			board->chip_delay = (u8)val;
-	} else
-		board = pdev->dev.platform_data;
+	} else {
+		board = dev_get_platdata(&pdev->dev);
+	}
 
 	mtd->priv = nc;
 	mtd->owner = THIS_MODULE;
@@ -186,7 +185,6 @@ no_dev:
 		clk_disable_unprepare(clk);
 		clk_put(clk);
 	}
-	platform_set_drvdata(pdev, NULL);
 	iounmap(io_base);
 no_res:
 	kfree(nc);
@@ -216,7 +214,7 @@ static int orion_nand_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id orion_nand_of_match_table[] = {
+static const struct of_device_id orion_nand_of_match_table[] = {
 	{ .compatible = "marvell,orion-nand", },
 	{},
 };
@@ -231,18 +229,7 @@ static struct platform_driver orion_nand_driver = {
 	},
 };
 
-static int __init orion_nand_init(void)
-{
-	return platform_driver_probe(&orion_nand_driver, orion_nand_probe);
-}
-
-static void __exit orion_nand_exit(void)
-{
-	platform_driver_unregister(&orion_nand_driver);
-}
-
-module_init(orion_nand_init);
-module_exit(orion_nand_exit);
+module_platform_driver_probe(orion_nand_driver, orion_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tzachi Perelstein");

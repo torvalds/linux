@@ -6259,12 +6259,11 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword |= i2c_read(gspca_dev, 0x01);		/* ID 1 */
 	PDEBUG(D_PROBE, "probe 3wr vga 2 0x%04x", retword);
 	if (retword == 0x2030) {
-#ifdef GSPCA_DEBUG
 		u8 retbyte;
 
 		retbyte = i2c_read(gspca_dev, 0x02);	/* revision number */
 		PDEBUG(D_PROBE, "sensor PO2030 rev 0x%02x", retbyte);
-#endif
+
 		send_unknown(gspca_dev, SENSOR_PO2030);
 		return retword;
 	}
@@ -6701,7 +6700,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	};
 
 	/* create the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x21);		/* JPEG 422 */
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
@@ -6902,10 +6902,10 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
-			int len)		/* interrput packet length */
+			int len)		/* interrupt packet length */
 {
 	if (len == 8 && data[4] == 1) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
@@ -6929,7 +6929,7 @@ static const struct sd_desc sd_desc = {
 	.pkt_scan = sd_pkt_scan,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };

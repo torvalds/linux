@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -21,8 +22,6 @@
 #include <mach/map.h>
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
-
-#include <asm/mach/irq.h>
 
 #define GPIO_BASE(chip)		((void __iomem *)((unsigned long)((chip)->base) & 0xFFFFF000u))
 

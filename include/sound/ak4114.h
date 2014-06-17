@@ -170,7 +170,7 @@ struct ak4114 {
 	void * private_data;
 	unsigned int init: 1;
 	spinlock_t lock;
-	unsigned char regmap[7];
+	unsigned char regmap[6];
 	unsigned char txcsb[5];
 	struct snd_kcontrol *kctls[AK4114_CONTROLS];
 	struct snd_pcm_substream *playback_substream;
@@ -189,7 +189,7 @@ struct ak4114 {
 
 int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
-		      const unsigned char pgm[7], const unsigned char txcsb[5],
+		      const unsigned char pgm[6], const unsigned char txcsb[5],
 		      void *private_data, struct ak4114 **r_ak4114);
 void snd_ak4114_reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char mask, unsigned char val);
 void snd_ak4114_reinit(struct ak4114 *ak4114);

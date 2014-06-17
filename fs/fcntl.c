@@ -30,7 +30,7 @@
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
 {
-	struct inode * inode = filp->f_path.dentry->d_inode;
+	struct inode * inode = file_inode(filp);
 	int error = 0;
 
 	/*
@@ -56,7 +56,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 				return -EINVAL;
 	}
 
-	if (filp->f_op && filp->f_op->check_flags)
+	if (filp->f_op->check_flags)
 		error = filp->f_op->check_flags(arg);
 	if (error)
 		return error;
@@ -64,8 +64,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 	/*
 	 * ->fasync() is responsible for setting the FASYNC bit.
 	 */
-	if (((arg ^ filp->f_flags) & FASYNC) && filp->f_op &&
-			filp->f_op->fasync) {
+	if (((arg ^ filp->f_flags) & FASYNC) && filp->f_op->fasync) {
 		error = filp->f_op->fasync(fd, filp, (arg & FASYNC) != 0);
 		if (error < 0)
 			goto out;
@@ -273,9 +272,19 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETFL:
 		err = setfl(fd, filp, arg);
 		break;
+#if BITS_PER_LONG != 32
+	/* 32-bit arches must use fcntl64() */
+	case F_OFD_GETLK:
+#endif
 	case F_GETLK:
-		err = fcntl_getlk(filp, (struct flock __user *) arg);
+		err = fcntl_getlk(filp, cmd, (struct flock __user *) arg);
 		break;
+#if BITS_PER_LONG != 32
+	/* 32-bit arches must use fcntl64() */
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+#endif
+		/* Fallthrough */
 	case F_SETLK:
 	case F_SETLKW:
 		err = fcntl_setlk(fd, filp, cmd, (struct flock __user *) arg);
@@ -389,17 +398,20 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		goto out1;
 	
 	switch (cmd) {
-		case F_GETLK64:
-			err = fcntl_getlk64(f.file, (struct flock64 __user *) arg);
-			break;
-		case F_SETLK64:
-		case F_SETLKW64:
-			err = fcntl_setlk64(fd, f.file, cmd,
-					(struct flock64 __user *) arg);
-			break;
-		default:
-			err = do_fcntl(fd, cmd, arg, f.file);
-			break;
+	case F_GETLK64:
+	case F_OFD_GETLK:
+		err = fcntl_getlk64(f.file, cmd, (struct flock64 __user *) arg);
+		break;
+	case F_SETLK64:
+	case F_SETLKW64:
+	case F_OFD_SETLK:
+	case F_OFD_SETLKW:
+		err = fcntl_setlk64(fd, f.file, cmd,
+				(struct flock64 __user *) arg);
+		break;
+	default:
+		err = do_fcntl(fd, cmd, arg, f.file);
+		break;
 	}
 out1:
 	fdput(f);
@@ -730,14 +742,14 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(19 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
+	BUILD_BUG_ON(20 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
 		O_RDONLY	| O_WRONLY	| O_RDWR	|
 		O_CREAT		| O_EXCL	| O_NOCTTY	|
 		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
 		__O_SYNC	| O_DSYNC	| FASYNC	|
 		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
 		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		__FMODE_EXEC	| O_PATH
+		__FMODE_EXEC	| O_PATH	| __O_TMPFILE
 		));
 
 	fasync_cache = kmem_cache_create("fasync_cache",

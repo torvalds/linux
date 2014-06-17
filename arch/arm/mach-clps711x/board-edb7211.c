@@ -12,9 +12,11 @@
 #include <linux/delay.h>
 #include <linux/memblock.h>
 #include <linux/types.h>
+#include <linux/i2c-gpio.h>
 #include <linux/interrupt.h>
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
+#include <linux/memblock.h>
 
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
@@ -29,6 +31,7 @@
 #include <mach/hardware.h>
 
 #include "common.h"
+#include "devices.h"
 
 #define VIDEORAM_SIZE		SZ_128K
 
@@ -36,10 +39,23 @@
 #define EDB7211_LCDEN		CLPS711X_GPIO(3, 2)
 #define EDB7211_LCDBL		CLPS711X_GPIO(3, 3)
 
+#define EDB7211_I2C_SDA		CLPS711X_GPIO(3, 4)
+#define EDB7211_I2C_SCL		CLPS711X_GPIO(3, 5)
+
 #define EDB7211_FLASH0_BASE	(CS0_PHYS_BASE)
 #define EDB7211_FLASH1_BASE	(CS1_PHYS_BASE)
+
 #define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define EDB7211_CS8900_IRQ	(IRQ_EINT3)
+
+/* The extra 8 lines of the keyboard matrix */
+#define EDB7211_EXTKBD_BASE	(CS3_PHYS_BASE)
+
+static struct i2c_gpio_platform_data edb7211_i2c_pdata __initdata = {
+	.sda_pin	= EDB7211_I2C_SDA,
+	.scl_pin	= EDB7211_I2C_SCL,
+	.scl_is_output_only = 1,
+};
 
 static struct resource edb7211_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(EDB7211_CS8900_BASE, SZ_1K),
@@ -94,13 +110,14 @@ static struct plat_lcd_data edb7211_lcd_power_pdata = {
 
 static void edb7211_lcd_backlight_set_intensity(int intensity)
 {
-	gpio_set_value(EDB7211_LCDBL, intensity);
+	gpio_set_value(EDB7211_LCDBL, !!intensity);
+	clps_writel((clps_readl(PMPCON) & 0xf0ff) | (intensity << 8), PMPCON);
 }
 
 static struct generic_bl_info edb7211_lcd_backlight_pdata = {
 	.name			= "lcd-backlight.0",
 	.default_intensity	= 0x01,
-	.max_intensity		= 0x01,
+	.max_intensity		= 0x0f,
 	.set_bl_intensity	= edb7211_lcd_backlight_set_intensity,
 };
 
@@ -110,21 +127,6 @@ static struct gpio edb7211_gpios[] __initconst = {
 	{ EDB7211_LCDBL,	GPIOF_OUT_INIT_LOW,	"LCD BACKLIGHT" },
 };
 
-static struct map_desc edb7211_io_desc[] __initdata = {
-	{	/* Memory-mapped extra keyboard row */
-		.virtual	= IO_ADDRESS(EP7211_PHYS_EXTKBD),
-		.pfn		= __phys_to_pfn(EP7211_PHYS_EXTKBD),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE,
-	},
-};
-
-void __init edb7211_map_io(void)
-{
-	clps711x_map_io();
-	iotable_init(edb7211_io_desc, ARRAY_SIZE(edb7211_io_desc));
-}
-
 /* Reserve screen memory region at the start of main system memory. */
 static void __init edb7211_reserve(void)
 {
@@ -132,7 +134,7 @@ static void __init edb7211_reserve(void)
 }
 
 static void __init
-fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
+fixup_edb7211(struct tag *tags, char **cmdline)
 {
 	/*
 	 * Bank start addresses are not present in the information
@@ -142,14 +144,16 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 	 * Banks sizes _are_ present in the param block, but we're
 	 * not using that information yet.
 	 */
-	mi->bank[0].start = 0xc0000000;
-	mi->bank[0].size = SZ_8M;
-	mi->bank[1].start = 0xc1000000;
-	mi->bank[1].size = SZ_8M;
-	mi->nr_banks = 2;
+	memblock_add(0xc0000000, SZ_8M);
+	memblock_add(0xc1000000, SZ_8M);
 }
 
 static void __init edb7211_init(void)
+{
+	clps711x_devices_init();
+}
+
+static void __init edb7211_init_late(void)
 {
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
 
@@ -163,18 +167,21 @@ static void __init edb7211_init(void)
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));
+	platform_device_register_data(&platform_bus, "i2c-gpio", 0,
+				      &edb7211_i2c_pdata,
+				      sizeof(edb7211_i2c_pdata));
 }
 
 MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	/* Maintainer: Jon McClintock */
 	.atag_offset	= VIDEORAM_SIZE + 0x100,
-	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fixup_edb7211,
 	.reserve	= edb7211_reserve,
-	.map_io		= edb7211_map_io,
+	.map_io		= clps711x_map_io,
+	.init_early	= clps711x_init_early,
 	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
+	.init_time	= clps711x_timer_init,
 	.init_machine	= edb7211_init,
-	.handle_irq	= clps711x_handle_irq,
+	.init_late	= edb7211_init_late,
 	.restart	= clps711x_restart,
 MACHINE_END

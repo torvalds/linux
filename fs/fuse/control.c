@@ -23,7 +23,7 @@ static struct fuse_conn *fuse_ctl_file_conn_get(struct file *file)
 {
 	struct fuse_conn *fc;
 	mutex_lock(&fuse_mutex);
-	fc = file->f_path.dentry->d_inode->i_private;
+	fc = file_inode(file)->i_private;
 	if (fc)
 		fc = fuse_conn_get(fc);
 	mutex_unlock(&fuse_mutex);
@@ -341,13 +341,14 @@ static struct file_system_type fuse_ctl_fs_type = {
 	.mount		= fuse_ctl_mount,
 	.kill_sb	= fuse_ctl_kill_sb,
 };
+MODULE_ALIAS_FS("fusectl");
 
 int __init fuse_ctl_init(void)
 {
 	return register_filesystem(&fuse_ctl_fs_type);
 }
 
-void fuse_ctl_cleanup(void)
+void __exit fuse_ctl_cleanup(void)
 {
 	unregister_filesystem(&fuse_ctl_fs_type);
 }

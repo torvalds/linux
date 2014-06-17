@@ -1,6 +1,8 @@
 config PSTORE
 	bool "Persistent store support"
 	default n
+	select ZLIB_DEFLATE
+	select ZLIB_INFLATE
 	help
 	   This option enables generic access to platform level
 	   persistent storage via "pstore" filesystem that can

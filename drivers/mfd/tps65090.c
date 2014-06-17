@@ -25,18 +25,12 @@
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65090.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/err.h>
 
 #define NUM_INT_REG 2
 #define TOTAL_NUM_REG 0x18
-
-/* interrupt status registers */
-#define TPS65090_INT_STS	0x0
-#define TPS65090_INT_STS2	0x1
-
-/* interrupt mask registers */
-#define TPS65090_INT_MSK	0x2
-#define TPS65090_INT_MSK2	0x3
 
 #define TPS65090_INT1_MASK_VAC_STATUS_CHANGE		1
 #define TPS65090_INT1_MASK_VSYS_STATUS_CHANGE		2
@@ -54,12 +48,28 @@
 #define TPS65090_INT2_MASK_OVERLOAD_FET6		6
 #define TPS65090_INT2_MASK_OVERLOAD_FET7		7
 
-static struct mfd_cell tps65090s[] = {
+static struct resource charger_resources[] = {
 	{
+		.start  = TPS65090_IRQ_VAC_STATUS_CHANGE,
+		.end    = TPS65090_IRQ_VAC_STATUS_CHANGE,
+		.flags  = IORESOURCE_IRQ,
+	}
+};
+
+enum tps65090_cells {
+	PMIC = 0,
+	CHARGER = 1,
+};
+
+static struct mfd_cell tps65090s[] = {
+	[PMIC] = {
 		.name = "tps65090-pmic",
 	},
-	{
+	[CHARGER] = {
 		.name = "tps65090-charger",
+		.num_resources = ARRAY_SIZE(charger_resources),
+		.resources = &charger_resources[0],
+		.of_compatible = "ti,tps65090-charger",
 	},
 };
 
@@ -126,17 +136,26 @@ static struct regmap_irq_chip tps65090_irq_chip = {
 	.irqs = tps65090_irqs,
 	.num_irqs = ARRAY_SIZE(tps65090_irqs),
 	.num_regs = NUM_INT_REG,
-	.status_base = TPS65090_INT_STS,
-	.mask_base = TPS65090_INT_MSK,
+	.status_base = TPS65090_REG_INTR_STS,
+	.mask_base = TPS65090_REG_INTR_MASK,
 	.mask_invert = true,
 };
 
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
-	if ((reg == TPS65090_INT_STS) || (reg == TPS65090_INT_STS2))
-		return true;
-	else
+	/* Nearly all registers have status bits mixed in, except a few */
+	switch (reg) {
+	case TPS65090_REG_INTR_MASK:
+	case TPS65090_REG_INTR_MASK2:
+	case TPS65090_REG_CG_CTRL0:
+	case TPS65090_REG_CG_CTRL1:
+	case TPS65090_REG_CG_CTRL2:
+	case TPS65090_REG_CG_CTRL3:
+	case TPS65090_REG_CG_CTRL4:
+	case TPS65090_REG_CG_CTRL5:
 		return false;
+	}
+	return true;
 }
 
 static const struct regmap_config tps65090_regmap_config = {
@@ -148,17 +167,30 @@ static const struct regmap_config tps65090_regmap_config = {
 	.volatile_reg = is_volatile_reg,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id tps65090_of_match[] = {
+	{ .compatible = "ti,tps65090",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, tps65090_of_match);
+#endif
+
 static int tps65090_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
-	struct tps65090_platform_data *pdata = client->dev.platform_data;
+	struct tps65090_platform_data *pdata = dev_get_platdata(&client->dev);
+	int irq_base = 0;
 	struct tps65090 *tps65090;
 	int ret;
 
-	if (!pdata) {
-		dev_err(&client->dev, "tps65090 requires platform data\n");
+	if (!pdata && !client->dev.of_node) {
+		dev_err(&client->dev,
+			"tps65090 requires platform data or of_node\n");
 		return -EINVAL;
 	}
+
+	if (pdata)
+		irq_base = pdata->irq_base;
 
 	tps65090 = devm_kzalloc(&client->dev, sizeof(*tps65090), GFP_KERNEL);
 	if (!tps65090) {
@@ -178,18 +210,21 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 
 	if (client->irq) {
 		ret = regmap_add_irq_chip(tps65090->rmap, client->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, pdata->irq_base,
+			IRQF_ONESHOT | IRQF_TRIGGER_LOW, irq_base,
 			&tps65090_irq_chip, &tps65090->irq_data);
 			if (ret) {
 				dev_err(&client->dev,
 					"IRQ init failed with err: %d\n", ret);
 			return ret;
 		}
+	} else {
+		/* Don't tell children they have an IRQ that'll never fire */
+		tps65090s[CHARGER].num_resources = 0;
 	}
 
 	ret = mfd_add_devices(tps65090->dev, -1, tps65090s,
 		ARRAY_SIZE(tps65090s), NULL,
-		regmap_irq_chip_get_base(tps65090->irq_data), NULL);
+		0, regmap_irq_get_domain(tps65090->irq_data));
 	if (ret) {
 		dev_err(&client->dev, "add mfd devices failed with err: %d\n",
 			ret);
@@ -215,28 +250,6 @@ static int tps65090_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int tps65090_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	if (client->irq)
-		disable_irq(client->irq);
-	return 0;
-}
-
-static int tps65090_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	if (client->irq)
-		enable_irq(client->irq);
-	return 0;
-}
-#endif
-
-static const struct dev_pm_ops tps65090_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tps65090_suspend, tps65090_resume)
-};
-
 static const struct i2c_device_id tps65090_id_table[] = {
 	{ "tps65090", 0 },
 	{ },
@@ -247,7 +260,7 @@ static struct i2c_driver tps65090_driver = {
 	.driver	= {
 		.name	= "tps65090",
 		.owner	= THIS_MODULE,
-		.pm	= &tps65090_pm_ops,
+		.of_match_table = of_match_ptr(tps65090_of_match),
 	},
 	.probe		= tps65090_i2c_probe,
 	.remove		= tps65090_i2c_remove,

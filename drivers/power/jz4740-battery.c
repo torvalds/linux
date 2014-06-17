@@ -22,6 +22,7 @@
 #include <linux/io.h>
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/power_supply.h>
@@ -72,7 +73,7 @@ static long jz_battery_read_voltage(struct jz_battery *battery)
 
 	mutex_lock(&battery->lock);
 
-	INIT_COMPLETION(battery->read_completion);
+	reinit_completion(&battery->read_completion);
 
 	enable_irq(battery->irq);
 	battery->cell->enable(battery->pdev);
@@ -266,9 +267,9 @@ static int jz_battery_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	jz_battery->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!jz_battery->base)
-		return -EBUSY;
+	jz_battery->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(jz_battery->base))
+		return PTR_ERR(jz_battery->base);
 
 	battery = &jz_battery->battery;
 	battery->name = pdata->info.name;
@@ -291,7 +292,7 @@ static int jz_battery_probe(struct platform_device *pdev)
 			jz_battery);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq %d\n", ret);
-		goto err;
+		return ret;
 	}
 	disable_irq(jz_battery->irq);
 
@@ -348,8 +349,6 @@ err_free_gpio:
 		gpio_free(jz_battery->pdata->gpio_charge);
 err_free_irq:
 	free_irq(jz_battery->irq, jz_battery);
-err:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 

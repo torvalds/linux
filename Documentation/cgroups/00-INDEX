@@ -4,8 +4,6 @@ blkio-controller.txt
 	- Description for Block IO Controller, implementation and usage details.
 cgroups.txt
 	- Control Groups definition, implementation details, examples and API.
-cgroup_event_listener.c
-	- A user program for cgroup listener.
 cpuacct.txt
 	- CPU Accounting Controller; account CPU usage for groups of tasks.
 cpusets.txt
@@ -20,6 +18,8 @@ memcg_test.txt
 	- Memory Resource Controller; implementation details.
 memory.txt
 	- Memory Resource Controller; design, accounting, interface, testing.
+net_cls.txt
+	- Network classifier cgroups details and usages.
 net_prio.txt
 	- Network priority cgroups details and usages.
 resource_counter.txt

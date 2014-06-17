@@ -20,13 +20,24 @@
 #endif
 
 #ifdef CONFIG_32BIT
-
+#ifdef CONFIG_KVM_GUEST
+#define CAC_BASE		_AC(0x40000000, UL)
+#else
 #define CAC_BASE		_AC(0x80000000, UL)
+#endif
+#ifndef IO_BASE
 #define IO_BASE			_AC(0xa0000000, UL)
+#endif
+#ifndef UNCAC_BASE
 #define UNCAC_BASE		_AC(0xa0000000, UL)
+#endif
 
 #ifndef MAP_BASE
+#ifdef CONFIG_KVM_GUEST
+#define MAP_BASE		_AC(0x60000000, UL)
+#else
 #define MAP_BASE		_AC(0xc0000000, UL)
+#endif
 #endif
 
 /*
@@ -69,7 +80,7 @@
 #define HIGHMEM_START		(_AC(1, UL) << _AC(59, UL))
 #endif
 
-#define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
+#define TO_PHYS(x)		(	      ((x) & TO_PHYS_MASK))
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
 #define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 

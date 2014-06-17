@@ -1000,7 +1000,7 @@ ioc3_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	state->port.tty->low_latency = 1;
+	state->port.low_latency = 1;
 
 	if (iflag & IGNPAR)
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR
@@ -1393,7 +1393,6 @@ static inline int do_read(struct uart_port *the_port, char *buf, int len)
  */
 static int receive_chars(struct uart_port *the_port)
 {
-	struct tty_struct *tty;
 	unsigned char ch[MAX_CHARS];
 	int read_count = 0, read_room, flip = 0;
 	struct uart_state *state = the_port->state;
@@ -1403,25 +1402,23 @@ static int receive_chars(struct uart_port *the_port)
 	/* Make sure all the pointers are "good" ones */
 	if (!state)
 		return 0;
-	if (!state->port.tty)
-		return 0;
 
 	if (!(port->ip_flags & INPUT_ENABLE))
 		return 0;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = state->port.tty;
 
 	read_count = do_read(the_port, ch, MAX_CHARS);
 	if (read_count > 0) {
 		flip = 1;
-		read_room = tty_insert_flip_string(tty, ch, read_count);
+		read_room = tty_insert_flip_string(&state->port, ch,
+				read_count);
 		the_port->icount.rx += read_count;
 	}
 	spin_unlock_irqrestore(&the_port->lock, pflags);
 
 	if (flip)
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&state->port);
 
 	return read_count;
 }

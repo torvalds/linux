@@ -30,29 +30,23 @@
 #include <subdev/bios/dcb.h>
 
 #include <drm/drm_encoder_slave.h>
-#include "nv04_display.h"
+#include "dispnv04/disp.h"
 
 #define NV_DPMS_CLEARED 0x80
 
 struct nouveau_i2c_port;
-
-struct dp_train_func {
-	void (*link_set)(struct drm_device *, struct dcb_output *, int crtc,
-			 int nr, u32 bw, bool enhframe);
-	void (*train_set)(struct drm_device *, struct dcb_output *, u8 pattern);
-	void (*train_adj)(struct drm_device *, struct dcb_output *,
-			  u8 lane, u8 swing, u8 preem);
-};
 
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
 	struct dcb_output *dcb;
 	int or;
+	struct nouveau_i2c_port *i2c;
 
 	/* different to drm_encoder.crtc, this reflects what's
 	 * actually programmed on the hw, not the proposed crtc */
 	struct drm_crtc *crtc;
+	u32 ctrl;
 
 	struct drm_display_mode mode;
 	int last_dpms;
@@ -91,9 +85,7 @@ get_slave_funcs(struct drm_encoder *enc)
 }
 
 /* nouveau_dp.c */
-bool nouveau_dp_detect(struct drm_encoder *);
-void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
-		     struct nouveau_object *);
+int nouveau_dp_detect(struct nouveau_encoder *);
 
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);

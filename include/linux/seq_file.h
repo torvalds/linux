@@ -20,6 +20,7 @@ struct seq_file {
 	size_t size;
 	size_t from;
 	size_t count;
+	size_t pad_until;
 	loff_t index;
 	loff_t read_pos;
 	u64 version;
@@ -79,6 +80,20 @@ static inline void seq_commit(struct seq_file *m, int num)
 	}
 }
 
+/**
+ * seq_setwidth - set padding width
+ * @m: the seq_file handle
+ * @size: the max number of bytes to pad.
+ *
+ * Call seq_setwidth() for setting max width, then call seq_printf() etc. and
+ * finally call seq_pad() to pad the remaining bytes.
+ */
+static inline void seq_setwidth(struct seq_file *m, size_t size)
+{
+	m->pad_until = m->count + size;
+}
+void seq_pad(struct seq_file *m, char c);
+
 char *mangle_path(char *s, const char *p, const char *esc);
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
@@ -123,6 +138,7 @@ static inline int seq_nodemask_list(struct seq_file *m, nodemask_t *mask)
 }
 
 int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
+int single_open_size(struct file *, int (*)(struct seq_file *, void *), void *, size_t);
 int single_release(struct inode *, struct file *);
 void *__seq_open_private(struct file *, const struct seq_operations *, int);
 int seq_open_private(struct file *, const struct seq_operations *, int);
@@ -172,4 +188,10 @@ extern struct hlist_node *seq_hlist_start_head_rcu(struct hlist_head *head,
 extern struct hlist_node *seq_hlist_next_rcu(void *v,
 						   struct hlist_head *head,
 						   loff_t *ppos);
+
+/* Helpers for iterating over per-cpu hlist_head-s in seq_files */
+extern struct hlist_node *seq_hlist_start_percpu(struct hlist_head __percpu *head, int *cpu, loff_t pos);
+
+extern struct hlist_node *seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head, int *cpu, loff_t *pos);
+
 #endif

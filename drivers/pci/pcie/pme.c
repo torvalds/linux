@@ -19,8 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pcieport_if.h>
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 
 #include "../pci.h"
@@ -201,8 +199,7 @@ static void pcie_pme_handle_request(struct pci_dev *port, u16 req_id)
 		 * assuming that the PME was reported by a PCIe-PCI bridge that
 		 * used devfn different from zero.
 		 */
-		dev_dbg(&port->dev, "PME interrupt generated for "
-			"non-existent device %02x:%02x.%d\n",
+		dev_dbg(&port->dev, "PME interrupt generated for non-existent device %02x:%02x.%d\n",
 			busnr, PCI_SLOT(devfn), PCI_FUNC(devfn));
 		found = pcie_pme_from_pci_bridge(bus, 0);
 	}
@@ -410,7 +407,7 @@ static int pcie_pme_resume(struct pcie_device *srv)
 
 /**
  * pcie_pme_remove - Prepare PCIe PME service device for removal.
- * @srv - PCIe service device to resume.
+ * @srv - PCIe service device to remove.
  */
 static void pcie_pme_remove(struct pcie_device *srv)
 {
@@ -421,8 +418,8 @@ static void pcie_pme_remove(struct pcie_device *srv)
 
 static struct pcie_port_service_driver pcie_pme_driver = {
 	.name		= "pcie_pme",
-	.port_type 	= PCI_EXP_TYPE_ROOT_PORT,
-	.service 	= PCIE_PORT_SERVICE_PME,
+	.port_type	= PCI_EXP_TYPE_ROOT_PORT,
+	.service	= PCIE_PORT_SERVICE_PME,
 
 	.probe		= pcie_pme_probe,
 	.suspend	= pcie_pme_suspend,

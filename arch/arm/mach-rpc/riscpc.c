@@ -20,6 +20,7 @@
 #include <linux/ata_platform.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/reboot.h>
 
 #include <asm/elf.h>
 #include <asm/mach-types.h>
@@ -201,7 +202,7 @@ static int __init rpc_init(void)
 
 arch_initcall(rpc_init);
 
-static void rpc_restart(char mode, const char *cmd)
+static void rpc_restart(enum reboot_mode mode, const char *cmd)
 {
 	iomd_writeb(0, IOMD_ROMCR0);
 
@@ -211,7 +212,7 @@ static void rpc_restart(char mode, const char *cmd)
 	soft_restart(0);
 }
 
-extern struct sys_timer ioc_timer;
+void ioc_timer_init(void);
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
 	/* Maintainer: Russell King */
@@ -220,6 +221,6 @@ MACHINE_START(RISCPC, "Acorn-RiscPC")
 	.reserve_lp1	= 1,
 	.map_io		= rpc_map_io,
 	.init_irq	= rpc_init_irq,
-	.timer		= &ioc_timer,
+	.init_time	= ioc_timer_init,
 	.restart	= rpc_restart,
 MACHINE_END

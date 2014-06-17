@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -386,7 +387,6 @@ static bool ixgbe_set_dcb_sriov_queues(struct ixgbe_adapter *adapter)
 		fcoe = &adapter->ring_feature[RING_F_FCOE];
 
 		/* limit ourselves based on feature limits */
-		fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
 		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
 
 		if (fcoe_i) {
@@ -499,6 +499,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 #ifdef IXGBE_FCOE
 	u16 fcoe_i = 0;
 #endif
+	bool pools = (find_first_zero_bit(&adapter->fwd_bitmask, 32) > 1);
 
 	/* only proceed if SR-IOV is enabled */
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
@@ -511,7 +512,7 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 	vmdq_i = min_t(u16, IXGBE_MAX_VMDQ_INDICES, vmdq_i);
 
 	/* 64 pool mode with 2 queues per pool */
-	if ((vmdq_i > 32) || (rss_i < 4)) {
+	if ((vmdq_i > 32) || (rss_i < 4) || (vmdq_i > 16 && pools)) {
 		vmdq_m = IXGBE_82599_VMDQ_2Q_MASK;
 		rss_m = IXGBE_RSS_2Q_MASK;
 		rss_i = min_t(u16, rss_i, 2);
@@ -562,9 +563,6 @@ static bool ixgbe_set_sriov_queues(struct ixgbe_adapter *adapter)
 		fcoe_i = min_t(u16, fcoe_i, fcoe->limit);
 
 		if (vmdq_i > 1 && fcoe_i) {
-			/* reserve no more than number of CPUs */
-			fcoe_i = min_t(u16, fcoe_i, num_online_cpus());
-
 			/* alloc queues for FCoE separately */
 			fcoe->indices = fcoe_i;
 			fcoe->offset = vmdq_i * rss_i;
@@ -623,8 +621,7 @@ static bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	if (rss_i > 1 && adapter->atr_sample_rate) {
 		f = &adapter->ring_feature[RING_F_FDIR];
 
-		f->indices = min_t(u16, num_online_cpus(), f->limit);
-		rss_i = max_t(u16, rss_i, f->indices);
+		rss_i = f->indices = f->limit;
 
 		if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
@@ -702,7 +699,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 				       int vectors)
 {
-	int err, vector_threshold;
+	int vector_threshold;
 
 	/* We'll want at least 2 (vector_threshold):
 	 * 1) TxQ[0] + RxQ[0] handler
@@ -716,18 +713,10 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 	 * Right now, we simply care about how many we'll get; we'll
 	 * set them up later while requesting irq's.
 	 */
-	while (vectors >= vector_threshold) {
-		err = pci_enable_msix(adapter->pdev, adapter->msix_entries,
-				      vectors);
-		if (!err) /* Success in acquiring all requested vectors. */
-			break;
-		else if (err < 0)
-			vectors = 0; /* Nasty failure, quit now */
-		else /* err == number of vectors we should try again with */
-			vectors = err;
-	}
+	vectors = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
+					vector_threshold, vectors);
 
-	if (vectors < vector_threshold) {
+	if (vectors < 0) {
 		/* Can't allocate enough MSI-X interrupts?  Oh well.
 		 * This just means we'll go with either a single MSI
 		 * vector or fall back to legacy interrupts.
@@ -776,19 +765,23 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 {
 	struct ixgbe_q_vector *q_vector;
 	struct ixgbe_ring *ring;
-	int node = -1;
+	int node = NUMA_NO_NODE;
 	int cpu = -1;
 	int ring_count, size;
+	u8 tcs = netdev_get_num_tc(adapter->netdev);
 
 	ring_count = txr_count + rxr_count;
 	size = sizeof(struct ixgbe_q_vector) +
 	       (sizeof(struct ixgbe_ring) * ring_count);
 
 	/* customize cpu for Flow Director mapping */
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
-		if (cpu_online(v_idx)) {
-			cpu = v_idx;
-			node = cpu_to_node(cpu);
+	if ((tcs <= 1) && !(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)) {
+		u16 rss_i = adapter->ring_feature[RING_F_RSS].indices;
+		if (rss_i > 1 && adapter->atr_sample_rate) {
+			if (cpu_online(v_idx)) {
+				cpu = v_idx;
+				node = cpu_to_node(cpu);
+			}
 		}
 	}
 
@@ -812,6 +805,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	/* initialize NAPI */
 	netif_napi_add(adapter->netdev, &q_vector->napi,
 		       ixgbe_poll, 64);
+	napi_hash_add(&q_vector->napi);
 
 	/* tie q_vector and adapter together */
 	adapter->q_vector[v_idx] = q_vector;
@@ -852,7 +846,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 
 		/* apply Tx specific ring traits */
 		ring->count = adapter->tx_ring_count;
-		ring->queue_index = txr_idx;
+		if (adapter->num_rx_pools > 1)
+			ring->queue_index =
+				txr_idx % adapter->num_rx_queues_per_pool;
+		else
+			ring->queue_index = txr_idx;
 
 		/* assign ring to adapter */
 		adapter->tx_ring[txr_idx] = ring;
@@ -895,7 +893,11 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 		/* apply Rx specific ring traits */
 		ring->count = adapter->rx_ring_count;
-		ring->queue_index = rxr_idx;
+		if (adapter->num_rx_pools > 1)
+			ring->queue_index =
+				rxr_idx % adapter->num_rx_queues_per_pool;
+		else
+			ring->queue_index = rxr_idx;
 
 		/* assign ring to adapter */
 		adapter->rx_ring[rxr_idx] = ring;
@@ -932,6 +934,7 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
 		adapter->rx_ring[ring->queue_index] = NULL;
 
 	adapter->q_vector[v_idx] = NULL;
+	napi_hash_del(&q_vector->napi);
 	netif_napi_del(&q_vector->napi);
 
 	/*
@@ -1110,8 +1113,8 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	err = pci_enable_msi(adapter->pdev);
 	if (err) {
 		netif_printk(adapter, hw, KERN_DEBUG, adapter->netdev,
-			     "Unable to allocate MSI interrupt, "
-			     "falling back to legacy.  Error: %d\n", err);
+			     "Unable to allocate MSI interrupt, falling back to legacy.  Error: %d\n",
+			     err);
 		return;
 	}
 	adapter->flags |= IXGBE_FLAG_MSI_ENABLED;

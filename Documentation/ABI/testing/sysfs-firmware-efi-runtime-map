@@ -1,0 +1,34 @@
+What:		/sys/firmware/efi/runtime-map/
+Date:		December 2013
+Contact:	Dave Young <dyoung@redhat.com>
+Description:	Switching efi runtime services to virtual mode requires
+		that all efi memory ranges which have the runtime attribute
+		bit set to be mapped to virtual addresses.
+
+		The efi runtime services can only be switched to virtual
+		mode once without rebooting. The kexec kernel must maintain
+		the same physical to virtual address mappings as the first
+		kernel. The mappings are exported to sysfs so userspace tools
+		can reassemble them and pass them into the kexec kernel.
+
+		/sys/firmware/efi/runtime-map/ is the directory the kernel
+		exports that information in.
+
+		subdirectories are named with the number of the memory range:
+
+			/sys/firmware/efi/runtime-map/0
+			/sys/firmware/efi/runtime-map/1
+			/sys/firmware/efi/runtime-map/2
+			/sys/firmware/efi/runtime-map/3
+			...
+
+		Each subdirectory contains five files:
+
+		attribute : The attributes of the memory range.
+		num_pages : The size of the memory range in pages.
+		phys_addr : The physical address of the memory range.
+		type      : The type of the memory range.
+		virt_addr : The virtual address of the memory range.
+
+		Above values are all hexadecimal numbers with the '0x' prefix.
+Users:		Kexec

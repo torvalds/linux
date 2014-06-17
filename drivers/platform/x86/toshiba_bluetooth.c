@@ -23,16 +23,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 MODULE_AUTHOR("Jes Sorensen <Jes.Sorensen@gmail.com>");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Bluetooth Enable Driver");
 MODULE_LICENSE("GPL");
 
-
 static int toshiba_bt_rfkill_add(struct acpi_device *device);
-static int toshiba_bt_rfkill_remove(struct acpi_device *device, int type);
+static int toshiba_bt_rfkill_remove(struct acpi_device *device);
 static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id bt_device_ids[] = {
@@ -122,7 +120,7 @@ static int toshiba_bt_rfkill_add(struct acpi_device *device)
 	return result;
 }
 
-static int toshiba_bt_rfkill_remove(struct acpi_device *device, int type)
+static int toshiba_bt_rfkill_remove(struct acpi_device *device)
 {
 	/* clean up */
 	return 0;

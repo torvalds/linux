@@ -708,8 +708,7 @@ static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 static int
 zoran_register_i2c (struct zoran *zr)
 {
-	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
-	       sizeof(struct i2c_algo_bit_data));
+	zr->i2c_algo = zoran_i2c_bit_data_template;
 	zr->i2c_algo.data = zr;
 	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
@@ -1051,7 +1050,7 @@ static int zr36057_init (struct zoran *zr)
 	 *   Now add the template and register the device unit.
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
-	zr->video_dev->parent = &zr->pci_dev->dev;
+	zr->video_dev->v4l2_dev = &zr->v4l2_dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	/* It's not a mem2mem device, but you can both capture and output from
 	   one and the same device. This should really be split up into two
@@ -1294,7 +1293,7 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	result = request_irq(zr->pci_dev->irq, zoran_irq,
-			     IRQF_SHARED | IRQF_DISABLED, ZR_DEVNAME(zr), zr);
+			     IRQF_SHARED, ZR_DEVNAME(zr), zr);
 	if (result < 0) {
 		if (result == -EINVAL) {
 			dprintk(1,

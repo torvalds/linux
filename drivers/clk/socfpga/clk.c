@@ -1,5 +1,6 @@
 /*
- *  Copyright (C) 2012 Altera Corporation <www.altera.com>
+ *  Copyright 2011-2012 Calxeda, Inc.
+ *  Copyright (C) 2012-2013 Altera Corporation <www.altera.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,41 +12,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * Based from clk-highbank.c
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/clk.h>
-#include <linux/clkdev.h>
-#include <linux/clk-provider.h>
+#include <linux/of.h>
 
-#define SOCFPGA_OSC1_CLK	10000000
-#define SOCFPGA_MPU_CLK		800000000
-#define SOCFPGA_MAIN_QSPI_CLK		432000000
-#define SOCFPGA_MAIN_NAND_SDMMC_CLK	250000000
-#define SOCFPGA_S2F_USR_CLK		125000000
+#include "clk.h"
 
-void __init socfpga_init_clocks(void)
-{
-	struct clk *clk;
+CLK_OF_DECLARE(socfpga_pll_clk, "altr,socfpga-pll-clock", socfpga_pll_init);
+CLK_OF_DECLARE(socfpga_perip_clk, "altr,socfpga-perip-clk", socfpga_periph_init);
+CLK_OF_DECLARE(socfpga_gate_clk, "altr,socfpga-gate-clk", socfpga_gate_init);
 
-	clk = clk_register_fixed_rate(NULL, "osc1_clk", NULL, CLK_IS_ROOT, SOCFPGA_OSC1_CLK);
-	clk_register_clkdev(clk, "osc1_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "mpu_clk", NULL, CLK_IS_ROOT, SOCFPGA_MPU_CLK);
-	clk_register_clkdev(clk, "mpu_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "main_clk", NULL, CLK_IS_ROOT, SOCFPGA_MPU_CLK/2);
-	clk_register_clkdev(clk, "main_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "dbg_base_clk", NULL, CLK_IS_ROOT, SOCFPGA_MPU_CLK/2);
-	clk_register_clkdev(clk, "dbg_base_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "main_qspi_clk", NULL, CLK_IS_ROOT, SOCFPGA_MAIN_QSPI_CLK);
-	clk_register_clkdev(clk, "main_qspi_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "main_nand_sdmmc_clk", NULL, CLK_IS_ROOT, SOCFPGA_MAIN_NAND_SDMMC_CLK);
-	clk_register_clkdev(clk, "main_nand_sdmmc_clk", NULL);
-
-	clk = clk_register_fixed_rate(NULL, "s2f_usr_clk", NULL, CLK_IS_ROOT, SOCFPGA_S2F_USR_CLK);
-	clk_register_clkdev(clk, "s2f_usr_clk", NULL);
-}

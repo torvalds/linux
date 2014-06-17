@@ -337,7 +337,7 @@ static int read_page(struct file *file, unsigned long index,
 		     struct page *page)
 {
 	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct buffer_head *bh;
 	sector_t block;
 
@@ -669,17 +669,13 @@ static inline unsigned long file_page_offset(struct bitmap_storage *store,
 /*
  * return a pointer to the page in the filemap that contains the given bit
  *
- * this lookup is complicated by the fact that the bitmap sb might be exactly
- * 1 page (e.g., x86) or less than 1 page -- so the bitmap might start on page
- * 0 or page 1
  */
 static inline struct page *filemap_get_page(struct bitmap_storage *store,
 					    unsigned long chunk)
 {
 	if (file_page_index(store, chunk) >= store->file_pages)
 		return NULL;
-	return store->filemap[file_page_index(store, chunk)
-			      - file_page_index(store, 0)];
+	return store->filemap[file_page_index(store, chunk)];
 }
 
 static int bitmap_storage_alloc(struct bitmap_storage *store,
@@ -755,7 +751,7 @@ static void bitmap_file_unmap(struct bitmap_storage *store)
 		free_buffers(sb_page);
 
 	if (file) {
-		struct inode *inode = file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(file);
 		invalidate_mapping_pages(inode->i_mapping, 0, -1);
 		fput(file);
 	}
@@ -846,7 +842,7 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 		set_bit(bit, kaddr);
 	else
-		test_and_set_bit_le(bit, kaddr);
+		set_bit_le(bit, kaddr);
 	kunmap_atomic(kaddr);
 	pr_debug("set file bit %lu page %lu\n", bit, page->index);
 	/* record page number so it gets flushed to disk when unplug occurs */
@@ -868,7 +864,7 @@ static void bitmap_file_clear_bit(struct bitmap *bitmap, sector_t block)
 	if (test_bit(BITMAP_HOSTENDIAN, &bitmap->flags))
 		clear_bit(bit, paddr);
 	else
-		test_and_clear_bit_le(bit, paddr);
+		clear_bit_le(bit, paddr);
 	kunmap_atomic(paddr);
 	if (!test_page_attr(bitmap, page->index, BITMAP_PAGE_NEEDWRITE)) {
 		set_page_attr(bitmap, page->index, BITMAP_PAGE_PENDING);
@@ -1635,7 +1631,7 @@ int bitmap_create(struct mddev *mddev)
 	sector_t blocks = mddev->resync_max_sectors;
 	struct file *file = mddev->bitmap_info.file;
 	int err;
-	struct sysfs_dirent *bm = NULL;
+	struct kernfs_node *bm = NULL;
 
 	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
@@ -1654,9 +1650,9 @@ int bitmap_create(struct mddev *mddev)
 	bitmap->mddev = mddev;
 
 	if (mddev->kobj.sd)
-		bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
+		bm = sysfs_get_dirent(mddev->kobj.sd, "bitmap");
 	if (bm) {
-		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, NULL, "can_clear");
+		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, "can_clear");
 		sysfs_put(bm);
 	} else
 		bitmap->sysfs_can_clear = NULL;
@@ -1988,7 +1984,6 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 		if (mddev->bitmap_info.file) {
 			struct file *f = mddev->bitmap_info.file;
 			mddev->bitmap_info.file = NULL;
-			restore_bitmap_write_access(f);
 			fput(f);
 		}
 	} else {
@@ -2002,9 +1997,9 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 		} else {
 			int rv;
 			if (buf[0] == '+')
-				rv = strict_strtoll(buf+1, 10, &offset);
+				rv = kstrtoll(buf+1, 10, &offset);
 			else
-				rv = strict_strtoll(buf, 10, &offset);
+				rv = kstrtoll(buf, 10, &offset);
 			if (rv)
 				return rv;
 			if (offset == 0)
@@ -2139,7 +2134,7 @@ static ssize_t
 backlog_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	unsigned long backlog;
-	int rv = strict_strtoul(buf, 10, &backlog);
+	int rv = kstrtoul(buf, 10, &backlog);
 	if (rv)
 		return rv;
 	if (backlog > COUNTER_MAX)
@@ -2165,7 +2160,7 @@ chunksize_store(struct mddev *mddev, const char *buf, size_t len)
 	unsigned long csize;
 	if (mddev->bitmap)
 		return -EBUSY;
-	rv = strict_strtoul(buf, 10, &csize);
+	rv = kstrtoul(buf, 10, &csize);
 	if (rv)
 		return rv;
 	if (csize < 512 ||

@@ -452,10 +452,6 @@ static inline int pte_exec(pte_t pte)
 
 #define __pte_offset(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
-/* Nothing special about IO remapping at this point */
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 /*  I think this is in case we have page table caches; needed by init/main.c  */
 #define pgtable_cache_init()    do { } while (0)
 

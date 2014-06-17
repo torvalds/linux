@@ -25,7 +25,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -1127,10 +1126,11 @@ static void greth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *in
 {
 	struct greth_private *greth = netdev_priv(dev);
 
-	strncpy(info->driver, dev_driver_string(greth->dev), 32);
-	strncpy(info->version, "revision: 1.0", 32);
-	strncpy(info->bus_info, greth->dev->bus->name, 32);
-	strncpy(info->fw_version, "N/A", 32);
+	strlcpy(info->driver, dev_driver_string(greth->dev),
+		sizeof(info->driver));
+	strlcpy(info->version, "revision: 1.0", sizeof(info->version));
+	strlcpy(info->bus_info, greth->dev->bus->name, sizeof(info->bus_info));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
 	info->eedump_len = 0;
 	info->regdump_len = sizeof(struct greth_regs);
 }
@@ -1213,11 +1213,6 @@ static int greth_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return 0;
 }
 
-static int greth_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void greth_link_change(struct net_device *dev)
 {
 	struct greth_private *greth = netdev_priv(dev);
@@ -1287,9 +1282,7 @@ static int greth_mdio_probe(struct net_device *dev)
 	}
 
 	ret = phy_connect_direct(dev, phy, &greth_link_change,
-			0, greth->gbit_mac ?
-			PHY_INTERFACE_MODE_GMII :
-			PHY_INTERFACE_MODE_MII);
+				 greth->gbit_mac ? PHY_INTERFACE_MODE_GMII : PHY_INTERFACE_MODE_MII);
 	if (ret) {
 		if (netif_msg_ifup(greth))
 			dev_err(&dev->dev, "could not attach to PHY\n");
@@ -1334,7 +1327,6 @@ static int greth_mdio_init(struct greth_private *greth)
 	snprintf(greth->mdio->id, MII_BUS_ID_SIZE, "%s-%d", greth->mdio->name, greth->irq);
 	greth->mdio->read = greth_mdio_read;
 	greth->mdio->write = greth_mdio_write;
-	greth->mdio->reset = greth_mdio_reset;
 	greth->mdio->priv = greth;
 
 	greth->mdio->irq = greth->mdio_irqs;
@@ -1362,7 +1354,7 @@ static int greth_mdio_init(struct greth_private *greth)
 		timeout = jiffies + 6*HZ;
 		while (!phy_aneg_done(greth->phy) && time_before(jiffies, timeout)) {
 		}
-		genphy_read_status(greth->phy);
+		phy_read_status(greth->phy);
 		greth_link_change(greth->netdev);
 	}
 
@@ -1465,34 +1457,22 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->tx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->tx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->tx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->tx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(&dev->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error3;
 	}
 
-	memset(greth->tx_bd_base, 0, 1024);
-
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = (struct greth_bd *) dma_alloc_coherent(greth->dev,
-								   1024,
-								   &greth->rx_bd_base_phys,
-								   GFP_KERNEL);
-
+	greth->rx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
+						&greth->rx_bd_base_phys,
+						GFP_KERNEL);
 	if (!greth->rx_bd_base) {
-		if (netif_msg_probe(greth))
-			dev_err(greth->dev, "could not allocate descriptor memory.\n");
 		err = -ENOMEM;
 		goto error4;
 	}
-
-	memset(greth->rx_bd_base, 0, 1024);
 
 	/* Get MAC address from: module param, OF property or ID prom */
 	for (i = 0; i < 6; i++) {
@@ -1578,15 +1558,13 @@ error1:
 
 static int greth_of_remove(struct platform_device *of_dev)
 {
-	struct net_device *ndev = dev_get_drvdata(&of_dev->dev);
+	struct net_device *ndev = platform_get_drvdata(of_dev);
 	struct greth_private *greth = netdev_priv(ndev);
 
 	/* Free descriptor areas */
 	dma_free_coherent(&of_dev->dev, 1024, greth->rx_bd_base, greth->rx_bd_base_phys);
 
 	dma_free_coherent(&of_dev->dev, 1024, greth->tx_bd_base, greth->tx_bd_base_phys);
-
-	dev_set_drvdata(&of_dev->dev, NULL);
 
 	if (greth->phy)
 		phy_stop(greth->phy);

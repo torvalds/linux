@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
+#include <asm/cpu.h>
 #include <asm/mach-au1x00/au1000.h>
 
 /* control register offsets */
@@ -122,7 +123,7 @@ static inline void __au1300_ohci_control(void __iomem *base, int enable, int id)
 	unsigned long r;
 
 	if (enable) {
-		__raw_writel(1, base + USB_DWC_CTRL7);  /* start OHCI clock */
+		__raw_writel(1, base + USB_DWC_CTRL7);	/* start OHCI clock */
 		wmb();
 
 		r = __raw_readl(base + USB_DWC_CTRL3);	/* enable OHCI block */
@@ -354,47 +355,25 @@ static inline void __au1200_udc_control(void __iomem *base, int enable)
 	}
 }
 
-static inline int au1200_coherency_bug(void)
-{
-#if defined(CONFIG_DMA_COHERENT)
-	/* Au1200 AB USB does not support coherent memory */
-	if (!(read_c0_prid() & 0xff)) {
-		printk(KERN_INFO "Au1200 USB: this is chip revision AB !!\n");
-		printk(KERN_INFO "Au1200 USB: update your board or re-configure"
-				 " the kernel\n");
-		return -ENODEV;
-	}
-#endif
-	return 0;
-}
-
 static inline int au1200_usb_control(int block, int enable)
 {
 	void __iomem *base =
 			(void __iomem *)KSEG1ADDR(AU1200_USB_CTL_PHYS_ADDR);
-	int ret = 0;
 
 	switch (block) {
 	case ALCHEMY_USB_OHCI0:
-		ret = au1200_coherency_bug();
-		if (ret && enable)
-			goto out;
 		__au1200_ohci_control(base, enable);
 		break;
 	case ALCHEMY_USB_UDC0:
 		__au1200_udc_control(base, enable);
 		break;
 	case ALCHEMY_USB_EHCI0:
-		ret = au1200_coherency_bug();
-		if (ret && enable)
-			goto out;
 		__au1200_ehci_control(base, enable);
 		break;
 	default:
-		ret = -ENODEV;
+		return -ENODEV;
 	}
-out:
-	return ret;
+	return 0;
 }
 
 

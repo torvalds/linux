@@ -228,19 +228,10 @@ static int wm8728_resume(struct snd_soc_codec *codec)
 
 static int wm8728_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8728: failed to configure cache I/O: %d\n",
-		       ret);
-		return ret;
-	}
-
 	/* power on device */
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	return ret;
+	return 0;
 }
 
 static int wm8728_remove(struct snd_soc_codec *codec)
@@ -320,7 +311,7 @@ static struct spi_driver wm8728_spi_driver = {
 };
 #endif /* CONFIG_SPI_MASTER */
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 static int wm8728_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -371,7 +362,7 @@ static struct i2c_driver wm8728_i2c_driver = {
 static int __init wm8728_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&wm8728_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8728 I2C driver: %d\n",
@@ -391,7 +382,7 @@ module_init(wm8728_modinit);
 
 static void __exit wm8728_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&wm8728_i2c_driver);
 #endif
 #if defined(CONFIG_SPI_MASTER)

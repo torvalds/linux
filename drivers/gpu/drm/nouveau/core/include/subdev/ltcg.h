@@ -4,8 +4,15 @@
 #include <core/subdev.h>
 #include <core/device.h>
 
+struct nouveau_mm_node;
+
 struct nouveau_ltcg {
 	struct nouveau_subdev base;
+
+	int  (*tags_alloc)(struct nouveau_ltcg *, u32 count,
+	                   struct nouveau_mm_node **);
+	void (*tags_free)(struct nouveau_ltcg *, struct nouveau_mm_node **);
+	void (*tags_clear)(struct nouveau_ltcg *, u32 first, u32 count);
 };
 
 static inline struct nouveau_ltcg *
@@ -28,6 +35,7 @@ nouveau_ltcg(void *obj)
 #define _nouveau_ltcg_init _nouveau_subdev_init
 #define _nouveau_ltcg_fini _nouveau_subdev_fini
 
-extern struct nouveau_oclass nvc0_ltcg_oclass;
+extern struct nouveau_oclass *gf100_ltcg_oclass;
+extern struct nouveau_oclass *gm107_ltcg_oclass;
 
 #endif

@@ -20,8 +20,13 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <asm/cacheflush.h>
+#include <asm/homecache.h>
 
-HV_Topology smp_topology __write_once;
+/*
+ * We write to width and height with a single store in head_NN.S,
+ * so make the variable aligned to "long".
+ */
+HV_Topology smp_topology __write_once __aligned(sizeof(long));
 EXPORT_SYMBOL(smp_topology);
 
 #if CHIP_HAS_IPI()
@@ -100,8 +105,8 @@ static void smp_start_cpu_interrupt(void)
 /* Handler to stop the current cpu. */
 static void smp_stop_cpu_interrupt(void)
 {
-	set_cpu_online(smp_processor_id(), 0);
 	arch_local_irq_disable_all();
+	set_cpu_online(smp_processor_id(), 0);
 	for (;;)
 		asm("nap; nop");
 }
@@ -167,9 +172,16 @@ static void ipi_flush_icache_range(void *info)
 void flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct ipi_flush flush = { start, end };
-	preempt_disable();
-	on_each_cpu(ipi_flush_icache_range, &flush, 1);
-	preempt_enable();
+
+	/* If invoked with irqs disabled, we can not issue IPIs. */
+	if (irqs_disabled())
+		flush_remote(0, HV_FLUSH_EVICT_L1I, NULL, 0, 0, 0,
+			NULL, NULL, 0);
+	else {
+		preempt_disable();
+		on_each_cpu(ipi_flush_icache_range, &flush, 1);
+		preempt_enable();
+	}
 }
 
 

@@ -156,7 +156,7 @@ static void appldata_get_os_data(void *data)
 		}
 		ops.size = new_size;
 	}
-	os_data->timestamp = get_clock();
+	os_data->timestamp = get_tod_clock();
 	os_data->sync_count_2++;
 }
 
@@ -171,7 +171,7 @@ static int __init appldata_os_init(void)
 	int rc, max_size;
 
 	max_size = sizeof(struct appldata_os_data) +
-		   (NR_CPUS * sizeof(struct appldata_os_per_cpu));
+		   (num_possible_cpus() * sizeof(struct appldata_os_per_cpu));
 	if (max_size > APPLDATA_MAX_REC_SIZE) {
 		pr_err("Maximum OS record size %i exceeds the maximum "
 		       "record size %i\n", max_size, APPLDATA_MAX_REC_SIZE);

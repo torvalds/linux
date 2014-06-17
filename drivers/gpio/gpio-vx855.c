@@ -214,7 +214,7 @@ static void vx855gpio_gpio_setup(struct vx855_gpio *vg)
 	c->dbg_show = NULL;
 	c->base = 0;
 	c->ngpio = NR_VX855_GP;
-	c->can_sleep = 0;
+	c->can_sleep = false;
 	c->names = vx855gpio_names;
 }
 
@@ -279,7 +279,6 @@ out_release:
 		release_region(res_gpi->start, resource_size(res_gpi));
 	if (vg->gpo_reserved)
 		release_region(res_gpi->start, resource_size(res_gpo));
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return ret;
 }
@@ -301,7 +300,6 @@ static int vx855gpio_remove(struct platform_device *pdev)
 		release_region(res->start, resource_size(res));
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(vg);
 	return 0;
 }

@@ -984,7 +984,7 @@ int main()
 		return errno;
 	}
 	configfd = open(&quot;/sys/class/uio/uio0/device/config&quot;, O_RDWR);
-	if (uiofd &lt; 0) {
+	if (configfd &lt; 0) {
 		perror(&quot;config open:&quot;);
 		return errno;
 	}

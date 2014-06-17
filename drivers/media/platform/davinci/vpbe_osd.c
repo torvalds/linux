@@ -39,7 +39,25 @@
 #include <linux/io.h>
 #include "vpbe_osd_regs.h"
 
-#define MODULE_NAME	VPBE_OSD_SUBDEV_NAME
+#define MODULE_NAME	"davinci-vpbe-osd"
+
+static struct platform_device_id vpbe_osd_devtype[] = {
+	{
+		.name = DM644X_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_1,
+	}, {
+		.name = DM365_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_2,
+	}, {
+		.name = DM355_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_3,
+	},
+	{
+		/* sentinel */
+	}
+};
+
+MODULE_DEVICE_TABLE(platform, vpbe_osd_devtype);
 
 /* register access routines */
 static inline u32 osd_read(struct osd_state *sd, u32 offset)
@@ -101,7 +119,7 @@ static inline u32 osd_modify(struct osd_state *sd, u32 mask, u32 val,
 #define is_rgb_pixfmt(pixfmt) \
 	(((pixfmt) == PIXFMT_RGB565) || ((pixfmt) == PIXFMT_RGB888))
 #define is_yc_pixfmt(pixfmt) \
-	(((pixfmt) == PIXFMT_YCbCrI) || ((pixfmt) == PIXFMT_YCrCbI) || \
+	(((pixfmt) == PIXFMT_YCBCRI) || ((pixfmt) == PIXFMT_YCRCBI) || \
 	((pixfmt) == PIXFMT_NV12))
 #define MAX_WIN_SIZE OSD_VIDWIN0XP_V0X
 #define MAX_LINE_LENGTH (OSD_VIDWIN0OFST_V0LO << 5)
@@ -129,7 +147,7 @@ static int _osd_dm6446_vid0_pingpong(struct osd_state *sd,
 	struct osd_platform_data *pdata;
 
 	pdata = (struct osd_platform_data *)sd->dev->platform_data;
-	if (pdata->field_inv_wa_enable) {
+	if (pdata != NULL && pdata->field_inv_wa_enable) {
 
 		if (!field_inversion || !lconfig->interlaced) {
 			osd_write(sd, fb_base_phys & ~0x1F, OSD_VIDWIN0ADR);
@@ -342,8 +360,8 @@ static void _osd_enable_color_key(struct osd_state *sd,
 			osd_write(sd, colorkey & OSD_TRANSPVALL_RGBL,
 				  OSD_TRANSPVALL);
 		break;
-	case PIXFMT_YCbCrI:
-	case PIXFMT_YCrCbI:
+	case PIXFMT_YCBCRI:
+	case PIXFMT_YCRCBI:
 		if (sd->vpbe_type == VPBE_VERSION_3)
 			osd_modify(sd, OSD_TRANSPVALU_Y, colorkey,
 				   OSD_TRANSPVALU);
@@ -795,8 +813,8 @@ static int try_layer_config(struct osd_state *sd, enum osd_layer layer,
 		if (osd->vpbe_type == VPBE_VERSION_1)
 			bad_config = !is_vid_win(layer);
 		break;
-	case PIXFMT_YCbCrI:
-	case PIXFMT_YCrCbI:
+	case PIXFMT_YCBCRI:
+	case PIXFMT_YCRCBI:
 		bad_config = !is_vid_win(layer);
 		break;
 	case PIXFMT_RGB888:
@@ -932,9 +950,9 @@ static void _osd_set_cbcr_order(struct osd_state *sd,
 	 * The caller must ensure that all windows using YC pixfmt use the same
 	 * Cb/Cr order.
 	 */
-	if (pixfmt == PIXFMT_YCbCrI)
+	if (pixfmt == PIXFMT_YCBCRI)
 		osd_clear(sd, OSD_MODE_CS, OSD_MODE);
-	else if (pixfmt == PIXFMT_YCrCbI)
+	else if (pixfmt == PIXFMT_YCRCBI)
 		osd_set(sd, OSD_MODE_CS, OSD_MODE);
 }
 
@@ -963,8 +981,8 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 				winmd |= (2 << OSD_OSDWIN0MD_BMP0MD_SHIFT);
 				_osd_enable_rgb888_pixblend(sd, OSDWIN_OSD0);
 				break;
-			case PIXFMT_YCbCrI:
-			case PIXFMT_YCrCbI:
+			case PIXFMT_YCBCRI:
+			case PIXFMT_YCRCBI:
 				winmd |= (3 << OSD_OSDWIN0MD_BMP0MD_SHIFT);
 				break;
 			default:
@@ -1110,8 +1128,8 @@ static void _osd_set_layer_config(struct osd_state *sd, enum osd_layer layer,
 					_osd_enable_rgb888_pixblend(sd,
 							OSDWIN_OSD1);
 					break;
-				case PIXFMT_YCbCrI:
-				case PIXFMT_YCrCbI:
+				case PIXFMT_YCBCRI:
+				case PIXFMT_YCRCBI:
 					winmd |=
 					    (3 << OSD_OSDWIN1MD_BMP1MD_SHIFT);
 					break;
@@ -1490,7 +1508,7 @@ static int osd_initialize(struct osd_state *osd)
 	_osd_init(osd);
 
 	/* set default Cb/Cr order */
-	osd->yc_pixfmt = PIXFMT_YCbCrI;
+	osd->yc_pixfmt = PIXFMT_YCBCRI;
 
 	if (osd->vpbe_type == VPBE_VERSION_3) {
 		/*
@@ -1526,65 +1544,39 @@ static const struct vpbe_osd_ops osd_ops = {
 
 static int osd_probe(struct platform_device *pdev)
 {
-	struct osd_platform_data *pdata;
+	const struct platform_device_id *pdev_id;
 	struct osd_state *osd;
 	struct resource *res;
-	int ret = 0;
 
-	osd = kzalloc(sizeof(struct osd_state), GFP_KERNEL);
+	pdev_id = platform_get_device_id(pdev);
+	if (!pdev_id)
+		return -EINVAL;
+
+	osd = devm_kzalloc(&pdev->dev, sizeof(struct osd_state), GFP_KERNEL);
 	if (osd == NULL)
 		return -ENOMEM;
 
+
 	osd->dev = &pdev->dev;
-	pdata = (struct osd_platform_data *)pdev->dev.platform_data;
-	osd->vpbe_type = (enum vpbe_version)pdata->vpbe_type;
-	if (NULL == pdev->dev.platform_data) {
-		dev_err(osd->dev, "No platform data defined for OSD"
-			" sub device\n");
-		ret = -ENOENT;
-		goto free_mem;
-	}
+	osd->vpbe_type = pdev_id->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(osd->dev, "Unable to get OSD register address map\n");
-		ret = -ENODEV;
-		goto free_mem;
-	}
+	osd->osd_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(osd->osd_base))
+		return PTR_ERR(osd->osd_base);
+
 	osd->osd_base_phys = res->start;
 	osd->osd_size = resource_size(res);
-	if (!request_mem_region(osd->osd_base_phys, osd->osd_size,
-				MODULE_NAME)) {
-		dev_err(osd->dev, "Unable to reserve OSD MMIO region\n");
-		ret = -ENODEV;
-		goto free_mem;
-	}
-	osd->osd_base = ioremap_nocache(res->start, osd->osd_size);
-	if (!osd->osd_base) {
-		dev_err(osd->dev, "Unable to map the OSD region\n");
-		ret = -ENODEV;
-		goto release_mem_region;
-	}
 	spin_lock_init(&osd->lock);
 	osd->ops = osd_ops;
 	platform_set_drvdata(pdev, osd);
 	dev_notice(osd->dev, "OSD sub device probe success\n");
-	return ret;
 
-release_mem_region:
-	release_mem_region(osd->osd_base_phys, osd->osd_size);
-free_mem:
-	kfree(osd);
-	return ret;
+	return 0;
 }
 
 static int osd_remove(struct platform_device *pdev)
 {
-	struct osd_state *osd = platform_get_drvdata(pdev);
-
-	iounmap((void *)osd->osd_base);
-	release_mem_region(osd->osd_base_phys, osd->osd_size);
-	kfree(osd);
 	return 0;
 }
 
@@ -1595,6 +1587,7 @@ static struct platform_driver osd_driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
 	},
+	.id_table	= vpbe_osd_devtype
 };
 
 module_platform_driver(osd_driver);

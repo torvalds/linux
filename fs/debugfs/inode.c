@@ -218,6 +218,7 @@ static int debugfs_remount(struct super_block *sb, int *flags, char *data)
 	int err;
 	struct debugfs_fs_info *fsi = sb->s_fs_info;
 
+	sync_filesystem(sb);
 	err = debugfs_parse_options(data, &fsi->mount_opts);
 	if (err)
 		goto fail;
@@ -299,6 +300,7 @@ static struct file_system_type debug_fs_type = {
 	.mount =	debug_mount,
 	.kill_sb =	kill_litter_super,
 };
+MODULE_ALIAS_FS("debugfs");
 
 static struct dentry *__create_file(const char *name, umode_t mode,
 				    struct dentry *parent, void *data,
@@ -322,7 +324,6 @@ static struct dentry *__create_file(const char *name, umode_t mode,
 	if (!parent)
 		parent = debugfs_mount->mnt_root;
 
-	dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry)) {
@@ -358,7 +359,7 @@ exit:
  * @name: a pointer to a string containing the name of the file to create.
  * @mode: the permission that the file should have.
  * @parent: a pointer to the parent dentry for this file.  This should be a
- *          directory dentry if set.  If this paramater is NULL, then the
+ *          directory dentry if set.  If this parameter is NULL, then the
  *          file will be created in the root of the debugfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
  *        on.  The inode.i_private pointer will point to this value on
@@ -400,7 +401,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_file);
  * @name: a pointer to a string containing the name of the directory to
  *        create.
  * @parent: a pointer to the parent dentry for this file.  This should be a
- *          directory dentry if set.  If this paramater is NULL, then the
+ *          directory dentry if set.  If this parameter is NULL, then the
  *          directory will be created in the root of the debugfs filesystem.
  *
  * This function creates a directory in debugfs with the given name.
@@ -425,7 +426,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_dir);
  * @name: a pointer to a string containing the name of the symbolic link to
  *        create.
  * @parent: a pointer to the parent dentry for this symbolic link.  This
- *          should be a directory dentry if set.  If this paramater is NULL,
+ *          should be a directory dentry if set.  If this parameter is NULL,
  *          then the symbolic link will be created in the root of the debugfs
  *          filesystem.
  * @target: a pointer to a string containing the path to the target of the
@@ -533,8 +534,7 @@ EXPORT_SYMBOL_GPL(debugfs_remove);
  */
 void debugfs_remove_recursive(struct dentry *dentry)
 {
-	struct dentry *child;
-	struct dentry *parent;
+	struct dentry *child, *next, *parent;
 
 	if (IS_ERR_OR_NULL(dentry))
 		return;
@@ -544,61 +544,36 @@ void debugfs_remove_recursive(struct dentry *dentry)
 		return;
 
 	parent = dentry;
+ down:
 	mutex_lock(&parent->d_inode->i_mutex);
+	list_for_each_entry_safe(child, next, &parent->d_subdirs, d_u.d_child) {
+		if (!debugfs_positive(child))
+			continue;
 
-	while (1) {
-		/*
-		 * When all dentries under "parent" has been removed,
-		 * walk up the tree until we reach our starting point.
-		 */
-		if (list_empty(&parent->d_subdirs)) {
-			mutex_unlock(&parent->d_inode->i_mutex);
-			if (parent == dentry)
-				break;
-			parent = parent->d_parent;
-			mutex_lock(&parent->d_inode->i_mutex);
-		}
-		child = list_entry(parent->d_subdirs.next, struct dentry,
-				d_u.d_child);
- next_sibling:
-
-		/*
-		 * If "child" isn't empty, walk down the tree and
-		 * remove all its descendants first.
-		 */
+		/* perhaps simple_empty(child) makes more sense */
 		if (!list_empty(&child->d_subdirs)) {
 			mutex_unlock(&parent->d_inode->i_mutex);
 			parent = child;
-			mutex_lock(&parent->d_inode->i_mutex);
-			continue;
+			goto down;
 		}
-		__debugfs_remove(child, parent);
-		if (parent->d_subdirs.next == &child->d_u.d_child) {
-			/*
-			 * Try the next sibling.
-			 */
-			if (child->d_u.d_child.next != &parent->d_subdirs) {
-				child = list_entry(child->d_u.d_child.next,
-						   struct dentry,
-						   d_u.d_child);
-				goto next_sibling;
-			}
-
-			/*
-			 * Avoid infinite loop if we fail to remove
-			 * one dentry.
-			 */
-			mutex_unlock(&parent->d_inode->i_mutex);
-			break;
-		}
-		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+ up:
+		if (!__debugfs_remove(child, parent))
+			simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	}
 
-	parent = dentry->d_parent;
-	mutex_lock(&parent->d_inode->i_mutex);
-	__debugfs_remove(dentry, parent);
 	mutex_unlock(&parent->d_inode->i_mutex);
-	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	child = parent;
+	parent = parent->d_parent;
+	mutex_lock(&parent->d_inode->i_mutex);
+
+	if (child != dentry) {
+		next = list_next_entry(child, d_u.d_child);
+		goto up;
+	}
+
+	if (!__debugfs_remove(child, parent))
+		simple_release_fs(&debugfs_mount, &debugfs_mount_count);
+	mutex_unlock(&parent->d_inode->i_mutex);
 }
 EXPORT_SYMBOL_GPL(debugfs_remove_recursive);
 

@@ -306,7 +306,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_NONEXISTENT_SECTOR, -EIO, "STATUS_NONEXISTENT_SECTOR"},
 	{STATUS_MORE_PROCESSING_REQUIRED, -EIO,
 	"STATUS_MORE_PROCESSING_REQUIRED"},
-	{STATUS_NO_MEMORY, -ENOMEM, "STATUS_NO_MEMORY"},
+	{STATUS_NO_MEMORY, -EREMOTEIO, "STATUS_NO_MEMORY"},
 	{STATUS_CONFLICTING_ADDRESSES, -EADDRINUSE,
 	"STATUS_CONFLICTING_ADDRESSES"},
 	{STATUS_NOT_MAPPED_VIEW, -EIO, "STATUS_NOT_MAPPED_VIEW"},
@@ -2472,7 +2472,7 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 
 	/* on error mapping not found  - return EIO */
 
-	cFYI(1, "Mapping SMB2 status code %d to POSIX err %d",
+	cifs_dbg(FYI, "Mapping SMB2 status code %d to POSIX err %d\n",
 		 smb2err, rc);
 
 	return rc;

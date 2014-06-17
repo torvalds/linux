@@ -28,11 +28,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-
 #include <linux/platform_data/usb-ehci-mxc.h>
-
-#include <asm/mach-types.h>
-
 #include "ehci.h"
 
 #define DRIVER_DESC "Freescale On-Chip EHCI Host driver"
@@ -47,22 +43,19 @@ struct ehci_mxc_priv {
 
 static struct hc_driver __read_mostly ehci_mxc_hc_driver;
 
-static const struct ehci_driver_overrides ehci_mxc_overrides __initdata = {
+static const struct ehci_driver_overrides ehci_mxc_overrides __initconst = {
 	.extra_priv_size =	sizeof(struct ehci_mxc_priv),
 };
 
 static int ehci_mxc_drv_probe(struct platform_device *pdev)
 {
-	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd;
 	struct resource *res;
 	int irq, ret;
-	unsigned int flags;
 	struct ehci_mxc_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct ehci_hcd *ehci;
-
-	dev_info(&pdev->dev, "initializing i.MX USB Controller\n");
 
 	if (!pdata) {
 		dev_err(dev, "No platform data given, bailing out.\n");
@@ -85,10 +78,9 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
 
-	hcd->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!hcd->regs) {
-		dev_err(dev, "error mapping memory\n");
-		ret = -EFAULT;
+	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(hcd->regs)) {
+		ret = PTR_ERR(hcd->regs);
 		goto err_alloc;
 	}
 
@@ -163,25 +155,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add;
 
-	if (pdata->otg) {
-		/*
-		 * efikamx and efikasb have some hardware bug which is
-		 * preventing usb to work unless CHRGVBUS is set.
-		 * It's in violation of USB specs
-		 */
-		if (machine_is_mx51_efikamx() || machine_is_mx51_efikasb()) {
-			flags = usb_phy_io_read(pdata->otg,
-							ULPI_OTG_CTRL);
-			flags |= ULPI_OTG_CTRL_CHRGVBUS;
-			ret = usb_phy_io_write(pdata->otg, flags,
-							ULPI_OTG_CTRL);
-			if (ret) {
-				dev_err(dev, "unable to set CHRVBUS\n");
-				goto err_add;
-			}
-		}
-	}
-
+	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
 err_add:
@@ -199,9 +173,9 @@ err_alloc:
 	return ret;
 }
 
-static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
+static int ehci_mxc_drv_remove(struct platform_device *pdev)
 {
-	struct mxc_usbh_platform_data *pdata = pdev->dev.platform_data;
+	struct mxc_usbh_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	struct ehci_mxc_priv *priv = (struct ehci_mxc_priv *) ehci->priv;
@@ -211,7 +185,7 @@ static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 	if (pdata && pdata->exit)
 		pdata->exit(pdev);
 
-	if (pdata->otg)
+	if (pdata && pdata->otg)
 		usb_phy_shutdown(pdata->otg);
 
 	clk_disable_unprepare(priv->usbclk);
@@ -221,16 +195,7 @@ static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 		clk_disable_unprepare(priv->phyclk);
 
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
-}
-
-static void ehci_mxc_drv_shutdown(struct platform_device *pdev)
-{
-	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-
-	if (hcd->driver->shutdown)
-		hcd->driver->shutdown(hcd);
 }
 
 MODULE_ALIAS("platform:mxc-ehci");
@@ -238,7 +203,7 @@ MODULE_ALIAS("platform:mxc-ehci");
 static struct platform_driver ehci_mxc_driver = {
 	.probe = ehci_mxc_drv_probe,
 	.remove = ehci_mxc_drv_remove,
-	.shutdown = ehci_mxc_drv_shutdown,
+	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		   .name = "mxc-ehci",
 	},

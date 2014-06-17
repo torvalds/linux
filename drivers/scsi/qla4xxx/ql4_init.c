@@ -1,6 +1,6 @@
 /*
  * QLogic iSCSI HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
@@ -107,7 +107,7 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_in);
 		writel(0,
 		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_out);
-	} else if (is_qla8032(ha)) {
+	} else if (is_qla8032(ha) || is_qla8042(ha)) {
 		writel(0,
 		       (unsigned long __iomem *)&ha->qla4_83xx_reg->req_q_in);
 		writel(0,
@@ -195,12 +195,10 @@ exit_get_sys_info_no_free:
  * @ha: pointer to host adapter structure.
  *
  **/
-static int qla4xxx_init_local_data(struct scsi_qla_host *ha)
+static void qla4xxx_init_local_data(struct scsi_qla_host *ha)
 {
 	/* Initialize aen queue */
 	ha->aen_q_count = MAX_AEN_ENTRIES;
-
-	return qla4xxx_get_firmware_status(ha);
 }
 
 static uint8_t
@@ -284,6 +282,25 @@ qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
 	return ipv4_wait|ipv6_wait;
 }
 
+static int qla4_80xx_is_minidump_dma_capable(struct scsi_qla_host *ha,
+		struct qla4_8xxx_minidump_template_hdr *md_hdr)
+{
+	int offset = (is_qla8022(ha)) ? QLA8022_TEMPLATE_CAP_OFFSET :
+					QLA83XX_TEMPLATE_CAP_OFFSET;
+	int rval = 1;
+	uint32_t *cap_offset;
+
+	cap_offset = (uint32_t *)((char *)md_hdr + offset);
+
+	if (!(le32_to_cpu(*cap_offset) & BIT_0)) {
+		ql4_printk(KERN_INFO, ha, "PEX DMA Not supported %d\n",
+			   *cap_offset);
+		rval = 0;
+	}
+
+	return rval;
+}
+
 /**
  * qla4xxx_alloc_fw_dump - Allocate memory for minidump data.
  * @ha: pointer to host adapter structure.
@@ -296,6 +313,7 @@ void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
 	void *md_tmp;
 	dma_addr_t md_tmp_dma;
 	struct qla4_8xxx_minidump_template_hdr *md_hdr;
+	int dma_capable;
 
 	if (ha->fw_dump) {
 		ql4_printk(KERN_WARNING, ha,
@@ -328,13 +346,19 @@ void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha)
 
 	md_hdr = (struct qla4_8xxx_minidump_template_hdr *)md_tmp;
 
+	dma_capable = qla4_80xx_is_minidump_dma_capable(ha, md_hdr);
+
 	capture_debug_level = md_hdr->capture_debug_level;
 
 	/* Get capture mask based on module loadtime setting. */
-	if (ql4xmdcapmask >= 0x3 && ql4xmdcapmask <= 0x7F)
+	if ((ql4xmdcapmask >= 0x3 && ql4xmdcapmask <= 0x7F) ||
+	    (ql4xmdcapmask == 0xFF && dma_capable))  {
 		ha->fw_dump_capture_mask = ql4xmdcapmask;
-	else
+	} else {
+		if (ql4xmdcapmask == 0xFF)
+			ql4_printk(KERN_INFO, ha, "Falling back to default capture mask, as PEX DMA is not supported\n");
 		ha->fw_dump_capture_mask = capture_debug_level;
+	}
 
 	md_hdr->driver_capture_mask = ha->fw_dump_capture_mask;
 
@@ -866,6 +890,8 @@ int qla4xxx_start_firmware(struct scsi_qla_host *ha)
 	if (status == QLA_SUCCESS) {
 		if (test_and_clear_bit(AF_GET_CRASH_RECORD, &ha->flags))
 			qla4xxx_get_crash_record(ha);
+
+		qla4xxx_init_rings(ha);
 	} else {
 		DEBUG(printk("scsi%ld: %s: Firmware has NOT started\n",
 			     ha->host_no, __func__));
@@ -935,14 +961,23 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 	if (ha->isp_ops->start_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
+	/*
+	 * For ISP83XX, mailbox and IOCB interrupts are enabled separately.
+	 * Mailbox interrupts must be enabled prior to issuing any mailbox
+	 * command in order to prevent the possibility of losing interrupts
+	 * while switching from polling to interrupt mode. IOCB interrupts are
+	 * enabled via isp_ops->enable_intrs.
+	 */
+	if (is_qla8032(ha) || is_qla8042(ha))
+		qla4_83xx_enable_mbox_intrs(ha);
+
 	if (qla4xxx_about_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
 	if (ha->isp_ops->get_sys_info(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
-	if (qla4xxx_init_local_data(ha) == QLA_ERROR)
-		goto exit_init_hba;
+	qla4xxx_init_local_data(ha);
 
 	status = qla4xxx_init_firmware(ha);
 	if (status == QLA_ERROR)
@@ -952,13 +987,8 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 		qla4xxx_build_ddb_list(ha, is_reset);
 
 	set_bit(AF_ONLINE, &ha->flags);
-exit_init_hba:
-	if (is_qla80XX(ha) && (status == QLA_ERROR)) {
-		/* Since interrupts are registered in start_firmware for
-		 * 80XX, release them here if initialize_adapter fails */
-		qla4xxx_free_irqs(ha);
-	}
 
+exit_init_hba:
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
 	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 	return status;

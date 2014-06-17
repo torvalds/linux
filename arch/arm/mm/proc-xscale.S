@@ -528,7 +528,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 .globl	cpu_xscale_suspend_size
 .equ	cpu_xscale_suspend_size, 4 * 6
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 ENTRY(cpu_xscale_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
@@ -557,8 +557,6 @@ ENTRY(cpu_xscale_do_resume)
 	b	cpu_resume_mmu
 ENDPROC(cpu_xscale_do_resume)
 #endif
-
-	__CPUINIT
 
 	.type	__xscale_setup, #function
 __xscale_setup:

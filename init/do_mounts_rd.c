@@ -13,7 +13,7 @@
 #include <linux/minix_fs.h>
 #include <linux/ext2_fs.h>
 #include <linux/romfs_fs.h>
-#include <linux/cramfs_fs.h>
+#include <uapi/linux/cramfs_fs.h>
 #include <linux/initrd.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -57,6 +57,11 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
  *	cramfs
  *	squashfs
  *	gzip
+ *	bzip2
+ *	lzma
+ *	xz
+ *	lzo
+ *	lz4
  */
 static int __init
 identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
@@ -342,6 +347,13 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
 	int result;
 	crd_infd = in_fd;
 	crd_outfd = out_fd;
+
+	if (!deco) {
+		pr_emerg("Invalid ramdisk decompression routine.  "
+			 "Select appropriate config option.\n");
+		panic("Could not decompress initial ramdisk image.");
+	}
+
 	result = deco(NULL, 0, compr_fill, compr_flush, NULL, NULL, error);
 	if (decompress_error)
 		result = 1;

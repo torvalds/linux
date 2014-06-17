@@ -33,6 +33,8 @@
 #define MX3_CAMERA_DATAWIDTH_MASK (MX3_CAMERA_DATAWIDTH_4 | MX3_CAMERA_DATAWIDTH_8 | \
 				   MX3_CAMERA_DATAWIDTH_10 | MX3_CAMERA_DATAWIDTH_15)
 
+struct v4l2_async_subdev;
+
 /**
  * struct mx3_camera_pdata - i.MX3x camera platform data
  * @flags:	MX3_CAMERA_* flags
@@ -43,6 +45,8 @@ struct mx3_camera_pdata {
 	unsigned long flags;
 	unsigned long mclk_10khz;
 	struct device *dma_dev;
+	struct v4l2_async_subdev **asd;	/* Flat array, arranged in groups */
+	int *asd_sizes;			/* 0-terminated array of asd group sizes */
 };
 
 #endif

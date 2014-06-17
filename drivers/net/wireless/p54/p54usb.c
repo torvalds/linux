@@ -12,7 +12,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -83,9 +82,10 @@ static struct usb_device_id p54u_table[] = {
 	{USB_DEVICE(0x06a9, 0x000e)},	/* Westell 802.11g USB (A90-211WG-01) */
 	{USB_DEVICE(0x06b9, 0x0121)},	/* Thomson SpeedTouch 121g */
 	{USB_DEVICE(0x0707, 0xee13)},   /* SMC 2862W-G version 2 */
+	{USB_DEVICE(0x07aa, 0x0020)},	/* Corega WLUSB2GTST USB */
 	{USB_DEVICE(0x0803, 0x4310)},	/* Zoom 4410a */
-	{USB_DEVICE(0x083a, 0x4503)},	/* T-Com Sinus 154 data II */
 	{USB_DEVICE(0x083a, 0x4521)},   /* Siemens Gigaset USB Adapter 54 version 2 */
+	{USB_DEVICE(0x083a, 0x4531)},	/* T-Com Sinus 154 data II */
 	{USB_DEVICE(0x083a, 0xc501)},	/* Zoom Wireless-G 4410 */
 	{USB_DEVICE(0x083a, 0xf503)},	/* Accton FD7050E ver 1010ec  */
 	{USB_DEVICE(0x0846, 0x4240)},	/* Netgear WG111 (v2) */
@@ -510,13 +510,10 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		return err;
 
 	tmp = buf = kmalloc(P54U_FW_BLOCK, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) cannot allocate firmware"
-					  "upload buffer!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
-	left = block_size = min((size_t)P54U_FW_BLOCK, priv->fw->size);
+	left = block_size = min_t(size_t, P54U_FW_BLOCK, priv->fw->size);
 	strcpy(buf, p54u_firmware_upload_3887);
 	left -= strlen(p54u_firmware_upload_3887);
 	tmp += strlen(p54u_firmware_upload_3887);
@@ -637,11 +634,8 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	const u8 *data;
 
 	buf = kmalloc(512, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&priv->udev->dev, "(p54usb) firmware buffer "
-					  "alloc failed!\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 #define P54U_WRITE(type, addr, data) \
 	do {\
@@ -985,6 +979,7 @@ static int p54u_load_firmware(struct ieee80211_hw *dev,
 	if (err) {
 		dev_err(&priv->udev->dev, "(p54usb) cannot load firmware %s "
 					  "(%d)!\n", p54u_fwlist[i].fw, err);
+		usb_put_dev(udev);
 	}
 
 	return err;
@@ -1058,6 +1053,10 @@ static int p54u_probe(struct usb_interface *intf,
 		priv->upload_fw = p54u_upload_firmware_net2280;
 	}
 	err = p54u_load_firmware(dev, intf);
+	if (err) {
+		usb_put_dev(udev);
+		p54_free_common(dev);
+	}
 	return err;
 }
 

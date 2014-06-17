@@ -94,6 +94,7 @@
 #define RTL_PCI_8192CU_DID	0x8191	/*8192ce */
 #define RTL_PCI_8192DE_DID	0x8193	/*8192de */
 #define RTL_PCI_8192DE_DID2	0x002B	/*92DE*/
+#define RTL_PCI_8188EE_DID	0x8179  /*8188ee*/
 
 /*8192 support 16 pages of IO registers*/
 #define RTL_MEM_MAPPED_IO_RANGE_8190PCI		0x1000
@@ -136,12 +137,22 @@ struct rtl_tx_cmd_desc {
 	u32 dword[16];
 } __packed;
 
+/* In new TRX flow, Buffer_desc is new concept
+ * But TX wifi info == TX descriptor in old flow
+ * RX wifi info == RX descriptor in old flow
+ */
+struct rtl_tx_buffer_desc {
+	u32 dword[8]; /*seg = 4*/
+} __packed;
+
 struct rtl8192_tx_ring {
 	struct rtl_tx_desc *desc;
 	dma_addr_t dma;
 	unsigned int idx;
 	unsigned int entries;
 	struct sk_buff_head queue;
+	/*add for new trx flow*/
+	struct rtl_tx_buffer_desc *buffer_desc; /*tx buffer descriptor*/
 };
 
 struct rtl8192_rx_ring {
@@ -175,6 +186,7 @@ struct rtl_pci {
 	/*irq */
 	u8 irq_alloc;
 	u32 irq_mask[2];
+	u32 sys_irq_mask;
 
 	/*Bcn control register setting */
 	u32 reg_bcn_ctrl_val;
@@ -197,6 +209,10 @@ struct rtl_pci {
 
 	u16 shortretry_limit;
 	u16 longretry_limit;
+
+	/* MSI support */
+	bool msi_support;
+	bool using_msi;
 };
 
 struct mp_adapter {

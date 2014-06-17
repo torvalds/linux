@@ -2,6 +2,7 @@
  * x_tables core - Backend for {ip,ip6,arp}_tables
  *
  * Copyright (C) 2006-2006 Harald Welte <laforge@netfilter.org>
+ * Copyright (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * Based on existing ip_tables code which is
  *   Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
@@ -844,8 +845,13 @@ xt_replace_table(struct xt_table *table,
 		return NULL;
 	}
 
-	table->private = newinfo;
 	newinfo->initial_entries = private->initial_entries;
+	/*
+	 * Ensure contents of newinfo are visible before assigning to
+	 * private.
+	 */
+	smp_wmb();
+	table->private = newinfo;
 
 	/*
 	 * Even though table entries have now been swapped, other CPU's
@@ -999,7 +1005,7 @@ static int xt_table_open(struct inode *inode, struct file *file)
 			   sizeof(struct xt_names_priv));
 	if (!ret) {
 		priv = ((struct seq_file *)file->private_data)->private;
-		priv->af = (unsigned long)PDE(inode)->data;
+		priv->af = (unsigned long)PDE_DATA(inode);
 	}
 	return ret;
 }
@@ -1147,7 +1153,7 @@ static int xt_match_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = trav;
-	trav->nfproto = (unsigned long)PDE(inode)->data;
+	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }
 
@@ -1211,7 +1217,7 @@ static int xt_target_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = trav;
-	trav->nfproto = (unsigned long)PDE(inode)->data;
+	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }
 
@@ -1323,12 +1329,12 @@ int xt_proto_init(struct net *net, u_int8_t af)
 out_remove_matches:
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
-	proc_net_remove(net, buf);
+	remove_proc_entry(buf, net->proc_net);
 
 out_remove_tables:
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TABLES, sizeof(buf));
-	proc_net_remove(net, buf);
+	remove_proc_entry(buf, net->proc_net);
 out:
 	return -1;
 #endif
@@ -1342,15 +1348,15 @@ void xt_proto_fini(struct net *net, u_int8_t af)
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TABLES, sizeof(buf));
-	proc_net_remove(net, buf);
+	remove_proc_entry(buf, net->proc_net);
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_TARGETS, sizeof(buf));
-	proc_net_remove(net, buf);
+	remove_proc_entry(buf, net->proc_net);
 
 	strlcpy(buf, xt_prefix[af], sizeof(buf));
 	strlcat(buf, FORMAT_MATCHES, sizeof(buf));
-	proc_net_remove(net, buf);
+	remove_proc_entry(buf, net->proc_net);
 #endif /*CONFIG_PROC_FS*/
 }
 EXPORT_SYMBOL_GPL(xt_proto_fini);

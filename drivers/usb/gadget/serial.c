@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
@@ -26,20 +27,6 @@
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_VERSION_NAME			GS_LONG_NAME " " GS_VERSION_STR
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * Kbuild is not very cooperative with respect to linking separately
- * compiled library objects into one module.  So for now we won't use
- * separate compilation ... ensuring init/exit sections work to shrink
- * the runtime footprint, and giving us at least some parts of what
- * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
- */
-#include "f_acm.c"
-#include "f_obex.c"
-#include "f_serial.c"
-#include "u_serial.c"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
@@ -129,22 +116,6 @@ MODULE_PARM_DESC(n_ports, "number of ports to create, default=1");
 
 /*-------------------------------------------------------------------------*/
 
-static int __init serial_bind_config(struct usb_configuration *c)
-{
-	unsigned i;
-	int status = 0;
-
-	for (i = 0; i < n_ports && status == 0; i++) {
-		if (use_acm)
-			status = acm_bind_config(c, i);
-		else if (use_obex)
-			status = obex_bind_config(c, i);
-		else
-			status = gser_bind_config(c, i);
-	}
-	return status;
-}
-
 static struct usb_configuration serial_config_driver = {
 	/* .label = f(use_acm) */
 	/* .bConfigurationValue = f(use_acm) */
@@ -152,13 +123,60 @@ static struct usb_configuration serial_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
 };
 
+static struct usb_function_instance *fi_serial[MAX_U_SERIAL_PORTS];
+static struct usb_function *f_serial[MAX_U_SERIAL_PORTS];
+
+static int serial_register_ports(struct usb_composite_dev *cdev,
+		struct usb_configuration *c, const char *f_name)
+{
+	int i;
+	int ret;
+
+	ret = usb_add_config_only(cdev, c);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < n_ports; i++) {
+
+		fi_serial[i] = usb_get_function_instance(f_name);
+		if (IS_ERR(fi_serial[i])) {
+			ret = PTR_ERR(fi_serial[i]);
+			goto fail;
+		}
+
+		f_serial[i] = usb_get_function(fi_serial[i]);
+		if (IS_ERR(f_serial[i])) {
+			ret = PTR_ERR(f_serial[i]);
+			goto err_get_func;
+		}
+
+		ret = usb_add_function(c, f_serial[i]);
+		if (ret)
+			goto err_add_func;
+	}
+
+	return 0;
+
+err_add_func:
+	usb_put_function(f_serial[i]);
+err_get_func:
+	usb_put_function_instance(fi_serial[i]);
+
+fail:
+	i--;
+	while (i >= 0) {
+		usb_remove_function(c, f_serial[i]);
+		usb_put_function(f_serial[i]);
+		usb_put_function_instance(fi_serial[i]);
+		i--;
+	}
+out:
+	return ret;
+}
+
 static int __init gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
-
-	status = gserial_setup(cdev->gadget, n_ports);
-	if (status < 0)
-		return status;
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -178,8 +196,17 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* register our configuration */
-	status = usb_add_config(cdev, &serial_config_driver,
-			serial_bind_config);
+	if (use_acm) {
+		status  = serial_register_ports(cdev, &serial_config_driver,
+				"acm");
+		usb_ep_autoconfig_reset(cdev->gadget);
+	} else if (use_obex)
+		status = serial_register_ports(cdev, &serial_config_driver,
+				"obex");
+	else {
+		status = serial_register_ports(cdev, &serial_config_driver,
+				"gser");
+	}
 	if (status < 0)
 		goto fail;
 
@@ -189,8 +216,18 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gserial_cleanup();
 	return status;
+}
+
+static int gs_unbind(struct usb_composite_dev *cdev)
+{
+	int i;
+
+	for (i = 0; i < n_ports; i++) {
+		usb_put_function(f_serial[i]);
+		usb_put_function_instance(fi_serial[i]);
+	}
+	return 0;
 }
 
 static __refdata struct usb_composite_driver gserial_driver = {
@@ -199,6 +236,7 @@ static __refdata struct usb_composite_driver gserial_driver = {
 	.strings	= dev_strings,
 	.max_speed	= USB_SPEED_SUPER,
 	.bind		= gs_bind,
+	.unbind		= gs_unbind,
 };
 
 static int __init init(void)
@@ -234,6 +272,5 @@ module_init(init);
 static void __exit cleanup(void)
 {
 	usb_composite_unregister(&gserial_driver);
-	gserial_cleanup();
 }
 module_exit(cleanup);

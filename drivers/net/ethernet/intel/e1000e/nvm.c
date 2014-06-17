@@ -1,30 +1,23 @@
-/*******************************************************************************
-
-  Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Intel PRO/1000 Linux driver
+ * Copyright(c) 1999 - 2014 Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
+ *
+ * Contact Information:
+ * Linux NICS <linux.nics@intel.com>
+ * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ */
 
 #include "e1000.h"
 
@@ -117,7 +110,6 @@ static u16 e1000_shift_in_eec_bits(struct e1000_hw *hw, u16 count)
 	u16 data;
 
 	eecd = er32(EECD);
-
 	eecd &= ~(E1000_EECD_DO | E1000_EECD_DI);
 	data = 0;
 
@@ -359,7 +351,7 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	s32 ret_val;
+	s32 ret_val = -E1000_ERR_NVM;
 	u16 widx = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
@@ -371,16 +363,18 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		return -E1000_ERR_NVM;
 	}
 
-	ret_val = nvm->ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
 	while (widx < words) {
 		u8 write_opcode = NVM_WRITE_OPCODE_SPI;
 
-		ret_val = e1000_ready_nvm_eeprom(hw);
+		ret_val = nvm->ops.acquire(hw);
 		if (ret_val)
-			goto release;
+			return ret_val;
+
+		ret_val = e1000_ready_nvm_eeprom(hw);
+		if (ret_val) {
+			nvm->ops.release(hw);
+			return ret_val;
+		}
 
 		e1000_standby_nvm(hw);
 
@@ -404,6 +398,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		/* Loop to allow for up to whole page write of eeprom */
 		while (widx < words) {
 			u16 word_out = data[widx];
+
 			word_out = (word_out >> 8) | (word_out << 8);
 			e1000_shift_out_eec_bits(hw, word_out, 16);
 			widx++;
@@ -413,11 +408,9 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 				break;
 			}
 		}
+		usleep_range(10000, 20000);
+		nvm->ops.release(hw);
 	}
-
-	usleep_range(10000, 20000);
-release:
-	nvm->ops.release(hw);
 
 	return ret_val;
 }
@@ -464,8 +457,8 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
 		e_dbg("NVM PBA number is not stored as string\n");
 
-		/* we will need 11 characters to store the PBA */
-		if (pba_num_size < 11) {
+		/* make sure callers buffer is big enough to store the PBA */
+		if (pba_num_size < E1000_PBANUM_LENGTH) {
 			e_dbg("PBA string buffer too small\n");
 			return E1000_ERR_NO_SPACE;
 		}
@@ -630,7 +623,7 @@ void e1000e_reload_nvm_generic(struct e1000_hw *hw)
 {
 	u32 ctrl_ext;
 
-	udelay(10);
+	usleep_range(10, 20);
 	ctrl_ext = er32(CTRL_EXT);
 	ctrl_ext |= E1000_CTRL_EXT_EE_RST;
 	ew32(CTRL_EXT, ctrl_ext);

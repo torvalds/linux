@@ -19,9 +19,11 @@ static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 }
 
 extern int dma_set_mask(struct device *dev, u64 mask);
-extern int dma_is_consistent(struct device *dev, dma_addr_t dma_handle);
-extern void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
-			   enum dma_data_direction direction);
+
+static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
+				  enum dma_data_direction direction)
+{
+}
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
@@ -48,9 +50,10 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
+	debug_dma_mapping_error(dev, dma_addr);
 	if (dma_ops->mapping_error)
 		return dma_ops->mapping_error(dev, dma_addr);
-	return (dma_addr == 0UL);
+	return dma_addr == DMA_ERROR_CODE;
 }
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
@@ -69,8 +72,8 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 {
 	struct dma_map_ops *dma_ops = get_dma_ops(dev);
 
-	dma_ops->free(dev, size, cpu_addr, dma_handle, NULL);
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
+	dma_ops->free(dev, size, cpu_addr, dma_handle, NULL);
 }
 
 #endif /* _ASM_S390_DMA_MAPPING_H */

@@ -25,14 +25,6 @@ Required Board Specific Properties:
 - samsung,keypad-num-columns: Number of column lines connected to the
   keypad controller.
 
-- row-gpios: List of gpios used as row lines. The gpio specifier for
-  this property depends on the gpio controller to which these row lines
-  are connected.
-
-- col-gpios: List of gpios used as column lines. The gpio specifier for
-  this property depends on the gpio controller to which these column
-  lines are connected.
-
 - Keys represented as child nodes: Each key connected to the keypad
   controller is represented as a child node to the keypad controller
   device node and should include the following properties.
@@ -40,6 +32,9 @@ Required Board Specific Properties:
   - keypad,column: the column number to which the key is connected.
   - linux,code: the key-code to be reported when the key is pressed
     and released.
+
+- pinctrl-0: Should specify pin control groups used for this controller.
+- pinctrl-names: Should contain only one value - "default".
 
 Optional Properties specific to linux:
 - linux,keypad-no-autorepeat: do no enable autorepeat feature.
@@ -56,17 +51,8 @@ Example:
 		linux,input-no-autorepeat;
 		linux,input-wakeup;
 
-		row-gpios = <&gpx2 0 3 3 0
-			     &gpx2 1 3 3 0>;
-
-		col-gpios = <&gpx1 0 3 0 0
-			     &gpx1 1 3 0 0
-			     &gpx1 2 3 0 0
-			     &gpx1 3 3 0 0
-			     &gpx1 4 3 0 0
-			     &gpx1 5 3 0 0
-			     &gpx1 6 3 0 0
-			     &gpx1 7 3 0 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&keypad_rows &keypad_columns>;
 
 		key_1 {
 			keypad,row = <0>;

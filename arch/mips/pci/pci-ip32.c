@@ -18,9 +18,9 @@
 
 /*
  * Handle errors from the bridge.  This includes master and target aborts,
- * various command and address errors, and the interrupt test.  This gets
- * registered on the bridge error irq.  It's conceivable that some of these
- * conditions warrant a panic.  Anybody care to say which ones?
+ * various command and address errors, and the interrupt test.	This gets
+ * registered on the bridge error irq.	It's conceivable that some of these
+ * conditions warrant a panic.	Anybody care to say which ones?
  */
 static irqreturn_t macepci_error(int irq, void *dev)
 {

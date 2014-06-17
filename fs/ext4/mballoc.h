@@ -37,18 +37,18 @@
 /*
  */
 #ifdef CONFIG_EXT4_DEBUG
-extern u8 mb_enable_debug;
+extern ushort ext4_mballoc_debug;
 
 #define mb_debug(n, fmt, a...)	                                        \
 	do {								\
-		if ((n) <= mb_enable_debug) {		        	\
+		if ((n) <= ext4_mballoc_debug) {		        \
 			printk(KERN_DEBUG "(%s, %d): %s: ",		\
 			       __FILE__, __LINE__, __func__);		\
 			printk(fmt, ## a);				\
 		}							\
 	} while (0)
 #else
-#define mb_debug(n, fmt, a...)
+#define mb_debug(n, fmt, a...)		no_printk(fmt, ## a)
 #endif
 
 #define EXT4_MB_HISTORY_ALLOC		1	/* allocation */
@@ -175,8 +175,6 @@ struct ext4_allocation_context {
 	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
-	/* number of iterations done. we have to track to limit searching */
-	unsigned long ac_ex_scanned;
 	__u16 ac_groups_scanned;
 	__u16 ac_found;
 	__u16 ac_tail;

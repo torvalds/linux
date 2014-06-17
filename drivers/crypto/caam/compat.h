@@ -23,10 +23,10 @@
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/circ_buf.h>
-#include <linux/string.h>
 #include <net/xfrm.h>
 
 #include <crypto/algapi.h>
+#include <crypto/null.h>
 #include <crypto/aes.h>
 #include <crypto/des.h>
 #include <crypto/sha.h>

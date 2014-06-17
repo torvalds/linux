@@ -23,8 +23,7 @@
  */
 
 #include <linux/module.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <asm/sal.h>
 
 MODULE_AUTHOR("Bjorn Helgaas <bjorn.helgaas@hp.com>");
@@ -191,7 +190,7 @@ static int aml_nfw_add(struct acpi_device *device)
 	return aml_nfw_add_global_handler();
 }
 
-static int aml_nfw_remove(struct acpi_device *device, int type)
+static int aml_nfw_remove(struct acpi_device *device)
 {
 	return aml_nfw_remove_global_handler();
 }

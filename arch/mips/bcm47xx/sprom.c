@@ -27,7 +27,7 @@
  */
 
 #include <bcm47xx.h>
-#include <nvram.h>
+#include <bcm47xx_nvram.h>
 
 static void create_key(const char *prefix, const char *postfix,
 		       const char *name, char *buf, int len)
@@ -50,18 +50,18 @@ static int get_nvram_var(const char *prefix, const char *postfix,
 
 	create_key(prefix, postfix, name, key, sizeof(key));
 
-	err = nvram_getenv(key, buf, len);
-	if (fallback && err == NVRAM_ERR_ENVNOTFOUND && prefix) {
+	err = bcm47xx_nvram_getenv(key, buf, len);
+	if (fallback && err == -ENOENT && prefix) {
 		create_key(NULL, postfix, name, key, sizeof(key));
-		err = nvram_getenv(key, buf, len);
+		err = bcm47xx_nvram_getenv(key, buf, len);
 	}
 	return err;
 }
 
 #define NVRAM_READ_VAL(type)						\
 static void nvram_read_ ## type (const char *prefix,			\
-				 const char *postfix, const char *name,	\
-				 type *val, type allset, bool fallback)	\
+				 const char *postfix, const char *name, \
+				 type *val, type allset, bool fallback) \
 {									\
 	char buf[100];							\
 	int err;							\
@@ -71,7 +71,7 @@ static void nvram_read_ ## type (const char *prefix,			\
 			    fallback);					\
 	if (err < 0)							\
 		return;							\
-	err = kstrto ## type (buf, 0, &var);				\
+	err = kstrto ## type(strim(buf), 0, &var);			\
 	if (err) {							\
 		pr_warn("can not parse nvram name %s%s%s with value %s got %i\n",	\
 			prefix, name, postfix, buf, err);		\
@@ -99,7 +99,7 @@ static void nvram_read_u32_2(const char *prefix, const char *name,
 	err = get_nvram_var(prefix, NULL, name, buf, sizeof(buf), fallback);
 	if (err < 0)
 		return;
-	err = kstrtou32(buf, 0, &val);
+	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
 		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
@@ -120,7 +120,7 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 	err = get_nvram_var(prefix, NULL, name, buf, sizeof(buf), fallback);
 	if (err < 0)
 		return;
-	err = kstrtou32(buf, 0, &val);
+	err = kstrtou32(strim(buf), 0, &val);
 	if (err) {
 		pr_warn("can not parse nvram name %s%s with value %s got %i\n",
 			prefix, name, buf, err);
@@ -135,7 +135,7 @@ static void nvram_read_leddc(const char *prefix, const char *name,
 }
 
 static void nvram_read_macaddr(const char *prefix, const char *name,
-			       u8 (*val)[6], bool fallback)
+			       u8 val[6], bool fallback)
 {
 	char buf[100];
 	int err;
@@ -144,11 +144,11 @@ static void nvram_read_macaddr(const char *prefix, const char *name,
 	if (err < 0)
 		return;
 
-	nvram_parse_macaddr(buf, *val);
+	bcm47xx_nvram_parse_macaddr(buf, val);
 }
 
 static void nvram_read_alpha2(const char *prefix, const char *name,
-			     char (*val)[2], bool fallback)
+			     char val[2], bool fallback)
 {
 	char buf[10];
 	int err;
@@ -162,12 +162,13 @@ static void nvram_read_alpha2(const char *prefix, const char *name,
 		pr_warn("alpha2 is too long %s\n", buf);
 		return;
 	}
-	memcpy(val, buf, sizeof(val));
+	memcpy(val, buf, 2);
 }
 
 static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
+	nvram_read_u16(prefix, NULL, "devid", &sprom->dev_id, 0, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh0", &sprom->gpio0, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh1", &sprom->gpio1, 0xff, fallback);
 	nvram_read_u8(prefix, NULL, "ledbh2", &sprom->gpio2, 0xff, fallback);
@@ -180,7 +181,7 @@ static void bcm47xx_fill_sprom_r1234589(struct ssb_sprom *sprom,
 		      fallback);
 	nvram_read_s8(prefix, NULL, "ag1", &sprom->antenna_gain.a1, 0,
 		      fallback);
-	nvram_read_alpha2(prefix, "ccode", &sprom->alpha2, fallback);
+	nvram_read_alpha2(prefix, "ccode", sprom->alpha2, fallback);
 }
 
 static void bcm47xx_fill_sprom_r12389(struct ssb_sprom *sprom,
@@ -633,31 +634,29 @@ static void bcm47xx_fill_sprom_path_r45(struct ssb_sprom *sprom,
 static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
-	nvram_read_macaddr(prefix, "et0macaddr", &sprom->et0mac, fallback);
+	nvram_read_macaddr(prefix, "et0macaddr", sprom->et0mac, fallback);
 	nvram_read_u8(prefix, NULL, "et0mdcport", &sprom->et0mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et0phyaddr", &sprom->et0phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "et1macaddr", &sprom->et1mac, fallback);
+	nvram_read_macaddr(prefix, "et1macaddr", sprom->et1mac, fallback);
 	nvram_read_u8(prefix, NULL, "et1mdcport", &sprom->et1mdcport, 0,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et1phyaddr", &sprom->et1phyaddr, 0,
 		      fallback);
 
-	nvram_read_macaddr(prefix, "macaddr", &sprom->il0mac, fallback);
-	nvram_read_macaddr(prefix, "il0macaddr", &sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "macaddr", sprom->il0mac, fallback);
+	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
 }
 
 static void bcm47xx_fill_board_data(struct ssb_sprom *sprom, const char *prefix,
 				    bool fallback)
 {
-	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0,
-		       fallback);
+	nvram_read_u16(prefix, NULL, "boardrev", &sprom->board_rev, 0, true);
 	nvram_read_u16(prefix, NULL, "boardnum", &sprom->board_num, 0,
 		       fallback);
-	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0,
-		       fallback);
+	nvram_read_u16(prefix, NULL, "boardtype", &sprom->board_type, 0, true);
 	nvram_read_u32_2(prefix, "boardflags", &sprom->boardflags_lo,
 			 &sprom->boardflags_hi, fallback);
 	nvram_read_u32_2(prefix, "boardflags2", &sprom->boardflags2_lo,

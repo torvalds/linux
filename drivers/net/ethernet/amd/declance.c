@@ -344,8 +344,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		}
 
 		clen = len & 1;
-		rtp = tp;
-		rfp = fp;
+		rtp = (unsigned char *)tp;
+		rfp = (const unsigned char *)fp;
 		while (clen--) {
 			*rtp++ = *rfp++;
 		}
@@ -372,8 +372,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		 * do the rest, if any.
 		 */
 		clen = len & 15;
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = (unsigned char *)tp;
+		rfp = (const unsigned char *)fp;
 		while (clen--) {
 			*rtp++ = *rfp++;
 		}
@@ -403,8 +403,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 
 		clen = len & 1;
 
-		rtp = tp;
-		rfp = fp;
+		rtp = (unsigned char *)tp;
+		rfp = (const unsigned char *)fp;
 
 		while (clen--) {
 			*rtp++ = *rfp++;
@@ -433,8 +433,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 		 * do the rest, if any.
 		 */
 		clen = len & 15;
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = (unsigned char *)tp;
+		rfp = (const unsigned char *)fp;
 		while (clen--) {
 			*rtp++ = *rfp++;
 		}
@@ -607,8 +607,6 @@ static int lance_rx(struct net_device *dev)
 			skb = netdev_alloc_skb(dev, len + 2);
 
 			if (skb == 0) {
-				printk("%s: Memory squeeze, deferring packet.\n",
-				       dev->name);
 				dev->stats.rx_dropped++;
 				*rds_ptr(rd, mblength, lp->type) = 0;
 				*rds_ptr(rd, rmd1, lp->type) =
@@ -813,7 +811,7 @@ static int lance_open(struct net_device *dev)
 	if (lp->dma_irq >= 0) {
 		unsigned long flags;
 
-		if (request_irq(lp->dma_irq, lance_dma_merr_int, 0,
+		if (request_irq(lp->dma_irq, lance_dma_merr_int, IRQF_ONESHOT,
 				"lance error", dev)) {
 			free_irq(dev->irq, dev);
 			printk("%s: Can't get DMA IRQ %d\n", dev->name,

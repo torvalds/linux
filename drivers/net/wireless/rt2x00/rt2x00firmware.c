@@ -14,9 +14,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -42,28 +40,28 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	 */
 	fw_name = rt2x00dev->ops->lib->get_firmware_name(rt2x00dev);
 	if (!fw_name) {
-		ERROR(rt2x00dev,
-		      "Invalid firmware filename.\n"
-		      "Please file bug report to %s.\n", DRV_PROJECT);
+		rt2x00_err(rt2x00dev,
+			   "Invalid firmware filename\n"
+			   "Please file bug report to %s\n", DRV_PROJECT);
 		return -EINVAL;
 	}
 
-	INFO(rt2x00dev, "Loading firmware file '%s'.\n", fw_name);
+	rt2x00_info(rt2x00dev, "Loading firmware file '%s'\n", fw_name);
 
 	retval = request_firmware(&fw, fw_name, device);
 	if (retval) {
-		ERROR(rt2x00dev, "Failed to request Firmware.\n");
+		rt2x00_err(rt2x00dev, "Failed to request Firmware\n");
 		return retval;
 	}
 
 	if (!fw || !fw->size || !fw->data) {
-		ERROR(rt2x00dev, "Failed to read Firmware.\n");
+		rt2x00_err(rt2x00dev, "Failed to read Firmware\n");
 		release_firmware(fw);
 		return -ENOENT;
 	}
 
-	INFO(rt2x00dev, "Firmware detected - version: %d.%d.\n",
-	     fw->data[fw->size - 4], fw->data[fw->size - 3]);
+	rt2x00_info(rt2x00dev, "Firmware detected - version: %d.%d\n",
+		    fw->data[fw->size - 4], fw->data[fw->size - 3]);
 	snprintf(rt2x00dev->hw->wiphy->fw_version,
 			sizeof(rt2x00dev->hw->wiphy->fw_version), "%d.%d",
 			fw->data[fw->size - 4], fw->data[fw->size - 3]);
@@ -73,15 +71,14 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	case FW_OK:
 		break;
 	case FW_BAD_CRC:
-		ERROR(rt2x00dev, "Firmware checksum error.\n");
+		rt2x00_err(rt2x00dev, "Firmware checksum error\n");
 		goto exit;
 	case FW_BAD_LENGTH:
-		ERROR(rt2x00dev,
-		      "Invalid firmware file length (len=%zu)\n", fw->size);
+		rt2x00_err(rt2x00dev, "Invalid firmware file length (len=%zu)\n",
+			   fw->size);
 		goto exit;
 	case FW_BAD_VERSION:
-		ERROR(rt2x00dev,
-		      "Current firmware does not support detected chipset.\n");
+		rt2x00_err(rt2x00dev, "Current firmware does not support detected chipset\n");
 		goto exit;
 	}
 

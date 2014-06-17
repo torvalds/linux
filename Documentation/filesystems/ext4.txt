@@ -2,7 +2,7 @@
 Ext4 Filesystem
 ===============
 
-Ext4 is an an advanced level of the ext3 filesystem which incorporates
+Ext4 is an advanced level of the ext3 filesystem which incorporates
 scalability and reliability enhancements for supporting large filesystems
 (64 bit) in keeping with increasing disk capacities and state-of-the-art
 feature requirements.
@@ -144,11 +144,12 @@ journal_async_commit	Commit block can be written to disk without waiting
 			mount the device. This will enable 'journal_checksum'
 			internally.
 
+journal_path=path
 journal_dev=devnum	When the external journal device's major/minor numbers
-			have changed, this option allows the user to specify
+			have changed, these options allow the user to specify
 			the new journal location.  The journal device is
-			identified through its new major/minor numbers encoded
-			in devnum.
+			identified through either its new major/minor numbers
+			encoded in devnum, or via a path to the device.
 
 norecovery		Don't load the journal on mounting.  Note that
 noload			if the filesystem was not unmounted cleanly,
@@ -494,6 +495,17 @@ Files in /sys/fs/ext4/<devname>
  session_write_kbytes         This file is read-only and shows the number of
                               kilobytes of data that have been written to this
                               filesystem since it was mounted.
+
+ reserved_clusters            This is RW file and contains number of reserved
+                              clusters in the file system which will be used
+                              in the specific situations to avoid costly
+                              zeroout, unexpected ENOSPC, or possible data
+                              loss. The default is 2% or 4096 clusters,
+                              whichever is smaller and this can be changed
+                              however it can never exceed number of clusters
+                              in the file system. If there is not enough space
+                              for the reserved space when mounting the file
+                              mount will _not_ fail.
 ..............................................................................
 
 Ioctls
@@ -586,6 +598,16 @@ Table of Ext4 specific ioctls
 			      64 bit integer argument.  The kernel allocates
 			      bitmaps and inode table, the userspace tool thus
 			      just passes the new number of blocks.
+
+EXT4_IOC_SWAP_BOOT	      Swap i_blocks and associated attributes
+			      (like i_blocks, i_size, i_flags, ...) from
+			      the specified inode with inode
+			      EXT4_BOOT_LOADER_INO (#5). This is typically
+			      used to store a boot loader in a secure part of
+			      the filesystem, where it can't be changed by a
+			      normal user by accident.
+			      The data blocks of the previous boot loader
+			      will be associated with the given inode.
 
 ..............................................................................
 

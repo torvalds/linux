@@ -2,6 +2,9 @@
 # Makefile for the netfilter modules for Link Layer filtering on a bridge.
 #
 
+obj-$(CONFIG_NF_TABLES_BRIDGE) += nf_tables_bridge.o
+obj-$(CONFIG_NFT_BRIDGE_META)  += nft_meta_bridge.o
+
 obj-$(CONFIG_BRIDGE_NF_EBTABLES) += ebtables.o
 
 # tables

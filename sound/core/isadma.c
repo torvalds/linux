@@ -81,7 +81,7 @@ EXPORT_SYMBOL(snd_dma_disable);
  * @dma: the dma number
  * @size: the dma transfer size
  *
- * Returns the current pointer in DMA tranfer buffer in bytes
+ * Return: The current pointer in DMA transfer buffer in bytes.
  */
 unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 {
@@ -106,7 +106,7 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size)
 		result = result1;
 #ifdef CONFIG_SND_DEBUG
 	if (result > size)
-		snd_printk(KERN_ERR "pointer (0x%x) for DMA #%ld is greater than transfer size (0x%x)\n", result, dma, size);
+		pr_err("ALSA: pointer (0x%x) for DMA #%ld is greater than transfer size (0x%x)\n", result, dma, size);
 #endif
 	if (result >= size || result == 0)
 		return 0;

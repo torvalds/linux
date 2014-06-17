@@ -41,41 +41,26 @@
 
 #define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
 
-struct pci_dev;
+const char *get_system_type(void);
 
-static const char *board_type_str(void)
-{
-	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
-	case BCSR_WHOAMI_DB1000:
-		return "DB1000";
-	case BCSR_WHOAMI_DB1500:
-		return "DB1500";
-	case BCSR_WHOAMI_DB1100:
-		return "DB1100";
-	case BCSR_WHOAMI_PB1500:
-	case BCSR_WHOAMI_PB1500R2:
-		return "PB1500";
-	case BCSR_WHOAMI_PB1100:
-		return "PB1100";
-	default:
-		return "(unknown)";
-	}
-}
-
-const char *get_system_type(void)
-{
-	return board_type_str();
-}
-
-void __init board_setup(void)
+int __init db1000_board_setup(void)
 {
 	/* initialize board register space */
 	bcsr_init(DB1000_BCSR_PHYS_ADDR,
 		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
 
-	printk(KERN_INFO "AMD Alchemy %s Board\n", board_type_str());
+	switch (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI))) {
+	case BCSR_WHOAMI_DB1000:
+	case BCSR_WHOAMI_DB1500:
+	case BCSR_WHOAMI_DB1100:
+	case BCSR_WHOAMI_PB1500:
+	case BCSR_WHOAMI_PB1500R2:
+	case BCSR_WHOAMI_PB1100:
+		pr_info("AMD Alchemy %s Board\n", get_system_type());
+		return 0;
+	}
+	return -ENODEV;
 }
-
 
 static int db1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
@@ -114,17 +99,10 @@ static struct platform_device db1500_pci_host_dev = {
 	.resource	= alchemy_pci_host_res,
 };
 
-static int __init db1500_pci_init(void)
+int __init db1500_pci_setup(void)
 {
-	int id = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
-	if ((id == BCSR_WHOAMI_DB1500) || (id == BCSR_WHOAMI_PB1500) ||
-	    (id == BCSR_WHOAMI_PB1500R2))
-		return platform_device_register(&db1500_pci_host_dev);
-	return 0;
+	return platform_device_register(&db1500_pci_host_dev);
 }
-/* must be arch_initcall; MIPS PCI scans busses in a subsys_initcall */
-arch_initcall(db1500_pci_init);
-
 
 static struct resource au1100_lcd_resources[] = {
 	[0] = {
@@ -276,7 +254,7 @@ static void db1100_mmcled_set(struct led_classdev *led, enum led_brightness b)
 }
 
 static struct led_classdev db1100_mmc_led = {
-	.brightness_set	= db1100_mmcled_set,
+	.brightness_set = db1100_mmcled_set,
 };
 
 static int db1100_mmc1_card_readonly(void *mmc_host)
@@ -314,7 +292,7 @@ static void db1100_mmc1led_set(struct led_classdev *led, enum led_brightness b)
 }
 
 static struct led_classdev db1100_mmc1_led = {
-	.brightness_set	= db1100_mmc1led_set,
+	.brightness_set = db1100_mmc1led_set,
 };
 
 static struct au1xmmc_platform_data db1100_mmc_platdata[2] = {
@@ -357,7 +335,7 @@ static struct resource au1100_mmc0_resources[] = {
 	}
 };
 
-static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
+static u64 au1xxx_mmc_dmamask =	 DMA_BIT_MASK(32);
 
 static struct platform_device db1100_mmc0_dev = {
 	.name		= "au1xxx-mmc",
@@ -482,7 +460,7 @@ static struct spi_board_info db1100_spi_info[] __initdata = {
 		.mode		 = 0,
 		.irq		 = AU1100_GPIO21_INT,
 		.platform_data	 = &db1100_touch_pd,
-		.controller_data = (void *)210,	/* for spi_gpio: CS# GPIO210 */
+		.controller_data = (void *)210, /* for spi_gpio: CS# GPIO210 */
 	},
 };
 
@@ -513,7 +491,7 @@ static struct platform_device *db1100_devs[] = {
 	&db1000_irda_dev,
 };
 
-static int __init db1000_dev_init(void)
+int __init db1000_dev_setup(void)
 {
 	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	int c0, c1, d0, d1, s0, s1, flashsize = 32,  twosocks = 1;
@@ -534,13 +512,10 @@ static int __init db1000_dev_init(void)
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
+		gpio_request(19, "sd0_cd");
+		gpio_request(20, "sd1_cd");
 		gpio_direction_input(19);	/* sd0 cd# */
 		gpio_direction_input(20);	/* sd1 cd# */
-		gpio_direction_input(21);	/* touch pendown# */
-		gpio_direction_input(207);	/* SPI MISO */
-		gpio_direction_output(208, 0);	/* SPI MOSI */
-		gpio_direction_output(209, 1);	/* SPI SCK */
-		gpio_direction_output(210, 1);	/* SPI CS# */
 
 		/* spi_gpio on SSI0 pins */
 		pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
@@ -572,7 +547,7 @@ static int __init db1000_dev_init(void)
 		irq_set_irq_type(AU1500_GPIO204_INT, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(AU1500_GPIO205_INT, IRQ_TYPE_LEVEL_LOW);
 		/* EPSON S1D13806 0x1b000000
-		 * SRAM 1MB/2MB   0x1a000000
+		 * SRAM 1MB/2MB	  0x1a000000
 		 * DS1693 RTC	  0x0c000000
 		 */
 	} else if (board == BCSR_WHOAMI_PB1100) {
@@ -586,7 +561,7 @@ static int __init db1000_dev_init(void)
 		irq_set_irq_type(AU1100_GPIO12_INT, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(AU1100_GPIO13_INT, IRQ_TYPE_LEVEL_LOW);
 		/* EPSON S1D13806 0x1b000000
-		 * SRAM 1MB/2MB   0x1a000000
+		 * SRAM 1MB/2MB	  0x1a000000
 		 * DiskOnChip	  0x0d000000
 		 * DS1693 RTC	  0x0c000000
 		 */
@@ -605,7 +580,7 @@ static int __init db1000_dev_init(void)
 		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
 		AU1000_PCMCIA_IO_PHYS_ADDR,
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
-		c0, d0,	/*s0*/0, 0, 0);
+		c0, d0, /*s0*/0, 0, 0);
 
 	if (twosocks) {
 		irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
@@ -619,11 +594,10 @@ static int __init db1000_dev_init(void)
 			AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
 			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
 			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-			c1, d1,	/*s1*/0, 0, 1);
+			c1, d1, /*s1*/0, 0, 1);
 	}
 
 	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));
 	db1x_register_norflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
-device_initcall(db1000_dev_init);

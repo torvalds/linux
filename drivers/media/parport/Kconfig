@@ -9,6 +9,7 @@ if MEDIA_PARPORT_SUPPORT
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
 	depends on PARPORT && VIDEO_V4L2
+	select VIDEOBUF2_VMALLOC
 	help
 	  Say Y have if you the black and white version of the QuickCam
 	  camera. See the next option for the color version.

@@ -51,10 +51,12 @@
 #define MMC_CARD		0x1000
 #define MMC_WIDTH		0x0100
 
-static void pxav2_set_private_registers(struct sdhci_host *host, u8 mask)
+static void pxav2_reset(struct sdhci_host *host, u8 mask)
 {
 	struct platform_device *pdev = to_platform_device(mmc_dev(host->mmc));
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
+
+	sdhci_reset(host, mask);
 
 	if (mask == SDHCI_RESET_ALL) {
 		u16 tmp = 0;
@@ -88,7 +90,7 @@ static void pxav2_set_private_registers(struct sdhci_host *host, u8 mask)
 	}
 }
 
-static int pxav2_mmc_set_width(struct sdhci_host *host, int width)
+static void pxav2_mmc_set_bus_width(struct sdhci_host *host, int width)
 {
 	u8 ctrl;
 	u16 tmp;
@@ -107,21 +109,14 @@ static int pxav2_mmc_set_width(struct sdhci_host *host, int width)
 	}
 	writew(tmp, host->ioaddr + SD_CE_ATA_2);
 	writeb(ctrl, host->ioaddr + SDHCI_HOST_CONTROL);
-
-	return 0;
 }
 
-static u32 pxav2_get_max_clock(struct sdhci_host *host)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	return clk_get_rate(pltfm_host->clk);
-}
-
-static struct sdhci_ops pxav2_sdhci_ops = {
-	.get_max_clock = pxav2_get_max_clock,
-	.platform_reset_exit = pxav2_set_private_registers,
-	.platform_8bit_width = pxav2_mmc_set_width,
+static const struct sdhci_ops pxav2_sdhci_ops = {
+	.set_clock     = sdhci_set_clock,
+	.get_max_clock = sdhci_pltfm_clk_get_max_clock,
+	.set_bus_width = pxav2_mmc_set_bus_width,
+	.reset         = pxav2_reset,
+	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
 #ifdef CONFIG_OF
@@ -182,7 +177,7 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	if (!pxa)
 		return -ENOMEM;
 
-	host = sdhci_pltfm_init(pdev, NULL);
+	host = sdhci_pltfm_init(pdev, NULL, 0);
 	if (IS_ERR(host)) {
 		kfree(pxa);
 		return PTR_ERR(host);
@@ -259,8 +254,6 @@ static int sdhci_pxav2_remove(struct platform_device *pdev)
 	clk_put(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

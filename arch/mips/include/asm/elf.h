@@ -11,13 +11,13 @@
 
 /* ELF header e_flags defines. */
 /* MIPS architecture level. */
-#define EF_MIPS_ARCH_1		0x00000000	/* -mips1 code.  */
-#define EF_MIPS_ARCH_2		0x10000000	/* -mips2 code.  */
-#define EF_MIPS_ARCH_3		0x20000000	/* -mips3 code.  */
-#define EF_MIPS_ARCH_4		0x30000000	/* -mips4 code.  */
-#define EF_MIPS_ARCH_5		0x40000000	/* -mips5 code.  */
-#define EF_MIPS_ARCH_32		0x50000000	/* MIPS32 code.  */
-#define EF_MIPS_ARCH_64		0x60000000	/* MIPS64 code.  */
+#define EF_MIPS_ARCH_1		0x00000000	/* -mips1 code.	 */
+#define EF_MIPS_ARCH_2		0x10000000	/* -mips2 code.	 */
+#define EF_MIPS_ARCH_3		0x20000000	/* -mips3 code.	 */
+#define EF_MIPS_ARCH_4		0x30000000	/* -mips4 code.	 */
+#define EF_MIPS_ARCH_5		0x40000000	/* -mips5 code.	 */
+#define EF_MIPS_ARCH_32		0x50000000	/* MIPS32 code.	 */
+#define EF_MIPS_ARCH_64		0x60000000	/* MIPS64 code.	 */
 #define EF_MIPS_ARCH_32R2	0x70000000	/* MIPS32 R2 code.  */
 #define EF_MIPS_ARCH_64R2	0x80000000	/* MIPS64 R2 code.  */
 
@@ -36,6 +36,7 @@
 #define EF_MIPS_ABI2		0x00000020
 #define EF_MIPS_OPTIONS_FIRST	0x00000080
 #define EF_MIPS_32BITMODE	0x00000100
+#define EF_MIPS_FP64		0x00000200
 #define EF_MIPS_ABI		0x0000f000
 #define EF_MIPS_ARCH		0xf0000000
 
@@ -74,7 +75,7 @@
 #define R_MIPS_CALL16		11
 #define R_MIPS_GPREL32		12
 /* The remaining relocs are defined on Irix, although they are not
-   in the MIPS ELF ABI.  */
+   in the MIPS ELF ABI.	 */
 #define R_MIPS_UNUSED1		13
 #define R_MIPS_UNUSED2		14
 #define R_MIPS_UNUSED3		15
@@ -176,6 +177,18 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #ifdef CONFIG_32BIT
 
 /*
+ * In order to be sure that we don't attempt to execute an O32 binary which
+ * requires 64 bit FP (FR=1) on a system which does not support it we refuse
+ * to execute any binary which has bits specified by the following macro set
+ * in its ELF header flags.
+ */
+#ifdef CONFIG_MIPS_O32_FP64_SUPPORT
+# define __MIPS_O32_FP64_MUST_BE_ZERO	0
+#else
+# define __MIPS_O32_FP64_MUST_BE_ZERO	EF_MIPS_FP64
+#endif
+
+/*
  * This is used to ensure we don't load something for the wrong architecture.
  */
 #define elf_check_arch(hdr)						\
@@ -191,6 +204,8 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 		__res = 0;						\
 	if (((__h->e_flags & EF_MIPS_ABI) != 0) &&			\
 	    ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_O32))		\
+		__res = 0;						\
+	if (__h->e_flags & __MIPS_O32_FP64_MUST_BE_ZERO)		\
 		__res = 0;						\
 									\
 	__res;								\
@@ -214,7 +229,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 									\
 	if (__h->e_machine != EM_MIPS)					\
 		__res = 0;						\
-	if (__h->e_ident[EI_CLASS] != ELFCLASS64) 			\
+	if (__h->e_ident[EI_CLASS] != ELFCLASS64)			\
 		__res = 0;						\
 									\
 	__res;								\
@@ -249,6 +264,11 @@ extern struct mips_abi mips_abi_n32;
 
 #define SET_PERSONALITY(ex)						\
 do {									\
+	if ((ex).e_flags & EF_MIPS_FP64)				\
+		clear_thread_flag(TIF_32BIT_FPREGS);			\
+	else								\
+		set_thread_flag(TIF_32BIT_FPREGS);			\
+									\
 	if (personality(current->personality) != PER_LINUX)		\
 		set_personality(PER_LINUX);				\
 									\
@@ -271,14 +291,18 @@ do {									\
 #endif
 
 #ifdef CONFIG_MIPS32_O32
-#define __SET_PERSONALITY32_O32()					\
+#define __SET_PERSONALITY32_O32(ex)					\
 	do {								\
 		set_thread_flag(TIF_32BIT_REGS);			\
 		set_thread_flag(TIF_32BIT_ADDR);			\
+									\
+		if (!((ex).e_flags & EF_MIPS_FP64))			\
+			set_thread_flag(TIF_32BIT_FPREGS);		\
+									\
 		current->thread.abi = &mips_abi_32;			\
 	} while (0)
 #else
-#define __SET_PERSONALITY32_O32()					\
+#define __SET_PERSONALITY32_O32(ex)					\
 	do { } while (0)
 #endif
 
@@ -289,10 +313,10 @@ do {									\
 	     ((ex).e_flags & EF_MIPS_ABI) == 0)				\
 		__SET_PERSONALITY32_N32();				\
 	else								\
-		__SET_PERSONALITY32_O32();				\
+		__SET_PERSONALITY32_O32(ex);                            \
 } while (0)
 #else
-#define __SET_PERSONALITY32(ex)	do { } while (0)
+#define __SET_PERSONALITY32(ex) do { } while (0)
 #endif
 
 #define SET_PERSONALITY(ex)						\
@@ -300,6 +324,7 @@ do {									\
 	unsigned int p;							\
 									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
+	clear_thread_flag(TIF_32BIT_FPREGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)			\
@@ -331,17 +356,18 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs)			\
 	dump_task_fpu(tsk, elf_fpregs)
 
+#define CORE_DUMP_USE_REGSET
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
    but it's not easy, and we've already done it here.  */
 
-#define ELF_HWCAP       (0)
+#define ELF_HWCAP	(0)
 
 /*
  * This yields a string that ld.so will use to load implementation
- * specific libraries for optimization.  This is more specific in
+ * specific libraries for optimization.	 This is more specific in
  * intent than poking at uname or /proc/cpuinfo.
  */
 
@@ -365,11 +391,11 @@ extern const char *__elf_platform;
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
    use of this is to invoke "./ld.so someprog" to test out a new version of
-   the loader.  We need to make sure that it is out of the way of the program
-   that it will "exec", and that there is sufficient room for the brk.  */
+   the loader.	We need to make sure that it is out of the way of the program
+   that it will "exec", and that there is sufficient room for the brk.	*/
 
 #ifndef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE         (TASK_SIZE / 3 * 2)
+#define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
 #endif
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1

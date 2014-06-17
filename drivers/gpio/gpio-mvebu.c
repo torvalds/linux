@@ -33,6 +33,7 @@
  *   interrupts.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
@@ -41,7 +42,9 @@
 #include <linux/io.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
+#include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/irqchip/chained_irq.h>
 
 /*
  * GPIO unit register offsets.
@@ -77,7 +80,7 @@ struct mvebu_gpio_chip {
 	spinlock_t	   lock;
 	void __iomem	  *membase;
 	void __iomem	  *percpu_membase;
-	unsigned int       irqbase;
+	int		   irqbase;
 	struct irq_domain *domain;
 	int                soc_variant;
 };
@@ -115,7 +118,7 @@ static inline void __iomem *mvebu_gpioreg_edge_cause(struct mvebu_gpio_chip *mvc
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
 		return mvchip->membase + GPIO_EDGE_CAUSE_OFF;
@@ -131,7 +134,7 @@ static inline void __iomem *mvebu_gpioreg_edge_mask(struct mvebu_gpio_chip *mvch
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		return mvchip->membase + GPIO_EDGE_MASK_OFF;
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
@@ -149,7 +152,7 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
 {
 	int cpu;
 
-	switch(mvchip->soc_variant) {
+	switch (mvchip->soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		return mvchip->membase + GPIO_LEVEL_MASK_OFF;
 	case MVEBU_GPIO_SOC_VARIANT_MV78200:
@@ -399,7 +402,7 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	/*
 	 * Configure interrupt polarity.
 	 */
-	switch(type) {
+	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_LEVEL_HIGH:
 		u = readl_relaxed(mvebu_gpioreg_in_pol(mvchip));
@@ -436,11 +439,14 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct mvebu_gpio_chip *mvchip = irq_get_handler_data(irq);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 cause, type;
 	int i;
 
 	if (mvchip == NULL)
 		return;
+
+	chained_irq_enter(chip, desc);
 
 	cause = readl_relaxed(mvebu_gpioreg_data_in(mvchip)) &
 		readl_relaxed(mvebu_gpioreg_level_mask(mvchip));
@@ -455,7 +461,7 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		if (!(cause & (1 << i)))
 			continue;
 
-		type = irqd_get_trigger_type(irq_get_irq_data(irq));
+		type = irq_get_trigger_type(irq);
 		if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 			/* Swap polarity (race with GPIO line) */
 			u32 polarity;
@@ -464,22 +470,83 @@ static void mvebu_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			polarity ^= 1 << i;
 			writel_relaxed(polarity, mvebu_gpioreg_in_pol(mvchip));
 		}
+
 		generic_handle_irq(irq);
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
-static struct of_device_id mvebu_gpio_of_match[] = {
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+
+static void mvebu_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
+{
+	struct mvebu_gpio_chip *mvchip =
+		container_of(chip, struct mvebu_gpio_chip, chip);
+	u32 out, io_conf, blink, in_pol, data_in, cause, edg_msk, lvl_msk;
+	int i;
+
+	out	= readl_relaxed(mvebu_gpioreg_out(mvchip));
+	io_conf	= readl_relaxed(mvebu_gpioreg_io_conf(mvchip));
+	blink	= readl_relaxed(mvebu_gpioreg_blink(mvchip));
+	in_pol	= readl_relaxed(mvebu_gpioreg_in_pol(mvchip));
+	data_in	= readl_relaxed(mvebu_gpioreg_data_in(mvchip));
+	cause	= readl_relaxed(mvebu_gpioreg_edge_cause(mvchip));
+	edg_msk	= readl_relaxed(mvebu_gpioreg_edge_mask(mvchip));
+	lvl_msk	= readl_relaxed(mvebu_gpioreg_level_mask(mvchip));
+
+	for (i = 0; i < chip->ngpio; i++) {
+		const char *label;
+		u32 msk;
+		bool is_out;
+
+		label = gpiochip_is_requested(chip, i);
+		if (!label)
+			continue;
+
+		msk = 1 << i;
+		is_out = !(io_conf & msk);
+
+		seq_printf(s, " gpio-%-3d (%-20.20s)", chip->base + i, label);
+
+		if (is_out) {
+			seq_printf(s, " out %s %s\n",
+				   out & msk ? "hi" : "lo",
+				   blink & msk ? "(blink )" : "");
+			continue;
+		}
+
+		seq_printf(s, " in  %s (act %s) - IRQ",
+			   (data_in ^ in_pol) & msk  ? "hi" : "lo",
+			   in_pol & msk ? "lo" : "hi");
+		if (!((edg_msk | lvl_msk) & msk)) {
+			seq_printf(s, " disabled\n");
+			continue;
+		}
+		if (edg_msk & msk)
+			seq_printf(s, " edge ");
+		if (lvl_msk & msk)
+			seq_printf(s, " level");
+		seq_printf(s, " (%s)\n", cause & msk ? "pending" : "clear  ");
+	}
+}
+#else
+#define mvebu_gpio_dbg_show NULL
+#endif
+
+static const struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ORION,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ORION,
 	},
 	{
 		.compatible = "marvell,mv78200-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_MV78200,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_MV78200,
 	},
 	{
 		.compatible = "marvell,armadaxp-gpio",
-		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
+		.data       = (void *) MVEBU_GPIO_SOC_VARIANT_ARMADAXP,
 	},
 	{
 		/* sentinel */
@@ -495,6 +562,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	struct clk *clk;
 	unsigned int ngpios;
 	int soc_variant;
 	int i, cpu, id;
@@ -505,17 +573,9 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	else
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (! res) {
-		dev_err(&pdev->dev, "Cannot get memory resource\n");
-		return -ENODEV;
-	}
-
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip), GFP_KERNEL);
-	if (! mvchip){
-		dev_err(&pdev->dev, "Cannot allocate memory\n");
+	if (!mvchip)
 		return -ENOMEM;
-	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
@@ -527,6 +587,11 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Couldn't get OF id\n");
 		return id;
 	}
+
+	clk = devm_clk_get(&pdev->dev, NULL);
+	/* Not all SoCs require a clock.*/
+	if (!IS_ERR(clk))
+		clk_prepare_enable(clk);
 
 	mvchip->soc_variant = soc_variant;
 	mvchip->chip.label = dev_name(&pdev->dev);
@@ -540,36 +605,30 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.to_irq = mvebu_gpio_to_irq;
 	mvchip->chip.base = id * MVEBU_MAX_GPIO_PER_BANK;
 	mvchip->chip.ngpio = ngpios;
-	mvchip->chip.can_sleep = 0;
+	mvchip->chip.can_sleep = false;
 	mvchip->chip.of_node = np;
+	mvchip->chip.dbg_show = mvebu_gpio_dbg_show;
 
 	spin_lock_init(&mvchip->lock);
-	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (! mvchip->membase) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mvchip->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mvchip->membase))
+		return PTR_ERR(mvchip->membase);
 
 	/* The Armada XP has a second range of registers for the
 	 * per-CPU registers */
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_ARMADAXP) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (! res) {
-			dev_err(&pdev->dev, "Cannot get memory resource\n");
-			return -ENODEV;
-		}
-
-		mvchip->percpu_membase = devm_request_and_ioremap(&pdev->dev, res);
-		if (! mvchip->percpu_membase) {
-			dev_err(&pdev->dev, "Cannot ioremap\n");
-			return -ENOMEM;
-		}
+		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
+							       res);
+		if (IS_ERR(mvchip->percpu_membase))
+			return PTR_ERR(mvchip->percpu_membase);
 	}
 
 	/*
 	 * Mask and clear GPIO interrupts.
 	 */
-	switch(soc_variant) {
+	switch (soc_variant) {
 	case MVEBU_GPIO_SOC_VARIANT_ORION:
 		writel_relaxed(0, mvchip->membase + GPIO_EDGE_CAUSE_OFF);
 		writel_relaxed(0, mvchip->membase + GPIO_EDGE_MASK_OFF);
@@ -622,12 +681,12 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->irqbase = irq_alloc_descs(-1, 0, ngpios, -1);
 	if (mvchip->irqbase < 0) {
 		dev_err(&pdev->dev, "no irqs\n");
-		return -ENOMEM;
+		return mvchip->irqbase;
 	}
 
 	gc = irq_alloc_generic_chip("mvebu_gpio_irq", 2, mvchip->irqbase,
 				    mvchip->membase, handle_level_irq);
-	if (! gc) {
+	if (!gc) {
 		dev_err(&pdev->dev, "Cannot allocate generic irq_chip\n");
 		return -ENOMEM;
 	}
@@ -677,9 +736,4 @@ static struct platform_driver mvebu_gpio_driver = {
 	},
 	.probe		= mvebu_gpio_probe,
 };
-
-static int __init mvebu_gpio_init(void)
-{
-	return platform_driver_register(&mvebu_gpio_driver);
-}
-postcore_initcall(mvebu_gpio_init);
+module_platform_driver(mvebu_gpio_driver);

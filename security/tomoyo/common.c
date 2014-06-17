@@ -2681,10 +2681,8 @@ out:
  * tomoyo_close_control - close() for /sys/kernel/security/tomoyo/ interface.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0.
  */
-int tomoyo_close_control(struct tomoyo_io_buffer *head)
+void tomoyo_close_control(struct tomoyo_io_buffer *head)
 {
 	/*
 	 * If the file is /sys/kernel/security/tomoyo/query , decrement the
@@ -2694,7 +2692,6 @@ int tomoyo_close_control(struct tomoyo_io_buffer *head)
 	    atomic_dec_and_test(&tomoyo_query_observers))
 		wake_up_all(&tomoyo_answer_wait);
 	tomoyo_notify_gc(head, false);
-	return 0;
 }
 
 /**

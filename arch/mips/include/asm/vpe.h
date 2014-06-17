@@ -1,23 +1,94 @@
 /*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
  * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
+ * Copyright (C) 2013 Imagination Technologies Ltd.
  */
-
 #ifndef _ASM_VPE_H
 #define _ASM_VPE_H
+
+#include <linux/init.h>
+#include <linux/list.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
+
+#define VPE_MODULE_NAME "vpe"
+#define VPE_MODULE_MINOR 1
+
+/* grab the likely amount of memory we will need. */
+#ifdef CONFIG_MIPS_VPE_LOADER_TOM
+#define P_SIZE (2 * 1024 * 1024)
+#else
+/* add an overhead to the max kmalloc size for non-striped symbols/etc */
+#define P_SIZE (256 * 1024)
+#endif
+
+#define MAX_VPES 16
+#define VPE_PATH_MAX 256
+
+static inline int aprp_cpu_index(void)
+{
+#ifdef CONFIG_MIPS_CMP
+	return setup_max_cpus;
+#else
+	extern int tclimit;
+	return tclimit;
+#endif
+}
+
+enum vpe_state {
+	VPE_STATE_UNUSED = 0,
+	VPE_STATE_INUSE,
+	VPE_STATE_RUNNING
+};
+
+enum tc_state {
+	TC_STATE_UNUSED = 0,
+	TC_STATE_INUSE,
+	TC_STATE_RUNNING,
+	TC_STATE_DYNAMIC
+};
+
+struct vpe {
+	enum vpe_state state;
+
+	/* (device) minor associated with this vpe */
+	int minor;
+
+	/* elfloader stuff */
+	void *load_addr;
+	unsigned long len;
+	char *pbuffer;
+	unsigned long plen;
+	char cwd[VPE_PATH_MAX];
+
+	unsigned long __start;
+
+	/* tc's associated with this vpe */
+	struct list_head tc;
+
+	/* The list of vpe's */
+	struct list_head list;
+
+	/* shared symbol address */
+	void *shared_ptr;
+
+	/* the list of who wants to know when something major happens */
+	struct list_head notify;
+
+	unsigned int ntcs;
+};
+
+struct tc {
+	enum tc_state state;
+	int index;
+
+	struct vpe *pvpe;	/* parent VPE */
+	struct list_head tc;	/* The list of TC's with this VPE */
+	struct list_head list;	/* The global list of tc's */
+};
 
 struct vpe_notifications {
 	void (*start)(int vpe);
@@ -26,12 +97,34 @@ struct vpe_notifications {
 	struct list_head list;
 };
 
+struct vpe_control {
+	spinlock_t vpe_list_lock;
+	struct list_head vpe_list;      /* Virtual processing elements */
+	spinlock_t tc_list_lock;
+	struct list_head tc_list;       /* Thread contexts */
+};
 
-extern int vpe_notify(int index, struct vpe_notifications *notify);
+extern unsigned long physical_memsize;
+extern struct vpe_control vpecontrol;
+extern const struct file_operations vpe_fops;
 
-extern void *vpe_get_shared(int index);
-extern int vpe_getuid(int index);
-extern int vpe_getgid(int index);
-extern char *vpe_getcwd(int index);
+int vpe_notify(int index, struct vpe_notifications *notify);
 
+void *vpe_get_shared(int index);
+char *vpe_getcwd(int index);
+
+struct vpe *get_vpe(int minor);
+struct tc *get_tc(int index);
+struct vpe *alloc_vpe(int minor);
+struct tc *alloc_tc(int index);
+void release_vpe(struct vpe *v);
+
+void *alloc_progmem(unsigned long len);
+void release_progmem(void *ptr);
+
+int __weak vpe_run(struct vpe *v);
+void cleanup_tc(struct tc *tc);
+
+int __init vpe_module_init(void);
+void __exit vpe_module_exit(void);
 #endif /* _ASM_VPE_H */

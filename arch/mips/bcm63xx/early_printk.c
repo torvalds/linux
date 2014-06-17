@@ -6,11 +6,10 @@
  * Copyright (C) 2008 Maxime Bizon <mbizon@freebox.fr>
  */
 
-#include <linux/init.h>
 #include <bcm63xx_io.h>
-#include <bcm63xx_regs.h>
+#include <linux/serial_bcm63xx.h>
 
-static void __init wait_xfered(void)
+static void wait_xfered(void)
 {
 	unsigned int val;
 
@@ -22,7 +21,7 @@ static void __init wait_xfered(void)
 	} while (1);
 }
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	wait_xfered();
 	bcm_uart0_writel(c, UART_FIFO_REG);

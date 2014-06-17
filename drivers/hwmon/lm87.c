@@ -5,7 +5,7 @@
  *                          Philip Edelbrock <phil@netroedge.com>
  *                          Stephen Rousset <stephen.rousset@rocketlogix.com>
  *                          Dan Eaton <dan.eaton@rocketlogix.com>
- * Copyright (C) 2004-2008  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2004-2008  Jean Delvare <jdelvare@suse.de>
  *
  * Original port to Linux 2.6 by Jeff Oliver.
  *
@@ -855,8 +855,8 @@ static void lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 
-	if (client->dev.platform_data) {
-		data->channel = *(u8 *)client->dev.platform_data;
+	if (dev_get_platdata(&client->dev)) {
+		data->channel = *(u8 *)dev_get_platdata(&client->dev);
 		lm87_write_value(client,
 				 LM87_REG_CHANNEL_MODE, data->channel);
 	} else {
@@ -903,7 +903,6 @@ static int lm87_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the LM87 chip */
@@ -1011,6 +1010,6 @@ static struct i2c_driver lm87_driver = {
 
 module_i2c_driver(lm87_driver);
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org> and others");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de> and others");
 MODULE_DESCRIPTION("LM87 driver");
 MODULE_LICENSE("GPL");

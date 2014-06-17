@@ -49,38 +49,6 @@ int huge_shift[HUGE_SHIFT_ENTRIES] = {
 #endif
 };
 
-/*
- * This routine is a hybrid of pte_alloc_map() and pte_alloc_kernel().
- * It assumes that L2 PTEs are never in HIGHMEM (we don't support that).
- * It locks the user pagetable, and bumps up the mm->nr_ptes field,
- * but otherwise allocate the page table using the kernel versions.
- */
-static pte_t *pte_alloc_hugetlb(struct mm_struct *mm, pmd_t *pmd,
-				unsigned long address)
-{
-	pte_t *new;
-
-	if (pmd_none(*pmd)) {
-		new = pte_alloc_one_kernel(mm, address);
-		if (!new)
-			return NULL;
-
-		smp_wmb(); /* See comment in __pte_alloc */
-
-		spin_lock(&mm->page_table_lock);
-		if (likely(pmd_none(*pmd))) {  /* Has another populated it ? */
-			mm->nr_ptes++;
-			pmd_populate_kernel(mm, pmd, new);
-			new = NULL;
-		} else
-			VM_BUG_ON(pmd_trans_splitting(*pmd));
-		spin_unlock(&mm->page_table_lock);
-		if (new)
-			pte_free_kernel(mm, new);
-	}
-
-	return pte_offset_kernel(pmd, address);
-}
 #endif
 
 pte_t *huge_pte_alloc(struct mm_struct *mm,
@@ -109,7 +77,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		else {
 			if (sz != PAGE_SIZE << huge_shift[HUGE_SHIFT_PAGE])
 				panic("Unexpected page size %#lx\n", sz);
-			return pte_alloc_hugetlb(mm, pmd, addr);
+			return pte_alloc_map(mm, NULL, pmd, addr);
 		}
 	}
 #else
@@ -144,14 +112,14 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 
 	/* Get the top-level page table entry. */
 	pgd = (pgd_t *)get_pte((pte_t *)mm->pgd, pgd_index(addr), 0);
-	if (!pgd_present(*pgd))
-		return NULL;
 
 	/* We don't have four levels. */
 	pud = pud_offset(pgd, addr);
 #ifndef __PAGETABLE_PUD_FOLDED
 # error support fourth page table level
 #endif
+	if (!pud_present(*pud))
+		return NULL;
 
 	/* Check for an L0 huge PTE, if we have three levels. */
 #ifndef __PAGETABLE_PMD_FOLDED

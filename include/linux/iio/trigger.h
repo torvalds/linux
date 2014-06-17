@@ -8,10 +8,12 @@
  */
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/atomic.h>
 
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
 
+#ifdef CONFIG_IIO_TRIGGER
 struct iio_subirq {
 	bool enabled;
 };
@@ -43,7 +45,6 @@ struct iio_trigger_ops {
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
- * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
  * @use_count:		use count for the trigger
@@ -59,10 +60,9 @@ struct iio_trigger {
 	const char			*name;
 	struct device			dev;
 
-	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
-	int use_count;
+	atomic_t			use_count;
 
 	struct irq_chip			subirq_chip;
 	int				subirq_base;
@@ -88,6 +88,30 @@ static inline void iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
 	__module_get(trig->ops->owner);
+}
+
+/**
+ * iio_device_set_drvdata() - Set trigger driver data
+ * @trig: IIO trigger structure
+ * @data: Driver specific data
+ *
+ * Allows to attach an arbitrary pointer to an IIO trigger, which can later be
+ * retrieved by iio_trigger_get_drvdata().
+ */
+static inline void iio_trigger_set_drvdata(struct iio_trigger *trig, void *data)
+{
+	dev_set_drvdata(&trig->dev, data);
+}
+
+/**
+ * iio_trigger_get_drvdata() - Get trigger driver data
+ * @trig: IIO trigger structure
+ *
+ * Returns the data previously set with iio_trigger_set_drvdata()
+ */
+static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
+{
+	return dev_get_drvdata(&trig->dev);
 }
 
 /**
@@ -117,4 +141,8 @@ irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 __printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
 
+#else
+struct iio_trigger;
+struct iio_trigger_ops;
+#endif
 #endif /* _IIO_TRIGGER_H_ */

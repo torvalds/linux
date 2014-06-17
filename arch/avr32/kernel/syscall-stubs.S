@@ -20,12 +20,6 @@ __sys_rt_sigsuspend:
 	mov	r10, sp
 	rjmp	sys_rt_sigsuspend
 
-	.global	__sys_sigaltstack
-	.type	__sys_sigaltstack,@function
-__sys_sigaltstack:
-	mov	r10, sp
-	rjmp	sys_sigaltstack
-
 	.global	__sys_rt_sigreturn
 	.type	__sys_rt_sigreturn,@function
 __sys_rt_sigreturn:

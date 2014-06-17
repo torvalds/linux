@@ -55,13 +55,15 @@ MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
 static bool probe_all_addr;
 module_param(probe_all_addr, bool, 0);
-MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
-		 "addresses");
+MODULE_PARM_DESC(probe_all_addr,
+		 "Include probing of non-standard LPC addresses");
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
 enum chips { dme1737, sch5027, sch311x, sch5127 };
+
+#define	DO_REPORT "Please report to the driver maintainer."
 
 /* ---------------------------------------------------------------------
  * Registers
@@ -277,7 +279,7 @@ static inline int IN_FROM_REG(int reg, int nominal, int res)
 
 static inline int IN_TO_REG(int val, int nominal)
 {
-	return SENSORS_LIMIT((val * 192 + nominal / 2) / nominal, 0, 255);
+	return clamp_val((val * 192 + nominal / 2) / nominal, 0, 255);
 }
 
 /*
@@ -293,8 +295,7 @@ static inline int TEMP_FROM_REG(int reg, int res)
 
 static inline int TEMP_TO_REG(int val)
 {
-	return SENSORS_LIMIT((val < 0 ? val - 500 : val + 500) / 1000,
-			     -128, 127);
+	return clamp_val((val < 0 ? val - 500 : val + 500) / 1000, -128, 127);
 }
 
 /* Temperature range */
@@ -332,7 +333,7 @@ static inline int TEMP_HYST_FROM_REG(int reg, int ix)
 
 static inline int TEMP_HYST_TO_REG(int val, int ix, int reg)
 {
-	int hyst = SENSORS_LIMIT((val + 500) / 1000, 0, 15);
+	int hyst = clamp_val((val + 500) / 1000, 0, 15);
 
 	return (ix == 1) ? (reg & 0xf0) | hyst : (reg & 0x0f) | (hyst << 4);
 }
@@ -349,10 +350,10 @@ static inline int FAN_FROM_REG(int reg, int tpc)
 static inline int FAN_TO_REG(int val, int tpc)
 {
 	if (tpc) {
-		return SENSORS_LIMIT(val / tpc, 0, 0xffff);
+		return clamp_val(val / tpc, 0, 0xffff);
 	} else {
 		return (val <= 0) ? 0xffff :
-			SENSORS_LIMIT(90000 * 60 / val, 0, 0xfffe);
+			clamp_val(90000 * 60 / val, 0, 0xfffe);
 	}
 }
 
@@ -567,9 +568,9 @@ static u8 dme1737_read(const struct dme1737_data *data, u8 reg)
 		val = i2c_smbus_read_byte_data(client, reg);
 
 		if (val < 0) {
-			dev_warn(&client->dev, "Read from register "
-				 "0x%02x failed! Please report to the driver "
-				 "maintainer.\n", reg);
+			dev_warn(&client->dev,
+				 "Read from register 0x%02x failed! %s\n",
+				 reg, DO_REPORT);
 		}
 	} else { /* ISA device */
 		outb(reg, data->addr);
@@ -588,9 +589,9 @@ static s32 dme1737_write(const struct dme1737_data *data, u8 reg, u8 val)
 		res = i2c_smbus_write_byte_data(client, reg, val);
 
 		if (res < 0) {
-			dev_warn(&client->dev, "Write to register "
-				 "0x%02x failed! Please report to the driver "
-				 "maintainer.\n", reg);
+			dev_warn(&client->dev,
+				 "Write to register 0x%02x failed! %s\n",
+				 reg, DO_REPORT);
 		}
 	} else { /* ISA device */
 		outb(reg, data->addr);
@@ -1168,8 +1169,8 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		/* Only valid for fan[1-4] */
 		if (!(val == 1 || val == 2 || val == 4)) {
 			count = -EINVAL;
-			dev_warn(dev, "Fan type value %ld not "
-				 "supported. Choose one of 1, 2, or 4.\n",
+			dev_warn(dev,
+				 "Fan type value %ld not supported. Choose one of 1, 2, or 4.\n",
 				 val);
 			goto exit;
 		}
@@ -1282,7 +1283,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (fn) {
 	case SYS_PWM:
-		data->pwm[ix] = SENSORS_LIMIT(val, 0, 255);
+		data->pwm[ix] = clamp_val(val, 0, 255);
 		dme1737_write(data, DME1737_REG_PWM(ix), data->pwm[ix]);
 		break;
 	case SYS_PWM_FREQ:
@@ -1295,8 +1296,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		/* Only valid for pwm[1-3] */
 		if (val < 0 || val > 2) {
 			count = -EINVAL;
-			dev_warn(dev, "PWM enable %ld not "
-				 "supported. Choose one of 0, 1, or 2.\n",
+			dev_warn(dev,
+				 "PWM enable %ld not supported. Choose one of 0, 1, or 2.\n",
 				 val);
 			goto exit;
 		}
@@ -1400,8 +1401,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		if (!(val == 1 || val == 2 || val == 4 ||
 		      val == 6 || val == 7)) {
 			count = -EINVAL;
-			dev_warn(dev, "PWM auto channels zone %ld "
-				 "not supported. Choose one of 1, 2, 4, 6, "
+			dev_warn(dev,
+				 "PWM auto channels zone %ld not supported. Choose one of 1, 2, 4, 6, "
 				 "or 7.\n", val);
 			goto exit;
 		}
@@ -1450,7 +1451,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		break;
 	case SYS_PWM_AUTO_POINT1_PWM:
 		/* Only valid for pwm[1-3] */
-		data->pwm_min[ix] = SENSORS_LIMIT(val, 0, 255);
+		data->pwm_min[ix] = clamp_val(val, 0, 255);
 		dme1737_write(data, DME1737_REG_PWM_MIN(ix),
 			      data->pwm_min[ix]);
 		break;
@@ -2179,8 +2180,8 @@ static int dme1737_create_files(struct device *dev)
 	 * selected attributes from read-only to read-writeable.
 	 */
 	if (data->config & 0x02) {
-		dev_info(dev, "Device is locked. Some attributes "
-			 "will be read-only.\n");
+		dev_info(dev,
+			 "Device is locked. Some attributes will be read-only.\n");
 	} else {
 		/* Change permissions of zone sysfs attributes */
 		dme1737_chmod_group(dev, &dme1737_zone_chmod_group,
@@ -2248,9 +2249,8 @@ static int dme1737_init_device(struct device *dev)
 	/* Inform if part is not monitoring/started */
 	if (!(data->config & 0x01)) {
 		if (!force_start) {
-			dev_err(dev, "Device is not monitoring. "
-				"Use the force_start load parameter to "
-				"override.\n");
+			dev_err(dev,
+				"Device is not monitoring. Use the force_start load parameter to override.\n");
 			return -EFAULT;
 		}
 
@@ -2290,8 +2290,8 @@ static int dme1737_init_device(struct device *dev)
 		 */
 		if (dme1737_i2c_get_features(0x2e, data) &&
 		    dme1737_i2c_get_features(0x4e, data)) {
-			dev_warn(dev, "Failed to query Super-IO for optional "
-				 "features.\n");
+			dev_warn(dev,
+				 "Failed to query Super-IO for optional features.\n");
 		}
 	}
 
@@ -2318,8 +2318,8 @@ static int dme1737_init_device(struct device *dev)
 		break;
 	}
 
-	dev_info(dev, "Optional features: pwm3=%s, pwm5=%s, pwm6=%s, "
-		 "fan3=%s, fan4=%s, fan5=%s, fan6=%s.\n",
+	dev_info(dev,
+		 "Optional features: pwm3=%s, pwm5=%s, pwm6=%s, fan3=%s, fan4=%s, fan5=%s, fan6=%s.\n",
 		 (data->has_features & HAS_PWM(2)) ? "yes" : "no",
 		 (data->has_features & HAS_PWM(4)) ? "yes" : "no",
 		 (data->has_features & HAS_PWM(5)) ? "yes" : "no",
@@ -2331,18 +2331,16 @@ static int dme1737_init_device(struct device *dev)
 	reg = dme1737_read(data, DME1737_REG_TACH_PWM);
 	/* Inform if fan-to-pwm mapping differs from the default */
 	if (client && reg != 0xa4) {   /* I2C chip */
-		dev_warn(dev, "Non-standard fan to pwm mapping: "
-			 "fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, "
-			 "fan4->pwm%d. Please report to the driver "
-			 "maintainer.\n",
+		dev_warn(dev,
+			 "Non-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d, fan4->pwm%d. %s\n",
 			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
-			 ((reg >> 4) & 0x03) + 1, ((reg >> 6) & 0x03) + 1);
+			 ((reg >> 4) & 0x03) + 1, ((reg >> 6) & 0x03) + 1,
+			 DO_REPORT);
 	} else if (!client && reg != 0x24) {   /* ISA chip */
-		dev_warn(dev, "Non-standard fan to pwm mapping: "
-			 "fan1->pwm%d, fan2->pwm%d, fan3->pwm%d. "
-			 "Please report to the driver maintainer.\n",
+		dev_warn(dev,
+			 "Non-standard fan to pwm mapping: fan1->pwm%d, fan2->pwm%d, fan3->pwm%d. %s\n",
 			 (reg & 0x03) + 1, ((reg >> 2) & 0x03) + 1,
-			 ((reg >> 4) & 0x03) + 1);
+			 ((reg >> 4) & 0x03) + 1, DO_REPORT);
 	}
 
 	/*
@@ -2356,8 +2354,9 @@ static int dme1737_init_device(struct device *dev)
 						DME1737_REG_PWM_CONFIG(ix));
 			if ((data->has_features & HAS_PWM(ix)) &&
 			    (PWM_EN_FROM_REG(data->pwm_config[ix]) == -1)) {
-				dev_info(dev, "Switching pwm%d to "
-					 "manual mode.\n", ix + 1);
+				dev_info(dev,
+					 "Switching pwm%d to manual mode.\n",
+					 ix + 1);
 				data->pwm_config[ix] = PWM_EN_TO_REG(1,
 							data->pwm_config[ix]);
 				dme1737_write(data, DME1737_REG_PWM(ix), 0);

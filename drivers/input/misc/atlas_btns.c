@@ -25,11 +25,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/input.h>
 #include <linux/types.h>
+#include <linux/acpi.h>
 #include <asm/uaccess.h>
-#include <acpi/acpi_drivers.h>
 
 #define ACPI_ATLAS_NAME		"Atlas ACPI"
 #define ACPI_ATLAS_CLASS	"Atlas"
@@ -121,7 +120,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	return err;
 }
 
-static int atlas_acpi_button_remove(struct acpi_device *device, int type)
+static int atlas_acpi_button_remove(struct acpi_device *device)
 {
 	acpi_status status;
 

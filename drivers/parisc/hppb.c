@@ -74,10 +74,8 @@ static int hppb_probe(struct parisc_device *dev)
 
 	status = ccio_request_resource(dev, &card->mmio_region);
 	if(status < 0) {
-		printk(KERN_ERR "%s: failed to claim HP-PB "
-			"bus space (0x%08llx, 0x%08llx)\n",
-			__FILE__, (unsigned long long) card->mmio_region.start,
-			(unsigned long long) card->mmio_region.end);
+		printk(KERN_ERR "%s: failed to claim HP-PB bus space (%pR)\n",
+			__FILE__, &card->mmio_region);
 	}
 
         return 0;

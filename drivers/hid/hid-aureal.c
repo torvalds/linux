@@ -37,17 +37,6 @@ static struct hid_driver aureal_driver = {
 	.id_table = aureal_devices,
 	.report_fixup = aureal_report_fixup,
 };
+module_hid_driver(aureal_driver);
 
-static int __init aureal_init(void)
-{
-	return hid_register_driver(&aureal_driver);
-}
-
-static void __exit aureal_exit(void)
-{
-	hid_unregister_driver(&aureal_driver);
-}
-
-module_init(aureal_init);
-module_exit(aureal_exit);
 MODULE_LICENSE("GPL");

@@ -16,10 +16,12 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/usb/composite.h>
+#include <linux/err.h>
 
 #include "g_zero.h"
 #include "gadget_chips.h"
-
+#include "u_f.h"
 
 /*
  * SOURCE/SINK FUNCTION ... a primary testing vehicle for USB peripheral
@@ -62,24 +64,11 @@ static inline struct f_sourcesink *func_to_ss(struct usb_function *f)
 }
 
 static unsigned pattern;
-module_param(pattern, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63, 2 = none");
-
-static unsigned isoc_interval = 4;
-module_param(isoc_interval, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(isoc_interval, "1 - 16");
-
-static unsigned isoc_maxpacket = 1024;
-module_param(isoc_maxpacket, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(isoc_maxpacket, "0 - 1023 (fs), 0 - 1024 (hs/ss)");
-
+static unsigned isoc_interval;
+static unsigned isoc_maxpacket;
 static unsigned isoc_mult;
-module_param(isoc_mult, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(isoc_mult, "0 - 2 (hs/ss only)");
-
 static unsigned isoc_maxburst;
-module_param(isoc_maxburst, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(isoc_maxburst, "0 - 15 (ss only)");
+static unsigned buflen;
 
 /*-------------------------------------------------------------------------*/
 
@@ -213,7 +202,7 @@ static struct usb_endpoint_descriptor ss_source_desc = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_source_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_source_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -230,7 +219,7 @@ static struct usb_endpoint_descriptor ss_sink_desc = {
 	.wMaxPacketSize =	cpu_to_le16(1024),
 };
 
-struct usb_ss_ep_comp_descriptor ss_sink_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_sink_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -248,7 +237,7 @@ static struct usb_endpoint_descriptor ss_iso_source_desc = {
 	.bInterval =		4,
 };
 
-struct usb_ss_ep_comp_descriptor ss_iso_source_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_iso_source_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -266,7 +255,7 @@ static struct usb_endpoint_descriptor ss_iso_sink_desc = {
 	.bInterval =		4,
 };
 
-struct usb_ss_ep_comp_descriptor ss_iso_sink_comp_desc = {
+static struct usb_ss_ep_comp_descriptor ss_iso_sink_comp_desc = {
 	.bLength =		USB_DT_SS_EP_COMP_SIZE,
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
@@ -313,7 +302,43 @@ static struct usb_gadget_strings *sourcesink_strings[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init
+static inline struct usb_request *ss_alloc_ep_req(struct usb_ep *ep, int len)
+{
+	return alloc_ep_req(ep, len, buflen);
+}
+
+void free_ep_req(struct usb_ep *ep, struct usb_request *req)
+{
+	kfree(req->buf);
+	usb_ep_free_request(ep, req);
+}
+
+static void disable_ep(struct usb_composite_dev *cdev, struct usb_ep *ep)
+{
+	int			value;
+
+	if (ep->driver_data) {
+		value = usb_ep_disable(ep);
+		if (value < 0)
+			DBG(cdev, "disable %s --> %d\n",
+					ep->name, value);
+		ep->driver_data = NULL;
+	}
+}
+
+void disable_endpoints(struct usb_composite_dev *cdev,
+		struct usb_ep *in, struct usb_ep *out,
+		struct usb_ep *iso_in, struct usb_ep *iso_out)
+{
+	disable_ep(cdev, in);
+	disable_ep(cdev, out);
+	if (iso_in)
+		disable_ep(cdev, iso_in);
+	if (iso_out)
+		disable_ep(cdev, iso_out);
+}
+
+static int
 sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
@@ -450,8 +475,16 @@ no_iso:
 }
 
 static void
-sourcesink_unbind(struct usb_configuration *c, struct usb_function *f)
+sourcesink_free_func(struct usb_function *f)
 {
+	struct f_ss_opts *opts;
+
+	opts = container_of(f->fi, struct f_ss_opts, func_inst);
+
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
+
 	usb_free_all_descriptors(f);
 	kfree(func_to_ss(f));
 }
@@ -531,8 +564,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 			check_read_data(ss, req);
 			if (pattern != 2)
 				memset(req->buf, 0x55, req->length);
-		} else
-			reinit_write_data(ep, req);
+		}
 		break;
 
 	/* this endpoint is normally active while we're configured */
@@ -591,10 +623,10 @@ static int source_sink_start_ep(struct f_sourcesink *ss, bool is_in,
 				break;
 			}
 			ep = is_in ? ss->iso_in_ep : ss->iso_out_ep;
-			req = alloc_ep_req(ep, size);
+			req = ss_alloc_ep_req(ep, size);
 		} else {
 			ep = is_in ? ss->in_ep : ss->out_ep;
-			req = alloc_ep_req(ep, 0);
+			req = ss_alloc_ep_req(ep, 0);
 		}
 
 		if (!req)
@@ -758,31 +790,10 @@ static void sourcesink_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init sourcesink_bind_config(struct usb_configuration *c)
-{
-	struct f_sourcesink	*ss;
-	int			status;
-
-	ss = kzalloc(sizeof *ss, GFP_KERNEL);
-	if (!ss)
-		return -ENOMEM;
-
-	ss->function.name = "source/sink";
-	ss->function.bind = sourcesink_bind;
-	ss->function.unbind = sourcesink_unbind;
-	ss->function.set_alt = sourcesink_set_alt;
-	ss->function.get_alt = sourcesink_get_alt;
-	ss->function.disable = sourcesink_disable;
-
-	status = usb_add_function(c, &ss->function);
-	if (status)
-		kfree(ss);
-	return status;
-}
-
-static int sourcesink_setup(struct usb_configuration *c,
+static int sourcesink_setup(struct usb_function *f,
 		const struct usb_ctrlrequest *ctrl)
 {
+	struct usb_configuration        *c = f->config;
 	struct usb_request	*req = c->cdev->req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
@@ -851,42 +862,386 @@ unknown:
 	return value;
 }
 
-static struct usb_configuration sourcesink_driver = {
-	.label			= "source/sink",
-	.strings		= sourcesink_strings,
-	.setup			= sourcesink_setup,
-	.bConfigurationValue	= 3,
-	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	/* .iConfiguration	= DYNAMIC */
+static struct usb_function *source_sink_alloc_func(
+		struct usb_function_instance *fi)
+{
+	struct f_sourcesink     *ss;
+	struct f_ss_opts	*ss_opts;
+
+	ss = kzalloc(sizeof(*ss), GFP_KERNEL);
+	if (!ss)
+		return NULL;
+
+	ss_opts =  container_of(fi, struct f_ss_opts, func_inst);
+
+	mutex_lock(&ss_opts->lock);
+	ss_opts->refcnt++;
+	mutex_unlock(&ss_opts->lock);
+
+	pattern = ss_opts->pattern;
+	isoc_interval = ss_opts->isoc_interval;
+	isoc_maxpacket = ss_opts->isoc_maxpacket;
+	isoc_mult = ss_opts->isoc_mult;
+	isoc_maxburst = ss_opts->isoc_maxburst;
+	buflen = ss_opts->bulk_buflen;
+
+	ss->function.name = "source/sink";
+	ss->function.bind = sourcesink_bind;
+	ss->function.set_alt = sourcesink_set_alt;
+	ss->function.get_alt = sourcesink_get_alt;
+	ss->function.disable = sourcesink_disable;
+	ss->function.setup = sourcesink_setup;
+	ss->function.strings = sourcesink_strings;
+
+	ss->function.free_func = sourcesink_free_func;
+
+	return &ss->function;
+}
+
+static inline struct f_ss_opts *to_f_ss_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_ss_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_ss_opts);
+CONFIGFS_ATTR_OPS(f_ss_opts);
+
+static void ss_attr_release(struct config_item *item)
+{
+	struct f_ss_opts *ss_opts = to_f_ss_opts(item);
+
+	usb_put_function_instance(&ss_opts->func_inst);
+}
+
+static struct configfs_item_operations ss_item_ops = {
+	.release		= ss_attr_release,
+	.show_attribute		= f_ss_opts_attr_show,
+	.store_attribute	= f_ss_opts_attr_store,
 };
 
-/**
- * sourcesink_add - add a source/sink testing configuration to a device
- * @cdev: the device to support the configuration
- */
-int __init sourcesink_add(struct usb_composite_dev *cdev, bool autoresume)
+static ssize_t f_ss_opts_pattern_show(struct f_ss_opts *opts, char *page)
 {
-	int id;
+	int result;
 
-	/* allocate string ID(s) */
-	id = usb_string_id(cdev);
-	if (id < 0)
-		return id;
-	strings_sourcesink[0].id = id;
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->pattern);
+	mutex_unlock(&opts->lock);
 
-	source_sink_intf_alt0.iInterface = id;
-	source_sink_intf_alt1.iInterface = id;
-	sourcesink_driver.iConfiguration = id;
+	return result;
+}
 
-	/* support autoresume for remote wakeup testing */
-	if (autoresume)
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+static ssize_t f_ss_opts_pattern_store(struct f_ss_opts *opts,
+				       const char *page, size_t len)
+{
+	int ret;
+	u8 num;
 
-	/* support OTG systems */
-	if (gadget_is_otg(cdev->gadget)) {
-		sourcesink_driver.descriptors = otg_desc;
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
 	}
 
-	return usb_add_config(cdev, &sourcesink_driver, sourcesink_bind_config);
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num != 0 && num != 1 && num != 2) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->pattern = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
 }
+
+static struct f_ss_opts_attribute f_ss_opts_pattern =
+	__CONFIGFS_ATTR(pattern, S_IRUGO | S_IWUSR,
+			f_ss_opts_pattern_show,
+			f_ss_opts_pattern_store);
+
+static ssize_t f_ss_opts_isoc_interval_show(struct f_ss_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->isoc_interval);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_isoc_interval_store(struct f_ss_opts *opts,
+				       const char *page, size_t len)
+{
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num > 16) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->isoc_interval = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ss_opts_attribute f_ss_opts_isoc_interval =
+	__CONFIGFS_ATTR(isoc_interval, S_IRUGO | S_IWUSR,
+			f_ss_opts_isoc_interval_show,
+			f_ss_opts_isoc_interval_store);
+
+static ssize_t f_ss_opts_isoc_maxpacket_show(struct f_ss_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->isoc_maxpacket);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_isoc_maxpacket_store(struct f_ss_opts *opts,
+				       const char *page, size_t len)
+{
+	int ret;
+	u16 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou16(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num > 1024) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->isoc_maxpacket = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ss_opts_attribute f_ss_opts_isoc_maxpacket =
+	__CONFIGFS_ATTR(isoc_maxpacket, S_IRUGO | S_IWUSR,
+			f_ss_opts_isoc_maxpacket_show,
+			f_ss_opts_isoc_maxpacket_store);
+
+static ssize_t f_ss_opts_isoc_mult_show(struct f_ss_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->isoc_mult);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_isoc_mult_store(struct f_ss_opts *opts,
+				       const char *page, size_t len)
+{
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num > 2) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->isoc_mult = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ss_opts_attribute f_ss_opts_isoc_mult =
+	__CONFIGFS_ATTR(isoc_mult, S_IRUGO | S_IWUSR,
+			f_ss_opts_isoc_mult_show,
+			f_ss_opts_isoc_mult_store);
+
+static ssize_t f_ss_opts_isoc_maxburst_show(struct f_ss_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->isoc_maxburst);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_isoc_maxburst_store(struct f_ss_opts *opts,
+				       const char *page, size_t len)
+{
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num > 15) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->isoc_maxburst = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ss_opts_attribute f_ss_opts_isoc_maxburst =
+	__CONFIGFS_ATTR(isoc_maxburst, S_IRUGO | S_IWUSR,
+			f_ss_opts_isoc_maxburst_show,
+			f_ss_opts_isoc_maxburst_store);
+
+static ssize_t f_ss_opts_bulk_buflen_show(struct f_ss_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sprintf(page, "%d", opts->bulk_buflen);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_bulk_buflen_store(struct f_ss_opts *opts,
+					   const char *page, size_t len)
+{
+	int ret;
+	u32 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou32(page, 0, &num);
+	if (ret)
+		goto end;
+
+	opts->bulk_buflen = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ss_opts_attribute f_ss_opts_bulk_buflen =
+	__CONFIGFS_ATTR(buflen, S_IRUGO | S_IWUSR,
+			f_ss_opts_bulk_buflen_show,
+			f_ss_opts_bulk_buflen_store);
+
+static struct configfs_attribute *ss_attrs[] = {
+	&f_ss_opts_pattern.attr,
+	&f_ss_opts_isoc_interval.attr,
+	&f_ss_opts_isoc_maxpacket.attr,
+	&f_ss_opts_isoc_mult.attr,
+	&f_ss_opts_isoc_maxburst.attr,
+	&f_ss_opts_bulk_buflen.attr,
+	NULL,
+};
+
+static struct config_item_type ss_func_type = {
+	.ct_item_ops    = &ss_item_ops,
+	.ct_attrs	= ss_attrs,
+	.ct_owner       = THIS_MODULE,
+};
+
+static void source_sink_free_instance(struct usb_function_instance *fi)
+{
+	struct f_ss_opts *ss_opts;
+
+	ss_opts = container_of(fi, struct f_ss_opts, func_inst);
+	kfree(ss_opts);
+}
+
+static struct usb_function_instance *source_sink_alloc_inst(void)
+{
+	struct f_ss_opts *ss_opts;
+
+	ss_opts = kzalloc(sizeof(*ss_opts), GFP_KERNEL);
+	if (!ss_opts)
+		return ERR_PTR(-ENOMEM);
+	mutex_init(&ss_opts->lock);
+	ss_opts->func_inst.free_func_inst = source_sink_free_instance;
+	ss_opts->isoc_interval = GZERO_ISOC_INTERVAL;
+	ss_opts->isoc_maxpacket = GZERO_ISOC_MAXPACKET;
+	ss_opts->bulk_buflen = GZERO_BULK_BUFLEN;
+
+	config_group_init_type_name(&ss_opts->func_inst.group, "",
+				    &ss_func_type);
+
+	return &ss_opts->func_inst;
+}
+DECLARE_USB_FUNCTION(SourceSink, source_sink_alloc_inst,
+		source_sink_alloc_func);
+
+static int __init sslb_modinit(void)
+{
+	int ret;
+
+	ret = usb_function_register(&SourceSinkusb_func);
+	if (ret)
+		return ret;
+	ret = lb_modinit();
+	if (ret)
+		usb_function_unregister(&SourceSinkusb_func);
+	return ret;
+}
+static void __exit sslb_modexit(void)
+{
+	usb_function_unregister(&SourceSinkusb_func);
+	lb_modexit();
+}
+module_init(sslb_modinit);
+module_exit(sslb_modexit);
+
+MODULE_LICENSE("GPL");

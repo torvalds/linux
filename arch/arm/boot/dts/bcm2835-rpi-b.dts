@@ -1,5 +1,4 @@
 /dts-v1/;
-/memreserve/ 0x0c000000 0x04000000;
 /include/ "bcm2835.dtsi"
 
 / {
@@ -9,14 +8,30 @@
 	memory {
 		reg = <0 0x10000000>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		act {
+			label = "ACT";
+			gpios = <&gpio 16 1>;
+			default-state = "keep";
+			linux,default-trigger = "heartbeat";
+		};
+	};
 };
 
 &gpio {
 	pinctrl-names = "default";
-	pinctrl-0 = <&alt0 &alt3>;
+	pinctrl-0 = <&gpioout &alt0 &alt3>;
+
+	gpioout: gpioout {
+		brcm,pins = <6>;
+		brcm,function = <1>; /* GPIO out */
+	};
 
 	alt0: alt0 {
-		brcm,pins = <0 1 2 3 4 5 6 7 8 9 10 11 14 15 40 45>;
+		brcm,pins = <0 1 2 3 4 5 7 8 9 10 11 14 15 40 45>;
 		brcm,function = <4>; /* alt0 */
 	};
 
@@ -24,4 +39,19 @@
 		brcm,pins = <48 49 50 51 52 53>;
 		brcm,function = <7>; /* alt3 */
 	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&sdhci {
+	status = "okay";
+	bus-width = <4>;
 };

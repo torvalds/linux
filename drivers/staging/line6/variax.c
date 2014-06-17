@@ -95,6 +95,7 @@ static void variax_startup3(struct usb_line6_variax *variax)
 static void variax_startup4(unsigned long data)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *)data;
+
 	CHECK_STARTUP_PROGRESS(variax->startup_progress,
 			       VARIAX_STARTUP_ACTIVATE);
 
@@ -107,6 +108,7 @@ static void variax_startup4(unsigned long data)
 static void variax_startup5(unsigned long data)
 {
 	struct usb_line6_variax *variax = (struct usb_line6_variax *)data;
+
 	CHECK_STARTUP_PROGRESS(variax->startup_progress,
 			       VARIAX_STARTUP_WORKQUEUE);
 
@@ -133,13 +135,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 	const unsigned char *buf = variax->line6.buffer_message;
 
 	switch (buf[0]) {
-	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST:
-		break;
-
-	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
-	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
-		break;
-
 	case LINE6_RESET:
 		dev_info(variax->line6.ifcdev, "VARIAX reset\n");
 		break;
@@ -154,13 +149,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 			variax_startup4((unsigned long)variax);
 		}
 		break;
-
-	case LINE6_SYSEX_END:
-		break;
-
-	default:
-		dev_dbg(variax->line6.ifcdev,
-			"Variax: unknown message %02X\n", buf[0]);
 	}
 }
 

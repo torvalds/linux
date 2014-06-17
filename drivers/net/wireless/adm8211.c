@@ -15,7 +15,6 @@
  * more details.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
@@ -1293,7 +1292,8 @@ static int adm8211_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct adm8211_priv *priv = dev->priv;
 	struct ieee80211_conf *conf = &dev->conf;
-	int channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	int channel =
+		ieee80211_frequency_to_channel(conf->chandef.chan->center_freq);
 
 	if (channel != priv->channel) {
 		priv->channel = channel;
@@ -1313,7 +1313,7 @@ static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
 	if (!(changes & BSS_CHANGED_BSSID))
 		return;
 
-	if (memcmp(conf->bssid, priv->bssid, ETH_ALEN)) {
+	if (!ether_addr_equal(conf->bssid, priv->bssid)) {
 		adm8211_set_bssid(dev, conf->bssid);
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	}
@@ -1865,7 +1865,6 @@ static int adm8211_probe(struct pci_dev *pdev,
 	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	dev->channel_change_time = 1000;
 	dev->max_signal = 100;    /* FIXME: find better value */
 
 	dev->queues = 1; /* ADM8211C supports more, maybe ADM8211B too */
@@ -1923,7 +1922,6 @@ static int adm8211_probe(struct pci_dev *pdev,
 	pci_iounmap(pdev, priv->map);
 
  err_free_dev:
-	pci_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(dev);
 
  err_free_reg:

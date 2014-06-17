@@ -876,10 +876,8 @@ static int dvb_input_attach(struct ddb_input *input)
 			return -ENODEV;
 		if (tuner_attach_tda18271(input) < 0)
 			return -ENODEV;
-		if (input->fe) {
-			if (dvb_register_frontend(adap, input->fe) < 0)
-				return -ENODEV;
-		}
+		if (dvb_register_frontend(adap, input->fe) < 0)
+			return -ENODEV;
 		if (input->fe2) {
 			if (dvb_register_frontend(adap, input->fe2) < 0)
 				return -ENODEV;
@@ -1544,7 +1542,7 @@ static void ddb_unmap(struct ddb *dev)
 
 static void ddb_remove(struct pci_dev *pdev)
 {
-	struct ddb *dev = (struct ddb *) pci_get_drvdata(pdev);
+	struct ddb *dev = pci_get_drvdata(pdev);
 
 	ddb_ports_detach(dev);
 	ddb_i2c_release(dev);

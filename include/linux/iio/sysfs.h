@@ -73,11 +73,6 @@ struct iio_const_attr {
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 
 /* Generic attributes of onetype or another */
-/**
- * IIO_DEV_ATTR_RESET: resets the device
- **/
-#define IIO_DEV_ATTR_RESET(_store)			\
-	IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, _store, 0)
 
 /**
  * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency
@@ -104,6 +99,21 @@ struct iio_const_attr {
  **/
 #define IIO_CONST_ATTR_SAMP_FREQ_AVAIL(_string)			\
 	IIO_CONST_ATTR(sampling_frequency_available, _string)
+
+/**
+ * IIO_DEV_ATTR_INT_TIME_AVAIL - list available integration times
+ * @_show: output method for the attribute
+ **/
+#define IIO_DEV_ATTR_INT_TIME_AVAIL(_show)		\
+	IIO_DEVICE_ATTR(integration_time_available, S_IRUGO, _show, NULL, 0)
+/**
+ * IIO_CONST_ATTR_INT_TIME_AVAIL - list available integration times
+ * @_string: frequency string for the attribute
+ *
+ * Constant version
+ **/
+#define IIO_CONST_ATTR_INT_TIME_AVAIL(_string)		\
+	IIO_CONST_ATTR(integration_time_available, _string)
 
 #define IIO_DEV_ATTR_TEMP_RAW(_show)			\
 	IIO_DEVICE_ATTR(in_temp_raw, S_IRUGO, _show, NULL, 0)

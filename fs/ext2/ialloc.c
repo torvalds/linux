@@ -118,7 +118,6 @@ void ext2_free_inode (struct inode * inode)
 	 * as writing the quota to disk may need the lock as well.
 	 */
 	/* Quota is already initialized in iput() */
-	ext2_xattr_delete_inode(inode);
 	dquot_free_inode(inode);
 	dquot_drop(inode);
 
@@ -285,7 +284,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 		int best_ndir = inodes_per_group;
 		int best_group = -1;
 
-		get_random_bytes(&group, sizeof(group));
+		group = prandom_u32();
 		parent_group = (unsigned)group % ngroups;
 		for (i = 0; i < ngroups; i++) {
 			group = (parent_group + i) % ngroups;

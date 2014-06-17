@@ -11,7 +11,6 @@
 
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
@@ -308,7 +307,8 @@ static void au1550_command(struct mtd_info *mtd, unsigned command, int column, i
 		/* Serially input address */
 		if (column != -1) {
 			/* Adjust columns for 16 bit buswidth */
-			if (this->options & NAND_BUSWIDTH_16)
+			if (this->options & NAND_BUSWIDTH_16 &&
+					!nand_opcode_8bits(command))
 				column >>= 1;
 			ctx->write_byte(mtd, column);
 		}
@@ -411,17 +411,15 @@ static int au1550nd_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, cs;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_err(&pdev->dev, "missing platform data\n");
 		return -ENODEV;
 	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		dev_err(&pdev->dev, "no memory for NAND context\n");
+	if (!ctx)
 		return -ENOMEM;
-	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -479,6 +477,8 @@ static int au1550nd_probe(struct platform_device *pdev)
 	}
 
 	mtd_device_register(&ctx->info, pd->parts, pd->num_parts);
+
+	platform_set_drvdata(pdev, ctx);
 
 	return 0;
 

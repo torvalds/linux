@@ -26,17 +26,18 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/mtd/partitions.h>
+#include <linux/platform_data/gpio-davinci.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/common.h>
-#include <linux/platform_data/i2c-davinci.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
-#include <linux/platform_data/mtd-davinci.h>
-#include <linux/platform_data/mmc-davinci.h>
-#include <linux/platform_data/usb-davinci.h>
 
 #include "davinci.h"
 
@@ -88,6 +89,7 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 1,
 	.bbt_options	= NAND_BBT_USE_FLASH,
 };
 
@@ -153,10 +155,6 @@ static struct platform_device *davinci_ntosd2_devices[] __initdata = {
 	&ntosd2_leds_dev,
 };
 
-static struct davinci_uart_config uart_config __initdata = {
-	.enabled_uarts = (1 << 0),
-};
-
 static void __init davinci_ntosd2_map_io(void)
 {
 	dm644x_init();
@@ -164,28 +162,21 @@ static void __init davinci_ntosd2_map_io(void)
 
 static struct davinci_mmc_config davinci_ntosd2_mmc_config = {
 	.wires		= 4,
-	.version	= MMC_CTLR_VERSION_1
 };
 
+#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-	defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
-
-#if defined(CONFIG_MTD_NAND_DAVINCI) || \
-	defined(CONFIG_MTD_NAND_DAVINCI_MODULE)
-#define HAS_NAND 1
-#else
-#define HAS_NAND 0
-#endif
+#define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
 static __init void davinci_ntosd2_init(void)
 {
+	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	ret = dm644x_gpio_register();
+	if (ret)
+		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
 
 	aemif_clk = clk_get(NULL, "aemif");
 	clk_prepare_enable(aemif_clk);
@@ -209,7 +200,7 @@ static __init void davinci_ntosd2_init(void)
 	platform_add_devices(davinci_ntosd2_devices,
 				ARRAY_SIZE(davinci_ntosd2_devices));
 
-	davinci_serial_init(&uart_config);
+	davinci_serial_init(dm644x_serial_device);
 	dm644x_init_asp(&dm644x_ntosd2_snd_data);
 
 	soc_info->emac_pdata->phy_id = NEUROS_OSD2_PHY_ID;
@@ -237,7 +228,7 @@ MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	.atag_offset	= 0x100,
 	.map_io		 = davinci_ntosd2_map_io,
 	.init_irq	= davinci_irq_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine = davinci_ntosd2_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

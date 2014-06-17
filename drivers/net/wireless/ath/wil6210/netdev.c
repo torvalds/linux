@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/module.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/slab.h>
 
 #include "wil6210.h"
 
@@ -35,38 +32,76 @@ static int wil_stop(struct net_device *ndev)
 	return wil_down(wil);
 }
 
-/*
- * AC to queue mapping
- *
- * AC_VO -> queue 3
- * AC_VI -> queue 2
- * AC_BE -> queue 1
- * AC_BK -> queue 0
- */
-static u16 wil_select_queue(struct net_device *ndev, struct sk_buff *skb)
+static int wil_change_mtu(struct net_device *ndev, int new_mtu)
 {
-	static const u16 wil_1d_to_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	u16 rc;
 
-	skb->priority = cfg80211_classify8021d(skb);
+	if (new_mtu < 68 || new_mtu > IEEE80211_MAX_DATA_LEN_DMG)
+		return -EINVAL;
 
-	rc = wil_1d_to_queue[skb->priority];
+	wil_dbg_misc(wil, "change MTU %d -> %d\n", ndev->mtu, new_mtu);
+	ndev->mtu = new_mtu;
 
-	wil_dbg_TXRX(wil, "%s() %d -> %d\n", __func__, (int)skb->priority,
-		     (int)rc);
-
-	return rc;
+	return 0;
 }
 
 static const struct net_device_ops wil_netdev_ops = {
 	.ndo_open		= wil_open,
 	.ndo_stop		= wil_stop,
 	.ndo_start_xmit		= wil_start_xmit,
-	.ndo_select_queue	= wil_select_queue,
-	.ndo_set_mac_address    = eth_mac_addr,
-	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= wil_change_mtu,
 };
+
+static int wil6210_netdev_poll_rx(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_rx);
+	int quota = budget;
+	int done;
+
+	wil_rx_handle(wil, &quota);
+	done = budget - quota;
+
+	if (done <= 1) { /* burst ends - only one packet processed */
+		napi_complete(napi);
+		wil6210_unmask_irq_rx(wil);
+		wil_dbg_txrx(wil, "NAPI RX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI RX poll(%d) done %d\n", budget, done);
+
+	return done;
+}
+
+static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
+{
+	struct wil6210_priv *wil = container_of(napi, struct wil6210_priv,
+						napi_tx);
+	int tx_done = 0;
+	uint i;
+
+	/* always process ALL Tx complete, regardless budget - it is fast */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *vring = &wil->vring_tx[i];
+
+		if (!vring->va)
+			continue;
+
+		tx_done += wil_tx_complete(wil, i);
+	}
+
+	if (tx_done <= 1) { /* burst ends - only one packet processed */
+		napi_complete(napi);
+		wil6210_unmask_irq_tx(wil);
+		wil_dbg_txrx(wil, "NAPI TX complete\n");
+	}
+
+	wil_dbg_txrx(wil, "NAPI TX poll(%d) done %d\n", budget, tx_done);
+
+	return min(tx_done, budget);
+}
 
 void *wil_if_alloc(struct device *dev, void __iomem *csr)
 {
@@ -97,7 +132,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	ch = wdev->wiphy->bands[IEEE80211_BAND_60GHZ]->channels;
 	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
 
-	ndev = alloc_netdev_mqs(0, "wlan%d", ether_setup, WIL6210_TX_QUEUES, 1);
+	ndev = alloc_netdev(0, "wlan%d", ether_setup);
 	if (!ndev) {
 		dev_err(dev, "alloc_netdev_mqs failed\n");
 		rc = -ENOMEM;
@@ -106,8 +141,16 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 
 	ndev->netdev_ops = &wil_netdev_ops;
 	ndev->ieee80211_ptr = wdev;
+	ndev->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
+			    NETIF_F_SG | NETIF_F_GRO;
+	ndev->features |= ndev->hw_features;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
+
+	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
+		       WIL6210_NAPI_BUDGET);
+	netif_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
+		       WIL6210_NAPI_BUDGET);
 
 	wil_link_off(wil);
 

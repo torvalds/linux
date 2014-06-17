@@ -217,8 +217,8 @@ int dmm_map_memory(struct dmm_object *dmm_mgr, u32 addr, u32 size)
 		status = -ENOENT;
 	spin_unlock(&dmm_obj->dmm_lock);
 
-	dev_dbg(bridge, "%s dmm_mgr %p, addr %x, size %x\n\tstatus %x, "
-		"chunk %p", __func__, dmm_mgr, addr, size, status, chunk);
+	dev_dbg(bridge, "%s dmm_mgr %p, addr %x, size %x\n\tstatus %x, chunk %p",
+			__func__, dmm_mgr, addr, size, status, chunk);
 
 	return status;
 }
@@ -268,9 +268,9 @@ int dmm_reserve_memory(struct dmm_object *dmm_mgr, u32 size,
 
 	spin_unlock(&dmm_obj->dmm_lock);
 
-	dev_dbg(bridge, "%s dmm_mgr %p, size %x, prsv_addr %p\n\tstatus %x, "
-		"rsv_addr %x, rsv_size %x\n", __func__, dmm_mgr, size,
-		prsv_addr, status, rsv_addr, rsv_size);
+	dev_dbg(bridge, "%s dmm_mgr %p, size %x, prsv_addr %p\n\tstatus %x, rsv_addr %x, rsv_size %x\n",
+			__func__, dmm_mgr, size,
+			prsv_addr, status, rsv_addr, rsv_size);
 
 	return status;
 }
@@ -299,8 +299,8 @@ int dmm_un_map_memory(struct dmm_object *dmm_mgr, u32 addr, u32 *psize)
 	}
 	spin_unlock(&dmm_obj->dmm_lock);
 
-	dev_dbg(bridge, "%s: dmm_mgr %p, addr %x, psize %p\n\tstatus %x, "
-		"chunk %p\n", __func__, dmm_mgr, addr, psize, status, chunk);
+	dev_dbg(bridge, "%s: dmm_mgr %p, addr %x, psize %p\n\tstatus %x, chunk %p\n",
+			__func__, dmm_mgr, addr, psize, status, chunk);
 
 	return status;
 }
@@ -475,11 +475,11 @@ u32 dmm_mem_map_dump(struct dmm_object *dmm_mgr)
 		}
 	}
 	spin_unlock(&dmm_mgr->dmm_lock);
-	printk(KERN_INFO "Total DSP VA FREE memory = %d Mbytes\n",
+	dev_info(bridge, "Total DSP VA FREE memory = %d Mbytes\n",
 	       freemem / (1024 * 1024));
-	printk(KERN_INFO "Total DSP VA USED memory= %d Mbytes \n",
+	dev_info(bridge, "Total DSP VA USED memory= %d Mbytes\n",
 	       (((table_size * PG_SIZE4K) - freemem)) / (1024 * 1024));
-	printk(KERN_INFO "DSP VA - Biggest FREE block = %d Mbytes \n\n",
+	dev_info(bridge, "DSP VA - Biggest FREE block = %d Mbytes\n",
 	       (bigsize * PG_SIZE4K / (1024 * 1024)));
 
 	return 0;

@@ -64,7 +64,9 @@ static void mpu401_clear_rx(struct snd_emu10k1 *emu, struct snd_emu10k1_midi *mp
 		mpu401_read_data(emu, mpu);
 #ifdef CONFIG_SND_DEBUG
 	if (timeout <= 0)
-		snd_printk(KERN_ERR "cmd: clear rx timeout (status = 0x%x)\n", mpu401_read_stat(emu, mpu));
+		dev_err(emu->card->dev,
+			"cmd: clear rx timeout (status = 0x%x)\n",
+			mpu401_read_stat(emu, mpu));
 #endif
 }
 
@@ -141,7 +143,8 @@ static int snd_emu10k1_midi_cmd(struct snd_emu10k1 * emu, struct snd_emu10k1_mid
 	}
 	spin_unlock_irqrestore(&midi->input_lock, flags);
 	if (!ok) {
-		snd_printk(KERN_ERR "midi_cmd: 0x%x failed at 0x%lx (status = 0x%x, data = 0x%x)!!!\n",
+		dev_err(emu->card->dev,
+			"midi_cmd: 0x%x failed at 0x%lx (status = 0x%x, data = 0x%x)!!!\n",
 			   cmd, emu->port,
 			   mpu401_read_stat(emu, midi),
 			   mpu401_read_data(emu, midi));

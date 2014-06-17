@@ -144,12 +144,13 @@ static int lpc32xx_parse_dt(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 	u32 rows = 0, columns = 0;
+	int err;
 
-	of_property_read_u32(np, "keypad,num-rows", &rows);
-	of_property_read_u32(np, "keypad,num-columns", &columns);
-	if (!rows || rows != columns) {
-		dev_err(dev,
-			"rows and columns must be specified and be equal!\n");
+	err = matrix_keypad_parse_of_params(dev, &rows, &columns);
+	if (err)
+		return err;
+	if (rows != columns) {
+		dev_err(dev, "rows and columns must be equal!\n");
 		return -EINVAL;
 	}
 
@@ -382,7 +383,7 @@ static struct platform_driver lpc32xx_kscan_driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 		.pm	= &lpc32xx_kscan_pm_ops,
-		.of_match_table = of_match_ptr(lpc32xx_kscan_match),
+		.of_match_table = lpc32xx_kscan_match,
 	}
 };
 

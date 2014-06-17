@@ -27,7 +27,7 @@
 #       Nick Holloway <Nick.Holloway@alfie.demon.co.uk>, 2nd January 1995.
 #
 # Added support for handling multiple types of compression. What includes
-# gzip, bzip, bzip2, zip, compress, and plaintext. 
+# gzip, bzip, bzip2, zip, compress, and plaintext.
 #
 #       Adam Sulmicki <adam@cfar.umd.edu>, 1st January 1997.
 #
@@ -159,7 +159,7 @@ applyPatch () {
   fi
   # Remove backup files
   find $sourcedir/ '(' -name '*.orig' -o -name '.*.orig' ')' -exec rm -f {} \;
- 
+
   return 0;
 }
 

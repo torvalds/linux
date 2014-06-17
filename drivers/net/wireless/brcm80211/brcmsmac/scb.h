@@ -36,7 +36,6 @@
 
 /* structure to store per-tid state for the ampdu initiator */
 struct scb_ampdu_tid_ini {
-	u8 tx_in_transit; /* number of pending mpdus in transit in driver */
 	u8 tid;		  /* initiator tid for easy lookup */
 	/* tx retry count; indexed by seq modulo */
 	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];

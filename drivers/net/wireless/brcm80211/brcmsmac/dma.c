@@ -1015,9 +1015,10 @@ static bool dma64_txidle(struct dma_info *di)
 
 /*
  * post receive buffers
- *  return false is refill failed completely and ring is empty this will stall
- *  the rx dma and user might want to call rxfill again asap. This unlikely
- *  happens on memory-rich NIC, but often on memory-constrained dongle
+ *  Return false if refill failed completely or dma mapping failed. The ring
+ *  is empty, which will stall the rx dma and user might want to call rxfill
+ *  again asap. This is unlikely to happen on a memory-rich NIC, but often on
+ *  memory-constrained dongle.
  */
 bool dma_rxfill(struct dma_pub *pub)
 {
@@ -1078,6 +1079,8 @@ bool dma_rxfill(struct dma_pub *pub)
 
 		pa = dma_map_single(di->dmadev, p->data, di->rxbufsize,
 				    DMA_FROM_DEVICE);
+		if (dma_mapping_error(di->dmadev, pa))
+			return false;
 
 		/* save the free packet pointer */
 		di->rxp[rxout] = p;
@@ -1284,7 +1287,11 @@ static void dma_txenq(struct dma_info *di, struct sk_buff *p)
 
 	/* get physical address of buffer start */
 	pa = dma_map_single(di->dmadev, data, len, DMA_TO_DEVICE);
-
+	/* if mapping failed, free skb */
+	if (dma_mapping_error(di->dmadev, pa)) {
+		brcmu_pkt_buf_free_skb(p);
+		return;
+	}
 	/* With a DMA segment list, Descriptor table is filled
 	 * using the segment list instead of looping over
 	 * buffers in multi-chain DMA. Therefore, EOF for SGLIST

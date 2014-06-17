@@ -7,4 +7,9 @@ config VIDEO_BLACKFIN_CAPTURE
 	  Choose PPI or EPPI as its interface.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_video_capture.
+	  module will be called bfin_capture.
+
+config VIDEO_BLACKFIN_PPI
+	tristate
+	depends on VIDEO_BLACKFIN_CAPTURE
+	default VIDEO_BLACKFIN_CAPTURE

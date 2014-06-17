@@ -97,6 +97,7 @@ void line6_unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm)
 		if (test_bit(i, &line6pcm->active_urb_in)) {
 			if (!test_and_set_bit(i, &line6pcm->unlink_urb_in)) {
 				struct urb *u = line6pcm->urb_audio_in[i];
+
 				usb_unlink_urb(u);
 			}
 		}
@@ -157,6 +158,7 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 		   copy two separate chunks.
 		 */
 		int len;
+
 		len = runtime->buffer_size - line6pcm->pos_in_done;
 
 		if (len > 0) {
@@ -215,16 +217,6 @@ static void audio_in_callback(struct urb *urb)
 	for (index = 0; index < LINE6_ISO_BUFFERS; ++index)
 		if (urb == line6pcm->urb_audio_in[index])
 			break;
-
-#ifdef CONFIG_LINE6_USB_DUMP_PCM
-	for (i = 0; i < LINE6_ISO_PACKETS; ++i) {
-		struct usb_iso_packet_descriptor *fout =
-		    &urb->iso_frame_desc[i];
-		line6_write_hexdump(line6pcm->line6, 'C',
-				    urb->transfer_buffer + fout->offset,
-				    fout->length);
-	}
-#endif
 
 	spin_lock_irqsave(&line6pcm->lock_audio_in, flags);
 
@@ -343,6 +335,7 @@ static int snd_line6_capture_hw_params(struct snd_pcm_substream *substream,
 static int snd_line6_capture_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
 	line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_CAPTURE_BUFFER);
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -389,6 +382,7 @@ static snd_pcm_uframes_t
 snd_line6_capture_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
 	return line6pcm->pos_in_done;
 }
 

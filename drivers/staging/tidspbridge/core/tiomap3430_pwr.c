@@ -51,7 +51,7 @@
 
 /*
  *  ======== handle_constraints_set ========
- *  	Sets new DSP constraint
+ *	Sets new DSP constraint
  */
 int handle_constraints_set(struct bridge_dev_context *dev_context,
 				  void *pargs)
@@ -75,7 +75,7 @@ int handle_constraints_set(struct bridge_dev_context *dev_context,
 
 /*
  *  ======== handle_hibernation_from_dsp ========
- *  	Handle Hibernation requested from DSP
+ *	Handle Hibernation requested from DSP
  */
 int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 {
@@ -99,7 +99,8 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 			return -EPERM;
 		}
 		pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD,
-					OMAP2_PM_PWSTST) & OMAP_POWERSTATEST_MASK;
+						   OMAP2_PM_PWSTST) &
+						   OMAP_POWERSTATEST_MASK;
 	}
 	if (timeout == 0) {
 		pr_err("%s: Timed out waiting for DSP off mode\n", __func__);
@@ -144,7 +145,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 
 /*
  *  ======== sleep_dsp ========
- *  	Put DSP in low power consuming state.
+ *	Put DSP in low power consuming state.
  */
 int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 		     void *pargs)
@@ -209,7 +210,8 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 			return -EPERM;
 		}
 		pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD,
-					OMAP2_PM_PWSTST) & OMAP_POWERSTATEST_MASK;
+						   OMAP2_PM_PWSTST) &
+						   OMAP_POWERSTATEST_MASK;
 	}
 
 	if (!timeout) {
@@ -250,7 +252,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
 
 /*
  *  ======== wake_dsp ========
- *  	Wake up DSP from sleep.
+ *	Wake up DSP from sleep.
  */
 int wake_dsp(struct bridge_dev_context *dev_context, void *pargs)
 {
@@ -276,7 +278,7 @@ int wake_dsp(struct bridge_dev_context *dev_context, void *pargs)
 
 /*
  *  ======== dsp_peripheral_clk_ctrl ========
- *  	Enable/Disable the DSP peripheral clocks as needed..
+ *	Enable/Disable the DSP peripheral clocks as needed..
  */
 int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
 				   void *pargs)
@@ -355,7 +357,7 @@ int pre_scale_dsp(struct bridge_dev_context *dev_context, void *pargs)
 	    (dev_context->brd_state == BRD_DSP_HIBERNATION)) {
 		dev_dbg(bridge, "OPP: %s IVA in sleep. No message to DSP\n");
 		return 0;
-	} else if ((dev_context->brd_state == BRD_RUNNING)) {
+	} else if (dev_context->brd_state == BRD_RUNNING) {
 		/* Send a prenotification to DSP */
 		dev_dbg(bridge, "OPP: %s sent notification to DSP\n", __func__);
 		sm_interrupt_dsp(dev_context, MBX_PM_SETPOINT_PRENOTIFY);
@@ -396,13 +398,14 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 		io_sh_msetting(hio_mgr, SHM_CURROPP, &level);
 		dev_dbg(bridge, "OPP: %s IVA in sleep. Wrote to shm\n",
 			__func__);
-	} else if ((dev_context->brd_state == BRD_RUNNING)) {
+	} else if (dev_context->brd_state == BRD_RUNNING) {
 		/* Update the OPP value in shared memory */
 		io_sh_msetting(hio_mgr, SHM_CURROPP, &level);
 		/* Send a post notification to DSP */
 		sm_interrupt_dsp(dev_context, MBX_PM_SETPOINT_POSTNOTIFY);
-		dev_dbg(bridge, "OPP: %s wrote to shm. Sent post notification "
-			"to DSP\n", __func__);
+		dev_dbg(bridge,
+			"OPP: %s wrote to shm. Sent post notification to DSP\n",
+			 __func__);
 	} else {
 		status = -EPERM;
 	}

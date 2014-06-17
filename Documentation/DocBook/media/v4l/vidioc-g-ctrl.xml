@@ -64,7 +64,9 @@ return an &EINVAL;. When the <structfield>value</structfield> is out
 of bounds drivers can choose to take the closest valid value or return
 an &ERANGE;, whatever seems more appropriate. However,
 <constant>VIDIOC_S_CTRL</constant> is a write-only ioctl, it does not
-return the actual new value.</para>
+return the actual new value. If the <structfield>value</structfield>
+is inappropriate for the control (e.g. if it refers to an unsupported
+menu index of a menu control), then &EINVAL; is returned as well.</para>
 
     <para>These ioctls work only with user controls. For other
 control classes the &VIDIOC-G-EXT-CTRLS;, &VIDIOC-S-EXT-CTRLS; or
@@ -99,7 +101,9 @@ application.</entry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-control; <structfield>id</structfield> is
-invalid.</para>
+invalid or the <structfield>value</structfield> is inappropriate for
+the given control (i.e. if a menu item is selected that is not supported
+by the driver according to &VIDIOC-QUERYMENU;).</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

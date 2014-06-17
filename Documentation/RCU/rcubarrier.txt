@@ -70,16 +70,33 @@ in realtime kernels in order to avoid excessive scheduling latencies.
 
 rcu_barrier()
 
-We instead need the rcu_barrier() primitive. This primitive is similar
-to synchronize_rcu(), but instead of waiting solely for a grace
-period to elapse, it also waits for all outstanding RCU callbacks to
-complete. Pseudo-code using rcu_barrier() is as follows:
+We instead need the rcu_barrier() primitive.  Rather than waiting for
+a grace period to elapse, rcu_barrier() waits for all outstanding RCU
+callbacks to complete.  Please note that rcu_barrier() does -not- imply
+synchronize_rcu(), in particular, if there are no RCU callbacks queued
+anywhere, rcu_barrier() is within its rights to return immediately,
+without waiting for a grace period to elapse.
+
+Pseudo-code using rcu_barrier() is as follows:
 
    1. Prevent any new RCU callbacks from being posted.
    2. Execute rcu_barrier().
    3. Allow the module to be unloaded.
 
-The rcutorture module makes use of rcu_barrier in its exit function
+There are also rcu_barrier_bh(), rcu_barrier_sched(), and srcu_barrier()
+functions for the other flavors of RCU, and you of course must match
+the flavor of rcu_barrier() with that of call_rcu().  If your module
+uses multiple flavors of call_rcu(), then it must also use multiple
+flavors of rcu_barrier() when unloading that module.  For example, if
+it uses call_rcu_bh(), call_srcu() on srcu_struct_1, and call_srcu() on
+srcu_struct_2(), then the following three lines of code will be required
+when unloading:
+
+ 1 rcu_barrier_bh();
+ 2 srcu_barrier(&srcu_struct_1);
+ 3 srcu_barrier(&srcu_struct_2);
+
+The rcutorture module makes use of rcu_barrier() in its exit function
 as follows:
 
  1 static void

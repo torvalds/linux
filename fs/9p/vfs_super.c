@@ -144,7 +144,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	}
 	v9fs_fill_super(sb, v9ses, flags, data);
 
-	if (v9ses->cache)
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		sb->s_d_op = &v9fs_cached_dentry_operations;
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
@@ -282,7 +282,7 @@ static int v9fs_drop_inode(struct inode *inode)
 {
 	struct v9fs_session_info *v9ses;
 	v9ses = v9fs_inode2v9ses(inode);
-	if (v9ses->cache)
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		return generic_drop_inode(inode);
 	/*
 	 * in case of non cached mode always drop the
@@ -325,10 +325,12 @@ static int v9fs_write_inode_dotl(struct inode *inode,
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
-	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
 	v9inode = V9FS_I(inode);
+	p9_debug(P9_DEBUG_VFS, "%s: inode %p, writeback_fid %p\n",
+		 __func__, inode, v9inode->writeback_fid);
 	if (!v9inode->writeback_fid)
 		return 0;
+
 	ret = p9_client_fsync(v9inode->writeback_fid, 0);
 	if (ret < 0) {
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
@@ -363,5 +365,6 @@ struct file_system_type v9fs_fs_type = {
 	.mount = v9fs_mount,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
-	.fs_flags = FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT,
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };
+MODULE_ALIAS_FS("9p");

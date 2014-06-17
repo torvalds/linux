@@ -68,7 +68,7 @@ Module parameters
 
 There are several parameters which may be provided to the driver when
 its module is loaded.  These are usually placed in /etc/modprobe.d/*.conf
-configuretion files.  Example:
+configuration files.  Example:
 
 options 3c59x debug=3 rx_copybreak=300
 
@@ -178,7 +178,7 @@ max_interrupt_work=N
 
   The driver's interrupt service routine can handle many receive and
   transmit packets in a single invocation.  It does this in a loop. 
-  The value of max_interrupt_work governs how mnay times the interrupt
+  The value of max_interrupt_work governs how many times the interrupt
   service routine will loop.  The default value is 32 loops.  If this
   is exceeded the interrupt service routine gives up and generates a
   warning message "eth0: Too much work in interrupt".
@@ -359,7 +359,7 @@ steps you should take:
 - OK, it's a driver problem.
 
    You need to generate a report.  Typically this is an email to the
-   maintainer and/or linux-net@vger.kernel.org.  The maintainer's
+   maintainer and/or netdev@vger.kernel.org.  The maintainer's
    email address will be in the driver source or in the MAINTAINERS file.
 
 - The contents of your report will vary a lot depending upon the

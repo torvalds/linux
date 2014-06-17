@@ -32,11 +32,13 @@
  */
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/xprt.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/slab.h>
 #include "nfsd.h"
 #include "state.h"
 #include "netns.h"
+#include "xdr4cb.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -52,30 +54,6 @@ enum {
 	NFSPROC4_CLNT_CB_RECALL,
 	NFSPROC4_CLNT_CB_SEQUENCE,
 };
-
-#define NFS4_MAXTAGLEN		20
-
-#define NFS4_enc_cb_null_sz		0
-#define NFS4_dec_cb_null_sz		0
-#define cb_compound_enc_hdr_sz		4
-#define cb_compound_dec_hdr_sz		(3 + (NFS4_MAXTAGLEN >> 2))
-#define sessionid_sz			(NFS4_MAX_SESSIONID_LEN >> 2)
-#define cb_sequence_enc_sz		(sessionid_sz + 4 +             \
-					1 /* no referring calls list yet */)
-#define cb_sequence_dec_sz		(op_dec_sz + sessionid_sz + 4)
-
-#define op_enc_sz			1
-#define op_dec_sz			2
-#define enc_nfs4_fh_sz			(1 + (NFS4_FHSIZE >> 2))
-#define enc_stateid_sz			(NFS4_STATEID_SIZE >> 2)
-#define NFS4_enc_cb_recall_sz		(cb_compound_enc_hdr_sz +       \
-					cb_sequence_enc_sz +            \
-					1 + enc_stateid_sz +            \
-					enc_nfs4_fh_sz)
-
-#define NFS4_dec_cb_recall_sz		(cb_compound_dec_hdr_sz  +      \
-					cb_sequence_dec_sz +            \
-					op_dec_sz)
 
 struct nfs4_cb_compound_hdr {
 	/* args */
@@ -658,11 +636,29 @@ static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc
 	}
 }
 
+static struct rpc_clnt *create_backchannel_client(struct rpc_create_args *args)
+{
+	struct rpc_xprt *xprt;
+
+	if (args->protocol != XPRT_TRANSPORT_BC_TCP)
+		return rpc_create(args);
+
+	xprt = args->bc_xprt->xpt_bc_xprt;
+	if (xprt) {
+		xprt_get(xprt);
+		return rpc_create_xprt(args, xprt);
+	}
+
+	return rpc_create(args);
+}
+
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
+	int maxtime = max_cb_time(clp->net);
 	struct rpc_timeout	timeparms = {
-		.to_initval	= max_cb_time(clp->net),
+		.to_initval	= maxtime,
 		.to_retries	= 0,
+		.to_maxval	= maxtime,
 	};
 	struct rpc_create_args args = {
 		.net		= clp->net,
@@ -697,7 +693,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		args.authflavor = ses->se_cb_sec.flavor;
 	}
 	/* Create RPC client */
-	client = rpc_create(&args);
+	client = create_backchannel_client(&args);
 	if (IS_ERR(client)) {
 		dprintk("NFSD: couldn't create callback client: %ld\n",
 			PTR_ERR(client));
@@ -817,8 +813,7 @@ static bool nfsd41_cb_get_slot(struct nfs4_client *clp, struct rpc_task *task)
 static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
-	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 	u32 minorversion = clp->cl_minorversion;
 
 	cb->cb_minorversion = minorversion;
@@ -839,8 +834,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
-	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 
 	dprintk("%s: minorversion=%d\n", __func__,
 		clp->cl_minorversion);
@@ -863,7 +857,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
 	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
-	struct nfs4_client *clp = dp->dl_stid.sc_client;
+	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
 
 	nfsd4_cb_done(task, calldata);

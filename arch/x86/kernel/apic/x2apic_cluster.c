@@ -3,7 +3,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/init.h>
 #include <linux/dmar.h>
 #include <linux/cpu.h>
 
@@ -148,7 +147,7 @@ static void init_x2apic_ldr(void)
  /*
   * At CPU state changes, update the x2apic cluster sibling info.
   */
-static int __cpuinit
+static int
 update_clusterinfo(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int this_cpu = (unsigned long)hcpu;
@@ -280,7 +279,7 @@ static struct apic apic_x2apic_cluster = {
 
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
-	.wait_for_init_deassert		= NULL,
+	.wait_for_init_deassert		= false,
 	.smp_callin_clear_local_apic	= NULL,
 	.inquire_remote_apic		= NULL,
 

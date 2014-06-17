@@ -20,7 +20,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/spinlock.h>
@@ -29,8 +28,7 @@
 #include <asm/firmware.h>
 #include <asm/lppaca.h>
 #include <asm/debug.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 struct dtl {
 	struct dtl_entry	*buf;
@@ -57,7 +55,7 @@ static u8 dtl_event_mask = 0x7;
  */
 static int dtl_buf_entries = N_DISPATCH_LOG;
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 struct dtl_ring {
 	u64	write_index;
 	struct dtl_entry *write_ptr;
@@ -87,7 +85,7 @@ static void consume_dtle(struct dtl_entry *dtle, u64 index)
 	barrier();
 
 	/* check for hypervisor ring buffer overflow, ignore this entry if so */
-	if (index + N_DISPATCH_LOG < vpa->dtl_idx)
+	if (index + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx))
 		return;
 
 	++wp;
@@ -142,7 +140,7 @@ static u64 dtl_current_index(struct dtl *dtl)
 	return per_cpu(dtl_rings, dtl->cpu).write_index;
 }
 
-#else /* CONFIG_VIRT_CPU_ACCOUNTING */
+#else /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static int dtl_start(struct dtl *dtl)
 {
@@ -188,7 +186,7 @@ static u64 dtl_current_index(struct dtl *dtl)
 {
 	return lppaca_of(dtl->cpu).dtl_idx;
 }
-#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 static int dtl_enable(struct dtl *dtl)
 {

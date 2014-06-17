@@ -60,7 +60,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
@@ -1626,7 +1625,7 @@ static int isp116x_probe(struct platform_device *pdev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	isp116x->board = pdev->dev.platform_data;
+	isp116x->board = dev_get_platdata(&pdev->dev);
 
 	if (!isp116x->board) {
 		ERR("Platform data structure not initialized\n");
@@ -1644,6 +1643,8 @@ static int isp116x_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, irq, irqflags);
 	if (ret)
 		goto err6;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	ret = create_debug_file(isp116x);
 	if (ret) {
@@ -1705,7 +1706,7 @@ static struct platform_driver isp116x_driver = {
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
 	.driver = {
-		.name = (char *)hcd_name,
+		.name = hcd_name,
 		.owner	= THIS_MODULE,
 	},
 };

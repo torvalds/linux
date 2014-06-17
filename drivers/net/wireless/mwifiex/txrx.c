@@ -40,6 +40,7 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	struct rxpd *local_rx_pd;
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
+	int ret;
 
 	local_rx_pd = (struct rxpd *) (skb->data);
 	/* Get the BSS number from rxpd, get corresponding priv */
@@ -58,9 +59,15 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	rx_info->bss_type = priv->bss_type;
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-		return mwifiex_process_uap_rx_packet(priv, skb);
+		ret = mwifiex_process_uap_rx_packet(priv, skb);
+	else
+		ret = mwifiex_process_sta_rx_packet(priv, skb);
 
-	return mwifiex_process_sta_rx_packet(priv, skb);
+	/* Decrement RX pending counter for each packet */
+	if (adapter->if_ops.data_complete)
+		adapter->if_ops.data_complete(adapter);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 
@@ -105,7 +112,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 
 	switch (ret) {
 	case -ENOSR:
-		dev_err(adapter->dev, "data: -ENOSR is returned\n");
+		dev_dbg(adapter->dev, "data: -ENOSR is returned\n");
 		break;
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
@@ -117,14 +124,16 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		dev_dbg(adapter->dev, "data: -EBUSY is returned\n");
 		break;
 	case -1:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		dev_err(adapter->dev, "mwifiex_write_data_async failed: 0x%X\n",
 			ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;
 	case -EINPROGRESS:
-		adapter->data_sent = false;
+		if (adapter->iface_type != MWIFIEX_PCIE)
+			adapter->data_sent = false;
 		break;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
@@ -166,7 +175,9 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	mwifiex_set_trans_start(priv->netdev);
 	if (!status) {
 		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += skb->len;
+		priv->stats.tx_bytes += tx_info->pkt_len;
+		if (priv->tx_timeout_cnt)
+			priv->tx_timeout_cnt = 0;
 	} else {
 		priv->stats.tx_errors++;
 	}

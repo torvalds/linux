@@ -36,6 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 
+#include <asm/idle.h>
 #include <asm/processor.h>
 #include <asm/time.h>
 #include <asm/mach-au1x00/au1000.h>
@@ -85,7 +86,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.name		= "rtcmatch2",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 1500,
-	.set_next_event	= au1x_rtcmatch2_set_next_event,
+	.set_next_event = au1x_rtcmatch2_set_next_event,
 	.set_mode	= au1x_rtcmatch2_set_mode,
 	.cpumask	= cpu_all_mask,
 };

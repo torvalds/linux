@@ -55,34 +55,36 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
 	struct drm_mm_node *node = NULL;
+	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
 	unsigned long lpfn;
 	int ret;
 
 	lpfn = placement->lpfn;
 	if (!lpfn)
 		lpfn = man->size;
-	do {
-		ret = drm_mm_pre_get(mm);
-		if (unlikely(ret))
-			return ret;
 
-		spin_lock(&rman->lock);
-		node = drm_mm_search_free_in_range(mm,
-					mem->num_pages, mem->page_alignment,
-					placement->fpfn, lpfn, 1);
-		if (unlikely(node == NULL)) {
-			spin_unlock(&rman->lock);
-			return 0;
-		}
-		node = drm_mm_get_block_atomic_range(node, mem->num_pages,
-						     mem->page_alignment,
-						     placement->fpfn,
-						     lpfn);
-		spin_unlock(&rman->lock);
-	} while (node == NULL);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
 
-	mem->mm_node = node;
-	mem->start = node->start;
+	if (bo->mem.placement & TTM_PL_FLAG_TOPDOWN)
+		aflags = DRM_MM_CREATE_TOP;
+
+	spin_lock(&rman->lock);
+	ret = drm_mm_insert_node_in_range_generic(mm, node, mem->num_pages,
+					  mem->page_alignment, 0,
+					  placement->fpfn, lpfn,
+					  DRM_MM_SEARCH_BEST,
+					  aflags);
+	spin_unlock(&rman->lock);
+
+	if (unlikely(ret)) {
+		kfree(node);
+	} else {
+		mem->mm_node = node;
+		mem->start = node->start;
+	}
+
 	return 0;
 }
 
@@ -93,8 +95,10 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 
 	if (mem->mm_node) {
 		spin_lock(&rman->lock);
-		drm_mm_put_block(mem->mm_node);
+		drm_mm_remove_node(mem->mm_node);
 		spin_unlock(&rman->lock);
+
+		kfree(mem->mm_node);
 		mem->mm_node = NULL;
 	}
 }
@@ -103,18 +107,12 @@ static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 			   unsigned long p_size)
 {
 	struct ttm_range_manager *rman;
-	int ret;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
 
-	ret = drm_mm_init(&rman->mm, 0, p_size);
-	if (ret) {
-		kfree(rman);
-		return ret;
-	}
-
+	drm_mm_init(&rman->mm, 0, p_size);
 	spin_lock_init(&rman->lock);
 	man->priv = rman;
 	return 0;

@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -232,6 +233,57 @@ out:
 	return ok;
 }
 
+static int os_page_mincore(void *addr)
+{
+	char vec[2];
+	int ret;
+
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			return 0;
+		else
+			return -errno;
+	}
+
+	return vec[0] & 1;
+}
+
+int os_mincore(void *addr, unsigned long len)
+{
+	char *vec;
+	int ret, i;
+
+	if (len <= UM_KERN_PAGE_SIZE)
+		return os_page_mincore(addr);
+
+	vec = calloc(1, (len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE);
+	if (!vec)
+		return -ENOMEM;
+
+	ret = mincore(addr, UM_KERN_PAGE_SIZE, vec);
+	if (ret < 0) {
+		if (errno == ENOMEM || errno == EINVAL)
+			ret = 0;
+		else
+			ret = -errno;
+
+		goto out;
+	}
+
+	for (i = 0; i < ((len + UM_KERN_PAGE_SIZE - 1) / UM_KERN_PAGE_SIZE); i++) {
+		if (!(vec[i] & 1)) {
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = 1;
+out:
+	free(vec);
+	return ret;
+}
+
 void init_new_thread_signals(void)
 {
 	set_handler(SIGSEGV);
@@ -242,5 +294,4 @@ void init_new_thread_signals(void)
 	signal(SIGHUP, SIG_IGN);
 	set_handler(SIGIO);
 	signal(SIGWINCH, SIG_IGN);
-	signal(SIGTERM, SIG_DFL);
 }

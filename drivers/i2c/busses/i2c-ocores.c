@@ -12,9 +12,9 @@
  * kind, whether express or implied.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
@@ -23,7 +23,6 @@
 #include <linux/i2c-ocores.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/of_i2c.h>
 #include <linux/log2.h>
 
 struct ocores_i2c {
@@ -247,11 +246,11 @@ static const struct i2c_algorithm ocores_algorithm = {
 static struct i2c_adapter ocores_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-ocores",
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD | I2C_CLASS_DEPRECATED,
 	.algo		= &ocores_algorithm,
 };
 
-static struct of_device_id ocores_i2c_match[] = {
+static const struct of_device_id ocores_i2c_match[] = {
 	{
 		.compatible = "opencores,i2c-ocores",
 		.data = (void *)TYPE_OCORES,
@@ -331,7 +330,7 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 				&i2c->reg_io_width);
 
 	match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
-	if (match && (int)match->data == TYPE_GRLIB) {
+	if (match && (long)match->data == TYPE_GRLIB) {
 		dev_dbg(&pdev->dev, "GRLIB variant of i2c-ocores\n");
 		i2c->setreg = oc_setreg_grlib;
 		i2c->getreg = oc_getreg_grlib;
@@ -352,10 +351,6 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -364,11 +359,12 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	i2c->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!i2c->base)
-		return -EADDRNOTAVAIL;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	i2c->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(i2c->base))
+		return PTR_ERR(i2c->base);
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {
 		i2c->reg_shift = pdata->reg_shift;
 		i2c->reg_io_width = pdata->reg_io_width;
@@ -434,8 +430,6 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_device(&i2c->adap, pdata->devices + i);
-	} else {
-		of_i2c_register_devices(&i2c->adap);
 	}
 
 	return 0;
@@ -451,12 +445,11 @@ static int ocores_i2c_remove(struct platform_device *pdev)
 
 	/* remove adapter & data */
 	i2c_del_adapter(&i2c->adap);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ocores_i2c_suspend(struct device *dev)
 {
 	struct ocores_i2c *i2c = dev_get_drvdata(dev);

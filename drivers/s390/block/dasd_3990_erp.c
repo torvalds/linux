@@ -229,7 +229,7 @@ dasd_3990_erp_DCTL(struct dasd_ccw_req * erp, char modifier)
 	dctl_cqr->expires = 5 * 60 * HZ;
 	dctl_cqr->retries = 2;
 
-	dctl_cqr->buildclk = get_clock();
+	dctl_cqr->buildclk = get_tod_clock();
 
 	dctl_cqr->status = DASD_CQR_FILLED;
 
@@ -1719,7 +1719,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	erp->magic = default_erp->magic;
 	erp->expires = default_erp->expires;
 	erp->retries = 256;
-	erp->buildclk = get_clock();
+	erp->buildclk = get_tod_clock();
 	erp->status = DASD_CQR_FILLED;
 
 	/* remove the default erp */
@@ -2322,7 +2322,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 			DBF_DEV_EVENT(DBF_ERR, device, "%s",
 				    "Unable to allocate ERP request");
 			cqr->status = DASD_CQR_FAILED;
-                        cqr->stopclk = get_clock ();
+			cqr->stopclk = get_tod_clock();
 		} else {
 			DBF_DEV_EVENT(DBF_ERR, device,
                                      "Unable to allocate ERP request "
@@ -2364,7 +2364,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 	erp->magic    = cqr->magic;
 	erp->expires  = cqr->expires;
 	erp->retries  = 256;
-	erp->buildclk = get_clock();
+	erp->buildclk = get_tod_clock();
 	erp->status = DASD_CQR_FILLED;
 
 	return erp;

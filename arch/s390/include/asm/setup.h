@@ -9,7 +9,6 @@
 
 
 #define PARMAREA		0x10400
-#define MEMORY_CHUNKS		256
 
 #ifndef __ASSEMBLY__
 
@@ -31,32 +30,11 @@
 #endif /* CONFIG_64BIT */
 #define COMMAND_LINE      ((char *)            (0x10480))
 
-#define CHUNK_READ_WRITE 0
-#define CHUNK_READ_ONLY  1
-#define CHUNK_OLDMEM	 4
-#define CHUNK_CRASHK	 5
-
-struct mem_chunk {
-	unsigned long addr;
-	unsigned long size;
-	int type;
-};
-
-extern struct mem_chunk memory_chunk[];
-extern unsigned long real_memory_size;
 extern int memory_end_set;
 extern unsigned long memory_end;
+extern unsigned long max_physmem_end;
 
-void detect_memory_layout(struct mem_chunk chunk[]);
-void create_mem_hole(struct mem_chunk memory_chunk[], unsigned long addr,
-		     unsigned long size, int type);
-
-#define PRIMARY_SPACE_MODE	0
-#define ACCESS_REGISTER_MODE	1
-#define SECONDARY_SPACE_MODE	2
-#define HOME_SPACE_MODE		3
-
-extern unsigned int s390_user_mode;
+extern void detect_memory_memblock(void);
 
 /*
  * Machine features detected in head.S
@@ -64,26 +42,28 @@ extern unsigned int s390_user_mode;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_CSP	(1UL << 3)
-#define MACHINE_FLAG_MVPG	(1UL << 4)
-#define MACHINE_FLAG_DIAG44	(1UL << 5)
-#define MACHINE_FLAG_IDTE	(1UL << 6)
-#define MACHINE_FLAG_DIAG9C	(1UL << 7)
-#define MACHINE_FLAG_MVCOS	(1UL << 8)
-#define MACHINE_FLAG_KVM	(1UL << 9)
+#define MACHINE_FLAG_CSP	(1UL << 2)
+#define MACHINE_FLAG_MVPG	(1UL << 3)
+#define MACHINE_FLAG_DIAG44	(1UL << 4)
+#define MACHINE_FLAG_IDTE	(1UL << 5)
+#define MACHINE_FLAG_DIAG9C	(1UL << 6)
+#define MACHINE_FLAG_KVM	(1UL << 8)
+#define MACHINE_FLAG_ESOP	(1UL << 9)
 #define MACHINE_FLAG_EDAT1	(1UL << 10)
 #define MACHINE_FLAG_EDAT2	(1UL << 11)
 #define MACHINE_FLAG_LPAR	(1UL << 12)
-#define MACHINE_FLAG_SPP	(1UL << 13)
+#define MACHINE_FLAG_LPP	(1UL << 13)
 #define MACHINE_FLAG_TOPOLOGY	(1UL << 14)
 #define MACHINE_FLAG_TE		(1UL << 15)
 #define MACHINE_FLAG_RRBM	(1UL << 16)
+#define MACHINE_FLAG_TLB_LC	(1UL << 17)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
 #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
 
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
+#define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
 #define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
 #define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
 
@@ -93,30 +73,27 @@ extern unsigned int s390_user_mode;
 #define MACHINE_HAS_IDTE	(0)
 #define MACHINE_HAS_DIAG44	(1)
 #define MACHINE_HAS_MVPG	(S390_lowcore.machine_flags & MACHINE_FLAG_MVPG)
-#define MACHINE_HAS_MVCOS	(0)
 #define MACHINE_HAS_EDAT1	(0)
 #define MACHINE_HAS_EDAT2	(0)
-#define MACHINE_HAS_SPP		(0)
+#define MACHINE_HAS_LPP		(0)
 #define MACHINE_HAS_TOPOLOGY	(0)
 #define MACHINE_HAS_TE		(0)
 #define MACHINE_HAS_RRBM	(0)
+#define MACHINE_HAS_TLB_LC	(0)
 #else /* CONFIG_64BIT */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
 #define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
 #define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_MVPG	(1)
-#define MACHINE_HAS_MVCOS	(S390_lowcore.machine_flags & MACHINE_FLAG_MVCOS)
 #define MACHINE_HAS_EDAT1	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT1)
 #define MACHINE_HAS_EDAT2	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT2)
-#define MACHINE_HAS_SPP		(S390_lowcore.machine_flags & MACHINE_FLAG_SPP)
+#define MACHINE_HAS_LPP		(S390_lowcore.machine_flags & MACHINE_FLAG_LPP)
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
 #define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
 #define MACHINE_HAS_RRBM	(S390_lowcore.machine_flags & MACHINE_FLAG_RRBM)
+#define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
 #endif /* CONFIG_64BIT */
-
-#define ZFCPDUMP_HSA_SIZE	(32UL<<20)
-#define ZFCPDUMP_HSA_SIZE_MAX	(64UL<<20)
 
 /*
  * Console mode. Override with conmode=

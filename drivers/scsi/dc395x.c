@@ -308,6 +308,8 @@ struct AdapterCtlBlk {
 	struct timer_list waiting_timer;
 	struct timer_list selto_timer;
 
+	unsigned long last_reset;
+
 	u16 srb_count;
 
 	u8 sel_timeout;
@@ -860,9 +862,9 @@ static void waiting_set_timer(struct AdapterCtlBlk *acb, unsigned long to)
 	init_timer(&acb->waiting_timer);
 	acb->waiting_timer.function = waiting_timeout;
 	acb->waiting_timer.data = (unsigned long) acb;
-	if (time_before(jiffies + to, acb->scsi_host->last_reset - HZ / 2))
+	if (time_before(jiffies + to, acb->last_reset - HZ / 2))
 		acb->waiting_timer.expires =
-		    acb->scsi_host->last_reset - HZ / 2 + 1;
+		    acb->last_reset - HZ / 2 + 1;
 	else
 		acb->waiting_timer.expires = jiffies + to + 1;
 	add_timer(&acb->waiting_timer);
@@ -1319,7 +1321,7 @@ static int __dc395x_eh_bus_reset(struct scsi_cmnd *cmd)
 	udelay(500);
 
 	/* We may be in serious trouble. Wait some seconds */
-	acb->scsi_host->last_reset =
+	acb->last_reset =
 	    jiffies + 3 * HZ / 2 +
 	    HZ * acb->eeprom.delay_time;
 
@@ -1462,9 +1464,9 @@ static void selto_timer(struct AdapterCtlBlk *acb)
 	acb->selto_timer.function = selection_timeout_missed;
 	acb->selto_timer.data = (unsigned long) acb;
 	if (time_before
-	    (jiffies + HZ, acb->scsi_host->last_reset + HZ / 2))
+	    (jiffies + HZ, acb->last_reset + HZ / 2))
 		acb->selto_timer.expires =
-		    acb->scsi_host->last_reset + HZ / 2 + 1;
+		    acb->last_reset + HZ / 2 + 1;
 	else
 		acb->selto_timer.expires = jiffies + HZ + 1;
 	add_timer(&acb->selto_timer);
@@ -1535,7 +1537,7 @@ static u8 start_scsi(struct AdapterCtlBlk* acb, struct DeviceCtlBlk* dcb,
 	}
 	/* Allow starting of SCSI commands half a second before we allow the mid-level
 	 * to queue them again after a reset */
-	if (time_before(jiffies, acb->scsi_host->last_reset - HZ / 2)) {
+	if (time_before(jiffies, acb->last_reset - HZ / 2)) {
 		dprintkdbg(DBG_KG, "start_scsi: Refuse cmds (reset wait)\n");
 		return 1;
 	}
@@ -3031,7 +3033,7 @@ static void disconnect(struct AdapterCtlBlk *acb)
 		dprintkl(KERN_ERR, "disconnect: No such device\n");
 		udelay(500);
 		/* Suspend queue for a while */
-		acb->scsi_host->last_reset =
+		acb->last_reset =
 		    jiffies + HZ / 2 +
 		    HZ * acb->eeprom.delay_time;
 		clear_fifo(acb, "disconnectEx");
@@ -3053,7 +3055,7 @@ static void disconnect(struct AdapterCtlBlk *acb)
 		waiting_process_next(acb);
 	} else if (srb->state & SRB_ABORT_SENT) {
 		dcb->flag &= ~ABORT_DEV_;
-		acb->scsi_host->last_reset = jiffies + HZ / 2 + 1;
+		acb->last_reset = jiffies + HZ / 2 + 1;
 		dprintkl(KERN_ERR, "disconnect: SRB_ABORT_SENT\n");
 		doing_srb_done(acb, DID_ABORT, srb->cmd, 1);
 		waiting_process_next(acb);
@@ -3649,7 +3651,7 @@ static void scsi_reset_detect(struct AdapterCtlBlk *acb)
 	/*DC395x_write8(acb, TRM_S1040_DMA_CONTROL,STOPDMAXFER); */
 	udelay(500);
 	/* Maybe we locked up the bus? Then lets wait even longer ... */
-	acb->scsi_host->last_reset =
+	acb->last_reset =
 	    jiffies + 5 * HZ / 2 +
 	    HZ * acb->eeprom.delay_time;
 
@@ -3747,13 +3749,13 @@ static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
 	dcb->max_command = 1;
 	dcb->target_id = target;
 	dcb->target_lun = lun;
+	dcb->dev_mode = eeprom->target[target].cfg0;
 #ifndef DC395x_NO_DISCONNECT
 	dcb->identify_msg =
 	    IDENTIFY(dcb->dev_mode & NTC_DO_DISCONNECT, lun);
 #else
 	dcb->identify_msg = IDENTIFY(0, lun);
 #endif
-	dcb->dev_mode = eeprom->target[target].cfg0;
 	dcb->inquiry7 = 0;
 	dcb->sync_mode = 0;
 	dcb->min_nego_period = clock_period[period_index];
@@ -4426,7 +4428,7 @@ static void adapter_init_scsi_host(struct Scsi_Host *host)
 	host->dma_channel = -1;
 	host->unique_id = acb->io_port_base;
 	host->irq = acb->irq_level;
-	host->last_reset = jiffies;
+	acb->last_reset = jiffies;
 
 	host->max_id = 16;
 	if (host->max_id - 1 == eeprom->scsi_id)
@@ -4484,7 +4486,7 @@ static void adapter_init_chip(struct AdapterCtlBlk *acb)
 		/*spin_unlock_irq (&io_request_lock); */
 		udelay(500);
 
-		acb->scsi_host->last_reset =
+		acb->last_reset =
 		    jiffies + HZ / 2 +
 		    HZ * acb->eeprom.delay_time;
 
@@ -4616,25 +4618,20 @@ static void adapter_uninit(struct AdapterCtlBlk *acb)
 
 
 #undef SPRINTF
-#define SPRINTF(args...) pos += sprintf(pos, args)
+#define SPRINTF(args...) seq_printf(m,##args)
 
 #undef YESNO
 #define YESNO(YN) \
  if (YN) SPRINTF(" Yes ");\
  else SPRINTF(" No  ")
 
-static int dc395x_proc_info(struct Scsi_Host *host, char *buffer,
-		char **start, off_t offset, int length, int inout)
+static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
 	struct AdapterCtlBlk *acb = (struct AdapterCtlBlk *)host->hostdata;
 	int spd, spd1;
-	char *pos = buffer;
 	struct DeviceCtlBlk *dcb;
 	unsigned long flags;
 	int dev;
-
-	if (inout)		/* Has data been written to the file ? */
-		return -EPERM;
 
 	SPRINTF(DC395X_BANNER " PCI SCSI Host Adapter\n");
 	SPRINTF(" Driver Version " DC395X_VERSION "\n");
@@ -4735,22 +4732,15 @@ static int dc395x_proc_info(struct Scsi_Host *host, char *buffer,
 		SPRINTF("END\n");
 	}
 
-	*start = buffer + offset;
 	DC395x_UNLOCK_IO(acb->scsi_host, flags);
-
-	if (pos - buffer < offset)
-		return 0;
-	else if (pos - buffer - offset < length)
-		return pos - buffer - offset;
-	else
-		return length;
+	return 0;
 }
 
 
 static struct scsi_host_template dc395x_driver_template = {
 	.module                 = THIS_MODULE,
 	.proc_name              = DC395X_NAME,
-	.proc_info              = dc395x_proc_info,
+	.show_info              = dc395x_show_info,
 	.name                   = DC395X_BANNER " " DC395X_VERSION,
 	.queuecommand           = dc395x_queue_command,
 	.bios_param             = dc395x_bios_param,
@@ -4871,7 +4861,6 @@ static void dc395x_remove_one(struct pci_dev *dev)
 	adapter_uninit(acb);
 	pci_disable_device(dev);
 	scsi_host_put(scsi_host);
-	pci_set_drvdata(dev, NULL);
 }
 
 

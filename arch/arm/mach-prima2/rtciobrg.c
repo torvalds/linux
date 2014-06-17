@@ -104,6 +104,7 @@ EXPORT_SYMBOL_GPL(sirfsoc_rtc_iobrg_writel);
 
 static const struct of_device_id rtciobrg_ids[] = {
 	{ .compatible = "sirf,prima2-rtciobg" },
+	{ .compatible = "sirf,marco-rtciobg" },
 	{}
 };
 
@@ -136,4 +137,4 @@ postcore_initcall(sirfsoc_rtciobrg_init);
 MODULE_AUTHOR("Zhiwu Song <zhiwu.song@csr.com>, "
 		"Barry Song <baohua.song@csr.com>");
 MODULE_DESCRIPTION("CSR SiRFprimaII rtc io bridge");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

@@ -1022,12 +1022,21 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 					mad_send_wr->send_buf.mad,
 					sge[0].length,
 					DMA_TO_DEVICE);
+	if (unlikely(ib_dma_mapping_error(mad_agent->device, sge[0].addr)))
+		return -ENOMEM;
+
 	mad_send_wr->header_mapping = sge[0].addr;
 
 	sge[1].addr = ib_dma_map_single(mad_agent->device,
 					ib_get_payload(mad_send_wr),
 					sge[1].length,
 					DMA_TO_DEVICE);
+	if (unlikely(ib_dma_mapping_error(mad_agent->device, sge[1].addr))) {
+		ib_dma_unmap_single(mad_agent->device,
+				    mad_send_wr->header_mapping,
+				    sge[0].length, DMA_TO_DEVICE);
+		return -ENOMEM;
+	}
 	mad_send_wr->payload_mapping = sge[1].addr;
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
@@ -2590,6 +2599,11 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 						 sizeof *mad_priv -
 						   sizeof mad_priv->header,
 						 DMA_FROM_DEVICE);
+		if (unlikely(ib_dma_mapping_error(qp_info->port_priv->device,
+						  sg_list.addr))) {
+			ret = -ENOMEM;
+			break;
+		}
 		mad_priv->header.mapping = sg_list.addr;
 		recv_wr.wr_id = (unsigned long)&mad_priv->header.mad_list;
 		mad_priv->header.mad_list.mad_queue = recv_queue;
@@ -2663,12 +2677,18 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	int ret, i;
 	struct ib_qp_attr *attr;
 	struct ib_qp *qp;
+	u16 pkey_index;
 
 	attr = kmalloc(sizeof *attr, GFP_KERNEL);
 	if (!attr) {
 		printk(KERN_ERR PFX "Couldn't kmalloc ib_qp_attr\n");
 		return -ENOMEM;
 	}
+
+	ret = ib_find_pkey(port_priv->device, port_priv->port_num,
+			   IB_DEFAULT_PKEY_FULL, &pkey_index);
+	if (ret)
+		pkey_index = 0;
 
 	for (i = 0; i < IB_MAD_QPS_CORE; i++) {
 		qp = port_priv->qp_info[i].qp;
@@ -2680,7 +2700,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 		 * one is needed for the Reset to Init transition
 		 */
 		attr->qp_state = IB_QPS_INIT;
-		attr->pkey_index = 0;
+		attr->pkey_index = pkey_index;
 		attr->qkey = (qp->qp_num == 0) ? 0 : IB_QP1_QKEY;
 		ret = ib_modify_qp(qp, attr, IB_QP_STATE |
 					     IB_QP_PKEY_INDEX | IB_QP_QKEY);

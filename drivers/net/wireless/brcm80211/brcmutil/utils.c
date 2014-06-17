@@ -45,17 +45,9 @@ void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 {
 	if (!skb)
 		return;
+
 	WARN_ON(skb->next);
-	if (skb->destructor)
-		/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
-		 * destructor exists
-		 */
-		dev_kfree_skb_any(skb);
-	else
-		/* can free immediately (even in_irq()) if destructor
-		 * does not exist
-		 */
-		dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
@@ -115,6 +107,31 @@ struct sk_buff *brcmu_pktq_pdeq(struct pktq *pq, int prec)
 	return p;
 }
 EXPORT_SYMBOL(brcmu_pktq_pdeq);
+
+/*
+ * precedence based dequeue with match function. Passing a NULL pointer
+ * for the match function parameter is considered to be a wildcard so
+ * any packet on the queue is returned. In that case it is no different
+ * from brcmu_pktq_pdeq() above.
+ */
+struct sk_buff *brcmu_pktq_pdeq_match(struct pktq *pq, int prec,
+				      bool (*match_fn)(struct sk_buff *skb,
+						       void *arg), void *arg)
+{
+	struct sk_buff_head *q;
+	struct sk_buff *p, *next;
+
+	q = &pq->q[prec].skblist;
+	skb_queue_walk_safe(q, p, next) {
+		if (match_fn == NULL || match_fn(p, arg)) {
+			skb_unlink(p, q);
+			pq->len--;
+			return p;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(brcmu_pktq_pdeq_match);
 
 struct sk_buff *brcmu_pktq_pdeq_tail(struct pktq *pq, int prec)
 {

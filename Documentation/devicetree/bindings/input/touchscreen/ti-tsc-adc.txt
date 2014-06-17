@@ -1,0 +1,44 @@
+* TI - TSC ADC (Touschscreen and analog digital converter)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Required properties:
+- child "tsc"
+	ti,wires: Wires refer to application modes i.e. 4/5/8 wire touchscreen
+		  support on the platform.
+	ti,x-plate-resistance: X plate resistance
+	ti,coordinate-readouts: The sequencer supports a total of 16
+				programmable steps each step is used to
+				read a single coordinate. A single
+                                readout is enough but multiple reads can
+				increase the quality.
+				A value of 5 means, 5 reads for X, 5 for
+				Y and 2 for Z (always). This utilises 12
+				of the 16 software steps available. The
+				remaining 4 can be used by the ADC.
+	ti,wire-config: Different boards could have a different order for
+			connecting wires on touchscreen. We need to provide an
+			8 bit number where in the 1st four bits represent the
+			analog lines and the next 4 bits represent positive/
+			negative terminal on that input line. Notations to
+			represent the input lines and terminals resoectively
+			is as follows:
+			AIN0 = 0, AIN1 = 1 and so on till AIN7 = 7.
+			XP  = 0, XN = 1, YP = 2, YN = 3.
+- child "adc"
+	ti,adc-channels: List of analog inputs available for ADC.
+			 AIN0 = 0, AIN1 = 1 and so on till AIN7 = 7.
+
+Example:
+	tscadc: tscadc@44e0d000 {
+		compatible = "ti,am3359-tscadc";
+		tsc {
+			ti,wires = <4>;
+			ti,x-plate-resistance = <200>;
+			ti,coordiante-readouts = <5>;
+			ti,wire-config = <0x00 0x11 0x22 0x33>;
+		};
+
+		adc {
+			ti,adc-channels = <4 5 6 7>;
+		};
+	}

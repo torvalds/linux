@@ -95,19 +95,19 @@ LEAF(alchemy_sleep_au1000)
 
 	/* cache following instructions, as memory gets put to sleep */
 	la	t0, 1f
-	.set	mips3
+	.set	arch=r4000
 	cache	0x14, 0(t0)
 	cache	0x14, 32(t0)
 	cache	0x14, 64(t0)
 	cache	0x14, 96(t0)
 	.set	mips0
 
-1:	lui 	a0, 0xb400		/* mem_xxx */
-	sw	zero, 0x001c(a0) 	/* Precharge */
+1:	lui	a0, 0xb400		/* mem_xxx */
+	sw	zero, 0x001c(a0)	/* Precharge */
 	sync
 	sw	zero, 0x0020(a0)	/* Auto Refresh */
 	sync
-	sw	zero, 0x0030(a0)  	/* Sleep */
+	sw	zero, 0x0030(a0)	/* Sleep */
 	sync
 
 	DO_SLEEP
@@ -121,22 +121,22 @@ LEAF(alchemy_sleep_au1550)
 
 	/* cache following instructions, as memory gets put to sleep */
 	la	t0, 1f
-	.set	mips3
+	.set	arch=r4000
 	cache	0x14, 0(t0)
 	cache	0x14, 32(t0)
 	cache	0x14, 64(t0)
 	cache	0x14, 96(t0)
 	.set	mips0
 
-1:	lui 	a0, 0xb400		/* mem_xxx */
-	sw	zero, 0x08c0(a0) 	/* Precharge */
+1:	lui	a0, 0xb400		/* mem_xxx */
+	sw	zero, 0x08c0(a0)	/* Precharge */
 	sync
 	sw	zero, 0x08d0(a0)	/* Self Refresh */
 	sync
 
 	/* wait for sdram to enter self-refresh mode */
-	lui 	t0, 0x0100
-2:	lw 	t1, 0x0850(a0)		/* mem_sdstat */
+	lui	t0, 0x0100
+2:	lw	t1, 0x0850(a0)		/* mem_sdstat */
 	and	t2, t1, t0
 	beq	t2, zero, 2b
 	 nop
@@ -144,9 +144,9 @@ LEAF(alchemy_sleep_au1550)
 	/* disable SDRAM clocks */
 	lui	t0, 0xcfff
 	ori	t0, t0, 0xffff
-	lw 	t1, 0x0840(a0)		/* mem_sdconfiga */
-	and 	t1, t0, t1		/* clear CE[1:0] */
-	sw 	t1, 0x0840(a0)		/* mem_sdconfiga */
+	lw	t1, 0x0840(a0)		/* mem_sdconfiga */
+	and	t1, t0, t1		/* clear CE[1:0] */
+	sw	t1, 0x0840(a0)		/* mem_sdconfiga */
 	sync
 
 	DO_SLEEP
@@ -163,7 +163,7 @@ LEAF(alchemy_sleep_au1300)
 	la	t1, 4f
 	subu	t2, t1, t0
 
-	.set	mips3
+	.set	arch=r4000
 
 1:	cache	0x14, 0(t0)
 	subu	t2, t2, 32

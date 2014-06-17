@@ -1731,18 +1731,7 @@ static struct pci_driver ips_pci_driver = {
 	.shutdown = ips_shutdown,
 };
 
-static int __init ips_init(void)
-{
-	return pci_register_driver(&ips_pci_driver);
-}
-module_init(ips_init);
-
-static void ips_exit(void)
-{
-	pci_unregister_driver(&ips_pci_driver);
-	return;
-}
-module_exit(ips_exit);
+module_pci_driver(ips_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jesse Barnes <jbarnes@virtuousgeek.org>");

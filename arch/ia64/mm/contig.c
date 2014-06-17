@@ -31,72 +31,6 @@
 static unsigned long max_gap;
 #endif
 
-/**
- * show_mem - give short summary of memory stats
- *
- * Shows a simple page count of reserved and used pages in the system.
- * For discontig machines, it does this on a per-pgdat basis.
- */
-void show_mem(unsigned int filter)
-{
-	int i, total_reserved = 0;
-	int total_shared = 0, total_cached = 0;
-	unsigned long total_present = 0;
-	pg_data_t *pgdat;
-
-	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas(filter);
-	printk(KERN_INFO "Node memory in pages:\n");
-	for_each_online_pgdat(pgdat) {
-		unsigned long present;
-		unsigned long flags;
-		int shared = 0, cached = 0, reserved = 0;
-		int nid = pgdat->node_id;
-
-		if (skip_free_areas_node(filter, nid))
-			continue;
-		pgdat_resize_lock(pgdat, &flags);
-		present = pgdat->node_present_pages;
-		for(i = 0; i < pgdat->node_spanned_pages; i++) {
-			struct page *page;
-			if (unlikely(i % MAX_ORDER_NR_PAGES == 0))
-				touch_nmi_watchdog();
-			if (pfn_valid(pgdat->node_start_pfn + i))
-				page = pfn_to_page(pgdat->node_start_pfn + i);
-			else {
-#ifdef CONFIG_VIRTUAL_MEM_MAP
-				if (max_gap < LARGE_GAP)
-					continue;
-#endif
-				i = vmemmap_find_next_valid_pfn(nid, i) - 1;
-				continue;
-			}
-			if (PageReserved(page))
-				reserved++;
-			else if (PageSwapCache(page))
-				cached++;
-			else if (page_count(page))
-				shared += page_count(page)-1;
-		}
-		pgdat_resize_unlock(pgdat, &flags);
-		total_present += present;
-		total_reserved += reserved;
-		total_cached += cached;
-		total_shared += shared;
-		printk(KERN_INFO "Node %4d:  RAM: %11ld, rsvd: %8d, "
-		       "shrd: %10d, swpd: %10d\n", nid,
-		       present, reserved, shared, cached);
-	}
-	printk(KERN_INFO "%ld pages of RAM\n", total_present);
-	printk(KERN_INFO "%d reserved pages\n", total_reserved);
-	printk(KERN_INFO "%d pages shared\n", total_shared);
-	printk(KERN_INFO "%d pages swap cached\n", total_cached);
-	printk(KERN_INFO "Total of %ld pages in page table cache\n",
-	       quicklist_total_size());
-	printk(KERN_INFO "%d free buffer pages\n", nr_free_buffer_pages());
-}
-
-
 /* physical address where the bootmem map is located */
 unsigned long bootmap_start;
 
@@ -154,8 +88,7 @@ static void *cpu_data;
  *
  * Allocate and setup per-cpu data areas.
  */
-void * __cpuinit
-per_cpu_init (void)
+void *per_cpu_init(void)
 {
 	static bool first_time = true;
 	void *cpu0_data = __cpu0_per_cpu;
@@ -293,14 +226,6 @@ find_memory (void)
 	alloc_per_cpu_data();
 }
 
-static int count_pages(u64 start, u64 end, void *arg)
-{
-	unsigned long *count = arg;
-
-	*count += (end - start) >> PAGE_SHIFT;
-	return 0;
-}
-
 /*
  * Set up the page tables.
  */
@@ -310,9 +235,6 @@ paging_init (void)
 {
 	unsigned long max_dma;
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-	num_physpages = 0;
-	efi_memmap_walk(count_pages, &num_physpages);
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 #ifdef CONFIG_ZONE_DMA

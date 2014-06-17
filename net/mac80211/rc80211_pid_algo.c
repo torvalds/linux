@@ -293,6 +293,7 @@ rate_control_pid_get_rate(void *priv, struct ieee80211_sta *sta,
 
 static void
 rate_control_pid_rate_init(void *priv, struct ieee80211_supported_band *sband,
+			   struct cfg80211_chan_def *chandef,
 			   struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct rc_pid_sta_info *spinfo = priv_sta;
@@ -451,7 +452,7 @@ static void rate_control_pid_free_sta(void *priv, struct ieee80211_sta *sta,
 	kfree(priv_sta);
 }
 
-static struct rate_control_ops mac80211_rcpid = {
+static const struct rate_control_ops mac80211_rcpid = {
 	.name = "pid",
 	.tx_status = rate_control_pid_tx_status,
 	.get_rate = rate_control_pid_get_rate,

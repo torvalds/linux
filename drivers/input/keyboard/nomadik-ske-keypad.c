@@ -222,7 +222,8 @@ static irqreturn_t ske_keypad_irq(int irq, void *dev_id)
 
 static int __init ske_keypad_probe(struct platform_device *pdev)
 {
-	const struct ske_keypad_platform_data *plat = pdev->dev.platform_data;
+	const struct ske_keypad_platform_data *plat =
+			dev_get_platdata(&pdev->dev);
 	struct ske_keypad *keypad;
 	struct input_dev *input;
 	struct resource *res;
@@ -430,17 +431,7 @@ static struct platform_driver ske_keypad_driver = {
 	.remove = ske_keypad_remove,
 };
 
-static int __init ske_keypad_init(void)
-{
-	return platform_driver_probe(&ske_keypad_driver, ske_keypad_probe);
-}
-module_init(ske_keypad_init);
-
-static void __exit ske_keypad_exit(void)
-{
-	platform_driver_unregister(&ske_keypad_driver);
-}
-module_exit(ske_keypad_exit);
+module_platform_driver_probe(ske_keypad_driver, ske_keypad_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Naveen Kumar <naveen.gaddipati@stericsson.com> / Sundar Iyer <sundar.iyer@stericsson.com>");

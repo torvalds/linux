@@ -108,9 +108,29 @@ static struct uvc_format_desc uvc_fmts[] = {
 		.fcc		= V4L2_PIX_FMT_Y16,
 	},
 	{
-		.name		= "RGB Bayer",
+		.name		= "BGGR Bayer (BY8 )",
 		.guid		= UVC_GUID_FORMAT_BY8,
 		.fcc		= V4L2_PIX_FMT_SBGGR8,
+	},
+	{
+		.name		= "BGGR Bayer (BA81)",
+		.guid		= UVC_GUID_FORMAT_BA81,
+		.fcc		= V4L2_PIX_FMT_SBGGR8,
+	},
+	{
+		.name		= "GBRG Bayer (GBRG)",
+		.guid		= UVC_GUID_FORMAT_GBRG,
+		.fcc		= V4L2_PIX_FMT_SGBRG8,
+	},
+	{
+		.name		= "GRBG Bayer (GRBG)",
+		.guid		= UVC_GUID_FORMAT_GRBG,
+		.fcc		= V4L2_PIX_FMT_SGRBG8,
+	},
+	{
+		.name		= "RGGB Bayer (RGGB)",
+		.guid		= UVC_GUID_FORMAT_RGGB,
+		.fcc		= V4L2_PIX_FMT_SRGGB8,
 	},
 	{
 		.name		= "RGB565",
@@ -925,7 +945,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 	case UVC_VC_HEADER:
 		n = buflen >= 12 ? buffer[11] : 0;
 
-		if (buflen < 12 || buflen < 12 + n) {
+		if (buflen < 12 + n) {
 			uvc_trace(UVC_TRACE_DESCR, "device %d videocontrol "
 				"interface %d HEADER error\n", udev->devnum,
 				alts->desc.bInterfaceNumber);
@@ -1836,8 +1856,8 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->chains);
 	INIT_LIST_HEAD(&dev->streams);
 	atomic_set(&dev->nstreams, 0);
-	atomic_set(&dev->users, 0);
 	atomic_set(&dev->nmappings, 0);
+	mutex_init(&dev->lock);
 
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);
@@ -1950,8 +1970,13 @@ static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
 
 	/* Controls are cached on the fly so they don't need to be saved. */
 	if (intf->cur_altsetting->desc.bInterfaceSubClass ==
-	    UVC_SC_VIDEOCONTROL)
-		return uvc_status_suspend(dev);
+	    UVC_SC_VIDEOCONTROL) {
+		mutex_lock(&dev->lock);
+		if (dev->users)
+			uvc_status_stop(dev);
+		mutex_unlock(&dev->lock);
+		return 0;
+	}
 
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (stream->intf == intf)
@@ -1973,14 +1998,20 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 
 	if (intf->cur_altsetting->desc.bInterfaceSubClass ==
 	    UVC_SC_VIDEOCONTROL) {
-		if (reset) {
-			int ret = uvc_ctrl_resume_device(dev);
+		int ret = 0;
 
+		if (reset) {
+			ret = uvc_ctrl_resume_device(dev);
 			if (ret < 0)
 				return ret;
 		}
 
-		return uvc_status_resume(dev);
+		mutex_lock(&dev->lock);
+		if (dev->users)
+			ret = uvc_status_start(dev, GFP_NOIO);
+		mutex_unlock(&dev->lock);
+
+		return ret;
 	}
 
 	list_for_each_entry(stream, &dev->streams, list) {
@@ -2079,6 +2110,15 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_QUIRK_PROBE_MINMAX },
+	/* Microsoft Lifecam NX-3000 */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x045e,
+	  .idProduct		= 0x0721,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_DEF },
 	/* Microsoft Lifecam VX-7000 */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2163,6 +2203,33 @@ static struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info 		= UVC_QUIRK_PROBE_DEF },
+	/* Dell SP2008WFP Monitor */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x05a9,
+	  .idProduct		= 0x2641,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info 		= UVC_QUIRK_PROBE_DEF },
+	/* Dell Alienware X51 */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x05a9,
+	  .idProduct		= 0x2643,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info	= UVC_QUIRK_PROBE_DEF },
+	/* Dell Studio Hybrid 140g (OmniVision webcam) */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x05a9,
+	  .idProduct		= 0x264a,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_QUIRK_PROBE_DEF },
 	/* Apple Built-In iSight */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,

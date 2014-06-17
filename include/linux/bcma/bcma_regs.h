@@ -37,6 +37,7 @@
 #define  BCMA_IOST_BIST_DONE		0x8000
 #define BCMA_RESET_CTL			0x0800
 #define  BCMA_RESET_CTL_RESET		0x0001
+#define BCMA_RESET_ST			0x0804
 
 /* BCMA PCI config space registers. */
 #define BCMA_PCI_PMCSR			0x44

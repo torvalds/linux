@@ -81,8 +81,6 @@ dev_fsm_final_state(struct ccw_device *cdev)
 		cdev->private->state == DEV_STATE_BOXED);
 }
 
-extern wait_queue_head_t ccw_device_init_wq;
-extern atomic_t ccw_device_init_count;
 int __init io_subchannel_init(void);
 
 void io_subchannel_recog_done(struct ccw_device *cdev);

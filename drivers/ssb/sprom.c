@@ -54,7 +54,7 @@ static int hex2sprom(u16 *sprom, const char *dump, size_t len,
 	while (cnt < sprom_size_words) {
 		memcpy(tmp, dump, 4);
 		dump += 4;
-		err = strict_strtoul(tmp, 16, &parsed);
+		err = kstrtoul(tmp, 16, &parsed);
 		if (err)
 			return err;
 		sprom[cnt++] = swab16((u16)parsed);
@@ -127,13 +127,13 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 		goto out_kfree;
 	err = ssb_devices_freeze(bus, &freeze);
 	if (err) {
-		ssb_printk(KERN_ERR PFX "SPROM write: Could not freeze all devices\n");
+		ssb_err("SPROM write: Could not freeze all devices\n");
 		goto out_unlock;
 	}
 	res = sprom_write(bus, sprom);
 	err = ssb_devices_thaw(&freeze);
 	if (err)
-		ssb_printk(KERN_ERR PFX "SPROM write: Could not thaw all devices\n");
+		ssb_err("SPROM write: Could not thaw all devices\n");
 out_unlock:
 	mutex_unlock(&bus->sprom_mutex);
 out_kfree:

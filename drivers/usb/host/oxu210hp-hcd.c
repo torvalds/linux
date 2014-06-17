@@ -29,7 +29,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -59,6 +58,10 @@
 		dev_err(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
 #define oxu_info(oxu, fmt, args...) \
 		dev_info(oxu_to_hcd(oxu)->self.controller , fmt , ## args)
+
+#ifdef CONFIG_DYNAMIC_DEBUG
+#define DEBUG
+#endif
 
 static inline struct usb_hcd *oxu_to_hcd(struct oxu_hcd *oxu)
 {
@@ -3084,7 +3087,7 @@ static int oxu_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int ports, i, retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 
@@ -3747,6 +3750,7 @@ static struct usb_hcd *oxu_create(struct platform_device *pdev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	device_wakeup_enable(hcd->self.controller);
 	return hcd;
 }
 
@@ -3874,7 +3878,6 @@ static int oxu_drv_probe(struct platform_device *pdev)
 
 error_init:
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 error_alloc:
 	iounmap(base);
@@ -3907,7 +3910,6 @@ static int oxu_drv_remove(struct platform_device *pdev)
 	release_mem_region(memstart, memlen);
 
 	kfree(info);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

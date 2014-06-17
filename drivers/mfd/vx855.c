@@ -60,7 +60,7 @@ static struct resource vx855_gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell vx855_cells[] = {
+static const struct mfd_cell vx855_cells[] = {
 	{
 		.name = "vx855_gpio",
 		.num_resources = ARRAY_SIZE(vx855_gpio_resources),
@@ -118,7 +118,7 @@ static void vx855_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(vx855_pci_tbl) = {
+static const struct pci_device_id vx855_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },
 	{ 0, }
 };

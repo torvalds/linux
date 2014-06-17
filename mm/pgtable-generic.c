@@ -10,6 +10,30 @@
 #include <asm/tlb.h>
 #include <asm-generic/pgtable.h>
 
+/*
+ * If a p?d_bad entry is found while walking page tables, report
+ * the error, before resetting entry to p?d_none.  Usually (but
+ * very seldom) called out from the p?d_none_or_clear_bad macros.
+ */
+
+void pgd_clear_bad(pgd_t *pgd)
+{
+	pgd_ERROR(*pgd);
+	pgd_clear(pgd);
+}
+
+void pud_clear_bad(pud_t *pud)
+{
+	pud_ERROR(*pud);
+	pud_clear(pud);
+}
+
+void pmd_clear_bad(pmd_t *pmd)
+{
+	pmd_ERROR(*pmd);
+	pmd_clear(pmd);
+}
+
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 /*
  * Only sets the access flags (dirty, accessed), as well as write 
@@ -86,9 +110,10 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
 		       pte_t *ptep)
 {
+	struct mm_struct *mm = (vma)->vm_mm;
 	pte_t pte;
-	pte = ptep_get_and_clear((vma)->vm_mm, address, ptep);
-	if (pte_accessible(pte))
+	pte = ptep_get_and_clear(mm, address, ptep);
+	if (pte_accessible(mm, pte))
 		flush_tlb_page(vma, address);
 	return pte;
 }
@@ -124,16 +149,17 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
 
 #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+				pgtable_t pgtable)
 {
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 
 	/* FIFO */
-	if (!mm->pmd_huge_pte)
+	if (!pmd_huge_pte(mm, pmdp))
 		INIT_LIST_HEAD(&pgtable->lru);
 	else
-		list_add(&pgtable->lru, &mm->pmd_huge_pte->lru);
-	mm->pmd_huge_pte = pgtable;
+		list_add(&pgtable->lru, &pmd_huge_pte(mm, pmdp)->lru);
+	pmd_huge_pte(mm, pmdp) = pgtable;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
@@ -141,18 +167,18 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
 #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /* no "address" argument so destroys page coloring of some arch */
-pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
 	pgtable_t pgtable;
 
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 
 	/* FIFO */
-	pgtable = mm->pmd_huge_pte;
+	pgtable = pmd_huge_pte(mm, pmdp);
 	if (list_empty(&pgtable->lru))
-		mm->pmd_huge_pte = NULL;
+		pmd_huge_pte(mm, pmdp) = NULL;
 	else {
-		mm->pmd_huge_pte = list_entry(pgtable->lru.next,
+		pmd_huge_pte(mm, pmdp) = list_entry(pgtable->lru.next,
 					      struct page, lru);
 		list_del(&pgtable->lru);
 	}
@@ -166,6 +192,9 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
 void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 		     pmd_t *pmdp)
 {
+	pmd_t entry = *pmdp;
+	if (pmd_numa(entry))
+		entry = pmd_mknonnuma(entry);
 	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(*pmdp));
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 }

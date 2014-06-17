@@ -92,7 +92,7 @@
 		: "memory")
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 # define OCTEON_SYNCW_STR	".set push\n.set arch=octeon\nsyncw\nsyncw\n.set pop\n"
-# define __syncw() 	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
+# define __syncw()	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
 
 # define fast_wmb()	__syncw()
 # define fast_rmb()	barrier()
@@ -158,7 +158,7 @@
 #endif
 
 #if defined(CONFIG_WEAK_REORDERING_BEYOND_LLSC) && defined(CONFIG_SMP)
-#define __WEAK_LLSC_MB		"       sync	\n"
+#define __WEAK_LLSC_MB		"	sync	\n"
 #else
 #define __WEAK_LLSC_MB		"		\n"
 #endif
@@ -179,5 +179,23 @@
 #define smp_mb__before_llsc() smp_llsc_mb()
 #define nudge_writes() mb()
 #endif
+
+#define smp_store_release(p, v)						\
+do {									\
+	compiletime_assert_atomic_type(*p);				\
+	smp_mb();							\
+	ACCESS_ONCE(*p) = (v);						\
+} while (0)
+
+#define smp_load_acquire(p)						\
+({									\
+	typeof(*p) ___p1 = ACCESS_ONCE(*p);				\
+	compiletime_assert_atomic_type(*p);				\
+	smp_mb();							\
+	___p1;								\
+})
+
+#define smp_mb__before_atomic()	smp_mb__before_llsc()
+#define smp_mb__after_atomic()	smp_llsc_mb()
 
 #endif /* __ASM_BARRIER_H */

@@ -1,0 +1,142 @@
+.TH TMON 8
+.SH NAME
+\fBtmon\fP - A monitoring and testing tool for Linux kernel thermal subsystem
+
+.SH SYNOPSIS
+.ft B
+.B tmon
+.RB [ Options ]
+.br
+.SH DESCRIPTION
+\fBtmon \fP can be used to visualize thermal relationship and
+real-time thermal data; tune
+and test cooling devices and sensors; collect thermal data for offline
+analysis and plot. \fBtmon\fP must be run as root in order to control device
+states via sysfs.
+.PP
+\fBFunctions\fP
+.PP
+.nf
+1. Thermal relationships:
+- show thermal zone information
+- show cooling device information
+- show trip point binding within each thermal zone
+- show trip point and cooling device instance bindings
+.PP
+2. Real time data display
+- show temperature of all thermal zones w.r.t. its trip points and types
+- show states of all cooling devices
+.PP
+3. Thermal relationship learning and device tuning
+- with a built-in Proportional Integral Derivative (\fBPID\fP)
+controller, user can pair a cooling device to a thermal sensor for
+testing the effectiveness and learn about the thermal distance between the two
+- allow manual control of cooling device states and target temperature
+.PP
+4. Data logging in /var/tmp/tmon.log
+- contains thermal configuration data, i.e. cooling device, thermal
+ zones, and trip points. Can be used for data  collection in remote
+ debugging.
+- log real-time thermal data into space separated format that can be
+ directly consumed by plotting tools such as Rscript.
+
+.SS Options
+.PP
+The \fB-c --control\fP option sets a cooling device type to control temperature
+of a thermal zone
+.PP
+The \fB-d --daemon\fP option runs \fBtmon \fP as daemon without user interface
+.PP
+The \fB-g --debug\fP option allow debug messages to be stored in syslog
+.PP
+The \fB-h --help\fP option shows help message
+.PP
+The \fB-l --log\fP option write data to /var/tmp/tmon.log
+.PP
+The \fB-t --time-interval\fP option sets the polling interval in seconds
+.PP
+The \fB-v --version\fP option shows the version of \fBtmon \fP
+.PP
+The \fB-z --zone\fP option sets the target therma zone instance to be controlled
+.PP
+
+.SH FIELD DESCRIPTIONS
+.nf
+.PP
+\fBP \fP passive cooling trip point type
+\fBA \fP active cooling trip point type (fan)
+\fBC \fP critical trip point type
+\fBA \fP hot trip point type
+\fBkp \fP proportional gain of \fBPID\fP controller
+\fBki \fP integral gain of \fBPID\fP controller
+\fBkd \fP derivative gain of \fBPID\fP controller
+
+.SH REQUIREMENT
+Build depends on ncurses
+.PP
+Runtime depends on window size large enough to show the number of
+devices found on the system.
+
+.PP
+
+.SH INTERACTIVE COMMANDS
+.pp
+.nf
+\fBCtrl-C, q/Q\fP stops \fBtmon\fP
+\fBTAB\fP shows tuning pop up panel, choose a letter to modify
+
+.SH EXAMPLES
+Without any parameters, tmon is in monitoring only mode and refresh
+screen every 1 second.
+.PP
+1. For monitoring only:
+.nf
+$ sudo ./tmon
+
+2. Use Processor cooling device to control thermal zone 0 at default 65C.
+$ sudo ./tmon -c Processor -z 0
+
+3. Use intel_powerclamp(idle injection) cooling device to control thermal zone 1
+$ sudo ./tmon -c intel_powerclamp -z 1
+
+4. Turn on debug and collect data log at /var/tmp/tmon.log
+$ sudo ./tmon -g -l
+
+For example, the log below shows PID controller was adjusting current states
+for all cooling devices with "Processor" type such that thermal zone 0
+can stay below 65 dC.
+
+#---------- THERMAL DATA LOG STARTED -----------
+Samples TargetTemp acpitz0    acpitz1    Fan0 Fan1 Fan2 Fan3 Fan4 Fan5
+Fan6 Fan7 Fan8 Fan9 Processor10 Processor11 Processor12 Processor13
+LCD14 intel_powerclamp15 1 65.0 65 65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0 2
+65.0 66 65 0 0 0 0 0 0 0 0 0 0 4 4 4 4 6 0 3 65.0 60 54 0 0 0 0 0 0 0 0
+0 0 4 4 4 4 6 0 4 65.0 53 53 0 0 0 0 0 0 0 0 0 0 4 4 4 4 6 0
+5 65.0 52 52 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0
+6 65.0 53 65 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0
+7 65.0 68 70 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0
+8 65.0 68 68 0 0 0 0 0 0 0 0 0 0 5 5 5 5 6 0
+9 65.0 68 68 0 0 0 0 0 0 0 0 0 0 6 6 6 6 6 0
+10 65.0 67 67 0 0 0 0 0 0 0 0 0 0 7 7 7 7 6 0
+11 65.0 67 67 0 0 0 0 0 0 0 0 0 0 8 8 8 8 6 0
+12 65.0 67 67 0 0 0 0 0 0 0 0 0 0 8 8 8 8 6 0
+13 65.0 67 67 0 0 0 0 0 0 0 0 0 0 9 9 9 9 6 0
+14 65.0 66 66 0 0 0 0 0 0 0 0 0 0 10 10 10 10 6 0
+15 65.0 66 67 0 0 0 0 0 0 0 0 0 0 10 10 10 10 6 0
+16 65.0 66 66 0 0 0 0 0 0 0 0 0 0 11 11 11 11 6 0
+17 65.0 66 66 0 0 0 0 0 0 0 0 0 0 11 11 11 11 6 0
+18 65.0 64 61 0 0 0 0 0 0 0 0 0 0 11 11 11 11 6 0
+19 65.0 60 59 0 0 0 0 0 0 0 0 0 0 12 12 12 12 6 0
+
+Data can be read directly into an array by an example R-script below:
+
+#!/usr/bin/Rscript
+tdata <- read.table("/var/tmp/tmon.log", header=T, comment.char="#")
+attach(tdata)
+jpeg("tmon.jpg")
+X11()
+g_range <- range(0, intel_powerclamp15, TargetTemp, acpitz0)
+plot( Samples, intel_powerclamp15, col="blue", ylim=g_range, axes=FALSE, ann=FALSE)
+par(new=TRUE)
+lines(TargetTemp, type="o", pch=22, lty=2, col="red")
+dev.off()

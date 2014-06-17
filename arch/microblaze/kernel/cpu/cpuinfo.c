@@ -8,6 +8,7 @@
  * for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/init.h>
 #include <asm/cpuinfo.h>
 #include <asm/pvr.h>
@@ -37,6 +38,11 @@ const struct cpu_ver_key cpu_ver_lookup[] = {
 	{"8.20.a", 0x15},
 	{"8.20.b", 0x16},
 	{"8.30.a", 0x17},
+	{"8.40.a", 0x18},
+	{"8.40.b", 0x19},
+	{"8.50.a", 0x1a},
+	{"9.0", 0x1b},
+	{"9.1", 0x1d},
 	{NULL, 0},
 };
 
@@ -57,42 +63,62 @@ const struct family_string_key family_string_lookup[] = {
 	{"virtex6", 0xe},
 	/* FIXME There is no key code defined for spartan2 */
 	{"spartan2", 0xf0},
+	{"kintex7", 0x10},
+	{"artix7", 0x11},
+	{"zynq7000", 0x12},
 	{NULL, 0},
 };
 
 struct cpuinfo cpuinfo;
+static struct device_node *cpu;
 
 void __init setup_cpuinfo(void)
 {
-	struct device_node *cpu = NULL;
-
 	cpu = (struct device_node *) of_find_node_by_type(NULL, "cpu");
 	if (!cpu)
-		printk(KERN_ERR "You don't have cpu!!!\n");
+		pr_err("You don't have cpu!!!\n");
 
-	printk(KERN_INFO "%s: initialising\n", __func__);
+	pr_info("%s: initialising\n", __func__);
 
 	switch (cpu_has_pvr()) {
 	case 0:
-		printk(KERN_WARNING
-			"%s: No PVR support. Using static CPU info from FDT\n",
+		pr_warn("%s: No PVR support. Using static CPU info from FDT\n",
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		break;
 /* FIXME I found weird behavior with MB 7.00.a/b 7.10.a
  * please do not use FULL PVR with MMU */
 	case 1:
-		printk(KERN_INFO "%s: Using full CPU PVR support\n",
+		pr_info("%s: Using full CPU PVR support\n",
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		set_cpuinfo_pvr_full(&cpuinfo, cpu);
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unsupported PVR setting\n", __func__);
+		pr_warn("%s: Unsupported PVR setting\n", __func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 	}
 
 	if (cpuinfo.mmu_privins)
-		printk(KERN_WARNING "%s: Stream instructions enabled"
+		pr_warn("%s: Stream instructions enabled"
 			" - USERSPACE CAN LOCK THIS KERNEL!\n", __func__);
+}
+
+void __init setup_cpuinfo_clk(void)
+{
+	struct clk *clk;
+
+	clk = of_clk_get(cpu, 0);
+	if (IS_ERR(clk)) {
+		pr_err("ERROR: CPU CCF input clock not found\n");
+		/* take timebase-frequency from DTS */
+		cpuinfo.cpu_clock_freq = fcpu(cpu, "timebase-frequency");
+	} else {
+		cpuinfo.cpu_clock_freq = clk_get_rate(clk);
+	}
+
+	if (!cpuinfo.cpu_clock_freq) {
+		pr_err("ERROR: CPU clock frequency not setup\n");
+		BUG();
+	}
 }

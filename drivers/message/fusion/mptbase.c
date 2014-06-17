@@ -346,7 +346,7 @@ static int mpt_remove_dead_ioc_func(void *arg)
 	if ((pdev == NULL))
 		return -1;
 
-	pci_stop_and_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device_locked(pdev);
 	return 0;
 }
 
@@ -1037,7 +1037,7 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 		goto out;
 	/* signature to know if this mf is freed */
 	mf->u.frame.linkage.arg1 = cpu_to_le32(0xdeadbeaf);
-	list_add_tail(&mf->u.frame.linkage.list, &ioc->FreeQ);
+	list_add(&mf->u.frame.linkage.list, &ioc->FreeQ);
 #ifdef MFCNT
 	ioc->mfcnt--;
 #endif
@@ -6656,7 +6656,7 @@ static int mpt_summary_proc_show(struct seq_file *m, void *v)
 
 static int mpt_summary_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mpt_summary_proc_show, PDE(inode)->data);
+	return single_open(file, mpt_summary_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations mpt_summary_proc_fops = {
@@ -6805,7 +6805,7 @@ static int mpt_iocinfo_proc_show(struct seq_file *m, void *v)
 
 static int mpt_iocinfo_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, mpt_iocinfo_proc_show, PDE(inode)->data);
+	return single_open(file, mpt_iocinfo_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations mpt_iocinfo_proc_fops = {

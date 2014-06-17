@@ -36,16 +36,15 @@ static ssize_t name ## _show(struct device *dev,			\
 	ret = snprintf(buf, PAGE_SIZE, format_string "\n", args);	\
 	mutex_unlock(&phy->pib_lock);					\
 	return ret;							\
-}
+}									\
+static DEVICE_ATTR_RO(name);
 
 #define MASTER_SHOW(field, format_string)				\
 	MASTER_SHOW_COMPLEX(field, format_string, phy->field)
 
 MASTER_SHOW(current_channel, "%d");
 MASTER_SHOW(current_page, "%d");
-MASTER_SHOW_COMPLEX(transmit_power, "%d +- %d dB",
-	((signed char) (phy->transmit_power << 2)) >> 2,
-	(phy->transmit_power >> 6) ? (phy->transmit_power >> 6) * 3 : 1 );
+MASTER_SHOW(transmit_power, "%d +- 1 dB");
 MASTER_SHOW(cca_mode, "%d");
 
 static ssize_t channels_supported_show(struct device *dev,
@@ -66,15 +65,17 @@ static ssize_t channels_supported_show(struct device *dev,
 	mutex_unlock(&phy->pib_lock);
 	return len;
 }
+static DEVICE_ATTR_RO(channels_supported);
 
-static struct device_attribute pmib_attrs[] = {
-	__ATTR_RO(current_channel),
-	__ATTR_RO(current_page),
-	__ATTR_RO(channels_supported),
-	__ATTR_RO(transmit_power),
-	__ATTR_RO(cca_mode),
-	{},
+static struct attribute *pmib_attrs[] = {
+	&dev_attr_current_channel.attr,
+	&dev_attr_current_page.attr,
+	&dev_attr_channels_supported.attr,
+	&dev_attr_transmit_power.attr,
+	&dev_attr_cca_mode.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(pmib);
 
 static void wpan_phy_release(struct device *d)
 {
@@ -85,13 +86,13 @@ static void wpan_phy_release(struct device *d)
 static struct class wpan_phy_class = {
 	.name = "ieee802154",
 	.dev_release = wpan_phy_release,
-	.dev_attrs = pmib_attrs,
+	.dev_groups = pmib_groups,
 };
 
 static DEFINE_MUTEX(wpan_phy_mutex);
 static int wpan_phy_idx;
 
-static int wpan_phy_match(struct device *dev, void *data)
+static int wpan_phy_match(struct device *dev, const void *data)
 {
 	return !strcmp(dev_name(dev), (const char *)data);
 }
@@ -103,8 +104,7 @@ struct wpan_phy *wpan_phy_find(const char *str)
 	if (WARN_ON(!str))
 		return NULL;
 
-	dev = class_find_device(&wpan_phy_class, NULL,
-			(void *)str, wpan_phy_match);
+	dev = class_find_device(&wpan_phy_class, NULL, str, wpan_phy_match);
 	if (!dev)
 		return NULL;
 

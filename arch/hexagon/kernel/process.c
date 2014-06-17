@@ -24,6 +24,7 @@
 #include <linux/tick.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/tracehook.h>
 
 /*
  * Program thread launch.  Often defined as a macro in processor.h,
@@ -51,28 +52,11 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
  *  If hardware or VM offer wait termination even though interrupts
  *  are disabled.
  */
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
 	__vmwait();
-}
-
-void (*idle_sleep)(void) = default_idle;
-
-void cpu_idle(void)
-{
-	while (1) {
-		tick_nohz_idle_enter();
-		local_irq_disable();
-		while (!need_resched()) {
-			idle_sleep();
-			/*  interrupts wake us up, but aren't serviced  */
-			local_irq_enable();	/* service interrupt   */
-			local_irq_disable();
-		}
-		local_irq_enable();
-		tick_nohz_idle_exit();
-		schedule();
-	}
+	/*  interrupts wake us up, but irqs are still disabled */
+	local_irq_enable();
 }
 
 /*
@@ -112,7 +96,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* r24 <- fn, r25 <- arg */
-		ss->r2524 = usp | ((u64)arg << 32);
+		ss->r24 = usp;
+		ss->r25 = arg;
 		pt_set_kmode(childregs);
 		return 0;
 	}
@@ -201,4 +186,42 @@ unsigned long get_wchan(struct task_struct *p)
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
+}
+
+
+/*
+ * Called on the exit path of event entry; see vm_entry.S
+ *
+ * Interrupts will already be disabled.
+ *
+ * Returns 0 if there's no need to re-check for more work.
+ */
+
+int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
+{
+	if (!(thread_info_flags & _TIF_WORK_MASK)) {
+		return 0;
+	}  /* shortcut -- no work to be done */
+
+	local_irq_enable();
+
+	if (thread_info_flags & _TIF_NEED_RESCHED) {
+		schedule();
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_SIGPENDING) {
+		do_signal(regs);
+		return 1;
+	}
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		return 1;
+	}
+
+	/* Should not even reach here */
+	panic("%s: bad thread_info flags 0x%08x\n", __func__,
+		thread_info_flags);
 }

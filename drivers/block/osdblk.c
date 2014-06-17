@@ -598,7 +598,7 @@ static ssize_t class_osdblk_remove(struct class *c,
 	unsigned long ul;
 	struct list_head *tmp;
 
-	rc = strict_strtoul(buf, 10, &ul);
+	rc = kstrtoul(buf, 10, &ul);
 	if (rc)
 		return rc;
 

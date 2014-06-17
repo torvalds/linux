@@ -255,7 +255,7 @@ static u64 prefetch_spill_page;
 #endif
 
 #ifdef CONFIG_PCI
-# define GET_IOC(dev)	(((dev)->bus == &pci_bus_type)						\
+# define GET_IOC(dev)	((dev_is_pci(dev))						\
 			 ? ((struct ioc *) PCI_CONTROLLER(to_pci_dev(dev))->iommu) : NULL)
 #else
 # define GET_IOC(dev)	NULL
@@ -1140,11 +1140,13 @@ sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 #ifdef CONFIG_NUMA
 	{
+		int node = ioc->node;
 		struct page *page;
-		page = alloc_pages_exact_node(ioc->node == MAX_NUMNODES ?
-		                        numa_node_id() : ioc->node, flags,
-		                        get_order(size));
 
+		if (node == NUMA_NO_NODE)
+			node = numa_node_id();
+
+		page = alloc_pages_exact_node(node, flags, get_order(size));
 		if (unlikely(!page))
 			return NULL;
 
@@ -1596,7 +1598,7 @@ static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
 *
 ***************************************************************/
 
-static void __init
+static void
 ioc_iova_init(struct ioc *ioc)
 {
 	int tcnfg;
@@ -1807,7 +1809,7 @@ static struct ioc_iommu ioc_iommu_info[] __initdata = {
 	{ SX2000_IOC_ID, "sx2000", NULL },
 };
 
-static struct ioc * __init
+static struct ioc *
 ioc_init(unsigned long hpa, void *handle)
 {
 	struct ioc *ioc;
@@ -1914,7 +1916,7 @@ ioc_show(struct seq_file *s, void *v)
 	seq_printf(s, "Hewlett Packard %s IOC rev %d.%d\n",
 		ioc->name, ((ioc->rev >> 4) & 0xF), (ioc->rev & 0xF));
 #ifdef CONFIG_NUMA
-	if (ioc->node != MAX_NUMNODES)
+	if (ioc->node != NUMA_NO_NODE)
 		seq_printf(s, "NUMA node       : %d\n", ioc->node);
 #endif
 	seq_printf(s, "IOVA size       : %ld MB\n", ((ioc->pdir_size >> 3) * iovp_size)/(1024*1024));
@@ -1992,7 +1994,7 @@ sba_connect_bus(struct pci_bus *bus)
 	if (PCI_CONTROLLER(bus)->iommu)
 		return;
 
-	handle = PCI_CONTROLLER(bus)->acpi_handle;
+	handle = acpi_device_handle(PCI_CONTROLLER(bus)->companion);
 	if (!handle)
 		return;
 
@@ -2015,34 +2017,23 @@ sba_connect_bus(struct pci_bus *bus)
 	printk(KERN_WARNING "No IOC for PCI Bus %04x:%02x in ACPI\n", pci_domain_nr(bus), bus->number);
 }
 
-#ifdef CONFIG_NUMA
 static void __init
 sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
 {
+#ifdef CONFIG_NUMA
 	unsigned int node;
-	int pxm;
 
-	ioc->node = MAX_NUMNODES;
-
-	pxm = acpi_get_pxm(handle);
-
-	if (pxm < 0)
-		return;
-
-	node = pxm_to_node(pxm);
-
-	if (node >= MAX_NUMNODES || !node_online(node))
-		return;
+	node = acpi_get_node(handle);
+	if (node != NUMA_NO_NODE && !node_online(node))
+		node = NUMA_NO_NODE;
 
 	ioc->node = node;
-	return;
-}
-#else
-#define sba_map_ioc_to_node(ioc, handle)
 #endif
+}
 
-static int __init
-acpi_sba_ioc_add(struct acpi_device *device)
+static int
+acpi_sba_ioc_add(struct acpi_device *device,
+		 const struct acpi_device_id *not_used)
 {
 	struct ioc *ioc;
 	acpi_status status;
@@ -2090,13 +2081,17 @@ static const struct acpi_device_id hp_ioc_iommu_device_ids[] = {
 	{"HWP0004", 0},
 	{"", 0},
 };
-static struct acpi_driver acpi_sba_ioc_driver = {
-	.name		= "IOC IOMMU Driver",
-	.ids		= hp_ioc_iommu_device_ids,
-	.ops		= {
-		.add	= acpi_sba_ioc_add,
-	},
+static struct acpi_scan_handler acpi_sba_ioc_handler = {
+	.ids	= hp_ioc_iommu_device_ids,
+	.attach	= acpi_sba_ioc_add,
 };
+
+static int __init acpi_sba_ioc_init_acpi(void)
+{
+	return acpi_scan_add_handler(&acpi_sba_ioc_handler);
+}
+/* This has to run before acpi_scan_init(). */
+arch_initcall(acpi_sba_ioc_init_acpi);
 
 extern struct dma_map_ops swiotlb_dma_ops;
 
@@ -2122,7 +2117,10 @@ sba_init(void)
 	}
 #endif
 
-	acpi_bus_register_driver(&acpi_sba_ioc_driver);
+	/*
+	 * ioc_list should be populated by the acpi_sba_ioc_handler's .attach()
+	 * routine, but that only happens if acpi_scan_init() has already run.
+	 */
 	if (!ioc_list) {
 #ifdef CONFIG_IA64_GENERIC
 		/*

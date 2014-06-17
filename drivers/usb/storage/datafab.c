@@ -123,7 +123,7 @@ datafab_bulk_read(struct us_data *us, unsigned char *data, unsigned int len) {
 	if (len == 0)
 		return USB_STOR_XFER_GOOD;
 
-	US_DEBUGP("datafab_bulk_read:  len = %d\n", len);
+	usb_stor_dbg(us, "len = %d\n", len);
 	return usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 			data, len, NULL);
 }
@@ -134,7 +134,7 @@ datafab_bulk_write(struct us_data *us, unsigned char *data, unsigned int len) {
 	if (len == 0)
 		return USB_STOR_XFER_GOOD;
 
-	US_DEBUGP("datafab_bulk_write:  len = %d\n", len);
+	usb_stor_dbg(us, "len = %d\n", len);
 	return usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
 			data, len, NULL);
 }
@@ -300,9 +300,8 @@ static int datafab_write_data(struct us_data *us,
 			goto leave;
 
 		if (reply[0] != 0x50 && reply[1] != 0) {
-			US_DEBUGP("datafab_write_data:  Gah! "
-				  "write return code: %02x %02x\n",
-				  reply[0], reply[1]);
+			usb_stor_dbg(us, "Gah! write return code: %02x %02x\n",
+				     reply[0], reply[1]);
 			result = USB_STOR_TRANSPORT_ERROR;
 			goto leave;
 		}
@@ -342,7 +341,7 @@ static int datafab_determine_lun(struct us_data *us,
 	if (!buf)
 		return USB_STOR_TRANSPORT_ERROR;
 
-	US_DEBUGP("datafab_determine_lun:  locating...\n");
+	usb_stor_dbg(us, "locating...\n");
 
 	// we'll try 3 times before giving up...
 	//
@@ -474,16 +473,16 @@ static int datafab_handle_mode_sense(struct us_data *us,
 
 	switch (pc) {
 	   case 0x0:
-		US_DEBUGP("datafab_handle_mode_sense:  Current values\n");
+		   usb_stor_dbg(us, "Current values\n");
 		break;
 	   case 0x1:
-		US_DEBUGP("datafab_handle_mode_sense:  Changeable values\n");
+		   usb_stor_dbg(us, "Changeable values\n");
 		break;
 	   case 0x2:
-		US_DEBUGP("datafab_handle_mode_sense:  Default values\n");
+		   usb_stor_dbg(us, "Default values\n");
 		break;
 	   case 0x3:
-		US_DEBUGP("datafab_handle_mode_sense:  Saves values\n");
+		   usb_stor_dbg(us, "Saves values\n");
 		break;
 	}
 
@@ -566,11 +565,9 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	if (!us->extra) {
 		us->extra = kzalloc(sizeof(struct datafab_info), GFP_NOIO);
-		if (!us->extra) {
-			US_DEBUGP("datafab_transport:  Gah! "
-				  "Can't allocate storage for Datafab info struct!\n");
+		if (!us->extra)
 			return USB_STOR_TRANSPORT_ERROR;
-		}
+
 		us->extra_destructor = datafab_info_destructor;
   		((struct datafab_info *)us->extra)->lun = -1;
 	}
@@ -578,7 +575,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 	info = (struct datafab_info *) (us->extra);
 
 	if (srb->cmnd[0] == INQUIRY) {
-		US_DEBUGP("datafab_transport:  INQUIRY.  Returning bogus response");
+		usb_stor_dbg(us, "INQUIRY - Returning bogus response\n");
 		memcpy(ptr, inquiry_reply, sizeof(inquiry_reply));
 		fill_inquiry_response(us, ptr, 36);
 		return USB_STOR_TRANSPORT_GOOD;
@@ -590,8 +587,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 		if (rc != USB_STOR_TRANSPORT_GOOD)
 			return rc;
 
-		US_DEBUGP("datafab_transport:  READ_CAPACITY:  %ld sectors, %ld bytes per sector\n",
-			  info->sectors, info->ssize);
+		usb_stor_dbg(us, "READ_CAPACITY:  %ld sectors, %ld bytes per sector\n",
+			     info->sectors, info->ssize);
 
 		// build the reply
 		// we need the last sector, not the number of sectors
@@ -603,7 +600,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	if (srb->cmnd[0] == MODE_SELECT_10) {
-		US_DEBUGP("datafab_transport:  Gah! MODE_SELECT_10.\n");
+		usb_stor_dbg(us, "Gah! MODE_SELECT_10\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -615,7 +612,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		blocks = ((u32)(srb->cmnd[7]) << 8) | ((u32)(srb->cmnd[8]));
 
-		US_DEBUGP("datafab_transport:  READ_10: read block 0x%04lx  count %ld\n", block, blocks);
+		usb_stor_dbg(us, "READ_10: read block 0x%04lx  count %ld\n",
+			     block, blocks);
 		return datafab_read_data(us, info, block, blocks);
 	}
 
@@ -628,7 +626,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 		blocks = ((u32)(srb->cmnd[6]) << 24) | ((u32)(srb->cmnd[7]) << 16) |
 			 ((u32)(srb->cmnd[8]) <<  8) | ((u32)(srb->cmnd[9]));
 
-		US_DEBUGP("datafab_transport:  READ_12: read block 0x%04lx  count %ld\n", block, blocks);
+		usb_stor_dbg(us, "READ_12: read block 0x%04lx  count %ld\n",
+			     block, blocks);
 		return datafab_read_data(us, info, block, blocks);
 	}
 
@@ -638,7 +637,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		blocks = ((u32)(srb->cmnd[7]) << 8) | ((u32)(srb->cmnd[8]));
 
-		US_DEBUGP("datafab_transport:  WRITE_10: write block 0x%04lx  count %ld\n", block, blocks);
+		usb_stor_dbg(us, "WRITE_10: write block 0x%04lx count %ld\n",
+			     block, blocks);
 		return datafab_write_data(us, info, block, blocks);
 	}
 
@@ -651,17 +651,18 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 		blocks = ((u32)(srb->cmnd[6]) << 24) | ((u32)(srb->cmnd[7]) << 16) |
 			 ((u32)(srb->cmnd[8]) <<  8) | ((u32)(srb->cmnd[9]));
 
-		US_DEBUGP("datafab_transport:  WRITE_12: write block 0x%04lx  count %ld\n", block, blocks);
+		usb_stor_dbg(us, "WRITE_12: write block 0x%04lx count %ld\n",
+			     block, blocks);
 		return datafab_write_data(us, info, block, blocks);
 	}
 
 	if (srb->cmnd[0] == TEST_UNIT_READY) {
-		US_DEBUGP("datafab_transport:  TEST_UNIT_READY.\n");
+		usb_stor_dbg(us, "TEST_UNIT_READY\n");
 		return datafab_id_device(us, info);
 	}
 
 	if (srb->cmnd[0] == REQUEST_SENSE) {
-		US_DEBUGP("datafab_transport:  REQUEST_SENSE.  Returning faked response\n");
+		usb_stor_dbg(us, "REQUEST_SENSE - Returning faked response\n");
 
 		// this response is pretty bogus right now.  eventually if necessary
 		// we can set the correct sense data.  so far though it hasn't been
@@ -679,12 +680,12 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 	}
 
 	if (srb->cmnd[0] == MODE_SENSE) {
-		US_DEBUGP("datafab_transport:  MODE_SENSE_6 detected\n");
+		usb_stor_dbg(us, "MODE_SENSE_6 detected\n");
 		return datafab_handle_mode_sense(us, srb, 1);
 	}
 
 	if (srb->cmnd[0] == MODE_SENSE_10) {
-		US_DEBUGP("datafab_transport:  MODE_SENSE_10 detected\n");
+		usb_stor_dbg(us, "MODE_SENSE_10 detected\n");
 		return datafab_handle_mode_sense(us, srb, 0);
 	}
 
@@ -698,7 +699,7 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (srb->cmnd[0] == START_STOP) {
 		/* this is used by sd.c'check_scsidisk_media_change to detect
 		   media change */
-		US_DEBUGP("datafab_transport:  START_STOP.\n");
+		usb_stor_dbg(us, "START_STOP\n");
 		/* the first datafab_id_device after a media change returns
 		   an error (determined experimentally) */
 		rc = datafab_id_device(us, info);
@@ -712,8 +713,8 @@ static int datafab_transport(struct scsi_cmnd *srb, struct us_data *us)
 		return rc;
 	}
 
-	US_DEBUGP("datafab_transport:  Gah! Unknown command: %d (0x%x)\n",
-		  srb->cmnd[0], srb->cmnd[0]);
+	usb_stor_dbg(us, "Gah! Unknown command: %d (0x%x)\n",
+		     srb->cmnd[0], srb->cmnd[0]);
 	info->sense_key = 0x05;
 	info->sense_asc = 0x20;
 	info->sense_ascq = 0x00;

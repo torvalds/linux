@@ -147,7 +147,8 @@ static inline u32 _queue_empty(struct  __queue *pqueue)
 	return is_list_empty(&(pqueue->queue));
 }
 
-static inline u32 end_of_queue_search(struct list_head *head, struct list_head *plist)
+static inline u32 end_of_queue_search(struct list_head *head,
+		struct list_head *plist)
 {
 	if (head == plist)
 		return true;
@@ -164,12 +165,7 @@ static inline void sleep_schedulable(int ms)
 		delta = 1;/* 1 ms */
 	set_current_state(TASK_INTERRUPTIBLE);
 	if (schedule_timeout(delta) != 0)
-		return ;
-}
-
-static inline u8 *_malloc(u32 sz)
-{
-	return	kmalloc(sz, GFP_ATOMIC);
+		return;
 }
 
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)

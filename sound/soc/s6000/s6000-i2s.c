@@ -405,8 +405,7 @@ static int s6000_i2s_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define S6000_I2S_RATES	(SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_5512 | \
-			 SNDRV_PCM_RATE_8000_192000)
+#define S6000_I2S_RATES SNDRV_PCM_RATE_CONTINUOUS
 #define S6000_I2S_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops s6000_i2s_dai_ops = {
@@ -434,6 +433,10 @@ static struct snd_soc_dai_driver s6000_i2s_dai = {
 		.rate_max = 1562500,
 	},
 	.ops = &s6000_i2s_dai_ops,
+};
+
+static const struct snd_soc_component_driver s6000_i2s_component = {
+	.name		= "s6000-i2s",
 };
 
 static int s6000_i2s_probe(struct platform_device *pdev)
@@ -543,7 +546,8 @@ static int s6000_i2s_probe(struct platform_device *pdev)
 			 S6_I2S_INT_UNDERRUN |
 			 S6_I2S_INT_OVERRUN);
 
-	ret = snd_soc_register_dai(&pdev->dev, &s6000_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &s6000_i2s_component,
+					 &s6000_i2s_dai, 1);
 	if (ret)
 		goto err_release_dev;
 
@@ -572,7 +576,7 @@ static void s6000_i2s_remove(struct platform_device *pdev)
 	struct resource *region;
 	void __iomem *mmio = dev->scbbase;
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	s6000_i2s_stop_channel(dev, 0);
 	s6000_i2s_stop_channel(dev, 1);

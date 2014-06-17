@@ -1,0 +1,52 @@
+Broadcom Kona Family GPIO
+=========================
+
+This GPIO driver is used in the following Broadcom SoCs:
+  BCM11130, BCM11140, BCM11351, BCM28145, BCM28155
+
+The Broadcom GPIO Controller IP can be configured prior to synthesis to
+support up to 8 banks of 32 GPIOs where each bank has its own IRQ. The
+GPIO controller only supports edge, not level, triggering of interrupts.
+
+Required properties
+-------------------
+
+- compatible: "brcm,bcm11351-gpio", "brcm,kona-gpio"
+- reg: Physical base address and length of the controller's registers.
+- interrupts: The interrupt outputs from the controller. There is one GPIO
+  interrupt per GPIO bank. The number of interrupts listed depends on the
+  number of GPIO banks on the SoC. The interrupts must be ordered by bank,
+  starting with bank 0. There is always a 1:1 mapping between banks and
+  IRQs.
+- #gpio-cells: Should be <2>. The first cell is the pin number, the second
+  cell is used to specify optional parameters:
+  - bit 0 specifies polarity (0 for normal, 1 for inverted)
+  See also "gpio-specifier" in .../devicetree/bindings/gpio/gpio.txt.
+- #interrupt-cells: Should be <2>. The first cell is the GPIO number. The
+  second cell is used to specify flags. The following subset of flags is
+  supported:
+  - trigger type (bits[1:0]):
+      1 = low-to-high edge triggered.
+      2 = high-to-low edge triggered.
+      3 = low-to-high or high-to-low edge triggered
+      Valid values are 1, 2, 3
+  See also .../devicetree/bindings/interrupt-controller/interrupts.txt.
+- gpio-controller: Marks the device node as a GPIO controller.
+- interrupt-controller: Marks the device node as an interrupt controller.
+
+Example:
+	gpio: gpio@35003000 {
+		compatible = "brcm,bcm11351-gpio", "brcm,kona-gpio";
+		reg = <0x35003000 0x800>;
+		interrupts =
+		       <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH
+			GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		interrupt-controller;
+	};

@@ -528,7 +528,7 @@ restart:
 		if (atomic_read(&dquot->dq_count)) {
 			DEFINE_WAIT(wait);
 
-			atomic_inc(&dquot->dq_count);
+			dqgrab(dquot);
 			prepare_to_wait(&dquot->dq_wait_unused, &wait,
 					TASK_UNINTERRUPTIBLE);
 			spin_unlock(&dq_list_lock);
@@ -581,9 +581,17 @@ int dquot_scan_active(struct super_block *sb,
 		dqstats_inc(DQST_LOOKUPS);
 		dqput(old_dquot);
 		old_dquot = dquot;
-		ret = fn(dquot, priv);
-		if (ret < 0)
-			goto out;
+		/*
+		 * ->release_dquot() can be racing with us. Our reference
+		 * protects us from new calls to it so just wait for any
+		 * outstanding call and recheck the DQ_ACTIVE_B after that.
+		 */
+		wait_on_dquot(dquot);
+		if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
+			ret = fn(dquot, priv);
+			if (ret < 0)
+				goto out;
+		}
 		spin_lock(&dq_list_lock);
 		/* We are safe to continue now because our dquot could not
 		 * be moved out of the inuse list while we hold the reference */
@@ -624,7 +632,7 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 			/* Now we have active dquot from which someone is
  			 * holding reference so we can safely just increase
 			 * use count */
-			atomic_inc(&dquot->dq_count);
+			dqgrab(dquot);
 			spin_unlock(&dq_list_lock);
 			dqstats_inc(DQST_LOOKUPS);
 			err = sb->dq_op->write_dquot(dquot);
@@ -687,45 +695,37 @@ int dquot_quota_sync(struct super_block *sb, int type)
 }
 EXPORT_SYMBOL(dquot_quota_sync);
 
-/* Free unused dquots from cache */
-static void prune_dqcache(int count)
+static unsigned long
+dqcache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct list_head *head;
 	struct dquot *dquot;
+	unsigned long freed = 0;
 
 	head = free_dquots.prev;
-	while (head != &free_dquots && count) {
+	while (head != &free_dquots && sc->nr_to_scan) {
 		dquot = list_entry(head, struct dquot, dq_free);
 		remove_dquot_hash(dquot);
 		remove_free_dquot(dquot);
 		remove_inuse(dquot);
 		do_destroy_dquot(dquot);
-		count--;
+		sc->nr_to_scan--;
+		freed++;
 		head = free_dquots.prev;
 	}
+	return freed;
 }
 
-/*
- * This is called from kswapd when we think we need some
- * more memory
- */
-static int shrink_dqcache_memory(struct shrinker *shrink,
-				 struct shrink_control *sc)
+static unsigned long
+dqcache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	int nr = sc->nr_to_scan;
-
-	if (nr) {
-		spin_lock(&dq_list_lock);
-		prune_dqcache(nr);
-		spin_unlock(&dq_list_lock);
-	}
-	return ((unsigned)
-		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
-		/100) * sysctl_vfs_cache_pressure;
+	return vfs_pressure_ratio(
+	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
 }
 
 static struct shrinker dqcache_shrinker = {
-	.shrink = shrink_dqcache_memory,
+	.count_objects = dqcache_shrink_count,
+	.scan_objects = dqcache_shrink_scan,
 	.seeks = DEFAULT_SEEKS,
 };
 
@@ -1094,6 +1094,14 @@ static void dquot_claim_reserved_space(struct dquot *dquot, qsize_t number)
 	dquot->dq_dqb.dqb_rsvspace -= number;
 }
 
+static void dquot_reclaim_reserved_space(struct dquot *dquot, qsize_t number)
+{
+	if (WARN_ON_ONCE(dquot->dq_dqb.dqb_curspace < number))
+		number = dquot->dq_dqb.dqb_curspace;
+	dquot->dq_dqb.dqb_rsvspace += number;
+	dquot->dq_dqb.dqb_curspace -= number;
+}
+
 static inline
 void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 {
@@ -1439,8 +1447,11 @@ static void __dquot_initialize(struct inode *inode, int type)
 			 * did a write before quota was turned on
 			 */
 			rsv = inode_get_rsv_space(inode);
-			if (unlikely(rsv))
+			if (unlikely(rsv)) {
+				spin_lock(&dq_data_lock);
 				dquot_resv_space(inode->i_dquot[cnt], rsv);
+				spin_unlock(&dq_data_lock);
+			}
 		}
 	}
 out_err:
@@ -1524,6 +1535,15 @@ void inode_claim_rsv_space(struct inode *inode, qsize_t number)
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(inode_claim_rsv_space);
+
+void inode_reclaim_rsv_space(struct inode *inode, qsize_t number)
+{
+	spin_lock(&inode->i_lock);
+	*inode_reserved_space(inode) += number;
+	__inode_sub_bytes(inode, number);
+	spin_unlock(&inode->i_lock);
+}
+EXPORT_SYMBOL(inode_reclaim_rsv_space);
 
 void inode_sub_rsv_space(struct inode *inode, qsize_t number)
 {
@@ -1697,6 +1717,35 @@ int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	return 0;
 }
 EXPORT_SYMBOL(dquot_claim_space_nodirty);
+
+/*
+ * Convert allocated space back to in-memory reserved quotas
+ */
+void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
+{
+	int cnt;
+
+	if (!dquot_active(inode)) {
+		inode_reclaim_rsv_space(inode, number);
+		return;
+	}
+
+	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+	spin_lock(&dq_data_lock);
+	/* Claim reserved quotas to allocated quotas */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (inode->i_dquot[cnt])
+			dquot_reclaim_reserved_space(inode->i_dquot[cnt],
+						     number);
+	}
+	/* Update inode bytes */
+	inode_reclaim_rsv_space(inode, number);
+	spin_unlock(&dq_data_lock);
+	mark_all_dquot_dirty(inode->i_dquot);
+	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
+	return;
+}
+EXPORT_SYMBOL(dquot_reclaim_space_nodirty);
 
 /*
  * This operation can block, but only after everything is updated
@@ -2582,7 +2631,7 @@ static int do_proc_dqstats(struct ctl_table *table, int write,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
-static ctl_table fs_dqstats_table[] = {
+static struct ctl_table fs_dqstats_table[] = {
 	{
 		.procname	= "lookups",
 		.data		= &dqstats.stat[DQST_LOOKUPS],
@@ -2651,7 +2700,7 @@ static ctl_table fs_dqstats_table[] = {
 	{ },
 };
 
-static ctl_table fs_table[] = {
+static struct ctl_table fs_table[] = {
 	{
 		.procname	= "quota",
 		.mode		= 0555,
@@ -2660,7 +2709,7 @@ static ctl_table fs_table[] = {
 	{ },
 };
 
-static ctl_table sys_table[] = {
+static struct ctl_table sys_table[] = {
 	{
 		.procname	= "fs",
 		.mode		= 0555,

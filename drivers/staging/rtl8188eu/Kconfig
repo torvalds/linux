@@ -1,0 +1,28 @@
+config R8188EU
+	tristate "Realtek RTL8188EU Wireless LAN NIC driver"
+	depends on WLAN && USB
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	This option adds the Realtek RTL8188EU USB device such as TP-Link TL-WN725N.
+	If built as a module, it will be called r8188eu.
+
+if R8188EU
+
+config 88EU_AP_MODE
+	bool "Realtek RTL8188EU AP mode"
+	default y
+	---help---
+	This option enables Access Point mode. Unless you know that your system
+	will never be used as an AP, or the target system has limited memory,
+	"Y" should be selected.
+
+config 88EU_P2P
+	bool "Realtek RTL8188EU Peer-to-peer mode"
+	default y
+	---help---
+	This option enables peer-to-peer mode for the r8188eu driver. Unless you
+	know that peer-to-peer (P2P) mode will never be used, or the target system has
+	limited memory, "Y" should be selected.
+
+endif

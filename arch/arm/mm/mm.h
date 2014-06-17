@@ -1,4 +1,8 @@
 #ifdef CONFIG_MMU
+#include <linux/list.h>
+#include <linux/vmalloc.h>
+
+#include <asm/pgtable.h>
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
@@ -36,6 +40,7 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 
 struct mem_type {
 	pteval_t prot_pte;
+	pteval_t prot_pte_s2;
 	pmdval_t prot_l1;
 	pmdval_t prot_sect;
 	unsigned int domain;
@@ -65,12 +70,24 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 /* consistent regions used by dma_alloc_attrs() */
 #define VM_ARM_DMA_CONSISTENT	0x20000000
 
+
+struct static_vm {
+	struct vm_struct vm;
+	struct list_head list;
+};
+
+extern struct list_head static_vmlist;
+extern struct static_vm *find_static_vm_vaddr(void *vaddr);
+extern __init void add_static_vm_early(struct static_vm *svm);
+
 #endif
 
 #ifdef CONFIG_ZONE_DMA
 extern phys_addr_t arm_dma_limit;
+extern unsigned long arm_dma_pfn_limit;
 #else
 #define arm_dma_limit ((phys_addr_t)~0)
+#define arm_dma_pfn_limit (~0ul >> PAGE_SHIFT)
 #endif
 
 extern phys_addr_t arm_lowmem_limit;
@@ -78,3 +95,5 @@ extern phys_addr_t arm_lowmem_limit;
 void __init bootmem_init(void);
 void arm_mm_memblock_reserve(void);
 void dma_contiguous_remap(void);
+
+unsigned long __clear_cr(unsigned long mask);

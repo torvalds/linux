@@ -56,7 +56,7 @@ struct device x86_dma_fallback_dev = {
 EXPORT_SYMBOL(x86_dma_fallback_dev);
 
 /* Number of entries preallocated for DMA-API debugging */
-#define PREALLOC_DMA_DEBUG_ENTRIES       32768
+#define PREALLOC_DMA_DEBUG_ENTRIES       65536
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -97,11 +97,18 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 
 	dma_mask = dma_alloc_coherent_mask(dev, flag);
 
-	flag |= __GFP_ZERO;
+	flag &= ~__GFP_ZERO;
 again:
 	page = NULL;
-	if (!(flag & GFP_ATOMIC))
+	/* CMA can be used only in the context which permits sleeping */
+	if (flag & __GFP_WAIT) {
 		page = dma_alloc_from_contiguous(dev, count, get_order(size));
+		if (page && page_to_phys(page) + size > dma_mask) {
+			dma_release_from_contiguous(dev, page, count);
+			page = NULL;
+		}
+	}
+	/* fallback */
 	if (!page)
 		page = alloc_pages_node(dev_to_node(dev), flag, get_order(size));
 	if (!page)
@@ -118,7 +125,7 @@ again:
 
 		return NULL;
 	}
-
+	memset(page_address(page), 0, size);
 	*dma_addr = addr;
 	return page_address(page);
 }

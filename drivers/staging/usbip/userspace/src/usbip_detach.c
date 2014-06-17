@@ -16,8 +16,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <sysfs/libsysfs.h>
-
 #include <ctype.h>
 #include <limits.h>
 #include <stdint.h>
@@ -49,7 +47,7 @@ static int detach_port(char *port)
 	uint8_t portnum;
 	char path[PATH_MAX+1];
 
-	for (unsigned int i=0; i < strlen(port); i++)
+	for (unsigned int i = 0; i < strlen(port); i++)
 		if (!isdigit(port[i])) {
 			err("invalid port %s", port);
 			return -1;

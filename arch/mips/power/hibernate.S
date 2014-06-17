@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2009 Lemote Inc.
  * Author: Hu Hongbing <huhb@lemote.com>
- *         Wu Zhangjin <wuzhangjin@gmail.com>
+ *	   Wu Zhangjin <wuzhangjin@gmail.com>
  */
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>
@@ -43,6 +43,7 @@ LEAF(swsusp_arch_resume)
 	bne t1, t3, 1b
 	PTR_L t0, PBE_NEXT(t0)
 	bnez t0, 0b
+	jal local_flush_tlb_all /* Avoid TLB mismatch after kernel resume */
 	PTR_LA t0, saved_regs
 	PTR_L ra, PT_R31(t0)
 	PTR_L sp, PT_R29(t0)

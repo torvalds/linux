@@ -257,17 +257,8 @@ static void __serial_uart_flush(struct uart_port *port)
 
 static void __serial_lpc32xx_rx(struct uart_port *port)
 {
+	struct tty_port *tport = &port->state->port;
 	unsigned int tmp, flag;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
-
-	if (!tty) {
-		/* Discard data: no tty available */
-		while (!(readl(LPC32XX_HSUART_FIFO(port->membase)) &
-			 LPC32XX_HSU_RX_EMPTY))
-			;
-
-		return;
-	}
 
 	/* Read data from FIFO and push into terminal */
 	tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
@@ -281,15 +272,17 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 			       LPC32XX_HSUART_IIR(port->membase));
 			port->icount.frame++;
 			flag = TTY_FRAME;
-			tty_insert_flip_char(tty, 0, TTY_FRAME);
+			tty_insert_flip_char(tport, 0, TTY_FRAME);
 		}
 
-		tty_insert_flip_char(tty, (tmp & 0xFF), flag);
+		tty_insert_flip_char(tport, (tmp & 0xFF), flag);
 
 		tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
 	}
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
 }
 
 static void __serial_lpc32xx_tx(struct uart_port *port)
@@ -332,7 +325,7 @@ exit_tx:
 static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	struct tty_port *tport = &port->state->port;
 	u32 status;
 
 	spin_lock(&port->lock);
@@ -356,18 +349,13 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 		writel(LPC32XX_HSU_RX_OE_INT,
 		       LPC32XX_HSUART_IIR(port->membase));
 		port->icount.overrun++;
-		if (tty) {
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-			tty_schedule_flip(tty);
-		}
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
+		tty_schedule_flip(tport);
 	}
 
 	/* Data received? */
-	if (status & (LPC32XX_HSU_RX_TIMEOUT_INT | LPC32XX_HSU_RX_TRIG_INT)) {
+	if (status & (LPC32XX_HSU_RX_TIMEOUT_INT | LPC32XX_HSU_RX_TRIG_INT))
 		__serial_lpc32xx_rx(port);
-		if (tty)
-			tty_flip_buffer_push(tty);
-	}
 
 	/* Transmit data request? */
 	if ((status & LPC32XX_HSU_TX_INT) && (!uart_tx_stopped(port))) {
@@ -376,7 +364,6 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 	}
 
 	spin_unlock(&port->lock);
-	tty_kref_put(tty);
 
 	return IRQ_HANDLED;
 }

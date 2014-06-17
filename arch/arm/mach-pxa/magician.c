@@ -378,6 +378,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness = 272,
 	.dft_brightness = 100,
 	.pwm_period_ns  = 30923,
+	.enable_gpio    = -1,
 	.init           = magician_backlight_init,
 	.notify         = magician_backlight_notify,
 	.exit           = magician_backlight_exit,
@@ -633,7 +634,7 @@ static struct platform_device bq24022 = {
 static int magician_mci_init(struct device *dev,
 				irq_handler_t detect_irq, void *data)
 {
-	return request_irq(IRQ_MAGICIAN_SD, detect_irq, IRQF_DISABLED,
+	return request_irq(IRQ_MAGICIAN_SD, detect_irq, 0,
 			   "mmc card detect", data);
 }
 
@@ -774,6 +775,6 @@ MACHINE_START(MAGICIAN, "HTC Magician")
 	.init_irq = pxa27x_init_irq,
 	.handle_irq = pxa27x_handle_irq,
 	.init_machine = magician_init,
-	.timer = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END

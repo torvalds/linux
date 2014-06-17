@@ -82,8 +82,9 @@ static struct omap3isp_prev_csc flr_prev_csc = {
  * The preview engine crops several rows and columns internally depending on
  * which filters are enabled. To avoid format changes when the filters are
  * enabled or disabled (which would prevent them from being turned on or off
- * during streaming), the driver assumes all the filters are enabled when
- * computing sink crop and source format limits.
+ * during streaming), the driver assumes all filters that can be configured
+ * during streaming are enabled when computing sink crop and source format
+ * limits.
  *
  * If a filter is disabled, additional cropping is automatically added at the
  * preview engine input by the driver to avoid overflow at line and frame end.
@@ -92,25 +93,23 @@ static struct omap3isp_prev_csc flr_prev_csc = {
  * Median filter		4 pixels
  * Noise filter,
  * Faulty pixels correction	4 pixels, 4 lines
- * CFA filter			4 pixels, 4 lines in Bayer mode
- *					  2 lines in other modes
  * Color suppression		2 pixels
  * or luma enhancement
  * -------------------------------------------------------------
- * Maximum total		14 pixels, 8 lines
+ * Maximum total		10 pixels, 4 lines
  *
  * The color suppression and luma enhancement filters are applied after bayer to
  * YUV conversion. They thus can crop one pixel on the left and one pixel on the
  * right side of the image without changing the color pattern. When both those
  * filters are disabled, the driver must crop the two pixels on the same side of
  * the image to avoid changing the bayer pattern. The left margin is thus set to
- * 8 pixels and the right margin to 6 pixels.
+ * 6 pixels and the right margin to 4 pixels.
  */
 
-#define PREV_MARGIN_LEFT	8
-#define PREV_MARGIN_RIGHT	6
-#define PREV_MARGIN_TOP		4
-#define PREV_MARGIN_BOTTOM	4
+#define PREV_MARGIN_LEFT	6
+#define PREV_MARGIN_RIGHT	4
+#define PREV_MARGIN_TOP		2
+#define PREV_MARGIN_BOTTOM	2
 
 #define PREV_MIN_IN_WIDTH	64
 #define PREV_MIN_IN_HEIGHT	8
@@ -123,7 +122,7 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 #define PREV_MAX_OUT_WIDTH_REV_15	4096
 
 /*
- * Coeficient Tables for the submodules in Preview.
+ * Coefficient Tables for the submodules in Preview.
  * Array is initialised with the values from.the tables text file.
  */
 
@@ -972,7 +971,8 @@ static void preview_setup_hw(struct isp_prev_device *prev, u32 update,
 
 /*
  * preview_config_ycpos - Configure byte layout of YUV image.
- * @mode: Indicates the required byte layout.
+ * @prev: pointer to previewer private structure
+ * @pixelcode: pixel code
  */
 static void
 preview_config_ycpos(struct isp_prev_device *prev,
@@ -1373,8 +1373,8 @@ static void preview_init_params(struct isp_prev_device *prev)
 }
 
 /*
- * preview_max_out_width - Handle previewer hardware ouput limitations
- * @isp_revision : ISP revision
+ * preview_max_out_width - Handle previewer hardware output limitations
+ * @prev: pointer to previewer private structure
  * returns maximum width output for current isp revision
  */
 static unsigned int preview_max_out_width(struct isp_prev_device *prev)
@@ -1499,14 +1499,14 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	if (prev->input == PREVIEW_INPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_in);
 		if (buffer != NULL)
-			preview_set_inaddr(prev, buffer->isp_addr);
+			preview_set_inaddr(prev, buffer->dma);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&prev->video_out);
 		if (buffer != NULL) {
-			preview_set_outaddr(prev, buffer->isp_addr);
+			preview_set_outaddr(prev, buffer->dma);
 			restart = 1;
 		}
 		pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
@@ -1577,10 +1577,10 @@ static int preview_video_queue(struct isp_video *video,
 	struct isp_prev_device *prev = &video->isp->isp_prev;
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		preview_set_inaddr(prev, buffer->isp_addr);
+		preview_set_inaddr(prev, buffer->dma);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		preview_set_outaddr(prev, buffer->isp_addr);
+		preview_set_outaddr(prev, buffer->dma);
 
 	return 0;
 }
@@ -1620,7 +1620,7 @@ static const struct v4l2_ctrl_ops preview_ctrl_ops = {
 
 /*
  * preview_ioctl - Handle preview module private ioctl's
- * @prev: pointer to preview context structure
+ * @sd: pointer to v4l2 subdev structure
  * @cmd: configuration command
  * @arg: configuration argument
  * return -EINVAL or zero on success
@@ -1847,6 +1847,18 @@ static void preview_try_crop(struct isp_prev_device *prev,
 	if (prev->input == PREVIEW_INPUT_CCDC) {
 		left += 2;
 		right -= 2;
+	}
+
+	/* The CFA filter crops 4 lines and 4 columns in Bayer mode, and 2 lines
+	 * and no columns in other modes. Increase the margins based on the sink
+	 * format.
+	 */
+	if (sink->code != V4L2_MBUS_FMT_Y8_1X8 &&
+	    sink->code != V4L2_MBUS_FMT_Y10_1X10) {
+		left += 2;
+		right -= 2;
+		top += 2;
+		bottom -= 2;
 	}
 
 	/* Restrict left/top to even values to keep the Bayer pattern. */
@@ -2281,7 +2293,8 @@ static int preview_init_entities(struct isp_prev_device *prev)
 	v4l2_ctrl_handler_setup(&prev->ctrls);
 	sd->ctrl_handler = &prev->ctrls;
 
-	pads[PREV_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	pads[PREV_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+				    | MEDIA_PAD_FL_MUST_CONNECT;
 	pads[PREV_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &preview_media_ops;
@@ -2338,7 +2351,7 @@ error_video_in:
 
 /*
  * omap3isp_preview_init - Previewer initialization.
- * @dev : Pointer to ISP device
+ * @isp : Pointer to ISP device
  * return -ENOMEM or zero on success
  */
 int omap3isp_preview_init(struct isp_device *isp)

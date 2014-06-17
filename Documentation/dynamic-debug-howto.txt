@@ -6,8 +6,16 @@ This document describes how to use the dynamic debug (dyndbg) feature.
 
 Dynamic debug is designed to allow you to dynamically enable/disable
 kernel code to obtain additional kernel information.  Currently, if
-CONFIG_DYNAMIC_DEBUG is set, then all pr_debug()/dev_dbg() calls can
-be dynamically enabled per-callsite.
+CONFIG_DYNAMIC_DEBUG is set, then all pr_debug()/dev_dbg() and
+print_hex_dump_debug()/print_hex_dump_bytes() calls can be dynamically
+enabled per-callsite.
+
+If CONFIG_DYNAMIC_DEBUG is not set, print_hex_dump_debug() is just
+shortcut for print_hex_dump(KERN_DEBUG).
+
+For print_hex_dump_debug()/print_hex_dump_bytes(), format string is
+its 'prefix_str' argument, if it is constant string; or "hexdump"
+in case 'prefix_str' is build dynamically.
 
 Dynamic debug has even more useful features:
 
@@ -99,6 +107,12 @@ Multiple commands can be written together, separated by ';' or '\n'.
 If your query set is big, you can batch them too:
 
   ~# cat query-batch-file > <debugfs>/dynamic_debug/control
+
+A another way is to use wildcard. The match rule support '*' (matches
+zero or more characters) and '?' (matches exactly one character).For
+example, you can match all usb drivers:
+
+  ~# echo "file drivers/usb/* +p" > <debugfs>/dynamic_debug/control
 
 At the syntactical level, a command comprises a sequence of match
 specifications, followed by a flags change specification.
@@ -202,6 +216,9 @@ The flags are:
   t    Include thread ID in messages not generated from interrupt context
   _    No flags are set. (Or'd with others on input)
 
+For print_hex_dump_debug() and print_hex_dump_bytes(), only 'p' flag
+have meaning, other flags ignored.
+
 For display, the flags are preceded by '='
 (mnemonic: what the flags are currently equal to).
 
@@ -268,7 +285,7 @@ The dyndbg option is a "fake" module parameter, which means:
 
 - modules do not need to define it explicitly
 - every module gets it tacitly, whether they use pr_debug or not
-- it doesnt appear in /sys/module/$module/parameters/
+- it doesn't appear in /sys/module/$module/parameters/
   To see it, grep the control file, or inspect /proc/cmdline.
 
 For CONFIG_DYNAMIC_DEBUG kernels, any settings given at boot-time (or
@@ -303,6 +320,9 @@ nullarbor:~ # echo -n 'func svc_process -p' >
 // enable messages for NFS calls READ, READLINK, READDIR and READDIR+.
 nullarbor:~ # echo -n 'format "nfsd: READ" +p' >
 				<debugfs>/dynamic_debug/control
+
+// enable messages in files of which the paths include string "usb"
+nullarbor:~ # echo -n '*usb* +p' > <debugfs>/dynamic_debug/control
 
 // enable all messages
 nullarbor:~ # echo -n '+p' > <debugfs>/dynamic_debug/control

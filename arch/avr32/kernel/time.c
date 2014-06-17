@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
+#include <linux/cpu.h>
 
 #include <asm/sysreg.h>
 
@@ -58,7 +59,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 static struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
 	/* Oprofile uses the same irq as the timer, so allow it to be shared */
-	.flags		= IRQF_TIMER | IRQF_DISABLED | IRQF_SHARED,
+	.flags		= IRQF_TIMER | IRQF_SHARED,
 	.name		= "avr32_comparator",
 };
 
@@ -87,13 +88,24 @@ static void comparator_mode(enum clock_event_mode mode,
 		pr_debug("%s: start\n", evdev->name);
 		/* FALLTHROUGH */
 	case CLOCK_EVT_MODE_RESUME:
-		cpu_disable_idle_sleep();
+		/*
+		 * If we're using the COUNT and COMPARE registers we
+		 * need to force idle poll.
+		 */
+		cpu_idle_poll_ctrl(true);
 		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
 		sysreg_write(COMPARE, 0);
 		pr_debug("%s: stop\n", evdev->name);
-		cpu_enable_idle_sleep();
+		if (evdev->mode == CLOCK_EVT_MODE_ONESHOT ||
+		    evdev->mode == CLOCK_EVT_MODE_RESUME) {
+			/*
+			 * Only disable idle poll if we have forced that
+			 * in a previous call.
+			 */
+			cpu_idle_poll_ctrl(false);
+		}
 		break;
 	default:
 		BUG();

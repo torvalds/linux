@@ -176,7 +176,7 @@ out:
 
 /* torch pin config for lm3642*/
 static ssize_t lm3642_torch_pin_store(struct device *dev,
-				      struct device_attribute *devAttr,
+				      struct device_attribute *attr,
 				      const char *buf, size_t size)
 {
 	ssize_t ret;
@@ -233,7 +233,7 @@ static void lm3642_torch_brightness_set(struct led_classdev *cdev,
 
 /* strobe pin config for lm3642*/
 static ssize_t lm3642_strobe_pin_store(struct device *dev,
-				       struct device_attribute *devAttr,
+				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
 	ssize_t ret;
@@ -316,7 +316,7 @@ static const struct regmap_config lm3642_regmap = {
 static int lm3642_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	struct lm3642_platform_data *pdata = client->dev.platform_data;
+	struct lm3642_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lm3642_chip_data *chip;
 
 	int err;
@@ -363,6 +363,7 @@ static int lm3642_probe(struct i2c_client *client,
 	chip->cdev_flash.name = "flash";
 	chip->cdev_flash.max_brightness = 16;
 	chip->cdev_flash.brightness_set = lm3642_strobe_brightness_set;
+	chip->cdev_flash.default_trigger = "flash";
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_flash);
 	if (err < 0) {
@@ -380,6 +381,7 @@ static int lm3642_probe(struct i2c_client *client,
 	chip->cdev_torch.name = "torch";
 	chip->cdev_torch.max_brightness = 8;
 	chip->cdev_torch.brightness_set = lm3642_torch_brightness_set;
+	chip->cdev_torch.default_trigger = "torch";
 	err = led_classdev_register((struct device *)
 				    &client->dev, &chip->cdev_torch);
 	if (err < 0) {

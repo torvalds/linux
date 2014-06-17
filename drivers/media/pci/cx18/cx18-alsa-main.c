@@ -145,11 +145,12 @@ static int snd_cx18_init(struct v4l2_device *v4l2_dev)
 	/* This is a no-op for us.  We'll use the cx->instance */
 
 	/* (2) Create a card instance */
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, /* use first available id */
-			      SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
-			      THIS_MODULE, 0, &sc);
+	ret = snd_card_new(&cx->pci_dev->dev,
+			   SNDRV_DEFAULT_IDX1, /* use first available id */
+			   SNDRV_DEFAULT_STR1, /* xid from end of shortname*/
+			   THIS_MODULE, 0, &sc);
 	if (ret) {
-		CX18_ALSA_ERR("%s: snd_card_create() failed with err %d\n",
+		CX18_ALSA_ERR("%s: snd_card_new() failed with err %d\n",
 			      __func__, ret);
 		goto err_exit;
 	}
@@ -197,7 +198,7 @@ err_exit:
 	return ret;
 }
 
-static int __init cx18_alsa_load(struct cx18 *cx)
+static int cx18_alsa_load(struct cx18 *cx)
 {
 	struct v4l2_device *v4l2_dev = &cx->v4l2_dev;
 	struct cx18_stream *s;

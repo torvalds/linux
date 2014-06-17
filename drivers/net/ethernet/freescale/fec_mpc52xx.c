@@ -14,6 +14,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 
@@ -29,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 
 #include <linux/netdevice.h>
@@ -40,8 +43,8 @@
 #include <asm/delay.h>
 #include <asm/mpc52xx.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/fec.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/fec.h>
 
 #include "fec_mpc52xx.h"
 
@@ -76,10 +79,6 @@ static void mpc52xx_fec_stop(struct net_device *dev);
 static void mpc52xx_fec_start(struct net_device *dev);
 static void mpc52xx_fec_reset(struct net_device *dev);
 
-static u8 mpc52xx_fec_mac_addr[6];
-module_param_array_named(mac, mpc52xx_fec_mac_addr, byte, NULL, 0);
-MODULE_PARM_DESC(mac, "six hex digits, ie. 0x1,0x2,0xc0,0x01,0xba,0xbe");
-
 #define MPC52xx_MESSAGES_DEFAULT ( NETIF_MSG_DRV | NETIF_MSG_PROBE | \
 		NETIF_MSG_LINK | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP)
 static int debug = -1;	/* the above default */
@@ -108,15 +107,6 @@ static void mpc52xx_fec_set_paddr(struct net_device *dev, u8 *mac)
 
 	out_be32(&fec->paddr1, *(u32 *)(&mac[0]));
 	out_be32(&fec->paddr2, (*(u16 *)(&mac[4]) << 16) | FEC_PADDR2_TYPE);
-}
-
-static void mpc52xx_fec_get_paddr(struct net_device *dev, u8 *mac)
-{
-	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
-	struct mpc52xx_fec __iomem *fec = priv->fec;
-
-	*(u32 *)(&mac[0]) = in_be32(&fec->paddr1);
-	*(u16 *)(&mac[4]) = in_be32(&fec->paddr2) >> 16;
 }
 
 static int mpc52xx_fec_set_mac_address(struct net_device *dev, void *addr)
@@ -853,6 +843,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	struct resource mem;
 	const u32 *prop;
 	int prop_size;
+	struct device_node *np = op->dev.of_node;
+	const char *mac_addr;
 
 	phys_addr_t rx_fifo;
 	phys_addr_t tx_fifo;
@@ -866,15 +858,13 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->ndev = ndev;
 
 	/* Reserve FEC control zone */
-	rv = of_address_to_resource(op->dev.of_node, 0, &mem);
+	rv = of_address_to_resource(np, 0, &mem);
 	if (rv) {
-		printk(KERN_ERR DRIVER_NAME ": "
-				"Error while parsing device node resource\n" );
+		pr_err("Error while parsing device node resource\n");
 		goto err_netdev;
 	}
 	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
-		printk(KERN_ERR DRIVER_NAME
-		       " - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
+		pr_err("invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 		       (unsigned long)resource_size(&mem),
 		       sizeof(struct mpc52xx_fec));
 		rv = -EINVAL;
@@ -912,14 +902,14 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->tx_dmatsk = bcom_fec_tx_init(FEC_TX_NUM_BD, tx_fifo);
 
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
-		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
+		pr_err("Can not init SDMA tasks\n");
 		rv = -ENOMEM;
 		goto err_rx_tx_dmatsk;
 	}
 
 	/* Get the IRQ we need one by one */
 		/* Control */
-	ndev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	ndev->irq = irq_of_parse_and_map(np, 0);
 
 		/* RX */
 	priv->r_irq = bcom_get_task_irq(priv->rx_dmatsk);
@@ -927,11 +917,33 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		/* TX */
 	priv->t_irq = bcom_get_task_irq(priv->tx_dmatsk);
 
-	/* MAC address init */
-	if (!is_zero_ether_addr(mpc52xx_fec_mac_addr))
-		memcpy(ndev->dev_addr, mpc52xx_fec_mac_addr, 6);
-	else
-		mpc52xx_fec_get_paddr(ndev, ndev->dev_addr);
+	/*
+	 * MAC address init:
+	 *
+	 * First try to read MAC address from DT
+	 */
+	mac_addr = of_get_mac_address(np);
+	if (mac_addr) {
+		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	} else {
+		struct mpc52xx_fec __iomem *fec = priv->fec;
+
+		/*
+		 * If the MAC addresse is not provided via DT then read
+		 * it back from the controller regs
+		 */
+		*(u32 *)(&ndev->dev_addr[0]) = in_be32(&fec->paddr1);
+		*(u16 *)(&ndev->dev_addr[4]) = in_be32(&fec->paddr2) >> 16;
+	}
+
+	/*
+	 * Check if the MAC address is valid, if not get a random one
+	 */
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
+		eth_hw_addr_random(ndev);
+		dev_warn(&ndev->dev, "using random MAC address %pM\n",
+			 ndev->dev_addr);
+	}
 
 	priv->msg_enable = netif_msg_init(debug, MPC52xx_MESSAGES_DEFAULT);
 
@@ -942,20 +954,20 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->dev.of_node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(np) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
-	prop = of_get_property(op->dev.of_node, "current-speed", &prop_size);
+	prop = of_get_property(np, "current-speed", &prop_size);
 	if (prop && (prop_size >= sizeof(u32) * 2)) {
 		priv->speed = prop[0];
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
+	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
-	if (of_find_property(op->dev.of_node, "fsl,7-wire-mode", NULL)) {
+	if (of_find_property(np, "fsl,7-wire-mode", NULL)) {
 		priv->seven_wire_mode = 1;
 		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
 	}
@@ -969,7 +981,9 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 		goto err_node;
 
 	/* We're done ! */
-	dev_set_drvdata(&op->dev, ndev);
+	platform_set_drvdata(op, ndev);
+	netdev_info(ndev, "%s MAC %pM\n",
+		    op->dev.of_node->full_name, ndev->dev_addr);
 
 	return 0;
 
@@ -996,7 +1010,7 @@ mpc52xx_fec_remove(struct platform_device *op)
 	struct net_device *ndev;
 	struct mpc52xx_fec_priv *priv;
 
-	ndev = dev_get_drvdata(&op->dev);
+	ndev = platform_get_drvdata(op);
 	priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
@@ -1016,14 +1030,13 @@ mpc52xx_fec_remove(struct platform_device *op)
 
 	free_netdev(ndev);
 
-	dev_set_drvdata(&op->dev, NULL);
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	if (netif_running(dev))
 		mpc52xx_fec_close(dev);
@@ -1033,7 +1046,7 @@ static int mpc52xx_fec_of_suspend(struct platform_device *op, pm_message_t state
 
 static int mpc52xx_fec_of_resume(struct platform_device *op)
 {
-	struct net_device *dev = dev_get_drvdata(&op->dev);
+	struct net_device *dev = platform_get_drvdata(op);
 
 	mpc52xx_fec_hw_init(dev);
 	mpc52xx_fec_reset_stats(dev);
@@ -1080,7 +1093,7 @@ mpc52xx_fec_init(void)
 	int ret;
 	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
 	if (ret) {
-		printk(KERN_ERR DRIVER_NAME ": failed to register mdio driver\n");
+		pr_err("failed to register mdio driver\n");
 		return ret;
 	}
 #endif

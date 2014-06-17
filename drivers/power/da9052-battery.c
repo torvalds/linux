@@ -337,7 +337,7 @@ static unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 	if (adc_temp > vc_tbl_ref[DA9052_VC_TBL_REF_SZ - 1])
 		return DA9052_VC_TBL_REF_SZ - 1;
 
-	for (i = 0; i < DA9052_VC_TBL_REF_SZ; i++) {
+	for (i = 0; i < DA9052_VC_TBL_REF_SZ - 1; i++) {
 		if ((adc_temp > vc_tbl_ref[i]) &&
 		    (adc_temp <= DA9052_MEAN(vc_tbl_ref[i], vc_tbl_ref[i + 1])))
 				return i;
@@ -594,7 +594,8 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	bat = kzalloc(sizeof(struct da9052_battery), GFP_KERNEL);
+	bat = devm_kzalloc(&pdev->dev, sizeof(struct da9052_battery),
+				GFP_KERNEL);
 	if (!bat)
 		return -ENOMEM;
 
@@ -635,7 +636,6 @@ err:
 	while (--i >= 0)
 		da9052_free_irq(bat->da9052, da9052_bat_irq_bits[i], bat);
 
-	kfree(bat);
 	return ret;
 }
 static int da9052_bat_remove(struct platform_device *pdev)
@@ -647,7 +647,6 @@ static int da9052_bat_remove(struct platform_device *pdev)
 		da9052_free_irq(bat->da9052, da9052_bat_irq_bits[i], bat);
 
 	power_supply_unregister(&bat->psy);
-	kfree(bat);
 
 	return 0;
 }

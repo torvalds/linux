@@ -31,7 +31,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -376,7 +375,6 @@ static int i2c_au1550_remove(struct platform_device *pdev)
 {
 	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&priv->adap);
 	i2c_au1550_disable(priv);
 	iounmap(priv->psc_base);

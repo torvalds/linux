@@ -4,7 +4,7 @@
  * This file contains generic high level protocol identifier and PR
  * handlers for TCM fabric modules
  *
- * (c) Copyright 2010-2012 RisingTide Systems LLC.
+ * (c) Copyright 2010-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
  *

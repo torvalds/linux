@@ -48,6 +48,10 @@ extern void sun4m_init_IRQ(void);
 extern void sun4m_unmask_profile_irq(void);
 extern void sun4m_clear_profile_irq(int cpu);
 
+/* sun4m_smp.c */
+void sun4m_cpu_pre_starting(void *arg);
+void sun4m_cpu_pre_online(void *arg);
+
 /* sun4d_irq.c */
 extern spinlock_t sun4d_imsk_lock;
 
@@ -59,6 +63,14 @@ extern int sun4d_request_irq(unsigned int irq,
 extern int show_sun4d_interrupts(struct seq_file *, void *);
 extern void sun4d_distribute_irqs(void);
 extern void sun4d_free_irq(unsigned int irq, void *dev_id);
+
+/* sun4d_smp.c */
+void sun4d_cpu_pre_starting(void *arg);
+void sun4d_cpu_pre_online(void *arg);
+
+/* leon_smp.c */
+void leon_cpu_pre_starting(void *arg);
+void leon_cpu_pre_online(void *arg);
 
 /* head_32.S */
 extern unsigned int t_nmi[];

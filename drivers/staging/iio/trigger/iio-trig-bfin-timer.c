@@ -65,7 +65,7 @@ struct bfin_tmr_state {
 
 static int iio_bfin_tmr_set_state(struct iio_trigger *trig, bool state)
 {
-	struct bfin_tmr_state *st = trig->private_data;
+	struct bfin_tmr_state *st = iio_trigger_get_drvdata(trig);
 
 	if (get_gptimer_period(st->t->id) == 0)
 		return -EINVAL;
@@ -82,33 +82,29 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	struct bfin_tmr_state *st = trig->private_data;
-	unsigned long val;
+	struct bfin_tmr_state *st = iio_trigger_get_drvdata(trig);
+	unsigned int val;
 	bool enabled;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
-		goto error_ret;
+		return ret;
 
-	if (val > 100000) {
-		ret = -EINVAL;
-		goto error_ret;
-	}
+	if (val > 100000)
+		return -EINVAL;
 
 	enabled = get_enabled_gptimers() & st->t->bit;
 
 	if (enabled)
 		disable_gptimers(st->t->bit);
 
-	if (!val)
-		goto error_ret;
+	if (val == 0)
+		return count;
 
 	val = get_sclk() / val;
-	if (val <= 4 || val <= st->duty) {
-		ret = -EINVAL;
-		goto error_ret;
-	}
+	if (val <= 4 || val <= st->duty)
+		return -EINVAL;
 
 	set_gptimer_period(st->t->id, val);
 	set_gptimer_pwidth(st->t->id, val - st->duty);
@@ -116,8 +112,7 @@ static ssize_t iio_bfin_tmr_frequency_store(struct device *dev,
 	if (enabled)
 		enable_gptimers(st->t->bit);
 
-error_ret:
-	return ret ? ret : count;
+	return count;
 }
 
 static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
@@ -125,7 +120,7 @@ static ssize_t iio_bfin_tmr_frequency_show(struct device *dev,
 				 char *buf)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	struct bfin_tmr_state *st = trig->private_data;
+	struct bfin_tmr_state *st = iio_trigger_get_drvdata(trig);
 	unsigned int period = get_gptimer_period(st->t->id);
 	unsigned long val;
 
@@ -213,9 +208,9 @@ static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 		goto out1;
 	}
 
-	st->trig->private_data = st;
 	st->trig->ops = &iio_bfin_tmr_trigger_ops;
 	st->trig->dev.groups = iio_bfin_tmr_trigger_attr_groups;
+	iio_trigger_set_drvdata(st->trig, st);
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto out2;

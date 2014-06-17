@@ -195,6 +195,7 @@ IS_OMAP_TYPE(1710, 0x1710)
 #define cpu_is_omap34xx()		0
 #define cpu_is_omap44xx()		0
 #define soc_is_omap54xx()		0
+#define soc_is_dra7xx()			0
 #define soc_is_am33xx()			0
 #define cpu_class_is_omap1()		1
 #define cpu_class_is_omap2()		0

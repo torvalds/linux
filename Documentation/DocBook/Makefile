@@ -14,9 +14,10 @@ DOCBOOKS := z8530book.xml device-drivers.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml drm.xml media_api.xml
+	    tracepoint.xml drm.xml media_api.xml w1.xml \
+	    writing_musb_glue_layer.xml
 
-include $(srctree)/Documentation/DocBook/media/Makefile
+include Documentation/DocBook/media/Makefile
 
 ###
 # The build process is as follows (targets):
@@ -36,6 +37,7 @@ PS_METHOD	= $(prefer-db2x)
 # The targets that may be used.
 PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
 
+targets += $(DOCBOOKS)
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
 sgmldocs: xmldocs
@@ -54,17 +56,18 @@ htmldocs: $(HTML)
 
 MAN := $(patsubst %.xml, %.9, $(BOOKS))
 mandocs: $(MAN)
+	$(if $(wildcard $(obj)/man/*.9),gzip -f $(obj)/man/*.9)
 
 installmandocs: mandocs
 	mkdir -p /usr/local/man/man9/
-	install Documentation/DocBook/man/*.9.gz /usr/local/man/man9/
+	install $(obj)/man/*.9.gz /usr/local/man/man9/
 
 ###
 #External programs used
 KERNELDOC = $(srctree)/scripts/kernel-doc
 DOCPROC   = $(objtree)/scripts/docproc
 
-XMLTOFLAGS = -m $(srctree)/Documentation/DocBook/stylesheet.xsl
+XMLTOFLAGS = -m $(srctree)/$(src)/stylesheet.xsl
 XMLTOFLAGS += --skip-validation
 
 ###
@@ -86,20 +89,8 @@ define rule_docproc
         ) > $(dir $@).$(notdir $@).cmd
 endef
 
-%.xml: %.tmpl FORCE
+%.xml: %.tmpl $(KERNELDOC) $(DOCPROC) FORCE
 	$(call if_changed_rule,docproc)
-
-###
-#Read in all saved dependency files
-cmd_files := $(wildcard $(foreach f,$(BOOKS),$(dir $(f)).$(notdir $(f)).cmd))
-
-ifneq ($(cmd_files),)
-  include $(cmd_files)
-endif
-
-###
-# Changes in kernel-doc force a rebuild of all documentation
-$(BOOKS): $(KERNELDOC)
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -138,16 +129,16 @@ quiet_cmd_db2pdf = PDF     $@
 
 
 index = index.html
-main_idx = Documentation/DocBook/$(index)
+main_idx = $(obj)/$(index)
 build_main_index = rm -rf $(main_idx); \
 		   echo '<h1>Linux Kernel HTML Documentation</h1>' >> $(main_idx) && \
 		   echo '<h2>Kernel Version: $(KERNELVERSION)</h2>' >> $(main_idx) && \
 		   cat $(HTML) >> $(main_idx)
 
 quiet_cmd_db2html = HTML    $@
-      cmd_db2html = xmlto xhtml $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
+      cmd_db2html = xmlto html $(XMLTOFLAGS) -o $(patsubst %.html,%,$@) $< && \
 		echo '<a HREF="$(patsubst %.html,%,$(notdir $@))/index.html"> \
-        $(patsubst %.html,%,$(notdir $@))</a><p>' > $@
+		$(patsubst %.html,%,$(notdir $@))</a><p>' > $@
 
 %.html:	%.xml
 	@(which xmlto > /dev/null 2>&1) || \
@@ -159,7 +150,7 @@ quiet_cmd_db2html = HTML    $@
             cp $(PNG-$(basename $(notdir $@))) $(patsubst %.html,%,$@); fi
 
 quiet_cmd_db2man = MAN     $@
-      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; gzip -f $(obj)/man/*.9; fi
+      cmd_db2man = if grep -q refentry $<; then xmlto man $(XMLTOFLAGS) -o $(obj)/man $< ; fi
 %.9 : %.xml
 	@(which xmlto > /dev/null 2>&1) || \
 	 (echo "*** You need to install xmlto ***"; \

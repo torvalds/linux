@@ -71,11 +71,11 @@ int fdtv_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (dvbdmxfeed->type == DMX_TYPE_TS) {
 		switch (dvbdmxfeed->pes_type) {
-		case DMX_TS_PES_VIDEO:
-		case DMX_TS_PES_AUDIO:
-		case DMX_TS_PES_TELETEXT:
-		case DMX_TS_PES_PCR:
-		case DMX_TS_PES_OTHER:
+		case DMX_PES_VIDEO:
+		case DMX_PES_AUDIO:
+		case DMX_PES_TELETEXT:
+		case DMX_PES_PCR:
+		case DMX_PES_OTHER:
 			c = alloc_channel(fdtv);
 			break;
 		default:
@@ -132,7 +132,7 @@ int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	      (demux->dmx.frontend->source != DMX_MEMORY_FE))) {
 
 		if (dvbdmxfeed->ts_type & TS_DECODER) {
-			if (dvbdmxfeed->pes_type >= DMX_TS_PES_OTHER ||
+			if (dvbdmxfeed->pes_type >= DMX_PES_OTHER ||
 			    !demux->pesfilter[dvbdmxfeed->pes_type])
 				return -EINVAL;
 
@@ -141,7 +141,7 @@ int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		}
 
 		if (!(dvbdmxfeed->ts_type & TS_DECODER &&
-		      dvbdmxfeed->pes_type < DMX_TS_PES_OTHER))
+		      dvbdmxfeed->pes_type < DMX_PES_OTHER))
 			return 0;
 	}
 

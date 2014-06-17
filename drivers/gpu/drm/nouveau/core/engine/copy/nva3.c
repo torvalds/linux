@@ -22,15 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/falcon.h>
-#include <core/class.h>
-#include <core/enum.h>
+#include <engine/falcon.h>
+#include <engine/fifo.h>
+#include <engine/copy.h>
 
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 
-#include <engine/fifo.h>
-#include <engine/copy.h>
+#include <core/client.h>
+#include <core/class.h>
+#include <core/enum.h>
+
 
 #include "fuc/nva3.fuc.h"
 
@@ -100,8 +102,9 @@ nva3_copy_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00000040) {
 		nv_error(falcon, "DISPATCH_ERROR [");
 		nouveau_enum_print(nva3_copy_isr_error_name, ssta);
-		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, inst << 12, subc, mthd, data);
+		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, inst << 12, nouveau_client_name(engctx), subc,
+		       mthd, data);
 		nv_wo32(falcon, 0x004, 0x00000040);
 		stat &= ~0x00000040;
 	}
@@ -112,13 +115,6 @@ nva3_copy_intr(struct nouveau_subdev *subdev)
 	}
 
 	nouveau_engctx_put(engctx);
-}
-
-static int
-nva3_copy_tlb_flush(struct nouveau_engine *engine)
-{
-	nv50_vm_flush_engine(&engine->base, 0x0d);
-	return 0;
 }
 
 static int
@@ -140,7 +136,6 @@ nva3_copy_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nva3_copy_intr;
 	nv_engine(priv)->cclass = &nva3_copy_cclass;
 	nv_engine(priv)->sclass = nva3_copy_sclass;
-	nv_engine(priv)->tlb_flush = nva3_copy_tlb_flush;
 	nv_falcon(priv)->code.data = nva3_pcopy_code;
 	nv_falcon(priv)->code.size = sizeof(nva3_pcopy_code);
 	nv_falcon(priv)->data.data = nva3_pcopy_data;

@@ -17,7 +17,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 
@@ -313,19 +312,6 @@ static int cpmac_mdio_reset(struct mii_bus *bus)
 static int mii_irqs[PHY_MAX_ADDR] = { PHY_POLL, };
 
 static struct mii_bus *cpmac_mii;
-
-static int cpmac_config(struct net_device *dev, struct ifmap *map)
-{
-	if (dev->flags & IFF_UP)
-		return -EBUSY;
-
-	/* Don't allow changing the I/O address */
-	if (map->base_addr != dev->base_addr)
-		return -EOPNOTSUPP;
-
-	/* ignore other fields */
-	return 0;
-}
 
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
@@ -636,7 +622,7 @@ static void cpmac_hw_stop(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	cpmac_write(priv->regs, CPMAC_RX_CONTROL,
@@ -659,7 +645,7 @@ static void cpmac_hw_start(struct net_device *dev)
 {
 	int i;
 	struct cpmac_priv *priv = netdev_priv(dev);
-	struct plat_cpmac_data *pdata = priv->pdev->dev.platform_data;
+	struct plat_cpmac_data *pdata = dev_get_platdata(&priv->pdev->dev);
 
 	ar7_device_reset(pdata->reset_bit);
 	for (i = 0; i < 8; i++) {
@@ -904,10 +890,9 @@ static int cpmac_set_ringparam(struct net_device *dev,
 static void cpmac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "cpmac");
-	strcpy(info->version, CPMAC_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "%s", "cpmac");
+	strlcpy(info->driver, "cpmac", sizeof(info->driver));
+	strlcpy(info->version, CPMAC_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "%s", "cpmac");
 	info->regdump_len = 0;
 }
 
@@ -1102,7 +1087,6 @@ static const struct net_device_ops cpmac_netdev_ops = {
 	.ndo_tx_timeout		= cpmac_tx_timeout,
 	.ndo_set_rx_mode	= cpmac_set_multicast_list,
 	.ndo_do_ioctl		= cpmac_ioctl,
-	.ndo_set_config		= cpmac_config,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -1119,7 +1103,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 
 	if (external_switch || dumb_switch) {
 		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
@@ -1173,8 +1157,8 @@ static int cpmac_probe(struct platform_device *pdev)
 	snprintf(priv->phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
 						mdio_bus_id, phy_id);
 
-	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link, 0,
-						PHY_INTERFACE_MODE_MII);
+	priv->phy = phy_connect(dev, priv->phy_name, cpmac_adjust_link,
+				PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(priv->phy)) {
 		if (netif_msg_drv(priv))

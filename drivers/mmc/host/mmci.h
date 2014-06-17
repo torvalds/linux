@@ -13,6 +13,16 @@
 #define MCI_PWR_ON		0x03
 #define MCI_OD			(1 << 6)
 #define MCI_ROD			(1 << 7)
+/*
+ * The ST Micro version does not have ROD and reuse the voltage registers for
+ * direction settings.
+ */
+#define MCI_ST_DATA2DIREN	(1 << 2)
+#define MCI_ST_CMDDIREN		(1 << 3)
+#define MCI_ST_DATA0DIREN	(1 << 4)
+#define MCI_ST_DATA31DIREN	(1 << 5)
+#define MCI_ST_FBCLKEN		(1 << 7)
+#define MCI_ST_DATA74DIREN	(1 << 8)
 
 #define MMCICLOCK		0x004
 #define MCI_CLK_ENABLE		(1 << 8)
@@ -28,6 +38,8 @@
 #define MCI_ST_UX500_NEG_EDGE	(1 << 13)
 #define MCI_ST_UX500_HWFCEN	(1 << 14)
 #define MCI_ST_UX500_CLK_INV	(1 << 15)
+/* Modified PL180 on Versatile Express platform */
+#define MCI_ARM_HWFCEN		(1 << 12)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -36,10 +48,11 @@
 #define MCI_CPSM_INTERRUPT	(1 << 8)
 #define MCI_CPSM_PENDING	(1 << 9)
 #define MCI_CPSM_ENABLE		(1 << 10)
-#define MCI_SDIO_SUSP		(1 << 11)
-#define MCI_ENCMD_COMPL		(1 << 12)
-#define MCI_NIEN		(1 << 13)
-#define MCI_CE_ATACMD		(1 << 14)
+/* Argument flag extenstions in the ST Micro versions */
+#define MCI_ST_SDIO_SUSP	(1 << 11)
+#define MCI_ST_ENCMD_COMPL	(1 << 12)
+#define MCI_ST_NIEN		(1 << 13)
+#define MCI_ST_CE_ATACMD	(1 << 14)
 
 #define MMCIRESPCMD		0x010
 #define MMCIRESPONSE0		0x014
@@ -92,6 +105,7 @@
 /* Extended status bits for the ST Micro variants */
 #define MCI_ST_SDIOIT		(1 << 22)
 #define MCI_ST_CEATAEND		(1 << 23)
+#define MCI_ST_CARDBUSY		(1 << 24)
 
 #define MMCICLEAR		0x038
 #define MCI_CMDCRCFAILCLR	(1 << 0)
@@ -108,6 +122,7 @@
 /* Extended status bits for the ST Micro variants */
 #define MCI_ST_SDIOITC		(1 << 22)
 #define MCI_ST_CEATAENDC	(1 << 23)
+#define MCI_ST_BUSYENDC		(1 << 24)
 
 #define MMCIMASK0		0x03c
 #define MCI_CMDCRCFAILMASK	(1 << 0)
@@ -135,6 +150,7 @@
 /* Extended status bits for the ST Micro variants */
 #define MCI_ST_SDIOITMASK	(1 << 22)
 #define MCI_ST_CEATAENDMASK	(1 << 23)
+#define MCI_ST_BUSYEND		(1 << 24)
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x048
@@ -170,9 +186,6 @@ struct mmci_host {
 	struct mmc_data		*data;
 	struct mmc_host		*mmc;
 	struct clk		*clk;
-	int			gpio_cd;
-	int			gpio_wp;
-	int			gpio_cd_irq;
 	bool			singleirq;
 
 	spinlock_t		lock;
@@ -180,7 +193,11 @@ struct mmci_host {
 	unsigned int		mclk;
 	unsigned int		cclk;
 	u32			pwr_reg;
+	u32			pwr_reg_add;
 	u32			clk_reg;
+	u32			datactrl_reg;
+	u32			busy_status;
+	bool			vqmmc_enabled;
 	struct mmci_platform_data *plat;
 	struct variant_data	*variant;
 
@@ -193,11 +210,6 @@ struct mmci_host {
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;
 	unsigned int		size;
-	struct regulator	*vcc;
-
-	/* pinctrl handles */
-	struct pinctrl		*pinctrl;
-	struct pinctrl_state	*pins_default;
 
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */

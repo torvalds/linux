@@ -152,14 +152,6 @@ struct gpio_port_t {
 	unsigned long revid;
 };
 
-struct gpio_port_s {
-	unsigned short fer;
-	unsigned short data;
-	unsigned short dir;
-	unsigned short inen;
-	unsigned int mux;
-};
-
 #endif
 
 #include <mach-common/ports-a.h>

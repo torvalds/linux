@@ -30,14 +30,15 @@
 	.set noat
 	.set noreorder
 .text
+	.globl memset
 	.globl __memset
+	.globl ___memset
 	.globl __memsetw
 	.globl __constant_c_memset
-	.globl memset
 
-	.ent __memset
+	.ent ___memset
 .align 5
-__memset:
+___memset:
 	.frame $30,0,$26,0
 	.prologue 0
 
@@ -227,7 +228,7 @@ end_b:
 	nop
 	nop
 	ret $31,($26),1		# L0 :
-	.end __memset
+	.end ___memset
 
 	/*
 	 * This is the original body of code, prior to replication and
@@ -594,4 +595,5 @@ end_w:
 
 	.end __memsetw
 
-memset = __memset
+memset = ___memset
+__memset = ___memset

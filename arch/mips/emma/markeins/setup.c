@@ -28,7 +28,7 @@
 
 #include <asm/emma/emma2rh.h>
 
-#define	USE_CPU_COUNTER_TIMER	/* whether we use cpu counter */
+#define USE_CPU_COUNTER_TIMER	/* whether we use cpu counter */
 
 extern void markeins_led(const char *);
 
@@ -110,9 +110,6 @@ void __init plat_mem_setup(void)
 	ioport_resource.end = EMMA2RH_PCI_IO_BASE + EMMA2RH_PCI_IO_SIZE - 1;
 	iomem_resource.start = EMMA2RH_IO_BASE;
 	iomem_resource.end = EMMA2RH_ROM_BASE - 1;
-
-	/* Reboot on panic */
-	panic_timeout = 180;
 
 	markeins_sio_setup();
 }

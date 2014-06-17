@@ -24,17 +24,17 @@
  * raw interrupt reports.
  */
 
-/* Note: this currently uses a dumb ringbuffer for reads and writes.
+/*
+ * Note: this currently uses a dumb ringbuffer for reads and writes.
  * A more optimal driver would cache and kill off outstanding urbs that are
  * now invalid, and ignore ones that already were in the queue but valid
  * as we only have 30 commands for the alphatrack. In particular this is
  * key for getting lights to flash in time as otherwise many commands
  * can be buffered up before the light change makes it to the interface.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
@@ -100,7 +100,8 @@ static int debug = ALPHATRACK_DEBUG;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 
-/* All interrupt in transfers are collected in a ring buffer to
+/*
+ * All interrupt in transfers are collected in a ring buffer to
  * avoid racing conditions and get better performance of the driver.
  */
 
@@ -109,8 +110,7 @@ static int ring_buffer_size = RING_BUFFER_SIZE;
 module_param(ring_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size");
 
-/* The write_buffer can one day contain more than one interrupt out transfer.
- */
+/* The write_buffer can one day contain more than one interrupt out transfer.*/
 
 static int write_buffer_size = WRITE_BUFFER_SIZE;
 module_param(write_buffer_size, int, S_IRUGO);
@@ -199,9 +199,7 @@ static void usb_alphatrack_abort_transfers(struct usb_alphatrack *dev)
 			usb_kill_urb(dev->interrupt_out_urb);
 }
 
-/**
- *	usb_alphatrack_delete
- */
+/** usb_alphatrack_delete */
 static void usb_alphatrack_delete(struct usb_alphatrack *dev)
 {
 	usb_alphatrack_abort_transfers(dev);
@@ -210,12 +208,12 @@ static void usb_alphatrack_delete(struct usb_alphatrack *dev)
 	kfree(dev->ring_buffer);
 	kfree(dev->interrupt_in_buffer);
 	kfree(dev->interrupt_out_buffer);
-	kfree(dev);		/* fixme oldi_buffer */
+	kfree(dev->oldi_buffer);
+	kfree(dev->write_buffer);
+	kfree(dev);
 }
 
-/**
- *	usb_alphatrack_interrupt_in_callback
- */
+/** usb_alphatrack_interrupt_in_callback */
 
 static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 {
@@ -237,8 +235,8 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 
 	if (urb->actual_length != INPUT_CMD_SIZE) {
 		dev_warn(&dev->intf->dev,
-			 "Urb length was %d bytes!!"
-			 "Do something intelligent\n", urb->actual_length);
+			 "Urb length was %d bytes!! Do something intelligent\n",
+			 urb->actual_length);
 	} else {
 		alphatrack_ocmd_info(&dev->intf->dev,
 				     &(*dev->ring_buffer)[dev->ring_tail].cmd,
@@ -296,9 +294,7 @@ exit:
 	wake_up_interruptible(&dev->read_wait);
 }
 
-/**
- *	usb_alphatrack_interrupt_out_callback
- */
+/** usb_alphatrack_interrupt_out_callback */
 static void usb_alphatrack_interrupt_out_callback(struct urb *urb)
 {
 	struct usb_alphatrack *dev = urb->context;
@@ -315,9 +311,7 @@ static void usb_alphatrack_interrupt_out_callback(struct urb *urb)
 	wake_up_interruptible(&dev->write_wait);
 }
 
-/**
- *	usb_alphatrack_open
- */
+/** usb_alphatrack_open */
 static int usb_alphatrack_open(struct inode *inode, struct file *file)
 {
 	struct usb_alphatrack *dev;
@@ -398,9 +392,7 @@ unlock_disconnect_exit:
 	return retval;
 }
 
-/**
- *	usb_alphatrack_release
- */
+/** usb_alphatrack_release */
 static int usb_alphatrack_release(struct inode *inode, struct file *file)
 {
 	struct usb_alphatrack *dev;
@@ -447,9 +439,7 @@ exit:
 	return retval;
 }
 
-/**
- *	usb_alphatrack_poll
- */
+/** usb_alphatrack_poll */
 static unsigned int usb_alphatrack_poll(struct file *file, poll_table *wait)
 {
 	struct usb_alphatrack *dev;
@@ -468,9 +458,7 @@ static unsigned int usb_alphatrack_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-/**
- *	usb_alphatrack_read
- */
+/** usb_alphatrack_read */
 static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer,
 				   size_t count, loff_t *ppos)
 {
@@ -539,9 +527,7 @@ exit:
 	return retval;
 }
 
-/**
- *	usb_alphatrack_write
- */
+/** usb_alphatrack_write */
 static ssize_t usb_alphatrack_write(struct file *file,
 				    const char __user *buffer, size_t count,
 				    loff_t *ppos)
@@ -601,7 +587,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		dev_err(&dev->intf->dev, "Endpoint should not be be null!\n");
+		dev_err(&dev->intf->dev, "Endpoint should not be null!\n");
 		goto unlock_exit;
 	}
 
@@ -678,10 +664,9 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&intf->dev, "Out of memory\n");
+	if (dev == NULL)
 		goto exit;
-	}
+
 	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
@@ -705,8 +690,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	}
 	if (dev->interrupt_out_endpoint == NULL)
 		dev_warn(&intf->dev,
-			 "Interrupt out endpoint not found"
-			 "(using control endpoint instead)\n");
+			 "Interrupt out endpoint not found (using control endpoint instead)\n");
 
 	dev->interrupt_in_endpoint_size =
 	    le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
@@ -719,30 +703,25 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 
 	true_size = min(ring_buffer_size, RING_BUFFER_SIZE);
 
-	/* FIXME - there are more usb_alloc routines for dma correctness.
-	   Needed? */
-	dev->ring_buffer =
-	    kmalloc((true_size * sizeof(struct alphatrack_icmd)), GFP_KERNEL);
-
-	if (!dev->ring_buffer) {
-		dev_err(&intf->dev,
-			"Couldn't allocate input ring_buffer of size %d\n",
-			true_size);
+	/*
+	 * FIXME - there are more usb_alloc routines for dma correctness.
+	 * Needed?
+	 */
+	dev->ring_buffer = kmalloc_array(true_size,
+					 sizeof(struct alphatrack_icmd),
+					 GFP_KERNEL);
+	if (!dev->ring_buffer)
 		goto error;
-	}
 
-	dev->interrupt_in_buffer =
-	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
+	dev->interrupt_in_buffer = kmalloc(dev->interrupt_in_endpoint_size,
+					   GFP_KERNEL);
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
+
 	dev->oldi_buffer = kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-	if (!dev->oldi_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate old buffer\n");
+	if (!dev->oldi_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_in_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
@@ -764,20 +743,17 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	true_size = min(write_buffer_size, WRITE_BUFFER_SIZE);
 
 	dev->interrupt_out_buffer =
-	    kmalloc(true_size * dev->interrupt_out_endpoint_size, GFP_KERNEL);
-
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
+		kmalloc_array(true_size,
+			      dev->interrupt_out_endpoint_size,
+			      GFP_KERNEL);
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
 
-	dev->write_buffer =
-	    kmalloc(true_size * sizeof(struct alphatrack_ocmd), GFP_KERNEL);
-
-	if (!dev->write_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate write_buffer\n");
+	dev->write_buffer = kmalloc_array(true_size,
+					  sizeof(struct alphatrack_ocmd),
+					  GFP_KERNEL);
+	if (!dev->write_buffer)
 		goto error;
-	}
 
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb) {
@@ -851,11 +827,11 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 		mutex_unlock(&dev->mtx);
 		usb_alphatrack_delete(dev);
 	} else {
+		atomic_set(&dev->writes_pending, 0);
 		dev->intf = NULL;
 		mutex_unlock(&dev->mtx);
 	}
 
-	atomic_set(&dev->writes_pending, 0);
 	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&intf->dev, "Alphatrack Surface #%d now disconnected\n",

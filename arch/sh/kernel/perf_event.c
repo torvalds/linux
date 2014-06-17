@@ -227,7 +227,7 @@ again:
 
 static void sh_pmu_stop(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -245,7 +245,7 @@ static void sh_pmu_stop(struct perf_event *event, int flags)
 
 static void sh_pmu_start(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -262,7 +262,7 @@ static void sh_pmu_start(struct perf_event *event, int flags)
 
 static void sh_pmu_del(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	sh_pmu_stop(event, PERF_EF_UPDATE);
 	__clear_bit(event->hw.idx, cpuc->used_mask);
@@ -272,7 +272,7 @@ static void sh_pmu_del(struct perf_event *event, int flags)
 
 static int sh_pmu_add(struct perf_event *event, int flags)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 	int ret = -EAGAIN;
@@ -367,7 +367,7 @@ static void sh_pmu_setup(int cpu)
 	memset(cpuhw, 0, sizeof(struct cpu_hw_events));
 }
 
-static int __cpuinit
+static int
 sh_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
@@ -384,7 +384,7 @@ sh_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-int __cpuinit register_sh_pmu(struct sh_pmu *_pmu)
+int register_sh_pmu(struct sh_pmu *_pmu)
 {
 	if (sh_pmu)
 		return -EBUSY;

@@ -13,9 +13,7 @@
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the
-	Free Software Foundation, Inc.,
-	59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -174,7 +172,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	do_gettimeofday(&timestamp);
 
 	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
-		DEBUG(rt2x00dev, "txrx dump queue length exceeded.\n");
+		rt2x00_dbg(rt2x00dev, "txrx dump queue length exceeded\n");
 		return;
 	}
 
@@ -185,7 +183,7 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	skbcopy = alloc_skb(sizeof(*dump_hdr) + skbdesc->desc_len + data_len,
 			    GFP_ATOMIC);
 	if (!skbcopy) {
-		DEBUG(rt2x00dev, "Failed to copy skb for dump.\n");
+		rt2x00_dbg(rt2x00dev, "Failed to copy skb for dump\n");
 		return;
 	}
 
@@ -288,7 +286,7 @@ static ssize_t rt2x00debug_read_queue_dump(struct file *file,
 	if (retval)
 		return retval;
 
-	status = min((size_t)skb->len, length);
+	status = min_t(size_t, skb->len, length);
 	if (copy_to_user(buf, skb->data, status)) {
 		status = -EFAULT;
 		goto exit;
@@ -657,7 +655,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 
 	intf = kzalloc(sizeof(struct rt2x00debug_intf), GFP_KERNEL);
 	if (!intf) {
-		ERROR(rt2x00dev, "Failed to allocate debug handler.\n");
+		rt2x00_err(rt2x00dev, "Failed to allocate debug handler\n");
 		return;
 	}
 
@@ -750,7 +748,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 				intf, &rt2x00debug_fop_queue_stats);
 
 #ifdef CONFIG_RT2X00_LIB_CRYPTO
-	if (test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags))
+	if (rt2x00_has_cap_hw_crypto(rt2x00dev))
 		intf->crypto_stats_entry =
 		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
 					intf, &rt2x00debug_fop_crypto_stats);
@@ -760,7 +758,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 
 exit:
 	rt2x00debug_deregister(rt2x00dev);
-	ERROR(rt2x00dev, "Failed to register debug handler.\n");
+	rt2x00_err(rt2x00dev, "Failed to register debug handler\n");
 }
 
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)

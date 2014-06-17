@@ -6,7 +6,7 @@
  *
  * Heavily inspired by the 32-bit Sparc compat code which is
  * Copyright (C) 1995, 1996, 1997, 1998 David S. Miller (davem@redhat.com)
- * Copyright (C) 1995, 1996, 1997, 1998 Jakub Jelinek   (jj@ultra.linux.cz)
+ * Copyright (C) 1995, 1996, 1997, 1998 Jakub Jelinek	(jj@ultra.linux.cz)
  */
 
 #define ELF_ARCH		EM_MIPS
@@ -28,6 +28,18 @@ typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 /*
+ * In order to be sure that we don't attempt to execute an O32 binary which
+ * requires 64 bit FP (FR=1) on a system which does not support it we refuse
+ * to execute any binary which has bits specified by the following macro set
+ * in its ELF header flags.
+ */
+#ifdef CONFIG_MIPS_O32_FP64_SUPPORT
+# define __MIPS_O32_FP64_MUST_BE_ZERO	0
+#else
+# define __MIPS_O32_FP64_MUST_BE_ZERO	EF_MIPS_FP64
+#endif
+
+/*
  * This is used to ensure we don't load something for the wrong architecture.
  */
 #define elf_check_arch(hdr)						\
@@ -44,13 +56,19 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 	if (((__h->e_flags & EF_MIPS_ABI) != 0) &&			\
 	    ((__h->e_flags & EF_MIPS_ABI) != EF_MIPS_ABI_O32))		\
 		__res = 0;						\
+	if (__h->e_flags & __MIPS_O32_FP64_MUST_BE_ZERO)		\
+		__res = 0;						\
 									\
 	__res;								\
 })
 
+#ifdef CONFIG_KVM_GUEST
+#define TASK32_SIZE		0x3fff8000UL
+#else
 #define TASK32_SIZE		0x7fff8000UL
+#endif
 #undef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE         (TASK32_SIZE / 3 * 2)
+#define ELF_ET_DYN_BASE		(TASK32_SIZE / 3 * 2)
 
 #include <asm/processor.h>
 
@@ -86,8 +104,8 @@ struct elf_prstatus32
 	pid_t	pr_ppid;
 	pid_t	pr_pgrp;
 	pid_t	pr_sid;
-	struct compat_timeval pr_utime;	/* User time */
-	struct compat_timeval pr_stime;	/* System time */
+	struct compat_timeval pr_utime; /* User time */
+	struct compat_timeval pr_stime; /* System time */
 	struct compat_timeval pr_cutime;/* Cumulative user time */
 	struct compat_timeval pr_cstime;/* Cumulative system time */
 	elf_gregset_t pr_reg;	/* GP registers */
@@ -107,7 +125,7 @@ struct elf_prpsinfo32
 	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	/* Lots missing */
 	char	pr_fname[16];	/* filename of executable */
-	char	pr_psargs[ELF_PRARGSZ];	/* initial part of arg list */
+	char	pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
 };
 
 #define elf_caddr_t	u32
@@ -157,5 +175,16 @@ MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");
 
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32
+
+#undef cputime_to_timeval
+#define cputime_to_timeval cputime_to_compat_timeval
+static __inline__ void
+cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
+{
+	unsigned long jiffies = cputime_to_jiffies(cputime);
+
+	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
+	value->tv_sec = jiffies / HZ;
+}
 
 #include "../../../fs/binfmt_elf.c"

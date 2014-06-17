@@ -131,7 +131,14 @@ static inline void *lookup_atid(const struct tid_info *t, unsigned int atid)
 
 static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 {
-	stid -= t->stid_base;
+	/* Is it a server filter TID? */
+	if (t->nsftids && (stid >= t->sftid_base)) {
+		stid -= t->sftid_base;
+		stid += t->nstids;
+	} else {
+		stid -= t->stid_base;
+	}
+
 	return stid < (t->nstids + t->nsftids) ? t->stid_tab[stid].data : NULL;
 }
 
@@ -154,6 +161,11 @@ struct in6_addr;
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
 			__be32 sip, __be16 sport, __be16 vlan,
 			unsigned int queue);
+int cxgb4_create_server6(const struct net_device *dev, unsigned int stid,
+			 const struct in6_addr *sip, __be16 sport,
+			 unsigned int queue);
+int cxgb4_remove_server(const struct net_device *dev, unsigned int stid,
+			unsigned int queue, bool ipv6);
 int cxgb4_create_server_filter(const struct net_device *dev, unsigned int stid,
 			       __be32 sip, __be16 sport, __be16 vlan,
 			       unsigned int queue,
@@ -220,8 +232,10 @@ struct cxgb4_lld_info {
 	const struct cxgb4_virt_res *vr;     /* assorted HW resources */
 	const unsigned short *mtus;          /* MTU table */
 	const unsigned short *rxq_ids;       /* the ULD's Rx queue ids */
+	const unsigned short *ciq_ids;       /* the ULD's concentrator IQ ids */
 	unsigned short nrxq;                 /* # of Rx queues */
 	unsigned short ntxq;                 /* # of Tx queues */
+	unsigned short nciq;		     /* # of concentrator IQ */
 	unsigned char nchan:4;               /* # of channels */
 	unsigned char nports:4;              /* # of ports */
 	unsigned char wr_cred;               /* WR 16-byte credits */
@@ -241,6 +255,7 @@ struct cxgb4_lld_info {
 					     /*	packet data */
 	bool enable_fw_ofld_conn;            /* Enable connection through fw */
 					     /* WR */
+	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
 };
 
 struct cxgb4_uld_info {
@@ -261,6 +276,11 @@ unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_port_idx(const struct net_device *dev);
 unsigned int cxgb4_best_mtu(const unsigned short *mtus, unsigned short mtu,
 			    unsigned int *idx);
+unsigned int cxgb4_best_aligned_mtu(const unsigned short *mtus,
+				    unsigned short header_size,
+				    unsigned short data_size_max,
+				    unsigned short data_size_align,
+				    unsigned int *mtu_idxp);
 void cxgb4_get_tcp_stats(struct pci_dev *pdev, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6);
 void cxgb4_iscsi_init(struct net_device *dev, unsigned int tag_mask,
@@ -269,4 +289,7 @@ struct sk_buff *cxgb4_pktgl_to_skb(const struct pkt_gl *gl,
 				   unsigned int skb_len, unsigned int pull_len);
 int cxgb4_sync_txq_pidx(struct net_device *dev, u16 qid, u16 pidx, u16 size);
 int cxgb4_flush_eq_cache(struct net_device *dev);
+void cxgb4_disable_db_coalescing(struct net_device *dev);
+void cxgb4_enable_db_coalescing(struct net_device *dev);
+
 #endif  /* !__CXGB4_OFLD_H */

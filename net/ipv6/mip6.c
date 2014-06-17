@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 /*
  * Authors:
@@ -268,7 +267,8 @@ static int mip6_destopt_offset(struct xfrm_state *x, struct sk_buff *skb,
 	struct ipv6_opt_hdr *exthdr =
 				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
 	const unsigned char *nh = skb_network_header(skb);
-	unsigned int packet_len = skb->tail - skb->network_header;
+	unsigned int packet_len = skb_tail_pointer(skb) -
+		skb_network_header(skb);
 	int found_rhdr = 0;
 
 	*nexthdr = &ipv6_hdr(skb)->nexthdr;
@@ -404,7 +404,8 @@ static int mip6_rthdr_offset(struct xfrm_state *x, struct sk_buff *skb,
 	struct ipv6_opt_hdr *exthdr =
 				   (struct ipv6_opt_hdr *)(ipv6_hdr(skb) + 1);
 	const unsigned char *nh = skb_network_header(skb);
-	unsigned int packet_len = skb->tail - skb->network_header;
+	unsigned int packet_len = skb_tail_pointer(skb) -
+		skb_network_header(skb);
 	int found_rhdr = 0;
 
 	*nexthdr = &ipv6_hdr(skb)->nexthdr;

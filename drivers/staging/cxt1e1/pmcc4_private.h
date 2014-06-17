@@ -133,7 +133,7 @@ struct c4_port_info
     void       *regram_saved;   /* Original malloc value may have non-2KB
                                  * boundary.  Need to save for use when
                                  * freeing. */
-    comet_t    *cometbase;
+    struct s_comet_reg    *cometbase;
     struct sbe_card_info *up;
 
     /*
@@ -213,7 +213,6 @@ struct sbe_card_info
     struct sbe_card_info *next;
     u_int32_t  *eeprombase;     /* mapped address of board's EEPROM */
     c4cpld_t   *cpldbase;       /* mapped address of board's CPLD hardware */
-    char       *release;        /* SBE ID string w/in sbeRelease.c */
     void       *hdw_info;
 #ifdef CONFIG_PROC_FS
     struct proc_dir_entry *dir_dev;
@@ -263,7 +262,7 @@ struct s_hdw_info
     struct pci_dev *pdev[2];
 
     unsigned long addr[2];
-    unsigned long addr_mapped[2];
+    void __iomem *addr_mapped[2];
     unsigned long len[2];
 
     union

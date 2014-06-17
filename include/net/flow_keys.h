@@ -9,8 +9,10 @@ struct flow_keys {
 		__be32 ports;
 		__be16 port16[2];
 	};
+	u16 thoff;
 	u8 ip_proto;
 };
 
-extern bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow);
+bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow);
+__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto);
 #endif

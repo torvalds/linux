@@ -13,20 +13,6 @@
 
 #include <asm/hardware/dec21285.h>
 
-#ifndef CONFIG_DEBUG_DC21285_PORT
-	/* For NetWinder debugging */
-		.macro	addruart, rp, rv, tmp
-		mov	\rp, #0x000003f8
-		orr	\rv, \rp, #0xfe000000	@ virtual
-		orr	\rv, \rv, #0x00e00000	@ virtual
-		orr	\rp, \rp, #0x7c000000	@ physical
-		.endm
-
-#define UART_SHIFT	0
-#define FLOW_CONTROL
-#include <asm/hardware/debug-8250.S>
-
-#else
 #include <mach/hardware.h>
 	/* For EBSA285 debugging */
 		.equ	dc21285_high, ARMCSR_BASE & 0xff000000
@@ -54,4 +40,3 @@
 
 		.macro	waituart,rd,rx
 		.endm
-#endif

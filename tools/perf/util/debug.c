@@ -16,23 +16,44 @@
 int verbose;
 bool dump_trace = false, quiet = false;
 
-int eprintf(int level, const char *fmt, ...)
+static int _eprintf(int level, const char *fmt, va_list args)
 {
-	va_list args;
 	int ret = 0;
 
 	if (verbose >= level) {
-		va_start(args, fmt);
-		if (use_browser == 1)
-			ret = ui_helpline__show_help(fmt, args);
-		else if (use_browser == 2)
-			ret = perf_gtk__show_helpline(fmt, args);
+		if (use_browser >= 1)
+			ui_helpline__vshow(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
-		va_end(args);
 	}
 
 	return ret;
+}
+
+int eprintf(int level, const char *fmt, ...)
+{
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	ret = _eprintf(level, fmt, args);
+	va_end(args);
+
+	return ret;
+}
+
+/*
+ * Overloading libtraceevent standard info print
+ * function, display with -v in perf.
+ */
+void pr_stat(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	_eprintf(1, fmt, args);
+	va_end(args);
+	eprintf(1, "\n");
 }
 
 int dump_printf(const char *fmt, ...)
@@ -47,28 +68,6 @@ int dump_printf(const char *fmt, ...)
 	}
 
 	return ret;
-}
-
-#if !defined(NEWT_SUPPORT) && !defined(GTK2_SUPPORT)
-int ui__warning(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-	return 0;
-}
-#endif
-
-int ui__error_paranoid(void)
-{
-	return ui__error("Permission error - are you root?\n"
-		    "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
-		    " -1 - Not paranoid at all\n"
-		    "  0 - Disallow raw tracepoint access for unpriv\n"
-		    "  1 - Disallow cpu events for unpriv\n"
-		    "  2 - Disallow kernel profiling for unpriv\n");
 }
 
 void trace_event(union perf_event *event)

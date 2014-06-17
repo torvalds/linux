@@ -674,11 +674,6 @@ ENTRY(sys_rt_sigreturn)
 		b	__sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn)
 
-ENTRY(sys_sigaltstack)
-		ldw	r2, [sp+], #S_OFF + S_SP
-		b	do_sigaltstack
-ENDPROC(sys_sigaltstack)
-
 	__INIT
 
 /*

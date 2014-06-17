@@ -96,6 +96,8 @@ static int a8293_set_voltage(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
+	usleep_range(1500, 50000);
+
 	return ret;
 err:
 	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);

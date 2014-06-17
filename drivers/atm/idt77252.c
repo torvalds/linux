@@ -2551,12 +2551,12 @@ done:
 		timeout = 5 * 1000;
 		while (atomic_read(&vc->scq->used) > 0) {
 			timeout = msleep_interruptible(timeout);
-			if (!timeout)
+			if (!timeout) {
+				pr_warn("%s: SCQ drain timeout: %u used\n",
+					card->name, atomic_read(&vc->scq->used));
 				break;
+			}
 		}
-		if (!timeout)
-			printk("%s: SCQ drain timeout: %u used\n",
-			       card->name, atomic_read(&vc->scq->used));
 
 		writel(TCMDQ_HALT | vc->index, SAR_REG_TCMDQ);
 		clear_scd(card, vc->scq, vc->class);
@@ -3511,7 +3511,7 @@ static int init_card(struct atm_dev *dev)
 	tmp = dev_get_by_name(&init_net, tname);	/* jhs: was "tmp = dev_get(tname);" */
 	if (tmp) {
 		memcpy(card->atmdev->esi, tmp->dev_addr, 6);
-
+		dev_put(tmp);
 		printk("%s: ESI %pM\n", card->name, card->atmdev->esi);
 	}
 	/*

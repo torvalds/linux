@@ -108,7 +108,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "DViCO FusionHDTV USB",
 		.tuner_type = UNSET,
 		.tuner_addr = ADDR_UNSET,
-		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
@@ -169,7 +169,9 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
-	case 72261: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
+	case 72261: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72271: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72281: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
@@ -183,16 +185,15 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	       __func__, tv.model);
 }
 
+void au0828_card_analog_fe_setup(struct au0828_dev *dev);
+
 void au0828_card_setup(struct au0828_dev *dev)
 {
 	static u8 eeprom[256];
-	struct tuner_setup tun_setup;
-	struct v4l2_subdev *sd;
-	unsigned int mode_mask = T_ANALOG_TV;
 
 	dprintk(1, "%s()\n", __func__);
 
-	memcpy(&dev->board, &au0828_boards[dev->boardnr], sizeof(dev->board));
+	dev->board = au0828_boards[dev->boardnr];
 
 	if (dev->i2c_rc == 0) {
 		dev->i2c_client.addr = 0xa0 >> 1;
@@ -208,6 +209,16 @@ void au0828_card_setup(struct au0828_dev *dev)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
 	}
+
+	au0828_card_analog_fe_setup(dev);
+}
+
+void au0828_card_analog_fe_setup(struct au0828_dev *dev)
+{
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+	struct tuner_setup tun_setup;
+	struct v4l2_subdev *sd;
+	unsigned int mode_mask = T_ANALOG_TV;
 
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED) {
 		/* Load the analog demodulator driver (note this would need to
@@ -234,6 +245,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr,
 				     &tun_setup);
 	}
+#endif
 }
 
 /*
@@ -258,18 +270,25 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 		 * 9 - XC5000 Tuner
 		 */
 
-		/* Into reset */
+		/* Set relevant GPIOs as outputs (leave the EEPROM W/P
+		   as an input since we will never touch it and it has
+		   a pullup) */
 		au0828_write(dev, REG_003, 0x02);
 		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
+
+		/* Into reset */
 		au0828_write(dev, REG_001, 0x0);
 		au0828_write(dev, REG_000, 0x0);
-		msleep(100);
+		msleep(50);
 
-		/* Out of reset (leave the cs5340 in reset until needed) */
-		au0828_write(dev, REG_003, 0x02);
-		au0828_write(dev, REG_001, 0x02);
-		au0828_write(dev, REG_002, 0x80 | 0x20 | 0x10);
-		au0828_write(dev, REG_000, 0x80 | 0x40 | 0x20);
+		/* Bring power supply out of reset */
+		au0828_write(dev, REG_000, 0x80);
+		msleep(50);
+
+		/* Bring xc5000 and au8522 out of reset (leave the
+		   cs5340 in reset until needed) */
+		au0828_write(dev, REG_001, 0x02); /* xc5000 */
+		au0828_write(dev, REG_000, 0x80 | 0x20); /* PS + au8522 */
 
 		msleep(250);
 		break;
@@ -332,6 +351,8 @@ struct usb_device_id au0828_usb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x7260),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x7213),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7270),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ },
 };

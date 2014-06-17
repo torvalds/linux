@@ -1,0 +1,21 @@
+* Synopsys Designware PCIe interface
+
+Required properties:
+- compatible: should contain "snps,dw-pcie" to identify the core.
+- #address-cells: set to <3>
+- #size-cells: set to <2>
+- device_type: set to "pci"
+- ranges: ranges for the PCI memory and I/O regions
+- #interrupt-cells: set to <1>
+- interrupt-map-mask and interrupt-map: standard PCI properties
+	to define the mapping of the PCIe interface to interrupt
+	numbers.
+- num-lanes: number of lanes to use
+- clocks: Must contain an entry for each entry in clock-names.
+	See ../clocks/clock-bindings.txt for details.
+- clock-names: Must include the following entries:
+	- "pcie"
+	- "pcie_bus"
+
+Optional properties:
+- reset-gpio: gpio pin number of power good signal

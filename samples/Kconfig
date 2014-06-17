@@ -5,12 +5,6 @@ menuconfig SAMPLES
 
 if SAMPLES
 
-config SAMPLE_TRACEPOINTS
-	tristate "Build tracepoints examples -- loadable modules only"
-	depends on TRACEPOINTS && m
-	help
-	  This build tracepoints example modules.
-
 config SAMPLE_TRACE_EVENTS
 	tristate "Build trace_events examples -- loadable modules only"
 	depends on EVENT_TRACING && m

@@ -168,6 +168,7 @@ void dump_stack(void)
 #endif
 	trace_buffer_save(tflags);
 	dump_bfin_trace_buffer();
+	dump_stack_print_info(KERN_DEFAULT);
 	show_stack(current, &stack);
 	trace_buffer_restore(tflags);
 }

@@ -280,9 +280,10 @@ struct ring_info {
 	dma_addr_t	mapping;
 };
 
-#define B44_MCAST_TABLE_SIZE	32
-#define B44_PHY_ADDR_NO_PHY	30
-#define B44_MDC_RATIO		5000000
+#define B44_MCAST_TABLE_SIZE		32
+#define B44_PHY_ADDR_NO_LOCAL_PHY	30 /* no local phy regs */
+#define B44_PHY_ADDR_NO_PHY		31 /* no phy present at all */
+#define B44_MDC_RATIO			5000000
 
 #define	B44_STAT_REG_DECLARE		\
 	_B44(tx_good_octets)		\
@@ -344,6 +345,9 @@ B44_STAT_REG_DECLARE
 	struct u64_stats_sync	syncp;
 };
 
+#define	B44_BOARDFLAG_ROBO		0x0010  /* Board has robo switch */
+#define	B44_BOARDFLAG_ADM		0x0080  /* Board has ADMtek switch */
+
 struct ssb_device;
 
 struct b44 {
@@ -376,7 +380,7 @@ struct b44 {
 #define B44_FLAG_ADV_10FULL	0x02000000
 #define B44_FLAG_ADV_100HALF	0x04000000
 #define B44_FLAG_ADV_100FULL	0x08000000
-#define B44_FLAG_INTERNAL_PHY	0x10000000
+#define B44_FLAG_EXTERNAL_PHY	0x10000000
 #define B44_FLAG_RX_RING_HACK	0x20000000
 #define B44_FLAG_TX_RING_HACK	0x40000000
 #define B44_FLAG_WOL_ENABLE	0x80000000
@@ -396,6 +400,9 @@ struct b44 {
 	u32			tx_pending;
 	u8			phy_addr;
 	u8			force_copybreak;
+	struct phy_device	*phydev;
+	struct mii_bus		*mii_bus;
+	int			old_link;
 	struct mii_if_info	mii_if;
 };
 

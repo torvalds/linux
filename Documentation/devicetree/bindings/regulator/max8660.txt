@@ -1,0 +1,47 @@
+Maxim MAX8660 voltage regulator
+
+Required properties:
+- compatible: must be one of "maxim,max8660", "maxim,max8661"
+- reg: I2C slave address, usually 0x34
+- any required generic properties defined in regulator.txt
+
+Example:
+
+	i2c_master {
+		max8660@34 {
+			compatible = "maxim,max8660";
+			reg = <0x34>;
+
+			regulators {
+				regulator@0 {
+					regulator-compatible= "V3(DCDC)";
+					regulator-min-microvolt = <725000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				regulator@1 {
+					regulator-compatible= "V4(DCDC)";
+					regulator-min-microvolt = <725000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				regulator@2 {
+					regulator-compatible= "V5(LDO)";
+					regulator-min-microvolt = <1700000>;
+					regulator-max-microvolt = <2000000>;
+				};
+
+				regulator@3 {
+					regulator-compatible= "V6(LDO)";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				regulator@4 {
+					regulator-compatible= "V7(LDO)";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+				};
+			};
+		};
+	};

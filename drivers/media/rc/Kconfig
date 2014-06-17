@@ -106,6 +106,15 @@ config IR_SANYO_DECODER
 	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
 	   and you need software decoding support.
 
+config IR_SHARP_DECODER
+	tristate "Enable IR raw decoder for the Sharp protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sharp protocol, and you need software decoding support.
+
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on RC_CORE
@@ -223,6 +232,8 @@ config IR_REDRAT3
 	tristate "RedRat3 IR Transceiver"
 	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
+	select NEW_LEDS
+	select LEDS_CLASS
 	select USB
 	---help---
 	   Say Y here if you want to use a RedRat3 Infrared Transceiver.
@@ -248,7 +259,6 @@ config IR_WINBOND_CIR
 	depends on RC_CORE
 	select NEW_LEDS
 	select LEDS_CLASS
-	select LEDS_TRIGGERS
 	select BITREVERSE
 	---help---
 	   Say Y here if you want to use the IR remote functionality found
@@ -291,13 +301,15 @@ config IR_TTUSBIR
 
 config IR_RX51
 	tristate "Nokia N900 IR transmitter diode"
-	depends on OMAP_DM_TIMER && LIRC
+	depends on OMAP_DM_TIMER && ARCH_OMAP2PLUS && LIRC && !ARCH_MULTIPLATFORM
 	---help---
 	   Say Y or M here if you want to enable support for the IR
 	   transmitter diode built in the Nokia N900 (RX51) device.
 
 	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
+
+source "drivers/media/rc/img-ir/Kconfig"
 
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
@@ -320,5 +332,15 @@ config IR_GPIO_CIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
+
+config RC_ST
+	tristate "ST remote control receiver"
+	depends on ARCH_STI && RC_CORE
+	help
+	 Say Y here if you want support for ST remote control driver
+	 which allows both IR and UHF RX.
+	 The driver passes raw pulse and space information to the LIRC decoder.
+
+	 If you're not sure, select N here.
 
 endif #RC_DEVICES

@@ -158,7 +158,7 @@ static ssize_t db1x_pmattr_store(struct kobject *kobj,
 	int tmp;
 
 	if (ATTRCMP(timer_timeout)) {
-		tmp = strict_strtoul(instr, 0, &l);
+		tmp = kstrtoul(instr, 0, &l);
 		if (tmp)
 			return tmp;
 
@@ -181,7 +181,7 @@ static ssize_t db1x_pmattr_store(struct kobject *kobj,
 		}
 
 	} else if (ATTRCMP(wakemsk)) {
-		tmp = strict_strtoul(instr, 0, &l);
+		tmp = kstrtoul(instr, 0, &l);
 		if (tmp)
 			return tmp;
 
@@ -194,7 +194,7 @@ static ssize_t db1x_pmattr_store(struct kobject *kobj,
 }
 
 #define ATTR(x)							\
-	static struct kobj_attribute x##_attribute = 		\
+	static struct kobj_attribute x##_attribute =		\
 		__ATTR(x, 0664, db1x_pmattr_show,		\
 				db1x_pmattr_store);
 

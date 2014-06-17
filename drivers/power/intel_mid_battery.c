@@ -756,7 +756,7 @@ static int platform_pmic_battery_probe(struct platform_device *pdev)
 
 static int platform_pmic_battery_remove(struct platform_device *pdev)
 {
-	struct pmic_power_module_info *pbi = dev_get_drvdata(&pdev->dev);
+	struct pmic_power_module_info *pbi = platform_get_drvdata(pdev);
 
 	free_irq(pbi->irq, pbi);
 	cancel_delayed_work_sync(&pbi->monitor_battery);

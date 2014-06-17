@@ -8,19 +8,13 @@
  * All enquiries to support@picochip.com
  */
 #include <linux/delay.h>
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/dw_apb_timer.h>
+#include <linux/reboot.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach/map.h>
-
-#include "common.h"
 
 #define PHYS_TO_IO(x)			(((x) & 0x00ffffff) | 0xfe000000)
 #define PICOXCELL_PERIPH_BASE		0x80000000
@@ -70,17 +64,7 @@ static const char *picoxcell_dt_match[] = {
 	NULL
 };
 
-static const struct of_device_id vic_of_match[] __initconst = {
-	{ .compatible = "arm,pl192-vic", .data = vic_of_init, },
-	{ /* Sentinel */ }
-};
-
-static void __init picoxcell_init_irq(void)
-{
-	of_irq_init(vic_of_match);
-}
-
-static void picoxcell_wdt_restart(char mode, const char *cmd)
+static void picoxcell_wdt_restart(enum reboot_mode mode, const char *cmd)
 {
 	/*
 	 * Configure the watchdog to reset with the shortest possible timeout
@@ -96,10 +80,6 @@ static void picoxcell_wdt_restart(char mode, const char *cmd)
 
 DT_MACHINE_START(PICOXCELL, "Picochip picoXcell")
 	.map_io		= picoxcell_map_io,
-	.nr_irqs	= NR_IRQS_LEGACY,
-	.init_irq	= picoxcell_init_irq,
-	.handle_irq	= vic_handle_irq,
-	.timer		= &dw_apb_timer,
 	.init_machine	= picoxcell_init_machine,
 	.dt_compat	= picoxcell_dt_match,
 	.restart	= picoxcell_wdt_restart,

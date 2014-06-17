@@ -25,7 +25,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
 #include <linux/tty.h>
@@ -252,14 +251,11 @@ static inline int isAbortTrfCmnd(const unsigned char *buf)
 static void send_to_tty(struct usb_serial_port *port,
 			char *data, unsigned int actual_length)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
-
-	if (tty && actual_length) {
+	if (actual_length) {
 		usb_serial_debug_data(&port->dev, __func__, actual_length, data);
-		tty_insert_flip_string(tty, data, actual_length);
-		tty_flip_buffer_push(tty);
+		tty_insert_flip_string(&port->port, data, actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 }
 
 
@@ -278,14 +274,13 @@ static int pkt_add(struct garmin_data *garmin_data_p,
 	unsigned long flags;
 	struct garmin_packet *pkt;
 
-	/* process only packets containg data ... */
+	/* process only packets containing data ... */
 	if (data_length) {
 		pkt = kmalloc(sizeof(struct garmin_packet)+data_length,
 								GFP_ATOMIC);
-		if (pkt == NULL) {
-			dev_err(&garmin_data_p->port->dev, "out of memory\n");
+		if (!pkt)
 			return 0;
-		}
+
 		pkt->size = data_length;
 		memcpy(pkt->data, data, data_length);
 
@@ -949,20 +944,13 @@ static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void garmin_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s - port %d - mode=%d state=%d flags=0x%X\n",
-		__func__, port->number, garmin_data_p->mode,
-		garmin_data_p->state, garmin_data_p->flags);
+	dev_dbg(&port->dev, "%s - mode=%d state=%d flags=0x%X\n",
+		__func__, garmin_data_p->mode, garmin_data_p->state,
+		garmin_data_p->flags);
 
-	if (!serial)
-		return;
-
-	mutex_lock(&port->serial->disc_mutex);
-
-	if (!port->serial->disconnected)
-		garmin_clear(garmin_data_p);
+	garmin_clear(garmin_data_p);
 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
@@ -971,8 +959,6 @@ static void garmin_close(struct usb_serial_port *port)
 	/* keep reset state so we know that we must start a new session */
 	if (garmin_data_p->state != STATE_RESET)
 		garmin_data_p->state = STATE_DISCONNECTED;
-
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 
@@ -1018,14 +1004,11 @@ static int garmin_write_bulk(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&garmin_data_p->lock, flags);
 
 	buffer = kmalloc(count, GFP_ATOMIC);
-	if (!buffer) {
-		dev_err(&port->dev, "out of memory\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		dev_err(&port->dev, "no more free urbs\n");
 		kfree(buffer);
 		return -ENOMEM;
 	}
@@ -1160,7 +1143,7 @@ static void garmin_read_process(struct garmin_data *garmin_data_p,
 	unsigned long flags;
 
 	if (garmin_data_p->flags & FLAGS_DROP_DATA) {
-		/* abort-transfer cmd is actice */
+		/* abort-transfer cmd is active */
 		dev_dbg(&garmin_data_p->port->dev, "%s - pkt dropped\n", __func__);
 	} else if (garmin_data_p->state != STATE_DISCONNECTED &&
 		garmin_data_p->state != STATE_RESET) {
@@ -1193,16 +1176,10 @@ static void garmin_read_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial =  port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	int retval;
-
-	if (!serial) {
-		dev_dbg(&urb->dev->dev, "%s - bad serial pointer, exiting\n", __func__);
-		return;
-	}
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "%s - nonzero read bulk status received: %d\n",
@@ -1411,10 +1388,9 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	struct garmin_data *garmin_data_p;
 
 	garmin_data_p = kzalloc(sizeof(struct garmin_data), GFP_KERNEL);
-	if (garmin_data_p == NULL) {
-		dev_err(&port->dev, "%s - Out of memory\n", __func__);
+	if (!garmin_data_p)
 		return -ENOMEM;
-	}
+
 	init_timer(&garmin_data_p->timer);
 	spin_lock_init(&garmin_data_p->lock);
 	INIT_LIST_HEAD(&garmin_data_p->pktlist);

@@ -21,4 +21,4 @@
 #define R10000_LLSC_WAR			0
 #define MIPS34K_MISSED_ITLB_WAR		0
 
-#endif /* __ASM_MIPS_MACH_PNX8550_WAR_H */
+#endif /* __ASM_MIPS_MACH_PNX833X_WAR_H */

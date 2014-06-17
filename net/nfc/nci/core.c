@@ -20,8 +20,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -75,7 +74,7 @@ static int __nci_request(struct nci_dev *ndev,
 
 	ndev->req_status = NCI_REQ_PEND;
 
-	init_completion(&ndev->req_completion);
+	reinit_completion(&ndev->req_completion);
 	req(ndev, opt);
 	completion_rc =
 		wait_for_completion_interruptible_timeout(&ndev->req_completion,
@@ -302,6 +301,9 @@ static int nci_open_device(struct nci_dev *ndev)
 	rc = __nci_request(ndev, nci_reset_req, 0,
 			   msecs_to_jiffies(NCI_RESET_TIMEOUT));
 
+	if (ndev->ops->setup)
+		ndev->ops->setup(ndev);
+
 	if (!rc) {
 		rc = __nci_request(ndev, nci_init_req, 0,
 				   msecs_to_jiffies(NCI_INIT_TIMEOUT));
@@ -362,6 +364,8 @@ static int nci_close_device(struct nci_dev *ndev)
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
 	clear_bit(NCI_INIT, &ndev->flags);
 
+	del_timer_sync(&ndev->cmd_timer);
+
 	/* Flush cmd wq */
 	flush_workqueue(ndev->cmd_wq);
 
@@ -409,12 +413,26 @@ static int nci_dev_down(struct nfc_dev *nfc_dev)
 	return nci_close_device(ndev);
 }
 
+int nci_set_config(struct nci_dev *ndev, __u8 id, size_t len, __u8 *val)
+{
+	struct nci_set_config_param param;
+
+	if (!val || !len)
+		return 0;
+
+	param.id = id;
+	param.len = len;
+	param.val = val;
+
+	return __nci_request(ndev, nci_set_config_req, (unsigned long)&param,
+			     msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
+}
+EXPORT_SYMBOL(nci_set_config);
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	struct nci_set_config_param param;
-	__u8 local_gb[NFC_MAX_GT_LEN];
-	int i;
 
 	param.val = nfc_get_local_general_bytes(nfc_dev, &param.len);
 	if ((param.val == NULL) || (param.len == 0))
@@ -423,11 +441,7 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 	if (param.len > NFC_MAX_GT_LEN)
 		return -EINVAL;
 
-	for (i = 0; i < param.len; i++)
-		local_gb[param.len-1-i] = param.val[i];
-
 	param.id = NCI_PN_ATR_REQ_GEN_BYTES;
-	param.val = local_gb;
 
 	return nci_request(ndev, nci_set_config_req, (unsigned long)&param,
 			   msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
@@ -636,6 +650,21 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	return rc;
 }
 
+static int nci_enable_se(struct nfc_dev *nfc_dev, u32 se_idx)
+{
+	return 0;
+}
+
+static int nci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
+{
+	return 0;
+}
+
+static int nci_discover_se(struct nfc_dev *nfc_dev)
+{
+	return 0;
+}
+
 static struct nfc_ops nci_nfc_ops = {
 	.dev_up = nci_dev_up,
 	.dev_down = nci_dev_down,
@@ -646,6 +675,9 @@ static struct nfc_ops nci_nfc_ops = {
 	.activate_target = nci_activate_target,
 	.deactivate_target = nci_deactivate_target,
 	.im_transceive = nci_transceive,
+	.enable_se = nci_enable_se,
+	.disable_se = nci_disable_se,
+	.discover_se = nci_discover_se,
 };
 
 /* ---- Interface to NCI drivers ---- */
@@ -677,6 +709,7 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 	ndev->ops = ops;
 	ndev->tx_headroom = tx_headroom;
 	ndev->tx_tailroom = tx_tailroom;
+	init_completion(&ndev->req_completion);
 
 	ndev->nfc_dev = nfc_allocate_device(&nci_nfc_ops,
 					    supported_protocols,
@@ -795,12 +828,11 @@ EXPORT_SYMBOL(nci_unregister_device);
 /**
  * nci_recv_frame - receive frame from NCI drivers
  *
+ * @ndev: The nci device
  * @skb: The sk_buff to receive
  */
-int nci_recv_frame(struct sk_buff *skb)
+int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *) skb->dev;
-
 	pr_debug("len %d\n", skb->len);
 
 	if (!ndev || (!test_bit(NCI_UP, &ndev->flags) &&
@@ -817,10 +849,8 @@ int nci_recv_frame(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(nci_recv_frame);
 
-static int nci_send_frame(struct sk_buff *skb)
+static int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *) skb->dev;
-
 	pr_debug("len %d\n", skb->len);
 
 	if (!ndev) {
@@ -831,7 +861,11 @@ static int nci_send_frame(struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
-	return ndev->ops->send(skb);
+	/* Send copy to sniffer */
+	nfc_send_to_raw_sock(ndev->nfc_dev, skb,
+			     RAW_PAYLOAD_NCI, NFC_DIRECTION_TX);
+
+	return ndev->ops->send(ndev, skb);
 }
 
 /* Send NCI command */
@@ -858,8 +892,6 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 
 	if (plen)
 		memcpy(skb_put(skb, plen), payload, plen);
-
-	skb->dev = (void *) ndev;
 
 	skb_queue_tail(&ndev->cmd_q, skb);
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);
@@ -892,7 +924,7 @@ static void nci_tx_work(struct work_struct *work)
 			 nci_conn_id(skb->data),
 			 nci_plen(skb->data));
 
-		nci_send_frame(skb);
+		nci_send_frame(ndev, skb);
 
 		mod_timer(&ndev->data_timer,
 			  jiffies + msecs_to_jiffies(NCI_DATA_TIMEOUT));
@@ -907,6 +939,11 @@ static void nci_rx_work(struct work_struct *work)
 	struct sk_buff *skb;
 
 	while ((skb = skb_dequeue(&ndev->rx_q))) {
+
+		/* Send copy to sniffer */
+		nfc_send_to_raw_sock(ndev->nfc_dev, skb,
+				     RAW_PAYLOAD_NCI, NFC_DIRECTION_RX);
+
 		/* Process frame */
 		switch (nci_mt(skb->data)) {
 		case NCI_MT_RSP_PKT:
@@ -961,7 +998,7 @@ static void nci_cmd_work(struct work_struct *work)
 			 nci_opcode_oid(nci_opcode(skb->data)),
 			 nci_plen(skb->data));
 
-		nci_send_frame(skb);
+		nci_send_frame(ndev, skb);
 
 		mod_timer(&ndev->cmd_timer,
 			  jiffies + msecs_to_jiffies(NCI_CMD_TIMEOUT));

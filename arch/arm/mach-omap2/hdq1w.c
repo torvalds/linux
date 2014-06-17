@@ -27,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
+#include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include "hdq1w.h"
@@ -75,6 +76,7 @@ int omap_hdq1w_reset(struct omap_hwmod *oh)
 	return 0;
 }
 
+#ifndef CONFIG_OF
 static int __init omap_init_hdq(void)
 {
 	int id = -1;
@@ -87,10 +89,11 @@ static int __init omap_init_hdq(void)
 	if (!oh)
 		return 0;
 
-	pdev = omap_device_build(devname, id, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build(devname, id, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 	     devname, oh->name);
 
 	return 0;
 }
-arch_initcall(omap_init_hdq);
+omap_arch_initcall(omap_init_hdq);
+#endif

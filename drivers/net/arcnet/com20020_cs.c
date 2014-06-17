@@ -32,7 +32,6 @@
  * **********************
  */
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -333,16 +332,4 @@ static struct pcmcia_driver com20020_cs_driver = {
 	.suspend	= com20020_suspend,
 	.resume		= com20020_resume,
 };
-
-static int __init init_com20020_cs(void)
-{
-	return pcmcia_register_driver(&com20020_cs_driver);
-}
-
-static void __exit exit_com20020_cs(void)
-{
-	pcmcia_unregister_driver(&com20020_cs_driver);
-}
-
-module_init(init_com20020_cs);
-module_exit(exit_com20020_cs);
+module_pcmcia_driver(com20020_cs_driver);

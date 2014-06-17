@@ -489,7 +489,8 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 		return NULL;
 	}
 
-	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
+	err = snd_card_new(&dev->pci->dev,
+			   SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			THIS_MODULE, sizeof(struct cx23885_audio_dev), &card);
 	if (err < 0)
 		goto error;
@@ -499,8 +500,6 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 	chip->pci = dev->pci;
 	chip->card = card;
 	spin_lock_init(&chip->lock);
-
-	snd_card_set_dev(card, &dev->pci->dev);
 
 	err = snd_cx23885_pcm(chip, 0, "CX23885 Digital");
 	if (err < 0)

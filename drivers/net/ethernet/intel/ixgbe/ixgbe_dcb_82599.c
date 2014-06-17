@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -241,7 +242,6 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 			max_tc = prio_tc[i];
 	}
 
-	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
 
 	/* Configure PFC Tx thresholds per TC */
 	for (i = 0; i <= max_tc; i++) {
@@ -256,6 +256,7 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 
 		if (enabled) {
 			reg = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
+			fcrtl = (hw->fc.low_water[i] << 10) | IXGBE_FCRTL_XONE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), fcrtl);
 		} else {
 			reg = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 32;

@@ -15,10 +15,6 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
     PCMCIA support code for this driver is adapted from the dummy_cs.c
     driver of the Linux PCMCIA Card Services package.
 
@@ -38,10 +34,11 @@ Status: experimental
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
-#include "../comedidev.h"
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -89,8 +86,6 @@ struct das16cs_private {
 	unsigned short status2;
 };
 
-static struct pcmcia_device *cur_dev;
-
 static const struct comedi_lrange das16cs_ai_range = {
 	4, {
 		BIP_RANGE(10),
@@ -100,10 +95,17 @@ static const struct comedi_lrange das16cs_ai_range = {
 	}
 };
 
-static irqreturn_t das16cs_interrupt(int irq, void *d)
+static int das16cs_ai_eoc(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned long context)
 {
-	/* struct comedi_device *dev = d; */
-	return IRQ_HANDLED;
+	unsigned int status;
+
+	status = inw(dev->iobase + DAS16CS_MISC1);
+	if (status & 0x0080)
+		return 0;
+	return -EBUSY;
 }
 
 static int das16cs_ai_rinsn(struct comedi_device *dev,
@@ -114,8 +116,8 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 	int range = CR_RANGE(insn->chanspec);
 	int aref = CR_AREF(insn->chanspec);
+	int ret;
 	int i;
-	int to;
 
 	outw(chan, dev->iobase + DAS16CS_DIO_MUX);
 
@@ -143,130 +145,14 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		outw(0, dev->iobase + DAS16CS_ADC_DATA);
 
-#define TIMEOUT 1000
-		for (to = 0; to < TIMEOUT; to++) {
-			if (inw(dev->iobase + DAS16CS_MISC1) & 0x0080)
-				break;
-		}
-		if (to == TIMEOUT) {
-			dev_dbg(dev->class_dev, "cb_das16_cs: ai timeout\n");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, das16cs_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		data[i] = inw(dev->iobase + DAS16CS_ADC_DATA);
 	}
 
 	return i;
-}
-
-static int das16cs_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	return -EINVAL;
-}
-
-static int das16cs_ai_cmdtest(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_cmd *cmd)
-{
-	int err = 0;
-	int tmp;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
-					TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src,
-					TRIG_TIMER | TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-
-	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
-	err |= cfc_check_trigger_is_unique(cmd->convert_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
-
-	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-
-#define MAX_SPEED	10000	/* in nanoseconds */
-#define MIN_SPEED	1000000000	/* in nanoseconds */
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 MAX_SPEED);
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
-						 MIN_SPEED);
-	} else {
-		/* external trigger */
-		/* should be level/edge, hi/lo specification here */
-		/* should specify multiple external triggers */
-		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
-						 MAX_SPEED);
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
-						 MIN_SPEED);
-	} else {
-		/* external trigger */
-		/* see above */
-		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
-	}
-
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-
-	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
-	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-
-	if (err)
-		return 3;
-
-	/* step 4: fix up any arguments */
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		unsigned int div1 = 0, div2 = 0;
-
-		tmp = cmd->scan_begin_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		unsigned int div1 = 0, div2 = 0;
-
-		tmp = cmd->convert_arg;
-		i8253_cascade_ns_to_timer(100, &div1, &div2,
-					  &cmd->scan_begin_arg,
-					  cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
-		}
-	}
-
-	if (err)
-		return 4;
-
-	return 0;
 }
 
 static int das16cs_ao_winsn(struct comedi_device *dev,
@@ -298,6 +184,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev,
 
 		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
+
 			b <<= 1;
 			outw(status1 | b | 0x0000, dev->iobase + DAS16CS_MISC1);
 			udelay(1);
@@ -330,14 +217,11 @@ static int das16cs_ao_rinsn(struct comedi_device *dev,
 
 static int das16cs_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data)
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + DAS16CS_DIO);
-	}
 
 	data[1] = inw(dev->iobase + DAS16CS_DIO);
 
@@ -346,33 +230,22 @@ static int das16cs_dio_insn_bits(struct comedi_device *dev,
 
 static int das16cs_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct das16cs_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int bits;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask;
+	int ret;
 
 	if (chan < 4)
-		bits = 0x0f;
+		mask = 0x0f;
 	else
-		bits = 0xf0;
+		mask = 0xf0;
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= bits;
-		break;
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= bits;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return insn->n;
-		break;
-	default:
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, mask);
+	if (ret)
+		return ret;
 
 	devpriv->status2 &= ~0x00c0;
 	devpriv->status2 |= (s->io_bits & 0xf0) ? 0x0080 : 0;
@@ -383,60 +256,53 @@ static int das16cs_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
-						 struct pcmcia_device *link)
+static const void *das16cs_find_boardinfo(struct comedi_device *dev,
+					  struct pcmcia_device *link)
 {
+	const struct das16cs_board *board;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(das16cs_boards); i++) {
-		if (das16cs_boards[i].device_id == link->card_id)
-			return das16cs_boards + i;
+		board = &das16cs_boards[i];
+		if (board->device_id == link->card_id)
+			return board;
 	}
-
-	dev_dbg(dev->class_dev, "unknown board!\n");
 
 	return NULL;
 }
 
-static int das16cs_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int das16cs_auto_attach(struct comedi_device *dev,
+			       unsigned long context)
 {
-	const struct das16cs_board *thisboard;
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+	const struct das16cs_board *board;
 	struct das16cs_private *devpriv;
-	struct pcmcia_device *link;
 	struct comedi_subdevice *s;
 	int ret;
 
-	link = cur_dev;		/* XXX hack */
-	if (!link)
-		return -EIO;
+	board = das16cs_find_boardinfo(dev, link);
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
-	dev->board_ptr = das16cs_probe(dev, link);
-	if (!dev->board_ptr)
-		return -EIO;
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
-
+	link->config_flags |= CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
 	dev->iobase = link->resource[0]->start;
 
-	ret = request_irq(link->irq, das16cs_interrupt,
-			  IRQF_SHARED, "cb_das16_cs", dev);
-	if (ret < 0)
-		return ret;
-	dev->irq = link->irq;
+	link->priv = dev;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
 	s = &dev->subdevices[0];
-	dev->read_subdev = s;
 	/* analog input subdevice */
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_DIFF | SDF_CMD_READ;
@@ -445,15 +311,13 @@ static int das16cs_attach(struct comedi_device *dev,
 	s->range_table	= &das16cs_ai_range;
 	s->len_chanlist	= 16;
 	s->insn_read	= das16cs_ai_rinsn;
-	s->do_cmd	= das16cs_ai_cmd;
-	s->do_cmdtest	= das16cs_ai_cmdtest;
 
 	s = &dev->subdevices[1];
 	/* analog output subdevice */
-	if (thisboard->n_ao_chans) {
+	if (board->n_ao_chans) {
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
-		s->n_chan	= thisboard->n_ao_chans;
+		s->n_chan	= board->n_ao_chans;
 		s->maxdata	= 0xffff;
 		s->range_table	= &range_bipolar10;
 		s->insn_write	= &das16cs_ao_winsn;
@@ -472,65 +336,19 @@ static int das16cs_attach(struct comedi_device *dev,
 	s->insn_bits	= das16cs_dio_insn_bits;
 	s->insn_config	= das16cs_dio_insn_config;
 
-	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx, irq=%u\n",
-		dev->driver->driver_name, dev->board_name,
-		dev->iobase, dev->irq);
-
 	return 0;
-}
-
-static void das16cs_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver driver_das16cs = {
 	.driver_name	= "cb_das16_cs",
 	.module		= THIS_MODULE,
-	.attach		= das16cs_attach,
-	.detach		= das16cs_detach,
+	.auto_attach	= das16cs_auto_attach,
+	.detach		= comedi_pcmcia_disable,
 };
-
-static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	/* Do we need to allocate an interrupt? */
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das16cs_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void das16cs_pcmcia_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &driver_das16cs);
 }
 
 static const struct pcmcia_device_id das16cs_id_table[] = {
@@ -543,35 +361,11 @@ MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
 static struct pcmcia_driver das16cs_driver = {
 	.name		= "cb_das16_cs",
 	.owner		= THIS_MODULE,
-	.probe		= das16cs_pcmcia_attach,
-	.remove		= das16cs_pcmcia_detach,
 	.id_table	= das16cs_id_table,
+	.probe		= das16cs_pcmcia_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init das16cs_init(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das16cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das16cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das16cs);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(das16cs_init);
-
-static void __exit das16cs_exit(void)
-{
-	pcmcia_unregister_driver(&das16cs_driver);
-	comedi_driver_unregister(&driver_das16cs);
-}
-module_exit(das16cs_exit);
+module_comedi_pcmcia_driver(driver_das16cs, das16cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");

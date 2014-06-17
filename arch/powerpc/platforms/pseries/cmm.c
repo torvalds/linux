@@ -25,7 +25,6 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
-#include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/oom.h>
@@ -40,8 +39,7 @@
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
 #include <linux/memory.h>
-
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
 
 #define CMM_DRIVER_VERSION	"1.0.0"
 #define CMM_DEFAULT_DELAY	1

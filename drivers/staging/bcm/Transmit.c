@@ -46,12 +46,14 @@ int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Tx");
 	if (!pControlPacket || !Adapter) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "Got NULL Control Packet or Adapter");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL,
+				"Got NULL Control Packet or Adapter");
 		return STATUS_FAILURE;
 	}
 	if ((atomic_read(&Adapter->CurrNumFreeTxDesc) <
 			((PLeader->PLength-1)/MAX_DEVICE_DESC_SIZE)+1))	{
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, "NO FREE DESCRIPTORS TO SEND CONTROL PACKET");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL,
+				"NO FREE DESCRIPTORS TO SEND CONTROL PACKET");
 		return STATUS_FAILURE;
 	}
 
@@ -84,7 +86,7 @@ int SendControlPacket(struct bcm_mini_adapter *Adapter, char *pControlPacket)
 int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USHORT Vcid)
 {
 	int	status = 0;
-	BOOLEAN	bHeaderSupressionEnabled = FALSE;
+	bool	bHeaderSupressionEnabled = false;
 	B_UINT16 uiClassifierRuleID;
 	u16	QueueIndex = skb_get_queue_mapping(Packet);
 	struct bcm_leader Leader = {0};
@@ -109,7 +111,8 @@ int SetupNextSend(struct bcm_mini_adapter *Adapter,  struct sk_buff *Packet, USH
 			(UINT *)&Packet->len, Adapter->PackInfo[QueueIndex].bEthCSSupport);
 
 	if (status != STATUS_SUCCESS) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL, "PHS Transmit failed..\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
+				"PHS Transmit failed..\n");
 		goto errExit;
 	}
 
@@ -204,7 +207,7 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter obje
 		/* Check end point for halt/stall. */
 		if (Adapter->bEndPointHalted == TRUE) {
 			Bcm_clear_halt_of_endpoints(Adapter);
-			Adapter->bEndPointHalted = FALSE;
+			Adapter->bEndPointHalted = false;
 			StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		}
 
@@ -217,12 +220,15 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter obje
 			Adapter->LinkStatus == SYNC_UP_REQUEST &&
 			!Adapter->bSyncUpRequestSent) {
 
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Calling LinkMessage");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL, "Calling LinkMessage");
 			LinkMessage(Adapter);
 		}
 
 		if ((Adapter->IdleMode || Adapter->bShutStatus) && atomic_read(&Adapter->TotalPacketCount)) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Device in Low Power mode...waking up");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
+					TX_PACKETS, DBG_LVL_ALL,
+					"Device in Low Power mode...waking up");
 			Adapter->usIdleModePattern = ABORT_IDLE_MODE;
 			Adapter->bWakeUpDevice = TRUE;
 			wake_up(&Adapter->process_rx_cntrlpkt);
@@ -232,7 +238,8 @@ int tx_pkt_handler(struct bcm_mini_adapter *Adapter /**< pointer to adapter obje
 		atomic_set(&Adapter->TxPktAvail, 0);
 	}
 
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL, "Exiting the tx thread..\n");
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
+			"Exiting the tx thread..\n");
 	Adapter->transmit_packet_thread = NULL;
 	return 0;
 }

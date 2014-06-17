@@ -20,9 +20,9 @@
  */
 #define TRACE_WITH_FRAME_BUFFER(func)		\
 	mflr	r0;				\
-	stdu	r1, -32(r1);			\
+	stdu	r1, -STACK_FRAME_OVERHEAD(r1);	\
 	std	r0, 16(r1);			\
-	stdu	r1, -32(r1);			\
+	stdu	r1, -STACK_FRAME_OVERHEAD(r1);	\
 	bl func;				\
 	ld	r1, 0(r1);			\
 	ld	r1, 0(r1);
@@ -36,13 +36,14 @@
  * have to call a C function so call a wrapper that saves all the
  * C-clobbered registers.
  */
-#define TRACE_ENABLE_INTS	TRACE_WITH_FRAME_BUFFER(.trace_hardirqs_on)
-#define TRACE_DISABLE_INTS	TRACE_WITH_FRAME_BUFFER(.trace_hardirqs_off)
+#define TRACE_ENABLE_INTS	TRACE_WITH_FRAME_BUFFER(trace_hardirqs_on)
+#define TRACE_DISABLE_INTS	TRACE_WITH_FRAME_BUFFER(trace_hardirqs_off)
 
 /*
- * This is used by assembly code to soft-disable interrupts
+ * This is used by assembly code to soft-disable interrupts first and
+ * reconcile irq state.
  */
-#define SOFT_DISABLE_INTS(__rA, __rB)		\
+#define RECONCILE_IRQ_STATE(__rA, __rB)		\
 	lbz	__rA,PACASOFTIRQEN(r13);	\
 	lbz	__rB,PACAIRQHAPPENED(r13);	\
 	cmpwi	cr0,__rA,0;			\
@@ -58,7 +59,7 @@
 #define TRACE_ENABLE_INTS
 #define TRACE_DISABLE_INTS
 
-#define SOFT_DISABLE_INTS(__rA, __rB)		\
+#define RECONCILE_IRQ_STATE(__rA, __rB)		\
 	lbz	__rA,PACAIRQHAPPENED(r13);	\
 	li	__rB,0;				\
 	ori	__rA,__rA,PACA_IRQ_HARD_DIS;	\

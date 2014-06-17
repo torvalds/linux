@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/ioport.h>
-#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
@@ -415,7 +414,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(amd8111_ids) = {
+static const struct pci_device_id amd8111_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS2) },
 	{ 0, }
 };

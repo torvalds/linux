@@ -46,24 +46,22 @@
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
-void
-cpu_idle(void)
+#ifdef CONFIG_ALPHA_WTINT
+/*
+ * Sleep the CPU.
+ * EV6, LCA45 and QEMU know how to power down, skipping N timer interrupts.
+ */
+void arch_cpu_idle(void)
 {
-	current_thread_info()->status |= TS_POLLING;
-
-	while (1) {
-		/* FIXME -- EV6 and LCA45 know how to power down
-		   the CPU.  */
-
-		rcu_idle_enter();
-		while (!need_resched())
-			cpu_relax();
-
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-	}
+	wtint(0);
+	local_irq_enable();
 }
 
+void arch_cpu_idle_dead(void)
+{
+	wtint(INT_MAX);
+}
+#endif /* ALPHA_WTINT */
 
 struct halt_info {
 	int mode;
@@ -136,7 +134,9 @@ common_shutdown_1(void *generic_ptr)
 		if (in_interrupt())
 			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
-		take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_lock();
+		do_take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
+		console_unlock();
 #endif
 		pci_restore_srm_config();
 		set_hae(srm_hae);
@@ -194,6 +194,7 @@ machine_power_off(void)
 void
 show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
 	dik_show_regs(regs, NULL);
 }
 
@@ -250,7 +251,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 	struct pt_regs *childregs = task_pt_regs(p);
 	struct pt_regs *regs = current_pt_regs();
 	struct switch_stack *childstack, *stack;
-	unsigned long settls;
 
 	childstack = ((struct switch_stack *) childregs) - 1;
 	childti->pcb.ksp = (unsigned long) childstack;

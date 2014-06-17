@@ -561,6 +561,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.max_brightness = 200,
 	.dft_brightness = 100,
 	.pwm_period_ns  = 30923,
+	.enable_gpio    = -1,
 };
 
 static struct platform_device backlight = {
@@ -573,7 +574,8 @@ static struct platform_device backlight = {
 };
 
 static struct pwm_lookup hx4700_pwm_lookup[] = {
-	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight", NULL),
+	PWM_LOOKUP("pxa27x-pwm.1", 0, "pwm-backlight", NULL,
+		   30923, PWM_POLARITY_NORMAL),
 };
 
 /*
@@ -900,6 +902,6 @@ MACHINE_START(H4700, "HP iPAQ HX4700")
 	.init_irq     = pxa27x_init_irq,
 	.handle_irq     = pxa27x_handle_irq,
 	.init_machine = hx4700_init,
-	.timer        = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END

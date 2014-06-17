@@ -8,6 +8,8 @@ Required properties:
 - compatible : shall be one of the following:
 	"via,vt8500-pll-clock" - for a VT8500/WM8505 PLL clock
 	"wm,wm8650-pll-clock" - for a WM8650 PLL clock
+	"wm,wm8750-pll-clock" - for a WM8750 PLL clock
+	"wm,wm8850-pll-clock" - for a WM8850 PLL clock
 	"via,vt8500-device-clock" - for a VT/WM device clock
 
 Required properties for PLL clocks:

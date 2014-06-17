@@ -15,9 +15,7 @@
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License 
- *	along with this program; if not, write to the Free Software 
- *	Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
- *	MA 02111-1307 USA
+ *	along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  ********************************************************************/
 
@@ -383,7 +381,7 @@ static int vlsi_seq_show(struct seq_file *seq, void *v)
 
 static int vlsi_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, vlsi_seq_show, PDE(inode)->data);
+	return single_open(file, vlsi_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations vlsi_proc_fops = {
@@ -543,7 +541,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 	int		crclen, len = 0;
 	struct sk_buff	*skb;
 	int		ret = 0;
-	struct net_device *ndev = (struct net_device *)pci_get_drvdata(r->pdev);
+	struct net_device *ndev = pci_get_drvdata(r->pdev);
 	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 
 	pci_dma_sync_single_for_cpu(r->pdev, rd_get_addr(rd), r->len, r->dir);
@@ -1678,7 +1676,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			IRDA_WARNING("%s: failed to create proc entry\n",
 				     __func__);
 		} else {
-			ent->size = 0;
+			proc_set_size(ent, 0);
 		}
 		idev->proc_entry = ent;
 	}
@@ -1695,7 +1693,6 @@ out_freedev:
 out_disable:
 	pci_disable_device(pdev);
 out:
-	pci_set_drvdata(pdev, NULL);
 	return -ENODEV;
 }
 
@@ -1720,8 +1717,6 @@ static void vlsi_irda_remove(struct pci_dev *pdev)
 	mutex_unlock(&idev->mtx);
 
 	free_netdev(ndev);
-
-	pci_set_drvdata(pdev, NULL);
 
 	IRDA_MESSAGE("%s: %s removed\n", drivername, pci_name(pdev));
 }

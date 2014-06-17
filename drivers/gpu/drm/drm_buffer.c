@@ -114,7 +114,7 @@ int drm_buffer_copy_from_user(struct drm_buffer *buf,
 
 	for (idx = 0; idx < nr_pages; ++idx) {
 
-		if (DRM_COPY_FROM_USER(buf->data[idx],
+		if (copy_from_user(buf->data[idx],
 			user_data + idx * PAGE_SIZE,
 			min(PAGE_SIZE, size - idx * PAGE_SIZE))) {
 			DRM_ERROR("Failed to copy user data (%p) to drm buffer"

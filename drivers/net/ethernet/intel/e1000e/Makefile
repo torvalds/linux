@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel PRO/1000 Linux driver
-# Copyright(c) 1999 - 2012 Intel Corporation.
+# Copyright(c) 1999 - 2014 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -12,9 +12,8 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 #
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>.
 #
 # The full GNU General Public License is included in this distribution in
 # the file called "COPYING".
@@ -34,5 +33,5 @@ obj-$(CONFIG_E1000E) += e1000e.o
 
 e1000e-objs := 82571.o ich8lan.o 80003es2lan.o \
 	       mac.o manage.o nvm.o phy.o \
-	       param.o ethtool.o netdev.o
+	       param.o ethtool.o netdev.o ptp.o
 

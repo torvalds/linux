@@ -9,16 +9,27 @@
 #define PFX	"ssb: "
 
 #ifdef CONFIG_SSB_SILENT
-# define ssb_printk(fmt, x...)	do { /* nothing */ } while (0)
+# define ssb_printk(fmt, ...)					\
+	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
 #else
-# define ssb_printk		printk
+# define ssb_printk(fmt, ...)					\
+	printk(fmt, ##__VA_ARGS__)
 #endif /* CONFIG_SSB_SILENT */
+
+#define ssb_emerg(fmt, ...)	ssb_printk(KERN_EMERG PFX fmt, ##__VA_ARGS__)
+#define ssb_err(fmt, ...)	ssb_printk(KERN_ERR PFX fmt, ##__VA_ARGS__)
+#define ssb_warn(fmt, ...)	ssb_printk(KERN_WARNING PFX fmt, ##__VA_ARGS__)
+#define ssb_notice(fmt, ...)	ssb_printk(KERN_NOTICE PFX fmt, ##__VA_ARGS__)
+#define ssb_info(fmt, ...)	ssb_printk(KERN_INFO PFX fmt, ##__VA_ARGS__)
+#define ssb_cont(fmt, ...)	ssb_printk(KERN_CONT fmt, ##__VA_ARGS__)
 
 /* dprintk: Debugging printk; vanishes for non-debug compilation */
 #ifdef CONFIG_SSB_DEBUG
-# define ssb_dprintk(fmt, x...)	ssb_printk(fmt , ##x)
+# define ssb_dbg(fmt, ...)					\
+	ssb_printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__)
 #else
-# define ssb_dprintk(fmt, x...)	do { /* nothing */ } while (0)
+# define ssb_dbg(fmt, ...)					\
+	do { if (0) printk(KERN_DEBUG PFX fmt, ##__VA_ARGS__); } while (0)
 #endif
 
 #ifdef CONFIG_SSB_DEBUG
@@ -217,6 +228,25 @@ extern u32 ssb_chipco_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt,
 					     u32 ticks);
 extern u32 ssb_chipco_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
 
+/* driver_chipcommon_sflash.c */
+#ifdef CONFIG_SSB_SFLASH
+int ssb_sflash_init(struct ssb_chipcommon *cc);
+#else
+static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
+{
+	pr_err("Serial flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_SSB_SFLASH */
+
+#ifdef CONFIG_SSB_DRIVER_MIPS
+extern struct platform_device ssb_pflash_dev;
+#endif
+
+#ifdef CONFIG_SSB_SFLASH
+extern struct platform_device ssb_sflash_dev;
+#endif
+
 #ifdef CONFIG_SSB_DRIVER_EXTIF
 extern u32 ssb_extif_watchdog_timer_set_wdt(struct bcm47xx_wdt *wdt, u32 ticks);
 extern u32 ssb_extif_watchdog_timer_set_ms(struct bcm47xx_wdt *wdt, u32 ms);
@@ -252,10 +282,15 @@ static inline void ssb_extif_init(struct ssb_extif *extif)
 
 #ifdef CONFIG_SSB_DRIVER_GPIO
 extern int ssb_gpio_init(struct ssb_bus *bus);
+extern int ssb_gpio_unregister(struct ssb_bus *bus);
 #else /* CONFIG_SSB_DRIVER_GPIO */
 static inline int ssb_gpio_init(struct ssb_bus *bus)
 {
 	return -ENOTSUPP;
+}
+static inline int ssb_gpio_unregister(struct ssb_bus *bus)
+{
+	return 0;
 }
 #endif /* CONFIG_SSB_DRIVER_GPIO */
 

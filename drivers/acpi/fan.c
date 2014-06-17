@@ -29,8 +29,7 @@
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/thermal.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 
 #define PREFIX "ACPI: "
 
@@ -45,7 +44,7 @@ MODULE_DESCRIPTION("ACPI Fan Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
-static int acpi_fan_remove(struct acpi_device *device, int type);
+static int acpi_fan_remove(struct acpi_device *device);
 
 static const struct acpi_device_id fan_device_ids[] = {
 	{"PNP0C0B", 0},
@@ -56,8 +55,16 @@ MODULE_DEVICE_TABLE(acpi, fan_device_ids);
 #ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
+static struct dev_pm_ops acpi_fan_pm = {
+	.resume = acpi_fan_resume,
+	.freeze = acpi_fan_suspend,
+	.thaw = acpi_fan_resume,
+	.restore = acpi_fan_resume,
+};
+#define FAN_PM_OPS_PTR (&acpi_fan_pm)
+#else
+#define FAN_PM_OPS_PTR NULL
 #endif
-static SIMPLE_DEV_PM_OPS(acpi_fan_pm, acpi_fan_suspend, acpi_fan_resume);
 
 static struct acpi_driver acpi_fan_driver = {
 	.name = "fan",
@@ -67,7 +74,7 @@ static struct acpi_driver acpi_fan_driver = {
 		.add = acpi_fan_add,
 		.remove = acpi_fan_remove,
 		},
-	.drv.pm = &acpi_fan_pm,
+	.drv.pm = FAN_PM_OPS_PTR,
 };
 
 /* thermal cooling device callbacks */
@@ -84,7 +91,7 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 {
 	struct acpi_device *device = cdev->devdata;
 	int result;
-	int acpi_state;
+	int acpi_state = ACPI_STATE_D0;
 
 	if (!device)
 		return -EINVAL;
@@ -93,7 +100,7 @@ static int fan_get_cur_state(struct thermal_cooling_device *cdev, unsigned long
 	if (result)
 		return result;
 
-	*state = (acpi_state == ACPI_STATE_D3 ? 0 :
+	*state = (acpi_state == ACPI_STATE_D3_COLD ? 0 :
 		 (acpi_state == ACPI_STATE_D0 ? 1 : -1));
 	return 0;
 }
@@ -108,7 +115,7 @@ fan_set_cur_state(struct thermal_cooling_device *cdev, unsigned long state)
 		return -EINVAL;
 
 	result = acpi_bus_set_power(device->handle,
-				state ? ACPI_STATE_D0 : ACPI_STATE_D3);
+				state ? ACPI_STATE_D0 : ACPI_STATE_D3_COLD);
 
 	return result;
 }
@@ -168,15 +175,19 @@ static int acpi_fan_add(struct acpi_device *device)
 	       acpi_device_name(device), acpi_device_bid(device),
 	       !device->power.state ? "on" : "off");
 
-      end:
+end:
 	return result;
 }
 
-static int acpi_fan_remove(struct acpi_device *device, int type)
+static int acpi_fan_remove(struct acpi_device *device)
 {
-	struct thermal_cooling_device *cdev = acpi_driver_data(device);
+	struct thermal_cooling_device *cdev;
 
-	if (!device || !cdev)
+	if (!device)
+		return -EINVAL;
+
+	cdev =  acpi_driver_data(device);
+	if (!cdev)
 		return -EINVAL;
 
 	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");

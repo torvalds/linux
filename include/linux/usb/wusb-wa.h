@@ -66,6 +66,7 @@ enum {
 	WA_ENABLE = 0x01,
 	WA_RESET = 0x02,
 	RPIPE_PAUSE = 0x1,
+	RPIPE_STALL = 0x2,
 };
 
 /* Responses from Get Status request ([WUSB] section 8.3.1.6) */
@@ -92,11 +93,20 @@ struct usb_rpipe_descriptor {
 	__le16  wRPipeIndex;
 	__le16	wRequests;
 	__le16	wBlocks;		/* rw if 0 */
-	__le16	wMaxPacketSize;		/* rw? */
-	u8	bHSHubAddress;		/* reserved: 0 */
-	u8	bHSHubPort;		/* ??? FIXME ??? */
+	__le16	wMaxPacketSize;		/* rw */
+	union {
+		u8	dwa_bHSHubAddress;		/* rw: DWA. */
+		u8	hwa_bMaxBurst;			/* rw: HWA. */
+	};
+	union {
+		u8	dwa_bHSHubPort;		/*  rw: DWA. */
+		u8	hwa_bDeviceInfoIndex;	/*  rw: HWA. */
+	};
 	u8	bSpeed;			/* rw: xfer rate 'enum uwb_phy_rate' */
-	u8	bDeviceAddress;		/* rw: Target device address */
+	union {
+		u8 dwa_bDeviceAddress;	/* rw: DWA Target device address. */
+		u8 hwa_reserved;		/* rw: HWA. */
+	};
 	u8	bEndpointAddress;	/* rw: Target EP address */
 	u8	bDataSequence;		/* ro: Current Data sequence */
 	__le32	dwCurrentWindow;	/* ro */
@@ -132,7 +142,7 @@ enum wa_notif_type {
 struct wa_notif_hdr {
 	u8 bLength;
 	u8 bNotifyType;			/* enum wa_notif_type */
-} __attribute__((packed));
+} __packed;
 
 /**
  * HWA DN Received notification [(WUSB] section 8.5.4.2)
@@ -148,7 +158,7 @@ struct hwa_notif_dn {
 	u8 bSourceDeviceAddr;		/* from errata 2005/07 */
 	u8 bmAttributes;
 	struct wusb_dn_hdr dndata[];
-} __attribute__((packed));
+} __packed;
 
 /* [WUSB] section 8.3.3 */
 enum wa_xfer_type {
@@ -157,6 +167,8 @@ enum wa_xfer_type {
 	WA_XFER_TYPE_ISO = 0x82,
 	WA_XFER_RESULT = 0x83,
 	WA_XFER_ABORT = 0x84,
+	WA_XFER_ISO_PACKET_INFO = 0xA0,
+	WA_XFER_ISO_PACKET_STATUS = 0xA1,
 };
 
 /* [WUSB] section 8.3.3 */
@@ -167,28 +179,47 @@ struct wa_xfer_hdr {
 	__le32 dwTransferID;		/* Host-assigned ID */
 	__le32 dwTransferLength;	/* Length of data to xfer */
 	u8 bTransferSegment;
-} __attribute__((packed));
+} __packed;
 
 struct wa_xfer_ctl {
 	struct wa_xfer_hdr hdr;
 	u8 bmAttribute;
 	__le16 wReserved;
 	struct usb_ctrlrequest baSetupData;
-} __attribute__((packed));
+} __packed;
 
 struct wa_xfer_bi {
 	struct wa_xfer_hdr hdr;
 	u8 bReserved;
 	__le16 wReserved;
-} __attribute__((packed));
+} __packed;
 
+/* [WUSB] section 8.5.5 */
 struct wa_xfer_hwaiso {
 	struct wa_xfer_hdr hdr;
 	u8 bReserved;
 	__le16 wPresentationTime;
 	__le32 dwNumOfPackets;
-	/* FIXME: u8 pktdata[]? */
-} __attribute__((packed));
+} __packed;
+
+struct wa_xfer_packet_info_hwaiso {
+	__le16 wLength;
+	u8 bPacketType;
+	u8 bReserved;
+	__le16 PacketLength[0];
+} __packed;
+
+struct wa_xfer_packet_status_len_hwaiso {
+	__le16 PacketLength;
+	__le16 PacketStatus;
+} __packed;
+
+struct wa_xfer_packet_status_hwaiso {
+	__le16 wLength;
+	u8 bPacketType;
+	u8 bReserved;
+	struct wa_xfer_packet_status_len_hwaiso PacketStatus[0];
+} __packed;
 
 /* [WUSB] section 8.3.3.5 */
 struct wa_xfer_abort {
@@ -196,7 +227,7 @@ struct wa_xfer_abort {
 	u8 bRequestType;
 	__le16 wRPipe;			/* RPipe index */
 	__le32 dwTransferID;		/* Host-assigned ID */
-} __attribute__((packed));
+} __packed;
 
 /**
  * WA Transfer Complete notification ([WUSB] section 8.3.3.3)
@@ -206,7 +237,7 @@ struct wa_notif_xfer {
 	struct wa_notif_hdr hdr;
 	u8 bEndpoint;
 	u8 Reserved;
-} __attribute__((packed));
+} __packed;
 
 /** Transfer result basic codes [WUSB] table 8-15 */
 enum {
@@ -233,7 +264,7 @@ struct wa_xfer_result {
 	u8     bTransferSegment;
 	u8     bTransferStatus;
 	__le32 dwNumOfPackets;
-} __attribute__((packed));
+} __packed;
 
 /**
  * Wire Adapter Class Descriptor ([WUSB] section 8.5.2.7).
@@ -248,16 +279,16 @@ struct wa_xfer_result {
 struct usb_wa_descriptor {
 	u8	bLength;
 	u8	bDescriptorType;
-	u16	bcdWAVersion;
+	__le16	bcdWAVersion;
 	u8	bNumPorts;		/* don't use!! */
 	u8	bmAttributes;		/* Reserved == 0 */
-	u16	wNumRPipes;
-	u16	wRPipeMaxBlock;
+	__le16	wNumRPipes;
+	__le16	wRPipeMaxBlock;
 	u8	bRPipeBlockSize;
 	u8	bPwrOn2PwrGood;
 	u8	bNumMMCIEs;
 	u8	DeviceRemovable;	/* FIXME: in DWA this is up to 16 bytes */
-} __attribute__((packed));
+} __packed;
 
 /**
  * HWA Device Information Buffer (WUSB1.0[T8.54])
@@ -267,6 +298,6 @@ struct hwa_dev_info {
 	u8	bDeviceAddress;
 	__le16	wPHYRates;
 	u8	bmDeviceAttribute;
-} __attribute__((packed));
+} __packed;
 
 #endif /* #ifndef __LINUX_USB_WUSB_WA_H */

@@ -44,7 +44,8 @@ static void __init og_register_pci(void)
 	if (machine_is_im4004())
 		ks8695_gpio_interrupt(KS8695_GPIO_1, IRQ_TYPE_LEVEL_LOW);
 
-	ks8695_init_pci(&og_pci);
+	if (IS_ENABLED(CONFIG_PCI))
+		ks8695_init_pci(&og_pci);
 }
 
 /*
@@ -145,7 +146,7 @@ MACHINE_START(CM4002, "OpenGear/CM4002")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -157,7 +158,7 @@ MACHINE_START(CM4008, "OpenGear/CM4008")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -169,7 +170,7 @@ MACHINE_START(CM41XX, "OpenGear/CM41xx")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -181,7 +182,7 @@ MACHINE_START(IM4004, "OpenGear/IM4004")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -193,7 +194,7 @@ MACHINE_START(IM42XX, "OpenGear/IM42xx")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif

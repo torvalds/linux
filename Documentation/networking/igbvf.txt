@@ -1,8 +1,8 @@
-Linux* Base Driver for Intel(R) Network Connection
-==================================================
+Linux* Base Driver for Intel(R) Ethernet Network Connection
+===========================================================
 
 Intel Gigabit Linux driver.
-Copyright(c) 1999 - 2010 Intel Corporation.
+Copyright(c) 1999 - 2013 Intel Corporation.
 
 Contents
 ========
@@ -55,7 +55,7 @@ networking link on the left to search for your adapter:
 Additional Configurations
 =========================
 
-  Ethtool
+  ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information.  The ethtool

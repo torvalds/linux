@@ -14,6 +14,7 @@
 #define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
 #define BITS_TO_U64(nr)         DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(u64))
 #define BITS_TO_U32(nr)         DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(u32))
+#define BITS_TO_BYTES(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE)
 
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\
@@ -86,13 +87,15 @@ static __always_inline unsigned long __ffs(unsigned long word)
 	return num;
 }
 
+typedef const unsigned long __attribute__((__may_alias__)) long_alias_t;
+
 /*
  * Find the first set bit in a memory region.
  */
 static inline unsigned long
 find_first_bit(const unsigned long *addr, unsigned long size)
 {
-	const unsigned long *p = addr;
+	long_alias_t *p = (long_alias_t *) addr;
 	unsigned long result = 0;
 	unsigned long tmp;
 

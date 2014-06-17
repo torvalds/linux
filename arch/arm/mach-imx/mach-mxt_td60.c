@@ -26,7 +26,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <linux/gpio.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 #include "common.h"
 #include "devices-imx27.h"
@@ -261,18 +261,13 @@ static void __init mxt_td60_timer_init(void)
 	mx27_clocks_init(26000000);
 }
 
-static struct sys_timer mxt_td60_timer = {
-	.init	= mxt_td60_timer_init,
-};
-
 MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
 	/* maintainer: Maxtrack Industrial */
 	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
-	.timer = &mxt_td60_timer,
+	.init_time	= mxt_td60_timer_init,
 	.init_machine = mxt_td60_board_init,
 	.restart	= mxc_restart,
 MACHINE_END

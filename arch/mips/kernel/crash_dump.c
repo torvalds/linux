@@ -2,16 +2,7 @@
 #include <linux/bootmem.h>
 #include <linux/crash_dump.h>
 #include <asm/uaccess.h>
-
-static int __init parse_savemaxmem(char *p)
-{
-	if (p)
-		saved_max_pfn = (memparse(p, &p) >> PAGE_SHIFT) - 1;
-
-	return 1;
-}
-__setup("savemaxmem=", parse_savemaxmem);
-
+#include <linux/slab.h>
 
 static void *kdump_buf_page;
 

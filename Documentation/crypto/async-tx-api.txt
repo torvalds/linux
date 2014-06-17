@@ -222,5 +222,4 @@ drivers/dma/: location for offload engine drivers
 include/linux/async_tx.h: core header file for the async_tx api
 crypto/async_tx/async_tx.c: async_tx interface to dmaengine and common code
 crypto/async_tx/async_memcpy.c: copy offload
-crypto/async_tx/async_memset.c: memory fill offload
 crypto/async_tx/async_xor.c: xor and xor zero sum offload

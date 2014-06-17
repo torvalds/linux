@@ -266,15 +266,15 @@ int mgr_enum_processor_info(u32 processor_id,
 			 * this is a clumsy overwrite */
 			processor_info->processor_type = DSPTYPE64;
 		} else {
-			dev_dbg(bridge, "%s: Failed to get DCD processor info "
-				"%x\n", __func__, status2);
+			dev_dbg(bridge, "%s: Failed to get DCD processor info %x\n",
+					__func__, status2);
 			status = -EPERM;
 		}
 	}
 	*pu_num_procs = proc_index;
 	if (proc_detect == false) {
-		dev_dbg(bridge, "%s: Failed to get proc info from DCD, so use "
-			"CFG registry\n", __func__);
+		dev_dbg(bridge, "%s: Failed to get proc info from DCD, so use CFG registry\n",
+				__func__);
 		processor_info->processor_type = DSPTYPE64;
 	}
 func_end:

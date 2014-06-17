@@ -30,8 +30,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
-
-#include "ispqueue.h"
+#include <media/videobuf2-core.h>
 
 #define ISP_VIDEO_DRIVER_NAME		"ispvideo"
 #define ISP_VIDEO_DRIVER_VERSION	"0.0.2"
@@ -124,17 +123,19 @@ static inline int isp_pipeline_ready(struct isp_pipeline *pipe)
 			       ISP_PIPELINE_IDLE_OUTPUT);
 }
 
-/*
- * struct isp_buffer - ISP buffer
- * @buffer: ISP video buffer
- * @isp_addr: MMU mapped address (a.k.a. device address) of the buffer.
+/**
+ * struct isp_buffer - ISP video buffer
+ * @vb: videobuf2 buffer
+ * @irqlist: List head for insertion into IRQ queue
+ * @dma: DMA address
  */
 struct isp_buffer {
-	struct isp_video_buffer buffer;
-	dma_addr_t isp_addr;
+	struct vb2_buffer vb;
+	struct list_head irqlist;
+	dma_addr_t dma;
 };
 
-#define to_isp_buffer(buf)	container_of(buf, struct isp_buffer, buffer)
+#define to_isp_buffer(buf)	container_of(buf, struct isp_buffer, vb)
 
 enum isp_video_dmaqueue_flags {
 	/* Set if DMA queue becomes empty when ISP_PIPELINE_STREAM_CONTINUOUS */
@@ -172,15 +173,16 @@ struct isp_video {
 	unsigned int bpl_value;		/* bytes per line value */
 	unsigned int bpl_padding;	/* padding at end of line */
 
-	/* Entity video node streaming */
-	unsigned int streaming:1;
-
 	/* Pipeline state */
 	struct isp_pipeline pipe;
 	struct mutex stream_lock;	/* pipeline and stream states */
+	bool error;
 
 	/* Video buffers queue */
-	struct isp_video_queue *queue;
+	void *alloc_ctx;
+	struct vb2_queue *queue;
+	struct mutex queue_lock;	/* protects the queue */
+	spinlock_t irqlock;		/* protects dmaqueue */
 	struct list_head dmaqueue;
 	enum isp_video_dmaqueue_flags dmaqueue_flags;
 
@@ -192,7 +194,7 @@ struct isp_video {
 struct isp_video_fh {
 	struct v4l2_fh vfh;
 	struct isp_video *video;
-	struct isp_video_queue queue;
+	struct vb2_queue queue;
 	struct v4l2_format format;
 	struct v4l2_fract timeperframe;
 };
@@ -207,6 +209,7 @@ int omap3isp_video_register(struct isp_video *video,
 			    struct v4l2_device *vdev);
 void omap3isp_video_unregister(struct isp_video *video);
 struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video);
+void omap3isp_video_cancel_stream(struct isp_video *video);
 void omap3isp_video_resume(struct isp_video *video, int continuous);
 struct media_pad *omap3isp_video_remote_pad(struct isp_video *video);
 

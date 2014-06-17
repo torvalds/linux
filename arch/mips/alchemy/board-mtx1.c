@@ -52,10 +52,8 @@ void __init prom_init(void)
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str)
+	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
 		memsize = 0x04000000;
-	else
-		strict_strtoul(memsize_str, 0, &memsize);
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
@@ -173,23 +171,23 @@ static struct mtd_partition mtx1_mtd_partitions[] = {
 	{
 		.name	= "filesystem",
 		.size	= 0x01C00000,
-		.offset	= 0,
+		.offset = 0,
 	},
 	{
 		.name	= "yamon",
 		.size	= 0x00100000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	{
 		.name	= "kernel",
 		.size	= 0x002c0000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 	{
 		.name	= "yamon env",
 		.size	= 0x00040000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 };
 
@@ -276,7 +274,7 @@ static struct platform_device mtx1_pci_host = {
 	.resource	= alchemy_pci_host_res,
 };
 
-static struct __initdata platform_device * mtx1_devs[] = {
+static struct platform_device *mtx1_devs[] __initdata = {
 	&mtx1_pci_host,
 	&mtx1_gpio_leds,
 	&mtx1_wdt,

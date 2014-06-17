@@ -12,15 +12,13 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { fsl,has-wdt; };
+
 / {
 	model = "schindler,cm5200";
 	compatible = "schindler,cm5200";
 
 	soc5200@f0000000 {
-		timer@600 {	// General Purpose Timer
-			fsl,has-wdt;
-		};
-
 		can@900 {
 			status = "disabled";
 		};

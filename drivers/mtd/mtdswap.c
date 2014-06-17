@@ -1425,7 +1425,7 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 
 	while ((this_opt = strsep(&parts, ",")) != NULL) {
-		if (strict_strtoul(this_opt, 0, &part) < 0)
+		if (kstrtoul(this_opt, 0, &part) < 0)
 			return;
 
 		if (mtd->index == part)

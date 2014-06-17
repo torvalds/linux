@@ -45,7 +45,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	 * map with a copy of the kernel's persistent map.
 	 */
 
-	memcpy(pgd, swapper_pg_dir, PTRS_PER_PGD*sizeof(pgd_t *));
+	memcpy(pgd, swapper_pg_dir, PTRS_PER_PGD*sizeof(pgd_t));
 	mm->context.generation = kmap_generation;
 
 	/* Physical version is what is passed to virtual machine on switch */
@@ -65,10 +65,12 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	struct page *pte;
 
 	pte = alloc_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
-
-	if (pte)
-		pgtable_page_ctor(pte);
-
+	if (!pte)
+		return NULL;
+	if (!pgtable_page_ctor(pte)) {
+		__free_page(pte);
+		return NULL;
+	}
 	return pte;
 }
 

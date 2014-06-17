@@ -13,7 +13,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
@@ -27,6 +26,7 @@
 #include <linux/firmware.h>
 
 #include "gdm_sdio.h"
+#include "sdio_boot.h"
 
 #define TYPE_A_HEADER_SIZE	4
 #define TYPE_A_LOOKAHEAD_SIZE   16
@@ -41,11 +41,11 @@ static u8 *tx_buf;
 
 static int ack_ready(struct sdio_func *func)
 {
-	unsigned long start = jiffies;
+	unsigned long wait = jiffies + HZ;
 	u8 val;
 	int ret;
 
-	while ((jiffies - start) < HZ) {
+	while (time_before(jiffies, wait)) {
 		val = sdio_readb(func, 0x13, &ret);
 		if (val & 0x01)
 			return 1;
@@ -72,10 +72,8 @@ static int download_image(struct sdio_func *func, const char *img_name)
 	}
 
 	buf = kmalloc(DOWNLOAD_SIZE + TYPE_A_HEADER_SIZE, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(&func->dev, "Error: kmalloc\n");
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	img_len = firm->size;
 
@@ -141,11 +139,8 @@ int sdio_boot(struct sdio_func *func)
 	const char *rfs_name = FW_DIR FW_RFS;
 
 	tx_buf = kmalloc(YMEM0_SIZE, GFP_KERNEL);
-	if (tx_buf == NULL) {
-		dev_err(&func->dev, "Error: kmalloc: %s %d\n",
-			__func__, __LINE__);
+	if (tx_buf == NULL)
 		return -ENOMEM;
-	}
 
 	ret = download_image(func, krn_name);
 	if (ret)

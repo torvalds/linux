@@ -50,7 +50,6 @@ struct platform_device *__init imx_add_fec(
 		const struct imx_fec_data *data,
 		const struct fec_platform_data *pdata);
 
-#include <linux/can/platform/flexcan.h>
 struct imx_flexcan_data {
 	int id;
 	resource_size_t iobase;
@@ -58,8 +57,7 @@ struct imx_flexcan_data {
 	resource_size_t irq;
 };
 struct platform_device *__init imx_add_flexcan(
-		const struct imx_flexcan_data *data,
-		const struct flexcan_platform_data *pdata);
+		const struct imx_flexcan_data *data);
 
 #include <linux/fsl_devices.h>
 struct imx_fsl_usb2_udc_data {
@@ -292,15 +290,6 @@ struct imx_pata_imx_data {
 struct platform_device *__init imx_add_pata_imx(
 		const struct imx_pata_imx_data *data);
 
-struct imx_mxc_pwm_data {
-	int id;
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_mxc_pwm(
-		const struct imx_mxc_pwm_data *data);
-
 /* mxc_rtc */
 struct imx_mxc_rtc_data {
 	const char *devid;
@@ -344,13 +333,3 @@ struct platform_device *imx_add_imx_dma(char *name, resource_size_t iobase,
 					int irq, int irq_err);
 struct platform_device *imx_add_imx_sdma(char *name,
 	resource_size_t iobase, int irq, struct sdma_platform_data *pdata);
-
-#include <linux/ahci_platform.h>
-struct imx_ahci_imx_data {
-	const char *devid;
-	resource_size_t iobase;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_ahci_imx(
-		const struct imx_ahci_imx_data *data,
-		const struct ahci_platform_data *pdata);

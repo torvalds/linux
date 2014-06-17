@@ -35,6 +35,7 @@ static inline void autogroup_destroy(struct kref *kref)
 	ag->tg->rt_se = NULL;
 	ag->tg->rt_rq = NULL;
 #endif
+	sched_offline_group(ag->tg);
 	sched_destroy_group(ag->tg);
 }
 
@@ -95,6 +96,7 @@ static inline struct autogroup *autogroup_create(void)
 #endif
 	tg->autogroup = ag;
 
+	sched_online_group(tg, &root_task_group);
 	return ag;
 
 out_free:
@@ -201,7 +203,7 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int nice)
 	struct autogroup *ag;
 	int err;
 
-	if (nice < -20 || nice > 19)
+	if (nice < MIN_NICE || nice > MAX_NICE)
 		return -EINVAL;
 
 	err = security_task_setnice(current, nice);

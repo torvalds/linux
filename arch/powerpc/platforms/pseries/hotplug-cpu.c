@@ -30,16 +30,12 @@
 #include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/xics.h>
-#include "plpar_wrappers.h"
+#include <asm/plpar_wrappers.h>
+
 #include "offline_states.h"
 
 /* This version can't take the spinlock, because it never returns */
-static struct rtas_args rtas_stop_self_args = {
-	.token = RTAS_UNKNOWN_SERVICE,
-	.nargs = 0,
-	.nret = 1,
-	.rets = &rtas_stop_self_args.args[0],
-};
+static int rtas_stop_self_token = RTAS_UNKNOWN_SERVICE;
 
 static DEFINE_PER_CPU(enum cpu_state_vals, preferred_offline_state) =
 							CPU_STATE_OFFLINE;
@@ -92,15 +88,21 @@ void set_default_offline_state(int cpu)
 
 static void rtas_stop_self(void)
 {
-	struct rtas_args *args = &rtas_stop_self_args;
+	static struct rtas_args args = {
+		.nargs = 0,
+		.nret = 1,
+		.rets = &args.args[0],
+	};
+
+	args.token = cpu_to_be32(rtas_stop_self_token);
 
 	local_irq_disable();
 
-	BUG_ON(args->token == RTAS_UNKNOWN_SERVICE);
+	BUG_ON(rtas_stop_self_token == RTAS_UNKNOWN_SERVICE);
 
 	printk("cpu %u (hwid %u) Ready to die...\n",
 	       smp_processor_id(), hard_smp_processor_id());
-	enter_rtas(__pa(args));
+	enter_rtas(__pa(&args));
 
 	panic("Alas, I survived.\n");
 }
@@ -123,20 +125,28 @@ static void pseries_mach_cpu_die(void)
 		cede_latency_hint = 2;
 
 		get_lppaca()->idle = 1;
-		if (!get_lppaca()->shared_proc)
+		if (!lppaca_shared_proc(get_lppaca()))
 			get_lppaca()->donate_dedicated_cpu = 1;
 
 		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
+			while (!prep_irq_for_idle()) {
+				local_irq_enable();
+				local_irq_disable();
+			}
+
 			extended_cede_processor(cede_latency_hint);
 		}
 
-		if (!get_lppaca()->shared_proc)
+		local_irq_disable();
+
+		if (!lppaca_shared_proc(get_lppaca()))
 			get_lppaca()->donate_dedicated_cpu = 0;
 		get_lppaca()->idle = 0;
 
 		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
 			unregister_slb_shadow(hwcpu);
 
+			hard_irq_disable();
 			/*
 			 * Call to start_secondary_resume() will not return.
 			 * Kernel stack will be reset and start_secondary()
@@ -383,10 +393,10 @@ static int __init pseries_cpu_hotplug_init(void)
 		}
 	}
 
-	rtas_stop_self_args.token = rtas_token("stop-self");
+	rtas_stop_self_token = rtas_token("stop-self");
 	qcss_tok = rtas_token("query-cpu-stopped-state");
 
-	if (rtas_stop_self_args.token == RTAS_UNKNOWN_SERVICE ||
+	if (rtas_stop_self_token == RTAS_UNKNOWN_SERVICE ||
 			qcss_tok == RTAS_UNKNOWN_SERVICE) {
 		printk(KERN_INFO "CPU Hotplug not supported by firmware "
 				"- disabling.\n");
@@ -411,4 +421,4 @@ static int __init pseries_cpu_hotplug_init(void)
 
 	return 0;
 }
-arch_initcall(pseries_cpu_hotplug_init);
+machine_arch_initcall(pseries, pseries_cpu_hotplug_init);

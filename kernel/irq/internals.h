@@ -6,6 +6,7 @@
  * of this file for your non core code.
  */
 #include <linux/irqdesc.h>
+#include <linux/kernel_stat.h>
 
 #ifdef CONFIG_SPARSE_IRQ
 # define IRQ_BITMAP_BITS	(NR_IRQS + 8196)
@@ -32,7 +33,7 @@ enum {
 };
 
 /*
- * Bit masks for desc->state
+ * Bit masks for desc->core_internal_state__do_not_mess_with_it
  *
  * IRQS_AUTODETECT		- autodetection in progress
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
@@ -73,6 +74,13 @@ extern void irq_percpu_enable(struct irq_desc *desc, unsigned int cpu);
 extern void irq_percpu_disable(struct irq_desc *desc, unsigned int cpu);
 extern void mask_irq(struct irq_desc *desc);
 extern void unmask_irq(struct irq_desc *desc);
+extern void unmask_threaded_irq(struct irq_desc *desc);
+
+#ifdef CONFIG_SPARSE_IRQ
+static inline void irq_mark_irq(unsigned int irq) { }
+#else
+extern void irq_mark_irq(unsigned int irq);
+#endif
 
 extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
 
@@ -82,6 +90,7 @@ irqreturn_t handle_irq_event(struct irq_desc *desc);
 /* Resending of interrupts :*/
 void check_irq_resend(struct irq_desc *desc, unsigned int irq);
 bool irq_wait_for_poll(struct irq_desc *desc);
+void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action);
 
 #ifdef CONFIG_PROC_FS
 extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
@@ -178,4 +187,10 @@ static inline void irqd_set(struct irq_data *d, unsigned int mask)
 static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 {
 	return d->state_use_accessors & mask;
+}
+
+static inline void kstat_incr_irqs_this_cpu(unsigned int irq, struct irq_desc *desc)
+{
+	__this_cpu_inc(*desc->kstat_irqs);
+	__this_cpu_inc(kstat.irqs_sum);
 }

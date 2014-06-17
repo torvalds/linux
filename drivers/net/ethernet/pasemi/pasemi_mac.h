@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef PASEMI_MAC_H
@@ -83,7 +82,7 @@ struct pasemi_mac {
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
 
-	u8		mac_addr[6];
+	u8		mac_addr[ETH_ALEN];
 
 	struct net_lro_mgr	lro_mgr;
 	struct net_lro_desc	lro_desc[MAX_LRO_DESCRIPTORS];

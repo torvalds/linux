@@ -60,7 +60,7 @@ static const struct backlight_ops ep93xxbl_ops = {
 	.get_brightness	= ep93xxbl_get_brightness,
 };
 
-static int __init ep93xxbl_probe(struct platform_device *dev)
+static int ep93xxbl_probe(struct platform_device *dev)
 {
 	struct ep93xxbl *ep93xxbl;
 	struct backlight_device *bl;
@@ -92,8 +92,8 @@ static int __init ep93xxbl_probe(struct platform_device *dev)
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
 	props.max_brightness = EP93XX_MAX_BRIGHT;
-	bl = backlight_device_register(dev->name, &dev->dev, ep93xxbl,
-				       &ep93xxbl_ops, &props);
+	bl = devm_backlight_device_register(&dev->dev, dev->name, &dev->dev,
+					ep93xxbl, &ep93xxbl_ops, &props);
 	if (IS_ERR(bl))
 		return PTR_ERR(bl);
 
@@ -106,44 +106,32 @@ static int __init ep93xxbl_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int ep93xxbl_remove(struct platform_device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int ep93xxbl_suspend(struct device *dev)
 {
-	struct backlight_device *bl = platform_get_drvdata(dev);
-
-	backlight_device_unregister(bl);
-	platform_set_drvdata(dev, NULL);
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int ep93xxbl_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct backlight_device *bl = platform_get_drvdata(dev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
 
 	return ep93xxbl_set(bl, 0);
 }
 
-static int ep93xxbl_resume(struct platform_device *dev)
+static int ep93xxbl_resume(struct device *dev)
 {
-	struct backlight_device *bl = platform_get_drvdata(dev);
+	struct backlight_device *bl = dev_get_drvdata(dev);
 
 	backlight_update_status(bl);
 	return 0;
 }
-#else
-#define ep93xxbl_suspend	NULL
-#define ep93xxbl_resume		NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ep93xxbl_pm_ops, ep93xxbl_suspend, ep93xxbl_resume);
 
 static struct platform_driver ep93xxbl_driver = {
 	.driver		= {
 		.name	= "ep93xx-bl",
 		.owner	= THIS_MODULE,
+		.pm	= &ep93xxbl_pm_ops,
 	},
 	.probe		= ep93xxbl_probe,
-	.remove		= ep93xxbl_remove,
-	.suspend	= ep93xxbl_suspend,
-	.resume		= ep93xxbl_resume,
 };
 
 module_platform_driver(ep93xxbl_driver);

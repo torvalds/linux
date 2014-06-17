@@ -12,9 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the
- * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "hci: %s: " fmt, __func__
@@ -105,6 +103,13 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 	}
 
 	mutex_lock(&hdev->msg_tx_mutex);
+
+	if (hdev->shutting_down) {
+		err = -ESHUTDOWN;
+		mutex_unlock(&hdev->msg_tx_mutex);
+		goto out_skb_err;
+	}
+
 	list_add_tail(&cmd->msg_l, &hdev->msg_tx_queue);
 	mutex_unlock(&hdev->msg_tx_mutex);
 

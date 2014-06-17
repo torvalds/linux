@@ -28,6 +28,9 @@ struct dev_archdata {
 		void		*iommu_table_base;
 	} dma_data;
 
+#ifdef CONFIG_IOMMU_API
+	void			*iommu_domain;
+#endif
 #ifdef CONFIG_SWIOTLB
 	dma_addr_t		max_direct_dma_addr;
 #endif

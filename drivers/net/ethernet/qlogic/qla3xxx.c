@@ -8,7 +8,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -312,7 +311,6 @@ static void ql_release_to_lrg_buf_free_list(struct ql3_adapter *qdev,
 		lrg_buf_cb->skb = netdev_alloc_skb(qdev->ndev,
 						   qdev->lrg_buffer_len);
 		if (unlikely(!lrg_buf_cb->skb)) {
-			netdev_err(qdev->ndev, "failed netdev_alloc_skb()\n");
 			qdev->lrg_buf_skb_check++;
 		} else {
 			/*
@@ -2591,13 +2589,11 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 	else
 		qdev->lrg_buf_q_alloc_size = qdev->lrg_buf_q_size * 2;
 
-	qdev->lrg_buf =
-		kmalloc(qdev->num_large_buffers * sizeof(struct ql_rcv_buf_cb),
-			GFP_KERNEL);
-	if (qdev->lrg_buf == NULL) {
-		netdev_err(qdev->ndev, "qdev->lrg_buf alloc failed\n");
+	qdev->lrg_buf = kmalloc_array(qdev->num_large_buffers,
+				      sizeof(struct ql_rcv_buf_cb),
+				      GFP_KERNEL);
+	if (qdev->lrg_buf == NULL)
 		return -ENOMEM;
-	}
 
 	qdev->lrg_buf_q_alloc_virt_addr =
 		pci_alloc_consistent(qdev->pdev,
@@ -3842,7 +3838,7 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 
 	/* Set driver entry points */
 	ndev->netdev_ops = &ql3xxx_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
+	ndev->ethtool_ops = &ql3xxx_ethtool_ops;
 	ndev->watchdog_timeo = 5 * HZ;
 
 	netif_napi_add(ndev, &qdev->napi, ql_poll, 64);
@@ -3867,7 +3863,6 @@ static int ql3xxx_probe(struct pci_dev *pdev,
 		ndev->mtu = qdev->nvram_data.macCfg_port0.etherMtu_mac ;
 		ql_set_mac_addr(ndev, qdev->nvram_data.funcCfg_fn0.macAddress);
 	}
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 
 	ndev->tx_queue_len = NUM_REQ_Q_ENTRIES;
 
@@ -3920,7 +3915,6 @@ err_out_free_regions:
 	pci_release_regions(pdev);
 err_out_disable_pdev:
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 err_out:
 	return err;
 }
@@ -3943,7 +3937,6 @@ static void ql3xxx_remove(struct pci_dev *pdev)
 
 	iounmap(qdev->mem_map_registers);
 	pci_release_regions(pdev);
-	pci_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 }
 

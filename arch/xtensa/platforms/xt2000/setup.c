@@ -69,7 +69,9 @@ void platform_restart(void)
 			      "wsr	a2, icountlevel\n\t"
 			      "movi	a2, 0\n\t"
 			      "wsr	a2, icount\n\t"
+#if XCHAL_NUM_IBREAK > 0
 			      "wsr	a2, ibreakenable\n\t"
+#endif
 			      "wsr	a2, lcount\n\t"
 			      "movi	a2, 0x1f\n\t"
 			      "wsr	a2, ps\n\t"
@@ -90,18 +92,8 @@ void __init platform_setup(char** cmdline)
 
 /* early initialization */
 
-extern sysmem_info_t __initdata sysmem;
-
-void platform_init(bp_tag_t* first)
+void __init platform_init(bp_tag_t *first)
 {
-	/* Set default memory block if not provided by the bootloader. */
-
-	if (sysmem.nr_banks == 0) {
-		sysmem.nr_banks = 1;
-		sysmem.bank[0].start = PLATFORM_DEFAULT_MEM_START;
-		sysmem.bank[0].end = PLATFORM_DEFAULT_MEM_START
-				     + PLATFORM_DEFAULT_MEM_SIZE;
-	}
 }
 
 /* Heartbeat. Let the LED blink. */

@@ -29,6 +29,7 @@
 #include <linux/idr.h>
 #include <linux/notifier.h>
 #include <linux/err.h>
+#include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
 static struct ida iommu_group_ida;
@@ -204,6 +205,35 @@ again:
 }
 EXPORT_SYMBOL_GPL(iommu_group_alloc);
 
+struct iommu_group *iommu_group_get_by_id(int id)
+{
+	struct kobject *group_kobj;
+	struct iommu_group *group;
+	const char *name;
+
+	if (!iommu_group_kset)
+		return NULL;
+
+	name = kasprintf(GFP_KERNEL, "%d", id);
+	if (!name)
+		return NULL;
+
+	group_kobj = kset_find_obj(iommu_group_kset, name);
+	kfree(name);
+
+	if (!group_kobj)
+		return NULL;
+
+	group = container_of(group_kobj, struct iommu_group, kobj);
+	BUG_ON(group->id != id);
+
+	kobject_get(group->devices_kobj);
+	kobject_put(&group->kobj);
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(iommu_group_get_by_id);
+
 /**
  * iommu_group_get_iommudata - retrieve iommu_data registered for a group
  * @group: the group
@@ -334,6 +364,8 @@ rename:
 	/* Notify any listeners about change to group. */
 	blocking_notifier_call_chain(&group->notifier,
 				     IOMMU_GROUP_NOTIFY_ADD_DEVICE, dev);
+
+	trace_add_device_to_group(group->id, dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iommu_group_add_device);
@@ -369,6 +401,8 @@ void iommu_group_remove_device(struct device *dev)
 
 	sysfs_remove_link(group->devices_kobj, device->name);
 	sysfs_remove_link(&dev->kobj, "iommu_group");
+
+	trace_remove_device_from_group(group->id, dev);
 
 	kfree(device->name);
 	kfree(device);
@@ -651,10 +685,14 @@ EXPORT_SYMBOL_GPL(iommu_domain_free);
 
 int iommu_attach_device(struct iommu_domain *domain, struct device *dev)
 {
+	int ret;
 	if (unlikely(domain->ops->attach_dev == NULL))
 		return -ENODEV;
 
-	return domain->ops->attach_dev(domain, dev);
+	ret = domain->ops->attach_dev(domain, dev);
+	if (!ret)
+		trace_attach_device_to_domain(dev);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_attach_device);
 
@@ -664,6 +702,7 @@ void iommu_detach_device(struct iommu_domain *domain, struct device *dev)
 		return;
 
 	domain->ops->detach_dev(domain, dev);
+	trace_detach_device_from_domain(dev);
 }
 EXPORT_SYMBOL_GPL(iommu_detach_device);
 
@@ -706,8 +745,7 @@ void iommu_detach_group(struct iommu_domain *domain, struct iommu_group *group)
 }
 EXPORT_SYMBOL_GPL(iommu_detach_group);
 
-phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
-			       unsigned long iova)
+phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 {
 	if (unlikely(domain->ops->iova_to_phys == NULL))
 		return 0;
@@ -726,6 +764,38 @@ int iommu_domain_has_cap(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
 
+static size_t iommu_pgsize(struct iommu_domain *domain,
+			   unsigned long addr_merge, size_t size)
+{
+	unsigned int pgsize_idx;
+	size_t pgsize;
+
+	/* Max page size that still fits into 'size' */
+	pgsize_idx = __fls(size);
+
+	/* need to consider alignment requirements ? */
+	if (likely(addr_merge)) {
+		/* Max page size allowed by address */
+		unsigned int align_pgsize_idx = __ffs(addr_merge);
+		pgsize_idx = min(pgsize_idx, align_pgsize_idx);
+	}
+
+	/* build a mask of acceptable page sizes */
+	pgsize = (1UL << (pgsize_idx + 1)) - 1;
+
+	/* throw away page sizes not supported by the hardware */
+	pgsize &= domain->ops->pgsize_bitmap;
+
+	/* make sure we're still sane */
+	BUG_ON(!pgsize);
+
+	/* pick the biggest page */
+	pgsize_idx = __fls(pgsize);
+	pgsize = 1UL << pgsize_idx;
+
+	return pgsize;
+}
+
 int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	      phys_addr_t paddr, size_t size, int prot)
 {
@@ -734,7 +804,8 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	size_t orig_size = size;
 	int ret = 0;
 
-	if (unlikely(domain->ops->map == NULL))
+	if (unlikely(domain->ops->unmap == NULL ||
+		     domain->ops->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
 	/* find out the minimum page size supported */
@@ -746,45 +817,18 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	 * size of the smallest page supported by the hardware
 	 */
 	if (!IS_ALIGNED(iova | paddr | size, min_pagesz)) {
-		pr_err("unaligned: iova 0x%lx pa 0x%lx size 0x%lx min_pagesz "
-			"0x%x\n", iova, (unsigned long)paddr,
-			(unsigned long)size, min_pagesz);
+		pr_err("unaligned: iova 0x%lx pa %pa size 0x%zx min_pagesz 0x%x\n",
+		       iova, &paddr, size, min_pagesz);
 		return -EINVAL;
 	}
 
-	pr_debug("map: iova 0x%lx pa 0x%lx size 0x%lx\n", iova,
-				(unsigned long)paddr, (unsigned long)size);
+	pr_debug("map: iova 0x%lx pa %pa size 0x%zx\n", iova, &paddr, size);
 
 	while (size) {
-		unsigned long pgsize, addr_merge = iova | paddr;
-		unsigned int pgsize_idx;
+		size_t pgsize = iommu_pgsize(domain, iova | paddr, size);
 
-		/* Max page size that still fits into 'size' */
-		pgsize_idx = __fls(size);
-
-		/* need to consider alignment requirements ? */
-		if (likely(addr_merge)) {
-			/* Max page size allowed by both iova and paddr */
-			unsigned int align_pgsize_idx = __ffs(addr_merge);
-
-			pgsize_idx = min(pgsize_idx, align_pgsize_idx);
-		}
-
-		/* build a mask of acceptable page sizes */
-		pgsize = (1UL << (pgsize_idx + 1)) - 1;
-
-		/* throw away page sizes not supported by the hardware */
-		pgsize &= domain->ops->pgsize_bitmap;
-
-		/* make sure we're still sane */
-		BUG_ON(!pgsize);
-
-		/* pick the biggest page */
-		pgsize_idx = __fls(pgsize);
-		pgsize = 1UL << pgsize_idx;
-
-		pr_debug("mapping: iova 0x%lx pa 0x%lx pgsize %lu\n", iova,
-					(unsigned long)paddr, pgsize);
+		pr_debug("mapping: iova 0x%lx pa %pa pgsize 0x%zx\n",
+			 iova, &paddr, pgsize);
 
 		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
 		if (ret)
@@ -798,6 +842,8 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	/* unroll mapping in case something went wrong */
 	if (ret)
 		iommu_unmap(domain, orig_iova, orig_size - size);
+	else
+		trace_map(iova, paddr, size);
 
 	return ret;
 }
@@ -808,7 +854,8 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	size_t unmapped_page, unmapped = 0;
 	unsigned int min_pagesz;
 
-	if (unlikely(domain->ops->unmap == NULL))
+	if (unlikely(domain->ops->unmap == NULL ||
+		     domain->ops->pgsize_bitmap == 0UL))
 		return -ENODEV;
 
 	/* find out the minimum page size supported */
@@ -820,35 +867,56 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 	 * by the hardware
 	 */
 	if (!IS_ALIGNED(iova | size, min_pagesz)) {
-		pr_err("unaligned: iova 0x%lx size 0x%lx min_pagesz 0x%x\n",
-					iova, (unsigned long)size, min_pagesz);
+		pr_err("unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
+		       iova, size, min_pagesz);
 		return -EINVAL;
 	}
 
-	pr_debug("unmap this: iova 0x%lx size 0x%lx\n", iova,
-							(unsigned long)size);
+	pr_debug("unmap this: iova 0x%lx size 0x%zx\n", iova, size);
 
 	/*
 	 * Keep iterating until we either unmap 'size' bytes (or more)
 	 * or we hit an area that isn't mapped.
 	 */
 	while (unmapped < size) {
-		size_t left = size - unmapped;
+		size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
 
-		unmapped_page = domain->ops->unmap(domain, iova, left);
+		unmapped_page = domain->ops->unmap(domain, iova, pgsize);
 		if (!unmapped_page)
 			break;
 
-		pr_debug("unmapped: iova 0x%lx size %lx\n", iova,
-					(unsigned long)unmapped_page);
+		pr_debug("unmapped: iova 0x%lx size 0x%zx\n",
+			 iova, unmapped_page);
 
 		iova += unmapped_page;
 		unmapped += unmapped_page;
 	}
 
+	trace_unmap(iova, 0, size);
 	return unmapped;
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
+
+
+int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
+			       phys_addr_t paddr, u64 size, int prot)
+{
+	if (unlikely(domain->ops->domain_window_enable == NULL))
+		return -ENODEV;
+
+	return domain->ops->domain_window_enable(domain, wnd_nr, paddr, size,
+						 prot);
+}
+EXPORT_SYMBOL_GPL(iommu_domain_window_enable);
+
+void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr)
+{
+	if (unlikely(domain->ops->domain_window_disable == NULL))
+		return;
+
+	return domain->ops->domain_window_disable(domain, wnd_nr);
+}
+EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
 
 static int __init iommu_init(void)
 {
@@ -861,18 +929,33 @@ static int __init iommu_init(void)
 
 	return 0;
 }
-subsys_initcall(iommu_init);
+arch_initcall(iommu_init);
 
 int iommu_domain_get_attr(struct iommu_domain *domain,
 			  enum iommu_attr attr, void *data)
 {
 	struct iommu_domain_geometry *geometry;
+	bool *paging;
 	int ret = 0;
+	u32 *count;
 
 	switch (attr) {
 	case DOMAIN_ATTR_GEOMETRY:
 		geometry  = data;
 		*geometry = domain->geometry;
+
+		break;
+	case DOMAIN_ATTR_PAGING:
+		paging  = data;
+		*paging = (domain->ops->pgsize_bitmap != 0UL);
+		break;
+	case DOMAIN_ATTR_WINDOWS:
+		count = data;
+
+		if (domain->ops->domain_get_windows != NULL)
+			*count = domain->ops->domain_get_windows(domain);
+		else
+			ret = -ENODEV;
 
 		break;
 	default:
@@ -889,9 +972,26 @@ EXPORT_SYMBOL_GPL(iommu_domain_get_attr);
 int iommu_domain_set_attr(struct iommu_domain *domain,
 			  enum iommu_attr attr, void *data)
 {
-	if (!domain->ops->domain_set_attr)
-		return -EINVAL;
+	int ret = 0;
+	u32 *count;
 
-	return domain->ops->domain_set_attr(domain, attr, data);
+	switch (attr) {
+	case DOMAIN_ATTR_WINDOWS:
+		count = data;
+
+		if (domain->ops->domain_set_windows != NULL)
+			ret = domain->ops->domain_set_windows(domain, *count);
+		else
+			ret = -ENODEV;
+
+		break;
+	default:
+		if (domain->ops->domain_set_attr == NULL)
+			return -EINVAL;
+
+		ret = domain->ops->domain_set_attr(domain, attr, data);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_domain_set_attr);

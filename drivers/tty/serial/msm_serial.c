@@ -39,22 +39,31 @@
 
 #include "msm_serial.h"
 
+enum {
+	UARTDM_1P1 = 1,
+	UARTDM_1P2,
+	UARTDM_1P3,
+	UARTDM_1P4,
+};
+
 struct msm_port {
 	struct uart_port	uart;
 	char			name[16];
 	struct clk		*clk;
 	struct clk		*pclk;
 	unsigned int		imr;
-	unsigned int            *gsbi_base;
 	int			is_uartdm;
 	unsigned int		old_snap_state;
 };
 
-static inline void wait_for_xmitr(struct uart_port *port, int bits)
+static inline void wait_for_xmitr(struct uart_port *port)
 {
-	if (!(msm_read(port, UART_SR) & UART_SR_TX_EMPTY))
-		while ((msm_read(port, UART_ISR) & bits) != bits)
-			cpu_relax();
+	while (!(msm_read(port, UART_SR) & UART_SR_TX_EMPTY)) {
+		if (msm_read(port, UART_ISR) & UART_ISR_TX_READY)
+			break;
+		udelay(1);
+	}
+	msm_write(port, UART_CR_CMD_RESET_TX_READY, UART_CR);
 }
 
 static void msm_stop_tx(struct uart_port *port)
@@ -91,14 +100,14 @@ static void msm_enable_ms(struct uart_port *port)
 
 static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned int sr;
 	int count = 0;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	if ((msm_read(port, UART_SR) & UART_SR_OVERRUN)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
 	}
 
@@ -132,12 +141,15 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 			port->icount.frame++;
 
 		/* TODO: handle sysrq */
-		tty_insert_flip_string(tty, (char *) &c,
+		tty_insert_flip_string(tport, (char *)&c,
 				       (count > 4) ? 4 : count);
 		count -= 4;
 	}
 
-	tty_flip_buffer_push(tty);
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
+
 	if (misr & (UART_IMR_RXSTALE))
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
 	msm_write(port, 0xFFFFFF, UARTDM_DMRX);
@@ -146,7 +158,7 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 
 static void handle_rx(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned int sr;
 
 	/*
@@ -155,7 +167,7 @@ static void handle_rx(struct uart_port *port)
 	 */
 	if ((msm_read(port, UART_SR) & UART_SR_OVERRUN)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
 	}
 
@@ -186,54 +198,71 @@ static void handle_rx(struct uart_port *port)
 		}
 
 		if (!uart_handle_sysrq_char(port, c))
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(tport, c, flag);
 	}
 
-	tty_flip_buffer_push(tty);
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
 }
 
-static void reset_dm_count(struct uart_port *port)
+static void reset_dm_count(struct uart_port *port, int count)
 {
-	wait_for_xmitr(port, UART_ISR_TX_READY);
-	msm_write(port, 1, UARTDM_NCF_TX);
+	wait_for_xmitr(port);
+	msm_write(port, count, UARTDM_NCF_TX);
+	msm_read(port, UARTDM_NCF_TX);
 }
 
 static void handle_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
 	struct msm_port *msm_port = UART_TO_MSM(port);
-	int sent_tx;
+	unsigned int tx_count, num_chars;
+	unsigned int tf_pointer = 0;
+
+	tx_count = uart_circ_chars_pending(xmit);
+	tx_count = min3(tx_count, (unsigned int)UART_XMIT_SIZE - xmit->tail,
+			port->fifosize);
 
 	if (port->x_char) {
 		if (msm_port->is_uartdm)
-			reset_dm_count(port);
+			reset_dm_count(port, tx_count + 1);
 
 		msm_write(port, port->x_char,
 			  msm_port->is_uartdm ? UARTDM_TF : UART_TF);
 		port->icount.tx++;
 		port->x_char = 0;
+	} else if (tx_count && msm_port->is_uartdm) {
+		reset_dm_count(port, tx_count);
 	}
 
-	if (msm_port->is_uartdm)
-		reset_dm_count(port);
+	while (tf_pointer < tx_count) {
+		int i;
+		char buf[4] = { 0 };
+		unsigned int *bf = (unsigned int *)&buf;
 
-	while (msm_read(port, UART_SR) & UART_SR_TX_READY) {
-		if (uart_circ_empty(xmit)) {
-			/* disable tx interrupts */
-			msm_port->imr &= ~UART_IMR_TXLEV;
-			msm_write(port, msm_port->imr, UART_IMR);
+		if (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
 			break;
-		}
-		msm_write(port, xmit->buf[xmit->tail],
-			  msm_port->is_uartdm ? UARTDM_TF : UART_TF);
 
 		if (msm_port->is_uartdm)
-			reset_dm_count(port);
+			num_chars = min(tx_count - tf_pointer,
+					(unsigned int)sizeof(buf));
+		else
+			num_chars = 1;
 
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		sent_tx = 1;
+		for (i = 0; i < num_chars; i++) {
+			buf[i] = xmit->buf[xmit->tail + i];
+			port->icount.tx++;
+		}
+
+		msm_write(port, *bf, msm_port->is_uartdm ? UARTDM_TF : UART_TF);
+		xmit->tail = (xmit->tail + num_chars) & (UART_XMIT_SIZE - 1);
+		tf_pointer += num_chars;
 	}
+
+	/* disable tx interrupts if nothing more to send */
+	if (uart_circ_empty(xmit))
+		msm_stop_tx(port);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -286,6 +315,8 @@ static unsigned int msm_get_mctrl(struct uart_port *port)
 
 static void msm_reset(struct uart_port *port)
 {
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
 	/* reset everything */
 	msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
 	msm_write(port, UART_CR_CMD_RESET_TX, UART_CR);
@@ -293,9 +324,13 @@ static void msm_reset(struct uart_port *port)
 	msm_write(port, UART_CR_CMD_RESET_BREAK_INT, UART_CR);
 	msm_write(port, UART_CR_CMD_RESET_CTS, UART_CR);
 	msm_write(port, UART_CR_CMD_SET_RFR, UART_CR);
+
+	/* Disable DM modes */
+	if (msm_port->is_uartdm)
+		msm_write(port, 0, UARTDM_DMEN);
 }
 
-void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
+static void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	unsigned int mr;
 	mr = msm_read(port, UART_MR1);
@@ -318,70 +353,60 @@ static void msm_break_ctl(struct uart_port *port, int break_ctl)
 		msm_write(port, UART_CR_CMD_STOP_BREAK, UART_CR);
 }
 
+struct msm_baud_map {
+	u16	divisor;
+	u8	code;
+	u8	rxstale;
+};
+
+static const struct msm_baud_map *
+msm_find_best_baud(struct uart_port *port, unsigned int baud)
+{
+	unsigned int i, divisor;
+	const struct msm_baud_map *entry;
+	static const struct msm_baud_map table[] = {
+		{ 1536, 0x00,  1 },
+		{  768, 0x11,  1 },
+		{  384, 0x22,  1 },
+		{  192, 0x33,  1 },
+		{   96, 0x44,  1 },
+		{   48, 0x55,  1 },
+		{   32, 0x66,  1 },
+		{   24, 0x77,  1 },
+		{   16, 0x88,  1 },
+		{   12, 0x99,  6 },
+		{    8, 0xaa,  6 },
+		{    6, 0xbb,  6 },
+		{    4, 0xcc,  6 },
+		{    3, 0xdd,  8 },
+		{    2, 0xee, 16 },
+		{    1, 0xff, 31 },
+	};
+
+	divisor = uart_get_divisor(port, baud);
+
+	for (i = 0, entry = table; i < ARRAY_SIZE(table); i++, entry++)
+		if (entry->divisor <= divisor)
+			break;
+
+	return entry; /* Default to smallest divider */
+}
+
 static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 {
-	unsigned int baud_code, rxstale, watermark;
+	unsigned int rxstale, watermark;
 	struct msm_port *msm_port = UART_TO_MSM(port);
+	const struct msm_baud_map *entry;
 
-	switch (baud) {
-	case 300:
-		baud_code = UART_CSR_300;
-		rxstale = 1;
-		break;
-	case 600:
-		baud_code = UART_CSR_600;
-		rxstale = 1;
-		break;
-	case 1200:
-		baud_code = UART_CSR_1200;
-		rxstale = 1;
-		break;
-	case 2400:
-		baud_code = UART_CSR_2400;
-		rxstale = 1;
-		break;
-	case 4800:
-		baud_code = UART_CSR_4800;
-		rxstale = 1;
-		break;
-	case 9600:
-		baud_code = UART_CSR_9600;
-		rxstale = 2;
-		break;
-	case 14400:
-		baud_code = UART_CSR_14400;
-		rxstale = 3;
-		break;
-	case 19200:
-		baud_code = UART_CSR_19200;
-		rxstale = 4;
-		break;
-	case 28800:
-		baud_code = UART_CSR_28800;
-		rxstale = 6;
-		break;
-	case 38400:
-		baud_code = UART_CSR_38400;
-		rxstale = 8;
-		break;
-	case 57600:
-		baud_code = UART_CSR_57600;
-		rxstale = 16;
-		break;
-	case 115200:
-	default:
-		baud_code = UART_CSR_115200;
-		baud = 115200;
-		rxstale = 31;
-		break;
-	}
+	entry = msm_find_best_baud(port, baud);
 
 	if (msm_port->is_uartdm)
 		msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
 
-	msm_write(port, baud_code, UART_CSR);
+	msm_write(port, entry->code, UART_CSR);
 
 	/* RX stale watermark */
+	rxstale = entry->rxstale;
 	watermark = UART_IPR_STALE_LSB & rxstale;
 	watermark |= UART_IPR_RXSTALE_LAST;
 	watermark |= UART_IPR_STALE_TIMEOUT_MSB & (rxstale << 2);
@@ -408,9 +433,8 @@ static void msm_init_clock(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
-	clk_enable(msm_port->clk);
-	if (!IS_ERR(msm_port->pclk))
-		clk_enable(msm_port->pclk);
+	clk_prepare_enable(msm_port->clk);
+	clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
 }
 
@@ -486,7 +510,7 @@ static void msm_shutdown(struct uart_port *port)
 	msm_port->imr = 0;
 	msm_write(port, 0, UART_IMR); /* disable interrupts */
 
-	clk_disable(msm_port->clk);
+	clk_disable_unprepare(msm_port->clk);
 
 	free_irq(port->irq, port);
 }
@@ -574,9 +598,7 @@ static const char *msm_type(struct uart_port *port)
 static void msm_release_port(struct uart_port *port)
 {
 	struct platform_device *pdev = to_platform_device(port->dev);
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	struct resource *uart_resource;
-	struct resource *gsbi_resource;
 	resource_size_t size;
 
 	uart_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -587,30 +609,12 @@ static void msm_release_port(struct uart_port *port)
 	release_mem_region(port->mapbase, size);
 	iounmap(port->membase);
 	port->membase = NULL;
-
-	if (msm_port->gsbi_base) {
-		iowrite32(GSBI_PROTOCOL_IDLE, msm_port->gsbi_base +
-			  GSBI_CONTROL);
-
-		gsbi_resource = platform_get_resource(pdev,
-							IORESOURCE_MEM, 1);
-
-		if (unlikely(!gsbi_resource))
-			return;
-
-		size = resource_size(gsbi_resource);
-		release_mem_region(gsbi_resource->start, size);
-		iounmap(msm_port->gsbi_base);
-		msm_port->gsbi_base = NULL;
-	}
 }
 
 static int msm_request_port(struct uart_port *port)
 {
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	struct platform_device *pdev = to_platform_device(port->dev);
 	struct resource *uart_resource;
-	struct resource *gsbi_resource;
 	resource_size_t size;
 	int ret;
 
@@ -629,28 +633,8 @@ static int msm_request_port(struct uart_port *port)
 		goto fail_release_port;
 	}
 
-	gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	/* Is this a GSBI-based port? */
-	if (gsbi_resource) {
-		size = resource_size(gsbi_resource);
-
-		if (!request_mem_region(gsbi_resource->start, size,
-						 "msm_serial")) {
-			ret = -EBUSY;
-			goto fail_release_port;
-		}
-
-		msm_port->gsbi_base = ioremap(gsbi_resource->start, size);
-		if (!msm_port->gsbi_base) {
-			ret = -EBUSY;
-			goto fail_release_gsbi;
-		}
-	}
-
 	return 0;
 
-fail_release_gsbi:
-	release_mem_region(gsbi_resource->start, size);
 fail_release_port:
 	release_mem_region(port->mapbase, size);
 	return ret;
@@ -658,7 +642,6 @@ fail_release_port:
 
 static void msm_config_port(struct uart_port *port, int flags)
 {
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	int ret;
 	if (flags & UART_CONFIG_TYPE) {
 		port->type = PORT_MSM;
@@ -666,10 +649,6 @@ static void msm_config_port(struct uart_port *port, int flags)
 		if (ret)
 			return;
 	}
-
-	if (msm_port->is_uartdm)
-		iowrite32(GSBI_PROTOCOL_UART, msm_port->gsbi_base +
-			  GSBI_CONTROL);
 }
 
 static int msm_verify_port(struct uart_port *port, struct serial_struct *ser)
@@ -688,19 +667,128 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
-		clk_enable(msm_port->clk);
-		if (!IS_ERR(msm_port->pclk))
-			clk_enable(msm_port->pclk);
+		clk_prepare_enable(msm_port->clk);
+		clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
-		clk_disable(msm_port->clk);
-		if (!IS_ERR(msm_port->pclk))
-			clk_disable(msm_port->pclk);
+		clk_disable_unprepare(msm_port->clk);
+		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
 		printk(KERN_ERR "msm_serial: Unknown PM state %d\n", state);
 	}
 }
+
+#ifdef CONFIG_CONSOLE_POLL
+static int msm_poll_init(struct uart_port *port)
+{
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	/* Enable single character mode on RX FIFO */
+	if (msm_port->is_uartdm >= UARTDM_1P4)
+		msm_write(port, UARTDM_DMEN_RX_SC_ENABLE, UARTDM_DMEN);
+
+	return 0;
+}
+
+static int msm_poll_get_char_single(struct uart_port *port)
+{
+	struct msm_port *msm_port = UART_TO_MSM(port);
+	unsigned int rf_reg = msm_port->is_uartdm ? UARTDM_RF : UART_RF;
+
+	if (!(msm_read(port, UART_SR) & UART_SR_RX_READY))
+		return NO_POLL_CHAR;
+	else
+		return msm_read(port, rf_reg) & 0xff;
+}
+
+static int msm_poll_get_char_dm_1p3(struct uart_port *port)
+{
+	int c;
+	static u32 slop;
+	static int count;
+	unsigned char *sp = (unsigned char *)&slop;
+
+	/* Check if a previous read had more than one char */
+	if (count) {
+		c = sp[sizeof(slop) - count];
+		count--;
+	/* Or if FIFO is empty */
+	} else if (!(msm_read(port, UART_SR) & UART_SR_RX_READY)) {
+		/*
+		 * If RX packing buffer has less than a word, force stale to
+		 * push contents into RX FIFO
+		 */
+		count = msm_read(port, UARTDM_RXFS);
+		count = (count >> UARTDM_RXFS_BUF_SHIFT) & UARTDM_RXFS_BUF_MASK;
+		if (count) {
+			msm_write(port, UART_CR_CMD_FORCE_STALE, UART_CR);
+			slop = msm_read(port, UARTDM_RF);
+			c = sp[0];
+			count--;
+		} else {
+			c = NO_POLL_CHAR;
+		}
+	/* FIFO has a word */
+	} else {
+		slop = msm_read(port, UARTDM_RF);
+		c = sp[0];
+		count = sizeof(slop) - 1;
+	}
+
+	return c;
+}
+
+static int msm_poll_get_char(struct uart_port *port)
+{
+	u32 imr;
+	int c;
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	/* Disable all interrupts */
+	imr = msm_read(port, UART_IMR);
+	msm_write(port, 0, UART_IMR);
+
+	if (msm_port->is_uartdm == UARTDM_1P3)
+		c = msm_poll_get_char_dm_1p3(port);
+	else
+		c = msm_poll_get_char_single(port);
+
+	/* Enable interrupts */
+	msm_write(port, imr, UART_IMR);
+
+	return c;
+}
+
+static void msm_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	u32 imr;
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	/* Disable all interrupts */
+	imr = msm_read(port, UART_IMR);
+	msm_write(port, 0, UART_IMR);
+
+	if (msm_port->is_uartdm)
+		reset_dm_count(port, 1);
+
+	/* Wait until FIFO is empty */
+	while (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
+		cpu_relax();
+
+	/* Write a character */
+	msm_write(port, c, msm_port->is_uartdm ? UARTDM_TF : UART_TF);
+
+	/* Wait until FIFO is empty */
+	while (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
+		cpu_relax();
+
+	/* Enable interrupts */
+	msm_write(port, imr, UART_IMR);
+
+	return;
+}
+#endif
 
 static struct uart_ops msm_uart_pops = {
 	.tx_empty = msm_tx_empty,
@@ -720,6 +808,11 @@ static struct uart_ops msm_uart_pops = {
 	.config_port = msm_config_port,
 	.verify_port = msm_verify_port,
 	.pm = msm_power,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init = msm_poll_init,
+	.poll_get_char	= msm_poll_get_char,
+	.poll_put_char	= msm_poll_put_char,
+#endif
 };
 
 static struct msm_port msm_uart_ports[] = {
@@ -760,32 +853,63 @@ static inline struct uart_port *get_port_from_line(unsigned int line)
 }
 
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
-
-static void msm_console_putchar(struct uart_port *port, int c)
-{
-	struct msm_port *msm_port = UART_TO_MSM(port);
-
-	if (msm_port->is_uartdm)
-		reset_dm_count(port);
-
-	while (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
-		;
-	msm_write(port, c, msm_port->is_uartdm ? UARTDM_TF : UART_TF);
-}
-
 static void msm_console_write(struct console *co, const char *s,
 			      unsigned int count)
 {
+	int i;
 	struct uart_port *port;
 	struct msm_port *msm_port;
+	int num_newlines = 0;
+	bool replaced = false;
 
 	BUG_ON(co->index < 0 || co->index >= UART_NR);
 
 	port = get_port_from_line(co->index);
 	msm_port = UART_TO_MSM(port);
 
+	/* Account for newlines that will get a carriage return added */
+	for (i = 0; i < count; i++)
+		if (s[i] == '\n')
+			num_newlines++;
+	count += num_newlines;
+
 	spin_lock(&port->lock);
-	uart_console_write(port, s, count, msm_console_putchar);
+	if (msm_port->is_uartdm)
+		reset_dm_count(port, count);
+
+	i = 0;
+	while (i < count) {
+		int j;
+		unsigned int num_chars;
+		char buf[4] = { 0 };
+		unsigned int *bf = (unsigned int *)&buf;
+
+		if (msm_port->is_uartdm)
+			num_chars = min(count - i, (unsigned int)sizeof(buf));
+		else
+			num_chars = 1;
+
+		for (j = 0; j < num_chars; j++) {
+			char c = *s;
+
+			if (c == '\n' && !replaced) {
+				buf[j] = '\r';
+				j++;
+				replaced = true;
+			}
+			if (j < num_chars) {
+				buf[j] = c;
+				s++;
+				replaced = false;
+			}
+		}
+
+		while (!(msm_read(port, UART_SR) & UART_SR_TX_READY))
+			cpu_relax();
+
+		msm_write(port, *bf, msm_port->is_uartdm ? UARTDM_TF : UART_TF);
+		i += num_chars;
+	}
 	spin_unlock(&port->lock);
 }
 
@@ -859,11 +983,20 @@ static struct uart_driver msm_uart_driver = {
 
 static atomic_t msm_uart_next_id = ATOMIC_INIT(0);
 
+static const struct of_device_id msm_uartdm_table[] = {
+	{ .compatible = "qcom,msm-uartdm-v1.1", .data = (void *)UARTDM_1P1 },
+	{ .compatible = "qcom,msm-uartdm-v1.2", .data = (void *)UARTDM_1P2 },
+	{ .compatible = "qcom,msm-uartdm-v1.3", .data = (void *)UARTDM_1P3 },
+	{ .compatible = "qcom,msm-uartdm-v1.4", .data = (void *)UARTDM_1P4 },
+	{ }
+};
+
 static int __init msm_serial_probe(struct platform_device *pdev)
 {
 	struct msm_port *msm_port;
 	struct resource *resource;
 	struct uart_port *port;
+	const struct of_device_id *id;
 	int irq;
 
 	if (pdev->id == -1)
@@ -878,25 +1011,23 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 	port->dev = &pdev->dev;
 	msm_port = UART_TO_MSM(port);
 
-	if (platform_get_resource(pdev, IORESOURCE_MEM, 1))
-		msm_port->is_uartdm = 1;
+	id = of_match_device(msm_uartdm_table, &pdev->dev);
+	if (id)
+		msm_port->is_uartdm = (unsigned long)id->data;
 	else
 		msm_port->is_uartdm = 0;
 
+	msm_port->clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(msm_port->clk))
+		return PTR_ERR(msm_port->clk);
+
 	if (msm_port->is_uartdm) {
-		msm_port->clk = clk_get(&pdev->dev, "gsbi_uart_clk");
-		msm_port->pclk = clk_get(&pdev->dev, "gsbi_pclk");
-	} else {
-		msm_port->clk = clk_get(&pdev->dev, "uart_clk");
-		msm_port->pclk = ERR_PTR(-ENOENT);
-	}
+		msm_port->pclk = devm_clk_get(&pdev->dev, "iface");
+		if (IS_ERR(msm_port->pclk))
+			return PTR_ERR(msm_port->pclk);
 
-	if (unlikely(IS_ERR(msm_port->clk) || (IS_ERR(msm_port->pclk) &&
-					       msm_port->is_uartdm)))
-			return PTR_ERR(msm_port->clk);
-
-	if (msm_port->is_uartdm)
 		clk_set_rate(msm_port->clk, 1843200);
+	}
 
 	port->uartclk = clk_get_rate(msm_port->clk);
 	printk(KERN_INFO "uartclk = %d\n", port->uartclk);
@@ -919,20 +1050,22 @@ static int __init msm_serial_probe(struct platform_device *pdev)
 
 static int msm_serial_remove(struct platform_device *pdev)
 {
-	struct msm_port *msm_port = platform_get_drvdata(pdev);
+	struct uart_port *port = platform_get_drvdata(pdev);
 
-	clk_put(msm_port->clk);
+	uart_remove_one_port(&msm_uart_driver, port);
 
 	return 0;
 }
 
 static struct of_device_id msm_match_table[] = {
 	{ .compatible = "qcom,msm-uart" },
+	{ .compatible = "qcom,msm-uartdm" },
 	{}
 };
 
 static struct platform_driver msm_platform_driver = {
 	.remove = msm_serial_remove,
+	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",
 		.owner = THIS_MODULE,
@@ -948,7 +1081,7 @@ static int __init msm_serial_init(void)
 	if (unlikely(ret))
 		return ret;
 
-	ret = platform_driver_probe(&msm_platform_driver, msm_serial_probe);
+	ret = platform_driver_register(&msm_platform_driver);
 	if (unlikely(ret))
 		uart_unregister_driver(&msm_uart_driver);
 

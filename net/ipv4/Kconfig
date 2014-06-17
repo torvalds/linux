@@ -9,10 +9,7 @@ config IP_MULTICAST
 	  intend to participate in the MBONE, a high bandwidth network on top
 	  of the Internet which carries audio and video broadcasts. More
 	  information about the MBONE is on the WWW at
-	  <http://www.savetz.com/mbone/>. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. For most people, it's
-	  safe to say N.
+	  <http://www.savetz.com/mbone/>. For most people, it's safe to say N.
 
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
@@ -166,6 +163,7 @@ config IP_PNP_RARP
 config NET_IPIP
 	tristate "IP: tunneling"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -186,9 +184,14 @@ config NET_IPGRE_DEMUX
 	 This is helper module to demultiplex GRE packets on GRE version field criteria.
 	 Required by ip_gre and pptp modules.
 
+config NET_IP_TUNNEL
+	tristate
+	default n
+
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
 	depends on (IPV6 || IPV6=n) && NET_IPGRE_DEMUX
+	select NET_IP_TUNNEL
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -217,10 +220,8 @@ config IP_MROUTE
 	  packets that have several destination addresses. It is needed on the
 	  MBONE, a high bandwidth network on top of the Internet which carries
 	  audio and video broadcasts. In order to do that, you would most
-	  likely run the program mrouted. Information about the multicast
-	  capabilities of the various network cards is contained in
-	  <file:Documentation/networking/multicast.txt>. If you haven't heard
-	  about it, you don't need it.
+	  likely run the program mrouted. If you haven't heard about it, you
+	  don't need it.
 
 config IP_MROUTE_MULTIPLE_TABLES
 	bool "IP: multicast policy routing"
@@ -257,22 +258,6 @@ config IP_PIMSM_V2
 	  this, you need an experimental routing daemon supporting it (pimd or
 	  gated-5). This routing protocol is not used widely, so say N unless
 	  you want to play with it.
-
-config ARPD
-	bool "IP: ARP daemon support"
-	---help---
-	  The kernel maintains an internal cache which maps IP addresses to
-	  hardware addresses on the local network, so that Ethernet
-	  frames are sent to the proper address on the physical networking
-	  layer. Normally, kernel uses the ARP protocol to resolve these
-	  mappings.
-
-	  Saying Y here adds support to have an user space daemon to do this
-	  resolution instead. This is useful for implementing an alternate
-	  address resolution protocol (e.g. NHRP on mGRE tunnels) and also for
-	  testing purposes.
-
-	  If unsure, say N.
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"
@@ -313,6 +298,7 @@ config SYN_COOKIES
 config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
 	select INET_TUNNEL
+	select NET_IP_TUNNEL
 	depends on INET_XFRM_MODE_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
@@ -488,7 +474,6 @@ config TCP_CONG_HTCP
 
 config TCP_CONG_HSTCP
 	tristate "High Speed TCP"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	Sally Floyd's High Speed TCP (RFC 3649) congestion control.
@@ -499,7 +484,6 @@ config TCP_CONG_HSTCP
 
 config TCP_CONG_HYBLA
 	tristate "TCP-Hybla congestion control algorithm"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP-Hybla is a sender-side only change that eliminates penalization of
@@ -509,7 +493,6 @@ config TCP_CONG_HYBLA
 
 config TCP_CONG_VEGAS
 	tristate "TCP Vegas"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP Vegas is a sender-side only change to TCP that anticipates
@@ -520,7 +503,6 @@ config TCP_CONG_VEGAS
 
 config TCP_CONG_SCALABLE
 	tristate "Scalable TCP"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	Scalable TCP is a sender-side only change to TCP which uses a
@@ -530,7 +512,6 @@ config TCP_CONG_SCALABLE
 
 config TCP_CONG_LP
 	tristate "TCP Low Priority"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
@@ -540,7 +521,6 @@ config TCP_CONG_LP
 
 config TCP_CONG_VENO
 	tristate "TCP Veno"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP Veno is a sender-side only enhancement of TCP to obtain better
@@ -552,7 +532,6 @@ config TCP_CONG_VENO
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"
-	depends on EXPERIMENTAL
 	select TCP_CONG_VEGAS
 	default n
 	---help---
@@ -567,7 +546,6 @@ config TCP_CONG_YEAH
 
 config TCP_CONG_ILLINOIS
 	tristate "TCP Illinois"
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	TCP-Illinois is a sender-side modification of TCP Reno for
@@ -631,8 +609,7 @@ config DEFAULT_TCP_CONG
 	default "cubic"
 
 config TCP_MD5SIG
-	bool "TCP: MD5 Signature Option support (RFC2385) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "TCP: MD5 Signature Option support (RFC2385)"
 	select CRYPTO
 	select CRYPTO_MD5
 	---help---

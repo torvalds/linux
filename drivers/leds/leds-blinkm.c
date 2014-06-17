@@ -18,7 +18,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
@@ -161,13 +160,10 @@ static ssize_t show_color_common(struct device *dev, char *buf, int color)
 	switch (color) {
 	case RED:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->red);
-		break;
 	case GREEN:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->green);
-		break;
 	case BLUE:
 		return scnprintf(buf, PAGE_SIZE, "%02X\n", data->blue);
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -447,7 +443,7 @@ static void led_work(struct work_struct *work)
 {
 	int ret;
 	struct blinkm_led *led;
-	struct blinkm_data *data ;
+	struct blinkm_data *data;
 	struct blinkm_work *blm_work = work_to_blmwork(work);
 
 	led = blm_work->blinkm_led;

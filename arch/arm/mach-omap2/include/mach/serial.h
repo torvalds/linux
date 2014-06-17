@@ -8,20 +8,6 @@
  * GNU General Public License for more details.
  */
 
-/*
- * Memory entry used for the DEBUG_LL UART configuration, relative to
- * start of RAM. See also uncompress.h and debug-macro.S.
- *
- * Note that using a memory location for storing the UART configuration
- * has at least two limitations:
- *
- * 1. Kernel uncompress code cannot overlap OMAP_UART_INFO as the
- *    uncompress code could then partially overwrite itself
- * 2. We assume printascii is called at least once before paging_init,
- *    and addruart has a chance to read OMAP_UART_INFO
- */
-#define OMAP_UART_INFO_OFS	0x3ffc
-
 /* OMAP2 serial ports */
 #define OMAP2_UART1_BASE	0x4806a000
 #define OMAP2_UART2_BASE	0x4806c000
@@ -67,29 +53,6 @@
 #define ZOOM_PORT_SHIFT		1
 
 #define OMAP24XX_BASE_BAUD	(48000000/16)
-
-/*
- * DEBUG_LL port encoding stored into the UART1 scratchpad register by
- * decomp_setup in uncompress.h
- */
-#define OMAP2UART1		21
-#define OMAP2UART2		22
-#define OMAP2UART3		23
-#define OMAP3UART1		OMAP2UART1
-#define OMAP3UART2		OMAP2UART2
-#define OMAP3UART3		33
-#define OMAP3UART4		34		/* Only on 36xx */
-#define OMAP4UART1		OMAP2UART1
-#define OMAP4UART2		OMAP2UART2
-#define OMAP4UART3		43
-#define OMAP4UART4		44
-#define TI81XXUART1		81
-#define TI81XXUART2		82
-#define TI81XXUART3		83
-#define AM33XXUART1		84
-#define OMAP5UART3		OMAP4UART3
-#define OMAP5UART4		OMAP4UART4
-#define ZOOM_UART		95		/* Only on zoom2/3 */
 
 #ifndef __ASSEMBLER__
 

@@ -336,7 +336,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
-			if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
+			if (sk_stream_is_writeable(sk)) {
 				mask |= POLLOUT | POLLWRNORM;
 			} else {  /* send SIGIO later */
 				set_bit(SOCK_ASYNC_NOSPACE,
@@ -347,7 +347,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 				 * wspace test but before the flags are set,
 				 * IO signal will be lost.
 				 */
-				if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk))
+				if (sk_stream_is_writeable(sk))
 					mask |= POLLOUT | POLLWRNORM;
 			}
 		}
@@ -1084,14 +1084,15 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static inline int dccp_mib_init(void)
 {
-	return snmp_mib_init((void __percpu **)dccp_statistics,
-			     sizeof(struct dccp_mib),
-			     __alignof__(struct dccp_mib));
+	dccp_statistics = alloc_percpu(struct dccp_mib);
+	if (!dccp_statistics)
+		return -ENOMEM;
+	return 0;
 }
 
 static inline void dccp_mib_exit(void)
 {
-	snmp_mib_free((void __percpu **)dccp_statistics);
+	free_percpu(dccp_statistics);
 }
 
 static int thash_entries;
@@ -1158,10 +1159,8 @@ static int __init dccp_init(void)
 		goto out_free_bind_bucket_cachep;
 	}
 
-	for (i = 0; i <= dccp_hashinfo.ehash_mask; i++) {
+	for (i = 0; i <= dccp_hashinfo.ehash_mask; i++)
 		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].chain, i);
-		INIT_HLIST_NULLS_HEAD(&dccp_hashinfo.ehash[i].twchain, i);
-	}
 
 	if (inet_ehash_locks_alloc(&dccp_hashinfo))
 			goto out_free_dccp_ehash;

@@ -248,8 +248,7 @@ static void x38_check(struct mem_ctl_info *mci)
 	x38_process_error_info(mci, &info);
 }
 
-
-void __iomem *x38_map_mchbar(struct pci_dev *pdev)
+static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 {
 	union {
 		u64 mchbar;
@@ -449,7 +448,7 @@ static void x38_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(x38_pci_tbl) = {
+static const struct pci_device_id x38_pci_tbl[] = {
 	{
 	 PCI_VEND_DEV(INTEL, X38_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 X38},

@@ -212,12 +212,10 @@ pdcspath_store(struct pdcspath_entry *entry)
 			entry, devpath, entry->addr);
 
 	/* addr, devpath and count must be word aligned */
-	if (pdc_stable_write(entry->addr, devpath, sizeof(*devpath)) != PDC_OK) {
-		printk(KERN_ERR "%s: an error occurred when writing to PDC.\n"
+	if (pdc_stable_write(entry->addr, devpath, sizeof(*devpath)) != PDC_OK)
+		WARN(1, KERN_ERR "%s: an error occurred when writing to PDC.\n"
 				"It is likely that the Stable Storage data has been corrupted.\n"
 				"Please check it carefully upon next reboot.\n", __func__);
-		WARN_ON(1);
-	}
 		
 	/* kobject is already registered */
 	entry->ready = 2;

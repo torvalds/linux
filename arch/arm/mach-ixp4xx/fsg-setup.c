@@ -208,16 +208,14 @@ static void __init fsg_init(void)
 	platform_add_devices(fsg_devices, ARRAY_SIZE(fsg_devices));
 
 	if (request_irq(gpio_to_irq(FSG_RB_GPIO), &fsg_reset_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_LOW,
-			"FSG reset button", NULL) < 0) {
+			IRQF_TRIGGER_LOW, "FSG reset button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
 			gpio_to_irq(FSG_RB_GPIO));
 	}
 
 	if (request_irq(gpio_to_irq(FSG_SB_GPIO), &fsg_power_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_LOW,
-			"FSG power button", NULL) < 0) {
+			IRQF_TRIGGER_LOW, "FSG power button", NULL) < 0) {
 
 		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
 			gpio_to_irq(FSG_SB_GPIO));
@@ -272,7 +270,7 @@ MACHINE_START(FSG, "Freecom FSG-3")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer		= &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.atag_offset	= 0x100,
 	.init_machine	= fsg_init,
 #if defined(CONFIG_PCI)

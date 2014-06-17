@@ -2931,7 +2931,7 @@ static int initio_probe_one(struct pci_dev *pdev,
 	shost->base = host->addr;
 	shost->sg_tablesize = TOTAL_SG_ENTRY;
 
-	error = request_irq(pdev->irq, i91u_intr, IRQF_DISABLED|IRQF_SHARED, "i91u", shost);
+	error = request_irq(pdev->irq, i91u_intr, IRQF_SHARED, "i91u", shost);
 	if (error < 0) {
 		printk(KERN_WARNING "initio: Unable to request IRQ %d\n", pdev->irq);
 		goto out_free_scbs;

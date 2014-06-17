@@ -70,14 +70,9 @@
 #define PAGES_II_LVL_TABLE   512
 #define PHYS_TO_PAGE(phys)      pfn_to_page((phys) >> PAGE_SHIFT)
 
-/*
- * This is a totally ugly layer violation, but needed until
- * omap_ctrl_set_dsp_boot*() are provided.
- */
-#define OMAP3_IVA2_BOOTMOD_IDLE 1
-#define OMAP2_CONTROL_GENERAL 0x270
-#define OMAP343X_CONTROL_IVA2_BOOTADDR (OMAP2_CONTROL_GENERAL + 0x0190)
-#define OMAP343X_CONTROL_IVA2_BOOTMOD (OMAP2_CONTROL_GENERAL + 0x0194)
+/* IVA Boot modes */
+#define DIRECT		0
+#define IDLE		1
 
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
@@ -285,9 +280,8 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
 
 		/* Wait until the state has moved to ON */
-		while ((*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
-						OMAP_INTRANSITION_MASK)
-			;
+		while (*pdata->dsp_prm_read(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST)&
+					OMAP_INTRANSITION_MASK);
 		/* Disable Automatic transition */
 		(*pdata->dsp_cm_write)(OMAP34XX_CLKSTCTRL_DISABLE_AUTO,
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
@@ -423,36 +417,23 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 
 		/* Assert RST1 i.e only the RST only for DSP megacell */
 		if (!status) {
-			/*
-			 * XXX: OMAP343X_CTRL_BASE ioremapping  MUST be removed once ctrl
-			 * function is made available.
-			 */
-			void __iomem *ctrl = ioremap(0x48002000, SZ_4K);
-			if (!ctrl) {
-				iounmap(sync_addr);
-				return -ENOMEM;
-			}
-
 			(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST1_IVA2_MASK,
-					OMAP3430_RST1_IVA2_MASK, OMAP3430_IVA2_MOD,
+					OMAP3430_RST1_IVA2_MASK,
+					OMAP3430_IVA2_MOD,
 					OMAP2_RM_RSTCTRL);
-			/* Mask address with 1K for compatibility */
-			__raw_writel(dsp_addr & OMAP3_IVA2_BOOTADDR_MASK,
-					ctrl + OMAP343X_CONTROL_IVA2_BOOTADDR);
-			/*
-			 * Set bootmode to self loop if dsp_debug flag is true
-			 */
-			__raw_writel((dsp_debug) ? OMAP3_IVA2_BOOTMOD_IDLE : 0,
-					ctrl + OMAP343X_CONTROL_IVA2_BOOTMOD);
 
-			iounmap(ctrl);
+			/* Mask address with 1K for compatibility */
+			pdata->set_bootaddr(dsp_addr &
+						OMAP3_IVA2_BOOTADDR_MASK);
+			pdata->set_bootmode(dsp_debug ? IDLE : DIRECT);
 		}
 	}
 	if (!status) {
 		/* Reset and Unreset the RST2, so that BOOTADDR is copied to
 		 * IVA2 SYSC register */
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK,
-			OMAP3430_RST2_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+			OMAP3430_RST2_IVA2_MASK, OMAP3430_IVA2_MOD,
+			OMAP2_RM_RSTCTRL);
 		udelay(100);
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -466,7 +447,8 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		/* Only make TLB entry if both addresses are non-zero */
 		for (entry_ndx = 0; entry_ndx < BRDIOCTL_NUMOFMMUTLB;
 		     entry_ndx++) {
-			struct bridge_ioctl_extproc *e = &dev_context->atlb_entry[entry_ndx];
+			struct bridge_ioctl_extproc *e =
+				&dev_context->atlb_entry[entry_ndx];
 			struct hw_mmu_map_attrs_t map_attrs = {
 				.endianism = e->endianism,
 				.element_size = e->elem_size,
@@ -661,8 +643,8 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 	/* as per TRM, it is advised to first drive the IVA2 to 'Standby' mode,
 	 * before turning off the clocks.. This is to ensure that there are no
 	 * pending L3 or other transactons from IVA2 */
-	dsp_pwr_state = (*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) &
-					OMAP_POWERSTATEST_MASK;
+	dsp_pwr_state = (*pdata->dsp_prm_read)
+		(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST) & OMAP_POWERSTATEST_MASK;
 	if (dsp_pwr_state != PWRDM_POWER_OFF) {
 		(*pdata->dsp_prm_rmw_bits)(OMAP3430_RST2_IVA2_MASK, 0,
 					OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
@@ -702,8 +684,9 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt)
 		dev_context->mbox = NULL;
 	}
 	/* Reset IVA2 clocks*/
-	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK | OMAP3430_RST2_IVA2_MASK |
-			OMAP3430_RST3_IVA2_MASK, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+	(*pdata->dsp_prm_write)(OMAP3430_RST1_IVA2_MASK |
+			OMAP3430_RST2_IVA2_MASK | OMAP3430_RST3_IVA2_MASK,
+			OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	dsp_clock_disable_all(dev_context->dsp_per_clks);
 	dsp_clk_disable(DSP_CLK_IVA2);

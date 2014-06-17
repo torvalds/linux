@@ -1,18 +1,26 @@
 config BTRFS_FS
-	tristate "Btrfs filesystem (EXPERIMENTAL) Unstable disk format"
-	depends on EXPERIMENTAL
-	select LIBCRC32C
+	tristate "Btrfs filesystem support"
+	select CRYPTO
+	select CRYPTO_CRC32C
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
-	help
-	  Btrfs is a new filesystem with extents, writable snapshotting,
-	  support for multiple devices and many more features.
+	select RAID6_PQ
+	select XOR_BLOCKS
 
-	  Btrfs is highly experimental, and THE DISK FORMAT IS NOT YET
-	  FINALIZED.  You should say N here unless you are interested in
-	  testing Btrfs with non-critical data.
+	help
+	  Btrfs is a general purpose copy-on-write filesystem with extents,
+	  writable snapshotting, support for multiple devices and many more
+	  features focused on fault tolerance, repair and easy administration.
+
+	  The filesystem disk format is no longer unstable, and it's not
+	  expected to change unless there are strong reasons to do so. If there
+	  is a format change, file systems with a unchanged format will
+	  continue to be mountable and usable by newer kernels.
+
+	  For more information, please see the web pages at
+	  http://btrfs.wiki.kernel.org.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called btrfs.
@@ -50,3 +58,33 @@ config BTRFS_FS_CHECK_INTEGRITY
 	  In most cases, unless you are a btrfs developer who needs
 	  to verify the integrity of (super)-block write requests
 	  during the run of a regression test, say N
+
+config BTRFS_FS_RUN_SANITY_TESTS
+	bool "Btrfs will run sanity tests upon loading"
+	depends on BTRFS_FS
+	help
+	  This will run some basic sanity tests on the free space cache
+	  code to make sure it is acting as it should.  These are mostly
+	  regression tests and are only really interesting to btrfs
+	  developers.
+
+	  If unsure, say N.
+
+config BTRFS_DEBUG
+	bool "Btrfs debugging support"
+	depends on BTRFS_FS
+	help
+	  Enable run-time debugging support for the btrfs filesystem. This may
+	  enable additional and expensive checks with negative impact on
+	  performance, or export extra information via sysfs.
+
+	  If unsure, say N.
+
+config BTRFS_ASSERT
+	bool "Btrfs assert support"
+	depends on BTRFS_FS
+	help
+	  Enable run-time assertion checking.  This will result in panics if
+	  any of the assertions trip.  This is meant for btrfs developers only.
+
+	  If unsure, say N.

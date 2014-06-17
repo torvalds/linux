@@ -853,10 +853,10 @@ typedef struct {
 
 	u8	sglen;	/* f/w supported scatter-gather list length */
 
-	unsigned char int_cdb[MAX_COMMAND_SIZE];
 	scb_t			int_scb;
 	struct mutex		int_mtx;	/* To synchronize the internal
 						commands */
+	int			int_status;	/* status of internal cmd */
 	struct completion	int_waitq;	/* wait queue for internal
 						 cmds */
 
@@ -987,24 +987,7 @@ static int mega_init_scb (adapter_t *);
 static int mega_is_bios_enabled (adapter_t *);
 
 #ifdef CONFIG_PROC_FS
-static int mega_print_inquiry(char *, char *);
 static void mega_create_proc_entry(int, struct proc_dir_entry *);
-static int proc_read_config(char *, char **, off_t, int, int *, void *);
-static int proc_read_stat(char *, char **, off_t, int, int *, void *);
-static int proc_read_mbox(char *, char **, off_t, int, int *, void *);
-static int proc_rebuild_rate(char *, char **, off_t, int, int *, void *);
-static int proc_battery(char *, char **, off_t, int, int *, void *);
-static int proc_pdrv_ch0(char *, char **, off_t, int, int *, void *);
-static int proc_pdrv_ch1(char *, char **, off_t, int, int *, void *);
-static int proc_pdrv_ch2(char *, char **, off_t, int, int *, void *);
-static int proc_pdrv_ch3(char *, char **, off_t, int, int *, void *);
-static int proc_pdrv(adapter_t *, char *, int);
-static int proc_rdrv_10(char *, char **, off_t, int, int *, void *);
-static int proc_rdrv_20(char *, char **, off_t, int, int *, void *);
-static int proc_rdrv_30(char *, char **, off_t, int, int *, void *);
-static int proc_rdrv_40(char *, char **, off_t, int, int *, void *);
-static int proc_rdrv(adapter_t *, char *, int, int);
-
 static int mega_adapinq(adapter_t *, dma_addr_t);
 static int mega_internal_dev_inquiry(adapter_t *, u8, u8, dma_addr_t);
 #endif
@@ -1021,7 +1004,6 @@ static int mega_del_logdrv(adapter_t *, int);
 static int mega_do_del_logdrv(adapter_t *, int);
 static void mega_get_max_sgl(adapter_t *);
 static int mega_internal_command(adapter_t *, megacmd_t *, mega_passthru *);
-static void mega_internal_done(Scsi_Cmnd *);
 static int mega_support_cluster(adapter_t *);
 #endif
 

@@ -40,6 +40,7 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
+#include <linux/aio.h>
 #include <linux/jiffies.h>
 #include <linux/cpu.h>
 #include <asm/pgtable.h>
@@ -1864,9 +1865,9 @@ static int ipath_assign_port(struct file *fp,
 		goto done_chk_sdma;
 	}
 
-	i_minor = iminor(fp->f_path.dentry->d_inode) - IPATH_USER_MINOR_BASE;
+	i_minor = iminor(file_inode(fp)) - IPATH_USER_MINOR_BASE;
 	ipath_cdbg(VERBOSE, "open on dev %lx (minor %d)\n",
-		   (long)fp->f_path.dentry->d_inode->i_rdev, i_minor);
+		   (long)file_inode(fp)->i_rdev, i_minor);
 
 	if (i_minor)
 		ret = find_free_port(i_minor - 1, fp, uinfo);

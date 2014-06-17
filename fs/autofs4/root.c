@@ -41,7 +41,7 @@ const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
+	.iterate	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 	.unlocked_ioctl	= autofs4_root_ioctl,
 #ifdef CONFIG_COMPAT
@@ -53,7 +53,7 @@ const struct file_operations autofs4_dir_operations = {
 	.open		= autofs4_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
-	.readdir	= dcache_readdir,
+	.iterate	= dcache_readdir,
 	.llseek		= dcache_dir_lseek,
 };
 
@@ -179,7 +179,7 @@ static struct dentry *autofs4_lookup_active(struct dentry *dentry)
 		spin_lock(&active->d_lock);
 
 		/* Already gone? */
-		if (active->d_count == 0)
+		if ((int) d_count(active) <= 0)
 			goto next;
 
 		qstr = &active->d_name;
@@ -230,7 +230,7 @@ static struct dentry *autofs4_lookup_expiring(struct dentry *dentry)
 
 		spin_lock(&expiring->d_lock);
 
-		/* Bad luck, we've already been dentry_iput */
+		/* We've already been dentry_iput or unlinked */
 		if (!expiring->d_inode)
 			goto next;
 
@@ -383,8 +383,10 @@ static struct vfsmount *autofs4_d_automount(struct path *path)
 				goto done;
 			}
 		} else {
-			if (!simple_empty(dentry))
+			if (!simple_empty(dentry)) {
+				spin_unlock(&sbi->fs_lock);
 				goto done;
+			}
 		}
 		ino->flags |= AUTOFS_INF_PENDING;
 		spin_unlock(&sbi->fs_lock);
@@ -406,7 +408,7 @@ done:
 	return NULL;
 }
 
-int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
+static int autofs4_d_manage(struct dentry *dentry, bool rcu_walk)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
@@ -556,7 +558,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 	dget(dentry);
 	atomic_inc(&ino->count);
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
-	if (p_ino && dentry->d_parent != dentry)
+	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 
 	dir->i_mtime = CURRENT_TIME;
@@ -587,11 +589,11 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	
 	/* This allows root to remove symlinks */
 	if (!autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	if (atomic_dec_and_test(&ino->count)) {
 		p_ino = autofs4_dentry_ino(dentry->d_parent);
-		if (p_ino && dentry->d_parent != dentry)
+		if (p_ino && !IS_ROOT(dentry))
 			atomic_dec(&p_ino->count);
 	}
 	dput(ino->dentry);
@@ -730,7 +732,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, umode_t m
 	dget(dentry);
 	atomic_inc(&ino->count);
 	p_ino = autofs4_dentry_ino(dentry->d_parent);
-	if (p_ino && dentry->d_parent != dentry)
+	if (p_ino && !IS_ROOT(dentry))
 		atomic_inc(&p_ino->count);
 	inc_nlink(dir);
 	dir->i_mtime = CURRENT_TIME;
@@ -874,7 +876,7 @@ static int autofs4_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 static long autofs4_root_ioctl(struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	return autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
 }
 
@@ -882,7 +884,7 @@ static long autofs4_root_ioctl(struct file *filp,
 static long autofs4_root_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret;
 
 	if (cmd == AUTOFS_IOC_READY || cmd == AUTOFS_IOC_FAIL)

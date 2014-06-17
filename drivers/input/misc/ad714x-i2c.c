@@ -13,7 +13,7 @@
 #include <linux/pm.h>
 #include "ad714x.h"
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ad714x_i2c_suspend(struct device *dev)
 {
 	return ad714x_disable(i2c_get_clientdata(to_i2c_client(dev)));

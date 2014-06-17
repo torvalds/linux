@@ -1,9 +1,10 @@
 
 started by Ingo Molnar <mingo@redhat.com>, 2001.09.17
 2.6 port and netpoll api by Matt Mackall <mpm@selenic.com>, Sep 9 2003
+IPv6 support by Cong Wang <xiyou.wangcong@gmail.com>, Jan 1 2013
 
 Please send bug reports to Matt Mackall <mpm@selenic.com>
-and Satyam Sharma <satyam.sharma@gmail.com>
+Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
 
 Introduction:
 =============
@@ -40,6 +41,10 @@ Examples:
   or
 
  insmod netconsole netconsole=@/,@10.0.0.2/
+
+  or using IPv6
+
+ insmod netconsole netconsole=@/,@fd00:1:2:3::1/
 
 It also supports logging to multiple remote agents by specifying
 parameters for the multiple agents separated by semicolons and the

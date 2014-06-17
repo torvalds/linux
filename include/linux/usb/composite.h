@@ -39,6 +39,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/log2.h>
+#include <linux/configfs.h>
 
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
@@ -56,11 +57,66 @@
 struct usb_configuration;
 
 /**
+ * struct usb_os_desc_ext_prop - describes one "Extended Property"
+ * @entry: used to keep a list of extended properties
+ * @type: Extended Property type
+ * @name_len: Extended Property unicode name length, including terminating '\0'
+ * @name: Extended Property name
+ * @data_len: Length of Extended Property blob (for unicode store double len)
+ * @data: Extended Property blob
+ * @item: Represents this Extended Property in configfs
+ */
+struct usb_os_desc_ext_prop {
+	struct list_head	entry;
+	u8			type;
+	int			name_len;
+	char			*name;
+	int			data_len;
+	char			*data;
+	struct config_item	item;
+};
+
+/**
+ * struct usb_os_desc - describes OS descriptors associated with one interface
+ * @ext_compat_id: 16 bytes of "Compatible ID" and "Subcompatible ID"
+ * @ext_prop: Extended Properties list
+ * @ext_prop_len: Total length of Extended Properties blobs
+ * @ext_prop_count: Number of Extended Properties
+ * @opts_mutex: Optional mutex protecting config data of a usb_function_instance
+ * @group: Represents OS descriptors associated with an interface in configfs
+ * @owner: Module associated with this OS descriptor
+ */
+struct usb_os_desc {
+	char			*ext_compat_id;
+	struct list_head	ext_prop;
+	int			ext_prop_len;
+	int			ext_prop_count;
+	struct mutex		*opts_mutex;
+	struct config_group	group;
+	struct module		*owner;
+};
+
+/**
+ * struct usb_os_desc_table - describes OS descriptors associated with one
+ * interface of a usb_function
+ * @if_id: Interface id
+ * @os_desc: "Extended Compatibility ID" and "Extended Properties" of the
+ *	interface
+ *
+ * Each interface can have at most one "Extended Compatibility ID" and a
+ * number of "Extended Properties".
+ */
+struct usb_os_desc_table {
+	int			if_id;
+	struct usb_os_desc	*os_desc;
+};
+
+/**
  * struct usb_function - describes one function of a configuration
  * @name: For diagnostics, identifies the function.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
  *	and by language IDs provided in control requests
- * @descriptors: Table of full (or low) speed descriptors, using interface and
+ * @fs_descriptors: Table of full (or low) speed descriptors, using interface and
  *	string identifiers assigned during @bind().  If this pointer is null,
  *	the function will not be available at full speed (or at low speed).
  * @hs_descriptors: Table of high speed descriptors, using interface and
@@ -72,11 +128,17 @@ struct usb_configuration;
  *	be available at super speed.
  * @config: assigned when @usb_add_function() is called; this is the
  *	configuration with which this function is associated.
+ * @os_desc_table: Table of (interface id, os descriptors) pairs. The function
+ *	can expose more than one interface. If an interface is a member of
+ *	an IAD, only the first interface of IAD has its entry in the table.
+ * @os_desc_n: Number of entries in os_desc_table
  * @bind: Before the gadget can register, all of its functions bind() to the
  *	available resources including string and interface identifiers used
  *	in interface or class descriptors; endpoints; I/O buffers; and so on.
  * @unbind: Reverses @bind; called as a side effect of unregistering the
  *	driver which added this function.
+ * @free_func: free the struct usb_function.
+ * @mod: (internal) points to the module that created this structure.
  * @set_alt: (REQUIRED) Reconfigures altsettings; function drivers may
  *	initialize usb_ep.driver data at this time (when it is used).
  *	Note that setting an interface to its current altsetting resets
@@ -89,7 +151,7 @@ struct usb_configuration;
  * @suspend: Notifies functions when the host stops sending USB traffic.
  * @resume: Notifies functions when the host restarts USB traffic.
  * @get_status: Returns function status as a reply to
- *	GetStatus() request when the recepient is Interface.
+ *	GetStatus() request when the recipient is Interface.
  * @func_suspend: callback to be called when
  *	SetFeature(FUNCTION_SUSPEND) is reseived
  *
@@ -116,6 +178,7 @@ struct usb_configuration;
  * two or more distinct instances within the same configuration, providing
  * several independent logical data links to a USB host.
  */
+
 struct usb_function {
 	const char			*name;
 	struct usb_gadget_strings	**strings;
@@ -124,6 +187,9 @@ struct usb_function {
 	struct usb_descriptor_header	**ss_descriptors;
 
 	struct usb_configuration	*config;
+
+	struct usb_os_desc_table	*os_desc_table;
+	unsigned			os_desc_n;
 
 	/* REVISIT:  bind() functions can be marked __init, which
 	 * makes trouble for section mismatch analysis.  See if
@@ -136,6 +202,8 @@ struct usb_function {
 					struct usb_function *);
 	void			(*unbind)(struct usb_configuration *,
 					struct usb_function *);
+	void			(*free_func)(struct usb_function *f);
+	struct module		*mod;
 
 	/* runtime state management */
 	int			(*set_alt)(struct usb_function *,
@@ -156,6 +224,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
+	const struct usb_function_instance *fi;
 };
 
 int usb_add_function(struct usb_configuration *, struct usb_function *);
@@ -184,7 +253,8 @@ int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
  * @bConfigurationValue: Copied into configuration descriptor.
  * @iConfiguration: Copied into configuration descriptor.
  * @bmAttributes: Copied into configuration descriptor.
- * @bMaxPower: Copied into configuration descriptor.
+ * @MaxPower: Power consumtion in mA. Used to compute bMaxPower in the
+ *	configuration descriptor after considering the bus speed.
  * @cdev: assigned by @usb_add_config() before calling @bind(); this is
  *	the device associated with this configuration.
  *
@@ -230,7 +300,7 @@ struct usb_configuration {
 	u8			bConfigurationValue;
 	u8			iConfiguration;
 	u8			bmAttributes;
-	u8			bMaxPower;
+	u16			MaxPower;
 
 	struct usb_composite_dev	*cdev;
 
@@ -283,6 +353,7 @@ enum {
  *	after function notifications
  * @resume: Notifies configuration when the host restarts USB traffic,
  *	before function notifications
+ * @gadget_driver: Gadget driver controlling this driver
  *
  * Devices default to reporting self powered operation.  Devices which rely
  * on bus powered operation should report this in their @bind method.
@@ -316,13 +387,31 @@ struct usb_composite_driver {
 extern int usb_composite_probe(struct usb_composite_driver *driver);
 extern void usb_composite_unregister(struct usb_composite_driver *driver);
 extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
+extern int composite_dev_prepare(struct usb_composite_driver *composite,
+		struct usb_composite_dev *cdev);
+extern int composite_os_desc_req_prepare(struct usb_composite_dev *cdev,
+					 struct usb_ep *ep0);
+void composite_dev_cleanup(struct usb_composite_dev *cdev);
 
+static inline struct usb_composite_driver *to_cdriver(
+		struct usb_gadget_driver *gdrv)
+{
+	return container_of(gdrv, struct usb_composite_driver, gadget_driver);
+}
+
+#define OS_STRING_QW_SIGN_LEN		14
+#define OS_STRING_IDX			0xEE
 
 /**
  * struct usb_composite_device - represents one composite usb gadget
  * @gadget: read-only, abstracts the gadget's usb peripheral controller
  * @req: used for control responses; buffer is pre-allocated
+ * @os_desc_req: used for OS descriptors responses; buffer is pre-allocated
  * @config: the currently active configuration
+ * @qw_sign: qwSignature part of the OS string
+ * @b_vendor_code: bMS_VendorCode part of the OS string
+ * @use_os_string: false by default, interested gadgets set it
+ * @os_desc_config: the configuration to be used with OS descriptors
  *
  * One of these devices is allocated and initialized before the
  * associated device driver's bind() is called.
@@ -352,14 +441,22 @@ extern void usb_composite_setup_continue(struct usb_composite_dev *cdev);
 struct usb_composite_dev {
 	struct usb_gadget		*gadget;
 	struct usb_request		*req;
+	struct usb_request		*os_desc_req;
 
 	struct usb_configuration	*config;
+
+	/* OS String is a custom (yet popular) extension to the USB standard. */
+	u8				qw_sign[OS_STRING_QW_SIGN_LEN];
+	u8				b_vendor_code;
+	struct usb_configuration	*os_desc_config;
+	unsigned int			use_os_string:1;
 
 	/* private: */
 	/* internals */
 	unsigned int			suspended:1;
 	struct usb_device_descriptor	desc;
 	struct list_head		configs;
+	struct list_head		gstrings;
 	struct usb_composite_driver	*driver;
 	u8				next_string_id;
 	char				*def_manufacturer;
@@ -381,7 +478,14 @@ struct usb_composite_dev {
 extern int usb_string_id(struct usb_composite_dev *c);
 extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
+extern struct usb_string *usb_gstrings_attach(struct usb_composite_dev *cdev,
+		struct usb_gadget_strings **sp, unsigned n_strings);
+
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
+
+extern void composite_disconnect(struct usb_gadget *gadget);
+extern int composite_setup(struct usb_gadget *gadget,
+		const struct usb_ctrlrequest *ctrl);
 
 /*
  * Some systems will need runtime overrides for the  product identifiers
@@ -430,6 +534,58 @@ static inline u16 get_default_bcdDevice(void)
 	bcdDevice |= bin2bcd((LINUX_VERSION_CODE >> 8 & 0xff));
 	return bcdDevice;
 }
+
+struct usb_function_driver {
+	const char *name;
+	struct module *mod;
+	struct list_head list;
+	struct usb_function_instance *(*alloc_inst)(void);
+	struct usb_function *(*alloc_func)(struct usb_function_instance *inst);
+};
+
+struct usb_function_instance {
+	struct config_group group;
+	struct list_head cfs_list;
+	struct usb_function_driver *fd;
+	int (*set_inst_name)(struct usb_function_instance *inst,
+			      const char *name);
+	void (*free_func_inst)(struct usb_function_instance *inst);
+};
+
+void usb_function_unregister(struct usb_function_driver *f);
+int usb_function_register(struct usb_function_driver *newf);
+void usb_put_function_instance(struct usb_function_instance *fi);
+void usb_put_function(struct usb_function *f);
+struct usb_function_instance *usb_get_function_instance(const char *name);
+struct usb_function *usb_get_function(struct usb_function_instance *fi);
+
+struct usb_configuration *usb_get_config(struct usb_composite_dev *cdev,
+		int val);
+int usb_add_config_only(struct usb_composite_dev *cdev,
+		struct usb_configuration *config);
+void usb_remove_function(struct usb_configuration *c, struct usb_function *f);
+
+#define DECLARE_USB_FUNCTION(_name, _inst_alloc, _func_alloc)		\
+	static struct usb_function_driver _name ## usb_func = {		\
+		.name = __stringify(_name),				\
+		.mod  = THIS_MODULE,					\
+		.alloc_inst = _inst_alloc,				\
+		.alloc_func = _func_alloc,				\
+	};								\
+	MODULE_ALIAS("usbfunc:"__stringify(_name));
+
+#define DECLARE_USB_FUNCTION_INIT(_name, _inst_alloc, _func_alloc)	\
+	DECLARE_USB_FUNCTION(_name, _inst_alloc, _func_alloc)		\
+	static int __init _name ## mod_init(void)			\
+	{								\
+		return usb_function_register(&_name ## usb_func);	\
+	}								\
+	static void __exit _name ## mod_exit(void)			\
+	{								\
+		usb_function_unregister(&_name ## usb_func);		\
+	}								\
+	module_init(_name ## mod_init);					\
+	module_exit(_name ## mod_exit)
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

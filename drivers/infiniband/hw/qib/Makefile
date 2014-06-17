@@ -13,3 +13,4 @@ ib_qib-$(CONFIG_PCI_MSI) += qib_iba6120.o
 
 ib_qib-$(CONFIG_X86_64) += qib_wc_x86_64.o
 ib_qib-$(CONFIG_PPC64) += qib_wc_ppc64.o
+ib_qib-$(CONFIG_DEBUG_FS) += qib_debugfs.o

@@ -1,0 +1,30 @@
+ADI AXI-SPDIF controller
+
+Required properties:
+ - compatible : Must be "adi,axi-spdif-1.00.a"
+ - reg : Must contain SPDIF core's registers location and length
+ - clocks : Pairs of phandle and specifier referencing the controller's clocks.
+   The controller expects two clocks, the clock used for the AXI interface and
+   the clock used as the sampling rate reference clock sample.
+ - clock-names: "axi" for the clock to the AXI interface, "ref" for the sample
+   rate reference clock.
+ - dmas: Pairs of phandle and specifier for the DMA channel that is used by
+   the core. The core expects one dma channel for transmit.
+ - dma-names : Must be "tx"
+
+For more details on the 'dma', 'dma-names', 'clock' and 'clock-names' properties
+please check:
+	* resource-names.txt
+	* clock/clock-bindings.txt
+	* dma/dma.txt
+
+Example:
+
+	spdif: spdif@0x77400000 {
+		compatible = "adi,axi-spdif-tx-1.00.a";
+		reg = <0x77600000 0x1000>;
+		clocks = <&clk 15>, <&audio_clock>;
+		clock-names = "axi", "ref";
+		dmas = <&ps7_dma 0>;
+		dma-names = "tx";
+	};

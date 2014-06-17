@@ -49,10 +49,13 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 		{ "ASCE", "PGD", "PUD", "PMD", "PTE" };
 
 	seq_printf(m, "%s ", level_name[level]);
-	if (pr & _PAGE_INVALID)
+	if (pr & _PAGE_INVALID) {
 		seq_printf(m, "I\n");
-	else
-		seq_printf(m, "%s\n", pr & _PAGE_RO ? "RO" : "RW");
+		return;
+	}
+	seq_printf(m, "%s", pr & _PAGE_PROTECT ? "RO " : "RW ");
+	seq_printf(m, "%s", pr & _PAGE_CO ? "CO " : "   ");
+	seq_putc(m, '\n');
 }
 
 static void note_page(struct seq_file *m, struct pg_state *st,
@@ -102,12 +105,12 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 }
 
 /*
- * The actual page table walker functions. In order to keep the implementation
- * of print_prot() short, we only check and pass _PAGE_INVALID and _PAGE_RO
- * flags to note_page() if a region, segment or page table entry is invalid or
- * read-only.
- * After all it's just a hint that the current level being walked contains an
- * invalid or read-only entry.
+ * The actual page table walker functions. In order to keep the
+ * implementation of print_prot() short, we only check and pass
+ * _PAGE_INVALID and _PAGE_PROTECT flags to note_page() if a region,
+ * segment or page table entry is invalid or read-only.
+ * After all it's just a hint that the current level being walked
+ * contains an invalid or read-only entry.
  */
 static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 			   pmd_t *pmd, unsigned long addr)
@@ -119,11 +122,17 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 	for (i = 0; i < PTRS_PER_PTE && addr < max_addr; i++) {
 		st->current_address = addr;
 		pte = pte_offset_kernel(pmd, addr);
-		prot = pte_val(*pte) & (_PAGE_RO | _PAGE_INVALID);
+		prot = pte_val(*pte) & (_PAGE_PROTECT | _PAGE_INVALID);
 		note_page(m, st, prot, 4);
 		addr += PAGE_SIZE;
 	}
 }
+
+#ifdef CONFIG_64BIT
+#define _PMD_PROT_MASK (_SEGMENT_ENTRY_PROTECT | _SEGMENT_ENTRY_CO)
+#else
+#define _PMD_PROT_MASK 0
+#endif
 
 static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 			   pud_t *pud, unsigned long addr)
@@ -137,7 +146,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 		pmd = pmd_offset(pud, addr);
 		if (!pmd_none(*pmd)) {
 			if (pmd_large(*pmd)) {
-				prot = pmd_val(*pmd) & _SEGMENT_ENTRY_RO;
+				prot = pmd_val(*pmd) & _PMD_PROT_MASK;
 				note_page(m, st, prot, 3);
 			} else
 				walk_pte_level(m, st, pmd, addr);
@@ -146,6 +155,12 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 		addr += PMD_SIZE;
 	}
 }
+
+#ifdef CONFIG_64BIT
+#define _PUD_PROT_MASK (_REGION3_ENTRY_RO | _REGION3_ENTRY_CO)
+#else
+#define _PUD_PROT_MASK 0
+#endif
 
 static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 			   pgd_t *pgd, unsigned long addr)
@@ -159,7 +174,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 		pud = pud_offset(pgd, addr);
 		if (!pud_none(*pud))
 			if (pud_large(*pud)) {
-				prot = pud_val(*pud) & _PAGE_RO;
+				prot = pud_val(*pud) & _PUD_PROT_MASK;
 				note_page(m, st, prot, 2);
 			} else
 				walk_pmd_level(m, st, pud, addr);

@@ -191,7 +191,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 static void palm_bk3710_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int is_slave = drive->dn & 1;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 xferspeed = drive->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0) {
@@ -209,7 +209,7 @@ static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	unsigned int cycle_time;
 	int is_slave = drive->dn & 1;
 	ide_drive_t *mate;
-	void __iomem *base = (void *)hwif->dma_base;
+	void __iomem *base = (void __iomem *)hwif->dma_base;
 	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*

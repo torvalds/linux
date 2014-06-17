@@ -102,6 +102,11 @@ static inline int __ticket_spin_is_contended(arch_spinlock_t *lock)
 	return ((tmp - (tmp >> TICKET_SHIFT)) & TICKET_MASK) > 1;
 }
 
+static __always_inline int arch_spin_value_unlocked(arch_spinlock_t lock)
+{
+	return !(((lock.lock >> TICKET_SHIFT) ^ lock.lock) & TICKET_MASK);
+}
+
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
 	return __ticket_spin_is_locked(lock);

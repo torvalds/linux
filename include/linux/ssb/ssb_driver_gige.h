@@ -97,21 +97,26 @@ static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_BCM47XX
-#include <asm/mach-bcm47xx/nvram.h>
 /* Get the device MAC address */
-static inline void ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
+static inline int ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
 {
-	char buf[20];
-	if (nvram_getenv("et0macaddr", buf, sizeof(buf)) < 0)
-		return;
-	nvram_parse_macaddr(buf, macaddr);
+	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	memcpy(macaddr, dev->dev->bus->sprom.et0mac, 6);
+	return 0;
 }
-#else
-static inline void ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
+
+/* Get the device phy address */
+static inline int ssb_gige_get_phyaddr(struct pci_dev *pdev)
 {
+	struct ssb_gige *dev = pdev_to_ssb_gige(pdev);
+	if (!dev)
+		return -ENODEV;
+
+	return dev->dev->bus->sprom.et0phyaddr;
 }
-#endif
 
 extern int ssb_gige_pcibios_plat_dev_init(struct ssb_device *sdev,
 					  struct pci_dev *pdev);
@@ -174,6 +179,14 @@ static inline bool ssb_gige_one_dma_at_once(struct pci_dev *pdev)
 static inline bool ssb_gige_must_flush_posted_writes(struct pci_dev *pdev)
 {
 	return 0;
+}
+static inline int ssb_gige_get_macaddr(struct pci_dev *pdev, u8 *macaddr)
+{
+	return -ENODEV;
+}
+static inline int ssb_gige_get_phyaddr(struct pci_dev *pdev)
+{
+	return -ENODEV;
 }
 
 #endif /* CONFIG_SSB_DRIVER_GIGE */

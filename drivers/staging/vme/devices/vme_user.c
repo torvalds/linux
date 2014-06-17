@@ -109,7 +109,7 @@ struct driver_stats {
 	unsigned long ioctls;
 	unsigned long irqs;
 	unsigned long berrs;
-	unsigned long dmaErrors;
+	unsigned long dmaerrors;
 	unsigned long timeouts;
 	unsigned long external;
 };
@@ -147,6 +147,7 @@ static const struct file_operations vme_user_fops = {
 	.write = vme_user_write,
 	.llseek = vme_user_llseek,
 	.unlocked_ioctl = vme_user_unlocked_ioctl,
+	.compat_ioctl = vme_user_unlocked_ioctl,
 };
 
 
@@ -160,7 +161,7 @@ static void reset_counters(void)
 	statistics.ioctls = 0;
 	statistics.irqs = 0;
 	statistics.berrs = 0;
-	statistics.dmaErrors = 0;
+	statistics.dmaerrors = 0;
 	statistics.timeouts = 0;
 }
 
@@ -318,7 +319,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 	size_t okcount;
@@ -364,7 +365,7 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 static ssize_t vme_user_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 	size_t okcount;
@@ -410,7 +411,7 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
 	loff_t absolute = -1;
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	size_t image_size;
 
 	if (minor == CONTROL_MINOR)
@@ -583,7 +584,7 @@ vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int ret;
 
 	mutex_lock(&vme_user_mutex);
-	ret = vme_user_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	ret = vme_user_ioctl(file_inode(file), file, cmd, arg);
 	mutex_unlock(&vme_user_mutex);
 
 	return ret;
@@ -663,9 +664,16 @@ err_nocard:
 
 static int vme_user_match(struct vme_dev *vdev)
 {
-	if (vdev->num >= VME_USER_BUS_MAX)
-		return 0;
-	return 1;
+	int i;
+
+	int cur_bus = vme_bus_num(vdev);
+	int cur_slot = vme_slot_num(vdev);
+
+	for (i = 0; i < bus_num; i++)
+		if ((cur_bus == bus[i]) && (cur_slot == vdev->num))
+			return 1;
+
+	return 0;
 }
 
 /*
@@ -676,7 +684,7 @@ static int vme_user_match(struct vme_dev *vdev)
 static int vme_user_probe(struct vme_dev *vdev)
 {
 	int i, err;
-	char name[12];
+	char *name;
 
 	/* Save pointer to the bridge device */
 	if (vme_user_bridge != NULL) {
@@ -710,6 +718,10 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 	/* Register the driver as a char device */
 	vme_user_cdev = cdev_alloc();
+	if (!vme_user_cdev) {
+		err = -ENOMEM;
+		goto err_char;
+	}
 	vme_user_cdev->ops = &vme_user_fops;
 	vme_user_cdev->owner = THIS_MODULE;
 	err = cdev_add(vme_user_cdev, MKDEV(VME_MAJOR, 0), VME_DEVS);
@@ -730,6 +742,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		if (image[i].resource == NULL) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
+			err = -ENOMEM;
 			goto err_slave;
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
@@ -756,15 +769,15 @@ static int vme_user_probe(struct vme_dev *vdev)
 		if (image[i].resource == NULL) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
+			err = -ENOMEM;
 			goto err_master;
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
 		if (image[i].kern_buf == NULL) {
-			dev_warn(&vdev->dev,
-				 "Unable to allocate memory for master window buffers\n");
 			err = -ENOMEM;
-			goto err_master_buf;
+			vme_master_free(image[i].resource);
+			goto err_master;
 		}
 	}
 
@@ -779,15 +792,16 @@ static int vme_user_probe(struct vme_dev *vdev)
 	/* Add sysfs Entries */
 	for (i = 0; i < VME_DEVS; i++) {
 		int num;
+
 		switch (type[i]) {
 		case MASTER_MINOR:
-			sprintf(name, "bus/vme/m%%d");
+			name = "bus/vme/m%d";
 			break;
 		case CONTROL_MINOR:
-			sprintf(name, "bus/vme/ctl");
+			name = "bus/vme/ctl";
 			break;
 		case SLAVE_MINOR:
-			sprintf(name, "bus/vme/s%%d");
+			name = "bus/vme/s%d";
 			break;
 		default:
 			err = -EINVAL;
@@ -807,8 +821,6 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 	return 0;
 
-	/* Ensure counter set correcty to destroy all sysfs devices */
-	i = VME_DEVS;
 err_sysfs:
 	while (i > 0) {
 		i--;
@@ -818,12 +830,10 @@ err_sysfs:
 
 	/* Ensure counter set correcty to unalloc all master windows */
 	i = MASTER_MAX + 1;
-err_master_buf:
-	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
-		kfree(image[i].kern_buf);
 err_master:
 	while (i > MASTER_MINOR) {
 		i--;
+		kfree(image[i].kern_buf);
 		vme_master_free(image[i].resource);
 	}
 

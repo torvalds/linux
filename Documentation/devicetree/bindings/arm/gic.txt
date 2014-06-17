@@ -11,6 +11,7 @@ have PPIs or SGIs.
 Main node required properties:
 
 - compatible : should be one of:
+	"arm,gic-400"
 	"arm,cortex-a15-gic"
 	"arm,cortex-a9-gic"
 	"arm,cortex-a7-gic"
@@ -42,13 +43,18 @@ Main node required properties:
 
 Optional
 - interrupts	: Interrupt source of the parent interrupt controller on
-  secondary GICs, or VGIC maintainance interrupt on primary GIC (see
+  secondary GICs, or VGIC maintenance interrupt on primary GIC (see
   below).
 
 - cpu-offset	: per-cpu offset within the distributor and cpu interface
   regions, used when the GIC doesn't have banked registers. The offset is
   cpu-offset * cpu-nr.
 
+- arm,routable-irqs : Total number of gic irq inputs which are not directly
+		  connected from the peripherals, but are routed dynamically
+		  by a crossbar/multiplexer preceding the GIC. The GIC irq
+		  input line is assigned dynamically when the corresponding
+		  peripheral's crossbar line is mapped.
 Example:
 
 	intc: interrupt-controller@fff11000 {
@@ -56,6 +62,7 @@ Example:
 		#interrupt-cells = <3>;
 		#address-cells = <1>;
 		interrupt-controller;
+		arm,routable-irqs = <160>;
 		reg = <0xfff11000 0x1000>,
 		      <0xfff10100 0x100>;
 	};
@@ -74,7 +81,7 @@ Required properties:
   virtual interface control register base and size. The 2nd additional
   region is the GIC virtual cpu interface register base and size.
 
-- interrupts : VGIC maintainance interrupt.
+- interrupts : VGIC maintenance interrupt.
 
 Example:
 

@@ -10,7 +10,7 @@
 #define _LTQ_PROM_H__
 
 #define LTQ_SYS_TYPE_LEN	0x100
-#define LTQ_SYS_REV_LEN         0x10
+#define LTQ_SYS_REV_LEN		0x10
 
 struct ltq_soc_info {
 	unsigned char *name;
@@ -25,7 +25,5 @@ struct ltq_soc_info {
 
 extern void ltq_soc_detect(struct ltq_soc_info *i);
 extern void ltq_soc_init(void);
-
-extern struct boot_param_header __dtb_start;
 
 #endif

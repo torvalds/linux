@@ -2615,8 +2615,8 @@ static int dbri_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_dbri), &card);
+	err = snd_card_new(&op->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_dbri), &card);
 	if (err < 0)
 		return err;
 
@@ -2669,8 +2669,6 @@ static int dbri_remove(struct platform_device *op)
 
 	snd_dbri_free(card->private_data);
 	snd_card_free(card);
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;
 }

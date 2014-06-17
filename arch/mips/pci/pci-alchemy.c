@@ -16,10 +16,11 @@
 #include <linux/syscore_ops.h>
 #include <linux/vmalloc.h>
 
+#include <asm/dma-coherence.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/tlbmisc.h>
 
-#ifdef CONFIG_DEBUG_PCI
+#ifdef CONFIG_PCI_DEBUG
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...) do {} while (0)
@@ -29,7 +30,7 @@
 #define PCI_ACCESS_WRITE	1
 
 struct alchemy_pci_context {
-	struct pci_controller alchemy_pci_ctrl;	/* leave as first member! */
+	struct pci_controller alchemy_pci_ctrl; /* leave as first member! */
 	void __iomem *regs;			/* ctrl base */
 	/* tools for wired entry for config space access */
 	unsigned long last_elo0;
@@ -162,7 +163,7 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 	if (status & (1 << 29)) {
 		*data = 0xffffffff;
 		error = -1;
-		DBG("alchemy-pci: master abort on cfg access %d bus %d dev %d",
+		DBG("alchemy-pci: master abort on cfg access %d bus %d dev %d\n",
 		    access_type, bus->number, device);
 	} else if ((status >> 28) & 0xf) {
 		DBG("alchemy-pci: PCI ERR detected: dev %d, status %lx\n",
@@ -381,7 +382,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no  pcictl ctrl regs resource\n");
+		dev_err(&pdev->dev, "no	 pcictl ctrl regs resource\n");
 		ret = -ENODEV;
 		goto out1;
 	}
@@ -411,17 +412,15 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 	}
 	ctx->alchemy_pci_ctrl.io_map_base = (unsigned long)virt_io;
 
-#ifdef CONFIG_DMA_NONCOHERENT
 	/* Au1500 revisions older than AD have borked coherent PCI */
 	if ((alchemy_get_cputype() == ALCHEMY_CPU_AU1500) &&
-	    (read_c0_prid() < 0x01030202)) {
+	    (read_c0_prid() < 0x01030202) && !coherentio) {
 		val = __raw_readl(ctx->regs + PCI_REG_CONFIG);
 		val |= PCI_CONFIG_NC;
 		__raw_writel(val, ctx->regs + PCI_REG_CONFIG);
 		wmb();
 		dev_info(&pdev->dev, "non-coherent PCI on Au1500 AA/AB/AC\n");
 	}
-#endif
 
 	if (pd->board_map_irq)
 		ctx->board_map_irq = pd->board_map_irq;
@@ -482,7 +481,7 @@ out:
 
 static struct platform_driver alchemy_pcictl_driver = {
 	.probe		= alchemy_pci_probe,
-	.driver	= {
+	.driver = {
 		.name	= "alchemy-pci",
 		.owner	= THIS_MODULE,
 	},

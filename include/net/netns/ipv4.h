@@ -15,6 +15,15 @@ struct fib_rules_ops;
 struct hlist_head;
 struct fib_table;
 struct sock;
+struct local_ports {
+	seqlock_t	lock;
+	int		range[2];
+};
+
+struct ping_group_range {
+	seqlock_t	lock;
+	kgid_t		range[2];
+};
 
 struct netns_ipv4 {
 #ifdef CONFIG_SYSCTL
@@ -22,6 +31,7 @@ struct netns_ipv4 {
 	struct ctl_table_header	*frags_hdr;
 	struct ctl_table_header	*ipv4_hdr;
 	struct ctl_table_header *route_hdr;
+	struct ctl_table_header *xfrm4_hdr;
 #endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;
@@ -61,10 +71,22 @@ struct netns_ipv4 {
 	int sysctl_icmp_ratemask;
 	int sysctl_icmp_errors_use_inbound_ifaddr;
 
-	kgid_t sysctl_ping_group_range[2];
-	long sysctl_tcp_mem[3];
+	struct local_ports ip_local_ports;
+
+	int sysctl_tcp_ecn;
+	int sysctl_ip_no_pmtu_disc;
+	int sysctl_ip_fwd_use_pmtu;
+
+	int sysctl_fwmark_reflect;
+	int sysctl_tcp_fwmark_accept;
+
+	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;
+
+#ifdef CONFIG_SYSCTL
+	unsigned long *sysctl_local_reserved_ports;
+#endif
 
 #ifdef CONFIG_IP_MROUTE
 #ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES
@@ -74,5 +96,6 @@ struct netns_ipv4 {
 	struct fib_rules_ops	*mr_rules_ops;
 #endif
 #endif
+	atomic_t	rt_genid;
 };
 #endif

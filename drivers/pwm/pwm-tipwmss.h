@@ -18,7 +18,6 @@
 #ifndef __TIPWMSS_H
 #define __TIPWMSS_H
 
-#ifdef CONFIG_PWM_TIPWMSS
 /* PWM substem clock gating */
 #define PWMSS_ECAPCLK_EN	BIT(0)
 #define PWMSS_ECAPCLK_STOP_REQ	BIT(1)
@@ -28,6 +27,7 @@
 #define PWMSS_ECAPCLK_EN_ACK	BIT(0)
 #define PWMSS_EPWMCLK_EN_ACK	BIT(8)
 
+#ifdef CONFIG_PWM_TIPWMSS
 extern u16 pwmss_submodule_state_change(struct device *dev, int set);
 #else
 static inline u16 pwmss_submodule_state_change(struct device *dev, int set)

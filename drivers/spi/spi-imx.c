@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -37,7 +36,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
-#include <linux/pinctrl/consumer.h>
 
 #include <linux/platform_data/spi-imx.h>
 
@@ -207,7 +205,8 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 #define MX51_ECSPI_STAT_RR		(1 <<  3)
 
 /* MX51 eCSPI */
-static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi)
+static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi,
+				      unsigned int *fres)
 {
 	/*
 	 * there are two 4-bit dividers, the pre-divider divides by
@@ -235,6 +234,10 @@ static unsigned int mx51_ecspi_clkdiv(unsigned int fin, unsigned int fspi)
 
 	pr_debug("%s: fin: %u, fspi: %u, post: %u, pre: %u\n",
 			__func__, fin, fspi, post, pre);
+
+	/* Resulting frequency for the SCLK line. */
+	*fres = (fin / (pre + 1)) >> post;
+
 	return (pre << MX51_ECSPI_CTRL_PREDIV_OFFSET) |
 		(post << MX51_ECSPI_CTRL_POSTDIV_OFFSET);
 }
@@ -265,6 +268,7 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 		struct spi_imx_config *config)
 {
 	u32 ctrl = MX51_ECSPI_CTRL_ENABLE, cfg = 0;
+	u32 clk = config->speed_hz, delay;
 
 	/*
 	 * The hardware seems to have a race condition when changing modes. The
@@ -276,7 +280,7 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	ctrl |= MX51_ECSPI_CTRL_MODE_MASK;
 
 	/* set clock speed */
-	ctrl |= mx51_ecspi_clkdiv(spi_imx->spi_clk, config->speed_hz);
+	ctrl |= mx51_ecspi_clkdiv(spi_imx->spi_clk, config->speed_hz, &clk);
 
 	/* set chip select to use */
 	ctrl |= MX51_ECSPI_CTRL_CS(config->cs);
@@ -297,6 +301,23 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
 	writel(cfg, spi_imx->base + MX51_ECSPI_CONFIG);
+
+	/*
+	 * Wait until the changes in the configuration register CONFIGREG
+	 * propagate into the hardware. It takes exactly one tick of the
+	 * SCLK clock, but we will wait two SCLK clock just to be sure. The
+	 * effect of the delay it takes for the hardware to apply changes
+	 * is noticable if the SCLK clock run very slow. In such a case, if
+	 * the polarity of SCLK should be inverted, the GPIO ChipSelect might
+	 * be asserted before the SCLK polarity changes, which would disrupt
+	 * the SPI communication as the device on the other end would consider
+	 * the change of SCLK polarity as a clock tick already.
+	 */
+	delay = (2 * 1000000) / clk;
+	if (likely(delay < 10))	/* SCLK is faster than 100 kHz */
+		udelay(delay);
+	else			/* SCLK is _very_ slow */
+		usleep_range(delay, delay + 10);
 
 	return 0;
 }
@@ -620,6 +641,7 @@ static const struct of_device_id spi_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx51-ecspi", .data = &imx51_ecspi_devtype_data, },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, spi_imx_dt_ids);
 
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 {
@@ -698,11 +720,10 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	} else if (config.bpw <= 16) {
 		spi_imx->rx = spi_imx_buf_rx_u16;
 		spi_imx->tx = spi_imx_buf_tx_u16;
-	} else if (config.bpw <= 32) {
+	} else {
 		spi_imx->rx = spi_imx_buf_rx_u32;
 		spi_imx->tx = spi_imx_buf_tx_u32;
-	} else
-		BUG();
+	}
 
 	spi_imx->devtype_data->config(spi_imx, &config);
 
@@ -719,7 +740,7 @@ static int spi_imx_transfer(struct spi_device *spi,
 	spi_imx->count = transfer->len;
 	spi_imx->txfifo = 0;
 
-	init_completion(&spi_imx->xfer_done);
+	reinit_completion(&spi_imx->xfer_done);
 
 	spi_imx_push(spi_imx);
 
@@ -750,6 +771,35 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
+static int
+spi_imx_prepare_message(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+	int ret;
+
+	ret = clk_enable(spi_imx->clk_per);
+	if (ret)
+		return ret;
+
+	ret = clk_enable(spi_imx->clk_ipg);
+	if (ret) {
+		clk_disable(spi_imx->clk_per);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+spi_imx_unprepare_message(struct spi_master *master, struct spi_message *msg)
+{
+	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
+
+	clk_disable(spi_imx->clk_ipg);
+	clk_disable(spi_imx->clk_per);
+	return 0;
+}
+
 static int spi_imx_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -760,7 +810,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	struct pinctrl *pinctrl;
 	int i, ret, num_cs;
 
 	if (!np && !mxc_platform_info) {
@@ -783,11 +832,12 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->bus_num = pdev->id;
 	master->num_chipselect = num_cs;
 
 	spi_imx = spi_master_get_devdata(master);
-	spi_imx->bitbang.master = spi_master_get(master);
+	spi_imx->bitbang.master = master;
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
@@ -798,10 +848,11 @@ static int spi_imx_probe(struct platform_device *pdev)
 		if (!gpio_is_valid(cs_gpio))
 			continue;
 
-		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
+		ret = devm_gpio_request(&pdev->dev, spi_imx->chipselect[i],
+					DRIVER_NAME);
 		if (ret) {
 			dev_err(&pdev->dev, "can't get cs gpios\n");
-			goto out_gpio_free;
+			goto out_master_put;
 		}
 	}
 
@@ -810,6 +861,8 @@ static int spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.txrx_bufs = spi_imx_transfer;
 	spi_imx->bitbang.master->setup = spi_imx_setup;
 	spi_imx->bitbang.master->cleanup = spi_imx_cleanup;
+	spi_imx->bitbang.master->prepare_message = spi_imx_prepare_message;
+	spi_imx->bitbang.master->unprepare_message = spi_imx_unprepare_message;
 	spi_imx->bitbang.master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
 	init_completion(&spi_imx->xfer_done);
@@ -818,56 +871,44 @@ static int spi_imx_probe(struct platform_device *pdev)
 		(struct spi_imx_devtype_data *) pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get platform resource\n");
-		ret = -ENOMEM;
-		goto out_gpio_free;
-	}
-
-	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		ret = -EBUSY;
-		goto out_gpio_free;
-	}
-
-	spi_imx->base = ioremap(res->start, resource_size(res));
-	if (!spi_imx->base) {
-		ret = -EINVAL;
-		goto out_release_mem;
+	spi_imx->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(spi_imx->base)) {
+		ret = PTR_ERR(spi_imx->base);
+		goto out_master_put;
 	}
 
 	spi_imx->irq = platform_get_irq(pdev, 0);
 	if (spi_imx->irq < 0) {
-		ret = -EINVAL;
-		goto out_iounmap;
+		ret = spi_imx->irq;
+		goto out_master_put;
 	}
 
-	ret = request_irq(spi_imx->irq, spi_imx_isr, 0, DRIVER_NAME, spi_imx);
+	ret = devm_request_irq(&pdev->dev, spi_imx->irq, spi_imx_isr, 0,
+			       dev_name(&pdev->dev), spi_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't get irq%d: %d\n", spi_imx->irq, ret);
-		goto out_iounmap;
-	}
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
 	spi_imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(spi_imx->clk_ipg)) {
 		ret = PTR_ERR(spi_imx->clk_ipg);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
 	spi_imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(spi_imx->clk_per)) {
 		ret = PTR_ERR(spi_imx->clk_per);
-		goto out_free_irq;
+		goto out_master_put;
 	}
 
-	clk_prepare_enable(spi_imx->clk_per);
-	clk_prepare_enable(spi_imx->clk_ipg);
+	ret = clk_prepare_enable(spi_imx->clk_per);
+	if (ret)
+		goto out_master_put;
+
+	ret = clk_prepare_enable(spi_imx->clk_ipg);
+	if (ret)
+		goto out_put_per;
 
 	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 
@@ -884,52 +925,31 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "probed\n");
 
+	clk_disable(spi_imx->clk_ipg);
+	clk_disable(spi_imx->clk_per);
 	return ret;
 
 out_clk_put:
-	clk_disable_unprepare(spi_imx->clk_per);
 	clk_disable_unprepare(spi_imx->clk_ipg);
-out_free_irq:
-	free_irq(spi_imx->irq, spi_imx);
-out_iounmap:
-	iounmap(spi_imx->base);
-out_release_mem:
-	release_mem_region(res->start, resource_size(res));
-out_gpio_free:
-	while (--i >= 0) {
-		if (gpio_is_valid(spi_imx->chipselect[i]))
-			gpio_free(spi_imx->chipselect[i]);
-	}
+out_put_per:
+	clk_disable_unprepare(spi_imx->clk_per);
+out_master_put:
 	spi_master_put(master);
-	kfree(master);
-	platform_set_drvdata(pdev, NULL);
+
 	return ret;
 }
 
 static int spi_imx_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
-	int i;
 
 	spi_bitbang_stop(&spi_imx->bitbang);
 
 	writel(0, spi_imx->base + MXC_CSPICTRL);
-	clk_disable_unprepare(spi_imx->clk_per);
-	clk_disable_unprepare(spi_imx->clk_ipg);
-	free_irq(spi_imx->irq, spi_imx);
-	iounmap(spi_imx->base);
-
-	for (i = 0; i < master->num_chipselect; i++)
-		if (gpio_is_valid(spi_imx->chipselect[i]))
-			gpio_free(spi_imx->chipselect[i]);
-
+	clk_unprepare(spi_imx->clk_ipg);
+	clk_unprepare(spi_imx->clk_per);
 	spi_master_put(master);
-
-	release_mem_region(res->start, resource_size(res));
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -949,3 +969,4 @@ module_platform_driver(spi_imx_driver);
 MODULE_DESCRIPTION("SPI Master Controller driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

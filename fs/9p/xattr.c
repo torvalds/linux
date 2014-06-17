@@ -111,19 +111,26 @@ ssize_t v9fs_xattr_get(struct dentry *dentry, const char *name,
 int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		   const void *value, size_t value_len, int flags)
 {
+	struct p9_fid *fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+	return v9fs_fid_xattr_set(fid, name, value, value_len, flags);
+}
+
+int v9fs_fid_xattr_set(struct p9_fid *fid, const char *name,
+		   const void *value, size_t value_len, int flags)
+{
 	u64 offset = 0;
 	int retval, msize, write_count;
-	struct p9_fid *fid = NULL;
 
 	p9_debug(P9_DEBUG_VFS, "name = %s value_len = %zu flags = %d\n",
 		 name, value_len, flags);
 
-	fid = v9fs_fid_clone(dentry);
-	if (IS_ERR(fid)) {
-		retval = PTR_ERR(fid);
-		fid = NULL;
-		goto error;
-	}
+	/* Clone it */
+	fid = p9_client_walk(fid, 0, NULL, 1);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+
 	/*
 	 * On success fid points to xattr
 	 */
@@ -131,7 +138,7 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 	if (retval < 0) {
 		p9_debug(P9_DEBUG_VFS, "p9_client_xattrcreate failed %d\n",
 			 retval);
-		goto error;
+		goto err;
 	}
 	msize = fid->clnt->msize;
 	while (value_len) {
@@ -144,16 +151,14 @@ int v9fs_xattr_set(struct dentry *dentry, const char *name,
 		if (write_count < 0) {
 			/* error in xattr write */
 			retval = write_count;
-			goto error;
+			goto err;
 		}
 		offset += write_count;
 		value_len -= write_count;
 	}
-	/* Total read xattr bytes */
-	retval = offset;
-error:
-	if (fid)
-		retval = p9_client_clunk(fid);
+	retval = 0;
+err:
+	p9_client_clunk(fid);
 	return retval;
 }
 
@@ -164,9 +169,13 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 const struct xattr_handler *v9fs_xattr_handlers[] = {
 	&v9fs_xattr_user_handler,
+	&v9fs_xattr_trusted_handler,
 #ifdef CONFIG_9P_FS_POSIX_ACL
 	&v9fs_xattr_acl_access_handler,
 	&v9fs_xattr_acl_default_handler,
+#endif
+#ifdef CONFIG_9P_FS_SECURITY
+	&v9fs_xattr_security_handler,
 #endif
 	NULL
 };

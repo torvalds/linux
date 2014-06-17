@@ -154,10 +154,13 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_BIGENDIAN_MODE     0x200
 #define HDSP_RD_MULTIPLE        0x400
 #define HDSP_9652_ENABLE_MIXER  0x800
+#define HDSP_S200		0x800
+#define HDSP_S300		(0x100 | HDSP_S200) /* dummy, purpose of 0x100 unknown */
+#define HDSP_CYCLIC_MODE	0x1000
 #define HDSP_TDO                0x10000000
 
-#define HDSP_S_PROGRAM     	(HDSP_PROGRAM|HDSP_CONFIG_MODE_0)
-#define HDSP_S_LOAD		(HDSP_PROGRAM|HDSP_CONFIG_MODE_1)
+#define HDSP_S_PROGRAM	    (HDSP_CYCLIC_MODE|HDSP_PROGRAM|HDSP_CONFIG_MODE_0)
+#define HDSP_S_LOAD	    (HDSP_CYCLIC_MODE|HDSP_PROGRAM|HDSP_CONFIG_MODE_1)
 
 /* Control Register bits */
 
@@ -581,10 +584,6 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 {
 	dmab->dev.type = SNDRV_DMA_TYPE_DEV;
 	dmab->dev.dev = snd_dma_pci_data(pci);
-	if (snd_dma_get_reserved_buf(dmab, snd_dma_pci_buf_id(pci))) {
-		if (dmab->bytes >= size)
-			return 0;
-	}
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				size, dmab) < 0)
 		return -ENOMEM;
@@ -593,10 +592,8 @@ static int snd_hammerfall_get_buffer(struct pci_dev *pci, struct snd_dma_buffer 
 
 static void snd_hammerfall_free_buffer(struct snd_dma_buffer *dmab, struct pci_dev *pci)
 {
-	if (dmab->area) {
-		dmab->dev.dev = NULL; /* make it anonymous */
-		snd_dma_reserve_buf(dmab, snd_dma_pci_buf_id(pci));
-	}
+	if (dmab->area)
+		snd_dma_free_pages(dmab);
 }
 
 
@@ -671,13 +668,24 @@ static unsigned int hdsp_read(struct hdsp *hdsp, int reg)
 
 static int hdsp_check_for_iobox (struct hdsp *hdsp)
 {
+	int i;
+
 	if (hdsp->io_type == H9652 || hdsp->io_type == H9632) return 0;
-	if (hdsp_read (hdsp, HDSP_statusRegister) & HDSP_ConfigError) {
-		snd_printk("Hammerfall-DSP: no IO box connected!\n");
-		hdsp->state &= ~HDSP_FirmwareLoaded;
-		return -EIO;
+	for (i = 0; i < 500; i++) {
+		if (0 == (hdsp_read(hdsp, HDSP_statusRegister) &
+					HDSP_ConfigError)) {
+			if (i) {
+				dev_dbg(hdsp->card->dev,
+					"IO box found after %d ms\n",
+						(20 * i));
+			}
+			return 0;
+		}
+		msleep(20);
 	}
-	return 0;
+	dev_err(hdsp->card->dev, "no IO box connected!\n");
+	hdsp->state &= ~HDSP_FirmwareLoaded;
+	return -EIO;
 }
 
 static int hdsp_wait_for_iobox(struct hdsp *hdsp, unsigned int loops,
@@ -692,13 +700,13 @@ static int hdsp_wait_for_iobox(struct hdsp *hdsp, unsigned int loops,
 		if (hdsp_read(hdsp, HDSP_statusRegister) & HDSP_ConfigError)
 			msleep(delay);
 		else {
-			snd_printd("Hammerfall-DSP: iobox found after %ums!\n",
+			dev_dbg(hdsp->card->dev, "iobox found after %ums!\n",
 				   i * delay);
 			return 0;
 		}
 	}
 
-	snd_printk("Hammerfall-DSP: no IO box connected!\n");
+	dev_info(hdsp->card->dev, "no IO box connected!\n");
 	hdsp->state &= ~HDSP_FirmwareLoaded;
 	return -EIO;
 }
@@ -721,13 +729,15 @@ static int snd_hdsp_load_firmware_from_cache(struct hdsp *hdsp) {
 
 	if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 
-		snd_printk ("Hammerfall-DSP: loading firmware\n");
+		dev_info(hdsp->card->dev, "loading firmware\n");
 
 		hdsp_write (hdsp, HDSP_control2Reg, HDSP_S_PROGRAM);
 		hdsp_write (hdsp, HDSP_fifoData, 0);
 
 		if (hdsp_fifo_wait (hdsp, 0, HDSP_LONG_WAIT)) {
-			snd_printk ("Hammerfall-DSP: timeout waiting for download preparation\n");
+			dev_info(hdsp->card->dev,
+				 "timeout waiting for download preparation\n");
+			hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200);
 			return -EIO;
 		}
 
@@ -736,29 +746,29 @@ static int snd_hdsp_load_firmware_from_cache(struct hdsp *hdsp) {
 		for (i = 0; i < HDSP_FIRMWARE_SIZE / 4; ++i) {
 			hdsp_write(hdsp, HDSP_fifoData, cache[i]);
 			if (hdsp_fifo_wait (hdsp, 127, HDSP_LONG_WAIT)) {
-				snd_printk ("Hammerfall-DSP: timeout during firmware loading\n");
+				dev_info(hdsp->card->dev,
+					 "timeout during firmware loading\n");
+				hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200);
 				return -EIO;
 			}
 		}
 
+		hdsp_fifo_wait(hdsp, 3, HDSP_LONG_WAIT);
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200);
+
 		ssleep(3);
-
-		if (hdsp_fifo_wait (hdsp, 0, HDSP_LONG_WAIT)) {
-			snd_printk ("Hammerfall-DSP: timeout at end of firmware loading\n");
-		    	return -EIO;
-		}
-
 #ifdef SNDRV_BIG_ENDIAN
 		hdsp->control2_register = HDSP_BIGENDIAN_MODE;
 #else
 		hdsp->control2_register = 0;
 #endif
 		hdsp_write (hdsp, HDSP_control2Reg, hdsp->control2_register);
-		snd_printk ("Hammerfall-DSP: finished firmware loading\n");
+		dev_info(hdsp->card->dev, "finished firmware loading\n");
 
 	}
 	if (hdsp->state & HDSP_InitializationComplete) {
-		snd_printk(KERN_INFO "Hammerfall-DSP: firmware loaded from cache, restoring defaults\n");
+		dev_info(hdsp->card->dev,
+			 "firmware loaded from cache, restoring defaults\n");
 		spin_lock_irqsave(&hdsp->lock, flags);
 		snd_hdsp_set_defaults(hdsp);
 		spin_unlock_irqrestore(&hdsp->lock, flags);
@@ -773,24 +783,51 @@ static int hdsp_get_iobox_version (struct hdsp *hdsp)
 {
 	if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 
-		hdsp_write (hdsp, HDSP_control2Reg, HDSP_PROGRAM);
-		hdsp_write (hdsp, HDSP_fifoData, 0);
-		if (hdsp_fifo_wait (hdsp, 0, HDSP_SHORT_WAIT) < 0)
-			return -EIO;
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
+		hdsp_write(hdsp, HDSP_fifoData, 0);
 
-		hdsp_write (hdsp, HDSP_control2Reg, HDSP_S_LOAD);
-		hdsp_write (hdsp, HDSP_fifoData, 0);
-
-		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT)) {
-			hdsp_write(hdsp, HDSP_control2Reg, HDSP_VERSION_BIT);
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
+			hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
 			hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
-			if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT))
-				hdsp->io_type = RPM;
-			else
-				hdsp->io_type = Multiface;
-		} else {
-			hdsp->io_type = Digiface;
 		}
+
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S200 | HDSP_PROGRAM);
+		hdsp_write (hdsp, HDSP_fifoData, 0);
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
+			hdsp->io_type = Multiface;
+			dev_info(hdsp->card->dev, "Multiface found\n");
+			return 0;
+		}
+
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
+		hdsp_write(hdsp, HDSP_fifoData, 0);
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0) {
+			hdsp->io_type = Digiface;
+			dev_info(hdsp->card->dev, "Digiface found\n");
+			return 0;
+		}
+
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
+		hdsp_write(hdsp, HDSP_fifoData, 0);
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) == 0) {
+			hdsp->io_type = Multiface;
+			dev_info(hdsp->card->dev, "Multiface found\n");
+			return 0;
+		}
+
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S300);
+		hdsp_write(hdsp, HDSP_control2Reg, HDSP_S_LOAD);
+		hdsp_write(hdsp, HDSP_fifoData, 0);
+		if (hdsp_fifo_wait(hdsp, 0, HDSP_SHORT_WAIT) < 0) {
+			hdsp->io_type = Multiface;
+			dev_info(hdsp->card->dev, "Multiface found\n");
+			return 0;
+		}
+
+		hdsp->io_type = RPM;
+		dev_info(hdsp->card->dev, "RPM found\n");
+		return 0;
 	} else {
 		/* firmware was already loaded, get iobox type */
 		if (hdsp_read(hdsp, HDSP_status2Register) & HDSP_version2)
@@ -814,20 +851,18 @@ static int hdsp_check_for_firmware (struct hdsp *hdsp, int load_on_demand)
 		hdsp->state &= ~HDSP_FirmwareLoaded;
 		if (! load_on_demand)
 			return -EIO;
-		snd_printk(KERN_ERR "Hammerfall-DSP: firmware not present.\n");
+		dev_err(hdsp->card->dev, "firmware not present.\n");
 		/* try to load firmware */
 		if (! (hdsp->state & HDSP_FirmwareCached)) {
 			if (! hdsp_request_fw_loader(hdsp))
 				return 0;
-			snd_printk(KERN_ERR
-				   "Hammerfall-DSP: No firmware loaded nor "
-				   "cached, please upload firmware.\n");
+			dev_err(hdsp->card->dev,
+				   "No firmware loaded nor cached, please upload firmware.\n");
 			return -EIO;
 		}
 		if (snd_hdsp_load_firmware_from_cache(hdsp) != 0) {
-			snd_printk(KERN_ERR
-				   "Hammerfall-DSP: Firmware loading from "
-				   "cache failed, please upload manually.\n");
+			dev_err(hdsp->card->dev,
+				   "Firmware loading from cache failed, please upload manually.\n");
 			return -EIO;
 		}
 	}
@@ -855,7 +890,8 @@ static int hdsp_fifo_wait(struct hdsp *hdsp, int count, int timeout)
 		udelay (100);
 	}
 
-	snd_printk ("Hammerfall-DSP: wait for FIFO status <= %d failed after %d iterations\n",
+	dev_warn(hdsp->card->dev,
+		 "wait for FIFO status <= %d failed after %d iterations\n",
 		    count, timeout);
 	return -1;
 }
@@ -972,7 +1008,9 @@ static int hdsp_spdif_sample_rate(struct hdsp *hdsp)
 	default:
 		break;
 	}
-	snd_printk ("Hammerfall-DSP: unknown spdif frequency status; bits = 0x%x, status = 0x%x\n", rate_bits, status);
+	dev_warn(hdsp->card->dev,
+		 "unknown spdif frequency status; bits = 0x%x, status = 0x%x\n",
+		 rate_bits, status);
 	return 0;
 }
 
@@ -1106,7 +1144,8 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 	if (!(hdsp->control_register & HDSP_ClockModeMaster)) {
 		if (called_internally) {
 			/* request from ctl or card initialization */
-			snd_printk(KERN_ERR "Hammerfall-DSP: device is not running as a clock master: cannot set sample rate.\n");
+			dev_err(hdsp->card->dev,
+				"device is not running as a clock master: cannot set sample rate.\n");
 			return -1;
 		} else {
 			/* hw_param request while in AutoSync mode */
@@ -1114,11 +1153,14 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 			int spdif_freq = hdsp_spdif_sample_rate(hdsp);
 
 			if ((spdif_freq == external_freq*2) && (hdsp_autosync_ref(hdsp) >= HDSP_AUTOSYNC_FROM_ADAT1))
-				snd_printk(KERN_INFO "Hammerfall-DSP: Detected ADAT in double speed mode\n");
+				dev_info(hdsp->card->dev,
+					 "Detected ADAT in double speed mode\n");
 			else if (hdsp->io_type == H9632 && (spdif_freq == external_freq*4) && (hdsp_autosync_ref(hdsp) >= HDSP_AUTOSYNC_FROM_ADAT1))
-				snd_printk(KERN_INFO "Hammerfall-DSP: Detected ADAT in quad speed mode\n");
+				dev_info(hdsp->card->dev,
+					 "Detected ADAT in quad speed mode\n");
 			else if (rate != external_freq) {
-				snd_printk(KERN_INFO "Hammerfall-DSP: No AutoSync source for requested rate\n");
+				dev_info(hdsp->card->dev,
+					 "No AutoSync source for requested rate\n");
 				return -1;
 			}
 		}
@@ -1190,7 +1232,8 @@ static int hdsp_set_rate(struct hdsp *hdsp, int rate, int called_internally)
 	}
 
 	if (reject_if_open && (hdsp->capture_pid >= 0 || hdsp->playback_pid >= 0)) {
-		snd_printk ("Hammerfall-DSP: cannot change speed mode (capture PID = %d, playback PID = %d)\n",
+		dev_warn(hdsp->card->dev,
+			 "cannot change speed mode (capture PID = %d, playback PID = %d)\n",
 			    hdsp->capture_pid,
 			    hdsp->playback_pid);
 		return -EBUSY;
@@ -1674,83 +1717,50 @@ static int snd_hdsp_put_spdif_in(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
-#define HDSP_SPDIF_OUT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
-  .info = snd_hdsp_info_spdif_bits, \
-  .get = snd_hdsp_get_spdif_out, .put = snd_hdsp_put_spdif_out }
-
-static int hdsp_spdif_out(struct hdsp *hdsp)
-{
-	return (hdsp->control_register & HDSP_SPDIFOpticalOut) ? 1 : 0;
+#define HDSP_TOGGLE_SETTING(xname, xindex) \
+{   .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.info = snd_hdsp_info_toggle_setting, \
+	.get = snd_hdsp_get_toggle_setting, \
+	.put = snd_hdsp_put_toggle_setting \
 }
 
-static int hdsp_set_spdif_output(struct hdsp *hdsp, int out)
+static int hdsp_toggle_setting(struct hdsp *hdsp, u32 regmask)
+{
+	return (hdsp->control_register & regmask) ? 1 : 0;
+}
+
+static int hdsp_set_toggle_setting(struct hdsp *hdsp, u32 regmask, int out)
 {
 	if (out)
-		hdsp->control_register |= HDSP_SPDIFOpticalOut;
+		hdsp->control_register |= regmask;
 	else
-		hdsp->control_register &= ~HDSP_SPDIFOpticalOut;
+		hdsp->control_register &= ~regmask;
 	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
+
 	return 0;
 }
 
-#define snd_hdsp_info_spdif_bits	snd_ctl_boolean_mono_info
+#define snd_hdsp_info_toggle_setting		   snd_ctl_boolean_mono_info
 
-static int snd_hdsp_get_spdif_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_hdsp_get_toggle_setting(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
 
-	ucontrol->value.integer.value[0] = hdsp_spdif_out(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_spdif_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	unsigned int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
 	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_spdif_out(hdsp);
-	hdsp_set_spdif_output(hdsp, val);
+	ucontrol->value.integer.value[0] = hdsp_toggle_setting(hdsp, regmask);
 	spin_unlock_irq(&hdsp->lock);
-	return change;
-}
-
-#define HDSP_SPDIF_PROFESSIONAL(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
-  .info = snd_hdsp_info_spdif_bits, \
-  .get = snd_hdsp_get_spdif_professional, .put = snd_hdsp_put_spdif_professional }
-
-static int hdsp_spdif_professional(struct hdsp *hdsp)
-{
-	return (hdsp->control_register & HDSP_SPDIFProfessional) ? 1 : 0;
-}
-
-static int hdsp_set_spdif_professional(struct hdsp *hdsp, int val)
-{
-	if (val)
-		hdsp->control_register |= HDSP_SPDIFProfessional;
-	else
-		hdsp->control_register &= ~HDSP_SPDIFProfessional;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
 	return 0;
 }
 
-static int snd_hdsp_get_spdif_professional(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int snd_hdsp_put_toggle_setting(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
 {
 	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = hdsp_spdif_professional(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_spdif_professional(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
+	u32 regmask = kcontrol->private_value;
 	int change;
 	unsigned int val;
 
@@ -1758,96 +1768,9 @@ static int snd_hdsp_put_spdif_professional(struct snd_kcontrol *kcontrol, struct
 		return -EBUSY;
 	val = ucontrol->value.integer.value[0] & 1;
 	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_spdif_professional(hdsp);
-	hdsp_set_spdif_professional(hdsp, val);
-	spin_unlock_irq(&hdsp->lock);
-	return change;
-}
-
-#define HDSP_SPDIF_EMPHASIS(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
-  .info = snd_hdsp_info_spdif_bits, \
-  .get = snd_hdsp_get_spdif_emphasis, .put = snd_hdsp_put_spdif_emphasis }
-
-static int hdsp_spdif_emphasis(struct hdsp *hdsp)
-{
-	return (hdsp->control_register & HDSP_SPDIFEmphasis) ? 1 : 0;
-}
-
-static int hdsp_set_spdif_emphasis(struct hdsp *hdsp, int val)
-{
-	if (val)
-		hdsp->control_register |= HDSP_SPDIFEmphasis;
-	else
-		hdsp->control_register &= ~HDSP_SPDIFEmphasis;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
-	return 0;
-}
-
-static int snd_hdsp_get_spdif_emphasis(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = hdsp_spdif_emphasis(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_spdif_emphasis(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	unsigned int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
-	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_spdif_emphasis(hdsp);
-	hdsp_set_spdif_emphasis(hdsp, val);
-	spin_unlock_irq(&hdsp->lock);
-	return change;
-}
-
-#define HDSP_SPDIF_NON_AUDIO(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
-  .info = snd_hdsp_info_spdif_bits, \
-  .get = snd_hdsp_get_spdif_nonaudio, .put = snd_hdsp_put_spdif_nonaudio }
-
-static int hdsp_spdif_nonaudio(struct hdsp *hdsp)
-{
-	return (hdsp->control_register & HDSP_SPDIFNonAudio) ? 1 : 0;
-}
-
-static int hdsp_set_spdif_nonaudio(struct hdsp *hdsp, int val)
-{
-	if (val)
-		hdsp->control_register |= HDSP_SPDIFNonAudio;
-	else
-		hdsp->control_register &= ~HDSP_SPDIFNonAudio;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
-	return 0;
-}
-
-static int snd_hdsp_get_spdif_nonaudio(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = hdsp_spdif_nonaudio(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_spdif_nonaudio(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	unsigned int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
-	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_spdif_nonaudio(hdsp);
-	hdsp_set_spdif_nonaudio(hdsp, val);
+	change = (int) val != hdsp_toggle_setting(hdsp, regmask);
+	if (change)
+		hdsp_set_toggle_setting(hdsp, regmask, val);
 	spin_unlock_irq(&hdsp->lock);
 	return change;
 }
@@ -2451,114 +2374,6 @@ static int snd_hdsp_put_phone_gain(struct snd_kcontrol *kcontrol, struct snd_ctl
 	return change;
 }
 
-#define HDSP_XLR_BREAKOUT_CABLE(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-  .name = xname, \
-  .index = xindex, \
-  .info = snd_hdsp_info_xlr_breakout_cable, \
-  .get = snd_hdsp_get_xlr_breakout_cable, \
-  .put = snd_hdsp_put_xlr_breakout_cable \
-}
-
-static int hdsp_xlr_breakout_cable(struct hdsp *hdsp)
-{
-	if (hdsp->control_register & HDSP_XLRBreakoutCable)
-		return 1;
-	return 0;
-}
-
-static int hdsp_set_xlr_breakout_cable(struct hdsp *hdsp, int mode)
-{
-	if (mode)
-		hdsp->control_register |= HDSP_XLRBreakoutCable;
-	else
-		hdsp->control_register &= ~HDSP_XLRBreakoutCable;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
-	return 0;
-}
-
-#define snd_hdsp_info_xlr_breakout_cable	snd_ctl_boolean_mono_info
-
-static int snd_hdsp_get_xlr_breakout_cable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.enumerated.item[0] = hdsp_xlr_breakout_cable(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_xlr_breakout_cable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
-	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_xlr_breakout_cable(hdsp);
-	hdsp_set_xlr_breakout_cable(hdsp, val);
-	spin_unlock_irq(&hdsp->lock);
-	return change;
-}
-
-/* (De)activates old RME Analog Extension Board
-   These are connected to the internal ADAT connector
-   Switching this on desactivates external ADAT
-*/
-#define HDSP_AEB(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-  .name = xname, \
-  .index = xindex, \
-  .info = snd_hdsp_info_aeb, \
-  .get = snd_hdsp_get_aeb, \
-  .put = snd_hdsp_put_aeb \
-}
-
-static int hdsp_aeb(struct hdsp *hdsp)
-{
-	if (hdsp->control_register & HDSP_AnalogExtensionBoard)
-		return 1;
-	return 0;
-}
-
-static int hdsp_set_aeb(struct hdsp *hdsp, int mode)
-{
-	if (mode)
-		hdsp->control_register |= HDSP_AnalogExtensionBoard;
-	else
-		hdsp->control_register &= ~HDSP_AnalogExtensionBoard;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
-	return 0;
-}
-
-#define snd_hdsp_info_aeb		snd_ctl_boolean_mono_info
-
-static int snd_hdsp_get_aeb(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.enumerated.item[0] = hdsp_aeb(hdsp);
-	return 0;
-}
-
-static int snd_hdsp_put_aeb(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
-	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_aeb(hdsp);
-	hdsp_set_aeb(hdsp, val);
-	spin_unlock_irq(&hdsp->lock);
-	return change;
-}
-
 #define HDSP_PREF_SYNC_REF(xname, xindex) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
   .name = xname, \
@@ -2745,58 +2560,6 @@ static int snd_hdsp_get_autosync_ref(struct snd_kcontrol *kcontrol, struct snd_c
 
 	ucontrol->value.enumerated.item[0] = hdsp_autosync_ref(hdsp);
 	return 0;
-}
-
-#define HDSP_LINE_OUT(xname, xindex) \
-{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-  .name = xname, \
-  .index = xindex, \
-  .info = snd_hdsp_info_line_out, \
-  .get = snd_hdsp_get_line_out, \
-  .put = snd_hdsp_put_line_out \
-}
-
-static int hdsp_line_out(struct hdsp *hdsp)
-{
-	return (hdsp->control_register & HDSP_LineOut) ? 1 : 0;
-}
-
-static int hdsp_set_line_output(struct hdsp *hdsp, int out)
-{
-	if (out)
-		hdsp->control_register |= HDSP_LineOut;
-	else
-		hdsp->control_register &= ~HDSP_LineOut;
-	hdsp_write(hdsp, HDSP_controlRegister, hdsp->control_register);
-	return 0;
-}
-
-#define snd_hdsp_info_line_out		snd_ctl_boolean_mono_info
-
-static int snd_hdsp_get_line_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-
-	spin_lock_irq(&hdsp->lock);
-	ucontrol->value.integer.value[0] = hdsp_line_out(hdsp);
-	spin_unlock_irq(&hdsp->lock);
-	return 0;
-}
-
-static int snd_hdsp_put_line_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct hdsp *hdsp = snd_kcontrol_chip(kcontrol);
-	int change;
-	unsigned int val;
-
-	if (!snd_hdsp_use_is_exclusive(hdsp))
-		return -EBUSY;
-	val = ucontrol->value.integer.value[0] & 1;
-	spin_lock_irq(&hdsp->lock);
-	change = (int)val != hdsp_line_out(hdsp);
-	hdsp_set_line_output(hdsp, val);
-	spin_unlock_irq(&hdsp->lock);
-	return change;
 }
 
 #define HDSP_PRECISE_POINTER(xname, xindex) \
@@ -3190,7 +2953,7 @@ static struct snd_kcontrol_new snd_hdsp_9632_controls[] = {
 HDSP_DA_GAIN("DA Gain", 0),
 HDSP_AD_GAIN("AD Gain", 0),
 HDSP_PHONE_GAIN("Phones Gain", 0),
-HDSP_XLR_BREAKOUT_CABLE("XLR Breakout Cable", 0),
+HDSP_TOGGLE_SETTING("XLR Breakout Cable", HDSP_XLRBreakoutCable),
 HDSP_DDS_OFFSET("DDS Sample Rate Offset", 0)
 };
 
@@ -3232,10 +2995,10 @@ static struct snd_kcontrol_new snd_hdsp_controls[] = {
 },
 HDSP_MIXER("Mixer", 0),
 HDSP_SPDIF_IN("IEC958 Input Connector", 0),
-HDSP_SPDIF_OUT("IEC958 Output also on ADAT1", 0),
-HDSP_SPDIF_PROFESSIONAL("IEC958 Professional Bit", 0),
-HDSP_SPDIF_EMPHASIS("IEC958 Emphasis Bit", 0),
-HDSP_SPDIF_NON_AUDIO("IEC958 Non-audio Bit", 0),
+HDSP_TOGGLE_SETTING("IEC958 Output also on ADAT1", HDSP_SPDIFOpticalOut),
+HDSP_TOGGLE_SETTING("IEC958 Professional Bit", HDSP_SPDIFProfessional),
+HDSP_TOGGLE_SETTING("IEC958 Emphasis Bit", HDSP_SPDIFEmphasis),
+HDSP_TOGGLE_SETTING("IEC958 Non-audio Bit", HDSP_SPDIFNonAudio),
 /* 'Sample Clock Source' complies with the alsa control naming scheme */
 HDSP_CLOCK_SOURCE("Sample Clock Source", 0),
 {
@@ -3255,7 +3018,7 @@ HDSP_AUTOSYNC_SAMPLE_RATE("External Rate", 0),
 HDSP_WC_SYNC_CHECK("Word Clock Lock Status", 0),
 HDSP_SPDIF_SYNC_CHECK("SPDIF Lock Status", 0),
 HDSP_ADATSYNC_SYNC_CHECK("ADAT Sync Lock Status", 0),
-HDSP_LINE_OUT("Line Out", 0),
+HDSP_TOGGLE_SETTING("Line Out", HDSP_LineOut),
 HDSP_PRECISE_POINTER("Precise Pointer", 0),
 HDSP_USE_MIDI_TASKLET("Use Midi Tasklet", 0),
 };
@@ -3572,7 +3335,9 @@ static struct snd_kcontrol_new snd_hdsp_rpm_controls[] = {
 	HDSP_MIXER("Mixer", 0)
 };
 
-static struct snd_kcontrol_new snd_hdsp_96xx_aeb = HDSP_AEB("Analog Extension Board", 0);
+static struct snd_kcontrol_new snd_hdsp_96xx_aeb =
+	HDSP_TOGGLE_SETTING("Analog Extension Board",
+			HDSP_AnalogExtensionBoard);
 static struct snd_kcontrol_new snd_hdsp_adat_sync_check = HDSP_ADAT_SYNC_CHECK;
 
 static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
@@ -3995,7 +3760,9 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 		}
 		snd_iprintf(buffer, "Phones Gain : %s\n", tmp);
 
-		snd_iprintf(buffer, "XLR Breakout Cable : %s\n", hdsp_xlr_breakout_cable(hdsp) ? "yes" : "no");
+		snd_iprintf(buffer, "XLR Breakout Cable : %s\n",
+			hdsp_toggle_setting(hdsp, HDSP_XLRBreakoutCable) ?
+			"yes" : "no");
 
 		if (hdsp->control_register & HDSP_AnalogExtensionBoard)
 			snd_iprintf(buffer, "AEB : on (ADAT1 internal)\n");
@@ -4028,7 +3795,8 @@ static int snd_hdsp_initialize_memory(struct hdsp *hdsp)
 	    snd_hammerfall_get_buffer(hdsp->pci, &hdsp->playback_dma_buf, HDSP_DMA_AREA_BYTES) < 0) {
 		if (hdsp->capture_dma_buf.area)
 			snd_dma_free_pages(&hdsp->capture_dma_buf);
-		printk(KERN_ERR "%s: no buffers available\n", hdsp->card_name);
+		dev_err(hdsp->card->dev,
+			"%s: no buffers available\n", hdsp->card_name);
 		return -ENOMEM;
 	}
 
@@ -4990,7 +4758,8 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			return err;
 
 		if (!(hdsp->state & HDSP_FirmwareLoaded)) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: firmware needs to be uploaded to the card.\n");
+			dev_err(hdsp->card->dev,
+				"firmware needs to be uploaded to the card.\n");
 			return -EINVAL;
 		}
 
@@ -5026,29 +4795,38 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		for (i = 0; i < ((hdsp->io_type != Multiface && hdsp->io_type != RPM && hdsp->io_type != H9632) ? 3 : 1); ++i)
 			info.adat_sync_check[i] = (unsigned char)hdsp_adat_sync_check(hdsp, i);
 		info.spdif_in = (unsigned char)hdsp_spdif_in(hdsp);
-		info.spdif_out = (unsigned char)hdsp_spdif_out(hdsp);
-		info.spdif_professional = (unsigned char)hdsp_spdif_professional(hdsp);
-		info.spdif_emphasis = (unsigned char)hdsp_spdif_emphasis(hdsp);
-		info.spdif_nonaudio = (unsigned char)hdsp_spdif_nonaudio(hdsp);
+		info.spdif_out = (unsigned char)hdsp_toggle_setting(hdsp,
+				HDSP_SPDIFOpticalOut);
+		info.spdif_professional = (unsigned char)
+			hdsp_toggle_setting(hdsp, HDSP_SPDIFProfessional);
+		info.spdif_emphasis = (unsigned char)
+			hdsp_toggle_setting(hdsp, HDSP_SPDIFEmphasis);
+		info.spdif_nonaudio = (unsigned char)
+			hdsp_toggle_setting(hdsp, HDSP_SPDIFNonAudio);
 		info.spdif_sample_rate = hdsp_spdif_sample_rate(hdsp);
 		info.system_sample_rate = hdsp->system_sample_rate;
 		info.autosync_sample_rate = hdsp_external_sample_rate(hdsp);
 		info.system_clock_mode = (unsigned char)hdsp_system_clock_mode(hdsp);
 		info.clock_source = (unsigned char)hdsp_clock_source(hdsp);
 		info.autosync_ref = (unsigned char)hdsp_autosync_ref(hdsp);
-		info.line_out = (unsigned char)hdsp_line_out(hdsp);
+		info.line_out = (unsigned char)
+			hdsp_toggle_setting(hdsp, HDSP_LineOut);
 		if (hdsp->io_type == H9632) {
 			info.da_gain = (unsigned char)hdsp_da_gain(hdsp);
 			info.ad_gain = (unsigned char)hdsp_ad_gain(hdsp);
 			info.phone_gain = (unsigned char)hdsp_phone_gain(hdsp);
-			info.xlr_breakout_cable = (unsigned char)hdsp_xlr_breakout_cable(hdsp);
+			info.xlr_breakout_cable =
+				(unsigned char)hdsp_toggle_setting(hdsp,
+					HDSP_XLRBreakoutCable);
 
 		} else if (hdsp->io_type == RPM) {
 			info.da_gain = (unsigned char) hdsp_rpm_input12(hdsp);
 			info.ad_gain = (unsigned char) hdsp_rpm_input34(hdsp);
 		}
 		if (hdsp->io_type == H9632 || hdsp->io_type == H9652)
-			info.analog_extension_board = (unsigned char)hdsp_aeb(hdsp);
+			info.analog_extension_board =
+				(unsigned char)hdsp_toggle_setting(hdsp,
+					    HDSP_AnalogExtensionBoard);
 		spin_unlock_irqrestore(&hdsp->lock, flags);
 		if (copy_to_user(argp, &info, sizeof(info)))
 			return -EFAULT;
@@ -5073,6 +4851,7 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			if ((err = hdsp_get_iobox_version(hdsp)) < 0)
 				return err;
 		}
+		memset(&hdsp_version, 0, sizeof(hdsp_version));
 		hdsp_version.io_type = hdsp->io_type;
 		hdsp_version.firmware_rev = hdsp->firmware_rev;
 		if ((err = copy_to_user(argp, &hdsp_version, sizeof(hdsp_version))))
@@ -5091,7 +4870,8 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 		if (hdsp->state & (HDSP_FirmwareCached | HDSP_FirmwareLoaded))
 			return -EBUSY;
 
-		snd_printk(KERN_INFO "Hammerfall-DSP: initializing firmware upload\n");
+		dev_info(hdsp->card->dev,
+			 "initializing firmware upload\n");
 		firmware = (struct hdsp_firmware __user *)argp;
 
 		if (get_user(firmware_data, &firmware->firmware_data))
@@ -5126,7 +4906,8 @@ static int snd_hdsp_hwdep_ioctl(struct snd_hwdep *hw, struct file *file, unsigne
 			snd_hdsp_initialize_midi_flush(hdsp);
 
 			if ((err = snd_hdsp_create_alsa_devices(hdsp->card, hdsp)) < 0) {
-				snd_printk(KERN_ERR "Hammerfall-DSP: error creating alsa devices\n");
+				dev_err(hdsp->card->dev,
+					"error creating alsa devices\n");
 				return err;
 			}
 		}
@@ -5216,7 +4997,8 @@ static int snd_hdsp_enable_io (struct hdsp *hdsp)
 	int i;
 
 	if (hdsp_fifo_wait (hdsp, 0, 100)) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: enable_io fifo_wait failed\n");
+		dev_err(hdsp->card->dev,
+			"enable_io fifo_wait failed\n");
 		return -EIO;
 	}
 
@@ -5290,25 +5072,29 @@ static int snd_hdsp_create_alsa_devices(struct snd_card *card, struct hdsp *hdsp
 	int err;
 
 	if ((err = snd_hdsp_create_pcm(card, hdsp)) < 0) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: Error creating pcm interface\n");
+		dev_err(card->dev,
+			"Error creating pcm interface\n");
 		return err;
 	}
 
 
 	if ((err = snd_hdsp_create_midi(card, hdsp, 0)) < 0) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: Error creating first midi interface\n");
+		dev_err(card->dev,
+			"Error creating first midi interface\n");
 		return err;
 	}
 
 	if (hdsp->io_type == Digiface || hdsp->io_type == H9652) {
 		if ((err = snd_hdsp_create_midi(card, hdsp, 1)) < 0) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: Error creating second midi interface\n");
+			dev_err(card->dev,
+				"Error creating second midi interface\n");
 			return err;
 		}
 	}
 
 	if ((err = snd_hdsp_create_controls(card, hdsp)) < 0) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: Error creating ctl interface\n");
+		dev_err(card->dev,
+			"Error creating ctl interface\n");
 		return err;
 	}
 
@@ -5321,7 +5107,8 @@ static int snd_hdsp_create_alsa_devices(struct snd_card *card, struct hdsp *hdsp
 	hdsp->playback_substream = NULL;
 
 	if ((err = snd_hdsp_set_defaults(hdsp)) < 0) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: Error setting default values\n");
+		dev_err(card->dev,
+			"Error setting default values\n");
 		return err;
 	}
 
@@ -5331,7 +5118,8 @@ static int snd_hdsp_create_alsa_devices(struct snd_card *card, struct hdsp *hdsp
 			hdsp->port, hdsp->irq);
 
 		if ((err = snd_card_register(card)) < 0) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: error registering card\n");
+			dev_err(card->dev,
+				"error registering card\n");
 			return err;
 		}
 		hdsp->state |= HDSP_InitializationComplete;
@@ -5374,16 +5162,19 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 			fwfile = "digiface_firmware_rev11.bin";
 		break;
 	default:
-		snd_printk(KERN_ERR "Hammerfall-DSP: invalid io_type %d\n", hdsp->io_type);
+		dev_err(hdsp->card->dev,
+			"invalid io_type %d\n", hdsp->io_type);
 		return -EINVAL;
 	}
 
 	if (request_firmware(&fw, fwfile, &hdsp->pci->dev)) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: cannot load firmware %s\n", fwfile);
+		dev_err(hdsp->card->dev,
+			"cannot load firmware %s\n", fwfile);
 		return -ENOENT;
 	}
 	if (fw->size < HDSP_FIRMWARE_SIZE) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: too short firmware size %d (expected %d)\n",
+		dev_err(hdsp->card->dev,
+			"too short firmware size %d (expected %d)\n",
 			   (int)fw->size, HDSP_FIRMWARE_SIZE);
 		return -EINVAL;
 	}
@@ -5400,13 +5191,15 @@ static int hdsp_request_fw_loader(struct hdsp *hdsp)
 			return err;
 
 		if ((err = snd_hdsp_create_hwdep(hdsp->card, hdsp)) < 0) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: error creating hwdep device\n");
+			dev_err(hdsp->card->dev,
+				"error creating hwdep device\n");
 			return err;
 		}
 		snd_hdsp_initialize_channels(hdsp);
 		snd_hdsp_initialize_midi_flush(hdsp);
 		if ((err = snd_hdsp_create_alsa_devices(hdsp->card, hdsp)) < 0) {
-			snd_printk(KERN_ERR "Hammerfall-DSP: error creating alsa devices\n");
+			dev_err(hdsp->card->dev,
+				"error creating alsa devices\n");
 			return err;
 		}
 	}
@@ -5482,13 +5275,14 @@ static int snd_hdsp_create(struct snd_card *card,
 		return err;
 	hdsp->port = pci_resource_start(pci, 0);
 	if ((hdsp->iobase = ioremap_nocache(hdsp->port, HDSP_IO_EXTENT)) == NULL) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: unable to remap region 0x%lx-0x%lx\n", hdsp->port, hdsp->port + HDSP_IO_EXTENT - 1);
+		dev_err(hdsp->card->dev, "unable to remap region 0x%lx-0x%lx\n",
+			hdsp->port, hdsp->port + HDSP_IO_EXTENT - 1);
 		return -EBUSY;
 	}
 
 	if (request_irq(pci->irq, snd_hdsp_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, hdsp)) {
-		snd_printk(KERN_ERR "Hammerfall-DSP: unable to use IRQ %d\n", pci->irq);
+		dev_err(hdsp->card->dev, "unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 
@@ -5514,17 +5308,20 @@ static int snd_hdsp_create(struct snd_card *card,
 				   if userspace is not ready for
 				   firmware upload
 				*/
-				snd_printk(KERN_ERR "Hammerfall-DSP: couldn't get firmware from userspace. try using hdsploader\n");
+				dev_err(hdsp->card->dev,
+					"couldn't get firmware from userspace. try using hdsploader\n");
 			else
 				/* init is complete, we return */
 				return 0;
 			/* we defer initialization */
-			snd_printk(KERN_INFO "Hammerfall-DSP: card initialization pending : waiting for firmware\n");
+			dev_info(hdsp->card->dev,
+				 "card initialization pending : waiting for firmware\n");
 			if ((err = snd_hdsp_create_hwdep(card, hdsp)) < 0)
 				return err;
 			return 0;
 		} else {
-			snd_printk(KERN_INFO "Hammerfall-DSP: Firmware already present, initializing card.\n");
+			dev_info(hdsp->card->dev,
+				 "Firmware already present, initializing card.\n");
 			if (hdsp_read(hdsp, HDSP_status2Register) & HDSP_version2)
 				hdsp->io_type = RPM;
 			else if (hdsp_read(hdsp, HDSP_status2Register) & HDSP_version1)
@@ -5608,8 +5405,8 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct hdsp), &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct hdsp), &card);
 	if (err < 0)
 		return err;
 
@@ -5617,7 +5414,6 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 	card->private_free = snd_hdsp_card_free;
 	hdsp->dev = dev;
 	hdsp->pci = pci;
-	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_hdsp_create(card, hdsp)) < 0) {
 		snd_card_free(card);
@@ -5640,7 +5436,6 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 static void snd_hdsp_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver hdsp_driver = {

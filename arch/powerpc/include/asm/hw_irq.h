@@ -95,15 +95,15 @@ static inline bool arch_irqs_disabled(void)
 #define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
 #endif
 
-static inline void hard_irq_disable(void)
-{
-	__hard_irq_disable();
-	get_paca()->soft_enabled = 0;
-	get_paca()->irq_happened |= PACA_IRQ_HARD_DIS;
-}
-
-/* include/linux/interrupt.h needs hard_irq_disable to be a macro */
-#define hard_irq_disable	hard_irq_disable
+#define hard_irq_disable()	do {			\
+	u8 _was_enabled;				\
+	__hard_irq_disable();				\
+	_was_enabled = local_paca->soft_enabled;	\
+	local_paca->soft_enabled = 0;			\
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
+	if (_was_enabled)				\
+		trace_hardirqs_off();			\
+} while(0)
 
 static inline bool lazy_irq_pending(void)
 {

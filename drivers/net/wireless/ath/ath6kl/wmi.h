@@ -898,7 +898,6 @@ struct wmi_start_scan_cmd {
  *  flags here
  */
 enum wmi_scan_ctrl_flags_bits {
-
 	/* set if can scan in the connect cmd */
 	CONNECT_SCAN_CTRL_FLAGS = 0x01,
 
@@ -1068,7 +1067,7 @@ struct wmi_power_mode_cmd {
 } __packed;
 
 /*
- * Policy to determnine whether power save failure event should be sent to
+ * Policy to determine whether power save failure event should be sent to
  * host during scanning
  */
 enum power_save_fail_event_policy {
@@ -1658,6 +1657,10 @@ struct roam_ctrl_cmd {
 						     */
 	} __packed info;
 	u8 roam_ctrl;
+} __packed;
+
+struct set_beacon_int_cmd {
+	__le32 beacon_intvl;
 } __packed;
 
 struct set_dtim_cmd {
@@ -2613,7 +2616,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 			  u8 *key_material,
 			  u8 key_op_ctrl, u8 *mac_addr,
 			  enum wmi_sync_flag sync_flag);
-int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk);
+int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, const u8 *krk);
 int ath6kl_wmi_deletekey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index);
 int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, u8 if_idx, const u8 *bssid,
 			    const u8 *pmkid, bool set);
@@ -2649,6 +2652,8 @@ int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 int ath6kl_wmi_set_rssi_filter_cmd(struct wmi *wmi, u8 if_idx, s8 rssi);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
 int ath6kl_wmi_ap_set_dtim_cmd(struct wmi *wmi, u8 if_idx, u32 dtim_period);
+int ath6kl_wmi_ap_set_beacon_intvl_cmd(struct wmi *wmi, u8 if_idx,
+				       u32 beacon_interval);
 int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
 int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
 int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on);

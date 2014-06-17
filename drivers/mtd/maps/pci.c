@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
@@ -283,8 +282,7 @@ static int mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err)
 		goto release;
 
-	/* tsk - do_map_probe should take const char * */
-	mtd = do_map_probe((char *)info->map_name, &map->map);
+	mtd = do_map_probe(info->map_name, &map->map);
 	err = -ENODEV;
 	if (!mtd)
 		goto release;
@@ -317,7 +315,6 @@ static void mtd_pci_remove(struct pci_dev *dev)
 	map->exit(dev, map);
 	kfree(map);
 
-	pci_set_drvdata(dev, NULL);
 	pci_release_regions(dev);
 }
 

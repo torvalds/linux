@@ -419,11 +419,11 @@ struct dual
 #define LAPD            6       /* lapd (Q.921)                     */
 #define X25_L2          7       /* x.25 layer-2                     */
 #define V120_L2         8       /* V.120 layer-2 protocol           */
-#define V42_IN          9       /* V.42 layer-2 protocol, incomming */
+#define V42_IN          9       /* V.42 layer-2 protocol, incoming */
 #define V42            10       /* V.42 layer-2 protocol            */
 #define MDM_ATP        11       /* AT Parser built in the L2        */
 #define X75_V42BIS     12       /* x.75 with V.42bis                */
-#define RTPL2_IN       13       /* RTP layer-2 protocol, incomming  */
+#define RTPL2_IN       13       /* RTP layer-2 protocol, incoming  */
 #define RTPL2          14       /* RTP layer-2 protocol             */
 #define V120_V42BIS    15       /* V.120 asynchronous mode supporting V.42bis compression */
 #define LISTENER       27       /* Layer 2 to listen line */

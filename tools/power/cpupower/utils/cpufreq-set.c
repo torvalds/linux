@@ -257,7 +257,7 @@ int cmd_freq_set(int argc, char **argv)
 				print_unknown_arg();
 				return -EINVAL;
 			}
-			if ((sscanf(optarg, "%s", gov)) != 1) {
+			if ((sscanf(optarg, "%19s", gov)) != 1) {
 				print_unknown_arg();
 				return -EINVAL;
 			}

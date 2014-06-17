@@ -21,7 +21,7 @@ struct platform_device; /* don't need the contents */
 #include <plat/gpio-cfg.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 
-#include <mach/i2c.h>
+#include "i2c.h"
 
 void s5p6440_i2c1_cfg_gpio(struct platform_device *dev)
 {

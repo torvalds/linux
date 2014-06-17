@@ -480,6 +480,7 @@ static void tpci200_release_device(struct ipack_device *dev)
 
 static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 {
+	int ret;
 	enum ipack_space space;
 	struct ipack_device *dev =
 		kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
@@ -495,7 +496,18 @@ static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 			+ tpci200_space_interval[space] * i;
 		dev->region[space].size = tpci200_space_size[space];
 	}
-	return ipack_device_register(dev);
+
+	ret = ipack_device_init(dev);
+	if (ret < 0) {
+		ipack_put_device(dev);
+		return ret;
+	}
+
+	ret = ipack_device_add(dev);
+	if (ret < 0)
+		ipack_put_device(dev);
+
+	return ret;
 }
 
 static int tpci200_pci_probe(struct pci_dev *pdev,

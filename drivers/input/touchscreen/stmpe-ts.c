@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -120,6 +119,7 @@ static void stmpe_work(struct work_struct *work)
 	__stmpe_reset_fifo(ts->stmpe);
 
 	input_report_abs(ts->idev, ABS_PRESSURE, 0);
+	input_report_key(ts->idev, BTN_TOUCH, 0);
 	input_sync(ts->idev);
 }
 
@@ -153,6 +153,7 @@ static irqreturn_t stmpe_ts_handler(int irq, void *data)
 	input_report_abs(ts->idev, ABS_X, x);
 	input_report_abs(ts->idev, ABS_Y, y);
 	input_report_abs(ts->idev, ABS_PRESSURE, z);
+	input_report_key(ts->idev, BTN_TOUCH, 1);
 	input_sync(ts->idev);
 
        /* flush the FIFO after we have read out our values. */

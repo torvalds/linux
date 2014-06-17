@@ -88,7 +88,7 @@ sbeCrc(u_int8_t *buffer,          /* data buffer to crc */
 	u_int32_t initialCrc,      /* starting CRC */
 	u_int32_t *result)
 {
-	u_int32_t     *tbl = 0;
+	u_int32_t     *tbl = NULL;
 	u_int32_t      temp1, temp2, crc;
 
 	/*
@@ -101,8 +101,9 @@ sbeCrc(u_int8_t *buffer,          /* data buffer to crc */
 		tbl = &CRCTable;
 		genCrcTable(tbl);
 #else
-		tbl = (u_int32_t *) OS_kmalloc(CRC_TABLE_ENTRIES * sizeof(u_int32_t));
-		if (tbl == 0) {
+		tbl = kzalloc(CRC_TABLE_ENTRIES * sizeof(u_int32_t),
+			      GFP_KERNEL);
+		if (!tbl) {
 			*result = 0;   /* dummy up return value due to malloc
 					* failure */
 			return;
@@ -125,7 +126,7 @@ sbeCrc(u_int8_t *buffer,          /* data buffer to crc */
 
 #ifndef STATIC_CRC_TABLE
 	crcTableInit = 0;
-	OS_kfree(tbl);
+	kfree(tbl);
 #endif
 }
 

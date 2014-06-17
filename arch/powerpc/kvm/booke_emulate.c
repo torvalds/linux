@@ -269,6 +269,9 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_ESR:
 		*spr_val = vcpu->arch.shared->esr;
 		break;
+	case SPRN_EPR:
+		*spr_val = vcpu->arch.epr;
+		break;
 	case SPRN_CSRR0:
 		*spr_val = vcpu->arch.csrr0;
 		break;

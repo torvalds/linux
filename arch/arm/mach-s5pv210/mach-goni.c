@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -29,7 +30,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
@@ -40,7 +40,6 @@
 #include <mach/regs-clock.h>
 
 #include <plat/gpio-cfg.h>
-#include <plat/regs-serial.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
@@ -48,13 +47,8 @@
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
-#include <plat/s5p-time.h>
+#include <plat/samsung-time.h>
 #include <plat/mfc.h>
-#include <plat/camport.h>
-
-#include <media/v4l2-mediabus.h>
-#include <media/s5p_fimc.h>
-#include <media/noon010pc30.h>
 
 #include "common.h"
 
@@ -240,14 +234,6 @@ static void __init goni_radio_init(void)
 
 /* TSP */
 static struct mxt_platform_data qt602240_platform_data = {
-	.x_line		= 17,
-	.y_line		= 11,
-	.x_size		= 800,
-	.y_size		= 480,
-	.blen		= 0x21,
-	.threshold	= 0x28,
-	.voltage	= 2800000,              /* 2.8V */
-	.orient		= MXT_DIAGONAL,
 	.irqflags	= IRQF_TRIGGER_FALLING,
 };
 
@@ -285,14 +271,6 @@ static void __init goni_tsp_init(void)
 
 /* USB OTG */
 static struct s3c_hsotg_plat goni_hsotg_pdata;
-
-static void goni_camera_init(void)
-{
-	s5pv210_fimc_setup_gpio(S5P_CAMPORT_A);
-
-	/* Set max driver strength on CAM_A_CLKOUT pin. */
-	s5p_gpio_set_drvstr(S5PV210_GPE1(3), S5P_GPIO_DRVSTR_LV4);
-}
 
 /* MAX8998 regulators */
 #if defined(CONFIG_REGULATOR_MAX8998) || defined(CONFIG_REGULATOR_MAX8998_MODULE)
@@ -581,12 +559,8 @@ static struct max8998_platform_data goni_max8998_pdata = {
 	.buck1_set1	= S5PV210_GPH0(3),
 	.buck1_set2	= S5PV210_GPH0(4),
 	.buck2_set3	= S5PV210_GPH0(5),
-	.buck1_voltage1	= 1200000,
-	.buck1_voltage2	= 1200000,
-	.buck1_voltage3	= 1200000,
-	.buck1_voltage4	= 1200000,
-	.buck2_voltage1	= 1200000,
-	.buck2_voltage2	= 1200000,
+	.buck1_voltage	= { 1200000, 1200000, 1200000, 1200000 },
+	.buck2_voltage	= { 1200000, 1200000 },
 };
 #endif
 
@@ -830,34 +804,6 @@ static void goni_setup_sdhci(void)
 	s3c_sdhci2_set_platdata(&goni_hsmmc2_data);
 };
 
-static struct noon010pc30_platform_data noon010pc30_pldata = {
-	.clk_rate	= 16000000UL,
-	.gpio_nreset	= S5PV210_GPB(2), /* CAM_CIF_NRST */
-	.gpio_nstby	= S5PV210_GPB(0), /* CAM_CIF_NSTBY */
-};
-
-static struct i2c_board_info noon010pc30_board_info = {
-	I2C_BOARD_INFO("NOON010PC30", 0x60 >> 1),
-	.platform_data = &noon010pc30_pldata,
-};
-
-static struct s5p_fimc_isp_info goni_camera_sensors[] = {
-	{
-		.mux_id		= 0,
-		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
-				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
-		.bus_type	= FIMC_ITU_601,
-		.board_info	= &noon010pc30_board_info,
-		.i2c_bus_num	= 0,
-		.clk_frequency	= 16000000UL,
-	},
-};
-
-static struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
-	.isp_info	= goni_camera_sensors,
-	.num_clients	= ARRAY_SIZE(goni_camera_sensors),
-};
-
 /* Audio device */
 static struct platform_device goni_device_audio = {
 	.name = "smdk-audio",
@@ -879,10 +825,6 @@ static struct platform_device *goni_devices[] __initdata = {
 	&s5p_device_mixer,
 	&s5p_device_sdo,
 	&s3c_device_i2c0,
-	&s5p_device_fimc0,
-	&s5p_device_fimc1,
-	&s5p_device_fimc2,
-	&s5p_device_fimc_md,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
@@ -909,7 +851,7 @@ static void __init goni_map_io(void)
 	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(goni_uartcfgs, ARRAY_SIZE(goni_uartcfgs));
-	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 }
 
 static void __init goni_reserve(void)
@@ -951,13 +893,7 @@ static void __init goni_machine_init(void)
 	/* FB */
 	s3c_fb_set_platdata(&goni_lcd_pdata);
 
-	/* FIMC */
-	s3c_set_platdata(&goni_fimc_md_platdata, sizeof(goni_fimc_md_platdata),
-			 &s5p_device_fimc_md);
-
 	s3c_hsotg_set_platdata(&goni_hsotg_pdata);
-
-	goni_camera_init();
 
 	/* SPI */
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
@@ -972,10 +908,9 @@ MACHINE_START(GONI, "GONI")
 	/* Maintainers: Kyungmin Park <kyungmin.park@samsung.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= goni_map_io,
 	.init_machine	= goni_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= samsung_timer_init,
 	.reserve	= &goni_reserve,
 	.restart	= s5pv210_restart,
 MACHINE_END

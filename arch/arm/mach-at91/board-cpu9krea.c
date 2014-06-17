@@ -48,6 +48,7 @@
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "gpio.h"
 
 static void __init cpu9krea_init_early(void)
 {
@@ -374,7 +375,7 @@ MACHINE_START(CPUAT9260, "Eukrea CPU9260")
 MACHINE_START(CPUAT9G20, "Eukrea CPU9G20")
 #endif
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= cpu9krea_init_early,

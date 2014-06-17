@@ -55,7 +55,8 @@ static ssize_t power_supply_show_property(struct device *dev,
 	};
 	static char *health_text[] = {
 		"Unknown", "Good", "Overheat", "Dead", "Over voltage",
-		"Unspecified failure", "Cold",
+		"Unspecified failure", "Cold", "Watchdog timer expire",
+		"Safety timer expire"
 	};
 	static char *technology_text[] = {
 		"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
@@ -117,7 +118,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 	long long_val;
 
 	/* TODO: support other types than int */
-	ret = strict_strtol(buf, 10, &long_val);
+	ret = kstrtol(buf, 10, &long_val);
 	if (ret < 0)
 		return ret;
 

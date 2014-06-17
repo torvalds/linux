@@ -49,8 +49,8 @@ MODULE_AUTHOR("jyli@marvell.com");
 MODULE_DESCRIPTION("Marvell UMI Driver");
 
 static DEFINE_PCI_DEVICE_TABLE(mvumi_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_2, PCI_DEVICE_ID_MARVELL_MV9143) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_2, PCI_DEVICE_ID_MARVELL_MV9580) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9143) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL_EXT, PCI_DEVICE_ID_MARVELL_MV9580) },
 	{ 0 }
 };
 
@@ -2583,7 +2583,6 @@ static int mvumi_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 fail_io_attach:
-	pci_set_drvdata(pdev, NULL);
 	mhba->instancet->disable_intr(mhba);
 	free_irq(mhba->pdev->irq, mhba);
 fail_init_irq:
@@ -2618,7 +2617,6 @@ static void mvumi_detach_one(struct pci_dev *pdev)
 	free_irq(mhba->pdev->irq, mhba);
 	mvumi_release_fw(mhba);
 	scsi_host_put(host);
-	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 	dev_dbg(&pdev->dev, "driver is removed!\n");
 }

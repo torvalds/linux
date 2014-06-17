@@ -33,8 +33,7 @@ struct zone;
 
 /*
  * Is this page immutable (unwritable) and thus able to be cached more
- * widely than would otherwise be possible?  On tile64 this means we
- * mark the PTE to cache locally; on tilepro it means we have "nc" set.
+ * widely than would otherwise be possible?  This means we have "nc" set.
  */
 #define PAGE_HOME_IMMUTABLE -2
 
@@ -44,16 +43,8 @@ struct zone;
  */
 #define PAGE_HOME_INCOHERENT -3
 
-#if CHIP_HAS_CBOX_HOME_MAP()
 /* Home for the page is distributed via hash-for-home. */
 #define PAGE_HOME_HASH -4
-#endif
-
-/* Homing is unknown or unspecified.  Not valid for page_home(). */
-#define PAGE_HOME_UNKNOWN -5
-
-/* Home on the current cpu.  Not valid for page_home(). */
-#define PAGE_HOME_HERE -6
 
 /* Support wrapper to use instead of explicit hv_flush_remote(). */
 extern void flush_remote(unsigned long cache_pfn, unsigned long cache_length,

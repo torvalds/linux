@@ -315,8 +315,8 @@ static int add_children(struct i2c_client *client)
 	}
 
 	/* MMC/SD inputs -- right after the last config input */
-	if (client->dev.platform_data) {
-		void (*mmcsd_setup)(unsigned) = client->dev.platform_data;
+	if (dev_get_platdata(&client->dev)) {
+		void (*mmcsd_setup)(unsigned) = dev_get_platdata(&client->dev);
 
 		mmcsd_setup(dm355evm_msp_gpio.base + 8 + 5);
 	}

@@ -37,21 +37,22 @@ static const struct xt_table security_table = {
 };
 
 static unsigned int
-iptable_security_hook(unsigned int hook, struct sk_buff *skb,
+iptable_security_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		      const struct net_device *in,
 		      const struct net_device *out,
 		      int (*okfn)(struct sk_buff *))
 {
 	const struct net *net;
 
-	if (hook == NF_INET_LOCAL_OUT &&
+	if (ops->hooknum == NF_INET_LOCAL_OUT &&
 	    (skb->len < sizeof(struct iphdr) ||
 	     ip_hdrlen(skb) < sizeof(struct iphdr)))
 		/* Somebody is playing with raw sockets. */
 		return NF_ACCEPT;
 
 	net = dev_net((in != NULL) ? in : out);
-	return ipt_do_table(skb, hook, in, out, net->ipv4.iptable_security);
+	return ipt_do_table(skb, ops->hooknum, in, out,
+			    net->ipv4.iptable_security);
 }
 
 static struct nf_hook_ops *sectbl_ops __read_mostly;
@@ -66,7 +67,7 @@ static int __net_init iptable_security_net_init(struct net *net)
 	net->ipv4.iptable_security =
 		ipt_register_table(net, &security_table, repl);
 	kfree(repl);
-	return PTR_RET(net->ipv4.iptable_security);
+	return PTR_ERR_OR_ZERO(net->ipv4.iptable_security);
 }
 
 static void __net_exit iptable_security_net_exit(struct net *net)

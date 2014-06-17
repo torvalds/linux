@@ -9,7 +9,6 @@ config SOC_CAMERA_IMX074
 config SOC_CAMERA_MT9M001
 	tristate "mt9m001 support"
 	depends on SOC_CAMERA && I2C
-	select GPIO_PCA953X if MT9M001_PCA9536_SWITCH
 	help
 	  This driver supports MT9M001 cameras from Micron, monochrome
 	  and colour models.
@@ -36,7 +35,6 @@ config SOC_CAMERA_MT9T112
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 and mt9v024 support"
 	depends on SOC_CAMERA && I2C
-	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
 	help
 	  This driver supports MT9V022 cameras from Micron
 

@@ -1,9 +1,10 @@
 /*
  * Implement fast CRC32C with PCLMULQDQ instructions. (x86_64)
  *
- * The white paper on CRC32C calculations with PCLMULQDQ instruction can be
+ * The white papers on CRC32C calculations with PCLMULQDQ instruction can be
  * downloaded from:
- * http://download.intel.com/design/intarch/papers/323405.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polynomial-crc32-instruction-paper.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-paper.pdf
  *
  * Copyright (C) 2012 Intel Corporation.
  *
@@ -42,6 +43,9 @@
  * SOFTWARE.
  */
 
+#include <asm/inst.h>
+#include <linux/linkage.h>
+
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
 .macro LABEL prefix n
@@ -68,8 +72,7 @@
 
 # unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
 
-.global crc_pcl
-crc_pcl:
+ENTRY(crc_pcl)
 #define    bufp		%rdi
 #define    bufp_dw	%edi
 #define    bufp_w	%di
@@ -224,10 +227,10 @@ LABEL crc_ %i
 	movdqa  (bufp), %xmm0			# 2 consts: K1:K2
 
 	movq    crc_init, %xmm1			# CRC for block 1
-	pclmulqdq $0x00,%xmm0,%xmm1		# Multiply by K2
+	PCLMULQDQ 0x00,%xmm0,%xmm1		# Multiply by K2
 
 	movq    crc1, %xmm2			# CRC for block 2
-	pclmulqdq $0x10, %xmm0, %xmm2		# Multiply by K1
+	PCLMULQDQ 0x10, %xmm0, %xmm2		# Multiply by K1
 
 	pxor    %xmm2,%xmm1
 	movq    %xmm1, %rax
@@ -323,6 +326,9 @@ JMPTBL_ENTRY %i
 .noaltmacro
 	i=i+1
 .endr
+
+ENDPROC(crc_pcl)
+
 	################################################################
 	## PCLMULQDQ tables
 	## Table is 128 entries x 2 quad words each

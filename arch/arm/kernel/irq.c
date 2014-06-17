@@ -26,6 +26,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip.h>
 #include <linux/random.h>
 #include <linux/smp.h>
 #include <linux/init.h>
@@ -36,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/export.h>
 
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
@@ -114,8 +116,32 @@ EXPORT_SYMBOL_GPL(set_irq_flags);
 
 void __init init_IRQ(void)
 {
-	machine_desc->init_irq();
+	int ret;
+
+	if (IS_ENABLED(CONFIG_OF) && !machine_desc->init_irq)
+		irqchip_init();
+	else
+		machine_desc->init_irq();
+
+	if (IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_CACHE_L2X0) &&
+	    (machine_desc->l2c_aux_mask || machine_desc->l2c_aux_val)) {
+		outer_cache.write_sec = machine_desc->l2c_write_sec;
+		ret = l2x0_of_init(machine_desc->l2c_aux_val,
+				   machine_desc->l2c_aux_mask);
+		if (ret)
+			pr_err("L2C: failed to init: %d\n", ret);
+	}
 }
+
+#ifdef CONFIG_MULTI_IRQ_HANDLER
+void __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
+{
+	if (handle_arch_irq)
+		return;
+
+	handle_arch_irq = handle_irq;
+}
+#endif
 
 #ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)

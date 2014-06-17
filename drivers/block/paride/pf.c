@@ -211,7 +211,7 @@ static int pf_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long arg);
 static int pf_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
-static int pf_release(struct gendisk *disk, fmode_t mode);
+static void pf_release(struct gendisk *disk, fmode_t mode);
 
 static int pf_detect(void);
 static void do_pf_read(void);
@@ -360,14 +360,15 @@ static int pf_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, u
 	return 0;
 }
 
-static int pf_release(struct gendisk *disk, fmode_t mode)
+static void pf_release(struct gendisk *disk, fmode_t mode)
 {
 	struct pf_unit *pf = disk->private_data;
 
 	mutex_lock(&pf_mutex);
 	if (pf->access <= 0) {
 		mutex_unlock(&pf_mutex);
-		return -EINVAL;
+		WARN_ON(1);
+		return;
 	}
 
 	pf->access--;
@@ -376,8 +377,6 @@ static int pf_release(struct gendisk *disk, fmode_t mode)
 		pf_lock(pf, 0);
 
 	mutex_unlock(&pf_mutex);
-	return 0;
-
 }
 
 static unsigned int pf_check_events(struct gendisk *disk, unsigned int clearing)
@@ -796,7 +795,7 @@ repeat:
 	}
 
 	pf_cmd = rq_data_dir(pf_req);
-	pf_buf = pf_req->buffer;
+	pf_buf = bio_data(pf_req->bio);
 	pf_retries = 0;
 
 	pf_busy = 1;
@@ -828,7 +827,7 @@ static int pf_next_buf(void)
 		if (!pf_req)
 			return 1;
 		pf_count = blk_rq_cur_sectors(pf_req);
-		pf_buf = pf_req->buffer;
+		pf_buf = bio_data(pf_req->bio);
 	}
 	return 0;
 }

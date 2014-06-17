@@ -55,6 +55,7 @@ static struct mv_sata_platform_data openrd_sata_data = {
 
 static struct mvsdio_platform_data openrd_mvsdio_data = {
 	.gpio_card_detect = 29,	/* MPP29 used as SD card detect */
+	.gpio_write_protect = -1,
 };
 
 static unsigned int openrd_mpp_config[] __initdata = {
@@ -157,7 +158,8 @@ static void __init openrd_init(void)
 	kirkwood_mpp_conf(openrd_mpp_config);
 
 	kirkwood_uart0_init();
-	kirkwood_nand_init(ARRAY_AND_SIZE(openrd_nand_parts), 25);
+	kirkwood_nand_init(openrd_nand_parts, ARRAY_SIZE(openrd_nand_parts),
+			   25);
 
 	kirkwood_ehci_init();
 
@@ -221,7 +223,7 @@ MACHINE_START(OPENRD_BASE, "Marvell OpenRD Base Board")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -234,7 +236,7 @@ MACHINE_START(OPENRD_CLIENT, "Marvell OpenRD Client Board")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
@@ -247,7 +249,7 @@ MACHINE_START(OPENRD_ULTIMATE, "Marvell OpenRD Ultimate Board")
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &kirkwood_timer,
+	.init_time	= kirkwood_timer_init,
 	.restart	= kirkwood_restart,
 MACHINE_END
 #endif

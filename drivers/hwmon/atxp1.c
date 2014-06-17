@@ -45,30 +45,6 @@ MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 
 static const unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
 
-static int atxp1_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id);
-static int atxp1_remove(struct i2c_client *client);
-static struct atxp1_data *atxp1_update_device(struct device *dev);
-static int atxp1_detect(struct i2c_client *client, struct i2c_board_info *info);
-
-static const struct i2c_device_id atxp1_id[] = {
-	{ "atxp1", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, atxp1_id);
-
-static struct i2c_driver atxp1_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "atxp1",
-	},
-	.probe		= atxp1_probe,
-	.remove		= atxp1_remove,
-	.id_table	= atxp1_id,
-	.detect		= atxp1_detect,
-	.address_list	= normal_i2c,
-};
-
 struct atxp1_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
@@ -147,10 +123,9 @@ static ssize_t atxp1_storevcore(struct device *dev,
 
 	/* Calculate VID */
 	vid = vid_to_reg(vcore, data->vrm);
-
 	if (vid < 0) {
 		dev_err(dev, "VID calculation failed.\n");
-		return -1;
+		return vid;
 	}
 
 	/*
@@ -354,8 +329,6 @@ static int atxp1_probe(struct i2c_client *new_client,
 	data->vrm = vid_which_vrm();
 
 	i2c_set_clientdata(new_client, data);
-	data->valid = 0;
-
 	mutex_init(&data->update_lock);
 
 	/* Register sysfs hooks */
@@ -387,6 +360,24 @@ static int atxp1_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &atxp1_group);
 
 	return 0;
+};
+
+static const struct i2c_device_id atxp1_id[] = {
+	{ "atxp1", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, atxp1_id);
+
+static struct i2c_driver atxp1_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "atxp1",
+	},
+	.probe		= atxp1_probe,
+	.remove		= atxp1_remove,
+	.id_table	= atxp1_id,
+	.detect		= atxp1_detect,
+	.address_list	= normal_i2c,
 };
 
 module_i2c_driver(atxp1_driver);

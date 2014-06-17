@@ -4,7 +4,7 @@ subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 GCOV_PROFILE := n
 
-ccflags-$(CONFIG_PPC64) := -mno-minimal-toc
+ccflags-$(CONFIG_PPC64) := $(NO_MINIMAL_TOC)
 
 obj-y			+= xmon.o nonstdio.o
 

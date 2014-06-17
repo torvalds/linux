@@ -146,7 +146,7 @@ static void wait_status_0(struct gspca_dev *gspca_dev)
 		w += 15;
 		msleep(w);
 	} while (--i > 0);
-	PDEBUG(D_ERR, "wait_status_0 timeout");
+	PERR("wait_status_0 timeout");
 	gspca_dev->usb_err = -ETIME;
 }
 
@@ -164,7 +164,7 @@ static void wait_status_1(struct gspca_dev *gspca_dev)
 			return;
 		}
 	} while (--i > 0);
-	PDEBUG(D_ERR, "wait_status_1 timeout");
+	PERR("wait_status_1 timeout");
 	gspca_dev->usb_err = -ETIME;
 }
 
@@ -255,7 +255,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* initialize the JPEG header */
-	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+	jpeg_define(sd->jpeg_hdr, gspca_dev->pixfmt.height,
+			gspca_dev->pixfmt.width,
 			0x22);		/* JPEG 411 */
 
 	/* the JPEG quality shall be 85% */

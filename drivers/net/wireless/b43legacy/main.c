@@ -978,7 +978,7 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 
 	bcn = (const struct ieee80211_mgmt *)(dev->wl->current_beacon->data);
-	len = min((size_t)dev->wl->current_beacon->len,
+	len = min_t(size_t, dev->wl->current_beacon->len,
 		  0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
 
@@ -1155,7 +1155,7 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 	b43legacy_write_probe_resp_plcp(dev, 0x350, size,
 					&b43legacy_b_ratetable[3]);
 
-	size = min((size_t)size,
+	size = min_t(size_t, size,
 		   0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	b43legacy_write_template_common(dev, probe_resp_data,
 					size, ram_offset,
@@ -2720,7 +2720,7 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 		goto out_unlock_mutex;
 
 	/* Switch the PHY mode (if necessary). */
-	switch (conf->channel->band) {
+	switch (conf->chandef.chan->band) {
 	case IEEE80211_BAND_2GHZ:
 		if (phy->type == B43legacy_PHYTYPE_B)
 			new_phymode = B43legacy_PHYMODE_B;
@@ -2748,8 +2748,9 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
-	if (conf->channel->hw_value != phy->channel)
-		b43legacy_radio_selectchannel(dev, conf->channel->hw_value, 0);
+	if (conf->chandef.chan->hw_value != phy->channel)
+		b43legacy_radio_selectchannel(dev, conf->chandef.chan->hw_value,
+					      0);
 
 	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_MONITOR);
 
@@ -3558,7 +3559,7 @@ static int b43legacy_op_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = dev->stats.link_noise;
 
@@ -3918,6 +3919,7 @@ static void b43legacy_remove(struct ssb_device *dev)
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
 	cancel_work_sync(&wl->firmware_load);
+	complete(&wldev->fw_load_complete);
 
 	B43legacy_WARN_ON(!wl);
 	if (!wldev->fw.ucode)

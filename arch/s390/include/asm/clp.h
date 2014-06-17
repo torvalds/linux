@@ -2,7 +2,7 @@
 #define _ASM_S390_CLP_H
 
 /* CLP common request & response block size */
-#define CLP_BLK_SIZE			(PAGE_SIZE * 2)
+#define CLP_BLK_SIZE			PAGE_SIZE
 
 struct clp_req_hdr {
 	u16 len;

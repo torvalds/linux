@@ -33,6 +33,11 @@
 	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0 ) | \
 	 VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
+#define __PHYSICAL_START	ALIGN(CONFIG_PHYSICAL_START, \
+				      CONFIG_PHYSICAL_ALIGN)
+
+#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
+
 #ifdef CONFIG_X86_64
 #include <asm/page_64_types.h>
 #else
@@ -50,6 +55,8 @@ static inline phys_addr_t get_max_mapped(void)
 {
 	return (phys_addr_t)max_pfn_mapped << PAGE_SHIFT;
 }
+
+bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn);
 
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);

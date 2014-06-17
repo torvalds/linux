@@ -6,25 +6,9 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9g20.dtsi"
-/include/ "usb_a9260_common.dtsi"
+#include "usb_a9g20_common.dtsi"
 
 / {
 	model = "Calao USB A9G20";
 	compatible = "calao,usb-a9g20", "atmel,at91sam9g20", "atmel,at91sam9";
-
-	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
-	};
-
-	memory {
-		reg = <0x20000000 0x4000000>;
-	};
-
-	i2c@0 {
-		rv3029c2@56 {
-			compatible = "rv3029c2";
-			reg = <0x56>;
-		};
-	};
 };

@@ -14,10 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 /*
 Driver: ni_atmio
@@ -93,16 +89,14 @@ are not supported.
 
 */
 
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 
-#include <linux/delay.h>
 #include <linux/isapnp.h>
 
 #include "ni_stc.h"
 #include "8255.h"
-
-#undef DEBUG
 
 #define ATMIO 1
 #undef PCIMIO
@@ -350,7 +344,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	struct pnp_dev *isapnp_dev = NULL;
 	int i;
 
-	for (i = 0; i < n_ni_boards; i++) {
+	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
 		isapnp_dev = pnp_find_dev(NULL,
 					  ISAPNP_VENDOR('N', 'I', 'C'),
 					  ISAPNP_FUNCTION(ni_boards[i].
@@ -377,7 +371,7 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 		}
 		break;
 	}
-	if (i == n_ni_boards)
+	if (i == ARRAY_SIZE(ni_boards))
 		return -ENODEV;
 	*dev = isapnp_dev;
 	return 0;
@@ -388,7 +382,7 @@ static int ni_getboardtype(struct comedi_device *dev)
 	int device_id = ni_read_eeprom(dev, 511);
 	int i;
 
-	for (i = 0; i < n_ni_boards; i++) {
+	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
 		if (ni_boards[i].device_id == device_id)
 			return i;
 
@@ -406,6 +400,7 @@ static int ni_getboardtype(struct comedi_device *dev)
 static int ni_atmio_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
+	const struct ni_board_struct *boardtype;
 	struct ni_private *devpriv;
 	struct pnp_dev *isapnp_dev;
 	int ret;
@@ -436,28 +431,9 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		devpriv->isapnp_dev = isapnp_dev;
 	}
 
-	/* reserve our I/O region */
-
-	printk("comedi%d: ni_atmio: 0x%04lx", dev->minor, iobase);
-	if (!request_region(iobase, NI_SIZE, "ni_atmio")) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-
-#ifdef DEBUG
-	/* board existence sanity check */
-	{
-		int i;
-
-		printk(" board fingerprint:");
-		for (i = 0; i < 16; i += 2) {
-			printk(" %04x %02x", inw(dev->iobase + i),
-			       inb(dev->iobase + i + 1));
-		}
-	}
-#endif
+	ret = comedi_request_region(dev, iobase, NI_SIZE);
+	if (ret)
+		return ret;
 
 	/* get board type */
 
@@ -466,9 +442,10 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		return -EIO;
 
 	dev->board_ptr = ni_boards + board;
+	boardtype = comedi_board(dev);
 
-	printk(" %s", boardtype.name);
-	dev->board_name = boardtype.name;
+	printk(" %s", boardtype->name);
+	dev->board_name = boardtype->name;
 
 	/* irq stuff */
 
@@ -503,10 +480,7 @@ static void ni_atmio_detach(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 
 	mio_common_detach(dev);
-	if (dev->iobase)
-		release_region(dev->iobase, NI_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	comedi_legacy_detach(dev);
 	if (devpriv->isapnp_dev)
 		pnp_device_detach(devpriv->isapnp_dev);
 }

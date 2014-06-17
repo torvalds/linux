@@ -542,7 +542,7 @@ static void opti82c46x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	u8 sysclk;
 
 	/* Get the clock */
-	sysclk = opti_syscfg(0xAC) & 0xC0;	/* BIOS set */
+	sysclk = (opti_syscfg(0xAC) & 0xC0) >> 6;	/* BIOS set */
 
 	/* Enter configuration mode */
 	ioread16(ap->ioaddr.error_addr);
@@ -916,7 +916,6 @@ static __init int probe_chip_type(struct legacy_probe *probe)
 			local_irq_restore(flags);
 			return BIOS;
 		}
-		local_irq_restore(flags);
 	}
 
 	if (ht6560a & mask)

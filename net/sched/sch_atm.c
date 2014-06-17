@@ -605,6 +605,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		struct sockaddr_atmpvc pvc;
 		int state;
 
+		memset(&pvc, 0, sizeof(pvc));
 		pvc.sap_family = AF_ATMPVC;
 		pvc.sap_addr.itf = flow->vcc->dev ? flow->vcc->dev->number : -1;
 		pvc.sap_addr.vpi = flow->vcc->vpi;
@@ -622,8 +623,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		if (nla_put_u32(skb, TCA_ATM_EXCESS, 0))
 			goto nla_put_failure;
 	}
-	nla_nest_end(skb, nest);
-	return skb->len;
+	return nla_nest_end(skb, nest);
 
 nla_put_failure:
 	nla_nest_cancel(skb, nest);

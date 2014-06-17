@@ -26,11 +26,12 @@ journal=inum		When a journal already exists, this option is ignored.
 			Otherwise, it specifies the number of the inode which
 			will represent the ext3 file system's journal file.
 
+journal_path=path
 journal_dev=devnum	When the external journal device's major/minor numbers
-			have changed, this option allows the user to specify
+			have changed, these options allow the user to specify
 			the new journal location.  The journal device is
-			identified through its new major/minor numbers encoded
-			in devnum.
+			identified through either its new major/minor numbers
+			encoded in devnum, or via a path to the device.
 
 norecovery		Don't load the journal on mounting. Note that this forces
 noload			mount of inconsistent filesystem, which can lead to

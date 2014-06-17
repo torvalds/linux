@@ -135,4 +135,4 @@ void wl_wds_netdev_deregister( struct wl_private *lp );
 #define WL_WDS_NETDEV_DEREGISTER( ARG )
 
 #endif  /* USE_WDS */
-#endif  // __WL_MAIN_H__
+#endif  /* __WL_MAIN_H__ */

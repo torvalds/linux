@@ -600,10 +600,8 @@ static int i2o_block_open(struct block_device *bdev, fmode_t mode)
  *
  *	Unlock and unmount the media, and power down the device. Gets called if
  *	the block device is closed.
- *
- *	Returns 0 on success or negative error code on failure.
  */
-static int i2o_block_release(struct gendisk *disk, fmode_t mode)
+static void i2o_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct i2o_block_device *dev = disk->private_data;
 	u8 operation;
@@ -617,7 +615,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 	 * the TID no longer exists.
 	 */
 	if (!dev->i2o_dev)
-		return 0;
+		return;
 
 	mutex_lock(&i2o_block_mutex);
 	i2o_block_device_flush(dev->i2o_dev);
@@ -631,8 +629,6 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 
 	i2o_block_device_power(dev, operation);
 	mutex_unlock(&i2o_block_mutex);
-
-	return 0;
 }
 
 static int i2o_block_getgeo(struct block_device *bdev, struct hd_geometry *geo)

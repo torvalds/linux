@@ -46,16 +46,18 @@
 
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/haldefs.h>
+#include <asm/netlogic/common.h>
+#include <asm/netlogic/mips-extns.h>
 
 #include <asm/netlogic/xlp-hal/iomap.h>
-#include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/pcibus.h>
 #include <asm/netlogic/xlp-hal/bridge.h>
 
 static void *pci_config_base;
 
-#define	pci_cfg_addr(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
+#define pci_cfg_addr(bus, devfn, off) (((bus) << 20) | ((devfn) << 12) | (off))
 
 /* PCI ops */
 static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
@@ -64,8 +66,25 @@ static inline u32 pci_cfg_read_32bit(struct pci_bus *bus, unsigned int devfn,
 	u32 data;
 	u32 *cfgaddr;
 
+	where &= ~3;
+	if (cpu_is_xlp9xx()) {
+		/* be very careful on SoC buses */
+		if (bus->number == 0) {
+			/* Scan only existing nodes - uboot bug? */
+			if (PCI_SLOT(devfn) != 0 ||
+					   !nlm_node_present(PCI_FUNC(devfn)))
+				return 0xffffffff;
+		} else if (bus->parent->number == 0) {	/* SoC bus */
+			if (PCI_SLOT(devfn) == 0)	/* b.0.0 hangs */
+				return 0xffffffff;
+			if (devfn == 44)		/* b.5.4 hangs */
+				return 0xffffffff;
+		}
+	} else if (bus->number == 0 && PCI_SLOT(devfn) == 1 && where == 0x954) {
+		return 0xffffffff;
+	}
 	cfgaddr = (u32 *)(pci_config_base +
-			pci_cfg_addr(bus->number, devfn, where & ~3));
+			pci_cfg_addr(bus->number, devfn, where));
 	data = *cfgaddr;
 	return data;
 }
@@ -135,54 +154,74 @@ struct pci_ops nlm_pci_ops = {
 };
 
 static struct resource nlm_pci_mem_resource = {
-	.name           = "XLP PCI MEM",
-	.start          = 0xd0000000UL,	/* 256MB PCI mem @ 0xd000_0000 */
-	.end            = 0xdfffffffUL,
-	.flags          = IORESOURCE_MEM,
+	.name		= "XLP PCI MEM",
+	.start		= 0xd0000000UL, /* 256MB PCI mem @ 0xd000_0000 */
+	.end		= 0xdfffffffUL,
+	.flags		= IORESOURCE_MEM,
 };
 
 static struct resource nlm_pci_io_resource = {
-	.name           = "XLP IO MEM",
-	.start          = 0x14000000UL,	/* 64MB PCI IO @ 0x1000_0000 */
-	.end            = 0x17ffffffUL,
-	.flags          = IORESOURCE_IO,
+	.name		= "XLP IO MEM",
+	.start		= 0x14000000UL, /* 64MB PCI IO @ 0x1000_0000 */
+	.end		= 0x17ffffffUL,
+	.flags		= IORESOURCE_IO,
 };
 
 struct pci_controller nlm_pci_controller = {
-	.index          = 0,
-	.pci_ops        = &nlm_pci_ops,
-	.mem_resource   = &nlm_pci_mem_resource,
-	.mem_offset     = 0x00000000UL,
-	.io_resource    = &nlm_pci_io_resource,
-	.io_offset      = 0x00000000UL,
+	.index		= 0,
+	.pci_ops	= &nlm_pci_ops,
+	.mem_resource	= &nlm_pci_mem_resource,
+	.mem_offset	= 0x00000000UL,
+	.io_resource	= &nlm_pci_io_resource,
+	.io_offset	= 0x00000000UL,
 };
 
-static int get_irq_vector(const struct pci_dev *dev)
+struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev)
 {
-	/*
-	 * For XLP PCIe, there is an IRQ per Link, find out which
-	 * link the device is on to assign interrupts
-	*/
-	if (dev->bus->self == NULL)
-		return 0;
+	struct pci_bus *bus, *p;
 
-	switch	(dev->bus->self->devfn) {
-	case 0x8:
-		return PIC_PCIE_LINK_0_IRQ;
-	case 0x9:
-		return PIC_PCIE_LINK_1_IRQ;
-	case 0xa:
-		return PIC_PCIE_LINK_2_IRQ;
-	case 0xb:
-		return PIC_PCIE_LINK_3_IRQ;
+	bus = dev->bus;
+
+	if (cpu_is_xlp9xx()) {
+		/* find bus with grand parent number == 0 */
+		for (p = bus->parent; p && p->parent && p->parent->number != 0;
+				p = p->parent)
+			bus = p;
+		return (p && p->parent) ? bus->self : NULL;
+	} else {
+		/* Find the bridge on bus 0 */
+		for (p = bus->parent; p && p->number != 0; p = p->parent)
+			bus = p;
+
+		return p ? bus->self : NULL;
 	}
-	WARN(1, "Unexpected devfn %d\n", dev->bus->self->devfn);
-	return 0;
+}
+
+int xlp_socdev_to_node(const struct pci_dev *lnkdev)
+{
+	if (cpu_is_xlp9xx())
+		return PCI_FUNC(lnkdev->bus->self->devfn);
+	else
+		return PCI_SLOT(lnkdev->devfn) / 8;
 }
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	return get_irq_vector(dev);
+	struct pci_dev *lnkdev;
+	int lnkfunc, node;
+
+	/*
+	 * For XLP PCIe, there is an IRQ per Link, find out which
+	 * link the device is on to assign interrupts
+	*/
+	lnkdev = xlp_get_pcie_link(dev);
+	if (lnkdev == NULL)
+		return 0;
+
+	lnkfunc = PCI_FUNC(lnkdev->devfn);
+	node = xlp_socdev_to_node(lnkdev);
+
+	return nlm_irq_to_xirq(node, PIC_PCIE_LINK_LEGACY_IRQ(lnkfunc));
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */
@@ -191,51 +230,96 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	return 0;
 }
 
-static int xlp_enable_pci_bswap(void)
+/*
+ * If big-endian, enable hardware byteswap on the PCIe bridges.
+ * This will make both the SoC and PCIe devices behave consistently with
+ * readl/writel.
+ */
+#ifdef __BIG_ENDIAN
+static void xlp_config_pci_bswap(int node, int link)
 {
-	uint64_t pciebase, sysbase;
-	int node, i;
+	uint64_t nbubase, lnkbase;
 	u32 reg;
 
-	/* Chip-0 so node set to 0 */
-	node = 0;
-	sysbase = nlm_get_bridge_regbase(node);
+	nbubase = nlm_get_bridge_regbase(node);
+	lnkbase = nlm_get_pcie_base(node, link);
+
 	/*
 	 *  Enable byte swap in hardware. Program each link's PCIe SWAP regions
 	 * from the link's address ranges.
 	 */
-	for (i = 0; i < 4; i++) {
-		pciebase = nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, i));
-		if (nlm_read_pci_reg(pciebase, 0) == 0xffffffff)
-			continue;
+	if (cpu_is_xlp9xx()) {
+		reg = nlm_read_bridge_reg(nbubase,
+				BRIDGE_9XX_PCIEMEM_BASE0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_9XX_BYTE_SWAP_MEM_BASE, reg);
 
-		reg = nlm_read_bridge_reg(sysbase, BRIDGE_PCIEMEM_BASE0 + i);
-		nlm_write_pci_reg(pciebase, PCIE_BYTE_SWAP_MEM_BASE, reg);
+		reg = nlm_read_bridge_reg(nbubase,
+				BRIDGE_9XX_PCIEMEM_LIMIT0 + link);
+		nlm_write_pci_reg(lnkbase,
+				PCIE_9XX_BYTE_SWAP_MEM_LIM, reg | 0xfff);
 
-		reg = nlm_read_bridge_reg(sysbase, BRIDGE_PCIEMEM_LIMIT0 + i);
-		nlm_write_pci_reg(pciebase, PCIE_BYTE_SWAP_MEM_LIM,
-			reg | 0xfff);
+		reg = nlm_read_bridge_reg(nbubase,
+				BRIDGE_9XX_PCIEIO_BASE0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_9XX_BYTE_SWAP_IO_BASE, reg);
 
-		reg = nlm_read_bridge_reg(sysbase, BRIDGE_PCIEIO_BASE0 + i);
-		nlm_write_pci_reg(pciebase, PCIE_BYTE_SWAP_IO_BASE, reg);
+		reg = nlm_read_bridge_reg(nbubase,
+				BRIDGE_9XX_PCIEIO_LIMIT0 + link);
+		nlm_write_pci_reg(lnkbase,
+				PCIE_9XX_BYTE_SWAP_IO_LIM, reg | 0xfff);
+	} else {
+		reg = nlm_read_bridge_reg(nbubase, BRIDGE_PCIEMEM_BASE0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_BYTE_SWAP_MEM_BASE, reg);
 
-		reg = nlm_read_bridge_reg(sysbase, BRIDGE_PCIEIO_LIMIT0 + i);
-		nlm_write_pci_reg(pciebase, PCIE_BYTE_SWAP_IO_LIM, reg | 0xfff);
+		reg = nlm_read_bridge_reg(nbubase,
+					BRIDGE_PCIEMEM_LIMIT0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_BYTE_SWAP_MEM_LIM, reg | 0xfff);
+
+		reg = nlm_read_bridge_reg(nbubase, BRIDGE_PCIEIO_BASE0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_BYTE_SWAP_IO_BASE, reg);
+
+		reg = nlm_read_bridge_reg(nbubase, BRIDGE_PCIEIO_LIMIT0 + link);
+		nlm_write_pci_reg(lnkbase, PCIE_BYTE_SWAP_IO_LIM, reg | 0xfff);
 	}
-	return 0;
 }
+#else
+/* Swap configuration not needed in little-endian mode */
+static inline void xlp_config_pci_bswap(int node, int link) {}
+#endif /* __BIG_ENDIAN */
 
 static int __init pcibios_init(void)
 {
+	uint64_t pciebase;
+	int link, n;
+	u32 reg;
+
 	/* Firmware assigns PCI resources */
 	pci_set_flags(PCI_PROBE_ONLY);
 	pci_config_base = ioremap(XLP_DEFAULT_PCI_ECFG_BASE, 64 << 20);
 
 	/* Extend IO port for memory mapped io */
-	ioport_resource.start =  0;
+	ioport_resource.start =	 0;
 	ioport_resource.end   = ~0;
 
-	xlp_enable_pci_bswap();
+	for (n = 0; n < NLM_NR_NODES; n++) {
+		if (!nlm_node_present(n))
+			continue;
+
+		for (link = 0; link < PCIE_NLINKS; link++) {
+			pciebase = nlm_get_pcie_base(n, link);
+			if (nlm_read_pci_reg(pciebase, 0) == 0xffffffff)
+				continue;
+			xlp_config_pci_bswap(n, link);
+			xlp_init_node_msi_irqs(n, link);
+
+			/* put in intpin and irq - u-boot does not */
+			reg = nlm_read_pci_reg(pciebase, 0xf);
+			reg &= ~0x1ffu;
+			reg |= (1 << 8) | PIC_PCIE_LINK_LEGACY_IRQ(link);
+			nlm_write_pci_reg(pciebase, 0xf, reg);
+			pr_info("XLP PCIe: Link %d-%d initialized.\n", n, link);
+		}
+	}
+
 	set_io_port_base(CKSEG1);
 	nlm_pci_controller.io_map_base = CKSEG1;
 

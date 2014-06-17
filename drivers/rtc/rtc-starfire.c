@@ -39,21 +39,14 @@ static const struct rtc_class_ops starfire_rtc_ops = {
 
 static int __init starfire_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = rtc_device_register("starfire", &pdev->dev,
-				     &starfire_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&pdev->dev, "starfire",
+				&starfire_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	platform_set_drvdata(pdev, rtc);
-
-	return 0;
-}
-
-static int __exit starfire_rtc_remove(struct platform_device *pdev)
-{
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
 
 	return 0;
 }
@@ -63,18 +56,6 @@ static struct platform_driver starfire_rtc_driver = {
 		.name	= "rtc-starfire",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(starfire_rtc_remove),
 };
 
-static int __init starfire_rtc_init(void)
-{
-	return platform_driver_probe(&starfire_rtc_driver, starfire_rtc_probe);
-}
-
-static void __exit starfire_rtc_exit(void)
-{
-	platform_driver_unregister(&starfire_rtc_driver);
-}
-
-module_init(starfire_rtc_init);
-module_exit(starfire_rtc_exit);
+module_platform_driver_probe(starfire_rtc_driver, starfire_rtc_probe);

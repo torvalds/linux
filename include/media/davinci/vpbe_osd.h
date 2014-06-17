@@ -26,7 +26,9 @@
 
 #include <media/davinci/vpbe_types.h>
 
-#define VPBE_OSD_SUBDEV_NAME "vpbe-osd"
+#define DM644X_VPBE_OSD_SUBDEV_NAME	"dm644x,vpbe-osd"
+#define DM365_VPBE_OSD_SUBDEV_NAME	"dm365,vpbe-osd"
+#define DM355_VPBE_OSD_SUBDEV_NAME	"dm355,vpbe-osd"
 
 /**
  * enum osd_layer
@@ -80,9 +82,9 @@ enum osd_pix_format {
 	PIXFMT_4BPP,
 	PIXFMT_8BPP,
 	PIXFMT_RGB565,
-	PIXFMT_YCbCrI,
+	PIXFMT_YCBCRI,
 	PIXFMT_RGB888,
-	PIXFMT_YCrCbI,
+	PIXFMT_YCRCBI,
 	PIXFMT_NV12,
 	PIXFMT_OSD_ATTR,
 };
@@ -387,7 +389,6 @@ struct osd_state {
 };
 
 struct osd_platform_data {
-	enum vpbe_version vpbe_type;
 	int  field_inv_wa_enable;
 };
 

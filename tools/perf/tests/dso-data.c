@@ -1,7 +1,7 @@
 #include "util.h"
 
 #include <stdlib.h>
-#include <sys/types.h>
+#include <linux/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
@@ -9,14 +9,6 @@
 #include "machine.h"
 #include "symbol.h"
 #include "tests.h"
-
-#define TEST_ASSERT_VAL(text, cond) \
-do { \
-	if (!(cond)) { \
-		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
-		return -1; \
-	} \
-} while (0)
 
 static char *test_file(int size)
 {
@@ -43,6 +35,7 @@ static char *test_file(int size)
 	if (size != write(fd, buf, size))
 		templ = NULL;
 
+	free(buf);
 	close(fd);
 	return templ;
 }

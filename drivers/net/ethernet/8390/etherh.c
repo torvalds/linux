@@ -56,18 +56,15 @@
 #define ei_inb_p(_p)	 readb((void __iomem *)_p)
 #define ei_outb_p(_v,_p) writeb(_v,(void __iomem *)_p)
 
-#define NET_DEBUG  0
-#define DEBUG_INIT 2
-
 #define DRV_NAME	"etherh"
 #define DRV_VERSION	"1.11"
 
-static char version[] __initdata =
+static char version[] =
 	"EtherH/EtherM Driver (c) 2002-2004 Russell King " DRV_VERSION "\n";
 
 #include "lib8390.c"
 
-static unsigned int net_debug = NET_DEBUG;
+static u32 etherh_msg_enable;
 
 struct etherh_priv {
 	void __iomem	*ioc_fast;
@@ -317,9 +314,9 @@ etherh_block_output (struct net_device *dev, int count, const unsigned char *buf
 	void __iomem *dma_base, *addr;
 
 	if (ei_local->dmaing) {
-		printk(KERN_ERR "%s: DMAing conflict in etherh_block_input: "
-			" DMAstat %d irqlock %d\n", dev->name,
-			ei_local->dmaing, ei_local->irqlock);
+		netdev_err(dev, "DMAing conflict in etherh_block_input: "
+			   " DMAstat %d irqlock %d\n",
+			   ei_local->dmaing, ei_local->irqlock);
 		return;
 	}
 
@@ -361,8 +358,7 @@ etherh_block_output (struct net_device *dev, int count, const unsigned char *buf
 
 	while ((readb (addr + EN0_ISR) & ENISR_RDC) == 0)
 		if (time_after(jiffies, dma_start + 2*HZ/100)) { /* 20ms */
-			printk(KERN_ERR "%s: timeout waiting for TX RDC\n",
-				dev->name);
+			netdev_warn(dev, "timeout waiting for TX RDC\n");
 			etherh_reset (dev);
 			__NS8390_init (dev, 1);
 			break;
@@ -383,9 +379,9 @@ etherh_block_input (struct net_device *dev, int count, struct sk_buff *skb, int 
 	void __iomem *dma_base, *addr;
 
 	if (ei_local->dmaing) {
-		printk(KERN_ERR "%s: DMAing conflict in etherh_block_input: "
-			" DMAstat %d irqlock %d\n", dev->name,
-			ei_local->dmaing, ei_local->irqlock);
+		netdev_err(dev, "DMAing conflict in etherh_block_input: "
+			   " DMAstat %d irqlock %d\n",
+			   ei_local->dmaing, ei_local->irqlock);
 		return;
 	}
 
@@ -423,9 +419,9 @@ etherh_get_header (struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_p
 	void __iomem *dma_base, *addr;
 
 	if (ei_local->dmaing) {
-		printk(KERN_ERR "%s: DMAing conflict in etherh_get_header: "
-			" DMAstat %d irqlock %d\n", dev->name,
-			ei_local->dmaing, ei_local->irqlock);
+		netdev_err(dev, "DMAing conflict in etherh_get_header: "
+			   " DMAstat %d irqlock %d\n",
+			   ei_local->dmaing, ei_local->irqlock);
 		return;
 	}
 
@@ -513,8 +509,8 @@ static void __init etherh_banner(void)
 {
 	static int version_printed;
 
-	if (net_debug && version_printed++ == 0)
-		printk(KERN_INFO "%s", version);
+	if ((etherh_msg_enable & NETIF_MSG_DRV) && (version_printed++ == 0))
+		pr_info("%s", version);
 }
 
 /*
@@ -625,11 +621,27 @@ static int etherh_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return 0;
 }
 
+static u32 etherh_get_msglevel(struct net_device *dev)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	return ei_local->msg_enable;
+}
+
+static void etherh_set_msglevel(struct net_device *dev, u32 v)
+{
+	struct ei_device *ei_local = netdev_priv(dev);
+
+	ei_local->msg_enable = v;
+}
+
 static const struct ethtool_ops etherh_ethtool_ops = {
 	.get_settings	= etherh_get_settings,
 	.set_settings	= etherh_set_settings,
 	.get_drvinfo	= etherh_get_drvinfo,
 	.get_ts_info	= ethtool_op_get_ts_info,
+	.get_msglevel	= etherh_get_msglevel,
+	.set_msglevel	= etherh_set_msglevel,
 };
 
 static const struct net_device_ops etherh_netdev_ops = {
@@ -746,6 +758,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	ei_local->block_output  = etherh_block_output;
 	ei_local->get_8390_hdr  = etherh_get_header;
 	ei_local->interface_num = 0;
+	ei_local->msg_enable = etherh_msg_enable;
 
 	etherh_reset(dev);
 	__NS8390_init(dev, 0);
@@ -754,8 +767,8 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk(KERN_INFO "%s: %s in slot %d, %pM\n",
-		dev->name, data->name, ec->slot_no, dev->dev_addr);
+	netdev_info(dev, "%s in slot %d, %pM\n",
+		    data->name, ec->slot_no, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 

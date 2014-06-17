@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------ *
  * i2c-parport.c I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
-   Copyright (C) 2003-2011 Jean Delvare <khali@linux-fr.org>
+   Copyright (C) 2003-2011 Jean Delvare <jdelvare@suse.de>
 
    Based on older i2c-philips-par.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
@@ -298,7 +298,7 @@ static void __exit i2c_parport_exit(void)
 	parport_unregister_driver(&i2c_parport_driver);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I2C bus over parallel port");
 MODULE_LICENSE("GPL");
 

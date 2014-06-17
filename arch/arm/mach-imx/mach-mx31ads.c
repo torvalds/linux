@@ -576,18 +576,13 @@ static void __init mx31ads_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31ads_timer = {
-	.init	= mx31ads_timer_init,
-};
-
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.atag_offset = 0x100,
 	.map_io = mx31ads_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31ads_init_irq,
-	.handle_irq = imx31_handle_irq,
-	.timer = &mx31ads_timer,
+	.init_time	= mx31ads_timer_init,
 	.init_machine = mx31ads_init,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/seq_file.h>
 #include <scsi/scsi.h>
 
 struct request_queue;
@@ -14,6 +15,7 @@ struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_host_cmd_pool;
 struct scsi_target;
 struct Scsi_Host;
 struct scsi_host_cmd_pool;
@@ -340,7 +342,8 @@ struct scsi_host_template {
 	 *
 	 * Status: OBSOLETE
 	 */
-	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
+	int (*show_info)(struct seq_file *, struct Scsi_Host *);
+	int (*write_info)(struct Scsi_Host *, char *, int);
 
 	/*
 	 * This is an optional routine that allows the transport to become
@@ -375,7 +378,7 @@ struct scsi_host_template {
 
 	/*
 	 * Used to store the procfs directory if a driver implements the
-	 * proc_info method.
+	 * show_info method.
 	 */
 	struct proc_dir_entry *proc_dir;
 
@@ -473,6 +476,14 @@ struct scsi_host_template {
 	 */
 	unsigned ordered_tag:1;
 
+	/* True if the controller does not support WRITE SAME */
+	unsigned no_write_same:1;
+
+	/*
+	 * True if asynchronous aborts are not supported
+	 */
+	unsigned no_async_abort:1;
+
 	/*
 	 * Countdown for host blocking with no commands outstanding.
 	 */
@@ -514,6 +525,12 @@ struct scsi_host_template {
 	 *   scsi_netlink.h
 	 */
 	u64 vendor_id;
+
+	/*
+	 * Additional per-command data allocated for the driver.
+	 */
+	unsigned int cmd_size;
+	struct scsi_host_cmd_pool *cmd_pool;
 };
 
 /*
@@ -596,8 +613,11 @@ struct Scsi_Host {
 	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
 	unsigned int host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
-	int resetting; /* if set, it means that last_reset is a valid value */
+
+	/* next two fields are used to bound the time spent in error handling */
+	int eh_deadline;
 	unsigned long last_reset;
+
 
 	/*
 	 * These three parameters can be used to allow for wide scsi,
@@ -672,11 +692,19 @@ struct Scsi_Host {
 	/* Don't resume host in EH */
 	unsigned eh_noresume:1;
 
+	/* The controller does not support WRITE SAME */
+	unsigned no_write_same:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */
 	char work_q_name[20];
 	struct workqueue_struct *work_q;
+
+	/*
+	 * Task management function work queue
+	 */
+	struct workqueue_struct *tmf_work_q;
 
 	/*
 	 * Host has rejected a command because it was busy.
@@ -873,7 +901,7 @@ static inline unsigned int scsi_host_dif_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIF_TYPE2_PROTECTION,
 				       SHOST_DIF_TYPE3_PROTECTION };
 
-	if (target_type > SHOST_DIF_TYPE3_PROTECTION)
+	if (target_type >= ARRAY_SIZE(cap))
 		return 0;
 
 	return shost->prot_capabilities & cap[target_type] ? target_type : 0;
@@ -887,7 +915,7 @@ static inline unsigned int scsi_host_dix_capable(struct Scsi_Host *shost, unsign
 				       SHOST_DIX_TYPE2_PROTECTION,
 				       SHOST_DIX_TYPE3_PROTECTION };
 
-	if (target_type > SHOST_DIX_TYPE3_PROTECTION)
+	if (target_type >= ARRAY_SIZE(cap))
 		return 0;
 
 	return shost->prot_capabilities & cap[target_type];

@@ -291,7 +291,8 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 	/* First of all, check for unreliable messages in the queue,
 	   since they have priority */
 
-	if ((skb = skb_dequeue(&bcsp->unrel)) != NULL) {
+	skb = skb_dequeue(&bcsp->unrel);
+	if (skb != NULL) {
 		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
 		if (nskb) {
 			kfree_skb(skb);
@@ -308,16 +309,20 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 
 	spin_lock_irqsave_nested(&bcsp->unack.lock, flags, SINGLE_DEPTH_NESTING);
 
-	if (bcsp->unack.qlen < BCSP_TXWINSIZE && (skb = skb_dequeue(&bcsp->rel)) != NULL) {
-		struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len, bt_cb(skb)->pkt_type);
-		if (nskb) {
-			__skb_queue_tail(&bcsp->unack, skb);
-			mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
-			spin_unlock_irqrestore(&bcsp->unack.lock, flags);
-			return nskb;
-		} else {
-			skb_queue_head(&bcsp->rel, skb);
-			BT_ERR("Could not dequeue pkt because alloc_skb failed");
+	if (bcsp->unack.qlen < BCSP_TXWINSIZE) {
+		skb = skb_dequeue(&bcsp->rel);
+		if (skb != NULL) {
+			struct sk_buff *nskb = bcsp_prepare_pkt(bcsp, skb->data, skb->len,
+								bt_cb(skb)->pkt_type);
+			if (nskb) {
+				__skb_queue_tail(&bcsp->unack, skb);
+				mod_timer(&bcsp->tbcsp, jiffies + HZ / 4);
+				spin_unlock_irqrestore(&bcsp->unack.lock, flags);
+				return nskb;
+			} else {
+				skb_queue_head(&bcsp->rel, skb);
+				BT_ERR("Could not dequeue pkt because alloc_skb failed");
+			}
 		}
 	}
 
@@ -522,7 +527,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 				memcpy(skb_push(bcsp->rx_skb, HCI_EVENT_HDR_SIZE), &hdr, HCI_EVENT_HDR_SIZE);
 				bt_cb(bcsp->rx_skb)->pkt_type = HCI_EVENT_PKT;
 
-				hci_recv_frame(bcsp->rx_skb);
+				hci_recv_frame(hu->hdev, bcsp->rx_skb);
 			} else {
 				BT_ERR ("Packet for unknown channel (%u %s)",
 					bcsp->rx_skb->data[1] & 0x0f,
@@ -536,7 +541,7 @@ static void bcsp_complete_rx_pkt(struct hci_uart *hu)
 		/* Pull out BCSP hdr */
 		skb_pull(bcsp->rx_skb, 4);
 
-		hci_recv_frame(bcsp->rx_skb);
+		hci_recv_frame(hu->hdev, bcsp->rx_skb);
 	}
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
@@ -655,7 +660,6 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 					bcsp->rx_count = 0;
 					return 0;
 				}
-				bcsp->rx_skb->dev = (void *) hu->hdev;
 				break;
 			}
 			break;
@@ -716,6 +720,9 @@ static int bcsp_open(struct hci_uart *hu)
 static int bcsp_close(struct hci_uart *hu)
 {
 	struct bcsp_struct *bcsp = hu->priv;
+
+	del_timer_sync(&bcsp->tbcsp);
+
 	hu->priv = NULL;
 
 	BT_DBG("hu %p", hu);
@@ -723,7 +730,6 @@ static int bcsp_close(struct hci_uart *hu)
 	skb_queue_purge(&bcsp->unack);
 	skb_queue_purge(&bcsp->rel);
 	skb_queue_purge(&bcsp->unrel);
-	del_timer(&bcsp->tbcsp);
 
 	kfree(bcsp);
 	return 0;

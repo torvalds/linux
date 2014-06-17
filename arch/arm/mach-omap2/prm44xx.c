@@ -47,6 +47,7 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap44xx_prm_restore_irqen,
+	.reconfigure_io_chain	= &omap44xx_prm_reconfigure_io_chain,
 };
 
 /*
@@ -81,13 +82,13 @@ static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
 /* Read a register in a CM/PRM instance in the PRM module */
 u32 omap4_prm_read_inst_reg(s16 inst, u16 reg)
 {
-	return __raw_readl(OMAP44XX_PRM_REGADDR(inst, reg));
+	return readl_relaxed(prm_base + inst + reg);
 }
 
 /* Write into a register in a CM/PRM instance in the PRM module */
 void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 reg)
 {
-	__raw_writel(val, OMAP44XX_PRM_REGADDR(inst, reg));
+	writel_relaxed(val, prm_base + inst + reg);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
@@ -620,6 +621,15 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	return 0;
 }
 
+static int omap4_check_vcvp(void)
+{
+	/* No VC/VP on dra7xx devices */
+	if (soc_is_dra7xx())
+		return 0;
+
+	return 1;
+}
+
 struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_next_pwrst	= omap4_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst	= omap4_pwrdm_read_next_pwrst,
@@ -637,7 +647,10 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_set_mem_onst	= omap4_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst	= omap4_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,
+	.pwrdm_has_voltdm	= omap4_check_vcvp,
 };
+
+static int omap44xx_prm_late_init(void);
 
 /*
  * XXX document
@@ -646,34 +659,29 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.read_reset_sources = &omap44xx_prm_read_reset_sources,
 	.was_any_context_lost_old = &omap44xx_prm_was_any_context_lost_old,
 	.clear_context_loss_flags_old = &omap44xx_prm_clear_context_loss_flags_old,
+	.late_init = &omap44xx_prm_late_init,
 };
 
 int __init omap44xx_prm_init(void)
 {
-	if (!cpu_is_omap44xx())
-		return 0;
+	if (cpu_is_omap44xx())
+		prm_features |= PRM_HAS_IO_WAKEUP;
 
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
-static int __init omap44xx_prm_late_init(void)
+static int omap44xx_prm_late_init(void)
 {
-	if (!cpu_is_omap44xx())
+	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
 
 	omap44xx_prm_enable_io_wakeup();
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap44xx_prm_late_init);
 
 static void __exit omap44xx_prm_exit(void)
 {
-	if (!cpu_is_omap44xx())
-		return;
-
-	/* Should never happen */
-	WARN(prm_unregister(&omap44xx_prm_ll_data),
-	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+	prm_unregister(&omap44xx_prm_ll_data);
 }
 __exitcall(omap44xx_prm_exit);

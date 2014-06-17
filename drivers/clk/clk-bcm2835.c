@@ -20,6 +20,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/bcm2835.h>
+#include <linux/of.h>
 
 /*
  * These are fixed clocks. They're probably not all root clocks and it may

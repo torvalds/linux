@@ -5,9 +5,7 @@
 config NET_VENDOR_I825XX
 	bool "Intel (82586/82593/82596) devices"
 	default y
-	depends on NET_VENDOR_INTEL && (ISA || ISA_DMA_API || ARM || \
-		   ARCH_ACORN || MCA || MCA_LEGACY || SNI_RM || SUN3 || \
-		   GSC || BVME6000 || MVME16x || EXPERIMENTAL)
+	depends on NET_VENDOR_INTEL
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -20,46 +18,12 @@ config NET_VENDOR_I825XX
 
 if NET_VENDOR_I825XX
 
-config ELPLUS
-	tristate "3c505 \"EtherLink Plus\" support"
-	depends on ISA && ISA_DMA_API
-	---help---
-	  Information about this network (Ethernet) card can be found in
-	  <file:Documentation/networking/3c505.txt>.  If you have a card of
-	  this type, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c505.
-
-config EL16
-	tristate "3c507 \"EtherLink 16\" support (EXPERIMENTAL)"
-	depends on ISA && EXPERIMENTAL
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called 3c507.
-
 config ARM_ETHER1
 	tristate "Acorn Ether1 support"
 	depends on ARM && ARCH_ACORN
 	---help---
 	  If you have an Acorn system with one of these (AKA25) network cards,
 	  you should say Y to this option if you wish to use it with Linux.
-
-config APRICOT
-	tristate "Apricot Xen-II on board Ethernet"
-	depends on ISA
-	---help---
-	  If you have a network (Ethernet) controller of this type, say Y and
-	  read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called apricot.
 
 config BVME6000_NET
 	tristate "BVME6000 Ethernet support"
@@ -70,47 +34,12 @@ config BVME6000_NET
 	  in your kernel.
 	  To compile this driver as a module, choose M here.
 
-config EEXPRESS
-	tristate "EtherExpress 16 support"
-	depends on ISA
-	---help---
-	  If you have an EtherExpress16 network (Ethernet) card, say Y and
-	  read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.  Note that the Intel
-	  EtherExpress16 card used to be regarded as a very poor choice
-	  because the driver was very unreliable. We now have a new driver
-	  that should do better.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called eexpress.
-
-config EEXPRESS_PRO
-	tristate "EtherExpressPro support/EtherExpress 10 (i82595) support"
-	depends on ISA
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y. This
-	  driver supports Intel i82595{FX,TX} based boards. Note however
-	  that the EtherExpress PRO/100 Ethernet card has its own separate
-	  driver.  Please read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called eepro.
-
 config LASI_82596
 	tristate "Lasi ethernet"
 	depends on GSC
 	---help---
 	  Say Y here to support the builtin Intel 82596 ethernet controller
 	  found in Hewlett-Packard PA-RISC machines with 10Mbit ethernet.
-
-config LP486E
-	tristate "LP486E on board Ethernet"
-	depends on ISA
-	---help---
-	  Say Y here to support the 82596-based on-board Ethernet controller
-	  for the Panther motherboard, which is one of the two shipped in the
-	  Intel Professional Workstation.
 
 config MVME16x_NET
 	tristate "MVME16x Ethernet support"
@@ -120,17 +49,6 @@ config MVME16x_NET
 	  MVME162, 166, 167, 172 and 177 boards.  Say Y here to include the
 	  driver for this chip in your kernel.
 	  To compile this driver as a module, choose M here.
-
-config NI52
-	tristate "NI5210 support"
-	depends on ISA
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ni52.
 
 config SNI_82596
 	tristate "SNI RM ethernet"
@@ -147,15 +65,5 @@ config SUN3_82586
 	  Ethernet adapter found on Sun 3/1xx and 3/2xx motherboards.  Note
 	  that this driver does not support 82586-based adapters on additional
 	  VME boards.
-
-config ZNET
-	tristate "Zenith Z-Note support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && ISA_DMA_API && X86
-	---help---
-	  The Zenith Z-Note notebook computer has a built-in network
-	  (Ethernet) card, and this is the Linux driver for it. Note that the
-	  IBM Thinkpad 300 is compatible with the Z-Note and is also supported
-	  by this driver. Read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
 
 endif # NET_VENDOR_I825XX

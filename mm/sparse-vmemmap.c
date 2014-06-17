@@ -40,7 +40,8 @@ static void * __init_refok __earlyonly_bootmem_alloc(int node,
 				unsigned long align,
 				unsigned long goal)
 {
-	return __alloc_bootmem_node_high(NODE_DATA(node), size, align, goal);
+	return memblock_virt_alloc_try_nid(size, align, goal,
+					    BOOTMEM_ALLOC_ACCESSIBLE, node);
 }
 
 static void *vmemmap_buf;
@@ -53,10 +54,12 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
 		struct page *page;
 
 		if (node_state(node, N_HIGH_MEMORY))
-			page = alloc_pages_node(node,
-				GFP_KERNEL | __GFP_ZERO, get_order(size));
+			page = alloc_pages_node(
+				node, GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
+				get_order(size));
 		else
-			page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
+			page = alloc_pages(
+				GFP_KERNEL | __GFP_ZERO | __GFP_REPEAT,
 				get_order(size));
 		if (page)
 			return page_address(page);
@@ -145,11 +148,10 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
 	return pgd;
 }
 
-int __meminit vmemmap_populate_basepages(struct page *start_page,
-						unsigned long size, int node)
+int __meminit vmemmap_populate_basepages(unsigned long start,
+					 unsigned long end, int node)
 {
-	unsigned long addr = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long addr = start;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -176,9 +178,15 @@ int __meminit vmemmap_populate_basepages(struct page *start_page,
 
 struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
 {
-	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
-	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
-	if (error)
+	unsigned long start;
+	unsigned long end;
+	struct page *map;
+
+	map = pfn_to_page(pnum * PAGES_PER_SECTION);
+	start = (unsigned long)map;
+	end = (unsigned long)(map + PAGES_PER_SECTION);
+
+	if (vmemmap_populate(start, end, nid))
 		return NULL;
 
 	return map;
@@ -219,7 +227,8 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 
 	if (vmemmap_buf_start) {
 		/* need to free left buf */
-		free_bootmem(__pa(vmemmap_buf), vmemmap_buf_end - vmemmap_buf);
+		memblock_free_early(__pa(vmemmap_buf),
+				    vmemmap_buf_end - vmemmap_buf);
 		vmemmap_buf = NULL;
 		vmemmap_buf_end = NULL;
 	}

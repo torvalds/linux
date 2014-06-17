@@ -37,6 +37,16 @@
 			next-level-cache = <&L2>;
 			clocks = <&a9pll>;
 			clock-names = "cpu";
+			operating-points = <
+				/* kHz    ignored */
+				 1300000  1000000
+				 1200000  1000000
+				 1100000  1000000
+				  800000  1000000
+				  400000  1000000
+				  200000  1000000
+			>;
+			clock-latency = <100000>;
 		};
 
 		cpu@901 {
@@ -75,6 +85,12 @@
 
 	soc {
 		ranges = <0x00000000 0x00000000 0xffffffff>;
+
+		memory-controller@fff00000 {
+			compatible = "calxeda,hb-ddr-ctrl";
+			reg = <0xfff00000 0x1000>;
+			interrupts = <0 91 4>;
+		};
 
 		timer@fff10600 {
 			compatible = "arm,cortex-a9-twd-timer";

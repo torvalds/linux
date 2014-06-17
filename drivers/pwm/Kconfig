@@ -28,6 +28,10 @@ menuconfig PWM
 
 if PWM
 
+config PWM_SYSFS
+	bool
+	default y if SYSFS
+
 config PWM_AB8500
 	tristate "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
@@ -36,6 +40,36 @@ config PWM_AB8500
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-ab8500.
+
+config PWM_ATMEL
+	tristate "Atmel PWM support"
+	depends on ARCH_AT91
+	help
+	  Generic PWM framework driver for Atmel SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel.
+
+config PWM_ATMEL_TCB
+	tristate "Atmel TC Block PWM support"
+	depends on ATMEL_TCLIB && OF
+	help
+	  Generic PWM framework driver for Atmel Timer Counter Block.
+
+	  A Timer Counter Block provides 6 PWM devices grouped by 2.
+	  Devices in a given group must have the same period.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-atmel-tcb.
+
+config PWM_BCM_KONA
+	tristate "Kona PWM support"
+	depends on ARCH_BCM_MOBILE
+	help
+	  Generic PWM framework driver for Broadcom Kona PWM block.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bcm-kona.
 
 config PWM_BFIN
 	tristate "Blackfin PWM support"
@@ -46,8 +80,36 @@ config PWM_BFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
 
+config PWM_CLPS711X
+	tristate "CLPS711X PWM support"
+	depends on ARCH_CLPS711X || COMPILE_TEST
+	help
+	  Generic PWM framework driver for Cirrus Logic CLPS711X.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-clps711x.
+
+config PWM_EP93XX
+	tristate "Cirrus Logic EP93xx PWM support"
+	depends on ARCH_EP93XX
+	help
+	  Generic PWM framework driver for Cirrus Logic EP93xx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-ep93xx.
+
+config PWM_FSL_FTM
+	tristate "Freescale FlexTimer Module (FTM) PWM support"
+	depends on OF
+	help
+	  Generic FTM PWM framework driver for Freescale VF610 and
+	  Layerscape LS-1 SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-fsl-ftm.
+
 config PWM_IMX
-	tristate "i.MX pwm support"
+	tristate "i.MX PWM support"
 	depends on ARCH_MXC
 	help
 	  Generic PWM framework driver for i.MX.
@@ -65,6 +127,16 @@ config PWM_JZ4740
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-jz4740.
 
+config PWM_LP3943
+	tristate "TI/National Semiconductor LP3943 PWM support"
+	depends on MFD_LP3943
+	help
+	  Generic PWM framework driver for LP3943 which supports two PWM
+	  channels.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lp3943.
+
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
 	depends on ARCH_LPC32XX
@@ -75,6 +147,16 @@ config PWM_LPC32XX
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpc32xx.
 
+config PWM_LPSS
+	tristate "Intel LPSS PWM support"
+	depends on ACPI
+	help
+	  Generic PWM framework driver for Intel Low Power Subsystem PWM
+	  controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss.
+
 config PWM_MXS
 	tristate "Freescale MXS PWM support"
 	depends on ARCH_MXS && OF
@@ -84,6 +166,16 @@ config PWM_MXS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
+
+config PWM_PCA9685
+	tristate "NXP PCA9685 PWM driver"
+	depends on OF && I2C
+	select REGMAP_I2C
+	help
+	  Generic PWM framework driver for NXP PCA9685 LED controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-pca9685.
 
 config PWM_PUV3
 	tristate "PKUnity NetBook-0916 PWM support"
@@ -103,8 +195,19 @@ config PWM_PXA
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-pxa.
 
+config PWM_RENESAS_TPU
+	tristate "Renesas TPU PWM support"
+	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver exposes the Timer Pulse Unit (TPU) PWM controller found
+	  in Renesas chips through the PWM API.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-renesas-tpu.
+
 config PWM_SAMSUNG
-	tristate "Samsung pwm support"
+	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG
 	help
 	  Generic PWM framework driver for Samsung.
@@ -135,8 +238,7 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on SOC_AM33XX
-	select PWM_TIPWMSS
+	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the ECAP APWM controller found on AM33XX
 	  TI SOC
@@ -146,8 +248,7 @@ config  PWM_TIECAP
 
 config  PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
-	depends on SOC_AM33XX
-	select PWM_TIPWMSS
+	depends on SOC_AM33XX || ARCH_DAVINCI_DA8XX
 	help
 	  PWM driver support for the EHRPWM controller found on AM33XX
 	  TI SOC
@@ -157,7 +258,7 @@ config  PWM_TIEHRPWM
 
 config  PWM_TIPWMSS
 	bool
-	depends on SOC_AM33XX && (PWM_TIEHRPWM || PWM_TIECAP)
+	default y if SOC_AM33XX && (PWM_TIECAP || PWM_TIEHRPWM)
 	help
 	  PWM Subsystem driver support for AM33xx SOC.
 
@@ -183,7 +284,7 @@ config PWM_TWL_LED
 	  will be called pwm-twl-led.
 
 config PWM_VT8500
-	tristate "vt8500 pwm support"
+	tristate "vt8500 PWM support"
 	depends on ARCH_VT8500
 	help
 	  Generic PWM framework driver for vt8500.

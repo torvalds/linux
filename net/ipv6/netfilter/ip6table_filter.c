@@ -32,13 +32,14 @@ static const struct xt_table packet_filter = {
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ip6table_filter_hook(unsigned int hook, struct sk_buff *skb,
+ip6table_filter_hook(const struct nf_hook_ops *ops, struct sk_buff *skb,
 		     const struct net_device *in, const struct net_device *out,
 		     int (*okfn)(struct sk_buff *))
 {
 	const struct net *net = dev_net((in != NULL) ? in : out);
 
-	return ip6t_do_table(skb, hook, in, out, net->ipv6.ip6table_filter);
+	return ip6t_do_table(skb, ops->hooknum, in, out,
+			     net->ipv6.ip6table_filter);
 }
 
 static struct nf_hook_ops *filter_ops __read_mostly;
@@ -61,7 +62,7 @@ static int __net_init ip6table_filter_net_init(struct net *net)
 	net->ipv6.ip6table_filter =
 		ip6t_register_table(net, &packet_filter, repl);
 	kfree(repl);
-	return PTR_RET(net->ipv6.ip6table_filter);
+	return PTR_ERR_OR_ZERO(net->ipv6.ip6table_filter);
 }
 
 static void __net_exit ip6table_filter_net_exit(struct net *net)

@@ -31,7 +31,6 @@
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/agp_backend.h>
 #include <linux/agpgart.h>
@@ -603,7 +602,8 @@ static int agp_mmap(struct file *file, struct vm_area_struct *vma)
 			vma->vm_ops = kerninfo.vm_ops;
 		} else if (io_remap_pfn_range(vma, vma->vm_start,
 				(kerninfo.aper_base + offset) >> PAGE_SHIFT,
-					    size, vma->vm_page_prot)) {
+				size,
+				pgprot_writecombine(vma->vm_page_prot))) {
 			goto out_again;
 		}
 		mutex_unlock(&(agp_fe.agp_mutex));
@@ -618,8 +618,9 @@ static int agp_mmap(struct file *file, struct vm_area_struct *vma)
 		if (kerninfo.vm_ops) {
 			vma->vm_ops = kerninfo.vm_ops;
 		} else if (io_remap_pfn_range(vma, vma->vm_start,
-					    kerninfo.aper_base >> PAGE_SHIFT,
-					    size, vma->vm_page_prot)) {
+				kerninfo.aper_base >> PAGE_SHIFT,
+				size,
+				pgprot_writecombine(vma->vm_page_prot))) {
 			goto out_again;
 		}
 		mutex_unlock(&(agp_fe.agp_mutex));
@@ -729,6 +730,7 @@ static int agpioc_info_wrap(struct agp_file_private *priv, void __user *arg)
 
 	agp_copy_info(agp_bridge, &kerninfo);
 
+	memset(&userinfo, 0, sizeof(userinfo));
 	userinfo.version.major = kerninfo.version.major;
 	userinfo.version.minor = kerninfo.version.minor;
 	userinfo.bridge_id = kerninfo.device->vendor |

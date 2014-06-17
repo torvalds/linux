@@ -15,112 +15,51 @@
 #include <asm/proto.h>
 #include <asm/vdso.h>
 #include <asm/page.h>
+#include <asm/hpet.h>
 
-unsigned int __read_mostly vdso_enabled = 1;
+#if defined(CONFIG_X86_64)
+unsigned int __read_mostly vdso64_enabled = 1;
 
-extern char vdso_start[], vdso_end[];
 extern unsigned short vdso_sync_cpuid;
-
-extern struct page *vdso_pages[];
-static unsigned vdso_size;
-
-#ifdef CONFIG_X86_X32_ABI
-extern char vdsox32_start[], vdsox32_end[];
-extern struct page *vdsox32_pages[];
-static unsigned vdsox32_size;
-
-static void __init patch_vdsox32(void *vdso, size_t len)
-{
-	Elf32_Ehdr *hdr = vdso;
-	Elf32_Shdr *sechdrs, *alt_sec = 0;
-	char *secstrings;
-	void *alt_data;
-	int i;
-
-	BUG_ON(len < sizeof(Elf32_Ehdr));
-	BUG_ON(memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0);
-
-	sechdrs = (void *)hdr + hdr->e_shoff;
-	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		Elf32_Shdr *shdr = &sechdrs[i];
-		if (!strcmp(secstrings + shdr->sh_name, ".altinstructions")) {
-			alt_sec = shdr;
-			goto found;
-		}
-	}
-
-	/* If we get here, it's probably a bug. */
-	pr_warning("patch_vdsox32: .altinstructions not found\n");
-	return;  /* nothing to patch */
-
-found:
-	alt_data = (void *)hdr + alt_sec->sh_offset;
-	apply_alternatives(alt_data, alt_data + alt_sec->sh_size);
-}
 #endif
 
-static void __init patch_vdso64(void *vdso, size_t len)
+void __init init_vdso_image(const struct vdso_image *image)
 {
-	Elf64_Ehdr *hdr = vdso;
-	Elf64_Shdr *sechdrs, *alt_sec = 0;
-	char *secstrings;
-	void *alt_data;
 	int i;
+	int npages = (image->size) / PAGE_SIZE;
 
-	BUG_ON(len < sizeof(Elf64_Ehdr));
-	BUG_ON(memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0);
+	BUG_ON(image->size % PAGE_SIZE != 0);
+	for (i = 0; i < npages; i++)
+		image->text_mapping.pages[i] =
+			virt_to_page(image->data + i*PAGE_SIZE);
 
-	sechdrs = (void *)hdr + hdr->e_shoff;
-	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		Elf64_Shdr *shdr = &sechdrs[i];
-		if (!strcmp(secstrings + shdr->sh_name, ".altinstructions")) {
-			alt_sec = shdr;
-			goto found;
-		}
-	}
-
-	/* If we get here, it's probably a bug. */
-	pr_warning("patch_vdso64: .altinstructions not found\n");
-	return;  /* nothing to patch */
-
-found:
-	alt_data = (void *)hdr + alt_sec->sh_offset;
-	apply_alternatives(alt_data, alt_data + alt_sec->sh_size);
+	apply_alternatives((struct alt_instr *)(image->data + image->alt),
+			   (struct alt_instr *)(image->data + image->alt +
+						image->alt_len));
 }
 
+#if defined(CONFIG_X86_64)
 static int __init init_vdso(void)
 {
-	int npages = (vdso_end - vdso_start + PAGE_SIZE - 1) / PAGE_SIZE;
-	int i;
-
-	patch_vdso64(vdso_start, vdso_end - vdso_start);
-
-	vdso_size = npages << PAGE_SHIFT;
-	for (i = 0; i < npages; i++)
-		vdso_pages[i] = virt_to_page(vdso_start + i*PAGE_SIZE);
+	init_vdso_image(&vdso_image_64);
 
 #ifdef CONFIG_X86_X32_ABI
-	patch_vdsox32(vdsox32_start, vdsox32_end - vdsox32_start);
-	npages = (vdsox32_end - vdsox32_start + PAGE_SIZE - 1) / PAGE_SIZE;
-	vdsox32_size = npages << PAGE_SHIFT;
-	for (i = 0; i < npages; i++)
-		vdsox32_pages[i] = virt_to_page(vdsox32_start + i*PAGE_SIZE);
+	init_vdso_image(&vdso_image_x32);
 #endif
 
 	return 0;
 }
 subsys_initcall(init_vdso);
+#endif
 
 struct linux_binprm;
 
 /* Put the vdso above the (randomized) stack with another randomized offset.
    This way there is no hole in the middle of address space.
    To save memory make sure it is still in the same PTE as the stack top.
-   This doesn't give that many random bits */
+   This doesn't give that many random bits.
+
+   Only used for the 64-bit and x32 vdsos. */
 static unsigned long vdso_addr(unsigned long start, unsigned len)
 {
 	unsigned long addr, end;
@@ -146,61 +85,150 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 	return addr;
 }
 
-/* Setup a VMA at program startup for the vsyscall page.
-   Not called for compat tasks */
-static int setup_additional_pages(struct linux_binprm *bprm,
-				  int uses_interp,
-				  struct page **pages,
-				  unsigned size)
+static int map_vdso(const struct vdso_image *image, bool calculate_addr)
 {
 	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
 	unsigned long addr;
-	int ret;
+	int ret = 0;
+	static struct page *no_pages[] = {NULL};
+	static struct vm_special_mapping vvar_mapping = {
+		.name = "[vvar]",
+		.pages = no_pages,
+	};
 
-	if (!vdso_enabled)
-		return 0;
+	if (calculate_addr) {
+		addr = vdso_addr(current->mm->start_stack,
+				 image->sym_end_mapping);
+	} else {
+		addr = 0;
+	}
 
 	down_write(&mm->mmap_sem);
-	addr = vdso_addr(mm->start_stack, size);
-	addr = get_unmapped_area(NULL, addr, size, 0, 0);
+
+	addr = get_unmapped_area(NULL, addr, image->sym_end_mapping, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
 	}
 
-	current->mm->context.vdso = (void *)addr;
+	current->mm->context.vdso = (void __user *)addr;
 
-	ret = install_special_mapping(mm, addr, size,
-				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				      pages);
-	if (ret) {
-		current->mm->context.vdso = NULL;
+	/*
+	 * MAYWRITE to allow gdb to COW and set breakpoints
+	 */
+	vma = _install_special_mapping(mm,
+				       addr,
+				       image->size,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &image->text_mapping);
+
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto up_fail;
 	}
 
+	vma = _install_special_mapping(mm,
+				       addr + image->size,
+				       image->sym_end_mapping - image->size,
+				       VM_READ,
+				       &vvar_mapping);
+
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto up_fail;
+	}
+
+	if (image->sym_vvar_page)
+		ret = remap_pfn_range(vma,
+				      addr + image->sym_vvar_page,
+				      __pa_symbol(&__vvar_page) >> PAGE_SHIFT,
+				      PAGE_SIZE,
+				      PAGE_READONLY);
+
+	if (ret)
+		goto up_fail;
+
+#ifdef CONFIG_HPET_TIMER
+	if (hpet_address && image->sym_hpet_page) {
+		ret = io_remap_pfn_range(vma,
+			addr + image->sym_hpet_page,
+			hpet_address >> PAGE_SHIFT,
+			PAGE_SIZE,
+			pgprot_noncached(PAGE_READONLY));
+
+		if (ret)
+			goto up_fail;
+	}
+#endif
+
 up_fail:
+	if (ret)
+		current->mm->context.vdso = NULL;
+
 	up_write(&mm->mmap_sem);
 	return ret;
 }
 
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+#if defined(CONFIG_X86_32) || defined(CONFIG_COMPAT)
+static int load_vdso32(void)
 {
-	return setup_additional_pages(bprm, uses_interp, vdso_pages,
-				      vdso_size);
-}
+	int ret;
 
-#ifdef CONFIG_X86_X32_ABI
-int x32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
-{
-	return setup_additional_pages(bprm, uses_interp, vdsox32_pages,
-				      vdsox32_size);
+	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
+		return 0;
+
+	ret = map_vdso(selected_vdso32, false);
+	if (ret)
+		return ret;
+
+	if (selected_vdso32->sym_VDSO32_SYSENTER_RETURN)
+		current_thread_info()->sysenter_return =
+			current->mm->context.vdso +
+			selected_vdso32->sym_VDSO32_SYSENTER_RETURN;
+
+	return 0;
 }
 #endif
 
+#ifdef CONFIG_X86_64
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	if (!vdso64_enabled)
+		return 0;
+
+	return map_vdso(&vdso_image_64, true);
+}
+
+#ifdef CONFIG_COMPAT
+int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int uses_interp)
+{
+#ifdef CONFIG_X86_X32_ABI
+	if (test_thread_flag(TIF_X32)) {
+		if (!vdso64_enabled)
+			return 0;
+
+		return map_vdso(&vdso_image_x32, true);
+	}
+#endif
+
+	return load_vdso32();
+}
+#endif
+#else
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	return load_vdso32();
+}
+#endif
+
+#ifdef CONFIG_X86_64
 static __init int vdso_setup(char *s)
 {
-	vdso_enabled = simple_strtoul(s, NULL, 0);
+	vdso64_enabled = simple_strtoul(s, NULL, 0);
 	return 0;
 }
 __setup("vdso=", vdso_setup);
+#endif

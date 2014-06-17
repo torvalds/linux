@@ -10,7 +10,8 @@
 #include <linux/idr.h>
 #include <linux/rculist.h>
 #include <linux/nsproxy.h>
-#include <linux/proc_fs.h>
+#include <linux/fs.h>
+#include <linux/proc_ns.h>
 #include <linux/file.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
@@ -23,7 +24,7 @@
 
 static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
-static DEFINE_MUTEX(net_mutex);
+DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 EXPORT_SYMBOL_GPL(net_namespace_list);
@@ -272,7 +273,7 @@ static void cleanup_net(struct work_struct *work)
 {
 	const struct pernet_operations *ops;
 	struct net *net, *tmp;
-	LIST_HEAD(net_kill_list);
+	struct list_head net_kill_list;
 	LIST_HEAD(net_exit_list);
 
 	/* Atomically snapshot the list of namespaces to cleanup */
@@ -336,7 +337,7 @@ EXPORT_SYMBOL_GPL(__put_net);
 
 struct net *get_net_ns_by_fd(int fd)
 {
-	struct proc_inode *ei;
+	struct proc_ns *ei;
 	struct file *file;
 	struct net *net;
 
@@ -344,7 +345,7 @@ struct net *get_net_ns_by_fd(int fd)
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	ei = PROC_I(file->f_dentry->d_inode);
+	ei = get_proc_ns(file_inode(file));
 	if (ei->ns_ops == &netns_operations)
 		net = get_net(ei->ns);
 	else
@@ -650,7 +651,7 @@ static int netns_install(struct nsproxy *nsproxy, void *ns)
 	struct net *net = ns;
 
 	if (!ns_capable(net->user_ns, CAP_SYS_ADMIN) ||
-	    !nsown_capable(CAP_SYS_ADMIN))
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	put_net(nsproxy->net_ns);

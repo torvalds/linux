@@ -28,85 +28,90 @@
  * all rather than adding infrastructure to hack around it.
  */
 static struct plat_sci_port scif0_platform_data = {
-	.mapbase	= 0xffc30000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x700),
-			    evt2irq(0x720),
-			    evt2irq(0x760),
-			    evt2irq(0x740) },
+};
+
+static struct resource scif0_resources[] = {
+	DEFINE_RES_MEM(0xffc30000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x700)),
+	DEFINE_RES_IRQ(evt2irq(0x720)),
+	DEFINE_RES_IRQ(evt2irq(0x760)),
+	DEFINE_RES_IRQ(evt2irq(0x740)),
 };
 
 static struct platform_device scif0_device = {
 	.name		= "sh-sci",
 	.id		= 0,
+	.resource	= scif0_resources,
+	.num_resources	= ARRAY_SIZE(scif0_resources),
 	.dev		= {
 		.platform_data	= &scif0_platform_data,
 	},
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.mapbase	= 0xffc40000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x780),
-			    evt2irq(0x7a0),
-			    evt2irq(0x7e0),
-			    evt2irq(0x7c0) },
+};
+
+static struct resource scif1_resources[] = {
+	DEFINE_RES_MEM(0xffc40000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x780)),
+	DEFINE_RES_IRQ(evt2irq(0x7a0)),
+	DEFINE_RES_IRQ(evt2irq(0x7e0)),
+	DEFINE_RES_IRQ(evt2irq(0x7c0)),
 };
 
 static struct platform_device scif1_device = {
 	.name		= "sh-sci",
 	.id		= 1,
+	.resource	= scif1_resources,
+	.num_resources	= ARRAY_SIZE(scif1_resources),
 	.dev		= {
 		.platform_data	= &scif1_platform_data,
 	},
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.mapbase	= 0xffc60000,
 	.flags		= UPF_BOOT_AUTOCONF,
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
-	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { evt2irq(0x880),
-			    evt2irq(0x8a0),
-			    evt2irq(0x8e0),
-			    evt2irq(0x8c0) },
+};
+
+static struct resource scif2_resources[] = {
+	DEFINE_RES_MEM(0xffc60000, 0x100),
+	DEFINE_RES_IRQ(evt2irq(0x880)),
+	DEFINE_RES_IRQ(evt2irq(0x8a0)),
+	DEFINE_RES_IRQ(evt2irq(0x8e0)),
+	DEFINE_RES_IRQ(evt2irq(0x8c0)),
 };
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
 	.id		= 2,
+	.resource	= scif2_resources,
+	.num_resources	= ARRAY_SIZE(scif2_resources),
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.channel_offset = 0x04,
-	.timer_bit = 0,
-	.clockevent_rating = 200,
+	.channels_mask = 7,
 };
 
 static struct resource tmu0_resources[] = {
-	[0] = {
-		.start	= 0xffc10008,
-		.end	= 0xffc10013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x400),
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xffc10000, 0x30),
+	DEFINE_RES_IRQ(evt2irq(0x400)),
+	DEFINE_RES_IRQ(evt2irq(0x420)),
+	DEFINE_RES_IRQ(evt2irq(0x440)),
 };
 
 static struct platform_device tmu0_device = {
-	.name		= "sh_tmu",
+	.name		= "sh-tmu",
 	.id		= 0,
 	.dev = {
 		.platform_data	= &tmu0_platform_data,
@@ -116,25 +121,18 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-	.clocksource_rating = 200,
+	.channels_mask = 7,
 };
 
 static struct resource tmu1_resources[] = {
-	[0] = {
-		.start	= 0xffc10014,
-		.end	= 0xffc1001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x420),
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_MEM(0xffc20000, 0x2c),
+	DEFINE_RES_IRQ(evt2irq(0x460)),
+	DEFINE_RES_IRQ(evt2irq(0x480)),
+	DEFINE_RES_IRQ(evt2irq(0x4a0)),
 };
 
 static struct platform_device tmu1_device = {
-	.name		= "sh_tmu",
+	.name		= "sh-tmu",
 	.id		= 1,
 	.dev = {
 		.platform_data	= &tmu1_platform_data,
@@ -143,124 +141,12 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
-static struct sh_timer_config tmu2_platform_data = {
-	.channel_offset = 0x1c,
-	.timer_bit = 2,
-};
-
-static struct resource tmu2_resources[] = {
-	[0] = {
-		.start	= 0xffc10020,
-		.end	= 0xffc1002f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x440),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu2_device = {
-	.name		= "sh_tmu",
-	.id		= 2,
-	.dev = {
-		.platform_data	= &tmu2_platform_data,
-	},
-	.resource	= tmu2_resources,
-	.num_resources	= ARRAY_SIZE(tmu2_resources),
-};
-
-static struct sh_timer_config tmu3_platform_data = {
-	.channel_offset = 0x04,
-	.timer_bit = 0,
-};
-
-static struct resource tmu3_resources[] = {
-	[0] = {
-		.start	= 0xffc20008,
-		.end	= 0xffc20013,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x460),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu3_device = {
-	.name		= "sh_tmu",
-	.id		= 3,
-	.dev = {
-		.platform_data	= &tmu3_platform_data,
-	},
-	.resource	= tmu3_resources,
-	.num_resources	= ARRAY_SIZE(tmu3_resources),
-};
-
-static struct sh_timer_config tmu4_platform_data = {
-	.channel_offset = 0x10,
-	.timer_bit = 1,
-};
-
-static struct resource tmu4_resources[] = {
-	[0] = {
-		.start	= 0xffc20014,
-		.end	= 0xffc2001f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x480),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu4_device = {
-	.name		= "sh_tmu",
-	.id		= 4,
-	.dev = {
-		.platform_data	= &tmu4_platform_data,
-	},
-	.resource	= tmu4_resources,
-	.num_resources	= ARRAY_SIZE(tmu4_resources),
-};
-
-static struct sh_timer_config tmu5_platform_data = {
-	.channel_offset = 0x1c,
-	.timer_bit = 2,
-};
-
-static struct resource tmu5_resources[] = {
-	[0] = {
-		.start	= 0xffc20020,
-		.end	= 0xffc2002b,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= evt2irq(0x4a0),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device tmu5_device = {
-	.name		= "sh_tmu",
-	.id		= 5,
-	.dev = {
-		.platform_data	= &tmu5_platform_data,
-	},
-	.resource	= tmu5_resources,
-	.num_resources	= ARRAY_SIZE(tmu5_resources),
-};
-
 static struct platform_device *shx3_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
-	&tmu2_device,
-	&tmu3_device,
-	&tmu4_device,
-	&tmu5_device,
 };
 
 static int __init shx3_devices_setup(void)

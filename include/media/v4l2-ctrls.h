@@ -22,6 +22,7 @@
 #define _V4L2_CTRLS_H
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/videodev2.h>
 
 /* forward references */
@@ -53,6 +54,8 @@ struct v4l2_ctrl_ops {
 	int (*s_ctrl)(struct v4l2_ctrl *ctrl);
 };
 
+typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
+
 /** struct v4l2_ctrl - The control structure.
   * @node:	The list node.
   * @ev_subs:	The list of control event subscriptions.
@@ -72,6 +75,8 @@ struct v4l2_ctrl_ops {
   *		set this flag directly.
   * @has_volatiles: If set, then one or more members of the cluster are volatile.
   *		Drivers should never touch this flag.
+  * @call_notify: If set, then call the handler's notify function whenever the
+  *		control's value changes.
   * @manual_mode_value: If the is_auto flag is set, then this is the value
   *		of the auto control that determines if that control is in
   *		manual mode. So if the value of the auto control equals this
@@ -119,6 +124,7 @@ struct v4l2_ctrl {
 	unsigned int is_private:1;
 	unsigned int is_auto:1;
 	unsigned int has_volatiles:1;
+	unsigned int call_notify:1;
 	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;
@@ -177,6 +183,10 @@ struct v4l2_ctrl_ref {
   *		control is needed multiple times, so this is a simple
   *		optimization.
   * @buckets:	Buckets for the hashing. Allows for quick control lookup.
+  * @notify:	A notify callback that is called whenever the control changes value.
+  *		Note that the handler's lock is held when the notify function
+  *		is called!
+  * @notify_priv: Passed as argument to the v4l2_ctrl notify callback.
   * @nr_of_buckets: Total number of buckets in the array.
   * @error:	The error code of the first failed control addition.
   */
@@ -187,6 +197,8 @@ struct v4l2_ctrl_handler {
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
 	struct v4l2_ctrl_ref **buckets;
+	v4l2_ctrl_notify_fnc notify;
+	void *notify_priv;
 	u16 nr_of_buckets;
 	int error;
 };
@@ -248,7 +260,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		    s32 *min, s32 *max, s32 *step, s32 *def, u32 *flags);
 
 
-/** v4l2_ctrl_handler_init() - Initialize the control handler.
+/** v4l2_ctrl_handler_init_class() - Initialize the control handler.
   * @hdl:	The control handler.
   * @nr_of_controls_hint: A hint of how many controls this handler is
   *		expected to refer to. This is the total number, so including
@@ -257,12 +269,35 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
   *		are allocated) or the control lookup becomes slower (not enough
   *		buckets are allocated, so there are more slow list lookups).
   *		It will always work, though.
+  * @key:	Used by the lock validator if CONFIG_LOCKDEP is set.
+  * @name:	Used by the lock validator if CONFIG_LOCKDEP is set.
   *
   * Returns an error if the buckets could not be allocated. This error will
   * also be stored in @hdl->error.
+  *
+  * Never use this call directly, always use the v4l2_ctrl_handler_init
+  * macro that hides the @key and @name arguments.
   */
-int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
-			   unsigned nr_of_controls_hint);
+int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
+				 unsigned nr_of_controls_hint,
+				 struct lock_class_key *key, const char *name);
+
+#ifdef CONFIG_LOCKDEP
+#define v4l2_ctrl_handler_init(hdl, nr_of_controls_hint)		\
+(									\
+	({								\
+		static struct lock_class_key _key;			\
+		v4l2_ctrl_handler_init_class(hdl, nr_of_controls_hint,	\
+					&_key,				\
+					KBUILD_BASENAME ":"		\
+					__stringify(__LINE__) ":"	\
+					"(" #hdl ")->_lock");		\
+	})								\
+)
+#else
+#define v4l2_ctrl_handler_init(hdl, nr_of_controls_hint)		\
+	v4l2_ctrl_handler_init_class(hdl, nr_of_controls_hint, NULL, NULL)
+#endif
 
 /** v4l2_ctrl_handler_free() - Free all controls owned by the handler and free
   * the control list.
@@ -507,6 +542,26 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
   */
 void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
 
+/** v4l2_ctrl_modify_range() - Update the range of a control.
+  * @ctrl:	The control to update.
+  * @min:	The control's minimum value.
+  * @max:	The control's maximum value.
+  * @step:	The control's step value
+  * @def:	The control's default value.
+  *
+  * Update the range of a control on the fly. This works for control types
+  * INTEGER, BOOLEAN, MENU, INTEGER MENU and BITMASK. For menu controls the
+  * @step value is interpreted as a menu_skip_mask.
+  *
+  * An error is returned if one of the range arguments is invalid for this
+  * control type.
+  *
+  * This function assumes that the control handler is not locked and will
+  * take the lock itself.
+  */
+int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+			s32 min, s32 max, u32 step, s32 def);
+
 /** v4l2_ctrl_lock() - Helper function to lock the handler
   * associated with the control.
   * @ctrl:	The control to lock.
@@ -516,7 +571,7 @@ static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
 	mutex_lock(ctrl->handler->lock);
 }
 
-/** v4l2_ctrl_lock() - Helper function to unlock the handler
+/** v4l2_ctrl_unlock() - Helper function to unlock the handler
   * associated with the control.
   * @ctrl:	The control to unlock.
   */
@@ -524,6 +579,20 @@ static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
 	mutex_unlock(ctrl->handler->lock);
 }
+
+/** v4l2_ctrl_notify() - Function to set a notify callback for a control.
+  * @ctrl:	The control.
+  * @notify:	The callback function.
+  * @priv:	The callback private handle, passed as argument to the callback.
+  *
+  * This function sets a callback function for the control. If @ctrl is NULL,
+  * then it will do nothing. If @notify is NULL, then the notify callback will
+  * be removed.
+  *
+  * There can be only one notify. If another already exists, then a WARN_ON
+  * will be issued and the function will do nothing.
+  */
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv);
 
 /** v4l2_ctrl_g_ctrl() - Helper function to get the control's value from within a driver.
   * @ctrl:	The control.
@@ -608,5 +677,13 @@ int v4l2_subdev_try_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *
 int v4l2_subdev_s_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *cs);
 int v4l2_subdev_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 int v4l2_subdev_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
+
+/* Can be used as a subscribe_event function that just subscribes control
+   events. */
+int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				     struct v4l2_event_subscription *sub);
+
+/* Log all controls owned by subdev's control handler. */
+int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
 
 #endif

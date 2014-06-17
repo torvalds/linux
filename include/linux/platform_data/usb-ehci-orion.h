@@ -1,13 +1,11 @@
 /*
- * arch/arm/plat-orion/include/plat/ehci-orion.h
- *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __PLAT_EHCI_ORION_H
-#define __PLAT_EHCI_ORION_H
+#ifndef __USB_EHCI_ORION_H
+#define __USB_EHCI_ORION_H
 
 #include <linux/mbus.h>
 

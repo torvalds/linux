@@ -644,6 +644,9 @@ enum tsi721_smsg_int_flag {
 
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 
+#define TSI721_BDMA_BD_RING_SZ	128
+#define TSI721_BDMA_MAX_BCOUNT	(TSI721_DMAD_BCOUNT1 + 1)
+
 struct tsi721_tx_desc {
 	struct dma_async_tx_descriptor	txd;
 	struct tsi721_dma_desc		*hw_desc;
@@ -652,6 +655,7 @@ struct tsi721_tx_desc {
 	u64				rio_addr;
 	/* upper 2-bits of 66-bit RIO address */
 	u8				rio_addr_u;
+	u32				bcount;
 	bool				interrupt;
 	struct list_head		desc_node;
 	struct list_head		tx_list;
@@ -678,6 +682,7 @@ struct tsi721_bdma_chan {
 	struct list_head	free_list;
 	dma_cookie_t		completed_cookie;
 	struct tasklet_struct	tasklet;
+	bool			active;
 };
 
 #endif /* CONFIG_RAPIDIO_DMA_ENGINE */

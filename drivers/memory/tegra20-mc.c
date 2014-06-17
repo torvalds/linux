@@ -17,6 +17,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ratelimit.h>
@@ -192,8 +193,11 @@ static irqreturn_t tegra20_mc_isr(int irq, void *data)
 	mask &= stat;
 	if (!mask)
 		return IRQ_NONE;
-	while ((bit = ffs(mask)) != 0)
+	while ((bit = ffs(mask)) != 0) {
 		tegra20_mc_decode(mc, bit - 1);
+		mask &= ~BIT(bit - 1);
+	}
+
 	mc_writel(mc, stat, MC_INTSTATUS);
 	return IRQ_HANDLED;
 }
@@ -214,11 +218,9 @@ static int tegra20_mc_probe(struct platform_device *pdev)
 		struct resource *res;
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			return -ENODEV;
-		mc->regs[i] = devm_request_and_ioremap(&pdev->dev, res);
-		if (!mc->regs[i])
-			return -EBUSY;
+		mc->regs[i] = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(mc->regs[i]))
+			return PTR_ERR(mc->regs[i]);
 	}
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

@@ -102,8 +102,8 @@ static size_t sgtable_len(const struct sg_table *sgt)
 		}
 
 		if (i && sg->offset) {
-			pr_err("%s: sg[%d] offset not allowed in internal "
-					"entries\n", __func__, i);
+			pr_err("%s: sg[%d] offset not allowed in internal entries\n",
+				__func__, i);
 			return 0;
 		}
 

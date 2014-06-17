@@ -8,6 +8,17 @@
 #include <uapi/asm/chpid.h>
 #include <asm/cio.h>
 
+struct channel_path_desc {
+	u8 flags;
+	u8 lsn;
+	u8 desc;
+	u8 chpid;
+	u8 swla;
+	u8 zeroes;
+	u8 chla;
+	u8 chpp;
+} __packed;
+
 static inline void chp_id_init(struct chp_id *chpid)
 {
 	memset(chpid, 0, sizeof(struct chp_id));

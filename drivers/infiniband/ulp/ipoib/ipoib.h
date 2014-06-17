@@ -101,6 +101,7 @@ enum {
 	IPOIB_MCAST_FLAG_SENDONLY = 1,
 	IPOIB_MCAST_FLAG_BUSY	  = 2,	/* joining or already joined */
 	IPOIB_MCAST_FLAG_ATTACHED = 3,
+	IPOIB_MCAST_JOIN_STARTED  = 4,
 
 	MAX_SEND_CQE		  = 16,
 	IPOIB_CM_COPYBREAK	  = 256,
@@ -116,6 +117,8 @@ enum {
 #else
 #define	IPOIB_OP_CM     (0)
 #endif
+
+#define IPOIB_QPN_MASK ((__force u32) cpu_to_be32(0xFFFFFF))
 
 /* structs */
 
@@ -149,6 +152,7 @@ struct ipoib_mcast {
 	struct sk_buff_head pkt_queue;
 
 	struct net_device *dev;
+	struct completion done;
 };
 
 struct ipoib_rx_buf {
@@ -297,7 +301,7 @@ struct ipoib_dev_priv {
 
 	unsigned long flags;
 
-	struct mutex vlan_mutex;
+	struct rw_semaphore vlan_rwsem;
 
 	struct rb_root  path_tree;
 	struct list_head path_list;
@@ -759,5 +763,7 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
+
+extern const char ipoib_driver_version[];
 
 #endif /* _IPOIB_H */

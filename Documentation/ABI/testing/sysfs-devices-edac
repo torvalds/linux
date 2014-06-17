@@ -77,7 +77,7 @@ Description:	Read/Write attribute file that controls memory scrubbing.
 
 What:		/sys/devices/system/edac/mc/mc*/max_location
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file displays the information about the last
 		available memory slot in this memory controller. It is used by
@@ -85,7 +85,7 @@ Description:	This attribute file displays the information about the last
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/size
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file will display the size of dimm or rank.
 		For dimm*/size, this is the size, in MB of the DIMM memory
@@ -96,14 +96,14 @@ Description:	This attribute file will display the size of dimm or rank.
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_dev_type
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file will display what type of DRAM device is
 		being utilized on this DIMM (x1, x2, x4, x8, ...).
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_edac_mode
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file will display what type of Error detection
 		and correction is being utilized. For example: S4ECD4ED would
@@ -111,7 +111,7 @@ Description:	This attribute file will display what type of Error detection
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_label
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This control file allows this DIMM to have a label assigned
 		to it. With this label in the module, when errors occur
@@ -126,14 +126,14 @@ Description:	This control file allows this DIMM to have a label assigned
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_location
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file will display the location (csrow/channel,
 		branch/channel/slot or channel/slot) of the dimm or rank.
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_mem_type
 Date:		April 2012
-Contact:	Mauro Carvalho Chehab <mchehab@redhat.com>
+Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
 		linux-edac@vger.kernel.org
 Description:	This attribute file will display what type of memory is
 		currently on this csrow. Normally, either buffered or

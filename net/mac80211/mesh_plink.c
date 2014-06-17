@@ -19,12 +19,6 @@
 #define mod_plink_timer(s, t) (mod_timer(&s->plink_timer, \
 				jiffies + HZ * t / 1000))
 
-/* We only need a valid sta if user configured a minimum rssi_threshold. */
-#define rssi_threshold_check(sta, sdata) \
-		(sdata->u.mesh.mshcfg.rssi_threshold == 0 ||\
-		(sta && (s8) -ewma_read(&sta->avg_signal) > \
-		sdata->u.mesh.mshcfg.rssi_threshold))
-
 enum plink_event {
 	PLINK_UNDEFINED,
 	OPN_ACPT,
@@ -37,22 +31,40 @@ enum plink_event {
 	CLS_IGNR
 };
 
+static const char * const mplstates[] = {
+	[NL80211_PLINK_LISTEN] = "LISTEN",
+	[NL80211_PLINK_OPN_SNT] = "OPN-SNT",
+	[NL80211_PLINK_OPN_RCVD] = "OPN-RCVD",
+	[NL80211_PLINK_CNF_RCVD] = "CNF_RCVD",
+	[NL80211_PLINK_ESTAB] = "ESTAB",
+	[NL80211_PLINK_HOLDING] = "HOLDING",
+	[NL80211_PLINK_BLOCKED] = "BLOCKED"
+};
+
+static const char * const mplevents[] = {
+	[PLINK_UNDEFINED] = "NONE",
+	[OPN_ACPT] = "OPN_ACPT",
+	[OPN_RJCT] = "OPN_RJCT",
+	[OPN_IGNR] = "OPN_IGNR",
+	[CNF_ACPT] = "CNF_ACPT",
+	[CNF_RJCT] = "CNF_RJCT",
+	[CNF_IGNR] = "CNF_IGNR",
+	[CLS_ACPT] = "CLS_ACPT",
+	[CLS_IGNR] = "CLS_IGNR"
+};
+
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
-		enum ieee80211_self_protected_actioncode action,
-		u8 *da, __le16 llid, __le16 plid, __le16 reason);
+			       enum ieee80211_self_protected_actioncode action,
+			       u8 *da, u16 llid, u16 plid, u16 reason);
 
-static inline
-u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
-{
-	atomic_inc(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
-}
 
-static inline
-u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
+/* We only need a valid sta if user configured a minimum rssi_threshold. */
+static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
+				 struct sta_info *sta)
 {
-	atomic_dec(&sdata->u.mesh.estab_plinks);
-	return mesh_accept_plinks_update(sdata);
+	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
+	return rssi_threshold == 0 ||
+	       (sta && (s8) -ewma_read(&sta->avg_signal) > rssi_threshold);
 }
 
 /**
@@ -70,27 +82,63 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
 }
 
 /*
- * Allocate mesh sta entry and insert into station table
+ * mesh_set_short_slot_time - enable / disable ERP short slot time.
+ *
+ * The standard indirectly mandates mesh STAs to turn off short slot time by
+ * disallowing advertising this (802.11-2012 8.4.1.4), but that doesn't mean we
+ * can't be sneaky about it. Enable short slot time if all mesh STAs in the
+ * MBSS support ERP rates.
+ *
+ * Returns BSS_CHANGED_ERP_SLOT or 0 for no change.
  */
-static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
-					 u8 *hw_addr)
+static u32 mesh_set_short_slot_time(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 	struct sta_info *sta;
+	u32 erp_rates = 0, changed = 0;
+	int i;
+	bool short_slot = false;
 
-	if (sdata->local->num_sta >= MESH_MAX_PLINKS)
-		return NULL;
+	if (band == IEEE80211_BAND_5GHZ) {
+		/* (IEEE 802.11-2012 19.4.5) */
+		short_slot = true;
+		goto out;
+	} else if (band != IEEE80211_BAND_2GHZ ||
+		   (band == IEEE80211_BAND_2GHZ &&
+		    local->hw.flags & IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE))
+		goto out;
 
-	sta = sta_info_alloc(sdata, hw_addr, GFP_KERNEL);
-	if (!sta)
-		return NULL;
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (sband->bitrates[i].flags & IEEE80211_RATE_ERP_G)
+			erp_rates |= BIT(i);
 
-	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	if (!erp_rates)
+		goto out;
 
-	set_sta_flag(sta, WLAN_STA_WME);
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (sdata != sta->sdata ||
+		    sta->plink_state != NL80211_PLINK_ESTAB)
+			continue;
 
-	return sta;
+		short_slot = false;
+		if (erp_rates & sta->sta.supp_rates[band])
+			short_slot = true;
+		 else
+			break;
+	}
+	rcu_read_unlock();
+
+out:
+	if (sdata->vif.bss_conf.use_short_slot != short_slot) {
+		sdata->vif.bss_conf.use_short_slot = short_slot;
+		changed = BSS_CHANGED_ERP_SLOT;
+		mpl_dbg(sdata, "mesh_plink %pM: ERP short slot time %d\n",
+			sdata->vif.addr, short_slot);
+	}
+	return changed;
 }
 
 /**
@@ -107,12 +155,17 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u32 changed = 0;
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
-	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
 		return 0;
+	default:
+		break;
+	}
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
@@ -120,23 +173,19 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 		    sta->plink_state != NL80211_PLINK_ESTAB)
 			continue;
 
-		switch (sta->ch_width) {
-		case NL80211_CHAN_WIDTH_20_NOHT:
-			mpl_dbg(sdata,
-				"mesh_plink %pM: nonHT sta (%pM) is present\n",
-				sdata->vif.addr, sta->sta.addr);
+		if (sta->sta.bandwidth > IEEE80211_STA_RX_BW_20)
+			continue;
+
+		if (!sta->sta.ht_cap.ht_supported) {
+			mpl_dbg(sdata, "nonHT sta (%pM) is present\n",
+				       sta->sta.addr);
 			non_ht_sta = true;
-			goto out;
-		case NL80211_CHAN_WIDTH_20:
-			mpl_dbg(sdata,
-				"mesh_plink %pM: HT20 sta (%pM) is present\n",
-				sdata->vif.addr, sta->sta.addr);
-			ht20_sta = true;
-		default:
 			break;
 		}
+
+		mpl_dbg(sdata, "HT20 sta (%pM) is present\n", sta->sta.addr);
+		ht20_sta = true;
 	}
-out:
 	rcu_read_unlock();
 
 	if (non_ht_sta)
@@ -147,16 +196,13 @@ out:
 	else
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 
-	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
-		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
-		sdata->u.mesh.mshcfg.ht_opmode = ht_opmode;
-		changed = BSS_CHANGED_HT;
-		mpl_dbg(sdata,
-			"mesh_plink %pM: protection mode changed to %d\n",
-			sdata->vif.addr, ht_opmode);
-	}
+	if (sdata->vif.bss_conf.ht_operation_mode == ht_opmode)
+		return 0;
 
-	return changed;
+	sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+	sdata->u.mesh.mshcfg.ht_opmode = ht_opmode;
+	mpl_dbg(sdata, "selected new HT protection mode %d\n", ht_opmode);
+	return BSS_CHANGED_HT;
 }
 
 /**
@@ -179,6 +225,10 @@ static u32 __mesh_plink_deactivate(struct sta_info *sta)
 	sta->plink_state = NL80211_PLINK_BLOCKED;
 	mesh_path_flush_by_nexthop(sta);
 
+	ieee80211_mps_sta_status_update(sta);
+	changed |= ieee80211_mps_set_sta_local_pm(sta,
+			NL80211_MESH_POWER_UNKNOWN);
+
 	return changed;
 }
 
@@ -189,25 +239,26 @@ static u32 __mesh_plink_deactivate(struct sta_info *sta)
  *
  * All mesh paths with this peer as next hop will be flushed
  */
-void mesh_plink_deactivate(struct sta_info *sta)
+u32 mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u32 changed;
 
 	spin_lock_bh(&sta->lock);
 	changed = __mesh_plink_deactivate(sta);
-	sta->reason = cpu_to_le16(WLAN_REASON_MESH_PEER_CANCELED);
+	sta->reason = WLAN_REASON_MESH_PEER_CANCELED;
 	mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
 			    sta->sta.addr, sta->llid, sta->plid,
 			    sta->reason);
 	spin_unlock_bh(&sta->lock);
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	return changed;
 }
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
-		enum ieee80211_self_protected_actioncode action,
-		u8 *da, __le16 llid, __le16 plid, __le16 reason) {
+			       enum ieee80211_self_protected_actioncode action,
+			       u8 *da, u16 llid, u16 plid, u16 reason)
+{
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
@@ -232,7 +283,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    2 + 8 + /* peering IE */
 			    sdata->u.mesh.ie_len);
 	if (!skb)
-		return -1;
+		return err;
 	info = IEEE80211_SKB_CB(skb);
 	skb_reserve(skb, local->tx_headroom);
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
@@ -254,17 +305,17 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		if (action == WLAN_SP_MESH_PEERING_CONFIRM) {
 			/* AID */
 			pos = skb_put(skb, 2);
-			memcpy(pos + 2, &plid, 2);
+			put_unaligned_le16(plid, pos + 2);
 		}
 		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
 		    ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
-		    mesh_add_rsn_ie(skb, sdata) ||
-		    mesh_add_meshid_ie(skb, sdata) ||
-		    mesh_add_meshconf_ie(skb, sdata))
+		    mesh_add_rsn_ie(sdata, skb) ||
+		    mesh_add_meshid_ie(sdata, skb) ||
+		    mesh_add_meshconf_ie(sdata, skb))
 			goto free;
 	} else {	/* WLAN_SP_MESH_PEERING_CLOSE */
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
-		if (mesh_add_meshid_ie(skb, sdata))
+		if (mesh_add_meshid_ie(sdata, skb))
 			goto free;
 	}
 
@@ -296,24 +347,24 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	*pos++ = ie_len;
 	memcpy(pos, &peering_proto, 2);
 	pos += 2;
-	memcpy(pos, &llid, 2);
+	put_unaligned_le16(llid, pos);
 	pos += 2;
 	if (include_plid) {
-		memcpy(pos, &plid, 2);
+		put_unaligned_le16(plid, pos);
 		pos += 2;
 	}
 	if (action == WLAN_SP_MESH_PEERING_CLOSE) {
-		memcpy(pos, &reason, 2);
+		put_unaligned_le16(reason, pos);
 		pos += 2;
 	}
 
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
-		if (mesh_add_ht_cap_ie(skb, sdata) ||
-		    mesh_add_ht_oper_ie(skb, sdata))
+		if (mesh_add_ht_cap_ie(sdata, skb) ||
+		    mesh_add_ht_oper_ie(sdata, skb))
 			goto free;
 	}
 
-	if (mesh_add_vendor_ies(skb, sdata))
+	if (mesh_add_vendor_ies(sdata, skb))
 		goto free;
 
 	ieee80211_tx_skb(sdata, skb);
@@ -323,92 +374,148 @@ free:
 	return err;
 }
 
-/**
- * mesh_peer_init - initialize new mesh peer and return resulting sta_info
+static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
+			       struct sta_info *sta,
+			       struct ieee802_11_elems *elems, bool insert)
+{
+	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband;
+	u32 rates, basic_rates = 0, changed = 0;
+
+	sband = local->hw.wiphy->bands[band];
+	rates = ieee80211_sta_get_rates(sdata, elems, band, &basic_rates);
+
+	spin_lock_bh(&sta->lock);
+	sta->last_rx = jiffies;
+
+	/* rates and capabilities don't change during peering */
+	if (sta->plink_state == NL80211_PLINK_ESTAB)
+		goto out;
+
+	if (sta->sta.supp_rates[band] != rates)
+		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
+	sta->sta.supp_rates[band] = rates;
+
+	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+					      elems->ht_cap_elem, sta))
+		changed |= IEEE80211_RC_BW_CHANGED;
+
+	/* HT peer is operating 20MHz-only */
+	if (elems->ht_operation &&
+	    !(elems->ht_operation->ht_param &
+	      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
+		if (sta->sta.bandwidth != IEEE80211_STA_RX_BW_20)
+			changed |= IEEE80211_RC_BW_CHANGED;
+		sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
+	}
+
+	if (insert)
+		rate_control_rate_init(sta);
+	else
+		rate_control_rate_update(local, sband, sta, changed);
+out:
+	spin_unlock_bh(&sta->lock);
+}
+
+static struct sta_info *
+__mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
+{
+	struct sta_info *sta;
+
+	if (sdata->local->num_sta >= MESH_MAX_PLINKS)
+		return NULL;
+
+	sta = sta_info_alloc(sdata, hw_addr, GFP_KERNEL);
+	if (!sta)
+		return NULL;
+
+	sta->plink_state = NL80211_PLINK_LISTEN;
+
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
+
+	set_sta_flag(sta, WLAN_STA_WME);
+	sta->sta.wme = true;
+
+	return sta;
+}
+
+static struct sta_info *
+mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *addr,
+		    struct ieee802_11_elems *elems)
+{
+	struct sta_info *sta = NULL;
+
+	/* Userspace handles station allocation */
+	if (sdata->u.mesh.user_mpm ||
+	    sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED)
+		cfg80211_notify_new_peer_candidate(sdata->dev, addr,
+						   elems->ie_start,
+						   elems->total_len,
+						   GFP_KERNEL);
+	else
+		sta = __mesh_sta_info_alloc(sdata, addr);
+
+	return sta;
+}
+
+/*
+ * mesh_sta_info_get - return mesh sta info entry for @addr.
+ *
+ * @sdata: local meshif
+ * @addr: peer's address
+ * @elems: IEs from beacon or mesh peering frame.
+ *
+ * Return existing or newly allocated sta_info under RCU read lock.
+ * (re)initialize with given IEs.
+ */
+static struct sta_info *
+mesh_sta_info_get(struct ieee80211_sub_if_data *sdata,
+		  u8 *addr, struct ieee802_11_elems *elems) __acquires(RCU)
+{
+	struct sta_info *sta = NULL;
+
+	rcu_read_lock();
+	sta = sta_info_get(sdata, addr);
+	if (sta) {
+		mesh_sta_info_init(sdata, sta, elems, false);
+	} else {
+		rcu_read_unlock();
+		/* can't run atomic */
+		sta = mesh_sta_info_alloc(sdata, addr, elems);
+		if (!sta) {
+			rcu_read_lock();
+			return NULL;
+		}
+
+		mesh_sta_info_init(sdata, sta, elems, true);
+
+		if (sta_info_insert_rcu(sta))
+			return NULL;
+	}
+
+	return sta;
+}
+
+/*
+ * mesh_neighbour_update - update or initialize new mesh neighbor.
  *
  * @sdata: local meshif
  * @addr: peer's address
  * @elems: IEs from beacon or mesh peering frame
  *
- * call under RCU
+ * Initiates peering if appropriate.
  */
-static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
-				       u8 *addr,
-				       struct ieee802_11_elems *elems)
-{
-	struct ieee80211_local *local = sdata->local;
-	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
-	struct ieee80211_supported_band *sband;
-	u32 rates, basic_rates = 0;
-	struct sta_info *sta;
-	bool insert = false;
-
-	sband = local->hw.wiphy->bands[band];
-	rates = ieee80211_sta_get_rates(local, elems, band, &basic_rates);
-
-	sta = sta_info_get(sdata, addr);
-	if (!sta) {
-		/* Userspace handles peer allocation when security is enabled */
-		if (sdata->u.mesh.security & IEEE80211_MESH_SEC_AUTHED) {
-			cfg80211_notify_new_peer_candidate(sdata->dev, addr,
-							   elems->ie_start,
-							   elems->total_len,
-							   GFP_ATOMIC);
-			return NULL;
-		}
-
-		sta = mesh_plink_alloc(sdata, addr);
-		if (!sta)
-			return NULL;
-		insert = true;
-	}
-
-	spin_lock_bh(&sta->lock);
-	sta->last_rx = jiffies;
-	if (sta->plink_state == NL80211_PLINK_ESTAB) {
-		spin_unlock_bh(&sta->lock);
-		return sta;
-	}
-
-	sta->sta.supp_rates[band] = rates;
-	if (elems->ht_cap_elem &&
-	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  elems->ht_cap_elem,
-						  &sta->sta.ht_cap);
-	else
-		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
-
-	if (elems->ht_operation) {
-		struct cfg80211_chan_def chandef;
-
-		if (!(elems->ht_operation->ht_param &
-		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
-			sta->sta.ht_cap.cap &=
-					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
-					     elems->ht_operation, &chandef);
-		sta->ch_width = chandef.width;
-	}
-
-	if (insert)
-		rate_control_rate_init(sta);
-	spin_unlock_bh(&sta->lock);
-
-	if (insert && sta_info_insert(sta))
-		return NULL;
-
-	return sta;
-}
-
 void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 			   u8 *hw_addr,
 			   struct ieee802_11_elems *elems)
 {
 	struct sta_info *sta;
+	u32 changed = 0;
 
-	rcu_read_lock();
-	sta = mesh_peer_init(sdata, hw_addr, elems);
+	sta = mesh_sta_info_get(sdata, hw_addr, elems);
 	if (!sta)
 		goto out;
 
@@ -416,19 +523,22 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 	    sta->plink_state == NL80211_PLINK_LISTEN &&
 	    sdata->u.mesh.accepting_plinks &&
 	    sdata->u.mesh.mshcfg.auto_open_plinks &&
-	    rssi_threshold_check(sta, sdata))
-		mesh_plink_open(sta);
+	    rssi_threshold_check(sdata, sta))
+		changed = mesh_plink_open(sta);
 
+	ieee80211_mps_frame_release(sta, elems);
 out:
 	rcu_read_unlock();
+	ieee80211_mbss_info_change_notify(sdata, changed);
 }
 
 static void mesh_plink_timer(unsigned long data)
 {
 	struct sta_info *sta;
-	__le16 llid, plid, reason;
+	u16 reason = 0;
 	struct ieee80211_sub_if_data *sdata;
 	struct mesh_config *mshcfg;
+	enum ieee80211_self_protected_actioncode action = 0;
 
 	/*
 	 * This STA is valid because sta_info_destroy() will
@@ -437,10 +547,8 @@ static void mesh_plink_timer(unsigned long data)
 	 */
 	sta = (struct sta_info *) data;
 
-	if (sta->sdata->local->quiescing) {
-		sta->plink_timer_was_running = true;
+	if (sta->sdata->local->quiescing)
 		return;
-	}
 
 	spin_lock_bh(&sta->lock);
 	if (sta->ignore_plink_timer) {
@@ -449,11 +557,8 @@ static void mesh_plink_timer(unsigned long data)
 		return;
 	}
 	mpl_dbg(sta->sdata,
-		"Mesh plink timer for %pM fired on state %d\n",
-		sta->sta.addr, sta->plink_state);
-	reason = 0;
-	llid = sta->llid;
-	plid = sta->plid;
+		"Mesh plink timer for %pM fired on state %s\n",
+		sta->sta.addr, mplstates[sta->plink_state]);
 	sdata = sta->sdata;
 	mshcfg = &sdata->u.mesh.mshcfg;
 
@@ -472,50 +577,32 @@ static void mesh_plink_timer(unsigned long data)
 					     rand % sta->plink_timeout;
 			++sta->plink_retries;
 			mod_plink_timer(sta, sta->plink_timeout);
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_OPEN,
-					    sta->sta.addr, llid, 0, 0);
+			action = WLAN_SP_MESH_PEERING_OPEN;
 			break;
 		}
-		reason = cpu_to_le16(WLAN_REASON_MESH_MAX_RETRIES);
+		reason = WLAN_REASON_MESH_MAX_RETRIES;
 		/* fall through on else */
 	case NL80211_PLINK_CNF_RCVD:
 		/* confirm timer */
 		if (!reason)
-			reason = cpu_to_le16(WLAN_REASON_MESH_CONFIRM_TIMEOUT);
+			reason = WLAN_REASON_MESH_CONFIRM_TIMEOUT;
 		sta->plink_state = NL80211_PLINK_HOLDING;
 		mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
-		spin_unlock_bh(&sta->lock);
-		mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-				    sta->sta.addr, llid, plid, reason);
+		action = WLAN_SP_MESH_PEERING_CLOSE;
 		break;
 	case NL80211_PLINK_HOLDING:
 		/* holding timer */
 		del_timer(&sta->plink_timer);
 		mesh_plink_fsm_restart(sta);
-		spin_unlock_bh(&sta->lock);
 		break;
 	default:
-		spin_unlock_bh(&sta->lock);
 		break;
 	}
+	spin_unlock_bh(&sta->lock);
+	if (action)
+		mesh_plink_frame_tx(sdata, action, sta->sta.addr,
+				    sta->llid, sta->plid, reason);
 }
-
-#ifdef CONFIG_PM
-void mesh_plink_quiesce(struct sta_info *sta)
-{
-	if (del_timer_sync(&sta->plink_timer))
-		sta->plink_timer_was_running = true;
-}
-
-void mesh_plink_restart(struct sta_info *sta)
-{
-	if (sta->plink_timer_was_running) {
-		add_timer(&sta->plink_timer);
-		sta->plink_timer_was_running = false;
-	}
-}
-#endif
 
 static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 {
@@ -526,21 +613,52 @@ static inline void mesh_plink_timer_set(struct sta_info *sta, int timeout)
 	add_timer(&sta->plink_timer);
 }
 
-int mesh_plink_open(struct sta_info *sta)
+static bool llid_in_use(struct ieee80211_sub_if_data *sdata,
+			u16 llid)
 {
-	__le16 llid;
+	struct ieee80211_local *local = sdata->local;
+	bool in_use = false;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (!memcmp(&sta->llid, &llid, sizeof(llid))) {
+			in_use = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return in_use;
+}
+
+static u16 mesh_get_new_llid(struct ieee80211_sub_if_data *sdata)
+{
+	u16 llid;
+
+	do {
+		get_random_bytes(&llid, sizeof(llid));
+		/* for mesh PS we still only have the AID range for TIM bits */
+		llid = (llid % IEEE80211_MAX_AID) + 1;
+	} while (llid_in_use(sdata, llid));
+
+	return llid;
+}
+
+u32 mesh_plink_open(struct sta_info *sta)
+{
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u32 changed;
 
 	if (!test_sta_flag(sta, WLAN_STA_AUTH))
-		return -EPERM;
+		return 0;
 
 	spin_lock_bh(&sta->lock);
-	get_random_bytes(&llid, 2);
-	sta->llid = llid;
+	sta->llid = mesh_get_new_llid(sdata);
 	if (sta->plink_state != NL80211_PLINK_LISTEN &&
 	    sta->plink_state != NL80211_PLINK_BLOCKED) {
 		spin_unlock_bh(&sta->lock);
-		return -EBUSY;
+		return 0;
 	}
 	sta->plink_state = NL80211_PLINK_OPN_SNT;
 	mesh_plink_timer_set(sta, sdata->u.mesh.mshcfg.dot11MeshRetryTimeout);
@@ -549,13 +667,16 @@ int mesh_plink_open(struct sta_info *sta)
 		"Mesh plink: starting establishment with %pM\n",
 		sta->sta.addr);
 
-	return mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_OPEN,
-				   sta->sta.addr, llid, 0, 0);
+	/* set the non-peer mode to active during peering */
+	changed = ieee80211_mps_local_status_update(sdata);
+
+	mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_OPEN,
+			    sta->sta.addr, sta->llid, 0, 0);
+	return changed;
 }
 
-void mesh_plink_block(struct sta_info *sta)
+u32 mesh_plink_block(struct sta_info *sta)
 {
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	u32 changed;
 
 	spin_lock_bh(&sta->lock);
@@ -563,36 +684,409 @@ void mesh_plink_block(struct sta_info *sta)
 	sta->plink_state = NL80211_PLINK_BLOCKED;
 	spin_unlock_bh(&sta->lock);
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	return changed;
 }
 
-
-void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
-			 size_t len, struct ieee80211_rx_status *rx_status)
+static void mesh_plink_close(struct ieee80211_sub_if_data *sdata,
+			     struct sta_info *sta,
+			     enum plink_event event)
 {
 	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
-	struct ieee802_11_elems elems;
+
+	u16 reason = (event == CLS_ACPT) ?
+		     WLAN_REASON_MESH_CLOSE : WLAN_REASON_MESH_CONFIG;
+
+	sta->reason = reason;
+	sta->plink_state = NL80211_PLINK_HOLDING;
+	mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
+}
+
+static u32 mesh_plink_establish(struct ieee80211_sub_if_data *sdata,
+				struct sta_info *sta)
+{
+	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
+	u32 changed = 0;
+
+	del_timer(&sta->plink_timer);
+	sta->plink_state = NL80211_PLINK_ESTAB;
+	changed |= mesh_plink_inc_estab_count(sdata);
+	changed |= mesh_set_ht_prot_mode(sdata);
+	changed |= mesh_set_short_slot_time(sdata);
+	mpl_dbg(sdata, "Mesh plink with %pM ESTABLISHED\n", sta->sta.addr);
+	ieee80211_mps_sta_status_update(sta);
+	changed |= ieee80211_mps_set_sta_local_pm(sta, mshcfg->power_mode);
+	return changed;
+}
+
+/**
+ * mesh_plink_fsm - step @sta MPM based on @event
+ *
+ * @sdata: interface
+ * @sta: mesh neighbor
+ * @event: peering event
+ *
+ * Return: changed MBSS flags
+ */
+static u32 mesh_plink_fsm(struct ieee80211_sub_if_data *sdata,
+			  struct sta_info *sta, enum plink_event event)
+{
+	struct mesh_config *mshcfg = &sdata->u.mesh.mshcfg;
+	enum ieee80211_self_protected_actioncode action = 0;
+	u32 changed = 0;
+
+	mpl_dbg(sdata, "peer %pM in state %s got event %s\n", sta->sta.addr,
+		mplstates[sta->plink_state], mplevents[event]);
+
+	spin_lock_bh(&sta->lock);
+	switch (sta->plink_state) {
+	case NL80211_PLINK_LISTEN:
+		switch (event) {
+		case CLS_ACPT:
+			mesh_plink_fsm_restart(sta);
+			break;
+		case OPN_ACPT:
+			sta->plink_state = NL80211_PLINK_OPN_RCVD;
+			sta->llid = mesh_get_new_llid(sdata);
+			mesh_plink_timer_set(sta,
+					     mshcfg->dot11MeshRetryTimeout);
+
+			/* set the non-peer mode to active during peering */
+			changed |= ieee80211_mps_local_status_update(sdata);
+			action = WLAN_SP_MESH_PEERING_OPEN;
+			break;
+		default:
+			break;
+		}
+		break;
+	case NL80211_PLINK_OPN_SNT:
+		switch (event) {
+		case OPN_RJCT:
+		case CNF_RJCT:
+		case CLS_ACPT:
+			mesh_plink_close(sdata, sta, event);
+			action = WLAN_SP_MESH_PEERING_CLOSE;
+			break;
+		case OPN_ACPT:
+			/* retry timer is left untouched */
+			sta->plink_state = NL80211_PLINK_OPN_RCVD;
+			action = WLAN_SP_MESH_PEERING_CONFIRM;
+			break;
+		case CNF_ACPT:
+			sta->plink_state = NL80211_PLINK_CNF_RCVD;
+			if (!mod_plink_timer(sta,
+					     mshcfg->dot11MeshConfirmTimeout))
+				sta->ignore_plink_timer = true;
+			break;
+		default:
+			break;
+		}
+		break;
+	case NL80211_PLINK_OPN_RCVD:
+		switch (event) {
+		case OPN_RJCT:
+		case CNF_RJCT:
+		case CLS_ACPT:
+			mesh_plink_close(sdata, sta, event);
+			action = WLAN_SP_MESH_PEERING_CLOSE;
+			break;
+		case OPN_ACPT:
+			action = WLAN_SP_MESH_PEERING_CONFIRM;
+			break;
+		case CNF_ACPT:
+			changed |= mesh_plink_establish(sdata, sta);
+			break;
+		default:
+			break;
+		}
+		break;
+	case NL80211_PLINK_CNF_RCVD:
+		switch (event) {
+		case OPN_RJCT:
+		case CNF_RJCT:
+		case CLS_ACPT:
+			mesh_plink_close(sdata, sta, event);
+			action = WLAN_SP_MESH_PEERING_CLOSE;
+			break;
+		case OPN_ACPT:
+			changed |= mesh_plink_establish(sdata, sta);
+			action = WLAN_SP_MESH_PEERING_CONFIRM;
+			break;
+		default:
+			break;
+		}
+		break;
+	case NL80211_PLINK_ESTAB:
+		switch (event) {
+		case CLS_ACPT:
+			changed |= __mesh_plink_deactivate(sta);
+			changed |= mesh_set_ht_prot_mode(sdata);
+			changed |= mesh_set_short_slot_time(sdata);
+			mesh_plink_close(sdata, sta, event);
+			action = WLAN_SP_MESH_PEERING_CLOSE;
+			break;
+		case OPN_ACPT:
+			action = WLAN_SP_MESH_PEERING_CONFIRM;
+			break;
+		default:
+			break;
+		}
+		break;
+	case NL80211_PLINK_HOLDING:
+		switch (event) {
+		case CLS_ACPT:
+			if (del_timer(&sta->plink_timer))
+				sta->ignore_plink_timer = 1;
+			mesh_plink_fsm_restart(sta);
+			break;
+		case OPN_ACPT:
+		case CNF_ACPT:
+		case OPN_RJCT:
+		case CNF_RJCT:
+			action = WLAN_SP_MESH_PEERING_CLOSE;
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		/* should not get here, PLINK_BLOCKED is dealt with at the
+		 * beginning of the function
+		 */
+		break;
+	}
+	spin_unlock_bh(&sta->lock);
+	if (action) {
+		mesh_plink_frame_tx(sdata, action, sta->sta.addr,
+				    sta->llid, sta->plid, sta->reason);
+
+		/* also send confirm in open case */
+		if (action == WLAN_SP_MESH_PEERING_OPEN) {
+			mesh_plink_frame_tx(sdata,
+					    WLAN_SP_MESH_PEERING_CONFIRM,
+					    sta->sta.addr, sta->llid,
+					    sta->plid, 0);
+		}
+	}
+
+	return changed;
+}
+
+/*
+ * mesh_plink_get_event - get correct MPM event
+ *
+ * @sdata: interface
+ * @sta: peer, leave NULL if processing a frame from a new suitable peer
+ * @elems: peering management IEs
+ * @ftype: frame type
+ * @llid: peer's peer link ID
+ * @plid: peer's local link ID
+ *
+ * Return: new peering event for @sta, but PLINK_UNDEFINED should be treated as
+ * an error.
+ */
+static enum plink_event
+mesh_plink_get_event(struct ieee80211_sub_if_data *sdata,
+		     struct sta_info *sta,
+		     struct ieee802_11_elems *elems,
+		     enum ieee80211_self_protected_actioncode ftype,
+		     u16 llid, u16 plid)
+{
+	enum plink_event event = PLINK_UNDEFINED;
+	u8 ie_len = elems->peering_len;
+	bool matches_local;
+
+	matches_local = (ftype == WLAN_SP_MESH_PEERING_CLOSE ||
+			 mesh_matches_local(sdata, elems));
+
+	/* deny open request from non-matching peer */
+	if (!matches_local && !sta) {
+		event = OPN_RJCT;
+		goto out;
+	}
+
+	if (!sta) {
+		if (ftype != WLAN_SP_MESH_PEERING_OPEN) {
+			mpl_dbg(sdata, "Mesh plink: cls or cnf from unknown peer\n");
+			goto out;
+		}
+		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
+		if (!mesh_plink_free_count(sdata)) {
+			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
+			goto out;
+		}
+	} else {
+		if (!test_sta_flag(sta, WLAN_STA_AUTH)) {
+			mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
+			goto out;
+		}
+		if (sta->plink_state == NL80211_PLINK_BLOCKED)
+			goto out;
+	}
+
+	/* new matching peer */
+	if (!sta) {
+		event = OPN_ACPT;
+		goto out;
+	}
+
+	switch (ftype) {
+	case WLAN_SP_MESH_PEERING_OPEN:
+		if (!matches_local)
+			event = OPN_RJCT;
+		if (!mesh_plink_free_count(sdata) ||
+		    (sta->plid && sta->plid != plid))
+			event = OPN_IGNR;
+		else
+			event = OPN_ACPT;
+		break;
+	case WLAN_SP_MESH_PEERING_CONFIRM:
+		if (!matches_local)
+			event = CNF_RJCT;
+		if (!mesh_plink_free_count(sdata) ||
+		    (sta->llid != llid || sta->plid != plid))
+			event = CNF_IGNR;
+		else
+			event = CNF_ACPT;
+		break;
+	case WLAN_SP_MESH_PEERING_CLOSE:
+		if (sta->plink_state == NL80211_PLINK_ESTAB)
+			/* Do not check for llid or plid. This does not
+			 * follow the standard but since multiple plinks
+			 * per sta are not supported, it is necessary in
+			 * order to avoid a livelock when MP A sees an
+			 * establish peer link to MP B but MP B does not
+			 * see it. This can be caused by a timeout in
+			 * B's peer link establishment or B beign
+			 * restarted.
+			 */
+			event = CLS_ACPT;
+		else if (sta->plid != plid)
+			event = CLS_IGNR;
+		else if (ie_len == 8 && sta->llid != llid)
+			event = CLS_IGNR;
+		else
+			event = CLS_ACPT;
+		break;
+	default:
+		mpl_dbg(sdata, "Mesh plink: unknown frame subtype\n");
+		break;
+	}
+
+out:
+	return event;
+}
+
+static void
+mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_mgmt *mgmt,
+			 struct ieee802_11_elems *elems)
+{
+
 	struct sta_info *sta;
 	enum plink_event event;
 	enum ieee80211_self_protected_actioncode ftype;
-	size_t baselen;
-	bool matches_local = true;
-	u8 ie_len;
-	u8 *baseaddr;
 	u32 changed = 0;
-	__le16 plid, llid, reason;
-	static const char *mplstates[] = {
-		[NL80211_PLINK_LISTEN] = "LISTEN",
-		[NL80211_PLINK_OPN_SNT] = "OPN-SNT",
-		[NL80211_PLINK_OPN_RCVD] = "OPN-RCVD",
-		[NL80211_PLINK_CNF_RCVD] = "CNF_RCVD",
-		[NL80211_PLINK_ESTAB] = "ESTAB",
-		[NL80211_PLINK_HOLDING] = "HOLDING",
-		[NL80211_PLINK_BLOCKED] = "BLOCKED"
-	};
+	u8 ie_len = elems->peering_len;
+	__le16 _plid, _llid;
+	u16 plid, llid = 0;
+
+	if (!elems->peering) {
+		mpl_dbg(sdata,
+			"Mesh plink: missing necessary peer link ie\n");
+		return;
+	}
+
+	if (elems->rsn_len &&
+	    sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
+		mpl_dbg(sdata,
+			"Mesh plink: can't establish link with secure peer\n");
+		return;
+	}
+
+	ftype = mgmt->u.action.u.self_prot.action_code;
+	if ((ftype == WLAN_SP_MESH_PEERING_OPEN && ie_len != 4) ||
+	    (ftype == WLAN_SP_MESH_PEERING_CONFIRM && ie_len != 6) ||
+	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len != 6
+							&& ie_len != 8)) {
+		mpl_dbg(sdata,
+			"Mesh plink: incorrect plink ie length %d %d\n",
+			ftype, ie_len);
+		return;
+	}
+
+	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
+	    (!elems->mesh_id || !elems->mesh_config)) {
+		mpl_dbg(sdata, "Mesh plink: missing necessary ie\n");
+		return;
+	}
+	/* Note the lines below are correct, the llid in the frame is the plid
+	 * from the point of view of this host.
+	 */
+	memcpy(&_plid, PLINK_GET_LLID(elems->peering), sizeof(__le16));
+	plid = le16_to_cpu(_plid);
+	if (ftype == WLAN_SP_MESH_PEERING_CONFIRM ||
+	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 8)) {
+		memcpy(&_llid, PLINK_GET_PLID(elems->peering), sizeof(__le16));
+		llid = le16_to_cpu(_llid);
+	}
+
+	/* WARNING: Only for sta pointer, is dropped & re-acquired */
+	rcu_read_lock();
+
+	sta = sta_info_get(sdata, mgmt->sa);
+
+	if (ftype == WLAN_SP_MESH_PEERING_OPEN &&
+	    !rssi_threshold_check(sdata, sta)) {
+		mpl_dbg(sdata, "Mesh plink: %pM does not meet rssi threshold\n",
+			mgmt->sa);
+		goto unlock_rcu;
+	}
+
+	/* Now we will figure out the appropriate event... */
+	event = mesh_plink_get_event(sdata, sta, elems, ftype, llid, plid);
+
+	if (event == OPN_ACPT) {
+		rcu_read_unlock();
+		/* allocate sta entry if necessary and update info */
+		sta = mesh_sta_info_get(sdata, mgmt->sa, elems);
+		if (!sta) {
+			mpl_dbg(sdata, "Mesh plink: failed to init peer!\n");
+			goto unlock_rcu;
+		}
+		sta->plid = plid;
+	} else if (!sta && event == OPN_RJCT) {
+		mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
+				    mgmt->sa, 0, plid,
+				    WLAN_REASON_MESH_CONFIG);
+		goto unlock_rcu;
+	} else if (!sta || event == PLINK_UNDEFINED) {
+		/* something went wrong */
+		goto unlock_rcu;
+	}
+
+	changed |= mesh_plink_fsm(sdata, sta, event);
+
+unlock_rcu:
+	rcu_read_unlock();
+
+	if (changed)
+		ieee80211_mbss_info_change_notify(sdata, changed);
+}
+
+void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_mgmt *mgmt, size_t len,
+			 struct ieee80211_rx_status *rx_status)
+{
+	struct ieee802_11_elems elems;
+	size_t baselen;
+	u8 *baseaddr;
 
 	/* need action_code, aux */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
+		return;
+
+	if (sdata->u.mesh.user_mpm)
+		/* userspace must register for these */
 		return;
 
 	if (is_multicast_ether_addr(mgmt->da)) {
@@ -608,373 +1102,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		baseaddr += 4;
 		baselen += 4;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
-	if (!elems.peering) {
-		mpl_dbg(sdata,
-			"Mesh plink: missing necessary peer link ie\n");
-		return;
-	}
-	if (elems.rsn_len &&
-			sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) {
-		mpl_dbg(sdata,
-			"Mesh plink: can't establish link with secure peer\n");
-		return;
-	}
-
-	ftype = mgmt->u.action.u.self_prot.action_code;
-	ie_len = elems.peering_len;
-	if ((ftype == WLAN_SP_MESH_PEERING_OPEN && ie_len != 4) ||
-	    (ftype == WLAN_SP_MESH_PEERING_CONFIRM && ie_len != 6) ||
-	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len != 6
-							&& ie_len != 8)) {
-		mpl_dbg(sdata,
-			"Mesh plink: incorrect plink ie length %d %d\n",
-			ftype, ie_len);
-		return;
-	}
-
-	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-				(!elems.mesh_id || !elems.mesh_config)) {
-		mpl_dbg(sdata, "Mesh plink: missing necessary ie\n");
-		return;
-	}
-	/* Note the lines below are correct, the llid in the frame is the plid
-	 * from the point of view of this host.
-	 */
-	memcpy(&plid, PLINK_GET_LLID(elems.peering), 2);
-	if (ftype == WLAN_SP_MESH_PEERING_CONFIRM ||
-	    (ftype == WLAN_SP_MESH_PEERING_CLOSE && ie_len == 8))
-		memcpy(&llid, PLINK_GET_PLID(elems.peering), 2);
-
-	rcu_read_lock();
-
-	sta = sta_info_get(sdata, mgmt->sa);
-	if (!sta && ftype != WLAN_SP_MESH_PEERING_OPEN) {
-		mpl_dbg(sdata, "Mesh plink: cls or cnf from unknown peer\n");
-		rcu_read_unlock();
-		return;
-	}
-
-	if (ftype == WLAN_SP_MESH_PEERING_OPEN &&
-	    !rssi_threshold_check(sta, sdata)) {
-		mpl_dbg(sdata, "Mesh plink: %pM does not meet rssi threshold\n",
-			mgmt->sa);
-		rcu_read_unlock();
-		return;
-	}
-
-	if (sta && !test_sta_flag(sta, WLAN_STA_AUTH)) {
-		mpl_dbg(sdata, "Mesh plink: Action frame from non-authed peer\n");
-		rcu_read_unlock();
-		return;
-	}
-
-	if (sta && sta->plink_state == NL80211_PLINK_BLOCKED) {
-		rcu_read_unlock();
-		return;
-	}
-
-	/* Now we will figure out the appropriate event... */
-	event = PLINK_UNDEFINED;
-	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-	    !mesh_matches_local(sdata, &elems)) {
-		matches_local = false;
-		switch (ftype) {
-		case WLAN_SP_MESH_PEERING_OPEN:
-			event = OPN_RJCT;
-			break;
-		case WLAN_SP_MESH_PEERING_CONFIRM:
-			event = CNF_RJCT;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (!sta && !matches_local) {
-		rcu_read_unlock();
-		reason = cpu_to_le16(WLAN_REASON_MESH_CONFIG);
-		llid = 0;
-		mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-				    mgmt->sa, llid, plid, reason);
-		return;
-	} else if (!sta) {
-		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
-		if (!mesh_plink_free_count(sdata)) {
-			mpl_dbg(sdata, "Mesh plink error: no more free plinks\n");
-			rcu_read_unlock();
-			return;
-		}
-		event = OPN_ACPT;
-	} else if (matches_local) {
-		switch (ftype) {
-		case WLAN_SP_MESH_PEERING_OPEN:
-			if (!mesh_plink_free_count(sdata) ||
-			    (sta->plid && sta->plid != plid))
-				event = OPN_IGNR;
-			else
-				event = OPN_ACPT;
-			break;
-		case WLAN_SP_MESH_PEERING_CONFIRM:
-			if (!mesh_plink_free_count(sdata) ||
-			    (sta->llid != llid || sta->plid != plid))
-				event = CNF_IGNR;
-			else
-				event = CNF_ACPT;
-			break;
-		case WLAN_SP_MESH_PEERING_CLOSE:
-			if (sta->plink_state == NL80211_PLINK_ESTAB)
-				/* Do not check for llid or plid. This does not
-				 * follow the standard but since multiple plinks
-				 * per sta are not supported, it is necessary in
-				 * order to avoid a livelock when MP A sees an
-				 * establish peer link to MP B but MP B does not
-				 * see it. This can be caused by a timeout in
-				 * B's peer link establishment or B beign
-				 * restarted.
-				 */
-				event = CLS_ACPT;
-			else if (sta->plid != plid)
-				event = CLS_IGNR;
-			else if (ie_len == 7 && sta->llid != llid)
-				event = CLS_IGNR;
-			else
-				event = CLS_ACPT;
-			break;
-		default:
-			mpl_dbg(sdata, "Mesh plink: unknown frame subtype\n");
-			rcu_read_unlock();
-			return;
-		}
-	}
-
-	if (event == OPN_ACPT) {
-		/* allocate sta entry if necessary and update info */
-		sta = mesh_peer_init(sdata, mgmt->sa, &elems);
-		if (!sta) {
-			mpl_dbg(sdata, "Mesh plink: failed to init peer!\n");
-			rcu_read_unlock();
-			return;
-		}
-	}
-
-	mpl_dbg(sdata,
-		"Mesh plink (peer, state, llid, plid, event): %pM %s %d %d %d\n",
-		mgmt->sa, mplstates[sta->plink_state],
-		le16_to_cpu(sta->llid), le16_to_cpu(sta->plid),
-		event);
-	reason = 0;
-	spin_lock_bh(&sta->lock);
-	switch (sta->plink_state) {
-		/* spin_unlock as soon as state is updated at each case */
-	case NL80211_PLINK_LISTEN:
-		switch (event) {
-		case CLS_ACPT:
-			mesh_plink_fsm_restart(sta);
-			spin_unlock_bh(&sta->lock);
-			break;
-		case OPN_ACPT:
-			sta->plink_state = NL80211_PLINK_OPN_RCVD;
-			sta->plid = plid;
-			get_random_bytes(&llid, 2);
-			sta->llid = llid;
-			mesh_plink_timer_set(sta,
-					     mshcfg->dot11MeshRetryTimeout);
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_OPEN,
-					    sta->sta.addr, llid, 0, 0);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CONFIRM,
-					    sta->sta.addr, llid, plid, 0);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-			break;
-		}
-		break;
-
-	case NL80211_PLINK_OPN_SNT:
-		switch (event) {
-		case OPN_RJCT:
-		case CNF_RJCT:
-			reason = cpu_to_le16(WLAN_REASON_MESH_CONFIG);
-		case CLS_ACPT:
-			if (!reason)
-				reason = cpu_to_le16(WLAN_REASON_MESH_CLOSE);
-			sta->reason = reason;
-			sta->plink_state = NL80211_PLINK_HOLDING;
-			if (!mod_plink_timer(sta,
-					     mshcfg->dot11MeshHoldingTimeout))
-				sta->ignore_plink_timer = true;
-
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CLOSE,
-					    sta->sta.addr, llid, plid, reason);
-			break;
-		case OPN_ACPT:
-			/* retry timer is left untouched */
-			sta->plink_state = NL80211_PLINK_OPN_RCVD;
-			sta->plid = plid;
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CONFIRM,
-					    sta->sta.addr, llid, plid, 0);
-			break;
-		case CNF_ACPT:
-			sta->plink_state = NL80211_PLINK_CNF_RCVD;
-			if (!mod_plink_timer(sta,
-					     mshcfg->dot11MeshConfirmTimeout))
-				sta->ignore_plink_timer = true;
-
-			spin_unlock_bh(&sta->lock);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-			break;
-		}
-		break;
-
-	case NL80211_PLINK_OPN_RCVD:
-		switch (event) {
-		case OPN_RJCT:
-		case CNF_RJCT:
-			reason = cpu_to_le16(WLAN_REASON_MESH_CONFIG);
-		case CLS_ACPT:
-			if (!reason)
-				reason = cpu_to_le16(WLAN_REASON_MESH_CLOSE);
-			sta->reason = reason;
-			sta->plink_state = NL80211_PLINK_HOLDING;
-			if (!mod_plink_timer(sta,
-					     mshcfg->dot11MeshHoldingTimeout))
-				sta->ignore_plink_timer = true;
-
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-					    sta->sta.addr, llid, plid, reason);
-			break;
-		case OPN_ACPT:
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CONFIRM,
-					    sta->sta.addr, llid, plid, 0);
-			break;
-		case CNF_ACPT:
-			del_timer(&sta->plink_timer);
-			sta->plink_state = NL80211_PLINK_ESTAB;
-			spin_unlock_bh(&sta->lock);
-			changed |= mesh_plink_inc_estab_count(sdata);
-			changed |= mesh_set_ht_prot_mode(sdata);
-			mpl_dbg(sdata, "Mesh plink with %pM ESTABLISHED\n",
-				sta->sta.addr);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-			break;
-		}
-		break;
-
-	case NL80211_PLINK_CNF_RCVD:
-		switch (event) {
-		case OPN_RJCT:
-		case CNF_RJCT:
-			reason = cpu_to_le16(WLAN_REASON_MESH_CONFIG);
-		case CLS_ACPT:
-			if (!reason)
-				reason = cpu_to_le16(WLAN_REASON_MESH_CLOSE);
-			sta->reason = reason;
-			sta->plink_state = NL80211_PLINK_HOLDING;
-			if (!mod_plink_timer(sta,
-					     mshcfg->dot11MeshHoldingTimeout))
-				sta->ignore_plink_timer = true;
-
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CLOSE,
-					    sta->sta.addr, llid, plid, reason);
-			break;
-		case OPN_ACPT:
-			del_timer(&sta->plink_timer);
-			sta->plink_state = NL80211_PLINK_ESTAB;
-			spin_unlock_bh(&sta->lock);
-			changed |= mesh_plink_inc_estab_count(sdata);
-			changed |= mesh_set_ht_prot_mode(sdata);
-			mpl_dbg(sdata, "Mesh plink with %pM ESTABLISHED\n",
-				sta->sta.addr);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CONFIRM,
-					    sta->sta.addr, llid, plid, 0);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-			break;
-		}
-		break;
-
-	case NL80211_PLINK_ESTAB:
-		switch (event) {
-		case CLS_ACPT:
-			reason = cpu_to_le16(WLAN_REASON_MESH_CLOSE);
-			sta->reason = reason;
-			changed |= __mesh_plink_deactivate(sta);
-			sta->plink_state = NL80211_PLINK_HOLDING;
-			llid = sta->llid;
-			mod_plink_timer(sta, mshcfg->dot11MeshHoldingTimeout);
-			spin_unlock_bh(&sta->lock);
-			changed |= mesh_set_ht_prot_mode(sdata);
-			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-					    sta->sta.addr, llid, plid, reason);
-			break;
-		case OPN_ACPT:
-			llid = sta->llid;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata,
-					    WLAN_SP_MESH_PEERING_CONFIRM,
-					    sta->sta.addr, llid, plid, 0);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-			break;
-		}
-		break;
-	case NL80211_PLINK_HOLDING:
-		switch (event) {
-		case CLS_ACPT:
-			if (del_timer(&sta->plink_timer))
-				sta->ignore_plink_timer = 1;
-			mesh_plink_fsm_restart(sta);
-			spin_unlock_bh(&sta->lock);
-			break;
-		case OPN_ACPT:
-		case CNF_ACPT:
-		case OPN_RJCT:
-		case CNF_RJCT:
-			llid = sta->llid;
-			reason = sta->reason;
-			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
-					    sta->sta.addr, llid, plid, reason);
-			break;
-		default:
-			spin_unlock_bh(&sta->lock);
-		}
-		break;
-	default:
-		/* should not get here, PLINK_BLOCKED is dealt with at the
-		 * beginning of the function
-		 */
-		spin_unlock_bh(&sta->lock);
-		break;
-	}
-
-	rcu_read_unlock();
-
-	if (changed)
-		ieee80211_bss_info_change_notify(sdata, changed);
+	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
+	mesh_process_plink_frame(sdata, mgmt, &elems);
 }

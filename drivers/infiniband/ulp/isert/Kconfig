@@ -1,0 +1,5 @@
+config INFINIBAND_ISERT
+	tristate "iSCSI Extensions for RDMA (iSER) target support"
+	depends on INET && INFINIBAND_ADDR_TRANS && TARGET_CORE && ISCSI_TARGET
+	---help---
+	Support for iSCSI Extensions for RDMA (iSER) Target on Infiniband fabrics.

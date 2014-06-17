@@ -132,18 +132,13 @@ static void __init mx1ads_timer_init(void)
 	mx1_clocks_init(32000);
 }
 
-static struct sys_timer mx1ads_timer = {
-	.init	= mx1ads_timer_init,
-};
-
 MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
 	.atag_offset = 0x100,
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
-	.handle_irq = imx1_handle_irq,
-	.timer = &mx1ads_timer,
+	.init_time	= mx1ads_timer_init,
 	.init_machine = mx1ads_init,
 	.restart	= mxc_restart,
 MACHINE_END
@@ -153,8 +148,7 @@ MACHINE_START(MXLADS, "Freescale MXLADS")
 	.map_io = mx1_map_io,
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
-	.handle_irq = imx1_handle_irq,
-	.timer = &mx1ads_timer,
+	.init_time	= mx1ads_timer_init,
 	.init_machine = mx1ads_init,
 	.restart	= mxc_restart,
 MACHINE_END

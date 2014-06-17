@@ -425,14 +425,9 @@
 #define	EXT_IMEM_CODE_DONE			BIT(2)
 #define	IMEM_CHK_RPT				BIT(1)
 #define	IMEM_CODE_DONE				BIT(0)
-#define	IMEM_CODE_DONE				BIT(0)
-#define	IMEM_CHK_RPT				BIT(1)
 #define	EMEM_CODE_DONE				BIT(2)
 #define	EMEM_CHK_RPT				BIT(3)
-#define	DMEM_CODE_DONE				BIT(4)
 #define	IMEM_RDY				BIT(5)
-#define	BASECHG					BIT(6)
-#define	FWRDY					BIT(7)
 #define	LOAD_FW_READY				(IMEM_CODE_DONE | \
 						IMEM_CHK_RPT | \
 						EMEM_CODE_DONE | \
@@ -1169,17 +1164,5 @@
 #define	BCCK_SIDEBAND				0x10
 
 #define	BTX_AGCRATECCK				0x7f00
-
-#define	MASKBYTE0				0xff
-#define	MASKBYTE1				0xff00
-#define	MASKBYTE2				0xff0000
-#define	MASKBYTE3				0xff000000
-#define	MASKHWORD				0xffff0000
-#define	MASKLWORD				0x0000ffff
-#define	MASKDWORD				0xffffffff
-
-#define	MAKS12BITS				0xfffff
-#define	MASK20BITS				0xfffff
-#define RFREG_OFFSET_MASK			0xfffff
 
 #endif

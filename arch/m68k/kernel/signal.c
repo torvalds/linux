@@ -50,6 +50,7 @@
 #include <asm/pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
+#include <asm/cacheflush.h>
 
 #ifdef CONFIG_MMU
 
@@ -181,6 +182,13 @@ static inline void push_cache (unsigned long vaddr)
 		asm volatile ("movec %0,%%caar\n\t"
 			      "movec %1,%%cacr"
 			      : : "r" (vaddr + 4), "r" (temp));
+	} else {
+		/* CPU_IS_COLDFIRE */
+#if defined(CONFIG_CACHE_COPYBACK)
+		flush_cf_dcache(0, DCACHE_MAX_ADDR);
+#endif
+		/* Invalidate instruction cache for the pushed bytes */
+		clear_cf_icache(vaddr, vaddr + 8);
 	}
 }
 
@@ -223,56 +231,6 @@ static inline void push_cache(unsigned long vaddr)
 }
 
 #endif /* CONFIG_MMU */
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int
-sys_sigsuspend(int unused0, int unused1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction __user *act,
-	      struct old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
-asmlinkage int
-sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
 
 /*
  * Do a signal return; undo the signal stack.
@@ -765,8 +723,9 @@ rt_restore_ucontext(struct pt_regs *regs, struct switch_stack *sw,
 	err |= __get_user(temp, &uc->uc_formatvec);
 
 	err |= rt_restore_fpu_state(uc);
+	err |= restore_altstack(&uc->uc_stack);
 
-	if (err || do_sigaltstack(&uc->uc_stack, NULL, usp) == -EFAULT)
+	if (err)
 		goto badframe;
 
 	if (mangle_kernel_stack(regs, temp, &uc->uc_extra))
@@ -1014,11 +973,7 @@ static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __put_user((void __user *)current->sas_ss_sp,
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(rdusp()),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, rdusp());
 	err |= rt_setup_ucontext(&frame->uc, regs);
 	err |= copy_to_user (&frame->uc.uc_sigmask, set, sizeof(*set));
 

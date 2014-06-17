@@ -31,9 +31,11 @@
  * IN THE SOFTWARE.
  */
 
-#define DPRINTK(fmt, args...)				\
-	pr_debug("xenbus_probe (%s:%d) " fmt ".\n",	\
-		 __func__, __LINE__, ##args)
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#define DPRINTK(fmt, ...)				\
+	pr_debug("(%s:%d) " fmt "\n",			\
+		 __func__, __LINE__, ##__VA_ARGS__)
 
 #include <linux/kernel.h>
 #include <linux/err.h>
@@ -198,7 +200,7 @@ static struct xen_bus_type xenbus_backend = {
 		.probe		= xenbus_dev_probe,
 		.remove		= xenbus_dev_remove,
 		.shutdown	= xenbus_dev_shutdown,
-		.dev_attrs	= xenbus_dev_attrs,
+		.dev_groups	= xenbus_dev_groups,
 	},
 };
 

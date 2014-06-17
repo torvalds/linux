@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -30,6 +31,7 @@
 
 /* codec private data */
 struct ak4641_priv {
+	struct regmap *regmap;
 	unsigned int sysclk;
 	int deemph;
 	int playback_fs;
@@ -38,12 +40,12 @@ struct ak4641_priv {
 /*
  * ak4641 register cache
  */
-static const u8 ak4641_reg[AK4641_CACHEREGNUM] = {
-	0x00, 0x80, 0x00, 0x80,
-	0x02, 0x00, 0x11, 0x05,
-	0x00, 0x00, 0x36, 0x10,
-	0x00, 0x00, 0x57, 0x00,
-	0x88, 0x88, 0x08, 0x08
+static const struct reg_default ak4641_reg_defaults[] = {
+	{  0, 0x00 }, {  1, 0x80 }, {  2, 0x00 }, {  3, 0x80 },
+	{  4, 0x02 }, {  5, 0x00 }, {  6, 0x11 }, {  7, 0x05 },
+	{  8, 0x00 }, {  9, 0x00 }, { 10, 0x36 }, { 11, 0x10 },
+	{ 12, 0x00 }, { 13, 0x00 }, { 14, 0x57 }, { 15, 0x00 },
+	{ 16, 0x88 }, { 17, 0x88 }, { 18, 0x08 }, { 19, 0x08 }
 };
 
 static const int deemph_settings[] = {44100, 0, 48000, 32000};
@@ -72,7 +74,7 @@ static int ak4641_set_deemph(struct snd_soc_codec *codec)
 static int ak4641_put_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
 	int deemph = ucontrol->value.enumerated.item[0];
 
@@ -87,7 +89,7 @@ static int ak4641_put_deemph(struct snd_kcontrol *kcontrol,
 static int ak4641_get_deemph(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = ak4641->deemph;
@@ -111,14 +113,14 @@ static const DECLARE_TLV_DB_SCALE(alc_tlv, -800, 50, 0);
 static const DECLARE_TLV_DB_SCALE(aux_in_tlv, -2100, 300, 0);
 
 
-static const struct soc_enum ak4641_mono_out_enum =
-	SOC_ENUM_SINGLE(AK4641_SIG1, 6, 2, ak4641_mono_out);
-static const struct soc_enum ak4641_hp_out_enum =
-	SOC_ENUM_SINGLE(AK4641_MODE2, 2, 2, ak4641_hp_out);
-static const struct soc_enum ak4641_mic_select_enum =
-	SOC_ENUM_SINGLE(AK4641_MIC, 1, 2, ak4641_mic_select);
-static const struct soc_enum ak4641_mic_or_dac_enum =
-	SOC_ENUM_SINGLE(AK4641_BTIF, 4, 2, ak4641_mic_or_dac);
+static SOC_ENUM_SINGLE_DECL(ak4641_mono_out_enum,
+			    AK4641_SIG1, 6, ak4641_mono_out);
+static SOC_ENUM_SINGLE_DECL(ak4641_hp_out_enum,
+			    AK4641_MODE2, 2, ak4641_hp_out);
+static SOC_ENUM_SINGLE_DECL(ak4641_mic_select_enum,
+			    AK4641_MIC, 1, ak4641_mic_select);
+static SOC_ENUM_SINGLE_DECL(ak4641_mic_or_dac_enum,
+			    AK4641_BTIF, 4, ak4641_mic_or_dac);
 
 static const struct snd_kcontrol_new ak4641_snd_controls[] = {
 	SOC_ENUM("Mono 1 Output", ak4641_mono_out_enum),
@@ -328,7 +330,7 @@ static int ak4641_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ak4641->playback_fs = rate;
 		ak4641_set_deemph(codec);
-	};
+	}
 
 	return 0;
 }
@@ -396,6 +398,7 @@ static int ak4641_mute(struct snd_soc_dai *dai, int mute)
 static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
+	struct ak4641_priv *ak4641 = snd_soc_codec_get_drvdata(codec);
 	struct ak4641_platform_data *pdata = codec->dev->platform_data;
 	int ret;
 
@@ -417,7 +420,7 @@ static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 				gpio_set_value(pdata->gpio_npdn, 1);
 			mdelay(1);
 
-			ret = snd_soc_cache_sync(codec);
+			ret = regcache_sync(ak4641->regmap);
 			if (ret) {
 				dev_err(codec->dev,
 					"Failed to sync cache: %d\n", ret);
@@ -433,7 +436,7 @@ static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 			gpio_set_value(pdata->gpio_npdn, 0);
 		if (pdata && gpio_is_valid(pdata->gpio_power))
 			gpio_set_value(pdata->gpio_power, 0);
-		codec->cache_sync = 1;
+		regcache_mark_dirty(ak4641->regmap);
 		break;
 	}
 	codec->dapm.bias_level = level;
@@ -516,14 +519,6 @@ static int ak4641_resume(struct snd_soc_codec *codec)
 
 static int ak4641_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* power on device */
 	ak4641_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -550,12 +545,17 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
 	.dapm_routes		= ak4641_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(ak4641_audio_map),
 	.set_bias_level		= ak4641_set_bias_level,
-	.reg_cache_size		= ARRAY_SIZE(ak4641_reg),
-	.reg_word_size		= sizeof(u8),
-	.reg_cache_default	= ak4641_reg,
-	.reg_cache_step		= 1,
 };
 
+static const struct regmap_config ak4641_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = AK4641_BTIF,
+	.reg_defaults = ak4641_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(ak4641_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
+};
 
 static int ak4641_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -568,6 +568,10 @@ static int ak4641_i2c_probe(struct i2c_client *i2c,
 			      GFP_KERNEL);
 	if (!ak4641)
 		return -ENOMEM;
+
+	ak4641->regmap = devm_regmap_init_i2c(i2c, &ak4641_regmap);
+	if (IS_ERR(ak4641->regmap))
+		return PTR_ERR(ak4641->regmap);
 
 	if (pdata) {
 		if (gpio_is_valid(pdata->gpio_power)) {

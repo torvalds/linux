@@ -18,6 +18,7 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 
 struct pmc_regs {

@@ -1,0 +1,40 @@
+config LNET
+	tristate "Lustre networking subsystem"
+	depends on LUSTRE_FS
+
+config LNET_MAX_PAYLOAD
+	int "Lustre lnet max transfer payload (default 2MB)"
+	depends on LUSTRE_FS
+	default "1048576"
+	help
+	  This option defines the maximum size of payload in bytes that lnet
+	  can put into its transport.
+
+	  If unsure, use default.
+
+config LNET_SELFTEST
+	tristate "Lustre networking self testing"
+	depends on LNET
+	help
+	  Choose Y here if you want to do lnet self testing. To compile this
+	  as a module, choose M here: the module will be called lnet_selftest.
+
+	  To compile this as a kernel modules, choose M here and it will be
+	  called lnet_selftest.
+
+	  If unsure, say N.
+
+	  See also http://wiki.lustre.org/
+
+config LNET_XPRT_IB
+	tristate "LNET infiniband support"
+	depends on LNET && INFINIBAND && INFINIBAND_ADDR_TRANS
+	default LNET && INFINIBAND
+	help
+	  This option allows the LNET users to use infiniband as an
+	  RDMA-enabled transport.
+
+	  To compile this as a kernel module, choose M here and it will be
+	  called ko2iblnd.
+
+	  If unsure, say N.

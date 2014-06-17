@@ -73,8 +73,8 @@ nfs4_save_creds(const struct cred **original_creds)
 	if (!new)
 		return -ENOMEM;
 
-	new->fsuid = 0;
-	new->fsgid = 0;
+	new->fsuid = GLOBAL_ROOT_UID;
+	new->fsgid = GLOBAL_ROOT_GID;
 	*original_creds = override_creds(new);
 	put_cred(new);
 	return 0;
@@ -146,7 +146,7 @@ out_no_tfm:
  * then disable recovery tracking.
  */
 static void
-legacy_recdir_name_error(int error)
+legacy_recdir_name_error(struct nfs4_client *clp, int error)
 {
 	printk(KERN_ERR "NFSD: unable to generate recoverydir "
 			"name (%d).\n", error);
@@ -159,9 +159,7 @@ legacy_recdir_name_error(int error)
 	if (error == -ENOENT) {
 		printk(KERN_ERR "NFSD: disabling legacy clientid tracking. "
 			"Reboot recovery will not function correctly!\n");
-
-		/* the argument is ignored by the legacy exit function */
-		nfsd4_client_tracking_exit(NULL);
+		nfsd4_client_tracking_exit(clp->net);
 	}
 }
 
@@ -175,8 +173,6 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	int status;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
-	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
-
 	if (test_and_set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 	if (!nn->rec_file)
@@ -184,7 +180,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status)
-		return legacy_recdir_name_error(status);
+		return legacy_recdir_name_error(clp, status);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
@@ -242,11 +238,16 @@ struct name_list {
 	struct list_head list;
 };
 
+struct nfs4_dir_ctx {
+	struct dir_context ctx;
+	struct list_head names;
+};
+
 static int
 nfsd4_build_namelist(void *arg, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct list_head *names = arg;
+	struct nfs4_dir_ctx *ctx = arg;
 	struct name_list *entry;
 
 	if (namlen != HEXDIR_LEN - 1)
@@ -256,7 +257,7 @@ nfsd4_build_namelist(void *arg, const char *name, int namlen,
 		return -ENOMEM;
 	memcpy(entry->name, name, HEXDIR_LEN - 1);
 	entry->name[HEXDIR_LEN - 1] = '\0';
-	list_add(&entry->list, names);
+	list_add(&entry->list, &ctx->names);
 	return 0;
 }
 
@@ -265,7 +266,10 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 {
 	const struct cred *original_cred;
 	struct dentry *dir = nn->rec_file->f_path.dentry;
-	LIST_HEAD(names);
+	struct nfs4_dir_ctx ctx = {
+		.ctx.actor = nfsd4_build_namelist,
+		.names = LIST_HEAD_INIT(ctx.names)
+	};
 	int status;
 
 	status = nfs4_save_creds(&original_cred);
@@ -278,11 +282,11 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 		return status;
 	}
 
-	status = vfs_readdir(nn->rec_file, nfsd4_build_namelist, &names);
+	status = iterate_dir(nn->rec_file, &ctx.ctx);
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	while (!list_empty(&names)) {
+	while (!list_empty(&ctx.names)) {
 		struct name_list *entry;
-		entry = list_entry(names.next, struct name_list, list);
+		entry = list_entry(ctx.names.next, struct name_list, list);
 		if (!status) {
 			struct dentry *dentry;
 			dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);
@@ -341,7 +345,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status)
-		return legacy_recdir_name_error(status);
+		return legacy_recdir_name_error(clp, status);
 
 	status = mnt_want_write_file(nn->rec_file);
 	if (status)
@@ -381,8 +385,8 @@ purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 
 	status = vfs_rmdir(parent->d_inode, child);
 	if (status)
-		printk("failed to remove client recovery directory %s\n",
-				child->d_name.name);
+		printk("failed to remove client recovery directory %pd\n",
+				child);
 	/* Keep trying, success or failure: */
 	return 0;
 }
@@ -406,15 +410,15 @@ out:
 	nfs4_release_reclaim(nn);
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
-			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
+			" directory %pD\n", nn->rec_file);
 }
 
 static int
 load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	if (child->d_name.len != HEXDIR_LEN - 1) {
-		printk("nfsd4: illegal name %s in recovery directory\n",
-				child->d_name.name);
+		printk("nfsd4: illegal name %pd in recovery directory\n",
+				child);
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
@@ -433,7 +437,7 @@ nfsd4_recdir_load(struct net *net) {
 	status = nfsd4_list_rec_dir(load_recdir, nn);
 	if (status)
 		printk("nfsd4: failed loading clients from recovery"
-			" directory %s\n", nn->rec_file->f_path.dentry->d_name.name);
+			" directory %pD\n", nn->rec_file);
 	return status;
 }
 
@@ -601,7 +605,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status) {
-		legacy_recdir_name_error(status);
+		legacy_recdir_name_error(clp, status);
 		return status;
 	}
 
@@ -1185,6 +1189,12 @@ bin_to_hex_dup(const unsigned char *src, int srclen)
 static int
 nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
 {
+	/* XXX: The usermode helper s not working in container yet. */
+	if (net != &init_net) {
+		WARN(1, KERN_ERR "NFSD: attempt to initialize umh client "
+			"tracking in a container!\n");
+		return -EINVAL;
+	}
 	return nfsd4_umh_cltrack_upcall("init", NULL, NULL);
 }
 

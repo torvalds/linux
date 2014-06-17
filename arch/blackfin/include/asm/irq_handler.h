@@ -12,11 +12,11 @@
 #include <mach/irq.h>
 
 /* init functions only */
-extern int __init init_arch_irq(void);
+extern int init_arch_irq(void);
 extern void init_exception_vectors(void);
-extern void __init program_IAR(void);
+extern void program_IAR(void);
 #ifdef init_mach_irq
-extern void __init init_mach_irq(void);
+extern void init_mach_irq(void);
 #else
 # define init_mach_irq()
 #endif

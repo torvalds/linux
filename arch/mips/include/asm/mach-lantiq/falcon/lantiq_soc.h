@@ -44,7 +44,7 @@
 
 /* BOOT_SEL - find what boot media we have */
 #define BS_FLASH		0x1
-#define BS_SPI                  0x4
+#define BS_SPI			0x4
 
 /* global register ranges */
 extern __iomem void *ltq_ebu_membase;

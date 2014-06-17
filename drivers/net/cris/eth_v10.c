@@ -1448,10 +1448,10 @@ static int e100_set_settings(struct net_device *dev,
 static void e100_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, "ETRAX 100LX", sizeof(info->driver) - 1);
-	strncpy(info->version, "$Revision: 1.31 $", sizeof(info->version) - 1);
-	strncpy(info->fw_version, "N/A", sizeof(info->fw_version) - 1);
-	strncpy(info->bus_info, "N/A", sizeof(info->bus_info) - 1);
+	strlcpy(info->driver, "ETRAX 100LX", sizeof(info->driver));
+	strlcpy(info->version, "$Revision: 1.31 $", sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static int e100_nway_reset(struct net_device *dev)

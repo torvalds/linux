@@ -6,7 +6,7 @@
  *			     Kyösti Mälkki <kmalkki@cc.hut.fi>, and
  *			     Mark D. Studebaker <mdsxyz123@yahoo.com>
  * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
- * the help of Jean Delvare <khali@linux-fr.org>
+ * the help of Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -132,7 +132,7 @@ static struct platform_device *pdev;
  */
 static inline u8 IN_TO_REG(unsigned long val)
 {
-	unsigned long nval = SENSORS_LIMIT(val, 0, 4080);
+	unsigned long nval = clamp_val(val, 0, 4080);
 	return (nval + 8) / 16;
 }
 #define IN_FROM_REG(val) ((val) *  16)
@@ -141,7 +141,9 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm <= 0)
 		return 255;
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	if (rpm > 1350000)
+		return 1;
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline int FAN_FROM_REG(u8 val, int div)
@@ -159,7 +161,7 @@ static inline int TEMP_FROM_REG(s8 val)
 }
 static inline s8 TEMP_TO_REG(int val)
 {
-	int nval = SENSORS_LIMIT(val, -54120, 157530) ;
+	int nval = clamp_val(val, -54120, 157530) ;
 	return nval < 0 ? (nval - 5212 - 415) / 830 : (nval - 5212 + 415) / 830;
 }
 
@@ -456,8 +458,9 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *da,
 		data->fan_div[nr] = 3;
 		break;
 	default:
-		dev_err(dev, "fan_div value %ld not "
-			"supported. Choose one of 1, 2, 4 or 8!\n", val);
+		dev_err(dev,
+			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
 	}
@@ -751,7 +754,7 @@ static struct sis5595_data *sis5595_update_device(struct device *dev)
 	return data;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(sis5595_pci_ids) = {
+static const struct pci_device_id sis5595_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) },
 	{ 0, }
 };

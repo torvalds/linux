@@ -14,8 +14,6 @@
 #ifndef __ASM_ARCH_REGS_GPIO_H
 #define __ASM_ARCH_REGS_GPIO_H
 
-#include <mach/gpio-nrs.h>
-
 #define S3C24XX_MISCCR		S3C24XX_GPIOREG2(0x80)
 
 /* general configuration options */
@@ -459,9 +457,6 @@
 
 /* miscellaneous control */
 #define S3C2410_MISCCR	   S3C2410_GPIOREG(0x80)
-#define S3C2410_DCLKCON	   S3C2410_GPIOREG(0x84)
-
-#define S3C24XX_DCLKCON	   S3C24XX_GPIOREG2(0x84)
 
 /* see clock.h for dclk definitions */
 

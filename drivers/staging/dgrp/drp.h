@@ -674,7 +674,7 @@ struct nd_struct {
 	ushort	     nd_hw_ver;		  /* HW version returned from PS   */
 	ushort	     nd_sw_ver;		  /* SW version returned from PS   */
 	uint	     nd_hw_id;		  /* HW ID returned from PS	   */
-	u8	  nd_ps_desc[MAX_DESC_LEN+1];  /* Description from PS	*/
+	u8	  nd_ps_desc[MAX_DESC_LEN];  /* Description from PS	*/
 	uint	     nd_vpd_len;		/* VPD len, if any */
 	u8	     nd_vpd[VPDSIZE];		/* VPD, if any */
 

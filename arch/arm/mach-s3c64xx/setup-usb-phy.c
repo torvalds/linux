@@ -15,10 +15,11 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <mach/map.h>
-#include <mach/regs-sys.h>
 #include <plat/cpu.h>
 #include <plat/regs-usb-hsotg-phy.h>
 #include <plat/usb-phy.h>
+
+#include "regs-sys.h"
 
 static int s3c_usb_otgphy_init(struct platform_device *pdev)
 {
@@ -75,7 +76,7 @@ static int s3c_usb_otgphy_exit(struct platform_device *pdev)
 
 int s5p_usb_phy_init(struct platform_device *pdev, int type)
 {
-	if (type == S5P_USB_PHY_DEVICE)
+	if (type == USB_PHY_TYPE_DEVICE)
 		return s3c_usb_otgphy_init(pdev);
 
 	return -EINVAL;
@@ -83,7 +84,7 @@ int s5p_usb_phy_init(struct platform_device *pdev, int type)
 
 int s5p_usb_phy_exit(struct platform_device *pdev, int type)
 {
-	if (type == S5P_USB_PHY_DEVICE)
+	if (type == USB_PHY_TYPE_DEVICE)
 		return s3c_usb_otgphy_exit(pdev);
 
 	return -EINVAL;

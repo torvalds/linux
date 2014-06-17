@@ -273,7 +273,6 @@ static int orinoco_plx_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 
  fail_alloc:
@@ -301,7 +300,6 @@ static void orinoco_plx_remove_one(struct pci_dev *pdev)
 
 	orinoco_if_del(priv);
 	free_irq(pdev->irq, priv);
-	pci_set_drvdata(pdev, NULL);
 	free_orinocodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->attr_io);

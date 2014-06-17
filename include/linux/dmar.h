@@ -25,6 +25,8 @@
 #include <linux/types.h>
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
+#include <linux/rwsem.h>
+#include <linux/rcupdate.h>
 
 struct acpi_dmar_header;
 
@@ -33,13 +35,20 @@ struct acpi_dmar_header;
 #define DMAR_X2APIC_OPT_OUT	0x2
 
 struct intel_iommu;
+
+struct dmar_dev_scope {
+	struct device __rcu *dev;
+	u8 bus;
+	u8 devfn;
+};
+
 #ifdef CONFIG_DMAR_TABLE
 extern struct acpi_table_header *dmar_tbl;
 struct dmar_drhd_unit {
 	struct list_head list;		/* list of drhd units	*/
 	struct  acpi_dmar_header *hdr;	/* ACPI header		*/
 	u64	reg_base_addr;		/* register base address*/
-	struct	pci_dev **devices; 	/* target device array	*/
+	struct	dmar_dev_scope *devices;/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
 	u16	segment;		/* PCI domain		*/
 	u8	ignored:1; 		/* ignore drhd		*/
@@ -47,29 +56,66 @@ struct dmar_drhd_unit {
 	struct intel_iommu *iommu;
 };
 
+struct dmar_pci_notify_info {
+	struct pci_dev			*dev;
+	unsigned long			event;
+	int				bus;
+	u16				seg;
+	u16				level;
+	struct acpi_dmar_pci_path	path[];
+}  __attribute__((packed));
+
+extern struct rw_semaphore dmar_global_lock;
 extern struct list_head dmar_drhd_units;
 
 #define for_each_drhd_unit(drhd) \
-	list_for_each_entry(drhd, &dmar_drhd_units, list)
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)
+
+#define for_each_active_drhd_unit(drhd)					\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
+		if (drhd->ignored) {} else
 
 #define for_each_active_iommu(i, drhd)					\
-	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, drhd->ignored) {} else
 
 #define for_each_iommu(i, drhd)						\
-	list_for_each_entry(drhd, &dmar_drhd_units, list)		\
+	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
 		if (i=drhd->iommu, 0) {} else 
+
+static inline bool dmar_rcu_check(void)
+{
+	return rwsem_is_locked(&dmar_global_lock) ||
+	       system_state == SYSTEM_BOOTING;
+}
+
+#define	dmar_rcu_dereference(p)	rcu_dereference_check((p), dmar_rcu_check())
+
+#define	for_each_dev_scope(a, c, p, d)	\
+	for ((p) = 0; ((d) = (p) < (c) ? dmar_rcu_dereference((a)[(p)].dev) : \
+			NULL, (p) < (c)); (p)++)
+
+#define	for_each_active_dev_scope(a, c, p, d)	\
+	for_each_dev_scope((a), (c), (p), (d))	if (!(d)) { continue; } else
 
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
-
+extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
+				struct dmar_dev_scope **devices, u16 segment);
+extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
+extern void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt);
+extern int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
+				 void *start, void*end, u16 segment,
+				 struct dmar_dev_scope *devices,
+				 int devices_cnt);
+extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
+				 u16 segment, struct dmar_dev_scope *devices,
+				 int count);
 /* Intel IOMMU detection */
 extern int detect_intel_iommu(void);
 extern int enable_drhd_fault_handling(void);
-
-extern int parse_ioapics_under_ir(void);
-extern int alloc_iommu(struct dmar_drhd_unit *);
 #else
+struct dmar_pci_notify_info;
 static inline int detect_intel_iommu(void)
 {
 	return -ENODEV;
@@ -133,32 +179,9 @@ extern int arch_setup_dmar_msi(unsigned int irq);
 
 #ifdef CONFIG_INTEL_IOMMU
 extern int iommu_detected, no_iommu;
-extern struct list_head dmar_rmrr_units;
-struct dmar_rmrr_unit {
-	struct list_head list;		/* list of rmrr units	*/
-	struct acpi_dmar_header *hdr;	/* ACPI header		*/
-	u64	base_address;		/* reserved base address*/
-	u64	end_address;		/* reserved end address */
-	struct pci_dev **devices;	/* target devices */
-	int	devices_cnt;		/* target device count */
-};
-
-#define for_each_rmrr_units(rmrr) \
-	list_for_each_entry(rmrr, &dmar_rmrr_units, list)
-
-struct dmar_atsr_unit {
-	struct list_head list;		/* list of ATSR units */
-	struct acpi_dmar_header *hdr;	/* ACPI header */
-	struct pci_dev **devices;	/* target devices */
-	int devices_cnt;		/* target device count */
-	u8 include_all:1;		/* include all ports */
-};
-
-int dmar_parse_rmrr_atsr_dev(void);
 extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header);
 extern int dmar_parse_one_atsr(struct acpi_dmar_header *header);
-extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
-				struct pci_dev ***devices, u16 segment);
+extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
 extern int intel_iommu_init(void);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
@@ -170,7 +193,7 @@ static inline int dmar_parse_one_atsr(struct acpi_dmar_header *header)
 {
 	return 0;
 }
-static inline int dmar_parse_rmrr_atsr_dev(void)
+static inline int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 {
 	return 0;
 }

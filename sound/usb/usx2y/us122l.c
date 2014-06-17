@@ -262,7 +262,9 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	}
 
 	area->vm_ops = &usb_stream_hwdep_vm_ops;
-	area->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	area->vm_flags |= VM_DONTDUMP;
+	if (!read)
+		area->vm_flags |= VM_DONTEXPAND;
 	area->vm_private_data = us122l;
 	atomic_inc(&us122l->mmap_count);
 out:
@@ -533,7 +535,9 @@ static void snd_us122l_free(struct snd_card *card)
 		snd_us122l_card_used[index] = 0;
 }
 
-static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
+static int usx2y_create_card(struct usb_device *device,
+			     struct usb_interface *intf,
+			     struct snd_card **cardp)
 {
 	int		dev;
 	struct snd_card *card;
@@ -544,8 +548,8 @@ static int usx2y_create_card(struct usb_device *device, struct snd_card **cardp)
 			break;
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct us122l), &card);
+	err = snd_card_new(&intf->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct us122l), &card);
 	if (err < 0)
 		return err;
 	snd_us122l_card_used[US122L(card)->card_index = dev] = 1;
@@ -576,11 +580,10 @@ static int us122l_usb_probe(struct usb_interface *intf,
 	struct snd_card *card;
 	int err;
 
-	err = usx2y_create_card(device, &card);
+	err = usx2y_create_card(device, intf, &card);
 	if (err < 0)
 		return err;
 
-	snd_card_set_dev(card, &intf->dev);
 	if (!us122l_create_card(card)) {
 		snd_card_free(card);
 		return -EINVAL;

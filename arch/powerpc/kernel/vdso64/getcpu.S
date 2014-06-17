@@ -29,7 +29,7 @@
  */
 V_FUNCTION_BEGIN(__kernel_getcpu)
   .cfi_startproc
-	mfspr	r5,SPRN_USPRG3
+	mfspr	r5,SPRN_SPRG_VDSO_READ
 	cmpdi	cr0,r3,0
 	cmpdi	cr1,r4,0
 	clrlwi  r6,r5,16

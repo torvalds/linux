@@ -30,6 +30,7 @@
 #include "../wifi.h"
 #include "../core.h"
 #include "../pci.h"
+#include "../base.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -166,7 +167,7 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 		rtlpriv->psc.fwctrl_psmode = FW_PS_DTIM_MODE;
 
 	/* for early mode */
-	rtlpriv->rtlhal.earlymode_enable = true;
+	rtlpriv->rtlhal.earlymode_enable = false;
 	for (tid = 0; tid < 8; tid++)
 		skb_queue_head_init(&rtlpriv->mac80211.skb_waitq[tid]);
 
@@ -236,7 +237,7 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.set_bw_mode = rtl92d_phy_set_bw_mode,
 	.switch_channel = rtl92d_phy_sw_chnl,
 	.dm_watchdog = rtl92d_dm_watchdog,
-	.scan_operation_backup = rtl92d_phy_scan_operation_backup,
+	.scan_operation_backup = rtl_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92d_phy_set_rf_power_state,
 	.led_control = rtl92de_led_control,
 	.set_desc = rtl92de_set_desc,
@@ -319,7 +320,7 @@ static struct rtl_hal_cfg rtl92de_hal_cfg = {
 
 	.maps[RTL_IMR_TXFOVW] = IMR_TXFOVW,
 	.maps[RTL_IMR_PSTIMEOUT] = IMR_PSTIMEOUT,
-	.maps[RTL_IMR_BcnInt] = IMR_BcnInt,
+	.maps[RTL_IMR_BCNINT] = IMR_BCNINT,
 	.maps[RTL_IMR_RXFOVW] = IMR_RXFOVW,
 	.maps[RTL_IMR_RDU] = IMR_RDU,
 	.maps[RTL_IMR_ATIMEND] = IMR_ATIMEND,
@@ -333,7 +334,7 @@ static struct rtl_hal_cfg rtl92de_hal_cfg = {
 	.maps[RTL_IMR_VIDOK] = IMR_VIDOK,
 	.maps[RTL_IMR_VODOK] = IMR_VODOK,
 	.maps[RTL_IMR_ROK] = IMR_ROK,
-	.maps[RTL_IBSS_INT_MASKS] = (IMR_BcnInt | IMR_TBDOK | IMR_TBDER),
+	.maps[RTL_IBSS_INT_MASKS] = (IMR_BCNINT | IMR_TBDOK | IMR_TBDER),
 
 	.maps[RTL_RC_CCK_RATE1M] = DESC92_RATE1M,
 	.maps[RTL_RC_CCK_RATE2M] = DESC92_RATE2M,

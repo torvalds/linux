@@ -147,7 +147,7 @@ static int tps6105x_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, tps6105x);
 	tps6105x->client = client;
-	pdata = client->dev.platform_data;
+	pdata = dev_get_platdata(&client->dev);
 	tps6105x->pdata = pdata;
 	mutex_init(&tps6105x->lock);
 

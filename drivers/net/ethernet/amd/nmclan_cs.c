@@ -132,7 +132,6 @@ Include Files
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -458,7 +457,7 @@ static int nmclan_probe(struct pcmcia_device *link)
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
     dev->netdev_ops = &mace_netdev_ops;
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+    dev->ethtool_ops = &netdev_ethtool_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
 
     return nmclan_config(link);
@@ -1508,16 +1507,4 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	.suspend	= nmclan_suspend,
 	.resume		= nmclan_resume,
 };
-
-static int __init init_nmclan_cs(void)
-{
-	return pcmcia_register_driver(&nmclan_cs_driver);
-}
-
-static void __exit exit_nmclan_cs(void)
-{
-	pcmcia_unregister_driver(&nmclan_cs_driver);
-}
-
-module_init(init_nmclan_cs);
-module_exit(exit_nmclan_cs);
+module_pcmcia_driver(nmclan_cs_driver);

@@ -27,8 +27,7 @@
  *  for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ *  with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * ########################################################################
  *
@@ -48,7 +47,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -437,8 +435,8 @@ static int au1000_mii_probe(struct net_device *dev)
 	/* now we are supposed to have a proper phydev, to attach to... */
 	BUG_ON(phydev->attached_dev);
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev), &au1000_adjust_link,
-			0, PHY_INTERFACE_MODE_MII);
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
+			     &au1000_adjust_link, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -587,10 +585,10 @@ au1000_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct au1000_private *aup = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "%s %d", DRV_NAME, aup->mac_id);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "%s %d", DRV_NAME,
+		 aup->mac_id);
 	info->regdump_len = 0;
 }
 
@@ -727,7 +725,6 @@ static int au1000_rx(struct net_device *dev)
 			frmlen -= 4; /* Remove FCS */
 			skb = netdev_alloc_skb(dev, frmlen + 2);
 			if (skb == NULL) {
-				netdev_err(dev, "Memory squeeze, dropping packet.\n");
 				dev->stats.rx_dropped++;
 				continue;
 			}
@@ -1132,14 +1129,14 @@ static int au1000_probe(struct platform_device *pdev)
 	writel(0, aup->enable);
 	aup->mac_enabled = 0;
 
-	pd = pdev->dev.platform_data;
+	pd = dev_get_platdata(&pdev->dev);
 	if (!pd) {
 		dev_info(&pdev->dev, "no platform_data passed,"
 					" PHY search on MAC0\n");
 		aup->phy1_search_mac0 = 1;
 	} else {
 		if (is_valid_ether_addr(pd->mac)) {
-			memcpy(dev->dev_addr, pd->mac, 6);
+			memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 		} else {
 			/* Set a random MAC since no valid provided by platform_data. */
 			eth_hw_addr_random(dev);
@@ -1232,7 +1229,7 @@ static int au1000_probe(struct platform_device *pdev)
 	dev->base_addr = base->start;
 	dev->irq = irq;
 	dev->netdev_ops = &au1000_netdev_ops;
-	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
+	dev->ethtool_ops = &au1000_ethtool_ops;
 	dev->watchdog_timeo = ETH_TX_TIMEOUT;
 
 	/*
@@ -1301,8 +1298,6 @@ static int au1000_remove(struct platform_device *pdev)
 	struct au1000_private *aup = netdev_priv(dev);
 	int i;
 	struct resource *base, *macen;
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(dev);
 	mdiobus_unregister(aup->mii_bus);

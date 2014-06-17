@@ -94,18 +94,6 @@ const struct imx_imx_uart_1irq_data imx35_imx_uart_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
-#ifdef CONFIG_SOC_IMX50
-const struct imx_imx_uart_1irq_data imx50_imx_uart_data[] __initconst = {
-#define imx50_imx_uart_data_entry(_id, _hwid)				\
-	imx_imx_uart_1irq_data_entry(MX50, _id, _hwid, SZ_4K)
-	imx50_imx_uart_data_entry(0, 1),
-	imx50_imx_uart_data_entry(1, 2),
-	imx50_imx_uart_data_entry(2, 3),
-	imx50_imx_uart_data_entry(3, 4),
-	imx50_imx_uart_data_entry(4, 5),
-};
-#endif /* ifdef CONFIG_SOC_IMX50 */
-
 #ifdef CONFIG_SOC_IMX51
 const struct imx_imx_uart_1irq_data imx51_imx_uart_data[] __initconst = {
 #define imx51_imx_uart_data_entry(_id, _hwid)				\

@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/lockdep.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1079,29 +1078,82 @@ EXPORT_SYMBOL(il_get_channel_info);
  * Setting power level allows the card to go to sleep when not busy.
  *
  * We calculate a sleep command based on the required latency, which
- * we get from mac80211. In order to handle thermal throttling, we can
- * also use pre-defined power levels.
+ * we get from mac80211.
  */
 
-/*
- * This defines the old power levels. They are still used by default
- * (level 1) and for thermal throttle (levels 3 through 5)
- */
-
-struct il_power_vec_entry {
-	struct il_powertable_cmd cmd;
-	u8 no_dtim;		/* number of skip dtim */
-};
+#define SLP_VEC(X0, X1, X2, X3, X4) { \
+		cpu_to_le32(X0), \
+		cpu_to_le32(X1), \
+		cpu_to_le32(X2), \
+		cpu_to_le32(X3), \
+		cpu_to_le32(X4)  \
+}
 
 static void
-il_power_sleep_cam_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
+il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 {
+	const __le32 interval[3][IL_POWER_VEC_SIZE] = {
+		SLP_VEC(2, 2, 4, 6, 0xFF),
+		SLP_VEC(2, 4, 7, 10, 10),
+		SLP_VEC(4, 7, 10, 10, 0xFF)
+	};
+	int i, dtim_period, no_dtim;
+	u32 max_sleep;
+	bool skip;
+
 	memset(cmd, 0, sizeof(*cmd));
 
 	if (il->power_data.pci_pm)
 		cmd->flags |= IL_POWER_PCI_PM_MSK;
 
-	D_POWER("Sleep command for CAM\n");
+	/* if no Power Save, we are done */
+	if (il->power_data.ps_disabled)
+		return;
+
+	cmd->flags = IL_POWER_DRIVER_ALLOW_SLEEP_MSK;
+	cmd->keep_alive_seconds = 0;
+	cmd->debug_flags = 0;
+	cmd->rx_data_timeout = cpu_to_le32(25 * 1024);
+	cmd->tx_data_timeout = cpu_to_le32(25 * 1024);
+	cmd->keep_alive_beacons = 0;
+
+	dtim_period = il->vif ? il->vif->bss_conf.dtim_period : 0;
+
+	if (dtim_period <= 2) {
+		memcpy(cmd->sleep_interval, interval[0], sizeof(interval[0]));
+		no_dtim = 2;
+	} else if (dtim_period <= 10) {
+		memcpy(cmd->sleep_interval, interval[1], sizeof(interval[1]));
+		no_dtim = 2;
+	} else {
+		memcpy(cmd->sleep_interval, interval[2], sizeof(interval[2]));
+		no_dtim = 0;
+	}
+
+	if (dtim_period == 0) {
+		dtim_period = 1;
+		skip = false;
+	} else {
+		skip = !!no_dtim;
+	}
+
+	if (skip) {
+		__le32 tmp = cmd->sleep_interval[IL_POWER_VEC_SIZE - 1];
+
+		max_sleep = le32_to_cpu(tmp);
+		if (max_sleep == 0xFF)
+			max_sleep = dtim_period * (skip + 1);
+		else if (max_sleep >  dtim_period)
+			max_sleep = (max_sleep / dtim_period) * dtim_period;
+		cmd->flags |= IL_POWER_SLEEP_OVER_DTIM_MSK;
+	} else {
+		max_sleep = dtim_period;
+		cmd->flags &= ~IL_POWER_SLEEP_OVER_DTIM_MSK;
+	}
+
+	for (i = 0; i < IL_POWER_VEC_SIZE; i++)
+		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
+			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
 }
 
 static int
@@ -1122,7 +1174,7 @@ il_set_power(struct il_priv *il, struct il_powertable_cmd *cmd)
 			       sizeof(struct il_powertable_cmd), cmd);
 }
 
-int
+static int
 il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 {
 	int ret;
@@ -1174,7 +1226,8 @@ il_power_update_mode(struct il_priv *il, bool force)
 {
 	struct il_powertable_cmd cmd;
 
-	il_power_sleep_cam_cmd(il, &cmd);
+	il_build_powertable_cmd(il, &cmd);
+
 	return il_power_set_mode(il, &cmd, force);
 }
 EXPORT_SYMBOL(il_power_update_mode);
@@ -1423,7 +1476,7 @@ il_setup_rx_scan_handlers(struct il_priv *il)
 }
 EXPORT_SYMBOL(il_setup_rx_scan_handlers);
 
-inline u16
+u16
 il_get_active_dwell_time(struct il_priv *il, enum ieee80211_band band,
 			 u8 n_probes)
 {
@@ -1830,32 +1883,30 @@ il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 {
 	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
 	__le32 sta_flags;
-	u8 mimo_ps_mode;
 
 	if (!sta || !sta_ht_inf->ht_supported)
 		goto done;
 
-	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
 	D_ASSOC("spatial multiplexing power save mode: %s\n",
-		(mimo_ps_mode == WLAN_HT_CAP_SM_PS_STATIC) ? "static" :
-		(mimo_ps_mode == WLAN_HT_CAP_SM_PS_DYNAMIC) ? "dynamic" :
+		(sta->smps_mode == IEEE80211_SMPS_STATIC) ? "static" :
+		(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ? "dynamic" :
 		"disabled");
 
 	sta_flags = il->stations[idx].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
-	switch (mimo_ps_mode) {
-	case WLAN_HT_CAP_SM_PS_STATIC:
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_STATIC:
 		sta_flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DYNAMIC:
+	case IEEE80211_SMPS_DYNAMIC:
 		sta_flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 		break;
-	case WLAN_HT_CAP_SM_PS_DISABLED:
+	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IL_WARN("Invalid MIMO PS mode %d\n", mimo_ps_mode);
+		IL_WARN("Invalid MIMO PS mode %d\n", sta->smps_mode);
 		break;
 	}
 
@@ -2568,15 +2619,13 @@ il_rx_queue_alloc(struct il_priv *il)
 	INIT_LIST_HEAD(&rxq->rx_used);
 
 	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd =
-	    dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
-			       GFP_KERNEL);
+	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
+				     GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
 
-	rxq->rb_stts =
-	    dma_alloc_coherent(dev, sizeof(struct il_rb_status),
-			       &rxq->rb_stts_dma, GFP_KERNEL);
+	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(struct il_rb_status),
+					  &rxq->rb_stts_dma, GFP_KERNEL);
 	if (!rxq->rb_stts)
 		goto err_rb;
 
@@ -2943,10 +2992,9 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	 * shared with device */
 	txq->tfds =
 	    dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr, GFP_KERNEL);
-	if (!txq->tfds) {
-		IL_ERR("Fail to alloc TFDs\n");
+	if (!txq->tfds)
 		goto error;
-	}
+
 	txq->q.id = id;
 
 	return 0;
@@ -3162,17 +3210,22 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 		     idx, il->cmd_queue);
 	}
 #endif
+
+	phys_addr =
+	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
+			   PCI_DMA_BIDIRECTIONAL);
+	if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr))) {
+		idx = -ENOMEM;
+		goto out;
+	}
+	dma_unmap_addr_set(out_meta, mapping, phys_addr);
+	dma_unmap_len_set(out_meta, len, fix_size);
+
 	txq->need_update = 1;
 
 	if (il->ops->txq_update_byte_cnt_tbl)
 		/* Set up entry in queue's byte count circular buffer */
 		il->ops->txq_update_byte_cnt_tbl(il, txq, 0);
-
-	phys_addr =
-	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
-			   PCI_DMA_BIDIRECTIONAL);
-	dma_unmap_addr_set(out_meta, mapping, phys_addr);
-	dma_unmap_len_set(out_meta, len, fix_size);
 
 	il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size, 1,
 					    U32_PAD(cmd->len));
@@ -3181,6 +3234,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
 	il_txq_update_write_ptr(il, txq);
 
+out:
 	spin_unlock_irqrestore(&il->hcmd_lock, flags);
 	return idx;
 }
@@ -3444,10 +3498,10 @@ il_init_geos(struct il_priv *il)
 
 		if (il_is_channel_valid(ch)) {
 			if (!(ch->flags & EEPROM_CHANNEL_IBSS))
-				geo_ch->flags |= IEEE80211_CHAN_NO_IBSS;
+				geo_ch->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (!(ch->flags & EEPROM_CHANNEL_ACTIVE))
-				geo_ch->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+				geo_ch->flags |= IEEE80211_CHAN_NO_IR;
 
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
@@ -3745,10 +3799,10 @@ il_full_rxon_required(struct il_priv *il)
 
 	/* These items are only settable from the full RXON command */
 	CHK(!il_is_associated(il));
-	CHK(!ether_addr_equal(staging->bssid_addr, active->bssid_addr));
-	CHK(!ether_addr_equal(staging->node_addr, active->node_addr));
-	CHK(!ether_addr_equal(staging->wlap_bssid_addr,
-			      active->wlap_bssid_addr));
+	CHK(!ether_addr_equal_64bits(staging->bssid_addr, active->bssid_addr));
+	CHK(!ether_addr_equal_64bits(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal_64bits(staging->wlap_bssid_addr,
+				     active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
 	CHK_NEQ(staging->channel, active->channel);
 	CHK_NEQ(staging->air_propagation, active->air_propagation);
@@ -4659,6 +4713,7 @@ il_force_reset(struct il_priv *il, bool external)
 
 	return 0;
 }
+EXPORT_SYMBOL(il_force_reset);
 
 int
 il_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -4699,6 +4754,42 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(il_mac_change_interface);
+
+void il_mac_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop)
+{
+	struct il_priv *il = hw->priv;
+	unsigned long timeout = jiffies + msecs_to_jiffies(500);
+	int i;
+
+	mutex_lock(&il->mutex);
+	D_MAC80211("enter\n");
+
+	if (il->txq == NULL)
+		goto out;
+
+	for (i = 0; i < il->hw_params.max_txq_num; i++) {
+		struct il_queue *q;
+
+		if (i == il->cmd_queue)
+			continue;
+
+		q = &il->txq[i].q;
+		if (q->read_ptr == q->write_ptr)
+			continue;
+
+		if (time_after(jiffies, timeout)) {
+			IL_ERR("Failed to flush queue %d\n", q->id);
+			break;
+		}
+
+		msleep(20);
+	}
+out:
+	D_MAC80211("leave\n");
+	mutex_unlock(&il->mutex);
+}
+EXPORT_SYMBOL(il_mac_flush);
 
 /*
  * On every watchdog tick we check (latest) time stamp. If it does not
@@ -4851,7 +4942,7 @@ il_add_beacon_time(struct il_priv *il, u32 base, u32 addon,
 }
 EXPORT_SYMBOL(il_add_beacon_time);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static int
 il_pci_suspend(struct device *device)
@@ -4902,7 +4993,7 @@ il_pci_resume(struct device *device)
 SIMPLE_DEV_PM_OPS(il_pm_ops, il_pci_suspend, il_pci_resume);
 EXPORT_SYMBOL(il_pm_ops);
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static void
 il_update_qos(struct il_priv *il)
@@ -4935,7 +5026,7 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct il_priv *il = hw->priv;
 	const struct il_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
 	unsigned long flags = 0;
 	int ret = 0;
@@ -5045,6 +5136,7 @@ set_ch_out:
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_PS | IEEE80211_CONF_CHANGE_IDLE)) {
+		il->power_data.ps_disabled = !(conf->flags & IEEE80211_CONF_PS);
 		ret = il_power_update_mode(il, false);
 		if (ret)
 			D_MAC80211("Error setting sleep level\n");
@@ -5269,6 +5361,17 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changes & BSS_CHANGED_BSSID) {
 		D_MAC80211("BSSID %pM\n", bss_conf->bssid);
+
+		/*
+		 * On passive channel we wait with blocked queues to see if
+		 * there is traffic on that channel. If no frame will be
+		 * received (what is very unlikely since scan detects AP on
+		 * that channel, but theoretically possible), mac80211 associate
+		 * procedure will time out and mac80211 will call us with NULL
+		 * bssid. We have to unblock queues on such condition.
+		 */
+		if (is_zero_ether_addr(bss_conf->bssid))
+			il_wake_queues_by_reason(il, IL_STOP_REASON_PASSIVE);
 
 		/*
 		 * If there is currently a HW scan going on in the background,

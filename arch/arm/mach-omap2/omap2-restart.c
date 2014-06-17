@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include "soc.h"
 #include "common.h"
 #include "prm2xxx.h"
 
@@ -30,7 +31,7 @@ static struct clk *reset_virt_prcm_set_ck, *reset_sys_ck;
  * Set the DPLL to bypass so that reboot completes successfully.  No
  * return value.
  */
-void omap2xxx_restart(char mode, const char *cmd)
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
 {
 	u32 rate;
 
@@ -62,4 +63,4 @@ static int __init omap2xxx_common_look_up_clks_for_reset(void)
 
 	return 0;
 }
-core_initcall(omap2xxx_common_look_up_clks_for_reset);
+omap_core_initcall(omap2xxx_common_look_up_clks_for_reset);

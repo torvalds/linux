@@ -1,7 +1,0 @@
-platform-$(CONFIG_SOC_PNX8550)	+= pnx8550/
-
-cflags-$(CONFIG_SOC_PNX8550)	+=					\
-		-I$(srctree)/arch/mips/include/asm/mach-pnx8550
-
-load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
-load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000

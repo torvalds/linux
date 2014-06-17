@@ -1,0 +1,27 @@
+Palmas GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "ti,palams-gpio" for palma series of the GPIO controller
+  - "ti,tps80036-gpio" for Palma series device TPS80036.
+  - "ti,tps65913-gpio" for palma series device TPS65913.
+  - "ti,tps65914-gpio" for palma series device TPS65914.
+- #gpio-cells : Should be two.
+  - first cell is the gpio pin number
+  - second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
+- gpio-controller : Marks the device node as a GPIO controller.
+
+Note: This gpio node will be sub node of palmas node.
+
+Example:
+	palmas: tps65913@58 {
+		:::::::::::
+		palmas_gpio: palmas_gpio {
+			compatible = "ti,palmas-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+		:::::::::::
+	};

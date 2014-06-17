@@ -9,17 +9,19 @@
     - USB/IP device drivers
 	Found in the staging directory of the Linux kernel.
 
-    - sysfsutils >= 2.0.0
-	sysfsutils library
+    - libudev >= 2.0
+	libudev library
 
     - libwrap0-dev
 	tcp wrapper library
 
     - gcc >= 4.0
 
-    - libglib2.0-dev >= 2.6.0
-
     - libtool, automake >= 1.9, autoconf >= 2.5.0, pkg-config
+
+[Optional]
+    - hwdata
+        Contains USB device identification data.
 
 
 [Install]
@@ -56,7 +58,7 @@
     client:# usbip list --remote <host>
 	- List exported USB devices on the <host>.
 
-    client:# usbip attach --host <host> --busid 1-2
+    client:# usbip attach --remote <host> --busid 1-2
 	- Connect the remote USB device.
 
     client:# usbip port
@@ -165,7 +167,7 @@ exportable on the host.
 
 Attach a remote USB device:
 
-    deux:# usbip attach --host 10.0.0.3 --busid 1-1
+    deux:# usbip attach --remote 10.0.0.3 --busid 1-1
     port 0 attached
 
 Show the devices attached to this client:
@@ -193,7 +195,6 @@ Detach the imported device:
     - Shutdown firewall.
 	- usbip now uses TCP port 3240.
     - Disable SELinux.
-    - If possible, compile your kernel with CONFIG_USB_DEBUG flag and try again.
     - Check the kernel and daemon messages.
 
 

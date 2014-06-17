@@ -131,16 +131,16 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 	rphy->identify.initiator_port_protocols = dev->iproto;
 	rphy->identify.target_port_protocols = dev->tproto;
 	switch (dev->dev_type) {
-	case SATA_DEV:
+	case SAS_SATA_DEV:
 		/* FIXME: need sata device type */
-	case SAS_END_DEV:
-	case SATA_PENDING:
+	case SAS_END_DEVICE:
+	case SAS_SATA_PENDING:
 		rphy->identify.device_type = SAS_END_DEVICE;
 		break;
-	case EDGE_DEV:
+	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy->identify.device_type = SAS_EDGE_EXPANDER_DEVICE;
 		break;
-	case FANOUT_DEV:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy->identify.device_type = SAS_FANOUT_EXPANDER_DEVICE;
 		break;
 	default:

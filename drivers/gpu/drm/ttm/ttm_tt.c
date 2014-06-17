@@ -170,9 +170,8 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 		ttm_tt_unbind(ttm);
 	}
 
-	if (likely(ttm->pages != NULL)) {
-		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
-	}
+	if (ttm->state == tt_unbound)
+		ttm_tt_unpopulate(ttm);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
 	    ttm->swap_storage)
@@ -296,7 +295,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	swap_storage = ttm->swap_storage;
 	BUG_ON(swap_storage == NULL);
 
-	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
+	swap_space = file_inode(swap_storage)->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = shmem_read_mapping_page(swap_space, i);
@@ -345,7 +344,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	} else
 		swap_storage = persistent_swap_storage;
 
-	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
+	swap_space = file_inode(swap_storage)->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
@@ -362,7 +361,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 		page_cache_release(to_page);
 	}
 
-	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
+	ttm_tt_unpopulate(ttm);
 	ttm->swap_storage = swap_storage;
 	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
 	if (persistent_swap_storage)
@@ -374,4 +373,27 @@ out_err:
 		fput(swap_storage);
 
 	return ret;
+}
+
+static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
+{
+	pgoff_t i;
+	struct page **page = ttm->pages;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		(*page)->mapping = NULL;
+		(*page++)->index = 0;
+	}
+}
+
+void ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	if (ttm->state == tt_unpopulated)
+		return;
+
+	ttm_tt_clear_mapping(ttm);
+	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
 }

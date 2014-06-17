@@ -15,8 +15,6 @@
 #include "chsc.h"
 
 static struct device *scm_root;
-static struct eadm_ops *eadm_ops;
-static DEFINE_MUTEX(eadm_ops_mutex);
 
 #define to_scm_dev(n) container_of(n, struct scm_device, dev)
 #define	to_scm_drv(d) container_of(d, struct scm_driver, drv)
@@ -72,49 +70,6 @@ void scm_driver_unregister(struct scm_driver *scmdrv)
 	driver_unregister(&scmdrv->drv);
 }
 EXPORT_SYMBOL_GPL(scm_driver_unregister);
-
-int scm_get_ref(void)
-{
-	int ret = 0;
-
-	mutex_lock(&eadm_ops_mutex);
-	if (!eadm_ops || !try_module_get(eadm_ops->owner))
-		ret = -ENOENT;
-	mutex_unlock(&eadm_ops_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(scm_get_ref);
-
-void scm_put_ref(void)
-{
-	mutex_lock(&eadm_ops_mutex);
-	module_put(eadm_ops->owner);
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(scm_put_ref);
-
-void register_eadm_ops(struct eadm_ops *ops)
-{
-	mutex_lock(&eadm_ops_mutex);
-	eadm_ops = ops;
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(register_eadm_ops);
-
-void unregister_eadm_ops(struct eadm_ops *ops)
-{
-	mutex_lock(&eadm_ops_mutex);
-	eadm_ops = NULL;
-	mutex_unlock(&eadm_ops_mutex);
-}
-EXPORT_SYMBOL_GPL(unregister_eadm_ops);
-
-int scm_start_aob(struct aob *aob)
-{
-	return eadm_ops->eadm_start(aob);
-}
-EXPORT_SYMBOL_GPL(scm_start_aob);
 
 void scm_irq_handler(struct aob *aob, int error)
 {
@@ -211,7 +166,7 @@ static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
 		goto out;
 	scmdrv = to_scm_drv(scmdev->dev.driver);
 	if (changed && scmdrv->notify)
-		scmdrv->notify(scmdev);
+		scmdrv->notify(scmdev, SCM_CHANGE);
 out:
 	device_unlock(&scmdev->dev);
 	if (changed)
@@ -295,6 +250,22 @@ int scm_update_information(void)
 	free_page((unsigned long)scm_info);
 
 	return ret;
+}
+
+static int scm_dev_avail(struct device *dev, void *unused)
+{
+	struct scm_driver *scmdrv = to_scm_drv(dev->driver);
+	struct scm_device *scmdev = to_scm_dev(dev);
+
+	if (dev->driver && scmdrv->notify)
+		scmdrv->notify(scmdev, SCM_AVAIL);
+
+	return 0;
+}
+
+int scm_process_availability_information(void)
+{
+	return bus_for_each_dev(&scm_bus_type, NULL, NULL, scm_dev_avail);
 }
 
 static int __init scm_init(void)

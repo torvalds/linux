@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -407,13 +408,13 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 
 	switch (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_FCSTAT)) {
 	/* return 0 to bypass going to ULD for DDPed data */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		rc = 0;
 		break;
 	/* unmap the sg list when FCPRSP is received */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
 		ddp->err = ddp_err;
@@ -421,14 +422,14 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		ddp->sgc = 0;
 		/* fall through */
 	/* if DDP length is present pass it through to ULD */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 		if (ddp->len)
 			rc = ddp->len;
 		break;
 	/* no match will return as an error */
-	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
+	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
 	default:
 		break;
 	}
@@ -544,15 +545,14 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		first->gso_segs = DIV_ROUND_UP(skb->len - *hdr_len,
 					       skb_shinfo(skb)->gso_size);
 		first->bytecount += (first->gso_segs - 1) * *hdr_len;
-		first->tx_flags |= IXGBE_TX_FLAGS_FSO;
+		first->tx_flags |= IXGBE_TX_FLAGS_TSO;
 	}
 
 	/* set flag indicating FCOE to ixgbe_tx_map call */
-	first->tx_flags |= IXGBE_TX_FLAGS_FCOE;
+	first->tx_flags |= IXGBE_TX_FLAGS_FCOE | IXGBE_TX_FLAGS_CC;
 
-	/* mss_l4len_id: use 1 for FSO as TSO, no need for L4LEN */
+	/* mss_l4len_id: use 0 for FSO as TSO, no need for L4LEN */
 	mss_l4len_idx = skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
-	mss_l4len_idx |= 1 << IXGBE_ADVTXD_IDX_SHIFT;
 
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	vlan_macip_lens = skb_transport_offset(skb) +
@@ -586,7 +586,7 @@ static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
 	struct dma_pool *pool;
 	char pool_name[32];
 
-	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
+	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%u", cpu);
 
 	pool = dma_pool_create(pool_name, dev, IXGBE_FCPTR_MAX,
 			       IXGBE_FCPTR_ALIGN, PAGE_SIZE);
@@ -717,10 +717,8 @@ int ixgbe_setup_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 
 	/* Extra buffer to be shared by all DDPs for HW work around */
 	buffer = kmalloc(IXGBE_FCBUFF_MIN, GFP_ATOMIC);
-	if (!buffer) {
-		e_err(drv, "failed to allocate extra DDP buffer\n");
+	if (!buffer)
 		return -ENOMEM;
-	}
 
 	dma = dma_map_single(dev, buffer, IXGBE_FCBUFF_MIN, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, dma)) {

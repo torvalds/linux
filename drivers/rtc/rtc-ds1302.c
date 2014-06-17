@@ -23,8 +23,12 @@
 #define	RTC_CMD_READ	0x81		/* Read command */
 #define	RTC_CMD_WRITE	0x80		/* Write command */
 
+#define	RTC_CMD_WRITE_ENABLE	0x00		/* Write enable */
+#define	RTC_CMD_WRITE_DISABLE	0x80		/* Write disable */
+
 #define RTC_ADDR_RAM0	0x20		/* Address of RAM0 */
 #define RTC_ADDR_TCR	0x08		/* Address of trickle charge register */
+#define	RTC_ADDR_CTRL	0x07		/* Address of control register */
 #define	RTC_ADDR_YEAR	0x06		/* Address of year register */
 #define	RTC_ADDR_DAY	0x05		/* Address of day of week register */
 #define	RTC_ADDR_MON	0x04		/* Address of month register */
@@ -161,6 +165,7 @@ static int ds1302_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	ds1302_writebyte(RTC_ADDR_CTRL, RTC_CMD_WRITE_ENABLE);
 	/* Stop RTC */
 	ds1302_writebyte(RTC_ADDR_SEC, ds1302_readbyte(RTC_ADDR_SEC) | 0x80);
 
@@ -174,6 +179,8 @@ static int ds1302_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	/* Start RTC */
 	ds1302_writebyte(RTC_ADDR_SEC, ds1302_readbyte(RTC_ADDR_SEC) & ~0x80);
+
+	ds1302_writebyte(RTC_ADDR_CTRL, RTC_CMD_WRITE_DISABLE);
 
 	return 0;
 }
@@ -224,7 +231,7 @@ static int __init ds1302_rtc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	rtc = rtc_device_register("ds1302", &pdev->dev,
+	rtc = devm_rtc_device_register(&pdev->dev, "ds1302",
 					   &ds1302_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -234,36 +241,14 @@ static int __init ds1302_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ds1302_rtc_remove(struct platform_device *pdev)
-{
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
-}
-
 static struct platform_driver ds1302_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.remove		= ds1302_rtc_remove,
 };
 
-static int __init ds1302_rtc_init(void)
-{
-	return platform_driver_probe(&ds1302_platform_driver, ds1302_rtc_probe);
-}
-
-static void __exit ds1302_rtc_exit(void)
-{
-	platform_driver_unregister(&ds1302_platform_driver);
-}
-
-module_init(ds1302_rtc_init);
-module_exit(ds1302_rtc_exit);
+module_platform_driver_probe(ds1302_platform_driver, ds1302_rtc_probe);
 
 MODULE_DESCRIPTION("Dallas DS1302 RTC driver");
 MODULE_VERSION(DRV_VERSION);

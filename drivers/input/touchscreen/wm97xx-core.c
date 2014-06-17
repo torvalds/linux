@@ -442,6 +442,16 @@ static int wm97xx_read_samples(struct wm97xx *wm)
 			"pen down: x=%x:%d, y=%x:%d, pressure=%x:%d\n",
 			data.x >> 12, data.x & 0xfff, data.y >> 12,
 			data.y & 0xfff, data.p >> 12, data.p & 0xfff);
+
+		if (abs_x[0] > (data.x & 0xfff) ||
+		    abs_x[1] < (data.x & 0xfff) ||
+		    abs_y[0] > (data.y & 0xfff) ||
+		    abs_y[1] < (data.y & 0xfff)) {
+			dev_dbg(wm->dev, "Measurement out of range, dropping it\n");
+			rc = RC_AGAIN;
+			goto out;
+		}
+
 		input_report_abs(wm->input_dev, ABS_X, data.x & 0xfff);
 		input_report_abs(wm->input_dev, ABS_Y, data.y & 0xfff);
 		input_report_abs(wm->input_dev, ABS_PRESSURE, data.p & 0xfff);
@@ -455,6 +465,7 @@ static int wm97xx_read_samples(struct wm97xx *wm)
 		wm->ts_reader_interval = wm->ts_reader_min_interval;
 	}
 
+out:
 	mutex_unlock(&wm->codec_mutex);
 	return rc;
 }
@@ -573,7 +584,7 @@ static void wm97xx_ts_input_close(struct input_dev *idev)
 static int wm97xx_probe(struct device *dev)
 {
 	struct wm97xx *wm;
-	struct wm97xx_pdata *pdata = dev->platform_data;
+	struct wm97xx_pdata *pdata = dev_get_platdata(dev);
 	int ret = 0, id = 0;
 
 	wm = kzalloc(sizeof(struct wm97xx), GFP_KERNEL);

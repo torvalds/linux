@@ -219,7 +219,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_RUN(wt), val);
 		return 0xc;
-		break;
 	case 1:		/* param 0 */
 		/*
 		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
@@ -227,7 +226,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_PARM(wt, 0), val);
 		return 0xc;
-		break;
 	case 2:		/* param 1 */
 		/*
 		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
@@ -235,7 +233,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_PARM(wt, 1), val);
 		return 0xc;
-		break;
 	case 3:		/* param 2 */
 		/*
 		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
@@ -243,7 +240,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_PARM(wt, 2), val);
 		return 0xc;
-		break;
 	case 4:		/* param 3 */
 		/*
 		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
@@ -251,7 +247,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_PARM(wt, 3), val);
 		return 0xc;
-		break;
 	case 6:		/* mute */
 		/*
 		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
@@ -259,20 +254,17 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		*/
 		hwwrite(vortex->mmio, WT_MUTE(wt), val);
 		return 0xc;
-		break;
 	case 0xb:
-		{		/* delay */
-			/*
-			printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
-			       WT_DELAY(wt,0), (int)val);
-			*/
-			hwwrite(vortex->mmio, WT_DELAY(wt, 3), val);
-			hwwrite(vortex->mmio, WT_DELAY(wt, 2), val);
-			hwwrite(vortex->mmio, WT_DELAY(wt, 1), val);
-			hwwrite(vortex->mmio, WT_DELAY(wt, 0), val);
-			return 0xc;
-		}
-		break;
+			/* delay */
+		/*
+		printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n",
+		       WT_DELAY(wt,0), (int)val);
+		*/
+		hwwrite(vortex->mmio, WT_DELAY(wt, 3), val);
+		hwwrite(vortex->mmio, WT_DELAY(wt, 2), val);
+		hwwrite(vortex->mmio, WT_DELAY(wt, 1), val);
+		hwwrite(vortex->mmio, WT_DELAY(wt, 0), val);
+		return 0xc;
 		/* Global WT block parameters */
 	case 5:		/* sramp */
 		ecx = WT_SRAMP(wt);
@@ -291,7 +283,6 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		break;
 	default:
 		return 0;
-		break;
 	}
 	/*
 	printk(KERN_DEBUG "vortex: WT SetReg(0x%x) = 0x%08x\n", ecx, (int)val);

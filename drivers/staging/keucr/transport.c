@@ -79,6 +79,47 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 }
 
 /*
+ * usb_stor_print_cmd():
+ */
+static void usb_stor_print_cmd(struct us_data *us, struct scsi_cmnd *srb)
+{
+	u8 *Cdb = srb->cmnd;
+	u32   cmd = Cdb[0];
+
+	switch (cmd) {
+	case TEST_UNIT_READY:
+		break;
+	case INQUIRY:
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_INQUIRY\n", cmd);
+		break;
+	case MODE_SENSE:
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_MODE_SENSE\n", cmd);
+		break;
+	case START_STOP:
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_START_STOP\n", cmd);
+		break;
+	case READ_CAPACITY:
+		dev_dbg(&us->pusb_dev->dev,
+				"scsi cmd %X --- SCSIOP_READ_CAPACITY\n", cmd);
+		break;
+	case READ_10:
+		break;
+	case WRITE_10:
+		break;
+	case ALLOW_MEDIUM_REMOVAL:
+		dev_dbg(&us->pusb_dev->dev,
+			"scsi cmd %X --- SCSIOP_ALLOW_MEDIUM_REMOVAL\n", cmd);
+		break;
+	default:
+		dev_dbg(&us->pusb_dev->dev, "scsi cmd %X --- Other cmd\n", cmd);
+		break;
+	}
+}
+
+/*
  * usb_stor_control_msg()
  */
 int usb_stor_control_msg(struct us_data *us, unsigned int pipe,
@@ -303,7 +344,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result;
 
 	/* pr_info("transport --- usb_stor_invoke_transport\n"); */
-	usb_stor_print_cmd(srb);
+	usb_stor_print_cmd(us, srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
 	result = us->transport(srb, us); /* usb_stor_Bulk_transport; */
@@ -429,7 +470,7 @@ void ENE_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result = 0;
 
 	/* pr_info("transport --- ENE_stor_invoke_transport\n"); */
-	usb_stor_print_cmd(srb);
+	usb_stor_print_cmd(us, srb);
 	/* send the command to the transport layer */
 	scsi_set_resid(srb, 0);
 	if (!(us->SM_Status.Ready))
@@ -504,8 +545,8 @@ Handle_Errors:
  */
 void BuildSenseBuffer(struct scsi_cmnd *srb, int SrbStatus)
 {
-	BYTE    *buf = srb->sense_buffer;
-	BYTE    asc;
+	u8    *buf = srb->sense_buffer;
+	u8    asc;
 
 	pr_info("transport --- BuildSenseBuffer\n");
 	switch (SrbStatus) {
@@ -628,6 +669,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	/*  R/W data */
 	if (transfer_length) {
 		unsigned int pipe;
+
 		if (srb->sc_data_direction == DMA_FROM_DEVICE)
 			pipe = us->recv_bulk_pipe;
 		else
@@ -708,8 +750,8 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		} else {
 			residue = min(residue, transfer_length);
-			scsi_set_resid(srb, max(scsi_get_resid(srb),
-							(int) residue));
+			scsi_set_resid(srb, max_t(int, scsi_get_resid(srb),
+							residue));
 		}
 	}
 

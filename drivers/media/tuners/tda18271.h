@@ -121,7 +121,7 @@ enum tda18271_mode {
 	TDA18271_DIGITAL,
 };
 
-#if defined(CONFIG_MEDIA_TUNER_TDA18271) || (defined(CONFIG_MEDIA_TUNER_TDA18271_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TDA18271)
 extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 					    struct i2c_adapter *i2c,
 					    struct tda18271_config *cfg);

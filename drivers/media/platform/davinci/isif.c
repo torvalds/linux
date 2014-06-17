@@ -32,7 +32,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/videodev2.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
 
@@ -88,8 +87,6 @@ static struct isif_oper_config {
 	struct isif_ycbcr_config ycbcr;
 	struct isif_params_raw bayer;
 	enum isif_data_pack data_pack;
-	/* Master clock */
-	struct clk *mclk;
 	/* ISIF base address */
 	void __iomem *base_addr;
 	/* ISIF Linear Table 0 */
@@ -604,7 +601,7 @@ static int isif_config_raw(void)
 	if (module_params->compress.alg == ISIF_ALAW)
 		val |= ISIF_ALAW_ENABLE;
 
-	val |= (params->data_msb << ISIF_ALAW_GAMA_WD_SHIFT);
+	val |= (params->data_msb << ISIF_ALAW_GAMMA_WD_SHIFT);
 	regw(val, CGAMMAWD);
 
 	/* Configure DPCM compression settings */
@@ -1039,6 +1036,10 @@ static int isif_probe(struct platform_device *pdev)
 	void *__iomem addr;
 	int status = 0, i;
 
+	/* Platform data holds setup_pinmux function ptr */
+	if (!pdev->dev.platform_data)
+		return -ENODEV;
+
 	/*
 	 * first try to register with vpfe. If not correct platform, then we
 	 * don't have to iomap
@@ -1047,22 +1048,6 @@ static int isif_probe(struct platform_device *pdev)
 	if (status < 0)
 		return status;
 
-	/* Get and enable Master clock */
-	isif_cfg.mclk = clk_get(&pdev->dev, "master");
-	if (IS_ERR(isif_cfg.mclk)) {
-		status = PTR_ERR(isif_cfg.mclk);
-		goto fail_mclk;
-	}
-	if (clk_prepare_enable(isif_cfg.mclk)) {
-		status = -ENODEV;
-		goto fail_mclk;
-	}
-
-	/* Platform data holds setup_pinmux function ptr */
-	if (NULL == pdev->dev.platform_data) {
-		status = -ENODEV;
-		goto fail_mclk;
-	}
 	setup_pinmux = pdev->dev.platform_data;
 	/*
 	 * setup Mux configuration for ccdc which may be different for
@@ -1124,9 +1109,6 @@ fail_nobase_res:
 		release_mem_region(res->start, resource_size(res));
 		i--;
 	}
-fail_mclk:
-	clk_disable_unprepare(isif_cfg.mclk);
-	clk_put(isif_cfg.mclk);
 	vpfe_unregister_ccdc_device(&isif_hw_dev);
 	return status;
 }
@@ -1146,8 +1128,6 @@ static int isif_remove(struct platform_device *pdev)
 		i++;
 	}
 	vpfe_unregister_ccdc_device(&isif_hw_dev);
-	clk_disable_unprepare(isif_cfg.mclk);
-	clk_put(isif_cfg.mclk);
 	return 0;
 }
 

@@ -48,6 +48,7 @@
 	bus-range = <0x0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 15>;
+	fsl,iommu-parent = <&pamu0>;
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -75,6 +76,7 @@
 	bus-range = <0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 14>;
+	fsl,iommu-parent = <&pamu0>;
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -102,6 +104,7 @@
 	bus-range = <0x0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 13>;
+	fsl,iommu-parent = <&pamu0>;
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -126,7 +129,7 @@
 	compatible = "fsl,dcsr", "simple-bus";
 
 	dcsr-epu@0 {
-		compatible = "fsl,dcsr-epu";
+		compatible = "fsl,p5040-dcsr-epu", "fsl,dcsr-epu";
 		interrupts = <52 2 0 0
 			      84 2 0 0
 			      85 2 0 0>;
@@ -230,7 +233,7 @@
 	};
 
 	corenet-cf@18000 {
-		compatible = "fsl,corenet-cf";
+		compatible = "fsl,corenet1-cf", "fsl,corenet-cf";
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 31>;
 		fsl,ccf-num-csdids = <32>;
@@ -239,10 +242,43 @@
 
 	iommu@20000 {
 		compatible = "fsl,pamu-v1.0", "fsl,pamu";
-		reg = <0x20000 0x5000>;
-		interrupts = <
-			24 2 0 0
-			16 2 1 30>;
+		reg = <0x20000 0x5000>; /* for compatibility with older PAMU drivers */
+		ranges = <0 0x20000 0x5000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupts = <24 2 0 0
+			      16 2 1 30>;
+		fsl,portid-mapping = <0x0f800000>;
+
+		pamu0: pamu@0 {
+			reg = <0 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu1: pamu@1000 {
+			reg = <0x1000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu2: pamu@2000 {
+			reg = <0x2000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu3: pamu@3000 {
+			reg = <0x3000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu4: pamu@4000 {
+			reg = <0x4000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
 	};
 
 /include/ "qoriq-mpic.dtsi"
@@ -263,8 +299,69 @@
 
 	clockgen: global-utilities@e1000 {
 		compatible = "fsl,p5040-clockgen", "fsl,qoriq-clockgen-1.0";
+		ranges = <0x0 0xe1000 0x1000>;
 		reg = <0xe1000 0x1000>;
 		clock-frequency = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysclk: sysclk {
+			#clock-cells = <0>;
+			compatible = "fsl,qoriq-sysclk-1.0";
+			clock-output-names = "sysclk";
+		};
+
+		pll0: pll0@800 {
+			#clock-cells = <1>;
+			reg = <0x800 0x4>;
+			compatible = "fsl,qoriq-core-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll0", "pll0-div2";
+		};
+
+		pll1: pll1@820 {
+			#clock-cells = <1>;
+			reg = <0x820 0x4>;
+			compatible = "fsl,qoriq-core-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll1", "pll1-div2";
+		};
+
+		mux0: mux0@0 {
+			#clock-cells = <0>;
+			reg = <0x0 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux0";
+		};
+
+		mux1: mux1@20 {
+			#clock-cells = <0>;
+			reg = <0x20 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux1";
+		};
+
+		mux2: mux2@40 {
+			#clock-cells = <0>;
+			reg = <0x40 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux2";
+		};
+
+		mux3: mux3@60 {
+			#clock-cells = <0>;
+			reg = <0x60 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux3";
+		};
 	};
 
 	rcpm: global-utilities@e2000 {
@@ -284,7 +381,17 @@
 	};
 
 /include/ "qoriq-dma-0.dtsi"
+	dma@100300 {
+		fsl,iommu-parent = <&pamu0>;
+		fsl,liodn-reg = <&guts 0x580>; /* DMA1LIODNR */
+	};
+
 /include/ "qoriq-dma-1.dtsi"
+	dma@101300 {
+		fsl,iommu-parent = <&pamu0>;
+		fsl,liodn-reg = <&guts 0x584>; /* DMA2LIODNR */
+	};
+
 /include/ "qoriq-espi-0.dtsi"
 	spi@110000 {
 		fsl,espi-num-chipselects = <4>;
@@ -292,6 +399,8 @@
 
 /include/ "qoriq-esdhc-0.dtsi"
 	sdhc@114000 {
+		fsl,iommu-parent = <&pamu2>;
+		fsl,liodn-reg = <&guts 0x530>; /* eSDHCLIODNR */
 		sdhci,auto-cmd12;
 	};
 
@@ -301,20 +410,37 @@
 /include/ "qoriq-duart-1.dtsi"
 /include/ "qoriq-gpio-0.dtsi"
 /include/ "qoriq-usb2-mph-0.dtsi"
-		usb0: usb@210000 {
-			compatible = "fsl-usb2-mph-v1.6", "fsl,mpc85xx-usb2-mph", "fsl-usb2-mph";
-			phy_type = "utmi";
-			port0;
-		};
+	usb0: usb@210000 {
+		compatible = "fsl-usb2-mph-v1.6", "fsl,mpc85xx-usb2-mph", "fsl-usb2-mph";
+		fsl,iommu-parent = <&pamu4>;
+		fsl,liodn-reg = <&guts 0x520>; /* USB1LIODNR */
+		phy_type = "utmi";
+		port0;
+	};
 
 /include/ "qoriq-usb2-dr-0.dtsi"
-		usb1: usb@211000 {
-			compatible = "fsl-usb2-dr-v1.6", "fsl,mpc85xx-usb2-dr", "fsl-usb2-dr";
-			dr_mode = "host";
-			phy_type = "utmi";
-		};
+	usb1: usb@211000 {
+		compatible = "fsl-usb2-dr-v1.6", "fsl,mpc85xx-usb2-dr", "fsl-usb2-dr";
+		fsl,iommu-parent = <&pamu4>;
+		fsl,liodn-reg = <&guts 0x524>; /* USB2LIODNR */
+		dr_mode = "host";
+		phy_type = "utmi";
+	};
 
 /include/ "qoriq-sata2-0.dtsi"
+	sata@220000 {
+		fsl,iommu-parent = <&pamu4>;
+		fsl,liodn-reg = <&guts 0x550>; /* SATA1LIODNR */
+	};
+
 /include/ "qoriq-sata2-1.dtsi"
+	sata@221000 {
+		fsl,iommu-parent = <&pamu4>;
+		fsl,liodn-reg = <&guts 0x554>; /* SATA2LIODNR */
+	};
+
 /include/ "qoriq-sec5.2-0.dtsi"
+	crypto@300000 {
+		fsl,iommu-parent = <&pamu4>;
+	};
 };

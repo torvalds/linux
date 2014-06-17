@@ -1,6 +1,6 @@
 /* ir-raw.c - handle IR pulse/space events
  *
- * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2010 by Mauro Carvalho Chehab
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,11 +30,6 @@ static LIST_HEAD(ir_raw_client_list);
 static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static u64 available_protocols;
-
-#ifdef MODULE
-/* Used to load the decoders */
-static struct work_struct wq_load;
-#endif
 
 static int ir_raw_event_thread(void *data)
 {
@@ -261,7 +256,7 @@ int ir_raw_event_register(struct rc_dev *dev)
 		return -ENOMEM;
 
 	dev->raw->dev = dev;
-	dev->raw->enabled_protocols = ~0;
+	rc_set_enabled_protocols(dev, ~0);
 	rc = kfifo_alloc(&dev->raw->kfifo,
 			 sizeof(struct ir_raw_event) * MAX_IR_EVENT_SIZE,
 			 GFP_KERNEL);
@@ -347,8 +342,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 
-#ifdef MODULE
-static void init_decoders(struct work_struct *work)
+void ir_raw_init(void)
 {
 	/* Load the decoder modules */
 
@@ -358,19 +352,11 @@ static void init_decoders(struct work_struct *work)
 	load_jvc_decode();
 	load_sony_decode();
 	load_sanyo_decode();
+	load_sharp_decode();
 	load_mce_kbd_decode();
 	load_lirc_codec();
 
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at rc-core.h
 	 */
-}
-#endif
-
-void ir_raw_init(void)
-{
-#ifdef MODULE
-	INIT_WORK(&wq_load, init_decoders);
-	schedule_work(&wq_load);
-#endif
 }

@@ -37,15 +37,6 @@ drop:
 	return NET_RX_DROP;
 }
 
-int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
-		    int encap_type)
-{
-	XFRM_SPI_SKB_CB(skb)->family = AF_INET;
-	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
-	return xfrm_input(skb, nexthdr, spi, encap_type);
-}
-EXPORT_SYMBOL(xfrm4_rcv_encap);
-
 int xfrm4_transport_finish(struct sk_buff *skb, int async)
 {
 	struct iphdr *iph = ip_hdr(skb);
@@ -132,7 +123,7 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	 * header and optional ESP marker bytes) and then modify the
 	 * protocol to ESP, and then call into the transform receiver.
 	 */
-	if (skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(skb, GFP_ATOMIC))
 		goto drop;
 
 	/* Now we can update and verify the packet length... */

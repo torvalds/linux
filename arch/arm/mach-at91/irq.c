@@ -92,23 +92,21 @@ static int at91_aic_set_wake(struct irq_data *d, unsigned value)
 
 void at91_irq_suspend(void)
 {
-	int i = 0, bit;
+	int bit = -1;
 
 	if (has_aic5()) {
 		/* disable enabled irqs */
-		while ((bit = find_next_bit(backups, n_irqs, i)) < n_irqs) {
+		while ((bit = find_next_bit(backups, n_irqs, bit + 1)) < n_irqs) {
 			at91_aic_write(AT91_AIC5_SSR,
 				       bit & AT91_AIC5_INTSEL_MSK);
 			at91_aic_write(AT91_AIC5_IDCR, 1);
-			i = bit;
 		}
 		/* enable wakeup irqs */
-		i = 0;
-		while ((bit = find_next_bit(wakeups, n_irqs, i)) < n_irqs) {
+		bit = -1;
+		while ((bit = find_next_bit(wakeups, n_irqs, bit + 1)) < n_irqs) {
 			at91_aic_write(AT91_AIC5_SSR,
 				       bit & AT91_AIC5_INTSEL_MSK);
 			at91_aic_write(AT91_AIC5_IECR, 1);
-			i = bit;
 		}
 	} else {
 		at91_aic_write(AT91_AIC_IDCR, *backups);
@@ -118,23 +116,21 @@ void at91_irq_suspend(void)
 
 void at91_irq_resume(void)
 {
-	int i = 0, bit;
+	int bit = -1;
 
 	if (has_aic5()) {
 		/* disable wakeup irqs */
-		while ((bit = find_next_bit(wakeups, n_irqs, i)) < n_irqs) {
+		while ((bit = find_next_bit(wakeups, n_irqs, bit + 1)) < n_irqs) {
 			at91_aic_write(AT91_AIC5_SSR,
 				       bit & AT91_AIC5_INTSEL_MSK);
 			at91_aic_write(AT91_AIC5_IDCR, 1);
-			i = bit;
 		}
 		/* enable irqs disabled for suspend */
-		i = 0;
-		while ((bit = find_next_bit(backups, n_irqs, i)) < n_irqs) {
+		bit = -1;
+		while ((bit = find_next_bit(backups, n_irqs, bit + 1)) < n_irqs) {
 			at91_aic_write(AT91_AIC5_SSR,
 				       bit & AT91_AIC5_INTSEL_MSK);
 			at91_aic_write(AT91_AIC5_IECR, 1);
-			i = bit;
 		}
 	} else {
 		at91_aic_write(AT91_AIC_IDCR, *wakeups);
@@ -236,7 +232,14 @@ static void __maybe_unused at91_aic5_eoi(struct irq_data *d)
 	at91_aic_write(AT91_AIC5_EOICR, 0);
 }
 
-unsigned long *at91_extern_irq;
+static unsigned long *at91_extern_irq;
+
+u32 at91_get_extern_irq(void)
+{
+	if (!at91_extern_irq)
+		return 0;
+	return *at91_extern_irq;
+}
 
 #define is_extern_irq(hwirq) test_bit(hwirq, at91_extern_irq)
 

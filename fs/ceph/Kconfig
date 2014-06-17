@@ -1,6 +1,6 @@
 config CEPH_FS
-        tristate "Ceph distributed file system (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "Ceph distributed file system"
+	depends on INET
 	select CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
@@ -16,3 +16,25 @@ config CEPH_FS
 
 	  If unsure, say N.
 
+if CEPH_FS
+config CEPH_FSCACHE
+	bool "Enable Ceph client caching support"
+	depends on CEPH_FS=m && FSCACHE || CEPH_FS=y && FSCACHE=y
+	help
+	  Choose Y here to enable persistent, read-only local
+	  caching support for Ceph clients using FS-Cache
+
+endif
+
+config CEPH_FS_POSIX_ACL
+	bool "Ceph POSIX Access Control Lists"
+	depends on CEPH_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N

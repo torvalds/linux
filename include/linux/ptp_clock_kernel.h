@@ -49,7 +49,11 @@ struct ptp_clock_request {
  * @n_alarm:   The number of programmable alarms.
  * @n_ext_ts:  The number of external time stamp channels.
  * @n_per_out: The number of programmable periodic signals.
+ * @n_pins:    The number of programmable pins.
  * @pps:       Indicates whether the clock supports a PPS callback.
+ * @pin_config: Array of length 'n_pins'. If the number of
+ *              programmable pins is nonzero, then drivers must
+ *              allocate and initialize this array.
  *
  * clock operations
  *
@@ -70,6 +74,18 @@ struct ptp_clock_request {
  *            parameter request: Desired resource to enable or disable.
  *            parameter on: Caller passes one to enable or zero to disable.
  *
+ * @verify:   Confirm that a pin can perform a given function. The PTP
+ *            Hardware Clock subsystem maintains the 'pin_config'
+ *            array on behalf of the drivers, but the PHC subsystem
+ *            assumes that every pin can perform every function. This
+ *            hook gives drivers a way of telling the core about
+ *            limitations on specific pins. This function must return
+ *            zero if the function can be assigned to this pin, and
+ *            nonzero otherwise.
+ *            parameter pin: index of the pin in question.
+ *            parameter func: the desired function to use.
+ *            parameter chan: the function channel index to use.
+ *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().
  *
@@ -83,13 +99,17 @@ struct ptp_clock_info {
 	int n_alarm;
 	int n_ext_ts;
 	int n_per_out;
+	int n_pins;
 	int pps;
+	struct ptp_pin_desc *pin_config;
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime)(struct ptp_clock_info *ptp, struct timespec *ts);
 	int (*settime)(struct ptp_clock_info *ptp, const struct timespec *ts);
 	int (*enable)(struct ptp_clock_info *ptp,
 		      struct ptp_clock_request *request, int on);
+	int (*verify)(struct ptp_clock_info *ptp, unsigned int pin,
+		      enum ptp_pin_function func, unsigned int chan);
 };
 
 struct ptp_clock;
@@ -155,5 +175,18 @@ extern void ptp_clock_event(struct ptp_clock *ptp,
  */
 
 extern int ptp_clock_index(struct ptp_clock *ptp);
+
+/**
+ * ptp_find_pin() - obtain the pin index of a given auxiliary function
+ *
+ * @ptp:    The clock obtained from ptp_clock_register().
+ * @func:   One of the ptp_pin_function enumerated values.
+ * @chan:   The particular functional channel to find.
+ * Return:  Pin index in the range of zero to ptp_clock_caps.n_pins - 1,
+ *          or -1 if the auxiliary function cannot be found.
+ */
+
+int ptp_find_pin(struct ptp_clock *ptp,
+		 enum ptp_pin_function func, unsigned int chan);
 
 #endif

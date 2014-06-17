@@ -17,9 +17,20 @@ Recommended properties:
    contains a functioning "reset control register" (i.e. the board
    is wired to reset upon setting the HRESET_REQ bit in this register).
 
-Example:
+ - fsl,liodn-bits : Indicates the number of defined bits in the LIODN
+   registers, for those SOCs that have a PAMU device.
+
+Examples:
 	global-utilities@e0000 {	/* global utilities block */
 		compatible = "fsl,mpc8548-guts";
 		reg = <e0000 1000>;
 		fsl,has-rstcr;
+	};
+
+	guts: global-utilities@e0000 {
+		compatible = "fsl,qoriq-device-config-1.0";
+		reg = <0xe0000 0xe00>;
+		fsl,has-rstcr;
+		#sleep-cells = <1>;
+		fsl,liodn-bits = <12>;
 	};

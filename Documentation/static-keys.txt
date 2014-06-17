@@ -116,7 +116,7 @@ The branch(es) can then be switched via:
 	static_key_slow_dec(&key);
 
 Thus, 'static_key_slow_inc()' means 'make the branch true', and
-'static_key_slow_dec()' means 'make the the branch false' with appropriate
+'static_key_slow_dec()' means 'make the branch false' with appropriate
 reference counting. For example, if the key is initialized true, a
 static_key_slow_dec(), will switch the branch to false. And a subsequent
 static_key_slow_inc(), will change the branch back to true. Likewise, if the
@@ -236,7 +236,7 @@ label case adds:
 
 If we then include the padding bytes, the jump label code saves, 16 total bytes
 of instruction memory for this small function. In this case the non-jump label
-function is 80 bytes long. Thus, we have have saved 20% of the instruction
+function is 80 bytes long. Thus, we have saved 20% of the instruction
 footprint. We can in fact improve this even further, since the 5-byte no-op
 really can be a 2-byte no-op since we can reach the branch with a 2-byte jmp.
 However, we have not yet implemented optimal no-op sizes (they are currently

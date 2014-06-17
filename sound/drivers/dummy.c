@@ -1022,7 +1022,7 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 		if (i >= ARRAY_SIZE(fields))
 			continue;
 		snd_info_get_str(item, ptr, sizeof(item));
-		if (strict_strtoull(item, 0, &val))
+		if (kstrtoull(item, 0, &val))
 			continue;
 		if (fields[i].size == sizeof(int))
 			*get_dummy_int_ptr(dummy, fields[i].offset) = val;
@@ -1054,8 +1054,8 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	int idx, err;
 	int dev = devptr->id;
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct snd_dummy), &card);
+	err = snd_card_new(&devptr->dev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct snd_dummy), &card);
 	if (err < 0)
 		return err;
 	dummy = card->private_data;
@@ -1114,8 +1114,6 @@ static int snd_dummy_probe(struct platform_device *devptr)
 
 	dummy_proc_init(dummy);
 
-	snd_card_set_dev(card, &devptr->dev);
-
 	err = snd_card_register(card);
 	if (err == 0) {
 		platform_set_drvdata(devptr, card);
@@ -1129,7 +1127,6 @@ static int snd_dummy_probe(struct platform_device *devptr)
 static int snd_dummy_remove(struct platform_device *devptr)
 {
 	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
 

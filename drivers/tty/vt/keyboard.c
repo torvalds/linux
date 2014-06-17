@@ -132,12 +132,6 @@ static int shift_state = 0;
 static unsigned char ledstate = 0xff;			/* undefined */
 static unsigned char ledioctl;
 
-static struct ledptr {
-	unsigned int *addr;
-	unsigned int mask;
-	unsigned char valid:1;
-} ledptrs[3];
-
 /*
  * Notifier list for console keyboard events
  */
@@ -307,26 +301,17 @@ int kbd_rate(struct kbd_repeat *rep)
  */
 static void put_queue(struct vc_data *vc, int ch)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (tty) {
-		tty_insert_flip_char(tty, ch, 0);
-		tty_schedule_flip(tty);
-	}
+	tty_insert_flip_char(&vc->port, ch, 0);
+	tty_schedule_flip(&vc->port);
 }
 
 static void puts_queue(struct vc_data *vc, char *cp)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-
 	while (*cp) {
-		tty_insert_flip_char(tty, *cp, 0);
+		tty_insert_flip_char(&vc->port, *cp, 0);
 		cp++;
 	}
-	tty_schedule_flip(tty);
+	tty_schedule_flip(&vc->port);
 }
 
 static void applkey(struct vc_data *vc, int key, char mode)
@@ -582,12 +567,8 @@ static void fn_inc_console(struct vc_data *vc)
 
 static void fn_send_intr(struct vc_data *vc)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-	tty_insert_flip_char(tty, 0, TTY_BREAK);
-	tty_schedule_flip(tty);
+	tty_insert_flip_char(&vc->port, 0, TTY_BREAK);
+	tty_schedule_flip(&vc->port);
 }
 
 static void fn_scroll_forw(struct vc_data *vc)
@@ -1007,24 +988,11 @@ void setledstate(struct kbd_struct *kbd, unsigned int led)
 static inline unsigned char getleds(void)
 {
 	struct kbd_struct *kbd = kbd_table + fg_console;
-	unsigned char leds;
-	int i;
 
 	if (kbd->ledmode == LED_SHOW_IOCTL)
 		return ledioctl;
 
-	leds = kbd->ledflagstate;
-
-	if (kbd->ledmode == LED_SHOW_MEM) {
-		for (i = 0; i < 3; i++)
-			if (ledptrs[i].valid) {
-				if (*ledptrs[i].addr & ledptrs[i].mask)
-					leds |= (1 << i);
-				else
-					leds &= ~(1 << i);
-			}
-	}
-	return leds;
+	return kbd->ledflagstate;
 }
 
 static int kbd_update_leds_helper(struct input_handle *handle, void *data)

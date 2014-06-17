@@ -87,6 +87,8 @@
 #define IS_FSINFO(x)	(le32_to_cpu((x)->signature1) == FAT_FSINFO_SIG1 \
 			 && le32_to_cpu((x)->signature2) == FAT_FSINFO_SIG2)
 
+#define FAT_STATE_DIRTY 0x01
+
 struct __fat_dirent {
 	long		d_ino;
 	__kernel_off_t	d_off;
@@ -102,6 +104,8 @@ struct __fat_dirent {
 /* <linux/videotext.h> has used 0x72 ('r') in collision, so skip a few */
 #define FAT_IOCTL_GET_ATTRIBUTES	_IOR('r', 0x10, __u32)
 #define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
+/*Android kernel has used 0x12, so we use 0x13*/
+#define FAT_IOCTL_GET_VOLUME_ID		_IOR('r', 0x13, __u32)
 
 struct fat_boot_sector {
 	__u8	ignored[3];	/* Boot strap short or near jump */
@@ -120,14 +124,42 @@ struct fat_boot_sector {
 	__le32	hidden;		/* hidden sectors (unused) */
 	__le32	total_sect;	/* number of sectors (if sectors == 0) */
 
-	/* The following fields are only used by FAT32 */
-	__le32	fat32_length;	/* sectors/FAT */
-	__le16	flags;		/* bit 8: fat mirroring, low 4: active fat */
-	__u8	version[2];	/* major, minor filesystem version */
-	__le32	root_cluster;	/* first cluster in root directory */
-	__le16	info_sector;	/* filesystem info sector */
-	__le16	backup_boot;	/* backup boot sector */
-	__le16	reserved2[6];	/* Unused */
+	union {
+		struct {
+			/*  Extended BPB Fields for FAT16 */
+			__u8	drive_number;	/* Physical drive number */
+			__u8	state;		/* undocumented, but used
+						   for mount state. */
+			__u8	signature;  /* extended boot signature */
+			__u8	vol_id[4];	/* volume ID */
+			__u8	vol_label[11];	/* volume label */
+			__u8	fs_type[8];		/* file system type */
+			/* other fiealds are not added here */
+		} fat16;
+
+		struct {
+			/* only used by FAT32 */
+			__le32	length;		/* sectors/FAT */
+			__le16	flags;		/* bit 8: fat mirroring,
+						   low 4: active fat */
+			__u8	version[2];	/* major, minor filesystem
+						   version */
+			__le32	root_cluster;	/* first cluster in
+						   root directory */
+			__le16	info_sector;	/* filesystem info sector */
+			__le16	backup_boot;	/* backup boot sector */
+			__le16	reserved2[6];	/* Unused */
+			/* Extended BPB Fields for FAT32 */
+			__u8	drive_number;   /* Physical drive number */
+			__u8    state;       	/* undocumented, but used
+						   for mount state. */
+			__u8	signature;  /* extended boot signature */
+			__u8	vol_id[4];	/* volume ID */
+			__u8	vol_label[11];	/* volume label */
+			__u8	fs_type[8];		/* file system type */
+			/* other fiealds are not added here */
+		} fat32;
+	};
 };
 
 struct fat_boot_fsinfo {

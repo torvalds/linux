@@ -173,12 +173,12 @@ static void ip27_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ip27_send_ipi_single(i, action);
 }
 
-static void __cpuinit ip27_init_secondary(void)
+static void ip27_init_secondary(void)
 {
 	per_cpu_init();
 }
 
-static void __cpuinit ip27_smp_finish(void)
+static void ip27_smp_finish(void)
 {
 	extern void hub_rt_clock_event_init(void);
 
@@ -186,16 +186,12 @@ static void __cpuinit ip27_smp_finish(void)
 	local_irq_enable();
 }
 
-static void __init ip27_cpus_done(void)
-{
-}
-
 /*
- * Launch a slave into smp_bootstrap().  It doesn't take an argument, and we
+ * Launch a slave into smp_bootstrap().	 It doesn't take an argument, and we
  * set sp to the kernel stack of the newly created idle process, gp to the proc
  * struct so that current_thread_info() will work.
  */
-static void __cpuinit ip27_boot_secondary(int cpu, struct task_struct *idle)
+static void ip27_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long)task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
@@ -219,7 +215,7 @@ static void __init ip27_smp_setup(void)
 
 	/*
 	 * Assumption to be fixed: we're always booted on logical / physical
-	 * processor 0.  While we're always running on logical processor 0
+	 * processor 0.	 While we're always running on logical processor 0
 	 * this still means this is physical processor zero; it might for
 	 * example be disabled in the firmware.
 	 */
@@ -236,7 +232,6 @@ struct plat_smp_ops ip27_smp_ops = {
 	.send_ipi_mask		= ip27_send_ipi_mask,
 	.init_secondary		= ip27_init_secondary,
 	.smp_finish		= ip27_smp_finish,
-	.cpus_done		= ip27_cpus_done,
 	.boot_secondary		= ip27_boot_secondary,
 	.smp_setup		= ip27_smp_setup,
 	.prepare_cpus		= ip27_prepare_cpus,

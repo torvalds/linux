@@ -98,9 +98,25 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
+static void rpc_rotate_queue_owner(struct rpc_wait_queue *queue)
+{
+	struct list_head *q = &queue->tasks[queue->priority];
+	struct rpc_task *task;
+
+	if (!list_empty(q)) {
+		task = list_first_entry(q, struct rpc_task, u.tk_wait.list);
+		if (task->tk_owner == queue->owner)
+			list_move_tail(&task->u.tk_wait.list, q);
+	}
+}
+
 static void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
 {
-	queue->priority = priority;
+	if (queue->priority != priority) {
+		/* Fairness: rotate the list when changing priority */
+		rpc_rotate_queue_owner(queue);
+		queue->priority = priority;
+	}
 }
 
 static void rpc_set_waitqueue_owner(struct rpc_wait_queue *queue, pid_t pid)
@@ -164,6 +180,8 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue,
 		list_add_tail(&task->u.tk_wait.list, &queue->tasks[0]);
 	task->tk_waitqueue = queue;
 	queue->qlen++;
+	/* barrier matches the read in rpc_wake_up_task_queue_locked() */
+	smp_wmb();
 	rpc_set_queued(task);
 
 	dprintk("RPC: %5u added to queue %p \"%s\"\n",
@@ -236,11 +254,11 @@ static int rpc_wait_bit_killable(void *word)
 {
 	if (fatal_signal_pending(current))
 		return -ERESTARTSYS;
-	freezable_schedule();
+	freezable_schedule_unsafe();
 	return 0;
 }
 
-#ifdef RPC_DEBUG
+#if defined(RPC_DEBUG) || defined(RPC_TRACEPOINTS)
 static void rpc_task_set_debuginfo(struct rpc_task *task)
 {
 	static atomic_t rpc_pid;
@@ -306,11 +324,17 @@ EXPORT_SYMBOL_GPL(__rpc_wait_for_completion_task);
  * Note: If the task is ASYNC, and is being made runnable after sitting on an
  * rpc_wait_queue, this must be called with the queue spinlock held to protect
  * the wait queue operation.
+ * Note the ordering of rpc_test_and_set_running() and rpc_clear_queued(),
+ * which is needed to ensure that __rpc_execute() doesn't loop (due to the
+ * lockless RPC_IS_QUEUED() test) before we've had a chance to test
+ * the RPC_TASK_RUNNING flag.
  */
 static void rpc_make_runnable(struct rpc_task *task)
 {
+	bool need_wakeup = !rpc_test_and_set_running(task);
+
 	rpc_clear_queued(task);
-	if (rpc_test_and_set_running(task))
+	if (!need_wakeup)
 		return;
 	if (RPC_IS_ASYNC(task)) {
 		INIT_WORK(&task->u.tk_work, rpc_async_schedule);
@@ -414,23 +438,12 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
  */
 static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	if (RPC_IS_QUEUED(task) && task->tk_waitqueue == queue)
-		__rpc_do_wake_up_task(queue, task);
+	if (RPC_IS_QUEUED(task)) {
+		smp_rmb();
+		if (task->tk_waitqueue == queue)
+			__rpc_do_wake_up_task(queue, task);
+	}
 }
-
-/*
- * Tests whether rpc queue is empty
- */
-int rpc_queue_empty(struct rpc_wait_queue *queue)
-{
-	int res;
-
-	spin_lock_bh(&queue->lock);
-	res = queue->qlen;
-	spin_unlock_bh(&queue->lock);
-	return res == 0;
-}
-EXPORT_SYMBOL_GPL(rpc_queue_empty);
 
 /*
  * Wake up a task on a specific queue
@@ -624,7 +637,8 @@ static void __rpc_queue_timer_fn(unsigned long ptr)
 
 static void __rpc_atrun(struct rpc_task *task)
 {
-	task->tk_status = 0;
+	if (task->tk_status == -ETIMEDOUT)
+		task->tk_status = 0;
 }
 
 /*
@@ -777,7 +791,6 @@ static void __rpc_execute(struct rpc_task *task)
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
 		}
-		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
 	}
 
@@ -798,9 +811,11 @@ static void __rpc_execute(struct rpc_task *task)
  */
 void rpc_execute(struct rpc_task *task)
 {
+	bool is_async = RPC_IS_ASYNC(task);
+
 	rpc_set_active(task);
 	rpc_make_runnable(task);
-	if (!RPC_IS_ASYNC(task))
+	if (!is_async)
 		__rpc_execute(task);
 }
 
@@ -817,7 +832,8 @@ static void rpc_async_schedule(struct work_struct *work)
  * @size: requested byte size
  *
  * To prevent rpciod from hanging, this allocator never sleeps,
- * returning NULL if the request cannot be serviced immediately.
+ * returning NULL and suppressing warning if the request cannot be serviced
+ * immediately.
  * The caller can arrange to sleep in a way that is safe for rpciod.
  *
  * Most requests are 'small' (under 2KiB) and can be serviced from a
@@ -830,7 +846,7 @@ static void rpc_async_schedule(struct work_struct *work)
 void *rpc_malloc(struct rpc_task *task, size_t size)
 {
 	struct rpc_buffer *buf;
-	gfp_t gfp = GFP_NOWAIT;
+	gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
 
 	if (RPC_IS_SWAPPER(task))
 		gfp |= __GFP_MEMALLOC;

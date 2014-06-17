@@ -982,14 +982,14 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 
 	/* We are protected by dqio_sem so no locking needed */
 	status = ocfs2_extend_no_holes(lqinode, NULL,
-				       lqinode->i_size + 2 * sb->s_blocksize,
-				       lqinode->i_size);
+				       i_size_read(lqinode) + 2 * sb->s_blocksize,
+				       i_size_read(lqinode));
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
 	}
 	status = ocfs2_simple_size_update(lqinode, oinfo->dqi_lqi_bh,
-					  lqinode->i_size + 2 * sb->s_blocksize);
+					  i_size_read(lqinode) + 2 * sb->s_blocksize);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1125,14 +1125,14 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 
 	/* We are protected by dqio_sem so no locking needed */
 	status = ocfs2_extend_no_holes(lqinode, NULL,
-				       lqinode->i_size + sb->s_blocksize,
-				       lqinode->i_size);
+				       i_size_read(lqinode) + sb->s_blocksize,
+				       i_size_read(lqinode));
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
 	}
 	status = ocfs2_simple_size_update(lqinode, oinfo->dqi_lqi_bh,
-					  lqinode->i_size + sb->s_blocksize);
+					  i_size_read(lqinode) + sb->s_blocksize);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1303,10 +1303,6 @@ int ocfs2_local_release_dquot(handle_t *handle, struct dquot *dquot)
 	ocfs2_journal_dirty(handle, od->dq_chunk->qc_headerbh);
 
 out:
-	/* Clear the read bit so that next time someone uses this
-	 * dquot he reads fresh info from disk and allocates local
-	 * dquot structure */
-	clear_bit(DQ_READ_B, &dquot->dq_flags);
 	return status;
 }
 

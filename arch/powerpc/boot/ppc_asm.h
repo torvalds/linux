@@ -59,4 +59,19 @@
 #define	r30	30
 #define	r31	31
 
+#define SPRN_TBRL	268
+#define SPRN_TBRU	269
+
+#define FIXUP_ENDIAN						   \
+	tdi   0, 0, 0x48; /* Reverse endian of b . + 8		*/ \
+	b     $+36;	  /* Skip trampoline if endian is good	*/ \
+	.long 0x05009f42; /* bcl 20,31,$+4			*/ \
+	.long 0xa602487d; /* mflr r10				*/ \
+	.long 0x1c004a39; /* addi r10,r10,28			*/ \
+	.long 0xa600607d; /* mfmsr r11				*/ \
+	.long 0x01006b69; /* xori r11,r11,1			*/ \
+	.long 0xa6035a7d; /* mtsrr0 r10				*/ \
+	.long 0xa6037b7d; /* mtsrr1 r11				*/ \
+	.long 0x2400004c  /* rfid				*/
+
 #endif /* _PPC64_PPC_ASM_H */

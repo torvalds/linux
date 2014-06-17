@@ -122,16 +122,16 @@ static void wbsoft_tx(struct ieee80211_hw *dev,
 {
 	struct wbsoft_priv *priv = dev->priv;
 
-	if (priv->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
+	if (priv->sMlmeFrame.is_in_used != PACKET_FREE_TO_USE) {
 		priv->sMlmeFrame.wNumTxMMPDUDiscarded++;
 		kfree_skb(skb);
 		return;
 	}
 
-	priv->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
+	priv->sMlmeFrame.is_in_used = PACKET_COME_FROM_MLME;
 
 	priv->sMlmeFrame.pMMPDU		= skb->data;
-	priv->sMlmeFrame.DataType	= FRAME_TYPE_802_11_MANAGEMENT;
+	priv->sMlmeFrame.data_type	= FRAME_TYPE_802_11_MANAGEMENT;
 	priv->sMlmeFrame.len		= skb->len;
 	priv->sMlmeFrame.wNumTxMMPDU++;
 
@@ -788,7 +788,6 @@ static int wb35_probe(struct usb_interface *intf,
 	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
-	dev->channel_change_time = 1000;
 	dev->max_signal = 100;
 	dev->queues = 1;
 

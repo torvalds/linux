@@ -4,9 +4,9 @@
 #include <linux/types.h>
 
 struct ip6t_frag {
-	__u32 ids[2];			/* Security Parameter Index */
+	__u32 ids[2];			/* Identification range */
 	__u32 hdrlen;			/* Header Length */
-	__u8  flags;			/*  */
+	__u8  flags;			/* Flags */
 	__u8  invflags;			/* Inverse flags */
 };
 

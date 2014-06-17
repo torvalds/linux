@@ -25,8 +25,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <acpi/hed.h>
 
 static struct acpi_device_id acpi_hed_ids[] = {
@@ -70,7 +68,7 @@ static int acpi_hed_add(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_hed_remove(struct acpi_device *device, int type)
+static int acpi_hed_remove(struct acpi_device *device)
 {
 	hed_handle = NULL;
 	return 0;

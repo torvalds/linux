@@ -206,8 +206,8 @@ static u32 cubic_root(u64 a)
  */
 static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 {
-	u64 offs;
-	u32 delta, t, bic_target, max_cnt;
+	u32 delta, bic_target, max_cnt;
+	u64 offs, t;
 
 	ca->ack_cnt++;	/* count the number of ACKs */
 
@@ -250,9 +250,11 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	 * if the cwnd < 1 million packets !!!
 	 */
 
+	t = (s32)(tcp_time_stamp - ca->epoch_start);
+	t += msecs_to_jiffies(ca->delay_min >> 3);
 	/* change the unit from HZ to bictcp_HZ */
-	t = ((tcp_time_stamp + msecs_to_jiffies(ca->delay_min>>3)
-	      - ca->epoch_start) << BICTCP_HZ) / HZ;
+	t <<= BICTCP_HZ;
+	do_div(t, HZ);
 
 	if (t < ca->bic_K)		/* t - K */
 		offs = ca->bic_K - t;
@@ -302,18 +304,18 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 		ca->cnt = 1;
 }
 
-static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
+static void bictcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct bictcp *ca = inet_csk_ca(sk);
 
-	if (!tcp_is_cwnd_limited(sk, in_flight))
+	if (!tcp_is_cwnd_limited(sk))
 		return;
 
 	if (tp->snd_cwnd <= tp->snd_ssthresh) {
 		if (hystart && after(ack, ca->end_seq))
 			bictcp_hystart_reset(sk);
-		tcp_slow_start(tp);
+		tcp_slow_start(tp, acked);
 	} else {
 		bictcp_update(ca, tp->snd_cwnd);
 		tcp_cong_avoid_ai(tp, ca->cnt);
@@ -406,7 +408,7 @@ static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 		ratio -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ratio += cnt;
 
-		ca->delayed_ack = min(ratio, ACK_RATIO_LIMIT);
+		ca->delayed_ack = clamp(ratio, 1U, ACK_RATIO_LIMIT);
 	}
 
 	/* Some calls are for duplicates without timetamps */
@@ -414,7 +416,7 @@ static void bictcp_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 		return;
 
 	/* Discard delay samples right after fast recovery */
-	if ((s32)(tcp_time_stamp - ca->epoch_start) < HZ)
+	if (ca->epoch_start && (s32)(tcp_time_stamp - ca->epoch_start) < HZ)
 		return;
 
 	delay = (rtt_us << 3) / USEC_PER_MSEC;
@@ -472,10 +474,6 @@ static int __init cubictcp_register(void)
 
 	/* divide by bic_scale and by constant Srtt (100ms) */
 	do_div(cube_factor, bic_scale * 10);
-
-	/* hystart needs ms clock resolution */
-	if (hystart && HZ < 1000)
-		cubictcp.flags |= TCP_CONG_RTT_STAMP;
 
 	return tcp_register_congestion_control(&cubictcp);
 }

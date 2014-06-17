@@ -769,6 +769,8 @@ finish_tlb_load_47x:
 	 */
 	DEBUG_CRIT_EXCEPTION
 
+interrupt_end:
+
 /*
  * Global functions
  */
@@ -781,16 +783,6 @@ _GLOBAL(__fixup_440A_mcheck)
 	mtspr	SPRN_IVOR1,r3
 	sync
 	blr
-
-/*
- * extern void giveup_fpu(struct task_struct *prev)
- *
- * The 44x core does not have an FPU.
- */
-#ifndef CONFIG_PPC_FPU
-_GLOBAL(giveup_fpu)
-	blr
-#endif
 
 _GLOBAL(set_context)
 

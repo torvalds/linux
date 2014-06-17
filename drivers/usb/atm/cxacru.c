@@ -35,7 +35,6 @@
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
@@ -686,7 +685,8 @@ static int cxacru_cm_get_array(struct cxacru_data *instance, enum cxacru_cm_requ
 {
 	int ret, len;
 	__le32 *buf;
-	int offb, offd;
+	int offb;
+	unsigned int offd;
 	const int stride = CMD_PACKET_SIZE / (4 * 2) - 1;
 	int buflen =  ((size - 1) / stride + 1 + size * 2) * 4;
 

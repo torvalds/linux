@@ -43,30 +43,32 @@ static const char *bi_unsupported_name = "unsupported";
  */
 int blk_rq_count_integrity_sg(struct request_queue *q, struct bio *bio)
 {
-	struct bio_vec *iv, *ivprv = NULL;
+	struct bio_vec iv, ivprv = { NULL };
 	unsigned int segments = 0;
 	unsigned int seg_size = 0;
-	unsigned int i = 0;
+	struct bvec_iter iter;
+	int prev = 0;
 
-	bio_for_each_integrity_vec(iv, bio, i) {
+	bio_for_each_integrity_vec(iv, bio, iter) {
 
-		if (ivprv) {
-			if (!BIOVEC_PHYS_MERGEABLE(ivprv, iv))
+		if (prev) {
+			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
 				goto new_segment;
 
-			if (!BIOVEC_SEG_BOUNDARY(q, ivprv, iv))
+			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
 				goto new_segment;
 
-			if (seg_size + iv->bv_len > queue_max_segment_size(q))
+			if (seg_size + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
-			seg_size += iv->bv_len;
+			seg_size += iv.bv_len;
 		} else {
 new_segment:
 			segments++;
-			seg_size = iv->bv_len;
+			seg_size = iv.bv_len;
 		}
 
+		prev = 1;
 		ivprv = iv;
 	}
 
@@ -87,37 +89,39 @@ EXPORT_SYMBOL(blk_rq_count_integrity_sg);
 int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
 			    struct scatterlist *sglist)
 {
-	struct bio_vec *iv, *ivprv = NULL;
+	struct bio_vec iv, ivprv = { NULL };
 	struct scatterlist *sg = NULL;
 	unsigned int segments = 0;
-	unsigned int i = 0;
+	struct bvec_iter iter;
+	int prev = 0;
 
-	bio_for_each_integrity_vec(iv, bio, i) {
+	bio_for_each_integrity_vec(iv, bio, iter) {
 
-		if (ivprv) {
-			if (!BIOVEC_PHYS_MERGEABLE(ivprv, iv))
+		if (prev) {
+			if (!BIOVEC_PHYS_MERGEABLE(&ivprv, &iv))
 				goto new_segment;
 
-			if (!BIOVEC_SEG_BOUNDARY(q, ivprv, iv))
+			if (!BIOVEC_SEG_BOUNDARY(q, &ivprv, &iv))
 				goto new_segment;
 
-			if (sg->length + iv->bv_len > queue_max_segment_size(q))
+			if (sg->length + iv.bv_len > queue_max_segment_size(q))
 				goto new_segment;
 
-			sg->length += iv->bv_len;
+			sg->length += iv.bv_len;
 		} else {
 new_segment:
 			if (!sg)
 				sg = sglist;
 			else {
-				sg->page_link &= ~0x02;
+				sg_unmark_end(sg);
 				sg = sg_next(sg);
 			}
 
-			sg_set_page(sg, iv->bv_page, iv->bv_len, iv->bv_offset);
+			sg_set_page(sg, iv.bv_page, iv.bv_len, iv.bv_offset);
 			segments++;
 		}
 
+		prev = 1;
 		ivprv = iv;
 	}
 
@@ -420,6 +424,8 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 	} else
 		bi->name = bi_unsupported_name;
 
+	disk->queue->backing_dev_info.capabilities |= BDI_CAP_STABLE_WRITES;
+
 	return 0;
 }
 EXPORT_SYMBOL(blk_integrity_register);
@@ -437,6 +443,8 @@ void blk_integrity_unregister(struct gendisk *disk)
 
 	if (!disk || !disk->integrity)
 		return;
+
+	disk->queue->backing_dev_info.capabilities &= ~BDI_CAP_STABLE_WRITES;
 
 	bi = disk->integrity;
 

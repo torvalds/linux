@@ -29,6 +29,9 @@ struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr)
 	struct ath6kl_sta *conn = NULL;
 	u8 i, max_conn;
 
+	if (is_zero_ether_addr(node_addr))
+		return NULL;
+
 	max_conn = (vif->nw_type == AP_NETWORK) ? AP_MAX_NUM_STA : 0;
 
 	for (i = 0; i < max_conn; i++) {
@@ -345,39 +348,6 @@ out:
 	return ret;
 }
 
-/* FIXME: move to a better place, target.h? */
-#define AR6003_RESET_CONTROL_ADDRESS 0x00004000
-#define AR6004_RESET_CONTROL_ADDRESS 0x00004000
-
-void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
-			 bool wait_fot_compltn, bool cold_reset)
-{
-	int status = 0;
-	u32 address;
-	__le32 data;
-
-	if (target_type != TARGET_TYPE_AR6003 &&
-	    target_type != TARGET_TYPE_AR6004)
-		return;
-
-	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
-			    cpu_to_le32(RESET_CONTROL_MBOX_RST);
-
-	switch (target_type) {
-	case TARGET_TYPE_AR6003:
-		address = AR6003_RESET_CONTROL_ADDRESS;
-		break;
-	case TARGET_TYPE_AR6004:
-		address = AR6004_RESET_CONTROL_ADDRESS;
-		break;
-	}
-
-	status = ath6kl_diag_write32(ar, address, data);
-
-	if (status)
-		ath6kl_err("failed to reset target\n");
-}
-
 static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)
 {
 	u8 index;
@@ -601,7 +571,6 @@ void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 
 static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 {
-
 	struct ath6kl *ar = vif->ar;
 
 	vif->profile.ch = cpu_to_le16(channel);
@@ -630,7 +599,6 @@ static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
 
 static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
 {
-
 	struct ath6kl_vif *vif;
 	int res = 0;
 
@@ -722,9 +690,9 @@ void ath6kl_tkip_micerr_event(struct ath6kl_vif *vif, u8 keyid, bool ismcast)
 		cfg80211_michael_mic_failure(vif->ndev, sta->mac,
 					     NL80211_KEYTYPE_PAIRWISE, keyid,
 					     tsc, GFP_KERNEL);
-	} else
+	} else {
 		ath6kl_cfg80211_tkip_micerr_event(vif, keyid, ismcast);
-
+	}
 }
 
 static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
@@ -1123,8 +1091,9 @@ static int ath6kl_open(struct net_device *dev)
 	if (test_bit(CONNECTED, &vif->flags)) {
 		netif_carrier_on(dev);
 		netif_wake_queue(dev);
-	} else
+	} else {
 		netif_carrier_off(dev);
+	}
 
 	return 0;
 }
@@ -1176,7 +1145,6 @@ static int ath6kl_set_features(struct net_device *dev,
 			dev->features = features | NETIF_F_RXCSUM;
 			return err;
 		}
-
 	}
 
 	return err;
@@ -1327,9 +1295,11 @@ void init_netdev(struct net_device *dev)
 	dev->watchdog_timeo = ATH6KL_TX_TIMEOUT;
 
 	dev->needed_headroom = ETH_HLEN;
-	dev->needed_headroom += sizeof(struct ath6kl_llc_snap_hdr) +
-				sizeof(struct wmi_data_hdr) + HTC_HDR_LENGTH
-				+ WMI_MAX_TX_META_SZ + ATH6KL_HTC_ALIGN_BYTES;
+	dev->needed_headroom += roundup(sizeof(struct ath6kl_llc_snap_hdr) +
+					sizeof(struct wmi_data_hdr) +
+					HTC_HDR_LENGTH +
+					WMI_MAX_TX_META_SZ +
+					ATH6KL_HTC_ALIGN_BYTES, 4);
 
 	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 

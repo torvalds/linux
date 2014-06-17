@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) IBM Corporation, 2003, 2010
  *
@@ -106,7 +105,7 @@ struct ibmveth_stat ibmveth_stats[] = {
 /* simple methods of getting data from the current rxq entry */
 static inline u32 ibmveth_rxq_flags(struct ibmveth_adapter *adapter)
 {
-	return adapter->rx_queue.queue_addr[adapter->rx_queue.index].flags_off;
+	return be32_to_cpu(adapter->rx_queue.queue_addr[adapter->rx_queue.index].flags_off);
 }
 
 static inline int ibmveth_rxq_toggle(struct ibmveth_adapter *adapter)
@@ -132,7 +131,7 @@ static inline int ibmveth_rxq_frame_offset(struct ibmveth_adapter *adapter)
 
 static inline int ibmveth_rxq_frame_length(struct ibmveth_adapter *adapter)
 {
-	return adapter->rx_queue.queue_addr[adapter->rx_queue.index].length;
+	return be32_to_cpu(adapter->rx_queue.queue_addr[adapter->rx_queue.index].length);
 }
 
 static inline int ibmveth_rxq_csum_good(struct ibmveth_adapter *adapter)
@@ -523,10 +522,21 @@ retry:
 	return rc;
 }
 
+static u64 ibmveth_encode_mac_addr(u8 *mac)
+{
+	int i;
+	u64 encoded = 0;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		encoded = (encoded << 8) | mac[i];
+
+	return encoded;
+}
+
 static int ibmveth_open(struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
-	u64 mac_address = 0;
+	u64 mac_address;
 	int rxq_entries = 1;
 	unsigned long lpar_rc;
 	int rc;
@@ -556,11 +566,9 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->rx_queue.queue_len = sizeof(struct ibmveth_rx_q_entry) *
 						rxq_entries;
 	adapter->rx_queue.queue_addr =
-	    dma_alloc_coherent(dev, adapter->rx_queue.queue_len,
-			       &adapter->rx_queue.queue_dma, GFP_KERNEL);
-
+		dma_alloc_coherent(dev, adapter->rx_queue.queue_len,
+				   &adapter->rx_queue.queue_dma, GFP_KERNEL);
 	if (!adapter->rx_queue.queue_addr) {
-		netdev_err(netdev, "unable to allocate rx queue pages\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}
@@ -582,8 +590,7 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->rx_queue.num_slots = rxq_entries;
 	adapter->rx_queue.toggle = 1;
 
-	memcpy(&mac_address, netdev->dev_addr, netdev->addr_len);
-	mac_address = mac_address >> 16;
+	mac_address = ibmveth_encode_mac_addr(netdev->dev_addr);
 
 	rxq_desc.fields.flags_len = IBMVETH_BUF_VALID |
 					adapter->rx_queue.queue_len;
@@ -637,7 +644,6 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->bounce_buffer =
 	    kmalloc(netdev->mtu + IBMVETH_BUFF_OH, GFP_KERNEL);
 	if (!adapter->bounce_buffer) {
-		netdev_err(netdev, "unable to allocate bounce buffer\n");
 		rc = -ENOMEM;
 		goto err_out_free_irq;
 	}
@@ -722,9 +728,8 @@ static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, ibmveth_driver_name, sizeof(info->driver) - 1);
-	strncpy(info->version, ibmveth_driver_version,
-		sizeof(info->version) - 1);
+	strlcpy(info->driver, ibmveth_driver_name, sizeof(info->driver));
+	strlcpy(info->version, ibmveth_driver_version, sizeof(info->version));
 }
 
 static netdev_features_t ibmveth_fix_features(struct net_device *dev,
@@ -1039,7 +1044,7 @@ retry_bounce:
 			       DMA_TO_DEVICE);
 
 out:
-	dev_kfree_skb(skb);
+	dev_consume_skb_any(skb);
 	return NETDEV_TX_OK;
 
 map_failed_frags:
@@ -1067,7 +1072,7 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 	unsigned long lpar_rc;
 
 restart_poll:
-	do {
+	while (frames_processed < budget) {
 		if (!ibmveth_rxq_pending_buffer(adapter))
 			break;
 
@@ -1116,7 +1121,7 @@ restart_poll:
 			netdev->stats.rx_bytes += length;
 			frames_processed++;
 		}
-	} while (frames_processed < budget);
+	}
 
 	ibmveth_replenish_task(adapter);
 
@@ -1188,8 +1193,8 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 		/* add the addresses to the filter table */
 		netdev_for_each_mc_addr(ha, netdev) {
 			/* add the multicast address to the filter table */
-			unsigned long mcast_addr = 0;
-			memcpy(((char *)&mcast_addr)+2, ha->addr, 6);
+			u64 mcast_addr;
+			mcast_addr = ibmveth_encode_mac_addr(ha->addr);
 			lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 						   IbmVethMcastAddFilter,
 						   mcast_addr);
@@ -1280,18 +1285,21 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&vdev->dev);
 	struct ibmveth_adapter *adapter;
+	struct iommu_table *tbl;
 	unsigned long ret;
 	int i;
 	int rxqentries = 1;
 
+	tbl = get_iommu_table_base(&vdev->dev);
+
 	/* netdev inits at probe time along with the structures we need below*/
 	if (netdev == NULL)
-		return IOMMU_PAGE_ALIGN(IBMVETH_IO_ENTITLEMENT_DEFAULT);
+		return IOMMU_PAGE_ALIGN(IBMVETH_IO_ENTITLEMENT_DEFAULT, tbl);
 
 	adapter = netdev_priv(netdev);
 
 	ret = IBMVETH_BUFF_LIST_SIZE + IBMVETH_FILT_LIST_SIZE;
-	ret += IOMMU_PAGE_ALIGN(netdev->mtu);
+	ret += IOMMU_PAGE_ALIGN(netdev->mtu, tbl);
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		/* add the size of the active receive buffers */
@@ -1299,11 +1307,12 @@ static unsigned long ibmveth_get_desired_dma(struct vio_dev *vdev)
 			ret +=
 			    adapter->rx_buff_pool[i].size *
 			    IOMMU_PAGE_ALIGN(adapter->rx_buff_pool[i].
-			            buff_size);
+					     buff_size, tbl);
 		rxqentries += adapter->rx_buff_pool[i].size;
 	}
 	/* add the size of the receive queue entries */
-	ret += IOMMU_PAGE_ALIGN(rxqentries * sizeof(struct ibmveth_rx_q_entry));
+	ret += IOMMU_PAGE_ALIGN(
+		rxqentries * sizeof(struct ibmveth_rx_q_entry), tbl);
 
 	return ret;
 }
@@ -1326,7 +1335,7 @@ static const struct net_device_ops ibmveth_netdev_ops = {
 
 static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
-	int rc, i;
+	int rc, i, mac_len;
 	struct net_device *netdev;
 	struct ibmveth_adapter *adapter;
 	unsigned char *mac_addr_p;
@@ -1336,9 +1345,17 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		dev->unit_address);
 
 	mac_addr_p = (unsigned char *)vio_get_attribute(dev, VETH_MAC_ADDR,
-							NULL);
+							&mac_len);
 	if (!mac_addr_p) {
 		dev_err(&dev->dev, "Can't find VETH_MAC_ADDR attribute\n");
+		return -EINVAL;
+	}
+	/* Workaround for old/broken pHyp */
+	if (mac_len == 8)
+		mac_addr_p += 2;
+	else if (mac_len != 6) {
+		dev_err(&dev->dev, "VETH_MAC_ADDR attribute wrong len %d\n",
+			mac_len);
 		return -EINVAL;
 	}
 
@@ -1365,20 +1382,6 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	netif_napi_add(netdev, &adapter->napi, ibmveth_poll, 16);
 
-	/*
-	 * Some older boxes running PHYP non-natively have an OF that returns
-	 * a 8-byte local-mac-address field (and the first 2 bytes have to be
-	 * ignored) while newer boxes' OF return a 6-byte field. Note that
-	 * IEEE 1275 specifies that local-mac-address must be a 6-byte field.
-	 * The RPA doc specifies that the first byte must be 10b, so we'll
-	 * just look for it to solve this 8 vs. 6 byte field issue
-	 */
-	if ((*mac_addr_p & 0x3) != 0x02)
-		mac_addr_p += 2;
-
-	adapter->mac_addr = 0;
-	memcpy(&adapter->mac_addr, mac_addr_p, 6);
-
 	netdev->irq = dev->irq;
 	netdev->netdev_ops = &ibmveth_netdev_ops;
 	netdev->ethtool_ops = &netdev_ethtool_ops;
@@ -1387,7 +1390,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features |= netdev->hw_features;
 
-	memcpy(netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
+	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;

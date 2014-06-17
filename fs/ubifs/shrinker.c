@@ -128,7 +128,6 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 			freed = ubifs_destroy_tnc_subtree(znode);
 			atomic_long_sub(freed, &ubifs_clean_zn_cnt);
 			atomic_long_sub(freed, &c->clean_zn_cnt);
-			ubifs_assert(atomic_long_read(&c->clean_zn_cnt) >= 0);
 			total_freed += freed;
 			znode = zprev;
 		}
@@ -277,18 +276,25 @@ static int kick_a_thread(void)
 	return 0;
 }
 
-int ubifs_shrinker(struct shrinker *shrink, struct shrink_control *sc)
+unsigned long ubifs_shrink_count(struct shrinker *shrink,
+				 struct shrink_control *sc)
 {
-	int nr = sc->nr_to_scan;
-	int freed, contention = 0;
 	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
 
-	if (nr == 0)
-		/*
-		 * Due to the way UBIFS updates the clean znode counter it may
-		 * temporarily be negative.
-		 */
-		return clean_zn_cnt >= 0 ? clean_zn_cnt : 1;
+	/*
+	 * Due to the way UBIFS updates the clean znode counter it may
+	 * temporarily be negative.
+	 */
+	return clean_zn_cnt >= 0 ? clean_zn_cnt : 1;
+}
+
+unsigned long ubifs_shrink_scan(struct shrinker *shrink,
+				struct shrink_control *sc)
+{
+	unsigned long nr = sc->nr_to_scan;
+	int contention = 0;
+	unsigned long freed;
+	long clean_zn_cnt = atomic_long_read(&ubifs_clean_zn_cnt);
 
 	if (!clean_zn_cnt) {
 		/*
@@ -316,10 +322,10 @@ int ubifs_shrinker(struct shrinker *shrink, struct shrink_control *sc)
 
 	if (!freed && contention) {
 		dbg_tnc("freed nothing, but contention");
-		return -1;
+		return SHRINK_STOP;
 	}
 
 out:
-	dbg_tnc("%d znodes were freed, requested %d", freed, nr);
+	dbg_tnc("%lu znodes were freed, requested %lu", freed, nr);
 	return freed;
 }

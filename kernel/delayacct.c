@@ -106,20 +106,17 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	unsigned long long t2, t3;
 	unsigned long flags;
 	struct timespec ts;
-
-	/* Though tsk->delays accessed later, early exit avoids
-	 * unnecessary returning of other data
-	 */
-	if (!tsk->delays)
-		goto done;
+	cputime_t utime, stime, stimescaled, utimescaled;
 
 	tmp = (s64)d->cpu_run_real_total;
-	cputime_to_timespec(tsk->utime + tsk->stime, &ts);
+	task_cputime(tsk, &utime, &stime);
+	cputime_to_timespec(utime + stime, &ts);
 	tmp += timespec_to_ns(&ts);
 	d->cpu_run_real_total = (tmp < (s64)d->cpu_run_real_total) ? 0 : tmp;
 
 	tmp = (s64)d->cpu_scaled_run_real_total;
-	cputime_to_timespec(tsk->utimescaled + tsk->stimescaled, &ts);
+	task_cputime_scaled(tsk, &utimescaled, &stimescaled);
+	cputime_to_timespec(utimescaled + stimescaled, &ts);
 	tmp += timespec_to_ns(&ts);
 	d->cpu_scaled_run_real_total =
 		(tmp < (s64)d->cpu_scaled_run_real_total) ? 0 : tmp;
@@ -155,7 +152,6 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->freepages_count += tsk->delays->freepages_count;
 	spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
-done:
 	return 0;
 }
 

@@ -118,8 +118,9 @@ static inline void ppa_pb_release(ppa_struct *dev)
  * Also gives a method to use a script to obtain optimum timings (TODO)
  */
 
-static inline int ppa_proc_write(ppa_struct *dev, char *buffer, int length)
+static inline int ppa_write_info(struct Scsi_Host *host, char *buffer, int length)
 {
+	ppa_struct *dev = ppa_dev(host);
 	unsigned long x;
 
 	if ((length > 5) && (strncmp(buffer, "mode=", 5) == 0)) {
@@ -137,35 +138,17 @@ static inline int ppa_proc_write(ppa_struct *dev, char *buffer, int length)
 	return -EINVAL;
 }
 
-static int ppa_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset, int length, int inout)
+static int ppa_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
-	int len = 0;
 	ppa_struct *dev = ppa_dev(host);
 
-	if (inout)
-		return ppa_proc_write(dev, buffer, length);
-
-	len += sprintf(buffer + len, "Version : %s\n", PPA_VERSION);
-	len +=
-	    sprintf(buffer + len, "Parport : %s\n",
-		    dev->dev->port->name);
-	len +=
-	    sprintf(buffer + len, "Mode    : %s\n",
-		    PPA_MODE_STRING[dev->mode]);
+	seq_printf(m, "Version : %s\n", PPA_VERSION);
+	seq_printf(m, "Parport : %s\n", dev->dev->port->name);
+	seq_printf(m, "Mode    : %s\n", PPA_MODE_STRING[dev->mode]);
 #if PPA_DEBUG > 0
-	len +=
-	    sprintf(buffer + len, "recon_tmo : %lu\n", dev->recon_tmo);
+	seq_printf(m, "recon_tmo : %lu\n", dev->recon_tmo);
 #endif
-
-	/* Request for beyond end of buffer */
-	if (offset > length)
-		return 0;
-
-	*start = buffer + offset;
-	len -= offset;
-	if (len > length)
-		len = length;
-	return len;
+	return 0;
 }
 
 static int device_check(ppa_struct *dev);
@@ -981,7 +964,8 @@ static int ppa_adjust_queue(struct scsi_device *device)
 static struct scsi_host_template ppa_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "ppa",
-	.proc_info		= ppa_proc_info,
+	.show_info		= ppa_show_info,
+	.write_info		= ppa_write_info,
 	.name			= "Iomega VPI0 (ppa) interface",
 	.queuecommand		= ppa_queuecommand,
 	.eh_abort_handler	= ppa_abort,

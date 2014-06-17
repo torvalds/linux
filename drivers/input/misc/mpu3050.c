@@ -30,7 +30,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -383,6 +382,7 @@ static int mpu3050_probe(struct i2c_client *client,
 
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, MPU3050_AUTO_DELAY);
+	i2c_set_clientdata(client, sensor);
 
 	return 0;
 

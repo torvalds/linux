@@ -229,50 +229,48 @@ struct xt_table_info {
 
 #define XT_TABLE_INFO_SZ (offsetof(struct xt_table_info, entries) \
 			  + nr_cpu_ids * sizeof(char *))
-extern int xt_register_target(struct xt_target *target);
-extern void xt_unregister_target(struct xt_target *target);
-extern int xt_register_targets(struct xt_target *target, unsigned int n);
-extern void xt_unregister_targets(struct xt_target *target, unsigned int n);
+int xt_register_target(struct xt_target *target);
+void xt_unregister_target(struct xt_target *target);
+int xt_register_targets(struct xt_target *target, unsigned int n);
+void xt_unregister_targets(struct xt_target *target, unsigned int n);
 
-extern int xt_register_match(struct xt_match *target);
-extern void xt_unregister_match(struct xt_match *target);
-extern int xt_register_matches(struct xt_match *match, unsigned int n);
-extern void xt_unregister_matches(struct xt_match *match, unsigned int n);
+int xt_register_match(struct xt_match *target);
+void xt_unregister_match(struct xt_match *target);
+int xt_register_matches(struct xt_match *match, unsigned int n);
+void xt_unregister_matches(struct xt_match *match, unsigned int n);
 
-extern int xt_check_match(struct xt_mtchk_param *,
-			  unsigned int size, u_int8_t proto, bool inv_proto);
-extern int xt_check_target(struct xt_tgchk_param *,
-			   unsigned int size, u_int8_t proto, bool inv_proto);
+int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
+		   bool inv_proto);
+int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
+		    bool inv_proto);
 
-extern struct xt_table *xt_register_table(struct net *net,
-					  const struct xt_table *table,
-					  struct xt_table_info *bootstrap,
-					  struct xt_table_info *newinfo);
-extern void *xt_unregister_table(struct xt_table *table);
+struct xt_table *xt_register_table(struct net *net,
+				   const struct xt_table *table,
+				   struct xt_table_info *bootstrap,
+				   struct xt_table_info *newinfo);
+void *xt_unregister_table(struct xt_table *table);
 
-extern struct xt_table_info *xt_replace_table(struct xt_table *table,
-					      unsigned int num_counters,
-					      struct xt_table_info *newinfo,
-					      int *error);
+struct xt_table_info *xt_replace_table(struct xt_table *table,
+				       unsigned int num_counters,
+				       struct xt_table_info *newinfo,
+				       int *error);
 
-extern struct xt_match *xt_find_match(u8 af, const char *name, u8 revision);
-extern struct xt_target *xt_find_target(u8 af, const char *name, u8 revision);
-extern struct xt_match *xt_request_find_match(u8 af, const char *name,
-					      u8 revision);
-extern struct xt_target *xt_request_find_target(u8 af, const char *name,
-						u8 revision);
-extern int xt_find_revision(u8 af, const char *name, u8 revision,
-			    int target, int *err);
+struct xt_match *xt_find_match(u8 af, const char *name, u8 revision);
+struct xt_target *xt_find_target(u8 af, const char *name, u8 revision);
+struct xt_match *xt_request_find_match(u8 af, const char *name, u8 revision);
+struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision);
+int xt_find_revision(u8 af, const char *name, u8 revision, int target,
+		     int *err);
 
-extern struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
-					   const char *name);
-extern void xt_table_unlock(struct xt_table *t);
+struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
+				    const char *name);
+void xt_table_unlock(struct xt_table *t);
 
-extern int xt_proto_init(struct net *net, u_int8_t af);
-extern void xt_proto_fini(struct net *net, u_int8_t af);
+int xt_proto_init(struct net *net, u_int8_t af);
+void xt_proto_fini(struct net *net, u_int8_t af);
 
-extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
-extern void xt_free_table_info(struct xt_table_info *info);
+struct xt_table_info *xt_alloc_table_info(unsigned int size);
+void xt_free_table_info(struct xt_table_info *info);
 
 /**
  * xt_recseq - recursive seqcount for netfilter use
@@ -353,8 +351,8 @@ static inline unsigned long ifname_compare_aligned(const char *_a,
 	return ret;
 }
 
-extern struct nf_hook_ops *xt_hook_link(const struct xt_table *, nf_hookfn *);
-extern void xt_hook_unlink(const struct xt_table *, struct nf_hook_ops *);
+struct nf_hook_ops *xt_hook_link(const struct xt_table *, nf_hookfn *);
+void xt_hook_unlink(const struct xt_table *, struct nf_hook_ops *);
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
@@ -414,25 +412,25 @@ struct _compat_xt_align {
 
 #define COMPAT_XT_ALIGN(s) __ALIGN_KERNEL((s), __alignof__(struct _compat_xt_align))
 
-extern void xt_compat_lock(u_int8_t af);
-extern void xt_compat_unlock(u_int8_t af);
+void xt_compat_lock(u_int8_t af);
+void xt_compat_unlock(u_int8_t af);
 
-extern int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta);
-extern void xt_compat_flush_offsets(u_int8_t af);
-extern void xt_compat_init_offsets(u_int8_t af, unsigned int number);
-extern int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
+int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta);
+void xt_compat_flush_offsets(u_int8_t af);
+void xt_compat_init_offsets(u_int8_t af, unsigned int number);
+int xt_compat_calc_jump(u_int8_t af, unsigned int offset);
 
-extern int xt_compat_match_offset(const struct xt_match *match);
-extern int xt_compat_match_from_user(struct xt_entry_match *m,
-				     void **dstptr, unsigned int *size);
-extern int xt_compat_match_to_user(const struct xt_entry_match *m,
-				   void __user **dstptr, unsigned int *size);
+int xt_compat_match_offset(const struct xt_match *match);
+int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
+			      unsigned int *size);
+int xt_compat_match_to_user(const struct xt_entry_match *m,
+			    void __user **dstptr, unsigned int *size);
 
-extern int xt_compat_target_offset(const struct xt_target *target);
-extern void xt_compat_target_from_user(struct xt_entry_target *t,
-				       void **dstptr, unsigned int *size);
-extern int xt_compat_target_to_user(const struct xt_entry_target *t,
-				    void __user **dstptr, unsigned int *size);
+int xt_compat_target_offset(const struct xt_target *target);
+void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
+				unsigned int *size);
+int xt_compat_target_to_user(const struct xt_entry_target *t,
+			     void __user **dstptr, unsigned int *size);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _X_TABLES_H */

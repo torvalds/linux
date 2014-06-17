@@ -543,7 +543,7 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 	return !(odi->systemid_len || odi->osdname_len);
 }
 
-int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
+static int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
 		      struct exofs_dev **peds)
 {
 	struct __alloc_ore_devs_and_exofs_devs {
@@ -1010,6 +1010,7 @@ static struct file_system_type exofs_type = {
 	.mount          = exofs_mount,
 	.kill_sb        = generic_shutdown_super,
 };
+MODULE_ALIAS_FS("exofs");
 
 static int __init init_exofs(void)
 {

@@ -96,6 +96,7 @@ struct osf_dirent {
 };
 
 struct osf_dirent_callback {
+	struct dir_context ctx;
 	struct osf_dirent __user *dirent;
 	long __user *basep;
 	unsigned int count;
@@ -146,17 +147,17 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 {
 	int error;
 	struct fd arg = fdget(fd);
-	struct osf_dirent_callback buf;
+	struct osf_dirent_callback buf = {
+		.ctx.actor = osf_filldir,
+		.dirent = dirent,
+		.basep = basep,
+		.count = count
+	};
 
 	if (!arg.file)
 		return -EBADF;
 
-	buf.dirent = dirent;
-	buf.basep = basep;
-	buf.count = count;
-	buf.error = 0;
-
-	error = vfs_readdir(arg.file, osf_filldir, &buf);
+	error = iterate_dir(arg.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
@@ -1139,6 +1140,7 @@ struct rusage32 {
 SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 {
 	struct rusage32 r;
+	cputime_t utime, stime;
 
 	if (who != RUSAGE_SELF && who != RUSAGE_CHILDREN)
 		return -EINVAL;
@@ -1146,8 +1148,9 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 	memset(&r, 0, sizeof(r));
 	switch (who) {
 	case RUSAGE_SELF:
-		jiffies_to_timeval32(current->utime, &r.ru_utime);
-		jiffies_to_timeval32(current->stime, &r.ru_stime);
+		task_cputime(current, &utime, &stime);
+		jiffies_to_timeval32(utime, &r.ru_utime);
+		jiffies_to_timeval32(stime, &r.ru_stime);
 		r.ru_minflt = current->min_flt;
 		r.ru_majflt = current->maj_flt;
 		break;
@@ -1298,17 +1301,15 @@ static unsigned long
 arch_get_unmapped_area_1(unsigned long addr, unsigned long len,
 		         unsigned long limit)
 {
-	struct vm_area_struct *vma = find_vma(current->mm, addr);
+	struct vm_unmapped_area_info info;
 
-	while (1) {
-		/* At this point:  (!vma || addr < vma->vm_end). */
-		if (limit - len < addr)
-			return -ENOMEM;
-		if (!vma || addr + len <= vma->vm_start)
-			return addr;
-		addr = vma->vm_end;
-		vma = vma->vm_next;
-	}
+	info.flags = 0;
+	info.length = len;
+	info.low_limit = addr;
+	info.high_limit = limit;
+	info.align_mask = 0;
+	info.align_offset = 0;
+	return vm_unmapped_area(&info);
 }
 
 unsigned long

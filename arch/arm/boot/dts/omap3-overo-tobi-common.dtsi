@@ -1,0 +1,42 @@
+/*
+ * Copyright (C) 2012 Florian Vaussard, EPFL Mobots group
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Tobi expansion board is manufactured by Gumstix Inc.
+ */
+
+#include "omap3-overo-common-peripherals.dtsi"
+#include "omap3-overo-common-dvi.dtsi"
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "overo:red:gpio21";
+			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+#include "omap-gpmc-smsc9221.dtsi"
+
+&gpmc {
+	ranges = <5 0 0x2c000000 0x1000000>;	/* CS5 */
+
+	ethernet@gpmc {
+		reg = <5 0 0xff>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;	/* GPIO 176 */
+	};
+};
+
+&lis33de {
+	status = "disabled";
+};
+

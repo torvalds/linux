@@ -1,6 +1,29 @@
 
-generic-y += word-at-a-time.h auxvec.h user.h cputime.h emergency-restart.h \
-	  segment.h topology.h vga.h device.h percpu.h hw_irq.h mutex.h \
-	  div64.h irq_regs.h kdebug.h kvm_para.h local64.h local.h param.h \
-	  poll.h xor.h clkdev.h exec.h
+generic-y += auxvec.h
+generic-y += barrier.h
+generic-y += clkdev.h
+generic-y += cputime.h
+generic-y += device.h
+generic-y += div64.h
+generic-y += emergency-restart.h
+generic-y += exec.h
+generic-y += hash.h
+generic-y += hw_irq.h
+generic-y += irq_regs.h
+generic-y += kdebug.h
+generic-y += kvm_para.h
+generic-y += local.h
+generic-y += local64.h
+generic-y += mcs_spinlock.h
+generic-y += mutex.h
+generic-y += param.h
+generic-y += percpu.h
+generic-y += poll.h
+generic-y += preempt.h
+generic-y += segment.h
+generic-y += topology.h
 generic-y += trace_clock.h
+generic-y += user.h
+generic-y += vga.h
+generic-y += word-at-a-time.h
+generic-y += xor.h

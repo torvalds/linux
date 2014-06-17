@@ -5,12 +5,13 @@ struct nouveau_enum {
 	u32 value;
 	const char *name;
 	const void *data;
+	u32 data2;
 };
 
 const struct nouveau_enum *
 nouveau_enum_find(const struct nouveau_enum *, u32 value);
 
-void
+const struct nouveau_enum *
 nouveau_enum_print(const struct nouveau_enum *en, u32 value);
 
 struct nouveau_bitfield {

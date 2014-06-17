@@ -87,6 +87,8 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 			rc = qeth_l3_setrouting_v6(card);
 	}
 out:
+	if (rc)
+		route->type = old_route_type;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
@@ -206,7 +208,7 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 		goto out;
 	}
 
-	rc = strict_strtoul(buf, 16, &i);
+	rc = kstrtoul(buf, 16, &i);
 	if (rc) {
 		rc = -EINVAL;
 		goto out;
@@ -313,10 +315,8 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 	if (qeth_configure_cq(card, QETH_CQ_ENABLED))
 		return -EPERM;
 
-	for (i = 0; i < 8; i++)
-		card->options.hsuid[i] = ' ';
-	card->options.hsuid[8] = '\0';
-	strncpy(card->options.hsuid, tmp, strlen(tmp));
+	snprintf(card->options.hsuid, sizeof(card->options.hsuid),
+		 "%-8s", tmp);
 	ASCEBC(card->options.hsuid, 8);
 	if (card->dev)
 		memcpy(card->dev->perm_addr, card->options.hsuid, 9);

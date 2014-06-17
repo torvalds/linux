@@ -50,6 +50,7 @@
 #define TI_XDS100V2_PID		0xa6d0
 
 #define FTDI_NXTCAM_PID		0xABB8 /* NXTCam for Mindstorms NXT */
+#define FTDI_EV3CON_PID		0xABB9 /* Mindstorms EV3 Console Adapter */
 
 /* US Interface Navigator (http://www.usinterface.com/) */
 #define FTDI_USINT_CAT_PID	0xb810	/* Navigator CAT and 2nd PTT lines */
@@ -74,6 +75,7 @@
 #define FTDI_OPENDCC_THROTTLE_PID	0xBFDA
 #define FTDI_OPENDCC_GATEWAY_PID	0xBFDB
 #define FTDI_OPENDCC_GBM_PID	0xBFDC
+#define FTDI_OPENDCC_GBM_BOOST_PID	0xBFDD
 
 /* NZR SEM 16+ USB (http://www.nzr.de) */
 #define FTDI_NZR_SEM_USB_PID	0xC1E0	/* NZR SEM-LOG16+ */
@@ -147,6 +149,11 @@
 #define XSENS_CONVERTER_6_PID	0xD38E
 #define XSENS_CONVERTER_7_PID	0xD38F
 
+/**
+ * Zolix (www.zolix.com.cb) product ids
+ */
+#define FTDI_OMNI1509			0xD491	/* Omni1509 embedded USB-serial */
+
 /*
  * NDI (www.ndigital.com) product ids
  */
@@ -204,7 +211,7 @@
 
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
- * All of these devices use FTDI's vendor ID (0x0403).
+ * Almost all of these devices use FTDI's vendor ID (0x0403).
  * Further IDs taken from ELV Windows .inf file.
  *
  * The previously included PID for the UO 100 module was incorrect.
@@ -212,6 +219,8 @@
  *
  * Armin Laeuger originally sent the PID for the UM 100 module.
  */
+#define FTDI_ELV_VID	0x1B1F	/* ELV AG */
+#define FTDI_ELV_WS300_PID	0xC006	/* eQ3 WS 300 PC II */
 #define FTDI_ELV_USR_PID	0xE000	/* ELV Universal-Sound-Recorder */
 #define FTDI_ELV_MSM1_PID	0xE001	/* ELV Mini-Sound-Modul */
 #define FTDI_ELV_KL100_PID	0xE002	/* ELV Kfz-Leistungsmesser KL 100 */
@@ -354,6 +363,12 @@
 
 /* Sprog II (Andrew Crosland's SprogII DCC interface) */
 #define FTDI_SPROG_II		0xF0C8
+
+/*
+ * Two of the Tagsys RFID Readers
+ */
+#define FTDI_TAGSYS_LP101_PID	0xF0E9	/* Tagsys L-P101 RFID*/
+#define FTDI_TAGSYS_P200X_PID	0xF0EE	/* Tagsys Medio P200x RFID*/
 
 /* an infrared receiver for user access control with IR tags */
 #define FTDI_PIEGROUP_PID	0xF208	/* Product Id */
@@ -523,6 +538,11 @@
  */
 #define FTDI_TIAO_UMPA_PID	0x8a98	/* TIAO/DIYGADGET USB Multi-Protocol Adapter */
 
+/*
+ * NovaTech product ids (FTDI_VID)
+ */
+#define FTDI_NT_ORIONLXM_PID	0x7c90	/* OrionLXm Substation Automation Platform */
+
 
 /********************************/
 /** third-party VID/PID combos **/
@@ -575,6 +595,13 @@
  */
 #define CONTEC_VID		0x06CE	/* Vendor ID */
 #define CONTEC_COM1USBH_PID	0x8311	/* COM-1(USB)H */
+
+/*
+ * Mitsubishi Electric Corp. (http://www.meau.com)
+ * Submitted by Konstantin Holoborodko
+ */
+#define MITSUBISHI_VID		0x06D3
+#define MITSUBISHI_FXUSB_PID	0x0284 /* USB/RS422 converters: FX-USB-AW/-BD */
 
 /*
  * Definitions for B&B Electronics products.
@@ -757,6 +784,8 @@
  */
 #define NEWPORT_VID			0x104D
 #define NEWPORT_AGILIS_PID		0x3000
+#define NEWPORT_CONEX_CC_PID		0x3002
+#define NEWPORT_CONEX_AGP_PID		0x3006
 
 /* Interbiometrics USB I/O Board */
 /* Developed for Interbiometrics by Rudolf Gugler */
@@ -798,11 +827,35 @@
 /*
  * RT Systems programming cables for various ham radios
  */
-#define RTSYSTEMS_VID			0x2100	/* Vendor ID */
-#define RTSYSTEMS_SERIAL_VX7_PID	0x9e52	/* Serial converter for VX-7 Radios using FT232RL */
-#define RTSYSTEMS_CT29B_PID		0x9e54	/* CT29B Radio Cable */
-#define RTSYSTEMS_RTS01_PID		0x9e57	/* USB-RTS01 Radio Cable */
-
+#define RTSYSTEMS_VID		0x2100	/* Vendor ID */
+#define RTSYSTEMS_USB_S03_PID	0x9001	/* RTS-03 USB to Serial Adapter */
+#define RTSYSTEMS_USB_59_PID	0x9e50	/* USB-59 USB to 8 pin plug */
+#define RTSYSTEMS_USB_57A_PID	0x9e51	/* USB-57A USB to 4pin 3.5mm plug */
+#define RTSYSTEMS_USB_57B_PID	0x9e52	/* USB-57B USB to extended 4pin 3.5mm plug */
+#define RTSYSTEMS_USB_29A_PID	0x9e53	/* USB-29A USB to 3.5mm stereo plug */
+#define RTSYSTEMS_USB_29B_PID	0x9e54	/* USB-29B USB to 6 pin mini din */
+#define RTSYSTEMS_USB_29F_PID	0x9e55	/* USB-29F USB to 6 pin modular plug */
+#define RTSYSTEMS_USB_62B_PID	0x9e56	/* USB-62B USB to 8 pin mini din plug*/
+#define RTSYSTEMS_USB_S01_PID	0x9e57	/* USB-RTS01 USB to 3.5 mm stereo plug*/
+#define RTSYSTEMS_USB_63_PID	0x9e58	/* USB-63 USB to 9 pin female*/
+#define RTSYSTEMS_USB_29C_PID	0x9e59	/* USB-29C USB to 4 pin modular plug*/
+#define RTSYSTEMS_USB_81B_PID	0x9e5A	/* USB-81 USB to 8 pin mini din plug*/
+#define RTSYSTEMS_USB_82B_PID	0x9e5B	/* USB-82 USB to 2.5 mm stereo plug*/
+#define RTSYSTEMS_USB_K5D_PID	0x9e5C	/* USB-K5D USB to 8 pin modular plug*/
+#define RTSYSTEMS_USB_K4Y_PID	0x9e5D	/* USB-K4Y USB to 2.5/3.5 mm plugs*/
+#define RTSYSTEMS_USB_K5G_PID	0x9e5E	/* USB-K5G USB to 8 pin modular plug*/
+#define RTSYSTEMS_USB_S05_PID	0x9e5F	/* USB-RTS05 USB to 2.5 mm stereo plug*/
+#define RTSYSTEMS_USB_60_PID	0x9e60	/* USB-60 USB to 6 pin din*/
+#define RTSYSTEMS_USB_61_PID	0x9e61	/* USB-61 USB to 6 pin mini din*/
+#define RTSYSTEMS_USB_62_PID	0x9e62	/* USB-62 USB to 8 pin mini din*/
+#define RTSYSTEMS_USB_63B_PID	0x9e63	/* USB-63 USB to 9 pin female*/
+#define RTSYSTEMS_USB_64_PID	0x9e64	/* USB-64 USB to 9 pin male*/
+#define RTSYSTEMS_USB_65_PID	0x9e65	/* USB-65 USB to 9 pin female null modem*/
+#define RTSYSTEMS_USB_92_PID	0x9e66	/* USB-92 USB to 12 pin plug*/
+#define RTSYSTEMS_USB_92D_PID	0x9e67	/* USB-92D USB to 12 pin plug data*/
+#define RTSYSTEMS_USB_W5R_PID	0x9e68	/* USB-W5R USB to 8 pin modular plug*/
+#define RTSYSTEMS_USB_A5R_PID	0x9e69	/* USB-A5R USB to 8 pin modular plug*/
+#define RTSYSTEMS_USB_PW1_PID	0x9e6A	/* USB-PW1 USB to 8 pin modular plug*/
 
 /*
  * Physik Instrumente
@@ -1136,7 +1189,8 @@
  * STMicroelectonics
  */
 #define ST_VID			0x0483
-#define ST_STMCLT1030_PID	0x3747 /* ST Micro Connect Lite STMCLT1030 */
+#define ST_STMCLT_2232_PID	0x3746
+#define ST_STMCLT_4232_PID	0x3747
 
 /*
  * Papouch products (http://www.papouch.com/)
@@ -1265,3 +1319,52 @@
  * Manufacturer: Crucible Technologies
  */
 #define FTDI_CT_COMET_PID	0x8e08
+
+/*
+ * Product: Z3X Box
+ * Manufacturer: Smart GSM Team
+ */
+#define FTDI_Z3X_PID		0x0011
+
+/*
+ * Product: Cressi PC Interface
+ * Manufacturer: Cressi
+ */
+#define FTDI_CRESSI_PID		0x87d0
+
+/*
+ * Brainboxes devices
+ */
+#define BRAINBOXES_VID			0x05d1
+#define BRAINBOXES_VX_001_PID		0x1001 /* VX-001 ExpressCard 1 Port RS232 */
+#define BRAINBOXES_VX_012_PID		0x1002 /* VX-012 ExpressCard 2 Port RS232 */
+#define BRAINBOXES_VX_023_PID		0x1003 /* VX-023 ExpressCard 1 Port RS422/485 */
+#define BRAINBOXES_VX_034_PID		0x1004 /* VX-034 ExpressCard 2 Port RS422/485 */
+#define BRAINBOXES_US_101_PID		0x1011 /* US-101 1xRS232 */
+#define BRAINBOXES_US_324_PID		0x1013 /* US-324 1xRS422/485 1Mbaud */
+#define BRAINBOXES_US_606_1_PID		0x2001 /* US-606 6 Port RS232 Serial Port 1 and 2 */
+#define BRAINBOXES_US_606_2_PID		0x2002 /* US-606 6 Port RS232 Serial Port 3 and 4 */
+#define BRAINBOXES_US_606_3_PID		0x2003 /* US-606 6 Port RS232 Serial Port 4 and 6 */
+#define BRAINBOXES_US_701_1_PID		0x2011 /* US-701 4xRS232 1Mbaud Port 1 and 2 */
+#define BRAINBOXES_US_701_2_PID		0x2012 /* US-701 4xRS422 1Mbaud Port 3 and 4 */
+#define BRAINBOXES_US_279_1_PID		0x2021 /* US-279 8xRS422 1Mbaud Port 1 and 2 */
+#define BRAINBOXES_US_279_2_PID		0x2022 /* US-279 8xRS422 1Mbaud Port 3 and 4 */
+#define BRAINBOXES_US_279_3_PID		0x2023 /* US-279 8xRS422 1Mbaud Port 5 and 6 */
+#define BRAINBOXES_US_279_4_PID		0x2024 /* US-279 8xRS422 1Mbaud Port 7 and 8 */
+#define BRAINBOXES_US_346_1_PID		0x3011 /* US-346 4xRS422/485 1Mbaud Port 1 and 2 */
+#define BRAINBOXES_US_346_2_PID		0x3012 /* US-346 4xRS422/485 1Mbaud Port 3 and 4 */
+#define BRAINBOXES_US_257_PID		0x5001 /* US-257 2xRS232 1Mbaud */
+#define BRAINBOXES_US_313_PID		0x6001 /* US-313 2xRS422/485 1Mbaud */
+#define BRAINBOXES_US_357_PID		0x7001 /* US_357 1xRS232/422/485 */
+#define BRAINBOXES_US_842_1_PID		0x8001 /* US-842 8xRS422/485 1Mbaud Port 1 and 2 */
+#define BRAINBOXES_US_842_2_PID		0x8002 /* US-842 8xRS422/485 1Mbaud Port 3 and 4 */
+#define BRAINBOXES_US_842_3_PID		0x8003 /* US-842 8xRS422/485 1Mbaud Port 5 and 6 */
+#define BRAINBOXES_US_842_4_PID		0x8004 /* US-842 8xRS422/485 1Mbaud Port 7 and 8 */
+#define BRAINBOXES_US_160_1_PID		0x9001 /* US-160 16xRS232 1Mbaud Port 1 and 2 */
+#define BRAINBOXES_US_160_2_PID		0x9002 /* US-160 16xRS232 1Mbaud Port 3 and 4 */
+#define BRAINBOXES_US_160_3_PID		0x9003 /* US-160 16xRS232 1Mbaud Port 5 and 6 */
+#define BRAINBOXES_US_160_4_PID		0x9004 /* US-160 16xRS232 1Mbaud Port 7 and 8 */
+#define BRAINBOXES_US_160_5_PID		0x9005 /* US-160 16xRS232 1Mbaud Port 9 and 10 */
+#define BRAINBOXES_US_160_6_PID		0x9006 /* US-160 16xRS232 1Mbaud Port 11 and 12 */
+#define BRAINBOXES_US_160_7_PID		0x9007 /* US-160 16xRS232 1Mbaud Port 13 and 14 */
+#define BRAINBOXES_US_160_8_PID		0x9008 /* US-160 16xRS232 1Mbaud Port 15 and 16 */

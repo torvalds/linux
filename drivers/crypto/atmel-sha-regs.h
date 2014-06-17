@@ -14,10 +14,13 @@
 #define SHA_MR_MODE_MANUAL		0x0
 #define SHA_MR_MODE_AUTO		0x1
 #define SHA_MR_MODE_PDC			0x2
-#define	SHA_MR_DUALBUFF			(1 << 3)
 #define SHA_MR_PROCDLY			(1 << 4)
 #define SHA_MR_ALGO_SHA1		(0 << 8)
 #define SHA_MR_ALGO_SHA256		(1 << 8)
+#define SHA_MR_ALGO_SHA384		(2 << 8)
+#define SHA_MR_ALGO_SHA512		(3 << 8)
+#define SHA_MR_ALGO_SHA224		(4 << 8)
+#define	SHA_MR_DUALBUFF			(1 << 16)
 
 #define SHA_IER				0x10
 #define SHA_IDR				0x14
@@ -32,6 +35,8 @@
 #define SHA_ISR_URAT_ODR		(0x1 << 12)
 #define SHA_ISR_URAT_MR			(0x2 << 12)
 #define SHA_ISR_URAT_WO			(0x5 << 12)
+
+#define	SHA_HW_VERSION		0xFC
 
 #define SHA_TPR				0x108
 #define SHA_TCR				0x10C

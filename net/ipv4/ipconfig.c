@@ -206,7 +206,7 @@ static int __init ic_open_devs(void)
 	struct ic_device *d, **last;
 	struct net_device *dev;
 	unsigned short oflags;
-	unsigned long start;
+	unsigned long start, next_msg;
 
 	last = &ic_first_dev;
 	rtnl_lock();
@@ -263,12 +263,23 @@ static int __init ic_open_devs(void)
 
 	/* wait for a carrier on at least one device */
 	start = jiffies;
+	next_msg = start + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
 	while (jiffies - start < msecs_to_jiffies(CONF_CARRIER_TIMEOUT)) {
+		int wait, elapsed;
+
 		for_each_netdev(&init_net, dev)
 			if (ic_is_init_dev(dev) && netif_carrier_ok(dev))
 				goto have_carrier;
 
 		msleep(1);
+
+		if (time_before(jiffies, next_msg))
+			continue;
+
+		elapsed = jiffies_to_msecs(jiffies - start);
+		wait = (CONF_CARRIER_TIMEOUT - elapsed + 500)/1000;
+		pr_info("Waiting up to %d more seconds for network.\n", wait);
+		next_msg = jiffies + msecs_to_jiffies(CONF_CARRIER_TIMEOUT/12);
 	}
 have_carrier:
 	rtnl_unlock();
@@ -1394,7 +1405,7 @@ static int __init ip_auto_config(void)
 	unsigned int i;
 
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create(&init_net, "pnp", S_IRUGO, &pnp_seq_fops);
+	proc_create("pnp", S_IRUGO, init_net.proc_net, &pnp_seq_fops);
 #endif /* CONFIG_PROC_FS */
 
 	if (!ic_enable)
@@ -1522,7 +1533,8 @@ static int __init ip_auto_config(void)
 		}
 	for (i++; i < CONF_NAMESERVERS_MAX; i++)
 		if (ic_nameservers[i] != NONE)
-			pr_cont(", nameserver%u=%pI4\n", i, &ic_nameservers[i]);
+			pr_cont(", nameserver%u=%pI4", i, &ic_nameservers[i]);
+	pr_cont("\n");
 #endif /* !SILENT */
 
 	return 0;

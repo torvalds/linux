@@ -640,7 +640,7 @@ out:
 /* This function handles ioctl for the character device */
 static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	long timeout;
 	unsigned long *cpu_addr, data_buffer_length_adjusted = 0, flags = 0;
 	dma_addr_t dma_handle;
@@ -2025,7 +2025,8 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= twa_host_attrs,
-	.emulated		= 1
+	.emulated		= 1,
+	.no_write_same		= 1,
 };
 
 /* This function will probe and initialize a card */

@@ -132,10 +132,8 @@ static void show_trace(struct task_struct *task, unsigned long *stack)
 	printk("Call Trace: ");
 	while (!kstack_end(stack)) {
 		addr = *stack++;
-		if (__kernel_text_address(addr)) {
-			printk("[<%08lx>] ", addr);
-			print_symbol("%s\n", addr);
-		}
+		if (__kernel_text_address(addr))
+			printk("[<%08lx>] %pSR\n", addr, (void *)addr);
 	}
 	printk("\n");
 }
@@ -168,15 +166,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	printk("\n");
 	show_trace(task, sp);
 }
-
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace(current, &stack);
-}
-
-EXPORT_SYMBOL(dump_stack);
 
 static void show_registers(struct pt_regs *regs)
 {

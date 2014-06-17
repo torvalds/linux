@@ -162,7 +162,7 @@ static u8 size_cmd[] = {
 	ARRAY_SIZE(cmm_cmd),
 };
 
-static inline void _cp_fm_usr(void *to, const void __user * from,
+static inline void _cp_fm_usr(void *to, const void __user *from,
 			      int *err, unsigned long bytes)
 {
 	if (*err)
@@ -414,10 +414,13 @@ u32 mgrwrap_register_object(union trapped_args *args, void *pr_ctxt)
 	CP_FM_USR(&uuid_obj, args->args_mgr_registerobject.uuid_obj, status, 1);
 	if (status)
 		goto func_end;
-	/* path_size is increased by 1 to accommodate NULL */
 	path_size = strlen_user((char *)
-				args->args_mgr_registerobject.sz_path_name) +
-	    1;
+				args->args_mgr_registerobject.sz_path_name);
+	if (!path_size) {
+		status = -EINVAL;
+		goto func_end;
+	}
+
 	psz_path_name = kmalloc(path_size, GFP_KERNEL);
 	if (!psz_path_name) {
 		status = -ENOMEM;
@@ -504,7 +507,7 @@ u32 mgrwrap_wait_for_bridge_events(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== MGRWRAP_GetProcessResourceInfo ========
  */
-u32 __deprecated mgrwrap_get_process_resources_info(union trapped_args * args,
+u32 __deprecated mgrwrap_get_process_resources_info(union trapped_args *args,
 						    void *pr_ctxt)
 {
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -578,7 +581,7 @@ func_end:
 /*
  * ======== procwrap_detach ========
  */
-u32 __deprecated procwrap_detach(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated procwrap_detach(union trapped_args *args, void *pr_ctxt)
 {
 	/* proc_detach called at bridge_release only */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1540,7 +1543,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 	if (num_bufs > MAX_BUFS)
 		return -EINVAL;
 
-	ap_buffer = kmalloc((num_bufs * sizeof(u8 *)), GFP_KERNEL);
+	ap_buffer = kmalloc_array(num_bufs, sizeof(u8 *), GFP_KERNEL);
 	if (ap_buffer == NULL)
 		return -ENOMEM;
 
@@ -1561,7 +1564,7 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== strmwrap_get_event_handle ========
  */
-u32 __deprecated strmwrap_get_event_handle(union trapped_args * args,
+u32 __deprecated strmwrap_get_event_handle(union trapped_args *args,
 					   void *pr_ctxt)
 {
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1790,7 +1793,7 @@ u32 strmwrap_select(union trapped_args *args, void *pr_ctxt)
 /*
  * ======== cmmwrap_calloc_buf ========
  */
-u32 __deprecated cmmwrap_calloc_buf(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated cmmwrap_calloc_buf(union trapped_args *args, void *pr_ctxt)
 {
 	/* This operation is done in kernel */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);
@@ -1800,7 +1803,7 @@ u32 __deprecated cmmwrap_calloc_buf(union trapped_args * args, void *pr_ctxt)
 /*
  * ======== cmmwrap_free_buf ========
  */
-u32 __deprecated cmmwrap_free_buf(union trapped_args * args, void *pr_ctxt)
+u32 __deprecated cmmwrap_free_buf(union trapped_args *args, void *pr_ctxt)
 {
 	/* This operation is done in kernel */
 	pr_err("%s: deprecated dspbridge ioctl\n", __func__);

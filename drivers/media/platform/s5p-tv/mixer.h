@@ -19,6 +19,7 @@
 #endif
 
 #include <linux/fb.h>
+#include <linux/irqreturn.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -64,7 +65,7 @@ struct mxr_format {
 	int num_subframes;
 	/** specifies to which subframe belong given plane */
 	int plane2subframe[MXR_MAX_PLANES];
-	/** internal code, driver dependant */
+	/** internal code, driver dependent */
 	unsigned long cookie;
 };
 

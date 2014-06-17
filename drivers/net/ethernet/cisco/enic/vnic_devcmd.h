@@ -281,11 +281,25 @@ enum vnic_devcmd_cmd {
 	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
 	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
 
+	/* INT13 API: (u64)a0=paddr to vnic_int13_params struct
+	 *            (u32)a1=INT13_CMD_xxx
+	 */
+	CMD_INT13_ALL = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 45),
+
+	/* Set default vlan:
+	 * in: (u16)a0=new default vlan
+	 *     (u16)a1=zero for overriding vlan with param a0,
+	 *		       non-zero for resetting vlan to the default
+	 * out: (u16)a0=old default vlan
+	 */
+	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46),
+
 	/* init_prov_info2:
 	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
 	 * the vnic until CMD_ENABLE2 is issued.
 	 *     (u64)a0=paddr of vnic_devcmd_provinfo
-	 *     (u32)a1=sizeof provision info */
+	 *     (u32)a1=sizeof provision info
+	 */
 	CMD_INIT_PROV_INFO2  = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 47),
 
 	/* enable2:
@@ -339,16 +353,57 @@ enum vnic_devcmd_cmd {
 	CMD_INTR_COAL_CONVERT = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 50),
 
 	/*
-	 * cmd_set_mac_addr
-	 *	set mac address
+	 * Set the predefined mac address as default
 	 * in:
 	 *   (u48)a0 = mac addr
-	 *
 	 */
 	CMD_SET_MAC_ADDR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 55),
+
+	/* Update the provisioning info of the given VIF
+	 *     (u64)a0=paddr of vnic_devcmd_provinfo
+	 *     (u32)a1=sizeof provision info
+	 */
+	CMD_PROV_INFO_UPDATE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 56),
+
+	/* Add a filter.
+	 * in: (u64) a0= filter address
+	 *     (u32) a1= size of filter
+	 * out: (u32) a0=filter identifier
+	 */
+	CMD_ADD_FILTER = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 58),
+
+	/* Delete a filter.
+	 * in: (u32) a0=filter identifier
+	 */
+	CMD_DEL_FILTER = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 59),
+
+	/* Enable a Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u32) a1= command
+	 */
+	CMD_QP_ENABLE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 60),
+
+	/* Disable a Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u32) a1= command
+	 */
+	CMD_QP_DISABLE = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 61),
+
+	/* Stats dump Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 *     (u64) a1=host buffer addr for status dump
+	 *     (u32) a2=length of the buffer
+	 */
+	CMD_QP_STATS_DUMP = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 62),
+
+	/* Clear stats for Queue Pair in User space NIC
+	 * in: (u32) a0=Queue Pair number
+	 */
+	CMD_QP_STATS_CLEAR = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 63),
 };
 
 /* CMD_ENABLE2 flags */
+#define CMD_ENABLE2_STANDBY 0x0
 #define CMD_ENABLE2_ACTIVE  0x1
 
 /* flags for CMD_OPEN */
@@ -363,6 +418,9 @@ enum vnic_devcmd_cmd {
 #define CMD_PFILTER_BROADCAST		0x04
 #define CMD_PFILTER_PROMISCUOUS		0x08
 #define CMD_PFILTER_ALL_MULTICAST	0x10
+
+/* Commands for CMD_QP_ENABLE/CM_QP_DISABLE */
+#define CMD_QP_RQWQ                     0x0
 
 /* rewrite modes for CMD_IG_VLAN_REWRITE_MODE */
 #define IG_VLAN_REWRITE_MODE_DEFAULT_TRUNK              0
@@ -390,6 +448,7 @@ enum vnic_devcmd_error {
 	ERR_EMAXRES = 10,
 	ERR_ENOTSUPPORTED = 11,
 	ERR_EINPROGRESS = 12,
+	ERR_MAX
 };
 
 /*
@@ -433,6 +492,115 @@ struct vnic_devcmd_provinfo {
 	u8 oui[3];
 	u8 type;
 	u8 data[0];
+};
+
+/* These are used in flags field of different filters to denote
+ * valid fields used.
+ */
+#define FILTER_FIELD_VALID(fld) (1 << (fld - 1))
+
+#define FILTER_FIELDS_USNIC ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2) | \
+			FILTER_FIELD_VALID(3) | \
+			FILTER_FIELD_VALID(4))
+
+#define FILTER_FIELDS_IPV4_5TUPLE ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2) | \
+			FILTER_FIELD_VALID(3) | \
+			FILTER_FIELD_VALID(4) | \
+			FILTER_FIELD_VALID(5))
+
+#define FILTER_FIELDS_MAC_VLAN ( \
+			FILTER_FIELD_VALID(1) | \
+			FILTER_FIELD_VALID(2))
+
+#define FILTER_FIELD_USNIC_VLAN    FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_USNIC_ETHTYPE FILTER_FIELD_VALID(2)
+#define FILTER_FIELD_USNIC_PROTO   FILTER_FIELD_VALID(3)
+#define FILTER_FIELD_USNIC_ID      FILTER_FIELD_VALID(4)
+
+struct filter_usnic_id {
+	u32 flags;
+	u16 vlan;
+	u16 ethtype;
+	u8 proto_version;
+	u32 usnic_id;
+} __packed;
+
+#define FILTER_FIELD_5TUP_PROTO  FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_5TUP_SRC_AD FILTER_FIELD_VALID(2)
+#define FILTER_FIELD_5TUP_DST_AD FILTER_FIELD_VALID(3)
+#define FILTER_FIELD_5TUP_SRC_PT FILTER_FIELD_VALID(4)
+#define FILTER_FIELD_5TUP_DST_PT FILTER_FIELD_VALID(5)
+
+/* Enums for the protocol field. */
+enum protocol_e {
+	PROTO_UDP = 0,
+	PROTO_TCP = 1,
+};
+
+struct filter_ipv4_5tuple {
+	u32 flags;
+	u32 protocol;
+	u32 src_addr;
+	u32 dst_addr;
+	u16 src_port;
+	u16 dst_port;
+} __packed;
+
+#define FILTER_FIELD_VMQ_VLAN   FILTER_FIELD_VALID(1)
+#define FILTER_FIELD_VMQ_MAC    FILTER_FIELD_VALID(2)
+
+struct filter_mac_vlan {
+	u32 flags;
+	u16 vlan;
+	u8 mac_addr[6];
+} __packed;
+
+/* Specifies the filter_action type. */
+enum {
+	FILTER_ACTION_RQ_STEERING = 0,
+	FILTER_ACTION_MAX
+};
+
+struct filter_action {
+	u32 type;
+	union {
+		u32 rq_idx;
+	} u;
+} __packed;
+
+/* Specifies the filter type. */
+enum filter_type {
+	FILTER_USNIC_ID = 0,
+	FILTER_IPV4_5TUPLE = 1,
+	FILTER_MAC_VLAN = 2,
+	FILTER_MAX
+};
+
+struct filter {
+	u32 type;
+	union {
+		struct filter_usnic_id usnic;
+		struct filter_ipv4_5tuple ipv4;
+		struct filter_mac_vlan mac_vlan;
+	} u;
+} __packed;
+
+enum {
+	CLSF_TLV_FILTER = 0,
+	CLSF_TLV_ACTION = 1,
+};
+
+/* Maximum size of buffer to CMD_ADD_FILTER */
+#define FILTER_MAX_BUF_SIZE 100
+
+struct filter_tlv {
+	u_int32_t type;
+	u_int32_t length;
+	u_int32_t val[0];
 };
 
 /*

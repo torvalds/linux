@@ -55,6 +55,10 @@ nva3_hdmi_ctrl(struct nv50_disp_priv *priv, int head, int or, u32 data)
 	nv_wr32(priv, 0x61c510 + soff, 0x00000000);
 	nv_mask(priv, 0x61c500 + soff, 0x00000001, 0x00000001);
 
+	nv_mask(priv, 0x61c5d0 + soff, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
+	nv_mask(priv, 0x61c568 + soff, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
+	nv_mask(priv, 0x61c578 + soff, 0x80000000, 0x80000000); /* ACR_0441_ENABLE */
+
 	/* ??? */
 	nv_mask(priv, 0x61733c, 0x00100000, 0x00100000); /* RESETF */
 	nv_mask(priv, 0x61733c, 0x10000000, 0x10000000); /* LOOKUP_EN */

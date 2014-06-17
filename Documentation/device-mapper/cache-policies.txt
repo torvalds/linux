@@ -1,0 +1,91 @@
+Guidance for writing policies
+=============================
+
+Try to keep transactionality out of it.  The core is careful to
+avoid asking about anything that is migrating.  This is a pain, but
+makes it easier to write the policies.
+
+Mappings are loaded into the policy at construction time.
+
+Every bio that is mapped by the target is referred to the policy.
+The policy can return a simple HIT or MISS or issue a migration.
+
+Currently there's no way for the policy to issue background work,
+e.g. to start writing back dirty blocks that are going to be evicte
+soon.
+
+Because we map bios, rather than requests it's easy for the policy
+to get fooled by many small bios.  For this reason the core target
+issues periodic ticks to the policy.  It's suggested that the policy
+doesn't update states (eg, hit counts) for a block more than once
+for each tick.  The core ticks by watching bios complete, and so
+trying to see when the io scheduler has let the ios run.
+
+
+Overview of supplied cache replacement policies
+===============================================
+
+multiqueue
+----------
+
+This policy is the default.
+
+The multiqueue policy has three sets of 16 queues: one set for entries
+waiting for the cache and another two for those in the cache (a set for
+clean entries and a set for dirty entries).
+
+Cache entries in the queues are aged based on logical time. Entry into
+the cache is based on variable thresholds and queue selection is based
+on hit count on entry. The policy aims to take different cache miss
+costs into account and to adjust to varying load patterns automatically.
+
+Message and constructor argument pairs are:
+	'sequential_threshold <#nr_sequential_ios>'
+	'random_threshold <#nr_random_ios>'
+	'read_promote_adjustment <value>'
+	'write_promote_adjustment <value>'
+	'discard_promote_adjustment <value>'
+
+The sequential threshold indicates the number of contiguous I/Os
+required before a stream is treated as sequential.  The random threshold
+is the number of intervening non-contiguous I/Os that must be seen
+before the stream is treated as random again.
+
+The sequential and random thresholds default to 512 and 4 respectively.
+
+Large, sequential ios are probably better left on the origin device
+since spindles tend to have good bandwidth. The io_tracker counts
+contiguous I/Os to try to spot when the io is in one of these sequential
+modes.
+
+Internally the mq policy maintains a promotion threshold variable.  If
+the hit count of a block not in the cache goes above this threshold it
+gets promoted to the cache.  The read, write and discard promote adjustment
+tunables allow you to tweak the promotion threshold by adding a small
+value based on the io type.  They default to 4, 8 and 1 respectively.
+If you're trying to quickly warm a new cache device you may wish to
+reduce these to encourage promotion.  Remember to switch them back to
+their defaults after the cache fills though.
+
+cleaner
+-------
+
+The cleaner writes back all dirty blocks in a cache to decommission it.
+
+Examples
+========
+
+The syntax for a table is:
+	cache <metadata dev> <cache dev> <origin dev> <block size>
+	<#feature_args> [<feature arg>]*
+	<policy> <#policy_args> [<policy arg>]*
+
+The syntax to send a message using the dmsetup command is:
+	dmsetup message <mapped device> 0 sequential_threshold 1024
+	dmsetup message <mapped device> 0 random_threshold 8
+
+Using dmsetup:
+	dmsetup create blah --table "0 268435456 cache /dev/sdb /dev/sdc \
+	    /dev/sdd 512 0 mq 4 sequential_threshold 1024 random_threshold 8"
+	creates a 128GB large mapped device named 'blah' with the
+	sequential threshold set to 1024 and the random_threshold set to 8.

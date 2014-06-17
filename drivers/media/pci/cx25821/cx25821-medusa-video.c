@@ -94,8 +94,6 @@ static int medusa_initialize_ntsc(struct cx25821_dev *dev)
 	u32 value = 0;
 	u32 tmp = 0;
 
-	mutex_lock(&dev->lock);
-
 	for (i = 0; i < MAX_DECODERS; i++) {
 		/* set video format NTSC-M */
 		value = cx25821_i2c_read(&dev->i2c_bus[0],
@@ -222,8 +220,6 @@ static int medusa_initialize_ntsc(struct cx25821_dev *dev)
 	value |= 0x00080200;
 	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], BYP_AB_CTRL, value);
 
-	mutex_unlock(&dev->lock);
-
 	return ret_val;
 }
 
@@ -264,8 +260,6 @@ static int medusa_initialize_pal(struct cx25821_dev *dev)
 	int i = 0;
 	u32 value = 0;
 	u32 tmp = 0;
-
-	mutex_lock(&dev->lock);
 
 	for (i = 0; i < MAX_DECODERS; i++) {
 		/* set video format PAL-BDGHI */
@@ -397,14 +391,12 @@ static int medusa_initialize_pal(struct cx25821_dev *dev)
 	value &= 0xFFF7FDFF;
 	ret_val = cx25821_i2c_write(&dev->i2c_bus[0], BYP_AB_CTRL, value);
 
-	mutex_unlock(&dev->lock);
-
 	return ret_val;
 }
 
 int medusa_set_videostandard(struct cx25821_dev *dev)
 {
-	int status = STATUS_SUCCESS;
+	int status = 0;
 	u32 value = 0, tmp = 0;
 
 	if (dev->tvnorm & V4L2_STD_PAL_BG || dev->tvnorm & V4L2_STD_PAL_DK)
@@ -434,8 +426,6 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 	u32 vscale = 0x0;
 	const int MAX_WIDTH = 720;
 
-	mutex_lock(&dev->lock);
-
 	/* validate the width */
 	if (width > MAX_WIDTH) {
 		pr_info("%s(): width %d > MAX_WIDTH %d ! resetting to MAX_WIDTH\n",
@@ -448,7 +438,7 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 		decoder_count = decoder_select + 1;
 	} else {
 		decoder = 0;
-		decoder_count = _num_decoders;
+		decoder_count = dev->_max_num_decoders;
 	}
 
 	switch (width) {
@@ -485,8 +475,6 @@ void medusa_set_resolution(struct cx25821_dev *dev, int width,
 		cx25821_i2c_write(&dev->i2c_bus[0],
 				VSCALE_CTRL + (0x200 * decoder), vscale);
 	}
-
-	mutex_unlock(&dev->lock);
 }
 
 static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
@@ -496,11 +484,8 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 	u32 tmp = 0;
 	u32 disp_cnt_reg = DISP_AB_CNT;
 
-	mutex_lock(&dev->lock);
-
 	/* no support */
 	if (decoder < VDEC_A || decoder > VDEC_H) {
-		mutex_unlock(&dev->lock);
 		return;
 	}
 
@@ -521,8 +506,6 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 		break;
 	}
 
-	_display_field_cnt[decoder] = duration;
-
 	/* update hardware */
 	fld_cnt = cx25821_i2c_read(&dev->i2c_bus[0], disp_cnt_reg, &tmp);
 
@@ -535,8 +518,6 @@ static void medusa_set_decoderduration(struct cx25821_dev *dev, int decoder,
 	}
 
 	cx25821_i2c_write(&dev->i2c_bus[0], disp_cnt_reg, fld_cnt);
-
-	mutex_unlock(&dev->lock);
 }
 
 /* Map to Medusa register setting */
@@ -587,10 +568,8 @@ int medusa_set_brightness(struct cx25821_dev *dev, int brightness, int decoder)
 	int value = 0;
 	u32 val = 0, tmp = 0;
 
-	mutex_lock(&dev->lock);
 	if ((brightness > VIDEO_PROCAMP_MAX) ||
 	    (brightness < VIDEO_PROCAMP_MIN)) {
-		mutex_unlock(&dev->lock);
 		return -1;
 	}
 	ret_val = mapM(VIDEO_PROCAMP_MIN, VIDEO_PROCAMP_MAX, brightness,
@@ -601,7 +580,6 @@ int medusa_set_brightness(struct cx25821_dev *dev, int brightness, int decoder)
 	val &= 0xFFFFFF00;
 	ret_val |= cx25821_i2c_write(&dev->i2c_bus[0],
 			VDEC_A_BRITE_CTRL + (0x200 * decoder), val | value);
-	mutex_unlock(&dev->lock);
 	return ret_val;
 }
 
@@ -611,10 +589,7 @@ int medusa_set_contrast(struct cx25821_dev *dev, int contrast, int decoder)
 	int value = 0;
 	u32 val = 0, tmp = 0;
 
-	mutex_lock(&dev->lock);
-
 	if ((contrast > VIDEO_PROCAMP_MAX) || (contrast < VIDEO_PROCAMP_MIN)) {
-		mutex_unlock(&dev->lock);
 		return -1;
 	}
 
@@ -626,7 +601,6 @@ int medusa_set_contrast(struct cx25821_dev *dev, int contrast, int decoder)
 	ret_val |= cx25821_i2c_write(&dev->i2c_bus[0],
 			VDEC_A_CNTRST_CTRL + (0x200 * decoder), val | value);
 
-	mutex_unlock(&dev->lock);
 	return ret_val;
 }
 
@@ -636,10 +610,7 @@ int medusa_set_hue(struct cx25821_dev *dev, int hue, int decoder)
 	int value = 0;
 	u32 val = 0, tmp = 0;
 
-	mutex_lock(&dev->lock);
-
 	if ((hue > VIDEO_PROCAMP_MAX) || (hue < VIDEO_PROCAMP_MIN)) {
-		mutex_unlock(&dev->lock);
 		return -1;
 	}
 
@@ -654,7 +625,6 @@ int medusa_set_hue(struct cx25821_dev *dev, int hue, int decoder)
 	ret_val |= cx25821_i2c_write(&dev->i2c_bus[0],
 			VDEC_A_HUE_CTRL + (0x200 * decoder), val | value);
 
-	mutex_unlock(&dev->lock);
 	return ret_val;
 }
 
@@ -664,11 +634,8 @@ int medusa_set_saturation(struct cx25821_dev *dev, int saturation, int decoder)
 	int value = 0;
 	u32 val = 0, tmp = 0;
 
-	mutex_lock(&dev->lock);
-
 	if ((saturation > VIDEO_PROCAMP_MAX) ||
 	    (saturation < VIDEO_PROCAMP_MIN)) {
-		mutex_unlock(&dev->lock);
 		return -1;
 	}
 
@@ -687,7 +654,6 @@ int medusa_set_saturation(struct cx25821_dev *dev, int saturation, int decoder)
 	ret_val |= cx25821_i2c_write(&dev->i2c_bus[0],
 			VDEC_A_VSAT_CTRL + (0x200 * decoder), val | value);
 
-	mutex_unlock(&dev->lock);
 	return ret_val;
 }
 
@@ -698,10 +664,6 @@ int medusa_video_init(struct cx25821_dev *dev)
 	u32 value = 0, tmp = 0;
 	int ret_val = 0;
 	int i = 0;
-
-	mutex_lock(&dev->lock);
-
-	_num_decoders = dev->_max_num_decoders;
 
 	/* disable Auto source selection on all video decoders */
 	value = cx25821_i2c_read(&dev->i2c_bus[0], MON_A_CTRL, &tmp);
@@ -719,12 +681,14 @@ int medusa_video_init(struct cx25821_dev *dev)
 	if (ret_val < 0)
 		goto error;
 
-	mutex_unlock(&dev->lock);
-
-	for (i = 0; i < _num_decoders; i++)
-		medusa_set_decoderduration(dev, i, _display_field_cnt[i]);
-
-	mutex_lock(&dev->lock);
+	/*
+	 * FIXME: due to a coding bug the duration was always 0. It's
+	 * likely that it really should be something else, but due to the
+	 * lack of documentation I have no idea what it should be. For
+	 * now just fill in 0 as the duration.
+	 */
+	for (i = 0; i < dev->_max_num_decoders; i++)
+		medusa_set_decoderduration(dev, i, 0);
 
 	/* Select monitor as DENC A input, power up the DAC */
 	value = cx25821_i2c_read(&dev->i2c_bus[0], DENC_AB_CTRL, &tmp);
@@ -755,7 +719,7 @@ int medusa_video_init(struct cx25821_dev *dev)
 	/* Turn on all of the data out and control output pins. */
 	value = cx25821_i2c_read(&dev->i2c_bus[0], PIN_OE_CTRL, &tmp);
 	value &= 0xFEF0FE00;
-	if (_num_decoders == MAX_DECODERS) {
+	if (dev->_max_num_decoders == MAX_DECODERS) {
 		/*
 		 * Note: The octal board does not support control pins(bit16-19)
 		 * These bits are ignored in the octal board.
@@ -774,14 +738,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 	if (ret_val < 0)
 		goto error;
 
-
-	mutex_unlock(&dev->lock);
-
 	ret_val = medusa_set_videostandard(dev);
 
-	return ret_val;
-
 error:
-	mutex_unlock(&dev->lock);
 	return ret_val;
 }

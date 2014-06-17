@@ -119,16 +119,14 @@ static struct dmm_map_object *add_mapping_info(struct process_context *pr_ctxt,
 						dsp_addr, size);
 
 	map_obj = kzalloc(sizeof(struct dmm_map_object), GFP_KERNEL);
-	if (!map_obj) {
-		pr_err("%s: kzalloc failed\n", __func__);
+	if (!map_obj)
 		return NULL;
-	}
+
 	INIT_LIST_HEAD(&map_obj->link);
 
 	map_obj->pages = kcalloc(num_usr_pgs, sizeof(struct page *),
-							GFP_KERNEL);
+				 GFP_KERNEL);
 	if (!map_obj->pages) {
-		pr_err("%s: kzalloc failed\n", __func__);
 		kfree(map_obj);
 		return NULL;
 	}
@@ -382,7 +380,6 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 				u32 size, char *exec_file)
 {
 	u8 dev_type;
-	s32 len;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	dev_get_dev_type(hdev_obj, (u8 *) &dev_type);
@@ -394,13 +391,10 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 		if (!drv_datap || !drv_datap->base_img)
 			return -EFAULT;
 
-		if (strlen(drv_datap->base_img) > size)
+		if (strlen(drv_datap->base_img) >= size)
 			return -EINVAL;
 
 		strcpy(exec_file, drv_datap->base_img);
-	} else if (dev_type == IVA_UNIT && iva_img) {
-		len = strlen(iva_img);
-		strncpy(exec_file, iva_img, len + 1);
 	} else {
 		return -ENOENT;
 	}
@@ -494,7 +488,7 @@ func_end:
  *      Call the bridge_dev_ctrl fxn with the Argument. This is a Synchronous
  *      Operation. arg can be null.
  */
-int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata * arg)
+int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata *arg)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = hprocessor;
@@ -697,7 +691,6 @@ static int memory_give_ownership(struct dmm_map_object *map_obj,
 
 	sg = kcalloc(num_pages, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
-		pr_err("%s: kcalloc failed\n", __func__);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -989,7 +982,7 @@ int proc_get_state(void *hprocessor,
  *      This call is destructive, meaning the processor is placed in the monitor
  *      state as a result of this function.
  */
-int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size)
+int proc_get_trace(void *hprocessor, u8 *pbuf, u32 max_size)
 {
 	int status;
 	status = -ENOSYS;
@@ -1231,12 +1224,8 @@ int proc_load(void *hprocessor, const s32 argc_index,
 				(p_proc_object->bridge_context, &brd_state))) {
 			pr_info("%s: Processor Loaded %s\n", __func__, pargv0);
 			kfree(drv_datap->base_img);
-			drv_datap->base_img = kmalloc(strlen(pargv0) + 1,
-								GFP_KERNEL);
-			if (drv_datap->base_img)
-				strncpy(drv_datap->base_img, pargv0,
-							strlen(pargv0) + 1);
-			else
+			drv_datap->base_img = kstrdup(pargv0, GFP_KERNEL);
+			if (!drv_datap->base_img)
 				status = -ENOMEM;
 		}
 	}
@@ -1349,7 +1338,7 @@ func_end:
  */
 int proc_register_notify(void *hprocessor, u32 event_mask,
 				u32 notify_type, struct dsp_notification
-				* hnotification)
+				*hnotification)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
@@ -1560,8 +1549,8 @@ int proc_stop(void *hprocessor)
 		status = node_enum_nodes(hnode_mgr, &hnode, node_tab_size,
 					 &num_nodes, &nodes_allocated);
 		if ((status == -EINVAL) || (nodes_allocated > 0)) {
-			pr_err("%s: Can't stop device, active nodes = %d \n",
-			       __func__, nodes_allocated);
+			pr_err("%s: Can't stop device, active nodes = %d\n",
+				__func__, nodes_allocated);
 			return -EBADR;
 		}
 	}
@@ -1830,7 +1819,7 @@ func_end:
  *  Purpose:
  *      Retrieves the processor ID.
  */
-int proc_get_processor_id(void *proc, u32 * proc_id)
+int proc_get_processor_id(void *proc, u32 *proc_id)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;

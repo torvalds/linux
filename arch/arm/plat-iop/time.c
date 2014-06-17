@@ -22,9 +22,9 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/export.h>
+#include <linux/sched_clock.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/sched_clock.h>
 #include <asm/uaccess.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
@@ -54,7 +54,7 @@ static struct clocksource iop_clocksource = {
 /*
  * IOP sched_clock() implementation via its clocksource.
  */
-static u32 notrace iop_read_sched_clock(void)
+static u64 notrace iop_read_sched_clock(void)
 {
 	return 0xffffffffu - read_tcr1();
 }
@@ -127,7 +127,7 @@ iop_timer_interrupt(int irq, void *dev_id)
 static struct irqaction iop_timer_irq = {
 	.name		= "IOP Timer Tick",
 	.handler	= iop_timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL,
 	.dev_id		= &iop_clockevent,
 };
 
@@ -142,7 +142,7 @@ void __init iop_init_time(unsigned long tick_rate)
 {
 	u32 timer_ctl;
 
-	setup_sched_clock(iop_read_sched_clock, 32, tick_rate);
+	sched_clock_register(iop_read_sched_clock, 32, tick_rate);
 
 	ticks_per_jiffy = DIV_ROUND_CLOSEST(tick_rate, HZ);
 	iop_tick_rate = tick_rate;
@@ -156,14 +156,9 @@ void __init iop_init_time(unsigned long tick_rate)
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
 	write_tisr(1);
 	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
-	clockevents_calc_mult_shift(&iop_clockevent,
-				    tick_rate, IOP_MIN_RANGE);
-	iop_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &iop_clockevent);
-	iop_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xf, &iop_clockevent);
 	iop_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&iop_clockevent);
+	clockevents_config_and_register(&iop_clockevent, tick_rate,
+					0xf, 0xfffffffe);
 
 	/*
 	 * Set up free-running clocksource timer 1.

@@ -205,7 +205,7 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 	return ret;
 }
 
-int ibmebus_register_driver(struct of_platform_driver *drv)
+int ibmebus_register_driver(struct platform_driver *drv)
 {
 	/* If the driver uses devices that ibmebus doesn't know, add them */
 	ibmebus_create_devices(drv->driver.of_match_table);
@@ -215,7 +215,7 @@ int ibmebus_register_driver(struct of_platform_driver *drv)
 }
 EXPORT_SYMBOL(ibmebus_register_driver);
 
-void ibmebus_unregister_driver(struct of_platform_driver *drv)
+void ibmebus_unregister_driver(struct platform_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
@@ -292,6 +292,7 @@ out:
 		return rc;
 	return count;
 }
+static BUS_ATTR(probe, S_IWUSR, NULL, ibmebus_store_probe);
 
 static ssize_t ibmebus_store_remove(struct bus_type *bus,
 				    const char *buf, size_t count)
@@ -317,13 +318,14 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 		return -ENODEV;
 	}
 }
+static BUS_ATTR(remove, S_IWUSR, NULL, ibmebus_store_remove);
 
-
-static struct bus_attribute ibmebus_bus_attrs[] = {
-	__ATTR(probe, S_IWUSR, NULL, ibmebus_store_probe),
-	__ATTR(remove, S_IWUSR, NULL, ibmebus_store_remove),
-	__ATTR_NULL
+static struct attribute *ibmbus_bus_attrs[] = {
+	&bus_attr_probe.attr,
+	&bus_attr_remove.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ibmbus_bus);
 
 static int ibmebus_bus_bus_match(struct device *dev, struct device_driver *drv)
 {
@@ -338,11 +340,10 @@ static int ibmebus_bus_bus_match(struct device *dev, struct device_driver *drv)
 static int ibmebus_bus_device_probe(struct device *dev)
 {
 	int error = -ENODEV;
-	struct of_platform_driver *drv;
+	struct platform_driver *drv;
 	struct platform_device *of_dev;
-	const struct of_device_id *match;
 
-	drv = to_of_platform_driver(dev->driver);
+	drv = to_platform_driver(dev->driver);
 	of_dev = to_platform_device(dev);
 
 	if (!drv->probe)
@@ -350,9 +351,8 @@ static int ibmebus_bus_device_probe(struct device *dev)
 
 	of_dev_get(of_dev);
 
-	match = of_match_device(drv->driver.of_match_table, dev);
-	if (match)
-		error = drv->probe(of_dev, match);
+	if (of_driver_match_device(dev, dev->driver))
+		error = drv->probe(of_dev);
 	if (error)
 		of_dev_put(of_dev);
 
@@ -362,7 +362,7 @@ static int ibmebus_bus_device_probe(struct device *dev)
 static int ibmebus_bus_device_remove(struct device *dev)
 {
 	struct platform_device *of_dev = to_platform_device(dev);
-	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 
 	if (dev->driver && drv->remove)
 		drv->remove(of_dev);
@@ -372,7 +372,7 @@ static int ibmebus_bus_device_remove(struct device *dev)
 static void ibmebus_bus_device_shutdown(struct device *dev)
 {
 	struct platform_device *of_dev = to_platform_device(dev);
-	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 
 	if (dev->driver && drv->shutdown)
 		drv->shutdown(of_dev);
@@ -419,7 +419,7 @@ struct device_attribute ibmebus_bus_device_attrs[] = {
 static int ibmebus_bus_legacy_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct platform_device *of_dev = to_platform_device(dev);
-	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 	int ret = 0;
 
 	if (dev->driver && drv->suspend)
@@ -430,7 +430,7 @@ static int ibmebus_bus_legacy_suspend(struct device *dev, pm_message_t mesg)
 static int ibmebus_bus_legacy_resume(struct device *dev)
 {
 	struct platform_device *of_dev = to_platform_device(dev);
-	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
+	struct platform_driver *drv = to_platform_driver(dev->driver);
 	int ret = 0;
 
 	if (dev->driver && drv->resume)
@@ -715,7 +715,7 @@ static struct dev_pm_ops ibmebus_bus_dev_pm_ops = {
 struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
 	.uevent    = of_device_uevent_modalias,
-	.bus_attrs = ibmebus_bus_attrs,
+	.bus_groups = ibmbus_bus_groups,
 	.match     = ibmebus_bus_bus_match,
 	.probe     = ibmebus_bus_device_probe,
 	.remove    = ibmebus_bus_device_remove,

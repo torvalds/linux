@@ -20,6 +20,8 @@
 #include <linux/sched.h>
 #include <linux/usb/g_hid.h>
 
+#include "u_f.h"
+
 static int major, minors;
 static struct class *hidg_class;
 
@@ -334,20 +336,10 @@ static int f_hidg_open(struct inode *inode, struct file *fd)
 /*-------------------------------------------------------------------------*/
 /*                                usb_function                             */
 
-static struct usb_request *hidg_alloc_ep_req(struct usb_ep *ep, unsigned length)
+static inline struct usb_request *hidg_alloc_ep_req(struct usb_ep *ep,
+						    unsigned length)
 {
-	struct usb_request *req;
-
-	req = usb_ep_alloc_request(ep, GFP_ATOMIC);
-	if (req) {
-		req->length = length;
-		req->buf = kmalloc(length, GFP_ATOMIC);
-		if (!req->buf) {
-			usb_ep_free_request(ep, req);
-			req = NULL;
-		}
-	}
-	return req;
+	return alloc_ep_req(ep, length, length);
 }
 
 static void hidg_set_report_complete(struct usb_ep *ep, struct usb_request *req)

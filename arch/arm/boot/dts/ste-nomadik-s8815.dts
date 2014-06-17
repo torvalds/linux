@@ -1,0 +1,101 @@
+/*
+ * Device Tree for the ST-Ericsson Nomadik S8815 board
+ * Produced by Calao Systems
+ */
+
+/dts-v1/;
+/include/ "ste-nomadik-stn8815.dtsi"
+
+/ {
+	model = "Calao Systems USB-S8815";
+	compatible = "calaosystems,usb-s8815";
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
+	};
+
+	/* This is where the interrupt is routed on the S8815 board */
+	external-bus@34000000 {
+		ethernet@300 {
+			interrupt-parent = <&gpio3>;
+			interrupts = <8 0x1>;
+		};
+	};
+
+	src@101e0000 {
+		/* These chrystal drivers are not used on this board */
+		disable-sxtalo;
+		disable-mxtalo;
+	};
+
+	pinctrl {
+		/* Hog CD pins */
+		pinctrl-names = "default";
+		pinctrl-0 = <&cd_default_mode>;
+
+		mmcsd-cd {
+			cd_default_mode: cd_default {
+				cd_default_cfg1 {
+					/* CD input GPIO */
+					ste,pins = "GPIO111_H21";
+					ste,input = <0>;
+				};
+				cd_default_cfg2 {
+					/* CD GPIO biasing */
+					ste,pins = "GPIO112_J21";
+					ste,output = <0>;
+				};
+			};
+		};
+		user-led {
+			user_led_default_mode: user_led_default {
+				user_led_default_cfg {
+					ste,pins = "GPIO2_C5";
+					ste,output = <1>;
+				};
+			};
+		};
+		user-button {
+			user_button_default_mode: user_button_default {
+				user_button_default_cfg {
+					ste,pins = "GPIO3_A4";
+					ste,input = <0>;
+				};
+			};
+		};
+	};
+
+	/* Custom board node with GPIO pins to active etc */
+	usb-s8815 {
+		/* This will bias the MMC/SD card detect line */
+		mmcsd-gpio {
+			gpios = <&gpio3 16 0x1>;
+		};
+	};
+
+	/* The user LED on the board is set up to be used for heartbeat */
+	leds {
+		compatible = "gpio-leds";
+		user-led {
+			label = "user_led";
+			gpios = <&gpio0 2 0x1>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_led_default_mode>;
+		};
+	};
+
+	/* User key mapped in as "escape" */
+	gpio-keys {
+		compatible = "gpio-keys";
+		user-button {
+			label = "user_button";
+			gpios = <&gpio0 3 0x1>;
+			linux,code = <1>; /* KEY_ESC */
+			gpio-key,wakeup;
+			pinctrl-names = "default";
+			pinctrl-0 = <&user_button_default_mode>;
+		};
+	};
+};

@@ -47,12 +47,13 @@ FORCE : $(obj)/$(offsets-file)
 
 ccflags-y := -Ivirt/kvm -Iarch/ia64/kvm/
 asflags-y := -Ivirt/kvm -Iarch/ia64/kvm/
+KVM := ../../../virt/kvm
 
-common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
-		coalesced_mmio.o irq_comm.o assigned-dev.o)
+common-objs = $(KVM)/kvm_main.o $(KVM)/ioapic.o \
+		$(KVM)/coalesced_mmio.o $(KVM)/irq_comm.o
 
-ifeq ($(CONFIG_IOMMU_API),y)
-common-objs += $(addprefix ../../../virt/kvm/, iommu.o)
+ifeq ($(CONFIG_KVM_DEVICE_ASSIGNMENT),y)
+common-objs += $(KVM)/assigned-dev.o $(KVM)/iommu.o
 endif
 
 kvm-objs := $(common-objs) kvm-ia64.o kvm_fw.o

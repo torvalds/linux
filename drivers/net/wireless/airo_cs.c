@@ -23,7 +23,6 @@
 #ifdef __IN_PCMCIA_PACKAGE__
 #include <pcmcia/k_compat.h>
 #endif
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
@@ -69,10 +68,9 @@ static int airo_probe(struct pcmcia_device *p_dev)
 
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
-	if (!local) {
-		printk(KERN_ERR "airo_cs: no memory for new device\n");
+	if (!local)
 		return -ENOMEM;
-	}
+
 	p_dev->priv = local;
 
 	return airo_config(p_dev);
@@ -181,16 +179,7 @@ static struct pcmcia_driver airo_driver = {
 	.suspend	= airo_suspend,
 	.resume		= airo_resume,
 };
-
-static int __init airo_cs_init(void)
-{
-	return pcmcia_register_driver(&airo_driver);
-}
-
-static void __exit airo_cs_cleanup(void)
-{
-	pcmcia_unregister_driver(&airo_driver);
-}
+module_pcmcia_driver(airo_driver);
 
 /*
     This program is free software; you can redistribute it and/or
@@ -230,6 +219,3 @@ static void __exit airo_cs_cleanup(void)
     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 */
-
-module_init(airo_cs_init);
-module_exit(airo_cs_cleanup);

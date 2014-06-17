@@ -144,18 +144,29 @@ extern int timer_through_8259;
 	(mp_irq_entries && !skip_ioapic_setup && io_apic_irqs)
 
 struct io_apic_irq_attr;
+struct irq_cfg;
 extern int io_apic_set_pci_routing(struct device *dev, int irq,
 		 struct io_apic_irq_attr *irq_attr);
 void setup_IO_APIC_irq_extra(u32 gsi);
 extern void ioapic_insert_resources(void);
 
+extern int native_setup_ioapic_entry(int, struct IO_APIC_route_entry *,
+				     unsigned int, int,
+				     struct io_apic_irq_attr *);
+extern int native_setup_ioapic_entry(int, struct IO_APIC_route_entry *,
+				     unsigned int, int,
+				     struct io_apic_irq_attr *);
+extern void eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg);
+
+extern void native_compose_msi_msg(struct pci_dev *pdev,
+				   unsigned int irq, unsigned int dest,
+				   struct msi_msg *msg, u8 hpet_id);
+extern void native_eoi_ioapic_pin(int apic, int pin, int vector);
 int io_apic_setup_irq_pin_once(unsigned int irq, int node, struct io_apic_irq_attr *attr);
 
 extern int save_ioapic_entries(void);
 extern void mask_ioapic_entries(void);
 extern int restore_ioapic_entries(void);
-
-extern int get_nr_irqs_gsi(void);
 
 extern void setup_ioapic_ids_from_mpc(void);
 extern void setup_ioapic_ids_from_mpc_nocheck(void);
@@ -179,6 +190,12 @@ extern void __init native_io_apic_init_mappings(void);
 extern unsigned int native_io_apic_read(unsigned int apic, unsigned int reg);
 extern void native_io_apic_write(unsigned int apic, unsigned int reg, unsigned int val);
 extern void native_io_apic_modify(unsigned int apic, unsigned int reg, unsigned int val);
+extern void native_disable_io_apic(void);
+extern void native_io_apic_print_entries(unsigned int apic, unsigned int nr_entries);
+extern void intel_ir_io_apic_print_entries(unsigned int apic, unsigned int nr_entries);
+extern int native_ioapic_set_affinity(struct irq_data *,
+				      const struct cpumask *,
+				      bool);
 
 static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
 {
@@ -193,6 +210,9 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 {
 	x86_io_apic_ops.modify(apic, reg, value);
 }
+
+extern void io_apic_eoi(unsigned int apic, unsigned int vector);
+
 #else  /* !CONFIG_X86_IO_APIC */
 
 #define io_apic_assign_pci_irqs 0
@@ -223,6 +243,12 @@ static inline void disable_ioapic_support(void) { }
 #define native_io_apic_read		NULL
 #define native_io_apic_write		NULL
 #define native_io_apic_modify		NULL
+#define native_disable_io_apic		NULL
+#define native_io_apic_print_entries	NULL
+#define native_ioapic_set_affinity	NULL
+#define native_setup_ioapic_entry	NULL
+#define native_compose_msi_msg		NULL
+#define native_eoi_ioapic_pin		NULL
 #endif
 
 #endif /* _ASM_X86_IO_APIC_H */

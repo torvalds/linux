@@ -69,7 +69,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	struct dentry *parent;
 	char *root, *name;
 	const char *seg_name;
-	int len, seg_len;
+	int len, seg_len, root_len;
 
 	len = 0;
 	parent = dentry;
@@ -81,7 +81,8 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	}
 
 	root = "proc";
-	len += strlen(root);
+	root_len = strlen(root);
+	len += root_len;
 	name = kmalloc(len + extra + 1, GFP_KERNEL);
 	if (name == NULL)
 		return NULL;
@@ -91,7 +92,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	while (parent->d_parent != parent) {
 		if (is_pid(parent)) {
 			seg_name = "pid";
-			seg_len = strlen("pid");
+			seg_len = strlen(seg_name);
 		}
 		else {
 			seg_name = parent->d_name.name;
@@ -100,10 +101,10 @@ static char *dentry_name(struct dentry *dentry, int extra)
 
 		len -= seg_len + 1;
 		name[len] = '/';
-		strncpy(&name[len + 1], seg_name, seg_len);
+		memcpy(&name[len + 1], seg_name, seg_len);
 		parent = parent->d_parent;
 	}
-	strncpy(name, root, strlen(root));
+	memcpy(name, root, root_len);
 	return name;
 }
 
@@ -180,7 +181,7 @@ static ssize_t read_proc(struct file *file, char __user *buf, ssize_t count,
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 	ssize_t n;
 
-	read = file->f_path.dentry->d_inode->i_fop->read;
+	read = file_inode(file)->i_fop->read;
 
 	if (!is_user)
 		set_fs(KERNEL_DS);
@@ -288,7 +289,7 @@ static ssize_t hppfs_write(struct file *file, const char __user *buf,
 	struct file *proc_file = data->proc_file;
 	ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
 
-	write = proc_file->f_path.dentry->d_inode->i_fop->write;
+	write = file_inode(proc_file)->i_fop->write;
 	return (*write)(proc_file, buf, len, ppos);
 }
 
@@ -436,7 +437,6 @@ static int hppfs_open(struct inode *inode, struct file *file)
 	path.mnt = inode->i_sb->s_fs_info;
 	path.dentry = HPPFS_I(inode)->proc_dentry;
 
-	/* XXX This isn't closed anywhere */
 	data->proc_file = dentry_open(&path, file_mode(file->f_mode), cred);
 	err = PTR_ERR(data->proc_file);
 	if (IS_ERR(data->proc_file))
@@ -513,7 +513,7 @@ static loff_t hppfs_llseek(struct file *file, loff_t off, int where)
 	loff_t (*llseek)(struct file *, loff_t, int);
 	loff_t ret;
 
-	llseek = proc_file->f_path.dentry->d_inode->i_fop->llseek;
+	llseek = file_inode(proc_file)->i_fop->llseek;
 	if (llseek != NULL) {
 		ret = (*llseek)(proc_file, off, where);
 		if (ret < 0)
@@ -523,17 +523,28 @@ static loff_t hppfs_llseek(struct file *file, loff_t off, int where)
 	return default_llseek(file, off, where);
 }
 
+static int hppfs_release(struct inode *inode, struct file *file)
+{
+	struct hppfs_private *data = file->private_data;
+	struct file *proc_file = data->proc_file;
+	if (proc_file)
+		fput(proc_file);
+	kfree(data);
+	return 0;
+}
+
 static const struct file_operations hppfs_file_fops = {
 	.owner		= NULL,
 	.llseek		= hppfs_llseek,
 	.read		= hppfs_read,
 	.write		= hppfs_write,
 	.open		= hppfs_open,
+	.release	= hppfs_release,
 };
 
 struct hppfs_dirent {
-	void *vfs_dirent;
-	filldir_t filldir;
+	struct dir_context ctx;
+	struct dir_context *caller;
 	struct dentry *dentry;
 };
 
@@ -545,43 +556,32 @@ static int hppfs_filldir(void *d, const char *name, int size,
 	if (file_removed(dirent->dentry, name))
 		return 0;
 
-	return (*dirent->filldir)(dirent->vfs_dirent, name, size, offset,
-				  inode, type);
+	dirent->caller->pos = dirent->ctx.pos;
+	return !dir_emit(dirent->caller, name, size, inode, type);
 }
 
-static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
+static int hppfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct hppfs_private *data = file->private_data;
 	struct file *proc_file = data->proc_file;
-	int (*readdir)(struct file *, void *, filldir_t);
-	struct hppfs_dirent dirent = ((struct hppfs_dirent)
-		                      { .vfs_dirent  	= ent,
-					.filldir 	= filldir,
-					.dentry  	= file->f_path.dentry
-				      });
+	struct hppfs_dirent d = {
+		.ctx.actor	= hppfs_filldir,
+		.caller		= ctx,
+		.dentry  	= file->f_path.dentry
+	};
 	int err;
-
-	readdir = proc_file->f_path.dentry->d_inode->i_fop->readdir;
-
-	proc_file->f_pos = file->f_pos;
-	err = (*readdir)(proc_file, &dirent, hppfs_filldir);
-	file->f_pos = proc_file->f_pos;
-
+	proc_file->f_pos = ctx->pos;
+	err = iterate_dir(proc_file, &d.ctx);
+	ctx->pos = d.ctx.pos;
 	return err;
-}
-
-static int hppfs_fsync(struct file *file, loff_t start, loff_t end,
-		       int datasync)
-{
-	return filemap_write_and_wait_range(file->f_mapping, start, end);
 }
 
 static const struct file_operations hppfs_dir_fops = {
 	.owner		= NULL,
-	.readdir	= hppfs_readdir,
+	.iterate	= hppfs_readdir,
 	.open		= hppfs_dir_open,
-	.fsync		= hppfs_fsync,
 	.llseek		= default_llseek,
+	.release	= hppfs_release,
 };
 
 static int hppfs_statfs(struct dentry *dentry, struct kstatfs *sf)
@@ -748,6 +748,7 @@ static struct file_system_type hppfs_type = {
 	.kill_sb	= kill_anon_super,
 	.fs_flags 	= 0,
 };
+MODULE_ALIAS_FS("hppfs");
 
 static int __init init_hppfs(void)
 {

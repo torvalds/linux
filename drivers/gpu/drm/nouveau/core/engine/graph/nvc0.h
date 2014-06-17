@@ -38,13 +38,14 @@
 #include <engine/fifo.h>
 #include <engine/graph.h>
 
-#define GPC_MAX 4
-#define TPC_MAX 32
+#define GPC_MAX 32
+#define TPC_MAX (GPC_MAX * 8)
 
 #define ROP_BCAST(r)      (0x408800 + (r))
 #define ROP_UNIT(u, r)    (0x410000 + (u) * 0x400 + (r))
 #define GPC_BCAST(r)      (0x418000 + (r))
 #define GPC_UNIT(t, r)    (0x500000 + (t) * 0x8000 + (r))
+#define PPC_UNIT(t, m, r) (0x503000 + (t) * 0x8000 + (m) * 0x200 + (r))
 #define TPC_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
 struct nvc0_graph_data {
@@ -102,71 +103,130 @@ struct nvc0_graph_chan {
 	} data[4];
 };
 
-static inline u32
-nvc0_graph_class(void *obj)
-{
-	struct nouveau_device *device = nv_device(obj);
-
-	switch (device->chipset) {
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-	case 0xce: /* guess, mmio trace shows only 0x9097 state */
-	case 0xcf: /* guess, mmio trace shows only 0x9097 state */
-		return 0x9097;
-	case 0xc1:
-		return 0x9197;
-	case 0xc8:
-	case 0xd9:
-		return 0x9297;
-	case 0xe4:
-	case 0xe7:
-	case 0xe6:
-		return 0xa097;
-	default:
-		return 0;
-	}
-}
-
-void nv_icmd(struct nvc0_graph_priv *priv, u32 icmd, u32 data);
-
-static inline void
-nv_mthd(struct nvc0_graph_priv *priv, u32 class, u32 mthd, u32 data)
-{
-	nv_wr32(priv, 0x40448c, data);
-	nv_wr32(priv, 0x404488, 0x80000000 | (mthd << 14) | class);
-}
-
-struct nvc0_grctx {
-	struct nvc0_graph_priv *priv;
-	struct nvc0_graph_data *data;
-	struct nvc0_graph_mmio *mmio;
-	struct nouveau_gpuobj *chan;
-	int buffer_nr;
-	u64 buffer[4];
-	u64 addr;
-};
-
-int  nvc0_grctx_generate(struct nvc0_graph_priv *);
-int  nvc0_grctx_init(struct nvc0_graph_priv *, struct nvc0_grctx *);
-void nvc0_grctx_data(struct nvc0_grctx *, u32, u32, u32);
-void nvc0_grctx_mmio(struct nvc0_grctx *, u32, u32, u32, u32);
-int  nvc0_grctx_fini(struct nvc0_grctx *);
-
-int  nve0_grctx_generate(struct nvc0_graph_priv *);
-
-#define mmio_data(s,a,p) nvc0_grctx_data(&info, (s), (a), (p))
-#define mmio_list(r,d,s,b) nvc0_grctx_mmio(&info, (r), (d), (s), (b))
-
-void nvc0_graph_ctxctl_debug(struct nvc0_graph_priv *);
-int  nvc0_graph_ctor_fw(struct nvc0_graph_priv *, const char *,
-			struct nvc0_graph_fuc *);
-void nvc0_graph_dtor(struct nouveau_object *);
-void nvc0_graph_init_fw(struct nvc0_graph_priv *, u32 base,
-			struct nvc0_graph_fuc *, struct nvc0_graph_fuc *);
 int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, void *, u32,
 			     struct nouveau_object **);
 void nvc0_graph_context_dtor(struct nouveau_object *);
+
+void nvc0_graph_ctxctl_debug(struct nvc0_graph_priv *);
+
+u64  nvc0_graph_units(struct nouveau_graph *);
+int  nvc0_graph_ctor(struct nouveau_object *, struct nouveau_object *,
+		     struct nouveau_oclass *, void *data, u32 size,
+		     struct nouveau_object **);
+void nvc0_graph_dtor(struct nouveau_object *);
+int  nvc0_graph_init(struct nouveau_object *);
+int  nve4_graph_fini(struct nouveau_object *, bool);
+int  nve4_graph_init(struct nouveau_object *);
+
+extern struct nouveau_oclass nvc0_graph_sclass[];
+
+extern struct nouveau_oclass nvc8_graph_sclass[];
+
+struct nvc0_graph_init {
+	u32 addr;
+	u8  count;
+	u8  pitch;
+	u32 data;
+};
+
+struct nvc0_graph_pack {
+	const struct nvc0_graph_init *init;
+	u32 type;
+};
+
+#define pack_for_each_init(init, pack, head)                                   \
+	for (pack = head; pack && pack->init; pack++)                          \
+		  for (init = pack->init; init && init->count; init++)
+
+struct nvc0_graph_ucode {
+	struct nvc0_graph_fuc code;
+	struct nvc0_graph_fuc data;
+};
+
+extern struct nvc0_graph_ucode nvc0_graph_fecs_ucode;
+extern struct nvc0_graph_ucode nvc0_graph_gpccs_ucode;
+
+struct nvc0_graph_oclass {
+	struct nouveau_oclass base;
+	struct nouveau_oclass **cclass;
+	struct nouveau_oclass *sclass;
+	const struct nvc0_graph_pack *mmio;
+	struct {
+		struct nvc0_graph_ucode *ucode;
+	} fecs;
+	struct {
+		struct nvc0_graph_ucode *ucode;
+	} gpccs;
+};
+
+void nvc0_graph_mmio(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
+void nvc0_graph_icmd(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
+void nvc0_graph_mthd(struct nvc0_graph_priv *, const struct nvc0_graph_pack *);
+int  nvc0_graph_init_ctxctl(struct nvc0_graph_priv *);
+
+/* register init value lists */
+
+extern const struct nvc0_graph_init nvc0_graph_init_main_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_fe_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pri_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_rstr2d_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pd_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_scc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_prop_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpc_unk_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_setup_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_crstr_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_setup_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_zcull_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpm_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_gcc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_l1c_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_tpccs_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_mpc_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_be_0[];
+extern const struct nvc0_graph_init nvc0_graph_init_fe_1[];
+extern const struct nvc0_graph_init nvc0_graph_init_pe_1[];
+
+extern const struct nvc0_graph_init nvc4_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvc4_graph_init_sm_0[];
+
+extern const struct nvc0_graph_init nvc1_graph_init_gpc_unk_0[];
+extern const struct nvc0_graph_init nvc1_graph_init_setup_1[];
+
+extern const struct nvc0_graph_init nvd9_graph_init_pd_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_ds_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_prop_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_gpm_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvd9_graph_init_tex_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_sm_0[];
+extern const struct nvc0_graph_init nvd9_graph_init_fe_1[];
+
+extern const struct nvc0_graph_init nvd7_graph_init_pes_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_wwdx_0[];
+extern const struct nvc0_graph_init nvd7_graph_init_cbm_0[];
+
+extern const struct nvc0_graph_init nve4_graph_init_main_0[];
+extern const struct nvc0_graph_init nve4_graph_init_tpccs_0[];
+extern const struct nvc0_graph_init nve4_graph_init_pe_0[];
+extern const struct nvc0_graph_init nve4_graph_init_be_0[];
+extern const struct nvc0_graph_pack nve4_graph_pack_mmio[];
+
+extern const struct nvc0_graph_init nvf0_graph_init_fe_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_sked_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_cwd_0[];
+extern const struct nvc0_graph_init nvf0_graph_init_gpc_unk_1[];
+extern const struct nvc0_graph_init nvf0_graph_init_sm_0[];
+
+extern const struct nvc0_graph_init nv108_graph_init_gpc_unk_0[];
+
 
 #endif

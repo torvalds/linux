@@ -11,11 +11,14 @@
 #define TCP_METRICS_GENL_VERSION	0x1
 
 enum tcp_metric_index {
-	TCP_METRIC_RTT,
-	TCP_METRIC_RTTVAR,
+	TCP_METRIC_RTT,		/* in ms units */
+	TCP_METRIC_RTTVAR,	/* in ms units */
 	TCP_METRIC_SSTHRESH,
 	TCP_METRIC_CWND,
 	TCP_METRIC_REORDERING,
+
+	TCP_METRIC_RTT_US,	/* in usec units */
+	TCP_METRIC_RTTVAR_US,	/* in usec units */
 
 	/* Always last.  */
 	__TCP_METRIC_MAX,
@@ -35,6 +38,8 @@ enum {
 	TCP_METRICS_ATTR_FOPEN_SYN_DROPS,	/* u16, count of drops */
 	TCP_METRICS_ATTR_FOPEN_SYN_DROP_TS,	/* msecs age */
 	TCP_METRICS_ATTR_FOPEN_COOKIE,		/* binary */
+	TCP_METRICS_ATTR_SADDR_IPV4,		/* u32 */
+	TCP_METRICS_ATTR_SADDR_IPV6,		/* binary */
 
 	__TCP_METRICS_ATTR_MAX,
 };

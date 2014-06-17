@@ -142,6 +142,13 @@ static inline unsigned int cpumask_any_but(const struct cpumask *mask,
 	return 1;
 }
 
+static inline int cpumask_set_cpu_local_first(int i, int numa_node, cpumask_t *dstp)
+{
+	set_bit(0, cpumask_bits(dstp));
+
+	return 0;
+}
+
 #define for_each_cpu(cpu, mask)			\
 	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
 #define for_each_cpu_not(cpu, mask)		\
@@ -192,6 +199,7 @@ static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 
 int cpumask_next_and(int n, const struct cpumask *, const struct cpumask *);
 int cpumask_any_but(const struct cpumask *mask, unsigned int cpu);
+int cpumask_set_cpu_local_first(int i, int numa_node, cpumask_t *dstp);
 
 /**
  * for_each_cpu - iterate over every cpu in a mask
@@ -588,6 +596,21 @@ static inline int cpulist_scnprintf(char *buf, int len,
 {
 	return bitmap_scnlistprintf(buf, len, cpumask_bits(srcp),
 				    nr_cpumask_bits);
+}
+
+/**
+ * cpumask_parse - extract a cpumask from from a string
+ * @buf: the buffer to extract from
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpumask_parse(const char *buf, struct cpumask *dstp)
+{
+	char *nl = strchr(buf, '\n');
+	unsigned int len = nl ? (unsigned int)(nl - buf) : strlen(buf);
+
+	return bitmap_parse(buf, len, cpumask_bits(dstp), nr_cpumask_bits);
 }
 
 /**

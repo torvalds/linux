@@ -1,0 +1,49 @@
+menu "PCI host controller drivers"
+	depends on PCI
+
+config PCI_MVEBU
+	bool "Marvell EBU PCIe controller"
+	depends on ARCH_MVEBU || ARCH_DOVE || ARCH_KIRKWOOD
+	depends on OF
+
+config PCIE_DW
+	bool
+
+config PCI_EXYNOS
+	bool "Samsung Exynos PCIe controller"
+	depends on SOC_EXYNOS5440
+	select PCIEPORTBUS
+	select PCIE_DW
+
+config PCI_IMX6
+	bool "Freescale i.MX6 PCIe controller"
+	depends on SOC_IMX6Q
+	select PCIEPORTBUS
+	select PCIE_DW
+
+config PCI_TEGRA
+	bool "NVIDIA Tegra PCIe controller"
+	depends on ARCH_TEGRA
+
+config PCI_RCAR_GEN2
+	bool "Renesas R-Car Gen2 Internal PCI controller"
+	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	help
+	  Say Y here if you want internal PCI support on R-Car Gen2 SoC.
+	  There are 3 internal PCI controllers available with a single
+	  built-in EHCI/OHCI host controller present on each one.
+
+config PCI_RCAR_GEN2_PCIE
+	bool "Renesas R-Car PCIe controller"
+	depends on ARCH_SHMOBILE || (ARM && COMPILE_TEST)
+	help
+	  Say Y here if you want PCIe controller support on R-Car Gen2 SoCs.
+
+config PCI_HOST_GENERIC
+	bool "Generic PCI host controller"
+	depends on ARM && OF
+	help
+	  Say Y here if you want to support a simple generic PCI host
+	  controller, such as the one emulated by kvmtool.
+
+endmenu

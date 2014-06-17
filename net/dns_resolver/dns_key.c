@@ -19,8 +19,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *   along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -118,7 +117,7 @@ dns_resolver_instantiate(struct key *key, struct key_preparsed_payload *prep)
 				if (opt_vlen <= 0)
 					goto bad_option_value;
 
-				ret = strict_strtoul(eq, 10, &derrno);
+				ret = kstrtoul(eq, 10, &derrno);
 				if (ret < 0)
 					goto bad_option_value;
 

@@ -6,7 +6,6 @@
  * This file is released under the GPLv2.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
@@ -42,7 +41,7 @@
 	struct gpd_timing_data *__td = &dev_gpd_data(dev)->td;			\
 	if (!__retval && __elapsed > __td->field) {				\
 		__td->field = __elapsed;					\
-		dev_warn(dev, name " latency exceeded, new value %lld ns\n",	\
+		dev_dbg(dev, name " latency exceeded, new value %lld ns\n",	\
 			__elapsed);						\
 		genpd->max_off_time_changed = true;				\
 		__td->constraint_changed = true;				\
@@ -106,7 +105,7 @@ static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 {
 	atomic_inc(&genpd->sd_count);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 static void genpd_acquire_lock(struct generic_pm_domain *genpd)
@@ -433,8 +432,7 @@ static bool genpd_abort_poweroff(struct generic_pm_domain *genpd)
  */
 void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
 {
-	if (!work_pending(&genpd->power_off_work))
-		queue_work(pm_wq, &genpd->power_off_work);
+	queue_work(pm_wq, &genpd->power_off_work);
 }
 
 /**
@@ -707,12 +705,25 @@ static int pm_genpd_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static bool pd_ignore_unused;
+static int __init pd_ignore_unused_setup(char *__unused)
+{
+	pd_ignore_unused = true;
+	return 1;
+}
+__setup("pd_ignore_unused", pd_ignore_unused_setup);
+
 /**
  * pm_genpd_poweroff_unused - Power off all PM domains with no devices in use.
  */
 void pm_genpd_poweroff_unused(void)
 {
 	struct generic_pm_domain *genpd;
+
+	if (pd_ignore_unused) {
+		pr_warn("genpd: Not disabling unused power domains\n");
+		return;
+	}
 
 	mutex_lock(&gpd_list_lock);
 
@@ -921,7 +932,7 @@ static int pm_genpd_prepare(struct device *dev)
 		pm_wakeup_event(dev, 0);
 
 	if (pm_wakeup_pending()) {
-		pm_runtime_put_sync(dev);
+		pm_runtime_put(dev);
 		return -EBUSY;
 	}
 
@@ -962,7 +973,7 @@ static int pm_genpd_prepare(struct device *dev)
 		pm_runtime_enable(dev);
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put(dev);
 	return ret;
 }
 
@@ -1328,7 +1339,7 @@ static void pm_genpd_complete(struct device *dev)
 		pm_generic_complete(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
-		pm_runtime_idle(dev);
+		pm_request_idle(dev);
 	}
 }
 
@@ -2144,7 +2155,6 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->max_off_time_changed = true;
 	genpd->domain.ops.runtime_suspend = pm_genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = pm_genpd_runtime_resume;
-	genpd->domain.ops.runtime_idle = pm_generic_runtime_idle;
 	genpd->domain.ops.prepare = pm_genpd_prepare;
 	genpd->domain.ops.suspend = pm_genpd_suspend;
 	genpd->domain.ops.suspend_late = pm_genpd_suspend_late;

@@ -1,0 +1,17 @@
+* ARM AMBA Primecell PL011 serial UART
+
+Required properties:
+- compatible: must be "arm,primecell", "arm,pl011"
+- reg: exactly one register range with length 0x1000
+- interrupts: exactly one interrupt specifier
+
+Optional properties:
+- pinctrl: When present, must have one state named "sleep"
+	   and one state named "default"
+- clocks:  When present, must refer to exactly one clock named
+	   "apb_pclk"
+- dmas:	   When present, may have one or two dma channels.
+	   The first one must be named "rx", the second one
+	   must be named "tx".
+
+See also bindings/arm/primecell.txt

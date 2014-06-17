@@ -18,13 +18,6 @@
 /* Same as 0xfff00000 but fits in a 21 bit signed immediate */
 #define PM_BASE	-0x100000
 
-	.section .bss, "wa", @nobits
-	.global	disable_idle_sleep
-	.type	disable_idle_sleep, @object
-disable_idle_sleep:
-	.int	4
-	.size	disable_idle_sleep, . - disable_idle_sleep
-
 	/* Keep this close to the irq handlers */
 	.section .irq.text, "ax", @progbits
 

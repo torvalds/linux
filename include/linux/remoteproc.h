@@ -401,6 +401,9 @@ enum rproc_crash_type {
  * @crash_comp: completion used to sync crash handler and the rproc reload
  * @recovery_disabled: flag that state if recovery was disabled
  * @max_notifyid: largest allocated notify id.
+ * @table_ptr: pointer to the resource table in effect
+ * @cached_table: copy of the resource table
+ * @table_csum: checksum of the resource table
  */
 struct rproc {
 	struct klist_node node;
@@ -429,9 +432,13 @@ struct rproc {
 	struct completion crash_comp;
 	bool recovery_disabled;
 	int max_notifyid;
+	struct resource_table *table_ptr;
+	struct resource_table *cached_table;
+	u32 table_csum;
 };
 
 /* we currently support only two vrings per rvdev */
+
 #define RVDEV_NUM_VRINGS 2
 
 /**
@@ -462,16 +469,14 @@ struct rproc_vring {
  * @rproc: the rproc handle
  * @vdev: the virio device
  * @vring: the vrings for this vdev
- * @dfeatures: virtio device features
- * @gfeatures: virtio guest features
+ * @rsc_offset: offset of the vdev's resource entry
  */
 struct rproc_vdev {
 	struct list_head node;
 	struct rproc *rproc;
 	struct virtio_device vdev;
 	struct rproc_vring vring[RVDEV_NUM_VRINGS];
-	unsigned long dfeatures;
-	unsigned long gfeatures;
+	u32 rsc_offset;
 };
 
 struct rproc *rproc_alloc(struct device *dev, const char *name,

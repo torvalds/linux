@@ -32,11 +32,7 @@
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid : %d, Comm: \t\t%s\n", task_pid_nr(current), current->comm);
-	printk("CPU : %d        \t\t%s  (%s %.*s)\n\n",
-	       smp_processor_id(), print_tainted(), init_utsname()->release,
-	       (int)strcspn(init_utsname()->version, " "),
-	       init_utsname()->version);
+	show_regs_print_info(KERN_DEFAULT);
 
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("PR is at %s\n", regs->pr);
@@ -160,7 +156,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #endif
 		ti->addr_limit = KERNEL_DS;
 		ti->status &= ~TS_USEDFPU;
-		p->fpu_counter = 0;
+		p->thread.fpu_counter = 0;
 		return 0;
 	}
 	*childregs = *current_pt_regs();
@@ -193,7 +189,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	unlazy_fpu(prev, task_pt_regs(prev));
 
 	/* we're going to use this soon, after a few expensive things */
-	if (next->fpu_counter > 5)
+	if (next->thread.fpu_counter > 5)
 		prefetch(next_t->xstate);
 
 #ifdef CONFIG_MMU
@@ -211,7 +207,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	 * restore of the math state immediately to avoid the trap; the
 	 * chances of needing FPU soon are obviously high now
 	 */
-	if (next->fpu_counter > 5)
+	if (next->thread.fpu_counter > 5)
 		__fpu_state_restore();
 
 	return prev;

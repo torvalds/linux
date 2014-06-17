@@ -35,7 +35,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -257,7 +256,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     dev->netdev_ops = &fjn_netdev_ops;
     dev->watchdog_timeo = TX_TIMEOUT;
 
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
+    dev->ethtool_ops = &netdev_ethtool_ops;
 
     return fmvj18x_config(link);
 } /* fmvj18x_attach */
@@ -705,19 +704,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.suspend	= fmvj18x_suspend,
 	.resume		= fmvj18x_resume,
 };
-
-static int __init init_fmvj18x_cs(void)
-{
-	return pcmcia_register_driver(&fmvj18x_cs_driver);
-}
-
-static void __exit exit_fmvj18x_cs(void)
-{
-	pcmcia_unregister_driver(&fmvj18x_cs_driver);
-}
-
-module_init(init_fmvj18x_cs);
-module_exit(exit_fmvj18x_cs);
+module_pcmcia_driver(fmvj18x_cs_driver);
 
 /*====================================================================*/
 
@@ -1003,8 +990,6 @@ static void fjn_rx(struct net_device *dev)
 	    }
 	    skb = netdev_alloc_skb(dev, pkt_len + 2);
 	    if (skb == NULL) {
-		netdev_notice(dev, "Memory squeeze, dropping packet (len %d)\n",
-			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_dropped++;
 		break;

@@ -77,7 +77,7 @@ static inline unsigned int IN_FROM_REG(u8 reg, int n)
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	return SENSORS_LIMIT(SCALE(val, 192, nom_mv[n]), 0, 255);
+	return clamp_val(SCALE(val, 192, nom_mv[n]), 0, 255);
 }
 
 /*
@@ -86,7 +86,7 @@ static inline u8 IN_TO_REG(unsigned long val, int n)
  */
 static inline s8 TEMP_TO_REG(int val)
 {
-	return SENSORS_LIMIT(SCALE(val, 1, 1000), -128000, 127000);
+	return clamp_val(SCALE(val, 1, 1000), -128000, 127000);
 }
 
 static inline int TEMP_FROM_REG(s8 val)

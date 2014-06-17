@@ -12,16 +12,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
 
 #include "builtin.h"
 #include "helpers/helpers.h"
 #include "helpers/bitmask.h"
-
-struct cmd_struct {
-	const char *cmd;
-	int (*main)(int, const char **);
-	int needs_root;
-};
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -43,10 +40,17 @@ int be_verbose;
 
 static void print_help(void);
 
+struct cmd_struct {
+	const char *cmd;
+	int (*main)(int, const char **);
+	int needs_root;
+};
+
 static struct cmd_struct commands[] = {
 	{ "frequency-info",	cmd_freq_info,	0	},
 	{ "frequency-set",	cmd_freq_set,	1	},
 	{ "idle-info",		cmd_idle_info,	0	},
+	{ "idle-set",		cmd_idle_set,	1	},
 	{ "set",		cmd_set,	1	},
 	{ "info",		cmd_info,	0	},
 	{ "monitor",		cmd_monitor,	0	},
@@ -168,6 +172,8 @@ int main(int argc, const char *argv[])
 {
 	const char *cmd;
 	unsigned int i, ret;
+	struct stat statbuf;
+	struct utsname uts;
 
 	cpus_chosen = bitmask_alloc(sysconf(_SC_NPROCESSORS_CONF));
 
@@ -194,6 +200,15 @@ int main(int argc, const char *argv[])
 
 	get_cpu_info(0, &cpupower_cpu_info);
 	run_as_root = !getuid();
+	if (run_as_root) {
+		ret = uname(&uts);
+		if (!ret && !strcmp(uts.machine, "x86_64") &&
+		    stat("/dev/cpu/0/msr", &statbuf) != 0) {
+			if (system("modprobe msr") == -1)
+	fprintf(stderr, _("MSR access not available.\n"));
+		}
+	}
+		
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++) {
 		struct cmd_struct *p = commands + i;

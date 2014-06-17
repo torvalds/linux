@@ -11,6 +11,7 @@
  */
 
 #ifndef __FAN53555_H__
+#define __FAN53555_H__
 
 /* VSEL ID */
 enum {

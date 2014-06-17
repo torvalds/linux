@@ -237,7 +237,8 @@ config HISAX_MIC
 
 config HISAX_NETJET
 	bool "NETjet card"
-	depends on PCI && (BROKEN || !(SPARC || PPC || PARISC || M68K || (MIPS && !CPU_LITTLE_ENDIAN) || FRV || (XTENSA && !CPU_LITTLE_ENDIAN)))
+	depends on PCI && (BROKEN || !(PPC || PARISC || M68K || (MIPS && !CPU_LITTLE_ENDIAN) || FRV || (XTENSA && !CPU_LITTLE_ENDIAN)))
+	depends on VIRT_TO_BUS
 	help
 	  This enables HiSax support for the NetJet from Traverse
 	  Technologies.
@@ -248,7 +249,8 @@ config HISAX_NETJET
 
 config HISAX_NETJET_U
 	bool "NETspider U card"
-	depends on PCI && (BROKEN || !(SPARC || PPC || PARISC || M68K || (MIPS && !CPU_LITTLE_ENDIAN) || FRV || (XTENSA && !CPU_LITTLE_ENDIAN)))
+	depends on PCI && (BROKEN || !(PPC || PARISC || M68K || (MIPS && !CPU_LITTLE_ENDIAN) || FRV || (XTENSA && !CPU_LITTLE_ENDIAN)))
+	depends on VIRT_TO_BUS
 	help
 	  This enables HiSax support for the Netspider U interface ISDN card
 	  from Traverse Technologies.
@@ -389,8 +391,8 @@ config HISAX_TELES_CS
 comment "HiSax sub driver modules"
 
 config HISAX_ST5481
-	tristate "ST5481 USB ISDN modem (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "ST5481 USB ISDN modem"
+	depends on USB
 	select ISDN_HDLC
 	select CRC_CCITT
 	select BITREVERSE
@@ -399,20 +401,19 @@ config HISAX_ST5481
 	  e.g. the BeWan Gazel 128 USB
 
 config HISAX_HFCUSB
-	tristate "HFC USB based ISDN modems (EXPERIMENTAL)"
-	depends on USB && EXPERIMENTAL
+	tristate "HFC USB based ISDN modems"
+	depends on USB
 	help
 	  This enables the driver for HFC USB based ISDN modems.
 
 config HISAX_HFC4S8S
-	tristate "HFC-4S/8S based ISDN cards (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "HFC-4S/8S based ISDN cards"
 	help
 	  This enables the driver for HFC-4S/8S based ISDN cards.
 
 config HISAX_FRITZ_PCIPNP
-	tristate "AVM Fritz!Card PCI/PCIv2/PnP support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "AVM Fritz!Card PCI/PCIv2/PnP support"
+	depends on PCI
 	help
 	  This enables the driver for the AVM Fritz!Card PCI,
 	  Fritz!Card PCI v2 and Fritz!Card PnP.

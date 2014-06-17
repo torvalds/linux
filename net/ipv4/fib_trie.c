@@ -71,7 +71,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/prefetch.h>
 #include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
@@ -125,7 +124,6 @@ struct tnode {
 	unsigned int empty_children;	/* KEYLENGTH bits needed */
 	union {
 		struct rcu_head rcu;
-		struct work_struct work;
 		struct tnode *tnode_free;
 	};
 	struct rt_trie_node __rcu *child[0];
@@ -383,12 +381,6 @@ static struct tnode *tnode_alloc(size_t size)
 		return vzalloc(size);
 }
 
-static void __tnode_vfree(struct work_struct *arg)
-{
-	struct tnode *tn = container_of(arg, struct tnode, work);
-	vfree(tn);
-}
-
 static void __tnode_free_rcu(struct rcu_head *head)
 {
 	struct tnode *tn = container_of(head, struct tnode, rcu);
@@ -397,10 +389,8 @@ static void __tnode_free_rcu(struct rcu_head *head)
 
 	if (size <= PAGE_SIZE)
 		kfree(tn);
-	else {
-		INIT_WORK(&tn->work, __tnode_vfree);
-		schedule_work(&tn->work);
-	}
+	else
+		vfree(tn);
 }
 
 static inline void tnode_free(struct tnode *tn)
@@ -772,12 +762,9 @@ static struct tnode *inflate(struct trie *t, struct tnode *tn)
 
 		if (IS_LEAF(node) || ((struct tnode *) node)->pos >
 		   tn->pos + tn->bits - 1) {
-			if (tkey_extract_bits(node->key,
-					      oldtnode->pos + oldtnode->bits,
-					      1) == 0)
-				put_child(tn, 2*i, node);
-			else
-				put_child(tn, 2*i+1, node);
+			put_child(tn,
+				tkey_extract_bits(node->key, oldtnode->pos, oldtnode->bits + 1),
+				node);
 			continue;
 		}
 
@@ -920,10 +907,9 @@ nomem:
 static struct leaf_info *find_leaf_info(struct leaf *l, int plen)
 {
 	struct hlist_head *head = &l->list;
-	struct hlist_node *node;
 	struct leaf_info *li;
 
-	hlist_for_each_entry_rcu(li, node, head, hlist)
+	hlist_for_each_entry_rcu(li, head, hlist)
 		if (li->plen == plen)
 			return li;
 
@@ -943,12 +929,11 @@ static inline struct list_head *get_fa_head(struct leaf *l, int plen)
 static void insert_leaf_info(struct hlist_head *head, struct leaf_info *new)
 {
 	struct leaf_info *li = NULL, *last = NULL;
-	struct hlist_node *node;
 
 	if (hlist_empty(head)) {
 		hlist_add_head_rcu(&new->hlist, head);
 	} else {
-		hlist_for_each_entry(li, node, head, hlist) {
+		hlist_for_each_entry(li, head, hlist) {
 			if (new->plen > li->plen)
 				break;
 
@@ -1132,12 +1117,8 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 		 *  first tnode need some special handling
 		 */
 
-		if (tp)
-			pos = tp->pos+tp->bits;
-		else
-			pos = 0;
-
 		if (n) {
+			pos = tp ? tp->pos+tp->bits : 0;
 			newpos = tkey_mismatch(key, pos, n->key);
 			tn = tnode_new(n->key, newpos, 1);
 		} else {
@@ -1354,9 +1335,8 @@ static int check_leaf(struct fib_table *tb, struct trie *t, struct leaf *l,
 {
 	struct leaf_info *li;
 	struct hlist_head *hhead = &l->list;
-	struct hlist_node *node;
 
-	hlist_for_each_entry_rcu(li, node, hhead, hlist) {
+	hlist_for_each_entry_rcu(li, hhead, hlist) {
 		struct fib_alias *fa;
 
 		if (l->key != (key & li->mask_plen))
@@ -1740,10 +1720,10 @@ static int trie_flush_leaf(struct leaf *l)
 {
 	int found = 0;
 	struct hlist_head *lih = &l->list;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *tmp;
 	struct leaf_info *li = NULL;
 
-	hlist_for_each_entry_safe(li, node, tmp, lih, hlist) {
+	hlist_for_each_entry_safe(li, tmp, lih, hlist) {
 		found += trie_flush_list(&li->falh);
 
 		if (list_empty(&li->falh)) {
@@ -1773,10 +1753,8 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct rt_trie_node *c)
 			if (!c)
 				continue;
 
-			if (IS_LEAF(c)) {
-				prefetch(rcu_dereference_rtnl(p->child[idx]));
+			if (IS_LEAF(c))
 				return (struct leaf *) c;
-			}
 
 			/* Rescan start scanning in new node */
 			p = (struct tnode *) c;
@@ -1895,14 +1873,13 @@ static int fn_trie_dump_leaf(struct leaf *l, struct fib_table *tb,
 			struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct leaf_info *li;
-	struct hlist_node *node;
 	int i, s_i;
 
 	s_i = cb->args[4];
 	i = 0;
 
 	/* rcu_read_lock is hold by caller */
-	hlist_for_each_entry_rcu(li, node, &l->list, hlist) {
+	hlist_for_each_entry_rcu(li, &l->list, hlist) {
 		if (i < s_i) {
 			i++;
 			continue;
@@ -2092,14 +2069,13 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 		if (IS_LEAF(n)) {
 			struct leaf *l = (struct leaf *)n;
 			struct leaf_info *li;
-			struct hlist_node *tmp;
 
 			s->leaves++;
 			s->totdepth += iter.depth;
 			if (iter.depth > s->maxdepth)
 				s->maxdepth = iter.depth;
 
-			hlist_for_each_entry_rcu(li, tmp, &l->list, hlist)
+			hlist_for_each_entry_rcu(li, &l->list, hlist)
 				++s->prefixes;
 		} else {
 			const struct tnode *tn = (const struct tnode *) n;
@@ -2147,7 +2123,7 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 		max--;
 
 	pointers = 0;
-	for (i = 1; i <= max; i++)
+	for (i = 1; i < max; i++)
 		if (stat->nodesizes[i] != 0) {
 			seq_printf(seq, "  %u: %u",  i, stat->nodesizes[i]);
 			pointers += (1<<i) * stat->nodesizes[i];
@@ -2200,10 +2176,9 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
-		struct hlist_node *node;
 		struct fib_table *tb;
 
-		hlist_for_each_entry_rcu(tb, node, head, tb_hlist) {
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 			struct trie *t = (struct trie *) tb->tb_data;
 			struct trie_stat stat;
 
@@ -2245,10 +2220,9 @@ static struct rt_trie_node *fib_trie_get_idx(struct seq_file *seq, loff_t pos)
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
-		struct hlist_node *node;
 		struct fib_table *tb;
 
-		hlist_for_each_entry_rcu(tb, node, head, tb_hlist) {
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 			struct rt_trie_node *n;
 
 			for (n = fib_trie_get_first(iter,
@@ -2298,7 +2272,7 @@ static void *fib_trie_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	/* new hash chain */
 	while (++h < FIB_TABLE_HASHSZ) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
-		hlist_for_each_entry_rcu(tb, tb_node, head, tb_hlist) {
+		hlist_for_each_entry_rcu(tb, head, tb_hlist) {
 			n = fib_trie_get_first(iter, (struct trie *) tb->tb_data);
 			if (n)
 				goto found;
@@ -2381,13 +2355,12 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	} else {
 		struct leaf *l = (struct leaf *) n;
 		struct leaf_info *li;
-		struct hlist_node *node;
 		__be32 val = htonl(l->key);
 
 		seq_indent(seq, iter->depth);
 		seq_printf(seq, "  |-- %pI4\n", &val);
 
-		hlist_for_each_entry_rcu(li, node, &l->list, hlist) {
+		hlist_for_each_entry_rcu(li, &l->list, hlist) {
 			struct fib_alias *fa;
 
 			list_for_each_entry_rcu(fa, &li->falh, fa_list) {
@@ -2532,7 +2505,6 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct leaf *l = v;
 	struct leaf_info *li;
-	struct hlist_node *node;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "%-127s\n", "Iface\tDestination\tGateway "
@@ -2541,7 +2513,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	hlist_for_each_entry_rcu(li, node, &l->list, hlist) {
+	hlist_for_each_entry_rcu(li, &l->list, hlist) {
 		struct fib_alias *fa;
 		__be32 mask, prefix;
 
@@ -2551,16 +2523,17 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		list_for_each_entry_rcu(fa, &li->falh, fa_list) {
 			const struct fib_info *fi = fa->fa_info;
 			unsigned int flags = fib_flag_trans(fa->fa_type, mask, fi);
-			int len;
 
 			if (fa->fa_type == RTN_BROADCAST
 			    || fa->fa_type == RTN_MULTICAST)
 				continue;
 
+			seq_setwidth(seq, 127);
+
 			if (fi)
 				seq_printf(seq,
 					 "%s\t%08X\t%08X\t%04X\t%d\t%u\t"
-					 "%d\t%08X\t%d\t%u\t%u%n",
+					 "%d\t%08X\t%d\t%u\t%u",
 					 fi->fib_dev ? fi->fib_dev->name : "*",
 					 prefix,
 					 fi->fib_nh->nh_gw, flags, 0, 0,
@@ -2569,15 +2542,15 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 					 (fi->fib_advmss ?
 					  fi->fib_advmss + 40 : 0),
 					 fi->fib_window,
-					 fi->fib_rtt >> 3, &len);
+					 fi->fib_rtt >> 3);
 			else
 				seq_printf(seq,
 					 "*\t%08X\t%08X\t%04X\t%d\t%u\t"
-					 "%d\t%08X\t%d\t%u\t%u%n",
+					 "%d\t%08X\t%d\t%u\t%u",
 					 prefix, 0, flags, 0, 0, 0,
-					 mask, 0, 0, 0, &len);
+					 mask, 0, 0, 0);
 
-			seq_printf(seq, "%*s\n", 127 - len, "");
+			seq_pad(seq, '\n');
 		}
 	}
 
@@ -2607,31 +2580,31 @@ static const struct file_operations fib_route_fops = {
 
 int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_net_fops_create(net, "fib_trie", S_IRUGO, &fib_trie_fops))
+	if (!proc_create("fib_trie", S_IRUGO, net->proc_net, &fib_trie_fops))
 		goto out1;
 
-	if (!proc_net_fops_create(net, "fib_triestat", S_IRUGO,
-				  &fib_triestat_fops))
+	if (!proc_create("fib_triestat", S_IRUGO, net->proc_net,
+			 &fib_triestat_fops))
 		goto out2;
 
-	if (!proc_net_fops_create(net, "route", S_IRUGO, &fib_route_fops))
+	if (!proc_create("route", S_IRUGO, net->proc_net, &fib_route_fops))
 		goto out3;
 
 	return 0;
 
 out3:
-	proc_net_remove(net, "fib_triestat");
+	remove_proc_entry("fib_triestat", net->proc_net);
 out2:
-	proc_net_remove(net, "fib_trie");
+	remove_proc_entry("fib_trie", net->proc_net);
 out1:
 	return -ENOMEM;
 }
 
 void __net_exit fib_proc_exit(struct net *net)
 {
-	proc_net_remove(net, "fib_trie");
-	proc_net_remove(net, "fib_triestat");
-	proc_net_remove(net, "route");
+	remove_proc_entry("fib_trie", net->proc_net);
+	remove_proc_entry("fib_triestat", net->proc_net);
+	remove_proc_entry("route", net->proc_net);
 }
 
 #endif /* CONFIG_PROC_FS */

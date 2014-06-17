@@ -46,17 +46,25 @@
 union mgmt_port_ring_entry {
 	u64 d64;
 	struct {
-		u64    reserved_62_63:2;
-		/* Length of the buffer/packet in bytes */
-		u64    len:14;
-		/* For TX, signals that the packet should be timestamped */
-		u64    tstamp:1;
-		/* The RX error code */
-		u64    code:7;
 #define RING_ENTRY_CODE_DONE 0xf
 #define RING_ENTRY_CODE_MORE 0x10
+#ifdef __BIG_ENDIAN_BITFIELD
+		u64 reserved_62_63:2;
+		/* Length of the buffer/packet in bytes */
+		u64 len:14;
+		/* For TX, signals that the packet should be timestamped */
+		u64 tstamp:1;
+		/* The RX error code */
+		u64 code:7;
 		/* Physical address of the buffer */
-		u64    addr:40;
+		u64 addr:40;
+#else
+		u64 addr:40;
+		u64 code:7;
+		u64 tstamp:1;
+		u64 len:14;
+		u64 reserved_62_63:2;
+#endif
 	} s;
 };
 
@@ -1141,10 +1149,13 @@ static int octeon_mgmt_open(struct net_device *netdev)
 		/* For compensation state to lock. */
 		ndelay(1040 * NS_PER_PHY_CLK);
 
-		/* Some Ethernet switches cannot handle standard
-		 * Interframe Gap, increase to 16 bytes.
+		/* Default Interframe Gaps are too small.  Recommended
+		 * workaround is.
+		 *
+		 * AGL_GMX_TX_IFG[IFG1]=14
+		 * AGL_GMX_TX_IFG[IFG2]=10
 		 */
-		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0x88);
+		cvmx_write_csr(CVMX_AGL_GMX_TX_IFG, 0xae);
 	}
 
 	octeon_mgmt_rx_fill_ring(netdev);
@@ -1350,10 +1361,10 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 				    struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strncpy(info->version, DRV_VERSION, sizeof(info->version));
-	strncpy(info->fw_version, "N/A", sizeof(info->fw_version));
-	strncpy(info->bus_info, "N/A", sizeof(info->bus_info));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 	info->n_stats = 0;
 	info->testinfo_len = 0;
 	info->regdump_len = 0;
@@ -1437,7 +1448,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
-	dev_set_drvdata(&pdev->dev, netdev);
+	platform_set_drvdata(pdev, netdev);
 	p = netdev_priv(netdev);
 	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
 		       OCTEON_MGMT_NAPI_WEIGHT);
@@ -1534,17 +1545,16 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac && is_valid_ether_addr(mac)) {
+	if (mac)
 		memcpy(netdev->dev_addr, mac, ETH_ALEN);
-		netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	} else {
+	else
 		eth_hw_addr_random(netdev);
-	}
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	result = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (result)
+		goto err;
 
 	netif_carrier_off(netdev);
 	result = register_netdev(netdev);
@@ -1561,7 +1571,7 @@ err:
 
 static int octeon_mgmt_remove(struct platform_device *pdev)
 {
-	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
 	free_netdev(netdev);

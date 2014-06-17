@@ -65,7 +65,9 @@ static ssize_t dgrp_class_pollrate_store(struct device *c,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	sscanf(buf, "0x%x\n", &dgrp_poll_tick);
+	if (sscanf(buf, "0x%x\n", &dgrp_poll_tick) != 1)
+		return -EINVAL;
+
 	return count;
 }
 static DEVICE_ATTR(pollrate, 0600, dgrp_class_pollrate_show,
@@ -85,30 +87,50 @@ static struct attribute_group dgrp_global_settings_attribute_group = {
 
 
 
-void dgrp_create_class_sysfs_files(void)
+int dgrp_create_class_sysfs_files(void)
 {
 	int ret = 0;
 	int max_majors = 1U << (32 - MINORBITS);
 
 	dgrp_class = class_create(THIS_MODULE, "digi_realport");
+	if (IS_ERR(dgrp_class))
+		return PTR_ERR(dgrp_class);
 	ret = class_create_file(dgrp_class, &class_attr_driver_version);
+	if (ret)
+		goto err_class;
 
 	dgrp_class_global_settings_dev = device_create(dgrp_class, NULL,
 		MKDEV(0, max_majors + 1), NULL, "driver_settings");
-
+	if (IS_ERR(dgrp_class_global_settings_dev)) {
+		ret = PTR_ERR(dgrp_class_global_settings_dev);
+		goto err_file;
+	}
 	ret = sysfs_create_group(&dgrp_class_global_settings_dev->kobj,
 		&dgrp_global_settings_attribute_group);
 	if (ret) {
 		pr_alert("%s: failed to create sysfs global settings device attributes.\n",
 			__func__);
-		sysfs_remove_group(&dgrp_class_global_settings_dev->kobj,
-			&dgrp_global_settings_attribute_group);
-		return;
+		goto err_dev1;
 	}
 
 	dgrp_class_nodes_dev = device_create(dgrp_class, NULL,
 		MKDEV(0, max_majors + 2), NULL, "nodes");
+	if (IS_ERR(dgrp_class_nodes_dev)) {
+		ret = PTR_ERR(dgrp_class_nodes_dev);
+		goto err_group;
+	}
 
+	return 0;
+err_group:
+	sysfs_remove_group(&dgrp_class_global_settings_dev->kobj,
+		&dgrp_global_settings_attribute_group);
+err_dev1:
+	device_destroy(dgrp_class, MKDEV(0, max_majors + 1));
+err_file:
+	class_remove_file(dgrp_class, &class_attr_driver_version);
+err_class:
+	class_destroy(dgrp_class);
+	return ret;
 }
 
 
@@ -137,7 +159,7 @@ static ssize_t dgrp_node_state_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -154,7 +176,7 @@ static ssize_t dgrp_node_description_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -172,7 +194,7 @@ static ssize_t dgrp_node_hw_version_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -192,7 +214,7 @@ static ssize_t dgrp_node_hw_id_show(struct device *c,
 
 	if (!c)
 		return 0;
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -212,7 +234,7 @@ static ssize_t dgrp_node_sw_version_show(struct device *c,
 	if (!c)
 		return 0;
 
-	nd = (struct nd_struct *) dev_get_drvdata(c);
+	nd = dev_get_drvdata(c);
 	if (!nd)
 		return 0;
 
@@ -253,7 +275,7 @@ void dgrp_create_node_class_sysfs_files(struct nd_struct *nd)
 		sprintf(name, "node%ld", nd->nd_major);
 
 	nd->nd_class_dev = device_create(dgrp_class, dgrp_class_nodes_dev,
-		MKDEV(0, nd->nd_major), NULL, name);
+		MKDEV(0, nd->nd_major), NULL, "%s", name);
 
 	ret = sysfs_create_group(&nd->nd_class_dev->kobj,
 				 &dgrp_node_attribute_group);
@@ -291,7 +313,7 @@ static ssize_t dgrp_tty_state_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 
@@ -308,7 +330,7 @@ static ssize_t dgrp_tty_baud_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -328,7 +350,7 @@ static ssize_t dgrp_tty_msignals_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -357,7 +379,7 @@ static ssize_t dgrp_tty_iflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -376,7 +398,7 @@ static ssize_t dgrp_tty_cflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -395,7 +417,7 @@ static ssize_t dgrp_tty_oflag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -414,7 +436,7 @@ static ssize_t dgrp_tty_digi_flag_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -433,7 +455,7 @@ static ssize_t dgrp_tty_rxcount_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -452,7 +474,7 @@ static ssize_t dgrp_tty_txcount_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;
@@ -473,7 +495,7 @@ static ssize_t dgrp_tty_name_show(struct device *d,
 
 	if (!d)
 		return 0;
-	un = (struct un_struct *) dev_get_drvdata(d);
+	un = dev_get_drvdata(d);
 	if (!un)
 		return 0;
 	ch = un->un_ch;

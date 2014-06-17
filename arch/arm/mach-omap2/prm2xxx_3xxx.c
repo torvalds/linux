@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "common.h"
 #include "powerdomain.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
@@ -210,6 +209,7 @@ int omap2_clkdm_read_wkdep(struct clockdomain *clkdm1,
 					     PM_WKDEP, (1 << clkdm2->dep_bit));
 }
 
+/* XXX Caller must hold the clkdm's powerdomain lock */
 int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 {
 	struct clkdm_dep *cd;
@@ -221,7 +221,7 @@ int omap2_clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 
 		/* PRM accesses are slow, so minimize them */
 		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->wkdep_usecount, 0);
+		cd->wkdep_usecount = 0;
 	}
 
 	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,

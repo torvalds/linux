@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/clk/at91_pmc.h>
 
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
@@ -18,7 +19,7 @@
 #include <asm/mach/map.h>
 #include <asm/system_misc.h>
 #include <mach/at91sam9263.h>
-#include <mach/at91_pmc.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "at91_rstc.h"
@@ -26,6 +27,7 @@
 #include "generic.h"
 #include "clock.h"
 #include "sam9_smc.h"
+#include "pm.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -190,6 +192,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("pclk", "at91rm9200_ssc.1", &ssc1_clk),
 	CLKDEV_CON_DEV_ID("pclk", "fff98000.ssc", &ssc0_clk),
 	CLKDEV_CON_DEV_ID("pclk", "fff9c000.ssc", &ssc1_clk),
+	CLKDEV_CON_DEV_ID("hclk", "at91sam9263-lcdfb.0", &lcdc_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "atmel_mci.0", &mmc0_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "atmel_mci.1", &mmc1_clk),
 	CLKDEV_CON_DEV_ID("spi_clk", "atmel_spi.0", &spi0_clk),
@@ -221,6 +224,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID(NULL, "fffff600.gpio", &pioCDE_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff800.gpio", &pioCDE_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffffa00.gpio", &pioCDE_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffb8000.pwm", &pwm_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -320,13 +324,16 @@ static void __init at91sam9263_ioremap_registers(void)
 	at91sam9_ioremap_smc(0, AT91SAM9263_BASE_SMC0);
 	at91sam9_ioremap_smc(1, AT91SAM9263_BASE_SMC1);
 	at91_ioremap_matrix(AT91SAM9263_BASE_MATRIX);
+	at91_pm_set_standby(at91sam9_sdram_standby);
 }
 
 static void __init at91sam9263_initialize(void)
 {
 	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9_alt_restart;
-	at91_extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1);
+
+	at91_sysirq_mask_rtt(AT91SAM9263_BASE_RTT0);
+	at91_sysirq_mask_rtt(AT91SAM9263_BASE_RTT1);
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9263_gpio, 5);
@@ -374,9 +381,10 @@ static unsigned int at91sam9263_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller (IRQ1) */
 };
 
-AT91_SOC_START(sam9263)
+AT91_SOC_START(at91sam9263)
 	.map_io = at91sam9263_map_io,
 	.default_irq_priority = at91sam9263_default_irq_priority,
+	.extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1),
 	.ioremap_registers = at91sam9263_ioremap_registers,
 	.register_clocks = at91sam9263_register_clocks,
 	.init = at91sam9263_initialize,

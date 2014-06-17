@@ -44,7 +44,8 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	v4l2_dev->dev = dev;
 	if (dev == NULL) {
 		/* If dev == NULL, then name must be filled in by the caller */
-		WARN_ON(!v4l2_dev->name[0]);
+		if (WARN_ON(!v4l2_dev->name[0]))
+			return -EINVAL;
 		return 0;
 	}
 
@@ -105,14 +106,16 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd, *next;
 
-	if (v4l2_dev == NULL)
+	/* Just return if v4l2_dev is NULL or if it was already
+	 * unregistered before. */
+	if (v4l2_dev == NULL || !v4l2_dev->name[0])
 		return;
 	v4l2_device_disconnect(v4l2_dev);
 
 	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_I2C)
 		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
 			struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -135,6 +138,8 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 		}
 #endif
 	}
+	/* Mark as unregistered, thus preventing duplicate unregistrations */
+	v4l2_dev->name[0] = '\0';
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 
@@ -153,37 +158,37 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	/* Warn if we apparently re-register a subdev */
 	WARN_ON(sd->v4l2_dev != NULL);
 
-	if (!try_module_get(sd->owner))
+	/*
+	 * The reason to acquire the module here is to avoid unloading
+	 * a module of sub-device which is registered to a media
+	 * device. To make it possible to unload modules for media
+	 * devices that also register sub-devices, do not
+	 * try_module_get() such sub-device owners.
+	 */
+	sd->owner_v4l2_dev = v4l2_dev->dev && v4l2_dev->dev->driver &&
+		sd->owner == v4l2_dev->dev->driver->owner;
+
+	if (!sd->owner_v4l2_dev && !try_module_get(sd->owner))
 		return -ENODEV;
 
 	sd->v4l2_dev = v4l2_dev;
 	if (sd->internal_ops && sd->internal_ops->registered) {
 		err = sd->internal_ops->registered(sd);
-		if (err) {
-			module_put(sd->owner);
-			return err;
-		}
+		if (err)
+			goto error_module;
 	}
 
 	/* This just returns 0 if either of the two args is NULL */
 	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler, NULL);
-	if (err) {
-		if (sd->internal_ops && sd->internal_ops->unregistered)
-			sd->internal_ops->unregistered(sd);
-		module_put(sd->owner);
-		return err;
-	}
+	if (err)
+		goto error_unregister;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Register the entity. */
 	if (v4l2_dev->mdev) {
 		err = media_device_register_entity(v4l2_dev->mdev, entity);
-		if (err < 0) {
-			if (sd->internal_ops && sd->internal_ops->unregistered)
-				sd->internal_ops->unregistered(sd);
-			module_put(sd->owner);
-			return err;
-		}
+		if (err < 0)
+			goto error_unregister;
 	}
 #endif
 
@@ -192,6 +197,15 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	spin_unlock(&v4l2_dev->lock);
 
 	return 0;
+
+error_unregister:
+	if (sd->internal_ops && sd->internal_ops->unregistered)
+		sd->internal_ops->unregistered(sd);
+error_module:
+	if (!sd->owner_v4l2_dev)
+		module_put(sd->owner);
+	sd->v4l2_dev = NULL;
+	return err;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
 
@@ -271,10 +285,13 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 	sd->v4l2_dev = NULL;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (v4l2_dev->mdev)
+	if (v4l2_dev->mdev) {
+		media_entity_remove_links(&sd->entity);
 		media_device_unregister_entity(&sd->entity);
+	}
 #endif
 	video_unregister_device(sd->devnode);
-	module_put(sd->owner);
+	if (!sd->owner_v4l2_dev)
+		module_put(sd->owner);
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister_subdev);

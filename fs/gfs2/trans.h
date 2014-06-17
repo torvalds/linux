@@ -39,7 +39,8 @@ extern int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 			    unsigned int revokes);
 
 extern void gfs2_trans_end(struct gfs2_sbd *sdp);
-extern void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta);
+extern void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh);
+extern void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh);
 extern void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 extern void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len);
 

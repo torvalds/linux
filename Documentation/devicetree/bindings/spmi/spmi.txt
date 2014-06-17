@@ -1,0 +1,41 @@
+System Power Management Interface (SPMI) Controller
+
+This document defines a generic set of bindings for use by SPMI controllers.  A
+controller is modelled in device tree as a node with zero or more child nodes,
+each representing a unique slave on the bus.
+
+Required properties:
+- #address-cells : must be set to 2
+- #size-cells : must be set to 0
+
+Child nodes:
+
+An SPMI controller node can contain zero or more child nodes representing slave
+devices on the bus.  Child 'reg' properties are specified as an address, type
+pair.  The address must be in the range 0-15 (4 bits).  The type must be one of
+SPMI_USID (0) or SPMI_GSID (1) for Unique Slave ID or Group Slave ID respectively.
+These are the identifiers "statically assigned by the system integrator", as
+per the SPMI spec.
+
+Each child node must have one and only one 'reg' entry of type SPMI_USID.
+
+#include <dt-bindings/spmi/spmi.h>
+
+	spmi@.. {
+		compatible = "...";
+		reg = <...>;
+
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		child@0 {
+			compatible = "...";
+			reg = <0 SPMI_USID>;
+		};
+
+		child@7 {
+			compatible = "...";
+			reg = <7 SPMI_USID
+			       3 SPMI_GSID>;
+		};
+	};

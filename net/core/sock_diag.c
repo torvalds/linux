@@ -49,6 +49,41 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 }
 EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
+int sock_diag_put_filterinfo(bool may_report_filterinfo, struct sock *sk,
+			     struct sk_buff *skb, int attrtype)
+{
+	struct sock_fprog_kern *fprog;
+	struct sk_filter *filter;
+	struct nlattr *attr;
+	unsigned int flen;
+	int err = 0;
+
+	if (!may_report_filterinfo) {
+		nla_reserve(skb, attrtype, 0);
+		return 0;
+	}
+
+	rcu_read_lock();
+	filter = rcu_dereference(sk->sk_filter);
+	if (!filter)
+		goto out;
+
+	fprog = filter->orig_prog;
+	flen = sk_filter_proglen(fprog);
+
+	attr = nla_reserve(skb, attrtype, flen);
+	if (attr == NULL) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	memcpy(nla_data(attr), fprog->filter, flen);
+out:
+	rcu_read_unlock();
+	return err;
+}
+EXPORT_SYMBOL(sock_diag_put_filterinfo);
+
 void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh))
 {
 	mutex_lock(&sock_diag_table_mutex);
@@ -97,21 +132,6 @@ void sock_diag_unregister(const struct sock_diag_handler *hnld)
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister);
 
-static const inline struct sock_diag_handler *sock_diag_lock_handler(int family)
-{
-	if (sock_diag_handlers[family] == NULL)
-		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
-				NETLINK_SOCK_DIAG, family);
-
-	mutex_lock(&sock_diag_table_mutex);
-	return sock_diag_handlers[family];
-}
-
-static inline void sock_diag_unlock_handler(const struct sock_diag_handler *h)
-{
-	mutex_unlock(&sock_diag_table_mutex);
-}
-
 static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
@@ -121,12 +141,20 @@ static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (nlmsg_len(nlh) < sizeof(*req))
 		return -EINVAL;
 
-	hndl = sock_diag_lock_handler(req->sdiag_family);
+	if (req->sdiag_family >= AF_MAX)
+		return -EINVAL;
+
+	if (sock_diag_handlers[req->sdiag_family] == NULL)
+		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
+				NETLINK_SOCK_DIAG, req->sdiag_family);
+
+	mutex_lock(&sock_diag_table_mutex);
+	hndl = sock_diag_handlers[req->sdiag_family];
 	if (hndl == NULL)
 		err = -ENOENT;
 	else
 		err = hndl->dump(skb, nlh);
-	sock_diag_unlock_handler(hndl);
+	mutex_unlock(&sock_diag_table_mutex);
 
 	return err;
 }

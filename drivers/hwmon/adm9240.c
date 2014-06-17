@@ -98,13 +98,13 @@ static inline unsigned int IN_FROM_REG(u8 reg, int n)
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	return SENSORS_LIMIT(SCALE(val, 192, nom_mv[n]), 0, 255);
+	return clamp_val(SCALE(val, 192, nom_mv[n]), 0, 255);
 }
 
 /* temperature range: -40..125, 127 disables temperature alarm */
 static inline s8 TEMP_TO_REG(long val)
 {
-	return SENSORS_LIMIT(SCALE(val, 1, 1000), -40, 127);
+	return clamp_val(SCALE(val, 1, 1000), -40, 127);
 }
 
 /* two fans, each with low fan speed limit */
@@ -122,7 +122,7 @@ static inline unsigned int FAN_FROM_REG(u8 reg, u8 div)
 /* analog out 0..1250mV */
 static inline u8 AOUT_TO_REG(unsigned long val)
 {
-	return SENSORS_LIMIT(SCALE(val, 255, 1250), 0, 255);
+	return clamp_val(SCALE(val, 255, 1250), 0, 255);
 }
 
 static inline unsigned int AOUT_FROM_REG(u8 reg)
@@ -351,8 +351,9 @@ static void adm9240_write_fan_div(struct i2c_client *client, int nr,
 	reg &= ~(3 << shift);
 	reg |= (fan_div << shift);
 	i2c_smbus_write_byte_data(client, ADM9240_REG_VID_FAN_DIV, reg);
-	dev_dbg(&client->dev, "fan%d clock divider changed from %u "
-			"to %u\n", nr + 1, 1 << old, 1 << fan_div);
+	dev_dbg(&client->dev,
+		"fan%d clock divider changed from %u to %u\n",
+		nr + 1, 1 << old, 1 << fan_div);
 }
 
 /*
@@ -699,8 +700,8 @@ static void adm9240_init_client(struct i2c_client *client)
 		/* start measurement cycle */
 		i2c_smbus_write_byte_data(client, ADM9240_REG_CONFIG, 1);
 
-		dev_info(&client->dev, "cold start: config was 0x%02x "
-				"mode %u\n", conf, mode);
+		dev_info(&client->dev,
+			 "cold start: config was 0x%02x mode %u\n", conf, mode);
 	}
 }
 

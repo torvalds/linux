@@ -65,10 +65,10 @@
 
 
 /*******************************************************************************
- *  function protoypes
+ *  function prototypes
  ******************************************************************************/
 
-void wl_adapter_insert(struct pcmcia_device *link);
+int wl_adapter_insert(struct pcmcia_device *link);
 
 void wl_adapter_release(struct pcmcia_device *link);
 
@@ -86,4 +86,4 @@ const char *DbgEvent( int mask );
 
 
 
-#endif  // __WL_CS_H__
+#endif  /* __WL_CS_H__ */

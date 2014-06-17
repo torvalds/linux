@@ -28,6 +28,7 @@ typedef u16	compat_nlink_t;
 typedef u16	compat_ipc_pid_t;
 typedef s32	compat_daddr_t;
 typedef u32	compat_caddr_t;
+typedef s32	compat_key_t;
 typedef s32	compat_timer_t;
 
 typedef s32	compat_int_t;
@@ -187,6 +188,66 @@ typedef struct compat_siginfo {
 
 #define COMPAT_OFF_T_MAX	0x7fffffff
 #define COMPAT_LOFF_T_MAX	0x7fffffffffffffffL
+
+struct compat_ipc64_perm {
+	compat_key_t key;
+	__compat_uid_t uid;
+	__compat_gid_t gid;
+	__compat_uid_t cuid;
+	__compat_gid_t cgid;
+	unsigned short int __pad1;
+	compat_mode_t mode;
+	unsigned short int __pad2;
+	unsigned short int seq;
+	unsigned int __pad3;
+	unsigned long __unused1;	/* yes they really are 64bit pads */
+	unsigned long __unused2;
+};
+
+struct compat_semid64_ds {
+	struct compat_ipc64_perm sem_perm;
+	compat_time_t sem_otime;
+	unsigned int __unused1;
+	compat_time_t sem_ctime;
+	unsigned int __unused2;
+	compat_ulong_t sem_nsems;
+	compat_ulong_t __unused3;
+	compat_ulong_t __unused4;
+};
+
+struct compat_msqid64_ds {
+	struct compat_ipc64_perm msg_perm;
+	unsigned int __unused1;
+	compat_time_t msg_stime;
+	unsigned int __unused2;
+	compat_time_t msg_rtime;
+	unsigned int __unused3;
+	compat_time_t msg_ctime;
+	compat_ulong_t msg_cbytes;
+	compat_ulong_t msg_qnum;
+	compat_ulong_t msg_qbytes;
+	compat_pid_t msg_lspid;
+	compat_pid_t msg_lrpid;
+	compat_ulong_t __unused4;
+	compat_ulong_t __unused5;
+};
+
+struct compat_shmid64_ds {
+	struct compat_ipc64_perm shm_perm;
+	unsigned int __unused1;
+	compat_time_t shm_atime;
+	unsigned int __unused2;
+	compat_time_t shm_dtime;
+	unsigned int __unused3;
+	compat_time_t shm_ctime;
+	unsigned int __unused4;
+	compat_size_t shm_segsz;
+	compat_pid_t shm_cpid;
+	compat_pid_t shm_lpid;
+	compat_ulong_t shm_nattch;
+	compat_ulong_t __unused5;
+	compat_ulong_t __unused6;
+};
 
 /*
  * A pointer passed in from user mode. This should not

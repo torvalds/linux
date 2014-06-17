@@ -153,16 +153,6 @@ static const struct rtc_class_ops ds1672_rtc_ops = {
 	.set_mmss = ds1672_rtc_set_mmss,
 };
 
-static int ds1672_remove(struct i2c_client *client)
-{
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	if (rtc)
-		rtc_device_unregister(rtc);
-
-	return 0;
-}
-
 static int ds1672_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -177,7 +167,7 @@ static int ds1672_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(ds1672_driver.driver.name, &client->dev,
+	rtc = devm_rtc_device_register(&client->dev, ds1672_driver.driver.name,
 				  &ds1672_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
@@ -187,8 +177,9 @@ static int ds1672_probe(struct i2c_client *client,
 
 	/* read control register */
 	err = ds1672_get_control(client, &control);
-	if (err)
-		goto exit_devreg;
+	if (err) {
+		dev_warn(&client->dev, "Unable to read the control register\n");
+	}
 
 	if (control & DS1672_REG_CONTROL_EOSC)
 		dev_warn(&client->dev, "Oscillator not enabled. "
@@ -197,13 +188,10 @@ static int ds1672_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = device_create_file(&client->dev, &dev_attr_control);
 	if (err)
-		goto exit_devreg;
+		dev_err(&client->dev, "Unable to create sysfs entry: %s\n",
+			dev_attr_control.attr.name);
 
 	return 0;
-
- exit_devreg:
-	rtc_device_unregister(rtc);
-	return err;
 }
 
 static struct i2c_device_id ds1672_id[] = {
@@ -216,7 +204,6 @@ static struct i2c_driver ds1672_driver = {
 		   .name = "rtc-ds1672",
 		   },
 	.probe = &ds1672_probe,
-	.remove = &ds1672_remove,
 	.id_table = ds1672_id,
 };
 

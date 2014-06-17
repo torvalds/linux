@@ -796,6 +796,7 @@ static int tvaudio_thread_ddep(void *data)
 			dprintk("FM Radio\n");
 			if (dev->tuner_type == TUNER_PHILIPS_TDA8290) {
 				norms = (0x11 << 2) | 0x01;
+				/* set IF frequency to 5.5 MHz */
 				saa_dsp_writel(dev, 0x42c >> 2, 0x729555);
 			} else {
 				norms = (0x0f << 2) | 0x01;
@@ -1078,10 +1079,3 @@ int saa7134_tvaudio_do_scan(struct saa7134_dev *dev)
 
 EXPORT_SYMBOL(saa_dsp_writel);
 EXPORT_SYMBOL(saa7134_tvaudio_setmute);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

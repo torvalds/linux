@@ -1,0 +1,236 @@
+PERF := .
+MK   := Makefile
+
+include config/Makefile.arch
+
+# FIXME looks like x86 is the only arch running tests ;-)
+# we need some IS_(32/64) flag to make this generic
+ifeq ($(IS_X86_64),1)
+lib = lib64
+else
+lib = lib
+endif
+
+has = $(shell which $1 2>/dev/null)
+
+# standard single make variable specified
+make_clean_all      := clean all
+make_python_perf_so := python/perf.so
+make_debug          := DEBUG=1
+make_no_libperl     := NO_LIBPERL=1
+make_no_libpython   := NO_LIBPYTHON=1
+make_no_scripts     := NO_LIBPYTHON=1 NO_LIBPERL=1
+make_no_newt        := NO_NEWT=1
+make_no_slang       := NO_SLANG=1
+make_no_gtk2        := NO_GTK2=1
+make_no_ui          := NO_NEWT=1 NO_SLANG=1 NO_GTK2=1
+make_no_demangle    := NO_DEMANGLE=1
+make_no_libelf      := NO_LIBELF=1
+make_no_libunwind   := NO_LIBUNWIND=1
+make_no_libdw_dwarf_unwind := NO_LIBDW_DWARF_UNWIND=1
+make_no_backtrace   := NO_BACKTRACE=1
+make_no_libnuma     := NO_LIBNUMA=1
+make_no_libaudit    := NO_LIBAUDIT=1
+make_no_libbionic   := NO_LIBBIONIC=1
+make_tags           := tags
+make_cscope         := cscope
+make_help           := help
+make_doc            := doc
+make_perf_o           := perf.o
+make_util_map_o       := util/map.o
+make_util_pmu_bison_o := util/pmu-bison.o
+make_install        := install
+make_install_bin    := install-bin
+make_install_doc    := install-doc
+make_install_man    := install-man
+make_install_html   := install-html
+make_install_info   := install-info
+make_install_pdf    := install-pdf
+make_static         := LDFLAGS=-static
+
+# all the NO_* variable combined
+make_minimal        := NO_LIBPERL=1 NO_LIBPYTHON=1 NO_NEWT=1 NO_GTK2=1
+make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_LIBUNWIND=1 NO_BACKTRACE=1
+make_minimal        += NO_LIBNUMA=1 NO_LIBAUDIT=1 NO_LIBBIONIC=1
+make_minimal        += NO_LIBDW_DWARF_UNWIND=1
+
+# $(run) contains all available tests
+run := make_pure
+run += make_clean_all
+run += make_python_perf_so
+run += make_debug
+run += make_no_libperl
+run += make_no_libpython
+run += make_no_scripts
+run += make_no_newt
+run += make_no_slang
+run += make_no_gtk2
+run += make_no_ui
+run += make_no_demangle
+run += make_no_libelf
+run += make_no_libunwind
+run += make_no_libdw_dwarf_unwind
+run += make_no_backtrace
+run += make_no_libnuma
+run += make_no_libaudit
+run += make_no_libbionic
+run += make_help
+run += make_doc
+run += make_perf_o
+run += make_util_map_o
+run += make_util_pmu_bison_o
+run += make_install
+run += make_install_bin
+# FIXME 'install-*' commented out till they're fixed
+# run += make_install_doc
+# run += make_install_man
+# run += make_install_html
+# run += make_install_info
+# run += make_install_pdf
+run += make_minimal
+run += make_static
+
+ifneq ($(call has,ctags),)
+run += make_tags
+endif
+ifneq ($(call has,cscope),)
+run += make_cscope
+endif
+
+# $(run_O) contains same portion of $(run) tests with '_O' attached
+# to distinguish O=... tests
+run_O := $(addsuffix _O,$(run))
+
+# disable some tests for O=...
+run_O := $(filter-out make_python_perf_so_O,$(run_O))
+
+# define test for each compile as 'test_NAME' variable
+# with the test itself as a value
+test_make_tags   = test -f tags
+test_make_cscope = test -f cscope.out
+
+test_make_tags_O   := $(test_make_tags)
+test_make_cscope_O := $(test_make_cscope)
+
+test_ok          := true
+test_make_help   := $(test_ok)
+test_make_doc    := $(test_ok)
+test_make_help_O := $(test_ok)
+test_make_doc_O  := $(test_ok)
+
+test_make_python_perf_so := test -f $(PERF)/python/perf.so
+
+test_make_perf_o           := test -f $(PERF)/perf.o
+test_make_util_map_o       := test -f $(PERF)/util/map.o
+test_make_util_pmu_bison_o := test -f $(PERF)/util/pmu-bison.o
+
+define test_dest_files
+  for file in $(1); do				\
+    if [ ! -x $$TMP_DEST/$$file ]; then		\
+      echo "  failed to find: $$file";		\
+    fi						\
+  done
+endef
+
+installed_files_bin := bin/perf
+installed_files_bin += etc/bash_completion.d/perf
+installed_files_bin += libexec/perf-core/perf-archive
+
+installed_files_plugins := $(lib)/traceevent/plugins/plugin_cfg80211.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_scsi.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_xen.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_function.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_sched_switch.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_mac80211.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_kvm.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_kmem.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_hrtimer.so
+installed_files_plugins += $(lib)/traceevent/plugins/plugin_jbd2.so
+
+installed_files_all := $(installed_files_bin)
+installed_files_all += $(installed_files_plugins)
+
+test_make_install       := $(call test_dest_files,$(installed_files_all))
+test_make_install_O     := $(call test_dest_files,$(installed_files_all))
+test_make_install_bin   := $(call test_dest_files,$(installed_files_bin))
+test_make_install_bin_O := $(call test_dest_files,$(installed_files_bin))
+
+# FIXME nothing gets installed
+test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
+test_make_install_man_O  := $(test_make_install_man)
+
+# FIXME nothing gets installed
+test_make_install_doc    := $(test_ok)
+test_make_install_doc_O  := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_html   := $(test_ok)
+test_make_install_html_O := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_info   := $(test_ok)
+test_make_install_info_O := $(test_ok)
+
+# FIXME nothing gets installed
+test_make_install_pdf    := $(test_ok)
+test_make_install_pdf_O  := $(test_ok)
+
+test_make_python_perf_so_O    := test -f $$TMP_O/python/perf.so
+test_make_perf_o_O            := test -f $$TMP_O/perf.o
+test_make_util_map_o_O        := test -f $$TMP_O/util/map.o
+test_make_util_pmu_bison_o_O := test -f $$TMP_O/util/pmu-bison.o
+
+test_default = test -x $(PERF)/perf
+test = $(if $(test_$1),$(test_$1),$(test_default))
+
+test_default_O = test -x $$TMP_O/perf
+test_O = $(if $(test_$1),$(test_$1),$(test_default_O))
+
+all:
+
+ifdef DEBUG
+d := $(info run   $(run))
+d := $(info run_O $(run_O))
+endif
+
+MAKEFLAGS := --no-print-directory
+
+clean := @(cd $(PERF); make -s -f $(MK) clean >/dev/null)
+
+$(run):
+	$(call clean)
+	@TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && make -f $(MK) DESTDIR=$$TMP_DEST $($@)"; \
+	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1; \
+	echo "  test: $(call test,$@)" >> $@ 2>&1; \
+	$(call test,$@) && \
+	rm -f $@ \
+	rm -rf $$TMP_DEST
+
+$(run_O):
+	$(call clean)
+	@TMP_O=$$(mktemp -d); \
+	TMP_DEST=$$(mktemp -d); \
+	cmd="cd $(PERF) && make -f $(MK) O=$$TMP_O DESTDIR=$$TMP_DEST $($(patsubst %_O,%,$@))"; \
+	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1 && \
+	echo "  test: $(call test_O,$@)" >> $@ 2>&1; \
+	$(call test_O,$@) && \
+	rm -f $@ && \
+	rm -rf $$TMP_O \
+	rm -rf $$TMP_DEST
+
+tarpkg:
+	@cmd="$(PERF)/tests/perf-targz-src-pkg $(PERF)"; \
+	echo "- $@: $$cmd" && echo $$cmd > $@ && \
+	( eval $$cmd ) >> $@ 2>&1
+	
+
+all: $(run) $(run_O) tarpkg
+	@echo OK
+
+out: $(run_O)
+	@echo OK
+
+.PHONY: all $(run) $(run_O) tarpkg clean

@@ -1,7 +1,7 @@
 /*
  *  fixup-tb0287.c, The TANBAC TB0287 specific PCI fixups.
  *
- *  Copyright (C) 2005  Yoichi Yuasa <yuasa@linux-mips.org>
+ *  Copyright (C) 2005	Yoichi Yuasa <yuasa@linux-mips.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -15,7 +15,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/kgdb.h>
 #include <linux/smp.h>
 #include <linux/signal.h>
@@ -151,15 +150,16 @@ static int kgdb_handle_breakpoint(struct pt_regs *regs)
 	return 1;
 }
 
+static DEFINE_PER_CPU(struct thread_info, kgdb_thread_info);
 static int kgdb_singlestep(struct pt_regs *regs)
 {
 	struct thread_info *thread_info, *exception_thread_info;
-	struct thread_info *backup_current_thread_info;
+	struct thread_info *backup_current_thread_info =
+		&__get_cpu_var(kgdb_thread_info);
 
 	if (user_mode(regs))
 		return 0;
 
-	backup_current_thread_info = (struct thread_info *)kmalloc(sizeof(struct thread_info), GFP_KERNEL);
 	/*
 	 * On Book E and perhaps other processors, singlestep is handled on
 	 * the critical exception stack.  This causes current_thread_info()
@@ -185,7 +185,6 @@ static int kgdb_singlestep(struct pt_regs *regs)
 		/* Restore current_thread_info lastly. */
 		memcpy(exception_thread_info, backup_current_thread_info, sizeof *thread_info);
 
-	kfree(backup_current_thread_info);
 	return 1;
 }
 
@@ -199,7 +198,7 @@ static int kgdb_iabr_match(struct pt_regs *regs)
 	return 1;
 }
 
-static int kgdb_dabr_match(struct pt_regs *regs)
+static int kgdb_break_match(struct pt_regs *regs)
 {
 	if (user_mode(regs))
 		return 0;
@@ -459,7 +458,7 @@ static void *old__debugger;
 static void *old__debugger_bpt;
 static void *old__debugger_sstep;
 static void *old__debugger_iabr_match;
-static void *old__debugger_dabr_match;
+static void *old__debugger_break_match;
 static void *old__debugger_fault_handler;
 
 int kgdb_arch_init(void)
@@ -469,7 +468,7 @@ int kgdb_arch_init(void)
 	old__debugger_bpt = __debugger_bpt;
 	old__debugger_sstep = __debugger_sstep;
 	old__debugger_iabr_match = __debugger_iabr_match;
-	old__debugger_dabr_match = __debugger_dabr_match;
+	old__debugger_break_match = __debugger_break_match;
 	old__debugger_fault_handler = __debugger_fault_handler;
 
 	__debugger_ipi = kgdb_call_nmi_hook;
@@ -477,7 +476,7 @@ int kgdb_arch_init(void)
 	__debugger_bpt = kgdb_handle_breakpoint;
 	__debugger_sstep = kgdb_singlestep;
 	__debugger_iabr_match = kgdb_iabr_match;
-	__debugger_dabr_match = kgdb_dabr_match;
+	__debugger_break_match = kgdb_break_match;
 	__debugger_fault_handler = kgdb_not_implemented;
 
 	return 0;
@@ -490,6 +489,6 @@ void kgdb_arch_exit(void)
 	__debugger_bpt = old__debugger_bpt;
 	__debugger_sstep = old__debugger_sstep;
 	__debugger_iabr_match = old__debugger_iabr_match;
-	__debugger_dabr_match = old__debugger_dabr_match;
+	__debugger_break_match = old__debugger_break_match;
 	__debugger_fault_handler = old__debugger_fault_handler;
 }

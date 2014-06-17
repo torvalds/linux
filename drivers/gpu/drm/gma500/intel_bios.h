@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef _I830_BIOS_H_
-#define _I830_BIOS_H_
+#ifndef _INTEL_BIOS_H_
+#define _INTEL_BIOS_H_
 
 #include <drm/drmP.h>
 #include <drm/drm_dp_helper.h>
@@ -618,4 +618,4 @@ extern void psb_intel_destroy_bios(struct drm_device *dev);
 #define		PORT_IDPC	8
 #define		PORT_IDPD	9
 
-#endif /* _I830_BIOS_H_ */
+#endif /* _INTEL_BIOS_H_ */

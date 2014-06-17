@@ -41,10 +41,19 @@ void __quota_error(struct super_block *sb, const char *func,
 void inode_add_rsv_space(struct inode *inode, qsize_t number);
 void inode_claim_rsv_space(struct inode *inode, qsize_t number);
 void inode_sub_rsv_space(struct inode *inode, qsize_t number);
+void inode_reclaim_rsv_space(struct inode *inode, qsize_t number);
 
 void dquot_initialize(struct inode *inode);
 void dquot_drop(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, struct kqid qid);
+static inline struct dquot *dqgrab(struct dquot *dquot)
+{
+	/* Make sure someone else has active reference to dquot */
+	WARN_ON_ONCE(!atomic_read(&dquot->dq_count));
+	WARN_ON_ONCE(!test_bit(DQ_ACTIVE_B, &dquot->dq_flags));
+	atomic_inc(&dquot->dq_count);
+	return dquot;
+}
 void dqput(struct dquot *dquot);
 int dquot_scan_active(struct super_block *sb,
 		      int (*fn)(struct dquot *dquot, unsigned long priv),
@@ -59,6 +68,7 @@ int dquot_alloc_inode(const struct inode *inode);
 
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
 void dquot_free_inode(const struct inode *inode);
+void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number);
 
 int dquot_disable(struct super_block *sb, int type, unsigned int flags);
 /* Suspend quotas on remount RO */
@@ -238,6 +248,13 @@ static inline int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	return 0;
 }
 
+static inline int dquot_reclaim_space_nodirty(struct inode *inode,
+					      qsize_t number)
+{
+	inode_sub_bytes(inode, number);
+	return 0;
+}
+
 static inline int dquot_disable(struct super_block *sb, int type,
 		unsigned int flags)
 {
@@ -334,6 +351,12 @@ static inline int dquot_claim_block(struct inode *inode, qsize_t nr)
 	if (!ret)
 		mark_inode_dirty_sync(inode);
 	return ret;
+}
+
+static inline void dquot_reclaim_block(struct inode *inode, qsize_t nr)
+{
+	dquot_reclaim_space_nodirty(inode, nr << inode->i_blkbits);
+	mark_inode_dirty_sync(inode);
 }
 
 static inline void dquot_free_space_nodirty(struct inode *inode, qsize_t nr)

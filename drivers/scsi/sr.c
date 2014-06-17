@@ -45,6 +45,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <asm/uaccess.h>
 
 #include <scsi/scsi.h>
@@ -78,7 +79,13 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_WORM);
 static DEFINE_MUTEX(sr_mutex);
 static int sr_probe(struct device *);
 static int sr_remove(struct device *);
+static int sr_init_command(struct scsi_cmnd *SCpnt);
 static int sr_done(struct scsi_cmnd *);
+static int sr_runtime_suspend(struct device *dev);
+
+static struct dev_pm_ops sr_pm_ops = {
+	.runtime_suspend	= sr_runtime_suspend,
+};
 
 static struct scsi_driver sr_template = {
 	.owner			= THIS_MODULE,
@@ -86,7 +93,9 @@ static struct scsi_driver sr_template = {
 		.name   	= "sr",
 		.probe		= sr_probe,
 		.remove		= sr_remove,
+		.pm		= &sr_pm_ops,
 	},
+	.init_command		= sr_init_command,
 	.done			= sr_done,
 };
 
@@ -131,6 +140,16 @@ static inline struct scsi_cd *scsi_cd(struct gendisk *disk)
 	return container_of(disk->private_data, struct scsi_cd, driver);
 }
 
+static int sr_runtime_suspend(struct device *dev)
+{
+	struct scsi_cd *cd = dev_get_drvdata(dev);
+
+	if (cd->media_present)
+		return -EBUSY;
+	else
+		return 0;
+}
+
 /*
  * The get and put routines for the struct scsi_cd.  Note this entity
  * has a scsi_device pointer and owns a reference to this.
@@ -144,13 +163,10 @@ static inline struct scsi_cd *scsi_cd_get(struct gendisk *disk)
 		goto out;
 	cd = scsi_cd(disk);
 	kref_get(&cd->kref);
-	if (scsi_device_get(cd->device))
-		goto out_put;
-	goto out;
-
- out_put:
-	kref_put(&cd->kref, sr_kref_release);
-	cd = NULL;
+	if (scsi_device_get(cd->device)) {
+		kref_put(&cd->kref, sr_kref_release);
+		cd = NULL;
+	}
  out:
 	mutex_unlock(&sr_ref_mutex);
 	return cd;
@@ -364,21 +380,14 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 	return good_bytes;
 }
 
-static int sr_prep_fn(struct request_queue *q, struct request *rq)
+static int sr_init_command(struct scsi_cmnd *SCpnt)
 {
 	int block = 0, this_count, s_size;
 	struct scsi_cd *cd;
-	struct scsi_cmnd *SCpnt;
-	struct scsi_device *sdp = q->queuedata;
+	struct request *rq = SCpnt->request;
+	struct scsi_device *sdp = SCpnt->device;
 	int ret;
 
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
-		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
-		goto out;
-	} else if (rq->cmd_type != REQ_TYPE_FS) {
-		ret = BLKPREP_KILL;
-		goto out;
-	}
 	ret = scsi_setup_fs_cmnd(sdp, rq);
 	if (ret != BLKPREP_OK)
 		goto out;
@@ -503,7 +512,7 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 	 */
 	ret = BLKPREP_OK;
  out:
-	return scsi_prep_return(q, rq, ret);
+	return ret;
 }
 
 static int sr_block_open(struct block_device *bdev, fmode_t mode)
@@ -522,14 +531,13 @@ static int sr_block_open(struct block_device *bdev, fmode_t mode)
 	return ret;
 }
 
-static int sr_block_release(struct gendisk *disk, fmode_t mode)
+static void sr_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
 	mutex_lock(&sr_mutex);
 	cdrom_release(&cd->cdi, mode);
 	scsi_cd_put(cd);
 	mutex_unlock(&sr_mutex);
-	return 0;
 }
 
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
@@ -578,6 +586,10 @@ static unsigned int sr_block_check_events(struct gendisk *disk,
 					  unsigned int clearing)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
+
+	if (atomic_read(&cd->device->disk_events_disable_depth))
+		return 0;
+
 	return cdrom_check_events(&cd->cdi, clearing);
 }
 
@@ -588,10 +600,11 @@ static int sr_block_revalidate_disk(struct gendisk *disk)
 
 	/* if the unit is not ready, nothing more to do */
 	if (scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr))
-		return 0;
+		goto out;
 
 	sr_cd_check(&cd->cdi);
 	get_sectorsize(cd);
+out:
 	return 0;
 }
 
@@ -700,7 +713,6 @@ static int sr_probe(struct device *dev)
 
 	/* FIXME: need to handle a get_capabilities failure properly ?? */
 	get_capabilities(cd);
-	blk_queue_prep_rq(sdev->request_queue, sr_prep_fn);
 	sr_vendor_init(cd);
 
 	disk->driverfs_dev = &sdev->sdev_gendev;
@@ -712,12 +724,20 @@ static int sr_probe(struct device *dev)
 	if (register_cdrom(&cd->cdi))
 		goto fail_put;
 
+	/*
+	 * Initialize block layer runtime PM stuffs before the
+	 * periodic event checking request gets started in add_disk.
+	 */
+	blk_pm_runtime_init(sdev->request_queue, dev);
+
 	dev_set_drvdata(dev, cd);
 	disk->flags |= GENHD_FL_REMOVABLE;
 	add_disk(disk);
 
 	sdev_printk(KERN_DEBUG, sdev,
 		    "Attached scsi CD-ROM %s\n", cd->cdi.name);
+	scsi_autopm_put_device(cd->device);
+
 	return 0;
 
 fail_put:
@@ -965,7 +985,8 @@ static int sr_remove(struct device *dev)
 {
 	struct scsi_cd *cd = dev_get_drvdata(dev);
 
-	blk_queue_prep_rq(cd->device->request_queue, scsi_prep_fn);
+	scsi_autopm_get_device(cd->device);
+
 	del_gendisk(cd->disk);
 
 	mutex_lock(&sr_ref_mutex);

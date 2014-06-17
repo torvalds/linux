@@ -211,6 +211,15 @@ fail:
 	return ret;
 }
 
+static void mxr_resource_clear_clocks(struct mxr_resources *res)
+{
+	res->mixer	= ERR_PTR(-EINVAL);
+	res->vp		= ERR_PTR(-EINVAL);
+	res->sclk_mixer	= ERR_PTR(-EINVAL);
+	res->sclk_hdmi	= ERR_PTR(-EINVAL);
+	res->sclk_dac	= ERR_PTR(-EINVAL);
+}
+
 static void mxr_release_plat_resources(struct mxr_device *mdev)
 {
 	free_irq(mdev->res.irq, mdev);
@@ -222,15 +231,15 @@ static void mxr_release_clocks(struct mxr_device *mdev)
 {
 	struct mxr_resources *res = &mdev->res;
 
-	if (!IS_ERR_OR_NULL(res->sclk_dac))
+	if (!IS_ERR(res->sclk_dac))
 		clk_put(res->sclk_dac);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
+	if (!IS_ERR(res->sclk_hdmi))
 		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->sclk_mixer))
+	if (!IS_ERR(res->sclk_mixer))
 		clk_put(res->sclk_mixer);
-	if (!IS_ERR_OR_NULL(res->vp))
+	if (!IS_ERR(res->vp))
 		clk_put(res->vp);
-	if (!IS_ERR_OR_NULL(res->mixer))
+	if (!IS_ERR(res->mixer))
 		clk_put(res->mixer);
 }
 
@@ -239,28 +248,30 @@ static int mxr_acquire_clocks(struct mxr_device *mdev)
 	struct mxr_resources *res = &mdev->res;
 	struct device *dev = mdev->dev;
 
+	mxr_resource_clear_clocks(res);
+
 	res->mixer = clk_get(dev, "mixer");
-	if (IS_ERR_OR_NULL(res->mixer)) {
+	if (IS_ERR(res->mixer)) {
 		mxr_err(mdev, "failed to get clock 'mixer'\n");
 		goto fail;
 	}
 	res->vp = clk_get(dev, "vp");
-	if (IS_ERR_OR_NULL(res->vp)) {
+	if (IS_ERR(res->vp)) {
 		mxr_err(mdev, "failed to get clock 'vp'\n");
 		goto fail;
 	}
 	res->sclk_mixer = clk_get(dev, "sclk_mixer");
-	if (IS_ERR_OR_NULL(res->sclk_mixer)) {
+	if (IS_ERR(res->sclk_mixer)) {
 		mxr_err(mdev, "failed to get clock 'sclk_mixer'\n");
 		goto fail;
 	}
 	res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
+	if (IS_ERR(res->sclk_hdmi)) {
 		mxr_err(mdev, "failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
 	res->sclk_dac = clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(res->sclk_dac)) {
+	if (IS_ERR(res->sclk_dac)) {
 		mxr_err(mdev, "failed to get clock 'sclk_dac'\n");
 		goto fail;
 	}
@@ -298,7 +309,8 @@ static void mxr_release_resources(struct mxr_device *mdev)
 {
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
-	memset(&mdev->res, 0, sizeof mdev->res);
+	memset(&mdev->res, 0, sizeof(mdev->res));
+	mxr_resource_clear_clocks(&mdev->res);
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)
@@ -335,19 +347,41 @@ static int mxr_runtime_resume(struct device *dev)
 {
 	struct mxr_device *mdev = to_mdev(dev);
 	struct mxr_resources *res = &mdev->res;
+	int ret;
 
 	mxr_dbg(mdev, "resume - start\n");
 	mutex_lock(&mdev->mutex);
 	/* turn clocks on */
-	clk_enable(res->mixer);
-	clk_enable(res->vp);
-	clk_enable(res->sclk_mixer);
+	ret = clk_prepare_enable(res->mixer);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(mixer) failed\n");
+		goto fail;
+	}
+	ret = clk_prepare_enable(res->vp);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(vp) failed\n");
+		goto fail_mixer;
+	}
+	ret = clk_prepare_enable(res->sclk_mixer);
+	if (ret < 0) {
+		dev_err(mdev->dev, "clk_prepare_enable(sclk_mixer) failed\n");
+		goto fail_vp;
+	}
 	/* apply default configuration */
 	mxr_reg_reset(mdev);
 	mxr_dbg(mdev, "resume - finished\n");
 
 	mutex_unlock(&mdev->mutex);
 	return 0;
+
+fail_vp:
+	clk_disable_unprepare(res->vp);
+fail_mixer:
+	clk_disable_unprepare(res->mixer);
+fail:
+	mutex_unlock(&mdev->mutex);
+	dev_err(mdev->dev, "resume failed\n");
+	return ret;
 }
 
 static int mxr_runtime_suspend(struct device *dev)
@@ -357,9 +391,9 @@ static int mxr_runtime_suspend(struct device *dev)
 	mxr_dbg(mdev, "suspend - start\n");
 	mutex_lock(&mdev->mutex);
 	/* turn clocks off */
-	clk_disable(res->sclk_mixer);
-	clk_disable(res->vp);
-	clk_disable(res->mixer);
+	clk_disable_unprepare(res->sclk_mixer);
+	clk_disable_unprepare(res->vp);
+	clk_disable_unprepare(res->mixer);
 	mutex_unlock(&mdev->mutex);
 	mxr_dbg(mdev, "suspend - finished\n");
 	return 0;
@@ -382,7 +416,7 @@ static int mxr_probe(struct platform_device *pdev)
 	/* mdev does not exist yet so no mxr_dbg is used */
 	dev_info(dev, "probe start\n");
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;

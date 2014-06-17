@@ -31,6 +31,8 @@
 #include "at91_aic.h"
 #include "board.h"
 #include "generic.h"
+#include "gpio.h"
+
 
 static void __init eco920_init_early(void)
 {
@@ -149,7 +151,7 @@ static void __init eco920_board_init(void)
 
 MACHINE_START(ECO920, "eco920")
 	/* Maintainer: Sascha Hauer */
-	.timer		= &at91rm9200_timer,
+	.init_time	= at91rm9200_timer_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= eco920_init_early,

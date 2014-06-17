@@ -576,20 +576,17 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	if (direction == DMA_TO_DEVICE) {
 		dma_src = dma_addr;
 		dma_dst = host->data_pa;
-		flags |= DMA_COMPL_SRC_UNMAP_SINGLE | DMA_COMPL_SKIP_DEST_UNMAP;
 	} else {
 		dma_src = host->data_pa;
 		dma_dst = dma_addr;
-		flags |= DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SKIP_SRC_UNMAP;
 	}
 
 	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
 			len, flags);
-
 	if (!tx) {
 		dev_err(host->dev, "device_prep_dma_memcpy error\n");
-		dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
-		return -EIO;
+		ret = -EIO;
+		goto unmap_dma;
 	}
 
 	tx->callback = dma_complete;
@@ -599,7 +596,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	ret = dma_submit_error(cookie);
 	if (ret) {
 		dev_err(host->dev, "dma_submit_error %d\n", cookie);
-		return ret;
+		goto unmap_dma;
 	}
 
 	dma_async_issue_pending(chan);
@@ -610,10 +607,17 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	if (ret <= 0) {
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
-		return ret ? ret : -ETIMEDOUT;
+		if (!ret)
+			ret = -ETIMEDOUT;
+		goto unmap_dma;
 	}
 
-	return 0;
+	ret = 0;
+
+unmap_dma:
+	dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
+
+	return ret;
 }
 
 /*
@@ -883,6 +887,22 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	if (of_get_property(np, "nand-skip-bbtscan", NULL))
 		pdata->options = NAND_SKIP_BBTSCAN;
 
+	pdata->nand_timings = devm_kzalloc(&pdev->dev,
+				sizeof(*pdata->nand_timings), GFP_KERNEL);
+	if (!pdata->nand_timings)
+		return -ENOMEM;
+	of_property_read_u8_array(np, "timings", (u8 *)pdata->nand_timings,
+						sizeof(*pdata->nand_timings));
+
+	/* Set default NAND bank to 0 */
+	pdata->bank = 0;
+	if (!of_property_read_u32(np, "bank", &val)) {
+		if (val > 3) {
+			dev_err(&pdev->dev, "invalid bank %u\n", val);
+			return -EINVAL;
+		}
+		pdata->bank = val;
+	}
 	return 0;
 }
 #else
@@ -928,51 +948,30 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		dev_err(&pdev->dev, "failed to allocate device structure\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_data");
-	if (!res)
-		return -EINVAL;
-
-	host->data_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->data_va) {
-		dev_err(&pdev->dev, "data ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->data_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->data_va))
+		return PTR_ERR(host->data_va);
+	
 	host->data_pa = (dma_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
-	if (!res)
-		return -EINVAL;
-
-	host->addr_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->addr_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->addr_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->addr_va))
+		return PTR_ERR(host->addr_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
-	if (!res)
-		return -EINVAL;
-
-	host->cmd_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->cmd_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->cmd_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->cmd_va))
+		return PTR_ERR(host->cmd_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fsmc_regs");
-	if (!res)
-		return -EINVAL;
-
-	host->regs_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->regs_va) {
-		dev_err(&pdev->dev, "regs ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->regs_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->regs_va))
+		return PTR_ERR(host->regs_va);
 
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -1105,8 +1104,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			host->ecc_place = &fsmc_ecc4_lp_place;
 			break;
 		default:
-			printk(KERN_WARNING "No oob scheme defined for "
-			       "oobsize %d\n", mtd->oobsize);
+			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
+				 mtd->oobsize);
 			BUG();
 		}
 	} else {
@@ -1121,8 +1120,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			nand->ecc.layout = &fsmc_ecc1_128_layout;
 			break;
 		default:
-			printk(KERN_WARNING "No oob scheme defined for "
-			       "oobsize %d\n", mtd->oobsize);
+			dev_warn(&pdev->dev, "No oob scheme defined for oobsize %d\n",
+				 mtd->oobsize);
 			BUG();
 		}
 	}
@@ -1175,8 +1174,6 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 {
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (host) {
 		nand_release(&host->mtd);
 
@@ -1191,7 +1188,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int fsmc_nand_suspend(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
@@ -1211,13 +1208,14 @@ static int fsmc_nand_resume(struct device *dev)
 	}
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
-#endif
 
 #ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
 	{ .compatible = "st,spear600-fsmc-nand" },
+	{ .compatible = "stericsson,fsmc-nand" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
@@ -1229,24 +1227,11 @@ static struct platform_driver fsmc_nand_driver = {
 		.owner = THIS_MODULE,
 		.name = "fsmc-nand",
 		.of_match_table = of_match_ptr(fsmc_nand_id_table),
-#ifdef CONFIG_PM
 		.pm = &fsmc_nand_pm_ops,
-#endif
 	},
 };
 
-static int __init fsmc_nand_init(void)
-{
-	return platform_driver_probe(&fsmc_nand_driver,
-				     fsmc_nand_probe);
-}
-module_init(fsmc_nand_init);
-
-static void __exit fsmc_nand_exit(void)
-{
-	platform_driver_unregister(&fsmc_nand_driver);
-}
-module_exit(fsmc_nand_exit);
+module_platform_driver_probe(fsmc_nand_driver, fsmc_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vipin Kumar <vipin.kumar@st.com>, Ashish Priyadarshi");

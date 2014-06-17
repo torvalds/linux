@@ -5,13 +5,16 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-/include/ "omap4-panda.dts"
+/dts-v1/;
+
+#include "omap443x.dtsi"
+#include "omap4-panda-common.dtsi"
 
 /* Pandaboard Rev A4+ have external pullups on SCL & SDA */
 &dss_hdmi_pins {
 	pinctrl-single,pins = <
-		0x5a 0x118	/* hdmi_cec.hdmi_cec INPUT PULLUP | MODE 0 */
-		0x5c 0x100	/* hdmi_scl.hdmi_scl INPUT | MODE 0 */
-		0x5e 0x100	/* hdmi_sda.hdmi_sda INPUT | MODE 0 */
+		0x5a (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+		0x5c (PIN_INPUT | MUX_MODE0)		/* hdmi_scl.hdmi_scl */
+		0x5e (PIN_INPUT | MUX_MODE0)		/* hdmi_sda.hdmi_sda */
 		>;
 };

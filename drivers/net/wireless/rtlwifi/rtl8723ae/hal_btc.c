@@ -30,7 +30,9 @@
 #include "hal_btc.h"
 #include "../pci.h"
 #include "phy.h"
+#include "../rtl8723com/phy_common.h"
 #include "fw.h"
+#include "../rtl8723com/fw_common.h"
 #include "reg.h"
 #include "def.h"
 
@@ -391,13 +393,13 @@ static void rtl8723ae_dm_bt_set_sw_full_time_dac_swing(struct ieee80211_hw *hw,
 	if (sw_dac_swing_on) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 			 "[BTCoex], SwDacSwing = 0x%x\n", sw_dac_swing_lvl);
-		rtl8723ae_phy_set_bb_reg(hw, 0x880, 0xff000000,
-					 sw_dac_swing_lvl);
+		rtl8723_phy_set_bb_reg(hw, 0x880, 0xff000000,
+				       sw_dac_swing_lvl);
 		rtlpcipriv->bt_coexist.sw_coexist_all_off = false;
 	} else {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
 			 "[BTCoex], SwDacSwing Off!\n");
-		rtl8723ae_phy_set_bb_reg(hw, 0x880, 0xff000000, 0xc0);
+		rtl8723_phy_set_bb_reg(hw, 0x880, 0xff000000, 0xc0);
 	}
 }
 
@@ -1433,7 +1435,6 @@ static void _rtl8723ae_dm_bt_coexist_2_ant(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_pci_priv *rtlpcipriv = rtl_pcipriv(hw);
-	u8 bt_retry_cnt;
 	u8 bt_info_original;
 	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_DMESG,
 		 "[BTCoex] Get bt info by fw!!\n");
@@ -1445,7 +1446,6 @@ static void _rtl8723ae_dm_bt_coexist_2_ant(struct ieee80211_hw *hw)
 				 "[BTCoex] c2h for btInfo not rcvd yet!!\n");
 	}
 
-	bt_retry_cnt = rtlhal->hal_coex_8723.bt_retry_cnt;
 	bt_info_original = rtlhal->hal_coex_8723.c2h_bt_info_original;
 
 	/* when bt inquiry or page scan, we have to set h2c 0x25

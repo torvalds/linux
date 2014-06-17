@@ -342,7 +342,10 @@ kset use:
 
 When you are finished with the kset, call:
   void kset_unregister(struct kset *kset);
-to destroy it.
+to destroy it.  This removes the kset from sysfs and decrements its reference
+count.  When the reference count goes to zero, the kset will be released.
+Because other references to the kset may still exist, the release may happen
+after kset_unregister() returns.
 
 An example of using a kset can be seen in the
 samples/kobject/kset-example.c file in the kernel tree.

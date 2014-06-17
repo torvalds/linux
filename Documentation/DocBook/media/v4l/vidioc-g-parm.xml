@@ -132,7 +132,7 @@ devices.</para>
 	  <row>
 	    <entry>&v4l2-fract;</entry>
 	    <entry><structfield>timeperframe</structfield></entry>
-	    <entry><para>This is is the desired period between
+	    <entry><para>This is the desired period between
 successive frames captured by the driver, in seconds. The
 field is intended to skip frames on the driver side, saving I/O
 bandwidth.</para><para>Applications store here the desired frame
@@ -193,7 +193,7 @@ applications must set the array to zero.</entry>
 	  <row>
 	    <entry>&v4l2-fract;</entry>
 	    <entry><structfield>timeperframe</structfield></entry>
-	    <entry>This is is the desired period between
+	    <entry>This is the desired period between
 successive frames output by the driver, in seconds.</entry>
 	  </row>
 	  <row>

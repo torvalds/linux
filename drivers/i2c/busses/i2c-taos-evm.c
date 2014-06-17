@@ -3,7 +3,7 @@
  * These devices include an I2C master which can be controlled over the
  * serial port.
  *
- * Copyright (C) 2007 Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2007 Jean Delvare <jdelvare@suse.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -271,7 +271,6 @@ static int taos_connect(struct serio *serio, struct serio_driver *drv)
  exit_close:
 	serio_close(serio);
  exit_kfree:
-	serio_set_drvdata(serio, NULL);
 	kfree(taos);
  exit:
 	return err;
@@ -285,7 +284,6 @@ static void taos_disconnect(struct serio *serio)
 		i2c_unregister_device(taos->client);
 	i2c_del_adapter(&taos->adapter);
 	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
 	kfree(taos);
 
 	dev_info(&serio->dev, "Disconnected from TAOS EVM\n");
@@ -323,7 +321,7 @@ static void __exit taos_exit(void)
 	serio_unregister_driver(&taos_drv);
 }
 
-MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
+MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("TAOS evaluation module driver");
 MODULE_LICENSE("GPL");
 

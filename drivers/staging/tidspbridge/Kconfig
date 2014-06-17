@@ -4,8 +4,9 @@
 
 menuconfig TIDSPBRIDGE
 	tristate "DSP Bridge driver"
-	depends on ARCH_OMAP3
-	select OMAP_MBOX_FWK
+	depends on ARCH_OMAP3 && !ARCH_MULTIPLATFORM && BROKEN
+	select MAILBOX
+	select OMAP2PLUS_MBOX
 	help
 	  DSP/BIOS Bridge is designed for platforms that contain a GPP and
 	  one or more attached DSPs.  The GPP is considered the master or
@@ -16,7 +17,7 @@ menuconfig TIDSPBRIDGE
 
 config TIDSPBRIDGE_DVFS
 	bool "Enable Bridge Dynamic Voltage and Frequency Scaling (DVFS)"
-	depends on TIDSPBRIDGE && OMAP_PM_SRF && CPU_FREQ
+	depends on TIDSPBRIDGE && CPU_FREQ
 	help
 	  DVFS allows DSP Bridge to initiate the operating point change to
 	  scale the chip voltage and frequency in order to match the

@@ -222,7 +222,6 @@ static int pio2_probe(struct vme_dev *vdev)
 
 	card = kzalloc(sizeof(struct pio2_card), GFP_KERNEL);
 	if (card == NULL) {
-		dev_err(&vdev->dev, "Unable to allocate card structure\n");
 		retval = -ENOMEM;
 		goto err_struct;
 	}

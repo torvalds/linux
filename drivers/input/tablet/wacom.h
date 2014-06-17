@@ -86,7 +86,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/init.h>
 #include <linux/usb/input.h>
 #include <linux/power_supply.h>
 #include <asm/unaligned.h>

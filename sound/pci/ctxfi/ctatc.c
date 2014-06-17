@@ -435,6 +435,11 @@ atc_pcm_playback_position(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 		return 0;
 	position = src->ops->get_ca(src);
 
+	if (position < apcm->vm_block->addr) {
+		snd_printdd("ctxfi: bad ca - ca=0x%08x, vba=0x%08x, vbs=0x%08x\n", position, apcm->vm_block->addr, apcm->vm_block->size);
+		position = apcm->vm_block->addr;
+	}
+
 	size = apcm->vm_block->size;
 	max_cisz = src->multi * src->rsc.msr;
 	max_cisz = 128 * (max_cisz < 8 ? max_cisz : 8);
@@ -1733,8 +1738,6 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, atc, &ops);
 	if (err < 0)
 		goto error1;
-
-	snd_card_set_dev(card, &pci->dev);
 
 	*ratc = atc;
 	return 0;

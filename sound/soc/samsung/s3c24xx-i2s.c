@@ -24,16 +24,18 @@
 #include <sound/pcm_params.h>
 
 #include <mach/dma.h>
-#include <plat/regs-iis.h>
+#include <mach/gpio-samsung.h>
+#include <plat/gpio-cfg.h>
+#include "regs-iis.h"
 
 #include "dma.h"
 #include "s3c24xx-i2s.h"
 
-static struct s3c2410_dma_client s3c24xx_dma_client_out = {
+static struct s3c_dma_client s3c24xx_dma_client_out = {
 	.name = "I2S PCM Stereo out"
 };
 
-static struct s3c2410_dma_client s3c24xx_dma_client_in = {
+static struct s3c_dma_client s3c24xx_dma_client_in = {
 	.name = "I2S PCM Stereo in"
 };
 
@@ -246,12 +248,12 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	pr_debug("hw_params r: IISMOD: %x\n", iismod);
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
+	switch (params_width(params)) {
+	case 8:
 		iismod &= ~S3C2410_IISMOD_16BIT;
 		dma_data->dma_size = 1;
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
+	case 16:
 		iismod |= S3C2410_IISMOD_16BIT;
 		dma_data->dma_size = 2;
 		break;
@@ -465,38 +467,30 @@ static struct snd_soc_dai_driver s3c24xx_i2s_dai = {
 	.ops = &s3c24xx_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver s3c24xx_i2s_component = {
+	.name		= "s3c24xx-i2s",
+};
+
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	ret = s3c_i2sv2_register_dai(&pdev->dev, -1, &s3c2412_i2s_dai);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&s3c24xx_i2s_component, &s3c24xx_i2s_dai, 1);
 	if (ret) {
 		pr_err("failed to register the dai\n");
 		return ret;
 	}
 
-	ret = asoc_dma_platform_register(&pdev->dev);
-	if (ret) {
+	ret = samsung_asoc_dma_platform_register(&pdev->dev);
+	if (ret)
 		pr_err("failed to register the dma: %d\n", ret);
-		goto err;
-	}
 
-	return 0;
-err:
-	snd_soc_unregister_dai(&pdev->dev);
 	return ret;
-}
-
-static int s3c24xx_iis_dev_remove(struct platform_device *pdev)
-{
-	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver s3c24xx_iis_driver = {
 	.probe  = s3c24xx_iis_dev_probe,
-	.remove = s3c24xx_iis_dev_remove,
 	.driver = {
 		.name = "s3c24xx-iis",
 		.owner = THIS_MODULE,

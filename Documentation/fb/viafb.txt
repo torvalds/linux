@@ -32,7 +32,7 @@
     Start viafb with default settings:
         #modprobe viafb
 
-    Start viafb with with user options:
+    Start viafb with user options:
         #modprobe viafb viafb_mode=800x600 viafb_bpp=16 viafb_refresh=60
                   viafb_active_dev=CRT+DVI viafb_dvi_port=DVP1
                   viafb_mode1=1024x768 viafb_bpp=16 viafb_refresh1=60

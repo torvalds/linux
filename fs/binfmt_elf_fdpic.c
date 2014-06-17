@@ -111,7 +111,7 @@ static int is_elf_fdpic(struct elfhdr *hdr, struct file *file)
 		return 0;
 	if (!elf_check_arch(hdr) || !elf_check_fdpic(hdr))
 		return 0;
-	if (!file->f_op || !file->f_op->mmap)
+	if (!file->f_op->mmap)
 		return 0;
 	return 1;
 }
@@ -483,7 +483,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	size_t platform_len = 0, len;
 	char *k_platform, *k_base_platform;
 	char __user *u_platform, *u_base_platform, *p;
-	long hwcap;
 	int loop;
 	int nr;	/* reset for each csp adjustment */
 
@@ -501,8 +500,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	if (elf_fdpic_transfer_args_to_stack(bprm, &sp) < 0)
 		return -EFAULT;
 #endif
-
-	hwcap = ELF_HWCAP;
 
 	/*
 	 * If this architecture has a platform capability string, copy it
@@ -617,7 +614,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 
 	nr = 0;
 	csp -= DLINFO_ITEMS * 2 * sizeof(unsigned long);
-	NEW_AUX_ENT(AT_HWCAP,	hwcap);
+	NEW_AUX_ENT(AT_HWCAP,	ELF_HWCAP);
+#ifdef ELF_HWCAP2
+	NEW_AUX_ENT(AT_HWCAP2,	ELF_HWCAP2);
+#endif
 	NEW_AUX_ENT(AT_PAGESZ,	PAGE_SIZE);
 	NEW_AUX_ENT(AT_CLKTCK,	CLOCKS_PER_SEC);
 	NEW_AUX_ENT(AT_PHDR,	exec_params->ph_addr);
@@ -909,7 +909,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 
 dynamic_error:
 	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
-	       what, file->f_path.dentry->d_inode->i_ino);
+	       what, file_inode(file)->i_ino);
 	return -ELIBBAD;
 }
 
@@ -926,7 +926,6 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 	struct elf32_fdpic_loadseg *seg;
 	struct elf32_phdr *phdr;
 	unsigned long load_addr, base = ULONG_MAX, top = 0, maddr = 0, mflags;
-	loff_t fpos;
 	int loop, ret;
 
 	load_addr = params->load_addr;
@@ -964,14 +963,12 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 		if (params->phdrs[loop].p_type != PT_LOAD)
 			continue;
 
-		fpos = phdr->p_offset;
-
 		seg->addr = maddr + (phdr->p_vaddr - base);
 		seg->p_vaddr = phdr->p_vaddr;
 		seg->p_memsz = phdr->p_memsz;
 
-		ret = file->f_op->read(file, (void *) seg->addr,
-				       phdr->p_filesz, &fpos);
+		ret = read_code(file, seg->addr, phdr->p_offset,
+				       phdr->p_filesz);
 		if (ret < 0)
 			return ret;
 
@@ -1219,7 +1216,7 @@ static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 
 	/* By default, dump shared memory if mapped from an anonymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (vma->vm_file->f_path.dentry->d_inode->i_nlink == 0) {
+		if (file_inode(vma->vm_file)->i_nlink == 0) {
 			dump_ok = test_bit(MMF_DUMP_ANON_SHARED, &mm_flags);
 			kdcore("%08lx: %08lx: %s (share)", vma->vm_start,
 			       vma->vm_flags, dump_ok ? "yes" : "no");
@@ -1270,35 +1267,17 @@ static int notesize(struct memelfnote *en)
 
 /* #define DEBUG */
 
-#define DUMP_WRITE(addr, nr, foffset)	\
-	do { if (!dump_write(file, (addr), (nr))) return 0; *foffset += (nr); } while(0)
-
-static int alignfile(struct file *file, loff_t *foffset)
-{
-	static const char buf[4] = { 0, };
-	DUMP_WRITE(buf, roundup(*foffset, 4) - *foffset, foffset);
-	return 1;
-}
-
-static int writenote(struct memelfnote *men, struct file *file,
-			loff_t *foffset)
+static int writenote(struct memelfnote *men, struct coredump_params *cprm)
 {
 	struct elf_note en;
 	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
 
-	DUMP_WRITE(&en, sizeof(en), foffset);
-	DUMP_WRITE(men->name, en.n_namesz, foffset);
-	if (!alignfile(file, foffset))
-		return 0;
-	DUMP_WRITE(men->data, men->datasz, foffset);
-	if (!alignfile(file, foffset))
-		return 0;
-
-	return 1;
+	return dump_emit(cprm, &en, sizeof(en)) &&
+		dump_emit(cprm, men->name, en.n_namesz) && dump_align(cprm, 4) &&
+		dump_emit(cprm, men->data, men->datasz) && dump_align(cprm, 4);
 }
-#undef DUMP_WRITE
 
 static inline void fill_elf_fdpic_header(struct elfhdr *elf, int segs)
 {
@@ -1375,8 +1354,11 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 		cputime_to_timeval(cputime.utime, &prstatus->pr_utime);
 		cputime_to_timeval(cputime.stime, &prstatus->pr_stime);
 	} else {
-		cputime_to_timeval(p->utime, &prstatus->pr_utime);
-		cputime_to_timeval(p->stime, &prstatus->pr_stime);
+		cputime_t utime, stime;
+
+		task_cputime(p, &utime, &stime);
+		cputime_to_timeval(utime, &prstatus->pr_utime);
+		cputime_to_timeval(stime, &prstatus->pr_stime);
 	}
 	cputime_to_timeval(p->signal->cutime, &prstatus->pr_cutime);
 	cputime_to_timeval(p->signal->cstime, &prstatus->pr_cstime);
@@ -1500,66 +1482,40 @@ static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
 /*
  * dump the segments for an MMU process
  */
-#ifdef CONFIG_MMU
-static int elf_fdpic_dump_segments(struct file *file, size_t *size,
-			   unsigned long *limit, unsigned long mm_flags)
+static bool elf_fdpic_dump_segments(struct coredump_params *cprm)
 {
 	struct vm_area_struct *vma;
-	int err = 0;
 
 	for (vma = current->mm->mmap; vma; vma = vma->vm_next) {
 		unsigned long addr;
 
-		if (!maydump(vma, mm_flags))
+		if (!maydump(vma, cprm->mm_flags))
 			continue;
 
+#ifdef CONFIG_MMU
 		for (addr = vma->vm_start; addr < vma->vm_end;
 							addr += PAGE_SIZE) {
+			bool res;
 			struct page *page = get_dump_page(addr);
 			if (page) {
 				void *kaddr = kmap(page);
-				*size += PAGE_SIZE;
-				if (*size > *limit)
-					err = -EFBIG;
-				else if (!dump_write(file, kaddr, PAGE_SIZE))
-					err = -EIO;
+				res = dump_emit(cprm, kaddr, PAGE_SIZE);
 				kunmap(page);
 				page_cache_release(page);
-			} else if (!dump_seek(file, PAGE_SIZE))
-				err = -EFBIG;
-			if (err)
-				goto out;
+			} else {
+				res = dump_skip(cprm, PAGE_SIZE);
+			}
+			if (!res)
+				return false;
 		}
-	}
-out:
-	return err;
-}
-#endif
-
-/*
- * dump the segments for a NOMMU process
- */
-#ifndef CONFIG_MMU
-static int elf_fdpic_dump_segments(struct file *file, size_t *size,
-			   unsigned long *limit, unsigned long mm_flags)
-{
-	struct vm_area_struct *vma;
-
-	for (vma = current->mm->mmap; vma; vma = vma->vm_next) {
-		if (!maydump(vma, mm_flags))
-			continue;
-
-		if ((*size += PAGE_SIZE) > *limit)
-			return -EFBIG;
-
-		if (!dump_write(file, (void *) vma->vm_start,
+#else
+		if (!dump_emit(cprm, (void *) vma->vm_start,
 				vma->vm_end - vma->vm_start))
-			return -EIO;
-	}
-
-	return 0;
-}
+			return false;
 #endif
+	}
+	return true;
+}
 
 static size_t elf_core_vma_data_size(unsigned long mm_flags)
 {
@@ -1585,11 +1541,10 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	int has_dumped = 0;
 	mm_segment_t fs;
 	int segs;
-	size_t size = 0;
 	int i;
 	struct vm_area_struct *vma;
 	struct elfhdr *elf = NULL;
-	loff_t offset = 0, dataoff, foffset;
+	loff_t offset = 0, dataoff;
 	int numnote;
 	struct memelfnote *notes = NULL;
 	struct elf_prstatus *prstatus = NULL;	/* NT_PRSTATUS */
@@ -1606,6 +1561,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	struct elf_shdr *shdr4extnum = NULL;
 	Elf_Half e_phnum;
 	elf_addr_t e_shoff;
+	struct core_thread *ct;
+	struct elf_thread_status *tmp;
 
 	/*
 	 * We no longer stop all VM operations.
@@ -1641,28 +1598,23 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		goto cleanup;
 #endif
 
-	if (cprm->siginfo->si_signo) {
-		struct core_thread *ct;
+	for (ct = current->mm->core_state->dumper.next;
+					ct; ct = ct->next) {
+		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+		if (!tmp)
+			goto cleanup;
+
+		tmp->thread = ct->task;
+		list_add(&tmp->list, &thread_list);
+	}
+
+	list_for_each(t, &thread_list) {
 		struct elf_thread_status *tmp;
+		int sz;
 
-		for (ct = current->mm->core_state->dumper.next;
-						ct; ct = ct->next) {
-			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
-			if (!tmp)
-				goto cleanup;
-
-			tmp->thread = ct->task;
-			list_add(&tmp->list, &thread_list);
-		}
-
-		list_for_each(t, &thread_list) {
-			struct elf_thread_status *tmp;
-			int sz;
-
-			tmp = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
-			thread_status_size += sz;
-		}
+		tmp = list_entry(t, struct elf_thread_status, list);
+		sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
+		thread_status_size += sz;
 	}
 
 	/* now collect the dump for the current */
@@ -1684,8 +1636,6 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	fill_elf_fdpic_header(elf, e_phnum);
 
 	has_dumped = 1;
-	current->flags |= PF_DUMPCORE;
-
 	/*
 	 * Set up the notes in similar form to SVR4 core dumps made
 	 * with info from their /proc.
@@ -1722,7 +1672,6 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	offset += sizeof(*elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
-	foffset = offset;
 
 	/* Write notes phdr entry */
 	{
@@ -1757,13 +1706,10 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	offset = dataoff;
 
-	size += sizeof(*elf);
-	if (size > cprm->limit || !dump_write(cprm->file, elf, sizeof(*elf)))
+	if (!dump_emit(cprm, elf, sizeof(*elf)))
 		goto end_coredump;
 
-	size += sizeof(*phdr4note);
-	if (size > cprm->limit
-	    || !dump_write(cprm->file, phdr4note, sizeof(*phdr4note)))
+	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
 		goto end_coredump;
 
 	/* write program headers for segments dump */
@@ -1787,18 +1733,16 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 			phdr.p_flags |= PF_X;
 		phdr.p_align = ELF_EXEC_PAGESIZE;
 
-		size += sizeof(phdr);
-		if (size > cprm->limit
-		    || !dump_write(cprm->file, &phdr, sizeof(phdr)))
+		if (!dump_emit(cprm, &phdr, sizeof(phdr)))
 			goto end_coredump;
 	}
 
-	if (!elf_core_write_extra_phdrs(cprm->file, offset, &size, cprm->limit))
+	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
  	/* write out the notes section */
 	for (i = 0; i < numnote; i++)
-		if (!writenote(notes + i, cprm->file, &foffset))
+		if (!writenote(notes + i, cprm))
 			goto end_coredump;
 
 	/* write out the thread status notes section */
@@ -1807,25 +1751,21 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 				list_entry(t, struct elf_thread_status, list);
 
 		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], cprm->file, &foffset))
+			if (!writenote(&tmp->notes[i], cprm))
 				goto end_coredump;
 	}
 
-	if (!dump_seek(cprm->file, dataoff - foffset))
+	if (!dump_skip(cprm, dataoff - cprm->written))
 		goto end_coredump;
 
-	if (elf_fdpic_dump_segments(cprm->file, &size, &cprm->limit,
-				    cprm->mm_flags) < 0)
+	if (!elf_fdpic_dump_segments(cprm))
 		goto end_coredump;
 
-	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
+	if (!elf_core_write_extra_data(cprm))
 		goto end_coredump;
 
 	if (e_phnum == PN_XNUM) {
-		size += sizeof(*shdr4extnum);
-		if (size > cprm->limit
-		    || !dump_write(cprm->file, shdr4extnum,
-				   sizeof(*shdr4extnum)))
+		if (!dump_emit(cprm, shdr4extnum, sizeof(*shdr4extnum)))
 			goto end_coredump;
 	}
 

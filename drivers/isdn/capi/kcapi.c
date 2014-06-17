@@ -93,7 +93,7 @@ capi_ctr_put(struct capi_ctr *ctr)
 
 static inline struct capi_ctr *get_capi_ctr_by_nr(u16 contr)
 {
-	if (contr - 1 >= CAPI_MAXCONTR)
+	if (contr < 1 || contr - 1 >= CAPI_MAXCONTR)
 		return NULL;
 
 	return capi_controller[contr - 1];
@@ -103,7 +103,7 @@ static inline struct capi20_appl *__get_capi_appl_by_nr(u16 applid)
 {
 	lockdep_assert_held(&capi_controller_lock);
 
-	if (applid - 1 >= CAPI_MAXAPPL)
+	if (applid < 1 || applid - 1 >= CAPI_MAXAPPL)
 		return NULL;
 
 	return capi_applications[applid - 1];
@@ -111,7 +111,7 @@ static inline struct capi20_appl *__get_capi_appl_by_nr(u16 applid)
 
 static inline struct capi20_appl *get_capi_appl_by_nr(u16 applid)
 {
-	if (applid - 1 >= CAPI_MAXAPPL)
+	if (applid < 1 || applid - 1 >= CAPI_MAXAPPL)
 		return NULL;
 
 	return rcu_dereference(capi_applications[applid - 1]);

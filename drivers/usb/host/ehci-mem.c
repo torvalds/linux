@@ -93,6 +93,7 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	qh->qh_dma = dma;
 	// INIT_LIST_HEAD (&qh->qh_list);
 	INIT_LIST_HEAD (&qh->qtd_list);
+	INIT_LIST_HEAD(&qh->unlink_node);
 
 	/* dummy td enables safe urb queuing */
 	qh->dummy = ehci_qtd_alloc (ehci, flags);
@@ -223,11 +224,11 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		hw->hw_next = EHCI_LIST_END(ehci);
 		hw->hw_qtd_next = EHCI_LIST_END(ehci);
 		hw->hw_alt_next = EHCI_LIST_END(ehci);
-		hw->hw_token &= ~QTD_STS_ACTIVE;
 		ehci->dummy->hw = hw;
 
 		for (i = 0; i < ehci->periodic_size; i++)
-			ehci->periodic[i] = ehci->dummy->qh_dma;
+			ehci->periodic[i] = cpu_to_hc32(ehci,
+					ehci->dummy->qh_dma);
 	} else {
 		for (i = 0; i < ehci->periodic_size; i++)
 			ehci->periodic[i] = EHCI_LIST_END(ehci);

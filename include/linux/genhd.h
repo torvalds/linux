@@ -231,6 +231,12 @@ static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
 	}
 }
 
+static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	part_pack_uuid(uuid_str, to);
+	return 0;
+}
+
 static inline int disk_max_parts(struct gendisk *disk)
 {
 	if (disk->flags & GENHD_FL_EXT_DEVT)
@@ -643,7 +649,7 @@ static inline void hd_ref_init(struct hd_struct *part)
 static inline void hd_struct_get(struct hd_struct *part)
 {
 	atomic_inc(&part->ref);
-	smp_mb__after_atomic_inc();
+	smp_mb__after_atomic();
 }
 
 static inline int hd_struct_try_get(struct hd_struct *part)
@@ -718,6 +724,10 @@ static inline dev_t blk_lookup_devt(const char *name, int partno)
 	return devt;
 }
 
+static inline int blk_part_pack_uuid(const u8 *uuid_str, u8 *to)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_BLOCK */
 
 #endif /* _LINUX_GENHD_H */

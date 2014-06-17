@@ -49,7 +49,6 @@
 
 #include "stackglue.h"
 #include "userdlm.h"
-#include "dlmfsver.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
@@ -224,7 +223,7 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
 {
 	int event = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 
 	poll_wait(file, &ip->ip_lockres.l_event, wait);
@@ -245,7 +244,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	int bytes_left;
 	ssize_t readlen, got;
 	char *lvb_buf;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);
@@ -293,7 +292,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	int bytes_left;
 	ssize_t writelen;
 	char *lvb_buf;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);
@@ -401,11 +400,8 @@ static struct inode *dlmfs_get_root_inode(struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 	umode_t mode = S_IFDIR | 0755;
-	struct dlmfs_inode_private *ip;
 
 	if (inode) {
-		ip = DLMFS_I(inode);
-
 		inode->i_ino = get_next_ino();
 		inode_init_owner(inode, NULL, mode);
 		inode->i_mapping->backing_dev_info = &dlmfs_backing_dev_info;
@@ -640,13 +636,12 @@ static struct file_system_type dlmfs_fs_type = {
 	.mount		= dlmfs_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("ocfs2_dlmfs");
 
 static int __init init_dlmfs_fs(void)
 {
 	int status;
 	int cleanup_inode = 0, cleanup_worker = 0;
-
-	dlmfs_print_version();
 
 	status = bdi_init(&dlmfs_backing_dev_info);
 	if (status)
@@ -703,6 +698,7 @@ static void __exit exit_dlmfs_fs(void)
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OCFS2 DLM-Filesystem");
 
 module_init(init_dlmfs_fs)
 module_exit(exit_dlmfs_fs)

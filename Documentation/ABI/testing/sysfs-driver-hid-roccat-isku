@@ -101,7 +101,8 @@ Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one set the backlight intensity for
 		a specific profile. Profile number is included in written data.
-		The data has to be 10 bytes long.
+		The data has to be 10 bytes long for Isku, IskuFX needs	16 bytes
+		of data.
 		Before reading this file, control has to be written to select
 		which profile to read.
 Users:		http://roccat.sourceforge.net
@@ -137,6 +138,15 @@ What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-
 Date:		June 2011
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	When written, this file lets one trigger easyshift functionality
+		from the host.
+		The data has to be 16 bytes long.
+		This file is writeonly.
+Users:		http://roccat.sourceforge.net
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/isku/roccatisku<minor>/talkfx
+Date:		February 2013
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	When written, this file lets one trigger temporary color schemes
 		from the host.
 		The data has to be 16 bytes long.
 		This file is writeonly.

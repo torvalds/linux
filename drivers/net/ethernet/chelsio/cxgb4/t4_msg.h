@@ -74,6 +74,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_TRACE_PKT_T5      = 0x48,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 
@@ -115,6 +116,7 @@ enum CPL_error {
 	CPL_ERR_KEEPALIVE_TIMEDOUT = 34,
 	CPL_ERR_RTX_NEG_ADVICE     = 35,
 	CPL_ERR_PERSIST_NEG_ADVICE = 36,
+	CPL_ERR_KEEPALV_NEG_ADVICE = 37,
 	CPL_ERR_ABORT_FAILED       = 42,
 	CPL_ERR_IWARP_FLM          = 50,
 };
@@ -157,6 +159,7 @@ union opcode_tid {
 };
 
 #define CPL_OPCODE(x) ((x) << 24)
+#define G_CPL_OPCODE(x) (((x) >> 24) & 0xFF)
 #define MK_OPCODE_TID(opcode, tid) (CPL_OPCODE(opcode) | (tid))
 #define OPCODE_TID(cmd) ((cmd)->ot.opcode_tid)
 #define GET_TID(cmd) (ntohl(OPCODE_TID(cmd)) & 0xFFFFFF)
@@ -224,6 +227,7 @@ struct cpl_pass_open_req {
 #define DELACK(x)     ((x) << 5)
 #define ULP_MODE(x)   ((x) << 8)
 #define RCV_BUFSIZ(x) ((x) << 12)
+#define RCV_BUFSIZ_MASK 0x3FFU
 #define DSCP(x)       ((x) << 22)
 #define SMAC_SEL(x)   ((u64)(x) << 28)
 #define L2T_IDX(x)    ((u64)(x) << 36)
@@ -275,6 +279,15 @@ struct cpl_pass_accept_rpl {
 	__be64 opt0;
 };
 
+struct cpl_t5_pass_accept_rpl {
+	WR_HDR;
+	union opcode_tid ot;
+	__be32 opt2;
+	__be64 opt0;
+	__be32 iss;
+	__be32 rsvd;
+};
+
 struct cpl_act_open_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -285,6 +298,23 @@ struct cpl_act_open_req {
 	__be64 opt0;
 	__be32 params;
 	__be32 opt2;
+};
+
+#define S_FILTER_TUPLE  24
+#define M_FILTER_TUPLE  0xFFFFFFFFFF
+#define V_FILTER_TUPLE(x) ((x) << S_FILTER_TUPLE)
+#define G_FILTER_TUPLE(x) (((x) >> S_FILTER_TUPLE) & M_FILTER_TUPLE)
+struct cpl_t5_act_open_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be32 local_ip;
+	__be32 peer_ip;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
 };
 
 struct cpl_act_open_req6 {
@@ -299,6 +329,21 @@ struct cpl_act_open_req6 {
 	__be64 opt0;
 	__be32 params;
 	__be32 opt2;
+};
+
+struct cpl_t5_act_open_req6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__be16 local_port;
+	__be16 peer_port;
+	__be64 local_ip_hi;
+	__be64 local_ip_lo;
+	__be64 peer_ip_hi;
+	__be64 peer_ip_lo;
+	__be64 opt0;
+	__be32 rsvd;
+	__be32 opt2;
+	__be64 params;
 };
 
 struct cpl_act_open_rpl {
@@ -386,7 +431,7 @@ struct cpl_close_listsvr_req {
 	WR_HDR;
 	union opcode_tid ot;
 	__be16 reply_ctrl;
-#define LISTSVR_IPV6 (1 << 14)
+#define LISTSVR_IPV6(x) ((x) << 14)
 	__be16 rsvd;
 };
 
@@ -566,6 +611,11 @@ struct cpl_rx_pkt {
 #define V_RX_ETHHDR_LEN(x) ((x) << S_RX_ETHHDR_LEN)
 #define G_RX_ETHHDR_LEN(x) (((x) >> S_RX_ETHHDR_LEN) & M_RX_ETHHDR_LEN)
 
+#define S_RX_T5_ETHHDR_LEN    0
+#define M_RX_T5_ETHHDR_LEN    0x3F
+#define V_RX_T5_ETHHDR_LEN(x) ((x) << S_RX_T5_ETHHDR_LEN)
+#define G_RX_T5_ETHHDR_LEN(x) (((x) >> S_RX_T5_ETHHDR_LEN) & M_RX_T5_ETHHDR_LEN)
+
 #define S_RX_MACIDX    8
 #define M_RX_MACIDX    0x1FF
 #define V_RX_MACIDX(x) ((x) << S_RX_MACIDX)
@@ -612,6 +662,28 @@ struct cpl_trace_pkt {
 	__be64 tstamp;
 };
 
+struct cpl_t5_trace_pkt {
+	__u8 opcode;
+	__u8 intf;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8 runt:4;
+	__u8 filter_hit:4;
+	__u8:6;
+	__u8 err:1;
+	__u8 trunc:1;
+#else
+	__u8 filter_hit:4;
+	__u8 runt:4;
+	__u8 trunc:1;
+	__u8 err:1;
+	__u8:6;
+#endif
+	__be16 rsvd;
+	__be16 len;
+	__be64 tstamp;
+	__be64 rsvd1;
+};
+
 struct cpl_l2t_write_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -641,6 +713,15 @@ struct cpl_sge_egr_update {
 #define EGR_QID(x) ((x) & 0x1FFFF)
 	__be16 cidx;
 	__be16 pidx;
+};
+
+/* cpl_fw*.type values */
+enum {
+	FW_TYPE_CMD_RPL = 0,
+	FW_TYPE_WR_RPL = 1,
+	FW_TYPE_CQE = 2,
+	FW_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW_TYPE_RSSCPL = 4,
 };
 
 struct cpl_fw4_pld {
@@ -692,6 +773,7 @@ enum {
 	FW6_TYPE_WR_RPL = 1,
 	FW6_TYPE_CQE = 2,
 	FW6_TYPE_OFLD_CONNECTION_WR_RPL = 3,
+	FW6_TYPE_RSSCPL = FW_TYPE_RSSCPL,
 };
 
 struct cpl_fw6_msg_ofld_connection_wr_rpl {
@@ -741,5 +823,13 @@ struct ulp_mem_io {
 #define ULP_MEMIO_ADDR(x) ((x) << 0)
 #define ULP_MEMIO_LOCK(x) ((x) << 31)
 };
+
+#define S_T5_ULP_MEMIO_IMM    23
+#define V_T5_ULP_MEMIO_IMM(x) ((x) << S_T5_ULP_MEMIO_IMM)
+#define F_T5_ULP_MEMIO_IMM    V_T5_ULP_MEMIO_IMM(1U)
+
+#define S_T5_ULP_MEMIO_ORDER    22
+#define V_T5_ULP_MEMIO_ORDER(x) ((x) << S_T5_ULP_MEMIO_ORDER)
+#define F_T5_ULP_MEMIO_ORDER    V_T5_ULP_MEMIO_ORDER(1U)
 
 #endif  /* __T4_MSG_H */

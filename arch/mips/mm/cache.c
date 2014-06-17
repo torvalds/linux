@@ -8,7 +8,6 @@
  */
 #include <linux/fs.h>
 #include <linux/fcntl.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/module.h>
@@ -30,15 +29,16 @@ void (*flush_cache_range)(struct vm_area_struct *vma, unsigned long start,
 void (*flush_cache_page)(struct vm_area_struct *vma, unsigned long page,
 	unsigned long pfn);
 void (*flush_icache_range)(unsigned long start, unsigned long end);
+EXPORT_SYMBOL_GPL(flush_icache_range);
 void (*local_flush_icache_range)(unsigned long start, unsigned long end);
+EXPORT_SYMBOL_GPL(local_flush_icache_range);
 
 void (*__flush_cache_vmap)(void);
 void (*__flush_cache_vunmap)(void);
 
 void (*__flush_kernel_vmap_range)(unsigned long vaddr, int size);
-void (*__invalidate_kernel_vmap_range)(unsigned long vaddr, int size);
-
 EXPORT_SYMBOL_GPL(__flush_kernel_vmap_range);
+void (*__invalidate_kernel_vmap_range)(unsigned long vaddr, int size);
 
 /* MIPS specific cache operations */
 void (*flush_cache_sigtramp)(unsigned long addr);
@@ -48,8 +48,9 @@ void (*flush_icache_all)(void);
 
 EXPORT_SYMBOL_GPL(local_flush_data_cache_page);
 EXPORT_SYMBOL(flush_data_cache_page);
+EXPORT_SYMBOL(flush_icache_all);
 
-#ifdef CONFIG_DMA_NONCOHERENT
+#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
 
 /* DMA cache operations. */
 void (*_dma_cache_wback_inv)(unsigned long start, unsigned long size);
@@ -58,7 +59,7 @@ void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 
 EXPORT_SYMBOL(_dma_cache_wback_inv);
 
-#endif /* CONFIG_DMA_NONCOHERENT */
+#endif /* CONFIG_DMA_NONCOHERENT || CONFIG_DMA_MAYBE_COHERENT */
 
 /*
  * We could optimize the case where the cache argument is not BCACHE but
@@ -181,7 +182,7 @@ static inline void setup_protection_map(void)
 	}
 }
 
-void __cpuinit cpu_cache_init(void)
+void cpu_cache_init(void)
 {
 	if (cpu_has_3k_cache) {
 		extern void __weak r3k_cache_init(void);

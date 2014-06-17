@@ -43,6 +43,8 @@ static inline void s3c_fimc_setname(int id, char *name)
 		s5p_device_fimc3.name = name;
 		break;
 #endif
+	default:
+		break;
 	}
 }
 

@@ -42,7 +42,7 @@ static int pwmled_probe(struct platform_device *pdev)
 	int					i;
 	int					status;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata || pdata->num_leds < 1)
 		return -ENODEV;
 
@@ -113,13 +113,13 @@ err:
 	return status;
 }
 
-static int __exit pwmled_remove(struct platform_device *pdev)
+static int pwmled_remove(struct platform_device *pdev)
 {
 	const struct gpio_led_platform_data	*pdata;
 	struct pwmled				*leds;
 	unsigned				i;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	leds = platform_get_drvdata(pdev);
 
 	for (i = 0; i < pdata->num_leds; i++) {
@@ -129,7 +129,6 @@ static int __exit pwmled_remove(struct platform_device *pdev)
 		pwm_channel_free(&led->pwmc);
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -140,7 +139,7 @@ static struct platform_driver pwmled_driver = {
 	},
 	/* REVISIT add suspend() and resume() methods */
 	.probe =	pwmled_probe,
-	.remove =	__exit_p(pwmled_remove),
+	.remove =	pwmled_remove,
 };
 
 module_platform_driver(pwmled_driver);

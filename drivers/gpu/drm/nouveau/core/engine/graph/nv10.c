@@ -22,6 +22,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/handle.h>
@@ -944,7 +945,8 @@ nv10_graph_load_context(struct nv10_graph_chan *chan, int chid)
 	for (i = 0; i < ARRAY_SIZE(nv10_graph_ctx_regs); i++)
 		nv_wr32(priv, nv10_graph_ctx_regs[i], chan->nv10[i]);
 
-	if (nv_device(priv)->chipset >= 0x17) {
+	if (nv_device(priv)->card_type >= NV_11 &&
+	    nv_device(priv)->chipset >= 0x17) {
 		for (i = 0; i < ARRAY_SIZE(nv17_graph_ctx_regs); i++)
 			nv_wr32(priv, nv17_graph_ctx_regs[i], chan->nv17[i]);
 	}
@@ -969,7 +971,8 @@ nv10_graph_unload_context(struct nv10_graph_chan *chan)
 	for (i = 0; i < ARRAY_SIZE(nv10_graph_ctx_regs); i++)
 		chan->nv10[i] = nv_rd32(priv, nv10_graph_ctx_regs[i]);
 
-	if (nv_device(priv)->chipset >= 0x17) {
+	if (nv_device(priv)->card_type >= NV_11 &&
+	    nv_device(priv)->chipset >= 0x17) {
 		for (i = 0; i < ARRAY_SIZE(nv17_graph_ctx_regs); i++)
 			chan->nv17[i] = nv_rd32(priv, nv17_graph_ctx_regs[i]);
 	}
@@ -1051,7 +1054,8 @@ nv10_graph_context_ctor(struct nouveau_object *parent,
 	NV_WRITE_CTX(0x00400e14, 0x00001000);
 	NV_WRITE_CTX(0x00400e30, 0x00080008);
 	NV_WRITE_CTX(0x00400e34, 0x00080008);
-	if (nv_device(priv)->chipset >= 0x17) {
+	if (nv_device(priv)->card_type >= NV_11 &&
+	    nv_device(priv)->chipset >= 0x17) {
 		/* is it really needed ??? */
 		NV17_WRITE_CTX(NV10_PGRAPH_DEBUG_4,
 					nv_rd32(priv, NV10_PGRAPH_DEBUG_4));
@@ -1193,16 +1197,17 @@ nv10_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
-		printk(" nsource:");
+		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
-		printk(" nstatus:");
+		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
-		printk("\n");
-		nv_error(priv, "ch %d/%d class 0x%04x "
-			       "mthd 0x%04x data 0x%08x\n",
-			 chid, subc, class, mthd, data);
+		pr_cont("\n");
+		nv_error(priv,
+			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, nouveau_client_name(chan), subc, class, mthd,
+			 data);
 	}
 
 	nouveau_namedb_put(handle);
@@ -1229,7 +1234,7 @@ nv10_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		nv_engine(priv)->sclass = nv10_graph_sclass;
 	else
 	if (nv_device(priv)->chipset <  0x17 ||
-	    nv_device(priv)->chipset == 0x1a)
+	    nv_device(priv)->card_type < NV_11)
 		nv_engine(priv)->sclass = nv15_graph_sclass;
 	else
 		nv_engine(priv)->sclass = nv17_graph_sclass;
@@ -1268,7 +1273,8 @@ nv10_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, NV04_PGRAPH_DEBUG_2, 0x25f92ad9);
 	nv_wr32(priv, NV04_PGRAPH_DEBUG_3, 0x55DE0830 | (1 << 29) | (1 << 31));
 
-	if (nv_device(priv)->chipset >= 0x17) {
+	if (nv_device(priv)->card_type >= NV_11 &&
+	    nv_device(priv)->chipset >= 0x17) {
 		nv_wr32(priv, NV10_PGRAPH_DEBUG_4, 0x1f000000);
 		nv_wr32(priv, 0x400a10, 0x03ff3fb6);
 		nv_wr32(priv, 0x400838, 0x002f8684);

@@ -373,7 +373,7 @@ can become very uneven.
 1.7 What is sched_load_balance ?
 --------------------------------
 
-The kernel scheduler (kernel/sched.c) automatically load balances
+The kernel scheduler (kernel/sched/core.c) automatically load balances
 tasks.  If one CPU is underutilized, kernel code running on that
 CPU will look for tasks on other more overloaded CPUs and move those
 tasks to itself, within the constraints of such placement mechanisms

@@ -615,6 +615,7 @@ static struct power_pmu power5_pmu = {
 	.n_generic		= ARRAY_SIZE(power5_generic_events),
 	.generic_events		= power5_generic_events,
 	.cache_events		= &power5_cache_events,
+	.flags			= PPMU_HAS_SSLOT,
 };
 
 static int __init init_power5_pmu(void)

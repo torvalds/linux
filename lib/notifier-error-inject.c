@@ -17,7 +17,7 @@ static int debugfs_errno_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_errno, debugfs_errno_get, debugfs_errno_set,
 			"%lld\n");
 
-static struct dentry *debugfs_create_errno(const char *name, mode_t mode,
+static struct dentry *debugfs_create_errno(const char *name, umode_t mode,
 				struct dentry *parent, int *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_errno);
@@ -50,7 +50,7 @@ struct dentry *notifier_err_inject_init(const char *name, struct dentry *parent,
 			struct notifier_err_inject *err_inject, int priority)
 {
 	struct notifier_err_inject_action *action;
-	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 	struct dentry *actions_dir;
 

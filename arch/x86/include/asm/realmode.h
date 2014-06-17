@@ -58,6 +58,7 @@ extern unsigned char boot_gdt[];
 extern unsigned char secondary_startup_64[];
 #endif
 
-extern void __init setup_real_mode(void);
+void reserve_real_mode(void);
+void setup_real_mode(void);
 
 #endif /* _ARCH_X86_REALMODE_H */

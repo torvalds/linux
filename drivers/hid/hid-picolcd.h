@@ -142,10 +142,10 @@ struct hid_report *picolcd_report(int id, struct hid_device *hdev, int dir);
 #ifdef CONFIG_DEBUG_FS
 void picolcd_debug_out_report(struct picolcd_data *data,
 		struct hid_device *hdev, struct hid_report *report);
-#define usbhid_submit_report(a, b, c) \
+#define hid_hw_request(a, b, c) \
 	do { \
 		picolcd_debug_out_report(hid_get_drvdata(a), a, b); \
-		usbhid_submit_report(a, b, c); \
+		hid_hw_request(a, b, c); \
 	} while (0)
 
 void picolcd_debug_raw_event(struct picolcd_data *data,
@@ -302,7 +302,7 @@ static inline int picolcd_init_cir(struct picolcd_data *data, struct hid_report 
 static inline void picolcd_exit_cir(struct picolcd_data *data)
 {
 }
-#endif /* CONFIG_HID_PICOLCD_LIRC */
+#endif /* CONFIG_HID_PICOLCD_CIR */
 
 int picolcd_reset(struct hid_device *hdev);
 struct picolcd_pending *picolcd_send_and_wait(struct hid_device *hdev,

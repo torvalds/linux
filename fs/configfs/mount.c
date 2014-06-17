@@ -85,7 +85,7 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
 	} else {
-		pr_debug("configfs: could not get root inode\n");
+		pr_debug("could not get root inode\n");
 		return -ENOMEM;
 	}
 
@@ -114,6 +114,7 @@ static struct file_system_type configfs_fs_type = {
 	.mount		= configfs_do_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("configfs");
 
 struct dentry *configfs_pin_fs(void)
 {
@@ -154,7 +155,7 @@ static int __init configfs_init(void)
 
 	return 0;
 out4:
-	printk(KERN_ERR "configfs: Unable to register filesystem!\n");
+	pr_err("Unable to register filesystem!\n");
 	configfs_inode_exit();
 out3:
 	kobject_put(config_kobj);

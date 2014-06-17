@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/nsproxy.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <asm/uaccess.h>
 
 #include "state.h"
@@ -97,25 +97,14 @@ static ssize_t fault_inject_read(struct file *file, char __user *buf,
 {
 	static u64 val;
 	char read_buf[25];
-	size_t size, ret;
+	size_t size;
 	loff_t pos = *ppos;
 
 	if (!pos)
-		nfsd_inject_get(file->f_dentry->d_inode->i_private, &val);
+		nfsd_inject_get(file_inode(file)->i_private, &val);
 	size = scnprintf(read_buf, sizeof(read_buf), "%llu\n", val);
 
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= size || !len)
-		return 0;
-	if (len > size - pos)
-		len = size - pos;
-	ret = copy_to_user(buf, read_buf + pos, len);
-	if (ret == len)
-		return -EFAULT;
-	len -= ret;
-	*ppos = pos + len;
-	return len;
+	return simple_read_from_buffer(buf, len, ppos, read_buf, size);
 }
 
 static ssize_t fault_inject_write(struct file *file, const char __user *buf,
@@ -133,10 +122,10 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 
 	size = rpc_pton(net, write_buf, size, (struct sockaddr *)&sa, sizeof(sa));
 	if (size > 0)
-		nfsd_inject_set_client(file->f_dentry->d_inode->i_private, &sa, size);
+		nfsd_inject_set_client(file_inode(file)->i_private, &sa, size);
 	else {
 		val = simple_strtoll(write_buf, NULL, 0);
-		nfsd_inject_set(file->f_dentry->d_inode->i_private, val);
+		nfsd_inject_set(file_inode(file)->i_private, val);
 	}
 	return len; /* on success, claim we got the whole input */
 }

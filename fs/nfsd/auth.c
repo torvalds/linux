@@ -1,7 +1,6 @@
 /* Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de> */
 
 #include <linux/sched.h>
-#include <linux/user_namespace.h>
 #include "nfsd.h"
 #include "auth.h"
 
@@ -25,7 +24,6 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 	struct cred *new;
 	int i;
 	int flags = nfsexp_flags(rqstp, exp);
-	int ret;
 
 	validate_process_creds();
 
@@ -47,9 +45,9 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 		if (!gi)
 			goto oom;
 	} else if (flags & NFSEXP_ROOTSQUASH) {
-		if (!new->fsuid)
+		if (uid_eq(new->fsuid, GLOBAL_ROOT_UID))
 			new->fsuid = exp->ex_anon_uid;
-		if (!new->fsgid)
+		if (gid_eq(new->fsgid, GLOBAL_ROOT_GID))
 			new->fsgid = exp->ex_anon_gid;
 
 		gi = groups_alloc(rqgi->ngroups);
@@ -58,7 +56,7 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 
 		for (i = 0; i < rqgi->ngroups; i++) {
 			if (gid_eq(GLOBAL_ROOT_GID, GROUP_AT(rqgi, i)))
-				GROUP_AT(gi, i) = make_kgid(&init_user_ns, exp->ex_anon_gid);
+				GROUP_AT(gi, i) = exp->ex_anon_gid;
 			else
 				GROUP_AT(gi, i) = GROUP_AT(rqgi, i);
 		}
@@ -66,17 +64,15 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 		gi = get_group_info(rqgi);
 	}
 
-	if (new->fsuid == (uid_t) -1)
+	if (uid_eq(new->fsuid, INVALID_UID))
 		new->fsuid = exp->ex_anon_uid;
-	if (new->fsgid == (gid_t) -1)
+	if (gid_eq(new->fsgid, INVALID_GID))
 		new->fsgid = exp->ex_anon_gid;
 
-	ret = set_groups(new, gi);
+	set_groups(new, gi);
 	put_group_info(gi);
-	if (ret < 0)
-		goto error;
 
-	if (new->fsuid)
+	if (!uid_eq(new->fsuid, GLOBAL_ROOT_UID))
 		new->cap_effective = cap_drop_nfsd_set(new->cap_effective);
 	else
 		new->cap_effective = cap_raise_nfsd_set(new->cap_effective,
@@ -88,9 +84,7 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 	return 0;
 
 oom:
-	ret = -ENOMEM;
-error:
 	abort_creds(new);
-	return ret;
+	return -ENOMEM;
 }
 

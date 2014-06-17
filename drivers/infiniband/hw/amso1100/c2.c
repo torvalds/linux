@@ -1082,6 +1082,7 @@ static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	/* Initialize network device */
 	if ((netdev = c2_devinit(c2dev, mmio_regs)) == NULL) {
+		ret = -ENOMEM;
 		iounmap(mmio_regs);
 		goto bail4;
 	}
@@ -1151,7 +1152,8 @@ static int c2_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		goto bail10;
 	}
 
-	if (c2_register_device(c2dev))
+	ret = c2_register_device(c2dev);
+	if (ret)
 		goto bail10;
 
 	return 0;
@@ -1238,15 +1240,4 @@ static struct pci_driver c2_pci_driver = {
 	.remove = c2_remove,
 };
 
-static int __init c2_init_module(void)
-{
-	return pci_register_driver(&c2_pci_driver);
-}
-
-static void __exit c2_exit_module(void)
-{
-	pci_unregister_driver(&c2_pci_driver);
-}
-
-module_init(c2_init_module);
-module_exit(c2_exit_module);
+module_pci_driver(c2_pci_driver);

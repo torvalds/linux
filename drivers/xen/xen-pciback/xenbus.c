@@ -3,6 +3,9 @@
  *
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -90,6 +93,8 @@ static void free_pdev(struct xen_pcibk_device *pdev)
 
 	xen_pcibk_disconnect(pdev);
 
+	/* N.B. This calls pcistub_put_pci_dev which does the FLR on all
+	 * of the PCIe devices. */
 	xen_pcibk_release_devices(pdev);
 
 	dev_set_drvdata(&pdev->xdev->dev, NULL);
@@ -283,6 +288,8 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 	dev_dbg(&dev->dev, "unregistering for %d\n", pdev->xdev->otherend_id);
 	xen_unregister_device_domain_owner(dev);
 
+	/* N.B. This ends up calling pcistub_put_pci_dev which ends up
+	 * doing the FLR. */
 	xen_pcibk_release_pci_dev(pdev, dev);
 
 out:
@@ -723,14 +730,13 @@ int __init xen_pcibk_xenbus_register(void)
 {
 	xen_pcibk_wq = create_workqueue("xen_pciback_workqueue");
 	if (!xen_pcibk_wq) {
-		printk(KERN_ERR "%s: create"
-			"xen_pciback_workqueue failed\n", __func__);
+		pr_err("%s: create xen_pciback_workqueue failed\n", __func__);
 		return -EFAULT;
 	}
 	xen_pcibk_backend = &xen_pcibk_vpci_backend;
 	if (passthrough)
 		xen_pcibk_backend = &xen_pcibk_passthrough_backend;
-	pr_info(DRV_NAME ": backend is %s\n", xen_pcibk_backend->name);
+	pr_info("backend is %s\n", xen_pcibk_backend->name);
 	return xenbus_register_backend(&xen_pcibk_driver);
 }
 

@@ -254,7 +254,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	const char *type;
 	u32 class;
 
-	dev = alloc_pci_dev();
+	dev = pci_alloc_dev(bus);
 	if (!dev)
 		return NULL;
 
@@ -281,7 +281,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		printk("    create device, devfn: %x, type: %s\n",
 		       devfn, type);
 
-	dev->bus = bus;
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
 	dev->dev.bus = &pci_bus_type;
@@ -327,7 +326,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE)
 		pci_set_master(dev);
 
-	dev->current_state = 4;		/* unknown power state */
+	dev->current_state = PCI_UNKNOWN;	/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 	dev->dma_mask = 0xffffffff;
 
@@ -393,15 +392,15 @@ static void apb_fake_ranges(struct pci_dev *dev,
 	res->flags = IORESOURCE_IO;
 	region.start = (first << 21);
 	region.end = (last << 21) + ((1 << 21) - 1);
-	pcibios_bus_to_resource(dev, res, &region);
+	pcibios_bus_to_resource(dev->bus, res, &region);
 
 	pci_read_config_byte(dev, APB_MEM_ADDRESS_MAP, &map);
 	apb_calc_first_last(map, &first, &last);
 	res = bus->resource[1];
 	res->flags = IORESOURCE_MEM;
-	region.start = (first << 21);
-	region.end = (last << 21) + ((1 << 21) - 1);
-	pcibios_bus_to_resource(dev, res, &region);
+	region.start = (first << 29);
+	region.end = (last << 29) + ((1 << 29) - 1);
+	pcibios_bus_to_resource(dev->bus, res, &region);
 }
 
 static void pci_of_scan_bus(struct pci_pbm_info *pbm,
@@ -492,7 +491,7 @@ static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
 		res->flags = flags;
 		region.start = GET_64BIT(ranges, 1);
 		region.end = region.start + size - 1;
-		pcibios_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev->bus, res, &region);
 	}
 after_ranges:
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
@@ -544,8 +543,7 @@ static void pci_of_scan_bus(struct pci_pbm_info *pbm,
 			printk("PCI: dev header type: %x\n",
 			       dev->hdr_type);
 
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+		if (pci_is_bridge(dev))
 			of_scan_pci_bridge(pbm, child, dev);
 	}
 }
@@ -773,15 +771,6 @@ static int __pci_mmap_make_offset(struct pci_dev *pdev,
 	return 0;
 }
 
-/* Set vm_flags of VMA, as appropriate for this architecture, for a pci device
- * mapping.
- */
-static void __pci_mmap_set_flags(struct pci_dev *dev, struct vm_area_struct *vma,
-					    enum pci_mmap_state mmap_state)
-{
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-}
-
 /* Set vm_page_prot of VMA, as appropriate for this architecture, for a pci
  * device mapping.
  */
@@ -809,7 +798,6 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	if (ret < 0)
 		return ret;
 
-	__pci_mmap_set_flags(dev, vma, mmap_state);
 	__pci_mmap_set_pgprot(dev, vma, mmap_state);
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -1016,6 +1004,5 @@ static int __init of_pci_slot_init(void)
 
 	return 0;
 }
-
-module_init(of_pci_slot_init);
+device_initcall(of_pci_slot_init);
 #endif

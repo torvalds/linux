@@ -20,6 +20,8 @@
 
 #include "dhd.h"
 #include "dhd_dbg.h"
+#include "tracepoint.h"
+#include "fwsignal.h"
 #include "fweh.h"
 #include "fwil.h"
 
@@ -154,7 +156,7 @@ static int brcmf_fweh_call_event_handler(struct brcmf_if *ifp,
 		fweh = &ifp->drvr->fweh;
 
 		/* handle the event if valid interface and handler */
-		if (ifp->ndev && fweh->evt_handler[code])
+		if (fweh->evt_handler[code])
 			err = fweh->evt_handler[code](ifp, emsg, data);
 		else
 			brcmf_err("unhandled event %d ignored\n", code);
@@ -179,34 +181,44 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	struct brcmf_if *ifp;
 	int err = 0;
 
-	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u\n",
-		  ifevent->action, ifevent->ifidx,
-		  ifevent->bssidx, ifevent->flags);
+	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u role: %u\n",
+		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
+		  ifevent->flags, ifevent->role);
 
+	if (ifevent->flags & BRCMF_E_IF_FLAG_NOIF) {
+		brcmf_dbg(EVENT, "event can be ignored\n");
+		return;
+	}
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("invalid interface index: %u\n",
 			  ifevent->ifidx);
 		return;
 	}
 
-	ifp = drvr->iflist[ifevent->ifidx];
+	ifp = drvr->iflist[ifevent->bssidx];
 
 	if (ifevent->action == BRCMF_E_IF_ADD) {
 		brcmf_dbg(EVENT, "adding %s (%pM)\n", emsg->ifname,
 			  emsg->addr);
-		ifp = brcmf_add_if(drvr, ifevent->ifidx, ifevent->bssidx,
+		ifp = brcmf_add_if(drvr, ifevent->bssidx, ifevent->ifidx,
 				   emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
-
+		brcmf_fws_add_interface(ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
-			err = brcmf_net_attach(ifp);
+			if (brcmf_net_attach(ifp, false) < 0)
+				return;
 	}
+
+	if (ifevent->action == BRCMF_E_IF_CHANGE)
+		brcmf_fws_reset_interface(ifp);
 
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
-	if (ifevent->action == BRCMF_E_IF_DEL)
-		brcmf_del_if(drvr, ifevent->ifidx);
+	if (ifevent->action == BRCMF_E_IF_DEL) {
+		brcmf_fws_del_interface(ifp);
+		brcmf_del_if(drvr, ifevent->bssidx);
+	}
 }
 
 /**
@@ -250,8 +262,6 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 	drvr = container_of(fweh, struct brcmf_pub, fweh);
 
 	while ((event = brcmf_fweh_dequeue_event(fweh))) {
-		ifp = drvr->iflist[event->ifidx];
-
 		brcmf_dbg(EVENT, "event %s (%u) ifidx %u bsscfg %u addr %pM\n",
 			  brcmf_fweh_event_name(event->code), event->code,
 			  event->emsg.ifidx, event->emsg.bsscfgidx,
@@ -283,6 +293,7 @@ static void brcmf_fweh_event_worker(struct work_struct *work)
 			goto event_free;
 		}
 
+		ifp = drvr->iflist[emsg.bsscfgidx];
 		err = brcmf_fweh_call_event_handler(ifp, event->code, &emsg,
 						    event->data);
 		if (err) {
@@ -401,13 +412,12 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
  *
  * @drvr: driver information object.
  * @event_packet: event packet to process.
- * @ifidx: index of the firmware interface (may change).
  *
  * If the packet buffer contains a firmware event message it will
  * dispatch the event to a registered handler (using worker).
  */
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
-			      struct brcmf_event *event_packet, u8 *ifidx)
+			      struct brcmf_event *event_packet)
 {
 	enum brcmf_fweh_event_code code;
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
@@ -419,7 +429,6 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 	/* get event info */
 	code = get_unaligned_be32(&event_packet->msg.event_type);
 	datalen = get_unaligned_be32(&event_packet->msg.datalen);
-	*ifidx = event_packet->msg.ifidx;
 	data = &event_packet[1];
 
 	if (code >= BRCMF_E_LAST)
@@ -436,7 +445,7 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 		return;
 
 	event->code = code;
-	event->ifidx = *ifidx;
+	event->ifidx = event_packet->msg.ifidx;
 
 	/* use memcpy to get aligned event message */
 	memcpy(&event->emsg, &event_packet->msg, sizeof(event->emsg));

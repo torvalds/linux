@@ -213,19 +213,20 @@ static int ttusbir_probe(struct usb_interface *intf,
 
 	/* find the correct alt setting */
 	for (i = 0; i < intf->num_altsetting && altsetting == -1; i++) {
-		int bulk_out_endp = -1, iso_in_endp = -1;
+		int max_packet, bulk_out_endp = -1, iso_in_endp = -1;
 
 		idesc = &intf->altsetting[i].desc;
 
 		for (j = 0; j < idesc->bNumEndpoints; j++) {
 			desc = &intf->altsetting[i].endpoint[j].desc;
+			max_packet = le16_to_cpu(desc->wMaxPacketSize);
 			if (usb_endpoint_dir_in(desc) &&
 					usb_endpoint_xfer_isoc(desc) &&
-					desc->wMaxPacketSize == 0x10)
+					max_packet == 0x10)
 				iso_in_endp = j;
 			else if (usb_endpoint_dir_out(desc) &&
 					usb_endpoint_xfer_bulk(desc) &&
-					desc->wMaxPacketSize == 0x20)
+					max_packet == 0x20)
 				bulk_out_endp = j;
 
 			if (bulk_out_endp != -1 && iso_in_endp != -1) {
@@ -301,6 +302,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 						ttusbir_bulk_complete, tt);
 
 	tt->led.name = "ttusbir:green:power";
+	tt->led.default_trigger = "rc-feedback";
 	tt->led.brightness_set = ttusbir_brightness_set;
 	tt->led.brightness_get = ttusbir_brightness_get;
 	tt->is_led_on = tt->led_on = true;
@@ -316,7 +318,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protos = RC_BIT_ALL;
+	rc_set_allowed_protocols(rc, RC_BIT_ALL);
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;
 	rc->map_name = RC_MAP_TT_1500;
@@ -346,6 +348,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	return 0;
 out3:
 	rc_unregister_device(rc);
+	rc = NULL;
 out2:
 	led_classdev_unregister(&tt->led);
 out:
@@ -408,9 +411,8 @@ static int ttusbir_resume(struct usb_interface *intf)
 	struct ttusbir *tt = usb_get_intfdata(intf);
 	int i, rc;
 
-	led_classdev_resume(&tt->led);
 	tt->is_led_on = true;
-	ttusbir_set_led(tt);
+	led_classdev_resume(&tt->led);
 
 	for (i = 0; i < NUM_URBS; i++) {
 		rc = usb_submit_urb(tt->urb[i], GFP_KERNEL);

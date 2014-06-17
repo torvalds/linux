@@ -1,0 +1,26 @@
+/*
+ * at91sam9x5_isi.dtsi - Device Tree Include file for AT91SAM9x5 SoC with an
+ * Image Sensor Interface.
+ *
+ * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
+ *
+ * Licensed under GPLv2.
+ */
+
+#include <dt-bindings/pinctrl/at91.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	ahb {
+		apb {
+			pmc: pmc@fffffc00 {
+				periphck {
+					isi_clk: isi_clk {
+						#clock-cells = <0>;
+						reg = <25>;
+					};
+				};
+			};
+		};
+	};
+};

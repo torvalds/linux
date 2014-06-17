@@ -211,6 +211,12 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	res->start = -1;
 	res->end = -1;
 
+	if (!rule->map) {
+		res->flags |= IORESOURCE_DISABLED;
+		pnp_dbg(&dev->dev, "  dma %d disabled\n", idx);
+		goto __add;
+	}
+
 	for (i = 0; i < 8; i++) {
 		if (rule->map & (1 << xtab[i])) {
 			res->start = res->end = xtab[i];
@@ -218,11 +224,9 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 				goto __add;
 		}
 	}
-#ifdef MAX_DMA_CHANNELS
-	res->start = res->end = MAX_DMA_CHANNELS;
-#endif
-	res->flags |= IORESOURCE_DISABLED;
-	pnp_dbg(&dev->dev, "  disable dma %d\n", idx);
+
+	pnp_dbg(&dev->dev, "  couldn't assign dma %d\n", idx);
+	return -EBUSY;
 
 __add:
 	pnp_add_dma_resource(dev, res->start, res->flags);

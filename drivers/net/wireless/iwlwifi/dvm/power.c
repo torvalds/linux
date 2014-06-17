@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -30,7 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <net/mac80211.h>
 #include "iwl-io.h"
 #include "iwl-debug.h"
@@ -163,7 +162,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	u8 skip;
 	u32 slp_itrvl;
 
-	if (priv->cfg->adv_pm) {
+	if (priv->lib->adv_pm) {
 		table = apm_range_2;
 		if (period <= IWL_DTIM_RANGE_1_MAX)
 			table = apm_range_1;
@@ -217,7 +216,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
 	if (iwl_advanced_bt_coexist(priv)) {
-		if (!priv->cfg->bt_params->bt_sco_disable)
+		if (!priv->lib->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else
 			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
@@ -279,7 +278,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return iwl_dvm_send_cmd_pdu(priv, POWER_TABLE_CMD, CMD_SYNC,
+	return iwl_dvm_send_cmd_pdu(priv, POWER_TABLE_CMD, 0,
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
@@ -293,7 +292,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	if (priv->wowlan)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, dtimper);
-	else if (!priv->cfg->base_params->no_idle_support &&
+	else if (!priv->lib->no_idle_support &&
 		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (iwl_tt_is_low_power_state(priv)) {
@@ -362,7 +361,7 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 
 		memcpy(&priv->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
-		IWL_ERR(priv, "set power fail, ret = %d", ret);
+		IWL_ERR(priv, "set power fail, ret = %d\n", ret);
 
 	return ret;
 }

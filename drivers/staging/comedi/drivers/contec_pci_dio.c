@@ -13,11 +13,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 /*
 Driver: contec_pci_dio
@@ -29,6 +24,9 @@ Status: works
 
 Configuration Options: not applicable, uses comedi PCI auto config
 */
+
+#include <linux/module.h>
+#include <linux/pci.h>
 
 #include "../comedidev.h"
 
@@ -42,17 +40,11 @@ Configuration Options: not applicable, uses comedi PCI auto config
 
 static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int mask = data[0];
-	unsigned int bits = data[1];
-
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= (bits & mask);
-
+	if (comedi_dio_update_state(s, data))
 		outw(s->state, dev->iobase + PIO1616L_DO_REG);
-	}
 
 	data[1] = s->state;
 
@@ -75,9 +67,7 @@ static int contec_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 0);
@@ -102,40 +92,24 @@ static int contec_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= contec_do_insn_bits;
 
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
-
 	return 0;
-}
-
-static void contec_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
 }
 
 static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
 	.auto_attach	= contec_auto_attach,
-	.detach		= contec_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int contec_pci_dio_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+				    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &contec_pci_dio_driver);
+	return comedi_pci_auto_config(dev, &contec_pci_dio_driver,
+				      id->driver_data);
 }
 
-static void contec_pci_dio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static DEFINE_PCI_DEVICE_TABLE(contec_pci_dio_pci_table) = {
+static const struct pci_device_id contec_pci_dio_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
 	{ 0 }
 };
@@ -145,7 +119,7 @@ static struct pci_driver contec_pci_dio_pci_driver = {
 	.name		= "contec_pci_dio",
 	.id_table	= contec_pci_dio_pci_table,
 	.probe		= contec_pci_dio_pci_probe,
-	.remove		= contec_pci_dio_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(contec_pci_dio_driver, contec_pci_dio_pci_driver);
 

@@ -67,7 +67,8 @@ EXPORT_SYMBOL_GPL(crypto_shash_setkey);
 static inline unsigned int shash_align_buffer_size(unsigned len,
 						   unsigned long mask)
 {
-	return len + (mask & ~(__alignof__(u8 __attribute__ ((aligned))) - 1));
+	typedef u8 __attribute__ ((aligned)) u8_aligned;
+	return len + (mask & ~(__alignof__(u8_aligned) - 1));
 }
 
 static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
@@ -530,7 +531,8 @@ static int crypto_shash_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_report_hash rhash;
 	struct shash_alg *salg = __crypto_shash_alg(alg);
 
-	snprintf(rhash.type, CRYPTO_MAX_ALG_NAME, "%s", "shash");
+	strncpy(rhash.type, "shash", sizeof(rhash.type));
+
 	rhash.blocksize = alg->cra_blocksize;
 	rhash.digestsize = salg->digestsize;
 

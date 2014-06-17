@@ -8,6 +8,8 @@ Required properties:
 - compatible : should be "nvidia,tegra20-timer".
 - reg : Specifies base physical address and size of the registers.
 - interrupts : A list of 4 interrupts; one per timer channel.
+- clocks : Must contain one entry, for the module clock.
+  See ../clocks/clock-bindings.txt for details.
 
 Example:
 
@@ -18,4 +20,5 @@ timer {
 			0 1 0x04
 			0 41 0x04
 			0 42 0x04>;
+	clocks = <&tegra_car 132>;
 };

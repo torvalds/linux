@@ -462,10 +462,9 @@ out:
 queue:
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
-	err = skb->len;
 	skb_queue_tail(queue, skb);
 	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, err);
+		sk->sk_data_ready(sk);
 	return NET_RX_SUCCESS;
 }
 
@@ -587,10 +586,9 @@ static int pipe_handler_do_rcv(struct sock *sk, struct sk_buff *skb)
 		pn->rx_credits--;
 		skb->dev = NULL;
 		skb_set_owner_r(skb, sk);
-		err = skb->len;
 		skb_queue_tail(&sk->sk_receive_queue, skb);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, err);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_CONNECT_RESP:
@@ -640,11 +638,10 @@ static struct sock *pep_find_pipe(const struct hlist_head *hlist,
 					const struct sockaddr_pn *dst,
 					u8 pipe_handle)
 {
-	struct hlist_node *node;
 	struct sock *sknode;
 	u16 dobj = pn_sockaddr_get_object(dst);
 
-	sk_for_each(sknode, node, hlist) {
+	sk_for_each(sknode, hlist) {
 		struct pep_sock *pnnode = pep_sk(sknode);
 
 		/* Ports match, but addresses might not: */
@@ -699,7 +696,7 @@ static int pep_do_rcv(struct sock *sk, struct sk_buff *skb)
 		skb_queue_head(&sk->sk_receive_queue, skb);
 		sk_acceptq_added(sk);
 		if (!sock_flag(sk, SOCK_DEAD))
-			sk->sk_data_ready(sk, 0);
+			sk->sk_data_ready(sk);
 		return NET_RX_SUCCESS;
 
 	case PNS_PEP_DISCONNECT_REQ:

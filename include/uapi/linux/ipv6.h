@@ -63,6 +63,8 @@ struct ipv6_opt_hdr {
 #define ipv6_destopt_hdr ipv6_opt_hdr
 #define ipv6_hopopt_hdr  ipv6_opt_hdr
 
+/* Router Alert option values (RFC2711) */
+#define IPV6_OPT_ROUTERALERT_MLD	0x0000	/* MLD(RFC2710) */
 
 /*
  *	routing header type 0 (used in cmsghdr struct)
@@ -158,6 +160,9 @@ enum {
 	DEVCONF_ACCEPT_DAD,
 	DEVCONF_FORCE_TLLAO,
 	DEVCONF_NDISC_NOTIFY,
+	DEVCONF_MLDV1_UNSOLICITED_REPORT_INTERVAL,
+	DEVCONF_MLDV2_UNSOLICITED_REPORT_INTERVAL,
+	DEVCONF_SUPPRESS_FRAG_NDISC,
 	DEVCONF_MAX
 };
 

@@ -455,6 +455,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned len)
 		}
 		this_header = 0;
 		decompress = decompress_method(buf, len, &compress_name);
+		pr_debug("Detected %s compressed data\n", compress_name);
 		if (decompress) {
 			res = decompress(buf, len, NULL, flush_buffer, NULL,
 				   &my_inptr, error);
@@ -583,7 +584,7 @@ static int __init populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
 	if (err)
-		panic(err);	/* Failed to decompress INTERNAL initramfs */
+		panic("%s", err); /* Failed to decompress INTERNAL initramfs */
 	if (initrd_start) {
 #ifdef CONFIG_BLK_DEV_RAM
 		int fd;
@@ -592,7 +593,7 @@ static int __init populate_rootfs(void)
 			initrd_end - initrd_start);
 		if (!err) {
 			free_initrd();
-			return 0;
+			goto done;
 		} else {
 			clean_rootfs();
 			unpack_to_rootfs(__initramfs_start, __initramfs_size);
@@ -607,6 +608,7 @@ static int __init populate_rootfs(void)
 			sys_close(fd);
 			free_initrd();
 		}
+	done:
 #else
 		printk(KERN_INFO "Unpacking initramfs...\n");
 		err = unpack_to_rootfs((char *)initrd_start,
@@ -615,6 +617,11 @@ static int __init populate_rootfs(void)
 			printk(KERN_EMERG "Initramfs unpacking failed: %s\n", err);
 		free_initrd();
 #endif
+		/*
+		 * Try loading default modules from initramfs.  This gives
+		 * us a chance to load before device_initcalls.
+		 */
+		load_default_modules();
 	}
 	return 0;
 }

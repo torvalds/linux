@@ -44,32 +44,38 @@
 /*
  * Valid machtype for group PMC-MSP
  */
-#define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
-#define MACH_MSP4200_GW         1	/* PMC-Sierra MSP4200 Gateway demo */
-#define MACH_MSP4200_FPGA       2	/* PMC-Sierra MSP4200 Emulation */
-#define MACH_MSP7120_EVAL       3	/* PMC-Sierra MSP7120 Evaluation */
-#define MACH_MSP7120_GW         4	/* PMC-Sierra MSP7120 Residential GW */
-#define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
-#define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
+#define MACH_MSP4200_EVAL	0	/* PMC-Sierra MSP4200 Evaluation */
+#define MACH_MSP4200_GW		1	/* PMC-Sierra MSP4200 Gateway demo */
+#define MACH_MSP4200_FPGA	2	/* PMC-Sierra MSP4200 Emulation */
+#define MACH_MSP7120_EVAL	3	/* PMC-Sierra MSP7120 Evaluation */
+#define MACH_MSP7120_GW		4	/* PMC-Sierra MSP7120 Residential GW */
+#define MACH_MSP7120_FPGA	5	/* PMC-Sierra MSP7120 Emulation */
+#define MACH_MSP_OTHER	      255	/* PMC-Sierra unknown board type */
 
 /*
  * Valid machtype for group Mikrotik
  */
-#define	MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532 	*/
-#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A 	*/
+#define MACH_MIKROTIK_RB532	0	/* Mikrotik RouterBoard 532	*/
+#define MACH_MIKROTIK_RB532A	1	/* Mikrotik RouterBoard 532A	*/
 
 /*
  * Valid machtype for Loongson family
  */
-#define MACH_LOONGSON_UNKNOWN  0
-#define MACH_LEMOTE_FL2E       1
-#define MACH_LEMOTE_FL2F       2
-#define MACH_LEMOTE_ML2F7      3
-#define MACH_LEMOTE_YL2F89     4
-#define MACH_DEXXON_GDIUM2F10  5
-#define MACH_LEMOTE_NAS        6
-#define MACH_LEMOTE_LL2F       7
-#define MACH_LOONGSON_END      8
+enum loongson_machine_type {
+	MACH_LOONGSON_UNKNOWN,
+	MACH_LEMOTE_FL2E,
+	MACH_LEMOTE_FL2F,
+	MACH_LEMOTE_ML2F7,
+	MACH_LEMOTE_YL2F89,
+	MACH_DEXXON_GDIUM2F10,
+	MACH_LEMOTE_NAS,
+	MACH_LEMOTE_LL2F,
+	MACH_LEMOTE_A1004,
+	MACH_LEMOTE_A1101,
+	MACH_LEMOTE_A1201,
+	MACH_LEMOTE_A1205,
+	MACH_LOONGSON_END
+};
 
 /*
  * Valid machtype for group INGENIC
@@ -104,12 +110,15 @@ struct boot_mem_map {
 extern struct boot_mem_map boot_mem_map;
 
 extern void add_memory_region(phys_t start, phys_t size, long type);
+extern void detect_memory_region(phys_t start, phys_t sz_min,  phys_t sz_max);
 
 extern void prom_init(void);
 extern void prom_free_prom_memory(void);
 
 extern void free_init_pages(const char *what,
 			    unsigned long begin, unsigned long end);
+
+extern void (*free_init_pages_eva)(void *begin, void *end);
 
 /*
  * Initial kernel command line, usually setup by prom_init()

@@ -33,6 +33,8 @@
 
 #ifdef CONFIG_64BIT
 #include <asm/exception-64e.h>
+#include <asm/hw_irq.h>
+#include <asm/irqflags.h>
 #else
 #include "../kernel/head_booke.h" /* for THREAD_NORMSAVE() */
 #endif
@@ -227,17 +229,20 @@
 	stw	r10, VCPU_CR(r4)
 	PPC_STL r11, VCPU_GPR(R4)(r4)
 	PPC_STL	r5, VCPU_GPR(R5)(r4)
-	.if \type == EX_CRIT
-	PPC_LL	r5, (\paca_ex + EX_R13)(r13)
-	.else
-	mfspr	r5, \scratch
-	.endif
 	PPC_STL	r6, VCPU_GPR(R6)(r4)
 	PPC_STL	r8, VCPU_GPR(R8)(r4)
 	PPC_STL	r9, VCPU_GPR(R9)(r4)
-	PPC_STL r5, VCPU_GPR(R13)(r4)
+	.if \type == EX_TLB
+	PPC_LL	r5, EX_TLB_R13(r12)
+	PPC_LL	r6, EX_TLB_R10(r12)
+	PPC_LL	r8, EX_TLB_R11(r12)
+	mfspr	r12, \scratch
+	.else
+	mfspr	r5, \scratch
 	PPC_LL	r6, (\paca_ex + \ex_r10)(r13)
 	PPC_LL	r8, (\paca_ex + \ex_r11)(r13)
+	.endif
+	PPC_STL r5, VCPU_GPR(R13)(r4)
 	PPC_STL r3, VCPU_GPR(R3)(r4)
 	PPC_STL r7, VCPU_GPR(R7)(r4)
 	PPC_STL r12, VCPU_GPR(R12)(r4)
@@ -319,6 +324,8 @@ kvm_handler BOOKE_INTERRUPT_DEBUG, EX_PARAMS(DBG), \
 	SPRN_DSRR0, SPRN_DSRR1, 0
 kvm_handler BOOKE_INTERRUPT_DEBUG, EX_PARAMS(CRIT), \
 	SPRN_CSRR0, SPRN_CSRR1, 0
+kvm_handler BOOKE_INTERRUPT_LRAT_ERROR, EX_PARAMS(GEN), \
+	SPRN_SRR0, SPRN_SRR1, (NEED_EMU | NEED_DEAR | NEED_ESR)
 #else
 /*
  * For input register values, see arch/powerpc/include/asm/kvm_booke_hv_asm.h
@@ -431,10 +438,16 @@ _GLOBAL(kvmppc_resume_host)
 	PPC_STL	r5, VCPU_LR(r4)
 	mfspr	r7, SPRN_SPRG5
 	stw	r3, VCPU_VRSAVE(r4)
+#ifdef CONFIG_64BIT
+	PPC_LL	r3, PACA_SPRG_VDSO(r13)
+#endif
 	PPC_STD(r6, VCPU_SHARED_SPRG4, r11)
 	mfspr	r8, SPRN_SPRG6
 	PPC_STD(r7, VCPU_SHARED_SPRG5, r11)
 	mfspr	r9, SPRN_SPRG7
+#ifdef CONFIG_64BIT
+	mtspr	SPRN_SPRG_VDSO_WRITE, r3
+#endif
 	PPC_STD(r8, VCPU_SHARED_SPRG6, r11)
 	mfxer	r3
 	PPC_STD(r9, VCPU_SHARED_SPRG7, r11)
@@ -464,6 +477,15 @@ _GLOBAL(kvmppc_resume_host)
 	rlwinm	r3, r3, 0, ~SPRN_EPCR_DMIUH
 	mtspr	SPRN_EPCR, r3
 	isync
+
+#ifdef CONFIG_64BIT
+	/*
+	 * We enter with interrupts disabled in hardware, but
+	 * we need to call RECONCILE_IRQ_STATE to ensure
+	 * that the software state is kept in sync.
+	 */
+	RECONCILE_IRQ_STATE(r3,r5)
+#endif
 
 	/* Switch to kernel stack and jump to handler. */
 	PPC_LL	r3, HOST_RUN(r1)

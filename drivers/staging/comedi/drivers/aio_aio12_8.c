@@ -14,10 +14,6 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -39,8 +35,8 @@ Notes:
 
 */
 
+#include <linux/module.h>
 #include "../comedidev.h"
-#include <linux/ioport.h>
 #include "8255.h"
 
 /*
@@ -105,14 +101,27 @@ struct aio12_8_private {
 	unsigned int ao_readback[4];
 };
 
+static int aio_aio12_8_ai_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
+{
+	unsigned int status;
+
+	status = inb(dev->iobase + AIO12_8_STATUS_REG);
+	if (status & AIO12_8_STATUS_ADC_EOC)
+		return 0;
+	return -EBUSY;
+}
+
 static int aio_aio12_8_ai_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
-	unsigned int val;
 	unsigned char control;
+	int ret;
 	int n;
 
 	/*
@@ -126,20 +135,13 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 	inb(dev->iobase + AIO12_8_STATUS_REG);
 
 	for (n = 0; n < insn->n; n++) {
-		int timeout = 5;
-
 		/*  Setup and start conversion */
 		outb(control, dev->iobase + AIO12_8_ADC_REG);
 
 		/*  Wait for conversion to complete */
-		do {
-			val = inb(dev->iobase + AIO12_8_STATUS_REG);
-			timeout--;
-			if (timeout == 0) {
-				dev_err(dev->class_dev, "ADC timeout\n");
-				return -ETIMEDOUT;
-			}
-		} while (!(val & AIO12_8_STATUS_ADC_EOC));
+		ret = comedi_timeout(dev, s, insn, aio_aio12_8_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		data[n] = inw(dev->iobase + AIO12_8_ADC_REG) & s->maxdata;
 	}
@@ -185,13 +187,12 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev,
 }
 
 static const struct comedi_lrange range_aio_aio12_8 = {
-	4,
-	{
-	 UNI_RANGE(5),
-	 BIP_RANGE(5),
-	 UNI_RANGE(10),
-	 BIP_RANGE(10),
-	 }
+	4, {
+		UNI_RANGE(5),
+		BIP_RANGE(5),
+		UNI_RANGE(10),
+		BIP_RANGE(10)
+	}
 };
 
 static int aio_aio12_8_attach(struct comedi_device *dev,
@@ -200,22 +201,15 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	const struct aio12_8_boardtype *board = comedi_board(dev);
 	struct aio12_8_private *devpriv;
 	struct comedi_subdevice *s;
-	int iobase;
 	int ret;
 
-	dev->board_name = board->name;
+	ret = comedi_request_region(dev, it->options[0], 32);
+	if (ret)
+		return ret;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, 32, dev->board_name)) {
-		printk(KERN_ERR "I/O port conflict");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -250,8 +244,8 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* 8255 Digital i/o subdevice */
-	iobase = dev->iobase + AIO12_8_8255_BASE_REG;
-	ret = subdev_8255_init(dev, s, NULL, iobase);
+	ret = subdev_8255_init(dev, s, NULL,
+			       dev->iobase + AIO12_8_8255_BASE_REG);
 	if (ret)
 		return ret;
 
@@ -259,25 +253,14 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	/* 8254 counter/timer subdevice */
 	s->type		= COMEDI_SUBD_UNUSED;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
-
 	return 0;
-}
-
-static void aio_aio12_8_detach(struct comedi_device *dev)
-{
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
-	if (dev->iobase)
-		release_region(dev->iobase, 24);
 }
 
 static struct comedi_driver aio_aio12_8_driver = {
 	.driver_name	= "aio_aio12_8",
 	.module		= THIS_MODULE,
 	.attach		= aio_aio12_8_attach,
-	.detach		= aio_aio12_8_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &board_types[0].name,
 	.num_names	= ARRAY_SIZE(board_types),
 	.offset		= sizeof(struct aio12_8_boardtype),

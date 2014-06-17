@@ -17,14 +17,27 @@
 #define P_MAYSHARE	0x2000
 #define P_DONTCARE	0x1000
 
+#ifdef CONFIG_PINCTRL
+int bfin_internal_set_wake(unsigned int irq, unsigned int state);
 
+#define gpio_pint_regs bfin_pint_regs
+#define adi_internal_set_wake bfin_internal_set_wake
+
+#define peripheral_request(per, label) (0)
+#define peripheral_free(per)
+#define peripheral_request_list(per, label) (0)
+#define peripheral_free_list(per)
+#else
 int peripheral_request(unsigned short per, const char *label);
 void peripheral_free(unsigned short per);
 int peripheral_request_list(const unsigned short per[], const char *label);
 void peripheral_free_list(const unsigned short per[]);
+#endif
 
-#include <asm/gpio.h>
+#include <linux/err.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <mach/portmux.h>
+#include <mach/gpio.h>
 
 #ifndef P_SPORT2_TFS
 #define P_SPORT2_TFS P_UNDEF

@@ -23,67 +23,52 @@
 #include <linux/err.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/palmas.h>
-#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
-enum palmas_ids {
-	PALMAS_PMIC_ID,
-	PALMAS_GPIO_ID,
-	PALMAS_LEDS_ID,
-	PALMAS_WDT_ID,
-	PALMAS_RTC_ID,
-	PALMAS_PWRBUTTON_ID,
-	PALMAS_GPADC_ID,
-	PALMAS_RESOURCE_ID,
-	PALMAS_CLK_ID,
-	PALMAS_PWM_ID,
-	PALMAS_USB_ID,
+#define PALMAS_EXT_REQ (PALMAS_EXT_CONTROL_ENABLE1 |	\
+			PALMAS_EXT_CONTROL_ENABLE2 |	\
+			PALMAS_EXT_CONTROL_NSLEEP)
+
+struct palmas_sleep_requestor_info {
+	int id;
+	int reg_offset;
+	int bit_pos;
 };
 
-static const struct mfd_cell palmas_children[] = {
-	{
-		.name = "palmas-pmic",
-		.id = PALMAS_PMIC_ID,
-	},
-	{
-		.name = "palmas-gpio",
-		.id = PALMAS_GPIO_ID,
-	},
-	{
-		.name = "palmas-leds",
-		.id = PALMAS_LEDS_ID,
-	},
-	{
-		.name = "palmas-wdt",
-		.id = PALMAS_WDT_ID,
-	},
-	{
-		.name = "palmas-rtc",
-		.id = PALMAS_RTC_ID,
-	},
-	{
-		.name = "palmas-pwrbutton",
-		.id = PALMAS_PWRBUTTON_ID,
-	},
-	{
-		.name = "palmas-gpadc",
-		.id = PALMAS_GPADC_ID,
-	},
-	{
-		.name = "palmas-resource",
-		.id = PALMAS_RESOURCE_ID,
-	},
-	{
-		.name = "palmas-clk",
-		.id = PALMAS_CLK_ID,
-	},
-	{
-		.name = "palmas-pwm",
-		.id = PALMAS_PWM_ID,
-	},
-	{
-		.name = "palmas-usb",
-		.id = PALMAS_USB_ID,
+#define EXTERNAL_REQUESTOR(_id, _offset, _pos)		\
+	[PALMAS_EXTERNAL_REQSTR_ID_##_id] = {		\
+		.id = PALMAS_EXTERNAL_REQSTR_ID_##_id,	\
+		.reg_offset = _offset,			\
+		.bit_pos = _pos,			\
 	}
+
+static struct palmas_sleep_requestor_info sleep_req_info[] = {
+	EXTERNAL_REQUESTOR(REGEN1, 0, 0),
+	EXTERNAL_REQUESTOR(REGEN2, 0, 1),
+	EXTERNAL_REQUESTOR(SYSEN1, 0, 2),
+	EXTERNAL_REQUESTOR(SYSEN2, 0, 3),
+	EXTERNAL_REQUESTOR(CLK32KG, 0, 4),
+	EXTERNAL_REQUESTOR(CLK32KGAUDIO, 0, 5),
+	EXTERNAL_REQUESTOR(REGEN3, 0, 6),
+	EXTERNAL_REQUESTOR(SMPS12, 1, 0),
+	EXTERNAL_REQUESTOR(SMPS3, 1, 1),
+	EXTERNAL_REQUESTOR(SMPS45, 1, 2),
+	EXTERNAL_REQUESTOR(SMPS6, 1, 3),
+	EXTERNAL_REQUESTOR(SMPS7, 1, 4),
+	EXTERNAL_REQUESTOR(SMPS8, 1, 5),
+	EXTERNAL_REQUESTOR(SMPS9, 1, 6),
+	EXTERNAL_REQUESTOR(SMPS10, 1, 7),
+	EXTERNAL_REQUESTOR(LDO1, 2, 0),
+	EXTERNAL_REQUESTOR(LDO2, 2, 1),
+	EXTERNAL_REQUESTOR(LDO3, 2, 2),
+	EXTERNAL_REQUESTOR(LDO4, 2, 3),
+	EXTERNAL_REQUESTOR(LDO5, 2, 4),
+	EXTERNAL_REQUESTOR(LDO6, 2, 5),
+	EXTERNAL_REQUESTOR(LDO7, 2, 6),
+	EXTERNAL_REQUESTOR(LDO8, 2, 7),
+	EXTERNAL_REQUESTOR(LDO9, 3, 0),
+	EXTERNAL_REQUESTOR(LDOLN, 3, 1),
+	EXTERNAL_REQUESTOR(LDOUSB, 3, 2),
 };
 
 static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
@@ -247,33 +232,143 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
-static void palmas_dt_to_pdata(struct device_node *node,
+int palmas_ext_control_req_config(struct palmas *palmas,
+	enum palmas_external_requestor_id id,  int ext_ctrl, bool enable)
+{
+	int preq_mask_bit = 0;
+	int reg_add = 0;
+	int bit_pos;
+	int ret;
+
+	if (!(ext_ctrl & PALMAS_EXT_REQ))
+		return 0;
+
+	if (id >= PALMAS_EXTERNAL_REQSTR_ID_MAX)
+		return 0;
+
+	if (ext_ctrl & PALMAS_EXT_CONTROL_NSLEEP) {
+		reg_add = PALMAS_NSLEEP_RES_ASSIGN;
+		preq_mask_bit = 0;
+	} else if (ext_ctrl & PALMAS_EXT_CONTROL_ENABLE1) {
+		reg_add = PALMAS_ENABLE1_RES_ASSIGN;
+		preq_mask_bit = 1;
+	} else if (ext_ctrl & PALMAS_EXT_CONTROL_ENABLE2) {
+		reg_add = PALMAS_ENABLE2_RES_ASSIGN;
+		preq_mask_bit = 2;
+	}
+
+	bit_pos = sleep_req_info[id].bit_pos;
+	reg_add += sleep_req_info[id].reg_offset;
+	if (enable)
+		ret = palmas_update_bits(palmas, PALMAS_RESOURCE_BASE,
+				reg_add, BIT(bit_pos), BIT(bit_pos));
+	else
+		ret = palmas_update_bits(palmas, PALMAS_RESOURCE_BASE,
+				reg_add, BIT(bit_pos), 0);
+	if (ret < 0) {
+		dev_err(palmas->dev, "Resource reg 0x%02x update failed %d\n",
+			reg_add, ret);
+		return ret;
+	}
+
+	/* Unmask the PREQ */
+	ret = palmas_update_bits(palmas, PALMAS_PMU_CONTROL_BASE,
+			PALMAS_POWER_CTRL, BIT(preq_mask_bit), 0);
+	if (ret < 0) {
+		dev_err(palmas->dev, "POWER_CTRL register update failed %d\n",
+			ret);
+		return ret;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(palmas_ext_control_req_config);
+
+static int palmas_set_pdata_irq_flag(struct i2c_client *i2c,
 		struct palmas_platform_data *pdata)
 {
+	struct irq_data *irq_data = irq_get_irq_data(i2c->irq);
+	if (!irq_data) {
+		dev_err(&i2c->dev, "Invalid IRQ: %d\n", i2c->irq);
+		return -EINVAL;
+	}
+
+	pdata->irq_flags = irqd_get_trigger_type(irq_data);
+	dev_info(&i2c->dev, "Irq flag is 0x%08x\n", pdata->irq_flags);
+	return 0;
+}
+
+static void palmas_dt_to_pdata(struct i2c_client *i2c,
+		struct palmas_platform_data *pdata)
+{
+	struct device_node *node = i2c->dev.of_node;
 	int ret;
 	u32 prop;
 
-	ret = of_property_read_u32(node, "ti,mux_pad1", &prop);
+	ret = of_property_read_u32(node, "ti,mux-pad1", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad1 = prop;
 	}
 
-	ret = of_property_read_u32(node, "ti,mux_pad2", &prop);
+	ret = of_property_read_u32(node, "ti,mux-pad2", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad2 = prop;
 	}
 
 	/* The default for this register is all masked */
-	ret = of_property_read_u32(node, "ti,power_ctrl", &prop);
+	ret = of_property_read_u32(node, "ti,power-ctrl", &prop);
 	if (!ret)
 		pdata->power_ctrl = prop;
 	else
 		pdata->power_ctrl = PALMAS_POWER_CTRL_NSLEEP_MASK |
 					PALMAS_POWER_CTRL_ENABLE1_MASK |
 					PALMAS_POWER_CTRL_ENABLE2_MASK;
+	if (i2c->irq)
+		palmas_set_pdata_irq_flag(i2c, pdata);
+
+	pdata->pm_off = of_property_read_bool(node,
+			"ti,system-power-controller");
 }
+
+static struct palmas *palmas_dev;
+static void palmas_power_off(void)
+{
+	unsigned int addr;
+	int ret, slave;
+
+	if (!palmas_dev)
+		return;
+
+	slave = PALMAS_BASE_TO_SLAVE(PALMAS_PMU_CONTROL_BASE);
+	addr = PALMAS_BASE_TO_REG(PALMAS_PMU_CONTROL_BASE, PALMAS_DEV_CTRL);
+
+	ret = regmap_update_bits(
+			palmas_dev->regmap[slave],
+			addr,
+			PALMAS_DEV_CTRL_DEV_ON,
+			0);
+
+	if (ret)
+		pr_err("%s: Unable to write to DEV_CTRL_DEV_ON: %d\n",
+				__func__, ret);
+}
+
+static unsigned int palmas_features = PALMAS_PMIC_FEATURE_SMPS10_BOOST;
+static unsigned int tps659038_features;
+
+static const struct of_device_id of_palmas_match_tbl[] = {
+	{
+		.compatible = "ti,palmas",
+		.data = &palmas_features,
+	},
+	{
+		.compatible = "ti,tps659038",
+		.data = &tps659038_features,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_palmas_match_tbl);
 
 static int palmas_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -282,9 +377,9 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	struct palmas_platform_data *pdata;
 	struct device_node *node = i2c->dev.of_node;
 	int ret = 0, i;
-	unsigned int reg, addr;
+	unsigned int reg, addr, *features;
 	int slave;
-	struct mfd_cell *children;
+	const struct of_device_id *match;
 
 	pdata = dev_get_platdata(&i2c->dev);
 
@@ -294,7 +389,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 		if (!pdata)
 			return -ENOMEM;
 
-		palmas_dt_to_pdata(node, pdata);
+		palmas_dt_to_pdata(i2c, pdata);
 	}
 
 	if (!pdata)
@@ -306,8 +401,15 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, palmas);
 	palmas->dev = &i2c->dev;
-	palmas->id = id->driver_data;
 	palmas->irq = i2c->irq;
+
+	match = of_match_device(of_palmas_match_tbl, &i2c->dev);
+
+	if (!match)
+		return -ENODATA;
+
+	features = (unsigned int *)match->data;
+	palmas->features = *features;
 
 	for (i = 0; i < PALMAS_NUM_CLIENTS; i++) {
 		if (i == 0)
@@ -320,8 +422,9 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 				dev_err(palmas->dev,
 					"can't attach client %d\n", i);
 				ret = -ENOMEM;
-				goto err;
+				goto err_i2c;
 			}
+			palmas->i2c_clients[i]->dev.of_node = of_node_get(node);
 		}
 		palmas->regmap[i] = devm_regmap_init_i2c(palmas->i2c_clients[i],
 				&palmas_regmap_config[i]);
@@ -330,8 +433,26 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 			dev_err(palmas->dev,
 				"Failed to allocate regmap %d, err: %d\n",
 				i, ret);
-			goto err;
+			goto err_i2c;
 		}
+	}
+
+	if (!palmas->irq) {
+		dev_warn(palmas->dev, "IRQ missing: skipping irq request\n");
+		goto no_irq;
+	}
+
+	/* Change interrupt line output polarity */
+	if (pdata->irq_flags & IRQ_TYPE_LEVEL_HIGH)
+		reg = PALMAS_POLARITY_CTRL_INT_POLARITY;
+	else
+		reg = 0;
+	ret = palmas_update_bits(palmas, PALMAS_PU_PD_OD_BASE,
+			PALMAS_POLARITY_CTRL, PALMAS_POLARITY_CTRL_INT_POLARITY,
+			reg);
+	if (ret < 0) {
+		dev_err(palmas->dev, "POLARITY_CTRL updat failed: %d\n", ret);
+		goto err_i2c;
 	}
 
 	/* Change IRQ into clear on read mode for efficiency */
@@ -342,11 +463,12 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	regmap_write(palmas->regmap[slave], addr, reg);
 
 	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, 0, &palmas_irq_chip,
+			IRQF_ONESHOT | pdata->irq_flags, 0, &palmas_irq_chip,
 			&palmas->irq_data);
 	if (ret < 0)
-		goto err;
+		goto err_i2c;
 
+no_irq:
 	slave = PALMAS_BASE_TO_SLAVE(PALMAS_PU_PD_OD_BASE);
 	addr = PALMAS_BASE_TO_REG(PALMAS_PU_PD_OD_BASE,
 			PALMAS_PRIMARY_SECONDARY_PAD1);
@@ -425,60 +547,42 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	 */
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, &i2c->dev);
-		if (ret < 0)
+		if (ret < 0) {
 			goto err_irq;
-		else
-			return ret;
+		} else if (pdata->pm_off && !pm_power_off) {
+			palmas_dev = palmas;
+			pm_power_off = palmas_power_off;
+		}
 	}
-
-	children = kmemdup(palmas_children, sizeof(palmas_children),
-			   GFP_KERNEL);
-	if (!children) {
-		ret = -ENOMEM;
-		goto err_irq;
-	}
-
-	children[PALMAS_PMIC_ID].platform_data = pdata->pmic_pdata;
-	children[PALMAS_PMIC_ID].pdata_size = sizeof(*pdata->pmic_pdata);
-
-	children[PALMAS_GPADC_ID].platform_data = pdata->gpadc_pdata;
-	children[PALMAS_GPADC_ID].pdata_size = sizeof(*pdata->gpadc_pdata);
-
-	children[PALMAS_RESOURCE_ID].platform_data = pdata->resource_pdata;
-	children[PALMAS_RESOURCE_ID].pdata_size =
-			sizeof(*pdata->resource_pdata);
-
-	children[PALMAS_USB_ID].platform_data = pdata->usb_pdata;
-	children[PALMAS_USB_ID].pdata_size = sizeof(*pdata->usb_pdata);
-
-	children[PALMAS_CLK_ID].platform_data = pdata->clk_pdata;
-	children[PALMAS_CLK_ID].pdata_size = sizeof(*pdata->clk_pdata);
-
-	ret = mfd_add_devices(palmas->dev, -1,
-			      children, ARRAY_SIZE(palmas_children),
-			      NULL, regmap_irq_chip_get_base(palmas->irq_data),
-			      NULL);
-	kfree(children);
-
-	if (ret < 0)
-		goto err_devices;
 
 	return ret;
 
-err_devices:
-	mfd_remove_devices(palmas->dev);
 err_irq:
 	regmap_del_irq_chip(palmas->irq, palmas->irq_data);
-err:
+err_i2c:
+	for (i = 1; i < PALMAS_NUM_CLIENTS; i++) {
+		if (palmas->i2c_clients[i])
+			i2c_unregister_device(palmas->i2c_clients[i]);
+	}
 	return ret;
 }
 
 static int palmas_i2c_remove(struct i2c_client *i2c)
 {
 	struct palmas *palmas = i2c_get_clientdata(i2c);
+	int i;
 
-	mfd_remove_devices(palmas->dev);
 	regmap_del_irq_chip(palmas->irq, palmas->irq_data);
+
+	for (i = 1; i < PALMAS_NUM_CLIENTS; i++) {
+		if (palmas->i2c_clients[i])
+			i2c_unregister_device(palmas->i2c_clients[i]);
+	}
+
+	if (palmas == palmas_dev) {
+		pm_power_off = NULL;
+		palmas_dev = NULL;
+	}
 
 	return 0;
 }
@@ -491,11 +595,6 @@ static const struct i2c_device_id palmas_i2c_id[] = {
 	{ /* end */ }
 };
 MODULE_DEVICE_TABLE(i2c, palmas_i2c_id);
-
-static struct of_device_id of_palmas_match_tbl[] = {
-	{ .compatible = "ti,palmas", },
-	{ /* end */ }
-};
 
 static struct i2c_driver palmas_i2c_driver = {
 	.driver = {

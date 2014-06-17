@@ -4,7 +4,11 @@
  */
 #include <asm/vdso.h>
 
+#ifdef __LITTLE_ENDIAN__
+OUTPUT_FORMAT("elf32-powerpcle", "elf32-powerpcle", "elf32-powerpcle")
+#else
 OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
+#endif
 OUTPUT_ARCH(powerpc:common)
 ENTRY(_start)
 
@@ -150,6 +154,7 @@ VERSION
 #ifdef CONFIG_PPC64
 		__kernel_getcpu;
 #endif
+		__kernel_time;
 
 	local: *;
 	};

@@ -7,7 +7,7 @@ Supported chips:
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
     Datasheet: Not public
 
-Author: Jean Delvare <khali@linux-fr.org>
+Author: Jean Delvare <jdelvare@suse.de>
 
 
 Description

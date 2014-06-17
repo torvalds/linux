@@ -20,7 +20,10 @@ obj-$(CONFIG_MMU_MOTOROLA) += ints.o vectors.o
 obj-$(CONFIG_MMU_SUN3) += ints.o vectors.o
 obj-$(CONFIG_PCI) += pcibios.o
 
-ifndef CONFIG_MMU_SUN3
-obj-y	+= dma.o
-endif
+obj-$(CONFIG_HAS_DMA)	+= dma.o
+
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+obj-$(CONFIG_BOOTINFO_PROC)	+= bootinfo_proc.o
+
+obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 

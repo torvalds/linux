@@ -20,6 +20,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/serial_s3c.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
@@ -31,7 +32,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -42,7 +42,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
 
@@ -50,9 +49,11 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-modem.h>
+#include <mach/gpio-samsung.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
+#include "regs-modem.h"
 
 /* DM9000 */
 #define ANW6410_PA_DM9000	(0x18000000)
@@ -207,8 +208,9 @@ static struct platform_device *anw6410_devices[] __initdata = {
 static void __init anw6410_map_io(void)
 {
 	s3c64xx_init_io(anw6410_iodesc, ARRAY_SIZE(anw6410_iodesc));
-	s3c24xx_init_clocks(12000000);
+	s3c64xx_set_xtal_freq(12000000);
 	s3c24xx_init_uarts(anw6410_uartcfgs, ARRAY_SIZE(anw6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	anw6410_lcd_mode_set();
 }
@@ -230,10 +232,9 @@ MACHINE_START(ANW6410, "A&W6410")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= anw6410_map_io,
 	.init_machine	= anw6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

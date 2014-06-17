@@ -1,3 +1,6 @@
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
@@ -13,9 +16,6 @@
 static const struct addi_board apci035_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci035",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x0300,
-		.i_IorangeBase0		= 127,
 		.i_IorangeBase1		= APCI035_ADDRESS_RANGE,
 		.i_PCIEeprom		= 1,
 		.pc_EepromChip		= ADDIDATA_S5920,
@@ -27,38 +27,38 @@ static const struct addi_board apci035_boardtypes[] = {
 		.i_Timer		= 1,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
-		.interrupt		= v_APCI035_Interrupt,
-		.reset			= i_APCI035_Reset,
-		.ai_config		= i_APCI035_ConfigAnalogInput,
-		.ai_read		= i_APCI035_ReadAnalogInput,
-		.timer_config		= i_APCI035_ConfigTimerWatchdog,
-		.timer_write		= i_APCI035_StartStopWriteTimerWatchdog,
-		.timer_read		= i_APCI035_ReadTimerWatchdog,
+		.interrupt		= apci035_interrupt,
+		.reset			= apci035_reset,
+		.ai_config		= apci035_ai_config,
+		.ai_read		= apci035_ai_read,
+		.timer_config		= apci035_timer_config,
+		.timer_write		= apci035_timer_write,
+		.timer_read		= apci035_timer_read,
 	},
 };
+
+static int apci035_auto_attach(struct comedi_device *dev,
+			       unsigned long context)
+{
+	dev->board_ptr = &apci035_boardtypes[0];
+
+	return addi_auto_attach(dev, context);
+}
 
 static struct comedi_driver apci035_driver = {
 	.driver_name	= "addi_apci_035",
 	.module		= THIS_MODULE,
-	.auto_attach	= addi_auto_attach,
+	.auto_attach	= apci035_auto_attach,
 	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(apci035_boardtypes),
-	.board_name	= &apci035_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci035_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci035_driver);
+	return comedi_pci_auto_config(dev, &apci035_driver, id->driver_data);
 }
 
-static void apci035_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static DEFINE_PCI_DEVICE_TABLE(apci035_pci_table) = {
+static const struct pci_device_id apci035_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA,  0x0300) },
 	{ 0 }
 };
@@ -68,7 +68,7 @@ static struct pci_driver apci035_pci_driver = {
 	.name		= "addi_apci_035",
 	.id_table	= apci035_pci_table,
 	.probe		= apci035_pci_probe,
-	.remove		= apci035_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci035_driver, apci035_pci_driver);
 

@@ -68,11 +68,6 @@ enum USB_SPEED{
 	HIGH_SPEED = 0x1	/* 1: high speed */
 };
 
-enum _true_false{
-	FALSE = 0,
-	TRUE = 1
-};
-
 #define TS_MASK         0x6
 enum TS_PORT{
 	NO_TS_PORT = 0x0,	/* 2'b00: Neither port used. PCB not a Hybrid,

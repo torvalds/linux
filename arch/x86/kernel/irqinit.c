@@ -52,7 +52,7 @@ static struct irqaction irq2 = {
 };
 
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
-	[0 ... NR_VECTORS - 1] = -1,
+	[0 ... NR_VECTORS - 1] = VECTOR_UNDEFINED,
 };
 
 int vector_used_by_percpu_irq(unsigned int vector)
@@ -60,7 +60,7 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	int cpu;
 
 	for_each_online_cpu(cpu) {
-		if (per_cpu(vector_irq, cpu)[vector] != -1)
+		if (per_cpu(vector_irq, cpu)[vector] > VECTOR_UNDEFINED)
 			return 1;
 	}
 
@@ -172,6 +172,10 @@ static void __init apic_intr_init(void)
 
 	/* IPI for X86 platform specific use */
 	alloc_intr_gate(X86_PLATFORM_IPI_VECTOR, x86_platform_ipi);
+#ifdef CONFIG_HAVE_KVM
+	/* IPI for KVM to deliver posted interrupt */
+	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
+#endif
 
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);

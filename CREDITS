@@ -630,6 +630,13 @@ N: Michael Elizabeth Chastain
 E: mec@shout.net
 D: Configure, Menuconfig, xconfig
 
+N: Mauro Carvalho Chehab
+E: m.chehab@samsung.org
+E: mchehab@infradead.org
+D: Media subsystem (V4L/DVB) drivers and core
+D: EDAC drivers and EDAC 3.0 core rework
+S: Brazil
+
 N: Raymond Chen
 E: raymondc@microsoft.com
 D: Author of Configure script
@@ -637,14 +644,13 @@ S: 14509 NE 39th Street #1096
 S: Bellevue, Washington 98007
 S: USA
 
-N: Christopher L. Cheney
-E: ccheney@debian.org
-E: ccheney@cheney.cx
-W: http://www.cheney.cx
+N: Chris Cheney
+E: chris.cheney@gmail.com
+E: ccheney@redhat.com
 P: 1024D/8E384AF2 2D31 1927 87D7 1F24 9FF9  1BC5 D106 5AB3 8E38 4AF2
 D: Vista Imaging usb webcam driver
-S: 314 Prince of Wales
-S: Conroe, TX 77304
+S: 2308 Therrell Way
+S: McKinney, TX 75070
 S: USA
 
 N: Stuart Cheshire
@@ -655,6 +661,11 @@ S: William Gates Department
 S: Stanford University
 S: Stanford, California 94305
 S: USA
+
+N: Carlos Chinea
+E: carlos.chinea@nokia.com
+E: cch.devel@gmail.com
+D: Author of HSI Subsystem
 
 N: Randolph Chung
 E: tausq@debian.org
@@ -761,6 +772,10 @@ S: Northampton
 S: NN1 3QT
 S: United Kingdom
 
+N: Massimo Dal Zotto
+E: dz@debian.org
+D: i8k Dell laptop SMM driver
+
 N: Uwe Dannowski
 E: Uwe.Dannowski@ira.uka.de
 W: http://i30www.ira.uka.de/~dannowsk/
@@ -815,8 +830,8 @@ S: D-69231 Rauenberg
 S: Germany
 
 N: Jean Delvare
-E: khali@linux-fr.org
-W: http://khali.linux-fr.org/
+E: jdelvare@suse.de
+W: http://jdelvare.nerim.net/
 D: Several hardware monitoring drivers
 S: France
 
@@ -953,11 +968,11 @@ S: Blacksburg, Virginia 24061
 S: USA
 
 N: Randy Dunlap
-E: rdunlap@xenotime.net
-W: http://www.xenotime.net/linux/linux.html
-W: http://www.linux-usb.org
+E: rdunlap@infradead.org
+W: http://www.infradead.org/~rdunlap/
 D: Linux-USB subsystem, USB core/UHCI/printer/storage drivers
 D: x86 SMP, ACPI, bootflag hacking
+D: documentation, builds
 S: (ask for current address)
 S: USA
 
@@ -1116,6 +1131,7 @@ D: author of userfs filesystem
 D: Improved mmap and munmap handling
 D: General mm minor tidyups
 D: autofs v4 maintainer
+D: Xen subsystem
 S: 987 Alabama St
 S: San Francisco
 S: CA, 94110
@@ -1220,7 +1236,7 @@ E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
 S: Carlisle, MA 01741
 S: USA
-  
+
 N: Jan-Benedict Glaw
 E: jbglaw@lug-owl.de
 D: SRM environment driver (for Alpha systems)
@@ -1510,6 +1526,14 @@ D: Natsemi ethernet
 D: Cobalt Networks (x86) support
 D: This-and-That
 
+N: Mark M. Hoffman
+E: mhoffman@lightlink.com
+D: asb100, lm93 and smsc47b397 hardware monitoring drivers
+D: hwmon subsystem core
+D: hwmon subsystem maintainer
+D: i2c-sis96x and i2c-stub SMBus drivers
+S: USA
+
 N: Dirk Hohndel
 E: hohndel@suse.de
 D: The XFree86[tm] Project
@@ -1572,12 +1596,12 @@ S: Wantage, New Jersey 07461
 S: USA
 
 N: Harald Hoyer
-E: harald.hoyer@parzelle.de
-W: http://parzelle.de/
+E: harald@redhat.com
+W: http://www.harald-hoyer.de
 D: ip_masq_quake
 D: md boot support
-S: Hohe Strasse 30
-S: D-70176 Stuttgart
+S: Am Strand 5
+S: D-19063 Schwerin
 S: Germany
 
 N: Jan Hubicka
@@ -2543,9 +2567,13 @@ S: 22 Seaview St
 S: Fullarton 5063
 S: South Australia
 
-N. Wolfgang Muees
+N: Wolfgang Muees
 E: wolfgang@iksw-muees.de
 D: Auerswald USB driver
+
+N: Paul Mundt
+E: paul.mundt@gmail.com
+D: SuperH maintainer
 
 N: Ian A. Murdock
 E: imurdock@gnu.ai.mit.edu
@@ -2564,7 +2592,7 @@ S: Toronto, Ontario
 S: Canada
 
 N: Zwane Mwaikambo
-E: zwane@arm.linux.org.uk
+E: zwanem@gmail.com
 D: Various driver hacking
 D: Lowlevel x86 kernel hacking
 D: General debugging
@@ -2690,6 +2718,9 @@ N: Greg Page
 E: gpage@sovereign.org
 D: IPX development and support
 
+N: Venkatesh Pallipadi (Venki)
+D: x86/HPET
+
 N: David Parsons
 E: orc@pell.chi.il.us
 D: improved memory detection code.
@@ -2796,8 +2827,7 @@ S: Ottawa, Ontario
 S: Canada K2P 0X8
 
 N: Mikael Pettersson
-E: mikpe@it.uu.se
-W: http://user.it.uu.se/~mikpe/linux/
+E: mikpelinux@gmail.com
 D: Miscellaneous fixes
 
 N: Reed H. Petty
@@ -2882,6 +2912,11 @@ P: 1024/93898735 D3 9E F4 F7 6D 8D 2F 3A  38 BA 06 7C 2B 33 43 7D
 S: Madge Networks
 S: Framewood Road
 S: Wexham SL3 6PJ
+S: United Kingdom
+
+N: Richard Purdie
+E: rpurdie@rpsys.net
+D: Backlight subsystem maintainer
 S: United Kingdom
 
 N: Daniel Quinlan
@@ -3140,6 +3175,11 @@ S: France
 N: Dipankar Sarma
 E: dipankar@in.ibm.com
 D: RCU
+
+N: Yoshinori Sato
+E: ysato@users.sourceforge.jp
+D: uClinux for Renesas H8/300 (H8300)
+D: http://uclinux-h8.sourceforge.jp/
 
 N: Hannu Savolainen
 E: hannu@opensound.com

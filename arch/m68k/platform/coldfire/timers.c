@@ -36,7 +36,7 @@
  */
 void coldfire_profile_init(void);
 
-#if defined(CONFIG_M532x) || defined(CONFIG_M5441x)
+#if defined(CONFIG_M53xx) || defined(CONFIG_M5441x)
 #define	__raw_readtrr	__raw_readl
 #define	__raw_writetrr	__raw_writel
 #else
@@ -83,7 +83,7 @@ static irqreturn_t mcftmr_tick(int irq, void *dummy)
 
 static struct irqaction mcftmr_timer_irq = {
 	.name	 = "timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = mcftmr_tick,
 };
 
@@ -171,7 +171,7 @@ irqreturn_t coldfire_profile_tick(int irq, void *dummy)
 
 static struct irqaction coldfire_profile_irq = {
 	.name	 = "profile timer",
-	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.flags	 = IRQF_TIMER,
 	.handler = coldfire_profile_tick,
 };
 

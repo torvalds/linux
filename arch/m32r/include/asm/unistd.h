@@ -20,8 +20,6 @@
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT /*will be unused*/
 #define __ARCH_WANT_SYS_OLDUMOUNT
-#define __ARCH_WANT_SYS_RT_SIGACTION
-#define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_FORK
 #define __ARCH_WANT_SYS_VFORK
@@ -49,15 +47,5 @@
 #define __IGNORE_setresgid
 #define __IGNORE_getresgid
 #define __IGNORE_chown
-
-/*
- * "Conditional" syscalls
- *
- * What we want is __attribute__((weak,alias("sys_ni_syscall"))),
- * but it doesn't work on all toolchains, so we just do it by hand
- */
-#ifndef cond_syscall
-#define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
-#endif
 
 #endif /* _ASM_M32R_UNISTD_H */

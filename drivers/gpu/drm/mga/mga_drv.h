@@ -149,7 +149,7 @@ typedef struct drm_mga_private {
 	unsigned int agp_size;
 } drm_mga_private_t;
 
-extern struct drm_ioctl_desc mga_ioctls[];
+extern const struct drm_ioctl_desc mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */
@@ -186,14 +186,14 @@ extern void mga_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 mga_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int mga_driver_fence_wait(struct drm_device *dev, unsigned int *sequence);
 extern int mga_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
-extern irqreturn_t mga_driver_irq_handler(DRM_IRQ_ARGS);
+extern irqreturn_t mga_driver_irq_handler(int irq, void *arg);
 extern void mga_driver_irq_preinstall(struct drm_device *dev);
 extern int mga_driver_irq_postinstall(struct drm_device *dev);
 extern void mga_driver_irq_uninstall(struct drm_device *dev);
 extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
 
-#define mga_flush_write_combine()	DRM_WRITEMEMORYBARRIER()
+#define mga_flush_write_combine()	wmb()
 
 #define MGA_READ8(reg)		DRM_READ8(dev_priv->mmio, (reg))
 #define MGA_READ(reg)		DRM_READ32(dev_priv->mmio, (reg))

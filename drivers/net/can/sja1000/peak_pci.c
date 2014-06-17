@@ -339,8 +339,7 @@ static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
  */
 static void peak_pciec_start_led_work(struct peak_pciec_card *card)
 {
-	if (!delayed_work_pending(&card->led_work))
-		schedule_delayed_work(&card->led_work, HZ);
+	schedule_delayed_work(&card->led_work, HZ);
 }
 
 /*
@@ -403,7 +402,7 @@ static void peak_pciec_write_reg(const struct sja1000_priv *priv,
 	int c = (priv->reg_base - card->reg_base) / PEAK_PCI_CHAN_SIZE;
 
 	/* sja1000 register changes control the leds state */
-	if (port == REG_MOD)
+	if (port == SJA1000_MOD)
 		switch (val) {
 		case MOD_RM:
 			/* Reset Mode: set led on */
@@ -451,11 +450,8 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	} else {
 		/* create the bit banging I2C adapter structure */
 		card = kzalloc(sizeof(struct peak_pciec_card), GFP_KERNEL);
-		if (!card) {
-			dev_err(&pdev->dev,
-				 "failed allocating memory for i2c chip\n");
+		if (!card)
 			return -ENOMEM;
-		}
 
 		card->cfg_base = chan->cfg_base;
 		card->reg_base = priv->reg_base;
@@ -555,7 +551,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct sja1000_priv *priv;
 	struct peak_pci_chan *chan;
-	struct net_device *dev;
+	struct net_device *dev, *prev_dev;
 	void __iomem *cfg_base, *reg_base;
 	u16 sub_sys_id, icr;
 	int i, err, channels;
@@ -646,6 +642,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		icr |= chan->icr_mask;
 
 		SET_NETDEV_DEV(dev, &pdev->dev);
+		dev->dev_id = i;
 
 		/* Create chain of SJA1000 devices */
 		chan->prev_dev = pci_get_drvdata(pdev);
@@ -691,11 +688,13 @@ failure_remove_channels:
 	writew(0x0, cfg_base + PITA_ICR + 2);
 
 	chan = NULL;
-	for (dev = pci_get_drvdata(pdev); dev; dev = chan->prev_dev) {
-		unregister_sja1000dev(dev);
-		free_sja1000dev(dev);
+	for (dev = pci_get_drvdata(pdev); dev; dev = prev_dev) {
 		priv = netdev_priv(dev);
 		chan = priv->priv;
+		prev_dev = chan->prev_dev;
+
+		unregister_sja1000dev(dev);
+		free_sja1000dev(dev);
 	}
 
 	/* free any PCIeC resources too */
@@ -729,10 +728,12 @@ static void peak_pci_remove(struct pci_dev *pdev)
 
 	/* Loop over all registered devices */
 	while (1) {
+		struct net_device *prev_dev = chan->prev_dev;
+
 		dev_info(&pdev->dev, "removing device %s\n", dev->name);
 		unregister_sja1000dev(dev);
 		free_sja1000dev(dev);
-		dev = chan->prev_dev;
+		dev = prev_dev;
 
 		if (!dev) {
 			/* do that only for first channel */
@@ -748,8 +749,6 @@ static void peak_pci_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, cfg_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-
-	pci_set_drvdata(pdev, NULL);
 }
 
 static struct pci_driver peak_pci_driver = {

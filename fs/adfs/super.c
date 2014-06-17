@@ -123,8 +123,7 @@ static void adfs_put_super(struct super_block *sb)
 	for (i = 0; i < asb->s_map_size; i++)
 		brelse(asb->s_map[i].dm_bh);
 	kfree(asb->s_map);
-	kfree(asb);
-	sb->s_fs_info = NULL;
+	kfree_rcu(asb, rcu);
 }
 
 static int adfs_show_options(struct seq_file *seq, struct dentry *root)
@@ -213,6 +212,7 @@ static int parse_options(struct super_block *sb, char *options)
 
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
 	return parse_options(sb, data);
 }
@@ -266,7 +266,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	adfs_inode_cachep = kmem_cache_create("adfs_inode_cache",
 					     sizeof(struct adfs_inode_info),
@@ -524,6 +524,7 @@ static struct file_system_type adfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("adfs");
 
 static int __init init_adfs_fs(void)
 {

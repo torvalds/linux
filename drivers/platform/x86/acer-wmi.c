@@ -41,8 +41,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-
-#include <acpi/acpi_drivers.h>
 #include <acpi/video.h>
 
 MODULE_AUTHOR("Carlos Corbacho");
@@ -511,6 +509,24 @@ static struct dmi_system_id acer_quirks[] = {
 		},
 		.driver_data = &quirk_fujitsu_amilo_li_1718,
 	},
+	{
+		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205-10382JG",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "10382JG"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205-1038DPG",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "1038DPG"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
+	},
 	{}
 };
 
@@ -552,6 +568,14 @@ static const struct dmi_system_id video_vendor_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5750"),
+		},
+	},
+	{
+		.callback = video_set_backlight_video_vendor,
+		.ident = "Acer Aspire 5741",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5741"),
 		},
 	},
 	{}
@@ -1204,6 +1228,9 @@ static acpi_status WMID_set_capabilities(void)
 			devices = *((u32 *) obj->buffer.pointer);
 		} else if (obj->type == ACPI_TYPE_INTEGER) {
 			devices = (u32) obj->integer.value;
+		} else {
+			kfree(out.pointer);
+			return AE_ERROR;
 		}
 	} else {
 		kfree(out.pointer);
@@ -2209,7 +2236,7 @@ static int __init acer_wmi_init(void)
 		pr_info("Brightness must be controlled by acpi video driver\n");
 	} else {
 		pr_info("Disabling ACPI video driver\n");
-		acpi_video_unregister();
+		acpi_video_unregister_backlight();
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {

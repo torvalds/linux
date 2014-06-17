@@ -1,3 +1,4 @@
+#include <core/client.h>
 #include <core/os.h>
 #include <core/class.h>
 #include <core/engctx.h>
@@ -224,15 +225,17 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
-		printk(" nsource:");
+		pr_cont(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
-		printk(" nstatus:");
+		pr_cont(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
-		printk("\n");
-		nv_error(priv, "ch %d/%d class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, subc, class, mthd, data);
+		pr_cont("\n");
+		nv_error(priv,
+			 "ch %d [%s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, nouveau_client_name(engctx), subc, class, mthd,
+			 data);
 	}
 
 	nouveau_engctx_put(engctx);
@@ -251,7 +254,7 @@ nv20_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 32 * 4, 16,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
 	if (ret)
 		return ret;
@@ -346,7 +349,7 @@ nv20_graph_init(struct nouveau_object *object)
 	nv_wr32(priv, NV10_PGRAPH_SURFACE, tmp);
 
 	/* begin RAM config */
-	vramsz = pci_resource_len(nv_device(priv)->pdev, 0) - 1;
+	vramsz = nv_device_resource_len(nv_device(priv), 0) - 1;
 	nv_wr32(priv, 0x4009A4, nv_rd32(priv, 0x100200));
 	nv_wr32(priv, 0x4009A8, nv_rd32(priv, 0x100204));
 	nv_wr32(priv, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);

@@ -5,7 +5,6 @@
 #include <linux/bootmem.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -59,7 +58,7 @@ static void crash_kexec_prepare_cpus(void)
 
 #else /* !defined(CONFIG_SMP)  */
 static void crash_kexec_prepare_cpus(void) {}
-#endif /* !defined(CONFIG_SMP)  */
+#endif /* !defined(CONFIG_SMP)	*/
 
 void default_machine_crash_shutdown(struct pt_regs *regs)
 {

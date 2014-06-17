@@ -1,0 +1,48 @@
+Marvell Orion SoC interrupt controllers
+
+* Main interrupt controller
+
+Required properties:
+- compatible: shall be "marvell,orion-intc"
+- reg: base address(es) of interrupt registers starting with CAUSE register
+- interrupt-controller: identifies the node as an interrupt controller
+- #interrupt-cells: number of cells to encode an interrupt source, shall be 1
+
+The interrupt sources map to the corresponding bits in the interrupt
+registers, i.e.
+- 0 maps to bit 0 of first base address,
+- 1 maps to bit 1 of first base address,
+- 32 maps to bit 0 of second base address, and so on.
+
+Example:
+	intc: interrupt-controller {
+		compatible = "marvell,orion-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		 /* Dove has 64 first level interrupts */
+		reg = <0x20200 0x10>, <0x20210 0x10>;
+	};
+
+* Bridge interrupt controller
+
+Required properties:
+- compatible: shall be "marvell,orion-bridge-intc"
+- reg: base address of bridge interrupt registers starting with CAUSE register
+- interrupts: bridge interrupt of the main interrupt controller
+- interrupt-controller: identifies the node as an interrupt controller
+- #interrupt-cells: number of cells to encode an interrupt source, shall be 1
+
+Optional properties:
+- marvell,#interrupts: number of interrupts provided by bridge interrupt
+      controller, defaults to 32 if not set
+
+Example:
+	bridge_intc: interrupt-controller {
+		compatible = "marvell,orion-bridge-intc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x20110 0x8>;
+		interrupts = <0>;
+		/* Dove bridge provides 5 interrupts */
+		marvell,#interrupts = <5>;
+	};

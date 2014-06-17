@@ -560,7 +560,6 @@ enum ath6kl_vif_state {
 	WMM_ENABLED,
 	NETQ_STOPPED,
 	DTIM_EXPIRED,
-	NETDEV_REGISTERED,
 	CLEAR_BSSFILTER_ON_BEACON,
 	DTIM_PERIOD_AVAIL,
 	WLAN_ENABLED,
@@ -936,11 +935,9 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
 			     u8 win_sz);
 void ath6kl_wakeup_event(void *dev);
 
-void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
-			 bool wait_fot_compltn, bool cold_reset);
 void ath6kl_init_control_info(struct ath6kl_vif *vif);
 struct ath6kl_vif *ath6kl_vif_first(struct ath6kl *ar);
-void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready);
+void ath6kl_cfg80211_vif_stop(struct ath6kl_vif *vif, bool wmi_ready);
 int ath6kl_init_hw_start(struct ath6kl *ar);
 int ath6kl_init_hw_stop(struct ath6kl *ar);
 int ath6kl_init_fetch_firmwares(struct ath6kl *ar);

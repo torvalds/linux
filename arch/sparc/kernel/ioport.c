@@ -666,10 +666,9 @@ EXPORT_SYMBOL(dma_ops);
  */
 int dma_supported(struct device *dev, u64 mask)
 {
-#ifdef CONFIG_PCI
-	if (dev->bus == &pci_bus_type)
+	if (dev_is_pci(dev))
 		return 1;
-#endif
+
 	return 0;
 }
 EXPORT_SYMBOL(dma_supported);
@@ -693,7 +692,7 @@ static int sparc_io_proc_show(struct seq_file *m, void *v)
 
 static int sparc_io_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sparc_io_proc_show, PDE(inode)->data);
+	return single_open(file, sparc_io_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations sparc_io_proc_fops = {

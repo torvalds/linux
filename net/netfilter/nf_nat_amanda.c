@@ -1,6 +1,7 @@
 /* Amanda extension for TCP NAT alteration.
  * (C) 2002 by Brian J. Murrell <netfilter@interlinx.bc.ca>
  * based on a copy of HW's ip_nat_irc.c as well as other modules
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -56,15 +57,19 @@ static unsigned int help(struct sk_buff *skb,
 		}
 	}
 
-	if (port == 0)
+	if (port == 0) {
+		nf_ct_helper_log(skb, exp->master, "all ports in use");
 		return NF_DROP;
+	}
 
 	sprintf(buffer, "%u", port);
 	ret = nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
 				       protoff, matchoff, matchlen,
 				       buffer, strlen(buffer));
-	if (ret != NF_ACCEPT)
+	if (ret != NF_ACCEPT) {
+		nf_ct_helper_log(skb, exp->master, "cannot mangle packet");
 		nf_ct_unexpect_related(exp);
+	}
 	return ret;
 }
 

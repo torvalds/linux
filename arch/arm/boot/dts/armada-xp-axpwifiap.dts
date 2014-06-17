@@ -1,0 +1,164 @@
+/*
+ * Device Tree file for Marvell RD-AXPWiFiAP.
+ *
+ * Note: this board is shipped with a new generation boot loader that
+ * remaps internal registers at 0xf1000000. Therefore, if earlyprintk
+ * is used, the CONFIG_DEBUG_MVEBU_UART_ALTERNATE option should be
+ * used.
+ *
+ * Copyright (C) 2013 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "armada-xp-mv78230.dtsi"
+
+/ {
+	model = "Marvell RD-AXPWiFiAP";
+	compatible = "marvell,rd-axpwifiap", "marvell,armadaxp-mv78230", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000 0x40000000>; /* 1GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000>;
+
+		pcie-controller {
+			status = "okay";
+
+			/* First mini-PCIe port */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			/* Second mini-PCIe port */
+			pcie@2,0 {
+				/* Port 0, Lane 1 */
+				status = "okay";
+			};
+
+			/* Renesas uPD720202 USB 3.0 controller */
+			pcie@3,0 {
+				/* Port 0, Lane 3 */
+				status = "okay";
+			};
+		};
+
+		internal-regs {
+			pinctrl {
+				pinctrl-0 = <&pmx_phy_int>;
+				pinctrl-names = "default";
+
+				pmx_ge0: pmx-ge0 {
+					marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
+						       "mpp4", "mpp5", "mpp6", "mpp7",
+						       "mpp8", "mpp9", "mpp10", "mpp11";
+					marvell,function = "ge0";
+				};
+
+				pmx_ge1: pmx-ge1 {
+					marvell,pins = "mpp12", "mpp13", "mpp14", "mpp15",
+						       "mpp16", "mpp17", "mpp18", "mpp19",
+						       "mpp20", "mpp21", "mpp22", "mpp23";
+					marvell,function = "ge1";
+				};
+
+				pmx_keys: pmx-keys {
+					marvell,pins = "mpp33";
+					marvell,function = "gpio";
+				};
+
+				pmx_spi: pmx-spi {
+					marvell,pins = "mpp36", "mpp37", "mpp38", "mpp39";
+					marvell,function = "spi";
+				};
+
+				pmx_phy_int: pmx-phy-int {
+					marvell,pins = "mpp32";
+					marvell,function = "gpio";
+				};
+			};
+
+			serial@12000 {
+				status = "okay";
+			};
+
+			serial@12100 {
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <1>;
+				status = "okay";
+			};
+
+			mdio {
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+			};
+
+			ethernet@70000 {
+				pinctrl-0 = <&pmx_ge0>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+			ethernet@74000 {
+				pinctrl-0 = <&pmx_ge1>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			spi0: spi@10600 {
+				status = "okay";
+				pinctrl-0 = <&pmx_spi>;
+				pinctrl-names = "default";
+
+				spi-flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "n25q128a13";
+					reg = <0>; /* Chip select 0 */
+					spi-max-frequency = <108000000>;
+				};
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_keys>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "Factory Reset Button";
+			linux,code = <KEY_SETUP>;
+			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

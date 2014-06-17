@@ -36,11 +36,12 @@ int main(int argc, char *argv[])
 	uint32_t olen;
 	long ilen;
 	unsigned long offs;
-	FILE *f;
+	FILE *f = NULL;
+	int retval = 1;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s compressed_file\n", argv[0]);
-		return 1;
+		goto bail;
 	}
 
 	/* Get the information for the compressed kernel image first */
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 	f = fopen(argv[1], "r");
 	if (!f) {
 		perror(argv[1]);
-		return 1;
+		goto bail;
 	}
 
 
@@ -58,12 +59,11 @@ int main(int argc, char *argv[])
 
 	if (fread(&olen, sizeof(olen), 1, f) != 1) {
 		perror(argv[1]);
-		return 1;
+		goto bail;
 	}
 
 	ilen = ftell(f);
 	olen = get_unaligned_le32(&olen);
-	fclose(f);
 
 	/*
 	 * Now we have the input (compressed) and output (uncompressed)
@@ -91,5 +91,9 @@ int main(int argc, char *argv[])
 	printf(".incbin \"%s\"\n", argv[1]);
 	printf("input_data_end:\n");
 
-	return 0;
+	retval = 0;
+bail:
+	if (f)
+		fclose(f);
+	return retval;
 }

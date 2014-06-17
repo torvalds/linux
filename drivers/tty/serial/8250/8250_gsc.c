@@ -30,6 +30,11 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	unsigned long address;
 	int err;
 
+#ifdef CONFIG_64BIT
+	if (!dev->irq && (dev->id.sversion == 0xad))
+		dev->irq = iosapic_serial_irq(dev);
+#endif
+
 	if (!dev->irq) {
 		/* We find some unattached serial ports by walking native
 		 * busses.  These should be silently ignored.  Otherwise,
@@ -51,7 +56,8 @@ static int __init serial_init_chip(struct parisc_device *dev)
 	memset(&uart, 0, sizeof(uart));
 	uart.port.iotype	= UPIO_MEM;
 	/* 7.272727MHz on Lasi.  Assumed the same for Dino, Wax and Timi. */
-	uart.port.uartclk	= 7272727;
+	uart.port.uartclk	= (dev->id.sversion != 0xad) ?
+					7272727 : 1843200;
 	uart.port.mapbase	= address;
 	uart.port.membase	= ioremap_nocache(address, 16);
 	uart.port.irq	= dev->irq;
@@ -73,6 +79,7 @@ static struct parisc_device_id serial_tbl[] = {
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00075 },
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008c },
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008d },
+	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x000ad },
 	{ 0 }
 };
 

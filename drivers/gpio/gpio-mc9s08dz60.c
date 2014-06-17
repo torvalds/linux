@@ -102,7 +102,7 @@ static int mc9s08dz60_probe(struct i2c_client *client,
 	mc9s->chip.dev = &client->dev;
 	mc9s->chip.owner = THIS_MODULE;
 	mc9s->chip.ngpio = GPIO_NUM;
-	mc9s->chip.can_sleep = 1;
+	mc9s->chip.can_sleep = true;
 	mc9s->chip.get = mc9s08dz60_get_value;
 	mc9s->chip.set = mc9s08dz60_set_value;
 	mc9s->chip.direction_output = mc9s08dz60_direction_output;

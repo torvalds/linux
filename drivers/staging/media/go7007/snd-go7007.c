@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -221,8 +220,6 @@ static int go7007_snd_free(struct snd_device *device)
 
 	kfree(go->snd_context);
 	go->snd_context = NULL;
-	if (--go->ref_count == 0)
-		kfree(go);
 	return 0;
 }
 
@@ -248,8 +245,8 @@ int go7007_snd_init(struct go7007 *go)
 	spin_lock_init(&gosnd->lock);
 	gosnd->hw_ptr = gosnd->w_idx = gosnd->avail = 0;
 	gosnd->capturing = 0;
-	ret = snd_card_create(index[dev], id[dev], THIS_MODULE, 0,
-			      &gosnd->card);
+	ret = snd_card_new(go->dev, index[dev], id[dev], THIS_MODULE, 0,
+			   &gosnd->card);
 	if (ret < 0) {
 		kfree(gosnd);
 		return ret;
@@ -260,16 +257,15 @@ int go7007_snd_init(struct go7007 *go)
 		kfree(gosnd);
 		return ret;
 	}
-	snd_card_set_dev(gosnd->card, go->dev);
 	ret = snd_pcm_new(gosnd->card, "go7007", 0, 0, 1, &gosnd->pcm);
 	if (ret < 0) {
 		snd_card_free(gosnd->card);
 		kfree(gosnd);
 		return ret;
 	}
-	strncpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
-	strncpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
-	strncpy(gosnd->card->longname, gosnd->card->shortname,
+	strlcpy(gosnd->card->driver, "go7007", sizeof(gosnd->card->driver));
+	strlcpy(gosnd->card->shortname, go->name, sizeof(gosnd->card->driver));
+	strlcpy(gosnd->card->longname, gosnd->card->shortname,
 			sizeof(gosnd->card->longname));
 
 	gosnd->pcm->private_data = go;
@@ -285,8 +281,8 @@ int go7007_snd_init(struct go7007 *go)
 
 	gosnd->substream = NULL;
 	go->snd_context = gosnd;
+	v4l2_device_get(&go->v4l2_dev);
 	++dev;
-	++go->ref_count;
 
 	return 0;
 }
@@ -298,6 +294,7 @@ int go7007_snd_remove(struct go7007 *go)
 
 	snd_card_disconnect(gosnd->card);
 	snd_card_free_when_closed(gosnd->card);
+	v4l2_device_put(&go->v4l2_dev);
 	return 0;
 }
 EXPORT_SYMBOL(go7007_snd_remove);

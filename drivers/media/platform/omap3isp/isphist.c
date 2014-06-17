@@ -114,14 +114,14 @@ static void hist_setup_regs(struct ispstat *hist, void *priv)
 	/* Regions size and position */
 	for (c = 0; c < OMAP3ISP_HIST_MAX_REGIONS; c++) {
 		if (c < conf->num_regions) {
-			reg_hor[c] = conf->region[c].h_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_hor[c] = conf->region[c].h_end <<
-				     ISPHIST_REG_END_SHIFT;
-			reg_ver[c] = conf->region[c].v_start <<
-				     ISPHIST_REG_START_SHIFT;
-			reg_ver[c] = conf->region[c].v_end <<
-				     ISPHIST_REG_END_SHIFT;
+			reg_hor[c] = (conf->region[c].h_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].h_end <<
+				     ISPHIST_REG_END_SHIFT);
+			reg_ver[c] = (conf->region[c].v_start <<
+				     ISPHIST_REG_START_SHIFT)
+				   | (conf->region[c].v_end <<
+				     ISPHIST_REG_END_SHIFT);
 		} else {
 			reg_hor[c] = 0;
 			reg_ver[c] = 0;
@@ -299,7 +299,7 @@ static u32 hist_get_buf_size(struct omap3isp_hist_config *conf)
 
 /*
  * hist_validate_params - Helper function to check user given params.
- * @user_cfg: Pointer to user configuration structure.
+ * @new_conf: Pointer to user configuration structure.
  *
  * Returns 0 on success configuration.
  */
@@ -351,7 +351,7 @@ static int hist_validate_params(struct ispstat *hist, void *new_conf)
 
 	buf_size = hist_get_buf_size(user_cfg);
 	if (buf_size > user_cfg->buf_size)
-		/* User's buf_size request wasn't enoght */
+		/* User's buf_size request wasn't enough */
 		user_cfg->buf_size = buf_size;
 	else if (user_cfg->buf_size > OMAP3ISP_HIST_MAX_BUF_SIZE)
 		user_cfg->buf_size = OMAP3ISP_HIST_MAX_BUF_SIZE;
@@ -477,11 +477,10 @@ int omap3isp_hist_init(struct isp_device *isp)
 	struct omap3isp_hist_config *hist_cfg;
 	int ret = -1;
 
-	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
+	hist_cfg = devm_kzalloc(isp->dev, sizeof(*hist_cfg), GFP_KERNEL);
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 
-	memset(hist, 0, sizeof(*hist));
 	hist->isp = isp;
 
 	if (HIST_CONFIG_DMA)
@@ -504,7 +503,6 @@ int omap3isp_hist_init(struct isp_device *isp)
 
 	ret = omap3isp_stat_init(hist, "histogram", &hist_subdev_ops);
 	if (ret) {
-		kfree(hist_cfg);
 		if (HIST_USING_DMA(hist))
 			omap_free_dma(hist->dma_ch);
 	}
@@ -519,6 +517,5 @@ void omap3isp_hist_cleanup(struct isp_device *isp)
 {
 	if (HIST_USING_DMA(&isp->isp_hist))
 		omap_free_dma(isp->isp_hist.dma_ch);
-	kfree(isp->isp_hist.priv);
 	omap3isp_stat_cleanup(&isp->isp_hist);
 }

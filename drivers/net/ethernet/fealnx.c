@@ -699,7 +699,6 @@ static void fealnx_remove_one(struct pci_dev *pdev)
 		pci_iounmap(pdev, np->mem);
 		free_netdev(dev);
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
 	} else
 		printk(KERN_ERR "fealnx: remove for unknown device\n");
 }

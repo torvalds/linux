@@ -17,7 +17,6 @@
  */
 
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <asm/div64.h>
@@ -308,7 +307,7 @@ static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
 		return;
 
 	/* only consider beacons from the associated BSSID */
-	if (!ether_addr_equal(hdr->addr3, priv->bssid))
+	if (!ether_addr_equal_64bits(hdr->addr3, priv->bssid))
 		return;
 
 	tim = p54_find_ie(skb, WLAN_EID_TIM);
@@ -354,13 +353,13 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 	rx_status->signal = p54_rssi_to_dbm(priv, hdr->rssi);
 	if (hdr->rate & 0x10)
 		rx_status->flag |= RX_FLAG_SHORTPRE;
-	if (priv->hw->conf.channel->band == IEEE80211_BAND_5GHZ)
+	if (priv->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ)
 		rx_status->rate_idx = (rate < 4) ? 0 : rate - 4;
 	else
 		rx_status->rate_idx = rate;
 
 	rx_status->freq = freq;
-	rx_status->band =  priv->hw->conf.channel->band;
+	rx_status->band =  priv->hw->conf.chandef.chan->band;
 	rx_status->antenna = hdr->antenna;
 
 	tsf32 = le32_to_cpu(hdr->tsf32);
@@ -587,7 +586,7 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	chan = priv->curchan;
 	if (chan) {
 		struct survey_info *survey = &priv->survey[chan->hw_value];
-		survey->noise = clamp_t(s8, priv->noise, -128, 127);
+		survey->noise = clamp(priv->noise, -128, 127);
 		survey->channel_time = priv->survey_raw.active;
 		survey->channel_time_tx = priv->survey_raw.tx;
 		survey->channel_time_busy = priv->survey_raw.tx +

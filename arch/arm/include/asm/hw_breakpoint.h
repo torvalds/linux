@@ -51,6 +51,7 @@ static inline void decode_ctrl_reg(u32 reg,
 #define ARM_DEBUG_ARCH_V7_ECP14	3
 #define ARM_DEBUG_ARCH_V7_MM	4
 #define ARM_DEBUG_ARCH_V7_1	5
+#define ARM_DEBUG_ARCH_V8	6
 
 /* Breakpoint */
 #define ARM_BREAKPOINT_EXECUTE	0
@@ -84,6 +85,9 @@ static inline void decode_ctrl_reg(u32 reg,
 /* DSCR monitor/halting bits. */
 #define ARM_DSCR_HDBGEN		(1 << 14)
 #define ARM_DSCR_MDBGEN		(1 << 15)
+
+/* OSLSR os lock model bits */
+#define ARM_OSLSR_OSLM0		(1 << 0)
 
 /* opcode2 numbers for the co-processor instructions. */
 #define ARM_OP2_BVR		4

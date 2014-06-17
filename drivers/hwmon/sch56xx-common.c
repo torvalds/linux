@@ -161,8 +161,8 @@ static int sch56xx_send_cmd(u16 addr, u8 cmd, u16 reg, u8 v)
 			break;
 	}
 	if (i == max_busy_polls + max_lazy_polls) {
-		pr_err("Max retries exceeded reading virtual "
-		       "register 0x%04hx (%d)\n", reg, 1);
+		pr_err("Max retries exceeded reading virtual register 0x%04hx (%d)\n",
+		       reg, 1);
 		return -EIO;
 	}
 
@@ -178,12 +178,12 @@ static int sch56xx_send_cmd(u16 addr, u8 cmd, u16 reg, u8 v)
 			break;
 
 		if (i == 0)
-			pr_warn("EC reports: 0x%02x reading virtual register "
-				"0x%04hx\n", (unsigned int)val, reg);
+			pr_warn("EC reports: 0x%02x reading virtual register 0x%04hx\n",
+				(unsigned int)val, reg);
 	}
 	if (i == max_busy_polls) {
-		pr_err("Max retries exceeded reading virtual "
-		       "register 0x%04hx (%d)\n", reg, 2);
+		pr_err("Max retries exceeded reading virtual register 0x%04hx (%d)\n",
+		       reg, 2);
 		return -EIO;
 	}
 

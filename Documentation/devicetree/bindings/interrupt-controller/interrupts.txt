@@ -4,16 +4,33 @@ Specifying interrupt information for devices
 1) Interrupt client nodes
 -------------------------
 
-Nodes that describe devices which generate interrupts must contain an
-"interrupts" property. This property must contain a list of interrupt
-specifiers, one per output interrupt. The format of the interrupt specifier is
-determined by the interrupt controller to which the interrupts are routed; see
-section 2 below for details.
+Nodes that describe devices which generate interrupts must contain an either an
+"interrupts" property or an "interrupts-extended" property. These properties
+contain a list of interrupt specifiers, one per output interrupt. The format of
+the interrupt specifier is determined by the interrupt controller to which the
+interrupts are routed; see section 2 below for details.
+
+  Example:
+	interrupt-parent = <&intc1>;
+	interrupts = <5 0>, <6 0>;
 
 The "interrupt-parent" property is used to specify the controller to which
 interrupts are routed and contains a single phandle referring to the interrupt
 controller node. This property is inherited, so it may be specified in an
-interrupt client node or in any of its parent nodes.
+interrupt client node or in any of its parent nodes. Interrupts listed in the
+"interrupts" property are always in reference to the node's interrupt parent.
+
+The "interrupts-extended" property is a special form for use when a node needs
+to reference multiple interrupt parents. Each entry in this property contains
+both the parent phandle and the interrupt specifier. "interrupts-extended"
+should only be used when a device has multiple interrupt parents.
+
+  Example:
+	interrupts-extended = <&intc1 5 1>, <&intc2 1 0>;
+
+A device node may contain either "interrupts" or "interrupts-extended", but not
+both. If both properties are present, then the operating system should log an
+error and use only the data in "interrupts".
 
 2) Interrupt controller nodes
 -----------------------------

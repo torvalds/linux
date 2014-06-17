@@ -19,7 +19,7 @@ extern int amd_cache_northbridges(void);
 extern void amd_flush_garts(void);
 extern int amd_numa_init(void);
 extern int amd_get_subcaches(int);
-extern int amd_set_subcaches(int, int);
+extern int amd_set_subcaches(int, unsigned long);
 
 struct amd_l3_cache {
 	unsigned indices;
@@ -79,6 +79,23 @@ static inline bool amd_nb_has_feature(unsigned feature)
 static inline struct amd_northbridge *node_to_amd_nb(int node)
 {
 	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
+}
+
+static inline u16 amd_get_node_id(struct pci_dev *pdev)
+{
+	struct pci_dev *misc;
+	int i;
+
+	for (i = 0; i != amd_nb_num(); i++) {
+		misc = node_to_amd_nb(i)->misc;
+
+		if (pci_domain_nr(misc->bus) == pci_domain_nr(pdev->bus) &&
+		    PCI_SLOT(misc->devfn) == PCI_SLOT(pdev->devfn))
+			return i;
+	}
+
+	WARN(1, "Unable to find AMD Northbridge id for %s\n", pci_name(pdev));
+	return 0;
 }
 
 #else

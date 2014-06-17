@@ -1916,8 +1916,6 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 		return err;
 	}
 
-	snd_card_set_dev(card, &pci->dev);
-
 	*rchip = chip;
 	return 0;
 }
@@ -2066,7 +2064,6 @@ static void snd_riptide_joystick_remove(struct pci_dev *pci)
 	if (gameport) {
 		release_region(gameport->io, 8);
 		gameport_unregister_port(gameport);
-		pci_set_drvdata(pci, NULL);
 	}
 }
 #endif
@@ -2087,7 +2084,8 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	err = snd_card_new(&pci->dev, index[dev], id[dev], THIS_MODULE,
+			   0, &card);
 	if (err < 0)
 		return err;
 	err = snd_riptide_create(card, pci, &chip);
@@ -2179,7 +2177,6 @@ snd_card_riptide_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 static void snd_card_riptide_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
-	pci_set_drvdata(pci, NULL);
 }
 
 static struct pci_driver driver = {

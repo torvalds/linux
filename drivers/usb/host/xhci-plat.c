@@ -11,11 +11,15 @@
  * version 2 as published by the Free Software Foundation.
  */
 
-#include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "xhci.h"
+#include "xhci-mvebu.h"
 
 static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
@@ -24,13 +28,18 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	 * here that the generic code does not try to make a pci_dev from our
 	 * dev struct in order to setup MSI
 	 */
-	xhci->quirks |= XHCI_BROKEN_MSI;
+	xhci->quirks |= XHCI_PLAT;
 }
 
 /* called during probe() after chip reset completes */
 static int xhci_plat_setup(struct usb_hcd *hcd)
 {
 	return xhci_gen_setup(hcd, xhci_plat_quirks);
+}
+
+static int xhci_plat_start(struct usb_hcd *hcd)
+{
+	return xhci_run(hcd);
 }
 
 static const struct hc_driver xhci_plat_xhci_driver = {
@@ -48,7 +57,7 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	 * basic lifecycle operations
 	 */
 	.reset =		xhci_plat_setup,
-	.start =		xhci_run,
+	.start =		xhci_plat_start,
 	.stop =			xhci_stop,
 	.shutdown =		xhci_shutdown,
 
@@ -67,6 +76,7 @@ static const struct hc_driver xhci_plat_xhci_driver = {
 	.check_bandwidth =	xhci_check_bandwidth,
 	.reset_bandwidth =	xhci_reset_bandwidth,
 	.address_device =	xhci_address_device,
+	.enable_device =	xhci_enable_device,
 	.update_hub_device =	xhci_update_hub_device,
 	.reset_device =		xhci_discover_or_reset_device,
 
@@ -88,6 +98,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	struct xhci_hcd		*xhci;
 	struct resource         *res;
 	struct usb_hcd		*hcd;
+	struct clk              *clk;
 	int			ret;
 	int			irq;
 
@@ -103,6 +114,24 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "marvell,armada-375-xhci") ||
+	    of_device_is_compatible(pdev->dev.of_node,
+				    "marvell,armada-380-xhci")) {
+		ret = xhci_mvebu_mbus_init_quirk(pdev);
+		if (ret)
+			return ret;
+	}
+
+	/* Initialize dma_mask and coherent_dma_mask to 32-bits */
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	else
+		dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd)
@@ -125,13 +154,27 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto release_mem_region;
 	}
 
+	/*
+	 * Not all platforms have a clk so it is not an error if the
+	 * clock does not exists.
+	 */
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		ret = clk_prepare_enable(clk);
+		if (ret)
+			goto unmap_registers;
+	}
+
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
-		goto unmap_registers;
+		goto disable_clk;
+
+	device_wakeup_enable(hcd->self.controller);
 
 	/* USB 2.0 roothub is stored in the platform_device now. */
-	hcd = dev_get_drvdata(&pdev->dev);
+	hcd = platform_get_drvdata(pdev);
 	xhci = hcd_to_xhci(hcd);
+	xhci->clk = clk;
 	xhci->shared_hcd = usb_create_shared_hcd(driver, &pdev->dev,
 			dev_name(&pdev->dev), hcd);
 	if (!xhci->shared_hcd) {
@@ -145,6 +188,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	 */
 	*((struct xhci_hcd **) xhci->shared_hcd->hcd_priv) = xhci;
 
+	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+		xhci->shared_hcd->can_do_streams = 1;
+
 	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto put_usb3_hcd;
@@ -156,6 +202,10 @@ put_usb3_hcd:
 
 dealloc_usb2_hcd:
 	usb_remove_hcd(hcd);
+
+disable_clk:
+	if (!IS_ERR(clk))
+		clk_disable_unprepare(clk);
 
 unmap_registers:
 	iounmap(hcd->regs);
@@ -173,23 +223,65 @@ static int xhci_plat_remove(struct platform_device *dev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	struct clk *clk = xhci->clk;
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
 
 	usb_remove_hcd(hcd);
+	if (!IS_ERR(clk))
+		clk_disable_unprepare(clk);
 	iounmap(hcd->regs);
+	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	kfree(xhci);
 
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int xhci_plat_suspend(struct device *dev)
+{
+	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	return xhci_suspend(xhci);
+}
+
+static int xhci_plat_resume(struct device *dev)
+{
+	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+
+	return xhci_resume(xhci, 0);
+}
+
+static const struct dev_pm_ops xhci_plat_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(xhci_plat_suspend, xhci_plat_resume)
+};
+#define DEV_PM_OPS	(&xhci_plat_pm_ops)
+#else
+#define DEV_PM_OPS	NULL
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_OF
+static const struct of_device_id usb_xhci_of_match[] = {
+	{ .compatible = "generic-xhci" },
+	{ .compatible = "xhci-platform" },
+	{ .compatible = "marvell,armada-375-xhci"},
+	{ .compatible = "marvell,armada-380-xhci"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
+#endif
+
 static struct platform_driver usb_xhci_driver = {
 	.probe	= xhci_plat_probe,
 	.remove	= xhci_plat_remove,
 	.driver	= {
 		.name = "xhci-hcd",
+		.pm = DEV_PM_OPS,
+		.of_match_table = of_match_ptr(usb_xhci_of_match),
 	},
 };
 MODULE_ALIAS("platform:xhci-hcd");

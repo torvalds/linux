@@ -1,5 +1,5 @@
 /* IEEE 802.11 SoftMAC layer
- * Copyright (c) 2005 Andrea Merello <andreamrl@tiscali.it>
+ * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
  *
  * Mostly extracted from the rtl8180-sa2400 driver for the
  * in-kernel generic ieee802.11 stack.
@@ -628,8 +628,6 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret = 0;
-
 	down(&ieee->wx_sem);
 
 	if (ieee->ps == RTLLIB_PS_DISABLED) {
@@ -657,7 +655,7 @@ int rtllib_wx_get_power(struct rtllib_device *ieee,
 
 exit:
 	up(&ieee->wx_sem);
-	return ret;
+	return 0;
 
 }
 EXPORT_SYMBOL(rtllib_wx_get_power);

@@ -47,6 +47,22 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
+#define INIT_UDATA(udata, ibuf, obuf, ilen, olen)			\
+	do {								\
+		(udata)->inbuf  = (const void __user *) (ibuf);		\
+		(udata)->outbuf = (void __user *) (obuf);		\
+		(udata)->inlen  = (ilen);				\
+		(udata)->outlen = (olen);				\
+	} while (0)
+
+#define INIT_UDATA_BUF_OR_NULL(udata, ibuf, obuf, ilen, olen)			\
+	do {									\
+		(udata)->inbuf  = (ilen) ? (const void __user *) (ibuf) : NULL;	\
+		(udata)->outbuf = (olen) ? (void __user *) (obuf) : NULL;	\
+		(udata)->inlen  = (ilen);					\
+		(udata)->outlen = (olen);					\
+	} while (0)
+
 /*
  * Our lifetime rules for these structs are the following:
  *
@@ -135,6 +151,7 @@ struct ib_usrq_object {
 struct ib_uqp_object {
 	struct ib_uevent_object	uevent;
 	struct list_head 	mcast_list;
+	struct ib_uxrcd_object *uxrcd;
 };
 
 struct ib_ucq_object {
@@ -155,6 +172,7 @@ extern struct idr ib_uverbs_cq_idr;
 extern struct idr ib_uverbs_qp_idr;
 extern struct idr ib_uverbs_srq_idr;
 extern struct idr ib_uverbs_xrcd_idr;
+extern struct idr ib_uverbs_rule_idr;
 
 void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
@@ -176,6 +194,22 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 			     struct ib_event *event);
 void ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd);
 
+struct ib_uverbs_flow_spec {
+	union {
+		union {
+			struct ib_uverbs_flow_spec_hdr hdr;
+			struct {
+				__u32 type;
+				__u16 size;
+				__u16 reserved;
+			};
+		};
+		struct ib_uverbs_flow_spec_eth     eth;
+		struct ib_uverbs_flow_spec_ipv4    ipv4;
+		struct ib_uverbs_flow_spec_tcp_udp tcp_udp;
+	};
+};
+
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\
 				 const char __user *buf, int in_len,	\
@@ -188,6 +222,8 @@ IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
+IB_UVERBS_DECLARE_CMD(alloc_mw);
+IB_UVERBS_DECLARE_CMD(dealloc_mw);
 IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
 IB_UVERBS_DECLARE_CMD(resize_cq);
@@ -213,5 +249,13 @@ IB_UVERBS_DECLARE_CMD(destroy_srq);
 IB_UVERBS_DECLARE_CMD(create_xsrq);
 IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
+
+#define IB_UVERBS_DECLARE_EX_CMD(name)				\
+	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
+				struct ib_udata *ucore,		\
+				struct ib_udata *uhw)
+
+IB_UVERBS_DECLARE_EX_CMD(create_flow);
+IB_UVERBS_DECLARE_EX_CMD(destroy_flow);
 
 #endif /* UVERBS_H */

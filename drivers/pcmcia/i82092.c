@@ -133,8 +133,6 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 		goto err_out_free_res;
 	}
 
-	pci_set_drvdata(dev, &sockets[i].socket);
-
 	for (i = 0; i<socket_count; i++) {
 		sockets[i].socket.dev.parent = &dev->dev;
 		sockets[i].socket.ops = &i82092aa_operations;
@@ -164,14 +162,14 @@ err_out_disable:
 
 static void i82092aa_pci_remove(struct pci_dev *dev)
 {
-	struct pcmcia_socket *socket = pci_get_drvdata(dev);
+	int i;
 
 	enter("i82092aa_pci_remove");
 	
 	free_irq(dev->irq, i82092aa_interrupt);
 
-	if (socket)
-		pcmcia_unregister_socket(socket);
+	for (i = 0; i < socket_count; i++)
+		pcmcia_unregister_socket(&sockets[i].socket);
 
 	leave("i82092aa_pci_remove");
 }
@@ -610,7 +608,7 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 	
 	enter("i82092aa_set_mem_map");
 
-	pcibios_resource_to_bus(sock_info->dev, &region, mem->res);
+	pcibios_resource_to_bus(sock_info->dev->bus, &region, mem->res);
 	
 	map = mem->map;
 	if (map > 4) {

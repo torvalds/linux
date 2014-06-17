@@ -31,10 +31,11 @@
  *	Weighted Least Connection scheduling
  */
 static struct ip_vs_dest *
-ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
+ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
+		   struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_dest *dest, *least;
-	unsigned int loh, doh;
+	int loh, doh;
 
 	IP_VS_DBG(6, "ip_vs_wlc_schedule(): Scheduling...\n");
 
@@ -51,7 +52,7 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	 * new connections.
 	 */
 
-	list_for_each_entry(dest, &svc->destinations, n_list) {
+	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
 		if (!(dest->flags & IP_VS_DEST_F_OVERLOAD) &&
 		    atomic_read(&dest->weight) > 0) {
 			least = dest;
@@ -66,12 +67,12 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	 *    Find the destination with the least load.
 	 */
   nextstage:
-	list_for_each_entry_continue(dest, &svc->destinations, n_list) {
+	list_for_each_entry_continue_rcu(dest, &svc->destinations, n_list) {
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
 			continue;
 		doh = ip_vs_dest_conn_overhead(dest);
-		if (loh * atomic_read(&dest->weight) >
-		    doh * atomic_read(&least->weight)) {
+		if ((__s64)loh * atomic_read(&dest->weight) >
+		    (__s64)doh * atomic_read(&least->weight)) {
 			least = dest;
 			loh = doh;
 		}
@@ -106,6 +107,7 @@ static int __init ip_vs_wlc_init(void)
 static void __exit ip_vs_wlc_cleanup(void)
 {
 	unregister_ip_vs_scheduler(&ip_vs_wlc_scheduler);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_wlc_init);

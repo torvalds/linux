@@ -28,12 +28,7 @@
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-************************************************************************/
+*/
 
 /*
  * Driver: cb_pcidas64
@@ -87,23 +82,17 @@ TODO:
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "../comedidev.h"
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
 #include "comedi_fc.h"
-
-#undef PCIDAS64_DEBUG		/*  disable debugging code */
-/* #define PCIDAS64_DEBUG         enable debugging code */
-
-#ifdef PCIDAS64_DEBUG
-#define DEBUG_PRINT(format, args...)  pr_debug(format, ## args)
-#else
-#define DEBUG_PRINT(format, args...)  no_printk(format, ## args)
-#endif
 
 #define TIMER_BASE 25		/*  40MHz master clock */
 /* 100kHz 'prescaled' clock for slow acquisition,
@@ -115,13 +104,6 @@ TODO:
 static const int max_counter_value = 0xffffff;
 
 /* PCI-DAS64xxx base addresses */
-
-/* indices of base address regions */
-enum base_address_regions {
-	PLX9080_BADDRINDEX = 0,
-	MAIN_BADDRINDEX = 2,
-	DIO_COUNTER_BADDRINDEX = 3,
-};
 
 /* devpriv->main_iobase registers */
 enum write_only_registers {
@@ -447,91 +429,85 @@ static inline uint8_t attenuate_bit(unsigned int channel)
 
 /* analog input ranges for 64xx boards */
 static const struct comedi_lrange ai_ranges_64xx = {
-	8,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1.25),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2.5),
-	 UNI_RANGE(1.25)
-	 }
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1.25),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2.5),
+		UNI_RANGE(1.25)
+	}
 };
 
 /* analog input ranges for 60xx boards */
 static const struct comedi_lrange ai_ranges_60xx = {
-	4,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.05),
-	 }
+	4, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.05)
+	}
 };
 
 /* analog input ranges for 6030, etc boards */
 static const struct comedi_lrange ai_ranges_6030 = {
-	14,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.2),
-	 BIP_RANGE(0.1),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	14, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.2),
+		BIP_RANGE(0.1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
 /* analog input ranges for 6052, etc boards */
 static const struct comedi_lrange ai_ranges_6052 = {
-	15,
-	{
-	 BIP_RANGE(10),
-	 BIP_RANGE(5),
-	 BIP_RANGE(2.5),
-	 BIP_RANGE(1),
-	 BIP_RANGE(0.5),
-	 BIP_RANGE(0.25),
-	 BIP_RANGE(0.1),
-	 BIP_RANGE(0.05),
-	 UNI_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(2),
-	 UNI_RANGE(1),
-	 UNI_RANGE(0.5),
-	 UNI_RANGE(0.2),
-	 UNI_RANGE(0.1),
-	 }
+	15, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		BIP_RANGE(1),
+		BIP_RANGE(0.5),
+		BIP_RANGE(0.25),
+		BIP_RANGE(0.1),
+		BIP_RANGE(0.05),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1),
+		UNI_RANGE(0.5),
+		UNI_RANGE(0.2),
+		UNI_RANGE(0.1)
+	}
 };
 
 /* analog input ranges for 4020 board */
 static const struct comedi_lrange ai_ranges_4020 = {
-	2,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(1),
-	 }
+	2, {
+		BIP_RANGE(5),
+		BIP_RANGE(1)
+	}
 };
 
 /* analog output ranges */
 static const struct comedi_lrange ao_ranges_64xx = {
-	4,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(10),
-	 UNI_RANGE(5),
-	 UNI_RANGE(10),
-	 }
+	4, {
+		BIP_RANGE(5),
+		BIP_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(10)
+	}
 };
 
 static const int ao_range_code_64xx[] = {
@@ -541,23 +517,15 @@ static const int ao_range_code_64xx[] = {
 	0x3,
 };
 
-static const struct comedi_lrange ao_ranges_60xx = {
-	1,
-	{
-	 BIP_RANGE(10),
-	 }
-};
-
 static const int ao_range_code_60xx[] = {
 	0x0,
 };
 
 static const struct comedi_lrange ao_ranges_6030 = {
-	2,
-	{
-	 BIP_RANGE(10),
-	 UNI_RANGE(10),
-	 }
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
 };
 
 static const int ao_range_code_6030[] = {
@@ -566,11 +534,10 @@ static const int ao_range_code_6030[] = {
 };
 
 static const struct comedi_lrange ao_ranges_4020 = {
-	2,
-	{
-	 BIP_RANGE(5),
-	 BIP_RANGE(10),
-	 }
+	2, {
+		BIP_RANGE(5),
+		BIP_RANGE(10)
+	}
 };
 
 static const int ao_range_code_4020[] = {
@@ -591,9 +558,39 @@ struct hw_fifo_info {
 	uint16_t fifo_size_reg_mask;
 };
 
+enum pcidas64_boardid {
+	BOARD_PCIDAS6402_16,
+	BOARD_PCIDAS6402_12,
+	BOARD_PCIDAS64_M1_16,
+	BOARD_PCIDAS64_M2_16,
+	BOARD_PCIDAS64_M3_16,
+	BOARD_PCIDAS6013,
+	BOARD_PCIDAS6014,
+	BOARD_PCIDAS6023,
+	BOARD_PCIDAS6025,
+	BOARD_PCIDAS6030,
+	BOARD_PCIDAS6031,
+	BOARD_PCIDAS6032,
+	BOARD_PCIDAS6033,
+	BOARD_PCIDAS6034,
+	BOARD_PCIDAS6035,
+	BOARD_PCIDAS6036,
+	BOARD_PCIDAS6040,
+	BOARD_PCIDAS6052,
+	BOARD_PCIDAS6070,
+	BOARD_PCIDAS6071,
+	BOARD_PCIDAS4020_12,
+	BOARD_PCIDAS6402_16_JR,
+	BOARD_PCIDAS64_M1_16_JR,
+	BOARD_PCIDAS64_M2_16_JR,
+	BOARD_PCIDAS64_M3_16_JR,
+	BOARD_PCIDAS64_M1_14,
+	BOARD_PCIDAS64_M2_14,
+	BOARD_PCIDAS64_M3_14,
+};
+
 struct pcidas64_board {
 	const char *name;
-	int device_id;		/*  pci device id */
 	int ai_se_chans;	/*  number of ai inputs in single-ended mode */
 	int ai_bits;		/*  analog input resolution */
 	int ai_speed;		/*  fastest conversion period in ns */
@@ -646,421 +643,397 @@ static inline unsigned int ai_dma_ring_count(const struct pcidas64_board *board)
 static const int bytes_in_sample = 2;
 
 static const struct pcidas64_board pcidas64_boards[] = {
-	{
-	 .name = "pci-das6402/16",
-	 .device_id = 0x1d,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6402/12",	/*  XXX check */
-	 .device_id = 0x1e,
-	 .ai_se_chans = 64,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/16",
-	 .device_id = 0x35,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 1000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/16",
-	 .device_id = 0x36,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 500,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/16",
-	 .device_id = 0x37,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 333,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ao_range_table = &ao_ranges_64xx,
-	 .ao_range_code = ao_range_code_64xx,
-	 .ai_fifo = &ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6013",
-	 .device_id = 0x78,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_bits = 16,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6014",
-	 .device_id = 0x79,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6023",
-	 .device_id = 0x5d,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6025",
-	 .device_id = 0x5e,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das6030",
-	 .device_id = 0x5f,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6031",
-	 .device_id = 0x60,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6032",
-	 .device_id = 0x61,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6033",
-	 .device_id = 0x62,
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 10000,
-	 .ao_nchan = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6034",
-	 .device_id = 0x63,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 0,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6035",
-	 .device_id = 0x64,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6036",
-	 .device_id = 0x6f,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 100000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_60xx,
-	 .ao_range_table = &ao_ranges_60xx,
-	 .ao_range_code = ao_range_code_60xx,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6040",
-	 .device_id = 0x65,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 2000,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6052",
-	 .device_id = 0x66,
-	 .ai_se_chans = 16,
-	 .ai_bits = 16,
-	 .ai_speed = 3333,
-	 .ao_nchan = 2,
-	 .ao_bits = 16,
-	 .ao_scan_speed = 3333,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6070",
-	 .device_id = 0x67,
-	 .ai_se_chans = 16,
-	 .ai_bits = 12,
-	 .ai_speed = 800,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das6071",
-	 .device_id = 0x68,
-	 .ai_se_chans = 64,
-	 .ai_bits = 12,
-	 .ai_speed = 800,
-	 .ao_nchan = 2,
-	 .ao_bits = 12,
-	 .ao_scan_speed = 1000,
-	 .layout = LAYOUT_60XX,
-	 .ai_range_table = &ai_ranges_6052,
-	 .ao_range_table = &ao_ranges_6030,
-	 .ao_range_code = ao_range_code_6030,
-	 .ai_fifo = &ai_fifo_60xx,
-	 .has_8255 = 0,
-	 },
-	{
-	 .name = "pci-das4020/12",
-	 .device_id = 0x52,
-	 .ai_se_chans = 4,
-	 .ai_bits = 12,
-	 .ai_speed = 50,
-	 .ao_bits = 12,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 0,	/*  no hardware pacing on ao */
-	 .layout = LAYOUT_4020,
-	 .ai_range_table = &ai_ranges_4020,
-	 .ao_range_table = &ao_ranges_4020,
-	 .ao_range_code = ao_range_code_4020,
-	 .ai_fifo = &ai_fifo_4020,
-	 .has_8255 = 1,
-	 },
+	[BOARD_PCIDAS6402_16] = {
+		.name		= "pci-das6402/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6402_12] = {
+		.name		= "pci-das6402/12",	/*  XXX check */
+		.ai_se_chans	= 64,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_16] = {
+		.name		= "pci-das64/m1/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 1000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_16] = {
+		.name = "pci-das64/m2/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 500,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_16] = {
+		.name		= "pci-das64/m3/16",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 333,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ao_range_table	= &ao_ranges_64xx,
+		.ao_range_code	= ao_range_code_64xx,
+		.ai_fifo	= &ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6013] = {
+		.name		= "pci-das6013",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_bits	= 16,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6014] = {
+		.name		= "pci-das6014",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6023] = {
+		.name		= "pci-das6023",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6025] = {
+		.name		= "pci-das6025",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS6030] = {
+		.name		= "pci-das6030",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6031] = {
+		.name		= "pci-das6031",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6032] = {
+		.name		= "pci-das6032",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6033] = {
+		.name		= "pci-das6033",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 10000,
+		.ao_nchan	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6034] = {
+		.name		= "pci-das6034",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 0,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6035] = {
+		.name		= "pci-das6035",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6036] = {
+		.name		= "pci-das6036",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 100000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
+		.ao_range_code	= ao_range_code_60xx,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6040] = {
+		.name		= "pci-das6040",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 2000,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6052] = {
+		.name		= "pci-das6052",
+		.ai_se_chans	= 16,
+		.ai_bits	= 16,
+		.ai_speed	= 3333,
+		.ao_nchan	= 2,
+		.ao_bits	= 16,
+		.ao_scan_speed	= 3333,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6070] = {
+		.name		= "pci-das6070",
+		.ai_se_chans	= 16,
+		.ai_bits	= 12,
+		.ai_speed	= 800,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS6071] = {
+		.name		= "pci-das6071",
+		.ai_se_chans	= 64,
+		.ai_bits	= 12,
+		.ai_speed	= 800,
+		.ao_nchan	= 2,
+		.ao_bits	= 12,
+		.ao_scan_speed	= 1000,
+		.layout		= LAYOUT_60XX,
+		.ai_range_table	= &ai_ranges_6052,
+		.ao_range_table	= &ao_ranges_6030,
+		.ao_range_code	= ao_range_code_6030,
+		.ai_fifo	= &ai_fifo_60xx,
+		.has_8255	= 0,
+	},
+	[BOARD_PCIDAS4020_12] = {
+		.name		= "pci-das4020/12",
+		.ai_se_chans	= 4,
+		.ai_bits	= 12,
+		.ai_speed	= 50,
+		.ao_bits	= 12,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 0,	/*  no hardware pacing on ao */
+		.layout		= LAYOUT_4020,
+		.ai_range_table	= &ai_ranges_4020,
+		.ao_range_table	= &ao_ranges_4020,
+		.ao_range_code	= ao_range_code_4020,
+		.ai_fifo	= &ai_fifo_4020,
+		.has_8255	= 1,
+	},
 #if 0
-	{
-	 .name = "pci-das6402/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 5000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 1000,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 500,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/16/jr",
-	 .device_id = 0		/*  XXX, */
-	 .ai_se_chans = 64,
-	 .ai_bits = 16,
-	 .ai_speed = 333,
-	 .ao_nchan = 0,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m1/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 1000,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m2/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 500,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
-	{
-	 .name = "pci-das64/m3/14",
-	 .device_id = 0,	/*  XXX */
-	 .ai_se_chans = 64,
-	 .ai_bits = 14,
-	 .ai_speed = 333,
-	 .ao_nchan = 2,
-	 .ao_scan_speed = 10000,
-	 .layout = LAYOUT_64XX,
-	 .ai_range_table = &ai_ranges_64xx,
-	 .ai_fifo = ai_fifo_64xx,
-	 .has_8255 = 1,
-	 },
+	/*
+	 * The device id for these boards is unknown
+	 */
+
+	[BOARD_PCIDAS6402_16_JR] = {
+		.name		= "pci-das6402/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 5000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_16_JR] = {
+		.name		= "pci-das64/m1/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 1000,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_16_JR] = {
+		.name = "pci-das64/m2/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 500,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_16_JR] = {
+		.name		= "pci-das64/m3/16/jr",
+		.ai_se_chans	= 64,
+		.ai_bits	= 16,
+		.ai_speed	= 333,
+		.ao_nchan	= 0,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M1_14] = {
+		.name		= "pci-das64/m1/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 1000,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M2_14] = {
+		.name		= "pci-das64/m2/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 500,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
+	[BOARD_PCIDAS64_M3_14] = {
+		.name		= "pci-das64/m3/14",
+		.ai_se_chans	= 64,
+		.ai_bits	= 14,
+		.ai_speed	= 333,
+		.ao_nchan	= 2,
+		.ao_scan_speed	= 10000,
+		.layout		= LAYOUT_64XX,
+		.ai_range_table	= &ai_ranges_64xx,
+		.ai_fifo	= ai_fifo_64xx,
+		.has_8255	= 1,
+	},
 #endif
 };
 
@@ -1086,7 +1059,6 @@ struct ext_clock_info {
 /* this structure is for data unique to this hardware driver. */
 struct pcidas64_private {
 	/*  base addresses (physical) */
-	resource_size_t plx9080_phys_iobase;
 	resource_size_t main_phys_iobase;
 	resource_size_t dio_counter_phys_iobase;
 	/*  base addresses (ioremapped) */
@@ -1148,7 +1120,7 @@ struct pcidas64_private {
 	volatile short ai_cmd_running;
 	unsigned int ai_fifo_segment_length;
 	struct ext_clock_info ext_clock;
-	short ao_bounce_buffer[DAC_FIFO_SIZE];
+	unsigned short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
@@ -1263,8 +1235,6 @@ static void disable_ai_interrupts(struct comedi_device *dev)
 	writew(devpriv->intr_enable_bits,
 	       devpriv->main_iobase + INTR_ENABLE_REG);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
 }
 
 static void enable_ai_interrupts(struct comedi_device *dev,
@@ -1288,7 +1258,6 @@ static void enable_ai_interrupts(struct comedi_device *dev,
 	devpriv->intr_enable_bits |= bits;
 	writew(devpriv->intr_enable_bits,
 	       devpriv->main_iobase + INTR_ENABLE_REG);
-	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -1302,38 +1271,6 @@ static void init_plx9080(struct comedi_device *dev)
 
 	devpriv->plx_control_bits =
 		readl(devpriv->plx9080_iobase + PLX_CONTROL_REG);
-
-	/*  plx9080 dump */
-	DEBUG_PRINT(" plx interrupt status 0x%x\n",
-		    readl(plx_iobase + PLX_INTRCS_REG));
-	DEBUG_PRINT(" plx id bits 0x%x\n", readl(plx_iobase + PLX_ID_REG));
-	DEBUG_PRINT(" plx control reg 0x%x\n", devpriv->plx_control_bits);
-	DEBUG_PRINT(" plx mode/arbitration reg 0x%x\n",
-		    readl(plx_iobase + PLX_MARB_REG));
-	DEBUG_PRINT(" plx region0 reg 0x%x\n",
-		    readl(plx_iobase + PLX_REGION0_REG));
-	DEBUG_PRINT(" plx region1 reg 0x%x\n",
-		    readl(plx_iobase + PLX_REGION1_REG));
-
-	DEBUG_PRINT(" plx revision 0x%x\n",
-		    readl(plx_iobase + PLX_REVISION_REG));
-	DEBUG_PRINT(" plx dma channel 0 mode 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_MODE_REG));
-	DEBUG_PRINT(" plx dma channel 1 mode 0x%x\n",
-		    readl(plx_iobase + PLX_DMA1_MODE_REG));
-	DEBUG_PRINT(" plx dma channel 0 pci address 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_PCI_ADDRESS_REG));
-	DEBUG_PRINT(" plx dma channel 0 local address 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_LOCAL_ADDRESS_REG));
-	DEBUG_PRINT(" plx dma channel 0 transfer size 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_TRANSFER_SIZE_REG));
-	DEBUG_PRINT(" plx dma channel 0 descriptor 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_DESCRIPTOR_REG));
-	DEBUG_PRINT(" plx dma channel 0 command status 0x%x\n",
-		    readb(plx_iobase + PLX_DMA0_CS_REG));
-	DEBUG_PRINT(" plx dma channel 0 threshold 0x%x\n",
-		    readl(plx_iobase + PLX_DMA0_THRESHOLD_REG));
-	DEBUG_PRINT(" plx bigend 0x%x\n", readl(plx_iobase + PLX_BIGEND_REG));
 
 #ifdef __BIG_ENDIAN
 	bits = BIGEND_DMA0 | BIGEND_DMA1;
@@ -1428,9 +1365,6 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 
 	devpriv->ai_fifo_segment_length = num_increments * increment_size;
 
-	DEBUG_PRINT("set hardware fifo segment length to %i\n",
-		    devpriv->ai_fifo_segment_length);
-
 	return devpriv->ai_fifo_segment_length;
 }
 
@@ -1451,8 +1385,6 @@ static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 		return retval;
 
 	num_samples = retval * fifo->num_segments * fifo->sample_packing_ratio;
-
-	DEBUG_PRINT("set hardware fifo size to %i\n", num_samples);
 
 	return num_samples;
 }
@@ -1521,7 +1453,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	struct pcidas64_private *devpriv = dev->private;
 	int i;
 
-	/*  alocate pci dma buffers */
+	/*  allocate pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
 		devpriv->ai_buffer[i] =
 			pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
@@ -1549,8 +1481,6 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	if (devpriv->ai_dma_desc == NULL)
 		return -ENOMEM;
 
-	DEBUG_PRINT("ai dma descriptors start at bus addr 0x%llx\n",
-		    (unsigned long long)devpriv->ai_dma_desc_bus_addr);
 	if (ao_cmd_is_supported(thisboard)) {
 		devpriv->ao_dma_desc =
 			pci_alloc_consistent(pcidev,
@@ -1559,9 +1489,6 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 					     &devpriv->ao_dma_desc_bus_addr);
 		if (devpriv->ao_dma_desc == NULL)
 			return -ENOMEM;
-
-		DEBUG_PRINT("ao dma descriptors start at bus addr 0x%llx\n",
-			    (unsigned long long)devpriv->ao_dma_desc_bus_addr);
 	}
 	/*  initialize dma descriptors */
 	for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
@@ -1661,8 +1588,6 @@ static void i2c_write_byte(struct comedi_device *dev, uint8_t byte)
 	uint8_t bit;
 	unsigned int num_bits = 8;
 
-	DEBUG_PRINT("writing to i2c byte 0x%x\n", byte);
-
 	for (bit = 1 << (num_bits - 1); bit; bit >>= 1) {
 		i2c_set_scl(dev, 0);
 		if ((byte & bit))
@@ -1739,17 +1664,37 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	i2c_stop(dev);
 }
 
+static int cb_pcidas64_ai_eoc(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned long context)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int status;
+
+	status = readw(devpriv->main_iobase + HW_STATUS_REG);
+	if (thisboard->layout == LAYOUT_4020) {
+		status = readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG);
+		if (status)
+			return 0;
+	} else {
+		if (pipe_full_bits(status))
+			return 0;
+	}
+	return -EBUSY;
+}
+
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int bits = 0, n, i;
+	unsigned int bits = 0, n;
 	unsigned int channel, range, aref;
 	unsigned long flags;
-	static const int timeout = 100;
+	int ret;
 
-	DEBUG_PRINT("chanspec 0x%x\n", insn->chanspec);
 	channel = CR_CHAN(insn->chanspec);
 	range = CR_RANGE(insn->chanspec);
 	aref = CR_AREF(insn->chanspec);
@@ -1777,7 +1722,6 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (insn->chanspec & CR_ALT_SOURCE) {
 			unsigned int cal_en_bit;
 
-			DEBUG_PRINT("reading calibration source\n");
 			if (thisboard->layout == LAYOUT_60XX)
 				cal_en_bit = CAL_EN_60XX_BIT;
 			else
@@ -1811,7 +1755,6 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		devpriv->i2c_cal_range_bits &= ~ADC_SRC_4020_MASK;
 		if (insn->chanspec & CR_ALT_SOURCE) {
-			DEBUG_PRINT("reading calibration source\n");
 			devpriv->i2c_cal_range_bits |=
 				adc_src_4020_bits(devpriv->calibration_source);
 		} else {	/* select BNC inputs */
@@ -1848,25 +1791,10 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		       devpriv->main_iobase + ADC_CONVERT_REG);
 
 		/*  wait for data */
-		for (i = 0; i < timeout; i++) {
-			bits = readw(devpriv->main_iobase + HW_STATUS_REG);
-			DEBUG_PRINT(" pipe bits 0x%x\n", pipe_full_bits(bits));
-			if (thisboard->layout == LAYOUT_4020) {
-				if (readw(devpriv->main_iobase +
-					  ADC_WRITE_PNTR_REG))
-					break;
-			} else {
-				if (pipe_full_bits(bits))
-					break;
-			}
-			udelay(1);
-		}
-		DEBUG_PRINT(" looped %i times waiting for data\n", i);
-		if (i == timeout) {
-			comedi_error(dev, " analog input read insn timed out");
-			dev_info(dev->class_dev, "status 0x%x\n", bits);
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, cb_pcidas64_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		if (thisboard->layout == LAYOUT_4020)
 			data[n] = readl(devpriv->dio_counter_iobase +
 					ADC_FIFO_REG) & 0xffff;
@@ -1895,7 +1823,6 @@ static int ai_config_calibration_source(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	DEBUG_PRINT("setting calibration source to %i\n", source);
 	devpriv->calibration_source = source;
 
 	return 2;
@@ -2068,14 +1995,52 @@ static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	return;
 }
 
+static int cb_pcidas64_ai_check_chanlist(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_cmd *cmd)
+{
+	const struct pcidas64_board *board = comedi_board(dev);
+	unsigned int aref0 = CR_AREF(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int aref = CR_AREF(cmd->chanlist[i]);
+
+		if (aref != aref0) {
+			dev_dbg(dev->class_dev,
+				"all elements in chanlist must use the same analog reference\n");
+			return -EINVAL;
+		}
+	}
+
+	if (board->layout == LAYOUT_4020) {
+		unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+
+		for (i = 1; i < cmd->chanlist_len; i++) {
+			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+			if (chan != (chan0 + i)) {
+				dev_dbg(dev->class_dev,
+					"chanlist must use consecutive channels\n");
+				return -EINVAL;
+			}
+		}
+		if (cmd->chanlist_len == 3) {
+			dev_dbg(dev->class_dev,
+				"chanlist cannot be 3 channels long, use 1, 2, or 4 channels\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	int err = 0;
 	unsigned int tmp_arg, tmp_arg2;
-	int i;
-	int aref;
 	unsigned int triggers;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -2113,14 +2078,23 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	if (cmd->convert_src == TRIG_EXT && cmd->scan_begin_src == TRIG_TIMER)
 		err |= -EINVAL;
-	if (cmd->stop_src != TRIG_COUNT &&
-	    cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_EXT)
-		err |= -EINVAL;
 
 	if (err)
 		return 2;
 
 	/* Step 3: check if arguments are trivially valid */
+
+	switch (cmd->start_src) {
+	case TRIG_NOW:
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+		break;
+	case TRIG_EXT:
+		/*
+		 * start_arg is the CR_CHAN | CR_INVERT of the
+		 * external trigger.
+		 */
+		break;
+	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (thisboard->layout == LAYOUT_4020) {
@@ -2171,36 +2145,9 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	/*  make sure user is doesn't change analog reference mid chanlist */
-	if (cmd->chanlist) {
-		aref = CR_AREF(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (aref != CR_AREF(cmd->chanlist[i])) {
-				comedi_error(dev,
-					     "all elements in chanlist must use the same analog reference");
-				err++;
-				break;
-			}
-		}
-		/*  check 4020 chanlist */
-		if (thisboard->layout == LAYOUT_4020) {
-			unsigned int first_channel = CR_CHAN(cmd->chanlist[0]);
-			for (i = 1; i < cmd->chanlist_len; i++) {
-				if (CR_CHAN(cmd->chanlist[i]) !=
-				    first_channel + i) {
-					comedi_error(dev,
-						     "chanlist must use consecutive channels");
-					err++;
-					break;
-				}
-			}
-			if (cmd->chanlist_len == 3) {
-				comedi_error(dev,
-					     "chanlist cannot be 3 channels long, use 1, 2, or 4 channels");
-				err++;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas64_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -2379,7 +2326,6 @@ static void set_ai_pacing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	/*  load lower 16 bits of convert interval */
 	writew(convert_counter & 0xffff,
 	       devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
-	DEBUG_PRINT("convert counter 0x%x\n", convert_counter);
 	/*  load upper 8 bits of convert interval */
 	writew((convert_counter >> 16) & 0xff,
 	       devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
@@ -2389,7 +2335,6 @@ static void set_ai_pacing(struct comedi_device *dev, struct comedi_cmd *cmd)
 	/*  load upper 8 bits of scan delay */
 	writew((scan_counter >> 16) & 0xff,
 	       devpriv->main_iobase + ADC_DELAY_INTERVAL_UPPER_REG);
-	DEBUG_PRINT("scan counter 0x%x\n", scan_counter);
 }
 
 static int use_internal_queue_6xxx(const struct comedi_cmd *cmd)
@@ -2480,9 +2425,6 @@ static int setup_channel_queue(struct comedi_device *dev,
 				writew(bits,
 				       devpriv->main_iobase +
 				       ADC_QUEUE_FIFO_REG);
-				DEBUG_PRINT(
-					    "wrote 0x%x to external channel queue\n",
-					    bits);
 			}
 			/* doing a queue clear is not specified in board docs,
 			 * but required for reliable operation */
@@ -2604,7 +2546,6 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	writew(devpriv->adc_control1_bits,
 	       devpriv->main_iobase + ADC_CONTROL1_REG);
-	DEBUG_PRINT("control1 bits 0x%x\n", devpriv->adc_control1_bits);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear adc buffer */
@@ -2656,17 +2597,14 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (use_hw_sample_counter(cmd))
 		bits |= ADC_SAMPLE_COUNTER_EN_BIT;
 	writew(bits, devpriv->main_iobase + ADC_CONTROL0_REG);
-	DEBUG_PRINT("control0 bits 0x%x\n", bits);
 
 	devpriv->ai_cmd_running = 1;
 
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  start acquisition */
-	if (cmd->start_src == TRIG_NOW) {
+	if (cmd->start_src == TRIG_NOW)
 		writew(0, devpriv->main_iobase + ADC_START_REG);
-		DEBUG_PRINT("soft trig\n");
-	}
 
 	return 0;
 }
@@ -2701,10 +2639,6 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		read_segment = adc_upper_read_ptr_code(prepost_bits);
 		write_segment = adc_upper_write_ptr_code(prepost_bits);
 
-		DEBUG_PRINT(" rd seg %i, wrt seg %i, rd idx %i, wrt idx %i\n",
-			    read_segment, write_segment, read_index,
-			    write_index);
-
 		if (read_segment != write_segment)
 			num_samples =
 				devpriv->ai_fifo_segment_length - read_index;
@@ -2725,8 +2659,6 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 				"cb_pcidas64: bug! num_samples < 0\n");
 			break;
 		}
-
-		DEBUG_PRINT(" read %i samples from fifo\n", num_samples);
 
 		for (i = 0; i < num_samples; i++) {
 			cfc_write_to_buffer(s,
@@ -2791,6 +2723,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_async *async = dev->read_subdev->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	uint32_t next_transfer_addr;
 	int j;
 	int num_samples = 0;
@@ -2812,7 +2745,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	      DMA_BUFFER_SIZE) && j < ai_dma_ring_count(thisboard); j++) {
 		/*  transfer data from dma buffer to comedi buffer */
 		num_samples = dma_transfer_size(dev);
-		if (async->cmd.stop_src == TRIG_COUNT) {
+		if (cmd->stop_src == TRIG_COUNT) {
 			if (num_samples > devpriv->ai_count)
 				num_samples = devpriv->ai_count;
 			devpriv->ai_count -= num_samples;
@@ -2823,11 +2756,6 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 					  num_samples * sizeof(uint16_t));
 		devpriv->ai_dma_index = (devpriv->ai_dma_index + 1) %
 					ai_dma_ring_count(thisboard);
-
-		DEBUG_PRINT("next buffer addr 0x%lx\n",
-			    (unsigned long)devpriv->
-			    ai_buffer_bus_addr[devpriv->ai_dma_index]);
-		DEBUG_PRINT("pci addr reg 0x%x\n", next_transfer_addr);
 	}
 	/* XXX check for dma ring buffer overrun
 	 * (use end-of-chain bit to mark last unused buffer) */
@@ -2856,24 +2784,17 @@ static void handle_ai_interrupt(struct comedi_device *dev,
 	if (plx_status & ICS_DMA1_A) {	/*  dma chan 1 interrupt */
 		writeb((dma1_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
 		       devpriv->plx9080_iobase + PLX_DMA1_CS_REG);
-		DEBUG_PRINT("dma1 status 0x%x\n", dma1_status);
 
 		if (dma1_status & PLX_DMA_EN_BIT)
 			drain_dma_buffers(dev, 1);
-
-		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	if (status & ADC_DONE_BIT)
-		DEBUG_PRINT("adc done interrupt\n");
 
 	/*  drain fifo with pio */
 	if ((status & ADC_DONE_BIT) ||
 	    ((cmd->flags & TRIG_WAKE_EOS) &&
 	     (status & ADC_INTR_PENDING_BIT) &&
 	     (thisboard->layout != LAYOUT_4020))) {
-		DEBUG_PRINT("pio fifo drain\n");
 		spin_lock_irqsave(&dev->spinlock, flags);
 		if (devpriv->ai_cmd_running) {
 			spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -2958,7 +2879,6 @@ static void restart_ao_dma(struct comedi_device *dev)
 	dma_desc_bits =
 		readl(devpriv->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 	dma_desc_bits &= ~PLX_END_OF_CHAIN_BIT;
-	DEBUG_PRINT("restarting ao dma, descriptor reg 0x%x\n", dma_desc_bits);
 	load_first_dma_descriptor(dev, 0, dma_desc_bits);
 
 	dma_start_sync(dev, 0);
@@ -2974,11 +2894,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	buffer_index = devpriv->ao_dma_index;
 	prev_buffer_index = prev_ao_dma_index(dev);
 
-	DEBUG_PRINT("attempting to load ao buffer %i (0x%llx)\n", buffer_index,
-		    (unsigned long long)devpriv->ao_buffer_bus_addr[
-								buffer_index]);
-
-	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
+	num_bytes = comedi_buf_read_n_available(dev->write_subdev);
 	if (num_bytes > DMA_BUFFER_SIZE)
 		num_bytes = DMA_BUFFER_SIZE;
 	if (cmd->stop_src == TRIG_COUNT && num_bytes > devpriv->ao_count)
@@ -2987,8 +2903,6 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 
 	if (num_bytes == 0)
 		return 0;
-
-	DEBUG_PRINT("loading %i bytes\n", num_bytes);
 
 	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
 					       devpriv->
@@ -3063,14 +2977,12 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 			writeb(PLX_CLEAR_DMA_INTR_BIT,
 			       devpriv->plx9080_iobase + PLX_DMA0_CS_REG);
 		spin_unlock_irqrestore(&dev->spinlock, flags);
-		DEBUG_PRINT("dma0 status 0x%x\n", dma0_status);
 		if (dma0_status & PLX_DMA_EN_BIT) {
 			load_ao_dma(dev, cmd);
 			/* try to recover from dma end-of-chain event */
 			if (ao_dma_needs_restart(dev, dma0_status))
 				restart_ao_dma(dev);
 		}
-		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	} else {
 		spin_unlock_irqrestore(&dev->spinlock, flags);
 	}
@@ -3079,12 +2991,6 @@ static void handle_ao_interrupt(struct comedi_device *dev,
 		async->events |= COMEDI_CB_EOA;
 		if (ao_stopped_by_error(dev, cmd))
 			async->events |= COMEDI_CB_ERROR;
-		DEBUG_PRINT("plx dma0 desc reg 0x%x\n",
-			    readl(devpriv->plx9080_iobase +
-				  PLX_DMA0_DESCRIPTOR_REG));
-		DEBUG_PRINT("plx dma0 address reg 0x%x\n",
-			    readl(devpriv->plx9080_iobase +
-				  PLX_DMA0_PCI_ADDRESS_REG));
 	}
 	cfc_handle_events(dev, s);
 }
@@ -3100,15 +3006,12 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(devpriv->main_iobase + HW_STATUS_REG);
 
-	DEBUG_PRINT("hw status 0x%x, plx status 0x%x\n", status, plx_status);
-
 	/* an interrupt before all the postconfig stuff gets done could
 	 * cause a NULL dereference if we continue through the
 	 * interrupt handler */
-	if (dev->attached == 0) {
-		DEBUG_PRINT("premature interrupt, ignoring\n");
+	if (!dev->attached)
 		return IRQ_HANDLED;
-	}
+
 	handle_ai_interrupt(dev, status, plx_status);
 	handle_ao_interrupt(dev, status, plx_status);
 
@@ -3116,10 +3019,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
 		plx_bits = readl(devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
 		writel(plx_bits, devpriv->plx9080_iobase + PLX_DBR_OUT_REG);
-		DEBUG_PRINT(" cleared local doorbell bits 0x%x\n", plx_bits);
 	}
-
-	DEBUG_PRINT("exiting handler\n");
 
 	return IRQ_HANDLED;
 }
@@ -3141,7 +3041,6 @@ static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	abort_dma(dev, 1);
 
-	DEBUG_PRINT("ai canceled\n");
 	return 0;
 }
 
@@ -3299,7 +3198,6 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	num_bytes = load_ao_dma_buffer(dev, cmd);
 	if (num_bytes == 0)
 		return -1;
-	if (num_bytes >= DMA_BUFFER_SIZE) ;
 	load_ao_dma(dev, cmd);
 
 	dma_start_sync(dev, 0);
@@ -3307,15 +3205,17 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static inline int external_ai_queue_in_use(struct comedi_device *dev)
+static inline int external_ai_queue_in_use(struct comedi_device *dev,
+					   struct comedi_subdevice *s,
+					   struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 
-	if (dev->read_subdev->busy)
+	if (s->busy)
 		return 0;
 	if (thisboard->layout == LAYOUT_4020)
 		return 0;
-	else if (use_internal_queue_6xxx(&dev->read_subdev->async->cmd))
+	else if (use_internal_queue_6xxx(cmd))
 		return 0;
 	return 1;
 }
@@ -3327,7 +3227,7 @@ static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct comedi_cmd *cmd = &s->async->cmd;
 	int retval;
 
-	if (trig_num != 0)
+	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
 	retval = prep_ao_dma(dev, cmd);
@@ -3349,7 +3249,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (external_ai_queue_in_use(dev)) {
+	if (external_ai_queue_in_use(dev, s, cmd)) {
 		warn_external_queue(dev);
 		return -EBUSY;
 	}
@@ -3370,13 +3270,32 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int cb_pcidas64_ao_check_chanlist(struct comedi_device *dev,
+					 struct comedi_subdevice *s,
+					 struct comedi_cmd *cmd)
+{
+	unsigned int chan0 = CR_CHAN(cmd->chanlist[0]);
+	int i;
+
+	for (i = 1; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if (chan != (chan0 + i)) {
+			dev_dbg(dev->class_dev,
+				"chanlist must use consecutive channels\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *thisboard = comedi_board(dev);
 	int err = 0;
 	unsigned int tmp_arg;
-	int i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -3408,6 +3327,8 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 3: check if arguments are trivially valid */
 
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 						 thisboard->ao_scan_speed);
@@ -3438,17 +3359,9 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 4;
 
-	if (cmd->chanlist) {
-		unsigned int first_channel = CR_CHAN(cmd->chanlist[0]);
-		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) != first_channel + i) {
-				comedi_error(dev,
-					     "chanlist must use consecutive channels");
-				err++;
-				break;
-			}
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= cb_pcidas64_ao_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -3470,7 +3383,6 @@ static int dio_callback(int dir, int port, int data, unsigned long arg)
 	void __iomem *iobase = (void __iomem *)arg;
 	if (dir) {
 		writeb(data, iobase + port);
-		DEBUG_PRINT("wrote 0x%x to port %i\n", data, port);
 		return 0;
 	} else {
 		return readb(iobase + port);
@@ -3502,18 +3414,15 @@ static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
+static int do_wbits(struct comedi_device *dev,
+		    struct comedi_subdevice *s,
+		    struct comedi_insn *insn,
+		    unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	data[0] &= 0xf;
-	/*  zero bits we are going to change */
-	s->state &= ~data[0];
-	/*  set new bits */
-	s->state |= data[0] & data[1];
-
-	writeb(s->state, devpriv->dio_counter_iobase + DO_REG);
+	if (comedi_dio_update_state(s, data))
+		writeb(s->state, devpriv->dio_counter_iobase + DO_REG);
 
 	data[1] = s->state;
 
@@ -3522,41 +3431,30 @@ static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 static int dio_60xx_config_insn(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	unsigned int mask;
+	int ret;
 
-	mask = 1 << CR_CHAN(insn->chanspec);
-
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~mask;
-		break;
-	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= mask;
-		break;
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		return 2;
-	default:
-		return -EINVAL;
-	}
+	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
+	if (ret)
+		return ret;
 
 	writeb(s->io_bits,
 	       devpriv->dio_counter_iobase + DIO_DIRECTION_60XX_REG);
 
-	return 1;
+	return insn->n;
 }
 
-static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data)
+static int dio_60xx_wbits(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn,
+			  unsigned int *data)
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	if (comedi_dio_update_state(s, data)) {
 		writeb(s->state,
 		       devpriv->dio_counter_iobase + DIO_DATA_60XX_REG);
 	}
@@ -3962,16 +3860,19 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (thisboard->has_8255) {
 		if (thisboard->layout == LAYOUT_4020) {
 			dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
-			subdev_8255_init(dev, s, dio_callback_4020,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback_4020,
+					       (unsigned long)dio_8255_iobase);
 		} else {
 			dio_8255_iobase =
 				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
-			subdev_8255_init(dev, s, dio_callback,
-					 (unsigned long)dio_8255_iobase);
+			ret = subdev_8255_init(dev, s, dio_callback,
+					       (unsigned long)dio_8255_iobase);
 		}
-	} else
+		if (ret)
+			return ret;
+	} else {
 		s->type = COMEDI_SUBD_UNUSED;
+	}
 
 	/*  8 channel dio for 60xx */
 	s = &dev->subdevices[5];
@@ -4032,79 +3933,45 @@ static int setup_subdevices(struct comedi_device *dev)
 	return 0;
 }
 
-static const struct pcidas64_board
-*cb_pcidas64_find_pci_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++)
-		if (pcidev->device == pcidas64_boards[i].device_id)
-			return &pcidas64_boards[i];
-	return NULL;
-}
-
 static int auto_attach(struct comedi_device *dev,
-				 unsigned long context_unused)
+		       unsigned long context)
 {
-	const struct pcidas64_board *thisboard;
-	struct pcidas64_private *devpriv;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct pcidas64_board *thisboard = NULL;
+	struct pcidas64_private *devpriv;
 	uint32_t local_range, local_decode;
 	int retval;
 
-	dev->board_ptr = cb_pcidas64_find_pci_board(pcidev);
-	if (!dev->board_ptr) {
-		dev_err(dev->class_dev,
-			"cb_pcidas64: does not support pci %s\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	thisboard = comedi_board(dev);
+	if (context < ARRAY_SIZE(pcidas64_boards))
+		thisboard = &pcidas64_boards[context];
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
 
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_warn(dev->class_dev,
-			 "failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
+	retval = comedi_pci_enable(dev);
+	if (retval)
+		return retval;
 	pci_set_master(pcidev);
 
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	devpriv->main_phys_iobase = pci_resource_start(pcidev, 2);
+	devpriv->dio_counter_phys_iobase = pci_resource_start(pcidev, 3);
 
-	devpriv->plx9080_phys_iobase =
-		pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	devpriv->main_phys_iobase = dev->iobase;
-	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
-
-	/*  remap, won't work with 2.0 kernels but who cares */
-	devpriv->plx9080_iobase =
-		ioremap(devpriv->plx9080_phys_iobase,
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
-	devpriv->main_iobase =
-		ioremap(devpriv->main_phys_iobase,
-			pci_resource_len(pcidev, MAIN_BADDRINDEX));
-	devpriv->dio_counter_iobase =
-		ioremap(devpriv->dio_counter_phys_iobase,
-			pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->main_iobase = pci_ioremap_bar(pcidev, 2);
+	devpriv->dio_counter_iobase = pci_ioremap_bar(pcidev, 3);
 
 	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
 	    || !devpriv->dio_counter_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
-
-	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", devpriv->plx9080_iobase);
-	DEBUG_PRINT(" main remapped to 0x%p\n", devpriv->main_iobase);
-	DEBUG_PRINT(" diocounter remapped to 0x%p\n",
-		    devpriv->dio_counter_iobase);
 
 	/*  figure out what local addresses are */
 	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) &
@@ -4119,9 +3986,6 @@ static int auto_attach(struct comedi_device *dev,
 		       local_range & LMAP_MEM_MASK;
 	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &
 				  ~local_range) | local_decode;
-
-	DEBUG_PRINT(" local 0 io addr 0x%x\n", devpriv->local0_iobase);
-	DEBUG_PRINT(" local 1 io addr 0x%x\n", devpriv->local1_iobase);
 
 	retval = alloc_and_init_dma_members(dev);
 	if (retval < 0)
@@ -4199,12 +4063,7 @@ static void detach(struct comedi_device *dev)
 					devpriv->ao_dma_desc_bus_addr);
 		}
 	}
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[4]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcidas64_driver = {
@@ -4215,36 +4074,34 @@ static struct comedi_driver cb_pcidas64_driver = {
 };
 
 static int cb_pcidas64_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcidas64_driver);
+	return comedi_pci_auto_config(dev, &cb_pcidas64_driver,
+				      id->driver_data);
 }
 
-static void cb_pcidas64_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static DEFINE_PCI_DEVICE_TABLE(cb_pcidas64_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x001e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0035) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0036) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0037) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0052) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x005f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0061) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0062) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0063) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0064) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0066) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0067) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0068) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x006f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0078) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0079) },
+static const struct pci_device_id cb_pcidas64_pci_table[] = {
+	{ PCI_VDEVICE(CB, 0x001d), BOARD_PCIDAS6402_16 },
+	{ PCI_VDEVICE(CB, 0x001e), BOARD_PCIDAS6402_12 },
+	{ PCI_VDEVICE(CB, 0x0035), BOARD_PCIDAS64_M1_16 },
+	{ PCI_VDEVICE(CB, 0x0036), BOARD_PCIDAS64_M2_16 },
+	{ PCI_VDEVICE(CB, 0x0037), BOARD_PCIDAS64_M3_16 },
+	{ PCI_VDEVICE(CB, 0x0052), BOARD_PCIDAS4020_12 },
+	{ PCI_VDEVICE(CB, 0x005d), BOARD_PCIDAS6023 },
+	{ PCI_VDEVICE(CB, 0x005e), BOARD_PCIDAS6025 },
+	{ PCI_VDEVICE(CB, 0x005f), BOARD_PCIDAS6030 },
+	{ PCI_VDEVICE(CB, 0x0060), BOARD_PCIDAS6031 },
+	{ PCI_VDEVICE(CB, 0x0061), BOARD_PCIDAS6032 },
+	{ PCI_VDEVICE(CB, 0x0062), BOARD_PCIDAS6033 },
+	{ PCI_VDEVICE(CB, 0x0063), BOARD_PCIDAS6034 },
+	{ PCI_VDEVICE(CB, 0x0064), BOARD_PCIDAS6035 },
+	{ PCI_VDEVICE(CB, 0x0065), BOARD_PCIDAS6040 },
+	{ PCI_VDEVICE(CB, 0x0066), BOARD_PCIDAS6052 },
+	{ PCI_VDEVICE(CB, 0x0067), BOARD_PCIDAS6070 },
+	{ PCI_VDEVICE(CB, 0x0068), BOARD_PCIDAS6071 },
+	{ PCI_VDEVICE(CB, 0x006f), BOARD_PCIDAS6036 },
+	{ PCI_VDEVICE(CB, 0x0078), BOARD_PCIDAS6013 },
+	{ PCI_VDEVICE(CB, 0x0079), BOARD_PCIDAS6014 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcidas64_pci_table);
@@ -4253,7 +4110,7 @@ static struct pci_driver cb_pcidas64_pci_driver = {
 	.name		= "cb_pcidas64",
 	.id_table	= cb_pcidas64_pci_table,
 	.probe		= cb_pcidas64_pci_probe,
-	.remove		= cb_pcidas64_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(cb_pcidas64_driver, cb_pcidas64_pci_driver);
 

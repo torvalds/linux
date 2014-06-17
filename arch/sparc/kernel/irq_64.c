@@ -698,30 +698,19 @@ void __irq_entry handler_irq(int pil, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-void do_softirq(void)
+void do_softirq_own_stack(void)
 {
-	unsigned long flags;
+	void *orig_sp, *sp = softirq_stack[smp_processor_id()];
 
-	if (in_interrupt())
-		return;
+	sp += THREAD_SIZE - 192 - STACK_BIAS;
 
-	local_irq_save(flags);
-
-	if (local_softirq_pending()) {
-		void *orig_sp, *sp = softirq_stack[smp_processor_id()];
-
-		sp += THREAD_SIZE - 192 - STACK_BIAS;
-
-		__asm__ __volatile__("mov %%sp, %0\n\t"
-				     "mov %1, %%sp"
-				     : "=&r" (orig_sp)
-				     : "r" (sp));
-		__do_softirq();
-		__asm__ __volatile__("mov %0, %%sp"
-				     : : "r" (orig_sp));
-	}
-
-	local_irq_restore(flags);
+	__asm__ __volatile__("mov %%sp, %0\n\t"
+			     "mov %1, %%sp"
+			     : "=&r" (orig_sp)
+			     : "r" (sp));
+	__do_softirq();
+	__asm__ __volatile__("mov %0, %%sp"
+			     : : "r" (orig_sp));
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -835,7 +824,8 @@ void notrace init_irqwork_curcpu(void)
  * Therefore you cannot make any OBP calls, not even prom_printf,
  * from these two routines.
  */
-static void __cpuinit notrace register_one_mondo(unsigned long paddr, unsigned long type, unsigned long qmask)
+static void notrace register_one_mondo(unsigned long paddr, unsigned long type,
+				       unsigned long qmask)
 {
 	unsigned long num_entries = (qmask + 1) / 64;
 	unsigned long status;
@@ -848,7 +838,7 @@ static void __cpuinit notrace register_one_mondo(unsigned long paddr, unsigned l
 	}
 }
 
-void __cpuinit notrace sun4v_register_mondo_queues(int this_cpu)
+void notrace sun4v_register_mondo_queues(int this_cpu)
 {
 	struct trap_per_cpu *tb = &trap_block[this_cpu];
 

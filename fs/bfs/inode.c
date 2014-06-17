@@ -40,7 +40,7 @@ struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
 	int block, off;
 
 	inode = iget_locked(sb, ino);
-	if (IS_ERR(inode))
+	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
 		return inode;
@@ -172,7 +172,7 @@ static void bfs_evict_inode(struct inode *inode)
 
 	dprintf("ino=%08lx\n", ino);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 
@@ -266,7 +266,7 @@ static void init_once(void *foo)
 	inode_init_once(&bi->vfs_inode);
 }
 
-static int init_inodecache(void)
+static int __init init_inodecache(void)
 {
 	bfs_inode_cachep = kmem_cache_create("bfs_inode_cache",
 					     sizeof(struct bfs_inode_info),
@@ -473,6 +473,7 @@ static struct file_system_type bfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("bfs");
 
 static int __init init_bfs_fs(void)
 {

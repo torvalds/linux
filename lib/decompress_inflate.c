@@ -19,6 +19,7 @@
 #include "zlib_inflate/inflate.h"
 
 #include "zlib_inflate/infutil.h"
+#include <linux/decompress/inflate.h>
 
 #endif /* STATIC */
 
@@ -48,7 +49,7 @@ STATIC int INIT gunzip(unsigned char *buf, int len,
 		out_len = 0x8000; /* 32 K */
 		out_buf = malloc(out_len);
 	} else {
-		out_len = 0x7fffffff; /* no limit */
+		out_len = ((size_t)~0) - (size_t)out_buf; /* no limit */
 	}
 	if (!out_buf) {
 		error("Out of memory while allocating output buffer");

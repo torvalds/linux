@@ -14,7 +14,7 @@
 #include <linux/io.h>		/* outb, outb_p			*/
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <sound/tea575x-tuner.h>
+#include <media/tea575x.h>
 
 MODULE_AUTHOR("Ondrej Zary");
 MODULE_DESCRIPTION("MediaForte SF16-FMR2 and SF16-FMD2 FM radio card driver");
@@ -74,8 +74,8 @@ static u8 fmr2_tea575x_get_pins(struct snd_tea575x *tea)
 	struct fmr2 *fmr2 = tea->private_data;
 	u8 bits = inb(fmr2->io);
 
-	return  (bits & STR_DATA) ? TEA575X_DATA : 0 |
-		(bits & STR_MOST) ? TEA575X_MOST : 0;
+	return  ((bits & STR_DATA) ? TEA575X_DATA : 0) |
+		((bits & STR_MOST) ? TEA575X_MOST : 0);
 }
 
 static void fmr2_tea575x_set_direction(struct snd_tea575x *tea, bool output)
@@ -295,7 +295,6 @@ static void fmr2_remove(struct fmr2 *fmr2)
 static int fmr2_isa_remove(struct device *pdev, unsigned int ndev)
 {
 	fmr2_remove(dev_get_drvdata(pdev));
-	dev_set_drvdata(pdev, NULL);
 
 	return 0;
 }

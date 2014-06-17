@@ -16,10 +16,11 @@ menuconfig CAN
 	  If you want CAN support you should say Y here and also to the
 	  specific driver for your controller(s) below.
 
+if CAN
+
 config CAN_RAW
 	tristate "Raw CAN Protocol (raw access with CAN-ID filtering)"
-	depends on CAN
-	default N
+	default y
 	---help---
 	  The raw CAN protocol option offers access to the CAN bus via
 	  the BSD socket API. You probably want to use the raw socket in
@@ -29,8 +30,7 @@ config CAN_RAW
 
 config CAN_BCM
 	tristate "Broadcast Manager CAN Protocol (with content filtering)"
-	depends on CAN
-	default N
+	default y
 	---help---
 	  The Broadcast Manager offers content filtering, timeout monitoring,
 	  sending of RTR frames, and cyclic CAN messages without permanent user
@@ -42,8 +42,7 @@ config CAN_BCM
 
 config CAN_GW
 	tristate "CAN Gateway/Router (with netlink configuration)"
-	depends on CAN
-	default N
+	default y
 	---help---
 	  The CAN Gateway/Router is used to route (and modify) CAN frames.
 	  It is based on the PF_CAN core infrastructure for msg filtering and
@@ -53,3 +52,5 @@ config CAN_GW
 	  by the netlink configuration interface known e.g. from iptables.
 
 source "drivers/net/can/Kconfig"
+
+endif

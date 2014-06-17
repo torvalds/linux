@@ -37,7 +37,7 @@ extern char prom_getchar(void);
  * in chain is CURR is NULL.
  */
 extern struct linux_mdesc *prom_getmdesc(struct linux_mdesc *curr);
-#define PROM_NULL_MDESC   ((struct linux_mdesc *) 0)
+#define PROM_NULL_MDESC	  ((struct linux_mdesc *) 0)
 
 /* Called by prom_init to setup the physical memory pmemblock
  * array.

@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/phy.h>
 #include <linux/mdio.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 
@@ -161,7 +162,9 @@ static int xgmac_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 
 	/* Return all Fs if nothing was there */
 	if (in_be32(&regs->mdio_stat) & MDIO_STAT_RD_ER) {
-		dev_err(&bus->dev, "MDIO read error\n");
+		dev_err(&bus->dev,
+			"Error while reading PHY%d reg at %d.%d\n",
+			phy_id, dev_addr, regnum);
 		return 0xffff;
 	}
 
@@ -227,7 +230,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 		goto err_registration;
 	}
 
-	dev_set_drvdata(&pdev->dev, bus);
+	platform_set_drvdata(pdev, bus);
 
 	return 0;
 
@@ -242,7 +245,7 @@ err_ioremap:
 
 static int xgmac_mdio_remove(struct platform_device *pdev)
 {
-	struct mii_bus *bus = dev_get_drvdata(&pdev->dev);
+	struct mii_bus *bus = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(bus);
 	iounmap(bus->priv);

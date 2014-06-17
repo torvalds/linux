@@ -37,12 +37,9 @@ ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath5k_hw *ah = common->priv;
 	struct platform_device *pdev = to_platform_device(ah->dev);
-	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	u16 *eeprom, *eeprom_end;
 
-
-
-	bcfg = pdev->dev.platform_data;
 	eeprom = (u16 *) bcfg->radio;
 	eeprom_end = ((void *) bcfg->config) + BOARD_CONFIG_BUFSZ;
 
@@ -57,7 +54,7 @@ ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 int ath5k_hw_read_srev(struct ath5k_hw *ah)
 {
 	struct platform_device *pdev = to_platform_device(ah->dev);
-	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	ah->ah_mac_srev = bcfg->devid;
 	return 0;
 }
@@ -65,7 +62,7 @@ int ath5k_hw_read_srev(struct ath5k_hw *ah)
 static int ath5k_ahb_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 {
 	struct platform_device *pdev = to_platform_device(ah->dev);
-	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	u8 *cfg_mac;
 
 	if (to_platform_device(ah->dev)->id == 0)
@@ -87,7 +84,7 @@ static const struct ath_bus_ops ath_ahb_bus_ops = {
 /*Initialization*/
 static int ath_ahb_probe(struct platform_device *pdev)
 {
-	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	struct ath5k_hw *ah;
 	struct ieee80211_hw *hw;
 	struct resource *res;
@@ -96,7 +93,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 reg;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev_get_platdata(&pdev->dev)) {
 		dev_err(&pdev->dev, "no platform data specified\n");
 		ret = -EINVAL;
 		goto err_out;
@@ -185,7 +182,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
  err_free_hw:
 	ieee80211_free_hw(hw);
-	platform_set_drvdata(pdev, NULL);
  err_iounmap:
         iounmap(mem);
  err_out:
@@ -194,7 +190,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 static int ath_ahb_remove(struct platform_device *pdev)
 {
-	struct ar231x_board_config *bcfg = pdev->dev.platform_data;
+	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
 	struct ath5k_hw *ah;
 	u32 reg;
@@ -221,7 +217,6 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	ath5k_deinit_ah(ah);
 	iounmap(ah->iobase);
-	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
 	return 0;

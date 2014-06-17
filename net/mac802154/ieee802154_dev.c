@@ -27,6 +27,7 @@
 #include <net/netlink.h>
 #include <linux/nl802154.h>
 #include <net/mac802154.h>
+#include <net/ieee802154_netdev.h>
 #include <net/route.h>
 #include <net/wpan-phy.h>
 
@@ -35,8 +36,27 @@
 int mac802154_slave_open(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+	struct mac802154_sub_if_data *subif;
 	struct mac802154_priv *ipriv = priv->hw;
 	int res = 0;
+
+	ASSERT_RTNL();
+
+	if (priv->type == IEEE802154_DEV_WPAN) {
+		mutex_lock(&priv->hw->slaves_mtx);
+		list_for_each_entry(subif, &priv->hw->slaves, list) {
+			if (subif != priv && subif->type == priv->type &&
+			    subif->running) {
+				mutex_unlock(&priv->hw->slaves_mtx);
+				return -EBUSY;
+			}
+		}
+		mutex_unlock(&priv->hw->slaves_mtx);
+	}
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = true;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (ipriv->open_count++ == 0) {
 		res = ipriv->ops->start(&ipriv->hw);
@@ -46,7 +66,9 @@ int mac802154_slave_open(struct net_device *dev)
 	}
 
 	if (ipriv->ops->ieee_addr) {
-		res = ipriv->ops->ieee_addr(&ipriv->hw, dev->dev_addr);
+		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+
+		res = ipriv->ops->ieee_addr(&ipriv->hw, addr);
 		WARN_ON(res);
 		if (res)
 			goto err;
@@ -66,7 +88,13 @@ int mac802154_slave_close(struct net_device *dev)
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_priv *ipriv = priv->hw;
 
+	ASSERT_RTNL();
+
 	netif_stop_queue(dev);
+
+	mutex_lock(&priv->hw->slaves_mtx);
+	priv->running = false;
+	mutex_unlock(&priv->hw->slaves_mtx);
 
 	if (!--ipriv->open_count)
 		ipriv->ops->stop(&ipriv->hw);
@@ -165,6 +193,49 @@ err:
 	return ERR_PTR(err);
 }
 
+static int mac802154_set_txpower(struct wpan_phy *phy, int db)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_txpower(&priv->hw, db);
+}
+
+static int mac802154_set_lbt(struct wpan_phy *phy, bool on)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_lbt(&priv->hw, on);
+}
+
+static int mac802154_set_cca_mode(struct wpan_phy *phy, u8 mode)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_cca_mode(&priv->hw, mode);
+}
+
+static int mac802154_set_cca_ed_level(struct wpan_phy *phy, s32 level)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_cca_ed_level(&priv->hw, level);
+}
+
+static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
+				     u8 max_be, u8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_csma_params(&priv->hw, min_be, max_be, retries);
+}
+
+static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
+{
+	struct mac802154_priv *priv = wpan_phy_priv(phy);
+
+	return priv->ops->set_frame_retries(&priv->hw, retries);
+}
+
 struct ieee802154_dev *
 ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 {
@@ -174,8 +245,7 @@ ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 
 	if (!ops || !ops->xmit || !ops->ed || !ops->start ||
 	    !ops->stop || !ops->set_channel) {
-		printk(KERN_ERR
-		       "undefined IEEE802.15.4 device operations\n");
+		pr_err("undefined IEEE802.15.4 device operations\n");
 		return NULL;
 	}
 
@@ -201,8 +271,7 @@ ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 
 	phy = wpan_phy_alloc(priv_size);
 	if (!phy) {
-		printk(KERN_ERR
-		       "failure to allocate master IEEE802.15.4 device\n");
+		pr_err("failure to allocate master IEEE802.15.4 device\n");
 		return NULL;
 	}
 
@@ -244,6 +313,18 @@ int ieee802154_register_device(struct ieee802154_dev *dev)
 
 	priv->phy->add_iface = mac802154_add_iface;
 	priv->phy->del_iface = mac802154_del_iface;
+	if (priv->ops->set_txpower)
+		priv->phy->set_txpower = mac802154_set_txpower;
+	if (priv->ops->set_lbt)
+		priv->phy->set_lbt = mac802154_set_lbt;
+	if (priv->ops->set_cca_mode)
+		priv->phy->set_cca_mode = mac802154_set_cca_mode;
+	if (priv->ops->set_cca_ed_level)
+		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
+	if (priv->ops->set_csma_params)
+		priv->phy->set_csma_params = mac802154_set_csma_params;
+	if (priv->ops->set_frame_retries)
+		priv->phy->set_frame_retries = mac802154_set_frame_retries;
 
 	rc = wpan_phy_register(priv->phy);
 	if (rc < 0)

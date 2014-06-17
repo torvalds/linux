@@ -13,7 +13,7 @@
  *    Copyright (C) 2000 Grant Grundler <grundler with parisc-linux.org>
  *    Copyright (C) 2001 Alan Modra <amodra at parisc-linux.org>
  *    Copyright (C) 2001-2002 Ryan Bradetich <rbrad at parisc-linux.org>
- *    Copyright (C) 2001-2007 Helge Deller <deller at parisc-linux.org>
+ *    Copyright (C) 2001-2014 Helge Deller <deller@gmx.de>
  *    Copyright (C) 2002 Randolph Chung <tausq with parisc-linux.org>
  *
  *
@@ -49,6 +49,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/rcupdate.h>
+#include <linux/random.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -58,28 +59,6 @@
 #include <asm/pgalloc.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
-
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		rcu_idle_enter();
-		while (!need_resched())
-			barrier();
-		rcu_idle_exit();
-		schedule_preempt_disabled();
-		check_pgt_cache();
-	}
-}
-
 
 #define COMMAND_GLOBAL  F_EXTEND(0xfffe0030)
 #define CMD_RESET       5       /* reset any module */
@@ -308,3 +287,21 @@ void *dereference_function_descriptor(void *ptr)
 	return ptr;
 }
 #endif
+
+static inline unsigned long brk_rnd(void)
+{
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		return (get_random_int() & 0x7ffUL) << PAGE_SHIFT;
+	else
+		return (get_random_int() & 0x3ffffUL) << PAGE_SHIFT;
+}
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long ret = PAGE_ALIGN(mm->brk + brk_rnd());
+
+	if (ret < mm->brk)
+		return mm->brk;
+	return ret;
+}

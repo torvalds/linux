@@ -55,10 +55,9 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 		     u8 *p_macaddr, bool is_group, u8 enc_algo,
 		     bool is_wepkey, bool clear_all);
 
-extern void rtl92de_write_dword_dbi(struct ieee80211_hw *hw, u16 offset,
-				    u32 value, u8 direct);
-extern u32 rtl92de_read_dword_dbi(struct ieee80211_hw *hw, u16 offset,
-				  u8 direct);
+void rtl92de_write_dword_dbi(struct ieee80211_hw *hw, u16 offset, u32 value,
+			     u8 direct);
+u32 rtl92de_read_dword_dbi(struct ieee80211_hw *hw, u16 offset, u8 direct);
 void rtl92de_suspend(struct ieee80211_hw *hw);
 void rtl92de_resume(struct ieee80211_hw *hw);
 void rtl92d_linked_set_reg(struct ieee80211_hw *hw);

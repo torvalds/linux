@@ -1,0 +1,324 @@
+/*
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+#include "imx27-phytec-phycore-som.dtsi"
+
+/ {
+	model = "Phytec pcm970";
+	compatible = "phytec,imx27-pcm970", "phytec,imx27-pcm038", "fsl,imx27";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	display0: LQ035Q7 {
+		model = "Sharp-LQ035Q7";
+		native-mode = <&timing0>;
+		bits-per-pixel = <16>;
+		fsl,pcr = <0xf00080c0>;
+
+		display-timings {
+			timing0: 240x320 {
+				clock-frequency = <5500000>;
+				hactive = <240>;
+				vactive = <320>;
+				hback-porch = <5>;
+				hsync-len = <7>;
+				hfront-porch = <16>;
+				vback-porch = <7>;
+				vsync-len = <1>;
+				vfront-porch = <9>;
+				pixelclk-active = <1>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+				de-active = <0>;
+			};
+		};
+	};
+
+	regulators {
+		regulator@2 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_csien>;
+			reg = <2>;
+			regulator-name = "CSI_EN";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+			regulator-always-on;
+		};
+	};
+
+	usbphy {
+		usbphy2: usbphy@2 {
+			compatible = "usb-nop-xceiv";
+			reg = <2>;
+			vcc-supply = <&reg_5v0>;
+			clocks = <&clks 0>;
+			clock-names = "main_clk";
+		};
+	};
+};
+
+&cspi1 {
+	pinctrl-0 = <&pinctrl_cspi1>, <&pinctrl_cspi1cs1>;
+	fsl,spi-num-chipselects = <2>;
+	cs-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>,
+		   <&gpio4 27 GPIO_ACTIVE_LOW>;
+};
+
+&fb {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_imxfb1>;
+	display = <&display0>;
+	lcd-supply = <&reg_5v0>;
+	fsl,dmacr = <0x00020010>;
+	fsl,lscr1 = <0x00120300>;
+	fsl,lpccr = <0x00a903ff>;
+	status = "okay";
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	camgpio: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&iomuxc {
+	imx27_phycore_rdk {
+		pinctrl_csien: csiengrp {
+			fsl,pins = <
+				MX27_PAD_USB_OC_B__GPIO2_24 0x0
+			>;
+		};
+
+		pinctrl_cspi1cs1: cspi1cs1grp {
+			fsl,pins = <
+				MX27_PAD_CSPI1_SS1__GPIO4_27 0x0
+			>;
+		};
+
+		pinctrl_imxfb1: imxfbgrp {
+			fsl,pins = <
+				MX27_PAD_LD0__LD0 0x0
+				MX27_PAD_LD1__LD1 0x0
+				MX27_PAD_LD2__LD2 0x0
+				MX27_PAD_LD3__LD3 0x0
+				MX27_PAD_LD4__LD4 0x0
+				MX27_PAD_LD5__LD5 0x0
+				MX27_PAD_LD6__LD6 0x0
+				MX27_PAD_LD7__LD7 0x0
+				MX27_PAD_LD8__LD8 0x0
+				MX27_PAD_LD9__LD9 0x0
+				MX27_PAD_LD10__LD10 0x0
+				MX27_PAD_LD11__LD11 0x0
+				MX27_PAD_LD12__LD12 0x0
+				MX27_PAD_LD13__LD13 0x0
+				MX27_PAD_LD14__LD14 0x0
+				MX27_PAD_LD15__LD15 0x0
+				MX27_PAD_LD16__LD16 0x0
+				MX27_PAD_LD17__LD17 0x0
+				MX27_PAD_CLS__CLS 0x0
+				MX27_PAD_CONTRAST__CONTRAST 0x0
+				MX27_PAD_LSCLK__LSCLK 0x0
+				MX27_PAD_OE_ACD__OE_ACD 0x0
+				MX27_PAD_PS__PS 0x0
+				MX27_PAD_REV__REV 0x0
+				MX27_PAD_SPL_SPR__SPL_SPR 0x0
+				MX27_PAD_HSYNC__HSYNC 0x0
+				MX27_PAD_VSYNC__VSYNC 0x0
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			/* Add pullup to DATA line */
+			fsl,pins = <
+				MX27_PAD_I2C_DATA__I2C_DATA	0x1
+				MX27_PAD_I2C_CLK__I2C_CLK	0x0
+			>;
+		};
+
+		pinctrl_owire1: owire1grp {
+			fsl,pins = <
+				MX27_PAD_RTCK__OWIRE 0x0
+			>;
+		};
+
+		pinctrl_sdhc2: sdhc2grp {
+			fsl,pins = <
+				MX27_PAD_SD2_CLK__SD2_CLK 0x0
+				MX27_PAD_SD2_CMD__SD2_CMD 0x0
+				MX27_PAD_SD2_D0__SD2_D0 0x0
+				MX27_PAD_SD2_D1__SD2_D1 0x0
+				MX27_PAD_SD2_D2__SD2_D2 0x0
+				MX27_PAD_SD2_D3__SD2_D3 0x0
+				MX27_PAD_SSI3_FS__GPIO3_28	0x0 /* WP */
+				MX27_PAD_SSI3_RXDAT__GPIO3_29	0x0 /* CD */
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+				MX27_PAD_UART1_CTS__UART1_CTS 0x0
+				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX27_PAD_UART2_TXD__UART2_TXD 0x0
+				MX27_PAD_UART2_RXD__UART2_RXD 0x0
+				MX27_PAD_UART2_CTS__UART2_CTS 0x0
+				MX27_PAD_UART2_RTS__UART2_RTS 0x0
+			>;
+		};
+
+		pinctrl_usbh2: usbh2grp {
+			fsl,pins = <
+				MX27_PAD_USBH2_CLK__USBH2_CLK 0x0
+				MX27_PAD_USBH2_DIR__USBH2_DIR 0x0
+				MX27_PAD_USBH2_NXT__USBH2_NXT 0x0
+				MX27_PAD_USBH2_STP__USBH2_STP 0x0
+				MX27_PAD_CSPI2_SCLK__USBH2_DATA0 0x0
+				MX27_PAD_CSPI2_MOSI__USBH2_DATA1 0x0
+				MX27_PAD_CSPI2_MISO__USBH2_DATA2 0x0
+				MX27_PAD_CSPI2_SS1__USBH2_DATA3 0x0
+				MX27_PAD_CSPI2_SS2__USBH2_DATA4 0x0
+				MX27_PAD_CSPI1_SS2__USBH2_DATA5 0x0
+				MX27_PAD_CSPI2_SS0__USBH2_DATA6 0x0
+				MX27_PAD_USBH2_DATA7__USBH2_DATA7 0x0
+			>;
+		};
+
+		pinctrl_weim: weimgrp {
+			fsl,pins = <
+				MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
+				MX27_PAD_SD1_D1__GPIO5_19	0x0 /* CAN IRQ */
+			>;
+		};
+	};
+};
+
+&owire {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_owire1>;
+	status = "okay";
+};
+
+&pmicleds {
+	ledr1: led@3 {
+		reg = <3>;
+		label = "system:red1:user";
+	};
+
+	ledg1: led@4 {
+		reg = <4>;
+		label = "system:green1:user";
+	};
+
+	ledb1: led@5 {
+		reg = <5>;
+		label = "system:blue1:user";
+	};
+
+	ledr2: led@6 {
+		reg = <6>;
+		label = "system:red2:user";
+	};
+
+	ledg2: led@7 {
+		reg = <7>;
+		label = "system:green2:user";
+	};
+
+	ledb2: led@8 {
+		reg = <8>;
+		label = "system:blue2:user";
+	};
+
+	ledr3: led@9 {
+		reg = <9>;
+		label = "system:red3:nand";
+		linux,default-trigger = "nand-disk";
+	};
+
+	ledg3: led@10 {
+		reg = <10>;
+		label = "system:green3:live";
+		linux,default-trigger = "heartbeat";
+	};
+
+	ledb3: led@11 {
+		reg = <11>;
+		label = "system:blue3:cpu";
+		linux,default-trigger = "cpu0";
+	};
+};
+
+&sdhci2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc2>;
+	bus-width = <4>;
+	cd-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
+	vmmc-supply = <&vmmc1_reg>;
+	status = "okay";
+};
+
+&uart1 {
+	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	fsl,uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&usbh2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh2>;
+	dr_mode = "host";
+	phy_type = "ulpi";
+	vbus-supply = <&reg_5v0>;
+	fsl,usbphy = <&usbphy2>;
+	disable-over-current;
+	status = "okay";
+};
+
+&weim {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_weim>;
+
+	can@4,0 {
+		compatible = "nxp,sja1000";
+		reg = <4 0x00000000 0x00000100>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <19 IRQ_TYPE_EDGE_FALLING>;
+		nxp,external-clock-frequency = <16000000>;
+		nxp,tx-output-config = <0x16>;
+		nxp,no-comparator-bypass;
+		fsl,weim-cs-timing = <0x0000dcf6 0x444a0301 0x44443302>;
+	};
+};

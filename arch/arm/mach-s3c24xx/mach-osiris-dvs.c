@@ -20,6 +20,7 @@
 #include <linux/i2c/tps65010.h>
 
 #include <plat/cpu-freq.h>
+#include <mach/gpio-samsung.h>
 
 #define OSIRIS_GPIO_DVS	S3C2410_GPB(5)
 

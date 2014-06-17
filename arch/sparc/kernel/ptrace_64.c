@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/smp.h>
@@ -26,6 +27,7 @@
 #include <trace/syscall.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
+#include <linux/context_tracking.h>
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
@@ -116,6 +118,7 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 	preempt_enable();
 }
+EXPORT_SYMBOL_GPL(flush_ptrace_access);
 
 static int get_from_target(struct task_struct *target, unsigned long uaddr,
 			   void *kbuf, int len)
@@ -1064,6 +1067,9 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 	/* do the secure computing check first */
 	secure_computing_strict(regs->u_regs[UREG_G1]);
 
+	if (test_thread_flag(TIF_NOHZ))
+		user_exit();
+
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		ret = tracehook_report_syscall_entry(regs);
 
@@ -1084,11 +1090,17 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
+	if (test_thread_flag(TIF_NOHZ))
+		user_exit();
+
 	audit_syscall_exit(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_exit(regs, regs->u_regs[UREG_G1]);
+		trace_sys_exit(regs, regs->u_regs[UREG_I0]);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);
+
+	if (test_thread_flag(TIF_NOHZ))
+		user_enter();
 }

@@ -115,7 +115,7 @@
 /*
  * Only define NR_IRQS if less than NR_IRQS_EB
  */
-#define NR_IRQS_EB		(IRQ_EB_GIC_START + 96)
+#define NR_IRQS_EB		(IRQ_EB_GIC_START + 128)
 
 #if defined(CONFIG_MACH_REALVIEW_EB) \
 	&& (!defined(NR_IRQS) || (NR_IRQS < NR_IRQS_EB))

@@ -72,13 +72,11 @@ void rv370_pcie_gart_tlb_flush(struct radeon_device *rdev)
 #define R300_PTE_WRITEABLE (1 << 2)
 #define R300_PTE_READABLE  (1 << 3)
 
-int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
+void rv370_pcie_gart_set_page(struct radeon_device *rdev, unsigned i,
+			      uint64_t addr)
 {
 	void __iomem *ptr = rdev->gart.ptr;
 
-	if (i < 0 || i > rdev->gart.num_gpu_pages) {
-		return -EINVAL;
-	}
 	addr = (lower_32_bits(addr) >> 8) |
 	       ((upper_32_bits(addr) & 0xff) << 24) |
 	       R300_PTE_WRITEABLE | R300_PTE_READABLE;
@@ -86,7 +84,6 @@ int rv370_pcie_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	 * on powerpc without HW swappers, it'll get swapped on way
 	 * into VRAM - so no need for cpu_to_le32 on VRAM tables */
 	writel(addr, ((void __iomem *)ptr) + (i * 4));
-	return 0;
 }
 
 int rv370_pcie_gart_init(struct radeon_device *rdev)
@@ -615,7 +612,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
 		break;
@@ -630,30 +627,30 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_RB3D_COLOROFFSET2:
 	case R300_RB3D_COLOROFFSET3:
 		i = (reg - R300_RB3D_COLOROFFSET0) >> 2;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
 		track->cb[i].robj = reloc->robj;
 		track->cb[i].offset = idx_value;
 		track->cb_dirty = true;
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->gpu_offset);
 		break;
 	case R300_ZB_DEPTHOFFSET:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
 		track->zb.robj = reloc->robj;
 		track->zb.offset = idx_value;
 		track->zb_dirty = true;
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->gpu_offset);
 		break;
 	case R300_TX_OFFSET_0:
 	case R300_TX_OFFSET_0+4:
@@ -672,26 +669,26 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case R300_TX_OFFSET_0+56:
 	case R300_TX_OFFSET_0+60:
 		i = (reg - R300_TX_OFFSET_0) >> 2;
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
 
 		if (p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) {
 			ib[idx] = (idx_value & 31) | /* keep the 1st 5 bits */
-				  ((idx_value & ~31) + (u32)reloc->lobj.gpu_offset);
+				  ((idx_value & ~31) + (u32)reloc->gpu_offset);
 		} else {
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			if (reloc->tiling_flags & RADEON_TILING_MACRO)
 				tile_flags |= R300_TXO_MACRO_TILE;
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			if (reloc->tiling_flags & RADEON_TILING_MICRO)
 				tile_flags |= R300_TXO_MICRO_TILE;
-			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			else if (reloc->tiling_flags & RADEON_TILING_MICRO_SQUARE)
 				tile_flags |= R300_TXO_MICRO_TILE_SQUARE;
 
-			tmp = idx_value + ((u32)reloc->lobj.gpu_offset);
+			tmp = idx_value + ((u32)reloc->gpu_offset);
 			tmp |= tile_flags;
 			ib[idx] = tmp;
 		}
@@ -745,19 +742,19 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
-			r = r100_cs_packet_next_reloc(p, &reloc);
+			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 			if (r) {
 				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					  idx, reg);
-				r100_cs_dump_packet(p, pkt);
+				radeon_cs_dump_packet(p, pkt);
 				return r;
 			}
 
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			if (reloc->tiling_flags & RADEON_TILING_MACRO)
 				tile_flags |= R300_COLOR_TILE_ENABLE;
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			if (reloc->tiling_flags & RADEON_TILING_MICRO)
 				tile_flags |= R300_COLOR_MICROTILE_ENABLE;
-			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			else if (reloc->tiling_flags & RADEON_TILING_MICRO_SQUARE)
 				tile_flags |= R300_COLOR_MICROTILE_SQUARE_ENABLE;
 
 			tmp = idx_value & ~(0x7 << 16);
@@ -830,19 +827,19 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
 		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
-			r = r100_cs_packet_next_reloc(p, &reloc);
+			r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 			if (r) {
 				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					  idx, reg);
-				r100_cs_dump_packet(p, pkt);
+				radeon_cs_dump_packet(p, pkt);
 				return r;
 			}
 
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			if (reloc->tiling_flags & RADEON_TILING_MACRO)
 				tile_flags |= R300_DEPTHMACROTILE_ENABLE;
-			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+			if (reloc->tiling_flags & RADEON_TILING_MICRO)
 				tile_flags |= R300_DEPTHMICROTILE_TILED;
-			else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			else if (reloc->tiling_flags & RADEON_TILING_MICRO_SQUARE)
 				tile_flags |= R300_DEPTHMICROTILE_TILED_SQUARE;
 
 			tmp = idx_value & ~(0x7 << 16);
@@ -1045,14 +1042,14 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->tex_dirty = true;
 		break;
 	case R300_ZB_ZPASS_ADDR:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 					idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->gpu_offset);
 		break;
 	case 0x4e0c:
 		/* RB3D_COLOR_CHANNEL_MASK */
@@ -1087,17 +1084,17 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->cb_dirty = true;
 		break;
 	case R300_RB3D_AARESOLVE_OFFSET:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
 				  idx, reg);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
 		track->aa.robj = reloc->robj;
 		track->aa.offset = idx_value;
 		track->aa_dirty = true;
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		ib[idx] = idx_value + ((u32)reloc->gpu_offset);
 		break;
 	case R300_RB3D_AARESOLVE_PITCH:
 		track->aa.pitch = idx_value & 0x3FFE;
@@ -1156,13 +1153,13 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		break;
 	case PACKET3_INDX_BUFFER:
-		r = r100_cs_packet_next_reloc(p, &reloc);
+		r = radeon_cs_packet_next_reloc(p, &reloc, 0);
 		if (r) {
 			DRM_ERROR("No reloc for packet3 %d\n", pkt->opcode);
-			r100_cs_dump_packet(p, pkt);
+			radeon_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->lobj.gpu_offset);
+		ib[idx+1] = radeon_get_ib_value(p, idx + 1) + ((u32)reloc->gpu_offset);
 		r = r100_cs_track_check_pkt3_indx_buffer(p, pkt, reloc->robj);
 		if (r) {
 			return r;
@@ -1257,21 +1254,21 @@ int r300_cs_parse(struct radeon_cs_parser *p)
 	r100_cs_track_clear(p->rdev, track);
 	p->track = track;
 	do {
-		r = r100_cs_packet_parse(p, &pkt, p->idx);
+		r = radeon_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
 			return r;
 		}
 		p->idx += pkt.count + 2;
 		switch (pkt.type) {
-		case PACKET_TYPE0:
+		case RADEON_PACKET_TYPE0:
 			r = r100_cs_parse_packet0(p, &pkt,
 						  p->rdev->config.r300.reg_safe_bm,
 						  p->rdev->config.r300.reg_safe_bm_size,
 						  &r300_packet0_check);
 			break;
-		case PACKET_TYPE2:
+		case RADEON_PACKET_TYPE2:
 			break;
-		case PACKET_TYPE3:
+		case RADEON_PACKET_TYPE3:
 			r = r300_packet3_check(p, &pkt);
 			break;
 		default:
@@ -1382,6 +1379,12 @@ static int r300_startup(struct radeon_device *rdev)
 	}
 
 	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
@@ -1434,6 +1437,7 @@ int r300_resume(struct radeon_device *rdev)
 
 int r300_suspend(struct radeon_device *rdev)
 {
+	radeon_pm_suspend(rdev);
 	r100_cp_disable(rdev);
 	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -1446,6 +1450,7 @@ int r300_suspend(struct radeon_device *rdev)
 
 void r300_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_ib_pool_fini(rdev);
@@ -1516,9 +1521,6 @@ int r300_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
-	r = radeon_irq_kms_init(rdev);
-	if (r)
-		return r;
 	/* Memory manager */
 	r = radeon_bo_init(rdev);
 	if (r)
@@ -1535,10 +1537,13 @@ int r300_init(struct radeon_device *rdev)
 	}
 	r300_set_reg_safe(rdev);
 
+	/* Initialize power management */
+	radeon_pm_init(rdev);
+
 	rdev->accel_working = true;
 	r = r300_startup(rdev);
 	if (r) {
-		/* Somethings want wront with the accel init stop accel */
+		/* Something went wrong with the accel init, so stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
 		radeon_wb_fini(rdev);

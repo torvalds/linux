@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 #include <linux/mpage.h>
+#include <linux/aio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"
@@ -67,6 +68,74 @@ static void udf_update_extents(struct inode *,
 			       struct extent_position *);
 static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
+static void __udf_clear_extent_cache(struct inode *inode)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	if (iinfo->cached_extent.lstart != -1) {
+		brelse(iinfo->cached_extent.epos.bh);
+		iinfo->cached_extent.lstart = -1;
+	}
+}
+
+/* Invalidate extent cache */
+static void udf_clear_extent_cache(struct inode *inode)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	spin_lock(&iinfo->i_extent_cache_lock);
+	__udf_clear_extent_cache(inode);
+	spin_unlock(&iinfo->i_extent_cache_lock);
+}
+
+/* Return contents of extent cache */
+static int udf_read_extent_cache(struct inode *inode, loff_t bcount,
+				 loff_t *lbcount, struct extent_position *pos)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+	int ret = 0;
+
+	spin_lock(&iinfo->i_extent_cache_lock);
+	if ((iinfo->cached_extent.lstart <= bcount) &&
+	    (iinfo->cached_extent.lstart != -1)) {
+		/* Cache hit */
+		*lbcount = iinfo->cached_extent.lstart;
+		memcpy(pos, &iinfo->cached_extent.epos,
+		       sizeof(struct extent_position));
+		if (pos->bh)
+			get_bh(pos->bh);
+		ret = 1;
+	}
+	spin_unlock(&iinfo->i_extent_cache_lock);
+	return ret;
+}
+
+/* Add extent to extent cache */
+static void udf_update_extent_cache(struct inode *inode, loff_t estart,
+				    struct extent_position *pos, int next_epos)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	spin_lock(&iinfo->i_extent_cache_lock);
+	/* Invalidate previously cached extent */
+	__udf_clear_extent_cache(inode);
+	if (pos->bh)
+		get_bh(pos->bh);
+	memcpy(&iinfo->cached_extent.epos, pos,
+	       sizeof(struct extent_position));
+	iinfo->cached_extent.lstart = estart;
+	if (next_epos)
+		switch (iinfo->i_alloc_type) {
+		case ICBTAG_FLAG_AD_SHORT:
+			iinfo->cached_extent.epos.offset -=
+			sizeof(struct short_ad);
+			break;
+		case ICBTAG_FLAG_AD_LONG:
+			iinfo->cached_extent.epos.offset -=
+			sizeof(struct long_ad);
+		}
+	spin_unlock(&iinfo->i_extent_cache_lock);
+}
 
 void udf_evict_inode(struct inode *inode)
 {
@@ -77,8 +146,8 @@ void udf_evict_inode(struct inode *inode)
 		want_delete = 1;
 		udf_setsize(inode, 0);
 		udf_update_inode(inode, IS_SYNC(inode));
-	} else
-		truncate_inode_pages(&inode->i_data, 0);
+	}
+	truncate_inode_pages_final(&inode->i_data);
 	invalidate_inode_buffers(inode);
 	clear_inode(inode);
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
@@ -90,6 +159,7 @@ void udf_evict_inode(struct inode *inode)
 	}
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
+	udf_clear_extent_cache(inode);
 	if (want_delete) {
 		udf_free_inode(inode);
 	}
@@ -102,9 +172,10 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	loff_t isize = inode->i_size;
 
 	if (to > isize) {
-		truncate_pagecache(inode, to, isize);
+		truncate_pagecache(inode, isize);
 		if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
 			down_write(&iinfo->i_data_sem);
+			udf_clear_extent_cache(inode);
 			udf_truncate_extents(inode);
 			up_write(&iinfo->i_data_sem);
 		}
@@ -146,18 +217,18 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 }
 
 static ssize_t udf_direct_IO(int rw, struct kiocb *iocb,
-			     const struct iovec *iov,
-			     loff_t offset, unsigned long nr_segs)
+			     struct iov_iter *iter,
+			     loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
+	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
-				  udf_get_block);
+	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, udf_get_block);
 	if (unlikely(ret < 0 && (rw & WRITE)))
-		udf_write_failed(mapping, offset + iov_length(iov, nr_segs));
+		udf_write_failed(mapping, offset + count);
 	return ret;
 }
 
@@ -194,6 +265,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 		.nr_to_write = 1,
 	};
 
+	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
 	if (!iinfo->i_lenAlloc) {
 		if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_SHORT_AD))
 			iinfo->i_alloc_type = ICBTAG_FLAG_AD_SHORT;
@@ -372,7 +444,7 @@ static int udf_get_block(struct inode *inode, sector_t block,
 		iinfo->i_next_alloc_goal++;
 	}
 
-
+	udf_clear_extent_cache(inode);
 	phys = inode_getblk(inode, block, &err, &new);
 	if (!phys)
 		goto abort;
@@ -1171,6 +1243,7 @@ set_size:
 	} else {
 		if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 			down_write(&iinfo->i_data_sem);
+			udf_clear_extent_cache(inode);
 			memset(iinfo->i_ext.i_data + iinfo->i_lenEAttr + newsize,
 			       0x00, bsize - newsize -
 			       udf_file_entry_alloc_offset(inode));
@@ -1184,6 +1257,7 @@ set_size:
 		if (err)
 			return err;
 		down_write(&iinfo->i_data_sem);
+		udf_clear_extent_cache(inode);
 		truncate_setsize(inode, newsize);
 		udf_truncate_extents(inode);
 		up_write(&iinfo->i_data_sem);
@@ -2156,11 +2230,12 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 	struct udf_inode_info *iinfo;
 
 	iinfo = UDF_I(inode);
-	pos->offset = 0;
-	pos->block = iinfo->i_location;
-	pos->bh = NULL;
+	if (!udf_read_extent_cache(inode, bcount, &lbcount, pos)) {
+		pos->offset = 0;
+		pos->block = iinfo->i_location;
+		pos->bh = NULL;
+	}
 	*elen = 0;
-
 	do {
 		etype = udf_next_aext(inode, pos, eloc, elen, 1);
 		if (etype == -1) {
@@ -2170,7 +2245,8 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 		}
 		lbcount += *elen;
 	} while (lbcount <= bcount);
-
+	/* update extent cache */
+	udf_update_extent_cache(inode, lbcount - *elen, pos, 1);
 	*offset = (bcount + *elen - lbcount) >> blocksize_bits;
 
 	return etype;

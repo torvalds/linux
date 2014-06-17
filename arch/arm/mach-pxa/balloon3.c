@@ -331,7 +331,6 @@ static struct pxa2xx_udc_mach_info balloon3_udc_info __initdata = {
 static void __init balloon3_udc_init(void)
 {
 	pxa_set_udc_info(&balloon3_udc_info);
-	platform_device_register(&balloon3_gpio_vbus);
 }
 #else
 static inline void balloon3_udc_init(void) {}
@@ -822,7 +821,7 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.nr_irqs	= BALLOON3_NR_IRQS,
 	.init_irq	= balloon3_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= balloon3_init,
 	.atag_offset	= 0x100,
 	.restart	= pxa_restart,

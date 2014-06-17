@@ -36,10 +36,9 @@ struct kbd_struct {
 #define VC_CTRLRLOCK	KG_CTRLR 	/* ctrlr lock mode */
 	unsigned char slockstate; 	/* for `sticky' Shift, Ctrl, etc. */
 
-	unsigned char ledmode:2; 	/* one 2-bit value */
+	unsigned char ledmode:1;
 #define LED_SHOW_FLAGS 0        /* traditional state */
 #define LED_SHOW_IOCTL 1        /* only change leds upon ioctl */
-#define LED_SHOW_MEM 2          /* `heartbeat': peek into memory */
 
 	unsigned char ledflagstate:4;	/* flags, not lights */
 	unsigned char default_ledflagstate:4;

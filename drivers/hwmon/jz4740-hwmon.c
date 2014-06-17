@@ -28,7 +28,6 @@
 #include <linux/hwmon.h>
 
 struct jz4740_hwmon {
-	struct resource *mem;
 	void __iomem *base;
 
 	int irq;
@@ -66,7 +65,7 @@ static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
 
 	mutex_lock(&hwmon->lock);
 
-	INIT_COMPLETION(*completion);
+	reinit_completion(completion);
 
 	enable_irq(hwmon->irq);
 	hwmon->cell->enable(to_platform_device(dev));
@@ -106,6 +105,7 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_hwmon *hwmon;
+	struct resource *mem;
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -120,25 +120,10 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 		return hwmon->irq;
 	}
 
-	hwmon->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!hwmon->mem) {
-		dev_err(&pdev->dev, "Failed to get platform mmio resource\n");
-		return -ENOENT;
-	}
-
-	hwmon->mem = devm_request_mem_region(&pdev->dev, hwmon->mem->start,
-			resource_size(hwmon->mem), pdev->name);
-	if (!hwmon->mem) {
-		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		return -EBUSY;
-	}
-
-	hwmon->base = devm_ioremap_nocache(&pdev->dev, hwmon->mem->start,
-					   resource_size(hwmon->mem));
-	if (!hwmon->base) {
-		dev_err(&pdev->dev, "Failed to ioremap mmio memory\n");
-		return -EBUSY;
-	}
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hwmon->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(hwmon->base))
+		return PTR_ERR(hwmon->base);
 
 	init_completion(&hwmon->read_completion);
 	mutex_init(&hwmon->lock);

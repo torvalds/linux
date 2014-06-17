@@ -43,11 +43,9 @@
  */
 struct auo_pixcir_ts_platdata {
 	int gpio_int;
+	int gpio_rst;
 
 	int int_setting;
-
-	void (*init_hw)(struct i2c_client *);
-	void (*exit_hw)(struct i2c_client *);
 
 	unsigned int x_max;
 	unsigned int y_max;

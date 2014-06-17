@@ -57,8 +57,8 @@ i.e counters for the CPU0-3 did not change.
 
 Here is an example of limiting that same irq (44) to cpus 1024 to 1031:
 
-[root@moon 44]# echo 1024-1031 > smp_affinity
-[root@moon 44]# cat smp_affinity
+[root@moon 44]# echo 1024-1031 > smp_affinity_list
+[root@moon 44]# cat smp_affinity_list
 1024-1031
 
 Note that to do this with a bitmask would require 32 bitmasks of zero

@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/delay.h>
-#include "clk-cpu.h"
 
 #define SYS_CTRL_CLK_DIVIDER_CTRL_OFFSET    0x0
 #define SYS_CTRL_CLK_DIVIDER_VALUE_OFFSET   0xC
@@ -102,7 +101,7 @@ static const struct clk_ops cpu_ops = {
 	.set_rate = clk_cpu_set_rate,
 };
 
-void __init of_cpu_clk_setup(struct device_node *node)
+static void __init of_cpu_clk_setup(struct device_node *node)
 {
 	struct cpu_clk *cpuclk;
 	void __iomem *clock_complex_base = of_iomap(node, 0);
@@ -120,7 +119,7 @@ void __init of_cpu_clk_setup(struct device_node *node)
 
 	cpuclk = kzalloc(ncpus * sizeof(*cpuclk), GFP_KERNEL);
 	if (WARN_ON(!cpuclk))
-		return;
+		goto cpuclk_out;
 
 	clks = kzalloc(ncpus * sizeof(*clks), GFP_KERNEL);
 	if (WARN_ON(!clks))
@@ -171,19 +170,9 @@ bail_out:
 		kfree(cpuclk[ncpus].clk_name);
 clks_out:
 	kfree(cpuclk);
+cpuclk_out:
+	iounmap(clock_complex_base);
 }
 
-static const __initconst struct of_device_id clk_cpu_match[] = {
-	{
-		.compatible = "marvell,armada-xp-cpu-clock",
-		.data = of_cpu_clk_setup,
-	},
-	{
-		/* sentinel */
-	},
-};
-
-void __init mvebu_cpu_clk_init(void)
-{
-	of_clk_init(clk_cpu_match);
-}
+CLK_OF_DECLARE(armada_xp_cpu_clock, "marvell,armada-xp-cpu-clock",
+					 of_cpu_clk_setup);

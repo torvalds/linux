@@ -21,13 +21,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <acpi/acpi_drivers.h>
+#include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/input.h>
 #include <linux/rfkill.h>
 
 MODULE_LICENSE("GPL");
-
 
 struct cmpc_accel {
 	int sensitivity;
@@ -432,7 +431,7 @@ failed_sensitivity:
 	return error;
 }
 
-static int cmpc_accel_remove_v4(struct acpi_device *acpi, int type)
+static int cmpc_accel_remove_v4(struct acpi_device *acpi)
 {
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
@@ -590,7 +589,7 @@ static ssize_t cmpc_accel_sensitivity_store(struct device *dev,
 	inputdev = dev_get_drvdata(&acpi->dev);
 	accel = dev_get_drvdata(&inputdev->dev);
 
-	r = strict_strtoul(buf, 0, &sensitivity);
+	r = kstrtoul(buf, 0, &sensitivity);
 	if (r)
 		return r;
 
@@ -668,7 +667,7 @@ failed_file:
 	return error;
 }
 
-static int cmpc_accel_remove(struct acpi_device *acpi, int type)
+static int cmpc_accel_remove(struct acpi_device *acpi)
 {
 	struct input_dev *inputdev;
 	struct cmpc_accel *accel;
@@ -753,7 +752,7 @@ static int cmpc_tablet_add(struct acpi_device *acpi)
 					   cmpc_tablet_idev_init);
 }
 
-static int cmpc_tablet_remove(struct acpi_device *acpi, int type)
+static int cmpc_tablet_remove(struct acpi_device *acpi)
 {
 	return cmpc_remove_acpi_notify_device(acpi);
 }
@@ -1000,7 +999,7 @@ out_bd:
 	return retval;
 }
 
-static int cmpc_ipml_remove(struct acpi_device *acpi, int type)
+static int cmpc_ipml_remove(struct acpi_device *acpi)
 {
 	struct ipml200_dev *ipml;
 
@@ -1079,7 +1078,7 @@ static int cmpc_keys_add(struct acpi_device *acpi)
 					   cmpc_keys_idev_init);
 }
 
-static int cmpc_keys_remove(struct acpi_device *acpi, int type)
+static int cmpc_keys_remove(struct acpi_device *acpi)
 {
 	return cmpc_remove_acpi_notify_device(acpi);
 }

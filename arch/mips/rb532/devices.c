@@ -215,9 +215,9 @@ static struct resource rb532_wdt_res[] = {
 };
 
 static struct platform_device rb532_wdt = {
-	.name 		= "rc32434_wdt",
-	.id 		= -1,
-	.resource 	= rb532_wdt_res,
+	.name		= "rc32434_wdt",
+	.id		= -1,
+	.resource	= rb532_wdt_res,
 	.num_resources	= ARRAY_SIZE(rb532_wdt_res),
 };
 
@@ -235,8 +235,8 @@ static struct plat_serial8250_port rb532_uart_res[] = {
 };
 
 static struct platform_device rb532_uart = {
-	.name              = "serial8250",
-	.id                = PLAT8250_DEV_PLATFORM,
+	.name		   = "serial8250",
+	.id		   = PLAT8250_DEV_PLATFORM,
 	.dev.platform_data = &rb532_uart_res,
 };
 
@@ -273,7 +273,7 @@ static void __init parse_mac_addr(char *macstr)
 
 
 /* NAND definitions */
-#define NAND_CHIP_DELAY	25
+#define NAND_CHIP_DELAY 25
 
 static void __init rb532_nand_setup(void)
 {

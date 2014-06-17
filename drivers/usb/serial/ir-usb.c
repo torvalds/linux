@@ -287,7 +287,6 @@ static void ir_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 
 	if (!urb->actual_length)
 		return;
@@ -302,12 +301,8 @@ static void ir_process_read_urb(struct urb *urb)
 	if (urb->actual_length == 1)
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-	tty_insert_flip_string(tty, data + 1, urb->actual_length - 1);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&port->port, data + 1, urb->actual_length - 1);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void ir_set_termios_callback(struct urb *urb)
@@ -382,15 +377,12 @@ static void ir_set_termios(struct tty_struct *tty,
 	 * send the baud change out on an "empty" data packet
 	 */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		dev_err(&port->dev, "%s - no more urbs\n", __func__);
+	if (!urb)
 		return;
-	}
+
 	transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!transfer_buffer) {
-		dev_err(&port->dev, "%s - out of memory\n", __func__);
+	if (!transfer_buffer)
 		goto err_buf;
-	}
 
 	*transfer_buffer = ir_xbof | ir_baud;
 

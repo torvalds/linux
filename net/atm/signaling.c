@@ -51,7 +51,7 @@ static void sigd_put_skb(struct sk_buff *skb)
 #endif
 	atm_force_charge(sigd, skb->truesize);
 	skb_queue_tail(&sk_atm(sigd)->sk_receive_queue, skb);
-	sk_atm(sigd)->sk_data_ready(sk_atm(sigd), skb->len);
+	sk_atm(sigd)->sk_data_ready(sk_atm(sigd));
 }
 
 static void modify_qos(struct atm_vcc *vcc, struct atmsvc_msg *msg)
@@ -217,7 +217,6 @@ static void purge_vcc(struct atm_vcc *vcc)
 
 static void sigd_close(struct atm_vcc *vcc)
 {
-	struct hlist_node *node;
 	struct sock *s;
 	int i;
 
@@ -231,7 +230,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	for (i = 0; i < VCC_HTABLE_SIZE; ++i) {
 		struct hlist_head *head = &vcc_hash[i];
 
-		sk_for_each(s, node, head) {
+		sk_for_each(s, head) {
 			vcc = atm_sk(s);
 
 			purge_vcc(vcc);

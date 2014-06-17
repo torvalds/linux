@@ -74,7 +74,7 @@ struct sgi_crime {
 #define CRIME_RE_IDLE_E_INT		BIT(24)
 #define CRIME_RE_EMPTY_L_INT		BIT(25)
 #define CRIME_RE_FULL_L_INT		BIT(26)
-#define CRIME_RE_IDLE_L_INT    		BIT(27)
+#define CRIME_RE_IDLE_L_INT		BIT(27)
 #define CRIME_SOFT0_INT			BIT(28)
 #define CRIME_SOFT1_INT			BIT(29)
 #define CRIME_SOFT2_INT			BIT(30)
@@ -118,7 +118,7 @@ struct sgi_crime {
 #define CRIME_MEM_REF_COUNTER_MASK	0x3ff		/* 10bit */
 
 	volatile unsigned long mem_error_stat;
-#define CRIME_MEM_ERROR_STAT_MASK       0x0ff7ffff	/* 28-bit register */
+#define CRIME_MEM_ERROR_STAT_MASK	0x0ff7ffff	/* 28-bit register */
 #define CRIME_MEM_ERROR_MACE_ID		0x0000007f
 #define CRIME_MEM_ERROR_MACE_ACCESS	0x00000080
 #define CRIME_MEM_ERROR_RE_ID		0x00007f00
@@ -134,8 +134,8 @@ struct sgi_crime {
 #define CRIME_MEM_ERROR_MEM_ECC_RD	0x00800000
 #define CRIME_MEM_ERROR_MEM_ECC_RMW	0x01000000
 #define CRIME_MEM_ERROR_INV		0x0e000000
-#define CRIME_MEM_ERROR_INV_MEM_ADDR_RD	0x02000000
-#define CRIME_MEM_ERROR_INV_MEM_ADDR_WR	0x04000000
+#define CRIME_MEM_ERROR_INV_MEM_ADDR_RD 0x02000000
+#define CRIME_MEM_ERROR_INV_MEM_ADDR_WR 0x04000000
 #define CRIME_MEM_ERROR_INV_MEM_ADDR_RMW 0x08000000
 
 	volatile unsigned long mem_error_addr;

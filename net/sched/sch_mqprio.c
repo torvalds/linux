@@ -124,7 +124,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		dev_queue = netdev_get_tx_queue(dev, i);
-		qdisc = qdisc_create_dflt(dev_queue, &pfifo_fast_ops,
+		qdisc = qdisc_create_dflt(dev_queue, default_qdisc_ops,
 					  TC_H_MAKE(TC_H_MAJ(sch->handle),
 						    TC_H_MIN(i + 1)));
 		if (qdisc == NULL) {
@@ -167,15 +167,17 @@ static void mqprio_attach(struct Qdisc *sch)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct mqprio_sched *priv = qdisc_priv(sch);
-	struct Qdisc *qdisc;
+	struct Qdisc *qdisc, *old;
 	unsigned int ntx;
 
 	/* Attach underlying qdisc */
 	for (ntx = 0; ntx < dev->num_tx_queues; ntx++) {
 		qdisc = priv->qdiscs[ntx];
-		qdisc = dev_graft_qdisc(qdisc->dev_queue, qdisc);
-		if (qdisc)
-			qdisc_destroy(qdisc);
+		old = dev_graft_qdisc(qdisc->dev_queue, qdisc);
+		if (old)
+			qdisc_destroy(old);
+		if (ntx < dev->real_num_tx_queues)
+			qdisc_list_add(qdisc);
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;

@@ -83,12 +83,12 @@ struct omap3_intc_regs {
 
 static void intc_bank_write_reg(u32 val, struct omap_irq_bank *bank, u16 reg)
 {
-	__raw_writel(val, bank->base_reg + reg);
+	writel_relaxed(val, bank->base_reg + reg);
 }
 
 static u32 intc_bank_read_reg(struct omap_irq_bank *bank, u16 reg)
 {
-	return __raw_readl(bank->base_reg + reg);
+	return readl_relaxed(bank->base_reg + reg);
 }
 
 /* XXX: FIQ and additional INTC support (only MPU at the moment) */
@@ -222,6 +222,7 @@ void __init ti81xx_init_irq(void)
 static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs *regs)
 {
 	u32 irqnr;
+	int handled_irq = 0;
 
 	do {
 		irqnr = readl_relaxed(base_addr + 0x98);
@@ -233,7 +234,7 @@ static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs 
 			goto out;
 
 		irqnr = readl_relaxed(base_addr + 0xd8);
-#ifdef CONFIG_SOC_TI81XX
+#if IS_ENABLED(CONFIG_SOC_TI81XX) || IS_ENABLED(CONFIG_SOC_AM33XX)
 		if (irqnr)
 			goto out;
 		irqnr = readl_relaxed(base_addr + 0xf8);
@@ -249,8 +250,15 @@ out:
 		if (irqnr) {
 			irqnr = irq_find_mapping(domain, irqnr);
 			handle_IRQ(irqnr, regs);
+			handled_irq = 1;
 		}
 	} while (irqnr);
+
+	/* If an irq is masked or deasserted while active, we will
+	 * keep ending up here with no irq handled. So remove it from
+	 * the INTC with an ack.*/
+	if (!handled_irq)
+		omap_ack_irq(NULL);
 }
 
 asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs)

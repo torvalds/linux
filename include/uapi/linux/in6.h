@@ -22,27 +22,30 @@
 #define _UAPI_LINUX_IN6_H
 
 #include <linux/types.h>
+#include <linux/libc-compat.h>
 
 /*
  *	IPv6 address structure
  */
 
+#if __UAPI_DEF_IN6_ADDR
 struct in6_addr {
 	union {
 		__u8		u6_addr8[16];
+#if __UAPI_DEF_IN6_ADDR_ALT
 		__be16		u6_addr16[8];
 		__be32		u6_addr32[4];
+#endif
 	} in6_u;
 #define s6_addr			in6_u.u6_addr8
+#if __UAPI_DEF_IN6_ADDR_ALT
 #define s6_addr16		in6_u.u6_addr16
 #define s6_addr32		in6_u.u6_addr32
+#endif
 };
+#endif /* __UAPI_DEF_IN6_ADDR */
 
-/* IPv6 Wildcard Address (::) and Loopback Address (::1) defined in RFC2553
- * NOTE: Be aware the IN6ADDR_* constants and in6addr_* externals are defined
- * in network byte order, not in host byte order as are the IPv4 equivalents
- */
-
+#if __UAPI_DEF_SOCKADDR_IN6
 struct sockaddr_in6 {
 	unsigned short int	sin6_family;    /* AF_INET6 */
 	__be16			sin6_port;      /* Transport layer port # */
@@ -50,7 +53,9 @@ struct sockaddr_in6 {
 	struct in6_addr		sin6_addr;      /* IPv6 address */
 	__u32			sin6_scope_id;  /* scope id (new in RFC2553) */
 };
+#endif /* __UAPI_DEF_SOCKADDR_IN6 */
 
+#if __UAPI_DEF_IPV6_MREQ
 struct ipv6_mreq {
 	/* IPv6 multicast address of group */
 	struct in6_addr ipv6mr_multiaddr;
@@ -58,6 +63,7 @@ struct ipv6_mreq {
 	/* local IPv6 address of interface */
 	int		ipv6mr_ifindex;
 };
+#endif /* __UAPI_DEF_IVP6_MREQ */
 
 #define ipv6mr_acaddr	ipv6mr_multiaddr
 
@@ -79,6 +85,8 @@ struct in6_flowlabel_req {
 
 #define IPV6_FL_F_CREATE	1
 #define IPV6_FL_F_EXCL		2
+#define IPV6_FL_F_REFLECT	4
+#define IPV6_FL_F_REMOTE	8
 
 #define IPV6_FL_S_NONE		0
 #define IPV6_FL_S_EXCL		1
@@ -119,6 +127,7 @@ struct in6_flowlabel_req {
 /*
  *	IPV6 extension headers
  */
+#if __UAPI_DEF_IPPROTO_V6
 #define IPPROTO_HOPOPTS		0	/* IPv6 hop-by-hop options	*/
 #define IPPROTO_ROUTING		43	/* IPv6 routing header		*/
 #define IPPROTO_FRAGMENT	44	/* IPv6 fragmentation header	*/
@@ -126,6 +135,7 @@ struct in6_flowlabel_req {
 #define IPPROTO_NONE		59	/* IPv6 no next header		*/
 #define IPPROTO_DSTOPTS		60	/* IPv6 destination options	*/
 #define IPPROTO_MH		135	/* IPv6 mobility header		*/
+#endif /* __UAPI_DEF_IPPROTO_V6 */
 
 /*
  *	IPv6 TLV options.
@@ -171,6 +181,14 @@ struct in6_flowlabel_req {
 #define IPV6_PMTUDISC_WANT		1
 #define IPV6_PMTUDISC_DO		2
 #define IPV6_PMTUDISC_PROBE		3
+/* same as IPV6_PMTUDISC_PROBE, provided for symetry with IPv4
+ * also see comments on IP_PMTUDISC_INTERFACE
+ */
+#define IPV6_PMTUDISC_INTERFACE		4
+/* weaker version of IPV6_PMTUDISC_INTERFACE, which allows packets to
+ * get fragmented if they exceed the interface mtu
+ */
+#define IPV6_PMTUDISC_OMIT		5
 
 /* Flowlabel */
 #define IPV6_FLOWLABEL_MGR	32
@@ -264,17 +282,10 @@ struct in6_flowlabel_req {
 
 /*
  * Multicast Routing:
- * see include/linux/mroute6.h.
+ * see include/uapi/linux/mroute6.h.
  *
- * MRT6_INIT			200
- * MRT6_DONE			201
- * MRT6_ADD_MIF			202
- * MRT6_DEL_MIF			203
- * MRT6_ADD_MFC			204
- * MRT6_DEL_MFC			205
- * MRT6_VERSION			206
- * MRT6_ASSERT			207
- * MRT6_PIM			208
- * (reserved)			209
+ * MRT6_BASE			200
+ * ...
+ * MRT6_MAX
  */
 #endif /* _UAPI_LINUX_IN6_H */

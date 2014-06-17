@@ -390,6 +390,11 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 		voice = snd_opl3_oss_map[chan->number];		
 	}
 
+	if (voice < 0) {
+		spin_unlock_irqrestore(&opl3->voice_lock, flags);
+		return;
+	}
+
 	if (voice < MAX_OPL2_VOICES) {
 		/* Left register block for voices 0 .. 8 */
 		reg_side = OPL3_LEFT;

@@ -64,13 +64,19 @@ static const char mlx4_en_version[] =
 
 /* Enable RSS UDP traffic */
 MLX4_EN_PARM_INT(udp_rss, 1,
-		 "Enable RSS for incomming UDP traffic or disabled (0)");
+		 "Enable RSS for incoming UDP traffic or disabled (0)");
 
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
 			   " Per priority bit mask");
 MLX4_EN_PARM_INT(pfcrx, 0, "Priority based Flow Control policy on RX[7:0]."
 			   " Per priority bit mask");
+
+MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
+		 "Threshold for using inline data (range: 17-104, default: 104)");
+
+#define MAX_PFC_TX     0xff
+#define MAX_PFC_RX     0xff
 
 int en_print(const char *level, const struct mlx4_en_priv *priv,
 	     const char *format, ...)
@@ -95,6 +101,28 @@ int en_print(const char *level, const struct mlx4_en_priv *priv,
 	return i;
 }
 
+void mlx4_en_update_loopback_state(struct net_device *dev,
+				   netdev_features_t features)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
+			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
+
+	/* Drop the packet if SRIOV is not enabled
+	 * and not performing the selftest or flb disabled
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) &&
+	    !(features & NETIF_F_LOOPBACK) && !priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_RX_FILTER_NEEDED;
+
+	/* Set dmac in Tx WQE if we are in SRIOV mode or if loopback selftest
+	 * is requested
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
+}
+
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_en_profile *params = &mdev->profile;
@@ -105,7 +133,7 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 			MLX4_EN_MAX_TX_RING_P_UP);
 	if (params->udp_rss && !(mdev->dev->caps.flags
 					& MLX4_DEV_CAP_FLAG_UDP_RSS)) {
-		mlx4_warn(mdev, "UDP RSS is not supported on this device.\n");
+		mlx4_warn(mdev, "UDP RSS is not supported on this device\n");
 		params->udp_rss = 0;
 	}
 	for (i = 1; i <= MLX4_MAX_PORTS; i++) {
@@ -118,6 +146,7 @@ static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
 		params->prof[i].tx_ring_num = params->num_tx_rings_p_up *
 			MLX4_EN_NUM_UP;
 		params->prof[i].rss_rings = 0;
+		params->prof[i].inline_thold = inline_thold;
 	}
 
 	return 0;
@@ -152,6 +181,9 @@ static void mlx4_en_event(struct mlx4_dev *dev, void *endev_ptr,
 		mlx4_err(mdev, "Internal error detected, restarting device\n");
 		break;
 
+	case MLX4_DEV_EVENT_SLAVE_INIT:
+	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		break;
 	default:
 		if (port < 1 || port > dev->caps.num_ports ||
 		    !mdev->pndev[port])
@@ -174,9 +206,12 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 		if (mdev->pndev[i])
 			mlx4_en_destroy_netdev(mdev->pndev[i]);
 
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		mlx4_en_remove_timestamp(mdev);
+
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
@@ -191,10 +226,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
 		err = -ENOMEM;
 		goto err_free_res;
 	}
@@ -218,8 +251,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	mdev->LSO_support = !!(dev->caps.flags & (1 << 15));
 	if (!mdev->LSO_support)
-		mlx4_warn(mdev, "LSO not supported, please upgrade to later "
-				"FW version to enable LSO\n");
+		mlx4_warn(mdev, "LSO not supported, please upgrade to later FW version to enable LSO\n");
 
 	if (mlx4_mr_alloc(mdev->dev, mdev->priv_pdn, 0, ~0ull,
 			 MLX4_PERM_LOCAL_WRITE |  MLX4_PERM_LOCAL_READ,
@@ -235,7 +267,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	/* Build device profile according to supplied module parameters */
 	err = mlx4_en_get_profile(mdev);
 	if (err) {
-		mlx4_err(mdev, "Bad module parameters, aborting.\n");
+		mlx4_err(mdev, "Bad module parameters, aborting\n");
 		goto err_mr;
 	}
 
@@ -244,19 +276,12 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;
 
-	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		if (!dev->caps.comp_pool) {
-			mdev->profile.prof[i].rx_ring_num =
-				rounddown_pow_of_two(max_t(int, MIN_RX_RINGS,
-							   min_t(int,
-								 dev->caps.num_comp_vectors,
-								 DEF_RX_RINGS)));
-		} else {
-			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-				min_t(int, dev->caps.comp_pool/
-				      dev->caps.num_ports - 1 , MAX_MSIX_P_PORT - 1));
-		}
-	}
+	/* Initialize time stamp mechanism */
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		mlx4_en_init_timestamp(mdev);
+
+	/* Set default number of RX rings*/
+	mlx4_en_set_num_rx_rings(mdev);
 
 	/* Create our own workqueue for reset/multicast tasks
 	 * Note: we cannot use the shared workqueue because of deadlocks caused
@@ -280,12 +305,13 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
 			mdev->pndev[i] = NULL;
 	}
+
 	return mdev;
 
 err_mr:
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 err_map:
-	if (!mdev->uar_map)
+	if (mdev->uar_map)
 		iounmap(mdev->uar_map);
 err_uar:
 	mlx4_uar_free(dev, &mdev->priv_uar);
@@ -305,8 +331,31 @@ static struct mlx4_interface mlx4_en_interface = {
 	.protocol	= MLX4_PROT_ETH,
 };
 
+static void mlx4_en_verify_params(void)
+{
+	if (pfctx > MAX_PFC_TX) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter pfctx 0x%x - should be in range 0-0x%x, will be changed to default (0)\n",
+			pfctx, MAX_PFC_TX);
+		pfctx = 0;
+	}
+
+	if (pfcrx > MAX_PFC_RX) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter pfcrx 0x%x - should be in range 0-0x%x, will be changed to default (0)\n",
+			pfcrx, MAX_PFC_RX);
+		pfcrx = 0;
+	}
+
+	if (inline_thold < MIN_PKT_LEN || inline_thold > MAX_INLINE) {
+		pr_warn("mlx4_en: WARNING: illegal module parameter inline_thold %d - should be in range %d-%d, will be changed to default (%d)\n",
+			inline_thold, MIN_PKT_LEN, MAX_INLINE, MAX_INLINE);
+		inline_thold = MAX_INLINE;
+	}
+}
+
 static int __init mlx4_en_init(void)
 {
+	mlx4_en_verify_params();
+
 	return mlx4_register_interface(&mlx4_en_interface);
 }
 

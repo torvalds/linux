@@ -6,11 +6,13 @@
  * Licensed under GPLv2.
  */
 
-/include/ "at91sam9x5.dtsi"
+#include "at91sam9x5.dtsi"
+#include "at91sam9x5_usart3.dtsi"
+#include "at91sam9x5_macb0.dtsi"
 
 / {
 	model = "Atmel AT91SAM9G25 SoC";
-	compatible = "atmel, at91sam9g25, atmel,at91sam9x5";
+	compatible = "atmel,at91sam9g25", "atmel,at91sam9x5";
 
 	ahb {
 		apb {

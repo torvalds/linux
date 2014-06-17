@@ -83,6 +83,8 @@ struct alpha_pmu_t {
 	long pmc_left[3];
 	 /* Subroutine for allocation of PMCs.  Enforces constraints. */
 	int (*check_constraints)(struct perf_event **, unsigned long *, int);
+	/* Subroutine for checking validity of a raw event for this PMU. */
+	int (*raw_event_valid)(u64 config);
 };
 
 /*
@@ -203,6 +205,12 @@ success:
 }
 
 
+static int ev67_raw_event_valid(u64 config)
+{
+	return config >= EV67_CYCLES && config < EV67_LAST_ET;
+};
+
+
 static const struct alpha_pmu_t ev67_pmu = {
 	.event_map = ev67_perfmon_event_map,
 	.max_events = ARRAY_SIZE(ev67_perfmon_event_map),
@@ -211,7 +219,8 @@ static const struct alpha_pmu_t ev67_pmu = {
 	.pmc_count_mask = {EV67_PCTR_0_COUNT_MASK,  EV67_PCTR_1_COUNT_MASK,  0},
 	.pmc_max_period = {(1UL<<20) - 1, (1UL<<20) - 1, 0},
 	.pmc_left = {16, 4, 0},
-	.check_constraints = ev67_check_constraints
+	.check_constraints = ev67_check_constraints,
+	.raw_event_valid = ev67_raw_event_valid,
 };
 
 
@@ -609,7 +618,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	} else if (attr->type == PERF_TYPE_HW_CACHE) {
 		return -EOPNOTSUPP;
 	} else if (attr->type == PERF_TYPE_RAW) {
-		ev = attr->config & 0xff;
+		if (!alpha_pmu->raw_event_valid(attr->config))
+			return -EINVAL;
+		ev = attr->config;
 	} else {
 		return -EOPNOTSUPP;
 	}

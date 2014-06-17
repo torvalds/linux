@@ -1169,8 +1169,8 @@ static int snd_sscape_probe(struct device *pdev, unsigned int dev)
 	struct soundscape *sscape;
 	int ret;
 
-	ret = snd_card_create(index[dev], id[dev], THIS_MODULE,
-			      sizeof(struct soundscape), &card);
+	ret = snd_card_new(pdev, index[dev], id[dev], THIS_MODULE,
+			   sizeof(struct soundscape), &card);
 	if (ret < 0)
 		return ret;
 
@@ -1178,7 +1178,6 @@ static int snd_sscape_probe(struct device *pdev, unsigned int dev)
 	sscape->type = SSCAPE;
 
 	dma[dev] &= 0x03;
-	snd_card_set_dev(card, pdev);
 
 	ret = create_sscape(dev, card);
 	if (ret < 0)
@@ -1200,7 +1199,6 @@ _release_card:
 static int snd_sscape_remove(struct device *devptr, unsigned int dev)
 {
 	snd_card_free(dev_get_drvdata(devptr));
-	dev_set_drvdata(devptr, NULL);
 	return 0;
 }
 
@@ -1260,8 +1258,9 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 	 * Create a new ALSA sound card entry, in anticipation
 	 * of detecting our hardware ...
 	 */
-	ret = snd_card_create(index[idx], id[idx], THIS_MODULE,
-			      sizeof(struct soundscape), &card);
+	ret = snd_card_new(&pcard->card->dev,
+			   index[idx], id[idx], THIS_MODULE,
+			   sizeof(struct soundscape), &card);
 	if (ret < 0)
 		return ret;
 
@@ -1289,7 +1288,6 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 		wss_port[idx] = pnp_port_start(dev, 1);
 		dma2[idx] = pnp_dma(dev, 1);
 	}
-	snd_card_set_dev(card, &pcard->card->dev);
 
 	ret = create_sscape(idx, card);
 	if (ret < 0)

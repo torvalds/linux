@@ -165,6 +165,7 @@ which function as described above for the default huge page-sized case.
 
 
 Interaction of Task Memory Policy with Huge Page Allocation/Freeing
+===================================================================
 
 Whether huge pages are allocated and freed via the /proc interface or
 the /sysfs interface using the nr_hugepages_mempolicy attribute, the NUMA
@@ -229,6 +230,7 @@ resulting effect on persistent huge page allocation is as follows:
    of huge pages over all on-lines nodes with memory.
 
 Per Node Hugepages Attributes
+=============================
 
 A subset of the contents of the root huge page control directory in sysfs,
 described above, will be replicated under each the system device of each
@@ -258,6 +260,7 @@ applied, from which node the huge page allocation will be attempted.
 
 
 Using Huge Pages
+================
 
 If the user applications are going to request huge pages using mmap system
 call, then it is required that system administrator mount a file system of
@@ -296,20 +299,16 @@ calls, though the mount of filesystem will be required for using mmap calls
 without MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
 map_hugetlb.c.
 
-*******************************************************************
+Examples
+========
 
-/*
- * map_hugetlb: see tools/testing/selftests/vm/map_hugetlb.c
- */
+1) map_hugetlb: see tools/testing/selftests/vm/map_hugetlb.c
 
-*******************************************************************
+2) hugepage-shm:  see tools/testing/selftests/vm/hugepage-shm.c
 
-/*
- * hugepage-shm:  see tools/testing/selftests/vm/hugepage-shm.c
- */
+3) hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
 
-*******************************************************************
-
-/*
- * hugepage-mmap:  see tools/testing/selftests/vm/hugepage-mmap.c
- */
+4) The libhugetlbfs (http://libhugetlbfs.sourceforge.net) library provides a
+   wide range of userspace tools to help with huge page usability, environment
+   setup, and control. Furthermore it provides useful test cases that should be
+   used when modifying code to ensure no regressions are introduced.

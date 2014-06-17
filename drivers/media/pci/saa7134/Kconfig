@@ -1,11 +1,12 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
 	depends on VIDEO_DEV && PCI && I2C
-	select VIDEOBUF_DMA_SG
+	select VIDEOBUF2_DMA_SG
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select CRC32
 	select VIDEO_SAA6588 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_SAA6752HS if MEDIA_SUBDRV_AUTOSELECT
 	---help---
 	  This is a video4linux driver for Philips SAA713x based
 	  TV cards.
@@ -36,7 +37,7 @@ config VIDEO_SAA7134_RC
 config VIDEO_SAA7134_DVB
 	tristate "DVB/ATSC Support for saa7134 based TV cards"
 	depends on VIDEO_SAA7134 && DVB_CORE
-	select VIDEOBUF_DVB
+	select VIDEOBUF2_DVB
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA1004X if MEDIA_SUBDRV_AUTOSELECT

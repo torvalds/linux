@@ -15,7 +15,7 @@
 
 #include <linux/types.h>
 
-typedef __kernel_fsid_t        fsid_t;
+typedef __kernel_fsid_t	       fsid_t;
 
 #endif
 
@@ -31,7 +31,7 @@ struct statfs {
 	long		f_bavail;
 
 	/* Linux specials */
-	__kernel_fsid_t	f_fsid;
+	__kernel_fsid_t f_fsid;
 	long		f_namelen;
 	long		f_flags;
 	long		f_spare[5];
@@ -73,7 +73,7 @@ struct statfs64 {			/* Same as struct statfs */
 	long		f_bavail;
 
 	/* Linux specials */
-	__kernel_fsid_t	f_fsid;
+	__kernel_fsid_t f_fsid;
 	long		f_namelen;
 	long		f_flags;
 	long		f_spare[5];

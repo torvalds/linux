@@ -9,13 +9,14 @@
 struct int_node {
 	struct rb_node rb_node;
 	int i;
+	void *priv;
 };
 
 struct intlist {
 	struct rblist rblist;
 };
 
-struct intlist *intlist__new(void);
+struct intlist *intlist__new(const char *slist);
 void intlist__delete(struct intlist *ilist);
 
 void intlist__remove(struct intlist *ilist, struct int_node *in);
@@ -23,6 +24,7 @@ int intlist__add(struct intlist *ilist, int i);
 
 struct int_node *intlist__entry(const struct intlist *ilist, unsigned int idx);
 struct int_node *intlist__find(struct intlist *ilist, int i);
+struct int_node *intlist__findnew(struct intlist *ilist, int i);
 
 static inline bool intlist__has_entry(struct intlist *ilist, int i)
 {

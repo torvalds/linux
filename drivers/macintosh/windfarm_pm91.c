@@ -76,6 +76,7 @@ static struct wf_control *cpufreq_clamp;
 
 /* Set to kick the control loop into life */
 static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok, wf_smu_started;
+static bool wf_smu_overtemp;
 
 /* Failure handling.. could be nicer */
 #define FAILURE_FAN		0x01
@@ -517,6 +518,7 @@ static void wf_smu_tick(void)
 	if (new_failure & FAILURE_OVERTEMP) {
 		wf_set_overtemp();
 		wf_smu_skipping = 2;
+		wf_smu_overtemp = true;
 	}
 
 	/* We only clear the overtemp condition if overtemp is cleared
@@ -525,8 +527,10 @@ static void wf_smu_tick(void)
 	 * the control loop levels, but we don't want to keep it clear
 	 * here in this case
 	 */
-	if (new_failure == 0 && last_failure & FAILURE_OVERTEMP)
+	if (!wf_smu_failure_state && wf_smu_overtemp) {
 		wf_clear_overtemp();
+		wf_smu_overtemp = false;
+	}
 }
 
 

@@ -5,6 +5,7 @@
 		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -31,6 +33,16 @@
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
+
+#define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
+		      "Markus Rechberger <mrechberger@gmail.com>, " \
+		      "Mauro Carvalho Chehab <mchehab@infradead.org>, " \
+		      "Sascha Sommer <saschasommer@freenet.de>"
+
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_LICENSE("GPL");
+MODULE_VERSION(EM28XX_VERSION);
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
@@ -52,14 +64,6 @@ MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __func__ , ##arg); } while (0)
 
-static int alt;
-module_param(alt, int, 0644);
-MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
-
-static unsigned int disable_vbi;
-module_param(disable_vbi, int, 0644);
-MODULE_PARM_DESC(disable_vbi, "disable vbi support");
-
 /* FIXME */
 #define em28xx_isocdbg(fmt, arg...) do {\
 	if (core_debug) \
@@ -76,7 +80,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 	int ret;
 	int pipe = usb_rcvctrlpipe(dev->udev, 0);
 
-	if (dev->state & DEV_DISCONNECTED)
+	if (dev->disconnected)
 		return -ENODEV;
 
 	if (len > URB_MAX_CTRL_SIZE)
@@ -100,7 +104,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 		if (reg_debug)
 			printk(" failed!\n");
 		mutex_unlock(&dev->ctrl_urb_lock);
-		return ret;
+		return usb_translate_errors(ret);
 	}
 
 	if (len)
@@ -152,7 +156,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	int ret;
 	int pipe = usb_sndctrlpipe(dev->udev, 0);
 
-	if (dev->state & DEV_DISCONNECTED)
+	if (dev->disconnected)
 		return -ENODEV;
 
 	if ((len < 1) || (len > URB_MAX_CTRL_SIZE))
@@ -181,6 +185,9 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			      0x0000, reg, dev->urb_buf, len, HZ);
 	mutex_unlock(&dev->ctrl_urb_lock);
 
+	if (ret < 0)
+		return usb_translate_errors(ret);
+
 	if (dev->wait_after_write)
 		msleep(dev->wait_after_write);
 
@@ -189,23 +196,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 {
-	int rc;
-
-	rc = em28xx_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
-
-	/* Stores GPO/GPIO values at the cache, if changed
-	   Only write values should be stored, since input on a GPIO
-	   register will return the input bits.
-	   Not sure what happens on reading GPO register.
-	 */
-	if (rc >= 0) {
-		if (reg == dev->reg_gpo_num)
-			dev->reg_gpo = buf[0];
-		else if (reg == dev->reg_gpio_num)
-			dev->reg_gpio = buf[0];
-	}
-
-	return rc;
+	return em28xx_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
 }
 EXPORT_SYMBOL_GPL(em28xx_write_regs);
 
@@ -227,14 +218,7 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 	int oldval;
 	u8 newval;
 
-	/* Uses cache for gpo/gpio registers */
-	if (reg == dev->reg_gpo_num)
-		oldval = dev->reg_gpo;
-	else if (reg == dev->reg_gpio_num)
-		oldval = dev->reg_gpio;
-	else
-		oldval = em28xx_read_reg(dev, reg);
-
+	oldval = em28xx_read_reg(dev, reg);
 	if (oldval < 0)
 		return oldval;
 
@@ -245,21 +229,42 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
 
 /*
+ * em28xx_toggle_reg_bits()
+ * toggles/inverts the bits (specified by bitmask) of a register
+ */
+int em28xx_toggle_reg_bits(struct em28xx *dev, u16 reg, u8 bitmask)
+{
+	int oldval;
+	u8 newval;
+
+	oldval = em28xx_read_reg(dev, reg);
+	if (oldval < 0)
+		return oldval;
+
+	newval = (~oldval & bitmask) | (oldval & ~bitmask);
+
+	return em28xx_write_reg(dev, reg, newval);
+}
+EXPORT_SYMBOL_GPL(em28xx_toggle_reg_bits);
+
+/*
  * em28xx_is_ac97_ready()
  * Checks if ac97 is ready
  */
 static int em28xx_is_ac97_ready(struct em28xx *dev)
 {
-	int ret, i;
+	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_AC97_XFER_TIMEOUT);
+	int ret;
 
 	/* Wait up to 50 ms for AC97 command to complete */
-	for (i = 0; i < 10; i++, msleep(5)) {
+	while (time_is_after_jiffies(timeout)) {
 		ret = em28xx_read_reg(dev, EM28XX_R43_AC97BUSY);
 		if (ret < 0)
 			return ret;
 
 		if (!(ret & 0x01))
 			return 0;
+		msleep(5);
 	}
 
 	em28xx_warn("AC97 command still being executed: not handled properly!\n");
@@ -501,16 +506,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 	int vid1, vid2, feat, cfg;
 	u32 vid;
 
-	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874
-		|| dev->chip_id == CHIP_ID_EM28174) {
-		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
-		dev->has_audio_class = false;
-		dev->has_alsa_audio = false;
+	if (!dev->audio_mode.has_audio)
 		return 0;
-	}
-
-	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
@@ -523,17 +520,19 @@ int em28xx_audio_setup(struct em28xx *dev)
 		dev->has_alsa_audio = false;
 		dev->audio_mode.has_audio = false;
 		return 0;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
-		em28xx_info("I2S Audio (3 sample rates)\n");
-		dev->audio_mode.i2s_3rates = 1;
-	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
-		   EM28XX_CHIPCFG_I2S_5_SAMPRATES) {
-		em28xx_info("I2S Audio (5 sample rates)\n");
-		dev->audio_mode.i2s_5rates = 1;
-	}
-
-	if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) != EM28XX_CHIPCFG_AC97) {
+		if (dev->chip_id < CHIP_ID_EM2860 &&
+	            (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+		    EM2820_CHIPCFG_I2S_1_SAMPRATE)
+			dev->audio_mode.i2s_samplerates = 1;
+		else if (dev->chip_id >= CHIP_ID_EM2860 &&
+			 (cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
+			 EM2860_CHIPCFG_I2S_5_SAMPRATES)
+			dev->audio_mode.i2s_samplerates = 5;
+		else
+			dev->audio_mode.i2s_samplerates = 3;
+		em28xx_info("I2S Audio (%d sample rate(s))\n",
+					       dev->audio_mode.i2s_samplerates);
 		/* Skip the code that does AC97 vendor detection */
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
 		goto init_audio;
@@ -601,260 +600,81 @@ init_audio:
 }
 EXPORT_SYMBOL_GPL(em28xx_audio_setup);
 
-int em28xx_colorlevels_set_default(struct em28xx *dev)
+const struct em28xx_led *em28xx_find_led(struct em28xx *dev,
+					 enum em28xx_led_role role)
 {
-	em28xx_write_reg(dev, EM28XX_R20_YGAIN, 0x10);	/* contrast */
-	em28xx_write_reg(dev, EM28XX_R21_YOFFSET, 0x00);	/* brightness */
-	em28xx_write_reg(dev, EM28XX_R22_UVGAIN, 0x10);	/* saturation */
-	em28xx_write_reg(dev, EM28XX_R23_UOFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R24_VOFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, 0x00);
-
-	em28xx_write_reg(dev, EM28XX_R14_GAMMA, 0x20);
-	em28xx_write_reg(dev, EM28XX_R15_RGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R16_GGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R17_BGAIN, 0x20);
-	em28xx_write_reg(dev, EM28XX_R18_ROFFSET, 0x00);
-	em28xx_write_reg(dev, EM28XX_R19_GOFFSET, 0x00);
-	return em28xx_write_reg(dev, EM28XX_R1A_BOFFSET, 0x00);
+	if (dev->board.leds) {
+		u8 k = 0;
+		while (dev->board.leds[k].role >= 0 &&
+			       dev->board.leds[k].role < EM28XX_NUM_LED_ROLES) {
+			if (dev->board.leds[k].role == role)
+				return &dev->board.leds[k];
+			k++;
+		}
+	}
+	return NULL;
 }
+EXPORT_SYMBOL_GPL(em28xx_find_led);
 
 int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
+	const struct em28xx_led *led = NULL;
 
 	if (dev->chip_id == CHIP_ID_EM2874 ||
 	    dev->chip_id == CHIP_ID_EM2884 ||
-	    dev->chip_id == CHIP_ID_EM28174) {
+	    dev->chip_id == CHIP_ID_EM28174 ||
+	    dev->chip_id == CHIP_ID_EM28178) {
 		/* The Transport Stream Enable Register moved in em2874 */
-		if (!start) {
-			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-						   0x00,
-						   EM2874_TS1_CAPTURE_ENABLE);
-			return rc;
-		}
-
-		/* Enable Transport Stream */
 		rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
-					   EM2874_TS1_CAPTURE_ENABLE,
+					   start ?
+					       EM2874_TS1_CAPTURE_ENABLE : 0x00,
 					   EM2874_TS1_CAPTURE_ENABLE);
-		return rc;
+	} else {
+		/* FIXME: which is the best order? */
+		/* video registers are sampled by VREF */
+		rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
+					   start ? 0x10 : 0x00, 0x10);
+		if (rc < 0)
+			return rc;
+
+		if (start) {
+			if (dev->board.is_webcam)
+				rc = em28xx_write_reg(dev, 0x13, 0x0c);
+
+			/* Enable video capture */
+			rc = em28xx_write_reg(dev, 0x48, 0x00);
+			if (rc < 0)
+				return rc;
+
+			if (dev->mode == EM28XX_ANALOG_MODE)
+				rc = em28xx_write_reg(dev,
+						    EM28XX_R12_VINENABLE, 0x67);
+			else
+				rc = em28xx_write_reg(dev,
+						    EM28XX_R12_VINENABLE, 0x37);
+			if (rc < 0)
+				return rc;
+
+			msleep(6);
+		} else {
+			/* disable video capture */
+			rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
+		}
 	}
-
-
-	/* FIXME: which is the best order? */
-	/* video registers are sampled by VREF */
-	rc = em28xx_write_reg_bits(dev, EM28XX_R0C_USBSUSP,
-				   start ? 0x10 : 0x00, 0x10);
-	if (rc < 0)
-		return rc;
-
-	if (!start) {
-		/* disable video capture */
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x27);
-		return rc;
-	}
-
-	if (dev->board.is_webcam)
-		rc = em28xx_write_reg(dev, 0x13, 0x0c);
-
-	/* enable video capture */
-	rc = em28xx_write_reg(dev, 0x48, 0x00);
 
 	if (dev->mode == EM28XX_ANALOG_MODE)
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x67);
+		led = em28xx_find_led(dev, EM28XX_LED_ANALOG_CAPTURING);
 	else
-		rc = em28xx_write_reg(dev, EM28XX_R12_VINENABLE, 0x37);
+		led = em28xx_find_led(dev, EM28XX_LED_DIGITAL_CAPTURING);
 
-	msleep(6);
+	if (led)
+		em28xx_write_reg_bits(dev, led->gpio_reg,
+				      (!start ^ led->inverted) ?
+				      ~led->gpio_mask : led->gpio_mask,
+				      led->gpio_mask);
 
 	return rc;
-}
-
-int em28xx_vbi_supported(struct em28xx *dev)
-{
-	/* Modprobe option to manually disable */
-	if (disable_vbi == 1)
-		return 0;
-
-	if (dev->chip_id == CHIP_ID_EM2860 ||
-	    dev->chip_id == CHIP_ID_EM2883)
-		return 1;
-
-	/* Version of em28xx that does not support VBI */
-	return 0;
-}
-
-int em28xx_set_outfmt(struct em28xx *dev)
-{
-	int ret;
-	u8 vinctrl;
-
-	ret = em28xx_write_reg_bits(dev, EM28XX_R27_OUTFMT,
-				dev->format->reg | 0x20, 0xff);
-	if (ret < 0)
-			return ret;
-
-	ret = em28xx_write_reg(dev, EM28XX_R10_VINMODE, dev->vinmode);
-	if (ret < 0)
-		return ret;
-
-	vinctrl = dev->vinctl;
-	if (em28xx_vbi_supported(dev) == 1) {
-		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
-		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
-		if (dev->norm & V4L2_STD_525_60) {
-			/* NTSC */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		} else if (dev->norm & V4L2_STD_625_50) {
-			/* PAL */
-			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
-		}
-	}
-
-	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
-}
-
-static int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax,
-				  u8 ymin, u8 ymax)
-{
-	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n",
-			xmin, ymin, xmax, ymax);
-
-	em28xx_write_regs(dev, EM28XX_R28_XMIN, &xmin, 1);
-	em28xx_write_regs(dev, EM28XX_R29_XMAX, &xmax, 1);
-	em28xx_write_regs(dev, EM28XX_R2A_YMIN, &ymin, 1);
-	return em28xx_write_regs(dev, EM28XX_R2B_YMAX, &ymax, 1);
-}
-
-static int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
-				   u16 width, u16 height)
-{
-	u8 cwidth = width;
-	u8 cheight = height;
-	u8 overflow = (height >> 7 & 0x02) | (width >> 8 & 0x01);
-
-	em28xx_coredbg("em28xx Area Set: (%d,%d)\n",
-			(width | (overflow & 2) << 7),
-			(height | (overflow & 1) << 8));
-
-	em28xx_write_regs(dev, EM28XX_R1C_HSTART, &hstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1D_VSTART, &vstart, 1);
-	em28xx_write_regs(dev, EM28XX_R1E_CWIDTH, &cwidth, 1);
-	em28xx_write_regs(dev, EM28XX_R1F_CHEIGHT, &cheight, 1);
-	return em28xx_write_regs(dev, EM28XX_R1B_OFLOW, &overflow, 1);
-}
-
-static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
-{
-	u8 mode;
-	/* the em2800 scaler only supports scaling down to 50% */
-
-	if (dev->board.is_em2800) {
-		mode = (v ? 0x20 : 0x00) | (h ? 0x10 : 0x00);
-	} else {
-		u8 buf[2];
-
-		buf[0] = h;
-		buf[1] = h >> 8;
-		em28xx_write_regs(dev, EM28XX_R30_HSCALELOW, (char *)buf, 2);
-
-		buf[0] = v;
-		buf[1] = v >> 8;
-		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
-		/* it seems that both H and V scalers must be active
-		   to work correctly */
-		mode = (h || v) ? 0x30 : 0x00;
-	}
-	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
-}
-
-/* FIXME: this only function read values from dev */
-int em28xx_resolution_set(struct em28xx *dev)
-{
-	int width, height;
-	width = norm_maxw(dev);
-	height = norm_maxh(dev);
-
-	/* Properly setup VBI */
-	dev->vbi_width = 720;
-	if (dev->norm & V4L2_STD_525_60)
-		dev->vbi_height = 12;
-	else
-		dev->vbi_height = 18;
-
-	em28xx_set_outfmt(dev);
-
-	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
-
-	/* If we don't set the start position to 2 in VBI mode, we end up
-	   with line 20/21 being YUYV encoded instead of being in 8-bit
-	   greyscale.  The core of the issue is that line 21 (and line 23 for
-	   PAL WSS) are inside of active video region, and as a result they
-	   get the pixelformatting associated with that area.  So by cropping
-	   it out, we end up with the same format as the rest of the VBI
-	   region */
-	if (em28xx_vbi_supported(dev) == 1)
-		em28xx_capture_area_set(dev, 0, 2, width >> 2, height >> 2);
-	else
-		em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
-
-	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
-}
-
-int em28xx_set_alternate(struct em28xx *dev)
-{
-	int errCode, prev_alt = dev->alt;
-	int i;
-	unsigned int min_pkt_size = dev->width * 2 + 4;
-
-	/*
-	 * alt = 0 is used only for control messages, so, only values
-	 * greater than 0 can be used for streaming.
-	 */
-	if (alt && alt < dev->num_alt) {
-		em28xx_coredbg("alternate forced to %d\n", dev->alt);
-		dev->alt = alt;
-		goto set_alt;
-	}
-
-	/* When image size is bigger than a certain value,
-	   the frame size should be increased, otherwise, only
-	   green screen will be received.
-	 */
-	if (dev->width * 2 * dev->height > 720 * 240 * 2)
-		min_pkt_size *= 2;
-
-	for (i = 0; i < dev->num_alt; i++) {
-		/* stop when the selected alt setting offers enough bandwidth */
-		if (dev->alt_max_pkt_size[i] >= min_pkt_size) {
-			dev->alt = i;
-			break;
-		/* otherwise make sure that we end up with the maximum bandwidth
-		   because the min_pkt_size equation might be wrong...
-		*/
-		} else if (dev->alt_max_pkt_size[i] >
-			   dev->alt_max_pkt_size[dev->alt])
-			dev->alt = i;
-	}
-
-set_alt:
-	if (dev->alt != prev_alt) {
-		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
-				min_pkt_size, dev->alt);
-		dev->max_pkt_size = dev->alt_max_pkt_size[dev->alt];
-		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
-			       dev->alt, dev->max_pkt_size);
-		errCode = usb_set_interface(dev->udev, 0, dev->alt);
-		if (errCode < 0) {
-			em28xx_errdev("cannot change alternate number to %d (error=%i)\n",
-					dev->alt, errCode);
-			return errCode;
-		}
-	}
-	return 0;
 }
 
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
@@ -919,7 +739,7 @@ EXPORT_SYMBOL_GPL(em28xx_set_mode);
    ------------------------------------------------------------------*/
 
 /*
- * IRQ callback, called by URB callback
+ * URB completion handler for isoc/bulk transfers
  */
 static void em28xx_irq_callback(struct urb *urb)
 {
@@ -941,11 +761,12 @@ static void em28xx_irq_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->slock);
-	dev->isoc_ctl.isoc_copy(dev, urb);
+	dev->usb_ctl.urb_data_copy(dev, urb);
 	spin_unlock(&dev->slock);
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
+		/* isoc only (bulk: number_of_packets = 0) */
 		urb->iso_frame_desc[i].status = 0;
 		urb->iso_frame_desc[i].actual_length = 0;
 	}
@@ -961,49 +782,50 @@ static void em28xx_irq_callback(struct urb *urb)
 /*
  * Stop and Deallocate URBs
  */
-void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
+void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode)
 {
 	struct urb *urb;
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 
-	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc in mode %d\n", mode);
+	em28xx_isocdbg("em28xx: called em28xx_uninit_usb_xfer in mode %d\n",
+		       mode);
 
 	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
+		usb_bufs = &dev->usb_ctl.digital_bufs;
 	else
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+		usb_bufs = &dev->usb_ctl.analog_bufs;
 
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		urb = isoc_bufs->urb[i];
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		urb = usb_bufs->urb[i];
 		if (urb) {
 			if (!irqs_disabled())
 				usb_kill_urb(urb);
 			else
 				usb_unlink_urb(urb);
 
-			if (isoc_bufs->transfer_buffer[i]) {
+			if (usb_bufs->transfer_buffer[i]) {
 				usb_free_coherent(dev->udev,
 					urb->transfer_buffer_length,
-					isoc_bufs->transfer_buffer[i],
+					usb_bufs->transfer_buffer[i],
 					urb->transfer_dma);
 			}
 			usb_free_urb(urb);
-			isoc_bufs->urb[i] = NULL;
+			usb_bufs->urb[i] = NULL;
 		}
-		isoc_bufs->transfer_buffer[i] = NULL;
+		usb_bufs->transfer_buffer[i] = NULL;
 	}
 
-	kfree(isoc_bufs->urb);
-	kfree(isoc_bufs->transfer_buffer);
+	kfree(usb_bufs->urb);
+	kfree(usb_bufs->transfer_buffer);
 
-	isoc_bufs->urb = NULL;
-	isoc_bufs->transfer_buffer = NULL;
-	isoc_bufs->num_bufs = 0;
+	usb_bufs->urb = NULL;
+	usb_bufs->transfer_buffer = NULL;
+	usb_bufs->num_bufs = 0;
 
 	em28xx_capture_start(dev, 0);
 }
-EXPORT_SYMBOL_GPL(em28xx_uninit_isoc);
+EXPORT_SYMBOL_GPL(em28xx_uninit_usb_xfer);
 
 /*
  * Stop URBs
@@ -1012,7 +834,7 @@ void em28xx_stop_urbs(struct em28xx *dev)
 {
 	int i;
 	struct urb *urb;
-	struct em28xx_usb_isoc_bufs *isoc_bufs = &dev->isoc_ctl.digital_bufs;
+	struct em28xx_usb_bufs *isoc_bufs = &dev->usb_ctl.digital_bufs;
 
 	em28xx_isocdbg("em28xx: called em28xx_stop_urbs\n");
 
@@ -1033,10 +855,10 @@ EXPORT_SYMBOL_GPL(em28xx_stop_urbs);
 /*
  * Allocate URBs
  */
-int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int max_packets, int num_bufs, int max_pkt_size)
+int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
+		      int num_bufs, int max_pkt_size, int packet_multiplier)
 {
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 	int sb_size, pipe;
 	struct urb *urb;
@@ -1044,119 +866,159 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 
 	em28xx_isocdbg("em28xx: called em28xx_alloc_isoc in mode %d\n", mode);
 
-	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
-	else
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+	/* Check mode and if we have an endpoint for the selected
+	   transfer type, select buffer				 */
+	if (mode == EM28XX_DIGITAL_MODE) {
+		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
+		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
+			em28xx_errdev("no endpoint for DVB mode and transfer type %d\n",
+				      xfer_bulk > 0);
+			return -EINVAL;
+		}
+		usb_bufs = &dev->usb_ctl.digital_bufs;
+	} else if (mode == EM28XX_ANALOG_MODE) {
+		if ((xfer_bulk && !dev->analog_ep_bulk) ||
+		    (!xfer_bulk && !dev->analog_ep_isoc)) {
+			em28xx_errdev("no endpoint for analog mode and transfer type %d\n",
+				       xfer_bulk > 0);
+			return -EINVAL;
+		}
+		usb_bufs = &dev->usb_ctl.analog_bufs;
+	} else {
+		em28xx_errdev("invalid mode selected\n");
+		return -EINVAL;
+	}
 
 	/* De-allocates all pending stuff */
-	em28xx_uninit_isoc(dev, mode);
+	em28xx_uninit_usb_xfer(dev, mode);
 
-	isoc_bufs->num_bufs = num_bufs;
+	usb_bufs->num_bufs = num_bufs;
 
-	isoc_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
-	if (!isoc_bufs->urb) {
+	usb_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
+	if (!usb_bufs->urb) {
 		em28xx_errdev("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
-	isoc_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
+	usb_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					     GFP_KERNEL);
-	if (!isoc_bufs->transfer_buffer) {
+	if (!usb_bufs->transfer_buffer) {
 		em28xx_errdev("cannot allocate memory for usb transfer\n");
-		kfree(isoc_bufs->urb);
+		kfree(usb_bufs->urb);
 		return -ENOMEM;
 	}
 
-	isoc_bufs->max_pkt_size = max_pkt_size;
-	isoc_bufs->num_packets = max_packets;
-	dev->isoc_ctl.vid_buf = NULL;
-	dev->isoc_ctl.vbi_buf = NULL;
+	usb_bufs->max_pkt_size = max_pkt_size;
+	if (xfer_bulk)
+		usb_bufs->num_packets = 0;
+	else
+		usb_bufs->num_packets = packet_multiplier;
+	dev->usb_ctl.vid_buf = NULL;
+	dev->usb_ctl.vbi_buf = NULL;
 
-	sb_size = isoc_bufs->num_packets * isoc_bufs->max_pkt_size;
+	sb_size = packet_multiplier * usb_bufs->max_pkt_size;
 
 	/* allocate urbs and transfer buffers */
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		urb = usb_alloc_urb(isoc_bufs->num_packets, GFP_KERNEL);
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		urb = usb_alloc_urb(usb_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
-			em28xx_err("cannot alloc isoc_ctl.urb %i\n", i);
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
-		isoc_bufs->urb[i] = urb;
+		usb_bufs->urb[i] = urb;
 
-		isoc_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
+		usb_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
-		if (!isoc_bufs->transfer_buffer[i]) {
+		if (!usb_bufs->transfer_buffer[i]) {
 			em28xx_err("unable to allocate %i bytes for transfer"
 					" buffer %i%s\n",
 					sb_size, i,
 					in_interrupt() ? " while in int" : "");
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
-		memset(isoc_bufs->transfer_buffer[i], 0, sb_size);
+		memset(usb_bufs->transfer_buffer[i], 0, sb_size);
 
-		/* FIXME: this is a hack - should be
-			'desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK'
-			should also be using 'desc.bInterval'
-		 */
-		pipe = usb_rcvisocpipe(dev->udev,
-				       mode == EM28XX_ANALOG_MODE ?
-				       EM28XX_EP_ANALOG : EM28XX_EP_DIGITAL);
-
-		usb_fill_int_urb(urb, dev->udev, pipe,
-				 isoc_bufs->transfer_buffer[i], sb_size,
-				 em28xx_irq_callback, dev, 1);
-
-		urb->number_of_packets = isoc_bufs->num_packets;
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-
-		k = 0;
-		for (j = 0; j < isoc_bufs->num_packets; j++) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-						isoc_bufs->max_pkt_size;
-			k += isoc_bufs->max_pkt_size;
+		if (xfer_bulk) { /* bulk */
+			pipe = usb_rcvbulkpipe(dev->udev,
+					       mode == EM28XX_ANALOG_MODE ?
+					       dev->analog_ep_bulk :
+					       dev->dvb_ep_bulk);
+			usb_fill_bulk_urb(urb, dev->udev, pipe,
+					  usb_bufs->transfer_buffer[i], sb_size,
+					  em28xx_irq_callback, dev);
+			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		} else { /* isoc */
+			pipe = usb_rcvisocpipe(dev->udev,
+					       mode == EM28XX_ANALOG_MODE ?
+					       dev->analog_ep_isoc :
+					       dev->dvb_ep_isoc);
+			usb_fill_int_urb(urb, dev->udev, pipe,
+					 usb_bufs->transfer_buffer[i], sb_size,
+					 em28xx_irq_callback, dev, 1);
+			urb->transfer_flags = URB_ISO_ASAP |
+					      URB_NO_TRANSFER_DMA_MAP;
+			k = 0;
+			for (j = 0; j < usb_bufs->num_packets; j++) {
+				urb->iso_frame_desc[j].offset = k;
+				urb->iso_frame_desc[j].length =
+							usb_bufs->max_pkt_size;
+				k += usb_bufs->max_pkt_size;
+			}
 		}
+
+		urb->number_of_packets = usb_bufs->num_packets;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(em28xx_alloc_isoc);
+EXPORT_SYMBOL_GPL(em28xx_alloc_urbs);
 
 /*
  * Allocate URBs and start IRQ
  */
-int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int max_packets, int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
+int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
+		    int xfer_bulk, int num_bufs, int max_pkt_size,
+		    int packet_multiplier,
+		    int (*urb_data_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 	int rc;
 	int alloc;
 
-	em28xx_isocdbg("em28xx: called em28xx_init_isoc in mode %d\n", mode);
+	em28xx_isocdbg("em28xx: called em28xx_init_usb_xfer in mode %d\n",
+		       mode);
 
-	dev->isoc_ctl.isoc_copy = isoc_copy;
+	dev->usb_ctl.urb_data_copy = urb_data_copy;
 
 	if (mode == EM28XX_DIGITAL_MODE) {
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
-		/* no need to free/alloc isoc buffers in digital mode */
+		usb_bufs = &dev->usb_ctl.digital_bufs;
+		/* no need to free/alloc usb buffers in digital mode */
 		alloc = 0;
 	} else {
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+		usb_bufs = &dev->usb_ctl.analog_bufs;
 		alloc = 1;
 	}
 
 	if (alloc) {
-		rc = em28xx_alloc_isoc(dev, mode, max_packets,
-				       num_bufs, max_pkt_size);
+		rc = em28xx_alloc_urbs(dev, mode, xfer_bulk, num_bufs,
+				       max_pkt_size, packet_multiplier);
 		if (rc)
 			return rc;
+	}
+
+	if (xfer_bulk) {
+		rc = usb_clear_halt(dev->udev, usb_bufs->urb[0]->pipe);
+		if (rc < 0) {
+			em28xx_err("failed to clear USB bulk endpoint stall/halt condition (error=%i)\n",
+				   rc);
+			em28xx_uninit_usb_xfer(dev, mode);
+			return rc;
+		}
 	}
 
 	init_waitqueue_head(&dma_q->wq);
@@ -1165,31 +1027,19 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	em28xx_capture_start(dev, 1);
 
 	/* submit urbs and enables IRQ */
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		rc = usb_submit_urb(isoc_bufs->urb[i], GFP_ATOMIC);
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		rc = usb_submit_urb(usb_bufs->urb[i], GFP_ATOMIC);
 		if (rc) {
 			em28xx_err("submit of urb %i failed (error=%i)\n", i,
 				   rc);
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(em28xx_init_isoc);
-
-/*
- * em28xx_wake_i2c()
- * configure i2c attached devices
- */
-void em28xx_wake_i2c(struct em28xx *dev)
-{
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
-			INPUT(dev->ctl_input)->vmux, 0, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
-}
+EXPORT_SYMBOL_GPL(em28xx_init_usb_xfer);
 
 /*
  * Device control list
@@ -1214,7 +1064,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 		ops->init(dev);
 	}
 	mutex_unlock(&em28xx_devlist_mutex);
-	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
+	printk(KERN_INFO "em28xx: Registered (%s) extension\n", ops->name);
 	return 0;
 }
 EXPORT_SYMBOL(em28xx_register_extension);
@@ -1257,4 +1107,32 @@ void em28xx_close_extension(struct em28xx *dev)
 	}
 	list_del(&dev->devlist);
 	mutex_unlock(&em28xx_devlist_mutex);
+}
+
+int em28xx_suspend_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Suspending extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->suspend)
+			ops->suspend(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
+}
+
+int em28xx_resume_extension(struct em28xx *dev)
+{
+	const struct em28xx_ops *ops = NULL;
+
+	em28xx_info("Resuming extensions");
+	mutex_lock(&em28xx_devlist_mutex);
+	list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+		if (ops->resume)
+			ops->resume(dev);
+	}
+	mutex_unlock(&em28xx_devlist_mutex);
+	return 0;
 }

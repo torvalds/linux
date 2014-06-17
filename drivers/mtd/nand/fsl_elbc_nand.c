@@ -24,10 +24,10 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -650,8 +650,6 @@ static int fsl_elbc_chip_init_tail(struct mtd_info *mtd)
 	        chip->page_shift);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->phys_erase_shift = %d\n",
 	        chip->phys_erase_shift);
-	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecclayout = %p\n",
-	        chip->ecclayout);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.mode = %d\n",
 	        chip->ecc.mode);
 	dev_dbg(priv->dev, "fsl_elbc_init: nand->ecc.steps = %d\n",
@@ -725,6 +723,19 @@ static int fsl_elbc_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
+/* ECC will be calculated automatically, and errors will be detected in
+ * waitfunc.
+ */
+static int fsl_elbc_write_subpage(struct mtd_info *mtd, struct nand_chip *chip,
+				uint32_t offset, uint32_t data_len,
+				const uint8_t *buf, int oob_required)
+{
+	fsl_elbc_write_buf(mtd, buf, mtd->writesize);
+	fsl_elbc_write_buf(mtd, chip->oob_poi, mtd->oobsize);
+
+	return 0;
+}
+
 static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 {
 	struct fsl_lbc_ctrl *ctrl = priv->ctrl;
@@ -763,6 +774,7 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 
 	chip->ecc.read_page = fsl_elbc_read_page;
 	chip->ecc.write_page = fsl_elbc_write_page;
+	chip->ecc.write_subpage = fsl_elbc_write_subpage;
 
 	/* If CS Base Register selects full hardware ECC then use it */
 	if ((in_be32(&lbc->bank[priv->bank].br) & BR_DECC) ==
@@ -848,7 +860,6 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 	if (!fsl_lbc_ctrl_dev->nand) {
 		elbc_fcm_ctrl = kzalloc(sizeof(*elbc_fcm_ctrl), GFP_KERNEL);
 		if (!elbc_fcm_ctrl) {
-			dev_err(dev, "failed to allocate memory\n");
 			mutex_unlock(&fsl_elbc_nand_mutex);
 			ret = -ENOMEM;
 			goto err;
@@ -876,7 +887,7 @@ static int fsl_elbc_nand_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", (unsigned)res.start);
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%llx.flash", (u64)res.start);
 	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;

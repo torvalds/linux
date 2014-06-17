@@ -167,7 +167,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	int_to_scsilun(cmd->device->lun, &lun);
 	memcpy(task->ssp_task.LUN, &lun.scsi_lun, 8);
 	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
-	memcpy(task->ssp_task.cdb, cmd->cmnd, 16);
+	task->ssp_task.cmd = cmd;
 
 	task->scatter = scsi_sglist(cmd);
 	task->num_scatter = scsi_sg_count(cmd);
@@ -862,7 +862,7 @@ out:
 
 enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
-	scmd_printk(KERN_DEBUG, cmd, "command %p timed out\n", cmd);
+	scmd_dbg(cmd, "command %p timed out\n", cmd);
 
 	return BLK_EH_NOT_HANDLED;
 }

@@ -33,7 +33,7 @@ config SH64_FPU_DENORM_FLUSH
 config SH_FPU_EMU
 	def_bool n
 	prompt "FPU emulation support"
-	depends on !SH_FPU && EXPERIMENTAL
+	depends on !SH_FPU
 	help
 	  Selecting this option will enable support for software FPU emulation.
 	  Most SH-3 users will want to say Y here, whereas most SH-4 users will
@@ -68,7 +68,6 @@ config SH_STORE_QUEUES
 
 config SPECULATIVE_EXECUTION
 	bool "Speculative subroutine return"
-	depends on EXPERIMENTAL
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785 || CPU_SUBTYPE_SH7786
 	help
 	  This enables support for a speculative instruction fetch for

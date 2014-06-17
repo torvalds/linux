@@ -24,6 +24,7 @@
 
 #include <core/object.h>
 #include <core/parent.h>
+#include <core/client.h>
 
 int
 nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
@@ -48,9 +49,14 @@ nouveau_parent_sclass(struct nouveau_object *parent, u16 handle,
 
 	mask = nv_parent(parent)->engine;
 	while (mask) {
-		int i = ffsll(mask) - 1;
+		int i = __ffs64(mask);
 
-		if ((engine = nouveau_engine(parent, i))) {
+		if (nv_iclass(parent, NV_CLIENT_CLASS))
+			engine = nv_engine(nv_client(parent)->device);
+		else
+			engine = nouveau_engine(parent, i);
+
+		if (engine) {
 			oclass = engine->sclass;
 			while (oclass->ofuncs) {
 				if ((oclass->handle & 0xffff) == handle) {

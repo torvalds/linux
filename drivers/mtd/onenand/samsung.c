@@ -23,11 +23,11 @@
 #include <linux/mtd/partitions.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/mach/flash.h>
-#include <plat/regs-onenand.h>
 
-#include <linux/io.h>
+#include "samsung.h"
 
 enum soc_type {
 	TYPE_S3C6400,
@@ -537,9 +537,9 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
 	return 0;
 }
 
-static int (*s5pc110_dma_ops)(void *dst, void *src, size_t count, int direction);
+static int (*s5pc110_dma_ops)(dma_addr_t dst, dma_addr_t src, size_t count, int direction);
 
-static int s5pc110_dma_poll(void *dst, void *src, size_t count, int direction)
+static int s5pc110_dma_poll(dma_addr_t dst, dma_addr_t src, size_t count, int direction)
 {
 	void __iomem *base = onenand->dma_addr;
 	int status;
@@ -605,7 +605,7 @@ static irqreturn_t s5pc110_onenand_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int s5pc110_dma_irq(void *dst, void *src, size_t count, int direction)
+static int s5pc110_dma_irq(dma_addr_t dst, dma_addr_t src, size_t count, int direction)
 {
 	void __iomem *base = onenand->dma_addr;
 	int status;
@@ -686,7 +686,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		dev_err(dev, "Couldn't map a %d byte buffer for DMA\n", count);
 		goto normal;
 	}
-	err = s5pc110_dma_ops((void *) dma_dst, (void *) dma_src,
+	err = s5pc110_dma_ops(dma_dst, dma_src,
 			count, S5PC110_DMA_DIR_READ);
 
 	if (page_dma)
@@ -867,15 +867,13 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	struct resource *r;
 	int size, err;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	/* No need to check pdata. the platform data is optional */
 
 	size = sizeof(struct mtd_info) + sizeof(struct onenand_chip);
 	mtd = kzalloc(size, GFP_KERNEL);
-	if (!mtd) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!mtd)
 		return -ENOMEM;
-	}
 
 	onenand = kzalloc(sizeof(struct s3c_onenand), GFP_KERNEL);
 	if (!onenand) {
@@ -1073,7 +1071,6 @@ static int s3c_onenand_remove(struct platform_device *pdev)
 	release_mem_region(onenand->base_res->start,
 			   resource_size(onenand->base_res));
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(onenand->oob_buf);
 	kfree(onenand->page_buf);
 	kfree(onenand);

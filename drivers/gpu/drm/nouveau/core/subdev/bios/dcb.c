@@ -107,6 +107,18 @@ dcb_outp(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len)
 	return 0x0000;
 }
 
+static inline u16
+dcb_outp_hasht(struct dcb_output *outp)
+{
+	return (outp->extdev << 8) | (outp->location << 4) | outp->type;
+}
+
+static inline u16
+dcb_outp_hashm(struct dcb_output *outp)
+{
+	return (outp->heads << 8) | (outp->link << 6) | outp->or;
+}
+
 u16
 dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 	       struct dcb_output *outp)
@@ -130,30 +142,51 @@ dcb_outp_parse(struct nouveau_bios *bios, u8 idx, u8 *ver, u8 *len,
 		if (*ver >= 0x40) {
 			u32 conf = nv_ro32(bios, dcb + 0x04);
 			switch (outp->type) {
+			case DCB_OUTPUT_DP:
+				switch (conf & 0x00e00000) {
+				case 0x00000000:
+					outp->dpconf.link_bw = 0x06;
+					break;
+				case 0x00200000:
+					outp->dpconf.link_bw = 0x0a;
+					break;
+				case 0x00400000:
+				default:
+					outp->dpconf.link_bw = 0x14;
+					break;
+				}
+
+				switch (conf & 0x0f000000) {
+				case 0x0f000000:
+					outp->dpconf.link_nr = 4;
+					break;
+				case 0x03000000:
+					outp->dpconf.link_nr = 2;
+					break;
+				case 0x01000000:
+				default:
+					outp->dpconf.link_nr = 1;
+					break;
+				}
+
+				/* fall-through... */
 			case DCB_OUTPUT_TMDS:
 			case DCB_OUTPUT_LVDS:
-			case DCB_OUTPUT_DP:
 				outp->link = (conf & 0x00000030) >> 4;
 				outp->sorconf.link = outp->link; /*XXX*/
+				outp->extdev = 0x00;
+				if (outp->location != 0)
+					outp->extdev = (conf & 0x0000ff00) >> 8;
 				break;
 			default:
 				break;
 			}
 		}
+
+		outp->hasht = dcb_outp_hasht(outp);
+		outp->hashm = dcb_outp_hashm(outp);
 	}
 	return dcb;
-}
-
-static inline u16
-dcb_outp_hasht(struct dcb_output *outp)
-{
-	return outp->type;
-}
-
-static inline u16
-dcb_outp_hashm(struct dcb_output *outp)
-{
-	return (outp->heads << 8) | (outp->link << 6) | outp->or;
 }
 
 u16
@@ -162,7 +195,7 @@ dcb_outp_match(struct nouveau_bios *bios, u16 type, u16 mask,
 {
 	u16 dcb, idx = 0;
 	while ((dcb = dcb_outp_parse(bios, idx++, ver, len, outp))) {
-		if (dcb_outp_hasht(outp) == type) {
+		if ((dcb_outp_hasht(outp) & 0x00ff) == (type & 0x00ff)) {
 			if ((dcb_outp_hashm(outp) & mask) == mask)
 				break;
 		}

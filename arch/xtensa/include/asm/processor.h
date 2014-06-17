@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  */
 
 #ifndef _XTENSA_PROCESSOR_H
@@ -68,7 +68,7 @@
 /* LOCKLEVEL defines the interrupt level that masks all
  * general-purpose interrupts.
  */
-#define LOCKLEVEL 1
+#define LOCKLEVEL XCHAL_EXCM_LEVEL
 
 /* WSBITS and WBBITS are the width of the WINDOWSTART and WINDOWBASE
  * registers
@@ -190,6 +190,26 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 #define set_sr(x,sr) ({unsigned int v=(unsigned int)x; WSR(v,sr);})
 #define get_sr(sr) ({unsigned int v; RSR(v,sr); v; })
+
+#ifndef XCHAL_HAVE_EXTERN_REGS
+#define XCHAL_HAVE_EXTERN_REGS 0
+#endif
+
+#if XCHAL_HAVE_EXTERN_REGS
+
+static inline void set_er(unsigned long value, unsigned long addr)
+{
+	asm volatile ("wer %0, %1" : : "a" (value), "a" (addr) : "memory");
+}
+
+static inline unsigned long get_er(unsigned long addr)
+{
+	register unsigned long value;
+	asm volatile ("rer %0, %1" : "=a" (value) : "a" (addr) : "memory");
+	return value;
+}
+
+#endif /* XCHAL_HAVE_EXTERN_REGS */
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* _XTENSA_PROCESSOR_H */

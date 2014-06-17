@@ -70,9 +70,14 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
 
 static void iint_free(struct integrity_iint_cache *iint)
 {
+	kfree(iint->ima_hash);
+	iint->ima_hash = NULL;
 	iint->version = 0;
 	iint->flags = 0UL;
-	iint->ima_status = INTEGRITY_UNKNOWN;
+	iint->ima_file_status = INTEGRITY_UNKNOWN;
+	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
+	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
+	iint->ima_module_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
 	kmem_cache_free(iint_cache, iint);
 }
@@ -146,10 +151,13 @@ static void init_once(void *foo)
 {
 	struct integrity_iint_cache *iint = foo;
 
-	memset(iint, 0, sizeof *iint);
+	memset(iint, 0, sizeof(*iint));
 	iint->version = 0;
 	iint->flags = 0UL;
-	iint->ima_status = INTEGRITY_UNKNOWN;
+	iint->ima_file_status = INTEGRITY_UNKNOWN;
+	iint->ima_mmap_status = INTEGRITY_UNKNOWN;
+	iint->ima_bprm_status = INTEGRITY_UNKNOWN;
+	iint->ima_module_status = INTEGRITY_UNKNOWN;
 	iint->evm_status = INTEGRITY_UNKNOWN;
 }
 

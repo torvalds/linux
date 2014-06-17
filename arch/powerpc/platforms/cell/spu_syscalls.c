@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/syscalls.h>
 #include <linux/rcupdate.h>
+#include <linux/binfmts.h>
 
 #include <asm/spu.h>
 
@@ -126,7 +127,7 @@ int elf_coredump_extra_notes_size(void)
 	return ret;
 }
 
-int elf_coredump_extra_notes_write(struct file *file, loff_t *foffset)
+int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 {
 	struct spufs_calls *calls;
 	int ret;
@@ -135,7 +136,7 @@ int elf_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 	if (!calls)
 		return 0;
 
-	ret = calls->coredump_extra_notes_write(file, foffset);
+	ret = calls->coredump_extra_notes_write(cprm);
 
 	spufs_calls_put(calls);
 
@@ -169,7 +170,7 @@ EXPORT_SYMBOL_GPL(register_spu_syscalls);
 void unregister_spu_syscalls(struct spufs_calls *calls)
 {
 	BUG_ON(spufs_calls->owner != calls->owner);
-	rcu_assign_pointer(spufs_calls, NULL);
+	RCU_INIT_POINTER(spufs_calls, NULL);
 	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(unregister_spu_syscalls);

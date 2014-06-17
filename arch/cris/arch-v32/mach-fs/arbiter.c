@@ -184,7 +184,7 @@ static void crisv32_arbiter_init(void)
 	crisv32_arbiter_config(EXT_REGION, 0);
 	crisv32_arbiter_config(INT_REGION, 0);
 
-	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, IRQF_DISABLED,
+	if (request_irq(MEMARB_INTR_VECT, crisv32_arbiter_irq, 0,
 			"arbiter", NULL))
 		printk(KERN_ERR "Couldn't allocate arbiter IRQ\n");
 

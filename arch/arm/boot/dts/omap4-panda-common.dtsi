@@ -1,0 +1,538 @@
+/*
+ * Copyright (C) 2011-2013 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+#include "elpida_ecb240abacn.dtsi"
+
+/ {
+	model = "TI OMAP4 PandaBoard";
+	compatible = "ti,omap4-panda", "ti,omap4430", "ti,omap4";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>; /* 1 GB */
+	};
+
+	aliases {
+		display0 = &dvi0;
+		display1 = &hdmi0;
+	};
+
+	leds: leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <
+			&led_wkgpio_pins
+		>;
+
+		heartbeat {
+			label = "pandaboard::status1";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "pandaboard::status2";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	sound: sound {
+		compatible = "ti,abe-twl6040";
+		ti,model = "PandaBoard";
+
+		ti,mclk-freq = <38400000>;
+
+		ti,mcpdm = <&mcpdm>;
+
+		ti,twl6040 = <&twl6040>;
+
+		/* Audio routing */
+		ti,audio-routing =
+			"Headset Stereophone", "HSOL",
+			"Headset Stereophone", "HSOR",
+			"Ext Spk", "HFL",
+			"Ext Spk", "HFR",
+			"Line Out", "AUXL",
+			"Line Out", "AUXR",
+			"HSMIC", "Headset Mic",
+			"Headset Mic", "Headset Mic Bias",
+			"AFML", "Line In",
+			"AFMR", "Line In";
+	};
+
+	/* HS USB Port 1 Power */
+	hsusb1_power: hsusb1_power_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "hsusb1_vbus";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 1 0>;	/* gpio_1 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+		/*
+		 * boot-on is required along with always-on as the
+		 * regulator framework doesn't enable the regulator
+		 * if boot-on is not there.
+		 */
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* HS USB Host PHY on PORT 1 */
+	hsusb1_phy: hsusb1_phy {
+		compatible = "usb-nop-xceiv";
+		reset-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>;   /* gpio_62 */
+		vcc-supply = <&hsusb1_power>;
+		clocks = <&auxclk3_ck>;
+		clock-names = "main_clk";
+		clock-frequency = <19200000>;
+	};
+
+	/* regulator for wl12xx on sdio5 */
+	wl12xx_vmmc: wl12xx_vmmc {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl12xx_gpio>;
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio2 11 0>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	tfp410: encoder@0 {
+		compatible = "ti,tfp410";
+		powerdown-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;	/* gpio_0 */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tfp410_in: endpoint@0 {
+					remote-endpoint = <&dpi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tfp410_out: endpoint@0 {
+					remote-endpoint = <&dvi_connector_in>;
+				};
+			};
+		};
+	};
+
+	dvi0: connector@0 {
+		compatible = "dvi-connector";
+		label = "dvi";
+
+		digital;
+
+		ddc-i2c-bus = <&i2c3>;
+
+		port {
+			dvi_connector_in: endpoint {
+				remote-endpoint = <&tfp410_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder@1 {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>,	/* 60, CT CP HPD */
+			<&gpio2 9 GPIO_ACTIVE_HIGH>,	/* 41, LS OE */
+			<&gpio2 31 GPIO_ACTIVE_HIGH>;	/* 63, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint@0 {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint@0 {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+
+	hdmi0: connector@1 {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+};
+
+&omap4_pmx_core {
+	pinctrl-names = "default";
+	pinctrl-0 = <
+			&dss_dpi_pins
+			&tfp410_pins
+			&dss_hdmi_pins
+			&tpd12s015_pins
+			&hsusbb1_pins
+	>;
+
+	twl6040_pins: pinmux_twl6040_pins {
+		pinctrl-single,pins = <
+			0xe0 (PIN_OUTPUT | MUX_MODE3)	/* hdq_sio.gpio_127 */
+			0x160 (PIN_INPUT | MUX_MODE0)	/* sys_nirq2.sys_nirq2 */
+		>;
+	};
+
+	mcpdm_pins: pinmux_mcpdm_pins {
+		pinctrl-single,pins = <
+			0xc6 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_ul_data.abe_pdm_ul_data */
+			0xc8 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_dl_data.abe_pdm_dl_data */
+			0xca (PIN_INPUT_PULLUP   | MUX_MODE0)	/* abe_pdm_frame.abe_pdm_frame */
+			0xcc (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_pdm_lb_clk.abe_pdm_lb_clk */
+			0xce (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_clks.abe_clks */
+		>;
+	};
+
+	mcbsp1_pins: pinmux_mcbsp1_pins {
+		pinctrl-single,pins = <
+			0xbe (PIN_INPUT | MUX_MODE0)		/* abe_mcbsp1_clkx.abe_mcbsp1_clkx */
+			0xc0 (PIN_INPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dr.abe_mcbsp1_dr */
+			0xc2 (PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* abe_mcbsp1_dx.abe_mcbsp1_dx */
+			0xc4 (PIN_INPUT | MUX_MODE0)		/* abe_mcbsp1_fsx.abe_mcbsp1_fsx */
+		>;
+	};
+
+	dss_dpi_pins: pinmux_dss_dpi_pins {
+		pinctrl-single,pins = <
+			0x122 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data23 */
+			0x124 (PIN_OUTPUT | MUX_MODE5) 	/* dispc2_data22 */
+			0x126 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data21 */
+			0x128 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data20 */
+			0x12a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data19 */
+			0x12c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data18 */
+			0x12e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data15 */
+			0x130 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data14 */
+			0x132 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data13 */
+			0x134 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data12 */
+			0x136 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data11 */
+
+			0x174 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data10 */
+			0x176 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data9 */
+			0x178 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data16 */
+			0x17a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data17 */
+			0x17c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_hsync */
+			0x17e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_pclk */
+			0x180 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_vsync */
+			0x182 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_de */
+			0x184 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data8 */
+			0x186 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data7 */
+			0x188 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data6 */
+			0x18a (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data5 */
+			0x18c (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data4 */
+			0x18e (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data3 */
+
+			0x190 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data2 */
+			0x192 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data1 */
+			0x194 (PIN_OUTPUT | MUX_MODE5)	/* dispc2_data0 */
+		>;
+	};
+
+	tfp410_pins: pinmux_tfp410_pins {
+		pinctrl-single,pins = <
+			0x144 (PIN_OUTPUT | MUX_MODE3)	/* gpio_0 */
+		>;
+	};
+
+	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+		pinctrl-single,pins = <
+			0x5a (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_cec.hdmi_cec */
+			0x5c (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_scl.hdmi_scl */
+			0x5e (PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_sda.hdmi_sda */
+		>;
+	};
+
+	tpd12s015_pins: pinmux_tpd12s015_pins {
+		pinctrl-single,pins = <
+			0x22 (PIN_OUTPUT | MUX_MODE3)		/* gpmc_a17.gpio_41 */
+			0x48 (PIN_OUTPUT | MUX_MODE3)		/* gpmc_nbe1.gpio_60 */
+			0x58 (PIN_INPUT_PULLDOWN | MUX_MODE3)	/* hdmi_hpd.gpio_63 */
+		>;
+	};
+
+	hsusbb1_pins: pinmux_hsusbb1_pins {
+		pinctrl-single,pins = <
+			0x82 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_clk.usbb1_ulpiphy_clk */
+			0x84 (PIN_OUTPUT | MUX_MODE4)		/* usbb1_ulpitll_stp.usbb1_ulpiphy_stp */
+			0x86 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dir.usbb1_ulpiphy_dir */
+			0x88 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_nxt.usbb1_ulpiphy_nxt */
+			0x8a (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat0.usbb1_ulpiphy_dat0 */
+			0x8c (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat1.usbb1_ulpiphy_dat1 */
+			0x8e (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat2.usbb1_ulpiphy_dat2 */
+			0x90 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat3.usbb1_ulpiphy_dat3 */
+			0x92 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat4.usbb1_ulpiphy_dat4 */
+			0x94 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat5.usbb1_ulpiphy_dat5 */
+			0x96 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat6.usbb1_ulpiphy_dat6 */
+			0x98 (PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_dat7.usbb1_ulpiphy_dat7 */
+		>;
+	};
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			0xe2 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
+			0xe4 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda */
+		>;
+	};
+
+	i2c2_pins: pinmux_i2c2_pins {
+		pinctrl-single,pins = <
+			0xe6 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_scl */
+			0xe8 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_sda */
+		>;
+	};
+
+	i2c3_pins: pinmux_i2c3_pins {
+		pinctrl-single,pins = <
+			0xea (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
+			0xec (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+		>;
+	};
+
+	i2c4_pins: pinmux_i2c4_pins {
+		pinctrl-single,pins = <
+			0xee (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_scl */
+			0xf0 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_sda */
+		>;
+	};
+
+	/*
+	 * wl12xx GPIO outputs for WLAN_EN, BT_EN, FM_EN, BT_WAKEUP
+	 * REVISIT: Are the pull-ups needed for GPIO 48 and 49?
+	 */
+	wl12xx_gpio: pinmux_wl12xx_gpio {
+		pinctrl-single,pins = <
+			0x26 (PIN_OUTPUT | MUX_MODE3)		/* gpmc_a19.gpio_43 */
+			0x2c (PIN_OUTPUT | MUX_MODE3)		/* gpmc_a22.gpio_46 */
+			0x30 (PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_a24.gpio_48 */
+			0x32 (PIN_OUTPUT_PULLUP | MUX_MODE3)	/* gpmc_a25.gpio_49 */
+		>;
+	};
+
+	/* wl12xx GPIO inputs and SDIO pins */
+	wl12xx_pins: pinmux_wl12xx_pins {
+		pinctrl-single,pins = <
+			0x38 (PIN_INPUT | MUX_MODE3)		/* gpmc_ncs2.gpio_52 */
+			0x3a (PIN_INPUT | MUX_MODE3)		/* gpmc_ncs3.gpio_53 */
+			0x108 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_clk.sdmmc5_clk */
+			0x10a (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_cmd.sdmmc5_cmd */
+			0x10c (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat0.sdmmc5_dat0 */
+			0x10e (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat1.sdmmc5_dat1 */
+			0x110 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat2.sdmmc5_dat2 */
+			0x112 (PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_dat3.sdmmc5_dat3 */
+		>;
+	};
+};
+
+&omap4_pmx_wkup {
+	led_wkgpio_pins: pinmux_leds_wkpins {
+		pinctrl-single,pins = <
+			0x1a (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk7 */
+			0x1c (PIN_OUTPUT | MUX_MODE3)	/* gpio_wk8 */
+		>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+
+	clock-frequency = <400000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		/* IRQ# = 7 */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
+		interrupt-parent = <&gic>;
+	};
+
+	twl6040: twl@4b {
+		compatible = "ti,twl6040";
+		reg = <0x4b>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&twl6040_pins>;
+
+		/* IRQ# = 119 */
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_2N cascaded to gic */
+		interrupt-parent = <&gic>;
+		ti,audpwron-gpio = <&gpio4 31 GPIO_ACTIVE_HIGH>;  /* gpio line 127 */
+
+		vio-supply = <&v1v8>;
+		v2v1-supply = <&v2v1>;
+		enable-active-high;
+	};
+};
+
+#include "twl6030.dtsi"
+#include "twl6030_omap4.dtsi"
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
+	clock-frequency = <400000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins>;
+
+	clock-frequency = <100000>;
+
+	/*
+	 * Display monitor features are burnt in their EEPROM as EDID data.
+	 * The EEPROM is connected as I2C slave device.
+	 */
+	eeprom@50 {
+		compatible = "ti,eeprom";
+		reg = <0x50>;
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+
+	clock-frequency = <400000>;
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmc>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	status = "disabled";
+};
+
+&mmc3 {
+	status = "disabled";
+};
+
+&mmc4 {
+	status = "disabled";
+};
+
+&mmc5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&wl12xx_pins>;
+	vmmc-supply = <&wl12xx_vmmc>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&mcbsp1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp1_pins>;
+	status = "okay";
+};
+
+&mcpdm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
+
+&twl_usb_comparator {
+	usb-supply = <&vusb>;
+};
+
+&uart2 {
+	interrupts-extended = <&gic GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART2_RX>;
+};
+
+&uart3 {
+	interrupts-extended = <&gic GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART3_RX>;
+};
+
+&uart4 {
+	interrupts-extended = <&gic GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH
+			       &omap4_pmx_core OMAP4_UART4_RX>;
+};
+
+&usb_otg_hs {
+	interface-type = <1>;
+	mode = <3>;
+	power = <50>;
+};
+
+&usbhshost {
+	port1-mode = "ehci-phy";
+};
+
+&usbhsehci {
+	phys = <&hsusb1_phy>;
+};
+
+&dss {
+	status = "ok";
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&tfp410_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&dsi2 {
+	status = "ok";
+	vdd-supply = <&vcxio>;
+};
+
+&hdmi {
+	status = "ok";
+	vdda-supply = <&vdac>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};

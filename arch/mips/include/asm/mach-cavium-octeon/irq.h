@@ -35,6 +35,8 @@ enum octeon_irq {
 	OCTEON_IRQ_PCI_MSI2,
 	OCTEON_IRQ_PCI_MSI3,
 
+	OCTEON_IRQ_TWSI,
+	OCTEON_IRQ_TWSI2,
 	OCTEON_IRQ_RML,
 	OCTEON_IRQ_TIMER0,
 	OCTEON_IRQ_TIMER1,
@@ -51,8 +53,8 @@ enum octeon_irq {
 /* 256 - 511 represent the MSI interrupts 0-255 */
 #define OCTEON_IRQ_MSI_BIT0	(256)
 
-#define OCTEON_IRQ_MSI_LAST      (OCTEON_IRQ_MSI_BIT0 + 255)
-#define OCTEON_IRQ_LAST          (OCTEON_IRQ_MSI_LAST + 1)
+#define OCTEON_IRQ_MSI_LAST	 (OCTEON_IRQ_MSI_BIT0 + 255)
+#define OCTEON_IRQ_LAST		 (OCTEON_IRQ_MSI_LAST + 1)
 #endif
 
 #endif

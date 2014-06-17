@@ -179,8 +179,7 @@ static void max3100_work(struct work_struct *w);
 
 static void max3100_dowork(struct max3100_port *s)
 {
-	if (!s->force_end_work && !work_pending(&s->work) &&
-	    !freezing(current) && !s->suspending)
+	if (!s->force_end_work && !freezing(current) && !s->suspending)
 		queue_work(s->workqueue, &s->work);
 }
 
@@ -311,8 +310,8 @@ static void max3100_work(struct work_struct *w)
 			}
 		}
 
-		if (rxchars > 16 && s->port.state->port.tty != NULL) {
-			tty_flip_buffer_push(s->port.state->port.tty);
+		if (rxchars > 16) {
+			tty_flip_buffer_push(&s->port.state->port);
 			rxchars = 0;
 		}
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -324,8 +323,8 @@ static void max3100_work(struct work_struct *w)
 		  (!uart_circ_empty(xmit) &&
 		   !uart_tx_stopped(&s->port))));
 
-	if (rxchars > 0 && s->port.state->port.tty != NULL)
-		tty_flip_buffer_push(s->port.state->port.tty);
+	if (rxchars > 0)
+		tty_flip_buffer_push(&s->port.state->port);
 }
 
 static irqreturn_t max3100_irq(int irqno, void *dev_id)
@@ -530,7 +529,7 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 			MAX3100_STATUS_OE;
 
 	/* we are sending char from a workqueue so enable */
-	s->port.state->port.tty->low_latency = 1;
+	s->port.state->port.low_latency = 1;
 
 	if (s->poll_time > 0)
 		del_timer_sync(&s->timer);
@@ -779,8 +778,8 @@ static int max3100_probe(struct spi_device *spi)
 	max3100s[i]->spi = spi;
 	max3100s[i]->irq = spi->irq;
 	spin_lock_init(&max3100s[i]->conf_lock);
-	dev_set_drvdata(&spi->dev, max3100s[i]);
-	pdata = spi->dev.platform_data;
+	spi_set_drvdata(spi, max3100s[i]);
+	pdata = dev_get_platdata(&spi->dev);
 	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->loopback = pdata->loopback;
 	max3100s[i]->poll_time = pdata->poll_time * HZ / 1000;
@@ -820,7 +819,7 @@ static int max3100_probe(struct spi_device *spi)
 
 static int max3100_remove(struct spi_device *spi)
 {
-	struct max3100_port *s = dev_get_drvdata(&spi->dev);
+	struct max3100_port *s = spi_get_drvdata(spi);
 	int i;
 
 	mutex_lock(&max3100s_lock);
@@ -850,11 +849,11 @@ static int max3100_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int max3100_suspend(struct spi_device *spi, pm_message_t state)
+static int max3100_suspend(struct device *dev)
 {
-	struct max3100_port *s = dev_get_drvdata(&spi->dev);
+	struct max3100_port *s = dev_get_drvdata(dev);
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -875,9 +874,9 @@ static int max3100_suspend(struct spi_device *spi, pm_message_t state)
 	return 0;
 }
 
-static int max3100_resume(struct spi_device *spi)
+static int max3100_resume(struct device *dev)
 {
-	struct max3100_port *s = dev_get_drvdata(&spi->dev);
+	struct max3100_port *s = dev_get_drvdata(dev);
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -895,21 +894,21 @@ static int max3100_resume(struct spi_device *spi)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
+#define MAX3100_PM_OPS (&max3100_pm_ops)
+
 #else
-#define max3100_suspend NULL
-#define max3100_resume  NULL
+#define MAX3100_PM_OPS NULL
 #endif
 
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
 		.owner		= THIS_MODULE,
+		.pm		= MAX3100_PM_OPS,
 	},
-
 	.probe		= max3100_probe,
 	.remove		= max3100_remove,
-	.suspend	= max3100_suspend,
-	.resume		= max3100_resume,
 };
 
 module_spi_driver(max3100_driver);

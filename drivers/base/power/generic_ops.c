@@ -10,30 +10,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/export.h>
 
-#ifdef CONFIG_PM_RUNTIME
-/**
- * pm_generic_runtime_idle - Generic runtime idle callback for subsystems.
- * @dev: Device to handle.
- *
- * If PM operations are defined for the @dev's driver and they include
- * ->runtime_idle(), execute it and return its error code, if nonzero.
- * Otherwise, execute pm_runtime_suspend() for the device and return 0.
- */
-int pm_generic_runtime_idle(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm && pm->runtime_idle) {
-		int ret = pm->runtime_idle(dev);
-		if (ret)
-			return ret;
-	}
-
-	pm_runtime_suspend(dev);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pm_generic_runtime_idle);
-
+#ifdef CONFIG_PM
 /**
  * pm_generic_runtime_suspend - Generic runtime suspend callback for subsystems.
  * @dev: Device to suspend.
@@ -71,7 +48,7 @@ int pm_generic_runtime_resume(struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pm_generic_runtime_resume);
-#endif /* CONFIG_PM_RUNTIME */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM_SLEEP
 /**
@@ -308,7 +285,7 @@ int pm_generic_restore(struct device *dev)
 EXPORT_SYMBOL_GPL(pm_generic_restore);
 
 /**
- * pm_generic_complete - Generic routine competing a device power transition.
+ * pm_generic_complete - Generic routine completing a device power transition.
  * @dev: Device to handle.
  *
  * Complete a device power transition during a system-wide power transition.
@@ -324,6 +301,6 @@ void pm_generic_complete(struct device *dev)
 	 * Let runtime PM try to suspend devices that haven't been in use before
 	 * going into the system-wide sleep state we're resuming from.
 	 */
-	pm_runtime_idle(dev);
+	pm_request_idle(dev);
 }
 #endif /* CONFIG_PM_SLEEP */

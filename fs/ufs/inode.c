@@ -531,7 +531,7 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 	struct inode *inode = mapping->host;
 
 	if (to > inode->i_size)
-		truncate_pagecache(inode, to, inode->i_size);
+		truncate_pagecache(inode, inode->i_size);
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
@@ -885,7 +885,7 @@ void ufs_evict_inode(struct inode * inode)
 	if (!inode->i_nlink && !is_bad_inode(inode))
 		want_delete = 1;
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	if (want_delete) {
 		loff_t old_i_size;
 		/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/

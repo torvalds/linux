@@ -810,7 +810,7 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 	poke_real_address_q(DM_EXP_CAUSE_PHY, 0x0);
 }
 
-void __cpuinit per_cpu_trap_init(void)
+void per_cpu_trap_init(void)
 {
 	/* Nothing to do for now, VBR initialization later. */
 }

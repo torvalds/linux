@@ -439,7 +439,7 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		if ((s16) (count - buf->count) < 0)
 			break;
 
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
 		buf->vb.state = VIDEOBUF_DONE;
@@ -1941,10 +1941,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 
 	if ((pci_status & pci_mask) & PCI_MSK_AV_CORE) {
 		cx23885_irq_disable(dev, PCI_MSK_AV_CORE);
-		if (!schedule_work(&dev->cx25840_work))
-			printk(KERN_ERR "%s: failed to set up deferred work for"
-			       " AV Core/IR interrupt. Interrupt is disabled"
-			       " and won't be re-enabled\n", dev->name);
+		schedule_work(&dev->cx25840_work);
 		handled++;
 	}
 
@@ -2132,7 +2129,7 @@ static int cx23885_initdev(struct pci_dev *pci_dev,
 	}
 
 	err = request_irq(pci_dev->irq, cx23885_irq,
-			  IRQF_SHARED | IRQF_DISABLED, dev->name, dev);
+			  IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
 		printk(KERN_ERR "%s: can't get IRQ %d\n",
 		       dev->name, pci_dev->irq);

@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-gpio.h>
-#include <linux/i2c/pca953x.h>
+#include <linux/platform_data/pca953x.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -227,6 +227,6 @@ MACHINE_START(ACS5K, "Brivo Systems LLC ACS-5000 Master board")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= acs5k_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart	= ks8695_restart,
 MACHINE_END

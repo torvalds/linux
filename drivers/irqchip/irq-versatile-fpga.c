@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
@@ -119,7 +120,7 @@ static int fpga_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	/* Skip invalid IRQs, only register handlers for the real ones */
 	if (!(f->valid & BIT(hwirq)))
-		return -ENOTSUPP;
+		return -EPERM;
 	irq_set_chip_data(irq, f);
 	irq_set_chip_and_handler(irq, &f->chip,
 				handle_level_irq);
@@ -139,7 +140,7 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 	int i;
 
 	if (fpga_irq_id >= ARRAY_SIZE(fpga_irq_devices)) {
-		pr_err("%s: too few FPGA IRQ controllers, increase CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR\n", __func__);
+		pr_err("%s: too few FPGA IRQ controllers, increase CONFIG_VERSATILE_FPGA_IRQ_NR\n", __func__);
 		return;
 	}
 	f = &fpga_irq_devices[fpga_irq_id];
@@ -167,8 +168,12 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 			f->used_irqs++;
 		}
 
-	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs\n",
+	pr_info("FPGA IRQ chip %d \"%s\" @ %p, %u irqs",
 		fpga_irq_id, name, base, f->used_irqs);
+	if (parent_irq != -1)
+		pr_cont(", parent IRQ: %d\n", parent_irq);
+	else
+		pr_cont("\n");
 
 	fpga_irq_id++;
 }
@@ -180,6 +185,7 @@ int __init fpga_irq_of_init(struct device_node *node,
 	void __iomem *base;
 	u32 clear_mask;
 	u32 valid_mask;
+	int parent_irq;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
@@ -193,7 +199,12 @@ int __init fpga_irq_of_init(struct device_node *node,
 	if (of_property_read_u32(node, "valid-mask", &valid_mask))
 		valid_mask = 0;
 
-	fpga_irq_init(base, node->name, 0, -1, valid_mask, node);
+	/* Some chips are cascaded from a parent IRQ */
+	parent_irq = irq_of_parse_and_map(node, 0);
+	if (!parent_irq)
+		parent_irq = -1;
+
+	fpga_irq_init(base, node->name, 0, parent_irq, valid_mask, node);
 
 	writel(clear_mask, base + IRQ_ENABLE_CLEAR);
 	writel(clear_mask, base + FIQ_ENABLE_CLEAR);

@@ -18,6 +18,7 @@
 #define __ASM_ASM_H
 
 #include <asm/sgidefs.h>
+#include <asm/asm-eva.h>
 
 #ifndef CAT
 #ifdef __STDC__
@@ -33,12 +34,12 @@
  * Not used for the kernel but here seems to be the right place.
  */
 #ifdef __PIC__
-#define CPRESTORE(register)                             \
+#define CPRESTORE(register)				\
 		.cprestore register
-#define CPADD(register)                                 \
+#define CPADD(register)					\
 		.cpadd	register
-#define CPLOAD(register)                                \
-		.cpload	register
+#define CPLOAD(register)				\
+		.cpload register
 #else
 #define CPRESTORE(register)
 #define CPADD(register)
@@ -48,35 +49,35 @@
 /*
  * LEAF - declare leaf routine
  */
-#define	LEAF(symbol)                                    \
-		.globl	symbol;                         \
-		.align	2;                              \
-		.type	symbol, @function;              \
-		.ent	symbol, 0;                      \
+#define LEAF(symbol)					\
+		.globl	symbol;				\
+		.align	2;				\
+		.type	symbol, @function;		\
+		.ent	symbol, 0;			\
 symbol:		.frame	sp, 0, ra
 
 /*
  * NESTED - declare nested routine entry point
  */
-#define	NESTED(symbol, framesize, rpc)                  \
-		.globl	symbol;                         \
-		.align	2;                              \
-		.type	symbol, @function;              \
-		.ent	symbol, 0;                       \
+#define NESTED(symbol, framesize, rpc)			\
+		.globl	symbol;				\
+		.align	2;				\
+		.type	symbol, @function;		\
+		.ent	symbol, 0;			 \
 symbol:		.frame	sp, framesize, rpc
 
 /*
  * END - mark end of function
  */
-#define	END(function)                                   \
-		.end	function;		        \
+#define END(function)					\
+		.end	function;			\
 		.size	function, .-function
 
 /*
  * EXPORT - export definition of symbol
  */
 #define EXPORT(symbol)					\
-		.globl	symbol;                         \
+		.globl	symbol;				\
 symbol:
 
 /*
@@ -90,16 +91,16 @@ symbol:
 /*
  * ABS - export absolute symbol
  */
-#define	ABS(symbol,value)                               \
-		.globl	symbol;                         \
+#define ABS(symbol,value)				\
+		.globl	symbol;				\
 symbol		=	value
 
-#define	PANIC(msg)                                      \
+#define PANIC(msg)					\
 		.set	push;				\
-		.set	reorder;                        \
-		PTR_LA	a0, 8f;                          \
-		jal	panic;                          \
-9:		b	9b;                             \
+		.set	reorder;			\
+		PTR_LA	a0, 8f;				 \
+		jal	panic;				\
+9:		b	9b;				\
 		.set	pop;				\
 		TEXT(msg)
 
@@ -107,31 +108,31 @@ symbol		=	value
  * Print formatted string
  */
 #ifdef CONFIG_PRINTK
-#define PRINT(string)                                   \
+#define PRINT(string)					\
 		.set	push;				\
-		.set	reorder;                        \
-		PTR_LA	a0, 8f;                          \
-		jal	printk;                         \
+		.set	reorder;			\
+		PTR_LA	a0, 8f;				 \
+		jal	printk;				\
 		.set	pop;				\
 		TEXT(string)
 #else
 #define PRINT(string)
 #endif
 
-#define	TEXT(msg)                                       \
+#define TEXT(msg)					\
 		.pushsection .data;			\
-8:		.asciiz	msg;                            \
+8:		.asciiz msg;				\
 		.popsection;
 
 /*
  * Build text tables
  */
-#define TTABLE(string)                                  \
+#define TTABLE(string)					\
 		.pushsection .text;			\
-		.word	1f;                             \
+		.word	1f;				\
 		.popsection				\
 		.pushsection .data;			\
-1:		.asciiz	string;                         \
+1:		.asciiz string;				\
 		.popsection
 
 /*
@@ -143,21 +144,29 @@ symbol		=	value
  */
 #ifdef CONFIG_CPU_HAS_PREFETCH
 
-#define PREF(hint,addr)                                 \
+#define PREF(hint,addr)					\
 		.set	push;				\
-		.set	mips4;				\
+		.set	arch=r5000;			\
 		pref	hint, addr;			\
 		.set	pop
 
-#define PREFX(hint,addr)                                \
+#define PREFE(hint, addr)				\
 		.set	push;				\
-		.set	mips4;				\
+		.set	mips0;				\
+		.set	eva;				\
+		prefe	hint, addr;			\
+		.set	pop
+
+#define PREFX(hint,addr)				\
+		.set	push;				\
+		.set	arch=r5000;			\
 		prefx	hint, addr;			\
 		.set	pop
 
 #else /* !CONFIG_CPU_HAS_PREFETCH */
 
 #define PREF(hint, addr)
+#define PREFE(hint, addr)
 #define PREFX(hint, addr)
 
 #endif /* !CONFIG_CPU_HAS_PREFETCH */
@@ -166,42 +175,42 @@ symbol		=	value
  * MIPS ISA IV/V movn/movz instructions and equivalents for older CPUs.
  */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS1)
-#define MOVN(rd, rs, rt)                                \
+#define MOVN(rd, rs, rt)				\
 		.set	push;				\
 		.set	reorder;			\
-		beqz	rt, 9f;                         \
-		move	rd, rs;                         \
+		beqz	rt, 9f;				\
+		move	rd, rs;				\
 		.set	pop;				\
 9:
-#define MOVZ(rd, rs, rt)                                \
+#define MOVZ(rd, rs, rt)				\
 		.set	push;				\
 		.set	reorder;			\
-		bnez	rt, 9f;                         \
-		move	rd, rs;                         \
+		bnez	rt, 9f;				\
+		move	rd, rs;				\
 		.set	pop;				\
 9:
 #endif /* _MIPS_ISA == _MIPS_ISA_MIPS1 */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3)
-#define MOVN(rd, rs, rt)                                \
+#define MOVN(rd, rs, rt)				\
 		.set	push;				\
 		.set	noreorder;			\
-		bnezl	rt, 9f;                         \
-		 move	rd, rs;                         \
+		bnezl	rt, 9f;				\
+		 move	rd, rs;				\
 		.set	pop;				\
 9:
-#define MOVZ(rd, rs, rt)                                \
+#define MOVZ(rd, rs, rt)				\
 		.set	push;				\
 		.set	noreorder;			\
-		beqzl	rt, 9f;                         \
-		 move	rd, rs;                         \
+		beqzl	rt, 9f;				\
+		 move	rd, rs;				\
 		.set	pop;				\
 9:
 #endif /* (_MIPS_ISA == _MIPS_ISA_MIPS2) || (_MIPS_ISA == _MIPS_ISA_MIPS3) */
 #if (_MIPS_ISA == _MIPS_ISA_MIPS4 ) || (_MIPS_ISA == _MIPS_ISA_MIPS5) || \
     (_MIPS_ISA == _MIPS_ISA_MIPS32) || (_MIPS_ISA == _MIPS_ISA_MIPS64)
-#define MOVN(rd, rs, rt)                                \
+#define MOVN(rd, rs, rt)				\
 		movn	rd, rs, rt
-#define MOVZ(rd, rs, rt)                                \
+#define MOVZ(rd, rs, rt)				\
 		movz	rd, rs, rt
 #endif /* MIPS IV, MIPS V, MIPS32 or MIPS64 */
 
@@ -296,6 +305,7 @@ symbol		=	value
 #define LONG_SUBU	subu
 #define LONG_L		lw
 #define LONG_S		sw
+#define LONG_SP		swp
 #define LONG_SLL	sll
 #define LONG_SLLV	sllv
 #define LONG_SRL	srl
@@ -318,6 +328,7 @@ symbol		=	value
 #define LONG_SUBU	dsubu
 #define LONG_L		ld
 #define LONG_S		sd
+#define LONG_SP		sdp
 #define LONG_SLL	dsll
 #define LONG_SLLV	dsllv
 #define LONG_SRL	dsrl

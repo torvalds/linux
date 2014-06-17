@@ -14,7 +14,6 @@
  */
 
 #include <linux/gpio.h>
-#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -157,7 +156,8 @@ static void gf_copy_to(struct map_info *map, unsigned long to,
 	memcpy_toio(map->virt + (to % state->win_size), from, len);
 }
 
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
+static const char * const part_probe_types[] = {
+	"cmdlinepart", "RedBoot", NULL };
 
 /**
  * gpio_flash_probe() - setup a mapping for a GPIO assisted flash
@@ -195,7 +195,7 @@ static int gpio_flash_probe(struct platform_device *pdev)
 	struct resource *gpios;
 	struct async_state *state;
 
-	pdata = pdev->dev.platform_data;
+	pdata = dev_get_platdata(&pdev->dev);
 	memory = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	gpios = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 

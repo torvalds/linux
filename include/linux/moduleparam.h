@@ -36,7 +36,18 @@ static const char __UNIQUE_ID(name)[]					  \
 
 struct kernel_param;
 
+/*
+ * Flags available for kernel_param_ops
+ *
+ * NOARG - the parameter allows for no argument (foo instead of foo=1)
+ */
+enum {
+	KERNEL_PARAM_FL_NOARG = (1 << 0)
+};
+
 struct kernel_param_ops {
+	/* How the ops should behave */
+	unsigned int flags;
 	/* Returns 0, or -errno.  arg is in kp->arg. */
 	int (*set)(const char *val, const struct kernel_param *kp);
 	/* Returns length written or -errno.  Buffer is 4k (ie. be short!) */
@@ -175,19 +186,17 @@ struct kparam_array
    parameters. */
 #define __module_param_call(prefix, name, ops, arg, perm, level)	\
 	/* Default value instead of permissions? */			\
-	static int __param_perm_check_##name __attribute__((unused)) =	\
-	BUILD_BUG_ON_ZERO((perm) < 0 || (perm) > 0777 || ((perm) & 2))	\
-	+ BUILD_BUG_ON_ZERO(sizeof(""prefix) > MAX_PARAM_PREFIX_LEN);	\
-	static const char __param_str_##name[] = prefix #name;		\
+	static const char __param_str_##name[] = prefix #name; \
 	static struct kernel_param __moduleparam_const __param_##name	\
 	__used								\
     __attribute__ ((unused,__section__ ("__param"),aligned(sizeof(void *)))) \
-	= { __param_str_##name, ops, perm, level, { arg } }
+	= { __param_str_##name, ops, VERIFY_OCTAL_PERMISSIONS(perm),	\
+	    level, { arg } }
 
 /* Obsolete - use module_param_cb() */
 #define module_param_call(name, set, get, arg, perm)			\
 	static struct kernel_param_ops __param_ops_##name =		\
-		 { (void *)set, (void *)get };				\
+		{ 0, (void *)set, (void *)get };			\
 	__module_param_call(MODULE_PARAM_PREFIX,			\
 			    name, &__param_ops_##name, arg,		\
 			    (perm) + sizeof(__check_old_set_param(set))*0, -1)
@@ -312,7 +321,7 @@ extern bool parameq(const char *name1, const char *name2);
 extern bool parameqn(const char *name1, const char *name2, size_t n);
 
 /* Called on module insert or kernel boot */
-extern int parse_args(const char *name,
+extern char *parse_args(const char *name,
 		      char *args,
 		      const struct kernel_param *params,
 		      unsigned num,
@@ -335,7 +344,7 @@ static inline void destroy_params(const struct kernel_param *params,
 /* The macros to do compile-time type checking stolen from Jakub
    Jelinek, who IIRC came up with this idea for the 2.4 module init code. */
 #define __param_check(name, p, type) \
-	static inline type *__check_##name(void) { return(p); }
+	static inline type __always_unused *__check_##name(void) { return(p); }
 
 extern struct kernel_param_ops param_ops_byte;
 extern int param_set_byte(const char *val, const struct kernel_param *kp);
@@ -439,7 +448,7 @@ extern struct kernel_param_ops param_ops_string;
 extern int param_set_copystring(const char *val, const struct kernel_param *);
 extern int param_get_string(char *buffer, const struct kernel_param *kp);
 
-/* for exporting parameters in /sys/parameters */
+/* for exporting parameters in /sys/module/.../parameters */
 
 struct module;
 

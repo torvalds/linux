@@ -31,9 +31,9 @@
  *   Copyright (C) 2006 Tower Technologies
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/blkdev.h>
 #include <scsi/scsi_host.h>
 #include <linux/ata.h>
@@ -708,8 +708,8 @@ static void ep93xx_pata_dma_start(struct ata_queued_cmd *qc)
 	struct dma_chan *channel = qc->dma_dir == DMA_TO_DEVICE
 		? drv_data->dma_tx_channel : drv_data->dma_rx_channel;
 
-	txd = channel->device->device_prep_slave_sg(channel, qc->sg,
-		 qc->n_elem, qc->dma_dir, DMA_CTRL_ACK, NULL);
+	txd = dmaengine_prep_slave_sg(channel, qc->sg, qc->n_elem, qc->dma_dir,
+		DMA_CTRL_ACK);
 	if (!txd) {
 		dev_err(qc->ap->dev, "failed to prepare slave for sg dma\n");
 		return;
@@ -932,14 +932,9 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 	}
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem_res) {
-		err = -ENXIO;
-		goto err_rel_gpio;
-	}
-
-	ide_base = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (!ide_base) {
-		err = -ENXIO;
+	ide_base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(ide_base)) {
+		err = PTR_ERR(ide_base);
 		goto err_rel_gpio;
 	}
 

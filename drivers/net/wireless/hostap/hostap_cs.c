@@ -1,7 +1,6 @@
 #define PRISM2_PCCARD
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/if.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -678,6 +677,8 @@ static const struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12(
 		"ZoomAir 11Mbps High", "Rate wireless Networking",
 		0x273fe3db, 0x32a1eaee),
+	PCMCIA_DEVICE_PROD_ID12("NETGEAR MA401 Wireless PC", "Card",
+		0xa37434e9, 0x9762e8f1),
 	PCMCIA_DEVICE_PROD_ID123(
 		"Pretec", "CompactWLAN Card 802.11b", "2.5",
 		0x1cadd3e5, 0xe697636c, 0x7a5bfcf1),
@@ -709,17 +710,4 @@ static struct pcmcia_driver hostap_driver = {
 	.suspend	= hostap_cs_suspend,
 	.resume		= hostap_cs_resume,
 };
-
-static int __init init_prism2_pccard(void)
-{
-	return pcmcia_register_driver(&hostap_driver);
-}
-
-static void __exit exit_prism2_pccard(void)
-{
-	pcmcia_unregister_driver(&hostap_driver);
-}
-
-
-module_init(init_prism2_pccard);
-module_exit(exit_prism2_pccard);
+module_pcmcia_driver(hostap_driver);

@@ -1962,10 +1962,7 @@ static irqreturn_t qib_7220intr(int irq, void *data)
 		goto bail;
 	}
 
-	qib_stats.sps_ints++;
-	if (dd->int_counter != (u32) -1)
-		dd->int_counter++;
-
+	this_cpu_inc(*dd->int_counter);
 	if (unlikely(istat & (~QLOGIC_IB_I_BITSEXTANT |
 			      QLOGIC_IB_I_GPIO | QLOGIC_IB_I_ERROR)))
 		unlikely_7220_intr(dd, istat);
@@ -2120,7 +2117,8 @@ static int qib_setup_7220_reset(struct qib_devdata *dd)
 	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT);
-	dd->int_counter = 0; /* so we check interrupts work again */
+	/* so we check interrupts work again */
+	dd->z_int_counter = qib_int_counter(dd);
 	val = dd->control | QLOGIC_IB_C_RESET;
 	writeq(val, &dd->kregbase[kr_control]);
 	mb(); /* prevent compiler reordering around actual reset */
@@ -4061,7 +4059,9 @@ static int qib_init_7220_variables(struct qib_devdata *dd)
 	init_waitqueue_head(&cpspec->autoneg_wait);
 	INIT_DELAYED_WORK(&cpspec->autoneg_work, autoneg_7220_work);
 
-	qib_init_pportdata(ppd, dd, 0, 1);
+	ret = qib_init_pportdata(ppd, dd, 0, 1);
+	if (ret)
+		goto bail;
 	ppd->link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
 	ppd->link_speed_supported = QIB_IB_SDR | QIB_IB_DDR;
 
@@ -4513,6 +4513,13 @@ bail:
 	return ret;
 }
 
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+static int qib_7220_notify_dca(struct qib_devdata *dd, unsigned long event)
+{
+	return 0;
+}
+#endif
+
 /* Dummy function, as 7220 boards never disable EEPROM Write */
 static int qib_7220_eeprom_wen(struct qib_devdata *dd, int wen)
 {
@@ -4587,6 +4594,9 @@ struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *pdev,
 	dd->f_xgxs_reset        = qib_7220_xgxs_reset;
 	dd->f_writescratch      = writescratch;
 	dd->f_tempsense_rd	= qib_7220_tempsense_rd;
+#ifdef CONFIG_INFINIBAND_QIB_DCA
+	dd->f_notify_dca = qib_7220_notify_dca;
+#endif
 	/*
 	 * Do remaining pcie setup and save pcie values in dd.
 	 * Any error printing is already done by the init code.

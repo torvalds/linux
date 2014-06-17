@@ -9,7 +9,6 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>		/* request_region */
 #include <linux/slab.h>
@@ -107,7 +106,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int error = 0;
 	u8 ireg = 0;
 
-	if (D7S_MINOR != iminor(file->f_path.dentry->d_inode))
+	if (D7S_MINOR != iminor(file_inode(file)))
 		return -ENODEV;
 
 	mutex_lock(&d7s_mutex);

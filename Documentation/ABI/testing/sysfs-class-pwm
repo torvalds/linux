@@ -1,0 +1,79 @@
+What:		/sys/class/pwm/
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		The pwm/ class sub-directory belongs to the Generic PWM
+		Framework and provides a sysfs interface for using PWM
+		channels.
+
+What:		/sys/class/pwm/pwmchipN/
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		A /sys/class/pwm/pwmchipN directory is created for each
+		probed PWM controller/chip where N is the base of the
+		PWM chip.
+
+What:		/sys/class/pwm/pwmchipN/npwm
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		The number of PWM channels supported by the PWM chip.
+
+What:		/sys/class/pwm/pwmchipN/export
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Exports a PWM channel from the PWM chip for sysfs control.
+		Value is between 0 and /sys/class/pwm/pwmchipN/npwm - 1.
+
+What:		/sys/class/pwm/pwmchipN/unexport
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Unexports a PWM channel.
+
+What:		/sys/class/pwm/pwmchipN/pwmX
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		A /sys/class/pwm/pwmchipN/pwmX directory is created for
+		each exported PWM channel where X is the exported PWM
+		channel number.
+
+What:		/sys/class/pwm/pwmchipN/pwmX/period
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Sets the PWM signal period in nanoseconds.
+
+What:		/sys/class/pwm/pwmchipN/pwmX/duty_cycle
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Sets the PWM signal duty cycle in nanoseconds.
+
+What:		/sys/class/pwm/pwmchipN/pwmX/polarity
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Sets the output polarity of the PWM signal to "normal" or
+		"inversed".
+
+What:		/sys/class/pwm/pwmchipN/pwmX/enable
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	H Hartley Sweeten <hsweeten@visionengravers.com>
+Description:
+		Enable/disable the PWM signal.
+		0 is disabled
+		1 is enabled

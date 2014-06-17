@@ -18,25 +18,23 @@
 
 #include <elf.h>
 #include <limits.h>
+#include <symbol/kallsyms.h>
 #include <sys/utsname.h>
-
-#ifndef KSYM_NAME_LEN
-#define KSYM_NAME_LEN 256
-#endif
 
 static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 				symbol_filter_t filter);
 static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 			symbol_filter_t filter);
-static int vmlinux_path__nr_entries;
-static char **vmlinux_path;
+int vmlinux_path__nr_entries;
+char **vmlinux_path;
 
 struct symbol_conf symbol_conf = {
-	.exclude_other	  = true,
-	.use_modules	  = true,
-	.try_vmlinux_path = true,
-	.annotate_src	  = true,
-	.symfs            = "",
+	.use_modules		= true,
+	.try_vmlinux_path	= true,
+	.annotate_src		= true,
+	.demangle		= true,
+	.cumulate_callchain	= true,
+	.symfs			= "",
 };
 
 static enum dso_binary_type binary_type_symtab[] = {
@@ -51,6 +49,7 @@ static enum dso_binary_type binary_type_symtab[] = {
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
 	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
@@ -87,6 +86,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 {
 	s64 a;
 	s64 b;
+	size_t na, nb;
 
 	/* Prefer a symbol with non zero length */
 	a = syma->end - syma->start;
@@ -120,11 +120,21 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	else if (a > b)
 		return SYMBOL_B;
 
-	/* If all else fails, choose the symbol with the longest name */
-	if (strlen(syma->name) >= strlen(symb->name))
+	/* Choose the symbol with the longest name */
+	na = strlen(syma->name);
+	nb = strlen(symb->name);
+	if (na > nb)
 		return SYMBOL_A;
-	else
+	else if (na < nb)
 		return SYMBOL_B;
+
+	/* Avoid "SyS" kernel syscall aliases */
+	if (na >= 3 && !strncmp(syma->name, "SyS", 3))
+		return SYMBOL_B;
+	if (na >= 10 && !strncmp(syma->name, "compat_SyS", 10))
+		return SYMBOL_B;
+
+	return SYMBOL_A;
 }
 
 void symbols__fixup_duplicate(struct rb_root *symbols)
@@ -148,10 +158,12 @@ again:
 
 		if (choose_best_symbol(curr, next) == SYMBOL_A) {
 			rb_erase(&next->rb_node, symbols);
+			symbol__delete(next);
 			goto again;
 		} else {
 			nd = rb_next(&curr->rb_node);
 			rb_erase(&curr->rb_node, symbols);
+			symbol__delete(curr);
 		}
 	}
 }
@@ -202,13 +214,6 @@ void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 	curr->end = ~0ULL;
 }
 
-static void map_groups__fixup_end(struct map_groups *mg)
-{
-	int i;
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		__map_groups__fixup_end(mg, i);
-}
-
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
 {
 	size_t namelen = strlen(name) + 1;
@@ -255,7 +260,10 @@ size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 	if (sym && sym->name) {
 		length = fprintf(fp, "%s", sym->name);
 		if (al) {
-			offset = al->addr - sym->start;
+			if (al->addr < sym->end)
+				offset = al->addr - sym->start;
+			else
+				offset = al->addr - al->map->start - sym->start;
 			length += fprintf(fp, "+0x%lx", offset);
 		}
 		return length;
@@ -319,6 +327,16 @@ static struct symbol *symbols__find(struct rb_root *symbols, u64 ip)
 		else
 			return s;
 	}
+
+	return NULL;
+}
+
+static struct symbol *symbols__first(struct rb_root *symbols)
+{
+	struct rb_node *n = rb_first(symbols);
+
+	if (n)
+		return rb_entry(n, struct symbol, rb_node);
 
 	return NULL;
 }
@@ -393,6 +411,11 @@ struct symbol *dso__find_symbol(struct dso *dso,
 	return symbols__find(&dso->symbols[type], addr);
 }
 
+static struct symbol *dso__first_symbol(struct dso *dso, enum map_type type)
+{
+	return symbols__first(&dso->symbols[type]);
+}
+
 struct symbol *dso__find_symbol_by_name(struct dso *dso, enum map_type type,
 					const char *name)
 {
@@ -421,60 +444,62 @@ size_t dso__fprintf_symbols_by_name(struct dso *dso,
 	return ret;
 }
 
-int kallsyms__parse(const char *filename, void *arg,
-		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start))
+int modules__parse(const char *filename, void *arg,
+		   int (*process_module)(void *arg, const char *name,
+					 u64 start))
 {
 	char *line = NULL;
 	size_t n;
-	int err = -1;
-	FILE *file = fopen(filename, "r");
+	FILE *file;
+	int err = 0;
 
+	file = fopen(filename, "r");
 	if (file == NULL)
-		goto out_failure;
+		return -1;
 
-	err = 0;
-
-	while (!feof(file)) {
+	while (1) {
+		char name[PATH_MAX];
 		u64 start;
-		int line_len, len;
-		char symbol_type;
-		char *symbol_name;
+		char *sep;
+		ssize_t line_len;
 
 		line_len = getline(&line, &n, file);
-		if (line_len < 0 || !line)
-			break;
+		if (line_len < 0) {
+			if (feof(file))
+				break;
+			err = -1;
+			goto out;
+		}
+
+		if (!line) {
+			err = -1;
+			goto out;
+		}
 
 		line[--line_len] = '\0'; /* \n */
 
-		len = hex2u64(line, &start);
-
-		len++;
-		if (len + 2 >= line_len)
+		sep = strrchr(line, 'x');
+		if (sep == NULL)
 			continue;
 
-		symbol_type = line[len];
-		len += 2;
-		symbol_name = line + len;
-		len = line_len - len;
+		hex2u64(sep + 1, &start);
 
-		if (len >= KSYM_NAME_LEN) {
-			err = -1;
-			break;
-		}
+		sep = strchr(line, ' ');
+		if (sep == NULL)
+			continue;
 
-		err = process_symbol(arg, symbol_name,
-				     symbol_type, start);
+		*sep = '\0';
+
+		scnprintf(name, sizeof(name), "[%s]", line);
+
+		err = process_module(arg, name, start);
 		if (err)
 			break;
 	}
-
+out:
 	free(line);
 	fclose(file);
 	return err;
-
-out_failure:
-	return -1;
 }
 
 struct process_kallsyms_args {
@@ -482,12 +507,34 @@ struct process_kallsyms_args {
 	struct dso *dso;
 };
 
-static u8 kallsyms2elf_type(char type)
+bool symbol__is_idle(struct symbol *sym)
 {
-	if (type == 'W')
-		return STB_WEAK;
+	const char * const idle_symbols[] = {
+		"cpu_idle",
+		"intel_idle",
+		"default_idle",
+		"native_safe_halt",
+		"enter_idle",
+		"exit_idle",
+		"mwait_idle",
+		"mwait_idle_with_hints",
+		"poll_idle",
+		"ppc64_runlatch_off",
+		"pseries_dedicated_idle_sleep",
+		NULL
+	};
 
-	return isupper(type) ? STB_GLOBAL : STB_LOCAL;
+	int i;
+
+	if (!sym)
+		return false;
+
+	for (i = 0; idle_symbols[i]; i++) {
+		if (!strcmp(idle_symbols[i], sym->name))
+			return true;
+	}
+
+	return false;
 }
 
 static int map__process_kallsym_symbol(void *arg, const char *name,
@@ -529,12 +576,59 @@ static int dso__load_all_kallsyms(struct dso *dso, const char *filename,
 	return kallsyms__parse(filename, &args, map__process_kallsym_symbol);
 }
 
+static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
+					 symbol_filter_t filter)
+{
+	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	struct map *curr_map;
+	struct symbol *pos;
+	int count = 0, moved = 0;
+	struct rb_root *root = &dso->symbols[map->type];
+	struct rb_node *next = rb_first(root);
+
+	while (next) {
+		char *module;
+
+		pos = rb_entry(next, struct symbol, rb_node);
+		next = rb_next(&pos->rb_node);
+
+		module = strchr(pos->name, '\t');
+		if (module)
+			*module = '\0';
+
+		curr_map = map_groups__find(kmaps, map->type, pos->start);
+
+		if (!curr_map || (filter && filter(curr_map, pos))) {
+			rb_erase(&pos->rb_node, root);
+			symbol__delete(pos);
+		} else {
+			pos->start -= curr_map->start - curr_map->pgoff;
+			if (pos->end)
+				pos->end -= curr_map->start - curr_map->pgoff;
+			if (curr_map != map) {
+				rb_erase(&pos->rb_node, root);
+				symbols__insert(
+					&curr_map->dso->symbols[curr_map->type],
+					pos);
+				++moved;
+			} else {
+				++count;
+			}
+		}
+	}
+
+	/* Symbols have been adjusted */
+	dso->adjust_symbols = 1;
+
+	return count + moved;
+}
+
 /*
  * Split the symbols into maps, making sure there are no overlaps, i.e. the
  * kernel range is broken in several maps, named [kernel].N, as we don't have
  * the original ELF section names vmlinux have.
  */
-static int dso__split_kallsyms(struct dso *dso, struct map *map,
+static int dso__split_kallsyms(struct dso *dso, struct map *map, u64 delta,
 			       symbol_filter_t filter)
 {
 	struct map_groups *kmaps = map__kmap(map)->kmaps;
@@ -599,6 +693,12 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map,
 			char dso_name[PATH_MAX];
 			struct dso *ndso;
 
+			if (delta) {
+				/* Kernel was relocated at boot time */
+				pos->start -= delta;
+				pos->end -= delta;
+			}
+
 			if (count == 0) {
 				curr_map = map;
 				goto filter_symbol;
@@ -628,6 +728,10 @@ static int dso__split_kallsyms(struct dso *dso, struct map *map,
 			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
 			map_groups__insert(kmaps, curr_map);
 			++kernel_range;
+		} else if (delta) {
+			/* Kernel was relocated at boot time */
+			pos->start -= delta;
+			pos->end -= delta;
 		}
 filter_symbol:
 		if (filter && filter(curr_map, pos)) {
@@ -652,8 +756,8 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 	return count + moved;
 }
 
-static bool symbol__restricted_filename(const char *filename,
-					const char *restricted_filename)
+bool symbol__restricted_filename(const char *filename,
+				 const char *restricted_filename)
 {
 	bool restricted = false;
 
@@ -670,13 +774,406 @@ static bool symbol__restricted_filename(const char *filename,
 	return restricted;
 }
 
+struct module_info {
+	struct rb_node rb_node;
+	char *name;
+	u64 start;
+};
+
+static void add_module(struct module_info *mi, struct rb_root *modules)
+{
+	struct rb_node **p = &modules->rb_node;
+	struct rb_node *parent = NULL;
+	struct module_info *m;
+
+	while (*p != NULL) {
+		parent = *p;
+		m = rb_entry(parent, struct module_info, rb_node);
+		if (strcmp(mi->name, m->name) < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&mi->rb_node, parent, p);
+	rb_insert_color(&mi->rb_node, modules);
+}
+
+static void delete_modules(struct rb_root *modules)
+{
+	struct module_info *mi;
+	struct rb_node *next = rb_first(modules);
+
+	while (next) {
+		mi = rb_entry(next, struct module_info, rb_node);
+		next = rb_next(&mi->rb_node);
+		rb_erase(&mi->rb_node, modules);
+		zfree(&mi->name);
+		free(mi);
+	}
+}
+
+static struct module_info *find_module(const char *name,
+				       struct rb_root *modules)
+{
+	struct rb_node *n = modules->rb_node;
+
+	while (n) {
+		struct module_info *m;
+		int cmp;
+
+		m = rb_entry(n, struct module_info, rb_node);
+		cmp = strcmp(name, m->name);
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return m;
+	}
+
+	return NULL;
+}
+
+static int __read_proc_modules(void *arg, const char *name, u64 start)
+{
+	struct rb_root *modules = arg;
+	struct module_info *mi;
+
+	mi = zalloc(sizeof(struct module_info));
+	if (!mi)
+		return -ENOMEM;
+
+	mi->name = strdup(name);
+	mi->start = start;
+
+	if (!mi->name) {
+		free(mi);
+		return -ENOMEM;
+	}
+
+	add_module(mi, modules);
+
+	return 0;
+}
+
+static int read_proc_modules(const char *filename, struct rb_root *modules)
+{
+	if (symbol__restricted_filename(filename, "/proc/modules"))
+		return -1;
+
+	if (modules__parse(filename, modules, __read_proc_modules)) {
+		delete_modules(modules);
+		return -1;
+	}
+
+	return 0;
+}
+
+int compare_proc_modules(const char *from, const char *to)
+{
+	struct rb_root from_modules = RB_ROOT;
+	struct rb_root to_modules = RB_ROOT;
+	struct rb_node *from_node, *to_node;
+	struct module_info *from_m, *to_m;
+	int ret = -1;
+
+	if (read_proc_modules(from, &from_modules))
+		return -1;
+
+	if (read_proc_modules(to, &to_modules))
+		goto out_delete_from;
+
+	from_node = rb_first(&from_modules);
+	to_node = rb_first(&to_modules);
+	while (from_node) {
+		if (!to_node)
+			break;
+
+		from_m = rb_entry(from_node, struct module_info, rb_node);
+		to_m = rb_entry(to_node, struct module_info, rb_node);
+
+		if (from_m->start != to_m->start ||
+		    strcmp(from_m->name, to_m->name))
+			break;
+
+		from_node = rb_next(from_node);
+		to_node = rb_next(to_node);
+	}
+
+	if (!from_node && !to_node)
+		ret = 0;
+
+	delete_modules(&to_modules);
+out_delete_from:
+	delete_modules(&from_modules);
+
+	return ret;
+}
+
+static int do_validate_kcore_modules(const char *filename, struct map *map,
+				  struct map_groups *kmaps)
+{
+	struct rb_root modules = RB_ROOT;
+	struct map *old_map;
+	int err;
+
+	err = read_proc_modules(filename, &modules);
+	if (err)
+		return err;
+
+	old_map = map_groups__first(kmaps, map->type);
+	while (old_map) {
+		struct map *next = map_groups__next(old_map);
+		struct module_info *mi;
+
+		if (old_map == map || old_map->start == map->start) {
+			/* The kernel map */
+			old_map = next;
+			continue;
+		}
+
+		/* Module must be in memory at the same address */
+		mi = find_module(old_map->dso->short_name, &modules);
+		if (!mi || mi->start != old_map->start) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		old_map = next;
+	}
+out:
+	delete_modules(&modules);
+	return err;
+}
+
+/*
+ * If kallsyms is referenced by name then we look for filename in the same
+ * directory.
+ */
+static bool filename_from_kallsyms_filename(char *filename,
+					    const char *base_name,
+					    const char *kallsyms_filename)
+{
+	char *name;
+
+	strcpy(filename, kallsyms_filename);
+	name = strrchr(filename, '/');
+	if (!name)
+		return false;
+
+	name += 1;
+
+	if (!strcmp(name, "kallsyms")) {
+		strcpy(name, base_name);
+		return true;
+	}
+
+	return false;
+}
+
+static int validate_kcore_modules(const char *kallsyms_filename,
+				  struct map *map)
+{
+	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	char modules_filename[PATH_MAX];
+
+	if (!filename_from_kallsyms_filename(modules_filename, "modules",
+					     kallsyms_filename))
+		return -EINVAL;
+
+	if (do_validate_kcore_modules(modules_filename, map, kmaps))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int validate_kcore_addresses(const char *kallsyms_filename,
+				    struct map *map)
+{
+	struct kmap *kmap = map__kmap(map);
+
+	if (kmap->ref_reloc_sym && kmap->ref_reloc_sym->name) {
+		u64 start;
+
+		start = kallsyms__get_function_start(kallsyms_filename,
+						     kmap->ref_reloc_sym->name);
+		if (start != kmap->ref_reloc_sym->addr)
+			return -EINVAL;
+	}
+
+	return validate_kcore_modules(kallsyms_filename, map);
+}
+
+struct kcore_mapfn_data {
+	struct dso *dso;
+	enum map_type type;
+	struct list_head maps;
+};
+
+static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
+{
+	struct kcore_mapfn_data *md = data;
+	struct map *map;
+
+	map = map__new2(start, md->dso, md->type);
+	if (map == NULL)
+		return -ENOMEM;
+
+	map->end = map->start + len;
+	map->pgoff = pgoff;
+
+	list_add(&map->node, &md->maps);
+
+	return 0;
+}
+
+static int dso__load_kcore(struct dso *dso, struct map *map,
+			   const char *kallsyms_filename)
+{
+	struct map_groups *kmaps = map__kmap(map)->kmaps;
+	struct machine *machine = kmaps->machine;
+	struct kcore_mapfn_data md;
+	struct map *old_map, *new_map, *replacement_map = NULL;
+	bool is_64_bit;
+	int err, fd;
+	char kcore_filename[PATH_MAX];
+	struct symbol *sym;
+
+	/* This function requires that the map is the kernel map */
+	if (map != machine->vmlinux_maps[map->type])
+		return -EINVAL;
+
+	if (!filename_from_kallsyms_filename(kcore_filename, "kcore",
+					     kallsyms_filename))
+		return -EINVAL;
+
+	/* Modules and kernel must be present at their original addresses */
+	if (validate_kcore_addresses(kallsyms_filename, map))
+		return -EINVAL;
+
+	md.dso = dso;
+	md.type = map->type;
+	INIT_LIST_HEAD(&md.maps);
+
+	fd = open(kcore_filename, O_RDONLY);
+	if (fd < 0)
+		return -EINVAL;
+
+	/* Read new maps into temporary lists */
+	err = file__read_maps(fd, md.type == MAP__FUNCTION, kcore_mapfn, &md,
+			      &is_64_bit);
+	if (err)
+		goto out_err;
+
+	if (list_empty(&md.maps)) {
+		err = -EINVAL;
+		goto out_err;
+	}
+
+	/* Remove old maps */
+	old_map = map_groups__first(kmaps, map->type);
+	while (old_map) {
+		struct map *next = map_groups__next(old_map);
+
+		if (old_map != map)
+			map_groups__remove(kmaps, old_map);
+		old_map = next;
+	}
+
+	/* Find the kernel map using the first symbol */
+	sym = dso__first_symbol(dso, map->type);
+	list_for_each_entry(new_map, &md.maps, node) {
+		if (sym && sym->start >= new_map->start &&
+		    sym->start < new_map->end) {
+			replacement_map = new_map;
+			break;
+		}
+	}
+
+	if (!replacement_map)
+		replacement_map = list_entry(md.maps.next, struct map, node);
+
+	/* Add new maps */
+	while (!list_empty(&md.maps)) {
+		new_map = list_entry(md.maps.next, struct map, node);
+		list_del(&new_map->node);
+		if (new_map == replacement_map) {
+			map->start	= new_map->start;
+			map->end	= new_map->end;
+			map->pgoff	= new_map->pgoff;
+			map->map_ip	= new_map->map_ip;
+			map->unmap_ip	= new_map->unmap_ip;
+			map__delete(new_map);
+			/* Ensure maps are correctly ordered */
+			map_groups__remove(kmaps, map);
+			map_groups__insert(kmaps, map);
+		} else {
+			map_groups__insert(kmaps, new_map);
+		}
+	}
+
+	/*
+	 * Set the data type and long name so that kcore can be read via
+	 * dso__data_read_addr().
+	 */
+	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+		dso->binary_type = DSO_BINARY_TYPE__GUEST_KCORE;
+	else
+		dso->binary_type = DSO_BINARY_TYPE__KCORE;
+	dso__set_long_name(dso, strdup(kcore_filename), true);
+
+	close(fd);
+
+	if (map->type == MAP__FUNCTION)
+		pr_debug("Using %s for kernel object code\n", kcore_filename);
+	else
+		pr_debug("Using %s for kernel data\n", kcore_filename);
+
+	return 0;
+
+out_err:
+	while (!list_empty(&md.maps)) {
+		map = list_entry(md.maps.next, struct map, node);
+		list_del(&map->node);
+		map__delete(map);
+	}
+	close(fd);
+	return -EINVAL;
+}
+
+/*
+ * If the kernel is relocated at boot time, kallsyms won't match.  Compute the
+ * delta based on the relocation reference symbol.
+ */
+static int kallsyms__delta(struct map *map, const char *filename, u64 *delta)
+{
+	struct kmap *kmap = map__kmap(map);
+	u64 addr;
+
+	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->name)
+		return 0;
+
+	addr = kallsyms__get_function_start(filename,
+					    kmap->ref_reloc_sym->name);
+	if (!addr)
+		return -1;
+
+	*delta = addr - kmap->ref_reloc_sym->addr;
+	return 0;
+}
+
 int dso__load_kallsyms(struct dso *dso, const char *filename,
 		       struct map *map, symbol_filter_t filter)
 {
+	u64 delta = 0;
+
 	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
 		return -1;
 
 	if (dso__load_all_kallsyms(dso, filename, map) < 0)
+		return -1;
+
+	if (kallsyms__delta(map, filename, &delta))
 		return -1;
 
 	symbols__fixup_duplicate(&dso->symbols[map->type]);
@@ -687,7 +1184,10 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
-	return dso__split_kallsyms(dso, map, filter);
+	if (!dso__load_kcore(dso, map, filename))
+		return dso__split_kallsyms_for_kcore(dso, map, filter);
+	else
+		return dso__split_kallsyms(dso, map, delta, filter);
 }
 
 static int dso__load_perf_map(struct dso *dso, struct map *map,
@@ -752,6 +1252,46 @@ out_failure:
 	return -1;
 }
 
+static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
+					   enum dso_binary_type type)
+{
+	switch (type) {
+	case DSO_BINARY_TYPE__JAVA_JIT:
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
+	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+	case DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO:
+		return !kmod && dso->kernel == DSO_TYPE_USER;
+
+	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__VMLINUX:
+	case DSO_BINARY_TYPE__KCORE:
+		return dso->kernel == DSO_TYPE_KERNEL;
+
+	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
+	case DSO_BINARY_TYPE__GUEST_KCORE:
+		return dso->kernel == DSO_TYPE_GUEST_KERNEL;
+
+	case DSO_BINARY_TYPE__GUEST_KMODULE:
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+		/*
+		 * kernel modules know their symtab type - it's set when
+		 * creating a module dso in machine__new_module().
+		 */
+		return kmod && dso->symtab_type == type;
+
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+		return true;
+
+	case DSO_BINARY_TYPE__NOT_FOUND:
+	default:
+		return false;
+	}
+}
+
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 {
 	char *name;
@@ -762,6 +1302,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	int ss_pos = 0;
 	struct symsrc ss_[2];
 	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
+	bool kmod;
 
 	dso__set_loaded(dso, map->type);
 
@@ -774,10 +1315,6 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		machine = map->groups->machine;
 	else
 		machine = NULL;
-
-	name = malloc(PATH_MAX);
-	if (!name)
-		return -1;
 
 	dso->adjust_symbols = 0;
 
@@ -802,7 +1339,15 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	if (machine)
 		root_dir = machine->root_dir;
 
-	/* Iterate over candidate debug images.
+	name = malloc(PATH_MAX);
+	if (!name)
+		return -1;
+
+	kmod = dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
+		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE;
+
+	/*
+	 * Iterate over candidate debug images.
 	 * Keep track of "interesting" ones (those which have a symtab, dynsym,
 	 * and/or opd section) for processing.
 	 */
@@ -812,8 +1357,11 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
-		if (dso__binary_type_file(dso, symtab_type,
-					  root_dir, name, PATH_MAX))
+		if (!dso__is_compatible_symtab_type(dso, kmod, symtab_type))
+			continue;
+
+		if (dso__read_binary_type_filename(dso, symtab_type,
+						   root_dir, name, PATH_MAX))
 			continue;
 
 		/* Name is now the name of the next image to try */
@@ -823,6 +1371,8 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		if (!syms_ss && symsrc__has_symtab(ss)) {
 			syms_ss = ss;
 			next_slot = true;
+			if (!dso->symsrc_filename)
+				dso->symsrc_filename = strdup(name);
 		}
 
 		if (!runtime_ss && symsrc__possibly_runtime(ss)) {
@@ -835,6 +1385,8 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 
 			if (syms_ss && runtime_ss)
 				break;
+		} else {
+			symsrc__destroy(ss);
 		}
 
 	}
@@ -851,7 +1403,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		runtime_ss = syms_ss;
 
 	if (syms_ss)
-		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, 0);
+		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, kmod);
 	else
 		ret = -1;
 
@@ -887,210 +1439,20 @@ struct map *map_groups__find_by_name(struct map_groups *mg,
 	return NULL;
 }
 
-static int map_groups__set_modules_path_dir(struct map_groups *mg,
-				const char *dir_name)
-{
-	struct dirent *dent;
-	DIR *dir = opendir(dir_name);
-	int ret = 0;
-
-	if (!dir) {
-		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
-		return -1;
-	}
-
-	while ((dent = readdir(dir)) != NULL) {
-		char path[PATH_MAX];
-		struct stat st;
-
-		/*sshfs might return bad dent->d_type, so we have to stat*/
-		snprintf(path, sizeof(path), "%s/%s", dir_name, dent->d_name);
-		if (stat(path, &st))
-			continue;
-
-		if (S_ISDIR(st.st_mode)) {
-			if (!strcmp(dent->d_name, ".") ||
-			    !strcmp(dent->d_name, ".."))
-				continue;
-
-			ret = map_groups__set_modules_path_dir(mg, path);
-			if (ret < 0)
-				goto out;
-		} else {
-			char *dot = strrchr(dent->d_name, '.'),
-			     dso_name[PATH_MAX];
-			struct map *map;
-			char *long_name;
-
-			if (dot == NULL || strcmp(dot, ".ko"))
-				continue;
-			snprintf(dso_name, sizeof(dso_name), "[%.*s]",
-				 (int)(dot - dent->d_name), dent->d_name);
-
-			strxfrchar(dso_name, '-', '_');
-			map = map_groups__find_by_name(mg, MAP__FUNCTION,
-						       dso_name);
-			if (map == NULL)
-				continue;
-
-			long_name = strdup(path);
-			if (long_name == NULL) {
-				ret = -1;
-				goto out;
-			}
-			dso__set_long_name(map->dso, long_name);
-			map->dso->lname_alloc = 1;
-			dso__kernel_module_get_build_id(map->dso, "");
-		}
-	}
-
-out:
-	closedir(dir);
-	return ret;
-}
-
-static char *get_kernel_version(const char *root_dir)
-{
-	char version[PATH_MAX];
-	FILE *file;
-	char *name, *tmp;
-	const char *prefix = "Linux version ";
-
-	sprintf(version, "%s/proc/version", root_dir);
-	file = fopen(version, "r");
-	if (!file)
-		return NULL;
-
-	version[0] = '\0';
-	tmp = fgets(version, sizeof(version), file);
-	fclose(file);
-
-	name = strstr(version, prefix);
-	if (!name)
-		return NULL;
-	name += strlen(prefix);
-	tmp = strchr(name, ' ');
-	if (tmp)
-		*tmp = '\0';
-
-	return strdup(name);
-}
-
-static int machine__set_modules_path(struct machine *machine)
-{
-	char *version;
-	char modules_path[PATH_MAX];
-
-	version = get_kernel_version(machine->root_dir);
-	if (!version)
-		return -1;
-
-	snprintf(modules_path, sizeof(modules_path), "%s/lib/modules/%s/kernel",
-		 machine->root_dir, version);
-	free(version);
-
-	return map_groups__set_modules_path_dir(&machine->kmaps, modules_path);
-}
-
-struct map *machine__new_module(struct machine *machine, u64 start,
-				const char *filename)
-{
-	struct map *map;
-	struct dso *dso = __dsos__findnew(&machine->kernel_dsos, filename);
-
-	if (dso == NULL)
-		return NULL;
-
-	map = map__new2(start, dso, MAP__FUNCTION);
-	if (map == NULL)
-		return NULL;
-
-	if (machine__is_host(machine))
-		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
-	else
-		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
-	map_groups__insert(&machine->kmaps, map);
-	return map;
-}
-
-static int machine__create_modules(struct machine *machine)
-{
-	char *line = NULL;
-	size_t n;
-	FILE *file;
-	struct map *map;
-	const char *modules;
-	char path[PATH_MAX];
-
-	if (machine__is_default_guest(machine))
-		modules = symbol_conf.default_guest_modules;
-	else {
-		sprintf(path, "%s/proc/modules", machine->root_dir);
-		modules = path;
-	}
-
-	if (symbol__restricted_filename(path, "/proc/modules"))
-		return -1;
-
-	file = fopen(modules, "r");
-	if (file == NULL)
-		return -1;
-
-	while (!feof(file)) {
-		char name[PATH_MAX];
-		u64 start;
-		char *sep;
-		int line_len;
-
-		line_len = getline(&line, &n, file);
-		if (line_len < 0)
-			break;
-
-		if (!line)
-			goto out_failure;
-
-		line[--line_len] = '\0'; /* \n */
-
-		sep = strrchr(line, 'x');
-		if (sep == NULL)
-			continue;
-
-		hex2u64(sep + 1, &start);
-
-		sep = strchr(line, ' ');
-		if (sep == NULL)
-			continue;
-
-		*sep = '\0';
-
-		snprintf(name, sizeof(name), "[%s]", line);
-		map = machine__new_module(machine, start, name);
-		if (map == NULL)
-			goto out_delete_line;
-		dso__kernel_module_get_build_id(map->dso, machine->root_dir);
-	}
-
-	free(line);
-	fclose(file);
-
-	return machine__set_modules_path(machine);
-
-out_delete_line:
-	free(line);
-out_failure:
-	return -1;
-}
-
 int dso__load_vmlinux(struct dso *dso, struct map *map,
-		      const char *vmlinux, symbol_filter_t filter)
+		      const char *vmlinux, bool vmlinux_allocated,
+		      symbol_filter_t filter)
 {
 	int err = -1;
 	struct symsrc ss;
 	char symfs_vmlinux[PATH_MAX];
 	enum dso_binary_type symtab_type;
 
-	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
-		 symbol_conf.symfs, vmlinux);
+	if (vmlinux[0] == '/')
+		snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s", vmlinux);
+	else
+		snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
+			 symbol_conf.symfs, vmlinux);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
@@ -1104,7 +1466,11 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
-		dso__set_long_name(dso, (char *)vmlinux);
+		if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+			dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+		else
+			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
+		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
 		dso__set_loaded(dso, map->type);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 	}
@@ -1123,21 +1489,123 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 
 	filename = dso__build_id_filename(dso, NULL, 0);
 	if (filename != NULL) {
-		err = dso__load_vmlinux(dso, map, filename, filter);
+		err = dso__load_vmlinux(dso, map, filename, true, filter);
 		if (err > 0)
 			goto out;
 		free(filename);
 	}
 
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-		err = dso__load_vmlinux(dso, map, vmlinux_path[i], filter);
-		if (err > 0) {
-			dso__set_long_name(dso, strdup(vmlinux_path[i]));
+		err = dso__load_vmlinux(dso, map, vmlinux_path[i], false, filter);
+		if (err > 0)
 			break;
-		}
 	}
 out:
 	return err;
+}
+
+static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
+{
+	char kallsyms_filename[PATH_MAX];
+	struct dirent *dent;
+	int ret = -1;
+	DIR *d;
+
+	d = opendir(dir);
+	if (!d)
+		return -1;
+
+	while (1) {
+		dent = readdir(d);
+		if (!dent)
+			break;
+		if (dent->d_type != DT_DIR)
+			continue;
+		scnprintf(kallsyms_filename, sizeof(kallsyms_filename),
+			  "%s/%s/kallsyms", dir, dent->d_name);
+		if (!validate_kcore_addresses(kallsyms_filename, map)) {
+			strlcpy(dir, kallsyms_filename, dir_sz);
+			ret = 0;
+			break;
+		}
+	}
+
+	closedir(d);
+
+	return ret;
+}
+
+static char *dso__find_kallsyms(struct dso *dso, struct map *map)
+{
+	u8 host_build_id[BUILD_ID_SIZE];
+	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	bool is_host = false;
+	char path[PATH_MAX];
+
+	if (!dso->has_build_id) {
+		/*
+		 * Last resort, if we don't have a build-id and couldn't find
+		 * any vmlinux file, try the running kernel kallsyms table.
+		 */
+		goto proc_kallsyms;
+	}
+
+	if (sysfs__read_build_id("/sys/kernel/notes", host_build_id,
+				 sizeof(host_build_id)) == 0)
+		is_host = dso__build_id_equal(dso, host_build_id);
+
+	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
+
+	scnprintf(path, sizeof(path), "%s/[kernel.kcore]/%s", buildid_dir,
+		  sbuild_id);
+
+	/* Use /proc/kallsyms if possible */
+	if (is_host) {
+		DIR *d;
+		int fd;
+
+		/* If no cached kcore go with /proc/kallsyms */
+		d = opendir(path);
+		if (!d)
+			goto proc_kallsyms;
+		closedir(d);
+
+		/*
+		 * Do not check the build-id cache, until we know we cannot use
+		 * /proc/kcore.
+		 */
+		fd = open("/proc/kcore", O_RDONLY);
+		if (fd != -1) {
+			close(fd);
+			/* If module maps match go with /proc/kallsyms */
+			if (!validate_kcore_addresses("/proc/kallsyms", map))
+				goto proc_kallsyms;
+		}
+
+		/* Find kallsyms in build-id cache with kcore */
+		if (!find_matching_kcore(map, path, sizeof(path)))
+			return strdup(path);
+
+		goto proc_kallsyms;
+	}
+
+	/* Find kallsyms in build-id cache with kcore */
+	if (!find_matching_kcore(map, path, sizeof(path)))
+		return strdup(path);
+
+	scnprintf(path, sizeof(path), "%s/[kernel.kallsyms]/%s",
+		  buildid_dir, sbuild_id);
+
+	if (access(path, F_OK)) {
+		pr_err("No kallsyms or vmlinux with build-id %s was found\n",
+		       sbuild_id);
+		return NULL;
+	}
+
+	return strdup(path);
+
+proc_kallsyms:
+	return strdup("/proc/kallsyms");
 }
 
 static int dso__load_kernel_sym(struct dso *dso, struct map *map,
@@ -1166,72 +1634,26 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map,
 		goto do_kallsyms;
 	}
 
-	if (symbol_conf.vmlinux_name != NULL) {
-		err = dso__load_vmlinux(dso, map,
-					symbol_conf.vmlinux_name, filter);
-		if (err > 0) {
-			dso__set_long_name(dso,
-					   strdup(symbol_conf.vmlinux_name));
-			goto out_fixup;
-		}
-		return err;
+	if (!symbol_conf.ignore_vmlinux && symbol_conf.vmlinux_name != NULL) {
+		return dso__load_vmlinux(dso, map, symbol_conf.vmlinux_name,
+					 false, filter);
 	}
 
-	if (vmlinux_path != NULL) {
+	if (!symbol_conf.ignore_vmlinux && vmlinux_path != NULL) {
 		err = dso__load_vmlinux_path(dso, map, filter);
 		if (err > 0)
-			goto out_fixup;
+			return err;
 	}
 
 	/* do not try local files if a symfs was given */
 	if (symbol_conf.symfs[0] != 0)
 		return -1;
 
-	/*
-	 * Say the kernel DSO was created when processing the build-id header table,
-	 * we have a build-id, so check if it is the same as the running kernel,
-	 * using it if it is.
-	 */
-	if (dso->has_build_id) {
-		u8 kallsyms_build_id[BUILD_ID_SIZE];
-		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	kallsyms_allocated_filename = dso__find_kallsyms(dso, map);
+	if (!kallsyms_allocated_filename)
+		return -1;
 
-		if (sysfs__read_build_id("/sys/kernel/notes", kallsyms_build_id,
-					 sizeof(kallsyms_build_id)) == 0) {
-			if (dso__build_id_equal(dso, kallsyms_build_id)) {
-				kallsyms_filename = "/proc/kallsyms";
-				goto do_kallsyms;
-			}
-		}
-		/*
-		 * Now look if we have it on the build-id cache in
-		 * $HOME/.debug/[kernel.kallsyms].
-		 */
-		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
-				  sbuild_id);
-
-		if (asprintf(&kallsyms_allocated_filename,
-			     "%s/.debug/[kernel.kallsyms]/%s",
-			     getenv("HOME"), sbuild_id) == -1) {
-			pr_err("Not enough memory for kallsyms file lookup\n");
-			return -1;
-		}
-
-		kallsyms_filename = kallsyms_allocated_filename;
-
-		if (access(kallsyms_filename, F_OK)) {
-			pr_err("No kallsyms or vmlinux with build-id %s "
-			       "was found\n", sbuild_id);
-			free(kallsyms_allocated_filename);
-			return -1;
-		}
-	} else {
-		/*
-		 * Last resort, if we don't have a build-id and couldn't find
-		 * any vmlinux file, try the running kernel kallsyms table.
-		 */
-		kallsyms_filename = "/proc/kallsyms";
-	}
+	kallsyms_filename = kallsyms_allocated_filename;
 
 do_kallsyms:
 	err = dso__load_kallsyms(dso, kallsyms_filename, map, filter);
@@ -1239,9 +1661,8 @@ do_kallsyms:
 		pr_debug("Using %s for symbols\n", kallsyms_filename);
 	free(kallsyms_allocated_filename);
 
-	if (err > 0) {
-		dso__set_long_name(dso, strdup("[kernel.kallsyms]"));
-out_fixup:
+	if (err > 0 && !dso__is_kcore(dso)) {
+		dso__set_long_name(dso, "[kernel.kallsyms]", false);
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
@@ -1271,8 +1692,9 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 		 */
 		if (symbol_conf.default_guest_vmlinux_name != NULL) {
 			err = dso__load_vmlinux(dso, map,
-				symbol_conf.default_guest_vmlinux_name, filter);
-			goto out_try_fixup;
+						symbol_conf.default_guest_vmlinux_name,
+						false, filter);
+			return err;
 		}
 
 		kallsyms_filename = symbol_conf.default_guest_kallsyms;
@@ -1286,13 +1708,9 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map,
 	err = dso__load_kallsyms(dso, kallsyms_filename, map, filter);
 	if (err > 0)
 		pr_debug("Using %s for symbols\n", kallsyms_filename);
-
-out_try_fixup:
-	if (err > 0) {
-		if (kallsyms_filename != NULL) {
-			machine__mmap_name(machine, path, sizeof(path));
-			dso__set_long_name(dso, strdup(path));
-		}
+	if (err > 0 && !dso__is_kcore(dso)) {
+		machine__mmap_name(machine, path, sizeof(path));
+		dso__set_long_name(dso, strdup(path), true);
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
@@ -1300,204 +1718,12 @@ out_try_fixup:
 	return err;
 }
 
-size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp)
-{
-	struct rb_node *nd;
-	size_t ret = 0;
-
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret += __dsos__fprintf(&pos->kernel_dsos, fp);
-		ret += __dsos__fprintf(&pos->user_dsos, fp);
-	}
-
-	return ret;
-}
-
-size_t machine__fprintf_dsos_buildid(struct machine *machine, FILE *fp,
-				     bool with_hits)
-{
-	return __dsos__fprintf_buildid(&machine->kernel_dsos, fp, with_hits) +
-	       __dsos__fprintf_buildid(&machine->user_dsos, fp, with_hits);
-}
-
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits)
-{
-	struct rb_node *nd;
-	size_t ret = 0;
-
-	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret += machine__fprintf_dsos_buildid(pos, fp, with_hits);
-	}
-	return ret;
-}
-
-static struct dso *machine__get_kernel(struct machine *machine)
-{
-	const char *vmlinux_name = NULL;
-	struct dso *kernel;
-
-	if (machine__is_host(machine)) {
-		vmlinux_name = symbol_conf.vmlinux_name;
-		if (!vmlinux_name)
-			vmlinux_name = "[kernel.kallsyms]";
-
-		kernel = dso__kernel_findnew(machine, vmlinux_name,
-					     "[kernel]",
-					     DSO_TYPE_KERNEL);
-	} else {
-		char bf[PATH_MAX];
-
-		if (machine__is_default_guest(machine))
-			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
-		if (!vmlinux_name)
-			vmlinux_name = machine__mmap_name(machine, bf,
-							  sizeof(bf));
-
-		kernel = dso__kernel_findnew(machine, vmlinux_name,
-					     "[guest.kernel]",
-					     DSO_TYPE_GUEST_KERNEL);
-	}
-
-	if (kernel != NULL && (!kernel->has_build_id))
-		dso__read_running_kernel_build_id(kernel, machine);
-
-	return kernel;
-}
-
-struct process_args {
-	u64 start;
-};
-
-static int symbol__in_kernel(void *arg, const char *name,
-			     char type __maybe_unused, u64 start)
-{
-	struct process_args *args = arg;
-
-	if (strchr(name, '['))
-		return 0;
-
-	args->start = start;
-	return 1;
-}
-
-/* Figure out the start address of kernel map from /proc/kallsyms */
-static u64 machine__get_kernel_start_addr(struct machine *machine)
-{
-	const char *filename;
-	char path[PATH_MAX];
-	struct process_args args;
-
-	if (machine__is_host(machine)) {
-		filename = "/proc/kallsyms";
-	} else {
-		if (machine__is_default_guest(machine))
-			filename = (char *)symbol_conf.default_guest_kallsyms;
-		else {
-			sprintf(path, "%s/proc/kallsyms", machine->root_dir);
-			filename = path;
-		}
-	}
-
-	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
-		return 0;
-
-	if (kallsyms__parse(filename, &args, symbol__in_kernel) <= 0)
-		return 0;
-
-	return args.start;
-}
-
-int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel)
-{
-	enum map_type type;
-	u64 start = machine__get_kernel_start_addr(machine);
-
-	for (type = 0; type < MAP__NR_TYPES; ++type) {
-		struct kmap *kmap;
-
-		machine->vmlinux_maps[type] = map__new2(start, kernel, type);
-		if (machine->vmlinux_maps[type] == NULL)
-			return -1;
-
-		machine->vmlinux_maps[type]->map_ip =
-			machine->vmlinux_maps[type]->unmap_ip =
-				identity__map_ip;
-		kmap = map__kmap(machine->vmlinux_maps[type]);
-		kmap->kmaps = &machine->kmaps;
-		map_groups__insert(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
-	}
-
-	return 0;
-}
-
-void machine__destroy_kernel_maps(struct machine *machine)
-{
-	enum map_type type;
-
-	for (type = 0; type < MAP__NR_TYPES; ++type) {
-		struct kmap *kmap;
-
-		if (machine->vmlinux_maps[type] == NULL)
-			continue;
-
-		kmap = map__kmap(machine->vmlinux_maps[type]);
-		map_groups__remove(&machine->kmaps,
-				   machine->vmlinux_maps[type]);
-		if (kmap->ref_reloc_sym) {
-			/*
-			 * ref_reloc_sym is shared among all maps, so free just
-			 * on one of them.
-			 */
-			if (type == MAP__FUNCTION) {
-				free((char *)kmap->ref_reloc_sym->name);
-				kmap->ref_reloc_sym->name = NULL;
-				free(kmap->ref_reloc_sym);
-			}
-			kmap->ref_reloc_sym = NULL;
-		}
-
-		map__delete(machine->vmlinux_maps[type]);
-		machine->vmlinux_maps[type] = NULL;
-	}
-}
-
-int machine__create_kernel_maps(struct machine *machine)
-{
-	struct dso *kernel = machine__get_kernel(machine);
-
-	if (kernel == NULL ||
-	    __machine__create_kernel_maps(machine, kernel) < 0)
-		return -1;
-
-	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
-		if (machine__is_host(machine))
-			pr_debug("Problems creating module maps, "
-				 "continuing anyway...\n");
-		else
-			pr_debug("Problems creating module maps for guest %d, "
-				 "continuing anyway...\n", machine->pid);
-	}
-
-	/*
-	 * Now that we have all the maps created, just set the ->end of them:
-	 */
-	map_groups__fixup_end(&machine->kmaps);
-	return 0;
-}
-
 static void vmlinux_path__exit(void)
 {
-	while (--vmlinux_path__nr_entries >= 0) {
-		free(vmlinux_path[vmlinux_path__nr_entries]);
-		vmlinux_path[vmlinux_path__nr_entries] = NULL;
-	}
+	while (--vmlinux_path__nr_entries >= 0)
+		zfree(&vmlinux_path[vmlinux_path__nr_entries]);
 
-	free(vmlinux_path);
-	vmlinux_path = NULL;
+	zfree(&vmlinux_path);
 }
 
 static int vmlinux_path__init(void)
@@ -1549,26 +1775,7 @@ out_fail:
 	return -1;
 }
 
-size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
-{
-	int i;
-	size_t printed = 0;
-	struct dso *kdso = machine->vmlinux_maps[MAP__FUNCTION]->dso;
-
-	if (kdso->has_build_id) {
-		char filename[PATH_MAX];
-		if (dso__build_id_filename(kdso, filename, sizeof(filename)))
-			printed += fprintf(fp, "[0] %s\n", filename);
-	}
-
-	for (i = 0; i < vmlinux_path__nr_entries; ++i)
-		printed += fprintf(fp, "[%d] %s\n",
-				   i + kdso->has_build_id, vmlinux_path[i]);
-
-	return printed;
-}
-
-static int setup_list(struct strlist **list, const char *list_str,
+int setup_list(struct strlist **list, const char *list_str,
 		      const char *list_name)
 {
 	if (list_str == NULL)
@@ -1670,109 +1877,4 @@ void symbol__exit(void)
 	vmlinux_path__exit();
 	symbol_conf.sym_list = symbol_conf.dso_list = symbol_conf.comm_list = NULL;
 	symbol_conf.initialized = false;
-}
-
-int machines__create_kernel_maps(struct rb_root *machines, pid_t pid)
-{
-	struct machine *machine = machines__findnew(machines, pid);
-
-	if (machine == NULL)
-		return -1;
-
-	return machine__create_kernel_maps(machine);
-}
-
-int machines__create_guest_kernel_maps(struct rb_root *machines)
-{
-	int ret = 0;
-	struct dirent **namelist = NULL;
-	int i, items = 0;
-	char path[PATH_MAX];
-	pid_t pid;
-	char *endp;
-
-	if (symbol_conf.default_guest_vmlinux_name ||
-	    symbol_conf.default_guest_modules ||
-	    symbol_conf.default_guest_kallsyms) {
-		machines__create_kernel_maps(machines, DEFAULT_GUEST_KERNEL_ID);
-	}
-
-	if (symbol_conf.guestmount) {
-		items = scandir(symbol_conf.guestmount, &namelist, NULL, NULL);
-		if (items <= 0)
-			return -ENOENT;
-		for (i = 0; i < items; i++) {
-			if (!isdigit(namelist[i]->d_name[0])) {
-				/* Filter out . and .. */
-				continue;
-			}
-			pid = (pid_t)strtol(namelist[i]->d_name, &endp, 10);
-			if ((*endp != '\0') ||
-			    (endp == namelist[i]->d_name) ||
-			    (errno == ERANGE)) {
-				pr_debug("invalid directory (%s). Skipping.\n",
-					 namelist[i]->d_name);
-				continue;
-			}
-			sprintf(path, "%s/%s/proc/kallsyms",
-				symbol_conf.guestmount,
-				namelist[i]->d_name);
-			ret = access(path, R_OK);
-			if (ret) {
-				pr_debug("Can't access file %s\n", path);
-				goto failure;
-			}
-			machines__create_kernel_maps(machines, pid);
-		}
-failure:
-		free(namelist);
-	}
-
-	return ret;
-}
-
-void machines__destroy_guest_kernel_maps(struct rb_root *machines)
-{
-	struct rb_node *next = rb_first(machines);
-
-	while (next) {
-		struct machine *pos = rb_entry(next, struct machine, rb_node);
-
-		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, machines);
-		machine__delete(pos);
-	}
-}
-
-int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter)
-{
-	struct map *map = machine->vmlinux_maps[type];
-	int ret = dso__load_kallsyms(map->dso, filename, map, filter);
-
-	if (ret > 0) {
-		dso__set_loaded(map->dso, type);
-		/*
-		 * Since /proc/kallsyms will have multiple sessions for the
-		 * kernel, with modules between them, fixup the end of all
-		 * sections.
-		 */
-		__map_groups__fixup_end(&machine->kmaps, type);
-	}
-
-	return ret;
-}
-
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
-			       symbol_filter_t filter)
-{
-	struct map *map = machine->vmlinux_maps[type];
-	int ret = dso__load_vmlinux_path(map->dso, map, filter);
-
-	if (ret > 0) {
-		dso__set_loaded(map->dso, type);
-		map__reloc_vmlinux(map);
-	}
-
-	return ret;
 }

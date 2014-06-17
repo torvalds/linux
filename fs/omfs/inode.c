@@ -183,7 +183,7 @@ int omfs_sync_inode(struct inode *inode)
  */
 static void omfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 
 	if (inode->i_nlink)
@@ -572,6 +572,7 @@ static struct file_system_type omfs_fs_type = {
 	.kill_sb = kill_block_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("omfs");
 
 static int __init init_omfs_fs(void)
 {

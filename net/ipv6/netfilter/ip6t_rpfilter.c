@@ -33,6 +33,7 @@ static bool rpfilter_lookup_reverse6(const struct sk_buff *skb,
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	bool ret = false;
 	struct flowi6 fl6 = {
+		.flowi6_iif = LOOPBACK_IFINDEX,
 		.flowlabel = (* (__be32 *) iph) & IPV6_FLOWINFO_MASK,
 		.flowi6_proto = iph->nexthdr,
 		.daddr = iph->saddr,
@@ -71,6 +72,12 @@ static bool rpfilter_lookup_reverse6(const struct sk_buff *skb,
 	return ret;
 }
 
+static bool rpfilter_is_local(const struct sk_buff *skb)
+{
+	const struct rt6_info *rt = (const void *) skb_dst(skb);
+	return rt && (rt->rt6i_flags & RTF_LOCAL);
+}
+
 static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_rpfilter_info *info = par->matchinfo;
@@ -78,7 +85,7 @@ static bool rpfilter_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	struct ipv6hdr *iph;
 	bool invert = info->flags & XT_RPFILTER_INVERT;
 
-	if (par->in->flags & IFF_LOOPBACK)
+	if (rpfilter_is_local(skb))
 		return true ^ invert;
 
 	iph = ipv6_hdr(skb);

@@ -47,7 +47,6 @@ enum {
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
-	NEXACT_MAC     = 336,   /* # of exact MAC address filters */
 	L2T_SIZE       = 4096,  /* # of L2T entries */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */
@@ -69,6 +68,7 @@ enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_MAX_IQ_SIZE = 65520,
 
 	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */
 	SGE_TIMER_UPD_CIDX = 7,   /* update cidx only */

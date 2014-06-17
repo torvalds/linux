@@ -113,8 +113,8 @@ struct pnfs_layoutdriver_type {
 	 * Return PNFS_ATTEMPTED to indicate the layout code has attempted
 	 * I/O, else return PNFS_NOT_ATTEMPTED to fall back to normal NFS
 	 */
-	enum pnfs_try_status (*read_pagelist) (struct nfs_read_data *nfs_data);
-	enum pnfs_try_status (*write_pagelist) (struct nfs_write_data *nfs_data, int how);
+	enum pnfs_try_status (*read_pagelist) (struct nfs_pgio_data *nfs_data);
+	enum pnfs_try_status (*write_pagelist) (struct nfs_pgio_data *nfs_data, int how);
 
 	void (*free_deviceid_node) (struct nfs4_deviceid_node *);
 
@@ -132,7 +132,7 @@ struct pnfs_layoutdriver_type {
 struct pnfs_layout_hdr {
 	atomic_t		plh_refcount;
 	struct list_head	plh_layouts;   /* other client layouts */
-	struct list_head	plh_bulk_recall; /* clnt list of bulk recalls */
+	struct list_head	plh_bulk_destroy;
 	struct list_head	plh_segs;      /* layout segments list */
 	nfs4_stateid		plh_stateid;
 	atomic_t		plh_outstanding; /* number of RPCs out */
@@ -149,9 +149,10 @@ struct pnfs_device {
 	struct nfs4_deviceid dev_id;
 	unsigned int  layout_type;
 	unsigned int  mincount;
+	unsigned int  maxcount;	/* gdia_maxcount */
 	struct page **pages;
 	unsigned int  pgbase;
-	unsigned int  pglen;
+	unsigned int  pglen;	/* reply buffer length */
 };
 
 #define NFS4_PNFS_GETDEVLIST_MAXNUM 16
@@ -170,18 +171,14 @@ extern int nfs4_proc_getdevicelist(struct nfs_server *server,
 				   const struct nfs_fh *fh,
 				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
-				   struct pnfs_device *dev);
+				   struct pnfs_device *dev,
+				   struct rpc_cred *cred);
 extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
 /* pnfs.c */
 void pnfs_get_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_put_lseg(struct pnfs_layout_segment *lseg);
-
-void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
-			   const struct nfs_pgio_completion_ops *);
-void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
-			    int, const struct nfs_pgio_completion_ops *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);
@@ -190,12 +187,18 @@ int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			        struct nfs_page *req, u64 wb_size);
 int pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
-bool pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
+size_t pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio,
+			    struct nfs_page *prev, struct nfs_page *req);
 void pnfs_set_lo_fail(struct pnfs_layout_segment *lseg);
 struct pnfs_layout_segment *pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
 void pnfs_destroy_layout(struct nfs_inode *);
 void pnfs_destroy_all_layouts(struct nfs_client *);
+int pnfs_destroy_layouts_byfsid(struct nfs_client *clp,
+		struct nfs_fsid *fsid,
+		bool is_recall);
+int pnfs_destroy_layouts_byclid(struct nfs_client *clp,
+		bool is_recall);
 void pnfs_put_layout_hdr(struct pnfs_layout_hdr *lo);
 void pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo,
 			     const nfs4_stateid *new,
@@ -210,12 +213,13 @@ bool pnfs_roc(struct inode *ino);
 void pnfs_roc_release(struct inode *ino);
 void pnfs_roc_set_barrier(struct inode *ino, u32 barrier);
 bool pnfs_roc_drain(struct inode *ino, u32 *barrier, struct rpc_task *task);
-void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
+void pnfs_set_layoutcommit(struct nfs_pgio_data *wdata);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
-void pnfs_ld_write_done(struct nfs_write_data *);
-void pnfs_ld_read_done(struct nfs_read_data *);
+int pnfs_commit_and_return_layout(struct inode *);
+void pnfs_ld_write_done(struct nfs_pgio_data *);
+void pnfs_ld_read_done(struct nfs_pgio_data *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       struct nfs_open_context *ctx,
 					       loff_t pos,
@@ -225,9 +229,11 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
 int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
-			const struct nfs_pgio_completion_ops *compl_ops);
+			const struct nfs_pgio_completion_ops *compl_ops,
+			struct nfs_direct_req *dreq);
 struct nfs4_threshold *pnfs_mdsthreshold_alloc(void);
 
 /* nfs4_deviceid_flags */
@@ -265,7 +271,7 @@ pnfs_get_lseg(struct pnfs_layout_segment *lseg)
 {
 	if (lseg) {
 		atomic_inc(&lseg->pls_refcount);
-		smp_mb__after_atomic_inc();
+		smp_mb__after_atomic();
 	}
 	return lseg;
 }
@@ -349,6 +355,15 @@ pnfs_ld_layoutret_on_setattr(struct inode *inode)
 		PNFS_LAYOUTRET_ON_SETATTR;
 }
 
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	return test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags) != 0 ||
+		test_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags) != 0;
+}
+
 static inline int pnfs_return_layout(struct inode *ino)
 {
 	struct nfs_inode *nfsi = NFS_I(ino);
@@ -400,6 +415,11 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
+static inline int pnfs_commit_and_return_layout(struct inode *inode)
+{
+	return 0;
+}
+
 static inline bool
 pnfs_ld_layoutret_on_setattr(struct inode *inode)
 {
@@ -435,18 +455,6 @@ static inline void set_pnfs_layoutdriver(struct nfs_server *s,
 
 static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
-}
-
-static inline void pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
-					 const struct nfs_pgio_completion_ops *compl_ops)
-{
-	nfs_pageio_init_read(pgio, inode, compl_ops);
-}
-
-static inline void pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
-					  const struct nfs_pgio_completion_ops *compl_ops)
-{
-	nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
 }
 
 static inline int
@@ -499,6 +507,13 @@ pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 {
 	return false;
 }
+
+static inline bool
+pnfs_layoutcommit_outstanding(struct inode *inode)
+{
+	return false;
+}
+
 
 static inline struct nfs4_threshold *pnfs_mdsthreshold_alloc(void)
 {

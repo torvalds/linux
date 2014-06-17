@@ -1076,7 +1076,6 @@ static void pt1_remove(struct pci_dev *pdev)
 	pt1_update_power(pt1);
 	pt1_cleanup_adapters(pt1);
 	i2c_del_adapter(&pt1->i2c_adap);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 	pci_iounmap(pdev, regs);
 	pci_release_regions(pdev);
@@ -1198,7 +1197,6 @@ err_i2c_del_adapter:
 err_pt1_cleanup_adapters:
 	pt1_cleanup_adapters(pt1);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pt1);
 err_pci_iounmap:
 	pci_iounmap(pdev, regs);
@@ -1225,20 +1223,7 @@ static struct pci_driver pt1_driver = {
 	.id_table	= pt1_id_table,
 };
 
-
-static int __init pt1_init(void)
-{
-	return pci_register_driver(&pt1_driver);
-}
-
-
-static void __exit pt1_cleanup(void)
-{
-	pci_unregister_driver(&pt1_driver);
-}
-
-module_init(pt1_init);
-module_exit(pt1_cleanup);
+module_pci_driver(pt1_driver);
 
 MODULE_AUTHOR("Takahito HIRANO <hiranotaka@zng.info>");
 MODULE_DESCRIPTION("Earthsoft PT1/PT2 Driver");

@@ -59,7 +59,6 @@ do {									\
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
 
-static struct snd_card *snd_cx25821_cards[SNDRV_CARDS];
 static int devno;
 
 struct cx25821_audio_buffer {
@@ -151,7 +150,7 @@ static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 {
 	struct cx25821_audio_buffer *buf = chip->buf;
 	struct cx25821_dev *dev = chip->dev;
-	struct sram_channel *audio_ch =
+	const struct sram_channel *audio_ch =
 	    &cx25821_sram_channels[AUDIO_SRAM_CHANNEL];
 	u32 tmp = 0;
 
@@ -619,40 +618,12 @@ static int snd_cx25821_pcm(struct cx25821_audio_dev *chip, int device,
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static DEFINE_PCI_DEVICE_TABLE(cx25821_audio_pci_tbl) = {
+static const struct pci_device_id cx25821_audio_pci_tbl[] = {
 	{0x14f1, 0x0920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
 };
 
 MODULE_DEVICE_TABLE(pci, cx25821_audio_pci_tbl);
-
-/*
- * Not used in the function snd_cx25821_dev_free so removing
- * from the file.
- */
-/*
-static int snd_cx25821_free(struct cx25821_audio_dev *chip)
-{
-	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);
-
-	cx25821_dev_unregister(chip->dev);
-	pci_disable_device(chip->pci);
-
-	return 0;
-}
-*/
-
-/*
- * Component Destructor
- */
-static void snd_cx25821_dev_free(struct snd_card *card)
-{
-	struct cx25821_audio_dev *chip = card->private_data;
-
-	/* snd_cx25821_free(chip); */
-	snd_card_free(chip->card);
-}
 
 /*
  * Alsa Constructor - Component probe
@@ -674,8 +645,9 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		return -ENOENT;
 	}
 
-	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
-			sizeof(struct cx25821_audio_dev), &card);
+	err = snd_card_new(&dev->pci->dev, index[devno], id[devno],
+			   THIS_MODULE,
+			   sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
 		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
 			__func__);
@@ -685,7 +657,6 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	strcpy(card->driver, "cx25821");
 
 	/* Card "creation" */
-	card->private_free = snd_cx25821_dev_free;
 	chip = card->private_data;
 	spin_lock_init(&chip->reg_lock);
 
@@ -712,8 +683,6 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		goto error;
 	}
 
-	snd_card_set_dev(card, &chip->pci->dev);
-
 	strcpy(card->shortname, "cx25821");
 	sprintf(card->longname, "%s at 0x%lx irq %d", chip->dev->name,
 		chip->iobase, chip->irq);
@@ -729,8 +698,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		goto error;
 	}
 
-	snd_cx25821_cards[devno] = card;
-
+	dev->card = card;
 	devno++;
 	return 0;
 
@@ -742,9 +710,33 @@ error:
 /****************************************************************************
 				LINUX MODULE INIT
  ****************************************************************************/
+
+static int cx25821_alsa_exit_callback(struct device *dev, void *data)
+{
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
+	struct cx25821_dev *cxdev = get_cx25821(v4l2_dev);
+
+	snd_card_free(cxdev->card);
+	return 0;
+}
+
 static void cx25821_audio_fini(void)
 {
-	snd_card_free(snd_cx25821_cards[0]);
+	struct device_driver *drv = driver_find("cx25821", &pci_bus_type);
+	int ret;
+
+	ret = driver_for_each_device(drv, NULL, NULL, cx25821_alsa_exit_callback);
+	if (ret)
+		pr_err("%s failed to find a cx25821 driver.\n", __func__);
+}
+
+static int cx25821_alsa_init_callback(struct device *dev, void *data)
+{
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
+	struct cx25821_dev *cxdev = get_cx25821(v4l2_dev);
+
+	cx25821_audio_initdev(cxdev);
+	return 0;
 }
 
 /*
@@ -756,29 +748,11 @@ static void cx25821_audio_fini(void)
  */
 static int cx25821_alsa_init(void)
 {
-	struct cx25821_dev *dev = NULL;
-	struct list_head *list;
+	struct device_driver *drv = driver_find("cx25821", &pci_bus_type);
 
-	mutex_lock(&cx25821_devlist_mutex);
-	list_for_each(list, &cx25821_devlist) {
-		dev = list_entry(list, struct cx25821_dev, devlist);
-		cx25821_audio_initdev(dev);
-	}
-	mutex_unlock(&cx25821_devlist_mutex);
-
-	if (dev == NULL)
-		pr_info("ERROR ALSA: no cx25821 cards found\n");
-
-	return 0;
+	return driver_for_each_device(drv, NULL, NULL, cx25821_alsa_init_callback);
 
 }
 
 late_initcall(cx25821_alsa_init);
 module_exit(cx25821_audio_fini);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

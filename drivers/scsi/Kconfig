@@ -42,7 +42,7 @@ config SCSI_DMA
 
 config SCSI_TGT
 	tristate "SCSI target support"
-	depends on SCSI && EXPERIMENTAL
+	depends on SCSI
 	---help---
 	  If you want to use SCSI target mode drivers enable this option.
 	  If you choose M, the module will be called scsi_tgt.
@@ -204,9 +204,9 @@ config SCSI_MULTI_LUN
 	  Some devices support more than one LUN (Logical Unit Number) in order
 	  to allow access to several media, e.g. CD jukebox, USB card reader,
 	  mobile phone in mass storage mode. This option forces the kernel to
-	  probe for all LUNs by default. This setting can be overriden by
+	  probe for all LUNs by default. This setting can be overridden by
 	  max_luns boot/module parameter. Note that this option does not affect
-	  devices conforming to SCSI-3 or higher as they can explicitely report
+	  devices conforming to SCSI-3 or higher as they can explicitly report
 	  their number of LUNs. It is safe to say Y here unless you have one of
 	  those rare devices which reacts in an unexpected way when probed for
 	  multiple LUNs.
@@ -262,6 +262,9 @@ config SCSI_SCAN_ASYNC
 
 	  You can override this choice by specifying "scsi_mod.scan=sync"
 	  or async on the kernel's command line.
+
+	  Note that this setting also affects whether resuming from
+	  system suspend will be performed asynchronously.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -499,47 +502,6 @@ config SCSI_AACRAID
 
 
 source "drivers/scsi/aic7xxx/Kconfig.aic7xxx"
-
-config SCSI_AIC7XXX_OLD
-	tristate "Adaptec AIC7xxx support (old driver)"
-	depends on (ISA || EISA || PCI ) && SCSI
-	help
-	  WARNING This driver is an older aic7xxx driver and is no longer
-	  under active development.  Adaptec, Inc. is writing a new driver to
-	  take the place of this one, and it is recommended that whenever
-	  possible, people should use the new Adaptec written driver instead
-	  of this one.  This driver will eventually be phased out entirely.
-
-	  This is support for the various aic7xxx based Adaptec SCSI
-	  controllers. These include the 274x EISA cards; 284x VLB cards;
-	  2902, 2910, 293x, 294x, 394x, 3985 and several other PCI and
-	  motherboard based SCSI controllers from Adaptec. It does not support
-	  the AAA-13x RAID controllers from Adaptec, nor will it likely ever
-	  support them. It does not support the 2920 cards from Adaptec that
-	  use the Future Domain SCSI controller chip. For those cards, you
-	  need the "Future Domain 16xx SCSI support" driver.
-
-	  In general, if the controller is based on an Adaptec SCSI controller
-	  chip from the aic777x series or the aic78xx series, this driver
-	  should work. The only exception is the 7810 which is specifically
-	  not supported (that's the RAID controller chip on the AAA-13x
-	  cards).
-
-	  Note that the AHA2920 SCSI host adapter is *not* supported by this
-	  driver; choose "Future Domain 16xx SCSI support" instead if you have
-	  one of those.
-
-	  Information on the configuration options for this controller can be
-	  found by checking the help file for each of the available
-	  configuration options. You should read
-	  <file:Documentation/scsi/aic7xxx_old.txt> at a minimum before
-	  contacting the maintainer with any questions.  The SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>, can also
-	  be of great help.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called aic7xxx_old.
-
 source "drivers/scsi/aic7xxx/Kconfig.aic79xx"
 source "drivers/scsi/aic94xx/Kconfig"
 source "drivers/scsi/mvsas/Kconfig"
@@ -601,6 +563,7 @@ config SCSI_ARCMSR
 	  To compile this driver as a module, choose M here: the
 	  module will be called arcmsr (modprobe arcmsr).
 
+source "drivers/scsi/esas2r/Kconfig"
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 source "drivers/scsi/mpt2sas/Kconfig"
 source "drivers/scsi/mpt3sas/Kconfig"
@@ -633,7 +596,7 @@ config SCSI_BUSLOGIC
 
 config SCSI_FLASHPOINT
 	bool "FlashPoint support"
-	depends on SCSI_BUSLOGIC && PCI && X86_32
+	depends on SCSI_BUSLOGIC && PCI
 	help
 	  This option allows you to add FlashPoint support to the
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
@@ -883,7 +846,7 @@ config SCSI_IBMVSCSI
 	  This is the IBM POWER Virtual SCSI Client
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ibmvscsic.
+	  module will be called ibmvscsi.
 
 config SCSI_IBMVSCSIS
 	tristate "IBM Virtual SCSI Server support"
@@ -1353,6 +1316,7 @@ config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
 	select SCSI_FC_ATTRS
+	select CRC_T10DIF
 	help
           This lpfc driver supports the Emulex LightPulse
           Family of Fibre Channel PCI host adapters.
@@ -1392,8 +1356,8 @@ config SCSI_SYM53C416
 	  module will be called sym53c416.
 
 config SCSI_DC395x
-	tristate "Tekram DC395(U/UW/F) and DC315(U) SCSI support (EXPERIMENTAL)"
-	depends on PCI && SCSI && EXPERIMENTAL
+	tristate "Tekram DC395(U/UW/F) and DC315(U) SCSI support"
+	depends on PCI && SCSI
 	---help---
 	  This driver supports PCI SCSI host adapters based on the ASIC
 	  TRM-S1040 chip, e.g Tekram DC395(U/UW/F) and DC315(U) variants.
@@ -1618,8 +1582,8 @@ config GVP11_SCSI
 	  module will be called gvp11.
 
 config SCSI_A4000T
-	tristate "A4000T NCR53c710 SCSI support (EXPERIMENTAL)"
-	depends on AMIGA && SCSI && EXPERIMENTAL
+	tristate "A4000T NCR53c710 SCSI support"
+	depends on AMIGA && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  If you have an Amiga 4000T and have SCSI devices connected to the
@@ -1629,8 +1593,8 @@ config SCSI_A4000T
 	  module will be called a4000t.
 
 config SCSI_ZORRO7XX
-	tristate "Zorro NCR53c710 SCSI support (EXPERIMENTAL)"
-	depends on ZORRO && SCSI && EXPERIMENTAL
+	tristate "Zorro NCR53c710 SCSI support"
+	depends on ZORRO && SCSI
 	select SCSI_SPI_ATTRS
 	help
 	  Support for various NCR53c710-based SCSI controllers on Zorro
@@ -1807,8 +1771,9 @@ config SCSI_BFA_FC
 	  be called bfa.
 
 config SCSI_VIRTIO
-	tristate "virtio-scsi support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "virtio-scsi support"
+	depends on VIRTIO
+	select BLK_DEV_INTEGRITY
 	help
           This is the virtual HBA driver for virtio.  If the kernel will
           be used in a virtual machine, say Y or M.

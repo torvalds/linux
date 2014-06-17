@@ -15,14 +15,13 @@
 #ifndef __ARCH_MVEBU_COMMON_H
 #define __ARCH_MVEBU_COMMON_H
 
-void mvebu_restart(char mode, const char *cmd);
+#include <linux/reboot.h>
 
-void armada_370_xp_init_irq(void);
-void armada_370_xp_handle_irq(struct pt_regs *regs);
+void mvebu_restart(enum reboot_mode mode, const char *cmd);
+int mvebu_cpu_reset_deassert(int cpu);
+void mvebu_pmsu_set_cpu_boot_addr(int hw_cpu, void *boot_addr);
+void mvebu_system_controller_set_cpu_boot_addr(void *boot_addr);
 
 void armada_xp_cpu_die(unsigned int cpu);
-int armada_370_xp_coherency_init(void);
-int armada_370_xp_pmsu_init(void);
-void armada_xp_secondary_startup(void);
-extern struct smp_operations armada_xp_smp_ops;
+
 #endif

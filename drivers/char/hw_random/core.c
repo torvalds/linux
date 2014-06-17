@@ -37,9 +37,10 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
+#include <linux/random.h>
 #include <asm/uaccess.h>
 
 
@@ -52,8 +53,12 @@ static struct hwrng *current_rng;
 static LIST_HEAD(rng_list);
 static DEFINE_MUTEX(rng_mutex);
 static int data_avail;
-static u8 rng_buffer[SMP_CACHE_BYTES < 32 ? 32 : SMP_CACHE_BYTES]
-	__cacheline_aligned;
+static u8 *rng_buffer;
+
+static size_t rng_buffer_size(void)
+{
+	return SMP_CACHE_BYTES < 32 ? 32 : SMP_CACHE_BYTES;
+}
 
 static inline int hwrng_init(struct hwrng *rng)
 {
@@ -116,7 +121,7 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 
 		if (!data_avail) {
 			bytes_read = rng_get_data(current_rng, rng_buffer,
-				sizeof(rng_buffer),
+				rng_buffer_size(),
 				!(filp->f_flags & O_NONBLOCK));
 			if (bytes_read < 0) {
 				err = bytes_read;
@@ -297,15 +302,24 @@ err_misc_dereg:
 
 int hwrng_register(struct hwrng *rng)
 {
-	int must_register_misc;
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
+	unsigned char bytes[16];
+	int bytes_read;
 
 	if (rng->name == NULL ||
 	    (rng->data_read == NULL && rng->read == NULL))
 		goto out;
 
 	mutex_lock(&rng_mutex);
+
+	/* kmalloc makes this safe for virt_to_page() in virtio_rng.c */
+	err = -ENOMEM;
+	if (!rng_buffer) {
+		rng_buffer = kmalloc(rng_buffer_size(), GFP_KERNEL);
+		if (!rng_buffer)
+			goto out_unlock;
+	}
 
 	/* Must not register two RNGs with the same name. */
 	err = -EEXIST;
@@ -314,7 +328,6 @@ int hwrng_register(struct hwrng *rng)
 			goto out_unlock;
 	}
 
-	must_register_misc = (current_rng == NULL);
 	old_rng = current_rng;
 	if (!old_rng) {
 		err = hwrng_init(rng);
@@ -323,18 +336,20 @@ int hwrng_register(struct hwrng *rng)
 		current_rng = rng;
 	}
 	err = 0;
-	if (must_register_misc) {
+	if (!old_rng) {
 		err = register_miscdev();
 		if (err) {
-			if (!old_rng) {
-				hwrng_cleanup(rng);
-				current_rng = NULL;
-			}
+			hwrng_cleanup(rng);
+			current_rng = NULL;
 			goto out_unlock;
 		}
 	}
 	INIT_LIST_HEAD(&rng->list);
 	list_add_tail(&rng->list, &rng_list);
+
+	bytes_read = rng_get_data(rng, bytes, sizeof(bytes), 1);
+	if (bytes_read > 0)
+		add_device_randomness(bytes, bytes_read);
 out_unlock:
 	mutex_unlock(&rng_mutex);
 out:
@@ -367,6 +382,15 @@ void hwrng_unregister(struct hwrng *rng)
 }
 EXPORT_SYMBOL_GPL(hwrng_unregister);
 
+static void __exit hwrng_exit(void)
+{
+	mutex_lock(&rng_mutex);
+	BUG_ON(current_rng);
+	kfree(rng_buffer);
+	mutex_unlock(&rng_mutex);
+}
+
+module_exit(hwrng_exit);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");

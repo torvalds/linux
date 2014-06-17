@@ -147,7 +147,6 @@ static void remove(struct pci_dev *pdev)
 	uio_unregister_device(info);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	iounmap(info->priv);
 
 	kfree(info);
@@ -160,17 +159,5 @@ static struct pci_driver pci_driver = {
 	.remove = remove,
 };
 
-static int __init aectc_init(void)
-{
-	return pci_register_driver(&pci_driver);
-}
-
-static void __exit aectc_exit(void)
-{
-	pci_unregister_driver(&pci_driver);
-}
-
+module_pci_driver(pci_driver);
 MODULE_LICENSE("GPL");
-
-module_init(aectc_init);
-module_exit(aectc_exit);

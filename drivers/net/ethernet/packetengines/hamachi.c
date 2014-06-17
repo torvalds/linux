@@ -724,10 +724,8 @@ static int hamachi_init_one(struct pci_dev *pdev,
 
 	/* The Hamachi-specific entries in the device structure. */
 	dev->netdev_ops = &hamachi_netdev_ops;
-	if (chip_tbl[hmp->chip_id].flags & CanHaveMII)
-		SET_ETHTOOL_OPS(dev, &ethtool_ops);
-	else
-		SET_ETHTOOL_OPS(dev, &ethtool_ops_no_mii);
+	dev->ethtool_ops = (chip_tbl[hmp->chip_id].flags & CanHaveMII) ?
+		&ethtool_ops : &ethtool_ops_no_mii;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	if (mtu)
 		dev->mtu = mtu;
@@ -1808,9 +1806,10 @@ static int check_if_running(struct net_device *dev)
 static void hamachi_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct hamachi_private *np = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(np->pci_dev));
+
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int hamachi_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
@@ -1909,7 +1908,6 @@ static void hamachi_remove_one(struct pci_dev *pdev)
 		iounmap(hmp->base);
 		free_netdev(dev);
 		pci_release_regions(pdev);
-		pci_set_drvdata(pdev, NULL);
 	}
 }
 

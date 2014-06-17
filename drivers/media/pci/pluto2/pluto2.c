@@ -401,7 +401,7 @@ static int pluto_hw_init(struct pluto *pluto)
 	/* set automatic LED control by FPGA */
 	pluto_rw(pluto, REG_MISC, MISC_ALED, MISC_ALED);
 
-	/* set data endianess */
+	/* set data endianness */
 #ifdef __LITTLE_ENDIAN
 	pluto_rw(pluto, REG_PIDn(0), PID0_END, PID0_END);
 #else
@@ -736,7 +736,6 @@ err_pci_release_regions:
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 	goto out;
 }
@@ -765,7 +764,6 @@ static void pluto2_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, pluto->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
 	kfree(pluto);
 }
 
@@ -796,18 +794,7 @@ static struct pci_driver pluto2_driver = {
 	.remove = pluto2_remove,
 };
 
-static int __init pluto2_init(void)
-{
-	return pci_register_driver(&pluto2_driver);
-}
-
-static void __exit pluto2_exit(void)
-{
-	pci_unregister_driver(&pluto2_driver);
-}
-
-module_init(pluto2_init);
-module_exit(pluto2_exit);
+module_pci_driver(pluto2_driver);
 
 MODULE_AUTHOR("Andreas Oberritter <obi@linuxtv.org>");
 MODULE_DESCRIPTION("Pluto2 driver");

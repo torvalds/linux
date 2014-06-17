@@ -23,7 +23,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include "regs-mfc.h"
-#include "regs-mfc-v6.h"
+#include "regs-mfc-v8.h"
 
 /* Definitions related to MFC memory */
 
@@ -64,7 +64,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
 #define STUFF_BYTE		4
-#define MFC_MAX_CTRLS		70
+#define MFC_MAX_CTRLS		77
 
 #define S5P_MFC_CODEC_NONE		-1
 #define S5P_MFC_CODEC_H264_DEC		0
@@ -80,6 +80,7 @@ static inline dma_addr_t s5p_mfc_mem_cookie(void *a, void *b)
 #define S5P_MFC_CODEC_H264_MVC_ENC	21
 #define S5P_MFC_CODEC_MPEG4_ENC		22
 #define S5P_MFC_CODEC_H263_ENC		23
+#define S5P_MFC_CODEC_VP8_ENC		24
 
 #define S5P_MFC_R2H_CMD_EMPTY			0
 #define S5P_MFC_R2H_CMD_SYS_INIT_RET		1
@@ -113,15 +114,6 @@ enum s5p_mfc_fmt_type {
 };
 
 /**
- * enum s5p_mfc_node_type - The type of an MFC device node.
- */
-enum s5p_mfc_node_type {
-	MFCNODE_INVALID = -1,
-	MFCNODE_DECODER = 0,
-	MFCNODE_ENCODER = 1,
-};
-
-/**
  * enum s5p_mfc_inst_type - The type of an MFC instance.
  */
 enum s5p_mfc_inst_type {
@@ -138,6 +130,7 @@ enum s5p_mfc_inst_state {
 	MFCINST_INIT = 100,
 	MFCINST_GOT_INST,
 	MFCINST_HEAD_PARSED,
+	MFCINST_HEAD_PRODUCED,
 	MFCINST_BUFS_SET,
 	MFCINST_RUNNING,
 	MFCINST_FINISHING,
@@ -145,6 +138,7 @@ enum s5p_mfc_inst_state {
 	MFCINST_RETURN_INST,
 	MFCINST_ERROR,
 	MFCINST_ABORT,
+	MFCINST_FLUSH,
 	MFCINST_RES_CHANGE_INIT,
 	MFCINST_RES_CHANGE_FLUSH,
 	MFCINST_RES_CHANGE_END,
@@ -228,9 +222,9 @@ struct s5p_mfc_buf_align {
 struct s5p_mfc_variant {
 	unsigned int version;
 	unsigned int port_num;
+	u32 version_bit;
 	struct s5p_mfc_buf_size *buf_size;
 	struct s5p_mfc_buf_align *buf_align;
-	char	*mclk_name;
 	char	*fw_name;
 };
 
@@ -277,8 +271,9 @@ struct s5p_mfc_priv_buf {
  * @int_err:		error number for last interrupt
  * @queue:		waitqueue for waiting for completion of device commands
  * @fw_size:		size of firmware
- * @bank1:		address of the beggining of bank 1 memory
- * @bank2:		address of the beggining of bank 2 memory
+ * @fw_virt_addr:	virtual firmware address
+ * @bank1:		address of the beginning of bank 1 memory
+ * @bank2:		address of the beginning of bank 2 memory
  * @hw_lock:		used for hardware locking
  * @ctx:		array of driver contexts
  * @curr_ctx:		number of the currently running context
@@ -317,8 +312,9 @@ struct s5p_mfc_dev {
 	unsigned int int_err;
 	wait_queue_head_t queue;
 	size_t fw_size;
-	size_t bank1;
-	size_t bank2;
+	void *fw_virt_addr;
+	dma_addr_t bank1;
+	dma_addr_t bank2;
 	unsigned long hw_lock;
 	struct s5p_mfc_ctx *ctx[MFC_NUM_CONTEXTS];
 	int curr_ctx;
@@ -334,6 +330,7 @@ struct s5p_mfc_dev {
 	int warn_start;
 	struct s5p_mfc_hw_ops *mfc_ops;
 	struct s5p_mfc_hw_cmds *mfc_cmds;
+	const struct s5p_mfc_regs *mfc_regs;
 };
 
 /**
@@ -405,11 +402,33 @@ struct s5p_mfc_mpeg4_enc_params {
 };
 
 /**
+ * struct s5p_mfc_vp8_enc_params - encoding parameters for vp8
+ */
+struct s5p_mfc_vp8_enc_params {
+	u8 imd_4x4;
+	enum v4l2_vp8_num_partitions num_partitions;
+	enum v4l2_vp8_num_ref_frames num_ref;
+	u8 filter_level;
+	u8 filter_sharpness;
+	u32 golden_frame_ref_period;
+	enum v4l2_vp8_golden_frame_sel golden_frame_sel;
+	u8 hier_layer;
+	u8 hier_layer_qp[3];
+	u8 rc_min_qp;
+	u8 rc_max_qp;
+	u8 rc_frame_qp;
+	u8 rc_p_frame_qp;
+	u8 profile;
+};
+
+/**
  * struct s5p_mfc_enc_params - general encoding parameters
  */
 struct s5p_mfc_enc_params {
 	u16 width;
 	u16 height;
+	u32 mv_h_range;
+	u32 mv_v_range;
 
 	u16 gop_size;
 	enum v4l2_mpeg_video_multi_slice_mode slice_mode;
@@ -435,9 +454,10 @@ struct s5p_mfc_enc_params {
 	u32 rc_framerate_num;
 	u32 rc_framerate_denom;
 
-	union {
+	struct {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
+		struct s5p_mfc_vp8_enc_params vp8;
 	} codec;
 
 };
@@ -493,15 +513,9 @@ struct s5p_mfc_codec_ops {
  *			flushed
  * @head_processed:	flag mentioning whether the header data is processed
  *			completely or not
- * @bank1_buf:		handle to memory allocated for temporary buffers from
+ * @bank1:		handle to memory allocated for temporary buffers from
  *			memory bank 1
- * @bank1_phys:		address of the temporary buffers from memory bank 1
- * @bank1_size:		size of the memory allocated for temporary buffers from
- *			memory bank 1
- * @bank2_buf:		handle to memory allocated for temporary buffers from
- *			memory bank 2
- * @bank2_phys:		address of the temporary buffers from memory bank 2
- * @bank2_size:		size of the memory allocated for temporary buffers from
+ * @bank2:		handle to memory allocated for temporary buffers from
  *			memory bank 2
  * @capture_state:	state of the capture buffers queue
  * @output_state:	state of the output buffers queue
@@ -581,14 +595,8 @@ struct s5p_mfc_ctx {
 	unsigned int dpb_flush_flag;
 	unsigned int head_processed;
 
-	/* Buffers */
-	void *bank1_buf;
-	size_t bank1_phys;
-	size_t bank1_size;
-
-	void *bank2_buf;
-	size_t bank2_phys;
-	size_t bank2_size;
+	struct s5p_mfc_priv_buf bank1;
+	struct s5p_mfc_priv_buf bank2;
 
 	enum s5p_mfc_queue_state capture_state;
 	enum s5p_mfc_queue_state output_state;
@@ -611,7 +619,7 @@ struct s5p_mfc_ctx {
 	int after_packed_pb;
 	int sei_fp_parse;
 
-	int dpb_count;
+	int pb_count;
 	int total_dpb_count;
 	int mv_count;
 	/* Buffers */
@@ -656,6 +664,7 @@ struct s5p_mfc_fmt {
 	u32 codec_mode;
 	enum s5p_mfc_fmt_type type;
 	u32 num_planes;
+	u32 versions;
 };
 
 /**
@@ -692,6 +701,14 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
 #define HAS_PORTNUM(dev)	(dev ? (dev->variant ? \
 				(dev->variant->port_num ? 1 : 0) : 0) : 0)
 #define IS_TWOPORT(dev)		(dev->variant->port_num == 2 ? 1 : 0)
-#define IS_MFCV6(dev)		(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV6_PLUS(dev)	(dev->variant->version >= 0x60 ? 1 : 0)
+#define IS_MFCV7_PLUS(dev)	(dev->variant->version >= 0x70 ? 1 : 0)
+#define IS_MFCV8(dev)		(dev->variant->version >= 0x80 ? 1 : 0)
+
+#define MFC_V5_BIT	BIT(0)
+#define MFC_V6_BIT	BIT(1)
+#define MFC_V7_BIT	BIT(2)
+#define MFC_V8_BIT	BIT(3)
+
 
 #endif /* S5P_MFC_COMMON_H_ */

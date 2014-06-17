@@ -158,14 +158,10 @@ static unsigned int get_time_pit(void)
 #define GET_TIME(x)	rdtscl(x)
 #define DELTA(x,y)	((y)-(x))
 #define TIME_NAME	"TSC"
-#elif defined(__alpha__)
+#elif defined(__alpha__) || defined(CONFIG_MN10300) || defined(CONFIG_ARM) || defined(CONFIG_TILE)
 #define GET_TIME(x)	do { x = get_cycles(); } while (0)
 #define DELTA(x,y)	((y)-(x))
-#define TIME_NAME	"PCC"
-#elif defined(CONFIG_MN10300)
-#define GET_TIME(x)	do { x = get_cycles(); } while (0)
-#define DELTA(x, y)	((x) - (y))
-#define TIME_NAME	"TSC"
+#define TIME_NAME	"get_cycles"
 #else
 #define FAKE_TIME
 static unsigned long analog_faketime = 0;

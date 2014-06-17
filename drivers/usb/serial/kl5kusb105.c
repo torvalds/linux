@@ -37,7 +37,6 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -182,11 +181,9 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
 
 	status_buf = kmalloc(KLSI_STATUSBUF_LEN, GFP_KERNEL);
-	if (!status_buf) {
-		dev_err(&port->dev, "%s - out of memory for status buffer.\n",
-				__func__);
+	if (!status_buf)
 		return -ENOMEM;
-	}
+
 	status_buf[0] = 0xff;
 	status_buf[1] = 0xff;
 	rc = usb_control_msg(port->serial->dev,
@@ -204,7 +201,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	else {
 		status = get_unaligned_le16(status_buf);
 
-		dev_info(&port->serial->dev->dev, "read status %x %x",
+		dev_info(&port->serial->dev->dev, "read status %x %x\n",
 			 status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
@@ -273,11 +270,9 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	 * priv->line_state.
 	 */
 	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg) {
-		dev_err(&port->dev, "%s - out of memory for config buffer.\n",
-				__func__);
+	if (!cfg)
 		return -ENOMEM;
-	}
+
 	cfg->pktlen   = 5;
 	cfg->baudrate = kl5kusb105a_sio_b9600;
 	cfg->databits = kl5kusb105a_dtb_8;
@@ -341,28 +336,20 @@ static void klsi_105_close(struct usb_serial_port *port)
 {
 	int rc;
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* send READ_OFF */
-		rc = usb_control_msg(port->serial->dev,
-				     usb_sndctrlpipe(port->serial->dev, 0),
-				     KL5KUSB105A_SIO_CONFIGURE,
-				     USB_TYPE_VENDOR | USB_DIR_OUT,
-				     KL5KUSB105A_SIO_CONFIGURE_READ_OFF,
-				     0, /* index */
-				     NULL, 0,
-				     KLSI_TIMEOUT);
-		if (rc < 0)
-			dev_err(&port->dev,
-				"Disabling read failed (error = %d)\n", rc);
-	}
-	mutex_unlock(&port->serial->disc_mutex);
+	/* send READ_OFF */
+	rc = usb_control_msg(port->serial->dev,
+			     usb_sndctrlpipe(port->serial->dev, 0),
+			     KL5KUSB105A_SIO_CONFIGURE,
+			     USB_TYPE_VENDOR | USB_DIR_OUT,
+			     KL5KUSB105A_SIO_CONFIGURE_READ_OFF,
+			     0, /* index */
+			     NULL, 0,
+			     KLSI_TIMEOUT);
+	if (rc < 0)
+		dev_err(&port->dev, "failed to disable read: %d\n", rc);
 
 	/* shutdown our bulk reads and writes */
 	usb_serial_generic_close(port);
-
-	/* wgg - do I need this? I think so. */
-	usb_kill_urb(port->interrupt_in_urb);
 }
 
 /* We need to write a complete 64-byte data block and encode the
@@ -389,7 +376,6 @@ static void klsi_105_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
 	unsigned len;
 
 	/* empty urbs seem to happen, we ignore them */
@@ -401,19 +387,14 @@ static void klsi_105_process_read_urb(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	len = get_unaligned_le16(data);
 	if (len > urb->actual_length - KLSI_HDR_LEN) {
 		dev_dbg(&port->dev, "%s - packet length mismatch\n", __func__);
 		len = urb->actual_length - KLSI_HDR_LEN;
 	}
 
-	tty_insert_flip_string(tty, data + KLSI_HDR_LEN, len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&port->port, data + KLSI_HDR_LEN, len);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void klsi_105_set_termios(struct tty_struct *tty,
@@ -431,10 +412,8 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	speed_t baud;
 
 	cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
-	if (!cfg) {
-		dev_err(dev, "%s - out of memory for config buffer.\n", __func__);
+	if (!cfg)
 		return;
-	}
 
 	/* lock while we are modifying the settings */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -485,7 +464,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		priv->cfg.baudrate = kl5kusb105a_sio_b115200;
 		break;
 	default:
-		dev_dbg(dev, "KLSI USB->Serial converter: unsupported baudrate request, using default of 9600");
+		dev_dbg(dev, "unsupported baudrate, using 9600\n");
 		priv->cfg.baudrate = kl5kusb105a_sio_b9600;
 		baud = 9600;
 		break;

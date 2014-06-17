@@ -19,40 +19,40 @@
 #define PIC32_I2CxCONCLR	0x0004
 #define PIC32_I2CxCONSET	0x0008
 #define PIC32_I2CxCONINV	0x000C
-#define  I2CCON_ON		(1<<15)
-#define  I2CCON_FRZ		(1<<14)
-#define  I2CCON_SIDL		(1<<13)
-#define  I2CCON_SCLREL		(1<<12)
-#define  I2CCON_STRICT		(1<<11)
-#define  I2CCON_A10M		(1<<10)
-#define  I2CCON_DISSLW		(1<<9)
-#define  I2CCON_SMEN		(1<<8)
-#define  I2CCON_GCEN		(1<<7)
-#define  I2CCON_STREN		(1<<6)
-#define  I2CCON_ACKDT		(1<<5)
-#define  I2CCON_ACKEN		(1<<4)
-#define  I2CCON_RCEN		(1<<3)
-#define  I2CCON_PEN		(1<<2)
-#define  I2CCON_RSEN		(1<<1)
-#define  I2CCON_SEN		(1<<0)
+#define	 I2CCON_ON		(1<<15)
+#define	 I2CCON_FRZ		(1<<14)
+#define	 I2CCON_SIDL		(1<<13)
+#define	 I2CCON_SCLREL		(1<<12)
+#define	 I2CCON_STRICT		(1<<11)
+#define	 I2CCON_A10M		(1<<10)
+#define	 I2CCON_DISSLW		(1<<9)
+#define	 I2CCON_SMEN		(1<<8)
+#define	 I2CCON_GCEN		(1<<7)
+#define	 I2CCON_STREN		(1<<6)
+#define	 I2CCON_ACKDT		(1<<5)
+#define	 I2CCON_ACKEN		(1<<4)
+#define	 I2CCON_RCEN		(1<<3)
+#define	 I2CCON_PEN		(1<<2)
+#define	 I2CCON_RSEN		(1<<1)
+#define	 I2CCON_SEN		(1<<0)
 
 #define PIC32_I2CxSTAT		0x0010
 #define PIC32_I2CxSTATCLR	0x0014
 #define PIC32_I2CxSTATSET	0x0018
 #define PIC32_I2CxSTATINV	0x001C
-#define  I2CSTAT_ACKSTAT	(1<<15)
-#define  I2CSTAT_TRSTAT		(1<<14)
-#define  I2CSTAT_BCL		(1<<10)
-#define  I2CSTAT_GCSTAT		(1<<9)
-#define  I2CSTAT_ADD10		(1<<8)
-#define  I2CSTAT_IWCOL		(1<<7)
-#define  I2CSTAT_I2COV		(1<<6)
-#define  I2CSTAT_DA		(1<<5)
-#define  I2CSTAT_P		(1<<4)
-#define  I2CSTAT_S		(1<<3)
-#define  I2CSTAT_RW		(1<<2)
-#define  I2CSTAT_RBF		(1<<1)
-#define  I2CSTAT_TBF		(1<<0)
+#define	 I2CSTAT_ACKSTAT	(1<<15)
+#define	 I2CSTAT_TRSTAT		(1<<14)
+#define	 I2CSTAT_BCL		(1<<10)
+#define	 I2CSTAT_GCSTAT		(1<<9)
+#define	 I2CSTAT_ADD10		(1<<8)
+#define	 I2CSTAT_IWCOL		(1<<7)
+#define	 I2CSTAT_I2COV		(1<<6)
+#define	 I2CSTAT_DA		(1<<5)
+#define	 I2CSTAT_P		(1<<4)
+#define	 I2CSTAT_S		(1<<3)
+#define	 I2CSTAT_RW		(1<<2)
+#define	 I2CSTAT_RBF		(1<<1)
+#define	 I2CSTAT_TBF		(1<<0)
 
 #define PIC32_I2CxADD		0x0020
 #define PIC32_I2CxADDCLR	0x0024
@@ -312,16 +312,13 @@ static int i2c_platform_probe(struct platform_device *pdev)
 
 	pr_debug("i2c_platform_probe\n");
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!r)
+		return -ENODEV;
 
-	priv = kzalloc(sizeof(struct i2c_platform_data), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct i2c_platform_data),
+			    GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	/* FIXME: need to allocate resource in PIC32 space */
 #if 0
@@ -330,10 +327,8 @@ static int i2c_platform_probe(struct platform_device *pdev)
 #else
 	priv->base = r->start;
 #endif
-	if (!priv->base) {
-		ret = -EBUSY;
-		goto out_mem;
-	}
+	if (!priv->base)
+		return -EBUSY;
 
 	priv->xfer_timeout = 200;
 	priv->ack_timeout = 200;
@@ -348,17 +343,13 @@ static int i2c_platform_probe(struct platform_device *pdev)
 	i2c_platform_setup(priv);
 
 	ret = i2c_add_numbered_adapter(&priv->adap);
-	if (ret == 0) {
-		platform_set_drvdata(pdev, priv);
-		return 0;
+	if (ret) {
+		i2c_platform_disable(priv);
+		return ret;
 	}
 
-	i2c_platform_disable(priv);
-
-out_mem:
-	kfree(priv);
-out:
-	return ret;
+	platform_set_drvdata(pdev, priv);
+	return 0;
 }
 
 static int i2c_platform_remove(struct platform_device *pdev)
@@ -369,7 +360,6 @@ static int i2c_platform_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&priv->adap);
 	i2c_platform_disable(priv);
-	kfree(priv);
 	return 0;
 }
 

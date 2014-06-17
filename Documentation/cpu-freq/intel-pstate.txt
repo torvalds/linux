@@ -1,0 +1,40 @@
+Intel P-state driver
+--------------------
+
+This driver implements a scaling driver with an internal governor for
+Intel Core processors.  The driver follows the same model as the
+Transmeta scaling driver (longrun.c) and implements the setpolicy()
+instead of target().  Scaling drivers that implement setpolicy() are
+assumed to implement internal governors by the cpufreq core. All the
+logic for selecting the current P state is contained within the
+driver; no external governor is used by the cpufreq core.
+
+Intel SandyBridge+ processors are supported.
+
+New sysfs files for controlling P state selection have been added to
+/sys/devices/system/cpu/intel_pstate/
+
+      max_perf_pct: limits the maximum P state that will be requested by
+      the driver stated as a percentage of the available performance.
+
+      min_perf_pct: limits the minimum P state that will be  requested by
+      the driver stated as a percentage of the available performance.
+
+      no_turbo: limits the driver to selecting P states below the turbo
+      frequency range.
+
+For contemporary Intel processors, the frequency is controlled by the
+processor itself and the P-states exposed to software are related to
+performance levels.  The idea that frequency can be set to a single
+frequency is fiction for Intel Core processors. Even if the scaling
+driver selects a single P state the actual frequency the processor
+will run at is selected by the processor itself.
+
+New debugfs files have also been added to /sys/kernel/debug/pstate_snb/
+
+      deadband
+      d_gain_pct
+      i_gain_pct
+      p_gain_pct
+      sample_rate_ms
+      setpoint

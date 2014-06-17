@@ -46,18 +46,6 @@
 #define BMA150_POLL_MAX		200
 #define BMA150_POLL_MIN		0
 
-#define BMA150_BW_25HZ		0
-#define BMA150_BW_50HZ		1
-#define BMA150_BW_100HZ		2
-#define BMA150_BW_190HZ		3
-#define BMA150_BW_375HZ		4
-#define BMA150_BW_750HZ		5
-#define BMA150_BW_1500HZ	6
-
-#define BMA150_RANGE_2G		0
-#define BMA150_RANGE_4G		1
-#define BMA150_RANGE_8G		2
-
 #define BMA150_MODE_NORMAL	0
 #define BMA150_MODE_SLEEP	2
 #define BMA150_MODE_WAKE_UP	3
@@ -82,6 +70,7 @@
 #define BMA150_CFG_5_REG	0x11
 
 #define BMA150_CHIP_ID		2
+#define BMA180_CHIP_ID		3
 #define BMA150_CHIP_ID_REG	BMA150_DATA_0_REG
 
 #define BMA150_ACC_X_LSB_REG	BMA150_DATA_2_REG
@@ -372,7 +361,7 @@ static int bma150_open(struct bma150_data *bma150)
 	int error;
 
 	error = pm_runtime_get_sync(&bma150->client->dev);
-	if (error && error != -ENOSYS)
+	if (error < 0 && error != -ENOSYS)
 		return error;
 
 	/*
@@ -538,7 +527,8 @@ static int bma150_register_polled_device(struct bma150_data *bma150)
 static int bma150_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
-	const struct bma150_platform_data *pdata = client->dev.platform_data;
+	const struct bma150_platform_data *pdata =
+			dev_get_platdata(&client->dev);
 	const struct bma150_cfg *cfg;
 	struct bma150_data *bma150;
 	int chip_id;
@@ -550,7 +540,7 @@ static int bma150_probe(struct i2c_client *client,
 	}
 
 	chip_id = i2c_smbus_read_byte_data(client, BMA150_CHIP_ID_REG);
-	if (chip_id != BMA150_CHIP_ID) {
+	if (chip_id != BMA150_CHIP_ID && chip_id != BMA180_CHIP_ID) {
 		dev_err(&client->dev, "BMA150 chip id error: %d\n", chip_id);
 		return -EINVAL;
 	}
@@ -654,6 +644,7 @@ static UNIVERSAL_DEV_PM_OPS(bma150_pm, bma150_suspend, bma150_resume, NULL);
 
 static const struct i2c_device_id bma150_id[] = {
 	{ "bma150", 0 },
+	{ "bma180", 0 },
 	{ "smb380", 0 },
 	{ "bma023", 0 },
 	{ }

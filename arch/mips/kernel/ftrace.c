@@ -11,11 +11,14 @@
 #include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/ftrace.h>
+#include <linux/syscalls.h>
 
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/cacheflush.h>
+#include <asm/syscall.h>
 #include <asm/uasm.h>
+#include <asm/unistd.h>
 
 #include <asm-generic/sections.h>
 
@@ -23,6 +26,16 @@
 #define MCOUNT_OFFSET_INSNS 5
 #else
 #define MCOUNT_OFFSET_INSNS 4
+#endif
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+
+/* Arch override because MIPS doesn't need to run this from stop_machine() */
+void arch_ftrace_update_code(int command)
+{
+	ftrace_modify_all_code(command);
+}
+
 #endif
 
 /*
@@ -77,6 +90,7 @@ static inline void ftrace_dyn_arch_init_insns(void)
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
 	int faulted;
+	mm_segment_t old_fs;
 
 	/* *(unsigned int *)ip = new_code; */
 	safe_store_code(new_code, ip, faulted);
@@ -84,10 +98,30 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 	if (unlikely(faulted))
 		return -EFAULT;
 
+	old_fs = get_fs();
+	set_fs(get_ds());
 	flush_icache_range(ip, ip + 8);
+	set_fs(old_fs);
 
 	return 0;
 }
+
+#ifndef CONFIG_64BIT
+static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
+				unsigned int new_code2)
+{
+	int faulted;
+
+	safe_store_code(new_code1, ip, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+	safe_store_code(new_code2, ip + 4, faulted);
+	if (unlikely(faulted))
+		return -EFAULT;
+	flush_icache_range(ip, ip + 8);
+	return 0;
+}
+#endif
 
 /*
  * The details about the calling site of mcount on MIPS
@@ -101,21 +135,21 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
  *
  * 2.1 For KBUILD_MCOUNT_RA_ADDRESS and CONFIG_32BIT
  *
- * lui v1, hi_16bit_of_mcount        --> b 1f (0x10000005)
+ * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000005)
  * addiu v1, v1, low_16bit_of_mcount
  * move at, ra
  * move $12, ra_address
  * jalr v1
  *  sub sp, sp, 8
- *                                  1: offset = 5 instructions
+ *				    1: offset = 5 instructions
  * 2.2 For the Other situations
  *
- * lui v1, hi_16bit_of_mcount        --> b 1f (0x10000004)
+ * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000004)
  * addiu v1, v1, low_16bit_of_mcount
  * move at, ra
  * jalr v1
  *  nop | move $12, ra_address | sub sp, sp, 8
- *                                  1: offset = 4 instructions
+ *				    1: offset = 4 instructions
  */
 
 #define INSN_B_1F (0x10000000 | MCOUNT_OFFSET_INSNS)
@@ -131,8 +165,18 @@ int ftrace_make_nop(struct module *mod,
 	 * needed.
 	 */
 	new = in_kernel_space(ip) ? INSN_NOP : INSN_B_1F;
-
+#ifdef CONFIG_64BIT
 	return ftrace_modify_code(ip, new);
+#else
+	/*
+	 * On 32 bit MIPS platforms, gcc adds a stack adjust
+	 * instruction in the delay slot after the branch to
+	 * mcount and expects mcount to restore the sp on return.
+	 * This is based on a legacy API and does nothing but
+	 * waste instructions so it's being removed at runtime.
+	 */
+	return ftrace_modify_code_2(ip, new, INSN_NOP);
+#endif
 }
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -157,16 +201,13 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ftrace_modify_code(FTRACE_CALL_IP, new);
 }
 
-int __init ftrace_dyn_arch_init(void *data)
+int __init ftrace_dyn_arch_init(void)
 {
 	/* Encode the instructions when booting */
 	ftrace_dyn_arch_init_insns();
 
 	/* Remove "b ftrace_stub" to ensure ftrace_caller() is executed */
 	ftrace_modify_code(MCOUNT_ADDR, INSN_NOP);
-
-	/* The return code is retured via data */
-	*(unsigned long *)data = 0;
 
 	return 0;
 }
@@ -194,8 +235,8 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 #ifndef KBUILD_MCOUNT_RA_ADDRESS
 
-#define S_RA_SP	(0xafbf << 16)	/* s{d,w} ra, offset(sp) */
-#define S_R_SP	(0xafb0 << 16)  /* s{d,w} R, offset(sp) */
+#define S_RA_SP (0xafbf << 16)	/* s{d,w} ra, offset(sp) */
+#define S_R_SP	(0xafb0 << 16)	/* s{d,w} R, offset(sp) */
 #define OFFSET_MASK	0xffff	/* stack offset range: 0 ~ PT_SIZE */
 
 unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
@@ -326,3 +367,33 @@ out:
 	WARN_ON(1);
 }
 #endif	/* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+#ifdef CONFIG_32BIT
+unsigned long __init arch_syscall_addr(int nr)
+{
+	return (unsigned long)sys_call_table[nr - __NR_O32_Linux];
+}
+#endif
+
+#ifdef CONFIG_64BIT
+
+unsigned long __init arch_syscall_addr(int nr)
+{
+#ifdef CONFIG_MIPS32_N32
+	if (nr >= __NR_N32_Linux && nr <= __NR_N32_Linux + __NR_N32_Linux_syscalls)
+		return (unsigned long)sysn32_call_table[nr - __NR_N32_Linux];
+#endif
+	if (nr >= __NR_64_Linux  && nr <= __NR_64_Linux + __NR_64_Linux_syscalls)
+		return (unsigned long)sys_call_table[nr - __NR_64_Linux];
+#ifdef CONFIG_MIPS32_O32
+	if (nr >= __NR_O32_Linux && nr <= __NR_O32_Linux + __NR_O32_Linux_syscalls)
+		return (unsigned long)sys32_call_table[nr - __NR_O32_Linux];
+#endif
+
+	return (unsigned long) &sys_ni_syscall;
+}
+#endif
+
+#endif /* CONFIG_FTRACE_SYSCALLS */

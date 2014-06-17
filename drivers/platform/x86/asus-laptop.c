@@ -53,8 +53,7 @@
 #include <linux/rfkill.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
+#include <linux/acpi.h>
 
 #define ASUS_LAPTOP_VERSION	"0.42"
 
@@ -128,10 +127,12 @@ MODULE_PARM_DESC(als_status, "Set the ALS status on boot "
 /*
  * Some events we use, same for all Asus
  */
-#define ATKD_BR_UP	0x10	/* (event & ~ATKD_BR_UP) = brightness level */
-#define ATKD_BR_DOWN	0x20	/* (event & ~ATKD_BR_DOWN) = britghness level */
-#define ATKD_BR_MIN	ATKD_BR_UP
-#define ATKD_BR_MAX	(ATKD_BR_DOWN | 0xF)	/* 0x2f */
+#define ATKD_BRNUP_MIN		0x10
+#define ATKD_BRNUP_MAX		0x1f
+#define ATKD_BRNDOWN_MIN	0x20
+#define ATKD_BRNDOWN_MAX	0x2f
+#define ATKD_BRNDOWN		0x20
+#define ATKD_BRNUP		0x2f
 #define ATKD_LCD_ON	0x33
 #define ATKD_LCD_OFF	0x34
 
@@ -301,40 +302,65 @@ static const struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x17, { KEY_ZOOM } },
 	{KE_KEY, 0x1f, { KEY_BATTERY } },
 	/* End of Lenovo SL Specific keycodes */
+	{KE_KEY, ATKD_BRNDOWN, { KEY_BRIGHTNESSDOWN } },
+	{KE_KEY, ATKD_BRNUP, { KEY_BRIGHTNESSUP } },
 	{KE_KEY, 0x30, { KEY_VOLUMEUP } },
 	{KE_KEY, 0x31, { KEY_VOLUMEDOWN } },
 	{KE_KEY, 0x32, { KEY_MUTE } },
-	{KE_KEY, 0x33, { KEY_SWITCHVIDEOMODE } },
-	{KE_KEY, 0x34, { KEY_SWITCHVIDEOMODE } },
+	{KE_KEY, 0x33, { KEY_DISPLAYTOGGLE } }, /* LCD on */
+	{KE_KEY, 0x34, { KEY_DISPLAY_OFF } }, /* LCD off */
 	{KE_KEY, 0x40, { KEY_PREVIOUSSONG } },
 	{KE_KEY, 0x41, { KEY_NEXTSONG } },
-	{KE_KEY, 0x43, { KEY_STOPCD } },
+	{KE_KEY, 0x43, { KEY_STOPCD } }, /* Stop/Eject */
 	{KE_KEY, 0x45, { KEY_PLAYPAUSE } },
-	{KE_KEY, 0x4c, { KEY_MEDIA } },
+	{KE_KEY, 0x4c, { KEY_MEDIA } }, /* WMP Key */
 	{KE_KEY, 0x50, { KEY_EMAIL } },
 	{KE_KEY, 0x51, { KEY_WWW } },
 	{KE_KEY, 0x55, { KEY_CALC } },
+	{KE_IGNORE, 0x57, },  /* Battery mode */
+	{KE_IGNORE, 0x58, },  /* AC mode */
 	{KE_KEY, 0x5C, { KEY_SCREENLOCK } },  /* Screenlock */
-	{KE_KEY, 0x5D, { KEY_WLAN } },
-	{KE_KEY, 0x5E, { KEY_WLAN } },
-	{KE_KEY, 0x5F, { KEY_WLAN } },
-	{KE_KEY, 0x60, { KEY_SWITCHVIDEOMODE } },
-	{KE_KEY, 0x61, { KEY_SWITCHVIDEOMODE } },
-	{KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } },
-	{KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } },
-	{KE_KEY, 0x6B, { KEY_F13 } }, /* Lock Touchpad */
+	{KE_KEY, 0x5D, { KEY_WLAN } }, /* WLAN Toggle */
+	{KE_KEY, 0x5E, { KEY_WLAN } }, /* WLAN Enable */
+	{KE_KEY, 0x5F, { KEY_WLAN } }, /* WLAN Disable */
+	{KE_KEY, 0x60, { KEY_TOUCHPAD_ON } },
+	{KE_KEY, 0x61, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD only */
+	{KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT only */
+	{KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT */
+	{KE_KEY, 0x64, { KEY_SWITCHVIDEOMODE } }, /* SDSP TV */
+	{KE_KEY, 0x65, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + TV */
+	{KE_KEY, 0x66, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + TV */
+	{KE_KEY, 0x67, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + TV */
+	{KE_KEY, 0x6B, { KEY_TOUCHPAD_TOGGLE } }, /* Lock Touchpad */
 	{KE_KEY, 0x6C, { KEY_SLEEP } }, /* Suspend */
 	{KE_KEY, 0x6D, { KEY_SLEEP } }, /* Hibernate */
-	{KE_KEY, 0x7E, { KEY_BLUETOOTH } },
-	{KE_KEY, 0x7D, { KEY_BLUETOOTH } },
+	{KE_IGNORE, 0x6E, },  /* Low Battery notification */
+	{KE_KEY, 0x7D, { KEY_BLUETOOTH } }, /* Bluetooth Enable */
+	{KE_KEY, 0x7E, { KEY_BLUETOOTH } }, /* Bluetooth Disable */
 	{KE_KEY, 0x82, { KEY_CAMERA } },
-	{KE_KEY, 0x88, { KEY_WLAN  } },
-	{KE_KEY, 0x8A, { KEY_PROG1 } },
+	{KE_KEY, 0x88, { KEY_RFKILL  } }, /* Radio Toggle Key */
+	{KE_KEY, 0x8A, { KEY_PROG1 } }, /* Color enhancement mode */
+	{KE_KEY, 0x8C, { KEY_SWITCHVIDEOMODE } }, /* SDSP DVI only */
+	{KE_KEY, 0x8D, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + DVI */
+	{KE_KEY, 0x8E, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + DVI */
+	{KE_KEY, 0x8F, { KEY_SWITCHVIDEOMODE } }, /* SDSP TV + DVI */
+	{KE_KEY, 0x90, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + DVI */
+	{KE_KEY, 0x91, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + TV + DVI */
+	{KE_KEY, 0x92, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + TV + DVI */
+	{KE_KEY, 0x93, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + TV + DVI */
 	{KE_KEY, 0x95, { KEY_MEDIA } },
 	{KE_KEY, 0x99, { KEY_PHONE } },
-	{KE_KEY, 0xc4, { KEY_KBDILLUMUP } },
-	{KE_KEY, 0xc5, { KEY_KBDILLUMDOWN } },
-	{KE_KEY, 0xb5, { KEY_CALC } },
+	{KE_KEY, 0xA0, { KEY_SWITCHVIDEOMODE } }, /* SDSP HDMI only */
+	{KE_KEY, 0xA1, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + HDMI */
+	{KE_KEY, 0xA2, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + HDMI */
+	{KE_KEY, 0xA3, { KEY_SWITCHVIDEOMODE } }, /* SDSP TV + HDMI */
+	{KE_KEY, 0xA4, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + HDMI */
+	{KE_KEY, 0xA5, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + TV + HDMI */
+	{KE_KEY, 0xA6, { KEY_SWITCHVIDEOMODE } }, /* SDSP CRT + TV + HDMI */
+	{KE_KEY, 0xA7, { KEY_SWITCHVIDEOMODE } }, /* SDSP LCD + CRT + TV + HDMI */
+	{KE_KEY, 0xB5, { KEY_CALC } },
+	{KE_KEY, 0xC4, { KEY_KBDILLUMUP } },
+	{KE_KEY, 0xC5, { KEY_KBDILLUMDOWN } },
 	{KE_END, 0},
 };
 
@@ -1467,10 +1493,9 @@ static int asus_input_init(struct asus_laptop *asus)
 	int error;
 
 	input = input_allocate_device();
-	if (!input) {
-		pr_warn("Unable to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
+
 	input->name = "Asus Laptop extra buttons";
 	input->phys = ASUS_LAPTOP_FILE "/input0";
 	input->id.bustype = BUS_HOST;
@@ -1516,20 +1541,23 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 
 	/* TODO Find a better way to handle events count. */
 	count = asus->event_count[event % 128]++;
-	acpi_bus_generate_proc_event(asus->device, event, count);
 	acpi_bus_generate_netlink_event(asus->device->pnp.device_class,
 					dev_name(&asus->device->dev), event,
 					count);
 
-	/* Brightness events are special */
-	if (event >= ATKD_BR_MIN && event <= ATKD_BR_MAX) {
+	if (event >= ATKD_BRNUP_MIN && event <= ATKD_BRNUP_MAX)
+		event = ATKD_BRNUP;
+	else if (event >= ATKD_BRNDOWN_MIN &&
+		 event <= ATKD_BRNDOWN_MAX)
+		event = ATKD_BRNDOWN;
 
-		/* Ignore them completely if the acpi video driver is used */
+	/* Brightness events are special */
+	if (event == ATKD_BRNDOWN || event == ATKD_BRNUP) {
 		if (asus->backlight_device != NULL) {
 			/* Update the backlight device. */
 			asus_backlight_notify(asus);
+			return ;
 		}
-		return ;
 	}
 
 	/* Accelerometer "coarse orientation change" event */
@@ -1904,13 +1932,12 @@ fail_input:
 fail_backlight:
 	asus_platform_exit(asus);
 fail_platform:
-	kfree(asus->name);
 	kfree(asus);
 
 	return result;
 }
 
-static int asus_acpi_remove(struct acpi_device *device, int type)
+static int asus_acpi_remove(struct acpi_device *device)
 {
 	struct asus_laptop *asus = acpi_driver_data(device);
 

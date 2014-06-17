@@ -140,6 +140,16 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi,
 	cpu->regs->eip = idt_address(lo, hi);
 
 	/*
+	 * Trapping always clears these flags:
+	 * TF: Trap flag
+	 * VM: Virtual 8086 mode
+	 * RF: Resume
+	 * NT: Nested task.
+	 */
+	cpu->regs->eflags &=
+		~(X86_EFLAGS_TF|X86_EFLAGS_VM|X86_EFLAGS_RF|X86_EFLAGS_NT);
+
+	/*
 	 * There are two kinds of interrupt handlers: 0xE is an "interrupt
 	 * gate" which expects interrupts to be disabled on entry.
 	 */

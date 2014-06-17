@@ -21,49 +21,43 @@ struct e8390_pkt_hdr {
   unsigned short count; /* header + packet length in bytes */
 };
 
-#ifdef notdef
-extern int ei_debug;
-#else
-#define ei_debug 1
-#endif
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern void ei_poll(struct net_device *dev);
-extern void eip_poll(struct net_device *dev);
+void ei_poll(struct net_device *dev);
+void eip_poll(struct net_device *dev);
 #endif
 
 
 /* Without I/O delay - non ISA or later chips */
-extern void NS8390_init(struct net_device *dev, int startp);
-extern int ei_open(struct net_device *dev);
-extern int ei_close(struct net_device *dev);
-extern irqreturn_t ei_interrupt(int irq, void *dev_id);
-extern void ei_tx_timeout(struct net_device *dev);
-extern netdev_tx_t ei_start_xmit(struct sk_buff *skb, struct net_device *dev);
-extern void ei_set_multicast_list(struct net_device *dev);
-extern struct net_device_stats *ei_get_stats(struct net_device *dev);
+void NS8390_init(struct net_device *dev, int startp);
+int ei_open(struct net_device *dev);
+int ei_close(struct net_device *dev);
+irqreturn_t ei_interrupt(int irq, void *dev_id);
+void ei_tx_timeout(struct net_device *dev);
+netdev_tx_t ei_start_xmit(struct sk_buff *skb, struct net_device *dev);
+void ei_set_multicast_list(struct net_device *dev);
+struct net_device_stats *ei_get_stats(struct net_device *dev);
 
 extern const struct net_device_ops ei_netdev_ops;
 
-extern struct net_device *__alloc_ei_netdev(int size);
+struct net_device *__alloc_ei_netdev(int size);
 static inline struct net_device *alloc_ei_netdev(void)
 {
 	return __alloc_ei_netdev(0);
 }
 
 /* With I/O delay form */
-extern void NS8390p_init(struct net_device *dev, int startp);
-extern int eip_open(struct net_device *dev);
-extern int eip_close(struct net_device *dev);
-extern irqreturn_t eip_interrupt(int irq, void *dev_id);
-extern void eip_tx_timeout(struct net_device *dev);
-extern netdev_tx_t eip_start_xmit(struct sk_buff *skb, struct net_device *dev);
-extern void eip_set_multicast_list(struct net_device *dev);
-extern struct net_device_stats *eip_get_stats(struct net_device *dev);
+void NS8390p_init(struct net_device *dev, int startp);
+int eip_open(struct net_device *dev);
+int eip_close(struct net_device *dev);
+irqreturn_t eip_interrupt(int irq, void *dev_id);
+void eip_tx_timeout(struct net_device *dev);
+netdev_tx_t eip_start_xmit(struct sk_buff *skb, struct net_device *dev);
+void eip_set_multicast_list(struct net_device *dev);
+struct net_device_stats *eip_get_stats(struct net_device *dev);
 
 extern const struct net_device_ops eip_netdev_ops;
 
-extern struct net_device *__alloc_eip_netdev(int size);
+struct net_device *__alloc_eip_netdev(int size);
 static inline struct net_device *alloc_eip_netdev(void)
 {
 	return __alloc_eip_netdev(0);
@@ -99,6 +93,7 @@ struct ei_device {
 	u32 *reg_offset;		/* Register mapping table */
 	spinlock_t page_lock;		/* Page register locks */
 	unsigned long priv;		/* Private field to store bus IDs etc. */
+	u32 msg_enable;			/* debug message level */
 #ifdef AX88796_PLATFORM
 	unsigned char rxcr_base;	/* default value for RXCR */
 #endif

@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -171,11 +170,6 @@ static int dnet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
-static int dnet_mdio_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void dnet_handle_link_change(struct net_device *dev)
 {
 	struct dnet *bp = netdev_priv(dev);
@@ -281,11 +275,11 @@ static int dnet_mii_probe(struct net_device *dev)
 	/* attach the mac to the phy */
 	if (bp->capabilities & DNET_HAS_RMII) {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_RMII);
 	} else {
 		phydev = phy_connect(dev, dev_name(&phydev->dev),
-				     &dnet_handle_link_change, 0,
+				     &dnet_handle_link_change,
 				     PHY_INTERFACE_MODE_MII);
 	}
 
@@ -323,7 +317,6 @@ static int dnet_mii_init(struct dnet *bp)
 	bp->mii_bus->name = "dnet_mii_bus";
 	bp->mii_bus->read = &dnet_mdio_read;
 	bp->mii_bus->write = &dnet_mdio_write;
-	bp->mii_bus->reset = &dnet_mdio_reset;
 
 	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		bp->pdev->name, bp->pdev->id);

@@ -39,27 +39,6 @@ void        pci_write_32 (u_int32_t *p, u_int32_t v);
  * system dependent callbacks
  */
 
-/**********/
-/* malloc */
-/**********/
-
-static inline void *
-OS_kmalloc (size_t size)
-{
-    char       *ptr = kmalloc (size, GFP_KERNEL | GFP_DMA);
-
-    if (ptr)
-        memset (ptr, 0, size);
-    return ptr;
-}
-
-static inline void
-OS_kfree (void *x)
-{
-    kfree (x);
-}
-
-
 /****************/
 /* memory token */
 /****************/
@@ -73,7 +52,7 @@ OS_mem_token_alloc (size_t size)
     if (!skb)
     {
         //pr_warning("no mem in OS_mem_token_alloc !\n");
-        return 0;
+        return NULL;
     }
     return skb;
 }
@@ -103,7 +82,7 @@ OS_mem_token_data (void *token)
 static inline void *
 OS_mem_token_next (void *token)
 {
-    return 0;
+    return NULL;
 }
 
 
@@ -177,7 +156,7 @@ struct watchdog
 
 
 static inline int
-OS_start_watchdog (struct watchdog * wd)
+OS_start_watchdog (struct watchdog *wd)
 {
     wd->h.expires = jiffies + wd->ticks;
     add_timer (&wd->h);
@@ -186,7 +165,7 @@ OS_start_watchdog (struct watchdog * wd)
 
 
 static inline int
-OS_stop_watchdog (struct watchdog * wd)
+OS_stop_watchdog (struct watchdog *wd)
 {
     del_timer_sync (&wd->h);
     return 0;
@@ -194,10 +173,10 @@ OS_stop_watchdog (struct watchdog * wd)
 
 
 static inline int
-OS_free_watchdog (struct watchdog * wd)
+OS_free_watchdog (struct watchdog *wd)
 {
     OS_stop_watchdog (wd);
-    OS_kfree (wd);
+    kfree(wd);
     return 0;
 }
 

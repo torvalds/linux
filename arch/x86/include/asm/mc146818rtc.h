@@ -95,8 +95,8 @@ static inline unsigned char current_lock_cmos_reg(void)
 unsigned char rtc_cmos_read(unsigned char addr);
 void rtc_cmos_write(unsigned char val, unsigned char addr);
 
-extern int mach_set_rtc_mmss(unsigned long nowtime);
-extern unsigned long mach_get_cmos_time(void);
+extern int mach_set_rtc_mmss(const struct timespec *now);
+extern void mach_get_cmos_time(struct timespec *now);
 
 #define RTC_IRQ 8
 

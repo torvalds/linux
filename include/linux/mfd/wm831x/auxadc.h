@@ -15,6 +15,8 @@
 #ifndef __MFD_WM831X_AUXADC_H__
 #define __MFD_WM831X_AUXADC_H__
 
+struct wm831x;
+
 /*
  * R16429 (0x402D) - AuxADC Data
  */

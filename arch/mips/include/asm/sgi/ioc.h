@@ -138,7 +138,7 @@ struct sgioc_regs {
 	u8 _sysid[3];
 	volatile u8 sysid;
 #define SGIOC_SYSID_FULLHOUSE	0x01
-#define SGIOC_SYSID_BOARDREV(x)	(((x) & 0x1e) >> 1)
+#define SGIOC_SYSID_BOARDREV(x) (((x) & 0x1e) >> 1)
 #define SGIOC_SYSID_CHIPREV(x)	(((x) & 0xe0) >> 5)
 	u32 _unused2;
 	u8 _read[3];
@@ -150,7 +150,7 @@ struct sgioc_regs {
 #define SGIOC_DMASEL_ISDNB	0x01	/* enable isdn B */
 #define SGIOC_DMASEL_ISDNA	0x02	/* enable isdn A */
 #define SGIOC_DMASEL_PPORT	0x04	/* use parallel DMA */
-#define SGIOC_DMASEL_SCLK667MHZ	0x10	/* use 6.67MHZ serial clock */
+#define SGIOC_DMASEL_SCLK667MHZ 0x10	/* use 6.67MHZ serial clock */
 #define SGIOC_DMASEL_SCLKEXT	0x20	/* use external serial clock */
 	u32 _unused4;
 	u8 _reset[3];

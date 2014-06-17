@@ -47,8 +47,37 @@
 #endif
 #endif
 
-#define NLM_CORES_PER_NODE	8
 #define NLM_THREADS_PER_CORE	4
-#define NLM_CPUS_PER_NODE	(NLM_CORES_PER_NODE * NLM_THREADS_PER_CORE)
+#ifdef CONFIG_CPU_XLR
+#define nlm_cores_per_node()	8
+#else
+extern unsigned int xlp_cores_per_node;
+#define nlm_cores_per_node()	xlp_cores_per_node
+#endif
+
+#define nlm_threads_per_node()	(nlm_cores_per_node() * NLM_THREADS_PER_CORE)
+#define nlm_cpuid_to_node(c)	((c) / nlm_threads_per_node())
+
+struct nlm_soc_info {
+	unsigned long	coremask;	/* cores enabled on the soc */
+	unsigned long	ebase;		/* not used now */
+	uint64_t	irqmask;	/* EIMR for the node */
+	uint64_t	sysbase;	/* only for XLP - sys block base */
+	uint64_t	picbase;	/* PIC block base */
+	spinlock_t	piclock;	/* lock for PIC access */
+	cpumask_t	cpumask;	/* logical cpu mask for node */
+	unsigned int	socbus;
+};
+
+extern struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
+#define nlm_get_node(i)		(&nlm_nodes[i])
+#define nlm_node_present(n)	((n) >= 0 && (n) < NLM_NR_NODES && \
+					nlm_get_node(n)->coremask != 0)
+#ifdef CONFIG_CPU_XLR
+#define nlm_current_node()	(&nlm_nodes[0])
+#else
+#define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
+#endif
+void nlm_node_init(int node);
 
 #endif

@@ -290,8 +290,9 @@ static int s6i2c_probe(struct platform_device *dev)
 
 	clock = 0;
 	bus_num = -1;
-	if (dev->dev.platform_data) {
-		struct s6_i2c_platform_data *pdata = dev->dev.platform_data;
+	if (dev_get_platdata(&dev->dev)) {
+		struct s6_i2c_platform_data *pdata =
+			dev_get_platdata(&dev->dev);
 		bus_num = pdata->bus_num;
 		clock = pdata->clock;
 	}
@@ -365,7 +366,6 @@ static int s6i2c_remove(struct platform_device *pdev)
 {
 	struct s6i2c_if *iface = platform_get_drvdata(pdev);
 	i2c_wr16(iface, S6_I2C_ENABLE, 0);
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&iface->adap);
 	free_irq(iface->irq, iface);
 	clk_disable(iface->clk);

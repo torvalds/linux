@@ -1,5 +1,4 @@
-/* arch/arm/plat-samsung/include/plat/audio.h
- *
+/*
  * Copyright (c) 2009 Samsung Electronics Co. Ltd
  * Author: Jaswinder Singh <jassi.brar@samsung.com>
  *
@@ -36,6 +35,7 @@ struct samsung_i2s {
  */
 #define QUIRK_NO_MUXPSR		(1 << 2)
 #define QUIRK_NEED_RSTCLR	(1 << 3)
+#define QUIRK_SUPPORTS_TDM	(1 << 4)
 	/* Quirks of the I2S controller */
 	u32 quirks;
 	dma_addr_t idma_addr;

@@ -57,12 +57,12 @@ struct snd_line6_midi {
 	/**
 		 Buffer for incoming MIDI stream.
 	*/
-	struct MidiBuffer midibuf_in;
+	struct midi_buffer midibuf_in;
 
 	/**
 		 Buffer for outgoing MIDI stream.
 	*/
-	struct MidiBuffer midibuf_out;
+	struct midi_buffer midibuf_out;
 };
 
 extern int line6_init_midi(struct usb_line6 *line6);

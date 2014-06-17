@@ -26,13 +26,12 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/omap-iommu.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
 #include "isp.h"
 
-#define IS_COHERENT_BUF(stat)	((stat)->dma_ch >= 0)
+#define ISP_STAT_USES_DMAENGINE(stat)	((stat)->dma_ch >= 0)
 
 /*
  * MAGIC_SIZE must always be the greatest common divisor of
@@ -77,21 +76,10 @@ static void __isp_stat_buf_sync_magic(struct ispstat *stat,
 					dma_addr_t, unsigned long, size_t,
 					enum dma_data_direction))
 {
-	struct device *dev = stat->isp->dev;
-	struct page *pg;
-	dma_addr_t dma_addr;
-	u32 offset;
-
-	/* Initial magic words */
-	pg = vmalloc_to_page(buf->virt_addr);
-	dma_addr = pfn_to_dma(dev, page_to_pfn(pg));
-	dma_sync(dev, dma_addr, 0, MAGIC_SIZE, dir);
-
-	/* Final magic words */
-	pg = vmalloc_to_page(buf->virt_addr + buf_size);
-	dma_addr = pfn_to_dma(dev, page_to_pfn(pg));
-	offset = ((u32)buf->virt_addr + buf_size) & ~PAGE_MASK;
-	dma_sync(dev, dma_addr, offset, MAGIC_SIZE, dir);
+	/* Sync the initial and final magic words. */
+	dma_sync(stat->isp->dev, buf->dma_addr, 0, MAGIC_SIZE, dir);
+	dma_sync(stat->isp->dev, buf->dma_addr + (buf_size & PAGE_MASK),
+		 buf_size & ~PAGE_MASK, MAGIC_SIZE, dir);
 }
 
 static void isp_stat_buf_sync_magic_for_device(struct ispstat *stat,
@@ -99,7 +87,7 @@ static void isp_stat_buf_sync_magic_for_device(struct ispstat *stat,
 					       u32 buf_size,
 					       enum dma_data_direction dir)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	__isp_stat_buf_sync_magic(stat, buf, buf_size, dir,
@@ -111,7 +99,7 @@ static void isp_stat_buf_sync_magic_for_cpu(struct ispstat *stat,
 					    u32 buf_size,
 					    enum dma_data_direction dir)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
 	__isp_stat_buf_sync_magic(stat, buf, buf_size, dir,
@@ -144,7 +132,7 @@ static int isp_stat_buf_check_magic(struct ispstat *stat,
 	for (w = buf->virt_addr + buf_size, end = w + MAGIC_SIZE;
 	     w < end; w++) {
 		if (unlikely(*w != MAGIC_NUM)) {
-			dev_dbg(stat->isp->dev, "%s: endding magic check does "
+			dev_dbg(stat->isp->dev, "%s: ending magic check does "
 				"not match.\n", stat->subdev.name);
 			return -EINVAL;
 		}
@@ -180,21 +168,21 @@ static void isp_stat_buf_insert_magic(struct ispstat *stat,
 static void isp_stat_buf_sync_for_device(struct ispstat *stat,
 					 struct ispstat_buffer *buf)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
-	dma_sync_sg_for_device(stat->isp->dev, buf->iovm->sgt->sgl,
-			       buf->iovm->sgt->nents, DMA_FROM_DEVICE);
+	dma_sync_sg_for_device(stat->isp->dev, buf->sgt.sgl,
+			       buf->sgt.nents, DMA_FROM_DEVICE);
 }
 
 static void isp_stat_buf_sync_for_cpu(struct ispstat *stat,
 				      struct ispstat_buffer *buf)
 {
-	if (IS_COHERENT_BUF(stat))
+	if (ISP_STAT_USES_DMAENGINE(stat))
 		return;
 
-	dma_sync_sg_for_cpu(stat->isp->dev, buf->iovm->sgt->sgl,
-			    buf->iovm->sgt->nents, DMA_FROM_DEVICE);
+	dma_sync_sg_for_cpu(stat->isp->dev, buf->sgt.sgl,
+			    buf->sgt.nents, DMA_FROM_DEVICE);
 }
 
 static void isp_stat_buf_clear(struct ispstat *stat)
@@ -354,29 +342,21 @@ static struct ispstat_buffer *isp_stat_buf_get(struct ispstat *stat,
 
 static void isp_stat_bufs_free(struct ispstat *stat)
 {
-	struct isp_device *isp = stat->isp;
-	int i;
+	struct device *dev = ISP_STAT_USES_DMAENGINE(stat)
+			   ? NULL : stat->isp->dev;
+	unsigned int i;
 
 	for (i = 0; i < STAT_MAX_BUFS; i++) {
 		struct ispstat_buffer *buf = &stat->buf[i];
 
-		if (!IS_COHERENT_BUF(stat)) {
-			if (IS_ERR_OR_NULL((void *)buf->iommu_addr))
-				continue;
-			if (buf->iovm)
-				dma_unmap_sg(isp->dev, buf->iovm->sgt->sgl,
-					     buf->iovm->sgt->nents,
-					     DMA_FROM_DEVICE);
-			omap_iommu_vfree(isp->domain, isp->dev,
-							buf->iommu_addr);
-		} else {
-			if (!buf->virt_addr)
-				continue;
-			dma_free_coherent(stat->isp->dev, stat->buf_alloc_size,
-					  buf->virt_addr, buf->dma_addr);
-		}
-		buf->iommu_addr = 0;
-		buf->iovm = NULL;
+		if (!buf->virt_addr)
+			continue;
+
+		sg_free_table(&buf->sgt);
+
+		dma_free_coherent(dev, stat->buf_alloc_size, buf->virt_addr,
+				  buf->dma_addr);
+
 		buf->dma_addr = 0;
 		buf->virt_addr = NULL;
 		buf->empty = 1;
@@ -389,83 +369,51 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 	stat->active_buf = NULL;
 }
 
-static int isp_stat_bufs_alloc_iommu(struct ispstat *stat, unsigned int size)
+static int isp_stat_bufs_alloc_one(struct device *dev,
+				   struct ispstat_buffer *buf,
+				   unsigned int size)
 {
-	struct isp_device *isp = stat->isp;
-	int i;
+	int ret;
 
-	stat->buf_alloc_size = size;
+	buf->virt_addr = dma_alloc_coherent(dev, size, &buf->dma_addr,
+					    GFP_KERNEL | GFP_DMA);
+	if (!buf->virt_addr)
+		return -ENOMEM;
 
-	for (i = 0; i < STAT_MAX_BUFS; i++) {
-		struct ispstat_buffer *buf = &stat->buf[i];
-		struct iovm_struct *iovm;
-
-		WARN_ON(buf->dma_addr);
-		buf->iommu_addr = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
-							size, IOMMU_FLAG);
-		if (IS_ERR((void *)buf->iommu_addr)) {
-			dev_err(stat->isp->dev,
-				 "%s: Can't acquire memory for "
-				 "buffer %d\n", stat->subdev.name, i);
-			isp_stat_bufs_free(stat);
-			return -ENOMEM;
-		}
-
-		iovm = omap_find_iovm_area(isp->dev, buf->iommu_addr);
-		if (!iovm ||
-		    !dma_map_sg(isp->dev, iovm->sgt->sgl, iovm->sgt->nents,
-				DMA_FROM_DEVICE)) {
-			isp_stat_bufs_free(stat);
-			return -ENOMEM;
-		}
-		buf->iovm = iovm;
-
-		buf->virt_addr = omap_da_to_va(stat->isp->dev,
-					  (u32)buf->iommu_addr);
-		buf->empty = 1;
-		dev_dbg(stat->isp->dev, "%s: buffer[%d] allocated."
-			"iommu_addr=0x%08lx virt_addr=0x%08lx",
-			stat->subdev.name, i, buf->iommu_addr,
-			(unsigned long)buf->virt_addr);
+	ret = dma_get_sgtable(dev, &buf->sgt, buf->virt_addr, buf->dma_addr,
+			      size);
+	if (ret < 0) {
+		dma_free_coherent(dev, size, buf->virt_addr, buf->dma_addr);
+		buf->virt_addr = NULL;
+		buf->dma_addr = 0;
+		return ret;
 	}
 
 	return 0;
 }
 
-static int isp_stat_bufs_alloc_dma(struct ispstat *stat, unsigned int size)
-{
-	int i;
-
-	stat->buf_alloc_size = size;
-
-	for (i = 0; i < STAT_MAX_BUFS; i++) {
-		struct ispstat_buffer *buf = &stat->buf[i];
-
-		WARN_ON(buf->iommu_addr);
-		buf->virt_addr = dma_alloc_coherent(stat->isp->dev, size,
-					&buf->dma_addr, GFP_KERNEL | GFP_DMA);
-
-		if (!buf->virt_addr || !buf->dma_addr) {
-			dev_info(stat->isp->dev,
-				 "%s: Can't acquire memory for "
-				 "DMA buffer %d\n", stat->subdev.name, i);
-			isp_stat_bufs_free(stat);
-			return -ENOMEM;
-		}
-		buf->empty = 1;
-
-		dev_dbg(stat->isp->dev, "%s: buffer[%d] allocated."
-			"dma_addr=0x%08lx virt_addr=0x%08lx\n",
-			stat->subdev.name, i, (unsigned long)buf->dma_addr,
-			(unsigned long)buf->virt_addr);
-	}
-
-	return 0;
-}
-
+/*
+ * The device passed to the DMA API depends on whether the statistics block uses
+ * ISP DMA, external DMA or PIO to transfer data.
+ *
+ * The first case (for the AEWB and AF engines) passes the ISP device, resulting
+ * in the DMA buffers being mapped through the ISP IOMMU.
+ *
+ * The second case (for the histogram engine) should pass the DMA engine device.
+ * As that device isn't accessible through the OMAP DMA engine API the driver
+ * passes NULL instead, resulting in the buffers being mapped directly as
+ * physical pages.
+ *
+ * The third case (for the histogram engine) doesn't require any mapping. The
+ * buffers could be allocated with kmalloc/vmalloc, but we still use
+ * dma_alloc_coherent() for consistency purpose.
+ */
 static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 {
+	struct device *dev = ISP_STAT_USES_DMAENGINE(stat)
+			   ? NULL : stat->isp->dev;
 	unsigned long flags;
+	unsigned int i;
 
 	spin_lock_irqsave(&stat->isp->stat_lock, flags);
 
@@ -489,10 +437,31 @@ static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 
 	isp_stat_bufs_free(stat);
 
-	if (IS_COHERENT_BUF(stat))
-		return isp_stat_bufs_alloc_dma(stat, size);
-	else
-		return isp_stat_bufs_alloc_iommu(stat, size);
+	stat->buf_alloc_size = size;
+
+	for (i = 0; i < STAT_MAX_BUFS; i++) {
+		struct ispstat_buffer *buf = &stat->buf[i];
+		int ret;
+
+		ret = isp_stat_bufs_alloc_one(dev, buf, size);
+		if (ret < 0) {
+			dev_err(stat->isp->dev,
+				"%s: Failed to allocate DMA buffer %u\n",
+				stat->subdev.name, i);
+			isp_stat_bufs_free(stat);
+			return ret;
+		}
+
+		buf->empty = 1;
+
+		dev_dbg(stat->isp->dev,
+			"%s: buffer[%u] allocated. dma=0x%08lx virt=0x%08lx",
+			stat->subdev.name, i,
+			(unsigned long)buf->dma_addr,
+			(unsigned long)buf->virt_addr);
+	}
+
+	return 0;
 }
 
 static void isp_stat_queue_event(struct ispstat *stat, int err)
@@ -841,7 +810,7 @@ int omap3isp_stat_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (enable) {
 		/*
 		 * Only set enable PCR bit if the module was previously
-		 * enabled through ioct.
+		 * enabled through ioctl.
 		 */
 		isp_stat_try_enable(stat);
 	} else {
@@ -1067,7 +1036,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 	v4l2_set_subdevdata(subdev, stat);
 
-	stat->pad.flags = MEDIA_PAD_FL_SINK;
+	stat->pad.flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	me->ops = NULL;
 
 	return media_entity_init(me, 1, &stat->pad, 0);

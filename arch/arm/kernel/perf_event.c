@@ -16,6 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 
 #include <asm/irq_regs.h>
 #include <asm/pmu.h>
@@ -53,7 +55,12 @@ armpmu_map_cache_event(const unsigned (*cache_map)
 static int
 armpmu_map_hw_event(const unsigned (*event_map)[PERF_COUNT_HW_MAX], u64 config)
 {
-	int mapping = (*event_map)[config];
+	int mapping;
+
+	if (config >= PERF_COUNT_HW_MAX)
+		return -EINVAL;
+
+	mapping = (*event_map)[config];
 	return mapping == HW_OP_UNSUPPORTED ? -ENOENT : mapping;
 }
 
@@ -93,10 +100,6 @@ int armpmu_event_set_period(struct perf_event *event)
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
-
-	/* The period may have been changed by PERF_EVENT_IOC_PERIOD */
-	if (unlikely(period != hwc->last_period))
-		left = period - (hwc->last_period - left);
 
 	if (unlikely(left <= -period)) {
 		left = period;
@@ -149,12 +152,6 @@ again:
 static void
 armpmu_read(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
-
-	/* Don't read disabled counters! */
-	if (hwc->idx < 0)
-		return;
-
 	armpmu_event_update(event);
 }
 
@@ -207,11 +204,11 @@ armpmu_del(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	WARN_ON(idx < 0);
-
 	armpmu_stop(event, PERF_EF_UPDATE);
 	hw_events->events[idx] = NULL;
 	clear_bit(idx, hw_events->used_mask);
+	if (armpmu->clear_event_idx)
+		armpmu->clear_event_idx(hw_events, event);
 
 	perf_event_update_userpage(event);
 }
@@ -259,9 +256,14 @@ validate_event(struct pmu_hw_events *hw_events,
 	       struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	struct pmu *leader_pmu = event->group_leader->pmu;
 
-	if (event->pmu != leader_pmu || event->state <= PERF_EVENT_STATE_OFF)
+	if (is_software_event(event))
+		return 1;
+
+	if (event->state < PERF_EVENT_STATE_OFF)
+		return 1;
+
+	if (event->state == PERF_EVENT_STATE_OFF && !event->attr.enable_on_exec)
 		return 1;
 
 	return armpmu->get_event_idx(hw_events, event) >= 0;
@@ -297,14 +299,27 @@ validate_group(struct perf_event *event)
 
 static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 {
-	struct arm_pmu *armpmu = (struct arm_pmu *) dev;
-	struct platform_device *plat_device = armpmu->plat_device;
-	struct arm_pmu_platdata *plat = dev_get_platdata(&plat_device->dev);
+	struct arm_pmu *armpmu;
+	struct platform_device *plat_device;
+	struct arm_pmu_platdata *plat;
+	int ret;
+	u64 start_clock, finish_clock;
 
+	if (irq_is_percpu(irq))
+		dev = *(void **)dev;
+	armpmu = dev;
+	plat_device = armpmu->plat_device;
+	plat = dev_get_platdata(&plat_device->dev);
+
+	start_clock = sched_clock();
 	if (plat && plat->handle_irq)
-		return plat->handle_irq(irq, dev, armpmu->handle_irq);
+		ret = plat->handle_irq(irq, dev, armpmu->handle_irq);
 	else
-		return armpmu->handle_irq(irq, dev);
+		ret = armpmu->handle_irq(irq, dev);
+	finish_clock = sched_clock();
+
+	perf_sample_event_took(finish_clock - start_clock);
+	return ret;
 }
 
 static void
@@ -358,7 +373,7 @@ __hw_perf_event_init(struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	int mapping, err;
+	int mapping;
 
 	mapping = armpmu->map_event(event);
 
@@ -395,7 +410,7 @@ __hw_perf_event_init(struct perf_event *event)
 	 */
 	hwc->config_base	    |= (unsigned long)mapping;
 
-	if (!hwc->sample_period) {
+	if (!is_sampling_event(event)) {
 		/*
 		 * For non-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value
@@ -407,14 +422,12 @@ __hw_perf_event_init(struct perf_event *event)
 		local64_set(&hwc->period_left, hwc->sample_period);
 	}
 
-	err = 0;
 	if (event->group_leader != event) {
-		err = validate_group(event);
-		if (err)
+		if (validate_group(event) != 0)
 			return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
 
 static int armpmu_event_init(struct perf_event *event)
@@ -494,7 +507,7 @@ const struct dev_pm_ops armpmu_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(armpmu_runtime_suspend, armpmu_runtime_resume, NULL)
 };
 
-static void __init armpmu_init(struct arm_pmu *armpmu)
+static void armpmu_init(struct arm_pmu *armpmu)
 {
 	atomic_set(&armpmu->active_events, 0);
 	mutex_init(&armpmu->reserve_mutex);
@@ -576,6 +589,7 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		return;
 	}
 
+	perf_callchain_store(entry, regs->ARM_pc);
 	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
 
 	while ((entry->nr < PERF_MAX_STACK_DEPTH) &&

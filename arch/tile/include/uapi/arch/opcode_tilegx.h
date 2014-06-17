@@ -61,6 +61,7 @@ typedef tilegx_bundle_bits tile_bundle_bits;
 #define TILE_BUNDLE_ALIGNMENT_IN_BYTES TILEGX_BUNDLE_ALIGNMENT_IN_BYTES
 #define TILE_LOG2_BUNDLE_ALIGNMENT_IN_BYTES \
   TILEGX_LOG2_BUNDLE_ALIGNMENT_IN_BYTES
+#define TILE_BPT_BUNDLE TILEGX_BPT_BUNDLE
 
 /* 64-bit pattern for a { bpt ; nop } bundle. */
 #define TILEGX_BPT_BUNDLE 0x286a44ae51485000ULL

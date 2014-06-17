@@ -18,8 +18,7 @@ do {						\
 	 * and 2 stores in this critical code path.  -DaveM
 	 */
 #define switch_to(prev, next, last)					\
-do {	flush_tlb_pending();						\
-	save_and_clear_fpu();						\
+do {	save_and_clear_fpu();						\
 	/* If you are tempted to conditionalize the following */	\
 	/* so that ASI is only written if it changes, think again. */	\
 	__asm__ __volatile__("wr %%g0, %0, %%asi"			\
@@ -49,8 +48,8 @@ do {	flush_tlb_pending();						\
 	"wrpr	%%g0, 14, %%pil\n\t"					\
 	"brz,pt %%o7, switch_to_pc\n\t"					\
 	" mov	%%g7, %0\n\t"						\
-	"sethi	%%hi(ret_from_syscall), %%g1\n\t"			\
-	"jmpl	%%g1 + %%lo(ret_from_syscall), %%g0\n\t"		\
+	"sethi	%%hi(ret_from_fork), %%g1\n\t"				\
+	"jmpl	%%g1 + %%lo(ret_from_fork), %%g0\n\t"			\
 	" nop\n\t"							\
 	".globl switch_to_pc\n\t"					\
 	"switch_to_pc:\n\t"						\
