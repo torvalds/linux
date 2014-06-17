@@ -19,8 +19,8 @@
 #include <linux/io.h>
 #include <asm/smp_plat.h>
 #include <mach/r8a7791.h>
-#include <mach/rcar-gen2.h>
 #include "common.h"
+#include "rcar-gen2.h"
 
 #define RST		0xe6160000
 #define CA15BAR		0x0020
