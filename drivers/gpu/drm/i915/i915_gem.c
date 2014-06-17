@@ -1570,9 +1570,12 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	pfn >>= PAGE_SHIFT;
 
 	if (!obj->fault_mappable) {
+		unsigned long size = min_t(unsigned long,
+					   vma->vm_end - vma->vm_start,
+					   obj->base.size);
 		int i;
 
-		for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+		for (i = 0; i < size >> PAGE_SHIFT; i++) {
 			ret = vm_insert_pfn(vma,
 					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
 					    pfn + i);
