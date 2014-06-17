@@ -819,7 +819,8 @@ static int nfsd_direct_splice_actor(struct pipe_inode_info *pipe,
 	return __splice_from_pipe(pipe, sd, nfsd_splice_actor);
 }
 
-__be32 nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
+static __be32
+nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
 {
 	if (host_err >= 0) {
 		nfsdstats.io_read += host_err;
@@ -830,7 +831,7 @@ __be32 nfsd_finish_read(struct file *file, unsigned long *count, int host_err)
 		return nfserrno(host_err);
 }
 
-int nfsd_splice_read(struct svc_rqst *rqstp,
+__be32 nfsd_splice_read(struct svc_rqst *rqstp,
 		     struct file *file, loff_t offset, unsigned long *count)
 {
 	struct splice_desc sd = {
@@ -846,7 +847,7 @@ int nfsd_splice_read(struct svc_rqst *rqstp,
 	return nfsd_finish_read(file, count, host_err);
 }
 
-int nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
+__be32 nfsd_readv(struct file *file, loff_t offset, struct kvec *vec, int vlen,
 		unsigned long *count)
 {
 	mm_segment_t oldfs;
