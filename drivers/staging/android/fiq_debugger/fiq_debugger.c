@@ -144,6 +144,8 @@ static bool initial_console_enable;
 
 static bool fiq_kgdb_enable;
 
+static unsigned long jif = 0, recv_count0 = 0, recv_count1 = 0;
+
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
 module_param_named(console_enable, initial_console_enable, bool, 0644);
@@ -917,6 +919,7 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	static int last_c;
 	int count = 0;
 	bool signal_helper = false;
+	unsigned long ms = 0;
 
 	if (this_cpu != state->current_cpu) {
 		if (state->in_fiq)
@@ -939,7 +942,19 @@ static bool fiq_debugger_handle_uart_interrupt(struct fiq_debugger_state *state,
 	state->in_fiq = true;
 
 	while ((c = fiq_debugger_getc(state)) != FIQ_DEBUGGER_NO_CHAR) {
-		count++;
+		recv_count0++;
+		if((recv_count0 - recv_count1) > 128) {
+			ms = jiffies_to_msecs(jiffies - jif);
+			if(ms < 1000) {
+				if(cpu_is_rk3288()){
+					writel_relaxed((0x00c0 << 16),
+					RK_GRF_VIRT + RK3288_GRF_UOC0_CON3);
+				}
+			}
+			jif = jiffies;
+			recv_count1 = recv_count0;
+		}
+                count++;
 		if (!state->debug_enable) {
 			if ((c == 13) || (c == 10)) {
 				state->debug_enable = true;
