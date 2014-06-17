@@ -669,7 +669,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing rsp, *req = (void *) skb->data;
 	struct smp_chan *smp;
-	u8 key_size, auth;
+	u8 key_size, auth, sec_level;
 	int ret;
 
 	BT_DBG("conn %p", conn);
@@ -695,7 +695,9 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	/* We didn't start the pairing, so match remote */
 	auth = req->auth_req;
 
-	conn->hcon->pending_sec_level = authreq_to_seclevel(auth);
+	sec_level = authreq_to_seclevel(auth);
+	if (sec_level > conn->hcon->pending_sec_level)
+		conn->hcon->pending_sec_level = sec_level;
 
 	build_pairing_cmd(conn, req, &rsp, auth);
 
@@ -838,6 +840,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct smp_cmd_pairing cp;
 	struct hci_conn *hcon = conn->hcon;
 	struct smp_chan *smp;
+	u8 sec_level;
 
 	BT_DBG("conn %p", conn);
 
@@ -847,7 +850,9 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (!(conn->hcon->link_mode & HCI_LM_MASTER))
 		return SMP_CMD_NOTSUPP;
 
-	hcon->pending_sec_level = authreq_to_seclevel(rp->auth_req);
+	sec_level = authreq_to_seclevel(rp->auth_req);
+	if (sec_level > hcon->pending_sec_level)
+		hcon->pending_sec_level = sec_level;
 
 	if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
 		return 0;
@@ -901,9 +906,12 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	if (smp_sufficient_security(hcon, sec_level))
 		return 1;
 
+	if (sec_level > hcon->pending_sec_level)
+		hcon->pending_sec_level = sec_level;
+
 	if (hcon->link_mode & HCI_LM_MASTER)
-		if (smp_ltk_encrypt(conn, sec_level))
-			goto done;
+		if (smp_ltk_encrypt(conn, hcon->pending_sec_level))
+			return 0;
 
 	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;
@@ -918,7 +926,7 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	 * requires it.
 	 */
 	if (hcon->io_capability != HCI_IO_NO_INPUT_OUTPUT ||
-	    sec_level > BT_SECURITY_MEDIUM)
+	    hcon->pending_sec_level > BT_SECURITY_MEDIUM)
 		authreq |= SMP_AUTH_MITM;
 
 	if (hcon->link_mode & HCI_LM_MASTER) {
@@ -936,9 +944,6 @@ int smp_conn_security(struct hci_conn *hcon, __u8 sec_level)
 	}
 
 	set_bit(SMP_FLAG_INITIATOR, &smp->flags);
-
-done:
-	hcon->pending_sec_level = sec_level;
 
 	return 0;
 }
