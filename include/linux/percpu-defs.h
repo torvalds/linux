@@ -252,5 +252,37 @@
 /* keep until we have removed all uses of __this_cpu_ptr */
 #define __this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 
+/*
+ * Must be an lvalue. Since @var must be a simple identifier,
+ * we force a syntax error here if it isn't.
+ */
+#define get_cpu_var(var) (*({				\
+	preempt_disable();				\
+	this_cpu_ptr(&var); }))
+
+/*
+ * The weird & is necessary because sparse considers (void)(var) to be
+ * a direct dereference of percpu variable (var).
+ */
+#define put_cpu_var(var) do {				\
+	(void)&(var);					\
+	preempt_enable();				\
+} while (0)
+
+#define get_cpu_ptr(var) ({				\
+	preempt_disable();				\
+	this_cpu_ptr(var); })
+
+#define put_cpu_ptr(var) do {				\
+	(void)(var);					\
+	preempt_enable();				\
+} while (0)
+
+#ifdef CONFIG_SMP
+#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+#else
+#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* _LINUX_PERCPU_DEFS_H */

@@ -23,32 +23,6 @@
 	 PERCPU_MODULE_RESERVE)
 #endif
 
-/*
- * Must be an lvalue. Since @var must be a simple identifier,
- * we force a syntax error here if it isn't.
- */
-#define get_cpu_var(var) (*({				\
-	preempt_disable();				\
-	this_cpu_ptr(&var); }))
-
-/*
- * The weird & is necessary because sparse considers (void)(var) to be
- * a direct dereference of percpu variable (var).
- */
-#define put_cpu_var(var) do {				\
-	(void)&(var);					\
-	preempt_enable();				\
-} while (0)
-
-#define get_cpu_ptr(var) ({				\
-	preempt_disable();				\
-	this_cpu_ptr(var); })
-
-#define put_cpu_ptr(var) do {				\
-	(void)(var);					\
-	preempt_enable();				\
-} while (0)
-
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
 
@@ -138,17 +112,6 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 				pcpu_fc_alloc_fn_t alloc_fn,
 				pcpu_fc_free_fn_t free_fn,
 				pcpu_fc_populate_pte_fn_t populate_pte_fn);
-#endif
-
-/*
- * Use this to get to a cpu's version of the per-cpu object
- * dynamically allocated. Non-atomic access to the current CPU's
- * version should probably be combined with get_cpu()/put_cpu().
- */
-#ifdef CONFIG_SMP
-#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
-#else
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR((ptr)); })
 #endif
 
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
