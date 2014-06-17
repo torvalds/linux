@@ -385,6 +385,16 @@ static const u8 gen_method[5][5] = {
 	{ CFM_PASSKEY, CFM_PASSKEY, REQ_PASSKEY, JUST_WORKS, OVERLAP     },
 };
 
+static u8 get_auth_method(struct smp_chan *smp, u8 local_io, u8 remote_io)
+{
+	/* If either side has unknown io_caps, use JUST WORKS */
+	if (local_io > SMP_IO_KEYBOARD_DISPLAY ||
+	    remote_io > SMP_IO_KEYBOARD_DISPLAY)
+		return JUST_WORKS;
+
+	return gen_method[remote_io][local_io];
+}
+
 static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 						u8 local_io, u8 remote_io)
 {
@@ -401,14 +411,11 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 	BT_DBG("tk_request: auth:%d lcl:%d rem:%d", auth, local_io, remote_io);
 
 	/* If neither side wants MITM, use JUST WORKS */
-	/* If either side has unknown io_caps, use JUST WORKS */
 	/* Otherwise, look up method from the table */
-	if (!(auth & SMP_AUTH_MITM) ||
-	    local_io > SMP_IO_KEYBOARD_DISPLAY ||
-	    remote_io > SMP_IO_KEYBOARD_DISPLAY)
+	if (!(auth & SMP_AUTH_MITM))
 		method = JUST_WORKS;
 	else
-		method = gen_method[remote_io][local_io];
+		method = get_auth_method(smp, local_io, remote_io);
 
 	/* If not bonding, don't ask user to confirm a Zero TK */
 	if (!(auth & SMP_AUTH_BONDING) && method == JUST_CFM)
