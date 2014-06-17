@@ -3733,6 +3733,7 @@ static void _ddr_set_auto_self_refresh(bool en)
 
 #define PERI_PCLK_DIV_MASK 0x3
 #define PERI_PCLK_DIV_OFF 12
+#if 0
 static __sramdata u32 cru_sel32_sram;
 static void __sramfunc ddr_suspend(void)
 {
@@ -3807,6 +3808,7 @@ static void __sramfunc ddr_resume(void)
 
     ddr_selfrefresh_exit();
 }
+#endif
 
 //获取容量，返回字节数
 static uint32 ddr_get_cap(void)
@@ -3829,6 +3831,7 @@ static uint32 ddr_get_cap(void)
     return cap;
 }
 
+#if 0
 static void ddr_reg_save(void)
 {
     //PCTLR
@@ -3910,6 +3913,7 @@ static __attribute__((aligned(4))) __sramdata uint32 ddr_reg_resume[] =
 {
 #include "ddr_reg_resume.inc"
 };
+#endif
 
 static int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
 {
