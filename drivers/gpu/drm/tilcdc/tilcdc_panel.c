@@ -286,10 +286,8 @@ static void panel_destroy(struct tilcdc_module *mod)
 {
 	struct panel_module *panel_mod = to_panel_module(mod);
 
-	if (panel_mod->timings) {
+	if (panel_mod->timings)
 		display_timings_release(panel_mod->timings);
-		kfree(panel_mod->timings);
-	}
 
 	tilcdc_module_cleanup(mod);
 	kfree(panel_mod->info);
