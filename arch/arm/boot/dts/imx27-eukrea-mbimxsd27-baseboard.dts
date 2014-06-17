@@ -135,7 +135,6 @@
 &ssi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ssi1>;
-	fsl,mode = "i2s-slave";
 	codec-handle = <&codec>;
 	status = "okay";
 };
