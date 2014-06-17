@@ -6,6 +6,8 @@
 
 /*************************dump reg********************************************/
 
+#if 0 // not used
+
 static void __sramfunc rkpm_sram_regs_dump(u32 base_addr,u32 start_offset,u32 end_offset)
 {
 	u32 i;
@@ -28,7 +30,7 @@ static void __sramfunc rkpm_sram_regs_dump(u32 base_addr,u32 start_offset,u32 en
     rkpm_sram_printch('\n');
 
 }
-
+#endif
 
 struct rkpm_sram_ops DEFINE_PIE_DATA(pm_sram_ops);
 //for sram
@@ -129,13 +131,11 @@ void PIE_FUNC(rkpm_sram_suspend_arg)(void *arg)
     rkpm_sram_suspend(rkpm_sram_ctrbits);    
 }
 EXPORT_PIE_SYMBOL(FUNC(rkpm_sram_suspend_arg));
-
-
 static void rkpm_pie_init(void)
 {
     if(rockchip_pie_chunk)
     {
-    rkpm_set_pie_info(kern_to_pie(rockchip_pie_chunk, &DATA(pm_sram_ops))
+        rkpm_set_pie_info(kern_to_pie(rockchip_pie_chunk, &DATA(pm_sram_ops))
                         ,fn_to_pie(rockchip_pie_chunk, &FUNC(rkpm_sram_suspend_arg)));
     }
 }

@@ -224,6 +224,7 @@ static void sram_data_resume(char *boot_save, char *int_save,u32 flag)
 
 #define PM_IRQN_START 32
 #define PM_IRQN_END	107//107
+#if 0 //funciton is ok ,but not used
 static void pm_gic_enable(u32 irqs)
 {
 
@@ -257,7 +258,7 @@ static void rkpm_gic_disable(u32 irqs)
         writel_relaxed(readl_relaxed(reg_off)&~(1<<bit_off),reg_off);
         dsb();
 }
-  
+#endif
 #define gic_reg_dump(a,b,c)  {}//reg_dump((a),(b),(c))
   
 static u32 slp_gic_save[260+50];
@@ -492,10 +493,6 @@ void slp_regs_w_msk_resume(u32 *data,void __iomem * base,u32 st_offset,u32 end_o
 
 static void __iomem *slp_uart_base[RK3288_UART_NUM]={NULL};
 static u32 slp_uart_phy[RK3288_UART_NUM]={(0xff180000),(0xff190000),(0xff690000),(0xff1b0000)};
-
-static u32 slp_uart_data[RK3288_UART_NUM][10];
-static u32 slp_uart_data_flag[RK3288_UART_NUM];
-
  
 #define UART_DLL	0	/* Out: Divisor Latch Low */
 #define UART_DLM	1	/* Out: Divisor Latch High */
@@ -506,7 +503,10 @@ static u32 slp_uart_data_flag[RK3288_UART_NUM];
 #define UART_LCR	3	/* Out: Line Control Register */
 #define UART_MCR	4
 
-#if 0
+#if 0 //
+static u32 slp_uart_data[RK3288_UART_NUM][10];
+static u32 slp_uart_data_flag[RK3288_UART_NUM];
+
  void slp_uart_save(int ch)
  {
 	 int i=0;
@@ -584,7 +584,6 @@ static u32 slp_uart_data_flag[RK3288_UART_NUM];
 #endif
  void slp_uartdbg_resume(void)
 {   
-    int i=0;
     void __iomem *b_addr=RK_DEBUG_UART_VIRT;
     u32 pclk_id=RK3288_CLKGATE_PCLK_UART2,clk_id=(RK3288_CLKGATE_UART0_SRC+2*2);
     u32 gate_reg[2];
@@ -707,10 +706,11 @@ void slp_i2c_resume(int ch)
 
 /**************************************gpios save and resume**************************/
 #define RK3288_GPIO_CH (9)
+#if 0 //fun is ok ,not used
+
 static u32 slp_gpio_data[RK3288_GPIO_CH][10]; 
 static u32 slp_grf_iomux_data[RK3288_GPIO_CH*4];
 static u32 slp_grf_io_pull_data[RK3288_GPIO_CH*4];
-
 static void gpio_ddr_dump_reg(int ports)
 {
     void __iomem *b_addr=RK_GPIO_VIRT(ports);
@@ -736,7 +736,6 @@ static void gpio_ddr_dump_reg(int ports)
     rkpm_ddr_regs_dump(RK_GRF_VIRT,0x130+ports*4*4,ports*4*4+3*4);
 
 }
-
  static void slp_pin_gpio_save(int ports)
  {
         int i;
@@ -806,6 +805,7 @@ static void gpio_ddr_dump_reg(int ports)
  
  }
  
+#endif
  static inline u32 rkpm_l2_config(void)
  {
      u32 l2ctlr;
@@ -843,11 +843,11 @@ static u32 slp_grf_uoc3_con_data[2];
 static u32 slp_grf_uoc3_con_w_msk[2]={0x3ff0000,0x0fff0000};
 
 #endif
-static u32 slp_pmu_pwrmode_con_data[1];
+//static u32 slp_pmu_pwrmode_con_data[1];
 
 
-static u32 slp_nandc_data[8];
-static void __iomem *rk30_nandc_base=NULL;
+//static u32 slp_nandc_data[8];
+//static void __iomem *rk30_nandc_base=NULL;
 
 #define MS_37K (37)
 #define US_24M (24)
@@ -1053,7 +1053,7 @@ static void sram_code_data_save(u32 pwrmode)
 {
 	char *code_src,*data_src;
 	u32 code_size,data_size;
-        u32 ddr_bits= RKPM_CTR_ARMLOGDP_LPMD|RKPM_CTR_ARMOFF_LOGDP_LPMD|RKPM_CTR_ARMLOGOFF_DLPMD;
+      
      
 	//u32 *p;
         if(pwrmode&(BIT(pmu_scu_en)|BIT(pmu_a12_0_pd_en)))
@@ -1103,7 +1103,7 @@ static inline void sram_code_data_resume(u32 pwrmode)
 
 static void  rkpm_peri_save(u32 power_mode)
 {
-    u32 gpio_gate[2];
+//    u32 gpio_gate[2];
 
     if(power_mode&BIT(pmu_scu_en))
     {
@@ -1245,13 +1245,8 @@ static void rkpm_save_setting_resume_first(void)
        #endif
 }
 
-
-
-static u32 rk3288_ctrbits=0;
-
 static void rkpm_save_setting(u32 ctrbits)
 {
-        //rk3288_ctrbits=ctrbits;        
         rk3288_powermode=rkpm_slp_mode_set(ctrbits);
         if(rk3288_powermode&BIT(pmu_pwr_mode_en))
        {
@@ -1630,11 +1625,12 @@ static u8 __sramfunc sram_gpio_get_output_levelset(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_output_levelset(port,bank,b_gpio);
 }
-
+#if 0
 static u8 __sramfunc sram_gpio_get_input_level(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_input_level(port,bank,b_gpio);
 }
+#endif
 //ddr
 static void ddr_pin_set_fun(u8 port,u8 bank,u8 b_gpio,u8 fun)
 { 
@@ -1673,12 +1669,12 @@ static u8 ddr_gpio_get_output_levelset(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_output_levelset(port,bank,b_gpio);
 }
-
+#if 0
 static u8 ddr_gpio_get_input_level(u8 port,u8 bank,u8 b_gpio)
 {
     return gpio_get_input_level(port,bank,b_gpio);
 }
-
+#endif
 
 
 static  void __sramfunc rkpm_pin_gpio_config_sram(u32 pin_gpio_bits,u32 *save_bits)
@@ -1770,14 +1766,14 @@ static inline void rkpm_pin_gpio_config_ddr(u32 pin_gpio_bits,u32 *save_bits)
 
 #define GPIO_DTS_NUM 10
 
-static  u32 gpio_dts_save[GPIO_DTS_NUM];
-static  u32 gpio_dts[GPIO_DTS_NUM];
+//static  u32 gpio_dts_save[GPIO_DTS_NUM];
+//static  u32 gpio_dts[GPIO_DTS_NUM];
 
 #define PMICGPIO_DTS_NUM 3
 
 
 u32 DEFINE_PIE_DATA(pmicgpio_dts[PMICGPIO_DTS_NUM]);
-static u32 *p_pmicgpio_dts;
+//static u32 *p_pmicgpio_dts;
 static __sramdata u32 pmicgpio_dts_save[PMICGPIO_DTS_NUM];
 
 static void __sramfunc pmic_gpio_suspend(void)
@@ -1829,7 +1825,7 @@ void PIE_FUNC(pmic_resume)(void)
     pmic_gpio_resume();
 }
 
-
+#if 0
 static void  rkpm_gpio_suspend(void)
 {
        int i;   
@@ -1867,6 +1863,8 @@ static void  rkpm_gpio_resume(void)
        }
 
 }
+#endif
+#if 0
 static void gpio_get_dts_info(struct device_node *parent)
 {
         int i;
@@ -1902,7 +1900,7 @@ static void gpio_get_dts_info(struct device_node *parent)
                   fn_to_pie(rockchip_pie_chunk, &FUNC(pmic_resume)));
 
 }
-
+#endif
 
 /*******************************clk gating config*******************************************/
 #define CLK_MSK_GATING(msk, con) cru_writel((msk << 16) | 0xffff, con)
@@ -2426,7 +2424,7 @@ static void rkpm_finish(void)
 	rk3288_pm_dump_irq();
 }
 
-
+#if 0
 static  void interface_ctr_reg_pread(void)
 {
 	//u32 addr;
@@ -2444,6 +2442,7 @@ static  void interface_ctr_reg_pread(void)
         //readl_relaxed(RK30_I2C1_BASE+SZ_4K);
         //readl_relaxed(RK_GPIO_VIRT(3));
 }
+#endif
 void PIE_FUNC(ddr_leakage_tst)(void)
 {
     cru_writel(RK3288_PLL_MODE_SLOW(DPLL_ID), RK3288_CRU_MODE_CON);    

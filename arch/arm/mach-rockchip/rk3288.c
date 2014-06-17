@@ -596,12 +596,12 @@ static void __init rk3288_init_suspend(void)
 {
     printk("%s\n",__FUNCTION__);
     rockchip_suspend_init();       
-    //rkpm_pie_init();
+    rkpm_pie_init();
     rk3288_suspend_init();
    rkpm_set_ops_pwr_dmns(rk_pm_soc_pd_suspend,rk_pm_soc_pd_resume);  
 }
 
-
+#if 0
 extern bool console_suspend_enabled;
 
 static int  __init rk3288_pm_dbg(void)
@@ -618,6 +618,7 @@ static int  __init rk3288_pm_dbg(void)
 }
 
 //late_initcall_sync(rk3288_pm_dbg);
+#endif
 
 
 #endif

@@ -282,6 +282,7 @@ static void gtclks_resume(void)
 
 #define power_off_pll(id) \
 	cru_writel(RK3188_PLL_PWR_DN_W_MSK | RK3188_PLL_PWR_DN, RK3188_PLL_CONS((id), 3))
+#if 0
 
 static void pm_pll_wait_lock(u32 pll_idx)
 {
@@ -313,7 +314,7 @@ static void power_on_pll(u32 pll_id)
         cru_writel(RK3188_PLL_PWR_DN_W_MSK | RK3188_PLL_PWR_ON, RK3188_PLL_CONS((pll_id), 3));
         pm_pll_wait_lock((pll_id));
 }
-
+#endif
 static u32 clk_sel0, clk_sel1, clk_sel10;
 static u32 cpll_con3;
 static u32 cru_mode_con;
@@ -565,7 +566,6 @@ static u32 gpios_data[2];
 
 static void __init  rk3188_suspend_init(void)
 {
-
     struct device_node *parent;
     u32 pm_ctrbits;
 
