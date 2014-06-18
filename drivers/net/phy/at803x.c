@@ -35,6 +35,10 @@
 #define AT803X_DEBUG_SYSTEM_MODE_CTRL		0x05
 #define AT803X_DEBUG_RGMII_TX_CLK_DLY		BIT(8)
 
+#define ATH8030_PHY_ID 0x004dd076
+#define ATH8031_PHY_ID 0x004dd074
+#define ATH8035_PHY_ID 0x004dd072
+
 MODULE_DESCRIPTION("Atheros 803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
 MODULE_LICENSE("GPL");
@@ -192,7 +196,7 @@ static int at803x_config_intr(struct phy_device *phydev)
 static struct phy_driver at803x_driver[] = {
 {
 	/* ATHEROS 8035 */
-	.phy_id		= 0x004dd072,
+	.phy_id		= ATH8035_PHY_ID,
 	.name		= "Atheros 8035 ethernet",
 	.phy_id_mask	= 0xffffffef,
 	.config_init	= at803x_config_init,
@@ -209,7 +213,7 @@ static struct phy_driver at803x_driver[] = {
 	},
 }, {
 	/* ATHEROS 8030 */
-	.phy_id		= 0x004dd076,
+	.phy_id		= ATH8030_PHY_ID,
 	.name		= "Atheros 8030 ethernet",
 	.phy_id_mask	= 0xffffffef,
 	.config_init	= at803x_config_init,
@@ -226,7 +230,7 @@ static struct phy_driver at803x_driver[] = {
 	},
 }, {
 	/* ATHEROS 8031 */
-	.phy_id		= 0x004dd074,
+	.phy_id		= ATH8031_PHY_ID,
 	.name		= "Atheros 8031 ethernet",
 	.phy_id_mask	= 0xffffffef,
 	.config_init	= at803x_config_init,
@@ -260,9 +264,9 @@ module_init(atheros_init);
 module_exit(atheros_exit);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
-	{ 0x004dd076, 0xffffffef },
-	{ 0x004dd074, 0xffffffef },
-	{ 0x004dd072, 0xffffffef },
+	{ ATH8030_PHY_ID, 0xffffffef },
+	{ ATH8031_PHY_ID, 0xffffffef },
+	{ ATH8035_PHY_ID, 0xffffffef },
 	{ }
 };
 
