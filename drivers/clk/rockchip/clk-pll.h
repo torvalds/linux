@@ -282,7 +282,7 @@ struct apll_clk_set {
 
 struct clk_pll {
 	struct clk_hw	hw;
-	void __iomem	*reg;
+	u32		reg;
 	u32		width;
 	u32		mode_offset;
 	u8		mode_shift;
@@ -296,7 +296,7 @@ struct clk_pll {
 const struct clk_ops *rk_get_pll_ops(u32 pll_flags);
 
 struct clk *rk_clk_register_pll(struct device *dev, const char *name,
-		const char *parent_name, unsigned long flags, void __iomem *reg,
+		const char *parent_name, unsigned long flags, u32 reg,
 		u32 width, u32 mode_offset, u8 mode_shift,
 		u32 status_offset, u8 status_shift, u32 pll_flags,
 		spinlock_t *lock);

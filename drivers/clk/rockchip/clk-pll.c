@@ -188,10 +188,10 @@ static void pll_wait_lock(struct clk_hw *hw)
 				"pll_con2=%08x\npll_con3=%08x\n",
 				__clk_get_name(hw->clk),
 				pll->status_shift,
-				readl(pll->reg + RK3188_PLL_CON(0)),
-				readl(pll->reg + RK3188_PLL_CON(1)),
-				readl(pll->reg + RK3188_PLL_CON(2)),
-				readl(pll->reg + RK3188_PLL_CON(3)));
+				cru_readl(pll->reg + RK3188_PLL_CON(0)),
+				cru_readl(pll->reg + RK3188_PLL_CON(1)),
+				cru_readl(pll->reg + RK3188_PLL_CON(2)),
+				cru_readl(pll->reg + RK3188_PLL_CON(3)));
 
 		while(1);
 	}
@@ -252,8 +252,8 @@ static unsigned long clk_pll_recalc_rate_3188(struct clk_hw *hw,
 
 
 	if (_RK3188_PLL_MODE_IS_NORM(pll->mode_offset, pll->mode_shift)) {
-		u32 pll_con0 = readl(pll->reg + RK3188_PLL_CON(0));
-		u32 pll_con1 = readl(pll->reg + RK3188_PLL_CON(1));
+		u32 pll_con0 = cru_readl(pll->reg + RK3188_PLL_CON(0));
+		u32 pll_con1 = cru_readl(pll->reg + RK3188_PLL_CON(1));
 
 		u64 rate64 = (u64)parent_rate * RK3188_PLL_NF(pll_con1);
 
@@ -301,20 +301,20 @@ static int _pll_clk_set_rate_3188(struct pll_clk_set *clk_set,
 	//enter slowmode
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 	//pll power down
-	writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+	cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 	dsb();
 	dsb();
 	dsb();
 	dsb();
 	dsb();
 	dsb();
-	writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
-	writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
 
 	udelay(1);
 
 	//pll no power down
-	writel((0x1<<(16+1)), pll->reg + RK3188_PLL_CON(3));
+	cru_writel((0x1<<(16+1)), pll->reg + RK3188_PLL_CON(3));
 
 	pll_wait_lock(hw);
 
@@ -326,8 +326,8 @@ static int _pll_clk_set_rate_3188(struct pll_clk_set *clk_set,
 
 	clk_debug("pll %s dump reg: con0=0x%08x, con1=0x%08x, mode=0x%08x\n",
 			__clk_get_name(hw->clk),
-			readl(pll->reg + RK3188_PLL_CON(0)),
-			readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
 			cru_readl(pll->mode_offset));
 
 	clk_debug("%s end!\n", __func__);
@@ -349,7 +349,7 @@ static int clk_pll_set_rate_3188(struct clk_hw *hw, unsigned long rate,
 		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
 				pll->mode_offset);
 		/* pll power down */
-		writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+		cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 		clk_debug("pll %s enter slow mode, set rate OK!\n",
 				__clk_get_name(hw->clk));
 		return 0;
@@ -426,7 +426,7 @@ static int clk_pll_set_rate_3188_apll(struct clk_hw *hw, unsigned long rate,
 		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
 				pll->mode_offset);
 		/* pll power down */
-		writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+		cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 		clk_debug("pll %s enter slow mode, set rate OK!\n",
 				__clk_get_name(hw->clk));
 		return 0;
@@ -511,20 +511,20 @@ CHANGE_APLL:
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 
 	/* PLL power down */
-	writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+	cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 	dsb();
 	dsb();
 	dsb();
 	dsb();
 	dsb();
 	dsb();
-	writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
-	writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
 
 	udelay(1);
 
 	/* PLL power up and wait for locked */
-	writel((0x1<<(16+1)), pll->reg + RK3188_PLL_CON(3));
+	cru_writel((0x1<<(16+1)), pll->reg + RK3188_PLL_CON(3));
 	pll_wait_lock(hw);
 
 	old_aclk_div = RK3188_GET_CORE_ACLK_VAL(cru_readl(RK3188_CRU_CLKSELS_CON(1)) &
@@ -569,10 +569,10 @@ CHANGE_APLL:
 
 	clk_debug("apll set rate %lu, con(%x,%x,%x,%x), sel(%x,%x)\n",
 			ps->rate,
-			readl(pll->reg + RK3188_PLL_CON(0)),
-			readl(pll->reg + RK3188_PLL_CON(1)),
-			readl(pll->reg + RK3188_PLL_CON(2)),
-			readl(pll->reg + RK3188_PLL_CON(3)),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(2)),
+			cru_readl(pll->reg + RK3188_PLL_CON(3)),
 			cru_readl(RK3188_CRU_CLKSELS_CON(0)),
 			cru_readl(RK3188_CRU_CLKSELS_CON(1)));
 
@@ -595,8 +595,8 @@ static unsigned long clk_pll_recalc_rate_3188plus(struct clk_hw *hw,
 
 
 	if (_RK3188_PLL_MODE_IS_NORM(pll->mode_offset, pll->mode_shift)) {
-		u32 pll_con0 = readl(pll->reg + RK3188_PLL_CON(0));
-		u32 pll_con1 = readl(pll->reg + RK3188_PLL_CON(1));
+		u32 pll_con0 = cru_readl(pll->reg + RK3188_PLL_CON(0));
+		u32 pll_con1 = cru_readl(pll->reg + RK3188_PLL_CON(1));
 
 		u64 rate64 = (u64)parent_rate * RK3188PLUS_PLL_NF(pll_con1);
 
@@ -645,16 +645,16 @@ static int _pll_clk_set_rate_3188plus(struct pll_clk_set *clk_set,
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 
 	//enter rest
-	writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
 
-	writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
-	writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
-	writel(clk_set->pllcon2, pll->reg + RK3188_PLL_CON(2));
+	cru_writel(clk_set->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(clk_set->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(clk_set->pllcon2, pll->reg + RK3188_PLL_CON(2));
 
 	udelay(5);
 
 	//return from rest
-	writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
 
 	//wating lock state
 	udelay(clk_set->rst_dly);
@@ -669,8 +669,8 @@ static int _pll_clk_set_rate_3188plus(struct pll_clk_set *clk_set,
 
 	clk_debug("pll %s dump reg: con0=0x%08x, con1=0x%08x, mode=0x%08x\n",
 			__clk_get_name(hw->clk),
-			readl(pll->reg + RK3188_PLL_CON(0)),
-			readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
 			cru_readl(pll->mode_offset));
 
 	clk_debug("%s end!\n", __func__);
@@ -692,7 +692,7 @@ static int clk_pll_set_rate_3188plus(struct clk_hw *hw, unsigned long rate,
 		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
 				pll->mode_offset);
 		/* pll power down */
-		writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+		cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 		clk_debug("pll %s enter slow mode, set rate OK!\n",
 				__clk_get_name(hw->clk));
 		return 0;
@@ -946,7 +946,7 @@ static int clk_pll_set_rate_3188plus_apll(struct clk_hw *hw, unsigned long rate,
 		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
 				pll->mode_offset);
 		/* pll power down */
-		writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+		cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 		clk_debug("pll %s enter slow mode, set rate OK!\n",
 				__clk_get_name(hw->clk));
 		return 0;
@@ -1032,16 +1032,16 @@ CHANGE_APLL:
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 
 	/* PLL enter rest */
-	writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
 
-	writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
-	writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
-	writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
+	cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
 
 	udelay(5);
 
 	/* return from rest */
-	writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
 
 	//wating lock state
 	udelay(ps->rst_dly);
@@ -1089,10 +1089,10 @@ CHANGE_APLL:
 
 	clk_debug("apll set rate %lu, con(%x,%x,%x,%x), sel(%x,%x)\n",
 			ps->rate,
-			readl(pll->reg + RK3188_PLL_CON(0)),
-			readl(pll->reg + RK3188_PLL_CON(1)),
-			readl(pll->reg + RK3188_PLL_CON(2)),
-			readl(pll->reg + RK3188_PLL_CON(3)),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(2)),
+			cru_readl(pll->reg + RK3188_PLL_CON(3)),
 			cru_readl(RK3188_CRU_CLKSELS_CON(0)),
 			cru_readl(RK3188_CRU_CLKSELS_CON(1)));
 
@@ -1150,7 +1150,7 @@ static int clk_pll_set_rate_3288_apll(struct clk_hw *hw, unsigned long rate,
 		cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift),
 				pll->mode_offset);
 		/* pll power down */
-		writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
+		cru_writel((0x1 << (16+1)) | (0x1<<1), pll->reg + RK3188_PLL_CON(3));
 		clk_debug("pll %s enter slow mode, set rate OK!\n",
 				__clk_get_name(hw->clk));
 		return 0;
@@ -1251,16 +1251,16 @@ CHANGE_APLL:
 	cru_writel(_RK3188_PLL_MODE_SLOW_SET(pll->mode_shift), pll->mode_offset);
 
 	/* PLL enter rest */
-	writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(1), pll->reg + RK3188_PLL_CON(3));
 
-	writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
-	writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
-	writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
+	cru_writel(ps->pllcon0, pll->reg + RK3188_PLL_CON(0));
+	cru_writel(ps->pllcon1, pll->reg + RK3188_PLL_CON(1));
+	cru_writel(ps->pllcon2, pll->reg + RK3188_PLL_CON(2));
 
 	udelay(5);
 
 	/* return from rest */
-	writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
+	cru_writel(_RK3188PLUS_PLL_RESET_SET(0), pll->reg + RK3188_PLL_CON(3));
 
 	//wating lock state
 	udelay(ps->rst_dly);
@@ -1323,10 +1323,10 @@ CHANGE_APLL:
 
 	clk_debug("apll set rate %lu, con(%x,%x,%x,%x), sel(%x,%x)\n",
 			ps->rate,
-			readl(pll->reg + RK3188_PLL_CON(0)),
-			readl(pll->reg + RK3188_PLL_CON(1)),
-			readl(pll->reg + RK3188_PLL_CON(2)),
-			readl(pll->reg + RK3188_PLL_CON(3)),
+			cru_readl(pll->reg + RK3188_PLL_CON(0)),
+			cru_readl(pll->reg + RK3188_PLL_CON(1)),
+			cru_readl(pll->reg + RK3188_PLL_CON(2)),
+			cru_readl(pll->reg + RK3188_PLL_CON(3)),
 			cru_readl(RK3288_CRU_CLKSELS_CON(0)),
 			cru_readl(RK3288_CRU_CLKSELS_CON(1)));
 
@@ -1370,7 +1370,7 @@ const struct clk_ops *rk_get_pll_ops(u32 pll_flags)
 }
 
 struct clk *rk_clk_register_pll(struct device *dev, const char *name,
-		const char *parent_name, unsigned long flags, void __iomem *reg,
+		const char *parent_name, unsigned long flags, u32 reg,
 		u32 width, u32 mode_offset, u8 mode_shift,
 		u32 status_offset, u8 status_shift, u32 pll_flags,
 		spinlock_t *lock)

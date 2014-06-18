@@ -667,7 +667,6 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 {
 	struct device_node *node = NULL;
 	struct rkclk_pllinfo *pllinfo = NULL;
-	void __iomem	*reg;
 	struct clk_pll *pll = NULL;
 	u8 found = 0;
 	int ret = 0;
@@ -704,14 +703,11 @@ static int __init rkclk_init_pllcon(struct device_node *np)
 			flags = 0;
 			ret = 0;
 		}
-
-		reg = of_iomap(node, 0);
-		if (reg == NULL) {
+	
+		ret = of_property_read_u32_index(node, "reg", 0, &pll->reg);
+		if (ret != 0) {
 			clk_err("%s: can not get reg addr info\n", __func__);
-			ret = -EINVAL;
 			goto out;
-		} else {
-			pll->reg = reg;
 		}
 
 		ret = of_property_read_u32_index(node, "reg", 1, &pll->width);
