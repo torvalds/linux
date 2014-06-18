@@ -1427,7 +1427,7 @@ static void msm_otg_debugfs_cleanup(void)
 	debugfs_remove(msm_otg_dbg_root);
 }
 
-static struct of_device_id msm_otg_dt_match[] = {
+static const struct of_device_id msm_otg_dt_match[] = {
 	{
 		.compatible = "qcom,usb-otg-ci",
 		.data = (void *) CI_45NM_INTEGRATED_PHY
