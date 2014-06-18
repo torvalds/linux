@@ -1145,15 +1145,15 @@ static struct configfs_item_operations interf_item_ops = {
 	.store_attribute	= usb_os_desc_attr_store,
 };
 
-static ssize_t rndis_grp_compatible_id_show(struct usb_os_desc *desc,
-					    char *page)
+static ssize_t interf_grp_compatible_id_show(struct usb_os_desc *desc,
+					     char *page)
 {
 	memcpy(page, desc->ext_compat_id, 8);
 	return 8;
 }
 
-static ssize_t rndis_grp_compatible_id_store(struct usb_os_desc *desc,
-					     const char *page, size_t len)
+static ssize_t interf_grp_compatible_id_store(struct usb_os_desc *desc,
+					      const char *page, size_t len)
 {
 	int l;
 
@@ -1171,20 +1171,20 @@ static ssize_t rndis_grp_compatible_id_store(struct usb_os_desc *desc,
 	return len;
 }
 
-static struct usb_os_desc_attribute rndis_grp_attr_compatible_id =
+static struct usb_os_desc_attribute interf_grp_attr_compatible_id =
 	__CONFIGFS_ATTR(compatible_id, S_IRUGO | S_IWUSR,
-			rndis_grp_compatible_id_show,
-			rndis_grp_compatible_id_store);
+			interf_grp_compatible_id_show,
+			interf_grp_compatible_id_store);
 
-static ssize_t rndis_grp_sub_compatible_id_show(struct usb_os_desc *desc,
-						char *page)
+static ssize_t interf_grp_sub_compatible_id_show(struct usb_os_desc *desc,
+						 char *page)
 {
 	memcpy(page, desc->ext_compat_id + 8, 8);
 	return 8;
 }
 
-static ssize_t rndis_grp_sub_compatible_id_store(struct usb_os_desc *desc,
-						 const char *page, size_t len)
+static ssize_t interf_grp_sub_compatible_id_store(struct usb_os_desc *desc,
+						  const char *page, size_t len)
 {
 	int l;
 
@@ -1202,14 +1202,14 @@ static ssize_t rndis_grp_sub_compatible_id_store(struct usb_os_desc *desc,
 	return len;
 }
 
-static struct usb_os_desc_attribute rndis_grp_attr_sub_compatible_id =
+static struct usb_os_desc_attribute interf_grp_attr_sub_compatible_id =
 	__CONFIGFS_ATTR(sub_compatible_id, S_IRUGO | S_IWUSR,
-			rndis_grp_sub_compatible_id_show,
-			rndis_grp_sub_compatible_id_store);
+			interf_grp_sub_compatible_id_show,
+			interf_grp_sub_compatible_id_store);
 
 static struct configfs_attribute *interf_grp_attrs[] = {
-	&rndis_grp_attr_compatible_id.attr,
-	&rndis_grp_attr_sub_compatible_id.attr,
+	&interf_grp_attr_compatible_id.attr,
+	&interf_grp_attr_sub_compatible_id.attr,
 	NULL
 };
 
