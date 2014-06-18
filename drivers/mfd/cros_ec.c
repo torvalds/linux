@@ -44,6 +44,24 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_prepare_tx);
 
+int cros_ec_check_result(struct cros_ec_device *ec_dev,
+			 struct cros_ec_command *msg)
+{
+	switch (msg->result) {
+	case EC_RES_SUCCESS:
+		return 0;
+	case EC_RES_IN_PROGRESS:
+		dev_dbg(ec_dev->dev, "command 0x%02x in progress\n",
+			msg->command);
+		return -EAGAIN;
+	default:
+		dev_dbg(ec_dev->dev, "command 0x%02x returned %d\n",
+			msg->command, msg->result);
+		return 0;
+	}
+}
+EXPORT_SYMBOL(cros_ec_check_result);
+
 static irqreturn_t ec_irq_thread(int irq, void *data)
 {
 	struct cros_ec_device *ec_dev = data;

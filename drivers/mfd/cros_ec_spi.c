@@ -285,21 +285,14 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 		goto exit;
 	}
 
-	/* check response error code */
 	ptr = ec_dev->din;
-	if (ptr[0]) {
-		if (ptr[0] == EC_RES_IN_PROGRESS) {
-			dev_dbg(ec_dev->dev, "command 0x%02x in progress\n",
-				ec_msg->command);
-			ret = -EAGAIN;
-			goto exit;
-		}
-		dev_warn(ec_dev->dev, "command 0x%02x returned an error %d\n",
-			 ec_msg->command, ptr[0]);
-		debug_packet(ec_dev->dev, "in_err", ptr, len);
-		ret = -EINVAL;
+
+	/* check response error code */
+	ec_msg->result = ptr[0];
+	ret = cros_ec_check_result(ec_dev, ec_msg);
+	if (ret)
 		goto exit;
-	}
+
 	len = ptr[1];
 	sum = ptr[0] + ptr[1];
 	if (len > ec_msg->insize) {

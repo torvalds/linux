@@ -92,12 +92,10 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	}
 
 	/* check response error code */
-	if (i2c_msg[1].buf[0]) {
-		dev_warn(ec_dev->dev, "command 0x%02x returned an error %d\n",
-			 msg->command, i2c_msg[1].buf[0]);
-		ret = -EINVAL;
+	msg->result = i2c_msg[1].buf[0];
+	ret = cros_ec_check_result(ec_dev, msg);
+	if (ret)
 		goto done;
-	}
 
 	/* copy response packet payload and compute checksum */
 	sum = in_buf[0] + in_buf[1];
