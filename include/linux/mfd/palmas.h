@@ -53,6 +53,8 @@ struct palmas_pmic;
 struct palmas_gpadc;
 struct palmas_resource;
 struct palmas_usb;
+struct palmas_pmic_driver_data;
+struct palmas_pmic_platform_data;
 
 enum palmas_usb_state {
 	PALMAS_USB_STATE_DISCONNECT,
@@ -75,6 +77,8 @@ struct palmas {
 	u32 irq_mask;
 	struct mutex irq_lock;
 	struct regmap_irq_chip_data *irq_data;
+
+	struct palmas_pmic_driver_data *pmic_ddata;
 
 	/* Child Devices */
 	struct palmas_pmic *pmic;
@@ -105,6 +109,27 @@ struct regs_info {
 	u8	ctrl_addr;
 	u8	tstep_addr;
 	int	sleep_id;
+};
+
+struct palmas_pmic_driver_data {
+	int smps_start;
+	int smps_end;
+	int ldo_begin;
+	int ldo_end;
+	int max_reg;
+	struct regs_info *palmas_regs_info;
+	struct of_regulator_match *palmas_matches;
+	struct palmas_sleep_requestor_info *sleep_req_info;
+	int (*smps_register)(struct palmas_pmic *pmic,
+			     struct palmas_pmic_driver_data *ddata,
+			     struct palmas_pmic_platform_data *pdata,
+			     const char *pdev_name,
+			     struct regulator_config config);
+	int (*ldo_register)(struct palmas_pmic *pmic,
+			    struct palmas_pmic_driver_data *ddata,
+			    struct palmas_pmic_platform_data *pdata,
+			    const char *pdev_name,
+			    struct regulator_config config);
 };
 
 struct palmas_gpadc_platform_data {
