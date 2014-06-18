@@ -93,7 +93,7 @@ static void fdb_rcu_free(struct rcu_head *head)
 static void fdb_add_hw(struct net_bridge *br, const unsigned char *addr)
 {
 	int err;
-	struct net_bridge_port *p, *tmp;
+	struct net_bridge_port *p;
 
 	ASSERT_RTNL();
 
@@ -107,11 +107,9 @@ static void fdb_add_hw(struct net_bridge *br, const unsigned char *addr)
 
 	return;
 undo:
-	list_for_each_entry(tmp, &br->port_list, list) {
-		if (tmp == p)
-			break;
-		if (!br_promisc_port(tmp))
-			dev_uc_del(tmp->dev, addr);
+	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
+		if (!br_promisc_port(p))
+			dev_uc_del(p->dev, addr);
 	}
 }
 
