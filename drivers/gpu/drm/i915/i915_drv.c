@@ -496,8 +496,6 @@ static int i915_drm_freeze(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	pci_power_t opregion_target_state;
 
-	intel_runtime_pm_get(dev_priv);
-
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
 	dev_priv->modeset_restore = MODESET_SUSPENDED;
@@ -686,7 +684,6 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 
 	intel_opregion_notify_adapter(dev, PCI_D0);
 
-	intel_runtime_pm_put(dev_priv);
 	return 0;
 }
 
