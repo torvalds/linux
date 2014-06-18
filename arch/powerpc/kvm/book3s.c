@@ -230,6 +230,23 @@ void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
 }
 
+void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
+				    ulong flags)
+{
+	kvmppc_set_dar(vcpu, dar);
+	kvmppc_set_dsisr(vcpu, flags);
+	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE);
+}
+
+void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
+{
+	u64 msr = kvmppc_get_msr(vcpu);
+	msr &= ~(SRR1_ISI_NOPT | SRR1_ISI_N_OR_G | SRR1_ISI_PROT);
+	msr |= flags & (SRR1_ISI_NOPT | SRR1_ISI_N_OR_G | SRR1_ISI_PROT);
+	kvmppc_set_msr_fast(vcpu, msr);
+	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
+}
+
 int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 {
 	int deliver = 1;

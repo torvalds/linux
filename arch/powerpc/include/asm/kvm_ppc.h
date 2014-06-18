@@ -132,6 +132,14 @@ extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
 extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu, ulong dear_flags,
+					ulong esr_flags);
+extern void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
+					   ulong dear_flags,
+					   ulong esr_flags);
+extern void kvmppc_core_queue_itlb_miss(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
+					   ulong esr_flags);
 extern void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_check_requests(struct kvm_vcpu *vcpu);
 
