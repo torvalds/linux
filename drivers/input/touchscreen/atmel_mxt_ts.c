@@ -28,6 +28,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 
+#ifdef CONFIG_OF
+#include <linux/of_gpio.h>
+#endif
+
 /* Configuration file */
 #define MXT_CFG_MAGIC		"OBP_RAW V1"
 
@@ -3129,8 +3133,7 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 	struct mxt_platform_data *pdata;
 	struct property *prop;
 	unsigned int *keymap;
-	int proplen, i, ret;
-	u32 keycode;
+	int proplen, ret;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -3149,12 +3152,14 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 		if (!keymap)
 			return NULL;
 		pdata->t19_keymap = keymap;
-		for (i = 0; i < pdata->t19_num_keys; i++) {
-			ret = of_property_read_u32_index(client->dev.of_node,
-					"linux,gpio-keymap", i, &keycode);
-			if (ret)
-				keycode = 0;
-			keymap[i] = keycode;
+
+		ret = of_property_read_u32_array(client->dev.of_node,
+			"linux,gpio-keymap", keymap, pdata->t19_num_keys);
+		if (ret) {
+			dev_err(&client->dev,
+				"Unable to read device tree key codes: %d\n",
+				 ret);
+			return NULL;
 		}
 	}
 
