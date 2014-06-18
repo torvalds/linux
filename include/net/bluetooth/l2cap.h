@@ -602,6 +602,10 @@ struct l2cap_ops {
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long hdr_len,
 					       unsigned long len, int nb);
+	int			(*memcpy_fromiovec) (struct l2cap_chan *chan,
+						     unsigned char *kdata,
+						     struct iovec *iov,
+						     int len);
 };
 
 struct l2cap_conn {
@@ -854,6 +858,31 @@ static inline void l2cap_chan_no_set_shutdown(struct l2cap_chan *chan)
 
 static inline long l2cap_chan_no_get_sndtimeo(struct l2cap_chan *chan)
 {
+	return 0;
+}
+
+static inline int l2cap_chan_no_memcpy_fromiovec(struct l2cap_chan *chan,
+						 unsigned char *kdata,
+						 struct iovec *iov,
+						 int len)
+{
+	/* Following is safe since for compiler definitions of kvec and
+	 * iovec are identical, yielding the same in-core layout and alignment
+	 */
+	struct kvec *vec = (struct kvec *)iov;
+
+	while (len > 0) {
+		if (vec->iov_len) {
+			int copy = min_t(unsigned int, len, vec->iov_len);
+			memcpy(kdata, vec->iov_base, copy);
+			len -= copy;
+			kdata += copy;
+			vec->iov_base += copy;
+			vec->iov_len -= copy;
+		}
+		vec++;
+	}
+
 	return 0;
 }
 
