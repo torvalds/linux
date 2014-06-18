@@ -4,23 +4,24 @@
  * are built for 32-bit userspace.
  */
 
-static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
+static void BITSFUNC(go)(void *addr, size_t len,
+			 FILE *outfile, const char *name)
 {
 	int found_load = 0;
 	unsigned long load_size = -1;  /* Work around bogus warning */
 	unsigned long data_size;
-	Elf_Ehdr *hdr = (Elf_Ehdr *)addr;
+	ELF(Ehdr) *hdr = (ELF(Ehdr) *)addr;
 	int i;
 	unsigned long j;
-	Elf_Shdr *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
+	ELF(Shdr) *symtab_hdr = NULL, *strtab_hdr, *secstrings_hdr,
 		*alt_sec = NULL;
-	Elf_Dyn *dyn = 0, *dyn_end = 0;
+	ELF(Dyn) *dyn = 0, *dyn_end = 0;
 	const char *secstrings;
 	uint64_t syms[NSYMS] = {};
 
 	uint64_t fake_sections_value = 0, fake_sections_size = 0;
 
-	Elf_Phdr *pt = (Elf_Phdr *)(addr + GET_LE(&hdr->e_phoff));
+	ELF(Phdr) *pt = (ELF(Phdr) *)(addr + GET_LE(&hdr->e_phoff));
 
 	/* Walk the segment table. */
 	for (i = 0; i < GET_LE(&hdr->e_phnum); i++) {
@@ -61,7 +62,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 		GET_LE(&hdr->e_shentsize)*GET_LE(&hdr->e_shstrndx);
 	secstrings = addr + GET_LE(&secstrings_hdr->sh_offset);
 	for (i = 0; i < GET_LE(&hdr->e_shnum); i++) {
-		Elf_Shdr *sh = addr + GET_LE(&hdr->e_shoff) +
+		ELF(Shdr) *sh = addr + GET_LE(&hdr->e_shoff) +
 			GET_LE(&hdr->e_shentsize) * i;
 		if (GET_LE(&sh->sh_type) == SHT_SYMTAB)
 			symtab_hdr = sh;
@@ -82,7 +83,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	     i < GET_LE(&symtab_hdr->sh_size) / GET_LE(&symtab_hdr->sh_entsize);
 	     i++) {
 		int k;
-		Elf_Sym *sym = addr + GET_LE(&symtab_hdr->sh_offset) +
+		ELF(Sym) *sym = addr + GET_LE(&symtab_hdr->sh_offset) +
 			GET_LE(&symtab_hdr->sh_entsize) * i;
 		const char *name = addr + GET_LE(&strtab_hdr->sh_offset) +
 			GET_LE(&sym->st_name);
@@ -123,12 +124,12 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 		fail("end_mapping must be a multiple of 4096\n");
 
 	/* Remove sections or use fakes */
-	if (fake_sections_size % sizeof(Elf_Shdr))
+	if (fake_sections_size % sizeof(ELF(Shdr)))
 		fail("vdso_fake_sections size is not a multiple of %ld\n",
-		     (long)sizeof(Elf_Shdr));
+		     (long)sizeof(ELF(Shdr)));
 	PUT_LE(&hdr->e_shoff, fake_sections_value);
-	PUT_LE(&hdr->e_shentsize, fake_sections_value ? sizeof(Elf_Shdr) : 0);
-	PUT_LE(&hdr->e_shnum, fake_sections_size / sizeof(Elf_Shdr));
+	PUT_LE(&hdr->e_shentsize, fake_sections_value ? sizeof(ELF(Shdr)) : 0);
+	PUT_LE(&hdr->e_shnum, fake_sections_size / sizeof(ELF(Shdr)));
 	PUT_LE(&hdr->e_shstrndx, SHN_UNDEF);
 
 	if (!name) {

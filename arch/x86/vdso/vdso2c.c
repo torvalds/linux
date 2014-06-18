@@ -83,37 +83,21 @@ extern void bad_put_le(void);
 
 #define NSYMS (sizeof(required_syms) / sizeof(required_syms[0]))
 
-#define BITS 64
-#define GOFUNC go64
-#define Elf_Ehdr Elf64_Ehdr
-#define Elf_Shdr Elf64_Shdr
-#define Elf_Phdr Elf64_Phdr
-#define Elf_Sym Elf64_Sym
-#define Elf_Dyn Elf64_Dyn
-#include "vdso2c.h"
-#undef BITS
-#undef GOFUNC
-#undef Elf_Ehdr
-#undef Elf_Shdr
-#undef Elf_Phdr
-#undef Elf_Sym
-#undef Elf_Dyn
+#define BITSFUNC3(name, bits) name##bits
+#define BITSFUNC2(name, bits) BITSFUNC3(name, bits)
+#define BITSFUNC(name) BITSFUNC2(name, ELF_BITS)
 
-#define BITS 32
-#define GOFUNC go32
-#define Elf_Ehdr Elf32_Ehdr
-#define Elf_Shdr Elf32_Shdr
-#define Elf_Phdr Elf32_Phdr
-#define Elf_Sym Elf32_Sym
-#define Elf_Dyn Elf32_Dyn
+#define ELF_BITS_XFORM2(bits, x) Elf##bits##_##x
+#define ELF_BITS_XFORM(bits, x) ELF_BITS_XFORM2(bits, x)
+#define ELF(x) ELF_BITS_XFORM(ELF_BITS, x)
+
+#define ELF_BITS 64
 #include "vdso2c.h"
-#undef BITS
-#undef GOFUNC
-#undef Elf_Ehdr
-#undef Elf_Shdr
-#undef Elf_Phdr
-#undef Elf_Sym
-#undef Elf_Dyn
+#undef ELF_BITS
+
+#define ELF_BITS 32
+#include "vdso2c.h"
+#undef ELF_BITS
 
 static void go(void *addr, size_t len, FILE *outfile, const char *name)
 {
