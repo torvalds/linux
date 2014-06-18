@@ -834,7 +834,6 @@ void intel_edp_panel_on(struct intel_dp *intel_dp);
 void intel_edp_panel_off(struct intel_dp *intel_dp);
 void intel_edp_psr_enable(struct intel_dp *intel_dp);
 void intel_edp_psr_disable(struct intel_dp *intel_dp);
-void intel_edp_psr_update(struct drm_device *dev);
 void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
 void intel_edp_psr_exit(struct drm_device *dev, bool schedule_back);
 void intel_edp_psr_init(struct drm_device *dev);

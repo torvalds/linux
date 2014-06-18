@@ -1875,19 +1875,6 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp)
 	dev_priv->psr.enabled = false;
 }
 
-void intel_edp_psr_update(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!HAS_PSR(dev))
-		return;
-
-	if (!dev_priv->psr.setup_done)
-		return;
-
-	intel_edp_psr_exit(dev, true);
-}
-
 static void intel_edp_psr_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
