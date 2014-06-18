@@ -67,7 +67,6 @@ struct cros_ec_command {
  * @command_recv: receive a response
  * @command_sendrecv: send a command and receive a response
  *
- * @name: Name of this EC interface
  * @priv: Private data
  * @irq: Interrupt to use
  * @din: input buffer (for data from EC)
@@ -104,7 +103,6 @@ struct cros_ec_device {
 				void *in_buf, int in_len);
 
 	/* These are used to implement the platform-specific interface */
-	const char *name;
 	void *priv;
 	int irq;
 	uint8_t *din;

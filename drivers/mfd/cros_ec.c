@@ -140,7 +140,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		goto fail_mfd;
 	}
 
-	dev_info(dev, "Chrome EC (%s)\n", ec_dev->name);
+	dev_info(dev, "Chrome EC device registered\n");
 
 	return 0;
 
