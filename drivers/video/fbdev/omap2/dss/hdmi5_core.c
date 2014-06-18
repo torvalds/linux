@@ -311,7 +311,7 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 	video_cfg->vblank_osc = 0; /* Always 0 - need to confirm */
 	video_cfg->vblank = cfg->timings.vsw +
 				cfg->timings.vfp + cfg->timings.vbp;
-	video_cfg->v_fc_config.cm.mode = cfg->cm.mode;
+	video_cfg->v_fc_config.hdmi_dvi_mode = cfg->hdmi_dvi_mode;
 	video_cfg->v_fc_config.timings.interlace = cfg->timings.interlace;
 }
 
@@ -378,7 +378,7 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 
 	/* select DVI mode */
 	REG_FLD_MOD(base, HDMI_CORE_FC_INVIDCONF,
-			cfg->v_fc_config.cm.mode, 3, 3);
+			cfg->v_fc_config.hdmi_dvi_mode, 3, 3);
 }
 
 static void hdmi_core_config_video_packetizer(struct hdmi_core_data *core)
@@ -418,9 +418,9 @@ static void hdmi_core_config_video_sampler(struct hdmi_core_data *core)
 	REG_FLD_MOD(core->base, HDMI_CORE_TX_INVID0, video_mapping, 4, 0);
 }
 
-static void hdmi_core_aux_infoframe_avi_config(struct hdmi_core_data *core)
+static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
+	struct hdmi_avi_infoframe *frame)
 {
-	struct hdmi_avi_infoframe *frame = &core->avi_infoframe;
 	void __iomem *base = core->base;
 	u8 data[HDMI_INFOFRAME_SIZE(AVI)];
 	u8 *ptr;
@@ -431,6 +431,9 @@ static void hdmi_core_aux_infoframe_avi_config(struct hdmi_core_data *core)
 	unsigned yq, cn, pr;
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
+
+	print_hex_dump_debug("AVI: ", DUMP_PREFIX_NONE, 16, 1, data,
+		HDMI_INFOFRAME_SIZE(AVI), false);
 
 	ptr = data + HDMI_INFOFRAME_HEADER_SIZE;
 
@@ -510,10 +513,8 @@ static void hdmi_core_configure_range(struct hdmi_core_data *core)
 
 	/* support limited range with 24 bit color depth for now */
 	csc_coeff = csc_table_deepcolor[0];
-	core->avi_infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 
 	hdmi_core_csc_config(core, csc_coeff);
-	hdmi_core_aux_infoframe_avi_config(core);
 }
 
 static void hdmi_core_enable_video_path(struct hdmi_core_data *core)
@@ -604,7 +605,6 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
 	struct hdmi_core_vid_config v_core_cfg;
-	struct hdmi_avi_infoframe *avi_infoframe = &core->avi_infoframe;
 
 	hdmi_core_mask_interrupts(core);
 
@@ -621,7 +621,9 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	hdmi_wp_video_config_interface(wp, &video_timing);
 
+	/* support limited range with 24 bit color depth for now */
 	hdmi_core_configure_range(core);
+	cfg->infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 
 	/*
 	 * configure core video part, set software reset in the core
@@ -634,24 +636,8 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	hdmi_core_config_csc(core);
 	hdmi_core_config_video_sampler(core);
 
-	/*
-	 * configure packet info frame video see doc CEA861-D page 65
-	 */
-	hdmi_avi_infoframe_init(avi_infoframe);
-	avi_infoframe->colorspace = HDMI_COLORSPACE_RGB;
-	avi_infoframe->scan_mode = HDMI_SCAN_MODE_NONE;
-	avi_infoframe->colorimetry = HDMI_COLORIMETRY_NONE;
-	avi_infoframe->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
-	avi_infoframe->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
-	avi_infoframe->itc = 0;
-	avi_infoframe->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-	avi_infoframe->quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-	avi_infoframe->nups = HDMI_NUPS_UNKNOWN;
-	avi_infoframe->video_code = cfg->cm.code;
-	avi_infoframe->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
-	avi_infoframe->content_type = HDMI_CONTENT_TYPE_NONE;
-	avi_infoframe->pixel_repeat = 0;
-	hdmi_core_aux_infoframe_avi_config(core);
+	if (cfg->hdmi_dvi_mode == HDMI_HDMI)
+		hdmi_core_write_avi_infoframe(core, &cfg->infoframe);
 
 	hdmi_core_enable_video_path(core);
 
