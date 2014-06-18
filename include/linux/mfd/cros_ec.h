@@ -68,8 +68,8 @@ struct cros_ec_msg {
  * We use this alignment to keep ARM and x86 happy. Probably word
  * alignment would be OK, there might be a small performance advantage
  * to using dword.
- * @din_size: size of din buffer
- * @dout_size: size of dout buffer
+ * @din_size: size of din buffer to allocate (zero to use static din)
+ * @dout_size: size of dout buffer to allocate (zero to use static dout)
  * @command_send: send a command
  * @command_recv: receive a command
  * @ec_name: name of EC device (e.g. 'chromeos-ec')
