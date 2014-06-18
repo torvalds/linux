@@ -133,10 +133,6 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
 	if (0x40000 & ~gpio)
 		return 0; /* No button press */
 
-	/* No button press - only before first key pressed */
-	if (b == 0xFF)
-		return 0;
-
 	/* poll IR chip */
 	/* weak up the IR chip */
 	b = 0;
