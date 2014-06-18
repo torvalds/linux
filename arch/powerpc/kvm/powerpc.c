@@ -272,7 +272,7 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	enum emulation_result er;
 	int r;
 
-	er = kvmppc_emulate_instruction(run, vcpu);
+	er = kvmppc_emulate_loadstore(vcpu);
 	switch (er) {
 	case EMULATE_DONE:
 		/* Future optimization: only reload non-volatiles if they were

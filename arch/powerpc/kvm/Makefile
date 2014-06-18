@@ -13,8 +13,9 @@ common-objs-y = $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
 CFLAGS_e500_mmu.o := -I.
 CFLAGS_e500_mmu_host.o := -I.
 CFLAGS_emulate.o  := -I.
+CFLAGS_emulate_loadstore.o  := -I.
 
-common-objs-y += powerpc.o emulate.o
+common-objs-y += powerpc.o emulate.o emulate_loadstore.o
 obj-$(CONFIG_KVM_EXIT_TIMING) += timing.o
 obj-$(CONFIG_KVM_BOOK3S_HANDLER) += book3s_exports.o
 
@@ -91,6 +92,7 @@ kvm-book3s_64-module-objs += \
 	$(KVM)/eventfd.o \
 	powerpc.o \
 	emulate.o \
+	emulate_loadstore.o \
 	book3s.o \
 	book3s_64_vio.o \
 	book3s_rtas.o \
