@@ -2108,7 +2108,7 @@ static void mxt_probe_regulators(struct mxt_data *data)
 	 * must be kept low until some time after regulators come up to
 	 * voltage
 	 */
-	if (!data->pdata->gpio_reset) {
+	if (!gpio_is_valid(data->pdata->gpio_reset)) {
 		dev_dbg(dev, "Must have reset GPIO to use regulator support\n");
 		goto fail;
 	}
