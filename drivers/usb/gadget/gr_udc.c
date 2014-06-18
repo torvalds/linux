@@ -2212,7 +2212,7 @@ out:
 	return retval;
 }
 
-static struct of_device_id gr_match[] = {
+static const struct of_device_id gr_match[] = {
 	{.name = "GAISLER_USBDC"},
 	{.name = "01_021"},
 	{},
