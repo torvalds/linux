@@ -279,6 +279,15 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	channel_set_bit(dw, CH_EN, dwc->mask);
 }
 
+static void dwc_dostart_first_queued(struct dw_dma_chan *dwc)
+{
+	if (list_empty(&dwc->queue))
+		return;
+
+	list_move(dwc->queue.next, &dwc->active_list);
+	dwc_dostart(dwc, dwc_first_active(dwc));
+}
+
 /*----------------------------------------------------------------------*/
 
 static void
@@ -335,10 +344,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * the completed ones.
 	 */
 	list_splice_init(&dwc->active_list, &list);
-	if (!list_empty(&dwc->queue)) {
-		list_move(dwc->queue.next, &dwc->active_list);
-		dwc_dostart(dwc, dwc_first_active(dwc));
-	}
+	dwc_dostart_first_queued(dwc);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
@@ -467,10 +473,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	/* Try to continue after resetting the channel... */
 	dwc_chan_disable(dw, dwc);
 
-	if (!list_empty(&dwc->queue)) {
-		list_move(dwc->queue.next, &dwc->active_list);
-		dwc_dostart(dwc, dwc_first_active(dwc));
-	}
+	dwc_dostart_first_queued(dwc);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 }
 
