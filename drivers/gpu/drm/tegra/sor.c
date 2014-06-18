@@ -1465,6 +1465,7 @@ static const struct of_device_id tegra_sor_of_match[] = {
 	{ .compatible = "nvidia,tegra124-sor", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 
 struct platform_driver tegra_sor_driver = {
 	.driver = {

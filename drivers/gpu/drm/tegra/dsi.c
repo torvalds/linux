@@ -983,6 +983,7 @@ static const struct of_device_id tegra_dsi_of_match[] = {
 	{ .compatible = "nvidia,tegra114-dsi", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_dsi_of_match);
 
 struct platform_driver tegra_dsi_driver = {
 	.driver = {

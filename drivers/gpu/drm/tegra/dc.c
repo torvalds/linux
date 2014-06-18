@@ -1394,6 +1394,7 @@ static const struct of_device_id tegra_dc_of_match[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, tegra_dc_of_match);
 
 static int tegra_dc_parse_dt(struct tegra_dc *dc)
 {
