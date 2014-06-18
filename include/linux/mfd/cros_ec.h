@@ -148,8 +148,7 @@ int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
 /**
  * cros_ec_remove - Remove a ChromeOS EC
  *
- * Call this to deregister a ChromeOS EC. After this you should call
- * cros_ec_free().
+ * Call this to deregister a ChromeOS EC, then clean up any private data.
  *
  * @ec_dev: Device to register
  * @return 0 if ok, -ve on error
