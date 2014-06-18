@@ -1973,11 +1973,17 @@ static int rk_fb_set_win_config(struct fb_info *info,
 		list_is_empty = list_empty(&dev_drv->update_regs_list) &&
 					list_empty(&saved_list);
 		mutex_unlock(&dev_drv->update_regs_list_lock);
-		if (!list_is_empty)
-			wait_event(dev_drv->update_regs_wait,
-				list_empty(&dev_drv->update_regs_list) && list_empty(&saved_list));
-
-		rk_fb_update_reg(dev_drv, regs);
+		if (!list_is_empty) {
+			ret = wait_event_timeout(dev_drv->update_regs_wait,
+				list_empty(&dev_drv->update_regs_list) && list_empty(&saved_list),
+				msecs_to_jiffies(60));
+			if (ret > 0)
+				rk_fb_update_reg(dev_drv, regs);
+			else
+				printk("%s: wait update_regs_wait timeout\n", __func__);
+		} else if (ret == 0) {
+			rk_fb_update_reg(dev_drv, regs);
+		}
 		kfree(regs);
 	}
 
