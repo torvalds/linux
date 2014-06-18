@@ -2974,10 +2974,7 @@ static bool hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 
 static bool ltk_type_master(u8 type)
 {
-	if (type == SMP_STK || type == SMP_LTK)
-		return true;
-
-	return false;
+	return (type == SMP_LTK);
 }
 
 struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, __le64 rand,
