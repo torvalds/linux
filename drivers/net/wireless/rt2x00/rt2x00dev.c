@@ -1455,8 +1455,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free the driver data.
 	 */
-	if (rt2x00dev->drv_data)
-		kfree(rt2x00dev->drv_data);
+	kfree(rt2x00dev->drv_data);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 
