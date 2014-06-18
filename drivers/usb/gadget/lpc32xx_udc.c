@@ -3397,7 +3397,7 @@ static int lpc32xx_udc_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
-static struct of_device_id lpc32xx_udc_of_match[] = {
+static const struct of_device_id lpc32xx_udc_of_match[] = {
 	{ .compatible = "nxp,lpc3220-udc", },
 	{ },
 };
