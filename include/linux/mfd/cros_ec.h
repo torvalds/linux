@@ -62,7 +62,6 @@ struct cros_ec_command {
  * @dev: Device pointer
  * @was_wake_device: true if this device was set to wake the system from
  * sleep at the last suspend
- * @event_notifier: interrupt event notifier for transport devices
  * @cmd_xfer: send command to EC and get response
  *     Returns the number of bytes received if the communication succeeded, but
  *     that doesn't mean the EC was happy with the command. The caller
@@ -93,7 +92,6 @@ struct cros_ec_device {
 	struct device *dev;
 	bool was_wake_device;
 	struct class *cros_class;
-	struct blocking_notifier_head event_notifier;
 	int (*cmd_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
 

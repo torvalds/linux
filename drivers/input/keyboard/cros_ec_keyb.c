@@ -24,8 +24,8 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/input/matrix_keypad.h>
@@ -42,7 +42,6 @@
  * @dev: Device pointer
  * @idev: Input device
  * @ec: Top level ChromeOS device to use to talk to EC
- * @event_notifier: interrupt event notifier for transport devices
  */
 struct cros_ec_keyb {
 	unsigned int rows;
@@ -55,7 +54,6 @@ struct cros_ec_keyb {
 	struct device *dev;
 	struct input_dev *idev;
 	struct cros_ec_device *ec;
-	struct notifier_block notifier;
 };
 
 
@@ -173,22 +171,6 @@ static void cros_ec_keyb_process(struct cros_ec_keyb *ckdev,
 	input_sync(ckdev->idev);
 }
 
-static int cros_ec_keyb_open(struct input_dev *dev)
-{
-	struct cros_ec_keyb *ckdev = input_get_drvdata(dev);
-
-	return blocking_notifier_chain_register(&ckdev->ec->event_notifier,
-						&ckdev->notifier);
-}
-
-static void cros_ec_keyb_close(struct input_dev *dev)
-{
-	struct cros_ec_keyb *ckdev = input_get_drvdata(dev);
-
-	blocking_notifier_chain_unregister(&ckdev->ec->event_notifier,
-					   &ckdev->notifier);
-}
-
 static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 {
 	struct cros_ec_command msg = {
@@ -203,19 +185,41 @@ static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 	return ckdev->ec->cmd_xfer(ckdev->ec, &msg);
 }
 
-static int cros_ec_keyb_work(struct notifier_block *nb,
-		     unsigned long state, void *_notify)
+static irqreturn_t cros_ec_keyb_irq(int irq, void *data)
 {
+	struct cros_ec_keyb *ckdev = data;
+	struct cros_ec_device *ec = ckdev->ec;
 	int ret;
-	struct cros_ec_keyb *ckdev = container_of(nb, struct cros_ec_keyb,
-						    notifier);
 	uint8_t kb_state[ckdev->cols];
+
+	if (device_may_wakeup(ec->dev))
+		pm_wakeup_event(ec->dev, 0);
 
 	ret = cros_ec_keyb_get_state(ckdev, kb_state);
 	if (ret >= 0)
 		cros_ec_keyb_process(ckdev, kb_state, ret);
+	else
+		dev_err(ec->dev, "failed to get keyboard state: %d\n", ret);
 
-	return NOTIFY_DONE;
+	return IRQ_HANDLED;
+}
+
+static int cros_ec_keyb_open(struct input_dev *dev)
+{
+	struct cros_ec_keyb *ckdev = input_get_drvdata(dev);
+	struct cros_ec_device *ec = ckdev->ec;
+
+	return request_threaded_irq(ec->irq, NULL, cros_ec_keyb_irq,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					"cros_ec_keyb", ckdev);
+}
+
+static void cros_ec_keyb_close(struct input_dev *dev)
+{
+	struct cros_ec_keyb *ckdev = input_get_drvdata(dev);
+	struct cros_ec_device *ec = ckdev->ec;
+
+	free_irq(ec->irq, ckdev);
 }
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
@@ -246,8 +250,12 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	if (!idev)
 		return -ENOMEM;
 
+	if (!ec->irq) {
+		dev_err(dev, "no EC IRQ specified\n");
+		return -EINVAL;
+	}
+
 	ckdev->ec = ec;
-	ckdev->notifier.notifier_call = cros_ec_keyb_work;
 	ckdev->dev = dev;
 	dev_set_drvdata(&pdev->dev, ckdev);
 
