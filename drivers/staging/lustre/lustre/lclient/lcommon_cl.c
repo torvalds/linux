@@ -826,7 +826,7 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 
 				if ((size == 0 && cur_index != 0) ||
 				    size_index < cur_index)
-				*exceed = 1;
+					*exceed = 1;
 			}
 			return result;
 		} else {
