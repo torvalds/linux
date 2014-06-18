@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/idr.h>
 #include <linux/acpi.h>
+#include <linux/clk/clk-conf.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -488,6 +489,10 @@ static int platform_drv_probe(struct device *_dev)
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 	int ret;
+
+	ret = of_clk_set_defaults(_dev->of_node, false);
+	if (ret < 0)
+		return ret;
 
 	acpi_dev_pm_attach(_dev, true);
 

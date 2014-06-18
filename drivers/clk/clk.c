@@ -10,6 +10,7 @@
  */
 
 #include <linux/clk-private.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -2382,6 +2383,7 @@ int of_clk_add_provider(struct device_node *np,
 			void *data)
 {
 	struct of_clk_provider *cp;
+	int ret;
 
 	cp = kzalloc(sizeof(struct of_clk_provider), GFP_KERNEL);
 	if (!cp)
@@ -2396,7 +2398,11 @@ int of_clk_add_provider(struct device_node *np,
 	mutex_unlock(&of_clk_mutex);
 	pr_debug("Added clock from %s\n", np->full_name);
 
-	return 0;
+	ret = of_clk_set_defaults(np, true);
+	if (ret < 0)
+		of_clk_del_provider(np);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_clk_add_provider);
 
@@ -2573,7 +2579,10 @@ void __init of_clk_init(const struct of_device_id *matches)
 		list_for_each_entry_safe(clk_provider, next,
 					&clk_provider_list, node) {
 			if (force || parent_ready(clk_provider->np)) {
+
 				clk_provider->clk_init_cb(clk_provider->np);
+				of_clk_set_defaults(clk_provider->np, true);
+
 				list_del(&clk_provider->node);
 				kfree(clk_provider);
 				is_init_done = true;
@@ -2588,7 +2597,6 @@ void __init of_clk_init(const struct of_device_id *matches)
 		 */
 		if (!is_init_done)
 			force = true;
-
 	}
 }
 #endif
