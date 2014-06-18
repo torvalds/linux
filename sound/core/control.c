@@ -992,6 +992,7 @@ static int snd_ctl_elem_unlock(struct snd_ctl_file *file,
 
 struct user_element {
 	struct snd_ctl_elem_info info;
+	struct snd_card *card;
 	void *elem_data;		/* element data */
 	unsigned long elem_data_size;	/* size of element data in bytes */
 	void *tlv_data;			/* TLV data */
@@ -1035,7 +1036,9 @@ static int snd_ctl_elem_user_get(struct snd_kcontrol *kcontrol,
 {
 	struct user_element *ue = kcontrol->private_data;
 
+	mutex_lock(&ue->card->user_ctl_lock);
 	memcpy(&ucontrol->value, ue->elem_data, ue->elem_data_size);
+	mutex_unlock(&ue->card->user_ctl_lock);
 	return 0;
 }
 
@@ -1044,10 +1047,12 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 {
 	int change;
 	struct user_element *ue = kcontrol->private_data;
-	
+
+	mutex_lock(&ue->card->user_ctl_lock);
 	change = memcmp(&ucontrol->value, ue->elem_data, ue->elem_data_size) != 0;
 	if (change)
 		memcpy(ue->elem_data, &ucontrol->value, ue->elem_data_size);
+	mutex_unlock(&ue->card->user_ctl_lock);
 	return change;
 }
 
@@ -1067,19 +1072,32 @@ static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
 		new_data = memdup_user(tlv, size);
 		if (IS_ERR(new_data))
 			return PTR_ERR(new_data);
+		mutex_lock(&ue->card->user_ctl_lock);
 		change = ue->tlv_data_size != size;
 		if (!change)
 			change = memcmp(ue->tlv_data, new_data, size);
 		kfree(ue->tlv_data);
 		ue->tlv_data = new_data;
 		ue->tlv_data_size = size;
+		mutex_unlock(&ue->card->user_ctl_lock);
 	} else {
-		if (! ue->tlv_data_size || ! ue->tlv_data)
-			return -ENXIO;
-		if (size < ue->tlv_data_size)
-			return -ENOSPC;
+		int ret = 0;
+
+		mutex_lock(&ue->card->user_ctl_lock);
+		if (!ue->tlv_data_size || !ue->tlv_data) {
+			ret = -ENXIO;
+			goto err_unlock;
+		}
+		if (size < ue->tlv_data_size) {
+			ret = -ENOSPC;
+			goto err_unlock;
+		}
 		if (copy_to_user(tlv, ue->tlv_data, ue->tlv_data_size))
-			return -EFAULT;
+			ret = -EFAULT;
+err_unlock:
+		mutex_unlock(&ue->card->user_ctl_lock);
+		if (ret)
+			return ret;
 	}
 	return change;
 }
@@ -1211,6 +1229,7 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	ue = kzalloc(sizeof(struct user_element) + private_size, GFP_KERNEL);
 	if (ue == NULL)
 		return -ENOMEM;
+	ue->card = card;
 	ue->info = *info;
 	ue->info.access = 0;
 	ue->elem_data = (char *)ue + sizeof(*ue);
