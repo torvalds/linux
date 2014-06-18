@@ -193,6 +193,8 @@ struct hdmi_video_format {
 struct hdmi_config {
 	struct omap_video_timings timings;
 	struct hdmi_cm cm;
+	struct hdmi_avi_infoframe infoframe;
+	enum hdmi_core_hdmi_dvi hdmi_dvi_mode;
 };
 
 /* HDMI PLL structure */
