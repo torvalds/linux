@@ -591,7 +591,6 @@ struct intel_context {
 	bool is_initialized;
 	uint8_t remap_slice;
 	struct drm_i915_file_private *file_priv;
-	struct intel_engine_cs *last_ring;
 	struct drm_i915_gem_object *obj;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_address_space *vm;
