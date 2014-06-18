@@ -326,7 +326,7 @@ static const struct tegra_ehci_soc_config tegra20_soc_config = {
 	.has_hostpc = false,
 };
 
-static struct of_device_id tegra_ehci_of_match[] = {
+static const struct of_device_id tegra_ehci_of_match[] = {
 	{ .compatible = "nvidia,tegra30-ehci", .data = &tegra30_soc_config },
 	{ .compatible = "nvidia,tegra20-ehci", .data = &tegra20_soc_config },
 	{ },
