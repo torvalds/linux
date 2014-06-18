@@ -521,7 +521,6 @@ enum {
 	HCI_CONN_AES_CCM,
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
-	HCI_CONN_6LOWPAN,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)

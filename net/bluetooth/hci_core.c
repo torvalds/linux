@@ -928,49 +928,6 @@ static int adv_channel_map_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(adv_channel_map_fops, adv_channel_map_get,
 			adv_channel_map_set, "%llu\n");
 
-static ssize_t lowpan_read(struct file *file, char __user *user_buf,
-			   size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
-	char buf[3];
-
-	buf[0] = test_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags) ? 'Y' : 'N';
-	buf[1] = '\n';
-	buf[2] = '\0';
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
-}
-
-static ssize_t lowpan_write(struct file *fp, const char __user *user_buffer,
-			    size_t count, loff_t *position)
-{
-	struct hci_dev *hdev = fp->private_data;
-	bool enable;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
-
-	if (copy_from_user(buf, user_buffer, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-
-	if (strtobool(buf, &enable) < 0)
-		return -EINVAL;
-
-	if (enable == test_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags))
-		return -EALREADY;
-
-	change_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags);
-
-	return count;
-}
-
-static const struct file_operations lowpan_debugfs_fops = {
-	.open		= simple_open,
-	.read		= lowpan_read,
-	.write		= lowpan_write,
-	.llseek		= default_llseek,
-};
-
 static int le_auto_conn_show(struct seq_file *sf, void *ptr)
 {
 	struct hci_dev *hdev = sf->private;
@@ -1881,8 +1838,6 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &conn_max_interval_fops);
 		debugfs_create_file("adv_channel_map", 0644, hdev->debugfs,
 				    hdev, &adv_channel_map_fops);
-		debugfs_create_file("6lowpan", 0644, hdev->debugfs, hdev,
-				    &lowpan_debugfs_fops);
 		debugfs_create_file("le_auto_conn", 0644, hdev->debugfs, hdev,
 				    &le_auto_conn_fops);
 		debugfs_create_u16("discov_interleaved_timeout", 0644,

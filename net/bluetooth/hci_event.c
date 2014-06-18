@@ -4056,9 +4056,6 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn->handle = __le16_to_cpu(ev->handle);
 	conn->state = BT_CONNECTED;
 
-	if (test_bit(HCI_6LOWPAN_ENABLED, &hdev->dev_flags))
-		set_bit(HCI_CONN_6LOWPAN, &conn->flags);
-
 	hci_conn_add_sysfs(conn);
 
 	hci_proto_connect_cfm(conn, ev->status);

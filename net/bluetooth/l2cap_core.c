@@ -40,7 +40,6 @@
 #include "smp.h"
 #include "a2mp.h"
 #include "amp.h"
-#include "6lowpan.h"
 
 #define LE_FLOWCTL_MAX_CREDITS 65535
 
@@ -205,6 +204,7 @@ done:
 	write_unlock(&chan_list_lock);
 	return err;
 }
+EXPORT_SYMBOL_GPL(l2cap_add_psm);
 
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid)
 {
@@ -437,6 +437,7 @@ struct l2cap_chan *l2cap_chan_create(void)
 
 	return chan;
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_create);
 
 static void l2cap_chan_destroy(struct kref *kref)
 {
@@ -464,6 +465,7 @@ void l2cap_chan_put(struct l2cap_chan *c)
 
 	kref_put(&c->kref, l2cap_chan_destroy);
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_put);
 
 void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 {
@@ -482,6 +484,7 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 
 	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_set_defaults);
 
 static void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 {
@@ -614,6 +617,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	return;
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_del);
 
 void l2cap_conn_update_id_addr(struct hci_conn *hcon)
 {
@@ -717,6 +721,7 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 		break;
 	}
 }
+EXPORT_SYMBOL(l2cap_chan_close);
 
 static inline u8 l2cap_get_auth_type(struct l2cap_chan *chan)
 {
@@ -1459,8 +1464,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	u8 dst_type;
 
 	BT_DBG("");
-
-	bt_6lowpan_add_conn(conn);
 
 	/* Check if we have socket listening on cid */
 	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_ATT,
@@ -2555,6 +2558,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_send);
 
 static void l2cap_send_srej(struct l2cap_chan *chan, u16 txseq)
 {
@@ -6933,10 +6937,6 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 			l2cap_conn_del(conn->hcon, EACCES);
 		break;
 
-	case L2CAP_FC_6LOWPAN:
-		bt_6lowpan_recv(conn, skb);
-		break;
-
 	default:
 		l2cap_data_channel(conn, cid, skb);
 		break;
@@ -7183,6 +7183,7 @@ done:
 	hci_dev_put(hdev);
 	return err;
 }
+EXPORT_SYMBOL_GPL(l2cap_chan_connect);
 
 /* ---- L2CAP interface with lower layer (HCI) ---- */
 
@@ -7244,8 +7245,6 @@ int l2cap_disconn_ind(struct hci_conn *hcon)
 void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
-
-	bt_6lowpan_del_conn(hcon->l2cap_data);
 
 	l2cap_conn_del(hcon, bt_to_errno(reason));
 }
@@ -7529,14 +7528,11 @@ int __init l2cap_init(void)
 	debugfs_create_u16("l2cap_le_default_mps", 0644, bt_debugfs,
 			   &le_default_mps);
 
-	bt_6lowpan_init();
-
 	return 0;
 }
 
 void l2cap_exit(void)
 {
-	bt_6lowpan_cleanup();
 	debugfs_remove(l2cap_debugfs);
 	l2cap_cleanup_sockets();
 }
