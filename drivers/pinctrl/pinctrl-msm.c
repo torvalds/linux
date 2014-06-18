@@ -181,6 +181,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_BUS_HOLD:
 	case PIN_CONFIG_BIAS_PULL_UP:
 		*bit = g->pull_bit;
 		*mask = 3;
@@ -218,6 +219,7 @@ static int msm_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 
 #define MSM_NO_PULL	0
 #define MSM_PULL_DOWN	1
+#define MSM_KEEPER	2
 #define MSM_PULL_UP	3
 
 static unsigned msm_regval_to_drive(u32 val)
@@ -254,6 +256,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		arg = arg == MSM_PULL_DOWN;
+		break;
+	case PIN_CONFIG_BIAS_BUS_HOLD:
+		arg = arg == MSM_KEEPER;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
 		arg = arg == MSM_PULL_UP;
@@ -313,6 +318,9 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			arg = MSM_PULL_DOWN;
+			break;
+		case PIN_CONFIG_BIAS_BUS_HOLD:
+			arg = MSM_KEEPER;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			arg = MSM_PULL_UP;
