@@ -207,6 +207,7 @@ static int alloc_cmdid_killable(struct nvme_queue *nvmeq, void *ctx,
 #define CMD_CTX_COMPLETED	(0x310 + CMD_CTX_BASE)
 #define CMD_CTX_INVALID		(0x314 + CMD_CTX_BASE)
 #define CMD_CTX_ABORT		(0x318 + CMD_CTX_BASE)
+#define CMD_CTX_ASYNC		(0x31C + CMD_CTX_BASE)
 
 static void special_completion(struct nvme_queue *nvmeq, void *ctx,
 						struct nvme_completion *cqe)
@@ -227,6 +228,17 @@ static void special_completion(struct nvme_queue *nvmeq, void *ctx,
 		dev_warn(nvmeq->q_dmadev,
 				"invalid id %d completed on queue %d\n",
 				cqe->command_id, le16_to_cpup(&cqe->sq_id));
+		return;
+	}
+	if (ctx == CMD_CTX_ASYNC) {
+		u32 result = le32_to_cpup(&cqe->result);
+		u16 status = le16_to_cpup(&cqe->status) >> 1;
+
+		if (status == NVME_SC_SUCCESS || status == NVME_SC_ABORT_REQ)
+			++nvmeq->dev->event_limit;
+		if (status == NVME_SC_SUCCESS)
+			dev_warn(nvmeq->q_dmadev,
+				"async event result %08x\n", result);
 		return;
 	}
 
@@ -1161,6 +1173,8 @@ static void nvme_cancel_ios(struct nvme_queue *nvmeq, bool timeout)
 			continue;
 		if (info[cmdid].ctx == CMD_CTX_CANCELLED)
 			continue;
+		if (timeout && info[cmdid].ctx == CMD_CTX_ASYNC)
+			continue;
 		if (timeout && nvmeq->dev->initialized) {
 			nvme_abort_cmd(cmdid, nvmeq);
 			continue;
@@ -1842,6 +1856,27 @@ static void nvme_resubmit_bios(struct nvme_queue *nvmeq)
 	}
 }
 
+static int nvme_submit_async_req(struct nvme_queue *nvmeq)
+{
+	struct nvme_command *c;
+	int cmdid;
+
+	cmdid = alloc_cmdid(nvmeq, CMD_CTX_ASYNC, special_completion, 0);
+	if (cmdid < 0)
+		return cmdid;
+
+	c = &nvmeq->sq_cmds[nvmeq->sq_tail];
+	memset(c, 0, sizeof(*c));
+	c->common.opcode = nvme_admin_async_event;
+	c->common.command_id = cmdid;
+
+	if (++nvmeq->sq_tail == nvmeq->q_depth)
+		nvmeq->sq_tail = 0;
+	writel(nvmeq->sq_tail, nvmeq->q_db);
+
+	return 0;
+}
+
 static int nvme_kthread(void *data)
 {
 	struct nvme_dev *dev, *next;
@@ -1875,6 +1910,12 @@ static int nvme_kthread(void *data)
 				nvme_cancel_ios(nvmeq, true);
 				nvme_resubmit_bios(nvmeq);
 				nvme_resubmit_iods(nvmeq);
+
+				while ((i == 0) && (dev->event_limit > 0)) {
+					if (nvme_submit_async_req(nvmeq))
+						break;
+					dev->event_limit--;
+				}
  unlock:
 				spin_unlock_irq(&nvmeq->q_lock);
 			}
@@ -2244,6 +2285,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	dev->oncs = le16_to_cpup(&ctrl->oncs);
 	dev->abort_limit = ctrl->acl + 1;
 	dev->vwc = ctrl->vwc;
+	dev->event_limit = min(ctrl->aerl + 1, 8);
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
