@@ -197,8 +197,7 @@ int hdmi4_read_edid(struct hdmi_core_data *core, u8 *edid, int len)
 	return l;
 }
 
-static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
-			struct hdmi_core_packet_enable_repeat *repeat_cfg)
+static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
 {
 	DSSDBG("Enter hdmi_core_init\n");
 
@@ -209,16 +208,6 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg,
 	video_cfg->pkt_mode = HDMI_PACKETMODERESERVEDVALUE;
 	video_cfg->hdmi_dvi = HDMI_DVI;
 	video_cfg->tclk_sel_clkmult = HDMI_FPLL10IDCK;
-
-	/* packet enable and repeat */
-	repeat_cfg->audio_pkt = 0;
-	repeat_cfg->audio_pkt_repeat = 0;
-	repeat_cfg->avi_infoframe = 0;
-	repeat_cfg->avi_infoframe_repeat = 0;
-	repeat_cfg->gen_cntrl_pkt = 0;
-	repeat_cfg->gen_cntrl_pkt_repeat = 0;
-	repeat_cfg->generic_pkt = 0;
-	repeat_cfg->generic_pkt_repeat = 0;
 }
 
 static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
@@ -283,14 +272,17 @@ static void hdmi_core_video_config(struct hdmi_core_data *core,
 			HDMI_CORE_SYS_TMDS_CTRL, cfg->tclk_sel_clkmult, 6, 5);
 }
 
-static void hdmi_core_aux_infoframe_avi_config(struct hdmi_core_data *core)
+static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
+	struct hdmi_avi_infoframe *frame)
 {
 	void __iomem *av_base = hdmi_av_base(core);
-	struct hdmi_avi_infoframe *frame = &core->avi_infoframe;
 	u8 data[HDMI_INFOFRAME_SIZE(AVI)];
 	int i;
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
+
+	print_hex_dump_debug("AVI: ", DUMP_PREFIX_NONE, 16, 1, data,
+		HDMI_INFOFRAME_SIZE(AVI), false);
 
 	for (i = 0; i < sizeof(data); ++i) {
 		hdmi_write_reg(av_base, HDMI_CORE_AV_AVI_BASE + i * 4,
@@ -324,10 +316,9 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	struct hdmi_video_format video_format;
 	/* HDMI core */
 	struct hdmi_core_video_config v_core_cfg;
-	struct hdmi_core_packet_enable_repeat repeat_cfg;
-	struct hdmi_avi_infoframe *avi_infoframe = &core->avi_infoframe;
+	struct hdmi_core_packet_enable_repeat repeat_cfg = { 0 };
 
-	hdmi_core_init(&v_core_cfg, &repeat_cfg);
+	hdmi_core_init(&v_core_cfg);
 
 	hdmi_wp_init_vid_fmt_timings(&video_format, &video_timing, cfg);
 
@@ -350,39 +341,24 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	hdmi_core_powerdown_disable(core);
 
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
-	v_core_cfg.hdmi_dvi = cfg->cm.mode;
+	v_core_cfg.hdmi_dvi = cfg->hdmi_dvi_mode;
 
 	hdmi_core_video_config(core, &v_core_cfg);
 
 	/* release software reset in the core */
 	hdmi_core_swreset_release(core);
 
-	/*
-	 * configure packet
-	 * info frame video see doc CEA861-D page 65
-	 */
-	hdmi_avi_infoframe_init(avi_infoframe);
-	avi_infoframe->colorspace = HDMI_COLORSPACE_RGB;
-	avi_infoframe->scan_mode = HDMI_SCAN_MODE_NONE;
-	avi_infoframe->colorimetry = HDMI_COLORIMETRY_NONE;
-	avi_infoframe->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
-	avi_infoframe->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
-	avi_infoframe->itc = 0;
-	avi_infoframe->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
-	avi_infoframe->quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-	avi_infoframe->nups = HDMI_NUPS_UNKNOWN;
-	avi_infoframe->video_code = cfg->cm.code;
-	avi_infoframe->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
-	avi_infoframe->content_type = HDMI_CONTENT_TYPE_NONE;
-	avi_infoframe->pixel_repeat = 0;
-	hdmi_core_aux_infoframe_avi_config(core);
+	if (cfg->hdmi_dvi_mode == HDMI_HDMI) {
+		hdmi_core_write_avi_infoframe(core, &cfg->infoframe);
 
-	/* enable/repeat the infoframe */
-	repeat_cfg.avi_infoframe = HDMI_PACKETENABLE;
-	repeat_cfg.avi_infoframe_repeat = HDMI_PACKETREPEATON;
-	/* wakeup */
-	repeat_cfg.audio_pkt = HDMI_PACKETENABLE;
-	repeat_cfg.audio_pkt_repeat = HDMI_PACKETREPEATON;
+		/* enable/repeat the infoframe */
+		repeat_cfg.avi_infoframe = HDMI_PACKETENABLE;
+		repeat_cfg.avi_infoframe_repeat = HDMI_PACKETREPEATON;
+		/* wakeup */
+		repeat_cfg.audio_pkt = HDMI_PACKETENABLE;
+		repeat_cfg.audio_pkt_repeat = HDMI_PACKETREPEATON;
+	}
+
 	hdmi_core_av_packet_config(core, repeat_cfg);
 }
 
