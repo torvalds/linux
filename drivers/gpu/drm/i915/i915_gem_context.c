@@ -382,6 +382,9 @@ void i915_gem_context_reset(struct drm_device *dev)
 			dctx->obj->active = 0;
 		}
 
+		if (ring->last_context->obj && i == RCS)
+			i915_gem_object_ggtt_unpin(ring->last_context->obj);
+
 		i915_gem_context_unreference(ring->last_context);
 		i915_gem_context_reference(dctx);
 		ring->last_context = dctx;
