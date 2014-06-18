@@ -3215,9 +3215,10 @@ static int mxt_probe(struct i2c_client *client,
 #endif
 
 	if (!data->pdata) {
-		data->pdata = kzalloc(sizeof(*data->pdata), GFP_KERNEL);
+		data->pdata = devm_kzalloc(&client->dev, sizeof(*data->pdata),
+					   GFP_KERNEL);
 		if (!data->pdata) {
-			dev_err(&data->client->dev, "Failed to allocate pdata\n");
+			dev_err(&client->dev, "Failed to allocate pdata\n");
 			error = -ENOMEM;
 			goto err_free_mem;
 		}
@@ -3242,7 +3243,7 @@ static int mxt_probe(struct i2c_client *client,
 				     client->name, data);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
-		goto err_free_pdata;
+		goto err_free_mem;
 	}
 
 	mxt_probe_regulators(data);
@@ -3282,9 +3283,6 @@ err_free_object:
 	mxt_free_object_table(data);
 err_free_irq:
 	free_irq(client->irq, data);
-err_free_pdata:
-	if (!dev_get_platdata(&data->client->dev))
-		kfree(data->pdata);
 err_free_mem:
 	kfree(data);
 	return error;
@@ -3303,8 +3301,6 @@ static int mxt_remove(struct i2c_client *client)
 	regulator_put(data->reg_avdd);
 	regulator_put(data->reg_vdd);
 	mxt_free_object_table(data);
-	if (!dev_get_platdata(&data->client->dev))
-		kfree(data->pdata);
 	kfree(data);
 
 	return 0;
