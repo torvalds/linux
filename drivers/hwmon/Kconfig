@@ -1405,6 +1405,17 @@ config SENSORS_TMP102
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp102.
 
+config SENSORS_TMP103
+	tristate "Texas Instruments TMP103"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Texas Instruments TMP103
+	  sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tmp103.
+
 config SENSORS_TMP401
 	tristate "Texas Instruments TMP401 and compatibles"
 	depends on I2C
