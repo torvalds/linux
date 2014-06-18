@@ -2427,7 +2427,8 @@ static int mxt_initialize_t100_input_device(struct mxt_data *data)
 				     0, 255, 0, 0);
 
 	/* For multi touch */
-	error = input_mt_init_slots(input_dev, data->num_touchids, INPUT_MT_DIRECT);
+	error = input_mt_init_slots(input_dev, data->num_touchids,
+				    INPUT_MT_DIRECT);
 	if (error) {
 		dev_err(dev, "Error %d initialising slots\n", error);
 		goto err_free_mem;
