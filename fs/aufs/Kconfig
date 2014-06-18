@@ -99,17 +99,6 @@ config AUFS_RDU
 	shows better performance in most cases.
 	See detail in aufs.5.
 
-config AUFS_SP_IATTR
-	bool "Respect the attributes (mtime/ctime mainly) of special files"
-	help
-	When you write something to a special file, some attributes of it
-	(mtime/ctime mainly) may be updated. Generally such updates are
-	less important (actually some device drivers and NFS ignore
-	it). But some applications (such like test program) requires
-	such updates. If you need these updates, then enable this
-	configuration which introduces some overhead.
-	Currently this configuration handles FIFO only.
-
 config AUFS_SHWH
 	bool "Show whiteouts"
 	help
