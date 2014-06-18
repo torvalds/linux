@@ -61,6 +61,12 @@ int nf_log_bind_pf(struct net *net, u_int8_t pf,
 		   const struct nf_logger *logger);
 void nf_log_unbind_pf(struct net *net, u_int8_t pf);
 
+int nf_logger_find_get(int pf, enum nf_log_type type);
+void nf_logger_put(int pf, enum nf_log_type type);
+
+#define MODULE_ALIAS_NF_LOGGER(family, type) \
+	MODULE_ALIAS("nf-logger-" __stringify(family) "-" __stringify(type))
+
 /* Calls the registered backend logging function */
 __printf(8, 9)
 void nf_log_packet(struct net *net,
@@ -77,20 +83,6 @@ struct nf_log_buf;
 struct nf_log_buf *nf_log_buf_open(void);
 __printf(2, 3) int nf_log_buf_add(struct nf_log_buf *m, const char *f, ...);
 void nf_log_buf_close(struct nf_log_buf *m);
-
-void nf_log_ip_packet(struct net *net, u_int8_t pf,
-		      unsigned int hooknum, const struct sk_buff *skb,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const struct nf_loginfo *loginfo,
-		      const char *prefix);
-
-void nf_log_ip6_packet(struct net *net, u_int8_t pf,
-		       unsigned int hooknum, const struct sk_buff *skb,
-		       const struct net_device *in,
-		       const struct net_device *out,
-		       const struct nf_loginfo *loginfo,
-		       const char *prefix);
 
 /* common logging functions */
 int nf_log_dump_udp_header(struct nf_log_buf *m, const struct sk_buff *skb,

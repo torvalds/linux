@@ -39,17 +39,8 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	if (par->family == NFPROTO_IPV4)
-		nf_log_ip_packet(net, NFPROTO_IPV4, par->hooknum, skb, par->in,
-			         par->out, &li, loginfo->prefix);
-#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
-	else if (par->family == NFPROTO_IPV6)
-		nf_log_ip6_packet(net, NFPROTO_IPV6, par->hooknum, skb, par->in,
-				  par->out, &li, loginfo->prefix);
-#endif
-	else
-		WARN_ON_ONCE(1);
-
+	nf_log_packet(net, par->family, par->hooknum, skb, par->in, par->out,
+		      &li, loginfo->prefix);
 	return XT_CONTINUE;
 }
 
@@ -70,7 +61,12 @@ static int log_tg_check(const struct xt_tgchk_param *par)
 		return -EINVAL;
 	}
 
-	return 0;
+	return nf_logger_find_get(par->family, NF_LOG_TYPE_LOG);
+}
+
+static void log_tg_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_logger_put(par->family, NF_LOG_TYPE_LOG);
 }
 
 static struct xt_target log_tg_regs[] __read_mostly = {
@@ -80,6 +76,7 @@ static struct xt_target log_tg_regs[] __read_mostly = {
 		.target		= log_tg,
 		.targetsize	= sizeof(struct xt_log_info),
 		.checkentry	= log_tg_check,
+		.destroy	= log_tg_destroy,
 		.me		= THIS_MODULE,
 	},
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
@@ -89,6 +86,7 @@ static struct xt_target log_tg_regs[] __read_mostly = {
 		.target		= log_tg,
 		.targetsize	= sizeof(struct xt_log_info),
 		.checkentry	= log_tg_check,
+		.destroy	= log_tg_destroy,
 		.me		= THIS_MODULE,
 	},
 #endif

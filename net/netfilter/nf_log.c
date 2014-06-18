@@ -132,6 +132,41 @@ void nf_log_unbind_pf(struct net *net, u_int8_t pf)
 }
 EXPORT_SYMBOL(nf_log_unbind_pf);
 
+int nf_logger_find_get(int pf, enum nf_log_type type)
+{
+	struct nf_logger *logger;
+	int ret = -ENOENT;
+
+	logger = loggers[pf][type];
+	if (logger == NULL)
+		request_module("nf-logger-%u-%u", pf, type);
+
+	rcu_read_lock();
+	logger = rcu_dereference(loggers[pf][type]);
+	if (logger == NULL)
+		goto out;
+
+	if (logger && try_module_get(logger->me))
+		ret = 0;
+out:
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_logger_find_get);
+
+void nf_logger_put(int pf, enum nf_log_type type)
+{
+	struct nf_logger *logger;
+
+	BUG_ON(loggers[pf][type] == NULL);
+
+	rcu_read_lock();
+	logger = rcu_dereference(loggers[pf][type]);
+	module_put(logger->me);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(nf_logger_put);
+
 void nf_log_packet(struct net *net,
 		   u_int8_t pf,
 		   unsigned int hooknum,
@@ -146,7 +181,11 @@ void nf_log_packet(struct net *net,
 	const struct nf_logger *logger;
 
 	rcu_read_lock();
-	logger = rcu_dereference(net->nf.nf_loggers[pf]);
+	if (loginfo != NULL)
+		logger = rcu_dereference(loggers[pf][loginfo->type]);
+	else
+		logger = rcu_dereference(net->nf.nf_loggers[pf]);
+
 	if (logger) {
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);

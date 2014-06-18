@@ -306,12 +306,12 @@ fallback:
 	nf_log_buf_add(m, " ");
 }
 
-void nf_log_ip_packet(struct net *net, u_int8_t pf,
-		      unsigned int hooknum, const struct sk_buff *skb,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const struct nf_loginfo *loginfo,
-		      const char *prefix)
+static void nf_log_ip_packet(struct net *net, u_int8_t pf,
+			     unsigned int hooknum, const struct sk_buff *skb,
+			     const struct net_device *in,
+			     const struct net_device *out,
+			     const struct nf_loginfo *loginfo,
+			     const char *prefix)
 {
 	struct nf_log_buf *m;
 
@@ -334,7 +334,6 @@ void nf_log_ip_packet(struct net *net, u_int8_t pf,
 
 	nf_log_buf_close(m);
 }
-EXPORT_SYMBOL_GPL(nf_log_ip_packet);
 
 static struct nf_logger nf_ip_logger __read_mostly = {
 	.name		= "nf_log_ipv4",
@@ -383,3 +382,4 @@ module_exit(nf_log_ipv4_exit);
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("Netfilter IPv4 packet logging");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NF_LOGGER(AF_INET, 0);
