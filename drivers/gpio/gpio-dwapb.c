@@ -60,7 +60,11 @@ struct dwapb_gpio {
 	struct dwapb_gpio_port	*ports;
 	unsigned int		nr_ports;
 	struct irq_domain	*domain;
+	unsigned int		trigger[32];
+	struct irq_chip_generic	*irq_gc;
 };
+
+static void dwapb_irq_teardown(struct dwapb_gpio *gpio);
 
 static int dwapb_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
@@ -97,7 +101,7 @@ static void dwapb_irq_handler(u32 irq, struct irq_desc *desc)
 		generic_handle_irq(gpio_irq);
 		irq_status &= ~BIT(hwirq);
 
-		if ((irq_get_trigger_type(gpio_irq) & IRQ_TYPE_SENSE_MASK)
+		if ((gpio->trigger[hwirq] & IRQ_TYPE_SENSE_MASK)
 			== IRQ_TYPE_EDGE_BOTH)
 			dwapb_toggle_trigger(gpio, hwirq);
 	}
@@ -138,25 +142,13 @@ static void dwapb_irq_disable(struct irq_data *d)
 
 static unsigned int dwapb_irq_startup(struct irq_data *d)
 {
-	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
-	struct dwapb_gpio *gpio = igc->private;
-	struct bgpio_chip *bgc = &gpio->ports[0].bgc;
-
-	if (gpio_lock_as_irq(&bgc->gc, irqd_to_hwirq(d)))
-		dev_err(gpio->dev, "unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
 	dwapb_irq_enable(d);
 	return 0;
 }
 
 static void dwapb_irq_shutdown(struct irq_data *d)
 {
-	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
-	struct dwapb_gpio *gpio = igc->private;
-	struct bgpio_chip *bgc = &gpio->ports[0].bgc;
-
 	dwapb_irq_disable(d);
-	gpio_unlock_as_irq(&bgc->gc, irqd_to_hwirq(d));
 }
 
 static int dwapb_irq_set_type(struct irq_data *d, u32 type)
@@ -174,6 +166,7 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	spin_lock_irqsave(&bgc->lock, flags);
 	level = readl(gpio->regs + GPIO_INTTYPE_LEVEL);
 	polarity = readl(gpio->regs + GPIO_INT_POLARITY);
+	gpio->trigger[bit] = type;
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -211,9 +204,9 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	struct gpio_chip *gc = &port->bgc.gc;
 	struct device_node *node =  gc->of_node;
 	struct irq_chip_generic	*irq_gc;
-	unsigned int hwirq, ngpio = gc->ngpio;
+	unsigned int chip_irq, ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
-	int err, irq;
+	int irq, j, irq_start = 0;
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq) {
@@ -223,29 +216,26 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	}
 
 	gpio->domain = irq_domain_add_linear(node, ngpio,
-					     &irq_generic_chip_ops, gpio);
+					     &irq_domain_simple_ops, NULL);
 	if (!gpio->domain)
 		return;
 
-	err = irq_alloc_domain_generic_chips(gpio->domain, ngpio, 1,
-					     "gpio-dwapb", handle_level_irq,
-					     IRQ_NOREQUEST, 0,
-					     IRQ_GC_INIT_NESTED_LOCK);
-	if (err) {
-		dev_info(gpio->dev, "irq_alloc_domain_generic_chips failed\n");
-		irq_domain_remove(gpio->domain);
-		gpio->domain = NULL;
-		return;
+	for (j = 0; j < ngpio; j++) {
+		chip_irq = irq_create_mapping(gpio->domain, j);
+		if (j == 0)
+			irq_start = chip_irq;
+
+		irq_set_chip_data(chip_irq, gpio);
 	}
 
-	irq_gc = irq_get_domain_generic_chip(gpio->domain, 0);
+	irq_gc = irq_alloc_generic_chip("gpio-dwapb", 1, irq_start,
+					gpio->regs, handle_level_irq);
 	if (!irq_gc) {
-		irq_domain_remove(gpio->domain);
-		gpio->domain = NULL;
+		dev_info(gpio->dev, "irq_alloc_generic_chip failed\n");
+		dwapb_irq_teardown(gpio);
 		return;
 	}
 
-	irq_gc->reg_base = gpio->regs;
 	irq_gc->private = gpio;
 
 	ct = irq_gc->chip_types;
@@ -260,11 +250,14 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	ct->regs.ack = GPIO_PORTA_EOI;
 	ct->regs.mask = GPIO_INTMASK;
 
+	gpio->irq_gc = irq_gc;
+
+	irq_setup_generic_chip(irq_gc, IRQ_MSK(ngpio),
+			       IRQ_GC_INIT_NESTED_LOCK,
+			       IRQ_NOREQUEST, 0);
+
 	irq_set_chained_handler(irq, dwapb_irq_handler);
 	irq_set_handler_data(irq, gpio);
-
-	for (hwirq = 0 ; hwirq < ngpio ; hwirq++)
-		irq_create_mapping(gpio->domain, hwirq);
 
 	port->bgc.gc.to_irq = dwapb_gpio_to_irq;
 }
@@ -279,8 +272,13 @@ static void dwapb_irq_teardown(struct dwapb_gpio *gpio)
 	if (!gpio->domain)
 		return;
 
-	for (hwirq = 0 ; hwirq < ngpio ; hwirq++)
+	for (hwirq = 0; hwirq < ngpio; hwirq++)
 		irq_dispose_mapping(irq_find_mapping(gpio->domain, hwirq));
+	if (gpio->irq_gc) {
+		irq_remove_generic_chip(gpio->irq_gc,
+					IRQ_MSK(ngpio),	0, 0);
+		gpio->irq_gc = NULL;
+	}
 
 	irq_domain_remove(gpio->domain);
 	gpio->domain = NULL;
