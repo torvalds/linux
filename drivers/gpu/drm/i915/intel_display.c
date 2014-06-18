@@ -76,7 +76,8 @@ static const uint32_t intel_cursor_formats[] = {
 #define DIV_ROUND_CLOSEST_ULL(ll, d)	\
 ({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
 
-static void intel_increase_pllclock(struct drm_crtc *crtc);
+static void intel_increase_pllclock(struct drm_device *dev,
+				    enum pipe pipe);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
@@ -2585,7 +2586,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
-	intel_increase_pllclock(crtc);
+	intel_increase_pllclock(dev, to_intel_crtc(crtc)->pipe);
 
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
@@ -8721,12 +8722,10 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void intel_increase_pllclock(struct drm_crtc *crtc)
+static void intel_increase_pllclock(struct drm_device *dev,
+				    enum pipe pipe)
 {
-	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	int dpll_reg = DPLL(pipe);
 	int dpll;
 
@@ -8832,21 +8831,19 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 			struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_crtc *crtc;
+	enum pipe pipe;
 
 	intel_edp_psr_exit(dev);
 
 	if (!i915.powersave)
 		return;
 
-	for_each_crtc(dev, crtc) {
-		if (!crtc->primary->fb)
+	for_each_pipe(pipe) {
+		if (!(obj->frontbuffer_bits &
+		      INTEL_FRONTBUFFER_ALL_MASK(pipe)))
 			continue;
 
-		if (to_intel_framebuffer(crtc->primary->fb)->obj != obj)
-			continue;
-
-		intel_increase_pllclock(crtc);
+		intel_increase_pllclock(dev, pipe);
 		if (ring && intel_fbc_enabled(dev))
 			ring->fbc_dirty = true;
 	}
@@ -12796,7 +12793,6 @@ void intel_connector_unregister(struct intel_connector *intel_connector)
 void intel_modeset_cleanup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 	struct drm_connector *connector;
 
 	/*
@@ -12815,14 +12811,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 
 	intel_unregister_dsm_handler();
-
-	for_each_crtc(dev, crtc) {
-		/* Skip inactive CRTCs */
-		if (!crtc->primary->fb)
-			continue;
-
-		intel_increase_pllclock(crtc);
-	}
 
 	intel_disable_fbc(dev);
 
