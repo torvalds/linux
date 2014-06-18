@@ -1705,6 +1705,9 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
+	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
+	dev_priv->hpd_irq_port[port] = intel_dig_port;
+
 	if (init_dp)
 		dp_connector = intel_ddi_init_dp_connector(intel_dig_port);
 

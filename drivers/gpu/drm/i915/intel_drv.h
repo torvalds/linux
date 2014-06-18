@@ -567,6 +567,7 @@ struct intel_digital_port {
 	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
+	bool (*hpd_pulse)(struct intel_digital_port *, bool);
 };
 
 static inline int
@@ -850,6 +851,8 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,
 			     struct intel_crtc_config *pipe_config);
 bool intel_dp_is_edp(struct drm_device *dev, enum port port);
+bool intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port,
+			bool long_hpd);
 void intel_edp_backlight_on(struct intel_dp *intel_dp);
 void intel_edp_backlight_off(struct intel_dp *intel_dp);
 void intel_edp_panel_vdd_on(struct intel_dp *intel_dp);
@@ -860,7 +863,6 @@ void intel_edp_psr_disable(struct intel_dp *intel_dp);
 void intel_dp_set_drrs_state(struct drm_device *dev, int refresh_rate);
 void intel_edp_psr_exit(struct drm_device *dev);
 void intel_edp_psr_init(struct drm_device *dev);
-
 
 /* intel_dsi.c */
 void intel_dsi_init(struct drm_device *dev);

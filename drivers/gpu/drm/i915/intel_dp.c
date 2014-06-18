@@ -3815,6 +3815,22 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 	intel_dp_check_link_status(intel_dp);
 }
 
+bool
+intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
+{
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+
+	if (long_hpd)
+		return true;
+
+	/*
+	 * we'll check the link status via the normal hot plug path later -
+	 * but for short hpds we should check it now
+	 */
+	intel_dp_check_link_status(intel_dp);
+	return false;
+}
+
 /* Return which DP Port should be selected for Transcoder DP control */
 int
 intel_trans_dp_port_sel(struct drm_crtc *crtc)
@@ -4387,6 +4403,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 void
 intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
@@ -4442,6 +4459,9 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	}
 	intel_encoder->cloneable = 0;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
+
+	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
+	dev_priv->hpd_irq_port[port] = intel_dig_port;
 
 	if (!intel_dp_init_connector(intel_dig_port, intel_connector)) {
 		drm_encoder_cleanup(encoder);
