@@ -1251,6 +1251,8 @@ static void __init exynos5x_clk_init(struct device_node *np,
 	}
 
 	exynos5420_clk_sleep_init();
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 
 static void __init exynos5420_clk_init(struct device_node *np)

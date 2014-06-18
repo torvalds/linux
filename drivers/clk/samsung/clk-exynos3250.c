@@ -776,5 +776,7 @@ static void __init exynos3250_cmu_init(struct device_node *np)
 	samsung_clk_register_gate(ctx, gate_clks, ARRAY_SIZE(gate_clks));
 
 	exynos3250_clk_sleep_init();
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(exynos3250_cmu, "samsung,exynos3250-cmu", exynos3250_cmu_init);

@@ -123,6 +123,8 @@ static void __init exynos5440_clk_init(struct device_node *np)
 	samsung_clk_register_gate(ctx, exynos5440_gate_clks,
 			ARRAY_SIZE(exynos5440_gate_clks));
 
+	samsung_clk_of_add_provider(np, ctx);
+
 	pr_info("Exynos5440: arm_clk = %ldHz\n", _get_rate("arm_clk"));
 	pr_info("exynos5440 clock initialization complete\n");
 }
