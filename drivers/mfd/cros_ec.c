@@ -57,7 +57,7 @@ static int cros_ec_command_sendrecv(struct cros_ec_device *ec_dev,
 	msg.in_buf = in_buf;
 	msg.in_len = in_len;
 
-	return ec_dev->command_xfer(ec_dev, &msg);
+	return ec_dev->cmd_xfer(ec_dev, &msg);
 }
 
 static int cros_ec_command_recv(struct cros_ec_device *ec_dev,

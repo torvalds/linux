@@ -29,7 +29,7 @@ static inline struct cros_ec_device *to_ec_dev(struct device *dev)
 	return i2c_get_clientdata(client);
 }
 
-static int cros_ec_command_xfer(struct cros_ec_device *ec_dev,
+static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 				struct cros_ec_msg *msg)
 {
 	struct i2c_client *client = ec_dev->priv;
@@ -136,7 +136,7 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	ec_dev->dev = dev;
 	ec_dev->priv = client;
 	ec_dev->irq = client->irq;
-	ec_dev->command_xfer = cros_ec_command_xfer;
+	ec_dev->cmd_xfer = cros_ec_cmd_xfer_i2c;
 	ec_dev->ec_name = client->name;
 	ec_dev->phys_name = client->adapter->name;
 	ec_dev->parent = &client->dev;

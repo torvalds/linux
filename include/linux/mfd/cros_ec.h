@@ -16,7 +16,9 @@
 #ifndef __LINUX_MFD_CROS_EC_H
 #define __LINUX_MFD_CROS_EC_H
 
+#include <linux/notifier.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/mutex.h>
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -55,34 +57,53 @@ struct cros_ec_msg {
 /**
  * struct cros_ec_device - Information about a ChromeOS EC device
  *
+ * @ec_name: name of EC device (e.g. 'chromeos-ec')
+ * @phys_name: name of physical comms layer (e.g. 'i2c-4')
+ * @dev: Device pointer
+ * @was_wake_device: true if this device was set to wake the system from
+ * sleep at the last suspend
+ * @event_notifier: interrupt event notifier for transport devices
+ * @command_send: send a command
+ * @command_recv: receive a response
+ * @command_sendrecv: send a command and receive a response
+ *
  * @name: Name of this EC interface
  * @priv: Private data
  * @irq: Interrupt to use
- * @din: input buffer (from EC)
- * @dout: output buffer (to EC)
+ * @din: input buffer (for data from EC)
+ * @dout: output buffer (for data to EC)
  * \note
  * These two buffers will always be dword-aligned and include enough
  * space for up to 7 word-alignment bytes also, so we can ensure that
  * the body of the message is always dword-aligned (64-bit).
- *
  * We use this alignment to keep ARM and x86 happy. Probably word
  * alignment would be OK, there might be a small performance advantage
  * to using dword.
  * @din_size: size of din buffer to allocate (zero to use static din)
  * @dout_size: size of dout buffer to allocate (zero to use static dout)
- * @command_send: send a command
- * @command_recv: receive a command
- * @ec_name: name of EC device (e.g. 'chromeos-ec')
- * @phys_name: name of physical comms layer (e.g. 'i2c-4')
  * @parent: pointer to parent device (e.g. i2c or spi device)
- * @dev: Device pointer
- * dev_lock: Lock to prevent concurrent access
  * @wake_enabled: true if this device can wake the system from sleep
- * @was_wake_device: true if this device was set to wake the system from
- * sleep at the last suspend
- * @event_notifier: interrupt event notifier for transport devices
+ * @lock: one transaction at a time
+ * @cmd_xfer: low-level channel to the EC
  */
 struct cros_ec_device {
+
+	/* These are used by other drivers that want to talk to the EC */
+	const char *ec_name;
+	const char *phys_name;
+	struct device *dev;
+	bool was_wake_device;
+	struct class *cros_class;
+	struct blocking_notifier_head event_notifier;
+	int (*command_send)(struct cros_ec_device *ec,
+			    uint16_t cmd, void *out_buf, int out_len);
+	int (*command_recv)(struct cros_ec_device *ec,
+			    uint16_t cmd, void *in_buf, int in_len);
+	int (*command_sendrecv)(struct cros_ec_device *ec,
+				uint16_t cmd, void *out_buf, int out_len,
+				void *in_buf, int in_len);
+
+	/* These are used to implement the platform-specific interface */
 	const char *name;
 	void *priv;
 	int irq;
@@ -90,26 +111,10 @@ struct cros_ec_device {
 	uint8_t *dout;
 	int din_size;
 	int dout_size;
-	int (*command_send)(struct cros_ec_device *ec,
-			uint16_t cmd, void *out_buf, int out_len);
-	int (*command_recv)(struct cros_ec_device *ec,
-			uint16_t cmd, void *in_buf, int in_len);
-	int (*command_sendrecv)(struct cros_ec_device *ec,
-			uint16_t cmd, void *out_buf, int out_len,
-			void *in_buf, int in_len);
-	int (*command_xfer)(struct cros_ec_device *ec,
-			struct cros_ec_msg *msg);
-
-	const char *ec_name;
-	const char *phys_name;
 	struct device *parent;
-
-	/* These are --private-- fields - do not assign */
-	struct device *dev;
-	struct mutex dev_lock;
 	bool wake_enabled;
-	bool was_wake_device;
-	struct blocking_notifier_head event_notifier;
+	struct mutex lock;
+	int (*cmd_xfer)(struct cros_ec_device *ec, struct cros_ec_msg *msg);
 };
 
 /**
