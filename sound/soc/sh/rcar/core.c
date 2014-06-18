@@ -315,7 +315,7 @@ static void rsnd_dma_of_name(struct rsnd_dma *dma,
 		dst_mod = mod[index];
 	} else {
 		src_mod = mod[index];
-		dst_mod = mod[index + 1];
+		dst_mod = mod[index - 1];
 	}
 
 	index = 0;
