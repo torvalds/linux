@@ -367,12 +367,11 @@ struct acpi_table_desc {
 
 /* Masks for Flags field above */
 
-#define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
-#define ACPI_TABLE_ORIGIN_MAPPED        (1)
-#define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_OVERRIDE      (4)
-#define ACPI_TABLE_ORIGIN_MASK          (7)
-#define ACPI_TABLE_IS_LOADED            (8)
+#define ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL  (0)	/* Virtual address, external maintained */
+#define ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL (1)	/* Physical address, internally mapped */
+#define ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL  (2)	/* Virtual address, internallly allocated */
+#define ACPI_TABLE_ORIGIN_MASK              (3)
+#define ACPI_TABLE_IS_LOADED                (8)
 
 /*
  * Get the remaining ACPI tables

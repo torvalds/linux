@@ -2096,6 +2096,7 @@ extern void intel_uncore_early_sanitize(struct drm_device *dev,
 extern void intel_uncore_init(struct drm_device *dev);
 extern void intel_uncore_check_errors(struct drm_device *dev);
 extern void intel_uncore_fini(struct drm_device *dev);
+extern void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore);
 
 void
 i915_enable_pipestat(struct drm_i915_private *dev_priv, enum pipe pipe,

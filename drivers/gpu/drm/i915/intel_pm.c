@@ -4867,6 +4867,26 @@ void intel_cleanup_gt_powersave(struct drm_device *dev)
 		valleyview_cleanup_gt_powersave(dev);
 }
 
+/**
+ * intel_suspend_gt_powersave - suspend PM work and helper threads
+ * @dev: drm device
+ *
+ * We don't want to disable RC6 or other features here, we just want
+ * to make sure any work we've queued has finished and won't bother
+ * us while we're suspended.
+ */
+void intel_suspend_gt_powersave(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Interrupts should be disabled already to avoid re-arming. */
+	WARN_ON(dev->irq_enabled);
+
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
+	cancel_work_sync(&dev_priv->rps.work);
+}
+
 void intel_disable_gt_powersave(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4878,10 +4898,8 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		ironlake_disable_drps(dev);
 		ironlake_disable_rc6(dev);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
-		if (cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work))
-			intel_runtime_pm_put(dev_priv);
+		intel_suspend_gt_powersave(dev);
 
-		cancel_work_sync(&dev_priv->rps.work);
 		mutex_lock(&dev_priv->rps.hw_lock);
 		if (IS_CHERRYVIEW(dev))
 			cherryview_disable_rps(dev);

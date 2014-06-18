@@ -967,6 +967,7 @@ void intel_init_gt_powersave(struct drm_device *dev);
 void intel_cleanup_gt_powersave(struct drm_device *dev);
 void intel_enable_gt_powersave(struct drm_device *dev);
 void intel_disable_gt_powersave(struct drm_device *dev);
+void intel_suspend_gt_powersave(struct drm_device *dev);
 void intel_reset_gt_powersave(struct drm_device *dev);
 void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
