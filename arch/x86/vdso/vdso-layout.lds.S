@@ -75,6 +75,7 @@ SECTIONS
 	/DISCARD/ : {
 		*(.discard)
 		*(.discard.*)
+		*(__bug_table)
 	}
 }
 
