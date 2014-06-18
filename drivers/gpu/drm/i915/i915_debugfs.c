@@ -170,6 +170,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	}
 	if (obj->ring != NULL)
 		seq_printf(m, " (%s)", obj->ring->name);
+	if (obj->frontbuffer_bits)
+		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
 
 static void describe_ctx(struct seq_file *m, struct intel_context *ctx)
