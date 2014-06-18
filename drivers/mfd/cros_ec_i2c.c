@@ -30,7 +30,7 @@ static inline struct cros_ec_device *to_ec_dev(struct device *dev)
 }
 
 static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
-				struct cros_ec_msg *msg)
+				struct cros_ec_command *msg)
 {
 	struct i2c_client *client = ec_dev->priv;
 	int ret = -ENOMEM;
@@ -50,7 +50,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	 * allocate larger packet (one byte for checksum, one byte for
 	 * length, and one for result code)
 	 */
-	packet_len = msg->in_len + 3;
+	packet_len = msg->insize + 3;
 	in_buf = kzalloc(packet_len, GFP_KERNEL);
 	if (!in_buf)
 		goto done;
@@ -61,7 +61,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	 * allocate larger packet (one byte for checksum, one for
 	 * command code, one for length, and one for command version)
 	 */
-	packet_len = msg->out_len + 4;
+	packet_len = msg->outsize + 4;
 	out_buf = kzalloc(packet_len, GFP_KERNEL);
 	if (!out_buf)
 		goto done;
@@ -69,16 +69,16 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	i2c_msg[0].buf = (char *)out_buf;
 
 	out_buf[0] = EC_CMD_VERSION0 + msg->version;
-	out_buf[1] = msg->cmd;
-	out_buf[2] = msg->out_len;
+	out_buf[1] = msg->command;
+	out_buf[2] = msg->outsize;
 
 	/* copy message payload and compute checksum */
 	sum = out_buf[0] + out_buf[1] + out_buf[2];
-	for (i = 0; i < msg->out_len; i++) {
-		out_buf[3 + i] = msg->out_buf[i];
+	for (i = 0; i < msg->outsize; i++) {
+		out_buf[3 + i] = msg->outdata[i];
 		sum += out_buf[3 + i];
 	}
-	out_buf[3 + msg->out_len] = sum;
+	out_buf[3 + msg->outsize] = sum;
 
 	/* send command to EC and read answer */
 	ret = i2c_transfer(client->adapter, i2c_msg, 2);
@@ -94,20 +94,20 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	/* check response error code */
 	if (i2c_msg[1].buf[0]) {
 		dev_warn(ec_dev->dev, "command 0x%02x returned an error %d\n",
-			 msg->cmd, i2c_msg[1].buf[0]);
+			 msg->command, i2c_msg[1].buf[0]);
 		ret = -EINVAL;
 		goto done;
 	}
 
 	/* copy response packet payload and compute checksum */
 	sum = in_buf[0] + in_buf[1];
-	for (i = 0; i < msg->in_len; i++) {
-		msg->in_buf[i] = in_buf[2 + i];
+	for (i = 0; i < msg->insize; i++) {
+		msg->indata[i] = in_buf[2 + i];
 		sum += in_buf[2 + i];
 	}
 	dev_dbg(ec_dev->dev, "packet: %*ph, sum = %02x\n",
 		i2c_msg[1].len, in_buf, sum);
-	if (sum != in_buf[2 + msg->in_len]) {
+	if (sum != in_buf[2 + msg->insize]) {
 		dev_err(ec_dev->dev, "bad packet checksum\n");
 		ret = -EBADMSG;
 		goto done;

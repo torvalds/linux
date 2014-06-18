@@ -35,23 +35,23 @@ enum {
 					EC_MSG_TX_PROTO_BYTES,
 };
 
-/**
- * struct cros_ec_msg - A message sent to the EC, and its reply
- *
+/*
  * @version: Command version number (often 0)
- * @cmd: Command to send (EC_CMD_...)
- * @out_buf: Outgoing payload (to EC)
- * @outlen: Outgoing length
- * @in_buf: Incoming payload (from EC)
- * @in_len: Incoming length
+ * @command: Command to send (EC_CMD_...)
+ * @outdata: Outgoing data to EC
+ * @outsize: Outgoing length in bytes
+ * @indata: Where to put the incoming data from EC
+ * @insize: Incoming length in bytes (filled in by EC)
+ * @result: EC's response to the command (separate from communication failure)
  */
-struct cros_ec_msg {
-	u8 version;
-	u8 cmd;
-	uint8_t *out_buf;
-	int out_len;
-	uint8_t *in_buf;
-	int in_len;
+struct cros_ec_command {
+	uint32_t version;
+	uint32_t command;
+	uint8_t *outdata;
+	uint32_t outsize;
+	uint8_t *indata;
+	uint32_t insize;
+	uint32_t result;
 };
 
 /**
@@ -114,7 +114,8 @@ struct cros_ec_device {
 	struct device *parent;
 	bool wake_enabled;
 	struct mutex lock;
-	int (*cmd_xfer)(struct cros_ec_device *ec, struct cros_ec_msg *msg);
+	int (*cmd_xfer)(struct cros_ec_device *ec,
+			struct cros_ec_command *msg);
 };
 
 /**
@@ -148,7 +149,7 @@ int cros_ec_resume(struct cros_ec_device *ec_dev);
  * @msg: Message to write
  */
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_msg *msg);
+		       struct cros_ec_command *msg);
 
 /**
  * cros_ec_remove - Remove a ChromeOS EC

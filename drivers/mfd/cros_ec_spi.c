@@ -216,7 +216,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
  * @ec_msg: Message to transfer
  */
 static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
-				struct cros_ec_msg *ec_msg)
+				struct cros_ec_command *ec_msg)
 {
 	struct cros_ec_spi *ec_spi = ec_dev->priv;
 	struct spi_transfer trans;
@@ -261,7 +261,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	/* Get the response */
 	if (!ret) {
 		ret = cros_ec_spi_receive_response(ec_dev,
-				ec_msg->in_len + EC_MSG_TX_PROTO_BYTES);
+				ec_msg->insize + EC_MSG_TX_PROTO_BYTES);
 	} else {
 		dev_err(ec_dev->dev, "spi transfer failed: %d\n", ret);
 	}
@@ -290,21 +290,21 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	if (ptr[0]) {
 		if (ptr[0] == EC_RES_IN_PROGRESS) {
 			dev_dbg(ec_dev->dev, "command 0x%02x in progress\n",
-				ec_msg->cmd);
+				ec_msg->command);
 			ret = -EAGAIN;
 			goto exit;
 		}
 		dev_warn(ec_dev->dev, "command 0x%02x returned an error %d\n",
-			 ec_msg->cmd, ptr[0]);
+			 ec_msg->command, ptr[0]);
 		debug_packet(ec_dev->dev, "in_err", ptr, len);
 		ret = -EINVAL;
 		goto exit;
 	}
 	len = ptr[1];
 	sum = ptr[0] + ptr[1];
-	if (len > ec_msg->in_len) {
+	if (len > ec_msg->insize) {
 		dev_err(ec_dev->dev, "packet too long (%d bytes, expected %d)",
-			len, ec_msg->in_len);
+			len, ec_msg->insize);
 		ret = -ENOSPC;
 		goto exit;
 	}
@@ -312,8 +312,8 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 	/* copy response packet payload and compute checksum */
 	for (i = 0; i < len; i++) {
 		sum += ptr[i + 2];
-		if (ec_msg->in_len)
-			ec_msg->in_buf[i] = ptr[i + 2];
+		if (ec_msg->insize)
+			ec_msg->indata[i] = ptr[i + 2];
 	}
 	sum &= 0xff;
 

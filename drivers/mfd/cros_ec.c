@@ -25,22 +25,22 @@
 #include <linux/mfd/cros_ec_commands.h>
 
 int cros_ec_prepare_tx(struct cros_ec_device *ec_dev,
-		       struct cros_ec_msg *msg)
+		       struct cros_ec_command *msg)
 {
 	uint8_t *out;
 	int csum, i;
 
-	BUG_ON(msg->out_len > EC_PROTO2_MAX_PARAM_SIZE);
+	BUG_ON(msg->outsize > EC_PROTO2_MAX_PARAM_SIZE);
 	out = ec_dev->dout;
 	out[0] = EC_CMD_VERSION0 + msg->version;
-	out[1] = msg->cmd;
-	out[2] = msg->out_len;
+	out[1] = msg->command;
+	out[2] = msg->outsize;
 	csum = out[0] + out[1] + out[2];
-	for (i = 0; i < msg->out_len; i++)
-		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->out_buf[i];
-	out[EC_MSG_TX_HEADER_BYTES + msg->out_len] = (uint8_t)(csum & 0xff);
+	for (i = 0; i < msg->outsize; i++)
+		csum += out[EC_MSG_TX_HEADER_BYTES + i] = msg->outdata[i];
+	out[EC_MSG_TX_HEADER_BYTES + msg->outsize] = (uint8_t)(csum & 0xff);
 
-	return EC_MSG_TX_PROTO_BYTES + msg->out_len;
+	return EC_MSG_TX_PROTO_BYTES + msg->outsize;
 }
 EXPORT_SYMBOL(cros_ec_prepare_tx);
 
@@ -48,14 +48,14 @@ static int cros_ec_command_sendrecv(struct cros_ec_device *ec_dev,
 		uint16_t cmd, void *out_buf, int out_len,
 		void *in_buf, int in_len)
 {
-	struct cros_ec_msg msg;
+	struct cros_ec_command msg;
 
 	msg.version = cmd >> 8;
-	msg.cmd = cmd & 0xff;
-	msg.out_buf = out_buf;
-	msg.out_len = out_len;
-	msg.in_buf = in_buf;
-	msg.in_len = in_len;
+	msg.command = cmd & 0xff;
+	msg.outdata = out_buf;
+	msg.outsize = out_len;
+	msg.indata = in_buf;
+	msg.insize = in_len;
 
 	return ec_dev->cmd_xfer(ec_dev, &msg);
 }
