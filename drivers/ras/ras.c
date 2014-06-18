@@ -23,4 +23,7 @@ static int __init ras_init(void)
 }
 subsys_initcall(ras_init);
 
+#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
+EXPORT_TRACEPOINT_SYMBOL_GPL(extlog_mem_event);
+#endif
 EXPORT_TRACEPOINT_SYMBOL_GPL(mc_event);

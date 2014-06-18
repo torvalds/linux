@@ -22,6 +22,7 @@
 #define LINUX_CPER_H
 
 #include <linux/uuid.h>
+#include <linux/trace_seq.h>
 
 /* CPER record signature and the size */
 #define CPER_SIG_RECORD				"CPER"
@@ -363,6 +364,24 @@ struct cper_sec_mem_err {
 	__u16	mem_dev_handle;		/* module handle in UEFI 2.4 */
 };
 
+struct cper_mem_err_compact {
+	__u64	validation_bits;
+	__u16	node;
+	__u16	card;
+	__u16	module;
+	__u16	bank;
+	__u16	device;
+	__u16	row;
+	__u16	column;
+	__u16	bit_pos;
+	__u64	requestor_id;
+	__u64	responder_id;
+	__u64	target_id;
+	__u16	rank;
+	__u16	mem_array_handle;
+	__u16	mem_dev_handle;
+};
+
 struct cper_sec_pcie {
 	__u64		validation_bits;
 	__u32		port_type;
@@ -406,5 +425,9 @@ const char *cper_severity_str(unsigned int);
 const char *cper_mem_err_type_str(unsigned int);
 void cper_print_bits(const char *prefix, unsigned int bits,
 		     const char * const strs[], unsigned int strs_size);
+void cper_mem_err_pack(const struct cper_sec_mem_err *,
+		       struct cper_mem_err_compact *);
+const char *cper_mem_err_unpack(struct trace_seq *,
+				struct cper_mem_err_compact *);
 
 #endif

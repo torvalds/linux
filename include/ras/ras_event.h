@@ -9,6 +9,70 @@
 #include <linux/edac.h>
 #include <linux/ktime.h>
 #include <linux/aer.h>
+#include <linux/cper.h>
+
+/*
+ * MCE Extended Error Log trace event
+ *
+ * These events are generated when hardware detects a corrected or
+ * uncorrected event.
+ */
+
+/* memory trace event */
+
+#if defined(CONFIG_ACPI_EXTLOG) || defined(CONFIG_ACPI_EXTLOG_MODULE)
+TRACE_EVENT(extlog_mem_event,
+	TP_PROTO(struct cper_sec_mem_err *mem,
+		 u32 err_seq,
+		 const uuid_le *fru_id,
+		 const char *fru_text,
+		 u8 sev),
+
+	TP_ARGS(mem, err_seq, fru_id, fru_text, sev),
+
+	TP_STRUCT__entry(
+		__field(u32, err_seq)
+		__field(u8, etype)
+		__field(u8, sev)
+		__field(u64, pa)
+		__field(u8, pa_mask_lsb)
+		__field_struct(uuid_le, fru_id)
+		__string(fru_text, fru_text)
+		__field_struct(struct cper_mem_err_compact, data)
+	),
+
+	TP_fast_assign(
+		__entry->err_seq = err_seq;
+		if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE)
+			__entry->etype = mem->error_type;
+		else
+			__entry->etype = ~0;
+		__entry->sev = sev;
+		if (mem->validation_bits & CPER_MEM_VALID_PA)
+			__entry->pa = mem->physical_addr;
+		else
+			__entry->pa = ~0ull;
+
+		if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
+			__entry->pa_mask_lsb = (u8)__ffs64(mem->physical_addr_mask);
+		else
+			__entry->pa_mask_lsb = ~0;
+		__entry->fru_id = *fru_id;
+		__assign_str(fru_text, fru_text);
+		cper_mem_err_pack(mem, &__entry->data);
+	),
+
+	TP_printk("{%d} %s error: %s physical addr: %016llx (mask lsb: %x) %sFRU: %pUl %.20s",
+		  __entry->err_seq,
+		  cper_severity_str(__entry->sev),
+		  cper_mem_err_type_str(__entry->etype),
+		  __entry->pa,
+		  __entry->pa_mask_lsb,
+		  cper_mem_err_unpack(p, &__entry->data),
+		  &__entry->fru_id,
+		  __get_str(fru_text))
+);
+#endif
 
 /*
  * Hardware Events Report

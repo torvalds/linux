@@ -207,7 +207,7 @@ const char *cper_mem_err_type_str(unsigned int etype)
 }
 EXPORT_SYMBOL_GPL(cper_mem_err_type_str);
 
-static int cper_mem_err_location(const struct cper_sec_mem_err *mem, char *msg)
+static int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
 	u32 len, n;
 
@@ -249,7 +249,7 @@ static int cper_mem_err_location(const struct cper_sec_mem_err *mem, char *msg)
 	return n;
 }
 
-static int cper_dimm_err_location(const struct cper_sec_mem_err *mem, char *msg)
+static int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
 	u32 len, n;
 	const char *bank = NULL, *device = NULL;
@@ -271,8 +271,44 @@ static int cper_dimm_err_location(const struct cper_sec_mem_err *mem, char *msg)
 	return n;
 }
 
+void cper_mem_err_pack(const struct cper_sec_mem_err *mem,
+		       struct cper_mem_err_compact *cmem)
+{
+	cmem->validation_bits = mem->validation_bits;
+	cmem->node = mem->node;
+	cmem->card = mem->card;
+	cmem->module = mem->module;
+	cmem->bank = mem->bank;
+	cmem->device = mem->device;
+	cmem->row = mem->row;
+	cmem->column = mem->column;
+	cmem->bit_pos = mem->bit_pos;
+	cmem->requestor_id = mem->requestor_id;
+	cmem->responder_id = mem->responder_id;
+	cmem->target_id = mem->target_id;
+	cmem->rank = mem->rank;
+	cmem->mem_array_handle = mem->mem_array_handle;
+	cmem->mem_dev_handle = mem->mem_dev_handle;
+}
+
+const char *cper_mem_err_unpack(struct trace_seq *p,
+				struct cper_mem_err_compact *cmem)
+{
+	const char *ret = p->buffer + p->len;
+
+	if (cper_mem_err_location(cmem, rcd_decode_str))
+		trace_seq_printf(p, "%s", rcd_decode_str);
+	if (cper_dimm_err_location(cmem, rcd_decode_str))
+		trace_seq_printf(p, "%s", rcd_decode_str);
+	trace_seq_putc(p, '\0');
+
+	return ret;
+}
+
 static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
 {
+	struct cper_mem_err_compact cmem;
+
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_STATUS)
 		printk("%s""error_status: 0x%016llx\n", pfx, mem->error_status);
 	if (mem->validation_bits & CPER_MEM_VALID_PA)
@@ -281,14 +317,15 @@ static void cper_print_mem(const char *pfx, const struct cper_sec_mem_err *mem)
 	if (mem->validation_bits & CPER_MEM_VALID_PA_MASK)
 		printk("%s""physical_address_mask: 0x%016llx\n",
 		       pfx, mem->physical_addr_mask);
-	if (cper_mem_err_location(mem, rcd_decode_str))
+	cper_mem_err_pack(mem, &cmem);
+	if (cper_mem_err_location(&cmem, rcd_decode_str))
 		printk("%s%s\n", pfx, rcd_decode_str);
 	if (mem->validation_bits & CPER_MEM_VALID_ERROR_TYPE) {
 		u8 etype = mem->error_type;
 		printk("%s""error_type: %d, %s\n", pfx, etype,
 		       cper_mem_err_type_str(etype));
 	}
-	if (cper_dimm_err_location(mem, rcd_decode_str))
+	if (cper_dimm_err_location(&cmem, rcd_decode_str))
 		printk("%s%s\n", pfx, rcd_decode_str);
 }
 
