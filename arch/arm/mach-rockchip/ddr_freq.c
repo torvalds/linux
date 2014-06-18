@@ -282,6 +282,8 @@ void ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_info *ddr_b
 	        	ddr_bw_val[j][i] = grf_readl(RK3288_GRF_SOC_STATUS11+i*4+j*16);
 		}
 	}
+	if (!ddr_bw_val[0][ddrbw_time_num])
+		goto end;
 
 	if (ddr_bw_ch0) {
 		ddr_freq = readl_relaxed(RK_DDR_VIRT + 0xc0);
@@ -320,7 +322,7 @@ void ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_info *ddr_b
 		ddr_bw_ch0->vio1 = ddr_bw_ch0->vio1*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
 		ddr_bw_ch0->vio2 = ddr_bw_ch0->vio2*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
 	}
-	
+end:
 	ddr_monitor_start();
 }
 
