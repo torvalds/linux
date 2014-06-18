@@ -266,7 +266,7 @@ int ccc_req_init(const struct lu_env *env, struct cl_device *dev,
  * fails. Access to this environment is serialized by ccc_inode_fini_guard
  * mutex.
  */
-static struct lu_env *ccc_inode_fini_env = NULL;
+static struct lu_env *ccc_inode_fini_env;
 
 /**
  * A mutex serializing calls to slp_inode_fini() under extreme memory
