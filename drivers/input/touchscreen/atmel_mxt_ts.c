@@ -1821,15 +1821,14 @@ static void mxt_free_input_device(struct mxt_data *data)
 static void mxt_free_object_table(struct mxt_data *data)
 {
 	mxt_debug_msg_remove(data);
+	mxt_free_input_device(data);
 
-	kfree(data->raw_info_block);
 	data->object_table = NULL;
 	data->info = NULL;
+	kfree(data->raw_info_block);
 	data->raw_info_block = NULL;
 	kfree(data->msg_buf);
 	data->msg_buf = NULL;
-
-	mxt_free_input_device(data);
 
 	data->T5_address = 0;
 	data->T5_msg_size = 0;
