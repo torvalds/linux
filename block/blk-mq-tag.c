@@ -43,9 +43,16 @@ bool blk_mq_has_free_tags(struct blk_mq_tags *tags)
 	return bt_has_free_tags(&tags->bitmap_tags);
 }
 
-static inline void bt_index_inc(unsigned int *index)
+static inline int bt_index_inc(int index)
 {
-	*index = (*index + 1) & (BT_WAIT_QUEUES - 1);
+	return (index + 1) & (BT_WAIT_QUEUES - 1);
+}
+
+static inline void bt_index_atomic_inc(atomic_t *index)
+{
+	int old = atomic_read(index);
+	int new = bt_index_inc(old);
+	atomic_cmpxchg(index, old, new);
 }
 
 /*
@@ -69,14 +76,14 @@ static void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags)
 	int i, wake_index;
 
 	bt = &tags->bitmap_tags;
-	wake_index = bt->wake_index;
+	wake_index = atomic_read(&bt->wake_index);
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {
 		struct bt_wait_state *bs = &bt->bs[wake_index];
 
 		if (waitqueue_active(&bs->wait))
 			wake_up(&bs->wait);
 
-		bt_index_inc(&wake_index);
+		wake_index = bt_index_inc(wake_index);
 	}
 }
 
@@ -212,12 +219,14 @@ static struct bt_wait_state *bt_wait_ptr(struct blk_mq_bitmap_tags *bt,
 					 struct blk_mq_hw_ctx *hctx)
 {
 	struct bt_wait_state *bs;
+	int wait_index;
 
 	if (!hctx)
 		return &bt->bs[0];
 
-	bs = &bt->bs[hctx->wait_index];
-	bt_index_inc(&hctx->wait_index);
+	wait_index = atomic_read(&hctx->wait_index);
+	bs = &bt->bs[wait_index];
+	bt_index_atomic_inc(&hctx->wait_index);
 	return bs;
 }
 
@@ -313,18 +322,19 @@ static struct bt_wait_state *bt_wake_ptr(struct blk_mq_bitmap_tags *bt)
 {
 	int i, wake_index;
 
-	wake_index = bt->wake_index;
+	wake_index = atomic_read(&bt->wake_index);
 	for (i = 0; i < BT_WAIT_QUEUES; i++) {
 		struct bt_wait_state *bs = &bt->bs[wake_index];
 
 		if (waitqueue_active(&bs->wait)) {
-			if (wake_index != bt->wake_index)
-				bt->wake_index = wake_index;
+			int o = atomic_read(&bt->wake_index);
+			if (wake_index != o)
+				atomic_cmpxchg(&bt->wake_index, o, wake_index);
 
 			return bs;
 		}
 
-		bt_index_inc(&wake_index);
+		wake_index = bt_index_inc(wake_index);
 	}
 
 	return NULL;
@@ -344,7 +354,7 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 	bs = bt_wake_ptr(bt);
 	if (bs && atomic_dec_and_test(&bs->wait_cnt)) {
 		atomic_set(&bs->wait_cnt, bt->wake_cnt);
-		bt_index_inc(&bt->wake_index);
+		bt_index_atomic_inc(&bt->wake_index);
 		wake_up(&bs->wait);
 	}
 }
