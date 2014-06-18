@@ -164,6 +164,7 @@
 #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
 #define Intercept   ((u64)1 << 48)  /* Has valid intercept field */
 #define CheckPerm   ((u64)1 << 49)  /* Has valid check_perm field */
+#define NoBigReal   ((u64)1 << 50)  /* No big real mode */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -640,7 +641,12 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 		if (!fetch && (desc.type & 8) && !(desc.type & 2))
 			goto bad;
 		lim = desc_limit_scaled(&desc);
-		if ((desc.type & 8) || !(desc.type & 4)) {
+		if ((ctxt->mode == X86EMUL_MODE_REAL) && !fetch &&
+		    (ctxt->d & NoBigReal)) {
+			/* la is between zero and 0xffff */
+			if (la > 0xffff || (u32)(la + size - 1) > 0xffff)
+				goto bad;
+		} else if ((desc.type & 8) || !(desc.type & 4)) {
 			/* expand-up segment */
 			if (addr.ea > lim || (u32)(addr.ea + size - 1) > lim)
 				goto bad;
