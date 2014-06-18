@@ -639,6 +639,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	struct sk_buff *wmi_skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int len;
+	u32 buf_len = skb->len;
 	u16 fc;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -648,6 +649,15 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 		return -EINVAL;
 
 	len = sizeof(cmd->hdr) + skb->len;
+
+	if ((ieee80211_is_action(hdr->frame_control) ||
+	     ieee80211_is_deauth(hdr->frame_control) ||
+	     ieee80211_is_disassoc(hdr->frame_control)) &&
+	     ieee80211_has_protected(hdr->frame_control)) {
+		len += IEEE80211_CCMP_MIC_LEN;
+		buf_len += IEEE80211_CCMP_MIC_LEN;
+	}
+
 	len = round_up(len, 4);
 
 	wmi_skb = ath10k_wmi_alloc_skb(len);
@@ -659,7 +669,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb)
 	cmd->hdr.vdev_id = __cpu_to_le32(ATH10K_SKB_CB(skb)->vdev_id);
 	cmd->hdr.tx_rate = 0;
 	cmd->hdr.tx_power = 0;
-	cmd->hdr.buf_len = __cpu_to_le32((u32)(skb->len));
+	cmd->hdr.buf_len = __cpu_to_le32(buf_len);
 
 	memcpy(cmd->hdr.peer_macaddr.addr, ieee80211_get_DA(hdr), ETH_ALEN);
 	memcpy(cmd->buf, skb->data, skb->len);
@@ -957,10 +967,16 @@ static int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb)
 	 * frames with Protected Bit set. */
 	if (ieee80211_has_protected(hdr->frame_control) &&
 	    !ieee80211_is_auth(hdr->frame_control)) {
-		status->flag |= RX_FLAG_DECRYPTED | RX_FLAG_IV_STRIPPED |
-				RX_FLAG_MMIC_STRIPPED;
-		hdr->frame_control = __cpu_to_le16(fc &
+		status->flag |= RX_FLAG_DECRYPTED;
+
+		if (!ieee80211_is_action(hdr->frame_control) &&
+		    !ieee80211_is_deauth(hdr->frame_control) &&
+		    !ieee80211_is_disassoc(hdr->frame_control)) {
+			status->flag |= RX_FLAG_IV_STRIPPED |
+					RX_FLAG_MMIC_STRIPPED;
+			hdr->frame_control = __cpu_to_le16(fc &
 					~IEEE80211_FCTL_PROTECTED);
+		}
 	}
 
 	ath10k_dbg(ATH10K_DBG_MGMT,
@@ -1362,13 +1378,10 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 	struct sk_buff *bcn;
 	int ret, vdev_id = 0;
 
-	ath10k_dbg(ATH10K_DBG_MGMT, "WMI_HOST_SWBA_EVENTID\n");
-
 	ev = (struct wmi_host_swba_event *)skb->data;
 	map = __le32_to_cpu(ev->vdev_map);
 
-	ath10k_dbg(ATH10K_DBG_MGMT, "host swba:\n"
-		   "-vdev map 0x%x\n",
+	ath10k_dbg(ATH10K_DBG_MGMT, "mgmt swba vdev_map 0x%x\n",
 		   ev->vdev_map);
 
 	for (; map; map >>= 1, vdev_id++) {
@@ -1385,12 +1398,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		bcn_info = &ev->bcn_info[i];
 
 		ath10k_dbg(ATH10K_DBG_MGMT,
-			   "-bcn_info[%d]:\n"
-			   "--tim_len %d\n"
-			   "--tim_mcast %d\n"
-			   "--tim_changed %d\n"
-			   "--tim_num_ps_pending %d\n"
-			   "--tim_bitmap 0x%08x%08x%08x%08x\n",
+			   "mgmt event bcn_info %d tim_len %d mcast %d changed %d num_ps_pending %d bitmap 0x%08x%08x%08x%08x\n",
 			   i,
 			   __le32_to_cpu(bcn_info->tim_info.tim_len),
 			   __le32_to_cpu(bcn_info->tim_info.tim_mcast),
@@ -1439,6 +1447,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 					 ATH10K_SKB_CB(arvif->beacon)->paddr,
 					 arvif->beacon->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(arvif->beacon);
+			arvif->beacon = NULL;
 		}
 
 		ATH10K_SKB_CB(bcn)->paddr = dma_map_single(arvif->ar->dev,
@@ -1448,6 +1457,7 @@ static void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 					ATH10K_SKB_CB(bcn)->paddr);
 		if (ret) {
 			ath10k_warn("failed to map beacon: %d\n", ret);
+			dev_kfree_skb_any(bcn);
 			goto skip;
 		}
 
@@ -2365,7 +2375,7 @@ void ath10k_wmi_detach(struct ath10k *ar)
 	ar->wmi.num_mem_chunks = 0;
 }
 
-int ath10k_wmi_connect_htc_service(struct ath10k *ar)
+int ath10k_wmi_connect(struct ath10k *ar)
 {
 	int status;
 	struct ath10k_htc_svc_conn_req conn_req;
@@ -2393,8 +2403,9 @@ int ath10k_wmi_connect_htc_service(struct ath10k *ar)
 	return 0;
 }
 
-int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
-				  u16 rd5g, u16 ctl2g, u16 ctl5g)
+static int ath10k_wmi_main_pdev_set_regdomain(struct ath10k *ar, u16 rd,
+					      u16 rd2g, u16 rd5g, u16 ctl2g,
+					      u16 ctl5g)
 {
 	struct wmi_pdev_set_regdomain_cmd *cmd;
 	struct sk_buff *skb;
@@ -2416,6 +2427,46 @@ int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
 
 	return ath10k_wmi_cmd_send(ar, skb,
 				   ar->wmi.cmd->pdev_set_regdomain_cmdid);
+}
+
+static int ath10k_wmi_10x_pdev_set_regdomain(struct ath10k *ar, u16 rd,
+					     u16 rd2g, u16 rd5g,
+					     u16 ctl2g, u16 ctl5g,
+					     enum wmi_dfs_region dfs_reg)
+{
+	struct wmi_pdev_set_regdomain_cmd_10x *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_set_regdomain_cmd_10x *)skb->data;
+	cmd->reg_domain = __cpu_to_le32(rd);
+	cmd->reg_domain_2G = __cpu_to_le32(rd2g);
+	cmd->reg_domain_5G = __cpu_to_le32(rd5g);
+	cmd->conformance_test_limit_2G = __cpu_to_le32(ctl2g);
+	cmd->conformance_test_limit_5G = __cpu_to_le32(ctl5g);
+	cmd->dfs_domain = __cpu_to_le32(dfs_reg);
+
+	ath10k_dbg(ATH10K_DBG_WMI,
+		   "wmi pdev regdomain rd %x rd2g %x rd5g %x ctl2g %x ctl5g %x dfs_region %x\n",
+		   rd, rd2g, rd5g, ctl2g, ctl5g, dfs_reg);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_set_regdomain_cmdid);
+}
+
+int ath10k_wmi_pdev_set_regdomain(struct ath10k *ar, u16 rd, u16 rd2g,
+				  u16 rd5g, u16 ctl2g, u16 ctl5g,
+				  enum wmi_dfs_region dfs_reg)
+{
+	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
+		return ath10k_wmi_10x_pdev_set_regdomain(ar, rd, rd2g, rd5g,
+							ctl2g, ctl5g, dfs_reg);
+	else
+		return ath10k_wmi_main_pdev_set_regdomain(ar, rd, rd2g, rd5g,
+							 ctl2g, ctl5g);
 }
 
 int ath10k_wmi_pdev_set_channel(struct ath10k *ar,
@@ -3456,8 +3507,9 @@ int ath10k_wmi_peer_assoc(struct ath10k *ar,
 		__cpu_to_le32(arg->peer_vht_rates.tx_mcs_set);
 
 	ath10k_dbg(ATH10K_DBG_WMI,
-		   "wmi peer assoc vdev %d addr %pM\n",
-		   arg->vdev_id, arg->addr);
+		   "wmi peer assoc vdev %d addr %pM (%s)\n",
+		   arg->vdev_id, arg->addr,
+		   arg->peer_reassoc ? "reassociate" : "new");
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->peer_assoc_cmdid);
 }
 

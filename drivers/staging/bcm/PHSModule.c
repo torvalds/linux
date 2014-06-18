@@ -409,7 +409,6 @@ ULONG PhsUpdateClassifierRule(IN void *pvContext,
  */
 ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI)
 {
-	ULONG lStatus = 0;
 	UINT nSFIndex = 0, nClsidIndex = 0;
 	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	struct bcm_phs_classifier_table *pstClassifierRulesTable = NULL;
@@ -446,7 +445,7 @@ ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI
 			}
 		}
 	}
-	return lStatus;
+	return 0;
 }
 
 /*
@@ -467,7 +466,6 @@ ULONG PhsDeletePHSRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT8 u8PHSI
  */
 ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT16 uiClsId)
 {
-	ULONG lStatus = 0;
 	UINT nSFIndex = 0, nClsidIndex = 0;
 	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	struct bcm_phs_classifier_entry *pstClassifierEntry = NULL;
@@ -504,7 +502,7 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
 			memset(pstClassifierEntry, 0, sizeof(struct bcm_phs_classifier_entry));
 		}
 	}
-	return lStatus;
+	return 0;
 }
 
 /*
@@ -524,7 +522,6 @@ ULONG PhsDeleteClassifierRule(IN void *pvContext, IN B_UINT16 uiVcid, IN B_UINT1
  */
 ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 {
-	ULONG lStatus = 0;
 	UINT nSFIndex = 0, nClsidIndex = 0;
 	struct bcm_phs_entry *pstServiceFlowEntry = NULL;
 	struct bcm_phs_classifier_table *pstClassifierRulesTable = NULL;
@@ -573,7 +570,7 @@ ULONG PhsDeleteSFRules(IN void *pvContext, IN B_UINT16 uiVcid)
 		pstServiceFlowEntry->uiVcid = 0;
 	}
 
-	return lStatus;
+	return 0;
 }
 
 /*

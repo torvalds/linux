@@ -76,10 +76,8 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 
 	led = devm_kzalloc(&dev->dev, sizeof(struct s3c24xx_gpio_led),
 			   GFP_KERNEL);
-	if (led == NULL) {
-		dev_err(&dev->dev, "No memory for device\n");
+	if (!led)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(dev, led);
 

@@ -52,53 +52,35 @@
 #undef DEVICE_ETHTOOL_IOCTL_SUPPORT
 #endif
 
-/* please copy below macro to driver_event.c for API */
-#define RT_INSMOD_EVENT_FLAG                             0x0101
-#define RT_UPDEV_EVENT_FLAG                               0x0102
-#define RT_DISCONNECTED_EVENT_FLAG               0x0103
-#define RT_WPACONNECTED_EVENT_FLAG             0x0104
-#define RT_DOWNDEV_EVENT_FLAG                        0x0105
-#define RT_RMMOD_EVENT_FLAG                              0x0106
+#define MAX_RATE			12
 
 /*
  * device specific
  */
 
-#include "device_cfg.h"
 #include "80211hdr.h"
 #include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
-#include "srom.h"
 #include "rc4.h"
 #include "desc.h"
 #include "key.h"
 #include "card.h"
-#include "rndis.h"
 
 #define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
 
-#define MAC_MAX_CONTEXT_REG     (256+128)
+#define DEVICE_NAME			"vt6656"
+#define DEVICE_FULL_DRV_NAM		"VIA Networking Wireless LAN USB Driver"
 
-#define MAX_MULTICAST_ADDRESS_NUM       32
-#define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
+#define DEVICE_VERSION			"1.19_12"
+
+#define CONFIG_PATH			"/etc/vntconfiguration.dat"
+
+#define MAX_UINTS			8
+#define OPTION_DEFAULT			{ [0 ... MAX_UINTS-1] = -1}
 
 #define DUPLICATE_RX_CACHE_LENGTH       5
-
-#define NUM_KEY_ENTRY                   11
-
-#define TX_WEP_NONE                     0
-#define TX_WEP_OTF                      1
-#define TX_WEP_SW                       2
-#define TX_WEP_SWOTP                    3
-#define TX_WEP_OTPSW                    4
-#define TX_WEP_SW232                    5
-
-#define KEYSEL_WEP40                    0
-#define KEYSEL_WEP104                   1
-#define KEYSEL_TKIP                     2
-#define KEYSEL_CCMP                     3
 
 #define AUTO_FB_NONE            0
 #define AUTO_FB_0               1
@@ -119,22 +101,85 @@
 #define ANT_RXA                 2
 #define ANT_RXB                 3
 
-#define MAXCHECKHANGCNT         4
-
-/* Packet type */
-#define TX_PKT_UNI              0x00
-#define TX_PKT_MULTI            0x01
-#define TX_PKT_BROAD            0x02
-
 #define BB_VGA_LEVEL            4
 #define BB_VGA_CHANGE_THRESHOLD 3
+
+#define EEP_MAX_CONTEXT_SIZE    256
+
+/* Contents in the EEPROM */
+#define EEP_OFS_PAR		0x0
+#define EEP_OFS_ANTENNA		0x17
+#define EEP_OFS_RADIOCTL	0x18
+#define EEP_OFS_RFTYPE		0x1b
+#define EEP_OFS_MINCHANNEL	0x1c
+#define EEP_OFS_MAXCHANNEL	0x1d
+#define EEP_OFS_SIGNATURE	0x1e
+#define EEP_OFS_ZONETYPE	0x1f
+#define EEP_OFS_RFTABLE		0x20
+#define EEP_OFS_PWR_CCK		0x20
+#define EEP_OFS_SETPT_CCK	0x21
+#define EEP_OFS_PWR_OFDMG	0x23
+
+#define EEP_OFS_CALIB_TX_IQ	0x24
+#define EEP_OFS_CALIB_TX_DC	0x25
+#define EEP_OFS_CALIB_RX_IQ	0x26
+
+#define EEP_OFS_MAJOR_VER	0x2e
+#define EEP_OFS_MINOR_VER	0x2f
+
+#define EEP_OFS_CCK_PWR_TBL	0x30
+#define EEP_OFS_OFDM_PWR_TBL	0x40
+#define EEP_OFS_OFDMA_PWR_TBL	0x50
+
+/* Bits in EEP_OFS_ANTENNA */
+#define EEP_ANTENNA_MAIN	0x1
+#define EEP_ANTENNA_AUX		0x2
+#define EEP_ANTINV		0x4
+
+/* Bits in EEP_OFS_RADIOCTL */
+#define EEP_RADIOCTL_ENABLE	0x80
+
+/* control commands */
+#define MESSAGE_TYPE_READ		0x1
+#define MESSAGE_TYPE_WRITE		0x0
+#define MESSAGE_TYPE_LOCK_OR		0x2
+#define MESSAGE_TYPE_LOCK_AND		0x3
+#define MESSAGE_TYPE_WRITE_MASK		0x4
+#define MESSAGE_TYPE_CARDINIT		0x5
+#define MESSAGE_TYPE_INIT_RSP		0x6
+#define MESSAGE_TYPE_MACSHUTDOWN	0x7
+#define MESSAGE_TYPE_SETKEY		0x8
+#define MESSAGE_TYPE_CLRKEYENTRY	0x9
+#define MESSAGE_TYPE_WRITE_MISCFF	0xa
+#define MESSAGE_TYPE_SET_ANTMD		0xb
+#define MESSAGE_TYPE_SELECT_CHANNLE	0xc
+#define MESSAGE_TYPE_SET_TSFTBTT	0xd
+#define MESSAGE_TYPE_SET_SSTIFS		0xe
+#define MESSAGE_TYPE_CHANGE_BBTYPE	0xf
+#define MESSAGE_TYPE_DISABLE_PS		0x10
+#define MESSAGE_TYPE_WRITE_IFRF		0x11
+
+/* command read/write(index) */
+#define MESSAGE_REQUEST_MEM		0x1
+#define MESSAGE_REQUEST_BBREG		0x2
+#define MESSAGE_REQUEST_MACREG		0x3
+#define MESSAGE_REQUEST_EEPROM		0x4
+#define MESSAGE_REQUEST_TSF		0x5
+#define MESSAGE_REQUEST_TBTT		0x6
+#define MESSAGE_REQUEST_BBAGC		0x7
+#define MESSAGE_REQUEST_VERSION		0x8
+#define MESSAGE_REQUEST_RF_INIT		0x9
+#define MESSAGE_REQUEST_RF_INIT2	0xa
+#define MESSAGE_REQUEST_RF_CH0		0xb
+#define MESSAGE_REQUEST_RF_CH1		0xc
+#define MESSAGE_REQUEST_RF_CH2		0xd
+
+/* USB registers */
+#define USB_REG4			0x604
 
 #ifndef RUN_AT
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
-
-/* DMA related */
-#define RESERV_AC0DMA                   4
 
 #define PRIVATE_Message                 0
 
@@ -152,6 +197,23 @@ typedef enum __device_msg_level {
 #define DEVICE_INIT_COLD	0x0 /* cold init */
 #define DEVICE_INIT_RESET	0x1 /* reset init or Dx to D0 power remain */
 #define DEVICE_INIT_DXPL	0x2 /* Dx to D0 power lost init */
+
+/* Device init */
+struct vnt_cmd_card_init {
+	u8 init_class;
+	u8 exist_sw_net_addr;
+	u8 sw_net_addr[6];
+	u8 short_retry_limit;
+	u8 long_retry_limit;
+};
+
+struct vnt_rsp_card_init {
+	u8 status;
+	u8 net_addr[6];
+	u8 rf_type;
+	u8 min_channel;
+	u8 max_channel;
+};
 
 /* USB */
 
@@ -176,13 +238,13 @@ struct vnt_rcb {
 
 /* used to track bulk out irps */
 struct vnt_usb_send_context {
-	void *pDevice;
-	struct sk_buff *pPacket;
-	struct urb *pUrb;
-	unsigned int uBufLen;
+	void *priv;
+	struct sk_buff *skb;
+	struct urb *urb;
+	unsigned int buf_len;
 	u8 type;
-	bool bBoolInUse;
-	unsigned char Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
+	bool in_use;
+	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
 
 /* tx packet info for rxtx */
@@ -278,9 +340,9 @@ typedef struct tagSPMKIDCandidateEvent {
 
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
-    u16        wFmSequence;
-    u8        abyAddr2[ETH_ALEN];
-    u16        wFrameCtl;
+	__le16 wFmSequence;
+	u8 abyAddr2[ETH_ALEN];
+	__le16 wFrameCtl;
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
@@ -309,29 +371,9 @@ typedef struct tagSDeFragControlBlock
 
 /* flags for options */
 #define     DEVICE_FLAGS_UNPLUG          0x00000001UL
-#define     DEVICE_FLAGS_PREAMBLE_TYPE   0x00000002UL
-#define     DEVICE_FLAGS_OP_MODE         0x00000004UL
-#define     DEVICE_FLAGS_PS_MODE         0x00000008UL
-#define		DEVICE_FLAGS_80211h_MODE	 0x00000010UL
 
 /* flags for driver status */
 #define     DEVICE_FLAGS_OPENED          0x00010000UL
-#define     DEVICE_FLAGS_WOL_ENABLED     0x00080000UL
-/* flags for capabilities */
-#define     DEVICE_FLAGS_TX_ALIGN        0x01000000UL
-#define     DEVICE_FLAGS_HAVE_CAM        0x02000000UL
-#define     DEVICE_FLAGS_FLOW_CTRL       0x04000000UL
-
-/* flags for MII status */
-#define     DEVICE_LINK_FAIL             0x00000001UL
-#define     DEVICE_SPEED_10              0x00000002UL
-#define     DEVICE_SPEED_100             0x00000004UL
-#define     DEVICE_SPEED_1000            0x00000008UL
-#define     DEVICE_DUPLEX_FULL           0x00000010UL
-#define     DEVICE_AUTONEG_ENABLE        0x00000020UL
-#define     DEVICE_FORCED_BY_EEPROM      0x00000040UL
-/* for device_set_media_duplex */
-#define     DEVICE_LINK_CHANGE           0x00000001UL
 
 typedef struct __device_opt {
 	int nRxDescs0;  /* number of RX descriptors 0 */
@@ -363,10 +405,9 @@ struct vnt_private {
 	u8 byRxMode;
 
 	spinlock_t lock;
+	struct mutex usb_lock;
 
 	u32 rx_bytes;
-
-	u8 byRevId;
 
 	u32 flags;
 	unsigned long Flags;
@@ -379,9 +420,7 @@ struct vnt_private {
 	u32 uCurrentDFCBIdx;
 
 	/* USB */
-	struct urb *pControlURB;
 	struct urb *pInterruptURB;
-	struct usb_ctrlrequest sUsbCtlRequest;
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
@@ -453,30 +492,6 @@ struct vnt_private {
 	u8 byRadioCtl;
 	u8 bHWRadioOff;
 
-	/* SQ3 functions for antenna diversity */
-	struct timer_list TimerSQ3Tmax1;
-	struct timer_list TimerSQ3Tmax2;
-	struct timer_list TimerSQ3Tmax3;
-
-	int bDiversityRegCtlON;
-	int bDiversityEnable;
-	unsigned long ulDiversityNValue;
-	unsigned long ulDiversityMValue;
-	u8 byTMax;
-	u8 byTMax2;
-	u8 byTMax3;
-	unsigned long ulSQ3TH;
-
-	unsigned long uDiversityCnt;
-	u8 byAntennaState;
-	unsigned long ulRatio_State0;
-	unsigned long ulRatio_State1;
-	unsigned long ulSQ3_State0;
-	unsigned long ulSQ3_State1;
-
-	unsigned long aulSQ3Val[MAX_RATE];
-	unsigned long aulPktNum[MAX_RATE];
-
 	/* IFS & Cw */
 	u32 uSIFS;  /* Current SIFS */
 	u32 uDIFS;  /* Current DIFS */
@@ -496,14 +511,9 @@ struct vnt_private {
 	u8 byBBType; /* 0: 11A, 1:11B, 2:11G */
 	u8 byPacketType; /* 0:11a 1:11b 2:11gb 3:11ga */
 	u16 wBasicRate;
-	u8 byACKRate;
 	u8 byTopOFDMBasicRate;
 	u8 byTopCCKBasicRate;
 
-	u32 dwAotoRateTxOkCnt;
-	u32 dwAotoRateTxFailCnt;
-	u32 dwErrorRateThreshold[13];
-	u32 dwTPTable[MAX_RATE];
 	u8 abyEEPROM[EEP_MAX_CONTEXT_SIZE];  /*u32 alignment */
 
 	u8 byMinChannel;
@@ -542,7 +552,6 @@ struct vnt_private {
 
 	u32 dwMaxReceiveLifetime;  /* dot11MaxReceiveLifetime */
 
-	int bCCK;
 	int bEncryptionEnable;
 	int bShortSlotTime;
 	int bProtectMode;
@@ -569,7 +578,6 @@ struct vnt_private {
 	int bBeaconSent;
 	int bFixRate;
 	u8 byCurrentCh;
-	u32 uScanTime;
 
 	CMD_STATE eCommandState;
 
@@ -600,7 +608,6 @@ struct vnt_private {
 	u8 bSameBSSCurNum;
 	int bRoaming;
 	int b11hEable;
-	unsigned long ulTxPower;
 
 	/* Encryption */
 	NDIS_802_11_WEP_STATUS eEncryptionStatus;
@@ -629,7 +636,6 @@ struct vnt_private {
 	int bRxMICFail;
 
 	/* For Update BaseBand VGA Gain Offset */
-	int bUpdateBBVGA;
 	u32 uBBVGADiffCount;
 	u8 byBBVGANew;
 	u8 byBBVGACurrent;
@@ -640,18 +646,6 @@ struct vnt_private {
 	u8 byBBPreEDIndex;
 
 	int bRadioCmd;
-
-	/* For FOE Tuning */
-	u8  byFOETuning;
-
-	/* For Auto Power Tunning */
-	u8  byAutoPwrTunning;
-
-	/* BaseBand Loopback Use */
-	u8 byBBCR4d;
-	u8 byBBCRc9;
-	u8 byBBCR88;
-	u8 byBBCR09;
 
 	/* command timer */
 	struct delayed_work run_command_work;
@@ -689,13 +683,6 @@ struct vnt_private {
 	int bwextstep3;
 	int bWPASuppWextEnabled;
 
-	/* user space daemon: hostapd, is used for HOSTAP */
-	int bEnableHostapd;
-	int bEnable8021x;
-	int bEnableHostWEP;
-	struct net_device *apdev;
-	int (*tx_80211)(struct sk_buff *skb, struct net_device *dev);
-
 	u32 uChannel;
 
 	struct iw_statistics wstats; /* wireless stats */
@@ -732,25 +719,15 @@ struct vnt_private {
         (uVar)++;                                   \
 }
 
-#define fMP_RESET_IN_PROGRESS               0x00000001
 #define fMP_DISCONNECTED                    0x00000002
-#define fMP_HALT_IN_PROGRESS                0x00000004
-#define fMP_SURPRISE_REMOVED                0x00000008
-#define fMP_RECV_LOOKASIDE                  0x00000010
-#define fMP_INIT_IN_PROGRESS                0x00000020
-#define fMP_SEND_SIDE_RESOURCE_ALLOCATED    0x00000040
-#define fMP_RECV_SIDE_RESOURCE_ALLOCATED    0x00000080
 #define fMP_POST_READS                      0x00000100
 #define fMP_POST_WRITES                     0x00000200
-#define fMP_CONTROL_READS                   0x00000400
-#define fMP_CONTROL_WRITES                  0x00000800
 
 #define MP_SET_FLAG(_M, _F)             ((_M)->Flags |= (_F))
 #define MP_CLEAR_FLAG(_M, _F)            ((_M)->Flags &= ~(_F))
 #define MP_TEST_FLAGS(_M, _F)            (((_M)->Flags & (_F)) == (_F))
 
-#define MP_IS_READY(_M)        (((_M)->Flags & \
-                                 (fMP_DISCONNECTED | fMP_RESET_IN_PROGRESS | fMP_HALT_IN_PROGRESS | fMP_INIT_IN_PROGRESS | fMP_SURPRISE_REMOVED)) == 0)
+#define MP_IS_READY(_M)        (((_M)->Flags & fMP_DISCONNECTED) == 0)
 
 int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 void vnt_configure_filter(struct vnt_private *);

@@ -37,6 +37,7 @@ Optional properties:
 - auto-flow-control: one way to enable automatic flow control support. The
   driver is allowed to detect support for the capability even without this
   property.
+- has-hw-flow-control: the hardware has flow control capability.
 
 Example:
 

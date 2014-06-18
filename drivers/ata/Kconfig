@@ -123,6 +123,15 @@ config AHCI_IMX
 
 	  If unsure, say N.
 
+config AHCI_MVEBU
+	tristate "Marvell EBU AHCI SATA support"
+	depends on ARCH_MVEBU
+	help
+	  This option enables support for the Marvebu EBU SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config AHCI_SUNXI
 	tristate "Allwinner sunxi AHCI SATA support"
 	depends on ARCH_SUNXI

@@ -417,7 +417,6 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = { sizeof(cmd), },
-		.flags = CMD_SYNC,
 		.data = { &cmd, },
 	};
 
@@ -579,7 +578,6 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = { sizeof(*cmd), },
-		.flags = CMD_SYNC,
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 	int err;

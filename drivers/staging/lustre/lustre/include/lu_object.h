@@ -516,6 +516,10 @@ enum lu_object_header_attr {
  */
 struct lu_object_header {
 	/**
+	 * Fid, uniquely identifying this object.
+	 */
+	struct lu_fid		loh_fid;
+	/**
 	 * Object flags from enum lu_object_header_flags. Set and checked
 	 * atomically.
 	 */
@@ -524,10 +528,6 @@ struct lu_object_header {
 	 * Object reference count. Protected by lu_site::ls_guard.
 	 */
 	atomic_t	   loh_ref;
-	/**
-	 * Fid, uniquely identifying this object.
-	 */
-	struct lu_fid	  loh_fid;
 	/**
 	 * Common object attributes, cached for efficiency. From enum
 	 * lu_object_header_attr.

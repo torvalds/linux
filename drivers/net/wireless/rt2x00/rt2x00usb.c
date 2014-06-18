@@ -68,6 +68,12 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 		}
 	}
 
+	/* If the port is powered down, we get a -EPROTO error, and this
+	 * leads to a endless loop. So just say that the device is gone.
+	 */
+	if (status == -EPROTO)
+		clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+
 	rt2x00_err(rt2x00dev,
 		   "Vendor Request 0x%02x failed for offset 0x%04x with error %d\n",
 		   request, offset, status);

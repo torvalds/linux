@@ -555,10 +555,6 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 		return -ENOLCK;
 
 	/* we're simulating flock() locks using posix locks on the server */
-	fl->fl_owner = (fl_owner_t) file;
-	fl->fl_start = 0;
-	fl->fl_end = OFFSET_MAX;
-
 	if (fl->fl_type == F_UNLCK)
 		return afs_do_unlk(file, fl);
 	return afs_do_setlk(file, fl);

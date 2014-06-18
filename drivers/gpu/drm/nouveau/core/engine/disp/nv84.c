@@ -264,7 +264,6 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hdmi = nv84_hdmi_ctrl;
 	priv->pior.power = nv50_pior_power;
-	priv->pior.dp = &nv50_pior_dp_func;
 	return 0;
 }
 
@@ -277,6 +276,7 @@ nv84_disp_oclass = &(struct nv50_disp_impl) {
 		.init = _nouveau_disp_init,
 		.fini = _nouveau_disp_fini,
 	},
+	.base.outp =  nv50_disp_outp_sclass,
 	.mthd.core = &nv84_disp_mast_mthd_chan,
 	.mthd.base = &nv84_disp_sync_mthd_chan,
 	.mthd.ovly = &nv84_disp_ovly_mthd_chan,

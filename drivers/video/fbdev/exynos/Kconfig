@@ -4,6 +4,7 @@
 
 menuconfig EXYNOS_VIDEO
 	bool "Exynos Video driver support"
+	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	help
 	  This enables support for EXYNOS Video device.
 
@@ -15,7 +16,6 @@ if EXYNOS_VIDEO
 
 config EXYNOS_MIPI_DSI
 	bool "EXYNOS MIPI DSI driver support."
-	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	select GENERIC_PHY
 	help
 	  This enables support for MIPI-DSI device.

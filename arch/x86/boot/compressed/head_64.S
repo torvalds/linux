@@ -452,7 +452,7 @@ efi32_config:
 	.global efi64_config
 efi64_config:
 	.fill	11,8,0
-	.quad	efi_call6
+	.quad	efi_call
 	.byte	1
 #endif /* CONFIG_EFI_STUB */
 

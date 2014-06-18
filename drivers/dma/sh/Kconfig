@@ -4,7 +4,7 @@
 
 config SH_DMAE_BASE
 	bool "Renesas SuperH DMA Engine support"
-	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
+	depends on (SUPERH && SH_DMA) || ARCH_SHMOBILE || COMPILE_TEST
 	depends on !SH_DMA_API
 	default y
 	select DMA_ENGINE

@@ -1526,7 +1526,7 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 
 int qla4xxx_request_irqs(struct scsi_qla_host *ha)
 {
-	int ret;
+	int ret = 0;
 	int rval = QLA_ERROR;
 
 	if (is_qla40XX(ha))
@@ -1580,15 +1580,13 @@ try_msi:
 		}
 	}
 
-	/*
-	 * Prevent interrupts from falling back to INTx mode in cases where
-	 * interrupts cannot get acquired through MSI-X or MSI mode.
-	 */
+try_intx:
 	if (is_qla8022(ha)) {
-		ql4_printk(KERN_WARNING, ha, "IRQ not attached -- %d.\n", ret);
+		ql4_printk(KERN_WARNING, ha, "%s: ISP82xx Legacy interrupt not supported\n",
+			   __func__);
 		goto irq_not_attached;
 	}
-try_intx:
+
 	/* Trying INTx */
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
 	    IRQF_SHARED, DRIVER_NAME, ha);

@@ -126,7 +126,7 @@ static int async_chainiv_schedule_work(struct async_chainiv_ctx *ctx)
 	int err = ctx->err;
 
 	if (!ctx->queue.qlen) {
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 		clear_bit(CHAINIV_STATE_INUSE, &ctx->state);
 
 		if (!ctx->queue.qlen ||

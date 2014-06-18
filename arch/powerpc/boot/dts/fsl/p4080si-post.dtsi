@@ -281,7 +281,7 @@
 	};
 
 	corenet-cf@18000 {
-		compatible = "fsl,corenet-cf";
+		compatible = "fsl,corenet1-cf", "fsl,corenet-cf";
 		reg = <0x18000 0x1000>;
 		interrupts = <16 2 1 31>;
 		fsl,ccf-num-csdids = <32>;
@@ -297,6 +297,7 @@
 		interrupts = <
 			24 2 0 0
 			16 2 1 30>;
+		fsl,portid-mapping = <0x00f80000>;
 
 		pamu0: pamu@0 {
 			reg = <0 0x1000>;

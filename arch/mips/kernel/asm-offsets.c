@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/kbuild.h>
 #include <linux/suspend.h>
+#include <asm/pm.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/smp-cps.h>
@@ -64,9 +65,6 @@ void output_ptreg_defines(void)
 	OFFSET(PT_BVADDR, pt_regs, cp0_badvaddr);
 	OFFSET(PT_STATUS, pt_regs, cp0_status);
 	OFFSET(PT_CAUSE, pt_regs, cp0_cause);
-#ifdef CONFIG_MIPS_MT_SMTC
-	OFFSET(PT_TCSTATUS, pt_regs, cp0_tcstatus);
-#endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	OFFSET(PT_MPL, pt_regs, mpl);
 	OFFSET(PT_MTP, pt_regs, mtp);
@@ -404,6 +402,20 @@ void output_pbe_defines(void)
 }
 #endif
 
+#ifdef CONFIG_CPU_PM
+void output_pm_defines(void)
+{
+	COMMENT(" PM offsets. ");
+#ifdef CONFIG_EVA
+	OFFSET(SSS_SEGCTL0,	mips_static_suspend_state, segctl[0]);
+	OFFSET(SSS_SEGCTL1,	mips_static_suspend_state, segctl[1]);
+	OFFSET(SSS_SEGCTL2,	mips_static_suspend_state, segctl[2]);
+#endif
+	OFFSET(SSS_SP,		mips_static_suspend_state, sp);
+	BLANK();
+}
+#endif
+
 void output_kvm_defines(void)
 {
 	COMMENT(" KVM/MIPS Specfic offsets. ");
@@ -472,10 +484,14 @@ void output_kvm_defines(void)
 void output_cps_defines(void)
 {
 	COMMENT(" MIPS CPS offsets. ");
-	OFFSET(BOOTCFG_CORE, boot_config, core);
-	OFFSET(BOOTCFG_VPE, boot_config, vpe);
-	OFFSET(BOOTCFG_PC, boot_config, pc);
-	OFFSET(BOOTCFG_SP, boot_config, sp);
-	OFFSET(BOOTCFG_GP, boot_config, gp);
+
+	OFFSET(COREBOOTCFG_VPEMASK, core_boot_config, vpe_mask);
+	OFFSET(COREBOOTCFG_VPECONFIG, core_boot_config, vpe_config);
+	DEFINE(COREBOOTCFG_SIZE, sizeof(struct core_boot_config));
+
+	OFFSET(VPEBOOTCFG_PC, vpe_boot_config, pc);
+	OFFSET(VPEBOOTCFG_SP, vpe_boot_config, sp);
+	OFFSET(VPEBOOTCFG_GP, vpe_boot_config, gp);
+	DEFINE(VPEBOOTCFG_SIZE, sizeof(struct vpe_boot_config));
 }
 #endif

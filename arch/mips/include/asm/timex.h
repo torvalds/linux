@@ -4,12 +4,16 @@
  * for more details.
  *
  * Copyright (C) 1998, 1999, 2003 by Ralf Baechle
+ * Copyright (C) 2014 by Maciej W. Rozycki
  */
 #ifndef _ASM_TIMEX_H
 #define _ASM_TIMEX_H
 
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
+
+#include <asm/cpu.h>
 #include <asm/cpu-features.h>
 #include <asm/mipsregs.h>
 #include <asm/cpu-type.h>
@@ -45,29 +49,54 @@ typedef unsigned int cycles_t;
  * However for now the implementaton of this function doesn't get these
  * fine details right.
  */
+static inline int can_use_mips_counter(unsigned int prid)
+{
+	int comp = (prid & PRID_COMP_MASK) != PRID_COMP_LEGACY;
+
+	if (__builtin_constant_p(cpu_has_counter) && !cpu_has_counter)
+		return 0;
+	else if (__builtin_constant_p(cpu_has_mips_r) && cpu_has_mips_r)
+		return 1;
+	else if (likely(!__builtin_constant_p(cpu_has_mips_r) && comp))
+		return 1;
+	/* Make sure we don't peek at cpu_data[0].options in the fast path! */
+	if (!__builtin_constant_p(cpu_has_counter))
+		asm volatile("" : "=m" (cpu_data[0].options));
+	if (likely(cpu_has_counter &&
+		   prid >= (PRID_IMP_R4000 | PRID_REV_ENCODE_44(5, 0))))
+		return 1;
+	else
+		return 0;
+}
+
 static inline cycles_t get_cycles(void)
 {
-	switch (boot_cpu_type()) {
-	case CPU_R4400PC:
-	case CPU_R4400SC:
-	case CPU_R4400MC:
-		if ((read_c0_prid() & 0xff) >= 0x0050)
-			return read_c0_count();
-		break;
-
-        case CPU_R4000PC:
-        case CPU_R4000SC:
-        case CPU_R4000MC:
-		break;
-
-	default:
-		if (cpu_has_counter)
-			return read_c0_count();
-		break;
-	}
-
-	return 0;	/* no usable counter */
+	if (can_use_mips_counter(read_c0_prid()))
+		return read_c0_count();
+	else
+		return 0;	/* no usable counter */
 }
+
+/*
+ * Like get_cycles - but where c0_count is not available we desperately
+ * use c0_random in an attempt to get at least a little bit of entropy.
+ *
+ * R6000 and R6000A neither have a count register nor a random register.
+ * That leaves no entropy source in the CPU itself.
+ */
+static inline unsigned long random_get_entropy(void)
+{
+	unsigned int prid = read_c0_prid();
+	unsigned int imp = prid & PRID_IMP_MASK;
+
+	if (can_use_mips_counter(prid))
+		return read_c0_count();
+	else if (likely(imp != PRID_IMP_R6000 && imp != PRID_IMP_R6000A))
+		return read_c0_random();
+	else
+		return 0;	/* no usable register */
+}
+#define random_get_entropy random_get_entropy
 
 #endif /* __KERNEL__ */
 

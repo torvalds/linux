@@ -47,7 +47,7 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 	return __alloc_bootmem(size, align, __pa(MAX_DMA_ADDRESS));
 }
 
-void __init __dt_setup_arch(struct boot_param_header *bph)
+void __init __dt_setup_arch(void *bph)
 {
 	if (!early_init_dt_scan(bph))
 		return;

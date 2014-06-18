@@ -32,7 +32,7 @@
 	std	r12,PACASAVEDMSR(r13);	\
 	andc	r12,r12,r0;		\
 	mtmsrd	r12,1;			\
-	LOAD_REG_ADDR(r0,.opal_return);	\
+	LOAD_REG_ADDR(r0,opal_return);	\
 	mtlr	r0;			\
 	li	r0,MSR_DR|MSR_IR|MSR_LE;\
 	andc	r12,r12,r0;		\
@@ -44,7 +44,7 @@
 	mtspr	SPRN_HSRR0,r12;		\
 	hrfid
 
-_STATIC(opal_return)
+opal_return:
 	/*
 	 * Fixup endian on OPAL return... we should be able to simplify
 	 * this by instead converting the below trampoline to a set of
@@ -124,6 +124,7 @@ OPAL_CALL(opal_xscom_write,			OPAL_XSCOM_WRITE);
 OPAL_CALL(opal_lpc_read,			OPAL_LPC_READ);
 OPAL_CALL(opal_lpc_write,			OPAL_LPC_WRITE);
 OPAL_CALL(opal_return_cpu,			OPAL_RETURN_CPU);
+OPAL_CALL(opal_reinit_cpus,			OPAL_REINIT_CPUS);
 OPAL_CALL(opal_read_elog,			OPAL_ELOG_READ);
 OPAL_CALL(opal_send_ack_elog,			OPAL_ELOG_ACK);
 OPAL_CALL(opal_get_elog_size,			OPAL_ELOG_SIZE);

@@ -53,6 +53,30 @@ static struct nand_ecclayout gpmi_hw_ecclayout = {
 	.oobfree = { {.offset = 0, .length = 0} }
 };
 
+static const struct gpmi_devdata gpmi_devdata_imx23 = {
+	.type = IS_MX23,
+	.bch_max_ecc_strength = 20,
+	.max_chain_delay = 16,
+};
+
+static const struct gpmi_devdata gpmi_devdata_imx28 = {
+	.type = IS_MX28,
+	.bch_max_ecc_strength = 20,
+	.max_chain_delay = 16,
+};
+
+static const struct gpmi_devdata gpmi_devdata_imx6q = {
+	.type = IS_MX6Q,
+	.bch_max_ecc_strength = 40,
+	.max_chain_delay = 12,
+};
+
+static const struct gpmi_devdata gpmi_devdata_imx6sx = {
+	.type = IS_MX6SX,
+	.bch_max_ecc_strength = 62,
+	.max_chain_delay = 12,
+};
+
 static irqreturn_t bch_irq(int irq, void *cookie)
 {
 	struct gpmi_nand_data *this = cookie;
@@ -102,14 +126,8 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 		/* The mx23/mx28 only support the GF13. */
 		if (geo->gf_len == 14)
 			return false;
-
-		if (geo->ecc_strength > MXS_ECC_STRENGTH_MAX)
-			return false;
-	} else if (GPMI_IS_MX6Q(this)) {
-		if (geo->ecc_strength > MX6_ECC_STRENGTH_MAX)
-			return false;
 	}
-	return true;
+	return geo->ecc_strength <= this->devdata->bch_max_ecc_strength;
 }
 
 /*
@@ -270,8 +288,7 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 			"We can not support this nand chip."
 			" Its required ecc strength(%d) is beyond our"
 			" capability(%d).\n", geo->ecc_strength,
-			(GPMI_IS_MX6Q(this) ? MX6_ECC_STRENGTH_MAX
-					: MXS_ECC_STRENGTH_MAX));
+			this->devdata->bch_max_ecc_strength);
 		return -EINVAL;
 	}
 
@@ -572,7 +589,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 	}
 
 	/* Get extra clocks */
-	if (GPMI_IS_MX6Q(this))
+	if (GPMI_IS_MX6(this))
 		extra_clks = extra_clks_for_mx6q;
 	if (!extra_clks)
 		return 0;
@@ -590,9 +607,9 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 		r->clock[i] = clk;
 	}
 
-	if (GPMI_IS_MX6Q(this))
+	if (GPMI_IS_MX6(this))
 		/*
-		 * Set the default value for the gpmi clock in mx6q:
+		 * Set the default value for the gpmi clock.
 		 *
 		 * If you want to use the ONFI nand which is in the
 		 * Synchronous Mode, you should change the clock as you need.
@@ -1655,7 +1672,7 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	 *  (1) the chip is imx6, and
 	 *  (2) the size of the ECC parity is byte aligned.
 	 */
-	if (GPMI_IS_MX6Q(this) &&
+	if (GPMI_IS_MX6(this) &&
 		((bch_geo->gf_len * bch_geo->ecc_strength) % 8) == 0) {
 		ecc->read_subpage = gpmi_ecc_read_subpage;
 		chip->options |= NAND_SUBPAGE_READ;
@@ -1711,7 +1728,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-	ret = nand_scan_ident(mtd, GPMI_IS_MX6Q(this) ? 2 : 1, NULL);
+	ret = nand_scan_ident(mtd, GPMI_IS_MX6(this) ? 2 : 1, NULL);
 	if (ret)
 		goto err_out;
 
@@ -1740,23 +1757,19 @@ err_out:
 	return ret;
 }
 
-static const struct platform_device_id gpmi_ids[] = {
-	{ .name = "imx23-gpmi-nand", .driver_data = IS_MX23, },
-	{ .name = "imx28-gpmi-nand", .driver_data = IS_MX28, },
-	{ .name = "imx6q-gpmi-nand", .driver_data = IS_MX6Q, },
-	{}
-};
-
 static const struct of_device_id gpmi_nand_id_table[] = {
 	{
 		.compatible = "fsl,imx23-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX23],
+		.data = (void *)&gpmi_devdata_imx23,
 	}, {
 		.compatible = "fsl,imx28-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX28],
+		.data = (void *)&gpmi_devdata_imx28,
 	}, {
 		.compatible = "fsl,imx6q-gpmi-nand",
-		.data = (void *)&gpmi_ids[IS_MX6Q],
+		.data = (void *)&gpmi_devdata_imx6q,
+	}, {
+		.compatible = "fsl,imx6sx-gpmi-nand",
+		.data = (void *)&gpmi_devdata_imx6sx,
 	}, {}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
@@ -1767,17 +1780,17 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	int ret;
 
+	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
+	if (!this)
+		return -ENOMEM;
+
 	of_id = of_match_device(gpmi_nand_id_table, &pdev->dev);
 	if (of_id) {
-		pdev->id_entry = of_id->data;
+		this->devdata = of_id->data;
 	} else {
 		dev_err(&pdev->dev, "Failed to find the right device id.\n");
 		return -ENODEV;
 	}
-
-	this = devm_kzalloc(&pdev->dev, sizeof(*this), GFP_KERNEL);
-	if (!this)
-		return -ENOMEM;
 
 	platform_set_drvdata(pdev, this);
 	this->pdev  = pdev;
@@ -1823,7 +1836,6 @@ static struct platform_driver gpmi_nand_driver = {
 	},
 	.probe   = gpmi_nand_probe,
 	.remove  = gpmi_nand_remove,
-	.id_table = gpmi_ids,
 };
 module_platform_driver(gpmi_nand_driver);
 

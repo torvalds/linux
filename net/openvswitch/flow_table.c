@@ -48,6 +48,7 @@
 #define REHASH_INTERVAL		(10 * 60 * HZ)
 
 static struct kmem_cache *flow_cache;
+struct kmem_cache *flow_stats_cache __read_mostly;
 
 static u16 range_n_bytes(const struct sw_flow_key_range *range)
 {
@@ -57,8 +58,10 @@ static u16 range_n_bytes(const struct sw_flow_key_range *range)
 void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		       const struct sw_flow_mask *mask)
 {
-	const long *m = (long *)((u8 *)&mask->key + mask->range.start);
-	const long *s = (long *)((u8 *)src + mask->range.start);
+	const long *m = (const long *)((const u8 *)&mask->key +
+				mask->range.start);
+	const long *s = (const long *)((const u8 *)src +
+				mask->range.start);
 	long *d = (long *)((u8 *)dst + mask->range.start);
 	int i;
 
@@ -70,10 +73,11 @@ void ovs_flow_mask_key(struct sw_flow_key *dst, const struct sw_flow_key *src,
 		*d++ = *s++ & *m++;
 }
 
-struct sw_flow *ovs_flow_alloc(bool percpu_stats)
+struct sw_flow *ovs_flow_alloc(void)
 {
 	struct sw_flow *flow;
-	int cpu;
+	struct flow_stats *stats;
+	int node;
 
 	flow = kmem_cache_alloc(flow_cache, GFP_KERNEL);
 	if (!flow)
@@ -81,27 +85,22 @@ struct sw_flow *ovs_flow_alloc(bool percpu_stats)
 
 	flow->sf_acts = NULL;
 	flow->mask = NULL;
+	flow->stats_last_writer = NUMA_NO_NODE;
 
-	flow->stats.is_percpu = percpu_stats;
+	/* Initialize the default stat node. */
+	stats = kmem_cache_alloc_node(flow_stats_cache,
+				      GFP_KERNEL | __GFP_ZERO, 0);
+	if (!stats)
+		goto err;
 
-	if (!percpu_stats) {
-		flow->stats.stat = kzalloc(sizeof(*flow->stats.stat), GFP_KERNEL);
-		if (!flow->stats.stat)
-			goto err;
+	spin_lock_init(&stats->lock);
 
-		spin_lock_init(&flow->stats.stat->lock);
-	} else {
-		flow->stats.cpu_stats = alloc_percpu(struct flow_stats);
-		if (!flow->stats.cpu_stats)
-			goto err;
+	RCU_INIT_POINTER(flow->stats[0], stats);
 
-		for_each_possible_cpu(cpu) {
-			struct flow_stats *cpu_stats;
+	for_each_node(node)
+		if (node != 0)
+			RCU_INIT_POINTER(flow->stats[node], NULL);
 
-			cpu_stats = per_cpu_ptr(flow->stats.cpu_stats, cpu);
-			spin_lock_init(&cpu_stats->lock);
-		}
-	}
 	return flow;
 err:
 	kmem_cache_free(flow_cache, flow);
@@ -138,11 +137,13 @@ static struct flex_array *alloc_buckets(unsigned int n_buckets)
 
 static void flow_free(struct sw_flow *flow)
 {
-	kfree((struct sf_flow_acts __force *)flow->sf_acts);
-	if (flow->stats.is_percpu)
-		free_percpu(flow->stats.cpu_stats);
-	else
-		kfree(flow->stats.stat);
+	int node;
+
+	kfree((struct sw_flow_actions __force *)flow->sf_acts);
+	for_each_node(node)
+		if (flow->stats[node])
+			kmem_cache_free(flow_stats_cache,
+					(struct flow_stats __force *)flow->stats[node]);
 	kmem_cache_free(flow_cache, flow);
 }
 
@@ -157,25 +158,6 @@ void ovs_flow_free(struct sw_flow *flow, bool deferred)
 {
 	if (!flow)
 		return;
-
-	if (flow->mask) {
-		struct sw_flow_mask *mask = flow->mask;
-
-		/* ovs-lock is required to protect mask-refcount and
-		 * mask list.
-		 */
-		ASSERT_OVSL();
-		BUG_ON(!mask->ref_count);
-		mask->ref_count--;
-
-		if (!mask->ref_count) {
-			list_del_rcu(&mask->list);
-			if (deferred)
-				kfree_rcu(mask, rcu);
-			else
-				kfree(mask);
-		}
-	}
 
 	if (deferred)
 		call_rcu(&flow->rcu, rcu_free_flow_callback);
@@ -375,7 +357,7 @@ int ovs_flow_tbl_flush(struct flow_table *flow_table)
 static u32 flow_hash(const struct sw_flow_key *key, int key_start,
 		     int key_end)
 {
-	u32 *hash_key = (u32 *)((u8 *)key + key_start);
+	const u32 *hash_key = (const u32 *)((const u8 *)key + key_start);
 	int hash_u32s = (key_end - key_start) >> 2;
 
 	/* Make sure number of hash bytes are multiple of u32. */
@@ -397,8 +379,8 @@ static bool cmp_key(const struct sw_flow_key *key1,
 		    const struct sw_flow_key *key2,
 		    int key_start, int key_end)
 {
-	const long *cp1 = (long *)((u8 *)key1 + key_start);
-	const long *cp2 = (long *)((u8 *)key2 + key_start);
+	const long *cp1 = (const long *)((const u8 *)key1 + key_start);
+	const long *cp2 = (const long *)((const u8 *)key2 + key_start);
 	long diffs = 0;
 	int i;
 
@@ -490,6 +472,25 @@ static struct table_instance *table_instance_expand(struct table_instance *ti)
 	return table_instance_rehash(ti, ti->n_buckets * 2);
 }
 
+/* Remove 'mask' from the mask list, if it is not needed any more. */
+static void flow_mask_remove(struct flow_table *tbl, struct sw_flow_mask *mask)
+{
+	if (mask) {
+		/* ovs-lock is required to protect mask-refcount and
+		 * mask list.
+		 */
+		ASSERT_OVSL();
+		BUG_ON(!mask->ref_count);
+		mask->ref_count--;
+
+		if (!mask->ref_count) {
+			list_del_rcu(&mask->list);
+			kfree_rcu(mask, rcu);
+		}
+	}
+}
+
+/* Must be called with OVS mutex held. */
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 {
 	struct table_instance *ti = ovsl_dereference(table->ti);
@@ -497,6 +498,11 @@ void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 	BUG_ON(table->count == 0);
 	hlist_del_rcu(&flow->hash_node[ti->node_ver]);
 	table->count--;
+
+	/* RCU delete the mask. 'flow->mask' is not NULLed, as it should be
+	 * accessible as long as the RCU read lock is held.
+	 */
+	flow_mask_remove(table, flow->mask);
 }
 
 static struct sw_flow_mask *mask_alloc(void)
@@ -513,8 +519,8 @@ static struct sw_flow_mask *mask_alloc(void)
 static bool mask_equal(const struct sw_flow_mask *a,
 		       const struct sw_flow_mask *b)
 {
-	u8 *a_ = (u8 *)&a->key + a->range.start;
-	u8 *b_ = (u8 *)&b->key + b->range.start;
+	const u8 *a_ = (const u8 *)&a->key + a->range.start;
+	const u8 *b_ = (const u8 *)&b->key + b->range.start;
 
 	return  (a->range.end == b->range.end)
 		&& (a->range.start == b->range.start)
@@ -559,6 +565,7 @@ static int flow_mask_insert(struct flow_table *tbl, struct sw_flow *flow,
 	return 0;
 }
 
+/* Must be called with OVS mutex held. */
 int ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow,
 			struct sw_flow_mask *mask)
 {
@@ -597,10 +604,21 @@ int ovs_flow_init(void)
 	BUILD_BUG_ON(__alignof__(struct sw_flow_key) % __alignof__(long));
 	BUILD_BUG_ON(sizeof(struct sw_flow_key) % sizeof(long));
 
-	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow), 0,
-					0, NULL);
+	flow_cache = kmem_cache_create("sw_flow", sizeof(struct sw_flow)
+				       + (num_possible_nodes()
+					  * sizeof(struct flow_stats *)),
+				       0, 0, NULL);
 	if (flow_cache == NULL)
 		return -ENOMEM;
+
+	flow_stats_cache
+		= kmem_cache_create("sw_flow_stats", sizeof(struct flow_stats),
+				    0, SLAB_HWCACHE_ALIGN, NULL);
+	if (flow_stats_cache == NULL) {
+		kmem_cache_destroy(flow_cache);
+		flow_cache = NULL;
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -608,5 +626,6 @@ int ovs_flow_init(void)
 /* Uninitializes the flow module. */
 void ovs_flow_exit(void)
 {
+	kmem_cache_destroy(flow_stats_cache);
 	kmem_cache_destroy(flow_cache);
 }

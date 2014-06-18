@@ -62,19 +62,19 @@ enum sn9c102_bridge {
 };
 
 /* Return the bridge name */
-enum sn9c102_bridge sn9c102_get_bridge(struct sn9c102_device* cam);
+enum sn9c102_bridge sn9c102_get_bridge(struct sn9c102_device *cam);
 
 /* Return a pointer the sensor struct attached to the camera */
-struct sn9c102_sensor* sn9c102_get_sensor(struct sn9c102_device* cam);
+struct sn9c102_sensor *sn9c102_get_sensor(struct sn9c102_device *cam);
 
 /* Identify a device */
 extern struct sn9c102_device*
-sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id);
+sn9c102_match_id(struct sn9c102_device *cam, const struct usb_device_id *id);
 
 /* Attach a probed sensor to the camera. */
 extern void
-sn9c102_attach_sensor(struct sn9c102_device* cam,
-		      const struct sn9c102_sensor* sensor);
+sn9c102_attach_sensor(struct sn9c102_device *cam,
+		      const struct sn9c102_sensor *sensor);
 
 /*
    Read/write routines: they always return -1 on error, 0 or the read value
@@ -99,12 +99,12 @@ extern int sn9c102_i2c_try_read(struct sn9c102_device*,
    version returns 0 on success, while the read version returns the first read
    byte.
 */
-extern int sn9c102_i2c_try_raw_write(struct sn9c102_device* cam,
-				     const struct sn9c102_sensor* sensor, u8 n,
+extern int sn9c102_i2c_try_raw_write(struct sn9c102_device *cam,
+				     const struct sn9c102_sensor *sensor, u8 n,
 				     u8 data0, u8 data1, u8 data2, u8 data3,
 				     u8 data4, u8 data5);
-extern int sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
-				    const struct sn9c102_sensor* sensor,
+extern int sn9c102_i2c_try_raw_read(struct sn9c102_device *cam,
+				    const struct sn9c102_sensor *sensor,
 				    u8 data0, u8 data1, u8 n, u8 buffer[]);
 
 /* To be used after the sensor struct has been attached to the camera struct */
@@ -174,7 +174,7 @@ struct sn9c102_sensor {
 		 they must return 0 on success, the proper error otherwise.
 	*/
 
-	int (*init)(struct sn9c102_device* cam);
+	int (*init)(struct sn9c102_device *cam);
 	/*
 	   This function will be called after the sensor has been attached.
 	   It should be used to initialize the sensor only, but may also
@@ -195,9 +195,9 @@ struct sn9c102_sensor {
 	   V4L2 API. Menu type controls are not handled by this interface.
 	*/
 
-	int (*get_ctrl)(struct sn9c102_device* cam, struct v4l2_control* ctrl);
-	int (*set_ctrl)(struct sn9c102_device* cam,
-			const struct v4l2_control* ctrl);
+	int (*get_ctrl)(struct sn9c102_device *cam, struct v4l2_control *ctrl);
+	int (*set_ctrl)(struct sn9c102_device *cam,
+			const struct v4l2_control *ctrl);
 	/*
 	   You must implement at least the set_ctrl method if you have defined
 	   the list above. The returned value must follow the V4L2
@@ -240,8 +240,8 @@ struct sn9c102_sensor {
 	   will be ignored.
 	*/
 
-	int (*set_crop)(struct sn9c102_device* cam,
-			const struct v4l2_rect* rect);
+	int (*set_crop)(struct sn9c102_device *cam,
+			const struct v4l2_rect *rect);
 	/*
 	   To be called on VIDIOC_C_SETCROP. The core module always calls a
 	   default routine which configures the appropriate SN9C1XX regs (also
@@ -276,8 +276,8 @@ struct sn9c102_sensor {
 		   matches the RGB bayer sequence (i.e. BGBGBG...GRGRGR).
 	*/
 
-	int (*set_pix_format)(struct sn9c102_device* cam,
-			      const struct v4l2_pix_format* pix);
+	int (*set_pix_format)(struct sn9c102_device *cam,
+			      const struct v4l2_pix_format *pix);
 	/*
 	   To be called on VIDIOC_S_FMT, when switching from the SBGGR8 to
 	   SN9C10X pixel format or viceversa. On error return the corresponding

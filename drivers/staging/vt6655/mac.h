@@ -1042,7 +1042,6 @@ void MACvSetKeyEntry(unsigned long dwIoBase, unsigned short wKeyCtl, unsigned in
 void MACvDisableKeyEntry(unsigned long dwIoBase, unsigned int uEntryIdx);
 void MACvSetDefaultKeyEntry(unsigned long dwIoBase, unsigned int uKeyLen,
 			    unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID);
-//void MACvEnableDefaultKey(unsigned long dwIoBase, unsigned char byLocalID);
 void MACvDisableDefaultKey(unsigned long dwIoBase);
 void MACvSetDefaultTKIPKeyEntry(unsigned long dwIoBase, unsigned int uKeyLen,
 				unsigned int uKeyIdx, unsigned long *pdwKey, unsigned char byLocalID);

@@ -2,14 +2,23 @@
 # Bridge netfilter configuration
 #
 #
-config NF_TABLES_BRIDGE
-	depends on NF_TABLES
+menuconfig NF_TABLES_BRIDGE
+	depends on BRIDGE && NETFILTER && NF_TABLES
 	tristate "Ethernet Bridge nf_tables support"
+
+if NF_TABLES_BRIDGE
+
+config NFT_BRIDGE_META
+	tristate "Netfilter nf_table bridge meta support"
+	depends on NFT_META
+	help
+	  Add support for bridge dedicated meta key.
+
+endif # NF_TABLES_BRIDGE
 
 menuconfig BRIDGE_NF_EBTABLES
 	tristate "Ethernet Bridge tables (ebtables) support"
-	depends on BRIDGE && NETFILTER
-	select NETFILTER_XTABLES
+	depends on BRIDGE && NETFILTER && NETFILTER_XTABLES
 	help
 	  ebtables is a general, extensible frame/packet identification
 	  framework. Say 'Y' or 'M' here if you want to do Ethernet

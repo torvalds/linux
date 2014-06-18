@@ -178,13 +178,19 @@ nodes to be present and contain the properties described below.
 		Usage and definition depend on ARM architecture version.
 			# On ARM v8 64-bit this property is required and must
 			  be one of:
-			     "spin-table"
 			     "psci"
+			     "spin-table"
 			# On ARM 32-bit systems this property is optional and
 			  can be one of:
+			    "allwinner,sun6i-a31"
+			    "arm,psci"
+			    "marvell,armada-375-smp"
+			    "marvell,armada-380-smp"
+			    "marvell,armada-xp-smp"
 			    "qcom,gcc-msm8660"
 			    "qcom,kpss-acc-v1"
 			    "qcom,kpss-acc-v2"
+			    "rockchip,rk3066-smp"
 
 	- cpu-release-addr
 		Usage: required for systems that have an "enable-method"

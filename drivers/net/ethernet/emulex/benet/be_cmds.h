@@ -50,7 +50,7 @@ struct be_mcc_wrb {
 #define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
 
 /* Completion Status */
-enum {
+enum mcc_base_status {
 	MCC_STATUS_SUCCESS = 0,
 	MCC_STATUS_FAILED = 1,
 	MCC_STATUS_ILLEGAL_REQUEST = 2,
@@ -60,12 +60,25 @@ enum {
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 
-#define MCC_ADDL_STS_INSUFFICIENT_RESOURCES	0x16
+/* Additional status */
+enum mcc_addl_status {
+	MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES = 0x16,
+	MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH = 0x4d,
+	MCC_ADDL_STATUS_TOO_MANY_INTERFACES = 0x4a
+};
 
-#define CQE_STATUS_COMPL_MASK		0xFFFF
-#define CQE_STATUS_COMPL_SHIFT		0	/* bits 0 - 15 */
-#define CQE_STATUS_EXTD_MASK		0xFFFF
-#define CQE_STATUS_EXTD_SHIFT		16	/* bits 16 - 31 */
+#define CQE_BASE_STATUS_MASK		0xFFFF
+#define CQE_BASE_STATUS_SHIFT		0	/* bits 0 - 15 */
+#define CQE_ADDL_STATUS_MASK		0xFF
+#define CQE_ADDL_STATUS_SHIFT		16	/* bits 16 - 31 */
+
+#define base_status(status)		\
+		((enum mcc_base_status)	\
+			(status > 0 ? (status & CQE_BASE_STATUS_MASK) : 0))
+#define addl_status(status)		\
+		((enum mcc_addl_status)	\
+			(status > 0 ? (status >> CQE_ADDL_STATUS_SHIFT) & \
+					CQE_ADDL_STATUS_MASK : 0))
 
 struct be_mcc_compl {
 	u32 status;		/* dword 0 */
@@ -74,13 +87,13 @@ struct be_mcc_compl {
 	u32 flags;		/* dword 3 */
 };
 
-/* When the async bit of mcc_compl is set, the last 4 bytes of
- * mcc_compl is interpreted as follows:
+/* When the async bit of mcc_compl flags is set, flags
+ * is interpreted as follows:
  */
-#define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
-#define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
-#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16
-#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xFF
+#define ASYNC_EVENT_CODE_SHIFT		8	/* bits 8 - 15 */
+#define ASYNC_EVENT_CODE_MASK		0xFF
+#define ASYNC_EVENT_TYPE_SHIFT		16
+#define ASYNC_EVENT_TYPE_MASK		0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
 #define ASYNC_EVENT_CODE_GRP_5		0x5
 #define ASYNC_EVENT_QOS_SPEED		0x1
@@ -89,10 +102,6 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_CODE_QNQ		0x6
 #define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
 
-struct be_async_event_trailer {
-	u32 code;
-};
-
 enum {
 	LINK_DOWN	= 0x0,
 	LINK_UP		= 0x1
@@ -100,7 +109,7 @@ enum {
 #define LINK_STATUS_MASK			0x1
 #define LOGICAL_LINK_STATUS_MASK		0x2
 
-/* When the event code of an async trailer is link-state, the mcc_compl
+/* When the event code of compl->flags is link-state, the mcc_compl
  * must be interpreted as follows
  */
 struct be_async_event_link_state {
@@ -110,10 +119,10 @@ struct be_async_event_link_state {
 	u8 port_speed;
 	u8 port_fault;
 	u8 rsvd0[7];
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP-5 and event_type is QOS_SPEED
+/* When the event code of compl->flags is GRP-5 and event_type is QOS_SPEED
  * the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_qos_link_speed {
@@ -121,10 +130,10 @@ struct be_async_event_grp5_qos_link_speed {
 	u8 rsvd[5];
 	u16 qos_link_speed;
 	u32 event_tag;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP5 and event type is
+/* When the event code of compl->flags is GRP5 and event type is
  * CoS-Priority, the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_cos_priority {
@@ -134,10 +143,10 @@ struct be_async_event_grp5_cos_priority {
 	u8 valid;
 	u8 rsvd0;
 	u8 event_tag;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
-/* When the event code of an async trailer is GRP5 and event type is
+/* When the event code of compl->flags is GRP5 and event type is
  * PVID state, the mcc_compl must be interpreted as follows
  */
 struct be_async_event_grp5_pvid_state {
@@ -146,7 +155,7 @@ struct be_async_event_grp5_pvid_state {
 	u16 tag;
 	u32 event_tag;
 	u32 rsvd1;
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
 /* async event indicating outer VLAN tag in QnQ */
@@ -156,7 +165,7 @@ struct be_async_event_qnq {
 	u16 vlan_tag;
 	u32 event_tag;
 	u8 rsvd1[4];
-	struct be_async_event_trailer trailer;
+	u32 flags;
 } __packed;
 
 struct be_mcc_mailbox {
@@ -258,8 +267,8 @@ struct be_cmd_resp_hdr {
 	u8 opcode;		/* dword 0 */
 	u8 subsystem;		/* dword 0 */
 	u8 rsvd[2];		/* dword 0 */
-	u8 status;		/* dword 1 */
-	u8 add_status;		/* dword 1 */
+	u8 base_status;		/* dword 1 */
+	u8 addl_status;		/* dword 1 */
 	u8 rsvd1[2];		/* dword 1 */
 	u32 response_length;	/* dword 2 */
 	u32 actual_resp_len;	/* dword 3 */
@@ -1186,7 +1195,8 @@ struct be_cmd_read_flash_crc {
 	struct flashrom_params params;
 	u8 crc[4];
 	u8 rsvd[4];
-};
+} __packed;
+
 /**************** Lancer Firmware Flash ************/
 struct amap_lancer_write_obj_context {
 	u8 write_length[24];
@@ -1891,16 +1901,20 @@ struct be_nic_res_desc {
 	u16 cq_count;
 	u16 toe_conn_count;
 	u16 eq_count;
-	u32 rsvd5;
+	u16 vlan_id;
+	u16 iface_count;
 	u32 cap_flags;
 	u8 link_param;
-	u8 rsvd6[3];
+	u8 rsvd6;
+	u16 channel_id_param;
 	u32 bw_min;
 	u32 bw_max;
 	u8 acpi_params;
 	u8 wol_param;
 	u16 rsvd7;
-	u32 rsvd8[7];
+	u16 tunnel_iface_count;
+	u16 direct_tenant_iface_count;
+	u32 rsvd8[6];
 } __packed;
 
 /************ Multi-Channel type ***********/
@@ -2060,7 +2074,7 @@ int be_cmd_get_fw_ver(struct be_adapter *adapter, char *fw_ver,
 		      char *fw_on_flash);
 int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *, int num);
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
-		       u32 num, bool promiscuous);
+		       u32 num);
 int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 status);
 int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc);
 int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc);
@@ -2068,7 +2082,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 			u32 *function_mode, u32 *function_caps, u16 *asic_rev);
 int be_cmd_reset_function(struct be_adapter *adapter);
 int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
-		      u32 rss_hash_opts, u16 table_size);
+		      u32 rss_hash_opts, u16 table_size, const u8 *rss_hkey);
 int be_process_mcc(struct be_adapter *adapter);
 int be_cmd_set_beacon_state(struct be_adapter *adapter, u8 port_num, u8 beacon,
 			    u8 status, u8 state);
@@ -2084,7 +2098,7 @@ int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			   u32 data_size, u32 data_offset, const char *obj_name,
 			   u32 *data_read, u32 *eof, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
-			 int offset);
+			  u16 optype, int offset);
 int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 			    struct be_dma_mem *nonemb_cmd);
 int be_cmd_fw_init(struct be_adapter *adapter);
@@ -2101,7 +2115,8 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 			u8 loopback_type, u8 enable);
 int be_cmd_get_phy_info(struct be_adapter *adapter);
-int be_cmd_config_qos(struct be_adapter *adapter, u32 bps, u8 domain);
+int be_cmd_config_qos(struct be_adapter *adapter, u32 max_rate,
+		      u16 link_speed, u8 domain);
 void be_detect_error(struct be_adapter *adapter);
 int be_cmd_get_die_temperature(struct be_adapter *adapter);
 int be_cmd_get_cntl_attributes(struct be_adapter *adapter);

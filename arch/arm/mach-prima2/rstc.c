@@ -36,27 +36,33 @@ static int sirfsoc_reset_module(struct reset_controller_dev *rcdev,
 
 	if (of_device_is_compatible(rcdev->of_node, "sirf,prima2-rstc")) {
 		/*
-		 * Writing 1 to this bit resets corresponding block. Writing 0 to this
-		 * bit de-asserts reset signal of the corresponding block.
-		 * datasheet doesn't require explicit delay between the set and clear
-		 * of reset bit. it could be shorter if tests pass.
+		 * Writing 1 to this bit resets corresponding block.
+		 * Writing 0 to this bit de-asserts reset signal of the
+		 * corresponding block. datasheet doesn't require explicit
+		 * delay between the set and clear of reset bit. it could
+		 * be shorter if tests pass.
 		 */
-		writel(readl(sirfsoc_rstc_base + (reset_bit / 32) * 4) | (1 << reset_bit),
+		writel(readl(sirfsoc_rstc_base +
+			(reset_bit / 32) * 4) | (1 << reset_bit),
 			sirfsoc_rstc_base + (reset_bit / 32) * 4);
-		msleep(10);
-		writel(readl(sirfsoc_rstc_base + (reset_bit / 32) * 4) & ~(1 << reset_bit),
+		msleep(20);
+		writel(readl(sirfsoc_rstc_base +
+			(reset_bit / 32) * 4) & ~(1 << reset_bit),
 			sirfsoc_rstc_base + (reset_bit / 32) * 4);
 	} else {
 		/*
 		 * For MARCO and POLO
-		 * Writing 1 to SET register resets corresponding block. Writing 1 to CLEAR
-		 * register de-asserts reset signal of the corresponding block.
-		 * datasheet doesn't require explicit delay between the set and clear
-		 * of reset bit. it could be shorter if tests pass.
+		 * Writing 1 to SET register resets corresponding block.
+		 * Writing 1 to CLEAR register de-asserts reset signal of the
+		 * corresponding block.
+		 * datasheet doesn't require explicit delay between the set and
+		 * clear of reset bit. it could be shorter if tests pass.
 		 */
-		writel(1 << reset_bit, sirfsoc_rstc_base + (reset_bit / 32) * 8);
-		msleep(10);
-		writel(1 << reset_bit, sirfsoc_rstc_base + (reset_bit / 32) * 8 + 4);
+		writel(1 << reset_bit,
+			sirfsoc_rstc_base + (reset_bit / 32) * 8);
+		msleep(20);
+		writel(1 << reset_bit,
+			sirfsoc_rstc_base + (reset_bit / 32) * 8 + 4);
 	}
 
 	mutex_unlock(&rstc_lock);

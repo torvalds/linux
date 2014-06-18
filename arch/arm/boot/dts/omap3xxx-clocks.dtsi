@@ -453,10 +453,11 @@
 
 	dpll4_m5x2_mul_ck: dpll4_m5x2_mul_ck {
 		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
+		compatible = "ti,fixed-factor-clock";
 		clocks = <&dpll4_m5_ck>;
-		clock-mult = <2>;
-		clock-div = <1>;
+		ti,clock-mult = <2>;
+		ti,clock-div = <1>;
+		ti,set-rate-parent;
 	};
 
 	dpll4_m5x2_ck: dpll4_m5x2_ck {

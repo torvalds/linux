@@ -12,6 +12,7 @@
 /dts-v1/;
 #include "exynos5250.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
@@ -107,6 +108,7 @@
 					regulator-name = "VDD_IOPERI_1.8V";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
 					op_mode = <1>;
 				};
 
@@ -444,42 +446,42 @@
 		menu {
 			label = "SW-TACT2";
 			gpios = <&gpx1 4 1>;
-			linux,code = <139>;
+			linux,code = <KEY_MENU>;
 			gpio-key,wakeup;
 		};
 
 		home {
 			label = "SW-TACT3";
 			gpios = <&gpx1 5 1>;
-			linux,code = <102>;
+			linux,code = <KEY_HOME>;
 			gpio-key,wakeup;
 		};
 
 		up {
 			label = "SW-TACT4";
 			gpios = <&gpx1 6 1>;
-			linux,code = <103>;
+			linux,code = <KEY_UP>;
 			gpio-key,wakeup;
 		};
 
 		down {
 			label = "SW-TACT5";
 			gpios = <&gpx1 7 1>;
-			linux,code = <108>;
+			linux,code = <KEY_DOWN>;
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "SW-TACT6";
 			gpios = <&gpx2 0 1>;
-			linux,code = <158>;
+			linux,code = <KEY_BACK>;
 			gpio-key,wakeup;
 		};
 
 		wakeup {
 			label = "SW-TACT7";
 			gpios = <&gpx2 1 1>;
-			linux,code = <143>;
+			linux,code = <KEY_WAKEUP>;
 			gpio-key,wakeup;
 		};
 	};

@@ -54,7 +54,9 @@ static inline void register_trusted_foundations(
 	 */
 	pr_err("No support for Trusted Foundations, continuing in degraded mode.\n");
 	pr_err("Secondary processors as well as CPU PM will be disabled.\n");
+#if IS_ENABLED(CONFIG_SMP)
 	setup_max_cpus = 0;
+#endif
 	cpu_idle_poll_ctrl(true);
 }
 

@@ -1469,7 +1469,7 @@ zoran_set_norm (struct zoran *zr,
 	if (on)
 		zr36057_overlay(zr, 0);
 
-	decoder_call(zr, core, s_std, norm);
+	decoder_call(zr, video, s_std, norm);
 	encoder_call(zr, video, s_std_output, norm);
 
 	if (on)

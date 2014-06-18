@@ -172,7 +172,7 @@ void ovs_vport_deferred_free(struct vport *vport);
  */
 static inline void *vport_priv(const struct vport *vport)
 {
-	return (u8 *)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
+	return (u8 *)(uintptr_t)vport + ALIGN(sizeof(struct vport), VPORT_ALIGN);
 }
 
 /**
@@ -185,9 +185,9 @@ static inline void *vport_priv(const struct vport *vport)
  * the result of a hash table lookup.  @priv must point to the start of the
  * private data area.
  */
-static inline struct vport *vport_from_priv(const void *priv)
+static inline struct vport *vport_from_priv(void *priv)
 {
-	return (struct vport *)(priv - ALIGN(sizeof(struct vport), VPORT_ALIGN));
+	return (struct vport *)((u8 *)priv - ALIGN(sizeof(struct vport), VPORT_ALIGN));
 }
 
 void ovs_vport_receive(struct vport *, struct sk_buff *,

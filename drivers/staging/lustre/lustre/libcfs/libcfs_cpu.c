@@ -74,6 +74,22 @@ cfs_cpt_table_free(struct cfs_cpt_table *cptab)
 }
 EXPORT_SYMBOL(cfs_cpt_table_free);
 
+#ifdef CONFIG_SMP
+int
+cfs_cpt_table_print(struct cfs_cpt_table *cptab, char *buf, int len)
+{
+	int	rc = 0;
+
+	rc = snprintf(buf, len, "%d\t: %d\n", 0, 0);
+	len -= rc;
+	if (len <= 0)
+		return -EFBIG;
+
+	return rc;
+}
+EXPORT_SYMBOL(cfs_cpt_table_print);
+#endif /* CONFIG_SMP */
+
 int
 cfs_cpt_number(struct cfs_cpt_table *cptab)
 {
@@ -159,6 +175,13 @@ cfs_cpt_spread_node(struct cfs_cpt_table *cptab, int cpt)
 	return 0;
 }
 EXPORT_SYMBOL(cfs_cpt_spread_node);
+
+int
+cfs_cpu_ht_nsiblings(int cpu)
+{
+	return 1;
+}
+EXPORT_SYMBOL(cfs_cpu_ht_nsiblings);
 
 int
 cfs_cpt_current(struct cfs_cpt_table *cptab, int remap)

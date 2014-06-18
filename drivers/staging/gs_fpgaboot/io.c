@@ -44,6 +44,7 @@ static inline void xl_cclk_b(int32_t i);
 void xl_shift_cclk(int count)
 {
 	int i;
+
 	for (i = 0; i < count; i++) {
 		xl_cclk_b(1);
 		xl_cclk_b(0);
@@ -85,6 +86,7 @@ void xl_shift_bytes_out(enum wbus bus_byte, unsigned char *pdata)
 static inline unsigned char bitswap(unsigned char s)
 {
 	unsigned char d;
+
 	d = (((s&0x80)>>7) | ((s&0x40)>>5) | ((s&0x20)>>3) | ((s&0x10)>>1) |
 		((s&0x08)<<1) | ((s&0x04)<<3) | ((s&0x02)<<5) | ((s&0x01)<<7));
 	return d;
@@ -135,6 +137,7 @@ static inline void mpc85xx_gpio_set_high(int32_t port, uint32_t gpios)
 static inline void gpio_set_value(int32_t port, uint32_t gpio, uint32_t value)
 {
 	int32_t g;
+
 	g = 31 - gpio;
 	if (value)
 		mpc85xx_gpio_set_high(port, 1U << g);
@@ -145,6 +148,7 @@ static inline void gpio_set_value(int32_t port, uint32_t gpio, uint32_t value)
 static inline int gpio_get_value(int32_t port, uint32_t gpio)
 {
 	int32_t g;
+
 	g = 31 - gpio;
 	return !!mpc85xx_gpio_get(port, 1U << g);
 }
@@ -184,6 +188,7 @@ int xl_get_done_b(void)
 static inline uint32_t bit_remap_byte0(uint32_t s)
 {
 	uint32_t d;
+
 	d = (((s&0x80)>>7) | ((s&0x40)>>5) | ((s&0x20)>>3) | ((s&0x10)>>1) |
 		((s&0x08)<<1) | ((s&0x04)<<3) | ((s&0x02)<<6) | ((s&0x01)<<9));
 	return d;
@@ -195,6 +200,7 @@ static inline uint32_t bit_remap_byte0(uint32_t s)
 static inline void byte0_out(unsigned char data)
 {
 	uint32_t swap32;
+
 	swap32 =  bit_remap_byte0((uint32_t) data) << 8;
 
 	mpc85xx_gpio_set(0, 0x0002BF00, (uint32_t) swap32);

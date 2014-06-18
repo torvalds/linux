@@ -37,7 +37,6 @@
 
 #include <linux/idr.h>
 #include <linux/sunrpc/svc_xprt.h>
-#include <linux/nfsd/nfsfh.h>
 #include "nfsfh.h"
 
 typedef struct {
@@ -123,7 +122,7 @@ static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
 /* Maximum number of operations per session compound */
 #define NFSD_MAX_OPS_PER_COMPOUND	16
 /* Maximum  session per slot cache size */
-#define NFSD_SLOT_CACHE_SIZE		1024
+#define NFSD_SLOT_CACHE_SIZE		2048
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
 #define NFSD_CACHE_SIZE_SLOTS_PER_SESSION	32
 #define NFSD_MAX_MEM_PER_SESSION  \
@@ -464,8 +463,6 @@ extern void nfs4_release_reclaim(struct nfsd_net *);
 extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(const char *recdir,
 							struct nfsd_net *nn);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid, bool sessions, struct nfsd_net *nn);
-extern void nfs4_free_openowner(struct nfs4_openowner *);
-extern void nfs4_free_lockowner(struct nfs4_lockowner *);
 extern int set_callback_cred(void);
 extern void nfsd4_init_callback(struct nfsd4_callback *);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);

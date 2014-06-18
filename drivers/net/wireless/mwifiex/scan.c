@@ -29,9 +29,6 @@
 #define MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN   14
 
 #define MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD	4
-#define MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD	15
-#define MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD	27
-#define MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD	35
 
 /* Memory needed to store a max sized Channel List TLV for a firmware scan */
 #define CHAN_TLV_MAX_SIZE  (sizeof(struct mwifiex_ie_types_header)         \
@@ -1055,20 +1052,10 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 
 	/*
 	 * In associated state we will reduce the number of channels scanned per
-	 * scan command to avoid any traffic delay/loss. This number is decided
-	 * based on total number of channels to be scanned due to constraints
-	 * of command buffers.
+	 * scan command to 1 to avoid any traffic delay/loss.
 	 */
-	if (priv->media_connected) {
-		if (chan_num < MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD)
+	if (priv->media_connected)
 			*max_chan_per_scan = 1;
-		else if (chan_num < MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD)
-			*max_chan_per_scan = 2;
-		else if (chan_num < MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD)
-			*max_chan_per_scan = 3;
-		else
-			*max_chan_per_scan = 4;
-	}
 }
 
 /*
@@ -1353,23 +1340,17 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					      bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_BSS_COEX_2040:
-			bss_entry->bcn_bss_co_2040 = current_ptr +
-				sizeof(struct ieee_types_header);
-			bss_entry->bss_co_2040_offset = (u16) (current_ptr +
-					sizeof(struct ieee_types_header) -
-						bss_entry->beacon_buf);
+			bss_entry->bcn_bss_co_2040 = current_ptr;
+			bss_entry->bss_co_2040_offset =
+				(u16) (current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
-			bss_entry->bcn_ext_cap = current_ptr +
-				sizeof(struct ieee_types_header);
-			bss_entry->ext_cap_offset = (u16) (current_ptr +
-					sizeof(struct ieee_types_header) -
-					bss_entry->beacon_buf);
+			bss_entry->bcn_ext_cap = current_ptr;
+			bss_entry->ext_cap_offset =
+				(u16) (current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_OPMODE_NOTIF:
-			bss_entry->oper_mode =
-				(void *)(current_ptr +
-					 sizeof(struct ieee_types_header));
+			bss_entry->oper_mode = (void *)current_ptr;
 			bss_entry->oper_mode_offset =
 					(u16)((u8 *)bss_entry->oper_mode -
 					      bss_entry->beacon_buf);
@@ -1757,6 +1738,19 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 	return 0;
 }
 
+static void mwifiex_complete_scan(struct mwifiex_private *priv)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+
+	if (adapter->curr_cmd->wait_q_enabled) {
+		adapter->cmd_wait_q.status = 0;
+		if (!priv->scan_request) {
+			dev_dbg(adapter->dev, "complete internal scan\n");
+			mwifiex_complete_cmd(adapter, adapter->curr_cmd);
+		}
+	}
+}
+
 static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1770,16 +1764,9 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 		adapter->scan_processing = false;
 		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
 
-		/* Need to indicate IOCTL complete */
-		if (adapter->curr_cmd->wait_q_enabled) {
-			adapter->cmd_wait_q.status = 0;
-			if (!priv->scan_request) {
-				dev_dbg(adapter->dev,
-					"complete internal scan\n");
-				mwifiex_complete_cmd(adapter,
-						     adapter->curr_cmd);
-			}
-		}
+		if (!adapter->ext_scan)
+			mwifiex_complete_scan(priv);
+
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
 
@@ -1984,6 +1971,9 @@ int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
 int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv)
 {
 	dev_dbg(priv->adapter->dev, "info: EXT scan returns successfully\n");
+
+	mwifiex_complete_scan(priv);
+
 	return 0;
 }
 

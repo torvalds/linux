@@ -111,6 +111,8 @@ struct pxa27x_keypad {
 	unsigned short keycodes[MAX_KEYPAD_KEYS];
 	int rotary_rel_code[2];
 
+	unsigned int row_shift;
+
 	/* state row bits of each column scan */
 	uint32_t matrix_key_state[MAX_MATRIX_KEY_COLS];
 	uint32_t direct_key_state;
@@ -467,7 +469,8 @@ scan:
 			if ((bits_changed & (1 << row)) == 0)
 				continue;
 
-			code = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
+			code = MATRIX_SCAN_CODE(row, col, keypad->row_shift);
+
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
 			input_report_key(input_dev, keypad->keycodes[code],
 					 new_state[col] & (1 << row));
@@ -801,6 +804,8 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to build keycode\n");
 		goto failed_put_clk;
 	}
+
+	keypad->row_shift = get_count_order(pdata->matrix_key_cols);
 
 	if ((pdata->enable_rotary0 && keypad->rotary_rel_code[0] != -1) ||
 	    (pdata->enable_rotary1 && keypad->rotary_rel_code[1] != -1)) {

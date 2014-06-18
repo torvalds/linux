@@ -120,6 +120,9 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_VFS			30 /* Max VFs supported by BE3 FW */
 #define FW_VER_LEN		32
 
+#define	RSS_INDIR_TABLE_LEN	128
+#define RSS_HASH_KEY_LEN	40
+
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -371,6 +374,7 @@ enum vf_state {
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_FLAGS_VLAN_PROMISC			(1 << 4)
+#define BE_FLAGS_MCAST_PROMISC			(1 << 5)
 #define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
 #define BE_FLAGS_VXLAN_OFFLOADS			(1 << 12)
@@ -409,6 +413,13 @@ struct be_resources {
 	u32 if_cap_flags;
 };
 
+struct rss_info {
+	u64 rss_flags;
+	u8 rsstable[RSS_INDIR_TABLE_LEN];
+	u8 rss_queue[RSS_INDIR_TABLE_LEN];
+	u8 rss_hkey[RSS_HASH_KEY_LEN];
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -445,7 +456,7 @@ struct be_adapter {
 	struct be_drv_stats drv_stats;
 	struct be_aic_obj aic_obj[MAX_EVT_QS];
 	u16 vlans_added;
-	u8 vlan_tag[VLAN_N_VID];
+	unsigned long vids[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
 	u16 recommended_prio;	/* Recommended Priority */
 	struct be_dma_mem rx_filter; /* Cmd DMA mem for rx-filter */
@@ -507,7 +518,7 @@ struct be_adapter {
 	u32 msg_enable;
 	int be_get_temp_freq;
 	u8 pf_number;
-	u64 rss_flags;
+	struct rss_info rss_info;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

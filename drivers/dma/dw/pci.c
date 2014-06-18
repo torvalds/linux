@@ -93,19 +93,13 @@ static int dw_pci_resume_early(struct device *dev)
 	return dw_dma_resume(chip);
 };
 
-#else /* !CONFIG_PM_SLEEP */
-
-#define dw_pci_suspend_late	NULL
-#define dw_pci_resume_early	NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops dw_pci_dev_pm_ops = {
-	.suspend_late = dw_pci_suspend_late,
-	.resume_early = dw_pci_resume_early,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_pci_suspend_late, dw_pci_resume_early)
 };
 
-static DEFINE_PCI_DEVICE_TABLE(dw_pci_id_table) = {
+static const struct pci_device_id dw_pci_id_table[] = {
 	/* Medfield */
 	{ PCI_VDEVICE(INTEL, 0x0827), (kernel_ulong_t)&dw_pci_pdata },
 	{ PCI_VDEVICE(INTEL, 0x0830), (kernel_ulong_t)&dw_pci_pdata },

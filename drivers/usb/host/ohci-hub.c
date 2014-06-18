@@ -456,8 +456,7 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 
 /* build "status change" packet (one or two bytes) from HC registers */
 
-static int
-ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
+int ohci_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		i, changed = 0, length = 1;
@@ -522,6 +521,7 @@ done:
 
 	return changed ? length : 0;
 }
+EXPORT_SYMBOL_GPL(ohci_hub_status_data);
 
 /*-------------------------------------------------------------------------*/
 
@@ -664,7 +664,7 @@ static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 	return 0;
 }
 
-static int ohci_hub_control (
+int ohci_hub_control(
 	struct usb_hcd	*hcd,
 	u16		typeReq,
 	u16		wValue,
@@ -790,4 +790,4 @@ error:
 	}
 	return retval;
 }
-
+EXPORT_SYMBOL_GPL(ohci_hub_control);

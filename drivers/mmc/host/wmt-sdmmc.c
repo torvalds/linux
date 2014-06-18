@@ -840,7 +840,7 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	priv->dma_desc_buffer = dma_alloc_coherent(&pdev->dev,
 						   mmc->max_blk_count * 16,
 						   &priv->dma_desc_device_addr,
-						   208);
+						   GFP_KERNEL);
 	if (!priv->dma_desc_buffer) {
 		dev_err(&pdev->dev, "DMA alloc fail\n");
 		ret = -EPERM;

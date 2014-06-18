@@ -165,7 +165,6 @@ struct pwrctrl_priv {
 	struct work_struct cpwm_event;
 	u8	bpower_saving;
 
-	u8	b_hw_radio_off;
 	u8	reg_rfoff;
 	u8	reg_pdnmode; /* powerdown mode */
 	u32	rfoff_reason;
@@ -192,7 +191,6 @@ struct pwrctrl_priv {
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
-	u8		bInternalAutoSuspend;
 	u8		bInSuspend;
 #ifdef	CONFIG_8723AU_BT_COEXIST
 	u8		bAutoResume;
@@ -250,8 +248,6 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms);
 void LPS_Enter23a(struct rtw_adapter *padapter);
 void LPS_Leave23a(struct rtw_adapter *padapter);
 
-u8 rtw_interface_ps_func23a(struct rtw_adapter *padapter,
-			 enum hal_intf_ps_func efunc_id, u8 *val);
 void rtw_set_ips_deny23a(struct rtw_adapter *padapter, u32 ms);
 int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms,
 		    const char *caller);

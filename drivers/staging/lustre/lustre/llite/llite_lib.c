@@ -58,14 +58,8 @@
 struct kmem_cache *ll_file_data_slab;
 struct proc_dir_entry *proc_lustre_fs_root;
 
-LIST_HEAD(ll_super_blocks);
-DEFINE_SPINLOCK(ll_sb_lock);
-
-#ifndef MS_HAS_NEW_AOPS
-extern struct address_space_operations ll_aops;
-#else
-extern struct address_space_operations_ext ll_aops;
-#endif
+static LIST_HEAD(ll_super_blocks);
+static DEFINE_SPINLOCK(ll_sb_lock);
 
 #ifndef log2
 #define log2(n) ffz(~(n))
@@ -143,7 +137,7 @@ static struct ll_sb_info *ll_init_sbi(void)
 	return sbi;
 }
 
-void ll_free_sbi(struct super_block *sb)
+static void ll_free_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
@@ -597,8 +591,7 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	return err;
 out_root:
-	if (root)
-		iput(root);
+	iput(root);
 out_lock_cn_cb:
 	obd_fid_fini(sbi->ll_dt_exp->exp_obd);
 out_dt:
@@ -634,7 +627,46 @@ int ll_get_max_mdsize(struct ll_sb_info *sbi, int *lmmsize)
 	return rc;
 }
 
-void ll_dump_inode(struct inode *inode)
+int ll_get_default_mdsize(struct ll_sb_info *sbi, int *lmmsize)
+{
+	int size, rc;
+
+	size = sizeof(int);
+	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_DEFAULT_EASIZE),
+			 KEY_DEFAULT_EASIZE, &size, lmmsize, NULL);
+	if (rc)
+		CERROR("Get default mdsize error rc %d\n", rc);
+
+	return rc;
+}
+
+int ll_get_max_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
+{
+	int size, rc;
+
+	size = sizeof(int);
+	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_MAX_COOKIESIZE),
+			  KEY_MAX_COOKIESIZE, &size, lmmsize, NULL);
+	if (rc)
+		CERROR("Get max cookiesize error rc %d\n", rc);
+
+	return rc;
+}
+
+int ll_get_default_cookiesize(struct ll_sb_info *sbi, int *lmmsize)
+{
+	int size, rc;
+
+	size = sizeof(int);
+	rc = obd_get_info(NULL, sbi->ll_md_exp, sizeof(KEY_DEFAULT_COOKIESIZE),
+			  KEY_DEFAULT_COOKIESIZE, &size, lmmsize, NULL);
+	if (rc)
+		CERROR("Get default cookiesize error rc %d\n", rc);
+
+	return rc;
+}
+
+static void ll_dump_inode(struct inode *inode)
 {
 	struct ll_d_hlist_node *tmp;
 	int dentry_count = 0;
@@ -677,7 +709,7 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 	}
 }
 
-void client_common_put_super(struct super_block *sb)
+static void client_common_put_super(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 
@@ -724,30 +756,6 @@ void ll_kill_super(struct super_block *sb)
 		sb->s_dev = sbi->ll_sdev_orig;
 		sbi->ll_umounting = 1;
 	}
-}
-
-char *ll_read_opt(const char *opt, char *data)
-{
-	char *value;
-	char *retval;
-
-	CDEBUG(D_SUPER, "option: %s, data %s\n", opt, data);
-	if (strncmp(opt, data, strlen(opt)))
-		return NULL;
-	value = strchr(data, '=');
-	if (value == NULL)
-		return NULL;
-
-	value++;
-	OBD_ALLOC(retval, strlen(value) + 1);
-	if (!retval) {
-		CERROR("out of memory!\n");
-		return NULL;
-	}
-
-	memcpy(retval, value, strlen(value)+1);
-	CDEBUG(D_SUPER, "Assigned option: %s, value %s\n", opt, retval);
-	return retval;
 }
 
 static inline int ll_set_opt(const char *opt, char *data, int fl)
@@ -927,7 +935,8 @@ void ll_lli_init(struct ll_inode_info *lli)
 	mutex_init(&lli->lli_och_mutex);
 	spin_lock_init(&lli->lli_agl_lock);
 	lli->lli_has_smd = false;
-	lli->lli_layout_gen = LL_LAYOUT_GEN_NONE;
+	spin_lock_init(&lli->lli_layout_lock);
+	ll_layout_version_set(lli, LL_LAYOUT_GEN_NONE);
 	lli->lli_clob = NULL;
 
 	init_rwsem(&lli->lli_xattrs_list_rwsem);
@@ -938,12 +947,10 @@ void ll_lli_init(struct ll_inode_info *lli)
 		mutex_init(&lli->lli_readdir_mutex);
 		lli->lli_opendir_key = NULL;
 		lli->lli_sai = NULL;
-		lli->lli_def_acl = NULL;
 		spin_lock_init(&lli->lli_sa_lock);
 		lli->lli_opendir_pid = 0;
 	} else {
-		sema_init(&lli->lli_size_sem, 1);
-		lli->lli_size_sem_owner = NULL;
+		mutex_init(&lli->lli_size_mutex);
 		lli->lli_symlink_name = NULL;
 		init_rwsem(&lli->lli_trunc_sem);
 		mutex_init(&lli->lli_write_mutex);
@@ -952,7 +959,6 @@ void ll_lli_init(struct ll_inode_info *lli)
 		INIT_LIST_HEAD(&lli->lli_agl_list);
 		lli->lli_agl_index = 0;
 		lli->lli_async_rc = 0;
-		lli->lli_volatile = false;
 	}
 	mutex_init(&lli->lli_layout_mutex);
 }
@@ -1143,28 +1149,6 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 					 D_WARNING, lock, "lr_lvb_inode %p is "
 					 "bogus: magic %08x",
 					 lock->l_resource->lr_lvb_inode,
-					 lli->lli_inode_magic);
-			inode = NULL;
-		}
-	}
-	unlock_res_and_lock(lock);
-	return inode;
-}
-
-struct inode *ll_inode_from_lock(struct ldlm_lock *lock)
-{
-	struct inode *inode = NULL;
-	/* NOTE: we depend on atomic igrab() -bzzz */
-	lock_res_and_lock(lock);
-	if (lock->l_ast_data) {
-		struct ll_inode_info *lli = ll_i2info(lock->l_ast_data);
-		if (lli->lli_inode_magic == LLI_INODE_MAGIC) {
-			inode = igrab(lock->l_ast_data);
-		} else {
-			inode = lock->l_ast_data;
-			LDLM_DEBUG_LIMIT(inode->i_state & I_FREEING ?  D_INFO :
-					 D_WARNING, lock, "l_ast_data %p is "
-					 "bogus: magic %08x", lock->l_ast_data,
 					 lli->lli_inode_magic);
 			inode = NULL;
 		}
@@ -1449,7 +1433,6 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		if (attr->ia_valid & ATTR_SIZE)
 			inode_dio_write_done(inode);
 		mutex_unlock(&inode->i_mutex);
-		down_write(&lli->lli_trunc_sem);
 	}
 
 	memcpy(&op_data->op_attr, attr, sizeof(*attr));
@@ -1513,7 +1496,11 @@ int ll_setattr_raw(struct dentry *dentry, struct iattr *attr, bool hsm_import)
 		 * excessive to send mtime/atime updates to OSTs when not
 		 * setting times to past, but it is necessary due to possible
 		 * time de-synchronization between MDT inode and OST objects */
+		if (attr->ia_valid & ATTR_SIZE)
+			down_write(&lli->lli_trunc_sem);
 		rc = ll_setattr_ost(inode, attr);
+		if (attr->ia_valid & ATTR_SIZE)
+			up_write(&lli->lli_trunc_sem);
 out:
 	if (op_data) {
 		if (op_data->op_ioepoch) {
@@ -1524,7 +1511,6 @@ out:
 		ll_finish_md_op_data(op_data);
 	}
 	if (!S_ISDIR(inode->i_mode)) {
-		up_write(&lli->lli_trunc_sem);
 		mutex_lock(&inode->i_mutex);
 		if ((attr->ia_valid & ATTR_SIZE) && !hsm_import)
 			inode_dio_wait(inode);
@@ -1658,10 +1644,7 @@ void ll_inode_size_lock(struct inode *inode)
 	LASSERT(!S_ISDIR(inode->i_mode));
 
 	lli = ll_i2info(inode);
-	LASSERT(lli->lli_size_sem_owner != current);
-	down(&lli->lli_size_sem);
-	LASSERT(lli->lli_size_sem_owner == NULL);
-	lli->lli_size_sem_owner = current;
+	mutex_lock(&lli->lli_size_mutex);
 }
 
 void ll_inode_size_unlock(struct inode *inode)
@@ -1669,9 +1652,7 @@ void ll_inode_size_unlock(struct inode *inode)
 	struct ll_inode_info *lli;
 
 	lli = ll_i2info(inode);
-	LASSERT(lli->lli_size_sem_owner == current);
-	lli->lli_size_sem_owner = NULL;
-	up(&lli->lli_size_sem);
+	mutex_unlock(&lli->lli_size_mutex);
 }
 
 void ll_update_inode(struct inode *inode, struct lustre_md *md)
@@ -2420,11 +2401,12 @@ void ll_dirty_page_discard_warn(struct page *page, int ioret)
 			path = ll_d_path(dentry, buf, PAGE_SIZE);
 	}
 
-	CWARN("%s: dirty page discard: %s/fid: "DFID"/%s may get corrupted "
-	      "(rc %d)\n", ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
-	      s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
-	      PFID(&obj->cob_header.coh_lu.loh_fid),
-	      (path && !IS_ERR(path)) ? path : "", ioret);
+	CDEBUG(D_WARNING,
+	       "%s: dirty page discard: %s/fid: "DFID"/%s may get corrupted "
+	       "(rc %d)\n", ll_get_fsname(page->mapping->host->i_sb, NULL, 0),
+	       s2lsi(page->mapping->host->i_sb)->lsi_lmd->lmd_dev,
+	       PFID(&obj->cob_header.coh_lu.loh_fid),
+	       (path && !IS_ERR(path)) ? path : "", ioret);
 
 	if (dentry != NULL)
 		dput(dentry);

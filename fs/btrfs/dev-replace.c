@@ -313,7 +313,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 
 	if (btrfs_fs_incompat(fs_info, RAID56)) {
 		btrfs_warn(fs_info, "dev_replace cannot yet handle RAID5/RAID6");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	switch (args->start.cont_reading_from_srcdev_mode) {

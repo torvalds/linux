@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/crash_dump.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/string.h>
@@ -663,15 +664,15 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		 * errors, and on the first pass the data will be a relative
 		 * bus number, print that out instead.
 		 */
-		tbl->it_busno = 0;
 		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
 		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
 				8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE |
-			       TCE_PCI_SWINV_PAIR;
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE |
+				 TCE_PCI_SWINV_FREE   |
+				 TCE_PCI_SWINV_PAIR);
 	}
 	iommu_init_table(tbl, phb->hose->node);
-	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
+	iommu_register_group(tbl, phb->hose->global_number, pe->pe_number);
 
 	if (pe->pdev)
 		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
@@ -793,14 +794,13 @@ static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
 		 * errors, and on the first pass the data will be a relative
 		 * bus number, print that out instead.
 		 */
-		tbl->it_busno = 0;
 		pe->tce_inval_reg_phys = be64_to_cpup(swinvp);
 		tbl->it_index = (unsigned long)ioremap(pe->tce_inval_reg_phys,
 				8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+		tbl->it_type |= (TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE);
 	}
 	iommu_init_table(tbl, phb->hose->node);
-	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
+	iommu_register_group(tbl, phb->hose->global_number, pe->pe_number);
 
 	if (pe->pdev)
 		set_iommu_table_base_and_group(&pe->pdev->dev, tbl);
@@ -1386,12 +1386,24 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
 	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
+	ppc_md.pcibios_reset_secondary_bus = pnv_pci_reset_secondary_bus;
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
 	rc = opal_pci_reset(phb_id, OPAL_PCI_IODA_TABLE_RESET, OPAL_ASSERT_RESET);
 	if (rc)
 		pr_warning("  OPAL Error %ld performing IODA table reset !\n", rc);
+
+	/* If we're running in kdump kerenl, the previous kerenl never
+	 * shutdown PCI devices correctly. We already got IODA table
+	 * cleaned out. So we have to issue PHB reset to stop all PCI
+	 * transactions from previous kerenl.
+	 */
+	if (is_kdump_kernel()) {
+		pr_info("  Issue PHB reset ...\n");
+		ioda_eeh_phb_reset(hose, EEH_RESET_FUNDAMENTAL);
+		ioda_eeh_phb_reset(hose, OPAL_DEASSERT_RESET);
+	}
 }
 
 void __init pnv_pci_init_ioda2_phb(struct device_node *np)

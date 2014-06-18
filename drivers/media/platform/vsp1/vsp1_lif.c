@@ -215,7 +215,6 @@ struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1)
 		return ERR_PTR(-ENOMEM);
 
 	lif->entity.type = VSP1_ENTITY_LIF;
-	lif->entity.id = VI6_DPR_NODE_LIF;
 
 	ret = vsp1_entity_init(vsp1, &lif->entity, 2);
 	if (ret < 0)

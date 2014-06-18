@@ -1,0 +1,28 @@
+/*
+ * SAMSUNG EXYNOS5800 SoC device tree source
+ *
+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * SAMSUNG EXYNOS5800 SoC device nodes are listed in this file.
+ * EXYNOS5800 based board files can include this file and provide
+ * values for board specfic bindings.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "exynos5420.dtsi"
+
+/ {
+	compatible = "samsung,exynos5800", "samsung,exynos5";
+};
+
+&clock {
+	compatible = "samsung,exynos5800-clock";
+};
+
+&mfc {
+	compatible = "samsung,mfc-v8";
+};

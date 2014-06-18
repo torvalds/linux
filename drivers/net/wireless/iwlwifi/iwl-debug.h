@@ -47,12 +47,32 @@ void __iwl_warn(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_info(struct device *dev, const char *fmt, ...) __printf(2, 3);
 void __iwl_crit(struct device *dev, const char *fmt, ...) __printf(2, 3);
 
+/* not all compilers can evaluate strlen() at compile time, so use sizeof() */
+#define CHECK_FOR_NEWLINE(f) BUILD_BUG_ON(f[sizeof(f) - 2] != '\n')
+
 /* No matter what is m (priv, bus, trans), this will work */
-#define IWL_ERR(m, f, a...) __iwl_err((m)->dev, false, false, f, ## a)
-#define IWL_ERR_DEV(d, f, a...) __iwl_err((d), false, false, f, ## a)
-#define IWL_WARN(m, f, a...) __iwl_warn((m)->dev, f, ## a)
-#define IWL_INFO(m, f, a...) __iwl_info((m)->dev, f, ## a)
-#define IWL_CRIT(m, f, a...) __iwl_crit((m)->dev, f, ## a)
+#define IWL_ERR_DEV(d, f, a...)						\
+	do {								\
+		CHECK_FOR_NEWLINE(f);					\
+		__iwl_err((d), false, false, f, ## a);			\
+	} while (0)
+#define IWL_ERR(m, f, a...)						\
+	IWL_ERR_DEV((m)->dev, f, ## a)
+#define IWL_WARN(m, f, a...)						\
+	do {								\
+		CHECK_FOR_NEWLINE(f);					\
+		__iwl_warn((m)->dev, f, ## a);				\
+	} while (0)
+#define IWL_INFO(m, f, a...)						\
+	do {								\
+		CHECK_FOR_NEWLINE(f);					\
+		__iwl_info((m)->dev, f, ## a);				\
+	} while (0)
+#define IWL_CRIT(m, f, a...)						\
+	do {								\
+		CHECK_FOR_NEWLINE(f);					\
+		__iwl_crit((m)->dev, f, ## a);				\
+	} while (0)
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
@@ -72,12 +92,17 @@ do {									\
 		       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);		\
 } while (0)
 
+#define __IWL_DEBUG_DEV(dev, level, limit, fmt, args...)		\
+	do {								\
+		CHECK_FOR_NEWLINE(fmt);					\
+		__iwl_dbg(dev, level, limit, __func__, fmt, ##args);	\
+	} while (0)
 #define IWL_DEBUG(m, level, fmt, args...)				\
-	__iwl_dbg((m)->dev, level, false, __func__, fmt, ##args)
+	__IWL_DEBUG_DEV((m)->dev, level, false, fmt, ##args)
 #define IWL_DEBUG_DEV(dev, level, fmt, args...)				\
-	__iwl_dbg((dev), level, false, __func__, fmt, ##args)
+	__IWL_DEBUG_DEV(dev, level, false, fmt, ##args)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
-	__iwl_dbg((m)->dev, level, true, __func__, fmt, ##args)
+	__IWL_DEBUG_DEV((m)->dev, level, true, fmt, ##args)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define iwl_print_hex_dump(m, level, p, len)				\

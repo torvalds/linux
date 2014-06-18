@@ -27,6 +27,7 @@
 #ifndef IEEE802154_NETDEVICE_H
 #define IEEE802154_NETDEVICE_H
 
+#include <net/ieee802154.h>
 #include <net/af_ieee802154.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -114,6 +115,34 @@ int ieee802154_hdr_pull(struct sk_buff *skb, struct ieee802154_hdr *hdr);
 int ieee802154_hdr_peek_addrs(const struct sk_buff *skb,
 			      struct ieee802154_hdr *hdr);
 
+/* parses the full 802.15.4 header a given skb and stores them into hdr,
+ * performing pan id decompression and length checks to be suitable for use in
+ * header_ops.parse
+ */
+int ieee802154_hdr_peek(const struct sk_buff *skb, struct ieee802154_hdr *hdr);
+
+int ieee802154_max_payload(const struct ieee802154_hdr *hdr);
+
+static inline int
+ieee802154_sechdr_authtag_len(const struct ieee802154_sechdr *sec)
+{
+	switch (sec->level) {
+	case IEEE802154_SCF_SECLEVEL_MIC32:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC32:
+		return 4;
+	case IEEE802154_SCF_SECLEVEL_MIC64:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC64:
+		return 8;
+	case IEEE802154_SCF_SECLEVEL_MIC128:
+	case IEEE802154_SCF_SECLEVEL_ENC_MIC128:
+		return 16;
+	case IEEE802154_SCF_SECLEVEL_NONE:
+	case IEEE802154_SCF_SECLEVEL_ENC:
+	default:
+		return 0;
+	}
+}
+
 static inline int ieee802154_hdr_length(struct sk_buff *skb)
 {
 	struct ieee802154_hdr hdr;
@@ -193,8 +222,12 @@ static inline void ieee802154_addr_to_sa(struct ieee802154_addr_sa *sa,
  */
 struct ieee802154_mac_cb {
 	u8 lqi;
-	u8 flags;
-	u8 seq;
+	u8 type;
+	bool ackreq;
+	bool secen;
+	bool secen_override;
+	u8 seclevel;
+	bool seclevel_override;
 	struct ieee802154_addr source;
 	struct ieee802154_addr dest;
 };
@@ -204,25 +237,96 @@ static inline struct ieee802154_mac_cb *mac_cb(struct sk_buff *skb)
 	return (struct ieee802154_mac_cb *)skb->cb;
 }
 
-#define MAC_CB_FLAG_TYPEMASK		((1 << 3) - 1)
-
-#define MAC_CB_FLAG_ACKREQ		(1 << 3)
-#define MAC_CB_FLAG_SECEN		(1 << 4)
-
-static inline bool mac_cb_is_ackreq(struct sk_buff *skb)
+static inline struct ieee802154_mac_cb *mac_cb_init(struct sk_buff *skb)
 {
-	return mac_cb(skb)->flags & MAC_CB_FLAG_ACKREQ;
+	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
+
+	memset(skb->cb, 0, sizeof(struct ieee802154_mac_cb));
+	return mac_cb(skb);
 }
 
-static inline bool mac_cb_is_secen(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_SECEN;
-}
+#define IEEE802154_LLSEC_KEY_SIZE 16
 
-static inline int mac_cb_type(struct sk_buff *skb)
-{
-	return mac_cb(skb)->flags & MAC_CB_FLAG_TYPEMASK;
-}
+struct ieee802154_llsec_key_id {
+	u8 mode;
+	u8 id;
+	union {
+		struct ieee802154_addr device_addr;
+		__le32 short_source;
+		__le64 extended_source;
+	};
+};
+
+struct ieee802154_llsec_key {
+	u8 frame_types;
+	u32 cmd_frame_ids;
+	u8 key[IEEE802154_LLSEC_KEY_SIZE];
+};
+
+struct ieee802154_llsec_key_entry {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id id;
+	struct ieee802154_llsec_key *key;
+};
+
+struct ieee802154_llsec_device_key {
+	struct list_head list;
+
+	struct ieee802154_llsec_key_id key_id;
+	u32 frame_counter;
+};
+
+enum {
+	IEEE802154_LLSEC_DEVKEY_IGNORE,
+	IEEE802154_LLSEC_DEVKEY_RESTRICT,
+	IEEE802154_LLSEC_DEVKEY_RECORD,
+
+	__IEEE802154_LLSEC_DEVKEY_MAX,
+};
+
+struct ieee802154_llsec_device {
+	struct list_head list;
+
+	__le16 pan_id;
+	__le16 short_addr;
+	__le64 hwaddr;
+	u32 frame_counter;
+	bool seclevel_exempt;
+
+	u8 key_mode;
+	struct list_head keys;
+};
+
+struct ieee802154_llsec_seclevel {
+	struct list_head list;
+
+	u8 frame_type;
+	u8 cmd_frame_id;
+	bool device_override;
+	u32 sec_levels;
+};
+
+struct ieee802154_llsec_params {
+	bool enabled;
+
+	__be32 frame_counter;
+	u8 out_level;
+	struct ieee802154_llsec_key_id out_key;
+
+	__le64 default_key_source;
+
+	__le16 pan_id;
+	__le64 hwaddr;
+	__le64 coord_hwaddr;
+	__le16 coord_shortaddr;
+};
+
+struct ieee802154_llsec_table {
+	struct list_head keys;
+	struct list_head devices;
+	struct list_head security_levels;
+};
 
 #define IEEE802154_MAC_SCAN_ED		0
 #define IEEE802154_MAC_SCAN_ACTIVE	1
@@ -242,6 +346,53 @@ struct ieee802154_mac_params {
 };
 
 struct wpan_phy;
+
+enum {
+	IEEE802154_LLSEC_PARAM_ENABLED = 1 << 0,
+	IEEE802154_LLSEC_PARAM_FRAME_COUNTER = 1 << 1,
+	IEEE802154_LLSEC_PARAM_OUT_LEVEL = 1 << 2,
+	IEEE802154_LLSEC_PARAM_OUT_KEY = 1 << 3,
+	IEEE802154_LLSEC_PARAM_KEY_SOURCE = 1 << 4,
+	IEEE802154_LLSEC_PARAM_PAN_ID = 1 << 5,
+	IEEE802154_LLSEC_PARAM_HWADDR = 1 << 6,
+	IEEE802154_LLSEC_PARAM_COORD_HWADDR = 1 << 7,
+	IEEE802154_LLSEC_PARAM_COORD_SHORTADDR = 1 << 8,
+};
+
+struct ieee802154_llsec_ops {
+	int (*get_params)(struct net_device *dev,
+			  struct ieee802154_llsec_params *params);
+	int (*set_params)(struct net_device *dev,
+			  const struct ieee802154_llsec_params *params,
+			  int changed);
+
+	int (*add_key)(struct net_device *dev,
+		       const struct ieee802154_llsec_key_id *id,
+		       const struct ieee802154_llsec_key *key);
+	int (*del_key)(struct net_device *dev,
+		       const struct ieee802154_llsec_key_id *id);
+
+	int (*add_dev)(struct net_device *dev,
+		       const struct ieee802154_llsec_device *llsec_dev);
+	int (*del_dev)(struct net_device *dev, __le64 dev_addr);
+
+	int (*add_devkey)(struct net_device *dev,
+			  __le64 device_addr,
+			  const struct ieee802154_llsec_device_key *key);
+	int (*del_devkey)(struct net_device *dev,
+			  __le64 device_addr,
+			  const struct ieee802154_llsec_device_key *key);
+
+	int (*add_seclevel)(struct net_device *dev,
+			    const struct ieee802154_llsec_seclevel *sl);
+	int (*del_seclevel)(struct net_device *dev,
+			    const struct ieee802154_llsec_seclevel *sl);
+
+	void (*lock_table)(struct net_device *dev);
+	void (*get_table)(struct net_device *dev,
+			  struct ieee802154_llsec_table **t);
+	void (*unlock_table)(struct net_device *dev);
+};
 /*
  * This should be located at net_device->ml_priv
  *
@@ -271,6 +422,8 @@ struct ieee802154_mlme_ops {
 			      const struct ieee802154_mac_params *params);
 	void (*get_mac_params)(struct net_device *dev,
 			       struct ieee802154_mac_params *params);
+
+	struct ieee802154_llsec_ops *llsec;
 
 	/* The fields below are required. */
 

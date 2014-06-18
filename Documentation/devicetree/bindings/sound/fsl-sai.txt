@@ -7,10 +7,11 @@ codec/DSP interfaces.
 
 
 Required properties:
-- compatible: Compatible list, contains "fsl,vf610-sai".
+- compatible: Compatible list, contains "fsl,vf610-sai" or "fsl,imx6sx-sai".
 - reg: Offset and length of the register set for the device.
 - clocks: Must contain an entry for each entry in clock-names.
-- clock-names : Must include the "sai" entry.
+- clock-names : Must include the "bus" for register access and "mclk1" "mclk2"
+  "mclk3" for bit clock and frame clock providing.
 - dmas : Generic dma devicetree binding as described in
   Documentation/devicetree/bindings/dma/dma.txt.
 - dma-names : Two dmas have to be defined, "tx" and "rx".
@@ -30,8 +31,10 @@ sai2: sai@40031000 {
 	      reg = <0x40031000 0x1000>;
 	      pinctrl-names = "default";
 	      pinctrl-0 = <&pinctrl_sai2_1>;
-	      clocks = <&clks VF610_CLK_SAI2>;
-	      clock-names = "sai";
+	      clocks = <&clks VF610_CLK_PLATFORM_BUS>,
+		     <&clks VF610_CLK_SAI2>,
+		     <&clks 0>, <&clks 0>;
+	      clock-names = "bus", "mclk1", "mclk2", "mclk3";
 	      dma-names = "tx", "rx";
 	      dmas = <&edma0 0 VF610_EDMA_MUXID0_SAI2_TX>,
 		   <&edma0 0 VF610_EDMA_MUXID0_SAI2_RX>;

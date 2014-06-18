@@ -70,18 +70,18 @@ struct omap_mux_partition *omap_mux_get(const char *name)
 u16 omap_mux_read(struct omap_mux_partition *partition, u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
-		return __raw_readb(partition->base + reg);
+		return readb_relaxed(partition->base + reg);
 	else
-		return __raw_readw(partition->base + reg);
+		return readw_relaxed(partition->base + reg);
 }
 
 void omap_mux_write(struct omap_mux_partition *partition, u16 val,
 			   u16 reg)
 {
 	if (partition->flags & OMAP_MUX_REG_8BIT)
-		__raw_writeb(val, partition->base + reg);
+		writeb_relaxed(val, partition->base + reg);
 	else
-		__raw_writew(val, partition->base + reg);
+		writew_relaxed(val, partition->base + reg);
 }
 
 void omap_mux_write_array(struct omap_mux_partition *partition,

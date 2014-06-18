@@ -2060,7 +2060,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 		}
 		do {
 			unlock_page(pages[--do_pages]);
-			mark_page_accessed(pages[do_pages]);
 			page_cache_release(pages[do_pages]);
 		} while (do_pages);
 		if (unlikely(status))
@@ -2091,10 +2090,7 @@ static ssize_t ntfs_file_aio_write_nolock(struct kiocb *iocb,
 	size_t count;		/* after file limit checks */
 	ssize_t written, err;
 
-	count = 0;
-	err = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
-	if (err)
-		return err;
+	count = iov_length(iov, nr_segs);
 	pos = *ppos;
 	/* We can write back this queue in page reclaim. */
 	current->backing_dev_info = mapping->backing_dev_info;
@@ -2203,8 +2199,8 @@ static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
 
 const struct file_operations ntfs_file_ops = {
 	.llseek		= generic_file_llseek,	 /* Seek inside file. */
-	.read		= do_sync_read,		 /* Read from file. */
-	.aio_read	= generic_file_aio_read, /* Async read from file. */
+	.read		= new_sync_read,	 /* Read from file. */
+	.read_iter	= generic_file_read_iter, /* Async read from file. */
 #ifdef NTFS_RW
 	.write		= do_sync_write,	 /* Write to file. */
 	.aio_write	= ntfs_file_aio_write,	 /* Async write to file. */

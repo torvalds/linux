@@ -519,7 +519,7 @@ void __fscache_disable_cookie(struct fscache_cookie *cookie, bool invalidate)
 	ASSERTCMP(atomic_read(&cookie->n_active), >, 0);
 
 	if (atomic_read(&cookie->n_children) != 0) {
-		printk(KERN_ERR "FS-Cache: Cookie '%s' still has children\n",
+		pr_err("Cookie '%s' still has children\n",
 		       cookie->def->name);
 		BUG();
 	}

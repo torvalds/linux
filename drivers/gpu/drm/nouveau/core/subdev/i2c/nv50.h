@@ -1,7 +1,7 @@
 #ifndef __NV50_I2C_H__
 #define __NV50_I2C_H__
 
-#include <subdev/i2c.h>
+#include "priv.h"
 
 struct nv50_i2c_priv {
 	struct nouveau_i2c base;

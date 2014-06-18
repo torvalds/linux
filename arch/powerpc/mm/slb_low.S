@@ -35,7 +35,7 @@ _GLOBAL(slb_allocate_realmode)
 	 * check for bad kernel/user address
 	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
 	 */
-	rldicr. r9,r3,4,(63 - 46 - 4)
+	rldicr. r9,r3,4,(63 - PGTABLE_EADDR_SIZE - 4)
 	bne-	8f
 
 	srdi	r9,r3,60		/* get region */
@@ -59,7 +59,8 @@ _GLOBAL(slb_allocate_realmode)
 	/* Linear mapping encoding bits, the "li" instruction below will
 	 * be patched by the kernel at boot
 	 */
-_GLOBAL(slb_miss_kernel_load_linear)
+.globl slb_miss_kernel_load_linear
+slb_miss_kernel_load_linear:
 	li	r11,0
 	/*
 	 * context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1
@@ -79,7 +80,8 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	/* Check virtual memmap region. To be patches at kernel boot */
 	cmpldi	cr0,r9,0xf
 	bne	1f
-_GLOBAL(slb_miss_kernel_load_vmemmap)
+.globl slb_miss_kernel_load_vmemmap
+slb_miss_kernel_load_vmemmap:
 	li	r11,0
 	b	6f
 1:
@@ -95,7 +97,8 @@ _GLOBAL(slb_miss_kernel_load_vmemmap)
 	b	6f
 5:
 	/* IO mapping */
-	_GLOBAL(slb_miss_kernel_load_io)
+.globl slb_miss_kernel_load_io
+slb_miss_kernel_load_io:
 	li	r11,0
 6:
 	/*
@@ -250,7 +253,8 @@ slb_finish_load:
 7:	ld	r10,PACASTABRR(r13)
 	addi	r10,r10,1
 	/* This gets soft patched on boot. */
-_GLOBAL(slb_compare_rr_to_size)
+.globl slb_compare_rr_to_size
+slb_compare_rr_to_size:
 	cmpldi	r10,0
 
 	blt+	4f

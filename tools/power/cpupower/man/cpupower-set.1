@@ -3,7 +3,7 @@
 cpupower\-set \- Set processor power related kernel or hardware configurations
 .SH SYNOPSIS
 .ft B
-.B cpupower set [ \-b VAL ] [ \-s VAL ] [ \-m VAL ]
+.B cpupower set [ \-b VAL ]
 
 
 .SH DESCRIPTION
@@ -54,35 +54,6 @@ hardware restrictions.
 Use \fBcpupower -c all info -b\fP to verify.
 
 This options needs the msr kernel driver (CONFIG_X86_MSR) loaded.
-.RE
-.PP
-\-\-sched\-mc,  \-m [ VAL ]
-.RE
-\-\-sched\-smt, \-s [ VAL ]
-.RS 4
-\-\-sched\-mc utilizes cores in one processor package/socket first before
-processes are scheduled to other processor packages/sockets.
-
-\-\-sched\-smt utilizes thread siblings of one processor core first before
-processes are scheduled to other cores.
-
-The impact on power consumption and performance (positiv or negativ) heavily
-depends on processor support for deep sleep states, frequency scaling and
-frequency boost modes and their dependencies between other thread siblings
-and processor cores.
-
-Taken over from kernel documentation:
-
-Adjust the kernel's multi-core scheduler support.
-
-Possible values are:
-.RS 2
-0 - No power saving load balance (default value)
-
-1 - Fill one thread/core/package first for long running threads
-
-2 - Also bias task wakeups to semi-idle cpu package for power
-savings
 .RE
 
 .SH "SEE ALSO"

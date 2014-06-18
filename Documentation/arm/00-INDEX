@@ -46,5 +46,7 @@ swp_emulation
 	- SWP/SWPB emulation handler/logging description
 tcm.txt
 	- ARM Tightly Coupled Memory
+uefi.txt
+	- [U]EFI configuration and runtime services documentation
 vlocks.txt
 	- Voting locks, low-level mechanism relying on memory system atomic writes.

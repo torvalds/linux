@@ -92,7 +92,10 @@ struct paca_struct {
 	struct slb_shadow *slb_shadow_ptr;
 	struct dtl_entry *dispatch_log;
 	struct dtl_entry *dispatch_log_end;
+#endif /* CONFIG_PPC_STD_MMU_64 */
+	u64 dscr_default;		/* per-CPU default DSCR */
 
+#ifdef CONFIG_PPC_STD_MMU_64
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
 	 */

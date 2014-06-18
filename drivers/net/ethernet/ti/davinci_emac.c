@@ -1567,7 +1567,6 @@ static int emac_dev_open(struct net_device *ndev)
 	while ((res = platform_get_resource(priv->pdev, IORESOURCE_IRQ,
 					    res_num))) {
 		for (irq_num = res->start; irq_num <= res->end; irq_num++) {
-			dev_err(emac_dev, "Request IRQ %d\n", irq_num);
 			if (request_irq(irq_num, emac_irq, 0, ndev->name,
 					ndev)) {
 				dev_err(emac_dev,
@@ -1865,7 +1864,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	struct emac_priv *priv;
 	unsigned long hw_ram_addr;
 	struct emac_platform_data *pdata;
-	struct device *emac_dev;
 	struct cpdma_params dma_params;
 	struct clk *emac_clk;
 	unsigned long emac_bus_frequency;
@@ -1911,7 +1909,6 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv->coal_intvl = 0;
 	priv->bus_freq_mhz = (u32)(emac_bus_frequency / 1000000);
 
-	emac_dev = &ndev->dev;
 	/* Get EMAC platform data */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
@@ -1930,7 +1927,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		hw_ram_addr = (u32 __force)res->start + pdata->ctrl_ram_offset;
 
 	memset(&dma_params, 0, sizeof(dma_params));
-	dma_params.dev			= emac_dev;
+	dma_params.dev			= &pdev->dev;
 	dma_params.dmaregs		= priv->emac_base;
 	dma_params.rxthresh		= priv->emac_base + 0x120;
 	dma_params.rxfree		= priv->emac_base + 0x140;
@@ -1980,7 +1977,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	}
 
 	ndev->netdev_ops = &emac_netdev_ops;
-	SET_ETHTOOL_OPS(ndev, &ethtool_ops);
+	ndev->ethtool_ops = &ethtool_ops;
 	netif_napi_add(ndev, &priv->napi, emac_poll, EMAC_POLL_WEIGHT);
 
 	/* register the network device */
@@ -1994,7 +1991,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 
 	if (netif_msg_probe(priv)) {
-		dev_notice(emac_dev, "DaVinci EMAC Probe found device "\
+		dev_notice(&pdev->dev, "DaVinci EMAC Probe found device "
 			   "(regs: %p, irq: %d)\n",
 			   (void *)priv->emac_base_phys, ndev->irq);
 	}
