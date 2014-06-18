@@ -126,6 +126,15 @@ static inline unsigned long kvm_register_readl(struct kvm_vcpu *vcpu,
 	return is_64_bit_mode(vcpu) ? val : (u32)val;
 }
 
+static inline void kvm_register_writel(struct kvm_vcpu *vcpu,
+				       enum kvm_reg reg,
+				       unsigned long val)
+{
+	if (!is_64_bit_mode(vcpu))
+		val = (u32)val;
+	return kvm_register_write(vcpu, reg, val);
+}
+
 void kvm_before_handle_nmi(struct kvm_vcpu *vcpu);
 void kvm_after_handle_nmi(struct kvm_vcpu *vcpu);
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
