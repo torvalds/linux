@@ -2400,15 +2400,15 @@ retry_bootloader:
 
 	error = mxt_check_retrigen(data);
 	if (error)
-		return error;
+		goto err_free_object_table;
 
 	error = mxt_acquire_irq(data);
 	if (error)
-		return error;
+		goto err_free_object_table;
 
 	error = mxt_debug_msg_init(data);
 	if (error)
-		return error;
+		goto err_free_object_table;
 
 	if (data->cfg_name) {
 		request_firmware_nowait(THIS_MODULE, true, data->cfg_name,
@@ -2417,7 +2417,7 @@ retry_bootloader:
 	} else {
 		error = mxt_configure_objects(data, NULL);
 		if (error)
-			return error;
+			goto err_free_object_table;
 	}
 
 	return 0;
@@ -2436,7 +2436,7 @@ static int mxt_configure_objects(struct mxt_data *data,
 	error = mxt_init_t7_power_cfg(data);
 	if (error) {
 		dev_err(dev, "Failed to initialize power cfg\n");
-		return error;
+		goto err_free_object_table;
 	}
 
 	if (cfg) {
@@ -2448,16 +2448,20 @@ static int mxt_configure_objects(struct mxt_data *data,
 	if (data->T9_reportid_min) {
 		error = mxt_initialize_t9_input_device(data);
 		if (error)
-			return error;
+			goto err_free_object_table;
 	} else if (data->T100_reportid_min) {
 		error = mxt_initialize_t100_input_device(data);
 		if (error)
-			return error;
+			goto err_free_object_table;
 	} else {
 		dev_warn(dev, "No touch object detected\n");
 	}
 
 	return 0;
+
+err_free_object_table:
+	mxt_free_object_table(data);
+	return error;
 }
 
 /* Firmware Version is returned as Major.Minor.Build */
