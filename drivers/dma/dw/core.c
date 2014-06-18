@@ -281,11 +281,15 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 
 static void dwc_dostart_first_queued(struct dw_dma_chan *dwc)
 {
+	struct dw_desc *desc;
+
 	if (list_empty(&dwc->queue))
 		return;
 
 	list_move(dwc->queue.next, &dwc->active_list);
-	dwc_dostart(dwc, dwc_first_active(dwc));
+	desc = dwc_first_active(dwc);
+	dev_vdbg(chan2dev(&dwc->chan), "%s: started %u\n", __func__, desc->txd.cookie);
+	dwc_dostart(dwc, desc);
 }
 
 /*----------------------------------------------------------------------*/
