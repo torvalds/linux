@@ -213,7 +213,7 @@ static int set_inode(struct inode *inode, struct dentry *dentry)
 	case S_IFSOCK:
 		btail = au_dbtail(dentry);
 		inode->i_op = &aufs_iop;
-		au_init_special_fop(inode, mode, h_inode->i_rdev);
+		init_special_inode(inode, mode, h_inode->i_rdev);
 		break;
 	default:
 		AuIOErr("Unknown file type 0%o\n", mode);

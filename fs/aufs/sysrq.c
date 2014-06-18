@@ -89,7 +89,7 @@ static void sysrq_sb(struct super_block *sb)
 	do_file_list_for_each_entry(sb, file) {
 		umode_t mode;
 		mode = file_inode(file)->i_mode;
-		if (!special_file(mode) || au_special_file(mode))
+		if (!special_file(mode))
 			au_dpri_file(file);
 	} while_file_list_for_each_entry;
 	lg_global_unlock(&files_lglock);
