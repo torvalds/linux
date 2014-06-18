@@ -881,6 +881,8 @@ int drm_connector_init(struct drm_device *dev,
 	drm_object_attach_property(&connector->base,
 				      dev->mode_config.dpms_property, 0);
 
+	connector->debugfs_entry = NULL;
+
 out_put:
 	if (ret)
 		drm_mode_object_put(dev, &connector->base);
@@ -931,7 +933,19 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  */
 int drm_connector_register(struct drm_connector *connector)
 {
-	return drm_sysfs_connector_add(connector);
+	int ret;
+
+	ret = drm_sysfs_connector_add(connector);
+	if (ret)
+		return ret;
+
+	ret = drm_debugfs_connector_add(connector);
+	if (ret) {
+		drm_sysfs_connector_remove(connector);
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_connector_register);
 
@@ -944,6 +958,7 @@ EXPORT_SYMBOL(drm_connector_register);
 void drm_connector_unregister(struct drm_connector *connector)
 {
 	drm_sysfs_connector_remove(connector);
+	drm_debugfs_connector_remove(connector);
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 

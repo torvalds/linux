@@ -545,6 +545,8 @@ struct drm_connector {
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 	unsigned bad_edid_counter;
+
+	struct dentry *debugfs_entry;
 };
 
 /**

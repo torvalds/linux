@@ -237,5 +237,119 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 	return 0;
 }
 
+static int connector_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	const char *status;
+
+	switch (connector->force) {
+	case DRM_FORCE_ON:
+		status = "on\n";
+		break;
+
+	case DRM_FORCE_ON_DIGITAL:
+		status = "digital\n";
+		break;
+
+	case DRM_FORCE_OFF:
+		status = "off\n";
+		break;
+
+	case DRM_FORCE_UNSPECIFIED:
+		status = "unspecified\n";
+		break;
+
+	default:
+		return 0;
+	}
+
+	seq_puts(m, status);
+
+	return 0;
+}
+
+static int connector_open(struct inode *inode, struct file *file)
+{
+	struct drm_connector *dev = inode->i_private;
+
+	return single_open(file, connector_show, dev);
+}
+
+static ssize_t connector_write(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_connector *connector = m->private;
+	char buf[12];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (!strcmp(buf, "on"))
+		connector->force = DRM_FORCE_ON;
+	else if (!strcmp(buf, "digital"))
+		connector->force = DRM_FORCE_ON_DIGITAL;
+	else if (!strcmp(buf, "off"))
+		connector->force = DRM_FORCE_OFF;
+	else if (!strcmp(buf, "unspecified"))
+		connector->force = DRM_FORCE_UNSPECIFIED;
+	else
+		return -EINVAL;
+
+	return len;
+}
+
+static const struct file_operations drm_connector_fops = {
+	.owner = THIS_MODULE,
+	.open = connector_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = connector_write
+};
+
+int drm_debugfs_connector_add(struct drm_connector *connector)
+{
+	struct drm_minor *minor = connector->dev->primary;
+	struct dentry *root, *ent;
+
+	if (!minor->debugfs_root)
+		return -1;
+
+	root = debugfs_create_dir(connector->name, minor->debugfs_root);
+	if (!root)
+		return -ENOMEM;
+
+	connector->debugfs_entry = root;
+
+	/* force */
+	ent = debugfs_create_file("force", S_IRUGO | S_IWUSR, root, connector,
+				  &drm_connector_fops);
+	if (!ent)
+		goto error;
+
+	return 0;
+
+error:
+	debugfs_remove_recursive(connector->debugfs_entry);
+	connector->debugfs_entry = NULL;
+	return -ENOMEM;
+}
+
+void drm_debugfs_connector_remove(struct drm_connector *connector)
+{
+	if (!connector->debugfs_entry)
+		return;
+
+	debugfs_remove_recursive(connector->debugfs_entry);
+
+	connector->debugfs_entry = NULL;
+}
+
 #endif /* CONFIG_DEBUG_FS */
 
