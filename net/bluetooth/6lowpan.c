@@ -607,6 +607,17 @@ static void ifup(struct net_device *netdev)
 	rtnl_unlock();
 }
 
+static void ifdown(struct net_device *netdev)
+{
+	int err;
+
+	rtnl_lock();
+	err = dev_close(netdev);
+	if (err < 0)
+		BT_INFO("iface %s cannot be closed (%d)", netdev->name, err);
+	rtnl_unlock();
+}
+
 static void do_notify_peers(struct work_struct *work)
 {
 	struct lowpan_dev *dev = container_of(work, struct lowpan_dev,
@@ -828,6 +839,8 @@ static void chan_close_cb(struct l2cap_chan *chan)
 		write_unlock_irqrestore(&devices_lock, flags);
 
 		cancel_delayed_work_sync(&dev->notify_peers);
+
+		ifdown(dev->netdev);
 
 		if (!removed) {
 			INIT_WORK(&entry->delete_netdev, delete_netdev);
@@ -1186,6 +1199,43 @@ static const struct file_operations lowpan_control_fops = {
 	.release	= single_release,
 };
 
+static void disconnect_devices(void)
+{
+	struct lowpan_dev *entry, *tmp, *new_dev;
+	struct list_head devices;
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&devices);
+
+	/* We make a separate list of devices because the unregister_netdev()
+	 * will call device_event() which will also want to modify the same
+	 * devices list.
+	 */
+
+	read_lock_irqsave(&devices_lock, flags);
+
+	list_for_each_entry_safe(entry, tmp, &bt_6lowpan_devices, list) {
+		new_dev = kmalloc(sizeof(*new_dev), GFP_ATOMIC);
+		if (!new_dev)
+			break;
+
+		new_dev->netdev = entry->netdev;
+		INIT_LIST_HEAD(&new_dev->list);
+
+		list_add(&new_dev->list, &devices);
+	}
+
+	read_unlock_irqrestore(&devices_lock, flags);
+
+	list_for_each_entry_safe(entry, tmp, &devices, list) {
+		ifdown(entry->netdev);
+		BT_DBG("Unregistering netdev %s %p",
+		       entry->netdev->name, entry->netdev);
+		unregister_netdev(entry->netdev);
+		kfree(entry);
+	}
+}
+
 static int device_event(struct notifier_block *unused,
 			unsigned long event, void *ptr)
 {
@@ -1202,6 +1252,8 @@ static int device_event(struct notifier_block *unused,
 		list_for_each_entry_safe(entry, tmp, &bt_6lowpan_devices,
 					 list) {
 			if (entry->netdev == netdev) {
+				BT_DBG("Unregistered netdev %s %p",
+				       netdev->name, netdev);
 				list_del(&entry->list);
 				kfree(entry);
 				break;
@@ -1239,6 +1291,8 @@ static void __exit bt_6lowpan_exit(void)
 		l2cap_chan_close(listen_chan, 0);
 		l2cap_chan_put(listen_chan);
 	}
+
+	disconnect_devices();
 
 	unregister_netdevice_notifier(&bt_6lowpan_dev_notifier);
 }
