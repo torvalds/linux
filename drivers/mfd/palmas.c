@@ -25,42 +25,6 @@
 #include <linux/mfd/palmas.h>
 #include <linux/of_device.h>
 
-#define EXTERNAL_REQUESTOR(_id, _offset, _pos)		\
-	[PALMAS_EXTERNAL_REQSTR_ID_##_id] = {		\
-		.id = PALMAS_EXTERNAL_REQSTR_ID_##_id,	\
-		.reg_offset = _offset,			\
-		.bit_pos = _pos,			\
-	}
-
-static struct palmas_sleep_requestor_info sleep_req_info[] = {
-	EXTERNAL_REQUESTOR(REGEN1, 0, 0),
-	EXTERNAL_REQUESTOR(REGEN2, 0, 1),
-	EXTERNAL_REQUESTOR(SYSEN1, 0, 2),
-	EXTERNAL_REQUESTOR(SYSEN2, 0, 3),
-	EXTERNAL_REQUESTOR(CLK32KG, 0, 4),
-	EXTERNAL_REQUESTOR(CLK32KGAUDIO, 0, 5),
-	EXTERNAL_REQUESTOR(REGEN3, 0, 6),
-	EXTERNAL_REQUESTOR(SMPS12, 1, 0),
-	EXTERNAL_REQUESTOR(SMPS3, 1, 1),
-	EXTERNAL_REQUESTOR(SMPS45, 1, 2),
-	EXTERNAL_REQUESTOR(SMPS6, 1, 3),
-	EXTERNAL_REQUESTOR(SMPS7, 1, 4),
-	EXTERNAL_REQUESTOR(SMPS8, 1, 5),
-	EXTERNAL_REQUESTOR(SMPS9, 1, 6),
-	EXTERNAL_REQUESTOR(SMPS10, 1, 7),
-	EXTERNAL_REQUESTOR(LDO1, 2, 0),
-	EXTERNAL_REQUESTOR(LDO2, 2, 1),
-	EXTERNAL_REQUESTOR(LDO3, 2, 2),
-	EXTERNAL_REQUESTOR(LDO4, 2, 3),
-	EXTERNAL_REQUESTOR(LDO5, 2, 4),
-	EXTERNAL_REQUESTOR(LDO6, 2, 5),
-	EXTERNAL_REQUESTOR(LDO7, 2, 6),
-	EXTERNAL_REQUESTOR(LDO8, 2, 7),
-	EXTERNAL_REQUESTOR(LDO9, 3, 0),
-	EXTERNAL_REQUESTOR(LDOLN, 3, 1),
-	EXTERNAL_REQUESTOR(LDOUSB, 3, 2),
-};
-
 static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
 	{
 		.reg_bits = 8,
@@ -365,10 +329,10 @@ static struct regmap_irq_chip tps65917_irq_chip = {
 int palmas_ext_control_req_config(struct palmas *palmas,
 	enum palmas_external_requestor_id id,  int ext_ctrl, bool enable)
 {
+	struct palmas_pmic_driver_data *pmic_ddata = palmas->pmic_ddata;
 	int preq_mask_bit = 0;
 	int reg_add = 0;
-	int bit_pos;
-	int ret;
+	int bit_pos, ret;
 
 	if (!(ext_ctrl & PALMAS_EXT_REQ))
 		return 0;
@@ -387,8 +351,8 @@ int palmas_ext_control_req_config(struct palmas *palmas,
 		preq_mask_bit = 2;
 	}
 
-	bit_pos = sleep_req_info[id].bit_pos;
-	reg_add += sleep_req_info[id].reg_offset;
+	bit_pos = pmic_ddata->sleep_req_info[id].bit_pos;
+	reg_add += pmic_ddata->sleep_req_info[id].reg_offset;
 	if (enable)
 		ret = palmas_update_bits(palmas, PALMAS_RESOURCE_BASE,
 				reg_add, BIT(bit_pos), BIT(bit_pos));
