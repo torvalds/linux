@@ -115,10 +115,18 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 	struct net *net = current->nsproxy->net_ns;
 	struct sockaddr_storage sa;
 	u64 val;
+	char *nl;
 
 	if (copy_from_user(write_buf, buf, size))
 		return -EFAULT;
 	write_buf[size] = '\0';
+
+	/* Deal with any embedded newlines in the string */
+	nl = strchr(write_buf, '\n');
+	if (nl) {
+		size = nl - write_buf;
+		*nl = '\0';
+	}
 
 	size = rpc_pton(net, write_buf, size, (struct sockaddr *)&sa, sizeof(sa));
 	if (size > 0)
