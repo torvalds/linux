@@ -88,6 +88,16 @@ struct palmas {
 	u8 pwm_muxed;
 };
 
+#define PALMAS_EXT_REQ (PALMAS_EXT_CONTROL_ENABLE1 |	\
+			PALMAS_EXT_CONTROL_ENABLE2 |	\
+			PALMAS_EXT_CONTROL_NSLEEP)
+
+struct palmas_sleep_requestor_info {
+	int id;
+	int reg_offset;
+	int bit_pos;
+};
+
 struct regs_info {
 	char	*name;
 	char	*sname;
