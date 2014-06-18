@@ -14,6 +14,7 @@
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include <linux/debugfs.h>
 
 #include <net/ipv6.h>
@@ -1212,7 +1213,7 @@ static struct notifier_block bt_6lowpan_dev_notifier = {
 	.notifier_call = device_event,
 };
 
-int bt_6lowpan_init(void)
+static int __init bt_6lowpan_init(void)
 {
 	lowpan_psm_debugfs = debugfs_create_file("6lowpan_psm", 0644,
 						 bt_debugfs, NULL,
@@ -1224,7 +1225,7 @@ int bt_6lowpan_init(void)
 	return register_netdevice_notifier(&bt_6lowpan_dev_notifier);
 }
 
-void bt_6lowpan_exit(void)
+static void __exit bt_6lowpan_exit(void)
 {
 	debugfs_remove(lowpan_psm_debugfs);
 	debugfs_remove(lowpan_control_debugfs);
@@ -1236,3 +1237,11 @@ void bt_6lowpan_exit(void)
 
 	unregister_netdevice_notifier(&bt_6lowpan_dev_notifier);
 }
+
+module_init(bt_6lowpan_init);
+module_exit(bt_6lowpan_exit);
+
+MODULE_AUTHOR("Jukka Rissanen <jukka.rissanen@linux.intel.com>");
+MODULE_DESCRIPTION("Bluetooth 6LoWPAN");
+MODULE_VERSION(VERSION);
+MODULE_LICENSE("GPL");
