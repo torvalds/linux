@@ -92,6 +92,133 @@ static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
 	},
 };
 
+static const struct regmap_irq tps65917_irqs[] = {
+	/* INT1 IRQs */
+	[TPS65917_RESERVED1] = {
+		.mask = TPS65917_RESERVED,
+	},
+	[TPS65917_PWRON_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_PWRON,
+	},
+	[TPS65917_LONG_PRESS_KEY_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_LONG_PRESS_KEY,
+	},
+	[TPS65917_RESERVED2] = {
+		.mask = TPS65917_RESERVED,
+	},
+	[TPS65917_PWRDOWN_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_PWRDOWN,
+	},
+	[TPS65917_HOTDIE_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_HOTDIE,
+	},
+	[TPS65917_VSYS_MON_IRQ] = {
+		.mask = TPS65917_INT1_STATUS_VSYS_MON,
+	},
+	[TPS65917_RESERVED3] = {
+		.mask = TPS65917_RESERVED,
+	},
+	/* INT2 IRQs*/
+	[TPS65917_RESERVED4] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	[TPS65917_OTP_ERROR_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_OTP_ERROR,
+		.reg_offset = 1,
+	},
+	[TPS65917_WDT_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_WDT,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESERVED5] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESET_IN_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_RESET_IN,
+		.reg_offset = 1,
+	},
+	[TPS65917_FSD_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_FSD,
+		.reg_offset = 1,
+	},
+	[TPS65917_SHORT_IRQ] = {
+		.mask = TPS65917_INT2_STATUS_SHORT,
+		.reg_offset = 1,
+	},
+	[TPS65917_RESERVED6] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 1,
+	},
+	/* INT3 IRQs */
+	[TPS65917_GPADC_AUTO_0_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_AUTO_0,
+		.reg_offset = 2,
+	},
+	[TPS65917_GPADC_AUTO_1_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_AUTO_1,
+		.reg_offset = 2,
+	},
+	[TPS65917_GPADC_EOC_SW_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_GPADC_EOC_SW,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESREVED6] = {
+		.mask = TPS65917_RESERVED6,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED7] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED8] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_RESERVED9] = {
+		.mask = TPS65917_RESERVED,
+		.reg_offset = 2,
+	},
+	[TPS65917_VBUS_IRQ] = {
+		.mask = TPS65917_INT3_STATUS_VBUS,
+		.reg_offset = 2,
+	},
+	/* INT4 IRQs */
+	[TPS65917_GPIO_0_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_0,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_1_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_1,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_2_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_2,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_3_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_3,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_4_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_4,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_5_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_5,
+		.reg_offset = 3,
+	},
+	[TPS65917_GPIO_6_IRQ] = {
+		.mask = TPS65917_INT4_STATUS_GPIO_6,
+		.reg_offset = 3,
+	},
+	[TPS65917_RESERVED10] = {
+		.mask = TPS65917_RESERVED10,
+		.reg_offset = 3,
+	},
+};
+
 static const struct regmap_irq palmas_irqs[] = {
 	/* INT1 IRQs */
 	[PALMAS_CHARG_DET_N_VBUS_OVV_IRQ] = {
@@ -232,6 +359,19 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
+static struct regmap_irq_chip tps65917_irq_chip = {
+	.name = "tps65917",
+	.irqs = tps65917_irqs,
+	.num_irqs = ARRAY_SIZE(tps65917_irqs),
+
+	.num_regs = 4,
+	.irq_reg_stride = 5,
+	.status_base = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE,
+			PALMAS_INT1_STATUS),
+	.mask_base = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE,
+			PALMAS_INT1_MASK),
+};
+
 int palmas_ext_control_req_config(struct palmas *palmas,
 	enum palmas_external_requestor_id id,  int ext_ctrl, bool enable)
 {
@@ -357,14 +497,38 @@ static void palmas_power_off(void)
 static unsigned int palmas_features = PALMAS_PMIC_FEATURE_SMPS10_BOOST;
 static unsigned int tps659038_features;
 
+struct palmas_driver_data {
+	unsigned int *features;
+	struct regmap_irq_chip *irq_chip;
+};
+
+static struct palmas_driver_data palmas_data = {
+	.features = &palmas_features,
+	.irq_chip = &palmas_irq_chip,
+};
+
+static struct palmas_driver_data tps659038_data = {
+	.features = &tps659038_features,
+	.irq_chip = &palmas_irq_chip,
+};
+
+static struct palmas_driver_data tps65917_data = {
+	.features = &tps659038_features,
+	.irq_chip = &tps65917_irq_chip,
+};
+
 static const struct of_device_id of_palmas_match_tbl[] = {
 	{
 		.compatible = "ti,palmas",
-		.data = &palmas_features,
+		.data = &palmas_data,
 	},
 	{
 		.compatible = "ti,tps659038",
-		.data = &tps659038_features,
+		.data = &tps659038_data,
+	},
+	{
+		.compatible = "ti,tps65917",
+		.data = &tps65917_data,
 	},
 	{ },
 };
@@ -375,9 +539,10 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 {
 	struct palmas *palmas;
 	struct palmas_platform_data *pdata;
+	struct palmas_driver_data *driver_data;
 	struct device_node *node = i2c->dev.of_node;
 	int ret = 0, i;
-	unsigned int reg, addr, *features;
+	unsigned int reg, addr;
 	int slave;
 	const struct of_device_id *match;
 
@@ -408,8 +573,8 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	if (!match)
 		return -ENODATA;
 
-	features = (unsigned int *)match->data;
-	palmas->features = *features;
+	driver_data = (struct palmas_driver_data *)match->data;
+	palmas->features = *driver_data->features;
 
 	for (i = 0; i < PALMAS_NUM_CLIENTS; i++) {
 		if (i == 0)
@@ -463,8 +628,8 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	regmap_write(palmas->regmap[slave], addr, reg);
 
 	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
-			IRQF_ONESHOT | pdata->irq_flags, 0, &palmas_irq_chip,
-			&palmas->irq_data);
+				  IRQF_ONESHOT | pdata->irq_flags, 0,
+				  driver_data->irq_chip, &palmas->irq_data);
 	if (ret < 0)
 		goto err_i2c;
 
