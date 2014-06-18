@@ -165,6 +165,7 @@
 #define Intercept   ((u64)1 << 48)  /* Has valid intercept field */
 #define CheckPerm   ((u64)1 << 49)  /* Has valid check_perm field */
 #define NoBigReal   ((u64)1 << 50)  /* No big real mode */
+#define PrivUD      ((u64)1 << 51)  /* #UD instead of #GP on CPL > 0 */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -4608,7 +4609,10 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 		/* Privileged instruction can be executed only in CPL=0 */
 		if ((ctxt->d & Priv) && ops->cpl(ctxt)) {
-			rc = emulate_gp(ctxt, 0);
+			if (ctxt->d & PrivUD)
+				rc = emulate_ud(ctxt);
+			else
+				rc = emulate_gp(ctxt, 0);
 			goto done;
 		}
 
