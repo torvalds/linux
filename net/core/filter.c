@@ -840,7 +840,7 @@ int sk_convert_filter(struct sock_filter *prog, int len,
 	BUILD_BUG_ON(BPF_MEMWORDS * sizeof(u32) > MAX_BPF_STACK);
 	BUILD_BUG_ON(BPF_REG_FP + 1 != MAX_BPF_REG);
 
-	if (len <= 0 || len >= BPF_MAXINSNS)
+	if (len <= 0 || len > BPF_MAXINSNS)
 		return -EINVAL;
 
 	if (new_prog) {
