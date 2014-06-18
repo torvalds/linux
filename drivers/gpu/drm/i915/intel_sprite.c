@@ -1051,7 +1051,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		mutex_unlock(&dev->struct_mutex);
 	}
 
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	return 0;
 }

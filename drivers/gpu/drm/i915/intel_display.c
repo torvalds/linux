@@ -8820,7 +8820,7 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_crtc *crtc;
 
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	if (!i915.powersave)
 		return;
@@ -9430,7 +9430,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	/* Exit PSR early in page flip */
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	work->event = event;
 	work->crtc = crtc;

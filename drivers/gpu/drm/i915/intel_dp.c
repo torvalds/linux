@@ -1904,7 +1904,7 @@ static void intel_edp_psr_inactivate(struct drm_device *dev)
 		   & ~EDP_PSR_ENABLE);
 }
 
-void intel_edp_psr_exit(struct drm_device *dev, bool schedule_back)
+void intel_edp_psr_exit(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -1919,9 +1919,8 @@ void intel_edp_psr_exit(struct drm_device *dev, bool schedule_back)
 	if (dev_priv->psr.active)
 		intel_edp_psr_inactivate(dev);
 
-	if (schedule_back)
-		schedule_delayed_work(&dev_priv->psr.work,
-				      msecs_to_jiffies(100));
+	schedule_delayed_work(&dev_priv->psr.work,
+			      msecs_to_jiffies(100));
 }
 
 void intel_edp_psr_init(struct drm_device *dev)

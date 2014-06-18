@@ -1395,7 +1395,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	/* Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
@@ -1442,7 +1442,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -4236,7 +4236,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	intel_edp_psr_exit(dev, true);
+	intel_edp_psr_exit(dev);
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
