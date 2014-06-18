@@ -905,6 +905,7 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 {
 	struct f_rndis_opts *opts;
 	struct usb_os_desc *descs[1];
+	char *names[1];
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
@@ -922,8 +923,9 @@ static struct usb_function_instance *rndis_alloc_inst(void)
 	INIT_LIST_HEAD(&opts->rndis_os_desc.ext_prop);
 
 	descs[0] = &opts->rndis_os_desc;
+	names[0] = "rndis";
 	usb_os_desc_prepare_interf_dir(&opts->func_inst.group, 1, descs,
-				       THIS_MODULE);
+				       names, THIS_MODULE);
 	config_group_init_type_name(&opts->func_inst.group, "",
 				    &rndis_func_type);
 

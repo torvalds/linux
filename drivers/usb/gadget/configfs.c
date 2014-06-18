@@ -1216,6 +1216,7 @@ static struct configfs_attribute *interf_grp_attrs[] = {
 int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 				   int n_interf,
 				   struct usb_os_desc **desc,
+				   char **names,
 				   struct module *owner)
 {
 	struct config_group **f_default_groups, *os_desc_group,
@@ -1257,8 +1258,8 @@ int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 		d = desc[n_interf];
 		d->owner = owner;
 		config_group_init_type_name(&d->group, "", interface_type);
-		config_item_set_name(&d->group.cg_item, "interface.%d",
-				     n_interf);
+		config_item_set_name(&d->group.cg_item, "interface.%s",
+				     names[n_interf]);
 		interface_groups[n_interf] = &d->group;
 	}
 
