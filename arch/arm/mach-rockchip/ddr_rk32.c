@@ -3714,7 +3714,7 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
         }
         else
         {
-            rk_fb_poll_wait_frame_complete();
+	     rk_fb_poll_wait_frame_complete();
         }
     }
 #endif
@@ -3990,31 +3990,57 @@ static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
 static int _ddr_change_freq(uint32 nMHz)
 {
 	struct ddr_freq_t ddr_freq_t;
-	int test_count=0;
-	int ret;
+	unsigned long remain_t, vblank_t, pass_t;
+	static unsigned long reserve_t = 800;//us
+	unsigned long long tmp;
+	int ret, test_count=0;
 
-	ddr_freq_t.screen_ft_us = 0;
-	ddr_freq_t.t0 = 0;
-	ddr_freq_t.t1 = 0;
+	memset(&ddr_freq_t, 0x00, sizeof(ddr_freq_t));
+
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 	do
 	{
-		if(rk_fb_poll_wait_frame_complete() == true)
-		{
-			ddr_freq_t.t0 = cpu_clock(0);
-			ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
+		ddr_freq_t.screen_ft_us = rk_fb_get_prmry_screen_ft();
+		ddr_freq_t.t0 = rk_fb_get_prmry_screen_framedone_t();
+		tmp = cpu_clock(0) - ddr_freq_t.t0;
+		do_div(tmp, 1000);
+		pass_t = tmp;
+		//lost frame interrupt
+		while (pass_t > ddr_freq_t.screen_ft_us){
+			int n = pass_t/ddr_freq_t.screen_ft_us;
 
-			test_count++;
-                        if(test_count > 10) //test 10 times
-                        {
-				ddr_freq_t.screen_ft_us = 0xfefefefe;
-                        }
-			usleep_range(ddr_freq_t.screen_ft_us-test_count*1000,ddr_freq_t.screen_ft_us-test_count*1000);
-
-			flush_tlb_all();
+			//printk("lost frame int, pass_t:%lu\n", pass_t);
+			pass_t -= n*ddr_freq_t.screen_ft_us;
+			ddr_freq_t.t0 += n*ddr_freq_t.screen_ft_us*1000;
 		}
+
+		remain_t = ddr_freq_t.screen_ft_us - pass_t;
+		if (remain_t < reserve_t) {
+			//printk("remain_t(%lu) < reserve_t(%lu)\n", remain_t, reserve_t);
+			vblank_t = rk_fb_get_prmry_screen_vbt();
+			usleep_range(remain_t+vblank_t, remain_t+vblank_t);
+			continue;
+		}
+
+		//test 10 times
+		test_count++;
+                if(test_count > 10)
+                {
+			ddr_freq_t.screen_ft_us = 0xfefefefe;
+                }
+		//printk("ft:%lu, pass_t:%lu, remaint_t:%lu, reservet_t:%lu\n",
+		//	ddr_freq_t.screen_ft_us, (unsigned long)pass_t, remain_t, reserve_t);
+		usleep_range(remain_t-reserve_t, remain_t-reserve_t);
+		flush_tlb_all();
+
 		ret = __ddr_change_freq(nMHz, ddr_freq_t);
-	} while (ret == 0);
+		if (ret) {
+			return ret;
+		} else {
+			if (reserve_t < 10000)
+				reserve_t += 200;
+		}
+	}while(1);
 #else
 	ret = __ddr_change_freq(nMHz, ddr_freq_t);
 #endif

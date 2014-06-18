@@ -29,6 +29,7 @@
 #include <linux/rockchip/iomap.h>
 #include <linux/clk-private.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
+#include "cpu_axi.h"
 
 #ifdef CONFIG_CPU_FREQ
 extern int rockchip_cpufreq_reboot_limit_freq(void);
@@ -39,6 +40,11 @@ static inline int rockchip_cpufreq_reboot_limit_freq(void) { return 0; }
 static DECLARE_COMPLETION(ddrfreq_completion);
 static DEFINE_MUTEX(ddrfreq_mutex);
 
+#define VOP_REQ_BLOCK
+#ifdef VOP_REQ_BLOCK
+static DECLARE_COMPLETION(vop_req_completion);
+#endif
+
 static struct dvfs_node *clk_cpu_dvfs_node = NULL;
 static int reboot_config_done = 0;
 static int ddr_boost = 0;
@@ -47,11 +53,12 @@ static int watch=0;
 static int high_load = 70;
 static int low_load = 60;
 static int auto_freq_interval_ms = 20;
-static int high_load_last_ms = 0;
-static int low_load_last_ms = 200;
+static long down_rate_delay_ms = 500;
 static unsigned long *auto_freq_table = NULL;
 static int cur_freq_index;
 static int auto_freq_table_size;
+static unsigned long vop_bandwidth_update_jiffies = 0, vop_bandwidth = 0;
+static int vop_bandwidth_update_flag = 0;
 
 enum {
 	DEBUG_DDR = 1U << 0,
@@ -73,12 +80,11 @@ enum ddr_bandwidth_id{
     ddrbw_id_end
 };
 
-#define  ddr_monitor_start() grf_writel((((readl_relaxed(RK_PMU_VIRT + 0x9c)>>13)&7)==3)?0xc000c000:0xe000e000,RK3288_GRF_SOC_CON4)
-#define  ddr_monitor_stop() grf_writel(0xc0000000,RK3288_GRF_SOC_CON4)
-
 #define grf_readl(offset)	readl_relaxed(RK_GRF_VIRT + offset)
 #define grf_writel(v, offset)	do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
 
+#define noc_readl(offset)       readl_relaxed(RK3288_SERVICE_BUS_VIRT + offset)
+#define noc_writel(v, offset)   do { writel_relaxed(v, RK3288_SERVICE_BUS_VIRT + offset); dsb(); } while (0)
 
 #define MHZ	(1000*1000)
 #define KHZ	1000
@@ -92,6 +98,24 @@ struct video_info {
 
 	struct list_head node;
 };
+
+struct ddr_bw_info{
+    u32 ddr_wr;
+    u32 ddr_rd;
+    u32 ddr_act;
+    u32 ddr_time;
+    u32 ddr_total;
+    u32 ddr_percent;
+
+    u32 cpum;
+    u32 gpu;
+    u32 peri;
+    u32 video;
+    u32 vio0;
+    u32 vio1;
+    u32 vio2;
+};
+static struct ddr_bw_info ddr_bw_ch0={0}, ddr_bw_ch1={0};
 
 struct ddr {
 	struct dvfs_node *clk_dvfs_node;
@@ -120,12 +144,12 @@ module_param_named(sys_status, ddr.sys_status, ulong, S_IRUGO);
 module_param_named(auto_self_refresh, ddr.auto_self_refresh, bool, S_IRUGO);
 module_param_named(mode, ddr.mode, charp, S_IRUGO);
 
-static unsigned long get_freq_from_table(unsigned long freq)
+static unsigned long auto_freq_round(unsigned long freq)
 {
 	int i;
 
 	if (!auto_freq_table)
-		return 0;
+		return -EINVAL;
 
 	for (i = 0; auto_freq_table[i] != 0; i++) {
 		if (auto_freq_table[i] >= freq) {
@@ -136,7 +160,7 @@ static unsigned long get_freq_from_table(unsigned long freq)
 	return auto_freq_table[i-1];
 }
 
-static unsigned long get_index_from_table(unsigned long freq)
+static unsigned long auto_freq_get_index(unsigned long freq)
 {
 	int i;
 
@@ -151,6 +175,23 @@ static unsigned long get_index_from_table(unsigned long freq)
 	return i-1;
 }
 
+static unsigned int auto_freq_update_index(unsigned long freq)
+{
+	cur_freq_index = auto_freq_get_index(freq);
+
+	return cur_freq_index;
+}
+
+
+static unsigned long auto_freq_get_next_step(void)
+{
+	if (cur_freq_index < auto_freq_table_size-1) {
+			return auto_freq_table[cur_freq_index+1];
+	}
+
+	return auto_freq_table[cur_freq_index];
+}
+
 static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char *name)
 {
 	unsigned int min_rate, max_rate;
@@ -163,14 +204,13 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 		dprintk(DEBUG_DDR, "change auto self refresh to %d when %s\n", auto_self_refresh, name);
 	}
 
-	cur_freq_index = get_index_from_table(target_rate);
-
 	if (target_rate != dvfs_clk_get_last_set_rate(ddr.clk_dvfs_node)) {
 		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
 
 		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
 		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, target_rate) == 0) {
 			target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
+			auto_freq_update_index(target_rate);
 			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", target_rate / MHZ, name);
 		}
 
@@ -182,84 +222,173 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 	}
 }
 
-void ddr_bandwidth_get(u32 *ch0_eff, u32 *ch1_eff)
+unsigned long req_freq_by_vop(unsigned long bandwidth)
 {
-	u32 ddr_bw_val[2][ddrbw_id_end];
+	if (time_after(jiffies, vop_bandwidth_update_jiffies+down_rate_delay_ms))
+		return 0;
+
+	if (bandwidth >= 5000){
+		return 800000000;
+	}
+
+	if (bandwidth >= 3500) {
+		return 456000000;
+	}
+
+	if (bandwidth >= 2600) {
+		return 396000000;
+	}
+	if (bandwidth >= 2000) {
+		return 324000000;
+	}
+
+	return 0;
+}
+
+void ddr_monitor_start(void)
+{
+    int i;
+
+    for(i=1;i<8;i++)
+    {
+        noc_writel(0x8, (0x400*i+0x8));
+        noc_writel(0x1, (0x400*i+0xc));
+        noc_writel(0x6, (0x400*i+0x138));
+        noc_writel(0x10, (0x400*i+0x14c));
+        noc_writel(0x8, (0x400*i+0x160));
+        noc_writel(0x10, (0x400*i+0x174));
+    }
+    grf_writel((((readl_relaxed(RK_PMU_VIRT + 0x9c)>>13)&7)==3)?0xc000c000:0xe000e000,RK3288_GRF_SOC_CON4); // ddr
+    for(i=1;i<8;i++)
+    {
+        noc_writel(0x1, (0x400*i+0x28));
+    }
+}
+
+void ddr_monitor_stop(void)
+{
+    grf_writel(0xc0000000,RK3288_GRF_SOC_CON4);  //ddr
+}
+
+void ddr_bandwidth_get(struct ddr_bw_info *ddr_bw_ch0, struct ddr_bw_info *ddr_bw_ch1)
+{
+	u32 ddr_bw_val[2][ddrbw_id_end], ddr_freq;
 	u64 temp64;
 	int i, j;
 
+	ddr_monitor_stop();
 	for(j = 0; j < 2; j++) {
 		for(i = 0; i < ddrbw_eff; i++ ){
 	        	ddr_bw_val[j][i] = grf_readl(RK3288_GRF_SOC_STATUS11+i*4+j*16);
 		}
 	}
 
-	temp64 = ((u64)ddr_bw_val[0][0]+ddr_bw_val[0][1])*4*100;
-	do_div(temp64, ddr_bw_val[0][ddrbw_time_num]);
-	ddr_bw_val[0][ddrbw_eff] = temp64;
-	*ch0_eff = temp64;
+	if (ddr_bw_ch0) {
+		ddr_freq = readl_relaxed(RK_DDR_VIRT + 0xc0);
+
+		temp64 = ((u64)ddr_bw_val[0][0]+ddr_bw_val[0][1])*4*100;
+		do_div(temp64, ddr_bw_val[0][ddrbw_time_num]);
+		ddr_bw_val[0][ddrbw_eff] = temp64;
+
+		ddr_bw_ch0->ddr_percent = temp64;
+		ddr_bw_ch0->ddr_time = ddr_bw_val[0][ddrbw_time_num]/(ddr_freq*1000);
+		ddr_bw_ch0->ddr_wr = (ddr_bw_val[0][ddrbw_wr_num]*8*4)*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->ddr_rd = (ddr_bw_val[0][ddrbw_rd_num]*8*4)*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->ddr_act = ddr_bw_val[0][ddrbw_act_num];
+		ddr_bw_ch0->ddr_total = ddr_freq*2*4;
+
+		ddr_bw_ch0->cpum = (noc_readl(0x400+0x178)<<16)
+		          + (noc_readl(0x400+0x164));
+		ddr_bw_ch0->gpu = (noc_readl(0x800+0x178)<<16)
+		          + (noc_readl(0x800+0x164));
+		ddr_bw_ch0->peri = (noc_readl(0xc00+0x178)<<16)
+		          + (noc_readl(0xc00+0x164));
+		ddr_bw_ch0->video = (noc_readl(0x1000+0x178)<<16)
+		          + (noc_readl(0x1000+0x164));
+		ddr_bw_ch0->vio0 = (noc_readl(0x1400+0x178)<<16)
+		          + (noc_readl(0x1400+0x164));
+		ddr_bw_ch0->vio1 = (noc_readl(0x1800+0x178)<<16)
+		          + (noc_readl(0x1800+0x164));
+		ddr_bw_ch0->vio2 = (noc_readl(0x1c00+0x178)<<16)
+		          + (noc_readl(0x1c00+0x164));
+
+		ddr_bw_ch0->cpum = ddr_bw_ch0->cpum*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->gpu = ddr_bw_ch0->gpu*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->peri = ddr_bw_ch0->peri*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->video = ddr_bw_ch0->video*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->vio0 = ddr_bw_ch0->vio0*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->vio1 = ddr_bw_ch0->vio1*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+		ddr_bw_ch0->vio2 = ddr_bw_ch0->vio2*ddr_freq/ddr_bw_val[0][ddrbw_time_num];
+	}
 	
-	temp64 = ((u64)ddr_bw_val[1][0]+ddr_bw_val[1][1])*4*100;
-	do_div(temp64, ddr_bw_val[1][ddrbw_time_num]);   
-	ddr_bw_val[1][ddrbw_eff] = temp64;
-	*ch1_eff = temp64;
+	ddr_monitor_start();
 }
 
 static void ddr_auto_freq(void)
 {
-	unsigned long freq, new_freq;
-	u32 ch0_eff, ch1_eff, max_eff;
-	static u32 high_load_last = 0, low_load_last = 0;
+	unsigned long freq, new_freq=0, vop_req_freq=0, total_bw_req_freq=0;
+	u32 ddr_percent, target_load;
+	static u32 local_jiffies=0, max_ddr_percent=0;
 
+	if (!local_jiffies)
+		local_jiffies = jiffies;
 	freq = dvfs_clk_get_rate(ddr.clk_dvfs_node);
-	
-	ddr_monitor_stop();
-        ddr_bandwidth_get(&ch0_eff, &ch1_eff);
-	max_eff = (ch0_eff > ch1_eff) ? ch0_eff : ch1_eff;
 
-	if (watch) {
-		printk("%d %d\n", ch0_eff, ch1_eff);
-		ddr_monitor_start();
-		return;
-	}
+        ddr_bandwidth_get(&ddr_bw_ch0, &ddr_bw_ch1);
+	ddr_percent = ddr_bw_ch0.ddr_percent;
 
-	if (print) {
-		printk("%d %d\n", ch0_eff, ch1_eff);
+	if ((watch)||(print)) {
+		if((watch == 2)&& (ddr_bw_ch0.ddr_percent < max_ddr_percent)) {
+		    return;
+		} else if(watch == 2) {
+		    max_ddr_percent = ddr_bw_ch0.ddr_percent;
+		}
+		printk("Unit:MB/s total  use%%    rd    wr  cpum   gpu  peri video  vio0  vio1  vio2\n");
+		printk("%3u(ms): %5u %5u %5u %5u %5u %5u %5u %5u %5u %5u %5u\n",
+			ddr_bw_ch0.ddr_time,
+			ddr_bw_ch0.ddr_total,
+			ddr_bw_ch0.ddr_percent,
+			ddr_bw_ch0.ddr_rd,
+			ddr_bw_ch0.ddr_wr,
+			ddr_bw_ch0.cpum,
+			ddr_bw_ch0.gpu,
+			ddr_bw_ch0.peri,
+			ddr_bw_ch0.video,
+			ddr_bw_ch0.vio0,
+			ddr_bw_ch0.vio1,
+			ddr_bw_ch0.vio2);
+
+		if (watch)
+			return;
 	}
 
 	if (ddr_boost) {
 		ddr_boost = 0;
-		if (freq < ddr.boost_rate) {
-			low_load_last = low_load_last_ms/auto_freq_interval_ms;
-			ddrfreq_mode(false, ddr.boost_rate, "boost");
-		}
-	} else if(max_eff > high_load){
-		low_load_last = low_load_last_ms/auto_freq_interval_ms;
-
-		if (!high_load_last) {
-			if (cur_freq_index < auto_freq_table_size-1) {
-				new_freq = auto_freq_table[cur_freq_index+1];
-				ddrfreq_mode(false, new_freq, "high load");
-			}
-		} else {
-			high_load_last--;
-		}
-	} else if (max_eff < low_load){
-		high_load_last = high_load_last_ms/auto_freq_interval_ms;
-
-		new_freq = max_eff*(freq/low_load);
-		new_freq = get_freq_from_table(new_freq);
-		if (new_freq > freq) {
-			low_load_last = 0;
-			ddrfreq_mode(false, new_freq, "low load");
-		} else if (!low_load_last) {
-			ddrfreq_mode(false, new_freq, "low load");
-		} else {
-			low_load_last--;
-		}
+		new_freq = max(ddr.boost_rate, new_freq);
 	}
 
-	ddr_monitor_start();
+	if(ddr_percent > high_load){
+		total_bw_req_freq = auto_freq_get_next_step();
+	} else if (ddr_percent < low_load){
+		target_load = (low_load+high_load)/2;
+		total_bw_req_freq = ddr_percent*(freq/target_load);
+	}
+	new_freq = max(total_bw_req_freq, new_freq);
+
+	vop_req_freq = req_freq_by_vop(vop_bandwidth);
+	new_freq = max(vop_req_freq, new_freq);
+
+	new_freq = auto_freq_round(new_freq);
+
+	if (new_freq < freq) {
+		if (time_after(jiffies, local_jiffies+down_rate_delay_ms/10)) {
+			local_jiffies = jiffies;
+			ddrfreq_mode(false, new_freq, "auto down rate");
+		}
+	} else if(new_freq > freq){
+		local_jiffies = jiffies;
+		ddrfreq_mode(false, new_freq, "auto up rate");
+	}
 }
 
 static noinline long ddrfreq_work(unsigned long sys_status)
@@ -343,7 +472,7 @@ static noinline long ddrfreq_work(unsigned long sys_status)
 	} else {
 		if (ddr.auto_freq) {
 			ddr_auto_freq();
-			timeout = auto_freq_interval_ms;
+			timeout = auto_freq_interval_ms/10;
 		}
 		else {
 			ddrfreq_mode(false, ddr.normal_rate, "normal");
@@ -404,11 +533,18 @@ static int ddrfreq_task(void *data)
 
 	do {
 		status = ddr.sys_status;
+		if (vop_bandwidth_update_flag) {
+			vop_bandwidth_update_flag = 0;
+#ifdef VOP_REQ_BLOCK
+			complete(&vop_req_completion);
+#endif
+		}
+
 		timeout = ddrfreq_work(status);
 		if (old_status != status) {
 			complete(&ddrfreq_completion);
 		}
-		wait_event_freezable_timeout(ddr.wait, (status != ddr.sys_status) || kthread_should_stop(), timeout);
+		wait_event_freezable_timeout(ddr.wait, vop_bandwidth_update_flag || (status != ddr.sys_status) || kthread_should_stop(), timeout);
 		old_status = status;
 	} while (!kthread_should_stop() && !reboot_config_done);
 
@@ -589,6 +725,41 @@ static const struct file_operations video_state_fops = {
 static struct miscdevice video_state_dev = {
 	.fops	= &video_state_fops,
 	.name	= "video_state",
+	.minor	= MISC_DYNAMIC_MINOR,
+};
+
+static long ddr_freq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	unsigned long bandwidth = *(int*)arg;
+	unsigned long vop_req_freq;
+	int ret = -1;
+
+	vop_bandwidth = bandwidth;
+	vop_bandwidth_update_jiffies = jiffies;
+	vop_req_freq = req_freq_by_vop(bandwidth);
+	if (dvfs_clk_get_rate(ddr.clk_dvfs_node) >= vop_req_freq) {
+		ret = 0;
+	}
+
+	vop_bandwidth_update_flag = 1;
+	wake_up(&ddr.wait);
+#ifdef VOP_REQ_BLOCK
+	wait_for_completion(&vop_req_completion);
+#endif
+
+	return ret;
+}
+
+
+static const struct file_operations ddr_freq_fops = {
+	.owner	= THIS_MODULE,
+	.unlocked_ioctl = ddr_freq_ioctl,
+};
+
+static struct miscdevice ddr_freq_dev = {
+	.fops	= &ddr_freq_fops,
+	.name	= "ddr_freq",
+	.mode	= S_IRUGO | S_IWUSR | S_IWUGO,
 	.minor	= MISC_DYNAMIC_MINOR,
 };
 
@@ -915,6 +1086,7 @@ static int ddrfreq_init(void)
 	//REGISTER_CLK_NOTIFIER(pd_vop1);
 
 	ret = misc_register(&video_state_dev);
+	ret = misc_register(&ddr_freq_dev);
 	if (unlikely(ret)) {
 		pr_err("failed to register video_state misc device! error %d\n", ret);
 		goto err;
@@ -973,8 +1145,8 @@ static ssize_t ddrbw_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 	str += sprintf(str, "high_load: %d\n", high_load);
 	str += sprintf(str, "low_load: %d\n", low_load);
 	str += sprintf(str, "auto_freq_interval_ms: %d\n", auto_freq_interval_ms);
-	str += sprintf(str, "high_load_last_ms: %d\n", high_load_last_ms);
-	str += sprintf(str, "low_load_last_ms: %d\n", low_load_last_ms);
+	str += sprintf(str, "down_rate_delay_ms: %ld\n", down_rate_delay_ms);
+//	str += sprintf(str, "low_load_last_ms: %d\n", low_load_last_ms);
 	if (str != buf)
 		*(str - 1) = '\n';
 	return (str - buf);
@@ -991,17 +1163,15 @@ static ssize_t ddrbw_dyn_store(struct kobject *kobj, struct kobj_attribute *attr
 	if((strncmp(buf, "print", strlen("print")) == 0)) {
 		print = value;
 	} else if((strncmp(buf, "watch", strlen("watch")) == 0)) {
-		watch = value;;
+		watch = value;
 	} else if((strncmp(buf, "high", strlen("high")) == 0)) {
-		high_load = value;;
+		high_load = value;
 	} else if((strncmp(buf, "low", strlen("low")) == 0)) {
-		low_load = value;;
+		low_load = value;
 	} else if((strncmp(buf, "interval", strlen("interval")) == 0)) {
-		auto_freq_interval_ms = value;;
-	} else if((strncmp(buf, "high_last", strlen("high_last")) == 0)) {
-		high_load_last_ms = value;;
-	} else if((strncmp(buf, "low_last", strlen("low_last")) == 0)) {
-		low_load_last_ms = value;;
+		auto_freq_interval_ms = value;
+	} else if((strncmp(buf, "downdelay", strlen("downdelay")) == 0)) {
+		down_rate_delay_ms = value;
 	}
 	return n;
 }
@@ -1030,6 +1200,5 @@ static void ddrfreq_tst_init(void)
 		printk("%s: create ddrfreq sysfs node error, ret: %d\n", __func__, ret);
 		return;
 	}
-
 }
 #endif
