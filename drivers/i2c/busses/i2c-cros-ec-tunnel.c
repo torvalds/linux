@@ -183,6 +183,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	u8 *request = NULL;
 	u8 *response = NULL;
 	int result;
+	struct cros_ec_command msg;
 
 	request_len = ec_i2c_count_message(i2c_msgs, num);
 	if (request_len < 0) {
@@ -218,9 +219,15 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	}
 
 	ec_i2c_construct_message(request, i2c_msgs, num, bus_num);
-	result = bus->ec->command_sendrecv(bus->ec, EC_CMD_I2C_PASSTHRU,
-					   request, request_len,
-					   response, response_len);
+
+	msg.version = 0;
+	msg.command = EC_CMD_I2C_PASSTHRU;
+	msg.outdata = request;
+	msg.outsize = request_len;
+	msg.indata = response;
+	msg.insize = response_len;
+
+	result = bus->ec->cmd_xfer(bus->ec, &msg);
 	if (result)
 		goto exit;
 
@@ -258,7 +265,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	u32 remote_bus;
 	int err;
 
-	if (!ec->command_sendrecv) {
+	if (!ec->cmd_xfer) {
 		dev_err(dev, "Missing sendrecv\n");
 		return -EINVAL;
 	}
