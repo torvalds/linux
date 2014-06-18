@@ -100,6 +100,8 @@ static inline bool peer_del(struct lowpan_dev *dev, struct lowpan_peer *peer)
 {
 	list_del(&peer->list);
 
+	module_put(THIS_MODULE);
+
 	if (atomic_dec_and_test(&dev->peer_count)) {
 		BT_DBG("last peer");
 		return true;
@@ -751,6 +753,9 @@ static inline void chan_ready_cb(struct l2cap_chan *chan)
 			return;
 		}
 	}
+
+	if (!try_module_get(THIS_MODULE))
+		return;
 
 	add_peer_chan(chan, dev);
 	ifup(dev->netdev);
