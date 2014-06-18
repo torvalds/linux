@@ -1593,6 +1593,26 @@ struct drm_i915_gem_object_ops {
 	void (*release)(struct drm_i915_gem_object *);
 };
 
+/*
+ * Frontbuffer tracking bits. Set in obj->frontbuffer_bits while a gem bo is
+ * considered to be the frontbuffer for the given plane interface-vise. This
+ * doesn't mean that the hw necessarily already scans it out, but that any
+ * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
+ *
+ * We have one bit per pipe and per scanout plane type.
+ */
+#define INTEL_FRONTBUFFER_BITS_PER_PIPE 4
+#define INTEL_FRONTBUFFER_BITS \
+	(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES)
+#define INTEL_FRONTBUFFER_PRIMARY(pipe) \
+	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+#define INTEL_FRONTBUFFER_CURSOR(pipe) \
+	(1 << (1 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_SPRITE(pipe) \
+	(1 << (2 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+#define INTEL_FRONTBUFFER_OVERLAY(pipe) \
+	(1 << (3 +(INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))))
+
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
 
@@ -1680,6 +1700,8 @@ struct drm_i915_gem_object {
 	unsigned int has_global_gtt_mapping:1;
 	unsigned int has_dma_mapping:1;
 
+	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;
+
 	struct sg_table *pages;
 	int pages_pin_count;
 
@@ -1725,6 +1747,10 @@ struct drm_i915_gem_object {
 	};
 };
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
+
+void i915_gem_track_fb(struct drm_i915_gem_object *old,
+		       struct drm_i915_gem_object *new,
+		       unsigned frontbuffer_bits);
 
 /**
  * Request queue structure.

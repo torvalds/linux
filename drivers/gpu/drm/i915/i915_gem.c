@@ -4452,6 +4452,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->stolen)
 		i915_gem_object_unpin_pages(obj);
 
+	WARN_ON(obj->frontbuffer_bits);
+
 	if (WARN_ON(obj->pages_pin_count))
 		obj->pages_pin_count = 0;
 	if (discard_backing_storage(obj))
@@ -4994,6 +4996,23 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 		kfree(file_priv);
 
 	return ret;
+}
+
+void i915_gem_track_fb(struct drm_i915_gem_object *old,
+		       struct drm_i915_gem_object *new,
+		       unsigned frontbuffer_bits)
+{
+	if (old) {
+		WARN_ON(!mutex_is_locked(&old->base.dev->struct_mutex));
+		WARN_ON(!(old->frontbuffer_bits & frontbuffer_bits));
+		old->frontbuffer_bits &= ~frontbuffer_bits;
+	}
+
+	if (new) {
+		WARN_ON(!mutex_is_locked(&new->base.dev->struct_mutex));
+		WARN_ON(new->frontbuffer_bits & frontbuffer_bits);
+		new->frontbuffer_bits |= frontbuffer_bits;
+	}
 }
 
 static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
