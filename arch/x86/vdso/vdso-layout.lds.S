@@ -6,6 +6,16 @@
  * This script controls its layout.
  */
 
+#if defined(BUILD_VDSO64)
+# define SHDR_SIZE 64
+#elif defined(BUILD_VDSO32) || defined(BUILD_VDSOX32)
+# define SHDR_SIZE 40
+#else
+# error unknown VDSO target
+#endif
+
+#define NUM_FAKE_SHDRS 16
+
 SECTIONS
 {
 	. = SIZEOF_HEADERS;
@@ -25,15 +35,29 @@ SECTIONS
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
-	.rodata		: { *(.rodata*) }		:text
+	.rodata		: {
+		*(.rodata*)
+
+		/*
+		 * Ideally this would live in a C file, but that won't
+		 * work cleanly for x32 until we start building the x32
+		 * C code using an x32 toolchain.
+		 */
+		VDSO_FAKE_SECTION_TABLE_START = .;
+		. = . + NUM_FAKE_SHDRS * SHDR_SIZE;
+		VDSO_FAKE_SECTION_TABLE_END = .;
+	}						:text
+
+	.fake_shstrtab	: { *(.fake_shstrtab) }		:text
+
 	.data		: {
-	      *(.data*)
-	      *(.sdata*)
-	      *(.got.plt) *(.got)
-	      *(.gnu.linkonce.d.*)
-	      *(.bss*)
-	      *(.dynbss*)
-	      *(.gnu.linkonce.b.*)
+		*(.data*)
+		*(.sdata*)
+		*(.got.plt) *(.got)
+		*(.gnu.linkonce.d.*)
+		*(.bss*)
+		*(.dynbss*)
+		*(.gnu.linkonce.b.*)
 	}
 
 	.altinstructions	: { *(.altinstructions) }
