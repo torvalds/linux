@@ -3131,32 +3131,43 @@ err_free_mem:
 static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
 	struct mxt_platform_data *pdata;
+	struct device *dev = &client->dev;
 	struct property *prop;
 	unsigned int *keymap;
 	int proplen, ret;
 
-	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
+
+	/* reset gpio */
+	pdata->gpio_reset = of_get_named_gpio_flags(dev->of_node,
+		"atmel,reset-gpio", 0, NULL);
 
 	/* Default to this. Properties can be added to configure it later */
 	pdata->irqflags = IRQF_TRIGGER_FALLING;
 
-	prop = of_find_property(client->dev.of_node, "linux,gpio-keymap",
-				&proplen);
+	of_property_read_string(dev->of_node, "atmel,cfg_name",
+				&pdata->cfg_name);
+
+	of_property_read_string(dev->of_node, "atmel,input_name",
+				&pdata->input_name);
+
+	prop = of_find_property(dev->of_node, "linux,gpio-keymap", &proplen);
 	if (prop) {
 		pdata->t19_num_keys = proplen / sizeof(u32);
 
-		keymap = devm_kzalloc(&client->dev,
+		keymap = devm_kzalloc(dev,
 			pdata->t19_num_keys * sizeof(u32), GFP_KERNEL);
 		if (!keymap)
 			return NULL;
+
 		pdata->t19_keymap = keymap;
 
 		ret = of_property_read_u32_array(client->dev.of_node,
 			"linux,gpio-keymap", keymap, pdata->t19_num_keys);
 		if (ret) {
-			dev_err(&client->dev,
+			dev_err(dev,
 				"Unable to read device tree key codes: %d\n",
 				 ret);
 			return NULL;
