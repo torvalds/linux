@@ -1287,7 +1287,7 @@ static irqreturn_t xennet_rx_interrupt(int irq, void *dev_id)
 
 	if (likely(netif_carrier_ok(dev) &&
 		   RING_HAS_UNCONSUMED_RESPONSES(&queue->rx)))
-			napi_schedule(&queue->napi);
+		napi_schedule(&queue->napi);
 
 	return IRQ_HANDLED;
 }
@@ -1437,10 +1437,11 @@ static void xennet_end_access(int ref, void *page)
 static void xennet_disconnect_backend(struct netfront_info *info)
 {
 	unsigned int i = 0;
-	struct netfront_queue *queue = NULL;
 	unsigned int num_queues = info->netdev->real_num_tx_queues;
 
 	for (i = 0; i < num_queues; ++i) {
+		struct netfront_queue *queue = &info->queues[i];
+
 		/* Stop old i/f to prevent errors whilst we rebuild the state. */
 		spin_lock_bh(&queue->rx_lock);
 		spin_lock_irq(&queue->tx_lock);
