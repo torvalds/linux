@@ -821,10 +821,11 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 				 * linux-2.6.18-128.1.1 miss to do that.
 				 * --bug 17336 */
 				loff_t size = cl_isize_read(inode);
-				unsigned long cur_index = start >> PAGE_CACHE_SHIFT;
+				loff_t cur_index = start >> PAGE_CACHE_SHIFT;
+				loff_t size_index = ((size - 1) >> PAGE_CACHE_SHIFT);
 
 				if ((size == 0 && cur_index != 0) ||
-				    (((size - 1) >> PAGE_CACHE_SHIFT) < cur_index))
+				    size_index < cur_index)
 				*exceed = 1;
 			}
 			return result;
