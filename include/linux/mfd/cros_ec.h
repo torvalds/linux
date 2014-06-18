@@ -41,7 +41,7 @@ enum {
  * @outdata: Outgoing data to EC
  * @outsize: Outgoing length in bytes
  * @indata: Where to put the incoming data from EC
- * @insize: Incoming length in bytes (filled in by EC)
+ * @insize: Max number of bytes to accept from EC
  * @result: EC's response to the command (separate from communication failure)
  */
 struct cros_ec_command {
@@ -64,9 +64,9 @@ struct cros_ec_command {
  * sleep at the last suspend
  * @event_notifier: interrupt event notifier for transport devices
  * @cmd_xfer: send command to EC and get response
- *     Returns 0 if the communication succeeded, but that doesn't mean the EC
- *     was happy with the command it got. Caller should check msg.result for
- *     the EC's result code.
+ *     Returns the number of bytes received if the communication succeeded, but
+ *     that doesn't mean the EC was happy with the command. The caller
+ *     should check msg.result for the EC's result code.
  *
  * @priv: Private data
  * @irq: Interrupt to use

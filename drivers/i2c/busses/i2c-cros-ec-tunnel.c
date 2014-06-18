@@ -228,7 +228,7 @@ static int ec_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg i2c_msgs[],
 	msg.insize = response_len;
 
 	result = bus->ec->cmd_xfer(bus->ec, &msg);
-	if (result)
+	if (result < 0)
 		goto exit;
 
 	result = ec_i2c_parse_response(response, i2c_msgs, &num);

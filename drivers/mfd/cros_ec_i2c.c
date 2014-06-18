@@ -111,7 +111,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 		goto done;
 	}
 
-	ret = 0;
+	ret = i2c_msg[1].buf[1];
  done:
 	kfree(in_buf);
 	kfree(out_buf);

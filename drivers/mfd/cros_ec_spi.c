@@ -320,7 +320,7 @@ static int cros_ec_cmd_xfer_spi(struct cros_ec_device *ec_dev,
 		goto exit;
 	}
 
-	ret = 0;
+	ret = len;
 exit:
 	mutex_unlock(&ec_spi->lock);
 	return ret;
