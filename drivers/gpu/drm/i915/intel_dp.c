@@ -1910,29 +1910,11 @@ static void intel_edp_psr_work(struct work_struct *work)
 static void intel_edp_psr_inactivate(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_connector *connector;
-	struct intel_encoder *encoder;
-	struct intel_crtc *intel_crtc;
-	struct intel_dp *intel_dp = NULL;
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    base.head) {
+	dev_priv->psr.active = false;
 
-		if (connector->base.dpms != DRM_MODE_DPMS_ON)
-			continue;
-
-		encoder = to_intel_encoder(connector->base.encoder);
-		if (encoder->type == INTEL_OUTPUT_EDP) {
-
-			intel_dp = enc_to_intel_dp(&encoder->base);
-			intel_crtc = to_intel_crtc(encoder->base.crtc);
-
-			dev_priv->psr.active = false;
-
-			I915_WRITE(EDP_PSR_CTL(dev), I915_READ(EDP_PSR_CTL(dev))
-				   & ~EDP_PSR_ENABLE);
-		}
-	}
+	I915_WRITE(EDP_PSR_CTL(dev), I915_READ(EDP_PSR_CTL(dev))
+		   & ~EDP_PSR_ENABLE);
 }
 
 void intel_edp_psr_exit(struct drm_device *dev, bool schedule_back)
