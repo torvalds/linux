@@ -896,6 +896,7 @@ static struct xt_target log_tg_regs[] __read_mostly = {
 
 static struct nf_logger ipt_log_logger __read_mostly = {
 	.name		= "ipt_LOG",
+	.type		= NF_LOG_TYPE_LOG,
 	.logfn		= &ipt_log_packet,
 	.me		= THIS_MODULE,
 };
@@ -903,6 +904,7 @@ static struct nf_logger ipt_log_logger __read_mostly = {
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 static struct nf_logger ip6t_log_logger __read_mostly = {
 	.name		= "ip6t_LOG",
+	.type		= NF_LOG_TYPE_LOG,
 	.logfn		= &ip6t_log_packet,
 	.me		= THIS_MODULE,
 };

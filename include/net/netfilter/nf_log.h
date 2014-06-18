@@ -12,8 +12,11 @@
 #define NF_LOG_UID		0x08	/* Log UID owning local socket */
 #define NF_LOG_MASK		0x0f
 
-#define NF_LOG_TYPE_LOG		0x01
-#define NF_LOG_TYPE_ULOG	0x02
+enum nf_log_type {
+	NF_LOG_TYPE_LOG		= 0,
+	NF_LOG_TYPE_ULOG,
+	NF_LOG_TYPE_MAX
+};
 
 struct nf_loginfo {
 	u_int8_t type;
@@ -40,10 +43,10 @@ typedef void nf_logfn(struct net *net,
 		      const char *prefix);
 
 struct nf_logger {
-	struct module	*me;
-	nf_logfn 	*logfn;
-	char		*name;
-	struct list_head	list[NFPROTO_NUMPROTO];
+	char			*name;
+	enum nf_log_type	type;
+	nf_logfn 		*logfn;
+	struct module		*me;
 };
 
 /* Function to register/unregister log function. */

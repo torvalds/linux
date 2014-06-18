@@ -16,16 +16,22 @@
 #define NF_LOG_PREFIXLEN		128
 #define NFLOGGER_NAME_LEN		64
 
-static struct list_head nf_loggers_l[NFPROTO_NUMPROTO] __read_mostly;
+static struct nf_logger __rcu *loggers[NFPROTO_NUMPROTO][NF_LOG_TYPE_MAX] __read_mostly;
 static DEFINE_MUTEX(nf_log_mutex);
 
 static struct nf_logger *__find_logger(int pf, const char *str_logger)
 {
-	struct nf_logger *t;
+	struct nf_logger *log;
+	int i;
 
-	list_for_each_entry(t, &nf_loggers_l[pf], list[pf]) {
-		if (!strnicmp(str_logger, t->name, strlen(t->name)))
-			return t;
+	for (i = 0; i < NF_LOG_TYPE_MAX; i++) {
+		if (loggers[pf][i] == NULL)
+			continue;
+
+		log = rcu_dereference_protected(loggers[pf][i],
+						lockdep_is_held(&nf_log_mutex));
+		if (!strnicmp(str_logger, log->name, strlen(log->name)))
+			return log;
 	}
 
 	return NULL;
@@ -73,17 +79,14 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 	if (pf >= ARRAY_SIZE(init_net.nf.nf_loggers))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(logger->list); i++)
-		INIT_LIST_HEAD(&logger->list[i]);
-
 	mutex_lock(&nf_log_mutex);
 
 	if (pf == NFPROTO_UNSPEC) {
 		for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
-			list_add_tail(&(logger->list[i]), &(nf_loggers_l[i]));
+			rcu_assign_pointer(loggers[i][logger->type], logger);
 	} else {
 		/* register at end of list to honor first register win */
-		list_add_tail(&logger->list[pf], &nf_loggers_l[pf]);
+		rcu_assign_pointer(loggers[pf][logger->type], logger);
 	}
 
 	mutex_unlock(&nf_log_mutex);
@@ -98,7 +101,7 @@ void nf_log_unregister(struct nf_logger *logger)
 
 	mutex_lock(&nf_log_mutex);
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
-		list_del(&logger->list[i]);
+		RCU_INIT_POINTER(loggers[i][logger->type], NULL);
 	mutex_unlock(&nf_log_mutex);
 }
 EXPORT_SYMBOL(nf_log_unregister);
@@ -188,8 +191,7 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	loff_t *pos = v;
 	const struct nf_logger *logger;
-	struct nf_logger *t;
-	int ret;
+	int i, ret;
 	struct net *net = seq_file_net(s);
 
 	logger = rcu_dereference_protected(net->nf.nf_loggers[*pos],
@@ -203,11 +205,16 @@ static int seq_show(struct seq_file *s, void *v)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(t, &nf_loggers_l[*pos], list[*pos]) {
-		ret = seq_printf(s, "%s", t->name);
+	for (i = 0; i < NF_LOG_TYPE_MAX; i++) {
+		if (loggers[*pos][i] == NULL)
+			continue;
+
+		logger = rcu_dereference_protected(loggers[*pos][i],
+					   lockdep_is_held(&nf_log_mutex));
+		ret = seq_printf(s, "%s", logger->name);
 		if (ret < 0)
 			return ret;
-		if (&t->list[*pos] != nf_loggers_l[*pos].prev) {
+		if (i == 0 && loggers[*pos][i + 1] != NULL) {
 			ret = seq_printf(s, ",");
 			if (ret < 0)
 				return ret;
@@ -389,14 +396,5 @@ static struct pernet_operations nf_log_net_ops = {
 
 int __init netfilter_log_init(void)
 {
-	int i, ret;
-
-	ret = register_pernet_subsys(&nf_log_net_ops);
-	if (ret < 0)
-		return ret;
-
-	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
-		INIT_LIST_HEAD(&(nf_loggers_l[i]));
-
-	return 0;
+	return register_pernet_subsys(&nf_log_net_ops);
 }

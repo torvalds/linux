@@ -207,6 +207,7 @@ static struct xt_target ebt_log_tg_reg __read_mostly = {
 
 static struct nf_logger ebt_log_logger __read_mostly = {
 	.name 		= "ebt_log",
+	.type		= NF_LOG_TYPE_LOG,
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
 };
