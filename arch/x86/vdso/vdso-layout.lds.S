@@ -14,7 +14,7 @@
 # error unknown VDSO target
 #endif
 
-#define NUM_FAKE_SHDRS 16
+#define NUM_FAKE_SHDRS 13
 
 SECTIONS
 {
@@ -28,15 +28,17 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
-
-	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
-	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
-
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
 	.rodata		: {
 		*(.rodata*)
+		*(.data*)
+		*(.sdata*)
+		*(.got.plt) *(.got)
+		*(.gnu.linkonce.d.*)
+		*(.bss*)
+		*(.dynbss*)
+		*(.gnu.linkonce.b.*)
 
 		/*
 		 * Ideally this would live in a C file, but that won't
@@ -50,26 +52,27 @@ SECTIONS
 
 	.fake_shstrtab	: { *(.fake_shstrtab) }		:text
 
-	.data		: {
-		*(.data*)
-		*(.sdata*)
-		*(.got.plt) *(.got)
-		*(.gnu.linkonce.d.*)
-		*(.bss*)
-		*(.dynbss*)
-		*(.gnu.linkonce.b.*)
-	}
 
-	.altinstructions	: { *(.altinstructions) }
-	.altinstr_replacement	: { *(.altinstr_replacement) }
+	.note		: { *(.note.*) }		:text	:note
+
+	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
+	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
+
 
 	/*
-	 * Align the actual code well away from the non-instruction data.
-	 * This is the best thing for the I-cache.
+	 * Text is well-separated from actual data: there's plenty of
+	 * stuff that isn't used at runtime in between.
 	 */
-	. = ALIGN(0x100);
 
 	.text		: { *(.text*) }			:text	=0x90909090,
+
+	/*
+	 * At the end so that eu-elflint stays happy when vdso2c strips
+	 * these.  A better implementation would avoid allocating space
+	 * for these.
+	 */
+	.altinstructions	: { *(.altinstructions) }	:text
+	.altinstr_replacement	: { *(.altinstr_replacement) }	:text
 
 	/*
 	 * The remainder of the vDSO consists of special pages that are

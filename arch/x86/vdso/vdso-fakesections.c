@@ -16,9 +16,6 @@ const char fake_shstrtab[] __attribute__((section(".fake_shstrtab"))) =
 	".rodata\0"
 	".fake_shstrtab\0"  /* Yay, self-referential code. */
 	".note\0"
-	".data\0"
-	".altinstructions\0"
-	".altinstr_replacement\0"
 	".eh_frame_hdr\0"
 	".eh_frame\0"
 	".text";

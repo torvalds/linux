@@ -92,7 +92,9 @@ static void BITSFUNC(copy_section)(struct BITSFUNC(fake_sections) *out,
 {
 	uint64_t flags = GET_LE(&in->sh_flags);
 
-	bool copy = flags & SHF_ALLOC;
+	bool copy = flags & SHF_ALLOC &&
+		strcmp(name, ".altinstructions") &&
+		strcmp(name, ".altinstr_replacement");
 
 	if (!copy)
 		return;
