@@ -179,11 +179,6 @@ enum hdmi_audio_mclk_mode {
 	HDMI_AUDIO_MCLK_192FS = 7
 };
 
-struct hdmi_cm {
-	int	code;
-	int	mode;
-};
-
 struct hdmi_video_format {
 	enum hdmi_packing_mode	packing_mode;
 	u32			y_res;	/* Line per panel */
@@ -192,7 +187,6 @@ struct hdmi_video_format {
 
 struct hdmi_config {
 	struct omap_video_timings timings;
-	struct hdmi_cm cm;
 	struct hdmi_avi_infoframe infoframe;
 	enum hdmi_core_hdmi_dvi hdmi_dvi_mode;
 };
@@ -272,8 +266,6 @@ struct hdmi_phy_data {
 
 struct hdmi_core_data {
 	void __iomem *base;
-
-	struct hdmi_avi_infoframe avi_infoframe;
 };
 
 static inline void hdmi_write_reg(void __iomem *base_addr, const u32 idx,
@@ -339,9 +331,6 @@ int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy);
 int hdmi_phy_parse_lanes(struct hdmi_phy_data *phy, const u32 *lanes);
 
 /* HDMI common funcs */
-const struct hdmi_config *hdmi_default_timing(void);
-const struct hdmi_config *hdmi_get_timings(int mode, int code);
-struct hdmi_cm hdmi_get_code(struct omap_video_timings *timing);
 int hdmi_parse_lanes_of(struct platform_device *pdev, struct device_node *ep,
 	struct hdmi_phy_data *phy);
 
