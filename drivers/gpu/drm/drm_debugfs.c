@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include <drm/drm_edid.h>
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -304,6 +305,67 @@ static ssize_t connector_write(struct file *file, const char __user *ubuf,
 	return len;
 }
 
+static int edid_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct drm_property_blob *edid = connector->edid_blob_ptr;
+
+	if (connector->override_edid && edid)
+		seq_write(m, edid->data, edid->length);
+
+	return 0;
+}
+
+static int edid_open(struct inode *inode, struct file *file)
+{
+	struct drm_connector *dev = inode->i_private;
+
+	return single_open(file, edid_show, dev);
+}
+
+static ssize_t edid_write(struct file *file, const char __user *ubuf,
+			  size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct drm_connector *connector = m->private;
+	char *buf;
+	struct edid *edid;
+	int ret;
+
+	buf = memdup_user(ubuf, len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	edid = (struct edid *) buf;
+
+	if (len == 5 && !strncmp(buf, "reset", 5)) {
+		connector->override_edid = false;
+		ret = drm_mode_connector_update_edid_property(connector, NULL);
+	} else if (len < EDID_LENGTH ||
+		   EDID_LENGTH * (1 + edid->extensions) > len)
+		ret = -EINVAL;
+	else {
+		connector->override_edid = false;
+		ret = drm_mode_connector_update_edid_property(connector, edid);
+		if (!ret)
+			connector->override_edid = true;
+	}
+
+	kfree(buf);
+
+	return (ret) ? ret : len;
+}
+
+static const struct file_operations drm_edid_fops = {
+	.owner = THIS_MODULE,
+	.open = edid_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = edid_write
+};
+
+
 static const struct file_operations drm_connector_fops = {
 	.owner = THIS_MODULE,
 	.open = connector_open,
@@ -330,6 +392,12 @@ int drm_debugfs_connector_add(struct drm_connector *connector)
 	/* force */
 	ent = debugfs_create_file("force", S_IRUGO | S_IWUSR, root, connector,
 				  &drm_connector_fops);
+	if (!ent)
+		goto error;
+
+	/* edid */
+	ent = debugfs_create_file("edid_override", S_IRUGO | S_IWUSR, root,
+				  connector, &drm_edid_fops);
 	if (!ent)
 		goto error;
 

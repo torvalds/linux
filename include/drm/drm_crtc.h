@@ -533,6 +533,7 @@ struct drm_connector {
 
 	/* forced on connector */
 	enum drm_connector_force force;
+	bool override_edid;
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	struct drm_encoder *encoder; /* currently active encoder */
 

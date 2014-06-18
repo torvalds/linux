@@ -3763,6 +3763,10 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	int ret, size;
 
+	/* ignore requests to set edid when overridden */
+	if (connector->override_edid)
+		return 0;
+
 	if (connector->edid_blob_ptr)
 		drm_property_destroy_blob(dev, connector->edid_blob_ptr);
 
