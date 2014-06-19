@@ -5399,12 +5399,6 @@ static void btrfs_end_bio(struct bio *bio, int err)
 			bio = bbio->orig_bio;
 		}
 
- 		/*
-		 * We have original bio now. So increment bi_remaining to
-		 * account for it in endio
-		 */
-		atomic_inc(&bio->bi_remaining);
-
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
 		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
@@ -5422,8 +5416,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 			err = 0;
 		}
 		kfree(bbio);
-
-		bio_endio(bio, err);
+		bio_endio_nodec(bio, err);
 	} else if (!is_orig_bio) {
 		bio_put(bio);
 	}
