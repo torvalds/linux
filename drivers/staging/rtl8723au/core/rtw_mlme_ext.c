@@ -3185,7 +3185,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
 	const u8 *p;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	unsigned int i, j, index = 0;
 	unsigned char rf_type, bssrate[NumRates], sta_bssrate[NumRates];
 	struct registry_priv *pregpriv = &padapter->registrypriv;
@@ -3207,34 +3207,26 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_ASSOC_REQ);
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_ASSOC_REQ);
 
-	ether_addr_copy(pwlanhdr->addr1, get_my_bssid23a(&pmlmeinfo->network));
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->da, get_my_bssid23a(&pmlmeinfo->network));
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(&pmlmeinfo->network));
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
-
 	/* caps */
-	memcpy(pframe,
-	       rtw_get_capability23a_from_ie(pmlmeinfo->network.IEs), 2);
-
-	pframe += 2;
-	pattrib->pktlen += 2;
-
-	/* listen interval */
+	put_unaligned_le16(pmlmeinfo->network.capability,
+			   &mgmt->u.assoc_req.capab_info);
 	/* todo: listen interval for power saving */
-	put_unaligned_le16(3, pframe);
-	pframe += 2;
-	pattrib->pktlen += 2;
+	put_unaligned_le16(3, &mgmt->u.assoc_req.listen_interval);
+
+	pframe = mgmt->u.assoc_req.variable;
+	pattrib->pktlen = offsetof(struct ieee80211_mgmt, u.assoc_req.variable);
 
 	/* SSID */
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
@@ -3437,7 +3429,7 @@ exit:
 		kfree(pmlmepriv->assoc_req);
 		pmlmepriv->assoc_req = kmalloc(pattrib->pktlen, GFP_ATOMIC);
 		if (pmlmepriv->assoc_req) {
-			memcpy(pmlmepriv->assoc_req, pwlanhdr, pattrib->pktlen);
+			memcpy(pmlmepriv->assoc_req, mgmt, pattrib->pktlen);
 			pmlmepriv->assoc_req_len = pattrib->pktlen;
 		}
 	} else
