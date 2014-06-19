@@ -2468,6 +2468,25 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 EXPORT_SYMBOL(ceph_osdc_start_request);
 
 /*
+ * Unregister a registered request.  The request is not completed (i.e.
+ * no callbacks or wakeups) - higher layers are supposed to know what
+ * they are canceling.
+ */
+void ceph_osdc_cancel_request(struct ceph_osd_request *req)
+{
+	struct ceph_osd_client *osdc = req->r_osdc;
+
+	mutex_lock(&osdc->request_mutex);
+	if (req->r_linger)
+		__unregister_linger_request(osdc, req);
+	__unregister_request(osdc, req);
+	mutex_unlock(&osdc->request_mutex);
+
+	dout("%s %p tid %llu canceled\n", __func__, req, req->r_tid);
+}
+EXPORT_SYMBOL(ceph_osdc_cancel_request);
+
+/*
  * wait for a request to complete
  */
 int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
@@ -2475,18 +2494,18 @@ int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 {
 	int rc;
 
+	dout("%s %p tid %llu\n", __func__, req, req->r_tid);
+
 	rc = wait_for_completion_interruptible(&req->r_completion);
 	if (rc < 0) {
-		mutex_lock(&osdc->request_mutex);
-		__cancel_request(req);
-		__unregister_request(osdc, req);
-		mutex_unlock(&osdc->request_mutex);
+		dout("%s %p tid %llu interrupted\n", __func__, req, req->r_tid);
+		ceph_osdc_cancel_request(req);
 		complete_request(req);
-		dout("wait_request tid %llu canceled/timed out\n", req->r_tid);
 		return rc;
 	}
 
-	dout("wait_request tid %llu result %d\n", req->r_tid, req->r_result);
+	dout("%s %p tid %llu result %d\n", __func__, req, req->r_tid,
+	     req->r_result);
 	return req->r_result;
 }
 EXPORT_SYMBOL(ceph_osdc_wait_request);
