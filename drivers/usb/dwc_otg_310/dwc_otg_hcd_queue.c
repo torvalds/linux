@@ -703,7 +703,6 @@ int dwc_otg_hcd_qtd_add(dwc_otg_qtd_t *qtd,
 			int atomic_alloc)
 {
 	int retval = 0;
-	dwc_irqflags_t flags;
 
 	dwc_otg_hcd_urb_t *urb = qtd->urb;
 
@@ -719,13 +718,11 @@ int dwc_otg_hcd_qtd_add(dwc_otg_qtd_t *qtd,
 		}
 	}
 	qtd->qh = *qh;
-	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	retval = dwc_otg_hcd_qh_add(hcd, *qh);
 	if (retval == 0) {
 		DWC_CIRCLEQ_INSERT_TAIL(&((*qh)->qtd_list), qtd,
 					qtd_list_entry);
 	}
-	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 
 done:
 
