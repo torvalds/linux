@@ -24,7 +24,7 @@
 
 #include <mach/clps711x.h>
 
-#define CLPS711X_VIRT_BASE	IOMEM(0xfe000000)
+#define CLPS711X_VIRT_BASE	IOMEM(0xfeff0000)
 
 #ifndef __ASSEMBLY__
 #define clps_readb(off)		readb(CLPS711X_VIRT_BASE + (off))
