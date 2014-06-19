@@ -324,7 +324,6 @@ void fld_client_proc_fini(struct lu_client_fld *fld)
 	return;
 }
 #endif
-
 EXPORT_SYMBOL(fld_client_proc_fini);
 
 static inline int hash_is_sane(int hash)
