@@ -4262,7 +4262,6 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *bssid;
-	u16 capab_info;
 
 	length = skb->len - sizeof(struct ieee80211_hdr_3addr);
 
@@ -4278,7 +4277,8 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	if (ieee80211_is_beacon(mgmt->frame_control)) {
 		bssid->reserved = 1;
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-		capab_info = get_unaligned_le16(&mgmt->u.beacon.capab_info);
+		bssid->capability =
+			get_unaligned_le16(&mgmt->u.beacon.capab_info);
 		bssid->BeaconPeriod =
 			get_unaligned_le16(&mgmt->u.beacon.beacon_int);
 		bssid->tsf = get_unaligned_le64(&mgmt->u.beacon.timestamp);
@@ -4286,7 +4286,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		ie_offset = offsetof(struct ieee80211_mgmt,
 				     u.probe_req.variable);
 		bssid->reserved = 2;
-		capab_info = 0;
+		bssid->capability = 0;
 		bssid->BeaconPeriod =
 			padapter->registrypriv.dev_network.BeaconPeriod;
 		bssid->tsf = 0;
@@ -4294,14 +4294,16 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		ie_offset = offsetof(struct ieee80211_mgmt,
 				     u.probe_resp.variable);
 		bssid->reserved = 3;
-		capab_info = get_unaligned_le16(&mgmt->u.probe_resp.capab_info);
+		bssid->capability =
+			get_unaligned_le16(&mgmt->u.probe_resp.capab_info);
 		bssid->BeaconPeriod =
 			get_unaligned_le16(&mgmt->u.probe_resp.beacon_int);
 		bssid->tsf = get_unaligned_le64(&mgmt->u.probe_resp.timestamp);
 	} else {
 		bssid->reserved = 0;
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-		capab_info = get_unaligned_le16(&mgmt->u.beacon.capab_info);
+		bssid->capability =
+			get_unaligned_le16(&mgmt->u.beacon.capab_info);
 		bssid->BeaconPeriod =
 			padapter->registrypriv.dev_network.BeaconPeriod;
 		bssid->tsf = 0;
@@ -4396,7 +4398,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		return bssid;
 	}
 
-	if (capab_info & WLAN_CAPABILITY_ESS) {
+	if (bssid->capability & WLAN_CAPABILITY_ESS) {
 		bssid->ifmode = NL80211_IFTYPE_STATION;
 		ether_addr_copy(bssid->MacAddress, mgmt->sa);
 	} else {
@@ -4404,7 +4406,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		ether_addr_copy(bssid->MacAddress, mgmt->bssid);
 	}
 
-	if (capab_info & WLAN_CAPABILITY_PRIVACY)
+	if (bssid->capability & WLAN_CAPABILITY_PRIVACY)
 		bssid->Privacy = 1;
 	else
 		bssid->Privacy = 0;
