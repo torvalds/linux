@@ -1303,10 +1303,10 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
 	while (nbytes < *nbytesp && req->num_pages < req->max_pages) {
 		unsigned npages;
 		size_t start;
-		unsigned n = req->max_pages - req->num_pages;
 		ssize_t ret = iov_iter_get_pages(ii,
 					&req->pages[req->num_pages],
-					n * PAGE_SIZE, &start);
+					req->max_pages - req->num_pages,
+					&start);
 		if (ret < 0)
 			return ret;
 
