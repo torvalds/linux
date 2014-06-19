@@ -246,6 +246,48 @@ enum timebase_nanoseconds {
 
 static const int num_adc_stages_611x = 3;
 
+static void ni_writel(struct comedi_device *dev, uint32_t data, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	devpriv->writel(dev, data, reg);
+}
+
+static void ni_writew(struct comedi_device *dev, uint16_t data, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	devpriv->writew(dev, data, reg);
+}
+
+static void ni_writeb(struct comedi_device *dev, uint8_t data, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	devpriv->writeb(dev, data, reg);
+}
+
+static uint32_t ni_readl(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return devpriv->readl(dev, reg);
+}
+
+static uint16_t ni_readw(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return devpriv->readw(dev, reg);
+}
+
+static uint8_t ni_readb(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+
+	return devpriv->readb(dev, reg);
+}
+
 static void ni_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
 	struct ni_private *devpriv = dev->private;
@@ -303,12 +345,12 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 	case AI_AO_Select:
 		devpriv->ai_ao_select_reg &= ~bit_mask;
 		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
-		devpriv->writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
+		ni_writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
 		break;
 	case G0_G1_Select:
 		devpriv->g0_g1_select_reg &= ~bit_mask;
 		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
-		devpriv->writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
+		ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 		break;
 	default:
 		printk("Warning %s() called with invalid register\n", __func__);
@@ -384,7 +426,7 @@ static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
 		    (ni_stc_dma_channel_select_bitfield(mite_channel) <<
 		     CDO_DMA_Select_Shift) & CDO_DMA_Select_Mask;
 	}
-	devpriv->writeb(dev, devpriv->cdio_dma_select_reg, M_Offset_CDIO_DMA_Select);
+	ni_writeb(dev, devpriv->cdio_dma_select_reg, M_Offset_CDIO_DMA_Select);
 	mmiowb();
 	spin_unlock_irqrestore(&devpriv->soft_reg_copy_lock, flags);
 }
@@ -586,17 +628,16 @@ static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 static void ni_clear_ai_fifo(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
 	static const int timeout = 10000;
 	int i;
 
 	if (board->reg_type == ni_reg_6143) {
 		/*  Flush the 6143 data FIFO */
-		devpriv->writel(dev, 0x10, AIFIFO_Control_6143);
-		devpriv->writel(dev, 0x00, AIFIFO_Control_6143);
+		ni_writel(dev, 0x10, AIFIFO_Control_6143);
+		ni_writel(dev, 0x00, AIFIFO_Control_6143);
 		/*  Wait for complete */
 		for (i = 0; i < timeout; i++) {
-			if (!(devpriv->readl(dev, AIFIFO_Status_6143) & 0x10))
+			if (!(ni_readl(dev, AIFIFO_Status_6143) & 0x10))
 				break;
 			udelay(1);
 		}
@@ -606,8 +647,8 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 	} else {
 		ni_stc_writew(dev, 1, ADC_FIFO_Clear);
 		if (board->reg_type == ni_reg_625x) {
-			devpriv->writeb(dev, 0, M_Offset_Static_AI_Control(0));
-			devpriv->writeb(dev, 1, M_Offset_Static_AI_Control(0));
+			ni_writeb(dev, 0, M_Offset_Static_AI_Control(0));
+			ni_writeb(dev, 1, M_Offset_Static_AI_Control(0));
 #if 0
 			/* the NI example code does 3 convert pulses for 625x boards,
 			   but that appears to be wrong in practice. */
@@ -645,8 +686,8 @@ static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	devpriv->writew(dev, addr, AO_Window_Address_611x);
-	devpriv->writew(dev, data, AO_Window_Data_611x);
+	ni_writew(dev, addr, AO_Window_Address_611x);
+	ni_writew(dev, data, AO_Window_Data_611x);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
@@ -657,8 +698,8 @@ static inline void ni_ao_win_outl(struct comedi_device *dev, uint32_t data,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	devpriv->writew(dev, addr, AO_Window_Address_611x);
-	devpriv->writel(dev, data, AO_Window_Data_611x);
+	ni_writew(dev, addr, AO_Window_Address_611x);
+	ni_writel(dev, data, AO_Window_Data_611x);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
@@ -669,8 +710,8 @@ static inline unsigned short ni_ao_win_inw(struct comedi_device *dev, int addr)
 	unsigned short data;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	devpriv->writew(dev, addr, AO_Window_Address_611x);
-	data = devpriv->readw(dev, AO_Window_Data_611x);
+	ni_writew(dev, addr, AO_Window_Address_611x);
+	data = ni_readw(dev, AO_Window_Data_611x);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 	return data;
 }
@@ -785,7 +826,6 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			    struct comedi_subdevice *s, int n)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	int chan;
@@ -814,9 +854,9 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 				i++;
 				packed_data |= (d << 16) & 0xffff0000;
 			}
-			devpriv->writel(dev, packed_data, DAC_FIFO_Data_611x);
+			ni_writel(dev, packed_data, DAC_FIFO_Data_611x);
 		} else {
-			devpriv->writew(dev, d, DAC_FIFO_Data);
+			ni_writew(dev, d, DAC_FIFO_Data);
 		}
 		chan++;
 		chan %= cmd->chanlist_len;
@@ -903,7 +943,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		u32 dl;
 
 		for (i = 0; i < n / 2; i++) {
-			dl = devpriv->readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 			/* This may get the hi/lo data in the wrong order */
 			data[0] = (dl >> 16) & 0xffff;
 			data[1] = dl & 0xffff;
@@ -911,7 +951,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		}
 		/* Check if there's a single sample stuck in the FIFO */
 		if (n % 2) {
-			dl = devpriv->readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 			data[0] = dl & 0xffff;
 			cfc_write_to_buffer(s, data[0]);
 		}
@@ -921,7 +961,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 
 		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
 		for (i = 0; i < n / 2; i++) {
-			dl = devpriv->readl(dev, AIFIFO_Data_6143);
+			dl = ni_readl(dev, AIFIFO_Data_6143);
 
 			data[0] = (dl >> 16) & 0xffff;
 			data[1] = dl & 0xffff;
@@ -930,8 +970,8 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		if (n % 2) {
 			/* Assume there is a single sample stuck in the FIFO */
 			/* Get stranded sample into FIFO */
-			devpriv->writel(dev, 0x01, AIFIFO_Control_6143);
-			dl = devpriv->readl(dev, AIFIFO_Data_6143);
+			ni_writel(dev, 0x01, AIFIFO_Control_6143);
+			dl = ni_readl(dev, AIFIFO_Data_6143);
 			data[0] = (dl >> 16) & 0xffff;
 			cfc_write_to_buffer(s, data[0]);
 		}
@@ -944,7 +984,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		}
 		for (i = 0; i < n; i++) {
 			devpriv->ai_fifo_buffer[i] =
-			    devpriv->readw(dev, ADC_FIFO_Data_Register);
+			    ni_readw(dev, ADC_FIFO_Data_Register);
 		}
 		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
 					  n *
@@ -980,7 +1020,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 	if (board->reg_type == ni_reg_611x) {
 		while ((ni_stc_readw(dev, AI_Status_1_Register) &
 			AI_FIFO_Empty_St) == 0) {
-			dl = devpriv->readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
 			data[0] = (dl >> 16);
@@ -989,8 +1029,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 		}
 	} else if (board->reg_type == ni_reg_6143) {
 		i = 0;
-		while (devpriv->readl(dev, AIFIFO_Status_6143) & 0x04) {
-			dl = devpriv->readl(dev, AIFIFO_Data_6143);
+		while (ni_readl(dev, AIFIFO_Status_6143) & 0x04) {
+			dl = ni_readl(dev, AIFIFO_Data_6143);
 
 			/* This may get the hi/lo data in the wrong order */
 			data[0] = (dl >> 16);
@@ -999,10 +1039,10 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			i += 2;
 		}
 		/*  Check if stranded sample is present */
-		if (devpriv->readl(dev, AIFIFO_Status_6143) & 0x01) {
+		if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
 			/* Get stranded sample into FIFO */
-			devpriv->writel(dev, 0x01, AIFIFO_Control_6143);
-			dl = devpriv->readl(dev, AIFIFO_Data_6143);
+			ni_writel(dev, 0x01, AIFIFO_Control_6143);
+			dl = ni_readl(dev, AIFIFO_Data_6143);
 			data[0] = (dl >> 16) & 0xffff;
 			cfc_write_to_buffer(s, data[0]);
 		}
@@ -1021,7 +1061,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 				if (fifo_empty)
 					break;
 				devpriv->ai_fifo_buffer[i] =
-				    devpriv->readw(dev, ADC_FIFO_Data_Register);
+				    ni_readw(dev, ADC_FIFO_Data_Register);
 			}
 			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
 						  i *
@@ -1034,7 +1074,6 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 static void get_last_sample_611x(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
@@ -1043,8 +1082,8 @@ static void get_last_sample_611x(struct comedi_device *dev)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
-	if (devpriv->readb(dev, XXX_Status) & 0x80) {
-		dl = devpriv->readl(dev, ADC_FIFO_Data_611x);
+	if (ni_readb(dev, XXX_Status) & 0x80) {
+		dl = ni_readl(dev, ADC_FIFO_Data_611x);
 		data = (dl & 0xffff);
 		cfc_write_to_buffer(s, data);
 	}
@@ -1053,7 +1092,6 @@ static void get_last_sample_611x(struct comedi_device *dev)
 static void get_last_sample_6143(struct comedi_device *dev)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short data;
 	u32 dl;
@@ -1062,10 +1100,10 @@ static void get_last_sample_6143(struct comedi_device *dev)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
-	if (devpriv->readl(dev, AIFIFO_Status_6143) & 0x01) {
+	if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
 		/* Get stranded sample into FIFO */
-		devpriv->writel(dev, 0x01, AIFIFO_Control_6143);
-		dl = devpriv->readl(dev, AIFIFO_Data_6143);
+		ni_writel(dev, 0x01, AIFIFO_Control_6143);
+		dl = ni_readl(dev, AIFIFO_Data_6143);
 
 		/* This may get the hi/lo data in the wrong order */
 		data = (dl >> 16) & 0xffff;
@@ -1414,7 +1452,6 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
-	struct ni_private *devpriv = dev->private;
 
 	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
@@ -1430,7 +1467,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_clear_ai_fifo(dev);
 
 	if (board->reg_type != ni_reg_6143)
-		devpriv->writeb(dev, 0, Misc_Command);
+		ni_writeb(dev, 0, Misc_Command);
 
 	ni_stc_writew(dev, AI_Disarm, AI_Command_1_Register); /* reset pulses */
 	ni_stc_writew(dev, AI_Start_Stop | AI_Mode_1_Reserved
@@ -1581,10 +1618,9 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 			bypass_bits |= MSeries_AI_Bypass_Dither_Bit;
 		/*  don't use 2's complement encoding */
 		bypass_bits |= MSeries_AI_Bypass_Polarity_Bit;
-		devpriv->writel(dev, bypass_bits,
-				M_Offset_AI_Config_FIFO_Bypass);
+		ni_writel(dev, bypass_bits, M_Offset_AI_Config_FIFO_Bypass);
 	} else {
-		devpriv->writel(dev, 0, M_Offset_AI_Config_FIFO_Bypass);
+		ni_writel(dev, 0, M_Offset_AI_Config_FIFO_Bypass);
 	}
 	offset = 0;
 	for (i = 0; i < n_chan; i++) {
@@ -1622,7 +1658,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 			config_bits |= MSeries_AI_Config_Dither_Bit;
 		/*  don't use 2's complement encoding */
 		config_bits |= MSeries_AI_Config_Polarity_Bit;
-		devpriv->writew(dev, config_bits, M_Offset_AI_Config_FIFO_Data);
+		ni_writew(dev, config_bits, M_Offset_AI_Config_FIFO_Data);
 	}
 	ni_prime_channelgain_list(dev);
 }
@@ -1691,21 +1727,21 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		if ((list[0] & CR_ALT_SOURCE)
 		    && !devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay enable bit */
-			devpriv->writew(dev, devpriv->ai_calib_source |
-					     Calibration_Channel_6143_RelayOn,
-					Calibration_Channel_6143);
-			devpriv->writew(dev, devpriv->ai_calib_source,
-					Calibration_Channel_6143);
+			ni_writew(dev, devpriv->ai_calib_source |
+				       Calibration_Channel_6143_RelayOn,
+				  Calibration_Channel_6143);
+			ni_writew(dev, devpriv->ai_calib_source,
+				  Calibration_Channel_6143);
 			devpriv->ai_calib_source_enabled = 1;
 			msleep_interruptible(100);	/*  Allow relays to change */
 		} else if (!(list[0] & CR_ALT_SOURCE)
 			   && devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay disable bit */
-			devpriv->writew(dev, devpriv->ai_calib_source |
-					     Calibration_Channel_6143_RelayOff,
-					Calibration_Channel_6143);
-			devpriv->writew(dev, devpriv->ai_calib_source,
-					Calibration_Channel_6143);
+			ni_writew(dev, devpriv->ai_calib_source |
+				       Calibration_Channel_6143_RelayOff,
+				  Calibration_Channel_6143);
+			ni_writew(dev, devpriv->ai_calib_source,
+				  Calibration_Channel_6143);
 			devpriv->ai_calib_source_enabled = 0;
 			msleep_interruptible(100);	/*  Allow relays to change */
 		}
@@ -1733,8 +1769,8 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		hi = 0;
 		if ((list[i] & CR_ALT_SOURCE)) {
 			if (board->reg_type == ni_reg_611x)
-				devpriv->writew(dev, CR_CHAN(list[i]) & 0x0003,
-					Calibration_Channel_Select_611x);
+				ni_writew(dev, CR_CHAN(list[i]) & 0x0003,
+					  Calibration_Channel_Select_611x);
 		} else {
 			if (board->reg_type == ni_reg_611x)
 				aref = AREF_DIFF;
@@ -1756,7 +1792,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		}
 		hi |= AI_CONFIG_CHANNEL(chan);
 
-		devpriv->writew(dev, hi, Configuration_Memory_High);
+		ni_writew(dev, hi, Configuration_Memory_High);
 
 		if (board->reg_type != ni_reg_6143) {
 			lo = range;
@@ -1765,7 +1801,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 			if (dither)
 				lo |= AI_DITHER;
 
-			devpriv->writew(dev, lo, Configuration_Memory_Low);
+			ni_writew(dev, lo, Configuration_Memory_Low);
 		}
 	}
 
@@ -1806,17 +1842,15 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			/* The 611x has screwy 32-bit FIFOs. */
 			d = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (devpriv->readb(dev, XXX_Status) & 0x80) {
-					d = devpriv->readl(dev,
-							   ADC_FIFO_Data_611x);
+				if (ni_readb(dev, XXX_Status) & 0x80) {
+					d = ni_readl(dev, ADC_FIFO_Data_611x);
 					d >>= 16;
 					d &= 0xffff;
 					break;
 				}
 				if (!(ni_stc_readw(dev, AI_Status_1_Register) &
 				      AI_FIFO_Empty_St)) {
-					d = devpriv->readl(dev,
-							   ADC_FIFO_Data_611x);
+					d = ni_readl(dev, ADC_FIFO_Data_611x);
 					d &= 0xffff;
 					break;
 				}
@@ -1837,13 +1871,11 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
 			dl = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (devpriv->readl(dev, AIFIFO_Status_6143) &
-				    0x01) {
+				if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
 					/* Get stranded sample into FIFO */
-					devpriv->writel(dev, 0x01,
-							AIFIFO_Control_6143);
-					dl = devpriv->readl(dev,
-							    AIFIFO_Data_6143);
+					ni_writel(dev, 0x01,
+						  AIFIFO_Control_6143);
+					dl = ni_readl(dev, AIFIFO_Data_6143);
 					break;
 				}
 			}
@@ -1869,11 +1901,11 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				return -ETIME;
 			}
 			if (devpriv->is_m_series) {
-				dl = devpriv->readl(dev, M_Offset_AI_FIFO_Data);
+				dl = ni_readl(dev, M_Offset_AI_FIFO_Data);
 				dl &= mask;
 				data[n] = dl;
 			} else {
-				d = devpriv->readw(dev, ADC_FIFO_Data_Register);
+				d = ni_readw(dev, ADC_FIFO_Data_Register);
 				d += signbits;	/* subtle: needs to be short addition */
 				data[n] = d;
 			}
@@ -2537,8 +2569,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 				return -EINVAL;
 
 			devpriv->ai_calib_source = calib_source;
-			devpriv->writew(dev, calib_source,
-					Calibration_Channel_6143);
+			ni_writew(dev, calib_source, Calibration_Channel_6143);
 		} else {
 			unsigned int calib_source;
 			unsigned int calib_source_adjust;
@@ -2550,8 +2581,8 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 				return -EINVAL;
 			devpriv->ai_calib_source = calib_source;
 			if (board->reg_type == ni_reg_611x) {
-				devpriv->writeb(dev, calib_source_adjust,
-						Cal_Gain_Select_611x);
+				ni_writeb(dev, calib_source_adjust,
+					  Cal_Gain_Select_611x);
 			}
 		}
 		return 2;
@@ -2604,10 +2635,9 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 	if (timed) {
 		for (i = 0; i < board->n_aochan; ++i) {
 			devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
-			devpriv->writeb(dev, devpriv->ao_conf[i],
-					M_Offset_AO_Config_Bank(i));
-			devpriv->writeb(dev, 0xf,
-					M_Offset_AO_Waveform_Order(i));
+			ni_writeb(dev, devpriv->ao_conf[i],
+				  M_Offset_AO_Config_Bank(i));
+			ni_writeb(dev, 0xf, M_Offset_AO_Waveform_Order(i));
 		}
 	}
 	for (i = 0; i < n_chans; i++) {
@@ -2620,23 +2650,23 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 		switch (krange->max - krange->min) {
 		case 20000000:
 			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
-			devpriv->writeb(dev, 0,
-					M_Offset_AO_Reference_Attenuation(chan));
+			ni_writeb(dev, 0,
+				  M_Offset_AO_Reference_Attenuation(chan));
 			break;
 		case 10000000:
 			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
-			devpriv->writeb(dev, 0,
-					M_Offset_AO_Reference_Attenuation(chan));
+			ni_writeb(dev, 0,
+				  M_Offset_AO_Reference_Attenuation(chan));
 			break;
 		case 4000000:
 			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
-			devpriv->writeb(dev, MSeries_Attenuate_x5_Bit,
-					M_Offset_AO_Reference_Attenuation(chan));
+			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
+				  M_Offset_AO_Reference_Attenuation(chan));
 			break;
 		case 2000000:
 			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
-			devpriv->writeb(dev, MSeries_Attenuate_x5_Bit,
-					M_Offset_AO_Reference_Attenuation(chan));
+			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
+				  M_Offset_AO_Reference_Attenuation(chan));
 			break;
 		default:
 			printk("%s: bug! unhandled ao reference voltage\n",
@@ -2657,9 +2687,9 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 		}
 		if (timed)
 			conf |= MSeries_AO_Update_Timed_Bit;
-		devpriv->writeb(dev, conf, M_Offset_AO_Config_Bank(chan));
+		ni_writeb(dev, conf, M_Offset_AO_Config_Bank(chan));
 		devpriv->ao_conf[chan] = conf;
-		devpriv->writeb(dev, i, M_Offset_AO_Waveform_Order(chan));
+		ni_writeb(dev, i, M_Offset_AO_Waveform_Order(chan));
 	}
 	return invert;
 }
@@ -2705,7 +2735,7 @@ static int ni_old_ao_config_chanlist(struct comedi_device *dev,
 		conf |= (CR_AREF(chanspec[i]) ==
 			 AREF_OTHER) ? AO_Ground_Ref : 0;
 
-		devpriv->writew(dev, conf, AO_Configuration);
+		ni_writew(dev, conf, AO_Configuration);
 		devpriv->ao_conf[chan] = conf;
 	}
 	return invert;
@@ -2749,10 +2779,10 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 	devpriv->ao[chan] = data[0];
 
 	if (devpriv->is_m_series) {
-		devpriv->writew(dev, data[0], M_Offset_DAC_Direct_Data(chan));
+		ni_writew(dev, data[0], M_Offset_DAC_Direct_Data(chan));
 	} else
-		devpriv->writew(dev, data[0] ^ invert,
-				(chan) ? DAC1_Direct_Data : DAC0_Direct_Data);
+		ni_writew(dev, data[0] ^ invert,
+			  (chan) ? DAC1_Direct_Data : DAC0_Direct_Data);
 
 	return 1;
 }
@@ -3261,14 +3291,13 @@ static int ni_m_series_dio_insn_config(struct comedi_device *dev,
 				       struct comedi_insn *insn,
 				       unsigned int *data)
 {
-	struct ni_private *devpriv = dev->private;
 	int ret;
 
 	ret = comedi_dio_insn_config(dev, s, insn, data, 0);
 	if (ret)
 		return ret;
 
-	devpriv->writel(dev, s->io_bits, M_Offset_DIO_Direction);
+	ni_writel(dev, s->io_bits, M_Offset_DIO_Direction);
 
 	return insn->n;
 }
@@ -3278,12 +3307,10 @@ static int ni_m_series_dio_insn_bits(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct ni_private *devpriv = dev->private;
-
 	if (comedi_dio_update_state(s, data))
-		devpriv->writel(dev, s->state, M_Offset_Static_Digital_Output);
+		ni_writel(dev, s->state, M_Offset_Static_Digital_Output);
 
-	data[1] = devpriv->readl(dev, M_Offset_Static_Digital_Input);
+	data[1] = ni_readl(dev, M_Offset_Static_Digital_Input);
 
 	return insn->n;
 }
@@ -3362,12 +3389,12 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  unsigned int trig_num)
 {
-	struct ni_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	const unsigned timeout = 1000;
 	int retval = 0;
 	unsigned i;
 #ifdef PCIDMA
+	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 #endif
 
@@ -3394,12 +3421,11 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 #endif
 /*
 * XXX not sure what interrupt C group does
-* devpriv->writeb(dev, Interrupt_Group_C_Enable_Bit,
+* ni_writeb(dev, Interrupt_Group_C_Enable_Bit,
 * M_Offset_Interrupt_C_Enable); wait for dma to fill output fifo
 */
 	for (i = 0; i < timeout; ++i) {
-		if (devpriv->readl(dev, M_Offset_CDIO_Status) &
-		    CDO_FIFO_Full_Bit)
+		if (ni_readl(dev, M_Offset_CDIO_Status) & CDO_FIFO_Full_Bit)
 			break;
 		udelay(10);
 	}
@@ -3408,20 +3434,19 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		s->cancel(dev, s);
 		return -EIO;
 	}
-	devpriv->writel(dev, CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
-			     CDO_Empty_FIFO_Interrupt_Enable_Set_Bit,
-			M_Offset_CDIO_Command);
+	ni_writel(dev, CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
+		       CDO_Empty_FIFO_Interrupt_Enable_Set_Bit,
+		  M_Offset_CDIO_Command);
 	return retval;
 }
 
 static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct ni_private *devpriv = dev->private;
 	const struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
 	int retval;
 
-	devpriv->writel(dev, CDO_Reset_Bit, M_Offset_CDIO_Command);
+	ni_writel(dev, CDO_Reset_Bit, M_Offset_CDIO_Command);
 	switch (cmd->scan_begin_src) {
 	case TRIG_EXT:
 		cdo_mode_bits |=
@@ -3434,11 +3459,11 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	if (cmd->scan_begin_arg & CR_INVERT)
 		cdo_mode_bits |= CDO_Polarity_Bit;
-	devpriv->writel(dev, cdo_mode_bits, M_Offset_CDO_Mode);
+	ni_writel(dev, cdo_mode_bits, M_Offset_CDO_Mode);
 	if (s->io_bits) {
-		devpriv->writel(dev, s->state, M_Offset_CDO_FIFO_Data);
-		devpriv->writel(dev, CDO_SW_Update_Bit, M_Offset_CDIO_Command);
-		devpriv->writel(dev, s->io_bits, M_Offset_CDO_Mask_Enable);
+		ni_writel(dev, s->state, M_Offset_CDO_FIFO_Data);
+		ni_writel(dev, CDO_SW_Update_Bit, M_Offset_CDIO_Command);
+		ni_writel(dev, s->io_bits, M_Offset_CDO_Mask_Enable);
 	} else {
 		comedi_error(dev,
 			     "attempted to run digital output command with no lines configured as outputs");
@@ -3455,18 +3480,15 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_cdio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	struct ni_private *devpriv = dev->private;
-
-	devpriv->writel(dev, CDO_Disarm_Bit |
-			     CDO_Error_Interrupt_Enable_Clear_Bit |
-			     CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit |
-			     CDO_FIFO_Request_Interrupt_Enable_Clear_Bit,
-			M_Offset_CDIO_Command);
+	ni_writel(dev, CDO_Disarm_Bit | CDO_Error_Interrupt_Enable_Clear_Bit |
+		       CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit |
+		       CDO_FIFO_Request_Interrupt_Enable_Clear_Bit,
+		  M_Offset_CDIO_Command);
 /*
-* XXX not sure what interrupt C group does devpriv->writeb(dev, 0,
+* XXX not sure what interrupt C group does ni_writeb(dev, 0,
 * M_Offset_Interrupt_C_Enable);
 */
-	devpriv->writel(dev, 0, M_Offset_CDO_Mask_Enable);
+	ni_writel(dev, 0, M_Offset_CDO_Mask_Enable);
 	ni_release_cdo_mite_channel(dev);
 	return 0;
 }
@@ -3497,18 +3519,18 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 #endif
 
-	cdio_status = devpriv->readl(dev, M_Offset_CDIO_Status);
+	cdio_status = ni_readl(dev, M_Offset_CDIO_Status);
 	if (cdio_status & (CDO_Overrun_Bit | CDO_Underflow_Bit)) {
 		/* printk("cdio error: statux=0x%x\n", cdio_status); */
 		/* XXX just guessing this is needed and does something useful */
-		devpriv->writel(dev, CDO_Error_Interrupt_Confirm_Bit,
-				M_Offset_CDIO_Command);
+		ni_writel(dev, CDO_Error_Interrupt_Confirm_Bit,
+			  M_Offset_CDIO_Command);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 	if (cdio_status & CDO_FIFO_Empty_Bit) {
 		/* printk("cdio fifo empty\n"); */
-		devpriv->writel(dev, CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit,
-				M_Offset_CDIO_Command);
+		ni_writel(dev, CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit,
+			  M_Offset_CDIO_Command);
 		/* s->async->events |= COMEDI_CB_EOA; */
 	}
 	cfc_handle_events(dev, s);
@@ -3806,7 +3828,6 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 				   enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	struct ni_private *devpriv = dev->private;
 	unsigned stc_register;
 	/* bits in the join reset register which are relevant to counters */
 	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
@@ -3818,28 +3839,28 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	switch (reg) {
 		/* m-series-only registers */
 	case NITIO_G0_CNT_MODE:
-		devpriv->writew(dev, bits, M_Offset_G0_Counting_Mode);
+		ni_writew(dev, bits, M_Offset_G0_Counting_Mode);
 		break;
 	case NITIO_G1_CNT_MODE:
-		devpriv->writew(dev, bits, M_Offset_G1_Counting_Mode);
+		ni_writew(dev, bits, M_Offset_G1_Counting_Mode);
 		break;
 	case NITIO_G0_GATE2:
-		devpriv->writew(dev, bits, M_Offset_G0_Second_Gate);
+		ni_writew(dev, bits, M_Offset_G0_Second_Gate);
 		break;
 	case NITIO_G1_GATE2:
-		devpriv->writew(dev, bits, M_Offset_G1_Second_Gate);
+		ni_writew(dev, bits, M_Offset_G1_Second_Gate);
 		break;
 	case NITIO_G0_DMA_CFG:
-		devpriv->writew(dev, bits, M_Offset_G0_DMA_Config);
+		ni_writew(dev, bits, M_Offset_G0_DMA_Config);
 		break;
 	case NITIO_G1_DMA_CFG:
-		devpriv->writew(dev, bits, M_Offset_G1_DMA_Config);
+		ni_writew(dev, bits, M_Offset_G1_DMA_Config);
 		break;
 	case NITIO_G0_ABZ:
-		devpriv->writew(dev, bits, M_Offset_G0_MSeries_ABZ);
+		ni_writew(dev, bits, M_Offset_G0_MSeries_ABZ);
 		break;
 	case NITIO_G1_ABZ:
-		devpriv->writew(dev, bits, M_Offset_G1_MSeries_ABZ);
+		ni_writew(dev, bits, M_Offset_G1_MSeries_ABZ);
 		break;
 
 		/* 32 bit registers */
@@ -3875,15 +3896,14 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 				      enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	struct ni_private *devpriv = dev->private;
 	unsigned stc_register;
 
 	switch (reg) {
 		/* m-series only registers */
 	case NITIO_G0_DMA_STATUS:
-		return devpriv->readw(dev, M_Offset_G0_DMA_Status);
+		return ni_readw(dev, M_Offset_G0_DMA_Status);
 	case NITIO_G1_DMA_STATUS:
-		return devpriv->readw(dev, M_Offset_G1_DMA_Status);
+		return ni_readw(dev, M_Offset_G1_DMA_Status);
 
 		/* 32 bit registers */
 	case NITIO_G0_HW_SAVE:
@@ -3980,13 +4000,12 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 static int ni_8255_callback(int dir, int port, int data, unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct ni_private *devpriv = dev->private;
 
 	if (dir) {
-		devpriv->writeb(dev, data, Port_A + 2 * port);
+		ni_writeb(dev, data, Port_A + 2 * port);
 		return 0;
 	} else {
-		return devpriv->readb(dev, Port_A + 2 * port);
+		return ni_readb(dev, Port_A + 2 * port);
 	}
 }
 
@@ -4051,9 +4070,9 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
-		devpriv->writel(dev, MSeries_Cal_PWM_High_Time_Bits(up_count) |
-				     MSeries_Cal_PWM_Low_Time_Bits(down_count),
-				M_Offset_Cal_PWM);
+		ni_writel(dev, MSeries_Cal_PWM_High_Time_Bits(up_count) |
+			       MSeries_Cal_PWM_Low_Time_Bits(down_count),
+			  M_Offset_Cal_PWM);
 		devpriv->pwm_up_count = up_count;
 		devpriv->pwm_down_count = down_count;
 		return 5;
@@ -4120,9 +4139,9 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
-		devpriv->writel(dev, up_count, Calibration_HighTime_6143);
+		ni_writel(dev, up_count, Calibration_HighTime_6143);
 		devpriv->pwm_up_count = up_count;
-		devpriv->writel(dev, down_count, Calibration_LowTime_6143);
+		ni_writel(dev, down_count, Calibration_LowTime_6143);
 		devpriv->pwm_down_count = down_count;
 		return 5;
 		break;
@@ -4226,16 +4245,15 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 	}
 
 	for (bit = 1 << (bits - 1); bit; bit >>= 1) {
-		devpriv->writeb(dev, ((bit & bitstring) ? 0x02 : 0),
-				Serial_Command);
+		ni_writeb(dev, ((bit & bitstring) ? 0x02 : 0), Serial_Command);
 		udelay(1);
-		devpriv->writeb(dev, 1 | ((bit & bitstring) ? 0x02 : 0),
-				Serial_Command);
+		ni_writeb(dev, 1 | ((bit & bitstring) ? 0x02 : 0),
+			  Serial_Command);
 		udelay(1);
 	}
-	devpriv->writeb(dev, loadbit, Serial_Command);
+	ni_writeb(dev, loadbit, Serial_Command);
 	udelay(1);
-	devpriv->writeb(dev, 0, Serial_Command);
+	ni_writeb(dev, 0, Serial_Command);
 }
 
 static int ni_calib_insn_write(struct comedi_device *dev,
@@ -4316,26 +4334,24 @@ static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_read_eeprom(struct comedi_device *dev, int addr)
 {
-	struct ni_private *devpriv = dev->private;
 	int bit;
 	int bitstring;
 
 	bitstring = 0x0300 | ((addr & 0x100) << 3) | (addr & 0xff);
-	devpriv->writeb(dev, 0x04, Serial_Command);
+	ni_writeb(dev, 0x04, Serial_Command);
 	for (bit = 0x8000; bit; bit >>= 1) {
-		devpriv->writeb(dev, 0x04 | ((bit & bitstring) ? 0x02 : 0),
-				Serial_Command);
-		devpriv->writeb(dev, 0x05 | ((bit & bitstring) ? 0x02 : 0),
-				Serial_Command);
+		ni_writeb(dev, 0x04 | ((bit & bitstring) ? 0x02 : 0),
+			  Serial_Command);
+		ni_writeb(dev, 0x05 | ((bit & bitstring) ? 0x02 : 0),
+			  Serial_Command);
 	}
 	bitstring = 0;
 	for (bit = 0x80; bit; bit >>= 1) {
-		devpriv->writeb(dev, 0x04, Serial_Command);
-		devpriv->writeb(dev, 0x05, Serial_Command);
-		bitstring |= ((devpriv->readb(dev, XXX_Status) & PROMOUT)
-				? bit : 0);
+		ni_writeb(dev, 0x04, Serial_Command);
+		ni_writeb(dev, 0x05, Serial_Command);
+		bitstring |= ((ni_readb(dev, XXX_Status) & PROMOUT) ? bit : 0);
 	}
-	devpriv->writeb(dev, 0x00, Serial_Command);
+	ni_writeb(dev, 0x00, Serial_Command);
 
 	return bitstring;
 }
@@ -4438,8 +4454,8 @@ static int ni_m_series_set_pfi_routing(struct comedi_device *dev,
 	    ~MSeries_PFI_Output_Select_Mask(chan);
 	devpriv->pfi_output_select_reg[array_offset] |=
 	    MSeries_PFI_Output_Select_Bits(chan, source);
-	devpriv->writew(dev, devpriv->pfi_output_select_reg[array_offset],
-			M_Offset_PFI_Output_Select(pfi_reg_index));
+	ni_writew(dev, devpriv->pfi_output_select_reg[array_offset],
+		  M_Offset_PFI_Output_Select(pfi_reg_index));
 	return 2;
 }
 
@@ -4474,10 +4490,10 @@ static int ni_config_filter(struct comedi_device *dev,
 	if (!devpriv->is_m_series)
 		return -ENOTSUPP;
 
-	bits = devpriv->readl(dev, M_Offset_PFI_Filter);
+	bits = ni_readl(dev, M_Offset_PFI_Filter);
 	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
 	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
-	devpriv->writel(dev, bits, M_Offset_PFI_Filter);
+	ni_writel(dev, bits, M_Offset_PFI_Filter);
 	return 0;
 }
 
@@ -4533,9 +4549,9 @@ static int ni_pfi_insn_bits(struct comedi_device *dev,
 		return -ENOTSUPP;
 
 	if (comedi_dio_update_state(s, data))
-		devpriv->writew(dev, s->state, M_Offset_PFI_DO);
+		ni_writew(dev, s->state, M_Offset_PFI_DO);
 
-	data[1] = devpriv->readw(dev, M_Offset_PFI_DI);
+	data[1] = ni_readw(dev, M_Offset_PFI_DI);
 
 	return insn->n;
 }
@@ -4800,8 +4816,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 		}
 		break;
 	}
-	devpriv->writew(dev, devpriv->clock_and_fout2,
-			M_Offset_Clock_and_Fout2);
+	ni_writew(dev, devpriv->clock_and_fout2, M_Offset_Clock_and_Fout2);
 	pll_control_bits |=
 	    MSeries_PLL_Divisor_Bits(freq_divider) |
 	    MSeries_PLL_Multiplier_Bits(freq_multiplier);
@@ -4809,12 +4824,11 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	/* printk("using divider=%i, multiplier=%i for PLL. pll_control_bits = 0x%x\n",
 	 * freq_divider, freq_multiplier, pll_control_bits); */
 	/* printk("clock_ns=%d\n", devpriv->clock_ns); */
-	devpriv->writew(dev, pll_control_bits, M_Offset_PLL_Control);
+	ni_writew(dev, pll_control_bits, M_Offset_PLL_Control);
 	devpriv->clock_source = source;
 	/* it seems to typically take a few hundred microseconds for PLL to lock */
 	for (i = 0; i < timeout; ++i) {
-		if (devpriv->readw(dev, M_Offset_PLL_Status) &
-		    MSeries_PLL_Locked_Bit)
+		if (ni_readw(dev, M_Offset_PLL_Status) & MSeries_PLL_Locked_Bit)
 			break;
 		udelay(1);
 	}
@@ -4841,9 +4855,9 @@ static int ni_set_master_clock(struct comedi_device *dev,
 			devpriv->clock_and_fout2 &=
 			    ~(MSeries_Timebase1_Select_Bit |
 			      MSeries_Timebase3_Select_Bit);
-			devpriv->writew(dev, devpriv->clock_and_fout2,
-					M_Offset_Clock_and_Fout2);
-			devpriv->writew(dev, 0, M_Offset_PLL_Control);
+			ni_writew(dev, devpriv->clock_and_fout2,
+				  M_Offset_Clock_and_Fout2);
+			ni_writew(dev, 0, M_Offset_PLL_Control);
 		}
 		devpriv->clock_source = source;
 	} else {
@@ -5382,15 +5396,14 @@ static int ni_E_init(struct comedi_device *dev)
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
 		s->len_chanlist = s->n_chan;
 
-		devpriv->writel(dev, CDO_Reset_Bit | CDI_Reset_Bit,
-				M_Offset_CDIO_Command);
-		devpriv->writel(dev, s->io_bits, M_Offset_DIO_Direction);
+		ni_writel(dev, CDO_Reset_Bit | CDI_Reset_Bit,
+			  M_Offset_CDIO_Command);
+		ni_writel(dev, s->io_bits, M_Offset_DIO_Direction);
 	} else {
 		s->insn_bits = &ni_dio_insn_bits;
 		s->insn_config = &ni_dio_insn_config;
 		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
-		devpriv->writew(dev, devpriv->dio_control,
-				DIO_Control_Register);
+		ni_writew(dev, devpriv->dio_control, DIO_Control_Register);
 	}
 
 	/* 8255 device */
@@ -5417,7 +5430,7 @@ static int ni_E_init(struct comedi_device *dev)
 		s->insn_config = &ni_m_series_pwm_config;
 		s->n_chan = 1;
 		s->maxdata = 0;
-		devpriv->writel(dev, 0x0, M_Offset_Cal_PWM);
+		ni_writel(dev, 0x0, M_Offset_Cal_PWM);
 	} else if (board->reg_type == ni_reg_6143) {
 		/*  internal PWM analog output used for AI nonlinearity calibration */
 		s->subdev_flags = SDF_INTERNAL;
@@ -5451,10 +5464,10 @@ static int ni_E_init(struct comedi_device *dev)
 	if (devpriv->is_m_series) {
 		unsigned i;
 		s->n_chan = 16;
-		devpriv->writew(dev, s->state, M_Offset_PFI_DO);
+		ni_writew(dev, s->state, M_Offset_PFI_DO);
 		for (i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i) {
-			devpriv->writew(dev, devpriv->pfi_output_select_reg[i],
-					M_Offset_PFI_Output_Select(i + 1));
+			ni_writew(dev, devpriv->pfi_output_select_reg[i],
+				  M_Offset_PFI_Output_Select(i + 1));
 		}
 	} else {
 		s->n_chan = 10;
@@ -5585,20 +5598,20 @@ static int ni_E_init(struct comedi_device *dev)
 	}
 
 	/* DMA setup */
-	devpriv->writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
-	devpriv->writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
+	ni_writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
+	ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 
 	if (board->reg_type & ni_reg_6xxx_mask) {
-		devpriv->writeb(dev, 0, Magic_611x);
+		ni_writeb(dev, 0, Magic_611x);
 	} else if (devpriv->is_m_series) {
 		int channel;
 		for (channel = 0; channel < board->n_aochan; ++channel) {
-			devpriv->writeb(dev, 0xf,
-					M_Offset_AO_Waveform_Order(channel));
-			devpriv->writeb(dev, 0x0,
-					M_Offset_AO_Reference_Attenuation(channel));
+			ni_writeb(dev, 0xf,
+				  M_Offset_AO_Waveform_Order(channel));
+			ni_writeb(dev, 0x0,
+				  M_Offset_AO_Reference_Attenuation(channel));
 		}
-		devpriv->writeb(dev, 0x0, M_Offset_AO_Calibration);
+		ni_writeb(dev, 0x0, M_Offset_AO_Calibration);
 	}
 
 	return 0;
