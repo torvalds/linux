@@ -312,20 +312,6 @@ void rtw23a_roaming(struct rtw_adapter *padapter,
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-__le16 *rtw_get_capability23a_from_ie(u8 *ie)
-{
-	return (__le16 *)(ie + 8 + 2);
-}
-
-u16 rtw_get_capability23a(struct wlan_bssid_ex *bss)
-{
-	u16 val;
-
-	memcpy(&val, rtw_get_capability23a_from_ie(bss->IEs), 2);
-
-	return le16_to_cpu(val);
-}
-
 __le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
 {
 	return (__le16 *)(ie + 8);

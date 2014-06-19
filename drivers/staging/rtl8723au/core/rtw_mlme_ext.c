@@ -4417,7 +4417,7 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 	update_wireless_mode23a(padapter);
 
 	/* udpate capability */
-	caps = rtw_get_capability23a(pnetwork);
+	caps = pnetwork->capability;
 	update_capinfo23a(padapter, caps);
 	if (caps & WLAN_CAPABILITY_IBSS) {	/* adhoc master */
 		rtl8723a_set_sec_cfg(padapter, 0xcf);
@@ -4472,7 +4472,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 	update_wireless_mode23a(padapter);
 
 	/* udpate capability */
-	caps = rtw_get_capability23a(pnetwork);
+	caps = pnetwork->capability;
 	update_capinfo23a(padapter, caps);
 	if (caps & WLAN_CAPABILITY_ESS) {
 		/* switch channel */

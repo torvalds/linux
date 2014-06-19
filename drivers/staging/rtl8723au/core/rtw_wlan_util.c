@@ -1083,7 +1083,7 @@ bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
 		offsetof(struct ieee80211_mgmt, u.beacon);
 
-	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
 		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
 			p = pmlmeinfo->network.IEs + i;
 
@@ -1118,7 +1118,7 @@ bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
 	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
 		offsetof(struct ieee80211_mgmt, u.beacon);
 
-	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
 		for (i = bcn_fixed_size; i < cur_network->IELength;) {
 			p = cur_network->IEs + i;
 
@@ -1161,7 +1161,7 @@ bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
 		offsetof(struct ieee80211_mgmt, u.beacon);
 
-	if (rtw_get_capability23a(cur_network) & WLAN_CAPABILITY_PRIVACY) {
+	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
 		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
 			p = pmlmeinfo->network.IEs + i;
 

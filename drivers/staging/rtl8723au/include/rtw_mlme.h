@@ -310,7 +310,6 @@ static inline void clr_fwstate_ex(struct mlme_priv *pmlmepriv, int state)
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-u16 rtw_get_capability23a(struct wlan_bssid_ex *bss);
 void rtw_disconnect_hdl23a_under_linked(struct rtw_adapter *adapter,
 				     struct sta_info *psta, u8 free_assoc);
 void rtw_generate_random_ibss23a(u8 *pibss);
@@ -349,7 +348,6 @@ int rtw_if_up23a(struct rtw_adapter *padapter);
 
 int rtw_linked_check(struct rtw_adapter *padapter);
 
-__le16 *rtw_get_capability23a_from_ie(u8 *ie);
 __le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie);
 
 

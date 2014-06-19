@@ -773,7 +773,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	update_wireless_mode23a(padapter);
 
 	/* udpate capability after cur_wireless_mode updated */
-	update_capinfo23a(padapter, rtw_get_capability23a(pnetwork));
+	update_capinfo23a(padapter, pnetwork->capability);
 
 	/* let pnetwork_mlmeext == pnetwork_mlme. */
 	memcpy(pnetwork_mlmeext, pnetwork, pnetwork->Length);
