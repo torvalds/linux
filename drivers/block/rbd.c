@@ -2971,6 +2971,59 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 }
 
 /*
+ * Send a (un)watch request and wait for the ack.  Return a request
+ * with a ref held on success or error.
+ */
+static struct rbd_obj_request *rbd_obj_watch_request_helper(
+						struct rbd_device *rbd_dev,
+						bool watch)
+{
+	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct rbd_obj_request *obj_request;
+	int ret;
+
+	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
+					     OBJ_REQUEST_NODATA);
+	if (!obj_request)
+		return ERR_PTR(-ENOMEM);
+
+	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true, 1,
+						  obj_request);
+	if (!obj_request->osd_req) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_WATCH,
+			      rbd_dev->watch_event->cookie, 0, watch);
+	rbd_osd_req_format_write(obj_request);
+
+	if (watch)
+		ceph_osdc_set_request_linger(osdc, obj_request->osd_req);
+
+	ret = rbd_obj_request_submit(osdc, obj_request);
+	if (ret)
+		goto out;
+
+	ret = rbd_obj_request_wait(obj_request);
+	if (ret)
+		goto out;
+
+	ret = obj_request->result;
+	if (ret) {
+		if (watch)
+			rbd_obj_request_end(obj_request);
+		goto out;
+	}
+
+	return obj_request;
+
+out:
+	rbd_obj_request_put(obj_request);
+	return ERR_PTR(ret);
+}
+
+/*
  * Initiate a watch request, synchronously.
  */
 static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev)
