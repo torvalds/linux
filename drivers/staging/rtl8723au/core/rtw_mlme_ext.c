@@ -2390,7 +2390,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	unsigned int rate_len;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -2421,40 +2421,26 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_BEACON);
-	pwlanhdr->seq_ctrl = 0;
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
+	mgmt->seq_ctrl = 0;
 
-	ether_addr_copy(pwlanhdr->addr1, bc_addr);
-	ether_addr_copy(pwlanhdr->addr2, myid(&padapter->eeprompriv));
-	ether_addr_copy(pwlanhdr->addr3, get_my_bssid23a(cur_network));
-
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
-
-	/* below for ad-hoc mode */
+	ether_addr_copy(mgmt->da, bc_addr);
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(cur_network));
 
 	/* timestamp will be inserted by hardware */
-	pframe += 8;
-	pattrib->pktlen += 8;
 
-	/*  beacon interval: 2 bytes */
+	put_unaligned_le16(cur_network->beacon_interval,
+			   &mgmt->u.beacon.beacon_int);
 
-	memcpy(pframe, (unsigned char *)
-	       rtw_get_beacon_interval23a_from_ie(cur_network->IEs), 2);
+	put_unaligned_le16(cur_network->capability,
+			   &mgmt->u.beacon.capab_info);
 
-	pframe += 2;
-	pattrib->pktlen += 2;
-
-	/*  capability info: 2 bytes */
-
-	memcpy(pframe, (unsigned char *)
-	       rtw_get_capability23a_from_ie(cur_network->IEs), 2);
-
-	pframe += 2;
-	pattrib->pktlen += 2;
+	pframe = mgmt->u.beacon.variable;
+	pattrib->pktlen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		u8 *iebuf;
