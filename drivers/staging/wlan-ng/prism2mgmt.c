@@ -156,7 +156,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 					  HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "setconfig(ROAMINGMODE) failed. result=%d\n", result);
+			   "setconfig(ROAMINGMODE) failed. result=%d\n",
+			   result);
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		goto exit;
@@ -273,7 +274,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		result = hfa384x_drvr_enable(hw, 0);
 		if (result) {
 			netdev_err(wlandev->netdev,
-				   "drvr_enable(0) failed. result=%d\n", result);
+				   "drvr_enable(0) failed. result=%d\n",
+				   result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 			goto exit;
@@ -293,7 +295,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 					sizeof(hfa384x_HostScanRequest_data_t));
 	if (result) {
 		netdev_err(wlandev->netdev,
-			   "setconfig(SCANREQUEST) failed. result=%d\n", result);
+			   "setconfig(SCANREQUEST) failed. result=%d\n",
+			   result);
 		msg->resultcode.data =
 		    P80211ENUM_resultcode_implementation_failure;
 		goto exit;
@@ -315,7 +318,8 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		result = hfa384x_drvr_disable(hw, 0);
 		if (result) {
 			netdev_err(wlandev->netdev,
-				   "drvr_disable(0) failed. result=%d\n", result);
+				   "drvr_disable(0) failed. result=%d\n",
+				   result);
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_implementation_failure;
 			goto exit;
@@ -654,7 +658,8 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 
 	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, word);
 	if (result) {
-		netdev_err(wlandev->netdev, "Failed to set txrates=%d.\n", word);
+		netdev_err(wlandev->netdev, "Failed to set txrates=%d.\n",
+			   word);
 		goto failed;
 	}
 
