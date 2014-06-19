@@ -194,9 +194,10 @@ static ssize_t lprocfs_lru_size_seq_write(struct file *file, const char *buffer,
 				      size_t count, loff_t *off)
 {
 	struct ldlm_namespace *ns = ((struct seq_file *)file->private_data)->private;
-	char dummy[MAX_STRING_SIZE + 1], *end;
+	char dummy[MAX_STRING_SIZE + 1];
 	unsigned long tmp;
 	int lru_resize;
+	int err;
 
 	dummy[MAX_STRING_SIZE] = '\0';
 	if (copy_from_user(dummy, buffer, MAX_STRING_SIZE))
@@ -228,8 +229,8 @@ static ssize_t lprocfs_lru_size_seq_write(struct file *file, const char *buffer,
 		return count;
 	}
 
-	tmp = simple_strtoul(dummy, &end, 0);
-	if (dummy == end) {
+	err = kstrtoul(dummy, 10, &tmp);
+	if (err != 0) {
 		CERROR("invalid value written\n");
 		return -EINVAL;
 	}
