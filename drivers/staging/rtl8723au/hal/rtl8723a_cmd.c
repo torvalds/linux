@@ -200,9 +200,10 @@ void rtl8723a_set_FwPwrMode_cmd(struct rtw_adapter *padapter, u8 Mode)
 
 }
 
-static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
+static void
+ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLength)
 {
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	u32 rate_len, pktlen;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -212,36 +213,28 @@ static void ConstructBeacon(struct rtw_adapter *padapter, u8 *pframe, u32 *pLeng
 
 	/* DBG_8723A("%s\n", __func__); */
 
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
-	pwlanhdr->frame_control =
+	mgmt->frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON);
 
-	memcpy(pwlanhdr->addr1, bc_addr, ETH_ALEN);
-	memcpy(pwlanhdr->addr2, myid(&padapter->eeprompriv), ETH_ALEN);
-	memcpy(pwlanhdr->addr3, get_my_bssid23a(cur_network), ETH_ALEN);
+	ether_addr_copy(mgmt->da, bc_addr);
+	ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
+	ether_addr_copy(mgmt->bssid, get_my_bssid23a(cur_network));
 
 	/* A Beacon frame shouldn't have fragment bits set */
-	pwlanhdr->seq_ctrl = 0;
-
-	pframe += sizeof(struct ieee80211_hdr_3addr);
-	pktlen = sizeof (struct ieee80211_hdr_3addr);
+	mgmt->seq_ctrl = 0;
 
 	/* timestamp will be inserted by hardware */
-	pframe += 8;
-	pktlen += 8;
 
-	/*  beacon interval: 2 bytes */
-	memcpy(pframe, (unsigned char *)(rtw_get_beacon_interval23a_from_ie(cur_network->IEs)), 2);
+	put_unaligned_le16(cur_network->beacon_interval,
+			   &mgmt->u.beacon.beacon_int);
 
-	pframe += 2;
-	pktlen += 2;
+	put_unaligned_le16(cur_network->capability,
+			   &mgmt->u.beacon.capab_info);
 
-	/*  capability info: 2 bytes */
-	memcpy(pframe, (unsigned char *)(rtw_get_capability23a_from_ie(cur_network->IEs)), 2);
-
-	pframe += 2;
-	pktlen += 2;
+	pframe = mgmt->u.beacon.variable;
+	pktlen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
 	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
 		bcn_fixed_size =
