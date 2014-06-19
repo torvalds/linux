@@ -200,7 +200,7 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 	if (!list_empty(&controller->early_tx_list)) {
 		ret = HRTIMER_RESTART;
 		hrtimer_forward_now(&controller->early_tx,
-				ktime_set(0, 150 * NSEC_PER_USEC));
+				ktime_set(0, 50 * NSEC_PER_USEC));
 	}
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -274,8 +274,10 @@ static void cppi41_dma_callback(void *private_data)
 		list_add_tail(&cppi41_channel->tx_check,
 				&controller->early_tx_list);
 		if (!hrtimer_active(&controller->early_tx)) {
+			unsigned long usecs = cppi41_channel->total_len / 10;
+
 			hrtimer_start_range_ns(&controller->early_tx,
-				ktime_set(0, 140 * NSEC_PER_USEC),
+				ktime_set(0, usecs * NSEC_PER_USEC),
 				40 * NSEC_PER_USEC,
 				HRTIMER_MODE_REL);
 		}
