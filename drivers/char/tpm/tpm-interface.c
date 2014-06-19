@@ -1095,7 +1095,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto del_misc;
 
 	if (tpm_add_ppi(&dev->kobj))
-		goto del_misc;
+		goto del_sysfs;
 
 	chip->bios_dir = tpm_bios_log_setup(chip->devname);
 
@@ -1106,6 +1106,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	return chip;
 
+del_sysfs:
+	tpm_sysfs_del_device(chip);
 del_misc:
 	tpm_dev_del_device(chip);
 put_device:
