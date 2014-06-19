@@ -144,10 +144,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case D7SIOCTM:
 		/* toggle device mode-- flip display orientation */
-		if (regs & D7S_FLIP)
-			regs &= ~D7S_FLIP;
-		else
-			regs |= D7S_FLIP;
+		regs ^= D7S_FLIP;
 		writeb(regs, p->regs);
 		break;
 	}
