@@ -798,7 +798,6 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	u8 *pHT_caps_ie = NULL;
 	u8 *pHT_info_ie = NULL;
 	struct sta_info *psta = NULL;
-	__le16 *pbeacon;
 	u16 cap, ht_cap = false;
 	uint ie_len = 0;
 	int group_cipher, pairwise_cipher;
@@ -843,11 +842,6 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	pbss_network->Rssi = 0;
 
 	memcpy(pbss_network->MacAddress, myid(&padapter->eeprompriv), ETH_ALEN);
-
-	/* beacon interval */
-	/* ie + 8;  8: TimeStamp, 2: Beacon Interval 2:Capability */
-	pbeacon = rtw_get_beacon_interval23a_from_ie(ie);
-	pbss_network->beacon_interval = get_unaligned_le16(pbeacon);
 
 	/* capability */
 	cap = get_unaligned_le16(ie);

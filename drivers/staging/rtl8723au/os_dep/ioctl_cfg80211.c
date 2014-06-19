@@ -2915,6 +2915,8 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	u8 *pbuf;
 	uint len, wps_ielen = 0;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	struct wlan_bssid_ex *bss = &pmlmepriv->cur_network.network;
+	const struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)head;
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
 
 	DBG_8723A("%s beacon_head_len =%zu, beacon_tail_len =%zu\n",
@@ -2923,12 +2925,17 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	if (head_len < sizeof(struct ieee80211_hdr_3addr))
+	if (head_len < offsetof(struct ieee80211_mgmt, u.beacon.variable))
 		return -EINVAL;
 
 	pbuf = kzalloc(head_len + tail_len, GFP_KERNEL);
 	if (!pbuf)
 		return -ENOMEM;
+
+	bss->beacon_interval = get_unaligned_le16(&mgmt->u.beacon.beacon_int);
+	bss->capability = get_unaligned_le16(&mgmt->u.beacon.capab_info);
+	bss->tsf = get_unaligned_le64(&mgmt->u.beacon.timestamp);
+
 	/*  24 = beacon header len. */
 	memcpy(pbuf, (void *)head + sizeof(struct ieee80211_hdr_3addr),
 	       head_len - sizeof(struct ieee80211_hdr_3addr));
