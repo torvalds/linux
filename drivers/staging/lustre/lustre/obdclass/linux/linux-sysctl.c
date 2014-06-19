@@ -42,8 +42,8 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/ctype.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/bitops.h>
+#include <linux/uaccess.h>
 #include <linux/utsname.h>
 
 #define DEBUG_SUBSYSTEM S_CLASS
