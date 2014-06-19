@@ -199,9 +199,6 @@ int drm_fb_helper_debug_enter(struct fb_info *info)
 	struct drm_crtc_helper_funcs *funcs;
 	int i;
 
-	if (list_empty(&kernel_fb_helper_list))
-		return false;
-
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
 		for (i = 0; i < helper->crtc_count; i++) {
 			struct drm_mode_set *mode_set =
