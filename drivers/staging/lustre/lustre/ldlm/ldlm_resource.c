@@ -854,9 +854,8 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
 {
 	int rc;
 
-	if (!ns) {
+	if (!ns)
 		return;
-	}
 
 	spin_lock(&ns->ns_lock);
 	ns->ns_stopping = 1;
@@ -888,9 +887,8 @@ void ldlm_namespace_free_prior(struct ldlm_namespace *ns,
  */
 void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 {
-	if (!ns) {
+	if (!ns)
 		return;
-	}
 
 	/* Make sure that nobody can find this ns in its list. */
 	ldlm_namespace_unregister(ns, ns->ns_client);
