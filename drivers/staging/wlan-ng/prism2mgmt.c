@@ -190,6 +190,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 	word = 0;
 	for (i = 0; i < msg->channellist.data.len; i++) {
 		u8 channel = msg->channellist.data.data[i];
+
 		if (channel > 14)
 			continue;
 		/* channel 1 is BIT 0 ... channel 14 is BIT 13 */
