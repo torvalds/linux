@@ -91,10 +91,11 @@ static ssize_t
 fld_proc_hash_seq_write(struct file *file, const char *buffer,
 			size_t count, loff_t *off)
 {
-	struct lu_client_fld *fld = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_fld *fld;
 	struct lu_fld_hash *hash = NULL;
 	int i;
 
+	fld = ((struct seq_file *)file->private_data)->private;
 	LASSERT(fld != NULL);
 
 	for (i = 0; fld_hash[i].fh_name != NULL; i++) {
