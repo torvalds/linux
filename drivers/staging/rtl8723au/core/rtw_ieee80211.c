@@ -782,7 +782,7 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 		pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_OPENSYS;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: ssid =%s\n", pnetwork->network.Ssid.ssid));
+		 ("%s: ssid =%s\n", __func__, pnetwork->network.Ssid.ssid));
 
 	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
 		offsetof(struct ieee80211_mgmt, u);
@@ -801,10 +801,10 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 			pnetwork->BcnInfo.encryp_protocol = ENCRYP_PROTOCOL_WEP;
 	}
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: pnetwork->encryp_protocol is %x\n",
+		 ("%s: pnetwork->encryp_protocol is %x\n", __func__,
 		  pnetwork->BcnInfo.encryp_protocol));
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("rtw_get_bcn_info23a: pnetwork->encryp_protocol is %x\n",
+		 ("%s: pnetwork->encryp_protocol is %x\n", __func__,
 		  pnetwork->BcnInfo.encryp_protocol));
 	rtw_get_cipher_info(pnetwork);
 
