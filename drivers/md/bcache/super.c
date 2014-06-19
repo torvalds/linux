@@ -1356,8 +1356,11 @@ static void cache_set_free(struct closure *cl)
 	bch_journal_free(c);
 
 	for_each_cache(ca, c, i)
-		if (ca)
+		if (ca) {
+			ca->set = NULL;
+			c->cache[ca->sb.nr_this_dev] = NULL;
 			kobject_put(&ca->kobj);
+		}
 
 	bch_bset_sort_state_free(&c->sort);
 	free_pages((unsigned long) c->uuids, ilog2(bucket_pages(c)));
@@ -1794,8 +1797,10 @@ void bch_cache_release(struct kobject *kobj)
 	struct cache *ca = container_of(kobj, struct cache, kobj);
 	unsigned i;
 
-	if (ca->set)
+	if (ca->set) {
+		BUG_ON(ca->set->cache[ca->sb.nr_this_dev] != ca);
 		ca->set->cache[ca->sb.nr_this_dev] = NULL;
+	}
 
 	bio_split_pool_free(&ca->bio_split_hook);
 
@@ -1858,7 +1863,7 @@ static int cache_alloc(struct cache_sb *sb, struct cache *ca)
 }
 
 static void register_cache(struct cache_sb *sb, struct page *sb_page,
-				  struct block_device *bdev, struct cache *ca)
+				struct block_device *bdev, struct cache *ca)
 {
 	char name[BDEVNAME_SIZE];
 	const char *err = "cannot allocate memory";
