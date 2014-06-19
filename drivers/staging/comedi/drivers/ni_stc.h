@@ -1503,6 +1503,8 @@ struct ni_private {
 	struct mite_dma_descriptor_ring *ao_mite_ring;
 	struct mite_dma_descriptor_ring *cdo_mite_ring;
 	struct mite_dma_descriptor_ring *gpct_mite_ring[NUM_GPCT];
+
+	unsigned int is_m_series:1;
 };
 
 #endif /* _COMEDI_NI_STC_H */

@@ -532,10 +532,9 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 					  unsigned gpct_index, short enable)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		return;
 	switch (gpct_index) {
 	case 0:
@@ -1650,7 +1649,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 	unsigned offset;
 	unsigned int dither;
 
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		ni_m_series_load_channelgain_list(dev, n_chan, list);
 		return;
 	}
@@ -1853,7 +1852,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				    ("ni_mio_common: timeout in ni_ai_insn_read\n");
 				return -ETIME;
 			}
-			if (board->reg_type & ni_reg_m_series_mask) {
+			if (devpriv->is_m_series) {
 				dl = devpriv->readl(dev, M_Offset_AI_FIFO_Data);
 				dl &= mask;
 				data[n] = dl;
@@ -2496,7 +2495,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_ANALOG_TRIG:
 		return ni_ai_config_analog_trig(dev, s, insn, data);
 	case INSN_CONFIG_ALT_SOURCE:
-		if (board->reg_type & ni_reg_m_series_mask) {
+		if (devpriv->is_m_series) {
 			if (data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
 					MSeries_AI_Bypass_Cal_Sel_Neg_Mask |
 					MSeries_AI_Bypass_Mode_Mux_Mask |
@@ -2692,9 +2691,9 @@ static int ni_ao_config_chanlist(struct comedi_device *dev,
 				 unsigned int chanspec[], unsigned int n_chans,
 				 int timed)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		return ni_m_series_ao_config_chanlist(dev, s, chanspec, n_chans,
 						      timed);
 	else
@@ -2716,7 +2715,6 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int invert;
@@ -2725,7 +2723,7 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 
 	devpriv->ao[chan] = data[0];
 
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		devpriv->writew(dev, data[0], M_Offset_DAC_Direct_Data(chan));
 	} else
 		devpriv->writew(dev, data[0] ^ invert,
@@ -2938,7 +2936,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		if (board->reg_type & ni_reg_m_series_mask) {
+		if (devpriv->is_m_series) {
 			/*  this is how the NI example code does it for m-series boards, verified correct with 6259 */
 			devpriv->stc_writel(dev, cmd->stop_arg - 1,
 					    AO_UC_Load_A_Register);
@@ -3006,8 +3004,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		unsigned bits;
 		devpriv->ao_mode1 &= ~AO_Multiple_Channels;
 		bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
-		if (board->reg_type &
-		    (ni_reg_m_series_mask | ni_reg_6xxx_mask)) {
+		if (devpriv->is_m_series ||
+		    board->reg_type & ni_reg_6xxx_mask) {
 			bits |= AO_Number_Of_Channels(0);
 		} else {
 			bits |=
@@ -3041,7 +3039,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #if 0
 	/* F Hess: windows driver does not set AO_Number_Of_DAC_Packages bit for 6281,
 	   verified with bus analyzer. */
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		bits |= AO_Number_Of_DAC_Packages;
 #endif
 	devpriv->stc_writew(dev, bits, AO_Personal_Register);
@@ -3172,7 +3170,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 	devpriv->ao_mode2 = 0;
 	devpriv->stc_writew(dev, devpriv->ao_mode2, AO_Mode_2_Register);
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		devpriv->ao_mode3 = AO_Last_Gate_Disable;
 	else
 		devpriv->ao_mode3 = 0;
@@ -3454,7 +3452,6 @@ static int ni_cdio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static void handle_cdio_interrupt(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned cdio_status;
 	struct comedi_subdevice *s = &dev->subdevices[NI_DIO_SUBDEV];
@@ -3462,7 +3459,7 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	unsigned long flags;
 #endif
 
-	if ((board->reg_type & ni_reg_m_series_mask) == 0)
+	if (!devpriv->is_m_series)
 		return;
 #ifdef PCIDMA
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
@@ -4434,9 +4431,9 @@ static int ni_m_series_set_pfi_routing(struct comedi_device *dev,
 
 static unsigned ni_get_pfi_routing(struct comedi_device *dev, unsigned chan)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		return ni_m_series_get_pfi_routing(dev, chan);
 	else
 		return ni_old_get_pfi_routing(dev, chan);
@@ -4445,9 +4442,9 @@ static unsigned ni_get_pfi_routing(struct comedi_device *dev, unsigned chan)
 static int ni_set_pfi_routing(struct comedi_device *dev, unsigned chan,
 			      unsigned source)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		return ni_m_series_set_pfi_routing(dev, chan, source);
 	else
 		return ni_old_set_pfi_routing(dev, chan, source);
@@ -4457,12 +4454,12 @@ static int ni_config_filter(struct comedi_device *dev,
 			    unsigned pfi_channel,
 			    enum ni_pfi_filter_select filter)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned bits;
 
-	if ((board->reg_type & ni_reg_m_series_mask) == 0)
+	if (!devpriv->is_m_series)
 		return -ENOTSUPP;
+
 	bits = devpriv->readl(dev, M_Offset_PFI_Filter);
 	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
 	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
@@ -4516,10 +4513,9 @@ static int ni_pfi_insn_bits(struct comedi_device *dev,
 			    struct comedi_insn *insn,
 			    unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
-	if (!(board->reg_type & ni_reg_m_series_mask))
+	if (!devpriv->is_m_series)
 		return -ENOTSUPP;
 
 	if (comedi_dio_update_state(s, data))
@@ -4820,7 +4816,6 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 static int ni_set_master_clock(struct comedi_device *dev,
 			       unsigned source, unsigned period_ns)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
 	if (source == NI_MIO_INTERNAL_CLOCK) {
@@ -4828,7 +4823,7 @@ static int ni_set_master_clock(struct comedi_device *dev,
 		devpriv->stc_writew(dev, devpriv->rtsi_trig_direction_reg,
 				    RTSI_Trig_Direction_Register);
 		devpriv->clock_ns = TIMEBASE_1_NS;
-		if (board->reg_type & ni_reg_m_series_mask) {
+		if (devpriv->is_m_series) {
 			devpriv->clock_and_fout2 &=
 			    ~(MSeries_Timebase1_Select_Bit |
 			      MSeries_Timebase3_Select_Bit);
@@ -4838,7 +4833,7 @@ static int ni_set_master_clock(struct comedi_device *dev,
 		}
 		devpriv->clock_source = source;
 	} else {
-		if (board->reg_type & ni_reg_m_series_mask) {
+		if (devpriv->is_m_series) {
 			return ni_mseries_set_pll_master_clock(dev, source,
 							       period_ns);
 		} else {
@@ -4867,9 +4862,9 @@ static int ni_set_master_clock(struct comedi_device *dev,
 
 static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		return 8;
 	else
 		return 7;
@@ -4878,7 +4873,7 @@ static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
 static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 				       unsigned chan, unsigned source)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
+	struct ni_private *devpriv = dev->private;
 
 	if (chan >= num_configurable_rtsi_channels(dev)) {
 		if (chan == old_RTSI_clock_channel) {
@@ -4906,7 +4901,7 @@ static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 		return 1;
 		break;
 	case NI_RTSI_OUTPUT_RTSI_OSC:
-		if (board->reg_type & ni_reg_m_series_mask)
+		if (devpriv->is_m_series)
 			return 1;
 		else
 			return 0;
@@ -4963,7 +4958,6 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 
@@ -4971,8 +4965,7 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_DIO_OUTPUT:
 		if (chan < num_configurable_rtsi_channels(dev)) {
 			devpriv->rtsi_trig_direction_reg |=
-			    RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0);
+			    RTSI_Output_Bit(chan, devpriv->is_m_series);
 		} else if (chan == old_RTSI_clock_channel) {
 			devpriv->rtsi_trig_direction_reg |=
 			    Drive_RTSI_Clock_Bit;
@@ -4983,8 +4976,7 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_DIO_INPUT:
 		if (chan < num_configurable_rtsi_channels(dev)) {
 			devpriv->rtsi_trig_direction_reg &=
-			    ~RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0);
+			    ~RTSI_Output_Bit(chan, devpriv->is_m_series);
 		} else if (chan == old_RTSI_clock_channel) {
 			devpriv->rtsi_trig_direction_reg &=
 			    ~Drive_RTSI_Clock_Bit;
@@ -4996,8 +4988,7 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 		if (chan < num_configurable_rtsi_channels(dev)) {
 			data[1] =
 			    (devpriv->rtsi_trig_direction_reg &
-			     RTSI_Output_Bit(chan,
-				(board->reg_type & ni_reg_m_series_mask) != 0))
+			     RTSI_Output_Bit(chan, devpriv->is_m_series))
 				? INSN_CONFIG_DIO_OUTPUT
 				: INSN_CONFIG_DIO_INPUT;
 		} else if (chan == old_RTSI_clock_channel) {
@@ -5042,7 +5033,6 @@ static int ni_rtsi_insn_bits(struct comedi_device *dev,
 
 static void ni_rtsi_init(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
 
 	/*  Initialises the RTSI bus signal switch to a default state */
@@ -5068,7 +5058,7 @@ static void ni_rtsi_init(struct comedi_device *dev)
 	    RTSI_Trig_Output_Bits(5,
 				  NI_RTSI_OUTPUT_G_SRC0) |
 	    RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		devpriv->rtsi_trig_b_output_reg |=
 		    RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
 	devpriv->stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
@@ -5303,7 +5293,7 @@ static int ni_E_init(struct comedi_device *dev)
 			s->subdev_flags |= SDF_GROUND | SDF_COMMON | SDF_OTHER;
 		if (board->adbits > 16)
 			s->subdev_flags |= SDF_LSAMPL;
-		if (board->reg_type & ni_reg_m_series_mask)
+		if (devpriv->is_m_series)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan = board->n_adchan;
 		s->len_chanlist = 512;
@@ -5329,7 +5319,7 @@ static int ni_E_init(struct comedi_device *dev)
 	if (board->n_aochan) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE | SDF_DEGLITCH | SDF_GROUND;
-		if (board->reg_type & ni_reg_m_series_mask)
+		if (devpriv->is_m_series)
 			s->subdev_flags |= SDF_SOFT_CALIBRATED;
 		s->n_chan = board->n_aochan;
 		s->maxdata = (1 << board->aobits) - 1;
@@ -5351,7 +5341,7 @@ static int ni_E_init(struct comedi_device *dev)
 			s->do_cmd = &ni_ao_cmd;
 			s->do_cmdtest = &ni_ao_cmdtest;
 			s->len_chanlist = board->n_aochan;
-			if ((board->reg_type & ni_reg_m_series_mask) == 0)
+			if (!devpriv->is_m_series)
 				s->munge = ni_ao_munge;
 		}
 		s->cancel = &ni_ao_reset;
@@ -5370,7 +5360,7 @@ static int ni_E_init(struct comedi_device *dev)
 	s->io_bits = 0;		/* all bits input */
 	s->range_table = &range_digital;
 	s->n_chan = board->num_p0_dio_channels;
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		s->subdev_flags |=
 		    SDF_LSAMPL | SDF_CMD_WRITE /* | SDF_CMD_READ */;
 		s->insn_bits = &ni_m_series_dio_insn_bits;
@@ -5410,7 +5400,7 @@ static int ni_E_init(struct comedi_device *dev)
 	/* calibration subdevice -- ai and ao */
 	s = &dev->subdevices[NI_CALIBRATION_SUBDEV];
 	s->type = COMEDI_SUBD_CALIB;
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		/*  internal PWM analog output used for AI nonlinearity calibration */
 		s->subdev_flags = SDF_INTERNAL;
 		s->insn_config = &ni_m_series_pwm_config;
@@ -5435,7 +5425,7 @@ static int ni_E_init(struct comedi_device *dev)
 	s->type = COMEDI_SUBD_MEMORY;
 	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
 	s->maxdata = 0xff;
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		s->n_chan = M_SERIES_EEPROM_SIZE;
 		s->insn_read = &ni_m_series_eeprom_insn_read;
 	} else {
@@ -5447,7 +5437,7 @@ static int ni_E_init(struct comedi_device *dev)
 	s = &dev->subdevices[NI_PFI_DIO_SUBDEV];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	if (board->reg_type & ni_reg_m_series_mask) {
+	if (devpriv->is_m_series) {
 		unsigned i;
 		s->n_chan = 16;
 		devpriv->writew(dev, s->state, M_Offset_PFI_DO);
@@ -5459,7 +5449,7 @@ static int ni_E_init(struct comedi_device *dev)
 		s->n_chan = 10;
 	}
 	s->maxdata = 1;
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		s->insn_bits = &ni_pfi_insn_bits;
 	s->insn_config = &ni_pfi_insn_config;
 	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
@@ -5500,7 +5490,7 @@ static int ni_E_init(struct comedi_device *dev)
 	s->insn_config = ni_rtsi_insn_config;
 	ni_rtsi_init(dev);
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		counter_variant = ni_gpct_variant_m_series;
 	else
 		counter_variant = ni_gpct_variant_e_series;
@@ -5518,7 +5508,7 @@ static int ni_E_init(struct comedi_device *dev)
 		s->type = COMEDI_SUBD_COUNTER;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
 		s->n_chan = 3;
-		if (board->reg_type & ni_reg_m_series_mask)
+		if (devpriv->is_m_series)
 			s->maxdata = 0xffffffff;
 		else
 			s->maxdata = 0xffffff;
@@ -5592,7 +5582,7 @@ static int ni_E_init(struct comedi_device *dev)
 
 	if (board->reg_type & ni_reg_6xxx_mask) {
 		devpriv->writeb(dev, 0, Magic_611x);
-	} else if (board->reg_type & ni_reg_m_series_mask) {
+	} else if (devpriv->is_m_series) {
 		int channel;
 		for (channel = 0; channel < board->n_aochan; ++channel) {
 			devpriv->writeb(dev, 0xf,

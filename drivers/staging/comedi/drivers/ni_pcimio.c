@@ -1540,6 +1540,8 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	devpriv->writel		= pcimio_writel;
 
 	if (board->reg_type & ni_reg_m_series_mask) {
+		devpriv->is_m_series = 1;
+
 		devpriv->stc_writew	= m_series_stc_writew;
 		devpriv->stc_readw	= m_series_stc_readw;
 		devpriv->stc_writel	= m_series_stc_writel;
@@ -1573,7 +1575,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (devpriv->gpct_mite_ring[1] == NULL)
 		return -ENOMEM;
 
-	if (board->reg_type & ni_reg_m_series_mask)
+	if (devpriv->is_m_series)
 		m_series_init_eeprom_buffer(dev);
 	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
