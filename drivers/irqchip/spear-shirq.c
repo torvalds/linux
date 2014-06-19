@@ -47,7 +47,6 @@ struct shirq_regs {
 /*
  * struct spear_shirq: shared irq structure
  *
- * irq: hardware irq number
  * irq_base: base irq in linux domain
  * irq_nr: no. of shared interrupts in a particular block
  * irq_bit_off: starting bit offset in the status register
@@ -56,7 +55,6 @@ struct shirq_regs {
  * regs: register configuration for shared irq block
  */
 struct spear_shirq {
-	u32 irq;
 	u32 irq_base;
 	u32 irq_nr;
 	u32 irq_bit_off;
@@ -268,28 +266,29 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 	chip->irq_unmask(&desc->irq_data);
 }
 
-static void __init spear_shirq_register(struct spear_shirq *shirq)
+static void __init spear_shirq_register(struct spear_shirq *shirq,
+					int parent_irq)
 {
 	int i;
 
 	if (shirq->invalid_irq)
 		return;
 
-	irq_set_chained_handler(shirq->irq, shirq_handler);
+	irq_set_chained_handler(parent_irq, shirq_handler);
+	irq_set_handler_data(parent_irq, shirq);
+
 	for (i = 0; i < shirq->irq_nr; i++) {
 		irq_set_chip_and_handler(shirq->irq_base + i,
 					 &shirq_chip, handle_simple_irq);
 		set_irq_flags(shirq->irq_base + i, IRQF_VALID);
 		irq_set_chip_data(shirq->irq_base + i, shirq);
 	}
-
-	irq_set_handler_data(shirq->irq, shirq);
 }
 
 static int __init shirq_init(struct spear_shirq **shirq_blocks, int block_nr,
 		struct device_node *np)
 {
-	int i, irq_base, hwirq = 0, irq_nr = 0;
+	int i, parent_irq, irq_base, hwirq = 0, irq_nr = 0;
 	struct irq_domain *shirq_domain;
 	void __iomem *base;
 
@@ -319,9 +318,9 @@ static int __init shirq_init(struct spear_shirq **shirq_blocks, int block_nr,
 		shirq_blocks[i]->base = base;
 		shirq_blocks[i]->irq_base = irq_find_mapping(shirq_domain,
 				hwirq);
-		shirq_blocks[i]->irq = irq_of_parse_and_map(np, i);
 
-		spear_shirq_register(shirq_blocks[i]);
+		parent_irq = irq_of_parse_and_map(np, i);
+		spear_shirq_register(shirq_blocks[i], parent_irq);
 		hwirq += shirq_blocks[i]->irq_nr;
 	}
 
