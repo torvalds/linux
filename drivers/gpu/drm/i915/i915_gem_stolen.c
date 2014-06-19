@@ -103,22 +103,36 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	return base;
 }
 
+static int find_compression_threshold(struct drm_device *dev,
+				      struct drm_mm_node *node,
+				      int size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const int compression_threshold = 1;
+	int ret;
+
+	/* Try to over-allocate to reduce reallocations and fragmentation */
+	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
+				 size <<= 1, 4096, DRM_MM_SEARCH_DEFAULT);
+	if (ret)
+		ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
+					 size >>= 1, 4096,
+					 DRM_MM_SEARCH_DEFAULT);
+	if (ret)
+		return 0;
+	else
+		return compression_threshold;
+}
+
 static int i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *uninitialized_var(compressed_llb);
 	int ret;
 
-	/* Try to over-allocate to reduce reallocations and fragmentation */
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen,
-				 &dev_priv->fbc.compressed_fb,
-				 size <<= 1, 4096, DRM_MM_SEARCH_DEFAULT);
-	if (ret)
-		ret = drm_mm_insert_node(&dev_priv->mm.stolen,
-					 &dev_priv->fbc.compressed_fb,
-					 size >>= 1, 4096,
-					 DRM_MM_SEARCH_DEFAULT);
-	if (ret)
+	ret = find_compression_threshold(dev, &dev_priv->fbc.compressed_fb,
+					 size);
+	if (!ret)
 		goto err_llb;
 
 	if (HAS_PCH_SPLIT(dev))
