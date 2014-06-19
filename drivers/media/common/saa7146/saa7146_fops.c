@@ -613,7 +613,6 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->tvnorms = 0;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strlcpy(vfd->name, name, sizeof(vfd->name));

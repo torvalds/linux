@@ -380,7 +380,6 @@ static int usb_keene_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, &radio->v4l2_dev);
 
 	video_set_drvdata(&radio->vdev, radio);
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	/* at least 11ms is needed in order to settle hardware */
 	msleep(20);

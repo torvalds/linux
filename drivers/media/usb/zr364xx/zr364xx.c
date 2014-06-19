@@ -1456,7 +1456,6 @@ static int zr364xx_probe(struct usb_interface *intf,
 	cam->vdev.lock = &cam->lock;
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
 	cam->vdev.ctrl_handler = &cam->ctrl_handler;
-	set_bit(V4L2_FL_USE_FH_PRIO, &cam->vdev.flags);
 	video_set_drvdata(&cam->vdev, cam);
 	if (debug)
 		cam->vdev.debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;

@@ -2208,7 +2208,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
 	vfd->debug	= video_debug;
 	vfd->lock	= &dev->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	if (dev->board.is_webcam)
 		vfd->tvnorms = 0;
 

@@ -270,7 +270,6 @@ static int empress_init(struct saa7134_dev *dev)
 	snprintf(dev->empress_dev->name, sizeof(dev->empress_dev->name),
 		 "%s empress (%s)", dev->name,
 		 saa7134_boards[dev->board].name);
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->empress_dev->flags);
 	v4l2_ctrl_handler_init(hdl, 21);
 	v4l2_ctrl_add_handler(hdl, &dev->ctrl_handler, empress_ctrl_filter);
 	if (dev->empress_sd)

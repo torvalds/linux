@@ -1172,7 +1172,6 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 		goto err_vd_rel;
 
 	video_set_drvdata(vfd, vp);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 
 	v4l2_ctrl_handler_init(&vp->ctrl_handler, 1);
 	ctrl = v4l2_ctrl_new_std(&vp->ctrl_handler, &s3c_camif_video_ctrl_ops,

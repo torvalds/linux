@@ -1397,7 +1397,6 @@ static int vpif_probe_complete(void)
 		vdev->vfl_dir = VFL_DIR_RX;
 		vdev->queue = q;
 		vdev->lock = &common->lock;
-		set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 		video_set_drvdata(ch->video_dev, ch);
 		err = video_register_device(vdev,
 					    VFL_TYPE_GRABBER, (j ? 1 : 0));

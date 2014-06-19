@@ -966,7 +966,6 @@ static int bcap_probe(struct platform_device *pdev)
 	vfd->ioctl_ops          = &bcap_ioctl_ops;
 	vfd->tvnorms            = 0;
 	vfd->v4l2_dev           = &bcap_dev->v4l2_dev;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	strncpy(vfd->name, CAPTURE_DRV_NAME, sizeof(vfd->name));
 	bcap_dev->video_dev     = vfd;
 

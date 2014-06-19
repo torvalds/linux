@@ -1923,7 +1923,6 @@ static struct video_device *cx231xx_video_dev_alloc(
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->lock = &dev->lock;
 	vfd->release = video_device_release;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	vfd->ctrl_handler = &dev->mpeg_ctrl_handler.hdl;
 	video_set_drvdata(vfd, dev);
 	if (dev->tuner_type == TUNER_ABSENT) {

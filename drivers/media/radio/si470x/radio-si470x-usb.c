@@ -680,7 +680,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->videodev.lock = &radio->lock;
 	radio->videodev.v4l2_dev = &radio->v4l2_dev;
 	radio->videodev.release = video_device_release_empty;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->videodev.flags);
 	video_set_drvdata(&radio->videodev, radio);
 
 	/* get device and chip versions */

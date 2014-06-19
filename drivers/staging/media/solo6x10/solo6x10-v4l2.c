@@ -666,7 +666,6 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 		goto fail;
 	}
 	solo_dev->vfd->ctrl_handler = &solo_dev->disp_hdl;
-	set_bit(V4L2_FL_USE_FH_PRIO, &solo_dev->vfd->flags);
 
 	video_set_drvdata(solo_dev->vfd, solo_dev);
 

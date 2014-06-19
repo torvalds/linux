@@ -2016,14 +2016,12 @@ int au0828_analog_register(struct au0828_dev *dev,
 	*dev->vdev = au0828_video_template;
 	dev->vdev->v4l2_dev = &dev->v4l2_dev;
 	dev->vdev->lock = &dev->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev->flags);
 	strcpy(dev->vdev->name, "au0828a video");
 
 	/* Setup the VBI device */
 	*dev->vbi_dev = au0828_video_template;
 	dev->vbi_dev->v4l2_dev = &dev->v4l2_dev;
 	dev->vbi_dev->lock = &dev->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vbi_dev->flags);
 	strcpy(dev->vbi_dev->name, "au0828a vbi");
 
 	/* Register the v4l2 device */

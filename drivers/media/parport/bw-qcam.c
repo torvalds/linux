@@ -990,7 +990,6 @@ static struct qcam *qcam_init(struct parport *port)
 	qcam->vdev.fops = &qcam_fops;
 	qcam->vdev.lock = &qcam->lock;
 	qcam->vdev.ioctl_ops = &qcam_ioctl_ops;
-	set_bit(V4L2_FL_USE_FH_PRIO, &qcam->vdev.flags);
 	qcam->vdev.release = video_device_release_empty;
 	video_set_drvdata(&qcam->vdev, qcam);
 

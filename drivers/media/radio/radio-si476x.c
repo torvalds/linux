@@ -1470,7 +1470,6 @@ static int si476x_radio_probe(struct platform_device *pdev)
 	video_set_drvdata(&radio->videodev, radio);
 	platform_set_drvdata(pdev, radio);
 
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->videodev.flags);
 
 	radio->v4l2dev.ctrl_handler = &radio->ctrl_handler;
 	v4l2_ctrl_handler_init(&radio->ctrl_handler,

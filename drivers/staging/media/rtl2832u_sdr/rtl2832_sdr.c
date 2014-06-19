@@ -1480,7 +1480,6 @@ struct dvb_frontend *rtl2832_sdr_attach(struct dvb_frontend *fe,
 	s->vdev = rtl2832_sdr_template;
 	s->vdev.queue = &s->vb_queue;
 	s->vdev.queue->lock = &s->vb_queue_lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &s->vdev.flags);
 	video_set_drvdata(&s->vdev, s);
 
 	/* Register the v4l2_device structure */

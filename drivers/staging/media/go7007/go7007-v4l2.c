@@ -1001,7 +1001,6 @@ int go7007_v4l2_init(struct go7007 *go)
 	*vdev = go7007_template;
 	vdev->lock = &go->serialize_lock;
 	vdev->queue = &go->vidq;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 	video_set_drvdata(vdev, go);
 	vdev->v4l2_dev = &go->v4l2_dev;
 	if (!v4l2_device_has_op(&go->v4l2_dev, video, querystd))

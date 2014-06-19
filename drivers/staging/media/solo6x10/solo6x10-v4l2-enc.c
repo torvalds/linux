@@ -1326,7 +1326,6 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	solo_enc->vfd->ctrl_handler = hdl;
 	solo_enc->vfd->queue = &solo_enc->vidq;
 	solo_enc->vfd->lock = &solo_enc->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &solo_enc->vfd->flags);
 	video_set_drvdata(solo_enc->vfd, solo_enc);
 	ret = video_register_device(solo_enc->vfd, VFL_TYPE_GRABBER, nr);
 	if (ret < 0)

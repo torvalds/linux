@@ -210,7 +210,6 @@ static int __init pcm20_init(void)
 	dev->vdev.ioctl_ops = &pcm20_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
 	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
 			dev->audmode == V4L2_TUNER_MODE_MONO, -1);

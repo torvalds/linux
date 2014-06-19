@@ -1109,7 +1109,6 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		else
 			vdev->vfl_dir = VFL_DIR_TX;
 		vdev->lock = &dev->lock;
-		set_bit(V4L2_FL_USE_FH_PRIO, &vdev->flags);
 		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
 		video_set_drvdata(vdev, chan);
 

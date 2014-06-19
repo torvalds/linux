@@ -558,7 +558,6 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->vdev.ioctl_ops = &usb_amradio_ioctl_ops;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.lock = &radio->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &radio->vdev.flags);
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

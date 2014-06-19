@@ -811,7 +811,6 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	video_set_drvdata(vfd, dev);
 	return vfd;
 }

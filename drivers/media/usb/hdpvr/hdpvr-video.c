@@ -1240,7 +1240,6 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	strcpy(dev->video_dev->name, "Hauppauge HD PVR");
 	dev->video_dev->v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(dev->video_dev, dev);
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->video_dev->flags);
 
 	res = video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum);
 	if (res < 0) {
