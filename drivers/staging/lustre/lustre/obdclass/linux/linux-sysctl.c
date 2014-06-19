@@ -408,18 +408,18 @@ static ctl_table_t parent_table[] = {
 };
 #endif
 
-void obd_sysctl_init (void)
+void obd_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
-	if ( !obd_table_header )
+	if (!obd_table_header)
 		obd_table_header = register_sysctl_table(parent_table);
 #endif
 }
 
-void obd_sysctl_clean (void)
+void obd_sysctl_clean(void)
 {
 #ifdef CONFIG_SYSCTL
-	if ( obd_table_header )
+	if (obd_table_header)
 		unregister_sysctl_table(obd_table_header);
 	obd_table_header = NULL;
 #endif
