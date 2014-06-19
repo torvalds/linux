@@ -98,9 +98,10 @@ static ssize_t lprocfs_fid_space_seq_write(struct file *file,
 					   const char __user *buffer,
 					   size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_seq *seq;
 	int rc;
 
+	seq = ((struct seq_file *)file->private_data)->private;
 	LASSERT(seq != NULL);
 
 	mutex_lock(&seq->lcs_mutex);
@@ -135,10 +136,11 @@ static ssize_t lprocfs_fid_width_seq_write(struct file *file,
 					   const char __user *buffer,
 					   size_t count, loff_t *off)
 {
-	struct lu_client_seq *seq = ((struct seq_file *)file->private_data)->private;
+	struct lu_client_seq *seq;
 	__u64  max;
 	int rc, val;
 
+	seq = ((struct seq_file *)file->private_data)->private;
 	LASSERT(seq != NULL);
 
 	rc = lprocfs_write_helper(buffer, count, &val);
