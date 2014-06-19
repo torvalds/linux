@@ -2543,9 +2543,6 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	remove_extent_mapping(em_tree, em);
 	write_unlock(&em_tree->lock);
 
-	kfree(map);
-	em->bdev = NULL;
-
 	/* once for the tree */
 	free_extent_map(em);
 	/* once for us */
@@ -4301,9 +4298,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 
 	em = alloc_extent_map();
 	if (!em) {
+		kfree(map);
 		ret = -ENOMEM;
 		goto error;
 	}
+	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->bdev = (struct block_device *)map;
 	em->start = start;
 	em->len = num_bytes;
@@ -4346,7 +4345,6 @@ error_del_extent:
 	/* One for the tree reference */
 	free_extent_map(em);
 error:
-	kfree(map);
 	kfree(devices_info);
 	return ret;
 }
@@ -4558,7 +4556,6 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 		write_unlock(&tree->map_tree.lock);
 		if (!em)
 			break;
-		kfree(em->bdev);
 		/* once for us */
 		free_extent_map(em);
 		/* once for the tree */
@@ -5822,6 +5819,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		return -ENOMEM;
 	}
 
+	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	em->bdev = (struct block_device *)map;
 	em->start = logical;
 	em->len = length;
@@ -5846,7 +5844,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		map->stripes[i].dev = btrfs_find_device(root->fs_info, devid,
 							uuid, NULL);
 		if (!map->stripes[i].dev && !btrfs_test_opt(root, DEGRADED)) {
-			kfree(map);
 			free_extent_map(em);
 			return -EIO;
 		}
@@ -5854,7 +5851,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 			map->stripes[i].dev =
 				add_missing_dev(root, devid, uuid);
 			if (!map->stripes[i].dev) {
-				kfree(map);
 				free_extent_map(em);
 				return -EIO;
 			}
