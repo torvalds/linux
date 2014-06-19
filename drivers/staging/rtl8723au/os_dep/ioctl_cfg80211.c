@@ -282,7 +282,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 				  pnetwork->network.MacAddress,
 				  pnetwork->network.tsf,
 				  pnetwork->network.capability,
-				  pnetwork->network.BeaconPeriod,
+				  pnetwork->network.beacon_interval,
 				  notify_ie, notify_ielen,
 				  notify_signal, GFP_ATOMIC);
 

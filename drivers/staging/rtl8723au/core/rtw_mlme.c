@@ -2117,7 +2117,7 @@ void rtw_init_registrypriv_dev_network23a(struct rtw_adapter* adapter)
 	memcpy(&pdev_network->Ssid, &pregistrypriv->ssid,
 	       sizeof(struct cfg80211_ssid));
 
-	pdev_network->BeaconPeriod = 100;
+	pdev_network->beacon_interval = 100;
 }
 
 void rtw_update_registrypriv_dev_network23a(struct rtw_adapter* adapter)

@@ -655,7 +655,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	struct ieee80211_ht_operation *pht_info = NULL;
 	int bcn_fixed_size;
 
-	bcn_interval = (u16)pnetwork->BeaconPeriod;
+	bcn_interval = (u16)pnetwork->beacon_interval;
 	cur_channel = pnetwork->DSConfig;
 	cur_bwmode = HT_CHANNEL_WIDTH_20;;
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
@@ -847,7 +847,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	/* beacon interval */
 	/* ie + 8;  8: TimeStamp, 2: Beacon Interval 2:Capability */
 	pbeacon = rtw_get_beacon_interval23a_from_ie(ie);
-	pbss_network->BeaconPeriod = get_unaligned_le16(pbeacon);
+	pbss_network->beacon_interval = get_unaligned_le16(pbeacon);
 
 	/* capability */
 	cap = get_unaligned_le16(ie);

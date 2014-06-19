@@ -360,7 +360,7 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	/* beacon interval : 2bytes */
 	/* BCN_INTERVAL; */
-	*(u16*)ie = cpu_to_le16(pdev_network->BeaconPeriod);
+	*(u16*)ie = cpu_to_le16(pdev_network->beacon_interval);
 	sz += 2;
 	ie += 2;
 

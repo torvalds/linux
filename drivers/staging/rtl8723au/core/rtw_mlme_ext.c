@@ -4279,7 +4279,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		bssid->capability =
 			get_unaligned_le16(&mgmt->u.beacon.capab_info);
-		bssid->BeaconPeriod =
+		bssid->beacon_interval =
 			get_unaligned_le16(&mgmt->u.beacon.beacon_int);
 		bssid->tsf = get_unaligned_le64(&mgmt->u.beacon.timestamp);
 	} else  if (ieee80211_is_probe_req(mgmt->frame_control)) {
@@ -4287,8 +4287,8 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 				     u.probe_req.variable);
 		bssid->reserved = 2;
 		bssid->capability = 0;
-		bssid->BeaconPeriod =
-			padapter->registrypriv.dev_network.BeaconPeriod;
+		bssid->beacon_interval =
+			padapter->registrypriv.dev_network.beacon_interval;
 		bssid->tsf = 0;
 	} else if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		ie_offset = offsetof(struct ieee80211_mgmt,
@@ -4296,7 +4296,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		bssid->reserved = 3;
 		bssid->capability =
 			get_unaligned_le16(&mgmt->u.probe_resp.capab_info);
-		bssid->BeaconPeriod =
+		bssid->beacon_interval =
 			get_unaligned_le16(&mgmt->u.probe_resp.beacon_int);
 		bssid->tsf = get_unaligned_le64(&mgmt->u.probe_resp.timestamp);
 	} else {
@@ -4304,8 +4304,8 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		bssid->capability =
 			get_unaligned_le16(&mgmt->u.beacon.capab_info);
-		bssid->BeaconPeriod =
-			padapter->registrypriv.dev_network.BeaconPeriod;
+		bssid->beacon_interval =
+			padapter->registrypriv.dev_network.beacon_interval;
 		bssid->tsf = 0;
 	}
 	ie_offset -= offsetof(struct ieee80211_mgmt, u);

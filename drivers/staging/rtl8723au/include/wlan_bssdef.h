@@ -92,7 +92,7 @@ struct wlan_bssid_ex {
 	struct cfg80211_ssid Ssid;
 	u32  Privacy;
 	long  Rssi;/* in dBM, raw data , get from PHY) */
-	u16 BeaconPeriod;       /*  units are Kusec */
+	u16 beacon_interval;
 	u16 capability;
 	u64 tsf;
 	u32 ATIMWindow;         /*  units are Kusec */
