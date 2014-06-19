@@ -222,11 +222,7 @@ static struct irq_chip shirq_chip = {
 static void shirq_handler(unsigned irq, struct irq_desc *desc)
 {
 	struct spear_shirq *shirq = irq_get_handler_data(irq);
-	struct irq_data *idata = irq_desc_get_irq_data(desc);
-	struct irq_chip *chip = irq_data_get_irq_chip(idata);
 	u32 pend;
-
-	chip->irq_ack(idata);
 
 	pend = readl(shirq->base + shirq->regs.status_reg) & shirq->mask;
 	pend >>= shirq->offset;
@@ -237,8 +233,6 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 		pend &= ~(0x1 << irq);
 		generic_handle_irq(shirq->virq_base + irq);
 	}
-
-	chip->irq_unmask(idata);
 }
 
 static void __init spear_shirq_register(struct spear_shirq *shirq,
