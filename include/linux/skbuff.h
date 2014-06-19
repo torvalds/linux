@@ -2659,10 +2659,13 @@ static inline int skb_copy_and_csum_datagram_msg(struct sk_buff *skb, int hlen,
 int skb_copy_datagram_from_iovec(struct sk_buff *skb, int offset,
 				 const struct iovec *from, int from_offset,
 				 int len);
+int skb_copy_datagram_from_iter(struct sk_buff *skb, int offset,
+				 struct iov_iter *from, int len);
 int zerocopy_sg_from_iovec(struct sk_buff *skb, const struct iovec *frm,
 			   int offset, size_t count);
 int skb_copy_datagram_iter(const struct sk_buff *from, int offset,
 			   struct iov_iter *to, int size);
+int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *frm);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb);
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb);
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags);
