@@ -604,6 +604,8 @@ static int init_render_ring(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = init_ring_common(ring);
+	if (ret)
+		return ret;
 
 	/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 	if (INTEL_INFO(dev)->gen >= 4 && INTEL_INFO(dev)->gen < 7)
