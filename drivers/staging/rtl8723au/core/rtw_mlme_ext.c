@@ -2544,7 +2544,7 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	unsigned char *mac, *bssid;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 #ifdef CONFIG_8723AU_AP_MODE
@@ -2564,6 +2564,9 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 
 	/* DBG_8723A("%s\n", __func__); */
 
+	if (cur_network->IELength > MAX_IE_SZ)
+		return;
+
 	pmgntframe = alloc_mgtxmitframe23a(pxmitpriv);
 	if (!pmgntframe) {
 		DBG_8723A("%s, alloc mgnt frame fail\n", __func__);
@@ -2577,28 +2580,35 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	memset(pmgntframe->buf_addr, 0, WLANHDR_OFFSET + TXDESC_OFFSET);
 
 	pframe = (u8 *)pmgntframe->buf_addr + TXDESC_OFFSET;
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
 	mac = myid(&padapter->eeprompriv);
 	bssid = cur_network->MacAddress;
 
-	pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					      IEEE80211_STYPE_PROBE_RESP);
+	mgmt->frame_control =
+		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
 
-	ether_addr_copy(pwlanhdr->addr1, da);
-	ether_addr_copy(pwlanhdr->addr2, mac);
-	ether_addr_copy(pwlanhdr->addr3, bssid);
+	ether_addr_copy(mgmt->da, da);
+	ether_addr_copy(mgmt->sa, mac);
+	ether_addr_copy(mgmt->bssid, bssid);
 
-	pwlanhdr->seq_ctrl =
-		cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
+	mgmt->seq_ctrl = cpu_to_le16(IEEE80211_SN_TO_SEQ(pmlmeext->mgnt_seq));
 	pmlmeext->mgnt_seq++;
 
 	pattrib->hdrlen = sizeof(struct ieee80211_hdr_3addr);
-	pattrib->pktlen = pattrib->hdrlen;
-	pframe += pattrib->hdrlen;
 
-	if (cur_network->IELength > MAX_IE_SZ)
-		return;
+	/* timestamp will be inserted by hardware */
+	put_unaligned_le16(cur_network->beacon_interval,
+			   &mgmt->u.probe_resp.beacon_int);
+
+	put_unaligned_le16(cur_network->capability,
+			   &mgmt->u.probe_resp.capab_info);
+
+	pframe = mgmt->u.probe_resp.variable;
+	pattrib->pktlen =
+		offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+
+	/* below for ad-hoc mode */
 
 #ifdef CONFIG_8723AU_AP_MODE
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
@@ -2682,29 +2692,6 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	} else
 #endif
 	{
-
-		/* timestamp will be inserted by hardware */
-		pframe += 8;
-		pattrib->pktlen += 8;
-
-		/*  beacon interval: 2 bytes */
-
-		memcpy(pframe, (unsigned char *)
-		       rtw_get_beacon_interval23a_from_ie(cur_network->IEs), 2);
-
-		pframe += 2;
-		pattrib->pktlen += 2;
-
-		/*  capability info: 2 bytes */
-
-		memcpy(pframe, (unsigned char *)
-		       rtw_get_capability23a_from_ie(cur_network->IEs), 2);
-
-		pframe += 2;
-		pattrib->pktlen += 2;
-
-		/* below for ad-hoc mode */
-
 		/*  SSID */
 		pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
 				       cur_network->Ssid.ssid_len,
