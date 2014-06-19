@@ -224,6 +224,7 @@ config INT340X_THERMAL
 	depends on X86 && ACPI
 	select THERMAL_GOV_USER_SPACE
 	select ACPI_THERMAL_REL
+	select ACPI_FAN
 	help
 	  Newer laptops and tablets that use ACPI may have thermal sensors and
 	  other devices with thermal control capabilities outside the core
