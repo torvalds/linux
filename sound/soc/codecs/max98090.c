@@ -26,10 +26,6 @@
 #include <sound/max98090.h>
 #include "max98090.h"
 
-#define DEBUG
-#define EXTMIC_METHOD
-#define EXTMIC_METHOD_TEST
-
 /* Allows for sparsely populated register maps */
 static struct reg_default max98090_reg[] = {
 	{ 0x00, 0x00 }, /* 00 Software Reset */
@@ -820,7 +816,6 @@ static int max98090_micinput_event(struct snd_soc_dapm_widget *w,
 	else
 		val = (val & M98090_MIC_PA2EN_MASK) >> M98090_MIC_PA2EN_SHIFT;
 
-
 	if (val >= 1) {
 		if (w->reg == M98090_REG_MIC1_INPUT_LEVEL) {
 			max98090->pa1en = val - 1; /* Update for volatile */
@@ -1140,7 +1135,6 @@ static const struct snd_kcontrol_new max98090_mixhprsel_mux =
 	SOC_DAPM_ENUM("MIXHPRSEL Mux", mixhprsel_mux_enum);
 
 static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
-
 	SND_SOC_DAPM_INPUT("MIC1"),
 	SND_SOC_DAPM_INPUT("MIC2"),
 	SND_SOC_DAPM_INPUT("DMICL"),
@@ -1304,7 +1298,6 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
-
 	SND_SOC_DAPM_INPUT("DMIC3"),
 	SND_SOC_DAPM_INPUT("DMIC4"),
 
@@ -1315,7 +1308,6 @@ static const struct snd_soc_dapm_widget max98091_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
-
 	{"MIC1 Input", NULL, "MIC1"},
 	{"MIC2 Input", NULL, "MIC2"},
 
@@ -1493,17 +1485,14 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"SPKR", NULL, "SPK Right Out"},
 	{"RCVL", NULL, "RCV Left Out"},
 	{"RCVR", NULL, "RCV Right Out"},
-
 };
 
 static const struct snd_soc_dapm_route max98091_dapm_routes[] = {
-
 	/* DMIC inputs */
 	{"DMIC3", NULL, "DMIC3_ENA"},
 	{"DMIC4", NULL, "DMIC4_ENA"},
 	{"DMIC3", NULL, "AHPF"},
 	{"DMIC4", NULL, "AHPF"},
-
 };
 
 static int max98090_add_widgets(struct snd_soc_codec *codec)
@@ -1531,7 +1520,6 @@ static int max98090_add_widgets(struct snd_soc_codec *codec)
 
 		snd_soc_dapm_add_routes(dapm, max98091_dapm_routes,
 			ARRAY_SIZE(max98091_dapm_routes));
-
 	}
 
 	return 0;
@@ -2221,7 +2209,6 @@ static void max98090_handle_pdata(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "No platform data\n");
 		return;
 	}
-
 }
 
 static int max98090_probe(struct snd_soc_codec *codec)
