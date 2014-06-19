@@ -2434,7 +2434,29 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	pframe += sizeof(struct ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
-	if ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE) {
+	/* below for ad-hoc mode */
+
+	/* timestamp will be inserted by hardware */
+	pframe += 8;
+	pattrib->pktlen += 8;
+
+	/*  beacon interval: 2 bytes */
+
+	memcpy(pframe, (unsigned char *)
+	       rtw_get_beacon_interval23a_from_ie(cur_network->IEs), 2);
+
+	pframe += 2;
+	pattrib->pktlen += 2;
+
+	/*  capability info: 2 bytes */
+
+	memcpy(pframe, (unsigned char *)
+	       rtw_get_capability23a_from_ie(cur_network->IEs), 2);
+
+	pframe += 2;
+	pattrib->pktlen += 2;
+
+	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		u8 *iebuf;
 		int buflen;
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
@@ -2467,28 +2489,6 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 
 		goto _issue_bcn;
 	}
-
-	/* below for ad-hoc mode */
-
-	/* timestamp will be inserted by hardware */
-	pframe += 8;
-	pattrib->pktlen += 8;
-
-	/*  beacon interval: 2 bytes */
-
-	memcpy(pframe, (unsigned char *)
-	       rtw_get_beacon_interval23a_from_ie(cur_network->IEs), 2);
-
-	pframe += 2;
-	pattrib->pktlen += 2;
-
-	/*  capability info: 2 bytes */
-
-	memcpy(pframe, (unsigned char *)
-	       rtw_get_capability23a_from_ie(cur_network->IEs), 2);
-
-	pframe += 2;
-	pattrib->pktlen += 2;
 
 	/*  SSID */
 	pframe = rtw_set_ie23a(pframe, WLAN_EID_SSID,
