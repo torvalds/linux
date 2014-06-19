@@ -592,10 +592,6 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 
 	cma_id->context = isert_conn;
 	isert_conn->conn_cm_id = cma_id;
-	isert_conn->responder_resources = event->param.conn.responder_resources;
-	isert_conn->initiator_depth = event->param.conn.initiator_depth;
-	pr_debug("Using responder_resources: %u initiator_depth: %u\n",
-		 isert_conn->responder_resources, isert_conn->initiator_depth);
 
 	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
 					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
@@ -641,6 +637,12 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		ret = PTR_ERR(device);
 		goto out_rsp_dma_map;
 	}
+
+	/* Set max inflight RDMA READ requests */
+	isert_conn->initiator_depth = min_t(u8,
+				event->param.conn.initiator_depth,
+				device->dev_attr.max_qp_init_rd_atom);
+	pr_debug("Using initiator_depth: %u\n", isert_conn->initiator_depth);
 
 	isert_conn->conn_device = device;
 	isert_conn->conn_pd = ib_alloc_pd(isert_conn->conn_device->ib_device);
@@ -3067,7 +3069,6 @@ isert_rdma_accept(struct isert_conn *isert_conn)
 	int ret;
 
 	memset(&cp, 0, sizeof(struct rdma_conn_param));
-	cp.responder_resources = isert_conn->responder_resources;
 	cp.initiator_depth = isert_conn->initiator_depth;
 	cp.retry_count = 7;
 	cp.rnr_retry_count = 7;
