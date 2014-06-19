@@ -1958,6 +1958,43 @@ wdata_prepare_pages(struct cifs_writedata *wdata, unsigned int found_pages,
 	return nr_pages;
 }
 
+static int
+wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
+		 struct address_space *mapping, struct writeback_control *wbc)
+{
+	int rc = 0;
+	struct TCP_Server_Info *server;
+	unsigned int i;
+
+	wdata->sync_mode = wbc->sync_mode;
+	wdata->nr_pages = nr_pages;
+	wdata->offset = page_offset(wdata->pages[0]);
+	wdata->pagesz = PAGE_CACHE_SIZE;
+	wdata->tailsz = min(i_size_read(mapping->host) -
+			page_offset(wdata->pages[nr_pages - 1]),
+			(loff_t)PAGE_CACHE_SIZE);
+	wdata->bytes = ((nr_pages - 1) * PAGE_CACHE_SIZE) + wdata->tailsz;
+
+	do {
+		if (wdata->cfile != NULL)
+			cifsFileInfo_put(wdata->cfile);
+		wdata->cfile = find_writable_file(CIFS_I(mapping->host), false);
+		if (!wdata->cfile) {
+			cifs_dbg(VFS, "No writable handles for inode\n");
+			rc = -EBADF;
+			break;
+		}
+		wdata->pid = wdata->cfile->pid;
+		server = tlink_tcon(wdata->cfile->tlink)->ses->server;
+		rc = server->ops->async_writev(wdata, cifs_writedata_release);
+	} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
+
+	for (i = 0; i < nr_pages; ++i)
+		unlock_page(wdata->pages[i]);
+
+	return rc;
+}
+
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
@@ -1965,7 +2002,6 @@ static int cifs_writepages(struct address_space *mapping,
 	bool done = false, scanned = false, range_whole = false;
 	pgoff_t end, index;
 	struct cifs_writedata *wdata;
-	struct TCP_Server_Info *server;
 	int rc = 0;
 
 	/*
@@ -2032,35 +2068,7 @@ retry:
 			continue;
 		}
 
-		wdata->sync_mode = wbc->sync_mode;
-		wdata->nr_pages = nr_pages;
-		wdata->offset = page_offset(wdata->pages[0]);
-		wdata->pagesz = PAGE_CACHE_SIZE;
-		wdata->tailsz =
-			min(i_size_read(mapping->host) -
-			    page_offset(wdata->pages[nr_pages - 1]),
-			    (loff_t)PAGE_CACHE_SIZE);
-		wdata->bytes = ((nr_pages - 1) * PAGE_CACHE_SIZE) +
-					wdata->tailsz;
-
-		do {
-			if (wdata->cfile != NULL)
-				cifsFileInfo_put(wdata->cfile);
-			wdata->cfile = find_writable_file(CIFS_I(mapping->host),
-							  false);
-			if (!wdata->cfile) {
-				cifs_dbg(VFS, "No writable handles for inode\n");
-				rc = -EBADF;
-				break;
-			}
-			wdata->pid = wdata->cfile->pid;
-			server = tlink_tcon(wdata->cfile->tlink)->ses->server;
-			rc = server->ops->async_writev(wdata,
-							cifs_writedata_release);
-		} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
-
-		for (i = 0; i < nr_pages; ++i)
-			unlock_page(wdata->pages[i]);
+		rc = wdata_send_pages(wdata, nr_pages, mapping, wbc);
 
 		/* send failure -- clean up the mess */
 		if (rc != 0) {
