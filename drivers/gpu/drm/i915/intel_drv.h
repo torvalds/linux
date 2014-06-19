@@ -724,8 +724,33 @@ bool intel_has_pending_fb_unpin(struct drm_device *dev);
 int intel_pch_rawclk(struct drm_device *dev);
 int valleyview_cur_cdclk(struct drm_i915_private *dev_priv);
 void intel_mark_busy(struct drm_device *dev);
-void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
-			struct intel_engine_cs *ring);
+void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
+			     struct intel_engine_cs *ring);
+void intel_frontbuffer_flip_prepare(struct drm_device *dev,
+				    unsigned frontbuffer_bits);
+void intel_frontbuffer_flip_complete(struct drm_device *dev,
+				     unsigned frontbuffer_bits);
+void intel_frontbuffer_flush(struct drm_device *dev,
+			     unsigned frontbuffer_bits);
+/**
+ * intel_frontbuffer_flip - prepare frontbuffer flip
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called after scheduling a flip on @obj. This is for
+ * synchronous plane updates which will happen on the next vblank and which will
+ * not get delayed by pending gpu rendering.
+ *
+ * Can be called without any locks held.
+ */
+static inline
+void intel_frontbuffer_flip(struct drm_device *dev,
+			    unsigned frontbuffer_bits)
+{
+	intel_frontbuffer_flush(dev, frontbuffer_bits);
+}
+
+void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_update_dpms(struct drm_crtc *crtc);

@@ -787,6 +787,9 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	overlay->old_vid_bo = overlay->vid_bo;
 	overlay->vid_bo = new_bo;
 
+	intel_frontbuffer_flip(dev,
+			       INTEL_FRONTBUFFER_OVERLAY(pipe));
+
 	return 0;
 
 out_unpin:

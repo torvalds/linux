@@ -1034,6 +1034,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		else
 			intel_plane->disable_plane(plane, crtc);
 
+		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_SPRITE(pipe));
+
 		if (!primary_was_enabled && primary_enabled)
 			intel_post_enable_primary(crtc);
 	}
@@ -1053,8 +1055,6 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		intel_unpin_fb_obj(old_obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
-
-	intel_edp_psr_exit(dev);
 
 	return 0;
 }

@@ -1395,8 +1395,6 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
-	intel_edp_psr_exit(dev);
-
 	/* Try to flush the object off the GPU without holding the lock.
 	 * We will repeat the flush holding the lock in the normal manner
 	 * to catch cases where we are gazumped.
@@ -1441,8 +1439,6 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
-
-	intel_edp_psr_exit(dev);
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -2222,6 +2218,8 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 		if (vma && !list_empty(&vma->mm_list))
 			list_move_tail(&vma->mm_list, &vm->inactive_list);
 	}
+
+	intel_fb_obj_flush(obj, true);
 
 	list_del_init(&obj->ring_list);
 	obj->ring = NULL;
@@ -3552,6 +3550,8 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
+	intel_fb_obj_flush(obj, false);
+
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
 					    old_write_domain);
@@ -3572,6 +3572,8 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj,
 
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
+
+	intel_fb_obj_flush(obj, false);
 
 	trace_i915_gem_object_change_domain(obj,
 					    obj->base.read_domains,
@@ -3625,6 +3627,9 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.write_domain = I915_GEM_DOMAIN_GTT;
 		obj->dirty = 1;
 	}
+
+	if (write)
+		intel_fb_obj_invalidate(obj, NULL);
 
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
@@ -3962,6 +3967,9 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 		obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	}
 
+	if (write)
+		intel_fb_obj_invalidate(obj, NULL);
+
 	trace_i915_gem_object_change_domain(obj,
 					    old_read_domains,
 					    old_write_domain);
@@ -4235,8 +4243,6 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
-
-	intel_edp_psr_exit(dev);
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
 	if (&obj->base == NULL) {
@@ -4937,6 +4943,8 @@ i915_gem_load(struct drm_device *dev)
 
 	dev_priv->mm.oom_notifier.notifier_call = i915_gem_shrinker_oom;
 	register_oom_notifier(&dev_priv->mm.oom_notifier);
+
+	mutex_init(&dev_priv->fb_tracking.lock);
 }
 
 void i915_gem_release(struct drm_device *dev, struct drm_file *file)

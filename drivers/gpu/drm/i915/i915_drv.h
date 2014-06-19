@@ -1330,6 +1330,17 @@ struct intel_pipe_crc {
 	wait_queue_head_t wq;
 };
 
+struct i915_frontbuffer_tracking {
+	struct mutex lock;
+
+	/*
+	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
+	 * scheduled flips.
+	 */
+	unsigned busy_bits;
+	unsigned flip_bits;
+};
+
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -1476,6 +1487,9 @@ struct drm_i915_private {
 	bool lvds_downclock_avail;
 	/* indicates the reduced downclock for LVDS*/
 	int lvds_downclock;
+
+	struct i915_frontbuffer_tracking fb_tracking;
+
 	u16 orig_clock;
 
 	bool mchbar_need_disable;

@@ -975,10 +975,8 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
 			obj->last_write_seqno = intel_ring_get_seqno(ring);
-			/* check for potential scanout */
-			if (i915_gem_obj_ggtt_bound(obj) &&
-			    i915_gem_obj_to_ggtt(obj)->pin_count)
-				intel_mark_fb_busy(obj, ring);
+
+			intel_fb_obj_invalidate(obj, ring);
 
 			/* update for the implicit flush after a batch */
 			obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;

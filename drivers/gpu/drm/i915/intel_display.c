@@ -2756,6 +2756,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	dev_priv->display.update_primary_plane(crtc, fb, x, y);
 
+	if (intel_crtc->active)
+		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
+
 	crtc->primary->fb = fb;
 	crtc->x = x;
 	crtc->y = y;
@@ -3950,6 +3953,13 @@ static void intel_crtc_enable_planes(struct drm_crtc *crtc)
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * FIXME: Once we grow proper nuclear flip support out of this we need
+	 * to compute the mask of flip planes precisely. For the time being
+	 * consider this a flip from a NULL plane.
+	 */
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 }
 
 static void intel_crtc_disable_planes(struct drm_crtc *crtc)
@@ -3971,6 +3981,13 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc)
 	intel_crtc_update_cursor(crtc, false);
 	intel_disable_planes(crtc);
 	intel_disable_primary_hw_plane(dev_priv, plane, pipe);
+
+	/*
+	 * FIXME: Once we grow proper nuclear flip support out of this we need
+	 * to compute the mask of flip planes precisely. For the time being
+	 * consider this a flip to a NULL plane.
+	 */
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_ALL_MASK(pipe));
 
 	drm_vblank_off(dev, pipe);
 }
@@ -8212,6 +8229,8 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
 	}
 
+	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
+
 	return 0;
 fail_unpin:
 	i915_gem_object_unpin_from_display_plane(obj);
@@ -8827,26 +8846,176 @@ out:
 }
 
 
-void intel_mark_fb_busy(struct drm_i915_gem_object *obj,
-			struct intel_engine_cs *ring)
+/**
+ * intel_mark_fb_busy - mark given planes as busy
+ * @dev: DRM device
+ * @frontbuffer_bits: bits for the affected planes
+ * @ring: optional ring for asynchronous commands
+ *
+ * This function gets called every time the screen contents change. It can be
+ * used to keep e.g. the update rate at the nominal refresh rate with DRRS.
+ */
+static void intel_mark_fb_busy(struct drm_device *dev,
+			       unsigned frontbuffer_bits,
+			       struct intel_engine_cs *ring)
 {
-	struct drm_device *dev = obj->base.dev;
 	enum pipe pipe;
-
-	intel_edp_psr_exit(dev);
 
 	if (!i915.powersave)
 		return;
 
 	for_each_pipe(pipe) {
-		if (!(obj->frontbuffer_bits &
-		      INTEL_FRONTBUFFER_ALL_MASK(pipe)))
+		if (!(frontbuffer_bits & INTEL_FRONTBUFFER_ALL_MASK(pipe)))
 			continue;
 
 		intel_increase_pllclock(dev, pipe);
 		if (ring && intel_fbc_enabled(dev))
 			ring->fbc_dirty = true;
 	}
+}
+
+/**
+ * intel_fb_obj_invalidate - invalidate frontbuffer object
+ * @obj: GEM object to invalidate
+ * @ring: set for asynchronous rendering
+ *
+ * This function gets called every time rendering on the given object starts and
+ * frontbuffer caching (fbc, low refresh rate for DRRS, panel self refresh) must
+ * be invalidated. If @ring is non-NULL any subsequent invalidation will be delayed
+ * until the rendering completes or a flip on this frontbuffer plane is
+ * scheduled.
+ */
+void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
+			     struct intel_engine_cs *ring)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	if (!obj->frontbuffer_bits)
+		return;
+
+	if (ring) {
+		mutex_lock(&dev_priv->fb_tracking.lock);
+		dev_priv->fb_tracking.busy_bits
+			|= obj->frontbuffer_bits;
+		dev_priv->fb_tracking.flip_bits
+			&= ~obj->frontbuffer_bits;
+		mutex_unlock(&dev_priv->fb_tracking.lock);
+	}
+
+	intel_mark_fb_busy(dev, obj->frontbuffer_bits, ring);
+
+	intel_edp_psr_exit(dev);
+}
+
+/**
+ * intel_frontbuffer_flush - flush frontbuffer
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called every time rendering on the given planes has
+ * completed and frontbuffer caching can be started again. Flushes will get
+ * delayed if they're blocked by some oustanding asynchronous rendering.
+ *
+ * Can be called without any locks held.
+ */
+void intel_frontbuffer_flush(struct drm_device *dev,
+			     unsigned frontbuffer_bits)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Delay flushing when rings are still busy.*/
+	mutex_lock(&dev_priv->fb_tracking.lock);
+	frontbuffer_bits &= ~dev_priv->fb_tracking.busy_bits;
+	mutex_unlock(&dev_priv->fb_tracking.lock);
+
+	intel_mark_fb_busy(dev, frontbuffer_bits, NULL);
+
+	intel_edp_psr_exit(dev);
+}
+
+/**
+ * intel_fb_obj_flush - flush frontbuffer object
+ * @obj: GEM object to flush
+ * @retire: set when retiring asynchronous rendering
+ *
+ * This function gets called every time rendering on the given object has
+ * completed and frontbuffer caching can be started again. If @retire is true
+ * then any delayed flushes will be unblocked.
+ */
+void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
+			bool retire)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned frontbuffer_bits;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	if (!obj->frontbuffer_bits)
+		return;
+
+	frontbuffer_bits = obj->frontbuffer_bits;
+
+	if (retire) {
+		mutex_lock(&dev_priv->fb_tracking.lock);
+		/* Filter out new bits since rendering started. */
+		frontbuffer_bits &= dev_priv->fb_tracking.busy_bits;
+
+		dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
+		mutex_unlock(&dev_priv->fb_tracking.lock);
+	}
+
+	intel_frontbuffer_flush(dev, frontbuffer_bits);
+}
+
+/**
+ * intel_frontbuffer_flip_prepare - prepare asnychronous frontbuffer flip
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called after scheduling a flip on @obj. The actual
+ * frontbuffer flushing will be delayed until completion is signalled with
+ * intel_frontbuffer_flip_complete. If an invalidate happens in between this
+ * flush will be cancelled.
+ *
+ * Can be called without any locks held.
+ */
+void intel_frontbuffer_flip_prepare(struct drm_device *dev,
+				    unsigned frontbuffer_bits)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev_priv->fb_tracking.lock);
+	dev_priv->fb_tracking.flip_bits
+		|= frontbuffer_bits;
+	mutex_unlock(&dev_priv->fb_tracking.lock);
+}
+
+/**
+ * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flush
+ * @dev: DRM device
+ * @frontbuffer_bits: frontbuffer plane tracking bits
+ *
+ * This function gets called after the flip has been latched and will complete
+ * on the next vblank. It will execute the fush if it hasn't been cancalled yet.
+ *
+ * Can be called without any locks held.
+ */
+void intel_frontbuffer_flip_complete(struct drm_device *dev,
+				     unsigned frontbuffer_bits)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev_priv->fb_tracking.lock);
+	/* Mask any cancelled flips. */
+	frontbuffer_bits &= dev_priv->fb_tracking.flip_bits;
+	dev_priv->fb_tracking.flip_bits &= ~frontbuffer_bits;
+	mutex_unlock(&dev_priv->fb_tracking.lock);
+
+	intel_frontbuffer_flush(dev, frontbuffer_bits);
 }
 
 static void intel_crtc_destroy(struct drm_crtc *crtc)
@@ -8876,6 +9045,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	struct intel_unpin_work *work =
 		container_of(__work, struct intel_unpin_work, work);
 	struct drm_device *dev = work->crtc->dev;
+	enum pipe pipe = to_intel_crtc(work->crtc)->pipe;
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(work->old_fb_obj);
@@ -8884,6 +9054,8 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_frontbuffer_flip_complete(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
 
 	BUG_ON(atomic_read(&to_intel_crtc(work->crtc)->unpin_work_count) == 0);
 	atomic_dec(&to_intel_crtc(work->crtc)->unpin_work_count);
@@ -9441,9 +9613,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (work == NULL)
 		return -ENOMEM;
 
-	/* Exit PSR early in page flip */
-	intel_edp_psr_exit(dev);
-
 	work->event = event;
 	work->crtc = crtc;
 	work->old_fb_obj = to_intel_framebuffer(old_fb)->obj;
@@ -9519,7 +9688,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 			  INTEL_FRONTBUFFER_PRIMARY(pipe));
 
 	intel_disable_fbc(dev);
-	intel_mark_fb_busy(obj, NULL);
+	intel_frontbuffer_flip_prepare(dev, INTEL_FRONTBUFFER_PRIMARY(pipe));
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
