@@ -683,6 +683,12 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
+	/**
+	 * Don't use devres here because the only device we have to get
+	 * against is the MFD device and DCVDD will likely be supplied by
+	 * one of its children. Meaning that the regulator will be
+	 * destroyed by the time devres calls regulator put.
+	 */
 	arizona->dcvdd = regulator_get(arizona->dev, "DCVDD");
 	if (IS_ERR(arizona->dcvdd)) {
 		ret = PTR_ERR(arizona->dcvdd);
