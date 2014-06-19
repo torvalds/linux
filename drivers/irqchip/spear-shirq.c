@@ -252,7 +252,7 @@ static int __init shirq_init(struct spear_shirq **shirq_blocks, int block_nr,
 		struct device_node *np)
 {
 	int i, irq_base, hwirq = 0, irq_nr = 0;
-	static struct irq_domain *shirq_domain;
+	struct irq_domain *shirq_domain;
 	void __iomem *base;
 
 	base = of_iomap(np, 0);
