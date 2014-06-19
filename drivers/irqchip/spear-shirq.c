@@ -224,23 +224,20 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 	struct spear_shirq *shirq = irq_get_handler_data(irq);
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(idata);
-	u32 i, j, val, mask;
+	u32 pend;
 
 	chip->irq_ack(idata);
 
-	mask = shirq->mask;
-	while ((val = readl(shirq->base + shirq->regs.status_reg) &
-				mask)) {
+	pend = readl(shirq->base + shirq->regs.status_reg) & shirq->mask;
+	pend >>= shirq->offset;
 
-		val >>= shirq->offset;
-		for (i = 0, j = 1; i < shirq->nr_irqs; i++, j <<= 1) {
+	while (pend) {
+		int irq = __ffs(pend);
 
-			if (!(j & val))
-				continue;
-
-			generic_handle_irq(shirq->virq_base + i);
-		}
+		pend &= ~(0x1 << irq);
+		generic_handle_irq(shirq->virq_base + irq);
 	}
+
 	chip->irq_unmask(idata);
 }
 
