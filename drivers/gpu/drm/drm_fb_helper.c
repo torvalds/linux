@@ -1056,7 +1056,6 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 	info->fix.ypanstep = 1; /* doing it in hw */
 	info->fix.ywrapstep = 0;
 	info->fix.accel = FB_ACCEL_NONE;
-	info->fix.type_aux = 0;
 
 	info->fix.line_length = pitch;
 	return;
