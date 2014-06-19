@@ -154,7 +154,7 @@ static irqreturn_t iio_bfin_tmr_trigger_isr(int irq, void *devid)
 	struct bfin_tmr_state *st = devid;
 
 	clear_gptimer_intr(st->t->id);
-	iio_trigger_poll(st->trig, 0);
+	iio_trigger_poll(st->trig);
 
 	return IRQ_HANDLED;
 }

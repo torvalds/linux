@@ -272,7 +272,7 @@ void handle_adc_eoc_trigger(int irq, struct iio_dev *idev)
 
 	if (iio_buffer_enabled(idev)) {
 		disable_irq_nosync(irq);
-		iio_trigger_poll(idev->trig, iio_get_time_ns());
+		iio_trigger_poll(idev->trig);
 	} else {
 		st->last_value = at91_adc_readl(st, AT91_ADC_LCDR);
 		st->done = true;

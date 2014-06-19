@@ -105,9 +105,8 @@ enum {
  * struct ad799x_chip_info - chip specific information
  * @channel:		channel specification
  * @num_channels:	number of channels
- * @monitor_mode:	whether the chip supports monitor interrupts
  * @default_config:	device default configuration
- * @event_attrs:	pointer to the monitor event attribute group
+ * @info:		pointer to iio_info struct
  */
 struct ad799x_chip_info {
 	struct iio_chan_spec		channel[9];
