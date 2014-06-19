@@ -69,6 +69,7 @@
 
 #define RSI_LMAC_CLOCK_80MHZ            0x1
 #define RSI_ENABLE_40MHZ                (0x1 << 3)
+#define ENABLE_SHORTGI_RATE		BIT(9)
 
 #define RX_BA_INDICATION                1
 #define RSI_TBL_SZ                      40
@@ -123,6 +124,20 @@
 #define BW_20MHZ                        0
 #define BW_40MHZ                        1
 
+#define EP_2GHZ_20MHZ			0
+#define EP_2GHZ_40MHZ			1
+#define EP_5GHZ_20MHZ			2
+#define EP_5GHZ_40MHZ			3
+
+#define SIFS_TX_11N_VALUE		580
+#define SIFS_TX_11B_VALUE		346
+#define SHORT_SLOT_VALUE		360
+#define LONG_SLOT_VALUE			640
+#define OFDM_ACK_TOUT_VALUE		2720
+#define CCK_ACK_TOUT_VALUE		9440
+#define LONG_PREAMBLE			0x0000
+#define SHORT_PREAMBLE			0x0001
+
 #define RSI_SUPP_FILTERS	(FIF_ALLMULTI | FIF_PROBE_REQ |\
 				 FIF_BCN_PRBRESP_PROMISC)
 enum opmode {
@@ -153,7 +168,7 @@ enum cmd_frame_type {
 	SCAN_REQUEST,
 	TSF_UPDATE,
 	PEER_NOTIFY,
-	BLOCK_UNBLOCK,
+	BLOCK_HW_QUEUE,
 	SET_KEY_REQ,
 	AUTO_RATE_IND,
 	BOOTUP_PARAMS_REQUEST,
@@ -238,6 +253,12 @@ struct rsi_radio_caps {
 	u8 num_11n_rates;
 	u8 num_11ac_rates;
 	__le16 gcpd_per_rate[20];
+	__le16 sifs_tx_11n;
+	__le16 sifs_tx_11b;
+	__le16 slot_rx_11n;
+	__le16 ofdm_ack_tout;
+	__le16 cck_ack_tout;
+	__le16 preamble_type;
 } __packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
@@ -272,6 +293,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common, u16 tid,
 int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
 		     u8 key_type, u8 key_id, u32 cipher);
 int rsi_set_channel(struct rsi_common *common, u16 chno);
+int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
 void rsi_inform_bss_status(struct rsi_common *common, u8 status,
 			   const u8 *bssid, u8 qos_enable, u16 aid);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
@@ -283,4 +305,5 @@ void rsi_core_qos_processor(struct rsi_common *common);
 void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_mgmt_pkt(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb);
+int rsi_band_check(struct rsi_common *common);
 #endif

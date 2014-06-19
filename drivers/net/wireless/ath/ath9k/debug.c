@@ -750,13 +750,13 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ieee80211_hw *hw = sc->hw;
 	struct ath9k_vif_iter_data iter_data;
+	struct ath_chanctx *ctx;
 	char buf[512];
 	unsigned int len = 0;
 	ssize_t retval = 0;
 	unsigned int reg;
-	u32 rxfilter;
+	u32 rxfilter, i;
 
 	len += scnprintf(buf + len, sizeof(buf) - len,
 			 "BSSID: %pM\n", common->curbssid);
@@ -826,14 +826,20 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	len += scnprintf(buf + len, sizeof(buf) - len, "\n");
 
-	ath9k_calculate_iter_data(hw, NULL, &iter_data);
+	i = 0;
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->assigned || list_empty(&ctx->vifs))
+			continue;
+		ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
-	len += scnprintf(buf + len, sizeof(buf) - len,
-			 "VIF-COUNTS: AP: %i STA: %i MESH: %i WDS: %i"
-			 " ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
-			 iter_data.naps, iter_data.nstations, iter_data.nmeshes,
-			 iter_data.nwds, iter_data.nadhocs,
-			 sc->nvifs, sc->nbcnvifs);
+		len += scnprintf(buf + len, sizeof(buf) - len,
+			"VIF-COUNTS: CTX %i AP: %i STA: %i MESH: %i WDS: %i",
+			i++, iter_data.naps, iter_data.nstations,
+			iter_data.nmeshes, iter_data.nwds);
+		len += scnprintf(buf + len, sizeof(buf) - len,
+			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			iter_data.nadhocs, sc->nvifs, sc->nbcnvifs);
+	}
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1080,7 +1086,7 @@ static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
 {
 	struct ath_softc *sc = file->private_data;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath9k_nfcal_hist *h = sc->caldata.nfCalHist;
+	struct ath9k_nfcal_hist *h = sc->cur_chan->caldata.nfCalHist;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	u32 len = 0, size = 1500;

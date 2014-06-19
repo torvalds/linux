@@ -209,7 +209,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
-	u8 signal, agc, sq;
+	u8 agc, sq, signal = 1;
 	dma_addr_t mapping;
 
 	while (count--) {
@@ -222,12 +222,20 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			struct rtl8187se_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* if ownership flag is set, then we can trust the
+			 * HW has written other fields. We must not trust
+			 * other descriptor data read before we checked (read)
+			 * the ownership flag
+			 */
+			rmb();
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		} else {
 			struct rtl8180_rx_desc *desc = entry;
 
 			flags = le32_to_cpu(desc->flags);
+			/* same as above */
+			rmb();
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		}
@@ -266,18 +274,21 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.rate_idx = (flags >> 20) & 0xF;
 			agc = (flags2 >> 17) & 0x7F;
 
-			if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185) {
+			switch (priv->chip_family) {
+			case RTL818X_CHIP_FAMILY_RTL8185:
 				if (rx_status.rate_idx > 3)
-					signal = 90 - clamp_t(u8, agc, 25, 90);
+					signal = -clamp_t(u8, agc, 25, 90) - 9;
 				else
-					signal = 95 - clamp_t(u8, agc, 30, 95);
-			} else if (priv->chip_family ==
-				   RTL818X_CHIP_FAMILY_RTL8180) {
+					signal = -clamp_t(u8, agc, 30, 95);
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8180:
 				sq = flags2 & 0xff;
 				signal = priv->rf->calc_rssi(agc, sq);
-			} else {
+				break;
+			case RTL818X_CHIP_FAMILY_RTL8187SE:
 				/* TODO: rtl8187se rssi */
 				signal = 10;
+				break;
 			}
 			rx_status.signal = signal;
 			rx_status.freq = dev->conf.chandef.chan->center_freq;
@@ -1751,8 +1762,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_UNSPEC;
+		IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->vif_data_size = sizeof(struct rtl8180_vif);
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					BIT(NL80211_IFTYPE_ADHOC);
@@ -1808,6 +1818,11 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		priv->band.n_bitrates = ARRAY_SIZE(rtl818x_rates);
 		pci_try_set_mwi(pdev);
 	}
+
+	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
+		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
+	else
+		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
 
 	rtl8180_eeprom_read(priv);
 

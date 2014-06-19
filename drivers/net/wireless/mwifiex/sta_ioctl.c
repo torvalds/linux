@@ -26,7 +26,7 @@
 #include "11n.h"
 #include "cfg80211.h"
 
-static int disconnect_on_suspend = 1;
+static int disconnect_on_suspend;
 module_param(disconnect_on_suspend, int, 0644);
 
 /*

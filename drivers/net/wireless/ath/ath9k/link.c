@@ -178,7 +178,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	txctl.txq = sc->tx.txq_map[IEEE80211_AC_BE];
 
 	memset(tx_info, 0, sizeof(*tx_info));
-	tx_info->band = hw->conf.chandef.chan->band;
+	tx_info->band = sc->cur_chandef.chan->band;
 	tx_info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	tx_info->control.rates[0].idx = 0;
 	tx_info->control.rates[0].count = 1;
@@ -416,7 +416,7 @@ void ath_start_ani(struct ath_softc *sc)
 
 	if (common->disable_ani ||
 	    !test_bit(ATH_OP_ANI_RUN, &common->op_flags) ||
-	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+	    sc->cur_chan->offchannel)
 		return;
 
 	common->ani.longcal_timer = timestamp;
@@ -440,7 +440,7 @@ void ath_check_ani(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_beacon_config *cur_conf = &sc->cur_beacon_conf;
+	struct ath_beacon_config *cur_conf = &sc->cur_chan->beacon;
 
 	/*
 	 * Check for the various conditions in which ANI has to

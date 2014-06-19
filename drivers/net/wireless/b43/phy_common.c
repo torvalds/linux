@@ -94,7 +94,13 @@ int b43_phy_init(struct b43_wldev *dev)
 	const struct b43_phy_operations *ops = phy->ops;
 	int err;
 
-	phy->channel = ops->get_default_chan(dev);
+	/* During PHY init we need to use some channel. On the first init this
+	 * function is called *before* b43_op_config, so our pointer is NULL.
+	 */
+	if (!phy->chandef) {
+		phy->chandef = &dev->wl->hw->conf.chandef;
+		phy->channel = phy->chandef->chan->hw_value;
+	}
 
 	phy->ops->switch_analog(dev, true);
 	b43_software_rfkill(dev, false);
@@ -106,9 +112,7 @@ int b43_phy_init(struct b43_wldev *dev)
 	}
 	phy->do_full_init = false;
 
-	/* Make sure to switch hardware and firmware (SHM) to
-	 * the default channel. */
-	err = b43_switch_channel(dev, ops->get_default_chan(dev));
+	err = b43_switch_channel(dev, phy->channel);
 	if (err) {
 		b43err(dev->wl, "PHY init: Channel switch to default failed\n");
 		goto err_phy_exit;
@@ -408,9 +412,6 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	u16 channelcookie, savedcookie;
 	int err;
 
-	if (new_channel == B43_DEFAULT_CHANNEL)
-		new_channel = phy->ops->get_default_chan(dev);
-
 	/* First we set the channel radio code to prevent the
 	 * firmware from sending ghost packets.
 	 */
@@ -428,7 +429,6 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	if (err)
 		goto err_restore_cookie;
 
-	dev->phy.channel = new_channel;
 	/* Wait for the radio to tune to the channel and stabilize. */
 	msleep(8);
 
@@ -547,10 +547,9 @@ void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 }
 
 
-bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
+bool b43_is_40mhz(struct b43_wldev *dev)
 {
-	return (channel_type == NL80211_CHAN_HT40MINUS ||
-		channel_type == NL80211_CHAN_HT40PLUS);
+	return dev->phy.chandef->width == NL80211_CHAN_WIDTH_40;
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
