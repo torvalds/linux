@@ -17,6 +17,7 @@
 #define _ASM_TILE_BITOPS_H
 
 #include <linux/types.h>
+#include <asm/barrier.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly

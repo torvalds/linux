@@ -411,7 +411,7 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	drvdata->mclk_sel = MCLK_ULPCLK;
 
 	/* Add controls */
-	ret = snd_soc_add_card_controls(codec->card, mop500_ab8500_ctrls,
+	ret = snd_soc_add_card_controls(rtd->card, mop500_ab8500_ctrls,
 			ARRAY_SIZE(mop500_ab8500_ctrls));
 	if (ret < 0) {
 		pr_err("%s: Failed to add machine-controls (%d)!\n",

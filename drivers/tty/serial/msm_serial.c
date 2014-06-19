@@ -52,7 +52,6 @@ struct msm_port {
 	struct clk		*clk;
 	struct clk		*pclk;
 	unsigned int		imr;
-	void __iomem		*gsbi_base;
 	int			is_uartdm;
 	unsigned int		old_snap_state;
 };
@@ -599,9 +598,7 @@ static const char *msm_type(struct uart_port *port)
 static void msm_release_port(struct uart_port *port)
 {
 	struct platform_device *pdev = to_platform_device(port->dev);
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	struct resource *uart_resource;
-	struct resource *gsbi_resource;
 	resource_size_t size;
 
 	uart_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -612,28 +609,12 @@ static void msm_release_port(struct uart_port *port)
 	release_mem_region(port->mapbase, size);
 	iounmap(port->membase);
 	port->membase = NULL;
-
-	if (msm_port->gsbi_base) {
-		writel_relaxed(GSBI_PROTOCOL_IDLE,
-				msm_port->gsbi_base + GSBI_CONTROL);
-
-		gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (unlikely(!gsbi_resource))
-			return;
-
-		size = resource_size(gsbi_resource);
-		release_mem_region(gsbi_resource->start, size);
-		iounmap(msm_port->gsbi_base);
-		msm_port->gsbi_base = NULL;
-	}
 }
 
 static int msm_request_port(struct uart_port *port)
 {
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	struct platform_device *pdev = to_platform_device(port->dev);
 	struct resource *uart_resource;
-	struct resource *gsbi_resource;
 	resource_size_t size;
 	int ret;
 
@@ -652,30 +633,8 @@ static int msm_request_port(struct uart_port *port)
 		goto fail_release_port;
 	}
 
-	gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	/* Is this a GSBI-based port? */
-	if (gsbi_resource) {
-		size = resource_size(gsbi_resource);
-
-		if (!request_mem_region(gsbi_resource->start, size,
-						 "msm_serial")) {
-			ret = -EBUSY;
-			goto fail_release_port_membase;
-		}
-
-		msm_port->gsbi_base = ioremap(gsbi_resource->start, size);
-		if (!msm_port->gsbi_base) {
-			ret = -EBUSY;
-			goto fail_release_gsbi;
-		}
-	}
-
 	return 0;
 
-fail_release_gsbi:
-	release_mem_region(gsbi_resource->start, size);
-fail_release_port_membase:
-	iounmap(port->membase);
 fail_release_port:
 	release_mem_region(port->mapbase, size);
 	return ret;
@@ -683,7 +642,6 @@ fail_release_port:
 
 static void msm_config_port(struct uart_port *port, int flags)
 {
-	struct msm_port *msm_port = UART_TO_MSM(port);
 	int ret;
 	if (flags & UART_CONFIG_TYPE) {
 		port->type = PORT_MSM;
@@ -691,9 +649,6 @@ static void msm_config_port(struct uart_port *port, int flags)
 		if (ret)
 			return;
 	}
-	if (msm_port->gsbi_base)
-		writel_relaxed(GSBI_PROTOCOL_UART,
-				msm_port->gsbi_base + GSBI_CONTROL);
 }
 
 static int msm_verify_port(struct uart_port *port, struct serial_struct *ser)
@@ -1110,6 +1065,7 @@ static struct of_device_id msm_match_table[] = {
 
 static struct platform_driver msm_platform_driver = {
 	.remove = msm_serial_remove,
+	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",
 		.owner = THIS_MODULE,
@@ -1125,7 +1081,7 @@ static int __init msm_serial_init(void)
 	if (unlikely(ret))
 		return ret;
 
-	ret = platform_driver_probe(&msm_platform_driver, msm_serial_probe);
+	ret = platform_driver_register(&msm_platform_driver);
 	if (unlikely(ret))
 		uart_unregister_driver(&msm_uart_driver);
 

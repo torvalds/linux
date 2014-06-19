@@ -285,7 +285,7 @@ int arizona_irq_init(struct arizona *arizona)
 				  IRQF_ONESHOT, -1, irq,
 				  &arizona->irq_chip);
 	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to add AOD IRQs: %d\n", ret);
+		dev_err(arizona->dev, "Failed to add main IRQs: %d\n", ret);
 		goto err_aod;
 	}
 

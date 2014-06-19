@@ -143,6 +143,7 @@ static void gr_seq_ep_show(struct seq_file *seq, struct gr_ep *ep)
 	seq_printf(seq, "  wedged = %d\n", ep->wedged);
 	seq_printf(seq, "  callback = %d\n", ep->callback);
 	seq_printf(seq, "  maxpacket = %d\n", ep->ep.maxpacket);
+	seq_printf(seq, "  maxpacket_limit = %d\n", ep->ep.maxpacket_limit);
 	seq_printf(seq, "  bytes_per_buffer = %d\n", ep->bytes_per_buffer);
 	if (mode == 1 || mode == 3)
 		seq_printf(seq, "  nt = %d\n",
@@ -1541,6 +1542,10 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	} else if (max == 0) {
 		dev_err(dev->dev, "Max payload cannot be set to 0\n");
 		return -EINVAL;
+	} else if (max > ep->ep.maxpacket_limit) {
+		dev_err(dev->dev, "Requested max payload %d > limit %d\n",
+			max, ep->ep.maxpacket_limit);
+		return -EINVAL;
 	}
 
 	spin_lock(&ep->dev->lock);
@@ -1679,7 +1684,7 @@ static int gr_queue_ext(struct usb_ep *_ep, struct usb_request *_req,
 	if (ep->is_in)
 		gr_dbgprint_request("EXTERN", ep, req);
 
-	ret = gr_queue(ep, req, gfp_flags);
+	ret = gr_queue(ep, req, GFP_ATOMIC);
 
 	spin_unlock(&ep->dev->lock);
 
@@ -1985,8 +1990,8 @@ static int gr_ep_init(struct gr_udc *dev, int num, int is_in, u32 maxplimit)
 	INIT_LIST_HEAD(&ep->queue);
 
 	if (num == 0) {
-		_req = gr_alloc_request(&ep->ep, GFP_KERNEL);
-		buf = devm_kzalloc(dev->dev, PAGE_SIZE, GFP_DMA | GFP_KERNEL);
+		_req = gr_alloc_request(&ep->ep, GFP_ATOMIC);
+		buf = devm_kzalloc(dev->dev, PAGE_SIZE, GFP_DMA | GFP_ATOMIC);
 		if (!_req || !buf) {
 			/* possible _req freed by gr_probe via gr_remove */
 			return -ENOMEM;
@@ -2020,9 +2025,7 @@ static int gr_udc_init(struct gr_udc *dev)
 	u32 dmactrl_val;
 	int i;
 	int ret = 0;
-	u32 *bufsizes;
 	u32 bufsize;
-	int len;
 
 	gr_set_address(dev, 0);
 
@@ -2033,19 +2036,17 @@ static int gr_udc_init(struct gr_udc *dev)
 	INIT_LIST_HEAD(&dev->ep_list);
 	gr_set_ep0state(dev, GR_EP0_DISCONNECT);
 
-	bufsizes = (u32 *)of_get_property(np, "epobufsizes", &len);
-	len /= sizeof(u32);
 	for (i = 0; i < dev->nepo; i++) {
-		bufsize = (bufsizes && i < len) ? bufsizes[i] : 1024;
+		if (of_property_read_u32_index(np, "epobufsizes", i, &bufsize))
+			bufsize = 1024;
 		ret = gr_ep_init(dev, i, 0, bufsize);
 		if (ret)
 			return ret;
 	}
 
-	bufsizes = (u32 *)of_get_property(np, "epibufsizes", &len);
-	len /= sizeof(u32);
 	for (i = 0; i < dev->nepi; i++) {
-		bufsize = (bufsizes && i < len) ? bufsizes[i] : 1024;
+		if (of_property_read_u32_index(np, "epibufsizes", i, &bufsize))
+			bufsize = 1024;
 		ret = gr_ep_init(dev, i, 1, bufsize);
 		if (ret)
 			return ret;
@@ -2065,9 +2066,9 @@ static int gr_udc_init(struct gr_udc *dev)
 	return 0;
 }
 
-static int gr_remove(struct platform_device *ofdev)
+static int gr_remove(struct platform_device *pdev)
 {
-	struct gr_udc *dev = dev_get_drvdata(&ofdev->dev);
+	struct gr_udc *dev = platform_get_drvdata(pdev);
 
 	if (dev->added)
 		usb_del_gadget_udc(&dev->gadget); /* Shuts everything down */
@@ -2077,7 +2078,7 @@ static int gr_remove(struct platform_device *ofdev)
 	gr_dfs_delete(dev);
 	if (dev->desc_pool)
 		dma_pool_destroy(dev->desc_pool);
-	dev_set_drvdata(&ofdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	gr_free_request(&dev->epi[0].ep, &dev->ep0reqi->req);
 	gr_free_request(&dev->epo[0].ep, &dev->ep0reqo->req);
@@ -2090,7 +2091,7 @@ static int gr_request_irq(struct gr_udc *dev, int irq)
 					 IRQF_SHARED, driver_name, dev);
 }
 
-static int gr_probe(struct platform_device *ofdev)
+static int gr_probe(struct platform_device *pdev)
 {
 	struct gr_udc *dev;
 	struct resource *res;
@@ -2098,30 +2099,32 @@ static int gr_probe(struct platform_device *ofdev)
 	int retval;
 	u32 status;
 
-	dev = devm_kzalloc(&ofdev->dev, sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	dev->dev = &ofdev->dev;
+	dev->dev = &pdev->dev;
 
-	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev->dev, res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	dev->irq = irq_of_parse_and_map(dev->dev->of_node, 0);
-	if (!dev->irq) {
+	dev->irq = platform_get_irq(pdev, 0);
+	if (dev->irq <= 0) {
 		dev_err(dev->dev, "No irq found\n");
 		return -ENODEV;
 	}
 
 	/* Some core configurations has separate irqs for IN and OUT events */
-	dev->irqi = irq_of_parse_and_map(dev->dev->of_node, 1);
-	if (dev->irqi) {
-		dev->irqo = irq_of_parse_and_map(dev->dev->of_node, 2);
-		if (!dev->irqo) {
+	dev->irqi = platform_get_irq(pdev, 1);
+	if (dev->irqi > 0) {
+		dev->irqo = platform_get_irq(pdev, 2);
+		if (dev->irqo <= 0) {
 			dev_err(dev->dev, "Found irqi but not irqo\n");
 			return -ENODEV;
 		}
+	} else {
+		dev->irqi = 0;
 	}
 
 	dev->gadget.name = driver_name;
@@ -2132,7 +2135,7 @@ static int gr_probe(struct platform_device *ofdev)
 	spin_lock_init(&dev->lock);
 	dev->regs = regs;
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	/* Determine number of endpoints and data interface mode */
 	status = gr_read32(&dev->regs->status);
@@ -2204,7 +2207,7 @@ out:
 	spin_unlock(&dev->lock);
 
 	if (retval)
-		gr_remove(ofdev);
+		gr_remove(pdev);
 
 	return retval;
 }

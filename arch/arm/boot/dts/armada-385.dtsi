@@ -21,6 +21,8 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "marvell,armada-380-smp";
+
 		cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
@@ -110,7 +112,7 @@
 			pcie@3,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
-				reg = <0x1000 0 0 0 0>;
+				reg = <0x1800 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;
@@ -131,7 +133,7 @@
 			pcie@4,0 {
 				device_type = "pci";
 				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
-				reg = <0x1000 0 0 0 0>;
+				reg = <0x2000 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
 				#interrupt-cells = <1>;

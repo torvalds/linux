@@ -24,6 +24,14 @@
 	model = "Eukrea CPUIMX51";
 	compatible = "eukrea,mbimxsd51","eukrea,cpuimx51", "fsl,imx51";
 
+	clocks {
+		clk24M: can_clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -50,12 +58,43 @@
 		};
 	};
 
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_can: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "CAN_RST";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio4 15 GPIO_ACTIVE_HIGH>;
+			startup-delay-us = <20000>;
+			enable-active-high;
+		};
+	};
+
 	sound {
 		compatible = "eukrea,asoc-tlv320";
 		eukrea,model = "imx51-eukrea-tlv320aic23";
 		ssi-controller = <&ssi2>;
 		fsl,mux-int-port = <2>;
 		fsl,mux-ext-port = <3>;
+	};
+
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usbh1phy: usbh1phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks IMX5_CLK_USB_PHY_GATE>;
+			clock-names = "main_clk";
+			clock-frequency = <19200000>;
+		};
 	};
 };
 
@@ -70,6 +109,26 @@
 	pinctrl-0 = <&pinctrl_esdhc1 &pinctrl_esdhc1_cd>;
 	fsl,cd-controller;
 	status = "okay";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	can0: can@0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_can>;
+		compatible = "microchip,mcp2515";
+		reg = <0>;
+		clocks = <&clk24M>;
+		spi-max-frequency = <10000000>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		vdd-supply = <&reg_can>;
+	};
 };
 
 &i2c1 {
@@ -87,6 +146,23 @@
 				MX51_PAD_AUD3_BB_RXD__AUD3_RXD		0x80000000
 				MX51_PAD_AUD3_BB_CK__AUD3_TXC		0x80000000
 				MX51_PAD_AUD3_BB_FS__AUD3_TXFS		0x80000000
+			>;
+		};
+
+
+		pinctrl_can: cangrp {
+			fsl,pins = <
+				MX51_PAD_CSI2_PIXCLK__GPIO4_15		0x80000000	/* nReset */
+				MX51_PAD_GPIO1_1__GPIO1_1		0x80000000	/* IRQ */
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX51_PAD_CSPI1_MISO__ECSPI1_MISO	0x185
+				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI	0x185
+				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK	0x185
+				MX51_PAD_CSPI1_SS0__GPIO4_24		0x80000000 	/* CS0 */
 			>;
 		};
 
@@ -151,6 +227,29 @@
 				MX51_PAD_CSI1_D9__GPIO3_13 0x1f5
 			>;
 		};
+
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX51_PAD_USBH1_CLK__USBH1_CLK     0x1e5
+				MX51_PAD_USBH1_DIR__USBH1_DIR     0x1e5
+				MX51_PAD_USBH1_NXT__USBH1_NXT     0x1e5
+				MX51_PAD_USBH1_DATA0__USBH1_DATA0 0x1e5
+				MX51_PAD_USBH1_DATA1__USBH1_DATA1 0x1e5
+				MX51_PAD_USBH1_DATA2__USBH1_DATA2 0x1e5
+				MX51_PAD_USBH1_DATA3__USBH1_DATA3 0x1e5
+				MX51_PAD_USBH1_DATA4__USBH1_DATA4 0x1e5
+				MX51_PAD_USBH1_DATA5__USBH1_DATA5 0x1e5
+				MX51_PAD_USBH1_DATA6__USBH1_DATA6 0x1e5
+				MX51_PAD_USBH1_DATA7__USBH1_DATA7 0x1e5
+				MX51_PAD_USBH1_STP__USBH1_STP     0x1e5
+			>;
+		};
+
+		pinctrl_usbh1_vbus: usbh1-vbusgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_CS3__GPIO2_28 0x1f5
+			>;
+		};
 	};
 };
 
@@ -172,4 +271,25 @@
 	pinctrl-0 = <&pinctrl_uart3 &pinctrl_uart3_rtscts>;
 	fsl,uart-has-rtscts;
 	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	fsl,usbphy = <&usbh1phy>;
+	dr_mode = "host";
+	phy_type = "ulpi";
+	status = "okay";
+};
+
+&usbotg {
+	dr_mode = "otg";
+	phy_type = "utmi_wide";
+	status = "okay";
+};
+
+&usbphy0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1_vbus>;
+	reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
 };

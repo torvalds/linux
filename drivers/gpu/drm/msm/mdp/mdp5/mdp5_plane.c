@@ -85,8 +85,11 @@ static int mdp5_plane_disable(struct drm_plane *plane)
 static void mdp5_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
+	struct msm_drm_private *priv = plane->dev->dev_private;
 
-	mdp5_plane_disable(plane);
+	if (priv->kms)
+		mdp5_plane_disable(plane);
+
 	drm_plane_cleanup(plane);
 
 	kfree(mdp5_plane);

@@ -266,7 +266,7 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_status status;
 	union acpi_object *obj;
-	u32 tmp;
+	u32 tmp = 0;
 
 	status = wmi_evaluate_method(ASUS_WMI_MGMT_GUID, 1, method_id,
 				     &input, &output);
@@ -277,8 +277,6 @@ static int asus_wmi_evaluate_method(u32 method_id, u32 arg0, u32 arg1,
 	obj = (union acpi_object *)output.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
 		tmp = (u32) obj->integer.value;
-	else
-		tmp = 0;
 
 	if (retval)
 		*retval = tmp;
@@ -642,8 +640,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 			dev = pci_scan_single_device(bus, 0);
 			if (dev) {
 				pci_bus_assign_resources(bus);
-				if (pci_bus_add_device(dev))
-					pr_err("Unable to hotplug wifi\n");
+				pci_bus_add_device(dev);
 			}
 		} else {
 			dev = pci_get_slot(bus, 0);

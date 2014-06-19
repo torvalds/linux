@@ -174,15 +174,21 @@ struct ufs_dev_cmd {
  * @irq: Irq number of the controller
  * @active_uic_cmd: handle of active UIC command
  * @uic_cmd_mutex: mutex for uic command
- * @ufshcd_tm_wait_queue: wait queue for task management
+ * @tm_wq: wait queue for task management
+ * @tm_tag_wq: wait queue for free task management slots
+ * @tm_slots_in_use: bit map of task management request slots in use
  * @pwr_done: completion for power mode change
  * @tm_condition: condition variable for task management
  * @ufshcd_state: UFSHCD states
+ * @eh_flags: Error handling flags
  * @intr_mask: Interrupt Mask Bits
  * @ee_ctrl_mask: Exception event control mask
- * @feh_workq: Work queue for fatal controller error handling
+ * @eh_work: Worker to handle UFS errors that require s/w attention
  * @eeh_work: Worker to handle exception events
  * @errors: HBA errors
+ * @uic_error: UFS interconnect layer error status
+ * @saved_err: sticky error mask
+ * @saved_uic_err: sticky UIC error mask
  * @dev_cmd: ufs device management command information
  * @auto_bkops_enabled: to track whether bkops is enabled in device
  */
@@ -217,21 +223,27 @@ struct ufs_hba {
 	struct uic_command *active_uic_cmd;
 	struct mutex uic_cmd_mutex;
 
-	wait_queue_head_t ufshcd_tm_wait_queue;
+	wait_queue_head_t tm_wq;
+	wait_queue_head_t tm_tag_wq;
 	unsigned long tm_condition;
+	unsigned long tm_slots_in_use;
 
 	struct completion *pwr_done;
 
 	u32 ufshcd_state;
+	u32 eh_flags;
 	u32 intr_mask;
 	u16 ee_ctrl_mask;
 
 	/* Work Queues */
-	struct work_struct feh_workq;
+	struct work_struct eh_work;
 	struct work_struct eeh_work;
 
 	/* HBA Errors */
 	u32 errors;
+	u32 uic_error;
+	u32 saved_err;
+	u32 saved_uic_err;
 
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
@@ -263,6 +275,8 @@ static inline void check_upiu_size(void)
 		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
 }
 
+extern int ufshcd_suspend(struct ufs_hba *hba, pm_message_t state);
+extern int ufshcd_resume(struct ufs_hba *hba);
 extern int ufshcd_runtime_suspend(struct ufs_hba *hba);
 extern int ufshcd_runtime_resume(struct ufs_hba *hba);
 extern int ufshcd_runtime_idle(struct ufs_hba *hba);

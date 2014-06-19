@@ -501,12 +501,17 @@ batadv_neigh_node_get(const struct batadv_orig_node *orig_node,
 static void batadv_orig_ifinfo_free_rcu(struct rcu_head *rcu)
 {
 	struct batadv_orig_ifinfo *orig_ifinfo;
+	struct batadv_neigh_node *router;
 
 	orig_ifinfo = container_of(rcu, struct batadv_orig_ifinfo, rcu);
 
 	if (orig_ifinfo->if_outgoing != BATADV_IF_DEFAULT)
 		batadv_hardif_free_ref_now(orig_ifinfo->if_outgoing);
 
+	/* this is the last reference to this object */
+	router = rcu_dereference_protected(orig_ifinfo->router, true);
+	if (router)
+		batadv_neigh_node_free_ref_now(router);
 	kfree(orig_ifinfo);
 }
 
@@ -702,6 +707,47 @@ free_orig_node:
 }
 
 /**
+ * batadv_purge_neigh_ifinfo - purge obsolete ifinfo entries from neighbor
+ * @bat_priv: the bat priv with all the soft interface information
+ * @neigh: orig node which is to be checked
+ */
+static void
+batadv_purge_neigh_ifinfo(struct batadv_priv *bat_priv,
+			  struct batadv_neigh_node *neigh)
+{
+	struct batadv_neigh_ifinfo *neigh_ifinfo;
+	struct batadv_hard_iface *if_outgoing;
+	struct hlist_node *node_tmp;
+
+	spin_lock_bh(&neigh->ifinfo_lock);
+
+	/* for all ifinfo objects for this neighinator */
+	hlist_for_each_entry_safe(neigh_ifinfo, node_tmp,
+				  &neigh->ifinfo_list, list) {
+		if_outgoing = neigh_ifinfo->if_outgoing;
+
+		/* always keep the default interface */
+		if (if_outgoing == BATADV_IF_DEFAULT)
+			continue;
+
+		/* don't purge if the interface is not (going) down */
+		if ((if_outgoing->if_status != BATADV_IF_INACTIVE) &&
+		    (if_outgoing->if_status != BATADV_IF_NOT_IN_USE) &&
+		    (if_outgoing->if_status != BATADV_IF_TO_BE_REMOVED))
+			continue;
+
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "neighbor/ifinfo purge: neighbor %pM, iface: %s\n",
+			   neigh->addr, if_outgoing->net_dev->name);
+
+		hlist_del_rcu(&neigh_ifinfo->list);
+		batadv_neigh_ifinfo_free_ref(neigh_ifinfo);
+	}
+
+	spin_unlock_bh(&neigh->ifinfo_lock);
+}
+
+/**
  * batadv_purge_orig_ifinfo - purge obsolete ifinfo entries from originator
  * @bat_priv: the bat priv with all the soft interface information
  * @orig_node: orig node which is to be checked
@@ -800,6 +846,11 @@ batadv_purge_orig_neighbors(struct batadv_priv *bat_priv,
 
 			hlist_del_rcu(&neigh_node->list);
 			batadv_neigh_node_free_ref(neigh_node);
+		} else {
+			/* only necessary if not the whole neighbor is to be
+			 * deleted, but some interface has been removed.
+			 */
+			batadv_purge_neigh_ifinfo(bat_priv, neigh_node);
 		}
 	}
 
@@ -857,7 +908,7 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 {
 	struct batadv_neigh_node *best_neigh_node;
 	struct batadv_hard_iface *hard_iface;
-	bool changed;
+	bool changed_ifinfo, changed_neigh;
 
 	if (batadv_has_timed_out(orig_node->last_seen,
 				 2 * BATADV_PURGE_TIMEOUT)) {
@@ -867,10 +918,10 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 			   jiffies_to_msecs(orig_node->last_seen));
 		return true;
 	}
-	changed = batadv_purge_orig_ifinfo(bat_priv, orig_node);
-	changed = changed || batadv_purge_orig_neighbors(bat_priv, orig_node);
+	changed_ifinfo = batadv_purge_orig_ifinfo(bat_priv, orig_node);
+	changed_neigh = batadv_purge_orig_neighbors(bat_priv, orig_node);
 
-	if (!changed)
+	if (!changed_ifinfo && !changed_neigh)
 		return false;
 
 	/* first for NULL ... */
@@ -1028,7 +1079,8 @@ int batadv_orig_hardif_seq_print_text(struct seq_file *seq, void *offset)
 	bat_priv->bat_algo_ops->bat_orig_print(bat_priv, seq, hard_iface);
 
 out:
-	batadv_hardif_free_ref(hard_iface);
+	if (hard_iface)
+		batadv_hardif_free_ref(hard_iface);
 	return 0;
 }
 

@@ -105,14 +105,36 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "func_12m_clk", "func_12m_clk"),
 	DT_CLK(NULL, "vtp_clk_div", "vtp_clk_div"),
 	DT_CLK(NULL, "usbphy_32khz_clkmux", "usbphy_32khz_clkmux"),
+	DT_CLK("48300200.ehrpwm", "tbclk", "ehrpwm0_tbclk"),
+	DT_CLK("48302200.ehrpwm", "tbclk", "ehrpwm1_tbclk"),
+	DT_CLK("48304200.ehrpwm", "tbclk", "ehrpwm2_tbclk"),
+	DT_CLK("48306200.ehrpwm", "tbclk", "ehrpwm3_tbclk"),
+	DT_CLK("48308200.ehrpwm", "tbclk", "ehrpwm4_tbclk"),
+	DT_CLK("4830a200.ehrpwm", "tbclk", "ehrpwm5_tbclk"),
 	{ .node_name = NULL },
 };
 
 int __init am43xx_dt_clk_init(void)
 {
+	struct clk *clk1, *clk2;
+
 	ti_dt_clocks_register(am43xx_clks);
 
 	omap2_clk_disable_autoidle_all();
+
+	/*
+	 * cpsw_cpts_rft_clk  has got the choice of 3 clocksources
+	 * dpll_core_m4_ck, dpll_core_m5_ck and dpll_disp_m2_ck.
+	 * By default dpll_core_m4_ck is selected, witn this as clock
+	 * source the CPTS doesnot work properly. It gives clockcheck errors
+	 * while running PTP.
+	 * clockcheck: clock jumped backward or running slower than expected!
+	 * By selecting dpll_core_m5_ck as the clocksource fixes this issue.
+	 * In AM335x dpll_core_m5_ck is the default clocksource.
+	 */
+	clk1 = clk_get_sys(NULL, "cpsw_cpts_rft_clk");
+	clk2 = clk_get_sys(NULL, "dpll_core_m5_ck");
+	clk_set_parent(clk1, clk2);
 
 	return 0;
 }

@@ -169,9 +169,31 @@ ENDPROC(cpu_pj4b_do_idle)
 	globl_equ	cpu_pj4b_do_idle,  	cpu_v7_do_idle
 #endif
 	globl_equ	cpu_pj4b_dcache_clean_area,	cpu_v7_dcache_clean_area
-	globl_equ	cpu_pj4b_do_suspend,	cpu_v7_do_suspend
-	globl_equ	cpu_pj4b_do_resume,	cpu_v7_do_resume
-	globl_equ	cpu_pj4b_suspend_size,	cpu_v7_suspend_size
+#ifdef CONFIG_ARM_CPU_SUSPEND
+ENTRY(cpu_pj4b_do_suspend)
+	stmfd	sp!, {r6 - r10}
+	mrc	p15, 1, r6, c15, c1, 0  @ save CP15 - extra features
+	mrc	p15, 1, r7, c15, c2, 0	@ save CP15 - Aux Func Modes Ctrl 0
+	mrc	p15, 1, r8, c15, c1, 2	@ save CP15 - Aux Debug Modes Ctrl 2
+	mrc	p15, 1, r9, c15, c1, 1  @ save CP15 - Aux Debug Modes Ctrl 1
+	mrc	p15, 0, r10, c9, c14, 0  @ save CP15 - PMC
+	stmia	r0!, {r6 - r10}
+	ldmfd	sp!, {r6 - r10}
+	b cpu_v7_do_suspend
+ENDPROC(cpu_pj4b_do_suspend)
+
+ENTRY(cpu_pj4b_do_resume)
+	ldmia	r0!, {r6 - r10}
+	mcr	p15, 1, r6, c15, c1, 0  @ save CP15 - extra features
+	mcr	p15, 1, r7, c15, c2, 0	@ save CP15 - Aux Func Modes Ctrl 0
+	mcr	p15, 1, r8, c15, c1, 2	@ save CP15 - Aux Debug Modes Ctrl 2
+	mcr	p15, 1, r9, c15, c1, 1  @ save CP15 - Aux Debug Modes Ctrl 1
+	mcr	p15, 0, r10, c9, c14, 0  @ save CP15 - PMC
+	b cpu_v7_do_resume
+ENDPROC(cpu_pj4b_do_resume)
+#endif
+.globl	cpu_pj4b_suspend_size
+.equ	cpu_pj4b_suspend_size, 4 * 14
 
 #endif
 
@@ -194,6 +216,7 @@ __v7_cr7mp_setup:
 __v7_ca7mp_setup:
 __v7_ca12mp_setup:
 __v7_ca15mp_setup:
+__v7_ca17mp_setup:
 	mov	r10, #0
 1:
 #ifdef CONFIG_SMP
@@ -503,6 +526,16 @@ __v7_ca15mp_proc_info:
 	.long	0xff0ffff0
 	__v7_proc __v7_ca15mp_setup
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
+
+	/*
+	 * ARM Ltd. Cortex A17 processor.
+	 */
+	.type	__v7_ca17mp_proc_info, #object
+__v7_ca17mp_proc_info:
+	.long	0x410fc0e0
+	.long	0xff0ffff0
+	__v7_proc __v7_ca17mp_setup
+	.size	__v7_ca17mp_proc_info, . - __v7_ca17mp_proc_info
 
 	/*
 	 * Qualcomm Inc. Krait processors.

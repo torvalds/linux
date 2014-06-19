@@ -213,7 +213,7 @@ static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)
 
 static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 {
-	int i;
+	struct cpufreq_frequency_table *pos;
 	struct acpi_processor_performance *perf;
 
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
@@ -223,10 +223,9 @@ static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 
 	perf = data->acpi_data;
 
-	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		if (msr == perf->states[data->freq_table[i].driver_data].status)
-			return data->freq_table[i].frequency;
-	}
+	cpufreq_for_each_entry(pos, data->freq_table)
+		if (msr == perf->states[pos->driver_data].status)
+			return pos->frequency;
 	return data->freq_table[0].frequency;
 }
 

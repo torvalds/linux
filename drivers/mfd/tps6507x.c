@@ -119,7 +119,7 @@ static const struct i2c_device_id tps6507x_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, tps6507x_i2c_id);
 
 #ifdef CONFIG_OF
-static struct of_device_id tps6507x_of_match[] = {
+static const struct of_device_id tps6507x_of_match[] = {
 	{.compatible = "ti,tps6507x", },
 	{},
 };

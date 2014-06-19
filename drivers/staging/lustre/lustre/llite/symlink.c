@@ -120,7 +120,7 @@ static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct inode *inode = dentry->d_inode;
 	struct ptlrpc_request *request = NULL;
 	int rc;
-	char *symname;
+	char *symname = NULL;
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	/* Limit the recursive symlink depth to 5 instead of default

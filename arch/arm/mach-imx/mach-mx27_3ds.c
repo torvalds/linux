@@ -544,7 +544,6 @@ MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
-	.handle_irq = imx27_handle_irq,
 	.init_time	= mx27pdk_timer_init,
 	.init_machine = mx27pdk_init,
 	.restart	= mxc_restart,

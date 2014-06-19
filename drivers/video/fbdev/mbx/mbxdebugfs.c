@@ -17,7 +17,7 @@ struct mbxfb_debugfs_data {
 
 static int open_file_generic(struct inode *inode, struct file *file)
 {
-	file->private_data = inode->u.generic_ip;
+	file->private_data = inode->i_private;
 	return 0;
 }
 

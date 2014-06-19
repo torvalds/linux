@@ -258,8 +258,8 @@ static void sym_check_prop(struct symbol *sym)
 				    "config symbol '%s' uses select, but is "
 				    "not boolean or tristate", sym->name);
 			else if (sym2->type != S_UNKNOWN &&
-			         sym2->type != S_BOOLEAN &&
-			         sym2->type != S_TRISTATE)
+				 sym2->type != S_BOOLEAN &&
+				 sym2->type != S_TRISTATE)
 				prop_warn(prop,
 				    "'%s' has wrong type. 'select' only "
 				    "accept arguments of boolean and "
@@ -268,7 +268,7 @@ static void sym_check_prop(struct symbol *sym)
 		case P_RANGE:
 			if (sym->type != S_INT && sym->type != S_HEX)
 				prop_warn(prop, "range is only allowed "
-				                "for int or hex symbols");
+						"for int or hex symbols");
 			if (!menu_validate_number(sym, prop->expr->left.sym) ||
 			    !menu_validate_number(sym, prop->expr->right.sym))
 				prop_warn(prop, "range is invalid");

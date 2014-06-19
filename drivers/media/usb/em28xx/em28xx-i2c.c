@@ -939,7 +939,6 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned bus,
 	dev->i2c_bus[bus].algo_type = algo_type;
 	dev->i2c_bus[bus].dev = dev;
 	dev->i2c_adap[bus].algo_data = &dev->i2c_bus[bus];
-	i2c_set_adapdata(&dev->i2c_adap[bus], &dev->v4l2_dev);
 
 	retval = i2c_add_adapter(&dev->i2c_adap[bus]);
 	if (retval < 0) {

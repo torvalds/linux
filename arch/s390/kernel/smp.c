@@ -170,6 +170,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE
 		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->cpu_nr = cpu;
+	lc->spinlock_lockval = arch_spin_lockval(cpu);
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
 		lc->extended_save_area_addr = get_zeroed_page(GFP_KERNEL);
@@ -226,6 +227,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
 	atomic_inc(&init_mm.context.attach_count);
 	lc->cpu_nr = cpu;
+	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -403,15 +405,6 @@ void smp_send_stop(void)
 }
 
 /*
- * Stop the current cpu.
- */
-void smp_stop_cpu(void)
-{
-	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
-	for (;;) ;
-}
-
-/*
  * This is the main routine where commands issued by other
  * cpus are handled.
  */
@@ -519,7 +512,7 @@ void smp_ctl_clear_bit(int cr, int bit)
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
 
-#if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_CRASH_DUMP)
+#ifdef CONFIG_CRASH_DUMP
 
 static void __init smp_get_save_area(int cpu, u16 address)
 {
@@ -534,14 +527,12 @@ static void __init smp_get_save_area(int cpu, u16 address)
 	save_area = dump_save_area_create(cpu);
 	if (!save_area)
 		panic("could not allocate memory for save area\n");
-#ifdef CONFIG_CRASH_DUMP
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
 		copy_oldmem_page(1, (void *) save_area, sizeof(*save_area),
 				 SAVE_AREA_BASE - PAGE_SIZE, 0);
 		return;
 	}
-#endif
 	/* Get the registers of a non-boot cpu. */
 	__pcpu_sigp_relax(address, SIGP_STOP_AND_STORE_STATUS, 0, NULL);
 	memcpy_real(save_area, lc + SAVE_AREA_BASE, sizeof(*save_area));
@@ -558,11 +549,11 @@ int smp_store_status(int cpu)
 	return 0;
 }
 
-#else /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
+#else /* CONFIG_CRASH_DUMP */
 
 static inline void smp_get_save_area(int cpu, u16 address) { }
 
-#endif /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
+#endif /* CONFIG_CRASH_DUMP */
 
 void smp_cpu_set_polarization(int cpu, int val)
 {
@@ -809,6 +800,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_setup_processor_id(void)
 {
 	S390_lowcore.cpu_nr = 0;
+	S390_lowcore.spinlock_lockval = arch_spin_lockval(0);
 }
 
 /*

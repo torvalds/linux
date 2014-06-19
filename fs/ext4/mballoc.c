@@ -1044,6 +1044,8 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 	 * allocating. If we are looking at the buddy cache we would
 	 * have taken a reference using ext4_mb_load_buddy and that
 	 * would have pinned buddy page to page cache.
+	 * The call to ext4_mb_get_buddy_page_lock will mark the
+	 * page accessed.
 	 */
 	ret = ext4_mb_get_buddy_page_lock(sb, group, &e4b);
 	if (ret || !EXT4_MB_GRP_NEED_INIT(this_grp)) {
@@ -1062,7 +1064,6 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 		ret = -EIO;
 		goto err;
 	}
-	mark_page_accessed(page);
 
 	if (e4b.bd_buddy_page == NULL) {
 		/*
@@ -1082,7 +1083,6 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 		ret = -EIO;
 		goto err;
 	}
-	mark_page_accessed(page);
 err:
 	ext4_mb_put_buddy_page_lock(&e4b);
 	return ret;
@@ -1141,7 +1141,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 
 	/* we could use find_or_create_page(), but it locks page
 	 * what we'd like to avoid in fast path ... */
-	page = find_get_page(inode->i_mapping, pnum);
+	page = find_get_page_flags(inode->i_mapping, pnum, FGP_ACCESSED);
 	if (page == NULL || !PageUptodate(page)) {
 		if (page)
 			/*
@@ -1176,15 +1176,16 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 		ret = -EIO;
 		goto err;
 	}
+
+	/* Pages marked accessed already */
 	e4b->bd_bitmap_page = page;
 	e4b->bd_bitmap = page_address(page) + (poff * sb->s_blocksize);
-	mark_page_accessed(page);
 
 	block++;
 	pnum = block / blocks_per_page;
 	poff = block % blocks_per_page;
 
-	page = find_get_page(inode->i_mapping, pnum);
+	page = find_get_page_flags(inode->i_mapping, pnum, FGP_ACCESSED);
 	if (page == NULL || !PageUptodate(page)) {
 		if (page)
 			page_cache_release(page);
@@ -1209,9 +1210,10 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 		ret = -EIO;
 		goto err;
 	}
+
+	/* Pages marked accessed already */
 	e4b->bd_buddy_page = page;
 	e4b->bd_buddy = page_address(page) + (poff * sb->s_blocksize);
-	mark_page_accessed(page);
 
 	BUG_ON(e4b->bd_bitmap_page == NULL);
 	BUG_ON(e4b->bd_buddy_page == NULL);
@@ -2617,7 +2619,7 @@ int ext4_mb_init(struct super_block *sb)
 	sbi->s_locality_groups = alloc_percpu(struct ext4_locality_group);
 	if (sbi->s_locality_groups == NULL) {
 		ret = -ENOMEM;
-		goto out_free_groupinfo_slab;
+		goto out;
 	}
 	for_each_possible_cpu(i) {
 		struct ext4_locality_group *lg;
@@ -2642,8 +2644,6 @@ int ext4_mb_init(struct super_block *sb)
 out_free_locality_groups:
 	free_percpu(sbi->s_locality_groups);
 	sbi->s_locality_groups = NULL;
-out_free_groupinfo_slab:
-	ext4_groupinfo_destroy_slabs();
 out:
 	kfree(sbi->s_mb_offsets);
 	sbi->s_mb_offsets = NULL;
@@ -2876,6 +2876,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	if (!bitmap_bh)
 		goto out_err;
 
+	BUFFER_TRACE(bitmap_bh, "getting write access");
 	err = ext4_journal_get_write_access(handle, bitmap_bh);
 	if (err)
 		goto out_err;
@@ -2888,6 +2889,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	ext4_debug("using block group %u(%d)\n", ac->ac_b_ex.fe_group,
 			ext4_free_group_clusters(sb, gdp));
 
+	BUFFER_TRACE(gdp_bh, "get_write_access");
 	err = ext4_journal_get_write_access(handle, gdp_bh);
 	if (err)
 		goto out_err;
@@ -3145,7 +3147,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	}
 	BUG_ON(start + size <= ac->ac_o_ex.fe_logical &&
 			start > ac->ac_o_ex.fe_logical);
-	BUG_ON(size <= 0 || size > EXT4_CLUSTERS_PER_GROUP(ac->ac_sb));
+	BUG_ON(size <= 0 || size > EXT4_BLOCKS_PER_GROUP(ac->ac_sb));
 
 	/* now prepare goal request */
 

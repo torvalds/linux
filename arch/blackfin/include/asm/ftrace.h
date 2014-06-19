@@ -66,16 +66,7 @@ extern inline void *return_address(unsigned int level)
 
 #endif /* CONFIG_FRAME_POINTER */
 
-#define HAVE_ARCH_CALLER_ADDR
-
-/* inline function or macro may lead to unexpected result */
-#define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
-#define CALLER_ADDR1 ((unsigned long)return_address(1))
-#define CALLER_ADDR2 ((unsigned long)return_address(2))
-#define CALLER_ADDR3 ((unsigned long)return_address(3))
-#define CALLER_ADDR4 ((unsigned long)return_address(4))
-#define CALLER_ADDR5 ((unsigned long)return_address(5))
-#define CALLER_ADDR6 ((unsigned long)return_address(6))
+#define ftrace_return_address(n) return_address(n)
 
 #endif /* __ASSEMBLY__ */
 

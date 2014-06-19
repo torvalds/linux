@@ -674,6 +674,8 @@ static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
 static int hdmi_enum_dv_timings(struct v4l2_subdev *sd,
 	struct v4l2_enum_dv_timings *timings)
 {
+	if (timings->pad != 0)
+		return -EINVAL;
 	if (timings->index >= ARRAY_SIZE(hdmi_timings))
 		return -EINVAL;
 	timings->timings = hdmi_timings[timings->index].dv_timings;
@@ -687,8 +689,11 @@ static int hdmi_dv_timings_cap(struct v4l2_subdev *sd,
 {
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 
+	if (cap->pad != 0)
+		return -EINVAL;
+
 	/* Let the phy fill in the pixelclock range */
-	v4l2_subdev_call(hdev->phy_sd, video, dv_timings_cap, cap);
+	v4l2_subdev_call(hdev->phy_sd, pad, dv_timings_cap, cap);
 	cap->type = V4L2_DV_BT_656_1120;
 	cap->bt.min_width = 720;
 	cap->bt.max_width = 1920;
@@ -707,10 +712,13 @@ static const struct v4l2_subdev_core_ops hdmi_sd_core_ops = {
 static const struct v4l2_subdev_video_ops hdmi_sd_video_ops = {
 	.s_dv_timings = hdmi_s_dv_timings,
 	.g_dv_timings = hdmi_g_dv_timings,
-	.enum_dv_timings = hdmi_enum_dv_timings,
-	.dv_timings_cap = hdmi_dv_timings_cap,
 	.g_mbus_fmt = hdmi_g_mbus_fmt,
 	.s_stream = hdmi_s_stream,
+};
+
+static const struct v4l2_subdev_pad_ops hdmi_sd_pad_ops = {
+	.enum_dv_timings = hdmi_enum_dv_timings,
+	.dv_timings_cap = hdmi_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_ops hdmi_sd_ops = {

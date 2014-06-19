@@ -71,31 +71,6 @@ static void mac_get_model(char *str);
 static void mac_identify(void);
 static void mac_report_hardware(void);
 
-#ifdef CONFIG_EARLY_PRINTK
-asmlinkage void __init mac_early_print(const char *s, unsigned n);
-
-static void __init mac_early_cons_write(struct console *con,
-                                 const char *s, unsigned n)
-{
-	mac_early_print(s, n);
-}
-
-static struct console __initdata mac_early_cons = {
-	.name  = "early",
-	.write = mac_early_cons_write,
-	.flags = CON_PRINTBUFFER | CON_BOOT,
-	.index = -1
-};
-
-int __init mac_unregister_early_cons(void)
-{
-	/* mac_early_print can't be used after init sections are discarded */
-	return unregister_console(&mac_early_cons);
-}
-
-late_initcall(mac_unregister_early_cons);
-#endif
-
 static void __init mac_sched_init(irq_handler_t vector)
 {
 	via_init_clock(vector);
@@ -188,10 +163,6 @@ void __init config_mac(void)
 	mach_max_dma_address = 0xffffffff;
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
 	mach_beep = mac_mksound;
-#endif
-
-#ifdef CONFIG_EARLY_PRINTK
-	register_console(&mac_early_cons);
 #endif
 
 	/*

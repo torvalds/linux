@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -61,6 +61,7 @@ static struct proc_dir_entry *
 	createProcDir(char *name, struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *p = proc_mkdir_mode(name, S_IFDIR, parent);
+
 	if (p == NULL)
 		ERRDRV("failed to create /proc directory %s", name);
 	return p;
@@ -196,6 +197,7 @@ void visor_easyproc_InitDevice(struct easyproc_driver_info *pdriver,
 {
 	if ((pdriver->ProcDeviceDir != NULL) && (p->procDevicexDir == NULL)) {
 		char s[29];
+
 		sprintf(s, "%d", devno);
 		p->procDevicexDir = createProcDir(s, pdriver->ProcDeviceDir);
 		p->devno = devno;
@@ -267,6 +269,7 @@ void visor_easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
 				 struct easyproc_device_info *p, int devno)
 {
 	size_t i;
+
 	for (i = 0; i < ARRAY_SIZE(p->device_property_info); i++) {
 		if (p->device_property_info[i].procEntry != NULL) {
 			struct easyproc_device_property_info *px =
@@ -281,6 +284,7 @@ void visor_easyproc_DeInitDevice(struct easyproc_driver_info *pdriver,
 	}
 	if (p->procDevicexDir != NULL) {
 		char s[29];
+
 		sprintf(s, "%d", devno);
 		remove_proc_entry(s, pdriver->ProcDeviceDir);
 		p->procDevicexDir = NULL;
@@ -334,6 +338,7 @@ static ssize_t proc_write_driver(struct file *file, const char __user *buffer,
 	struct seq_file *seq = (struct seq_file *)file->private_data;
 	struct easyproc_driver_info *p = NULL;
 	char local_buf[256];
+
 	if (seq == NULL)
 		return 0;
 	p = (struct easyproc_driver_info *)(seq->private);
@@ -356,6 +361,7 @@ static ssize_t proc_write_device(struct file *file, const char __user *buffer,
 	struct seq_file *seq = (struct seq_file *)file->private_data;
 	struct easyproc_device_info *p = NULL;
 	char local_buf[256];
+
 	if (seq == NULL)
 		return 0;
 	p = (struct easyproc_device_info *)(seq->private);

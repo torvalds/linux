@@ -282,6 +282,11 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	unsigned int *b_size;
 	unsigned int iv_len;
 
+	if (aad_size >= PAGE_SIZE) {
+		pr_err("associate data length (%u) too big\n", aad_size);
+		return;
+	}
+
 	if (enc == ENCRYPT)
 		e = "encryption";
 	else
@@ -308,14 +313,14 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
-		return;
+		goto out_notfm;
 	}
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
 		pr_err("alg: aead: Failed to allocate request for %s\n",
 		       algo);
-		goto out;
+		goto out_noreq;
 	}
 
 	i = 0;
@@ -323,14 +328,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 		b_size = aead_sizes;
 		do {
 			assoc = axbuf[0];
-
-			if (aad_size < PAGE_SIZE)
-				memset(assoc, 0xff, aad_size);
-			else {
-				pr_err("associate data length (%u) too big\n",
-					aad_size);
-				goto out_nosg;
-			}
+			memset(assoc, 0xff, aad_size);
 			sg_init_one(&asg[0], assoc, aad_size);
 
 			if ((*keysize + *b_size) > TVMEMSIZE * PAGE_SIZE) {
@@ -392,7 +390,10 @@ static void test_aead_speed(const char *algo, int enc, unsigned int sec,
 	} while (*keysize);
 
 out:
+	aead_request_free(req);
+out_noreq:
 	crypto_free_aead(tfm);
+out_notfm:
 	kfree(sg);
 out_nosg:
 	testmgr_free_buf(xoutbuf);
@@ -1518,7 +1519,36 @@ static int do_test(int m)
 	case 157:
 		ret += tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))");
 		break;
-
+	case 181:
+		ret += tcrypt_test("authenc(hmac(sha1),cbc(des))");
+		break;
+	case 182:
+		ret += tcrypt_test("authenc(hmac(sha1),cbc(des3_ede))");
+		break;
+	case 183:
+		ret += tcrypt_test("authenc(hmac(sha224),cbc(des))");
+		break;
+	case 184:
+		ret += tcrypt_test("authenc(hmac(sha224),cbc(des3_ede))");
+		break;
+	case 185:
+		ret += tcrypt_test("authenc(hmac(sha256),cbc(des))");
+		break;
+	case 186:
+		ret += tcrypt_test("authenc(hmac(sha256),cbc(des3_ede))");
+		break;
+	case 187:
+		ret += tcrypt_test("authenc(hmac(sha384),cbc(des))");
+		break;
+	case 188:
+		ret += tcrypt_test("authenc(hmac(sha384),cbc(des3_ede))");
+		break;
+	case 189:
+		ret += tcrypt_test("authenc(hmac(sha512),cbc(des))");
+		break;
+	case 190:
+		ret += tcrypt_test("authenc(hmac(sha512),cbc(des3_ede))");
+		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);

@@ -9,7 +9,6 @@
 
 
 #define PARMAREA		0x10400
-#define MEMORY_CHUNKS		256
 
 #ifndef __ASSEMBLY__
 
@@ -31,22 +30,11 @@
 #endif /* CONFIG_64BIT */
 #define COMMAND_LINE      ((char *)            (0x10480))
 
-#define CHUNK_READ_WRITE 0
-#define CHUNK_READ_ONLY  1
-
-struct mem_chunk {
-	unsigned long addr;
-	unsigned long size;
-	int type;
-};
-
-extern struct mem_chunk memory_chunk[];
 extern int memory_end_set;
 extern unsigned long memory_end;
+extern unsigned long max_physmem_end;
 
-void detect_memory_layout(struct mem_chunk chunk[], unsigned long maxsize);
-void create_mem_hole(struct mem_chunk mem_chunk[], unsigned long addr,
-		     unsigned long size);
+extern void detect_memory_memblock(void);
 
 /*
  * Machine features detected in head.S

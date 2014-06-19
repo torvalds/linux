@@ -309,11 +309,14 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	unsigned int dst_frame_status;
+	unsigned int dec_frame_status;
 	struct s5p_mfc_buf *src_buf;
 	unsigned long flags;
 	unsigned int res_change;
 
 	dst_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
+				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
+	dec_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dec_status, dev)
 				& S5P_FIMV_DEC_STATUS_DECODING_STATUS_MASK;
 	res_change = (s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
 				& S5P_FIMV_DEC_STATUS_RESOLUTION_MASK)
@@ -339,16 +342,23 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	/* All frames remaining in the buffer have been extracted  */
 	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_EMPTY) {
 		if (ctx->state == MFCINST_RES_CHANGE_FLUSH) {
+			static const struct v4l2_event ev_src_ch = {
+				.type = V4L2_EVENT_SOURCE_CHANGE,
+				.u.src_change.changes =
+					V4L2_EVENT_SRC_CH_RESOLUTION,
+			};
+
 			s5p_mfc_handle_frame_all_extracted(ctx);
 			ctx->state = MFCINST_RES_CHANGE_END;
+			v4l2_event_queue_fh(&ctx->fh, &ev_src_ch);
+
 			goto leave_handle_frame;
 		} else {
 			s5p_mfc_handle_frame_all_extracted(ctx);
 		}
 	}
 
-	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY ||
-		dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_ONLY)
+	if (dec_frame_status == S5P_FIMV_DEC_STATUS_DECODING_DISPLAY)
 		s5p_mfc_handle_frame_copy_time(ctx);
 
 	/* A frame has been decoded and is in the buffer  */
@@ -366,6 +376,7 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		ctx->consumed_stream += s5p_mfc_hw_call(dev->mfc_ops,
 						get_consumed_stream, dev);
 		if (ctx->codec_mode != S5P_MFC_CODEC_H264_DEC &&
+			ctx->codec_mode != S5P_MFC_CODEC_VP8_DEC &&
 			ctx->consumed_stream + STUFF_BYTE <
 			src_buf->b->v4l2_planes[0].bytesused) {
 			/* Run MFC again on the same buffer */
@@ -641,6 +652,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 	case S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET:
 		clear_work_bit(ctx);
+		ctx->inst_no = MFC_NO_INSTANCE_SET;
 		ctx->state = MFCINST_FREE;
 		wake_up(&ctx->queue);
 		goto irq_cleanup_hw;
@@ -761,7 +773,7 @@ static int s5p_mfc_open(struct file *file)
 		goto err_bad_node;
 	}
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
-	ctx->inst_no = -1;
+	ctx->inst_no = MFC_NO_INSTANCE_SET;
 	/* Load firmware if this is the first instance */
 	if (dev->num_inst == 1) {
 		dev->watchdog_timer.expires = jiffies +
@@ -871,29 +883,11 @@ static int s5p_mfc_release(struct file *file)
 	vb2_queue_release(&ctx->vq_dst);
 	/* Mark context as idle */
 	clear_work_bit_irqsave(ctx);
-	/* If instance was initialised then
+	/* If instance was initialised and not yet freed,
 	 * return instance and free resources */
-	if (ctx->inst_no != MFC_NO_INSTANCE_SET) {
+	if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
 		mfc_debug(2, "Has to free instance\n");
-		ctx->state = MFCINST_RETURN_INST;
-		set_work_bit_irqsave(ctx);
-		s5p_mfc_clean_ctx_int_flags(ctx);
-		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-		/* Wait until instance is returned or timeout occurred */
-		if (s5p_mfc_wait_for_done_ctx
-		    (ctx, S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET, 0)) {
-			s5p_mfc_clock_off();
-			mfc_err("Err returning instance\n");
-		}
-		mfc_debug(2, "After free instance\n");
-		/* Free resources */
-		s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers, ctx);
-		s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
-		if (ctx->type == MFCINST_DECODER)
-			s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer,
-					ctx);
-
-		ctx->inst_no = MFC_NO_INSTANCE_SET;
+		s5p_mfc_close_mfc_inst(dev, ctx);
 	}
 	/* hardware locking scheme */
 	if (dev->curr_ctx == ctx->num)
@@ -1207,6 +1201,7 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	/* Initialize HW ops and commands based on MFC version */
 	s5p_mfc_init_hw_ops(dev);
 	s5p_mfc_init_hw_cmds(dev);
+	s5p_mfc_init_regs(dev);
 
 	pr_debug("%s--\n", __func__);
 	return 0;
@@ -1352,6 +1347,7 @@ struct s5p_mfc_buf_align mfc_buf_align_v5 = {
 
 static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.version	= MFC_VERSION,
+	.version_bit	= MFC_V5_BIT,
 	.port_num	= MFC_NUM_PORTS,
 	.buf_size	= &buf_size_v5,
 	.buf_align	= &mfc_buf_align_v5,
@@ -1378,6 +1374,7 @@ struct s5p_mfc_buf_align mfc_buf_align_v6 = {
 
 static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.version	= MFC_VERSION_V6,
+	.version_bit	= MFC_V6_BIT,
 	.port_num	= MFC_NUM_PORTS_V6,
 	.buf_size	= &buf_size_v6,
 	.buf_align	= &mfc_buf_align_v6,
@@ -1404,10 +1401,38 @@ struct s5p_mfc_buf_align mfc_buf_align_v7 = {
 
 static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.version	= MFC_VERSION_V7,
+	.version_bit	= MFC_V7_BIT,
 	.port_num	= MFC_NUM_PORTS_V7,
 	.buf_size	= &buf_size_v7,
 	.buf_align	= &mfc_buf_align_v7,
 	.fw_name        = "s5p-mfc-v7.fw",
+};
+
+struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
+	.dev_ctx	= MFC_CTX_BUF_SIZE_V8,
+	.h264_dec_ctx	= MFC_H264_DEC_CTX_BUF_SIZE_V8,
+	.other_dec_ctx	= MFC_OTHER_DEC_CTX_BUF_SIZE_V8,
+	.h264_enc_ctx	= MFC_H264_ENC_CTX_BUF_SIZE_V8,
+	.other_enc_ctx	= MFC_OTHER_ENC_CTX_BUF_SIZE_V8,
+};
+
+struct s5p_mfc_buf_size buf_size_v8 = {
+	.fw	= MAX_FW_SIZE_V8,
+	.cpb	= MAX_CPB_SIZE_V8,
+	.priv	= &mfc_buf_size_v8,
+};
+
+struct s5p_mfc_buf_align mfc_buf_align_v8 = {
+	.base = 0,
+};
+
+static struct s5p_mfc_variant mfc_drvdata_v8 = {
+	.version	= MFC_VERSION_V8,
+	.version_bit	= MFC_V8_BIT,
+	.port_num	= MFC_NUM_PORTS_V8,
+	.buf_size	= &buf_size_v8,
+	.buf_align	= &mfc_buf_align_v8,
+	.fw_name        = "s5p-mfc-v8.fw",
 };
 
 static struct platform_device_id mfc_driver_ids[] = {
@@ -1423,6 +1448,9 @@ static struct platform_device_id mfc_driver_ids[] = {
 	}, {
 		.name = "s5p-mfc-v7",
 		.driver_data = (unsigned long)&mfc_drvdata_v7,
+	}, {
+		.name = "s5p-mfc-v8",
+		.driver_data = (unsigned long)&mfc_drvdata_v8,
 	},
 	{},
 };
@@ -1438,6 +1466,9 @@ static const struct of_device_id exynos_mfc_match[] = {
 	}, {
 		.compatible = "samsung,mfc-v7",
 		.data = &mfc_drvdata_v7,
+	}, {
+		.compatible = "samsung,mfc-v8",
+		.data = &mfc_drvdata_v8,
 	},
 	{},
 };

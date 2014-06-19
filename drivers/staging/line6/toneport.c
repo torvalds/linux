@@ -185,6 +185,7 @@ static int snd_toneport_monitor_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
+
 	ucontrol->value.integer.value[0] = line6pcm->volume_monitor;
 	return 0;
 }
@@ -213,6 +214,7 @@ static int snd_toneport_source_info(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_info *uinfo)
 {
 	const int size = ARRAY_SIZE(toneport_source_info);
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = size;
@@ -262,6 +264,7 @@ static void toneport_start_pcm(unsigned long arg)
 {
 	struct usb_line6_toneport *toneport = (struct usb_line6_toneport *)arg;
 	struct usb_line6 *line6 = &toneport->line6;
+
 	line6_pcm_acquire(line6->line6pcm, LINE6_BITS_PCM_MONITOR);
 }
 

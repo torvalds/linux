@@ -33,6 +33,7 @@
 #include <linux/mdio.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 
 #include <asm/irq.h>
 
@@ -614,8 +615,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	err = phy_init_hw(phydev);
 	if (err)
 		phy_detach(phydev);
-
-	phy_resume(phydev);
+	else
+		phy_resume(phydev);
 
 	return err;
 }
@@ -1067,14 +1068,11 @@ int genphy_soft_reset(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_soft_reset);
 
-static int genphy_config_init(struct phy_device *phydev)
+int genphy_config_init(struct phy_device *phydev)
 {
 	int val;
 	u32 features;
 
-	/* For now, I'll claim that the generic driver supports
-	 * all possible port types
-	 */
 	features = (SUPPORTED_TP | SUPPORTED_MII
 			| SUPPORTED_AUI | SUPPORTED_FIBRE |
 			SUPPORTED_BNC);
@@ -1107,8 +1105,8 @@ static int genphy_config_init(struct phy_device *phydev)
 			features |= SUPPORTED_1000baseT_Half;
 	}
 
-	phydev->supported = features;
-	phydev->advertising = features;
+	phydev->supported &= features;
+	phydev->advertising &= features;
 
 	return 0;
 }
@@ -1118,6 +1116,7 @@ static int gen10g_soft_reset(struct phy_device *phydev)
 	/* Do nothing for now */
 	return 0;
 }
+EXPORT_SYMBOL(genphy_config_init);
 
 static int gen10g_config_init(struct phy_device *phydev)
 {
@@ -1168,6 +1167,38 @@ static int gen10g_resume(struct phy_device *phydev)
 	return 0;
 }
 
+static void of_set_phy_supported(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->dev.of_node;
+	u32 max_speed;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return;
+
+	if (!node)
+		return;
+
+	if (!of_property_read_u32(node, "max-speed", &max_speed)) {
+		/* The default values for phydev->supported are provided by the PHY
+		 * driver "features" member, we want to reset to sane defaults fist
+		 * before supporting higher speeds.
+		 */
+		phydev->supported &= PHY_DEFAULT_FEATURES;
+
+		switch (max_speed) {
+		default:
+			return;
+
+		case SPEED_1000:
+			phydev->supported |= PHY_1000BT_FEATURES;
+		case SPEED_100:
+			phydev->supported |= PHY_100BT_FEATURES;
+		case SPEED_10:
+			phydev->supported |= PHY_10BT_FEATURES;
+		}
+	}
+}
+
 /**
  * phy_probe - probe and init a PHY device
  * @dev: device to probe and init
@@ -1202,7 +1233,8 @@ static int phy_probe(struct device *dev)
 	 * or both of these values
 	 */
 	phydev->supported = phydrv->features;
-	phydev->advertising = phydrv->features;
+	of_set_phy_supported(phydev);
+	phydev->advertising = phydev->supported;
 
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
@@ -1295,7 +1327,9 @@ static struct phy_driver genphy_driver[] = {
 	.name		= "Generic PHY",
 	.soft_reset	= genphy_soft_reset,
 	.config_init	= genphy_config_init,
-	.features	= 0,
+	.features	= PHY_GBIT_FEATURES | SUPPORTED_MII |
+			  SUPPORTED_AUI | SUPPORTED_FIBRE |
+			  SUPPORTED_BNC,
 	.config_aneg	= genphy_config_aneg,
 	.aneg_done	= genphy_aneg_done,
 	.read_status	= genphy_read_status,

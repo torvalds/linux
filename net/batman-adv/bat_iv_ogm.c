@@ -1545,6 +1545,8 @@ out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
 		batadv_orig_node_free_ref(orig_neigh_node);
 out:
+	if (router_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	if (router_router)

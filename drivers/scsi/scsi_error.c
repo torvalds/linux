@@ -1029,6 +1029,7 @@ retry:
 		rtn = NEEDS_RETRY;
 	} else {
 		timeleft = wait_for_completion_timeout(&done, timeout);
+		rtn = SUCCESS;
 	}
 
 	shost->eh_action = NULL;
@@ -1951,6 +1952,8 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	 */
 	req = blk_get_request(sdev->request_queue, READ, GFP_KERNEL);
 
+	blk_rq_set_block_pc(req);
+
 	req->cmd[0] = ALLOW_MEDIUM_REMOVAL;
 	req->cmd[1] = 0;
 	req->cmd[2] = 0;
@@ -1960,7 +1963,6 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 
 	req->cmd_len = COMMAND_SIZE(req->cmd[0]);
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->cmd_flags |= REQ_QUIET;
 	req->timeout = 10 * HZ;
 	req->retries = 5;
@@ -2306,6 +2308,12 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	}
 
 	scmd = scsi_get_command(dev, GFP_KERNEL);
+	if (!scmd) {
+		rtn = FAILED;
+		put_device(&dev->sdev_gendev);
+		goto out_put_autopm_host;
+	}
+
 	blk_rq_init(NULL, &req);
 	scmd->request = &req;
 

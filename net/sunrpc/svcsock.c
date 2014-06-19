@@ -400,6 +400,12 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	release_sock(sock->sk);
 #endif
 }
+
+static int svc_sock_secure_port(struct svc_rqst *rqstp)
+{
+	return svc_port_is_privileged(svc_addr(rqstp));
+}
+
 /*
  * INET callback when data has been received on the socket.
  */
@@ -678,6 +684,7 @@ static struct svc_xprt_ops svc_udp_ops = {
 	.xpo_prep_reply_hdr = svc_udp_prep_reply_hdr,
 	.xpo_has_wspace = svc_udp_has_wspace,
 	.xpo_accept = svc_udp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_udp_class = {
@@ -842,8 +849,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	 * tell us anything.  For now just warn about unpriv connections.
 	 */
 	if (!svc_port_is_privileged(sin)) {
-		dprintk(KERN_WARNING
-			"%s: connect from unprivileged port: %s\n",
+		dprintk("%s: connect from unprivileged port: %s\n",
 			serv->sv_name,
 			__svc_print_addr(sin, buf, sizeof(buf)));
 	}
@@ -867,6 +873,10 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
 
+	if (sock_is_loopback(newsock->sk))
+		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+	else
+		clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
@@ -1112,6 +1122,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
+	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];
@@ -1234,6 +1245,7 @@ static struct svc_xprt_ops svc_tcp_bc_ops = {
 	.xpo_detach = svc_bc_tcp_sock_detach,
 	.xpo_free = svc_bc_sock_free,
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_bc_class = {
@@ -1272,6 +1284,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
 	.xpo_accept = svc_tcp_accept,
+	.xpo_secure_port = svc_sock_secure_port,
 };
 
 static struct svc_xprt_class svc_tcp_class = {

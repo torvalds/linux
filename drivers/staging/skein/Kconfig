@@ -1,0 +1,32 @@
+config CRYPTO_SKEIN
+	bool "Skein digest algorithm"
+	depends on (X86 || UML_X86) && 64BIT && CRYPTO
+	select CRYPTO_THREEFISH
+	select CRYPTO_HASH
+	help
+	  Skein secure hash algorithm is one of 5 finalists from the NIST SHA3
+	  competition.
+
+	  Skein is optimized for modern, 64bit processors and is highly
+	  customizable.  See:
+
+	  http://www.skein-hash.info/sites/default/files/skein1.3.pdf
+
+	  for more information.  This module depends on the threefish block
+	  cipher module.
+
+config CRYPTO_THREEFISH
+	bool "Threefish tweakable block cipher"
+	depends on (X86 || UML_X86) && 64BIT && CRYPTO
+	select CRYPTO_ALGAPI
+	help
+	  Threefish cipher algorithm is the tweakable block cipher underneath
+	  the Skein family of secure hash algorithms.  Skein is one of 5
+	  finalists from the NIST SHA3 competition.
+
+	  Skein is optimized for modern, 64bit processors and is highly
+	  customizable.  See:
+
+	  http://www.skein-hash.info/sites/default/files/skein1.3.pdf
+
+	  for more information.

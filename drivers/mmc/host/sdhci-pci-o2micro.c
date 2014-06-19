@@ -21,6 +21,45 @@
 #include "sdhci-pci.h"
 #include "sdhci-pci-o2micro.h"
 
+static void o2_pci_set_baseclk(struct sdhci_pci_chip *chip, u32 value)
+{
+	u32 scratch_32;
+	pci_read_config_dword(chip->pdev,
+			      O2_SD_PLL_SETTING, &scratch_32);
+
+	scratch_32 &= 0x0000FFFF;
+	scratch_32 |= value;
+
+	pci_write_config_dword(chip->pdev,
+			       O2_SD_PLL_SETTING, scratch_32);
+}
+
+static void o2_pci_led_enable(struct sdhci_pci_chip *chip)
+{
+	int ret;
+	u32 scratch_32;
+
+	/* Set led of SD host function enable */
+	ret = pci_read_config_dword(chip->pdev,
+				    O2_SD_FUNC_REG0, &scratch_32);
+	if (ret)
+		return;
+
+	scratch_32 &= ~O2_SD_FREG0_LEDOFF;
+	pci_write_config_dword(chip->pdev,
+			       O2_SD_FUNC_REG0, scratch_32);
+
+	ret = pci_read_config_dword(chip->pdev,
+				    O2_SD_TEST_REG, &scratch_32);
+	if (ret)
+		return;
+
+	scratch_32 |= O2_SD_LED_ENABLE;
+	pci_write_config_dword(chip->pdev,
+			       O2_SD_TEST_REG, scratch_32);
+
+}
+
 void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 {
 	u32 scratch_32;
@@ -216,6 +255,40 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 		scratch &= 0x7f;
 		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
 
+		/* DevId=8520 subId= 0x11 or 0x12  Type Chip support */
+		if (chip->pdev->device == PCI_DEVICE_ID_O2_FUJIN2) {
+			ret = pci_read_config_dword(chip->pdev,
+						    O2_SD_FUNC_REG0,
+						    &scratch_32);
+			scratch_32 = ((scratch_32 & 0xFF000000) >> 24);
+
+			/* Check Whether subId is 0x11 or 0x12 */
+			if ((scratch_32 == 0x11) || (scratch_32 == 0x12)) {
+				scratch_32 = 0x2c280000;
+
+				/* Set Base Clock to 208MZ */
+				o2_pci_set_baseclk(chip, scratch_32);
+				ret = pci_read_config_dword(chip->pdev,
+							    O2_SD_FUNC_REG4,
+							    &scratch_32);
+
+				/* Enable Base Clk setting change */
+				scratch_32 |= O2_SD_FREG4_ENABLE_CLK_SET;
+				pci_write_config_dword(chip->pdev,
+						       O2_SD_FUNC_REG4,
+						       scratch_32);
+
+				/* Set Tuning Window to 4 */
+				pci_write_config_byte(chip->pdev,
+						      O2_SD_TUNING_CTRL, 0x44);
+
+				break;
+			}
+		}
+
+		/* Enable 8520 led function */
+		o2_pci_led_enable(chip);
+
 		/* Set timeout CLK */
 		ret = pci_read_config_dword(chip->pdev,
 					    O2_SD_CLK_SETTING, &scratch_32);
@@ -276,7 +349,7 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 		pci_write_config_byte(chip->pdev, O2_SD_LOCK_WP, scratch);
 
 		ret = pci_read_config_dword(chip->pdev,
-					    O2_SD_FUNC_REG0, &scratch_32);
+					    O2_SD_PLL_SETTING, &scratch_32);
 
 		if ((scratch_32 & 0xff000000) == 0x01000000) {
 			scratch_32 &= 0x0000FFFF;
@@ -299,6 +372,9 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 					       O2_SD_FUNC_REG4, scratch_32);
 		}
 
+		/* Set Tuning Windows to 5 */
+		pci_write_config_byte(chip->pdev,
+				O2_SD_TUNING_CTRL, 0x55);
 		/* Lock WP */
 		ret = pci_read_config_byte(chip->pdev,
 					   O2_SD_LOCK_WP, &scratch);

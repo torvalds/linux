@@ -1001,7 +1001,7 @@ static const struct tegra_slink_chip_data tegra20_spi_cdata = {
 	.cs_hold_time = false,
 };
 
-static struct of_device_id tegra_slink_of_match[] = {
+static const struct of_device_id tegra_slink_of_match[] = {
 	{ .compatible = "nvidia,tegra30-slink", .data = &tegra30_spi_cdata, },
 	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{}

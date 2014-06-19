@@ -1,4 +1,4 @@
-/* Copyright © 2010 - 2013 UNISYS CORPORATION
+/* Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,8 @@
 #ifndef __CHANNEL_H__
 #define __CHANNEL_H__
 
+#include <linux/uuid.h>
+
 /*
 * Whenever this file is changed a corresponding change must be made in
 * the Console/ServicePart/visordiag_early/supervisor_channel.h file
@@ -24,7 +26,7 @@
 */
 
 /* define the following to prevent include nesting in kernel header
- * files of similar abreviated content
+ * files of similar abbreviated content
  */
 #define __SUPERVISOR_CHANNEL_H__
 
@@ -45,19 +47,6 @@
 #ifndef COVER
 #define COVER(v, d)   ((d)*COVERQ(v, d))
 #endif
-
-#ifndef GUID0
-#define GUID0 {0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0} }
-#endif
-
-/*  The C language is inconsistent with respect to where it allows literal
- *  constants, especially literal constant structs.  Literal constant structs
- *  are allowed for initialization only, whereas other types of literal
- *  constants are allowed anywhere.  We get around this inconsistency by
- *  declaring a "static const" variable for each GUID.  This variable can be
- *  used in expressions where the literal constant would not be allowed.
- */
-static const GUID Guid0 = GUID0;
 
 #define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
 
@@ -226,13 +215,13 @@ typedef struct _CHANNEL_HEADER {
 	U32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
 	U64 Size;		/* Total size of this channel in bytes */
 	U64 Features;		/* Flags to modify behavior */
-	GUID Type;		/* Channel type: data, bus, control, etc. */
+	uuid_le Type;		/* Channel type: data, bus, control, etc. */
 	U64 PartitionHandle;	/* ID of guest partition */
 	U64 Handle;		/* Device number of this channel in client */
 	U64 oChannelSpace;	/* Offset in bytes to channel specific area */
 	U32 VersionId;		/* CHANNEL_HEADER Version ID */
 	U32 PartitionIndex;	/* Index of guest partition */
-	GUID ZoneGuid;		/* Guid of Channel's zone */
+	uuid_le ZoneGuid;		/* Guid of Channel's zone */
 	U32 oClientString;	/* offset from channel header to
 				 * nul-terminated ClientString (0 if
 				 * ClientString not present) */
@@ -320,17 +309,17 @@ typedef struct _SIGNAL_QUEUE_HEADER {
  */
 static inline int
 ULTRA_check_channel_client(void __iomem *pChannel,
-			   GUID expectedTypeGuid,
+			   uuid_le expectedTypeGuid,
 			   char *channelName,
 			   U64 expectedMinBytes,
 			   U32 expectedVersionId,
 			   U64 expectedSignature,
 			   char *fileName, int lineNumber, void *logCtx)
 {
-	if (MEMCMP(&expectedTypeGuid, &Guid0, sizeof(GUID)) != 0)
+	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0)
 		/* caller wants us to verify type GUID */
 		if (MEMCMP_IO(&(((CHANNEL_HEADER __iomem *) (pChannel))->Type),
-			   &expectedTypeGuid, sizeof(GUID)) != 0) {
+			   &expectedTypeGuid, sizeof(uuid_le)) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
 					      ((CHANNEL_HEADER __iomem *)
@@ -344,8 +333,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 			   (pChannel))->Size) < expectedMinBytes) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "size", expectedMinBytes,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->Size, fileName,
+					     readq(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->Size),
+					     fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}
@@ -355,9 +345,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 		    != expectedVersionId) {
 			CHANNEL_U32_MISMATCH(expectedTypeGuid, channelName,
 					     "version", expectedVersionId,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->VersionId, fileName,
-					     lineNumber, logCtx);
+					     readl(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->VersionId),
+					     fileName, lineNumber, logCtx);
 			return 0;
 		}
 	if (expectedSignature > 0)	/* caller wants us to verify
@@ -366,8 +356,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 		    != expectedSignature) {
 			CHANNEL_U64_MISMATCH(expectedTypeGuid, channelName,
 					     "signature", expectedSignature,
-					     ((CHANNEL_HEADER __iomem *)
-					      (pChannel))->Signature, fileName,
+					     readq(&((CHANNEL_HEADER __iomem *)
+						     (pChannel))->Signature),
+					     fileName,
 					     lineNumber, logCtx);
 			return 0;
 		}
@@ -380,7 +371,7 @@ ULTRA_check_channel_client(void __iomem *pChannel,
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-ULTRA_check_channel_server(GUID typeGuid,
+ULTRA_check_channel_server(uuid_le typeGuid,
 			   char *channelName,
 			   U64 expectedMinBytes,
 			   U64 actualBytes,

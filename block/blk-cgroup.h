@@ -145,7 +145,7 @@ void blkcg_drain_queue(struct request_queue *q);
 void blkcg_exit_queue(struct request_queue *q);
 
 /* Blkio controller policy registration */
-int blkcg_policy_register(struct blkcg_policy *pol);
+int __init blkcg_policy_register(struct blkcg_policy *pol);
 void blkcg_policy_unregister(struct blkcg_policy *pol);
 int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol);
@@ -204,7 +204,7 @@ static inline struct blkcg *bio_blkcg(struct bio *bio)
  */
 static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
 {
-	return css_to_blkcg(css_parent(&blkcg->css));
+	return css_to_blkcg(blkcg->css.parent);
 }
 
 /**
@@ -580,7 +580,7 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { ret
 static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
 static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }
-static inline int blkcg_policy_register(struct blkcg_policy *pol) { return 0; }
+static inline int __init blkcg_policy_register(struct blkcg_policy *pol) { return 0; }
 static inline void blkcg_policy_unregister(struct blkcg_policy *pol) { }
 static inline int blkcg_activate_policy(struct request_queue *q,
 					const struct blkcg_policy *pol) { return 0; }

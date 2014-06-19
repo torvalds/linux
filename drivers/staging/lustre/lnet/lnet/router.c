@@ -145,7 +145,7 @@ lnet_ni_notify_locked(lnet_ni_t *ni, lnet_peer_t *lp)
 	 * NB individual events can be missed; the only guarantee is that you
 	 * always get the most recent news */
 
-	if (lp->lp_notifying)
+	if (lp->lp_notifying || ni == NULL)
 		return;
 
 	lp->lp_notifying = 1;

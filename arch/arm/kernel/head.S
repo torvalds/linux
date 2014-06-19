@@ -475,7 +475,7 @@ ENDPROC(__turn_mmu_on)
 
 
 #ifdef CONFIG_SMP_ON_UP
-	__INIT
+	__HEAD
 __fixup_smp:
 	and	r3, r9, #0x000f0000	@ architecture version
 	teq	r3, #0x000f0000		@ CPU ID supported?

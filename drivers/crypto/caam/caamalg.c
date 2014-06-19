@@ -303,6 +303,7 @@ static int aead_null_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_NULL_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len <= CAAM_DESC_BYTES_MAX)
 		keys_fit_inline = true;
@@ -472,6 +473,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_DEC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
@@ -527,6 +529,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 * Job Descriptor and Shared Descriptors
 	 * must all fit into the 64-word Descriptor h/w Buffer
 	 */
+	keys_fit_inline = false;
 	if (DESC_AEAD_GIVENC_LEN + DESC_JOB_IO_LEN +
 	    ctx->split_key_pad_len + ctx->enckeylen <=
 	    CAAM_DESC_BYTES_MAX)
@@ -918,11 +921,8 @@ static void aead_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	edesc = (struct aead_edesc *)((char *)desc -
 		 offsetof(struct aead_edesc, hw_desc));
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	aead_unmap(jrdev, edesc, req);
 
@@ -969,11 +969,8 @@ static void aead_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 		       req->cryptlen - ctx->authsize, 1);
 #endif
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	aead_unmap(jrdev, edesc, req);
 
@@ -1018,11 +1015,8 @@ static void ablkcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	edesc = (struct ablkcipher_edesc *)((char *)desc -
 		 offsetof(struct ablkcipher_edesc, hw_desc));
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",
@@ -1053,11 +1047,8 @@ static void ablkcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 
 	edesc = (struct ablkcipher_edesc *)((char *)desc -
 		 offsetof(struct ablkcipher_edesc, hw_desc));
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "dstiv  @"__stringify(__LINE__)": ",

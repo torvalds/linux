@@ -62,7 +62,7 @@ static const struct lp3943_reg_cfg lp3943_mux_cfg[] = {
 	{ LP3943_REG_MUX3, 0xC0, 6 },
 };
 
-static struct mfd_cell lp3943_devs[] = {
+static const struct mfd_cell lp3943_devs[] = {
 	{
 		.name = "lp3943-pwm",
 		.of_compatible = "ti,lp3943-pwm",

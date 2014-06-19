@@ -79,6 +79,17 @@ static const struct enic_stat enic_rx_stats[] = {
 static const unsigned int enic_n_tx_stats = ARRAY_SIZE(enic_tx_stats);
 static const unsigned int enic_n_rx_stats = ARRAY_SIZE(enic_rx_stats);
 
+void enic_intr_coal_set_rx(struct enic *enic, u32 timer)
+{
+	int i;
+	int intr;
+
+	for (i = 0; i < enic->rq_count; i++) {
+		intr = enic_msix_rq_intr(enic, i);
+		vnic_intr_coalescing_timer_set(&enic->intr[intr], timer);
+	}
+}
+
 static int enic_get_settings(struct net_device *netdev,
 	struct ethtool_cmd *ecmd)
 {
@@ -93,8 +104,8 @@ static int enic_get_settings(struct net_device *netdev,
 		ethtool_cmd_speed_set(ecmd, vnic_dev_port_speed(enic->vdev));
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(ecmd, -1);
-		ecmd->duplex = -1;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 	}
 
 	ecmd->autoneg = AUTONEG_DISABLE;
@@ -178,9 +189,14 @@ static int enic_get_coalesce(struct net_device *netdev,
 	struct ethtool_coalesce *ecmd)
 {
 	struct enic *enic = netdev_priv(netdev);
+	struct enic_rx_coal *rxcoal = &enic->rx_coalesce_setting;
 
 	ecmd->tx_coalesce_usecs = enic->tx_coalesce_usecs;
 	ecmd->rx_coalesce_usecs = enic->rx_coalesce_usecs;
+	if (rxcoal->use_adaptive_rx_coalesce)
+		ecmd->use_adaptive_rx_coalesce = 1;
+	ecmd->rx_coalesce_usecs_low = rxcoal->small_pkt_range_start;
+	ecmd->rx_coalesce_usecs_high = rxcoal->range_end;
 
 	return 0;
 }
@@ -191,17 +207,31 @@ static int enic_set_coalesce(struct net_device *netdev,
 	struct enic *enic = netdev_priv(netdev);
 	u32 tx_coalesce_usecs;
 	u32 rx_coalesce_usecs;
+	u32 rx_coalesce_usecs_low;
+	u32 rx_coalesce_usecs_high;
+	u32 coalesce_usecs_max;
 	unsigned int i, intr;
+	struct enic_rx_coal *rxcoal = &enic->rx_coalesce_setting;
 
+	coalesce_usecs_max = vnic_dev_get_intr_coal_timer_max(enic->vdev);
 	tx_coalesce_usecs = min_t(u32, ecmd->tx_coalesce_usecs,
-		vnic_dev_get_intr_coal_timer_max(enic->vdev));
+				  coalesce_usecs_max);
 	rx_coalesce_usecs = min_t(u32, ecmd->rx_coalesce_usecs,
-		vnic_dev_get_intr_coal_timer_max(enic->vdev));
+				  coalesce_usecs_max);
+
+	rx_coalesce_usecs_low = min_t(u32, ecmd->rx_coalesce_usecs_low,
+				      coalesce_usecs_max);
+	rx_coalesce_usecs_high = min_t(u32, ecmd->rx_coalesce_usecs_high,
+				       coalesce_usecs_max);
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
 		if (tx_coalesce_usecs != rx_coalesce_usecs)
 			return -EINVAL;
+		if (ecmd->use_adaptive_rx_coalesce	||
+		    ecmd->rx_coalesce_usecs_low		||
+		    ecmd->rx_coalesce_usecs_high)
+			return -EOPNOTSUPP;
 
 		intr = enic_legacy_io_intr();
 		vnic_intr_coalescing_timer_set(&enic->intr[intr],
@@ -210,6 +240,10 @@ static int enic_set_coalesce(struct net_device *netdev,
 	case VNIC_DEV_INTR_MODE_MSI:
 		if (tx_coalesce_usecs != rx_coalesce_usecs)
 			return -EINVAL;
+		if (ecmd->use_adaptive_rx_coalesce	||
+		    ecmd->rx_coalesce_usecs_low		||
+		    ecmd->rx_coalesce_usecs_high)
+			return -EOPNOTSUPP;
 
 		vnic_intr_coalescing_timer_set(&enic->intr[0],
 			tx_coalesce_usecs);
@@ -221,12 +255,27 @@ static int enic_set_coalesce(struct net_device *netdev,
 				tx_coalesce_usecs);
 		}
 
-		for (i = 0; i < enic->rq_count; i++) {
-			intr = enic_msix_rq_intr(enic, i);
-			vnic_intr_coalescing_timer_set(&enic->intr[intr],
-				rx_coalesce_usecs);
+		if (rxcoal->use_adaptive_rx_coalesce) {
+			if (!ecmd->use_adaptive_rx_coalesce) {
+				rxcoal->use_adaptive_rx_coalesce = 0;
+				enic_intr_coal_set_rx(enic, rx_coalesce_usecs);
+			}
+		} else {
+			if (ecmd->use_adaptive_rx_coalesce)
+				rxcoal->use_adaptive_rx_coalesce = 1;
+			else
+				enic_intr_coal_set_rx(enic, rx_coalesce_usecs);
 		}
 
+		if (ecmd->rx_coalesce_usecs_high) {
+			if (rx_coalesce_usecs_high <
+			    (rx_coalesce_usecs_low + ENIC_AIC_LARGE_PKT_DIFF))
+				return -EINVAL;
+			rxcoal->range_end = rx_coalesce_usecs_high;
+			rxcoal->small_pkt_range_start = rx_coalesce_usecs_low;
+			rxcoal->large_pkt_range_start = rx_coalesce_usecs_low +
+							ENIC_AIC_LARGE_PKT_DIFF;
+		}
 		break;
 	default:
 		break;
@@ -253,5 +302,5 @@ static const struct ethtool_ops enic_ethtool_ops = {
 
 void enic_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &enic_ethtool_ops);
+	netdev->ethtool_ops = &enic_ethtool_ops;
 }

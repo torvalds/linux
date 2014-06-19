@@ -187,7 +187,7 @@ static void dw_mci_exynos_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	unsigned long actual;
 	u8 div = priv->ciu_div + 1;
 
-	if (ios->timing == MMC_TIMING_UHS_DDR50) {
+	if (ios->timing == MMC_TIMING_MMC_DDR52) {
 		mci_writel(host, CLKSEL, priv->ddr_timing);
 		/* Should be double rate for DDR mode */
 		if (ios->bus_width == MMC_BUS_WIDTH_8)
@@ -386,8 +386,7 @@ static int dw_mci_exynos_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 
 /* Common capabilities of Exynos4/Exynos5 SoC */
 static unsigned long exynos_dwmmc_caps[4] = {
-	MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR |
-		MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
+	MMC_CAP_1_8V_DDR | MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
 	MMC_CAP_CMD23,
@@ -426,7 +425,7 @@ static int dw_mci_exynos_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
-const struct dev_pm_ops dw_mci_exynos_pmops = {
+static const struct dev_pm_ops dw_mci_exynos_pmops = {
 	SET_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend, dw_mci_exynos_resume)
 	.resume_noirq = dw_mci_exynos_resume_noirq,
 	.thaw_noirq = dw_mci_exynos_resume_noirq,

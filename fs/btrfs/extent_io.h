@@ -304,6 +304,9 @@ int memcmp_extent_buffer(struct extent_buffer *eb, const void *ptrv,
 void read_extent_buffer(struct extent_buffer *eb, void *dst,
 			unsigned long start,
 			unsigned long len);
+int read_extent_buffer_to_user(struct extent_buffer *eb, void __user *dst,
+			       unsigned long start,
+			       unsigned long len);
 void write_extent_buffer(struct extent_buffer *eb, const void *src,
 			 unsigned long start, unsigned long len);
 void copy_extent_buffer(struct extent_buffer *dst, struct extent_buffer *src,
@@ -350,5 +353,7 @@ noinline u64 find_lock_delalloc_range(struct inode *inode,
 				      struct extent_io_tree *tree,
 				      struct page *locked_page, u64 *start,
 				      u64 *end, u64 max_bytes);
+struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
+					       u64 start, unsigned long len);
 #endif
 #endif

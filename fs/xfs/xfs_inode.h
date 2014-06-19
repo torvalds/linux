@@ -209,7 +209,6 @@ xfs_get_initial_prid(struct xfs_inode *dp)
 #define XFS_ISTALE		(1 << 1) /* inode has been staled */
 #define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
 #define XFS_INEW		(1 << 3) /* inode has just been allocated */
-#define XFS_IFILESTREAM		(1 << 4) /* inode is in a filestream dir. */
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
 #define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
@@ -225,8 +224,7 @@ xfs_get_initial_prid(struct xfs_inode *dp)
  */
 #define XFS_IRECLAIM_RESET_FLAGS	\
 	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
-	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
-	 XFS_IFILESTREAM);
+	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED)
 
 /*
  * Synchronize processes attempting to flush the in-core inode back to disk.
@@ -379,7 +377,6 @@ int		xfs_dir_ialloc(struct xfs_trans **, struct xfs_inode *, umode_t,
 			       struct xfs_inode **, int *);
 int		xfs_droplink(struct xfs_trans *, struct xfs_inode *);
 int		xfs_bumplink(struct xfs_trans *, struct xfs_inode *);
-void		xfs_bump_ino_vers2(struct xfs_trans *, struct xfs_inode *);
 
 /* from xfs_file.c */
 int		xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);

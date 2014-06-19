@@ -98,22 +98,17 @@ static void socfpga_cyclone5_restart(enum reboot_mode mode, const char *cmd)
 	writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 }
 
-static void __init socfpga_cyclone5_init(void)
-{
-	l2x0_of_init(0, ~0UL);
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-}
-
 static const char *altera_dt_match[] = {
 	"altr,socfpga",
 	NULL
 };
 
 DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
+	.l2c_aux_val	= 0,
+	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(socfpga_smp_ops),
 	.map_io		= socfpga_map_io,
 	.init_irq	= socfpga_init_irq,
-	.init_machine	= socfpga_cyclone5_init,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
 MACHINE_END

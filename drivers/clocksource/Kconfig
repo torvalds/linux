@@ -136,6 +136,11 @@ config CLKSRC_SAMSUNG_PWM
 	  for all devicetree enabled platforms. This driver will be
 	  needed only on systems that do not have the Exynos MCT available.
 
+config FSL_FTM_TIMER
+	bool
+	help
+	  Support for Freescale FlexTimer Module (FTM) timer.
+
 config VF_PIT_TIMER
 	bool
 	help
@@ -191,3 +196,14 @@ config EM_TIMER_STI
 
 config CLKSRC_QCOM
 	bool
+
+config CLKSRC_VERSATILE
+	bool "ARM Versatile (Express) reference platforms clock source"
+	depends on GENERIC_SCHED_CLOCK && !ARCH_USES_GETTIMEOFFSET
+	select CLKSRC_OF
+	default y if MFD_VEXPRESS_SYSREG
+	help
+	  This option enables clock source based on free running
+	  counter available in the "System Registers" block of
+	  ARM Versatile, RealView and Versatile Express reference
+	  platforms.

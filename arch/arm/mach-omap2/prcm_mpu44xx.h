@@ -26,7 +26,6 @@
 #define __ARCH_ARM_MACH_OMAP2_PRCM_MPU44XX_H
 
 #include "prcm_mpu_44xx_54xx.h"
-#include "common.h"
 
 #define OMAP4430_PRCM_MPU_BASE			0x48243000
 

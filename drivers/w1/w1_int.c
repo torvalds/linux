@@ -219,9 +219,13 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 		if (msleep_interruptible(1000))
 			flush_signals(current);
+		mutex_lock(&dev->list_mutex);
 		w1_process_callbacks(dev);
+		mutex_unlock(&dev->list_mutex);
 	}
+	mutex_lock(&dev->list_mutex);
 	w1_process_callbacks(dev);
+	mutex_unlock(&dev->list_mutex);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;

@@ -17,8 +17,26 @@
 	model = "Freescale i.MX51 Babbage Board";
 	compatible = "fsl,imx51-babbage", "fsl,imx51";
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
 	memory {
 		reg = <0x90000000 0x20000000>;
+	};
+
+	clocks {
+		ckih1 {
+			clock-frequency = <22579200>;
+		};
+
+		clk_26M: codec_clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <26000000>;
+			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	display0: display@di0 {
@@ -82,11 +100,13 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
 
 		power {
 			label = "Power Button";
 			gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
-			linux,code = <116>; /* KEY_POWER */
+			linux,code = <KEY_POWER>;
 			gpio-key,wakeup;
 		};
 	};
@@ -99,6 +119,36 @@
 		led-diagnostic {
 			label = "diagnostic";
 			gpios = <&gpio2 6 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_usbh1_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbh1reg>;
+			reg = <0>;
+			regulator-name = "usbh1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usbotg_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usbotgreg>;
+			reg = <1>;
+			regulator-name = "usbotg_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
 		};
 	};
 
@@ -116,41 +166,23 @@
 		mux-ext-port = <3>;
 	};
 
-	clocks {
-		ckih1 {
-			clock-frequency = <22579200>;
-		};
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
 
-		clk_26M: codec_clock {
-			compatible = "fixed-clock";
-			reg=<0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-			gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+		usbh1phy: usbh1phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			clocks = <&clks IMX5_CLK_DUMMY>;
+			clock-names = "main_clk";
 		};
 	};
 };
 
-&esdhc1 {
+&audmux {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc1>;
-	fsl,cd-controller;
-	fsl,wp-controller;
-	status = "okay";
-};
-
-&esdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_esdhc2>;
-	cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
-	wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
-&uart3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	pinctrl-0 = <&pinctrl_audmux>;
 	status = "okay";
 };
 
@@ -163,9 +195,9 @@
 	status = "okay";
 
 	pmic: mc13892@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "fsl,mc13892";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pmic>;
 		spi-max-frequency = <6000000>;
 		spi-cs-high;
 		reg = <0>;
@@ -280,6 +312,53 @@
 	};
 };
 
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	fsl,cd-controller;
+	fsl,wp-controller;
+	status = "okay";
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2>;
+	cd-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+	wp-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "mii";
+	phy-reset-gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <1>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	sgtl5000: codec@0a {
+		compatible = "fsl,sgtl5000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_clkcodec>;
+		reg = <0x0a>;
+		clocks = <&clk_26M>;
+		VDDA-supply = <&vdig_reg>;
+		VDDIO-supply = <&vvideo_reg>;
+	};
+};
+
 &ipu_di0_disp0 {
 	remote-endpoint = <&display0_in>;
 };
@@ -288,29 +367,74 @@
 	remote-endpoint = <&display1_in>;
 };
 
+&kpp {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kpp>;
+	linux,keymap = <
+		MATRIX_KEY(0, 0, KEY_UP)
+		MATRIX_KEY(0, 1, KEY_DOWN)
+		MATRIX_KEY(0, 2, KEY_VOLUMEDOWN)
+		MATRIX_KEY(0, 3, KEY_HOME)
+		MATRIX_KEY(1, 0, KEY_RIGHT)
+		MATRIX_KEY(1, 1, KEY_LEFT)
+		MATRIX_KEY(1, 2, KEY_ENTER)
+		MATRIX_KEY(1, 3, KEY_VOLUMEUP)
+		MATRIX_KEY(2, 0, KEY_F6)
+		MATRIX_KEY(2, 1, KEY_F8)
+		MATRIX_KEY(2, 2, KEY_F9)
+		MATRIX_KEY(2, 3, KEY_F10)
+		MATRIX_KEY(3, 0, KEY_F1)
+		MATRIX_KEY(3, 1, KEY_F2)
+		MATRIX_KEY(3, 2, KEY_F3)
+		MATRIX_KEY(3, 3, KEY_POWER)
+	>;
+	status = "okay";
+};
+
 &ssi2 {
 	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 
-&iomuxc {
+&uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
+	pinctrl-0 = <&pinctrl_uart1>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usbh1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbh1>;
+	vbus-supply = <&reg_usbh1_vbus>;
+	fsl,usbphy = <&usbh1phy>;
+	phy_type = "ulpi";
+	status = "okay";
+};
+
+&usbotg {
+	dr_mode = "otg";
+	disable-over-current;
+	phy_type = "utmi_wide";
+	vbus-supply = <&reg_usbotg_vbus>;
+	status = "okay";
+};
+
+&iomuxc {
 	imx51-babbage {
-		pinctrl_hog: hoggrp {
-			fsl,pins = <
-				MX51_PAD_GPIO1_0__SD1_CD     0x20d5
-				MX51_PAD_GPIO1_1__SD1_WP     0x20d5
-				MX51_PAD_GPIO1_5__GPIO1_5    0x100
-				MX51_PAD_GPIO1_6__GPIO1_6    0x100
-				MX51_PAD_EIM_A27__GPIO2_21   0x5
-				MX51_PAD_CSPI1_SS0__GPIO4_24 0x85
-				MX51_PAD_CSPI1_SS1__GPIO4_25 0x85
-				MX51_PAD_CSPI1_RDY__GPIO4_26 0x80000000
-			>;
-		};
-
 		pinctrl_audmux: audmuxgrp {
 			fsl,pins = <
 				MX51_PAD_AUD3_BB_TXD__AUD3_TXD		0x80000000
@@ -320,11 +444,19 @@
 			>;
 		};
 
+		pinctrl_clkcodec: clkcodecgrp {
+			fsl,pins = <
+				MX51_PAD_CSPI1_RDY__GPIO4_26		0x80000000
+			>;
+		};
+
 		pinctrl_ecspi1: ecspi1grp {
 			fsl,pins = <
 				MX51_PAD_CSPI1_MISO__ECSPI1_MISO	0x185
 				MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI	0x185
 				MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK	0x185
+				MX51_PAD_CSPI1_SS0__GPIO4_24		0x85 /* CS0 */
+				MX51_PAD_CSPI1_SS1__GPIO4_25		0x85 /* CS1 */
 			>;
 		};
 
@@ -336,6 +468,8 @@
 				MX51_PAD_SD1_DATA1__SD1_DATA1		0x20d5
 				MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 				MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
+				MX51_PAD_GPIO1_0__SD1_CD		0x20d5
+				MX51_PAD_GPIO1_1__SD1_WP		0x20d5
 			>;
 		};
 
@@ -347,35 +481,51 @@
 				MX51_PAD_SD2_DATA1__SD2_DATA1		0x20d5
 				MX51_PAD_SD2_DATA2__SD2_DATA2		0x20d5
 				MX51_PAD_SD2_DATA3__SD2_DATA3		0x20d5
+				MX51_PAD_GPIO1_5__GPIO1_5		0x100 /* WP */
+				MX51_PAD_GPIO1_6__GPIO1_6		0x100 /* CD */
 			>;
 		};
 
 		pinctrl_fec: fecgrp {
 			fsl,pins = <
-				MX51_PAD_EIM_EB2__FEC_MDIO		0x80000000
-				MX51_PAD_EIM_EB3__FEC_RDATA1		0x80000000
-				MX51_PAD_EIM_CS2__FEC_RDATA2		0x80000000
-				MX51_PAD_EIM_CS3__FEC_RDATA3		0x80000000
-				MX51_PAD_EIM_CS4__FEC_RX_ER		0x80000000
-				MX51_PAD_EIM_CS5__FEC_CRS		0x80000000
-				MX51_PAD_NANDF_RB2__FEC_COL		0x80000000
-				MX51_PAD_NANDF_RB3__FEC_RX_CLK		0x80000000
-				MX51_PAD_NANDF_D9__FEC_RDATA0		0x80000000
-				MX51_PAD_NANDF_D8__FEC_TDATA0		0x80000000
-				MX51_PAD_NANDF_CS2__FEC_TX_ER		0x80000000
-				MX51_PAD_NANDF_CS3__FEC_MDC		0x80000000
-				MX51_PAD_NANDF_CS4__FEC_TDATA1		0x80000000
-				MX51_PAD_NANDF_CS5__FEC_TDATA2		0x80000000
-				MX51_PAD_NANDF_CS6__FEC_TDATA3		0x80000000
-				MX51_PAD_NANDF_CS7__FEC_TX_EN		0x80000000
-				MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK	0x80000000
-				MX51_PAD_EIM_A20__GPIO2_14 0x85 /* Reset */
+				MX51_PAD_EIM_EB2__FEC_MDIO		0x000001f5
+				MX51_PAD_EIM_EB3__FEC_RDATA1		0x00000085
+				MX51_PAD_EIM_CS2__FEC_RDATA2		0x00000085
+				MX51_PAD_EIM_CS3__FEC_RDATA3		0x00000085
+				MX51_PAD_EIM_CS4__FEC_RX_ER		0x00000180
+				MX51_PAD_EIM_CS5__FEC_CRS		0x00000180
+				MX51_PAD_NANDF_RB2__FEC_COL		0x00000180
+				MX51_PAD_NANDF_RB3__FEC_RX_CLK		0x00000180
+				MX51_PAD_NANDF_D9__FEC_RDATA0		0x00002180
+				MX51_PAD_NANDF_D8__FEC_TDATA0		0x00002004
+				MX51_PAD_NANDF_CS2__FEC_TX_ER		0x00002004
+				MX51_PAD_NANDF_CS3__FEC_MDC		0x00002004
+				MX51_PAD_NANDF_CS4__FEC_TDATA1		0x00002004
+				MX51_PAD_NANDF_CS5__FEC_TDATA2		0x00002004
+				MX51_PAD_NANDF_CS6__FEC_TDATA3		0x00002004
+				MX51_PAD_NANDF_CS7__FEC_TX_EN		0x00002004
+				MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK	0x00002180
+				MX51_PAD_NANDF_D11__FEC_RX_DV		0x000020a4
+				MX51_PAD_EIM_A20__GPIO2_14		0x00000085 /* Phy Reset */
+			>;
+		};
+
+		pinctrl_gpio_keys: gpiokeysgrp {
+			fsl,pins = <
+				MX51_PAD_EIM_A27__GPIO2_21		0x5
 			>;
 		};
 
 		pinctrl_gpio_leds: gpioledsgrp {
 			fsl,pins = <
 				MX51_PAD_EIM_D22__GPIO2_6		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX51_PAD_EIM_D19__I2C1_SCL		0x400001ed
+				MX51_PAD_EIM_D16__I2C1_SDA		0x400001ed
 			>;
 		};
 
@@ -455,6 +605,12 @@
 			>;
 		};
 
+		pinctrl_pmic: pmicgrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_8__GPIO1_8		0xe5 /* IRQ */
+			>;
+		};
+
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <
 				MX51_PAD_UART1_RXD__UART1_RXD		0x1c5
@@ -479,71 +635,33 @@
 				MX51_PAD_EIM_D24__UART3_CTS		0x1c5
 			>;
 		};
+
+		pinctrl_usbh1: usbh1grp {
+			fsl,pins = <
+				MX51_PAD_USBH1_CLK__USBH1_CLK		0x80000000
+				MX51_PAD_USBH1_DIR__USBH1_DIR		0x80000000
+				MX51_PAD_USBH1_NXT__USBH1_NXT		0x80000000
+				MX51_PAD_USBH1_DATA0__USBH1_DATA0	0x80000000
+				MX51_PAD_USBH1_DATA1__USBH1_DATA1	0x80000000
+				MX51_PAD_USBH1_DATA2__USBH1_DATA2	0x80000000
+				MX51_PAD_USBH1_DATA3__USBH1_DATA3	0x80000000
+				MX51_PAD_USBH1_DATA4__USBH1_DATA4	0x80000000
+				MX51_PAD_USBH1_DATA5__USBH1_DATA5	0x80000000
+				MX51_PAD_USBH1_DATA6__USBH1_DATA6	0x80000000
+				MX51_PAD_USBH1_DATA7__USBH1_DATA7	0x80000000
+			>;
+		};
+
+		pinctrl_usbh1reg: usbh1reggrp {
+			fsl,pins = <
+				MX51_PAD_EIM_D21__GPIO2_5		0x85
+			>;
+		};
+
+		pinctrl_usbotgreg: usbotgreggrp {
+			fsl,pins = <
+				MX51_PAD_GPIO1_7__GPIO1_7		0x85
+			>;
+		};
 	};
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
-	status = "okay";
-};
-
-&uart2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart2>;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_i2c2>;
-	status = "okay";
-
-	sgtl5000: codec@0a {
-		compatible = "fsl,sgtl5000";
-		reg = <0x0a>;
-		clocks = <&clk_26M>;
-		VDDA-supply = <&vdig_reg>;
-		VDDIO-supply = <&vvideo_reg>;
-	};
-};
-
-&audmux {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_audmux>;
-	status = "okay";
-};
-
-&fec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_fec>;
-	phy-mode = "mii";
-	phy-reset-gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
-	phy-reset-duration = <1>;
-	status = "okay";
-};
-
-&kpp {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_kpp>;
-	linux,keymap = <
-		MATRIX_KEY(0, 0, KEY_UP)
-		MATRIX_KEY(0, 1, KEY_DOWN)
-		MATRIX_KEY(0, 2, KEY_VOLUMEDOWN)
-		MATRIX_KEY(0, 3, KEY_HOME)
-		MATRIX_KEY(1, 0, KEY_RIGHT)
-		MATRIX_KEY(1, 1, KEY_LEFT)
-		MATRIX_KEY(1, 2, KEY_ENTER)
-		MATRIX_KEY(1, 3, KEY_VOLUMEUP)
-		MATRIX_KEY(2, 0, KEY_F6)
-		MATRIX_KEY(2, 1, KEY_F8)
-		MATRIX_KEY(2, 2, KEY_F9)
-		MATRIX_KEY(2, 3, KEY_F10)
-		MATRIX_KEY(3, 0, KEY_F1)
-		MATRIX_KEY(3, 1, KEY_F2)
-		MATRIX_KEY(3, 2, KEY_F3)
-		MATRIX_KEY(3, 3, KEY_POWER)
-		>;
-	status = "okay";
 };

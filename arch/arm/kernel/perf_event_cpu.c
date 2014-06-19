@@ -126,8 +126,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
-		return -ENODEV;
+		printk_once("perf/ARM: No irqs for PMU defined, sampling events not supported\n");
+		return 0;
 	}
 
 	irq = platform_get_irq(pmu_device, 0);
@@ -191,6 +191,10 @@ static void cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu->reset)
 		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
+
+	/* If no interrupts available, set the corresponding capability flag */
+	if (!platform_get_irq(cpu_pmu->plat_device, 0))
+		cpu_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 }
 
 /*
@@ -221,6 +225,7 @@ static struct notifier_block cpu_pmu_hotplug_notifier = {
  * PMU platform driver and devicetree bindings.
  */
 static struct of_device_id cpu_pmu_of_device_ids[] = {
+	{.compatible = "arm,cortex-a17-pmu",	.data = armv7_a17_pmu_init},
 	{.compatible = "arm,cortex-a15-pmu",	.data = armv7_a15_pmu_init},
 	{.compatible = "arm,cortex-a12-pmu",	.data = armv7_a12_pmu_init},
 	{.compatible = "arm,cortex-a9-pmu",	.data = armv7_a9_pmu_init},

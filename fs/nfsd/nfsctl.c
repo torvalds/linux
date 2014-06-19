@@ -1179,7 +1179,6 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_slabs();
 	if (retval)
 		goto out_unregister_pernet;
-	nfs4_state_init();
 	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
 	if (retval)
 		goto out_free_slabs;

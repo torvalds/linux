@@ -39,6 +39,11 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <29>;
+	};
+
 	axi {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -167,6 +172,7 @@
 				compatible = "sirf,prima2-dspif";
 				reg = <0xa8000000 0x10000>;
 				interrupts = <9>;
+				resets = <&rstc 1>;
 			};
 
 			gps@a8010000 {
@@ -174,6 +180,7 @@
 				reg = <0xa8010000 0x10000>;
 				interrupts = <7>;
 				clocks = <&clks 9>;
+				resets = <&rstc 2>;
 			};
 
 			dsp@a9000000 {
@@ -181,6 +188,7 @@
 				reg = <0xa9000000 0x1000000>;
 				interrupts = <8>;
 				clocks = <&clks 8>;
+				resets = <&rstc 0>;
 			};
 		};
 
@@ -195,6 +203,7 @@
 				compatible = "sirf,prima2-tick";
 				reg = <0xb0020000 0x1000>;
 				interrupts = <0>;
+				clocks = <&clks 11>;
 			};
 
 			nand@b0030000 {
@@ -297,9 +306,9 @@
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
 				sirf,spi-num-chipselects = <1>;
-				cs-gpios = <&gpio 0 0>;
-				sirf,spi-dma-rx-channel = <25>;
-				sirf,spi-dma-tx-channel = <20>;
+				dmas = <&dmac1 9>,
+				     <&dmac1 4>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 19>;
@@ -312,8 +321,9 @@
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
 				sirf,spi-num-chipselects = <1>;
-				sirf,spi-dma-rx-channel = <12>;
-				sirf,spi-dma-tx-channel = <13>;
+				dmas = <&dmac0 12>,
+				     <&dmac0 13>;
+				dma-names = "rx", "tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clks 20>;
@@ -554,6 +564,18 @@
                                                 sirf,function = "usp0_uart_nostreamctrl";
                                         };
                                 };
+				usp0_only_utfs_pins_a: usp0@2 {
+					usp0 {
+						sirf,pins = "usp0_only_utfs_grp";
+						sirf,function = "usp0_only_utfs";
+					};
+				};
+				usp0_only_urfs_pins_a: usp0@3 {
+					usp0 {
+						sirf,pins = "usp0_only_urfs_grp";
+						sirf,function = "usp0_only_urfs";
+					};
+				};
                                 usp1_pins_a: usp1@0 {
                                         usp1 {
                                                 sirf,pins = "usp1grp";

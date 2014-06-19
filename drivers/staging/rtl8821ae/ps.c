@@ -30,9 +30,7 @@
 #include "wifi.h"
 #include "base.h"
 #include "ps.h"
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,0))
 #include <linux/export.h>
-#endif
 #include "btcoexist/rtl_btc.h"
 
 bool rtl_ps_enable_nic(struct ieee80211_hw *hw)
@@ -542,17 +540,8 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 	tim_len = tim[1];
 	tim_ie = (struct ieee80211_tim_ie *) &tim[2];
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
-/*<delete in kernel end>*/
 	if (!WARN_ON_ONCE(!hw->conf.ps_dtim_period))
 		rtlpriv->psc.dtim_counter = tim_ie->dtim_count;
-/*<delete in kernel start>*/
-#else
-	if (!WARN_ON_ONCE(!mac->vif->bss_conf.dtim_period))
-		rtlpriv->psc.dtim_counter = tim_ie->dtim_count;
-#endif
-/*<delete in kernel end>*/
 
 	/* Check whenever the PHY can be turned off again. */
 
@@ -656,9 +645,6 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	 * time to sleep_intv = rtlpriv->psc.dtim_counter or
 	 * MAX_SW_LPS_SLEEP_INTV(default set to 5) */
 
-/*<delete in kernel start>*/
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35))
-/*<delete in kernel end>*/
 	if (rtlpriv->psc.dtim_counter == 0) {
 		if (hw->conf.ps_dtim_period == 1)
 			sleep_intv = hw->conf.ps_dtim_period * 2;
@@ -667,18 +653,6 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	} else {
 		sleep_intv = rtlpriv->psc.dtim_counter;
 	}
-/*<delete in kernel start>*/
-#else
-	if (rtlpriv->psc.dtim_counter == 0) {
-		if (mac->vif->bss_conf.dtim_period == 1)
-			sleep_intv = mac->vif->bss_conf.dtim_period * 2;
-		else
-			sleep_intv = mac->vif->bss_conf.dtim_period;
-	} else {
-		sleep_intv = rtlpriv->psc.dtim_counter;
-	}
-#endif
-/*<delete in kernel end>*/
 
 	if (sleep_intv > MAX_SW_LPS_SLEEP_INTV)
 		sleep_intv = MAX_SW_LPS_SLEEP_INTV;

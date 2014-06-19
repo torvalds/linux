@@ -233,6 +233,7 @@ enum clk_id {
 	tegra_clk_xusb_hs_src,
 	tegra_clk_xusb_ss,
 	tegra_clk_xusb_ss_src,
+	tegra_clk_xusb_ss_div2,
 	tegra_clk_max,
 };
 

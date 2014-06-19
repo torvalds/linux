@@ -1,12 +1,13 @@
 * Samsung Exynos5420 Clock Controller
 
 The Exynos5420 clock controller generates and supplies clock to various
-controllers within the Exynos5420 SoC.
+controllers within the Exynos5420 SoC and for the Exynos5800 SoC.
 
 Required Properties:
 
 - compatible: should be one of the following.
   - "samsung,exynos5420-clock" - controller compatible with Exynos5420 SoC.
+  - "samsung,exynos5800-clock" - controller compatible with Exynos5800 SoC.
 
 - reg: physical base address of the controller and length of memory mapped
   region.

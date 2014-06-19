@@ -120,7 +120,7 @@ retry:
 	if (!req)
 		return SCSI_DH_RES_TEMP_UNAVAIL;
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(req);
 	req->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
 			  REQ_FAILFAST_DRIVER;
 	req->cmd_len = COMMAND_SIZE(TEST_UNIT_READY);
@@ -250,7 +250,7 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *h)
 	if (!req)
 		return SCSI_DH_RES_TEMP_UNAVAIL;
 
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	blk_rq_set_block_pc(req);
 	req->cmd_flags |= REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
 			  REQ_FAILFAST_DRIVER;
 	req->cmd_len = COMMAND_SIZE(START_STOP);

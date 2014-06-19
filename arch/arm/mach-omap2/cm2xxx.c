@@ -18,9 +18,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include "soc.h"
-#include "iomap.h"
-#include "common.h"
 #include "prm2xxx.h"
 #include "cm.h"
 #include "cm2xxx.h"
@@ -390,7 +387,7 @@ void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core, u32 mdm)
 	tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) &
 		OMAP24XX_CLKSEL_DSS2_MASK;
 	omap2_cm_write_mod_reg(core | tmp, CORE_MOD, CM_CLKSEL1);
-	if (cpu_is_omap2430())
+	if (mdm)
 		omap2_cm_write_mod_reg(mdm, OMAP2430_MDM_MOD, CM_CLKSEL);
 }
 
@@ -405,19 +402,11 @@ static struct cm_ll_data omap2xxx_cm_ll_data = {
 
 int __init omap2xxx_cm_init(void)
 {
-	if (!cpu_is_omap24xx())
-		return 0;
-
 	return cm_register(&omap2xxx_cm_ll_data);
 }
 
 static void __exit omap2xxx_cm_exit(void)
 {
-	if (!cpu_is_omap24xx())
-		return;
-
-	/* Should never happen */
-	WARN(cm_unregister(&omap2xxx_cm_ll_data),
-	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+	cm_unregister(&omap2xxx_cm_ll_data);
 }
 __exitcall(omap2xxx_cm_exit);

@@ -43,9 +43,20 @@
 #define BYT_INT_STAT_REG	0x800
 
 /* BYT_CONF0_REG register bits */
+#define BYT_IODEN		BIT(31)
 #define BYT_TRIG_NEG		BIT(26)
 #define BYT_TRIG_POS		BIT(25)
 #define BYT_TRIG_LVL		BIT(24)
+#define BYT_PULL_STR_SHIFT	9
+#define BYT_PULL_STR_MASK	(3 << BYT_PULL_STR_SHIFT)
+#define BYT_PULL_STR_2K		(0 << BYT_PULL_STR_SHIFT)
+#define BYT_PULL_STR_10K	(1 << BYT_PULL_STR_SHIFT)
+#define BYT_PULL_STR_20K	(2 << BYT_PULL_STR_SHIFT)
+#define BYT_PULL_STR_40K	(3 << BYT_PULL_STR_SHIFT)
+#define BYT_PULL_ASSIGN_SHIFT	7
+#define BYT_PULL_ASSIGN_MASK	(3 << BYT_PULL_ASSIGN_SHIFT)
+#define BYT_PULL_ASSIGN_UP	(1 << BYT_PULL_ASSIGN_SHIFT)
+#define BYT_PULL_ASSIGN_DOWN	(2 << BYT_PULL_ASSIGN_SHIFT)
 #define BYT_PIN_MUX		0x07
 
 /* BYT_VAL_REG register bits */
@@ -321,6 +332,8 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	spin_lock_irqsave(&vg->lock, flags);
 
 	for (i = 0; i < vg->chip.ngpio; i++) {
+		const char *pull_str = NULL;
+		const char *pull = NULL;
 		const char *label;
 		offs = vg->range->pins[i] * 16;
 		conf0 = readl(vg->reg_base + offs + BYT_CONF0_REG);
@@ -330,8 +343,32 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!label)
 			label = "Unrequested";
 
+		switch (conf0 & BYT_PULL_ASSIGN_MASK) {
+		case BYT_PULL_ASSIGN_UP:
+			pull = "up";
+			break;
+		case BYT_PULL_ASSIGN_DOWN:
+			pull = "down";
+			break;
+		}
+
+		switch (conf0 & BYT_PULL_STR_MASK) {
+		case BYT_PULL_STR_2K:
+			pull_str = "2k";
+			break;
+		case BYT_PULL_STR_10K:
+			pull_str = "10k";
+			break;
+		case BYT_PULL_STR_20K:
+			pull_str = "20k";
+			break;
+		case BYT_PULL_STR_40K:
+			pull_str = "40k";
+			break;
+		}
+
 		seq_printf(s,
-			   " gpio-%-3d (%-20.20s) %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s\n",
+			   " gpio-%-3d (%-20.20s) %s %s %s pad-%-3d offset:0x%03x mux:%d %s%s%s",
 			   i,
 			   label,
 			   val & BYT_INPUT_EN ? "  " : "in",
@@ -339,9 +376,19 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   val & BYT_LEVEL ? "hi" : "lo",
 			   vg->range->pins[i], offs,
 			   conf0 & 0x7,
-			   conf0 & BYT_TRIG_NEG ? " fall" : "",
-			   conf0 & BYT_TRIG_POS ? " rise" : "",
-			   conf0 & BYT_TRIG_LVL ? " level" : "");
+			   conf0 & BYT_TRIG_NEG ? " fall" : "     ",
+			   conf0 & BYT_TRIG_POS ? " rise" : "     ",
+			   conf0 & BYT_TRIG_LVL ? " level" : "      ");
+
+		if (pull && pull_str)
+			seq_printf(s, " %-4s %-3s", pull, pull_str);
+		else
+			seq_puts(s, "          ");
+
+		if (conf0 & BYT_IODEN)
+			seq_puts(s, " open-drain");
+
+		seq_puts(s, "\n");
 	}
 	spin_unlock_irqrestore(&vg->lock, flags);
 }
@@ -527,12 +574,6 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->dev = dev;
 
-	ret = gpiochip_add(gc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed adding byt-gpio chip\n");
-		return ret;
-	}
-
 	/* set up interrupts  */
 	irq_rc = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq_rc && irq_rc->start) {
@@ -548,6 +589,12 @@ static int byt_gpio_probe(struct platform_device *pdev)
 
 		irq_set_handler_data(hwirq, vg);
 		irq_set_chained_handler(hwirq, byt_gpio_irq_handler);
+	}
+
+	ret = gpiochip_add(gc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed adding byt-gpio chip\n");
+		return ret;
 	}
 
 	pm_runtime_enable(dev);
@@ -572,6 +619,7 @@ static const struct dev_pm_ops byt_gpio_pm_ops = {
 
 static const struct acpi_device_id byt_gpio_acpi_match[] = {
 	{ "INT33B2", 0 },
+	{ "INT33FC", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, byt_gpio_acpi_match);

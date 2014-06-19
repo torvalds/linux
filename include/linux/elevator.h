@@ -144,7 +144,7 @@ extern void elv_drain_elevator(struct request_queue *);
  * io scheduler registration
  */
 extern void __init load_default_elevator_module(void);
-extern int elv_register(struct elevator_type *);
+extern int __init elv_register(struct elevator_type *);
 extern void elv_unregister(struct elevator_type *);
 
 /*

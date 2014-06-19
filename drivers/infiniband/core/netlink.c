@@ -103,13 +103,13 @@ int ibnl_remove_client(int index)
 EXPORT_SYMBOL(ibnl_remove_client);
 
 void *ibnl_put_msg(struct sk_buff *skb, struct nlmsghdr **nlh, int seq,
-		   int len, int client, int op)
+		   int len, int client, int op, int flags)
 {
 	unsigned char *prev_tail;
 
 	prev_tail = skb_tail_pointer(skb);
 	*nlh = nlmsg_put(skb, 0, seq, RDMA_NL_GET_TYPE(client, op),
-			 len, NLM_F_MULTI);
+			 len, flags);
 	if (!*nlh)
 		goto out_nlmsg_trim;
 	(*nlh)->nlmsg_len = skb_tail_pointer(skb) - prev_tail;
@@ -171,6 +171,20 @@ static void ibnl_rcv(struct sk_buff *skb)
 	netlink_rcv_skb(skb, &ibnl_rcv_msg);
 	mutex_unlock(&ibnl_mutex);
 }
+
+int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
+			__u32 pid)
+{
+	return nlmsg_unicast(nls, skb, pid);
+}
+EXPORT_SYMBOL(ibnl_unicast);
+
+int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
+			unsigned int group, gfp_t flags)
+{
+	return nlmsg_multicast(nls, skb, 0, group, flags);
+}
+EXPORT_SYMBOL(ibnl_multicast);
 
 int __init ibnl_init(void)
 {

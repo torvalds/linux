@@ -360,9 +360,9 @@ EXPORT_SYMBOL_GPL(devm_regulator_unregister_supply_alias);
  * will be removed before returning to the caller.
  */
 int devm_regulator_bulk_register_supply_alias(struct device *dev,
-					      const char **id,
+					      const char *const *id,
 					      struct device *alias_dev,
-					      const char **alias_id,
+					      const char *const *alias_id,
 					      int num_id)
 {
 	int i;
@@ -404,7 +404,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
  * will ensure that the resource is freed.
  */
 void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
-						 const char **id,
+						 const char *const *id,
 						 int num_id)
 {
 	int i;

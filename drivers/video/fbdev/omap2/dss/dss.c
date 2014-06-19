@@ -728,6 +728,13 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 	.dpi_select_source	=	&dss_dpi_select_source_omap5,
 };
 
+static const struct dss_features am43xx_dss_feats __initconst = {
+	.fck_div_max		=	0,
+	.dss_fck_multiplier	=	0,
+	.parent_clk_name	=	NULL,
+	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
+};
+
 static int __init dss_init_features(struct platform_device *pdev)
 {
 	const struct dss_features *src;
@@ -764,6 +771,10 @@ static int __init dss_init_features(struct platform_device *pdev)
 		src = &omap54xx_dss_feats;
 		break;
 
+	case OMAPDSS_VER_AM43xx:
+		src = &am43xx_dss_feats;
+		break;
+
 	default:
 		return -ENODEV;
 	}
@@ -784,12 +795,8 @@ static int __init dss_init_ports(struct platform_device *pdev)
 		return 0;
 
 	port = omapdss_of_get_next_port(parent, NULL);
-	if (!port) {
-#ifdef CONFIG_OMAP2_DSS_DPI
-		dpi_init_port(pdev, parent);
-#endif
+	if (!port)
 		return 0;
-	}
 
 	do {
 		u32 reg;
@@ -813,7 +820,7 @@ static int __init dss_init_ports(struct platform_device *pdev)
 	return 0;
 }
 
-static void dss_uninit_ports(void)
+static void __exit dss_uninit_ports(void)
 {
 #ifdef CONFIG_OMAP2_DSS_DPI
 	dpi_uninit_port();
@@ -946,6 +953,7 @@ static const struct of_device_id dss_of_match[] = {
 	{ .compatible = "ti,omap2-dss", },
 	{ .compatible = "ti,omap3-dss", },
 	{ .compatible = "ti,omap4-dss", },
+	{ .compatible = "ti,omap5-dss", },
 	{},
 };
 

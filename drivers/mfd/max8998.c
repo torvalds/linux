@@ -132,7 +132,7 @@ int max8998_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 EXPORT_SYMBOL(max8998_update_reg);
 
 #ifdef CONFIG_OF
-static struct of_device_id max8998_dt_match[] = {
+static const struct of_device_id max8998_dt_match[] = {
 	{ .compatible = "maxim,max8998", .data = (void *)TYPE_MAX8998 },
 	{ .compatible = "national,lp3974", .data = (void *)TYPE_LP3974 },
 	{ .compatible = "ti,lp3974", .data = (void *)TYPE_LP3974 },

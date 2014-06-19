@@ -56,8 +56,8 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "ARGB8888, 32 bpp",
-		.fourcc		= V4L2_PIX_FMT_RGB32,
+		.name		= "BGRA8888, 32 bpp",
+		.fourcc		= V4L2_PIX_FMT_BGR32,
 		.depth		= { 32 },
 		.color		= FIMC_FMT_RGB888,
 		.memplanes	= 1,
@@ -450,7 +450,7 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 	bool pix_hoff = ctx->fimc_dev->drv_data->dma_pix_hoff;
 	u32 i, depth = 0;
 
-	for (i = 0; i < f->fmt->colplanes; i++)
+	for (i = 0; i < f->fmt->memplanes; i++)
 		depth += f->fmt->depth[i];
 
 	f->dma_offset.y_h = f->offs_h;

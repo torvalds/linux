@@ -10,10 +10,6 @@
 #define _GEODE_AES_H_
 
 /* driver logic flags */
-#define AES_IV_LENGTH  16
-#define AES_KEY_LENGTH 16
-#define AES_MIN_BLOCK_SIZE 16
-
 #define AES_MODE_ECB 0
 #define AES_MODE_CBC 1
 
@@ -64,7 +60,7 @@ struct geode_aes_op {
 	u32 flags;
 	int len;
 
-	u8 key[AES_KEY_LENGTH];
+	u8 key[AES_KEYSIZE_128];
 	u8 *iv;
 
 	union {

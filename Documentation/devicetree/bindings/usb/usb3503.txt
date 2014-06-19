@@ -15,6 +15,14 @@ Optional properties:
 - reset-gpios: Should specify GPIO for reset.
 - initial-mode: Should specify initial mode.
                 (1 for HUB mode, 2 for STANDBY mode)
+- refclk: Clock used for driving REFCLK signal (optional, if not provided
+	the driver assumes that clock signal is always available, its
+	rate is specified by REF_SEL pins and a value from the primary
+	reference clock frequencies table is used)
+- refclk-frequency: Frequency of the REFCLK signal as defined by REF_SEL
+	pins (optional, if not provided, driver will not set rate of the
+	REFCLK signal and assume that a value from the primary reference
+	clock frequencies table is used)
 
 Examples:
 	usb3503@08 {

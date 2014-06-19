@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
-#include "types.h"
+#include <linux/types.h>
 #include "perf.h"
 #include "debug.h"
 #include "tests.h"

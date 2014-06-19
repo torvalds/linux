@@ -14,7 +14,7 @@
 #include <asm/iommu_table.h>
 int swiotlb __read_mostly;
 
-static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
+void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 					dma_addr_t *dma_handle, gfp_t flags,
 					struct dma_attrs *attrs)
 {
@@ -28,11 +28,14 @@ static void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	return swiotlb_alloc_coherent(hwdev, size, dma_handle, flags);
 }
 
-static void x86_swiotlb_free_coherent(struct device *dev, size_t size,
+void x86_swiotlb_free_coherent(struct device *dev, size_t size,
 				      void *vaddr, dma_addr_t dma_addr,
 				      struct dma_attrs *attrs)
 {
-	swiotlb_free_coherent(dev, size, vaddr, dma_addr);
+	if (is_swiotlb_buffer(dma_to_phys(dev, dma_addr)))
+		swiotlb_free_coherent(dev, size, vaddr, dma_addr);
+	else
+		dma_generic_free_coherent(dev, size, vaddr, dma_addr, attrs);
 }
 
 static struct dma_map_ops swiotlb_dma_ops = {

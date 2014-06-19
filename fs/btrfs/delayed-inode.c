@@ -149,8 +149,8 @@ again:
 	spin_lock(&root->inode_lock);
 	ret = radix_tree_insert(&root->delayed_nodes_tree, ino, node);
 	if (ret == -EEXIST) {
-		kmem_cache_free(delayed_node_cache, node);
 		spin_unlock(&root->inode_lock);
+		kmem_cache_free(delayed_node_cache, node);
 		radix_tree_preload_end();
 		goto again;
 	}
@@ -267,14 +267,17 @@ static void __btrfs_release_delayed_node(
 	mutex_unlock(&delayed_node->mutex);
 
 	if (atomic_dec_and_test(&delayed_node->refs)) {
+		bool free = false;
 		struct btrfs_root *root = delayed_node->root;
 		spin_lock(&root->inode_lock);
 		if (atomic_read(&delayed_node->refs) == 0) {
 			radix_tree_delete(&root->delayed_nodes_tree,
 					  delayed_node->inode_id);
-			kmem_cache_free(delayed_node_cache, delayed_node);
+			free = true;
 		}
 		spin_unlock(&root->inode_lock);
+		if (free)
+			kmem_cache_free(delayed_node_cache, delayed_node);
 	}
 }
 

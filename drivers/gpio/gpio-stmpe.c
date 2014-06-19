@@ -23,7 +23,8 @@
 enum { REG_RE, REG_FE, REG_IE };
 
 #define CACHE_NR_REGS	3
-#define CACHE_NR_BANKS	(STMPE_NR_GPIOS / 8)
+/* No variant has more than 24 GPIOs */
+#define CACHE_NR_BANKS	(24 / 8)
 
 struct stmpe_gpio {
 	struct gpio_chip chip;
@@ -31,8 +32,6 @@ struct stmpe_gpio {
 	struct device *dev;
 	struct mutex irq_lock;
 	struct irq_domain *domain;
-
-	int irq_base;
 	unsigned norequest_mask;
 
 	/* Caches of interrupt control registers for bus_lock */
@@ -311,13 +310,8 @@ static const struct irq_domain_ops stmpe_gpio_irq_simple_ops = {
 static int stmpe_gpio_irq_init(struct stmpe_gpio *stmpe_gpio,
 		struct device_node *np)
 {
-	int base = 0;
-
-	if (!np)
-		base = stmpe_gpio->irq_base;
-
 	stmpe_gpio->domain = irq_domain_add_simple(np,
-				stmpe_gpio->chip.ngpio, base,
+				stmpe_gpio->chip.ngpio, 0,
 				&stmpe_gpio_irq_simple_ops, stmpe_gpio);
 	if (!stmpe_gpio->domain) {
 		dev_err(stmpe_gpio->dev, "failed to create irqdomain\n");
@@ -354,7 +348,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	stmpe_gpio->chip.of_node = np;
 #endif
-	stmpe_gpio->chip.base = pdata ? pdata->gpio_base : -1;
+	stmpe_gpio->chip.base = -1;
 
 	if (pdata)
 		stmpe_gpio->norequest_mask = pdata->norequest_mask;
@@ -362,9 +356,7 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 		of_property_read_u32(np, "st,norequest-mask",
 				&stmpe_gpio->norequest_mask);
 
-	if (irq >= 0)
-		stmpe_gpio->irq_base = stmpe->irq_base + STMPE_INT_GPIO(0);
-	else
+	if (irq < 0)
 		dev_info(&pdev->dev,
 			"device configured in no-irq mode; "
 			"irqs are not available\n");

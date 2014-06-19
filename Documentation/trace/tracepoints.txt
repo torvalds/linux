@@ -115,6 +115,30 @@ If the tracepoint has to be used in kernel modules, an
 EXPORT_TRACEPOINT_SYMBOL_GPL() or EXPORT_TRACEPOINT_SYMBOL() can be
 used to export the defined tracepoints.
 
+If you need to do a bit of work for a tracepoint parameter, and
+that work is only used for the tracepoint, that work can be encapsulated
+within an if statement with the following:
+
+	if (trace_foo_bar_enabled()) {
+		int i;
+		int tot = 0;
+
+		for (i = 0; i < count; i++)
+			tot += calculate_nuggets();
+
+		trace_foo_bar(tot);
+	}
+
+All trace_<tracepoint>() calls have a matching trace_<tracepoint>_enabled()
+function defined that returns true if the tracepoint is enabled and
+false otherwise. The trace_<tracepoint>() should always be within the
+block of the if (trace_<tracepoint>_enabled()) to prevent races between
+the tracepoint being enabled and the check being seen.
+
+The advantage of using the trace_<tracepoint>_enabled() is that it uses
+the static_key of the tracepoint to allow the if statement to be implemented
+with jump labels and avoid conditional branches.
+
 Note: The convenience macro TRACE_EVENT provides an alternative way to
       define tracepoints. Check http://lwn.net/Articles/379903,
       http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362

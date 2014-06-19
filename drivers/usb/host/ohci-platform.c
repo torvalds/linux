@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -36,6 +37,7 @@
 
 struct ohci_platform_priv {
 	struct clk *clks[OHCI_MAX_CLKS];
+	struct reset_control *rst;
 	struct phy *phy;
 };
 
@@ -191,6 +193,19 @@ static int ohci_platform_probe(struct platform_device *dev)
 				break;
 			}
 		}
+
+	}
+
+	priv->rst = devm_reset_control_get_optional(&dev->dev, NULL);
+	if (IS_ERR(priv->rst)) {
+		err = PTR_ERR(priv->rst);
+		if (err == -EPROBE_DEFER)
+			goto err_put_clks;
+		priv->rst = NULL;
+	} else {
+		err = reset_control_deassert(priv->rst);
+		if (err)
+			goto err_put_clks;
 	}
 
 	if (pdata->big_endian_desc)
@@ -203,7 +218,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 		dev_err(&dev->dev,
 			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_MMIO not set\n");
 		err = -EINVAL;
-		goto err_put_clks;
+		goto err_reset;
 	}
 #endif
 #ifndef CONFIG_USB_OHCI_BIG_ENDIAN_DESC
@@ -211,14 +226,14 @@ static int ohci_platform_probe(struct platform_device *dev)
 		dev_err(&dev->dev,
 			"Error: CONFIG_USB_OHCI_BIG_ENDIAN_DESC not set\n");
 		err = -EINVAL;
-		goto err_put_clks;
+		goto err_reset;
 	}
 #endif
 
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
-			goto err_put_clks;
+			goto err_reset;
 	}
 
 	hcd->rsrc_start = res_mem->start;
@@ -242,6 +257,9 @@ static int ohci_platform_probe(struct platform_device *dev)
 err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
+err_reset:
+	if (priv->rst)
+		reset_control_assert(priv->rst);
 err_put_clks:
 	while (--clk >= 0)
 		clk_put(priv->clks[clk]);
@@ -265,6 +283,9 @@ static int ohci_platform_remove(struct platform_device *dev)
 
 	if (pdata->power_off)
 		pdata->power_off(dev);
+
+	if (priv->rst)
+		reset_control_assert(priv->rst);
 
 	for (clk = 0; clk < OHCI_MAX_CLKS && priv->clks[clk]; clk++)
 		clk_put(priv->clks[clk]);

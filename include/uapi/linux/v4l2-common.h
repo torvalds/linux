@@ -75,7 +75,7 @@ struct v4l2_edid {
 	__u32 start_block;
 	__u32 blocks;
 	__u32 reserved[5];
-	__u8 __user *edid;
+	__u8  *edid;
 };
 
 #endif /* __V4L2_COMMON__ */

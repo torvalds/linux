@@ -313,6 +313,7 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 	int hwtstamp_rx_filter;
+	cpumask_var_t affinity_mask;
 };
 
 struct mlx4_en_cq {
@@ -830,26 +831,26 @@ __printf(3, 4)
 int en_print(const char *level, const struct mlx4_en_priv *priv,
 	     const char *format, ...);
 
-#define en_dbg(mlevel, priv, format, arg...)			\
-do {								\
-	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
-		en_print(KERN_DEBUG, priv, format, ##arg);	\
+#define en_dbg(mlevel, priv, format, ...)				\
+do {									\
+	if (NETIF_MSG_##mlevel & (priv)->msg_enable)			\
+		en_print(KERN_DEBUG, priv, format, ##__VA_ARGS__);	\
 } while (0)
-#define en_warn(priv, format, arg...)			\
-	en_print(KERN_WARNING, priv, format, ##arg)
-#define en_err(priv, format, arg...)			\
-	en_print(KERN_ERR, priv, format, ##arg)
-#define en_info(priv, format, arg...)			\
-	en_print(KERN_INFO, priv, format, ## arg)
+#define en_warn(priv, format, ...)					\
+	en_print(KERN_WARNING, priv, format, ##__VA_ARGS__)
+#define en_err(priv, format, ...)					\
+	en_print(KERN_ERR, priv, format, ##__VA_ARGS__)
+#define en_info(priv, format, ...)					\
+	en_print(KERN_INFO, priv, format, ##__VA_ARGS__)
 
-#define mlx4_err(mdev, format, arg...)			\
-	pr_err("%s %s: " format, DRV_NAME,		\
-	       dev_name(&mdev->pdev->dev), ##arg)
-#define mlx4_info(mdev, format, arg...)			\
-	pr_info("%s %s: " format, DRV_NAME,		\
-		dev_name(&mdev->pdev->dev), ##arg)
-#define mlx4_warn(mdev, format, arg...)			\
-	pr_warning("%s %s: " format, DRV_NAME,		\
-		   dev_name(&mdev->pdev->dev), ##arg)
+#define mlx4_err(mdev, format, ...)					\
+	pr_err(DRV_NAME " %s: " format,					\
+	       dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
+#define mlx4_info(mdev, format, ...)					\
+	pr_info(DRV_NAME " %s: " format,				\
+		dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
+#define mlx4_warn(mdev, format, ...)					\
+	pr_warn(DRV_NAME " %s: " format,				\
+		dev_name(&(mdev)->pdev->dev), ##__VA_ARGS__)
 
 #endif

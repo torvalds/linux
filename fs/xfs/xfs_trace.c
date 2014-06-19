@@ -46,6 +46,7 @@
 #include "xfs_log_recover.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_filestream.h"
 
 /*
  * We include this last to have the helpers above available for the trace
