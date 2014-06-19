@@ -162,6 +162,8 @@ extern int kptr_restrict;
 
 extern void wake_up_klogd(void);
 
+typedef int(*printk_func_t)(const char *fmt, va_list args);
+
 void log_buf_kexec_setup(void);
 void __init setup_log_buf(int early);
 void dump_stack_set_arch_desc(const char *fmt, ...);
