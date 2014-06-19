@@ -157,6 +157,63 @@ void nf_log_packet(struct net *net,
 }
 EXPORT_SYMBOL(nf_log_packet);
 
+#define S_SIZE (1024 - (sizeof(unsigned int) + 1))
+
+struct nf_log_buf {
+	unsigned int	count;
+	char		buf[S_SIZE + 1];
+};
+static struct nf_log_buf emergency, *emergency_ptr = &emergency;
+
+__printf(2, 3) int nf_log_buf_add(struct nf_log_buf *m, const char *f, ...)
+{
+	va_list args;
+	int len;
+
+	if (likely(m->count < S_SIZE)) {
+		va_start(args, f);
+		len = vsnprintf(m->buf + m->count, S_SIZE - m->count, f, args);
+		va_end(args);
+		if (likely(m->count + len < S_SIZE)) {
+			m->count += len;
+			return 0;
+		}
+	}
+	m->count = S_SIZE;
+	printk_once(KERN_ERR KBUILD_MODNAME " please increase S_SIZE\n");
+	return -1;
+}
+EXPORT_SYMBOL_GPL(nf_log_buf_add);
+
+struct nf_log_buf *nf_log_buf_open(void)
+{
+	struct nf_log_buf *m = kmalloc(sizeof(*m), GFP_ATOMIC);
+
+	if (unlikely(!m)) {
+		local_bh_disable();
+		do {
+			m = xchg(&emergency_ptr, NULL);
+		} while (!m);
+	}
+	m->count = 0;
+	return m;
+}
+EXPORT_SYMBOL_GPL(nf_log_buf_open);
+
+void nf_log_buf_close(struct nf_log_buf *m)
+{
+	m->buf[m->count] = 0;
+	printk("%s\n", m->buf);
+
+	if (likely(m != &emergency))
+		kfree(m);
+	else {
+		emergency_ptr = m;
+		local_bh_enable();
+	}
+}
+EXPORT_SYMBOL_GPL(nf_log_buf_close);
+
 #ifdef CONFIG_PROC_FS
 static void *seq_start(struct seq_file *seq, loff_t *pos)
 {
