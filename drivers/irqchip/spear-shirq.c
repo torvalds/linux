@@ -33,15 +33,11 @@
  * reset_to_enb: val 1 indicates, we need to clear bit for enabling interrupt
  * status_reg: status register offset
  * status_reg_mask: status register valid mask
- * clear_reg: clear register offset
- * reset_to_clear: val 1 indicates, we need to clear bit for clearing interrupt
  */
 struct shirq_regs {
 	u32 enb_reg;
 	u32 reset_to_enb;
 	u32 status_reg;
-	u32 clear_reg;
-	u32 reset_to_clear;
 };
 
 /*
@@ -78,7 +74,6 @@ static struct spear_shirq spear300_shirq_ras1 = {
 	.regs = {
 		.enb_reg = SPEAR300_INT_ENB_MASK_REG,
 		.status_reg = SPEAR300_INT_STS_MASK_REG,
-		.clear_reg = -1,
 	},
 };
 
@@ -96,7 +91,6 @@ static struct spear_shirq spear310_shirq_ras1 = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.clear_reg = -1,
 	},
 };
 
@@ -107,7 +101,6 @@ static struct spear_shirq spear310_shirq_ras2 = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.clear_reg = -1,
 	},
 };
 
@@ -118,7 +111,6 @@ static struct spear_shirq spear310_shirq_ras3 = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.clear_reg = -1,
 	},
 };
 
@@ -129,7 +121,6 @@ static struct spear_shirq spear310_shirq_intrcomm_ras = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
-		.clear_reg = -1,
 	},
 };
 
@@ -150,13 +141,6 @@ static struct spear_shirq spear320_shirq_ras3 = {
 	.nr_irqs	= 7,
 	.mask		= ((0x1 << 7) - 1) << 0,
 	.disabled	= 1,
-	.regs = {
-		.enb_reg = SPEAR320_INT_ENB_MASK_REG,
-		.reset_to_enb = 1,
-		.status_reg = SPEAR320_INT_STS_MASK_REG,
-		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
-		.reset_to_clear = 1,
-	},
 };
 
 static struct spear_shirq spear320_shirq_ras1 = {
@@ -166,8 +150,6 @@ static struct spear_shirq spear320_shirq_ras1 = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
-		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
-		.reset_to_clear = 1,
 	},
 };
 
@@ -178,8 +160,6 @@ static struct spear_shirq spear320_shirq_ras2 = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
-		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
-		.reset_to_clear = 1,
 	},
 };
 
@@ -190,8 +170,6 @@ static struct spear_shirq spear320_shirq_intrcomm_ras = {
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
-		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
-		.reset_to_clear = 1,
 	},
 };
 
@@ -246,7 +224,7 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 	struct spear_shirq *shirq = irq_get_handler_data(irq);
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(idata);
-	u32 i, j, val, mask, tmp;
+	u32 i, j, val, mask;
 
 	chip->irq_ack(idata);
 
@@ -261,17 +239,6 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 				continue;
 
 			generic_handle_irq(shirq->virq_base + i);
-
-			/* clear interrupt */
-			if (shirq->regs.clear_reg == -1)
-				continue;
-
-			tmp = readl(shirq->base + shirq->regs.clear_reg);
-			if (shirq->regs.reset_to_clear)
-				tmp &= ~(j << shirq->offset);
-			else
-				tmp |= (j << shirq->offset);
-			writel(tmp, shirq->base + shirq->regs.clear_reg);
 		}
 	}
 	chip->irq_unmask(idata);
