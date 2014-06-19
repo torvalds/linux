@@ -2190,7 +2190,6 @@ static long __video_do_ioctl(struct file *file,
 	const struct v4l2_ioctl_info *info;
 	void *fh = file->private_data;
 	struct v4l2_fh *vfh = NULL;
-	int use_fh_prio = 0;
 	int debug = vfd->debug;
 	long ret = -ENOTTY;
 
@@ -2200,10 +2199,8 @@ static long __video_do_ioctl(struct file *file,
 		return ret;
 	}
 
-	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags))
 		vfh = file->private_data;
-		use_fh_prio = test_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
-	}
 
 	if (v4l2_is_known_ioctl(cmd)) {
 		info = &v4l2_ioctls[_IOC_NR(cmd)];
@@ -2212,7 +2209,7 @@ static long __video_do_ioctl(struct file *file,
 		    !((info->flags & INFO_FL_CTRL) && vfh && vfh->ctrl_handler))
 			goto done;
 
-		if (use_fh_prio && (info->flags & INFO_FL_PRIO)) {
+		if (vfh && (info->flags & INFO_FL_PRIO)) {
 			ret = v4l2_prio_check(vfd->prio, vfh->prio);
 			if (ret)
 				goto done;
@@ -2237,7 +2234,7 @@ static long __video_do_ioctl(struct file *file,
 		ret = -ENOTTY;
 	} else {
 		ret = ops->vidioc_default(file, fh,
-			use_fh_prio ? v4l2_prio_check(vfd->prio, vfh->prio) >= 0 : 0,
+			vfh ? v4l2_prio_check(vfd->prio, vfh->prio) >= 0 : 0,
 			cmd, arg);
 	}
 
