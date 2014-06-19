@@ -770,15 +770,12 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 {
-	unsigned short cap;
 	u8 bencrypt = 0;
 	int pie_len, ie_offset;
 	u8 *pie;
 	const u8 *p;
 
-	cap = get_unaligned_le16(
-		rtw_get_capability23a_from_ie(pnetwork->network.IEs));
-	if (cap & WLAN_CAPABILITY_PRIVACY) {
+	if (pnetwork->network.capability & WLAN_CAPABILITY_PRIVACY) {
 		bencrypt = 1;
 		pnetwork->network.Privacy = 1;
 	} else
