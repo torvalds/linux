@@ -301,15 +301,26 @@ config FB_ACORN
 	  hardware found in Acorn RISC PCs and other ARM-based machines.  If
 	  unsure, say N.
 
-config FB_CLPS711X
-	bool "CLPS711X LCD support"
-	depends on (FB = y) && ARM && ARCH_CLPS711X
+config FB_CLPS711X_OLD
+	bool
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+
+config FB_CLPS711X
+	tristate "CLPS711X LCD support"
+	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
+	select FB_CLPS711X_OLD if ARCH_CLPS711X && !ARCH_MULTIPLATFORM
+	select BACKLIGHT_LCD_SUPPORT
+	select FB_MODE_HELPERS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select LCD_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
 	help
-	  Say Y to enable the Framebuffer driver for the CLPS7111 and
-	  EP7212 processors.
+	  Say Y to enable the Framebuffer driver for the Cirrus Logic
+	  CLPS711X CPUs.
 
 config FB_SA1100
 	bool "SA-1100 LCD support"
