@@ -232,12 +232,12 @@ static struct irq_chip shirq_chip = {
 
 static void shirq_handler(unsigned irq, struct irq_desc *desc)
 {
-	u32 i, j, val, mask, tmp;
-	struct irq_chip *chip;
 	struct spear_shirq *shirq = irq_get_handler_data(irq);
+	struct irq_data *idata = irq_desc_get_irq_data(desc);
+	struct irq_chip *chip = irq_data_get_irq_chip(idata);
+	u32 i, j, val, mask, tmp;
 
-	chip = irq_get_chip(irq);
-	chip->irq_ack(&desc->irq_data);
+	chip->irq_ack(idata);
 
 	mask = ((0x1 << shirq->nr_irqs) - 1) << shirq->offset;
 	while ((val = readl(shirq->base + shirq->regs.status_reg) &
@@ -263,7 +263,7 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 			writel(tmp, shirq->base + shirq->regs.clear_reg);
 		}
 	}
-	chip->irq_unmask(&desc->irq_data);
+	chip->irq_unmask(idata);
 }
 
 static void __init spear_shirq_register(struct spear_shirq *shirq,
