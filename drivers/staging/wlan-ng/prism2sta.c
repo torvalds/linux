@@ -360,6 +360,7 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, struct p80211msg *msg)
 	case DIDmsg_lnxreq_ifstate:
 		{
 			struct p80211msg_lnxreq_ifstate *ifstatemsg;
+
 			pr_debug("Received mlme ifstate request\n");
 			ifstatemsg = (struct p80211msg_lnxreq_ifstate *) msg;
 			result =
@@ -1406,6 +1407,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 */
 		if (hw->join_ap && --hw->join_retries > 0) {
 			hfa384x_JoinRequest_data_t joinreq;
+
 			joinreq = hw->joinreq;
 			/* Send the join request */
 			hfa384x_drvr_setconfig(hw,
