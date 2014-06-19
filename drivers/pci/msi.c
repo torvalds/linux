@@ -167,11 +167,6 @@ static inline __attribute_const__ u32 msi_mask(unsigned x)
 	return (1 << (1 << x)) - 1;
 }
 
-static inline __attribute_const__ u32 msi_capable_mask(u16 control)
-{
-	return msi_mask((control >> 1) & 7);
-}
-
 /*
  * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
  * mask all MSI interrupts by clearing the MSI enable bit does not work
@@ -454,7 +449,8 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	arch_restore_msi_irqs(dev);
 
 	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
-	msi_mask_irq(entry, msi_capable_mask(control), entry->masked);
+	msi_mask_irq(entry, msi_mask(entry->msi_attrib.multi_cap),
+		     entry->masked);
 	control &= ~PCI_MSI_FLAGS_QSIZE;
 	control |= (entry->msi_attrib.multiple << 4) | PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, control);
@@ -617,6 +613,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	entry->msi_attrib.maskbit	= !!(control & PCI_MSI_FLAGS_MASKBIT);
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos		= dev->msi_cap;
+	entry->msi_attrib.multi_cap	= (control & PCI_MSI_FLAGS_QMASK) >> 1;
 
 	if (control & PCI_MSI_FLAGS_64BIT)
 		entry->mask_pos = dev->msi_cap + PCI_MSI_MASK_64;
@@ -625,7 +622,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	/* All MSIs are unmasked by default, Mask them all */
 	if (entry->msi_attrib.maskbit)
 		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
-	mask = msi_capable_mask(control);
+	mask = msi_mask(entry->msi_attrib.multi_cap);
 	msi_mask_irq(entry, mask, mask);
 
 	list_add_tail(&entry->list, &dev->msi_list);
@@ -870,7 +867,6 @@ void pci_msi_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *desc;
 	u32 mask;
-	u16 ctrl;
 
 	if (!pci_msi_enable || !dev || !dev->msi_enabled)
 		return;
@@ -883,8 +879,7 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	dev->msi_enabled = 0;
 
 	/* Return the device with MSI unmasked as initial states */
-	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &ctrl);
-	mask = msi_capable_mask(ctrl);
+	mask = msi_mask(desc->msi_attrib.multi_cap);
 	/* Keep cached state to be restored */
 	arch_msi_mask_irq(desc, mask, ~mask);
 
