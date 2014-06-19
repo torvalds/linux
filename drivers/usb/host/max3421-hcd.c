@@ -1547,7 +1547,7 @@ max3421_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	max3421_ep = urb->ep->hcpriv;
 	if (!max3421_ep) {
 		/* gets freed in max3421_endpoint_disable: */
-		max3421_ep = kzalloc(sizeof(struct max3421_ep), mem_flags);
+		max3421_ep = kzalloc(sizeof(struct max3421_ep), GFP_ATOMIC);
 		if (!max3421_ep) {
 			retval = -ENOMEM;
 			goto out;
