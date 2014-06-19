@@ -366,8 +366,8 @@ int is_same_network23a(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 {
 	u16 s_cap, d_cap;
 
-	s_cap = get_unaligned_le16(rtw_get_capability23a_from_ie(src->IEs));
-	d_cap = get_unaligned_le16(rtw_get_capability23a_from_ie(dst->IEs));
+	s_cap = src->capability;
+	d_cap = dst->capability;
 
 	return ((src->Ssid.ssid_len == dst->Ssid.ssid_len) &&
 		/*	(src->DSConfig == dst->DSConfig) && */
