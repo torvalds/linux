@@ -1012,28 +1012,29 @@ static struct sk_buff *tun_alloc_skb(struct tun_file *tfile,
 
 /* Get packet from user space buffer */
 static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
-			    void *msg_control, const struct iovec *iv,
-			    size_t total_len, size_t count, int noblock)
+			    void *msg_control, struct iov_iter *from,
+			    int noblock)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
+	size_t total_len = iov_iter_count(from);
 	size_t len = total_len, align = NET_SKB_PAD, linear;
 	struct virtio_net_hdr gso = { 0 };
 	int good_linear;
-	int offset = 0;
 	int copylen;
 	bool zerocopy = false;
 	int err;
 	u32 rxhash;
+	ssize_t n;
 
 	if (!(tun->flags & TUN_NO_PI)) {
 		if (len < sizeof(pi))
 			return -EINVAL;
 		len -= sizeof(pi);
 
-		if (memcpy_fromiovecend((void *)&pi, iv, 0, sizeof(pi)))
+		n = copy_from_iter(&pi, sizeof(pi), from);
+		if (n != sizeof(pi))
 			return -EFAULT;
-		offset += sizeof(pi);
 	}
 
 	if (tun->flags & TUN_VNET_HDR) {
@@ -1041,7 +1042,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 			return -EINVAL;
 		len -= tun->vnet_hdr_sz;
 
-		if (memcpy_fromiovecend((void *)&gso, iv, offset, sizeof(gso)))
+		n = copy_from_iter(&gso, sizeof(gso), from);
+		if (n != sizeof(gso))
 			return -EFAULT;
 
 		if ((gso.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
@@ -1050,7 +1052,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 
 		if (gso.hdr_len > len)
 			return -EINVAL;
-		offset += tun->vnet_hdr_sz;
+		iov_iter_advance(from, tun->vnet_hdr_sz);
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
@@ -1063,6 +1065,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	good_linear = SKB_MAX_HEAD(align);
 
 	if (msg_control) {
+		struct iov_iter i = *from;
+
 		/* There are 256 bytes to be copied in skb, so there is
 		 * enough room for skb expand head in case it is used.
 		 * The rest of the buffer is mapped from userspace.
@@ -1071,7 +1075,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		if (copylen > good_linear)
 			copylen = good_linear;
 		linear = copylen;
-		if (iov_pages(iv, offset + copylen, count) <= MAX_SKB_FRAGS)
+		iov_iter_advance(&i, copylen);
+		if (iov_iter_npages(&i, INT_MAX) <= MAX_SKB_FRAGS)
 			zerocopy = true;
 	}
 
@@ -1091,9 +1096,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	if (zerocopy)
-		err = zerocopy_sg_from_iovec(skb, iv, offset, count);
+		err = zerocopy_sg_from_iter(skb, from);
 	else {
-		err = skb_copy_datagram_from_iovec(skb, 0, iv, offset, len);
+		err = skb_copy_datagram_from_iter(skb, 0, from, len);
 		if (!err && msg_control) {
 			struct ubuf_info *uarg = msg_control;
 			uarg->callback(uarg, false);
@@ -1207,8 +1212,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	return total_len;
 }
 
-static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
-			      unsigned long count, loff_t pos)
+static ssize_t tun_chr_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct tun_struct *tun = tun_get(file);
@@ -1218,10 +1222,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 	if (!tun)
 		return -EBADFD;
 
-	tun_debug(KERN_INFO, tun, "tun_chr_write %ld\n", count);
-
-	result = tun_get_user(tun, tfile, NULL, iv, iov_length(iv, count),
-			      count, file->f_flags & O_NONBLOCK);
+	result = tun_get_user(tun, tfile, NULL, from, file->f_flags & O_NONBLOCK);
 
 	tun_put(tun);
 	return result;
@@ -1445,11 +1446,14 @@ static int tun_sendmsg(struct kiocb *iocb, struct socket *sock,
 	int ret;
 	struct tun_file *tfile = container_of(sock, struct tun_file, socket);
 	struct tun_struct *tun = __tun_get(tfile);
+	struct iov_iter from;
 
 	if (!tun)
 		return -EBADFD;
-	ret = tun_get_user(tun, tfile, m->msg_control, m->msg_iov, total_len,
-			   m->msg_iovlen, m->msg_flags & MSG_DONTWAIT);
+
+	iov_iter_init(&from, WRITE, m->msg_iov, m->msg_iovlen, total_len);
+	ret = tun_get_user(tun, tfile, m->msg_control, &from,
+			   m->msg_flags & MSG_DONTWAIT);
 	tun_put(tun);
 	return ret;
 }
@@ -2233,9 +2237,9 @@ static const struct file_operations tun_fops = {
 	.owner	= THIS_MODULE,
 	.llseek = no_llseek,
 	.read  = new_sync_read,
+	.write = new_sync_write,
 	.read_iter  = tun_chr_read_iter,
-	.write = do_sync_write,
-	.aio_write = tun_chr_aio_write,
+	.write_iter = tun_chr_write_iter,
 	.poll	= tun_chr_poll,
 	.unlocked_ioctl	= tun_chr_ioctl,
 #ifdef CONFIG_COMPAT
