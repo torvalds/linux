@@ -34,6 +34,7 @@
 #include <linux/gpio.h>
 #include <linux/rockchip/iomap.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <linux/skbuff.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -94,56 +95,70 @@ static const char wlan_name[] =
  * Broadcom Wifi Static Memory
  * 
  **********************************************************/
+#ifdef CONFIG_RKWIFI
+#define BCM_STATIC_MEMORY_SUPPORT 1
+#else
 #define BCM_STATIC_MEMORY_SUPPORT 0
+#endif
 //===========================
 #if BCM_STATIC_MEMORY_SUPPORT
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
-#define PREALLOC_WLAN_SECTION_HEADER    24
+#define PREALLOC_WLAN_SECTION_HEADER    0
 #define WLAN_SKB_BUF_NUM        16
 
-#define WLAN_SECTION_SIZE_0     (PREALLOC_WLAN_BUF_NUM * 128)
-#define WLAN_SECTION_SIZE_1     (PREALLOC_WLAN_BUF_NUM * 128)
-#define WLAN_SECTION_SIZE_2     (PREALLOC_WLAN_BUF_NUM * 512)
-#define WLAN_SECTION_SIZE_3     (PREALLOC_WLAN_BUF_NUM * 1024)
-#define WLAN_SECTION_SIZE_5     (PREALLOC_WLAN_BUF_NUM * 512)
+#define WLAN_SECTION_SIZE_0     (12 * 1024)
+#define WLAN_SECTION_SIZE_1     (12 * 1024)
+#define WLAN_SECTION_SIZE_2     (32 * 1024)
+#define WLAN_SECTION_SIZE_3     (136* 1024)
+#define WLAN_SECTION_SIZE_4     (4  * 1024)
+#define WLAN_SECTION_SIZE_5     (64 * 1024)
+#define WLAN_SECTION_SIZE_6     (4  * 1024)
+#define WLAN_SECTION_SIZE_7     (4  * 1024)
 
-static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
+static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM+1];
 
 struct wifi_mem_prealloc {
     void *mem_ptr;
     unsigned long size;
 };
 
-static struct wifi_mem_prealloc wifi_mem_array[5] = {
-    {NULL, (WLAN_SECTION_SIZE_0 + PREALLOC_WLAN_SECTION_HEADER)},
-    {NULL, (WLAN_SECTION_SIZE_1 + PREALLOC_WLAN_SECTION_HEADER)},
-    {NULL, (WLAN_SECTION_SIZE_2 + PREALLOC_WLAN_SECTION_HEADER)},
-    {NULL, (WLAN_SECTION_SIZE_3 + PREALLOC_WLAN_SECTION_HEADER)},
-    {NULL, (WLAN_SECTION_SIZE_5 + PREALLOC_WLAN_SECTION_HEADER)}
+static struct wifi_mem_prealloc wifi_mem_array[8] = {
+    {NULL, (WLAN_SECTION_SIZE_0)},
+    {NULL, (WLAN_SECTION_SIZE_1)},
+    {NULL, (WLAN_SECTION_SIZE_2)},
+    {NULL, (WLAN_SECTION_SIZE_3)},
+    {NULL, (WLAN_SECTION_SIZE_4)},
+    {NULL, (WLAN_SECTION_SIZE_5)},
+    {NULL, (WLAN_SECTION_SIZE_6)},
+    {NULL, (WLAN_SECTION_SIZE_7)}
 };
 
-static int __init rockchip_init_wifi_mem(void)
+static int rockchip_init_wifi_mem(void)
 {
     int i;
     int j;
 
     for (i = 0 ; i < WLAN_SKB_BUF_NUM ; i++) {
         wlan_static_skb[i] = dev_alloc_skb(
-               ((i < (WLAN_SKB_BUF_NUM / 2)) ? 4096 : 8192));
+               ((i < (WLAN_SKB_BUF_NUM / 2)) ? (PAGE_SIZE*1) : (PAGE_SIZE*2)));
 
         if (!wlan_static_skb[i])
             goto err_skb_alloc;
     }
 
-    for (i = 0 ; i < 5; i++) {
+    wlan_static_skb[i] = dev_alloc_skb((PAGE_SIZE*4));
+    if (!wlan_static_skb[i])
+        goto err_skb_alloc;
+
+    for (i = 0 ; i <= 7; i++) {
         wifi_mem_array[i].mem_ptr =
                kmalloc(wifi_mem_array[i].size, GFP_KERNEL);
 
         if (!wifi_mem_array[i].mem_ptr)
             goto err_mem_alloc;
-        }
-        return 0;
+    }
+    return 0;
 
 err_mem_alloc:
     pr_err("Failed to mem_alloc for WLAN\n");
@@ -154,20 +169,19 @@ err_skb_alloc:
     pr_err("Failed to skb_alloc for WLAN\n");
     for (j = 0 ; j < i ; j++)
         dev_kfree_skb(wlan_static_skb[j]);
+    dev_kfree_skb(wlan_static_skb[j]);
 
     return -ENOMEM;
 }
 
 void *rockchip_mem_prealloc(int section, unsigned long size)
 {
+    //printk("rockchip_mem_prealloc: section = %d, size = %d\n", section, size);
     if (section == PREALLOC_WLAN_SEC_NUM)
         return wlan_static_skb;
 
-    if ((section < 0) || (section > 5))
+    if ((section < 0) || (section > 7))
         return NULL;
-
-    if (section == 5)
-        return wifi_mem_array[4].mem_ptr;
 
     if (wifi_mem_array[section].size < size)
         return NULL;

@@ -41,6 +41,7 @@ void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
 int wl_android_wifi_off(struct net_device *dev);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
+void* wl_android_prealloc(int section, unsigned long size);
 
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 int wl_android_wifictrl_func_add(void);

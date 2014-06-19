@@ -1782,6 +1782,24 @@ wl_genl_handle_msg(
 }
 #endif /* WL_GENL */
 
+extern void *rockchip_mem_prealloc(int section, unsigned long size);
+void* wl_android_prealloc(int section, unsigned long size)
+{
+	void *alloc_ptr = NULL;
+	//if (wifi_control_data && wifi_control_data->mem_prealloc) {
+		alloc_ptr = rockchip_mem_prealloc(section, size);
+		if (alloc_ptr) {
+			ANDROID_INFO(("success alloc section %d\n", section));
+			if (size != 0L)
+				bzero(alloc_ptr, size);
+			return alloc_ptr;
+		}
+	//}
+
+	ANDROID_ERROR(("can't alloc section %d\n", section));
+	return NULL;
+}
+
 /**
  * Functions for Android WiFi card detection
  */
