@@ -19,13 +19,51 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/irqchip/spear-shirq.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
 #include "irqchip.h"
+
+/*
+ * struct shirq_regs: shared irq register configuration
+ *
+ * enb_reg: enable register offset
+ * reset_to_enb: val 1 indicates, we need to clear bit for enabling interrupt
+ * status_reg: status register offset
+ * status_reg_mask: status register valid mask
+ * clear_reg: clear register offset
+ * reset_to_clear: val 1 indicates, we need to clear bit for clearing interrupt
+ */
+struct shirq_regs {
+	u32 enb_reg;
+	u32 reset_to_enb;
+	u32 status_reg;
+	u32 clear_reg;
+	u32 reset_to_clear;
+};
+
+/*
+ * struct spear_shirq: shared irq structure
+ *
+ * irq: hardware irq number
+ * irq_base: base irq in linux domain
+ * irq_nr: no. of shared interrupts in a particular block
+ * irq_bit_off: starting bit offset in the status register
+ * invalid_irq: irq group is currently disabled
+ * base: base address of shared irq register
+ * regs: register configuration for shared irq block
+ */
+struct spear_shirq {
+	u32 irq;
+	u32 irq_base;
+	u32 irq_nr;
+	u32 irq_bit_off;
+	int invalid_irq;
+	void __iomem *base;
+	struct shirq_regs regs;
+};
 
 static DEFINE_SPINLOCK(lock);
 
@@ -296,24 +334,24 @@ err_unmap:
 	return -ENXIO;
 }
 
-int __init spear300_shirq_of_init(struct device_node *np,
-		struct device_node *parent)
+static int __init spear300_shirq_of_init(struct device_node *np,
+					 struct device_node *parent)
 {
 	return shirq_init(spear300_shirq_blocks,
 			ARRAY_SIZE(spear300_shirq_blocks), np);
 }
 IRQCHIP_DECLARE(spear300_shirq, "st,spear300-shirq", spear300_shirq_of_init);
 
-int __init spear310_shirq_of_init(struct device_node *np,
-		struct device_node *parent)
+static int __init spear310_shirq_of_init(struct device_node *np,
+					 struct device_node *parent)
 {
 	return shirq_init(spear310_shirq_blocks,
 			ARRAY_SIZE(spear310_shirq_blocks), np);
 }
 IRQCHIP_DECLARE(spear310_shirq, "st,spear310-shirq", spear310_shirq_of_init);
 
-int __init spear320_shirq_of_init(struct device_node *np,
-		struct device_node *parent)
+static int __init spear320_shirq_of_init(struct device_node *np,
+					 struct device_node *parent)
 {
 	return shirq_init(spear320_shirq_blocks,
 			ARRAY_SIZE(spear320_shirq_blocks), np);
