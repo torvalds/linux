@@ -3051,7 +3051,6 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 	struct ieee80211_mgmt *mgmt;
 	struct pkt_attrib *pattrib;
 	unsigned char *pframe;
-	unsigned short val;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -3089,10 +3088,7 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 	pattrib->pktlen =
 		offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
 
-	/* capability */
-	val = *(unsigned short *)rtw_get_capability23a_from_ie(ie);
-
-	mgmt->u.assoc_resp.capab_info = val;
+	mgmt->u.assoc_resp.capab_info = cpu_to_le16(pnetwork->capability);
 	mgmt->u.assoc_resp.status_code = cpu_to_le16(status);
 	mgmt->u.assoc_resp.aid = cpu_to_le16(pstat->aid | BIT(14) | BIT(15));
 
