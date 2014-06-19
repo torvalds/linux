@@ -158,7 +158,7 @@ struct rsnd_dma {
 	struct sh_dmae_slave	slave;
 	struct work_struct	work;
 	struct dma_chan		*chan;
-	enum dma_data_direction dir;
+	enum dma_transfer_direction dir;
 
 	int submit_loop;
 	int offset; /* it cares A/B plane */

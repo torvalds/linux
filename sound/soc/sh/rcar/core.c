@@ -363,7 +363,7 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	if (ret < 0)
 		goto rsnd_dma_init_err;
 
-	dma->dir = is_play ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	dma->dir = is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 	INIT_WORK(&dma->work, rsnd_dma_do_work);
 
 	return 0;
