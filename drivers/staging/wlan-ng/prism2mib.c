@@ -672,8 +672,8 @@ static int prism2mib_fragmentationthreshold(struct mibrec *mib,
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			netdev_warn(wlandev->netdev, "Attempt to set odd number "
-			       "FragmentationThreshold\n");
+			netdev_warn(wlandev->netdev,
+				    "Attempt to set odd number FragmentationThreshold\n");
 			msg->resultcode.data =
 			    P80211ENUM_resultcode_not_supported;
 			return 0;
