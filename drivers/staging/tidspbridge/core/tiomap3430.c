@@ -1057,6 +1057,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 	u32 total_bytes = ul_num_bytes;
 	u8 host_buf[BUFFERSIZE];
 	struct bridge_dev_context *dev_context = dev_ctxt;
+
 	while (total_bytes > 0 && !status) {
 		copy_bytes =
 		    total_bytes > BUFFERSIZE ? BUFFERSIZE : total_bytes;
@@ -1094,6 +1095,7 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 	struct bridge_dev_context *dev_context = dev_ctxt;
 	u32 ul_remain_bytes = 0;
 	u32 ul_bytes = 0;
+
 	ul_remain_bytes = ul_num_bytes;
 	while (ul_remain_bytes > 0 && !status) {
 		ul_bytes =

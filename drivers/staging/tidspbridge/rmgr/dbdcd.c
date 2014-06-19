@@ -489,6 +489,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	strncpy(sz_sect_name, ".", 2);
 	do {
 		char *uuid = strsep(&tmp, "-");
+
 		if (!uuid)
 			break;
 		len -= strlen(uuid);

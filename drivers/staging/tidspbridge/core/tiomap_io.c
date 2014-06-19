@@ -176,6 +176,7 @@ int write_dsp_data(struct bridge_dev_context *dev_context,
 	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;
 	u32 base1, base2, base3;
+
 	base1 = OMAP_DSP_MEM1_SIZE;
 	base2 = OMAP_DSP_MEM2_BASE - OMAP_DSP_MEM1_BASE;
 	base3 = OMAP_DSP_MEM3_BASE - OMAP_DSP_MEM1_BASE;
@@ -229,6 +230,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	u32 ul_shm_offset_virt = 0;
 	struct cfg_hostres *host_res = dev_context->resources;
 	bool trace_load = false;
+
 	temp_byte1 = 0x0;
 	temp_byte2 = 0x0;
 

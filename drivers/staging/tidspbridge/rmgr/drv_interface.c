@@ -351,6 +351,7 @@ static void bridge_recover(struct work_struct *work)
 {
 	struct dev_object *dev;
 	struct cfg_devnode *dev_node;
+
 	if (atomic_read(&bridge_cref)) {
 		reinit_completion(&bridge_comp);
 		while (!wait_for_completion_timeout(&bridge_comp,
@@ -638,6 +639,7 @@ int drv_remove_all_resources(void *process_ctxt)
 {
 	int status = 0;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
+
 	drv_remove_all_strm_res_elements(ctxt);
 	drv_remove_all_node_res_elements(ctxt);
 	drv_remove_all_dmm_res_elements(ctxt);

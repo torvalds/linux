@@ -135,6 +135,7 @@ int dload_repack(struct dload_state *dlthis, rvalue val, tgt_au_t *data,
 	 */
 	if (sgn) {
 		unsigned tmp = (val >> fieldsz) + (sgn & 0x1);
+
 		if (tmp > ovf_limit[sgn - 1])
 			return 1;
 	}
@@ -403,6 +404,7 @@ void dload_relocate(struct dload_state *dlthis, tgt_au_t *data,
 	case RACT_C6BASE:
 		if (dlthis->bss_run_base == 0) {
 			struct dynload_symbol *symp;
+
 			symp = dlthis->mysym->find_matching_symbol
 			    (dlthis->mysym, bsssymbol);
 			/* lookup value of global BSS base */

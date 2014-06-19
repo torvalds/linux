@@ -1542,6 +1542,7 @@ static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 	struct rmm_addr *rmm_addr_obj = (struct rmm_addr *)dsp_address;
 	bool mem_load_req = false;
 	int status = -ENOMEM;	/* Set to fail */
+
 	nldr_obj = hnode->nldr_obj;
 	rmm = nldr_obj->rmm;
 	/* Convert size to DSP words */

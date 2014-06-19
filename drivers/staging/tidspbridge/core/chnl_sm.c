@@ -486,6 +486,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
+
 	if (channel_info != NULL) {
 		if (pchnl) {
 			/* Return the requested information: */

@@ -249,6 +249,7 @@ int bridge_io_create(struct io_mgr **io_man,
 int bridge_io_destroy(struct io_mgr *hio_mgr)
 {
 	int status = 0;
+
 	if (hio_mgr) {
 		/* Free IO DPC object */
 		tasklet_kill(&hio_mgr->dpc_tasklet);

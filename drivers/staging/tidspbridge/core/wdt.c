@@ -33,6 +33,7 @@ static struct dsp_wdt_setting dsp_wdt;
 void dsp_wdt_dpc(unsigned long data)
 {
 	struct deh_mgr *deh_mgr;
+
 	dev_get_deh_mgr(dev_get_first(), &deh_mgr);
 	if (deh_mgr)
 		bridge_deh_notify(deh_mgr, DSP_WDTOVERFLOW, 0);

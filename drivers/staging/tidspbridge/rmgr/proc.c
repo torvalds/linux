@@ -200,6 +200,7 @@ static struct dmm_map_object *find_containing_mapping(
 				u32 mpu_addr, u32 size)
 {
 	struct dmm_map_object *map_obj;
+
 	pr_debug("%s: looking for mpu_addr 0x%x size 0x%x\n", __func__,
 						mpu_addr, size);
 
@@ -985,6 +986,7 @@ int proc_get_state(void *hprocessor,
 int proc_get_trace(void *hprocessor, u8 *pbuf, u32 max_size)
 {
 	int status;
+
 	status = -ENOSYS;
 	return status;
 }
@@ -1737,6 +1739,7 @@ static int proc_monitor(struct proc_object *proc_obj)
 static s32 get_envp_count(char **envp)
 {
 	s32 ret = 0;
+
 	if (envp) {
 		while (*envp++)
 			ret++;

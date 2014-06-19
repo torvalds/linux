@@ -273,6 +273,7 @@ static struct node_ldr_fxns nldr_fxns = {
 enum node_state node_get_state(void *hnode)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
+
 	if (!pnode)
 		return -1;
 	return pnode->node_state;
@@ -2365,6 +2366,7 @@ static void delete_node(struct node_object *hnode,
 	    (struct proc_object *)hnode->processor;
 #endif
 	int status;
+
 	if (!hnode)
 		goto func_end;
 	hnode_mgr = hnode->node_mgr;

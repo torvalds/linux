@@ -75,6 +75,7 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 
 	if (!status) {
 		struct bridge_drv_interface *intf_fxns;
+
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 		/* Let Bridge channel module finish the create: */
 		status = (*intf_fxns->chnl_create) (&hchnl_mgr, hdev_obj,

@@ -160,6 +160,7 @@ int dynamic_load_module(struct dynamic_loader_stream *module,
 		if (!dl_state.dload_errcount) {
 			/* fix up entry point address */
 			unsigned sref = dl_state.dfile_hdr.df_entry_secn - 1;
+
 			if (sref < dl_state.allocated_secn_count)
 				dl_state.dfile_hdr.df_entrypt +=
 				    dl_state.ldr_sections[sref].run_addr;
@@ -269,6 +270,7 @@ dynamic_open_module(struct dynamic_loader_stream *module,
 		if (!dl_state.dload_errcount) {
 			/* fix up entry point address */
 			unsigned sref = dl_state.dfile_hdr.df_entry_secn - 1;
+
 			if (sref < dl_state.allocated_secn_count)
 				dl_state.dfile_hdr.df_entrypt +=
 				    dl_state.ldr_sections[sref].run_addr;
@@ -476,6 +478,7 @@ static void allocate_sections(struct dload_state *dlthis)
 	struct doff_scnhdr_t *shp;
 	struct ldr_section_info *asecs;
 	struct my_handle *hndl;
+
 	nsecs = dlthis->dfile_hdr.df_no_scns;
 	if (!nsecs)
 		return;
@@ -1089,6 +1092,7 @@ static int relocate_packet(struct dload_state *dlthis,
 		unsigned rinbuf;
 		int siz;
 		struct reloc_record_t *rp, rrec[MY_RELOC_BUF_SIZ];
+
 		rp = rrec;
 		rinbuf = rnum > MY_RELOC_BUF_SIZ ? MY_RELOC_BUF_SIZ : rnum;
 		siz = rinbuf * sizeof(struct reloc_record_t);
@@ -1502,6 +1506,7 @@ static void swap_words(void *data, unsigned siz, unsigned bitmap)
 	sp = (u16 *) data;
 	do {
 		register u16 tmp;
+
 		tmp = *sp;
 		*sp++ = SWAP16BY8(tmp);
 	} while ((i -= 1) > 0);
@@ -1543,6 +1548,7 @@ static char *copy_tgt_strings(void *dstp, void *srcp, unsigned charcount)
 	register tgt_au_t *src = (tgt_au_t *) srcp;
 	register tgt_au_t *dst = (tgt_au_t *) dstp;
 	register int cnt = charcount;
+
 	do {
 #if TARGET_AU_BITS <= BITS_PER_AU
 		/* byte-swapping issues may exist for strings on target */
@@ -1598,6 +1604,7 @@ static void init_module_handle(struct dload_state *dlthis)
 	struct modules_header mhdr;
 	struct ldr_section_info dllview_info;
 	struct dynload_symbol *debug_mirror_sym;
+
 	hndl = dlthis->myhandle;
 	if (!hndl)
 		return;		/* must be errors detected, so forget it */
