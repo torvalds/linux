@@ -106,27 +106,25 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 static int i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
+	struct drm_mm_node *uninitialized_var(compressed_llb);
 	int ret;
 
-	compressed_fb = kzalloc(sizeof(*compressed_fb), GFP_KERNEL);
-	if (!compressed_fb)
-		goto err_llb;
-
 	/* Try to over-allocate to reduce reallocations and fragmentation */
-	ret = drm_mm_insert_node(&dev_priv->mm.stolen, compressed_fb,
+	ret = drm_mm_insert_node(&dev_priv->mm.stolen,
+				 &dev_priv->fbc.compressed_fb,
 				 size <<= 1, 4096, DRM_MM_SEARCH_DEFAULT);
 	if (ret)
-		ret = drm_mm_insert_node(&dev_priv->mm.stolen, compressed_fb,
+		ret = drm_mm_insert_node(&dev_priv->mm.stolen,
+					 &dev_priv->fbc.compressed_fb,
 					 size >>= 1, 4096,
 					 DRM_MM_SEARCH_DEFAULT);
 	if (ret)
 		goto err_llb;
 
 	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
+		I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
 	else if (IS_GM45(dev)) {
-		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
+		I915_WRITE(DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
 	} else {
 		compressed_llb = kzalloc(sizeof(*compressed_llb), GFP_KERNEL);
 		if (!compressed_llb)
@@ -140,12 +138,11 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 		dev_priv->fbc.compressed_llb = compressed_llb;
 
 		I915_WRITE(FBC_CFB_BASE,
-			   dev_priv->mm.stolen_base + compressed_fb->start);
+			   dev_priv->mm.stolen_base + dev_priv->fbc.compressed_fb.start);
 		I915_WRITE(FBC_LL_BASE,
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->fbc.compressed_fb = compressed_fb;
 	dev_priv->fbc.size = size;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
@@ -155,9 +152,8 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 
 err_fb:
 	kfree(compressed_llb);
-	drm_mm_remove_node(compressed_fb);
+	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
 err_llb:
-	kfree(compressed_fb);
 	pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
 }
@@ -185,10 +181,7 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 	if (dev_priv->fbc.size == 0)
 		return;
 
-	if (dev_priv->fbc.compressed_fb) {
-		drm_mm_remove_node(dev_priv->fbc.compressed_fb);
-		kfree(dev_priv->fbc.compressed_fb);
-	}
+	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
 
 	if (dev_priv->fbc.compressed_llb) {
 		drm_mm_remove_node(dev_priv->fbc.compressed_llb);

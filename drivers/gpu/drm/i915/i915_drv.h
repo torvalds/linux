@@ -604,7 +604,7 @@ struct i915_fbc {
 	enum plane plane;
 	int y;
 
-	struct drm_mm_node *compressed_fb;
+	struct drm_mm_node compressed_fb;
 	struct drm_mm_node *compressed_llb;
 
 	struct intel_fbc_work {
