@@ -399,14 +399,6 @@ inline u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork)
 	return pnetwork->MacAddress;
 }
 
-u16 get_beacon_interval23a(struct wlan_bssid_ex *bss)
-{
-	unsigned short val;
-	memcpy(&val, rtw_get_beacon_interval23a_from_ie(bss->IEs), 2);
-
-	return le16_to_cpu(val);
-}
-
 bool is_client_associated_to_ap23a(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext;

@@ -499,7 +499,6 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		    struct rtw_adapter *padapter, bool update_ie);
 
 u8 *get_my_bssid23a(struct wlan_bssid_ex *pnetwork);
-u16 get_beacon_interval23a(struct wlan_bssid_ex *bss);
 
 bool is_client_associated_to_ap23a(struct rtw_adapter *padapter);
 bool is_client_associated_to_ibss23a(struct rtw_adapter *padapter);

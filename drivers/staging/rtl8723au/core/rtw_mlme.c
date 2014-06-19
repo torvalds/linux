@@ -312,11 +312,6 @@ void rtw23a_roaming(struct rtw_adapter *padapter,
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-__le16 *rtw_get_beacon_interval23a_from_ie(u8 *ie)
-{
-	return (__le16 *)(ie + 8);
-}
-
 static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 				    struct wlan_network *pnetwork)
 {

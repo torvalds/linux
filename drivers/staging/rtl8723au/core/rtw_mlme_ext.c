@@ -4411,7 +4411,7 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
-	pmlmeinfo->bcn_interval = get_beacon_interval23a(pnetwork);
+	pmlmeinfo->bcn_interval = pnetwork->beacon_interval;
 
 	/* update wireless mode */
 	update_wireless_mode23a(padapter);
@@ -4466,7 +4466,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 	int beacon_timeout;
 
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
-	pmlmeinfo->bcn_interval = get_beacon_interval23a(pnetwork);
+	pmlmeinfo->bcn_interval = pnetwork->beacon_interval;
 
 	/* update wireless mode */
 	update_wireless_mode23a(padapter);
