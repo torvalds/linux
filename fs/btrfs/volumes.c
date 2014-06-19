@@ -5415,8 +5415,12 @@ static void btrfs_end_bio(struct bio *bio, int err)
 			set_bit(BIO_UPTODATE, &bio->bi_flags);
 			err = 0;
 		}
+
+		if (likely(bbio->flags & BTRFS_BIO_ORIG_BIO_SUBMITTED))
+			bio_endio_nodec(bio, err);
+		else
+			bio_endio(bio, err);
 		kfree(bbio);
-		bio_endio_nodec(bio, err);
 	} else if (!is_orig_bio) {
 		bio_put(bio);
 	}
@@ -5671,6 +5675,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 			BUG_ON(!bio); /* -ENOMEM */
 		} else {
 			bio = first_bio;
+			bbio->flags |= BTRFS_BIO_ORIG_BIO_SUBMITTED;
 		}
 
 		submit_stripe_bio(root, bbio, bio,
