@@ -525,7 +525,10 @@ u32 rk_fb_get_prmry_screen_ft(void)
 
 	ft_us = dev_drv->frame_time.framedone_t - dev_drv->frame_time.last_framedone_t;
 	do_div(ft_us, 1000);
-	dev_drv->frame_time.ft = min(dev_drv->frame_time.ft, (u32)ft_us);
+	ft_us = min(dev_drv->frame_time.ft, (u32)ft_us);
+	if (ft_us != 0)
+		dev_drv->frame_time.ft = ft_us;
+
 	return dev_drv->frame_time.ft;
 }
 
