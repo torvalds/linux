@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/ctype.h>
+#include <linux/dcache.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -487,6 +488,68 @@ out:
 	return err;
 }
 
+static int f2fs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct super_block *sb = dir->i_sb;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct inode *inode;
+	struct page *page;
+	int err;
+
+	inode = f2fs_new_inode(dir, mode);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
+	inode->i_op = &f2fs_file_inode_operations;
+	inode->i_fop = &f2fs_file_operations;
+	inode->i_mapping->a_ops = &f2fs_dblock_aops;
+
+	f2fs_lock_op(sbi);
+	err = acquire_orphan_inode(sbi);
+	if (err)
+		goto out;
+	/*
+	 * add this non-linked tmpfile to orphan list, in this way we could
+	 * remove all unused data of tmpfile after abnormal power-off.
+	 */
+	add_orphan_inode(sbi, inode->i_ino);
+
+	page = new_inode_page(inode, NULL);
+	if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+		goto remove_out;
+	}
+
+	err = f2fs_init_acl(inode, dir, page);
+	if (err)
+		goto unlock_out;
+
+	err = f2fs_init_security(inode, dir, NULL, page);
+	if (err)
+		goto unlock_out;
+
+	f2fs_put_page(page, 1);
+	f2fs_unlock_op(sbi);
+
+	alloc_nid_done(sbi, inode->i_ino);
+	mark_inode_dirty(inode);
+	d_tmpfile(dentry, inode);
+	unlock_new_inode(inode);
+	return 0;
+unlock_out:
+	f2fs_put_page(page, 1);
+remove_out:
+	remove_orphan_inode(sbi, inode->i_ino);
+out:
+	f2fs_unlock_op(sbi);
+	clear_nlink(inode);
+	unlock_new_inode(inode);
+	make_bad_inode(inode);
+	iput(inode);
+	alloc_nid_failed(sbi, inode->i_ino);
+	return err;
+}
+
 const struct inode_operations f2fs_dir_inode_operations = {
 	.create		= f2fs_create,
 	.lookup		= f2fs_lookup,
@@ -497,6 +560,7 @@ const struct inode_operations f2fs_dir_inode_operations = {
 	.rmdir		= f2fs_rmdir,
 	.mknod		= f2fs_mknod,
 	.rename		= f2fs_rename,
+	.tmpfile	= f2fs_tmpfile,
 	.getattr	= f2fs_getattr,
 	.setattr	= f2fs_setattr,
 	.get_acl	= f2fs_get_acl,
