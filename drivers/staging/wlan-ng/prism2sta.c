@@ -467,8 +467,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			break;
 		case WLAN_MSD_RUNNING:
 			netdev_warn(wlandev->netdev,
-			       "Cannot enter fwload state from enable state,"
-			       "you must disable first.\n");
+				    "Cannot enter fwload state from enable state, you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
 			break;
 		case WLAN_MSD_HWFAIL:
