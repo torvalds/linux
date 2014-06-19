@@ -247,7 +247,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	struct cfg80211_bss *bss;
 	u16 channel;
 	u32 freq;
-	u16 notify_capability;
 	u8 *notify_ie;
 	size_t notify_ielen;
 	s32 notify_signal;
@@ -264,10 +263,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 						      IEEE80211_BAND_5GHZ);
 
 	notify_channel = ieee80211_get_channel(wiphy, freq);
-
-	notify_capability =
-		get_unaligned_le16(
-			rtw_get_capability23a_from_ie(pnetwork->network.IEs));
 
 	notify_ie = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
 	notify_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
@@ -286,7 +281,7 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	bss = cfg80211_inform_bss(wiphy, notify_channel,
 				  pnetwork->network.MacAddress,
 				  pnetwork->network.tsf,
-				  notify_capability,
+				  pnetwork->network.capability,
 				  pnetwork->network.BeaconPeriod,
 				  notify_ie, notify_ielen,
 				  notify_signal, GFP_ATOMIC);
