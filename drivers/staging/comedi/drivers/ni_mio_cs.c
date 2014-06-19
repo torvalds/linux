@@ -141,37 +141,7 @@ static const struct ni_board_struct ni_boards[] = {
 
 #define IRQ_POLARITY 1
 
-/* How we access registers */
-
-static uint8_t mio_cs_inb(struct comedi_device *dev, int reg)
-{
-	return inb(dev->iobase + reg);
-}
-
-static uint16_t mio_cs_inw(struct comedi_device *dev, int reg)
-{
-	return inw(dev->iobase + reg);
-}
-
-static uint32_t mio_cs_inl(struct comedi_device *dev, int reg)
-{
-	return inl(dev->iobase + reg);
-}
-
-static void mio_cs_outb(struct comedi_device *dev, uint8_t val, int reg)
-{
-	outb(val, dev->iobase + reg);
-}
-
-static void mio_cs_outw(struct comedi_device *dev, uint16_t val, int reg)
-{
-	outw(val, dev->iobase + reg);
-}
-
-static void mio_cs_outl(struct comedi_device *dev, uint32_t val, int reg)
-{
-	outl(val, dev->iobase + reg);
-}
+#include "ni_mio_common.c"
 
 /* How we access windowed registers */
 
@@ -186,10 +156,10 @@ static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
-		devpriv->writew(dev, data, addr * 2);
+		ni_writew(dev, data, addr * 2);
 	} else {
-		devpriv->writew(dev, addr, Window_Address);
-		devpriv->writew(dev, data, Window_Data);
+		ni_writew(dev, addr, Window_Address);
+		ni_writew(dev, data, Window_Data);
 	}
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
@@ -202,17 +172,15 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
-		ret = devpriv->readw(dev, addr * 2);
+		ret = ni_readw(dev, addr * 2);
 	} else {
-		devpriv->writew(dev, addr, Window_Address);
-		ret = devpriv->readw(dev, Window_Data);
+		ni_writew(dev, addr, Window_Address);
+		ret = ni_readw(dev, Window_Data);
 	}
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
-
-#include "ni_mio_common.c"
 
 static const void *ni_getboardtype(struct comedi_device *dev,
 				   struct pcmcia_device *link)
@@ -275,13 +243,6 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv = dev->private;
-
-	devpriv->readb		= mio_cs_inb;
-	devpriv->readw		= mio_cs_inw;
-	devpriv->readl		= mio_cs_inl;
-	devpriv->writeb		= mio_cs_outb;
-	devpriv->writew		= mio_cs_outw;
-	devpriv->writel		= mio_cs_outl;
 
 	devpriv->stc_writew	= mio_cs_win_out;
 	devpriv->stc_readw	= mio_cs_win_in;

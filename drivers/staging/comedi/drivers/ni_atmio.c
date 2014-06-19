@@ -270,37 +270,7 @@ static const int ni_irqpin[] = {
 
 #define NI_E_IRQ_FLAGS		0
 
-/* How we access registers */
-
-static uint8_t ni_atmio_inb(struct comedi_device *dev, int reg)
-{
-	return inb(dev->iobase + reg);
-}
-
-static uint16_t ni_atmio_inw(struct comedi_device *dev, int reg)
-{
-	return inw(dev->iobase + reg);
-}
-
-static uint32_t ni_atmio_inl(struct comedi_device *dev, int reg)
-{
-	return inl(dev->iobase + reg);
-}
-
-static void ni_atmio_outb(struct comedi_device *dev, uint8_t val, int reg)
-{
-	outb(val, dev->iobase + reg);
-}
-
-static void ni_atmio_outw(struct comedi_device *dev, uint16_t val, int reg)
-{
-	outw(val, dev->iobase + reg);
-}
-
-static void ni_atmio_outl(struct comedi_device *dev, uint32_t val, int reg)
-{
-	outl(val, dev->iobase + reg);
-}
+#include "ni_mio_common.c"
 
 /* How we access windowed registers */
 
@@ -315,10 +285,10 @@ static void ni_atmio_win_out(struct comedi_device *dev, uint16_t data, int addr)
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if ((addr) < 8) {
-		devpriv->writew(dev, data, addr * 2);
+		ni_writew(dev, data, addr * 2);
 	} else {
-		devpriv->writew(dev, addr, Window_Address);
-		devpriv->writew(dev, data, Window_Data);
+		ni_writew(dev, addr, Window_Address);
+		ni_writew(dev, data, Window_Data);
 	}
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
@@ -331,10 +301,10 @@ static uint16_t ni_atmio_win_in(struct comedi_device *dev, int addr)
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
-		ret = devpriv->readw(dev, addr * 2);
+		ret = ni_readw(dev, addr * 2);
 	} else {
-		devpriv->writew(dev, addr, Window_Address);
-		ret = devpriv->readw(dev, Window_Data);
+		ni_writew(dev, addr, Window_Address);
+		ret = ni_readw(dev, Window_Data);
 	}
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
@@ -351,8 +321,6 @@ static struct pnp_device_id device_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pnp, device_ids);
-
-#include "ni_mio_common.c"
 
 static int ni_isapnp_find_board(struct pnp_dev **dev)
 {
@@ -427,13 +395,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	devpriv = dev->private;
-
-	devpriv->readb		= ni_atmio_inb;
-	devpriv->readw		= ni_atmio_inw;
-	devpriv->readl		= ni_atmio_inl;
-	devpriv->writeb		= ni_atmio_outb;
-	devpriv->writew		= ni_atmio_outw;
-	devpriv->writel		= ni_atmio_outl;
 
 	devpriv->stc_writew	= ni_atmio_win_out;
 	devpriv->stc_readw	= ni_atmio_win_in;
