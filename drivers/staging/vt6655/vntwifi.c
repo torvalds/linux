@@ -255,7 +255,7 @@ VNTWIFIbyGetACKTxRate(
 	if (byRxDataRate <= RATE_11M) {
 		byMaxAckRate = RATE_1M;
 	} else  {
-		// 24M is mandatory for 802.11a and 802.11g
+		/* 24M is mandatory for 802.11a and 802.11g */
 		byMaxAckRate = RATE_24M;
 	}
 	if (pSupportRateIEs) {
@@ -491,7 +491,7 @@ VNTWIFIvUpdateNodeTxCounter(
 
 	pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
 	if (bTxOk) {
-		// transmit success, TxAttempts at least plus one
+		/* transmit success, TxAttempts at least plus one */
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[wRate]++;
 	} else {
@@ -525,7 +525,7 @@ VNTWIFIvGetTxRate(
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
-		// Adhoc Tx rate decided from node DB
+		/* Adhoc Tx rate decided from node DB */
 		if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex)) {
 			wTxDataRate = (pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) (pMgmt->sNodeDBTable[uNodeIndex].abyCurrSuppRates);
@@ -539,7 +539,7 @@ VNTWIFIvGetTxRate(
 			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates;
 			pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrExtSuppRates;
 		}
-	} else { // Infrastructure: rate decided from AP Node, index = 0
+	} else { /* Infrastructure: rate decided from AP Node, index = 0 */
 
 		wTxDataRate = (pMgmt->sNodeDBTable[0].wTxDataRate);
 #ifdef	PLICE_DEBUG
