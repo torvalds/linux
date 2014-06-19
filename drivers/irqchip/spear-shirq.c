@@ -49,6 +49,7 @@ struct shirq_regs {
  *
  * base:	Base register address
  * regs:	Register configuration for shared irq block
+ * mask:	Mask to apply to the status register
  * virq_base:	Base virtual interrupt number
  * nr_irqs:	Number of interrupts handled by this block
  * offset:	Bit offset of the first interrupt
@@ -57,6 +58,7 @@ struct shirq_regs {
 struct spear_shirq {
 	void __iomem		*base;
 	struct shirq_regs	regs;
+	u32			mask;
 	u32			virq_base;
 	u32			nr_irqs;
 	u32			offset;
@@ -72,6 +74,7 @@ static DEFINE_SPINLOCK(lock);
 static struct spear_shirq spear300_shirq_ras1 = {
 	.offset		= 0,
 	.nr_irqs	= 9,
+	.mask		= ((0x1 << 9) - 1) << 0,
 	.regs = {
 		.enb_reg = SPEAR300_INT_ENB_MASK_REG,
 		.status_reg = SPEAR300_INT_STS_MASK_REG,
@@ -89,6 +92,7 @@ static struct spear_shirq *spear300_shirq_blocks[] = {
 static struct spear_shirq spear310_shirq_ras1 = {
 	.offset		= 0,
 	.nr_irqs	= 8,
+	.mask		= ((0x1 << 8) - 1) << 0,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
@@ -99,6 +103,7 @@ static struct spear_shirq spear310_shirq_ras1 = {
 static struct spear_shirq spear310_shirq_ras2 = {
 	.offset		= 8,
 	.nr_irqs	= 5,
+	.mask		= ((0x1 << 5) - 1) << 8,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
@@ -109,6 +114,7 @@ static struct spear_shirq spear310_shirq_ras2 = {
 static struct spear_shirq spear310_shirq_ras3 = {
 	.offset		= 13,
 	.nr_irqs	= 1,
+	.mask		= ((0x1 << 1) - 1) << 13,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
@@ -119,6 +125,7 @@ static struct spear_shirq spear310_shirq_ras3 = {
 static struct spear_shirq spear310_shirq_intrcomm_ras = {
 	.offset		= 14,
 	.nr_irqs	= 3,
+	.mask		= ((0x1 << 3) - 1) << 14,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR310_INT_STS_MASK_REG,
@@ -141,6 +148,7 @@ static struct spear_shirq *spear310_shirq_blocks[] = {
 static struct spear_shirq spear320_shirq_ras3 = {
 	.offset		= 0,
 	.nr_irqs	= 7,
+	.mask		= ((0x1 << 7) - 1) << 0,
 	.disabled	= 1,
 	.regs = {
 		.enb_reg = SPEAR320_INT_ENB_MASK_REG,
@@ -154,6 +162,7 @@ static struct spear_shirq spear320_shirq_ras3 = {
 static struct spear_shirq spear320_shirq_ras1 = {
 	.offset		= 7,
 	.nr_irqs	= 3,
+	.mask		= ((0x1 << 3) - 1) << 7,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
@@ -165,6 +174,7 @@ static struct spear_shirq spear320_shirq_ras1 = {
 static struct spear_shirq spear320_shirq_ras2 = {
 	.offset		= 10,
 	.nr_irqs	= 1,
+	.mask		= ((0x1 << 1) - 1) << 10,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
@@ -176,6 +186,7 @@ static struct spear_shirq spear320_shirq_ras2 = {
 static struct spear_shirq spear320_shirq_intrcomm_ras = {
 	.offset		= 11,
 	.nr_irqs	= 11,
+	.mask		= ((0x1 << 11) - 1) << 11,
 	.regs = {
 		.enb_reg = -1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
@@ -239,7 +250,7 @@ static void shirq_handler(unsigned irq, struct irq_desc *desc)
 
 	chip->irq_ack(idata);
 
-	mask = ((0x1 << shirq->nr_irqs) - 1) << shirq->offset;
+	mask = shirq->mask;
 	while ((val = readl(shirq->base + shirq->regs.status_reg) &
 				mask)) {
 
