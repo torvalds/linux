@@ -1388,6 +1388,9 @@ rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
 	 */
 	iov->addr = ib_dma_map_single(ia->ri_id->device,
 			va, len, DMA_BIDIRECTIONAL);
+	if (ib_dma_mapping_error(ia->ri_id->device, iov->addr))
+		return -ENOMEM;
+
 	iov->length = len;
 
 	if (ia->ri_have_dma_lkey) {
