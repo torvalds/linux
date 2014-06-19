@@ -422,7 +422,7 @@ const struct cs42xx8_driver_data cs42888_data = {
 };
 EXPORT_SYMBOL_GPL(cs42888_data);
 
-const struct of_device_id cs42xx8_of_match[] = {
+static const struct of_device_id cs42xx8_of_match[] = {
 	{ .compatible = "cirrus,cs42448", .data = &cs42448_data, },
 	{ .compatible = "cirrus,cs42888", .data = &cs42888_data, },
 	{ /* sentinel */ }
