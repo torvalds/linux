@@ -527,38 +527,31 @@ static void ni_release_cdo_mite_channel(struct comedi_device *dev)
 #endif /*  PCIDMA */
 }
 
-/* e-series boards use the second irq signals to generate dma requests for their counters */
 #ifdef PCIDMA
 static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 					  unsigned gpct_index, short enable)
 {
 	struct ni_private *devpriv = dev->private;
+	uint16_t val = 0;
+	int reg;
 
-	if (devpriv->is_m_series)
+	if (devpriv->is_m_series || gpct_index > 1)
 		return;
-	switch (gpct_index) {
-	case 0:
-		if (enable) {
-			devpriv->stc_writew(dev, G0_Gate_Second_Irq_Enable,
-					    Second_IRQ_A_Enable_Register);
-		} else {
-			devpriv->stc_writew(dev, 0,
-					    Second_IRQ_A_Enable_Register);
-		}
-		break;
-	case 1:
-		if (enable) {
-			devpriv->stc_writew(dev, G1_Gate_Second_Irq_Enable,
-					    Second_IRQ_B_Enable_Register);
-		} else {
-			devpriv->stc_writew(dev, 0,
-					    Second_IRQ_B_Enable_Register);
-		}
-		break;
-	default:
-		BUG();
-		break;
+
+	/*
+	 * e-series boards use the second irq signals to generate
+	 * dma requests for their counters
+	 */
+	if (gpct_index == 0) {
+		reg = Second_IRQ_A_Enable_Register;
+		if (enable)
+			val = G0_Gate_Second_Irq_Enable;
+	} else {
+		reg = Second_IRQ_B_Enable_Register;
+		if (enable)
+			val = G1_Gate_Second_Irq_Enable;
 	}
+	devpriv->stc_writew(dev, val, reg);
 }
 #endif /*  PCIDMA */
 
