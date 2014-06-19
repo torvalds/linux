@@ -74,9 +74,8 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 
 	if (create) {
 		OBD_ALLOC(imp_conn, sizeof(*imp_conn));
-		if (!imp_conn) {
+		if (!imp_conn)
 			GOTO(out_put, rc = -ENOMEM);
-		}
 	}
 
 	spin_lock(&imp->imp_lock);
@@ -662,9 +661,8 @@ void target_send_reply(struct ptlrpc_request *req, int rc, int fail_id)
 	struct ptlrpc_reply_state *rs;
 	struct obd_export	 *exp;
 
-	if (req->rq_no_reply) {
+	if (req->rq_no_reply)
 		return;
-	}
 
 	svcpt = req->rq_rqbd->rqbd_svcpt;
 	rs = req->rq_reply_state;
