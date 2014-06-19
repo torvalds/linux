@@ -2912,7 +2912,7 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 			  size_t head_len, const u8 *tail, size_t tail_len)
 {
 	int ret = 0;
-	u8 *pbuf = NULL;
+	u8 *pbuf;
 	uint len, wps_ielen = 0;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
@@ -2923,17 +2923,19 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
 		return -EINVAL;
 
-	if (head_len < 24)
+	if (head_len < sizeof(struct ieee80211_hdr_3addr))
 		return -EINVAL;
 
 	pbuf = kzalloc(head_len + tail_len, GFP_KERNEL);
 	if (!pbuf)
 		return -ENOMEM;
 	/*  24 = beacon header len. */
-	memcpy(pbuf, (void *)head + 24, head_len - 24);
-	memcpy(pbuf + head_len - 24, (void *)tail, tail_len);
+	memcpy(pbuf, (void *)head + sizeof(struct ieee80211_hdr_3addr),
+	       head_len - sizeof(struct ieee80211_hdr_3addr));
+	memcpy(pbuf + head_len - sizeof(struct ieee80211_hdr_3addr),
+	       (void *)tail, tail_len);
 
-	len = head_len + tail_len - 24;
+	len = head_len + tail_len - sizeof(struct ieee80211_hdr_3addr);
 
 	/* check wps ie if inclued */
 	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
