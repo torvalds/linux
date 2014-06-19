@@ -757,10 +757,14 @@ SMP BARRIER PAIRING
 When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
-A write barrier should always be paired with a data dependency barrier or read
-barrier, though a general barrier would also be viable.  Similarly a read
-barrier or a data dependency barrier should always be paired with at least an
-write barrier, though, again, a general barrier is viable:
+General barriers pair with each other, though they also pair with
+most other types of barriers, albeit without transitivity.  An acquire
+barrier pairs with a release barrier, but both may also pair with other
+barriers, including of course general barriers.  A write barrier pairs
+with a data dependency barrier, an acquire barrier, a release barrier,
+a read barrier, or a general barrier.  Similarly a read barrier or a
+data dependency barrier pairs with a write barrier, an acquire barrier,
+a release barrier, or a general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
