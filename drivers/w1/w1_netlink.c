@@ -680,8 +680,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 			if (sl)
 				dev = sl->master;
 		} else {
-			printk(KERN_NOTICE
-				"%s: cn: %x.%x, wrong type: %u, len: %u.\n",
+			pr_notice("%s: cn: %x.%x, wrong type: %u, len: %u.\n",
 				__func__, cn->id.idx, cn->id.val,
 				msg->type, msg->len);
 			err = -EPROTO;
