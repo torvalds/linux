@@ -239,14 +239,12 @@ rtw_cfg80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 };
 
-#define MAX_BSSINFO_LEN 1000
 static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 				   struct wlan_network *pnetwork)
 {
 	int ret = 0;
 	struct ieee80211_channel *notify_channel;
 	struct cfg80211_bss *bss;
-	/* struct ieee80211_supported_band *band; */
 	u16 channel;
 	u32 freq;
 	u16 notify_capability;
@@ -254,20 +252,9 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	u8 *notify_ie;
 	size_t notify_ielen;
 	s32 notify_signal;
-	u8 buf[MAX_BSSINFO_LEN], *pbuf;
-	size_t len;
-	struct ieee80211_hdr *pwlanhdr;
 	struct wireless_dev *wdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-
-	/* DBG_8723A("%s\n", __func__); */
-
-	if (pnetwork->network.IELength > MAX_IE_SZ) {
-		DBG_8723A("%s IE Length too long > %d byte\n", __func__,
-			  MAX_IE_SZ);
-		goto exit;
-	}
 
 	channel = pnetwork->network.DSConfig;
 	if (channel <= RTW_CH_MAX_2G_CHANNEL)
@@ -299,35 +286,12 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	} else {
 		notify_signal = 100 * translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);	/* dbm */
 	}
-	pbuf = buf;
 
-	pwlanhdr = (struct ieee80211_hdr *)pbuf;
-
-	pwlanhdr->seq_ctrl = 0;
-
-	if (pnetwork->network.reserved == 1) {	/*  WIFI_BEACON */
-		eth_broadcast_addr(pwlanhdr->addr1);
-		pwlanhdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						      IEEE80211_STYPE_BEACON);
-	} else {
-		ether_addr_copy(pwlanhdr->addr1, myid(&padapter->eeprompriv));
-		pwlanhdr->frame_control =
-			cpu_to_le16(IEEE80211_FTYPE_MGMT |
-				    IEEE80211_STYPE_PROBE_RESP);
-	}
-
-	ether_addr_copy(pwlanhdr->addr2, pnetwork->network.MacAddress);
-	ether_addr_copy(pwlanhdr->addr3, pnetwork->network.MacAddress);
-
-	pbuf += sizeof(struct ieee80211_hdr_3addr);
-	len = sizeof(struct ieee80211_hdr_3addr);
-
-	memcpy(pbuf, pnetwork->network.IEs, pnetwork->network.IELength);
-	len += pnetwork->network.IELength;
-
-	bss = cfg80211_inform_bss_frame(wiphy, notify_channel,
-					(struct ieee80211_mgmt *)buf, len,
-					notify_signal, GFP_ATOMIC);
+	bss = cfg80211_inform_bss(wiphy, notify_channel,
+				  pnetwork->network.MacAddress, 0,
+				  notify_capability, notify_interval,
+				  notify_ie, notify_ielen,
+				  notify_signal, GFP_ATOMIC);
 
 	if (unlikely(!bss)) {
 		DBG_8723A("rtw_cfg80211_inform_bss error\n");
@@ -336,7 +300,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 
 	cfg80211_put_bss(wiphy, bss);
 
-exit:
 	return ret;
 }
 
