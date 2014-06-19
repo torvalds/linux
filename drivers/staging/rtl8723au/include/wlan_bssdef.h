@@ -93,6 +93,7 @@ struct wlan_bssid_ex {
 	u32  Privacy;
 	long  Rssi;/* in dBM, raw data , get from PHY) */
 	u16 BeaconPeriod;       /*  units are Kusec */
+	u64 tsf;
 	u32 ATIMWindow;         /*  units are Kusec */
 	u32 DSConfig;           /*  Frequency, units are kHz */
 	enum nl80211_iftype ifmode;
