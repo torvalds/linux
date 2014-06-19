@@ -244,6 +244,7 @@ static void sep_copy_sg(
 	u32 count = 0;
 	struct scatterlist *sg_src_tmp = sg_src;
 	struct scatterlist *sg_dst_tmp = sg_dst;
+
 	in_offset = 0;
 	out_offset = 0;
 
@@ -1721,6 +1722,7 @@ static u32 hash_init_post_op(struct sep_device *sep)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(sep->current_hash_req);
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(sep->current_hash_req);
 	struct sep_system_ctx *sctx = crypto_ahash_ctx(tfm);
+
 	dev_dbg(&ta_ctx->sep_used->pdev->dev,
 		"hash init post op\n");
 
@@ -1756,6 +1758,7 @@ static u32 hash_update_post_op(struct sep_device *sep)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(sep->current_hash_req);
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(sep->current_hash_req);
 	struct sep_system_ctx *sctx = crypto_ahash_ctx(tfm);
+
 	dev_dbg(&ta_ctx->sep_used->pdev->dev,
 		"hash update post op\n");
 
@@ -1828,6 +1831,7 @@ static u32 hash_final_post_op(struct sep_device *sep)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(sep->current_hash_req);
 	struct sep_system_ctx *sctx = crypto_ahash_ctx(tfm);
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(sep->current_hash_req);
+
 	dev_dbg(&ta_ctx->sep_used->pdev->dev,
 		"hash final post op\n");
 
@@ -1876,6 +1880,7 @@ static u32 hash_digest_post_op(struct sep_device *sep)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(sep->current_hash_req);
 	struct sep_system_ctx *sctx = crypto_ahash_ctx(tfm);
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(sep->current_hash_req);
+
 	dev_dbg(&ta_ctx->sep_used->pdev->dev,
 		"hash digest post op\n");
 
@@ -2696,6 +2701,7 @@ static int sep_sha1_final(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha1 final\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -2727,6 +2733,7 @@ static int sep_sha1_digest(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha1 digest\n");
 
 	/* Clear out task context */
@@ -2761,6 +2768,7 @@ static int sep_sha1_finup(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha1 finup\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -2792,6 +2800,7 @@ static int sep_md5_init(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing md5 init\n");
 
 	/* Clear out task context */
@@ -2826,6 +2835,7 @@ static int sep_md5_update(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing md5 update\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -2857,6 +2867,7 @@ static int sep_md5_final(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing md5 final\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -2955,6 +2966,7 @@ static int sep_sha224_init(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha224 init\n");
 
 	/* Clear out task context */
@@ -2989,6 +3001,7 @@ static int sep_sha224_update(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha224 update\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -3020,6 +3033,7 @@ static int sep_sha224_final(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha224 final\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -3118,6 +3132,7 @@ static int sep_sha256_init(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha256 init\n");
 
 	/* Clear out task context */
@@ -3152,6 +3167,7 @@ static int sep_sha256_update(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha256 update\n");
 
 	ta_ctx->sep_used = sep_dev;
@@ -3183,6 +3199,7 @@ static int sep_sha256_final(struct ahash_request *req)
 	int error;
 	int error1;
 	struct this_task_ctx *ta_ctx = ahash_request_ctx(req);
+
 	pr_debug("sep - doing sha256 final\n");
 
 	ta_ctx->sep_used = sep_dev;
