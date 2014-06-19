@@ -2009,19 +2009,17 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 			(loff_t)PAGE_CACHE_SIZE);
 	wdata->bytes = ((nr_pages - 1) * PAGE_CACHE_SIZE) + wdata->tailsz;
 
-	do {
-		if (wdata->cfile != NULL)
-			cifsFileInfo_put(wdata->cfile);
-		wdata->cfile = find_writable_file(CIFS_I(mapping->host), false);
-		if (!wdata->cfile) {
-			cifs_dbg(VFS, "No writable handles for inode\n");
-			rc = -EBADF;
-			break;
-		}
+	if (wdata->cfile != NULL)
+		cifsFileInfo_put(wdata->cfile);
+	wdata->cfile = find_writable_file(CIFS_I(mapping->host), false);
+	if (!wdata->cfile) {
+		cifs_dbg(VFS, "No writable handles for inode\n");
+		rc = -EBADF;
+	} else {
 		wdata->pid = wdata->cfile->pid;
 		server = tlink_tcon(wdata->cfile->tlink)->ses->server;
 		rc = server->ops->async_writev(wdata, cifs_writedata_release);
-	} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
+	}
 
 	for (i = 0; i < nr_pages; ++i)
 		unlock_page(wdata->pages[i]);
@@ -2058,7 +2056,7 @@ static int cifs_writepages(struct address_space *mapping,
 retry:
 	while (!done && index <= end) {
 		unsigned int i, nr_pages, found_pages;
-		pgoff_t next = 0, tofind;
+		pgoff_t next = 0, tofind, saved_index = index;
 
 		tofind = min((cifs_sb->wsize / PAGE_CACHE_SIZE) - 1,
 				end - index) + 1;
@@ -2101,6 +2099,11 @@ retry:
 				mapping_set_error(mapping, rc);
 		}
 		kref_put(&wdata->refcount, cifs_writedata_release);
+
+		if (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN) {
+			index = saved_index;
+			continue;
+		}
 
 		wbc->nr_to_write -= nr_pages;
 		if (wbc->nr_to_write <= 0)
