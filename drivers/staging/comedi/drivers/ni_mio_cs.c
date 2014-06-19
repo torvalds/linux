@@ -143,45 +143,6 @@ static const struct ni_board_struct ni_boards[] = {
 
 #include "ni_mio_common.c"
 
-/* How we access windowed registers */
-
-/* We automatically take advantage of STC registers that can be
- * read/written directly in the I/O space of the board.  The
- * DAQCard devices map the low 8 STC registers to iobase+addr*2. */
-
-static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if (addr < 8) {
-		ni_writew(dev, data, addr * 2);
-	} else {
-		ni_writew(dev, addr, Window_Address);
-		ni_writew(dev, data, Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-}
-
-static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-	uint16_t ret;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if (addr < 8) {
-		ret = ni_readw(dev, addr * 2);
-	} else {
-		ni_writew(dev, addr, Window_Address);
-		ret = ni_readw(dev, Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-
-	return ret;
-}
-
 static const void *ni_getboardtype(struct comedi_device *dev,
 				   struct pcmcia_device *link)
 {
@@ -243,11 +204,6 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv = dev->private;
-
-	devpriv->stc_writew	= mio_cs_win_out;
-	devpriv->stc_readw	= mio_cs_win_in;
-	devpriv->stc_writel	= win_out2;
-	devpriv->stc_readl	= win_in2;
 
 	return ni_E_init(dev);
 }

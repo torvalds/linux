@@ -1421,11 +1421,6 @@ struct ni_board_struct {
 #define NUM_GPCT	2
 
 struct ni_private {
-	uint16_t (*stc_readw)(struct comedi_device *, int reg);
-	uint32_t (*stc_readl)(struct comedi_device *, int reg);
-	void (*stc_writew)(struct comedi_device *, uint16_t value, int reg);
-	void (*stc_writel)(struct comedi_device *, uint32_t value, int reg);
-
 	unsigned short dio_output;
 	unsigned short dio_control;
 	int aimode;

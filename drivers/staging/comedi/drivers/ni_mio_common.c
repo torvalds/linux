@@ -306,32 +306,345 @@ static uint8_t ni_readb(struct comedi_device *dev, int reg)
 		return inb(dev->iobase + reg);
 }
 
-static void ni_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
-{
-	struct ni_private *devpriv = dev->private;
+/*
+ * We automatically take advantage of STC registers that can be
+ * read/written directly in the I/O space of the board.
+ *
+ * The AT-MIO and DAQCard devices map the low 8 STC registers to
+ * iobase+reg*2.
+ *
+ * Most PCIMIO devices also map the low 8 STC registers but the
+ * 611x devices map the read registers to iobase+(addr-1)*2.
+ * For now non-windowed STC access is disabled if a PCIMIO device
+ * is detected (devpriv->mite has been initialized).
+ *
+ * The M series devices do not used windowed registers for the
+ * STC registers. The functions below handle the mapping of the
+ * windowed STC registers to the m series register offsets.
+ */
 
-	devpriv->stc_writel(dev, data, reg);
+static void m_series_stc_writel(struct comedi_device *dev,
+				uint32_t data, int reg)
+{
+	unsigned offset;
+
+	switch (reg) {
+	case AI_SC_Load_A_Registers:
+		offset = M_Offset_AI_SC_Load_A;
+		break;
+	case AI_SI_Load_A_Registers:
+		offset = M_Offset_AI_SI_Load_A;
+		break;
+	case AO_BC_Load_A_Register:
+		offset = M_Offset_AO_BC_Load_A;
+		break;
+	case AO_UC_Load_A_Register:
+		offset = M_Offset_AO_UC_Load_A;
+		break;
+	case AO_UI_Load_A_Register:
+		offset = M_Offset_AO_UI_Load_A;
+		break;
+	case G_Load_A_Register(0):
+		offset = M_Offset_G0_Load_A;
+		break;
+	case G_Load_A_Register(1):
+		offset = M_Offset_G1_Load_A;
+		break;
+	case G_Load_B_Register(0):
+		offset = M_Offset_G0_Load_B;
+		break;
+	case G_Load_B_Register(1):
+		offset = M_Offset_G1_Load_B;
+		break;
+	default:
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch\n",
+			 __func__, reg);
+		return;
+	}
+	ni_writel(dev, data, offset);
+}
+
+static void m_series_stc_writew(struct comedi_device *dev,
+				uint16_t data, int reg)
+{
+	unsigned offset;
+
+	switch (reg) {
+	case ADC_FIFO_Clear:
+		offset = M_Offset_AI_FIFO_Clear;
+		break;
+	case AI_Command_1_Register:
+		offset = M_Offset_AI_Command_1;
+		break;
+	case AI_Command_2_Register:
+		offset = M_Offset_AI_Command_2;
+		break;
+	case AI_Mode_1_Register:
+		offset = M_Offset_AI_Mode_1;
+		break;
+	case AI_Mode_2_Register:
+		offset = M_Offset_AI_Mode_2;
+		break;
+	case AI_Mode_3_Register:
+		offset = M_Offset_AI_Mode_3;
+		break;
+	case AI_Output_Control_Register:
+		offset = M_Offset_AI_Output_Control;
+		break;
+	case AI_Personal_Register:
+		offset = M_Offset_AI_Personal;
+		break;
+	case AI_SI2_Load_A_Register:
+		/* this is a 32 bit register on m series boards */
+		ni_writel(dev, data, M_Offset_AI_SI2_Load_A);
+		return;
+	case AI_SI2_Load_B_Register:
+		/* this is a 32 bit register on m series boards */
+		ni_writel(dev, data, M_Offset_AI_SI2_Load_B);
+		return;
+	case AI_START_STOP_Select_Register:
+		offset = M_Offset_AI_START_STOP_Select;
+		break;
+	case AI_Trigger_Select_Register:
+		offset = M_Offset_AI_Trigger_Select;
+		break;
+	case Analog_Trigger_Etc_Register:
+		offset = M_Offset_Analog_Trigger_Etc;
+		break;
+	case AO_Command_1_Register:
+		offset = M_Offset_AO_Command_1;
+		break;
+	case AO_Command_2_Register:
+		offset = M_Offset_AO_Command_2;
+		break;
+	case AO_Mode_1_Register:
+		offset = M_Offset_AO_Mode_1;
+		break;
+	case AO_Mode_2_Register:
+		offset = M_Offset_AO_Mode_2;
+		break;
+	case AO_Mode_3_Register:
+		offset = M_Offset_AO_Mode_3;
+		break;
+	case AO_Output_Control_Register:
+		offset = M_Offset_AO_Output_Control;
+		break;
+	case AO_Personal_Register:
+		offset = M_Offset_AO_Personal;
+		break;
+	case AO_Start_Select_Register:
+		offset = M_Offset_AO_Start_Select;
+		break;
+	case AO_Trigger_Select_Register:
+		offset = M_Offset_AO_Trigger_Select;
+		break;
+	case Clock_and_FOUT_Register:
+		offset = M_Offset_Clock_and_FOUT;
+		break;
+	case Configuration_Memory_Clear:
+		offset = M_Offset_Configuration_Memory_Clear;
+		break;
+	case DAC_FIFO_Clear:
+		offset = M_Offset_AO_FIFO_Clear;
+		break;
+	case DIO_Control_Register:
+		dev_dbg(dev->class_dev,
+			"%s: FIXME: register 0x%x does not map cleanly on to m-series boards\n",
+			__func__, reg);
+		return;
+	case G_Autoincrement_Register(0):
+		offset = M_Offset_G0_Autoincrement;
+		break;
+	case G_Autoincrement_Register(1):
+		offset = M_Offset_G1_Autoincrement;
+		break;
+	case G_Command_Register(0):
+		offset = M_Offset_G0_Command;
+		break;
+	case G_Command_Register(1):
+		offset = M_Offset_G1_Command;
+		break;
+	case G_Input_Select_Register(0):
+		offset = M_Offset_G0_Input_Select;
+		break;
+	case G_Input_Select_Register(1):
+		offset = M_Offset_G1_Input_Select;
+		break;
+	case G_Mode_Register(0):
+		offset = M_Offset_G0_Mode;
+		break;
+	case G_Mode_Register(1):
+		offset = M_Offset_G1_Mode;
+		break;
+	case Interrupt_A_Ack_Register:
+		offset = M_Offset_Interrupt_A_Ack;
+		break;
+	case Interrupt_A_Enable_Register:
+		offset = M_Offset_Interrupt_A_Enable;
+		break;
+	case Interrupt_B_Ack_Register:
+		offset = M_Offset_Interrupt_B_Ack;
+		break;
+	case Interrupt_B_Enable_Register:
+		offset = M_Offset_Interrupt_B_Enable;
+		break;
+	case Interrupt_Control_Register:
+		offset = M_Offset_Interrupt_Control;
+		break;
+	case IO_Bidirection_Pin_Register:
+		offset = M_Offset_IO_Bidirection_Pin;
+		break;
+	case Joint_Reset_Register:
+		offset = M_Offset_Joint_Reset;
+		break;
+	case RTSI_Trig_A_Output_Register:
+		offset = M_Offset_RTSI_Trig_A_Output;
+		break;
+	case RTSI_Trig_B_Output_Register:
+		offset = M_Offset_RTSI_Trig_B_Output;
+		break;
+	case RTSI_Trig_Direction_Register:
+		offset = M_Offset_RTSI_Trig_Direction;
+		break;
+	/*
+	 * FIXME: DIO_Output_Register (16 bit reg) is replaced by
+	 * M_Offset_Static_Digital_Output (32 bit) and
+	 * M_Offset_SCXI_Serial_Data_Out (8 bit)
+	 */
+	default:
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch\n",
+			 __func__, reg);
+		return;
+	}
+	ni_writew(dev, data, offset);
+}
+
+static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
+{
+	unsigned offset;
+
+	switch (reg) {
+	case G_HW_Save_Register(0):
+		offset = M_Offset_G0_HW_Save;
+		break;
+	case G_HW_Save_Register(1):
+		offset = M_Offset_G1_HW_Save;
+		break;
+	case G_Save_Register(0):
+		offset = M_Offset_G0_Save;
+		break;
+	case G_Save_Register(1):
+		offset = M_Offset_G1_Save;
+		break;
+	default:
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch\n",
+			 __func__, reg);
+		return 0;
+	}
+	return ni_readl(dev, offset);
+}
+
+static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
+{
+	unsigned offset;
+
+	switch (reg) {
+	case AI_Status_1_Register:
+		offset = M_Offset_AI_Status_1;
+		break;
+	case AO_Status_1_Register:
+		offset = M_Offset_AO_Status_1;
+		break;
+	case AO_Status_2_Register:
+		offset = M_Offset_AO_Status_2;
+		break;
+	case DIO_Serial_Input_Register:
+		return ni_readb(dev, M_Offset_SCXI_Serial_Data_In);
+	case Joint_Status_1_Register:
+		offset = M_Offset_Joint_Status_1;
+		break;
+	case Joint_Status_2_Register:
+		offset = M_Offset_Joint_Status_2;
+		break;
+	case G_Status_Register:
+		offset = M_Offset_G01_Status;
+		break;
+	default:
+		dev_warn(dev->class_dev,
+			 "%s: bug! unhandled register=0x%x in switch\n",
+			 __func__, reg);
+		return 0;
+	}
+	return ni_readw(dev, offset);
 }
 
 static void ni_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned long flags;
 
-	devpriv->stc_writew(dev, data, reg);
+	if (devpriv->is_m_series) {
+		m_series_stc_writew(dev, data, reg);
+	} else {
+		spin_lock_irqsave(&devpriv->window_lock, flags);
+		if (!devpriv->mite && reg < 8) {
+			ni_writew(dev, data, reg * 2);
+		} else {
+			ni_writew(dev, reg, Window_Address);
+			ni_writew(dev, data, Window_Data);
+		}
+		spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	}
 }
 
-static uint32_t ni_stc_readl(struct comedi_device *dev, int reg)
+static void ni_stc_writel(struct comedi_device *dev, uint32_t data, int reg)
 {
 	struct ni_private *devpriv = dev->private;
 
-	return devpriv->stc_readl(dev, reg);
+	if (devpriv->is_m_series) {
+		m_series_stc_writel(dev, data, reg);
+	} else {
+		ni_stc_writew(dev, data >> 16, reg);
+		ni_stc_writew(dev, data & 0xffff, reg + 1);
+	}
 }
 
 static uint16_t ni_stc_readw(struct comedi_device *dev, int reg)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned long flags;
+	uint16_t val;
 
-	return devpriv->stc_readw(dev, reg);
+	if (devpriv->is_m_series) {
+		val = m_series_stc_readw(dev, reg);
+	} else {
+		spin_lock_irqsave(&devpriv->window_lock, flags);
+		if (!devpriv->mite && reg < 8) {
+			val = ni_readw(dev, reg * 2);
+		} else {
+			ni_writew(dev, reg, Window_Address);
+			val = ni_readw(dev, Window_Data);
+		}
+		spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	}
+	return val;
+}
+
+static uint32_t ni_stc_readl(struct comedi_device *dev, int reg)
+{
+	struct ni_private *devpriv = dev->private;
+	uint32_t val;
+
+	if (devpriv->is_m_series) {
+		val = m_series_stc_readl(dev, reg);
+	} else {
+		val = ni_stc_readw(dev, reg) << 16;
+		val |= ni_stc_readw(dev, reg + 1);
+	}
+	return val;
 }
 
 static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
@@ -679,21 +992,6 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 #endif
 		}
 	}
-}
-
-static void win_out2(struct comedi_device *dev, uint32_t data, int reg)
-{
-	ni_stc_writew(dev, data >> 16, reg);
-	ni_stc_writew(dev, data & 0xffff, reg + 1);
-}
-
-static uint32_t win_in2(struct comedi_device *dev, int reg)
-{
-	uint32_t bits;
-
-	bits = ni_stc_readw(dev, reg) << 16;
-	bits |= ni_stc_readw(dev, reg + 1);
-	return bits;
 }
 
 #define ao_win_out(data, addr) ni_ao_win_outw(dev, data, addr)

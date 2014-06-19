@@ -272,45 +272,6 @@ static const int ni_irqpin[] = {
 
 #include "ni_mio_common.c"
 
-/* How we access windowed registers */
-
-/* We automatically take advantage of STC registers that can be
- * read/written directly in the I/O space of the board.  The
- * AT-MIO devices map the low 8 STC registers to iobase+addr*2. */
-
-static void ni_atmio_win_out(struct comedi_device *dev, uint16_t data, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if ((addr) < 8) {
-		ni_writew(dev, data, addr * 2);
-	} else {
-		ni_writew(dev, addr, Window_Address);
-		ni_writew(dev, data, Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-}
-
-static uint16_t ni_atmio_win_in(struct comedi_device *dev, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-	uint16_t ret;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if (addr < 8) {
-		ret = ni_readw(dev, addr * 2);
-	} else {
-		ni_writew(dev, addr, Window_Address);
-		ret = ni_readw(dev, Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-
-	return ret;
-}
-
 static struct pnp_device_id device_ids[] = {
 	{.id = "NIC1900", .driver_data = 0},
 	{.id = "NIC2400", .driver_data = 0},
@@ -395,11 +356,6 @@ static int ni_atmio_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 	devpriv = dev->private;
-
-	devpriv->stc_writew	= ni_atmio_win_out;
-	devpriv->stc_readw	= ni_atmio_win_in;
-	devpriv->stc_writel	= win_out2;
-	devpriv->stc_readl	= win_in2;
 
 	iobase = it->options[0];
 	irq = it->options[1];
