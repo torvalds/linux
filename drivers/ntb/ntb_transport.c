@@ -510,7 +510,7 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 
 	WARN_ON(nt->mw[mw_num].virt_addr == NULL);
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;
@@ -856,7 +856,7 @@ static int ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+	if (nt->max_qps % mw_max && mw_num + 1 < nt->max_qps / mw_max)
 		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
 		num_qps_mw = nt->max_qps / mw_max;
