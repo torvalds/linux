@@ -172,11 +172,6 @@ static inline __attribute_const__ u32 msi_capable_mask(u16 control)
 	return msi_mask((control >> 1) & 7);
 }
 
-static inline __attribute_const__ u32 msi_enabled_mask(u16 control)
-{
-	return msi_mask((control >> 4) & 7);
-}
-
 /*
  * PCI 2.3 does not specify mask bits for each MSI interrupt.  Attempting to
  * mask all MSI interrupts by clearing the MSI enable bit does not work
