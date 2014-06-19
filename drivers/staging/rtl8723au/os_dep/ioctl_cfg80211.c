@@ -249,7 +249,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 	/* struct ieee80211_supported_band *band; */
 	u16 channel;
 	u32 freq;
-	u64 notify_timestamp;
 	u16 notify_capability;
 	u16 notify_interval;
 	u8 *notify_ie;
@@ -279,8 +278,6 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 						      IEEE80211_BAND_5GHZ);
 
 	notify_channel = ieee80211_get_channel(wiphy, freq);
-
-	notify_timestamp = jiffies_to_msecs(jiffies) * 1000;	/* uSec */
 
 	notify_interval =
 		get_unaligned_le16(
