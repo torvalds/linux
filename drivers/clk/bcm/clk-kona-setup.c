@@ -25,6 +25,31 @@ LIST_HEAD(ccu_list);	/* The list of set up CCUs */
 
 /* Validity checking */
 
+static bool ccu_data_offsets_valid(struct ccu_data *ccu)
+{
+	struct ccu_policy *ccu_policy = &ccu->policy;
+	u32 limit;
+
+	limit = ccu->range - sizeof(u32);
+	limit = round_down(limit, sizeof(u32));
+	if (ccu_policy_exists(ccu_policy)) {
+		if (ccu_policy->enable.offset > limit) {
+			pr_err("%s: bad policy enable offset for %s "
+					"(%u > %u)\n", __func__,
+				ccu->name, ccu_policy->enable.offset, limit);
+			return false;
+		}
+		if (ccu_policy->control.offset > limit) {
+			pr_err("%s: bad policy control offset for %s "
+					"(%u > %u)\n", __func__,
+				ccu->name, ccu_policy->control.offset, limit);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static bool clk_requires_trigger(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri = bcm_clk->u.peri;
@@ -54,7 +79,9 @@ static bool clk_requires_trigger(struct kona_clk *bcm_clk)
 static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri;
+	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
+	struct bcm_clk_hyst *hyst;
 	struct bcm_clk_div *div;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_trig *trig;
@@ -64,19 +91,41 @@ static bool peri_clk_data_offsets_valid(struct kona_clk *bcm_clk)
 
 	BUG_ON(bcm_clk->type != bcm_clk_peri);
 	peri = bcm_clk->u.peri;
-	name = bcm_clk->name;
+	name = bcm_clk->init_data.name;
 	range = bcm_clk->ccu->range;
 
 	limit = range - sizeof(u32);
 	limit = round_down(limit, sizeof(u32));
 
+	policy = &peri->policy;
+	if (policy_exists(policy)) {
+		if (policy->offset > limit) {
+			pr_err("%s: bad policy offset for %s (%u > %u)\n",
+				__func__, name, policy->offset, limit);
+			return false;
+		}
+	}
+
 	gate = &peri->gate;
+	hyst = &peri->hyst;
 	if (gate_exists(gate)) {
 		if (gate->offset > limit) {
 			pr_err("%s: bad gate offset for %s (%u > %u)\n",
 				__func__, name, gate->offset, limit);
 			return false;
 		}
+
+		if (hyst_exists(hyst)) {
+			if (hyst->offset > limit) {
+				pr_err("%s: bad hysteresis offset for %s "
+					"(%u > %u)\n", __func__,
+					name, hyst->offset, limit);
+				return false;
+			}
+		}
+	} else if (hyst_exists(hyst)) {
+		pr_err("%s: hysteresis but no gate for %s\n", __func__, name);
+		return false;
 	}
 
 	div = &peri->div;
@@ -167,6 +216,36 @@ static bool bitfield_valid(u32 shift, u32 width, const char *field_name,
 	return true;
 }
 
+static bool
+ccu_policy_valid(struct ccu_policy *ccu_policy, const char *ccu_name)
+{
+	struct bcm_lvm_en *enable = &ccu_policy->enable;
+	struct bcm_policy_ctl *control;
+
+	if (!bit_posn_valid(enable->bit, "policy enable", ccu_name))
+		return false;
+
+	control = &ccu_policy->control;
+	if (!bit_posn_valid(control->go_bit, "policy control GO", ccu_name))
+		return false;
+
+	if (!bit_posn_valid(control->atl_bit, "policy control ATL", ccu_name))
+		return false;
+
+	if (!bit_posn_valid(control->ac_bit, "policy control AC", ccu_name))
+		return false;
+
+	return true;
+}
+
+static bool policy_valid(struct bcm_clk_policy *policy, const char *clock_name)
+{
+	if (!bit_posn_valid(policy->bit, "policy", clock_name))
+		return false;
+
+	return true;
+}
+
 /*
  * All gates, if defined, have a status bit, and for hardware-only
  * gates, that's it.  Gates that can be software controlled also
@@ -192,6 +271,17 @@ static bool gate_valid(struct bcm_clk_gate *gate, const char *field_name,
 	} else {
 		BUG_ON(!gate_is_hw_controllable(gate));
 	}
+
+	return true;
+}
+
+static bool hyst_valid(struct bcm_clk_hyst *hyst, const char *clock_name)
+{
+	if (!bit_posn_valid(hyst->en_bit, "hysteresis enable", clock_name))
+		return false;
+
+	if (!bit_posn_valid(hyst->val_bit, "hysteresis value", clock_name))
+		return false;
 
 	return true;
 }
@@ -312,7 +402,9 @@ static bool
 peri_clk_data_valid(struct kona_clk *bcm_clk)
 {
 	struct peri_clk_data *peri;
+	struct bcm_clk_policy *policy;
 	struct bcm_clk_gate *gate;
+	struct bcm_clk_hyst *hyst;
 	struct bcm_clk_sel *sel;
 	struct bcm_clk_div *div;
 	struct bcm_clk_div *pre_div;
@@ -330,9 +422,18 @@ peri_clk_data_valid(struct kona_clk *bcm_clk)
 		return false;
 
 	peri = bcm_clk->u.peri;
-	name = bcm_clk->name;
+	name = bcm_clk->init_data.name;
+
+	policy = &peri->policy;
+	if (policy_exists(policy) && !policy_valid(policy, name))
+		return false;
+
 	gate = &peri->gate;
 	if (gate_exists(gate) && !gate_valid(gate, "gate", name))
+		return false;
+
+	hyst = &peri->hyst;
+	if (hyst_exists(hyst) && !hyst_valid(hyst, name))
 		return false;
 
 	sel = &peri->sel;
@@ -567,7 +668,6 @@ static void peri_clk_teardown(struct peri_clk_data *data,
 				struct clk_init_data *init_data)
 {
 	clk_sel_teardown(&data->sel, init_data);
-	init_data->ops = NULL;
 }
 
 /*
@@ -576,10 +676,9 @@ static void peri_clk_teardown(struct peri_clk_data *data,
  * that can be assigned if the clock has one or more parent clocks
  * associated with it.
  */
-static int peri_clk_setup(struct ccu_data *ccu, struct peri_clk_data *data,
-			struct clk_init_data *init_data)
+static int
+peri_clk_setup(struct peri_clk_data *data, struct clk_init_data *init_data)
 {
-	init_data->ops = &kona_peri_clk_ops;
 	init_data->flags = CLK_IGNORE_UNUSED;
 
 	return clk_sel_setup(data->clocks, &data->sel, init_data);
@@ -617,39 +716,26 @@ static void kona_clk_teardown(struct clk *clk)
 	bcm_clk_teardown(bcm_clk);
 }
 
-struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
-			enum bcm_clk_type type, void *data)
+struct clk *kona_clk_setup(struct kona_clk *bcm_clk)
 {
-	struct kona_clk *bcm_clk;
-	struct clk_init_data *init_data;
+	struct clk_init_data *init_data = &bcm_clk->init_data;
 	struct clk *clk = NULL;
 
-	bcm_clk = kzalloc(sizeof(*bcm_clk), GFP_KERNEL);
-	if (!bcm_clk) {
-		pr_err("%s: failed to allocate bcm_clk for %s\n", __func__,
-			name);
-		return NULL;
-	}
-	bcm_clk->ccu = ccu;
-	bcm_clk->name = name;
-
-	init_data = &bcm_clk->init_data;
-	init_data->name = name;
-	switch (type) {
+	switch (bcm_clk->type) {
 	case bcm_clk_peri:
-		if (peri_clk_setup(ccu, data, init_data))
-			goto out_free;
+		if (peri_clk_setup(bcm_clk->u.data, init_data))
+			return NULL;
 		break;
 	default:
-		data = NULL;
-		break;
+		pr_err("%s: clock type %d invalid for %s\n", __func__,
+			(int)bcm_clk->type, init_data->name);
+		return NULL;
 	}
-	bcm_clk->type = type;
-	bcm_clk->u.data = data;
 
 	/* Make sure everything makes sense before we set it up */
 	if (!kona_clk_valid(bcm_clk)) {
-		pr_err("%s: clock data invalid for %s\n", __func__, name);
+		pr_err("%s: clock data invalid for %s\n", __func__,
+			init_data->name);
 		goto out_teardown;
 	}
 
@@ -657,7 +743,7 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 	clk = clk_register(NULL, &bcm_clk->hw);
 	if (IS_ERR(clk)) {
 		pr_err("%s: error registering clock %s (%ld)\n", __func__,
-				name, PTR_ERR(clk));
+			init_data->name, PTR_ERR(clk));
 		goto out_teardown;
 	}
 	BUG_ON(!clk);
@@ -665,8 +751,6 @@ struct clk *kona_clk_setup(struct ccu_data *ccu, const char *name,
 	return clk;
 out_teardown:
 	bcm_clk_teardown(bcm_clk);
-out_free:
-	kfree(bcm_clk);
 
 	return NULL;
 }
@@ -675,50 +759,64 @@ static void ccu_clks_teardown(struct ccu_data *ccu)
 {
 	u32 i;
 
-	for (i = 0; i < ccu->data.clk_num; i++)
-		kona_clk_teardown(ccu->data.clks[i]);
-	kfree(ccu->data.clks);
+	for (i = 0; i < ccu->clk_data.clk_num; i++)
+		kona_clk_teardown(ccu->clk_data.clks[i]);
+	kfree(ccu->clk_data.clks);
 }
 
 static void kona_ccu_teardown(struct ccu_data *ccu)
 {
-	if (!ccu)
-		return;
-
+	kfree(ccu->clk_data.clks);
+	ccu->clk_data.clks = NULL;
 	if (!ccu->base)
-		goto done;
+		return;
 
 	of_clk_del_provider(ccu->node);	/* safe if never added */
 	ccu_clks_teardown(ccu);
 	list_del(&ccu->links);
 	of_node_put(ccu->node);
+	ccu->node = NULL;
 	iounmap(ccu->base);
-done:
-	kfree(ccu->name);
-	kfree(ccu);
+	ccu->base = NULL;
+}
+
+static bool ccu_data_valid(struct ccu_data *ccu)
+{
+	struct ccu_policy *ccu_policy;
+
+	if (!ccu_data_offsets_valid(ccu))
+		return false;
+
+	ccu_policy = &ccu->policy;
+	if (ccu_policy_exists(ccu_policy))
+		if (!ccu_policy_valid(ccu_policy, ccu->name))
+			return false;
+
+	return true;
 }
 
 /*
  * Set up a CCU.  Call the provided ccu_clks_setup callback to
  * initialize the array of clocks provided by the CCU.
  */
-void __init kona_dt_ccu_setup(struct device_node *node,
-			int (*ccu_clks_setup)(struct ccu_data *))
+void __init kona_dt_ccu_setup(struct ccu_data *ccu,
+			struct device_node *node)
 {
-	struct ccu_data *ccu;
 	struct resource res = { 0 };
 	resource_size_t range;
+	unsigned int i;
 	int ret;
 
-	ccu = kzalloc(sizeof(*ccu), GFP_KERNEL);
-	if (ccu)
-		ccu->name = kstrdup(node->name, GFP_KERNEL);
-	if (!ccu || !ccu->name) {
-		pr_err("%s: unable to allocate CCU struct for %s\n",
-			__func__, node->name);
-		kfree(ccu);
+	if (ccu->clk_data.clk_num) {
+		size_t size;
 
-		return;
+		size = ccu->clk_data.clk_num * sizeof(*ccu->clk_data.clks);
+		ccu->clk_data.clks = kzalloc(size, GFP_KERNEL);
+		if (!ccu->clk_data.clks) {
+			pr_err("%s: unable to allocate %u clocks for %s\n",
+				__func__, ccu->clk_data.clk_num, node->name);
+			return;
+		}
 	}
 
 	ret = of_address_to_resource(node, 0, &res);
@@ -736,24 +834,33 @@ void __init kona_dt_ccu_setup(struct device_node *node,
 	}
 
 	ccu->range = (u32)range;
+
+	if (!ccu_data_valid(ccu)) {
+		pr_err("%s: ccu data not valid for %s\n", __func__, node->name);
+		goto out_err;
+	}
+
 	ccu->base = ioremap(res.start, ccu->range);
 	if (!ccu->base) {
 		pr_err("%s: unable to map CCU registers for %s\n", __func__,
 			node->name);
 		goto out_err;
 	}
-
-	spin_lock_init(&ccu->lock);
-	INIT_LIST_HEAD(&ccu->links);
 	ccu->node = of_node_get(node);
-
 	list_add_tail(&ccu->links, &ccu_list);
 
-	/* Set up clocks array (in ccu->data) */
-	if (ccu_clks_setup(ccu))
-		goto out_err;
+	/*
+	 * Set up each defined kona clock and save the result in
+	 * the clock framework clock array (in ccu->data).  Then
+	 * register as a provider for these clocks.
+	 */
+	for (i = 0; i < ccu->clk_data.clk_num; i++) {
+		if (!ccu->kona_clks[i].ccu)
+			continue;
+		ccu->clk_data.clks[i] = kona_clk_setup(&ccu->kona_clks[i]);
+	}
 
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->data);
+	ret = of_clk_add_provider(node, of_clk_src_onecell_get, &ccu->clk_data);
 	if (ret) {
 		pr_err("%s: error adding ccu %s as provider (%d)\n", __func__,
 				node->name, ret);

@@ -296,7 +296,7 @@ static void
 rpcauth_unhash_cred_locked(struct rpc_cred *cred)
 {
 	hlist_del_rcu(&cred->cr_hash);
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
 }
 

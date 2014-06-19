@@ -289,8 +289,9 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, u8 if_idx,
 			   ath6kl_wmi_determine_user_priority(((u8 *) llc_hdr) +
 					sizeof(struct ath6kl_llc_snap_hdr),
 					layer2_priority);
-		} else
+		} else {
 			usr_pri = layer2_priority & 0x7;
+		}
 
 		/*
 		 * Queue the EAPOL frames in the same WMM_AC_VO queue
@@ -359,8 +360,9 @@ int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
 		hdr_size = roundup(sizeof(struct ieee80211_qos_hdr),
 				   sizeof(u32));
 		skb_pull(skb, hdr_size);
-	} else if (sub_type == cpu_to_le16(IEEE80211_STYPE_DATA))
+	} else if (sub_type == cpu_to_le16(IEEE80211_STYPE_DATA)) {
 		skb_pull(skb, sizeof(struct ieee80211_hdr_3addr));
+	}
 
 	datap = skb->data;
 	llc_hdr = (struct ath6kl_llc_snap_hdr *)(datap);
@@ -936,7 +938,6 @@ ath6kl_regd_find_country_by_rd(u16 regdmn)
 
 static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 {
-
 	struct ath6kl_wmi_regdomain *ev;
 	struct country_code_to_enum_rd *country = NULL;
 	struct reg_dmn_pair_mapping *regpair = NULL;
@@ -946,10 +947,9 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 	ev = (struct ath6kl_wmi_regdomain *) datap;
 	reg_code = le32_to_cpu(ev->reg_code);
 
-	if ((reg_code >> ATH6KL_COUNTRY_RD_SHIFT) & COUNTRY_ERD_FLAG)
+	if ((reg_code >> ATH6KL_COUNTRY_RD_SHIFT) & COUNTRY_ERD_FLAG) {
 		country = ath6kl_regd_find_country((u16) reg_code);
-	else if (!(((u16) reg_code & WORLD_SKU_MASK) == WORLD_SKU_PREFIX)) {
-
+	} else if (!(((u16) reg_code & WORLD_SKU_MASK) == WORLD_SKU_PREFIX)) {
 		regpair = ath6kl_get_regpair((u16) reg_code);
 		country = ath6kl_regd_find_country_by_rd((u16) reg_code);
 		if (regpair)
@@ -1499,7 +1499,6 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 
 	if ((reply->cac_indication == CAC_INDICATION_ADMISSION_RESP) &&
 	    (reply->status_code != IEEE80211_TSPEC_STATUS_ADMISS_ACCEPTED)) {
-
 		ts = (struct ieee80211_tspec_ie *) &(reply->tspec_suggestion);
 		tsinfo = le16_to_cpu(ts->tsinfo);
 		tsid = (tsinfo >> IEEE80211_WMM_IE_TSPEC_TID_SHIFT) &
@@ -1530,7 +1529,6 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 	 * for delete qos stream from AP
 	 */
 	else if (reply->cac_indication == CAC_INDICATION_DELETE) {
-
 		ts = (struct ieee80211_tspec_ie *) &(reply->tspec_suggestion);
 		tsinfo = le16_to_cpu(ts->tsinfo);
 		ts_id = ((tsinfo >> IEEE80211_WMM_IE_TSPEC_TID_SHIFT) &
@@ -2322,7 +2320,7 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 	return ret;
 }
 
-int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk)
+int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, const u8 *krk)
 {
 	struct sk_buff *skb;
 	struct wmi_add_krk_cmd *cmd;
@@ -2479,7 +2477,6 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 		goto free_data_skb;
 
 	for (index = 0; index < num_pri_streams; index++) {
-
 		if (WARN_ON(!data_sync_bufs[index].skb))
 			goto free_data_skb;
 
@@ -2704,7 +2701,6 @@ static void ath6kl_wmi_relinquish_implicit_pstream_credits(struct wmi *wmi)
 
 	for (i = 0; i < WMM_NUM_AC; i++) {
 		if (stream_exist & (1 << i)) {
-
 			/*
 			 * FIXME: Is this lock & unlock inside
 			 * for loop correct? may need rework.
@@ -2870,8 +2866,9 @@ int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 	if (host_mode == ATH6KL_HOST_MODE_ASLEEP) {
 		ath6kl_wmi_relinquish_implicit_pstream_credits(wmi);
 		cmd->asleep = cpu_to_le32(1);
-	} else
+	} else {
 		cmd->awake = cpu_to_le32(1);
+	}
 
 	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb,
 				  WMI_SET_HOST_SLEEP_MODE_CMDID,

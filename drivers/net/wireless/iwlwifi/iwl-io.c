@@ -33,6 +33,7 @@
 #include "iwl-io.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
+#include "iwl-prph.h"
 #include "iwl-fh.h"
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
@@ -182,6 +183,23 @@ void iwl_clear_bits_prph(struct iwl_trans *trans, u32 ofs, u32 mask)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_clear_bits_prph);
+
+void iwl_force_nmi(struct iwl_trans *trans)
+{
+	/*
+	 * In HW previous to the 8000 HW family, and in the 8000 HW family
+	 * itself when the revision step==0, the DEVICE_SET_NMI_REG is used
+	 * to force an NMI. Otherwise, a different register -
+	 * DEVICE_SET_NMI_8000B_REG - is used.
+	 */
+	if ((trans->cfg->device_family != IWL_DEVICE_FAMILY_8000) ||
+	    ((trans->hw_rev & 0xc) == 0x0))
+		iwl_write_prph(trans, DEVICE_SET_NMI_REG, DEVICE_SET_NMI_VAL);
+	else
+		iwl_write_prph(trans, DEVICE_SET_NMI_8000B_REG,
+			       DEVICE_SET_NMI_8000B_VAL);
+}
+IWL_EXPORT_SYMBOL(iwl_force_nmi);
 
 static const char *get_fh_string(int cmd)
 {

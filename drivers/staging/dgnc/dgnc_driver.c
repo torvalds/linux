@@ -153,8 +153,7 @@ struct board_id {
 	unsigned int is_pci_express;
 };
 
-static struct board_id dgnc_Ids[] =
-{
+static struct board_id dgnc_Ids[] = {
 	{	PCI_DEVICE_CLASSIC_4_PCI_NAME,		4,	0	},
 	{	PCI_DEVICE_CLASSIC_4_422_PCI_NAME,	4,	0	},
 	{	PCI_DEVICE_CLASSIC_8_PCI_NAME,		8,	0	},
@@ -219,9 +218,8 @@ int dgnc_init_module(void)
 	 */
 	rc = dgnc_start();
 
-	if (rc < 0) {
+	if (rc < 0)
 		return rc;
-	}
 
 	/*
 	 * Find and configure all the cards
@@ -239,8 +237,7 @@ int dgnc_init_module(void)
 			pr_warn("WARNING: dgnc driver load failed.  No Digi Neo or Classic boards found.\n");
 
 		dgnc_cleanup_module();
-	}
-	else {
+	} else {
 		dgnc_create_driver_sysfiles(&dgnc_driver);
 	}
 
@@ -451,20 +448,15 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++) {
 		if (brd->channels[i]) {
-			if (brd->channels[i]->ch_rqueue)
-				kfree(brd->channels[i]->ch_rqueue);
-			if (brd->channels[i]->ch_equeue)
-				kfree(brd->channels[i]->ch_equeue);
-			if (brd->channels[i]->ch_wqueue)
-				kfree(brd->channels[i]->ch_wqueue);
-
+			kfree(brd->channels[i]->ch_rqueue);
+			kfree(brd->channels[i]->ch_equeue);
+			kfree(brd->channels[i]->ch_wqueue);
 			kfree(brd->channels[i]);
 			brd->channels[i] = NULL;
 		}
 	}
 
-	if (brd->flipbuf)
-		kfree(brd->flipbuf);
+	kfree(brd->flipbuf);
 
 	dgnc_Board[brd->boardnum] = NULL;
 
@@ -519,9 +511,8 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 
 	brd->state		= BOARD_FOUND;
 
-	for (i = 0; i < MAXPORTS; i++) {
+	for (i = 0; i < MAXPORTS; i++)
 		brd->channels[i] = NULL;
-	}
 
 	/* store which card & revision we have */
 	pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &brd->subvendor);
@@ -730,15 +721,18 @@ static int dgnc_finalize_board_init(struct dgnc_board *brd) {
 	DPR_INIT(("dgnc_finalize_board_init() - start #2\n"));
 
 	if (brd->irq) {
-		rc = request_irq(brd->irq, brd->bd_ops->intr, IRQF_SHARED, "DGNC", brd);
+		rc = request_irq(brd->irq, brd->bd_ops->intr,
+				 IRQF_SHARED, "DGNC", brd);
 
 		if (rc) {
-			printk("Failed to hook IRQ %d\n",brd->irq);
+			dev_err(&brd->pdev->dev,
+				"Failed to hook IRQ %d\n", brd->irq);
 			brd->state = BOARD_FAILED;
 			brd->dpastatus = BD_NOFEP;
 			rc = -ENODEV;
 		} else {
-			DPR_INIT(("Requested and received usage of IRQ %d\n", brd->irq));
+			DPR_INIT(("Requested and received usage of IRQ %d\n",
+				  brd->irq));
 		}
 	}
 	return rc;
@@ -799,9 +793,8 @@ static void dgnc_poll_handler(ulong dummy)
 	 * driver tells us its up and running, and has
 	 * everything it needs.
 	 */
-	if (dgnc_driver_state != DRIVER_READY) {
+	if (dgnc_driver_state != DRIVER_READY)
 		goto schedule_poller;
-	}
 
 	/* Go thru each board, kicking off a tasklet for each if needed */
 	for (i = 0; i < dgnc_NumBoards; i++) {
@@ -831,9 +824,8 @@ schedule_poller:
 
 	new_time = dgnc_poll_time - jiffies;
 
-	if ((ulong) new_time >= 2 * dgnc_poll_tick) {
+	if ((ulong) new_time >= 2 * dgnc_poll_tick)
 		dgnc_poll_time = jiffies +  dgnc_jiffies_from_ms(dgnc_poll_tick);
-	}
 
 	init_timer(&dgnc_poll_timer);
 	dgnc_poll_timer.function = dgnc_poll_handler;
@@ -860,9 +852,8 @@ static void dgnc_init_globals(void)
 	dgnc_trcbuf_size	= trcbuf_size;
 	dgnc_debug		= debug;
 
-	for (i = 0; i < MAXBOARDS; i++) {
+	for (i = 0; i < MAXBOARDS; i++)
 		dgnc_Board[i] = NULL;
-	}
 
 	init_timer(&dgnc_poll_timer);
 }

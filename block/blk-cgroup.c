@@ -185,7 +185,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	lockdep_assert_held(q->queue_lock);
 
 	/* blkg holds a reference to blkcg */
-	if (!css_tryget(&blkcg->css)) {
+	if (!css_tryget_online(&blkcg->css)) {
 		ret = -EINVAL;
 		goto err_free_blkg;
 	}
@@ -1093,7 +1093,7 @@ EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
  * Register @pol with blkcg core.  Might sleep and @pol may be modified on
  * successful registration.  Returns 0 on success and -errno on failure.
  */
-int blkcg_policy_register(struct blkcg_policy *pol)
+int __init blkcg_policy_register(struct blkcg_policy *pol)
 {
 	int i, ret;
 

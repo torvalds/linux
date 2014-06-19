@@ -31,7 +31,6 @@
 
 #include <osdep_service.h>
 #include <wlan_bssdef.h>
-#include <drv_types_linux.h>
 #include <rtw_ht.h>
 #include <rtw_cmd.h>
 #include <rtw_xmit.h>

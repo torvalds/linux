@@ -69,10 +69,6 @@ Optional properties:
 
 * supports-highspeed: Enables support for high speed cards (up to 50MHz)
 
-* caps2-mmc-hs200-1_8v: Supports mmc HS200 SDR 1.8V mode
-
-* caps2-mmc-hs200-1_2v: Supports mmc HS200 SDR 1.2V mode
-
 * broken-cd: as documented in mmc core bindings.
 
 * vmmc-supply: The phandle to the regulator to use for vmmc.  If this is
@@ -103,7 +99,6 @@ board specific portions as listed below.
 		clock-freq-min-max = <400000 200000000>;
 		num-slots = <1>;
 		supports-highspeed;
-		caps2-mmc-hs200-1_8v;
 		broken-cd;
 		fifo-depth = <0x80>;
 		card-detect-delay = <200>;

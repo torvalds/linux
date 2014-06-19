@@ -169,6 +169,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 #define TLV_TYPE_COALESCE_RULE      (PROPRIETARY_TLV_BASE_ID + 154)
 #define TLV_TYPE_KEY_PARAM_V2       (PROPRIETARY_TLV_BASE_ID + 156)
+#define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_FW_API_REV         (PROPRIETARY_TLV_BASE_ID + 199)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
@@ -229,6 +230,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define ISENABLED_40MHZ_INTOLERANT(Dot11nDevCap) (Dot11nDevCap & BIT(8))
 #define ISSUPP_RXLDPC(Dot11nDevCap) (Dot11nDevCap & BIT(22))
 #define ISSUPP_BEAMFORMING(Dot11nDevCap) (Dot11nDevCap & BIT(30))
+#define ISALLOWED_CHANWIDTH40(ht_param) (ht_param & BIT(2))
 
 /* httxcfg bitmap
  * 0		reserved
@@ -403,7 +405,7 @@ enum P2P_MODES {
 #define HS_CFG_CANCEL			0xffffffff
 #define HS_CFG_COND_DEF			0x00000000
 #define HS_CFG_GPIO_DEF			0xff
-#define HS_CFG_GAP_DEF			0
+#define HS_CFG_GAP_DEF			0xff
 #define HS_CFG_COND_BROADCAST_DATA	0x00000001
 #define HS_CFG_COND_UNICAST_DATA	0x00000002
 #define HS_CFG_COND_MAC_EVENT		0x00000004
@@ -487,6 +489,7 @@ enum P2P_MODES {
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 #define EVENT_CHANNEL_SWITCH_ANN        0x00000050
+#define EVENT_TDLS_GENERIC_EVENT        0x00000052
 #define EVENT_EXT_SCAN_REPORT           0x00000058
 #define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
@@ -519,6 +522,7 @@ enum P2P_MODES {
 #define ACT_TDLS_DELETE            0x00
 #define ACT_TDLS_CREATE            0x01
 #define ACT_TDLS_CONFIG            0x02
+#define TDLS_EVENT_LINK_TEAR_DOWN  3
 
 #define MWIFIEX_FW_V15		   15
 
@@ -535,6 +539,7 @@ struct mwifiex_ie_types_data {
 #define MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET 0x01
 #define MWIFIEX_TxPD_POWER_MGMT_LAST_PACKET 0x08
 #define MWIFIEX_TXPD_FLAGS_TDLS_PACKET      0x10
+#define MWIFIEX_RXPD_FLAGS_TDLS_PACKET      0x01
 
 struct txpd {
 	u8 bss_type;
@@ -577,7 +582,7 @@ struct rxpd {
 	 * [Bit 7] Reserved
 	 */
 	u8 ht_info;
-	u8 reserved;
+	u8 flags;
 } __packed;
 
 struct uap_txpd {
@@ -707,6 +712,13 @@ struct mwifiex_ie_types_vendor_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 ie[MWIFIEX_MAX_VSIE_LEN];
 };
+
+#define MWIFIEX_TDLS_IDLE_TIMEOUT	60
+
+struct mwifiex_ie_types_tdls_idle_timeout {
+	struct mwifiex_ie_types_header header;
+	__le16 value;
+} __packed;
 
 struct mwifiex_ie_types_rsn_param_set {
 	struct mwifiex_ie_types_header header;
@@ -1743,6 +1755,15 @@ struct mwifiex_ie_types_rssi_threshold {
 struct host_cmd_ds_802_11_subsc_evt {
 	__le16 action;
 	__le16 events;
+} __packed;
+
+struct mwifiex_tdls_generic_event {
+	__le16 type;
+	u8 peer_mac[ETH_ALEN];
+	union {
+		__le16 reason_code;
+		__le16 reserved;
+	} u;
 } __packed;
 
 struct mwifiex_ie {

@@ -1,6 +1,6 @@
 /*
  * Definitions for the NVM Express interface
- * Copyright (c) 2011-2013, Intel Corporation.
+ * Copyright (c) 2011-2014, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -10,10 +10,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef _LINUX_NVME_H
@@ -66,8 +62,8 @@ enum {
 
 #define NVME_VS(major, minor)	(major << 16 | minor)
 
-extern unsigned char io_timeout;
-#define NVME_IO_TIMEOUT	(io_timeout * HZ)
+extern unsigned char nvme_io_timeout;
+#define NVME_IO_TIMEOUT	(nvme_io_timeout * HZ)
 
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
@@ -94,7 +90,7 @@ struct nvme_dev {
 	struct miscdevice miscdev;
 	work_func_t reset_workfn;
 	struct work_struct reset_work;
-	struct notifier_block nb;
+	struct work_struct cpu_work;
 	char name[12];
 	char serial[20];
 	char model[40];
@@ -103,6 +99,7 @@ struct nvme_dev {
 	u32 stripe_size;
 	u16 oncs;
 	u16 abort_limit;
+	u8 vwc;
 	u8 initialized;
 };
 
@@ -159,7 +156,6 @@ struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 			struct nvme_iod *iod);
 int nvme_submit_io_cmd(struct nvme_dev *, struct nvme_command *, u32 *);
-int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
 int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
 							u32 *result);
 int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,

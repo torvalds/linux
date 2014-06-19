@@ -1176,7 +1176,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu,
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_oif = oif;
-	fl6.flowi6_mark = mark;
+	fl6.flowi6_mark = mark ? mark : IP6_REPLY_MARK(net, skb->mark);
 	fl6.daddr = iph->daddr;
 	fl6.saddr = iph->saddr;
 	fl6.flowlabel = ip6_flowinfo(iph);
@@ -1455,7 +1455,7 @@ static int ip6_dst_gc(struct dst_ops *ops)
 		goto out;
 
 	net->ipv6.ip6_rt_gc_expire++;
-	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net, entries > rt_max_size);
+	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net, true);
 	entries = dst_entries_get_slow(ops);
 	if (entries < ops->gc_thresh)
 		net->ipv6.ip6_rt_gc_expire = rt_gc_timeout>>1;
@@ -2234,6 +2234,27 @@ void rt6_remove_prefsrc(struct inet6_ifaddr *ifp)
 	fib6_clean_all(net, fib6_remove_prefsrc, &adni);
 }
 
+#define RTF_RA_ROUTER		(RTF_ADDRCONF | RTF_DEFAULT | RTF_GATEWAY)
+#define RTF_CACHE_GATEWAY	(RTF_GATEWAY | RTF_CACHE)
+
+/* Remove routers and update dst entries when gateway turn into host. */
+static int fib6_clean_tohost(struct rt6_info *rt, void *arg)
+{
+	struct in6_addr *gateway = (struct in6_addr *)arg;
+
+	if ((((rt->rt6i_flags & RTF_RA_ROUTER) == RTF_RA_ROUTER) ||
+	     ((rt->rt6i_flags & RTF_CACHE_GATEWAY) == RTF_CACHE_GATEWAY)) &&
+	     ipv6_addr_equal(gateway, &rt->rt6i_gateway)) {
+		return -1;
+	}
+	return 0;
+}
+
+void rt6_clean_tohost(struct net *net, struct in6_addr *gateway)
+{
+	fib6_clean_all(net, fib6_clean_tohost, gateway);
+}
+
 struct arg_dev_net {
 	struct net_device *dev;
 	struct net *net;
@@ -2708,6 +2729,9 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh)
 
 	if (tb[RTA_OIF])
 		oif = nla_get_u32(tb[RTA_OIF]);
+
+	if (tb[RTA_MARK])
+		fl6.flowi6_mark = nla_get_u32(tb[RTA_MARK]);
 
 	if (iif) {
 		struct net_device *dev;

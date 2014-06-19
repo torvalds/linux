@@ -712,7 +712,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 		if (index > REORDER_WIN_SIZE) {
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorer struct buffer full!!\n");
+				     " Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -1589,7 +1589,6 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
 {
 	struct rtllib_qos_ac_parameter *ac_params;
 	struct rtllib_qos_parameters *qos_param = &(qos_data->parameters);
-	int rc = 0;
 	int i;
 	u8 aci;
 	u8 acm;
@@ -1640,7 +1639,7 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
 		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
 		qos_param->tx_op_limit[aci] = ac_params->tx_op_limit;
 	}
-	return rc;
+	return 0;
 }
 
 /*

@@ -78,7 +78,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 	for (i = 0x81; i <= 0x8f; i++)
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
 
-	if (ast->chip == AST2300) {
+	if (ast->chip == AST2300 || ast->chip == AST2400) {
 		if (dev->pdev->revision >= 0x20)
 			ext_reg_info = extreginfo_ast2300;
 		else
@@ -102,23 +102,32 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
-	if (ast->chip == AST2300)
+	if (ast->chip == AST2300 || ast->chip == AST2400)
 		reg |= 0x20;
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
 }
 
-static inline u32 mindwm(struct ast_private *ast, u32 r)
+u32 ast_mindwm(struct ast_private *ast, u32 r)
 {
+	uint32_t data;
+
 	ast_write32(ast, 0xf004, r & 0xffff0000);
 	ast_write32(ast, 0xf000, 0x1);
 
+	do {
+		data = ast_read32(ast, 0xf004) & 0xffff0000;
+	} while (data != (r & 0xffff0000));
 	return ast_read32(ast, 0x10000 + (r & 0x0000ffff));
 }
 
-static inline void moutdwm(struct ast_private *ast, u32 r, u32 v)
+void ast_moutdwm(struct ast_private *ast, u32 r, u32 v)
 {
+	uint32_t data;
 	ast_write32(ast, 0xf004, r & 0xffff0000);
 	ast_write32(ast, 0xf000, 0x1);
+	do {
+		data = ast_read32(ast, 0xf004) & 0xffff0000;
+	} while (data != (r & 0xffff0000));
 	ast_write32(ast, 0x10000 + (r & 0x0000ffff), v);
 }
 
@@ -154,28 +163,28 @@ static u32 mmctestburst2_ast2150(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x00000001 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000001 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x40;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x40;
 		if (++timeout > TIMEOUT_AST2150) {
-			moutdwm(ast, 0x1e6e0070, 0x00000000);
+			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 			return 0xffffffff;
 		}
 	} while (!data);
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x00000003 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000003 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x40;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x40;
 		if (++timeout > TIMEOUT_AST2150) {
-			moutdwm(ast, 0x1e6e0070, 0x00000000);
+			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 			return 0xffffffff;
 		}
 	} while (!data);
-	data = (mindwm(ast, 0x1e6e0070) & 0x80) >> 7;
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
+	data = (ast_mindwm(ast, 0x1e6e0070) & 0x80) >> 7;
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 	return data;
 }
 
@@ -184,18 +193,18 @@ static u32 mmctestsingle2_ast2150(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x00000005 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000005 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x40;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x40;
 		if (++timeout > TIMEOUT_AST2150) {
-			moutdwm(ast, 0x1e6e0070, 0x00000000);
+			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 			return 0xffffffff;
 		}
 	} while (!data);
-	data = (mindwm(ast, 0x1e6e0070) & 0x80) >> 7;
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
+	data = (ast_mindwm(ast, 0x1e6e0070) & 0x80) >> 7;
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 	return data;
 }
 #endif
@@ -215,7 +224,7 @@ static int cbrscan_ast2150(struct ast_private *ast, int busw)
 	u32 patcnt, loop;
 
 	for (patcnt = 0; patcnt < CBR_PATNUM_AST2150; patcnt++) {
-		moutdwm(ast, 0x1e6e007c, pattern_AST2150[patcnt]);
+		ast_moutdwm(ast, 0x1e6e007c, pattern_AST2150[patcnt]);
 		for (loop = 0; loop < CBR_PASSNUM_AST2150; loop++) {
 			if (cbrtest_ast2150(ast))
 				break;
@@ -237,7 +246,7 @@ cbr_start:
 	passcnt = 0;
 
 	for (dlli = 0; dlli < 100; dlli++) {
-		moutdwm(ast, 0x1e6e0068, dlli | (dlli << 8) | (dlli << 16) | (dlli << 24));
+		ast_moutdwm(ast, 0x1e6e0068, dlli | (dlli << 8) | (dlli << 16) | (dlli << 24));
 		data = cbrscan_ast2150(ast, busw);
 		if (data != 0) {
 			if (data & 0x1) {
@@ -254,7 +263,7 @@ cbr_start:
 		goto cbr_start;
 
 	dlli = dll_min[0] + (((dll_max[0] - dll_min[0]) * 7) >> 4);
-	moutdwm(ast, 0x1e6e0068, dlli | (dlli << 8) | (dlli << 16) | (dlli << 24));
+	ast_moutdwm(ast, 0x1e6e0068, dlli | (dlli << 8) | (dlli << 16) | (dlli << 24));
 }
 
 
@@ -365,10 +374,12 @@ void ast_post_gpu(struct drm_device *dev)
 	ast_open_key(ast);
 	ast_set_def_ext_reg(dev);
 
-	if (ast->chip == AST2300)
+	if (ast->chip == AST2300 || ast->chip == AST2400)
 		ast_init_dram_2300(dev);
 	else
 		ast_init_dram_reg(dev);
+
+	ast_init_3rdtx(dev);
 }
 
 /* AST 2300 DRAM settings */
@@ -403,6 +414,7 @@ struct ast2300_dram_param {
 /*
  * DQSI DLL CBR Setting
  */
+#define CBR_SIZE0            ((1  << 10) - 1)
 #define CBR_SIZE1            ((4  << 10) - 1)
 #define CBR_SIZE2            ((64 << 10) - 1)
 #define CBR_PASSNUM          5
@@ -423,88 +435,84 @@ static const u32 pattern[8] = {
 	0x7C61D253
 };
 
-#if 0 /* unused in DDX, included for completeness */
 static int mmc_test_burst(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x000000c1 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x000000c1 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x3000;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x3000;
 		if (data & 0x2000) {
 			return 0;
 		}
 		if (++timeout > TIMEOUT) {
-			moutdwm(ast, 0x1e6e0070, 0x00000000);
+			ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 			return 0;
 		}
 	} while (!data);
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
 	return 1;
 }
-#endif
 
 static int mmc_test_burst2(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x00000041 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000041 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x1000;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x1000;
 		if (++timeout > TIMEOUT) {
-			moutdwm(ast, 0x1e6e0070, 0x0);
+			ast_moutdwm(ast, 0x1e6e0070, 0x0);
 			return -1;
 		}
 	} while (!data);
-	data = mindwm(ast, 0x1e6e0078);
+	data = ast_mindwm(ast, 0x1e6e0078);
 	data = (data | (data >> 16)) & 0xffff;
-	moutdwm(ast, 0x1e6e0070, 0x0);
+	ast_moutdwm(ast, 0x1e6e0070, 0x0);
 	return data;
 }
 
-#if 0 /* Unused in DDX here for completeness */
 static int mmc_test_single(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x000000c5 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x000000c5 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x3000;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x3000;
 		if (data & 0x2000)
 			return 0;
 		if (++timeout > TIMEOUT) {
-			moutdwm(ast, 0x1e6e0070, 0x0);
+			ast_moutdwm(ast, 0x1e6e0070, 0x0);
 			return 0;
 		}
 	} while (!data);
-	moutdwm(ast, 0x1e6e0070, 0x0);
+	ast_moutdwm(ast, 0x1e6e0070, 0x0);
 	return 1;
 }
-#endif
 
 static int mmc_test_single2(struct ast_private *ast, u32 datagen)
 {
 	u32 data, timeout;
 
-	moutdwm(ast, 0x1e6e0070, 0x00000000);
-	moutdwm(ast, 0x1e6e0070, 0x00000005 | (datagen << 3));
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000000);
+	ast_moutdwm(ast, 0x1e6e0070, 0x00000005 | (datagen << 3));
 	timeout = 0;
 	do {
-		data = mindwm(ast, 0x1e6e0070) & 0x1000;
+		data = ast_mindwm(ast, 0x1e6e0070) & 0x1000;
 		if (++timeout > TIMEOUT) {
-			moutdwm(ast, 0x1e6e0070, 0x0);
+			ast_moutdwm(ast, 0x1e6e0070, 0x0);
 			return -1;
 		}
 	} while (!data);
-	data = mindwm(ast, 0x1e6e0078);
+	data = ast_mindwm(ast, 0x1e6e0078);
 	data = (data | (data >> 16)) & 0xffff;
-	moutdwm(ast, 0x1e6e0070, 0x0);
+	ast_moutdwm(ast, 0x1e6e0070, 0x0);
 	return data;
 }
 
@@ -533,7 +541,7 @@ static int cbr_scan(struct ast_private *ast)
 
 	data2 = 3;
 	for (patcnt = 0; patcnt < CBR_PATNUM; patcnt++) {
-		moutdwm(ast, 0x1e6e007c, pattern[patcnt]);
+		ast_moutdwm(ast, 0x1e6e007c, pattern[patcnt]);
 		for (loop = 0; loop < CBR_PASSNUM2; loop++) {
 			if ((data = cbr_test(ast)) != 0) {
 				data2 &= data;
@@ -568,7 +576,7 @@ static u32 cbr_scan2(struct ast_private *ast)
 
 	data2 = 0xffff;
 	for (patcnt = 0; patcnt < CBR_PATNUM; patcnt++) {
-		moutdwm(ast, 0x1e6e007c, pattern[patcnt]);
+		ast_moutdwm(ast, 0x1e6e007c, pattern[patcnt]);
 		for (loop = 0; loop < CBR_PASSNUM2; loop++) {
 			if ((data = cbr_test2(ast)) != 0) {
 				data2 &= data;
@@ -583,106 +591,35 @@ static u32 cbr_scan2(struct ast_private *ast)
 	return data2;
 }
 
-#if 0 /* unused in DDX - added for completeness */
-static void finetuneDQI(struct ast_private *ast, struct ast2300_dram_param *param)
+static u32 cbr_test3(struct ast_private *ast)
 {
-	u32 gold_sadj[2], dllmin[16], dllmax[16], dlli, data, cnt, mask, passcnt;
+	if (!mmc_test_burst(ast, 0))
+		return 0;
+	if (!mmc_test_single(ast, 0))
+		return 0;
+	return 1;
+}
 
-	gold_sadj[0] = (mindwm(ast, 0x1E6E0024) >> 16) & 0xffff;
-	gold_sadj[1] = gold_sadj[0] >> 8;
-	gold_sadj[0] = gold_sadj[0] & 0xff;
-	gold_sadj[0] = (gold_sadj[0] + gold_sadj[1]) >> 1;
-	gold_sadj[1] = gold_sadj[0];
-
-	for (cnt = 0; cnt < 16; cnt++) {
-		dllmin[cnt] = 0xff;
-		dllmax[cnt] = 0x0;
-	}
-	passcnt = 0;
-	for (dlli = 0; dlli < 76; dlli++) {
-		moutdwm(ast, 0x1E6E0068, 0x00001400 | (dlli << 16) | (dlli << 24));
-		/* Wait DQSI latch phase calibration */
-		moutdwm(ast, 0x1E6E0074, 0x00000010);
-		moutdwm(ast, 0x1E6E0070, 0x00000003);
-		do {
-			data = mindwm(ast, 0x1E6E0070);
-		} while (!(data & 0x00001000));
-		moutdwm(ast, 0x1E6E0070, 0x00000000);
-
-		moutdwm(ast, 0x1E6E0074, CBR_SIZE1);
-		data = cbr_scan2(ast);
-		if (data != 0) {
-			mask = 0x00010001;
-			for (cnt = 0; cnt < 16; cnt++) {
-				if (data & mask) {
-					if (dllmin[cnt] > dlli) {
-						dllmin[cnt] = dlli;
-					}
-					if (dllmax[cnt] < dlli) {
-						dllmax[cnt] = dlli;
-					}
-				}
-				mask <<= 1;
-			}
-			passcnt++;
-		} else if (passcnt >= CBR_THRESHOLD) {
-			break;
-		}
-	}
-	data = 0;
-	for (cnt = 0; cnt < 8; cnt++) {
-		data >>= 3;
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD)) {
-			dlli = (dllmin[cnt] + dllmax[cnt]) >> 1;
-			if (gold_sadj[0] >= dlli) {
-				dlli = (gold_sadj[0] - dlli) >> 1;
-				if (dlli > 3) {
-					dlli = 3;
-				}
-			} else {
-				dlli = (dlli - gold_sadj[0]) >> 1;
-				if (dlli > 4) {
-					dlli = 4;
-				}
-				dlli = (8 - dlli) & 0x7;
-			}
-			data |= dlli << 21;
-		}
-	}
-	moutdwm(ast, 0x1E6E0080, data);
-
-	data = 0;
-	for (cnt = 8; cnt < 16; cnt++) {
-		data >>= 3;
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD)) {
-			dlli = (dllmin[cnt] + dllmax[cnt]) >> 1;
-			if (gold_sadj[1] >= dlli) {
-				dlli = (gold_sadj[1] - dlli) >> 1;
-				if (dlli > 3) {
-					dlli = 3;
-				} else {
-					dlli = (dlli - 1) & 0x7;
-				}
-			} else {
-				dlli = (dlli - gold_sadj[1]) >> 1;
-				dlli += 1;
-				if (dlli > 4) {
-					dlli = 4;
-				}
-				dlli = (8 - dlli) & 0x7;
-			}
-			data |= dlli << 21;
-		}
-	}
-	moutdwm(ast, 0x1E6E0084, data);
-
-} /* finetuneDQI */
-#endif
-
-static void finetuneDQI_L(struct ast_private *ast, struct ast2300_dram_param *param)
+static u32 cbr_scan3(struct ast_private *ast)
 {
-	u32 gold_sadj[2], dllmin[16], dllmax[16], dlli, data, cnt, mask, passcnt;
+	u32 patcnt, loop;
 
+	for (patcnt = 0; patcnt < CBR_PATNUM; patcnt++) {
+		ast_moutdwm(ast, 0x1e6e007c, pattern[patcnt]);
+		for (loop = 0; loop < 2; loop++) {
+			if (cbr_test3(ast))
+				break;
+		}
+		if (loop == 2)
+			return 0;
+	}
+	return 1;
+}
+
+static bool finetuneDQI_L(struct ast_private *ast, struct ast2300_dram_param *param)
+{
+	u32 gold_sadj[2], dllmin[16], dllmax[16], dlli, data, cnt, mask, passcnt, retry = 0;
+	bool status = false;
 FINETUNE_START:
 	for (cnt = 0; cnt < 16; cnt++) {
 		dllmin[cnt] = 0xff;
@@ -690,16 +627,8 @@ FINETUNE_START:
 	}
 	passcnt = 0;
 	for (dlli = 0; dlli < 76; dlli++) {
-		moutdwm(ast, 0x1E6E0068, 0x00001400 | (dlli << 16) | (dlli << 24));
-		/* Wait DQSI latch phase calibration */
-		moutdwm(ast, 0x1E6E0074, 0x00000010);
-		moutdwm(ast, 0x1E6E0070, 0x00000003);
-		do {
-			data = mindwm(ast, 0x1E6E0070);
-		} while (!(data & 0x00001000));
-		moutdwm(ast, 0x1E6E0070, 0x00000000);
-
-		moutdwm(ast, 0x1E6E0074, CBR_SIZE1);
+		ast_moutdwm(ast, 0x1E6E0068, 0x00001400 | (dlli << 16) | (dlli << 24));
+		ast_moutdwm(ast, 0x1E6E0074, CBR_SIZE1);
 		data = cbr_scan2(ast);
 		if (data != 0) {
 			mask = 0x00010001;
@@ -727,9 +656,13 @@ FINETUNE_START:
 			passcnt++;
 		}
 	}
+	if (retry++ > 10)
+		goto FINETUNE_DONE;
 	if (passcnt != 16) {
 		goto FINETUNE_START;
 	}
+	status = true;
+FINETUNE_DONE:
 	gold_sadj[0] = gold_sadj[0] >> 4;
 	gold_sadj[1] = gold_sadj[0];
 
@@ -753,7 +686,7 @@ FINETUNE_START:
 			data |= dlli << 21;
 		}
 	}
-	moutdwm(ast, 0x1E6E0080, data);
+	ast_moutdwm(ast, 0x1E6E0080, data);
 
 	data = 0;
 	for (cnt = 8; cnt < 16; cnt++) {
@@ -778,162 +711,116 @@ FINETUNE_START:
 			data |= dlli << 21;
 		}
 	}
-	moutdwm(ast, 0x1E6E0084, data);
-
+	ast_moutdwm(ast, 0x1E6E0084, data);
+	return status;
 } /* finetuneDQI_L */
 
-static void finetuneDQI_L2(struct ast_private *ast, struct ast2300_dram_param *param)
+static void finetuneDQSI(struct ast_private *ast)
 {
-	u32 gold_sadj[2], dllmin[16], dllmax[16], dlli, data, cnt, mask, passcnt, data2;
+	u32 dlli, dqsip, dqidly;
+	u32 reg_mcr18, reg_mcr0c, passcnt[2], diff;
+	u32 g_dqidly, g_dqsip, g_margin, g_side;
+	u16 pass[32][2][2];
+	char tag[2][76];
 
-	for (cnt = 0; cnt < 16; cnt++) {
-		dllmin[cnt] = 0xff;
-		dllmax[cnt] = 0x0;
-	}
-	passcnt = 0;
+	/* Disable DQI CBR */
+	reg_mcr0c  = ast_mindwm(ast, 0x1E6E000C);
+	reg_mcr18  = ast_mindwm(ast, 0x1E6E0018);
+	reg_mcr18 &= 0x0000ffff;
+	ast_moutdwm(ast, 0x1E6E0018, reg_mcr18);
+
 	for (dlli = 0; dlli < 76; dlli++) {
-		moutdwm(ast, 0x1E6E0068, 0x00001400 | (dlli << 16) | (dlli << 24));
-		/* Wait DQSI latch phase calibration */
-		moutdwm(ast, 0x1E6E0074, 0x00000010);
-		moutdwm(ast, 0x1E6E0070, 0x00000003);
-		do {
-			data = mindwm(ast, 0x1E6E0070);
-		} while (!(data & 0x00001000));
-		moutdwm(ast, 0x1E6E0070, 0x00000000);
-
-		moutdwm(ast, 0x1E6E0074, CBR_SIZE2);
-		data = cbr_scan2(ast);
-		if (data != 0) {
-			mask = 0x00010001;
-			for (cnt = 0; cnt < 16; cnt++) {
-				if (data & mask) {
-					if (dllmin[cnt] > dlli) {
-						dllmin[cnt] = dlli;
-					}
-					if (dllmax[cnt] < dlli) {
-						dllmax[cnt] = dlli;
-					}
-				}
-				mask <<= 1;
-			}
-			passcnt++;
-		} else if (passcnt >= CBR_THRESHOLD2) {
-			break;
-		}
+		tag[0][dlli] = 0x0;
+		tag[1][dlli] = 0x0;
 	}
-	gold_sadj[0] = 0x0;
-	gold_sadj[1] = 0xFF;
-	for (cnt = 0; cnt < 8; cnt++) {
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD2)) {
-			if (gold_sadj[0] < dllmin[cnt]) {
-				gold_sadj[0] = dllmin[cnt];
-			}
-			if (gold_sadj[1] > dllmax[cnt]) {
-				gold_sadj[1] = dllmax[cnt];
-			}
-		}
+	for (dqidly = 0; dqidly < 32; dqidly++) {
+		pass[dqidly][0][0] = 0xff;
+		pass[dqidly][0][1] = 0x0;
+		pass[dqidly][1][0] = 0xff;
+		pass[dqidly][1][1] = 0x0;
 	}
-	gold_sadj[0] = (gold_sadj[1] + gold_sadj[0]) >> 1;
-	gold_sadj[1] = mindwm(ast, 0x1E6E0080);
-
-	data = 0;
-	for (cnt = 0; cnt < 8; cnt++) {
-		data >>= 3;
-		data2 = gold_sadj[1] & 0x7;
-		gold_sadj[1] >>= 3;
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD2)) {
-			dlli = (dllmin[cnt] + dllmax[cnt]) >> 1;
-			if (gold_sadj[0] >= dlli) {
-				dlli = (gold_sadj[0] - dlli) >> 1;
-				if (dlli > 0) {
-					dlli = 1;
-				}
-				if (data2 != 3) {
-					data2 = (data2 + dlli) & 0x7;
-				}
-			} else {
-				dlli = (dlli - gold_sadj[0]) >> 1;
-				if (dlli > 0) {
-					dlli = 1;
-				}
-				if (data2 != 4) {
-					data2 = (data2 - dlli) & 0x7;
+	for (dqidly = 0; dqidly < 32; dqidly++) {
+		passcnt[0] = passcnt[1] = 0;
+		for (dqsip = 0; dqsip < 2; dqsip++) {
+			ast_moutdwm(ast, 0x1E6E000C, 0);
+			ast_moutdwm(ast, 0x1E6E0018, reg_mcr18 | (dqidly << 16) | (dqsip << 23));
+			ast_moutdwm(ast, 0x1E6E000C, reg_mcr0c);
+			for (dlli = 0; dlli < 76; dlli++) {
+				ast_moutdwm(ast, 0x1E6E0068, 0x00001300 | (dlli << 16) | (dlli << 24));
+				ast_moutdwm(ast, 0x1E6E0070, 0);
+				ast_moutdwm(ast, 0x1E6E0074, CBR_SIZE0);
+				if (cbr_scan3(ast)) {
+					if (dlli == 0)
+						break;
+					passcnt[dqsip]++;
+					tag[dqsip][dlli] = 'P';
+					if (dlli < pass[dqidly][dqsip][0])
+						pass[dqidly][dqsip][0] = (u16) dlli;
+					if (dlli > pass[dqidly][dqsip][1])
+						pass[dqidly][dqsip][1] = (u16) dlli;
+				} else if (passcnt[dqsip] >= 5)
+					break;
+				else {
+					pass[dqidly][dqsip][0] = 0xff;
+					pass[dqidly][dqsip][1] = 0x0;
 				}
 			}
 		}
-		data |= data2 << 21;
+		if (passcnt[0] == 0 && passcnt[1] == 0)
+			dqidly++;
 	}
-	moutdwm(ast, 0x1E6E0080, data);
+	/* Search margin */
+	g_dqidly = g_dqsip = g_margin = g_side = 0;
 
-	gold_sadj[0] = 0x0;
-	gold_sadj[1] = 0xFF;
-	for (cnt = 8; cnt < 16; cnt++) {
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD2)) {
-			if (gold_sadj[0] < dllmin[cnt]) {
-				gold_sadj[0] = dllmin[cnt];
-			}
-			if (gold_sadj[1] > dllmax[cnt]) {
-				gold_sadj[1] = dllmax[cnt];
-			}
-		}
-	}
-	gold_sadj[0] = (gold_sadj[1] + gold_sadj[0]) >> 1;
-	gold_sadj[1] = mindwm(ast, 0x1E6E0084);
-
-	data = 0;
-	for (cnt = 8; cnt < 16; cnt++) {
-		data >>= 3;
-		data2 = gold_sadj[1] & 0x7;
-		gold_sadj[1] >>= 3;
-		if ((dllmax[cnt] > dllmin[cnt]) && ((dllmax[cnt] - dllmin[cnt]) >= CBR_THRESHOLD2)) {
-			dlli = (dllmin[cnt] + dllmax[cnt]) >> 1;
-			if (gold_sadj[0] >= dlli) {
-				dlli = (gold_sadj[0] - dlli) >> 1;
-				if (dlli > 0) {
-					dlli = 1;
-				}
-				if (data2 != 3) {
-					data2 = (data2 + dlli) & 0x7;
-				}
-			} else {
-				dlli = (dlli - gold_sadj[0]) >> 1;
-				if (dlli > 0) {
-					dlli = 1;
-				}
-				if (data2 != 4) {
-					data2 = (data2 - dlli) & 0x7;
-				}
+	for (dqidly = 0; dqidly < 32; dqidly++) {
+		for (dqsip = 0; dqsip < 2; dqsip++) {
+			if (pass[dqidly][dqsip][0] > pass[dqidly][dqsip][1])
+				continue;
+			diff = pass[dqidly][dqsip][1] - pass[dqidly][dqsip][0];
+			if ((diff+2) < g_margin)
+				continue;
+			passcnt[0] = passcnt[1] = 0;
+			for (dlli = pass[dqidly][dqsip][0]; dlli > 0  && tag[dqsip][dlli] != 0; dlli--, passcnt[0]++);
+			for (dlli = pass[dqidly][dqsip][1]; dlli < 76 && tag[dqsip][dlli] != 0; dlli++, passcnt[1]++);
+			if (passcnt[0] > passcnt[1])
+				passcnt[0] = passcnt[1];
+			passcnt[1] = 0;
+			if (passcnt[0] > g_side)
+				passcnt[1] = passcnt[0] - g_side;
+			if (diff > (g_margin+1) && (passcnt[1] > 0 || passcnt[0] > 8)) {
+				g_margin = diff;
+				g_dqidly = dqidly;
+				g_dqsip  = dqsip;
+				g_side   = passcnt[0];
+			} else if (passcnt[1] > 1 && g_side < 8) {
+				if (diff > g_margin)
+					g_margin = diff;
+				g_dqidly = dqidly;
+				g_dqsip  = dqsip;
+				g_side   = passcnt[0];
 			}
 		}
-		data |= data2 << 21;
 	}
-	moutdwm(ast, 0x1E6E0084, data);
+	reg_mcr18 = reg_mcr18 | (g_dqidly << 16) | (g_dqsip << 23);
+	ast_moutdwm(ast, 0x1E6E0018, reg_mcr18);
 
-} /* finetuneDQI_L2 */
-
-static void cbr_dll2(struct ast_private *ast, struct ast2300_dram_param *param)
+}
+static bool cbr_dll2(struct ast_private *ast, struct ast2300_dram_param *param)
 {
-	u32 dllmin[2], dllmax[2], dlli, data, data2, passcnt;
+	u32 dllmin[2], dllmax[2], dlli, data, passcnt, retry = 0;
+	bool status = false;
 
-
-	finetuneDQI_L(ast, param);
-	finetuneDQI_L2(ast, param);
+	finetuneDQSI(ast);
+	if (finetuneDQI_L(ast, param) == false)
+		return status;
 
 CBR_START2:
 	dllmin[0] = dllmin[1] = 0xff;
 	dllmax[0] = dllmax[1] = 0x0;
 	passcnt = 0;
 	for (dlli = 0; dlli < 76; dlli++) {
-		moutdwm(ast, 0x1E6E0068, 0x00001300 | (dlli << 16) | (dlli << 24));
-		/* Wait DQSI latch phase calibration */
-		moutdwm(ast, 0x1E6E0074, 0x00000010);
-		moutdwm(ast, 0x1E6E0070, 0x00000003);
-		do {
-			data = mindwm(ast, 0x1E6E0070);
-		} while (!(data & 0x00001000));
-		moutdwm(ast, 0x1E6E0070, 0x00000000);
-
-		moutdwm(ast, 0x1E6E0074, CBR_SIZE2);
+		ast_moutdwm(ast, 0x1E6E0068, 0x00001300 | (dlli << 16) | (dlli << 24));
+		ast_moutdwm(ast, 0x1E6E0074, CBR_SIZE2);
 		data = cbr_scan(ast);
 		if (data != 0) {
 			if (data & 0x1) {
@@ -957,44 +844,31 @@ CBR_START2:
 			break;
 		}
 	}
+	if (retry++ > 10)
+		goto CBR_DONE2;
 	if (dllmax[0] == 0 || (dllmax[0]-dllmin[0]) < CBR_THRESHOLD) {
 		goto CBR_START2;
 	}
 	if (dllmax[1] == 0 || (dllmax[1]-dllmin[1]) < CBR_THRESHOLD) {
 		goto CBR_START2;
 	}
+	status = true;
+CBR_DONE2:
 	dlli  = (dllmin[1] + dllmax[1]) >> 1;
 	dlli <<= 8;
 	dlli += (dllmin[0] + dllmax[0]) >> 1;
-	moutdwm(ast, 0x1E6E0068, (mindwm(ast, 0x1E6E0068) & 0xFFFF) | (dlli << 16));
-
-	data  = (mindwm(ast, 0x1E6E0080) >> 24) & 0x1F;
-	data2 = (mindwm(ast, 0x1E6E0018) & 0xff80ffff) | (data << 16);
-	moutdwm(ast, 0x1E6E0018, data2);
-	moutdwm(ast, 0x1E6E0024, 0x8001 | (data << 1) | (param->dll2_finetune_step << 8));
-
-	/* Wait DQSI latch phase calibration */
-	moutdwm(ast, 0x1E6E0074, 0x00000010);
-	moutdwm(ast, 0x1E6E0070, 0x00000003);
-	do {
-		data = mindwm(ast, 0x1E6E0070);
-	} while (!(data & 0x00001000));
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
-	moutdwm(ast, 0x1E6E0070, 0x00000003);
-	do {
-		data = mindwm(ast, 0x1E6E0070);
-	} while (!(data & 0x00001000));
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0068, ast_mindwm(ast, 0x1E720058) | (dlli << 16));
+	return status;
 } /* CBRDLL2 */
 
 static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *param)
 {
 	u32 trap, trap_AC2, trap_MRS;
 
-	moutdwm(ast, 0x1E6E2000, 0x1688A8A8);
+	ast_moutdwm(ast, 0x1E6E2000, 0x1688A8A8);
 
 	/* Ger trap info */
-	trap = (mindwm(ast, 0x1E6E2070) >> 25) & 0x3;
+	trap = (ast_mindwm(ast, 0x1E6E2070) >> 25) & 0x3;
 	trap_AC2  = 0x00020000 + (trap << 16);
 	trap_AC2 |= 0x00300000 + ((trap & 0x2) << 19);
 	trap_MRS  = 0x00000010 + (trap << 4);
@@ -1008,22 +882,35 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 	switch (param->dram_freq) {
 	case 336:
-		moutdwm(ast, 0x1E6E2020, 0x0190);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0190);
 		param->wodt          = 0;
 		param->reg_AC1       = 0x22202725;
 		param->reg_AC2       = 0xAA007613 | trap_AC2;
 		param->reg_DQSIC     = 0x000000BA;
 		param->reg_MRS       = 0x04001400 | trap_MRS;
 		param->reg_EMRS      = 0x00000000;
-		param->reg_IOZ       = 0x00000034;
+		param->reg_IOZ       = 0x00000023;
 		param->reg_DQIDLY    = 0x00000074;
 		param->reg_FREQ      = 0x00004DC0;
 		param->madj_max      = 96;
 		param->dll2_finetune_step = 3;
+		switch (param->dram_chipid) {
+		default:
+		case AST_DRAM_512Mx16:
+		case AST_DRAM_1Gx16:
+			param->reg_AC2   = 0xAA007613 | trap_AC2;
+			break;
+		case AST_DRAM_2Gx16:
+			param->reg_AC2   = 0xAA00761C | trap_AC2;
+			break;
+		case AST_DRAM_4Gx16:
+			param->reg_AC2   = 0xAA007636 | trap_AC2;
+			break;
+		}
 		break;
 	default:
 	case 396:
-		moutdwm(ast, 0x1E6E2020, 0x03F1);
+		ast_moutdwm(ast, 0x1E6E2020, 0x03F1);
 		param->wodt          = 1;
 		param->reg_AC1       = 0x33302825;
 		param->reg_AC2       = 0xCC009617 | trap_AC2;
@@ -1033,7 +920,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->reg_IOZ       = 0x00000034;
 		param->reg_DRV       = 0x000000FA;
 		param->reg_DQIDLY    = 0x00000089;
-		param->reg_FREQ      = 0x000050C0;
+		param->reg_FREQ      = 0x00005040;
 		param->madj_max      = 96;
 		param->dll2_finetune_step = 4;
 
@@ -1053,14 +940,14 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		break;
 
 	case 408:
-		moutdwm(ast, 0x1E6E2020, 0x01F0);
+		ast_moutdwm(ast, 0x1E6E2020, 0x01F0);
 		param->wodt          = 1;
 		param->reg_AC1       = 0x33302825;
 		param->reg_AC2       = 0xCC009617 | trap_AC2;
 		param->reg_DQSIC     = 0x000000E2;
 		param->reg_MRS       = 0x04001600 | trap_MRS;
 		param->reg_EMRS      = 0x00000000;
-		param->reg_IOZ       = 0x00000034;
+		param->reg_IOZ       = 0x00000023;
 		param->reg_DRV       = 0x000000FA;
 		param->reg_DQIDLY    = 0x00000089;
 		param->reg_FREQ      = 0x000050C0;
@@ -1083,7 +970,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 		break;
 	case 456:
-		moutdwm(ast, 0x1E6E2020, 0x0230);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0230);
 		param->wodt          = 0;
 		param->reg_AC1       = 0x33302926;
 		param->reg_AC2       = 0xCD44961A;
@@ -1097,7 +984,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 4;
 		break;
 	case 504:
-		moutdwm(ast, 0x1E6E2020, 0x0270);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0270);
 		param->wodt          = 1;
 		param->reg_AC1       = 0x33302926;
 		param->reg_AC2       = 0xDE44A61D;
@@ -1111,7 +998,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 4;
 		break;
 	case 528:
-		moutdwm(ast, 0x1E6E2020, 0x0290);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0290);
 		param->wodt          = 1;
 		param->rodt          = 1;
 		param->reg_AC1       = 0x33302926;
@@ -1127,7 +1014,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 576:
-		moutdwm(ast, 0x1E6E2020, 0x0140);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0140);
 		param->reg_MADJ      = 0x00136868;
 		param->reg_SADJ      = 0x00004534;
 		param->wodt          = 1;
@@ -1145,7 +1032,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 600:
-		moutdwm(ast, 0x1E6E2020, 0x02E1);
+		ast_moutdwm(ast, 0x1E6E2020, 0x02E1);
 		param->reg_MADJ      = 0x00136868;
 		param->reg_SADJ      = 0x00004534;
 		param->wodt          = 1;
@@ -1163,7 +1050,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 624:
-		moutdwm(ast, 0x1E6E2020, 0x0160);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0160);
 		param->reg_MADJ      = 0x00136868;
 		param->reg_SADJ      = 0x00004534;
 		param->wodt          = 1;
@@ -1196,7 +1083,7 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 	case AST_DRAM_4Gx16:
 		param->dram_config = 0x133;
 		break;
-	}; /* switch size */
+	} /* switch size */
 
 	switch (param->vram_size) {
 	default:
@@ -1218,106 +1105,98 @@ static void get_ddr3_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 static void ddr3_init(struct ast_private *ast, struct ast2300_dram_param *param)
 {
-	u32 data, data2;
+	u32 data, data2, retry = 0;
 
-	moutdwm(ast, 0x1E6E0000, 0xFC600309);
-	moutdwm(ast, 0x1E6E0018, 0x00000100);
-	moutdwm(ast, 0x1E6E0024, 0x00000000);
-	moutdwm(ast, 0x1E6E0034, 0x00000000);
+ddr3_init_start:
+	ast_moutdwm(ast, 0x1E6E0000, 0xFC600309);
+	ast_moutdwm(ast, 0x1E6E0018, 0x00000100);
+	ast_moutdwm(ast, 0x1E6E0024, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0034, 0x00000000);
 	udelay(10);
-	moutdwm(ast, 0x1E6E0064, param->reg_MADJ);
-	moutdwm(ast, 0x1E6E0068, param->reg_SADJ);
+	ast_moutdwm(ast, 0x1E6E0064, param->reg_MADJ);
+	ast_moutdwm(ast, 0x1E6E0068, param->reg_SADJ);
 	udelay(10);
-	moutdwm(ast, 0x1E6E0064, param->reg_MADJ | 0xC0000);
+	ast_moutdwm(ast, 0x1E6E0064, param->reg_MADJ | 0xC0000);
 	udelay(10);
 
-	moutdwm(ast, 0x1E6E0004, param->dram_config);
-	moutdwm(ast, 0x1E6E0008, 0x90040f);
-	moutdwm(ast, 0x1E6E0010, param->reg_AC1);
-	moutdwm(ast, 0x1E6E0014, param->reg_AC2);
-	moutdwm(ast, 0x1E6E0020, param->reg_DQSIC);
-	moutdwm(ast, 0x1E6E0080, 0x00000000);
-	moutdwm(ast, 0x1E6E0084, 0x00000000);
-	moutdwm(ast, 0x1E6E0088, param->reg_DQIDLY);
-	moutdwm(ast, 0x1E6E0018, 0x4040A170);
-	moutdwm(ast, 0x1E6E0018, 0x20402370);
-	moutdwm(ast, 0x1E6E0038, 0x00000000);
-	moutdwm(ast, 0x1E6E0040, 0xFF444444);
-	moutdwm(ast, 0x1E6E0044, 0x22222222);
-	moutdwm(ast, 0x1E6E0048, 0x22222222);
-	moutdwm(ast, 0x1E6E004C, 0x00000002);
-	moutdwm(ast, 0x1E6E0050, 0x80000000);
-	moutdwm(ast, 0x1E6E0050, 0x00000000);
-	moutdwm(ast, 0x1E6E0054, 0);
-	moutdwm(ast, 0x1E6E0060, param->reg_DRV);
-	moutdwm(ast, 0x1E6E006C, param->reg_IOZ);
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
-	moutdwm(ast, 0x1E6E0074, 0x00000000);
-	moutdwm(ast, 0x1E6E0078, 0x00000000);
-	moutdwm(ast, 0x1E6E007C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0004, param->dram_config);
+	ast_moutdwm(ast, 0x1E6E0008, 0x90040f);
+	ast_moutdwm(ast, 0x1E6E0010, param->reg_AC1);
+	ast_moutdwm(ast, 0x1E6E0014, param->reg_AC2);
+	ast_moutdwm(ast, 0x1E6E0020, param->reg_DQSIC);
+	ast_moutdwm(ast, 0x1E6E0080, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0084, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0088, param->reg_DQIDLY);
+	ast_moutdwm(ast, 0x1E6E0018, 0x4000A170);
+	ast_moutdwm(ast, 0x1E6E0018, 0x00002370);
+	ast_moutdwm(ast, 0x1E6E0038, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0040, 0xFF444444);
+	ast_moutdwm(ast, 0x1E6E0044, 0x22222222);
+	ast_moutdwm(ast, 0x1E6E0048, 0x22222222);
+	ast_moutdwm(ast, 0x1E6E004C, 0x00000002);
+	ast_moutdwm(ast, 0x1E6E0050, 0x80000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0054, 0);
+	ast_moutdwm(ast, 0x1E6E0060, param->reg_DRV);
+	ast_moutdwm(ast, 0x1E6E006C, param->reg_IOZ);
+	ast_moutdwm(ast, 0x1E6E0070, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0074, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0078, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E007C, 0x00000000);
 	/* Wait MCLK2X lock to MCLK */
 	do {
-		data = mindwm(ast, 0x1E6E001C);
+		data = ast_mindwm(ast, 0x1E6E001C);
 	} while (!(data & 0x08000000));
-	moutdwm(ast, 0x1E6E0034, 0x00000001);
-	moutdwm(ast, 0x1E6E000C, 0x00005C04);
-	udelay(10);
-	moutdwm(ast, 0x1E6E000C, 0x00000000);
-	moutdwm(ast, 0x1E6E0034, 0x00000000);
-	data = mindwm(ast, 0x1E6E001C);
+	data = ast_mindwm(ast, 0x1E6E001C);
 	data = (data >> 8) & 0xff;
 	while ((data & 0x08) || ((data & 0x7) < 2) || (data < 4)) {
-		data2 = (mindwm(ast, 0x1E6E0064) & 0xfff3ffff) + 4;
+		data2 = (ast_mindwm(ast, 0x1E6E0064) & 0xfff3ffff) + 4;
 		if ((data2 & 0xff) > param->madj_max) {
 			break;
 		}
-		moutdwm(ast, 0x1E6E0064, data2);
+		ast_moutdwm(ast, 0x1E6E0064, data2);
 		if (data2 & 0x00100000) {
 			data2 = ((data2 & 0xff) >> 3) + 3;
 		} else {
 			data2 = ((data2 & 0xff) >> 2) + 5;
 		}
-		data = mindwm(ast, 0x1E6E0068) & 0xffff00ff;
+		data = ast_mindwm(ast, 0x1E6E0068) & 0xffff00ff;
 		data2 += data & 0xff;
 		data = data | (data2 << 8);
-		moutdwm(ast, 0x1E6E0068, data);
+		ast_moutdwm(ast, 0x1E6E0068, data);
 		udelay(10);
-		moutdwm(ast, 0x1E6E0064, mindwm(ast, 0x1E6E0064) | 0xC0000);
+		ast_moutdwm(ast, 0x1E6E0064, ast_mindwm(ast, 0x1E6E0064) | 0xC0000);
 		udelay(10);
-		data = mindwm(ast, 0x1E6E0018) & 0xfffff1ff;
-		moutdwm(ast, 0x1E6E0018, data);
+		data = ast_mindwm(ast, 0x1E6E0018) & 0xfffff1ff;
+		ast_moutdwm(ast, 0x1E6E0018, data);
 		data = data | 0x200;
-		moutdwm(ast, 0x1E6E0018, data);
+		ast_moutdwm(ast, 0x1E6E0018, data);
 		do {
-			data = mindwm(ast, 0x1E6E001C);
+			data = ast_mindwm(ast, 0x1E6E001C);
 		} while (!(data & 0x08000000));
 
-		moutdwm(ast, 0x1E6E0034, 0x00000001);
-		moutdwm(ast, 0x1E6E000C, 0x00005C04);
-		udelay(10);
-		moutdwm(ast, 0x1E6E000C, 0x00000000);
-		moutdwm(ast, 0x1E6E0034, 0x00000000);
-		data = mindwm(ast, 0x1E6E001C);
+		data = ast_mindwm(ast, 0x1E6E001C);
 		data = (data >> 8) & 0xff;
 	}
-	data = mindwm(ast, 0x1E6E0018) | 0xC00;
-	moutdwm(ast, 0x1E6E0018, data);
+	ast_moutdwm(ast, 0x1E720058, ast_mindwm(ast, 0x1E6E0068) & 0xffff);
+	data = ast_mindwm(ast, 0x1E6E0018) | 0xC00;
+	ast_moutdwm(ast, 0x1E6E0018, data);
 
-	moutdwm(ast, 0x1E6E0034, 0x00000001);
-	moutdwm(ast, 0x1E6E000C, 0x00000040);
+	ast_moutdwm(ast, 0x1E6E0034, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E000C, 0x00000040);
 	udelay(50);
 	/* Mode Register Setting */
-	moutdwm(ast, 0x1E6E002C, param->reg_MRS | 0x100);
-	moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
-	moutdwm(ast, 0x1E6E0028, 0x00000005);
-	moutdwm(ast, 0x1E6E0028, 0x00000007);
-	moutdwm(ast, 0x1E6E0028, 0x00000003);
-	moutdwm(ast, 0x1E6E0028, 0x00000001);
-	moutdwm(ast, 0x1E6E002C, param->reg_MRS);
-	moutdwm(ast, 0x1E6E000C, 0x00005C08);
-	moutdwm(ast, 0x1E6E0028, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E002C, param->reg_MRS | 0x100);
+	ast_moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000005);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000007);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000003);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E002C, param->reg_MRS);
+	ast_moutdwm(ast, 0x1E6E000C, 0x00005C08);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000001);
 
-	moutdwm(ast, 0x1E6E000C, 0x7FFF5C01);
+	ast_moutdwm(ast, 0x1E6E000C, 0x00005C01);
 	data = 0;
 	if (param->wodt) {
 		data = 0x300;
@@ -1325,30 +1204,23 @@ static void ddr3_init(struct ast_private *ast, struct ast2300_dram_param *param)
 	if (param->rodt) {
 		data = data | 0x3000 | ((param->reg_AC2 & 0x60000) >> 3);
 	}
-	moutdwm(ast, 0x1E6E0034, data | 0x3);
+	ast_moutdwm(ast, 0x1E6E0034, data | 0x3);
 
-	/* Wait DQI delay lock */
-	do {
-		data = mindwm(ast, 0x1E6E0080);
-	} while (!(data & 0x40000000));
-	/* Wait DQSI delay lock */
-	do {
-		data = mindwm(ast, 0x1E6E0020);
-	} while (!(data & 0x00000800));
 	/* Calibrate the DQSI delay */
-	cbr_dll2(ast, param);
+	if ((cbr_dll2(ast, param) == false) && (retry++ < 10))
+		goto ddr3_init_start;
 
-	moutdwm(ast, 0x1E6E0120, param->reg_FREQ);
+	ast_moutdwm(ast, 0x1E6E0120, param->reg_FREQ);
 	/* ECC Memory Initialization */
 #ifdef ECC
-	moutdwm(ast, 0x1E6E007C, 0x00000000);
-	moutdwm(ast, 0x1E6E0070, 0x221);
+	ast_moutdwm(ast, 0x1E6E007C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0070, 0x221);
 	do {
-		data = mindwm(ast, 0x1E6E0070);
+		data = ast_mindwm(ast, 0x1E6E0070);
 	} while (!(data & 0x00001000));
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
-	moutdwm(ast, 0x1E6E0050, 0x80000000);
-	moutdwm(ast, 0x1E6E0050, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0070, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x80000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x00000000);
 #endif
 
 
@@ -1358,10 +1230,10 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 {
 	u32 trap, trap_AC2, trap_MRS;
 
-	moutdwm(ast, 0x1E6E2000, 0x1688A8A8);
+	ast_moutdwm(ast, 0x1E6E2000, 0x1688A8A8);
 
 	/* Ger trap info */
-	trap = (mindwm(ast, 0x1E6E2070) >> 25) & 0x3;
+	trap = (ast_mindwm(ast, 0x1E6E2070) >> 25) & 0x3;
 	trap_AC2  = (trap << 20) | (trap << 16);
 	trap_AC2 += 0x00110000;
 	trap_MRS  = 0x00000040 | (trap << 4);
@@ -1375,7 +1247,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 	switch (param->dram_freq) {
 	case 264:
-		moutdwm(ast, 0x1E6E2020, 0x0130);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0130);
 		param->wodt          = 0;
 		param->reg_AC1       = 0x11101513;
 		param->reg_AC2       = 0x78117011;
@@ -1390,7 +1262,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 336:
-		moutdwm(ast, 0x1E6E2020, 0x0190);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0190);
 		param->wodt          = 1;
 		param->reg_AC1       = 0x22202613;
 		param->reg_AC2       = 0xAA009016 | trap_AC2;
@@ -1403,10 +1275,25 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->reg_FREQ      = 0x00004DC0;
 		param->madj_max      = 96;
 		param->dll2_finetune_step = 3;
+		switch (param->dram_chipid) {
+		default:
+		case AST_DRAM_512Mx16:
+			param->reg_AC2   = 0xAA009012 | trap_AC2;
+			break;
+		case AST_DRAM_1Gx16:
+			param->reg_AC2   = 0xAA009016 | trap_AC2;
+			break;
+		case AST_DRAM_2Gx16:
+			param->reg_AC2   = 0xAA009023 | trap_AC2;
+			break;
+		case AST_DRAM_4Gx16:
+			param->reg_AC2   = 0xAA00903B | trap_AC2;
+			break;
+		}
 		break;
 	default:
 	case 396:
-		moutdwm(ast, 0x1E6E2020, 0x03F1);
+		ast_moutdwm(ast, 0x1E6E2020, 0x03F1);
 		param->wodt          = 1;
 		param->rodt          = 0;
 		param->reg_AC1       = 0x33302714;
@@ -1417,7 +1304,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->reg_DRV       = 0x000000FA;
 		param->reg_IOZ       = 0x00000034;
 		param->reg_DQIDLY    = 0x00000089;
-		param->reg_FREQ      = 0x000050C0;
+		param->reg_FREQ      = 0x00005040;
 		param->madj_max      = 96;
 		param->dll2_finetune_step = 4;
 
@@ -1440,7 +1327,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		break;
 
 	case 408:
-		moutdwm(ast, 0x1E6E2020, 0x01F0);
+		ast_moutdwm(ast, 0x1E6E2020, 0x01F0);
 		param->wodt          = 1;
 		param->rodt          = 0;
 		param->reg_AC1       = 0x33302714;
@@ -1473,7 +1360,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 		break;
 	case 456:
-		moutdwm(ast, 0x1E6E2020, 0x0230);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0230);
 		param->wodt          = 0;
 		param->reg_AC1       = 0x33302815;
 		param->reg_AC2       = 0xCD44B01E;
@@ -1488,7 +1375,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 504:
-		moutdwm(ast, 0x1E6E2020, 0x0261);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0261);
 		param->wodt          = 1;
 		param->rodt          = 1;
 		param->reg_AC1       = 0x33302815;
@@ -1504,7 +1391,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 528:
-		moutdwm(ast, 0x1E6E2020, 0x0120);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0120);
 		param->wodt          = 1;
 		param->rodt          = 1;
 		param->reg_AC1       = 0x33302815;
@@ -1520,7 +1407,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 552:
-		moutdwm(ast, 0x1E6E2020, 0x02A1);
+		ast_moutdwm(ast, 0x1E6E2020, 0x02A1);
 		param->wodt          = 1;
 		param->rodt          = 1;
 		param->reg_AC1       = 0x43402915;
@@ -1536,7 +1423,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 		param->dll2_finetune_step = 3;
 		break;
 	case 576:
-		moutdwm(ast, 0x1E6E2020, 0x0140);
+		ast_moutdwm(ast, 0x1E6E2020, 0x0140);
 		param->wodt          = 1;
 		param->rodt          = 1;
 		param->reg_AC1       = 0x43402915;
@@ -1567,7 +1454,7 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 	case AST_DRAM_4Gx16:
 		param->dram_config = 0x123;
 		break;
-	}; /* switch size */
+	} /* switch size */
 
 	switch (param->vram_size) {
 	default:
@@ -1588,110 +1475,102 @@ static void get_ddr2_info(struct ast_private *ast, struct ast2300_dram_param *pa
 
 static void ddr2_init(struct ast_private *ast, struct ast2300_dram_param *param)
 {
-	u32 data, data2;
+	u32 data, data2, retry = 0;
 
-	moutdwm(ast, 0x1E6E0000, 0xFC600309);
-	moutdwm(ast, 0x1E6E0018, 0x00000100);
-	moutdwm(ast, 0x1E6E0024, 0x00000000);
-	moutdwm(ast, 0x1E6E0064, param->reg_MADJ);
-	moutdwm(ast, 0x1E6E0068, param->reg_SADJ);
+ddr2_init_start:
+	ast_moutdwm(ast, 0x1E6E0000, 0xFC600309);
+	ast_moutdwm(ast, 0x1E6E0018, 0x00000100);
+	ast_moutdwm(ast, 0x1E6E0024, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0064, param->reg_MADJ);
+	ast_moutdwm(ast, 0x1E6E0068, param->reg_SADJ);
 	udelay(10);
-	moutdwm(ast, 0x1E6E0064, param->reg_MADJ | 0xC0000);
+	ast_moutdwm(ast, 0x1E6E0064, param->reg_MADJ | 0xC0000);
 	udelay(10);
 
-	moutdwm(ast, 0x1E6E0004, param->dram_config);
-	moutdwm(ast, 0x1E6E0008, 0x90040f);
-	moutdwm(ast, 0x1E6E0010, param->reg_AC1);
-	moutdwm(ast, 0x1E6E0014, param->reg_AC2);
-	moutdwm(ast, 0x1E6E0020, param->reg_DQSIC);
-	moutdwm(ast, 0x1E6E0080, 0x00000000);
-	moutdwm(ast, 0x1E6E0084, 0x00000000);
-	moutdwm(ast, 0x1E6E0088, param->reg_DQIDLY);
-	moutdwm(ast, 0x1E6E0018, 0x4040A130);
-	moutdwm(ast, 0x1E6E0018, 0x20402330);
-	moutdwm(ast, 0x1E6E0038, 0x00000000);
-	moutdwm(ast, 0x1E6E0040, 0xFF808000);
-	moutdwm(ast, 0x1E6E0044, 0x88848466);
-	moutdwm(ast, 0x1E6E0048, 0x44440008);
-	moutdwm(ast, 0x1E6E004C, 0x00000000);
-	moutdwm(ast, 0x1E6E0050, 0x80000000);
-	moutdwm(ast, 0x1E6E0050, 0x00000000);
-	moutdwm(ast, 0x1E6E0054, 0);
-	moutdwm(ast, 0x1E6E0060, param->reg_DRV);
-	moutdwm(ast, 0x1E6E006C, param->reg_IOZ);
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
-	moutdwm(ast, 0x1E6E0074, 0x00000000);
-	moutdwm(ast, 0x1E6E0078, 0x00000000);
-	moutdwm(ast, 0x1E6E007C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0004, param->dram_config);
+	ast_moutdwm(ast, 0x1E6E0008, 0x90040f);
+	ast_moutdwm(ast, 0x1E6E0010, param->reg_AC1);
+	ast_moutdwm(ast, 0x1E6E0014, param->reg_AC2);
+	ast_moutdwm(ast, 0x1E6E0020, param->reg_DQSIC);
+	ast_moutdwm(ast, 0x1E6E0080, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0084, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0088, param->reg_DQIDLY);
+	ast_moutdwm(ast, 0x1E6E0018, 0x4000A130);
+	ast_moutdwm(ast, 0x1E6E0018, 0x00002330);
+	ast_moutdwm(ast, 0x1E6E0038, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0040, 0xFF808000);
+	ast_moutdwm(ast, 0x1E6E0044, 0x88848466);
+	ast_moutdwm(ast, 0x1E6E0048, 0x44440008);
+	ast_moutdwm(ast, 0x1E6E004C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x80000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0054, 0);
+	ast_moutdwm(ast, 0x1E6E0060, param->reg_DRV);
+	ast_moutdwm(ast, 0x1E6E006C, param->reg_IOZ);
+	ast_moutdwm(ast, 0x1E6E0070, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0074, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0078, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E007C, 0x00000000);
 
 	/* Wait MCLK2X lock to MCLK */
 	do {
-		data = mindwm(ast, 0x1E6E001C);
+		data = ast_mindwm(ast, 0x1E6E001C);
 	} while (!(data & 0x08000000));
-	moutdwm(ast, 0x1E6E0034, 0x00000001);
-	moutdwm(ast, 0x1E6E000C, 0x00005C04);
-	udelay(10);
-	moutdwm(ast, 0x1E6E000C, 0x00000000);
-	moutdwm(ast, 0x1E6E0034, 0x00000000);
-	data = mindwm(ast, 0x1E6E001C);
+	data = ast_mindwm(ast, 0x1E6E001C);
 	data = (data >> 8) & 0xff;
 	while ((data & 0x08) || ((data & 0x7) < 2) || (data < 4)) {
-		data2 = (mindwm(ast, 0x1E6E0064) & 0xfff3ffff) + 4;
+		data2 = (ast_mindwm(ast, 0x1E6E0064) & 0xfff3ffff) + 4;
 		if ((data2 & 0xff) > param->madj_max) {
 			break;
 		}
-		moutdwm(ast, 0x1E6E0064, data2);
+		ast_moutdwm(ast, 0x1E6E0064, data2);
 		if (data2 & 0x00100000) {
 			data2 = ((data2 & 0xff) >> 3) + 3;
 		} else {
 			data2 = ((data2 & 0xff) >> 2) + 5;
 		}
-		data = mindwm(ast, 0x1E6E0068) & 0xffff00ff;
+		data = ast_mindwm(ast, 0x1E6E0068) & 0xffff00ff;
 		data2 += data & 0xff;
 		data = data | (data2 << 8);
-		moutdwm(ast, 0x1E6E0068, data);
+		ast_moutdwm(ast, 0x1E6E0068, data);
 		udelay(10);
-		moutdwm(ast, 0x1E6E0064, mindwm(ast, 0x1E6E0064) | 0xC0000);
+		ast_moutdwm(ast, 0x1E6E0064, ast_mindwm(ast, 0x1E6E0064) | 0xC0000);
 		udelay(10);
-		data = mindwm(ast, 0x1E6E0018) & 0xfffff1ff;
-		moutdwm(ast, 0x1E6E0018, data);
+		data = ast_mindwm(ast, 0x1E6E0018) & 0xfffff1ff;
+		ast_moutdwm(ast, 0x1E6E0018, data);
 		data = data | 0x200;
-		moutdwm(ast, 0x1E6E0018, data);
+		ast_moutdwm(ast, 0x1E6E0018, data);
 		do {
-			data = mindwm(ast, 0x1E6E001C);
+			data = ast_mindwm(ast, 0x1E6E001C);
 		} while (!(data & 0x08000000));
 
-		moutdwm(ast, 0x1E6E0034, 0x00000001);
-		moutdwm(ast, 0x1E6E000C, 0x00005C04);
-		udelay(10);
-		moutdwm(ast, 0x1E6E000C, 0x00000000);
-		moutdwm(ast, 0x1E6E0034, 0x00000000);
-		data = mindwm(ast, 0x1E6E001C);
+		data = ast_mindwm(ast, 0x1E6E001C);
 		data = (data >> 8) & 0xff;
 	}
-	data = mindwm(ast, 0x1E6E0018) | 0xC00;
-	moutdwm(ast, 0x1E6E0018, data);
+	ast_moutdwm(ast, 0x1E720058, ast_mindwm(ast, 0x1E6E0008) & 0xffff);
+	data = ast_mindwm(ast, 0x1E6E0018) | 0xC00;
+	ast_moutdwm(ast, 0x1E6E0018, data);
 
-	moutdwm(ast, 0x1E6E0034, 0x00000001);
-	moutdwm(ast, 0x1E6E000C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0034, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E000C, 0x00000000);
 	udelay(50);
 	/* Mode Register Setting */
-	moutdwm(ast, 0x1E6E002C, param->reg_MRS | 0x100);
-	moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
-	moutdwm(ast, 0x1E6E0028, 0x00000005);
-	moutdwm(ast, 0x1E6E0028, 0x00000007);
-	moutdwm(ast, 0x1E6E0028, 0x00000003);
-	moutdwm(ast, 0x1E6E0028, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E002C, param->reg_MRS | 0x100);
+	ast_moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000005);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000007);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000003);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000001);
 
-	moutdwm(ast, 0x1E6E000C, 0x00005C08);
-	moutdwm(ast, 0x1E6E002C, param->reg_MRS);
-	moutdwm(ast, 0x1E6E0028, 0x00000001);
-	moutdwm(ast, 0x1E6E0030, param->reg_EMRS | 0x380);
-	moutdwm(ast, 0x1E6E0028, 0x00000003);
-	moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
-	moutdwm(ast, 0x1E6E0028, 0x00000003);
+	ast_moutdwm(ast, 0x1E6E000C, 0x00005C08);
+	ast_moutdwm(ast, 0x1E6E002C, param->reg_MRS);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000001);
+	ast_moutdwm(ast, 0x1E6E0030, param->reg_EMRS | 0x380);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000003);
+	ast_moutdwm(ast, 0x1E6E0030, param->reg_EMRS);
+	ast_moutdwm(ast, 0x1E6E0028, 0x00000003);
 
-	moutdwm(ast, 0x1E6E000C, 0x7FFF5C01);
+	ast_moutdwm(ast, 0x1E6E000C, 0x7FFF5C01);
 	data = 0;
 	if (param->wodt) {
 		data = 0x500;
@@ -1699,30 +1578,23 @@ static void ddr2_init(struct ast_private *ast, struct ast2300_dram_param *param)
 	if (param->rodt) {
 		data = data | 0x3000 | ((param->reg_AC2 & 0x60000) >> 3);
 	}
-	moutdwm(ast, 0x1E6E0034, data | 0x3);
-	moutdwm(ast, 0x1E6E0120, param->reg_FREQ);
+	ast_moutdwm(ast, 0x1E6E0034, data | 0x3);
+	ast_moutdwm(ast, 0x1E6E0120, param->reg_FREQ);
 
-	/* Wait DQI delay lock */
-	do {
-		data = mindwm(ast, 0x1E6E0080);
-	} while (!(data & 0x40000000));
-	/* Wait DQSI delay lock */
-	do {
-		data = mindwm(ast, 0x1E6E0020);
-	} while (!(data & 0x00000800));
 	/* Calibrate the DQSI delay */
-	cbr_dll2(ast, param);
+	if ((cbr_dll2(ast, param) == false) && (retry++ < 10))
+		goto ddr2_init_start;
 
 	/* ECC Memory Initialization */
 #ifdef ECC
-	moutdwm(ast, 0x1E6E007C, 0x00000000);
-	moutdwm(ast, 0x1E6E0070, 0x221);
+	ast_moutdwm(ast, 0x1E6E007C, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0070, 0x221);
 	do {
-		data = mindwm(ast, 0x1E6E0070);
+		data = ast_mindwm(ast, 0x1E6E0070);
 	} while (!(data & 0x00001000));
-	moutdwm(ast, 0x1E6E0070, 0x00000000);
-	moutdwm(ast, 0x1E6E0050, 0x80000000);
-	moutdwm(ast, 0x1E6E0050, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0070, 0x00000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x80000000);
+	ast_moutdwm(ast, 0x1E6E0050, 0x00000000);
 #endif
 
 }
@@ -1768,8 +1640,8 @@ static void ast_init_dram_2300(struct drm_device *dev)
 			ddr2_init(ast, &param);
 		}
 
-		temp = mindwm(ast, 0x1e6e2040);
-		moutdwm(ast, 0x1e6e2040, temp | 0x40);
+		temp = ast_mindwm(ast, 0x1e6e2040);
+		ast_moutdwm(ast, 0x1e6e2040, temp | 0x40);
 	}
 
 	/* wait ready */

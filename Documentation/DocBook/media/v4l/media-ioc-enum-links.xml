@@ -79,13 +79,13 @@
 	    <entry>Entity id, set by the application.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry>*<structfield>pads</structfield></entry>
 	    <entry>Pointer to a pads array allocated by the application. Ignored
 	    if NULL.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-link-desc;</entry>
+	    <entry>&media-link-desc;</entry>
 	    <entry>*<structfield>links</structfield></entry>
 	    <entry>Pointer to a links array allocated by the application. Ignored
 	    if NULL.</entry>
@@ -153,12 +153,12 @@
         &cs-str;
 	<tbody valign="top">
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry><structfield>source</structfield></entry>
 	    <entry>Pad at the origin of this link.</entry>
 	  </row>
 	  <row>
-	    <entry>struct &media-pad-desc;</entry>
+	    <entry>&media-pad-desc;</entry>
 	    <entry><structfield>sink</structfield></entry>
 	    <entry>Pad at the target of this link.</entry>
 	  </row>

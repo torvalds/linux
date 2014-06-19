@@ -3499,8 +3499,6 @@ int __init amd_iommu_init_passthrough(void)
 {
 	struct iommu_dev_data *dev_data;
 	struct pci_dev *dev = NULL;
-	struct amd_iommu *iommu;
-	u16 devid;
 	int ret;
 
 	ret = alloc_passthrough_domain();
@@ -3513,12 +3511,6 @@ int __init amd_iommu_init_passthrough(void)
 
 		dev_data = get_dev_data(&dev->dev);
 		dev_data->passthrough = true;
-
-		devid = get_device_id(&dev->dev);
-
-		iommu = amd_iommu_rlookup_table[devid];
-		if (!iommu)
-			continue;
 
 		attach_device(&dev->dev, pt_domain);
 	}

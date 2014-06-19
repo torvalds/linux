@@ -1,0 +1,100 @@
+/*
+ * Copyright 2014 Hans de Goede <hdegoede@redhat.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "sun5i-a10s.dtsi"
+/include/ "sunxi-common-regulators.dtsi"
+
+/ {
+	model = "R7 A10s hdmi tv-stick";
+	compatible = "allwinner,r7-tv-dongle", "allwinner,sun5i-a10s";
+
+	soc@01c00000 {
+		mmc0: mmc@01c0f000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_r7>;
+			vmmc-supply = <&reg_vcc3v3>;
+			bus-width = <4>;
+			cd-gpios = <&pio 6 1 0>; /* PG1 */
+			cd-inverted;
+			status = "okay";
+		};
+
+		mmc1: mmc@01c10000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc1_pins_a>;
+			vmmc-supply = <&reg_vcc3v3>;
+			bus-width = <4>;
+			non-removable;
+			status = "okay";
+		};
+
+		usbphy: phy@01c13400 {
+			usb1_vbus-supply = <&reg_usb1_vbus>;
+			status = "okay";
+		};
+
+		ehci0: usb@01c14000 {
+			status = "okay";
+		};
+
+		ohci0: usb@01c14400 {
+			status = "okay";
+		};
+
+		pinctrl@01c20800 {
+			mmc0_cd_pin_r7: mmc0_cd_pin@0 {
+				allwinner,pins = "PG1";
+				allwinner,function = "gpio_in";
+				allwinner,drive = <0>;
+				allwinner,pull = <1>;
+			};
+
+			led_pins_r7: led_pins@0 {
+				allwinner,pins = "PB2";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <1>;
+				allwinner,pull = <0>;
+			};
+
+			usb1_vbus_pin_r7: usb1_vbus_pin@0 {
+				allwinner,pins = "PG13";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+		};
+
+		uart0: serial@01c28000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_pins_a>;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_r7>;
+
+		green {
+			label = "r7-tv-dongle:green:usr";
+			gpios = <&pio 1 2 0>;
+			default-state = "on";
+		};
+	};
+
+	reg_usb1_vbus: usb1-vbus {
+		pinctrl-0 = <&usb1_vbus_pin_r7>;
+		gpio = <&pio 6 13 0>;
+		status = "okay";
+	};
+};

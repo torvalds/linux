@@ -59,27 +59,28 @@ mac802154_subif_rx(struct ieee802154_dev *hw, struct sk_buff *skb, u8 lqi)
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
 
-	BUILD_BUG_ON(sizeof(struct ieee802154_mac_cb) > sizeof(skb->cb));
-
 	if (!(priv->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc;
 
 		if (skb->len < 2) {
 			pr_debug("got invalid frame\n");
-			goto out;
+			goto fail;
 		}
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			pr_debug("CRC mismatch\n");
-			goto out;
+			goto fail;
 		}
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
 	mac802154_monitors_rx(priv, skb);
 	mac802154_wpans_rx(priv, skb);
-out:
-	dev_kfree_skb(skb);
+
+	return;
+
+fail:
+	kfree_skb(skb);
 }
 
 static void mac802154_rx_worker(struct work_struct *work)

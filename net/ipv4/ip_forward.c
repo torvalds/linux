@@ -42,12 +42,12 @@
 static bool ip_may_fragment(const struct sk_buff *skb)
 {
 	return unlikely((ip_hdr(skb)->frag_off & htons(IP_DF)) == 0) ||
-	       !skb->local_df;
+		skb->ignore_df;
 }
 
 static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 {
-	if (skb->len <= mtu || skb->local_df)
+	if (skb->len <= mtu)
 		return false;
 
 	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
@@ -56,53 +56,6 @@ static bool ip_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 	return true;
 }
 
-static bool ip_gso_exceeds_dst_mtu(const struct sk_buff *skb)
-{
-	unsigned int mtu;
-
-	if (skb->local_df || !skb_is_gso(skb))
-		return false;
-
-	mtu = ip_dst_mtu_maybe_forward(skb_dst(skb), true);
-
-	/* if seglen > mtu, do software segmentation for IP fragmentation on
-	 * output.  DF bit cannot be set since ip_forward would have sent
-	 * icmp error.
-	 */
-	return skb_gso_network_seglen(skb) > mtu;
-}
-
-/* called if GSO skb needs to be fragmented on forward */
-static int ip_forward_finish_gso(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-	netdev_features_t features;
-	struct sk_buff *segs;
-	int ret = 0;
-
-	features = netif_skb_dev_features(skb, dst->dev);
-	segs = skb_gso_segment(skb, features & ~NETIF_F_GSO_MASK);
-	if (IS_ERR(segs)) {
-		kfree_skb(skb);
-		return -ENOMEM;
-	}
-
-	consume_skb(skb);
-
-	do {
-		struct sk_buff *nskb = segs->next;
-		int err;
-
-		segs->next = NULL;
-		err = dst_output(segs);
-
-		if (err && ret == 0)
-			ret = err;
-		segs = nskb;
-	} while (segs);
-
-	return ret;
-}
 
 static int ip_forward_finish(struct sk_buff *skb)
 {
@@ -113,9 +66,6 @@ static int ip_forward_finish(struct sk_buff *skb)
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
-
-	if (ip_gso_exceeds_dst_mtu(skb))
-		return ip_forward_finish_gso(skb);
 
 	return dst_output(skb);
 }

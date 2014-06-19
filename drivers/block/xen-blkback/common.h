@@ -314,7 +314,7 @@ struct xen_blkif {
 	unsigned long long			st_rd_sect;
 	unsigned long long			st_wr_sect;
 
-	wait_queue_head_t	waiting_to_free;
+	struct work_struct	free_work;
 	/* Thread shutdown wait queue. */
 	wait_queue_head_t	shutdown_wq;
 };
@@ -361,7 +361,7 @@ struct pending_req {
 #define xen_blkif_put(_b)				\
 	do {						\
 		if (atomic_dec_and_test(&(_b)->refcnt))	\
-			wake_up(&(_b)->waiting_to_free);\
+			schedule_work(&(_b)->free_work);\
 	} while (0)
 
 struct phys_req {

@@ -28,6 +28,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
+#include <trace/events/power.h>
 
 #include "power.h"
 
@@ -35,7 +36,7 @@
 static int nocompress;
 static int noresume;
 static int resume_wait;
-static int resume_delay;
+static unsigned int resume_delay;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
@@ -228,19 +229,23 @@ static void platform_recover(int platform_mode)
 void swsusp_show_speed(struct timeval *start, struct timeval *stop,
 			unsigned nr_pages, char *msg)
 {
-	s64 elapsed_centisecs64;
-	int centisecs;
-	int k;
-	int kps;
+	u64 elapsed_centisecs64;
+	unsigned int centisecs;
+	unsigned int k;
+	unsigned int kps;
 
 	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
+	/*
+	 * If "(s64)elapsed_centisecs64 < 0", it will print long elapsed time,
+	 * it is obvious enough for what went wrong.
+	 */
 	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
 	centisecs = elapsed_centisecs64;
 	if (centisecs == 0)
 		centisecs = 1;	/* avoid div-by-zero */
 	k = nr_pages * (PAGE_SIZE / 1024);
 	kps = (k * 100) / centisecs;
-	printk(KERN_INFO "PM: %s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n",
+	printk(KERN_INFO "PM: %s %u kbytes in %u.%02u seconds (%u.%02u MB/s)\n",
 			msg, k,
 			centisecs / 100, centisecs % 100,
 			kps / 1000, (kps % 1000) / 10);
@@ -288,7 +293,9 @@ static int create_image(int platform_mode)
 
 	in_suspend = 1;
 	save_processor_state();
+	trace_suspend_resume(TPS("machine_suspend"), PM_EVENT_HIBERNATE, true);
 	error = swsusp_arch_suspend();
+	trace_suspend_resume(TPS("machine_suspend"), PM_EVENT_HIBERNATE, false);
 	if (error)
 		printk(KERN_ERR "PM: Error %d creating hibernation image\n",
 			error);
@@ -595,7 +602,8 @@ static void power_down(void)
 	case HIBERNATION_PLATFORM:
 		hibernation_platform_enter();
 	case HIBERNATION_SHUTDOWN:
-		kernel_power_off();
+		if (pm_power_off)
+			kernel_power_off();
 		break;
 #ifdef CONFIG_SUSPEND
 	case HIBERNATION_SUSPEND:
@@ -623,7 +631,8 @@ static void power_down(void)
 	 * corruption after resume.
 	 */
 	printk(KERN_CRIT "PM: Please power down manually\n");
-	while(1);
+	while (1)
+		cpu_relax();
 }
 
 /**
@@ -1109,7 +1118,10 @@ static int __init resumewait_setup(char *str)
 
 static int __init resumedelay_setup(char *str)
 {
-	resume_delay = simple_strtoul(str, NULL, 0);
+	int rc = kstrtouint(str, 0, &resume_delay);
+
+	if (rc)
+		return rc;
 	return 1;
 }
 

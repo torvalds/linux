@@ -523,17 +523,6 @@ static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		return GPIOF_DIR_IN;
 }
 
-static int wmt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
-static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
-				     int value)
-{
-	return pinctrl_gpio_direction_output(chip->base + offset);
-}
-
 static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
 	struct wmt_pinctrl_data *data = dev_get_drvdata(chip->dev);
@@ -566,6 +555,18 @@ static void wmt_gpio_set_value(struct gpio_chip *chip, unsigned offset,
 		wmt_setbits(data, reg_data_out, BIT(bit));
 	else
 		wmt_clearbits(data, reg_data_out, BIT(bit));
+}
+
+static int wmt_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	return pinctrl_gpio_direction_input(chip->base + offset);
+}
+
+static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
+				     int value)
+{
+	wmt_gpio_set_value(chip, offset, value);
+	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
 static struct gpio_chip wmt_gpio_chip = {

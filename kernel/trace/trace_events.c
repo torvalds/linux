@@ -574,6 +574,9 @@ int trace_set_clr_event(const char *system, const char *event, int set)
 {
 	struct trace_array *tr = top_trace_array();
 
+	if (!tr)
+		return -ENODEV;
+
 	return __ftrace_set_clr_event(tr, NULL, system, event, set);
 }
 EXPORT_SYMBOL_GPL(trace_set_clr_event);
@@ -2065,6 +2068,9 @@ event_enable_func(struct ftrace_hash *hash,
 	bool enable;
 	int ret;
 
+	if (!tr)
+		return -ENODEV;
+
 	/* hash funcs only work with set_ftrace_filter */
 	if (!enabled || !param)
 		return -EINVAL;
@@ -2396,6 +2402,9 @@ static __init int event_trace_enable(void)
 	char *token;
 	int ret;
 
+	if (!tr)
+		return -ENODEV;
+
 	for_each_event(iter, __start_ftrace_events, __stop_ftrace_events) {
 
 		call = *iter;
@@ -2442,6 +2451,8 @@ static __init int event_trace_init(void)
 	int ret;
 
 	tr = top_trace_array();
+	if (!tr)
+		return -ENODEV;
 
 	d_tracer = tracing_init_dentry();
 	if (!d_tracer)
@@ -2535,6 +2546,8 @@ static __init void event_trace_self_tests(void)
 	int ret;
 
 	tr = top_trace_array();
+	if (!tr)
+		return;
 
 	pr_info("Running tests on trace events:\n");
 

@@ -1,6 +1,6 @@
 /* memregion_direct.c
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 struct MEMREGION_Tag {
 	HOSTADDRESS physaddr;
 	ulong nbytes;
-	void *mapped;
+	void __iomem *mapped;
 	BOOL requested;
 	BOOL overlapped;
 };
@@ -93,7 +93,7 @@ visor_memregion_create_overlapped(MEMREGION *parent, ulong offset, ulong nbytes)
 
 	memregion->physaddr = parent->physaddr + offset;
 	memregion->nbytes = nbytes;
-	memregion->mapped = ((u8 *) (parent->mapped)) + offset;
+	memregion->mapped = ((u8 __iomem *) (parent->mapped)) + offset;
 	memregion->requested = FALSE;
 	memregion->overlapped = TRUE;
 	return memregion;
@@ -149,7 +149,7 @@ visor_memregion_get_nbytes(MEMREGION *memregion)
 }
 EXPORT_SYMBOL_GPL(visor_memregion_get_nbytes);
 
-void *
+void __iomem *
 visor_memregion_get_pointer(MEMREGION *memregion)
 {
 	return memregion->mapped;

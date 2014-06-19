@@ -2859,10 +2859,11 @@ void ubifs_tnc_close(struct ubifs_info *c)
 {
 	tnc_destroy_cnext(c);
 	if (c->zroot.znode) {
-		long n;
+		long n, freed;
 
-		ubifs_destroy_tnc_subtree(c->zroot.znode);
 		n = atomic_long_read(&c->clean_zn_cnt);
+		freed = ubifs_destroy_tnc_subtree(c->zroot.znode);
+		ubifs_assert(freed == n);
 		atomic_long_sub(n, &ubifs_clean_zn_cnt);
 	}
 	kfree(c->gap_lebs);

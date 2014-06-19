@@ -287,7 +287,7 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 	writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
 
 	if (!xfer) {
-		dev_err_ratelimited(controller->dev, "unexpected irq %x08 %x08 %x08\n",
+		dev_err_ratelimited(controller->dev, "unexpected irq %08x %08x %08x\n",
 				    qup_err, spi_err, opflags);
 		return IRQ_HANDLED;
 	}
@@ -366,7 +366,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	n_words = xfer->len / w_size;
 	controller->w_size = w_size;
 
-	if (n_words <= controller->in_fifo_sz) {
+	if (n_words <= (controller->in_fifo_sz / sizeof(u32))) {
 		mode = QUP_IO_M_MODE_FIFO;
 		writel_relaxed(n_words, controller->base + QUP_MX_READ_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_WRITE_CNT);
@@ -749,7 +749,7 @@ static int spi_qup_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id spi_qup_dt_match[] = {
+static const struct of_device_id spi_qup_dt_match[] = {
 	{ .compatible = "qcom,spi-qup-v2.1.1", },
 	{ .compatible = "qcom,spi-qup-v2.2.1", },
 	{ }

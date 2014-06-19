@@ -1083,7 +1083,7 @@ static int wm2200_mixer_values[] = {
 
 #define WM2200_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
-		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
+		SOC_DAPM_ENUM("Route", name##_enum)
 
 #define WM2200_MIXER_ENUMS(name, base_reg) \
 	static WM2200_MUX_ENUM_DECL(name##_in1_enum, base_reg);	     \
@@ -1207,7 +1207,7 @@ WM2200_MIXER_ENUMS(LHPF1, WM2200_LHPF1MIX_INPUT_1_SOURCE);
 WM2200_MIXER_ENUMS(LHPF2, WM2200_LHPF2MIX_INPUT_1_SOURCE);
 
 #define WM2200_MUX(name, ctrl) \
-	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+	SND_SOC_DAPM_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
 #define WM2200_MIXER_WIDGETS(name, name_str)	\
 	WM2200_MUX(name_str " Input 1", &name##_in1_mux), \

@@ -575,6 +575,9 @@ typedef efi_status_t efi_query_variable_store_t(u32 attributes, unsigned long si
 #define EFI_FILE_SYSTEM_GUID \
     EFI_GUID(  0x964e5b22, 0x6459, 0x11d2, 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b )
 
+#define DEVICE_TREE_GUID \
+    EFI_GUID(  0xb1b621d5, 0xf19c, 0x41a5, 0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0 )
+
 typedef struct {
 	efi_guid_t guid;
 	u64 table;
@@ -662,6 +665,14 @@ struct efi_memory_map {
 	int nr_map;
 	unsigned long desc_version;
 	unsigned long desc_size;
+};
+
+struct efi_fdt_params {
+	u64 system_table;
+	u64 mmap;
+	u32 mmap_size;
+	u32 desc_size;
+	u32 desc_ver;
 };
 
 typedef struct {
@@ -861,7 +872,14 @@ extern void efi_initialize_iomem_resources(struct resource *code_resource,
 extern void efi_get_time(struct timespec *now);
 extern int efi_set_rtc_mmss(const struct timespec *now);
 extern void efi_reserve_boot_services(void);
+extern int efi_get_fdt_params(struct efi_fdt_params *params, int verbose);
 extern struct efi_memory_map memmap;
+
+/* Iterate through an efi_memory_map */
+#define for_each_efi_memory_desc(m, md)					   \
+	for ((md) = (m)->map;						   \
+	     (md) <= (efi_memory_desc_t *)((m)->map_end - (m)->desc_size); \
+	     (md) = (void *)(md) + (m)->desc_size)
 
 /**
  * efi_range_is_wc - check the WC bit on an address range
@@ -1033,8 +1051,10 @@ struct efivars {
  * and we use a page for reading/writing.
  */
 
+#define EFI_VAR_NAME_LEN	1024
+
 struct efi_variable {
-	efi_char16_t  VariableName[1024/sizeof(efi_char16_t)];
+	efi_char16_t  VariableName[EFI_VAR_NAME_LEN/sizeof(efi_char16_t)];
 	efi_guid_t    VendorGuid;
 	unsigned long DataSize;
 	__u8          Data[1024];
@@ -1116,7 +1136,7 @@ int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 				       struct list_head *head, bool remove);
 
-bool efivar_validate(struct efi_variable *var, u8 *data, unsigned long len);
+bool efivar_validate(efi_char16_t *var_name, u8 *data, unsigned long len);
 
 extern struct work_struct efivar_work;
 void efivar_run_worker(void);

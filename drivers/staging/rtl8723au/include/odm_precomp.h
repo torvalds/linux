@@ -16,10 +16,6 @@
 #ifndef	__ODM_PRECOMP_H__
 #define __ODM_PRECOMP_H__
 
-#include "odm_types.h"
-
-#define		TEST_FALG___		1
-
 /* 2 Config Flags and Structs - defined by each ODM Type */
 
 #include <osdep_service.h>

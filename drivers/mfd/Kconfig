@@ -67,6 +67,18 @@ config MFD_BCM590XX
 	help
 	  Support for the BCM590xx PMUs from Broadcom
 
+config MFD_AXP20X
+	bool "X-Powers AXP20X"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  If you say Y here you get support for the X-Powers AXP202 and AXP209.
+	  This driver include only the core APIs. You have to select individual
+	  components like regulators or the PEK (Power Enable Key) under the
+	  corresponding menus.
+
 config MFD_CROS_EC
 	tristate "ChromeOS Embedded Controller"
 	select MFD_CORE
@@ -250,6 +262,16 @@ config MFD_INTEL_MSIC
 	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
 	  devices used in Intel Medfield platforms.
 
+config MFD_IPAQ_MICRO
+	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
+	depends on SA1100_H3100 || SA1100_H3600
+	select MFD_CORE
+	help
+	  Select this to get support for the Microcontroller found in
+	  the Compaq iPAQ handheld computers. This is an Atmel
+	  AT90LS8535 microcontroller flashed with a special iPAQ
+	  firmware using the custom protocol implemented in this driver.
+
 config MFD_JANZ_CMODIO
 	tristate "Janz CMOD-IO PCI MODULbus Carrier Board"
 	select MFD_CORE
@@ -331,15 +353,15 @@ config MFD_88PM860X
 	  battery-charger under the corresponding menus.
 
 config MFD_MAX14577
-	bool "Maxim Semiconductor MAX14577 MUIC + Charger Support"
+	bool "Maxim Semiconductor MAX14577/77836 MUIC + Charger Support"
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select IRQ_DOMAIN
 	help
-	  Say yes here to add support for Maxim Semiconductor MAX14577.
-	  This is a Micro-USB IC with Charger controls on chip.
+	  Say yes here to add support for Maxim Semiconductor MAX14577 and
+	  MAX77836 Micro-USB ICs with battery charger.
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
@@ -675,6 +697,7 @@ config MFD_DB8500_PRCMU
 config MFD_STMPE
 	bool "STMicroelectronics STMPE"
 	depends on (I2C=y || SPI_MASTER=y)
+	depends on OF
 	select MFD_CORE
 	help
 	  Support for the STMPE family of I/O Expanders from
@@ -718,6 +741,14 @@ config MFD_STA2X11
 	depends on STA2X11
 	select MFD_CORE
 	select REGMAP_MMIO
+
+config MFD_SUN6I_PRCM
+	bool "Allwinner A31 PRCM controller"
+	depends on ARCH_SUNXI
+	select MFD_CORE
+	help
+	  Support for the PRCM (Power/Reset/Clock Management) unit available
+	  in A31 SoC.
 
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"
@@ -1227,12 +1258,17 @@ config MCP_UCB1200_TS
 
 endmenu
 
-config VEXPRESS_CONFIG
-	bool "ARM Versatile Express platform infrastructure"
-	depends on ARM || ARM64
+config MFD_VEXPRESS_SYSREG
+	bool "Versatile Express System Registers"
+	depends on VEXPRESS_CONFIG && GPIOLIB
+	default y
+	select CLKSRC_MMIO
+	select GPIO_GENERIC_PLATFORM
+	select MFD_CORE
+	select MFD_SYSCON
 	help
-	  Platform configuration infrastructure for the ARM Ltd.
-	  Versatile Express.
+	  System Registers are the platform configuration block
+	  on the ARM Ltd. Versatile Express board.
 
 endmenu
 endif

@@ -117,9 +117,9 @@ static struct clk_lookup lookups[] = {
 	/* MSTP clocks */
 	CLKDEV_CON_ID("sci_ick", &mstp_clks[MSTP77]),
 	CLKDEV_CON_ID("vdc3", &mstp_clks[MSTP74]),
-	CLKDEV_CON_ID("cmt_fck", &mstp_clks[MSTP72]),
+	CLKDEV_ICK_ID("fck", "sh-cmt-16.0", &mstp_clks[MSTP72]),
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP60]),
-	CLKDEV_CON_ID("mtu2_fck", &mstp_clks[MSTP35]),
+	CLKDEV_ICK_ID("fck", "sh-mtu2", &mstp_clks[MSTP35]),
 	CLKDEV_CON_ID("sdhi0", &mstp_clks[MSTP34]),
 	CLKDEV_CON_ID("sdhi1", &mstp_clks[MSTP33]),
 	CLKDEV_CON_ID("adc0", &mstp_clks[MSTP32]),

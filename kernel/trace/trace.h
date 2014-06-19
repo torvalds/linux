@@ -190,7 +190,22 @@ struct trace_array {
 	 */
 	struct trace_buffer	max_buffer;
 	bool			allocated_snapshot;
+	unsigned long		max_latency;
 #endif
+	/*
+	 * max_lock is used to protect the swapping of buffers
+	 * when taking a max snapshot. The buffers themselves are
+	 * protected by per_cpu spinlocks. But the action of the swap
+	 * needs its own lock.
+	 *
+	 * This is defined as a arch_spinlock_t in order to help
+	 * with performance when lockdep debugging is enabled.
+	 *
+	 * It is also used in other places outside the update_max_tr
+	 * so it needs to be defined outside of the
+	 * CONFIG_TRACER_MAX_TRACE.
+	 */
+	arch_spinlock_t		max_lock;
 	int			buffer_disabled;
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
@@ -236,6 +251,9 @@ extern void trace_array_put(struct trace_array *tr);
 static inline struct trace_array *top_trace_array(void)
 {
 	struct trace_array *tr;
+
+	if (list_empty(&ftrace_trace_arrays))
+		return NULL;
 
 	tr = list_entry(ftrace_trace_arrays.prev,
 			typeof(*tr), list);
@@ -323,7 +341,6 @@ struct tracer_flags {
  * @stop: called when tracing is paused (echo 0 > tracing_enabled)
  * @open: called when the trace file is opened
  * @pipe_open: called when the trace_pipe file is opened
- * @wait_pipe: override how the user waits for traces on trace_pipe
  * @close: called when the trace file is released
  * @pipe_close: called when the trace_pipe file is released
  * @read: override the default read callback on trace_pipe
@@ -342,7 +359,6 @@ struct tracer {
 	void			(*stop)(struct trace_array *tr);
 	void			(*open)(struct trace_iterator *iter);
 	void			(*pipe_open)(struct trace_iterator *iter);
-	void			(*wait_pipe)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
 	void			(*pipe_close)(struct trace_iterator *iter);
 	ssize_t			(*read)(struct trace_iterator *iter,
@@ -416,13 +432,7 @@ enum {
 	TRACE_FTRACE_IRQ_BIT,
 	TRACE_FTRACE_SIRQ_BIT,
 
-	/* GLOBAL_BITs must be greater than FTRACE_BITs */
-	TRACE_GLOBAL_BIT,
-	TRACE_GLOBAL_NMI_BIT,
-	TRACE_GLOBAL_IRQ_BIT,
-	TRACE_GLOBAL_SIRQ_BIT,
-
-	/* INTERNAL_BITs must be greater than GLOBAL_BITs */
+	/* INTERNAL_BITs must be greater than FTRACE_BITs */
 	TRACE_INTERNAL_BIT,
 	TRACE_INTERNAL_NMI_BIT,
 	TRACE_INTERNAL_IRQ_BIT,
@@ -448,9 +458,6 @@ enum {
 
 #define TRACE_FTRACE_START	TRACE_FTRACE_BIT
 #define TRACE_FTRACE_MAX	((1 << (TRACE_FTRACE_START + TRACE_CONTEXT_BITS)) - 1)
-
-#define TRACE_GLOBAL_START	TRACE_GLOBAL_BIT
-#define TRACE_GLOBAL_MAX	((1 << (TRACE_GLOBAL_START + TRACE_CONTEXT_BITS)) - 1)
 
 #define TRACE_LIST_START	TRACE_INTERNAL_BIT
 #define TRACE_LIST_MAX		((1 << (TRACE_LIST_START + TRACE_CONTEXT_BITS)) - 1)
@@ -560,8 +567,6 @@ void trace_init_global_iter(struct trace_iterator *iter);
 
 void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
-void poll_wait_pipe(struct trace_iterator *iter);
-
 void tracing_sched_switch_trace(struct trace_array *tr,
 				struct task_struct *prev,
 				struct task_struct *next,
@@ -608,8 +613,6 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 extern unsigned long tracing_thresh;
 
 #ifdef CONFIG_TRACER_MAX_TRACE
-extern unsigned long tracing_max_latency;
-
 void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
@@ -724,6 +727,8 @@ extern unsigned long trace_flags;
 #define TRACE_GRAPH_PRINT_PROC          0x8
 #define TRACE_GRAPH_PRINT_DURATION      0x10
 #define TRACE_GRAPH_PRINT_ABS_TIME      0x20
+#define TRACE_GRAPH_PRINT_IRQS          0x40
+#define TRACE_GRAPH_PRINT_TAIL          0x80
 #define TRACE_GRAPH_PRINT_FILL_SHIFT	28
 #define TRACE_GRAPH_PRINT_FILL_MASK	(0x3 << TRACE_GRAPH_PRINT_FILL_SHIFT)
 
@@ -823,6 +828,10 @@ extern int ftrace_is_dead(void);
 int ftrace_create_function_files(struct trace_array *tr,
 				 struct dentry *parent);
 void ftrace_destroy_function_files(struct trace_array *tr);
+void ftrace_init_global_array_ops(struct trace_array *tr);
+void ftrace_init_array_ops(struct trace_array *tr, ftrace_func_t func);
+void ftrace_reset_array_ops(struct trace_array *tr);
+int using_ftrace_ops_list_func(void);
 #else
 static inline int ftrace_trace_task(struct task_struct *task)
 {
@@ -836,6 +845,11 @@ ftrace_create_function_files(struct trace_array *tr,
 	return 0;
 }
 static inline void ftrace_destroy_function_files(struct trace_array *tr) { }
+static inline __init void
+ftrace_init_global_array_ops(struct trace_array *tr) { }
+static inline void ftrace_reset_array_ops(struct trace_array *tr) { }
+/* ftace_func_t type is not defined, use macro instead of static inline */
+#define ftrace_init_array_ops(tr, func) do { } while (0)
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #if defined(CONFIG_FUNCTION_TRACER) && defined(CONFIG_DYNAMIC_FTRACE)

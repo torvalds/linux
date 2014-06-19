@@ -164,6 +164,11 @@
 
 #include "twl4030.dtsi"
 #include "twl4030_omap3.dtsi"
+#include "omap3-panel-sharp-ls037v7dw01.dtsi"
+
+&backlight0 {
+	gpios = <&twl_gpio 7 GPIO_ACTIVE_HIGH>;
+};
 
 &i2c2 {
 	clock-frequency = <400000>;
@@ -171,6 +176,25 @@
 
 &i2c3 {
 	clock-frequency = <400000>;
+};
+
+/* tps61130rsa enabled by twl4030 regen */
+&lcd_3v3 {
+	regulator-always-on;
+};
+
+&lcd0 {
+	enable-gpios = <&twl_gpio 15 GPIO_ACTIVE_HIGH>;	/* lcd INI */
+	reset-gpios = <&gpio2 23 GPIO_ACTIVE_HIGH>;	/* gpio55, lcd RESB */
+	mode-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;	/* gpio56, lcd MO */
+};
+
+&mcspi1 {
+	tsc2046@0 {
+		interrupt-parent = <&gpio2>;
+		interrupts = <22 0>;		/* gpio54 */
+		pendown-gpio = <&gpio2 22 0>;
+	};
 };
 
 &mmc1 {
@@ -234,6 +258,10 @@
 	};
 };
 
+&uart3 {
+	interrupts-extended = <&intc 74 &omap3_pmx_core OMAP3_UART3_RX>;
+};
+
 &usb_otg_hs {
 	pinctrl-names = "default";
 	pinctrl-0 = <&musb_pins>;
@@ -246,9 +274,4 @@
 &vaux1 {
 	/* Needed for ads7846 */
         regulator-name = "vcc";
-};
-
-&vpll2 {
-       /* Needed for DSS */
-       regulator-name = "vdds_dsi";
 };

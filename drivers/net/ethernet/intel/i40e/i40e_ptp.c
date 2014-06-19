@@ -48,7 +48,6 @@
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (0x2 << \
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
-#define I40E_PTP_TX_TIMEOUT  (HZ * 15)
 
 /**
  * i40e_ptp_read - Read the PHC time from the device
@@ -214,40 +213,6 @@ static int i40e_ptp_settime(struct ptp_clock_info *ptp,
 	spin_unlock_irqrestore(&pf->tmreg_lock, flags);
 
 	return 0;
-}
-
-/**
- * i40e_ptp_tx_work
- * @work: pointer to work struct
- *
- * This work function polls the PRTTSYN_STAT_0.TXTIME bit to determine when a
- * Tx timestamp event has occurred, in order to pass the Tx timestamp value up
- * the stack in the skb.
- */
-static void i40e_ptp_tx_work(struct work_struct *work)
-{
-	struct i40e_pf *pf = container_of(work, struct i40e_pf,
-					  ptp_tx_work);
-	struct i40e_hw *hw = &pf->hw;
-	u32 prttsyn_stat_0;
-
-	if (!pf->ptp_tx_skb)
-		return;
-
-	if (time_is_before_jiffies(pf->ptp_tx_start +
-				   I40E_PTP_TX_TIMEOUT)) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
-		pf->ptp_tx_skb = NULL;
-		pf->tx_hwtstamp_timeouts++;
-		dev_warn(&pf->pdev->dev, "clearing Tx timestamp hang\n");
-		return;
-	}
-
-	prttsyn_stat_0 = rd32(hw, I40E_PRTTSYN_STAT_0);
-	if (prttsyn_stat_0 & I40E_PRTTSYN_STAT_0_TXTIME_MASK)
-		i40e_ptp_tx_hwtstamp(pf);
-	else
-		schedule_work(&pf->ptp_tx_work);
 }
 
 /**
@@ -608,7 +573,6 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		u32 regval;
 
 		spin_lock_init(&pf->tmreg_lock);
-		INIT_WORK(&pf->ptp_tx_work, i40e_ptp_tx_work);
 
 		dev_info(&pf->pdev->dev, "%s: added PHC on %s\n", __func__,
 			 netdev->name);
@@ -647,7 +611,6 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	pf->ptp_tx = false;
 	pf->ptp_rx = false;
 
-	cancel_work_sync(&pf->ptp_tx_work);
 	if (pf->ptp_tx_skb) {
 		dev_kfree_skb_any(pf->ptp_tx_skb);
 		pf->ptp_tx_skb = NULL;

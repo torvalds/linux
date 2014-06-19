@@ -68,17 +68,7 @@ function parse_reg_rule()
 	sub(/,/, "", units)
 	dfs_cac = $9
 	if (units == "mW") {
-		if (power == 100) {
-			power = 20
-		} else if (power == 200) {
-			power = 23
-		} else if (power == 500) {
-			power = 27
-		} else if (power == 1000) {
-			power = 30
-		} else {
-			print "Unknown power value in database!"
-		}
+		power = 10 * log(power)/log(10)
 	} else {
 		dfs_cac = $8
 	}
@@ -117,7 +107,7 @@ function parse_reg_rule()
 
 	}
 	flags = flags "0"
-	printf "\t\tREG_RULE_EXT(%d, %d, %d, %d, %d, %d, %s),\n", start, end, bw, gain, power, dfs_cac, flags
+	printf "\t\tREG_RULE_EXT(%d, %d, %d, %d, %.0f, %d, %s),\n", start, end, bw, gain, power, dfs_cac, flags
 	rules++
 }
 

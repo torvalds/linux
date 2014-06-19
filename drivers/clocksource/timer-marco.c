@@ -199,7 +199,7 @@ static int sirfsoc_local_timer_setup(struct clock_event_device *ce)
 
 	action->dev_id = ce;
 	BUG_ON(setup_irq(ce->irq, action));
-	irq_set_affinity(action->irq, cpumask_of(cpu));
+	irq_force_affinity(action->irq, cpumask_of(cpu));
 
 	clockevents_register_device(ce);
 	return 0;
@@ -252,15 +252,13 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-static void __init sirfsoc_marco_timer_init(void)
+static void __init sirfsoc_marco_timer_init(struct device_node *np)
 {
 	unsigned long rate;
 	u32 timer_div;
 	struct clk *clk;
 
-	/* timer's input clock is io clock */
-	clk = clk_get_sys("io", NULL);
-
+	clk = of_clk_get(np, 0);
 	BUG_ON(IS_ERR(clk));
 	rate = clk_get_rate(clk);
 
@@ -303,6 +301,6 @@ static void __init sirfsoc_of_timer_init(struct device_node *np)
 	if (!sirfsoc_timer1_irq.irq)
 		panic("No irq passed for timer1 via DT\n");
 
-	sirfsoc_marco_timer_init();
+	sirfsoc_marco_timer_init(np);
 }
 CLOCKSOURCE_OF_DECLARE(sirfsoc_marco_timer, "sirf,marco-tick", sirfsoc_of_timer_init );

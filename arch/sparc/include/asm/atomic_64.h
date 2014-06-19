@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
+#include <asm/barrier.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 #define ATOMIC64_INIT(i)	{ (i) }
@@ -107,11 +108,5 @@ static inline long atomic64_add_unless(atomic64_t *v, long a, long u)
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
 extern long atomic64_dec_if_positive(atomic64_t *v);
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()	barrier()
-#define smp_mb__after_atomic_dec()	barrier()
-#define smp_mb__before_atomic_inc()	barrier()
-#define smp_mb__after_atomic_inc()	barrier()
 
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */

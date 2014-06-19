@@ -18,9 +18,11 @@
 #ifndef __ASM_ESR_H
 #define __ASM_ESR_H
 
-#define ESR_EL1_EC_SHIFT	(26)
-#define ESR_EL1_IL		(1U << 25)
+#define ESR_EL1_WRITE		(1 << 6)
+#define ESR_EL1_CM		(1 << 8)
+#define ESR_EL1_IL		(1 << 25)
 
+#define ESR_EL1_EC_SHIFT	(26)
 #define ESR_EL1_EC_UNKNOWN	(0x00)
 #define ESR_EL1_EC_WFI		(0x01)
 #define ESR_EL1_EC_CP15_32	(0x03)

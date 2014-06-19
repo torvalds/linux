@@ -55,7 +55,6 @@
 			};
 
 			serial@12000 {
-				clock-frequency = <200000000>;
 				status = "okay";
 			};
 
@@ -63,6 +62,10 @@
 				status = "okay";
 				phy = <&phy1>;
 				phy-mode = "rgmii-id";
+			};
+
+			usb@50000 {
+				status = "ok";
 			};
 
 			ethernet@70000 {
@@ -79,6 +82,14 @@
 				phy1: ethernet-phy@1 {
 					reg = <1>;
 				};
+			};
+
+			sata@a8000 {
+				status = "okay";
+			};
+
+			sata@e0000 {
+				status = "okay";
 			};
 
 			flash@d0000 {
@@ -100,6 +111,22 @@
 					label = "Filesystem";
 					reg = <0x1000000 0x3f000000>;
 				};
+			};
+
+			sdhci@d8000 {
+				clock-frequency = <200000000>;
+				broken-cd;
+				wp-inverted;
+				bus-width = <8>;
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
 			};
 		};
 

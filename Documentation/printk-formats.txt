@@ -199,11 +199,11 @@ struct va_format:
 	Do not use this feature without some mechanism to verify the
 	correctness of the format string and va_list arguments.
 
-u64 SHOULD be printed with %llu/%llx, (unsigned long long):
+u64 SHOULD be printed with %llu/%llx:
 
 	printk("%llu", u64_var);
 
-s64 SHOULD be printed with %lld/%llx, (long long):
+s64 SHOULD be printed with %lld/%llx:
 
 	printk("%lld", s64_var);
 

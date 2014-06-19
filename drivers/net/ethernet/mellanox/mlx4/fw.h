@@ -134,6 +134,7 @@ struct mlx4_func_cap {
 	int	max_eq;
 	int	reserved_eq;
 	int	mcg_quota;
+	u32	qp0_qkey;
 	u32	qp0_tunnel_qpn;
 	u32	qp0_proxy_qpn;
 	u32	qp1_tunnel_qpn;

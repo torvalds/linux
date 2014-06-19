@@ -103,11 +103,8 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 	bd = (struct buf_data *)((char *)desc -
 	      offsetof(struct buf_data, hw_desc));
 
-	if (err) {
-		char tmp[CAAM_ERROR_STR_MAX];
-
-		dev_err(jrdev, "%08x: %s\n", err, caam_jr_strstatus(tmp, err));
-	}
+	if (err)
+		caam_jr_strstatus(jrdev, err);
 
 	atomic_set(&bd->empty, BUF_NOT_EMPTY);
 	complete(&bd->filled);

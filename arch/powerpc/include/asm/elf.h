@@ -90,6 +90,8 @@ typedef elf_vrregset_t elf_fpxregset_t;
 do {								\
 	if (((ex).e_flags & 0x3) == 2)				\
 		set_thread_flag(TIF_ELF2ABI);			\
+	else							\
+		clear_thread_flag(TIF_ELF2ABI);			\
 	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
 		set_thread_flag(TIF_32BIT);			\
 	else							\

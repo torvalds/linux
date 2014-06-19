@@ -30,7 +30,7 @@ Protocol.
 			W1_SLAVE_CMD
 				userspace command for slave device
 				(read/write/touch)
-	__u8 res	- reserved
+	__u8 status	- error indication from kernel
 	__u16 len	- size of data attached to this header data
 	union {
 		__u8 id[8];			 - slave unique device id
@@ -44,10 +44,14 @@ Protocol.
 	__u8 cmd	- command opcode.
 			W1_CMD_READ 	- read command
 			W1_CMD_WRITE	- write command
-			W1_CMD_TOUCH	- touch command
-				(write and sample data back to userspace)
 			W1_CMD_SEARCH	- search command
 			W1_CMD_ALARM_SEARCH - alarm search command
+			W1_CMD_TOUCH	- touch command
+				(write and sample data back to userspace)
+			W1_CMD_RESET	- send bus reset
+			W1_CMD_SLAVE_ADD	- add slave to kernel list
+			W1_CMD_SLAVE_REMOVE	- remove slave from kernel list
+			W1_CMD_LIST_SLAVES	- get slaves list from kernel
 	__u8 res	- reserved
 	__u16 len	- length of data for this command
 		For read command data must be allocated like for write command
@@ -87,8 +91,7 @@ format:
 	id0 ... idN
 
 	Each message is at most 4k in size, so if number of master devices
-	exceeds this, it will be split into several messages,
-	cn.seq will be increased for each one.
+	exceeds this, it will be split into several messages.
 
 W1 search and alarm search commands.
 request:

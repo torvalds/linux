@@ -47,7 +47,6 @@ enum {
 };
 
 extern void r8a7740_meram_workaround(void);
-extern void r8a7740_init_delay(void);
 extern void r8a7740_init_irq_of(void);
 extern void r8a7740_map_io(void);
 extern void r8a7740_add_early_devices(void);

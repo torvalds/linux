@@ -1535,13 +1535,13 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 
 	this_urb = p_priv->outcont_urb;
 
-	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
-
 		/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
 		dev_dbg(&port->dev, "%s - oops no urb.\n", __func__);
 		return -1;
 	}
+
+	dev_dbg(&port->dev, "%s - endpoint %d\n", __func__, usb_pipeendpoint(this_urb->pipe));
 
 	/* Save reset port val for resend.
 	   Don't overwrite resend for open/close condition. */

@@ -521,8 +521,10 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 	gate->lock = odf_lock;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
-	if (!div)
+	if (!div) {
+		kfree(gate);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	div->flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO;
 	div->reg = reg + pll_data->odf[odf].offset;
@@ -653,6 +655,7 @@ static struct of_device_id c32_gpu_pll_of_match[] = {
 		.compatible = "st,stih416-gpu-pll-c32",
 		.data = &st_pll1200c32_gpu_416,
 	},
+	{}
 };
 
 static void __init clkgengpu_c32_pll_setup(struct device_node *np)

@@ -70,6 +70,7 @@ static u32 errata;
 
 static struct omap_dma_global_context_registers {
 	u32 dma_irqenable_l0;
+	u32 dma_irqenable_l1;
 	u32 dma_ocp_sysconfig;
 	u32 dma_gcr;
 } omap_dma_global_context;
@@ -1973,10 +1974,17 @@ static struct irqaction omap24xx_dma_irq;
 
 /*----------------------------------------------------------------------------*/
 
+/*
+ * Note that we are currently using only IRQENABLE_L0 and L1.
+ * As the DSP may be using IRQENABLE_L2 and L3, let's not
+ * touch those for now.
+ */
 void omap_dma_global_context_save(void)
 {
 	omap_dma_global_context.dma_irqenable_l0 =
 		p->dma_read(IRQENABLE_L0, 0);
+	omap_dma_global_context.dma_irqenable_l1 =
+		p->dma_read(IRQENABLE_L1, 0);
 	omap_dma_global_context.dma_ocp_sysconfig =
 		p->dma_read(OCP_SYSCONFIG, 0);
 	omap_dma_global_context.dma_gcr = p->dma_read(GCR, 0);
@@ -1991,6 +1999,8 @@ void omap_dma_global_context_restore(void)
 		OCP_SYSCONFIG, 0);
 	p->dma_write(omap_dma_global_context.dma_irqenable_l0,
 		IRQENABLE_L0, 0);
+	p->dma_write(omap_dma_global_context.dma_irqenable_l1,
+		IRQENABLE_L1, 0);
 
 	if (IS_DMA_ERRATA(DMA_ROMCODE_BUG))
 		p->dma_write(0x3 , IRQSTATUS_L0, 0);

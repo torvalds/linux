@@ -51,10 +51,7 @@
 #include "llite_internal.h"
 #include <linux/lustre_compat25.h>
 
-struct page *ll_nopage(struct vm_area_struct *vma, unsigned long address,
-		       int *type);
-
-static struct vm_operations_struct ll_file_vm_ops;
+static const struct vm_operations_struct ll_file_vm_ops;
 
 void policy_from_vma(ldlm_policy_data_t *policy,
 			    struct vm_area_struct *vma, unsigned long addr,
@@ -97,10 +94,10 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
  * \retval EINVAL if env can't allocated
  * \return other error codes from cl_io_init.
  */
-struct cl_io *ll_fault_io_init(struct vm_area_struct *vma,
-			       struct lu_env **env_ret,
-			       struct cl_env_nest *nest,
-			       pgoff_t index, unsigned long *ra_flags)
+static struct cl_io *
+ll_fault_io_init(struct vm_area_struct *vma, struct lu_env **env_ret,
+		 struct cl_env_nest *nest, pgoff_t index,
+		 unsigned long *ra_flags)
 {
 	struct file	       *file = vma->vm_file;
 	struct inode	       *inode = file->f_dentry->d_inode;
@@ -446,14 +443,6 @@ static void ll_vm_close(struct vm_area_struct *vma)
 	LASSERT(atomic_read(&vob->cob_mmap_cnt) >= 0);
 }
 
-
-/* return the user space pointer that maps to a file offset via a vma */
-static inline unsigned long file_to_user(struct vm_area_struct *vma, __u64 byte)
-{
-	return vma->vm_start + (byte - ((__u64)vma->vm_pgoff << PAGE_CACHE_SHIFT));
-
-}
-
 /* XXX put nice comment here.  talk about __free_pte -> dirty pages and
  * nopage's reference passing to the pte */
 int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
@@ -470,7 +459,7 @@ int ll_teardown_mmaps(struct address_space *mapping, __u64 first, __u64 last)
 	return rc;
 }
 
-static struct vm_operations_struct ll_file_vm_ops = {
+static const struct vm_operations_struct ll_file_vm_ops = {
 	.fault			= ll_fault,
 	.page_mkwrite		= ll_page_mkwrite,
 	.open			= ll_vm_open,

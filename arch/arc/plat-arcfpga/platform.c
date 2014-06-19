@@ -22,59 +22,6 @@
 #include <plat/smp.h>
 #include <plat/irq.h>
 
-/*-----------------------BVCI Latency Unit -----------------------------*/
-
-#ifdef CONFIG_ARC_HAS_BVCI_LAT_UNIT
-
-int lat_cycles = CONFIG_BVCI_LAT_CYCLES;
-
-/* BVCI Bus Profiler: Latency Unit */
-static void __init setup_bvci_lat_unit(void)
-{
-#define MAX_BVCI_UNITS 12
-
-	unsigned int i;
-	unsigned int *base = (unsigned int *)BVCI_LAT_UNIT_BASE;
-	const unsigned long units_req = CONFIG_BVCI_LAT_UNITS;
-	const unsigned int REG_UNIT = 21;
-	const unsigned int REG_VAL = 22;
-
-	/*
-	 * There are multiple Latency Units corresponding to the many
-	 * interfaces of the system bus arbiter (both CPU side as well as
-	 * the peripheral side).
-	 *
-	 * Unit  0 - System Arb and Mem Controller - adds latency to all
-	 *	    memory trasactions
-	 * Unit  1 - I$ and System Bus
-	 * Unit  2 - D$ and System Bus
-	 * ..
-	 * Unit 12 - IDE Disk controller and System Bus
-	 *
-	 * The programmers model requires writing to lat_unit reg first
-	 * and then the latency value (cycles) to lat_value reg
-	 */
-
-	if (CONFIG_BVCI_LAT_UNITS == 0) {
-		writel(0, base + REG_UNIT);
-		writel(lat_cycles, base + REG_VAL);
-		pr_info("BVCI Latency for all Memory Transactions %d cycles\n",
-			lat_cycles);
-	} else {
-		for_each_set_bit(i, &units_req, MAX_BVCI_UNITS) {
-			writel(i + 1, base + REG_UNIT); /* loop is 0 based */
-			writel(lat_cycles, base + REG_VAL);
-			pr_info("BVCI Latency for Unit[%d] = %d cycles\n",
-				(i + 1), lat_cycles);
-		}
-	}
-}
-#else
-static void __init setup_bvci_lat_unit(void)
-{
-}
-#endif
-
 /*----------------------- Platform Devices -----------------------------*/
 
 #if IS_ENABLED(CONFIG_SERIAL_ARC)
@@ -132,16 +79,11 @@ static void arc_fpga_serial_init(void)
 				   ARRAY_SIZE(fpga_early_devs));
 
 	/*
-	 * ARC console driver registers itself as an early platform driver
-	 * of class "earlyprintk".
-	 * Install it here, followed by probe of devices.
-	 * The installation here doesn't require earlyprintk in command line
-	 * To do so however, replace the lines below with
-	 *	parse_early_param();
-	 *	early_platform_driver_probe("earlyprintk", 1, 1);
-	 *						      ^^
+	 * ARC console driver registers (build time) as an early platform driver
+	 * of class "earlyprintk". However it needs explicit cmdline toggle
+	 * "earlyprintk=ttyARC0" to be successfuly runtime registered.
+	 * Otherwise the early probe below fails to find the driver
 	 */
-	early_platform_driver_register_all("earlyprintk");
 	early_platform_driver_probe("earlyprintk", 1, 0);
 
 	/*
@@ -165,11 +107,9 @@ static void __init plat_fpga_early_init(void)
 {
 	pr_info("[plat-arcfpga]: registering early dev resources\n");
 
-	setup_bvci_lat_unit();
-
 	arc_fpga_serial_init();
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_ISS_SMP_EXTN
 	iss_model_init_early_smp();
 #endif
 }
@@ -211,7 +151,7 @@ MACHINE_START(ANGEL4, "angel4")
 	.init_early	= plat_fpga_early_init,
 	.init_machine	= plat_fpga_populate_dev,
 	.init_irq	= plat_fpga_init_IRQ,
-#ifdef CONFIG_SMP
+#ifdef CONFIG_ISS_SMP_EXTN
 	.init_smp	= iss_model_init_smp,
 #endif
 MACHINE_END

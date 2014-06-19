@@ -84,7 +84,7 @@ static inline void write_msa_##name(unsigned int val)		\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
 	"	.set	msa\n"					\
-	"	cfcmsa	$" #cs ", %0\n"				\
+	"	ctcmsa	$" #cs ", %0\n"				\
 	"	.set	pop\n"					\
 	: : "r"(val));						\
 }
@@ -96,6 +96,13 @@ static inline void write_msa_##name(unsigned int val)		\
  * allow compilation with toolchains that do not support MSA. Once all
  * toolchains in use support MSA these can be removed.
  */
+#ifdef CONFIG_CPU_MICROMIPS
+#define CFC_MSA_INSN	0x587e0056
+#define CTC_MSA_INSN	0x583e0816
+#else
+#define CFC_MSA_INSN	0x787e0059
+#define CTC_MSA_INSN	0x783e0819
+#endif
 
 #define __BUILD_MSA_CTL_REG(name, cs)				\
 static inline unsigned int read_msa_##name(void)		\
@@ -104,7 +111,8 @@ static inline unsigned int read_msa_##name(void)		\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
-	"	.word	0x787e0059 | (" #cs " << 11)\n"		\
+	"	.insn\n"					\
+	"	.word	#CFC_MSA_INSN | (" #cs " << 11)\n"	\
 	"	move	%0, $1\n"				\
 	"	.set	pop\n"					\
 	: "=r"(reg));						\
@@ -117,7 +125,8 @@ static inline void write_msa_##name(unsigned int val)		\
 	"	.set	push\n"					\
 	"	.set	noat\n"					\
 	"	move	$1, %0\n"				\
-	"	.word	0x783e0819 | (" #cs " << 6)\n"		\
+	"	.insn\n"					\
+	"	.word	#CTC_MSA_INSN | (" #cs " << 6)\n"	\
 	"	.set	pop\n"					\
 	: : "r"(val));						\
 }

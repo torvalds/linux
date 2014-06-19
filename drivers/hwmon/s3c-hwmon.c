@@ -285,10 +285,8 @@ static int s3c_hwmon_probe(struct platform_device *dev)
 	}
 
 	hwmon = devm_kzalloc(&dev->dev, sizeof(struct s3c_hwmon), GFP_KERNEL);
-	if (hwmon == NULL) {
-		dev_err(&dev->dev, "no memory\n");
+	if (hwmon == NULL)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(dev, hwmon);
 

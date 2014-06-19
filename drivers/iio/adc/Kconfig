@@ -96,9 +96,21 @@ config AD7923
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7923.
 
+config AD799X
+	tristate "Analog Devices AD799x ADC driver"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices:
+	  ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997, ad7998
+	  i2c analog to digital converters (ADC). Provides direct access
+	  via sysfs.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
+	depends on INPUT
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select SYSFS
@@ -107,7 +119,7 @@ config AT91_ADC
 
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
-	depends on OF
+	depends on ARCH_EXYNOS || (OF && COMPILE_TEST)
 	help
 	  Core support for the ADC block found in the Samsung EXYNOS series
 	  of SoCs for drivers such as the touchscreen and hwmon to use to share
@@ -146,11 +158,12 @@ config MCP320X
 	  called mcp320x.
 
 config MCP3422
-	tristate "Microchip Technology MCP3422/3/4 driver"
+	tristate "Microchip Technology MCP3422/3/4/6/7/8 driver"
 	depends on I2C
 	help
-	  Say yes here to build support for Microchip Technology's MCP3422,
-	  MCP3423 or MCP3424 analog to digital converters.
+	  Say yes here to build support for Microchip Technology's
+	  MCP3422, MCP3423, MCP3424, MCP3426, MCP3427 or MCP3428
+	  analog to digital converters.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp3422.

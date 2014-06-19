@@ -133,8 +133,7 @@ struct xfs_log_item *	xfs_trans_ail_cursor_last(struct xfs_ail *ailp,
 					xfs_lsn_t lsn);
 struct xfs_log_item *	xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
-void			xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
-					struct xfs_ail_cursor *cur);
+void			xfs_trans_ail_cursor_done(struct xfs_ail_cursor *cur);
 
 #if BITS_PER_LONG != 64
 static inline void

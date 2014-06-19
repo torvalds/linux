@@ -1,6 +1,6 @@
 /* virtpci.h
  *
- * Copyright © 2010 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2010 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,6 +24,7 @@
 
 #include "uisqueue.h"
 #include <linux/version.h>
+#include <linux/uuid.h>
 
 #define PCI_DEVICE_ID_VIRTHBA 0xAA00
 #define PCI_DEVICE_ID_VIRTNIC 0xAB00
@@ -41,7 +42,7 @@ struct net_adap_info {
 	u8 mac_addr[MAX_MACADDR_LEN];
 	int num_rcv_bufs;
 	unsigned mtu;
-	GUID zoneGuid;
+	uuid_le zoneGuid;
 };
 
 typedef enum {

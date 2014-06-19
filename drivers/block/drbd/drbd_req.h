@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/drbd.h>
 #include "drbd_int.h"
-#include "drbd_wrappers.h"
 
 /* The request callbacks will be called in irq context by the IDE drivers,
    and in Softirqs/Tasklets/BH context by the SCSI drivers,
@@ -111,11 +110,14 @@ enum drbd_req_event {
 	BARRIER_ACKED, /* in protocol A and B */
 	DATA_RECEIVED, /* (remote read) */
 
+	COMPLETED_OK,
 	READ_COMPLETED_WITH_ERROR,
 	READ_AHEAD_COMPLETED_WITH_ERROR,
 	WRITE_COMPLETED_WITH_ERROR,
+	DISCARD_COMPLETED_NOTSUPP,
+	DISCARD_COMPLETED_WITH_ERROR,
+
 	ABORT_DISK_IO,
-	COMPLETED_OK,
 	RESEND,
 	FAIL_FROZEN_DISK_IO,
 	RESTART_FROZEN_DISK_IO,

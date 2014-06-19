@@ -322,7 +322,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 
 	for (i = 0; i < count; i++) {
 		data = readw(devpriv->io_addr + DPR_ADC_buffer + rear);
-		comedi_buf_put(s->async, data);
+		comedi_buf_put(s, data);
 		rear++;
 		if (rear >= AI_FIFO_DEPTH)
 			rear = 0;
@@ -416,7 +416,7 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 {
 	const struct dt3k_boardtype *this_board = comedi_board(dev);
 	int err = 0;
-	int tmp;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -466,25 +466,20 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		tmp = cmd->scan_begin_arg;
-		dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->scan_begin_arg)
-			err++;
+		arg = cmd->scan_begin_arg;
+		dt3k_ns_to_timer(100, &arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		dt3k_ns_to_timer(50, &cmd->convert_arg,
-				 cmd->flags & TRIG_ROUND_MASK);
-		if (tmp != cmd->convert_arg)
-			err++;
-		if (cmd->scan_begin_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->scan_end_arg) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->scan_end_arg;
-			err++;
+		arg = cmd->convert_arg;
+		dt3k_ns_to_timer(50, &arg, cmd->flags & TRIG_ROUND_MASK);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
+
+		if (cmd->scan_begin_src == TRIG_TIMER) {
+			arg = cmd->convert_arg * cmd->scan_end_arg;
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 arg);
 		}
 	}
 

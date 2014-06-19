@@ -446,7 +446,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->robj;
 		if (!bo->pin_count) {
-			u32 domain = lobj->domain;
+			u32 domain = lobj->prefered_domains;
 			u32 current_domain =
 				radeon_mem_type_to_domain(bo->tbo.mem.mem_type);
 
@@ -458,7 +458,7 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 			 * into account. We don't want to disallow buffer moves
 			 * completely.
 			 */
-			if (current_domain != RADEON_GEM_DOMAIN_CPU &&
+			if ((lobj->allowed_domains & current_domain) != 0 &&
 			    (domain & current_domain) == 0 && /* will be moved */
 			    bytes_moved > bytes_moved_threshold) {
 				/* don't move it */
@@ -476,8 +476,9 @@ int radeon_bo_list_validate(struct radeon_device *rdev,
 				       initial_bytes_moved;
 
 			if (unlikely(r)) {
-				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
-					domain = lobj->alt_domain;
+				if (r != -ERESTARTSYS &&
+				    domain != lobj->allowed_domains) {
+					domain = lobj->allowed_domains;
 					goto retry;
 				}
 				ttm_eu_backoff_reservation(ticket, head);
@@ -699,22 +700,30 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 0);
 	rdev = rbo->rdev;
-	if (bo->mem.mem_type == TTM_PL_VRAM) {
-		size = bo->mem.num_pages << PAGE_SHIFT;
-		offset = bo->mem.start << PAGE_SHIFT;
-		if ((offset + size) > rdev->mc.visible_vram_size) {
-			/* hurrah the memory is not visible ! */
-			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
-			rbo->placement.lpfn = rdev->mc.visible_vram_size >> PAGE_SHIFT;
-			r = ttm_bo_validate(bo, &rbo->placement, false, false);
-			if (unlikely(r != 0))
-				return r;
-			offset = bo->mem.start << PAGE_SHIFT;
-			/* this should not happen */
-			if ((offset + size) > rdev->mc.visible_vram_size)
-				return -EINVAL;
-		}
+	if (bo->mem.mem_type != TTM_PL_VRAM)
+		return 0;
+
+	size = bo->mem.num_pages << PAGE_SHIFT;
+	offset = bo->mem.start << PAGE_SHIFT;
+	if ((offset + size) <= rdev->mc.visible_vram_size)
+		return 0;
+
+	/* hurrah the memory is not visible ! */
+	radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
+	rbo->placement.lpfn = rdev->mc.visible_vram_size >> PAGE_SHIFT;
+	r = ttm_bo_validate(bo, &rbo->placement, false, false);
+	if (unlikely(r == -ENOMEM)) {
+		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
+		return ttm_bo_validate(bo, &rbo->placement, false, false);
+	} else if (unlikely(r != 0)) {
+		return r;
 	}
+
+	offset = bo->mem.start << PAGE_SHIFT;
+	/* this should never happen */
+	if ((offset + size) > rdev->mc.visible_vram_size)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -722,7 +731,7 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, 0);
+	r = ttm_bo_reserve(&bo->tbo, true, no_wait, false, NULL);
 	if (unlikely(r != 0))
 		return r;
 	spin_lock(&bo->tbo.bdev->fence_lock);

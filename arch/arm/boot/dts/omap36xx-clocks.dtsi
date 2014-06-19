@@ -83,7 +83,7 @@
 };
 
 &dpll4_m5x2_mul_ck {
-	clock-mult = <1>;
+	ti,clock-mult = <1>;
 };
 
 &dpll4_m6x2_mul_ck {

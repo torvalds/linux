@@ -13,6 +13,7 @@
 
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
+#include <asm/barrier.h>
 
 extern int test_and_set_bit(unsigned long nr, volatile unsigned long *addr);
 extern int test_and_clear_bit(unsigned long nr, volatile unsigned long *addr);
@@ -22,9 +23,6 @@ extern void clear_bit(unsigned long nr, volatile unsigned long *addr);
 extern void change_bit(unsigned long nr, volatile unsigned long *addr);
 
 #include <asm-generic/bitops/non-atomic.h>
-
-#define smp_mb__before_clear_bit()	barrier()
-#define smp_mb__after_clear_bit()	barrier()
 
 #include <asm-generic/bitops/fls.h>
 #include <asm-generic/bitops/__fls.h>

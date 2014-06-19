@@ -433,8 +433,12 @@ static void bL_switcher_restore_cpus(void)
 {
 	int i;
 
-	for_each_cpu(i, &bL_switcher_removed_logical_cpus)
-		cpu_up(i);
+	for_each_cpu(i, &bL_switcher_removed_logical_cpus) {
+		struct device *cpu_dev = get_cpu_device(i);
+		int ret = device_online(cpu_dev);
+		if (ret)
+			dev_err(cpu_dev, "switcher: unable to restore CPU\n");
+	}
 }
 
 static int bL_switcher_halve_cpus(void)
@@ -521,7 +525,7 @@ static int bL_switcher_halve_cpus(void)
 			continue;
 		}
 
-		ret = cpu_down(i);
+		ret = device_offline(get_cpu_device(i));
 		if (ret) {
 			bL_switcher_restore_cpus();
 			return ret;

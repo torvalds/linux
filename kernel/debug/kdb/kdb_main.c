@@ -1091,7 +1091,7 @@ static int kdb_reboot(int argc, const char **argv)
 static void kdb_dumpregs(struct pt_regs *regs)
 {
 	int old_lvl = console_loglevel;
-	console_loglevel = 15;
+	console_loglevel = CONSOLE_LOGLEVEL_MOTORMOUTH;
 	kdb_trap_printk++;
 	show_regs(regs);
 	kdb_trap_printk--;

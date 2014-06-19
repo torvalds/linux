@@ -104,12 +104,6 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
 	struct dentry *dentry;
 
-	if (acl) {
-		ret = posix_acl_valid(acl);
-		if (ret < 0)
-			goto out;
-	}
-
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name = POSIX_ACL_XATTR_ACCESS;

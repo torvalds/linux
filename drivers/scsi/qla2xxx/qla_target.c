@@ -104,7 +104,6 @@ static void qlt_reject_free_srr_imm(struct scsi_qla_host *ha,
 /*
  * Global Variables
  */
-static struct kmem_cache *qla_tgt_cmd_cachep;
 static struct kmem_cache *qla_tgt_mgmt_cmd_cachep;
 static mempool_t *qla_tgt_mgmt_cmd_mempool;
 static struct workqueue_struct *qla_tgt_wq;
@@ -182,6 +181,11 @@ struct scsi_qla_host *qlt_find_host_by_vp_idx(struct scsi_qla_host *vha,
 void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio)
 {
+	ql_dbg(ql_dbg_tgt, vha, 0xe072,
+		"%s: qla_target(%d): type %x ox_id %04x\n",
+		__func__, vha->vp_idx, atio->u.raw.entry_type,
+		be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id));
+
 	switch (atio->u.raw.entry_type) {
 	case ATIO_TYPE7:
 	{
@@ -236,6 +240,10 @@ void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 void qlt_response_pkt_all_vps(struct scsi_qla_host *vha, response_t *pkt)
 {
 	switch (pkt->entry_type) {
+	case CTIO_CRC2:
+		ql_dbg(ql_dbg_tgt, vha, 0xe073,
+			"qla_target(%d):%s: CRC2 Response pkt\n",
+			vha->vp_idx, __func__);
 	case CTIO_TYPE7:
 	{
 		struct ctio7_from_24xx *entry = (struct ctio7_from_24xx *)pkt;
@@ -1350,13 +1358,42 @@ static int qlt_pci_map_calc_cnt(struct qla_tgt_prm *prm)
 
 	prm->cmd->sg_mapped = 1;
 
-	/*
-	 * If greater than four sg entries then we need to allocate
-	 * the continuation entries
-	 */
-	if (prm->seg_cnt > prm->tgt->datasegs_per_cmd)
-		prm->req_cnt += DIV_ROUND_UP(prm->seg_cnt -
-		    prm->tgt->datasegs_per_cmd, prm->tgt->datasegs_per_cont);
+	if (cmd->se_cmd.prot_op == TARGET_PROT_NORMAL) {
+		/*
+		 * If greater than four sg entries then we need to allocate
+		 * the continuation entries
+		 */
+		if (prm->seg_cnt > prm->tgt->datasegs_per_cmd)
+			prm->req_cnt += DIV_ROUND_UP(prm->seg_cnt -
+			prm->tgt->datasegs_per_cmd,
+			prm->tgt->datasegs_per_cont);
+	} else {
+		/* DIF */
+		if ((cmd->se_cmd.prot_op == TARGET_PROT_DIN_INSERT) ||
+		    (cmd->se_cmd.prot_op == TARGET_PROT_DOUT_STRIP)) {
+			prm->seg_cnt = DIV_ROUND_UP(cmd->bufflen, cmd->blk_sz);
+			prm->tot_dsds = prm->seg_cnt;
+		} else
+			prm->tot_dsds = prm->seg_cnt;
+
+		if (cmd->prot_sg_cnt) {
+			prm->prot_sg      = cmd->prot_sg;
+			prm->prot_seg_cnt = pci_map_sg(prm->tgt->ha->pdev,
+				cmd->prot_sg, cmd->prot_sg_cnt,
+				cmd->dma_data_direction);
+			if (unlikely(prm->prot_seg_cnt == 0))
+				goto out_err;
+
+			if ((cmd->se_cmd.prot_op == TARGET_PROT_DIN_INSERT) ||
+			    (cmd->se_cmd.prot_op == TARGET_PROT_DOUT_STRIP)) {
+				/* Dif Bundling not support here */
+				prm->prot_seg_cnt = DIV_ROUND_UP(cmd->bufflen,
+								cmd->blk_sz);
+				prm->tot_dsds += prm->prot_seg_cnt;
+			} else
+				prm->tot_dsds += prm->prot_seg_cnt;
+		}
+	}
 
 	ql_dbg(ql_dbg_tgt, prm->cmd->vha, 0xe009, "seg_cnt=%d, req_cnt=%d\n",
 	    prm->seg_cnt, prm->req_cnt);
@@ -1377,6 +1414,16 @@ static inline void qlt_unmap_sg(struct scsi_qla_host *vha,
 	BUG_ON(!cmd->sg_mapped);
 	pci_unmap_sg(ha->pdev, cmd->sg, cmd->sg_cnt, cmd->dma_data_direction);
 	cmd->sg_mapped = 0;
+
+	if (cmd->prot_sg_cnt)
+		pci_unmap_sg(ha->pdev, cmd->prot_sg, cmd->prot_sg_cnt,
+			cmd->dma_data_direction);
+
+	if (cmd->ctx_dsd_alloced)
+		qla2x00_clean_dsd_pool(ha, NULL, cmd);
+
+	if (cmd->ctx)
+		dma_pool_free(ha->dl_dma_pool, cmd->ctx, cmd->ctx->crc_ctx_dma);
 }
 
 static int qlt_check_reserve_free_req(struct scsi_qla_host *vha,
@@ -1665,8 +1712,9 @@ static int qlt_pre_xmit_response(struct qla_tgt_cmd *cmd,
 		return QLA_TGT_PRE_XMIT_RESP_CMD_ABORTED;
 	}
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe011, "qla_target(%d): tag=%u\n",
-	    vha->vp_idx, cmd->tag);
+	ql_dbg(ql_dbg_tgt, vha, 0xe011, "qla_target(%d): tag=%u ox_id %04x\n",
+		vha->vp_idx, cmd->tag,
+		be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
 
 	prm->cmd = cmd;
 	prm->tgt = tgt;
@@ -1902,6 +1950,328 @@ skip_explict_conf:
 	/* Sense with len > 24, is it possible ??? */
 }
 
+
+
+/* diff  */
+static inline int
+qlt_hba_err_chk_enabled(struct se_cmd *se_cmd)
+{
+	/*
+	 * Uncomment when corresponding SCSI changes are done.
+	 *
+	 if (!sp->cmd->prot_chk)
+	 return 0;
+	 *
+	 */
+	switch (se_cmd->prot_op) {
+	case TARGET_PROT_DOUT_INSERT:
+	case TARGET_PROT_DIN_STRIP:
+		if (ql2xenablehba_err_chk >= 1)
+			return 1;
+		break;
+	case TARGET_PROT_DOUT_PASS:
+	case TARGET_PROT_DIN_PASS:
+		if (ql2xenablehba_err_chk >= 2)
+			return 1;
+		break;
+	case TARGET_PROT_DIN_INSERT:
+	case TARGET_PROT_DOUT_STRIP:
+		return 1;
+	default:
+		break;
+	}
+	return 0;
+}
+
+/*
+ * qla24xx_set_t10dif_tags_from_cmd - Extract Ref and App tags from SCSI command
+ *
+ */
+static inline void
+qlt_set_t10dif_tags(struct se_cmd *se_cmd, struct crc_context *ctx)
+{
+	uint32_t lba = 0xffffffff & se_cmd->t_task_lba;
+
+	/* wait til Mode Sense/Select cmd, modepage Ah, subpage 2
+	 * have been immplemented by TCM, before AppTag is avail.
+	 * Look for modesense_handlers[]
+	 */
+	ctx->app_tag = 0;
+	ctx->app_tag_mask[0] = 0x0;
+	ctx->app_tag_mask[1] = 0x0;
+
+	switch (se_cmd->prot_type) {
+	case TARGET_DIF_TYPE0_PROT:
+		/*
+		 * No check for ql2xenablehba_err_chk, as it would be an
+		 * I/O error if hba tag generation is not done.
+		 */
+		ctx->ref_tag = cpu_to_le32(lba);
+
+		if (!qlt_hba_err_chk_enabled(se_cmd))
+			break;
+
+		/* enable ALL bytes of the ref tag */
+		ctx->ref_tag_mask[0] = 0xff;
+		ctx->ref_tag_mask[1] = 0xff;
+		ctx->ref_tag_mask[2] = 0xff;
+		ctx->ref_tag_mask[3] = 0xff;
+		break;
+	/*
+	 * For TYpe 1 protection: 16 bit GUARD tag, 32 bit REF tag, and
+	 * 16 bit app tag.
+	 */
+	case TARGET_DIF_TYPE1_PROT:
+		ctx->ref_tag = cpu_to_le32(lba);
+
+		if (!qlt_hba_err_chk_enabled(se_cmd))
+			break;
+
+		/* enable ALL bytes of the ref tag */
+		ctx->ref_tag_mask[0] = 0xff;
+		ctx->ref_tag_mask[1] = 0xff;
+		ctx->ref_tag_mask[2] = 0xff;
+		ctx->ref_tag_mask[3] = 0xff;
+		break;
+	/*
+	 * For TYPE 2 protection: 16 bit GUARD + 32 bit REF tag has to
+	 * match LBA in CDB + N
+	 */
+	case TARGET_DIF_TYPE2_PROT:
+		ctx->ref_tag = cpu_to_le32(lba);
+
+		if (!qlt_hba_err_chk_enabled(se_cmd))
+			break;
+
+		/* enable ALL bytes of the ref tag */
+		ctx->ref_tag_mask[0] = 0xff;
+		ctx->ref_tag_mask[1] = 0xff;
+		ctx->ref_tag_mask[2] = 0xff;
+		ctx->ref_tag_mask[3] = 0xff;
+		break;
+
+	/* For Type 3 protection: 16 bit GUARD only */
+	case TARGET_DIF_TYPE3_PROT:
+		ctx->ref_tag_mask[0] = ctx->ref_tag_mask[1] =
+			ctx->ref_tag_mask[2] = ctx->ref_tag_mask[3] = 0x00;
+		break;
+	}
+}
+
+
+static inline int
+qlt_build_ctio_crc2_pkt(struct qla_tgt_prm *prm, scsi_qla_host_t *vha)
+{
+	uint32_t		*cur_dsd;
+	int			sgc;
+	uint32_t		transfer_length = 0;
+	uint32_t		data_bytes;
+	uint32_t		dif_bytes;
+	uint8_t			bundling = 1;
+	uint8_t			*clr_ptr;
+	struct crc_context	*crc_ctx_pkt = NULL;
+	struct qla_hw_data	*ha;
+	struct ctio_crc2_to_fw	*pkt;
+	dma_addr_t		crc_ctx_dma;
+	uint16_t		fw_prot_opts = 0;
+	struct qla_tgt_cmd	*cmd = prm->cmd;
+	struct se_cmd		*se_cmd = &cmd->se_cmd;
+	uint32_t h;
+	struct atio_from_isp *atio = &prm->cmd->atio;
+	uint16_t t16;
+
+	sgc = 0;
+	ha = vha->hw;
+
+	pkt = (struct ctio_crc2_to_fw *)vha->req->ring_ptr;
+	prm->pkt = pkt;
+	memset(pkt, 0, sizeof(*pkt));
+
+	ql_dbg(ql_dbg_tgt, vha, 0xe071,
+		"qla_target(%d):%s: se_cmd[%p] CRC2 prot_op[0x%x] cmd prot sg:cnt[%p:%x] lba[%llu]\n",
+		vha->vp_idx, __func__, se_cmd, se_cmd->prot_op,
+		prm->prot_sg, prm->prot_seg_cnt, se_cmd->t_task_lba);
+
+	if ((se_cmd->prot_op == TARGET_PROT_DIN_INSERT) ||
+	    (se_cmd->prot_op == TARGET_PROT_DOUT_STRIP))
+		bundling = 0;
+
+	/* Compute dif len and adjust data len to incude protection */
+	data_bytes = cmd->bufflen;
+	dif_bytes  = (data_bytes / cmd->blk_sz) * 8;
+
+	switch (se_cmd->prot_op) {
+	case TARGET_PROT_DIN_INSERT:
+	case TARGET_PROT_DOUT_STRIP:
+		transfer_length = data_bytes;
+		data_bytes += dif_bytes;
+		break;
+
+	case TARGET_PROT_DIN_STRIP:
+	case TARGET_PROT_DOUT_INSERT:
+	case TARGET_PROT_DIN_PASS:
+	case TARGET_PROT_DOUT_PASS:
+		transfer_length = data_bytes + dif_bytes;
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+
+	if (!qlt_hba_err_chk_enabled(se_cmd))
+		fw_prot_opts |= 0x10; /* Disable Guard tag checking */
+	/* HBA error checking enabled */
+	else if (IS_PI_UNINIT_CAPABLE(ha)) {
+		if ((se_cmd->prot_type == TARGET_DIF_TYPE1_PROT) ||
+		    (se_cmd->prot_type == TARGET_DIF_TYPE2_PROT))
+			fw_prot_opts |= PO_DIS_VALD_APP_ESC;
+		else if (se_cmd->prot_type == TARGET_DIF_TYPE3_PROT)
+			fw_prot_opts |= PO_DIS_VALD_APP_REF_ESC;
+	}
+
+	switch (se_cmd->prot_op) {
+	case TARGET_PROT_DIN_INSERT:
+	case TARGET_PROT_DOUT_INSERT:
+		fw_prot_opts |= PO_MODE_DIF_INSERT;
+		break;
+	case TARGET_PROT_DIN_STRIP:
+	case TARGET_PROT_DOUT_STRIP:
+		fw_prot_opts |= PO_MODE_DIF_REMOVE;
+		break;
+	case TARGET_PROT_DIN_PASS:
+	case TARGET_PROT_DOUT_PASS:
+		fw_prot_opts |= PO_MODE_DIF_PASS;
+		/* FUTURE: does tcm require T10CRC<->IPCKSUM conversion? */
+		break;
+	default:/* Normal Request */
+		fw_prot_opts |= PO_MODE_DIF_PASS;
+		break;
+	}
+
+
+	/* ---- PKT ---- */
+	/* Update entry type to indicate Command Type CRC_2 IOCB */
+	pkt->entry_type  = CTIO_CRC2;
+	pkt->entry_count = 1;
+	pkt->vp_index = vha->vp_idx;
+
+	h = qlt_make_handle(vha);
+	if (unlikely(h == QLA_TGT_NULL_HANDLE)) {
+		/*
+		 * CTIO type 7 from the firmware doesn't provide a way to
+		 * know the initiator's LOOP ID, hence we can't find
+		 * the session and, so, the command.
+		 */
+		return -EAGAIN;
+	} else
+		ha->tgt.cmds[h-1] = prm->cmd;
+
+
+	pkt->handle  = h | CTIO_COMPLETION_HANDLE_MARK;
+	pkt->nport_handle = prm->cmd->loop_id;
+	pkt->timeout = __constant_cpu_to_le16(QLA_TGT_TIMEOUT);
+	pkt->initiator_id[0] = atio->u.isp24.fcp_hdr.s_id[2];
+	pkt->initiator_id[1] = atio->u.isp24.fcp_hdr.s_id[1];
+	pkt->initiator_id[2] = atio->u.isp24.fcp_hdr.s_id[0];
+	pkt->exchange_addr   = atio->u.isp24.exchange_addr;
+
+	/* silence compile warning */
+	t16 = be16_to_cpu(atio->u.isp24.fcp_hdr.ox_id);
+	pkt->ox_id  = cpu_to_le16(t16);
+
+	t16 = (atio->u.isp24.attr << 9);
+	pkt->flags |= cpu_to_le16(t16);
+	pkt->relative_offset = cpu_to_le32(prm->cmd->offset);
+
+	/* Set transfer direction */
+	if (cmd->dma_data_direction == DMA_TO_DEVICE)
+		pkt->flags = __constant_cpu_to_le16(CTIO7_FLAGS_DATA_IN);
+	else if (cmd->dma_data_direction == DMA_FROM_DEVICE)
+		pkt->flags = __constant_cpu_to_le16(CTIO7_FLAGS_DATA_OUT);
+
+
+	pkt->dseg_count = prm->tot_dsds;
+	/* Fibre channel byte count */
+	pkt->transfer_length = cpu_to_le32(transfer_length);
+
+
+	/* ----- CRC context -------- */
+
+	/* Allocate CRC context from global pool */
+	crc_ctx_pkt = cmd->ctx =
+	    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
+
+	if (!crc_ctx_pkt)
+		goto crc_queuing_error;
+
+	/* Zero out CTX area. */
+	clr_ptr = (uint8_t *)crc_ctx_pkt;
+	memset(clr_ptr, 0, sizeof(*crc_ctx_pkt));
+
+	crc_ctx_pkt->crc_ctx_dma = crc_ctx_dma;
+	INIT_LIST_HEAD(&crc_ctx_pkt->dsd_list);
+
+	/* Set handle */
+	crc_ctx_pkt->handle = pkt->handle;
+
+	qlt_set_t10dif_tags(se_cmd, crc_ctx_pkt);
+
+	pkt->crc_context_address[0] = cpu_to_le32(LSD(crc_ctx_dma));
+	pkt->crc_context_address[1] = cpu_to_le32(MSD(crc_ctx_dma));
+	pkt->crc_context_len = CRC_CONTEXT_LEN_FW;
+
+
+	if (!bundling) {
+		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.nobundling.data_address;
+	} else {
+		/*
+		 * Configure Bundling if we need to fetch interlaving
+		 * protection PCI accesses
+		 */
+		fw_prot_opts |= PO_ENABLE_DIF_BUNDLING;
+		crc_ctx_pkt->u.bundling.dif_byte_count = cpu_to_le32(dif_bytes);
+		crc_ctx_pkt->u.bundling.dseg_count =
+			cpu_to_le16(prm->tot_dsds - prm->prot_seg_cnt);
+		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.data_address;
+	}
+
+	/* Finish the common fields of CRC pkt */
+	crc_ctx_pkt->blk_size   = cpu_to_le16(cmd->blk_sz);
+	crc_ctx_pkt->prot_opts  = cpu_to_le16(fw_prot_opts);
+	crc_ctx_pkt->byte_count = cpu_to_le32(data_bytes);
+	crc_ctx_pkt->guard_seed = __constant_cpu_to_le16(0);
+
+
+	/* Walks data segments */
+	pkt->flags |= __constant_cpu_to_le16(CTIO7_FLAGS_DSD_PTR);
+
+	if (!bundling && prm->prot_seg_cnt) {
+		if (qla24xx_walk_and_build_sglist_no_difb(ha, NULL, cur_dsd,
+			prm->tot_dsds, cmd))
+			goto crc_queuing_error;
+	} else if (qla24xx_walk_and_build_sglist(ha, NULL, cur_dsd,
+		(prm->tot_dsds - prm->prot_seg_cnt), cmd))
+		goto crc_queuing_error;
+
+	if (bundling && prm->prot_seg_cnt) {
+		/* Walks dif segments */
+		pkt->add_flags |= CTIO_CRC2_AF_DIF_DSD_ENA;
+
+		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.bundling.dif_address;
+		if (qla24xx_walk_and_build_prot_sglist(ha, NULL, cur_dsd,
+			prm->prot_seg_cnt, cmd))
+			goto crc_queuing_error;
+	}
+	return QLA_SUCCESS;
+
+crc_queuing_error:
+	/* Cleanup will be performed by the caller */
+
+	return QLA_FUNCTION_FAILED;
+}
+
+
 /*
  * Callback to setup response of xmit_type of QLA_TGT_XMIT_DATA and *
  * QLA_TGT_XMIT_STATUS for >= 24xx silicon
@@ -1921,9 +2291,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	qlt_check_srr_debug(cmd, &xmit_type);
 
 	ql_dbg(ql_dbg_tgt, cmd->vha, 0xe018,
-	    "is_send_status=%d, cmd->bufflen=%d, cmd->sg_cnt=%d, "
-	    "cmd->dma_data_direction=%d\n", (xmit_type & QLA_TGT_XMIT_STATUS) ?
-	    1 : 0, cmd->bufflen, cmd->sg_cnt, cmd->dma_data_direction);
+	    "is_send_status=%d, cmd->bufflen=%d, cmd->sg_cnt=%d, cmd->dma_data_direction=%d se_cmd[%p]\n",
+	    (xmit_type & QLA_TGT_XMIT_STATUS) ?
+	    1 : 0, cmd->bufflen, cmd->sg_cnt, cmd->dma_data_direction,
+	    &cmd->se_cmd);
 
 	res = qlt_pre_xmit_response(cmd, &prm, xmit_type, scsi_status,
 	    &full_req_cnt);
@@ -1941,7 +2312,10 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	if (unlikely(res))
 		goto out_unmap_unlock;
 
-	res = qlt_24xx_build_ctio_pkt(&prm, vha);
+	if (cmd->se_cmd.prot_op && (xmit_type & QLA_TGT_XMIT_DATA))
+		res = qlt_build_ctio_crc2_pkt(&prm, vha);
+	else
+		res = qlt_24xx_build_ctio_pkt(&prm, vha);
 	if (unlikely(res != 0))
 		goto out_unmap_unlock;
 
@@ -1953,7 +2327,8 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 		    __constant_cpu_to_le16(CTIO7_FLAGS_DATA_IN |
 			CTIO7_FLAGS_STATUS_MODE_0);
 
-		qlt_load_data_segments(&prm, vha);
+		if (cmd->se_cmd.prot_op == TARGET_PROT_NORMAL)
+			qlt_load_data_segments(&prm, vha);
 
 		if (prm.add_status_pkt == 0) {
 			if (xmit_type & QLA_TGT_XMIT_STATUS) {
@@ -1983,8 +2358,14 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			ql_dbg(ql_dbg_tgt, vha, 0xe019,
 			    "Building additional status packet\n");
 
+			/*
+			 * T10Dif: ctio_crc2_to_fw overlay ontop of
+			 * ctio7_to_24xx
+			 */
 			memcpy(ctio, pkt, sizeof(*ctio));
+			/* reset back to CTIO7 */
 			ctio->entry_count = 1;
+			ctio->entry_type = CTIO_TYPE7;
 			ctio->dseg_count = 0;
 			ctio->u.status1.flags &= ~__constant_cpu_to_le16(
 			    CTIO7_FLAGS_DATA_IN);
@@ -1993,6 +2374,11 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 			pkt->handle |= CTIO_INTERMEDIATE_HANDLE_MARK;
 			pkt->u.status0.flags |= __constant_cpu_to_le16(
 			    CTIO7_FLAGS_DONT_RET_CTIO);
+
+			/* qlt_24xx_init_ctio_to_isp will correct
+			 * all neccessary fields that's part of CTIO7.
+			 * There should be no residual of CTIO-CRC2 data.
+			 */
 			qlt_24xx_init_ctio_to_isp((struct ctio7_to_24xx *)ctio,
 			    &prm);
 			pr_debug("Status CTIO7: %p\n", ctio);
@@ -2041,8 +2427,10 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	if (qlt_issue_marker(vha, 0) != QLA_SUCCESS)
 		return -EIO;
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe01b, "CTIO_start: vha(%d)",
-	    (int)vha->vp_idx);
+	ql_dbg(ql_dbg_tgt, vha, 0xe01b,
+		"%s: CTIO_start: vha(%d) se_cmd %p ox_id %04x\n",
+		__func__, (int)vha->vp_idx, &cmd->se_cmd,
+		be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
 
 	/* Calculate number of entries and segments required */
 	if (qlt_pci_map_calc_cnt(&prm) != 0)
@@ -2054,14 +2442,19 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	res = qlt_check_reserve_free_req(vha, prm.req_cnt);
 	if (res != 0)
 		goto out_unlock_free_unmap;
+	if (cmd->se_cmd.prot_op)
+		res = qlt_build_ctio_crc2_pkt(&prm, vha);
+	else
+		res = qlt_24xx_build_ctio_pkt(&prm, vha);
 
-	res = qlt_24xx_build_ctio_pkt(&prm, vha);
 	if (unlikely(res != 0))
 		goto out_unlock_free_unmap;
 	pkt = (struct ctio7_to_24xx *)prm.pkt;
 	pkt->u.status0.flags |= __constant_cpu_to_le16(CTIO7_FLAGS_DATA_OUT |
 	    CTIO7_FLAGS_STATUS_MODE_0);
-	qlt_load_data_segments(&prm, vha);
+
+	if (cmd->se_cmd.prot_op == TARGET_PROT_NORMAL)
+		qlt_load_data_segments(&prm, vha);
 
 	cmd->state = QLA_TGT_STATE_NEED_DATA;
 
@@ -2078,6 +2471,143 @@ out_unlock_free_unmap:
 	return res;
 }
 EXPORT_SYMBOL(qlt_rdy_to_xfer);
+
+
+/*
+ * Checks the guard or meta-data for the type of error
+ * detected by the HBA.
+ */
+static inline int
+qlt_handle_dif_error(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd,
+		struct ctio_crc_from_fw *sts)
+{
+	uint8_t		*ap = &sts->actual_dif[0];
+	uint8_t		*ep = &sts->expected_dif[0];
+	uint32_t	e_ref_tag, a_ref_tag;
+	uint16_t	e_app_tag, a_app_tag;
+	uint16_t	e_guard, a_guard;
+	uint64_t	lba = cmd->se_cmd.t_task_lba;
+
+	a_guard   = be16_to_cpu(*(uint16_t *)(ap + 0));
+	a_app_tag = be16_to_cpu(*(uint16_t *)(ap + 2));
+	a_ref_tag = be32_to_cpu(*(uint32_t *)(ap + 4));
+
+	e_guard   = be16_to_cpu(*(uint16_t *)(ep + 0));
+	e_app_tag = be16_to_cpu(*(uint16_t *)(ep + 2));
+	e_ref_tag = be32_to_cpu(*(uint32_t *)(ep + 4));
+
+	ql_dbg(ql_dbg_tgt, vha, 0xe075,
+	    "iocb(s) %p Returned STATUS.\n", sts);
+
+	ql_dbg(ql_dbg_tgt, vha, 0xf075,
+	    "dif check TGT cdb 0x%x lba 0x%llu: [Actual|Expected] Ref Tag[0x%x|0x%x], App Tag [0x%x|0x%x], Guard [0x%x|0x%x]\n",
+	    cmd->atio.u.isp24.fcp_cmnd.cdb[0], lba,
+	    a_ref_tag, e_ref_tag, a_app_tag, e_app_tag, a_guard, e_guard);
+
+	/*
+	 * Ignore sector if:
+	 * For type     3: ref & app tag is all 'f's
+	 * For type 0,1,2: app tag is all 'f's
+	 */
+	if ((a_app_tag == 0xffff) &&
+	    ((cmd->se_cmd.prot_type != TARGET_DIF_TYPE3_PROT) ||
+	     (a_ref_tag == 0xffffffff))) {
+		uint32_t blocks_done;
+
+		/* 2TB boundary case covered automatically with this */
+		blocks_done = e_ref_tag - (uint32_t)lba + 1;
+		cmd->se_cmd.bad_sector = e_ref_tag;
+		cmd->se_cmd.pi_err = 0;
+		ql_dbg(ql_dbg_tgt, vha, 0xf074,
+			"need to return scsi good\n");
+
+		/* Update protection tag */
+		if (cmd->prot_sg_cnt) {
+			uint32_t i, j = 0, k = 0, num_ent;
+			struct scatterlist *sg, *sgl;
+
+
+			sgl = cmd->prot_sg;
+
+			/* Patch the corresponding protection tags */
+			for_each_sg(sgl, sg, cmd->prot_sg_cnt, i) {
+				num_ent = sg_dma_len(sg) / 8;
+				if (k + num_ent < blocks_done) {
+					k += num_ent;
+					continue;
+				}
+				j = blocks_done - k - 1;
+				k = blocks_done;
+				break;
+			}
+
+			if (k != blocks_done) {
+				ql_log(ql_log_warn, vha, 0xf076,
+				    "unexpected tag values tag:lba=%u:%llu)\n",
+				    e_ref_tag, (unsigned long long)lba);
+				goto out;
+			}
+
+#if 0
+			struct sd_dif_tuple *spt;
+			/* TODO:
+			 * This section came from initiator. Is it valid here?
+			 * should ulp be override with actual val???
+			 */
+			spt = page_address(sg_page(sg)) + sg->offset;
+			spt += j;
+
+			spt->app_tag = 0xffff;
+			if (cmd->se_cmd.prot_type == SCSI_PROT_DIF_TYPE3)
+				spt->ref_tag = 0xffffffff;
+#endif
+		}
+
+		return 0;
+	}
+
+	/* check guard */
+	if (e_guard != a_guard) {
+		cmd->se_cmd.pi_err = TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED;
+		cmd->se_cmd.bad_sector = cmd->se_cmd.t_task_lba;
+
+		ql_log(ql_log_warn, vha, 0xe076,
+		    "Guard ERR: cdb 0x%x lba 0x%llx: [Actual|Expected] Ref Tag[0x%x|0x%x], App Tag [0x%x|0x%x], Guard [0x%x|0x%x] cmd=%p\n",
+		    cmd->atio.u.isp24.fcp_cmnd.cdb[0], lba,
+		    a_ref_tag, e_ref_tag, a_app_tag, e_app_tag,
+		    a_guard, e_guard, cmd);
+		goto out;
+	}
+
+	/* check ref tag */
+	if (e_ref_tag != a_ref_tag) {
+		cmd->se_cmd.pi_err = TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED;
+		cmd->se_cmd.bad_sector = e_ref_tag;
+
+		ql_log(ql_log_warn, vha, 0xe077,
+			"Ref Tag ERR: cdb 0x%x lba 0x%llx: [Actual|Expected] Ref Tag[0x%x|0x%x], App Tag [0x%x|0x%x], Guard [0x%x|0x%x] cmd=%p\n",
+			cmd->atio.u.isp24.fcp_cmnd.cdb[0], lba,
+			a_ref_tag, e_ref_tag, a_app_tag, e_app_tag,
+			a_guard, e_guard, cmd);
+		goto out;
+	}
+
+	/* check appl tag */
+	if (e_app_tag != a_app_tag) {
+		cmd->se_cmd.pi_err = TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED;
+		cmd->se_cmd.bad_sector = cmd->se_cmd.t_task_lba;
+
+		ql_log(ql_log_warn, vha, 0xe078,
+			"App Tag ERR: cdb 0x%x lba 0x%llx: [Actual|Expected] Ref Tag[0x%x|0x%x], App Tag [0x%x|0x%x], Guard [0x%x|0x%x] cmd=%p\n",
+			cmd->atio.u.isp24.fcp_cmnd.cdb[0], lba,
+			a_ref_tag, e_ref_tag, a_app_tag, e_app_tag,
+			a_guard, e_guard, cmd);
+		goto out;
+	}
+out:
+	return 1;
+}
+
 
 /* If hardware_lock held on entry, might drop it, then reaquire */
 /* This function sends the appropriate CTIO to ISP 2xxx or 24xx */
@@ -2155,21 +2685,46 @@ static void qlt_send_term_exchange(struct scsi_qla_host *vha,
 	rc = __qlt_send_term_exchange(vha, cmd, atio);
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 done:
-	if (rc == 1) {
+	/*
+	 * Terminate exchange will tell fw to release any active CTIO
+	 * that's in FW posession and cleanup the exchange.
+	 *
+	 * "cmd->state == QLA_TGT_STATE_ABORTED" means CTIO is still
+	 * down at FW.  Free the cmd later when CTIO comes back later
+	 * w/aborted(0x2) status.
+	 *
+	 * "cmd->state != QLA_TGT_STATE_ABORTED" means CTIO is already
+	 * back w/some err.  Free the cmd now.
+	 */
+	if ((rc == 1) && (cmd->state != QLA_TGT_STATE_ABORTED)) {
 		if (!ha_locked && !in_interrupt())
 			msleep(250); /* just in case */
 
+		if (cmd->sg_mapped)
+			qlt_unmap_sg(vha, cmd);
 		vha->hw->tgt.tgt_ops->free_cmd(cmd);
 	}
+	return;
 }
 
 void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 {
-	BUG_ON(cmd->sg_mapped);
+	struct qla_tgt_sess *sess = cmd->sess;
 
+	ql_dbg(ql_dbg_tgt, cmd->vha, 0xe074,
+	    "%s: se_cmd[%p] ox_id %04x\n",
+	    __func__, &cmd->se_cmd,
+	    be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id));
+
+	BUG_ON(cmd->sg_mapped);
 	if (unlikely(cmd->free_sg))
 		kfree(cmd->sg);
-	kmem_cache_free(qla_tgt_cmd_cachep, cmd);
+
+	if (!sess || !sess->se_sess) {
+		WARN_ON(1);
+		return;
+	}
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
 }
 EXPORT_SYMBOL(qlt_free_cmd);
 
@@ -2374,6 +2929,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		case CTIO_LIP_RESET:
 		case CTIO_TARGET_RESET:
 		case CTIO_ABORTED:
+			/* driver request abort via Terminate exchange */
 		case CTIO_TIMEOUT:
 		case CTIO_INVALID_RX_ID:
 			/* They are OK */
@@ -2404,18 +2960,58 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 			else
 				return;
 
+		case CTIO_DIF_ERROR: {
+			struct ctio_crc_from_fw *crc =
+				(struct ctio_crc_from_fw *)ctio;
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf073,
+			    "qla_target(%d): CTIO with DIF_ERROR status %x received (state %x, se_cmd %p) actual_dif[0x%llx] expect_dif[0x%llx]\n",
+			    vha->vp_idx, status, cmd->state, se_cmd,
+			    *((u64 *)&crc->actual_dif[0]),
+			    *((u64 *)&crc->expected_dif[0]));
+
+			if (qlt_handle_dif_error(vha, cmd, ctio)) {
+				if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
+					/* scsi Write/xfer rdy complete */
+					goto skip_term;
+				} else {
+					/* scsi read/xmit respond complete
+					 * call handle dif to send scsi status
+					 * rather than terminate exchange.
+					 */
+					cmd->state = QLA_TGT_STATE_PROCESSED;
+					ha->tgt.tgt_ops->handle_dif_err(cmd);
+					return;
+				}
+			} else {
+				/* Need to generate a SCSI good completion.
+				 * because FW did not send scsi status.
+				 */
+				status = 0;
+				goto skip_term;
+			}
+			break;
+		}
 		default:
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05b,
-			    "qla_target(%d): CTIO with error status "
-			    "0x%x received (state %x, se_cmd %p\n",
+			    "qla_target(%d): CTIO with error status 0x%x received (state %x, se_cmd %p\n",
 			    vha->vp_idx, status, cmd->state, se_cmd);
 			break;
 		}
 
-		if (cmd->state != QLA_TGT_STATE_NEED_DATA)
+
+		/* "cmd->state == QLA_TGT_STATE_ABORTED" means
+		 * cmd is already aborted/terminated, we don't
+		 * need to terminate again.  The exchange is already
+		 * cleaned up/freed at FW level.  Just cleanup at driver
+		 * level.
+		 */
+		if ((cmd->state != QLA_TGT_STATE_NEED_DATA) &&
+			(cmd->state != QLA_TGT_STATE_ABORTED)) {
 			if (qlt_term_ctio_exchange(vha, ctio, cmd, status))
 				return;
+		}
 	}
+skip_term:
 
 	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe01f, "Command %p finished\n", cmd);
@@ -2444,7 +3040,8 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 		    "not return a CTIO complete\n", vha->vp_idx, cmd->state);
 	}
 
-	if (unlikely(status != CTIO_SUCCESS)) {
+	if (unlikely(status != CTIO_SUCCESS) &&
+		(cmd->state != QLA_TGT_STATE_ABORTED)) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01f, "Finishing failed CTIO\n");
 		dump_stack();
 	}
@@ -2489,13 +3086,12 @@ static struct qla_tgt_sess *qlt_make_local_sess(struct scsi_qla_host *,
 /*
  * Process context for I/O path into tcm_qla2xxx code
  */
-static void qlt_do_work(struct work_struct *work)
+static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 {
-	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
 	scsi_qla_host_t *vha = cmd->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
-	struct qla_tgt_sess *sess = NULL;
+	struct qla_tgt_sess *sess = cmd->sess;
 	struct atio_from_isp *atio = &cmd->atio;
 	unsigned char *cdb;
 	unsigned long flags;
@@ -2504,41 +3100,6 @@ static void qlt_do_work(struct work_struct *work)
 
 	if (tgt->tgt_stop)
 		goto out_term;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha,
-	    atio->u.isp24.fcp_hdr.s_id);
-	/* Do kref_get() before dropping qla_hw_data->hardware_lock. */
-	if (sess)
-		kref_get(&sess->se_sess->sess_kref);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	if (unlikely(!sess)) {
-		uint8_t *s_id =	atio->u.isp24.fcp_hdr.s_id;
-
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf022,
-			"qla_target(%d): Unable to find wwn login"
-			" (s_id %x:%x:%x), trying to create it manually\n",
-			vha->vp_idx, s_id[0], s_id[1], s_id[2]);
-
-		if (atio->u.raw.entry_count > 1) {
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf023,
-				"Dropping multy entry cmd %p\n", cmd);
-			goto out_term;
-		}
-
-		mutex_lock(&vha->vha_tgt.tgt_mutex);
-		sess = qlt_make_local_sess(vha, s_id);
-		/* sess has an extra creation ref. */
-		mutex_unlock(&vha->vha_tgt.tgt_mutex);
-
-		if (!sess)
-			goto out_term;
-	}
-
-	cmd->sess = sess;
-	cmd->loop_id = sess->loop_id;
-	cmd->conf_compl_supported = sess->conf_compl_supported;
 
 	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
 	cmd->tag = atio->u.isp24.exchange_addr;
@@ -2563,11 +3124,12 @@ static void qlt_do_work(struct work_struct *work)
 	    atio->u.isp24.fcp_cmnd.add_cdb_len]));
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe022,
-	    "qla_target: START qla command: %p lun: 0x%04x (tag %d)\n",
-	    cmd, cmd->unpacked_lun, cmd->tag);
+		"qla_target: START qla cmd: %p se_cmd %p lun: 0x%04x (tag %d) len(%d) ox_id %x\n",
+		cmd, &cmd->se_cmd, cmd->unpacked_lun, cmd->tag, data_length,
+		cmd->atio.u.isp24.fcp_hdr.ox_id);
 
-	ret = vha->hw->tgt.tgt_ops->handle_cmd(vha, cmd, cdb, data_length,
-	    fcp_task_attr, data_dir, bidi);
+	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cdb, data_length,
+				          fcp_task_attr, data_dir, bidi);
 	if (ret != 0)
 		goto out_term;
 	/*
@@ -2586,17 +3148,114 @@ out_term:
 	 */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qlt_send_term_exchange(vha, NULL, &cmd->atio, 1);
-	kmem_cache_free(qla_tgt_cmd_cachep, cmd);
-	if (sess)
-		ha->tgt.tgt_ops->put_sess(sess);
+	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	ha->tgt.tgt_ops->put_sess(sess);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+}
+
+static void qlt_do_work(struct work_struct *work)
+{
+	struct qla_tgt_cmd *cmd = container_of(work, struct qla_tgt_cmd, work);
+
+	__qlt_do_work(cmd);
+}
+
+static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
+				       struct qla_tgt_sess *sess,
+				       struct atio_from_isp *atio)
+{
+	struct se_session *se_sess = sess->se_sess;
+	struct qla_tgt_cmd *cmd;
+	int tag;
+
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	if (tag < 0)
+		return NULL;
+
+	cmd = &((struct qla_tgt_cmd *)se_sess->sess_cmd_map)[tag];
+	memset(cmd, 0, sizeof(struct qla_tgt_cmd));
+
+	memcpy(&cmd->atio, atio, sizeof(*atio));
+	cmd->state = QLA_TGT_STATE_NEW;
+	cmd->tgt = vha->vha_tgt.qla_tgt;
+	cmd->vha = vha;
+	cmd->se_cmd.map_tag = tag;
+	cmd->sess = sess;
+	cmd->loop_id = sess->loop_id;
+	cmd->conf_compl_supported = sess->conf_compl_supported;
+
+	return cmd;
+}
+
+static void qlt_send_busy(struct scsi_qla_host *, struct atio_from_isp *,
+			  uint16_t);
+
+static void qlt_create_sess_from_atio(struct work_struct *work)
+{
+	struct qla_tgt_sess_op *op = container_of(work,
+					struct qla_tgt_sess_op, work);
+	scsi_qla_host_t *vha = op->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_tgt_sess *sess;
+	struct qla_tgt_cmd *cmd;
+	unsigned long flags;
+	uint8_t *s_id = op->atio.u.isp24.fcp_hdr.s_id;
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf022,
+		"qla_target(%d): Unable to find wwn login"
+		" (s_id %x:%x:%x), trying to create it manually\n",
+		vha->vp_idx, s_id[0], s_id[1], s_id[2]);
+
+	if (op->atio.u.raw.entry_count > 1) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf023,
+		        "Dropping multy entry atio %p\n", &op->atio);
+		goto out_term;
+	}
+
+	mutex_lock(&vha->vha_tgt.tgt_mutex);
+	sess = qlt_make_local_sess(vha, s_id);
+	/* sess has an extra creation ref. */
+	mutex_unlock(&vha->vha_tgt.tgt_mutex);
+
+	if (!sess)
+		goto out_term;
+	/*
+	 * Now obtain a pre-allocated session tag using the original op->atio
+	 * packet header, and dispatch into __qlt_do_work() using the existing
+	 * process context.
+	 */
+	cmd = qlt_get_tag(vha, sess, &op->atio);
+	if (!cmd) {
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		qlt_send_busy(vha, &op->atio, SAM_STAT_BUSY);
+		ha->tgt.tgt_ops->put_sess(sess);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+		kfree(op);
+		return;
+	}
+	/*
+	 * __qlt_do_work() will call ha->tgt.tgt_ops->put_sess() to release
+	 * the extra reference taken above by qlt_make_local_sess()
+	 */
+	__qlt_do_work(cmd);
+	kfree(op);
+	return;
+
+out_term:
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	qlt_send_term_exchange(vha, NULL, &op->atio, 1);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	kfree(op);
+
 }
 
 /* ha->hardware_lock supposed to be held on entry */
 static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio)
 {
+	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_tgt_sess *sess;
 	struct qla_tgt_cmd *cmd;
 
 	if (unlikely(tgt->tgt_stop)) {
@@ -2605,17 +3264,30 @@ static int qlt_handle_cmd_for_atio(struct scsi_qla_host *vha,
 		return -EFAULT;
 	}
 
-	cmd = kmem_cache_zalloc(qla_tgt_cmd_cachep, GFP_ATOMIC);
+	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, atio->u.isp24.fcp_hdr.s_id);
+	if (unlikely(!sess)) {
+		struct qla_tgt_sess_op *op = kzalloc(sizeof(struct qla_tgt_sess_op),
+						     GFP_ATOMIC);
+		if (!op)
+			return -ENOMEM;
+
+		memcpy(&op->atio, atio, sizeof(*atio));
+		INIT_WORK(&op->work, qlt_create_sess_from_atio);
+		queue_work(qla_tgt_wq, &op->work);
+		return 0;
+	}
+	/*
+	 * Do kref_get() before returning + dropping qla_hw_data->hardware_lock.
+	 */
+	kref_get(&sess->se_sess->sess_kref);
+
+	cmd = qlt_get_tag(vha, sess, atio);
 	if (!cmd) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05e,
 		    "qla_target(%d): Allocation of cmd failed\n", vha->vp_idx);
+		ha->tgt.tgt_ops->put_sess(sess);
 		return -ENOMEM;
 	}
-
-	memcpy(&cmd->atio, atio, sizeof(*atio));
-	cmd->state = QLA_TGT_STATE_NEW;
-	cmd->tgt = vha->vha_tgt.qla_tgt;
-	cmd->vha = vha;
 
 	INIT_WORK(&cmd->work, qlt_do_work);
 	queue_work(qla_tgt_wq, &cmd->work);
@@ -3527,11 +4199,11 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 	switch (atio->u.raw.entry_type) {
 	case ATIO_TYPE7:
 		ql_dbg(ql_dbg_tgt, vha, 0xe02d,
-		    "ATIO_TYPE7 instance %d, lun %Lx, read/write %d/%d, "
-		    "add_cdb_len %d, data_length %04x, s_id %x:%x:%x\n",
+		    "ATIO_TYPE7 instance %d, lun %Lx, read/write %d/%d, cdb %x, add_cdb_len %x, data_length %04x, s_id %02x%02x%02x\n",
 		    vha->vp_idx, atio->u.isp24.fcp_cmnd.lun,
 		    atio->u.isp24.fcp_cmnd.rddata,
 		    atio->u.isp24.fcp_cmnd.wrdata,
+		    atio->u.isp24.fcp_cmnd.cdb[0],
 		    atio->u.isp24.fcp_cmnd.add_cdb_len,
 		    be32_to_cpu(get_unaligned((uint32_t *)
 			&atio->u.isp24.fcp_cmnd.add_cdb[
@@ -3629,11 +4301,13 @@ static void qlt_response_pkt(struct scsi_qla_host *vha, response_t *pkt)
 	tgt->irq_cmd_count++;
 
 	switch (pkt->entry_type) {
+	case CTIO_CRC2:
 	case CTIO_TYPE7:
 	{
 		struct ctio7_from_24xx *entry = (struct ctio7_from_24xx *)pkt;
-		ql_dbg(ql_dbg_tgt, vha, 0xe030, "CTIO_TYPE7: instance %d\n",
-		    vha->vp_idx);
+		ql_dbg(ql_dbg_tgt, vha, 0xe030,
+			"CTIO[0x%x] 12/CTIO7 7A/CRC2: instance %d\n",
+			entry->entry_type, vha->vp_idx);
 		qlt_do_ctio_completion(vha, entry->handle,
 		    le16_to_cpu(entry->status)|(pkt->entry_status << 16),
 		    entry);
@@ -4768,6 +5442,7 @@ qlt_24xx_process_response_error(struct scsi_qla_host *vha,
 	case ABTS_RESP_24XX:
 	case CTIO_TYPE7:
 	case NOTIFY_ACK_TYPE:
+	case CTIO_CRC2:
 		return 1;
 	default:
 		return 0;
@@ -4911,23 +5586,13 @@ int __init qlt_init(void)
 	if (!QLA_TGT_MODE_ENABLED())
 		return 0;
 
-	qla_tgt_cmd_cachep = kmem_cache_create("qla_tgt_cmd_cachep",
-	    sizeof(struct qla_tgt_cmd), __alignof__(struct qla_tgt_cmd), 0,
-	    NULL);
-	if (!qla_tgt_cmd_cachep) {
-		ql_log(ql_log_fatal, NULL, 0xe06c,
-		    "kmem_cache_create for qla_tgt_cmd_cachep failed\n");
-		return -ENOMEM;
-	}
-
 	qla_tgt_mgmt_cmd_cachep = kmem_cache_create("qla_tgt_mgmt_cmd_cachep",
 	    sizeof(struct qla_tgt_mgmt_cmd), __alignof__(struct
 	    qla_tgt_mgmt_cmd), 0, NULL);
 	if (!qla_tgt_mgmt_cmd_cachep) {
 		ql_log(ql_log_fatal, NULL, 0xe06d,
 		    "kmem_cache_create for qla_tgt_mgmt_cmd_cachep failed\n");
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	qla_tgt_mgmt_cmd_mempool = mempool_create(25, mempool_alloc_slab,
@@ -4955,8 +5620,6 @@ out_cmd_mempool:
 	mempool_destroy(qla_tgt_mgmt_cmd_mempool);
 out_mgmt_cmd_cachep:
 	kmem_cache_destroy(qla_tgt_mgmt_cmd_cachep);
-out:
-	kmem_cache_destroy(qla_tgt_cmd_cachep);
 	return ret;
 }
 
@@ -4968,5 +5631,4 @@ void qlt_exit(void)
 	destroy_workqueue(qla_tgt_wq);
 	mempool_destroy(qla_tgt_mgmt_cmd_mempool);
 	kmem_cache_destroy(qla_tgt_mgmt_cmd_cachep);
-	kmem_cache_destroy(qla_tgt_cmd_cachep);
 }

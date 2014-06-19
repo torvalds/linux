@@ -69,6 +69,8 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 
+#include <asm/dma-iommu.h>
+
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 
@@ -1397,14 +1399,14 @@ int omap3isp_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
 	if (isp_pipeline_is_last(me)) {
 		struct isp_video *video = pipe->output;
 		unsigned long flags;
-		spin_lock_irqsave(&video->queue->irqlock, flags);
+		spin_lock_irqsave(&video->irqlock, flags);
 		if (video->dmaqueue_flags & ISP_VIDEO_DMAQUEUE_UNDERRUN) {
-			spin_unlock_irqrestore(&video->queue->irqlock, flags);
+			spin_unlock_irqrestore(&video->irqlock, flags);
 			atomic_set(stopping, 0);
 			smp_mb();
 			return 0;
 		}
-		spin_unlock_irqrestore(&video->queue->irqlock, flags);
+		spin_unlock_irqrestore(&video->irqlock, flags);
 		if (!wait_event_timeout(*wait, !atomic_read(stopping),
 					msecs_to_jiffies(1000))) {
 			atomic_set(stopping, 0);
@@ -1625,7 +1627,7 @@ struct isp_device *omap3isp_get(struct isp_device *isp)
  * Decrement the reference count on the ISP. If the last reference is released,
  * power-down all submodules, disable clocks and free temporary buffers.
  */
-void omap3isp_put(struct isp_device *isp)
+static void __omap3isp_put(struct isp_device *isp, bool save_ctx)
 {
 	if (isp == NULL)
 		return;
@@ -1634,7 +1636,7 @@ void omap3isp_put(struct isp_device *isp)
 	BUG_ON(isp->ref_count == 0);
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
-		if (isp->domain) {
+		if (save_ctx) {
 			isp_save_ctx(isp);
 			isp->has_context = 1;
 		}
@@ -1646,6 +1648,11 @@ void omap3isp_put(struct isp_device *isp)
 		isp_disable_clocks(isp);
 	}
 	mutex_unlock(&isp->isp_mutex);
+}
+
+void omap3isp_put(struct isp_device *isp)
+{
+	__omap3isp_put(isp, true);
 }
 
 /* --------------------------------------------------------------------------
@@ -2120,6 +2127,61 @@ error_csiphy:
 	return ret;
 }
 
+static void isp_detach_iommu(struct isp_device *isp)
+{
+	arm_iommu_release_mapping(isp->mapping);
+	isp->mapping = NULL;
+	iommu_group_remove_device(isp->dev);
+}
+
+static int isp_attach_iommu(struct isp_device *isp)
+{
+	struct dma_iommu_mapping *mapping;
+	struct iommu_group *group;
+	int ret;
+
+	/* Create a device group and add the device to it. */
+	group = iommu_group_alloc();
+	if (IS_ERR(group)) {
+		dev_err(isp->dev, "failed to allocate IOMMU group\n");
+		return PTR_ERR(group);
+	}
+
+	ret = iommu_group_add_device(group, isp->dev);
+	iommu_group_put(group);
+
+	if (ret < 0) {
+		dev_err(isp->dev, "failed to add device to IPMMU group\n");
+		return ret;
+	}
+
+	/*
+	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate
+	 * VAs. This will allocate a corresponding IOMMU domain.
+	 */
+	mapping = arm_iommu_create_mapping(&platform_bus_type, SZ_1G, SZ_2G);
+	if (IS_ERR(mapping)) {
+		dev_err(isp->dev, "failed to create ARM IOMMU mapping\n");
+		ret = PTR_ERR(mapping);
+		goto error;
+	}
+
+	isp->mapping = mapping;
+
+	/* Attach the ARM VA mapping to the device. */
+	ret = arm_iommu_attach_device(isp->dev, mapping);
+	if (ret < 0) {
+		dev_err(isp->dev, "failed to attach device to VA mapping\n");
+		goto error;
+	}
+
+	return 0;
+
+error:
+	isp_detach_iommu(isp);
+	return ret;
+}
+
 /*
  * isp_remove - Remove ISP platform device
  * @pdev: Pointer to ISP platform device
@@ -2135,10 +2197,8 @@ static int isp_remove(struct platform_device *pdev)
 	isp_xclk_cleanup(isp);
 
 	__omap3isp_get(isp, false);
-	iommu_detach_device(isp->domain, &pdev->dev);
-	iommu_domain_free(isp->domain);
-	isp->domain = NULL;
-	omap3isp_put(isp);
+	isp_detach_iommu(isp);
+	__omap3isp_put(isp, false);
 
 	return 0;
 }
@@ -2265,18 +2325,11 @@ static int isp_probe(struct platform_device *pdev)
 		}
 	}
 
-	isp->domain = iommu_domain_alloc(pdev->dev.bus);
-	if (!isp->domain) {
-		dev_err(isp->dev, "can't alloc iommu domain\n");
-		ret = -ENOMEM;
+	/* IOMMU */
+	ret = isp_attach_iommu(isp);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "unable to attach to IOMMU\n");
 		goto error_isp;
-	}
-
-	ret = iommu_attach_device(isp->domain, &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "can't attach iommu device: %d\n", ret);
-		ret = -EPROBE_DEFER;
-		goto free_domain;
 	}
 
 	/* Interrupt */
@@ -2284,20 +2337,20 @@ static int isp_probe(struct platform_device *pdev)
 	if (isp->irq_num <= 0) {
 		dev_err(isp->dev, "No IRQ resource\n");
 		ret = -ENODEV;
-		goto detach_dev;
+		goto error_iommu;
 	}
 
 	if (devm_request_irq(isp->dev, isp->irq_num, isp_isr, IRQF_SHARED,
 			     "OMAP3 ISP", isp)) {
 		dev_err(isp->dev, "Unable to request IRQ\n");
 		ret = -EINVAL;
-		goto detach_dev;
+		goto error_iommu;
 	}
 
 	/* Entities */
 	ret = isp_initialize_modules(isp);
 	if (ret < 0)
-		goto detach_dev;
+		goto error_iommu;
 
 	ret = isp_register_entities(isp);
 	if (ret < 0)
@@ -2310,14 +2363,11 @@ static int isp_probe(struct platform_device *pdev)
 
 error_modules:
 	isp_cleanup_modules(isp);
-detach_dev:
-	iommu_detach_device(isp->domain, &pdev->dev);
-free_domain:
-	iommu_domain_free(isp->domain);
-	isp->domain = NULL;
+error_iommu:
+	isp_detach_iommu(isp);
 error_isp:
 	isp_xclk_cleanup(isp);
-	omap3isp_put(isp);
+	__omap3isp_put(isp, false);
 error:
 	mutex_destroy(&isp->isp_mutex);
 

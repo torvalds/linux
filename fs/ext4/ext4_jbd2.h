@@ -231,10 +231,6 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
 /*
  * Wrapper functions with which ext4 calls into JBD.
  */
-void ext4_journal_abort_handle(const char *caller, unsigned int line,
-			       const char *err_fn,
-		struct buffer_head *bh, handle_t *handle, int err);
-
 int __ext4_journal_get_write_access(const char *where, unsigned int line,
 				    handle_t *handle, struct buffer_head *bh);
 

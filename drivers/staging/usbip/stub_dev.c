@@ -99,6 +99,7 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 
 	if (sockfd != -1) {
 		int err;
+
 		dev_info(dev, "stub up\n");
 
 		spin_lock_irq(&sdev->ud.lock);

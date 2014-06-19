@@ -648,14 +648,14 @@ static int au1000_ac97_probe(struct platform_device *pdev)
 		goto out;
 
 	err = -EBUSY;
-	au1000->ac97_res_port = request_mem_region(r->start,
-					r->end - r->start + 1, pdev->name);
+	au1000->ac97_res_port = request_mem_region(r->start, resource_size(r),
+						   pdev->name);
 	if (!au1000->ac97_res_port) {
 		snd_printk(KERN_ERR "ALSA AC97: can't grab AC97 port\n");
 		goto out;
 	}
 
-	io = ioremap(r->start, r->end - r->start + 1);
+	io = ioremap(r->start, resource_size(r));
 	if (!io)
 		goto out;
 

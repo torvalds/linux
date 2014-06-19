@@ -961,7 +961,7 @@ static int cfi_staa_erase_varsize(struct mtd_info *mtd,
 			chipnum++;
 
 			if (chipnum >= cfi->numchips)
-			break;
+				break;
 		}
 	}
 
@@ -1170,7 +1170,7 @@ static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 			chipnum++;
 
 			if (chipnum >= cfi->numchips)
-			break;
+				break;
 		}
 	}
 	return 0;

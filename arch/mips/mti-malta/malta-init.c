@@ -116,8 +116,6 @@ phys_t mips_cpc_default_phys_base(void)
 	return CPC_BASE_ADDR;
 }
 
-extern struct plat_smp_ops msmtc_smp_ops;
-
 void __init prom_init(void)
 {
 	mips_display_message("LINUX");
@@ -304,8 +302,4 @@ mips_pci_controller:
 		return;
 	if (!register_vsmp_smp_ops())
 		return;
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	register_smp_ops(&msmtc_smp_ops);
-#endif
 }

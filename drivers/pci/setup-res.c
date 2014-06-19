@@ -16,7 +16,6 @@
  *	     Resource sorting
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/pci.h>
@@ -97,8 +96,8 @@ void pci_update_resource(struct pci_dev *dev, int resno)
 		pci_write_config_dword(dev, reg + 4, new);
 		pci_read_config_dword(dev, reg + 4, &check);
 		if (check != new) {
-			dev_err(&dev->dev, "BAR %d: error updating "
-			       "(high %#08x != %#08x)\n", resno, new, check);
+			dev_err(&dev->dev, "BAR %d: error updating (high %#08x != %#08x)\n",
+				resno, new, check);
 		}
 	}
 
@@ -209,21 +208,42 @@ static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
 
-	/* First, try exact prefetching match.. */
+	/*
+	 * First, try exact prefetching match.  Even if a 64-bit
+	 * prefetchable bridge window is below 4GB, we can't put a 32-bit
+	 * prefetchable resource in it because pbus_size_mem() assumes a
+	 * 64-bit window will contain no 32-bit resources.  If we assign
+	 * things differently than they were sized, not everything will fit.
+	 */
 	ret = pci_bus_alloc_resource(bus, res, size, align, min,
-				     IORESOURCE_PREFETCH,
+				     IORESOURCE_PREFETCH | IORESOURCE_MEM_64,
 				     pcibios_align_resource, dev);
+	if (ret == 0)
+		return 0;
 
-	if (ret < 0 && (res->flags & IORESOURCE_PREFETCH)) {
-		/*
-		 * That failed.
-		 *
-		 * But a prefetching area can handle a non-prefetching
-		 * window (it will just not perform as well).
-		 */
+	/*
+	 * If the prefetchable window is only 32 bits wide, we can put
+	 * 64-bit prefetchable resources in it.
+	 */
+	if ((res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) ==
+	     (IORESOURCE_PREFETCH | IORESOURCE_MEM_64)) {
+		ret = pci_bus_alloc_resource(bus, res, size, align, min,
+					     IORESOURCE_PREFETCH,
+					     pcibios_align_resource, dev);
+		if (ret == 0)
+			return 0;
+	}
+
+	/*
+	 * If we didn't find a better match, we can put any memory resource
+	 * in a non-prefetchable window.  If this resource is 32 bits and
+	 * non-prefetchable, the first call already tried the only possibility
+	 * so we don't need to try again.
+	 */
+	if (res->flags & (IORESOURCE_PREFETCH | IORESOURCE_MEM_64))
 		ret = pci_bus_alloc_resource(bus, res, size, align, min, 0,
 					     pcibios_align_resource, dev);
-	}
+
 	return ret;
 }
 
@@ -269,8 +289,8 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	res->flags |= IORESOURCE_UNSET;
 	align = pci_resource_alignment(dev, res);
 	if (!align) {
-		dev_info(&dev->dev, "BAR %d: can't assign %pR "
-			 "(bogus alignment)\n", resno, res);
+		dev_info(&dev->dev, "BAR %d: can't assign %pR (bogus alignment)\n",
+			 resno, res);
 		return -EINVAL;
 	}
 
@@ -294,6 +314,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(pci_assign_resource);
 
 int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsize,
 			resource_size_t min_align)
@@ -304,8 +325,8 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 
 	res->flags |= IORESOURCE_UNSET;
 	if (!res->parent) {
-		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resource %pR "
-			 "\n", resno, res);
+		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resource %pR\n",
+			 resno, res);
 		return -EINVAL;
 	}
 

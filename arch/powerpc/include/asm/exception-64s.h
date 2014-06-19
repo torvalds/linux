@@ -517,7 +517,7 @@ label##_relon_hv:							\
 #define DISABLE_INTS	RECONCILE_IRQ_STATE(r10,r11)
 
 #define ADD_NVGPRS				\
-	bl	.save_nvgprs
+	bl	save_nvgprs
 
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\

@@ -91,7 +91,7 @@ static inline void dma_write(u32 val, int reg, int lch)
 	addr += reg_map[reg].offset;
 	addr += reg_map[reg].stride * lch;
 
-	__raw_writel(val, addr);
+	writel_relaxed(val, addr);
 }
 
 static inline u32 dma_read(int reg, int lch)
@@ -101,7 +101,7 @@ static inline u32 dma_read(int reg, int lch)
 	addr += reg_map[reg].offset;
 	addr += reg_map[reg].stride * lch;
 
-	return __raw_readl(addr);
+	return readl_relaxed(addr);
 }
 
 static void omap2_clear_dma(int lch)

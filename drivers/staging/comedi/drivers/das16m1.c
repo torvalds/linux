@@ -150,11 +150,40 @@ static void munge_sample_array(unsigned short *array, unsigned int num_elements)
 		array[i] = munge_sample(array[i]);
 }
 
+static int das16m1_ai_check_chanlist(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_cmd *cmd)
+{
+	int i;
+
+	if (cmd->chanlist_len == 1)
+		return 0;
+
+	if ((cmd->chanlist_len % 2) != 0) {
+		dev_dbg(dev->class_dev,
+			"chanlist must be of even length or length 1\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cmd->chanlist_len; i++) {
+		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+
+		if ((i % 2) != (chan % 2)) {
+			dev_dbg(dev->class_dev,
+				 "even/odd channels must go have even/odd chanlist indices\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int das16m1_cmd_test(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
-	unsigned int err = 0, tmp, i;
+	int err = 0;
+	unsigned int arg;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -203,35 +232,20 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	/* step 4: fix up arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
-		/* calculate counter values that give desired timing */
+		arg = cmd->convert_arg;
 		i8253_cascade_ns_to_timer(I8254_OSC_BASE_10MHZ,
 					  &devpriv->divisor1,
 					  &devpriv->divisor2,
-					  &cmd->convert_arg, cmd->flags);
-		if (tmp != cmd->convert_arg)
-			err++;
+					  &arg, cmd->flags);
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
 	if (err)
 		return 4;
 
-	/*  check chanlist against board's peculiarities */
-	if (cmd->chanlist && cmd->chanlist_len > 1) {
-		for (i = 0; i < cmd->chanlist_len; i++) {
-			/*  even/odd channels must go into even/odd queue addresses */
-			if ((i % 2) != (CR_CHAN(cmd->chanlist[i]) % 2)) {
-				comedi_error(dev, "bad chanlist:\n"
-					     " even/odd channels must go have even/odd chanlist indices");
-				err++;
-			}
-		}
-		if ((cmd->chanlist_len % 2) != 0) {
-			comedi_error(dev,
-				     "chanlist must be of even length or length 1");
-			err++;
-		}
-	}
+	/* Step 5: check channel list if it exists */
+	if (cmd->chanlist && cmd->chanlist_len > 0)
+		err |= das16m1_ai_check_chanlist(dev, s, cmd);
 
 	if (err)
 		return 5;
@@ -239,26 +253,16 @@ static int das16m1_cmd_test(struct comedi_device *dev,
 	return 0;
 }
 
-/* This function takes a time in nanoseconds and sets the     *
- * 2 pacer clocks to the closest frequency possible. It also  *
- * returns the actual sampling period.                        */
-static unsigned int das16m1_set_pacer(struct comedi_device *dev,
-				      unsigned int ns, int rounding_flags)
+static void das16m1_set_pacer(struct comedi_device *dev)
 {
 	struct das16m1_private_struct *devpriv = dev->private;
+	unsigned long timer_base = dev->iobase + DAS16M1_8254_SECOND;
 
-	i8253_cascade_ns_to_timer_2div(I8254_OSC_BASE_10MHZ,
-				       &devpriv->divisor1,
-				       &devpriv->divisor2,
-				       &ns, rounding_flags);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
 
-	/* Write the values of ctr1 and ctr2 into counters 1 and 2 */
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 1, devpriv->divisor1,
-		   2);
-	i8254_load(dev->iobase + DAS16M1_8254_SECOND, 0, 2, devpriv->divisor2,
-		   2);
-
-	return ns;
+	i8254_write(timer_base, 0, 1, devpriv->divisor1);
+	i8254_write(timer_base, 0, 2, devpriv->divisor2);
 }
 
 static int das16m1_cmd_exec(struct comedi_device *dev,
@@ -267,6 +271,7 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	struct das16m1_private_struct *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned long timer_base = dev->iobase + DAS16M1_8254_FIRST;
 	unsigned int byte, i;
 
 	/* disable interrupts and internal pacer */
@@ -278,11 +283,11 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	/* Initialize lower half of hardware counter, used to determine how
 	 * many samples are in fifo.  Value doesn't actually load into counter
 	 * until counter's next clock (the next a/d conversion) */
-	i8254_load(dev->iobase + DAS16M1_8254_FIRST, 0, 1, 0, 2);
+	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
+	i8254_write(timer_base, 0, 1, 0);
 	/* remember current reading of counter so we know when counter has
 	 * actually been loaded */
-	devpriv->initial_hw_count =
-	    i8254_read(dev->iobase + DAS16M1_8254_FIRST, 0, 1);
+	devpriv->initial_hw_count = i8254_read(timer_base, 0, 1);
 	/* setup channel/gain queue */
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		outb(i, dev->iobase + DAS16M1_QUEUE_ADDR);
@@ -292,10 +297,14 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 		outb(byte, dev->iobase + DAS16M1_QUEUE_DATA);
 	}
 
-	/* set counter mode and counts */
-	cmd->convert_arg =
-	    das16m1_set_pacer(dev, cmd->convert_arg,
-			      cmd->flags & TRIG_ROUND_MASK);
+	/* enable interrupts and set internal pacer counter mode and counts */
+	devpriv->control_state &= ~PACER_MASK;
+	if (cmd->convert_src == TRIG_TIMER) {
+		das16m1_set_pacer(dev);
+		devpriv->control_state |= INT_PACER;
+	} else {	/* TRIG_EXT */
+		devpriv->control_state |= EXT_PACER;
+	}
 
 	/*  set control & status register */
 	byte = 0;
@@ -307,13 +316,6 @@ static int das16m1_cmd_exec(struct comedi_device *dev,
 	outb(byte, dev->iobase + DAS16M1_CS);
 	/* clear interrupt bit */
 	outb(0, dev->iobase + DAS16M1_CLEAR_INTR);
-
-	/* enable interrupts and internal pacer */
-	devpriv->control_state &= ~PACER_MASK;
-	if (cmd->convert_src == TRIG_TIMER)
-		devpriv->control_state |= INT_PACER;
-	else
-		devpriv->control_state |= EXT_PACER;
 
 	devpriv->control_state |= INTE;
 	outb(devpriv->control_state, dev->iobase + DAS16M1_INTR_CONTROL);

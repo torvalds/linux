@@ -8,7 +8,6 @@ config ARCH_SHMOBILE_MULTI
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GIC
-	select MIGHT_HAVE_PCI
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	select NO_IOPORT_MAP
 	select PINCTRL
@@ -108,6 +107,7 @@ config ARCH_R8A7778
 	select SH_CLK_CPG
 	select ARM_GIC
 	select SYS_SUPPORTS_SH_TMU
+	select RENESAS_INTC_IRQPIN
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
@@ -139,16 +139,6 @@ config ARCH_R8A7791
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-
-config ARCH_EMEV2
-	bool "Emma Mobile EV2"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select CPU_V7
-	select MIGHT_HAVE_PCI
-	select USE_OF
-	select AUTO_ZRELADDR
-	select SYS_SUPPORTS_EM_STI
 
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
@@ -205,8 +195,8 @@ config MACH_ARMADILLO800EVA_REFERENCE
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 	---help---
-	   Use reference implementation of Aramdillo800 EVA board support
-	   which makes a greater use of device tree at the expense
+	   Use reference implementation of Armadillo800 EVA board support
+	   which makes greater use of device tree at the expense
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
@@ -216,7 +206,6 @@ config MACH_BOCKW
 	depends on ARCH_R8A7778
 	select ARCH_REQUIRE_GPIOLIB
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select RENESAS_INTC_IRQPIN
 	select SND_SOC_AK4554 if SND_SIMPLE_CARD
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
 	select USE_OF
@@ -225,7 +214,6 @@ config MACH_BOCKW_REFERENCE
 	bool "BOCK-W  - Reference Device Tree Implementation"
 	depends on ARCH_R8A7778
 	select ARCH_REQUIRE_GPIOLIB
-	select RENESAS_INTC_IRQPIN
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
 	---help---
@@ -239,17 +227,6 @@ config MACH_GENMAI
 	bool "Genmai board"
 	depends on ARCH_R7S72100
 	select USE_OF
-
-config MACH_GENMAI_REFERENCE
-	bool "Genmai board - Reference Device Tree Implementation"
-	depends on ARCH_R7S72100
-	select USE_OF
-	---help---
-	   Use reference implementation of Genmai board support
-	   which makes use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
 
 config MACH_MARZEN
 	bool "MARZEN board"

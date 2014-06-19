@@ -323,9 +323,18 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif
 #ifndef __compiletime_error
 # define __compiletime_error(message)
-# define __compiletime_error_fallback(condition) \
+/*
+ * Sparse complains of variable sized arrays due to the temporary variable in
+ * __compiletime_assert. Unfortunately we can't just expand it out to make
+ * sparse see a constant array size without breaking compiletime_assert on old
+ * versions of GCC (e.g. 4.2.4), so hide the array from sparse altogether.
+ */
+# ifndef __CHECKER__
+#  define __compiletime_error_fallback(condition) \
 	do { ((void)sizeof(char[1 - 2 * condition])); } while (0)
-#else
+# endif
+#endif
+#ifndef __compiletime_error_fallback
 # define __compiletime_error_fallback(condition) do { } while (0)
 #endif
 
@@ -374,7 +383,9 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Ignore/forbid kprobes attach on very low level functions marked by this attribute: */
 #ifdef CONFIG_KPROBES
 # define __kprobes	__attribute__((__section__(".kprobes.text")))
+# define nokprobe_inline	__always_inline
 #else
 # define __kprobes
+# define nokprobe_inline	inline
 #endif
 #endif /* __LINUX_COMPILER_H */

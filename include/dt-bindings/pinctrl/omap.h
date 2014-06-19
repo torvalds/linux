@@ -62,12 +62,29 @@
 #define OMAP3630_CORE2_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x25a0) (val)
 #define OMAP3_WKUP_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x2a00) (val)
 #define AM33XX_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val)
-#define OMAP4_CORE_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x0040) (val)
-#define OMAP4_WKUP_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0xe040) (val)
 #define AM4372_IOPAD(pa, val)		OMAP_IOPAD_OFFSET((pa), 0x0800) (val)
-#define OMAP5_CORE_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x2840) (val)
-#define OMAP5_WKUP_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0xc840) (val)
 #define DRA7XX_CORE_IOPAD(pa, val)	OMAP_IOPAD_OFFSET((pa), 0x3400) (val)
+
+/*
+ * Macros to allow using the offset from the padconf physical address
+ * instead  of the offset from padconf base.
+ */
+#define OMAP_PADCONF_OFFSET(offset, base_offset)	((offset) - (base_offset))
+
+#define OMAP4_IOPAD(offset, val)	OMAP_PADCONF_OFFSET((offset), 0x0040) (val)
+#define OMAP5_IOPAD(offset, val)	OMAP_PADCONF_OFFSET((offset), 0x0040) (val)
+
+/*
+ * Define some commonly used pins configured by the boards.
+ * Note that some boards use alternative pins, so check
+ * the schematics before using these.
+ */
+#define OMAP3_UART1_RX		0x152
+#define OMAP3_UART2_RX		0x14a
+#define OMAP3_UART3_RX		0x16e
+#define OMAP4_UART2_RX		0xdc
+#define OMAP4_UART3_RX		0x104
+#define OMAP4_UART4_RX		0x11c
 
 #endif
 

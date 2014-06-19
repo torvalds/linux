@@ -1494,7 +1494,7 @@ static int xen_pgd_alloc(struct mm_struct *mm)
 		page->private = (unsigned long)user_pgd;
 
 		if (user_pgd != NULL) {
-			user_pgd[pgd_index(VSYSCALL_START)] =
+			user_pgd[pgd_index(VSYSCALL_ADDR)] =
 				__pgd(__pa(level3_user_vsyscall) | _PAGE_TABLE);
 			ret = 0;
 		}
@@ -2062,8 +2062,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 	case FIX_KMAP_BEGIN ... FIX_KMAP_END:
 # endif
 #else
-	case VSYSCALL_LAST_PAGE ... VSYSCALL_FIRST_PAGE:
-	case VVAR_PAGE:
+	case VSYSCALL_PAGE:
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
@@ -2104,8 +2103,7 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #ifdef CONFIG_X86_64
 	/* Replicate changes to map the vsyscall page into the user
 	   pagetable vsyscall mapping. */
-	if ((idx >= VSYSCALL_LAST_PAGE && idx <= VSYSCALL_FIRST_PAGE) ||
-	    idx == VVAR_PAGE) {
+	if (idx == VSYSCALL_PAGE) {
 		unsigned long vaddr = __fix_to_virt(idx);
 		set_pte_vaddr_pud(level3_user_vsyscall, vaddr, pte);
 	}
@@ -2510,6 +2508,95 @@ void __init xen_hvm_init_mmu_ops(void)
 }
 #endif
 
+#ifdef CONFIG_XEN_PVH
+/*
+ * Map foreign gfn (fgfn), to local pfn (lpfn). This for the user
+ * space creating new guest on pvh dom0 and needing to map domU pages.
+ */
+static int xlate_add_to_p2m(unsigned long lpfn, unsigned long fgfn,
+			    unsigned int domid)
+{
+	int rc, err = 0;
+	xen_pfn_t gpfn = lpfn;
+	xen_ulong_t idx = fgfn;
+
+	struct xen_add_to_physmap_range xatp = {
+		.domid = DOMID_SELF,
+		.foreign_domid = domid,
+		.size = 1,
+		.space = XENMAPSPACE_gmfn_foreign,
+	};
+	set_xen_guest_handle(xatp.idxs, &idx);
+	set_xen_guest_handle(xatp.gpfns, &gpfn);
+	set_xen_guest_handle(xatp.errs, &err);
+
+	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
+	if (rc < 0)
+		return rc;
+	return err;
+}
+
+static int xlate_remove_from_p2m(unsigned long spfn, int count)
+{
+	struct xen_remove_from_physmap xrp;
+	int i, rc;
+
+	for (i = 0; i < count; i++) {
+		xrp.domid = DOMID_SELF;
+		xrp.gpfn = spfn+i;
+		rc = HYPERVISOR_memory_op(XENMEM_remove_from_physmap, &xrp);
+		if (rc)
+			break;
+	}
+	return rc;
+}
+
+struct xlate_remap_data {
+	unsigned long fgfn; /* foreign domain's gfn */
+	pgprot_t prot;
+	domid_t  domid;
+	int index;
+	struct page **pages;
+};
+
+static int xlate_map_pte_fn(pte_t *ptep, pgtable_t token, unsigned long addr,
+			    void *data)
+{
+	int rc;
+	struct xlate_remap_data *remap = data;
+	unsigned long pfn = page_to_pfn(remap->pages[remap->index++]);
+	pte_t pteval = pte_mkspecial(pfn_pte(pfn, remap->prot));
+
+	rc = xlate_add_to_p2m(pfn, remap->fgfn, remap->domid);
+	if (rc)
+		return rc;
+	native_set_pte(ptep, pteval);
+
+	return 0;
+}
+
+static int xlate_remap_gfn_range(struct vm_area_struct *vma,
+				 unsigned long addr, unsigned long mfn,
+				 int nr, pgprot_t prot, unsigned domid,
+				 struct page **pages)
+{
+	int err;
+	struct xlate_remap_data pvhdata;
+
+	BUG_ON(!pages);
+
+	pvhdata.fgfn = mfn;
+	pvhdata.prot = prot;
+	pvhdata.domid = domid;
+	pvhdata.index = 0;
+	pvhdata.pages = pages;
+	err = apply_to_page_range(vma->vm_mm, addr, nr << PAGE_SHIFT,
+				  xlate_map_pte_fn, &pvhdata);
+	flush_tlb_all();
+	return err;
+}
+#endif
+
 #define REMAP_BATCH_SIZE 16
 
 struct remap_data {
@@ -2522,7 +2609,7 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 				 unsigned long addr, void *data)
 {
 	struct remap_data *rmd = data;
-	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
+	pte_t pte = pte_mkspecial(mfn_pte(rmd->mfn++, rmd->prot));
 
 	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr;
 	rmd->mmu_update->val = pte_val_ma(pte);
@@ -2544,12 +2631,17 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 	unsigned long range;
 	int err = 0;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return -EINVAL;
-
-	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
-
 	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_IO)) == (VM_PFNMAP | VM_IO)));
+
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+#ifdef CONFIG_XEN_PVH
+		/* We need to update the local page tables and the xen HAP */
+		return xlate_remap_gfn_range(vma, addr, mfn, nr, prot,
+					     domid, pages);
+#else
+		return -EINVAL;
+#endif
+        }
 
 	rmd.mfn = mfn;
 	rmd.prot = prot;
@@ -2588,6 +2680,25 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 	if (!pages || !xen_feature(XENFEAT_auto_translated_physmap))
 		return 0;
 
+#ifdef CONFIG_XEN_PVH
+	while (numpgs--) {
+		/*
+		 * The mmu has already cleaned up the process mmu
+		 * resources at this point (lookup_address will return
+		 * NULL).
+		 */
+		unsigned long pfn = page_to_pfn(pages[numpgs]);
+
+		xlate_remove_from_p2m(pfn, 1);
+	}
+	/*
+	 * We don't need to flush tlbs because as part of
+	 * xlate_remove_from_p2m, the hypervisor will do tlb flushes
+	 * after removing the p2m entries from the EPT/NPT
+	 */
+	return 0;
+#else
 	return -EINVAL;
+#endif
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);

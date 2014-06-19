@@ -1120,7 +1120,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	tm6000_config_tuner(dev);
 
 	/* Set video standard */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->norm);
 
 	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;

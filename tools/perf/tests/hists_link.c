@@ -8,145 +8,7 @@
 #include "machine.h"
 #include "thread.h"
 #include "parse-events.h"
-
-static struct {
-	u32 pid;
-	const char *comm;
-} fake_threads[] = {
-	{ 100, "perf" },
-	{ 200, "perf" },
-	{ 300, "bash" },
-};
-
-static struct {
-	u32 pid;
-	u64 start;
-	const char *filename;
-} fake_mmap_info[] = {
-	{ 100, 0x40000, "perf" },
-	{ 100, 0x50000, "libc" },
-	{ 100, 0xf0000, "[kernel]" },
-	{ 200, 0x40000, "perf" },
-	{ 200, 0x50000, "libc" },
-	{ 200, 0xf0000, "[kernel]" },
-	{ 300, 0x40000, "bash" },
-	{ 300, 0x50000, "libc" },
-	{ 300, 0xf0000, "[kernel]" },
-};
-
-struct fake_sym {
-	u64 start;
-	u64 length;
-	const char *name;
-};
-
-static struct fake_sym perf_syms[] = {
-	{ 700, 100, "main" },
-	{ 800, 100, "run_command" },
-	{ 900, 100, "cmd_record" },
-};
-
-static struct fake_sym bash_syms[] = {
-	{ 700, 100, "main" },
-	{ 800, 100, "xmalloc" },
-	{ 900, 100, "xfree" },
-};
-
-static struct fake_sym libc_syms[] = {
-	{ 700, 100, "malloc" },
-	{ 800, 100, "free" },
-	{ 900, 100, "realloc" },
-};
-
-static struct fake_sym kernel_syms[] = {
-	{ 700, 100, "schedule" },
-	{ 800, 100, "page_fault" },
-	{ 900, 100, "sys_perf_event_open" },
-};
-
-static struct {
-	const char *dso_name;
-	struct fake_sym *syms;
-	size_t nr_syms;
-} fake_symbols[] = {
-	{ "perf", perf_syms, ARRAY_SIZE(perf_syms) },
-	{ "bash", bash_syms, ARRAY_SIZE(bash_syms) },
-	{ "libc", libc_syms, ARRAY_SIZE(libc_syms) },
-	{ "[kernel]", kernel_syms, ARRAY_SIZE(kernel_syms) },
-};
-
-static struct machine *setup_fake_machine(struct machines *machines)
-{
-	struct machine *machine = machines__find(machines, HOST_KERNEL_ID);
-	size_t i;
-
-	if (machine == NULL) {
-		pr_debug("Not enough memory for machine setup\n");
-		return NULL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(fake_threads); i++) {
-		struct thread *thread;
-
-		thread = machine__findnew_thread(machine, fake_threads[i].pid,
-						 fake_threads[i].pid);
-		if (thread == NULL)
-			goto out;
-
-		thread__set_comm(thread, fake_threads[i].comm, 0);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {
-		union perf_event fake_mmap_event = {
-			.mmap = {
-				.header = { .misc = PERF_RECORD_MISC_USER, },
-				.pid = fake_mmap_info[i].pid,
-				.tid = fake_mmap_info[i].pid,
-				.start = fake_mmap_info[i].start,
-				.len = 0x1000ULL,
-				.pgoff = 0ULL,
-			},
-		};
-
-		strcpy(fake_mmap_event.mmap.filename,
-		       fake_mmap_info[i].filename);
-
-		machine__process_mmap_event(machine, &fake_mmap_event, NULL);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(fake_symbols); i++) {
-		size_t k;
-		struct dso *dso;
-
-		dso = __dsos__findnew(&machine->user_dsos,
-				      fake_symbols[i].dso_name);
-		if (dso == NULL)
-			goto out;
-
-		/* emulate dso__load() */
-		dso__set_loaded(dso, MAP__FUNCTION);
-
-		for (k = 0; k < fake_symbols[i].nr_syms; k++) {
-			struct symbol *sym;
-			struct fake_sym *fsym = &fake_symbols[i].syms[k];
-
-			sym = symbol__new(fsym->start, fsym->length,
-					  STB_GLOBAL, fsym->name);
-			if (sym == NULL)
-				goto out;
-
-			symbols__insert(&dso->symbols[MAP__FUNCTION], sym);
-		}
-	}
-
-	return machine;
-
-out:
-	pr_debug("Not enough memory for machine setup\n");
-	machine__delete_threads(machine);
-	machine__delete(machine);
-	return NULL;
-}
+#include "hists_common.h"
 
 struct sample {
 	u32 pid;
@@ -156,43 +18,44 @@ struct sample {
 	struct symbol *sym;
 };
 
+/* For the numbers, see hists_common.c */
 static struct sample fake_common_samples[] = {
 	/* perf [kernel] schedule() */
-	{ .pid = 100, .ip = 0xf0000 + 700, },
+	{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_SCHEDULE, },
 	/* perf [perf]   main() */
-	{ .pid = 200, .ip = 0x40000 + 700, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_MAIN, },
 	/* perf [perf]   cmd_record() */
-	{ .pid = 200, .ip = 0x40000 + 900, },
+	{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_PERF_CMD_RECORD, },
 	/* bash [bash]   xmalloc() */
-	{ .pid = 300, .ip = 0x40000 + 800, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XMALLOC, },
 	/* bash [libc]   malloc() */
-	{ .pid = 300, .ip = 0x50000 + 700, },
+	{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, },
 };
 
 static struct sample fake_samples[][5] = {
 	{
 		/* perf [perf]   run_command() */
-		{ .pid = 100, .ip = 0x40000 + 800, },
+		{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_PERF_RUN_COMMAND, },
 		/* perf [libc]   malloc() */
-		{ .pid = 100, .ip = 0x50000 + 700, },
+		{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_LIBC_MALLOC, },
 		/* perf [kernel] page_fault() */
-		{ .pid = 100, .ip = 0xf0000 + 800, },
+		{ .pid = FAKE_PID_PERF1, .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 		/* perf [kernel] sys_perf_event_open() */
-		{ .pid = 200, .ip = 0xf0000 + 900, },
+		{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_KERNEL_SYS_PERF_EVENT_OPEN, },
 		/* bash [libc]   free() */
-		{ .pid = 300, .ip = 0x50000 + 800, },
+		{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_FREE, },
 	},
 	{
 		/* perf [libc]   free() */
-		{ .pid = 200, .ip = 0x50000 + 800, },
+		{ .pid = FAKE_PID_PERF2, .ip = FAKE_IP_LIBC_FREE, },
 		/* bash [libc]   malloc() */
-		{ .pid = 300, .ip = 0x50000 + 700, }, /* will be merged */
+		{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_MALLOC, }, /* will be merged */
 		/* bash [bash]   xfee() */
-		{ .pid = 300, .ip = 0x40000 + 900, },
+		{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_BASH_XFREE, },
 		/* bash [libc]   realloc() */
-		{ .pid = 300, .ip = 0x50000 + 900, },
+		{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_LIBC_REALLOC, },
 		/* bash [kernel] page_fault() */
-		{ .pid = 300, .ip = 0xf0000 + 800, },
+		{ .pid = FAKE_PID_BASH,  .ip = FAKE_IP_KERNEL_PAGE_FAULT, },
 	},
 };
 
@@ -201,7 +64,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	struct perf_evsel *evsel;
 	struct addr_location al;
 	struct hist_entry *he;
-	struct perf_sample sample = { .cpu = 0, };
+	struct perf_sample sample = { .period = 1, };
 	size_t i = 0, k;
 
 	/*
@@ -218,13 +81,14 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			};
 
 			sample.pid = fake_common_samples[k].pid;
+			sample.tid = fake_common_samples[k].pid;
 			sample.ip = fake_common_samples[k].ip;
 			if (perf_event__preprocess_sample(&event, machine, &al,
 							  &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(&evsel->hists, &al, NULL,
-						NULL, NULL, 1, 1, 0);
+						NULL, NULL, 1, 1, 0, true);
 			if (he == NULL)
 				goto out;
 
@@ -241,13 +105,14 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 			};
 
 			sample.pid = fake_samples[i][k].pid;
+			sample.tid = fake_samples[i][k].pid;
 			sample.ip = fake_samples[i][k].ip;
 			if (perf_event__preprocess_sample(&event, machine, &al,
 							  &sample) < 0)
 				goto out;
 
 			he = __hists__add_entry(&evsel->hists, &al, NULL,
-						NULL, NULL, 1, 1, 0);
+						NULL, NULL, 1, 1, 0, true);
 			if (he == NULL)
 				goto out;
 
@@ -403,33 +268,6 @@ static int validate_link(struct hists *leader, struct hists *other)
 	return __validate_link(leader, 0) || __validate_link(other, 1);
 }
 
-static void print_hists(struct hists *hists)
-{
-	int i = 0;
-	struct rb_root *root;
-	struct rb_node *node;
-
-	if (sort__need_collapse)
-		root = &hists->entries_collapsed;
-	else
-		root = hists->entries_in;
-
-	pr_info("----- %s --------\n", __func__);
-	node = rb_first(root);
-	while (node) {
-		struct hist_entry *he;
-
-		he = rb_entry(node, struct hist_entry, rb_node_in);
-
-		pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
-			i, thread__comm_str(he->thread), he->ms.map->dso->short_name,
-			he->ms.sym->name, he->stat.period);
-
-		i++;
-		node = rb_next(node);
-	}
-}
-
 int test__hists_link(void)
 {
 	int err = -1;
@@ -471,7 +309,7 @@ int test__hists_link(void)
 		hists__collapse_resort(&evsel->hists, NULL);
 
 		if (verbose > 2)
-			print_hists(&evsel->hists);
+			print_hists_in(&evsel->hists);
 	}
 
 	first = perf_evlist__first(evlist);
@@ -494,6 +332,7 @@ int test__hists_link(void)
 out:
 	/* tear down everything */
 	perf_evlist__delete(evlist);
+	reset_output_field();
 	machines__exit(&machines);
 
 	return err;

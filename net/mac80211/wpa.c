@@ -406,7 +406,10 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	if (info->control.hw_key &&
 	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
-	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) &&
+	    !((info->control.hw_key->flags &
+	       IEEE80211_KEY_FLAG_GENERATE_IV_MGMT) &&
+	      ieee80211_is_mgmt(hdr->frame_control))) {
 		/*
 		 * hwaccel has no need for preallocated room for CCMP
 		 * header or MIC fields

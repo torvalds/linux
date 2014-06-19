@@ -823,9 +823,9 @@ static int ni_660x_input_poll(struct comedi_device *dev,
 
 	/* lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&devpriv->interrupt_lock, flags);
-	mite_sync_input_dma(counter->mite_chan, s->async);
+	mite_sync_input_dma(counter->mite_chan, s);
 	spin_unlock_irqrestore(&devpriv->interrupt_lock, flags);
-	return comedi_buf_read_n_available(s->async);
+	return comedi_buf_read_n_available(s);
 }
 
 static int ni_660x_buf_change(struct comedi_device *dev,
@@ -836,7 +836,7 @@ static int ni_660x_buf_change(struct comedi_device *dev,
 	struct ni_gpct *counter = s->private;
 	int ret;
 
-	ret = mite_buf_change(mite_ring(devpriv, counter), s->async);
+	ret = mite_buf_change(mite_ring(devpriv, counter), s);
 	if (ret < 0)
 		return ret;
 

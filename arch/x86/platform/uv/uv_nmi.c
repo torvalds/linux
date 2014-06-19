@@ -85,7 +85,7 @@ static cpumask_var_t uv_nmi_cpu_mask;
  * Default is all stack dumps go to the console and buffer.
  * Lower level to send to log buffer only.
  */
-static int uv_nmi_loglevel = 7;
+static int uv_nmi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
 module_param_named(dump_loglevel, uv_nmi_loglevel, int, 0644);
 
 /*

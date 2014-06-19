@@ -53,7 +53,8 @@ int sst_byt_stream_commit(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream);
 
 /* stream ALSA trigger operations */
-int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream);
+int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream,
+			 u32 start_offset);
 int sst_byt_stream_stop(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_pause(struct sst_byt *byt, struct sst_byt_stream *stream);
 int sst_byt_stream_resume(struct sst_byt *byt, struct sst_byt_stream *stream);
@@ -65,5 +66,9 @@ int sst_byt_get_dsp_position(struct sst_byt *byt,
 int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_byt_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_byt_get_dsp(struct sst_byt *byt);
+int sst_byt_dsp_suspend_noirq(struct device *dev, struct sst_pdata *pdata);
+int sst_byt_dsp_suspend_late(struct device *dev, struct sst_pdata *pdata);
+int sst_byt_dsp_boot(struct device *dev, struct sst_pdata *pdata);
+int sst_byt_dsp_wait_for_ready(struct device *dev, struct sst_pdata *pdata);
 
 #endif

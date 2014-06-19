@@ -242,6 +242,20 @@ static struct fb_videomode known_lcd_panels[] = {
 		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.flag           = 0,
 	},
+	[3] = {
+		/* Densitron 84-0023-001T */
+		.name           = "Densitron_84-0023-001T",
+		.xres           = 320,
+		.yres           = 240,
+		.pixclock       = KHZ2PICOS(6400),
+		.left_margin    = 0,
+		.right_margin   = 0,
+		.upper_margin   = 0,
+		.lower_margin   = 0,
+		.hsync_len      = 30,
+		.vsync_len      = 3,
+		.sync           = 0,
+	},
 };
 
 static bool da8xx_fb_is_raster_enabled(void)

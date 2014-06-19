@@ -2218,7 +2218,6 @@ int bnx2x_update_pfc(struct link_params *params,
 	 */
 	u32 val;
 	struct bnx2x *bp = params->bp;
-	int bnx2x_status = 0;
 	u8 bmac_loopback = (params->loopback_mode == LOOPBACK_BMAC);
 
 	if (params->feature_config_flags & FEATURE_CONFIG_PFC_ENABLED)
@@ -2232,7 +2231,7 @@ int bnx2x_update_pfc(struct link_params *params,
 	bnx2x_update_pfc_nig(params, vars, pfc_params);
 
 	if (!vars->link_up)
-		return bnx2x_status;
+		return 0;
 
 	DP(NETIF_MSG_LINK, "About to update PFC in BMAC\n");
 
@@ -2246,7 +2245,7 @@ int bnx2x_update_pfc(struct link_params *params,
 		    == 0) {
 			DP(NETIF_MSG_LINK, "About to update PFC in EMAC\n");
 			bnx2x_emac_enable(params, vars, 0);
-			return bnx2x_status;
+			return 0;
 		}
 		if (CHIP_IS_E2(bp))
 			bnx2x_update_pfc_bmac2(params, vars, bmac_loopback);
@@ -2260,7 +2259,7 @@ int bnx2x_update_pfc(struct link_params *params,
 			val = 1;
 		REG_WR(bp, NIG_REG_BMAC0_PAUSE_OUT_EN + params->port*4, val);
 	}
-	return bnx2x_status;
+	return 0;
 }
 
 static int bnx2x_bmac1_enable(struct link_params *params,
@@ -3703,7 +3702,8 @@ static void bnx2x_warpcore_restart_AN_KR(struct bnx2x_phy *phy,
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
-	u16 lane, i, cl72_ctrl, an_adv = 0;
+	u16 lane, i, cl72_ctrl, an_adv = 0, val;
+	u32 wc_lane_config;
 	struct bnx2x *bp = params->bp;
 	static struct bnx2x_reg_set reg_set[] = {
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7},
@@ -3822,15 +3822,27 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 		/* Enable Auto-Detect to support 1G over CL37 as well */
 		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X1, 0x10);
-
+		wc_lane_config = REG_RD(bp, params->shmem_base +
+					offsetof(struct shmem_region, dev_info.
+					shared_hw_config.wc_lane_config));
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_RX0_PCI_CTRL + (lane << 4), &val);
 		/* Force cl48 sync_status LOW to avoid getting stuck in CL73
 		 * parallel-detect loop when CL73 and CL37 are enabled.
 		 */
-		CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
-				  MDIO_AER_BLOCK_AER_REG, 0);
+		val |= 1 << 11;
+
+		/* Restore Polarity settings in case it was run over by
+		 * previous link owner
+		 */
+		if (wc_lane_config &
+		    (SHARED_HW_CFG_RX_LANE0_POL_FLIP_ENABLED << lane))
+			val |= 3 << 2;
+		else
+			val &= ~(3 << 2);
 		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
-				 MDIO_WC_REG_RXB_ANA_RX_CONTROL_PCI, 0x0800);
-		bnx2x_set_aer_mmd(params, phy);
+				 MDIO_WC_REG_RX0_PCI_CTRL + (lane << 4),
+				 val);
 
 		bnx2x_disable_kr2(params, vars, phy);
 	}
@@ -6473,7 +6485,6 @@ int bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 static int bnx2x_link_initialize(struct link_params *params,
 				 struct link_vars *vars)
 {
-	int rc = 0;
 	u8 phy_index, non_ext_phy;
 	struct bnx2x *bp = params->bp;
 	/* In case of external phy existence, the line speed would be the
@@ -6546,7 +6557,7 @@ static int bnx2x_link_initialize(struct link_params *params,
 			NIG_STATUS_XGXS0_LINK_STATUS |
 			NIG_STATUS_SERDES0_LINK_STATUS |
 			NIG_MASK_MI_INT));
-	return rc;
+	return 0;
 }
 
 static void bnx2x_int_link_reset(struct bnx2x_phy *phy,
@@ -12461,6 +12472,7 @@ static int bnx2x_avoid_link_flap(struct link_params *params,
 	u32 dont_clear_stat, lfa_sts;
 	struct bnx2x *bp = params->bp;
 
+	bnx2x_set_mdio_emac_per_phy(bp, params);
 	/* Sync the link parameters */
 	bnx2x_link_status_update(params, vars);
 

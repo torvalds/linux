@@ -129,9 +129,12 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
 		return;
 
-	/* A VHT STA must support 40 MHz */
-	if (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-		return;
+	/*
+	 * A VHT STA must support 40 MHz, but if we verify that here
+	 * then we break a few things - some APs (e.g. Netgear R6300v2
+	 * and others based on the BCM4360 chipset) will unset this
+	 * capability bit when operating in 20 MHz.
+	 */
 
 	vht_cap->vht_supported = true;
 

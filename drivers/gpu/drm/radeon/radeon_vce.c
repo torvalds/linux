@@ -66,6 +66,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	case CHIP_BONAIRE:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_HAWAII:
 	case CHIP_MULLINS:
 		fw_name = FIRMWARE_BONAIRE;
 		break;
@@ -443,13 +444,16 @@ int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
  * @p: parser context
  * @lo: address of lower dword
  * @hi: address of higher dword
+ * @size: size of checker for relocation buffer
  *
  * Patch relocation inside command stream with real buffer address
  */
-int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi)
+int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi,
+			unsigned size)
 {
 	struct radeon_cs_chunk *relocs_chunk;
-	uint64_t offset;
+	struct radeon_cs_reloc *reloc;
+	uint64_t start, end, offset;
 	unsigned idx;
 
 	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
@@ -462,12 +466,57 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi)
 		return -EINVAL;
 	}
 
-	offset += p->relocs_ptr[(idx / 4)]->gpu_offset;
+	reloc = p->relocs_ptr[(idx / 4)];
+	start = reloc->gpu_offset;
+	end = start + radeon_bo_size(reloc->robj);
+	start += offset;
 
-        p->ib.ptr[lo] = offset & 0xFFFFFFFF;
-        p->ib.ptr[hi] = offset >> 32;
+	p->ib.ptr[lo] = start & 0xFFFFFFFF;
+	p->ib.ptr[hi] = start >> 32;
+
+	if (end <= start) {
+		DRM_ERROR("invalid reloc offset %llX!\n", offset);
+		return -EINVAL;
+	}
+	if ((end - start) < size) {
+		DRM_ERROR("buffer to small (%d / %d)!\n",
+			(unsigned)(end - start), size);
+		return -EINVAL;
+	}
 
 	return 0;
+}
+
+/**
+ * radeon_vce_validate_handle - validate stream handle
+ *
+ * @p: parser context
+ * @handle: handle to validate
+ *
+ * Validates the handle and return the found session index or -EINVAL
+ * we we don't have another free session index.
+ */
+int radeon_vce_validate_handle(struct radeon_cs_parser *p, uint32_t handle)
+{
+	unsigned i;
+
+	/* validate the handle */
+	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
+		if (atomic_read(&p->rdev->vce.handles[i]) == handle)
+			return i;
+	}
+
+	/* handle not found try to alloc a new one */
+	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
+		if (!atomic_cmpxchg(&p->rdev->vce.handles[i], 0, handle)) {
+			p->rdev->vce.filp[i] = p->filp;
+			p->rdev->vce.img_size[i] = 0;
+			return i;
+		}
+	}
+
+	DRM_ERROR("No more free VCE handles!\n");
+	return -EINVAL;
 }
 
 /**
@@ -478,8 +527,10 @@ int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi)
  */
 int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 {
-	uint32_t handle = 0;
-	bool destroy = false;
+	int session_idx = -1;
+	bool destroyed = false;
+	uint32_t tmp, handle = 0;
+	uint32_t *size = &tmp;
 	int i, r;
 
 	while (p->idx < p->chunks[p->chunk_ib_idx].length_dw) {
@@ -491,13 +542,29 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
                 	return -EINVAL;
 		}
 
+		if (destroyed) {
+			DRM_ERROR("No other command allowed after destroy!\n");
+			return -EINVAL;
+		}
+
 		switch (cmd) {
 		case 0x00000001: // session
 			handle = radeon_get_ib_value(p, p->idx + 2);
+			session_idx = radeon_vce_validate_handle(p, handle);
+			if (session_idx < 0)
+				return session_idx;
+			size = &p->rdev->vce.img_size[session_idx];
 			break;
 
 		case 0x00000002: // task info
+			break;
+
 		case 0x01000001: // create
+			*size = radeon_get_ib_value(p, p->idx + 8) *
+				radeon_get_ib_value(p, p->idx + 10) *
+				8 * 3 / 2;
+			break;
+
 		case 0x04000001: // config extension
 		case 0x04000002: // pic control
 		case 0x04000005: // rate control
@@ -506,23 +573,39 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			break;
 
 		case 0x03000001: // encode
-			r = radeon_vce_cs_reloc(p, p->idx + 10, p->idx + 9);
+			r = radeon_vce_cs_reloc(p, p->idx + 10, p->idx + 9,
+						*size);
 			if (r)
 				return r;
 
-			r = radeon_vce_cs_reloc(p, p->idx + 12, p->idx + 11);
+			r = radeon_vce_cs_reloc(p, p->idx + 12, p->idx + 11,
+						*size / 3);
 			if (r)
 				return r;
 			break;
 
 		case 0x02000001: // destroy
-			destroy = true;
+			destroyed = true;
 			break;
 
 		case 0x05000001: // context buffer
+			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
+						*size * 2);
+			if (r)
+				return r;
+			break;
+
 		case 0x05000004: // video bitstream buffer
+			tmp = radeon_get_ib_value(p, p->idx + 4);
+			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
+						tmp);
+			if (r)
+				return r;
+			break;
+
 		case 0x05000005: // feedback buffer
-			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2);
+			r = radeon_vce_cs_reloc(p, p->idx + 3, p->idx + 2,
+						4096);
 			if (r)
 				return r;
 			break;
@@ -532,33 +615,21 @@ int radeon_vce_cs_parse(struct radeon_cs_parser *p)
 			return -EINVAL;
 		}
 
+		if (session_idx == -1) {
+			DRM_ERROR("no session command at start of IB\n");
+			return -EINVAL;
+		}
+
 		p->idx += len / 4;
 	}
 
-	if (destroy) {
+	if (destroyed) {
 		/* IB contains a destroy msg, free the handle */
 		for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i)
 			atomic_cmpxchg(&p->rdev->vce.handles[i], handle, 0);
-
-		return 0;
-        }
-
-	/* create or encode, validate the handle */
-	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
-		if (atomic_read(&p->rdev->vce.handles[i]) == handle)
-			return 0;
 	}
 
-	/* handle not found try to alloc a new one */
-	for (i = 0; i < RADEON_MAX_VCE_HANDLES; ++i) {
-		if (!atomic_cmpxchg(&p->rdev->vce.handles[i], 0, handle)) {
-			p->rdev->vce.filp[i] = p->filp;
-			return 0;
-		}
-	}
-
-	DRM_ERROR("No more free VCE handles!\n");
-	return -EINVAL;
+	return 0;
 }
 
 /**

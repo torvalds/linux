@@ -318,7 +318,7 @@ befs_btree_find(struct super_block *sb, befs_data_stream * ds,
  * befs_find_key - Search for a key within a node
  * @sb: Filesystem superblock
  * @node: Node to find the key within
- * @key: Keystring to search for
+ * @findkey: Keystring to search for
  * @value: If key is found, the value stored with the key is put here
  *
  * finds exact match if one exists, and returns BEFS_BT_MATCH
@@ -405,7 +405,7 @@ befs_find_key(struct super_block *sb, befs_btree_node * node,
  * Heres how it works: Key_no is the index of the key/value pair to 
  * return in keybuf/value.
  * Bufsize is the size of keybuf (BEFS_NAME_LEN+1 is a good size). Keysize is 
- * the number of charecters in the key (just a convenience).
+ * the number of characters in the key (just a convenience).
  *
  * Algorithm:
  *   Get the first leafnode of the tree. See if the requested key is in that
@@ -502,12 +502,11 @@ befs_btree_read(struct super_block *sb, befs_data_stream * ds,
 			   "for key of size %d", __func__, bufsize, keylen);
 		brelse(this_node->bh);
 		goto error_alloc;
-	};
+	}
 
-	strncpy(keybuf, keystart, keylen);
+	strlcpy(keybuf, keystart, keylen + 1);
 	*value = fs64_to_cpu(sb, valarray[cur_key]);
 	*keysize = keylen;
-	keybuf[keylen] = '\0';
 
 	befs_debug(sb, "Read [%llu,%d]: Key \"%.*s\", Value %llu", node_off,
 		   cur_key, keylen, keybuf, *value);
@@ -707,7 +706,7 @@ befs_bt_get_key(struct super_block *sb, befs_btree_node * node,
  * @key1: pointer to the first key to be compared 
  * @keylen1: length in bytes of key1
  * @key2: pointer to the second key to be compared
- * @kelen2: length in bytes of key2
+ * @keylen2: length in bytes of key2
  *
  * Returns 0 if @key1 and @key2 are equal.
  * Returns >0 if @key1 is greater.
