@@ -1480,6 +1480,7 @@ max3421_reset_port(struct usb_hcd *hcd)
 
 	max3421_hcd->port_status &= ~(USB_PORT_STAT_ENABLE |
 				      USB_PORT_STAT_LOW_SPEED);
+	max3421_hcd->port_status |= USB_PORT_STAT_RESET;
 	set_bit(RESET_PORT, &max3421_hcd->todo);
 	wake_up_process(max3421_hcd->spi_thread);
 	return 0;
