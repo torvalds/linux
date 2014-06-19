@@ -138,6 +138,19 @@ static struct spear_shirq *spear310_shirq_blocks[] = {
 #define SPEAR320_INT_CLR_MASK_REG		0x04
 #define SPEAR320_INT_ENB_MASK_REG		0x08
 
+static struct spear_shirq spear320_shirq_ras3 = {
+	.offset		= 0,
+	.nr_irqs	= 7,
+	.disabled	= 1,
+	.regs = {
+		.enb_reg = SPEAR320_INT_ENB_MASK_REG,
+		.reset_to_enb = 1,
+		.status_reg = SPEAR320_INT_STS_MASK_REG,
+		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
+		.reset_to_clear = 1,
+	},
+};
+
 static struct spear_shirq spear320_shirq_ras1 = {
 	.offset		= 7,
 	.nr_irqs	= 3,
@@ -154,19 +167,6 @@ static struct spear_shirq spear320_shirq_ras2 = {
 	.nr_irqs	= 1,
 	.regs = {
 		.enb_reg = -1,
-		.status_reg = SPEAR320_INT_STS_MASK_REG,
-		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
-		.reset_to_clear = 1,
-	},
-};
-
-static struct spear_shirq spear320_shirq_ras3 = {
-	.offset		= 0,
-	.nr_irqs	= 7,
-	.disabled	= 1,
-	.regs = {
-		.enb_reg = SPEAR320_INT_ENB_MASK_REG,
-		.reset_to_enb = 1,
 		.status_reg = SPEAR320_INT_STS_MASK_REG,
 		.clear_reg = SPEAR320_INT_CLR_MASK_REG,
 		.reset_to_clear = 1,
