@@ -345,11 +345,6 @@ struct dt282x_private {
 	int dma_dir;
 };
 
-/*
- *    Some useless abstractions
- */
-#define chan_to_DAC(a)	((a)&1)
-
 static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
