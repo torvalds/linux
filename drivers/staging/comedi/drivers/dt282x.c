@@ -39,16 +39,18 @@ Configuration options:
   [6] - AO 0 jumpered for 0=straight binary, 1=2's complement
   [7] - AO 1 jumpered for 0=straight binary, 1=2's complement
   [8] - AI jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5]
-  [9] - AO 0 jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5],
-	4=[-2.5,2.5]
-  [10]- A0 1 jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5],
-	4=[-2.5,2.5]
+  [9] - AO channel 0 range (deprecated, see below)
+  [10]- AO channel 1 range (deprecated, see below)
 
 Notes:
   - AO commands might be broken.
   - If you try to run a command on both the AI and AO subdevices
     simultaneously, bad things will happen.  The driver needs to
     be fixed to check for this situation and return an error.
+  - AO range is not programmable. The AO subdevice has a range_table
+    containing all the possible analog output ranges. Use the range
+    that matches your board configuration to convert between data
+    values and physical units.
 */
 
 #include <linux/module.h>
@@ -183,6 +185,21 @@ static const struct comedi_lrange range_dt282x_ai_hi_unipolar = {
 	}
 };
 
+/*
+ * The Analog Output range is set per-channel using jumpers on the board.
+ * All of these ranges may not be available on some DT2821 series boards.
+ * The default jumper setting has both channels set for +/-10V output.
+ */
+static const struct comedi_lrange dt282x_ao_range = {
+	5, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2.5),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+	}
+};
+
 struct dt282x_board {
 	const char *name;
 	unsigned int ai_maxdata;
@@ -303,8 +320,6 @@ struct dt282x_private {
 	unsigned int ad_2scomp:1;
 	unsigned int da0_2scomp:1;
 	unsigned int da1_2scomp:1;
-
-	const struct comedi_lrange *darangelist[2];
 
 	unsigned short ao_readback[2];
 
@@ -1064,21 +1079,6 @@ static const struct comedi_lrange *opt_ai_range_lkup(int ispgl, int x)
 	}
 }
 
-static const struct comedi_lrange *const ao_range_table[] = {
-	&range_bipolar10,
-	&range_unipolar10,
-	&range_bipolar5,
-	&range_unipolar5,
-	&range_bipolar2_5
-};
-
-static const struct comedi_lrange *opt_ao_range_lkup(int x)
-{
-	if (x < 0 || x >= 5)
-		x = 0;
-	return ao_range_table[x];
-}
-
 static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 {
 	struct dt282x_private *devpriv = dev->private;
@@ -1246,9 +1246,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->maxdata	= board->ao_maxdata;
 
 		/* ranges are per-channel, set by jumpers on the board */
-		s->range_table_list = devpriv->darangelist;
-		devpriv->darangelist[0] = opt_ao_range_lkup(it->options[9]);
-		devpriv->darangelist[1] = opt_ao_range_lkup(it->options[10]);
+		s->range_table	= &dt282x_ao_range;
 		devpriv->da0_2scomp = it->options[6] ? 1 : 0;
 		devpriv->da1_2scomp = it->options[7] ? 1 : 0;
 
