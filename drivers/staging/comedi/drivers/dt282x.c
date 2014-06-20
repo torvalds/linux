@@ -207,7 +207,7 @@ static const struct comedi_lrange range_dt282x_ai_hi_unipolar = {
 
 struct dt282x_board {
 	const char *name;
-	int adbits;
+	unsigned int ai_maxdata;
 	int adchan_se;
 	int adchan_di;
 	int ai_speed;
@@ -219,7 +219,7 @@ struct dt282x_board {
 static const struct dt282x_board boardtypes[] = {
 	{
 		.name		= "dt2821",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
@@ -227,7 +227,7 @@ static const struct dt282x_board boardtypes[] = {
 		.dabits		= 12,
 	}, {
 		.name		= "dt2821-f",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 6500,
@@ -235,7 +235,7 @@ static const struct dt282x_board boardtypes[] = {
 		.dabits		= 12,
 	}, {
 		.name		= "dt2821-g",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 4000,
@@ -243,27 +243,27 @@ static const struct dt282x_board boardtypes[] = {
 		.dabits		= 12,
 	}, {
 		.name		= "dt2823",
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
 		.dabits		= 16,
 	}, {
 		.name		= "dt2824-pgh",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
 	}, {
 		.name		= "dt2824-pgl",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
 		.ispgl		= 1,
 	}, {
 		.name		= "dt2825",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
@@ -272,28 +272,28 @@ static const struct dt282x_board boardtypes[] = {
 		.dabits		= 12,
 	}, {
 		.name		= "dt2827",
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
 		.name		= "dt2828",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
 		.name		= "dt2829",
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.adchan_se	= 8,
 		.ai_speed	= 33250,
 		.dachan		= 2,
 		.dabits		= 16,
 	}, {
 		.name		= "dt21-ez",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
@@ -301,19 +301,19 @@ static const struct dt282x_board boardtypes[] = {
 		.dabits		= 12,
 	}, {
 		.name		= "dt23-ez",
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
 	}, {
 		.name		= "dt24-ez",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
 	}, {
 		.name		= "dt24-ez-pgl",
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
@@ -449,26 +449,26 @@ static int dt282x_ns_to_timer(int *nanosec, int round_mode)
 	return (15 << 8) | (255 - divider);
 }
 
-static void dt282x_munge(struct comedi_device *dev, unsigned short *buf,
+static void dt282x_munge(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 unsigned short *buf,
 			 unsigned int nbytes)
 {
-	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
-	unsigned int i;
-	unsigned short mask = (1 << board->adbits) - 1;
-	unsigned short sign = 1 << (board->adbits - 1);
-	int n;
-
-	if (devpriv->ad_2scomp)
-		sign = 1 << (board->adbits - 1);
-	else
-		sign = 0;
+	unsigned int val;
+	int i;
 
 	if (nbytes % 2)
 		comedi_error(dev, "bug! odd number of bytes from dma xfer");
-	n = nbytes / 2;
-	for (i = 0; i < n; i++)
-		buf[i] = (buf[i] & mask) ^ sign;
+
+	for (i = 0; i < nbytes / 2; i++) {
+		val = buf[i];
+		val &= s->maxdata;
+		if (devpriv->ad_2scomp)
+			val = comedi_offset_munge(s, val);
+
+		buf[i] = val;
+	}
 }
 
 static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
@@ -527,7 +527,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 
 	devpriv->current_dma_index = 1 - i;
 
-	dt282x_munge(dev, ptr, size);
+	dt282x_munge(dev, s, ptr, size);
 	ret = cfc_write_array_to_buffer(s, ptr, size);
 	if (ret != size) {
 		s->async->events |= COMEDI_CB_OVERFLOW;
@@ -597,10 +597,10 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		unsigned short data;
 
 		data = inw(dev->iobase + DT2821_ADDAT);
-		data &= (1 << board->adbits) - 1;
-
+		data &= s->maxdata;
 		if (devpriv->ad_2scomp)
-			data ^= 1 << (board->adbits - 1);
+			data = comedi_offset_munge(s, data);
+
 		ret = comedi_buf_put(s, data);
 
 		if (ret == 0)
@@ -671,10 +671,11 @@ static int dt282x_ai_timeout(struct comedi_device *dev,
  */
 static int dt282x_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
+	unsigned int val;
 	int ret;
 	int i;
 
@@ -698,11 +699,12 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		data[i] =
-		    inw(dev->iobase +
-			DT2821_ADDAT) & ((1 << board->adbits) - 1);
+		val = inw(dev->iobase + DT2821_ADDAT);
+		val &= s->maxdata;
 		if (devpriv->ad_2scomp)
-			data[i] ^= (1 << (board->adbits - 1));
+			val = comedi_offset_munge(s, val);
+
+		data[i] = val;
 	}
 
 	return i;
@@ -1260,7 +1262,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan =
 	    (it->options[opt_diff]) ? board->adchan_di : board->adchan_se;
 	s->insn_read = dt282x_ai_insn_read;
-	s->maxdata = (1 << board->adbits) - 1;
+	s->maxdata = board->ai_maxdata;
 	s->range_table =
 	    opt_ai_range_lkup(board->ispgl, it->options[opt_ai_range]);
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
