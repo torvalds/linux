@@ -63,65 +63,6 @@ Efuse_CalculateWordCnts(u8 word_en)
 	return word_cnts;
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	EFUSE_Read1Byte
- *
- * Overview:	Copy from WMAC fot EFUSE read 1 byte.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 09/23/2008	MHC		Copy from WMAC.
- *
- *---------------------------------------------------------------------------*/
-u8 EFUSE_Read1Byte(struct adapter *Adapter, u16 Address)
-{
-	u8 data;
-	u8 Bytetemp = {0x00};
-	u8 temp = {0x00};
-	u32 k = 0;
-	u16 contentLen = 0;
-
-	EFUSE_GetEfuseDefinition(Adapter, EFUSE_WIFI , TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&contentLen);
-
-	if (Address < contentLen) {	/* E-fuse 512Byte */
-		/* Write E-fuse Register address bit0~7 */
-		temp = Address & 0xFF;
-		usb_write8(Adapter, EFUSE_CTRL+1, temp);
-		Bytetemp = usb_read8(Adapter, EFUSE_CTRL+2);
-		/* Write E-fuse Register address bit8~9 */
-		temp = ((Address >> 8) & 0x03) | (Bytetemp & 0xFC);
-		usb_write8(Adapter, EFUSE_CTRL+2, temp);
-
-		/* Write 0x30[31]= 0 */
-		Bytetemp = usb_read8(Adapter, EFUSE_CTRL+3);
-		temp = Bytetemp & 0x7F;
-		usb_write8(Adapter, EFUSE_CTRL+3, temp);
-
-		/* Wait Write-ready (0x30[31]= 1) */
-		Bytetemp = usb_read8(Adapter, EFUSE_CTRL+3);
-		while (!(Bytetemp & 0x80)) {
-			Bytetemp = usb_read8(Adapter, EFUSE_CTRL+3);
-			k++;
-			if (k == 1000) {
-				k = 0;
-				break;
-			}
-		}
-		data = usb_read8(Adapter, EFUSE_CTRL);
-		return data;
-	} else {
-		return 0xFF;
-	}
-
-} /* EFUSE_Read1Byte */
-
-/*  11/16/2008 MH Read one byte from real Efuse. */
 u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data, bool pseudo)
 {
 	u8 tmpidx = 0;
