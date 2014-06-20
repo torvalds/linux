@@ -993,9 +993,12 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR_REG);
 
-	devpriv->dacsr = DT2821_DACSR_SSEL |
-			 DT2821_DACSR_DACLK |
-			 DT2821_DACSR_IDARDY;
+	/* clear all bits but the DIO direction bits */
+	devpriv->dacsr &= (DT2821_DACSR_LBOE | DT2821_DACSR_HBOE);
+
+	devpriv->dacsr |= (DT2821_DACSR_SSEL |
+			   DT2821_DACSR_DACLK |
+			   DT2821_DACSR_IDARDY);
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
 	s->async->inttrig = dt282x_ao_inttrig;
@@ -1010,7 +1013,9 @@ static int dt282x_ao_cancel(struct comedi_device *dev,
 
 	dt282x_disable_dma(dev);
 
-	devpriv->dacsr = 0;
+	/* clear all bits but the DIO direction bits */
+	devpriv->dacsr &= (DT2821_DACSR_LBOE | DT2821_DACSR_HBOE);
+
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
 	devpriv->supcsr = 0;
