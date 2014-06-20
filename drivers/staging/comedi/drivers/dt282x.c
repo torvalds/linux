@@ -1215,7 +1215,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE;
-	if (it->options[4]) {
+	if ((it->options[4] && board->adchan_di) || board->adchan_se == 0) {
 		s->subdev_flags	|= SDF_DIFF;
 		s->n_chan	= board->adchan_di;
 	} else {
