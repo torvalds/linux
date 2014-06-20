@@ -257,6 +257,7 @@ static void process_modem_status(struct quatech_port *qt_port,
 static void process_rx_char(struct usb_serial_port *port, unsigned char data)
 {
 	struct urb *urb = port->read_urb;
+
 	if (urb->actual_length)
 		tty_insert_flip_char(&port->port, data, TTY_NORMAL);
 }
