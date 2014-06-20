@@ -31,6 +31,8 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/mtd.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/gpio-rcar.h>
@@ -43,21 +45,21 @@
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
-#include <linux/usb/phy.h>
-#include <linux/usb/renesas_usbhs.h>
-#include <mach/r8a7790.h>
-#include <media/soc_camera.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/mtd.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/renesas_usbhs.h>
+
+#include <media/soc_camera.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+
 #include "common.h"
 #include "irqs.h"
+#include "r8a7790.h"
 #include "rcar-gen2.h"
 
 /*
