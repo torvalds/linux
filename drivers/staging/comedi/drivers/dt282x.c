@@ -1079,13 +1079,6 @@ static const struct comedi_lrange *opt_ao_range_lkup(int x)
 	return ao_range_table[x];
 }
 
-enum {  /* i/o base, irq, dma channels */
-	opt_iobase = 0, opt_irq, opt_dma1, opt_dma2,
-	opt_diff,		/* differential */
-	opt_ai_twos, opt_ao0_twos, opt_ao1_twos,	/* twos comp */
-	opt_ai_range, opt_ao0_range, opt_ao1_range,	/* range */
-};
-
 static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 {
 	struct dt282x_private *devpriv = dev->private;
@@ -1183,11 +1176,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* an IRQ and 2 DMA channels are required for async command support */
-	if (it->options[opt_irq] &&
-	    it->options[opt_dma1] && it->options[opt_dma2]) {
-		unsigned int irq = it->options[opt_irq];
-		unsigned int dma1 = it->options[opt_dma1];
-		unsigned int dma2 = it->options[opt_dma2];
+	if (it->options[1] && it->options[2] && it->options[3]) {
+		unsigned int irq = it->options[1];
+		unsigned int dma1 = it->options[2];
+		unsigned int dma2 = it->options[3];
 
 		if (dma2 < dma1) {
 			unsigned int swap;
@@ -1223,15 +1215,18 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE |
-	    ((it->options[opt_diff]) ? SDF_DIFF : SDF_COMMON);
-	s->n_chan =
-	    (it->options[opt_diff]) ? board->adchan_di : board->adchan_se;
+	s->subdev_flags = SDF_READABLE;
+	if (it->options[4]) {
+		s->subdev_flags	|= SDF_DIFF;
+		s->n_chan	= board->adchan_di;
+	} else {
+		s->subdev_flags	|= SDF_COMMON;
+		s->n_chan	= board->adchan_se;
+	}
 	s->insn_read = dt282x_ai_insn_read;
 	s->maxdata = board->ai_maxdata;
-	s->range_table =
-	    opt_ai_range_lkup(board->ispgl, it->options[opt_ai_range]);
-	devpriv->ad_2scomp = it->options[opt_ai_twos] ? 1 : 0;
+	s->range_table = opt_ai_range_lkup(board->ispgl, it->options[8]);
+	devpriv->ad_2scomp = it->options[5] ? 1 : 0;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
@@ -1252,12 +1247,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_write = dt282x_ao_insn_write;
 		s->maxdata = board->ao_maxdata;
 		s->range_table_list = devpriv->darangelist;
-		devpriv->darangelist[0] =
-		    opt_ao_range_lkup(it->options[opt_ao0_range]);
-		devpriv->darangelist[1] =
-		    opt_ao_range_lkup(it->options[opt_ao1_range]);
-		devpriv->da0_2scomp = it->options[opt_ao0_twos] ? 1 : 0;
-		devpriv->da1_2scomp = it->options[opt_ao1_twos] ? 1 : 0;
+		devpriv->darangelist[0] = opt_ao_range_lkup(it->options[9]);
+		devpriv->darangelist[1] = opt_ao_range_lkup(it->options[10]);
+		devpriv->da0_2scomp = it->options[6] ? 1 : 0;
+		devpriv->da1_2scomp = it->options[7] ? 1 : 0;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
