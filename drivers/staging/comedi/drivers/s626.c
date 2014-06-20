@@ -105,22 +105,11 @@ struct s626_private {
 /* COUNTER OBJECT ------------------------------------------------ */
 struct s626_enc_info {
 	int chan;
-
-	uint16_t my_event_bits[4]; /* bit translations for IntSrc -->RDMISC2 */
 };
 
 /* Counter overflow/index event flag masks for RDMISC2. */
 #define S626_INDXMASK(C) (1 << (((C) > 2) ? ((C) * 2 - 1) : ((C) * 2 +  4)))
 #define S626_OVERMASK(C) (1 << (((C) > 2) ? ((C) * 2 + 5) : ((C) * 2 + 10)))
-#define S626_EVBITS(C)	{ 0, S626_OVERMASK(C), S626_INDXMASK(C), \
-			  S626_OVERMASK(C) | S626_INDXMASK(C) }
-
-/*
- * Translation table to map IntSrc into equivalent RDMISC2 event flag  bits.
- * static const uint16_t s626_event_bits[][4] =
- *     { S626_EVBITS(0), S626_EVBITS(1), S626_EVBITS(2), S626_EVBITS(3),
- *       S626_EVBITS(4), S626_EVBITS(5) };
- */
 
 /*
  * Enable/disable a function or test status bit(s) that are accessed
@@ -949,7 +938,8 @@ static void s626_set_mode_a(struct comedi_device *dev,
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
 	if (disable_int_src)
-		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
+		devpriv->counter_int_enabs &= ~(S626_OVERMASK(k->chan) |
+						S626_INDXMASK(k->chan));
 
 	/*
 	 * While retaining CounterB and LatchSrc configurations, program the
@@ -1033,7 +1023,8 @@ static void s626_set_mode_b(struct comedi_device *dev,
 	 * enable mask to indicate the counter interrupt is disabled.
 	 */
 	if (disable_int_src)
-		devpriv->counter_int_enabs &= ~k->my_event_bits[3];
+		devpriv->counter_int_enabs &= ~(S626_OVERMASK(k->chan) |
+						S626_INDXMASK(k->chan));
 
 	/*
 	 * While retaining CounterA and LatchSrc configurations, program the
@@ -1174,8 +1165,23 @@ static void s626_set_int_src(struct comedi_device *dev,
 	}
 
 	/* Update MISC2 interrupt enable mask. */
-	devpriv->counter_int_enabs &= ~k->my_event_bits[3];
-	devpriv->counter_int_enabs |= k->my_event_bits[int_source];
+	devpriv->counter_int_enabs &= ~(S626_OVERMASK(k->chan) |
+					S626_INDXMASK(k->chan));
+	switch (int_source) {
+	case 0:
+	default:
+		break;
+	case 1:
+		devpriv->counter_int_enabs |= S626_OVERMASK(k->chan);
+		break;
+	case 2:
+		devpriv->counter_int_enabs |= S626_INDXMASK(k->chan);
+		break;
+	case 3:
+		devpriv->counter_int_enabs |= (S626_OVERMASK(k->chan) |
+					       S626_INDXMASK(k->chan));
+		break;
+	}
 }
 
 #ifdef unused
@@ -1304,22 +1310,16 @@ static void s626_pulse_index(struct comedi_device *dev,
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
-		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
-		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
-		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
-		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
-		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
-		.my_event_bits		= S626_EVBITS(5),
 	},
 };
 
