@@ -38,12 +38,12 @@
 #include "../dmaengine.h"
 #include "shdma.h"
 
-/* DMA register */
-#define SAR	0x00
-#define DAR	0x04
-#define TCR	0x08
-#define CHCR	0x0C
-#define DMAOR	0x40
+/* DMA registers */
+#define SAR	0x00	/* Source Address Register */
+#define DAR	0x04	/* Destination Address Register */
+#define TCR	0x08	/* Transfer Count Register */
+#define CHCR	0x0C	/* Channel Control Register */
+#define DMAOR	0x40	/* DMA Operation Register */
 
 #define TEND	0x18 /* USB-DMAC */
 
