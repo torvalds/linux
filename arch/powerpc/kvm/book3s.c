@@ -380,9 +380,11 @@ pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa, bool writing,
 }
 EXPORT_SYMBOL_GPL(kvmppc_gpa_to_pfn);
 
-static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
-			bool iswrite, struct kvmppc_pte *pte)
+int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
+		 enum xlate_readwrite xlrw, struct kvmppc_pte *pte)
 {
+	bool data = (xlid == XLATE_DATA);
+	bool iswrite = (xlrw == XLATE_WRITE);
 	int relocated = (kvmppc_get_msr(vcpu) & (data ? MSR_DR : MSR_IR));
 	int r;
 
@@ -434,7 +436,8 @@ int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 
 	vcpu->stat.st++;
 
-	r = kvmppc_xlate(vcpu, *eaddr, data, true, &pte);
+	r = kvmppc_xlate(vcpu, *eaddr, data ? XLATE_DATA : XLATE_INST,
+			 XLATE_WRITE, &pte);
 	if (r < 0)
 		return r;
 
@@ -459,7 +462,8 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 
 	vcpu->stat.ld++;
 
-	rc = kvmppc_xlate(vcpu, *eaddr, data, false, &pte);
+	rc = kvmppc_xlate(vcpu, *eaddr, data ? XLATE_DATA : XLATE_INST,
+			  XLATE_READ, &pte);
 	if (rc)
 		return rc;
 

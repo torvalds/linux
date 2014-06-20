@@ -52,6 +52,16 @@ enum instruction_type {
 	INST_SC,		/* system call */
 };
 
+enum xlate_instdata {
+	XLATE_INST,		/* translate instruction address */
+	XLATE_DATA		/* translate data address */
+};
+
+enum xlate_readwrite {
+	XLATE_READ,		/* check for read permissions */
+	XLATE_WRITE		/* check for write permissions */
+};
+
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern void kvmppc_handler_highmem(void);
@@ -94,6 +104,9 @@ extern gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
                               gva_t eaddr);
 extern void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu);
+extern int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr,
+			enum xlate_instdata xlid, enum xlate_readwrite xlrw,
+			struct kvmppc_pte *pte);
 
 extern struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm,
                                                 unsigned int id);

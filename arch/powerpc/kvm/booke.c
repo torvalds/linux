@@ -1785,6 +1785,57 @@ void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap, bool set)
 #endif
 }
 
+int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
+		 enum xlate_readwrite xlrw, struct kvmppc_pte *pte)
+{
+	int gtlb_index;
+	gpa_t gpaddr;
+
+#ifdef CONFIG_KVM_E500V2
+	if (!(vcpu->arch.shared->msr & MSR_PR) &&
+	    (eaddr & PAGE_MASK) == vcpu->arch.magic_page_ea) {
+		pte->eaddr = eaddr;
+		pte->raddr = (vcpu->arch.magic_page_pa & PAGE_MASK) |
+			     (eaddr & ~PAGE_MASK);
+		pte->vpage = eaddr >> PAGE_SHIFT;
+		pte->may_read = true;
+		pte->may_write = true;
+		pte->may_execute = true;
+
+		return 0;
+	}
+#endif
+
+	/* Check the guest TLB. */
+	switch (xlid) {
+	case XLATE_INST:
+		gtlb_index = kvmppc_mmu_itlb_index(vcpu, eaddr);
+		break;
+	case XLATE_DATA:
+		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
+		break;
+	default:
+		BUG();
+	}
+
+	/* Do we have a TLB entry at all? */
+	if (gtlb_index < 0)
+		return -ENOENT;
+
+	gpaddr = kvmppc_mmu_xlate(vcpu, gtlb_index, eaddr);
+
+	pte->eaddr = eaddr;
+	pte->raddr = (gpaddr & PAGE_MASK) | (eaddr & ~PAGE_MASK);
+	pte->vpage = eaddr >> PAGE_SHIFT;
+
+	/* XXX read permissions from the guest TLB */
+	pte->may_read = true;
+	pte->may_write = true;
+	pte->may_execute = true;
+
+	return 0;
+}
+
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					 struct kvm_guest_debug *dbg)
 {
