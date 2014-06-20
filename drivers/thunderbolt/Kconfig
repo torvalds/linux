@@ -1,6 +1,6 @@
 menuconfig THUNDERBOLT
 	tristate "Thunderbolt support for Apple devices"
-	default no
+	depends on PCI
 	help
 	  Cactus Ridge Thunderbolt Controller driver
 	  This driver is required if you want to hotplug Thunderbolt devices on
