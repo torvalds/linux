@@ -934,17 +934,14 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	return badworden;
 }
 
-u16 Efuse_GetCurrentSize(struct adapter *pAdapter, bool bPseudoTest)
+u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
 {
 	int	bContinual = true;
 	u16	efuse_addr = 0;
 	u8 hoffset = 0, hworden = 0;
 	u8 efuse_data, word_cnts = 0;
 
-	if (bPseudoTest)
-		efuse_addr = (u16)(fakeEfuseUsedBytes);
-	else
-		rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
+	rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 
 	while (bContinual &&
 	       efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data) &&
@@ -973,10 +970,7 @@ u16 Efuse_GetCurrentSize(struct adapter *pAdapter, bool bPseudoTest)
 		}
 	}
 
-	if (bPseudoTest)
-		fakeEfuseUsedBytes = efuse_addr;
-	else
-		rtw_hal_set_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
+	rtw_hal_set_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);
 
 	return efuse_addr;
 }
@@ -1085,7 +1079,7 @@ static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, st
 			if (!PgWriteSuccess)
 				return false;
 			else
-				efuse_addr = Efuse_GetCurrentSize(pAdapter, bPseudoTest);
+				efuse_addr = Efuse_GetCurrentSize(pAdapter);
 		} else {
 			efuse_addr = efuse_addr + (pFixPkt->word_cnts*2) + 1;
 		}
@@ -1374,7 +1368,7 @@ hal_EfusePgCheckAvailableAddr(
 	/* Change to check TYPE_EFUSE_MAP_LEN , because 8188E raw 256, logic map over 256. */
 	EFUSE_GetEfuseDefinition(pAdapter, EFUSE_WIFI, TYPE_EFUSE_MAP_LEN, (void *)&efuse_max_available_len);
 
-	if (Efuse_GetCurrentSize(pAdapter, bPseudoTest) >= efuse_max_available_len)
+	if (Efuse_GetCurrentSize(pAdapter) >= efuse_max_available_len)
 		return false;
 	return true;
 }

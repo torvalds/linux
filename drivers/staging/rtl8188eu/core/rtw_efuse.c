@@ -215,7 +215,7 @@ u16 efuse_GetMaxSize(struct adapter *padapter)
 u8 efuse_GetCurrentSize(struct adapter *padapter, u16 *size)
 {
 	Efuse_PowerSwitch(padapter, false, true);
-	*size = Efuse_GetCurrentSize(padapter, false);
+	*size = Efuse_GetCurrentSize(padapter);
 	Efuse_PowerSwitch(padapter, false, false);
 
 	return _SUCCESS;
