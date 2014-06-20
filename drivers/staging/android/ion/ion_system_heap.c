@@ -304,7 +304,6 @@ void ion_system_heap_destroy(struct ion_heap *heap)
 
 	for (i = 0; i < num_orders; i++)
 		ion_page_pool_destroy(sys_heap->pools[i]);
-	kfree(sys_heap->pools);
 	kfree(sys_heap);
 }
 
