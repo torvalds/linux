@@ -471,11 +471,6 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
-	if (!s->async->prealloc_buf) {
-		dev_err(dev->class_dev, "no buffer in %s\n", __func__);
-		return;
-	}
-
 	i = devpriv->current_dma_index;
 	ptr = devpriv->dma[i].buf;
 
@@ -503,11 +498,6 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 	int ret;
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
-
-	if (!s->async->prealloc_buf) {
-		dev_err(dev->class_dev, "no buffer in %s\n", __func__);
-		return;
-	}
 
 	i = devpriv->current_dma_index;
 	ptr = devpriv->dma[i].buf;
