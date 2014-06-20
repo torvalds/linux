@@ -139,8 +139,6 @@ struct s626_enc_info {
 	void (*reset_cap_flags)(struct comedi_device *dev,
 				const struct s626_enc_info *k);
 
-	uint16_t my_latch_lsw;	/* address of Latch least-significant-word
-				 * register */
 	uint16_t my_event_bits[4]; /* bit translations for IntSrc -->RDMISC2 */
 };
 
@@ -731,10 +729,11 @@ static uint32_t s626_read_latch(struct comedi_device *dev,
 	uint32_t value;
 
 	/* Latch counts and fetch LSW of latched counts value. */
-	value = s626_debi_read(dev, k->my_latch_lsw);
+	value = s626_debi_read(dev, S626_LP_CNTR(k->chan));
 
 	/* Fetch MSW of latched counts and combine with LSW. */
-	value |= ((uint32_t)s626_debi_read(dev, k->my_latch_lsw + 2) << 16);
+	value |= ((uint32_t)s626_debi_read(dev,
+					   S626_LP_CNTR(k->chan) + 2) << 16);
 
 	/* Return latched counts. */
 	return value;
@@ -759,8 +758,8 @@ static void s626_set_latch_source(struct comedi_device *dev,
 static void s626_preload(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint32_t value)
 {
-	s626_debi_write(dev, k->my_latch_lsw, value);
-	s626_debi_write(dev, k->my_latch_lsw + 2, value >> 16);
+	s626_debi_write(dev, S626_LP_CNTR(k->chan), value);
+	s626_debi_write(dev, S626_LP_CNTR(k->chan) + 2, value >> 16);
 }
 
 /* ******  PRIVATE COUNTER FUNCTIONS ****** */
@@ -1334,7 +1333,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR(0),
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
@@ -1348,7 +1346,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR(1),
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
@@ -1362,7 +1359,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR(2),
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
@@ -1376,7 +1372,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR(3),
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
@@ -1390,7 +1385,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR(4),
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
@@ -1404,7 +1398,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR(5),
 		.my_event_bits		= S626_EVBITS(5),
 	},
 };
