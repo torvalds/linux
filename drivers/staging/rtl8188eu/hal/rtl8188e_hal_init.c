@@ -1396,7 +1396,7 @@ static void hal_EfuseConstructPGPkt(u8 offset, u8 word_en, u8 *pData, struct pgp
 	pTargetPkt->word_cnts = Efuse_CalculateWordCnts(pTargetPkt->word_en);
 }
 
-static bool hal_EfusePgPacketWrite_8188e(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *pData, bool bPseudoTest)
+bool Efuse_PgPacketWrite(struct adapter *pAdapter, u8 offset, u8 word_en, u8 *pData, bool bPseudoTest)
 {
 	struct pgpkt	targetPkt;
 	u16			startAddr = 0;
@@ -1540,9 +1540,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->write_bbreg = &rtl8188e_PHY_SetBBReg;
 	pHalFunc->read_rfreg = &rtl8188e_PHY_QueryRFReg;
 	pHalFunc->write_rfreg = &rtl8188e_PHY_SetRFReg;
-
-	/*  Efuse related function */
-	pHalFunc->Efuse_PgPacketWrite = &hal_EfusePgPacketWrite_8188e;
 
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
