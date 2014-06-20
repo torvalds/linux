@@ -266,8 +266,6 @@ static const int ni_irqpin[] = {
 
 #define IRQ_POLARITY 0
 
-#define NI_E_IRQ_FLAGS		0
-
 #include "ni_mio_common.c"
 
 static struct pnp_device_id device_ids[] = {
@@ -392,7 +390,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 			return -EINVAL;
 		}
 		printk(" ( irq = %u )", irq);
-		ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+		ret = request_irq(irq, ni_E_interrupt, 0,
 				  "ni_atmio", dev);
 
 		if (ret < 0) {

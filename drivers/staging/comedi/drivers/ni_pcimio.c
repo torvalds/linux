@@ -1044,8 +1044,6 @@ static const struct ni_board_struct ni_boards[] = {
 
 #define IRQ_POLARITY 1
 
-#define NI_E_IRQ_FLAGS		IRQF_SHARED
-
 #include "ni_mio_common.c"
 
 static int pcimio_ai_change(struct comedi_device *dev,
@@ -1267,7 +1265,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 
 	irq = mite_irq(devpriv->mite);
 	if (irq) {
-		ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+		ret = request_irq(irq, ni_E_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = irq;
