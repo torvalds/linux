@@ -416,7 +416,7 @@ void ring_free(struct tb_ring *ring)
 			  ring->size * sizeof(*ring->descriptors),
 			  ring->descriptors, ring->descriptors_dma);
 
-	ring->descriptors = 0;
+	ring->descriptors = NULL;
 	ring->descriptors_dma = 0;
 
 
