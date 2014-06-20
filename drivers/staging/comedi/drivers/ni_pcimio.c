@@ -121,8 +121,6 @@ Bugs:
 #define PCIMIO 1
 #undef ATMIO
 
-#define DRV_NAME "ni_pcimio"
-
 /* These are not all the possible ao ranges for 628x boards.
  They can do OFFSET +- REFERENCE where OFFSET can be
  0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
