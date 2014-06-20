@@ -1046,10 +1046,7 @@ static void nidio_detach(struct comedi_device *dev)
 			mite_free_ring(devpriv->di_mite_ring);
 			devpriv->di_mite_ring = NULL;
 		}
-		if (devpriv->mite) {
-			mite_unsetup(devpriv->mite);
-			mite_free(devpriv->mite);
-		}
+		mite_detach(devpriv->mite);
 	}
 	comedi_pci_disable(dev);
 }

@@ -173,25 +173,19 @@ int mite_setup(struct mite_struct *mite)
 }
 EXPORT_SYMBOL_GPL(mite_setup);
 
-void mite_unsetup(struct mite_struct *mite)
+void mite_detach(struct mite_struct *mite)
 {
-	/* unsigned long offset, start, length; */
-
 	if (!mite)
 		return;
 
-	if (mite->mite_io_addr) {
+	if (mite->mite_io_addr)
 		iounmap(mite->mite_io_addr);
-		mite->mite_io_addr = NULL;
-	}
-	if (mite->daq_io_addr) {
+	if (mite->daq_io_addr)
 		iounmap(mite->daq_io_addr);
-		mite->daq_io_addr = NULL;
-	}
-	if (mite->mite_phys_addr)
-		mite->mite_phys_addr = 0;
+
+	kfree(mite);
 }
-EXPORT_SYMBOL_GPL(mite_unsetup);
+EXPORT_SYMBOL_GPL(mite_detach);
 
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
 {

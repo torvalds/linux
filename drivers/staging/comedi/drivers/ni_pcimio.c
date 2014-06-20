@@ -1189,10 +1189,7 @@ static void pcimio_detach(struct comedi_device *dev)
 		mite_free_ring(devpriv->cdo_mite_ring);
 		mite_free_ring(devpriv->gpct_mite_ring[0]);
 		mite_free_ring(devpriv->gpct_mite_ring[1]);
-		if (devpriv->mite) {
-			mite_unsetup(devpriv->mite);
-			mite_free(devpriv->mite);
-		}
+		mite_detach(devpriv->mite);
 	}
 	comedi_pci_disable(dev);
 }

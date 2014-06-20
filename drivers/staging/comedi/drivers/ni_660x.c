@@ -1195,11 +1195,8 @@ static void ni_660x_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (devpriv->counter_dev)
 			ni_gpct_device_destroy(devpriv->counter_dev);
-		if (devpriv->mite) {
-			ni_660x_free_mite_rings(dev);
-			mite_unsetup(devpriv->mite);
-			mite_free(devpriv->mite);
-		}
+		ni_660x_free_mite_rings(dev);
+		mite_detach(devpriv->mite);
 	}
 	comedi_pci_disable(dev);
 }

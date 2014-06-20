@@ -65,14 +65,9 @@ struct mite_struct {
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev);
 
-static inline void mite_free(struct mite_struct *mite)
-{
-	kfree(mite);
-}
-
 int mite_setup(struct mite_struct *mite);
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1);
-void mite_unsetup(struct mite_struct *mite);
+void mite_detach(struct mite_struct *mite);
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
 void mite_free_ring(struct mite_dma_descriptor_ring *ring);
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,

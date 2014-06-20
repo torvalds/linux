@@ -716,12 +716,8 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (devpriv->mite) {
-			mite_unsetup(devpriv->mite);
-			mite_free(devpriv->mite);
-		}
-	}
+	if (devpriv)
+		mite_detach(devpriv->mite);
 	comedi_pci_disable(dev);
 }
 

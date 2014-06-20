@@ -259,10 +259,8 @@ static void ni_670x_detach(struct comedi_device *dev)
 		if (s)
 			kfree(s->range_table_list);
 	}
-	if (devpriv && devpriv->mite) {
-		mite_unsetup(devpriv->mite);
-		mite_free(devpriv->mite);
-	}
+	if (devpriv)
+		mite_detach(devpriv->mite);
 	comedi_pci_disable(dev);
 }
 
