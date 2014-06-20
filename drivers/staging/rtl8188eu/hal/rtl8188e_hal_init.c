@@ -901,8 +901,8 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 
 	if (!(word_en&BIT0)) {
 		tmpaddr = start_addr;
-		efuse_OneByteWrite(pAdapter, start_addr++, data[0], bPseudoTest);
-		efuse_OneByteWrite(pAdapter, start_addr++, data[1], bPseudoTest);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[0]);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[1]);
 
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[0]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[1]);
@@ -911,8 +911,8 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	}
 	if (!(word_en&BIT1)) {
 		tmpaddr = start_addr;
-		efuse_OneByteWrite(pAdapter, start_addr++, data[2], bPseudoTest);
-		efuse_OneByteWrite(pAdapter, start_addr++, data[3], bPseudoTest);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[2]);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[3]);
 
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[2]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[3]);
@@ -921,8 +921,8 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	}
 	if (!(word_en&BIT2)) {
 		tmpaddr = start_addr;
-		efuse_OneByteWrite(pAdapter, start_addr++, data[4], bPseudoTest);
-		efuse_OneByteWrite(pAdapter, start_addr++, data[5], bPseudoTest);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[4]);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[5]);
 
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[4]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[5]);
@@ -931,8 +931,8 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	}
 	if (!(word_en&BIT3)) {
 		tmpaddr = start_addr;
-		efuse_OneByteWrite(pAdapter, start_addr++, data[6], bPseudoTest);
-		efuse_OneByteWrite(pAdapter, start_addr++, data[7], bPseudoTest);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[6]);
+		efuse_OneByteWrite(pAdapter, start_addr++, data[7]);
 
 		efuse_OneByteRead(pAdapter, tmpaddr, &tmpdata[6]);
 		efuse_OneByteRead(pAdapter, tmpaddr+1, &tmpdata[7]);
@@ -1115,14 +1115,14 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 
 	while (efuse_addr < efuse_max_available_len) {
 		pg_header = ((pTargetPkt->offset & 0x07) << 5) | 0x0F;
-		efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+		efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 		efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 
 		while (tmp_header == 0xFF) {
 			if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 				return false;
 
-			efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+			efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 			efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 		}
 
@@ -1132,14 +1132,14 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 			pg_header_temp = pg_header;
 			pg_header = ((pTargetPkt->offset & 0x78) << 1) | pTargetPkt->word_en;
 
-			efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+			efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 			efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 
 			while (tmp_header == 0xFF) {
 				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 					return false;
 
-				efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+				efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 				efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 			}
 
@@ -1180,13 +1180,13 @@ static bool hal_EfusePgPacketWrite1ByteHeader(struct adapter *pAdapter, u8 efuse
 
 	pg_header = ((pTargetPkt->offset << 4) & 0xf0) | pTargetPkt->word_en;
 
-	efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+	efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 	efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 
 	while (tmp_header == 0xFF) {
 		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 			return false;
-		efuse_OneByteWrite(pAdapter, efuse_addr, pg_header, bPseudoTest);
+		efuse_OneByteWrite(pAdapter, efuse_addr, pg_header);
 		efuse_OneByteRead(pAdapter, efuse_addr, &tmp_header);
 	}
 

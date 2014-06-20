@@ -89,7 +89,7 @@ u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data)
 }
 
 /*  11/16/2008 MH Write one byte to reald Efuse. */
-u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data, bool pseudo)
+u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data)
 {
 	u8 tmpidx = 0;
 	u8 result;
@@ -159,7 +159,7 @@ static u8 efuse_read8(struct adapter *padapter, u16 address, u8 *value)
 
 static u8 efuse_write8(struct adapter *padapter, u16 address, u8 *value)
 {
-	return efuse_OneByteWrite(padapter, address, *value, false);
+	return efuse_OneByteWrite(padapter, address, *value);
 }
 
 /*
