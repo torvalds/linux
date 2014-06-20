@@ -306,7 +306,7 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 {
 	struct imx_thermal_data *data = platform_get_drvdata(pdev);
 	struct regmap *map;
-	int t1, t2, n1, n2;
+	int t1, n1;
 	int ret;
 	u32 val;
 	u64 temp64;
@@ -333,14 +333,10 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 	/*
 	 * Sensor data layout:
 	 *   [31:20] - sensor value @ 25C
-	 *    [19:8] - sensor value of hot
-	 *     [7:0] - hot temperature value
 	 * Use universal formula now and only need sensor value @ 25C
 	 * slope = 0.4297157 - (0.0015976 * 25C fuse)
 	 */
 	n1 = val >> 20;
-	n2 = (val & 0xfff00) >> 8;
-	t2 = val & 0xff;
 	t1 = 25; /* t1 always 25C */
 
 	/*
@@ -366,16 +362,16 @@ static int imx_get_sensor_data(struct platform_device *pdev)
 	data->c2 = n1 * data->c1 + 1000 * t1;
 
 	/*
-	 * Set the default passive cooling trip point to 20 °C below the
-	 * maximum die temperature. Can be changed from userspace.
+	 * Set the default passive cooling trip point,
+	 * can be changed from userspace.
 	 */
-	data->temp_passive = 1000 * (t2 - 20);
+	data->temp_passive = IMX_TEMP_PASSIVE;
 
 	/*
-	 * The maximum die temperature is t2, let's give 5 °C cushion
-	 * for noise and possible temperature rise between measurements.
+	 * The maximum die temperature set to 20 C higher than
+	 * IMX_TEMP_PASSIVE.
 	 */
-	data->temp_critical = 1000 * (t2 - 5);
+	data->temp_critical = 1000 * 20 + data->temp_passive;
 
 	return 0;
 }
