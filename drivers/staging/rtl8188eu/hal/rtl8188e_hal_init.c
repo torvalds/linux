@@ -1257,12 +1257,8 @@ static bool hal_EfusePartialWriteCheck(struct adapter *pAdapter, u8 efuseType, u
 	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_BANK, (void *)&efuse_max_available_len);
 	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_REAL_CONTENT_LEN, (void *)&efuse_max);
 
-	if (efuseType == EFUSE_WIFI) {
-		rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
-		startAddr %= EFUSE_REAL_CONTENT_LEN;
-	} else {
-		startAddr = (u16)(BTEfuseUsedBytes%EFUSE_REAL_CONTENT_LEN);
-	}
+	rtw_hal_get_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
+	startAddr %= EFUSE_REAL_CONTENT_LEN;
 
 	while (1) {
 		if (startAddr >= efuse_max_available_len) {
