@@ -107,9 +107,6 @@ struct s626_enc_info {
 	int chan;
 
 	/* Pointers to functions that differ for A and B counters: */
-	/* Return standardized operating mode. */
-	uint16_t (*get_mode)(struct comedi_device *dev,
-			    const struct s626_enc_info *k);
 	/* Program standardized operating mode. */
 	void (*set_mode)(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t setup,
@@ -757,6 +754,7 @@ static void s626_reset_cap_flags(struct comedi_device *dev,
 	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL, set);
 }
 
+#ifdef unused
 /*
  * Return counter setup in a format (COUNTER_SETUP) that is consistent
  * for both A and B counters.
@@ -875,6 +873,16 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 	/* Return adjusted counter setup. */
 	return setup;
 }
+
+static uint16_t s626_get_mode(struct comedi_device *dev,
+			      const struct s626_enc_info *k)
+{
+	if (k->chan < 3)
+		return s626_get_mode_a(dev, k);
+	else
+		return s626_get_mode_b(dev, k);
+}
+#endif
 
 /*
  * Set the operating mode for the specified counter.  The setup
@@ -1186,14 +1194,14 @@ static uint16_t s626_get_int_src(struct comedi_device *dev,
 static void s626_set_clk_mult(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t value)
 {
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_CLKMULT) |
+	k->set_mode(dev, k, ((s626_get_mode(dev, k) & ~S626_STDMSK_CLKMULT) |
 			     S626_SET_STD_CLKMULT(value)), false);
 }
 
 static uint16_t s626_get_clk_mult(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return S626_GET_STD_CLKMULT(k->get_mode(dev, k));
+	return S626_GET_STD_CLKMULT(s626_get_mode(dev, k));
 }
 
 /*
@@ -1202,14 +1210,14 @@ static uint16_t s626_get_clk_mult(struct comedi_device *dev,
 static void s626_set_clk_pol(struct comedi_device *dev,
 			     const struct s626_enc_info *k, uint16_t value)
 {
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_CLKPOL) |
+	k->set_mode(dev, k, ((s626_get_mode(dev, k) & ~S626_STDMSK_CLKPOL) |
 			     S626_SET_STD_CLKPOL(value)), false);
 }
 
 static uint16_t s626_get_clk_pol(struct comedi_device *dev,
 				 const struct s626_enc_info *k)
 {
-	return S626_GET_STD_CLKPOL(k->get_mode(dev, k));
+	return S626_GET_STD_CLKPOL(s626_get_mode(dev, k));
 }
 
 /*
@@ -1218,14 +1226,14 @@ static uint16_t s626_get_clk_pol(struct comedi_device *dev,
 static void s626_set_enc_mode(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t value)
 {
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_ENCMODE) |
+	k->set_mode(dev, k, ((s626_get_mode(dev, k) & ~S626_STDMSK_ENCMODE) |
 			     S626_SET_STD_ENCMODE(value)), false);
 }
 
 static uint16_t s626_get_enc_mode(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return S626_GET_STD_ENCMODE(k->get_mode(dev, k));
+	return S626_GET_STD_ENCMODE(s626_get_mode(dev, k));
 }
 
 /*
@@ -1234,14 +1242,14 @@ static uint16_t s626_get_enc_mode(struct comedi_device *dev,
 static void s626_set_index_pol(struct comedi_device *dev,
 			       const struct s626_enc_info *k, uint16_t value)
 {
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_INDXPOL) |
+	k->set_mode(dev, k, ((s626_get_mode(dev, k) & ~S626_STDMSK_INDXPOL) |
 			     S626_SET_STD_INDXPOL(value != 0)), false);
 }
 
 static uint16_t s626_get_index_pol(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return S626_GET_STD_INDXPOL(k->get_mode(dev, k));
+	return S626_GET_STD_INDXPOL(s626_get_mode(dev, k));
 }
 
 /*
@@ -1250,14 +1258,14 @@ static uint16_t s626_get_index_pol(struct comedi_device *dev,
 static void s626_set_index_src(struct comedi_device *dev,
 			       const struct s626_enc_info *k, uint16_t value)
 {
-	k->set_mode(dev, k, ((k->get_mode(dev, k) & ~S626_STDMSK_INDXSRC) |
+	k->set_mode(dev, k, ((s626_get_mode(dev, k) & ~S626_STDMSK_INDXSRC) |
 			     S626_SET_STD_INDXSRC(value != 0)), false);
 }
 
 static uint16_t s626_get_index_src(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return S626_GET_STD_INDXSRC(k->get_mode(dev, k));
+	return S626_GET_STD_INDXSRC(s626_get_mode(dev, k));
 }
 #endif
 
@@ -1292,32 +1300,26 @@ static void s626_pulse_index(struct comedi_device *dev,
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
-		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
-		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
-		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
-		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
-		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
-		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
 		.my_event_bits		= S626_EVBITS(5),
 	},
