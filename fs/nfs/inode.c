@@ -1601,6 +1601,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if ((nfsi->npages == 0) || new_isize > cur_isize) {
 				i_size_write(inode, new_isize);
 				invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
+				invalid &= ~NFS_INO_REVAL_PAGECACHE;
 			}
 			dprintk("NFS: isize change on server for file %s/%ld "
 					"(%Ld to %Ld)\n",
