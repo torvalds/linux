@@ -184,7 +184,7 @@ static void perf_evsel__reset_stat_priv(struct perf_evsel *evsel)
 static int perf_evsel__alloc_stat_priv(struct perf_evsel *evsel)
 {
 	evsel->priv = zalloc(sizeof(struct perf_stat));
-	if (evsel == NULL)
+	if (evsel->priv == NULL)
 		return -ENOMEM;
 	perf_evsel__reset_stat_priv(evsel);
 	return 0;
