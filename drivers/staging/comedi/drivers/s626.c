@@ -107,9 +107,6 @@ struct s626_enc_info {
 	int chan;
 
 	/* Pointers to functions that differ for A and B counters: */
-	/* Return clock enable. */
-	uint16_t (*get_enable)(struct comedi_device *dev,
-			      const struct s626_enc_info *k);
 	/* Return interrupt source. */
 	uint16_t (*get_int_src)(struct comedi_device *dev,
 			       const struct s626_enc_info *k);
@@ -1085,19 +1082,18 @@ static void s626_set_enable(struct comedi_device *dev,
 	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~mask, set);
 }
 
-static uint16_t s626_get_enable_a(struct comedi_device *dev,
-				  const struct s626_enc_info *k)
+#ifdef unused
+static uint16_t s626_get_enable(struct comedi_device *dev,
+				const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_CLKENAB_A(s626_debi_read(dev,
-						     S626_LP_CRB(k->chan)));
-}
+	uint16_t crb = s626_debi_read(dev, S626_LP_CRB(k->chan));
 
-static uint16_t s626_get_enable_b(struct comedi_device *dev,
-				  const struct s626_enc_info *k)
-{
-	return S626_GET_CRB_CLKENAB_B(s626_debi_read(dev,
-						     S626_LP_CRB(k->chan)));
+	if (k->chan < 3)
+		return S626_GET_CRB_CLKENAB_A(crb);
+	else
+		return S626_GET_CRB_CLKENAB_B(crb);
 }
+#endif
 
 #ifdef unused
 static uint16_t s626_get_latch_source(struct comedi_device *dev,
@@ -1320,7 +1316,6 @@ static void s626_pulse_index_b(struct comedi_device *dev,
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
-		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
@@ -1332,7 +1327,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
-		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
@@ -1344,7 +1338,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
-		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
@@ -1356,7 +1349,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
-		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
@@ -1368,7 +1360,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
-		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
@@ -1380,7 +1371,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
-		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
