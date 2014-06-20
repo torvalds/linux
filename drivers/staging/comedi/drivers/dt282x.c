@@ -63,8 +63,6 @@ Notes:
 
 #include "comedi_fc.h"
 
-#define DT2821_SIZE 0x10
-
 /*
  *    Registers in the DT282x
  */
@@ -1197,7 +1195,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret;
 	int i;
 
-	ret = comedi_request_region(dev, it->options[0], DT2821_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
