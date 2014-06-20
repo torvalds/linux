@@ -299,7 +299,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	/* range->retry_capa; */	/* What retry options are supported */
 	/* range->retry_flags; */	/* How to decode max/min retry limit */
 	/* range->r_time_flags; */	/* How to decode max/min retry life */
-	/* range->min_retry; */ 	/* Minimal number of retries */
+	/* range->min_retry; */		/* Minimal number of retries */
 	/* range->max_retry; */		/* Maximal number of retries */
 	/* range->min_r_time; */	/* Minimal retry lifetime */
 	/* range->max_r_time; */	/* Maximal retry lifetime */
@@ -802,7 +802,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					alg,	/* KeyType */
 					(u8 *)ieee->ap_mac_addr,/* MacAddr */
 					0,			/* DefaultKey */
-					key);           	/* KeyContent */
+					key);			/* KeyContent */
 		}
 
 
