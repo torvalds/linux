@@ -5883,77 +5883,6 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		efuse_GetCurrentSize(padapter, &raw_cursize);
 		raw_maxsize = efuse_GetMaxSize(padapter);
 		sprintf(extra, "[available raw size] = %d bytes", raw_maxsize-raw_cursize);
-	} else if (strcmp(tmp[0], "btfmap") == 0) {
-		mapLen = EFUSE_BT_MAX_MAP_LEN;
-		if (rtw_BT_efuse_map_read(padapter, 0, mapLen, pEfuseHal->BTEfuseInitMap) == _FAIL) {
-			DBG_88E("%s: rtw_BT_efuse_map_read Fail!!\n", __func__);
-			err = -EFAULT;
-			goto exit;
-		}
-
-		sprintf(extra, "\n");
-		for (i = 0; i < 512; i += 16) {
-			/*  set 512 because the iwpriv's extra size have limit 0x7FF */
-			sprintf(extra, "%s0x%03x\t", extra, i);
-			for (j = 0; j < 8; j++)
-				sprintf(extra, "%s%02X ", extra, pEfuseHal->BTEfuseInitMap[i+j]);
-			sprintf(extra, "%s\t", extra);
-			for (; j < 16; j++)
-				sprintf(extra, "%s%02X ", extra, pEfuseHal->BTEfuseInitMap[i+j]);
-			sprintf(extra, "%s\n", extra);
-		}
-	} else if (strcmp(tmp[0], "btbmap") == 0) {
-		mapLen = EFUSE_BT_MAX_MAP_LEN;
-		if (rtw_BT_efuse_map_read(padapter, 0, mapLen, pEfuseHal->BTEfuseInitMap) == _FAIL) {
-			DBG_88E("%s: rtw_BT_efuse_map_read Fail!!\n", __func__);
-			err = -EFAULT;
-			goto exit;
-		}
-
-		sprintf(extra, "\n");
-		for (i = 512; i < 1024; i += 16) {
-			sprintf(extra, "%s0x%03x\t", extra, i);
-			for (j = 0; j < 8; j++)
-				sprintf(extra, "%s%02X ", extra, pEfuseHal->BTEfuseInitMap[i+j]);
-			sprintf(extra, "%s\t", extra);
-			for (; j < 16; j++)
-				sprintf(extra, "%s%02X ", extra, pEfuseHal->BTEfuseInitMap[i+j]);
-			sprintf(extra, "%s\n", extra);
-		}
-	} else if (strcmp(tmp[0], "btrmap") == 0) {
-		if ((tmp[1] == NULL) || (tmp[2] == NULL)) {
-			err = -EINVAL;
-			goto exit;
-		}
-
-		/*  rmap addr cnts */
-		addr = simple_strtoul(tmp[1], &ptmp, 16);
-		DBG_88E("%s: addr = 0x%X\n", __func__, addr);
-
-		cnts = simple_strtoul(tmp[2], &ptmp, 10);
-		if (cnts == 0) {
-			DBG_88E("%s: btrmap Fail!! cnts error!\n", __func__);
-			err = -EINVAL;
-			goto exit;
-		}
-		DBG_88E("%s: cnts =%d\n", __func__, cnts);
-
-		EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size);
-		if ((addr + cnts) > max_available_size) {
-			DBG_88E("%s: addr(0x%X)+cnts(%d) parameter error!\n", __func__, addr, cnts);
-			err = -EFAULT;
-			goto exit;
-		}
-
-		if (rtw_BT_efuse_map_read(padapter, addr, cnts, data) == _FAIL) {
-			DBG_88E("%s: rtw_BT_efuse_map_read error!!\n", __func__);
-			err = -EFAULT;
-			goto exit;
-		}
-
-		*extra = 0;
-		for (i = 0; i < cnts; i++)
-			sprintf(extra, "%s 0x%02X ", extra, data[i]);
 	} else if (strcmp(tmp[0], "btffake") == 0) {
 		sprintf(extra, "\n");
 		for (i = 0; i < 512; i += 16) {
@@ -6279,13 +6208,6 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 
 		for (jj = 0, kk = 0; jj < cnts; jj++, kk += 2)
 			pEfuseHal->fakeBTEfuseModifiedMap[addr+jj] = key_2char2num(tmp[2][kk], tmp[2][kk + 1]);
-	} else if (strcmp(tmp[0], "btdumpfake") == 0) {
-		if (rtw_BT_efuse_map_read(padapter, 0, EFUSE_BT_MAX_MAP_LEN, pEfuseHal->fakeBTEfuseModifiedMap) == _SUCCESS) {
-			DBG_88E("%s: BT read all map success\n", __func__);
-		} else {
-			DBG_88E("%s: BT read all map Fail!\n", __func__);
-			err = -EFAULT;
-		}
 	} else if (strcmp(tmp[0], "wldumpfake") == 0) {
 		if (rtw_efuse_map_read(padapter, 0, EFUSE_BT_MAX_MAP_LEN,  pEfuseHal->fakeEfuseModifiedMap) == _SUCCESS) {
 			DBG_88E("%s: BT read all map success\n", __func__);

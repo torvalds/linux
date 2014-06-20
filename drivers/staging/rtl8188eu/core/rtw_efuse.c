@@ -345,23 +345,6 @@ u8 rtw_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 	return _SUCCESS;
 }
 
-u8 rtw_BT_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
-{
-	u16 mapLen = 0;
-
-	EFUSE_GetEfuseDefinition(padapter, EFUSE_BT, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
-
-	if ((addr + cnts) > mapLen)
-		return _FAIL;
-
-	Efuse_PowerSwitch(padapter, false, true);
-
-	efuse_ReadEFuse(padapter, EFUSE_BT, addr, cnts, data, false);
-
-	Efuse_PowerSwitch(padapter, false, false);
-
-	return _SUCCESS;
-}
 /*  */
 u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 {
