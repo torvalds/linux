@@ -4669,6 +4669,9 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
+	/* Haven't installed the IRQ handler yet */
+	dev_priv->pm._irqs_disabled = true;
+
 	if (IS_GEN2(dev)) {
 		dev->max_vblank_count = 0;
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
