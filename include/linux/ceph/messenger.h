@@ -285,19 +285,9 @@ extern void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
-extern void ceph_msg_kfree(struct ceph_msg *m);
 
-
-static inline struct ceph_msg *ceph_msg_get(struct ceph_msg *msg)
-{
-	kref_get(&msg->kref);
-	return msg;
-}
-extern void ceph_msg_last_put(struct kref *kref);
-static inline void ceph_msg_put(struct ceph_msg *msg)
-{
-	kref_put(&msg->kref, ceph_msg_last_put);
-}
+extern struct ceph_msg *ceph_msg_get(struct ceph_msg *msg);
+extern void ceph_msg_put(struct ceph_msg *msg);
 
 extern void ceph_msg_dump(struct ceph_msg *msg);
 

@@ -3269,24 +3269,21 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 /*
  * Free a generically kmalloc'd message.
  */
-void ceph_msg_kfree(struct ceph_msg *m)
+static void ceph_msg_free(struct ceph_msg *m)
 {
-	dout("msg_kfree %p\n", m);
+	dout("%s %p\n", __func__, m);
 	ceph_kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
-/*
- * Drop a msg ref.  Destroy as needed.
- */
-void ceph_msg_last_put(struct kref *kref)
+static void ceph_msg_release(struct kref *kref)
 {
 	struct ceph_msg *m = container_of(kref, struct ceph_msg, kref);
 	LIST_HEAD(data);
 	struct list_head *links;
 	struct list_head *next;
 
-	dout("ceph_msg_put last one on %p\n", m);
+	dout("%s %p\n", __func__, m);
 	WARN_ON(!list_empty(&m->list_head));
 
 	/* drop middle, data, if any */
@@ -3308,9 +3305,25 @@ void ceph_msg_last_put(struct kref *kref)
 	if (m->pool)
 		ceph_msgpool_put(m->pool, m);
 	else
-		ceph_msg_kfree(m);
+		ceph_msg_free(m);
 }
-EXPORT_SYMBOL(ceph_msg_last_put);
+
+struct ceph_msg *ceph_msg_get(struct ceph_msg *msg)
+{
+	dout("%s %p (was %d)\n", __func__, msg,
+	     atomic_read(&msg->kref.refcount));
+	kref_get(&msg->kref);
+	return msg;
+}
+EXPORT_SYMBOL(ceph_msg_get);
+
+void ceph_msg_put(struct ceph_msg *msg)
+{
+	dout("%s %p (was %d)\n", __func__, msg,
+	     atomic_read(&msg->kref.refcount));
+	kref_put(&msg->kref, ceph_msg_release);
+}
+EXPORT_SYMBOL(ceph_msg_put);
 
 void ceph_msg_dump(struct ceph_msg *msg)
 {
