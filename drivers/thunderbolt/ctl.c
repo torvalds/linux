@@ -305,13 +305,13 @@ static struct ctl_pkg *tb_ctl_pkg_alloc(struct tb_ctl *ctl)
 {
 	struct ctl_pkg *pkg = kzalloc(sizeof(*pkg), GFP_KERNEL);
 	if (!pkg)
-		return 0;
+		return NULL;
 	pkg->ctl = ctl;
 	pkg->buffer = dma_pool_alloc(ctl->frame_pool, GFP_KERNEL,
 				     &pkg->frame.buffer_phy);
 	if (!pkg->buffer) {
 		kfree(pkg);
-		return 0;
+		return NULL;
 	}
 	return pkg;
 }
