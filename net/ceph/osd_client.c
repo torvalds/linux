@@ -364,7 +364,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	RB_CLEAR_NODE(&req->r_node);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
 	INIT_LIST_HEAD(&req->r_linger_item);
-	INIT_LIST_HEAD(&req->r_linger_osd);
+	INIT_LIST_HEAD(&req->r_linger_osd_item);
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 	INIT_LIST_HEAD(&req->r_osd_item);
 
@@ -916,7 +916,7 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 	 * list at the end to keep things in tid order.
 	 */
 	list_for_each_entry_safe(req, nreq, &osd->o_linger_requests,
-				 r_linger_osd) {
+				 r_linger_osd_item) {
 		/*
 		 * reregister request prior to unregistering linger so
 		 * that r_osd is preserved.
@@ -1218,7 +1218,7 @@ static void __register_linger_request(struct ceph_osd_client *osdc,
 	ceph_osdc_get_request(req);
 	list_add_tail(&req->r_linger_item, &osdc->req_linger);
 	if (req->r_osd)
-		list_add_tail(&req->r_linger_osd,
+		list_add_tail(&req->r_linger_osd_item,
 			      &req->r_osd->o_linger_requests);
 }
 
@@ -1228,7 +1228,7 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 	dout("__unregister_linger_request %p\n", req);
 	list_del_init(&req->r_linger_item);
 	if (req->r_osd) {
-		list_del_init(&req->r_linger_osd);
+		list_del_init(&req->r_linger_osd_item);
 
 		if (list_empty(&req->r_osd->o_requests) &&
 		    list_empty(&req->r_osd->o_linger_requests)) {
