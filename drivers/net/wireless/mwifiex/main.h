@@ -30,6 +30,7 @@
 #include <linux/etherdevice.h>
 #include <net/sock.h>
 #include <net/lib80211.h>
+#include <linux/vmalloc.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
@@ -410,6 +411,28 @@ struct mwifiex_roc_cfg {
 	struct ieee80211_channel chan;
 };
 
+#define MWIFIEX_FW_DUMP_IDX		0xff
+#define FW_DUMP_MAX_NAME_LEN		8
+#define FW_DUMP_HOST_READY		0xEE
+#define FW_DUMP_DONE			0xFF
+
+struct memory_type_mapping {
+	u8 mem_name[FW_DUMP_MAX_NAME_LEN];
+	u8 *mem_ptr;
+	u32 mem_size;
+	u8 done_flag;
+};
+
+enum rdwr_status {
+	RDWR_STATUS_SUCCESS = 0,
+	RDWR_STATUS_FAILURE = 1,
+	RDWR_STATUS_DONE = 2
+};
+
+enum mwifiex_iface_work_flags {
+	MWIFIEX_IFACE_WORK_FW_DUMP,
+};
+
 struct mwifiex_adapter;
 struct mwifiex_private;
 
@@ -674,6 +697,7 @@ struct mwifiex_if_ops {
 	void (*card_reset) (struct mwifiex_adapter *);
 	void (*fw_dump)(struct mwifiex_adapter *);
 	int (*clean_pcie_ring) (struct mwifiex_adapter *adapter);
+	void (*iface_work)(struct work_struct *work);
 };
 
 struct mwifiex_adapter {
@@ -809,6 +833,11 @@ struct mwifiex_adapter {
 	bool ext_scan;
 	u8 fw_api_ver;
 	u8 fw_key_api_major_ver, fw_key_api_minor_ver;
+	struct work_struct iface_work;
+	unsigned long iface_work_flags;
+	struct memory_type_mapping *mem_type_mapping_tbl;
+	u8 num_mem_types;
+	u8 curr_mem_idx;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
