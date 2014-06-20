@@ -51,7 +51,7 @@ int mvebu_get_soc_id(u32 *dev, u32 *rev)
 		*rev = soc_rev;
 		return 0;
 	} else
-		return -1;
+		return -ENODEV;
 }
 
 static int __init mvebu_soc_id_init(void)
