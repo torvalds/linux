@@ -326,7 +326,7 @@ struct dt282x_private {
 
 	const struct comedi_lrange *darangelist[2];
 
-	unsigned short ao[2];
+	unsigned short ao_readback[2];
 
 	int dacsr;	/* software copies of registers */
 	int adcsr;
@@ -828,21 +828,19 @@ static int dt282x_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- *    Analog output routine.  Selects single channel conversion,
- *      selects correct channel, converts from 2's compliment to
- *      offset binary if necessary, loads the data into the DAC
- *      data register, and performs the conversion.
- */
 static int dt282x_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct dt282x_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	data[0] = devpriv->ao[CR_CHAN(insn->chanspec)];
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_readback[chan];
 
-	return 1;
+	return insn->n;
 }
 
 static int dt282x_ao_insn_write(struct comedi_device *dev,
@@ -869,7 +867,7 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		devpriv->ao[chan] = val;
+		devpriv->ao_readback[chan] = val;
 
 		if (munge)
 			val = comedi_offset_munge(s, val);
