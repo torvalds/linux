@@ -10,10 +10,12 @@
  * for more details.
  */
 
-#include <asm/io.h>
 #include <linux/kernel.h>
-#include <mach/r8a7791.h>
+
+#include <asm/io.h>
+
 #include "pm-rcar.h"
+#include "r8a7791.h"
 
 /* SYSC */
 #define SYSCIER 0x0c

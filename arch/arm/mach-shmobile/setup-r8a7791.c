@@ -26,10 +26,12 @@
 #include <linux/platform_data/irq-renesas-irqc.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
-#include <mach/r8a7791.h>
+
 #include <asm/mach/arch.h>
+
 #include "common.h"
 #include "irqs.h"
+#include "r8a7791.h"
 #include "rcar-gen2.h"
 
 static const struct resource pfc_resources[] __initconst = {
