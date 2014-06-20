@@ -260,11 +260,11 @@ struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route)
 	if (route == 0)
 		return sw;
 	if (next_port > sw->config.max_port_number)
-		return 0;
+		return NULL;
 	if (tb_is_upstream_port(&sw->ports[next_port]))
-		return 0;
+		return NULL;
 	if (!sw->ports[next_port].remote)
-		return 0;
+		return NULL;
 	return get_switch_at_route(sw->ports[next_port].remote->sw,
 				   route >> TB_ROUTE_SHIFT);
 }
