@@ -1236,31 +1236,33 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel = dt282x_ai_cancel;
 	}
 
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
+	if (board->dachan) {
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= board->dachan;
+		s->maxdata	= board->ao_maxdata;
 
-	s->n_chan = board->dachan;
-	if (s->n_chan) {
-		/* ao subsystem */
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->insn_read = dt282x_ao_insn_read;
-		s->insn_write = dt282x_ao_insn_write;
-		s->maxdata = board->ao_maxdata;
+		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table_list = devpriv->darangelist;
 		devpriv->darangelist[0] = opt_ao_range_lkup(it->options[9]);
 		devpriv->darangelist[1] = opt_ao_range_lkup(it->options[10]);
 		devpriv->da0_2scomp = it->options[6] ? 1 : 0;
 		devpriv->da1_2scomp = it->options[7] ? 1 : 0;
+
+		s->insn_read	= dt282x_ao_insn_read;
+		s->insn_write	= dt282x_ao_insn_write;
 		if (dev->irq) {
 			dev->write_subdev = s;
-			s->subdev_flags |= SDF_CMD_WRITE;
-			s->len_chanlist = 2;
-			s->do_cmdtest = dt282x_ao_cmdtest;
-			s->do_cmd = dt282x_ao_cmd;
-			s->cancel = dt282x_ao_cancel;
+			s->subdev_flags	|= SDF_CMD_WRITE;
+			s->len_chanlist	= s->n_chan;
+			s->do_cmdtest	= dt282x_ao_cmdtest;
+			s->do_cmd	= dt282x_ao_cmd;
+			s->cancel	= dt282x_ao_cancel;
 		}
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/* Digital I/O subdevice */
