@@ -2327,7 +2327,7 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	if (error)
 		return error;
 
-	le16_to_cpus(range_x);
+	le16_to_cpus(&range_x);
 
 	error = __mxt_read_reg(client,
 			       object->start_address + MXT_T100_YRANGE,
@@ -2335,7 +2335,7 @@ static int mxt_read_t100_config(struct mxt_data *data)
 	if (error)
 		return error;
 
-	le16_to_cpus(range_y);
+	le16_to_cpus(&range_y);
 
 	error =  __mxt_read_reg(client,
 				object->start_address + MXT_T100_CFG1,
