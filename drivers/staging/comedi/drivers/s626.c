@@ -114,9 +114,6 @@ struct s626_enc_info {
 	void (*set_mode)(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t setup,
 			 uint16_t disable_int_src);
-	/* Reset event capture flags. */
-	void (*reset_cap_flags)(struct comedi_device *dev,
-				const struct s626_enc_info *k);
 
 	uint16_t my_event_bits[4]; /* bit translations for IntSrc -->RDMISC2 */
 };
@@ -746,20 +743,18 @@ static void s626_preload(struct comedi_device *dev,
 /*
  * Reset a counter's index and overflow event capture flags.
  */
-static void s626_reset_cap_flags_a(struct comedi_device *dev,
-				   const struct s626_enc_info *k)
+static void s626_reset_cap_flags(struct comedi_device *dev,
+				 const struct s626_enc_info *k)
 {
-	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
-			  (S626_SET_CRB_INTRESETCMD(1) |
-			   S626_SET_CRB_INTRESET_A(1)));
-}
+	uint16_t set;
 
-static void s626_reset_cap_flags_b(struct comedi_device *dev,
-				   const struct s626_enc_info *k)
-{
-	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
-			  (S626_SET_CRB_INTRESETCMD(1) |
-			   S626_SET_CRB_INTRESET_B(1)));
+	set = S626_SET_CRB_INTRESETCMD(1);
+	if (k->chan < 3)
+		set |= S626_SET_CRB_INTRESET_A(1);
+	else
+		set |= S626_SET_CRB_INTRESET_B(1);
+
+	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL, set);
 }
 
 /*
@@ -1299,37 +1294,31 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.chan			= 0,
 		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
-		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
 		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
-		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
 		.get_mode		= s626_get_mode_a,
 		.set_mode		= s626_set_mode_a,
-		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
 		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
-		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
 		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
-		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
 		.get_mode		= s626_get_mode_b,
 		.set_mode		= s626_set_mode_b,
-		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(5),
 	},
 };
@@ -1474,31 +1463,31 @@ static void s626_check_counter_interrupts(struct comedi_device *dev)
 		k = &s626_enc_chan_info[0];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 	}
 	if (irqbit & S626_IRQ_COINT2A) {
 		k = &s626_enc_chan_info[1];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 	}
 	if (irqbit & S626_IRQ_COINT3A) {
 		k = &s626_enc_chan_info[2];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 	}
 	if (irqbit & S626_IRQ_COINT1B) {
 		k = &s626_enc_chan_info[3];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 	}
 	if (irqbit & S626_IRQ_COINT2B) {
 		k = &s626_enc_chan_info[4];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 
 		if (devpriv->ai_convert_count > 0) {
 			devpriv->ai_convert_count--;
@@ -1516,7 +1505,7 @@ static void s626_check_counter_interrupts(struct comedi_device *dev)
 		k = &s626_enc_chan_info[5];
 
 		/* clear interrupt capture flag */
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			/* Trigger ADC scan loop start */
@@ -2564,7 +2553,7 @@ static void s626_counters_init(struct comedi_device *dev)
 		k = &s626_enc_chan_info[chan];
 		k->set_mode(dev, k, setup, true);
 		s626_set_int_src(dev, k, 0);
-		k->reset_cap_flags(dev, k);
+		s626_reset_cap_flags(dev, k);
 		s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 	}
 }
