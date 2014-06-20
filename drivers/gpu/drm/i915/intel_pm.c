@@ -4974,6 +4974,9 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
 	cancel_work_sync(&dev_priv->rps.work);
+
+	/* Force GPU to min freq during suspend */
+	gen6_rps_idle(dev_priv);
 }
 
 void intel_disable_gt_powersave(struct drm_device *dev)
