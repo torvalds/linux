@@ -63,7 +63,7 @@ Efuse_CalculateWordCnts(u8 word_en)
 	return word_cnts;
 }
 
-u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data, bool pseudo)
+u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data)
 {
 	u8 tmpidx = 0;
 	u8 result;
@@ -154,7 +154,7 @@ void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata)
 
 static u8 efuse_read8(struct adapter *padapter, u16 address, u8 *value)
 {
-	return efuse_OneByteRead(padapter, address, value, false);
+	return efuse_OneByteRead(padapter, address, value);
 }
 
 static u8 efuse_write8(struct adapter *padapter, u16 address, u8 *value)
