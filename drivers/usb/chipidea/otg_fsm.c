@@ -800,13 +800,8 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 			}
 		} else if (otg_int_src & OTGSC_BSVIS) {
 			hw_write_otgsc(ci, OTGSC_BSVIS, OTGSC_BSVIS);
-			ci->b_sess_valid_event = true;
-			if (otgsc & OTGSC_BSV) {
-				fsm->b_sess_vld = 1;
-				ci_otg_del_timer(ci, B_SSEND_SRP);
-				ci_otg_del_timer(ci, B_SRP_FAIL);
-				fsm->b_ssend_srp = 0;
-			} else {
+			ci->vbus_glitch_check_event = true;
+			if (!(otgsc & OTGSC_BSV) && fsm->b_sess_vld) {
 				fsm->b_sess_vld = 0;
 				if (fsm->id)
 					ci_otg_add_timer(ci, B_SSEND_SRP);
