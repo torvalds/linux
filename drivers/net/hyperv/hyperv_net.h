@@ -170,6 +170,7 @@ struct rndis_device {
 
 	enum rndis_device_state state;
 	bool link_state;
+	bool link_change;
 	atomic_t new_req_id;
 
 	spinlock_t request_lock;
@@ -185,7 +186,7 @@ int netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct hv_device *device,
 		struct hv_netvsc_packet *packet);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
-				unsigned int status);
+				struct rndis_message *resp);
 int netvsc_recv_callback(struct hv_device *device_obj,
 			struct hv_netvsc_packet *packet,
 			struct ndis_tcp_ip_checksum_info *csum_info);

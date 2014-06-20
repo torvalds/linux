@@ -320,25 +320,6 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	}
 }
 
-static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
-					     struct rndis_message *resp)
-{
-	struct rndis_indicate_status *indicate =
-			&resp->msg.indicate_status;
-
-	if (indicate->status == RNDIS_STATUS_MEDIA_CONNECT) {
-		netvsc_linkstatus_callback(
-			dev->net_dev->dev, 1);
-	} else if (indicate->status == RNDIS_STATUS_MEDIA_DISCONNECT) {
-		netvsc_linkstatus_callback(
-			dev->net_dev->dev, 0);
-	} else {
-		/*
-		 * TODO:
-		 */
-	}
-}
-
 /*
  * Get the Per-Packet-Info with the specified type
  * return NULL if not found.
@@ -464,7 +445,7 @@ int rndis_filter_receive(struct hv_device *dev,
 
 	case RNDIS_MSG_INDICATE:
 		/* notification msgs */
-		rndis_filter_receive_indicate_status(rndis_dev, rndis_msg);
+		netvsc_linkstatus_callback(dev, rndis_msg);
 		break;
 	default:
 		netdev_err(ndev,
