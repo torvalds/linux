@@ -920,6 +920,8 @@ int mwifiex_ret_enh_power_mode(struct mwifiex_private *priv,
 void mwifiex_process_hs_config(struct mwifiex_adapter *adapter);
 void mwifiex_hs_activated_event(struct mwifiex_private *priv,
 					u8 activated);
+int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
+			  int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg);
 int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
 int mwifiex_process_rx_packet(struct mwifiex_private *priv,

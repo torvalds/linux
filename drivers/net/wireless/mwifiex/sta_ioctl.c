@@ -389,8 +389,8 @@ done:
  * This function prepares the correct firmware command and
  * issues it.
  */
-static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
-				 int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
+int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
+			  int cmd_type, struct mwifiex_ds_hs_cfg *hs_cfg)
 
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
