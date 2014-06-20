@@ -6253,11 +6253,6 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			goto exit;
 		}
 
-		if (rtw_BT_efuse_map_write(padapter, addr, cnts, setdata) == _FAIL) {
-			DBG_88E("%s: rtw_BT_efuse_map_write error!!\n", __func__);
-			err = -EFAULT;
-			goto exit;
-		}
 	} else if (strcmp(tmp[0], "btwfake") == 0) {
 		if ((tmp[1] == NULL) || (tmp[2] == NULL)) {
 			err = -EINVAL;
@@ -6307,11 +6302,6 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 			goto exit;
 		}
 
-		if (rtw_BT_efuse_map_write(padapter, 0x00, EFUSE_BT_MAX_MAP_LEN, pEfuseHal->fakeBTEfuseModifiedMap) == _FAIL) {
-			DBG_88E("%s: rtw_BT_efuse_map_write error!\n", __func__);
-			err = -EFAULT;
-			goto exit;
-		}
 	} else if (strcmp(tmp[0], "wlfk2map") == 0) {
 		EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, (void *)&max_available_size);
 		if (max_available_size < 1) {
