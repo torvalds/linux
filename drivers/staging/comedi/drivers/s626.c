@@ -677,25 +677,6 @@ static int s626_load_trim_dacs(struct comedi_device *dev)
  */
 
 /*
- * Read a counter's output latch.
- */
-static uint32_t s626_read_latch(struct comedi_device *dev,
-				const struct s626_enc_info *k)
-{
-	uint32_t value;
-
-	/* Latch counts and fetch LSW of latched counts value. */
-	value = s626_debi_read(dev, S626_LP_CNTR(k->chan));
-
-	/* Fetch MSW of latched counts and combine with LSW. */
-	value |= ((uint32_t)s626_debi_read(dev,
-					   S626_LP_CNTR(k->chan) + 2) << 16);
-
-	/* Return latched counts. */
-	return value;
-}
-
-/*
  * Return/set a counter pair's latch trigger source.  0: On read
  * access, 1: A index latches A, 2: B index latches B, 3: A overflow
  * latches B.
@@ -2468,16 +2449,26 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 
 static int s626_enc_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data)
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	int n;
-	const struct s626_enc_info *k =
-		&s626_enc_chan_info[CR_CHAN(insn->chanspec)];
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	uint16_t cntr_latch_reg = S626_LP_CNTR(chan);
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		data[n] = s626_read_latch(dev, k);
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val;
 
-	return n;
+		/*
+		 * Read the counter's output latch LSW/MSW.
+		 * Latches on LSW read.
+		 */
+		val = s626_debi_read(dev, cntr_latch_reg);
+		val |= (s626_debi_read(dev, cntr_latch_reg + 2) << 16);
+		data[i] = val;
+	}
+
+	return insn->n;
 }
 
 static int s626_enc_insn_write(struct comedi_device *dev,
