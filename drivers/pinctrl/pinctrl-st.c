@@ -1431,7 +1431,7 @@ static void st_gpio_irqmux_handler(unsigned irq, struct irq_desc *desc)
 
 	status = readl(info->irqmux_base);
 
-	for_each_set_bit(n, &status, ST_GPIO_PINS_PER_BANK)
+	for_each_set_bit(n, &status, info->nbanks)
 		__gpio_irq_handler(&info->banks[n]);
 
 	chained_irq_exit(chip, desc);
