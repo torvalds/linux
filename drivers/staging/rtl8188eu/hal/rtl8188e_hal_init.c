@@ -1257,7 +1257,7 @@ static bool wordEnMatched(struct pgpkt *pTargetPkt, struct pgpkt *pCurPkt,
 		return false;
 }
 
-static bool hal_EfuseCheckIfDatafollowed(struct adapter *pAdapter, u8 word_cnts, u16 startAddr, bool bPseudoTest)
+static bool hal_EfuseCheckIfDatafollowed(struct adapter *pAdapter, u8 word_cnts, u16 startAddr)
 {
 	bool bRet = false;
 	u8 i, efuse_data;
