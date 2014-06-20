@@ -122,9 +122,6 @@ struct s626_enc_info {
 	/* Program interrupt source. */
 	void (*set_int_src)(struct comedi_device *dev,
 			    const struct s626_enc_info *k, uint16_t int_source);
-	/* Program preload trigger source. */
-	void (*set_load_trig)(struct comedi_device *dev,
-			      const struct s626_enc_info *k, uint16_t trig);
 	/* Program standardized operating mode. */
 	void (*set_mode)(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t setup,
@@ -1109,19 +1106,23 @@ static uint16_t s626_get_latch_source(struct comedi_device *dev,
  * register into the counter.  0=ThisCntr_Index, 1=ThisCntr_Overflow,
  * 2=OverflowA (B counters only), 3=disabled.
  */
-static void s626_set_load_trig_a(struct comedi_device *dev,
-				 const struct s626_enc_info *k, uint16_t trig)
+static void s626_set_load_trig(struct comedi_device *dev,
+			       const struct s626_enc_info *k, uint16_t trig)
 {
-	s626_debi_replace(dev, S626_LP_CRA(k->chan), ~S626_CRAMSK_LOADSRC_A,
-			  S626_SET_CRA_LOADSRC_A(trig));
-}
+	uint16_t reg;
+	uint16_t mask;
+	uint16_t set;
 
-static void s626_set_load_trig_b(struct comedi_device *dev,
-				 const struct s626_enc_info *k, uint16_t trig)
-{
-	s626_debi_replace(dev, S626_LP_CRB(k->chan),
-			  ~(S626_CRBMSK_LOADSRC_B | S626_CRBMSK_INTCTRL),
-			  S626_SET_CRB_LOADSRC_B(trig));
+	if (k->chan < 3) {
+		reg = S626_LP_CRA(k->chan);
+		mask = S626_CRAMSK_LOADSRC_A;
+		set = S626_SET_CRA_LOADSRC_A(trig);
+	} else {
+		reg = S626_LP_CRB(k->chan);
+		mask = S626_CRBMSK_LOADSRC_B | S626_CRBMSK_INTCTRL;
+		set = S626_SET_CRB_LOADSRC_B(trig);
+	}
+	s626_debi_replace(dev, reg, ~mask, set);
 }
 
 static uint16_t s626_get_load_trig_a(struct comedi_device *dev,
@@ -1321,7 +1322,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
-		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(0),
@@ -1332,7 +1332,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
-		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(1),
@@ -1343,7 +1342,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
-		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(2),
@@ -1354,7 +1352,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
-		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(3),
@@ -1365,7 +1362,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
-		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(4),
@@ -1376,7 +1372,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
-		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(5),
@@ -2128,11 +2123,11 @@ static void s626_timer_load(struct comedi_device *dev,
 	 * Software index pulse forces the preload register to load
 	 * into the counter
 	 */
-	k->set_load_trig(dev, k, 0);
+	s626_set_load_trig(dev, k, 0);
 	k->pulse_index(dev, k);
 
 	/* set reload on counter overflow */
-	k->set_load_trig(dev, k, 1);
+	s626_set_load_trig(dev, k, 1);
 
 	/* set interrupt on overflow */
 	k->set_int_src(dev, k, S626_INTSRC_OVER);
@@ -2554,9 +2549,9 @@ static int s626_enc_insn_write(struct comedi_device *dev,
 	 * Software index pulse forces the preload register to load
 	 * into the counter
 	 */
-	k->set_load_trig(dev, k, 0);
+	s626_set_load_trig(dev, k, 0);
 	k->pulse_index(dev, k);
-	k->set_load_trig(dev, k, 2);
+	s626_set_load_trig(dev, k, 2);
 
 	return 1;
 }
