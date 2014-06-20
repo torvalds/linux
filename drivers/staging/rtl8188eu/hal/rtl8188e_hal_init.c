@@ -1207,14 +1207,6 @@ static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoT
 	return efuse_addr;
 }
 
-static u16 Hal_EfuseGetCurrentSize_Pseudo(struct adapter *pAdapter, bool bPseudoTest)
-{
-	u16	ret = 0;
-
-	ret = hal_EfuseGetCurrentSize_8188e(pAdapter, bPseudoTest);
-	return ret;
-}
-
 static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest)
 {
 	u8 ReadState = PG_STATE_HEADER;
