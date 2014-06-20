@@ -116,9 +116,6 @@ struct s626_enc_info {
 	/* Generate soft index strobe. */
 	void (*pulse_index)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
-	/* Program interrupt source. */
-	void (*set_int_src)(struct comedi_device *dev,
-			    const struct s626_enc_info *k, uint16_t int_source);
 	/* Program standardized operating mode. */
 	void (*set_mode)(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t setup,
@@ -1140,51 +1137,44 @@ static uint16_t s626_get_load_trig(struct comedi_device *dev,
  * index/overflow events.  int_source: 0=Disabled, 1=OverflowOnly,
  * 2=IndexOnly, 3=IndexAndOverflow.
  */
-static void s626_set_int_src_a(struct comedi_device *dev,
-			       const struct s626_enc_info *k,
-			       uint16_t int_source)
+static void s626_set_int_src(struct comedi_device *dev,
+			     const struct s626_enc_info *k,
+			     uint16_t int_source)
 {
 	struct s626_private *devpriv = dev->private;
+	uint16_t cra_reg = S626_LP_CRA(k->chan);
+	uint16_t crb_reg = S626_LP_CRB(k->chan);
 
-	/* Reset any pending counter overflow or index captures. */
-	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
-			  (S626_SET_CRB_INTRESETCMD(1) |
-			   S626_SET_CRB_INTRESET_A(1)));
+	if (k->chan < 3) {
+		/* Reset any pending counter overflow or index captures */
+		s626_debi_replace(dev, crb_reg, ~S626_CRBMSK_INTCTRL,
+				  S626_SET_CRB_INTRESETCMD(1) |
+				  S626_SET_CRB_INTRESET_A(1));
 
-	/* Program counter interrupt source. */
-	s626_debi_replace(dev, S626_LP_CRA(k->chan), ~S626_CRAMSK_INTSRC_A,
-			  S626_SET_CRA_INTSRC_A(int_source));
+		/* Program counter interrupt source */
+		s626_debi_replace(dev, cra_reg, ~S626_CRAMSK_INTSRC_A,
+				  S626_SET_CRA_INTSRC_A(int_source));
+	} else {
+		uint16_t crb;
 
-	/* Update MISC2 interrupt enable mask. */
-	devpriv->counter_int_enabs =
-	    (devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-	    k->my_event_bits[int_source];
-}
+		/* Cache writeable CRB register image */
+		crb = s626_debi_read(dev, crb_reg);
+		crb &= ~S626_CRBMSK_INTCTRL;
 
-static void s626_set_int_src_b(struct comedi_device *dev,
-			       const struct s626_enc_info *k,
-			       uint16_t int_source)
-{
-	struct s626_private *devpriv = dev->private;
-	uint16_t crb;
+		/* Reset any pending counter overflow or index captures */
+		s626_debi_write(dev, crb_reg,
+				crb | S626_SET_CRB_INTRESETCMD(1) |
+				S626_SET_CRB_INTRESET_B(1));
 
-	/* Cache writeable CRB register image. */
-	crb = s626_debi_read(dev, S626_LP_CRB(k->chan)) & ~S626_CRBMSK_INTCTRL;
-
-	/* Reset any pending counter overflow or index captures. */
-	s626_debi_write(dev, S626_LP_CRB(k->chan),
-			(crb | S626_SET_CRB_INTRESETCMD(1) |
-			S626_SET_CRB_INTRESET_B(1)));
-
-	/* Program counter interrupt source. */
-	s626_debi_write(dev, S626_LP_CRB(k->chan),
-			((crb & ~S626_CRBMSK_INTSRC_B) |
-			S626_SET_CRB_INTSRC_B(int_source)));
+		/* Program counter interrupt source */
+		s626_debi_write(dev, crb_reg,
+				(crb & ~S626_CRBMSK_INTSRC_B) |
+				S626_SET_CRB_INTSRC_B(int_source));
+	}
 
 	/* Update MISC2 interrupt enable mask. */
-	devpriv->counter_int_enabs =
-		(devpriv->counter_int_enabs & ~k->my_event_bits[3]) |
-		k->my_event_bits[int_source];
+	devpriv->counter_int_enabs &= ~k->my_event_bits[3];
+	devpriv->counter_int_enabs |= k->my_event_bits[int_source];
 }
 
 static uint16_t s626_get_int_src_a(struct comedi_device *dev,
@@ -1316,7 +1306,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_int_src		= s626_set_int_src_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(0),
@@ -1325,7 +1314,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_int_src		= s626_set_int_src_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(1),
@@ -1334,7 +1322,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_int_src		= s626_set_int_src_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(2),
@@ -1343,7 +1330,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_int_src		= s626_set_int_src_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(3),
@@ -1352,7 +1338,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_int_src		= s626_set_int_src_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(4),
@@ -1361,7 +1346,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_int_src		= s626_set_int_src_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(5),
@@ -2120,7 +2104,7 @@ static void s626_timer_load(struct comedi_device *dev,
 	s626_set_load_trig(dev, k, 1);
 
 	/* set interrupt on overflow */
-	k->set_int_src(dev, k, S626_INTSRC_OVER);
+	s626_set_int_src(dev, k, S626_INTSRC_OVER);
 
 	s626_set_latch_source(dev, k, value_latchsrc);
 	/* s626_set_enable(dev, k, (uint16_t)(enab != 0)); */
@@ -2597,7 +2581,7 @@ static void s626_counters_init(struct comedi_device *dev)
 	for (chan = 0; chan < S626_ENCODER_CHANNELS; chan++) {
 		k = &s626_enc_chan_info[chan];
 		k->set_mode(dev, k, setup, true);
-		k->set_int_src(dev, k, 0);
+		s626_set_int_src(dev, k, 0);
 		k->reset_cap_flags(dev, k);
 		s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 	}
