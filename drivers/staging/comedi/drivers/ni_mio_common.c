@@ -5604,7 +5604,8 @@ static int ni_alloc_private(struct comedi_device *dev)
 	return 0;
 }
 
-static int ni_E_init(struct comedi_device *dev, unsigned interrupt_pin)
+static int ni_E_init(struct comedi_device *dev,
+		     unsigned interrupt_pin, unsigned irq_polarity)
 {
 	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
@@ -5905,7 +5906,7 @@ static int ni_E_init(struct comedi_device *dev, unsigned interrupt_pin)
 
 	if (dev->irq) {
 		ni_stc_writew(dev,
-			      (IRQ_POLARITY ? Interrupt_Output_Polarity : 0) |
+			      (irq_polarity ? Interrupt_Output_Polarity : 0) |
 			      (Interrupt_Output_On_3_Pins & 0) |
 			      Interrupt_A_Enable | Interrupt_B_Enable |
 			      Interrupt_A_Output_Select(interrupt_pin) |

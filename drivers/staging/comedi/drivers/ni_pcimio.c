@@ -1042,8 +1042,6 @@ static const struct ni_board_struct ni_boards[] = {
 	},
 };
 
-#define IRQ_POLARITY 1
-
 #include "ni_mio_common.c"
 
 static int pcimio_ai_change(struct comedi_device *dev,
@@ -1271,7 +1269,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 			dev->irq = irq;
 	}
 
-	ret = ni_E_init(dev, 0);
+	ret = ni_E_init(dev, 0, 1);
 	if (ret < 0)
 		return ret;
 
