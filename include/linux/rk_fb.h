@@ -80,11 +80,17 @@
 #define RK_LF_MAX_TIMEOUT 			 (1600000UL << 6)	//>0.64s
 
 
-/*for x y mirror*/
+/* x y mirror or rotate mode */
 #define NO_MIRROR	0
-#define X_MIRROR    	1
-#define Y_MIRROR    	2
-#define X_Y_MIRROR    	3
+#define X_MIRROR    	1		/* up-down flip*/
+#define Y_MIRROR    	2		/* left-right flip */
+#define X_Y_MIRROR    	3		/* the same as rotate 180 degrees */
+#define ROTATE_90	4		/* clockwise rotate 90 degrees */
+#define ROTATE_180	8		/* rotate 180 degrees
+					 * It is recommended to use X_Y_MIRROR
+					 * rather than ROTATE_180
+					 */
+#define ROTATE_270	12		/* clockwise rotate 270 degrees */
 
 
 /**
@@ -527,6 +533,7 @@ struct rk_lcdc_driver {
 	struct rk_screen *screen1;	//two display devices for dual display,such as rk2918,rk2928
 	struct rk_screen *cur_screen;	//screen0 is primary screen ,like lcd panel,screen1 is  extend screen,like hdmi
 	u32 pixclock;
+	u16 rotate_mode;
 
 	char fb0_win_id;
 	char fb1_win_id;

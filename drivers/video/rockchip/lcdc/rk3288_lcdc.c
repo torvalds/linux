@@ -3518,6 +3518,11 @@ static int rk3288_lcdc_parse_dt(struct lcdc_device *lcdc_dev)
 	else
 		lcdc_dev->prop = val;
 
+	if (of_property_read_u32(np, "rockchip,mirror", &val))
+		lcdc_dev->driver.rotate_mode = NO_MIRROR;
+	else
+		lcdc_dev->driver.rotate_mode = val;
+
 	if (of_property_read_u32(np, "rockchip,cabc_mode", &val))
 		lcdc_dev->driver.cabc_mode = 0;	/* default set close cabc */
 	else

@@ -41,7 +41,9 @@
 #define X_MIRROR    	1
 #define Y_MIRROR    	2
 #define X_Y_MIRROR    	3
-
+#define ROTATE_90	4
+#define ROTATE_180	8
+#define ROTATE_270	12
 
 /*      	lvds connect config       
  *                                        

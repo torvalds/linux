@@ -704,7 +704,6 @@ static int rk_fb_close(struct fb_info *info, int user)
 	return 0;
 }
 
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 
 #if defined(CONFIG_RK29_IPP)
 static int get_ipp_format(int fmt)
@@ -785,21 +784,23 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 	int dst_w, dst_h, dst_vir_w;
 	int ipp_fmt;
 	u8 data_format = (dst_info->var.nonstd) & 0xff;
+	struct rk_lcdc_driver *ext_dev_drv =
+			(struct rk_lcdc_driver *)dst_info->par;
+	u16 orientation = ext_dev_drv->rotate_mode;
 
 	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
-#if defined(CONFIG_FB_ROTATE)
-	int orientation = 270 - CONFIG_ROTATE_ORIENTATION;
+
 	switch (orientation) {
 	case 0:
 		rotation = IPP_ROT_0;
 		break;
-	case 90:
+	case ROTATE_90:
 		rotation = IPP_ROT_90;
 		break;
-	case 180:
+	case ROTATE_180:
 		rotation = IPP_ROT_180;
 		break;
-	case 270:
+	case ROTATE_270:
 		rotation = IPP_ROT_270;
 		break;
 	default:
@@ -807,7 +808,6 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 		break;
 
 	}
-#endif
 
 	dst_w = dst_info->var.xres;
 	dst_h = dst_info->var.yres;
@@ -900,23 +900,18 @@ static void rga_win_check(struct rk_lcdc_win *dst_win,
 }
 
 static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
-			    struct rk_lcdc_win *src_win)
+			    struct rk_lcdc_win *src_win, u16 orientation)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct rga_req Rga_Request;
 	long ret = 0;
 	/* int fd = 0; */
-#if defined(CONFIG_FB_ROTATE)
-	int orientation = 0;
-#endif
 
 	memset(&Rga_Request, 0, sizeof(Rga_Request));
 	rga_win_check(dst_win, src_win);
 
-#if defined(CONFIG_FB_ROTATE)
-	orientation = 270 - CONFIG_ROTATE_ORIENTATION;
 	switch (orientation) {
-	case 90:
+	case ROTATE_90:
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = 65536;
 		Rga_Request.cosa = 0;
@@ -925,7 +920,7 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = 0;
 		break;
-	case 180:
+	case ROTATE_180:
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = 0;
 		Rga_Request.cosa = -65536;
@@ -934,7 +929,7 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		Rga_Request.dst.x_offset = dst_win->area[0].xact - 1;
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
-	case 270:
+	case ROTATE_270:
 		Rga_Request.rotate_mode = 1;
 		Rga_Request.sina = -65536;
 		Rga_Request.cosa = 0;
@@ -951,7 +946,6 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 		Rga_Request.dst.y_offset = dst_win->area[0].yact - 1;
 		break;
 	}
-#endif
 
 #if defined(CONFIG_ROCKCHIP_RGA)
 	Rga_Request.src.yrgb_addr =
@@ -1034,7 +1028,7 @@ static void fb_copy_by_rga(struct fb_info *dst_info, struct fb_info *src_info,
 	    ext_dev_drv->ops->fb_get_win_id(ext_dev_drv, dst_info->fix.id);
 	dst_win = ext_dev_drv->win[ext_win_id];
 
-	win_copy_by_rga(dst_win, src_win);
+	win_copy_by_rga(dst_win, src_win, ext_dev_drv->rotate_mode);
 }
 
 #endif
@@ -1053,16 +1047,16 @@ static int rk_fb_rotate(struct fb_info *dst_info,
 }
 
 static int rk_fb_win_rotate(struct rk_lcdc_win *dst_win,
-			    struct rk_lcdc_win *src_win)
+			    struct rk_lcdc_win *src_win, u16 rotate)
 {
 #if defined(CONFIG_ROCKCHIP_RGA) || defined(CONFIG_ROCKCHIP_RGA2)
-	win_copy_by_rga(dst_win, src_win);
+	win_copy_by_rga(dst_win, src_win, rotate);
 #else
 	return -1;
 #endif
 	return 0;
 }
-#endif
+
 
 static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
@@ -1205,12 +1199,15 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	if (rk_fb->disp_mode == DUAL) {
 		if (extend_win->state && (hdmi_switch_complete)) {
 			extend_win->area[0].y_offset = win->area[0].y_offset;
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
-			rk_fb_rotate(extend_info, info, win->area[0].y_offset);
-#else
-			extend_win->area[0].smem_start = win->area[0].smem_start;
-			extend_win->area[0].cbr_start = win->area[0].cbr_start;
-#endif
+			if (extend_dev_drv->rotate_mode > X_Y_MIRROR) {
+				rk_fb_rotate(extend_info, info,
+						win->area[0].y_offset);
+			} else {
+				extend_win->area[0].smem_start =
+						win->area[0].smem_start;
+				extend_win->area[0].cbr_start =
+						win->area[0].cbr_start;
+			}
 			extend_dev_drv->ops->pan_display(extend_dev_drv,
 							 extend_win_id);
 		}
@@ -1537,9 +1534,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			stride = ALIGN_N_TIMES(vir_width_bit, 32) / 8;
 			ext_win->area[0].y_vir_stride = stride >> 2;
 		}
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
-		rk_fb_win_rotate(ext_win, win);
-#endif
+		if (ext_dev_drv->rotate_mode > X_Y_MIRROR)
+			rk_fb_win_rotate(ext_win, win, ext_dev_drv->rotate_mode);
+
 		ext_dev_drv->ops->set_par(ext_dev_drv, 0);
 		ext_dev_drv->ops->pan_display(ext_dev_drv, 0);
 		ext_dev_drv->ops->cfg_done(ext_dev_drv);
@@ -2934,6 +2931,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			memcpy(dev_drv->cur_screen, screen, sizeof(struct rk_screen));
 	}
 
+	dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
+	dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
+
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 
 	if (!enable && !dev_drv->screen1) {	/* only double lcdc device need to close */
@@ -3130,12 +3130,11 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	int win_id;
 	int ret = 0;
 	unsigned long fb_mem_size;
-/*
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
-	struct resource *res;
-	struct resource *mem;
+#if !defined(CONFIG_ION_ROCKCHIP)
+	dma_addr_t fb_mem_phys;
+	void *fb_mem_virt;
 #endif
-*/
+
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (win_id < 0)
 		return -ENODEV;
@@ -3148,8 +3147,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		if (rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
 			return -ENOMEM;
 #else
-		dma_addr_t fb_mem_phys;
-		void *fb_mem_virt;
 		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size,
 						     &fb_mem_phys, GFP_KERNEL);
 		if (!fb_mem_virt) {
@@ -3166,45 +3163,29 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		       fbi->fix.smem_start, fbi->screen_base,
 		       fbi->fix.smem_len);
 	} else {
-#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
-		/*
-		   res = platform_get_resource_byname(fb_pdev,
-		   IORESOURCE_MEM, "fb2 buf");
-		   if (res == NULL) {
-		   dev_err(&fb_pdev->dev, "failed to get win0 memory\n");
-		   ret = -ENOENT;
-		   }
-		   fbi->fix.smem_start = res->start;
-		   fbi->fix.smem_len = res->end - res->start + 1;
-		   mem = request_mem_region(res->start, resource_size(res),
-		   fb_pdev->name);
-		   fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
-		   memset(fbi->screen_base, 0, fbi->fix.smem_len);
-		 */
-		fb_mem_size = get_fb_size();
+		if (dev_drv->rotate_mode > X_Y_MIRROR) {
+			fb_mem_size = get_fb_size();
 #if defined(CONFIG_ION_ROCKCHIP)
-		if (rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
-			return -ENOMEM;
+			if (rk_fb_alloc_buffer_by_ion(fbi, win, fb_mem_size) < 0)
+				return -ENOMEM;
 #else
-		dma_addr_t fb_mem_phys;
-		void *fb_mem_virt;
-		fb_mem_virt = dma_alloc_writecombine(fbi->dev, fb_mem_size,
-						     &fb_mem_phys, GFP_KERNEL);
-		if (!fb_mem_virt) {
-			pr_err("%s: Failed to allocate framebuffer\n",
-			       __func__);
-			return -ENOMEM;
+			fb_mem_virt = dma_alloc_writecombine(fbi->dev,
+					fb_mem_size, &fb_mem_phys, GFP_KERNEL);
+			if (!fb_mem_virt) {
+				pr_err("%s: Failed to allocate framebuffer\n",
+					__func__);
+				return -ENOMEM;
+			}
+			fbi->fix.smem_len = fb_mem_size;
+			fbi->fix.smem_start = fb_mem_phys;
+			fbi->screen_base = fb_mem_virt;
+#endif
+		} else {
+			fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
+			fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
+			fbi->screen_base = rk_fb->fb[0]->screen_base;
 		}
-		fbi->fix.smem_len = fb_mem_size;
-		fbi->fix.smem_start = fb_mem_phys;
-		fbi->screen_base = fb_mem_virt;
-#endif
 
-#else	/* three buffer no need to copy */
-		fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
-		fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
-		fbi->screen_base = rk_fb->fb[0]->screen_base;
-#endif
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
 		       fbi->fix.smem_start, fbi->screen_base,
 		       fbi->fix.smem_len);
@@ -3258,7 +3239,6 @@ static int init_lcdc_win(struct rk_lcdc_driver *dev_drv,
 static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 				   struct rk_lcdc_win *def_win, int index)
 {
-	u32 mirror = 0;
 	struct rk_lcdc_driver *dev_drv = rk_fb->lcdc_dev_drv[index];
 	struct rk_screen *screen = devm_kzalloc(dev_drv->dev,
 						sizeof(struct rk_screen),
@@ -3275,11 +3255,9 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	screen->overscan.top = 100;
 	screen->overscan.right = 100;
 	screen->overscan.bottom = 100;
-	if (of_property_read_u32(dev_drv->dev->of_node, "rockchip,mirror", &mirror))
-		mirror = NO_MIRROR;
 
-	screen->x_mirror = mirror & X_MIRROR;
-	screen->y_mirror = mirror & Y_MIRROR;
+	screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
+	screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 
 	dev_drv->screen0 = screen;
 	dev_drv->cur_screen = screen;
