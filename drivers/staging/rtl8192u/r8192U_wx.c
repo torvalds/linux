@@ -952,7 +952,7 @@ static const struct iw_priv_args r8192_private_args[] = {
 
 
 static iw_handler r8192_private_handler[] = {
-	r8192_wx_set_crcmon, 
+	r8192_wx_set_crcmon,
 	r8192_wx_set_scan_type,
 	r8192_wx_set_rawtx,
 	r8192_wx_force_reset,
