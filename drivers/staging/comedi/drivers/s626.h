@@ -229,13 +229,9 @@
 #define S626_LP_RDEDGSEL(x)	(0x004c + (x) * 0x10)	/* R: edge selection */
 #define S626_LP_RDCAPSEL(x)	(0x004e + (x) * 0x10)	/* R: capture enable */
 
-/* Counter Registers (read/write): */
-#define S626_LP_CR0A		0x0000	/* 0A setup register. */
-#define S626_LP_CR0B		0x0002	/* 0B setup register. */
-#define S626_LP_CR1A		0x0004	/* 1A setup register. */
-#define S626_LP_CR1B		0x0006	/* 1B setup register. */
-#define S626_LP_CR2A		0x0008	/* 2A setup register. */
-#define S626_LP_CR2B		0x000A	/* 2B setup register. */
+/* Counter registers (read/write): 0A 1A 2A 0B 1B 2B */
+#define S626_LP_CRA(x)		(0x0000 + (((x) % 3) * 0x4))
+#define S626_LP_CRB(x)		(0x0002 + (((x) % 3) * 0x4))
 
 /* Counter PreLoad (write) and Latch (read) Registers: */
 #define	S626_LP_CNTR0ALSW	0x000C	/* 0A lsw. */
