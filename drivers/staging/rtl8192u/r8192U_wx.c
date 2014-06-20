@@ -57,6 +57,7 @@ static int r8192_wx_get_rate(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	return ieee80211_wx_get_rate(priv->ieee80211, info, wrqu, extra);
 }
 
@@ -100,6 +101,7 @@ static int r8192_wx_get_rts(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	return ieee80211_wx_get_rts(priv->ieee80211, info, wrqu, extra);
 }
 
@@ -124,6 +126,7 @@ static int r8192_wx_get_power(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	return ieee80211_wx_get_power(priv->ieee80211, info, wrqu, extra);
 }
 
@@ -194,6 +197,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
+
 	down(&priv->wx_sem);
 
 	ret = ieee80211_wx_set_mode(priv->ieee80211, a, wrqu, b);
@@ -384,6 +388,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
+
 	down(&priv->wx_sem);
 
 	ret = ieee80211_wx_set_essid(priv->ieee80211, a, wrqu, b);
@@ -432,6 +437,7 @@ static int r8192_wx_get_name(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	return ieee80211_wx_get_name(priv->ieee80211, info, wrqu, extra);
 }
 
@@ -700,6 +706,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	if (priv->rf_set_sens == NULL)
 		return -1; /* we have not this support for this radio */
 	wrqu->sens.value = priv->sens;
@@ -713,8 +720,8 @@ static int r8192_wx_set_sens(struct net_device *dev,
 {
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
-
 	short err = 0;
+
 	down(&priv->wx_sem);
 	if (priv->rf_set_sens == NULL) {
 		err = -1; /* we have not this support for this radio */
@@ -813,6 +820,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_auth(priv->ieee80211, info, &(data->param), extra);
 	up(&priv->wx_sem);
@@ -826,6 +834,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_mlme(priv->ieee80211, info, wrqu, extra);
 
@@ -839,6 +848,7 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 {
 	int ret = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
+
 	down(&priv->wx_sem);
 	ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->data.length);
 	up(&priv->wx_sem);
@@ -956,6 +966,7 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	int tmp_level = 0;
 	int tmp_qual = 0;
 	int tmp_noise = 0;
+
 	if (ieee->state < IEEE80211_LINKED) {
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
