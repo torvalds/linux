@@ -233,7 +233,7 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged);
 int tb_port_add_nfc_credits(struct tb_port *port, int credits);
 int tb_port_clear_counter(struct tb_port *port, int counter);
 
-int tb_find_cap(struct tb_port *port, enum tb_cfg_space space, u32 value);
+int tb_find_cap(struct tb_port *port, enum tb_cfg_space space, enum tb_cap cap);
 
 struct tb_path *tb_path_alloc(struct tb *tb, int num_hops);
 void tb_path_free(struct tb_path *path);
