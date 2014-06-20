@@ -309,19 +309,6 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_emulate_mmio);
 
-static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
-{
-	hva_t hpage;
-
-	hpage = gfn_to_hva(vcpu->kvm, pte->raddr >> PAGE_SHIFT);
-	if (kvm_is_error_hva(hpage))
-		goto err;
-
-	return hpage | (pte->raddr & ~PAGE_MASK);
-err:
-	return KVM_HVA_ERR_BAD;
-}
-
 int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 	      bool data)
 {
@@ -351,7 +338,6 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		      bool data)
 {
 	struct kvmppc_pte pte;
-	hva_t hva = *eaddr;
 	int rc;
 
 	vcpu->stat.ld++;
@@ -369,19 +355,10 @@ int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 	if (!data && !pte.may_execute)
 		return -ENOEXEC;
 
-	hva = kvmppc_pte_to_hva(vcpu, &pte);
-	if (kvm_is_error_hva(hva))
-		goto mmio;
-
-	if (copy_from_user(ptr, (void __user *)hva, size)) {
-		printk(KERN_INFO "kvmppc_ld at 0x%lx failed\n", hva);
-		goto mmio;
-	}
+	if (kvm_read_guest(vcpu->kvm, pte.raddr, ptr, size))
+		return EMULATE_DO_MMIO;
 
 	return EMULATE_DONE;
-
-mmio:
-	return EMULATE_DO_MMIO;
 }
 EXPORT_SYMBOL_GPL(kvmppc_ld);
 
