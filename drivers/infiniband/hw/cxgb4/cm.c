@@ -3925,7 +3925,7 @@ int __init c4iw_cm_init(void)
 	return 0;
 }
 
-void __exit c4iw_cm_term(void)
+void c4iw_cm_term(void)
 {
 	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(workq);
