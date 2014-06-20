@@ -6019,30 +6019,32 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 static struct i915_power_domains *hsw_pwr;
 
 /* Display audio driver power well request */
-void i915_request_power_well(void)
+int i915_request_power_well(void)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (WARN_ON(!hsw_pwr))
-		return;
+	if (!hsw_pwr)
+		return -ENODEV;
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
 	intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(i915_request_power_well);
 
 /* Display audio driver power well release */
-void i915_release_power_well(void)
+int i915_release_power_well(void)
 {
 	struct drm_i915_private *dev_priv;
 
-	if (WARN_ON(!hsw_pwr))
-		return;
+	if (!hsw_pwr)
+		return -ENODEV;
 
 	dev_priv = container_of(hsw_pwr, struct drm_i915_private,
 				power_domains);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(i915_release_power_well);
 
