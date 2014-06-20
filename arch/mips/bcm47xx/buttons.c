@@ -270,7 +270,7 @@ bcm47xx_buttons_linksys_wrt54g3gv2[] __initconst = {
 };
 
 static const struct gpio_keys_button
-bcm47xx_buttons_linksys_wrt54gsv1[] __initconst = {
+bcm47xx_buttons_linksys_wrt54g_generic[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
@@ -516,11 +516,13 @@ int __init bcm47xx_buttons_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310nv1);
 		break;
-	case BCM47XX_BOARD_LINKSYS_WRT54G:
-		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54gsv1);
-		break;
 	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g3gv2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0101:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0467:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0708:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g_generic);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt610nv1);

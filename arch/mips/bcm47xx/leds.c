@@ -297,7 +297,7 @@ bcm47xx_leds_linksys_wrt310nv1[] __initconst = {
 };
 
 static const struct gpio_led
-bcm47xx_leds_linksys_wrt54gsv1[] __initconst = {
+bcm47xx_leds_linksys_wrt54g_generic[] __initconst = {
 	BCM47XX_GPIO_LED(0, "unk", "dmz", 1, LEDS_GPIO_DEFSTATE_OFF),
 	BCM47XX_GPIO_LED(1, "unk", "power", 0, LEDS_GPIO_DEFSTATE_ON),
 	BCM47XX_GPIO_LED(5, "white", "wps", 1, LEDS_GPIO_DEFSTATE_OFF),
@@ -553,11 +553,13 @@ void __init bcm47xx_leds_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt310nv1);
 		break;
-	case BCM47XX_BOARD_LINKSYS_WRT54G:
-		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt54gsv1);
-		break;
 	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt54g3gv2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0101:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0467:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0708:
+		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt54g_generic);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV1:
 		bcm47xx_set_pdata(bcm47xx_leds_linksys_wrt610nv1);
