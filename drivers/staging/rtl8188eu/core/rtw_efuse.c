@@ -47,20 +47,6 @@ u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
 /*  */
 
-static bool Efuse_Read1ByteFromFakeContent(
-			struct adapter *pAdapter,
-			u16 Offset,
-			u8 *Value)
-{
-	if (Offset >= EFUSE_MAX_HW_SIZE)
-		return false;
-	if (fakeEfuseBank == 0)
-		*Value = fakeEfuseContent[Offset];
-	else
-		*Value = fakeBTEfuseContent[fakeEfuseBank-1][Offset];
-	return true;
-}
-
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
 u8
 Efuse_CalculateWordCnts(u8 word_en)
@@ -96,11 +82,6 @@ ReadEFuseByte(
 	u32 value32;
 	u8 readbyte;
 	u16 retry;
-
-	if (pseudo) {
-		Efuse_Read1ByteFromFakeContent(Adapter, _offset, pbuf);
-		return;
-	}
 
 	/* Write Address */
 	usb_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
@@ -193,10 +174,6 @@ u8 efuse_OneByteRead(struct adapter *pAdapter, u16 addr, u8 *data, bool pseudo)
 	u8 tmpidx = 0;
 	u8 result;
 
-	if (pseudo) {
-		result = Efuse_Read1ByteFromFakeContent(pAdapter, addr, data);
-		return result;
-	}
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
 	usb_write8(pAdapter, EFUSE_CTRL+1, (u8)(addr & 0xff));
