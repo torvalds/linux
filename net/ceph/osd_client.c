@@ -1248,7 +1248,9 @@ static void __cancel_request(struct ceph_osd_request *req)
 static void __register_linger_request(struct ceph_osd_client *osdc,
 				    struct ceph_osd_request *req)
 {
-	dout("__register_linger_request %p\n", req);
+	dout("%s %p tid %llu\n", __func__, req, req->r_tid);
+	WARN_ON(!req->r_linger);
+
 	ceph_osdc_get_request(req);
 	list_add_tail(&req->r_linger_item, &osdc->req_linger);
 	if (req->r_osd)
@@ -1259,8 +1261,17 @@ static void __register_linger_request(struct ceph_osd_client *osdc,
 static void __unregister_linger_request(struct ceph_osd_client *osdc,
 					struct ceph_osd_request *req)
 {
-	dout("__unregister_linger_request %p\n", req);
+	WARN_ON(!req->r_linger);
+
+	if (list_empty(&req->r_linger_item)) {
+		dout("%s %p tid %llu not registered\n", __func__, req,
+		     req->r_tid);
+		return;
+	}
+
+	dout("%s %p tid %llu\n", __func__, req, req->r_tid);
 	list_del_init(&req->r_linger_item);
+
 	if (req->r_osd) {
 		list_del_init(&req->r_linger_osd_item);
 		maybe_move_osd_to_lru(osdc, req->r_osd);
@@ -1274,10 +1285,8 @@ void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
 					 struct ceph_osd_request *req)
 {
 	mutex_lock(&osdc->request_mutex);
-	if (req->r_linger) {
-		req->r_linger = 0;
+	if (req->r_linger)
 		__unregister_linger_request(osdc, req);
-	}
 	mutex_unlock(&osdc->request_mutex);
 }
 EXPORT_SYMBOL(ceph_osdc_unregister_linger_request);
