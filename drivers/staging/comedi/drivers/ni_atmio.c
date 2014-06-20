@@ -264,8 +264,6 @@ static const int ni_irqpin[] = {
 	-1, -1, -1, 0, 1, 2, -1, 3, -1, -1, 4, 5, 6, -1, -1, 7
 };
 
-#define interrupt_pin(a)	(ni_irqpin[(a)])
-
 #define IRQ_POLARITY 0
 
 #define NI_E_IRQ_FLAGS		0
@@ -406,7 +404,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 
 	/* generic E series stuff in ni_mio_common.c */
 
-	ret = ni_E_init(dev);
+	ret = ni_E_init(dev, ni_irqpin[dev->irq]);
 	if (ret < 0)
 		return ret;
 

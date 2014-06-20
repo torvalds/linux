@@ -137,8 +137,6 @@ static const struct ni_board_struct ni_boards[] = {
 #endif
 };
 
-#define interrupt_pin(a)	0
-
 #define IRQ_POLARITY 1
 
 #include "ni_mio_common.c"
@@ -205,7 +203,7 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 
 	devpriv = dev->private;
 
-	return ni_E_init(dev);
+	return ni_E_init(dev, 0);
 }
 
 static void mio_cs_detach(struct comedi_device *dev)

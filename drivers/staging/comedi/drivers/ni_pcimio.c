@@ -1042,7 +1042,6 @@ static const struct ni_board_struct ni_boards[] = {
 	},
 };
 
-#define interrupt_pin(a)	0
 #define IRQ_POLARITY 1
 
 #define NI_E_IRQ_FLAGS		IRQF_SHARED
@@ -1274,7 +1273,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 			dev->irq = irq;
 	}
 
-	ret = ni_E_init(dev);
+	ret = ni_E_init(dev, 0);
 	if (ret < 0)
 		return ret;
 
