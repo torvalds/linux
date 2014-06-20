@@ -438,8 +438,7 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse)
  *---------------------------------------------------------------------------*/
 void EFUSE_ShadowMapUpdate(
 	struct adapter *pAdapter,
-	u8 efuseType,
-	bool pseudo)
+	u8 efuseType)
 {
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(pAdapter);
 	u16 mapLen = 0;
