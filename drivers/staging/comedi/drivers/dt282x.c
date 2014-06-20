@@ -46,8 +46,8 @@
  *   [3] - DMA 2 (optional, required for async command support)
  *   [4] - AI jumpered for 0=single ended, 1=differential
  *   [5] - AI jumpered for 0=straight binary, 1=2's complement
- *   [6] - AO 0 jumpered for 0=straight binary, 1=2's complement
- *   [7] - AO 1 jumpered for 0=straight binary, 1=2's complement
+ *   [6] - AO 0 data format (deprecated, see below)
+ *   [7] - AO 1 data format (deprecated, see below)
  *   [8] - AI jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5]
  *   [9] - AO channel 0 range (deprecated, see below)
  *   [10]- AO channel 1 range (deprecated, see below)
@@ -60,7 +60,9 @@
  *   - AO range is not programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
- *     values and physical units.
+ *     values and physical units. The format of the data written to the
+ *     board is handled automatically based on the unipolar/bipolar
+ *     range that is selected.
  */
 
 #include <linux/module.h>
@@ -310,8 +312,6 @@ static const struct dt282x_board boardtypes[] = {
 
 struct dt282x_private {
 	unsigned int ad_2scomp:1;
-	unsigned int da0_2scomp:1;
-	unsigned int da1_2scomp:1;
 
 	unsigned int divisor;
 
@@ -847,24 +847,17 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 {
 	struct dt282x_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	bool munge = false;
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned int val;
 	int i;
 
 	devpriv->dacsr |= DT2821_DACSR_SSEL | DT2821_DACSR_YSEL(chan);
-	if (chan) {
-		if (devpriv->da1_2scomp)
-			munge = true;
-	} else {
-		if (devpriv->da0_2scomp)
-			munge = true;
-	}
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		devpriv->ao_readback[chan] = val;
 
-		if (munge)
+		if (comedi_range_is_bipolar(s, range))
 			val = comedi_offset_munge(s, val);
 
 		outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
@@ -1261,8 +1254,6 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* ranges are per-channel, set by jumpers on the board */
 		s->range_table	= &dt282x_ao_range;
-		devpriv->da0_2scomp = it->options[6] ? 1 : 0;
-		devpriv->da1_2scomp = it->options[7] ? 1 : 0;
 
 		s->insn_read	= dt282x_ao_insn_read;
 		s->insn_write	= dt282x_ao_insn_write;
