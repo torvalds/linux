@@ -355,7 +355,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, void *data, size_t len,
 	pkg->frame.sof = type;
 	pkg->frame.eof = type;
 	cpu_to_be32_array(pkg->buffer, data, len / 4);
-	*(u32 *) (pkg->buffer + len) = tb_crc(pkg->buffer, len);
+	*(__be32 *) (pkg->buffer + len) = tb_crc(pkg->buffer, len);
 
 	res = ring_tx(ctl->tx, &pkg->frame);
 	if (res) /* ring is stopped */
@@ -412,7 +412,7 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 	}
 
 	frame->size -= 4; /* remove checksum */
-	if (*(u32 *) (pkg->buffer + frame->size)
+	if (*(__be32 *) (pkg->buffer + frame->size)
 			!= tb_crc(pkg->buffer, frame->size)) {
 		tb_ctl_err(pkg->ctl,
 			   "RX: checksum mismatch, dropping packet\n");
