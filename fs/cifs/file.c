@@ -2401,28 +2401,6 @@ cifs_uncached_writev_complete(struct work_struct *work)
 	kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 }
 
-/* attempt to send write to server, retry on any -EAGAIN errors */
-static int
-cifs_uncached_retry_writev(struct cifs_writedata *wdata)
-{
-	int rc;
-	struct TCP_Server_Info *server;
-
-	server = tlink_tcon(wdata->cfile->tlink)->ses->server;
-
-	do {
-		if (wdata->cfile->invalidHandle) {
-			rc = cifs_reopen_file(wdata->cfile, false);
-			if (rc != 0)
-				continue;
-		}
-		rc = server->ops->async_writev(wdata,
-					       cifs_uncached_writedata_release);
-	} while (rc == -EAGAIN);
-
-	return rc;
-}
-
 static int
 wdata_fill_from_iovec(struct cifs_writedata *wdata, struct iov_iter *from,
 		      size_t *len, unsigned long *num_pages)
@@ -2474,12 +2452,18 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	size_t cur_len;
 	unsigned long nr_pages, num_pages, i;
 	struct cifs_writedata *wdata;
+	struct iov_iter saved_from;
+	loff_t saved_offset = offset;
 	pid_t pid;
+	struct TCP_Server_Info *server;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
 	else
 		pid = current->tgid;
+
+	server = tlink_tcon(open_file->tlink)->ses->server;
+	memcpy(&saved_from, from, sizeof(struct iov_iter));
 
 	do {
 		nr_pages = get_numpages(cifs_sb->wsize, len, &cur_len);
@@ -2520,10 +2504,20 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		wdata->bytes = cur_len;
 		wdata->pagesz = PAGE_SIZE;
 		wdata->tailsz = cur_len - ((nr_pages - 1) * PAGE_SIZE);
-		rc = cifs_uncached_retry_writev(wdata);
+
+		if (!wdata->cfile->invalidHandle ||
+		    !cifs_reopen_file(wdata->cfile, false))
+			rc = server->ops->async_writev(wdata,
+					cifs_uncached_writedata_release);
 		if (rc) {
 			kref_put(&wdata->refcount,
 				 cifs_uncached_writedata_release);
+			if (rc == -EAGAIN) {
+				memcpy(from, &saved_from,
+				       sizeof(struct iov_iter));
+				iov_iter_advance(from, offset - saved_offset);
+				continue;
+			}
 			break;
 		}
 
@@ -2545,6 +2539,7 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_writedata *wdata, *tmp;
 	struct list_head wdata_list;
+	struct iov_iter saved_from;
 	int rc;
 
 	len = iov_iter_count(from);
@@ -2564,6 +2559,8 @@ cifs_iovec_write(struct file *file, struct iov_iter *from, loff_t *poffset)
 
 	if (!tcon->ses->server->ops->async_writev)
 		return -ENOSYS;
+
+	memcpy(&saved_from, from, sizeof(struct iov_iter));
 
 	rc = cifs_write_from_iter(*poffset, len, from, open_file, cifs_sb,
 				  &wdata_list);
@@ -2596,7 +2593,25 @@ restart_loop:
 
 			/* resend call if it's a retryable error */
 			if (rc == -EAGAIN) {
-				rc = cifs_uncached_retry_writev(wdata);
+				struct list_head tmp_list;
+				struct iov_iter tmp_from;
+
+				INIT_LIST_HEAD(&tmp_list);
+				list_del_init(&wdata->list);
+
+				memcpy(&tmp_from, &saved_from,
+				       sizeof(struct iov_iter));
+				iov_iter_advance(&tmp_from,
+						 wdata->offset - *poffset);
+
+				rc = cifs_write_from_iter(wdata->offset,
+						wdata->bytes, &tmp_from,
+						open_file, cifs_sb, &tmp_list);
+
+				list_splice(&tmp_list, &wdata_list);
+
+				kref_put(&wdata->refcount,
+					 cifs_uncached_writedata_release);
 				goto restart_loop;
 			}
 		}

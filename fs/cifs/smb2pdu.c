@@ -245,10 +245,6 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon)
 	if (rc)
 		goto out;
 	atomic_inc(&tconInfoReconnectCount);
-	/*
-	 * BB FIXME add code to check if wsize needs update due to negotiated
-	 * smb buffer size shrinking.
-	 */
 out:
 	/*
 	 * Check if handle based operation so we know whether we can continue
