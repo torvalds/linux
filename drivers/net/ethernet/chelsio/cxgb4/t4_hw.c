@@ -3175,6 +3175,46 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *      t4_set_params_nosleep - sets FW or device parameters
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @pf: the PF
+ *      @vf: the VF
+ *      @nparams: the number of parameters
+ *      @params: the parameter names
+ *      @val: the parameter values
+ *
+ *	 Does not ever sleep
+ *      Sets the value of FW or device parameters.  Up to 7 parameters can be
+ *      specified at once.
+ */
+int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
+			  unsigned int pf, unsigned int vf,
+			  unsigned int nparams, const u32 *params,
+			  const u32 *val)
+{
+	struct fw_params_cmd c;
+	__be32 *p = &c.param[0].mnem;
+
+	if (nparams > 7)
+		return -EINVAL;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(FW_CMD_OP(FW_PARAMS_CMD) |
+				FW_CMD_REQUEST | FW_CMD_WRITE |
+				FW_PARAMS_CMD_PFN(pf) |
+				FW_PARAMS_CMD_VFN(vf));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+
+	while (nparams--) {
+		*p++ = cpu_to_be32(*params++);
+		*p++ = cpu_to_be32(*val++);
+	}
+
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_set_params - sets FW or device parameters
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -3499,6 +3539,33 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *      t4_enable_vi_params - enable/disable a virtual interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @viid: the VI id
+ *      @rx_en: 1=enable Rx, 0=disable Rx
+ *      @tx_en: 1=enable Tx, 0=disable Tx
+ *      @dcb_en: 1=enable delivery of Data Center Bridging messages.
+ *
+ *      Enables/disables a virtual interface.  Note that setting DCB Enable
+ *      only makes sense when enabling a Virtual Interface ...
+ */
+int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
+			unsigned int viid, bool rx_en, bool tx_en, bool dcb_en)
+{
+	struct fw_vi_enable_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST |
+			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
+
+	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN(rx_en) |
+			       FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c) |
+			       FW_VI_ENABLE_CMD_DCB_INFO(dcb_en));
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_enable_vi - enable/disable a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -3511,14 +3578,7 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en)
 {
-	struct fw_vi_enable_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST |
-			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_IEN(rx_en) |
-			       FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_enable_vi_params(adap, mbox, viid, rx_en, tx_en, 0);
 }
 
 /**

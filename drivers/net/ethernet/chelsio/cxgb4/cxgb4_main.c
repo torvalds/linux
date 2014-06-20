@@ -67,6 +67,7 @@
 #include "t4_regs.h"
 #include "t4_msg.h"
 #include "t4fw_api.h"
+#include "cxgb4_dcb.h"
 #include "l2t.h"
 
 #include <../drivers/net/bonding/bonding.h>
@@ -391,6 +392,17 @@ module_param_array(num_vf, uint, NULL, 0644);
 MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
 #endif
 
+/* TX Queue select used to determine what algorithm to use for selecting TX
+ * queue. Select between the kernel provided function (select_queue=0) or user
+ * cxgb_select_queue function (select_queue=1)
+ *
+ * Default: select_queue=0
+ */
+static int select_queue;
+module_param(select_queue, int, 0644);
+MODULE_PARM_DESC(select_queue,
+		 "Select between kernel provided method of selecting or driver method of selecting TX queue. Default is kernel method.");
+
 /*
  * The filter TCAM has a fixed portion and a variable portion.  The fixed
  * portion can match on source/destination IP IPv4/IPv6 addresses and TCP/UDP
@@ -458,6 +470,42 @@ static void link_report(struct net_device *dev)
 	}
 }
 
+#ifdef CONFIG_CHELSIO_T4_DCB
+/* Set up/tear down Data Center Bridging Priority mapping for a net device. */
+static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_txq *txq = &adap->sge.ethtxq[pi->first_qset];
+	int i;
+
+	/* We use a simple mapping of Port TX Queue Index to DCB
+	 * Priority when we're enabling DCB.
+	 */
+	for (i = 0; i < pi->nqsets; i++, txq++) {
+		u32 name, value;
+		int err;
+
+		name = (FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+			FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH) |
+			FW_PARAMS_PARAM_YZ(txq->q.cntxt_id));
+		value = enable ? i : 0xffffffff;
+
+		/* Since we can be called while atomic (from "interrupt
+		 * level") we need to issue the Set Parameters Commannd
+		 * without sleeping (timeout < 0).
+		 */
+		err = t4_set_params_nosleep(adap, adap->mbox, adap->fn, 0, 1,
+					    &name, &value);
+
+		if (err)
+			dev_err(adap->pdev_dev,
+				"Can't %s DCB Priority on port %d, TX Queue %d: err=%d\n",
+				enable ? "set" : "unset", pi->port_id, i, -err);
+	}
+}
+#endif /* CONFIG_CHELSIO_T4_DCB */
+
 void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 {
 	struct net_device *dev = adapter->port[port_id];
@@ -466,8 +514,13 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 	if (netif_running(dev) && link_stat != netif_carrier_ok(dev)) {
 		if (link_stat)
 			netif_carrier_on(dev);
-		else
+		else {
+#ifdef CONFIG_CHELSIO_T4_DCB
+			cxgb4_dcb_state_init(dev);
+			dcb_tx_queue_prio_enable(dev, false);
+#endif /* CONFIG_CHELSIO_T4_DCB */
 			netif_carrier_off(dev);
+		}
 
 		link_report(dev);
 	}
@@ -601,9 +654,44 @@ static int link_start(struct net_device *dev)
 		ret = t4_link_start(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
 	if (ret == 0)
-		ret = t4_enable_vi(pi->adapter, mb, pi->viid, true, true);
+		ret = t4_enable_vi_params(pi->adapter, mb, pi->viid, true,
+					  true, CXGB4_DCB_ENABLED);
+
 	return ret;
 }
+
+int cxgb4_dcb_enabled(const struct net_device *dev)
+{
+#ifdef CONFIG_CHELSIO_T4_DCB
+	struct port_info *pi = netdev_priv(dev);
+
+	return pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED;
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL(cxgb4_dcb_enabled);
+
+#ifdef CONFIG_CHELSIO_T4_DCB
+/* Handle a Data Center Bridging update message from the firmware. */
+static void dcb_rpl(struct adapter *adap, const struct fw_port_cmd *pcmd)
+{
+	int port = FW_PORT_CMD_PORTID_GET(ntohl(pcmd->op_to_portid));
+	struct net_device *dev = adap->port[port];
+	int old_dcb_enabled = cxgb4_dcb_enabled(dev);
+	int new_dcb_enabled;
+
+	cxgb4_dcb_handle_fw_update(adap, pcmd);
+	new_dcb_enabled = cxgb4_dcb_enabled(dev);
+
+	/* If the DCB has become enabled or disabled on the port then we're
+	 * going to need to set up/tear down DCB Priority parameters for the
+	 * TX Queues associated with the port.
+	 */
+	if (new_dcb_enabled != old_dcb_enabled)
+		dcb_tx_queue_prio_enable(dev, new_dcb_enabled);
+}
+#endif /* CONFIG_CHELSIO_T4_DCB */
 
 /* Clear a filter and release any of its resources that we own.  This also
  * clears the filter's "pending" status.
@@ -709,8 +797,32 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	} else if (opcode == CPL_FW6_MSG || opcode == CPL_FW4_MSG) {
 		const struct cpl_fw6_msg *p = (void *)rsp;
 
-		if (p->type == 0)
-			t4_handle_fw_rpl(q->adap, p->data);
+#ifdef CONFIG_CHELSIO_T4_DCB
+		const struct fw_port_cmd *pcmd = (const void *)p->data;
+		unsigned int cmd = FW_CMD_OP_GET(ntohl(pcmd->op_to_portid));
+		unsigned int action =
+			FW_PORT_CMD_ACTION_GET(ntohl(pcmd->action_to_len16));
+
+		if (cmd == FW_PORT_CMD &&
+		    action == FW_PORT_ACTION_GET_PORT_INFO) {
+			int port = FW_PORT_CMD_PORTID_GET(
+					be32_to_cpu(pcmd->op_to_portid));
+			struct net_device *dev = q->adap->port[port];
+			int state_input = ((pcmd->u.info.dcbxdis_pkd &
+					    FW_PORT_CMD_DCBXDIS)
+					   ? CXGB4_DCB_INPUT_FW_DISABLED
+					   : CXGB4_DCB_INPUT_FW_ENABLED);
+
+			cxgb4_dcb_state_fsm(dev, state_input);
+		}
+
+		if (cmd == FW_PORT_CMD &&
+		    action == FW_PORT_ACTION_L2_DCB_CFG)
+			dcb_rpl(q->adap, pcmd);
+		else
+#endif
+			if (p->type == 0)
+				t4_handle_fw_rpl(q->adap, p->data);
 	} else if (opcode == CPL_L2T_WRITE_RPL) {
 		const struct cpl_l2t_write_rpl *p = (void *)rsp;
 
@@ -1288,6 +1400,48 @@ static int del_filter_wr(struct adapter *adapter, int fidx)
 	f->pending = 1;
 	t4_mgmt_tx(adapter, skb);
 	return 0;
+}
+
+static u16 cxgb_select_queue(struct net_device *dev, struct sk_buff *skb,
+			     void *accel_priv, select_queue_fallback_t fallback)
+{
+	int txq;
+
+#ifdef CONFIG_CHELSIO_T4_DCB
+	/* If a Data Center Bridging has been successfully negotiated on this
+	 * link then we'll use the skb's priority to map it to a TX Queue.
+	 * The skb's priority is determined via the VLAN Tag Priority Code
+	 * Point field.
+	 */
+	if (cxgb4_dcb_enabled(dev)) {
+		u16 vlan_tci;
+		int err;
+
+		err = vlan_get_tag(skb, &vlan_tci);
+		if (unlikely(err)) {
+			if (net_ratelimit())
+				netdev_warn(dev,
+					    "TX Packet without VLAN Tag on DCB Link\n");
+			txq = 0;
+		} else {
+			txq = (vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+		}
+		return txq;
+	}
+#endif /* CONFIG_CHELSIO_T4_DCB */
+
+	if (select_queue) {
+		txq = (skb_rx_queue_recorded(skb)
+			? skb_get_rx_queue(skb)
+			: smp_processor_id());
+
+		while (unlikely(txq >= dev->real_num_tx_queues))
+			txq -= dev->real_num_tx_queues;
+
+		return txq;
+	}
+
+	return fallback(dev, skb) % dev->real_num_tx_queues;
 }
 
 static inline int is_offload(const struct adapter *adap)
@@ -4601,6 +4755,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_open             = cxgb_open,
 	.ndo_stop             = cxgb_close,
 	.ndo_start_xmit       = t4_eth_xmit,
+	.ndo_select_queue     =	cxgb_select_queue,
 	.ndo_get_stats64      = cxgb_get_stats,
 	.ndo_set_rx_mode      = cxgb_set_rxmode,
 	.ndo_set_mac_address  = cxgb_set_mac_addr,
@@ -5841,12 +5996,33 @@ static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
 static void cfg_queues(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int i, q10g = 0, n10g = 0, qidx = 0;
+	int i, n10g = 0, qidx = 0;
+#ifndef CONFIG_CHELSIO_T4_DCB
+	int q10g = 0;
+#endif
 	int ciq_size;
 
 	for_each_port(adap, i)
 		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
+#ifdef CONFIG_CHELSIO_T4_DCB
+	/* For Data Center Bridging support we need to be able to support up
+	 * to 8 Traffic Priorities; each of which will be assigned to its
+	 * own TX Queue in order to prevent Head-Of-Line Blocking.
+	 */
+	if (adap->params.nports * 8 > MAX_ETH_QSETS) {
+		dev_err(adap->pdev_dev, "MAX_ETH_QSETS=%d < %d!\n",
+			MAX_ETH_QSETS, adap->params.nports * 8);
+		BUG_ON(1);
+	}
 
+	for_each_port(adap, i) {
+		struct port_info *pi = adap2pinfo(adap, i);
+
+		pi->first_qset = qidx;
+		pi->nqsets = 8;
+		qidx += pi->nqsets;
+	}
+#else /* !CONFIG_CHELSIO_T4_DCB */
 	/*
 	 * We default to 1 queue per non-10G port and up to # of cores queues
 	 * per 10G port.
@@ -5863,6 +6039,7 @@ static void cfg_queues(struct adapter *adap)
 		pi->nqsets = is_x_10g_port(&pi->link_cfg) ? q10g : 1;
 		qidx += pi->nqsets;
 	}
+#endif /* !CONFIG_CHELSIO_T4_DCB */
 
 	s->ethqsets = qidx;
 	s->max_ethqsets = qidx;   /* MSI-X may lower it later */
@@ -5981,8 +6158,14 @@ static int enable_msix(struct adapter *adap)
 		/* need nchan for each possible ULD */
 		ofld_need = 3 * nchan;
 	}
+#ifdef CONFIG_CHELSIO_T4_DCB
+	/* For Data Center Bridging we need 8 Ethernet TX Priority Queues for
+	 * each port.
+	 */
+	need = 8 * adap->params.nports + EXTRA_VECS + ofld_need;
+#else
 	need = adap->params.nports + EXTRA_VECS + ofld_need;
-
+#endif
 	want = pci_enable_msix_range(adap->pdev, entries, need, want);
 	if (want < 0)
 		return want;
@@ -6245,6 +6428,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;
+#ifdef CONFIG_CHELSIO_T4_DCB
+		netdev->dcbnl_ops = &cxgb4_dcb_ops;
+		cxgb4_dcb_state_init(netdev);
+#endif
 		netdev->ethtool_ops = &cxgb_ethtool_ops;
 	}
 
