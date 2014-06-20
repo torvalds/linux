@@ -1916,10 +1916,10 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 		port, card->mp_data_port_mask);
 }
 
-static struct mmc_host *reset_host;
-static void mwifiex_sdio_card_reset_work(struct work_struct *work)
+static void mwifiex_sdio_card_reset_work(struct mwifiex_adapter *adapter)
 {
-	struct mmc_host *target = reset_host;
+	struct sdio_mmc_card *card = adapter->card;
+	struct mmc_host *target = card->func->card->host;
 
 	/* The actual reset operation must be run outside of driver thread.
 	 * This is because mmc_remove_host() will cause the device to be
@@ -1943,20 +1943,17 @@ static void mwifiex_sdio_work(struct work_struct *work)
 
 	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET,
 			       &adapter->iface_work_flags))
-		mwifiex_sdio_card_reset_work(work);
+		mwifiex_sdio_card_reset_work(adapter);
 }
 
 /* This function resets the card */
 static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {
-	struct sdio_mmc_card *card = adapter->card;
-
 	if (test_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags))
 		return;
 
 	set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags);
 
-	reset_host = card->func->card->host;
 	schedule_work(&adapter->iface_work);
 }
 
