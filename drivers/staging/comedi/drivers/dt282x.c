@@ -461,31 +461,27 @@ static void dt282x_munge(struct comedi_device *dev,
 	}
 }
 
-static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
+static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
+				    struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->write_subdev;
-	void *ptr;
+	int cur_dma = devpriv->current_dma_index;
+	void *ptr = devpriv->dma[cur_dma].buf;
 	int size;
-	int i;
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
-	i = devpriv->current_dma_index;
-	ptr = devpriv->dma[i].buf;
+	disable_dma(devpriv->dma[cur_dma].chan);
 
-	disable_dma(devpriv->dma[i].chan);
-
-	devpriv->current_dma_index = 1 - i;
+	devpriv->current_dma_index = 1 - cur_dma;
 
 	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
 	if (size == 0) {
 		dev_err(dev->class_dev, "AO underrun\n");
 		s->async->events |= COMEDI_CB_OVERFLOW;
-		return;
+	} else {
+		dt282x_prep_ao_dma(dev, cur_dma, size);
 	}
-	dt282x_prep_ao_dma(dev, i, size);
-	return;
 }
 
 static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
@@ -556,7 +552,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		if (devpriv->dma_dir == DMA_MODE_READ)
 			dt282x_ai_dma_interrupt(dev);
 		else
-			dt282x_ao_dma_interrupt(dev);
+			dt282x_ao_dma_interrupt(dev, s_ao);
 		handled = 1;
 	}
 	if (adcsr & DT2821_ADERR) {
