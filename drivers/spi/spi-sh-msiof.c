@@ -509,6 +509,40 @@ static int sh_msiof_prepare_message(struct spi_master *master,
 	return 0;
 }
 
+static int sh_msiof_spi_start(struct sh_msiof_spi_priv *p, void *rx_buf)
+{
+	int ret;
+
+	/* setup clock and rx/tx signals */
+	ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TSCKE);
+	if (rx_buf && !ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_RXE);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TXE);
+
+	/* start by setting frame bit */
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
+
+	return ret;
+}
+
+static int sh_msiof_spi_stop(struct sh_msiof_spi_priv *p, void *rx_buf)
+{
+	int ret;
+
+	/* shut down frame, rx/tx and clock signals */
+	ret = sh_msiof_modify_ctr_wait(p, CTR_TFSE, 0);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_TXE, 0);
+	if (rx_buf && !ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_RXE, 0);
+	if (!ret)
+		ret = sh_msiof_modify_ctr_wait(p, CTR_TSCKE, 0);
+
+	return ret;
+}
+
 static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 				  void (*tx_fifo)(struct sh_msiof_spi_priv *,
 						  const void *, int, int),
@@ -536,15 +570,9 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	if (tx_buf)
 		tx_fifo(p, tx_buf, words, fifo_shift);
 
-	/* setup clock and rx/tx signals */
-	ret = sh_msiof_modify_ctr_wait(p, 0, CTR_TSCKE);
-	if (rx_buf)
-		ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_RXE);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TXE);
-
-	/* start by setting frame bit */
 	reinit_completion(&p->done);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, 0, CTR_TFSE);
+
+	ret = sh_msiof_spi_start(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");
 		goto err;
@@ -560,12 +588,7 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	/* clear status bits */
 	sh_msiof_reset_str(p);
 
-	/* shut down frame, rx/tx and clock signals */
-	ret = sh_msiof_modify_ctr_wait(p, CTR_TFSE, 0);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_TXE, 0);
-	if (rx_buf)
-		ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_RXE, 0);
-	ret = ret ? ret : sh_msiof_modify_ctr_wait(p, CTR_TSCKE, 0);
+	ret = sh_msiof_spi_stop(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to shut down hardware\n");
 		goto err;
