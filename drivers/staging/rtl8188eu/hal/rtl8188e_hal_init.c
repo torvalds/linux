@@ -1071,7 +1071,7 @@ static u8 Hal_EfuseWordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr,
 	return badworden;
 }
 
-static u16 hal_EfuseGetCurrentSize_8188e(struct adapter *pAdapter, bool bPseudoTest)
+u16 Efuse_GetCurrentSize(struct adapter *pAdapter, bool bPseudoTest)
 {
 	int	bContinual = true;
 	u16	efuse_addr = 0;
@@ -1673,7 +1673,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	/*  Efuse related function */
 	pHalFunc->EfusePowerSwitch = &rtl8188e_EfusePowerSwitch;
 	pHalFunc->ReadEFuse = &ReadEFuseByIC;
-	pHalFunc->EfuseGetCurrentSize = &hal_EfuseGetCurrentSize_8188e;
 	pHalFunc->Efuse_PgPacketRead = &hal_EfusePgPacketRead_8188e;
 	pHalFunc->Efuse_PgPacketWrite = &hal_EfusePgPacketWrite_8188e;
 	pHalFunc->Efuse_WordEnableDataWrite = &Hal_EfuseWordEnableDataWrite;
