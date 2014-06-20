@@ -191,7 +191,8 @@ struct tb_drom_header {
 } __packed;
 
 enum tb_drom_entry_type {
-	TB_DROM_ENTRY_GENERIC,
+	/* force unsigned to prevent "one-bit signed bitfield" warning */
+	TB_DROM_ENTRY_GENERIC = 0U,
 	TB_DROM_ENTRY_PORT,
 };
 
