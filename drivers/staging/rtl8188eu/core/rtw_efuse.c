@@ -61,21 +61,6 @@ static bool Efuse_Read1ByteFromFakeContent(
 	return true;
 }
 
-static bool
-Efuse_Write1ByteToFakeContent(
-			struct adapter *pAdapter,
-			u16 Offset,
-			u8 Value)
-{
-	if (Offset >= EFUSE_MAX_HW_SIZE)
-		return false;
-	if (fakeEfuseBank == 0)
-		fakeEfuseContent[Offset] = Value;
-	else
-		fakeBTEfuseContent[fakeEfuseBank-1][Offset] = Value;
-	return true;
-}
-
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
 u8
 Efuse_CalculateWordCnts(u8 word_en)
@@ -237,11 +222,6 @@ u8 efuse_OneByteWrite(struct adapter *pAdapter, u16 addr, u8 data, bool pseudo)
 {
 	u8 tmpidx = 0;
 	u8 result;
-
-	if (pseudo) {
-		result = Efuse_Write1ByteToFakeContent(pAdapter, addr, data);
-		return result;
-	}
 
 	/*  -----------------e-fuse reg ctrl --------------------------------- */
 	/* address */
