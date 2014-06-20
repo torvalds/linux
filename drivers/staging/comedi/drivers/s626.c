@@ -110,9 +110,6 @@ struct s626_enc_info {
 	/* Return standardized operating mode. */
 	uint16_t (*get_mode)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
-	/* Generate soft index strobe. */
-	void (*pulse_index)(struct comedi_device *dev,
-			    const struct s626_enc_info *k);
 	/* Program standardized operating mode. */
 	void (*set_mode)(struct comedi_device *dev,
 			 const struct s626_enc_info *k, uint16_t setup,
@@ -1272,70 +1269,65 @@ static uint16_t s626_get_index_src(struct comedi_device *dev,
 /*
  * Generate an index pulse.
  */
-static void s626_pulse_index_a(struct comedi_device *dev,
-			       const struct s626_enc_info *k)
+static void s626_pulse_index(struct comedi_device *dev,
+			     const struct s626_enc_info *k)
 {
-	uint16_t cra;
+	if (k->chan < 3) {
+		uint16_t cra;
 
-	cra = s626_debi_read(dev, S626_LP_CRA(k->chan));
-	/* Pulse index. */
-	s626_debi_write(dev, S626_LP_CRA(k->chan),
-			(cra ^ S626_CRAMSK_INDXPOL_A));
-	s626_debi_write(dev, S626_LP_CRA(k->chan), cra);
-}
+		cra = s626_debi_read(dev, S626_LP_CRA(k->chan));
 
-static void s626_pulse_index_b(struct comedi_device *dev,
-			       const struct s626_enc_info *k)
-{
-	uint16_t crb;
+		/* Pulse index */
+		s626_debi_write(dev, S626_LP_CRA(k->chan),
+				(cra ^ S626_CRAMSK_INDXPOL_A));
+		s626_debi_write(dev, S626_LP_CRA(k->chan), cra);
+	} else {
+		uint16_t crb;
 
-	crb = s626_debi_read(dev, S626_LP_CRB(k->chan)) & ~S626_CRBMSK_INTCTRL;
-	/* Pulse index. */
-	s626_debi_write(dev, S626_LP_CRB(k->chan),
-			(crb ^ S626_CRBMSK_INDXPOL_B));
-	s626_debi_write(dev, S626_LP_CRB(k->chan), crb);
+		crb = s626_debi_read(dev, S626_LP_CRB(k->chan));
+		crb &= ~S626_CRBMSK_INTCTRL;
+
+		/* Pulse index */
+		s626_debi_write(dev, S626_LP_CRB(k->chan),
+				(crb ^ S626_CRBMSK_INDXPOL_B));
+		s626_debi_write(dev, S626_LP_CRB(k->chan), crb);
+	}
 }
 
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
 		.get_mode		= s626_get_mode_a,
-		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
 		.get_mode		= s626_get_mode_a,
-		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
 		.get_mode		= s626_get_mode_a,
-		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
 		.get_mode		= s626_get_mode_b,
-		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
 		.get_mode		= s626_get_mode_b,
-		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
 		.get_mode		= s626_get_mode_b,
-		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
 		.my_event_bits		= S626_EVBITS(5),
@@ -2088,7 +2080,7 @@ static void s626_timer_load(struct comedi_device *dev,
 	 * into the counter
 	 */
 	s626_set_load_trig(dev, k, 0);
-	k->pulse_index(dev, k);
+	s626_pulse_index(dev, k);
 
 	/* set reload on counter overflow */
 	s626_set_load_trig(dev, k, 1);
@@ -2478,7 +2470,7 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 
 	k->set_mode(dev, k, setup, true);
 	s626_preload(dev, k, data[0]);
-	k->pulse_index(dev, k);
+	s626_pulse_index(dev, k);
 	s626_set_latch_source(dev, k, value_latchsrc);
 	s626_set_enable(dev, k, (enab != 0));
 
@@ -2514,7 +2506,7 @@ static int s626_enc_insn_write(struct comedi_device *dev,
 	 * into the counter
 	 */
 	s626_set_load_trig(dev, k, 0);
-	k->pulse_index(dev, k);
+	s626_pulse_index(dev, k);
 	s626_set_load_trig(dev, k, 2);
 
 	return 1;
