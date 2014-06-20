@@ -609,7 +609,6 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
-	struct timeval tv;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
 		jiffies, priv->bss_type, priv->bss_num);
@@ -656,8 +655,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * firmware for aggregate delay calculation for stats and
 	 * MSDU lifetime expiry.
 	 */
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
+	__net_timestamp(skb);
 
 	mwifiex_queue_tx_pkt(priv, skb);
 

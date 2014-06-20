@@ -83,9 +83,10 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 			char name[10];
 			/* performance monitoring */
 			cycles_t now = get_cycles();
-			cycles_t idle = txdata->idle;
+			cycles_t idle = txdata->idle * 100;
 			cycles_t total = now - txdata->begin;
 
+			do_div(idle, total);
 			txdata->begin = now;
 			txdata->idle = 0ULL;
 
@@ -93,7 +94,7 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 
 			seq_printf(s, "\n%pM CID %d TID %d [%3d|%3d] idle %3d%%\n",
 				   wil->sta[cid].addr, cid, tid, used, avail,
-				   (int)((idle*100)/total));
+				   (int)idle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
 		}

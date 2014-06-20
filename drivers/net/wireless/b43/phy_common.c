@@ -45,11 +45,10 @@ int b43_phy_allocate(struct b43_wldev *dev)
 	phy->ops = NULL;
 
 	switch (phy->type) {
-	case B43_PHYTYPE_A:
-		phy->ops = &b43_phyops_a;
-		break;
 	case B43_PHYTYPE_G:
+#ifdef CONFIG_B43_PHY_G
 		phy->ops = &b43_phyops_g;
+#endif
 		break;
 	case B43_PHYTYPE_N:
 #ifdef CONFIG_B43_PHY_N

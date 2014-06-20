@@ -4306,19 +4306,12 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	phy_type = (tmp & B43_PHYVER_TYPE) >> B43_PHYVER_TYPE_SHIFT;
 	phy_rev = (tmp & B43_PHYVER_VERSION);
 	switch (phy_type) {
-	case B43_PHYTYPE_A:
-		if (phy_rev >= 4)
-			unsupported = 1;
-		break;
-	case B43_PHYTYPE_B:
-		if (phy_rev != 2 && phy_rev != 4 && phy_rev != 6
-		    && phy_rev != 7)
-			unsupported = 1;
-		break;
+#ifdef CONFIG_B43_PHY_G
 	case B43_PHYTYPE_G:
 		if (phy_rev > 9)
 			unsupported = 1;
 		break;
+#endif
 #ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
 		if (phy_rev > 9)
