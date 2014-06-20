@@ -331,6 +331,8 @@ struct dt282x_private {
 	unsigned int da0_2scomp:1;
 	unsigned int da1_2scomp:1;
 
+	unsigned int divisor;
+
 	unsigned short ao_readback[2];
 
 	int dacsr;	/* software copies of registers */
@@ -413,34 +415,34 @@ static void dt282x_disable_dma(struct comedi_device *dev)
 	disable_dma(devpriv->dma[1].chan);
 }
 
-static int dt282x_ns_to_timer(int *nanosec, int round_mode)
+static unsigned int dt282x_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
-	int prescale, base, divider;
+	unsigned int prescale, base, divider;
 
 	for (prescale = 0; prescale < 16; prescale++) {
 		if (prescale == 1)
 			continue;
 		base = 250 * (1 << prescale);
-		switch (round_mode) {
+		switch (flags & TRIG_ROUND_MASK) {
 		case TRIG_ROUND_NEAREST:
 		default:
-			divider = (*nanosec + base / 2) / base;
+			divider = (*ns + base / 2) / base;
 			break;
 		case TRIG_ROUND_DOWN:
-			divider = (*nanosec) / base;
+			divider = (*ns) / base;
 			break;
 		case TRIG_ROUND_UP:
-			divider = (*nanosec + base - 1) / base;
+			divider = (*ns + base - 1) / base;
 			break;
 		}
 		if (divider < 256) {
-			*nanosec = divider * base;
+			*ns = divider * base;
 			return (prescale << 8) | (255 - divider);
 		}
 	}
 	base = 250 * (1 << 15);
 	divider = 255;
-	*nanosec = divider * base;
+	*ns = divider * base;
 	return (15 << 8) | (255 - divider);
 }
 
@@ -688,9 +690,11 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 }
 
 static int dt282x_ai_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
+			     struct comedi_subdevice *s,
+			     struct comedi_cmd *cmd)
 {
 	const struct dt282x_board *board = comedi_board(dev);
+	struct dt282x_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -748,7 +752,7 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	arg = cmd->convert_arg;
-	dt282x_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	devpriv->divisor = dt282x_ns_to_timer(&arg, cmd->flags);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 
 	if (err)
@@ -759,18 +763,13 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 
 static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int timer;
 	int ret;
 
 	dt282x_disable_dma(dev);
 
-	if (cmd->convert_arg < board->ai_speed)
-		cmd->convert_arg = board->ai_speed;
-	timer = dt282x_ns_to_timer(&cmd->convert_arg, TRIG_ROUND_NEAREST);
-	outw(timer, dev->iobase + DT2821_TMRCTR);
+	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/* internal trigger */
@@ -889,8 +888,10 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 }
 
 static int dt282x_ao_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s, struct comedi_cmd *cmd)
+			     struct comedi_subdevice *s,
+			     struct comedi_cmd *cmd)
 {
+	struct dt282x_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
 
@@ -933,7 +934,7 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	arg = cmd->scan_begin_arg;
-	dt282x_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+	devpriv->divisor = dt282x_ns_to_timer(&arg, cmd->flags);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 
 	if (err)
@@ -979,7 +980,6 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
-	int timer;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	dt282x_disable_dma(dev);
@@ -994,8 +994,7 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->dma_dir = DMA_MODE_WRITE;
 	devpriv->current_dma_index = 0;
 
-	timer = dt282x_ns_to_timer(&cmd->scan_begin_arg, TRIG_ROUND_NEAREST);
-	outw(timer, dev->iobase + DT2821_TMRCTR);
+	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR);
 
 	devpriv->dacsr = DT2821_SSEL | DT2821_DACLK | DT2821_IDARDY;
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
