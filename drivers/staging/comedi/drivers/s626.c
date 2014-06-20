@@ -122,9 +122,6 @@ struct s626_enc_info {
 	/* Generate soft index strobe. */
 	void (*pulse_index)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
-	/* Program clock enable. */
-	void (*set_enable)(struct comedi_device *dev,
-			   const struct s626_enc_info *k, uint16_t enab);
 	/* Program interrupt source. */
 	void (*set_int_src)(struct comedi_device *dev,
 			    const struct s626_enc_info *k, uint16_t int_source);
@@ -1072,20 +1069,20 @@ static void s626_set_mode_b(struct comedi_device *dev,
 /*
  * Return/set a counter's enable.  enab: 0=always enabled, 1=enabled by index.
  */
-static void s626_set_enable_a(struct comedi_device *dev,
-			      const struct s626_enc_info *k, uint16_t enab)
+static void s626_set_enable(struct comedi_device *dev,
+			    const struct s626_enc_info *k, uint16_t enab)
 {
-	s626_debi_replace(dev, S626_LP_CRB(k->chan),
-			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_A),
-			  S626_SET_CRB_CLKENAB_A(enab));
-}
+	unsigned int mask = S626_CRBMSK_INTCTRL;
+	unsigned int set;
 
-static void s626_set_enable_b(struct comedi_device *dev,
-			      const struct s626_enc_info *k, uint16_t enab)
-{
-	s626_debi_replace(dev, S626_LP_CRB(k->chan),
-			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_B),
-			  S626_SET_CRB_CLKENAB_B(enab));
+	if (k->chan < 3) {
+		mask |= S626_CRBMSK_CLKENAB_A;
+		set = S626_SET_CRB_CLKENAB_A(enab);
+	} else {
+		mask |= S626_CRBMSK_CLKENAB_B;
+		set = S626_SET_CRB_CLKENAB_B(enab);
+	}
+	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~mask, set);
 }
 
 static uint16_t s626_get_enable_a(struct comedi_device *dev,
@@ -1328,7 +1325,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_enable		= s626_set_enable_a,
 		.set_int_src		= s626_set_int_src_a,
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
@@ -1341,7 +1337,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_enable		= s626_set_enable_a,
 		.set_int_src		= s626_set_int_src_a,
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
@@ -1354,7 +1349,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
-		.set_enable		= s626_set_enable_a,
 		.set_int_src		= s626_set_int_src_a,
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
@@ -1367,7 +1361,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_enable		= s626_set_enable_b,
 		.set_int_src		= s626_set_int_src_b,
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
@@ -1380,7 +1373,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_enable		= s626_set_enable_b,
 		.set_int_src		= s626_set_int_src_b,
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
@@ -1393,7 +1385,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
-		.set_enable		= s626_set_enable_b,
 		.set_int_src		= s626_set_int_src_b,
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
@@ -1492,7 +1483,7 @@ static void s626_handle_dio_interrupt(struct comedi_device *dev,
 					&s626_enc_chan_info[5];
 
 				devpriv->ai_convert_count = cmd->chanlist_len;
-				k->set_enable(dev, k, S626_CLKENAB_ALWAYS);
+				s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 			}
 		}
 		if ((irqbit >> (cmd->convert_arg - (16 * group))) == 1 &&
@@ -1571,7 +1562,7 @@ static void s626_check_counter_interrupts(struct comedi_device *dev)
 		if (devpriv->ai_convert_count > 0) {
 			devpriv->ai_convert_count--;
 			if (devpriv->ai_convert_count == 0)
-				k->set_enable(dev, k, S626_CLKENAB_INDEX);
+				s626_set_enable(dev, k, S626_CLKENAB_INDEX);
 
 			if (cmd->convert_src == TRIG_TIMER) {
 				/* Trigger ADC scan loop start */
@@ -1594,7 +1585,7 @@ static void s626_check_counter_interrupts(struct comedi_device *dev)
 		if (cmd->convert_src == TRIG_TIMER) {
 			k = &s626_enc_chan_info[4];
 			devpriv->ai_convert_count = cmd->chanlist_len;
-			k->set_enable(dev, k, S626_CLKENAB_ALWAYS);
+			s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 		}
 	}
 }
@@ -2157,7 +2148,7 @@ static void s626_timer_load(struct comedi_device *dev,
 	k->set_int_src(dev, k, S626_INTSRC_OVER);
 
 	s626_set_latch_source(dev, k, value_latchsrc);
-	/* k->set_enable(dev, k, (uint16_t)(enab != 0)); */
+	/* s626_set_enable(dev, k, (uint16_t)(enab != 0)); */
 }
 
 /* TO COMPLETE  */
@@ -2209,7 +2200,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* load timer value and enable interrupt */
 		s626_timer_load(dev, k, tick);
-		k->set_enable(dev, k, S626_CLKENAB_ALWAYS);
+		s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 		break;
 	case TRIG_EXT:
 		/* set the digital line and interrupt for scan trigger */
@@ -2232,7 +2223,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		/* load timer value and enable interrupt */
 		s626_timer_load(dev, k, tick);
-		k->set_enable(dev, k, S626_CLKENAB_INDEX);
+		s626_set_enable(dev, k, S626_CLKENAB_INDEX);
 		break;
 	case TRIG_EXT:
 		/* set the digital line and interrupt for convert trigger */
@@ -2540,7 +2531,7 @@ static int s626_enc_insn_config(struct comedi_device *dev,
 	s626_preload(dev, k, data[0]);
 	k->pulse_index(dev, k);
 	s626_set_latch_source(dev, k, value_latchsrc);
-	k->set_enable(dev, k, (enab != 0));
+	s626_set_enable(dev, k, (enab != 0));
 
 	return insn->n;
 }
@@ -2633,7 +2624,7 @@ static void s626_counters_init(struct comedi_device *dev)
 		k->set_mode(dev, k, setup, true);
 		k->set_int_src(dev, k, 0);
 		k->reset_cap_flags(dev, k);
-		k->set_enable(dev, k, S626_CLKENAB_ALWAYS);
+		s626_set_enable(dev, k, S626_CLKENAB_ALWAYS);
 	}
 }
 
