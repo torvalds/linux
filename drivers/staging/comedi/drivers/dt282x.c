@@ -330,21 +330,21 @@ struct dt282x_private {
 
 	unsigned short ao[2];
 
-	volatile int dacsr;	/* software copies of registers */
-	volatile int adcsr;
-	volatile int supcsr;
+	int dacsr;	/* software copies of registers */
+	int adcsr;
+	int supcsr;
 
-	volatile int ntrig;
-	volatile int nread;
+	int ntrig;
+	int nread;
 
 	struct {
 		int chan;
 		unsigned short *buf;	/* DMA buffer */
-		volatile int size;	/* size of current transfer */
+		int size;	/* size of current transfer */
 	} dma[2];
 	int dma_maxsize;	/* max size of DMA transfer (in bytes) */
 	int usedma;		/* driver uses DMA              */
-	volatile int current_dma_index;
+	int current_dma_index;
 	int dma_dir;
 };
 
