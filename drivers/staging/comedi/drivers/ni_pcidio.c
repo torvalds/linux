@@ -361,7 +361,7 @@ static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->di_mite_chan)
 		mite_sync_input_dma(devpriv->di_mite_chan, s);
 	spin_unlock(&devpriv->mite_channel_lock);
-	count = s->async->buf_write_count - s->async->buf_read_count;
+	count = comedi_buf_n_bytes_ready(s);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 	return count;
 }

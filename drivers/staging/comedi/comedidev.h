@@ -400,6 +400,11 @@ static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
  */
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
 
+static inline unsigned int comedi_buf_n_bytes_ready(struct comedi_subdevice *s)
+{
+	return s->async->buf_write_count - s->async->buf_read_count;
+}
+
 unsigned int comedi_buf_write_alloc(struct comedi_subdevice *s, unsigned int n);
 unsigned int comedi_buf_write_free(struct comedi_subdevice *s, unsigned int n);
 

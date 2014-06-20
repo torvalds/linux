@@ -997,7 +997,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		comedi_buf_read_free(s, bi.bytes_read);
 
 		if (comedi_is_subdevice_idle(s) &&
-		    async->buf_write_count == async->buf_read_count) {
+		    comedi_buf_n_bytes_ready(s) == 0) {
 			do_become_nonbusy(dev, s);
 		}
 	}
@@ -2303,8 +2303,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		new_s = comedi_read_subdevice(dev, minor);
 		if (dev->attached && old_detach_count == dev->detach_count &&
 		    s == new_s && new_s->async == async) {
-			if (become_nonbusy ||
-			    async->buf_read_count - async->buf_write_count == 0)
+			if (become_nonbusy || comedi_buf_n_bytes_ready(s) == 0)
 				do_become_nonbusy(dev, s);
 		}
 		mutex_unlock(&dev->mutex);

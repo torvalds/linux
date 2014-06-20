@@ -696,7 +696,7 @@ static int das1800_ai_poll(struct comedi_device *dev,
 	das1800_ai_handler(dev);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return s->async->buf_write_count - s->async->buf_read_count;
+	return comedi_buf_n_bytes_ready(s);
 }
 
 static irqreturn_t das1800_interrupt(int irq, void *d)

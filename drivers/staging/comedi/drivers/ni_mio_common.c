@@ -1878,7 +1878,7 @@ static int ni_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 #else
 	ni_sync_ai_dma(dev);
 #endif
-	count = s->async->buf_write_count - s->async->buf_read_count;
+	count = comedi_buf_n_bytes_ready(s);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return count;

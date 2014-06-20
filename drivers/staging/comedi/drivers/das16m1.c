@@ -477,7 +477,7 @@ static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	das16m1_handler(dev, status);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
-	return s->async->buf_write_count - s->async->buf_read_count;
+	return comedi_buf_n_bytes_ready(s);
 }
 
 static irqreturn_t das16m1_interrupt(int irq, void *d)
