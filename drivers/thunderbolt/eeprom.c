@@ -323,7 +323,7 @@ static int tb_drom_parse_entry(struct tb_switch *sw,
 		struct tb_drom_entry_port *entry = (void *) header;
 		if (header->len != sizeof(*entry)) {
 			tb_sw_warn(sw,
-				"port entry has size %#x (expected %#lx)\n",
+				"port entry has size %#x (expected %#zx)\n",
 				header->len, sizeof(struct tb_drom_entry_port));
 			return -EIO;
 		}
