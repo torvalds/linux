@@ -77,26 +77,6 @@ Notes:
 #define DT2821_TMRCTR	0x0e	/* Timer/Counter          */
 
 /*
- *  At power up, some registers are in a well-known state.  The
- *  masks and values are as follows:
- */
-
-#define DT2821_ADCSR_MASK 0xfff0
-#define DT2821_ADCSR_VAL 0x7c00
-
-#define DT2821_CHANCSR_MASK 0xf0f0
-#define DT2821_CHANCSR_VAL 0x70f0
-
-#define DT2821_DACSR_MASK 0x7c93
-#define DT2821_DACSR_VAL 0x7c90
-
-#define DT2821_SUPCSR_MASK 0xf8ff
-#define DT2821_SUPCSR_VAL 0x0000
-
-#define DT2821_TMRCTR_MASK 0xff00
-#define DT2821_TMRCTR_VAL 0xf000
-
-/*
  *    Bit fields of each register
  */
 
@@ -1148,6 +1128,27 @@ static void dt282x_free_dma(struct comedi_device *dev)
 	}
 }
 
+static int dt282x_initialize(struct comedi_device *dev)
+{
+	/* Initialize board */
+	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
+	inw(dev->iobase + DT2821_ADCSR);
+
+	/*
+	 * At power up, some registers are in a well-known state.
+	 * Check them to see if a DT2821 series board is present.
+	 */
+	if (((inw(dev->iobase + DT2821_ADCSR) & 0xfff0) != 0x7c00) ||
+	    ((inw(dev->iobase + DT2821_CHANCSR) & 0xf0f0) != 0x70f0) ||
+	    ((inw(dev->iobase + DT2821_DACSR) & 0x7c93) != 0x7c90) ||
+	    ((inw(dev->iobase + DT2821_SUPCSR) & 0xf8ff) != 0x0000) ||
+	    ((inw(dev->iobase + DT2821_TMRCTR) & 0xff00) != 0xf000)) {
+		dev_err(dev->class_dev, "board not found\n");
+		return -EIO;
+	}
+	return 0;
+}
+
 /*
    options:
    0	i/o base
@@ -1168,29 +1169,14 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct dt282x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-	int i;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
 
-	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
-	i = inw(dev->iobase + DT2821_ADCSR);
-
-	if (((inw(dev->iobase + DT2821_ADCSR) & DT2821_ADCSR_MASK)
-	     != DT2821_ADCSR_VAL) ||
-	    ((inw(dev->iobase + DT2821_CHANCSR) & DT2821_CHANCSR_MASK)
-	     != DT2821_CHANCSR_VAL) ||
-	    ((inw(dev->iobase + DT2821_DACSR) & DT2821_DACSR_MASK)
-	     != DT2821_DACSR_VAL) ||
-	    ((inw(dev->iobase + DT2821_SUPCSR) & DT2821_SUPCSR_MASK)
-	     != DT2821_SUPCSR_VAL) ||
-	    ((inw(dev->iobase + DT2821_TMRCTR) & DT2821_TMRCTR_MASK)
-	     != DT2821_TMRCTR_VAL)) {
-		dev_err(dev->class_dev, "board not found\n");
-		return -EIO;
-	}
-	/* should do board test */
+	ret = dt282x_initialize(dev);
+	if (ret)
+		return ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
