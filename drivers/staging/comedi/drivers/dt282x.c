@@ -1305,5 +1305,5 @@ static struct comedi_driver dt282x_driver = {
 module_comedi_driver(dt282x_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for Data Translation DT2821 series");
 MODULE_LICENSE("GPL");
