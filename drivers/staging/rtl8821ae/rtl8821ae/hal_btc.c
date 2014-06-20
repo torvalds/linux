@@ -1706,20 +1706,6 @@ void rtl8821ae_dm_bt_inq_page_monitor(struct ieee80211_hw *hw)
 			rtlpcipriv->btcoexist.current_state &=~ BT_COEX_STATE_BT_INQ_PAGE;
 		}
 	}
-
-#if 0
-	if (hal_coex_8821ae.b_c2h_bt_inquiry_page) {
-		hal_coex_8821ae.b_c2h_bt_inquiry_page++;
-		// bt inquiry or page is started.
-	} if(hal_coex_8821ae.b_c2h_bt_inquiry_page) {
-		rtlpcipriv->btcoexist.current_state |= BT_COEX_STATE_BT_INQ_PAGE;
-		if(hal_coex_8821ae.bt_inquiry_page_cnt >= 4)
-			hal_coex_8821ae.bt_inquiry_page_cnt = 0;
-		hal_coex_8821ae.bt_inquiry_page_cnt++;
-	} else {
-		rtlpcipriv->btcoexist.current_state &=~ BT_COEX_STATE_BT_INQ_PAGE;
-	}
-#endif
 }
 
 void rtl8821ae_dm_bt_reset_action_profile_state(struct ieee80211_hw *hw)
