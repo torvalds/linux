@@ -229,7 +229,7 @@ static void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, 
 void EFUSE_GetEfuseDefinition(struct adapter *pAdapter, u8 efuseType, u8 type, void *pOut, bool pseudo
 	)
 {
-	pAdapter->HalFunc.EFUSEGetEfuseDefinition(pAdapter, efuseType, type, pOut, pseudo);
+	pAdapter->HalFunc.EFUSEGetEfuseDefinition(pAdapter, efuseType, type, pOut);
 }
 
 /*-----------------------------------------------------------------------------
