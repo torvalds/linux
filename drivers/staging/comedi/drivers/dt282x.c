@@ -1304,15 +1304,15 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
+	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
-	/* dio subsystem */
-	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-	s->n_chan = 16;
-	s->insn_bits = dt282x_dio_insn_bits;
-	s->insn_config = dt282x_dio_insn_config;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DIO;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
+	s->n_chan	= 16;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= dt282x_dio_insn_bits;
+	s->insn_config	= dt282x_dio_insn_config;
 
 	return 0;
 }
