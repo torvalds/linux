@@ -1029,10 +1029,21 @@ static void remove_all_osds(struct ceph_osd_client *osdc)
 static void __move_osd_to_lru(struct ceph_osd_client *osdc,
 			      struct ceph_osd *osd)
 {
-	dout("__move_osd_to_lru %p\n", osd);
+	dout("%s %p\n", __func__, osd);
 	BUG_ON(!list_empty(&osd->o_osd_lru));
+
 	list_add_tail(&osd->o_osd_lru, &osdc->osd_lru);
 	osd->lru_ttl = jiffies + osdc->client->options->osd_idle_ttl * HZ;
+}
+
+static void maybe_move_osd_to_lru(struct ceph_osd_client *osdc,
+				  struct ceph_osd *osd)
+{
+	dout("%s %p\n", __func__, osd);
+
+	if (list_empty(&osd->o_requests) &&
+	    list_empty(&osd->o_linger_requests))
+		__move_osd_to_lru(osdc, osd);
 }
 
 static void __remove_osd_from_lru(struct ceph_osd *osd)
@@ -1182,11 +1193,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 		ceph_msg_revoke(req->r_request);
 
 		list_del_init(&req->r_osd_item);
-		if (list_empty(&req->r_osd->o_requests) &&
-		    list_empty(&req->r_osd->o_linger_requests)) {
-			dout("moving osd to %p lru\n", req->r_osd);
-			__move_osd_to_lru(osdc, req->r_osd);
-		}
+		maybe_move_osd_to_lru(osdc, req->r_osd);
 		if (list_empty(&req->r_linger_item))
 			req->r_osd = NULL;
 	}
@@ -1229,12 +1236,7 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 	list_del_init(&req->r_linger_item);
 	if (req->r_osd) {
 		list_del_init(&req->r_linger_osd_item);
-
-		if (list_empty(&req->r_osd->o_requests) &&
-		    list_empty(&req->r_osd->o_linger_requests)) {
-			dout("moving osd to %p lru\n", req->r_osd);
-			__move_osd_to_lru(osdc, req->r_osd);
-		}
+		maybe_move_osd_to_lru(osdc, req->r_osd);
 		if (list_empty(&req->r_osd_item))
 			req->r_osd = NULL;
 	}
