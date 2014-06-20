@@ -1221,7 +1221,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 
 		list_del_init(&req->r_osd_item);
 		maybe_move_osd_to_lru(osdc, req->r_osd);
-		if (list_empty(&req->r_linger_item))
+		if (list_empty(&req->r_linger_osd_item))
 			req->r_osd = NULL;
 	}
 
