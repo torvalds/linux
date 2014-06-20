@@ -151,7 +151,7 @@ ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (dev_priv->pm.irqs_disabled)
 		return;
 
 	if ((dev_priv->irq_mask & mask) != mask) {
