@@ -169,14 +169,24 @@ quiet_cmd_vdso = VDSO    $@
 		 sh $(srctree)/$(src)/checkundef.sh '$(NM)' '$@'
 
 VDSO_LDFLAGS = -fPIC -shared $(call cc-ldoption, -Wl$(comma)--hash-style=sysv) \
-	-Wl,-Bsymbolic $(LTO_CFLAGS)
+	$(call cc-ldoption, -Wl$(comma)--build-id) -Wl,-Bsymbolic $(LTO_CFLAGS)
 GCOV_PROFILE := n
 
 #
-# Install the unstripped copies of vdso*.so.
+# Install the unstripped copies of vdso*.so.  If our toolchain supports
+# build-id, install .build-id links as well.
 #
 quiet_cmd_vdso_install = INSTALL $(@:install_%=%)
-      cmd_vdso_install = cp $< $(MODLIB)/vdso/$(@:install_%=%)
+define cmd_vdso_install
+	cp $< "$(MODLIB)/vdso/$(@:install_%=%)"; \
+	if readelf -n $< |grep -q 'Build ID'; then \
+	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
+	  first=`echo $$buildid | cut -b-2`; \
+	  last=`echo $$buildid | cut -b3-`; \
+	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
+	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
+	fi
+endef
 
 vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
 
