@@ -1211,11 +1211,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
-
-	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE;
 	if (it->options[4]) {
 		s->subdev_flags	|= SDF_DIFF;
 		s->n_chan	= board->adchan_di;
@@ -1223,17 +1222,19 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags	|= SDF_COMMON;
 		s->n_chan	= board->adchan_se;
 	}
-	s->insn_read = dt282x_ai_insn_read;
-	s->maxdata = board->ai_maxdata;
+	s->maxdata	= board->ai_maxdata;
+
 	s->range_table = opt_ai_range_lkup(board->ispgl, it->options[8]);
 	devpriv->ad_2scomp = it->options[5] ? 1 : 0;
+
+	s->insn_read	= dt282x_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags |= SDF_CMD_READ;
-		s->len_chanlist = 16;
-		s->do_cmdtest = dt282x_ai_cmdtest;
-		s->do_cmd = dt282x_ai_cmd;
-		s->cancel = dt282x_ai_cancel;
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= s->n_chan;
+		s->do_cmdtest	= dt282x_ai_cmdtest;
+		s->do_cmd	= dt282x_ai_cmd;
+		s->cancel	= dt282x_ai_cancel;
 	}
 
 	/* Analog Output subdevice */
