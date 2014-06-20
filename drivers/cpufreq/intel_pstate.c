@@ -357,21 +357,21 @@ static int byt_get_min_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return (value >> 8) & 0x3F;
+	return (value >> 8) & 0x7F;
 }
 
 static int byt_get_max_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_RATIOS, value);
-	return (value >> 16) & 0x3F;
+	return (value >> 16) & 0x7F;
 }
 
 static int byt_get_turbo_pstate(void)
 {
 	u64 value;
 	rdmsrl(BYT_TURBO_RATIOS, value);
-	return value & 0x3F;
+	return value & 0x7F;
 }
 
 static void byt_set_pstate(struct cpudata *cpudata, int pstate)
@@ -405,8 +405,8 @@ static void byt_get_vid(struct cpudata *cpudata)
 
 
 	rdmsrl(BYT_VIDS, value);
-	cpudata->vid.min = int_tofp((value >> 8) & 0x3f);
-	cpudata->vid.max = int_tofp((value >> 16) & 0x3f);
+	cpudata->vid.min = int_tofp((value >> 8) & 0x7f);
+	cpudata->vid.max = int_tofp((value >> 16) & 0x7f);
 	cpudata->vid.ratio = div_fp(
 		cpudata->vid.max - cpudata->vid.min,
 		int_tofp(cpudata->pstate.max_pstate -
