@@ -2447,12 +2447,14 @@ static const struct dev_pm_ops max98090_pm = {
 
 static const struct i2c_device_id max98090_i2c_id[] = {
 	{ "max98090", MAX98090 },
+	{ "max98091", MAX98091 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max98090_i2c_id);
 
 static const struct of_device_id max98090_of_match[] = {
 	{ .compatible = "maxim,max98090", },
+	{ .compatible = "maxim,max98091", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max98090_of_match);
