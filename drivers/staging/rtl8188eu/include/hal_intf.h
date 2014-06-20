@@ -233,9 +233,6 @@ struct hal_ops {
 			       enum rf_radio_path eRFPath, u32 RegAddr,
 			       u32 BitMask, u32 Data);
 
-	bool	(*Efuse_PgPacketWrite_BT)(struct adapter *padapter, u8 offset,
-					  u8 word_en, u8 *data, bool test);
-
 	void (*sreset_init_value)(struct adapter *padapter);
 	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
 
