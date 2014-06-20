@@ -139,8 +139,6 @@ struct s626_enc_info {
 	void (*reset_cap_flags)(struct comedi_device *dev,
 				const struct s626_enc_info *k);
 
-	uint16_t my_cra;	/* address of CRA register */
-	uint16_t my_crb;	/* address of CRB register */
 	uint16_t my_latch_lsw;	/* address of Latch least-significant-word
 				 * register */
 	uint16_t my_event_bits[4]; /* bit translations for IntSrc -->RDMISC2 */
@@ -750,7 +748,7 @@ static uint32_t s626_read_latch(struct comedi_device *dev,
 static void s626_set_latch_source(struct comedi_device *dev,
 				  const struct s626_enc_info *k, uint16_t value)
 {
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_LATCHSRC),
 			  S626_SET_CRB_LATCHSRC(value));
 }
@@ -773,7 +771,7 @@ static void s626_preload(struct comedi_device *dev,
 static void s626_reset_cap_flags_a(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
 			  (S626_SET_CRB_INTRESETCMD(1) |
 			   S626_SET_CRB_INTRESET_A(1)));
 }
@@ -781,7 +779,7 @@ static void s626_reset_cap_flags_a(struct comedi_device *dev,
 static void s626_reset_cap_flags_b(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
 			  (S626_SET_CRB_INTRESETCMD(1) |
 			   S626_SET_CRB_INTRESET_B(1)));
 }
@@ -799,8 +797,8 @@ static uint16_t s626_get_mode_a(struct comedi_device *dev,
 	unsigned cntsrc, clkmult, clkpol, encmode;
 
 	/* Fetch CRA and CRB register images. */
-	cra = s626_debi_read(dev, k->my_cra);
-	crb = s626_debi_read(dev, k->my_crb);
+	cra = s626_debi_read(dev, S626_LP_CRA(k->chan));
+	crb = s626_debi_read(dev, S626_LP_CRB(k->chan));
 
 	/*
 	 * Populate the standardized counter setup bit fields.
@@ -854,8 +852,8 @@ static uint16_t s626_get_mode_b(struct comedi_device *dev,
 	unsigned cntsrc, clkmult, clkpol, encmode;
 
 	/* Fetch CRA and CRB register images. */
-	cra = s626_debi_read(dev, k->my_cra);
-	crb = s626_debi_read(dev, k->my_crb);
+	cra = s626_debi_read(dev, S626_LP_CRA(k->chan));
+	crb = s626_debi_read(dev, S626_LP_CRB(k->chan));
 
 	/*
 	 * Populate the standardized counter setup bit fields.
@@ -982,9 +980,9 @@ static void s626_set_mode_a(struct comedi_device *dev,
 	 * While retaining CounterB and LatchSrc configurations, program the
 	 * new counter operating mode.
 	 */
-	s626_debi_replace(dev, k->my_cra,
+	s626_debi_replace(dev, S626_LP_CRA(k->chan),
 			  S626_CRAMSK_INDXSRC_B | S626_CRAMSK_CNTSRC_B, cra);
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_A), crb);
 }
 
@@ -1066,9 +1064,9 @@ static void s626_set_mode_b(struct comedi_device *dev,
 	 * While retaining CounterA and LatchSrc configurations, program the
 	 * new counter operating mode.
 	 */
-	s626_debi_replace(dev, k->my_cra,
+	s626_debi_replace(dev, S626_LP_CRA(k->chan),
 			  ~(S626_CRAMSK_INDXSRC_B | S626_CRAMSK_CNTSRC_B), cra);
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  S626_CRBMSK_CLKENAB_A | S626_CRBMSK_LATCHSRC, crb);
 }
 
@@ -1078,7 +1076,7 @@ static void s626_set_mode_b(struct comedi_device *dev,
 static void s626_set_enable_a(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t enab)
 {
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_A),
 			  S626_SET_CRB_CLKENAB_A(enab));
 }
@@ -1086,7 +1084,7 @@ static void s626_set_enable_a(struct comedi_device *dev,
 static void s626_set_enable_b(struct comedi_device *dev,
 			      const struct s626_enc_info *k, uint16_t enab)
 {
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  ~(S626_CRBMSK_INTCTRL | S626_CRBMSK_CLKENAB_B),
 			  S626_SET_CRB_CLKENAB_B(enab));
 }
@@ -1094,20 +1092,23 @@ static void s626_set_enable_b(struct comedi_device *dev,
 static uint16_t s626_get_enable_a(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_CLKENAB_A(s626_debi_read(dev, k->my_crb));
+	return S626_GET_CRB_CLKENAB_A(s626_debi_read(dev,
+						     S626_LP_CRB(k->chan)));
 }
 
 static uint16_t s626_get_enable_b(struct comedi_device *dev,
 				  const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_CLKENAB_B(s626_debi_read(dev, k->my_crb));
+	return S626_GET_CRB_CLKENAB_B(s626_debi_read(dev,
+						     S626_LP_CRB(k->chan)));
 }
 
 #ifdef unused
 static uint16_t s626_get_latch_source(struct comedi_device *dev,
 				      const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_LATCHSRC(s626_debi_read(dev, k->my_crb));
+	return S626_GET_CRB_LATCHSRC(s626_debi_read(dev,
+						    S626_LP_CRB(k->chan)));
 }
 #endif
 
@@ -1119,14 +1120,14 @@ static uint16_t s626_get_latch_source(struct comedi_device *dev,
 static void s626_set_load_trig_a(struct comedi_device *dev,
 				 const struct s626_enc_info *k, uint16_t trig)
 {
-	s626_debi_replace(dev, k->my_cra, ~S626_CRAMSK_LOADSRC_A,
+	s626_debi_replace(dev, S626_LP_CRA(k->chan), ~S626_CRAMSK_LOADSRC_A,
 			  S626_SET_CRA_LOADSRC_A(trig));
 }
 
 static void s626_set_load_trig_b(struct comedi_device *dev,
 				 const struct s626_enc_info *k, uint16_t trig)
 {
-	s626_debi_replace(dev, k->my_crb,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan),
 			  ~(S626_CRBMSK_LOADSRC_B | S626_CRBMSK_INTCTRL),
 			  S626_SET_CRB_LOADSRC_B(trig));
 }
@@ -1134,13 +1135,15 @@ static void s626_set_load_trig_b(struct comedi_device *dev,
 static uint16_t s626_get_load_trig_a(struct comedi_device *dev,
 				     const struct s626_enc_info *k)
 {
-	return S626_GET_CRA_LOADSRC_A(s626_debi_read(dev, k->my_cra));
+	return S626_GET_CRA_LOADSRC_A(s626_debi_read(dev,
+						     S626_LP_CRA(k->chan)));
 }
 
 static uint16_t s626_get_load_trig_b(struct comedi_device *dev,
 				     const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_LOADSRC_B(s626_debi_read(dev, k->my_crb));
+	return S626_GET_CRB_LOADSRC_B(s626_debi_read(dev,
+						     S626_LP_CRB(k->chan)));
 }
 
 /*
@@ -1155,12 +1158,12 @@ static void s626_set_int_src_a(struct comedi_device *dev,
 	struct s626_private *devpriv = dev->private;
 
 	/* Reset any pending counter overflow or index captures. */
-	s626_debi_replace(dev, k->my_crb, ~S626_CRBMSK_INTCTRL,
+	s626_debi_replace(dev, S626_LP_CRB(k->chan), ~S626_CRBMSK_INTCTRL,
 			  (S626_SET_CRB_INTRESETCMD(1) |
 			   S626_SET_CRB_INTRESET_A(1)));
 
 	/* Program counter interrupt source. */
-	s626_debi_replace(dev, k->my_cra, ~S626_CRAMSK_INTSRC_A,
+	s626_debi_replace(dev, S626_LP_CRA(k->chan), ~S626_CRAMSK_INTSRC_A,
 			  S626_SET_CRA_INTSRC_A(int_source));
 
 	/* Update MISC2 interrupt enable mask. */
@@ -1177,15 +1180,17 @@ static void s626_set_int_src_b(struct comedi_device *dev,
 	uint16_t crb;
 
 	/* Cache writeable CRB register image. */
-	crb = s626_debi_read(dev, k->my_crb) & ~S626_CRBMSK_INTCTRL;
+	crb = s626_debi_read(dev, S626_LP_CRB(k->chan)) & ~S626_CRBMSK_INTCTRL;
 
 	/* Reset any pending counter overflow or index captures. */
-	s626_debi_write(dev, k->my_crb, (crb | S626_SET_CRB_INTRESETCMD(1) |
-					 S626_SET_CRB_INTRESET_B(1)));
+	s626_debi_write(dev, S626_LP_CRB(k->chan),
+			(crb | S626_SET_CRB_INTRESETCMD(1) |
+			S626_SET_CRB_INTRESET_B(1)));
 
 	/* Program counter interrupt source. */
-	s626_debi_write(dev, k->my_crb, ((crb & ~S626_CRBMSK_INTSRC_B) |
-					 S626_SET_CRB_INTSRC_B(int_source)));
+	s626_debi_write(dev, S626_LP_CRB(k->chan),
+			((crb & ~S626_CRBMSK_INTSRC_B) |
+			S626_SET_CRB_INTSRC_B(int_source)));
 
 	/* Update MISC2 interrupt enable mask. */
 	devpriv->counter_int_enabs =
@@ -1196,13 +1201,15 @@ static void s626_set_int_src_b(struct comedi_device *dev,
 static uint16_t s626_get_int_src_a(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return S626_GET_CRA_INTSRC_A(s626_debi_read(dev, k->my_cra));
+	return S626_GET_CRA_INTSRC_A(s626_debi_read(dev,
+						    S626_LP_CRA(k->chan)));
 }
 
 static uint16_t s626_get_int_src_b(struct comedi_device *dev,
 				   const struct s626_enc_info *k)
 {
-	return S626_GET_CRB_INTSRC_B(s626_debi_read(dev, k->my_crb));
+	return S626_GET_CRB_INTSRC_B(s626_debi_read(dev,
+						    S626_LP_CRB(k->chan)));
 }
 
 #ifdef unused
@@ -1295,10 +1302,11 @@ static void s626_pulse_index_a(struct comedi_device *dev,
 {
 	uint16_t cra;
 
-	cra = s626_debi_read(dev, k->my_cra);
+	cra = s626_debi_read(dev, S626_LP_CRA(k->chan));
 	/* Pulse index. */
-	s626_debi_write(dev, k->my_cra, (cra ^ S626_CRAMSK_INDXPOL_A));
-	s626_debi_write(dev, k->my_cra, cra);
+	s626_debi_write(dev, S626_LP_CRA(k->chan),
+			(cra ^ S626_CRAMSK_INDXPOL_A));
+	s626_debi_write(dev, S626_LP_CRA(k->chan), cra);
 }
 
 static void s626_pulse_index_b(struct comedi_device *dev,
@@ -1306,10 +1314,11 @@ static void s626_pulse_index_b(struct comedi_device *dev,
 {
 	uint16_t crb;
 
-	crb = s626_debi_read(dev, k->my_crb) & ~S626_CRBMSK_INTCTRL;
+	crb = s626_debi_read(dev, S626_LP_CRB(k->chan)) & ~S626_CRBMSK_INTCTRL;
 	/* Pulse index. */
-	s626_debi_write(dev, k->my_crb, (crb ^ S626_CRBMSK_INDXPOL_B));
-	s626_debi_write(dev, k->my_crb, crb);
+	s626_debi_write(dev, S626_LP_CRB(k->chan),
+			(crb ^ S626_CRBMSK_INDXPOL_B));
+	s626_debi_write(dev, S626_LP_CRB(k->chan), crb);
 }
 
 static const struct s626_enc_info s626_enc_chan_info[] = {
@@ -1325,8 +1334,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_cra			= S626_LP_CRA(0),
-		.my_crb			= S626_LP_CRB(0),
 		.my_latch_lsw		= S626_LP_CNTR0ALSW,
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
@@ -1341,8 +1348,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_cra			= S626_LP_CRA(1),
-		.my_crb			= S626_LP_CRB(1),
 		.my_latch_lsw		= S626_LP_CNTR1ALSW,
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
@@ -1357,8 +1362,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_cra			= S626_LP_CRA(2),
-		.my_crb			= S626_LP_CRB(2),
 		.my_latch_lsw		= S626_LP_CNTR2ALSW,
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
@@ -1373,8 +1376,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_cra			= S626_LP_CRA(3),
-		.my_crb			= S626_LP_CRB(3),
 		.my_latch_lsw		= S626_LP_CNTR0BLSW,
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
@@ -1389,8 +1390,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_cra			= S626_LP_CRA(4),
-		.my_crb			= S626_LP_CRB(4),
 		.my_latch_lsw		= S626_LP_CNTR1BLSW,
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
@@ -1405,8 +1404,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_cra			= S626_LP_CRA(5),
-		.my_crb			= S626_LP_CRB(5),
 		.my_latch_lsw		= S626_LP_CNTR2BLSW,
 		.my_event_bits		= S626_EVBITS(5),
 	},
