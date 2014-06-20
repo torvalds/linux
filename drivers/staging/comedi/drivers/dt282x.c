@@ -76,70 +76,52 @@
 #include "comedi_fc.h"
 
 /*
- *    Registers in the DT282x
+ * Register map
  */
-
-#define DT2821_ADCSR	0x00	/* A/D Control/Status             */
-#define DT2821_CHANCSR	0x02	/* Channel Control/Status */
-#define DT2821_ADDAT	0x04	/* A/D data                       */
-#define DT2821_DACSR	0x06	/* D/A Control/Status             */
-#define DT2821_DADAT	0x08	/* D/A data                       */
-#define DT2821_DIODAT	0x0a	/* digital data                   */
-#define DT2821_SUPCSR	0x0c	/* Supervisor Control/Status      */
-#define DT2821_TMRCTR	0x0e	/* Timer/Counter          */
-
-/*
- *    Bit fields of each register
- */
-
-/* ADCSR */
-
-#define DT2821_ADERR	0x8000	/* (R)   1 for A/D error  */
-#define DT2821_ADCLK	0x0200	/* (R/W) A/D clock enable */
-		/*      0x7c00           read as 1's            */
-#define DT2821_MUXBUSY	0x0100	/* (R)   multiplexer busy */
-#define DT2821_ADDONE	0x0080	/* (R)   A/D done         */
-#define DT2821_IADDONE	0x0040	/* (R/W) interrupt on A/D done    */
-		/*      0x0030           gain select            */
-		/*      0x000f           channel select         */
-
-/* CHANCSR */
-
-#define DT2821_LLE	0x8000	/* (R/W) Load List Enable */
-		/*      0x7000           read as 1's            */
-		/*      0x0f00     (R)   present address        */
-		/*      0x00f0           read as 1's            */
-		/*      0x000f     (R)   number of entries - 1  */
-
-/* DACSR */
-
-#define DT2821_DAERR	0x8000	/* (R)   D/A error                */
-#define DT2821_YSEL	0x0200	/* (R/W) DAC 1 select             */
-#define DT2821_SSEL	0x0100	/* (R/W) single channel select    */
-#define DT2821_DACRDY	0x0080	/* (R)   DAC ready                */
-#define DT2821_IDARDY	0x0040	/* (R/W) interrupt on DAC ready   */
-#define DT2821_DACLK	0x0020	/* (R/W) D/A clock enable */
-#define DT2821_HBOE	0x0002	/* (R/W) DIO high byte output enable      */
-#define DT2821_LBOE	0x0001	/* (R/W) DIO low byte output enable       */
-
-/* SUPCSR */
-
-#define DT2821_DMAD	0x8000	/* (R)   DMA done                 */
-#define DT2821_ERRINTEN	0x4000	/* (R/W) interrupt on error               */
-#define DT2821_CLRDMADNE 0x2000	/* (W)   clear DMA done                   */
-#define DT2821_DDMA	0x1000	/* (R/W) dual DMA                 */
-#define DT2821_DS1	0x0800	/* (R/W) DMA select 1                     */
-#define DT2821_DS0	0x0400	/* (R/W) DMA select 0                     */
-#define DT2821_BUFFB	0x0200	/* (R/W) buffer B selected                */
-#define DT2821_SCDN	0x0100	/* (R)   scan done                        */
-#define DT2821_DACON	0x0080	/* (W)   DAC single conversion            */
-#define DT2821_ADCINIT	0x0040	/* (W)   A/D initialize                   */
-#define DT2821_DACINIT	0x0020	/* (W)   D/A initialize                   */
-#define DT2821_PRLD	0x0010	/* (W)   preload multiplexer              */
-#define DT2821_STRIG	0x0008	/* (W)   software trigger         */
-#define DT2821_XTRIG	0x0004	/* (R/W) external trigger enable  */
-#define DT2821_XCLK	0x0002	/* (R/W) external clock enable            */
-#define DT2821_BDINIT	0x0001	/* (W)   initialize board         */
+#define DT2821_ADCSR_REG		0x00
+#define DT2821_ADCSR_ADERR		(1 << 15)
+#define DT2821_ADCSR_ADCLK		(1 << 9)
+#define DT2821_ADCSR_MUXBUSY		(1 << 8)
+#define DT2821_ADCSR_ADDONE		(1 << 7)
+#define DT2821_ADCSR_IADDONE		(1 << 6)
+#define DT2821_ADCSR_GS(x)		(((x) & 0x3) << 4)
+#define DT2821_ADCSR_CHAN(x)		(((x) & 0xf) << 0)
+#define DT2821_CHANCSR_REG		0x02
+#define DT2821_CHANCSR_LLE		(1 << 15)
+#define DT2821_CHANCSR_PRESLA(x)	(((x) & 0xf) >> 8)
+#define DT2821_CHANCSR_NUMB(x)		((((x) - 1) & 0xf) << 0)
+#define DT2821_ADDAT_REG		0x04
+#define DT2821_DACSR_REG		0x06
+#define DT2821_DACSR_DAERR		(1 << 15)
+#define DT2821_DACSR_YSEL(x)		((x) << 9)
+#define DT2821_DACSR_SSEL		(1 << 8)
+#define DT2821_DACSR_DACRDY		(1 << 7)
+#define DT2821_DACSR_IDARDY		(1 << 6)
+#define DT2821_DACSR_DACLK		(1 << 5)
+#define DT2821_DACSR_HBOE		(1 << 1)
+#define DT2821_DACSR_LBOE		(1 << 0)
+#define DT2821_DADAT_REG		0x08
+#define DT2821_DIODAT_REG		0x0a
+#define DT2821_SUPCSR_REG		0x0c
+#define DT2821_SUPCSR_DMAD		(1 << 15)
+#define DT2821_SUPCSR_ERRINTEN		(1 << 14)
+#define DT2821_SUPCSR_CLRDMADNE		(1 << 13)
+#define DT2821_SUPCSR_DDMA		(1 << 12)
+#define DT2821_SUPCSR_DS_PIO		(0 << 10)
+#define DT2821_SUPCSR_DS_AD_CLK		(1 << 10)
+#define DT2821_SUPCSR_DS_DA_CLK		(2 << 10)
+#define DT2821_SUPCSR_DS_AD_TRIG	(3 << 10)
+#define DT2821_SUPCSR_BUFFB		(1 << 9)
+#define DT2821_SUPCSR_SCDN		(1 << 8)
+#define DT2821_SUPCSR_DACON		(1 << 7)
+#define DT2821_SUPCSR_ADCINIT		(1 << 6)
+#define DT2821_SUPCSR_DACINIT		(1 << 5)
+#define DT2821_SUPCSR_PRLD		(1 << 4)
+#define DT2821_SUPCSR_STRIG		(1 << 3)
+#define DT2821_SUPCSR_XTRIG		(1 << 2)
+#define DT2821_SUPCSR_XCLK		(1 << 1)
+#define DT2821_SUPCSR_BDINIT		(1 << 0)
+#define DT2821_TMRCTR_REG		0x0e
 
 static const struct comedi_lrange range_dt282x_ai_lo_bipolar = {
 	4, {
@@ -476,7 +458,8 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 	void *ptr = devpriv->dma[cur_dma].buf;
 	int size;
 
-	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
+	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	disable_dma(devpriv->dma[cur_dma].chan);
 
@@ -500,7 +483,8 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	int size = devpriv->dma[cur_dma].size;
 	int ret;
 
-	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
+	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	disable_dma(devpriv->dma[cur_dma].chan);
 
@@ -526,8 +510,8 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	/* clear the dual dma flag, making this the last dma segment */
 	/* XXX probably wrong */
 	if (!devpriv->ntrig) {
-		devpriv->supcsr &= ~(DT2821_DDMA);
-		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR);
+		devpriv->supcsr &= ~DT2821_SUPCSR_DDMA;
+		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR_REG);
 	}
 #endif
 	/* restart the channel */
@@ -548,34 +532,34 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		return IRQ_HANDLED;
 	}
 
-	adcsr = inw(dev->iobase + DT2821_ADCSR);
-	dacsr = inw(dev->iobase + DT2821_DACSR);
-	supcsr = inw(dev->iobase + DT2821_SUPCSR);
-	if (supcsr & DT2821_DMAD) {
+	adcsr = inw(dev->iobase + DT2821_ADCSR_REG);
+	dacsr = inw(dev->iobase + DT2821_DACSR_REG);
+	supcsr = inw(dev->iobase + DT2821_SUPCSR_REG);
+	if (supcsr & DT2821_SUPCSR_DMAD) {
 		if (devpriv->dma_dir == DMA_MODE_READ)
 			dt282x_ai_dma_interrupt(dev, s);
 		else
 			dt282x_ao_dma_interrupt(dev, s_ao);
 		handled = 1;
 	}
-	if (adcsr & DT2821_ADERR) {
+	if (adcsr & DT2821_ADCSR_ADERR) {
 		if (devpriv->nread != 0) {
 			comedi_error(dev, "A/D error");
 			s->async->events |= COMEDI_CB_ERROR;
 		}
 		handled = 1;
 	}
-	if (dacsr & DT2821_DAERR) {
+	if (dacsr & DT2821_DACSR_DAERR) {
 		comedi_error(dev, "D/A error");
 		s_ao->async->events |= COMEDI_CB_ERROR;
 		handled = 1;
 	}
 #if 0
-	if (adcsr & DT2821_ADDONE) {
+	if (adcsr & DT2821_ADCSR_ADDONE) {
 		int ret;
 		unsigned short data;
 
-		data = inw(dev->iobase + DT2821_ADDAT);
+		data = inw(dev->iobase + DT2821_ADDAT_REG);
 		data &= s->maxdata;
 		if (devpriv->ad_2scomp)
 			data = comedi_offset_munge(s, data);
@@ -589,9 +573,9 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		if (!devpriv->nread) {
 			s->async->events |= COMEDI_CB_EOA;
 		} else {
-			if (supcsr & DT2821_SCDN)
-				outw(devpriv->supcsr | DT2821_STRIG,
-					dev->iobase + DT2821_SUPCSR);
+			if (supcsr & DT2821_SUPCSR_SCDN)
+				outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
+				     dev->iobase + DT2821_SUPCSR_REG);
 		}
 		handled = 1;
 	}
@@ -606,17 +590,20 @@ static void dt282x_load_changain(struct comedi_device *dev, int n,
 				 unsigned int *chanlist)
 {
 	struct dt282x_private *devpriv = dev->private;
-	unsigned int i;
-	unsigned int chan, range;
+	int i;
 
-	outw(DT2821_LLE | (n - 1), dev->iobase + DT2821_CHANCSR);
+	outw(DT2821_CHANCSR_LLE | DT2821_CHANCSR_NUMB(n),
+	     dev->iobase + DT2821_CHANCSR_REG);
 	for (i = 0; i < n; i++) {
-		chan = CR_CHAN(chanlist[i]);
-		range = CR_RANGE(chanlist[i]);
-		outw(devpriv->adcsr | (range << 4) | chan,
-			dev->iobase + DT2821_ADCSR);
+		unsigned int chan = CR_CHAN(chanlist[i]);
+		unsigned int range = CR_RANGE(chanlist[i]);
+
+		outw(devpriv->adcsr |
+		     DT2821_ADCSR_GS(range) |
+		     DT2821_ADCSR_CHAN(chan),
+		     dev->iobase + DT2821_ADCSR_REG);
 	}
-	outw(n - 1, dev->iobase + DT2821_CHANCSR);
+	outw(DT2821_CHANCSR_NUMB(n), dev->iobase + DT2821_CHANCSR_REG);
 }
 
 static int dt282x_ai_timeout(struct comedi_device *dev,
@@ -626,14 +613,14 @@ static int dt282x_ai_timeout(struct comedi_device *dev,
 {
 	unsigned int status;
 
-	status = inw(dev->iobase + DT2821_ADCSR);
+	status = inw(dev->iobase + DT2821_ADCSR_REG);
 	switch (context) {
-	case DT2821_MUXBUSY:
-		if ((status & DT2821_MUXBUSY) == 0)
+	case DT2821_ADCSR_MUXBUSY:
+		if ((status & DT2821_ADCSR_MUXBUSY) == 0)
 			return 0;
 		break;
-	case DT2821_ADDONE:
-		if (status & DT2821_ADDONE)
+	case DT2821_ADCSR_ADDONE:
+		if (status & DT2821_ADCSR_ADDONE)
 			return 0;
 		break;
 	default:
@@ -659,26 +646,28 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 	int i;
 
 	/* XXX should we really be enabling the ad clock here? */
-	devpriv->adcsr = DT2821_ADCLK;
-	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR);
+	devpriv->adcsr = DT2821_ADCSR_ADCLK;
+	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR_REG);
 
 	dt282x_load_changain(dev, 1, &insn->chanspec);
 
-	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
-	ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout, DT2821_MUXBUSY);
+	outw(devpriv->supcsr | DT2821_SUPCSR_PRLD,
+	     dev->iobase + DT2821_SUPCSR_REG);
+	ret = comedi_timeout(dev, s, insn,
+			     dt282x_ai_timeout, DT2821_ADCSR_MUXBUSY);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < insn->n; i++) {
-		outw(devpriv->supcsr | DT2821_STRIG,
-			dev->iobase + DT2821_SUPCSR);
+		outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
+		     dev->iobase + DT2821_SUPCSR_REG);
 
-		ret = comedi_timeout(dev, s, insn, dt282x_ai_timeout,
-				     DT2821_ADDONE);
+		ret = comedi_timeout(dev, s, insn,
+				     dt282x_ai_timeout, DT2821_ADCSR_ADDONE);
 		if (ret)
 			return ret;
 
-		val = inw(dev->iobase + DT2821_ADDAT);
+		val = inw(dev->iobase + DT2821_ADDAT_REG);
 		val &= s->maxdata;
 		if (devpriv->ad_2scomp)
 			val = comedi_offset_munge(s, val);
@@ -769,17 +758,18 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	dt282x_disable_dma(dev);
 
-	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR);
+	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR_REG);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0;
-	} else {
-		/* external trigger */
-		devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS0 | DT2821_DS1;
-	}
-	outw(devpriv->supcsr | DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_ADCINIT,
-		dev->iobase + DT2821_SUPCSR);
+	devpriv->supcsr = DT2821_SUPCSR_ERRINTEN;
+	if (cmd->scan_begin_src == TRIG_FOLLOW)
+		devpriv->supcsr = DT2821_SUPCSR_DS_AD_CLK;
+	else
+		devpriv->supcsr = DT2821_SUPCSR_DS_AD_TRIG;
+	outw(devpriv->supcsr |
+	     DT2821_SUPCSR_CLRDMADNE |
+	     DT2821_SUPCSR_BUFFB |
+	     DT2821_SUPCSR_ADCINIT,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	devpriv->ntrig = cmd->stop_arg * cmd->scan_end_arg;
 	devpriv->nread = devpriv->ntrig;
@@ -789,28 +779,30 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	dt282x_prep_ai_dma(dev, 0, 0);
 	if (devpriv->ntrig) {
 		dt282x_prep_ai_dma(dev, 1, 0);
-		devpriv->supcsr |= DT2821_DDMA;
-		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR);
+		devpriv->supcsr |= DT2821_SUPCSR_DDMA;
+		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR_REG);
 	}
 
 	devpriv->adcsr = 0;
 
 	dt282x_load_changain(dev, cmd->chanlist_len, cmd->chanlist);
 
-	devpriv->adcsr = DT2821_ADCLK | DT2821_IADDONE;
-	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR);
+	devpriv->adcsr = DT2821_ADCSR_ADCLK | DT2821_ADCSR_IADDONE;
+	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR_REG);
 
-	outw(devpriv->supcsr | DT2821_PRLD, dev->iobase + DT2821_SUPCSR);
-	ret = comedi_timeout(dev, s, NULL, dt282x_ai_timeout, DT2821_MUXBUSY);
+	outw(devpriv->supcsr | DT2821_SUPCSR_PRLD,
+	     dev->iobase + DT2821_SUPCSR_REG);
+	ret = comedi_timeout(dev, s, NULL,
+			     dt282x_ai_timeout, DT2821_ADCSR_MUXBUSY);
 	if (ret)
 		return ret;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		outw(devpriv->supcsr | DT2821_STRIG,
-			dev->iobase + DT2821_SUPCSR);
+		outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
+			dev->iobase + DT2821_SUPCSR_REG);
 	} else {
-		devpriv->supcsr |= DT2821_XTRIG;
-		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR);
+		devpriv->supcsr |= DT2821_SUPCSR_XTRIG;
+		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR_REG);
 	}
 
 	return 0;
@@ -824,10 +816,11 @@ static int dt282x_ai_cancel(struct comedi_device *dev,
 	dt282x_disable_dma(dev);
 
 	devpriv->adcsr = 0;
-	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR);
+	outw(devpriv->adcsr, dev->iobase + DT2821_ADCSR_REG);
 
 	devpriv->supcsr = 0;
-	outw(devpriv->supcsr | DT2821_ADCINIT, dev->iobase + DT2821_SUPCSR);
+	outw(devpriv->supcsr | DT2821_SUPCSR_ADCINIT,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	return 0;
 }
@@ -858,13 +851,11 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 	unsigned int val;
 	int i;
 
-	devpriv->dacsr |= DT2821_SSEL;
+	devpriv->dacsr |= DT2821_DACSR_SSEL | DT2821_DACSR_YSEL(chan);
 	if (chan) {
-		devpriv->dacsr |= DT2821_YSEL;
 		if (devpriv->da1_2scomp)
 			munge = true;
 	} else {
-		devpriv->dacsr &= ~DT2821_YSEL;
 		if (devpriv->da0_2scomp)
 			munge = true;
 	}
@@ -876,12 +867,12 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 		if (munge)
 			val = comedi_offset_munge(s, val);
 
-		outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
+		outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
-		outw(val, dev->iobase + DT2821_DADAT);
+		outw(val, dev->iobase + DT2821_DADAT_REG);
 
-		outw(devpriv->supcsr | DT2821_DACON,
-		     dev->iobase + DT2821_SUPCSR);
+		outw(devpriv->supcsr | DT2821_SUPCSR_DACON,
+		     dev->iobase + DT2821_SUPCSR_REG);
 	}
 
 	return insn->n;
@@ -971,7 +962,8 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 	}
 	dt282x_prep_ao_dma(dev, 1, size);
 
-	outw(devpriv->supcsr | DT2821_STRIG, dev->iobase + DT2821_SUPCSR);
+	outw(devpriv->supcsr | DT2821_SUPCSR_STRIG,
+	     dev->iobase + DT2821_SUPCSR_REG);
 	s->async->inttrig = NULL;
 
 	return 1;
@@ -984,9 +976,14 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	dt282x_disable_dma(dev);
 
-	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
-	outw(devpriv->supcsr | DT2821_CLRDMADNE | DT2821_BUFFB | DT2821_DACINIT,
-		dev->iobase + DT2821_SUPCSR);
+	devpriv->supcsr = DT2821_SUPCSR_ERRINTEN |
+			  DT2821_SUPCSR_DS_DA_CLK |
+			  DT2821_SUPCSR_DDMA;
+	outw(devpriv->supcsr |
+	     DT2821_SUPCSR_CLRDMADNE |
+	     DT2821_SUPCSR_BUFFB |
+	     DT2821_SUPCSR_DACINIT,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	devpriv->ntrig = cmd->stop_arg * cmd->chanlist_len;
 	devpriv->nread = devpriv->ntrig;
@@ -994,10 +991,12 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->dma_dir = DMA_MODE_WRITE;
 	devpriv->current_dma_index = 0;
 
-	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR);
+	outw(devpriv->divisor, dev->iobase + DT2821_TMRCTR_REG);
 
-	devpriv->dacsr = DT2821_SSEL | DT2821_DACLK | DT2821_IDARDY;
-	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
+	devpriv->dacsr = DT2821_DACSR_SSEL |
+			 DT2821_DACSR_DACLK |
+			 DT2821_DACSR_IDARDY;
+	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
 	s->async->inttrig = dt282x_ao_inttrig;
 
@@ -1012,10 +1011,11 @@ static int dt282x_ao_cancel(struct comedi_device *dev,
 	dt282x_disable_dma(dev);
 
 	devpriv->dacsr = 0;
-	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
+	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
 	devpriv->supcsr = 0;
-	outw(devpriv->supcsr | DT2821_DACINIT, dev->iobase + DT2821_SUPCSR);
+	outw(devpriv->supcsr | DT2821_SUPCSR_DACINIT,
+	     dev->iobase + DT2821_SUPCSR_REG);
 
 	return 0;
 }
@@ -1026,9 +1026,9 @@ static int dt282x_dio_insn_bits(struct comedi_device *dev,
 				unsigned int *data)
 {
 	if (comedi_dio_update_state(s, data))
-		outw(s->state, dev->iobase + DT2821_DIODAT);
+		outw(s->state, dev->iobase + DT2821_DIODAT_REG);
 
-	data[1] = inw(dev->iobase + DT2821_DIODAT);
+	data[1] = inw(dev->iobase + DT2821_DIODAT_REG);
 
 	return insn->n;
 }
@@ -1052,13 +1052,13 @@ static int dt282x_dio_insn_config(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->dacsr &= ~(DT2821_LBOE | DT2821_HBOE);
+	devpriv->dacsr &= ~(DT2821_DACSR_LBOE | DT2821_DACSR_HBOE);
 	if (s->io_bits & 0x00ff)
-		devpriv->dacsr |= DT2821_LBOE;
+		devpriv->dacsr |= DT2821_DACSR_LBOE;
 	if (s->io_bits & 0xff00)
-		devpriv->dacsr |= DT2821_HBOE;
+		devpriv->dacsr |= DT2821_DACSR_HBOE;
 
-	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
+	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR_REG);
 
 	return insn->n;
 }
@@ -1133,18 +1133,18 @@ static void dt282x_free_dma(struct comedi_device *dev)
 static int dt282x_initialize(struct comedi_device *dev)
 {
 	/* Initialize board */
-	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
-	inw(dev->iobase + DT2821_ADCSR);
+	outw(DT2821_SUPCSR_BDINIT, dev->iobase + DT2821_SUPCSR_REG);
+	inw(dev->iobase + DT2821_ADCSR_REG);
 
 	/*
 	 * At power up, some registers are in a well-known state.
 	 * Check them to see if a DT2821 series board is present.
 	 */
-	if (((inw(dev->iobase + DT2821_ADCSR) & 0xfff0) != 0x7c00) ||
-	    ((inw(dev->iobase + DT2821_CHANCSR) & 0xf0f0) != 0x70f0) ||
-	    ((inw(dev->iobase + DT2821_DACSR) & 0x7c93) != 0x7c90) ||
-	    ((inw(dev->iobase + DT2821_SUPCSR) & 0xf8ff) != 0x0000) ||
-	    ((inw(dev->iobase + DT2821_TMRCTR) & 0xff00) != 0xf000)) {
+	if (((inw(dev->iobase + DT2821_ADCSR_REG) & 0xfff0) != 0x7c00) ||
+	    ((inw(dev->iobase + DT2821_CHANCSR_REG) & 0xf0f0) != 0x70f0) ||
+	    ((inw(dev->iobase + DT2821_DACSR_REG) & 0x7c93) != 0x7c90) ||
+	    ((inw(dev->iobase + DT2821_SUPCSR_REG) & 0xf8ff) != 0x0000) ||
+	    ((inw(dev->iobase + DT2821_TMRCTR_REG) & 0xff00) != 0xf000)) {
 		dev_err(dev->class_dev, "board not found\n");
 		return -EIO;
 	}
