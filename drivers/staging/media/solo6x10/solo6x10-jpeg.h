@@ -110,7 +110,7 @@ static const unsigned char jpeg_header[] = {
 /* This is the byte marker for the start of the DQT */
 #define DQT_START	17
 #define DQT_LEN		138
-const unsigned char jpeg_dqt[4][DQT_LEN] = {
+static const unsigned char jpeg_dqt[4][DQT_LEN] = {
 	{
 		0xff, 0xdb, 0x00, 0x43, 0x00,
 		0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07,
