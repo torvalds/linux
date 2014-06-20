@@ -248,16 +248,101 @@ struct dt282x_private {
  */
 #define chan_to_DAC(a)	((a)&1)
 
-static int prep_ai_dma(struct comedi_device *dev, int chan, int size);
-static int prep_ao_dma(struct comedi_device *dev, int chan, int size);
-static int dt282x_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static int dt282x_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static int dt282x_ns_to_timer(int *nanosec, int round_mode);
-static void dt282x_disable_dma(struct comedi_device *dev);
+static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
+{
+	struct dt282x_private *devpriv = dev->private;
+	int dma_chan;
+	unsigned long dma_ptr;
+	unsigned long flags;
 
-static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2);
+	if (!devpriv->ntrig)
+		return 0;
+
+	if (n == 0)
+		n = devpriv->dma_maxsize;
+	if (n > devpriv->ntrig * 2)
+		n = devpriv->ntrig * 2;
+	devpriv->ntrig -= n / 2;
+
+	devpriv->dma[dma_index].size = n;
+	dma_chan = devpriv->dma[dma_index].chan;
+	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+
+	set_dma_mode(dma_chan, DMA_MODE_READ);
+	flags = claim_dma_lock();
+	clear_dma_ff(dma_chan);
+	set_dma_addr(dma_chan, dma_ptr);
+	set_dma_count(dma_chan, n);
+	release_dma_lock(flags);
+
+	enable_dma(dma_chan);
+
+	return n;
+}
+
+static int prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
+{
+	struct dt282x_private *devpriv = dev->private;
+	int dma_chan;
+	unsigned long dma_ptr;
+	unsigned long flags;
+
+	devpriv->dma[dma_index].size = n;
+	dma_chan = devpriv->dma[dma_index].chan;
+	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
+
+	set_dma_mode(dma_chan, DMA_MODE_WRITE);
+	flags = claim_dma_lock();
+	clear_dma_ff(dma_chan);
+	set_dma_addr(dma_chan, dma_ptr);
+	set_dma_count(dma_chan, n);
+	release_dma_lock(flags);
+
+	enable_dma(dma_chan);
+
+	return n;
+}
+
+static void dt282x_disable_dma(struct comedi_device *dev)
+{
+	struct dt282x_private *devpriv = dev->private;
+
+	if (devpriv->usedma) {
+		disable_dma(devpriv->dma[0].chan);
+		disable_dma(devpriv->dma[1].chan);
+	}
+}
+
+static int dt282x_ns_to_timer(int *nanosec, int round_mode)
+{
+	int prescale, base, divider;
+
+	for (prescale = 0; prescale < 16; prescale++) {
+		if (prescale == 1)
+			continue;
+		base = 250 * (1 << prescale);
+		switch (round_mode) {
+		case TRIG_ROUND_NEAREST:
+		default:
+			divider = (*nanosec + base / 2) / base;
+			break;
+		case TRIG_ROUND_DOWN:
+			divider = (*nanosec) / base;
+			break;
+		case TRIG_ROUND_UP:
+			divider = (*nanosec + base - 1) / base;
+			break;
+		}
+		if (divider < 256) {
+			*nanosec = divider * base;
+			return (prescale << 8) | (255 - divider);
+		}
+	}
+	base = 250 * (1 << 15);
+	divider = 255;
+	*nanosec = divider * base;
+	return (15 << 8) | (255 - divider);
+}
 
 static void dt282x_munge(struct comedi_device *dev, unsigned short *buf,
 			 unsigned int nbytes)
@@ -363,61 +448,6 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 #endif
 	/* restart the channel */
 	prep_ai_dma(dev, i, 0);
-}
-
-static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
-{
-	struct dt282x_private *devpriv = dev->private;
-	int dma_chan;
-	unsigned long dma_ptr;
-	unsigned long flags;
-
-	if (!devpriv->ntrig)
-		return 0;
-
-	if (n == 0)
-		n = devpriv->dma_maxsize;
-	if (n > devpriv->ntrig * 2)
-		n = devpriv->ntrig * 2;
-	devpriv->ntrig -= n / 2;
-
-	devpriv->dma[dma_index].size = n;
-	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
-
-	set_dma_mode(dma_chan, DMA_MODE_READ);
-	flags = claim_dma_lock();
-	clear_dma_ff(dma_chan);
-	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n);
-	release_dma_lock(flags);
-
-	enable_dma(dma_chan);
-
-	return n;
-}
-
-static int prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
-{
-	struct dt282x_private *devpriv = dev->private;
-	int dma_chan;
-	unsigned long dma_ptr;
-	unsigned long flags;
-
-	devpriv->dma[dma_index].size = n;
-	dma_chan = devpriv->dma[dma_index].chan;
-	dma_ptr = virt_to_bus(devpriv->dma[dma_index].buf);
-
-	set_dma_mode(dma_chan, DMA_MODE_WRITE);
-	flags = claim_dma_lock();
-	clear_dma_ff(dma_chan);
-	set_dma_addr(dma_chan, dma_ptr);
-	set_dma_count(dma_chan, n);
-	release_dma_lock(flags);
-
-	enable_dma(dma_chan);
-
-	return n;
 }
 
 static irqreturn_t dt282x_interrupt(int irq, void *d)
@@ -710,16 +740,6 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static void dt282x_disable_dma(struct comedi_device *dev)
-{
-	struct dt282x_private *devpriv = dev->private;
-
-	if (devpriv->usedma) {
-		disable_dma(devpriv->dma[0].chan);
-		disable_dma(devpriv->dma[1].chan);
-	}
-}
-
 static int dt282x_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -734,37 +754,6 @@ static int dt282x_ai_cancel(struct comedi_device *dev,
 	outw(devpriv->supcsr | DT2821_ADCINIT, dev->iobase + DT2821_SUPCSR);
 
 	return 0;
-}
-
-static int dt282x_ns_to_timer(int *nanosec, int round_mode)
-{
-	int prescale, base, divider;
-
-	for (prescale = 0; prescale < 16; prescale++) {
-		if (prescale == 1)
-			continue;
-		base = 250 * (1 << prescale);
-		switch (round_mode) {
-		case TRIG_ROUND_NEAREST:
-		default:
-			divider = (*nanosec + base / 2) / base;
-			break;
-		case TRIG_ROUND_DOWN:
-			divider = (*nanosec) / base;
-			break;
-		case TRIG_ROUND_UP:
-			divider = (*nanosec + base - 1) / base;
-			break;
-		}
-		if (divider < 256) {
-			*nanosec = divider * base;
-			return (prescale << 8) | (255 - divider);
-		}
-	}
-	base = 250 * (1 << 15);
-	divider = 255;
-	*nanosec = divider * base;
-	return (15 << 8) | (255 - divider);
 }
 
 /*
