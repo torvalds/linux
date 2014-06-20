@@ -26,6 +26,7 @@ static void __init imx6sx_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
 
 	imx_anatop_init();
+	imx6sx_pm_init();
 }
 
 static void __init imx6sx_init_irq(void)

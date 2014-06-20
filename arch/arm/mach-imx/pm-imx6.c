@@ -129,6 +129,14 @@ static const u32 imx6sl_mmdc_io_offset[] __initconst = {
 	0x330, 0x334, 0x320,        /* SDCKE0, SDCKE1, RESET */
 };
 
+static const u32 imx6sx_mmdc_io_offset[] __initconst = {
+	0x2ec, 0x2f0, 0x2f4, 0x2f8, /* DQM0 ~ DQM3 */
+	0x60c, 0x610, 0x61c, 0x620, /* GPR_B0DS ~ GPR_B3DS */
+	0x300, 0x2fc, 0x32c, 0x5f4, /* CAS, RAS, SDCLK_0, GPR_ADDS */
+	0x310, 0x314, 0x5f8, 0x608, /* SODT0, SODT1, MODE_CTL, MODE */
+	0x330, 0x334, 0x338, 0x33c, /* SDQS0 ~ SDQS3 */
+};
+
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 	.cpu_type = MXC_CPU_IMX6Q,
 	.mmdc_compat = "fsl,imx6q-mmdc",
@@ -157,6 +165,16 @@ static const struct imx6_pm_socdata imx6sl_pm_data __initconst = {
 	.gpc_compat = "fsl,imx6sl-gpc",
 	.mmdc_io_num = ARRAY_SIZE(imx6sl_mmdc_io_offset),
 	.mmdc_io_offset = imx6sl_mmdc_io_offset,
+};
+
+static const struct imx6_pm_socdata imx6sx_pm_data __initconst = {
+	.cpu_type = MXC_CPU_IMX6SX,
+	.mmdc_compat = "fsl,imx6sx-mmdc",
+	.src_compat = "fsl,imx6sx-src",
+	.iomuxc_compat = "fsl,imx6sx-iomuxc",
+	.gpc_compat = "fsl,imx6sx-gpc",
+	.mmdc_io_num = ARRAY_SIZE(imx6sx_mmdc_io_offset),
+	.mmdc_io_offset = imx6sx_mmdc_io_offset,
 };
 
 /*
@@ -265,12 +283,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		if (cpu_is_imx6sl()) {
+		if (cpu_is_imx6sl())
 			val |= BM_CLPCR_BYPASS_PMIC_READY;
+		if (cpu_is_imx6sl() || cpu_is_imx6sx())
 			val |= BM_CLPCR_BYP_MMDC_CH0_LPM_HS;
-		} else {
+		else
 			val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
-		}
 		break;
 	default:
 		return -EINVAL;
@@ -548,4 +566,9 @@ void __init imx6dl_pm_init(void)
 void __init imx6sl_pm_init(void)
 {
 	imx6_pm_common_init(&imx6sl_pm_data);
+}
+
+void __init imx6sx_pm_init(void)
+{
+	imx6_pm_common_init(&imx6sx_pm_data);
 }

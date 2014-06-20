@@ -133,6 +133,7 @@ static inline void imx6_suspend(void __iomem *ocram_vbase) {}
 void imx6q_pm_init(void);
 void imx6dl_pm_init(void);
 void imx6sl_pm_init(void);
+void imx6sx_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
 
 #ifdef CONFIG_PM
