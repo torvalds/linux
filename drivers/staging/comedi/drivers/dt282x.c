@@ -213,7 +213,7 @@ struct dt282x_board {
 	int ai_speed;
 	int ispgl;
 	int dachan;
-	int dabits;
+	unsigned int ao_maxdata;
 };
 
 static const struct dt282x_board boardtypes[] = {
@@ -224,7 +224,7 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2821-f",
 		.ai_maxdata	= 0x0fff,
@@ -232,7 +232,7 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 6500,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2821-g",
 		.ai_maxdata	= 0x0fff,
@@ -240,14 +240,14 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 4000,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2823",
 		.ai_maxdata	= 0xffff,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
-		.dabits		= 16,
+		.ao_maxdata	= 0xffff,
 	}, {
 		.name		= "dt2824-pgh",
 		.ai_maxdata	= 0x0fff,
@@ -269,28 +269,28 @@ static const struct dt282x_board boardtypes[] = {
 		.ai_speed	= 20000,
 		.ispgl		= 1,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2827",
 		.ai_maxdata	= 0xffff,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2828",
 		.ai_maxdata	= 0x0fff,
 		.adchan_se	= 4,
 		.ai_speed	= 10000,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt2829",
 		.ai_maxdata	= 0xffff,
 		.adchan_se	= 8,
 		.ai_speed	= 33250,
 		.dachan		= 2,
-		.dabits		= 16,
+		.ao_maxdata	= 0xffff,
 	}, {
 		.name		= "dt21-ez",
 		.ai_maxdata	= 0x0fff,
@@ -298,7 +298,7 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
 		.dachan		= 2,
-		.dabits		= 12,
+		.ao_maxdata	= 0x0fff,
 	}, {
 		.name		= "dt23-ez",
 		.ai_maxdata	= 0xffff,
@@ -884,14 +884,13 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
-	unsigned short d;
+	unsigned int d;
 	unsigned int chan;
 
 	chan = CR_CHAN(insn->chanspec);
 	d = data[0];
-	d &= (1 << board->dabits) - 1;
+	d &= s->maxdata;
 	devpriv->ao[chan] = d;
 
 	devpriv->dacsr |= DT2821_SSEL;
@@ -900,11 +899,11 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 		/* select channel */
 		devpriv->dacsr |= DT2821_YSEL;
 		if (devpriv->da0_2scomp)
-			d ^= (1 << (board->dabits - 1));
+			d = comedi_offset_munge(s, d);
 	} else {
 		devpriv->dacsr &= ~DT2821_YSEL;
 		if (devpriv->da1_2scomp)
-			d ^= (1 << (board->dabits - 1));
+			d = comedi_offset_munge(s, d);
 	}
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
@@ -1284,7 +1283,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags = SDF_WRITABLE;
 		s->insn_read = dt282x_ao_insn_read;
 		s->insn_write = dt282x_ao_insn_write;
-		s->maxdata = (1 << board->dabits) - 1;
+		s->maxdata = board->ao_maxdata;
 		s->range_table_list = devpriv->darangelist;
 		devpriv->darangelist[0] =
 		    opt_ao_range_lkup(it->options[opt_ao0_range]);
