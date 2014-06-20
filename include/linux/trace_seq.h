@@ -25,6 +25,8 @@ trace_seq_init(struct trace_seq *s)
 	s->full = 0;
 }
 
+#define MAX_MEMHEX_BYTES	8
+
 /*
  * Currently only defined when tracing is enabled.
  */
