@@ -286,6 +286,13 @@ static inline bool is_kvmppc_resume_guest(int r)
 	return (r == RESUME_GUEST || r == RESUME_GUEST_NV);
 }
 
+static inline bool is_kvmppc_hv_enabled(struct kvm *kvm);
+static inline bool kvmppc_supports_magic_page(struct kvm_vcpu *vcpu)
+{
+	/* Only PR KVM supports the magic page */
+	return !is_kvmppc_hv_enabled(vcpu->kvm);
+}
+
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */
 #define OSI_SC_MAGIC_R3			0x113724FA

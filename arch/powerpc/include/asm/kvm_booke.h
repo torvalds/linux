@@ -103,4 +103,14 @@ static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault_dear;
 }
+
+static inline bool kvmppc_supports_magic_page(struct kvm_vcpu *vcpu)
+{
+	/* Magic page is only supported on e500v2 */
+#ifdef CONFIG_KVM_E500V2
+	return true;
+#else
+	return false;
+#endif
+}
 #endif /* __ASM_KVM_BOOKE_H__ */
