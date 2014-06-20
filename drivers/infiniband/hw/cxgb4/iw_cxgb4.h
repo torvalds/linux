@@ -810,6 +810,8 @@ struct c4iw_ep {
 	u8 retry_with_mpa_v1;
 	u8 tried_with_mpa_v1;
 	unsigned int retry_count;
+	int snd_win;
+	int rcv_win;
 };
 
 static inline void print_addr(struct c4iw_ep_common *epc, const char *func,

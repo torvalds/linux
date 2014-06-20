@@ -1798,8 +1798,10 @@ static int qgroup_shared_accounting(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	tmp = ulist_alloc(GFP_NOFS);
-	if (!tmp)
+	if (!tmp) {
+		ulist_free(qgroups);
 		return -ENOMEM;
+	}
 
 	btrfs_get_tree_mod_seq(fs_info, &elem);
 	ret = btrfs_find_all_roots(trans, fs_info, oper->bytenr, elem.seq,

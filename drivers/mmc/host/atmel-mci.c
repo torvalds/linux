@@ -37,6 +37,7 @@
 #include <linux/atmel-mci.h>
 #include <linux/atmel_pdc.h>
 
+#include <asm/cacheflush.h>
 #include <asm/io.h>
 #include <asm/unaligned.h>
 

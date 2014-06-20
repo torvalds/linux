@@ -172,7 +172,7 @@ static int iwl_send_wimax_coex(struct iwl_priv *priv)
 	memset(&coex_cmd, 0, sizeof(coex_cmd));
 
 	return iwl_dvm_send_cmd_pdu(priv,
-				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
+				COEX_PRIORITY_TABLE_CMD, 0,
 				sizeof(coex_cmd), &coex_cmd);
 }
 
@@ -205,7 +205,7 @@ void iwl_send_prio_tbl(struct iwl_priv *priv)
 	memcpy(prio_tbl_cmd.prio_tbl, iwl_bt_prio_tbl,
 		sizeof(iwl_bt_prio_tbl));
 	if (iwl_dvm_send_cmd_pdu(priv,
-				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
+				REPLY_BT_COEX_PRIO_TABLE, 0,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
@@ -218,7 +218,7 @@ int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 	env_cmd.action = action;
 	env_cmd.type = type;
 	ret = iwl_dvm_send_cmd_pdu(priv,
-			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
+			       REPLY_BT_COEX_PROT_ENV, 0,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
 		IWL_ERR(priv, "failed to send BT env command\n");

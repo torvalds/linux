@@ -18,6 +18,8 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	const char *secstrings;
 	uint64_t syms[NSYMS] = {};
 
+	uint64_t fake_sections_value = 0, fake_sections_size = 0;
+
 	Elf_Phdr *pt = (Elf_Phdr *)(addr + GET_LE(&hdr->e_phoff));
 
 	/* Walk the segment table. */
@@ -84,6 +86,7 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 			GET_LE(&symtab_hdr->sh_entsize) * i;
 		const char *name = addr + GET_LE(&strtab_hdr->sh_offset) +
 			GET_LE(&sym->st_name);
+
 		for (k = 0; k < NSYMS; k++) {
 			if (!strcmp(name, required_syms[k])) {
 				if (syms[k]) {
@@ -92,6 +95,13 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 				}
 				syms[k] = GET_LE(&sym->st_value);
 			}
+		}
+
+		if (!strcmp(name, "vdso_fake_sections")) {
+			if (fake_sections_value)
+				fail("duplicate vdso_fake_sections\n");
+			fake_sections_value = GET_LE(&sym->st_value);
+			fake_sections_size = GET_LE(&sym->st_size);
 		}
 	}
 
@@ -112,11 +122,14 @@ static void GOFUNC(void *addr, size_t len, FILE *outfile, const char *name)
 	if (syms[sym_end_mapping] % 4096)
 		fail("end_mapping must be a multiple of 4096\n");
 
-	/* Remove sections. */
-	hdr->e_shoff = 0;
-	hdr->e_shentsize = 0;
-	hdr->e_shnum = 0;
-	hdr->e_shstrndx = htole16(SHN_UNDEF);
+	/* Remove sections or use fakes */
+	if (fake_sections_size % sizeof(Elf_Shdr))
+		fail("vdso_fake_sections size is not a multiple of %ld\n",
+		     (long)sizeof(Elf_Shdr));
+	PUT_LE(&hdr->e_shoff, fake_sections_value);
+	PUT_LE(&hdr->e_shentsize, fake_sections_value ? sizeof(Elf_Shdr) : 0);
+	PUT_LE(&hdr->e_shnum, fake_sections_size / sizeof(Elf_Shdr));
+	PUT_LE(&hdr->e_shstrndx, SHN_UNDEF);
 
 	if (!name) {
 		fwrite(addr, load_size, 1, outfile);

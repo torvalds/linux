@@ -2257,15 +2257,28 @@ machine_check_realmode:
 	mr	r3, r9		/* get vcpu pointer */
 	bl	kvmppc_realmode_machine_check
 	nop
-	cmpdi	r3, 0		/* continue exiting from guest? */
+	cmpdi	r3, 0		/* Did we handle MCE ? */
 	ld	r9, HSTATE_KVM_VCPU(r13)
 	li	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	mc_cont
+	/*
+	 * Deliver unhandled/fatal (e.g. UE) MCE errors to guest through
+	 * machine check interrupt (set HSRR0 to 0x200). And for handled
+	 * errors (no-fatal), just go back to guest execution with current
+	 * HSRR0 instead of exiting guest. This new approach will inject
+	 * machine check to guest for fatal error causing guest to crash.
+	 *
+	 * The old code used to return to host for unhandled errors which
+	 * was causing guest to hang with soft lockups inside guest and
+	 * makes it difficult to recover guest instance.
+	 */
+	ld	r10, VCPU_PC(r9)
+	ld	r11, VCPU_MSR(r9)
+	bne	2f	/* Continue guest execution. */
 	/* If not, deliver a machine check.  SRR0/1 are already set */
 	li	r10, BOOK3S_INTERRUPT_MACHINE_CHECK
 	ld	r11, VCPU_MSR(r9)
 	bl	kvmppc_msr_interrupt
-	b	fast_interrupt_c_return
+2:	b	fast_interrupt_c_return
 
 /*
  * Check the reason we woke from nap, and take appropriate action.

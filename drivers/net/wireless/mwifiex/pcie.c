@@ -221,9 +221,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	if (!adapter || !adapter->priv_num)
 		return;
 
-	/* In case driver is removed when asynchronous FW load is in progress */
-	wait_for_completion(&adapter->fw_load);
-
 	if (user_rmmod) {
 #ifdef CONFIG_PM_SLEEP
 		if (adapter->is_suspended)
@@ -1074,6 +1071,7 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
  * is mapped to PCI device memory. Tx ring pointers are advanced accordingly.
  * Download ready interrupt to FW is deffered if Tx ring is not full and
  * additional payload can be accomodated.
+ * Caller must ensure tx_param parameter to this function is not NULL.
  */
 static int
 mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,

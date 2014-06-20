@@ -175,8 +175,8 @@
 			reset-names		= "stmmaceth";
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_mii0>;
-			clock-names	= "stmmaceth";
-			clocks		= <&clk_s_a1_ls CLK_GMAC0_PHY>;
+			clock-names	= "stmmaceth", "sti-ethclk";
+			clocks		= <&clk_s_a1_ls CLK_ICN_IF_2>, <&clk_s_a1_ls CLK_GMAC0_PHY>;
 		};
 
 		ethernet1: dwmac@fef08000 {
@@ -197,8 +197,8 @@
 			reset-names	= "stmmaceth";
 			pinctrl-names 	= "default";
 			pinctrl-0	= <&pinctrl_mii1>;
-			clock-names	= "stmmaceth";
-			clocks		= <&clk_s_a0_ls CLK_ETH1_PHY>;
+			clock-names	= "stmmaceth", "sti-ethclk";
+			clocks		= <&clk_s_a0_ls CLK_ICN_REG>, <&clk_s_a0_ls CLK_ETH1_PHY>;
 		};
 
 		rc: rc@fe518000 {

@@ -32,6 +32,7 @@
 #include <asm/opal.h>
 #include <asm/runlatch.h>
 #include <asm/code-patching.h>
+#include <asm/dbell.h>
 
 #include "powernv.h"
 
@@ -46,6 +47,11 @@ static void pnv_smp_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
+
+#ifdef CONFIG_PPC_DOORBELL
+	if (cpu_has_feature(CPU_FTR_DBELL))
+		doorbell_setup_this_cpu();
+#endif
 }
 
 int pnv_smp_kick_cpu(int nr)

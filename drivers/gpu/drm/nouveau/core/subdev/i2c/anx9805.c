@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include <subdev/i2c.h>
+#include "port.h"
 
 struct anx9805_i2c_port {
 	struct nouveau_i2c_port base;
@@ -36,6 +36,8 @@ anx9805_train(struct nouveau_i2c_port *port, int link_nr, int link_bw, bool enh)
 	struct anx9805_i2c_port *chan = (void *)port;
 	struct nouveau_i2c_port *mast = (void *)nv_object(chan)->parent;
 	u8 tmp, i;
+
+	DBG("ANX9805 train %d 0x%02x %d\n", link_nr, link_bw, enh);
 
 	nv_wri2cr(mast, chan->addr, 0xa0, link_bw);
 	nv_wri2cr(mast, chan->addr, 0xa1, link_nr | (enh ? 0x80 : 0x00));
@@ -60,12 +62,16 @@ anx9805_train(struct nouveau_i2c_port *port, int link_nr, int link_bw, bool enh)
 }
 
 static int
-anx9805_aux(struct nouveau_i2c_port *port, u8 type, u32 addr, u8 *data, u8 size)
+anx9805_aux(struct nouveau_i2c_port *port, bool retry,
+	    u8 type, u32 addr, u8 *data, u8 size)
 {
 	struct anx9805_i2c_port *chan = (void *)port;
 	struct nouveau_i2c_port *mast = (void *)nv_object(chan)->parent;
 	int i, ret = -ETIMEDOUT;
+	u8 buf[16] = {};
 	u8 tmp;
+
+	DBG("%02x %05x %d\n", type, addr, size);
 
 	tmp = nv_rdi2cr(mast, chan->ctrl, 0x07) & ~0x04;
 	nv_wri2cr(mast, chan->ctrl, 0x07, tmp | 0x04);
@@ -73,8 +79,12 @@ anx9805_aux(struct nouveau_i2c_port *port, u8 type, u32 addr, u8 *data, u8 size)
 	nv_wri2cr(mast, chan->ctrl, 0xf7, 0x01);
 
 	nv_wri2cr(mast, chan->addr, 0xe4, 0x80);
-	for (i = 0; !(type & 1) && i < size; i++)
-		nv_wri2cr(mast, chan->addr, 0xf0 + i, data[i]);
+	if (!(type & 1)) {
+		memcpy(buf, data, size);
+		DBG("%16ph", buf);
+		for (i = 0; i < size; i++)
+			nv_wri2cr(mast, chan->addr, 0xf0 + i, buf[i]);
+	}
 	nv_wri2cr(mast, chan->addr, 0xe5, ((size - 1) << 4) | type);
 	nv_wri2cr(mast, chan->addr, 0xe6, (addr & 0x000ff) >>  0);
 	nv_wri2cr(mast, chan->addr, 0xe7, (addr & 0x0ff00) >>  8);
@@ -93,8 +103,13 @@ anx9805_aux(struct nouveau_i2c_port *port, u8 type, u32 addr, u8 *data, u8 size)
 		goto done;
 	}
 
-	for (i = 0; (type & 1) && i < size; i++)
-		data[i] = nv_rdi2cr(mast, chan->addr, 0xf0 + i);
+	if (type & 1) {
+		for (i = 0; i < size; i++)
+			buf[i] = nv_rdi2cr(mast, chan->addr, 0xf0 + i);
+		DBG("%16ph", buf);
+		memcpy(data, buf, size);
+	}
+
 	ret = 0;
 done:
 	nv_wri2cr(mast, chan->ctrl, 0xf7, 0x01);

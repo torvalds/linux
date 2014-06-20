@@ -819,15 +819,35 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+/**
+ * radeon_debugfs_gpu_reset - manually trigger a gpu reset
+ *
+ * Manually trigger a gpu reset at the next fence wait.
+ */
+static int radeon_debugfs_gpu_reset(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	down_read(&rdev->exclusive_lock);
+	seq_printf(m, "%d\n", rdev->needs_reset);
+	rdev->needs_reset = true;
+	up_read(&rdev->exclusive_lock);
+
+	return 0;
+}
+
 static struct drm_info_list radeon_debugfs_fence_list[] = {
 	{"radeon_fence_info", &radeon_debugfs_fence_info, 0, NULL},
+	{"radeon_gpu_reset", &radeon_debugfs_gpu_reset, 0, NULL}
 };
 #endif
 
 int radeon_debugfs_fence_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_fence_list, 1);
+	return radeon_debugfs_add_files(rdev, radeon_debugfs_fence_list, 2);
 #else
 	return 0;
 #endif

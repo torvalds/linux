@@ -1511,6 +1511,7 @@ config RBTREE_TEST
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
 	depends on m && DEBUG_KERNEL
+	select INTERVAL_TREE
 	help
 	  A benchmark measuring the performance of the interval tree library
 
@@ -1632,6 +1633,19 @@ config TEST_USER_COPY
 	  user/kernel boundary testing is working. If it fails to load,
 	  a regression has been detected in the user/kernel memory boundary
 	  protections.
+
+	  If unsure, say N.
+
+config TEST_BPF
+	tristate "Test BPF filter functionality"
+	default n
+	depends on m && NET
+	help
+	  This builds the "test_bpf" module that runs various test vectors
+	  against the BPF interpreter or BPF JIT compiler depending on the
+	  current setting. This is in particular useful for BPF JIT compiler
+	  development, but also to run regression tests against changes in
+	  the interpreter code.
 
 	  If unsure, say N.
 

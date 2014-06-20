@@ -162,7 +162,6 @@ enum snd_efw_grp_type {
 	SND_EFW_CH_TYPE_GUITAR			= 7,
 	SND_EFW_CH_TYPE_PIEZO_GUITAR		= 8,
 	SND_EFW_CH_TYPE_GUITAR_STRING		= 9,
-	SND_EFW_CH_TYPE_VIRTUAL			= 0x10000,
 	SND_EFW_CH_TYPE_DUMMY
 };
 struct snd_efw_phys_meters {

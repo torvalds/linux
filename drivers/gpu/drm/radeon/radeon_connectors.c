@@ -48,6 +48,7 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 	radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
 	/* if the connector is already off, don't turn it back on */
+	/* FIXME: This access isn't protected by any locks. */
 	if (connector->dpms != DRM_MODE_DPMS_ON)
 		return;
 
@@ -100,6 +101,7 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *dig_connector;
 	int bpc = 8;
+	int mode_clock, max_tmds_clock;
 
 	switch (connector->connector_type) {
 	case DRM_MODE_CONNECTOR_DVII:
@@ -145,6 +147,61 @@ int radeon_get_monitor_bpc(struct drm_connector *connector)
 		}
 		break;
 	}
+
+	if (drm_detect_hdmi_monitor(radeon_connector->edid)) {
+		/* hdmi deep color only implemented on DCE4+ */
+		if ((bpc > 8) && !ASIC_IS_DCE4(rdev)) {
+			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 8 bpc.\n",
+					  connector->name, bpc);
+			bpc = 8;
+		}
+
+		/*
+		 * Pre DCE-8 hw can't handle > 12 bpc, and more than 12 bpc doesn't make
+		 * much sense without support for > 12 bpc framebuffers. RGB 4:4:4 at
+		 * 12 bpc is always supported on hdmi deep color sinks, as this is
+		 * required by the HDMI-1.3 spec. Clamp to a safe 12 bpc maximum.
+		 */
+		if (bpc > 12) {
+			DRM_DEBUG("%s: HDMI deep color %d bpc unsupported. Using 12 bpc.\n",
+					  connector->name, bpc);
+			bpc = 12;
+		}
+
+		/* Any defined maximum tmds clock limit we must not exceed? */
+		if (connector->max_tmds_clock > 0) {
+			/* mode_clock is clock in kHz for mode to be modeset on this connector */
+			mode_clock = radeon_connector->pixelclock_for_modeset;
+
+			/* Maximum allowable input clock in kHz */
+			max_tmds_clock = connector->max_tmds_clock * 1000;
+
+			DRM_DEBUG("%s: hdmi mode dotclock %d kHz, max tmds input clock %d kHz.\n",
+					  connector->name, mode_clock, max_tmds_clock);
+
+			/* Check if bpc is within clock limit. Try to degrade gracefully otherwise */
+			if ((bpc == 12) && (mode_clock * 3/2 > max_tmds_clock)) {
+				if ((connector->display_info.edid_hdmi_dc_modes & DRM_EDID_HDMI_DC_30) &&
+					(mode_clock * 5/4 <= max_tmds_clock))
+					bpc = 10;
+				else
+					bpc = 8;
+
+				DRM_DEBUG("%s: HDMI deep color 12 bpc exceeds max tmds clock. Using %d bpc.\n",
+						  connector->name, bpc);
+			}
+
+			if ((bpc == 10) && (mode_clock * 5/4 > max_tmds_clock)) {
+				bpc = 8;
+				DRM_DEBUG("%s: HDMI deep color 10 bpc exceeds max tmds clock. Using %d bpc.\n",
+						  connector->name, bpc);
+			}
+		}
+	}
+
+	DRM_DEBUG("%s: Display bpc=%d, returned bpc=%d\n",
+			  connector->name, connector->display_info.bpc, bpc);
+
 	return bpc;
 }
 
@@ -260,13 +317,17 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 					continue;
 
 				if (priority == true) {
-					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
-					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n",
+						      conflict->name);
+					DRM_DEBUG_KMS("in favor of %s\n",
+						      connector->name);
 					conflict->status = connector_status_disconnected;
 					radeon_connector_update_scratch_regs(conflict, connector_status_disconnected);
 				} else {
-					DRM_DEBUG_KMS("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
-					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("2: conflicting encoders switching off %s\n",
+						      connector->name);
+					DRM_DEBUG_KMS("in favor of %s\n",
+						      conflict->name);
 					current_status = connector_status_disconnected;
 				}
 				break;
@@ -787,7 +848,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
-					drm_get_connector_name(connector));
+					connector->name);
 			ret = connector_status_connected;
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
@@ -1010,12 +1071,13 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
-					drm_get_connector_name(connector));
+					connector->name);
 			/* rs690 seems to have a problem with connectors not existing and always
 			 * return a block of 0's. If we see this just stop polling on this output */
 			if ((rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) && radeon_connector->base.null_edid_counter) {
 				ret = connector_status_disconnected;
-				DRM_ERROR("%s: detected RS690 floating bus bug, stopping ddc detect\n", drm_get_connector_name(connector));
+				DRM_ERROR("%s: detected RS690 floating bus bug, stopping ddc detect\n",
+					  connector->name);
 				radeon_connector->ddc_bus = NULL;
 			} else {
 				ret = connector_status_connected;
@@ -1387,7 +1449,7 @@ bool radeon_connector_is_dp12_capable(struct drm_connector *connector)
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (ASIC_IS_DCE5(rdev) &&
-	    (rdev->clock.dp_extclk >= 53900) &&
+	    (rdev->clock.default_dispclk >= 53900) &&
 	    radeon_connector_encoder_is_hbr2(connector)) {
 		return true;
 	}

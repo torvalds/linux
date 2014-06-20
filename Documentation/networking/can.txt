@@ -469,6 +469,41 @@ solution for a couple of reasons:
   having this 'send only' use-case we may remove the receive list in the
   Kernel to save a little (really a very little!) CPU usage.
 
+  4.1.1.1 CAN filter usage optimisation
+
+  The CAN filters are processed in per-device filter lists at CAN frame
+  reception time. To reduce the number of checks that need to be performed
+  while walking through the filter lists the CAN core provides an optimized
+  filter handling when the filter subscription focusses on a single CAN ID.
+
+  For the possible 2048 SFF CAN identifiers the identifier is used as an index
+  to access the corresponding subscription list without any further checks.
+  For the 2^29 possible EFF CAN identifiers a 10 bit XOR folding is used as
+  hash function to retrieve the EFF table index.
+
+  To benefit from the optimized filters for single CAN identifiers the
+  CAN_SFF_MASK or CAN_EFF_MASK have to be set into can_filter.mask together
+  with set CAN_EFF_FLAG and CAN_RTR_FLAG bits. A set CAN_EFF_FLAG bit in the
+  can_filter.mask makes clear that it matters whether a SFF or EFF CAN ID is
+  subscribed. E.g. in the example from above
+
+    rfilter[0].can_id   = 0x123;
+    rfilter[0].can_mask = CAN_SFF_MASK;
+
+  both SFF frames with CAN ID 0x123 and EFF frames with 0xXXXXX123 can pass.
+
+  To filter for only 0x123 (SFF) and 0x12345678 (EFF) CAN identifiers the
+  filter has to be defined in this way to benefit from the optimized filters:
+
+    struct can_filter rfilter[2];
+
+    rfilter[0].can_id   = 0x123;
+    rfilter[0].can_mask = (CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_SFF_MASK);
+    rfilter[1].can_id   = 0x12345678 | CAN_EFF_FLAG;
+    rfilter[1].can_mask = (CAN_EFF_FLAG | CAN_RTR_FLAG | CAN_EFF_MASK);
+
+    setsockopt(s, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter));
+
   4.1.2 RAW socket option CAN_RAW_ERR_FILTER
 
   As described in chapter 3.4 the CAN interface driver can generate so

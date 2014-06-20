@@ -41,8 +41,8 @@
  * DAMAGE.
  */
 
-#ifndef CAN_GW_H
-#define CAN_GW_H
+#ifndef _UAPI_CAN_GW_H
+#define _UAPI_CAN_GW_H
 
 #include <linux/types.h>
 #include <linux/can.h>
@@ -200,4 +200,4 @@ enum {
  *         Beware of sending unpacked or aligned structs!
  */
 
-#endif
+#endif /* !_UAPI_CAN_GW_H */

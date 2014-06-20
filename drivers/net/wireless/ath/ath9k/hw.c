@@ -26,7 +26,6 @@
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
 #include "ar9003_phy.h"
-#include "debug.h"
 #include "ath9k.h"
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
@@ -246,6 +245,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		return;
 	case AR9300_DEVID_AR953X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
+		if (ah->get_mac_revision)
+			ah->hw_version.macRev = ah->get_mac_revision();
 		return;
 	}
 

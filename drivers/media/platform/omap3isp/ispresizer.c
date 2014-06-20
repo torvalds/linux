@@ -1040,7 +1040,7 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 	 */
 	buffer = omap3isp_video_buffer_next(&res->video_out);
 	if (buffer != NULL) {
-		resizer_set_outaddr(res, buffer->isp_addr);
+		resizer_set_outaddr(res, buffer->dma);
 		restart = 1;
 	}
 
@@ -1049,7 +1049,7 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 	if (res->input == RESIZER_INPUT_MEMORY) {
 		buffer = omap3isp_video_buffer_next(&res->video_in);
 		if (buffer != NULL)
-			resizer_set_inaddr(res, buffer->isp_addr);
+			resizer_set_inaddr(res, buffer->dma);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
@@ -1101,7 +1101,7 @@ static int resizer_video_queue(struct isp_video *video,
 	struct isp_res_device *res = &video->isp->isp_res;
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		resizer_set_inaddr(res, buffer->isp_addr);
+		resizer_set_inaddr(res, buffer->dma);
 
 	/*
 	 * We now have a buffer queued on the output. Despite what the
@@ -1116,7 +1116,7 @@ static int resizer_video_queue(struct isp_video *video,
 	 * continuous mode or when starting the stream.
 	 */
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		resizer_set_outaddr(res, buffer->isp_addr);
+		resizer_set_outaddr(res, buffer->dma);
 
 	return 0;
 }

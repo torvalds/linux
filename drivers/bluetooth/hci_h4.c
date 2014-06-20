@@ -55,13 +55,6 @@ struct h4_struct {
 	struct sk_buff_head txq;
 };
 
-/* H4 receiver States */
-#define H4_W4_PACKET_TYPE	0
-#define H4_W4_EVENT_HDR		1
-#define H4_W4_ACL_HDR		2
-#define H4_W4_SCO_HDR		3
-#define H4_W4_DATA		4
-
 /* Initialize protocol */
 static int h4_open(struct hci_uart *hu)
 {
