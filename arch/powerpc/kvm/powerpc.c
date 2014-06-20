@@ -309,6 +309,87 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_emulate_mmio);
 
+static hva_t kvmppc_bad_hva(void)
+{
+	return PAGE_OFFSET;
+}
+
+static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
+{
+	hva_t hpage;
+
+	hpage = gfn_to_hva(vcpu->kvm, pte->raddr >> PAGE_SHIFT);
+	if (kvm_is_error_hva(hpage))
+		goto err;
+
+	return hpage | (pte->raddr & ~PAGE_MASK);
+err:
+	return kvmppc_bad_hva();
+}
+
+int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
+	      bool data)
+{
+	struct kvmppc_pte pte;
+	int r;
+
+	vcpu->stat.st++;
+
+	r = kvmppc_xlate(vcpu, *eaddr, data ? XLATE_DATA : XLATE_INST,
+			 XLATE_WRITE, &pte);
+	if (r < 0)
+		return r;
+
+	*eaddr = pte.raddr;
+
+	if (!pte.may_write)
+		return -EPERM;
+
+	if (kvm_write_guest(vcpu->kvm, pte.raddr, ptr, size))
+		return EMULATE_DO_MMIO;
+
+	return EMULATE_DONE;
+}
+EXPORT_SYMBOL_GPL(kvmppc_st);
+
+int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
+		      bool data)
+{
+	struct kvmppc_pte pte;
+	hva_t hva = *eaddr;
+	int rc;
+
+	vcpu->stat.ld++;
+
+	rc = kvmppc_xlate(vcpu, *eaddr, data ? XLATE_DATA : XLATE_INST,
+			  XLATE_READ, &pte);
+	if (rc)
+		return rc;
+
+	*eaddr = pte.raddr;
+
+	if (!pte.may_read)
+		return -EPERM;
+
+	if (!data && !pte.may_execute)
+		return -ENOEXEC;
+
+	hva = kvmppc_pte_to_hva(vcpu, &pte);
+	if (kvm_is_error_hva(hva))
+		goto mmio;
+
+	if (copy_from_user(ptr, (void __user *)hva, size)) {
+		printk(KERN_INFO "kvmppc_ld at 0x%lx failed\n", hva);
+		goto mmio;
+	}
+
+	return EMULATE_DONE;
+
+mmio:
+	return EMULATE_DO_MMIO;
+}
+EXPORT_SYMBOL_GPL(kvmppc_ld);
+
 int kvm_arch_hardware_enable(void *garbage)
 {
 	return 0;

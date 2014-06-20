@@ -111,15 +111,15 @@ struct kvm_vcpu_stat {
 	u32 halt_wakeup;
 	u32 dbell_exits;
 	u32 gdbell_exits;
+	u32 ld;
+	u32 st;
 #ifdef CONFIG_PPC_BOOK3S
 	u32 pf_storage;
 	u32 pf_instruc;
 	u32 sp_storage;
 	u32 sp_instruc;
 	u32 queue_intr;
-	u32 ld;
 	u32 ld_slow;
-	u32 st;
 	u32 st_slow;
 #endif
 };
