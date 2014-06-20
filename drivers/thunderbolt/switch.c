@@ -5,6 +5,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "tb.h"
 
