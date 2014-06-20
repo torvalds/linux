@@ -179,6 +179,8 @@ mwifiex_sdio_remove(struct sdio_func *func)
 	if (!adapter || !adapter->priv_num)
 		return;
 
+	cancel_work_sync(&adapter->iface_work);
+
 	if (user_rmmod) {
 		if (adapter->is_suspended)
 			mwifiex_sdio_resume(adapter->dev);
@@ -1915,7 +1917,7 @@ mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 }
 
 static struct mmc_host *reset_host;
-static void sdio_card_reset_worker(struct work_struct *work)
+static void mwifiex_sdio_card_reset_work(struct work_struct *work)
 {
 	struct mmc_host *target = reset_host;
 
@@ -1933,15 +1935,29 @@ static void sdio_card_reset_worker(struct work_struct *work)
 	mdelay(20);
 	mmc_add_host(target);
 }
-static DECLARE_WORK(card_reset_work, sdio_card_reset_worker);
+
+static void mwifiex_sdio_work(struct work_struct *work)
+{
+	struct mwifiex_adapter *adapter =
+			container_of(work, struct mwifiex_adapter, iface_work);
+
+	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET,
+			       &adapter->iface_work_flags))
+		mwifiex_sdio_card_reset_work(work);
+}
 
 /* This function resets the card */
 static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
 
+	if (test_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags))
+		return;
+
+	set_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &adapter->iface_work_flags);
+
 	reset_host = card->func->card->host;
-	schedule_work(&card_reset_work);
+	schedule_work(&adapter->iface_work);
 }
 
 static struct mwifiex_if_ops sdio_ops = {
@@ -1964,6 +1980,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
 	.card_reset = mwifiex_sdio_card_reset,
+	.iface_work = mwifiex_sdio_work,
 };
 
 /*
@@ -2001,7 +2018,6 @@ mwifiex_sdio_cleanup_module(void)
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
-	cancel_work_sync(&card_reset_work);
 	sdio_unregister_driver(&mwifiex_sdio);
 }
 
