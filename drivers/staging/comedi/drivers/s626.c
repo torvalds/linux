@@ -107,9 +107,6 @@ struct s626_enc_info {
 	int chan;
 
 	/* Pointers to functions that differ for A and B counters: */
-	/* Return interrupt source. */
-	uint16_t (*get_int_src)(struct comedi_device *dev,
-			       const struct s626_enc_info *k);
 	/* Return standardized operating mode. */
 	uint16_t (*get_mode)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
@@ -1177,19 +1174,18 @@ static void s626_set_int_src(struct comedi_device *dev,
 	devpriv->counter_int_enabs |= k->my_event_bits[int_source];
 }
 
-static uint16_t s626_get_int_src_a(struct comedi_device *dev,
-				   const struct s626_enc_info *k)
+#ifdef unused
+static uint16_t s626_get_int_src(struct comedi_device *dev,
+				 const struct s626_enc_info *k)
 {
-	return S626_GET_CRA_INTSRC_A(s626_debi_read(dev,
-						    S626_LP_CRA(k->chan)));
+	if (chan < 3)
+		return S626_GET_CRA_INTSRC_A(s626_debi_read(dev,
+							S626_LP_CRA(k->chan)));
+	else
+		return S626_GET_CRB_INTSRC_B(s626_debi_read(dev,
+							S626_LP_CRB(k->chan)));
 }
-
-static uint16_t s626_get_int_src_b(struct comedi_device *dev,
-				   const struct s626_enc_info *k)
-{
-	return S626_GET_CRB_INTSRC_B(s626_debi_read(dev,
-						    S626_LP_CRB(k->chan)));
-}
+#endif
 
 #ifdef unused
 /*
@@ -1303,7 +1299,6 @@ static void s626_pulse_index_b(struct comedi_device *dev,
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
-		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
@@ -1311,7 +1306,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
-		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
@@ -1319,7 +1313,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
-		.get_int_src		= s626_get_int_src_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_mode		= s626_set_mode_a,
@@ -1327,7 +1320,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
-		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
@@ -1335,7 +1327,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
-		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
@@ -1343,7 +1334,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
-		.get_int_src		= s626_get_int_src_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_mode		= s626_set_mode_b,
