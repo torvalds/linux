@@ -1,6 +1,7 @@
 config STAGING_BOARD
 	boolean "Staging Board Support"
 	depends on OF_ADDRESS
+	depends on BROKEN
 	help
 	  Select to enable per-board staging support code.
 
