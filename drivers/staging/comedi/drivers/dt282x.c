@@ -882,37 +882,42 @@ static int dt282x_ao_insn_read(struct comedi_device *dev,
 
 static int dt282x_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct dt282x_private *devpriv = dev->private;
-	unsigned int d;
-	unsigned int chan;
-
-	chan = CR_CHAN(insn->chanspec);
-	d = data[0];
-	d &= s->maxdata;
-	devpriv->ao[chan] = d;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	bool munge = false;
+	unsigned int val;
+	int i;
 
 	devpriv->dacsr |= DT2821_SSEL;
-
 	if (chan) {
-		/* select channel */
 		devpriv->dacsr |= DT2821_YSEL;
-		if (devpriv->da0_2scomp)
-			d = comedi_offset_munge(s, d);
+		if (devpriv->da1_2scomp)
+			munge = true;
 	} else {
 		devpriv->dacsr &= ~DT2821_YSEL;
-		if (devpriv->da1_2scomp)
-			d = comedi_offset_munge(s, d);
+		if (devpriv->da0_2scomp)
+			munge = true;
 	}
 
-	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
+	for (i = 0; i < insn->n; i++) {
+		val = data[i];
+		devpriv->ao[chan] = val;
 
-	outw(d, dev->iobase + DT2821_DADAT);
+		if (munge)
+			val = comedi_offset_munge(s, val);
 
-	outw(devpriv->supcsr | DT2821_DACON, dev->iobase + DT2821_SUPCSR);
+		outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
 
-	return 1;
+		outw(val, dev->iobase + DT2821_DADAT);
+
+		outw(devpriv->supcsr | DT2821_DACON,
+		     dev->iobase + DT2821_SUPCSR);
+	}
+
+	return insn->n;
 }
 
 static int dt282x_ao_cmdtest(struct comedi_device *dev,
