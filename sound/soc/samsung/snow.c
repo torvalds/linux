@@ -103,6 +103,7 @@ static int snow_probe(struct platform_device *pdev)
 
 static const struct of_device_id snow_of_match[] = {
 	{ .compatible = "google,snow-audio-max98090", },
+	{ .compatible = "google,snow-audio-max98091", },
 	{ .compatible = "google,snow-audio-max98095", },
 	{},
 };
