@@ -106,33 +106,42 @@ static int ke_counter_insn_config(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
+	unsigned char src;
+
 	switch (data[0]) {
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		switch (data[1]) {
-		case KE_OSC_SEL_EXT:	/* Pin 21 on D-sub */
-		case KE_OSC_SEL_4MHZ:	/* option */
-		case KE_OSC_SEL_20MHZ:	/* default */
+		case KE_CLK_20MHZ:	/* default */
+			src = KE_OSC_SEL_20MHZ;
+			break;
+		case KE_CLK_4MHZ:	/* option */
+			src = KE_OSC_SEL_4MHZ;
+			break;
+		case KE_CLK_EXT:	/* Pin 21 on D-sub */
+			src = KE_OSC_SEL_EXT;
 			break;
 		default:
 			return -EINVAL;
 		}
-		outb(data[1], dev->iobase + KE_OSC_SEL_REG);
+		outb(src, dev->iobase + KE_OSC_SEL_REG);
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		data[1] = inb(dev->iobase + KE_OSC_SEL_REG);
-		switch (data[1]) {
-		case KE_OSC_SEL_EXT:
-			data[2] = 0;	/* Unknown */
-			break;
-		case KE_OSC_SEL_4MHZ:
-			data[2] = 250;	/* 250ns */
-			break;
+		src = inb(dev->iobase + KE_OSC_SEL_REG);
+		switch (src) {
 		case KE_OSC_SEL_20MHZ:
+			data[1] = KE_CLK_20MHZ;
 			data[2] = 50;	/* 50ns */
 			break;
-		default:
-			data[2] = 0;	/* Invalid? */
+		case KE_OSC_SEL_4MHZ:
+			data[1] = KE_CLK_4MHZ;
+			data[2] = 250;	/* 250ns */
 			break;
+		case KE_OSC_SEL_EXT:
+			data[1] = KE_CLK_EXT;
+			data[2] = 0;	/* Unknown */
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 	case INSN_CONFIG_RESET:

@@ -976,4 +976,15 @@ enum amplc_dio_gate_source {
 	AMPLC_DIO_GAT_NPAT_GONE	/* negated "pattern gone away" */
 };
 
+/*
+ * Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * the counter subdevice on the Kolter Electronic PCI-Counter board
+ * (ke_counter driver).
+ */
+enum ke_counter_clock_source {
+	KE_CLK_20MHZ,	/* internal 20MHz (default) */
+	KE_CLK_4MHZ,	/* internal 4MHz (option) */
+	KE_CLK_EXT	/* external clock on pin 21 of D-Sub */
+};
+
 #endif /* _COMEDI_H */
