@@ -3040,130 +3040,49 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev)
 	if (ret < 0)
 		return ret;
 
-	rbd_assert(rbd_dev->watch_event);
-
-	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
-					     OBJ_REQUEST_NODATA);
-	if (!obj_request) {
-		ret = -ENOMEM;
-		goto out_cancel;
+	obj_request = rbd_obj_watch_request_helper(rbd_dev, true);
+	if (IS_ERR(obj_request)) {
+		ceph_osdc_cancel_event(rbd_dev->watch_event);
+		rbd_dev->watch_event = NULL;
+		return PTR_ERR(obj_request);
 	}
-
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true, 1,
-						  obj_request);
-	if (!obj_request->osd_req) {
-		ret = -ENOMEM;
-		goto out_put;
-	}
-
-	ceph_osdc_set_request_linger(osdc, obj_request->osd_req);
-
-	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_WATCH,
-			      rbd_dev->watch_event->cookie, 0, 1);
-	rbd_osd_req_format_write(obj_request);
-
-	ret = rbd_obj_request_submit(osdc, obj_request);
-	if (ret)
-		goto out_linger;
-
-	ret = rbd_obj_request_wait(obj_request);
-	if (ret)
-		goto out_linger;
-
-	ret = obj_request->result;
-	if (ret)
-		goto out_linger;
 
 	/*
 	 * A watch request is set to linger, so the underlying osd
 	 * request won't go away until we unregister it.  We retain
 	 * a pointer to the object request during that time (in
-	 * rbd_dev->watch_request), so we'll keep a reference to
-	 * it.  We'll drop that reference (below) after we've
-	 * unregistered it.
+	 * rbd_dev->watch_request), so we'll keep a reference to it.
+	 * We'll drop that reference after we've unregistered it in
+	 * rbd_dev_header_unwatch_sync().
 	 */
 	rbd_dev->watch_request = obj_request;
 
 	return 0;
-
-out_linger:
-	ceph_osdc_unregister_linger_request(osdc, obj_request->osd_req);
-out_put:
-	rbd_obj_request_put(obj_request);
-out_cancel:
-	ceph_osdc_cancel_event(rbd_dev->watch_event);
-	rbd_dev->watch_event = NULL;
-
-	return ret;
 }
 
 /*
  * Tear down a watch request, synchronously.
  */
-static int __rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
+static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
 {
-	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	int ret;
 
 	rbd_assert(rbd_dev->watch_event);
 	rbd_assert(rbd_dev->watch_request);
 
-	obj_request = rbd_obj_request_create(rbd_dev->header_name, 0, 0,
-					     OBJ_REQUEST_NODATA);
-	if (!obj_request) {
-		ret = -ENOMEM;
-		goto out_cancel;
-	}
-
-	obj_request->osd_req = rbd_osd_req_create(rbd_dev, true, 1,
-						  obj_request);
-	if (!obj_request->osd_req) {
-		ret = -ENOMEM;
-		goto out_put;
-	}
-
-	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_WATCH,
-			      rbd_dev->watch_event->cookie, 0, 0);
-	rbd_osd_req_format_write(obj_request);
-
-	ret = rbd_obj_request_submit(osdc, obj_request);
-	if (ret)
-		goto out_put;
-
-	ret = rbd_obj_request_wait(obj_request);
-	if (ret)
-		goto out_put;
-
-	ret = obj_request->result;
-	if (ret)
-		goto out_put;
-
-	/* We have successfully torn down the watch request */
-
-	ceph_osdc_unregister_linger_request(osdc,
-					    rbd_dev->watch_request->osd_req);
+	rbd_obj_request_end(rbd_dev->watch_request);
 	rbd_obj_request_put(rbd_dev->watch_request);
 	rbd_dev->watch_request = NULL;
 
-out_put:
-	rbd_obj_request_put(obj_request);
-out_cancel:
+	obj_request = rbd_obj_watch_request_helper(rbd_dev, false);
+	if (!IS_ERR(obj_request))
+		rbd_obj_request_put(obj_request);
+	else
+		rbd_warn(rbd_dev, "unable to tear down watch request (%ld)",
+			 PTR_ERR(obj_request));
+
 	ceph_osdc_cancel_event(rbd_dev->watch_event);
 	rbd_dev->watch_event = NULL;
-
-	return ret;
-}
-
-static void rbd_dev_header_unwatch_sync(struct rbd_device *rbd_dev)
-{
-	int ret;
-
-	ret = __rbd_dev_header_unwatch_sync(rbd_dev);
-	if (ret) {
-		rbd_warn(rbd_dev, "unable to tear down watch request: %d\n",
-			 ret);
-	}
 }
 
 /*
