@@ -5,6 +5,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include "tb.h"
 
 /**
