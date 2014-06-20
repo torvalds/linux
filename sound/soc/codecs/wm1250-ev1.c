@@ -164,7 +164,6 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 
 	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
 	if (!wm1250) {
-		dev_err(&i2c->dev, "Unable to allocate private data\n");
 		ret = -ENOMEM;
 		goto err;
 	}
