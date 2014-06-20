@@ -575,11 +575,16 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	ret = sh_msiof_spi_start(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");
-		goto err;
+		goto stop_ier;
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
-	wait_for_completion(&p->done);
+	ret = wait_for_completion_timeout(&p->done, HZ);
+	if (!ret) {
+		dev_err(&p->pdev->dev, "PIO timeout\n");
+		ret = -ETIMEDOUT;
+		goto stop_reset;
+	}
 
 	/* read rx fifo */
 	if (rx_buf)
@@ -591,12 +596,15 @@ static int sh_msiof_spi_txrx_once(struct sh_msiof_spi_priv *p,
 	ret = sh_msiof_spi_stop(p, rx_buf);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to shut down hardware\n");
-		goto err;
+		return ret;
 	}
 
 	return words;
 
- err:
+stop_reset:
+	sh_msiof_reset_str(p);
+	sh_msiof_spi_stop(p, rx_buf);
+stop_ier:
 	sh_msiof_write(p, IER, 0);
 	return ret;
 }
@@ -679,7 +687,7 @@ static int sh_msiof_transfer_one(struct spi_master *master,
 					   rx_buf,
 					   words, bits);
 		if (n < 0)
-			break;
+			return n;
 
 		bytes_done += n * bytes_per_word;
 		words -= n;
