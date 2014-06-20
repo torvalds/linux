@@ -728,25 +728,6 @@ enum{
 		LDOE25_SHIFT						= 28 ,
 	};
 
-static bool
-hal_EfusePgPacketWrite2ByteHeader(
-		struct adapter *pAdapter,
-		u8 efuseType,
-		u16				*pAddr,
-		struct pgpkt *pTargetPkt);
-static bool
-hal_EfusePgPacketWrite1ByteHeader(
-		struct adapter *pAdapter,
-		u8 efuseType,
-		u16				*pAddr,
-		struct pgpkt *pTargetPkt);
-static bool
-hal_EfusePgPacketWriteData(
-		struct adapter *pAdapter,
-		u8 efuseType,
-		u16				*pAddr,
-		struct pgpkt *pTargetPkt);
-
 /*
  * Function:	Efuse_PowerSwitch
  *
