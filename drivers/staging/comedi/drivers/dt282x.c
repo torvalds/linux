@@ -484,24 +484,20 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev,
 	}
 }
 
-static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
+static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
+				    struct comedi_subdevice *s)
 {
 	struct dt282x_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
-	void *ptr;
-	int size;
-	int i;
+	int cur_dma = devpriv->current_dma_index;
+	void *ptr = devpriv->dma[cur_dma].buf;
+	int size = devpriv->dma[cur_dma].size;
 	int ret;
 
 	outw(devpriv->supcsr | DT2821_CLRDMADNE, dev->iobase + DT2821_SUPCSR);
 
-	i = devpriv->current_dma_index;
-	ptr = devpriv->dma[i].buf;
-	size = devpriv->dma[i].size;
+	disable_dma(devpriv->dma[cur_dma].chan);
 
-	disable_dma(devpriv->dma[i].chan);
-
-	devpriv->current_dma_index = 1 - i;
+	devpriv->current_dma_index = 1 - cur_dma;
 
 	dt282x_munge(dev, s, ptr, size);
 	ret = cfc_write_array_to_buffer(s, ptr, size);
@@ -509,8 +505,8 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-	devpriv->nread -= size / 2;
 
+	devpriv->nread -= size / 2;
 	if (devpriv->nread < 0) {
 		dev_info(dev->class_dev, "nread off by one\n");
 		devpriv->nread = 0;
@@ -528,7 +524,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 	}
 #endif
 	/* restart the channel */
-	dt282x_prep_ai_dma(dev, i, 0);
+	dt282x_prep_ai_dma(dev, cur_dma, 0);
 }
 
 static irqreturn_t dt282x_interrupt(int irq, void *d)
@@ -550,7 +546,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	supcsr = inw(dev->iobase + DT2821_SUPCSR);
 	if (supcsr & DT2821_DMAD) {
 		if (devpriv->dma_dir == DMA_MODE_READ)
-			dt282x_ai_dma_interrupt(dev);
+			dt282x_ai_dma_interrupt(dev, s);
 		else
 			dt282x_ao_dma_interrupt(dev, s_ao);
 		handled = 1;
