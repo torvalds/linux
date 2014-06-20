@@ -1504,7 +1504,7 @@ out_nfserr:
 __be32
 nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				char *fname, int flen,
-				char *path,  int plen,
+				char *path,
 				struct svc_fh *resfhp,
 				struct iattr *iap)
 {
@@ -1513,7 +1513,7 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	int		host_err;
 
 	err = nfserr_noent;
-	if (!flen || !plen)
+	if (!flen || path[0] == '\0')
 		goto out;
 	err = nfserr_exist;
 	if (isdotent(fname, flen))
@@ -1534,18 +1534,7 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (IS_ERR(dnew))
 		goto out_nfserr;
 
-	if (unlikely(path[plen] != 0)) {
-		char *path_alloced = kmalloc(plen+1, GFP_KERNEL);
-		if (path_alloced == NULL)
-			host_err = -ENOMEM;
-		else {
-			strncpy(path_alloced, path, plen);
-			path_alloced[plen] = 0;
-			host_err = vfs_symlink(dentry->d_inode, dnew, path_alloced);
-			kfree(path_alloced);
-		}
-	} else
-		host_err = vfs_symlink(dentry->d_inode, dnew, path);
+	host_err = vfs_symlink(dentry->d_inode, dnew, path);
 	err = nfserrno(host_err);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
