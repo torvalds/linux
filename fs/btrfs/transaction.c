@@ -1617,11 +1617,6 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = btrfs_run_delayed_items(trans, root);
-	/*
-	 * running the delayed items may have added new refs. account
-	 * them now so that they hinder processing of more delayed refs
-	 * as little as possible.
-	 */
 	if (ret)
 		return ret;
 
