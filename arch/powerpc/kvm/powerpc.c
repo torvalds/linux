@@ -309,11 +309,6 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_emulate_mmio);
 
-static hva_t kvmppc_bad_hva(void)
-{
-	return PAGE_OFFSET;
-}
-
 static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 {
 	hva_t hpage;
@@ -324,7 +319,7 @@ static hva_t kvmppc_pte_to_hva(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 
 	return hpage | (pte->raddr & ~PAGE_MASK);
 err:
-	return kvmppc_bad_hva();
+	return KVM_HVA_ERR_BAD;
 }
 
 int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
