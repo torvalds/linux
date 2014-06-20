@@ -345,7 +345,7 @@ struct dt282x_private {
 	int dma_dir;
 };
 
-static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
+static int dt282x_prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
 	int dma_chan;
@@ -377,7 +377,7 @@ static int prep_ai_dma(struct comedi_device *dev, int dma_index, int n)
 	return n;
 }
 
-static int prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
+static int dt282x_prep_ao_dma(struct comedi_device *dev, int dma_index, int n)
 {
 	struct dt282x_private *devpriv = dev->private;
 	int dma_chan;
@@ -489,7 +489,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
 	}
-	prep_ao_dma(dev, i, size);
+	dt282x_prep_ao_dma(dev, i, size);
 	return;
 }
 
@@ -542,7 +542,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev)
 	}
 #endif
 	/* restart the channel */
-	prep_ai_dma(dev, i, 0);
+	dt282x_prep_ai_dma(dev, i, 0);
 }
 
 static irqreturn_t dt282x_interrupt(int irq, void *d)
@@ -800,9 +800,9 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->dma_dir = DMA_MODE_READ;
 	devpriv->current_dma_index = 0;
-	prep_ai_dma(dev, 0, 0);
+	dt282x_prep_ai_dma(dev, 0, 0);
 	if (devpriv->ntrig) {
-		prep_ai_dma(dev, 1, 0);
+		dt282x_prep_ai_dma(dev, 1, 0);
 		devpriv->supcsr |= DT2821_DDMA;
 		outw(devpriv->supcsr, dev->iobase + DT2821_SUPCSR);
 	}
@@ -975,7 +975,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 		dev_err(dev->class_dev, "AO underrun\n");
 		return -EPIPE;
 	}
-	prep_ao_dma(dev, 0, size);
+	dt282x_prep_ao_dma(dev, 0, size);
 
 	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
 					  devpriv->dma_maxsize);
@@ -983,7 +983,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev,
 		dev_err(dev->class_dev, "AO underrun\n");
 		return -EPIPE;
 	}
-	prep_ao_dma(dev, 1, size);
+	dt282x_prep_ao_dma(dev, 1, size);
 
 	outw(devpriv->supcsr | DT2821_STRIG, dev->iobase + DT2821_SUPCSR);
 	s->async->inttrig = NULL;
