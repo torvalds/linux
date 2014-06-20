@@ -223,7 +223,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
@@ -232,7 +231,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 6500,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
@@ -241,16 +239,13 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 4000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
 		.name		= "dt2823",
 		.adbits		= 16,
-		.adchan_se	= 0,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 16,
 	}, {
@@ -259,9 +254,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
-		.ispgl		= 0,
-		.dachan		= 0,
-		.dabits		= 0,
 	}, {
 		.name		= "dt2824-pgl",
 		.adbits		= 12,
@@ -269,8 +261,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 20000,
 		.ispgl		= 1,
-		.dachan		= 0,
-		.dabits		= 0,
 	}, {
 		.name		= "dt2825",
 		.adbits		= 12,
@@ -283,28 +273,22 @@ static const struct dt282x_board boardtypes[] = {
 	}, {
 		.name		= "dt2827",
 		.adbits		= 16,
-		.adchan_se	= 0,
 		.adchan_di	= 4,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
 		.name		= "dt2828",
 		.adbits		= 12,
 		.adchan_se	= 4,
-		.adchan_di	= 0,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
 		.name		= "dt2829",
 		.adbits		= 16,
 		.adchan_se	= 8,
-		.adchan_di	= 0,
 		.ai_speed	= 33250,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 16,
 	}, {
@@ -313,7 +297,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
 		.dachan		= 2,
 		.dabits		= 12,
 	}, {
@@ -322,18 +305,12 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
-		.dachan		= 0,
-		.dabits		= 0,
 	}, {
 		.name		= "dt24-ez",
 		.adbits		= 12,
 		.adchan_se	= 16,
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
-		.ispgl		= 0,
-		.dachan		= 0,
-		.dabits		= 0,
 	}, {
 		.name		= "dt24-ez-pgl",
 		.adbits		= 12,
@@ -341,8 +318,6 @@ static const struct dt282x_board boardtypes[] = {
 		.adchan_di	= 8,
 		.ai_speed	= 10000,
 		.ispgl		= 1,
-		.dachan		= 0,
-		.dabits		= 0,
 	},
 };
 
