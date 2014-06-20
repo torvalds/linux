@@ -328,15 +328,8 @@ extern void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 extern void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
 						struct ceph_osd_request *req);
 
-static inline void ceph_osdc_get_request(struct ceph_osd_request *req)
-{
-	kref_get(&req->r_kref);
-}
-extern void ceph_osdc_release_request(struct kref *kref);
-static inline void ceph_osdc_put_request(struct ceph_osd_request *req)
-{
-	kref_put(&req->r_kref, ceph_osdc_release_request);
-}
+extern void ceph_osdc_get_request(struct ceph_osd_request *req);
+extern void ceph_osdc_put_request(struct ceph_osd_request *req);
 
 extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				   struct ceph_osd_request *req,
