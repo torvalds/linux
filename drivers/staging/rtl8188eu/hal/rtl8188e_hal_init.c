@@ -751,7 +751,7 @@ hal_EfusePgPacketWriteData(
 		bool bPseudoTest);
 
 static void
-hal_EfusePowerSwitch_RTL8188E(
+rtl8188e_EfusePowerSwitch(
 		struct adapter *pAdapter,
 		u8 bWrite,
 		u8 PwrState)
@@ -799,16 +799,6 @@ hal_EfusePowerSwitch_RTL8188E(
 		}
 	}
 }
-
-static void
-rtl8188e_EfusePowerSwitch(
-		struct adapter *pAdapter,
-		u8 bWrite,
-		u8 PwrState)
-{
-	hal_EfusePowerSwitch_RTL8188E(pAdapter, bWrite, PwrState);
-}
-
 
 static void Hal_EfuseReadEFuse88E(struct adapter *Adapter,
 	u16			_offset,
