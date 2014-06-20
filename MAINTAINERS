@@ -8512,14 +8512,6 @@ M:	H Hartley Sweeten <hsweeten@visionengravers.com>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
 
-STAGING - CRYSTAL HD VIDEO DECODER
-M:	Naren Sankar <nsankar@broadcom.com>
-M:	Jarod Wilson <jarod@wilsonet.com>
-M:	Scott Davilla <davilla@4pi.com>
-M:	Manu Abraham <abraham.manu@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/crystalhd/
-
 STAGING - ECHO CANCELLER
 M:	Steve Underwood <steveu@coppice.org>
 M:	David Rowe <david@rowetel.com>
