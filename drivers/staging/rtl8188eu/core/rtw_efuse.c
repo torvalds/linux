@@ -232,7 +232,7 @@ u8 rtw_efuse_map_read(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 
 	Efuse_PowerSwitch(padapter, false, true);
 
-	efuse_ReadEFuse(padapter, EFUSE_WIFI, addr, cnts, data, false);
+	efuse_ReadEFuse(padapter, EFUSE_WIFI, addr, cnts, data);
 
 	Efuse_PowerSwitch(padapter, false, false);
 
@@ -415,7 +415,7 @@ static void Efuse_ReadAllMap(struct adapter *pAdapter, u8 efuseType, u8 *Efuse, 
 
 	EFUSE_GetEfuseDefinition(pAdapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen);
 
-	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse, pseudo);
+	efuse_ReadEFuse(pAdapter, efuseType, 0, mapLen, Efuse);
 
 	Efuse_PowerSwitch(pAdapter, false, false);
 }

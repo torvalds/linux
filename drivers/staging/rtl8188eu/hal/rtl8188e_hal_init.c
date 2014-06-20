@@ -807,23 +807,15 @@ void Efuse_PowerSwitch(
 	}
 }
 
-void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf, bool bPseudoTest)
+void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
-	if (!bPseudoTest) {
-		int ret = _FAIL;
-		if (rtw_IOL_applied(Adapter)) {
-			rtw_hal_power_on(Adapter);
 
-			iol_mode_enable(Adapter, 1);
-			ret = iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
-			iol_mode_enable(Adapter, 0);
-
-			if (_SUCCESS == ret)
-				goto exit;
-		}
+	if (rtw_IOL_applied(Adapter)) {
+		rtw_hal_power_on(Adapter);
+		iol_mode_enable(Adapter, 1);
+		iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
+		iol_mode_enable(Adapter, 0);
 	}
-
-exit:
 	return;
 }
 
