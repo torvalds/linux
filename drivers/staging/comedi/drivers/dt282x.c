@@ -1,57 +1,67 @@
 /*
-   comedi/drivers/dt282x.c
-   Hardware driver for Data Translation DT2821 series
-
-   COMEDI - Linux Control and Measurement Device Interface
-   Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * dt282x.c
+ * Comedi driver for Data Translation DT2821 series
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
+
 /*
-Driver: dt282x
-Description: Data Translation DT2821 series (including DT-EZ)
-Author: ds
-Devices: [Data Translation] DT2821 (dt2821),
-  DT2821-F-16SE (dt2821-f), DT2821-F-8DI (dt2821-f),
-  DT2821-G-16SE (dt2821-f), DT2821-G-8DI (dt2821-g),
-  DT2823 (dt2823),
-  DT2824-PGH (dt2824-pgh), DT2824-PGL (dt2824-pgl), DT2825 (dt2825),
-  DT2827 (dt2827), DT2828 (dt2828), DT21-EZ (dt21-ez), DT23-EZ (dt23-ez),
-  DT24-EZ (dt24-ez), DT24-EZ-PGL (dt24-ez-pgl)
-Status: complete
-Updated: Wed, 22 Aug 2001 17:11:34 -0700
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ
-  [2] - DMA 1
-  [3] - DMA 2
-  [4] - AI jumpered for 0=single ended, 1=differential
-  [5] - AI jumpered for 0=straight binary, 1=2's complement
-  [6] - AO 0 jumpered for 0=straight binary, 1=2's complement
-  [7] - AO 1 jumpered for 0=straight binary, 1=2's complement
-  [8] - AI jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5]
-  [9] - AO channel 0 range (deprecated, see below)
-  [10]- AO channel 1 range (deprecated, see below)
-
-Notes:
-  - AO commands might be broken.
-  - If you try to run a command on both the AI and AO subdevices
-    simultaneously, bad things will happen.  The driver needs to
-    be fixed to check for this situation and return an error.
-  - AO range is not programmable. The AO subdevice has a range_table
-    containing all the possible analog output ranges. Use the range
-    that matches your board configuration to convert between data
-    values and physical units.
-*/
+ * Driver: dt282x
+ * Description: Data Translation DT2821 series (including DT-EZ)
+ * Author: ds
+ * Devices: (Data Translation) DT2821 [dt2821]
+ *	    (Data Translation) DT2821-F-16SE [dt2821-f]
+ *	    (Data Translation) DT2821-F-8DI [dt2821-f]
+ *	    (Data Translation) DT2821-G-16SE [dt2821-g]
+ *	    (Data Translation) DT2821-G-8DI [dt2821-g]
+ *	    (Data Translation) DT2823 [dt2823]
+ *	    (Data Translation) DT2824-PGH [dt2824-pgh]
+ *	    (Data Translation) DT2824-PGL [dt2824-pgl]
+ *	    (Data Translation) DT2825 [dt2825]
+ *	    (Data Translation) DT2827 [dt2827]
+ *	    (Data Translation) DT2828 [dt2828]
+ *	    (Data Translation) DT2928 [dt2829]
+ *	    (Data Translation) DT21-EZ [dt21-ez]
+ *	    (Data Translation) DT23-EZ [dt23-ez]
+ *	    (Data Translation) DT24-EZ [dt24-ez]
+ *	    (Data Translation) DT24-EZ-PGL [dt24-ez-pgl]
+ * Status: complete
+ * Updated: Wed, 22 Aug 2001 17:11:34 -0700
+ *
+ * Configuration options:
+ *   [0] - I/O port base address
+ *   [1] - IRQ (optional, required for async command support)
+ *   [2] - DMA 1 (optional, required for async command support)
+ *   [3] - DMA 2 (optional, required for async command support)
+ *   [4] - AI jumpered for 0=single ended, 1=differential
+ *   [5] - AI jumpered for 0=straight binary, 1=2's complement
+ *   [6] - AO 0 jumpered for 0=straight binary, 1=2's complement
+ *   [7] - AO 1 jumpered for 0=straight binary, 1=2's complement
+ *   [8] - AI jumpered for 0=[-10,10]V, 1=[0,10], 2=[-5,5], 3=[0,5]
+ *   [9] - AO channel 0 range (deprecated, see below)
+ *   [10]- AO channel 1 range (deprecated, see below)
+ *
+ * Notes:
+ *   - AO commands might be broken.
+ *   - If you try to run a command on both the AI and AO subdevices
+ *     simultaneously, bad things will happen.  The driver needs to
+ *     be fixed to check for this situation and return an error.
+ *   - AO range is not programmable. The AO subdevice has a range_table
+ *     containing all the possible analog output ranges. Use the range
+ *     that matches your board configuration to convert between data
+ *     values and physical units.
+ */
 
 #include <linux/module.h>
 #include "../comedidev.h"
