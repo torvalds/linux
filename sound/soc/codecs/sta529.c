@@ -380,10 +380,8 @@ static int sta529_i2c_probe(struct i2c_client *i2c,
 		return -EINVAL;
 
 	sta529 = devm_kzalloc(&i2c->dev, sizeof(struct sta529), GFP_KERNEL);
-	if (sta529 == NULL) {
-		dev_err(&i2c->dev, "Can not allocate memory\n");
+	if (!sta529)
 		return -ENOMEM;
-	}
 
 	sta529->regmap = devm_regmap_init_i2c(i2c, &sta529_regmap);
 	if (IS_ERR(sta529->regmap)) {
