@@ -750,8 +750,15 @@ hal_EfusePgPacketWriteData(
 		struct pgpkt *pTargetPkt,
 		bool bPseudoTest);
 
-static void
-rtl8188e_EfusePowerSwitch(
+/*
+ * Function:	Efuse_PowerSwitch
+ *
+ * Overview:	When we want to enable write operation, we should change to
+ *				pwr on state. When we stop write, we should switch to 500k mode
+ *				and disable LDO 2.5V.
+ */
+
+void Efuse_PowerSwitch(
 		struct adapter *pAdapter,
 		u8 bWrite,
 		u8 PwrState)
@@ -1671,7 +1678,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->write_rfreg = &rtl8188e_PHY_SetRFReg;
 
 	/*  Efuse related function */
-	pHalFunc->EfusePowerSwitch = &rtl8188e_EfusePowerSwitch;
 	pHalFunc->ReadEFuse = &ReadEFuseByIC;
 	pHalFunc->Efuse_PgPacketRead = &hal_EfusePgPacketRead_8188e;
 	pHalFunc->Efuse_PgPacketWrite = &hal_EfusePgPacketWrite_8188e;
