@@ -1334,7 +1334,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR0ALSW,
+		.my_latch_lsw		= S626_LP_CNTR(0),
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
 		.chan			= 1,
@@ -1348,7 +1348,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR1ALSW,
+		.my_latch_lsw		= S626_LP_CNTR(1),
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
 		.chan			= 2,
@@ -1362,7 +1362,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_a,
 		.set_mode		= s626_set_mode_a,
 		.reset_cap_flags	= s626_reset_cap_flags_a,
-		.my_latch_lsw		= S626_LP_CNTR2ALSW,
+		.my_latch_lsw		= S626_LP_CNTR(2),
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
 		.chan			= 3,
@@ -1376,7 +1376,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR0BLSW,
+		.my_latch_lsw		= S626_LP_CNTR(3),
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
 		.chan			= 4,
@@ -1390,7 +1390,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR1BLSW,
+		.my_latch_lsw		= S626_LP_CNTR(4),
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
 		.chan			= 5,
@@ -1404,7 +1404,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.set_load_trig		= s626_set_load_trig_b,
 		.set_mode		= s626_set_mode_b,
 		.reset_cap_flags	= s626_reset_cap_flags_b,
-		.my_latch_lsw		= S626_LP_CNTR2BLSW,
+		.my_latch_lsw		= S626_LP_CNTR(5),
 		.my_event_bits		= S626_EVBITS(5),
 	},
 };

@@ -233,19 +233,9 @@
 #define S626_LP_CRA(x)		(0x0000 + (((x) % 3) * 0x4))
 #define S626_LP_CRB(x)		(0x0002 + (((x) % 3) * 0x4))
 
-/* Counter PreLoad (write) and Latch (read) Registers: */
-#define	S626_LP_CNTR0ALSW	0x000C	/* 0A lsw. */
-#define	S626_LP_CNTR0AMSW	0x000E	/* 0A msw. */
-#define	S626_LP_CNTR0BLSW	0x0010	/* 0B lsw. */
-#define	S626_LP_CNTR0BMSW	0x0012	/* 0B msw. */
-#define	S626_LP_CNTR1ALSW	0x0014	/* 1A lsw. */
-#define	S626_LP_CNTR1AMSW	0x0016	/* 1A msw. */
-#define	S626_LP_CNTR1BLSW	0x0018	/* 1B lsw. */
-#define	S626_LP_CNTR1BMSW	0x001A	/* 1B msw. */
-#define	S626_LP_CNTR2ALSW	0x001C	/* 2A lsw. */
-#define	S626_LP_CNTR2AMSW	0x001E	/* 2A msw. */
-#define	S626_LP_CNTR2BLSW	0x0020	/* 2B lsw. */
-#define	S626_LP_CNTR2BMSW	0x0022	/* 2B msw. */
+/* Counter PreLoad (write) and Latch (read) Registers: 0A 1A 2A 0B 1B 2B */
+#define S626_LP_CNTR(x)		(0x000c  + (((x) < 3) ? 0x0 : 0x4) + \
+					   (((x) % 3) * 0x8))
 
 /* Miscellaneous Registers (read/write): */
 #define S626_LP_MISC1		0x0088	/* Read/write Misc1. */
