@@ -1223,33 +1223,6 @@ static int hal_EfusePgPacketRead_8188e(struct adapter *pAdapter, u8 offset, u8 *
 		return true;
 }
 
-static int Hal_EfusePgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest)
-{
-	int	ret;
-
-	ret = hal_EfusePgPacketRead_8188e(pAdapter, offset, data, bPseudoTest);
-	return ret;
-}
-
-static int Hal_EfusePgPacketRead_Pseudo(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest)
-{
-	int	ret;
-
-	ret = hal_EfusePgPacketRead_8188e(pAdapter, offset, data, bPseudoTest);
-	return ret;
-}
-
-static int rtl8188e_Efuse_PgPacketRead(struct adapter *pAdapter, u8 offset, u8 *data, bool bPseudoTest)
-{
-	int	ret;
-
-	if (bPseudoTest)
-		ret = Hal_EfusePgPacketRead_Pseudo (pAdapter, offset, data, bPseudoTest);
-	else
-		ret = Hal_EfusePgPacketRead(pAdapter, offset, data, bPseudoTest);
-	return ret;
-}
-
 static bool hal_EfuseFixHeaderProcess(struct adapter *pAdapter, u8 efuseType, struct pgpkt *pFixPkt, u16 *pAddr, bool bPseudoTest)
 {
 	u8 originaldata[8], badworden = 0;
@@ -1748,7 +1721,7 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->ReadEFuse = &ReadEFuseByIC;
 	pHalFunc->EFUSEGetEfuseDefinition = &rtl8188e_EFUSE_GetEfuseDefinition;
 	pHalFunc->EfuseGetCurrentSize = &hal_EfuseGetCurrentSize_8188e;
-	pHalFunc->Efuse_PgPacketRead = &rtl8188e_Efuse_PgPacketRead;
+	pHalFunc->Efuse_PgPacketRead = &hal_EfusePgPacketRead_8188e;
 	pHalFunc->Efuse_PgPacketWrite = &rtl8188e_Efuse_PgPacketWrite;
 	pHalFunc->Efuse_WordEnableDataWrite = &rtl8188e_Efuse_WordEnableDataWrite;
 
