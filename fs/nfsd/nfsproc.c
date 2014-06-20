@@ -403,8 +403,11 @@ nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
 
 	fh_init(&newfh, NFS_FHSIZE);
 	/*
-	 * Create the link, look up new file and set attrs.
+	 * Crazy hack: the request fits in a page, and already-decoded
+	 * attributes follow argp->tname, so it's safe to just write a
+	 * null to ensure it's null-terminated:
 	 */
+	argp->tname[argp->tlen] = '\0';
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
 						 argp->tname, argp->tlen,
 				 		 &newfh, &argp->attrs);
