@@ -54,8 +54,6 @@ See the notes in the ni_atmio.o driver.
  *  AT specific setup
  */
 
-#define NI_SIZE 0x20
-
 static const struct ni_board_struct ni_boards[] = {
 	{
 		.device_id	= 0x010d,
