@@ -13050,6 +13050,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 */
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
+	dev_priv->pm._irqs_disabled = true;
+
 	/*
 	 * Due to the hpd irq storm handling the hotplug work can re-arm the
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
