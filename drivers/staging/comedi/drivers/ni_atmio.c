@@ -105,8 +105,6 @@ are not supported.
  *  AT specific setup
  */
 
-#define NI_SIZE 0x20
-
 static const struct ni_board_struct ni_boards[] = {
 	{.device_id = 44,
 	 .isapnp_id = 0x0000,	/* XXX unknown */
@@ -344,7 +342,7 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		comedi_set_hw_dev(dev, &isapnp_dev->dev);
 	}
 
-	ret = comedi_request_region(dev, iobase, NI_SIZE);
+	ret = comedi_request_region(dev, iobase, 0x20);
 	if (ret)
 		return ret;
 
