@@ -110,9 +110,6 @@ struct s626_enc_info {
 	/* Return interrupt source. */
 	uint16_t (*get_int_src)(struct comedi_device *dev,
 			       const struct s626_enc_info *k);
-	/* Return preload trigger source. */
-	uint16_t (*get_load_trig)(struct comedi_device *dev,
-				 const struct s626_enc_info *k);
 	/* Return standardized operating mode. */
 	uint16_t (*get_mode)(struct comedi_device *dev,
 			    const struct s626_enc_info *k);
@@ -1125,19 +1122,18 @@ static void s626_set_load_trig(struct comedi_device *dev,
 	s626_debi_replace(dev, reg, ~mask, set);
 }
 
-static uint16_t s626_get_load_trig_a(struct comedi_device *dev,
-				     const struct s626_enc_info *k)
+#ifdef unused
+static uint16_t s626_get_load_trig(struct comedi_device *dev,
+				   const struct s626_enc_info *k)
 {
-	return S626_GET_CRA_LOADSRC_A(s626_debi_read(dev,
-						     S626_LP_CRA(k->chan)));
+	if (k->chan < 3)
+		return S626_GET_CRA_LOADSRC_A(s626_debi_read(dev,
+							S626_LP_CRA(k->chan)));
+	else
+		return S626_GET_CRB_LOADSRC_B(s626_debi_read(dev,
+							S626_LP_CRB(k->chan)));
 }
-
-static uint16_t s626_get_load_trig_b(struct comedi_device *dev,
-				     const struct s626_enc_info *k)
-{
-	return S626_GET_CRB_LOADSRC_B(s626_debi_read(dev,
-						     S626_LP_CRB(k->chan)));
-}
+#endif
 
 /*
  * Return/set counter interrupt source and clear any captured
@@ -1318,7 +1314,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
 		.chan			= 0,
 		.get_int_src		= s626_get_int_src_a,
-		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
@@ -1328,7 +1323,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	}, {
 		.chan			= 1,
 		.get_int_src		= s626_get_int_src_a,
-		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
@@ -1338,7 +1332,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	}, {
 		.chan			= 2,
 		.get_int_src		= s626_get_int_src_a,
-		.get_load_trig		= s626_get_load_trig_a,
 		.get_mode		= s626_get_mode_a,
 		.pulse_index		= s626_pulse_index_a,
 		.set_int_src		= s626_set_int_src_a,
@@ -1348,7 +1341,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	}, {
 		.chan			= 3,
 		.get_int_src		= s626_get_int_src_b,
-		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
@@ -1358,7 +1350,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	}, {
 		.chan			= 4,
 		.get_int_src		= s626_get_int_src_b,
-		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
@@ -1368,7 +1359,6 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 	}, {
 		.chan			= 5,
 		.get_int_src		= s626_get_int_src_b,
-		.get_load_trig		= s626_get_load_trig_b,
 		.get_mode		= s626_get_mode_b,
 		.pulse_index		= s626_pulse_index_b,
 		.set_int_src		= s626_set_int_src_b,
