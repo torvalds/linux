@@ -343,7 +343,6 @@ struct dt282x_private {
 		int size;	/* size of current transfer */
 	} dma[2];
 	int dma_maxsize;	/* max size of DMA transfer (in bytes) */
-	int usedma;		/* driver uses DMA              */
 	int current_dma_index;
 	int dma_dir;
 };
@@ -412,10 +411,8 @@ static void dt282x_disable_dma(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
 
-	if (devpriv->usedma) {
-		disable_dma(devpriv->dma[0].chan);
-		disable_dma(devpriv->dma[1].chan);
-	}
+	disable_dma(devpriv->dma[0].chan);
+	disable_dma(devpriv->dma[1].chan);
 }
 
 static int dt282x_ns_to_timer(int *nanosec, int round_mode)
@@ -788,13 +785,6 @@ static int dt282x_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int timer;
 	int ret;
 
-	if (devpriv->usedma == 0) {
-		comedi_error(dev,
-			     "driver requires 2 dma channels"
-						" to execute command");
-		return -EIO;
-	}
-
 	dt282x_disable_dma(dev);
 
 	if (cmd->convert_arg < board->ai_speed)
@@ -1014,13 +1004,6 @@ static int dt282x_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int timer;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (devpriv->usedma == 0) {
-		comedi_error(dev,
-			     "driver requires 2 dma channels"
-						" to execute command");
-		return -EIO;
-	}
-
 	dt282x_disable_dma(dev);
 
 	devpriv->supcsr = DT2821_ERRINTEN | DT2821_DS1 | DT2821_DDMA;
@@ -1155,21 +1138,6 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 	struct dt282x_private *devpriv = dev->private;
 	int ret;
 
-	devpriv->usedma = 0;
-
-	if (!dma1 && !dma2)
-		return 0;
-
-	if (dma1 == dma2 || dma1 < 5 || dma2 < 5 || dma1 > 7 || dma2 > 7)
-		return -EINVAL;
-
-	if (dma2 < dma1) {
-		int i;
-		i = dma1;
-		dma1 = dma2;
-		dma2 = i;
-	}
-
 	ret = request_dma(dma1, "dt282x A");
 	if (ret)
 		return -EBUSY;
@@ -1186,9 +1154,25 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 	if (!devpriv->dma[0].buf || !devpriv->dma[1].buf)
 		return -ENOMEM;
 
-	devpriv->usedma = 1;
-
 	return 0;
+}
+
+static void dt282x_free_dma(struct comedi_device *dev)
+{
+	struct dt282x_private *devpriv = dev->private;
+	int i;
+
+	if (!devpriv)
+		return;
+
+	for (i = 0; i < 2; i++) {
+		if (devpriv->dma[i].chan)
+			free_dma(devpriv->dma[i].chan);
+		if (devpriv->dma[i].buf)
+			free_page((unsigned long)devpriv->dma[i].buf);
+		devpriv->dma[i].chan = 0;
+		devpriv->dma[i].buf = NULL;
+	}
 }
 
 /*
@@ -1235,22 +1219,41 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	/* should do board test */
 
-	if (it->options[opt_irq] > 0) {
-		ret = request_irq(it->options[opt_irq], dt282x_interrupt, 0,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = it->options[opt_irq];
-	}
-
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
 
-	if (dev->irq) {
-		ret = dt282x_grab_dma(dev, it->options[opt_dma1],
-				      it->options[opt_dma2]);
-		if (ret < 0)
-			return ret;
+	/* an IRQ and 2 DMA channels are required for async command support */
+	if (it->options[opt_irq] &&
+	    it->options[opt_dma1] && it->options[opt_dma2]) {
+		unsigned int irq = it->options[opt_irq];
+		unsigned int dma1 = it->options[opt_dma1];
+		unsigned int dma2 = it->options[opt_dma2];
+
+		if (dma2 < dma1) {
+			unsigned int swap;
+
+			swap = dma1;
+			dma1 = dma2;
+			dma2 = swap;
+		}
+
+		if (dma1 != dma2 &&
+		    dma1 >= 5 && dma1 <= 7 &&
+		    dma2 >= 5 && dma2 <= 7) {
+			ret = request_irq(irq, dt282x_interrupt, 0,
+					  dev->board_name, dev);
+			if (ret == 0) {
+				dev->irq = irq;
+
+				ret = dt282x_grab_dma(dev, dma1, dma2);
+				if (ret < 0) {
+					dt282x_free_dma(dev);
+					free_irq(dev->irq, dev);
+					dev->irq = 0;
+				}
+			}
+		}
 	}
 
 	ret = comedi_alloc_subdevices(dev, 3);
@@ -1323,18 +1326,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dt282x_detach(struct comedi_device *dev)
 {
-	struct dt282x_private *devpriv = dev->private;
-
-	if (dev->private) {
-		if (devpriv->dma[0].chan)
-			free_dma(devpriv->dma[0].chan);
-		if (devpriv->dma[1].chan)
-			free_dma(devpriv->dma[1].chan);
-		if (devpriv->dma[0].buf)
-			free_page((unsigned long)devpriv->dma[0].buf);
-		if (devpriv->dma[1].buf)
-			free_page((unsigned long)devpriv->dma[1].buf);
-	}
+	dt282x_free_dma(dev);
 	comedi_legacy_detach(dev);
 }
 
