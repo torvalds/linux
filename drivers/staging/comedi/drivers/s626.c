@@ -104,6 +104,8 @@ struct s626_private {
 
 /* COUNTER OBJECT ------------------------------------------------ */
 struct s626_enc_info {
+	int chan;
+
 	/* Pointers to functions that differ for A and B counters: */
 	/* Return clock enable. */
 	uint16_t (*get_enable)(struct comedi_device *dev,
@@ -1312,6 +1314,7 @@ static void s626_pulse_index_b(struct comedi_device *dev,
 
 static const struct s626_enc_info s626_enc_chan_info[] = {
 	{
+		.chan			= 0,
 		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
@@ -1327,6 +1330,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_latch_lsw		= S626_LP_CNTR0ALSW,
 		.my_event_bits		= S626_EVBITS(0),
 	}, {
+		.chan			= 1,
 		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
@@ -1342,6 +1346,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_latch_lsw		= S626_LP_CNTR1ALSW,
 		.my_event_bits		= S626_EVBITS(1),
 	}, {
+		.chan			= 2,
 		.get_enable		= s626_get_enable_a,
 		.get_int_src		= s626_get_int_src_a,
 		.get_load_trig		= s626_get_load_trig_a,
@@ -1357,6 +1362,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_latch_lsw		= S626_LP_CNTR2ALSW,
 		.my_event_bits		= S626_EVBITS(2),
 	}, {
+		.chan			= 3,
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
@@ -1372,6 +1378,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_latch_lsw		= S626_LP_CNTR0BLSW,
 		.my_event_bits		= S626_EVBITS(3),
 	}, {
+		.chan			= 4,
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
@@ -1387,6 +1394,7 @@ static const struct s626_enc_info s626_enc_chan_info[] = {
 		.my_latch_lsw		= S626_LP_CNTR1BLSW,
 		.my_event_bits		= S626_EVBITS(4),
 	}, {
+		.chan			= 5,
 		.get_enable		= s626_get_enable_b,
 		.get_int_src		= s626_get_int_src_b,
 		.get_load_trig		= s626_get_load_trig_b,
