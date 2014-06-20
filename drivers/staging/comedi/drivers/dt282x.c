@@ -320,9 +320,9 @@ static const struct dt282x_board boardtypes[] = {
 };
 
 struct dt282x_private {
-	int ad_2scomp;		/* we have 2's comp jumper set  */
-	int da0_2scomp;		/* same, for DAC0               */
-	int da1_2scomp;		/* same, for DAC1               */
+	unsigned int ad_2scomp:1;
+	unsigned int da0_2scomp:1;
+	unsigned int da1_2scomp:1;
 
 	const struct comedi_lrange *darangelist[2];
 
@@ -1270,7 +1270,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = board->ai_maxdata;
 	s->range_table =
 	    opt_ai_range_lkup(board->ispgl, it->options[opt_ai_range]);
-	devpriv->ad_2scomp = it->options[opt_ai_twos];
+	devpriv->ad_2scomp = it->options[opt_ai_twos] ? 1 : 0;
 	if (dev->irq) {
 		dev->read_subdev = s;
 		s->subdev_flags |= SDF_CMD_READ;
@@ -1295,8 +1295,8 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		    opt_ao_range_lkup(it->options[opt_ao0_range]);
 		devpriv->darangelist[1] =
 		    opt_ao_range_lkup(it->options[opt_ao1_range]);
-		devpriv->da0_2scomp = it->options[opt_ao0_twos];
-		devpriv->da1_2scomp = it->options[opt_ao1_twos];
+		devpriv->da0_2scomp = it->options[opt_ao0_twos] ? 1 : 0;
+		devpriv->da1_2scomp = it->options[opt_ao1_twos] ? 1 : 0;
 		if (dev->irq) {
 			dev->write_subdev = s;
 			s->subdev_flags |= SDF_CMD_WRITE;
