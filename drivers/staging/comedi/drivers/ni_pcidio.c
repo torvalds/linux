@@ -1024,7 +1024,7 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	s->async_dma_dir = DMA_BIDIRECTIONAL;
 	s->poll = &ni_pcidio_poll;
 
-	irq = mite_irq(devpriv->mite);
+	irq = pcidev->irq;
 	if (irq) {
 		ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);

@@ -1170,13 +1170,13 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < board->n_chips; ++i)
 		set_tio_counterswap(dev, i);
 
-	ret = request_irq(mite_irq(devpriv->mite), ni_660x_interrupt,
+	ret = request_irq(pcidev->irq, ni_660x_interrupt,
 			  IRQF_SHARED, "ni_660x", dev);
 	if (ret < 0) {
 		dev_warn(dev->class_dev, " irq not available\n");
 		return ret;
 	}
-	dev->irq = mite_irq(devpriv->mite);
+	dev->irq = pcidev->irq;
 	global_interrupt_config_bits = Global_Int_Enable_Bit;
 	if (board->n_chips > 1)
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;

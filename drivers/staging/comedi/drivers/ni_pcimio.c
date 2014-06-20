@@ -1256,7 +1256,7 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 	if (board->reg_type == ni_reg_6143)
 		init_6143(dev);
 
-	irq = mite_irq(devpriv->mite);
+	irq = pcidev->irq;
 	if (irq) {
 		ret = request_irq(irq, ni_E_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);

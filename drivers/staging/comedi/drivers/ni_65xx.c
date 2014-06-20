@@ -596,7 +596,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		return ret;
 	}
 
-	dev->irq = mite_irq(devpriv->mite);
+	dev->irq = pcidev->irq;
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
 	       readb(devpriv->mite->daq_io_addr + ID_Register));
 

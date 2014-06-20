@@ -84,7 +84,7 @@ static int labpc_pci_auto_attach(struct comedi_device *dev,
 		return ret;
 	dev->iobase = (unsigned long)devpriv->mite->daq_io_addr;
 
-	return labpc_common_attach(dev, mite_irq(devpriv->mite), IRQF_SHARED);
+	return labpc_common_attach(dev, pcidev->irq, IRQF_SHARED);
 }
 
 static void labpc_pci_detach(struct comedi_device *dev)
