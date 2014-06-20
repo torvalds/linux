@@ -63,53 +63,6 @@ Efuse_CalculateWordCnts(u8 word_en)
 	return word_cnts;
 }
 
-/*
- * Description:
- * Execute E-Fuse read byte operation.
- * Referred from SD1 Richard.
- * Assumption:
- *		1. Boot from E-Fuse and successfully auto-load.
- *		2. PASSIVE_LEVEL (USB interface)
- * Created by Roger, 2008.10.21.
- */
-void
-ReadEFuseByte(
-		struct adapter *Adapter,
-		u16 _offset,
-		u8 *pbuf,
-		bool pseudo)
-{
-	u32 value32;
-	u8 readbyte;
-	u16 retry;
-
-	/* Write Address */
-	usb_write8(Adapter, EFUSE_CTRL+1, (_offset & 0xff));
-	readbyte = usb_read8(Adapter, EFUSE_CTRL+2);
-	usb_write8(Adapter, EFUSE_CTRL+2, ((_offset >> 8) & 0x03) | (readbyte & 0xfc));
-
-	/* Write bit 32 0 */
-	readbyte = usb_read8(Adapter, EFUSE_CTRL+3);
-	usb_write8(Adapter, EFUSE_CTRL+3, (readbyte & 0x7f));
-
-	/* Check bit 32 read-ready */
-	retry = 0;
-	value32 = usb_read32(Adapter, EFUSE_CTRL);
-	while (!(((value32 >> 24) & 0xff) & 0x80)  && (retry < 10000)) {
-		value32 = usb_read32(Adapter, EFUSE_CTRL);
-		retry++;
-	}
-
-	/*  20100205 Joseph: Add delay suggested by SD1 Victor. */
-	/*  This fix the problem that Efuse read error in high temperature condition. */
-	/*  Designer says that there shall be some delay after ready bit is set, or the */
-	/*  result will always stay on last data we read. */
-	udelay(50);
-	value32 = usb_read32(Adapter, EFUSE_CTRL);
-
-	*pbuf = (u8)(value32 & 0xff);
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	EFUSE_Read1Byte
  *
