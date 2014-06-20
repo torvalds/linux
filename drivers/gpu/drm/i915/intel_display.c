@@ -7341,7 +7341,7 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 	 * gen-specific and since we only disable LCPLL after we fully disable
 	 * the interrupts, the check below should be enough.
 	 */
-	WARN(!dev_priv->pm.irqs_disabled, "IRQs enabled\n");
+	WARN(intel_irqs_enabled(dev_priv), "IRQs enabled\n");
 }
 
 static uint32_t hsw_read_dcomp(struct drm_i915_private *dev_priv)

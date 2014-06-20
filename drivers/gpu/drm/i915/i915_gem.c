@@ -1161,7 +1161,7 @@ static int __wait_seqno(struct intel_engine_cs *ring, u32 seqno,
 	unsigned long timeout_expire;
 	int ret;
 
-	WARN(dev_priv->pm.irqs_disabled, "IRQs disabled\n");
+	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
 
 	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;

@@ -1996,7 +1996,7 @@ static int i915_pc8_status(struct seq_file *m, void *unused)
 
 	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->mm.busy));
 	seq_printf(m, "IRQs disabled: %s\n",
-		   yesno(dev_priv->pm.irqs_disabled));
+		   yesno(!intel_irqs_enabled(dev_priv)));
 
 	return 0;
 }

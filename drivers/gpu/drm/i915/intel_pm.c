@@ -4976,7 +4976,7 @@ void intel_suspend_gt_powersave(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(dev->irq_enabled && !dev_priv->pm.irqs_disabled);
+	WARN_ON(intel_irqs_enabled(dev_priv));
 
 	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
@@ -4991,7 +4991,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* Interrupts should be disabled already to avoid re-arming. */
-	WARN_ON(dev->irq_enabled && !dev_priv->pm.irqs_disabled);
+	WARN_ON(intel_irqs_enabled(dev_priv));
 
 	if (IS_IRONLAKE_M(dev)) {
 		ironlake_disable_drps(dev);
@@ -7069,5 +7069,5 @@ void intel_pm_setup(struct drm_device *dev)
 			  intel_gen6_powersave_work);
 
 	dev_priv->pm.suspended = false;
-	dev_priv->pm.irqs_disabled = false;
+	dev_priv->pm._irqs_disabled = false;
 }

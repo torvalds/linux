@@ -691,10 +691,18 @@ void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
 void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
+{
+	/*
+	 * We only use drm_irq_uninstall() at unload and VT switch, so
+	 * this is the only thing we need to check.
+	 */
+	return !dev_priv->pm._irqs_disabled;
+}
+
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
 void i9xx_check_fifo_underruns(struct drm_device *dev);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
-
 
 /* intel_crt.c */
 void intel_crt_init(struct drm_device *dev);

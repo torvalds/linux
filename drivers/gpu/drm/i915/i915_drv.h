@@ -1339,7 +1339,7 @@ struct ilk_wm_values {
  */
 struct i915_runtime_pm {
 	bool suspended;
-	bool irqs_disabled;
+	bool _irqs_disabled;
 };
 
 enum intel_pipe_crc_source {

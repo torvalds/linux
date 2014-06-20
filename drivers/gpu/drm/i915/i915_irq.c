@@ -136,7 +136,7 @@ ironlake_enable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
 	if ((dev_priv->irq_mask & mask) != 0) {
@@ -151,7 +151,7 @@ ironlake_disable_display_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (dev_priv->pm.irqs_disabled)
+	if (!intel_irqs_enabled(dev_priv))
 		return;
 
 	if ((dev_priv->irq_mask & mask) != mask) {
@@ -173,7 +173,7 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 {
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
 	dev_priv->gt_irq_mask &= ~interrupt_mask;
@@ -206,7 +206,7 @@ static void snb_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
 	new_val = dev_priv->pm_irq_mask;
@@ -264,7 +264,7 @@ static void bdw_update_pm_irq(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
 	new_val = dev_priv->pm_irq_mask;
@@ -420,7 +420,7 @@ static void ibx_display_interrupt_update(struct drm_i915_private *dev_priv,
 
 	assert_spin_locked(&dev_priv->irq_lock);
 
-	if (WARN_ON(dev_priv->pm.irqs_disabled))
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return;
 
 	I915_WRITE(SDEIMR, sdeimr);
@@ -4774,7 +4774,7 @@ void intel_runtime_pm_disable_interrupts(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev->driver->irq_uninstall(dev);
-	dev_priv->pm.irqs_disabled = true;
+	dev_priv->pm._irqs_disabled = true;
 }
 
 /* Restore interrupts so we can recover from runtime PM. */
@@ -4782,7 +4782,7 @@ void intel_runtime_pm_restore_interrupts(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->pm.irqs_disabled = false;
+	dev_priv->pm._irqs_disabled = false;
 	dev->driver->irq_preinstall(dev);
 	dev->driver->irq_postinstall(dev);
 }
