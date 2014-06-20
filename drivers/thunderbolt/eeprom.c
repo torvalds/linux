@@ -233,7 +233,7 @@ struct tb_drom_entry_port {
 /**
  * tb_eeprom_get_drom_offset - get drom offset within eeprom
  */
-int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
+static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 {
 	struct tb_cap_plug_events cap;
 	int res;
