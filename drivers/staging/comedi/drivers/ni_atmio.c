@@ -98,9 +98,6 @@ are not supported.
 #include "ni_stc.h"
 #include "8255.h"
 
-#define ATMIO 1
-#undef PCIMIO
-
 /*
  *  AT specific setup
  */
