@@ -32,28 +32,6 @@
 
 extern void exynos4_secondary_startup(void);
 
-void __iomem *sysram_base_addr;
-void __iomem *sysram_ns_base_addr;
-
-static void __init exynos_smp_prepare_sysram(void)
-{
-	struct device_node *node;
-
-	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram") {
-		if (!of_device_is_available(node))
-			continue;
-		sysram_base_addr = of_iomap(node, 0);
-		break;
-	}
-
-	for_each_compatible_node(node, NULL, "samsung,exynos4210-sysram-ns") {
-		if (!of_device_is_available(node))
-			continue;
-		sysram_ns_base_addr = of_iomap(node, 0);
-		break;
-	}
-}
-
 static inline void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
@@ -234,10 +212,10 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int i;
 
+	exynos_sysram_init();
+
 	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
-
-	exynos_smp_prepare_sysram();
 
 	/*
 	 * Write the address of secondary startup into the
