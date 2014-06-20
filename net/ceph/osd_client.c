@@ -305,6 +305,12 @@ static void ceph_osdc_release_request(struct kref *kref)
 
 	dout("%s %p (r_request %p r_reply %p)\n", __func__, req,
 	     req->r_request, req->r_reply);
+	WARN_ON(!RB_EMPTY_NODE(&req->r_node));
+	WARN_ON(!list_empty(&req->r_req_lru_item));
+	WARN_ON(!list_empty(&req->r_osd_item));
+	WARN_ON(!list_empty(&req->r_linger_item));
+	WARN_ON(!list_empty(&req->r_linger_osd_item));
+	WARN_ON(req->r_osd);
 
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
@@ -1204,6 +1210,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 	rb_erase(&req->r_node, &osdc->requests);
+	RB_CLEAR_NODE(&req->r_node);
 	osdc->num_requests--;
 
 	if (req->r_osd) {
