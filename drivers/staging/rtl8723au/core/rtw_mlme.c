@@ -90,17 +90,6 @@ void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_req_ie,
 			      &pmlmepriv->wps_probe_req_ie_len);
 
-	rtw_free_mlme_ie_data(&pmlmepriv->p2p_beacon_ie,
-			      &pmlmepriv->p2p_beacon_ie_len);
-	rtw_free_mlme_ie_data(&pmlmepriv->p2p_probe_req_ie,
-			      &pmlmepriv->p2p_probe_req_ie_len);
-	rtw_free_mlme_ie_data(&pmlmepriv->p2p_probe_resp_ie,
-			      &pmlmepriv->p2p_probe_resp_ie_len);
-	rtw_free_mlme_ie_data(&pmlmepriv->p2p_go_probe_resp_ie,
-			      &pmlmepriv->p2p_go_probe_resp_ie_len);
-	rtw_free_mlme_ie_data(&pmlmepriv->p2p_assoc_req_ie,
-			      &pmlmepriv->p2p_assoc_req_ie_len);
-
 	rtw_free_mlme_ie_data(&pmlmepriv->wfd_beacon_ie,
 			      &pmlmepriv->wfd_beacon_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wfd_probe_req_ie,

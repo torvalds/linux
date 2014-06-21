@@ -1915,9 +1915,6 @@ void start_ap_mode23a(struct rtw_adapter *padapter)
 	for (i = 0; i<NUM_STA; i++)
 		pstapriv->sta_aid[i] = NULL;
 
-	pmlmepriv->p2p_beacon_ie = NULL;
-	pmlmepriv->p2p_probe_resp_ie = NULL;
-
 	/* for ACL */
 	INIT_LIST_HEAD(&pacl_list->acl_node_q.queue);
 	pacl_list->num = 0;

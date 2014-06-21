@@ -163,16 +163,6 @@ struct mlme_priv {
 	u32 assoc_req_len;
 	u32 assoc_rsp_len;
 	u8 *assoc_rsp;
-	u32 p2p_go_probe_resp_ie_len; /* for GO */
-	u32 p2p_assoc_req_ie_len;
-	u8 *p2p_beacon_ie;
-	u8 *p2p_probe_req_ie;
-	u8 *p2p_probe_resp_ie;
-	u8 *p2p_go_probe_resp_ie; /* for GO */
-	u8 *p2p_assoc_req_ie;
-	u32 p2p_beacon_ie_len;
-	u32 p2p_probe_req_ie_len;
-	u32 p2p_probe_resp_ie_len;
 	u8 *wfd_assoc_req_ie;
 	u32 wfd_assoc_req_ie_len;
 
