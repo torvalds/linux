@@ -1227,60 +1227,9 @@ static void update_bcn_wmm_ie(struct rtw_adapter *padapter)
 
 static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 {
-	const u8 *pwps_ie, *premainder_ie;
-	u8 *pwps_ie_src, *pbackup_remainder_ie = NULL;
-	uint wps_ielen = 0, wps_offset, remainder_ielen;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
-	unsigned char *ie = pnetwork->IEs;
-	u32 ielen = pnetwork->IELength;
-
 	DBG_8723A("%s\n", __func__);
 
-	pwps_ie_src = pmlmepriv->wps_beacon_ie;
-	if (pwps_ie_src == NULL)
-		return;
-
-	pwps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
-					  WLAN_OUI_TYPE_MICROSOFT_WPS,
-					  ie + _FIXED_IE_LENGTH_,
-					  ielen - _FIXED_IE_LENGTH_);
-
-	if (pwps_ie == NULL || pwps_ie[1] == 0)
-		return;
-
-	wps_ielen = pwps_ie[1];
-	wps_offset = (uint)(pwps_ie-ie);
-
-	premainder_ie = pwps_ie + wps_ielen;
-
-	remainder_ielen = ielen - wps_offset - wps_ielen;
-
-	if (remainder_ielen > 0) {
-		pbackup_remainder_ie = kmalloc(remainder_ielen, GFP_ATOMIC);
-		if (pbackup_remainder_ie)
-			memcpy(pbackup_remainder_ie, premainder_ie,
-			       remainder_ielen);
-	}
-
-	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
-	if ((wps_offset+wps_ielen+2+remainder_ielen)<= MAX_IE_SZ)
-	{
-		memcpy(ie + wps_offset, pwps_ie_src, wps_ielen + 2);
-		pwps_ie += (wps_ielen+2);
-
-		if (pbackup_remainder_ie)
-			memcpy(ie + wps_offset + wps_ielen + 2,
-			       pbackup_remainder_ie, remainder_ielen);
-
-		/* update IELength */
-		pnetwork->IELength = wps_offset + (wps_ielen+2) + remainder_ielen;
-	}
-
-	if (pbackup_remainder_ie)
-		kfree(pbackup_remainder_ie);
+	return;
 }
 
 static void update_bcn_p2p_ie(struct rtw_adapter *padapter)
@@ -1966,7 +1915,6 @@ void start_ap_mode23a(struct rtw_adapter *padapter)
 	for (i = 0; i<NUM_STA; i++)
 		pstapriv->sta_aid[i] = NULL;
 
-	pmlmepriv->wps_beacon_ie = NULL;
 	pmlmepriv->wps_probe_resp_ie = NULL;
 	pmlmepriv->wps_assoc_resp_ie = NULL;
 

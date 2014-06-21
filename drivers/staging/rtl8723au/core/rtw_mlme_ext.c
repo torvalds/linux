@@ -1534,31 +1534,6 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 				   "Association Request - possible WPS use\n");
 			pstat->flags |= WLAN_STA_MAYBE_WPS;
 		}
-
-		/*  AP support WPA/RSN, and sta is going to do WPS, but AP
-		    is not ready */
-		/*  that the selected registrar of AP is _FLASE */
-		if (psecuritypriv->wpa_psk > 0 &&
-		    pstat->flags & (WLAN_STA_WPS|WLAN_STA_MAYBE_WPS)) {
-			if (pmlmepriv->wps_beacon_ie) {
-				u8 selected_registrar = 0;
-
-				rtw_get_wps_attr_content23a(
-					pmlmepriv->wps_beacon_ie,
-					pmlmepriv->wps_beacon_ie_len,
-					WPS_ATTR_SELECTED_REGISTRAR,
-					&selected_registrar, NULL);
-
-				if (!selected_registrar) {
-					DBG_8723A("selected_registrar is false,"
-						  "or AP is not ready to do "
-						  "WPS\n");
-
-					status = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
-					goto OnAssocReq23aFail;
-				}
-			}
-		}
 	} else {
 		int copy_len;
 

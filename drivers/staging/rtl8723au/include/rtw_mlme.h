@@ -167,8 +167,6 @@ struct mlme_priv {
 	u8 *wps_assoc_resp_ie;
 	u8 *wps_probe_resp_ie;
 	u32 wps_probe_resp_ie_len;
-	u8 *wps_beacon_ie;
-	u32 wps_beacon_ie_len;
 	u32 p2p_go_probe_resp_ie_len; /* for GO */
 	u32 p2p_assoc_req_ie_len;
 	u8 *p2p_beacon_ie;
