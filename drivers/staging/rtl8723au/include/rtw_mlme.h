@@ -163,8 +163,6 @@ struct mlme_priv {
 	u32 assoc_req_len;
 	u32 assoc_rsp_len;
 	u8 *assoc_rsp;
-	u8 *wfd_assoc_req_ie;
-	u32 wfd_assoc_req_ie_len;
 
 #ifdef CONFIG_8723AU_AP_MODE
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
@@ -197,16 +195,6 @@ struct mlme_priv {
 	u8		update_bcn;
 
 #endif /* ifdef CONFIG_8723AU_AP_MODE */
-
-	u8 *wfd_beacon_ie;
-	u8 *wfd_probe_req_ie;
-	u8 *wfd_probe_resp_ie;
-	u8 *wfd_go_probe_resp_ie; /* for GO */
-
-	u32 wfd_beacon_ie_len;
-	u32 wfd_probe_req_ie_len;
-	u32 wfd_probe_resp_ie_len;
-	u32 wfd_go_probe_resp_ie_len; /* for GO */
 };
 
 void rtw_joinbss_event_prehandle23a(struct rtw_adapter *adapter, u8 *pbuf);

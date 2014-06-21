@@ -24,7 +24,6 @@
 extern unsigned char WMM_OUI23A[];
 extern unsigned char WPS_OUI23A[];
 extern unsigned char P2P_OUI23A[];
-extern unsigned char WFD_OUI23A[];
 
 void init_mlme_ap_info23a(struct rtw_adapter *padapter)
 {
