@@ -1839,7 +1839,6 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	struct i40e_aqc_list_capabilities_element_resp *cap;
 	u32 number, logical_id, phys_id;
 	struct i40e_hw_capabilities *p;
-	u32 reg_val;
 	u32 i = 0;
 	u16 id;
 
@@ -1910,11 +1909,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 			break;
 		case I40E_DEV_FUNC_CAP_RSS:
 			p->rss = true;
-			reg_val = rd32(hw, I40E_PFQF_CTL_0);
-			if (reg_val & I40E_PFQF_CTL_0_HASHLUTSIZE_MASK)
-				p->rss_table_size = number;
-			else
-				p->rss_table_size = 128;
+			p->rss_table_size = number;
 			p->rss_table_entry_width = logical_id;
 			break;
 		case I40E_DEV_FUNC_CAP_RX_QUEUES:

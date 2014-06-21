@@ -84,6 +84,7 @@
 #define I40E_AQ_WORK_LIMIT            16
 #define I40E_MAX_USER_PRIORITY        8
 #define I40E_DEFAULT_MSG_ENABLE       4
+#define I40E_QUEUE_WAIT_RETRY_LIMIT   10
 
 #define I40E_NVM_VERSION_LO_SHIFT  0
 #define I40E_NVM_VERSION_LO_MASK   (0xff << I40E_NVM_VERSION_LO_SHIFT)
@@ -134,6 +135,7 @@ enum i40e_state_t {
 	__I40E_FILTER_OVERFLOW_PROMISC,
 	__I40E_SUSPENDED,
 	__I40E_BAD_EEPROM,
+	__I40E_DOWN_REQUESTED,
 };
 
 enum i40e_interrupt_policy {
@@ -348,6 +350,7 @@ struct i40e_pf {
 	u32 rx_hwtstamp_cleared;
 	bool ptp_tx;
 	bool ptp_rx;
+	u16 rss_table_size;
 };
 
 struct i40e_mac_filter {

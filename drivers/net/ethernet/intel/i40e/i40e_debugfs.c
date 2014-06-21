@@ -1830,7 +1830,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 			ret = i40e_aq_get_lldp_mib(&pf->hw,
 					I40E_AQ_LLDP_BRIDGE_TYPE_NEAREST_BRIDGE,
-					I40E_AQ_LLDP_MIB_LOCAL,
+					I40E_AQ_LLDP_MIB_REMOTE,
 					buff, I40E_LLDPDU_SIZE,
 					&llen, &rlen, NULL);
 			if (ret) {
