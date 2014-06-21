@@ -37,7 +37,6 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/time.h>
-#include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm1.h>
 #include <asm/fs_pd.h>

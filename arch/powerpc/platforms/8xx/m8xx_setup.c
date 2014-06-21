@@ -18,7 +18,6 @@
 #include <linux/fsl_devices.h>
 
 #include <asm/io.h>
-#include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/prom.h>
 #include <asm/fs_pd.h>
