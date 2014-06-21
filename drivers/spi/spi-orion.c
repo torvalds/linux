@@ -382,8 +382,10 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	clk_prepare(spi->clk);
-	clk_enable(spi->clk);
+	status = clk_prepare_enable(spi->clk);
+	if (status)
+		goto out;
+
 	tclk_hz = clk_get_rate(spi->clk);
 	master->max_speed_hz = DIV_ROUND_UP(tclk_hz, 4);
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, 30);
