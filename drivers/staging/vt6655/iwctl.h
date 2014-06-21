@@ -161,16 +161,6 @@ int iwctl_giwpower(struct net_device *dev,
 		   struct iw_param *wrq,
 		   char *extra);
 
-int iwctl_giwscan(struct net_device *dev,
-		  struct iw_request_info *info,
-		  struct iw_point *wrq,
-		  char *extra);
-
-int iwctl_siwscan(struct net_device *dev,
-		  struct iw_request_info *info,
-		  struct iw_point *wrq,
-		  char *extra);
-
 //2008-0409-07, <Add> by Einsn Liu
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 int iwctl_siwauth(struct net_device *dev,
