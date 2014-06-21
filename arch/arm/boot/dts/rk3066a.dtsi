@@ -17,7 +17,6 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/clock/rk3066a-cru.h>
 #include "rk3xxx.dtsi"
-#include "rk3066a-clocks.dtsi"
 
 / {
 	compatible = "rockchip,rk3066a";
