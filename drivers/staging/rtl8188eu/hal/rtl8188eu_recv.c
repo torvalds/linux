@@ -23,7 +23,7 @@
 #include <recv_osdep.h>
 #include <mlme_osdep.h>
 
-#include <usb_ops.h>
+#include <usb_ops_linux.h>
 #include <wifi.h>
 
 #include <rtl8188e_hal.h>

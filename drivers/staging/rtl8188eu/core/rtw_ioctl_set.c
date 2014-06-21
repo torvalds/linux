@@ -26,7 +26,6 @@
 #include <hal_intf.h>
 
 #include <usb_osintf.h>
-#include <usb_ops.h>
 
 extern void indicate_wx_scan_complete_event(struct adapter *padapter);
 

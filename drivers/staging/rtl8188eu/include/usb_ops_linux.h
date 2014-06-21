@@ -29,6 +29,16 @@
 
 #define RTW_USB_BULKOUT_TIME	5000/* ms */
 
+#define REALTEK_USB_VENQT_READ		0xC0
+#define REALTEK_USB_VENQT_WRITE		0x40
+
+#define ALIGNMENT_UNIT			16
+#define MAX_VENDOR_REQ_CMD_SIZE	254	/* 8188cu SIE Support */
+#define MAX_USB_IO_CTL_SIZE	(MAX_VENDOR_REQ_CMD_SIZE + ALIGNMENT_UNIT)
+
+#define USB_HIGH_SPEED_BULK_SIZE	512
+#define USB_FULL_SPEED_BULK_SIZE	64
+
 #define _usbctrl_vendorreq_async_callback(urb, regs)	\
 	_usbctrl_vendorreq_async_callback(urb)
 #define usb_bulkout_zero_complete(purb, regs)		\
@@ -41,6 +51,21 @@
 	usb_read_port_complete(purb)
 #define usb_read_interrupt_complete(purb, regs)		\
 	usb_read_interrupt_complete(purb)
+
+static inline u8 rtw_usb_bulk_size_boundary(struct adapter *padapter,
+					    int buf_len)
+{
+	u8 rst = true;
+	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
+
+	if (pdvobjpriv->ishighspeed)
+		rst = (0 == (buf_len) % USB_HIGH_SPEED_BULK_SIZE) ?
+		      true : false;
+	else
+		rst = (0 == (buf_len) % USB_FULL_SPEED_BULK_SIZE) ?
+		      true : false;
+	return rst;
+}
 
 unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr);
 

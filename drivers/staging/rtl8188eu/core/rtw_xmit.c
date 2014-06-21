@@ -23,7 +23,6 @@
 #include <drv_types.h>
 #include <wifi.h>
 #include <osdep_intf.h>
-#include <usb_ops.h>
 #include <usb_osintf.h>
 #include <linux/vmalloc.h>
 

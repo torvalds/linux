@@ -22,7 +22,7 @@
 #include <drv_types.h>
 #include <wifi.h>
 #include <osdep_intf.h>
-#include <usb_ops.h>
+#include <usb_ops_linux.h>
 #include <rtl8188e_hal.h>
 
 s32	rtl8188eu_init_xmit_priv(struct adapter *adapt)

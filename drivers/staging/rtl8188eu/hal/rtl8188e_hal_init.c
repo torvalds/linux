@@ -28,8 +28,6 @@
 
 #include <rtw_iol.h>
 
-#include <usb_ops.h>
-
 void iol_mode_enable(struct adapter *padapter, u8 enable)
 {
 	u8 reg_0xf0 = 0;

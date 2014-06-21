@@ -19,7 +19,6 @@
 #define _USB_OPS_LINUX_C_
 
 #include <drv_types.h>
-#include <usb_ops.h>
 #include <recv_osdep.h>
 #include <rtw_sreset.h>
 

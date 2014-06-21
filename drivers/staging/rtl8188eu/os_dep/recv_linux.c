@@ -26,7 +26,7 @@
 #include <recv_osdep.h>
 
 #include <osdep_intf.h>
-#include <usb_ops.h>
+#include <usb_ops_linux.h>
 
 /* alloc os related resource in struct recv_frame */
 int rtw_os_recv_resource_alloc(struct adapter *padapter,
