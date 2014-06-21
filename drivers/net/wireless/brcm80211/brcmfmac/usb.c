@@ -929,6 +929,7 @@ static bool brcmf_usb_chip_support(int chipid, int chiprev)
 		return (chiprev == 3);
 	case 43242:
 		return true;
+	case 43566:
 	case 43569:
 		return true;
 	default:
@@ -1031,6 +1032,7 @@ static const char *brcmf_usb_get_fwname(struct brcmf_usbdev_info *devinfo)
 		return BRCMF_USB_43236_FW_NAME;
 	case 43242:
 		return BRCMF_USB_43242_FW_NAME;
+	case 43566:
 	case 43569:
 		return BRCMF_USB_43569_FW_NAME;
 	default:
