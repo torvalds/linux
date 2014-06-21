@@ -121,8 +121,6 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 	if (!pdvobjpriv->usb_vendor_req_buf)
 		goto free_dvobj;
 
-	rtw_reset_continual_urb_error(pdvobjpriv);
-
 	usb_get_dev(pusbd);
 
 	status = _SUCCESS;

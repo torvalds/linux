@@ -34,14 +34,6 @@
 
 #include <usb_ops_linux.h>
 
-/*
-* Set the continual_urb_error of this @param dvobjprive to 0
-*/
-static inline void rtw_reset_continual_urb_error(struct dvobj_priv *dvobj)
-{
-	atomic_set(&dvobj->continual_urb_error, 0);
-}
-
 #define USB_HIGH_SPEED_BULK_SIZE	512
 #define USB_FULL_SPEED_BULK_SIZE	64
 
