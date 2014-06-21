@@ -338,7 +338,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 	int err;
 
 	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
-		page = new_inode_page(inode, name);
+		page = new_inode_page(inode);
 		if (IS_ERR(page))
 			return page;
 
