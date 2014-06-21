@@ -464,7 +464,6 @@ exit:
 int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 		       struct wlan_network *pnetwork)
 {
-	u8 *auth;
 	int res = _SUCCESS;
 	struct wlan_bssid_ex *psecnetwork;
 	struct cmd_obj *pcmd;
@@ -531,18 +530,6 @@ int rtw_joinbss_cmd23a(struct rtw_adapter *padapter,
 
 	memcpy(psecnetwork, &pnetwork->network,
 	       get_wlan_bssid_ex_sz(&pnetwork->network));
-
-	auth = &psecuritypriv->authenticator_ie[0];
-	psecuritypriv->authenticator_ie[0] =
-		(unsigned char)psecnetwork->IELength;
-
-	if ((psecnetwork->IELength-12) < (256-1)) {
-		memcpy(&psecuritypriv->authenticator_ie[1],
-		       &psecnetwork->IEs[12], psecnetwork->IELength - 12);
-	} else {
-		memcpy(&psecuritypriv->authenticator_ie[1],
-		       &psecnetwork->IEs[12], 256 - 1);
-	}
 
 	psecnetwork->IELength = 0;
 	/*  Added by Albert 2009/02/18 */
