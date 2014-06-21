@@ -2592,7 +2592,8 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 						  cur_network->IELength -
 						  _FIXED_IE_LENGTH_);
 
-		memcpy(pframe, cur_network->IEs, cur_network->IELength);
+		memcpy(pframe, cur_network->IEs + _FIXED_IE_LENGTH_,
+		       cur_network->IELength - _FIXED_IE_LENGTH_);
 		pframe += cur_network->IELength;
 		pattrib->pktlen += cur_network->IELength;
 
