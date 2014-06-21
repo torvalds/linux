@@ -2528,7 +2528,6 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	int ssid_ielen;
 	int ssid_ielen_diff;
 	u8 buf[MAX_IE_SZ];
-	u8 *ies;
 #endif
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -2598,12 +2597,10 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 		pattrib->pktlen += cur_network->IELength;
 
 		/* retrieve SSID IE from cur_network->Ssid */
-		ies = pmgntframe->buf_addr + TXDESC_OFFSET +
-			sizeof(struct ieee80211_hdr_3addr);
 
-		ssid_ie = rtw_get_ie23a(ies + _FIXED_IE_LENGTH_, WLAN_EID_SSID,
-					&ssid_ielen,
-					pframe - ies - _FIXED_IE_LENGTH_);
+		ssid_ie = rtw_get_ie23a(mgmt->u.probe_resp.variable,
+					WLAN_EID_SSID, &ssid_ielen,
+					pframe - mgmt->u.probe_resp.variable);
 
 		ssid_ielen_diff = cur_network->Ssid.ssid_len - ssid_ielen;
 
