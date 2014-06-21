@@ -23,8 +23,13 @@
 		"google,pi", "google,peach", "samsung,exynos5800",
 		"samsung,exynos5";
 
-	memory {
-		reg = <0x20000000 0x80000000>;
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 1000000 0>;
+		brightness-levels = <0 100 500 1000 1500 2000 2500 2800>;
+		default-brightness-level = <7>;
+		pinctrl-0 = <&pwm0_out>;
+		pinctrl-names = "default";
 	};
 
 	fixed-rate-clocks {
@@ -48,13 +53,8 @@
 		};
 	};
 
-	backlight {
-		compatible = "pwm-backlight";
-		pwms = <&pwm 0 1000000 0>;
-		brightness-levels = <0 100 500 1000 1500 2000 2500 2800>;
-		default-brightness-level = <7>;
-		pinctrl-0 = <&pwm0_out>;
-		pinctrl-names = "default";
+	memory {
+		reg = <0x20000000 0x80000000>;
 	};
 
 	sound {
@@ -86,6 +86,126 @@
 		enable-active-high;
 	};
 };
+
+&dp {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dp_hpd_gpio>;
+	samsung,color-space = <0>;
+	samsung,dynamic-range = <0>;
+	samsung,ycbcr-coeff = <0>;
+	samsung,color-depth = <1>;
+	samsung,link-rate = <0x0a>;
+	samsung,lane-count = <2>;
+	samsung,hpd-gpio = <&gpx2 6 0>;
+
+	display-timings {
+		native-mode = <&timing1>;
+
+		timing1: timing@1 {
+			clock-frequency = <150660000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <60>;
+			hback-porch = <172>;
+			hsync-len = <80>;
+			vback-porch = <25>;
+			vfront-porch = <10>;
+			vsync-len = <10>;
+		};
+	};
+};
+
+&fimd {
+	status = "okay";
+	samsung,invert-vclk;
+};
+
+&hdmi {
+	status = "okay";
+	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_hpd_irq>;
+	ddc = <&i2c_2>;
+};
+
+&hsi2c_7 {
+	status = "okay";
+
+	max98091: codec@10 {
+		compatible = "maxim,max98091";
+		reg = <0x10>;
+		interrupts = <2 0>;
+		interrupt-parent = <&gpx0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max98091_irq>;
+	};
+};
+
+&hsi2c_9 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tpm@20 {
+		compatible = "infineon,slb9645tt";
+		reg = <0x20>;
+
+		/* Unused irq; but still need to configure the pins */
+		pinctrl-names = "default";
+		pinctrl-0 = <&tpm_irq>;
+	};
+};
+
+&i2c_2 {
+	status = "okay";
+	samsung,i2c-sda-delay = <100>;
+	samsung,i2c-max-bus-freq = <66000>;
+	samsung,i2c-slave-addr = <0x50>;
+};
+
+&i2s0 {
+	status = "okay";
+};
+
+&mmc_0 {
+	status = "okay";
+	num-slots = <1>;
+	broken-cd;
+	caps2-mmc-hs200-1_8v;
+	supports-highspeed;
+	non-removable;
+	card-detect-delay = <200>;
+	clock-frequency = <400000000>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <8>;
+	};
+};
+
+&mmc_2 {
+	status = "okay";
+	num-slots = <1>;
+	supports-highspeed;
+	card-detect-delay = <200>;
+	clock-frequency = <400000000>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <2 3>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+	};
+};
+
 
 &pinctrl_0 {
 	max98091_irq: max98091-irq {
@@ -148,120 +268,6 @@
 	status = "okay";
 };
 
-&mmc_0 {
-	status = "okay";
-	num-slots = <1>;
-	broken-cd;
-	caps2-mmc-hs200-1_8v;
-	supports-highspeed;
-	non-removable;
-	card-detect-delay = <200>;
-	clock-frequency = <400000000>;
-	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <0 4>;
-	samsung,dw-mshc-ddr-timing = <0 2>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <8>;
-	};
-};
-
-&mmc_2 {
-	status = "okay";
-	num-slots = <1>;
-	supports-highspeed;
-	card-detect-delay = <200>;
-	clock-frequency = <400000000>;
-	samsung,dw-mshc-ciu-div = <3>;
-	samsung,dw-mshc-sdr-timing = <2 3>;
-	samsung,dw-mshc-ddr-timing = <1 2>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
-
-	slot@0 {
-		reg = <0>;
-		bus-width = <4>;
-	};
-};
-
-&dp {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&dp_hpd_gpio>;
-	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
-	samsung,color-depth = <1>;
-	samsung,link-rate = <0x0a>;
-	samsung,lane-count = <2>;
-	samsung,hpd-gpio = <&gpx2 6 0>;
-
-	display-timings {
-		native-mode = <&timing1>;
-
-		timing1: timing@1 {
-			clock-frequency = <150660000>;
-			hactive = <1920>;
-			vactive = <1080>;
-			hfront-porch = <60>;
-			hback-porch = <172>;
-			hsync-len = <80>;
-			vback-porch = <25>;
-			vfront-porch = <10>;
-			vsync-len = <10>;
-		};
-	};
-};
-
-&fimd {
-	status = "okay";
-	samsung,invert-vclk;
-};
-
-&hsi2c_7 {
-	status = "okay";
-
-	max98091: codec@10 {
-		compatible = "maxim,max98091";
-		reg = <0x10>;
-		interrupts = <2 0>;
-		interrupt-parent = <&gpx0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&max98091_irq>;
-	};
-};
-
-&hsi2c_9 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	tpm@20 {
-		compatible = "infineon,slb9645tt";
-		reg = <0x20>;
-		/* Unused irq; but still need to configure the pins */
-		pinctrl-names = "default";
-		pinctrl-0 = <&tpm_irq>;
-	};
-};
-
-&i2c_2 {
-	status = "okay";
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <66000>;
-	samsung,i2c-slave-addr = <0x50>;
-};
-
-&hdmi {
-	status = "okay";
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&hdmi_hpd_irq>;
-	ddc = <&i2c_2>;
-};
-
 &usbdrd_phy0 {
 	vbus-supply = <&usb300_vbus_reg>;
 };
@@ -279,6 +285,3 @@
 	timeout-sec = <32>;
 };
 
-&i2s0 {
-	status = "okay";
-};
