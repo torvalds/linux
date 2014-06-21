@@ -300,11 +300,6 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 				}
 			}
 
-			if (rtw_inc_and_chk_continual_urb_error(dvobjpriv)) {
-				adapt->bSurpriseRemoved = true;
-				break;
-			}
-
 		}
 
 		/*  firmware download is checksumed, don't retry */
@@ -432,15 +427,12 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 		skb_put(precvbuf->pskb, purb->actual_length);
 		precvbuf->pskb = NULL;
 
-		if (rtw_inc_and_chk_continual_urb_error(adapter_to_dvobj(adapt)))
-			adapt->bSurpriseRemoved = true;
-
 		switch (purb->status) {
 		case -EINVAL:
 		case -EPIPE:
 		case -ENODEV:
 		case -ESHUTDOWN:
-			RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete:bSurpriseRemoved=true\n"));
+			adapt->bSurpriseRemoved = true;
 		case -ENOENT:
 			adapt->bDriverStopped = true;
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("usb_read_port_complete:bDriverStopped=true\n"));
