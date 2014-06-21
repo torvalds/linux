@@ -55,6 +55,7 @@
 #define BRCMF_USB_43143_FW_NAME	"brcm/brcmfmac43143.bin"
 #define BRCMF_USB_43236_FW_NAME	"brcm/brcmfmac43236b.bin"
 #define BRCMF_USB_43242_FW_NAME	"brcm/brcmfmac43242a.bin"
+#define BRCMF_USB_43569_FW_NAME	"brcm/brcmfmac43569.bin"
 
 struct brcmf_usb_image {
 	struct list_head list;
@@ -928,6 +929,8 @@ static bool brcmf_usb_chip_support(int chipid, int chiprev)
 		return (chiprev == 3);
 	case 43242:
 		return true;
+	case 43569:
+		return true;
 	default:
 		break;
 	}
@@ -1028,6 +1031,8 @@ static const char *brcmf_usb_get_fwname(struct brcmf_usbdev_info *devinfo)
 		return BRCMF_USB_43236_FW_NAME;
 	case 43242:
 		return BRCMF_USB_43242_FW_NAME;
+	case 43569:
+		return BRCMF_USB_43569_FW_NAME;
 	default:
 		return NULL;
 	}
@@ -1229,7 +1234,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	u8 endpoint_num;
 	struct brcmf_usbdev_info *devinfo;
 
-	brcmf_dbg(USB, "Enter\n");
+	brcmf_dbg(USB, "Enter 0x%04x:0x%04x\n", id->idVendor, id->idProduct);
 
 	devinfo = kzalloc(sizeof(*devinfo), GFP_ATOMIC);
 	if (devinfo == NULL)
@@ -1392,12 +1397,14 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 #define BRCMF_USB_DEVICE_ID_43143	0xbd1e
 #define BRCMF_USB_DEVICE_ID_43236	0xbd17
 #define BRCMF_USB_DEVICE_ID_43242	0xbd1f
+#define BRCMF_USB_DEVICE_ID_43569	0xbd27
 #define BRCMF_USB_DEVICE_ID_BCMFW	0x0bdc
 
 static struct usb_device_id brcmf_usb_devid_table[] = {
 	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43143) },
 	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43236) },
 	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43242) },
+	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_43569) },
 	/* special entry for device with firmware loaded and running */
 	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_BCMFW) },
 	{ }
@@ -1407,6 +1414,7 @@ MODULE_DEVICE_TABLE(usb, brcmf_usb_devid_table);
 MODULE_FIRMWARE(BRCMF_USB_43143_FW_NAME);
 MODULE_FIRMWARE(BRCMF_USB_43236_FW_NAME);
 MODULE_FIRMWARE(BRCMF_USB_43242_FW_NAME);
+MODULE_FIRMWARE(BRCMF_USB_43569_FW_NAME);
 
 static struct usb_driver brcmf_usbdrvr = {
 	.name = KBUILD_MODNAME,
