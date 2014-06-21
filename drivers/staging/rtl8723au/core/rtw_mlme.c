@@ -91,8 +91,6 @@ void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv)
 			      &pmlmepriv->wps_probe_req_ie_len);
 	rtw_free_mlme_ie_data(&pmlmepriv->wps_probe_resp_ie,
 			      &pmlmepriv->wps_probe_resp_ie_len);
-	rtw_free_mlme_ie_data(&pmlmepriv->wps_assoc_resp_ie,
-			      &pmlmepriv->wps_assoc_resp_ie_len);
 
 	rtw_free_mlme_ie_data(&pmlmepriv->p2p_beacon_ie,
 			      &pmlmepriv->p2p_beacon_ie_len);

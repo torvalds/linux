@@ -1916,7 +1916,6 @@ void start_ap_mode23a(struct rtw_adapter *padapter)
 		pstapriv->sta_aid[i] = NULL;
 
 	pmlmepriv->wps_probe_resp_ie = NULL;
-	pmlmepriv->wps_assoc_resp_ie = NULL;
 
 	pmlmepriv->p2p_beacon_ie = NULL;
 	pmlmepriv->p2p_probe_resp_ie = NULL;

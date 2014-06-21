@@ -3137,16 +3137,6 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 				       REALTEK_96B_IE, &pattrib->pktlen);
 	}
 
-	/* add WPS IE ie for wps 2.0 */
-	if (pmlmepriv->wps_assoc_resp_ie &&
-	    pmlmepriv->wps_assoc_resp_ie_len > 0) {
-		memcpy(pframe, pmlmepriv->wps_assoc_resp_ie,
-		       pmlmepriv->wps_assoc_resp_ie_len);
-
-		pframe += pmlmepriv->wps_assoc_resp_ie_len;
-		pattrib->pktlen += pmlmepriv->wps_assoc_resp_ie_len;
-	}
-
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
 	dump_mgntframe23a(padapter, pmgntframe);
