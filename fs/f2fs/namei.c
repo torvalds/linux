@@ -493,7 +493,6 @@ static int f2fs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	struct super_block *sb = dir->i_sb;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
-	struct page *page;
 	int err;
 
 	inode = f2fs_new_inode(dir, mode);
@@ -508,38 +507,25 @@ static int f2fs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 	err = acquire_orphan_inode(sbi);
 	if (err)
 		goto out;
+
+	err = f2fs_do_tmpfile(inode, dir);
+	if (err)
+		goto release_out;
+
 	/*
 	 * add this non-linked tmpfile to orphan list, in this way we could
 	 * remove all unused data of tmpfile after abnormal power-off.
 	 */
 	add_orphan_inode(sbi, inode->i_ino);
-
-	page = new_inode_page(inode, NULL);
-	if (IS_ERR(page)) {
-		err = PTR_ERR(page);
-		goto remove_out;
-	}
-
-	err = f2fs_init_acl(inode, dir, page);
-	if (err)
-		goto unlock_out;
-
-	err = f2fs_init_security(inode, dir, NULL, page);
-	if (err)
-		goto unlock_out;
-
-	f2fs_put_page(page, 1);
 	f2fs_unlock_op(sbi);
 
 	alloc_nid_done(sbi, inode->i_ino);
-	mark_inode_dirty(inode);
 	d_tmpfile(dentry, inode);
 	unlock_new_inode(inode);
 	return 0;
-unlock_out:
-	f2fs_put_page(page, 1);
-remove_out:
-	remove_orphan_inode(sbi, inode->i_ino);
+
+release_out:
+	release_orphan_inode(sbi);
 out:
 	f2fs_unlock_op(sbi);
 	clear_nlink(inode);

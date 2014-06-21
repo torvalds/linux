@@ -337,8 +337,7 @@ static struct page *init_inode_metadata(struct inode *inode,
 	struct page *page;
 	int err;
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE) &&
-			inode->i_nlink) {
+	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
 		page = new_inode_page(inode, name);
 		if (IS_ERR(page))
 			return page;
@@ -364,7 +363,8 @@ static struct page *init_inode_metadata(struct inode *inode,
 		set_cold_node(inode, page);
 	}
 
-	init_dent_inode(name, page);
+	if (name)
+		init_dent_inode(name, page);
 
 	/*
 	 * This file should be checkpointed during fsync.
@@ -534,6 +534,27 @@ fail:
 	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
+	return err;
+}
+
+int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
+{
+	struct page *page;
+	int err = 0;
+
+	down_write(&F2FS_I(inode)->i_sem);
+	page = init_inode_metadata(inode, dir, NULL);
+	if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+		goto fail;
+	}
+	/* we don't need to mark_inode_dirty now */
+	update_inode(inode, page);
+	f2fs_put_page(page, 1);
+
+	clear_inode_flag(F2FS_I(inode), FI_NEW_INODE);
+fail:
+	up_write(&F2FS_I(inode)->i_sem);
 	return err;
 }
 
