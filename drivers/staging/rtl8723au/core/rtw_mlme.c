@@ -2031,7 +2031,7 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 		authmode = WLAN_EID_VENDOR_SPECIFIC;
 	if (ndisauthmode == Ndis802_11AuthModeWPA2 ||
 	    ndisauthmode == Ndis802_11AuthModeWPA2PSK)
-		authmode = _WPA2_IE_ID_;
+		authmode = WLAN_EID_RSN;
 
 	if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS)) {
 		memcpy(out_ie + ielength, psecuritypriv->wps_ie,
@@ -2039,7 +2039,7 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 
 		ielength += psecuritypriv->wps_ie_len;
 	} else if (authmode == WLAN_EID_VENDOR_SPECIFIC ||
-		   authmode == _WPA2_IE_ID_) {
+		   authmode == WLAN_EID_RSN) {
 		/* copy RSN or SSN */
 		memcpy(&out_ie[ielength], &psecuritypriv->supplicant_ie[0],
 		       psecuritypriv->supplicant_ie[1] + 2);
@@ -2050,7 +2050,7 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 	if (iEntry < 0)
 		return ielength;
 	else {
-		if (authmode == _WPA2_IE_ID_)
+		if (authmode == WLAN_EID_RSN)
 			ielength = rtw_append_pmkid(adapter, iEntry,
 						    out_ie, ielength);
 	}
