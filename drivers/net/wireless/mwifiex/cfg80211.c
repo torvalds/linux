@@ -121,6 +121,7 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
 	u8 addr[ETH_ALEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	u16 pkt_len;
 	u32 tx_control = 0, pkt_type = PKT_TYPE_MGMT;
+	struct timeval tv;
 
 	pkt_len = len + ETH_ALEN;
 
@@ -142,7 +143,8 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
 	       len - sizeof(struct ieee80211_hdr_3addr));
 
 	skb->priority = LOW_PRIO_TID;
-	__net_timestamp(skb);
+	do_gettimeofday(&tv);
+	skb->tstamp = timeval_to_ktime(tv);
 
 	return 0;
 }

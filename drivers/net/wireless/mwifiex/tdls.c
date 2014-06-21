@@ -530,6 +530,7 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 {
 	struct sk_buff *skb;
 	struct mwifiex_txinfo *tx_info;
+	struct timeval tv;
 	int ret;
 	u16 skb_len;
 
@@ -607,7 +608,8 @@ int mwifiex_send_tdls_data_frame(struct mwifiex_private *priv, const u8 *peer,
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
 
-	__net_timestamp(skb);
+	do_gettimeofday(&tv);
+	skb->tstamp = timeval_to_ktime(tv);
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
@@ -700,6 +702,7 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
 {
 	struct sk_buff *skb;
 	struct mwifiex_txinfo *tx_info;
+	struct timeval tv;
 	u8 *pos;
 	u32 pkt_type, tx_control;
 	u16 pkt_len, skb_len;
@@ -764,7 +767,8 @@ int mwifiex_send_tdls_action_frame(struct mwifiex_private *priv, const u8 *peer,
 	pkt_len = skb->len - MWIFIEX_MGMT_FRAME_HEADER_SIZE - sizeof(pkt_len);
 	memcpy(skb->data + MWIFIEX_MGMT_FRAME_HEADER_SIZE, &pkt_len,
 	       sizeof(pkt_len));
-	__net_timestamp(skb);
+	do_gettimeofday(&tv);
+	skb->tstamp = timeval_to_ktime(tv);
 	mwifiex_queue_tx_pkt(priv, skb);
 
 	return 0;
