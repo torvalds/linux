@@ -602,6 +602,11 @@ hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base, int skip_equal)
  * timers, we have to check, whether it expires earlier than the timer for
  * which the clock event device was armed.
  *
+ * Note, that in case the state has HRTIMER_STATE_CALLBACK set, no reprogramming
+ * and no expiry check happens. The timer gets enqueued into the rbtree. The
+ * reprogramming and expiry check is done in the hrtimer_interrupt or in the
+ * softirq.
+ *
  * Called with interrupts disabled and base->cpu_base.lock held
  */
 static int hrtimer_reprogram(struct hrtimer *timer,
@@ -660,18 +665,6 @@ static inline void hrtimer_init_hres(struct hrtimer_cpu_base *base)
 {
 	base->expires_next.tv64 = KTIME_MAX;
 	base->hres_active = 0;
-}
-
-/*
- * When High resolution timers are active, try to reprogram. Note, that in case
- * the state has HRTIMER_STATE_CALLBACK set, no reprogramming and no expiry
- * check happens. The timer gets enqueued into the rbtree. The reprogramming
- * and expiry check is done in the hrtimer_interrupt or in the softirq.
- */
-static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
-					    struct hrtimer_clock_base *base)
-{
-	return base->cpu_base->hres_active && hrtimer_reprogram(timer, base);
 }
 
 static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
@@ -755,8 +748,8 @@ static inline int hrtimer_is_hres_enabled(void) { return 0; }
 static inline int hrtimer_switch_to_hres(void) { return 0; }
 static inline void
 hrtimer_force_reprogram(struct hrtimer_cpu_base *base, int skip_equal) { }
-static inline int hrtimer_enqueue_reprogram(struct hrtimer *timer,
-					    struct hrtimer_clock_base *base)
+static inline int hrtimer_reprogram(struct hrtimer *timer,
+				    struct hrtimer_clock_base *base)
 {
 	return 0;
 }
@@ -1025,7 +1018,7 @@ int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 		 */
 		wake_up_nohz_cpu(new_base->cpu_base->cpu);
 	} else if (new_base->cpu_base == &__get_cpu_var(hrtimer_bases) &&
-			hrtimer_enqueue_reprogram(timer, new_base)) {
+			hrtimer_reprogram(timer, new_base)) {
 		/*
 		 * Only allow reprogramming if the new base is on this CPU.
 		 * (it might still be on another CPU if the timer was pending)
