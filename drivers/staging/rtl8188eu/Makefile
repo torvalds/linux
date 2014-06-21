@@ -46,7 +46,6 @@ r8188eu-y :=				\
 		hal/rtl8188eu_recv.o	\
 		hal/rtl8188eu_xmit.o	\
 		hal/usb_halinit.o	\
-		hal/usb_ops_linux.o	\
 		os_dep/ioctl_linux.o	\
 		os_dep/mlme_linux.o	\
 		os_dep/os_intfs.o	\
