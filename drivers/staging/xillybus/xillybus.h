@@ -25,31 +25,10 @@
 
 struct xilly_endpoint_hardware;
 
-struct xilly_page {
-	struct list_head node;
-	unsigned long addr;
-	unsigned int order;
-};
-
-struct xilly_dma {
-	struct list_head node;
-	struct pci_dev *pdev;
-	struct device *dev;
-	dma_addr_t dma_addr;
-	size_t size;
-	int direction;
-};
-
 struct xilly_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	int end_offset; /* Counting elements, not bytes */
-};
-
-struct xilly_cleanup {
-	struct list_head to_kfree;
-	struct list_head to_pagefree;
-	struct list_head to_unmap;
 };
 
 struct xilly_idt_handle {
@@ -126,9 +105,6 @@ struct xilly_endpoint {
 	struct mutex register_mutex;
 	wait_queue_head_t ep_wait;
 
-	/* List of memory allocations, to make release easy */
-	struct xilly_cleanup cleanup;
-
 	/* Channels and message handling */
 	struct cdev cdev;
 
@@ -156,18 +132,22 @@ struct xilly_endpoint_hardware {
 				       dma_addr_t,
 				       size_t,
 				       int);
-	dma_addr_t (*map_single)(struct xilly_cleanup *,
-				 struct xilly_endpoint *,
-				 void *,
-				 size_t,
-				 int);
-	void (*unmap_single)(struct xilly_dma *entry);
+	int (*map_single)(struct xilly_endpoint *,
+			  void *,
+			  size_t,
+			  int,
+			  dma_addr_t *);
 };
 
-irqreturn_t xillybus_isr(int irq, void *data);
+struct xilly_mapping {
+	void *device;
+	dma_addr_t dma_addr;
+	size_t size;
+	int direction;
+};
 
-void xillybus_do_cleanup(struct xilly_cleanup *mem,
-			 struct xilly_endpoint *endpoint);
+
+irqreturn_t xillybus_isr(int irq, void *data);
 
 struct xilly_endpoint *xillybus_init_endpoint(struct pci_dev *pdev,
 					      struct device *dev,
