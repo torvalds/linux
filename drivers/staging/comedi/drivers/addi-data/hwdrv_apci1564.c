@@ -90,8 +90,7 @@
 #define APCI1564_TCW_WARN_TIMEBASE_REG(x)		(0x1c + ((x) * 0x20))
 
 /* Global variables */
-static unsigned int ui_InterruptStatus_1564;
-static unsigned int ui_InterruptData, ui_Type;
+static unsigned int ui_Type;
 
 /*
  * Configures the digital input Subdevice
@@ -160,7 +159,6 @@ static int apci1564_do_config(struct comedi_device *dev,
 		ul_Command = ul_Command & 0xFFFFFFFD;
 
 	outl(ul_Command, devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
-	ui_InterruptData = inl(devpriv->i_IobaseAmcc + APCI1564_DO_INT_CTRL_REG);
 	devpriv->tsk_Current = current;
 	return insn->n;
 }
@@ -428,9 +426,6 @@ static void apci1564_interrupt(int irq, void *d)
 	if (ui_DI == 1) {
 		ui_DI = inl(devpriv->i_IobaseAmcc + APCI1564_DI_IRQ_REG);
 		outl(0x0, devpriv->i_IobaseAmcc + APCI1564_DI_IRQ_REG);
-		ui_InterruptStatus_1564 =
-			inl(devpriv->i_IobaseAmcc + APCI1564_DI_INT_STATUS_REG);
-		ui_InterruptStatus_1564 = ui_InterruptStatus_1564 & 0X000FFFF0;
 		/* send signal to the sample */
 		send_sig(SIGIO, devpriv->tsk_Current, 0);
 		/* enable the interrupt */
