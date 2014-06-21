@@ -621,6 +621,11 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 
 			memcpy(pmlmepriv->cur_network.network.IEs,
 			       pnetwork->IEs, 8);
+			pmlmepriv->cur_network.network.beacon_interval =
+				pnetwork->beacon_interval;
+			pmlmepriv->cur_network.network.capability =
+				pnetwork->capability;
+			pmlmepriv->cur_network.network.tsf = pnetwork->tsf;
 			spin_lock_bh(&pmlmepriv->scanned_queue.lock);
 			ibss_wlan = rtw_find_network23a(
 				&pmlmepriv->scanned_queue,
@@ -628,6 +633,12 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 			if (ibss_wlan) {
 				memcpy(ibss_wlan->network.IEs,
 				       pnetwork->IEs, 8);
+				pmlmepriv->cur_network.network.beacon_interval =
+					ibss_wlan->network.beacon_interval;
+				pmlmepriv->cur_network.network.capability =
+					ibss_wlan->network.capability;
+				pmlmepriv->cur_network.network.tsf =
+					ibss_wlan->network.tsf;
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 				goto exit;
 			}
