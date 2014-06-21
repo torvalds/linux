@@ -149,11 +149,6 @@ static int apci1564_do_config(struct comedi_device *dev,
 		return -EINVAL;
 	}
 
-	if (data[0])
-		devpriv->b_OutputMemoryStatus = 1;
-	else
-		devpriv->b_OutputMemoryStatus = 0;
-
 	if (data[1] == 1)
 		ul_Command = ul_Command | 0x1;
 	else
