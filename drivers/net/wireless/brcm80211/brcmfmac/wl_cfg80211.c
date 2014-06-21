@@ -5051,6 +5051,9 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 			err = brcmf_fil_iovar_int_set(ifp, "obss_coex",
 						      BRCMF_OBSS_COEX_AUTO);
 	}
+	/* clear for now and rely on update later */
+	wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.ht_supported = false;
+	wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.cap = 0;
 
 	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
 	if (err) {
