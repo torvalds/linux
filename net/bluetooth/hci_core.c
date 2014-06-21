@@ -68,7 +68,7 @@ static ssize_t dut_mode_read(struct file *file, char __user *user_buf,
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = test_bit(HCI_DUT_MODE, &hdev->dev_flags) ? 'Y': 'N';
+	buf[0] = test_bit(HCI_DUT_MODE, &hdev->dbg_flags) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -94,7 +94,7 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == test_bit(HCI_DUT_MODE, &hdev->dev_flags))
+	if (enable == test_bit(HCI_DUT_MODE, &hdev->dbg_flags))
 		return -EALREADY;
 
 	hci_req_lock(hdev);
@@ -115,7 +115,7 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 	if (err < 0)
 		return err;
 
-	change_bit(HCI_DUT_MODE, &hdev->dev_flags);
+	change_bit(HCI_DUT_MODE, &hdev->dbg_flags);
 
 	return count;
 }
@@ -407,7 +407,7 @@ static ssize_t force_sc_support_read(struct file *file, char __user *user_buf,
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = test_bit(HCI_FORCE_SC, &hdev->dev_flags) ? 'Y': 'N';
+	buf[0] = test_bit(HCI_FORCE_SC, &hdev->dbg_flags) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -432,10 +432,10 @@ static ssize_t force_sc_support_write(struct file *file,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == test_bit(HCI_FORCE_SC, &hdev->dev_flags))
+	if (enable == test_bit(HCI_FORCE_SC, &hdev->dbg_flags))
 		return -EALREADY;
 
-	change_bit(HCI_FORCE_SC, &hdev->dev_flags);
+	change_bit(HCI_FORCE_SC, &hdev->dbg_flags);
 
 	return count;
 }
@@ -719,7 +719,7 @@ static ssize_t force_static_address_read(struct file *file,
 	struct hci_dev *hdev = file->private_data;
 	char buf[3];
 
-	buf[0] = test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ? 'Y': 'N';
+	buf[0] = test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ? 'Y': 'N';
 	buf[1] = '\n';
 	buf[2] = '\0';
 	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);
@@ -744,10 +744,10 @@ static ssize_t force_static_address_write(struct file *file,
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable == test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags))
+	if (enable == test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags))
 		return -EALREADY;
 
-	change_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags);
+	change_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags);
 
 	return count;
 }
@@ -1752,7 +1752,7 @@ static void hci_init4_req(struct hci_request *req, unsigned long opt)
 
 	/* Enable Secure Connections if supported and configured */
 	if ((lmp_sc_capable(hdev) ||
-	     test_bit(HCI_FORCE_SC, &hdev->dev_flags)) &&
+	     test_bit(HCI_FORCE_SC, &hdev->dbg_flags)) &&
 	    test_bit(HCI_SC_ENABLED, &hdev->dev_flags)) {
 		u8 support = 0x01;
 		hci_req_add(req, HCI_OP_WRITE_SC_SUPPORT,
@@ -3782,7 +3782,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	 * the HCI command if the current random address is already the
 	 * static one.
 	 */
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
 		*own_addr_type = ADDR_LE_DEV_RANDOM;
 		if (bacmp(&hdev->static_addr, &hdev->random_addr))
@@ -3811,7 +3811,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 void hci_copy_identity_address(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			       u8 *bdaddr_type)
 {
-	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dev_flags) ||
+	if (test_bit(HCI_FORCE_STATIC_ADDR, &hdev->dbg_flags) ||
 	    !bacmp(&hdev->bdaddr, BDADDR_ANY)) {
 		bacpy(bdaddr, &hdev->static_addr);
 		*bdaddr_type = ADDR_LE_DEV_RANDOM;

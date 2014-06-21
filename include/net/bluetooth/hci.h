@@ -104,6 +104,15 @@ enum {
 	HCI_RESET,
 };
 
+/* BR/EDR and/or LE controller flags: the flags defined here should represent
+ * states configured via debugfs for debugging and testing purposes only.
+ */
+enum {
+	HCI_DUT_MODE,
+	HCI_FORCE_SC,
+	HCI_FORCE_STATIC_ADDR,
+};
+
 /*
  * BR/EDR and/or LE controller flags: the flags defined here should represent
  * states from the controller.
@@ -116,9 +125,6 @@ enum {
 	HCI_PAIRABLE,
 	HCI_SERVICE_CACHE,
 	HCI_DEBUG_KEYS,
-	HCI_DUT_MODE,
-	HCI_FORCE_SC,
-	HCI_FORCE_STATIC_ADDR,
 	HCI_UNREGISTER,
 	HCI_USER_CHANNEL,
 

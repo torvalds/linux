@@ -318,6 +318,7 @@ struct hci_dev {
 
 	struct rfkill		*rfkill;
 
+	unsigned long		dbg_flags;
 	unsigned long		dev_flags;
 
 	struct delayed_work	le_scan_disable;
