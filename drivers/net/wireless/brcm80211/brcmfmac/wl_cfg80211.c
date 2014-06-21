@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <net/cfg80211.h>
 #include <net/netlink.h>
 
@@ -33,6 +34,7 @@
 #include "btcoex.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
+#include "vendor.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
 #define BRCMF_PNO_VERSION		2
@@ -3257,35 +3259,6 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 	return 0;
 }
 
-#ifdef CONFIG_NL80211_TESTMODE
-static int brcmf_cfg80211_testmode(struct wiphy *wiphy,
-				   struct wireless_dev *wdev,
-				   void *data, int len)
-{
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_dcmd *dcmd = data;
-	struct sk_buff *reply;
-	int ret;
-
-	brcmf_dbg(TRACE, "cmd %x set %d buf %p len %d\n", dcmd->cmd, dcmd->set,
-		  dcmd->buf, dcmd->len);
-
-	if (dcmd->set)
-		ret = brcmf_fil_cmd_data_set(netdev_priv(ndev), dcmd->cmd,
-					     dcmd->buf, dcmd->len);
-	else
-		ret = brcmf_fil_cmd_data_get(netdev_priv(ndev), dcmd->cmd,
-					     dcmd->buf, dcmd->len);
-	if (ret == 0) {
-		reply = cfg80211_testmode_alloc_reply_skb(wiphy, sizeof(*dcmd));
-		nla_put(reply, NL80211_ATTR_TESTDATA, sizeof(*dcmd), dcmd);
-		ret = cfg80211_testmode_reply(reply);
-	}
-	return ret;
-}
-#endif
-
 static s32 brcmf_configure_opensecurity(struct brcmf_if *ifp)
 {
 	s32 err;
@@ -4303,7 +4276,6 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 	.tdls_oper = brcmf_cfg80211_tdls_oper,
-	CFG80211_TESTMODE_CMD(brcmf_cfg80211_testmode)
 };
 
 static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
@@ -4408,6 +4380,11 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy_apply_custom_regulatory(wiphy, &brcmf_regdom);
+
+	/* vendor commands/events support */
+	wiphy->vendor_commands = brcmf_vendor_cmds;
+	wiphy->n_vendor_commands = BRCMF_VNDR_CMDS_LAST - 1;
+
 	err = wiphy_register(wiphy);
 	if (err < 0) {
 		brcmf_err("Could not register wiphy device (%d)\n", err);

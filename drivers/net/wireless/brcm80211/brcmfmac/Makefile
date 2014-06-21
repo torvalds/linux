@@ -34,7 +34,8 @@ brcmfmac-objs += \
 		dhd_common.o \
 		dhd_linux.o \
 		firmware.o \
-		btcoex.o
+		btcoex.o \
+		vendor.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \
 		bcmsdh.o
