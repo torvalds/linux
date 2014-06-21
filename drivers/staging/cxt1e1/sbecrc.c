@@ -16,6 +16,7 @@
  */
 
 #include <linux/types.h>
+#include "pmcc4.h"
 #include "pmcc4_sysdep.h"
 #include "sbecom_inline_linux.h"
 #include "sbe_promformat.h"

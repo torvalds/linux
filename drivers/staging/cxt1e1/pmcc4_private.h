@@ -33,6 +33,7 @@
 #include "musycc.h"
 #include "sbe_promformat.h"
 #include "comet.h"
+#include "sbecom_inline_linux.h"
 
 
 /* driver state */

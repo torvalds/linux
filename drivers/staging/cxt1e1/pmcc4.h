@@ -94,7 +94,7 @@ void        sbecom_set_loglevel (int debuglevel);
 char       *sbeid_get_bdname (ci_t *ci);
 void        sbeid_set_bdtype (ci_t *ci);
 void        sbeid_set_hdwbid (ci_t *ci);
-u_int32_t   sbeCrc (u_int8_t *, u_int32_t, u_int32_t, u_int32_t *);
+void        sbeCrc(u_int8_t *, u_int32_t, u_int32_t, u_int32_t *);
 
 void        VMETRO_TRIGGER (ci_t *, int);       /* Note: int = 0(default)
                                                  * thru 15 */
