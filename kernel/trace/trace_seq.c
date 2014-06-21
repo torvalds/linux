@@ -291,6 +291,7 @@ int trace_seq_putmem(struct trace_seq *s, const void *mem, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(trace_seq_putmem);
 
+#define MAX_MEMHEX_BYTES	8U
 #define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
 
 /**
@@ -310,22 +311,33 @@ int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 {
 	unsigned char hex[HEX_CHARS];
 	const unsigned char *data = mem;
+	unsigned int start_len;
 	int i, j;
+	int cnt = 0;
 
 	if (s->full)
 		return 0;
 
+	while (len) {
+		start_len = min(len, HEX_CHARS - 1);
 #ifdef __BIG_ENDIAN
-	for (i = 0, j = 0; i < len; i++) {
+		for (i = 0, j = 0; i < start_len; i++) {
 #else
-	for (i = len-1, j = 0; i >= 0; i--) {
+		for (i = start_len-1, j = 0; i >= 0; i--) {
 #endif
-		hex[j++] = hex_asc_hi(data[i]);
-		hex[j++] = hex_asc_lo(data[i]);
-	}
-	hex[j++] = ' ';
+			hex[j++] = hex_asc_hi(data[i]);
+			hex[j++] = hex_asc_lo(data[i]);
+		}
+		if (WARN_ON_ONCE(j == 0 || j/2 > len))
+			break;
 
-	return trace_seq_putmem(s, hex, j);
+		/* j increments twice per loop */
+		len -= j / 2;
+		hex[j++] = ' ';
+
+		cnt += trace_seq_putmem(s, hex, j);
+	}
+	return cnt;
 }
 EXPORT_SYMBOL_GPL(trace_seq_putmem_hex);
 

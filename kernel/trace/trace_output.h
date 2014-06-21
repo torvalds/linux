@@ -43,7 +43,6 @@ do {							\
 
 #define SEQ_PUT_HEX_FIELD_RET(s, x)			\
 do {							\
-	BUILD_BUG_ON(sizeof(x) > MAX_MEMHEX_BYTES);	\
 	if (!trace_seq_putmem_hex(s, &(x), sizeof(x)))	\
 		return TRACE_TYPE_PARTIAL_LINE;		\
 } while (0)
