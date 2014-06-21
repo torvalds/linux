@@ -27,13 +27,7 @@
 
 #define REALTEK_USB_VENQT_READ		0xC0
 #define REALTEK_USB_VENQT_WRITE		0x40
-#define REALTEK_USB_VENQT_CMD_REQ	0x05
-#define REALTEK_USB_VENQT_CMD_IDX	0x00
 
-enum{
-	VENDOR_WRITE = 0x00,
-	VENDOR_READ = 0x01,
-};
 #define ALIGNMENT_UNIT			16
 #define MAX_VENDOR_REQ_CMD_SIZE	254	/* 8188cu SIE Support */
 #define MAX_USB_IO_CTL_SIZE	(MAX_VENDOR_REQ_CMD_SIZE + ALIGNMENT_UNIT)
@@ -42,13 +36,8 @@ enum{
 			    value, index, data, size, timeout_ms)	\
 	usb_control_msg((dev), (pipe), (request), (requesttype), (value),\
 			(index), (data), (size), (timeout_ms))
-#define rtw_usb_bulk_msg(usb_dev, pipe, data, len, actual_length, timeout_ms) \
-	usb_bulk_msg((usb_dev), (pipe), (data), (len),			\
-		     (actual_length), (timeout_ms))
 
 #include <usb_ops_linux.h>
-
-void rtl8188eu_set_hw_type(struct adapter *padapter);
 
 /*
  * Increase and check if the continual_urb_error of this @param dvobjprivei
