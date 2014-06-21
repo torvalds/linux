@@ -888,8 +888,6 @@ int wl_rx(struct net_device *dev)
 				GET_PACKET(skb->dev, skb, pktlen);
 
 				if (status == HCF_SUCCESS) {
-					netif_rx(skb);
-
 					if (port == 0) {
 						lp->stats.rx_packets++;
 						lp->stats.rx_bytes += pktlen;
@@ -918,6 +916,7 @@ int wl_rx(struct net_device *dev)
 					}
 #endif /* WIRELESS_SPY */
 #endif /* WIRELESS_EXT */
+					netif_rx(skb);
 				} else {
 					DBG_ERROR(DbgInfo,
 						  "Rx request to card FAILED\n");
