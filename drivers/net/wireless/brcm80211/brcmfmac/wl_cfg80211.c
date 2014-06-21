@@ -590,6 +590,12 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	}
 }
 
+static void brcmf_scan_config_mpc(struct brcmf_if *ifp, int mpc)
+{
+	if ((brcmf_get_chip_info(ifp) >> 4) == 0x4329)
+		brcmf_set_mpc(ifp, mpc);
+}
+
 void brcmf_set_mpc(struct brcmf_if *ifp, int mpc)
 {
 	s32 err = 0;
@@ -643,7 +649,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 			brcmf_err("Scan abort  failed\n");
 	}
 
-	brcmf_set_mpc(ifp, 1);
+	brcmf_scan_config_mpc(ifp, 1);
 
 	/*
 	 * e-scan can be initiated by scheduled scan
@@ -922,7 +928,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 		brcmf_err("error (%d)\n", err);
 		return err;
 	}
-	brcmf_set_mpc(ifp, 0);
+	brcmf_scan_config_mpc(ifp, 0);
 	results = (struct brcmf_scan_results *)cfg->escan_info.escan_buf;
 	results->version = 0;
 	results->count = 0;
@@ -930,7 +936,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 
 	err = escan->run(cfg, ifp, request, WL_ESCAN_ACTION_START);
 	if (err)
-		brcmf_set_mpc(ifp, 1);
+		brcmf_scan_config_mpc(ifp, 1);
 	return err;
 }
 
@@ -1021,7 +1027,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			brcmf_err("WLC_SET_PASSIVE_SCAN error (%d)\n", err);
 			goto scan_out;
 		}
-		brcmf_set_mpc(ifp, 0);
+		brcmf_scan_config_mpc(ifp, 0);
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
 					     &sr->ssid_le, sizeof(sr->ssid_le));
 		if (err) {
@@ -1031,7 +1037,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			else
 				brcmf_err("WLC_SCAN error (%d)\n", err);
 
-			brcmf_set_mpc(ifp, 1);
+			brcmf_scan_config_mpc(ifp, 1);
 			goto scan_out;
 		}
 	}
