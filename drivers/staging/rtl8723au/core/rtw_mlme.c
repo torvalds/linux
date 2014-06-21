@@ -1035,6 +1035,10 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	memcpy(&cur_network->network.IEs[0], &ptarget_wlan->network.IEs[0],
 	       MAX_IE_SZ);
 
+	cur_network->network.capability = ptarget_wlan->network.capability;
+	cur_network->network.beacon_interval =
+		ptarget_wlan->network.beacon_interval;
+	cur_network->network.tsf = ptarget_wlan->network.tsf;
 	cur_network->aid = pnetwork->join_res;
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
