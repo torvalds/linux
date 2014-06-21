@@ -26,12 +26,12 @@
 #define APCI1564_ADDRESS_RANGE				128
 
 /* Digital Input IRQ Function Selection */
-#define ADDIDATA_OR					0
-#define ADDIDATA_AND					1
+#define APCI1564_DI_INT_OR				(0 << 1)
+#define APCI1564_DI_INT_AND				(1 << 1)
 
 /* Digital Input Interrupt Enable Disable. */
-#define APCI1564_DIGITAL_IP_INTERRUPT_ENABLE		0x4
-#define APCI1564_DIGITAL_IP_INTERRUPT_DISABLE		0xfffffffb
+#define APCI1564_DI_INT_ENABLE				0x4
+#define APCI1564_DI_INT_DISABLE				0xfffffffb
 
 /* Digital Output Interrupt Enable Disable. */
 #define APCI1564_DIGITAL_OP_VCC_INTERRUPT_ENABLE	0x1
@@ -88,42 +88,6 @@
 #define APCI1564_TCW_IRQ_REG(x)				(0x14 + ((x) * 0x20))
 #define APCI1564_TCW_WARN_TIMEVAL_REG(x)		(0x18 + ((x) * 0x20))
 #define APCI1564_TCW_WARN_TIMEBASE_REG(x)		(0x1c + ((x) * 0x20))
-
-/*
- * Configures the digital input Subdevice
- *
- * data[0] 1 = Enable interrupt, 0 = Disable interrupt
- * data[1] 0 = ADDIDATA Interrupt OR LOGIC, 1 = ADDIDATA Interrupt AND LOGIC
- * data[2] Interrupt mask for the mode 1
- * data[3] Interrupt mask for the mode 2
- */
-static int apci1564_di_config(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct apci1564_private *devpriv = dev->private;
-
-	devpriv->tsk_current = current;
-
-	/* Set the digital input logic */
-	if (data[0] == 1) {
-		data[2] = data[2] << 4;
-		data[3] = data[3] << 4;
-		outl(data[2], devpriv->amcc_iobase + APCI1564_DI_INT_MODE1_REG);
-		outl(data[3], devpriv->amcc_iobase + APCI1564_DI_INT_MODE2_REG);
-		if (data[1] == ADDIDATA_OR)
-			outl(0x4, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
-		else
-			outl(0x6, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
-	} else {
-		outl(0x0, devpriv->amcc_iobase + APCI1564_DI_INT_MODE1_REG);
-		outl(0x0, devpriv->amcc_iobase + APCI1564_DI_INT_MODE2_REG);
-		outl(0x0, devpriv->amcc_iobase + APCI1564_DI_IRQ_REG);
-	}
-
-	return insn->n;
-}
 
 /*
  * Configures The Digital Output Subdevice.
