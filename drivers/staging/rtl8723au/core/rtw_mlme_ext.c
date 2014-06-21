@@ -2524,13 +2524,11 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 #ifdef CONFIG_8723AU_AP_MODE
 	const u8 *pwps_ie;
-	uint wps_ielen;
 	u8 *ssid_ie;
 	int ssid_ielen;
 	int ssid_ielen_diff;
 	u8 buf[MAX_IE_SZ];
 	u8 *ies;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 #endif
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -2594,43 +2592,9 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 						  cur_network->IELength -
 						  _FIXED_IE_LENGTH_);
 
-		/* inerset & update wps_probe_resp_ie */
-		if (pmlmepriv->wps_probe_resp_ie && pwps_ie && pwps_ie[1] > 0) {
-			uint wps_offset, remainder_ielen;
-			const u8 *premainder_ie;
-
-			wps_ielen = pwps_ie[1];
-			wps_offset = (uint)(pwps_ie - cur_network->IEs);
-
-			premainder_ie = pwps_ie + wps_ielen;
-
-			remainder_ielen = cur_network->IELength - wps_offset -
-				wps_ielen;
-
-			memcpy(pframe, cur_network->IEs, wps_offset);
-			pframe += wps_offset;
-			pattrib->pktlen += wps_offset;
-
-			/* to get ie data len */
-			wps_ielen = (uint)pmlmepriv->wps_probe_resp_ie[1];
-			if (wps_offset + wps_ielen + 2 <= MAX_IE_SZ) {
-				memcpy(pframe, pmlmepriv->wps_probe_resp_ie,
-				       wps_ielen+2);
-				pframe += wps_ielen+2;
-				pattrib->pktlen += wps_ielen+2;
-			}
-
-			if (wps_offset + wps_ielen + 2 + remainder_ielen <=
-			    MAX_IE_SZ) {
-				memcpy(pframe, premainder_ie, remainder_ielen);
-				pframe += remainder_ielen;
-				pattrib->pktlen += remainder_ielen;
-			}
-		} else {
-			memcpy(pframe, cur_network->IEs, cur_network->IELength);
-			pframe += cur_network->IELength;
-			pattrib->pktlen += cur_network->IELength;
-		}
+		memcpy(pframe, cur_network->IEs, cur_network->IELength);
+		pframe += cur_network->IELength;
+		pattrib->pktlen += cur_network->IELength;
 
 		/* retrieve SSID IE from cur_network->Ssid */
 		ies = pmgntframe->buf_addr + TXDESC_OFFSET +
