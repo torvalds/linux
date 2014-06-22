@@ -201,7 +201,6 @@ void _rtw_memcpy(void *dec, void *sour, u32 sz);
 
 void _rtw_init_listhead(struct list_head *list);
 u32  rtw_is_list_empty(struct list_head *phead);
-void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead);
 void rtw_list_delete(struct list_head *plist);
 
 u32  _rtw_down_sema(struct semaphore *sema);

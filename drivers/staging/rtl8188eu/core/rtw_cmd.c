@@ -138,7 +138,7 @@ int _rtw_enqueue_cmd(struct __queue *queue, struct cmd_obj *obj)
 
 	spin_lock_irqsave(&queue->lock, irqL);
 
-	rtw_list_insert_tail(&obj->list, &queue->queue);
+	list_add_tail(&obj->list, &queue->queue);
 
 	spin_unlock_irqrestore(&queue->lock, irqL);
 
@@ -2124,7 +2124,7 @@ void rtw_createbss_cmd_callback(struct adapter *padapter, struct cmd_obj *pcmd)
 			}
 			pwlan->last_scanned = jiffies;
 		} else {
-			rtw_list_insert_tail(&(pwlan->list), &pmlmepriv->scanned_queue.queue);
+			list_add_tail(&(pwlan->list), &pmlmepriv->scanned_queue.queue);
 		}
 
 		pnetwork->Length = get_wlan_bssid_ex_sz(pnetwork);

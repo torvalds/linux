@@ -1176,7 +1176,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 
 			paclnode->valid = true;
 
-			rtw_list_insert_tail(&paclnode->list, get_list_head(pacl_node_q));
+			list_add_tail(&paclnode->list, get_list_head(pacl_node_q));
 
 			pacl_list->num++;
 
