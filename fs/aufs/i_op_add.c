@@ -230,7 +230,7 @@ struct simple_arg {
 static int add_simple(struct inode *dir, struct dentry *dentry,
 		      struct simple_arg *arg)
 {
-	int err;
+	int err, rerr;
 	aufs_bindex_t bstart;
 	unsigned char created;
 	struct dentry *wh_dentry, *parent;
@@ -292,7 +292,6 @@ static int add_simple(struct inode *dir, struct dentry *dentry,
 
 	/* revert */
 	if (unlikely(created && err && a->h_path.dentry->d_inode)) {
-		int rerr;
 		rerr = vfsub_unlink(h_dir, &a->h_path, /*force*/0);
 		if (rerr) {
 			AuIOErr("%.*s revert failure(%d, %d)\n",
