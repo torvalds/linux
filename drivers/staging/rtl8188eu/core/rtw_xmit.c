@@ -233,9 +233,6 @@ void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv)
 	u32 max_xmit_extbuf_size = MAX_XMIT_EXTBUF_SZ;
 	u32 num_xmit_extbuf = NR_XMIT_EXTBUFF;
 
-
-	rtw_hal_free_xmit_priv(padapter);
-
 	if (pxmitpriv->pxmit_frame_buf == NULL)
 		return;
 
