@@ -47,20 +47,11 @@ u8 *_rtw_malloc(u32 sz)
 	return pbuf;
 }
 
-u8 *_rtw_zmalloc(u32 sz)
-{
-	u8	*pbuf = _rtw_malloc(sz);
-
-	if (pbuf != NULL)
-		memset(pbuf, 0, sz);
-	return pbuf;
-}
-
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
 
-	void **a = (void **)rtw_zmalloc(h*sizeof(void *) + h*w*size);
+	void **a = (void **)kzalloc(h*sizeof(void *) + h*w*size, GFP_KERNEL);
 	if (a == NULL) {
 		pr_info("%s: alloc memory fail!\n", __func__);
 		return NULL;

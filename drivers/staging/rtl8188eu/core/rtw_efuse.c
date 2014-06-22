@@ -103,7 +103,7 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	u16	efuse_utilized = 0;
 	u8 u1temp = 0;
 
-	efuseTbl = (u8 *)rtw_zmalloc(EFUSE_MAP_LEN_88E);
+	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
 	if (efuseTbl == NULL) {
 		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
 		goto exit;
@@ -1083,7 +1083,7 @@ u8 rtw_efuse_map_write(struct adapter *padapter, u16 addr, u16 cnts, u8 *data)
 	if ((addr + cnts) > mapLen)
 		return _FAIL;
 
-	map = rtw_zmalloc(mapLen);
+	map = kzalloc(mapLen, GFP_KERNEL);
 	if (map == NULL)
 		return _FAIL;
 

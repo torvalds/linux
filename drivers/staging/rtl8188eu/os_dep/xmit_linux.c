@@ -80,7 +80,7 @@ int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitb
 {
 	int i;
 
-	pxmitbuf->pallocated_buf = rtw_zmalloc(alloc_sz);
+	pxmitbuf->pallocated_buf = kzalloc(alloc_sz, GFP_KERNEL);
 	if (pxmitbuf->pallocated_buf == NULL)
 		return _FAIL;
 

@@ -503,7 +503,7 @@ static void SetFwRsvdPagePkt(struct adapter *adapt, bool bDLFinished)
 	struct rsvdpage_loc RsvdPageLoc;
 
 	DBG_88E("%s\n", __func__);
-	ReservedPagePacket = (u8 *)rtw_zmalloc(1000);
+	ReservedPagePacket = kzalloc(1000, GFP_KERNEL);
 	if (ReservedPagePacket == NULL) {
 		DBG_88E("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;

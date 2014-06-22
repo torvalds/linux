@@ -632,7 +632,7 @@ static int rtw_set_wpa_ie(struct adapter *padapter, char *pie, unsigned short ie
 	}
 
 	if (ielen) {
-		buf = rtw_zmalloc(ielen);
+		buf = kzalloc(ielen, GFP_KERNEL);
 		if (buf == NULL) {
 			ret =  -ENOMEM;
 			goto exit;
@@ -4721,13 +4721,13 @@ static u8 set_pairwise_key(struct adapter *padapter, struct sta_info *psta)
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 	u8 res = _SUCCESS;
 
-	ph2c = (struct cmd_obj *)rtw_zmalloc(sizeof(struct cmd_obj));
+	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
 	if (ph2c == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	psetstakey_para = (struct set_stakey_parm *)rtw_zmalloc(sizeof(struct set_stakey_parm));
+	psetstakey_para = kzalloc(sizeof(struct set_stakey_parm), GFP_KERNEL);
 	if (psetstakey_para == NULL) {
 		kfree(ph2c);
 		res = _FAIL;
@@ -4759,12 +4759,12 @@ static int set_group_key(struct adapter *padapter, u8 *key, u8 alg, int keyid)
 
 	DBG_88E("%s\n", __func__);
 
-	pcmd = (struct cmd_obj *)rtw_zmalloc(sizeof(struct	cmd_obj));
+	pcmd = kzalloc(sizeof(struct	cmd_obj), GFP_KERNEL);
 	if (pcmd == NULL) {
 		res = _FAIL;
 		goto exit;
 	}
-	psetkeyparm = (struct setkey_parm *)rtw_zmalloc(sizeof(struct setkey_parm));
+	psetkeyparm = kzalloc(sizeof(struct setkey_parm), GFP_KERNEL);
 	if (psetkeyparm == NULL) {
 		kfree(pcmd);
 		res = _FAIL;
@@ -5672,12 +5672,12 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 	pEfuseHal = &haldata->EfuseHal;
 
 	err = 0;
-	data = _rtw_zmalloc(EFUSE_BT_MAX_MAP_LEN);
+	data = kzalloc(EFUSE_BT_MAX_MAP_LEN, GFP_KERNEL);
 	if (data == NULL) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	rawdata = _rtw_zmalloc(EFUSE_BT_MAX_MAP_LEN);
+	rawdata = kzalloc(EFUSE_BT_MAX_MAP_LEN, GFP_KERNEL);
 	if (rawdata == NULL) {
 		err = -ENOMEM;
 		goto exit;
@@ -5916,7 +5916,7 @@ static int rtw_mp_efuse_set(struct net_device *dev,
 	haldata = GET_HAL_DATA(padapter);
 	pEfuseHal = &haldata->EfuseHal;
 	err = 0;
-	setdata = _rtw_zmalloc(1024);
+	setdata = kzalloc(1024, GFP_KERNEL);
 	if (setdata == NULL) {
 		err = -ENOMEM;
 		goto exit;
@@ -7438,7 +7438,7 @@ static int rtw_test(
 	DBG_88E("+%s\n", __func__);
 	len = wrqu->data.length;
 
-	pbuf = (u8 *)rtw_zmalloc(len);
+	pbuf = kzalloc(len, GFP_KERNEL);
 	if (pbuf == NULL) {
 		DBG_88E("%s: no memory!\n", __func__);
 		return -ENOMEM;
@@ -7783,7 +7783,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 	memcpy(&wdata, wrq_data, sizeof(wdata));
 
 	input_len = wdata.data.length;
-	input = rtw_zmalloc(input_len);
+	input = kzalloc(input_len, GFP_KERNEL);
 	if (NULL == input)
 		return -ENOMEM;
 	if (copy_from_user(input, wdata.data.pointer, input_len)) {
@@ -7850,7 +7850,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		k = j;
 	}
 
-	buffer = rtw_zmalloc(4096);
+	buffer = kzalloc(4096, GFP_KERNEL);
 	if (NULL == buffer) {
 		err = -ENOMEM;
 		goto exit;
@@ -7999,7 +7999,7 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 		else
 			n = wdata.data.length;
 
-		output = rtw_zmalloc(4096);
+		output = kzalloc(4096, GFP_KERNEL);
 		if (NULL == output) {
 			err =  -ENOMEM;
 			goto exit;

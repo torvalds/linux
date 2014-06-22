@@ -687,7 +687,7 @@ void SetPacketTx(struct adapter *padapter)
 	kfree(pmp_priv->tx.pallocated_buf);
 	pmp_priv->tx.write_size = pkt_size;
 	pmp_priv->tx.buf_size = pkt_size + XMITBUF_ALIGN_SZ;
-	pmp_priv->tx.pallocated_buf = rtw_zmalloc(pmp_priv->tx.buf_size);
+	pmp_priv->tx.pallocated_buf = kzalloc(pmp_priv->tx.buf_size, GFP_KERNEL);
 	if (pmp_priv->tx.pallocated_buf == NULL) {
 		DBG_88E("%s: malloc(%d) fail!!\n", __func__, pmp_priv->tx.buf_size);
 		return;
