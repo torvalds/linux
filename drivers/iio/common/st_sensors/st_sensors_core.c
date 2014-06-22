@@ -463,35 +463,6 @@ read_wai_error:
 }
 EXPORT_SYMBOL(st_sensors_check_device_support);
 
-ssize_t st_sensors_sysfs_get_sampling_frequency(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct st_sensor_data *adata = iio_priv(dev_get_drvdata(dev));
-
-	return sprintf(buf, "%d\n", adata->odr);
-}
-EXPORT_SYMBOL(st_sensors_sysfs_get_sampling_frequency);
-
-ssize_t st_sensors_sysfs_set_sampling_frequency(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	int err;
-	unsigned int odr;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	err = kstrtoint(buf, 10, &odr);
-	if (err < 0)
-		goto conversion_error;
-
-	mutex_lock(&indio_dev->mlock);
-	err = st_sensors_set_odr(indio_dev, odr);
-	mutex_unlock(&indio_dev->mlock);
-
-conversion_error:
-	return err < 0 ? err : size;
-}
-EXPORT_SYMBOL(st_sensors_sysfs_set_sampling_frequency);
-
 ssize_t st_sensors_sysfs_sampling_frequency_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
