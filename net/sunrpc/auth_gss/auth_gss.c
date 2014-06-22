@@ -262,9 +262,22 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 		p = ERR_PTR(ret);
 		goto err;
 	}
-	dprintk("RPC:       %s Success. gc_expiry %lu now %lu timeout %u\n",
-		__func__, ctx->gc_expiry, now, timeout);
-	return q;
+
+	/* is there any trailing data? */
+	if (q == end) {
+		p = q;
+		goto done;
+	}
+
+	/* pull in acceptor name (if there is one) */
+	p = simple_get_netobj(q, end, &ctx->gc_acceptor);
+	if (IS_ERR(p))
+		goto err;
+done:
+	dprintk("RPC:       %s Success. gc_expiry %lu now %lu timeout %u acceptor %.*s\n",
+		__func__, ctx->gc_expiry, now, timeout, ctx->gc_acceptor.len,
+		ctx->gc_acceptor.data);
+	return p;
 err:
 	dprintk("RPC:       %s returns error %ld\n", __func__, -PTR_ERR(p));
 	return p;
@@ -1225,6 +1238,7 @@ gss_do_free_ctx(struct gss_cl_ctx *ctx)
 
 	gss_delete_sec_context(&ctx->gc_gss_ctx);
 	kfree(ctx->gc_wire_ctx.data);
+	kfree(ctx->gc_acceptor.data);
 	kfree(ctx);
 }
 

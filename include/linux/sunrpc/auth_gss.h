@@ -71,6 +71,7 @@ struct gss_cl_ctx {
 	spinlock_t		gc_seq_lock;
 	struct gss_ctx __rcu	*gc_gss_ctx;
 	struct xdr_netobj	gc_wire_ctx;
+	struct xdr_netobj	gc_acceptor;
 	u32			gc_win;
 	unsigned long		gc_expiry;
 	struct rcu_head		gc_rcu;
