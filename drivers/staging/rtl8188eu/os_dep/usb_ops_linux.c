@@ -163,7 +163,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			pkt_offset = (u16) round_up(pkt_offset, 128);
 			break;
 		case USB_RX_AGG_USB:
-			pkt_offset = (u16)_RND4(pkt_offset);
+			pkt_offset = (u16) round_up(pkt_offset, 4);
 			break;
 		case USB_RX_AGG_DISABLE:
 		default:
