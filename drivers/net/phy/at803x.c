@@ -193,7 +193,7 @@ static int at803x_probe(struct phy_device *phydev)
 	struct device *dev = &phydev->dev;
 	struct at803x_priv *priv;
 
-	priv = devm_kzalloc(dev, sizeof(priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
