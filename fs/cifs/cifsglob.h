@@ -404,6 +404,8 @@ struct smb_version_operations {
 			const struct cifs_fid *, u32 *);
 	int (*set_acl)(struct cifs_ntsd *, __u32, struct inode *, const char *,
 			int);
+	/* writepages retry size */
+	unsigned int (*wp_retry_size)(struct inode *);
 };
 
 struct smb_version_values {

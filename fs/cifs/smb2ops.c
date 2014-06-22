@@ -1104,6 +1104,13 @@ smb3_parse_lease_buf(void *buf, unsigned int *epoch)
 	return le32_to_cpu(lc->lcontext.LeaseState);
 }
 
+static unsigned int
+smb2_wp_retry_size(struct inode *inode)
+{
+	return min_t(unsigned int, CIFS_SB(inode->i_sb)->wsize,
+		     SMB2_MAX_BUFFER_SIZE);
+}
+
 struct smb_version_operations smb20_operations = {
 	.compare_fids = smb2_compare_fids,
 	.setup_request = smb2_setup_request,
@@ -1177,6 +1184,7 @@ struct smb_version_operations smb20_operations = {
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_operations smb21_operations = {
@@ -1252,6 +1260,7 @@ struct smb_version_operations smb21_operations = {
 	.create_lease_buf = smb2_create_lease_buf,
 	.parse_lease_buf = smb2_parse_lease_buf,
 	.clone_range = smb2_clone_range,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_operations smb30_operations = {
@@ -1330,6 +1339,7 @@ struct smb_version_operations smb30_operations = {
 	.parse_lease_buf = smb3_parse_lease_buf,
 	.clone_range = smb2_clone_range,
 	.validate_negotiate = smb3_validate_negotiate,
+	.wp_retry_size = smb2_wp_retry_size,
 };
 
 struct smb_version_values smb20_values = {
