@@ -476,12 +476,6 @@ static void ConstructProbeRsp(struct adapter *adapt, u8 *pframe, u32 *pLength, u
 	*pLength = pktlen;
 }
 
-/*  To check if reserved page content is destroyed by beacon because beacon is too large. */
-/*  2010.06.23. Added by tynli. */
-void CheckFwRsvdPageContent(struct adapter *Adapter)
-{
-}
-
 /*  */
 /*  Description: Fill the reserved packets that FW will use to RSVD page. */
 /*			Now we just send 4 types packet to rsvd page. */

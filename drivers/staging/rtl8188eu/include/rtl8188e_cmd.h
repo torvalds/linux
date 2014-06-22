@@ -116,7 +116,6 @@ void rtl8188e_Add_RateATid(struct adapter *padapter, u32 bitmap, u8 arg,
 void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state);
 #endif /* CONFIG_88EU_P2P */
 
-void CheckFwRsvdPageContent(struct adapter *adapt);
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt);
 
 #endif/* __RTL8188E_CMD_H__ */
