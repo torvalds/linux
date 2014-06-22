@@ -88,7 +88,7 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed)
 /*  */
 void DeInitLed871x(struct LED_871x *pLed)
 {
-	_cancel_workitem_sync(&(pLed->BlinkWorkItem));
+	cancel_work_sync(&(pLed->BlinkWorkItem));
 	_cancel_timer_ex(&(pLed->BlinkTimer));
 	ResetLedStatus(pLed);
 }
