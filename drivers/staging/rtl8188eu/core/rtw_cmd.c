@@ -155,7 +155,7 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 
 
 	spin_lock_irqsave(&queue->lock, irqL);
-	if (rtw_is_list_empty(&(queue->queue))) {
+	if (list_empty(&(queue->queue))) {
 		obj = NULL;
 	} else {
 		obj = container_of((&queue->queue)->next, struct cmd_obj, list);

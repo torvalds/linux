@@ -5176,7 +5176,7 @@ static int rtw_del_sta(struct net_device *dev, struct ieee_param *param)
 	psta = rtw_get_stainfo(pstapriv, param->sta_addr);
 	if (psta) {
 		spin_lock_bh(&pstapriv->asoc_list_lock);
-		if (!rtw_is_list_empty(&psta->asoc_list)) {
+		if (!list_empty(&psta->asoc_list)) {
 			rtw_list_delete(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
 			updated = ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);

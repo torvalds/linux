@@ -817,7 +817,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 		pstat->auth_seq = 0;
 	} else {
 		spin_lock_bh(&pstapriv->asoc_list_lock);
-		if (!rtw_is_list_empty(&pstat->asoc_list)) {
+		if (!list_empty(&pstat->asoc_list)) {
 			rtw_list_delete(&pstat->asoc_list);
 			pstapriv->asoc_list_cnt--;
 		}
@@ -829,7 +829,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 	}
 
 	spin_lock_bh(&pstapriv->auth_list_lock);
-	if (rtw_is_list_empty(&pstat->auth_list)) {
+	if (list_empty(&pstat->auth_list)) {
 		list_add_tail(&pstat->auth_list, &pstapriv->auth_list);
 		pstapriv->auth_list_cnt++;
 	}
@@ -1407,14 +1407,14 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 	pstat->state |= WIFI_FW_ASSOC_SUCCESS;
 
 	spin_lock_bh(&pstapriv->auth_list_lock);
-	if (!rtw_is_list_empty(&pstat->auth_list)) {
+	if (!list_empty(&pstat->auth_list)) {
 		rtw_list_delete(&pstat->auth_list);
 		pstapriv->auth_list_cnt--;
 	}
 	spin_unlock_bh(&pstapriv->auth_list_lock);
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
-	if (rtw_is_list_empty(&pstat->asoc_list)) {
+	if (list_empty(&pstat->asoc_list)) {
 		pstat->expire_to = pstapriv->expire_to;
 		list_add_tail(&pstat->asoc_list, &pstapriv->asoc_list);
 		pstapriv->asoc_list_cnt++;
@@ -1600,7 +1600,7 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 			u8 updated = 0;
 
 			spin_lock_bh(&pstapriv->asoc_list_lock);
-			if (!rtw_is_list_empty(&psta->asoc_list)) {
+			if (!list_empty(&psta->asoc_list)) {
 				rtw_list_delete(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 				updated = ap_free_sta(padapter, psta, false, reason);
@@ -1664,7 +1664,7 @@ unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame
 			u8 updated = 0;
 
 			spin_lock_bh(&pstapriv->asoc_list_lock);
-			if (!rtw_is_list_empty(&psta->asoc_list)) {
+			if (!list_empty(&psta->asoc_list)) {
 				rtw_list_delete(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 				updated = ap_free_sta(padapter, psta, false, reason);

@@ -1810,7 +1810,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 
 	/*  Handling some condition for forced indicate case. */
 	if (bforced) {
-		if (rtw_is_list_empty(phead))
+		if (list_empty(phead))
 			return true;
 
 		prhdr = container_of(plist, struct recv_frame, list);
@@ -1820,7 +1820,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 
 	/*  Prepare indication list and indication. */
 	/*  Check if there is any packet need indicate. */
-	while (!rtw_is_list_empty(phead)) {
+	while (!list_empty(phead)) {
 		prhdr = container_of(plist, struct recv_frame, list);
 		prframe = (struct recv_frame *)prhdr;
 		pattrib = &prframe->attrib;

@@ -94,23 +94,6 @@ void _rtw_init_listhead(struct list_head *list)
 	INIT_LIST_HEAD(list);
 }
 
-/*
-For the following list_xxx operations,
-caller must guarantee the atomic context.
-Otherwise, there will be racing condition.
-*/
-u32	rtw_is_list_empty(struct list_head *phead)
-{
-	if (list_empty(phead))
-		return true;
-	else
-		return false;
-}
-
-/*
-Caller must check if the list is empty before calling rtw_list_delete
-*/
-
 u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
@@ -127,7 +110,7 @@ void	_rtw_init_queue(struct __queue *pqueue)
 
 u32	  _rtw_queue_empty(struct __queue *pqueue)
 {
-	return rtw_is_list_empty(&(pqueue->queue));
+	return list_empty(&(pqueue->queue));
 }
 
 inline u32 rtw_systime_to_ms(u32 systime)
