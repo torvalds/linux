@@ -1046,8 +1046,32 @@ M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
-F:	drivers/clk/keystone/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
+
+ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clk/keystone/
+
+ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/clocksource/timer-keystone.c
+
+ARM/TEXAS INSTRUMENT KEYSTONE RESET DRIVER
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/power/reset/keystone-reset.c
+
+ARM/TEXAS INSTRUMENT AEMIF/EMIF DRIVERS
+M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/memory/*emif*
 
 ARM/LOGICPD PXA270 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
