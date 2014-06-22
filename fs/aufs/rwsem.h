@@ -123,7 +123,9 @@ static inline void au_rw_write_unlock(struct au_rwsem *rw)
 /* why is not _nested version defined */
 static inline int au_rw_read_trylock(struct au_rwsem *rw)
 {
-	int ret = down_read_trylock(&rw->rwsem);
+	int ret;
+
+	ret = down_read_trylock(&rw->rwsem);
 	if (ret)
 		AuDbgRcntInc(rw);
 	return ret;
@@ -131,7 +133,9 @@ static inline int au_rw_read_trylock(struct au_rwsem *rw)
 
 static inline int au_rw_write_trylock(struct au_rwsem *rw)
 {
-	int ret = down_write_trylock(&rw->rwsem);
+	int ret;
+
+	ret = down_write_trylock(&rw->rwsem);
 	if (ret)
 		AuDbgWcntInc(rw);
 	return ret;

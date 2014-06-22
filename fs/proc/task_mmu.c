@@ -272,6 +272,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 
 	if (file) {
 		struct inode *inode;
+
 		file = vma_pr_or_file(vma);
 		inode = file_inode(file);
 		dev = inode->i_sb->s_dev;
