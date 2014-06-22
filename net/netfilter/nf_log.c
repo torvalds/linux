@@ -132,6 +132,13 @@ void nf_log_unbind_pf(struct net *net, u_int8_t pf)
 }
 EXPORT_SYMBOL(nf_log_unbind_pf);
 
+void nf_logger_request_module(int pf, enum nf_log_type type)
+{
+	if (loggers[pf][type] == NULL)
+		request_module("nf-logger-%u-%u", pf, type);
+}
+EXPORT_SYMBOL_GPL(nf_logger_request_module);
+
 int nf_logger_find_get(int pf, enum nf_log_type type)
 {
 	struct nf_logger *logger;

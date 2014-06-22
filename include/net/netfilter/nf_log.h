@@ -63,6 +63,7 @@ void nf_log_unbind_pf(struct net *net, u_int8_t pf);
 
 int nf_logger_find_get(int pf, enum nf_log_type type);
 void nf_logger_put(int pf, enum nf_log_type type);
+void nf_logger_request_module(int pf, enum nf_log_type type);
 
 #define MODULE_ALIAS_NF_LOGGER(family, type) \
 	MODULE_ALIAS("nf-logger-" __stringify(family) "-" __stringify(type))

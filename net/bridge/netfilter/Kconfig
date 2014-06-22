@@ -14,6 +14,9 @@ config NFT_BRIDGE_META
 	help
 	  Add support for bridge dedicated meta key.
 
+config NF_LOG_BRIDGE
+	tristate "Bridge packet logging"
+
 endif # NF_TABLES_BRIDGE
 
 menuconfig BRIDGE_NF_EBTABLES
