@@ -551,7 +551,7 @@ int rtw_parse_wpa_ie(u8 *wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwis
 
 	/* pairwise_cipher */
 	if (left >= 2) {
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -619,7 +619,7 @@ int rtw_parse_wpa2_ie(u8 *rsn_ie, int rsn_ie_len, int *group_cipher, int *pairwi
 
 	/* pairwise_cipher */
 	if (left >= 2) {
-		count = RTW_GET_LE16(pos);
+		count = get_unaligned_le16(pos);
 		pos += 2;
 		left -= 2;
 
@@ -1179,7 +1179,7 @@ void dump_p2p_ie(u8 *ie, u32 ie_len)
 	pos += 6;
 	while (pos-ie < ie_len) {
 		id = *pos;
-		len = RTW_GET_LE16(pos+1);
+		len = get_unaligned_le16(pos+1);
 		DBG_88E("%s ID:%u, LEN:%u\n", __func__, id, len);
 		pos += (3+len);
 	}
@@ -1253,7 +1253,7 @@ u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id , u8 *buf_att
 	while (attr_ptr - p2p_ie < p2p_ielen) {
 		/*  3 = 1(Attribute ID) + 2(Length) */
 		u8 attr_id = *attr_ptr;
-		u16 attr_data_len = RTW_GET_LE16(attr_ptr + 1);
+		u16 attr_data_len = get_unaligned_le16(attr_ptr + 1);
 		u16 attr_len = attr_data_len + 3;
 
 		if (attr_id == target_attr_id) {
