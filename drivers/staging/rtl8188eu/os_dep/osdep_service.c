@@ -225,12 +225,6 @@ u64 rtw_modular64(u64 x, u64 y)
 	return do_div(x, y);
 }
 
-u64 rtw_division64(u64 x, u64 y)
-{
-	do_div(x, y);
-	return x;
-}
-
 void rtw_buf_free(u8 **buf, u32 *buf_len)
 {
 	*buf_len = 0;
