@@ -6590,9 +6590,10 @@ static int rtw_mp_rate(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_point *wrqu, char *extra)
 {
-	u32 rate = MPT_RATE_1M;
+	unsigned long rate = MPT_RATE_1M;
 	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
 	struct adapter *padapter = rtw_netdev_priv(dev);
+	int status;
 
 	if (!input)
 		return -ENOMEM;
@@ -6600,8 +6601,12 @@ static int rtw_mp_rate(struct net_device *dev,
 		kfree(input);
 		return -EFAULT;
 	}
-	rate = rtw_atoi(input);
-	sprintf(extra, "Set data rate to %d", rate);
+
+	status = kstrtoul(input, 0, &rate);
+	if (status)
+		return status;
+
+	sprintf(extra, "Set data rate to %lu", rate);
 	kfree(input);
 	if (rate <= 0x7f)
 		rate = wifirate2_ratetbl_inx((u8)rate);
@@ -6623,8 +6628,9 @@ static int rtw_mp_channel(struct net_device *dev,
 			struct iw_point *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
-	char	*input = kmalloc(wrqu->length, GFP_KERNEL);
-	u32	channel = 1;
+	char *input = kmalloc(wrqu->length, GFP_KERNEL);
+	unsigned long channel = 1;
+	int status;
 
 	if (!input)
 		return -ENOMEM;
@@ -6632,8 +6638,12 @@ static int rtw_mp_channel(struct net_device *dev,
 		kfree(input);
 		return -EFAULT;
 	}
-	channel = rtw_atoi(input);
-	sprintf(extra, "Change channel %d to channel %d", padapter->mppriv.channel, channel);
+
+	status = kstrtoul(input, 0, &channel);
+	if (status)
+		return status;
+
+	sprintf(extra, "Change channel %d to channel %lu", padapter->mppriv.channel, channel);
 
 	padapter->mppriv.channel = channel;
 	Hal_SetChannel(padapter);

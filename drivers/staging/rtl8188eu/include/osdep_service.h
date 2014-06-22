@@ -211,9 +211,6 @@ u32  rtw_ms_to_systime(u32 ms);
 s32  rtw_get_passing_time_ms(u32 start);
 s32  rtw_get_time_interval_ms(u32 start, u32 end);
 
-
-u32  rtw_atoi(u8 *s);
-
 static inline unsigned char _cancel_timer_ex(struct timer_list *ptimer)
 {
 	return del_timer_sync(ptimer);
