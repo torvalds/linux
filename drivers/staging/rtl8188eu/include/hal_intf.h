@@ -207,7 +207,6 @@ struct hal_ops {
 
 	void	(*Add_RateATid)(struct adapter *adapter, u32 bitmap, u8 arg,
 				u8 rssi_level);
-	void	(*cancel_thread)(struct adapter *adapter);
 
 	u8	(*AntDivBeforeLinkHandler)(struct adapter *adapter);
 	void	(*AntDivCompareHandler)(struct adapter *adapter,
@@ -312,7 +311,6 @@ void rtw_hal_update_ra_mask(struct adapter *padapter, u32 mac_id, u8 level);
 void	rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg, u8 level);
 void	rtw_hal_clone_data(struct adapter *dst_adapt,
 			   struct adapter *src_adapt);
-void	rtw_hal_stop_thread(struct adapter *padapter);
 
 void rtw_hal_bcn_related_reg_setting(struct adapter *padapter);
 
