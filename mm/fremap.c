@@ -215,6 +215,7 @@ get_write_lock:
 				BUG_ON(addr != start);
 				if (prfile) {
 					struct vm_area_struct *new_vma;
+
 					new_vma = find_vma(mm, addr);
 					if (!new_vma->vm_prfile)
 						new_vma->vm_prfile = prfile;

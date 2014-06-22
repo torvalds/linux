@@ -164,6 +164,7 @@ static int do_pri_dentry(aufs_bindex_t bindex, struct dentry *dentry)
 {
 	struct dentry *wh = NULL;
 	int hn;
+	struct au_iinfo *iinfo;
 
 	if (!dentry || IS_ERR(dentry)) {
 		dpri("d%d: err %ld\n", bindex, PTR_ERR(dentry));
@@ -179,7 +180,7 @@ static int do_pri_dentry(aufs_bindex_t bindex, struct dentry *dentry)
 	     d_unhashed(dentry) ? "un" : "");
 	hn = -1;
 	if (bindex >= 0 && dentry->d_inode && au_test_aufs(dentry->d_sb)) {
-		struct au_iinfo *iinfo = au_ii(dentry->d_inode);
+		iinfo = au_ii(dentry->d_inode);
 		if (iinfo) {
 			hn = !!au_hn(iinfo->ii_hinode + bindex);
 			wh = iinfo->ii_hinode[0 + bindex].hi_whdentry;
