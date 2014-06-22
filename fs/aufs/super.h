@@ -395,7 +395,9 @@ static inline pid_t si_pid_bit(void)
 
 static inline int si_pid_test(struct super_block *sb)
 {
-	pid_t bit = si_pid_bit();
+	pid_t bit;
+
+	bit = si_pid_bit();
 	if (bit < PID_MAX_DEFAULT)
 		return test_bit(bit, au_sbi(sb)->au_si_pid.bitmap);
 	else
@@ -404,7 +406,9 @@ static inline int si_pid_test(struct super_block *sb)
 
 static inline void si_pid_set(struct super_block *sb)
 {
-	pid_t bit = si_pid_bit();
+	pid_t bit;
+
+	bit = si_pid_bit();
 	if (bit < PID_MAX_DEFAULT) {
 		AuDebugOn(test_bit(bit, au_sbi(sb)->au_si_pid.bitmap));
 		set_bit(bit, au_sbi(sb)->au_si_pid.bitmap);
@@ -415,7 +419,9 @@ static inline void si_pid_set(struct super_block *sb)
 
 static inline void si_pid_clr(struct super_block *sb)
 {
-	pid_t bit = si_pid_bit();
+	pid_t bit;
+
+	bit = si_pid_bit();
 	if (bit < PID_MAX_DEFAULT) {
 		AuDebugOn(!test_bit(bit, au_sbi(sb)->au_si_pid.bitmap));
 		clear_bit(bit, au_sbi(sb)->au_si_pid.bitmap);
@@ -445,7 +451,9 @@ static inline void si_noflush_read_lock(struct super_block *sb)
 
 static inline int si_noflush_read_trylock(struct super_block *sb)
 {
-	int locked = __si_read_trylock(sb);
+	int locked;
+
+	locked = __si_read_trylock(sb);
 	if (locked)
 		si_pid_set(sb);
 	return locked;
@@ -459,7 +467,9 @@ static inline void si_noflush_write_lock(struct super_block *sb)
 
 static inline int si_noflush_write_trylock(struct super_block *sb)
 {
-	int locked = __si_write_trylock(sb);
+	int locked;
+
+	locked = __si_write_trylock(sb);
 	if (locked)
 		si_pid_set(sb);
 	return locked;

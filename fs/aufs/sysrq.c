@@ -73,6 +73,7 @@ static void sysrq_sb(struct super_block *sb)
 #if 1
 	{
 		struct inode *i;
+
 		pr("isolated inode\n");
 		spin_lock(&inode_sb_list_lock);
 		list_for_each_entry(i, &sb->s_inodes, i_sb_list) {
@@ -88,6 +89,7 @@ static void sysrq_sb(struct super_block *sb)
 	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, file) {
 		umode_t mode;
+
 		mode = file_inode(file)->i_mode;
 		if (!special_file(mode))
 			au_dpri_file(file);
@@ -144,6 +146,7 @@ int __init au_sysrq_init(void)
 void au_sysrq_fin(void)
 {
 	int err;
+
 	err = unregister_sysrq_key(*aufs_sysrq_key, &au_sysrq_op);
 	if (unlikely(err))
 		pr_err("err %d (ignored)\n", err);
