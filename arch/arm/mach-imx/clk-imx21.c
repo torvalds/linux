@@ -149,10 +149,6 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
 
-	clk_register_clkdev(clk[per1], "per1", NULL);
-	clk_register_clkdev(clk[per2], "per2", NULL);
-	clk_register_clkdev(clk[per3], "per3", NULL);
-	clk_register_clkdev(clk[per4], "per4", NULL);
 	clk_register_clkdev(clk[per1], "per", "imx21-uart.0");
 	clk_register_clkdev(clk[uart1_ipg_gate], "ipg", "imx21-uart.0");
 	clk_register_clkdev(clk[per1], "per", "imx21-uart.1");
@@ -163,10 +159,6 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[uart4_ipg_gate], "ipg", "imx21-uart.3");
 	clk_register_clkdev(clk[gpt1_ipg_gate], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[per1], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[gpt2_ipg_gate], "ipg", "imx-gpt.1");
-	clk_register_clkdev(clk[per1], "per", "imx-gpt.1");
-	clk_register_clkdev(clk[gpt3_ipg_gate], "ipg", "imx-gpt.2");
-	clk_register_clkdev(clk[per1], "per", "imx-gpt.2");
 	clk_register_clkdev(clk[per2], "per", "imx21-cspi.0");
 	clk_register_clkdev(clk[cspi1_ipg_gate], "ipg", "imx21-cspi.0");
 	clk_register_clkdev(clk[per2], "per", "imx21-cspi.1");
@@ -183,18 +175,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[dma_gate], "ipg", "imx21-dma");
 	clk_register_clkdev(clk[wdog_gate], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[i2c_gate], NULL, "imx21-i2c.0");
-	clk_register_clkdev(clk[kpp_gate], NULL, "mxc-keypad");
 	clk_register_clkdev(clk[owire_gate], NULL, "mxc_w1.0");
-	clk_register_clkdev(clk[brom_gate], "brom", NULL);
-	clk_register_clkdev(clk[emma_gate], "emma", NULL);
-	clk_register_clkdev(clk[slcdc_gate], "slcdc", NULL);
-	clk_register_clkdev(clk[gpio_gate], "gpio", NULL);
-	clk_register_clkdev(clk[rtc_gate], "rtc", NULL);
-	clk_register_clkdev(clk[csi_hclk_gate], "csi", NULL);
-	clk_register_clkdev(clk[ssi1_gate], "ssi1", NULL);
-	clk_register_clkdev(clk[ssi2_gate], "ssi2", NULL);
-	clk_register_clkdev(clk[sdhc1_ipg_gate], "sdhc1", NULL);
-	clk_register_clkdev(clk[sdhc2_ipg_gate], "sdhc2", NULL);
 
 	mxc_timer_init(MX21_IO_ADDRESS(MX21_GPT1_BASE_ADDR), MX21_INT_GPT1);
 
