@@ -98,8 +98,6 @@ inline s32 rtw_get_passing_time_ms(u32 start)
 	return rtw_systime_to_ms(jiffies-start);
 }
 
-#define RTW_SUSPEND_LOCK_NAME "rtw_wifi"
-
 struct net_device *rtw_alloc_etherdev_with_old_priv(int sizeof_priv,
 						    void *old_priv)
 {
