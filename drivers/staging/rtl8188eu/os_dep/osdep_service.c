@@ -107,11 +107,6 @@ u32	rtw_is_list_empty(struct list_head *phead)
 		return false;
 }
 
-void rtw_list_insert_head(struct list_head *plist, struct list_head *phead)
-{
-	list_add(plist, phead);
-}
-
 void rtw_list_insert_tail(struct list_head *plist, struct list_head *phead)
 {
 	list_add_tail(plist, phead);
