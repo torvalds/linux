@@ -109,9 +109,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-#ifndef BIT
-	#define BIT(x)	(1 << (x))
-#endif
 
 #define BIT0	0x00000001
 #define BIT1	0x00000002
@@ -178,7 +175,6 @@ static inline void flush_signals_thread(void)
 		flush_signals(current);
 }
 
-#define _RND(sz, r) ((((sz)+((r)-1))/(r))*(r))
 #define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
 
 struct rtw_netdev_priv_indicator {
