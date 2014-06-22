@@ -82,7 +82,7 @@ int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
 	precvframe = (struct recv_frame *)precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++) {
-		_rtw_init_listhead(&(precvframe->list));
+		INIT_LIST_HEAD(&(precvframe->list));
 
 		list_add_tail(&(precvframe->list),
 				     &(precvpriv->free_recv_queue.queue));
@@ -169,7 +169,7 @@ struct recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue)
 void rtw_init_recvframe(struct recv_frame *precvframe, struct recv_priv *precvpriv)
 {
 	/* Perry: This can be removed */
-	_rtw_init_listhead(&precvframe->list);
+	INIT_LIST_HEAD(&precvframe->list);
 
 	precvframe->len = 0;
 }

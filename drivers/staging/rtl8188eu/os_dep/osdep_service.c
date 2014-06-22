@@ -89,11 +89,6 @@ void *rtw_malloc2d(int h, int w, int size)
 	return a;
 }
 
-void _rtw_init_listhead(struct list_head *list)
-{
-	INIT_LIST_HEAD(list);
-}
-
 u32 _rtw_down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
@@ -104,7 +99,7 @@ u32 _rtw_down_sema(struct semaphore *sema)
 
 void	_rtw_init_queue(struct __queue *pqueue)
 {
-	_rtw_init_listhead(&(pqueue->queue));
+	INIT_LIST_HEAD(&(pqueue->queue));
 	spin_lock_init(&(pqueue->lock));
 }
 

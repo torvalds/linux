@@ -971,7 +971,7 @@ void _rtw_mp_xmit_priv(struct xmit_priv *pxmitpriv)
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
 
 	for (i = 0; i < num_xmit_extbuf; i++) {
-		_rtw_init_listhead(&pxmitbuf->list);
+		INIT_LIST_HEAD(&pxmitbuf->list);
 
 		pxmitbuf->priv_data = NULL;
 		pxmitbuf->padapter = padapter;

@@ -4801,7 +4801,7 @@ static int set_group_key(struct adapter *padapter, u8 *key, u8 alg, int keyid)
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 
-	_rtw_init_listhead(&pcmd->list);
+	INIT_LIST_HEAD(&pcmd->list);
 
 	res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 

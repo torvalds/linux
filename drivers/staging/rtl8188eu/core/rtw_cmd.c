@@ -651,7 +651,7 @@ u8 rtw_getbbreg_cmd(struct adapter  *padapter, u8 offset, u8 *pval)
 		return _FAIL;
 	}
 
-	_rtw_init_listhead(&ph2c->list);
+	INIT_LIST_HEAD(&ph2c->list);
 	ph2c->cmdcode = GEN_CMD_CODE(_GetBBReg);
 	ph2c->parmbuf = (unsigned char *)prdbbparm;
 	ph2c->cmdsz =  sizeof(struct readBB_parm);
@@ -715,7 +715,7 @@ u8 rtw_getrfreg_cmd(struct adapter  *padapter, u8 offset, u8 *pval)
 		goto exit;
 	}
 
-	_rtw_init_listhead(&ph2c->list);
+	INIT_LIST_HEAD(&ph2c->list);
 	ph2c->cmdcode = GEN_CMD_CODE(_GetRFReg);
 	ph2c->parmbuf = (unsigned char *)prdrfparm;
 	ph2c->cmdsz =  sizeof(struct readRF_parm);
@@ -774,7 +774,7 @@ u8 rtw_createbss_cmd(struct adapter  *padapter)
 		goto exit;
 	}
 
-	_rtw_init_listhead(&pcmd->list);
+	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _CreateBss_CMD_;
 	pcmd->parmbuf = (unsigned char *)pdev_network;
 	pcmd->cmdsz = get_wlan_bssid_ex_sz((struct wlan_bssid_ex *)pdev_network);
@@ -801,7 +801,7 @@ u8 rtw_createbss_cmd_ex(struct adapter  *padapter, unsigned char *pbss, unsigned
 		goto exit;
 	}
 
-	_rtw_init_listhead(&pcmd->list);
+	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = GEN_CMD_CODE(_CreateBss);
 	pcmd->parmbuf = pbss;
 	pcmd->cmdsz =  sz;
@@ -944,7 +944,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 
 	pcmd->cmdsz = get_wlan_bssid_ex_sz(psecnetwork);/* get cmdsz before endian conversion */
 
-	_rtw_init_listhead(&pcmd->list);
+	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _JoinBss_CMD_;/* GEN_CMD_CODE(_JoinBss) */
 	pcmd->parmbuf = (unsigned char *)psecnetwork;
 	pcmd->rsp = NULL;
@@ -1194,7 +1194,7 @@ u8 rtw_getrttbl_cmd(struct adapter  *padapter, struct getratable_rsp *pval)
 		goto exit;
 	}
 
-	_rtw_init_listhead(&ph2c->list);
+	INIT_LIST_HEAD(&ph2c->list);
 	ph2c->cmdcode = GEN_CMD_CODE(_GetRaTable);
 	ph2c->parmbuf = (unsigned char *)pgetrttblparm;
 	ph2c->cmdsz =  sizeof(struct getratable_parm);

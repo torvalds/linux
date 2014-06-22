@@ -76,7 +76,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			goto _exit_recvbuf2recvframe;
 		}
 
-		_rtw_init_listhead(&precvframe->list);
+		INIT_LIST_HEAD(&precvframe->list);
 		precvframe->len = 0;
 
 		update_recvframe_attrib_88e(precvframe, prxstat);
