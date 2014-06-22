@@ -484,7 +484,7 @@ void au_array_free(void *array)
 void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg)
 {
 	void *array;
-	unsigned long long n;
+	unsigned long long n, sz;
 
 	array = NULL;
 	n = 0;
@@ -497,9 +497,10 @@ void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg)
 		goto out;
 	}
 
-	array = kmalloc(sizeof(array) * *hint, GFP_NOFS);
+	sz = sizeof(array) * *hint;
+	array = kmalloc(sz, GFP_NOFS);
 	if (unlikely(!array))
-		array = vmalloc(sizeof(array) * *hint);
+		array = vmalloc(sz);
 	if (unlikely(!array)) {
 		array = ERR_PTR(-ENOMEM);
 		goto out;

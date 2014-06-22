@@ -137,6 +137,7 @@ void vfsub_call_lkup_one(void *args);
 static inline int vfsub_mnt_want_write(struct vfsmount *mnt)
 {
 	int err;
+
 	lockdep_off();
 	err = mnt_want_write(mnt);
 	lockdep_on();
@@ -239,6 +240,7 @@ long vfsub_splice_from(struct pipe_inode_info *pipe, struct file *out,
 static inline long vfsub_truncate(struct path *path, loff_t length)
 {
 	long err;
+
 	lockdep_off();
 	err = vfs_truncate(path, length);
 	lockdep_on();
