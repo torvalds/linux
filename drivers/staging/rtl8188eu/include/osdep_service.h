@@ -215,16 +215,6 @@ static inline u32 _RND256(u32 sz)
 	return val;
 }
 
-static inline u32 bitshift(u32 bitmask)
-{
-	u32 i;
-
-	for (i = 0; i <= 31; i++)
-		if (((bitmask>>i) &  0x1) == 1)
-			break;
-	return i;
-}
-
 struct rtw_netdev_priv_indicator {
 	void *priv;
 	u32 sizeof_priv;
