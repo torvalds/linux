@@ -223,7 +223,7 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	spin_lock_bh(&(pfree_sta_queue->lock));
 
-	if (_rtw_queue_empty(pfree_sta_queue) == true) {
+	if (list_empty(&pfree_sta_queue->queue)) {
 		spin_unlock_bh(&pfree_sta_queue->lock);
 		psta = NULL;
 	} else {

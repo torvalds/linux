@@ -171,7 +171,6 @@ void _rtw_memcpy(void *dec, void *sour, u32 sz);
 u32  _rtw_down_sema(struct semaphore *sema);
 
 void _rtw_init_queue(struct __queue *pqueue);
-u32  _rtw_queue_empty(struct __queue *pqueue);
 
 u32  rtw_systime_to_ms(u32 systime);
 u32  rtw_ms_to_systime(u32 ms);

@@ -583,7 +583,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		}
 	} /* end while (aggregate same priority and same DA(AP or STA) frames) */
 
-	if (_rtw_queue_empty(&ptxservq->sta_pending) == true)
+	if (list_empty(&ptxservq->sta_pending.queue))
 		list_del_init(&ptxservq->tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);

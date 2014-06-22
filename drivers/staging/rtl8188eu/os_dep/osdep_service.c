@@ -77,11 +77,6 @@ void	_rtw_init_queue(struct __queue *pqueue)
 	spin_lock_init(&(pqueue->lock));
 }
 
-u32	  _rtw_queue_empty(struct __queue *pqueue)
-{
-	return list_empty(&(pqueue->queue));
-}
-
 inline u32 rtw_systime_to_ms(u32 systime)
 {
 	return systime * 1000 / HZ;

@@ -149,7 +149,7 @@ struct	wlan_network *_rtw_dequeue_network(struct __queue *queue)
 
 	spin_lock_bh(&queue->lock);
 
-	if (_rtw_queue_empty(queue)) {
+	if (list_empty(&queue->queue)) {
 		pnetwork = NULL;
 	} else {
 		pnetwork = container_of((&queue->queue)->next, struct wlan_network, list);
@@ -170,7 +170,7 @@ struct	wlan_network *_rtw_alloc_network(struct	mlme_priv *pmlmepriv)/* _queue *f
 
 	spin_lock_bh(&free_queue->lock);
 
-	if (_rtw_queue_empty(free_queue) == true) {
+	if (list_empty(&free_queue->queue)) {
 		pnetwork = NULL;
 		goto exit;
 	}
@@ -535,7 +535,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 	/* If we didn't find a match, then get a new network slot to initialize
 	 * with this beacon's information */
 	if (phead == plist) {
-		if (_rtw_queue_empty(&(pmlmepriv->free_bss_pool)) == true) {
+		if (list_empty(&(pmlmepriv->free_bss_pool.queue))) {
 			/* If there are no more slots, expire the oldest */
 			pnetwork = oldest;
 
