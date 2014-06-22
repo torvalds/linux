@@ -535,7 +535,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
 	xmitframe_plist = xmitframe_phead->next;
 
-	while (!rtw_end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
+	while (xmitframe_phead != xmitframe_plist) {
 		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 		xmitframe_plist = xmitframe_plist->next;
 

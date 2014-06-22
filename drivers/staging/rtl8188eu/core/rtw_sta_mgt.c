@@ -157,7 +157,7 @@ static void rtw_mfree_all_stainfo(struct sta_priv *pstapriv)
 	phead = get_list_head(&pstapriv->free_sta_queue);
 	plist = phead->next;
 
-	while ((rtw_end_of_queue_search(phead, plist)) == false) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info , list);
 		plist = plist->next;
 	}
@@ -185,7 +185,7 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 			phead = &(pstapriv->sta_hash[index]);
 			plist = phead->next;
 
-			while ((rtw_end_of_queue_search(phead, plist)) == false) {
+			while (phead != plist) {
 				int i;
 				psta = container_of(plist, struct sta_info , hash_list);
 				plist = plist->next;
@@ -441,7 +441,7 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 		phead = &(pstapriv->sta_hash[index]);
 		plist = phead->next;
 
-		while ((!rtw_end_of_queue_search(phead, plist))) {
+		while (phead != plist) {
 			psta = container_of(plist, struct sta_info , hash_list);
 
 			plist = plist->next;
@@ -478,7 +478,7 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	phead = &(pstapriv->sta_hash[index]);
 	plist = phead->next;
 
-	while ((!rtw_end_of_queue_search(phead, plist))) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, hash_list);
 
 		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN)) == true) {
@@ -539,7 +539,7 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 	spin_lock_bh(&(pacl_node_q->lock));
 	phead = get_list_head(pacl_node_q);
 	plist = phead->next;
-	while ((!rtw_end_of_queue_search(phead, plist))) {
+	while (phead != plist) {
 		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
 		plist = plist->next;
 

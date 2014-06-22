@@ -1111,10 +1111,7 @@ static int rtw_wx_set_wap(struct net_device *dev,
 	phead = get_list_head(queue);
 	pmlmepriv->pscanned = phead->next;
 
-	while (1) {
-		if ((rtw_end_of_queue_search(phead, pmlmepriv->pscanned)) == true)
-			break;
-
+	while (phead != pmlmepriv->pscanned) {
 		pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
 
 		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
@@ -1402,10 +1399,7 @@ static int rtw_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist))
-			break;
-
+	while (phead != plist) {
 		if ((stop - ev) < SCAN_ITEM_SIZE) {
 			ret = -E2BIG;
 			break;
@@ -1490,14 +1484,7 @@ static int rtw_wx_set_essid(struct net_device *dev,
 	       phead = get_list_head(queue);
 	      pmlmepriv->pscanned = phead->next;
 
-		while (1) {
-			if (rtw_end_of_queue_search(phead, pmlmepriv->pscanned) == true) {
-				RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_warning_,
-					 ("rtw_wx_set_essid: scan_q is empty, set ssid to check if scanning again!\n"));
-
-				break;
-			}
-
+		while (phead != pmlmepriv->pscanned) {
 			pnetwork = container_of(pmlmepriv->pscanned, struct wlan_network, list);
 
 			pmlmepriv->pscanned = pmlmepriv->pscanned->next;
@@ -2563,10 +2550,7 @@ static int rtw_get_ap_info(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
 		if (hwaddr_aton_i(data, bssid)) {
@@ -3066,10 +3050,7 @@ static int rtw_p2p_get_wps_configmethod(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			u8 *wpsie;
@@ -3136,10 +3117,7 @@ static int rtw_p2p_get_go_device_address(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			/*	Commented by Albert 2011/05/18 */
@@ -3220,10 +3198,7 @@ static int rtw_p2p_get_device_type(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			u8 *wpsie;
@@ -3299,10 +3274,7 @@ static int rtw_p2p_get_device_name(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			u8 *wpsie;
@@ -3370,10 +3342,7 @@ static int rtw_p2p_get_invitation_procedure(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			/*	Commented by Albert 20121226 */
@@ -3452,10 +3421,7 @@ static int rtw_p2p_connect(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!memcmp(pnetwork->network.MacAddress, peerMAC, ETH_ALEN)) {
 			uintPeerChannel = pnetwork->network.Configuration.DSConfig;
@@ -3547,10 +3513,7 @@ static int rtw_p2p_invite_req(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
-
+	while (phead != plist) {
 		pnetwork = container_of(plist, struct wlan_network, list);
 
 		/*	Commented by Albert 2011/05/18 */
@@ -3697,9 +3660,7 @@ static int rtw_p2p_prov_disc(struct net_device *dev,
 	phead = get_list_head(queue);
 	plist = phead->next;
 
-	while (1) {
-		if (rtw_end_of_queue_search(phead, plist) == true)
-			break;
+	while (phead != plist) {
 
 		if (uintPeerChannel != 0)
 			break;
@@ -4402,7 +4363,7 @@ static int rtw_dbg_port(struct net_device *dev,
 					phead = &(pstapriv->sta_hash[i]);
 					plist = phead->next;
 
-					while ((rtw_end_of_queue_search(phead, plist)) == false) {
+					while (phead != plist) {
 						psta = container_of(plist, struct sta_info, hash_list);
 
 						plist = plist->next;

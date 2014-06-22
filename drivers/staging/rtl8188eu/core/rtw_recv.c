@@ -255,7 +255,7 @@ void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfre
 	phead = get_list_head(pframequeue);
 	plist = phead->next;
 
-	while (rtw_end_of_queue_search(phead, plist) == false) {
+	while (phead != plist) {
 		hdr = container_of(plist, struct recv_frame, list);
 
 		plist = plist->next;
@@ -1039,7 +1039,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 			xmitframe_phead = get_list_head(&psta->sleep_q);
 			xmitframe_plist = xmitframe_phead->next;
 
-			if ((rtw_end_of_queue_search(xmitframe_phead, xmitframe_plist)) == false) {
+			if (xmitframe_phead != xmitframe_plist) {
 				pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 
 				xmitframe_plist = xmitframe_plist->next;
@@ -1471,7 +1471,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 
 	plist = plist->next;
 
-	while (rtw_end_of_queue_search(phead, plist) == false) {
+	while (phead != plist) {
 		pnfhdr = container_of(plist, struct recv_frame, list);
 		pnextrframe = (struct recv_frame *)pnfhdr;
 
@@ -1777,7 +1777,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 	phead = get_list_head(ppending_recvframe_queue);
 	plist = phead->next;
 
-	while (rtw_end_of_queue_search(phead, plist) == false) {
+	while (phead != plist) {
 		hdr = container_of(plist, struct recv_frame, list);
 		pnextattrib = &hdr->attrib;
 

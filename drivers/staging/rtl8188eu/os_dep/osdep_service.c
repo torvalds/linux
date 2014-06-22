@@ -130,14 +130,6 @@ u32	  _rtw_queue_empty(struct __queue *pqueue)
 	return rtw_is_list_empty(&(pqueue->queue));
 }
 
-u32 rtw_end_of_queue_search(struct list_head *head, struct list_head *plist)
-{
-	if (head == plist)
-		return true;
-	else
-		return false;
-}
-
 inline u32 rtw_systime_to_ms(u32 systime)
 {
 	return systime * 1000 / HZ;

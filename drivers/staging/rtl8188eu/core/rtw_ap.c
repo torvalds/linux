@@ -288,7 +288,7 @@ void	expire_timeout_chk(struct adapter *padapter)
 	plist = phead->next;
 
 	/* check auth_queue */
-	while ((rtw_end_of_queue_search(phead, plist)) == false) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, auth_list);
 		plist = plist->next;
 
@@ -322,7 +322,7 @@ void	expire_timeout_chk(struct adapter *padapter)
 	plist = phead->next;
 
 	/* check asoc_queue */
-	while ((rtw_end_of_queue_search(phead, plist)) == false) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 		plist = plist->next;
 
@@ -1146,7 +1146,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 	phead = get_list_head(pacl_node_q);
 	plist = phead->next;
 
-	while (!rtw_end_of_queue_search(phead, plist)) {
+	while (phead != plist) {
 		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
 		plist = plist->next;
 
@@ -1207,7 +1207,7 @@ int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	phead = get_list_head(pacl_node_q);
 	plist = phead->next;
 
-	while (!rtw_end_of_queue_search(phead, plist)) {
+	while (phead != plist) {
 		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
 		plist = plist->next;
 
@@ -1505,7 +1505,7 @@ void associated_clients_update(struct adapter *padapter, u8 updated)
 		plist = phead->next;
 
 		/* check asoc_queue */
-		while ((rtw_end_of_queue_search(phead, plist)) == false) {
+		while (phead != plist) {
 			psta = container_of(plist, struct sta_info, asoc_list);
 
 			plist = plist->next;
@@ -1779,7 +1779,7 @@ int rtw_ap_inform_ch_switch(struct adapter *padapter, u8 new_ch, u8 ch_offset)
 	plist = phead->next;
 
 	/* for each sta in asoc_queue */
-	while (!rtw_end_of_queue_search(phead, plist)) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 		plist = plist->next;
 
@@ -1813,7 +1813,7 @@ int rtw_sta_flush(struct adapter *padapter)
 	plist = phead->next;
 
 	/* free sta asoc_queue */
-	while ((rtw_end_of_queue_search(phead, plist)) == false) {
+	while (phead != plist) {
 		psta = container_of(plist, struct sta_info, asoc_list);
 
 		plist = plist->next;
@@ -1942,7 +1942,7 @@ void stop_ap_mode(struct adapter *padapter)
 	spin_lock_bh(&(pacl_node_q->lock));
 	phead = get_list_head(pacl_node_q);
 	plist = phead->next;
-	while ((rtw_end_of_queue_search(phead, plist)) == false) {
+	while (phead != plist) {
 		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
 		plist = plist->next;
 

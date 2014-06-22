@@ -853,7 +853,7 @@ int proc_get_all_sta_info(char *page, char **start,
 		phead = &(pstapriv->sta_hash[i]);
 		plist = phead->next;
 
-		while ((rtw_end_of_queue_search(phead, plist)) == false) {
+		while (phead != plist) {
 			psta = container_of(plist, struct sta_info, hash_list);
 
 			plist = plist->next;
