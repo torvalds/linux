@@ -597,7 +597,7 @@ static int mp_xmit_packet_thread(void *context)
 	padapter = pmp_priv->papdater;
 	pxmitpriv = &(padapter->xmitpriv);
 
-	thread_enter("RTW_MP_THREAD");
+	allow_signal(SIGTERM);
 
 	/* DBG_88E("%s:pkTx Start\n", __func__); */
 	while (1) {
