@@ -993,6 +993,7 @@ struct nfs4_setclientid {
 	unsigned int			sc_uaddr_len;
 	char				sc_uaddr[RPCBIND_MAXUADDRLEN + 1];
 	u32				sc_cb_ident;
+	struct rpc_cred			*sc_cred;
 };
 
 struct nfs4_setclientid_res {

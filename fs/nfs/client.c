@@ -252,6 +252,7 @@ void nfs_free_client(struct nfs_client *clp)
 	put_net(clp->cl_net);
 	put_nfs_version(clp->cl_nfs_mod);
 	kfree(clp->cl_hostname);
+	kfree(clp->cl_acceptor);
 	kfree(clp);
 
 	dprintk("<-- nfs_free_client()\n");

@@ -4936,6 +4936,18 @@ nfs4_init_callback_netid(const struct nfs_client *clp, char *buf, size_t len)
 		return scnprintf(buf, len, "tcp");
 }
 
+static void nfs4_setclientid_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_setclientid *sc = calldata;
+
+	if (task->tk_status == 0)
+		sc->sc_cred = get_rpccred(task->tk_rqstp->rq_cred);
+}
+
+static const struct rpc_call_ops nfs4_setclientid_ops = {
+	.rpc_call_done = nfs4_setclientid_done,
+};
+
 /**
  * nfs4_proc_setclientid - Negotiate client ID
  * @clp: state data structure
@@ -4961,6 +4973,14 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		.rpc_argp = &setclientid,
 		.rpc_resp = res,
 		.rpc_cred = cred,
+	};
+	struct rpc_task *task;
+	struct rpc_task_setup task_setup_data = {
+		.rpc_client = clp->cl_rpcclient,
+		.rpc_message = &msg,
+		.callback_ops = &nfs4_setclientid_ops,
+		.callback_data = &setclientid,
+		.flags = RPC_TASK_TIMEOUT,
 	};
 	int status;
 
@@ -4988,7 +5008,18 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	dprintk("NFS call  setclientid auth=%s, '%.*s'\n",
 		clp->cl_rpcclient->cl_auth->au_ops->au_name,
 		setclientid.sc_name_len, setclientid.sc_name);
-	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
+	task = rpc_run_task(&task_setup_data);
+	if (IS_ERR(task)) {
+		status = PTR_ERR(task);
+		goto out;
+	}
+	status = task->tk_status;
+	if (setclientid.sc_cred) {
+		clp->cl_acceptor = rpcauth_stringify_acceptor(setclientid.sc_cred);
+		put_rpccred(setclientid.sc_cred);
+	}
+	rpc_put_task(task);
+out:
 	trace_nfs4_setclientid(clp, status);
 	dprintk("NFS reply setclientid: %d\n", status);
 	return status;
