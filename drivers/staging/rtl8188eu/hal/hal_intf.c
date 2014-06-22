@@ -263,13 +263,6 @@ void rtw_hal_add_ra_tid(struct adapter *adapt, u32 bitmap, u8 arg,
 }
 
 /*	Start specifical interface thread		*/
-void rtw_hal_start_thread(struct adapter *adapt)
-{
-	if (adapt->HalFunc.run_thread)
-		adapt->HalFunc.run_thread(adapt);
-}
-
-/*	Start specifical interface thread		*/
 void rtw_hal_stop_thread(struct adapter *adapt)
 {
 	if (adapt->HalFunc.cancel_thread)
