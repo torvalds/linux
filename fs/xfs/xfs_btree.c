@@ -91,7 +91,7 @@ xfs_btree_check_lblock(
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -139,7 +139,7 @@ xfs_btree_check_sblock(
 		if (bp)
 			trace_xfs_btree_corrupt(bp, _RET_IP_);
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }

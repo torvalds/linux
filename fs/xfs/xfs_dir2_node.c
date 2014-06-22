@@ -406,7 +406,7 @@ xfs_dir2_leafn_add(
 	 * into other peoples memory
 	 */
 	if (index < 0)
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 
 	/*
 	 * If there are already the maximum number of leaf entries in
@@ -417,7 +417,7 @@ xfs_dir2_leafn_add(
 
 	if (leafhdr.count == dp->d_ops->leaf_max_ents(args->geo)) {
 		if (!leafhdr.stale)
-			return XFS_ERROR(ENOSPC);
+			return ENOSPC;
 		compact = leafhdr.stale > 1;
 	} else
 		compact = 0;
@@ -629,7 +629,7 @@ xfs_dir2_leafn_lookup_for_addname(
 							XFS_ERRLEVEL_LOW, mp);
 				if (curfdb != newfdb)
 					xfs_trans_brelse(tp, curbp);
-				return XFS_ERROR(EFSCORRUPTED);
+				return EFSCORRUPTED;
 			}
 			curfdb = newfdb;
 			if (be16_to_cpu(bests[fi]) >= length)
@@ -660,7 +660,7 @@ out:
 	 * Return the index, that will be the insertion point.
 	 */
 	*indexp = index;
-	return XFS_ERROR(ENOENT);
+	return ENOENT;
 }
 
 /*
@@ -789,7 +789,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			curbp->b_ops = &xfs_dir3_data_buf_ops;
 			xfs_trans_buf_set_type(tp, curbp, XFS_BLFT_DIR_DATA_BUF);
 			if (cmp == XFS_CMP_EXACT)
-				return XFS_ERROR(EEXIST);
+				return EEXIST;
 		}
 	}
 	ASSERT(index == leafhdr.count || (args->op_flags & XFS_DA_OP_OKNOENT));
@@ -812,7 +812,7 @@ xfs_dir2_leafn_lookup_for_entry(
 		state->extravalid = 0;
 	}
 	*indexp = index;
-	return XFS_ERROR(ENOENT);
+	return ENOENT;
 }
 
 /*
@@ -1815,7 +1815,7 @@ xfs_dir2_node_addname_int(
 		 * Not allowed to allocate, return failure.
 		 */
 		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) || args->total == 0)
-			return XFS_ERROR(ENOSPC);
+			return ENOSPC;
 
 		/*
 		 * Allocate and initialize the new data block.
@@ -1876,7 +1876,7 @@ xfs_dir2_node_addname_int(
 				}
 				XFS_ERROR_REPORT("xfs_dir2_node_addname_int",
 						 XFS_ERRLEVEL_LOW, mp);
-				return XFS_ERROR(EFSCORRUPTED);
+				return EFSCORRUPTED;
 			}
 
 			/*

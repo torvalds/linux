@@ -656,7 +656,7 @@ xfs_inode_ag_iterator(
 				break;
 		}
 	}
-	return XFS_ERROR(last_error);
+	return last_error;
 }
 
 int
@@ -684,7 +684,7 @@ xfs_inode_ag_iterator_tag(
 				break;
 		}
 	}
-	return XFS_ERROR(last_error);
+	return last_error;
 }
 
 /*
@@ -1129,7 +1129,7 @@ restart:
 		trylock = 0;
 		goto restart;
 	}
-	return XFS_ERROR(last_error);
+	return last_error;
 }
 
 int

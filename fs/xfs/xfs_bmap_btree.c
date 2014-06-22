@@ -554,7 +554,7 @@ xfs_bmbt_alloc_block(
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
 	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
-		error = XFS_ERROR(ENOSPC);
+		error = ENOSPC;
 		goto error0;
 	}
 	error = xfs_alloc_vextent(&args);

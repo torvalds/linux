@@ -227,7 +227,7 @@ xfs_attr3_node_inactive(
 	 */
 	if (level > XFS_DA_NODE_MAXDEPTH) {
 		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	node = bp->b_addr;
@@ -277,7 +277,7 @@ xfs_attr3_node_inactive(
 							child_bp);
 				break;
 			default:
-				error = XFS_ERROR(EIO);
+				error = EIO;
 				xfs_trans_brelse(*trans, child_bp);
 				break;
 			}
@@ -360,7 +360,7 @@ xfs_attr3_root_inactive(
 		error = xfs_attr3_leaf_inactive(trans, dp, bp);
 		break;
 	default:
-		error = XFS_ERROR(EIO);
+		error = EIO;
 		xfs_trans_brelse(*trans, bp);
 		break;
 	}

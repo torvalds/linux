@@ -67,7 +67,7 @@ xfs_qm_scall_quotaoff(
 	 * errno == EEXIST here.
 	 */
 	if ((mp->m_qflags & flags) == 0)
-		return XFS_ERROR(EEXIST);
+		return EEXIST;
 	error = 0;
 
 	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
@@ -284,7 +284,7 @@ xfs_qm_scall_trunc_qfiles(
 	    (flags & ~XFS_DQ_ALLTYPES)) {
 		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	if (flags & XFS_DQ_USER) {
@@ -328,7 +328,7 @@ xfs_qm_scall_quotaon(
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
 			__func__, mp->m_qflags);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	/* No fs can turn on quotas with a delayed effect */
@@ -351,13 +351,13 @@ xfs_qm_scall_quotaon(
 		xfs_debug(mp,
 			"%s: Can't enforce without acct, flags=%x sbflags=%x",
 			__func__, flags, mp->m_sb.sb_qflags);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 	/*
 	 * If everything's up to-date incore, then don't waste time.
 	 */
 	if ((mp->m_qflags & flags) == flags)
-		return XFS_ERROR(EEXIST);
+		return EEXIST;
 
 	/*
 	 * Change sb_qflags on disk but not incore mp->qflags
@@ -372,7 +372,7 @@ xfs_qm_scall_quotaon(
 	 * There's nothing to change if it's the same.
 	 */
 	if ((qf & flags) == flags && sbflags == 0)
-		return XFS_ERROR(EEXIST);
+		return EEXIST;
 	sbflags |= XFS_SB_QFLAGS;
 
 	if ((error = xfs_qm_write_sb_changes(mp, sbflags)))
@@ -390,7 +390,7 @@ xfs_qm_scall_quotaon(
 		return 0;
 
 	if (! XFS_IS_QUOTA_RUNNING(mp))
-		return XFS_ERROR(ESRCH);
+		return ESRCH;
 
 	/*
 	 * Switch on quota enforcement in core.
@@ -850,7 +850,7 @@ xfs_qm_scall_getquota(
 	 * our utility programs are concerned.
 	 */
 	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-		error = XFS_ERROR(ENOENT);
+		error = ENOENT;
 		goto out_put;
 	}
 

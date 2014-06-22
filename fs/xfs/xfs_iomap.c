@@ -138,7 +138,7 @@ xfs_iomap_write_direct(
 
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	rt = XFS_IS_REALTIME_INODE(ip);
 	extsz = xfs_get_extsz_hint(ip);
@@ -148,7 +148,7 @@ xfs_iomap_write_direct(
 	if ((offset + count) > XFS_ISIZE(ip)) {
 		error = xfs_iomap_eof_align_last_fsb(mp, ip, extsz, &last_fsb);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 	} else {
 		if (nmaps && (imap->br_startblock == HOLESTARTBLOCK))
 			last_fsb = MIN(last_fsb, (xfs_fileoff_t)
@@ -188,7 +188,7 @@ xfs_iomap_write_direct(
 	 */
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		return XFS_ERROR(error);
+		return error;
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -225,7 +225,7 @@ xfs_iomap_write_direct(
 	 * Copy any maps to caller's array and return any error.
 	 */
 	if (nimaps == 0) {
-		error = XFS_ERROR(ENOSPC);
+		error = ENOSPC;
 		goto out_unlock;
 	}
 
@@ -552,7 +552,7 @@ xfs_iomap_write_delay(
 	 */
 	error = xfs_qm_dqattach_locked(ip, 0);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	extsz = xfs_get_extsz_hint(ip);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
@@ -600,7 +600,7 @@ retry:
 	case EDQUOT:
 		break;
 	default:
-		return XFS_ERROR(error);
+		return error;
 	}
 
 	/*
@@ -614,7 +614,7 @@ retry:
 			error = 0;
 			goto retry;
 		}
-		return XFS_ERROR(error ? error : ENOSPC);
+		return error ? error : ENOSPC;
 	}
 
 	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
@@ -663,7 +663,7 @@ xfs_iomap_write_allocate(
 	 */
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	count_fsb = imap->br_blockcount;
@@ -690,7 +690,7 @@ xfs_iomap_write_allocate(
 						  nres, 0);
 			if (error) {
 				xfs_trans_cancel(tp, 0);
-				return XFS_ERROR(error);
+				return error;
 			}
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 			xfs_trans_ijoin(tp, ip, 0);
@@ -794,7 +794,7 @@ trans_cancel:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 error0:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return XFS_ERROR(error);
+	return error;
 }
 
 int
@@ -854,7 +854,7 @@ xfs_iomap_write_unwritten(
 					  resblks, 0);
 		if (error) {
 			xfs_trans_cancel(tp, 0);
-			return XFS_ERROR(error);
+			return error;
 		}
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -893,7 +893,7 @@ xfs_iomap_write_unwritten(
 		error = xfs_trans_commit(tp, XFS_TRANS_RELEASE_LOG_RES);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 
 		if (!(imap.br_startblock || XFS_IS_REALTIME_INODE(ip)))
 			return xfs_alert_fsblock_zero(ip, &imap);
@@ -916,5 +916,5 @@ error_on_bmapi_transaction:
 	xfs_bmap_cancel(&free_list);
 	xfs_trans_cancel(tp, (XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT));
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return XFS_ERROR(error);
+	return error;
 }

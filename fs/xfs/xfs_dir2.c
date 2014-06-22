@@ -202,7 +202,7 @@ xfs_dir_ino_validate(
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
 		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }

@@ -446,7 +446,7 @@ done:
 	     mp->m_logbufs > XLOG_MAX_ICLOGS)) {
 		xfs_warn(mp, "invalid logbufs value: %d [not %d-%d]",
 			mp->m_logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 	if (mp->m_logbsize != -1 &&
 	    mp->m_logbsize !=  0 &&
@@ -456,7 +456,7 @@ done:
 		xfs_warn(mp,
 			"invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
 			mp->m_logbsize);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	if (iosizelog) {
@@ -465,7 +465,7 @@ done:
 			xfs_warn(mp, "invalid log iosize: %d [not %d-%d]",
 				iosizelog, XFS_MIN_IO_LOG,
 				XFS_MAX_IO_LOG);
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 		}
 
 		mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
@@ -1336,14 +1336,14 @@ xfs_finish_flags(
 			   mp->m_logbsize < mp->m_sb.sb_logsunit) {
 			xfs_warn(mp,
 		"logbuf size must be greater than or equal to log stripe size");
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 		}
 	} else {
 		/* Fail a mount if the logbuf is larger than 32K */
 		if (mp->m_logbsize > XLOG_BIG_RECORD_BSIZE) {
 			xfs_warn(mp,
 		"logbuf size for version 1 logs must be 16K or 32K");
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 		}
 	}
 
@@ -1355,7 +1355,7 @@ xfs_finish_flags(
 		xfs_warn(mp,
 "Cannot mount a V5 filesystem as %s. %s is always enabled for V5 filesystems.",
 			MNTOPT_NOATTR2, MNTOPT_ATTR2);
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	/*
@@ -1372,7 +1372,7 @@ xfs_finish_flags(
 	if ((mp->m_sb.sb_flags & XFS_SBF_READONLY) && !ronly) {
 		xfs_warn(mp,
 			"cannot mount a read-only filesystem as read-write");
-		return XFS_ERROR(EROFS);
+		return EROFS;
 	}
 
 	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
@@ -1380,7 +1380,7 @@ xfs_finish_flags(
 	    !xfs_sb_version_has_pquotino(&mp->m_sb)) {
 		xfs_warn(mp,
 		  "Super block does not support project and group quota together");
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	return 0;

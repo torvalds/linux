@@ -418,7 +418,7 @@ xfs_bmap_count_tree(
 			xfs_trans_brelse(tp, bp);
 			XFS_ERROR_REPORT("xfs_bmap_count_tree(1)",
 					 XFS_ERRLEVEL_LOW, mp);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 		xfs_trans_brelse(tp, bp);
 	} else {
@@ -485,7 +485,7 @@ xfs_bmap_count_blocks(
 	if (unlikely(xfs_bmap_count_tree(mp, tp, ifp, bno, level, count) < 0)) {
 		XFS_ERROR_REPORT("xfs_bmap_count_blocks(2)", XFS_ERRLEVEL_LOW,
 				 mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 
 	return 0;
@@ -577,13 +577,13 @@ xfs_getbmap(
 			if (ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS &&
 			    ip->i_d.di_aformat != XFS_DINODE_FMT_BTREE &&
 			    ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)
-				return XFS_ERROR(EINVAL);
+				return EINVAL;
 		} else if (unlikely(
 			   ip->i_d.di_aformat != 0 &&
 			   ip->i_d.di_aformat != XFS_DINODE_FMT_EXTENTS)) {
 			XFS_ERROR_REPORT("xfs_getbmap", XFS_ERRLEVEL_LOW,
 					 ip->i_mount);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 
 		prealloced = 0;
@@ -592,7 +592,7 @@ xfs_getbmap(
 		if (ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
 		    ip->i_d.di_format != XFS_DINODE_FMT_BTREE &&
 		    ip->i_d.di_format != XFS_DINODE_FMT_LOCAL)
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 
 		if (xfs_get_extsz_hint(ip) ||
 		    ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC|XFS_DIFLAG_APPEND)){
@@ -612,20 +612,20 @@ xfs_getbmap(
 		bmv->bmv_entries = 0;
 		return 0;
 	} else if (bmv->bmv_length < 0) {
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	nex = bmv->bmv_count - 1;
 	if (nex <= 0)
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	bmvend = bmv->bmv_offset + bmv->bmv_length;
 
 
 	if (bmv->bmv_count > ULONG_MAX / sizeof(struct getbmapx))
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 	out = kmem_zalloc_large(bmv->bmv_count * sizeof(struct getbmapx), 0);
 	if (!out)
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	if (whichfork == XFS_DATA_FORK) {
@@ -1008,14 +1008,14 @@ xfs_alloc_file_space(
 	trace_xfs_alloc_file_space(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
 		return error;
 
 	if (len <= 0)
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 
 	rt = XFS_IS_REALTIME_INODE(ip);
 	extsz = xfs_get_extsz_hint(ip);
@@ -1118,7 +1118,7 @@ xfs_alloc_file_space(
 		allocated_fsb = imapp->br_blockcount;
 
 		if (nimaps == 0) {
-			error = XFS_ERROR(ENOSPC);
+			error = ENOSPC;
 			break;
 		}
 
@@ -1179,7 +1179,7 @@ xfs_zero_remaining_bytes(
 					mp->m_rtdev_targp : mp->m_ddev_targp,
 				  BTOBB(mp->m_sb.sb_blocksize), 0);
 	if (!bp)
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 
 	xfs_buf_unlock(bp);
 
@@ -1211,7 +1211,7 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_SET_ADDR(bp, xfs_fsb_to_db(ip, imap.br_startblock));
 
 		if (XFS_FORCED_SHUTDOWN(mp)) {
-			error = XFS_ERROR(EIO);
+			error = EIO;
 			break;
 		}
 		xfs_buf_iorequest(bp);
@@ -1229,7 +1229,7 @@ xfs_zero_remaining_bytes(
 		XFS_BUF_WRITE(bp);
 
 		if (XFS_FORCED_SHUTDOWN(mp)) {
-			error = XFS_ERROR(EIO);
+			error = EIO;
 			break;
 		}
 		xfs_buf_iorequest(bp);
@@ -1689,7 +1689,7 @@ xfs_swap_extents(
 
 	tempifp = kmem_alloc(sizeof(xfs_ifork_t), KM_MAYFAIL);
 	if (!tempifp) {
-		error = XFS_ERROR(ENOMEM);
+		error = ENOMEM;
 		goto out;
 	}
 
@@ -1704,13 +1704,13 @@ xfs_swap_extents(
 
 	/* Verify that both files have the same format */
 	if ((ip->i_d.di_mode & S_IFMT) != (tip->i_d.di_mode & S_IFMT)) {
-		error = XFS_ERROR(EINVAL);
+		error = EINVAL;
 		goto out_unlock;
 	}
 
 	/* Verify both files are either real-time or non-realtime */
 	if (XFS_IS_REALTIME_INODE(ip) != XFS_IS_REALTIME_INODE(tip)) {
-		error = XFS_ERROR(EINVAL);
+		error = EINVAL;
 		goto out_unlock;
 	}
 
@@ -1721,7 +1721,7 @@ xfs_swap_extents(
 
 	/* Verify O_DIRECT for ftmp */
 	if (VN_CACHED(VFS_I(tip)) != 0) {
-		error = XFS_ERROR(EINVAL);
+		error = EINVAL;
 		goto out_unlock;
 	}
 
@@ -1729,7 +1729,7 @@ xfs_swap_extents(
 	if (sxp->sx_offset != 0 ||
 	    sxp->sx_length != ip->i_d.di_size ||
 	    sxp->sx_length != tip->i_d.di_size) {
-		error = XFS_ERROR(EFAULT);
+		error = EFAULT;
 		goto out_unlock;
 	}
 
@@ -1756,7 +1756,7 @@ xfs_swap_extents(
 	    (sbp->bs_ctime.tv_nsec != VFS_I(ip)->i_ctime.tv_nsec) ||
 	    (sbp->bs_mtime.tv_sec != VFS_I(ip)->i_mtime.tv_sec) ||
 	    (sbp->bs_mtime.tv_nsec != VFS_I(ip)->i_mtime.tv_nsec)) {
-		error = XFS_ERROR(EBUSY);
+		error = EBUSY;
 		goto out_unlock;
 	}
 
@@ -1767,7 +1767,7 @@ xfs_swap_extents(
 	 * until we have switched the extents.
 	 */
 	if (VN_MAPPED(VFS_I(ip))) {
-		error = XFS_ERROR(EBUSY);
+		error = EBUSY;
 		goto out_unlock;
 	}
 

@@ -67,11 +67,11 @@ xfs_bulkstat_one_int(
 	*stat = BULKSTAT_RV_NOTHING;
 
 	if (!buffer || xfs_internal_inum(mp, ino))
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 
 	buf = kmem_alloc(sizeof(*buf), KM_SLEEP | KM_MAYFAIL);
 	if (!buf)
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 
 	error = xfs_iget(mp, NULL, ino,
 			 (XFS_IGET_DONTCACHE | XFS_IGET_UNTRUSTED),
@@ -154,9 +154,9 @@ xfs_bulkstat_one_fmt(
 	const xfs_bstat_t	*buffer)
 {
 	if (ubsize < sizeof(*buffer))
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 	if (copy_to_user(ubuffer, buffer, sizeof(*buffer)))
-		return XFS_ERROR(EFAULT);
+		return EFAULT;
 	if (ubused)
 		*ubused = sizeof(*buffer);
 	return 0;
@@ -552,7 +552,7 @@ xfs_bulkstat_single(
 			return error;
 		if (count == 0 || (xfs_ino_t)*lastinop != ino)
 			return error == EFSCORRUPTED ?
-				XFS_ERROR(EINVAL) : error;
+				EINVAL : error;
 		else
 			return 0;
 	}
@@ -661,7 +661,7 @@ xfs_inumbers(
 		if (bufidx == bcount) {
 			long written;
 			if (formatter(ubuffer, buffer, bufidx, &written)) {
-				error = XFS_ERROR(EFAULT);
+				error = EFAULT;
 				break;
 			}
 			ubuffer += written;
@@ -688,7 +688,7 @@ xfs_inumbers(
 		if (bufidx) {
 			long written;
 			if (formatter(ubuffer, buffer, bufidx, &written))
-				error = XFS_ERROR(EFAULT);
+				error = EFAULT;
 			else
 				*count += bufidx;
 		}

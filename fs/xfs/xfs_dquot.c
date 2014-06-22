@@ -426,7 +426,7 @@ xfs_qm_dqrepair(
 
 	if (error) {
 		ASSERT(*bpp == NULL);
-		return XFS_ERROR(error);
+		return error;
 	}
 	(*bpp)->b_ops = &xfs_dquot_buf_ops;
 
@@ -442,7 +442,7 @@ xfs_qm_dqrepair(
 		if (error) {
 			/* repair failed, we're screwed */
 			xfs_trans_brelse(tp, *bpp);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 	}
 
@@ -539,7 +539,7 @@ xfs_qm_dqtobp(
 
 		if (error) {
 			ASSERT(bp == NULL);
-			return XFS_ERROR(error);
+			return error;
 		}
 	}
 
@@ -796,7 +796,7 @@ restart:
 		} else {
 			/* inode stays locked on return */
 			xfs_qm_dqdestroy(dqp);
-			return XFS_ERROR(ESRCH);
+			return ESRCH;
 		}
 	}
 
@@ -966,7 +966,7 @@ xfs_qm_dqflush(
 					     SHUTDOWN_CORRUPT_INCORE);
 		else
 			spin_unlock(&mp->m_ail->xa_lock);
-		error = XFS_ERROR(EIO);
+		error = EIO;
 		goto out_unlock;
 	}
 
@@ -992,7 +992,7 @@ xfs_qm_dqflush(
 		xfs_buf_relse(bp);
 		xfs_dqfunlock(dqp);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/* This is the only portion of data that needs to persist */
@@ -1045,7 +1045,7 @@ xfs_qm_dqflush(
 
 out_unlock:
 	xfs_dqfunlock(dqp);
-	return XFS_ERROR(EIO);
+	return EIO;
 }
 
 /*

@@ -441,7 +441,7 @@ xfs_vn_getattr(
 	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+		return -EIO;
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
@@ -546,14 +546,14 @@ xfs_setattr_nonsize(
 	/* If acls are being inherited, we already have this checked */
 	if (!(flags & XFS_ATTR_NOACL)) {
 		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			return XFS_ERROR(EROFS);
+			return EROFS;
 
 		if (XFS_FORCED_SHUTDOWN(mp))
-			return XFS_ERROR(EIO);
+			return EIO;
 
 		error = -inode_change_ok(inode, iattr);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 	}
 
 	ASSERT((mask & ATTR_SIZE) == 0);
@@ -703,7 +703,7 @@ xfs_setattr_nonsize(
 	xfs_qm_dqrele(gdqp);
 
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	/*
 	 * XXX(hch): Updating the ACL entries is not atomic vs the i_mode
@@ -715,7 +715,7 @@ xfs_setattr_nonsize(
 	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
 		error = -posix_acl_chmod(inode, inode->i_mode);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 	}
 
 	return 0;
@@ -748,14 +748,14 @@ xfs_setattr_size(
 	trace_xfs_setattr(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return XFS_ERROR(EROFS);
+		return EROFS;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	error = -inode_change_ok(inode, iattr);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));

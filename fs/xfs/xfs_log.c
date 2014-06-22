@@ -283,7 +283,7 @@ xlog_grant_head_wait(
 	return 0;
 shutdown:
 	list_del_init(&tic->t_queue);
-	return XFS_ERROR(EIO);
+	return EIO;
 }
 
 /*
@@ -377,7 +377,7 @@ xfs_log_regrant(
 	int			error = 0;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	XFS_STATS_INC(xs_try_logspace);
 
@@ -446,7 +446,7 @@ xfs_log_reserve(
 	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
 
 	if (XLOG_FORCED_SHUTDOWN(log))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	XFS_STATS_INC(xs_try_logspace);
 
@@ -454,7 +454,7 @@ xfs_log_reserve(
 	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
 				KM_SLEEP | KM_MAYFAIL);
 	if (!tic)
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 
 	tic->t_trans_type = t_type;
 	*ticp = tic;
@@ -2360,7 +2360,7 @@ xlog_write(
 
 			ophdr = xlog_write_setup_ophdr(log, ptr, ticket, flags);
 			if (!ophdr)
-				return XFS_ERROR(EIO);
+				return EIO;
 
 			xlog_write_adv_cnt(&ptr, &len, &log_offset,
 					   sizeof(struct xlog_op_header));
@@ -2859,7 +2859,7 @@ restart:
 	spin_lock(&log->l_icloglock);
 	if (XLOG_FORCED_SHUTDOWN(log)) {
 		spin_unlock(&log->l_icloglock);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	iclog = log->l_iclog;
@@ -3047,7 +3047,7 @@ xlog_state_release_iclog(
 	int		sync = 0;	/* do we sync? */
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR)
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	ASSERT(atomic_read(&iclog->ic_refcnt) > 0);
 	if (!atomic_dec_and_lock(&iclog->ic_refcnt, &log->l_icloglock))
@@ -3055,7 +3055,7 @@ xlog_state_release_iclog(
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		spin_unlock(&log->l_icloglock);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 	ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE ||
 	       iclog->ic_state == XLOG_STATE_WANT_SYNC);
@@ -3172,7 +3172,7 @@ _xfs_log_force(
 	iclog = log->l_iclog;
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		spin_unlock(&log->l_icloglock);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/* If the head iclog is not active nor dirty, we just attach
@@ -3210,7 +3210,7 @@ _xfs_log_force(
 				spin_unlock(&log->l_icloglock);
 
 				if (xlog_state_release_iclog(log, iclog))
-					return XFS_ERROR(EIO);
+					return EIO;
 
 				if (log_flushed)
 					*log_flushed = 1;
@@ -3246,7 +3246,7 @@ maybe_sleep:
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR) {
 			spin_unlock(&log->l_icloglock);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 		XFS_STATS_INC(xs_log_force_sleep);
 		xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
@@ -3256,7 +3256,7 @@ maybe_sleep:
 		 * and the memory read should be atomic.
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR)
-			return XFS_ERROR(EIO);
+			return EIO;
 		if (log_flushed)
 			*log_flushed = 1;
 	} else {
@@ -3324,7 +3324,7 @@ try_again:
 	iclog = log->l_iclog;
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		spin_unlock(&log->l_icloglock);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	do {
@@ -3375,7 +3375,7 @@ try_again:
 			xlog_state_switch_iclogs(log, iclog, 0);
 			spin_unlock(&log->l_icloglock);
 			if (xlog_state_release_iclog(log, iclog))
-				return XFS_ERROR(EIO);
+				return EIO;
 			if (log_flushed)
 				*log_flushed = 1;
 			spin_lock(&log->l_icloglock);
@@ -3390,7 +3390,7 @@ try_again:
 			 */
 			if (iclog->ic_state & XLOG_STATE_IOERROR) {
 				spin_unlock(&log->l_icloglock);
-				return XFS_ERROR(EIO);
+				return EIO;
 			}
 			XFS_STATS_INC(xs_log_force_sleep);
 			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
@@ -3400,7 +3400,7 @@ try_again:
 			 * and the memory read should be atomic.
 			 */
 			if (iclog->ic_state & XLOG_STATE_IOERROR)
-				return XFS_ERROR(EIO);
+				return EIO;
 
 			if (log_flushed)
 				*log_flushed = 1;

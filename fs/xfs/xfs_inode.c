@@ -583,7 +583,7 @@ xfs_lookup(
 	trace_xfs_lookup(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	lock_mode = xfs_ilock_data_map_shared(dp);
 	error = xfs_dir_lookup(NULL, dp, name, &inum, ci_name);
@@ -893,7 +893,7 @@ xfs_dir_ialloc(
 	}
 	if (!ialloc_context && !ip) {
 		*ipp = NULL;
-		return XFS_ERROR(ENOSPC);
+		return ENOSPC;
 	}
 
 	/*
@@ -1088,7 +1088,7 @@ xfs_create(
 	trace_xfs_create(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	prid = xfs_get_initial_prid(dp);
 
@@ -1274,7 +1274,7 @@ xfs_create_tmpfile(
 	uint			resblks;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	prid = xfs_get_initial_prid(dp);
 
@@ -1382,7 +1382,7 @@ xfs_link(
 	ASSERT(!S_ISDIR(sip->i_d.di_mode));
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	error = xfs_qm_dqattach(sip, 0);
 	if (error)
@@ -1417,7 +1417,7 @@ xfs_link(
 	 */
 	if (unlikely((tdp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
 		     (xfs_get_projid(tdp) != xfs_get_projid(sip)))) {
-		error = XFS_ERROR(EXDEV);
+		error = EXDEV;
 		goto error_return;
 	}
 
@@ -2491,7 +2491,7 @@ xfs_remove(
 	trace_xfs_remove(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	error = xfs_qm_dqattach(dp, 0);
 	if (error)
@@ -2543,11 +2543,11 @@ xfs_remove(
 	if (is_dir) {
 		ASSERT(ip->i_d.di_nlink >= 2);
 		if (ip->i_d.di_nlink != 2) {
-			error = XFS_ERROR(ENOTEMPTY);
+			error = ENOTEMPTY;
 			goto out_trans_cancel;
 		}
 		if (!xfs_dir_isempty(ip)) {
-			error = XFS_ERROR(ENOTEMPTY);
+			error = ENOTEMPTY;
 			goto out_trans_cancel;
 		}
 
@@ -2747,7 +2747,7 @@ xfs_rename(
 	 */
 	if (unlikely((target_dp->i_d.di_flags & XFS_DIFLAG_PROJINHERIT) &&
 		     (xfs_get_projid(target_dp) != xfs_get_projid(src_ip)))) {
-		error = XFS_ERROR(EXDEV);
+		error = EXDEV;
 		goto error_return;
 	}
 
@@ -2795,7 +2795,7 @@ xfs_rename(
 			 */
 			if (!(xfs_dir_isempty(target_ip)) ||
 			    (target_ip->i_d.di_nlink > 2)) {
-				error = XFS_ERROR(EEXIST);
+				error = EEXIST;
 				goto error_return;
 			}
 		}
@@ -3069,7 +3069,7 @@ cluster_corrupt_out:
 	xfs_iflush_abort(iq, false);
 	kmem_free(ilist);
 	xfs_perag_put(pag);
-	return XFS_ERROR(EFSCORRUPTED);
+	return EFSCORRUPTED;
 }
 
 /*
@@ -3124,7 +3124,7 @@ xfs_iflush(
 	 * as we wait for an empty AIL as part of the unmount process.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error = XFS_ERROR(EIO);
+		error = EIO;
 		goto abort_out;
 	}
 
@@ -3167,7 +3167,7 @@ corrupt_out:
 	xfs_buf_relse(bp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 cluster_corrupt_out:
-	error = XFS_ERROR(EFSCORRUPTED);
+	error = EFSCORRUPTED;
 abort_out:
 	/*
 	 * Unlocks the flush lock
@@ -3331,5 +3331,5 @@ xfs_iflush_int(
 	return 0;
 
 corrupt_out:
-	return XFS_ERROR(EFSCORRUPTED);
+	return EFSCORRUPTED;
 }

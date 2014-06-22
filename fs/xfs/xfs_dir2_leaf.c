@@ -731,7 +731,7 @@ xfs_dir2_leaf_addname(
 		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) ||
 							args->total == 0) {
 			xfs_trans_brelse(tp, lbp);
-			return XFS_ERROR(ENOSPC);
+			return ENOSPC;
 		}
 		/*
 		 * Convert to node form.
@@ -755,7 +755,7 @@ xfs_dir2_leaf_addname(
 	 */
 	if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
 		xfs_trans_brelse(tp, lbp);
-		return use_block == -1 ? XFS_ERROR(ENOSPC) : 0;
+		return use_block == -1 ? ENOSPC : 0;
 	}
 	/*
 	 * If no allocations are allowed, return now before we've
@@ -763,7 +763,7 @@ xfs_dir2_leaf_addname(
 	 */
 	if (args->total == 0 && use_block == -1) {
 		xfs_trans_brelse(tp, lbp);
-		return XFS_ERROR(ENOSPC);
+		return ENOSPC;
 	}
 	/*
 	 * Need to compact the leaf entries, removing stale ones.
@@ -1198,7 +1198,7 @@ xfs_dir2_leaf_lookup(
 	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
-	return XFS_ERROR(error);
+	return error;
 }
 
 /*
@@ -1333,7 +1333,7 @@ xfs_dir2_leaf_lookup_int(
 	if (dbp)
 		xfs_trans_brelse(tp, dbp);
 	xfs_trans_brelse(tp, lbp);
-	return XFS_ERROR(ENOENT);
+	return ENOENT;
 }
 
 /*

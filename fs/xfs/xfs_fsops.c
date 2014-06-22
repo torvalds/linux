@@ -168,7 +168,7 @@ xfs_growfs_data_private(
 	nb = in->newblocks;
 	pct = in->imaxpct;
 	if (nb < mp->m_sb.sb_dblocks || pct < 0 || pct > 100)
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
 		return error;
 	dpct = pct - mp->m_sb.sb_imax_pct;
@@ -191,7 +191,7 @@ xfs_growfs_data_private(
 		nagcount--;
 		nb = (xfs_rfsblock_t)nagcount * mp->m_sb.sb_agblocks;
 		if (nb < mp->m_sb.sb_dblocks)
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 	}
 	new = nb - mp->m_sb.sb_dblocks;
 	oagcount = mp->m_sb.sb_agcount;
@@ -576,17 +576,17 @@ xfs_growfs_log_private(
 
 	nb = in->newblocks;
 	if (nb < XFS_MIN_LOG_BLOCKS || nb < XFS_B_TO_FSB(mp, XFS_MIN_LOG_BYTES))
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	if (nb == mp->m_sb.sb_logblocks &&
 	    in->isint == (mp->m_sb.sb_logstart != 0))
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	/*
 	 * Moving the log is hard, need new interfaces to sync
 	 * the log first, hold off all activity while moving it.
 	 * Can have shorter or longer log in the same space,
 	 * or transform internal to external log or vice versa.
 	 */
-	return XFS_ERROR(ENOSYS);
+	return ENOSYS;
 }
 
 /*
@@ -604,9 +604,9 @@ xfs_growfs_data(
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return EPERM;
 	if (!mutex_trylock(&mp->m_growlock))
-		return XFS_ERROR(EWOULDBLOCK);
+		return EWOULDBLOCK;
 	error = xfs_growfs_data_private(mp, in);
 	mutex_unlock(&mp->m_growlock);
 	return error;
@@ -620,9 +620,9 @@ xfs_growfs_log(
 	int error;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return XFS_ERROR(EPERM);
+		return EPERM;
 	if (!mutex_trylock(&mp->m_growlock))
-		return XFS_ERROR(EWOULDBLOCK);
+		return EWOULDBLOCK;
 	error = xfs_growfs_log_private(mp, in);
 	mutex_unlock(&mp->m_growlock);
 	return error;
@@ -818,7 +818,7 @@ xfs_fs_goingdown(
 				SHUTDOWN_FORCE_UMOUNT | SHUTDOWN_LOG_IO_ERROR);
 		break;
 	default:
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	}
 
 	return 0;

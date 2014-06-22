@@ -477,7 +477,7 @@ xfs_attr_remove(
 	xfs_trans_ijoin(args.trans, dp, 0);
 
 	if (!xfs_inode_hasattr(dp)) {
-		error = XFS_ERROR(ENOATTR);
+		error = ENOATTR;
 	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
 		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
 		error = xfs_attr_shortform_remove(&args);
@@ -545,14 +545,14 @@ xfs_attr_shortform_addname(xfs_da_args_t *args)
 
 	if (args->namelen >= XFS_ATTR_SF_ENTSIZE_MAX ||
 	    args->valuelen >= XFS_ATTR_SF_ENTSIZE_MAX)
-		return XFS_ERROR(ENOSPC);
+		return ENOSPC;
 
 	newsize = XFS_ATTR_SF_TOTSIZE(args->dp);
 	newsize += XFS_ATTR_SF_ENTSIZE_BYNAME(args->namelen, args->valuelen);
 
 	forkoff = xfs_attr_shortform_bytesfit(args->dp, newsize);
 	if (!forkoff)
-		return XFS_ERROR(ENOSPC);
+		return ENOSPC;
 
 	xfs_attr_shortform_add(args, forkoff);
 	return 0;

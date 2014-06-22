@@ -150,7 +150,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe);
 			kmem_free(sbuf);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 
 		sbp->entno = i;
@@ -308,7 +308,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 						     context->dp->i_mount,
 						     node);
 				xfs_trans_brelse(NULL, bp);
-				return XFS_ERROR(EFSCORRUPTED);
+				return EFSCORRUPTED;
 			}
 
 			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
@@ -496,11 +496,11 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 	context->cursor->blkno = 0;
 	error = xfs_attr3_leaf_read(NULL, context->dp, 0, -1, &bp);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	error = xfs_attr3_leaf_list_int(bp, context);
 	xfs_trans_brelse(NULL, bp);
-	return XFS_ERROR(error);
+	return error;
 }
 
 int
@@ -616,16 +616,16 @@ xfs_attr_list(
 	 * Validate the cursor.
 	 */
 	if (cursor->pad1 || cursor->pad2)
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 	if ((cursor->initted == 0) &&
 	    (cursor->hashval || cursor->blkno || cursor->offset))
-		return XFS_ERROR(EINVAL);
+		return EINVAL;
 
 	/*
 	 * Check for a properly aligned buffer.
 	 */
 	if (((long)buffer) & (sizeof(int)-1))
-		return XFS_ERROR(EFAULT);
+		return EFAULT;
 	if (flags & ATTR_KERNOVAL)
 		bufsize = 0;
 

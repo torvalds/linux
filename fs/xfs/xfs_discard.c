@@ -166,11 +166,11 @@ xfs_ioc_trim(
 	int			error, last_error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -XFS_ERROR(EPERM);
+		return -EPERM;
 	if (!blk_queue_discard(q))
-		return -XFS_ERROR(EOPNOTSUPP);
+		return -EOPNOTSUPP;
 	if (copy_from_user(&range, urange, sizeof(range)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 
 	/*
 	 * Truncating down the len isn't actually quite correct, but using
@@ -182,7 +182,7 @@ xfs_ioc_trim(
 	if (range.start >= XFS_FSB_TO_B(mp, mp->m_sb.sb_dblocks) ||
 	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)) ||
 	    range.len < mp->m_sb.sb_blocksize)
-		return -XFS_ERROR(EINVAL);
+		return -EINVAL;
 
 	start = BTOBB(range.start);
 	end = start + BTOBBT(range.len) - 1;
@@ -206,7 +206,7 @@ xfs_ioc_trim(
 
 	range.len = XFS_FSB_TO_B(mp, blocks_trimmed);
 	if (copy_to_user(urange, &range, sizeof(range)))
-		return -XFS_ERROR(EFAULT);
+		return -EFAULT;
 	return 0;
 }
 

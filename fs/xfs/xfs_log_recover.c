@@ -194,7 +194,7 @@ xlog_bread_noalign(
 	bp->b_error = 0;
 
 	if (XFS_FORCED_SHUTDOWN(log->l_mp))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	xfs_buf_iorequest(bp);
 	error = xfs_buf_iowait(bp);
@@ -330,14 +330,14 @@ xlog_header_check_recover(
 		xlog_header_check_dump(mp, head);
 		XFS_ERROR_REPORT("xlog_header_check_recover(1)",
 				 XFS_ERRLEVEL_HIGH, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	} else if (unlikely(!uuid_equal(&mp->m_sb.sb_uuid, &head->h_fs_uuid))) {
 		xfs_warn(mp,
 	"dirty log entry has mismatched uuid - can't recover");
 		xlog_header_check_dump(mp, head);
 		XFS_ERROR_REPORT("xlog_header_check_recover(2)",
 				 XFS_ERRLEVEL_HIGH, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -364,7 +364,7 @@ xlog_header_check_mount(
 		xlog_header_check_dump(mp, head);
 		XFS_ERROR_REPORT("xlog_header_check_mount",
 				 XFS_ERRLEVEL_HIGH, mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -539,7 +539,7 @@ xlog_find_verify_log_record(
 			xfs_warn(log->l_mp,
 		"Log inconsistent (didn't find previous header)");
 			ASSERT(0);
-			error = XFS_ERROR(EIO);
+			error = EIO;
 			goto out;
 		}
 
@@ -820,7 +820,7 @@ validate_head:
 		/* start ptr at last block ptr before head_blk */
 		if ((error = xlog_find_verify_log_record(log, start_blk,
 							&head_blk, 0)) == -1) {
-			error = XFS_ERROR(EIO);
+			error = EIO;
 			goto bp_err;
 		} else if (error)
 			goto bp_err;
@@ -838,7 +838,7 @@ validate_head:
 			if ((error = xlog_find_verify_log_record(log,
 							start_blk, &new_blk,
 							(int)head_blk)) == -1) {
-				error = XFS_ERROR(EIO);
+				error = EIO;
 				goto bp_err;
 			} else if (error)
 				goto bp_err;
@@ -961,7 +961,7 @@ xlog_find_tail(
 		xfs_warn(log->l_mp, "%s: couldn't find sync record", __func__);
 		xlog_put_bp(bp);
 		ASSERT(0);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/* find blk_no of tail of log */
@@ -1141,7 +1141,7 @@ xlog_find_zeroed(
 		 */
 		xfs_warn(log->l_mp,
 			"Log inconsistent or not a log (last==0, first!=1)");
-		error = XFS_ERROR(EINVAL);
+		error = EINVAL;
 		goto bp_err;
 	}
 
@@ -1181,7 +1181,7 @@ xlog_find_zeroed(
 	 */
 	if ((error = xlog_find_verify_log_record(log, start_blk,
 				&last_blk, 0)) == -1) {
-	    error = XFS_ERROR(EIO);
+	    error = EIO;
 	    goto bp_err;
 	} else if (error)
 	    goto bp_err;
@@ -1354,7 +1354,7 @@ xlog_clear_stale_blocks(
 		if (unlikely(head_block < tail_block || head_block >= log->l_logBBsize)) {
 			XFS_ERROR_REPORT("xlog_clear_stale_blocks(1)",
 					 XFS_ERRLEVEL_LOW, log->l_mp);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 		tail_distance = tail_block + (log->l_logBBsize - head_block);
 	} else {
@@ -1366,7 +1366,7 @@ xlog_clear_stale_blocks(
 		if (unlikely(head_block >= tail_block || head_cycle != (tail_cycle + 1))){
 			XFS_ERROR_REPORT("xlog_clear_stale_blocks(2)",
 					 XFS_ERRLEVEL_LOW, log->l_mp);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 		tail_distance = tail_block - head_block;
 	}
@@ -1551,7 +1551,7 @@ xlog_recover_add_to_trans(
 			xfs_warn(log->l_mp, "%s: bad header magic number",
 				__func__);
 			ASSERT(0);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 		if (len == sizeof(xfs_trans_header_t))
 			xlog_recover_add_item(&trans->r_itemq);
@@ -1581,7 +1581,7 @@ xlog_recover_add_to_trans(
 				  in_f->ilf_size);
 			ASSERT(0);
 			kmem_free(ptr);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 
 		item->ri_total = in_f->ilf_size;
@@ -1702,7 +1702,7 @@ xlog_recover_reorder_trans(
 			 */
 			if (!list_empty(&sort_list))
 				list_splice_init(&sort_list, &trans->r_itemq);
-			error = XFS_ERROR(EIO);
+			error = EIO;
 			goto out;
 		}
 	}
@@ -1943,7 +1943,7 @@ xlog_recover_do_inode_buffer(
 				item, bp);
 			XFS_ERROR_REPORT("xlog_recover_do_inode_buf",
 					 XFS_ERRLEVEL_LOW, mp);
-			return XFS_ERROR(EFSCORRUPTED);
+			return EFSCORRUPTED;
 		}
 
 		buffer_nextp = (xfs_agino_t *)xfs_buf_offset(bp,
@@ -2496,7 +2496,7 @@ xlog_recover_buffer_pass2(
 	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
 			  buf_flags, NULL);
 	if (!bp)
-		return XFS_ERROR(ENOMEM);
+		return ENOMEM;
 	error = bp->b_error;
 	if (error) {
 		xfs_buf_ioerror_alert(bp, "xlog_recover_do..(read#1)");
@@ -2919,7 +2919,7 @@ out_release:
 error:
 	if (need_free)
 		kmem_free(in_f);
-	return XFS_ERROR(error);
+	return error;
 }
 
 /*
@@ -2976,12 +2976,12 @@ xlog_recover_dquot_pass2(
 	recddq = item->ri_buf[1].i_addr;
 	if (recddq == NULL) {
 		xfs_alert(log->l_mp, "NULL dquot in %s.", __func__);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 	if (item->ri_buf[1].i_len < sizeof(xfs_disk_dquot_t)) {
 		xfs_alert(log->l_mp, "dquot too small (%d) in %s.",
 			item->ri_buf[1].i_len, __func__);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/*
@@ -3007,7 +3007,7 @@ xlog_recover_dquot_pass2(
 	error = xfs_dqcheck(mp, recddq, dq_f->qlf_id, 0, XFS_QMOPT_DOWARN,
 			   "xlog_recover_dquot_pass2 (log copy)");
 	if (error)
-		return XFS_ERROR(EIO);
+		return EIO;
 	ASSERT(dq_f->qlf_len == 1);
 
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkno,
@@ -3028,7 +3028,7 @@ xlog_recover_dquot_pass2(
 			   "xlog_recover_dquot_pass2");
 	if (error) {
 		xfs_buf_relse(bp);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/*
@@ -3389,7 +3389,7 @@ xlog_recover_commit_pass1(
 		xfs_warn(log->l_mp, "%s: invalid item type (%d)",
 			__func__, ITEM_TYPE(item));
 		ASSERT(0);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 }
 
@@ -3425,7 +3425,7 @@ xlog_recover_commit_pass2(
 		xfs_warn(log->l_mp, "%s: invalid item type (%d)",
 			__func__, ITEM_TYPE(item));
 		ASSERT(0);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 }
 
@@ -3560,7 +3560,7 @@ xlog_recover_process_data(
 
 	/* check the log format matches our own - else we can't recover */
 	if (xlog_header_check_recover(log->l_mp, rhead))
-		return XFS_ERROR(EIO);
+		return EIO;
 
 	while ((dp < lp) && num_logops) {
 		ASSERT(dp + sizeof(xlog_op_header_t) <= lp);
@@ -3571,7 +3571,7 @@ xlog_recover_process_data(
 			xfs_warn(log->l_mp, "%s: bad clientid 0x%x",
 					__func__, ohead->oh_clientid);
 			ASSERT(0);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 		tid = be32_to_cpu(ohead->oh_tid);
 		hash = XLOG_RHASH(tid);
@@ -3585,7 +3585,7 @@ xlog_recover_process_data(
 				xfs_warn(log->l_mp, "%s: bad length 0x%x",
 					__func__, be32_to_cpu(ohead->oh_len));
 				WARN_ON(1);
-				return XFS_ERROR(EIO);
+				return EIO;
 			}
 			flags = ohead->oh_flags & ~XLOG_END_TRANS;
 			if (flags & XLOG_WAS_CONT_TRANS)
@@ -3607,7 +3607,7 @@ xlog_recover_process_data(
 				xfs_warn(log->l_mp, "%s: bad transaction",
 					__func__);
 				ASSERT(0);
-				error = XFS_ERROR(EIO);
+				error = EIO;
 				break;
 			case 0:
 			case XLOG_CONTINUE_TRANS:
@@ -3618,7 +3618,7 @@ xlog_recover_process_data(
 				xfs_warn(log->l_mp, "%s: bad flag 0x%x",
 					__func__, flags);
 				ASSERT(0);
-				error = XFS_ERROR(EIO);
+				error = EIO;
 				break;
 			}
 			if (error) {
@@ -3669,7 +3669,7 @@ xlog_recover_process_efi(
 			 */
 			set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
 			xfs_efi_release(efip, efip->efi_format.efi_nextents);
-			return XFS_ERROR(EIO);
+			return EIO;
 		}
 	}
 
@@ -4018,14 +4018,14 @@ xlog_valid_rec_header(
 	if (unlikely(rhead->h_magicno != cpu_to_be32(XLOG_HEADER_MAGIC_NUM))) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(1)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	if (unlikely(
 	    (!rhead->h_version ||
 	    (be32_to_cpu(rhead->h_version) & (~XLOG_VERSION_OKBITS))))) {
 		xfs_warn(log->l_mp, "%s: unrecognised log version (%d).",
 			__func__, be32_to_cpu(rhead->h_version));
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	/* LR body must have data or it wouldn't have been written */
@@ -4033,12 +4033,12 @@ xlog_valid_rec_header(
 	if (unlikely( hlen <= 0 || hlen > INT_MAX )) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(2)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	if (unlikely( blkno > log->l_logBBsize || blkno > INT_MAX )) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(3)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
-		return XFS_ERROR(EFSCORRUPTED);
+		return EFSCORRUPTED;
 	}
 	return 0;
 }
@@ -4415,7 +4415,7 @@ xlog_do_recover(
 
 	if (XFS_FORCED_SHUTDOWN(log->l_mp)) {
 		xfs_buf_relse(bp);
-		return XFS_ERROR(EIO);
+		return EIO;
 	}
 
 	xfs_buf_iorequest(bp);

@@ -181,7 +181,7 @@ xfs_imap_to_bp(
 
 		if (error == EFSCORRUPTED &&
 		    (iget_flags & XFS_IGET_UNTRUSTED))
-			return XFS_ERROR(EINVAL);
+			return EINVAL;
 
 		xfs_warn(mp, "%s: xfs_trans_read_buf() returned error %d.",
 			__func__, error);
@@ -390,7 +390,7 @@ xfs_iread(
 				__func__, ip->i_ino);
 
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, dip);
-		error = XFS_ERROR(EFSCORRUPTED);
+		error = EFSCORRUPTED;
 		goto out_brelse;
 	}
 
