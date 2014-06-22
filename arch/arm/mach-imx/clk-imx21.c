@@ -7,23 +7,11 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/err.h>
+#include <linux/clkdev.h>
 
 #include "clk.h"
 #include "common.h"
@@ -34,18 +22,11 @@
 /* Register offsets */
 #define CCM_CSCR		IO_ADDR_CCM(0x0)
 #define CCM_MPCTL0		IO_ADDR_CCM(0x4)
-#define CCM_MPCTL1		IO_ADDR_CCM(0x8)
 #define CCM_SPCTL0		IO_ADDR_CCM(0xc)
-#define CCM_SPCTL1		IO_ADDR_CCM(0x10)
-#define CCM_OSC26MCTL		IO_ADDR_CCM(0x14)
 #define CCM_PCDR0		IO_ADDR_CCM(0x18)
 #define CCM_PCDR1		IO_ADDR_CCM(0x1c)
 #define CCM_PCCR0		IO_ADDR_CCM(0x20)
 #define CCM_PCCR1		IO_ADDR_CCM(0x24)
-#define CCM_CCSR		IO_ADDR_CCM(0x28)
-#define CCM_PMCTL		IO_ADDR_CCM(0x2c)
-#define CCM_PMCOUNT		IO_ADDR_CCM(0x30)
-#define CCM_WKGDCTL		IO_ADDR_CCM(0x34)
 
 static const char *mpll_osc_sel_clks[] = { "ckih_gate", "ckih_div1p5", };
 static const char *mpll_sel_clks[] = { "fpm_gate", "mpll_osc_sel", };
@@ -68,10 +49,6 @@ enum imx21_clks {
 
 static struct clk *clk[clk_max];
 
-/*
- * must be called very early to get information about the
- * available clock rate when the timer framework starts
- */
 int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 {
 	clk[dummy] = imx_clk_fixed("dummy", 0);
