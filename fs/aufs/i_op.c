@@ -865,7 +865,7 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 			struct dentry *dentry, struct kstat *st)
 {
 	int err;
-	unsigned int mnt_flags;
+	unsigned int mnt_flags, sigen;
 	aufs_bindex_t bindex;
 	unsigned char udba_none, positive;
 	struct super_block *sb, *h_sb;
@@ -882,7 +882,7 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 
 	/* support fstat(2) */
 	if (!d_unlinked(dentry) && !udba_none) {
-		unsigned int sigen = au_sigen(sb);
+		sigen = au_sigen(sb);
 		err = au_digen_test(dentry, sigen);
 		if (!err) {
 			di_read_lock_child(dentry, AuLock_IR);

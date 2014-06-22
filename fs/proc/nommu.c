@@ -46,6 +46,7 @@ static int nommu_region_show(struct seq_file *m, struct vm_region *region)
 
 	if (file) {
 		struct inode *inode;
+
 		file = vmr_pr_or_file(region);
 		inode = file_inode(file);
 		dev = inode->i_sb->s_dev;
