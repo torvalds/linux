@@ -807,8 +807,8 @@ u8 *rtw_get_wps_attr(u8 *wps_ie, uint wps_ielen, u16 target_attr_id , u8 *buf_at
 
 	while (attr_ptr - wps_ie < wps_ielen) {
 		/*  4 = 2(Attribute ID) + 2(Length) */
-		u16 attr_id = RTW_GET_BE16(attr_ptr);
-		u16 attr_data_len = RTW_GET_BE16(attr_ptr + 2);
+		u16 attr_id = get_unaligned_be16(attr_ptr);
+		u16 attr_data_len = get_unaligned_be16(attr_ptr + 2);
 		u16 attr_len = attr_data_len + 4;
 
 		if (attr_id == target_attr_id) {
@@ -1156,8 +1156,8 @@ void dump_wps_ie(u8 *ie, u32 ie_len)
 
 	pos += 6;
 	while (pos-ie < ie_len) {
-		id = RTW_GET_BE16(pos);
-		len = RTW_GET_BE16(pos + 2);
+		id = get_unaligned_be16(pos);
+		len = get_unaligned_be16(pos + 2);
 		DBG_88E("%s ID:0x%04x, LEN:%u\n", __func__, id, len);
 		pos += (4+len);
 	}
