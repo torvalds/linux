@@ -196,7 +196,6 @@ void _rtw_mfree(u8 *pbuf, u32 sz);
 #define rtw_mfree(pbuf, sz)		_rtw_mfree((pbuf), (sz))
 
 void *rtw_malloc2d(int h, int w, int size);
-void rtw_mfree2d(void *pbuf, int h, int w, int size);
 
 void _rtw_memcpy(void *dec, void *sour, u32 sz);
 

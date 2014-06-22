@@ -213,7 +213,7 @@ exit:
 	kfree(efuseTbl);
 
 	if (eFuseWord)
-		rtw_mfree2d((void *)eFuseWord, EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
+		kfree(eFuseWord);
 }
 
 static void efuse_read_phymap_from_txpktbuf(

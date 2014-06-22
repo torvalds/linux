@@ -89,11 +89,6 @@ void *rtw_malloc2d(int h, int w, int size)
 	return a;
 }
 
-void rtw_mfree2d(void *pbuf, int h, int w, int size)
-{
-	kfree(pbuf);
-}
-
 void _rtw_init_listhead(struct list_head *list)
 {
 	INIT_LIST_HEAD(list);
