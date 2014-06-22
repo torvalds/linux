@@ -1554,6 +1554,7 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 	struct au_opt_xino *opt_xino, xino;
 	struct au_sbinfo *sbinfo;
 	struct au_branch *br;
+	struct inode *dir;
 
 	SiMustWriteLock(sb);
 
@@ -1627,7 +1628,7 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 		/* go on even if err */
 	}
 	if (au_opt_test(tmp, UDBA_HNOTIFY)) {
-		struct inode *dir = sb->s_root->d_inode;
+		dir = sb->s_root->d_inode;
 		au_hn_reset(dir, au_hi_flags(dir, /*isdir*/1) & ~AuHi_XINO);
 	}
 
