@@ -159,8 +159,6 @@ u8 *_rtw_malloc(u32 sz);
 
 void *rtw_malloc2d(int h, int w, int size);
 
-void _rtw_memcpy(void *dec, void *sour, u32 sz);
-
 u32  _rtw_down_sema(struct semaphore *sema);
 
 void _rtw_init_queue(struct __queue *pqueue);
@@ -260,6 +258,5 @@ bool rtw_cbuf_empty(struct rtw_cbuf *cbuf);
 bool rtw_cbuf_push(struct rtw_cbuf *cbuf, void *buf);
 void *rtw_cbuf_pop(struct rtw_cbuf *cbuf);
 struct rtw_cbuf *rtw_cbuf_alloc(u32 size);
-int wifirate2_ratetbl_inx(unsigned char rate);
 
 #endif
