@@ -544,10 +544,6 @@ static void rtl8188e_read_chip_version(struct adapter *padapter)
 	ReadChipVersion8188E(padapter);
 }
 
-static void rtl8188e_GetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
-{
-}
-
 static void rtl8188e_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
 {
 	struct hal_data_8188e	*pHalData = GET_HAL_DATA(Adapter);
@@ -622,7 +618,6 @@ void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->sreset_init_value = &sreset_init_value;
 	pHalFunc->sreset_get_wifi_status  = &sreset_get_wifi_status;
 
-	pHalFunc->GetHalODMVarHandler = &rtl8188e_GetHalODMVar;
 	pHalFunc->SetHalODMVarHandler = &rtl8188e_SetHalODMVar;
 
 	pHalFunc->IOL_exec_cmds_sync = &rtl8188e_IOL_exec_cmds_sync;
