@@ -20,11 +20,11 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-extern int __atomic_add_return(int, atomic_t *);
-extern int atomic_cmpxchg(atomic_t *, int, int);
+int __atomic_add_return(int, atomic_t *);
+int atomic_cmpxchg(atomic_t *, int, int);
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
-extern int __atomic_add_unless(atomic_t *, int, int);
-extern void atomic_set(atomic_t *, int);
+int __atomic_add_unless(atomic_t *, int, int);
+void atomic_set(atomic_t *, int);
 
 #define atomic_read(v)          (*(volatile int *)&(v)->counter)
 

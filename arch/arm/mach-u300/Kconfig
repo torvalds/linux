@@ -1,4 +1,4 @@
-config ARCH_U300
+menuconfig ARCH_U300
 	bool "ST-Ericsson U300 Series" if ARCH_MULTI_V5
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
@@ -15,8 +15,6 @@ config ARCH_U300
 	  Support for ST-Ericsson U300 series mobile platforms.
 
 if ARCH_U300
-
-menu "ST-Ericsson AB U300/U335 Platform"
 
 config MACH_U300
 	depends on ARCH_U300
@@ -42,7 +40,5 @@ config MACH_U300_SPIDUMMY
 		to test reference designs. If you're not testing SPI,
 		you don't need it. Selecting this will activate the
 		SPI framework and ARM PL022 support.
-
-endmenu
 
 endif

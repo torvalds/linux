@@ -31,6 +31,7 @@
 #include <asm/unistd.h>
 
 #include "entry.h"
+#include "kernel.h"
 #include "systbls.h"
 
 /* #define DEBUG_UNIMP_SYSCALL */

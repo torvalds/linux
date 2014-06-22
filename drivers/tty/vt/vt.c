@@ -3226,8 +3226,7 @@ int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		con_back = &registered_con_driver[i];
 
-		if (con_back->con &&
-		    !(con_back->flag & CON_DRIVER_FLAG_MODULE)) {
+		if (con_back->con && con_back->con != csw) {
 			defcsw = con_back->con;
 			retval = 0;
 			break;
@@ -3332,6 +3331,7 @@ static int vt_unbind(struct con_driver *con)
 {
 	const struct consw *csw = NULL;
 	int i, more = 1, first = -1, last = -1, deflt = 0;
+	int ret;
 
  	if (!con->con || !(con->flag & CON_DRIVER_FLAG_MODULE) ||
 	    con_is_graphics(con->con, con->first, con->last))
@@ -3357,8 +3357,10 @@ static int vt_unbind(struct con_driver *con)
 
 		if (first != -1) {
 			console_lock();
-			do_unbind_con_driver(csw, first, last, deflt);
+			ret = do_unbind_con_driver(csw, first, last, deflt);
 			console_unlock();
+			if (ret != 0)
+				return ret;
 		}
 
 		first = -1;
@@ -3645,17 +3647,20 @@ err:
  */
 int do_unregister_con_driver(const struct consw *csw)
 {
-	int i, retval = -ENODEV;
+	int i;
 
 	/* cannot unregister a bound driver */
 	if (con_is_bound(csw))
-		goto err;
+		return -EBUSY;
+
+	if (csw == conswitchp)
+		return -EINVAL;
 
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
 		struct con_driver *con_driver = &registered_con_driver[i];
 
 		if (con_driver->con == csw &&
-		    con_driver->flag & CON_DRIVER_FLAG_MODULE) {
+		    con_driver->flag & CON_DRIVER_FLAG_INIT) {
 			vtconsole_deinit_device(con_driver);
 			device_destroy(vtconsole_class,
 				       MKDEV(0, con_driver->node));
@@ -3666,12 +3671,11 @@ int do_unregister_con_driver(const struct consw *csw)
 			con_driver->flag = 0;
 			con_driver->first = 0;
 			con_driver->last = 0;
-			retval = 0;
-			break;
+			return 0;
 		}
 	}
-err:
-	return retval;
+
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(do_unregister_con_driver);
 
