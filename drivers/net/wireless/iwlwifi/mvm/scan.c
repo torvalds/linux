@@ -673,6 +673,7 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		ieee80211_scan_completed(mvm->hw,
 					 status == IWL_SCAN_OFFLOAD_ABORTED);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
 	mvm->last_ebs_successful = !ebs_status;
@@ -1107,8 +1108,12 @@ int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 	/*
 	 * Clear the scan status so the next scan requests will succeed. This
 	 * also ensures the Rx handler doesn't do anything, as the scan was
-	 * stopped from above.
+	 * stopped from above. Since the rx handler won't do anything now,
+	 * we have to release the scan reference here.
 	 */
+	if (mvm->scan_status == IWL_MVM_SCAN_OS)
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
 	if (notify) {
