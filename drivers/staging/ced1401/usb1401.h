@@ -101,7 +101,7 @@ typedef struct circBlk {
 /*  A structure holding all of the information about a transfer area - an area of */
 /*   memory set up for use either as a source or destination in DMA transfers. */
 typedef struct transarea {
-	void	*lpvBuff;                /*  User address of xfer area saved for completeness */
+	void __user *lpvBuff;                /*  User address of xfer area saved for completeness */
 	UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
 	UINT        dwLength;               /*  Length of xfer area, in bytes */
 	struct page **pPages;               /*  Points at array of locked down pages */
