@@ -310,7 +310,7 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8 *raddr,
 
 	wpsielen = 0;
 	/*	WPS OUI */
-	RTW_PUT_BE32(wpsie, WPSOUI);
+	*((u32 *)(wpsie+wpsielen)) = cpu_to_be32(WPSOUI);
 	wpsielen += 4;
 
 	/*	Config Method */
@@ -569,8 +569,7 @@ u32 build_probe_resp_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	p2pielen += 2;
 
 	/*	OUI */
-	/* u32*) (p2pie + p2pielen) = cpu_to_be32(WPSOUI); */
-	RTW_PUT_BE32(p2pie + p2pielen, WPSOUI);
+	*((u32 *)(p2pie + p2pielen)) = cpu_to_be32(WPSOUI);
 	p2pielen += 4;
 
 	/*	Sub Category ID */
@@ -683,8 +682,7 @@ u32 build_prov_disc_request_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf, u8
 	p2pielen += 2;
 
 	/*	OUI */
-	/* u32*) (p2pie + p2pielen) = cpu_to_be32(WPSOUI); */
-	RTW_PUT_BE32(p2pie + p2pielen, WPSOUI);
+	*((u32 *)(p2pie + p2pielen)) = cpu_to_be32(WPSOUI);
 	p2pielen += 4;
 
 	/*	Sub Category ID */
