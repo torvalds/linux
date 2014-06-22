@@ -242,12 +242,6 @@ u64 rtw_modular64(u64 x, u64 y);
 
 /* Macros for handling unaligned memory accesses */
 
-#define RTW_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16) (val)) >> 8;	\
-		(a)[0] = ((u16) (val)) & 0xff;	\
-	} while (0)
-
 #define RTW_GET_BE24(a) ((((u32) (a)[0]) << 16) | (((u32) (a)[1]) << 8) | \
 			 ((u32) (a)[2]))
 

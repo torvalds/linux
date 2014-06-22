@@ -206,8 +206,8 @@ inline u8 *rtw_set_ie_mesh_ch_switch_parm(u8 *buf, u32 *buf_len, u8 ttl,
 
 	ie_data[0] = ttl;
 	ie_data[1] = flags;
-	RTW_PUT_LE16((u8 *)&ie_data[2], reason);
-	RTW_PUT_LE16((u8 *)&ie_data[4], precedence);
+	*(u16 *)(ie_data+2) = cpu_to_le16(reason);
+	*(u16 *)(ie_data+4) = cpu_to_le16(precedence);
 
 	return rtw_set_ie(buf, 0x118,  6, ie_data, buf_len);
 }
@@ -1310,8 +1310,7 @@ u32 rtw_set_p2p_attr_content(u8 *pbuf, u8 attr_id, u16 attr_len, u8 *pdata_attr)
 
 	*pbuf = attr_id;
 
-	/* u16*)(pbuf + 1) = cpu_to_le16(attr_len); */
-	RTW_PUT_LE16(pbuf + 1, attr_len);
+	*(u16 *)(pbuf + 1) = cpu_to_le16(attr_len);
 
 	if (pdata_attr)
 		memcpy(pbuf + 3, pdata_attr, attr_len);
