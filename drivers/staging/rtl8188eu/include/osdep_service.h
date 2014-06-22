@@ -222,14 +222,6 @@ static inline u32 _RND256(u32 sz)
 	return val;
 }
 
-static inline u32 _RND512(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
-	return val;
-}
-
 static inline u32 bitshift(u32 bitmask)
 {
 	u32 i;
