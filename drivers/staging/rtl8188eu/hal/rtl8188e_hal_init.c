@@ -741,7 +741,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 {
 	u32 rfPath, eeAddr = EEPROM_TX_PWR_INX_88E, group, TxCount = 0;
 
-	_rtw_memset(pwrInfo24G, 0, sizeof(struct txpowerinfo24g));
+	memset(pwrInfo24G, 0, sizeof(struct txpowerinfo24g));
 
 	if (AutoLoadFail) {
 		for (rfPath = 0; rfPath < MAX_RF_PATH; rfPath++) {

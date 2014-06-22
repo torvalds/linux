@@ -350,7 +350,7 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 
 	c2h_evt = (struct c2h_evt_hdr *)buf;
 
-	_rtw_memset(c2h_evt, 0, 16);
+	memset(c2h_evt, 0, 16);
 
 	*buf = usb_read8(adapter, REG_C2HEVT_MSG_NORMAL);
 	*(buf+1) = usb_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);

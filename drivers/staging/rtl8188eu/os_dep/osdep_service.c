@@ -94,11 +94,6 @@ void rtw_mfree2d(void *pbuf, int h, int w, int size)
 	kfree(pbuf);
 }
 
-void _rtw_memset(void *pbuf, int c, u32 sz)
-{
-	memset(pbuf, c, sz);
-}
-
 void _rtw_init_listhead(struct list_head *list)
 {
 	INIT_LIST_HEAD(list);
