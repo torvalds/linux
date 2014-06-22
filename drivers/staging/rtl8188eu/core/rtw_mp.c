@@ -629,7 +629,8 @@ static int mp_xmit_packet_thread(void *context)
 		    (pmptx->count == pmptx->sended))
 			goto exit;
 
-		flush_signals_thread();
+		if (signal_pending(current))
+			flush_signals(current);
 	}
 
 exit:

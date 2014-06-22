@@ -359,7 +359,8 @@ post_process:
 			rtw_free_cmd_obj(pcmd);
 		}
 
-		flush_signals_thread();
+		if (signal_pending(current))
+			flush_signals(current);
 
 		goto _next;
 	}
