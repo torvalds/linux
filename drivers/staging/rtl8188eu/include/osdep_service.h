@@ -175,8 +175,6 @@ static inline void flush_signals_thread(void)
 		flush_signals(current);
 }
 
-#define RND4(x)	(((x >> 2) + (((x & 3) == 0) ?  0 : 1)) << 2)
-
 struct rtw_netdev_priv_indicator {
 	void *priv;
 	u32 sizeof_priv;
