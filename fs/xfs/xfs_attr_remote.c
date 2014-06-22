@@ -452,7 +452,7 @@ xfs_attr_rmtval_set(
 			ASSERT(committed);
 			args->trans = NULL;
 			xfs_bmap_cancel(args->flist);
-			return(error);
+			return error;
 		}
 
 		/*
@@ -473,7 +473,7 @@ xfs_attr_rmtval_set(
 		 */
 		error = xfs_trans_roll(&args->trans, dp);
 		if (error)
-			return (error);
+			return error;
 	}
 
 	/*
@@ -498,7 +498,7 @@ xfs_attr_rmtval_set(
 				       blkcnt, &map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
-			return(error);
+			return error;
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
@@ -563,7 +563,7 @@ xfs_attr_rmtval_remove(
 		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
 				       blkcnt, &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
-			return(error);
+			return error;
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
@@ -622,7 +622,7 @@ xfs_attr_rmtval_remove(
 		 */
 		error = xfs_trans_roll(&args->trans, args->dp);
 		if (error)
-			return (error);
+			return error;
 	}
-	return(0);
+	return 0;
 }

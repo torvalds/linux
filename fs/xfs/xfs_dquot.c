@@ -327,7 +327,7 @@ xfs_qm_dqalloc(
 	 */
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		xfs_iunlock(quotip, XFS_ILOCK_EXCL);
-		return (ESRCH);
+		return ESRCH;
 	}
 
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
@@ -400,7 +400,7 @@ xfs_qm_dqalloc(
       error0:
 	xfs_iunlock(quotip, XFS_ILOCK_EXCL);
 
-	return (error);
+	return error;
 }
 
 STATIC int
@@ -547,7 +547,7 @@ xfs_qm_dqtobp(
 	*O_bpp = bp;
 	*O_ddpp = bp->b_addr + dqp->q_bufoffset;
 
-	return (0);
+	return 0;
 }
 
 
@@ -715,7 +715,7 @@ xfs_qm_dqget(
 	if ((! XFS_IS_UQUOTA_ON(mp) && type == XFS_DQ_USER) ||
 	    (! XFS_IS_PQUOTA_ON(mp) && type == XFS_DQ_PROJ) ||
 	    (! XFS_IS_GQUOTA_ON(mp) && type == XFS_DQ_GROUP)) {
-		return (ESRCH);
+		return ESRCH;
 	}
 
 #ifdef DEBUG
@@ -723,7 +723,7 @@ xfs_qm_dqget(
 		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
 		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
 			xfs_debug(mp, "Returning error in dqget");
-			return (EIO);
+			return EIO;
 		}
 	}
 
@@ -829,7 +829,7 @@ restart:
 	ASSERT((ip == NULL) || xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
-	return (0);
+	return 0;
 }
 
 /*

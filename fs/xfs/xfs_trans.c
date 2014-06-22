@@ -190,7 +190,7 @@ xfs_trans_reserve(
 					  -((int64_t)blocks), rsvd);
 		if (error != 0) {
 			current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-			return (XFS_ERROR(ENOSPC));
+			return XFS_ERROR(ENOSPC);
 		}
 		tp->t_blk_res += blocks;
 	}
@@ -1024,7 +1024,7 @@ xfs_trans_roll(
 	 */
 	error = xfs_trans_commit(trans, 0);
 	if (error)
-		return (error);
+		return error;
 
 	trans = *tpp;
 

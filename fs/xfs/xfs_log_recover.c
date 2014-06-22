@@ -2946,7 +2946,7 @@ xlog_recover_quotaoff_pass1(
 	if (qoff_f->qf_flags & XFS_GQUOTA_ACCT)
 		log->l_quotaoffs_flag |= XFS_DQ_GROUP;
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -2971,7 +2971,7 @@ xlog_recover_dquot_pass2(
 	 * Filesystems are required to send in quota flags at mount time.
 	 */
 	if (mp->m_qflags == 0)
-		return (0);
+		return 0;
 
 	recddq = item->ri_buf[1].i_addr;
 	if (recddq == NULL) {
@@ -2990,7 +2990,7 @@ xlog_recover_dquot_pass2(
 	type = recddq->d_flags & (XFS_DQ_USER | XFS_DQ_PROJ | XFS_DQ_GROUP);
 	ASSERT(type);
 	if (log->l_quotaoffs_flag & type)
-		return (0);
+		return 0;
 
 	/*
 	 * At this point we know that quota was _not_ turned off.
@@ -3560,7 +3560,7 @@ xlog_recover_process_data(
 
 	/* check the log format matches our own - else we can't recover */
 	if (xlog_header_check_recover(log->l_mp, rhead))
-		return (XFS_ERROR(EIO));
+		return XFS_ERROR(EIO);
 
 	while ((dp < lp) && num_logops) {
 		ASSERT(dp + sizeof(xlog_op_header_t) <= lp);
@@ -3571,7 +3571,7 @@ xlog_recover_process_data(
 			xfs_warn(log->l_mp, "%s: bad clientid 0x%x",
 					__func__, ohead->oh_clientid);
 			ASSERT(0);
-			return (XFS_ERROR(EIO));
+			return XFS_ERROR(EIO);
 		}
 		tid = be32_to_cpu(ohead->oh_tid);
 		hash = XLOG_RHASH(tid);
@@ -3585,7 +3585,7 @@ xlog_recover_process_data(
 				xfs_warn(log->l_mp, "%s: bad length 0x%x",
 					__func__, be32_to_cpu(ohead->oh_len));
 				WARN_ON(1);
-				return (XFS_ERROR(EIO));
+				return XFS_ERROR(EIO);
 			}
 			flags = ohead->oh_flags & ~XLOG_END_TRANS;
 			if (flags & XLOG_WAS_CONT_TRANS)
@@ -4388,7 +4388,7 @@ xlog_do_recover(
 	 * If IO errors happened during recovery, bail out.
 	 */
 	if (XFS_FORCED_SHUTDOWN(log->l_mp)) {
-		return (EIO);
+		return EIO;
 	}
 
 	/*

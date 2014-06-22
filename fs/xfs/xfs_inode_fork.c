@@ -1692,7 +1692,7 @@ xfs_iext_idx_to_irec(
 	}
 	*idxp = page_idx;
 	*erp_idxp = erp_idx;
-	return(erp);
+	return erp;
 }
 
 /*

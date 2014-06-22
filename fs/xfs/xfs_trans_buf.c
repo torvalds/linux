@@ -166,7 +166,7 @@ xfs_trans_get_buf_map(
 		ASSERT(atomic_read(&bip->bli_refcount) > 0);
 		bip->bli_recur++;
 		trace_xfs_trans_get_buf_recur(bip);
-		return (bp);
+		return bp;
 	}
 
 	bp = xfs_buf_get_map(target, map, nmaps, flags);
@@ -178,7 +178,7 @@ xfs_trans_get_buf_map(
 
 	_xfs_trans_bjoin(tp, bp, 1);
 	trace_xfs_trans_get_buf(bp->b_fspriv);
-	return (bp);
+	return bp;
 }
 
 /*
@@ -201,9 +201,8 @@ xfs_trans_getsb(xfs_trans_t	*tp,
 	 * Default to just trying to lock the superblock buffer
 	 * if tp is NULL.
 	 */
-	if (tp == NULL) {
-		return (xfs_getsb(mp, flags));
-	}
+	if (tp == NULL)
+		return xfs_getsb(mp, flags);
 
 	/*
 	 * If the superblock buffer already has this transaction
@@ -218,7 +217,7 @@ xfs_trans_getsb(xfs_trans_t	*tp,
 		ASSERT(atomic_read(&bip->bli_refcount) > 0);
 		bip->bli_recur++;
 		trace_xfs_trans_getsb_recur(bip);
-		return (bp);
+		return bp;
 	}
 
 	bp = xfs_getsb(mp, flags);
@@ -227,7 +226,7 @@ xfs_trans_getsb(xfs_trans_t	*tp,
 
 	_xfs_trans_bjoin(tp, bp, 1);
 	trace_xfs_trans_getsb(bp->b_fspriv);
-	return (bp);
+	return bp;
 }
 
 #ifdef DEBUG

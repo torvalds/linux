@@ -50,11 +50,11 @@ xfs_attr_shortform_compare(const void *a, const void *b)
 	sa = (xfs_attr_sf_sort_t *)a;
 	sb = (xfs_attr_sf_sort_t *)b;
 	if (sa->hash < sb->hash) {
-		return(-1);
+		return -1;
 	} else if (sa->hash > sb->hash) {
-		return(1);
+		return 1;
 	} else {
-		return(sa->entno - sb->entno);
+		return sa->entno - sb->entno;
 	}
 }
 
@@ -86,7 +86,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	sf = (xfs_attr_shortform_t *)dp->i_afp->if_u1.if_data;
 	ASSERT(sf != NULL);
 	if (!sf->hdr.count)
-		return(0);
+		return 0;
 	cursor = context->cursor;
 	ASSERT(cursor != NULL);
 
@@ -124,7 +124,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 		}
 		trace_xfs_attr_list_sf_all(context);
-		return(0);
+		return 0;
 	}
 
 	/* do no more for a search callback */
@@ -188,7 +188,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	}
 	if (i == nsbuf) {
 		kmem_free(sbuf);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -213,7 +213,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	}
 
 	kmem_free(sbuf);
-	return(0);
+	return 0;
 }
 
 STATIC int
@@ -244,7 +244,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 		error = xfs_da3_node_read(NULL, dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != EFSCORRUPTED))
-			return(error);
+			return error;
 		if (bp) {
 			struct xfs_attr_leaf_entry *entries;
 
@@ -295,7 +295,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 						      cursor->blkno, -1, &bp,
 						      XFS_ATTR_FORK);
 			if (error)
-				return(error);
+				return error;
 			node = bp->b_addr;
 			magic = be16_to_cpu(node->hdr.info.magic);
 			if (magic == XFS_ATTR_LEAF_MAGIC ||
@@ -616,7 +616,7 @@ xfs_attr_list(
 	 * Validate the cursor.
 	 */
 	if (cursor->pad1 || cursor->pad2)
-		return(XFS_ERROR(EINVAL));
+		return XFS_ERROR(EINVAL);
 	if ((cursor->initted == 0) &&
 	    (cursor->hashval || cursor->blkno || cursor->offset))
 		return XFS_ERROR(EINVAL);

@@ -315,7 +315,7 @@ xfs_da3_node_create(
 
 	error = xfs_da_get_buf(tp, dp, blkno, -1, &bp, whichfork);
 	if (error)
-		return(error);
+		return error;
 	bp->b_ops = &xfs_da3_node_buf_ops;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
 	node = bp->b_addr;
@@ -337,7 +337,7 @@ xfs_da3_node_create(
 		XFS_DA_LOGRANGE(node, &node->hdr, dp->d_ops->node_hdr_size));
 
 	*bpp = bp;
-	return(0);
+	return 0;
 }
 
 /*
@@ -386,7 +386,7 @@ xfs_da3_split(
 		case XFS_ATTR_LEAF_MAGIC:
 			error = xfs_attr3_leaf_split(state, oldblk, newblk);
 			if ((error != 0) && (error != ENOSPC)) {
-				return(error);	/* GROT: attr is inconsistent */
+				return error;	/* GROT: attr is inconsistent */
 			}
 			if (!error) {
 				addblk = newblk;
@@ -408,7 +408,7 @@ xfs_da3_split(
 							    &state->extrablk);
 			}
 			if (error)
-				return(error);	/* GROT: attr inconsistent */
+				return error;	/* GROT: attr inconsistent */
 			addblk = newblk;
 			break;
 		case XFS_DIR2_LEAFN_MAGIC:
@@ -422,7 +422,7 @@ xfs_da3_split(
 							 max - i, &action);
 			addblk->bp = NULL;
 			if (error)
-				return(error);	/* GROT: dir is inconsistent */
+				return error;	/* GROT: dir is inconsistent */
 			/*
 			 * Record the newly split block for the next time thru?
 			 */
@@ -439,7 +439,7 @@ xfs_da3_split(
 		xfs_da3_fixhashpath(state, &state->path);
 	}
 	if (!addblk)
-		return(0);
+		return 0;
 
 	/*
 	 * Split the root node.
@@ -449,7 +449,7 @@ xfs_da3_split(
 	error = xfs_da3_root_split(state, oldblk, addblk);
 	if (error) {
 		addblk->bp = NULL;
-		return(error);	/* GROT: dir is inconsistent */
+		return error;	/* GROT: dir is inconsistent */
 	}
 
 	/*
@@ -492,7 +492,7 @@ xfs_da3_split(
 		    sizeof(node->hdr.info)));
 	}
 	addblk->bp = NULL;
-	return(0);
+	return 0;
 }
 
 /*
@@ -670,18 +670,18 @@ xfs_da3_node_split(
 		 */
 		error = xfs_da_grow_inode(state->args, &blkno);
 		if (error)
-			return(error);	/* GROT: dir is inconsistent */
+			return error;	/* GROT: dir is inconsistent */
 
 		error = xfs_da3_node_create(state->args, blkno, treelevel,
 					   &newblk->bp, state->args->whichfork);
 		if (error)
-			return(error);	/* GROT: dir is inconsistent */
+			return error;	/* GROT: dir is inconsistent */
 		newblk->blkno = blkno;
 		newblk->magic = XFS_DA_NODE_MAGIC;
 		xfs_da3_node_rebalance(state, oldblk, newblk);
 		error = xfs_da3_blk_link(state, oldblk, newblk);
 		if (error)
-			return(error);
+			return error;
 		*result = 1;
 	} else {
 		*result = 0;
@@ -721,7 +721,7 @@ xfs_da3_node_split(
 		}
 	}
 
-	return(0);
+	return 0;
 }
 
 /*
@@ -963,9 +963,9 @@ xfs_da3_join(
 		case XFS_ATTR_LEAF_MAGIC:
 			error = xfs_attr3_leaf_toosmall(state, &action);
 			if (error)
-				return(error);
+				return error;
 			if (action == 0)
-				return(0);
+				return 0;
 			xfs_attr3_leaf_unbalance(state, drop_blk, save_blk);
 			break;
 		case XFS_DIR2_LEAFN_MAGIC:
@@ -985,7 +985,7 @@ xfs_da3_join(
 			xfs_da3_fixhashpath(state, &state->path);
 			error = xfs_da3_node_toosmall(state, &action);
 			if (error)
-				return(error);
+				return error;
 			if (action == 0)
 				return 0;
 			xfs_da3_node_unbalance(state, drop_blk, save_blk);
@@ -995,12 +995,12 @@ xfs_da3_join(
 		error = xfs_da3_blk_unlink(state, drop_blk, save_blk);
 		xfs_da_state_kill_altpath(state);
 		if (error)
-			return(error);
+			return error;
 		error = xfs_da_shrink_inode(state->args, drop_blk->blkno,
 							 drop_blk->bp);
 		drop_blk->bp = NULL;
 		if (error)
-			return(error);
+			return error;
 	}
 	/*
 	 * We joined all the way to the top.  If it turns out that
@@ -1010,7 +1010,7 @@ xfs_da3_join(
 	xfs_da3_node_remove(state, drop_blk);
 	xfs_da3_fixhashpath(state, &state->path);
 	error = xfs_da3_root_join(state, &state->path.blk[0]);
-	return(error);
+	return error;
 }
 
 #ifdef	DEBUG
@@ -1099,7 +1099,7 @@ xfs_da3_root_join(
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0,
 			  args->geo->blksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
-	return(error);
+	return error;
 }
 
 /*
@@ -1142,7 +1142,7 @@ xfs_da3_node_toosmall(
 	dp->d_ops->node_hdr_from_disk(&nodehdr, node);
 	if (nodehdr.count > (state->args->geo->node_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
-		return(0);	/* blk over 50%, don't try to join */
+		return 0;	/* blk over 50%, don't try to join */
 	}
 
 	/*
@@ -1161,13 +1161,13 @@ xfs_da3_node_toosmall(
 		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 		if (error)
-			return(error);
+			return error;
 		if (retval) {
 			*action = 0;
 		} else {
 			*action = 2;
 		}
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -1194,7 +1194,7 @@ xfs_da3_node_toosmall(
 		error = xfs_da3_node_read(state->args->trans, dp,
 					blkno, -1, &bp, state->args->whichfork);
 		if (error)
-			return(error);
+			return error;
 
 		node = bp->b_addr;
 		dp->d_ops->node_hdr_from_disk(&thdr, node);
@@ -1486,7 +1486,7 @@ xfs_da3_node_lookup_int(
 		if (error) {
 			blk->blkno = 0;
 			state->path.active--;
-			return(error);
+			return error;
 		}
 		curr = blk->bp->b_addr;
 		blk->magic = be16_to_cpu(curr->magic);
@@ -1586,7 +1586,7 @@ xfs_da3_node_lookup_int(
 			error = xfs_da3_path_shift(state, &state->path, 1, 1,
 							 &retval);
 			if (error)
-				return(error);
+				return error;
 			if (retval == 0) {
 				continue;
 			} else if (blk->magic == XFS_ATTR_LEAF_MAGIC) {
@@ -1597,7 +1597,7 @@ xfs_da3_node_lookup_int(
 		break;
 	}
 	*result = retval;
-	return(0);
+	return 0;
 }
 
 /*========================================================================
@@ -1692,7 +1692,7 @@ xfs_da3_blk_link(
 						be32_to_cpu(old_info->back),
 						-1, &bp, args->whichfork);
 			if (error)
-				return(error);
+				return error;
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == old_info->magic);
@@ -1713,7 +1713,7 @@ xfs_da3_blk_link(
 						be32_to_cpu(old_info->forw),
 						-1, &bp, args->whichfork);
 			if (error)
-				return(error);
+				return error;
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == old_info->magic);
@@ -1726,7 +1726,7 @@ xfs_da3_blk_link(
 
 	xfs_trans_log_buf(args->trans, old_blk->bp, 0, sizeof(*tmp_info) - 1);
 	xfs_trans_log_buf(args->trans, new_blk->bp, 0, sizeof(*tmp_info) - 1);
-	return(0);
+	return 0;
 }
 
 /*
@@ -1772,7 +1772,7 @@ xfs_da3_blk_unlink(
 						be32_to_cpu(drop_info->back),
 						-1, &bp, args->whichfork);
 			if (error)
-				return(error);
+				return error;
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == save_info->magic);
@@ -1789,7 +1789,7 @@ xfs_da3_blk_unlink(
 						be32_to_cpu(drop_info->forw),
 						-1, &bp, args->whichfork);
 			if (error)
-				return(error);
+				return error;
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == save_info->magic);
@@ -1801,7 +1801,7 @@ xfs_da3_blk_unlink(
 	}
 
 	xfs_trans_log_buf(args->trans, save_blk->bp, 0, sizeof(*save_info) - 1);
-	return(0);
+	return 0;
 }
 
 /*
@@ -1861,7 +1861,7 @@ xfs_da3_path_shift(
 	if (level < 0) {
 		*result = XFS_ERROR(ENOENT);	/* we're out of our tree */
 		ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
-		return(0);
+		return 0;
 	}
 
 	/*
@@ -1883,7 +1883,7 @@ xfs_da3_path_shift(
 		error = xfs_da3_node_read(args->trans, dp, blkno, -1,
 					&blk->bp, args->whichfork);
 		if (error)
-			return(error);
+			return error;
 		info = blk->bp->b_addr;
 		ASSERT(info->magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 		       info->magic == cpu_to_be16(XFS_DA3_NODE_MAGIC) ||

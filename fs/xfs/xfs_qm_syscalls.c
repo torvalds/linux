@@ -94,7 +94,7 @@ xfs_qm_scall_quotaoff(
 
 		/* XXX what to do if error ? Revert back to old vals incore ? */
 		error = xfs_qm_write_sb_changes(mp, XFS_SB_QFLAGS);
-		return (error);
+		return error;
 	}
 
 	dqtype = 0;
@@ -198,7 +198,7 @@ xfs_qm_scall_quotaoff(
 	if (mp->m_qflags == 0) {
 		mutex_unlock(&q->qi_quotaofflock);
 		xfs_qm_destroy_quotainfo(mp);
-		return (0);
+		return 0;
 	}
 
 	/*
@@ -376,7 +376,7 @@ xfs_qm_scall_quotaon(
 	sbflags |= XFS_SB_QFLAGS;
 
 	if ((error = xfs_qm_write_sb_changes(mp, sbflags)))
-		return (error);
+		return error;
 	/*
 	 * If we aren't trying to switch on quota enforcement, we are done.
 	 */
@@ -387,7 +387,7 @@ xfs_qm_scall_quotaon(
 	     ((mp->m_sb.sb_qflags & XFS_GQUOTA_ACCT) !=
 	     (mp->m_qflags & XFS_GQUOTA_ACCT)) ||
 	    (flags & XFS_ALL_QUOTA_ENFD) == 0)
-		return (0);
+		return 0;
 
 	if (! XFS_IS_QUOTA_RUNNING(mp))
 		return XFS_ERROR(ESRCH);
@@ -399,7 +399,7 @@ xfs_qm_scall_quotaon(
 	mp->m_qflags |= (flags & XFS_ALL_QUOTA_ENFD);
 	mutex_unlock(&mp->m_quotainfo->qi_quotaofflock);
 
-	return (0);
+	return 0;
 }
 
 
@@ -426,7 +426,7 @@ xfs_qm_scall_getqstat(
 	if (!xfs_sb_version_hasquota(&mp->m_sb)) {
 		out->qs_uquota.qfs_ino = NULLFSINO;
 		out->qs_gquota.qfs_ino = NULLFSINO;
-		return (0);
+		return 0;
 	}
 
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
@@ -514,7 +514,7 @@ xfs_qm_scall_getqstatv(
 		out->qs_uquota.qfs_ino = NULLFSINO;
 		out->qs_gquota.qfs_ino = NULLFSINO;
 		out->qs_pquota.qfs_ino = NULLFSINO;
-		return (0);
+		return 0;
 	}
 
 	out->qs_flags = (__uint16_t) xfs_qm_export_flags(mp->m_qflags &
@@ -758,7 +758,7 @@ xfs_qm_log_quotaoff_end(
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_equotaoff, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		return (error);
+		return error;
 	}
 
 	qoffi = xfs_trans_get_qoff_item(tp, startqoff,
@@ -772,7 +772,7 @@ xfs_qm_log_quotaoff_end(
 	 */
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);
-	return (error);
+	return error;
 }
 
 
@@ -822,7 +822,7 @@ error0:
 		spin_unlock(&mp->m_sb_lock);
 	}
 	*qoffstartp = qoffi;
-	return (error);
+	return error;
 }
 
 
@@ -953,7 +953,7 @@ xfs_qm_export_flags(
 		uflags |= FS_QUOTA_GDQ_ENFD;
 	if (flags & XFS_PQUOTA_ENFD)
 		uflags |= FS_QUOTA_PDQ_ENFD;
-	return (uflags);
+	return uflags;
 }
 
 

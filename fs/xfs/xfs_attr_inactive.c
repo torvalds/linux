@@ -76,7 +76,7 @@ xfs_attr3_leaf_freextent(
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)tblkno, tblkcnt,
 				       &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error) {
-			return(error);
+			return error;
 		}
 		ASSERT(nmap == 1);
 		ASSERT(map.br_startblock != DELAYSTARTBLOCK);
@@ -102,14 +102,14 @@ xfs_attr3_leaf_freextent(
 			 */
 			error = xfs_trans_roll(trans, dp);
 			if (error)
-				return (error);
+				return error;
 		}
 
 		tblkno += map.br_blockcount;
 		tblkcnt -= map.br_blockcount;
 	}
 
-	return(0);
+	return 0;
 }
 
 /*
@@ -256,7 +256,7 @@ xfs_attr3_node_inactive(
 		error = xfs_da3_node_read(*trans, dp, child_fsb, -2, &child_bp,
 						XFS_ATTR_FORK);
 		if (error)
-			return(error);
+			return error;
 		if (child_bp) {
 						/* save for re-read later */
 			child_blkno = XFS_BUF_ADDR(child_bp);
@@ -414,7 +414,7 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	error = xfs_trans_reserve(trans, &M_RES(mp)->tr_attrinval, 0, 0);
 	if (error) {
 		xfs_trans_cancel(trans, 0);
-		return(error);
+		return error;
 	}
 	xfs_ilock(dp, XFS_ILOCK_EXCL);
 
@@ -443,10 +443,10 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	error = xfs_trans_commit(trans, XFS_TRANS_RELEASE_LOG_RES);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 
-	return(error);
+	return error;
 
 out:
 	xfs_trans_cancel(trans, XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	return(error);
+	return error;
 }
