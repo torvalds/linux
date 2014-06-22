@@ -197,14 +197,6 @@ static inline u32 _RND8(u32 sz)
 	return val;
 }
 
-static inline u32 _RND128(u32 sz)
-{
-	u32	val;
-
-	val = ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
-	return val;
-}
-
 struct rtw_netdev_priv_indicator {
 	void *priv;
 	u32 sizeof_priv;
