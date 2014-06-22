@@ -140,7 +140,7 @@ struct recv_frame *_rtw_alloc_recvframe (struct __queue *pfree_recv_queue)
 
 		hdr = container_of(plist, struct recv_frame, list);
 
-		rtw_list_delete(&hdr->list);
+		list_del_init(&hdr->list);
 		padapter = hdr->adapter;
 		if (padapter != NULL) {
 			precvpriv = &padapter->recvpriv;
@@ -191,7 +191,7 @@ int rtw_free_recvframe(struct recv_frame *precvframe,
 
 	spin_lock_bh(&pfree_recv_queue->lock);
 
-	rtw_list_delete(&(precvframe->list));
+	list_del_init(&(precvframe->list));
 
 	precvframe->len = 0;
 
@@ -214,7 +214,7 @@ int _rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue)
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
 
-	rtw_list_delete(&(precvframe->list));
+	list_del_init(&(precvframe->list));
 	list_add_tail(&(precvframe->list), get_list_head(queue));
 
 	if (padapter != NULL) {
@@ -1044,7 +1044,7 @@ static int validate_recv_ctrl_frame(struct adapter *padapter,
 
 				xmitframe_plist = xmitframe_plist->next;
 
-				rtw_list_delete(&pxmitframe->list);
+				list_del_init(&pxmitframe->list);
 
 				psta->sleepq_len--;
 
@@ -1454,7 +1454,7 @@ static struct recv_frame *recvframe_defrag(struct adapter *adapter,
 	plist = phead->next;
 	pfhdr = container_of(plist, struct recv_frame, list);
 	prframe = (struct recv_frame *)pfhdr;
-	rtw_list_delete(&(prframe->list));
+	list_del_init(&(prframe->list));
 
 	if (curfragnum != pfhdr->attrib.frag_num) {
 		/* the first fragment number must be 0 */
@@ -1789,7 +1789,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 			break;
 	}
 
-	rtw_list_delete(&(prframe->list));
+	list_del_init(&(prframe->list));
 
 	list_add_tail(&(prframe->list), plist);
 	return true;
@@ -1830,7 +1830,7 @@ static int recv_indicatepkts_in_order(struct adapter *padapter, struct recv_reor
 				 ("recv_indicatepkts_in_order: indicate=%d seq=%d amsdu=%d\n",
 				  preorder_ctrl->indicate_seq, pattrib->seq_num, pattrib->amsdu));
 			plist = plist->next;
-			rtw_list_delete(&(prframe->list));
+			list_del_init(&(prframe->list));
 
 			if (SN_EQUAL(preorder_ctrl->indicate_seq, pattrib->seq_num))
 				preorder_ctrl->indicate_seq = (preorder_ctrl->indicate_seq + 1) & 0xFFF;

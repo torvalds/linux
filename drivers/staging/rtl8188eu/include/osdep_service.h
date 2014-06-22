@@ -76,11 +76,6 @@ static inline int _enter_critical_mutex(struct mutex *pmutex,
 	return ret;
 }
 
-static inline void rtw_list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
-
 static inline void _init_timer(struct timer_list *ptimer,
 			       struct  net_device *nic_hdl,
 			       void *pfunc, void *cntx)
@@ -172,8 +167,6 @@ void _rtw_mfree(u8 *pbuf, u32 sz);
 void *rtw_malloc2d(int h, int w, int size);
 
 void _rtw_memcpy(void *dec, void *sour, u32 sz);
-
-void rtw_list_delete(struct list_head *plist);
 
 u32  _rtw_down_sema(struct semaphore *sema);
 

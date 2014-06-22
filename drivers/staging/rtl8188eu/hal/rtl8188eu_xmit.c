@@ -549,7 +549,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 			pxmitframe->pkt_offset = 1;
 			break;
 		}
-		rtw_list_delete(&pxmitframe->list);
+		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->accnt--;
 
@@ -584,7 +584,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	} /* end while (aggregate same priority and same DA(AP or STA) frames) */
 
 	if (_rtw_queue_empty(&ptxservq->sta_pending) == true)
-		rtw_list_delete(&ptxservq->tx_pending);
+		list_del_init(&ptxservq->tx_pending);
 
 	spin_unlock_bh(&pxmitpriv->lock);
 	if ((pfirstframe->attrib.ether_type != 0x0806) &&

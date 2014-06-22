@@ -228,7 +228,7 @@ struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 		psta = NULL;
 	} else {
 		psta = container_of((&pfree_sta_queue->queue)->next, struct sta_info, list);
-		rtw_list_delete(&(psta->list));
+		list_del_init(&(psta->list));
 		spin_unlock_bh(&pfree_sta_queue->lock);
 		_rtw_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
@@ -317,23 +317,23 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 
 	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
 
-	rtw_list_delete(&(pstaxmitpriv->vo_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->vo_q.tx_pending));
 
 	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
 
-	rtw_list_delete(&(pstaxmitpriv->vi_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->vi_q.tx_pending));
 
 	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
 
-	rtw_list_delete(&(pstaxmitpriv->bk_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->bk_q.tx_pending));
 
 	rtw_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
 
-	rtw_list_delete(&(pstaxmitpriv->be_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->be_q.tx_pending));
 
 	spin_unlock_bh(&pxmitpriv->lock);
 
-	rtw_list_delete(&psta->hash_list);
+	list_del_init(&psta->hash_list);
 	RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_, ("\n free number_%d stainfo  with hwaddr=0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n", pstapriv->asoc_sta_count , psta->hwaddr[0], psta->hwaddr[1], psta->hwaddr[2], psta->hwaddr[3], psta->hwaddr[4], psta->hwaddr[5]));
 	pstapriv->asoc_sta_count--;
 
@@ -368,7 +368,7 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 
 			plist = plist->next;
 
-			rtw_list_delete(&(prframe->list));
+			list_del_init(&(prframe->list));
 
 			rtw_free_recvframe(prframe, pfree_recv_queue);
 		}
@@ -383,7 +383,7 @@ u32	rtw_free_stainfo(struct adapter *padapter , struct sta_info *psta)
 
 	spin_lock_bh(&pstapriv->auth_list_lock);
 	if (!list_empty(&psta->auth_list)) {
-		rtw_list_delete(&psta->auth_list);
+		list_del_init(&psta->auth_list);
 		pstapriv->auth_list_cnt--;
 	}
 	spin_unlock_bh(&pstapriv->auth_list_lock);

@@ -159,7 +159,7 @@ struct	cmd_obj	*_rtw_dequeue_cmd(struct __queue *queue)
 		obj = NULL;
 	} else {
 		obj = container_of((&queue->queue)->next, struct cmd_obj, list);
-		rtw_list_delete(&obj->list);
+		list_del_init(&obj->list);
 	}
 
 	spin_unlock_irqrestore(&queue->lock, irqL);
