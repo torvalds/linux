@@ -116,14 +116,11 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *ad,
 
 	if (*time > 0) {
 		/* Blink both Tx and Rx LEDs */
-		if (LED_Blink(ad, 1 << GPIO_Num_tx, uiTxLedIndex, *timeout,
-			      *time, currdriverstate) == EVENT_SIGNALED)
+		if ((LED_Blink(ad, 1 << GPIO_Num_tx, uiTxLedIndex, *timeout,
+			      *time, currdriverstate) == EVENT_SIGNALED) ||
+		    (LED_Blink(ad, 1 << GPIO_Num_rx, uiRxLedIndex, *timeout,
+			      *time, currdriverstate) == EVENT_SIGNALED))
 			return EVENT_SIGNALED;
-
-		if (LED_Blink(ad, 1 << GPIO_Num_rx, uiRxLedIndex, *timeout,
-			      *time, currdriverstate) == EVENT_SIGNALED)
-			return EVENT_SIGNALED;
-
 	}
 
 	if (*time == *time_tx) {
