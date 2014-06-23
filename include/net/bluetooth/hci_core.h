@@ -381,6 +381,9 @@ struct hci_conn {
 	__u16		setting;
 	__u16		le_conn_min_interval;
 	__u16		le_conn_max_interval;
+	__u16		le_conn_interval;
+	__u16		le_conn_latency;
+	__u16		le_supv_timeout;
 	__s8		rssi;
 	__s8		tx_power;
 	__s8		max_tx_power;
