@@ -70,7 +70,7 @@ static int osc_page_is_dlocked(const struct lu_env *env,
 	struct lustre_handle   *lockh;
 	ldlm_policy_data_t     *policy;
 	ldlm_mode_t	     dlmmode;
-	int		     flags;
+	__u64                   flags;
 
 	might_sleep();
 

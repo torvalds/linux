@@ -1715,7 +1715,7 @@ static int
 lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		   struct lookup_intent *it, struct md_op_data *op_data,
 		   struct lustre_handle *lockh, void *lmm, int lmmsize,
-		   int extra_lock_flags)
+		   __u64 extra_lock_flags)
 {
 	struct ptlrpc_request      *req = it->d.lustre.it_data;
 	struct obd_device	  *obd = exp->exp_obd;

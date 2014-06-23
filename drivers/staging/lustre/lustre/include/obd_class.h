@@ -1818,7 +1818,7 @@ static inline int md_enqueue(struct obd_export *exp,
 			     struct lustre_handle *lockh,
 			     void *lmm, int lmmsize,
 			     struct ptlrpc_request **req,
-			     int extra_lock_flags)
+			     __u64 extra_lock_flags)
 {
 	int rc;
 

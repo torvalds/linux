@@ -635,7 +635,7 @@ static int osc_sync(const struct lu_env *env, struct obd_export *exp,
  * locks added to @cancels list. */
 static int osc_resource_get_unused(struct obd_export *exp, struct obdo *oa,
 				   struct list_head *cancels,
-				   ldlm_mode_t mode, int lock_flags)
+				   ldlm_mode_t mode, __u64 lock_flags)
 {
 	struct ldlm_namespace *ns = exp->exp_obd->obd_namespace;
 	struct ldlm_res_id res_id;
@@ -2398,7 +2398,7 @@ static int osc_enqueue_interpret(const struct lu_env *env,
 }
 
 void osc_update_enqueue(struct lustre_handle *lov_lockhp,
-			struct lov_oinfo *loi, int flags,
+			struct lov_oinfo *loi, __u64 flags,
 			struct ost_lvb *lvb, __u32 mode, int rc)
 {
 	struct ldlm_lock *lock = ldlm_handle2lock(lov_lockhp);
@@ -2462,7 +2462,7 @@ int osc_enqueue_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 	struct obd_device *obd = exp->exp_obd;
 	struct ptlrpc_request *req = NULL;
 	int intent = *flags & LDLM_FL_HAS_INTENT;
-	int match_lvb = (agl != 0 ? 0 : LDLM_FL_LVB_READY);
+	__u64 match_lvb = (agl != 0 ? 0 : LDLM_FL_LVB_READY);
 	ldlm_mode_t mode;
 	int rc;
 
@@ -2613,11 +2613,11 @@ static int osc_enqueue(struct obd_export *exp, struct obd_info *oinfo,
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		   __u32 type, ldlm_policy_data_t *policy, __u32 mode,
-		   int *flags, void *data, struct lustre_handle *lockh,
+		   __u64 *flags, void *data, struct lustre_handle *lockh,
 		   int unref)
 {
 	struct obd_device *obd = exp->exp_obd;
-	int lflags = *flags;
+	__u64 lflags = *flags;
 	ldlm_mode_t rc;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_OSC_MATCH))

@@ -112,7 +112,7 @@ int osc_cancel_base(struct lustre_handle *lockh, __u32 mode);
 
 int osc_match_base(struct obd_export *exp, struct ldlm_res_id *res_id,
 		   __u32 type, ldlm_policy_data_t *policy, __u32 mode,
-		   int *flags, void *data, struct lustre_handle *lockh,
+		   __u64 *flags, void *data, struct lustre_handle *lockh,
 		   int unref);
 
 int osc_setattr_async_base(struct obd_export *exp, struct obd_info *oinfo,
