@@ -506,10 +506,9 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	 * cleanly from the previous attempt */
 	LASSERT(!request->rq_receiving_reply);
 
-	if (request->rq_import->imp_obd &&
-	    request->rq_import->imp_obd->obd_fail) {
+	if (unlikely(obd != NULL && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
-		       request->rq_import->imp_obd->obd_name);
+			obd->obd_name);
 		/* this prevents us from waiting in ptlrpc_queue_wait */
 		spin_lock(&request->rq_lock);
 		request->rq_err = 1;
@@ -625,7 +624,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 
 	/* add references on request for request_out_callback */
 	ptlrpc_request_addref(request);
-	if (obd->obd_svc_stats != NULL)
+	if (obd != NULL && obd->obd_svc_stats != NULL)
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQACTIVE_CNTR,
 			atomic_read(&request->rq_import->imp_inflight));
 

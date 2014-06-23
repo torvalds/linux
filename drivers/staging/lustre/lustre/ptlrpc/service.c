@@ -1100,6 +1100,7 @@ static void ptlrpc_update_export_timer(struct obd_export *exp, long extra_delay)
  */
 static int ptlrpc_check_req(struct ptlrpc_request *req)
 {
+	struct obd_device *obd = req->rq_export->exp_obd;
 	int rc = 0;
 
 	if (unlikely(lustre_msg_get_conn_cnt(req->rq_reqmsg) <
@@ -1110,24 +1111,23 @@ static int ptlrpc_check_req(struct ptlrpc_request *req)
 			  req->rq_export->exp_conn_cnt);
 		return -EEXIST;
 	}
-	if (unlikely(req->rq_export->exp_obd &&
-		     req->rq_export->exp_obd->obd_fail)) {
+	if (unlikely(obd == NULL || obd->obd_fail)) {
 		/*
 		 * Failing over, don't handle any more reqs, send
 		 * error response instead.
 		 */
 		CDEBUG(D_RPCTRACE, "Dropping req %p for failed obd %s\n",
-		       req, req->rq_export->exp_obd->obd_name);
+		       req, (obd != NULL) ? obd->obd_name : "unknown");
 		rc = -ENODEV;
 	} else if (lustre_msg_get_flags(req->rq_reqmsg) &
 		   (MSG_REPLAY | MSG_REQ_REPLAY_DONE) &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
+		   !obd->obd_recovering) {
 			DEBUG_REQ(D_ERROR, req,
 				  "Invalid replay without recovery");
 			class_fail_export(req->rq_export);
 			rc = -ENODEV;
 	} else if (lustre_msg_get_transno(req->rq_reqmsg) != 0 &&
-		   !(req->rq_export->exp_obd->obd_recovering)) {
+		   !obd->obd_recovering) {
 			DEBUG_REQ(D_ERROR, req, "Invalid req with transno "
 				  LPU64" without recovery",
 				  lustre_msg_get_transno(req->rq_reqmsg));
