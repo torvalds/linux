@@ -2180,7 +2180,6 @@ static void reject_cr(struct c4iw_dev *dev, u32 hwtid, struct sk_buff *skb)
 	PDBG("%s c4iw_dev %p tid %u\n", __func__, dev, hwtid);
 	BUG_ON(skb_cloned(skb));
 	skb_trim(skb, sizeof(struct cpl_tid_release));
-	skb_get(skb);
 	release_tid(&dev->rdev, hwtid, skb);
 	return;
 }
