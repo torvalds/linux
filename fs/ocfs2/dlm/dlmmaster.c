@@ -3088,11 +3088,15 @@ static int dlm_add_migration_mle(struct dlm_ctxt *dlm,
 			/* remove it so that only one mle will be found */
 			__dlm_unlink_mle(dlm, tmp);
 			__dlm_mle_detach_hb_events(dlm, tmp);
-			ret = DLM_MIGRATE_RESPONSE_MASTERY_REF;
-			mlog(0, "%s:%.*s: master=%u, newmaster=%u, "
-			    "telling master to get ref for cleared out mle "
-			    "during migration\n", dlm->name, namelen, name,
-			    master, new_master);
+			if (tmp->type == DLM_MLE_MASTER) {
+				ret = DLM_MIGRATE_RESPONSE_MASTERY_REF;
+				mlog(0, "%s:%.*s: master=%u, newmaster=%u, "
+						"telling master to get ref "
+						"for cleared out mle during "
+						"migration\n", dlm->name,
+						namelen, name, master,
+						new_master);
+			}
 		}
 		spin_unlock(&tmp->spinlock);
 	}
