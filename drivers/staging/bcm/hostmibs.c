@@ -113,32 +113,45 @@ VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter,
 				  struct bcm_connect_mgr_params *psfLocalSet,
 				  UINT uiSearchRuleIndex)
 {
-	struct bcm_mibs_parameters *t = &Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
+	struct bcm_mibs_parameters *t =
+		&Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
 
 	t->wmanIfSfid = psfLocalSet->u32SFID;
-	t->wmanIfCmnCpsMaxSustainedRate = psfLocalSet->u32MaxSustainedTrafficRate;
+	t->wmanIfCmnCpsMaxSustainedRate =
+		psfLocalSet->u32MaxSustainedTrafficRate;
 	t->wmanIfCmnCpsMaxTrafficBurst = psfLocalSet->u32MaxTrafficBurst;
 	t->wmanIfCmnCpsMinReservedRate = psfLocalSet->u32MinReservedTrafficRate;
 	t->wmanIfCmnCpsToleratedJitter = psfLocalSet->u32ToleratedJitter;
 	t->wmanIfCmnCpsMaxLatency = psfLocalSet->u32MaximumLatency;
-	t->wmanIfCmnCpsFixedVsVariableSduInd = psfLocalSet->u8FixedLengthVSVariableLengthSDUIndicator;
-	t->wmanIfCmnCpsFixedVsVariableSduInd = ntohl(t->wmanIfCmnCpsFixedVsVariableSduInd);
+	t->wmanIfCmnCpsFixedVsVariableSduInd =
+		psfLocalSet->u8FixedLengthVSVariableLengthSDUIndicator;
+	t->wmanIfCmnCpsFixedVsVariableSduInd =
+		ntohl(t->wmanIfCmnCpsFixedVsVariableSduInd);
 	t->wmanIfCmnCpsSduSize = psfLocalSet->u8SDUSize;
 	t->wmanIfCmnCpsSduSize = ntohl(t->wmanIfCmnCpsSduSize);
-	t->wmanIfCmnCpsSfSchedulingType = psfLocalSet->u8ServiceFlowSchedulingType;
-	t->wmanIfCmnCpsSfSchedulingType = ntohl(t->wmanIfCmnCpsSfSchedulingType);
+	t->wmanIfCmnCpsSfSchedulingType =
+		psfLocalSet->u8ServiceFlowSchedulingType;
+	t->wmanIfCmnCpsSfSchedulingType =
+		ntohl(t->wmanIfCmnCpsSfSchedulingType);
 	t->wmanIfCmnCpsArqEnable = psfLocalSet->u8ARQEnable;
 	t->wmanIfCmnCpsArqEnable = ntohl(t->wmanIfCmnCpsArqEnable);
 	t->wmanIfCmnCpsArqWindowSize = ntohs(psfLocalSet->u16ARQWindowSize);
 	t->wmanIfCmnCpsArqWindowSize = ntohl(t->wmanIfCmnCpsArqWindowSize);
-	t->wmanIfCmnCpsArqBlockLifetime = ntohs(psfLocalSet->u16ARQBlockLifeTime);
-	t->wmanIfCmnCpsArqBlockLifetime = ntohl(t->wmanIfCmnCpsArqBlockLifetime);
-	t->wmanIfCmnCpsArqSyncLossTimeout = ntohs(psfLocalSet->u16ARQSyncLossTimeOut);
-	t->wmanIfCmnCpsArqSyncLossTimeout = ntohl(t->wmanIfCmnCpsArqSyncLossTimeout);
+	t->wmanIfCmnCpsArqBlockLifetime =
+		ntohs(psfLocalSet->u16ARQBlockLifeTime);
+	t->wmanIfCmnCpsArqBlockLifetime =
+		ntohl(t->wmanIfCmnCpsArqBlockLifetime);
+	t->wmanIfCmnCpsArqSyncLossTimeout =
+		ntohs(psfLocalSet->u16ARQSyncLossTimeOut);
+	t->wmanIfCmnCpsArqSyncLossTimeout =
+		ntohl(t->wmanIfCmnCpsArqSyncLossTimeout);
 	t->wmanIfCmnCpsArqDeliverInOrder = psfLocalSet->u8ARQDeliverInOrder;
-	t->wmanIfCmnCpsArqDeliverInOrder = ntohl(t->wmanIfCmnCpsArqDeliverInOrder);
-	t->wmanIfCmnCpsArqRxPurgeTimeout = ntohs(psfLocalSet->u16ARQRxPurgeTimeOut);
-	t->wmanIfCmnCpsArqRxPurgeTimeout = ntohl(t->wmanIfCmnCpsArqRxPurgeTimeout);
+	t->wmanIfCmnCpsArqDeliverInOrder =
+		ntohl(t->wmanIfCmnCpsArqDeliverInOrder);
+	t->wmanIfCmnCpsArqRxPurgeTimeout =
+		ntohs(psfLocalSet->u16ARQRxPurgeTimeOut);
+	t->wmanIfCmnCpsArqRxPurgeTimeout =
+		ntohl(t->wmanIfCmnCpsArqRxPurgeTimeout);
 	t->wmanIfCmnCpsArqBlockSize = ntohs(psfLocalSet->u16ARQBlockSize);
 	t->wmanIfCmnCpsArqBlockSize = ntohl(t->wmanIfCmnCpsArqBlockSize);
 	t->wmanIfCmnCpsReqTxPolicy = psfLocalSet->u8RequesttransmissionPolicy;
