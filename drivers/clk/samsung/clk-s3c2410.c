@@ -152,6 +152,11 @@ struct samsung_clock_alias s3c2410_common_aliases[] __initdata = {
 	ALIAS(HCLK, NULL, "hclk"),
 	ALIAS(MPLL, NULL, "mpll"),
 	ALIAS(FCLK, NULL, "fclk"),
+	ALIAS(PCLK, NULL, "watchdog"),
+	ALIAS(PCLK_SDI, NULL, "sdi"),
+	ALIAS(HCLK_NAND, NULL, "nand"),
+	ALIAS(PCLK_I2S, NULL, "iis"),
+	ALIAS(PCLK_I2C, NULL, "i2c"),
 };
 
 /* S3C2410 specific clocks */
