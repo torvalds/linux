@@ -112,10 +112,8 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *ad,
 	 * Assign minimum number of blinks of
 	 * either Tx or Rx.
 	 */
-	if (*time_tx > *time_rx)
-		*time = *time_rx;
-	else
-		*time = *time_tx;
+	*time = (*time_tx > *time_rx ? *time_rx : *time_tx);
+
 	if (*time > 0) {
 		/* Blink both Tx and Rx LEDs */
 		if (LED_Blink(ad, 1 << GPIO_Num_tx, uiTxLedIndex, *timeout,
