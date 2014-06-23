@@ -23,7 +23,7 @@ static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter,
 
 	if (netif_msg_pktdata(Adapter))
 		print_hex_dump(KERN_DEBUG, PFX "rx control: ", DUMP_PREFIX_NONE,
-				16, 1, skb->data, skb->len, 0);
+			       16, 1, skb->data, skb->len, 0);
 
 	switch (usStatus) {
 	case CM_RESPONSES:               /* 0xA0 */
