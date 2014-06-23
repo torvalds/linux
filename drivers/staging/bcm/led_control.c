@@ -626,33 +626,31 @@ static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter,
 			     enum bcm_led_events currdriverstate)
 {
 	UINT uiIndex = 0;
+	struct bcm_led_state_info *led_state_info;
 
 	*GPIO_num_tx = DISABLE_GPIO_NUM;
 	*GPIO_num_rx = DISABLE_GPIO_NUM;
 
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
+		led_state_info = &Adapter->LEDInfo.LEDState[uiIndex];
 
 		if (((currdriverstate == NORMAL_OPERATION) ||
 			(currdriverstate == IDLEMODE_EXIT) ||
 			(currdriverstate == FW_DOWNLOAD)) &&
-		    (Adapter->LEDInfo.LEDState[uiIndex].LED_Blink_State &
-					currdriverstate)) {
-			if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num
-					!= DISABLE_GPIO_NUM) {
+		    (led_state_info->LED_Blink_State & currdriverstate)) {
+			if (led_state_info->GPIO_Num != DISABLE_GPIO_NUM) {
 				if (*GPIO_num_tx == DISABLE_GPIO_NUM) {
-					*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+					*GPIO_num_tx = led_state_info->GPIO_Num;
 					*uiLedTxIndex = uiIndex;
 				} else {
-					*GPIO_num_rx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+					*GPIO_num_rx = led_state_info->GPIO_Num;
 					*uiLedRxIndex = uiIndex;
 				}
 			}
 		} else {
-			if ((Adapter->LEDInfo.LEDState[uiIndex].LED_On_State &
-						currdriverstate) &&
-			    (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
-			     DISABLE_GPIO_NUM)) {
-				*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+			if ((led_state_info->LED_On_State & currdriverstate) &&
+			    (led_state_info->GPIO_Num != DISABLE_GPIO_NUM)) {
+				*GPIO_num_tx = led_state_info->GPIO_Num;
 				*uiLedTxIndex = uiIndex;
 			}
 		}
