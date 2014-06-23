@@ -97,7 +97,89 @@ static INT ScaleRateofTransfer(ULONG rate)
 		return MAX_NUM_OF_BLINKS;
 }
 
+static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
+				     INT *num_of_time,
+				     INT *num_of_time_tx,
+				     INT *num_of_time_rx,
+				     UCHAR GPIO_Num_tx,
+				     UCHAR uiTxLedIndex,
+				     UCHAR GPIO_Num_rx,
+				     UCHAR uiRxLedIndex,
+				     enum bcm_led_events currdriverstate,
+				     ulong *timeout)
+{
+	bool bBlinkBothLED = TRUE;
 
+	/*
+	 * Blink Tx and Rx LED when both Tx and Rx is
+	 * in normal bandwidth
+	 */
+	if (bBlinkBothLED) {
+		/*
+		 * Assign minimum number of blinks of
+		 * either Tx or Rx.
+		 */
+		if (*num_of_time_tx > *num_of_time_rx)
+			*num_of_time = *num_of_time_rx;
+		else
+			*num_of_time = *num_of_time_tx;
+		if (*num_of_time > 0) {
+			/* Blink both Tx and Rx LEDs */
+			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+					uiTxLedIndex, *timeout,
+					*num_of_time, currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+
+			if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
+					uiRxLedIndex, *timeout,
+					*num_of_time, currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+
+		}
+
+		if (*num_of_time == *num_of_time_tx) {
+			/* Blink pending rate of Rx */
+			if (LED_Blink(Adapter, (1 << GPIO_Num_rx),
+					uiRxLedIndex, *timeout,
+					*num_of_time_rx - *num_of_time,
+					currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+
+			*num_of_time = *num_of_time_rx;
+		} else {
+			/* Blink pending rate of Tx */
+			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+					uiTxLedIndex, *timeout,
+					*num_of_time_tx - *num_of_time,
+					currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+
+			*num_of_time = *num_of_time_tx;
+		}
+	} else {
+		if (*num_of_time == *num_of_time_tx) {
+			/* Blink pending rate of Rx */
+			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+					uiTxLedIndex, *timeout,
+					*num_of_time, currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+		} else {
+			/* Blink pending rate of Tx */
+			if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
+					uiRxLedIndex, *timeout,
+					*num_of_time, currdriverstate)
+						== EVENT_SIGNALED)
+				return EVENT_SIGNALED;
+		}
+	}
+
+	return 0;
+}
 
 static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter,
 				  UCHAR GPIO_Num_tx,
@@ -115,7 +197,6 @@ static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter,
 	int Status = STATUS_SUCCESS;
 	INT num_of_time = 0, num_of_time_tx = 0, num_of_time_rx = 0;
 	UINT remDelay = 0;
-	bool bBlinkBothLED = TRUE;
 	/* UINT GPIO_num = DISABLE_GPIO_NUM; */
 	ulong timeout = 0;
 
@@ -129,73 +210,19 @@ static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter,
 
 	while ((Adapter->device_removed == false)) {
 		timeout = 50;
-		/*
-		 * Blink Tx and Rx LED when both Tx and Rx is
-		 * in normal bandwidth
-		 */
-		if (bBlinkBothLED) {
-			/*
-			 * Assign minimum number of blinks of
-			 * either Tx or Rx.
-			 */
-			if (num_of_time_tx > num_of_time_rx)
-				num_of_time = num_of_time_rx;
-			else
-				num_of_time = num_of_time_tx;
-			if (num_of_time > 0) {
-				/* Blink both Tx and Rx LEDs */
-				if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
-						uiTxLedIndex, timeout,
-						num_of_time, currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
 
-				if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
-						uiRxLedIndex, timeout,
-						num_of_time, currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
+		if (EVENT_SIGNALED == blink_in_normal_bandwidth(Adapter,
+								&num_of_time,
+								&num_of_time_tx,
+								&num_of_time_rx,
+								GPIO_Num_tx,
+								uiTxLedIndex,
+								GPIO_Num_rx,
+								uiRxLedIndex,
+								currdriverstate,
+								&timeout))
+			return EVENT_SIGNALED;
 
-			}
-
-			if (num_of_time == num_of_time_tx) {
-				/* Blink pending rate of Rx */
-				if (LED_Blink(Adapter, (1 << GPIO_Num_rx),
-						uiRxLedIndex, timeout,
-						num_of_time_rx-num_of_time,
-						currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
-
-				num_of_time = num_of_time_rx;
-			} else {
-				/* Blink pending rate of Tx */
-				if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
-						uiTxLedIndex, timeout,
-						num_of_time_tx-num_of_time,
-						currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
-
-				num_of_time = num_of_time_tx;
-			}
-		} else {
-			if (num_of_time == num_of_time_tx) {
-				/* Blink pending rate of Rx */
-				if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
-						uiTxLedIndex, timeout,
-						num_of_time, currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
-			} else {
-				/* Blink pending rate of Tx */
-				if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
-						uiRxLedIndex, timeout,
-						num_of_time, currdriverstate)
-							== EVENT_SIGNALED)
-					return EVENT_SIGNALED;
-			}
-		}
 
 		/*
 		 * If Tx/Rx rate is less than maximum blinks per second,
