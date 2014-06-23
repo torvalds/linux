@@ -488,6 +488,7 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	UINT uiNum_of_LED_Type = 0;
 	PUCHAR puCFGData	= NULL;
 	UCHAR bData = 0;
+	struct bcm_led_state_info *curr_led_state;
 	memset(GPIO_Array, DISABLE_GPIO_NUM, NUM_OF_LEDS+1);
 
 	if (!Adapter->pstargetparams || IS_ERR(Adapter->pstargetparams)) {
@@ -523,31 +524,30 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
 		bData = *puCFGData;
+		curr_led_state = &Adapter->LEDInfo.LEDState[uiIndex];
 
 		/*
 		 * Check Bit 8 for polarity. If it is set,
 		 * polarity is reverse polarity
 		 */
 		if (bData & 0x80) {
-			Adapter->LEDInfo.LEDState[uiIndex].BitPolarity = 0;
+			curr_led_state->BitPolarity = 0;
 			/* unset the bit 8 */
 			bData = bData & 0x7f;
 		}
 
-		Adapter->LEDInfo.LEDState[uiIndex].LED_Type = bData;
+		curr_led_state->LED_Type = bData;
 		if (bData <= NUM_OF_LEDS)
-			Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num =
-							GPIO_Array[bData];
+			curr_led_state->GPIO_Num = GPIO_Array[bData];
 		else
-			Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num =
-							DISABLE_GPIO_NUM;
+			curr_led_state->GPIO_Num = DISABLE_GPIO_NUM;
 
 		puCFGData++;
 		bData = *puCFGData;
-		Adapter->LEDInfo.LEDState[uiIndex].LED_On_State = bData;
+		curr_led_state->LED_On_State = bData;
 		puCFGData++;
 		bData = *puCFGData;
-		Adapter->LEDInfo.LEDState[uiIndex].LED_Blink_State = bData;
+		curr_led_state->LED_Blink_State = bData;
 		puCFGData++;
 	}
 
@@ -556,10 +556,11 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	 * dont launch the LED control thread.
 	 */
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
-		if ((Adapter->LEDInfo.LEDState[uiIndex].LED_Type ==
-					DISABLE_GPIO_NUM) ||
-			(Adapter->LEDInfo.LEDState[uiIndex].LED_Type == 0x7f) ||
-			(Adapter->LEDInfo.LEDState[uiIndex].LED_Type == 0))
+		curr_led_state = &Adapter->LEDInfo.LEDState[uiIndex];
+
+		if ((curr_led_state->LED_Type == DISABLE_GPIO_NUM) ||
+			(curr_led_state->LED_Type == 0x7f) ||
+			(curr_led_state->LED_Type == 0))
 			uiNum_of_LED_Type++;
 	}
 	if (uiNum_of_LED_Type >= NUM_OF_LEDS)
