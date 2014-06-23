@@ -70,7 +70,8 @@ static void InterfaceAdapterFree(struct bcm_interface_adapter *psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter)
+static void ConfigureEndPointTypesThroughEEPROM(
+		struct bcm_mini_adapter *Adapter)
 {
 	u32 ulReg;
 	int bytes;
@@ -147,7 +148,8 @@ static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter
 	BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x1C2, 4, TRUE);
 }
 
-static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int usbbcm_device_probe(struct usb_interface *intf,
+			       const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int retval;
