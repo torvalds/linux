@@ -1019,6 +1019,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
 
+	drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+
 	atomic_set(&mixer_ctx->wait_vsync_event, 1);
 
 	/*
@@ -1029,6 +1031,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 				!atomic_read(&mixer_ctx->wait_vsync_event),
 				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
+
+	drm_vblank_put(mgr->crtc->dev, mixer_ctx->pipe);
 }
 
 static void mixer_window_suspend(struct exynos_drm_manager *mgr)
