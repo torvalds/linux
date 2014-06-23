@@ -88,6 +88,14 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 
 	/* Set the bit to request direct access to DECO0 */
 	topregs = (struct caam_full __iomem *)ctrlpriv->ctrl;
+
+	if (ctrlpriv->virt_en == 1)
+		setbits32(&topregs->ctrl.deco_rsr, DECORSR_JR0);
+
+	while (!(rd_reg32(&topregs->ctrl.deco_rsr) & DECORSR_VALID) &&
+	       --timeout)
+		cpu_relax();
+
 	setbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
 
 	while (!(rd_reg32(&topregs->ctrl.deco_rq) & DECORR_DEN0) &&
@@ -129,6 +137,9 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 
 	*status = rd_reg32(&topregs->deco.op_status_hi) &
 		  DECO_OP_STATUS_HI_ERR_MASK;
+
+	if (ctrlpriv->virt_en == 1)
+		clrbits32(&topregs->ctrl.deco_rsr, DECORSR_JR0);
 
 	/* Mark the DECO as free */
 	clrbits32(&topregs->ctrl.deco_rq, DECORR_RQD0ENABLE);
@@ -378,6 +389,7 @@ static int caam_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
+	u32 scfgr, comp_params;
 	u32 cha_vid_ls;
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(struct caam_drv_private),
@@ -411,6 +423,33 @@ static int caam_probe(struct platform_device *pdev)
 	 */
 	setbits32(&topregs->ctrl.mcr, MCFGR_WDENABLE |
 		  (sizeof(dma_addr_t) == sizeof(u64) ? MCFGR_LONG_PTR : 0));
+
+	/*
+	 *  Read the Compile Time paramters and SCFGR to determine
+	 * if Virtualization is enabled for this platform
+	 */
+	comp_params = rd_reg32(&topregs->ctrl.perfmon.comp_parms_ms);
+	scfgr = rd_reg32(&topregs->ctrl.scfgr);
+
+	ctrlpriv->virt_en = 0;
+	if (comp_params & CTPR_MS_VIRT_EN_INCL) {
+		/* VIRT_EN_INCL = 1 & VIRT_EN_POR = 1 or
+		 * VIRT_EN_INCL = 1 & VIRT_EN_POR = 0 & SCFGR_VIRT_EN = 1
+		 */
+		if ((comp_params & CTPR_MS_VIRT_EN_POR) ||
+		    (!(comp_params & CTPR_MS_VIRT_EN_POR) &&
+		       (scfgr & SCFGR_VIRT_EN)))
+				ctrlpriv->virt_en = 1;
+	} else {
+		/* VIRT_EN_INCL = 0 && VIRT_EN_POR_VALUE = 1 */
+		if (comp_params & CTPR_MS_VIRT_EN_POR)
+				ctrlpriv->virt_en = 1;
+	}
+
+	if (ctrlpriv->virt_en == 1)
+		setbits32(&topregs->ctrl.jrstart, JRSTART_JR0_START |
+			  JRSTART_JR1_START | JRSTART_JR2_START |
+			  JRSTART_JR3_START);
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		if (of_device_is_compatible(nprop, "fsl,sec-v5.0"))

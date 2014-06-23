@@ -176,6 +176,8 @@ struct caam_perfmon {
 	u32 cha_rev_ls;		/* CRNR - CHA Rev No. Least significant half*/
 #define CTPR_MS_QI_SHIFT	25
 #define CTPR_MS_QI_MASK		(0x1ull << CTPR_MS_QI_SHIFT)
+#define CTPR_MS_VIRT_EN_INCL	0x00000001
+#define CTPR_MS_VIRT_EN_POR	0x00000002
 	u32 comp_parms_ms;	/* CTPR - Compile Parameters Register	*/
 	u32 comp_parms_ls;	/* CTPR - Compile Parameters Register	*/
 	u64 rsvd1[2];
@@ -309,9 +311,12 @@ struct caam_ctrl {
 	/* Bus Access Configuration Section			010-11f */
 	/* Read/Writable                                                */
 	struct masterid jr_mid[4];	/* JRxLIODNR - JobR LIODN setup */
-	u32 rsvd3[12];
+	u32 rsvd3[11];
+	u32 jrstart;			/* JRSTART - Job Ring Start Register */
 	struct masterid rtic_mid[4];	/* RTICxLIODNR - RTIC LIODN setup */
-	u32 rsvd4[7];
+	u32 rsvd4[5];
+	u32 deco_rsr;			/* DECORSR - Deco Request Source */
+	u32 rsvd11;
 	u32 deco_rq;			/* DECORR - DECO Request */
 	struct partid deco_mid[5];	/* DECOxLIODNR - 1 per DECO */
 	u32 rsvd5[22];
@@ -352,7 +357,10 @@ struct caam_ctrl {
 #define MCFGR_DMA_RESET		0x10000000
 #define MCFGR_LONG_PTR		0x00010000 /* Use >32-bit desc addressing */
 #define SCFGR_RDBENABLE		0x00000400
+#define SCFGR_VIRT_EN		0x00008000
 #define DECORR_RQD0ENABLE	0x00000001 /* Enable DECO0 for direct access */
+#define DECORSR_JR0		0x00000001 /* JR to supply TZ, SDID, ICID */
+#define DECORSR_VALID		0x80000000
 #define DECORR_DEN0		0x00010000 /* DECO0 available for access*/
 
 /* AXI read cache control */
@@ -369,6 +377,12 @@ struct caam_ctrl {
 
 #define MCFGR_AXIPRI		0x00000008 /* Assert AXI priority sideband */
 #define MCFGR_BURST_64		0x00000001 /* Max burst size */
+
+/* JRSTART register offsets */
+#define JRSTART_JR0_START       0x00000001 /* Start Job ring 0 */
+#define JRSTART_JR1_START       0x00000002 /* Start Job ring 1 */
+#define JRSTART_JR2_START       0x00000004 /* Start Job ring 2 */
+#define JRSTART_JR3_START       0x00000008 /* Start Job ring 3 */
 
 /*
  * caam_job_ring - direct job ring setup
