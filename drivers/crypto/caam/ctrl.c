@@ -378,7 +378,7 @@ static int caam_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
-	u64 cha_vid;
+	u32 cha_vid_ls;
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(struct caam_drv_private),
 				GFP_KERNEL);
@@ -456,8 +456,9 @@ static int caam_probe(struct platform_device *pdev)
 		}
 
 	/* Check to see if QI present. If so, enable */
-	ctrlpriv->qi_present = !!(rd_reg64(&topregs->ctrl.perfmon.comp_parms) &
-				  CTPR_QI_MASK);
+	ctrlpriv->qi_present =
+			!!(rd_reg32(&topregs->ctrl.perfmon.comp_parms_ms) &
+			   CTPR_MS_QI_MASK);
 	if (ctrlpriv->qi_present) {
 		ctrlpriv->qi = (struct caam_queue_if __force *)&topregs->qi;
 		/* This is all that's required to physically enable QI */
@@ -471,13 +472,13 @@ static int caam_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	cha_vid = rd_reg64(&topregs->ctrl.perfmon.cha_id);
+	cha_vid_ls = rd_reg32(&topregs->ctrl.perfmon.cha_id_ls);
 
 	/*
 	 * If SEC has RNG version >= 4 and RNG state handle has not been
 	 * already instantiated, do RNG instantiation
 	 */
-	if ((cha_vid & CHA_ID_RNG_MASK) >> CHA_ID_RNG_SHIFT >= 4) {
+	if ((cha_vid_ls & CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT >= 4) {
 		ctrlpriv->rng4_sh_init =
 			rd_reg32(&topregs->ctrl.r4tst[0].rdsta);
 		/*
@@ -531,7 +532,8 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* NOTE: RTIC detection ought to go here, around Si time */
 
-	caam_id = rd_reg64(&topregs->ctrl.perfmon.caam_id);
+	caam_id = (u64)rd_reg32(&topregs->ctrl.perfmon.caam_id_ms) << 32 |
+		  (u64)rd_reg32(&topregs->ctrl.perfmon.caam_id_ls);
 
 	/* Report "alive" for developer to see */
 	dev_info(dev, "device ID = 0x%016llx (Era %d)\n", caam_id,
