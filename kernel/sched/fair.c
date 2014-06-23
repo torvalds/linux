@@ -1354,10 +1354,6 @@ static int task_numa_migrate(struct task_struct *p)
 		}
 	}
 
-	/* No better CPU than the current one was found. */
-	if (env.best_cpu == -1)
-		return -EAGAIN;
-
 	/*
 	 * If the task is part of a workload that spans multiple NUMA nodes,
 	 * and is migrating into one of the workload's active nodes, remember
@@ -1366,8 +1362,19 @@ static int task_numa_migrate(struct task_struct *p)
 	 * A task that migrated to a second choice node will be better off
 	 * trying for a better one later. Do not set the preferred node here.
 	 */
-	if (p->numa_group && node_isset(env.dst_nid, p->numa_group->active_nodes))
-		sched_setnuma(p, env.dst_nid);
+	if (p->numa_group) {
+		if (env.best_cpu == -1)
+			nid = env.src_nid;
+		else
+			nid = env.dst_nid;
+
+		if (node_isset(nid, p->numa_group->active_nodes))
+			sched_setnuma(p, env.dst_nid);
+	}
+
+	/* No better CPU than the current one was found. */
+	if (env.best_cpu == -1)
+		return -EAGAIN;
 
 	/*
 	 * Reset the scan period if the task is being rescheduled on an
