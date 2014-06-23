@@ -137,32 +137,11 @@ static void xenvif_wake_queue_callback(unsigned long data)
 	}
 }
 
-static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
-			       void *accel_priv, select_queue_fallback_t fallback)
-{
-	unsigned int num_queues = dev->real_num_tx_queues;
-	u32 hash;
-	u16 queue_index;
-
-	/* First, check if there is only one queue to optimise the
-	 * single-queue or old frontend scenario.
-	 */
-	if (num_queues == 1) {
-		queue_index = 0;
-	} else {
-		/* Use skb_get_hash to obtain an L4 hash if available */
-		hash = skb_get_hash(skb);
-		queue_index = hash % num_queues;
-	}
-
-	return queue_index;
-}
-
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	u16 index;
 	int min_slots_needed;
 
@@ -225,7 +204,7 @@ static struct net_device_stats *xenvif_get_stats(struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	unsigned long rx_bytes = 0;
 	unsigned long rx_packets = 0;
 	unsigned long tx_bytes = 0;
@@ -256,7 +235,7 @@ out:
 static void xenvif_up(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
@@ -272,7 +251,7 @@ static void xenvif_up(struct xenvif *vif)
 static void xenvif_down(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
@@ -379,7 +358,7 @@ static void xenvif_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 * data)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	unsigned int num_queues = dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	int i;
 	unsigned int queue_index;
 	struct xenvif_stats *vif_stats;
@@ -424,7 +403,6 @@ static const struct net_device_ops xenvif_netdev_ops = {
 	.ndo_fix_features = xenvif_fix_features,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr   = eth_validate_addr,
-	.ndo_select_queue = xenvif_select_queue,
 };
 
 struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
@@ -438,7 +416,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	snprintf(name, IFNAMSIZ - 1, "vif%u.%u", domid, handle);
 	/* Allocate a netdev with the max. supported number of queues.
 	 * When the guest selects the desired number, it will be updated
-	 * via netif_set_real_num_tx_queues().
+	 * via netif_set_real_num_*_queues().
 	 */
 	dev = alloc_netdev_mq(sizeof(struct xenvif), name, ether_setup,
 			      xenvif_max_queues);
@@ -458,11 +436,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->dev = dev;
 	vif->disabled = false;
 
-	/* Start out with no queues. The call below does not require
-	 * rtnl_lock() as it happens before register_netdev().
-	 */
+	/* Start out with no queues. */
 	vif->queues = NULL;
-	netif_set_real_num_tx_queues(dev, 0);
+	vif->num_queues = 0;
 
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
@@ -677,7 +653,7 @@ static void xenvif_wait_unmap_timeout(struct xenvif_queue *queue,
 void xenvif_disconnect(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 
 	if (netif_carrier_ok(vif->dev))
@@ -724,7 +700,7 @@ void xenvif_deinit_queue(struct xenvif_queue *queue)
 void xenvif_free(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
-	unsigned int num_queues = vif->dev->real_num_tx_queues;
+	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
 	/* Here we want to avoid timeout messages if an skb can be legitimately
 	 * stuck somewhere else. Realistically this could be an another vif's
@@ -748,12 +724,9 @@ void xenvif_free(struct xenvif *vif)
 		xenvif_deinit_queue(queue);
 	}
 
-	/* Free the array of queues. The call below does not require
-	 * rtnl_lock() because it happens after unregister_netdev().
-	 */
-	netif_set_real_num_tx_queues(vif->dev, 0);
 	vfree(vif->queues);
 	vif->queues = NULL;
+	vif->num_queues = 0;
 
 	free_netdev(vif->dev);
 
