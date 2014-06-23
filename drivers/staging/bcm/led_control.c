@@ -632,30 +632,28 @@ static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter,
 
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
 
-		if ((currdriverstate == NORMAL_OPERATION) ||
-				(currdriverstate == IDLEMODE_EXIT) ||
-				(currdriverstate == FW_DOWNLOAD)) {
-			if (Adapter->LEDInfo.LEDState[uiIndex].LED_Blink_State &
-					currdriverstate) {
-				if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num
-						!= DISABLE_GPIO_NUM) {
-					if (*GPIO_num_tx == DISABLE_GPIO_NUM) {
-						*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
-						*uiLedTxIndex = uiIndex;
-					} else {
-						*GPIO_num_rx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
-						*uiLedRxIndex = uiIndex;
-					}
+		if (((currdriverstate == NORMAL_OPERATION) ||
+			(currdriverstate == IDLEMODE_EXIT) ||
+			(currdriverstate == FW_DOWNLOAD)) &&
+		    (Adapter->LEDInfo.LEDState[uiIndex].LED_Blink_State &
+					currdriverstate)) {
+			if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num
+					!= DISABLE_GPIO_NUM) {
+				if (*GPIO_num_tx == DISABLE_GPIO_NUM) {
+					*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+					*uiLedTxIndex = uiIndex;
+				} else {
+					*GPIO_num_rx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+					*uiLedRxIndex = uiIndex;
 				}
 			}
 		} else {
-			if (Adapter->LEDInfo.LEDState[uiIndex].LED_On_State
-					& currdriverstate) {
-				if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num
-						!= DISABLE_GPIO_NUM) {
-					*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
-					*uiLedTxIndex = uiIndex;
-				}
+			if ((Adapter->LEDInfo.LEDState[uiIndex].LED_On_State &
+						currdriverstate) &&
+			    (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
+			     DISABLE_GPIO_NUM)) {
+				*GPIO_num_tx = Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num;
+				*uiLedTxIndex = uiIndex;
 			}
 		}
 	}
