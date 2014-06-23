@@ -184,10 +184,5 @@ static inline void flush_signals_thread(void)
 		flush_signals(current);
 }
 
-static inline u32 _RND512(u32 sz)
-{
-	return ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
-}
-
 #endif
 
