@@ -1647,11 +1647,6 @@ static int rcu_gp_init(struct rcu_state *rsp)
 					    rnp->level, rnp->grplo,
 					    rnp->grphi, rnp->qsmask);
 		raw_spin_unlock_irq(&rnp->lock);
-#ifdef CONFIG_PROVE_RCU_DELAY
-		if ((prandom_u32() % (rcu_num_nodes + 1)) == 0 &&
-		    system_state == SYSTEM_RUNNING)
-			udelay(200);
-#endif /* #ifdef CONFIG_PROVE_RCU_DELAY */
 		cond_resched();
 	}
 
