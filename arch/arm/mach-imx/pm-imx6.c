@@ -274,6 +274,14 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		break;
 	case STOP_POWER_ON:
 		val |= 0x2 << BP_CLPCR_LPM;
+		val &= ~BM_CLPCR_VSTBY;
+		val &= ~BM_CLPCR_SBYOS;
+		if (cpu_is_imx6sl())
+			val |= BM_CLPCR_BYPASS_PMIC_READY;
+		if (cpu_is_imx6sl() || cpu_is_imx6sx())
+			val |= BM_CLPCR_BYP_MMDC_CH0_LPM_HS;
+		else
+			val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	case WAIT_UNCLOCKED_POWER_OFF:
 		val |= 0x1 << BP_CLPCR_LPM;
@@ -334,6 +342,19 @@ static int imx6q_suspend_finish(unsigned long val)
 static int imx6q_pm_enter(suspend_state_t state)
 {
 	switch (state) {
+	case PM_SUSPEND_STANDBY:
+		imx6q_set_lpm(STOP_POWER_ON);
+		imx6q_set_int_mem_clk_lpm(true);
+		imx_gpc_pre_suspend(false);
+		if (cpu_is_imx6sl())
+			imx6sl_set_wait_clk(true);
+		/* Zzz ... */
+		cpu_do_idle();
+		if (cpu_is_imx6sl())
+			imx6sl_set_wait_clk(false);
+		imx_gpc_post_resume();
+		imx6q_set_lpm(WAIT_CLOCKED);
+		break;
 	case PM_SUSPEND_MEM:
 		imx6q_set_lpm(STOP_POWER_OFF);
 		imx6q_set_int_mem_clk_lpm(false);
@@ -344,7 +365,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		 */
 		if (!imx6_suspend_in_ocram_fn)
 			imx6q_enable_rbc(true);
-		imx_gpc_pre_suspend();
+		imx_gpc_pre_suspend(true);
 		imx_anatop_pre_suspend();
 		imx_set_cpu_jump(0, v7_cpu_resume);
 		/* Zzz ... */
@@ -365,9 +386,14 @@ static int imx6q_pm_enter(suspend_state_t state)
 	return 0;
 }
 
+static int imx6q_pm_valid(suspend_state_t state)
+{
+	return (state == PM_SUSPEND_STANDBY || state == PM_SUSPEND_MEM);
+}
+
 static const struct platform_suspend_ops imx6q_pm_ops = {
 	.enter = imx6q_pm_enter,
-	.valid = suspend_valid_only_mem,
+	.valid = imx6q_pm_valid,
 };
 
 void __init imx6q_pm_set_ccm_base(void __iomem *base)
