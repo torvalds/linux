@@ -3511,24 +3511,7 @@ static struct platform_driver udc_driver = {
 	},
 };
 
-
-
-/*-------------------------------------------------------------------------*/
-/* module */
-
-/*-------------------------------------------------------------------------*/
-static int __init udc_init(void)
-{
-	return platform_driver_register(&udc_driver);
-}
-module_init(udc_init);
-
-/*-------------------------------------------------------------------------*/
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Renesas Electronics Corporation");
