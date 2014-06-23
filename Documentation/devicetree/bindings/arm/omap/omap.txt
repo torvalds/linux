@@ -129,6 +129,9 @@ Boards:
 - AM437x GP EVM
   compatible = "ti,am437x-gp-evm", "ti,am4372", "ti,am43"
 
+- AM437x SK EVM: AM437x StarterKit Evaluation Module
+  compatible = "ti,am437x-sk-evm", "ti,am4372", "ti,am43"
+
 - DRA742 EVM:  Software Development Board for DRA742
   compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"
 
