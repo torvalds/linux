@@ -39,6 +39,9 @@
 #include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 #include <linux/ktime.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 
 #include "cq_enet_desc.h"
 #include "vnic_dev.h"
@@ -1192,6 +1195,44 @@ static void enic_calc_int_moderation(struct enic *enic, struct vnic_rq *rq)
 	pkt_size_counter->small_pkt_bytes_cnt = 0;
 }
 
+#ifdef CONFIG_RFS_ACCEL
+static void enic_free_rx_cpu_rmap(struct enic *enic)
+{
+	free_irq_cpu_rmap(enic->netdev->rx_cpu_rmap);
+	enic->netdev->rx_cpu_rmap = NULL;
+}
+
+static void enic_set_rx_cpu_rmap(struct enic *enic)
+{
+	int i, res;
+
+	if (vnic_dev_get_intr_mode(enic->vdev) == VNIC_DEV_INTR_MODE_MSIX) {
+		enic->netdev->rx_cpu_rmap = alloc_irq_cpu_rmap(enic->rq_count);
+		if (unlikely(!enic->netdev->rx_cpu_rmap))
+			return;
+		for (i = 0; i < enic->rq_count; i++) {
+			res = irq_cpu_rmap_add(enic->netdev->rx_cpu_rmap,
+					       enic->msix_entry[i].vector);
+			if (unlikely(res)) {
+				enic_free_rx_cpu_rmap(enic);
+				return;
+			}
+		}
+	}
+}
+
+#else
+
+static void enic_free_rx_cpu_rmap(struct enic *enic)
+{
+}
+
+static void enic_set_rx_cpu_rmap(struct enic *enic)
+{
+}
+
+#endif /* CONFIG_RFS_ACCEL */
+
 static int enic_poll_msix(struct napi_struct *napi, int budget)
 {
 	struct net_device *netdev = napi->dev;
@@ -1267,6 +1308,7 @@ static void enic_free_intr(struct enic *enic)
 	struct net_device *netdev = enic->netdev;
 	unsigned int i;
 
+	enic_free_rx_cpu_rmap(enic);
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
 		free_irq(enic->pdev->irq, netdev);
@@ -1291,6 +1333,7 @@ static int enic_request_intr(struct enic *enic)
 	unsigned int i, intr;
 	int err = 0;
 
+	enic_set_rx_cpu_rmap(enic);
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 
 	case VNIC_DEV_INTR_MODE_INTX:
