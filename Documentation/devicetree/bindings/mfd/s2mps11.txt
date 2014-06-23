@@ -96,7 +96,7 @@ Example:
 
 		s2m_osc: clocks {
 			compatible = "samsung,s2mps11-clk";
-			#clock-cells = 1;
+			#clock-cells = <1>;
 			clock-output-names = "xx", "yy", "zz";
 		};
 
