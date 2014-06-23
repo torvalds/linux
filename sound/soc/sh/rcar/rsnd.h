@@ -156,12 +156,8 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod);
  */
 struct rsnd_dma {
 	struct sh_dmae_slave	slave;
-	struct work_struct	work;
 	struct dma_chan		*chan;
 	enum dma_transfer_direction dir;
-
-	int submit_loop;
-	int offset; /* it cares A/B plane */
 };
 
 void rsnd_dma_start(struct rsnd_dma *dma);
