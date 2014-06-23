@@ -69,6 +69,7 @@ static inline void uoc_init_synop(struct device_node *np)
 				    GFP_ATOMIC);
 
 	uoc_init_field(np, "rk_usb,bvalid", &pBC_UOC_FIELDS[SYNOP_BC_BVALID]);
+	uoc_init_field(np, "rk_usb,iddig", &pBC_UOC_FIELDS[SYNOP_BC_IDDIG]);
 	uoc_init_field(np, "rk_usb,dcdenb", &pBC_UOC_FIELDS[SYNOP_BC_DCDENB]);
 	uoc_init_field(np, "rk_usb,vdatsrcenb",
 		       &pBC_UOC_FIELDS[SYNOP_BC_VDATSRCENB]);
@@ -88,6 +89,7 @@ static inline void uoc_init_rk(struct device_node *np)
 				    GFP_ATOMIC);
 
 	uoc_init_field(np, "rk_usb,bvalid", &pBC_UOC_FIELDS[RK_BC_BVALID]);
+	uoc_init_field(np, "rk_usb,iddig", &pBC_UOC_FIELDS[RK_BC_IDDIG]);
 	uoc_init_field(np, "rk_usb,line", &pBC_UOC_FIELDS[RK_BC_LINESTATE]);
 	uoc_init_field(np, "rk_usb,softctrl", &pBC_UOC_FIELDS[RK_BC_SOFTCTRL]);
 	uoc_init_field(np, "rk_usb,opmode", &pBC_UOC_FIELDS[RK_BC_OPMODE]);
@@ -107,7 +109,8 @@ int usb_battery_charger_detect_rk(bool wait)
 
 	int port_type = USB_BC_TYPE_DISCNT;
 
-	if (BC_GET(RK_BC_BVALID)) {
+	if (BC_GET(RK_BC_BVALID) &&
+	    BC_GET(RK_BC_IDDIG)) {
 		mdelay(10);
 		BC_SET(RK_BC_SOFTCTRL, 1);
 		BC_SET(RK_BC_OPMODE, 0);
@@ -149,10 +152,12 @@ int usb_battery_charger_detect_inno(bool wait)
 int usb_battery_charger_detect_synop(bool wait)
 {
 	int port_type = USB_BC_TYPE_DISCNT;
-	int dcd_state;
+	int dcd_state = DCD_POSITIVE;
 	int timeout = 0, i = 0;
+
 	/* VBUS Valid detect */
-	if (BC_GET(SYNOP_BC_BVALID)) {
+	if (BC_GET(SYNOP_BC_BVALID) &&
+	    BC_GET(SYNOP_BC_IDDIG)) {
 		if (wait) {
 			/* Do DCD */
 			dcd_state = DCD_TIMEOUT;
@@ -264,13 +269,15 @@ int dwc_otg_check_dpdm(bool wait)
 	if (of_device_is_compatible(np, "rockchip,ctrl")) {
 		if (!pBC_UOC_FIELDS)
 			uoc_init_rk(np);
-		if (!BC_GET(RK_BC_BVALID))
+		if (!BC_GET(RK_BC_BVALID) ||
+		    !BC_GET(RK_BC_IDDIG))
 			rk_usb_charger_status = USB_BC_TYPE_DISCNT;
 
 	} else if (of_device_is_compatible(np, "synopsys,phy")) {
 		if (!pBC_UOC_FIELDS)
 			uoc_init_synop(np);
-		if (!BC_GET(SYNOP_BC_BVALID))
+		if (!BC_GET(SYNOP_BC_BVALID) ||
+		    !BC_GET(SYNOP_BC_IDDIG))
 			rk_usb_charger_status = USB_BC_TYPE_DISCNT;
 
 	} else if (of_device_is_compatible(np, "inno,phy")) {

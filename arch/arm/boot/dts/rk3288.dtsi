@@ -1042,6 +1042,7 @@
 			compatible = "synopsys,phy";
 					/* offset bit mask */
 			rk_usb,bvalid     = <0x288 14 1>;
+			rk_usb,iddig      = <0x288 17 1>;
 			rk_usb,dcdenb     = <0x328 14 1>;
 			rk_usb,vdatsrcenb = <0x328  7 1>;
 			rk_usb,vdatdetenb = <0x328  6 1>;
