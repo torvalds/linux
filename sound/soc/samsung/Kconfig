@@ -13,9 +13,6 @@ config SND_SOC_SAMSUNG
 config SND_S3C_DMA
 	tristate
 
-config SND_S3C_DMA_LEGACY
-	tristate
-
 config SND_S3C24XX_I2S
 	tristate
 
