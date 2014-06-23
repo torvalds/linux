@@ -1496,6 +1496,8 @@ static inline int ptlrpc_set_producer(struct ptlrpc_request_set *set)
  * and no more replies are expected.
  * (it is possible to get less replies than requests sent e.g. due to timed out
  * requests or requests that we had trouble to send out)
+ *
+ * NOTE: This function contains a potential schedule point (cond_resched()).
  */
 int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 {
@@ -1512,6 +1514,14 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 		struct obd_import *imp = req->rq_import;
 		int unregistered = 0;
 		int rc = 0;
+
+		/* This schedule point is mainly for the ptlrpcd caller of this
+		 * function.  Most ptlrpc sets are not long-lived and unbounded
+		 * in length, but at the least the set used by the ptlrpcd is.
+		 * Since the processing time is unbounded, we need to insert an
+		 * explicit schedule point to make the thread well-behaved.
+		 */
+		cond_resched();
 
 		if (req->rq_phase == RQ_PHASE_NEW &&
 		    ptlrpc_send_new_req(req)) {
