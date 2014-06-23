@@ -99,8 +99,10 @@ _nouveau_disp_dtor(struct nouveau_object *object)
 
 	nouveau_event_destroy(&disp->vblank);
 
-	list_for_each_entry_safe(outp, outt, &disp->outp, head) {
-		nouveau_object_ref(NULL, (struct nouveau_object **)&outp);
+	if (disp->outp.next) {
+		list_for_each_entry_safe(outp, outt, &disp->outp, head) {
+			nouveau_object_ref(NULL, (struct nouveau_object **)&outp);
+		}
 	}
 
 	nouveau_engine_destroy(&disp->base);

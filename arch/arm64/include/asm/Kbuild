@@ -30,7 +30,6 @@ generic-y += msgbuf.h
 generic-y += mutex.h
 generic-y += pci.h
 generic-y += poll.h
-generic-y += posix_types.h
 generic-y += preempt.h
 generic-y += resource.h
 generic-y += rwsem.h

@@ -166,10 +166,6 @@ static void of_dma_configure(struct platform_device *pdev)
 	int ret;
 	struct device *dev = &pdev->dev;
 
-#if defined(CONFIG_MICROBLAZE)
-	pdev->archdata.dma_mask = 0xffffffffUL;
-#endif
-
 	/*
 	 * Set default dma-mask to 32 bit. Drivers are expected to setup
 	 * the correct supported dma_mask.

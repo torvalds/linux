@@ -65,7 +65,7 @@ do {	save_and_clear_fpu();						\
 	  "o0", "o1", "o2", "o3", "o4", "o5",       "o7");		\
 } while(0)
 
-extern void synchronize_user_stack(void);
-extern void fault_in_user_windows(void);
+void synchronize_user_stack(void);
+void fault_in_user_windows(void);
 
 #endif /* __SPARC64_SWITCH_TO_64_H */

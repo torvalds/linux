@@ -153,6 +153,7 @@ obj-$(CONFIG_MEN_A21_WDT) += mena21_wdt.o
 obj-$(CONFIG_WATCHDOG_RTAS) += wdrtas.o
 
 # S390 Architecture
+obj-$(CONFIG_DIAG288_WATCHDOG) += diag288_wdt.o
 
 # SUPERH (sh + sh64) Architecture
 obj-$(CONFIG_SH_WDT) += shwdt.o

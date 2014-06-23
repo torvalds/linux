@@ -7,10 +7,9 @@
 
 # Configuration options for the EXYNOS4
 
-config ARCH_EXYNOS
+menuconfig ARCH_EXYNOS
 	bool "Samsung EXYNOS" if ARCH_MULTI_V7
 	select ARCH_HAS_BANDGAP
-	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
@@ -29,8 +28,6 @@ config ARCH_EXYNOS
 	  Support for SAMSUNG EXYNOS SoCs (EXYNOS4/5)
 
 if ARCH_EXYNOS
-
-menu "SAMSUNG EXYNOS SoCs Support"
 
 config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
@@ -117,8 +114,6 @@ config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
-
-endmenu
 
 config EXYNOS5420_MCPM
 	bool "Exynos5420 Multi-Cluster PM support"

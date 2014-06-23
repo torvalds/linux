@@ -24,14 +24,9 @@
 
 void *module_alloc(unsigned long size)
 {
-	struct vm_struct *area;
-
-	size = PAGE_ALIGN(size);
-	area = __get_vm_area(size, VM_ALLOC, MODULES_VADDR, MODULES_END);
-	if (!area)
-		return NULL;
-
-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
+	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+				GFP_KERNEL, PAGE_KERNEL_EXEC, NUMA_NO_NODE,
+				__builtin_return_address(0));
 }
 
 int
