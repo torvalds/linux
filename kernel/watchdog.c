@@ -527,10 +527,8 @@ static void update_timers_all_cpus(void)
 	int cpu;
 
 	get_online_cpus();
-	preempt_disable();
 	for_each_online_cpu(cpu)
 		update_timers(cpu);
-	preempt_enable();
 	put_online_cpus();
 }
 
