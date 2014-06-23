@@ -344,7 +344,7 @@ EXPORT_SYMBOL(crc32_be);
 #ifdef CONFIG_CRC32_SELFTEST
 
 /* 4096 random bytes */
-static u8 __attribute__((__aligned__(8))) test_buf[] =
+static u8 const __aligned(8) test_buf[] __initconst =
 {
 	0x5b, 0x85, 0x21, 0xcb, 0x09, 0x68, 0x7d, 0x30,
 	0xc7, 0x69, 0xd7, 0x30, 0x92, 0xde, 0x59, 0xe4,
@@ -868,7 +868,7 @@ static struct crc_test {
 	u32 crc_le;	/* expected crc32_le result */
 	u32 crc_be;	/* expected crc32_be result */
 	u32 crc32c_le;	/* expected crc32c_le result */
-} test[] =
+} const test[] __initconst =
 {
 	{0x674bf11d, 0x00000038, 0x00000542, 0x0af6d466, 0xd8b6e4c1, 0xf6e93d6c},
 	{0x35c672c6, 0x0000003a, 0x000001aa, 0xc6d3dfba, 0x28aaf3ad, 0x0fe92aca},
