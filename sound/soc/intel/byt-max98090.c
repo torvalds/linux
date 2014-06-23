@@ -83,6 +83,7 @@ static struct snd_soc_jack_gpio hs_jack_gpios[] = {
 	{
 		.name		= "mic-gpio",
 		.idx		= 1,
+		.invert		= 1,
 		.report		= SND_JACK_MICROPHONE | SND_JACK_LINEIN,
 		.debounce_time	= 200,
 	},
