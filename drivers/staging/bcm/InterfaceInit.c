@@ -340,16 +340,16 @@ static int device_run(struct bcm_interface_adapter *psIntfAdapter)
 {
 	int value = 0;
 	UINT status = STATUS_SUCCESS;
+	struct bcm_mini_adapter *psAd = psIntfAdapter->psAdapter;
 
-	status = InitCardAndDownloadFirmware(psIntfAdapter->psAdapter);
+	status = InitCardAndDownloadFirmware(psAd);
 	if (status != STATUS_SUCCESS) {
 		pr_err(DRV_NAME "InitCardAndDownloadFirmware failed.\n");
 		return status;
 	}
-	if (psIntfAdapter->psAdapter->fw_download_done) {
+	if (psAd->fw_download_done) {
 		if (StartInterruptUrb(psIntfAdapter)) {
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
-					DBG_TYPE_INITEXIT, DRV_ENTRY,
+			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
 					"Cannot send interrupt in URB\n");
 		}
@@ -358,17 +358,15 @@ static int device_run(struct bcm_interface_adapter *psIntfAdapter)
 		 * now register the cntrl interface.  after downloading the f/w
 		 * waiting for 5 sec to get the mailbox interrupt.
 		 */
-		psIntfAdapter->psAdapter->waiting_to_fw_download_done = false;
-		value = wait_event_timeout(
-				psIntfAdapter->psAdapter->ioctl_fw_dnld_wait_queue,
-				psIntfAdapter->psAdapter->waiting_to_fw_download_done,
-				5 * HZ);
+		psAd->waiting_to_fw_download_done = false;
+		value = wait_event_timeout(psAd->ioctl_fw_dnld_wait_queue,
+					   psAd->waiting_to_fw_download_done,
+					   5 * HZ);
 
 		if (value == 0)
 			pr_err(DRV_NAME ": Timeout waiting for mailbox interrupt.\n");
 
-		if (register_control_device_interface(
-					psIntfAdapter->psAdapter) < 0) {
+		if (register_control_device_interface(psAd) < 0) {
 			pr_err(DRV_NAME ": Register Control Device failed.\n");
 			return -EIO;
 		}
