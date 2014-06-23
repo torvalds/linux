@@ -1316,10 +1316,13 @@ jmp_cmp:
 						  vlan_tci) != 2);
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit_half_load(r_s0, r_skb, off, ctx);
-			if (code == (BPF_ANC | SKF_AD_VLAN_TAG))
+			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
 				emit_andi(r_A, r_s0, (u16)~VLAN_TAG_PRESENT, ctx);
-			else
+			} else {
 				emit_andi(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
+				/* return 1 if present */
+				emit_sltu(r_A, r_zero, r_A, ctx);
+			}
 			break;
 		case BPF_ANC | SKF_AD_PKTTYPE:
 			ctx->flags |= SEEN_SKB;
