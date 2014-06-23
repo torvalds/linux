@@ -83,12 +83,12 @@ config BNX2
 	  will be called bnx2.  This is recommended.
 
 config CNIC
-	tristate "Broadcom CNIC support"
+	tristate "QLogic CNIC support"
 	depends on PCI
 	select BNX2
 	select UIO
 	---help---
-	  This driver supports offload features of Broadcom NetXtremeII
+	  This driver supports offload features of QLogic NetXtremeII
 	  gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
