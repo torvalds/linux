@@ -166,9 +166,7 @@ do {							\
 /* Determine if immediate is within the 16-bit signed range */
 static inline bool is_range16(s32 imm)
 {
-	if (imm >= SBIT(15) || imm < -SBIT(15))
-		return true;
-	return false;
+	return !(imm >= SBIT(15) || imm < -SBIT(15));
 }
 
 static inline void emit_addu(unsigned int dst, unsigned int src1,
@@ -187,7 +185,7 @@ static inline void emit_load_imm(unsigned int dst, u32 imm, struct jit_ctx *ctx)
 {
 	if (ctx->target != NULL) {
 		/* addiu can only handle s16 */
-		if (is_range16(imm)) {
+		if (!is_range16(imm)) {
 			u32 *p = &ctx->target[ctx->idx];
 			uasm_i_lui(&p, r_tmp_imm, (s32)imm >> 16);
 			p = &ctx->target[ctx->idx + 1];
@@ -199,7 +197,7 @@ static inline void emit_load_imm(unsigned int dst, u32 imm, struct jit_ctx *ctx)
 	}
 	ctx->idx++;
 
-	if (is_range16(imm))
+	if (!is_range16(imm))
 		ctx->idx++;
 }
 
@@ -240,7 +238,7 @@ static inline void emit_daddiu(unsigned int dst, unsigned int src,
 static inline void emit_addiu(unsigned int dst, unsigned int src,
 			      u32 imm, struct jit_ctx *ctx)
 {
-	if (is_range16(imm)) {
+	if (!is_range16(imm)) {
 		emit_load_imm(r_tmp, imm, ctx);
 		emit_addu(dst, r_tmp, src, ctx);
 	} else {
@@ -347,7 +345,7 @@ static inline void emit_sltiu(unsigned dst, unsigned int src,
 			      unsigned int imm, struct jit_ctx *ctx)
 {
 	/* 16 bit immediate */
-	if (is_range16((s32)imm)) {
+	if (!is_range16((s32)imm)) {
 		emit_load_imm(r_tmp, imm, ctx);
 		emit_sltu(dst, src, r_tmp, ctx);
 	} else {
