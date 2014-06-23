@@ -246,11 +246,12 @@ LNetMEUnlink(lnet_handle_me_t meh)
 	}
 
 	md = me->me_md;
-	if (md != NULL &&
-	    md->md_eq != NULL &&
-	    md->md_refcount == 0) {
-		lnet_build_unlink_event(md, &ev);
-		lnet_eq_enqueue_event(md->md_eq, &ev);
+	if (md != NULL) {
+		md->md_flags |= LNET_MD_FLAG_ABORTED;
+		if (md->md_eq != NULL && md->md_refcount == 0) {
+			lnet_build_unlink_event(md, &ev);
+			lnet_eq_enqueue_event(md->md_eq, &ev);
+		}
 	}
 
 	lnet_me_unlink(me);

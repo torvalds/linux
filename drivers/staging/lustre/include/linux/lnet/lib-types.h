@@ -280,6 +280,7 @@ typedef struct lnet_libmd {
 
 #define LNET_MD_FLAG_ZOMBIE	   (1 << 0)
 #define LNET_MD_FLAG_AUTO_UNLINK      (1 << 1)
+#define LNET_MD_FLAG_ABORTED	 (1 << 2)
 
 #ifdef LNET_USE_LIB_FREELIST
 typedef struct {

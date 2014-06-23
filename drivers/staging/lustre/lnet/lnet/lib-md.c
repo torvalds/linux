@@ -387,7 +387,8 @@ EXPORT_SYMBOL(LNetMDBind);
 
 /**
  * Unlink the memory descriptor from any ME it may be linked to and release
- * the internal resources associated with it.
+ * the internal resources associated with it. As a result, active messages
+ * associated with the MD may get aborted.
  *
  * This function does not free the memory region associated with the MD;
  * i.e., the memory the user allocated for this MD. If the ME associated with
@@ -433,12 +434,11 @@ LNetMDUnlink (lnet_handle_md_t mdh)
 		return -ENOENT;
 	}
 
+	md->md_flags |= LNET_MD_FLAG_ABORTED;
 	/* If the MD is busy, lnet_md_unlink just marks it for deletion, and
-	 * when the NAL is done, the completion event flags that the MD was
+	 * when the LND is done, the completion event flags that the MD was
 	 * unlinked.  Otherwise, we enqueue an event now... */
-
-	if (md->md_eq != NULL &&
-	    md->md_refcount == 0) {
+	if (md->md_eq != NULL && md->md_refcount == 0) {
 		lnet_build_unlink_event(md, &ev);
 		lnet_eq_enqueue_event(md->md_eq, &ev);
 	}
