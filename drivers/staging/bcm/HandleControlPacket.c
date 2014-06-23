@@ -219,6 +219,7 @@ INT flushAllAppQ(void)
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	struct bcm_tarang_data *pTarang = NULL;
 	struct sk_buff *PacketToDrop = NULL;
+
 	for (pTarang = Adapter->pTarangs; pTarang; pTarang = pTarang->next) {
 		while (pTarang->RxAppControlHead != NULL) {
 			PacketToDrop = pTarang->RxAppControlHead;
