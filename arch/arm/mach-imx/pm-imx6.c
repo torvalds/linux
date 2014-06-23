@@ -199,11 +199,13 @@ struct imx6_cpu_pm_info {
 	u32 mmdc_io_val[MX6_MAX_MMDC_IO_NUM][2]; /* To save offset and value */
 } __aligned(8);
 
-void imx6q_set_int_mem_clk_lpm(void)
+void imx6q_set_int_mem_clk_lpm(bool enable)
 {
 	u32 val = readl_relaxed(ccm_base + CGPR);
 
-	val |= BM_CGPR_INT_MEM_CLK_LPM;
+	val &= ~BM_CGPR_INT_MEM_CLK_LPM;
+	if (enable)
+		val |= BM_CGPR_INT_MEM_CLK_LPM;
 	writel_relaxed(val, ccm_base + CGPR);
 }
 
@@ -334,6 +336,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		imx6q_set_lpm(STOP_POWER_OFF);
+		imx6q_set_int_mem_clk_lpm(false);
 		imx6q_enable_wb(true);
 		/*
 		 * For suspend into ocram, asm code already take care of
@@ -352,6 +355,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		imx_gpc_post_resume();
 		imx6q_enable_rbc(false);
 		imx6q_enable_wb(false);
+		imx6q_set_int_mem_clk_lpm(true);
 		imx6q_set_lpm(WAIT_CLOCKED);
 		break;
 	default:

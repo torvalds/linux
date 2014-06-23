@@ -71,7 +71,7 @@ int __init imx6q_cpuidle_init(void)
 		imx_scu_standby_enable();
 
 	/* Set INT_MEM_CLK_LPM bit to get a reliable WAIT mode support */
-	imx6q_set_int_mem_clk_lpm();
+	imx6q_set_int_mem_clk_lpm(true);
 
 	return cpuidle_register(&imx6q_cpuidle_driver, NULL);
 }
