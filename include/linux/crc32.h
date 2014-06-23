@@ -29,7 +29,12 @@ extern u32  crc32_be(u32 crc, unsigned char const *p, size_t len);
  * 	   with the same initializer as crc1, and crc2 seed was 0. See
  * 	   also crc32_combine_test().
  */
-extern u32  crc32_le_combine(u32 crc1, u32 crc2, size_t len2);
+u32 __attribute_const__ crc32_le_shift(u32 crc, size_t len);
+
+static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
+{
+	return crc32_le_shift(crc1, len2) ^ crc2;
+}
 
 extern u32  __crc32c_le(u32 crc, unsigned char const *p, size_t len);
 
@@ -51,7 +56,12 @@ extern u32  __crc32c_le(u32 crc, unsigned char const *p, size_t len);
  * 	   seeded with the same initializer as crc1, and crc2 seed
  * 	   was 0. See also crc32c_combine_test().
  */
-extern u32  __crc32c_le_combine(u32 crc1, u32 crc2, size_t len2);
+u32 __attribute_const__ __crc32c_le_shift(u32 crc, size_t len);
+
+static inline u32 __crc32c_le_combine(u32 crc1, u32 crc2, size_t len2)
+{
+	return __crc32c_le_shift(crc1, len2) ^ crc2;
+}
 
 #define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)
 
