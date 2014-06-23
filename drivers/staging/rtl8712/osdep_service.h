@@ -184,11 +184,6 @@ static inline void flush_signals_thread(void)
 		flush_signals(current);
 }
 
-static inline u32 _RND128(u32 sz)
-{
-	return ((sz >> 7) + ((sz & 127) ? 1 : 0)) << 7;
-}
-
 static inline u32 _RND256(u32 sz)
 {
 	return ((sz >> 8) + ((sz & 255) ? 1 : 0)) << 8;

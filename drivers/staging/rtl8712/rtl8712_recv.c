@@ -1065,7 +1065,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		precvframe->u.hdr.precvbuf = NULL; /*can't access the precvbuf*/
 		precvframe->u.hdr.len = 0;
 		tmp_len = pkt_len + drvinfo_sz + RXDESC_SIZE;
-		pkt_offset = (u16)_RND128(tmp_len);
+		pkt_offset = (u16)round_up(tmp_len, 128);
 		/* for first fragment packet, driver need allocate 1536 +
 		 * drvinfo_sz + RXDESC_SIZE to defrag packet. */
 		if ((mf == 1) && (frag == 0))
