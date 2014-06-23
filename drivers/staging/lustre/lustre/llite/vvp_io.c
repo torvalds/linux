@@ -624,7 +624,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 		       page_private(vmf->page), vmf->virtual_address);
 		if (unlikely(!(cfio->fault.ft_flags & VM_FAULT_LOCKED))) {
 			lock_page(vmf->page);
-			cfio->fault.ft_flags &= VM_FAULT_LOCKED;
+			cfio->fault.ft_flags |= VM_FAULT_LOCKED;
 		}
 
 		cfio->ft_vmpage = vmf->page;
