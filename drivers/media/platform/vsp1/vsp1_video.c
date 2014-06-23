@@ -471,7 +471,8 @@ static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	int ret;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
-	pipe->state = VSP1_PIPELINE_STOPPING;
+	if (pipe->state == VSP1_PIPELINE_RUNNING)
+		pipe->state = VSP1_PIPELINE_STOPPING;
 	spin_unlock_irqrestore(&pipe->irqlock, flags);
 
 	ret = wait_event_timeout(pipe->wq, pipe->state == VSP1_PIPELINE_STOPPED,
@@ -576,6 +577,7 @@ static void vsp1_video_frame_end(struct vsp1_pipeline *pipe,
 
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 {
+	enum vsp1_pipeline_state state;
 	unsigned long flags;
 	unsigned int i;
 
@@ -591,11 +593,13 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
+	state = pipe->state;
+	pipe->state = VSP1_PIPELINE_STOPPED;
+
 	/* If a stop has been requested, mark the pipeline as stopped and
 	 * return.
 	 */
-	if (pipe->state == VSP1_PIPELINE_STOPPING) {
-		pipe->state = VSP1_PIPELINE_STOPPED;
+	if (state == VSP1_PIPELINE_STOPPING) {
 		wake_up(&pipe->wq);
 		goto done;
 	}
