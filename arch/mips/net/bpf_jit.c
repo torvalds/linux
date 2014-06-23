@@ -1317,9 +1317,9 @@ jmp_cmp:
 			off = offsetof(struct sk_buff, vlan_tci);
 			emit_half_load(r_s0, r_skb, off, ctx);
 			if (code == (BPF_ANC | SKF_AD_VLAN_TAG))
-				emit_and(r_A, r_s0, VLAN_VID_MASK, ctx);
+				emit_andi(r_A, r_s0, VLAN_VID_MASK, ctx);
 			else
-				emit_and(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
+				emit_andi(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
 			break;
 		case BPF_ANC | SKF_AD_PKTTYPE:
 			off = pkt_type_offset();
