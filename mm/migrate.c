@@ -120,8 +120,6 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 		pmd = mm_find_pmd(mm, addr);
 		if (!pmd)
 			goto out;
-		if (pmd_trans_huge(*pmd))
-			goto out;
 
 		ptep = pte_offset_map(pmd, addr);
 
