@@ -179,6 +179,23 @@ static const char *au_parser_pattern(int val, match_table_t tbl)
 	return "??";
 }
 
+static const char *au_optstr(int *val, match_table_t tbl)
+{
+	struct match_token *p;
+	int v;
+
+	v = *val;
+	p = tbl;
+	while (p->token) {
+		if ((v & p->token) == p->token) {
+			*val &= ~p->token;
+			return p->pattern;
+		}
+		p++;
+	}
+	return NULL;
+}
+
 /* ---------------------------------------------------------------------- */
 
 static match_table_t brperm = {
@@ -224,7 +241,7 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 static int noinline_for_stack br_perm_val(char *perm)
 {
 	int val;
-	char *p, *q;
+	char *p;
 	substring_t args[MAX_OPT_ARGS];
 
 	p = strchr(perm, '+');
@@ -241,18 +258,8 @@ static int noinline_for_stack br_perm_val(char *perm)
 	if (!p)
 		goto out;
 
-	p++;
-	while (1) {
-		q = strchr(p, '+');
-		if (q)
-			*q = 0;
-		val |= br_attr_val(p, brattr, args);
-		if (q) {
-			*q = '+';
-			p = q + 1;
-		} else
-			break;
-	}
+	val |= br_attr_val(p + 1, brattr, args);
+
 	switch (val & AuBrPerm_Mask) {
 	case AuBrPerm_RO:
 	case AuBrPerm_RR:
@@ -277,45 +284,28 @@ out:
 
 void au_optstr_br_perm(au_br_perm_str_t *str, int perm)
 {
-	char *p;
+	const char *p;
+	char *q;
 	int sz;
 
-#define SetPerm(s) do {				\
-		sz = sizeof(s);			\
-		memcpy(str->a, s, sz);		\
-		p = str->a + sz - 1;		\
-	} while (0)
+	q = str->a;
+	p = au_optstr(&perm, brperm);
+	AuDebugOn(!p || !*p);
+	sz = strlen(p);
+	memcpy(q, p, sz + 1);
+	q += sz;
 
-#define AppendAttr(flag, s) do {		\
-		if (brperm & flag) {		\
-			sz = sizeof(s);		\
-			*p++ = '+';		\
-			memcpy(p, s, sz);	\
-			p += sz - 1;		\
-		}				\
-	} while (0)
-
-	switch (brperm & AuBrPerm_Mask) {
-	case AuBrPerm_RO:
-		SetPerm(AUFS_BRPERM_RO);
-		break;
-	case AuBrPerm_RR:
-		SetPerm(AUFS_BRPERM_RR);
-		break;
-	case AuBrPerm_RW:
-		SetPerm(AUFS_BRPERM_RW);
-		break;
-	default:
-		AuDebugOn(1);
-	}
-
-	AppendAttr(AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN);
-	AppendAttr(AuBrRAttr_WH, AUFS_BRRATTR_WH);
-	AppendAttr(AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH);
+	do {
+		p = au_optstr(&perm, brattr);
+		if (p) {
+			*q++ = '+';
+			sz = strlen(p);
+			memcpy(q, p, sz + 1);
+			q += sz;
+		}
+	} while (p);
 
 	AuDebugOn(strlen(str->a) >= sizeof(str->a));
-#undef SetPerm
-#undef AppendAttr
 }
 
 /* ---------------------------------------------------------------------- */
