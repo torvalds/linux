@@ -175,6 +175,7 @@ ipv6:
 		break;
 	}
 
+	flow->n_proto = proto;
 	flow->ip_proto = ip_proto;
 	flow->ports = skb_flow_get_ports(skb, nhoff, ip_proto);
 	flow->thoff = (u16) nhoff;
