@@ -479,7 +479,7 @@ static int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 	ret = ret == 0 ? -ETIMEDOUT : 0;
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
-		if (entity->route)
+		if (entity->route && entity->route->reg)
 			vsp1_write(entity->vsp1, entity->route->reg,
 				   VI6_DPR_NODE_UNUSED);
 
