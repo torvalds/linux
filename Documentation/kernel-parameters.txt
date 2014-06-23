@@ -1474,6 +1474,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joystick.txt.
 
+	kaslr/nokaslr	[X86]
+			Enable/disable kernel and module base offset ASLR
+			(Address Space Layout Randomization) if built into
+			the kernel. When CONFIG_HIBERNATION is selected,
+			kASLR is disabled by default. When kASLR is enabled,
+			hibernation will be disabled.
+
 	keepinitrd	[HW,ARM]
 
 	kernelcore=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
@@ -2110,10 +2117,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
-	nokaslr		[X86]
-			Disable kernel and module base offset ASLR (Address
-			Space Layout Randomization) if built into the kernel.
-
 	noautogroup	Disable scheduler automatic task group creation.
 
 	nobats		[PPC] Do not use BATs for mapping kernel lowmem
@@ -2183,6 +2186,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			interrupt wake-up latency, which may improve performance
 			in certain environments such as networked servers or
 			real-time systems.
+
+	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
 	nohz=		[KNL] Boottime enable/disable dynamic ticks
 			Valid arguments: on, off
@@ -2980,6 +2985,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 		noresume	Don't check if there's a hibernation image
 				present during boot.
 		nocompress	Don't compress/decompress hibernation images.
+		no		Disable hibernation and resume.
 
 	retain_initrd	[RAM] Keep initrd memory after extraction
 

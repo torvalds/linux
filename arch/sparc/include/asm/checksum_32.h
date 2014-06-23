@@ -29,7 +29,7 @@
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-extern __wsum csum_partial(const void *buff, int len, __wsum sum);
+__wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /* the same as csum_partial, but copies from fs:src while it
  * checksums
@@ -38,7 +38,7 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-extern unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
+unsigned int __csum_partial_copy_sparc_generic (const unsigned char *, unsigned char *);
 
 static inline __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
