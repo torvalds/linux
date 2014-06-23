@@ -158,6 +158,7 @@ struct rsnd_dma {
 	struct sh_dmae_slave	slave;
 	struct dma_chan		*chan;
 	enum dma_transfer_direction dir;
+	dma_addr_t		addr;
 };
 
 void rsnd_dma_start(struct rsnd_dma *dma);

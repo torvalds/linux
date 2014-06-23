@@ -200,6 +200,7 @@ void rsnd_dma_start(struct rsnd_dma *dma)
 	struct dma_async_tx_descriptor *desc;
 
 	desc = dmaengine_prep_dma_cyclic(dma->chan,
+					 (dma->addr) ? dma->addr :
 					 substream->runtime->dma_addr,
 					 snd_pcm_lib_buffer_bytes(substream),
 					 snd_pcm_lib_period_bytes(substream),
@@ -347,6 +348,7 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	if (ret < 0)
 		goto rsnd_dma_init_err;
 
+	dma->addr = is_play ? cfg.src_addr : cfg.dst_addr;
 	dma->dir = is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 
 	return 0;
