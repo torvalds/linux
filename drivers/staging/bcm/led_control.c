@@ -587,6 +587,7 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiResetValue = 0;
 	UINT uiIndex      = 0;
+	struct bcm_led_state_info *curr_led_state;
 
 	/* Set all LED GPIO Mode to output mode */
 	if (rdmalt(Adapter, GPIO_MODE_REGISTER, &uiResetValue,
@@ -594,12 +595,13 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
 			DBG_LVL_ALL, "LED Thread: RDM Failed\n");
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
-		if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
-				DISABLE_GPIO_NUM)
-			uiResetValue |= (1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num);
-		TURN_OFF_LED(Adapter,
-			     1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num,
-			     uiIndex);
+		curr_led_state = &Adapter->LEDInfo.LEDState[uiIndex];
+
+		if (curr_led_state->GPIO_Num != DISABLE_GPIO_NUM)
+			uiResetValue |= (1 << curr_led_state->GPIO_Num);
+
+		TURN_OFF_LED(Adapter, 1 << curr_led_state->GPIO_Num, uiIndex);
+
 	}
 	if (wrmalt(Adapter, GPIO_MODE_REGISTER, &uiResetValue,
 		   sizeof(uiResetValue)) < 0)
