@@ -623,7 +623,10 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	if (ctx->flags & SEEN_MEM) {
 		if (real_off % (RSIZE * 2))
 			real_off += RSIZE;
-		emit_addiu(r_M, r_sp, real_off, ctx);
+		if (config_enabled(CONFIG_64BIT))
+			emit_daddiu(r_M, r_sp, real_off, ctx);
+		else
+			emit_addiu(r_M, r_sp, real_off, ctx);
 	}
 }
 
