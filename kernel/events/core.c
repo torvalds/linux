@@ -7486,7 +7486,7 @@ __perf_event_exit_task(struct perf_event *child_event,
 static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 {
 	struct perf_event *child_event, *next;
-	struct perf_event_context *child_ctx;
+	struct perf_event_context *child_ctx, *parent_ctx;
 	unsigned long flags;
 
 	if (likely(!child->perf_event_ctxp[ctxn])) {
@@ -7511,6 +7511,15 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	raw_spin_lock(&child_ctx->lock);
 	task_ctx_sched_out(child_ctx);
 	child->perf_event_ctxp[ctxn] = NULL;
+
+	/*
+	 * In order to avoid freeing: child_ctx->parent_ctx->task
+	 * under perf_event_context::lock, grab another reference.
+	 */
+	parent_ctx = child_ctx->parent_ctx;
+	if (parent_ctx)
+		get_ctx(parent_ctx);
+
 	/*
 	 * If this context is a clone; unclone it so it can't get
 	 * swapped to another process while we're removing all
@@ -7519,6 +7528,13 @@ static void perf_event_exit_task_context(struct task_struct *child, int ctxn)
 	unclone_ctx(child_ctx);
 	update_context_time(child_ctx);
 	raw_spin_unlock_irqrestore(&child_ctx->lock, flags);
+
+	/*
+	 * Now that we no longer hold perf_event_context::lock, drop
+	 * our extra child_ctx->parent_ctx reference.
+	 */
+	if (parent_ctx)
+		put_ctx(parent_ctx);
 
 	/*
 	 * Report the task dead after unscheduling the events so that we
