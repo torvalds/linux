@@ -31,25 +31,19 @@
 #include "dma.h"
 #include "s3c24xx-i2s.h"
 
-static struct s3c_dma_client s3c24xx_dma_client_out = {
-	.name = "I2S PCM Stereo out"
-};
-
-static struct s3c_dma_client s3c24xx_dma_client_in = {
-	.name = "I2S PCM Stereo in"
-};
-
 static struct s3c_dma_params s3c24xx_i2s_pcm_stereo_out = {
-	.client		= &s3c24xx_dma_client_out,
+	.client		=
+		(struct s3c_dma_client *)&s3c24xx_i2s_pcm_stereo_out,
 	.channel	= DMACH_I2S_OUT,
-	.dma_addr	= S3C2410_PA_IIS + S3C2410_IISFIFO,
+	.ch_name	= "tx",
 	.dma_size	= 2,
 };
 
 static struct s3c_dma_params s3c24xx_i2s_pcm_stereo_in = {
-	.client		= &s3c24xx_dma_client_in,
+	.client		=
+		(struct s3c_dma_client *)&s3c24xx_i2s_pcm_stereo_in,
 	.channel	= DMACH_I2S_IN,
-	.dma_addr	= S3C2410_PA_IIS + S3C2410_IISFIFO,
+	.ch_name	= "rx",
 	.dma_size	= 2,
 };
 
@@ -231,18 +225,12 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct s3c_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &s3c24xx_i2s_pcm_stereo_out;
-	else
-		dma_data = &s3c24xx_i2s_pcm_stereo_in;
-
-	snd_soc_dai_set_dma_data(rtd->cpu_dai, substream, dma_data);
+	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	/* Working copies of register */
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -251,11 +239,11 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_width(params)) {
 	case 8:
 		iismod &= ~S3C2410_IISMOD_16BIT;
-		dma_data->dma_size = 1;
+		dma_data->addr_width = 1;
 		break;
 	case 16:
 		iismod |= S3C2410_IISMOD_16BIT;
-		dma_data->dma_size = 2;
+		dma_data->addr_width = 2;
 		break;
 	default:
 		return -EINVAL;
@@ -270,8 +258,6 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
-	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(dai, substream);
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -290,7 +276,6 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		else
 			s3c24xx_snd_txctrl(1);
 
-		s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -380,14 +365,12 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 {
 	pr_debug("Entered %s\n", __func__);
 
-	s3c24xx_i2s.regs = ioremap(S3C2410_PA_IIS, 0x100);
-	if (s3c24xx_i2s.regs == NULL)
-		return -ENXIO;
+	samsung_asoc_init_dma_data(dai, &s3c24xx_i2s_pcm_stereo_out,
+		&s3c24xx_i2s_pcm_stereo_in);
 
-	s3c24xx_i2s.iis_clk = clk_get(dai->dev, "iis");
+	s3c24xx_i2s.iis_clk = devm_clk_get(dai->dev, "iis");
 	if (IS_ERR(s3c24xx_i2s.iis_clk)) {
 		pr_err("failed to get iis_clock\n");
-		iounmap(s3c24xx_i2s.regs);
 		return PTR_ERR(s3c24xx_i2s.iis_clk);
 	}
 	clk_enable(s3c24xx_i2s.iis_clk);
@@ -474,6 +457,19 @@ static const struct snd_soc_component_driver s3c24xx_i2s_component = {
 static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Can't get IO resource.\n");
+		return -ENOENT;
+	}
+	s3c24xx_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
+	if (s3c24xx_i2s.regs == NULL)
+		return -ENXIO;
+
+	s3c24xx_i2s_pcm_stereo_out.dma_addr = res->start + S3C2410_IISFIFO;
+	s3c24xx_i2s_pcm_stereo_in.dma_addr = res->start + S3C2410_IISFIFO;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 			&s3c24xx_i2s_component, &s3c24xx_i2s_dai, 1);

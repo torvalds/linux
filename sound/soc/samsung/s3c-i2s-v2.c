@@ -392,8 +392,6 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
 	int ret = 0;
-	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -423,13 +421,6 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			s3c2412_snd_txctrl(i2s, 1);
 
 		local_irq_restore(irqs);
-
-		/*
-		 * Load the next buffer to DMA to meet the reqirement
-		 * of the auto reload mechanism of S3C24XX.
-		 * This call won't bother S3C64XX.
-		 */
-		s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
 
 		break;
 
@@ -644,12 +635,6 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 	/* record our i2s structure for later use in the callbacks */
 	snd_soc_dai_set_drvdata(dai, i2s);
 
-	i2s->regs = ioremap(base, 0x100);
-	if (i2s->regs == NULL) {
-		dev_err(dev, "cannot ioremap registers\n");
-		return -ENXIO;
-	}
-
 	i2s->iis_pclk = clk_get(dev, "iis");
 	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
@@ -729,7 +714,7 @@ int s3c_i2sv2_register_component(struct device *dev, int id,
 			   struct snd_soc_component_driver *cmp_drv,
 			   struct snd_soc_dai_driver *dai_drv)
 {
-	struct snd_soc_dai_ops *ops = dai_drv->ops;
+	struct snd_soc_dai_ops *ops = (struct snd_soc_dai_ops *)dai_drv->ops;
 
 	ops->trigger = s3c2412_i2s_trigger;
 	if (!ops->hw_params)

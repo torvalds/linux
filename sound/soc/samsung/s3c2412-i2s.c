@@ -33,25 +33,19 @@
 #include "regs-i2s-v2.h"
 #include "s3c2412-i2s.h"
 
-static struct s3c_dma_client s3c2412_dma_client_out = {
-	.name		= "I2S PCM Stereo out"
-};
-
-static struct s3c_dma_client s3c2412_dma_client_in = {
-	.name		= "I2S PCM Stereo in"
-};
-
 static struct s3c_dma_params s3c2412_i2s_pcm_stereo_out = {
-	.client		= &s3c2412_dma_client_out,
+	.client		=
+		(struct s3c_dma_client *)&s3c2412_i2s_pcm_stereo_out,
 	.channel	= DMACH_I2S_OUT,
-	.dma_addr	= S3C2410_PA_IIS + S3C2412_IISTXD,
+	.ch_name	= "tx",
 	.dma_size	= 4,
 };
 
 static struct s3c_dma_params s3c2412_i2s_pcm_stereo_in = {
-	.client		= &s3c2412_dma_client_in,
+	.client		=
+		(struct s3c_dma_client *)&s3c2412_i2s_pcm_stereo_in,
 	.channel	= DMACH_I2S_IN,
-	.dma_addr	= S3C2410_PA_IIS + S3C2412_IISRXD,
+	.ch_name	= "rx",
 	.dma_size	= 4,
 };
 
@@ -63,6 +57,9 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 
 	pr_debug("Entered %s\n", __func__);
 
+	samsung_asoc_init_dma_data(dai, &s3c2412_i2s_pcm_stereo_out,
+		&s3c2412_i2s_pcm_stereo_in);
+
 	ret = s3c_i2sv2_probe(dai, &s3c2412_i2s, S3C2410_PA_IIS);
 	if (ret)
 		return ret;
@@ -70,10 +67,9 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	s3c2412_i2s.dma_capture = &s3c2412_i2s_pcm_stereo_in;
 	s3c2412_i2s.dma_playback = &s3c2412_i2s_pcm_stereo_out;
 
-	s3c2412_i2s.iis_cclk = clk_get(dai->dev, "i2sclk");
+	s3c2412_i2s.iis_cclk = devm_clk_get(dai->dev, "i2sclk");
 	if (IS_ERR(s3c2412_i2s.iis_cclk)) {
 		pr_err("failed to get i2sclk clock\n");
-		iounmap(s3c2412_i2s.regs);
 		return PTR_ERR(s3c2412_i2s.iis_cclk);
 	}
 
@@ -94,8 +90,6 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 static int s3c2412_i2s_remove(struct snd_soc_dai *dai)
 {
 	clk_disable(s3c2412_i2s.iis_cclk);
-	clk_put(s3c2412_i2s.iis_cclk);
-	iounmap(s3c2412_i2s.regs);
 
 	return 0;
 }
@@ -105,17 +99,9 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct s3c_i2sv2_info *i2s = snd_soc_dai_get_drvdata(cpu_dai);
-	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = i2s->dma_playback;
-	else
-		dma_data = i2s->dma_capture;
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
@@ -169,6 +155,19 @@ static const struct snd_soc_component_driver s3c2412_i2s_component = {
 static int s3c2412_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Can't get IO resource.\n");
+		return -ENOENT;
+	}
+	s3c2412_i2s.regs = devm_ioremap_resource(&pdev->dev, res);
+	if (s3c2412_i2s.regs == NULL)
+		return -ENXIO;
+
+	s3c2412_i2s_pcm_stereo_out.dma_addr = res->start + S3C2412_IISTXD;
+	s3c2412_i2s_pcm_stereo_in.dma_addr = res->start + S3C2412_IISRXD;
 
 	ret = s3c_i2sv2_register_component(&pdev->dev, -1,
 					   &s3c2412_i2s_component,
