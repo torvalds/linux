@@ -1750,11 +1750,13 @@ static int vb2_start_streaming(struct vb2_queue *q)
 		__enqueue_in_driver(vb);
 
 	/* Tell the driver to start streaming */
+	q->start_streaming_called = 1;
 	ret = call_qop(q, start_streaming, q,
 		       atomic_read(&q->owned_by_drv_count));
-	q->start_streaming_called = ret == 0;
 	if (!ret)
 		return 0;
+
+	q->start_streaming_called = 0;
 
 	dprintk(1, "driver refused to start streaming\n");
 	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
