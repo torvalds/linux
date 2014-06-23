@@ -580,11 +580,17 @@ audio_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ac_interface_desc.bInterfaceNumber = status;
 
+	/* AUDIO_AC_INTERFACE */
+	ac_header_desc.baInterfaceNr[0] = status;
+
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto fail;
 	as_interface_alt_0_desc.bInterfaceNumber = status;
 	as_interface_alt_1_desc.bInterfaceNumber = status;
+
+	/* AUDIO_AS_INTERFACE */
+	ac_header_desc.baInterfaceNr[1] = status;
 
 	status = -ENODEV;
 
