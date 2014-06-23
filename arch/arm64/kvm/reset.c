@@ -121,7 +121,5 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	kvm_reset_sys_regs(vcpu);
 
 	/* Reset timer */
-	kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
-
-	return 0;
+	return kvm_timer_vcpu_reset(vcpu, cpu_vtimer_irq);
 }
