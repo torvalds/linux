@@ -108,7 +108,8 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	/* Enable jack detection */
-	ret = snd_soc_jack_new(codec, "Headphone", SND_JACK_HEADPHONE, jack);
+	ret = snd_soc_jack_new(codec, "Headset",
+			       SND_JACK_LINEOUT | SND_JACK_HEADSET, jack);
 	if (ret)
 		return ret;
 
