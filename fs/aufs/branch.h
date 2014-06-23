@@ -173,6 +173,11 @@ static inline int au_br_rdonly(struct au_branch *br)
 		? -EROFS : 0;
 }
 
+static inline int au_br_coo(int brperm)
+{
+	return (brperm & AuBrAttr_COO_Mask);
+}
+
 static inline int au_br_hnotifyable(int brperm __maybe_unused)
 {
 #ifdef CONFIG_AUFS_HNOTIFY
