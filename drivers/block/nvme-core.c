@@ -2759,7 +2759,7 @@ static int nvme_remove_dead_ctrl(void *arg)
 	struct pci_dev *pdev = dev->pci_dev;
 
 	if (pci_get_drvdata(pdev))
-		pci_stop_and_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device_locked(pdev);
 	kref_put(&dev->kref, nvme_free_dev);
 	return 0;
 }
