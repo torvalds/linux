@@ -867,7 +867,10 @@ __acquires(hwep->lock)
 		return -ENOMEM;
 
 	req->complete = isr_get_status_complete;
-	req->length   = 2;
+	if (setup->wIndex == OTG_STS_SELECTOR)
+		req->length = 1;
+	else
+		req->length = 2;
 	req->buf      = kzalloc(req->length, gfp_flags);
 	if (req->buf == NULL) {
 		retval = -ENOMEM;
@@ -875,8 +878,16 @@ __acquires(hwep->lock)
 	}
 
 	if ((setup->bRequestType & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
-		*(u16 *)req->buf = (ci->remote_wakeup << 1) |
-			ci->gadget.is_selfpowered;
+		if ((setup->wIndex == OTG_STS_SELECTOR) &&
+					ci_otg_is_fsm_mode(ci)) {
+			if (ci->gadget.host_request_flag)
+				*(u8 *)req->buf = HOST_REQUEST_FLAG;
+			else
+				*(u8 *)req->buf = 0;
+		} else {
+			*(u16 *)req->buf = (ci->remote_wakeup << 1) |
+				ci->gadget.is_selfpowered;
+		}
 	} else if ((setup->bRequestType & USB_RECIP_MASK) \
 		   == USB_RECIP_ENDPOINT) {
 		dir = (le16_to_cpu(setup->wIndex) & USB_ENDPOINT_DIR_MASK) ?
@@ -1061,8 +1072,9 @@ __acquires(ci->lock)
 		    type != (USB_DIR_IN|USB_RECIP_ENDPOINT) &&
 		    type != (USB_DIR_IN|USB_RECIP_INTERFACE))
 			goto delegate;
-		if (le16_to_cpu(req.wLength) != 2 ||
-		    le16_to_cpu(req.wValue)  != 0)
+		if ((le16_to_cpu(req.wLength) != 2 &&
+			le16_to_cpu(req.wLength) != 1) ||
+				le16_to_cpu(req.wValue) != 0)
 			break;
 		err = isr_get_status_response(ci, &req);
 		break;
