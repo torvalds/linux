@@ -601,6 +601,7 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 	pcr->slots[RTSX_MS_CARD].card_event = NULL;
 	msh = host->msh;
 	host->eject = true;
+	cancel_work_sync(&host->handle_req);
 
 	mutex_lock(&host->host_mutex);
 	if (host->req) {
