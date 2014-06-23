@@ -3174,7 +3174,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,
 
 		/* Extra keys in use since the X240 / T440 / T540 */
-		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_COMPUTER,
+		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_FILE,
 		},
 	};
 
