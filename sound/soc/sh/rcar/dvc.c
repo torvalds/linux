@@ -191,24 +191,20 @@ static int rsnd_dvc_pcm_new(struct rsnd_mod *mod,
 			    struct snd_soc_pcm_runtime *rtd)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_kcontrol *kctrl;
 	static struct snd_kcontrol_new knew = {
 		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name		= "Playback Volume",
 		.info		= rsnd_dvc_volume_info,
 		.get		= rsnd_dvc_volume_get,
 		.put		= rsnd_dvc_volume_put,
 	};
 	int ret;
 
-	if (!rsnd_dai_is_play(rdai, io)) {
-		dev_err(dev, "DVC%d is connected to Capture DAI\n",
-			rsnd_mod_id(mod));
-		return -EINVAL;
-	}
+	if (rsnd_dai_is_play(rdai, io))
+		knew.name = "Playback Volume";
+	else
+		knew.name = "Capture Volume";
 
 	kctrl = snd_ctl_new1(&knew, mod);
 	if (!kctrl)
