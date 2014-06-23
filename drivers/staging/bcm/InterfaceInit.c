@@ -385,6 +385,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	bool bBcm16 = false;
 	UINT uiData = 0;
 	int bytes;
+	struct bcm_mini_adapter *psAd = psIntfAdapter->psAdapter;
 
 	/* Store the usb dev into interface adapter */
 	psIntfAdapter->udev =
@@ -392,31 +393,31 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 
 	psIntfAdapter->bHighSpeedDevice =
 		(psIntfAdapter->udev->speed == USB_SPEED_HIGH);
-	psIntfAdapter->psAdapter->interface_rdm = BcmRDM;
-	psIntfAdapter->psAdapter->interface_wrm = BcmWRM;
+	psAd->interface_rdm = BcmRDM;
+	psAd->interface_wrm = BcmWRM;
 
-	bytes = rdmalt(psIntfAdapter->psAdapter, CHIP_ID_REG,
-			(u32 *) &(psIntfAdapter->psAdapter->chip_id),
+	bytes = rdmalt(psAd, CHIP_ID_REG,
+			(u32 *) &(psAd->chip_id),
 			sizeof(u32));
 	if (bytes < 0) {
 		retval = bytes;
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+		BCM_DEBUG_PRINT(psAd, DBG_TYPE_PRINTK, 0, 0,
 				"CHIP ID Read Failed\n");
 		return retval;
 	}
 
-	if (0xbece3200 == (psIntfAdapter->psAdapter->chip_id & ~(0xF0)))
-		psIntfAdapter->psAdapter->chip_id &= ~0xF0;
+	if (0xbece3200 == (psAd->chip_id & ~(0xF0)))
+		psAd->chip_id &= ~0xF0;
 
 	dev_info(&psIntfAdapter->udev->dev, "RDM Chip ID 0x%lx\n",
-			psIntfAdapter->psAdapter->chip_id);
+			psAd->chip_id);
 
 	iface_desc = psIntfAdapter->interface->cur_altsetting;
 
-	if (psIntfAdapter->psAdapter->chip_id == T3B) {
+	if (psAd->chip_id == T3B) {
 		/* T3B device will have EEPROM, check if EEPROM is proper and
 		 * BCM16 can be done or not. */
-		BeceemEEPROMBulkRead(psIntfAdapter->psAdapter, &uiData, 0x0, 4);
+		BeceemEEPROMBulkRead(psAd, &uiData, 0x0, 4);
 		if (uiData == BECM)
 			bBcm16 = TRUE;
 
@@ -431,14 +432,14 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				retval = usb_set_interface(psIntfAdapter->udev,
 						DEFAULT_SETTING_0,
 						ALTERNATE_SETTING_1);
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+			BCM_DEBUG_PRINT(psAd,
 					DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
 					"BCM16 is applicable on this dongle\n");
 			if (retval || !psIntfAdapter->bHighSpeedDevice) {
 				usedIntOutForBulkTransfer = EP2;
 				endpoint = &iface_desc->endpoint[EP2].desc;
-				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+				BCM_DEBUG_PRINT(psAd,
 						DBG_TYPE_INITEXIT, DRV_ENTRY,
 						DBG_LVL_ALL,
 						"Interface altsetting failed or modem is configured to Full Speed, hence will work on default setting 0\n");
@@ -453,13 +454,13 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 							!usb_endpoint_is_int_out(endpoint)) ||
 						(!psIntfAdapter->bHighSpeedDevice &&
 						 !usb_endpoint_is_bulk_out(endpoint))) {
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+					BCM_DEBUG_PRINT(psAd,
 							DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Configuring the EEPROM\n");
 					/* change the EP2, EP4 to INT OUT end point */
 					ConfigureEndPointTypesThroughEEPROM(
-							psIntfAdapter->psAdapter);
+							psAd);
 
 					/*
 					 * It resets the device and if any thing
@@ -470,7 +471,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					retval = usb_reset_device(
 							psIntfAdapter->udev);
 					if (retval) {
-						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+						BCM_DEBUG_PRINT(psAd,
 								DBG_TYPE_INITEXIT,
 								DRV_ENTRY,
 								DBG_LVL_ALL,
@@ -483,30 +484,30 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				    usb_endpoint_is_bulk_out(endpoint)) {
 					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
 					UINT _uiData = ntohl(EP2_CFG_INT);
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+					BCM_DEBUG_PRINT(psAd,
 							DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Reverting Bulk to INT as it is in Full Speed mode.\n");
 					BeceemEEPROMBulkWrite(
-							psIntfAdapter->psAdapter,
+							psAd,
 							(PUCHAR) & _uiData,
 							0x136, 4, TRUE);
 				}
 			} else {
 				usedIntOutForBulkTransfer = EP4;
 				endpoint = &iface_desc->endpoint[EP4].desc;
-				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+				BCM_DEBUG_PRINT(psAd,
 						DBG_TYPE_INITEXIT, DRV_ENTRY,
 						DBG_LVL_ALL,
 						"Choosing AltSetting as a default setting.\n");
 				if (!usb_endpoint_is_int_out(endpoint)) {
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+					BCM_DEBUG_PRINT(psAd,
 							DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Dongle does not have BCM16 Fix.\n");
 					/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
 					ConfigureEndPointTypesThroughEEPROM(
-							psIntfAdapter->psAdapter);
+							psAd);
 
 					/*
 					 * It resets the device and if any thing
@@ -517,7 +518,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 					retval = usb_reset_device(
 							psIntfAdapter->udev);
 					if (retval) {
-						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,
+						BCM_DEBUG_PRINT(psAd,
 								DBG_TYPE_INITEXIT,
 								DRV_ENTRY,
 								DBG_LVL_ALL,
@@ -572,7 +573,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 		if (!psIntfAdapter->sIntrOut.int_out_endpointAddr &&
 				usb_endpoint_is_int_out(endpoint)) {
 			if (!psIntfAdapter->sBulkOut.bulk_out_endpointAddr &&
-					(psIntfAdapter->psAdapter->chip_id == T3B) &&
+					(psAd->chip_id == T3B) &&
 					(value == usedIntOutForBulkTransfer)) {
 				/* use first intout end point as a bulk out end point */
 				buffer_size =
@@ -606,15 +607,15 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 
 	usb_set_intfdata(psIntfAdapter->interface, psIntfAdapter);
 
-	psIntfAdapter->psAdapter->bcm_file_download = InterfaceFileDownload;
-	psIntfAdapter->psAdapter->bcm_file_readback_from_chip =
+	psAd->bcm_file_download = InterfaceFileDownload;
+	psAd->bcm_file_readback_from_chip =
 		InterfaceFileReadbackFromChip;
-	psIntfAdapter->psAdapter->interface_transmit = InterfaceTransmitPacket;
+	psAd->interface_transmit = InterfaceTransmitPacket;
 
 	retval = CreateInterruptUrb(psIntfAdapter);
 
 	if (retval) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+		BCM_DEBUG_PRINT(psAd, DBG_TYPE_PRINTK, 0, 0,
 				"Cannot create interrupt urb\n");
 		return retval;
 	}
