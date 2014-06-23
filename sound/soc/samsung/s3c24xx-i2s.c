@@ -373,7 +373,7 @@ static int s3c24xx_i2s_probe(struct snd_soc_dai *dai)
 		pr_err("failed to get iis_clock\n");
 		return PTR_ERR(s3c24xx_i2s.iis_clk);
 	}
-	clk_enable(s3c24xx_i2s.iis_clk);
+	clk_prepare_enable(s3c24xx_i2s.iis_clk);
 
 	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
 	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
@@ -397,7 +397,7 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 	s3c24xx_i2s.iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	s3c24xx_i2s.iispsr = readl(s3c24xx_i2s.regs + S3C2410_IISPSR);
 
-	clk_disable(s3c24xx_i2s.iis_clk);
+	clk_disable_unprepare(s3c24xx_i2s.iis_clk);
 
 	return 0;
 }
@@ -405,7 +405,7 @@ static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	pr_debug("Entered %s\n", __func__);
-	clk_enable(s3c24xx_i2s.iis_clk);
+	clk_prepare_enable(s3c24xx_i2s.iis_clk);
 
 	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);
 	writel(s3c24xx_i2s.iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
