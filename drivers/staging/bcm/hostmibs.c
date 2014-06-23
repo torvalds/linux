@@ -17,6 +17,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter,
 	struct bcm_phs_classifier_table *pstClassifierTable = NULL;
 	struct bcm_phs_classifier_entry *pstClassifierRule = NULL;
 	struct bcm_phs_extension *pDeviceExtension = &Adapter->stBCMPhsContext;
+	struct bcm_mibs_host_info *host_info;
 	UINT nClassifierIndex = 0;
 	UINT nPhsTableIndex = 0;
 	UINT nSfIndex = 0;
@@ -83,18 +84,18 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter,
 	}
 
 	/* Copy other Host Statistics parameters */
-	pstHostMibs->stHostInfo.GoodTransmits = Adapter->dev->stats.tx_packets;
-	pstHostMibs->stHostInfo.GoodReceives = Adapter->dev->stats.rx_packets;
-	pstHostMibs->stHostInfo.CurrNumFreeDesc =
-				atomic_read(&Adapter->CurrNumFreeTxDesc);
-	pstHostMibs->stHostInfo.BEBucketSize = Adapter->BEBucketSize;
-	pstHostMibs->stHostInfo.rtPSBucketSize = Adapter->rtPSBucketSize;
-	pstHostMibs->stHostInfo.TimerActive = Adapter->TimerActive;
-	pstHostMibs->stHostInfo.u32TotalDSD = Adapter->u32TotalDSD;
+	host_info = &pstHostMibs->stHostInfo;
+	host_info->GoodTransmits    = Adapter->dev->stats.tx_packets;
+	host_info->GoodReceives	    = Adapter->dev->stats.rx_packets;
+	host_info->CurrNumFreeDesc  = atomic_read(&Adapter->CurrNumFreeTxDesc);
+	host_info->BEBucketSize	    = Adapter->BEBucketSize;
+	host_info->rtPSBucketSize   = Adapter->rtPSBucketSize;
+	host_info->TimerActive	    = Adapter->TimerActive;
+	host_info->u32TotalDSD	    = Adapter->u32TotalDSD;
 
-	memcpy(pstHostMibs->stHostInfo.aTxPktSizeHist, Adapter->aTxPktSizeHist,
+	memcpy(host_info->aTxPktSizeHist, Adapter->aTxPktSizeHist,
 	       sizeof(UINT32) * MIBS_MAX_HIST_ENTRIES);
-	memcpy(pstHostMibs->stHostInfo.aRxPktSizeHist, Adapter->aRxPktSizeHist,
+	memcpy(host_info->aRxPktSizeHist, Adapter->aRxPktSizeHist,
 	       sizeof(UINT32) * MIBS_MAX_HIST_ENTRIES);
 
 	return STATUS_SUCCESS;
