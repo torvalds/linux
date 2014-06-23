@@ -1322,6 +1322,8 @@ jmp_cmp:
 				emit_andi(r_A, r_s0, VLAN_TAG_PRESENT, ctx);
 			break;
 		case BPF_ANC | SKF_AD_PKTTYPE:
+			ctx->flags |= SEEN_SKB;
+
 			off = pkt_type_offset();
 
 			if (off < 0)
