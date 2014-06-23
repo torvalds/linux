@@ -754,7 +754,7 @@
 
 			usbmisc: usbmisc@02184800 {
 				#index-cells = <1>;
-				compatible = "fsl,imx6sx-usbmisc";
+				compatible = "fsl,imx6sx-usbmisc", "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
 				clocks = <&clks IMX6SX_CLK_USBOH3>;
 			};
