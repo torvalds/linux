@@ -408,7 +408,7 @@ static inline void emit_div(unsigned int dst, unsigned int src,
 		u32 *p = &ctx->target[ctx->idx];
 		uasm_i_divu(&p, dst, src);
 		p = &ctx->target[ctx->idx + 1];
-		uasm_i_mfhi(&p, dst);
+		uasm_i_mflo(&p, dst);
 	}
 	ctx->idx += 2; /* 2 insts */
 }
