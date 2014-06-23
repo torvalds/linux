@@ -396,9 +396,8 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	psAd->interface_rdm = BcmRDM;
 	psAd->interface_wrm = BcmWRM;
 
-	bytes = rdmalt(psAd, CHIP_ID_REG,
-			(u32 *) &(psAd->chip_id),
-			sizeof(u32));
+	bytes = rdmalt(psAd, CHIP_ID_REG, (u32 *) &(psAd->chip_id),
+		       sizeof(u32));
 	if (bytes < 0) {
 		retval = bytes;
 		BCM_DEBUG_PRINT(psAd, DBG_TYPE_PRINTK, 0, 0,
@@ -410,7 +409,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 		psAd->chip_id &= ~0xF0;
 
 	dev_info(&psIntfAdapter->udev->dev, "RDM Chip ID 0x%lx\n",
-			psAd->chip_id);
+		 psAd->chip_id);
 
 	iface_desc = psIntfAdapter->interface->cur_altsetting;
 
@@ -422,26 +421,24 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 			bBcm16 = TRUE;
 
 		dev_info(&psIntfAdapter->udev->dev,
-				"number of alternate setting %d\n",
-				psIntfAdapter->interface->num_altsetting);
+			 "number of alternate setting %d\n",
+			 psIntfAdapter->interface->num_altsetting);
 
 		if (bBcm16 == TRUE) {
 			/* selecting alternate setting one as a default setting
 			 * for High Speed  modem. */
 			if (psIntfAdapter->bHighSpeedDevice)
 				retval = usb_set_interface(psIntfAdapter->udev,
-						DEFAULT_SETTING_0,
-						ALTERNATE_SETTING_1);
-			BCM_DEBUG_PRINT(psAd,
-					DBG_TYPE_INITEXIT, DRV_ENTRY,
+							   DEFAULT_SETTING_0,
+							   ALTERNATE_SETTING_1);
+			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
 					"BCM16 is applicable on this dongle\n");
 			if (retval || !psIntfAdapter->bHighSpeedDevice) {
 				usedIntOutForBulkTransfer = EP2;
 				endpoint = &iface_desc->endpoint[EP2].desc;
-				BCM_DEBUG_PRINT(psAd,
-						DBG_TYPE_INITEXIT, DRV_ENTRY,
-						DBG_LVL_ALL,
+				BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+						DRV_ENTRY, DBG_LVL_ALL,
 						"Interface altsetting failed or modem is configured to Full Speed, hence will work on default setting 0\n");
 				/*
 				 * If Modem is high speed device EP2 should be
@@ -454,8 +451,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 							!usb_endpoint_is_int_out(endpoint)) ||
 						(!psIntfAdapter->bHighSpeedDevice &&
 						 !usb_endpoint_is_bulk_out(endpoint))) {
-					BCM_DEBUG_PRINT(psAd,
-							DBG_TYPE_INITEXIT,
+					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Configuring the EEPROM\n");
 					/* change the EP2, EP4 to INT OUT end point */
@@ -484,25 +480,21 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 				    usb_endpoint_is_bulk_out(endpoint)) {
 					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
 					UINT _uiData = ntohl(EP2_CFG_INT);
-					BCM_DEBUG_PRINT(psAd,
-							DBG_TYPE_INITEXIT,
+					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Reverting Bulk to INT as it is in Full Speed mode.\n");
-					BeceemEEPROMBulkWrite(
-							psAd,
+					BeceemEEPROMBulkWrite(psAd,
 							(PUCHAR) & _uiData,
 							0x136, 4, TRUE);
 				}
 			} else {
 				usedIntOutForBulkTransfer = EP4;
 				endpoint = &iface_desc->endpoint[EP4].desc;
-				BCM_DEBUG_PRINT(psAd,
-						DBG_TYPE_INITEXIT, DRV_ENTRY,
-						DBG_LVL_ALL,
+				BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+						DRV_ENTRY, DBG_LVL_ALL,
 						"Choosing AltSetting as a default setting.\n");
 				if (!usb_endpoint_is_int_out(endpoint)) {
-					BCM_DEBUG_PRINT(psAd,
-							DBG_TYPE_INITEXIT,
+					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
 							DRV_ENTRY, DBG_LVL_ALL,
 							"Dongle does not have BCM16 Fix.\n");
 					/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
@@ -608,8 +600,7 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 	usb_set_intfdata(psIntfAdapter->interface, psIntfAdapter);
 
 	psAd->bcm_file_download = InterfaceFileDownload;
-	psAd->bcm_file_readback_from_chip =
-		InterfaceFileReadbackFromChip;
+	psAd->bcm_file_readback_from_chip = InterfaceFileReadbackFromChip;
 	psAd->interface_transmit = InterfaceTransmitPacket;
 
 	retval = CreateInterruptUrb(psIntfAdapter);
