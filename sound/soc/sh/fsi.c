@@ -233,7 +233,6 @@ struct fsi_stream {
 	 */
 	struct dma_chan		*chan;
 	struct work_struct	work;
-	dma_addr_t		dma;
 	int			dma_id;
 	int			loop_cnt;
 	int			additional_pos;
@@ -1279,11 +1278,6 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
  */
 static int fsi_dma_init(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	struct snd_pcm_runtime *runtime = io->substream->runtime;
-	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
-	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
 	/*
 	 * 24bit data : 24bit bus / package in back
 	 * 16bit data : 16bit bus / stream mode
@@ -1293,19 +1287,7 @@ static int fsi_dma_init(struct fsi_priv *fsi, struct fsi_stream *io)
 
 	io->loop_cnt = 2; /* push 1st, 2nd period first, then 3rd, 4th... */
 	io->additional_pos = 0;
-	io->dma = dma_map_single(dai->dev, runtime->dma_area,
-				 snd_pcm_lib_buffer_bytes(io->substream), dir);
-	return 0;
-}
 
-static int fsi_dma_quit(struct fsi_priv *fsi, struct fsi_stream *io)
-{
-	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
-	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
-		DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
-	dma_unmap_single(dai->dev, io->dma,
-			 snd_pcm_lib_buffer_bytes(io->substream), dir);
 	return 0;
 }
 
@@ -1317,7 +1299,8 @@ static dma_addr_t fsi_dma_get_area(struct fsi_stream *io, int additional)
 	if (period >= runtime->periods)
 		period = 0;
 
-	return io->dma + samples_to_bytes(runtime, period * io->period_samples);
+	return runtime->dma_addr +
+		samples_to_bytes(runtime, period * io->period_samples);
 }
 
 static void fsi_dma_complete(void *data)
@@ -1325,12 +1308,6 @@ static void fsi_dma_complete(void *data)
 	struct fsi_stream *io = (struct fsi_stream *)data;
 	struct fsi_priv *fsi = fsi_stream_to_priv(io);
 	struct snd_pcm_runtime *runtime = io->substream->runtime;
-	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
-	enum dma_data_direction dir = fsi_stream_is_play(fsi, io) ?
-		DMA_TO_DEVICE : DMA_FROM_DEVICE;
-
-	dma_sync_single_for_cpu(dai->dev, fsi_dma_get_area(io, 0),
-			samples_to_bytes(runtime, io->period_samples), dir);
 
 	io->buff_sample_pos += io->period_samples;
 	io->period_pos++;
@@ -1368,8 +1345,6 @@ static void fsi_dma_do_work(struct work_struct *work)
 
 	for (i = 0; i < io->loop_cnt; i++) {
 		buf	= fsi_dma_get_area(io, io->additional_pos);
-
-		dma_sync_single_for_device(dai->dev, buf, len, dir);
 
 		desc = dmaengine_prep_slave_single(io->chan, buf, len, dir,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -1495,7 +1470,6 @@ static int fsi_dma_remove(struct fsi_priv *fsi, struct fsi_stream *io)
 
 static struct fsi_stream_handler fsi_dma_push_handler = {
 	.init		= fsi_dma_init,
-	.quit		= fsi_dma_quit,
 	.probe		= fsi_dma_probe,
 	.transfer	= fsi_dma_transfer,
 	.remove		= fsi_dma_remove,
@@ -1850,16 +1824,10 @@ static void fsi_pcm_free(struct snd_pcm *pcm)
 
 static int fsi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_pcm *pcm = rtd->pcm;
-
-	/*
-	 * dont use SNDRV_DMA_TYPE_DEV, since it will oops the SH kernel
-	 * in MMAP mode (i.e. aplay -M)
-	 */
 	return snd_pcm_lib_preallocate_pages_for_all(
-		pcm,
-		SNDRV_DMA_TYPE_CONTINUOUS,
-		snd_dma_continuous_data(GFP_KERNEL),
+		rtd->pcm,
+		SNDRV_DMA_TYPE_DEV,
+		rtd->card->snd_card->dev,
 		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 }
 
