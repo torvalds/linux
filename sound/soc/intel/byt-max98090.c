@@ -118,13 +118,9 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		return ret;
 
-	ret = snd_soc_jack_add_gpiods(card->dev->parent, jack,
-				      ARRAY_SIZE(hs_jack_gpios),
-				      hs_jack_gpios);
-	if (ret)
-		return ret;
-
-	return max98090_mic_detect(codec, jack);
+	return snd_soc_jack_add_gpiods(card->dev->parent, jack,
+				       ARRAY_SIZE(hs_jack_gpios),
+				       hs_jack_gpios);
 }
 
 static struct snd_soc_dai_link byt_max98090_dais[] = {
