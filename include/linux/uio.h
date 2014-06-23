@@ -94,8 +94,20 @@ static inline size_t iov_iter_count(struct iov_iter *i)
 	return i->count;
 }
 
-static inline void iov_iter_truncate(struct iov_iter *i, size_t count)
+/*
+ * Cap the iov_iter by given limit; note that the second argument is
+ * *not* the new size - it's upper limit for such.  Passing it a value
+ * greater than the amount of data in iov_iter is fine - it'll just do
+ * nothing in that case.
+ */
+static inline void iov_iter_truncate(struct iov_iter *i, u64 count)
 {
+	/*
+	 * count doesn't have to fit in size_t - comparison extends both
+	 * operands to u64 here and any value that would be truncated by
+	 * conversion in assignement is by definition greater than all
+	 * values of size_t, including old i->count.
+	 */
 	if (i->count > count)
 		i->count = count;
 }
