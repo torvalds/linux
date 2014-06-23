@@ -65,6 +65,9 @@ void __init paging_init(void)
 
 	/* pass the memory from the bootmem allocator to the main allocator */
 	free_area_init(zones_size);
+
+	flush_dcache_range((unsigned long)empty_zero_page,
+			(unsigned long)empty_zero_page + PAGE_SIZE);
 }
 
 void __init mem_init(void)

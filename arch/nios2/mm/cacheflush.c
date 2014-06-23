@@ -178,7 +178,16 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping;
+
+	/*
+	 * The zero page is never written to, so never has any dirty
+	 * cache lines, and therefore never needs to be flushed.
+	 */
+	if (page == ZERO_PAGE(0))
+		return;
+
+	mapping = page_mapping(page);
 
 	/* Flush this page if there are aliases. */
 	if (mapping) {
@@ -203,7 +212,13 @@ void update_mmu_cache(struct vm_area_struct *vma,
 	if (!pfn_valid(pfn))
 		return;
 
+	/*
+	* The zero page is never written to, so never has any dirty
+	* cache lines, and therefore never needs to be flushed.
+	*/
 	page = pfn_to_page(pfn);
+	if (page == ZERO_PAGE(0))
+		return;
 
 	if (!PageReserved(page) &&
 	     !test_and_set_bit(PG_dcache_clean, &page->flags)) {
