@@ -1013,10 +1013,12 @@ void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
     else if (req_rga->rotate_mode == 2)
     {
         //x_mirror
+        req->rotate_mode = (1 << 4);
     }
     else if (req_rga->rotate_mode == 3)
     {
         //y_mirror
+        req->rotate_mode = (2 << 4);
     }
     else {
         req->rotate_mode = 0;
