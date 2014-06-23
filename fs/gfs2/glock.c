@@ -1406,12 +1406,16 @@ __acquires(&lru_lock)
 		gl = list_entry(list->next, struct gfs2_glock, gl_lru);
 		list_del_init(&gl->gl_lru);
 		if (!spin_trylock(&gl->gl_spin)) {
+add_back_to_lru:
 			list_add(&gl->gl_lru, &lru_list);
 			atomic_inc(&lru_count);
 			continue;
 		}
+		if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
+			spin_unlock(&gl->gl_spin);
+			goto add_back_to_lru;
+		}
 		clear_bit(GLF_LRU, &gl->gl_flags);
-		spin_unlock(&lru_lock);
 		gl->gl_lockref.count++;
 		if (demote_ok(gl))
 			handle_callback(gl, LM_ST_UNLOCKED, 0, false);
@@ -1419,7 +1423,7 @@ __acquires(&lru_lock)
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 			gl->gl_lockref.count--;
 		spin_unlock(&gl->gl_spin);
-		spin_lock(&lru_lock);
+		cond_resched_lock(&lru_lock);
 	}
 }
 
@@ -1444,7 +1448,7 @@ static long gfs2_scan_glock_lru(int nr)
 		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
 
 		/* Test for being demotable */
-		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
+		if (!test_bit(GLF_LOCK, &gl->gl_flags)) {
 			list_move(&gl->gl_lru, &dispose);
 			atomic_dec(&lru_count);
 			freed++;
