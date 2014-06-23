@@ -190,15 +190,14 @@ void flush_dcache_page(struct page *page)
 	mapping = page_mapping(page);
 
 	/* Flush this page if there are aliases. */
-	if (mapping) {
-		if (!mapping_mapped(mapping)) {
-			clear_bit(PG_dcache_clean, &page->flags);
-		} else if (mapping) {
-			unsigned long start = (unsigned long)page_address(page);
-			__flush_dcache(start, start + PAGE_SIZE);
+	if (mapping && !mapping_mapped(mapping)) {
+		clear_bit(PG_dcache_clean, &page->flags);
+	} else {
+		unsigned long start = (unsigned long)page_address(page);
+		__flush_dcache_all(start, start + PAGE_SIZE);
+		if (mapping)
 			flush_aliases(mapping,  page);
-			set_bit(PG_dcache_clean, &page->flags);
-		}
+		set_bit(PG_dcache_clean, &page->flags);
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
