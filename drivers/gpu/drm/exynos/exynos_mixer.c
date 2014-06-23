@@ -511,13 +511,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 static void mixer_layer_update(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val;
 
-	val = mixer_reg_read(res, MXR_CFG);
-
-	/* allow one update per vsync only */
-	if (!(val & MXR_CFG_LAYER_UPDATE_COUNT_MASK))
-		mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
+	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
