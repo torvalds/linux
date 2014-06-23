@@ -239,8 +239,21 @@ static int _rsnd_dma_of_name(char *dma_name, struct rsnd_mod *mod)
 
 }
 
-static void rsnd_dma_of_name(struct rsnd_dma *dma,
-			     int is_play, char *dma_name)
+static void rsnd_dma_of_name(struct rsnd_mod *mod_from,
+			     struct rsnd_mod *mod_to,
+			     char *dma_name)
+{
+	int index = 0;
+
+	index = _rsnd_dma_of_name(dma_name + index, mod_from);
+	*(dma_name + index++) = '_';
+	index = _rsnd_dma_of_name(dma_name + index, mod_to);
+}
+
+static void rsnd_dma_of_path(struct rsnd_dma *dma,
+			     int is_play,
+			     struct rsnd_mod **mod_from,
+			     struct rsnd_mod **mod_to)
 {
 	struct rsnd_mod *this = rsnd_dma_to_mod(dma);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(this);
@@ -248,7 +261,6 @@ static void rsnd_dma_of_name(struct rsnd_dma *dma,
 	struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 	struct rsnd_mod *dvc = rsnd_io_to_mod_dvc(io);
 	struct rsnd_mod *mod[MOD_MAX];
-	struct rsnd_mod *src_mod, *dst_mod;
 	int i, index;
 
 
@@ -285,17 +297,12 @@ static void rsnd_dma_of_name(struct rsnd_dma *dma,
 	}
 
 	if (is_play) {
-		src_mod = mod[index - 1];
-		dst_mod = mod[index];
+		*mod_from = mod[index - 1];
+		*mod_to   = mod[index];
 	} else {
-		src_mod = mod[index];
-		dst_mod = mod[index - 1];
+		*mod_from = mod[index];
+		*mod_to   = mod[index - 1];
 	}
-
-	index = 0;
-	index = _rsnd_dma_of_name(dma_name + index, src_mod);
-	*(dma_name + index++) = '_';
-	index = _rsnd_dma_of_name(dma_name + index, dst_mod);
 }
 
 int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
@@ -303,6 +310,8 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct dma_slave_config cfg;
+	struct rsnd_mod *mod_from;
+	struct rsnd_mod *mod_to;
 	char dma_name[DMA_NAME_SIZE];
 	dma_cap_mask_t mask;
 	int ret;
@@ -315,10 +324,16 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	rsnd_dma_of_name(dma, is_play, dma_name);
-	rsnd_gen_dma_addr(priv, dma, &cfg, is_play, id);
+	rsnd_dma_of_path(dma, is_play, &mod_from, &mod_to);
+	rsnd_dma_of_name(mod_from, mod_to, dma_name);
 
-	dev_dbg(dev, "dma name : %s\n", dma_name);
+	cfg.slave_id	= id;
+	cfg.direction	= is_play ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
+	cfg.src_addr	= rsnd_gen_dma_addr(priv, mod_from, is_play, 1);
+	cfg.dst_addr	= rsnd_gen_dma_addr(priv, mod_to,   is_play, 0);
+
+	dev_dbg(dev, "dma : %s %pad -> %pad\n",
+		dma_name, &cfg.src_addr, &cfg.dst_addr);
 
 	dma->chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
 						     (void *)id, dev,
