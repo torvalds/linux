@@ -28,28 +28,28 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *Adapter);
 static void InterfaceAdapterFree(struct bcm_interface_adapter *psIntfAdapter)
 {
 	int i = 0;
+	struct bcm_mini_adapter *ps_ad = psIntfAdapter->psAdapter;
 
 	/* Wake up the wait_queue... */
-	if (psIntfAdapter->psAdapter->LEDInfo.led_thread_running &
+	if (ps_ad->LEDInfo.led_thread_running &
 			BCM_LED_THREAD_RUNNING_ACTIVELY) {
-		psIntfAdapter->psAdapter->DriverState = DRIVER_HALT;
-		wake_up(&psIntfAdapter->psAdapter->LEDInfo.notify_led_event);
+		ps_ad->DriverState = DRIVER_HALT;
+		wake_up(&ps_ad->LEDInfo.notify_led_event);
 	}
-	reset_card_proc(psIntfAdapter->psAdapter);
+	reset_card_proc(ps_ad);
 
 	/*
 	 * worst case time taken by the RDM/WRM will be 5 sec. will check after
 	 * every 100 ms to accertain the device is not being accessed. After
 	 * this No RDM/WRM should be made.
 	 */
-	while (psIntfAdapter->psAdapter->DeviceAccess) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT,
-				DRV_ENTRY, DBG_LVL_ALL,
+	while (ps_ad->DeviceAccess) {
+		BCM_DEBUG_PRINT(ps_ad, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 				"Device is being accessed.\n");
 		msleep(100);
 	}
 	/* Free interrupt URB */
-	/* psIntfAdapter->psAdapter->device_removed = TRUE; */
+	/* ps_ad->device_removed = TRUE; */
 	usb_free_urb(psIntfAdapter->psInterruptUrb);
 
 	/* Free transmit URBs */
@@ -67,7 +67,7 @@ static void InterfaceAdapterFree(struct bcm_interface_adapter *psIntfAdapter)
 			psIntfAdapter->asUsbRcb[i].urb = NULL;
 		}
 	}
-	AdapterFree(psIntfAdapter->psAdapter);
+	AdapterFree(ps_ad);
 }
 
 static void ConfigureEndPointTypesThroughEEPROM(
