@@ -97,7 +97,7 @@ static INT ScaleRateofTransfer(ULONG rate)
 		return MAX_NUM_OF_BLINKS;
 }
 
-static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
+static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *ad,
 				     INT *num_of_time,
 				     INT *num_of_time_tx,
 				     INT *num_of_time_rx,
@@ -125,13 +125,13 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
 			*num_of_time = *num_of_time_tx;
 		if (*num_of_time > 0) {
 			/* Blink both Tx and Rx LEDs */
-			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+			if (LED_Blink(ad, 1 << GPIO_Num_tx,
 					uiTxLedIndex, *timeout,
 					*num_of_time, currdriverstate)
 						== EVENT_SIGNALED)
 				return EVENT_SIGNALED;
 
-			if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
+			if (LED_Blink(ad, 1 << GPIO_Num_rx,
 					uiRxLedIndex, *timeout,
 					*num_of_time, currdriverstate)
 						== EVENT_SIGNALED)
@@ -141,7 +141,7 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
 
 		if (*num_of_time == *num_of_time_tx) {
 			/* Blink pending rate of Rx */
-			if (LED_Blink(Adapter, (1 << GPIO_Num_rx),
+			if (LED_Blink(ad, (1 << GPIO_Num_rx),
 					uiRxLedIndex, *timeout,
 					*num_of_time_rx - *num_of_time,
 					currdriverstate)
@@ -151,7 +151,7 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
 			*num_of_time = *num_of_time_rx;
 		} else {
 			/* Blink pending rate of Tx */
-			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+			if (LED_Blink(ad, 1 << GPIO_Num_tx,
 					uiTxLedIndex, *timeout,
 					*num_of_time_tx - *num_of_time,
 					currdriverstate)
@@ -163,14 +163,14 @@ static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *Adapter,
 	} else {
 		if (*num_of_time == *num_of_time_tx) {
 			/* Blink pending rate of Rx */
-			if (LED_Blink(Adapter, 1 << GPIO_Num_tx,
+			if (LED_Blink(ad, 1 << GPIO_Num_tx,
 					uiTxLedIndex, *timeout,
 					*num_of_time, currdriverstate)
 						== EVENT_SIGNALED)
 				return EVENT_SIGNALED;
 		} else {
 			/* Blink pending rate of Tx */
-			if (LED_Blink(Adapter, 1 << GPIO_Num_rx,
+			if (LED_Blink(ad, 1 << GPIO_Num_rx,
 					uiRxLedIndex, *timeout,
 					*num_of_time, currdriverstate)
 						== EVENT_SIGNALED)
