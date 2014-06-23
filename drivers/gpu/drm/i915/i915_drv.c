@@ -540,10 +540,11 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	if (acpi_target_system_state() >= ACPI_STATE_S3)
-		opregion_target_state = PCI_D3cold;
-	else
+	opregion_target_state = PCI_D3cold;
+#if IS_ENABLED(CONFIG_ACPI_SLEEP)
+	if (acpi_target_system_state() < ACPI_STATE_S3)
 		opregion_target_state = PCI_D1;
+#endif
 	intel_opregion_notify_adapter(dev, opregion_target_state);
 
 	intel_uncore_forcewake_reset(dev, false);
