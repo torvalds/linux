@@ -377,6 +377,20 @@ static void mixer_run(struct mixer_context *ctx)
 	mixer_regs_dump(ctx);
 }
 
+static void mixer_stop(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	int timeout = 20;
+
+	mixer_reg_writemask(res, MXR_STATUS, 0, MXR_STATUS_REG_RUN);
+
+	while (!(mixer_reg_read(res, MXR_STATUS) & MXR_STATUS_REG_IDLE) &&
+			--timeout)
+		usleep_range(10000, 12000);
+
+	mixer_regs_dump(ctx);
+}
+
 static void vp_video_buffer(struct mixer_context *ctx, int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -1094,6 +1108,7 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&ctx->mixer_mutex);
 
+	mixer_stop(ctx);
 	mixer_window_suspend(mgr);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
