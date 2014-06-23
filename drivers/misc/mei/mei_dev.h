@@ -400,6 +400,10 @@ struct mei_cfg {
 /**
  * struct mei_device -  MEI private device struct
 
+ * @pdev - pointer to pci device struct
+ * @cdev - character device
+ * @minor - minor number allocated for device
+ *
  * @reset_count - limits the number of consecutive resets
  * @hbm_state - state of host bus message protocol
  * @pg_event - power gating event
@@ -412,6 +416,9 @@ struct mei_cfg {
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
+	struct cdev cdev;
+	int minor;
+
 	/*
 	 * lists of queues
 	 */
@@ -741,7 +748,7 @@ static inline int mei_dbgfs_register(struct mei_device *dev, const char *name)
 static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
 #endif /* CONFIG_DEBUG_FS */
 
-int mei_register(struct mei_device *dev);
+int mei_register(struct mei_device *dev, struct device *parent);
 void mei_deregister(struct mei_device *dev);
 
 #define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d internal=%1d comp=%1d"
