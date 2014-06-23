@@ -1481,6 +1481,25 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	if (hci_blacklist_lookup(hcon->hdev, &hcon->dst, dst_type))
 		return;
 
+	/* For LE slave connections, make sure the connection interval
+	 * is in the range of the minium and maximum interval that has
+	 * been configured for this connection. If not, then trigger
+	 * the connection update procedure.
+	 */
+	if (!(hcon->link_mode & HCI_LM_MASTER) &&
+	    (hcon->le_conn_interval < hcon->le_conn_min_interval ||
+	     hcon->le_conn_interval > hcon->le_conn_max_interval)) {
+		struct l2cap_conn_param_update_req req;
+
+		req.min = cpu_to_le16(hcon->le_conn_min_interval);
+		req.max = cpu_to_le16(hcon->le_conn_max_interval);
+		req.latency = cpu_to_le16(hcon->le_conn_latency);
+		req.to_multiplier = cpu_to_le16(hcon->le_supv_timeout);
+
+		l2cap_send_cmd(conn, l2cap_get_ident(conn),
+			       L2CAP_CONN_PARAM_UPDATE_REQ, sizeof(req), &req);
+	}
+
 	l2cap_chan_lock(pchan);
 
 	chan = pchan->ops->new_connection(pchan);
