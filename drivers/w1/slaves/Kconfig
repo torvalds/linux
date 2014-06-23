@@ -40,6 +40,7 @@ config W1_SLAVE_DS2413
 
 config W1_SLAVE_DS2406
 	tristate "Dual Channel Addressable Switch 0x12 family support (DS2406)"
+	select CRC16
 	help
 	  Say Y or M here if you want to use a 1-wire
 	  DS2406 Dual Channel Addressable Switch.  EPROM read/write
