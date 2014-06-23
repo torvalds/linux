@@ -8,8 +8,8 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-extern u32  crc32_le(u32 crc, unsigned char const *p, size_t len);
-extern u32  crc32_be(u32 crc, unsigned char const *p, size_t len);
+u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len);
+u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len);
 
 /**
  * crc32_le_combine - Combine two crc32 check values into one. For two
@@ -36,7 +36,7 @@ static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
 	return crc32_le_shift(crc1, len2) ^ crc2;
 }
 
-extern u32  __crc32c_le(u32 crc, unsigned char const *p, size_t len);
+u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len);
 
 /**
  * __crc32c_le_combine - Combine two crc32c check values into one. For two
