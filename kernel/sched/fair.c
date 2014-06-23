@@ -1151,6 +1151,7 @@ static void task_numa_compare(struct task_numa_env *env,
 	struct rq *src_rq = cpu_rq(env->src_cpu);
 	struct rq *dst_rq = cpu_rq(env->dst_cpu);
 	struct task_struct *cur;
+	struct task_group *tg;
 	long src_load, dst_load;
 	long load;
 	long imp = (groupimp > 0) ? groupimp : taskimp;
@@ -1225,14 +1226,21 @@ static void task_numa_compare(struct task_numa_env *env,
 	 * In the overloaded case, try and keep the load balanced.
 	 */
 balance:
-	load = task_h_load(env->p);
-	dst_load = env->dst_stats.load + load;
-	src_load = env->src_stats.load - load;
+	src_load = env->src_stats.load;
+	dst_load = env->dst_stats.load;
+
+	/* Calculate the effect of moving env->p from src to dst. */
+	load = env->p->se.load.weight;
+	tg = task_group(env->p);
+	src_load += effective_load(tg, env->src_cpu, -load, -load);
+	dst_load += effective_load(tg, env->dst_cpu, load, load);
 
 	if (cur) {
-		load = task_h_load(cur);
-		dst_load -= load;
-		src_load += load;
+		/* Cur moves in the opposite direction. */
+		load = cur->se.load.weight;
+		tg = task_group(cur);
+		src_load += effective_load(tg, env->src_cpu, load, load);
+		dst_load += effective_load(tg, env->dst_cpu, -load, -load);
 	}
 
 	if (load_too_imbalanced(src_load, dst_load, env))
