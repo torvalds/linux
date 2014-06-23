@@ -1085,6 +1085,8 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 	ctx->powered = true;
 	mutex_unlock(&ctx->mixer_mutex);
 
+	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
+
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
 
