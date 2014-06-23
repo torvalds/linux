@@ -1345,8 +1345,8 @@ jmp_cmp:
 			emit_half_load(r_A, r_skb, off, ctx);
 			break;
 		default:
-			pr_warn("%s: Unhandled opcode: 0x%02x\n", __FILE__,
-				inst->code);
+			pr_debug("%s: Unhandled opcode: 0x%02x\n", __FILE__,
+				 inst->code);
 			return -1;
 		}
 	}
