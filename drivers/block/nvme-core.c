@@ -1422,25 +1422,30 @@ static int nvme_wait_ready(struct nvme_dev *dev, u64 cap, bool enabled)
  */
 static int nvme_disable_ctrl(struct nvme_dev *dev, u64 cap)
 {
-	u32 cc = readl(&dev->bar->cc);
+	dev->ctrl_config &= ~NVME_CC_SHN_MASK;
+	dev->ctrl_config &= ~NVME_CC_ENABLE;
+	writel(dev->ctrl_config, &dev->bar->cc);
 
-	if (cc & NVME_CC_ENABLE)
-		writel(cc & ~NVME_CC_ENABLE, &dev->bar->cc);
 	return nvme_wait_ready(dev, cap, false);
 }
 
 static int nvme_enable_ctrl(struct nvme_dev *dev, u64 cap)
 {
+	dev->ctrl_config &= ~NVME_CC_SHN_MASK;
+	dev->ctrl_config |= NVME_CC_ENABLE;
+	writel(dev->ctrl_config, &dev->bar->cc);
+
 	return nvme_wait_ready(dev, cap, true);
 }
 
 static int nvme_shutdown_ctrl(struct nvme_dev *dev)
 {
 	unsigned long timeout;
-	u32 cc;
 
-	cc = (readl(&dev->bar->cc) & ~NVME_CC_SHN_MASK) | NVME_CC_SHN_NORMAL;
-	writel(cc, &dev->bar->cc);
+	dev->ctrl_config &= ~NVME_CC_SHN_MASK;
+	dev->ctrl_config |= NVME_CC_SHN_NORMAL;
+
+	writel(dev->ctrl_config, &dev->bar->cc);
 
 	timeout = 2 * HZ + jiffies;
 	while ((readl(&dev->bar->csts) & NVME_CSTS_SHST_MASK) !=
@@ -1499,7 +1504,7 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 
 	dev->page_size = 1 << page_shift;
 
-	dev->ctrl_config = NVME_CC_ENABLE | NVME_CC_CSS_NVM;
+	dev->ctrl_config = NVME_CC_CSS_NVM;
 	dev->ctrl_config |= (page_shift - 12) << NVME_CC_MPS_SHIFT;
 	dev->ctrl_config |= NVME_CC_ARB_RR | NVME_CC_SHN_NONE;
 	dev->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
@@ -1507,7 +1512,6 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	writel(aqa, &dev->bar->aqa);
 	writeq(nvmeq->sq_dma_addr, &dev->bar->asq);
 	writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
-	writel(dev->ctrl_config, &dev->bar->cc);
 
 	result = nvme_enable_ctrl(dev, cap);
 	if (result)
