@@ -76,6 +76,16 @@ static struct vfsmount *shm_mnt;
 /* Symlink up to this size is kmalloc'ed instead of using a swappable page */
 #define SHORT_SYMLINK_LEN 128
 
+/*
+ * vmtruncate_range() communicates with shmem_fault via
+ * inode->i_private (with i_mutex making sure that it has only one user at
+ * a time): we would prefer not to enlarge the shmem inode just for that.
+ */
+struct shmem_falloc {
+	pgoff_t start;		/* start of range currently being fallocated */
+	pgoff_t next;		/* the next page offset to be fallocated */
+};
+
 struct shmem_xattr {
 	struct list_head list;	/* anchored by shmem_inode_info->xattr_list */
 	char *name;		/* xattr name */
@@ -1060,6 +1070,43 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int error;
 	int ret = VM_FAULT_LOCKED;
 
+	/*
+	 * Trinity finds that probing a hole which tmpfs is punching can
+	 * prevent the hole-punch from ever completing: which in turn
+	 * locks writers out with its hold on i_mutex.  So refrain from
+	 * faulting pages into the hole while it's being punched, and
+	 * wait on i_mutex to be released if vmf->flags permits.
+	 */
+	if (unlikely(inode->i_private)) {
+		struct shmem_falloc *shmem_falloc;
+
+		spin_lock(&inode->i_lock);
+		shmem_falloc = inode->i_private;
+		if (!shmem_falloc ||
+		    vmf->pgoff < shmem_falloc->start ||
+		    vmf->pgoff >= shmem_falloc->next)
+			shmem_falloc = NULL;
+		spin_unlock(&inode->i_lock);
+		/*
+		 * i_lock has protected us from taking shmem_falloc seriously
+		 * once return from vmtruncate_range() went back up that stack.
+		 * i_lock does not serialize with i_mutex at all, but it does
+		 * not matter if sometimes we wait unnecessarily, or sometimes
+		 * miss out on waiting: we just need to make those cases rare.
+		 */
+		if (shmem_falloc) {
+			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
+			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+				up_read(&vma->vm_mm->mmap_sem);
+				mutex_lock(&inode->i_mutex);
+				mutex_unlock(&inode->i_mutex);
+				return VM_FAULT_RETRY;
+			}
+			/* cond_resched? Leave that to GUP or return to user */
+			return VM_FAULT_NOPAGE;
+		}
+	}
+
 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
@@ -1069,6 +1116,44 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
 	}
 	return ret;
+}
+
+int vmtruncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+{
+	/*
+	 * If the underlying filesystem is not going to provide
+	 * a way to truncate a range of blocks (punch a hole) -
+	 * we should return failure right now.
+	 * Only CONFIG_SHMEM shmem.c ever supported i_op->truncate_range().
+	 */
+	if (inode->i_op->truncate_range != shmem_truncate_range)
+		return -ENOSYS;
+
+	mutex_lock(&inode->i_mutex);
+	{
+		struct shmem_falloc shmem_falloc;
+		struct address_space *mapping = inode->i_mapping;
+		loff_t unmap_start = round_up(lstart, PAGE_SIZE);
+		loff_t unmap_end = round_down(1 + lend, PAGE_SIZE) - 1;
+
+		shmem_falloc.start = unmap_start >> PAGE_SHIFT;
+		shmem_falloc.next = (unmap_end + 1) >> PAGE_SHIFT;
+		spin_lock(&inode->i_lock);
+		inode->i_private = &shmem_falloc;
+		spin_unlock(&inode->i_lock);
+
+		if ((u64)unmap_end > (u64)unmap_start)
+			unmap_mapping_range(mapping, unmap_start,
+					    1 + unmap_end - unmap_start, 0);
+		shmem_truncate_range(inode, lstart, lend);
+		/* No need to unmap again: hole-punching leaves COWed pages */
+
+		spin_lock(&inode->i_lock);
+		inode->i_private = NULL;
+		spin_unlock(&inode->i_lock);
+	}
+	mutex_unlock(&inode->i_mutex);
+	return 0;
 }
 
 #ifdef CONFIG_NUMA
@@ -2546,6 +2631,12 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 	truncate_inode_pages_range(inode->i_mapping, lstart, lend);
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
+
+int vmtruncate_range(struct inode *inode, loff_t lstart, loff_t lend)
+{
+	/* Only CONFIG_SHMEM shmem.c ever supported i_op->truncate_range(). */
+	return -ENOSYS;
+}
 
 #define shmem_vm_ops				generic_file_vm_ops
 #define shmem_file_operations			ramfs_file_operations
