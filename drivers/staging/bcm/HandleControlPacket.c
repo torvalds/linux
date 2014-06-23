@@ -107,30 +107,32 @@ static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter,
 			 *    the sum of all types of dropped pkt by that
 			 *    tarang only.
 			 */
+			struct bcm_mibs_dropped_cntrl_msg *msg =
+				&pTarang->stDroppedAppCntrlMsgs;
 			switch (*(PUSHORT)skb->data) {
 			case CM_RESPONSES:
-				pTarang->stDroppedAppCntrlMsgs.cm_responses++;
+				msg->cm_responses++;
 				break;
 			case CM_CONTROL_NEWDSX_MULTICLASSIFIER_RESP:
-				pTarang->stDroppedAppCntrlMsgs.cm_control_newdsx_multiclassifier_resp++;
+				msg->cm_control_newdsx_multiclassifier_resp++;
 				break;
 			case LINK_CONTROL_RESP:
-				pTarang->stDroppedAppCntrlMsgs.link_control_resp++;
+				msg->link_control_resp++;
 				break;
 			case STATUS_RSP:
-				pTarang->stDroppedAppCntrlMsgs.status_rsp++;
+				msg->status_rsp++;
 				break;
 			case STATS_POINTER_RESP:
-				pTarang->stDroppedAppCntrlMsgs.stats_pointer_resp++;
+				msg->stats_pointer_resp++;
 				break;
 			case IDLE_MODE_STATUS:
-				pTarang->stDroppedAppCntrlMsgs.idle_mode_status++;
+				msg->idle_mode_status++;
 				break;
 			case AUTH_SS_HOST_MSG:
-				pTarang->stDroppedAppCntrlMsgs.auth_ss_host_msg++;
+				msg->auth_ss_host_msg++;
 				break;
 			default:
-				pTarang->stDroppedAppCntrlMsgs.low_priority_message++;
+				msg->low_priority_message++;
 				break;
 			}
 
