@@ -11,7 +11,8 @@
  * Enqueue the control packet for Application.
  * @return None
  */
-static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter, struct sk_buff *skb)
+static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter,
+				     struct sk_buff *skb)
 {
 	struct bcm_tarang_data *pTarang = NULL;
 	bool HighPriorityMessage = false;
