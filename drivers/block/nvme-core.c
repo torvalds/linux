@@ -2172,7 +2172,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	if (status > 0) {
 		dev_err(&dev->pci_dev->dev, "Could not set queue count (%d)\n",
 									status);
-		return -EBUSY;
+		return 0;
 	}
 	return min(result & 0xffff, result >> 16) + 1;
 }
@@ -2214,7 +2214,7 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 
 	nr_io_queues = num_possible_cpus();
 	result = set_queue_count(dev, nr_io_queues);
-	if (result < 0)
+	if (result <= 0)
 		return result;
 	if (result < nr_io_queues)
 		nr_io_queues = result;
@@ -2740,7 +2740,7 @@ static int nvme_dev_start(struct nvme_dev *dev)
 	}
 
 	result = nvme_setup_io_queues(dev);
-	if (result && result != -EBUSY)
+	if (result)
 		goto disable;
 
 	return result;
@@ -2777,9 +2777,9 @@ static int nvme_dev_resume(struct nvme_dev *dev)
 	int ret;
 
 	ret = nvme_dev_start(dev);
-	if (ret && ret != -EBUSY)
+	if (ret)
 		return ret;
-	if (ret == -EBUSY) {
+	if (dev->online_queues < 2) {
 		spin_lock(&dev_list_lock);
 		dev->reset_workfn = nvme_remove_disks;
 		queue_work(nvme_workq, &dev->reset_work);
@@ -2852,17 +2852,14 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	kref_init(&dev->kref);
 	result = nvme_dev_start(dev);
-	if (result) {
-		if (result == -EBUSY)
-			goto create_cdev;
+	if (result)
 		goto release_pools;
-	}
 
-	result = nvme_dev_add(dev);
+	if (dev->online_queues > 1)
+		result = nvme_dev_add(dev);
 	if (result)
 		goto shutdown;
 
- create_cdev:
 	scnprintf(dev->name, sizeof(dev->name), "nvme%d", dev->instance);
 	dev->miscdev.minor = MISC_DYNAMIC_MINOR;
 	dev->miscdev.parent = &pdev->dev;
