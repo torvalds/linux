@@ -34,6 +34,7 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
+#include <linux/device.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -3367,11 +3368,9 @@ static int nbu2ss_drv_probe(struct platform_device *pdev)
 
 	/* require I/O memory and IRQ to be provided as resources */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (IS_ERR(mmio_base)) {
-		dev_err(&pdev->dev, "failed to map I/O memory\n");
+	mmio_base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(mmio_base))
 		return PTR_ERR(mmio_base);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
