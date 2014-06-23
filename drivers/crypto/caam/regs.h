@@ -84,6 +84,7 @@
 #endif
 
 #ifndef CONFIG_64BIT
+#ifdef __BIG_ENDIAN
 static inline void wr_reg64(u64 __iomem *reg, u64 data)
 {
 	wr_reg32((u32 __iomem *)reg, (data & 0xffffffff00000000ull) >> 32);
@@ -95,6 +96,21 @@ static inline u64 rd_reg64(u64 __iomem *reg)
 	return (((u64)rd_reg32((u32 __iomem *)reg)) << 32) |
 		((u64)rd_reg32((u32 __iomem *)reg + 1));
 }
+#else
+#ifdef __LITTLE_ENDIAN
+static inline void wr_reg64(u64 __iomem *reg, u64 data)
+{
+	wr_reg32((u32 __iomem *)reg + 1, (data & 0xffffffff00000000ull) >> 32);
+	wr_reg32((u32 __iomem *)reg, data & 0x00000000ffffffffull);
+}
+
+static inline u64 rd_reg64(u64 __iomem *reg)
+{
+	return (((u64)rd_reg32((u32 __iomem *)reg + 1)) << 32) |
+		((u64)rd_reg32((u32 __iomem *)reg));
+}
+#endif
+#endif
 #endif
 
 /*
