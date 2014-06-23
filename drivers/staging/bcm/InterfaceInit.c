@@ -374,6 +374,113 @@ static int device_run(struct bcm_interface_adapter *psIntfAdapter)
 	return 0;
 }
 
+static int select_alternate_setting_for_highspeed_modem(
+		struct bcm_interface_adapter *psIntfAdapter,
+		struct usb_endpoint_descriptor **endpoint,
+		const struct usb_host_interface *iface_desc,
+		int *usedIntOutForBulkTransfer)
+{
+	int retval = 0;
+	struct bcm_mini_adapter *psAd = psIntfAdapter->psAdapter;
+
+	/* selecting alternate setting one as a default setting
+	 * for High Speed  modem. */
+	if (psIntfAdapter->bHighSpeedDevice)
+		retval = usb_set_interface(psIntfAdapter->udev,
+					   DEFAULT_SETTING_0,
+					   ALTERNATE_SETTING_1);
+	BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
+			DBG_LVL_ALL,
+			"BCM16 is applicable on this dongle\n");
+	if (retval || !psIntfAdapter->bHighSpeedDevice) {
+		*usedIntOutForBulkTransfer = EP2;
+		*endpoint = &iface_desc->endpoint[EP2].desc;
+		BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+				DRV_ENTRY, DBG_LVL_ALL,
+				"Interface altsetting failed or modem is configured to Full Speed, hence will work on default setting 0\n");
+		/*
+		 * If Modem is high speed device EP2 should be
+		 * INT OUT End point
+		 *
+		 * If Mode is FS then EP2 should be bulk end
+		 * point
+		 */
+		if ((psIntfAdapter->bHighSpeedDevice &&
+					!usb_endpoint_is_int_out(*endpoint)) ||
+				(!psIntfAdapter->bHighSpeedDevice &&
+				 !usb_endpoint_is_bulk_out(*endpoint))) {
+			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+					DRV_ENTRY, DBG_LVL_ALL,
+					"Configuring the EEPROM\n");
+			/* change the EP2, EP4 to INT OUT end point */
+			ConfigureEndPointTypesThroughEEPROM(
+					psAd);
+
+			/*
+			 * It resets the device and if any thing
+			 * gets changed in USB descriptor it
+			 * will show fail and re-enumerate the
+			 * device
+			 */
+			retval = usb_reset_device(
+					psIntfAdapter->udev);
+			if (retval) {
+				BCM_DEBUG_PRINT(psAd,
+						DBG_TYPE_INITEXIT,
+						DRV_ENTRY,
+						DBG_LVL_ALL,
+						"reset failed.  Re-enumerating the device.\n");
+				return retval;
+			}
+
+		}
+		if (!psIntfAdapter->bHighSpeedDevice &&
+		    usb_endpoint_is_bulk_out(*endpoint)) {
+			/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
+			UINT _uiData = ntohl(EP2_CFG_INT);
+			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+					DRV_ENTRY, DBG_LVL_ALL,
+					"Reverting Bulk to INT as it is in Full Speed mode.\n");
+			BeceemEEPROMBulkWrite(psAd,
+					(PUCHAR) & _uiData,
+					0x136, 4, TRUE);
+		}
+	} else {
+		*usedIntOutForBulkTransfer = EP4;
+		*endpoint = &iface_desc->endpoint[EP4].desc;
+		BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+				DRV_ENTRY, DBG_LVL_ALL,
+				"Choosing AltSetting as a default setting.\n");
+		if (!usb_endpoint_is_int_out(*endpoint)) {
+			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
+					DRV_ENTRY, DBG_LVL_ALL,
+					"Dongle does not have BCM16 Fix.\n");
+			/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
+			ConfigureEndPointTypesThroughEEPROM(
+					psAd);
+
+			/*
+			 * It resets the device and if any thing
+			 * gets changed in USB descriptor it
+			 * will show fail and re-enumerate the
+			 * device
+			 */
+			retval = usb_reset_device(
+					psIntfAdapter->udev);
+			if (retval) {
+				BCM_DEBUG_PRINT(psAd,
+						DBG_TYPE_INITEXIT,
+						DRV_ENTRY,
+						DBG_LVL_ALL,
+						"reset failed.  Re-enumerating the device.\n");
+				return retval;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 {
 	struct usb_host_interface *iface_desc;
@@ -425,101 +532,11 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 			 psIntfAdapter->interface->num_altsetting);
 
 		if (bBcm16 == TRUE) {
-			/* selecting alternate setting one as a default setting
-			 * for High Speed  modem. */
-			if (psIntfAdapter->bHighSpeedDevice)
-				retval = usb_set_interface(psIntfAdapter->udev,
-							   DEFAULT_SETTING_0,
-							   ALTERNATE_SETTING_1);
-			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
-					DBG_LVL_ALL,
-					"BCM16 is applicable on this dongle\n");
-			if (retval || !psIntfAdapter->bHighSpeedDevice) {
-				usedIntOutForBulkTransfer = EP2;
-				endpoint = &iface_desc->endpoint[EP2].desc;
-				BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
-						DRV_ENTRY, DBG_LVL_ALL,
-						"Interface altsetting failed or modem is configured to Full Speed, hence will work on default setting 0\n");
-				/*
-				 * If Modem is high speed device EP2 should be
-				 * INT OUT End point
-				 *
-				 * If Mode is FS then EP2 should be bulk end
-				 * point
-				 */
-				if ((psIntfAdapter->bHighSpeedDevice &&
-							!usb_endpoint_is_int_out(endpoint)) ||
-						(!psIntfAdapter->bHighSpeedDevice &&
-						 !usb_endpoint_is_bulk_out(endpoint))) {
-					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
-							DRV_ENTRY, DBG_LVL_ALL,
-							"Configuring the EEPROM\n");
-					/* change the EP2, EP4 to INT OUT end point */
-					ConfigureEndPointTypesThroughEEPROM(
-							psAd);
-
-					/*
-					 * It resets the device and if any thing
-					 * gets changed in USB descriptor it
-					 * will show fail and re-enumerate the
-					 * device
-					 */
-					retval = usb_reset_device(
-							psIntfAdapter->udev);
-					if (retval) {
-						BCM_DEBUG_PRINT(psAd,
-								DBG_TYPE_INITEXIT,
-								DRV_ENTRY,
-								DBG_LVL_ALL,
-								"reset failed.  Re-enumerating the device.\n");
-						return retval;
-					}
-
-				}
-				if (!psIntfAdapter->bHighSpeedDevice &&
-				    usb_endpoint_is_bulk_out(endpoint)) {
-					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
-					UINT _uiData = ntohl(EP2_CFG_INT);
-					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
-							DRV_ENTRY, DBG_LVL_ALL,
-							"Reverting Bulk to INT as it is in Full Speed mode.\n");
-					BeceemEEPROMBulkWrite(psAd,
-							(PUCHAR) & _uiData,
-							0x136, 4, TRUE);
-				}
-			} else {
-				usedIntOutForBulkTransfer = EP4;
-				endpoint = &iface_desc->endpoint[EP4].desc;
-				BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
-						DRV_ENTRY, DBG_LVL_ALL,
-						"Choosing AltSetting as a default setting.\n");
-				if (!usb_endpoint_is_int_out(endpoint)) {
-					BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT,
-							DRV_ENTRY, DBG_LVL_ALL,
-							"Dongle does not have BCM16 Fix.\n");
-					/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
-					ConfigureEndPointTypesThroughEEPROM(
-							psAd);
-
-					/*
-					 * It resets the device and if any thing
-					 * gets changed in USB descriptor it
-					 * will show fail and re-enumerate the
-					 * device
-					 */
-					retval = usb_reset_device(
-							psIntfAdapter->udev);
-					if (retval) {
-						BCM_DEBUG_PRINT(psAd,
-								DBG_TYPE_INITEXIT,
-								DRV_ENTRY,
-								DBG_LVL_ALL,
-								"reset failed.  Re-enumerating the device.\n");
-						return retval;
-					}
-
-				}
-			}
+			retval = select_alternate_setting_for_highspeed_modem(
+					psIntfAdapter, &endpoint, iface_desc,
+					&usedIntOutForBulkTransfer);
+			if (retval)
+				return retval;
 		}
 	}
 
