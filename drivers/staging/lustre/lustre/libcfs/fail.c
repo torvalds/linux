@@ -36,13 +36,15 @@
 #include <linux/libcfs/libcfs.h>
 
 unsigned long cfs_fail_loc = 0;
-unsigned int cfs_fail_val = 0;
-wait_queue_head_t cfs_race_waitq;
-int cfs_race_state;
-
 EXPORT_SYMBOL(cfs_fail_loc);
+
+unsigned int cfs_fail_val = 0;
 EXPORT_SYMBOL(cfs_fail_val);
+
+wait_queue_head_t cfs_race_waitq;
 EXPORT_SYMBOL(cfs_race_waitq);
+
+int cfs_race_state;
 EXPORT_SYMBOL(cfs_race_state);
 
 int __cfs_fail_check_set(__u32 id, __u32 value, int set)
