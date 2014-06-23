@@ -1048,3 +1048,64 @@ int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 
 	return vnic_dev_cmd(vdev, CMD_SET_MAC_ADDR, &a0, &a1, wait);
 }
+
+/* vnic_dev_classifier: Add/Delete classifier entries
+ * @vdev: vdev of the device
+ * @cmd: CLSF_ADD for Add filter
+ *	 CLSF_DEL for Delete filter
+ * @entry: In case of ADD filter, the caller passes the RQ number in this
+ *	   variable.
+ *
+ *	   This function stores the filter_id returned by the firmware in the
+ *	   same variable before return;
+ *
+ *	   In case of DEL filter, the caller passes the RQ number. Return
+ *	   value is irrelevant.
+ * @data: filter data
+ */
+int vnic_dev_classifier(struct vnic_dev *vdev, u8 cmd, u16 *entry,
+			struct filter *data)
+{
+	u64 a0, a1;
+	int wait = 1000;
+	dma_addr_t tlv_pa;
+	int ret = -EINVAL;
+	struct filter_tlv *tlv, *tlv_va;
+	struct filter_action *action;
+	u64 tlv_size;
+
+	if (cmd == CLSF_ADD) {
+		tlv_size = sizeof(struct filter) +
+			   sizeof(struct filter_action) +
+			   2 * sizeof(struct filter_tlv);
+		tlv_va = pci_alloc_consistent(vdev->pdev, tlv_size, &tlv_pa);
+		if (!tlv_va)
+			return -ENOMEM;
+		tlv = tlv_va;
+		a0 = tlv_pa;
+		a1 = tlv_size;
+		memset(tlv, 0, tlv_size);
+		tlv->type = CLSF_TLV_FILTER;
+		tlv->length = sizeof(struct filter);
+		*(struct filter *)&tlv->val = *data;
+
+		tlv = (struct filter_tlv *)((char *)tlv +
+					    sizeof(struct filter_tlv) +
+					    sizeof(struct filter));
+
+		tlv->type = CLSF_TLV_ACTION;
+		tlv->length = sizeof(struct filter_action);
+		action = (struct filter_action *)&tlv->val;
+		action->type = FILTER_ACTION_RQ_STEERING;
+		action->u.rq_idx = *entry;
+
+		ret = vnic_dev_cmd(vdev, CMD_ADD_FILTER, &a0, &a1, wait);
+		*entry = (u16)a0;
+		pci_free_consistent(vdev->pdev, tlv_size, tlv_va, tlv_pa);
+	} else if (cmd == CLSF_DEL) {
+		a0 = *entry;
+		ret = vnic_dev_cmd(vdev, CMD_DEL_FILTER, &a0, &a1, wait);
+	}
+
+	return ret;
+}
