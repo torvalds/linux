@@ -159,6 +159,19 @@ struct vgic_io_device {
 	struct kvm_io_device dev;
 };
 
+struct irq_phys_map {
+	u32			virt_irq;
+	u32			phys_irq;
+	u32			irq;
+	bool			active;
+};
+
+struct irq_phys_map_entry {
+	struct list_head	entry;
+	struct rcu_head		rcu;
+	struct irq_phys_map	map;
+};
+
 struct vgic_dist {
 	spinlock_t		lock;
 	bool			in_kernel;
@@ -256,6 +269,10 @@ struct vgic_dist {
 	struct vgic_vm_ops	vm_ops;
 	struct vgic_io_device	dist_iodev;
 	struct vgic_io_device	*redist_iodevs;
+
+	/* Virtual irq to hwirq mapping */
+	spinlock_t		irq_phys_map_lock;
+	struct list_head	irq_phys_map_list;
 };
 
 struct vgic_v2_cpu_if {
@@ -307,6 +324,9 @@ struct vgic_cpu {
 		struct vgic_v2_cpu_if	vgic_v2;
 		struct vgic_v3_cpu_if	vgic_v3;
 	};
+
+	/* Protected by the distributor's irq_phys_map_lock */
+	struct list_head	irq_phys_map_list;
 };
 
 #define LR_EMPTY	0xff
@@ -321,8 +341,10 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write);
 int kvm_vgic_hyp_init(void);
 int kvm_vgic_map_resources(struct kvm *kvm);
 int kvm_vgic_get_max_vcpus(void);
+void kvm_vgic_early_init(struct kvm *kvm);
 int kvm_vgic_create(struct kvm *kvm, u32 type);
 void kvm_vgic_destroy(struct kvm *kvm);
+void kvm_vgic_vcpu_early_init(struct kvm_vcpu *vcpu);
 void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu);
 void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu);
@@ -331,6 +353,9 @@ int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int irq_num,
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg);
 int kvm_vgic_vcpu_pending_irq(struct kvm_vcpu *vcpu);
 int kvm_vgic_vcpu_active_irq(struct kvm_vcpu *vcpu);
+struct irq_phys_map *kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu,
+					   int virt_irq, int irq);
+int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, struct irq_phys_map *map);
 
 #define irqchip_in_kernel(k)	(!!((k)->arch.vgic.in_kernel))
 #define vgic_initialized(k)	(!!((k)->arch.vgic.nr_cpus))

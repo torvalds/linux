@@ -125,6 +125,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		goto out_free_stage2_pgd;
 
+	kvm_vgic_early_init(kvm);
 	kvm_timer_init(kvm);
 
 	/* Mark the initial VMID generation invalid */
@@ -249,6 +250,7 @@ out:
 
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 {
+	kvm_vgic_vcpu_early_init(vcpu);
 }
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
