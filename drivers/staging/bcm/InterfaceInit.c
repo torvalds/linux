@@ -44,8 +44,8 @@ static void InterfaceAdapterFree(struct bcm_interface_adapter *psIntfAdapter)
 	 * this No RDM/WRM should be made.
 	 */
 	while (ps_ad->DeviceAccess) {
-		BCM_DEBUG_PRINT(ps_ad, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
-				"Device is being accessed.\n");
+		BCM_DEBUG_PRINT(ps_ad, DBG_TYPE_INITEXIT, DRV_ENTRY,
+				DBG_LVL_ALL, "Device is being accessed.\n");
 		msleep(100);
 	}
 	/* Free interrupt URB */
@@ -130,7 +130,10 @@ static void ConfigureEndPointTypesThroughEEPROM(
 	ulReg &= 0x0101FFFF;
 	BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x1FC, 4, TRUE);
 
-	/* Update length field if required. Also make the string NULL terminated. */
+	/*
+	 * Update length field if required.
+	 * Also make the string NULL terminated.
+	 */
 
 	ReadBeceemEEPROM(Adapter, 0xA8, &ulReg);
 	if ((ulReg&0x00FF0000)>>16 > 0x30) {
@@ -431,7 +434,11 @@ static int select_alternate_setting_for_highspeed_modem(
 		}
 		if (!psIntfAdapter->bHighSpeedDevice &&
 		    usb_endpoint_is_bulk_out(*endpoint)) {
-			/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
+			/*
+			 * Once BULK is selected in FS mode.
+			 * Revert it back to INT.
+			 * Else USB_IF will fail.
+			 */
 			UINT _uiData = ntohl(EP2_CFG_INT);
 			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
@@ -448,7 +455,10 @@ static int select_alternate_setting_for_highspeed_modem(
 			BCM_DEBUG_PRINT(psAd, DBG_TYPE_INITEXIT, DRV_ENTRY,
 					DBG_LVL_ALL,
 					"Dongle does not have BCM16 Fix.\n");
-			/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
+			/*
+			 * change the EP2, EP4 to INT OUT end point and use EP4
+			 * in altsetting
+			 */
 			ConfigureEndPointTypesThroughEEPROM(psAd);
 
 			/*
@@ -573,7 +583,10 @@ static int InterfaceAdapterInit(struct bcm_interface_adapter *psIntfAdapter)
 			if (!psIntfAdapter->sBulkOut.bulk_out_endpointAddr &&
 					(psAd->chip_id == T3B) &&
 					(value == usedIntOutForBulkTransfer)) {
-				/* use first intout end point as a bulk out end point */
+				/*
+				 * use first intout end point as a bulk out end
+				 * point
+				 */
 				buffer_size =
 					le16_to_cpu(endpoint->wMaxPacketSize);
 				psIntfAdapter->sBulkOut.bulk_out_size =
