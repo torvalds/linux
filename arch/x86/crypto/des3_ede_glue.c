@@ -289,8 +289,8 @@ static unsigned int __ctr_crypt(struct blkcipher_desc *desc,
 	struct des3_ede_x86_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	unsigned int bsize = DES3_EDE_BLOCK_SIZE;
 	unsigned int nbytes = walk->nbytes;
-	u64 *src = (u64 *)walk->src.virt.addr;
-	u64 *dst = (u64 *)walk->dst.virt.addr;
+	__be64 *src = (__be64 *)walk->src.virt.addr;
+	__be64 *dst = (__be64 *)walk->dst.virt.addr;
 	u64 ctrblk = be64_to_cpu(*(__be64 *)walk->iv);
 	__be64 ctrblocks[3];
 
