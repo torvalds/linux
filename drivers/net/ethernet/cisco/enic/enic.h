@@ -99,6 +99,44 @@ struct enic_port_profile {
 	u8 mac_addr[ETH_ALEN];
 };
 
+#ifdef CONFIG_RFS_ACCEL
+/* enic_rfs_fltr_node - rfs filter node in hash table
+ *	@@keys: IPv4 5 tuple
+ *	@flow_id: flow_id of clsf filter provided by kernel
+ *	@fltr_id: filter id of clsf filter returned by adaptor
+ *	@rq_id: desired rq index
+ *	@node: hlist_node
+ */
+struct enic_rfs_fltr_node {
+	struct flow_keys keys;
+	u32 flow_id;
+	u16 fltr_id;
+	u16 rq_id;
+	struct hlist_node node;
+};
+
+/* enic_rfs_flw_tbl - rfs flow table
+ *	@max: Maximum number of filters vNIC supports
+ *	@free: Number of free filters available
+ *	@toclean: hash table index to clean next
+ *	@ht_head: hash table list head
+ *	@lock: spin lock
+ *	@rfs_may_expire: timer function for enic_rps_may_expire_flow
+ */
+struct enic_rfs_flw_tbl {
+	u16 max;
+	int free;
+
+#define ENIC_RFS_FLW_BITSHIFT	(10)
+#define ENIC_RFS_FLW_MASK	((1 << ENIC_RFS_FLW_BITSHIFT) - 1)
+	u16 toclean:ENIC_RFS_FLW_BITSHIFT;
+	struct hlist_head ht_head[1 << ENIC_RFS_FLW_BITSHIFT];
+	spinlock_t lock;
+	struct timer_list rfs_may_expire;
+};
+
+#endif /* CONFIG_RFS_ACCEL */
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -140,7 +178,7 @@ struct enic {
 	unsigned int rq_count;
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
-	struct napi_struct napi[ENIC_RQ_MAX];
+	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];
 
 	/* interrupt resource cache line section */
 	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
@@ -150,6 +188,9 @@ struct enic {
 	/* completion queue cache line section */
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
+#ifdef CONFIG_RFS_ACCEL
+	struct enic_rfs_flw_tbl rfs_h;
+#endif
 };
 
 static inline struct device *enic_get_dev(struct enic *enic)
