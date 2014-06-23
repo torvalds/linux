@@ -796,8 +796,8 @@ static int alloc_wbufs(struct ubifs_info *c)
 {
 	int i, err;
 
-	c->jheads = kzalloc(c->jhead_cnt * sizeof(struct ubifs_jhead),
-			   GFP_KERNEL);
+	c->jheads = kcalloc(c->jhead_cnt, sizeof(struct ubifs_jhead),
+			    GFP_KERNEL);
 	if (!c->jheads)
 		return -ENOMEM;
 
