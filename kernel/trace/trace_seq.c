@@ -342,36 +342,6 @@ int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 EXPORT_SYMBOL_GPL(trace_seq_putmem_hex);
 
 /**
- * trace_seq_reserve - reserve space on the sequence buffer
- * @s: trace sequence descriptor
- * @len: The amount to reserver.
- *
- * If for some reason there is a need to save some space on the
- * buffer to fill in later, this function is used for that purpose.
- * The given length will be reserved and the pointer to that
- * location on the buffer is returned, unless there is not enough
- * buffer left to hold the given length then NULL is returned.
- */
-void *trace_seq_reserve(struct trace_seq *s, unsigned int len)
-{
-	void *ret;
-
-	if (s->full)
-		return NULL;
-
-	if (len > TRACE_SEQ_BUF_LEFT(s)) {
-		s->full = 1;
-		return NULL;
-	}
-
-	ret = s->buffer + s->len;
-	s->len += len;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(trace_seq_reserve);
-
-/**
  * trace_seq_path - copy a path into the sequence buffer
  * @s: trace sequence descriptor
  * @path: path to write into the sequence buffer.
