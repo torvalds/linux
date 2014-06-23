@@ -9469,7 +9469,7 @@ S:	Maintained
 F:	drivers/net/usb/rtl8150.c
 
 USB SERIAL SUBSYSTEM
-M:	Johan Hovold <jhovold@gmail.com>
+M:	Johan Hovold <johan@kernel.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/usb-serial.txt
