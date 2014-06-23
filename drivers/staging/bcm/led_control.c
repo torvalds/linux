@@ -40,7 +40,7 @@ static INT LED_Blink(struct bcm_mini_adapter *Adapter,
 	}
 	while (num_of_time) {
 		if (currdriverstate == Adapter->DriverState)
-			TURN_ON_LED(GPIO_Num, uiLedIndex);
+			TURN_ON_LED(Adapter, GPIO_Num, uiLedIndex);
 
 		/* Wait for timeout after setting on the LED */
 		Status = wait_event_interruptible_timeout(
@@ -55,17 +55,17 @@ static INT LED_Blink(struct bcm_mini_adapter *Adapter,
 				"Led thread got signal to exit..hence exiting");
 			Adapter->LEDInfo.led_thread_running =
 					BCM_LED_THREAD_DISABLED;
-			TURN_OFF_LED(GPIO_Num, uiLedIndex);
+			TURN_OFF_LED(Adapter, GPIO_Num, uiLedIndex);
 			Status = EVENT_SIGNALED;
 			break;
 		}
 		if (Status) {
-			TURN_OFF_LED(GPIO_Num, uiLedIndex);
+			TURN_OFF_LED(Adapter, GPIO_Num, uiLedIndex);
 			Status = EVENT_SIGNALED;
 			break;
 		}
 
-		TURN_OFF_LED(GPIO_Num, uiLedIndex);
+		TURN_OFF_LED(Adapter, GPIO_Num, uiLedIndex);
 		Status = wait_event_interruptible_timeout(
 				Adapter->LEDInfo.notify_led_event,
 				currdriverstate != Adapter->DriverState ||
@@ -223,8 +223,8 @@ static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter,
 		}
 
 		/* Turn off both Tx and Rx LEDs before next second */
-		TURN_OFF_LED(1 << GPIO_Num_tx, uiTxLedIndex);
-		TURN_OFF_LED(1 << GPIO_Num_rx, uiTxLedIndex);
+		TURN_OFF_LED(Adapter, 1 << GPIO_Num_tx, uiTxLedIndex);
+		TURN_OFF_LED(Adapter, 1 << GPIO_Num_rx, uiTxLedIndex);
 
 		/*
 		 * Read the Tx & Rx packets transmission after 1 second and
@@ -606,8 +606,9 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 		if (Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num !=
 				DISABLE_GPIO_NUM)
 			uiResetValue |= (1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num);
-		TURN_OFF_LED(1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num,
-				uiIndex);
+		TURN_OFF_LED(Adapter,
+			     1 << Adapter->LEDInfo.LEDState[uiIndex].GPIO_Num,
+			     uiIndex);
 	}
 	if (wrmalt(Adapter, GPIO_MODE_REGISTER, &uiResetValue,
 		   sizeof(uiResetValue)) < 0)
@@ -680,7 +681,7 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 				  currdriverstate);
 
 		if (GPIO_num != DISABLE_GPIO_NUM)
-			TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			TURN_ON_LED(ad, 1 << GPIO_num, uiLedIndex);
 
 		break;
 	case FW_DOWNLOAD:
@@ -705,7 +706,7 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 		BcmGetGPIOPinInfo(ad, &GPIO_num, &dummyGPIONum,
 				  &uiLedIndex, &dummyIndex, currdriverstate);
 		if (GPIO_num != DISABLE_GPIO_NUM)
-			TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			TURN_ON_LED(ad, 1 << GPIO_num, uiLedIndex);
 		break;
 
 	case SHUTDOWN_EXIT:
@@ -718,7 +719,7 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 		BcmGetGPIOPinInfo(ad, &GPIO_num, &dummyGPIONum,
 				  &uiLedIndex, &dummyGPIONum, currdriverstate);
 		if (GPIO_num != DISABLE_GPIO_NUM)
-			TURN_ON_LED(1 << GPIO_num, uiLedIndex);
+			TURN_ON_LED(ad, 1 << GPIO_num, uiLedIndex);
 		break;
 	case NORMAL_OPERATION:
 		{
@@ -765,7 +766,9 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 			uiResetValue = 0;
 			for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
 				if (ad->LEDInfo.LEDState[uiIndex].GPIO_Num != DISABLE_GPIO_NUM)
-					TURN_OFF_LED((1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
+					TURN_OFF_LED(ad,
+						     (1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num),
+						     uiIndex);
 			}
 
 		}
@@ -787,7 +790,9 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 		for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
 			if (ad->LEDInfo.LEDState[uiIndex].GPIO_Num !=
 					DISABLE_GPIO_NUM)
-				TURN_OFF_LED((1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
+				TURN_OFF_LED(ad,
+					     (1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num),
+					     uiIndex);
 		}
 		/* ad->DriverState = DRIVER_INIT; */
 		break;
@@ -802,7 +807,9 @@ static void handle_adapter_driver_state(struct bcm_mini_adapter *ad,
 		for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
 			if (ad->LEDInfo.LEDState[uiIndex].GPIO_Num !=
 					DISABLE_GPIO_NUM)
-				TURN_OFF_LED((1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num), uiIndex);
+				TURN_OFF_LED(ad,
+					     (1 << ad->LEDInfo.LEDState[uiIndex].GPIO_Num),
+					     uiIndex);
 		}
 		break;
 	case LED_THREAD_ACTIVE:
@@ -868,12 +875,12 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 				"Led thread got signal to exit..hence exiting");
 			Adapter->LEDInfo.led_thread_running =
 						BCM_LED_THREAD_DISABLED;
-			TURN_OFF_LED(1 << GPIO_num, uiLedIndex);
+			TURN_OFF_LED(Adapter, 1 << GPIO_num, uiLedIndex);
 			return; /* STATUS_FAILURE; */
 		}
 
 		if (GPIO_num != DISABLE_GPIO_NUM)
-			TURN_OFF_LED(1 << GPIO_num, uiLedIndex);
+			TURN_OFF_LED(Adapter, 1 << GPIO_num, uiLedIndex);
 
 		if (Adapter->LEDInfo.bLedInitDone == false) {
 			LedGpioInit(Adapter);
