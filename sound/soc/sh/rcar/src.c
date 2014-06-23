@@ -106,18 +106,17 @@ struct rsnd_src {
 /*
  *		Gen1/Gen2 common functions
  */
-int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai)
+int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(ssi_mod);
-	struct rsnd_mod *src_mod = rsnd_io_to_mod_src(io);
 	int ssi_id = rsnd_mod_id(ssi_mod);
 
 	/*
 	 * SSI_MODE0
 	 */
 	rsnd_mod_bset(ssi_mod, SSI_MODE0, (1 << ssi_id),
-		      src_mod ? 0 : (1 << ssi_id));
+		      !use_busif << ssi_id);
 
 	/*
 	 * SSI_MODE1
@@ -142,6 +141,29 @@ int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
 				      rsnd_dai_is_clk_master(rdai) ?
 				      0x2 << shift : 0x1 << shift);
 	}
+
+	/*
+	 * DMA settings for SSIU
+	 */
+	if (use_busif) {
+		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
+			       rsnd_get_adinr(ssi_mod));
+		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
+		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
+	}
+
+	return 0;
+}
+
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif)
+{
+	/*
+	 * DMA settings for SSIU
+	 */
+	if (use_busif)
+		rsnd_mod_write(ssi_mod, SSI_CTRL, 0);
 
 	return 0;
 }
@@ -467,9 +489,6 @@ static int rsnd_src_set_convert_rate_gen2(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
-	rsnd_mod_write(mod, SSI_BUSIF_ADINR, rsnd_get_adinr(mod));
-	rsnd_mod_write(mod, SSI_BUSIF_MODE,  1);
-
 	rsnd_mod_write(mod, SRC_SRCCR, 0x00011110);
 
 	rsnd_mod_write(mod, SRC_BSDSR, 0x01800000);
@@ -554,7 +573,6 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 
 	rsnd_dma_start(rsnd_mod_to_dma(&src->mod));
 
-	rsnd_mod_write(mod, SSI_CTRL, 0x1);
 	rsnd_mod_write(mod, SRC_CTRL, val);
 
 	return rsnd_src_start(mod, rdai);
@@ -565,7 +583,6 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_src *src = rsnd_mod_to_src(mod);
 
-	rsnd_mod_write(mod, SSI_CTRL, 0);
 	rsnd_mod_write(mod, SRC_CTRL, 0);
 
 	rsnd_dma_stop(rsnd_mod_to_dma(&src->mod));

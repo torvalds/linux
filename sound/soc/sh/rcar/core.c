@@ -138,6 +138,17 @@ char *rsnd_mod_name(struct rsnd_mod *mod)
 	return mod->ops->name;
 }
 
+char *rsnd_mod_dma_name(struct rsnd_mod *mod)
+{
+	if (!mod || !mod->ops)
+		return "unknown";
+
+	if (!mod->ops->dma_name)
+		return mod->ops->name;
+
+	return mod->ops->dma_name(mod);
+}
+
 void rsnd_mod_init(struct rsnd_priv *priv,
 		   struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
@@ -261,7 +272,7 @@ static int _rsnd_dma_of_name(char *dma_name, struct rsnd_mod *mod)
 {
 	if (mod)
 		return snprintf(dma_name, DMA_NAME_SIZE / 2, "%s%d",
-			 rsnd_mod_name(mod), rsnd_mod_id(mod));
+			 rsnd_mod_dma_name(mod), rsnd_mod_id(mod));
 	else
 		return snprintf(dma_name, DMA_NAME_SIZE / 2, "mem");
 
@@ -343,11 +354,8 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	if (dev->of_node)
-		rsnd_dma_of_name(dma, is_play, dma_name);
-	else
-		snprintf(dma_name, DMA_NAME_SIZE,
-			 is_play ? "tx" : "rx");
+	rsnd_dma_of_name(dma, is_play, dma_name);
+	rsnd_gen_dma_addr(priv, dma, &cfg, is_play, id);
 
 	dev_dbg(dev, "dma name : %s\n", dma_name);
 
@@ -358,8 +366,6 @@ int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
 		dev_err(dev, "can't get dma channel\n");
 		return -EIO;
 	}
-
-	rsnd_gen_dma_addr(priv, dma, &cfg, is_play, id);
 
 	ret = dmaengine_slave_config(dma->chan, &cfg);
 	if (ret < 0)

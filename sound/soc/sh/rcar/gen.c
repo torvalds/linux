@@ -165,15 +165,19 @@ static int rsnd_gen_regmap_init(struct rsnd_priv *priv,
  *
  *	ex) R-Car H2 case
  *	      mod        / DMAC in    / DMAC out   / DMAC PP in / DMAC pp out
- *	SSI : 0xec541000 / 0xec241008 / 0xec24100c / 0xec400000 / 0xec400000
+ *	SSI : 0xec541000 / 0xec241008 / 0xec24100c
+ *	SSIU: 0xec541000 / 0xec100000 / 0xec100000 / 0xec400000 / 0xec400000
  *	SCU : 0xec500000 / 0xec000000 / 0xec004000 / 0xec300000 / 0xec304000
  *	CMD : 0xec500000 / 0xec008000                             0xec308000
  */
 #define RDMA_SSI_I_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0x8)
 #define RDMA_SSI_O_N(addr, i)	(addr ##_reg - 0x00300000 + (0x40 * i) + 0xc)
 
-#define RDMA_SSI_I_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
-#define RDMA_SSI_O_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
+#define RDMA_SSIU_I_N(addr, i)	(addr ##_reg - 0x00441000 + (0x1000 * i))
+#define RDMA_SSIU_O_N(addr, i)	(addr ##_reg - 0x00441000 + (0x1000 * i))
+
+#define RDMA_SSIU_I_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
+#define RDMA_SSIU_O_P(addr, i)	(addr ##_reg - 0x00141000 + (0x1000 * i))
 
 #define RDMA_SRC_I_N(addr, i)	(addr ##_reg - 0x00500000 + (0x400 * i))
 #define RDMA_SRC_O_N(addr, i)	(addr ##_reg - 0x004fc000 + (0x400 * i))
@@ -204,26 +208,36 @@ static void rsnd_gen2_dma_addr(struct rsnd_priv *priv,
 	struct dma_addr {
 		dma_addr_t src_addr;
 		dma_addr_t dst_addr;
-	} dma_addrs[2][2][3] = {
-		{ /* SRC */
-			/* Capture */
-			{{ 0,				0 },
-			 { RDMA_SRC_O_N(src, id),	0 },
-			 { RDMA_CMD_O_N(src, id),	0 }},
-			/* Playback */
-			{{ 0,				0, },
-			 { 0,				RDMA_SRC_I_N(src, id) },
-			 { 0,				RDMA_SRC_I_N(src, id) }}
-		}, { /* SSI */
-			/* Capture */
-			{{ RDMA_SSI_O_N(ssi, id),	0 },
-			 { RDMA_SSI_O_P(ssi, id),	RDMA_SRC_I_P(src, id) },
-			 { RDMA_SSI_O_P(ssi, id),	RDMA_SRC_I_P(src, id) }},
-			/* Playback */
-			{{ 0,				RDMA_SSI_I_N(ssi, id) },
-			 { RDMA_SRC_O_P(src, id),	RDMA_SSI_I_P(ssi, id) },
-			 { RDMA_CMD_O_P(src, id),	RDMA_SSI_I_P(ssi, id) }}
-		}
+	} dma_addrs[3][2][3] = {
+		/* SRC */
+		{{{ 0,				0 },
+		/* Capture */
+		  { RDMA_SRC_O_N(src, id),	0 },
+		  { RDMA_CMD_O_N(src, id),	0 } },
+		 /* Playback */
+		 {{ 0,				0, },
+		  { 0,				RDMA_SRC_I_N(src, id) },
+		  { 0,				RDMA_SRC_I_N(src, id) } }
+		},
+		/* SSI */
+		/* Capture */
+		{{{ RDMA_SSI_O_N(ssi, id),	0 },
+		  { 0,				0 },
+		  { 0,				0 } },
+		 /* Playback */
+		 {{ 0,				RDMA_SSI_I_N(ssi, id) },
+		  { 0,				0 },
+		  { 0,				0 } }
+		},
+		/* SSIU */
+		/* Capture */
+		{{{ RDMA_SSIU_O_N(ssi, id),	0 },
+		  { RDMA_SSIU_O_P(ssi, id),	RDMA_SRC_I_P(src, id) },
+		  { RDMA_SSIU_O_P(ssi, id),	RDMA_SRC_I_P(src, id) } },
+		 /* Playback */
+		 {{ 0,				RDMA_SSIU_I_N(ssi, id) },
+		  { RDMA_SRC_O_P(src, id),	RDMA_SSIU_I_P(ssi, id) },
+		  { RDMA_CMD_O_P(src, id),	RDMA_SSIU_I_P(ssi, id) } } },
 	};
 
 	/* it shouldn't happen */
@@ -231,6 +245,10 @@ static void rsnd_gen2_dma_addr(struct rsnd_priv *priv,
 		dev_err(dev, "DVC is selected without SRC\n");
 		return;
 	}
+
+	/* use SSIU or SSI ? */
+	if (is_ssi && (0 == strcmp(rsnd_mod_dma_name(mod), "ssiu")))
+		is_ssi++;
 
 	cfg->src_addr = dma_addrs[is_ssi][is_play][use_src + use_dvc].src_addr;
 	cfg->dst_addr = dma_addrs[is_ssi][is_play][use_src + use_dvc].dst_addr;

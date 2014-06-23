@@ -185,6 +185,7 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
+	char* (*dma_name)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
 		     struct rsnd_dai *rdai);
 	int (*remove)(struct rsnd_mod *mod,
@@ -224,6 +225,7 @@ void rsnd_mod_init(struct rsnd_priv *priv,
 		   enum rsnd_mod_type type,
 		   int id);
 char *rsnd_mod_name(struct rsnd_mod *mod);
+char *rsnd_mod_dma_name(struct rsnd_mod *mod);
 
 /*
  *	R-Car sound DAI
@@ -391,8 +393,12 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
-int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai);
+int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif);
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
+		       struct rsnd_dai *rdai,
+		       int use_busif);
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai);
 
