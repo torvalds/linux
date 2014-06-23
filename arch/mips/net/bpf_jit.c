@@ -1127,7 +1127,7 @@ jmp_cmp:
 				}
 				/* A < (K|X) ? r_scrach = 1 */
 				b_off = b_imm(i + inst->jf + 1, ctx);
-				emit_bcond(MIPS_COND_GT, r_s0, r_zero, b_off,
+				emit_bcond(MIPS_COND_NE, r_s0, r_zero, b_off,
 					   ctx);
 				emit_nop(ctx);
 				/* A > (K|X) ? scratch = 0 */
