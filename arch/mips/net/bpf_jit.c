@@ -331,6 +331,12 @@ static inline void emit_srl(unsigned int dst, unsigned int src,
 	emit_instr(ctx, srl, dst, src, sa);
 }
 
+static inline void emit_slt(unsigned int dst, unsigned int src1,
+			    unsigned int src2, struct jit_ctx *ctx)
+{
+	emit_instr(ctx, slt, dst, src1, src2);
+}
+
 static inline void emit_sltu(unsigned int dst, unsigned int src1,
 			     unsigned int src2, struct jit_ctx *ctx)
 {
@@ -816,8 +822,21 @@ static int build_body(struct jit_ctx *ctx)
 			/* A <- P[k:1] */
 			load_order = 0;
 load:
+			/* the interpreter will deal with the negative K */
+			if ((int)k < 0)
+				return -ENOTSUPP;
+
 			emit_load_imm(r_off, k, ctx);
 load_common:
+			/*
+			 * We may got here from the indirect loads so
+			 * return if offset is negative.
+			 */
+			emit_slt(r_s0, r_off, r_zero, ctx);
+			emit_bcond(MIPS_COND_NE, r_s0, r_zero,
+				   b_imm(prog->len, ctx), ctx);
+			emit_reg_move(r_ret, r_zero, ctx);
+
 			ctx->flags |= SEEN_CALL | SEEN_OFF | SEEN_S0 |
 				SEEN_SKB | SEEN_A;
 
@@ -880,6 +899,10 @@ load_ind:
 			emit_load(r_X, r_skb, off, ctx);
 			break;
 		case BPF_LDX | BPF_B | BPF_MSH:
+			/* the interpreter will deal with the negative K */
+			if ((int)k < 0)
+				return -ENOTSUPP;
+
 			/* X <- 4 * (P[k:1] & 0xf) */
 			ctx->flags |= SEEN_X | SEEN_CALL | SEEN_S0 | SEEN_SKB;
 			/* Load offset to a1 */
