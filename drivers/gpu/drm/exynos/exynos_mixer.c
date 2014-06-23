@@ -1061,7 +1061,7 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		mutex_unlock(&ctx->mixer_mutex);
 		return;
 	}
-	ctx->powered = true;
+
 	mutex_unlock(&ctx->mixer_mutex);
 
 	pm_runtime_get_sync(ctx->dev);
@@ -1071,6 +1071,10 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		clk_prepare_enable(res->vp);
 		clk_prepare_enable(res->sclk_mixer);
 	}
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = true;
+	mutex_unlock(&ctx->mixer_mutex);
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
@@ -1084,13 +1088,19 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered)
-		goto out;
+	if (!ctx->powered) {
+		mutex_unlock(&ctx->mixer_mutex);
+		return;
+	}
 	mutex_unlock(&ctx->mixer_mutex);
 
 	mixer_window_suspend(mgr);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = false;
+	mutex_unlock(&ctx->mixer_mutex);
 
 	clk_disable_unprepare(res->mixer);
 	if (ctx->vp_enabled) {
@@ -1099,12 +1109,6 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	}
 
 	pm_runtime_put_sync(ctx->dev);
-
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-
-out:
-	mutex_unlock(&ctx->mixer_mutex);
 }
 
 static void mixer_dpms(struct exynos_drm_manager *mgr, int mode)
