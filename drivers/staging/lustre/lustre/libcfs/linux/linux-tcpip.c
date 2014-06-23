@@ -46,16 +46,31 @@
 int
 libcfs_sock_ioctl(int cmd, unsigned long arg)
 {
+	mm_segment_t	oldmm = get_fs();
 	struct socket  *sock;
-	int	     rc;
+	int		rc;
+	struct file    *sock_filp;
 
 	rc = sock_create (PF_INET, SOCK_STREAM, 0, &sock);
 	if (rc != 0) {
 		CERROR ("Can't create socket: %d\n", rc);
 		return rc;
 	}
-	rc = kernel_sock_ioctl(sock, cmd, arg);
-	sock_release(sock);
+
+	sock_filp = sock_alloc_file(sock, 0, NULL);
+	if (IS_ERR(sock_filp)) {
+		sock_release(sock);
+		rc = PTR_ERR(sock_filp);
+		goto out;
+	}
+
+	set_fs(KERNEL_DS);
+	if (sock_filp->f_op->unlocked_ioctl)
+		rc = sock_filp->f_op->unlocked_ioctl(sock_filp, cmd, arg);
+	set_fs(oldmm);
+
+	fput(sock_filp);
+out:
 	return rc;
 }
 
