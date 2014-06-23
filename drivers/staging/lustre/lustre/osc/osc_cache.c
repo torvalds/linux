@@ -871,7 +871,8 @@ static int osc_extent_wait(const struct lu_env *env, struct osc_extent *ext,
 	LASSERT(sanity_check_nolock(ext) == 0);
 	/* `Kick' this extent only if the caller is waiting for it to be
 	 * written out. */
-	if (state == OES_INV && !ext->oe_urgent && !ext->oe_hp) {
+	if (state == OES_INV && !ext->oe_urgent && !ext->oe_hp &&
+	    !ext->oe_trunc_pending) {
 		if (ext->oe_state == OES_ACTIVE) {
 			ext->oe_urgent = 1;
 		} else if (ext->oe_state == OES_CACHE) {
@@ -922,8 +923,8 @@ static int osc_extent_truncate(struct osc_extent *ext, pgoff_t trunc_index,
 	int		    rc       = 0;
 
 	LASSERT(sanity_check(ext) == 0);
-	LASSERT(ext->oe_state == OES_TRUNC);
-	LASSERT(!ext->oe_urgent);
+	EASSERT(ext->oe_state == OES_TRUNC, ext);
+	EASSERT(!ext->oe_urgent, ext);
 
 	/* Request new lu_env.
 	 * We can't use that env from osc_cache_truncate_start() because
