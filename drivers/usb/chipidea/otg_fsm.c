@@ -207,6 +207,7 @@ static unsigned otg_timer_ms[] = {
 	TB_DATA_PLS,
 	TB_SSEND_SRP,
 	TA_DP_END,
+	0,
 };
 
 /*
@@ -370,6 +371,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	b_data_pls_tmout,	/* B_DATA_PLS */
 	b_ssend_srp_tmout,	/* B_SSEND_SRP */
 	a_dp_end_tmout,		/* A_DP_END */
+	NULL,			/* HNP_POLLING */
 };
 
 /*
@@ -416,13 +418,39 @@ static enum hrtimer_restart ci_otg_hrtimer_func(struct hrtimer *t)
 	return HRTIMER_NORESTART;
 }
 
+static void hnp_polling_timer_work(unsigned long arg)
+{
+	struct ci_hdrc *ci = (struct ci_hdrc *)arg;
+
+	schedule_work(&ci->hnp_polling_work);
+}
+
+static void ci_hnp_polling_work(struct work_struct *work)
+{
+	struct ci_hdrc *ci = container_of(work, struct ci_hdrc,
+						hnp_polling_work);
+
+	pm_runtime_get_sync(ci->dev);
+	if (otg_hnp_polling(&ci->fsm) == HOST_REQUEST_FLAG)
+		ci_otg_queue_work(ci);
+	pm_runtime_put_sync(ci->dev);
+}
+
 /* Initialize timers */
 static int ci_otg_init_timers(struct ci_hdrc *ci)
 {
 	hrtimer_init(&ci->otg_fsm_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ci->otg_fsm_hrtimer.function = ci_otg_hrtimer_func;
 
+	setup_timer(&ci->hnp_polling_timer, hnp_polling_timer_work,
+							(unsigned long)ci);
 	return 0;
+}
+
+static void ci_otg_add_hnp_polling_timer(struct ci_hdrc *ci)
+{
+	mod_timer(&ci->hnp_polling_timer,
+			jiffies + msecs_to_jiffies(T_HOST_REQ_POLL));
 }
 
 /* -------------------------------------------------------------*/
@@ -432,8 +460,12 @@ static void ci_otg_fsm_add_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 {
 	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
 
-	if (t < NUM_OTG_FSM_TIMERS)
-		ci_otg_add_timer(ci, t);
+	if (t < NUM_OTG_FSM_TIMERS) {
+		if (t == HNP_POLLING)
+			ci_otg_add_hnp_polling_timer(ci);
+		else
+			ci_otg_add_timer(ci, t);
+	}
 	return;
 }
 
@@ -824,6 +856,8 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 		return retval;
 	}
 
+	INIT_WORK(&ci->hnp_polling_work, ci_hnp_polling_work);
+
 	/* Enable A vbus valid irq */
 	hw_write_otgsc(ci, OTGSC_AVVIE, OTGSC_AVVIE);
 
@@ -842,6 +876,7 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 {
 	sysfs_remove_group(&ci->dev->kobj, &inputs_attr_group);
+	del_timer_sync(&ci->hnp_polling_timer);
 }
 
 /* Restart OTG fsm if resume from power lost */

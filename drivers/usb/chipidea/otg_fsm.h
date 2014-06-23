@@ -64,6 +64,8 @@
 /* SSEND time before SRP */
 #define TB_SSEND_SRP         (1500)	/* minimum 1.5 sec, section:5.1.2 */
 
+#define T_HOST_REQ_POLL      (1500)	/* HNP polling interval 1s~2s */
+
 #ifdef CONFIG_USB_OTG_FSM
 
 int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci);
