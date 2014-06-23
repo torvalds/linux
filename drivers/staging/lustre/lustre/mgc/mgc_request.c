@@ -950,7 +950,10 @@ static int mgc_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 }
 
 /* Not sure where this should go... */
-#define  MGC_ENQUEUE_LIMIT 50
+/* This is the timeout value for MGS_CONNECT request plus a ping interval, such
+ * that we can have a chance to try the secondary MGS if any. */
+#define  MGC_ENQUEUE_LIMIT (INITIAL_CONNECT_TIMEOUT + (AT_OFF ? 0 : at_min) \
+				+ PING_INTERVAL)
 #define  MGC_TARGET_REG_LIMIT 10
 #define  MGC_SEND_PARAM_LIMIT 10
 
