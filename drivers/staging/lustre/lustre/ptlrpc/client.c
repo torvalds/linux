@@ -1202,7 +1202,7 @@ static int after_reply(struct ptlrpc_request *req)
 
 	LASSERT(obd != NULL);
 	/* repbuf must be unlinked */
-	LASSERT(!req->rq_receiving_reply && !req->rq_must_unlink);
+	LASSERT(!req->rq_receiving_reply && !req->rq_reply_unlink);
 
 	if (req->rq_reply_truncate) {
 		if (ptlrpc_no_resend(req)) {
@@ -2406,9 +2406,10 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		}
 
 		LASSERT(rc == -ETIMEDOUT);
-		DEBUG_REQ(D_WARNING, request, "Unexpectedly long timeout "
-			  "rvcng=%d unlnk=%d", request->rq_receiving_reply,
-			  request->rq_must_unlink);
+		DEBUG_REQ(D_WARNING, request,
+			  "Unexpectedly long timeout rvcng=%d unlnk=%d/%d",
+			  request->rq_receiving_reply,
+			  request->rq_req_unlink, request->rq_reply_unlink);
 	}
 	return 0;
 }
@@ -3081,7 +3082,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_interpret_reply = work_interpreter;
 	/* don't want reply */
 	req->rq_receiving_reply = 0;
-	req->rq_must_unlink = 0;
+	req->rq_req_unlink = req->rq_reply_unlink = 0;
 	req->rq_no_delay = req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
 

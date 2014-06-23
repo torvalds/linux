@@ -63,19 +63,20 @@ void request_out_callback(lnet_event_t *ev)
 	DEBUG_REQ(D_NET, req, "type %d, status %d", ev->type, ev->status);
 
 	sptlrpc_request_out_callback(req);
+	spin_lock(&req->rq_lock);
 	req->rq_real_sent = cfs_time_current_sec();
+	if (ev->unlinked)
+		req->rq_req_unlink = 0;
 
 	if (ev->type == LNET_EVENT_UNLINK || ev->status != 0) {
 
 		/* Failed send: make it seem like the reply timed out, just
 		 * like failing sends in client.c does currently...  */
 
-		spin_lock(&req->rq_lock);
 		req->rq_net_err = 1;
-		spin_unlock(&req->rq_lock);
-
 		ptlrpc_client_wake_req(req);
 	}
+	spin_unlock(&req->rq_lock);
 
 	ptlrpc_req_finished(req);
 }
@@ -102,7 +103,7 @@ void reply_in_callback(lnet_event_t *ev)
 	req->rq_receiving_reply = 0;
 	req->rq_early = 0;
 	if (ev->unlinked)
-		req->rq_must_unlink = 0;
+		req->rq_reply_unlink = 0;
 
 	if (ev->status)
 		goto out_wake;
