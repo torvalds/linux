@@ -52,6 +52,7 @@
 #include "enic.h"
 #include "enic_dev.h"
 #include "enic_pp.h"
+#include "enic_clsf.h"
 
 #define ENIC_NOTIFY_TIMER_PERIOD	(2 * HZ)
 #define WQ_ENET_MAX_DESC_LEN		(1 << WQ_ENET_LEN_BITS)
@@ -1546,6 +1547,7 @@ static int enic_open(struct net_device *netdev)
 		vnic_intr_unmask(&enic->intr[i]);
 
 	enic_notify_timer_start(enic);
+	enic_rfs_flw_tbl_init(enic);
 
 	return 0;
 
@@ -1572,6 +1574,7 @@ static int enic_stop(struct net_device *netdev)
 	enic_synchronize_irqs(enic);
 
 	del_timer_sync(&enic->notify_timer);
+	enic_rfs_flw_tbl_free(enic);
 
 	enic_dev_disable(enic);
 
@@ -2064,6 +2067,9 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= enic_poll_controller,
 #endif
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= enic_rx_flow_steer,
+#endif
 };
 
 static const struct net_device_ops enic_netdev_ops = {
@@ -2083,6 +2089,9 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_set_vf_mac		= enic_set_vf_mac,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= enic_poll_controller,
+#endif
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= enic_rx_flow_steer,
 #endif
 };
 
@@ -2428,6 +2437,10 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features |= NETIF_F_RXCSUM;
 
 	netdev->features |= netdev->hw_features;
+
+#ifdef CONFIG_RFS_ACCEL
+	netdev->hw_features |= NETIF_F_NTUPLE;
+#endif
 
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
