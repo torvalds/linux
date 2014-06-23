@@ -25,6 +25,7 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
+#include "common.h"
 #include "mvebu-soc-id.h"
 
 #define PCIE_DEV_ID_OFF		0x0
@@ -54,7 +55,7 @@ int mvebu_get_soc_id(u32 *dev, u32 *rev)
 		return -ENODEV;
 }
 
-static int __init mvebu_soc_id_init(void)
+static int __init get_soc_id_by_pci(void)
 {
 	struct device_node *np;
 	int ret = 0;
@@ -128,6 +129,22 @@ clk_err:
 	of_node_put(np);
 
 	return ret;
+}
+
+static int __init mvebu_soc_id_init(void)
+{
+
+	/*
+	 * First try to get the ID and the revision by the system
+	 * register and use PCI registers only if it is not possible
+	 */
+	if (!mvebu_system_controller_get_soc_id(&soc_dev_id, &soc_rev)) {
+		is_id_valid = true;
+		pr_info("MVEBU SoC ID=0x%X, Rev=0x%X\n", soc_dev_id, soc_rev);
+		return 0;
+	}
+
+	return get_soc_id_by_pci();
 }
 early_initcall(mvebu_soc_id_init);
 

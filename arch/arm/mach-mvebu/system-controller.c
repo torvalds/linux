@@ -39,6 +39,9 @@ struct mvebu_system_controller {
 	u32 system_soft_reset;
 
 	u32 resume_boot_addr;
+
+	u32 dev_id;
+	u32 rev_id;
 };
 static struct mvebu_system_controller *mvebu_sc;
 
@@ -47,6 +50,8 @@ static const struct mvebu_system_controller armada_370_xp_system_controller = {
 	.system_soft_reset_offset = 0x64,
 	.rstoutn_mask_reset_out_en = 0x1,
 	.system_soft_reset = 0x1,
+	.dev_id = 0x38,
+	.rev_id = 0x3c,
 };
 
 static const struct mvebu_system_controller armada_375_system_controller = {
@@ -55,6 +60,8 @@ static const struct mvebu_system_controller armada_375_system_controller = {
 	.rstoutn_mask_reset_out_en = 0x1,
 	.system_soft_reset = 0x1,
 	.resume_boot_addr = 0xd4,
+	.dev_id = 0x38,
+	.rev_id = 0x3c,
 };
 
 static const struct mvebu_system_controller orion_system_controller = {
@@ -99,6 +106,18 @@ void mvebu_restart(enum reboot_mode mode, const char *cmd)
 
 	while (1)
 		;
+}
+
+int mvebu_system_controller_get_soc_id(u32 *dev, u32 *rev)
+{
+	if (of_machine_is_compatible("marvell,armada380") &&
+		system_controller_base) {
+		*dev = readl(system_controller_base + mvebu_sc->dev_id) >> 16;
+		*rev = (readl(system_controller_base + mvebu_sc->rev_id) >> 8)
+			& 0xF;
+		return 0;
+	} else
+		return -ENODEV;
 }
 
 #ifdef CONFIG_SMP
