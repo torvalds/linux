@@ -23,8 +23,12 @@ bool IsReqGpioIsLedInNVM(struct bcm_mini_adapter *Adapter, UINT gpios)
 		return TRUE;
 }
 
-static INT LED_Blink(struct bcm_mini_adapter *Adapter, UINT GPIO_Num, UCHAR uiLedIndex,
-		ULONG timeout, INT num_of_time, enum bcm_led_events currdriverstate)
+static INT LED_Blink(struct bcm_mini_adapter *Adapter,
+		     UINT GPIO_Num,
+		     UCHAR uiLedIndex,
+		     ULONG timeout,
+		     INT num_of_time,
+		     enum bcm_led_events currdriverstate)
 {
 	int Status = STATUS_SUCCESS;
 	bool bInfinite = false;
@@ -95,9 +99,12 @@ static INT ScaleRateofTransfer(ULONG rate)
 
 
 
-static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter, UCHAR GPIO_Num_tx,
-		UCHAR uiTxLedIndex, UCHAR GPIO_Num_rx, UCHAR uiRxLedIndex,
-		enum bcm_led_events currdriverstate)
+static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter,
+				  UCHAR GPIO_Num_tx,
+				  UCHAR uiTxLedIndex,
+				  UCHAR GPIO_Num_rx,
+				  UCHAR uiRxLedIndex,
+				  enum bcm_led_events currdriverstate)
 {
 	/* Initial values of TX and RX packets */
 	ULONG64 Initial_num_of_packts_tx = 0, Initial_num_of_packts_rx = 0;
@@ -261,8 +268,9 @@ static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter, UCHAR GPIO_N
  *  <OSAL_STATUS_CODE>
  * -----------------------------------------------------------------------------
  */
-static INT ValidateDSDParamsChecksum(struct bcm_mini_adapter *Adapter, ULONG ulParamOffset,
-					USHORT usParamLen)
+static INT ValidateDSDParamsChecksum(struct bcm_mini_adapter *Adapter,
+				     ULONG ulParamOffset,
+				     USHORT usParamLen)
 {
 	INT Status = STATUS_SUCCESS;
 	PUCHAR puBuffer = NULL;
@@ -270,24 +278,24 @@ static INT ValidateDSDParamsChecksum(struct bcm_mini_adapter *Adapter, ULONG ulP
 	USHORT usChecksumCalculated = 0;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread:ValidateDSDParamsChecksum: 0x%lx 0x%X",
-		ulParamOffset, usParamLen);
+			"LED Thread:ValidateDSDParamsChecksum: 0x%lx 0x%X",
+			ulParamOffset, usParamLen);
 
 	puBuffer = kmalloc(usParamLen, GFP_KERNEL);
 	if (!puBuffer) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL,
-			"LED Thread: ValidateDSDParamsChecksum Allocation failed");
+				DBG_LVL_ALL,
+				"LED Thread: ValidateDSDParamsChecksum Allocation failed");
 		return -ENOMEM;
 
 	}
 
 	/* Read the DSD data from the parameter offset. */
 	if (STATUS_SUCCESS != BeceemNVMRead(Adapter, (PUINT)puBuffer,
-			ulParamOffset, usParamLen)) {
+					    ulParamOffset, usParamLen)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL,
-			"LED Thread: ValidateDSDParamsChecksum BeceemNVMRead failed");
+				DBG_LVL_ALL,
+				"LED Thread: ValidateDSDParamsChecksum BeceemNVMRead failed");
 		Status = STATUS_IMAGE_CHECKSUM_MISMATCH;
 		goto exit;
 	}
@@ -295,24 +303,24 @@ static INT ValidateDSDParamsChecksum(struct bcm_mini_adapter *Adapter, ULONG ulP
 	/* Calculate the checksum of the data read from the DSD parameter. */
 	usChecksumCalculated = CFG_CalculateChecksum(puBuffer, usParamLen);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread: usCheckSumCalculated = 0x%x\n",
-		usChecksumCalculated);
+			"LED Thread: usCheckSumCalculated = 0x%x\n",
+			usChecksumCalculated);
 
 	/*
 	 * End of the DSD parameter will have a TWO bytes checksum stored in it.
 	 * Read it and compare with the calculated Checksum.
 	 */
 	if (STATUS_SUCCESS != BeceemNVMRead(Adapter, (PUINT)&usChksmOrg,
-			ulParamOffset+usParamLen, 2)) {
+					    ulParamOffset+usParamLen, 2)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL,
-			"LED Thread: ValidateDSDParamsChecksum BeceemNVMRead failed");
+				DBG_LVL_ALL,
+				"LED Thread: ValidateDSDParamsChecksum BeceemNVMRead failed");
 		Status = STATUS_IMAGE_CHECKSUM_MISMATCH;
 		goto exit;
 	}
 	usChksmOrg = ntohs(usChksmOrg);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread: usChksmOrg = 0x%x", usChksmOrg);
+			"LED Thread: usChksmOrg = 0x%x", usChksmOrg);
 
 	/*
 	 * Compare the checksum calculated with the checksum read
@@ -320,8 +328,8 @@ static INT ValidateDSDParamsChecksum(struct bcm_mini_adapter *Adapter, ULONG ulP
 	 */
 	if (usChecksumCalculated ^ usChksmOrg) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL,
-			"LED Thread: ValidateDSDParamsChecksum: Checksums don't match");
+				DBG_LVL_ALL,
+				"LED Thread: ValidateDSDParamsChecksum: Checksums don't match");
 		Status = STATUS_IMAGE_CHECKSUM_MISMATCH;
 		goto exit;
 	}
@@ -347,7 +355,8 @@ exit:
  *  <OSAL_STATUS_CODE>
  * -----------------------------------------------------------------------------
  */
-static INT ValidateHWParmStructure(struct bcm_mini_adapter *Adapter, ULONG ulHwParamOffset)
+static INT ValidateHWParmStructure(struct bcm_mini_adapter *Adapter,
+				   ULONG ulHwParamOffset)
 {
 
 	INT Status = STATUS_SUCCESS;
@@ -365,9 +374,9 @@ static INT ValidateHWParmStructure(struct bcm_mini_adapter *Adapter, ULONG ulHwP
 		return STATUS_IMAGE_CHECKSUM_MISMATCH;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread:HwParamLen = 0x%x", HwParamLen);
+			"LED Thread:HwParamLen = 0x%x", HwParamLen);
 	Status = ValidateDSDParamsChecksum(Adapter, ulHwParamOffset,
-						HwParamLen);
+					   HwParamLen);
 	return Status;
 } /* ValidateHWParmStructure() */
 
@@ -383,16 +392,17 @@ static int ReadLEDInformationFromEEPROM(struct bcm_mini_adapter *Adapter,
 	UCHAR  ucGPIOInfo[32]	= {0};
 
 	BeceemNVMRead(Adapter, (PUINT)&usEEPROMVersion,
-			EEPROM_VERSION_OFFSET, 2);
+		      EEPROM_VERSION_OFFSET, 2);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"usEEPROMVersion: Minor:0x%X Major:0x%x",
-		usEEPROMVersion&0xFF, ((usEEPROMVersion>>8)&0xFF));
+			"usEEPROMVersion: Minor:0x%X Major:0x%x",
+			usEEPROMVersion & 0xFF,
+			((usEEPROMVersion >> 8) & 0xFF));
 
 
 	if (((usEEPROMVersion>>8)&0xFF) < EEPROM_MAP5_MAJORVERSION) {
 		BeceemNVMRead(Adapter, (PUINT)&usHwParamData,
-			EEPROM_HW_PARAM_POINTER_ADDRESS, 2);
+			      EEPROM_HW_PARAM_POINTER_ADDRESS, 2);
 		usHwParamData = ntohs(usHwParamData);
 		dwReadValue   = usHwParamData;
 	} else {
@@ -401,21 +411,21 @@ static int ReadLEDInformationFromEEPROM(struct bcm_mini_adapter *Adapter,
 		 * if compatibility section is valid.
 		 */
 		Status = ValidateDSDParamsChecksum(Adapter,
-				DSD_START_OFFSET,
-				COMPATIBILITY_SECTION_LENGTH_MAP5);
+						   DSD_START_OFFSET,
+						   COMPATIBILITY_SECTION_LENGTH_MAP5);
 
 		if (Status != STATUS_SUCCESS)
 			return Status;
 
 		BeceemNVMRead(Adapter, (PUINT)&dwReadValue,
-			EEPROM_HW_PARAM_POINTER_ADDRRES_MAP5, 4);
+			      EEPROM_HW_PARAM_POINTER_ADDRRES_MAP5, 4);
 		dwReadValue = ntohl(dwReadValue);
 	}
 
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread: Start address of HW_PARAM structure = 0x%lx",
-		dwReadValue);
+			"LED Thread: Start address of HW_PARAM structure = 0x%lx",
+			dwReadValue);
 
 	/*
 	 * Validate if the address read out is within the DSD.
@@ -437,8 +447,8 @@ static int ReadLEDInformationFromEEPROM(struct bcm_mini_adapter *Adapter,
 	 * To read GPIO section, add GPIO offset further.
 	 */
 
-	dwReadValue +=
-		DSD_START_OFFSET; /* = start address of hw param section. */
+	dwReadValue += DSD_START_OFFSET;
+			/* = start address of hw param section. */
 	dwReadValue += GPIO_SECTION_START_OFFSET;
 			/* = GPIO start offset within HW Param section. */
 
@@ -472,13 +482,14 @@ static int ReadLEDInformationFromEEPROM(struct bcm_mini_adapter *Adapter,
 
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"GPIO's bit map correspond to LED :0x%X", Adapter->gpioBitMap);
+			"GPIO's bit map correspond to LED :0x%X",
+			Adapter->gpioBitMap);
 	return Status;
 }
 
 
 static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
-					bool *bEnableThread)
+				   bool *bEnableThread)
 {
 	int Status = STATUS_SUCCESS;
 	/* Array to store GPIO numbers from EEPROM */
@@ -490,8 +501,8 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	memset(GPIO_Array, DISABLE_GPIO_NUM, NUM_OF_LEDS+1);
 
 	if (!Adapter->pstargetparams || IS_ERR(Adapter->pstargetparams)) {
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL, "Target Params not Avail.\n");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
+				DBG_LVL_ALL, "Target Params not Avail.\n");
 		return -ENOENT;
 	}
 
@@ -511,7 +522,7 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	 * uiFileNameBufferSize
 	 */
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO, DBG_LVL_ALL,
-		"LED Thread: Config file read successfully\n");
+			"LED Thread: Config file read successfully\n");
 	puCFGData = (PUCHAR) &Adapter->pstargetparams->HostDrvrConfig1;
 
 	/*
@@ -555,7 +566,8 @@ static int ReadConfigFileStructure(struct bcm_mini_adapter *Adapter,
 	 * dont launch the LED control thread.
 	 */
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
-		if ((Adapter->LEDInfo.LEDState[uiIndex].LED_Type == DISABLE_GPIO_NUM) ||
+		if ((Adapter->LEDInfo.LEDState[uiIndex].LED_Type ==
+					DISABLE_GPIO_NUM) ||
 			(Adapter->LEDInfo.LEDState[uiIndex].LED_Type == 0x7f) ||
 			(Adapter->LEDInfo.LEDState[uiIndex].LED_Type == 0))
 			uiNum_of_LED_Type++;
@@ -587,7 +599,7 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 
 	/* Set all LED GPIO Mode to output mode */
 	if (rdmalt(Adapter, GPIO_MODE_REGISTER, &uiResetValue,
-			sizeof(uiResetValue)) < 0)
+		   sizeof(uiResetValue)) < 0)
 		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
 			DBG_LVL_ALL, "LED Thread: RDM Failed\n");
 	for (uiIndex = 0; uiIndex < NUM_OF_LEDS; uiIndex++) {
@@ -598,16 +610,19 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 				uiIndex);
 	}
 	if (wrmalt(Adapter, GPIO_MODE_REGISTER, &uiResetValue,
-			sizeof(uiResetValue)) < 0)
-		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL, "LED Thread: WRM Failed\n");
+		   sizeof(uiResetValue)) < 0)
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
+				DBG_LVL_ALL, "LED Thread: WRM Failed\n");
 
 	Adapter->LEDInfo.bIdle_led_off = false;
 }
 
-static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter, UCHAR *GPIO_num_tx,
-		UCHAR *GPIO_num_rx, UCHAR *uiLedTxIndex, UCHAR *uiLedRxIndex,
-		enum bcm_led_events currdriverstate)
+static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter,
+			     UCHAR *GPIO_num_tx,
+			     UCHAR *GPIO_num_rx,
+			     UCHAR *uiLedTxIndex,
+			     UCHAR *uiLedRxIndex,
+			     enum bcm_led_events currdriverstate)
 {
 	UINT uiIndex = 0;
 
@@ -645,6 +660,7 @@ static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter, UCHAR *GPIO_num_t
 	}
 	return STATUS_SUCCESS;
 }
+
 static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 {
 	UINT uiIndex = 0;
@@ -708,7 +724,8 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 			currdriverstate = DRIVER_INIT;
 					/* Adapter->DriverState; */
 			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum,
-				&uiLedIndex, &dummyIndex, currdriverstate);
+					  &uiLedIndex, &dummyIndex,
+					  currdriverstate);
 
 			if (GPIO_num != DISABLE_GPIO_NUM)
 				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
@@ -722,18 +739,20 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 			 */
 			currdriverstate = FW_DOWNLOAD;
 			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum,
-				&uiLedIndex, &dummyIndex, currdriverstate);
+					  &uiLedIndex, &dummyIndex,
+					  currdriverstate);
 
 			if (GPIO_num != DISABLE_GPIO_NUM) {
 				timeout = 50;
 				LED_Blink(Adapter, 1 << GPIO_num, uiLedIndex,
-					timeout, -1, currdriverstate);
+					  timeout, -1, currdriverstate);
 			}
 			break;
 		case FW_DOWNLOAD_DONE:
 			currdriverstate = FW_DOWNLOAD_DONE;
 			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum,
-				&uiLedIndex, &dummyIndex, currdriverstate);
+					  &uiLedIndex, &dummyIndex,
+					  currdriverstate);
 			if (GPIO_num != DISABLE_GPIO_NUM)
 				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
 			break;
@@ -746,7 +765,8 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 		case NO_NETWORK_ENTRY:
 			currdriverstate = NO_NETWORK_ENTRY;
 			BcmGetGPIOPinInfo(Adapter, &GPIO_num, &dummyGPIONum,
-				&uiLedIndex, &dummyGPIONum, currdriverstate);
+					  &uiLedIndex, &dummyGPIONum,
+					  currdriverstate);
 			if (GPIO_num != DISABLE_GPIO_NUM)
 				TURN_ON_LED(1 << GPIO_num, uiLedIndex);
 			break;
@@ -878,8 +898,8 @@ int InitLedSettings(struct bcm_mini_adapter *Adapter)
 	Status = ReadConfigFileStructure(Adapter, &bEnableThread);
 	if (STATUS_SUCCESS != Status) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-			DBG_LVL_ALL,
-			"LED Thread: FAILED in ReadConfigFileStructure\n");
+				DBG_LVL_ALL,
+				"LED Thread: FAILED in ReadConfigFileStructure\n");
 		return Status;
 	}
 
@@ -902,11 +922,11 @@ int InitLedSettings(struct bcm_mini_adapter *Adapter)
 		Adapter->LEDInfo.bIdle_led_off = false;
 		Adapter->LEDInfo.led_cntrl_threadid =
 			kthread_run((int (*)(void *)) LEDControlThread,
-			Adapter, "led_control_thread");
+				    Adapter, "led_control_thread");
 		if (IS_ERR(Adapter->LEDInfo.led_cntrl_threadid)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, LED_DUMP_INFO,
-				DBG_LVL_ALL,
-				"Not able to spawn Kernel Thread\n");
+					DBG_LVL_ALL,
+					"Not able to spawn Kernel Thread\n");
 			Adapter->LEDInfo.led_thread_running =
 				BCM_LED_THREAD_DISABLED;
 			return PTR_ERR(Adapter->LEDInfo.led_cntrl_threadid);
