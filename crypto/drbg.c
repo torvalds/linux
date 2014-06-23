@@ -516,13 +516,13 @@ static int drbg_ctr_df(struct drbg_state *drbg,
 	S2.next = addtl;
 
 	/*
-	 * splice in addtl between S2 and S4 -- we place S4 at the end of the
-	 * input data chain
+	 * Splice in addtl between S2 and S4 -- we place S4 at the end
+	 * of the input data chain. As this code is only triggered when
+	 * addtl is not NULL, no NULL checks are necessary.
 	 */
 	tempstr = addtl;
-	for (; NULL != tempstr; tempstr = tempstr->next)
-		if (NULL == tempstr->next)
-			break;
+	while (tempstr->next)
+		tempstr = tempstr->next;
 	tempstr->next = &S4;
 
 	/* 10.4.2 step 9 */
