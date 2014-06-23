@@ -58,6 +58,30 @@
 			gpio = <&gpio2 11 GPIO_ACTIVE_HIGH>;
 			enable-active-high;
 		};
+
+		reg_usb_otg1_vbus: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_otg1>;
+			regulator-name = "usb_otg1_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
+
+		reg_usb_otg2_vbus: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb_otg2>;
+			regulator-name = "usb_otg2_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+		};
 	};
 };
 
@@ -78,6 +102,19 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
 	fsl,uart-has-rtscts;
+	status = "okay";
+};
+
+&usbotg1 {
+	vbus-supply = <&reg_usb_otg1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_otg1_id>;
+	status = "okay";
+};
+
+&usbotg2 {
+	vbus-supply = <&reg_usb_otg2_vbus>;
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -160,6 +197,24 @@
 				MX6SX_PAD_KEY_COL3__UART5_TX		0x1b0b1
 				MX6SX_PAD_KEY_ROW2__UART5_CTS_B		0x1b0b1
 				MX6SX_PAD_KEY_COL2__UART5_RTS_B		0x1b0b1
+			>;
+		};
+
+		pinctrl_usb_otg1: usbotg1grp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO09__GPIO1_IO_9	0x10b0
+			>;
+		};
+
+		pinctrl_usb_otg1_id: usbotg1idgrp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO10__ANATOP_OTG1_ID	0x17059
+			>;
+		};
+
+		pinctrl_usb_otg2: usbot2ggrp {
+			fsl,pins = <
+				MX6SX_PAD_GPIO1_IO12__GPIO1_IO_12	0x10b0
 			>;
 		};
 
