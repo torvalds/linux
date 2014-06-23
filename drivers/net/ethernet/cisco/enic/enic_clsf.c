@@ -117,7 +117,7 @@ void enic_rfs_flw_tbl_init(struct enic *enic)
 
 void enic_rfs_flw_tbl_free(struct enic *enic)
 {
-	int i, res;
+	int i;
 
 	del_timer_sync(&enic->rfs_h.rfs_may_expire);
 	spin_lock(&enic->rfs_h.lock);
