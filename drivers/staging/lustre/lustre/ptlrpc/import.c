@@ -275,6 +275,7 @@ void ptlrpc_invalidate_import(struct obd_import *imp)
 	if (!imp->imp_invalid || imp->imp_obd->obd_no_recov)
 		ptlrpc_deactivate_import(imp);
 
+	CFS_FAIL_TIMEOUT(OBD_FAIL_MGS_CONNECT_NET, 3 * cfs_fail_val / 2);
 	LASSERT(imp->imp_invalid);
 
 	/* Wait forever until inflight == 0. We really can't do it another
@@ -392,6 +393,19 @@ void ptlrpc_activate_import(struct obd_import *imp)
 }
 EXPORT_SYMBOL(ptlrpc_activate_import);
 
+static void ptlrpc_pinger_force(struct obd_import *imp)
+{
+	CDEBUG(D_HA, "%s: waking up pinger s:%s\n", obd2cli_tgt(imp->imp_obd),
+	       ptlrpc_import_state_name(imp->imp_state));
+
+	spin_lock(&imp->imp_lock);
+	imp->imp_force_verify = 1;
+	spin_unlock(&imp->imp_lock);
+
+	if (imp->imp_state != LUSTRE_IMP_CONNECTING)
+		ptlrpc_pinger_wake_up();
+}
+
 void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 {
 	LASSERT(!imp->imp_dlm_fake);
@@ -406,20 +420,30 @@ void ptlrpc_fail_import(struct obd_import *imp, __u32 conn_cnt)
 			ptlrpc_deactivate_import(imp);
 		}
 
-		CDEBUG(D_HA, "%s: waking up pinger\n",
-		       obd2cli_tgt(imp->imp_obd));
-
-		spin_lock(&imp->imp_lock);
-		imp->imp_force_verify = 1;
-		spin_unlock(&imp->imp_lock);
-
-		ptlrpc_pinger_wake_up();
+		ptlrpc_pinger_force(imp);
 	}
 }
 EXPORT_SYMBOL(ptlrpc_fail_import);
 
 int ptlrpc_reconnect_import(struct obd_import *imp)
 {
+#ifdef ENABLE_PINGER
+	struct l_wait_info lwi;
+	int secs = cfs_time_seconds(obd_timeout);
+	int rc;
+
+	ptlrpc_pinger_force(imp);
+
+	CDEBUG(D_HA, "%s: recovery started, waiting %u seconds\n",
+	       obd2cli_tgt(imp->imp_obd), secs);
+
+	lwi = LWI_TIMEOUT(secs, NULL, NULL);
+	rc = l_wait_event(imp->imp_recovery_waitq,
+			  !ptlrpc_import_in_recovery(imp), &lwi);
+	CDEBUG(D_HA, "%s: recovery finished s:%s\n", obd2cli_tgt(imp->imp_obd),
+	       ptlrpc_import_state_name(imp->imp_state));
+	return rc;
+#else
 	ptlrpc_set_import_discon(imp, 0);
 	/* Force a new connect attempt */
 	ptlrpc_invalidate_import(imp);
@@ -444,6 +468,7 @@ int ptlrpc_reconnect_import(struct obd_import *imp)
 	/* Attempt a new connect */
 	ptlrpc_recover_import(imp, NULL, 0);
 	return 0;
+#endif
 }
 EXPORT_SYMBOL(ptlrpc_reconnect_import);
 

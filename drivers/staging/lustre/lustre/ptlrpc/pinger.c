@@ -224,6 +224,11 @@ static void ptlrpc_pinger_process_import(struct obd_import *imp,
 		       "or recovery disabled: %s)\n",
 		       imp->imp_obd->obd_uuid.uuid, obd2cli_tgt(imp->imp_obd),
 		       ptlrpc_import_state_name(level));
+		if (force) {
+			spin_lock(&imp->imp_lock);
+			imp->imp_force_verify = 1;
+			spin_unlock(&imp->imp_lock);
+		}
 	} else if ((imp->imp_pingable && !suppress) || force_next || force) {
 		ptlrpc_ping(imp);
 	}
