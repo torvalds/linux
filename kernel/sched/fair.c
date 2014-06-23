@@ -1155,6 +1155,7 @@ static void task_numa_compare(struct task_numa_env *env,
 	long src_load, dst_load;
 	long load;
 	long imp = env->p->numa_group ? groupimp : taskimp;
+	long moveimp = imp;
 
 	rcu_read_lock();
 	cur = ACCESS_ONCE(dst_rq->curr);
@@ -1201,7 +1202,7 @@ static void task_numa_compare(struct task_numa_env *env,
 		}
 	}
 
-	if (imp < env->best_imp)
+	if (imp <= env->best_imp && moveimp <= env->best_imp)
 		goto unlock;
 
 	if (!cur) {
@@ -1214,7 +1215,8 @@ static void task_numa_compare(struct task_numa_env *env,
 	}
 
 	/* Balance doesn't matter much if we're running a task per cpu */
-	if (src_rq->nr_running == 1 && dst_rq->nr_running == 1)
+	if (imp > env->best_imp && src_rq->nr_running == 1 &&
+			dst_rq->nr_running == 1)
 		goto assign;
 
 	/*
@@ -1229,6 +1231,23 @@ balance:
 	tg = task_group(env->p);
 	src_load += effective_load(tg, env->src_cpu, -load, -load);
 	dst_load += effective_load(tg, env->dst_cpu, load, load);
+
+	if (moveimp > imp && moveimp > env->best_imp) {
+		/*
+		 * If the improvement from just moving env->p direction is
+		 * better than swapping tasks around, check if a move is
+		 * possible. Store a slightly smaller score than moveimp,
+		 * so an actually idle CPU will win.
+		 */
+		if (!load_too_imbalanced(src_load, dst_load, env)) {
+			imp = moveimp - 1;
+			cur = NULL;
+			goto assign;
+		}
+	}
+
+	if (imp <= env->best_imp)
+		goto unlock;
 
 	if (cur) {
 		/* Cur moves in the opposite direction. */
