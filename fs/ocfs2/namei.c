@@ -1098,6 +1098,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct ocfs2_dir_lookup_result old_entry_lookup = { NULL, };
 	struct ocfs2_dir_lookup_result orphan_insert = { NULL, };
 	struct ocfs2_dir_lookup_result target_insert = { NULL, };
+	bool should_add_orphan = false;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
@@ -1304,6 +1305,7 @@ static int ocfs2_rename(struct inode *old_dir,
 				mlog_errno(status);
 				goto bail;
 			}
+			should_add_orphan = true;
 		}
 	} else {
 		BUG_ON(new_dentry->d_parent->d_inode != new_dir);
@@ -1348,17 +1350,6 @@ static int ocfs2_rename(struct inode *old_dir,
 			goto bail;
 		}
 
-		if (S_ISDIR(new_inode->i_mode) ||
-		    (ocfs2_read_links_count(newfe) == 1)) {
-			status = ocfs2_orphan_add(osb, handle, new_inode,
-						  newfe_bh, orphan_name,
-						  &orphan_insert, orphan_dir);
-			if (status < 0) {
-				mlog_errno(status);
-				goto bail;
-			}
-		}
-
 		/* change the dirent to point to the correct inode */
 		status = ocfs2_update_entry(new_dir, handle, &target_lookup_res,
 					    old_inode);
@@ -1373,6 +1364,15 @@ static int ocfs2_rename(struct inode *old_dir,
 		else
 			ocfs2_add_links_count(newfe, -1);
 		ocfs2_journal_dirty(handle, newfe_bh);
+		if (should_add_orphan) {
+			status = ocfs2_orphan_add(osb, handle, new_inode,
+					newfe_bh, orphan_name,
+					&orphan_insert, orphan_dir);
+			if (status < 0) {
+				mlog_errno(status);
+				goto bail;
+			}
+		}
 	} else {
 		/* if the name was not found in new_dir, add it now */
 		status = ocfs2_add_entry(handle, new_dentry, old_inode,
