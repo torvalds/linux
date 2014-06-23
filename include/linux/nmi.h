@@ -32,12 +32,21 @@ static inline void touch_nmi_watchdog(void)
 #ifdef arch_trigger_all_cpu_backtrace
 static inline bool trigger_all_cpu_backtrace(void)
 {
-	arch_trigger_all_cpu_backtrace();
+	arch_trigger_all_cpu_backtrace(true);
 
+	return true;
+}
+static inline bool trigger_allbutself_cpu_backtrace(void)
+{
+	arch_trigger_all_cpu_backtrace(false);
 	return true;
 }
 #else
 static inline bool trigger_all_cpu_backtrace(void)
+{
+	return false;
+}
+static inline bool trigger_allbutself_cpu_backtrace(void)
 {
 	return false;
 }
