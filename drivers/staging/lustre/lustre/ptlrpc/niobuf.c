@@ -505,6 +505,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	/* If this is a re-transmit, we're required to have disengaged
 	 * cleanly from the previous attempt */
 	LASSERT(!request->rq_receiving_reply);
+	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
+		(request->rq_import->imp_state == LUSTRE_IMP_FULL)));
 
 	if (unlikely(obd != NULL && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",

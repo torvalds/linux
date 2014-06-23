@@ -145,6 +145,8 @@ void reply_in_callback(lnet_event_t *ev)
 		/* Real reply */
 		req->rq_rep_swab_mask = 0;
 		req->rq_replied = 1;
+		/* Got reply, no resend required */
+		req->rq_resend = 0;
 		req->rq_reply_off = ev->offset;
 		req->rq_nob_received = ev->mlength;
 		/* LNetMDUnlink can't be called under the LNET_LOCK,

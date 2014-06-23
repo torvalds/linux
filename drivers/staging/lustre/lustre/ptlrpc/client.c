@@ -2530,10 +2530,19 @@ EXPORT_SYMBOL(ptlrpc_cleanup_client);
 void ptlrpc_resend_req(struct ptlrpc_request *req)
 {
 	DEBUG_REQ(D_HA, req, "going to resend");
+	spin_lock(&req->rq_lock);
+
+	/* Request got reply but linked to the import list still.
+	   Let ptlrpc_check_set() to process it. */
+	if (ptlrpc_client_replied(req)) {
+		spin_unlock(&req->rq_lock);
+		DEBUG_REQ(D_HA, req, "it has reply, so skip it");
+		return;
+	}
+
 	lustre_msg_set_handle(req->rq_reqmsg, &(struct lustre_handle){ 0 });
 	req->rq_status = -EAGAIN;
 
-	spin_lock(&req->rq_lock);
 	req->rq_resend = 1;
 	req->rq_net_err = 0;
 	req->rq_timedout = 0;
