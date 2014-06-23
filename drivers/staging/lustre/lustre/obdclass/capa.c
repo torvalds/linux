@@ -279,6 +279,7 @@ int capa_hmac(__u8 *hmac, struct lustre_capa *capa, __u8 *key)
 	}
 	keylen = alg->ha_keylen;
 
+	sg_init_table(&sl, 1);
 	sg_set_page(&sl, virt_to_page(capa),
 		    offsetof(struct lustre_capa, lc_hmac),
 		    (unsigned long)(capa) % PAGE_CACHE_SIZE);
@@ -320,9 +321,11 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		GOTO(out, rc);
 	}
 
+	sg_init_table(&sd, 1);
 	sg_set_page(&sd, virt_to_page(d), 16,
 		    (unsigned long)(d) % PAGE_CACHE_SIZE);
 
+	sg_init_table(&ss, 1);
 	sg_set_page(&ss, virt_to_page(s), 16,
 		    (unsigned long)(s) % PAGE_CACHE_SIZE);
 	desc.tfm   = tfm;
@@ -370,9 +373,11 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 		GOTO(out, rc);
 	}
 
+	sg_init_table(&sd, 1);
 	sg_set_page(&sd, virt_to_page(d), 16,
 		    (unsigned long)(d) % PAGE_CACHE_SIZE);
 
+	sg_init_table(&ss, 1);
 	sg_set_page(&ss, virt_to_page(s), 16,
 		    (unsigned long)(s) % PAGE_CACHE_SIZE);
 
