@@ -751,13 +751,17 @@ static u64 jit_get_skb_w(struct sk_buff *skb, unsigned offset)
 	return (u64)err << 32 | ntohl(ret);
 }
 
-#define PKT_TYPE_MAX 7
+#ifdef __BIG_ENDIAN_BITFIELD
+#define PKT_TYPE_MAX	(7 << 5)
+#else
+#define PKT_TYPE_MAX	7
+#endif
 static int pkt_type_offset(void)
 {
 	struct sk_buff skb_probe = {
 		.pkt_type = ~0,
 	};
-	char *ct = (char *)&skb_probe;
+	u8 *ct = (u8 *)&skb_probe;
 	unsigned int off;
 
 	for (off = 0; off < sizeof(struct sk_buff); off++) {
@@ -1320,6 +1324,10 @@ jmp_cmp:
 			emit_load_byte(r_tmp, r_skb, off, ctx);
 			/* Keep only the last 3 bits */
 			emit_andi(r_A, r_tmp, PKT_TYPE_MAX, ctx);
+#ifdef __BIG_ENDIAN_BITFIELD
+			/* Get the actual packet type to the lower 3 bits */
+			emit_srl(r_A, r_A, 5, ctx);
+#endif
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			ctx->flags |= SEEN_SKB | SEEN_A;
