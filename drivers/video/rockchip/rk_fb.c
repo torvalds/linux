@@ -1524,7 +1524,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			ext_win->state = 0;
 		}
 
-		if (ext_win->area[0].xact < ext_win->area[0].yact) {
+		if (win->area[0].xact < win->area[0].yact) {
 			int pixel_width, vir_width_bit, stride;
 			ext_win->area[0].xact = win->area[0].yact;
 			ext_win->area[0].yact = win->area[0].xact;
