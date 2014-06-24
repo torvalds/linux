@@ -807,7 +807,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 {
 	int ret = 0;
 	u32 wep_key_idx;
-	u16 wep_key_len;
+	int key_len;
 	struct rtw_adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -817,9 +817,10 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 	param->u.crypt.err = 0;
 	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
 
+	key_len = keyparms->key_len;
+
 	if (param_len <
-	    (u32) ((u8 *) param->u.crypt.key - (u8 *) param) +
-	    param->u.crypt.key_len) {
+	    (u32) ((u8 *) param->u.crypt.key - (u8 *) param) + key_len) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -840,9 +841,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 		DBG_8723A("wpa_set_encryption, crypt.alg = WEP\n");
 
 		wep_key_idx = param->u.crypt.idx;
-		wep_key_len = param->u.crypt.key_len;
 
-		if ((wep_key_idx > WEP_KEYS) || (wep_key_len <= 0)) {
+		if (wep_key_idx > WEP_KEYS || key_len <= 0) {
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -851,14 +851,14 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 			/* wep default key has not been set, so use this
 			   key index as default key. */
 
-			wep_key_len = wep_key_len <= 5 ? 5 : 13;
+			key_len = key_len <= 5 ? 5 : 13;
 
 			psecuritypriv->ndisencryptstatus =
 				Ndis802_11Encryption1Enabled;
 			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
 			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
 
-			if (wep_key_len == 13) {
+			if (key_len == 13) {
 				psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
 				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
 			}
@@ -867,9 +867,9 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 		}
 
 		memcpy(&psecuritypriv->wep_key[wep_key_idx].key,
-		       param->u.crypt.key, wep_key_len);
+		       param->u.crypt.key, key_len);
 
-		psecuritypriv->wep_key[wep_key_idx].keylen = wep_key_len;
+		psecuritypriv->wep_key[wep_key_idx].keylen = key_len;
 
 		rtw_set_key23a(padapter, psecuritypriv, wep_key_idx, 0);
 
@@ -910,9 +910,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 
 					memcpy(psta->dot118021x_UncstKey.skey,
 					       param->u.crypt.key,
-					       (param->u.crypt.key_len >
-						16 ? 16 : param->u.crypt.
-						key_len));
+					       (key_len > 16 ? 16 : key_len));
 
 					if (strcmp(param->u.crypt.alg,
 						   "TKIP") == 0) {
@@ -938,9 +936,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 					       dot118021XGrpKey[param->u.crypt.
 								idx].skey,
 					       param->u.crypt.key,
-					       (param->u.crypt.key_len >
-						16 ? 16 : param->u.crypt.
-						key_len));
+					       (key_len > 16 ? 16 : key_len));
 					memcpy(padapter->securitypriv.
 					       dot118021XGrptxmickey[param->u.
 								     crypt.idx].
@@ -953,8 +949,6 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 					       8);
 					padapter->securitypriv.binstallGrpkey =
 						1;
-					/* DEBUG_ERR((" param->u.crypt.key_len"
-					   "=%d\n", param->u.crypt.key_len)); */
 					DBG_8723A
 					    (" ~~~~set sta key:groupkey\n");
 
