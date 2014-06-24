@@ -195,10 +195,6 @@ static match_table_t brattr = {
 	{0, NULL}
 };
 
-#define AuBrStr_LONGEST	AUFS_BRPERM_RW \
-	"+" AUFS_BRATTR_UNPIN \
-	"+" AUFS_BRWATTR_NLWH
-
 static int br_attr_val(char *str, match_table_t table, substring_t args[])
 {
 	int attr, v;
@@ -279,23 +275,22 @@ out:
 	return val;
 }
 
-/* Caller should free the return value */
-char *au_optstr_br_perm(int brperm)
+void au_optstr_br_perm(au_br_perm_str_t *str, int perm)
 {
-	char *p, a[sizeof(AuBrStr_LONGEST)];
+	char *p;
 	int sz;
 
-#define SetPerm(str) do {			\
-		sz = sizeof(str);		\
-		memcpy(a, str, sz);		\
-		p = a + sz - 1;			\
+#define SetPerm(s) do {				\
+		sz = sizeof(s);			\
+		memcpy(str->a, s, sz);		\
+		p = str->a + sz - 1;		\
 	} while (0)
 
-#define AppendAttr(flag, str) do {			\
+#define AppendAttr(flag, s) do {		\
 		if (brperm & flag) {		\
-			sz = sizeof(str);	\
+			sz = sizeof(s);		\
 			*p++ = '+';		\
-			memcpy(p, str, sz);	\
+			memcpy(p, s, sz);	\
 			p += sz - 1;		\
 		}				\
 	} while (0)
@@ -318,8 +313,7 @@ char *au_optstr_br_perm(int brperm)
 	AppendAttr(AuBrRAttr_WH, AUFS_BRRATTR_WH);
 	AppendAttr(AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH);
 
-	AuDebugOn(strlen(a) >= sizeof(a));
-	return kstrdup(a, GFP_NOFS);
+	AuDebugOn(strlen(str->a) >= sizeof(str->a));
 #undef SetPerm
 #undef AppendAttr
 }

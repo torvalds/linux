@@ -136,6 +136,14 @@ static inline struct super_block *au_br_sb(struct au_branch *br)
 
 #define AuBrAttr_UNPIN		(1 << 5)	/* rename-able top dir of
 						   branch */
+/* the longest combination */
+#define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
+			       "+" AUFS_BRATTR_UNPIN	\
+			       "+" AUFS_BRWATTR_NLWH)
+
+typedef struct {
+	char a[AuBrPermStrSz];
+} au_br_perm_str_t;
 
 static inline int au_br_writable(int brperm)
 {
