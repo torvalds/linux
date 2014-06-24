@@ -50,6 +50,7 @@
 #include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/io.h>
 #include "adf_cfg_common.h"
 
 #define PCI_VENDOR_ID_INTEL 0x8086

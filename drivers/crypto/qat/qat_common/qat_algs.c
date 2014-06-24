@@ -745,7 +745,7 @@ void qat_alg_callback(void *resp)
 {
 	struct icp_qat_fw_la_resp *qat_resp = resp;
 	struct qat_crypto_request *qat_req =
-			(void *)(dma_addr_t)qat_resp->opaque_data;
+				(void *)(__force long)qat_resp->opaque_data;
 	struct qat_alg_session_ctx *ctx = qat_req->ctx;
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct aead_request *areq = qat_req->areq;
@@ -779,7 +779,7 @@ static int qat_alg_dec(struct aead_request *areq)
 	*msg = ctx->dec_fw_req_tmpl;
 	qat_req->ctx = ctx;
 	qat_req->areq = areq;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(dma_addr_t)qat_req;
+	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
@@ -822,7 +822,7 @@ static int qat_alg_enc_internal(struct aead_request *areq, uint8_t *iv,
 	*msg = ctx->enc_fw_req_tmpl;
 	qat_req->ctx = ctx;
 	qat_req->areq = areq;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(dma_addr_t)qat_req;
+	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
