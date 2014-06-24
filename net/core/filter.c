@@ -1524,8 +1524,8 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 
 /**
  *	sk_unattached_filter_create - create an unattached filter
- *	@fprog: the filter program
  *	@pfp: the unattached filter that is created
+ *	@fprog: the filter program
  *
  * Create a filter independent of any socket. We first run some
  * sanity checks on it to make sure it does not explode on us later.
