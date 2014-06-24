@@ -1582,12 +1582,10 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_hcd *xhci;
 	struct xhci_container_ctx *in_ctx, *out_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_slot_ctx *slot_ctx;
-	unsigned int last_ctx;
 	unsigned int ep_index;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 drop_flag;
-	u32 new_add_flags, new_drop_flags, new_slot_info;
+	u32 new_add_flags, new_drop_flags;
 	int ret;
 
 	ret = xhci_check_args(hcd, udev, ep, 1, true, __func__);
@@ -1634,24 +1632,13 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	ctrl_ctx->add_flags &= cpu_to_le32(~drop_flag);
 	new_add_flags = le32_to_cpu(ctrl_ctx->add_flags);
 
-	last_ctx = xhci_last_valid_endpoint(le32_to_cpu(ctrl_ctx->add_flags));
-	slot_ctx = xhci_get_slot_ctx(xhci, in_ctx);
-	/* Update the last valid endpoint context, if we deleted the last one */
-	if ((le32_to_cpu(slot_ctx->dev_info) & LAST_CTX_MASK) >
-	    LAST_CTX(last_ctx)) {
-		slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
-		slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(last_ctx));
-	}
-	new_slot_info = le32_to_cpu(slot_ctx->dev_info);
-
 	xhci_endpoint_zero(xhci, xhci->devs[udev->slot_id], ep);
 
-	xhci_dbg(xhci, "drop ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
+	xhci_dbg(xhci, "drop ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
 			udev->slot_id,
 			(unsigned int) new_drop_flags,
-			(unsigned int) new_add_flags,
-			(unsigned int) new_slot_info);
+			(unsigned int) new_add_flags);
 	return 0;
 }
 
@@ -1674,11 +1661,9 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_hcd *xhci;
 	struct xhci_container_ctx *in_ctx, *out_ctx;
 	unsigned int ep_index;
-	struct xhci_slot_ctx *slot_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u32 added_ctxs;
-	unsigned int last_ctx;
-	u32 new_add_flags, new_drop_flags, new_slot_info;
+	u32 new_add_flags, new_drop_flags;
 	struct xhci_virt_device *virt_dev;
 	int ret = 0;
 
@@ -1693,7 +1678,6 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return -ENODEV;
 
 	added_ctxs = xhci_get_endpoint_flag(&ep->desc);
-	last_ctx = xhci_last_valid_endpoint(added_ctxs);
 	if (added_ctxs == SLOT_FLAG || added_ctxs == EP0_FLAG) {
 		/* FIXME when we have to issue an evaluate endpoint command to
 		 * deal with ep0 max packet size changing once we get the
@@ -1759,24 +1743,14 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 */
 	new_drop_flags = le32_to_cpu(ctrl_ctx->drop_flags);
 
-	slot_ctx = xhci_get_slot_ctx(xhci, in_ctx);
-	/* Update the last valid endpoint context, if we just added one past */
-	if ((le32_to_cpu(slot_ctx->dev_info) & LAST_CTX_MASK) <
-	    LAST_CTX(last_ctx)) {
-		slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
-		slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(last_ctx));
-	}
-	new_slot_info = le32_to_cpu(slot_ctx->dev_info);
-
 	/* Store the usb_device pointer for later use */
 	ep->hcpriv = udev;
 
-	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
+	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
 			udev->slot_id,
 			(unsigned int) new_drop_flags,
-			(unsigned int) new_add_flags,
-			(unsigned int) new_slot_info);
+			(unsigned int) new_add_flags);
 	return 0;
 }
 
@@ -2746,8 +2720,19 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		ret = 0;
 		goto command_cleanup;
 	}
-	xhci_dbg(xhci, "New Input Control Context:\n");
+	/* Fix up Context Entries field. Minimum value is EP0 == BIT(1). */
 	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->in_ctx);
+	for (i = 31; i >= 1; i--) {
+		__le32 le32 = cpu_to_le32(BIT(i));
+
+		if ((virt_dev->eps[i-1].ring && !(ctrl_ctx->drop_flags & le32))
+		    || (ctrl_ctx->add_flags & le32) || i == 1) {
+			slot_ctx->dev_info &= cpu_to_le32(~LAST_CTX_MASK);
+			slot_ctx->dev_info |= cpu_to_le32(LAST_CTX(i));
+			break;
+		}
+	}
+	xhci_dbg(xhci, "New Input Control Context:\n");
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx,
 		     LAST_CTX_TO_EP_NUM(le32_to_cpu(slot_ctx->dev_info)));
 
