@@ -386,11 +386,13 @@ start_transaction(struct btrfs_root *root, u64 num_items, unsigned int type,
 	bool reloc_reserved = false;
 	int ret;
 
+	/* Send isn't supposed to start transactions. */
+	ASSERT(current->journal_info != (void *)BTRFS_SEND_TRANS_STUB);
+
 	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return ERR_PTR(-EROFS);
 
-	if (current->journal_info &&
-	    current->journal_info != (void *)BTRFS_SEND_TRANS_STUB) {
+	if (current->journal_info) {
 		WARN_ON(type & TRANS_EXTWRITERS);
 		h = current->journal_info;
 		h->use_count++;
