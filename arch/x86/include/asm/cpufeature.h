@@ -315,7 +315,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define cpu_has_avx		boot_cpu_has(X86_FEATURE_AVX)
 #define cpu_has_avx2		boot_cpu_has(X86_FEATURE_AVX2)
 #define cpu_has_ht		boot_cpu_has(X86_FEATURE_HT)
-#define cpu_has_mp		boot_cpu_has(X86_FEATURE_MP)
 #define cpu_has_nx		boot_cpu_has(X86_FEATURE_NX)
 #define cpu_has_k6_mtrr		boot_cpu_has(X86_FEATURE_K6_MTRR)
 #define cpu_has_cyrix_arr	boot_cpu_has(X86_FEATURE_CYRIX_ARR)
@@ -361,9 +360,6 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 
 #undef  cpu_has_pae
 #define cpu_has_pae		___BUG___
-
-#undef  cpu_has_mp
-#define cpu_has_mp		1
 
 #undef  cpu_has_k6_mtrr
 #define cpu_has_k6_mtrr		0
