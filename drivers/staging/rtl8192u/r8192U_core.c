@@ -61,7 +61,6 @@ double __extendsfdf2(float a)
 #undef DUMP_TX
 #undef DEBUG_TX_DESC2
 #undef RX_DONT_PASS_UL
-#undef DEBUG_EPROM
 #undef DEBUG_RX_VERBOSE
 #undef DUMMY_RX
 #undef DEBUG_ZERO_RX
@@ -663,15 +662,6 @@ static void tx_timeout(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	schedule_work(&priv->reset_wq);
-}
-
-
-/* this is only for debug */
-void dump_eprom(struct net_device *dev)
-{
-	int i;
-	for (i = 0; i < 63; i++)
-		RT_TRACE(COMP_EPROM, "EEPROM addr %x : %x", i, eprom_read(dev, i));
 }
 
 void rtl8192_update_msr(struct net_device *dev)
@@ -2869,9 +2859,6 @@ static short rtl8192_init(struct net_device *dev)
 		return -ENOMEM;
 	}
 
-#ifdef DEBUG_EPROM
-	dump_eprom(dev);
-#endif
 	return 0;
 }
 
