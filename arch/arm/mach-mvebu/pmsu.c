@@ -258,7 +258,7 @@ static struct notifier_block armada_370_xp_cpu_pm_notifier = {
 	.notifier_call = armada_370_xp_cpu_pm_notify,
 };
 
-int __init armada_370_xp_cpu_pm_init(void)
+static int __init armada_370_xp_cpu_pm_init(void)
 {
 	struct device_node *np;
 
