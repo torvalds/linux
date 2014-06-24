@@ -276,13 +276,6 @@
 #define MAC_PFR				0x0008
 #define MAC_WTR				0x000c
 #define MAC_HTR0			0x0010
-#define MAC_HTR1			0x0014
-#define MAC_HTR2			0x0018
-#define MAC_HTR3			0x001c
-#define MAC_HTR4			0x0020
-#define MAC_HTR5			0x0024
-#define MAC_HTR6			0x0028
-#define MAC_HTR7			0x002c
 #define MAC_VLANTR			0x0050
 #define MAC_VLANHTR			0x0058
 #define MAC_VLANIR			0x0060
@@ -315,6 +308,7 @@
 
 #define MAC_QTFCR_INC			4
 #define MAC_MACA_INC			4
+#define MAC_HTR_INC			4
 
 /* MAC register entry bit positions and sizes */
 #define MAC_HWF0R_ADDMACADRSEL_INDEX	18
@@ -387,6 +381,8 @@
 #define MAC_MACA1HR_AE_WIDTH		1
 #define MAC_PFR_HMC_INDEX		2
 #define MAC_PFR_HMC_WIDTH		1
+#define MAC_PFR_HPF_INDEX		10
+#define MAC_PFR_HPF_WIDTH		1
 #define MAC_PFR_HUC_INDEX		1
 #define MAC_PFR_HUC_WIDTH		1
 #define MAC_PFR_PM_INDEX		4

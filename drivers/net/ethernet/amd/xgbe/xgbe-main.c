@@ -397,6 +397,8 @@ static int xgbe_probe(struct platform_device *pdev)
 	netdev->features |= netdev->hw_features;
 	pdata->netdev_features = netdev->features;
 
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+
 	xgbe_init_rx_coalesce(pdata);
 	xgbe_init_tx_coalesce(pdata);
 

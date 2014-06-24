@@ -191,6 +191,8 @@
 /* Flow control queue count */
 #define XGMAC_MAX_FLOW_CONTROL_QUEUES	8
 
+/* Maximum MAC address hash table size (256 bits = 8 bytes) */
+#define XGBE_MAC_HASH_TABLE_SIZE	8
 
 struct xgbe_prv_data;
 
@@ -387,7 +389,7 @@ struct xgbe_hw_if {
 
 	int (*set_promiscuous_mode)(struct xgbe_prv_data *, unsigned int);
 	int (*set_all_multicast_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*set_addn_mac_addrs)(struct xgbe_prv_data *, unsigned int);
+	int (*add_mac_addresses)(struct xgbe_prv_data *);
 	int (*set_mac_address)(struct xgbe_prv_data *, u8 *addr);
 
 	int (*enable_rx_csum)(struct xgbe_prv_data *);

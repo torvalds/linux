@@ -378,6 +378,21 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->pps_out_num  = XGMAC_GET_BITS(mac_hfr2, MAC_HWF2R, PPSOUTNUM);
 	hw_feat->aux_snap_num = XGMAC_GET_BITS(mac_hfr2, MAC_HWF2R, AUXSNAPNUM);
 
+	/* Translate the Hash Table size into actual number */
+	switch (hw_feat->hash_table_size) {
+	case 0:
+		break;
+	case 1:
+		hw_feat->hash_table_size = 64;
+		break;
+	case 2:
+		hw_feat->hash_table_size = 128;
+		break;
+	case 3:
+		hw_feat->hash_table_size = 256;
+		break;
+	}
+
 	/* The Queue and Channel counts are zero based so increment them
 	 * to get the actual number
 	 */
@@ -912,18 +927,10 @@ static void xgbe_set_rx_mode(struct net_device *netdev)
 	pr_mode = ((netdev->flags & IFF_PROMISC) != 0);
 	am_mode = ((netdev->flags & IFF_ALLMULTI) != 0);
 
-	if (netdev_uc_count(netdev) > pdata->hw_feat.addn_mac)
-		pr_mode = 1;
-	if (netdev_mc_count(netdev) > pdata->hw_feat.addn_mac)
-		am_mode = 1;
-	if ((netdev_uc_count(netdev) + netdev_mc_count(netdev)) >
-	     pdata->hw_feat.addn_mac)
-		pr_mode = 1;
-
 	hw_if->set_promiscuous_mode(pdata, pr_mode);
 	hw_if->set_all_multicast_mode(pdata, am_mode);
-	if (!pr_mode)
-		hw_if->set_addn_mac_addrs(pdata, am_mode);
+
+	hw_if->add_mac_addresses(pdata);
 
 	DBGPR("<--xgbe_set_rx_mode\n");
 }

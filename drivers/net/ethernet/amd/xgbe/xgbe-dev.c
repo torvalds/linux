@@ -117,6 +117,7 @@
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/bitrev.h>
+#include <linux/crc32.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -548,24 +549,16 @@ static int xgbe_set_all_multicast_mode(struct xgbe_prv_data *pdata,
 	return 0;
 }
 
-static int xgbe_set_addn_mac_addrs(struct xgbe_prv_data *pdata,
-				   unsigned int am_mode)
+static void xgbe_set_mac_reg(struct xgbe_prv_data *pdata,
+			     struct netdev_hw_addr *ha, unsigned int *mac_reg)
 {
-	struct netdev_hw_addr *ha;
-	unsigned int mac_reg;
 	unsigned int mac_addr_hi, mac_addr_lo;
 	u8 *mac_addr;
-	unsigned int i;
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, HUC, 0);
-	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, HMC, 0);
+	mac_addr_lo = 0;
+	mac_addr_hi = 0;
 
-	i = 0;
-	mac_reg = MAC_MACA1HR;
-
-	netdev_for_each_uc_addr(ha, pdata->netdev) {
-		mac_addr_lo = 0;
-		mac_addr_hi = 0;
+	if (ha) {
 		mac_addr = (u8 *)&mac_addr_lo;
 		mac_addr[0] = ha->addr[0];
 		mac_addr[1] = ha->addr[1];
@@ -575,53 +568,92 @@ static int xgbe_set_addn_mac_addrs(struct xgbe_prv_data *pdata,
 		mac_addr[0] = ha->addr[4];
 		mac_addr[1] = ha->addr[5];
 
-		DBGPR("  adding unicast address %pM at 0x%04x\n",
-		      ha->addr, mac_reg);
+		DBGPR("  adding mac address %pM at 0x%04x\n", ha->addr,
+		      *mac_reg);
 
 		XGMAC_SET_BITS(mac_addr_hi, MAC_MACA1HR, AE, 1);
-
-		XGMAC_IOWRITE(pdata, mac_reg, mac_addr_hi);
-		mac_reg += MAC_MACA_INC;
-		XGMAC_IOWRITE(pdata, mac_reg, mac_addr_lo);
-		mac_reg += MAC_MACA_INC;
-
-		i++;
 	}
 
-	if (!am_mode) {
-		netdev_for_each_mc_addr(ha, pdata->netdev) {
-			mac_addr_lo = 0;
-			mac_addr_hi = 0;
-			mac_addr = (u8 *)&mac_addr_lo;
-			mac_addr[0] = ha->addr[0];
-			mac_addr[1] = ha->addr[1];
-			mac_addr[2] = ha->addr[2];
-			mac_addr[3] = ha->addr[3];
-			mac_addr = (u8 *)&mac_addr_hi;
-			mac_addr[0] = ha->addr[4];
-			mac_addr[1] = ha->addr[5];
+	XGMAC_IOWRITE(pdata, *mac_reg, mac_addr_hi);
+	*mac_reg += MAC_MACA_INC;
+	XGMAC_IOWRITE(pdata, *mac_reg, mac_addr_lo);
+	*mac_reg += MAC_MACA_INC;
+}
 
-			DBGPR("  adding multicast address %pM at 0x%04x\n",
-			      ha->addr, mac_reg);
+static void xgbe_set_mac_addn_addrs(struct xgbe_prv_data *pdata)
+{
+	struct net_device *netdev = pdata->netdev;
+	struct netdev_hw_addr *ha;
+	unsigned int mac_reg;
+	unsigned int addn_macs;
 
-			XGMAC_SET_BITS(mac_addr_hi, MAC_MACA1HR, AE, 1);
+	mac_reg = MAC_MACA1HR;
+	addn_macs = pdata->hw_feat.addn_mac;
 
-			XGMAC_IOWRITE(pdata, mac_reg, mac_addr_hi);
-			mac_reg += MAC_MACA_INC;
-			XGMAC_IOWRITE(pdata, mac_reg, mac_addr_lo);
-			mac_reg += MAC_MACA_INC;
+	if (netdev_uc_count(netdev) > addn_macs) {
+		xgbe_set_promiscuous_mode(pdata, 1);
+	} else {
+		netdev_for_each_uc_addr(ha, netdev) {
+			xgbe_set_mac_reg(pdata, ha, &mac_reg);
+			addn_macs--;
+		}
 
-			i++;
+		if (netdev_mc_count(netdev) > addn_macs) {
+			xgbe_set_all_multicast_mode(pdata, 1);
+		} else {
+			netdev_for_each_mc_addr(ha, netdev) {
+				xgbe_set_mac_reg(pdata, ha, &mac_reg);
+				addn_macs--;
+			}
 		}
 	}
 
 	/* Clear remaining additional MAC address entries */
-	for (; i < pdata->hw_feat.addn_mac; i++) {
-		XGMAC_IOWRITE(pdata, mac_reg, 0);
-		mac_reg += MAC_MACA_INC;
-		XGMAC_IOWRITE(pdata, mac_reg, 0);
-		mac_reg += MAC_MACA_INC;
+	while (addn_macs--)
+		xgbe_set_mac_reg(pdata, NULL, &mac_reg);
+}
+
+static void xgbe_set_mac_hash_table(struct xgbe_prv_data *pdata)
+{
+	struct net_device *netdev = pdata->netdev;
+	struct netdev_hw_addr *ha;
+	unsigned int hash_reg;
+	unsigned int hash_table_shift, hash_table_count;
+	u32 hash_table[XGBE_MAC_HASH_TABLE_SIZE];
+	u32 crc;
+	unsigned int i;
+
+	hash_table_shift = 26 - (pdata->hw_feat.hash_table_size >> 7);
+	hash_table_count = pdata->hw_feat.hash_table_size / 32;
+	memset(hash_table, 0, sizeof(hash_table));
+
+	/* Build the MAC Hash Table register values */
+	netdev_for_each_uc_addr(ha, netdev) {
+		crc = bitrev32(~crc32_le(~0, ha->addr, ETH_ALEN));
+		crc >>= hash_table_shift;
+		hash_table[crc >> 5] |= (1 << (crc & 0x1f));
 	}
+
+	netdev_for_each_mc_addr(ha, netdev) {
+		crc = bitrev32(~crc32_le(~0, ha->addr, ETH_ALEN));
+		crc >>= hash_table_shift;
+		hash_table[crc >> 5] |= (1 << (crc & 0x1f));
+	}
+
+	/* Set the MAC Hash Table registers */
+	hash_reg = MAC_HTR0;
+	for (i = 0; i < hash_table_count; i++) {
+		XGMAC_IOWRITE(pdata, hash_reg, hash_table[i]);
+		hash_reg += MAC_HTR_INC;
+	}
+}
+
+static int xgbe_add_mac_addresses(struct xgbe_prv_data *pdata)
+{
+	if (pdata->hw_feat.hash_table_size)
+		xgbe_set_mac_hash_table(pdata);
+	else
+		xgbe_set_mac_addn_addrs(pdata);
 
 	return 0;
 }
@@ -1606,6 +1638,13 @@ static void xgbe_config_flow_control_threshold(struct xgbe_prv_data *pdata)
 static void xgbe_config_mac_address(struct xgbe_prv_data *pdata)
 {
 	xgbe_set_mac_address(pdata, pdata->netdev->dev_addr);
+
+	/* Filtering is done using perfect filtering and hash filtering */
+	if (pdata->hw_feat.hash_table_size) {
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, HPF, 1);
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, HUC, 1);
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, HMC, 1);
+	}
 }
 
 static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
@@ -2202,7 +2241,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 
 	hw_if->set_promiscuous_mode = xgbe_set_promiscuous_mode;
 	hw_if->set_all_multicast_mode = xgbe_set_all_multicast_mode;
-	hw_if->set_addn_mac_addrs = xgbe_set_addn_mac_addrs;
+	hw_if->add_mac_addresses = xgbe_add_mac_addresses;
 	hw_if->set_mac_address = xgbe_set_mac_address;
 
 	hw_if->enable_rx_csum = xgbe_enable_rx_csum;
