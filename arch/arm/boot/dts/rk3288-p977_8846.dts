@@ -505,8 +505,8 @@
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
-&lcdc1 {
+/*lcdc0 as PRMRY(LCD),lcdc1 as EXTEND(HDMI)*/
+&lcdc0 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
@@ -533,8 +533,9 @@
 	};
 };
 
-&lcdc0 {
+&lcdc1 {
 	status = "okay";
+	rockchip,mirror = <NO_MIRROR>;
 };
 
 &hdmi {

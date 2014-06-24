@@ -745,33 +745,30 @@
 		status = "disabled";
 	};
 
-	lcdc1: lcdc@ff940000 {
-		compatible = "rockchip,rk3288-lcdc";
-		rockchip,prop = <PRMRY>;
-		rochchip,pwr18 = <0>;
-		rockchip,iommu-enabled = <1>;
-		reg = <0xff940000 0x10000>;
-		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default", "gpio";
-		pinctrl-0 = <&lcdc0_lcdc>;
-		pinctrl-1 = <&lcdc0_gpio>;
-		status = "disabled";
-		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>, <&pd_vop1>;
-		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
-	};
-
 	lcdc0: lcdc@ff930000 {
 		compatible = "rockchip,rk3288-lcdc";
-		rockchip,prop = <EXTEND>;
+		rockchip,prop = <PRMRY>;
 		rockchip,pwr18 = <0>;
 		rockchip,iommu-enabled = <1>;
 		reg = <0xff930000 0x10000>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		//pinctrl-names = "default", "gpio";
-		//pinctrl-0 = <&lcdc0_lcdc>;
-		//pinctrl-1 = <&lcdc0_gpio>;
+		pinctrl-names = "default", "gpio";
+		pinctrl-0 = <&lcdc0_lcdc>;
+		pinctrl-1 = <&lcdc0_gpio>;
 		status = "disabled";
 		clocks = <&clk_gates15 5>, <&dclk_lcdc0>, <&clk_gates15 6>, <&pd_vop0>;
+		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
+	};
+
+	lcdc1: lcdc@ff940000 {
+		compatible = "rockchip,rk3288-lcdc";
+		rockchip,prop = <EXTEND>;
+		rochchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <1>;
+		reg = <0xff940000 0x10000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+		clocks = <&clk_gates15 7>, <&dclk_lcdc1>, <&clk_gates15 8>, <&pd_vop1>;
 		clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc";
 	};
 
