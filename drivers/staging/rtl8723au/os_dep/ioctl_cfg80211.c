@@ -500,6 +500,7 @@ static int set_wep_key(struct rtw_adapter *padapter, const u8 *key, u16 keylen,
 }
 
 static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
+					  int set_tx,
 					  struct ieee_param *param,
 					  u32 param_len,
 					  struct key_params *keyparms)
@@ -591,7 +592,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 	}
 
 	if (!psta) {	/*  group key */
-		if (param->u.crypt.set_tx == 0) {	/* group key */
+		if (set_tx == 0) {	/* group key */
 			if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 				DBG_8723A("%s, set group_key, WEP\n", __func__);
@@ -672,7 +673,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 	if (psecuritypriv->dot11AuthAlgrthm == dot11AuthAlgrthm_8021X && psta) {
 		/*  psk/802_1x */
-		if (param->u.crypt.set_tx == 1) {
+		if (set_tx == 1) {
 			/* pairwise key */
 			memcpy(psta->dot118021x_UncstKey.skey,
 			       keyparms->key, (key_len > 16 ? 16 : key_len));
@@ -791,6 +792,7 @@ exit:
 #endif
 
 static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
+				       int set_tx,
 				       struct ieee_param *param, u32 param_len,
 				       struct key_params *keyparms)
 {
@@ -890,10 +892,10 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 						dot11PrivacyAlgrthm;
 				}
 
-				if (param->u.crypt.set_tx == 1) {
+				if (set_tx == 1) {
 					/* pairwise key */
-					DBG_8723A("%s, : param->u.crypt.set_tx"
-						  " == 1\n", __func__);
+					DBG_8723A("%s, : set_tx == 1\n",
+						  __func__);
 
 					memcpy(psta->dot118021x_UncstKey.skey,
 					       keyparms->key,
@@ -977,7 +979,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	char *alg_name;
 	u32 param_len;
 	struct ieee_param *param;
-	int ret = 0;
+	int set_tx, ret = 0;
 	struct wireless_dev *rtw_wdev = wiphy_to_wdev(wiphy);
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1022,11 +1024,10 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 
-	if (!mac_addr || is_broadcast_ether_addr(mac_addr)) {
-		param->u.crypt.set_tx = 0;	/* for wpa/wpa2 group key */
-	} else {
-		param->u.crypt.set_tx = 1;	/* for wpa/wpa2 pairwise key */
-	}
+	if (!mac_addr || is_broadcast_ether_addr(mac_addr))
+		set_tx = 0;	/* for wpa/wpa2 group key */
+	else
+		set_tx = 1;	/* for wpa/wpa2 pairwise key */
 
 	/* param->u.crypt.idx = key_index - 1; */
 	param->u.crypt.idx = key_index;
@@ -1041,15 +1042,15 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		ret = rtw_cfg80211_set_encryption(ndev, key_index, param,
-						  param_len, params);
+		ret = rtw_cfg80211_set_encryption(ndev, key_index, set_tx,
+						  param, param_len, params);
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 #ifdef CONFIG_8723AU_AP_MODE
 		if (mac_addr)
 			ether_addr_copy(param->sta_addr, mac_addr);
 
-		ret = rtw_cfg80211_ap_set_encryption(ndev, key_index, param,
-						     param_len, params);
+		ret = rtw_cfg80211_ap_set_encryption(ndev, key_index, set_tx,
+						     param, param_len, params);
 #endif
 	} else {
 		DBG_8723A("error! fw_state = 0x%x, iftype =%d\n",
