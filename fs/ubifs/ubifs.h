@@ -314,7 +314,6 @@ struct ubifs_scan_node {
  * @nodes_cnt: number of nodes scanned
  * @nodes: list of struct ubifs_scan_node
  * @endpt: end point (and therefore the start of empty space)
- * @ecc: read returned -EBADMSG
  * @buf: buffer containing entire LEB scanned
  */
 struct ubifs_scan_leb {
@@ -322,7 +321,6 @@ struct ubifs_scan_leb {
 	int nodes_cnt;
 	struct list_head nodes;
 	int endpt;
-	int ecc;
 	void *buf;
 };
 

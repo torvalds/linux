@@ -157,9 +157,10 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 		return ERR_PTR(err);
 	}
 
-	if (err == -EBADMSG)
-		sleb->ecc = 1;
-
+	/*
+	 * Note, we ignore integrity errors (EBASMSG) because all the nodes are
+	 * protected by CRC checksums.
+	 */
 	return sleb;
 }
 
