@@ -1034,8 +1034,6 @@ static void StopTxBeacon(struct rtw_adapter *padapter)
 	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 1, 0x64);
 	pHalData->RegReg542 &= ~BIT(0);
 	rtl8723au_write8(padapter, REG_TBTT_PROHIBIT + 2, pHalData->RegReg542);
-
-	CheckFwRsvdPageContent23a(padapter); /*  2010.06.23. Added by tynli. */
 }
 
 static void _BeaconFunctionEnable(struct rtw_adapter *padapter, u8 Enable,
