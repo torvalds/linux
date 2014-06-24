@@ -53,7 +53,7 @@ struct usb_endpoint_descriptor_no_audio {
  * structure.  Any flags that are not recognised cause the whole block to be
  * rejected with -ENOSYS.
  *
- * Legacy descriptors format:
+ * Legacy descriptors format (deprecated as of 3.14):
  *
  * | off | name      | type         | description                          |
  * |-----+-----------+--------------+--------------------------------------|
