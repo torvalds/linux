@@ -56,27 +56,6 @@ double __extendsfdf2(float a)
 }
 #endif
 
-#undef DUMP_RX
-#undef DUMP_TX
-#undef DEBUG_TX_DESC2
-#undef RX_DONT_PASS_UL
-#undef DEBUG_RX_VERBOSE
-#undef DUMMY_RX
-#undef DEBUG_ZERO_RX
-#undef DEBUG_RX_SKB
-#undef DEBUG_TX_FRAG
-#undef DEBUG_RX_FRAG
-#undef DEBUG_TX_FILLDESC
-#undef DEBUG_TX
-#undef DEBUG_IRQ
-#undef DEBUG_RX
-#undef DEBUG_RXALLOC
-#undef DEBUG_REGISTERS
-#undef DEBUG_RING
-#undef DEBUG_IRQ_TASKLET
-#undef DEBUG_TX_ALLOC
-#undef DEBUG_TX_DESC
-
 #define CONFIG_RTL8192_IO_MAP
 
 #include <asm/uaccess.h>
