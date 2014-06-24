@@ -488,50 +488,6 @@ static struct uart_ops arc_serial_pops = {
 #endif
 };
 
-static int
-arc_uart_init_one(struct platform_device *pdev, int dev_id)
-{
-	struct device_node *np = pdev->dev.of_node;
-	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
-	struct uart_port *port = &uart->port;
-	u32 val;
-
-	if (of_property_read_u32(np, "clock-frequency", &val)) {
-		dev_err(&pdev->dev, "clock-frequency property NOTset\n");
-		return -EINVAL;
-	}
-	port->uartclk = val;
-
-	if (of_property_read_u32(np, "current-speed", &val)) {
-		dev_err(&pdev->dev, "current-speed property NOT set\n");
-		return -EINVAL;
-	}
-	uart->baud = val;
-
-	port->membase = of_iomap(np, 0);
-	if (!port->membase)
-		/* No point of dev_err since UART itself is hosed here */
-		return -ENXIO;
-
-	port->irq = irq_of_parse_and_map(np, 0);
-
-	port->dev = &pdev->dev;
-	port->iotype = UPIO_MEM;
-	port->flags = UPF_BOOT_AUTOCONF;
-	port->line = dev_id;
-	port->ops = &arc_serial_pops;
-
-	port->fifosize = ARC_UART_TX_FIFO_SIZE;
-
-	/*
-	 * uart_insert_char( ) uses it in decideding whether to ignore a
-	 * char or not. Explicitly setting it here, removes the subtelty
-	 */
-	port->ignore_status_mask = 0;
-
-	return 0;
-}
-
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 
 static int arc_serial_console_setup(struct console *co, char *options)
@@ -620,8 +576,11 @@ EARLYCON_DECLARE(arc_uart, arc_early_console_setup);
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
-	int rc, dev_id;
 	struct device_node *np = pdev->dev.of_node;
+	struct arc_uart_port *uart;
+	struct uart_port *port;
+	int dev_id;
+	u32 val;
 
 	/* no device tree device */
 	if (!np)
@@ -631,12 +590,43 @@ static int arc_serial_probe(struct platform_device *pdev)
 	if (dev_id < 0)
 		dev_id = 0;
 
-	rc = arc_uart_init_one(pdev, dev_id);
-	if (rc)
-		return rc;
+	uart = &arc_uart_ports[dev_id];
+	port = &uart->port;
 
-	rc = uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
-	return rc;
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
+		dev_err(&pdev->dev, "clock-frequency property NOTset\n");
+		return -EINVAL;
+	}
+	port->uartclk = val;
+
+	if (of_property_read_u32(np, "current-speed", &val)) {
+		dev_err(&pdev->dev, "current-speed property NOT set\n");
+		return -EINVAL;
+	}
+	uart->baud = val;
+
+	port->membase = of_iomap(np, 0);
+	if (!port->membase)
+		/* No point of dev_err since UART itself is hosed here */
+		return -ENXIO;
+
+	port->irq = irq_of_parse_and_map(np, 0);
+
+	port->dev = &pdev->dev;
+	port->iotype = UPIO_MEM;
+	port->flags = UPF_BOOT_AUTOCONF;
+	port->line = dev_id;
+	port->ops = &arc_serial_pops;
+
+	port->fifosize = ARC_UART_TX_FIFO_SIZE;
+
+	/*
+	 * uart_insert_char( ) uses it in decideding whether to ignore a
+	 * char or not. Explicitly setting it here, removes the subtelty
+	 */
+	port->ignore_status_mask = 0;
+
+	return uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
 }
 
 static int arc_serial_remove(struct platform_device *pdev)
