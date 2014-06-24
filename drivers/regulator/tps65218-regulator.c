@@ -127,7 +127,7 @@ static int tps65218_pmic_set_voltage_sel(struct regulator_dev *dev,
 static int tps65218_pmic_enable(struct regulator_dev *dev)
 {
 	struct tps65218 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
@@ -141,7 +141,7 @@ static int tps65218_pmic_enable(struct regulator_dev *dev)
 static int tps65218_pmic_disable(struct regulator_dev *dev)
 {
 	struct tps65218 *tps = rdev_get_drvdata(dev);
-	unsigned int rid = rdev_get_id(dev);
+	int rid = rdev_get_id(dev);
 
 	if (rid < TPS65218_DCDC_1 || rid > TPS65218_LDO_1)
 		return -EINVAL;
