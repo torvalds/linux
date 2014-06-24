@@ -165,12 +165,15 @@ static match_table_t options = {
 
 /* ---------------------------------------------------------------------- */
 
-static const char *au_parser_pattern(int val, struct match_token *token)
+static const char *au_parser_pattern(int val, match_table_t tbl)
 {
-	while (token->pattern) {
-		if (token->token == val)
-			return token->pattern;
-		token++;
+	struct match_token *p;
+
+	p = tbl;
+	while (p->pattern) {
+		if (p->token == val)
+			return p->pattern;
+		p++;
 	}
 	BUG();
 	return "??";
@@ -344,7 +347,7 @@ static int noinline_for_stack udba_val(char *str)
 
 const char *au_optstr_udba(int udba)
 {
-	return au_parser_pattern(udba, (void *)udbalevel);
+	return au_parser_pattern(udba, udbalevel);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -466,7 +469,7 @@ au_wbr_create_val(char *str, struct au_opt_wbr_create *create)
 
 const char *au_optstr_wbr_create(int wbr_create)
 {
-	return au_parser_pattern(wbr_create, (void *)au_wbr_create_policy);
+	return au_parser_pattern(wbr_create, au_wbr_create_policy);
 }
 
 static match_table_t au_wbr_copyup_policy = {
@@ -488,7 +491,7 @@ static int noinline_for_stack au_wbr_copyup_val(char *str)
 
 const char *au_optstr_wbr_copyup(int wbr_copyup)
 {
-	return au_parser_pattern(wbr_copyup, (void *)au_wbr_copyup_policy);
+	return au_parser_pattern(wbr_copyup, au_wbr_copyup_policy);
 }
 
 /* ---------------------------------------------------------------------- */
