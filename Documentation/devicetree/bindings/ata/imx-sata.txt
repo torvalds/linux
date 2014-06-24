@@ -13,6 +13,14 @@ Required properties:
   required entry in clock-names
 - clock-names : should include "sata", "sata_ref" and "ahb" entries
 
+Optional properties:
+- fsl,transmit-level-mV : transmit voltage level, in millivolts.
+- fsl,transmit-boost-mdB : transmit boost level, in milli-decibels
+- fsl,transmit-atten-16ths : transmit attenuation, in 16ths
+- fsl,receive-eq-mdB : receive equalisation, in milli-decibels
+  Please refer to the technical documentation or the driver source code
+  for the list of legal values for these options.
+
 Examples:
 
 sata@02200000 {
