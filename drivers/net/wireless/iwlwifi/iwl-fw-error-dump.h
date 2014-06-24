@@ -92,8 +92,8 @@ enum iwl_fw_error_dump_type {
 /**
  * struct iwl_fw_error_dump_data - data for one type
  * @type: %enum iwl_fw_error_dump_type
- * @len: the length starting from %data - must be a multiplier of 4.
- * @data: the data itself padded to be a multiplier of 4.
+ * @len: the length starting from %data
+ * @data: the data itself
  */
 struct iwl_fw_error_dump_data {
 	__le32 type;
