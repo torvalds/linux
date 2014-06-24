@@ -8,6 +8,7 @@
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
+#include <asm/smp.h>
 #include <asm/pci-direct.h>
 
 #ifdef CONFIG_X86_64
@@ -50,7 +51,6 @@ static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 	return wrmsr_safe_regs(gprs);
 }
 
-#ifdef CONFIG_X86_32
 /*
  *	B step AMD K6 before B 9730xxxx have hardware bugs that can cause
  *	misexecution of code under Linux. Owners of such processors should
@@ -70,6 +70,7 @@ __asm__(".globl vide\n\t.align 4\nvide: ret");
 
 static void init_amd_k5(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_32
 /*
  * General Systems BIOSen alias the cpu frequency registers
  * of the Elan at 0x000df000. Unfortuantly, one of the Linux
@@ -83,11 +84,12 @@ static void init_amd_k5(struct cpuinfo_x86 *c)
 		if (inl(CBAR) & CBAR_ENB)
 			outl(0 | CBAR_KEY, CBAR);
 	}
+#endif
 }
-
 
 static void init_amd_k6(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_32
 	u32 l, h;
 	int mbytes = get_num_physpages() >> (20-PAGE_SHIFT);
 
@@ -176,53 +178,12 @@ static void init_amd_k6(struct cpuinfo_x86 *c)
 		/* placeholder for any needed mods */
 		return;
 	}
-}
-
-static void amd_k7_smp_check(struct cpuinfo_x86 *c)
-{
-	/* calling is from identify_secondary_cpu() ? */
-	if (!c->cpu_index)
-		return;
-
-	/*
-	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
-	 */
-	/* Athlon 660/661 is valid. */
-	if ((c->x86_model == 6) && ((c->x86_mask == 0) ||
-	    (c->x86_mask == 1)))
-		return;
-
-	/* Duron 670 is valid */
-	if ((c->x86_model == 7) && (c->x86_mask == 0))
-		return;
-
-	/*
-	 * Athlon 662, Duron 671, and Athlon >model 7 have capability
-	 * bit. It's worth noting that the A5 stepping (662) of some
-	 * Athlon XP's have the MP bit set.
-	 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
-	 * more.
-	 */
-	if (((c->x86_model == 6) && (c->x86_mask >= 2)) ||
-	    ((c->x86_model == 7) && (c->x86_mask >= 1)) ||
-	     (c->x86_model > 7))
-		if (cpu_has_mp)
-			return;
-
-	/* If we get here, not a certified SMP capable AMD system. */
-
-	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
-	 * approved Athlon
-	 */
-	WARN_ONCE(1, "WARNING: This combination of AMD"
-		" processors is not suitable for SMP.\n");
-	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
+#endif
 }
 
 static void init_amd_k7(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_32
 	u32 l, h;
 
 	/*
@@ -255,9 +216,47 @@ static void init_amd_k7(struct cpuinfo_x86 *c)
 
 	set_cpu_cap(c, X86_FEATURE_K7);
 
-	amd_k7_smp_check(c);
-}
+	/* calling is from identify_secondary_cpu() ? */
+	if (!c->cpu_index)
+		return;
+
+	/*
+	 * Certain Athlons might work (for various values of 'work') in SMP
+	 * but they are not certified as MP capable.
+	 */
+	/* Athlon 660/661 is valid. */
+	if ((c->x86_model == 6) && ((c->x86_mask == 0) ||
+	    (c->x86_mask == 1)))
+		return;
+
+	/* Duron 670 is valid */
+	if ((c->x86_model == 7) && (c->x86_mask == 0))
+		return;
+
+	/*
+	 * Athlon 662, Duron 671, and Athlon >model 7 have capability
+	 * bit. It's worth noting that the A5 stepping (662) of some
+	 * Athlon XP's have the MP bit set.
+	 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
+	 * more.
+	 */
+	if (((c->x86_model == 6) && (c->x86_mask >= 2)) ||
+	    ((c->x86_model == 7) && (c->x86_mask >= 1)) ||
+	     (c->x86_model > 7))
+		if (cpu_has(c, X86_FEATURE_MP))
+			return;
+
+	/* If we get here, not a certified SMP capable AMD system. */
+
+	/*
+	 * Don't taint if we are running SMP kernel on a single non-MP
+	 * approved Athlon
+	 */
+	WARN_ONCE(1, "WARNING: This combination of AMD"
+		" processors is not suitable for SMP.\n");
+	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_NOW_UNRELIABLE);
 #endif
+}
 
 #ifdef CONFIG_NUMA
 /*
@@ -446,6 +445,26 @@ static void early_init_amd_mc(struct cpuinfo_x86 *c)
 
 static void bsp_init_amd(struct cpuinfo_x86 *c)
 {
+
+#ifdef CONFIG_X86_64
+	if (c->x86 >= 0xf) {
+		unsigned long long tseg;
+
+		/*
+		 * Split up direct mapping around the TSEG SMM area.
+		 * Don't do it for gbpages because there seems very little
+		 * benefit in doing so.
+		 */
+		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
+			unsigned long pfn = tseg >> PAGE_SHIFT;
+
+			printk(KERN_DEBUG "tseg: %010llx\n", tseg);
+			if (pfn_range_is_mapped(pfn, pfn + 1))
+				set_memory_4k((unsigned long)__va(tseg), 1);
+		}
+	}
+#endif
+
 	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
 
 		if (c->x86 > 0x10 ||
@@ -515,10 +534,100 @@ static const int amd_erratum_383[];
 static const int amd_erratum_400[];
 static bool cpu_has_amd_erratum(struct cpuinfo_x86 *cpu, const int *erratum);
 
+static void init_amd_k8(struct cpuinfo_x86 *c)
+{
+	u32 level;
+	u64 value;
+
+	/* On C+ stepping K8 rep microcode works well for copy/memset */
+	level = cpuid_eax(1);
+	if ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+
+	/*
+	 * Some BIOSes incorrectly force this feature, but only K8 revision D
+	 * (model = 0x14) and later actually support it.
+	 * (AMD Erratum #110, docId: 25759).
+	 */
+	if (c->x86_model < 0x14 && cpu_has(c, X86_FEATURE_LAHF_LM)) {
+		clear_cpu_cap(c, X86_FEATURE_LAHF_LM);
+		if (!rdmsrl_amd_safe(0xc001100d, &value)) {
+			value &= ~BIT_64(32);
+			wrmsrl_amd_safe(0xc001100d, value);
+		}
+	}
+
+	if (!c->x86_model_id[0])
+		strcpy(c->x86_model_id, "Hammer");
+}
+
+static void init_amd_gh(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+	/* do this for boot cpu */
+	if (c == &boot_cpu_data)
+		check_enable_amd_mmconf_dmi();
+
+	fam10h_check_enable_mmcfg();
+#endif
+
+	/*
+	 * Disable GART TLB Walk Errors on Fam10h. We do this here because this
+	 * is always needed when GART is enabled, even in a kernel which has no
+	 * MCE support built in. BIOS should disable GartTlbWlk Errors already.
+	 * If it doesn't, we do it here as suggested by the BKDG.
+	 *
+	 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
+	 */
+	msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
+
+	/*
+	 * On family 10h BIOS may not have properly enabled WC+ support, causing
+	 * it to be converted to CD memtype. This may result in performance
+	 * degradation for certain nested-paging guests. Prevent this conversion
+	 * by clearing bit 24 in MSR_AMD64_BU_CFG2.
+	 *
+	 * NOTE: we want to use the _safe accessors so as not to #GP kvm
+	 * guests on older kvm hosts.
+	 */
+	msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
+
+	if (cpu_has_amd_erratum(c, amd_erratum_383))
+		set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
+}
+
+static void init_amd_bd(struct cpuinfo_x86 *c)
+{
+	u64 value;
+
+	/* re-enable TopologyExtensions if switched off by BIOS */
+	if ((c->x86_model >= 0x10) && (c->x86_model <= 0x1f) &&
+	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
+
+		if (msr_set_bit(0xc0011005, 54) > 0) {
+			rdmsrl(0xc0011005, value);
+			if (value & BIT_64(54)) {
+				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
+				pr_info(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+			}
+		}
+	}
+
+	/*
+	 * The way access filter has a performance penalty on some workloads.
+	 * Disable it on the affected CPUs.
+	 */
+	if ((c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
+		if (!rdmsrl_safe(0xc0011021, &value) && !(value & 0x1E)) {
+			value |= 0x1E;
+			wrmsrl_safe(0xc0011021, value);
+		}
+	}
+}
+
 static void init_amd(struct cpuinfo_x86 *c)
 {
 	u32 dummy;
-	unsigned long long value;
 
 #ifdef CONFIG_SMP
 	/*
@@ -540,99 +649,28 @@ static void init_amd(struct cpuinfo_x86 *c)
 	 */
 	clear_cpu_cap(c, 0*32+31);
 
-#ifdef CONFIG_X86_64
-	/* On C+ stepping K8 rep microcode works well for copy/memset */
-	if (c->x86 == 0xf) {
-		u32 level;
-
-		level = cpuid_eax(1);
-		if ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58)
-			set_cpu_cap(c, X86_FEATURE_REP_GOOD);
-
-		/*
-		 * Some BIOSes incorrectly force this feature, but only K8
-		 * revision D (model = 0x14) and later actually support it.
-		 * (AMD Erratum #110, docId: 25759).
-		 */
-		if (c->x86_model < 0x14 && cpu_has(c, X86_FEATURE_LAHF_LM)) {
-			clear_cpu_cap(c, X86_FEATURE_LAHF_LM);
-			if (!rdmsrl_amd_safe(0xc001100d, &value)) {
-				value &= ~(1ULL << 32);
-				wrmsrl_amd_safe(0xc001100d, value);
-			}
-		}
-
-	}
 	if (c->x86 >= 0x10)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
 	/* get apicid instead of initial apic id from cpuid */
 	c->apicid = hard_smp_processor_id();
-#else
-
-	/*
-	 *	FIXME: We should handle the K5 here. Set up the write
-	 *	range and also turn on MSR 83 bits 4 and 31 (write alloc,
-	 *	no bus pipeline)
-	 */
-
-	switch (c->x86) {
-	case 4:
-		init_amd_k5(c);
-		break;
-	case 5:
-		init_amd_k6(c);
-		break;
-	case 6: /* An Athlon/Duron */
-		init_amd_k7(c);
-		break;
-	}
 
 	/* K6s reports MCEs but don't actually have all the MSRs */
 	if (c->x86 < 6)
 		clear_cpu_cap(c, X86_FEATURE_MCE);
-#endif
+
+	switch (c->x86) {
+	case 4:    init_amd_k5(c); break;
+	case 5:    init_amd_k6(c); break;
+	case 6:	   init_amd_k7(c); break;
+	case 0xf:  init_amd_k8(c); break;
+	case 0x10: init_amd_gh(c); break;
+	case 0x15: init_amd_bd(c); break;
+	}
 
 	/* Enable workaround for FXSAVE leak */
 	if (c->x86 >= 6)
 		set_cpu_bug(c, X86_BUG_FXSAVE_LEAK);
-
-	if (!c->x86_model_id[0]) {
-		switch (c->x86) {
-		case 0xf:
-			/* Should distinguish Models here, but this is only
-			   a fallback anyways. */
-			strcpy(c->x86_model_id, "Hammer");
-			break;
-		}
-	}
-
-	/* re-enable TopologyExtensions if switched off by BIOS */
-	if ((c->x86 == 0x15) &&
-	    (c->x86_model >= 0x10) && (c->x86_model <= 0x1f) &&
-	    !cpu_has(c, X86_FEATURE_TOPOEXT)) {
-
-		if (msr_set_bit(0xc0011005, 54) > 0) {
-			rdmsrl(0xc0011005, value);
-			if (value & BIT_64(54)) {
-				set_cpu_cap(c, X86_FEATURE_TOPOEXT);
-				pr_info(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
-			}
-		}
-	}
-
-	/*
-	 * The way access filter has a performance penalty on some workloads.
-	 * Disable it on the affected CPUs.
-	 */
-	if ((c->x86 == 0x15) &&
-	    (c->x86_model >= 0x02) && (c->x86_model < 0x20)) {
-
-		if (!rdmsrl_safe(0xc0011021, &value) && !(value & 0x1E)) {
-			value |= 0x1E;
-			wrmsrl_safe(0xc0011021, value);
-		}
-	}
 
 	cpu_detect_cache_sizes(c);
 
@@ -656,67 +694,12 @@ static void init_amd(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 	}
 
-#ifdef CONFIG_X86_64
-	if (c->x86 == 0x10) {
-		/* do this for boot cpu */
-		if (c == &boot_cpu_data)
-			check_enable_amd_mmconf_dmi();
-
-		fam10h_check_enable_mmcfg();
-	}
-
-	if (c == &boot_cpu_data && c->x86 >= 0xf) {
-		unsigned long long tseg;
-
-		/*
-		 * Split up direct mapping around the TSEG SMM area.
-		 * Don't do it for gbpages because there seems very little
-		 * benefit in doing so.
-		 */
-		if (!rdmsrl_safe(MSR_K8_TSEG_ADDR, &tseg)) {
-			unsigned long pfn = tseg >> PAGE_SHIFT;
-
-			printk(KERN_DEBUG "tseg: %010llx\n", tseg);
-			if (pfn_range_is_mapped(pfn, pfn + 1))
-				set_memory_4k((unsigned long)__va(tseg), 1);
-		}
-	}
-#endif
-
 	/*
 	 * Family 0x12 and above processors have APIC timer
 	 * running in deep C states.
 	 */
 	if (c->x86 > 0x11)
 		set_cpu_cap(c, X86_FEATURE_ARAT);
-
-	if (c->x86 == 0x10) {
-		/*
-		 * Disable GART TLB Walk Errors on Fam10h. We do this here
-		 * because this is always needed when GART is enabled, even in a
-		 * kernel which has no MCE support built in.
-		 * BIOS should disable GartTlbWlk Errors already. If
-		 * it doesn't, do it here as suggested by the BKDG.
-		 *
-		 * Fixes: https://bugzilla.kernel.org/show_bug.cgi?id=33012
-		 */
-		msr_set_bit(MSR_AMD64_MCx_MASK(4), 10);
-
-		/*
-		 * On family 10h BIOS may not have properly enabled WC+ support,
-		 * causing it to be converted to CD memtype. This may result in
-		 * performance degradation for certain nested-paging guests.
-		 * Prevent this conversion by clearing bit 24 in
-		 * MSR_AMD64_BU_CFG2.
-		 *
-		 * NOTE: we want to use the _safe accessors so as not to #GP kvm
-		 * guests on older kvm hosts.
-		 */
-		msr_clear_bit(MSR_AMD64_BU_CFG2, 24);
-
-		if (cpu_has_amd_erratum(c, amd_erratum_383))
-			set_cpu_bug(c, X86_BUG_AMD_TLB_MMATCH);
-	}
 
 	if (cpu_has_amd_erratum(c, amd_erratum_400))
 		set_cpu_bug(c, X86_BUG_AMD_APIC_C1E);
