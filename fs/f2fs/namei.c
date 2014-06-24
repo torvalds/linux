@@ -474,7 +474,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 
 put_out_dir:
-	f2fs_put_page(new_page, 1);
+	kunmap(new_page);
+	f2fs_put_page(new_page, 0);
 out_dir:
 	if (old_dir_entry) {
 		kunmap(old_dir_page);
