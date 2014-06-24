@@ -1327,7 +1327,6 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	u16 capab_info, listen_interval;
 	struct sta_info	*pstat;
 	unsigned char reassoc;
-	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01};
 	int i, wpa_ie_len, left;
 	unsigned char supportRate[16];
 	int supportRateNum;
@@ -1577,47 +1576,46 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 		for (;;) {
 			left = end - p;
-			p = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, p, left);
+			p = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+						    WLAN_OUI_TYPE_MICROSOFT_WMM,
+						    p, left);
 			if (p) {
-				if (!memcmp(p + 2, WMM_IE, 6)) {
-					pstat->flags |= WLAN_STA_WME;
+				pstat->flags |= WLAN_STA_WME;
 
-					pstat->qos_option = 1;
-					pstat->qos_info = *(p + 8);
+				pstat->qos_option = 1;
+				pstat->qos_info = *(p + 8);
 
-					pstat->max_sp_len =
-						(pstat->qos_info >> 5) & 0x3;
+				pstat->max_sp_len =
+					(pstat->qos_info >> 5) & 0x3;
 
-					if ((pstat->qos_info & 0xf) != 0xf)
-						pstat->has_legacy_ac = true;
+				if ((pstat->qos_info & 0xf) != 0xf)
+					pstat->has_legacy_ac = true;
+				else
+					pstat->has_legacy_ac = false;
+
+				if (pstat->qos_info & 0xf) {
+					if (pstat->qos_info & BIT(0))
+						pstat->uapsd_vo = BIT(0)|BIT(1);
 					else
-						pstat->has_legacy_ac = false;
+						pstat->uapsd_vo = 0;
 
-					if (pstat->qos_info & 0xf) {
-						if (pstat->qos_info & BIT(0))
-							pstat->uapsd_vo = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_vo = 0;
+					if (pstat->qos_info & BIT(1))
+						pstat->uapsd_vi = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_vi = 0;
 
-						if (pstat->qos_info & BIT(1))
-							pstat->uapsd_vi = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_vi = 0;
+					if (pstat->qos_info & BIT(2))
+						pstat->uapsd_bk = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_bk = 0;
 
-						if (pstat->qos_info & BIT(2))
-							pstat->uapsd_bk = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_bk = 0;
+					if (pstat->qos_info & BIT(3))
+						pstat->uapsd_be = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_be = 0;
 
-						if (pstat->qos_info & BIT(3))
-							pstat->uapsd_be = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_be = 0;
-
-					}
-
-					break;
 				}
+				break;
 			} else {
 				break;
 			}
