@@ -338,8 +338,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	t->callback = cb;
 	t->cb_data = cb_data;
 
-	/*
-	 * In some cases, USB Module of WiMax is blocked when data size is
+	/* In some cases, USB Module of WiMax is blocked when data size is
 	 * the multiple of 512. So, increment length by one in that case.
 	 */
 	if ((len % 512) == 0)
@@ -439,8 +438,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 				list_for_each_entry(t, &tx->sdu_list, list) {
 					usb_submit_urb(t->urb, GFP_ATOMIC);
 				}
-				/*
-				 * If free buffer for sdu tx doesn't
+				/* If free buffer for sdu tx doesn't
 				 * exist, then tx queue should not be
 				 * woken. For this reason, don't pass
 				 * the command, START_SDU_TX.

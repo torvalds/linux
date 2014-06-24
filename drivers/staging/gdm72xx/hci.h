@@ -112,13 +112,11 @@
 #define W_SCAN_ALL_SUBSCRIPTION		1
 #define W_SCAN_SPECIFIED_SUBSCRIPTION	2
 
-/*
- * TLV
+/* TLV
  *
  * [31:31] indicates the type is composite.
  * [30:16] is the length of the type. 0 length means length is variable.
  * [15:0] is the actual type.
- *
  */
 #define TLV_L(x)		(((x) >> 16) & 0xff)
 #define TLV_T(x)		((x) & 0xff)

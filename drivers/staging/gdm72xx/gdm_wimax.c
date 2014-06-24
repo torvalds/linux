@@ -581,8 +581,9 @@ static int gdm_wimax_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				return ret;
 		} else if (req->cmd == SIOCS_DATA) {
 			if (req->data_id == SIOC_DATA_FSM) {
-				/*NOTE: gdm_update_fsm should be called
-				before gdm_wimax_ioctl_set_data is called*/
+				/* NOTE: gdm_update_fsm should be called
+				 * before gdm_wimax_ioctl_set_data is called.
+				 */
 				gdm_update_fsm(dev,
 					       (struct fsm_s *)req->data.buf);
 			}
