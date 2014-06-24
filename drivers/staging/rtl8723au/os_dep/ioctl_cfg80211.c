@@ -577,13 +577,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 			psecuritypriv->ndisencryptstatus =
 				Ndis802_11Encryption1Enabled;
-			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
-			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
-
-			if (key_len == 13) {
-				psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
-				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
-			}
+			psecuritypriv->dot11PrivacyAlgrthm = keyparms->cipher;
+			psecuritypriv->dot118021XGrpPrivacy = keyparms->cipher;
 
 			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
 		}
@@ -596,7 +591,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 		set_wep_key(padapter, keyparms->key, key_len, wep_key_idx);
 
 		goto exit;
-
 	}
 
 	if (!psta) {	/*  group key */
@@ -610,12 +604,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				       skey, keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
-				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
-				if (key_len == 13) {
-					psecuritypriv->dot118021XGrpPrivacy =
-					    WLAN_CIPHER_SUITE_WEP104;
-				}
-
+				psecuritypriv->dot118021XGrpPrivacy =
+					keyparms->cipher;
 			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				DBG_8723A("%s, set group_key, TKIP\n",
 					  __func__);
@@ -698,12 +688,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				DBG_8723A("%s, set pairwise key, WEP\n",
 					  __func__);
 
-				psta->dot118021XPrivacy =
-					WLAN_CIPHER_SUITE_WEP40;
-				if (key_len == 13) {
-					psta->dot118021XPrivacy =
-						WLAN_CIPHER_SUITE_WEP104;
-				}
+				psecuritypriv->dot118021XGrpPrivacy =
+					keyparms->cipher;
 			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				DBG_8723A("%s, set pairwise key, TKIP\n",
 					  __func__);
@@ -748,11 +734,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				       (key_len > 16 ? 16 : key_len));
 
 				psecuritypriv->dot118021XGrpPrivacy =
-					WLAN_CIPHER_SUITE_WEP40;
-				if (key_len == 13) {
-					psecuritypriv->dot118021XGrpPrivacy =
-						WLAN_CIPHER_SUITE_WEP104;
-				}
+					keyparms->cipher;
 			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				psecuritypriv->dot118021XGrpPrivacy =
 					WLAN_CIPHER_SUITE_TKIP;
