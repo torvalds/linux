@@ -868,7 +868,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 		}
 
 		memcpy(&psecuritypriv->wep_key[wep_key_idx].key,
-		       param->u.crypt.key, key_len);
+		       keyparms->key, key_len);
 
 		psecuritypriv->wep_key[wep_key_idx].keylen = key_len;
 
@@ -910,19 +910,17 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 						  " == 1\n", __func__);
 
 					memcpy(psta->dot118021x_UncstKey.skey,
-					       param->u.crypt.key,
+					       keyparms->key,
 					       (key_len > 16 ? 16 : key_len));
 
 					if (keyparms->cipher ==
 					    WLAN_CIPHER_SUITE_TKIP) {
 						memcpy(psta->dot11tkiptxmickey.
 						       skey,
-						       &param->u.crypt.key[16],
-						       8);
+						       &keyparms->key[16], 8);
 						memcpy(psta->dot11tkiprxmickey.
 						       skey,
-						       &param->u.crypt.key[24],
-						       8);
+						       &keyparms->key[24], 8);
 
 						padapter->securitypriv.
 							busetkipkey = 0;
@@ -936,18 +934,16 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 					memcpy(padapter->securitypriv.
 					       dot118021XGrpKey[param->u.crypt.
 								idx].skey,
-					       param->u.crypt.key,
+					       keyparms->key,
 					       (key_len > 16 ? 16 : key_len));
 					memcpy(padapter->securitypriv.
 					       dot118021XGrptxmickey[param->u.
 								     crypt.idx].
-					       skey, &param->u.crypt.key[16],
-					       8);
+					       skey, &keyparms->key[16], 8);
 					memcpy(padapter->securitypriv.
 					       dot118021XGrprxmickey[param->u.
 								     crypt.idx].
-					       skey, &param->u.crypt.key[24],
-					       8);
+					       skey, &keyparms->key[24], 8);
 					padapter->securitypriv.binstallGrpkey =
 						1;
 					DBG_8723A
