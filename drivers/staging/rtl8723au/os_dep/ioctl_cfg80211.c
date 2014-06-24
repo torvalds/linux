@@ -2916,10 +2916,11 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 {
 	int ret = 0;
 	u8 *pbuf;
-	uint len, wps_ielen = 0;
+	uint len, ielen, wps_ielen = 0;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct wlan_bssid_ex *bss = &pmlmepriv->cur_network.network;
 	const struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)head;
+	struct ieee80211_mgmt *tmpmgmt;
 	/* struct sta_priv *pstapriv = &padapter->stapriv; */
 
 	DBG_8723A("%s beacon_head_len =%zu, beacon_tail_len =%zu\n",
@@ -2934,33 +2935,32 @@ static int rtw_add_beacon(struct rtw_adapter *adapter, const u8 *head,
 	pbuf = kzalloc(head_len + tail_len, GFP_KERNEL);
 	if (!pbuf)
 		return -ENOMEM;
+	tmpmgmt = (struct ieee80211_mgmt *)pbuf;
 
 	bss->beacon_interval = get_unaligned_le16(&mgmt->u.beacon.beacon_int);
 	bss->capability = get_unaligned_le16(&mgmt->u.beacon.capab_info);
 	bss->tsf = get_unaligned_le64(&mgmt->u.beacon.timestamp);
 
 	/*  24 = beacon header len. */
-	memcpy(pbuf, (void *)head + sizeof(struct ieee80211_hdr_3addr),
-	       head_len - sizeof(struct ieee80211_hdr_3addr));
-	memcpy(pbuf + head_len - sizeof(struct ieee80211_hdr_3addr),
-	       (void *)tail, tail_len);
+	memcpy(pbuf, (void *)head, head_len);
+	memcpy(pbuf + head_len, (void *)tail, tail_len);
 
-	len = head_len + tail_len - sizeof(struct ieee80211_hdr_3addr);
-
+	len = head_len + tail_len;
+	ielen = len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	/* check wps ie if inclued */
 	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 				    WLAN_OUI_TYPE_MICROSOFT_WPS,
-				    pbuf + _FIXED_IE_LENGTH_,
-				    len - _FIXED_IE_LENGTH_))
+				    tmpmgmt->u.beacon.variable, ielen))
 		DBG_8723A("add bcn, wps_ielen =%d\n", wps_ielen);
 
 	/* pbss_network->IEs will not include p2p_ie, wfd ie */
-	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_,
+	rtw_ies_remove_ie23a(tmpmgmt->u.beacon.variable, &ielen, 0,
 			     WLAN_EID_VENDOR_SPECIFIC, P2P_OUI23A, 4);
-	rtw_ies_remove_ie23a(pbuf, &len, _BEACON_IE_OFFSET_,
+	rtw_ies_remove_ie23a(tmpmgmt->u.beacon.variable, &ielen, 0,
 			     WLAN_EID_VENDOR_SPECIFIC, WFD_OUI23A, 4);
 
-	if (rtw_check_beacon_data23a(adapter, pbuf, len) == _SUCCESS) {
+	len = ielen + offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	if (rtw_check_beacon_data23a(adapter, tmpmgmt, len) == _SUCCESS) {
 		ret = 0;
 	} else {
 		ret = -EINVAL;

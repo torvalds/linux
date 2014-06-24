@@ -32,7 +32,8 @@ void update_beacon23a(struct rtw_adapter *padapter, u8 ie_id, u8 *oui, u8 tx);
 void add_RATid23a(struct rtw_adapter *padapter, struct sta_info *psta, u8 rssi_level);
 void expire_timeout_chk23a(struct rtw_adapter *padapter);
 void update_sta_info23a_apmode23a(struct rtw_adapter *padapter, struct sta_info *psta);
-int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf, unsigned int len);
+int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
+			     struct ieee80211_mgmt *mgmt, unsigned int len);
 void rtw_ap_restore_network(struct rtw_adapter *padapter);
 void rtw_set_macaddr_acl23a(struct rtw_adapter *padapter, int mode);
 int rtw_acl_add_sta23a(struct rtw_adapter *padapter, u8 *addr);

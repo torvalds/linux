@@ -789,8 +789,8 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	update_bmc_sta(padapter);
 }
 
-int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
-			     unsigned int len)
+int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
+			     struct ieee80211_mgmt *mgmt, unsigned int len)
 {
 	int ret = _SUCCESS;
 	u8 *p;
@@ -808,7 +808,9 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter, u8 *pbuf,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pbss_network = &pmlmepriv->cur_network.network;
 	u8 *ie = pbss_network->IEs;
-
+	u8 *pbuf = mgmt->u.beacon.variable - _FIXED_IE_LENGTH_;
+	len -= (offsetof(struct ieee80211_mgmt, u.beacon.variable) -
+		_FIXED_IE_LENGTH_);
 	/* SSID */
 	/* Supported rates */
 	/* DS Params */
