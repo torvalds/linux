@@ -802,7 +802,8 @@ exit:
 #endif
 
 static int rtw_cfg80211_set_encryption(struct net_device *dev,
-				       struct ieee_param *param, u32 param_len)
+				       struct ieee_param *param, u32 param_len,
+				       struct key_params *keyparms)
 {
 	int ret = 0;
 	u32 wep_key_idx;
@@ -1067,7 +1068,8 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
-		ret = rtw_cfg80211_set_encryption(ndev, param, param_len);
+		ret = rtw_cfg80211_set_encryption(ndev, param, param_len,
+						  params);
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 #ifdef CONFIG_8723AU_AP_MODE
 		if (mac_addr)
