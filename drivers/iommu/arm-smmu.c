@@ -1606,13 +1606,17 @@ static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 static int arm_smmu_domain_has_cap(struct iommu_domain *domain,
 				   unsigned long cap)
 {
-	unsigned long caps = 0;
 	struct arm_smmu_domain *smmu_domain = domain->priv;
+	u32 features = smmu_domain->root_cfg.smmu->features;
 
-	if (smmu_domain->root_cfg.smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
-		caps |= IOMMU_CAP_CACHE_COHERENCY;
-
-	return !!(cap & caps);
+	switch (cap) {
+	case IOMMU_CAP_CACHE_COHERENCY:
+		return features & ARM_SMMU_FEAT_COHERENT_WALK;
+	case IOMMU_CAP_INTR_REMAP:
+		return 1; /* MSIs are just memory writes */
+	default:
+		return 0;
+	}
 }
 
 static int __arm_smmu_get_pci_sid(struct pci_dev *pdev, u16 alias, void *data)
