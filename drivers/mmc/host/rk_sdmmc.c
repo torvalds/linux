@@ -1295,28 +1295,34 @@ static int dw_mci_get_ro(struct mmc_host *mmc)
 static int dw_mci_set_sdio_status(struct mmc_host *mmc, int val)
 {
         struct dw_mci_slot *slot = mmc_priv(mmc);
-        /*struct dw_mci_board *brd = slot->host->pdata;*/
-	struct dw_mci *host = slot->host;
+        struct dw_mci *host = slot->host;
+	/*struct dw_mci_board *brd = slot->host->pdata;*/
+
 	if (!(mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
                 return 0;
                 
         spin_lock_bh(&host->lock);
-        if(val){
+
+        if(val)
                 set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+        else
+                clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
+
+        spin_unlock_bh(&host->lock);
+
+        if(test_bit(DW_MMC_CARD_PRESENT, &slot->flags)){
                 if(__clk_is_enabled(host->hclk_mmc) == false)
                         clk_prepare_enable(host->hclk_mmc);
                 if(__clk_is_enabled(host->clk_mmc) == false)
                         clk_prepare_enable(host->clk_mmc);
         }else{
-                clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
                 if(__clk_is_enabled(host->clk_mmc) == true)
                         clk_disable_unprepare(slot->host->clk_mmc);
                 if(__clk_is_enabled(host->hclk_mmc) == true)
                         clk_disable_unprepare(slot->host->hclk_mmc);
         }
-        spin_unlock_bh(&host->lock);
-        mmc_detect_change(slot->mmc, 20);    
 
+        mmc_detect_change(slot->mmc, 20);
         return 0;
 }
 
