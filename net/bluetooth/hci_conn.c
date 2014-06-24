@@ -67,7 +67,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 	conn->state = BT_CONNECT;
 	conn->out = true;
 
-	conn->link_mode = HCI_LM_MASTER;
+	set_bit(HCI_CONN_MASTER, &conn->flags);
 
 	conn->attempt++;
 
@@ -743,7 +743,7 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	}
 
 	conn->out = true;
-	conn->link_mode |= HCI_LM_MASTER;
+	set_bit(HCI_CONN_MASTER, &conn->flags);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -865,7 +865,8 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 			return 0;
 	}
 
-	if (hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT))
+	if (hci_conn_ssp_enabled(conn) &&
+	    !test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 		return 0;
 
 	return 1;
@@ -881,7 +882,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	if (sec_level > conn->sec_level)
 		conn->pending_sec_level = sec_level;
-	else if (conn->link_mode & HCI_LM_AUTH)
+	else if (test_bit(HCI_CONN_AUTH, &conn->flags))
 		return 1;
 
 	/* Make sure we preserve an existing MITM requirement*/
@@ -899,7 +900,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		/* If we're already encrypted set the REAUTH_PEND flag,
 		 * otherwise set the ENCRYPT_PEND.
 		 */
-		if (conn->link_mode & HCI_LM_ENCRYPT)
+		if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 		else
 			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
@@ -940,7 +941,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		return 1;
 
 	/* For other security levels we need the link key. */
-	if (!(conn->link_mode & HCI_LM_AUTH))
+	if (!test_bit(HCI_CONN_AUTH, &conn->flags))
 		goto auth;
 
 	/* An authenticated FIPS approved combination key has sufficient
@@ -980,7 +981,7 @@ auth:
 		return 0;
 
 encrypt:
-	if (conn->link_mode & HCI_LM_ENCRYPT)
+	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
 		return 1;
 
 	hci_conn_encrypt(conn);
@@ -1027,7 +1028,7 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role)
 {
 	BT_DBG("hcon %p", conn);
 
-	if (!role && conn->link_mode & HCI_LM_MASTER)
+	if (!role && test_bit(HCI_CONN_MASTER, &conn->flags))
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_RSWITCH_PEND, &conn->flags)) {
@@ -1101,6 +1102,28 @@ void hci_conn_check_pending(struct hci_dev *hdev)
 	hci_dev_unlock(hdev);
 }
 
+static u32 get_link_mode(struct hci_conn *conn)
+{
+	u32 link_mode = 0;
+
+	if (test_bit(HCI_CONN_MASTER, &conn->flags))
+		link_mode |= HCI_LM_MASTER;
+
+	if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+		link_mode |= HCI_LM_ENCRYPT;
+
+	if (test_bit(HCI_CONN_AUTH, &conn->flags))
+		link_mode |= HCI_LM_AUTH;
+
+	if (test_bit(HCI_CONN_SECURE, &conn->flags))
+		link_mode |= HCI_LM_SECURE;
+
+	if (test_bit(HCI_CONN_FIPS, &conn->flags))
+		link_mode |= HCI_LM_FIPS;
+
+	return link_mode;
+}
+
 int hci_get_conn_list(void __user *arg)
 {
 	struct hci_conn *c;
@@ -1136,7 +1159,7 @@ int hci_get_conn_list(void __user *arg)
 		(ci + n)->type  = c->type;
 		(ci + n)->out   = c->out;
 		(ci + n)->state = c->state;
-		(ci + n)->link_mode = c->link_mode;
+		(ci + n)->link_mode = get_link_mode(c);
 		if (++n >= req.conn_num)
 			break;
 	}
@@ -1172,7 +1195,7 @@ int hci_get_conn_info(struct hci_dev *hdev, void __user *arg)
 		ci.type  = conn->type;
 		ci.out   = conn->out;
 		ci.state = conn->state;
-		ci.link_mode = conn->link_mode;
+		ci.link_mode = get_link_mode(conn);
 	}
 	hci_dev_unlock(hdev);
 

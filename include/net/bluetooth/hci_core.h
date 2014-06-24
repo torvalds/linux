@@ -367,7 +367,6 @@ struct hci_conn {
 	__u8		features[HCI_MAX_PAGES][8];
 	__u16		pkt_type;
 	__u16		link_policy;
-	__u32		link_mode;
 	__u8		key_type;
 	__u8		auth_type;
 	__u8		sec_level;
@@ -524,6 +523,11 @@ enum {
 	HCI_CONN_POWER_SAVE,
 	HCI_CONN_REMOTE_OOB,
 	HCI_CONN_FLUSH_KEY,
+	HCI_CONN_MASTER,
+	HCI_CONN_ENCRYPT,
+	HCI_CONN_AUTH,
+	HCI_CONN_SECURE,
+	HCI_CONN_FIPS,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
@@ -1025,7 +1029,7 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
-	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
+	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
 	l2cap_security_cfm(conn, status, encrypt);
 
 	if (conn->security_cfm_cb)
@@ -1066,7 +1070,7 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
-	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
+	encrypt = test_bit(HCI_CONN_ENCRYPT, &conn->flags) ? 0x01 : 0x00;
 
 	read_lock(&hci_cb_list_lock);
 	list_for_each_entry(cb, &hci_cb_list, list) {

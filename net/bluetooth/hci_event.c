@@ -103,9 +103,9 @@ static void hci_cc_role_discovery(struct hci_dev *hdev, struct sk_buff *skb)
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(rp->handle));
 	if (conn) {
 		if (rp->role)
-			conn->link_mode &= ~HCI_LM_MASTER;
+			clear_bit(HCI_CONN_MASTER, &conn->flags);
 		else
-			conn->link_mode |= HCI_LM_MASTER;
+			set_bit(HCI_CONN_MASTER, &conn->flags);
 	}
 
 	hci_dev_unlock(hdev);
@@ -1346,7 +1346,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr);
 			if (conn) {
 				conn->out = true;
-				conn->link_mode |= HCI_LM_MASTER;
+				set_bit(HCI_CONN_MASTER, &conn->flags);
 			} else
 				BT_ERR("No memory for new connection");
 		}
@@ -1989,10 +1989,10 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_add_sysfs(conn);
 
 		if (test_bit(HCI_AUTH, &hdev->flags))
-			conn->link_mode |= HCI_LM_AUTH;
+			set_bit(HCI_CONN_AUTH, &conn->flags);
 
 		if (test_bit(HCI_ENCRYPT, &hdev->flags))
-			conn->link_mode |= HCI_LM_ENCRYPT;
+			set_bit(HCI_CONN_ENCRYPT, &conn->flags);
 
 		/* Get remote features */
 		if (conn->type == ACL_LINK) {
@@ -2220,7 +2220,7 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		    test_bit(HCI_CONN_REAUTH_PEND, &conn->flags)) {
 			BT_INFO("re-auth of legacy device is not possible.");
 		} else {
-			conn->link_mode |= HCI_LM_AUTH;
+			set_bit(HCI_CONN_AUTH, &conn->flags);
 			conn->sec_level = conn->pending_sec_level;
 		}
 	} else {
@@ -2323,19 +2323,19 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!ev->status) {
 		if (ev->encrypt) {
 			/* Encryption implies authentication */
-			conn->link_mode |= HCI_LM_AUTH;
-			conn->link_mode |= HCI_LM_ENCRYPT;
+			set_bit(HCI_CONN_AUTH, &conn->flags);
+			set_bit(HCI_CONN_ENCRYPT, &conn->flags);
 			conn->sec_level = conn->pending_sec_level;
 
 			/* P-256 authentication key implies FIPS */
 			if (conn->key_type == HCI_LK_AUTH_COMBINATION_P256)
-				conn->link_mode |= HCI_LM_FIPS;
+				set_bit(HCI_CONN_FIPS, &conn->flags);
 
 			if ((conn->type == ACL_LINK && ev->encrypt == 0x02) ||
 			    conn->type == LE_LINK)
 				set_bit(HCI_CONN_AES_CCM, &conn->flags);
 		} else {
-			conn->link_mode &= ~HCI_LM_ENCRYPT;
+			clear_bit(HCI_CONN_ENCRYPT, &conn->flags);
 			clear_bit(HCI_CONN_AES_CCM, &conn->flags);
 		}
 	}
@@ -2386,7 +2386,7 @@ static void hci_change_link_key_complete_evt(struct hci_dev *hdev,
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		if (!ev->status)
-			conn->link_mode |= HCI_LM_SECURE;
+			set_bit(HCI_CONN_SECURE, &conn->flags);
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->flags);
 
@@ -2828,9 +2828,9 @@ static void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (conn) {
 		if (!ev->status) {
 			if (ev->role)
-				conn->link_mode &= ~HCI_LM_MASTER;
+				clear_bit(HCI_CONN_MASTER, &conn->flags);
 			else
-				conn->link_mode |= HCI_LM_MASTER;
+				set_bit(HCI_CONN_MASTER, &conn->flags);
 		}
 
 		clear_bit(HCI_CONN_RSWITCH_PEND, &conn->flags);
@@ -4007,7 +4007,7 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		if (ev->role == LE_CONN_ROLE_MASTER) {
 			conn->out = true;
-			conn->link_mode |= HCI_LM_MASTER;
+			set_bit(HCI_CONN_MASTER, &conn->flags);
 		}
 
 		/* If we didn't have a hci_conn object previously
