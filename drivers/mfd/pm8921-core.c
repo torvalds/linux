@@ -186,11 +186,9 @@ static void pm8xxx_irq_mask_ack(struct irq_data *d)
 {
 	struct pm_irq_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned int pmirq = irqd_to_hwirq(d);
-	int	irq_bit;
 	u8	block, config;
 
 	block = pmirq / 8;
-	irq_bit = pmirq % 8;
 
 	config = chip->config[pmirq] | PM_IRQF_MASK_ALL | PM_IRQF_CLR;
 	pm8xxx_config_irq(chip, block, config);
@@ -200,11 +198,9 @@ static void pm8xxx_irq_unmask(struct irq_data *d)
 {
 	struct pm_irq_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned int pmirq = irqd_to_hwirq(d);
-	int	irq_bit;
 	u8	block, config;
 
 	block = pmirq / 8;
-	irq_bit = pmirq % 8;
 
 	config = chip->config[pmirq];
 	pm8xxx_config_irq(chip, block, config);
