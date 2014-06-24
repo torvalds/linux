@@ -34,6 +34,11 @@
 #define CLK_MOUT_CORE		19
 #define CLK_MOUT_APLL		20
 #define CLK_SCLK_HDMIPHY	22
+#define CLK_OUT_DMC		23
+#define CLK_OUT_TOP		24
+#define CLK_OUT_LEFTBUS		25
+#define CLK_OUT_RIGHTBUS	26
+#define CLK_OUT_CPU		27
 
 /* gate for special clocks (sclk) */
 #define CLK_SCLK_FIMC0		128
