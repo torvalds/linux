@@ -20,6 +20,14 @@
 / {
 	interrupt-parent = <&gic>;
 
+	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+	};
+
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -115,6 +123,82 @@
 	grf: grf@20008000 {
 		compatible = "syscon";
 		reg = <0x20008000 0x200>;
+	};
+
+	i2c0: i2c@2002d000 {
+		compatible = "rockchip,rk3066-i2c";
+		reg = <0x2002d000 0x1000>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rockchip,grf = <&grf>;
+		rockchip,bus-index = <0>;
+
+		clock-names = "i2c";
+		clocks = <&cru PCLK_I2C0>;
+
+		status = "disabled";
+	};
+
+	i2c1: i2c@2002f000 {
+		compatible = "rockchip,rk3066-i2c";
+		reg = <0x2002f000 0x1000>;
+		interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rockchip,grf = <&grf>;
+
+		clocks = <&cru PCLK_I2C1>;
+		clock-names = "i2c";
+
+		status = "disabled";
+	};
+
+	i2c2: i2c@20056000 {
+		compatible = "rockchip,rk3066-i2c";
+		reg = <0x20056000 0x1000>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rockchip,grf = <&grf>;
+
+		clocks = <&cru PCLK_I2C2>;
+		clock-names = "i2c";
+
+		status = "disabled";
+	};
+
+	i2c3: i2c@2005a000 {
+		compatible = "rockchip,rk3066-i2c";
+		reg = <0x2005a000 0x1000>;
+		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rockchip,grf = <&grf>;
+
+		clocks = <&cru PCLK_I2C3>;
+		clock-names = "i2c";
+
+		status = "disabled";
+	};
+
+	i2c4: i2c@2005e000 {
+		compatible = "rockchip,rk3066-i2c";
+		reg = <0x2005e000 0x1000>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rockchip,grf = <&grf>;
+
+		clocks = <&cru PCLK_I2C4>;
+		clock-names = "i2c";
+
+		status = "disabled";
 	};
 
 	uart2: serial@20064000 {

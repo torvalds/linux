@@ -147,6 +147,41 @@
 			bias-disable;
 		};
 
+		i2c0 {
+			i2c0_xfer: i2c0-xfer {
+				rockchip,pins = <RK_GPIO1 24 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 25 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c1 {
+			i2c1_xfer: i2c1-xfer {
+				rockchip,pins = <RK_GPIO1 26 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 27 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c2 {
+			i2c2_xfer: i2c2-xfer {
+				rockchip,pins = <RK_GPIO1 28 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 29 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2c3 {
+			i2c3_xfer: i2c3-xfer {
+				rockchip,pins = <RK_GPIO3 14 RK_FUNC_2 &pcfg_pull_none>,
+						<RK_GPIO3 15 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		i2c4 {
+			i2c4_xfer: i2c4-xfer {
+				rockchip,pins = <RK_GPIO1 30 RK_FUNC_1 &pcfg_pull_none>,
+						<RK_GPIO1 31 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
 		uart0 {
 			uart0_xfer: uart0-xfer {
 				rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_up>,
@@ -270,6 +305,36 @@
 
 &local_timer {
 	interrupts = <GIC_PPI 13 0xf04>;
+};
+
+&i2c0 {
+	compatible = "rockchip,rk3188-i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_xfer>;
+};
+
+&i2c1 {
+	compatible = "rockchip,rk3188-i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_xfer>;
+};
+
+&i2c2 {
+	compatible = "rockchip,rk3188-i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_xfer>;
+};
+
+&i2c3 {
+	compatible = "rockchip,rk3188-i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_xfer>;
+};
+
+&i2c4 {
+	compatible = "rockchip,rk3188-i2c";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_xfer>;
 };
 
 &uart0 {
