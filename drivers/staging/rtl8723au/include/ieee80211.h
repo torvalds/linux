@@ -48,12 +48,6 @@
 
 #endif
 
-#define IEEE_CMD_SET_WPA_PARAM			1
-#define IEEE_CMD_SET_WPA_IE				2
-#define IEEE_CMD_SET_ENCRYPTION			3
-
-#define	IEEE_CRYPT_ALG_NAME_LEN			16
-
 #define WPA_CIPHER_NONE		BIT(0)
 #define WPA_CIPHER_WEP40	BIT(1)
 #define WPA_CIPHER_WEP104	BIT(2)
@@ -149,50 +143,6 @@ enum NETWORK_TYPE
 #define IsSupportedTxCCK(NetType) (NetType & (WIRELESS_11B) ? true : false)
 #define IsSupportedTxOFDM(NetType) (NetType & (WIRELESS_11G|WIRELESS_11A) ? true : false)
 #define IsSupportedTxMCS(NetType) (NetType & (WIRELESS_11_24N|WIRELESS_11_5N) ? true : false)
-
-
-struct ieee_param {
-	u32 cmd;
-	u8 sta_addr[ETH_ALEN];
-	union {
-		struct {
-			u8 name;
-			u32 value;
-		} wpa_param;
-		struct {
-			u32 len;
-			u8 reserved[32];
-			u8 data[0];
-		} wpa_ie;
-	        struct{
-			int command;
-			int reason_code;
-		} mlme;
-		struct {
-			u8 alg[IEEE_CRYPT_ALG_NAME_LEN];
-			u8 set_tx;
-			u32 err;
-			u8 idx;
-			u8 seq[8]; /* sequence counter (set: RX, get: TX) */
-			u16 key_len;
-			u8 key[0];
-		} crypt;
-#ifdef CONFIG_8723AU_AP_MODE
-		struct {
-			u16 aid;
-			u16 capability;
-			int flags;
-			u8 tx_supp_rates[16];
-			struct ieee80211_ht_cap ht_cap;
-		} add_sta;
-		struct {
-			u8	reserved[2];/* for set max_num_sta */
-			u8	buf[0];
-		} bcn_ie;
-#endif
-
-	} u;
-};
 
 
 #define MIN_FRAG_THRESHOLD     256U
