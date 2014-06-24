@@ -56,13 +56,7 @@
 
 #define MAX_LEDS 4
 
-static const u8 sixaxis_rdesc_fixup[] = {
-	0x95, 0x13, 0x09, 0x01, 0x81, 0x02, 0x95, 0x0C,
-	0x81, 0x01, 0x75, 0x10, 0x95, 0x04, 0x26, 0xFF,
-	0x03, 0x46, 0xFF, 0x03, 0x09, 0x01, 0x81, 0x02
-};
-
-static const u8 sixaxis_rdesc_fixup2[] = {
+static __u8 sixaxis_rdesc[] = {
 	0x05, 0x01, 0x09, 0x04, 0xa1, 0x01, 0xa1, 0x02,
 	0x85, 0x01, 0x75, 0x08, 0x95, 0x01, 0x15, 0x00,
 	0x26, 0xff, 0x00, 0x81, 0x03, 0x75, 0x01, 0x95,
@@ -778,6 +772,13 @@ struct sony_sc {
 	__u8 led_count;
 };
 
+static __u8 *sixaxis_fixup(struct hid_device *hdev, __u8 *rdesc,
+			     unsigned int *rsize)
+{
+	*rsize = sizeof(sixaxis_rdesc);
+	return sixaxis_rdesc;
+}
+
 static __u8 *ps3remote_fixup(struct hid_device *hdev, __u8 *rdesc,
 			     unsigned int *rsize)
 {
@@ -857,20 +858,8 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		*rsize = sizeof(dualshock4_bt_rdesc);
 	}
 
-	/* The HID descriptor exposed over BT has a trailing zero byte */
-	if ((((sc->quirks & SIXAXIS_CONTROLLER_USB) && *rsize == 148) ||
-			((sc->quirks & SIXAXIS_CONTROLLER_BT) && *rsize == 149)) &&
-			rdesc[83] == 0x75) {
-		hid_info(hdev, "Fixing up Sony Sixaxis report descriptor\n");
-		memcpy((void *)&rdesc[83], (void *)&sixaxis_rdesc_fixup,
-			sizeof(sixaxis_rdesc_fixup));
-	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB &&
-		   *rsize > sizeof(sixaxis_rdesc_fixup2)) {
-		hid_info(hdev, "Sony Sixaxis clone detected. Using original report descriptor (size: %d clone; %d new)\n",
-			 *rsize, (int)sizeof(sixaxis_rdesc_fixup2));
-		*rsize = sizeof(sixaxis_rdesc_fixup2);
-		memcpy(rdesc, &sixaxis_rdesc_fixup2, *rsize);
-	}
+	if (sc->quirks & SIXAXIS_CONTROLLER)
+		return sixaxis_fixup(hdev, rdesc, rsize);
 
 	if (sc->quirks & PS3REMOTE)
 		return ps3remote_fixup(hdev, rdesc, rsize);
