@@ -240,9 +240,9 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 	/* testing on r8a7790 shows that INDT does not show correct pin state
 	 * when configured as output, so use OUTDT in case of output pins */
 	if (gpio_rcar_read(gpio_to_priv(chip), INOUTSEL) & bit)
-		return (int)(gpio_rcar_read(gpio_to_priv(chip), OUTDT) & bit);
+		return !!(gpio_rcar_read(gpio_to_priv(chip), OUTDT) & bit);
 	else
-		return (int)(gpio_rcar_read(gpio_to_priv(chip), INDT) & bit);
+		return !!(gpio_rcar_read(gpio_to_priv(chip), INDT) & bit);
 }
 
 static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
