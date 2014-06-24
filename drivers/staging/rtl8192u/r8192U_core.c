@@ -715,14 +715,8 @@ static void rtl8192_rx_isr(struct urb *urb);
 static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 {
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	if (pstats->bisrxaggrsubframe)
-		return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
-			+ pstats->RxBufShift + 8);
-	else
-#endif
-		return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
-			+ pstats->RxBufShift);
+	return (sizeof(rx_desc_819x_usb) + pstats->RxDrvInfoSize
+		+ pstats->RxBufShift);
 
 }
 static int rtl8192_rx_initiate(struct net_device *dev)
@@ -2796,22 +2790,6 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 		for (i = 0; i < QOS_QUEUE_NUM; i++)
 			write_nic_dword(dev, WDCAPARA_ADD[i], DEFAULT_EDCA);
 	}
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	//3 For usb rx firmware aggregation control
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		u32 ulValue;
-		PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-		ulValue = (pHTInfo->UsbRxFwAggrEn<<24) | (pHTInfo->UsbRxFwAggrPageNum<<16) |
-			  (pHTInfo->UsbRxFwAggrPacketNum<<8) | (pHTInfo->UsbRxFwAggrTimeout);
-		/*
-		 * If usb rx firmware aggregation is enabled,
-		 * when anyone of three threshold conditions above is reached,
-		 * firmware will send aggregated packet to driver.
-		 */
-		write_nic_dword(dev, 0x1a8, ulValue);
-		priv->bCurrentRxAggrEnable = true;
-	}
-#endif
 
 	rtl8192_phy_configmac(dev);
 
@@ -4497,30 +4475,16 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	//
 	//Get Rx Descriptor Information
 	//
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	if (bIsRxAggrSubframe) {
-		rx_desc_819x_usb_aggr_subframe *desc = (rx_desc_819x_usb_aggr_subframe *)skb->data;
-		stats->Length = desc->Length;
-		stats->RxDrvInfoSize = desc->RxDrvInfoSize;
-		stats->RxBufShift = 0; //RxBufShift = 2 in RxDesc, but usb didn't shift bytes in fact.
-		stats->bICV = desc->ICV;
-		stats->bCRC = desc->CRC32;
-		stats->bHwError = stats->bCRC|stats->bICV;
-		stats->Decrypted = !desc->SWDec;//RTL8190 set this bit to indicate that Hw does not decrypt packet
-	} else
-#endif
-	{
-		rx_desc_819x_usb *desc = (rx_desc_819x_usb *)skb->data;
+	rx_desc_819x_usb *desc = (rx_desc_819x_usb *)skb->data;
 
-		stats->Length = desc->Length;
-		stats->RxDrvInfoSize = desc->RxDrvInfoSize;
-		stats->RxBufShift = 0;
-		stats->bICV = desc->ICV;
-		stats->bCRC = desc->CRC32;
-		stats->bHwError = stats->bCRC|stats->bICV;
-		//RTL8190 set this bit to indicate that Hw does not decrypt packet
-		stats->Decrypted = !desc->SWDec;
-	}
+	stats->Length = desc->Length;
+	stats->RxDrvInfoSize = desc->RxDrvInfoSize;
+	stats->RxBufShift = 0;
+	stats->bICV = desc->ICV;
+	stats->bCRC = desc->CRC32;
+	stats->bHwError = stats->bCRC|stats->bICV;
+	/* RTL8190 set this bit to indicate that Hw does not decrypt packet */
+	stats->Decrypted = !desc->SWDec;
 
 	if ((priv->ieee80211->pHTInfo->bCurrentHTSupport == true) && (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP))
 		stats->bHwError = false;
@@ -4585,11 +4549,6 @@ static void query_rxdesc_status(struct sk_buff *skb,
 		skb_pull(skb, stats->RxBufShift + stats->RxDrvInfoSize);
 	}
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	/* for the rx aggregated sub frame, the redundant space truly contained in the packet */
-	if (bIsRxAggrSubframe)
-		skb_pull(skb, 8);
-#endif
 	/* for debug 2008.5.29 */
 
 	//added by vivi, for MP, 20080108
@@ -4597,18 +4556,6 @@ static void query_rxdesc_status(struct sk_buff *skb,
 	if (stats->RxDrvInfoSize != 0)
 		TranslateRxSignalStuff819xUsb(skb, stats, driver_info);
 
-}
-
-u32 GetRxPacketShiftBytes819xUsb(struct ieee80211_rx_stats  *Status, bool bIsRxAggrSubframe)
-{
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	if (bIsRxAggrSubframe)
-		return (sizeof(rx_desc_819x_usb) + Status->RxDrvInfoSize
-			+ Status->RxBufShift + 8);
-	else
-#endif
-		return (sizeof(rx_desc_819x_usb) + Status->RxDrvInfoSize
-			+ Status->RxBufShift);
 }
 
 static void rtl8192_rx_nomal(struct sk_buff *skb)
@@ -4625,42 +4572,13 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 	u32 rx_pkt_len = 0;
 	struct ieee80211_hdr_1addr *ieee80211_hdr = NULL;
 	bool unicast_packet = false;
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	struct sk_buff *agg_skb = NULL;
-	u32  TotalLength = 0;
-	u32  TempDWord = 0;
-	u32  PacketLength = 0;
-	u32  PacketOccupiedLendth = 0;
-	u8   TempByte = 0;
-	u32  PacketShiftBytes = 0;
-	rx_desc_819x_usb_aggr_subframe *RxDescr = NULL;
-	u8  PaddingBytes = 0;
-	//add just for testing
-	u8   testing;
-
-#endif
 
 	/* 20 is for ps-poll */
 	if ((skb->len >= (20 + sizeof(rx_desc_819x_usb))) && (skb->len < RX_URB_SIZE)) {
-#ifdef USB_RX_AGGREGATION_SUPPORT
-		TempByte = *(skb->data + sizeof(rx_desc_819x_usb));
-#endif
 		/* first packet should not contain Rx aggregation header */
 		query_rxdesc_status(skb, &stats, false);
 		/* TODO */
 		/* hardware related info */
-#ifdef USB_RX_AGGREGATION_SUPPORT
-		if (TempByte & BIT0) {
-			agg_skb = skb;
-			TotalLength = stats.Length - 4; /*sCrcLng*/
-			/* though the head pointer has passed this position  */
-			TempDWord = *(u32 *)(agg_skb->data - 4);
-			PacketLength = (u16)(TempDWord & 0x3FFF); /*sCrcLng*/
-			skb = dev_alloc_skb(PacketLength);
-			memcpy(skb_put(skb, PacketLength), agg_skb->data, PacketLength);
-			PacketShiftBytes = GetRxPacketShiftBytes819xUsb(&stats, false);
-		}
-#endif
 		/* Process the MPDU received */
 		skb_trim(skb, skb->len - 4/*sCrcLng*/);
 
@@ -4683,76 +4601,6 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 			if (unicast_packet)
 				priv->stats.rxbytesunicast += rx_pkt_len;
 		}
-#ifdef USB_RX_AGGREGATION_SUPPORT
-		testing = 1;
-		if (TotalLength > 0) {
-			PacketOccupiedLendth = PacketLength + (PacketShiftBytes + 8);
-			if ((PacketOccupiedLendth & 0xFF) != 0)
-				PacketOccupiedLendth = (PacketOccupiedLendth & 0xFFFFFF00) + 256;
-			PacketOccupiedLendth -= 8;
-			TempDWord = PacketOccupiedLendth - PacketShiftBytes; /*- PacketLength */
-			if (agg_skb->len > TempDWord)
-				skb_pull(agg_skb, TempDWord);
-			else
-				agg_skb->len = 0;
-
-			while (agg_skb->len >= GetRxPacketShiftBytes819xUsb(&stats, true)) {
-				u8 tmpCRC = 0, tmpICV = 0;
-				RxDescr = (rx_desc_819x_usb_aggr_subframe *)(agg_skb->data);
-				tmpCRC = RxDescr->CRC32;
-				tmpICV = RxDescr->ICV;
-				memcpy(agg_skb->data, &agg_skb->data[44], 2);
-				RxDescr->CRC32 = tmpCRC;
-				RxDescr->ICV = tmpICV;
-
-				memset(&stats, 0, sizeof(struct ieee80211_rx_stats));
-				stats.signal = 0;
-				stats.noise = -98;
-				stats.rate = 0;
-				stats.freq = IEEE80211_24GHZ_BAND;
-				query_rxdesc_status(agg_skb, &stats, true);
-				PacketLength = stats.Length;
-
-				if (PacketLength > agg_skb->len)
-					break;
-				/* Process the MPDU received */
-				skb = dev_alloc_skb(PacketLength);
-				memcpy(skb_put(skb, PacketLength), agg_skb->data, PacketLength);
-				skb_trim(skb, skb->len - 4/*sCrcLng*/);
-
-				rx_pkt_len = skb->len;
-				ieee80211_hdr = (struct ieee80211_hdr_1addr *)skb->data;
-				unicast_packet = false;
-				if (is_broadcast_ether_addr(ieee80211_hdr->addr1)) {
-					//TODO
-				} else if (is_multicast_ether_addr(ieee80211_hdr->addr1)) {
-					//TODO
-				} else {
-					/* unicast packet */
-					unicast_packet = true;
-				}
-				if (!ieee80211_rx(priv->ieee80211, skb, &stats)) {
-					dev_kfree_skb_any(skb);
-				} else {
-					priv->stats.rxoktotal++;
-					if (unicast_packet)
-						priv->stats.rxbytesunicast += rx_pkt_len;
-				}
-				/* should trim the packet which has been copied to target skb */
-				skb_pull(agg_skb, PacketLength);
-				PacketShiftBytes = GetRxPacketShiftBytes819xUsb(&stats, true);
-				PacketOccupiedLendth = PacketLength + PacketShiftBytes;
-				if ((PacketOccupiedLendth & 0xFF) != 0) {
-					PaddingBytes = 256 - (PacketOccupiedLendth & 0xFF);
-					if (agg_skb->len > PaddingBytes)
-						skb_pull(agg_skb, PaddingBytes);
-					else
-						agg_skb->len = 0;
-				}
-			}
-			dev_kfree_skb(agg_skb);
-		}
-#endif
 	} else {
 		priv->stats.rxurberr++;
 		netdev_dbg(dev, "actual_length: %d\n", skb->len);
