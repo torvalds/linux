@@ -488,12 +488,12 @@ static void cxgb4_setpfccfg(struct net_device *dev, int priority, u8 pfccfg)
 		pcmd.op_to_portid |= cpu_to_be32(FW_PORT_CMD_APPLY);
 
 	pcmd.u.dcb.pfc.type = FW_PORT_DCB_TYPE_PFC;
-	pcmd.u.dcb.pfc.pfcen = cpu_to_be16(pi->dcb.pfcen);
+	pcmd.u.dcb.pfc.pfcen = pi->dcb.pfcen;
 
 	if (pfccfg)
-		pcmd.u.dcb.pfc.pfcen |= cpu_to_be16(1 << priority);
+		pcmd.u.dcb.pfc.pfcen |= (1 << priority);
 	else
-		pcmd.u.dcb.pfc.pfcen &= cpu_to_be16(~(1 << priority));
+		pcmd.u.dcb.pfc.pfcen &= (~(1 << priority));
 
 	err = t4_wr_mbox(adap, adap->mbox, &pcmd, sizeof(pcmd), &pcmd);
 	if (err != FW_PORT_DCB_CFG_SUCCESS) {
@@ -501,7 +501,7 @@ static void cxgb4_setpfccfg(struct net_device *dev, int priority, u8 pfccfg)
 		return;
 	}
 
-	pi->dcb.pfcen = be16_to_cpu(pcmd.u.dcb.pfc.pfcen);
+	pi->dcb.pfcen = pcmd.u.dcb.pfc.pfcen;
 }
 
 static u8 cxgb4_setall(struct net_device *dev)
