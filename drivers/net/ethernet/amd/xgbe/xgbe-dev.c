@@ -1541,6 +1541,10 @@ static void xgbe_config_checksum_offload(struct xgbe_prv_data *pdata)
 
 static void xgbe_config_vlan_support(struct xgbe_prv_data *pdata)
 {
+	/* Indicate that VLAN Tx CTAGs come from context descriptors */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANIR, CSVL, 0);
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANIR, VLTI, 1);
+
 	if (pdata->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		xgbe_enable_rx_vlan_stripping(pdata);
 	else
