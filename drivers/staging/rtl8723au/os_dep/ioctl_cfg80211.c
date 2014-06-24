@@ -501,8 +501,6 @@ static int set_wep_key(struct rtw_adapter *padapter, const u8 *key, u16 keylen,
 
 static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 					  int set_tx, const u8 *sta_addr,
-					  struct ieee_param *param,
-					  u32 param_len,
 					  struct key_params *keyparms)
 {
 	int ret = 0;
@@ -777,7 +775,6 @@ exit:
 
 static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 				       int set_tx, const u8 *sta_addr,
-				       struct ieee_param *param, u32 param_len,
 				       struct key_params *keyparms)
 {
 	int ret = 0;
@@ -953,8 +950,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 				u8 key_index, bool pairwise,
 				const u8 *mac_addr, struct key_params *params)
 {
-	u32 param_len;
-	struct ieee_param *param;
 	int set_tx, ret = 0;
 	struct wireless_dev *rtw_wdev = wiphy_to_wdev(wiphy);
 	struct rtw_adapter *padapter = wiphy_to_adapter(wiphy);
@@ -981,12 +976,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		goto exit;
 	}
 
-	param_len = sizeof(struct ieee_param) + params->key_len;
-	param = kzalloc(param_len, GFP_KERNEL);
-	if (!param)
-		return -ENOMEM;
-
-	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	eth_broadcast_addr(sta_addr);
 
 	if (!mac_addr || is_broadcast_ether_addr(mac_addr))
@@ -996,24 +985,20 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		ret = rtw_cfg80211_set_encryption(ndev, key_index, set_tx,
-						  sta_addr,
-						  param, param_len, params);
+						  sta_addr, params);
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 #ifdef CONFIG_8723AU_AP_MODE
 		if (mac_addr)
 			ether_addr_copy(sta_addr, mac_addr);
 
 		ret = rtw_cfg80211_ap_set_encryption(ndev, key_index, set_tx,
-						     sta_addr,
-						     param, param_len, params);
+						     sta_addr, params);
 #endif
 	} else {
 		DBG_8723A("error! fw_state = 0x%x, iftype =%d\n",
 			  pmlmepriv->fw_state, rtw_wdev->iftype);
 
 	}
-
-	kfree(param);
 
 exit:
 	return ret;
