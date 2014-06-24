@@ -103,6 +103,48 @@
 			compatible = "qcom,ssbi";
 			reg = <0x500000 0x1000>;
 			qcom,controller-type = "pmic-arbiter";
+
+			pmicintc: pmic@0 {
+				compatible = "qcom,pm8058";
+				interrupt-parent = <&msmgpio>;
+				interrupts = <88 8>;
+				#interrupt-cells = <2>;
+				interrupt-controller;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				pwrkey@1c {
+					compatible = "qcom,pm8058-pwrkey";
+					reg = <0x1c>;
+					interrupt-parent = <&pmicintc>;
+					interrupts = <50 1>, <51 1>;
+					debounce = <15625>;
+					pull-up;
+				};
+
+				keypad@148 {
+					compatible = "qcom,pm8058-keypad";
+					reg = <0x148>;
+					interrupt-parent = <&pmicintc>;
+					interrupts = <74 1>, <75 1>;
+					debounce = <15>;
+					scan-delay = <32>;
+					row-hold = <91500>;
+				};
+
+				rtc@11d {
+					compatible = "qcom,pm8058-rtc";
+					interrupt-parent = <&pmicintc>;
+					interrupts = <39 1>;
+					reg = <0x11d>;
+					allow-set-time;
+				};
+
+				vibrator@4a {
+					compatible = "qcom,pm8058-vib";
+					reg = <0x4a>;
+				};
+			};
 		};
 	};
 };

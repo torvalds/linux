@@ -1,3 +1,5 @@
+#include <dt-bindings/input/input.h>
+
 #include "qcom-msm8660.dtsi"
 
 / {
@@ -12,5 +14,33 @@
 				status = "ok";
 			};
 		};
+	};
+};
+
+&pmicintc {
+	keypad@148 {
+		linux,keymap = <
+			MATRIX_KEY(0, 0, KEY_FN_F1)
+			MATRIX_KEY(0, 1, KEY_UP)
+			MATRIX_KEY(0, 2, KEY_LEFT)
+			MATRIX_KEY(0, 3, KEY_VOLUMEUP)
+			MATRIX_KEY(1, 0, KEY_FN_F2)
+			MATRIX_KEY(1, 1, KEY_RIGHT)
+			MATRIX_KEY(1, 2, KEY_DOWN)
+			MATRIX_KEY(1, 3, KEY_VOLUMEDOWN)
+			MATRIX_KEY(2, 3, KEY_ENTER)
+			MATRIX_KEY(4, 0, KEY_CAMERA_FOCUS)
+			MATRIX_KEY(4, 1, KEY_UP)
+			MATRIX_KEY(4, 2, KEY_LEFT)
+			MATRIX_KEY(4, 3, KEY_HOME)
+			MATRIX_KEY(4, 4, KEY_FN_F3)
+			MATRIX_KEY(5, 0, KEY_CAMERA)
+			MATRIX_KEY(5, 1, KEY_RIGHT)
+			MATRIX_KEY(5, 2, KEY_DOWN)
+			MATRIX_KEY(5, 3, KEY_BACK)
+			MATRIX_KEY(5, 4, KEY_MENU)
+			>;
+		keypad,num-rows = <6>;
+		keypad,num-columns = <5>;
 	};
 };
