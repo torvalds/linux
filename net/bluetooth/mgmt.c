@@ -2426,6 +2426,12 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
+		/* Always ignore debug keys and require a new pairing if
+		 * the user wants to use them.
+		 */
+		if (key->type == HCI_LK_DEBUG_COMBINATION)
+			continue;
+
 		hci_add_link_key(hdev, NULL, &key->addr.bdaddr, key->val,
 				 key->type, key->pin_len, NULL);
 	}
