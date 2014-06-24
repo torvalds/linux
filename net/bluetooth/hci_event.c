@@ -3066,12 +3066,6 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s found key type %u for %pMR", hdev->name, key->type,
 	       &ev->bdaddr);
 
-	if (!test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags) &&
-	    key->type == HCI_LK_DEBUG_COMBINATION) {
-		BT_DBG("%s ignoring debug key", hdev->name);
-		goto not_found;
-	}
-
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (conn) {
 		if ((key->type == HCI_LK_UNAUTH_COMBINATION_P192 ||
@@ -3141,8 +3135,18 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	mgmt_new_link_key(hdev, key, persistent);
 
-	if (conn)
+	/* Keep debug keys around only if the HCI_KEEP_DEBUG_KEYS flag
+	 * is set. If it's not set simply remove the key from the kernel
+	 * list (we've still notified user space about it but with
+	 * store_hint being 0).
+	 */
+	if (key->type == HCI_LK_DEBUG_COMBINATION &&
+	    !test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags)) {
+		list_del(&key->list);
+		kfree(key);
+	} else if (conn) {
 		conn->flush_key = !persistent;
+	}
 
 unlock:
 	hci_dev_unlock(hdev);
