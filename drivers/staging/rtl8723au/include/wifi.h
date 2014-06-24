@@ -23,14 +23,6 @@
  */
 #define	WiFiNavUpperUs		30000	/*  30 ms */
 
-#define _ASOCREQ_IE_OFFSET_		4	/*  excluding wlan_hdr */
-#define	_ASOCRSP_IE_OFFSET_		6
-#define _REASOCREQ_IE_OFFSET_		10
-#define _REASOCRSP_IE_OFFSET_		6
-#define _PROBEREQ_IE_OFFSET_		0
-#define	_PROBERSP_IE_OFFSET_		12
-#define _AUTH_IE_OFFSET_		6
-#define _DEAUTH_IE_OFFSET_		0
 #define _BEACON_IE_OFFSET_		12
 
 #define _FIXED_IE_LENGTH_		_BEACON_IE_OFFSET_
