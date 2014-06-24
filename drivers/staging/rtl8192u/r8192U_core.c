@@ -1543,15 +1543,6 @@ u16 N_DBPSOfRate(u16 DataRate)
 	return N_DBPS;
 }
 
-unsigned int txqueue2outpipe(struct r8192_priv *priv, unsigned int tx_queue)
-{
-	if (tx_queue >= 9) {
-		RT_TRACE(COMP_ERR, "%s():Unknown queue ID!!!\n", __func__);
-		return 0x04;
-	}
-	return priv->txqueue_to_outpipemap[tx_queue];
-}
-
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1581,12 +1572,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 	//----------------------------------------------------------------------------
 	// Fill up USB_OUT_CONTEXT.
 	//----------------------------------------------------------------------------
-	// Get index to out pipe from specified QueueID.
-#ifndef USE_ONE_PIPE
-	idx_pipe = txqueue2outpipe(priv, queue_index);
-#else
 	idx_pipe = 0x04;
-#endif
 	usb_fill_bulk_urb(tx_urb, priv->udev, usb_sndbulkpipe(priv->udev, idx_pipe),
 			  skb->data, skb->len, rtl8192_tx_isr, skb);
 
@@ -1915,12 +1901,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 		//DWORD 2
 		tx_desc->TxBufferSize = (u32)(skb->len - USB_HWDESC_HEADER_LEN);
 	}
-	/* Get index to out pipe from specified QueueID */
-#ifndef USE_ONE_PIPE
-	idx_pipe = txqueue2outpipe(priv, tcb_desc->queue_index);
-#else
 	idx_pipe = 0x5;
-#endif
 
 	/* To submit bulk urb */
 	usb_fill_bulk_urb(tx_urb, udev,
