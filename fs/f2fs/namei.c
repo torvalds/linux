@@ -387,8 +387,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_old;
 	}
 
-	f2fs_lock_op(sbi);
-
 	if (new_inode) {
 
 		err = -ENOTEMPTY;
@@ -400,6 +398,8 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 						&new_page);
 		if (!new_entry)
 			goto out_dir;
+
+		f2fs_lock_op(sbi);
 
 		err = acquire_orphan_inode(sbi);
 		if (err)
@@ -429,9 +429,13 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		update_inode_page(old_inode);
 		update_inode_page(new_inode);
 	} else {
+		f2fs_lock_op(sbi);
+
 		err = f2fs_add_link(new_dentry, old_inode);
-		if (err)
+		if (err) {
+			f2fs_unlock_op(sbi);
 			goto out_dir;
+		}
 
 		if (old_dir_entry) {
 			inc_nlink(new_dir);
@@ -466,6 +470,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	return 0;
 
 put_out_dir:
+	f2fs_unlock_op(sbi);
 	kunmap(new_page);
 	f2fs_put_page(new_page, 0);
 out_dir:
@@ -473,7 +478,6 @@ out_dir:
 		kunmap(old_dir_page);
 		f2fs_put_page(old_dir_page, 0);
 	}
-	f2fs_unlock_op(sbi);
 out_old:
 	kunmap(old_page);
 	f2fs_put_page(old_page, 0);
