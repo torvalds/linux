@@ -38,19 +38,6 @@
 
 #define	EID_BSSIntolerantChlReport	73
 
-/* ---------------------------------------------------------------------------
-					Below is the fixed elements...
------------------------------------------------------------------------------*/
-#define _AUTH_ALGM_NUM_		2
-#define _AUTH_SEQ_NUM_		2
-#define _BEACON_ITERVAL_	2
-#define _CAPABILITY_		2
-#define _CURRENT_APADDR_	6
-#define _LISTEN_INTERVAL_	2
-#define _ASOC_ID_		2
-#define _STATUS_CODE_		2
-#define _TIMESTAMP_		8
-
 /*-----------------------------------------------------------------------------
 				Below is the definition for 802.11n
 ------------------------------------------------------------------------------*/
