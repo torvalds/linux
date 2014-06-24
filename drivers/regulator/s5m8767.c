@@ -686,7 +686,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	struct sec_platform_data *pdata = iodev->pdata;
 	struct regulator_config config = { };
 	struct s5m8767_info *s5m8767;
-	int i, ret, size, buck_init;
+	int i, ret, buck_init;
 
 	if (!pdata) {
 		dev_err(pdev->dev.parent, "Platform data not supplied\n");
@@ -724,8 +724,6 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!s5m8767)
 		return -ENOMEM;
-
-	size = sizeof(struct regulator_dev *) * (S5M8767_REG_MAX - 2);
 
 	s5m8767->dev = &pdev->dev;
 	s5m8767->iodev = iodev;
