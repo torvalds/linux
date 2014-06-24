@@ -855,7 +855,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 			} else {
 				/* Jeff: don't disable ieee8021x_blocked
 				   while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (keyparms->cipher != IW_AUTH_CIPHER_NONE &&
+				    keyparms->cipher != 0)
 					psta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus ==
@@ -922,7 +923,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 			if (pbcmc_sta) {
 				/* Jeff: don't disable ieee8021x_blocked
 				   while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (keyparms->cipher != IW_AUTH_CIPHER_NONE &&
+				    keyparms->cipher != 0)
 					pbcmc_sta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus ==
@@ -951,7 +953,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 				u8 key_index, bool pairwise,
 				const u8 *mac_addr, struct key_params *params)
 {
-	char *alg_name;
 	u32 param_len;
 	struct ieee_param *param;
 	int set_tx, ret = 0;
@@ -967,6 +968,18 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	DBG_8723A("key_index =%d\n", key_index);
 	DBG_8723A("pairwise =%d\n", pairwise);
 
+	switch (params->cipher) {
+	case IW_AUTH_CIPHER_NONE:
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+		break;
+	default:
+		ret = -ENOTSUPP;
+		goto exit;
+	}
+
 	param_len = sizeof(struct ieee_param) + params->key_len;
 	param = kzalloc(param_len, GFP_KERNEL);
 	if (!param)
@@ -974,30 +987,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	eth_broadcast_addr(param->sta_addr);
-
-	switch (params->cipher) {
-	case IW_AUTH_CIPHER_NONE:
-		/* todo: remove key */
-		/* remove = 1; */
-		alg_name = "none";
-		break;
-	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104:
-		alg_name = "WEP";
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		alg_name = "TKIP";
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		alg_name = "CCMP";
-		break;
-
-	default:
-		ret = -ENOTSUPP;
-		goto addkey_end;
-	}
-
-	strncpy((char *)param->u.crypt.alg, alg_name, IEEE_CRYPT_ALG_NAME_LEN);
 
 	if (!mac_addr || is_broadcast_ether_addr(mac_addr))
 		set_tx = 0;	/* for wpa/wpa2 group key */
@@ -1021,9 +1010,9 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	}
 
-addkey_end:
 	kfree(param);
 
+exit:
 	return ret;
 }
 
