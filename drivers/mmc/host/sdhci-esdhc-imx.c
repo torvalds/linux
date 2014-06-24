@@ -1232,6 +1232,8 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (err)
 		goto disable_clk;
 
+	device_set_wakeup_capable(&pdev->dev, 1);
+
 	err = sdhci_add_host(host);
 	if (err)
 		goto disable_clk;
