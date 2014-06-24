@@ -181,25 +181,24 @@ static int zero_clientid(clientid_t *clid)
 }
 
 /**
- * defer_free - mark an allocation as deferred freed
+ * svcxdr_tmpalloc - allocate memory to be freed after compound processing
  * @argp: NFSv4 compound argument structure
  * @p: pointer to be freed (with kfree())
  *
  * Marks @p to be freed when processing the compound operation
  * described in @argp finishes.
  */
-static int
-defer_free(struct nfsd4_compoundargs *argp, void *p)
+static void *
+svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, u32 len)
 {
-	struct tmpbuf *tb;
+	struct svcxdr_tmpbuf *tb;
 
-	tb = kmalloc(sizeof(*tb), GFP_KERNEL);
+	tb = kmalloc(sizeof(*tb) + len, GFP_KERNEL);
 	if (!tb)
-		return -ENOMEM;
-	tb->buf = p;
+		return NULL;
 	tb->next = argp->to_free;
 	argp->to_free = tb;
-	return 0;
+	return tb->buf;
 }
 
 /*
@@ -212,13 +211,12 @@ defer_free(struct nfsd4_compoundargs *argp, void *p)
 static char *
 svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
 {
-	char *p = kmalloc(len + 1, GFP_KERNEL);
+	char *p = svcxdr_tmpalloc(argp, len + 1);
 
 	if (!p)
 		return NULL;
 	memcpy(p, buf, len);
 	p[len] = '\0';
-	defer_free(argp, p);
 	return p;
 }
 
@@ -234,19 +232,13 @@ svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
  */
 static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 {
-	if (p == argp->tmp) {
-		p = kmemdup(argp->tmp, nbytes, GFP_KERNEL);
-		if (!p)
-			return NULL;
-	} else {
-		BUG_ON(p != argp->tmpp);
-		argp->tmpp = NULL;
-	}
-	if (defer_free(argp, p)) {
-		kfree(p);
+	void *ret;
+
+	ret = svcxdr_tmpalloc(argp, nbytes);
+	if (!ret)
 		return NULL;
-	} else
-		return (char *)p;
+	memcpy(ret, p, nbytes);
+	return ret;
 }
 
 static __be32
@@ -309,11 +301,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (nace > NFS4_ACL_MAX)
 			return nfserr_fbig;
 
-		*acl = kmalloc(nfs4_acl_bytes(nace), GFP_KERNEL);
+		*acl = svcxdr_tmpalloc(argp, nfs4_acl_bytes(nace));
 		if (*acl == NULL)
 			return nfserr_jukebox;
-
-		defer_free(argp, *acl);
 
 		(*acl)->naces = nace;
 		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
@@ -1487,13 +1477,12 @@ nfsd4_decode_test_stateid(struct nfsd4_compoundargs *argp, struct nfsd4_test_sta
 	INIT_LIST_HEAD(&test_stateid->ts_stateid_list);
 
 	for (i = 0; i < test_stateid->ts_num_ids; i++) {
-		stateid = kmalloc(sizeof(struct nfsd4_test_stateid_id), GFP_KERNEL);
+		stateid = svcxdr_tmpalloc(argp, sizeof(*stateid));
 		if (!stateid) {
 			status = nfserrno(-ENOMEM);
 			goto out;
 		}
 
-		defer_free(argp, stateid);
 		INIT_LIST_HEAD(&stateid->ts_id_list);
 		list_add_tail(&stateid->ts_id_list, &test_stateid->ts_stateid_list);
 
@@ -3977,9 +3966,8 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 	kfree(args->tmpp);
 	args->tmpp = NULL;
 	while (args->to_free) {
-		struct tmpbuf *tb = args->to_free;
+		struct svcxdr_tmpbuf *tb = args->to_free;
 		args->to_free = tb->next;
-		kfree(tb->buf);
 		kfree(tb);
 	}
 	return 1;

@@ -478,6 +478,14 @@ struct nfsd4_op {
 
 bool nfsd4_cache_this_op(struct nfsd4_op *);
 
+/*
+ * Memory needed just for the duration of processing one compound:
+ */
+struct svcxdr_tmpbuf {
+	struct svcxdr_tmpbuf *next;
+	char buf[];
+};
+
 struct nfsd4_compoundargs {
 	/* scratch variables for XDR decode */
 	__be32 *			p;
@@ -486,10 +494,7 @@ struct nfsd4_compoundargs {
 	int				pagelen;
 	__be32				tmp[8];
 	__be32 *			tmpp;
-	struct tmpbuf {
-		struct tmpbuf *next;
-		void *buf;
-	}				*to_free;
+	struct svcxdr_tmpbuf		*to_free;
 
 	struct svc_rqst			*rqstp;
 
