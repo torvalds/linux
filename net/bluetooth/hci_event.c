@@ -3066,7 +3066,7 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s found key type %u for %pMR", hdev->name, key->type,
 	       &ev->bdaddr);
 
-	if (!test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) &&
+	if (!test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags) &&
 	    key->type == HCI_LK_DEBUG_COMBINATION) {
 		BT_DBG("%s ignoring debug key", hdev->name);
 		goto not_found;

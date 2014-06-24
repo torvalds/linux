@@ -440,7 +440,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_SC_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_SECURE_CONN;
 
-	if (test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags))
+	if (test_bit(HCI_KEEP_DEBUG_KEYS, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DEBUG_KEYS;
 
 	if (test_bit(HCI_PRIVACY, &hdev->dev_flags))
@@ -2414,9 +2414,11 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_link_keys_clear(hdev);
 
 	if (cp->debug_keys)
-		changed = !test_and_set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_KEEP_DEBUG_KEYS,
+					    &hdev->dev_flags);
 	else
-		changed = test_and_clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_KEEP_DEBUG_KEYS,
+					     &hdev->dev_flags);
 
 	if (changed)
 		new_settings(hdev, NULL);
@@ -4349,9 +4351,11 @@ static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		changed = !test_and_set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = !test_and_set_bit(HCI_KEEP_DEBUG_KEYS,
+					    &hdev->dev_flags);
 	else
-		changed = test_and_clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
+		changed = test_and_clear_bit(HCI_KEEP_DEBUG_KEYS,
+					     &hdev->dev_flags);
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_DEBUG_KEYS, hdev);
 	if (err < 0)
