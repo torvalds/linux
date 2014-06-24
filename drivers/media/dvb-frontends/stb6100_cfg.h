@@ -27,7 +27,8 @@ static int stb6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	int err = 0;
 
 	if (tuner_ops->get_state) {
-		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
+		err = tuner_ops->get_state(fe, DVBFE_TUNER_FREQUENCY, &t_state);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
@@ -46,7 +47,8 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	t_state.frequency = frequency;
 
 	if (tuner_ops->set_state) {
-		if ((err = tuner_ops->set_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
+		err = tuner_ops->set_state(fe, DVBFE_TUNER_FREQUENCY, &t_state);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
@@ -62,7 +64,8 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	int err = 0;
 
 	if (tuner_ops->get_state) {
-		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state)) < 0) {
+		err = tuner_ops->get_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
@@ -81,7 +84,8 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	t_state.bandwidth = bandwidth;
 
 	if (tuner_ops->set_state) {
-		if ((err = tuner_ops->set_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state)) < 0) {
+		err = tuner_ops->set_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
