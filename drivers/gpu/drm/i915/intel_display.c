@@ -2087,6 +2087,7 @@ void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
 static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 					  enum plane plane, enum pipe pipe)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 	int reg;
@@ -2106,6 +2107,14 @@ static void intel_enable_primary_hw_plane(struct drm_i915_private *dev_priv,
 
 	I915_WRITE(reg, val | DISPLAY_PLANE_ENABLE);
 	intel_flush_primary_plane(dev_priv, plane);
+
+	/*
+	 * BDW signals flip done immediately if the plane
+	 * is disabled, even if the plane enable is already
+	 * armed to occur at the next vblank :(
+	 */
+	if (IS_BROADWELL(dev))
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
 /**

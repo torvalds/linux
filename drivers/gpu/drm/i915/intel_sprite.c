@@ -691,6 +691,14 @@ intel_post_enable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
 	/*
+	 * BDW signals flip done immediately if the plane
+	 * is disabled, even if the plane enable is already
+	 * armed to occur at the next vblank :(
+	 */
+	if (IS_BROADWELL(dev))
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	/*
 	 * FIXME IPS should be fine as long as one plane is
 	 * enabled, but in practice it seems to have problems
 	 * when going from primary only to sprite only and vice
