@@ -289,6 +289,19 @@ static void __naked exynos_pm_power_up_setup(unsigned int affinity_level)
 	"b	cci_enable_port_for_self");
 }
 
+static void __init exynos_cache_off(void)
+{
+	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+		/* disable L2 prefetching on the Cortex-A15 */
+		asm volatile(
+		"mcr	p15, 1, %0, c15, c0, 3\n\t"
+		"isb\n\t"
+		"dsb"
+		: : "r" (0x400));
+	}
+	exynos_v7_exit_coherency_flush(all);
+}
+
 static const struct of_device_id exynos_dt_mcpm_match[] = {
 	{ .compatible = "samsung,exynos5420" },
 	{ .compatible = "samsung,exynos5800" },
@@ -332,6 +345,8 @@ static int __init exynos_mcpm_init(void)
 	ret = mcpm_platform_register(&exynos_power_ops);
 	if (!ret)
 		ret = mcpm_sync_init(exynos_pm_power_up_setup);
+	if (!ret)
+		ret = mcpm_loopback(exynos_cache_off); /* turn on the CCI */
 	if (ret) {
 		iounmap(ns_sram_base_addr);
 		return ret;
