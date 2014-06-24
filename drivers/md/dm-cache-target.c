@@ -1720,6 +1720,7 @@ static void do_worker(struct work_struct *ws)
 
 		if (commit_if_needed(cache)) {
 			process_deferred_flush_bios(cache, false);
+			process_migrations(cache, &cache->need_commit_migrations, migration_failure);
 
 			/*
 			 * FIXME: rollback metadata or just go into a
