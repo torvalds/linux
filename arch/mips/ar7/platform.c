@@ -307,10 +307,7 @@ static void __init cpmac_get_mac(int instance, unsigned char *dev_addr)
 	}
 
 	if (mac) {
-		if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-					&dev_addr[0], &dev_addr[1],
-					&dev_addr[2], &dev_addr[3],
-					&dev_addr[4], &dev_addr[5]) != 6) {
+		if (!mac_pton(mac, dev_addr)) {
 			pr_warn("cannot parse mac address, using random address\n");
 			eth_random_addr(dev_addr);
 		}
