@@ -471,14 +471,14 @@ static void arc_serial_config_port(struct uart_port *port, int flags)
 
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_ARC_CONSOLE)
 
-static void arc_serial_poll_putchar(struct uart_port *port, unsigned char chr)
+static void arc_serial_poll_putchar(struct uart_port *port, int chr)
 {
 	struct arc_uart_port *uart = to_arc_port(port);
 
 	while (!(UART_GET_STATUS(uart) & TXEMPTY))
 		cpu_relax();
 
-	UART_SET_DATA(uart, chr);
+	UART_SET_DATA(uart, (unsigned char)chr);
 }
 #endif
 
@@ -614,11 +614,6 @@ static int arc_serial_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static void arc_serial_console_putchar(struct uart_port *port, int ch)
-{
-	arc_serial_poll_putchar(port, (unsigned char)ch);
-}
-
 /*
  * Interrupts are disabled on entering
  */
@@ -629,7 +624,7 @@ static void arc_serial_console_write(struct console *co, const char *s,
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	uart_console_write(port, s, count, arc_serial_console_putchar);
+	uart_console_write(port, s, count, arc_serial_poll_putchar);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -647,13 +642,8 @@ static __init void early_serial_write(struct console *con, const char *s,
 					unsigned int n)
 {
 	struct uart_port *port = &arc_uart_ports[con->index].port;
-	unsigned int i;
 
-	for (i = 0; i < n; i++, s++) {
-		if (*s == '\n')
-			arc_serial_poll_putchar(port, '\r');
-		arc_serial_poll_putchar(port, *s);
-	}
+	uart_console_write(port, s, n, arc_serial_poll_putchar);
 }
 
 static struct console arc_early_serial_console __initdata = {
