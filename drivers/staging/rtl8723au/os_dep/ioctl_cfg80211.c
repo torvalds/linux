@@ -512,23 +512,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 	DBG_8723A("%s\n", __func__);
 
-	if (is_broadcast_ether_addr(sta_addr)) {
-		if (key_index >= WEP_KEYS) {
-			ret = -EINVAL;
-			goto exit;
-		}
-		switch (keyparms->cipher) {
-		case WLAN_CIPHER_SUITE_WEP40:
-		case WLAN_CIPHER_SUITE_WEP104:
-		case WLAN_CIPHER_SUITE_TKIP:
-		case WLAN_CIPHER_SUITE_CCMP:
-			break;
-		default:
-			ret = -EINVAL;
-			goto exit;
-		}
-
-	} else {
+	if (!is_broadcast_ether_addr(sta_addr)) {
 		psta = rtw_get_stainfo23a(pstapriv, sta_addr);
 		if (!psta) {
 			/* ret = -EINVAL; */
@@ -546,15 +530,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 		DBG_8723A("r871x_set_encryption, wep_key_idx =%d, len =%d\n",
 			  key_index, key_len);
-
-		if (key_index >= WEP_KEYS || key_len <= 0) {
-			ret = -EINVAL;
-			goto exit;
-		}
-
-		if (key_len > 0) {
-			key_len = key_len <= 5 ? 5 : 13;
-		}
 
 		if (psecuritypriv->bWepDefaultKeyIdxSet == 0) {
 			/* wep default key has not been set, so use
@@ -586,8 +561,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       keyparms->key, key_len);
 
 				psecuritypriv->dot118021XGrpPrivacy =
 					keyparms->cipher;
@@ -628,8 +602,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				DBG_8723A("%s, set group_key, none\n",
 					  __func__);
 
-				psecuritypriv->dot118021XGrpPrivacy =
-				    0;
+				psecuritypriv->dot118021XGrpPrivacy = 0;
 			}
 
 			psecuritypriv->dot118021XGrpKeyid = key_index;
@@ -709,8 +682,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       keyparms->key,
-				       (key_len > 16 ? 16 : key_len));
+				       keyparms->key, key_len);
 
 				psecuritypriv->dot118021XGrpPrivacy =
 					keyparms->cipher;
@@ -732,7 +704,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				       &keyparms->key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
-
 			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_CCMP) {
 				psecuritypriv->dot118021XGrpPrivacy =
 					WLAN_CIPHER_SUITE_CCMP;
@@ -787,42 +758,20 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 
 	key_len = keyparms->key_len;
 
-	if (is_broadcast_ether_addr(sta_addr)) {
-		if (key_index >= WEP_KEYS) {
-			ret = -EINVAL;
-			goto exit;
-		}
-	} else {
-		ret = -EINVAL;
-		goto exit;
-	}
-
 	if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
 			 ("wpa_set_encryption, crypt.alg = WEP\n"));
 		DBG_8723A("wpa_set_encryption, crypt.alg = WEP\n");
 
-		if (key_index > WEP_KEYS || key_len <= 0) {
-			ret = -EINVAL;
-			goto exit;
-		}
-
 		if (psecuritypriv->bWepDefaultKeyIdxSet == 0) {
 			/* wep default key has not been set, so use this
 			   key index as default key. */
 
-			key_len = key_len <= 5 ? 5 : 13;
-
 			psecuritypriv->ndisencryptstatus =
 				Ndis802_11Encryption1Enabled;
-			psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP40;
-			psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP40;
-
-			if (key_len == 13) {
-				psecuritypriv->dot11PrivacyAlgrthm = WLAN_CIPHER_SUITE_WEP104;
-				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_WEP104;
-			}
+			psecuritypriv->dot11PrivacyAlgrthm = keyparms->cipher;
+			psecuritypriv->dot118021XGrpPrivacy = keyparms->cipher;
 
 			psecuritypriv->dot11PrivacyKeyIndex = key_index;
 		}
@@ -967,12 +916,25 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	switch (params->cipher) {
 	case IW_AUTH_CIPHER_NONE:
 	case WLAN_CIPHER_SUITE_WEP40:
+		if (params->key_len != WLAN_KEY_LEN_WEP40) {
+			ret = -EINVAL;
+			goto exit;
+		}
 	case WLAN_CIPHER_SUITE_WEP104:
+		if (params->key_len != WLAN_KEY_LEN_WEP104) {
+			ret = -EINVAL;
+			goto exit;
+		}
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
 		break;
 	default:
 		ret = -ENOTSUPP;
+		goto exit;
+	}
+
+	if (key_index >= WEP_KEYS || params->key_len < 0) {
+		ret = -EINVAL;
 		goto exit;
 	}
 
