@@ -1037,12 +1037,15 @@ root_bus:
 			group = get_shared_pci_device_group(pdev);
 	}
 
+	if (!group)
+		group = ERR_PTR(-ENODEV);
+
 	return group;
 }
 
 static int fsl_pamu_add_device(struct device *dev)
 {
-	struct iommu_group *group = NULL;
+	struct iommu_group *group = ERR_PTR(-ENODEV);
 	struct pci_dev *pdev;
 	const u32 *prop;
 	int ret, len;
@@ -1065,7 +1068,7 @@ static int fsl_pamu_add_device(struct device *dev)
 			group = get_device_iommu_group(dev);
 	}
 
-	if (!group || IS_ERR(group))
+	if (IS_ERR(group))
 		return PTR_ERR(group);
 
 	ret = iommu_group_add_device(group, dev);
