@@ -638,6 +638,36 @@ static int __init arc_serial_probe_earlyprintk(struct platform_device *pdev)
 	register_console(&arc_early_serial_console);
 	return 0;
 }
+
+static __init void arc_early_serial_write(struct console *con, const char *s,
+					  unsigned int n)
+{
+	struct earlycon_device *dev = con->data;
+
+	uart_console_write(&dev->port, s, n, arc_serial_poll_putchar);
+}
+
+static int __init arc_early_console_setup(struct earlycon_device *dev,
+					  const char *opt)
+{
+	struct uart_port *port = &dev->port;
+	unsigned int l, h, hw_val;
+
+	if (!dev->port.membase)
+		return -ENODEV;
+
+	hw_val = port->uartclk / (dev->baud * 4) - 1;
+	l = hw_val & 0xFF;
+	h = (hw_val >> 8) & 0xFF;
+
+	UART_SET_BAUDL(port, l);
+	UART_SET_BAUDH(port, h);
+
+	dev->con->write = arc_early_serial_write;
+	return 0;
+}
+EARLYCON_DECLARE(arc_uart, arc_early_console_setup);
+
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int arc_serial_probe(struct platform_device *pdev)

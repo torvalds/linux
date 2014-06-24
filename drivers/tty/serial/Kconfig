@@ -1472,6 +1472,7 @@ config SERIAL_ARC_CONSOLE
 	bool "Console on ARC UART"
 	depends on SERIAL_ARC=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable system Console on ARC UART
 
