@@ -630,7 +630,6 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	if (idProduct != EMERGENCY_PID &&
 	    bConfigurationValue != DOWNLOAD_CONF_VALUE &&
 	    (idProduct & B_DOWNLOAD) == 0) {
-
 		udev = phy_dev->priv_dev;
 		udev->usbdev = NULL;
 
@@ -708,10 +707,8 @@ static int k_mode_thread(void *arg)
 	int ret;
 
 	while (!k_mode_stop) {
-
 		spin_lock_irqsave(&k_lock, flags2);
 		while (!list_empty(&k_list)) {
-
 			udev = list_entry(k_list.next, struct usbwm_dev, list);
 			tx = &udev->tx;
 			rx = &udev->rx;
