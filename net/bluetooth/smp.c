@@ -1585,18 +1585,27 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 static u8 sc_send_public_key(struct smp_chan *smp)
 {
+	struct hci_dev *hdev = smp->conn->hcon->hdev;
+
 	BT_DBG("");
 
-	while (true) {
-		/* Generate local key pair for Secure Connections */
-		if (!ecc_make_key(smp->local_pk, smp->local_sk))
-			return SMP_UNSPECIFIED;
+	if (test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags)) {
+		BT_DBG("Using debug keys");
+		memcpy(smp->local_pk, debug_pk, 64);
+		memcpy(smp->local_sk, debug_sk, 32);
+		set_bit(SMP_FLAG_DEBUG_KEY, &smp->flags);
+	} else {
+		while (true) {
+			/* Generate local key pair for Secure Connections */
+			if (!ecc_make_key(smp->local_pk, smp->local_sk))
+				return SMP_UNSPECIFIED;
 
-		/* This is unlikely, but we need to check that we didn't
-		 * accidentially generate a debug key.
-		 */
-		if (memcmp(smp->local_sk, debug_sk, 32))
-			break;
+			/* This is unlikely, but we need to check that
+			 * we didn't accidentially generate a debug key.
+			 */
+			if (memcmp(smp->local_sk, debug_sk, 32))
+				break;
+		}
 	}
 
 	BT_DBG("Local Public Key X: %32phN", smp->local_pk);
