@@ -15,8 +15,6 @@
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
-#define P80211CAPTURE_VERSION	0x80211001
-
 /*  This value is tested by WiFi 11n Test Plan 5.2.3.
  *  This test verifies the WLAN NIC can update the NAV through sending
  *  the CTS with large duration.
