@@ -351,8 +351,9 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	int	sz = 0, rateLen;
 	struct wlan_bssid_ex*	pdev_network = &pregistrypriv->dev_network;
 	u8*	ie = pdev_network->IEs;
+	u16 cap;
 
-
+	pdev_network->tsf = 0;
 
 	/* timestamp will be inserted by hardware */
 	sz += 8;
@@ -368,13 +369,20 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 	*(u16*)ie = 0;
 
 	*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_IBSS);
+	cap = WLAN_CAPABILITY_IBSS;
 
-	if (pregistrypriv->preamble == PREAMBLE_SHORT)
+	if (pregistrypriv->preamble == PREAMBLE_SHORT) {
 		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
+		cap |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+	}
 
-	if (pdev_network->Privacy)
+	if (pdev_network->Privacy) {
 		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
+		cap |= WLAN_CAPABILITY_PRIVACY;
 
+	}
+
+	pdev_network->capability = cap;
 	sz += 2;
 	ie += 2;
 
