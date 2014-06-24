@@ -493,6 +493,7 @@ again:
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_BLOCKED &&
 	    may_wait_transaction(root, type)) {
+		current->journal_info = h;
 		btrfs_commit_transaction(h, root);
 		goto again;
 	}
