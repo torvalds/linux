@@ -488,7 +488,6 @@ struct nfsd4_compoundargs {
 	__be32 *			tmpp;
 	struct tmpbuf {
 		struct tmpbuf *next;
-		void (*release)(const void *);
 		void *buf;
 	}				*to_free;
 

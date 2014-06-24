@@ -182,16 +182,14 @@ static int zero_clientid(clientid_t *clid)
 
 /**
  * defer_free - mark an allocation as deferred freed
- * @argp: NFSv4 compound argument structure to be freed with
- * @release: release callback to free @p, typically kfree()
- * @p: pointer to be freed
+ * @argp: NFSv4 compound argument structure
+ * @p: pointer to be freed (with kfree())
  *
  * Marks @p to be freed when processing the compound operation
  * described in @argp finishes.
  */
 static int
-defer_free(struct nfsd4_compoundargs *argp,
-		void (*release)(const void *), void *p)
+defer_free(struct nfsd4_compoundargs *argp, void *p)
 {
 	struct tmpbuf *tb;
 
@@ -199,7 +197,6 @@ defer_free(struct nfsd4_compoundargs *argp,
 	if (!tb)
 		return -ENOMEM;
 	tb->buf = p;
-	tb->release = release;
 	tb->next = argp->to_free;
 	argp->to_free = tb;
 	return 0;
@@ -225,7 +222,7 @@ static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 		BUG_ON(p != argp->tmpp);
 		argp->tmpp = NULL;
 	}
-	if (defer_free(argp, kfree, p)) {
+	if (defer_free(argp, p)) {
 		kfree(p);
 		return NULL;
 	} else
@@ -296,7 +293,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (*acl == NULL)
 			return nfserr_jukebox;
 
-		defer_free(argp, kfree, *acl);
+		defer_free(argp, *acl);
 
 		(*acl)->naces = nace;
 		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
@@ -422,7 +419,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (!label->data)
 			return nfserr_jukebox;
 		label->len = dummy32;
-		defer_free(argp, kfree, label->data);
+		defer_free(argp, label->data);
 		memcpy(label->data, buf, dummy32);
 	}
 #endif
@@ -610,7 +607,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 			return nfserr_jukebox;
 		memcpy(create->cr_data, p, create->cr_datalen);
 		create->cr_data[create->cr_datalen] = '\0';
-		defer_free(argp, kfree, create->cr_data);
+		defer_free(argp, create->cr_data);
 		break;
 	case NF4BLK:
 	case NF4CHR:
@@ -1486,7 +1483,7 @@ nfsd4_decode_test_stateid(struct nfsd4_compoundargs *argp, struct nfsd4_test_sta
 			goto out;
 		}
 
-		defer_free(argp, kfree, stateid);
+		defer_free(argp, stateid);
 		INIT_LIST_HEAD(&stateid->ts_id_list);
 		list_add_tail(&stateid->ts_id_list, &test_stateid->ts_stateid_list);
 
@@ -3972,7 +3969,7 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 	while (args->to_free) {
 		struct tmpbuf *tb = args->to_free;
 		args->to_free = tb->next;
-		tb->release(tb->buf);
+		kfree(tb->buf);
 		kfree(tb);
 	}
 	return 1;
