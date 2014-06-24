@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
+#include <linux/module.h>
 
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
@@ -1022,10 +1023,11 @@ static DEVICE_ATTR(dump_mmu_pgtable, 0644, NULL, dump_mmu_pagetbl);
 
 void dump_iommu_sysfs_init(void )
 {
+	u32 ret;
 	dump_mmu_object = kobject_create_and_add("rk_iommu", NULL);
 	if (dump_mmu_object == NULL)
 		return;
-	sysfs_create_file(dump_mmu_object, &dev_attr_dump_mmu_pgtable.attr);
+	ret = sysfs_create_file(dump_mmu_object, &dev_attr_dump_mmu_pgtable.attr);
 	return;
 }
 	
