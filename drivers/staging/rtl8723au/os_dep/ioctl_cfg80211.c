@@ -501,7 +501,8 @@ static int set_wep_key(struct rtw_adapter *padapter, u8 *key, u16 keylen,
 
 static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					  struct ieee_param *param,
-					  u32 param_len)
+					  u32 param_len,
+					  struct key_params *keyparms)
 {
 	int ret = 0;
 	u16 wep_key_len;
@@ -549,7 +550,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 		goto exit;
 	}
 
-	if (strcmp(param->u.crypt.alg, "WEP") == 0 && (psta == NULL)) {
+	if (!psta && (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+		      keyparms->cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		DBG_8723A("r871x_set_encryption, crypt.alg = WEP\n");
 
 		wep_key_idx = param->u.crypt.idx;
@@ -598,7 +600,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 	if (!psta && check_fwstate(pmlmepriv, WIFI_AP_STATE)) {	/*  group key */
 		if (param->u.crypt.set_tx == 0) {	/* group key */
-			if (strcmp(param->u.crypt.alg, "WEP") == 0) {
+			if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 				DBG_8723A("%s, set group_key, WEP\n", __func__);
 
 				memcpy(psecuritypriv->
@@ -613,7 +616,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					    WLAN_CIPHER_SUITE_WEP104;
 				}
 
-			} else if (strcmp(param->u.crypt.alg, "TKIP") == 0) {
+			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_TKIP) {
 				DBG_8723A("%s, set group_key, TKIP\n",
 					  __func__);
 
@@ -638,8 +641,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 				psecuritypriv->busetkipkey = 1;
 
-			} else if (strcmp(param->u.crypt.alg, "CCMP") == 0) {
-				DBG_8723A("%s, set group_key, CCMP\n",
+			} else if (keyparms->cipher == WLAN_CIPHER_SUITE_CCMP) {
+					DBG_8723A("%s, set group_key, CCMP\n",
 					  __func__);
 
 				psecuritypriv->dot118021XGrpPrivacy = WLAN_CIPHER_SUITE_CCMP;
@@ -692,7 +695,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				       (param->u.crypt.key_len >
 					16 ? 16 : param->u.crypt.key_len));
 
-				if (!strcmp(param->u.crypt.alg, "WEP")) {
+				if (keyparms->cipher ==
+				    WLAN_CIPHER_SUITE_WEP40 ||
+				    keyparms->cipher ==
+				    WLAN_CIPHER_SUITE_WEP104) {
 					DBG_8723A("%s, set pairwise key, WEP\n",
 						  __func__);
 
@@ -701,11 +707,13 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 						psta->dot118021XPrivacy =
 							WLAN_CIPHER_SUITE_WEP104;
 					}
-				} else if (!strcmp(param->u.crypt.alg, "TKIP")) {
+				} else if (keyparms->cipher ==
+					   WLAN_CIPHER_SUITE_TKIP) {
 					DBG_8723A("%s, set pairwise key, "
 						  "TKIP\n", __func__);
 
-					psta->dot118021XPrivacy = WLAN_CIPHER_SUITE_TKIP;
+					psta->dot118021XPrivacy =
+						WLAN_CIPHER_SUITE_TKIP;
 
 					/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 					/* set mic key */
@@ -716,12 +724,13 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 					psecuritypriv->busetkipkey = 1;
 
-				} else if (!strcmp(param->u.crypt.alg, "CCMP")) {
-
+				} else if (keyparms->cipher ==
+					   WLAN_CIPHER_SUITE_CCMP) {
 					DBG_8723A("%s, set pairwise key, "
 						  "CCMP\n", __func__);
 
-					psta->dot118021XPrivacy = WLAN_CIPHER_SUITE_CCMP;
+					psta->dot118021XPrivacy =
+						WLAN_CIPHER_SUITE_CCMP;
 				} else {
 					DBG_8723A("%s, set pairwise key, "
 						  "none\n", __func__);
@@ -735,7 +744,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 				psta->bpairwise_key_installed = true;
 			} else {	/* group key??? */
-				if (!strcmp(param->u.crypt.alg, "WEP")) {
+				if (keyparms->cipher ==
+				    WLAN_CIPHER_SUITE_WEP40 ||
+				    keyparms->cipher ==
+				    WLAN_CIPHER_SUITE_WEP104) {
 					memcpy(psecuritypriv->
 					       dot118021XGrpKey[param->u.crypt.
 								idx].skey,
@@ -751,7 +763,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 						    dot118021XGrpPrivacy =
 							WLAN_CIPHER_SUITE_WEP104;
 					}
-				} else if (!strcmp(param->u.crypt.alg, "TKIP")) {
+				} else if (keyparms->cipher ==
+					   WLAN_CIPHER_SUITE_TKIP) {
 					psecuritypriv->dot118021XGrpPrivacy =
 					    WLAN_CIPHER_SUITE_TKIP;
 
@@ -780,7 +793,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 					psecuritypriv->busetkipkey = 1;
 
-				} else if (!strcmp(param->u.crypt.alg, "CCMP")) {
+				} else if (keyparms->cipher ==
+					   WLAN_CIPHER_SUITE_CCMP) {
 					psecuritypriv->dot118021XGrpPrivacy =
 						WLAN_CIPHER_SUITE_CCMP;
 
@@ -1099,7 +1113,8 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		if (mac_addr)
 			ether_addr_copy(param->sta_addr, mac_addr);
 
-		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len);
+		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len,
+						     params);
 #endif
 	} else {
 		DBG_8723A("error! fw_state = 0x%x, iftype =%d\n",
