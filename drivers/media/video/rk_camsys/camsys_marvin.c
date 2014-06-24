@@ -199,9 +199,19 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 {
     camsys_dev_t *camsys_dev = (camsys_dev_t*)ptr;
     camsys_mrv_clk_t *clk = (camsys_mrv_clk_t*)camsys_dev->clk;
+    unsigned long isp_clk;
 	
     if (on && !clk->in_on) {
 		rockchip_set_system_status(SYS_STATUS_ISP);
+
+		if (on == 1) {
+		    isp_clk = 210000000;           
+		} else {
+		    isp_clk = 420000000;            
+		}
+
+		clk_set_rate(clk->isp,isp_clk);
+        clk_set_rate(clk->isp_jpe, isp_clk);
 
         clk_prepare_enable(clk->aclk_isp);
         clk_prepare_enable(clk->hclk_isp);
@@ -213,7 +223,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 
         clk->in_on = true;
 
-        camsys_trace(1, "%s clock in turn on",dev_name(camsys_dev->miscdev.this_device));
+        camsys_trace(1, "%s clock(f: %ld Hz) in turn on",dev_name(camsys_dev->miscdev.this_device),isp_clk);
         camsys_mrv_reset_cb(ptr,1);
         udelay(100);
         camsys_mrv_reset_cb(ptr,0);
