@@ -35,29 +35,17 @@
 #include <asm/page.h>
 #include <asm/virt.h>
 
-/*
- * swapper_pg_dir is the virtual address of the initial page table. We place
- * the page tables 3 * PAGE_SIZE below KERNEL_RAM_VADDR. The idmap_pg_dir has
- * 2 pages and is placed below swapper_pg_dir.
- */
 #define KERNEL_RAM_VADDR	(PAGE_OFFSET + TEXT_OFFSET)
 
 #if (KERNEL_RAM_VADDR & 0xfffff) != 0x80000
 #error KERNEL_RAM_VADDR must start at 0xXXX80000
 #endif
 
-#define SWAPPER_DIR_SIZE	(3 * PAGE_SIZE)
-#define IDMAP_DIR_SIZE		(2 * PAGE_SIZE)
-
-	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - SWAPPER_DIR_SIZE
-
-	.globl	idmap_pg_dir
-	.equ	idmap_pg_dir, swapper_pg_dir - IDMAP_DIR_SIZE
-
-	.macro	pgtbl, ttb0, ttb1, phys
-	add	\ttb1, \phys, #TEXT_OFFSET - SWAPPER_DIR_SIZE
-	sub	\ttb0, \ttb1, #IDMAP_DIR_SIZE
+	.macro	pgtbl, ttb0, ttb1, virt_to_phys
+	ldr	\ttb1, =swapper_pg_dir
+	ldr	\ttb0, =idmap_pg_dir
+	add	\ttb1, \ttb1, \virt_to_phys
+	add	\ttb0, \ttb0, \virt_to_phys
 	.endm
 
 #ifdef CONFIG_ARM64_64K_PAGES
@@ -413,7 +401,7 @@ ENTRY(secondary_startup)
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
 
-	pgtbl	x25, x26, x24			// x25=TTBR0, x26=TTBR1
+	pgtbl	x25, x26, x28			// x25=TTBR0, x26=TTBR1
 	ldr	x12, [x23, #CPU_INFO_SETUP]
 	add	x12, x12, x28			// __virt_to_phys
 	blr	x12				// initialise processor
@@ -527,7 +515,7 @@ ENDPROC(__calc_phys_offset)
  *   - pgd entry for fixed mappings (TTBR1)
  */
 __create_page_tables:
-	pgtbl	x25, x26, x24			// idmap_pg_dir and swapper_pg_dir addresses
+	pgtbl	x25, x26, x28			// idmap_pg_dir and swapper_pg_dir addresses
 	mov	x27, lr
 
 	/*
@@ -616,7 +604,7 @@ ENDPROC(__create_page_tables)
 __switch_data:
 	.quad	__mmap_switched
 	.quad	__bss_start			// x6
-	.quad	_end				// x7
+	.quad	__bss_stop			// x7
 	.quad	processor_id			// x4
 	.quad	__fdt_pointer			// x5
 	.quad	memstart_addr			// x6

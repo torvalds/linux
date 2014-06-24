@@ -104,6 +104,13 @@ SECTIONS
 	_edata = .;
 
 	BSS_SECTION(0, 0, 0)
+
+	. = ALIGN(PAGE_SIZE);
+	idmap_pg_dir = .;
+	. += IDMAP_DIR_SIZE;
+	swapper_pg_dir = .;
+	. += SWAPPER_DIR_SIZE;
+
 	_end = .;
 
 	STABS_DEBUG
