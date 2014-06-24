@@ -2159,7 +2159,8 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
 				reason, mgmt_connected);
 
-	if (conn->type == ACL_LINK && conn->flush_key)
+	if (conn->type == ACL_LINK &&
+	    test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
 		hci_remove_link_key(hdev, &conn->dst);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
@@ -3145,7 +3146,10 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		list_del(&key->list);
 		kfree(key);
 	} else if (conn) {
-		conn->flush_key = !persistent;
+		if (persistent)
+			clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
+		else
+			set_bit(HCI_CONN_FLUSH_KEY, &conn->flags);
 	}
 
 unlock:
