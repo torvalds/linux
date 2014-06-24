@@ -151,7 +151,7 @@ static ssize_t xgbe_common_write(const char __user *buffer, size_t count,
 {
 	char workarea[32];
 	ssize_t len;
-	unsigned int scan_value;
+	int ret;
 
 	if (*ppos != 0)
 		return 0;
@@ -165,10 +165,9 @@ static ssize_t xgbe_common_write(const char __user *buffer, size_t count,
 		return len;
 
 	workarea[len] = '\0';
-	if (sscanf(workarea, "%x", &scan_value) == 1)
-		*value = scan_value;
-	else
-		return -EIO;
+	ret = kstrtouint(workarea, 0, value);
+	if (ret)
+		return ret;
 
 	return len;
 }
