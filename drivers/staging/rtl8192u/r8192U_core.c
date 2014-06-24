@@ -56,7 +56,6 @@ double __extendsfdf2(float a)
 }
 #endif
 
-#undef LOOP_TEST
 #undef DUMP_RX
 #undef DUMP_TX
 #undef DEBUG_TX_DESC2
@@ -701,13 +700,11 @@ void rtl8192_set_chan(struct net_device *dev, short ch)
 
 	/* this hack should avoid frame TX during channel setting*/
 
-#ifndef LOOP_TEST
 	//need to implement rf set channel here WB
 
 	if (priv->rf_set_chan)
 		priv->rf_set_chan(dev, priv->chan);
 	mdelay(10);
-#endif
 }
 
 static void rtl8192_rx_isr(struct urb *urb);
