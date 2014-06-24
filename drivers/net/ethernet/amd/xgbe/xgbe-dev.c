@@ -766,7 +766,7 @@ static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 
 	/* Initialze all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
-		rdata = GET_DESC_DATA(ring, i);
+		rdata = XGBE_GET_DESC_DATA(ring, i);
 		rdesc = rdata->rdesc;
 
 		/* Initialize Tx descriptor
@@ -791,7 +791,7 @@ static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDRLR, ring->rdesc_count - 1);
 
 	/* Update the starting address of descriptor ring */
-	rdata = GET_DESC_DATA(ring, start_index);
+	rdata = XGBE_GET_DESC_DATA(ring, start_index);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDLR_HI,
 			  upper_32_bits(rdata->rdesc_dma));
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDLR_LO,
@@ -848,7 +848,7 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 
 	/* Initialize all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
-		rdata = GET_DESC_DATA(ring, i);
+		rdata = XGBE_GET_DESC_DATA(ring, i);
 		rdesc = rdata->rdesc;
 
 		/* Initialize Rx descriptor
@@ -882,14 +882,14 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDRLR, ring->rdesc_count - 1);
 
 	/* Update the starting address of descriptor ring */
-	rdata = GET_DESC_DATA(ring, start_index);
+	rdata = XGBE_GET_DESC_DATA(ring, start_index);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDLR_HI,
 			  upper_32_bits(rdata->rdesc_dma));
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDLR_LO,
 			  lower_32_bits(rdata->rdesc_dma));
 
 	/* Update the Rx Descriptor Tail Pointer */
-	rdata = GET_DESC_DATA(ring, start_index + ring->rdesc_count - 1);
+	rdata = XGBE_GET_DESC_DATA(ring, start_index + ring->rdesc_count - 1);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
 			  lower_32_bits(rdata->rdesc_dma));
 
@@ -933,7 +933,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	if (tx_coalesce && !channel->tx_timer_active)
 		ring->coalesce_count = 0;
 
-	rdata = GET_DESC_DATA(ring, ring->cur);
+	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	rdesc = rdata->rdesc;
 
 	/* Create a context descriptor if this is a TSO packet */
@@ -977,7 +977,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 		}
 
 		ring->cur++;
-		rdata = GET_DESC_DATA(ring, ring->cur);
+		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 		rdesc = rdata->rdesc;
 	}
 
@@ -1034,7 +1034,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 
 	for (i = ring->cur - start_index + 1; i < packet->rdesc_count; i++) {
 		ring->cur++;
-		rdata = GET_DESC_DATA(ring, ring->cur);
+		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 		rdesc = rdata->rdesc;
 
 		/* Update buffer address */
@@ -1074,7 +1074,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	wmb();
 
 	/* Set OWN bit for the first descriptor */
-	rdata = GET_DESC_DATA(ring, start_index);
+	rdata = XGBE_GET_DESC_DATA(ring, start_index);
 	rdesc = rdata->rdesc;
 	XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, OWN, 1);
 
@@ -1088,7 +1088,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	/* Issue a poll command to Tx DMA by writing address
 	 * of next immediate free descriptor */
 	ring->cur++;
-	rdata = GET_DESC_DATA(ring, ring->cur);
+	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDTR_LO,
 			  lower_32_bits(rdata->rdesc_dma));
 
@@ -1117,7 +1117,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 
 	DBGPR("-->xgbe_dev_read: cur = %d\n", ring->cur);
 
-	rdata = GET_DESC_DATA(ring, ring->cur);
+	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	rdesc = rdata->rdesc;
 
 	/* Check for data availability */
@@ -1195,7 +1195,7 @@ static void xgbe_save_interrupt_status(struct xgbe_channel *channel,
 
 	if (int_state == XGMAC_INT_STATE_SAVE) {
 		channel->saved_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-		channel->saved_ier &= DMA_INTERRUPT_MASK;
+		channel->saved_ier &= XGBE_DMA_INTERRUPT_MASK;
 	} else {
 		dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
 		dma_ch_ier |= channel->saved_ier;
@@ -1275,7 +1275,7 @@ static int xgbe_disable_int(struct xgbe_channel *channel,
 		xgbe_save_interrupt_status(channel, XGMAC_INT_STATE_SAVE);
 
 		dma_ch_ier = XGMAC_DMA_IOREAD(channel, DMA_CH_IER);
-		dma_ch_ier &= ~DMA_INTERRUPT_MASK;
+		dma_ch_ier &= ~XGBE_DMA_INTERRUPT_MASK;
 		XGMAC_DMA_IOWRITE(channel, DMA_CH_IER, dma_ch_ier);
 		break;
 	default:
@@ -1342,23 +1342,23 @@ static void xgbe_config_dma_cache(struct xgbe_prv_data *pdata)
 	unsigned int arcache, awcache;
 
 	arcache = 0;
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, DRC, DMA_ARCACHE_SETTING);
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, DRD, DMA_ARDOMAIN_SETTING);
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, TEC, DMA_ARCACHE_SETTING);
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, TED, DMA_ARDOMAIN_SETTING);
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, THC, DMA_ARCACHE_SETTING);
-	XGMAC_SET_BITS(arcache, DMA_AXIARCR, THD, DMA_ARDOMAIN_SETTING);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, DRC, XGBE_DMA_ARCACHE);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, DRD, XGBE_DMA_ARDOMAIN);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, TEC, XGBE_DMA_ARCACHE);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, TED, XGBE_DMA_ARDOMAIN);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, THC, XGBE_DMA_ARCACHE);
+	XGMAC_SET_BITS(arcache, DMA_AXIARCR, THD, XGBE_DMA_ARDOMAIN);
 	XGMAC_IOWRITE(pdata, DMA_AXIARCR, arcache);
 
 	awcache = 0;
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, DWC, DMA_AWCACHE_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, DWD, DMA_AWDOMAIN_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RPC, DMA_AWCACHE_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RPD, DMA_AWDOMAIN_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RHC, DMA_AWCACHE_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RHD, DMA_AWDOMAIN_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, TDC, DMA_AWCACHE_SETTING);
-	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, TDD, DMA_AWDOMAIN_SETTING);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, DWC, XGBE_DMA_AWCACHE);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, DWD, XGBE_DMA_AWDOMAIN);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RPC, XGBE_DMA_AWCACHE);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RPD, XGBE_DMA_AWDOMAIN);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RHC, XGBE_DMA_AWCACHE);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, RHD, XGBE_DMA_AWDOMAIN);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, TDC, XGBE_DMA_AWCACHE);
+	XGMAC_SET_BITS(awcache, DMA_AXIAWCR, TDD, XGBE_DMA_AWDOMAIN);
 	XGMAC_IOWRITE(pdata, DMA_AXIAWCR, awcache);
 }
 
@@ -1388,66 +1388,66 @@ static unsigned int xgbe_calculate_per_queue_fifo(unsigned long fifo_size,
 	/* Calculate Tx/Rx fifo share per queue */
 	switch (fifo_size) {
 	case 0:
-		q_fifo_size = FIFO_SIZE_B(128);
+		q_fifo_size = XGBE_FIFO_SIZE_B(128);
 		break;
 	case 1:
-		q_fifo_size = FIFO_SIZE_B(256);
+		q_fifo_size = XGBE_FIFO_SIZE_B(256);
 		break;
 	case 2:
-		q_fifo_size = FIFO_SIZE_B(512);
+		q_fifo_size = XGBE_FIFO_SIZE_B(512);
 		break;
 	case 3:
-		q_fifo_size = FIFO_SIZE_KB(1);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(1);
 		break;
 	case 4:
-		q_fifo_size = FIFO_SIZE_KB(2);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(2);
 		break;
 	case 5:
-		q_fifo_size = FIFO_SIZE_KB(4);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(4);
 		break;
 	case 6:
-		q_fifo_size = FIFO_SIZE_KB(8);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(8);
 		break;
 	case 7:
-		q_fifo_size = FIFO_SIZE_KB(16);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(16);
 		break;
 	case 8:
-		q_fifo_size = FIFO_SIZE_KB(32);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(32);
 		break;
 	case 9:
-		q_fifo_size = FIFO_SIZE_KB(64);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(64);
 		break;
 	case 10:
-		q_fifo_size = FIFO_SIZE_KB(128);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(128);
 		break;
 	case 11:
-		q_fifo_size = FIFO_SIZE_KB(256);
+		q_fifo_size = XGBE_FIFO_SIZE_KB(256);
 		break;
 	}
 	q_fifo_size = q_fifo_size / queue_count;
 
 	/* Set the queue fifo size programmable value */
-	if (q_fifo_size >= FIFO_SIZE_KB(256))
+	if (q_fifo_size >= XGBE_FIFO_SIZE_KB(256))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_256K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(128))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(128))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_128K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(64))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(64))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_64K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(32))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(32))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_32K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(16))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(16))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_16K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(8))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(8))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_8K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(4))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(4))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_4K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(2))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(2))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_2K;
-	else if (q_fifo_size >= FIFO_SIZE_KB(1))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_KB(1))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_1K;
-	else if (q_fifo_size >= FIFO_SIZE_B(512))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_B(512))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_512;
-	else if (q_fifo_size >= FIFO_SIZE_B(256))
+	else if (q_fifo_size >= XGBE_FIFO_SIZE_B(256))
 		p_fifo = XGMAC_MTL_FIFO_SIZE_256;
 
 	return p_fifo;
