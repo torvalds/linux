@@ -1023,6 +1023,15 @@ static bool fsl_spdif_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case REG_SPDIF_SIS:
+	case REG_SPDIF_SRL:
+	case REG_SPDIF_SRR:
+	case REG_SPDIF_SRCSH:
+	case REG_SPDIF_SRCSL:
+	case REG_SPDIF_SRU:
+	case REG_SPDIF_SRQ:
+	case REG_SPDIF_STL:
+	case REG_SPDIF_STR:
+	case REG_SPDIF_SRFM:
 		return true;
 	default:
 		return false;
