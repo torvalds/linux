@@ -77,8 +77,8 @@ static unsigned long dir_block_index(unsigned int level,
 	return bidx;
 }
 
-static bool early_match_name(const char *name, size_t namelen,
-			f2fs_hash_t namehash, struct f2fs_dir_entry *de)
+static bool early_match_name(size_t namelen, f2fs_hash_t namehash,
+				struct f2fs_dir_entry *de)
 {
 	if (le16_to_cpu(de->name_len) != namelen)
 		return false;
@@ -90,7 +90,7 @@ static bool early_match_name(const char *name, size_t namelen,
 }
 
 static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
-			const char *name, size_t namelen, int *max_slots,
+			struct qstr *name, int *max_slots,
 			f2fs_hash_t namehash, struct page **res_page)
 {
 	struct f2fs_dir_entry *de;
@@ -109,9 +109,10 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 			continue;
 		}
 		de = &dentry_blk->dentry[bit_pos];
-		if (early_match_name(name, namelen, namehash, de)) {
+		if (early_match_name(name->len, namehash, de)) {
 			if (!memcmp(dentry_blk->filename[bit_pos],
-							name, namelen)) {
+							name->name,
+							name->len)) {
 				*res_page = dentry_page;
 				goto found;
 			}
@@ -132,10 +133,10 @@ found:
 }
 
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
-		unsigned int level, const char *name, size_t namelen,
+			unsigned int level, struct qstr *name,
 			f2fs_hash_t namehash, struct page **res_page)
 {
-	int s = GET_DENTRY_SLOTS(namelen);
+	int s = GET_DENTRY_SLOTS(name->len);
 	unsigned int nbucket, nblock;
 	unsigned int bidx, end_block;
 	struct page *dentry_page;
@@ -160,8 +161,8 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 			continue;
 		}
 
-		de = find_in_block(dentry_page, name, namelen,
-					&max_slots, namehash, res_page);
+		de = find_in_block(dentry_page, name, &max_slots,
+					namehash, res_page);
 		if (de)
 			break;
 
@@ -187,8 +188,6 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 			struct qstr *child, struct page **res_page)
 {
-	const char *name = child->name;
-	size_t namelen = child->len;
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
 	f2fs_hash_t name_hash;
@@ -200,12 +199,11 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 	*res_page = NULL;
 
-	name_hash = f2fs_dentry_hash(name, namelen);
+	name_hash = f2fs_dentry_hash(child);
 	max_depth = F2FS_I(dir)->i_current_depth;
 
 	for (level = 0; level < max_depth; level++) {
-		de = find_in_level(dir, level, name,
-				namelen, name_hash, res_page);
+		de = find_in_level(dir, level, child, name_hash, res_page);
 		if (de)
 			break;
 	}
@@ -460,7 +458,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	int err = 0;
 	int i;
 
-	dentry_hash = f2fs_dentry_hash(name->name, name->len);
+	dentry_hash = f2fs_dentry_hash(name);
 	level = 0;
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {
