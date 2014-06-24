@@ -2420,12 +2420,9 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		u8 *iebuf;
 		int buflen;
-		pframe -= _BEACON_IE_OFFSET_;
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
 		memcpy(pframe, cur_network->IEs, cur_network->IELength);
-		len_diff = update_hidden_ssid(pframe + _BEACON_IE_OFFSET_,
-					      cur_network->IELength -
-					      _BEACON_IE_OFFSET_,
+		len_diff = update_hidden_ssid(pframe, cur_network->IELength,
 					      pmlmeinfo->hidden_ssid_mode);
 		pframe += (cur_network->IELength+len_diff);
 		pattrib->pktlen += (cur_network->IELength+len_diff);
@@ -2585,13 +2582,10 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		pwps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 						  WLAN_OUI_TYPE_MICROSOFT_WPS,
-						  cur_network->IEs +
-						  _FIXED_IE_LENGTH_,
-						  cur_network->IELength -
-						  _FIXED_IE_LENGTH_);
+						  cur_network->IEs,
+						  cur_network->IELength);
 
-		memcpy(pframe, cur_network->IEs + _FIXED_IE_LENGTH_,
-		       cur_network->IELength - _FIXED_IE_LENGTH_);
+		memcpy(pframe, cur_network->IEs, cur_network->IELength);
 		pframe += cur_network->IELength;
 		pattrib->pktlen += cur_network->IELength;
 
@@ -3045,9 +3039,8 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 	if (pstat->flags & WLAN_STA_HT && pmlmepriv->htpriv.ht_option) {
 		/* FILL HT CAP INFO IE */
 		/* p = hostapd_eid_ht_capabilities_info(hapd, p); */
-		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
-				     ie + _BEACON_IE_OFFSET_,
-				     pnetwork->IELength -_BEACON_IE_OFFSET_);
+		p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, ie,
+				     pnetwork->IELength);
 		if (p && p[1]) {
 			memcpy(pframe, p, p[1] + 2);
 			pframe += (p[1] + 2);
@@ -3056,9 +3049,8 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 
 		/* FILL HT ADD INFO IE */
 		/* p = hostapd_eid_ht_operation(hapd, p); */
-		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
-				     ie + _BEACON_IE_OFFSET_,
-				     pnetwork->IELength - _BEACON_IE_OFFSET_);
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie,
+				     pnetwork->IELength);
 		if (p && p[1] > 0) {
 			memcpy(pframe, p, p[1] + 2);
 			pframe += (p[1] + 2);
@@ -3072,10 +3064,9 @@ static void issue_assocrsp(struct rtw_adapter *padapter, unsigned short status,
 					       0x01, 0x01};
 		int ie_len = 0;
 
-		for (p = ie + _BEACON_IE_OFFSET_; ; p += (ie_len + 2)) {
+		for (p = ie; ; p += (ie_len + 2)) {
 			p = cfg80211_find_ie(WLAN_EID_VENDOR_SPECIFIC, p,
-					     pnetwork->IELength -
-					     _BEACON_IE_OFFSET_ - (ie_len + 2));
+					     pnetwork->IELength - (ie_len + 2));
 			if (p)
 				ie_len = p[1];
 			else
@@ -4534,9 +4525,8 @@ static void process_80211d(struct rtw_adapter *padapter,
 		u8 noc; /*  number of channel */
 		u8 j, k;
 
-		ie = cfg80211_find_ie(WLAN_EID_COUNTRY,
-				      bssid->IEs + _FIXED_IE_LENGTH_,
-				      bssid->IELength - _FIXED_IE_LENGTH_);
+		ie = cfg80211_find_ie(WLAN_EID_COUNTRY, bssid->IEs,
+				      bssid->IELength);
 		if (!ie || ie[1] < IEEE80211_COUNTRY_IE_MIN_LEN)
 			return;
 
@@ -6065,10 +6055,9 @@ int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
 	memcpy(&ptxBeacon_parm->network, &pmlmeinfo->network,
 	       sizeof(struct wlan_bssid_ex));
 
-	len_diff = update_hidden_ssid(
-		ptxBeacon_parm->network.IEs+_BEACON_IE_OFFSET_,
-		ptxBeacon_parm->network.IELength-_BEACON_IE_OFFSET_,
-		pmlmeinfo->hidden_ssid_mode);
+	len_diff = update_hidden_ssid(ptxBeacon_parm->network.IEs,
+				      ptxBeacon_parm->network.IELength,
+				      pmlmeinfo->hidden_ssid_mode);
 	ptxBeacon_parm->network.IELength += len_diff;
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm,

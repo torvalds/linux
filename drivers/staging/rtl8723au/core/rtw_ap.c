@@ -77,8 +77,8 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 
 	tim_bitmap_le = cpu_to_le16(pstapriv->tim_bitmap);
 
-	p = rtw_get_ie23a(pie + _FIXED_IE_LENGTH_, WLAN_EID_TIM, &tim_ielen,
-			  pnetwork_mlmeext->IELength - _FIXED_IE_LENGTH_);
+	p = rtw_get_ie23a(pie, WLAN_EID_TIM, &tim_ielen,
+			  pnetwork_mlmeext->IELength);
 	if (p != NULL && tim_ielen>0) {
 		tim_ielen += 2;
 
@@ -94,19 +94,17 @@ static void update_BCNTIM(struct rtw_adapter *padapter)
 		tim_ielen = 0;
 
 		/* calulate head_len */
-		offset = _FIXED_IE_LENGTH_;
+		offset = 0;
 
 		/* get ssid_ie len */
-		p = rtw_get_ie23a(pie + _BEACON_IE_OFFSET_, WLAN_EID_SSID,
-				  &tmp_len, (pnetwork_mlmeext->IELength -
-					     _BEACON_IE_OFFSET_));
+		p = rtw_get_ie23a(pie, WLAN_EID_SSID,
+				  &tmp_len, pnetwork_mlmeext->IELength);
 		if (p != NULL)
 			offset += tmp_len+2;
 
 		/*  get supported rates len */
-		p = rtw_get_ie23a(pie + _BEACON_IE_OFFSET_, WLAN_EID_SUPP_RATES,
-				  &tmp_len, (pnetwork_mlmeext->IELength -
-					     _BEACON_IE_OFFSET_));
+		p = rtw_get_ie23a(pie, WLAN_EID_SUPP_RATES,
+				  &tmp_len, pnetwork_mlmeext->IELength);
 		if (p !=  NULL)
 			offset += tmp_len+2;
 
@@ -663,9 +661,8 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
 	if (NULL == cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WPS,
-					    pnetwork->IEs + _FIXED_IE_LENGTH_,
-					    pnetwork->IELength -
-					    _FIXED_IE_LENGTH_))
+					    pnetwork->IEs,
+					    pnetwork->IELength))
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
@@ -804,9 +801,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pbss_network = &pmlmepriv->cur_network.network;
 	u8 *ie = pbss_network->IEs;
-	u8 *pbuf = mgmt->u.beacon.variable - _FIXED_IE_LENGTH_;
-	len -= (offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		_FIXED_IE_LENGTH_);
+	u8 *pbuf = mgmt->u.beacon.variable;
+	len -= offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	/* SSID */
 	/* Supported rates */
 	/* DS Params */
@@ -841,8 +837,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	memcpy(pbss_network->MacAddress, myid(&padapter->eeprompriv), ETH_ALEN);
 
 	/* SSID */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_SSID, &ie_len,
-			  (pbss_network->IELength -_BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_SSID, &ie_len, pbss_network->IELength);
 	if (p && ie_len > 0) {
 		memset(&pbss_network->Ssid, 0, sizeof(struct cfg80211_ssid));
 		memcpy(pbss_network->Ssid.ssid, (p + 2), ie_len);
@@ -851,8 +846,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 
 	/* chnnel */
 	channel = 0;
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_DS_PARAMS, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_DS_PARAMS, &ie_len,
+			  pbss_network->IELength);
 	if (p && ie_len > 0)
 		channel = *(p + 2);
 
@@ -860,16 +855,16 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 
 	memset(supportRate, 0, NDIS_802_11_LENGTH_RATES_EX);
 	/*  get supported rates */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_SUPP_RATES, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_SUPP_RATES, &ie_len,
+			  pbss_network->IELength);
 	if (p) {
 		memcpy(supportRate, p+2, ie_len);
 		supportRateNum = ie_len;
 	}
 
 	/* get ext_supported rates */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_EXT_SUPP_RATES,
-			  &ie_len, pbss_network->IELength - _BEACON_IE_OFFSET_);
+	p = rtw_get_ie23a(ie, WLAN_EID_EXT_SUPP_RATES,
+			  &ie_len, pbss_network->IELength);
 	if (p) {
 		memcpy(supportRate+supportRateNum, p+2, ie_len);
 		supportRateNum += ie_len;
@@ -881,8 +876,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	rtw_set_supported_rate23a(pbss_network->SupportedRates, network_type);
 
 	/* parsing ERP_IE */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_ERP_INFO, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_ERP_INFO, &ie_len,
+			  pbss_network->IELength);
 	if (p && ie_len > 0)
 		ERP_IE_handler23a(padapter, p);
 
@@ -898,8 +893,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	group_cipher = 0; pairwise_cipher = 0;
 	psecuritypriv->wpa2_group_cipher = 0;
 	psecuritypriv->wpa2_pairwise_cipher = 0;
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_RSN, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_RSN, &ie_len,
+			  pbss_network->IELength);
 	if (p && ie_len > 0) {
 		if (rtw_parse_wpa2_ie23a(p, ie_len+2, &group_cipher,
 					 &pairwise_cipher, NULL) == _SUCCESS) {
@@ -919,10 +914,9 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	pairwise_cipher = 0;
 	psecuritypriv->wpa_group_cipher = 0;
 	psecuritypriv->wpa_pairwise_cipher = 0;
-	for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
+	for (p = ie; ;p += (ie_len + 2)) {
 		p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
-				  (pbss_network->IELength - _BEACON_IE_OFFSET_ -
-				  (ie_len + 2)));
+				  pbss_network->IELength - (ie_len + 2));
 		if ((p) && (!memcmp(p+2, RTW_WPA_OUI23A_TYPE, 4))) {
 			if (rtw_parse_wpa_ie23a(p, ie_len+2, &group_cipher,
 						&pairwise_cipher, NULL) == _SUCCESS) {
@@ -947,10 +941,10 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	ie_len = 0;
 	pmlmepriv->qos_option = 0;
 	if (pregistrypriv->wmm_enable) {
-		for (p = ie + _BEACON_IE_OFFSET_; ;p += (ie_len + 2)) {
+		for (p = ie; ;p += (ie_len + 2)) {
 			p = rtw_get_ie23a(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len,
 					  (pbss_network->IELength -
-					  _BEACON_IE_OFFSET_ - (ie_len + 2)));
+					   (ie_len + 2)));
 			if ((p) && !memcmp(p+2, WMM_PARA_IE, 6)) {
 				pmlmepriv->qos_option = 1;
 
@@ -970,8 +964,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 		}
 	}
 	/* parsing HT_CAP_IE */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_HT_CAPABILITY, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_HT_CAPABILITY, &ie_len,
+			  pbss_network->IELength);
 	if (p && ie_len > 0) {
 		u8 rf_type;
 
@@ -1002,8 +996,8 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	}
 
 	/* parsing HT_INFO_IE */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_HT_OPERATION, &ie_len,
-			  (pbss_network->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_HT_OPERATION, &ie_len,
+			  pbss_network->IELength);
 	if (p && ie_len > 0)
 		pHT_info_ie = p;
 
@@ -1176,7 +1170,7 @@ static void update_bcn_erpinfo_ie(struct rtw_adapter *padapter)
 		return;
 
 	/* parsing ERP_IE */
-	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_ERP_INFO, &len, (pnetwork->IELength - _BEACON_IE_OFFSET_));
+	p = rtw_get_ie23a(ie, WLAN_EID_ERP_INFO, &len, pnetwork->IELength);
 	if (p && len > 0) {
 		if (pmlmepriv->num_sta_non_erp == 1)
 			p[2] |= WLAN_ERP_NON_ERP_PRESENT |

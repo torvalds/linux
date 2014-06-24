@@ -23,11 +23,6 @@
  */
 #define	WiFiNavUpperUs		30000	/*  30 ms */
 
-#define _BEACON_IE_OFFSET_		0
-
-#define _FIXED_IE_LENGTH_		_BEACON_IE_OFFSET_
-
-
 #define	EID_BSSIntolerantChlReport	73
 
 /*-----------------------------------------------------------------------------

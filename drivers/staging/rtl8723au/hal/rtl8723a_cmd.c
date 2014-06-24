@@ -428,10 +428,9 @@ static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
 	if (cur_network->IELength > MAX_IE_SZ)
 		return;
 
-	memcpy(mgmt->u.probe_resp.variable,
-	       cur_network->IEs + _FIXED_IE_LENGTH_,
-	       cur_network->IELength - _FIXED_IE_LENGTH_);
-	pktlen += (cur_network->IELength - _FIXED_IE_LENGTH_);
+	memcpy(mgmt->u.probe_resp.variable, cur_network->IEs,
+	       cur_network->IELength);
+	pktlen += (cur_network->IELength);
 
 	*pLength = pktlen;
 }

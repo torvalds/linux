@@ -546,10 +546,8 @@ static int rtw_is_desired_network(struct rtw_adapter *adapter,
 	if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS)) {
 		if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 					    WLAN_OUI_TYPE_MICROSOFT_WPA,
-					    pnetwork->network.IEs +
-					    _FIXED_IE_LENGTH_,
-					    pnetwork->network.IELength -
-					    _FIXED_IE_LENGTH_))
+					    pnetwork->network.IEs,
+					    pnetwork->network.IELength))
 			return true;
 		else
 			return false;
@@ -1916,7 +1914,7 @@ int rtw_restruct_wmm_ie23a(struct rtw_adapter *adapter, u8 *in_ie,
 	unsigned int ielength = 0;
 	unsigned int i, j;
 
-	i = _FIXED_IE_LENGTH_; /* after the fixed IE */
+	i = 0; /* after the fixed IE */
 	while (i < in_len) {
 		ielength = initial_out_len;
 
@@ -2025,9 +2023,7 @@ int rtw_restruct_sec_ie23a(struct rtw_adapter *adapter, u8 *in_ie, u8 *out_ie,
 		 ("+rtw_restruct_sec_ie23a: ndisauthmode=%d "
 		  "ndissecuritytype=%d\n", ndisauthmode, ndissecuritytype));
 
-	/* copy fixed ie only */
-	memcpy(out_ie, in_ie, _FIXED_IE_LENGTH_);
-	ielength = _FIXED_IE_LENGTH_;
+	ielength = 0;
 	if (ndisauthmode == Ndis802_11AuthModeWPA ||
 	    ndisauthmode == Ndis802_11AuthModeWPAPSK)
 		authmode = WLAN_EID_VENDOR_SPECIFIC;
@@ -2158,8 +2154,7 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 	phtpriv->ht_option = false;
 
-	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, in_ie + _FIXED_IE_LENGTH_,
-			     in_len - _FIXED_IE_LENGTH_);
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, in_ie, in_len);
 
 	if (p && p[1] > 0) {
 		u32 rx_packet_offset, max_recvbuf_sz;
@@ -2204,9 +2199,7 @@ bool rtw_restructure_ht_ie23a(struct rtw_adapter *padapter, u8 *in_ie,
 
 		phtpriv->ht_option = true;
 
-		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
-				     in_ie + _FIXED_IE_LENGTH_,
-				     in_len - _FIXED_IE_LENGTH_);
+		p = cfg80211_find_ie(WLAN_EID_HT_OPERATION, in_ie, in_len);
 		if (p && (p[1] == sizeof(struct ieee80211_ht_operation))) {
 			out_len = *pout_len;
 			pframe = rtw_set_ie23a(out_ie + out_len,

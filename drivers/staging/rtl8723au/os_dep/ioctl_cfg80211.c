@@ -264,8 +264,8 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
-	notify_ie = pnetwork->network.IEs + _FIXED_IE_LENGTH_;
-	notify_ielen = pnetwork->network.IELength - _FIXED_IE_LENGTH_;
+	notify_ie = pnetwork->network.IEs;
+	notify_ielen = pnetwork->network.IELength;
 
 	/* We've set wiphy's signal_type as CFG80211_SIGNAL_TYPE_MBM:
 	 *  signal strength in mBm (100*dBm)
@@ -1191,8 +1191,7 @@ static u16 rtw_get_cur_max_rate(struct rtw_adapter *adapter)
 	u16 mcs_rate = 0;
 
 	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
-			     &pcur_bss->IEs[_FIXED_IE_LENGTH_],
-			     pcur_bss->IELength - _FIXED_IE_LENGTH_);
+			     pcur_bss->IEs, pcur_bss->IELength);
 	if (p && p[1] > 0) {
 		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 
