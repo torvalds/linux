@@ -261,7 +261,7 @@ static int ion_system_map_iommu(struct ion_buffer *buffer,
 	struct sg_table *table = (struct sg_table*)buffer->priv_virt;
 
 	data->iova_addr = iovmm_map(iommu_dev, table->sgl, 0, iova_length);
-	pr_debug("%s: map %lx -> %lx\n", __func__, table->sgl->dma_address, data->iova_addr);
+	pr_debug("%s: map %x -> %lx\n", __func__, table->sgl->dma_address, data->iova_addr);
 	if (!data->iova_addr || IS_ERR_VALUE(data->iova_addr)) {
 		pr_err("%s: iovmm_map() failed: %lx\n", __func__, data->iova_addr);
 		ret = -EINVAL;

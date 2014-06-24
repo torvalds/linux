@@ -917,7 +917,7 @@ static int ion_debug_client_show_buffer_map(struct seq_file *s, struct ion_buffe
 
 	while (node != NULL) {
 		iommu_map = rb_entry(node, struct ion_iommu_map, node);
-		seq_printf(s, "%16.16s:   0x%08lx   0x%08lx %8zuKB %4d\n",
+		seq_printf(s, "%16.16s:   0x%08lx   0x%08x %8zuKB %4d\n",
 			"<iommu>", iommu_map->iova_addr, 0, iommu_map->mapped_size>>10,
 			atomic_read(&iommu_map->ref.refcount));
 

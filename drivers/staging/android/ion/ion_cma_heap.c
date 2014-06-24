@@ -196,7 +196,7 @@ static int ion_cma_map_iommu(struct ion_buffer *buffer,
 	struct ion_cma_buffer_info *info = buffer->priv_virt;
 
 	data->iova_addr = iovmm_map(iommu_dev, info->table->sgl, 0, iova_length);
-	pr_debug("%s: map %lx -> %lx\n", __func__, info->table->sgl->dma_address,
+	pr_debug("%s: map %x -> %lx\n", __func__, info->table->sgl->dma_address,
 		data->iova_addr);
 	if (!data->iova_addr || IS_ERR_VALUE(data->iova_addr)) {
 		pr_err("%s: iovmm_map() failed: %lx\n", __func__, data->iova_addr);
