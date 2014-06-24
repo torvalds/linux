@@ -48,6 +48,9 @@
 #include <linux/regulator/rockchip_io_vol_domain.h>
 #include "../../clk/rockchip/clk-ops.h"
 
+/*
+        Fixme: 3036: RK_GRF_VIRT compatitable?
+*/
 #define grf_writel(v, offset)   do { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } while (0)
 
 #define RK_SDMMC_DRIVER_VERSION "Ver 1.11 2014-06-05" 
@@ -1527,7 +1530,11 @@ enum{
         IO_DOMAIN_33 = 3300,
 };
 static void dw_mci_do_grf_io_domain_switch(struct dw_mci *host, u32 voltage)
-{
+{       
+        /*
+                Fixme: 3036:  RK3288_GRF_IO_VSEL compatitable?
+        */
+
         if(cpu_is_rk3288()){
         	if(voltage == IO_DOMAIN_33)
                         voltage = 0;
@@ -3669,6 +3676,9 @@ int dw_mci_resume(struct dw_mci *host)
 			printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));  
 		host->mmc->rescan_disable = 0;
 		if(cpu_is_rk3288()) {
+		        /*
+                         Fixme: 3036:  RK3288_GRF_SOC_CON0 compatitable?
+                        */
 			grf_writel(((1<<12)<<16)|(0<<12), RK3288_GRF_SOC_CON0);//disable jtag
 		}
 	}
