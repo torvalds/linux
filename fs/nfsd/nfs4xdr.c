@@ -202,6 +202,26 @@ defer_free(struct nfsd4_compoundargs *argp, void *p)
 	return 0;
 }
 
+/*
+ * For xdr strings that need to be passed to other kernel api's
+ * as null-terminated strings.
+ *
+ * Note null-terminating in place usually isn't safe since the
+ * buffer might end on a page boundary.
+ */
+static char *
+svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
+{
+	char *p = kmalloc(len + 1, GFP_KERNEL);
+
+	if (!p)
+		return NULL;
+	memcpy(p, buf, len);
+	p[len] = '\0';
+	defer_free(argp, p);
+	return p;
+}
+
 /**
  * savemem - duplicate a chunk of memory for later processing
  * @argp: NFSv4 compound argument structure to be freed with
@@ -415,12 +435,10 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			return nfserr_badlabel;
 		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
-		label->data = kzalloc(dummy32 + 1, GFP_KERNEL);
+		label->len = dummy32;
+		label->data = svcxdr_dupstr(argp, buf, dummy32);
 		if (!label->data)
 			return nfserr_jukebox;
-		label->len = dummy32;
-		defer_free(argp, label->data);
-		memcpy(label->data, buf, dummy32);
 	}
 #endif
 
@@ -597,17 +615,9 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 		READ_BUF(4);
 		create->cr_datalen = be32_to_cpup(p++);
 		READ_BUF(create->cr_datalen);
-		/*
-		 * The VFS will want a null-terminated string, and
-		 * null-terminating in place isn't safe since this might
-		 * end on a page boundary:
-		 */
-		create->cr_data = kmalloc(create->cr_datalen + 1, GFP_KERNEL);
+		create->cr_data = svcxdr_dupstr(argp, p, create->cr_datalen);
 		if (!create->cr_data)
 			return nfserr_jukebox;
-		memcpy(create->cr_data, p, create->cr_datalen);
-		create->cr_data[create->cr_datalen] = '\0';
-		defer_free(argp, create->cr_data);
 		break;
 	case NF4BLK:
 	case NF4CHR:
