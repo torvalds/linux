@@ -800,6 +800,8 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 			reg = TTBCR_TG0_64K;
 
 		if (!stage1) {
+			reg |= (64 - smmu->s1_output_size) << TTBCR_T0SZ_SHIFT;
+
 			switch (smmu->s2_output_size) {
 			case 32:
 				reg |= (TTBCR2_ADDR_32 << TTBCR_PASIZE_SHIFT);
@@ -821,7 +823,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain)
 				break;
 			}
 		} else {
-			reg |= (64 - smmu->s1_output_size) << TTBCR_T0SZ_SHIFT;
+			reg |= (64 - smmu->input_size) << TTBCR_T0SZ_SHIFT;
 		}
 	} else {
 		reg = 0;
