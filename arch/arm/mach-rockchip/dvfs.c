@@ -21,6 +21,9 @@
 #include <linux/opp.h>
 #include <linux/rockchip/dvfs.h>
 #include <linux/rockchip/common.h>
+#include <linux/fb.h>
+#include <linux/reboot.h>
+#include "../../../drivers/clk/rockchip/clk-pd.h"
 
 extern int rockchip_tsadc_get_temp(int chn);
 
@@ -31,6 +34,108 @@ static struct workqueue_struct *dvfs_wq;
 static struct dvfs_node *clk_cpu_dvfs_node;
 static unsigned int target_temp = 80;
 static int temp_limit_enable = 1;
+
+static int pd_gpu_off, early_suspend;
+static DEFINE_MUTEX(switch_vdd_gpu_mutex);
+struct regulator *vdd_gpu_regulator;
+
+static int vdd_gpu_reboot_notifier_event(struct notifier_block *this,
+	unsigned long event, void *ptr)
+{
+	int ret;
+
+	DVFS_DBG("%s: enable vdd_gpu\n", __func__);
+	mutex_lock(&switch_vdd_gpu_mutex);
+	if (!regulator_is_enabled(vdd_gpu_regulator))
+		ret = regulator_enable(vdd_gpu_regulator);
+	mutex_unlock(&switch_vdd_gpu_mutex);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block vdd_gpu_reboot_notifier = {
+	.notifier_call = vdd_gpu_reboot_notifier_event,
+};
+
+static int clk_pd_gpu_notifier_call(struct notifier_block *nb,
+	unsigned long event, void *ptr)
+{
+	int ret;
+
+	mutex_lock(&switch_vdd_gpu_mutex);
+	switch (event) {
+	case RK_CLK_PD_PREPARE:
+		pd_gpu_off = 0;
+		if (early_suspend) {
+			if (!regulator_is_enabled(vdd_gpu_regulator))
+				ret = regulator_enable(vdd_gpu_regulator);
+		}
+		break;
+	case RK_CLK_PD_UNPREPARE:
+		pd_gpu_off = 1;
+		if (early_suspend) {
+			if (regulator_is_enabled(vdd_gpu_regulator))
+				ret = regulator_disable(vdd_gpu_regulator);
+		}
+		break;
+	default:
+		break;
+	}
+	mutex_unlock(&switch_vdd_gpu_mutex);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clk_pd_gpu_notifier = {
+	.notifier_call = clk_pd_gpu_notifier_call,
+};
+
+
+static int early_suspend_notifier_call(struct notifier_block *self,
+				unsigned long action, void *data)
+{
+	struct fb_event *event = data;
+	int blank_mode = *((int *)event->data);
+	int ret;
+
+	mutex_lock(&switch_vdd_gpu_mutex);
+	if (action == FB_EARLY_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_UNBLANK:
+			early_suspend = 0;
+			if (pd_gpu_off) {
+				if (!regulator_is_enabled(vdd_gpu_regulator))
+					ret = regulator_enable(
+					vdd_gpu_regulator);
+			}
+			break;
+		default:
+			break;
+		}
+	} else if (action == FB_EVENT_BLANK) {
+		switch (blank_mode) {
+		case FB_BLANK_POWERDOWN:
+			early_suspend = 1;
+			if (pd_gpu_off) {
+				if (regulator_is_enabled(vdd_gpu_regulator))
+					ret = regulator_disable(
+					vdd_gpu_regulator);
+			}
+
+			break;
+		default:
+			break;
+		}
+	}
+	mutex_unlock(&switch_vdd_gpu_mutex);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block early_suspend_notifier = {
+		.notifier_call = early_suspend_notifier_call,
+};
+
 
 static void dvfs_volt_up_delay(struct vd_node *vd, int new_volt, int old_volt)
 {
@@ -1393,6 +1498,17 @@ static int __init dvfs_init(void)
 		clk_cpu_dvfs_node->temp_limit_rate = clk_cpu_dvfs_node->max_rate;
 		dvfs_wq = alloc_workqueue("dvfs", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
 		queue_delayed_work_on(0, dvfs_wq, &dvfs_temp_limit_work, 0*HZ);
+	}
+
+	vdd_gpu_regulator = dvfs_get_regulator("vdd_gpu");
+	if (!IS_ERR_OR_NULL(vdd_gpu_regulator)) {
+		struct clk *clk = clk_get(NULL, "pd_gpu");
+
+		if (clk)
+			rk_clk_pd_notifier_register(clk, &clk_pd_gpu_notifier);
+
+		fb_register_client(&early_suspend_notifier);
+		register_reboot_notifier(&vdd_gpu_reboot_notifier);
 	}
 
 	return ret;
