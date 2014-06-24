@@ -530,6 +530,17 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 			ret = -EINVAL;
 			goto exit;
 		}
+		switch (keyparms->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+		case WLAN_CIPHER_SUITE_TKIP:
+		case WLAN_CIPHER_SUITE_CCMP:
+			break;
+		default:
+			ret = -EINVAL;
+			goto exit;
+		}
+
 	} else {
 		psta = rtw_get_stainfo23a(pstapriv, param->sta_addr);
 		if (!psta) {
@@ -538,15 +549,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				  "been removed or never been added\n");
 			goto exit;
 		}
-	}
-
-	if (strcmp(param->u.crypt.alg, "none") == 0 && (psta == NULL)) {
-		/* todo:clear default encryption keys */
-
-		DBG_8723A("clear default encryption keys, keyid =%d\n",
-			  param->u.crypt.idx);
-
-		goto exit;
 	}
 
 	key_len = keyparms->key_len;
