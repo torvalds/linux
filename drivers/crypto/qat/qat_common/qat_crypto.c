@@ -146,8 +146,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 {
 	int i;
-	long unsigned int bank;
-	long unsigned int num_inst, num_msg_sym, num_msg_asym;
+	unsigned long bank;
+	unsigned long num_inst, num_msg_sym, num_msg_asym;
 	int msg_size;
 	struct qat_crypto_instance *inst;
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];

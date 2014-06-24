@@ -95,6 +95,7 @@ static void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	pending = ppdstat & PCI_EXP_DEVSTA_TRPND;
 	if (pending) {
 		int ctr = 0;
+
 		do {
 			msleep(100);
 			pci_read_config_word(pdev, PPDSTAT_OFFSET, &ppdstat);

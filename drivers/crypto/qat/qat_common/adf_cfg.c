@@ -57,6 +57,7 @@ static DEFINE_MUTEX(qat_cfg_read_lock);
 static void *qat_dev_cfg_start(struct seq_file *sfile, loff_t *pos)
 {
 	struct adf_cfg_device_data *dev_cfg = sfile->private;
+
 	mutex_lock(&qat_cfg_read_lock);
 	return seq_list_start(&dev_cfg->sec_list, *pos);
 }
@@ -79,6 +80,7 @@ static int qat_dev_cfg_show(struct seq_file *sfile, void *v)
 static void *qat_dev_cfg_next(struct seq_file *sfile, void *v, loff_t *pos)
 {
 	struct adf_cfg_device_data *dev_cfg = sfile->private;
+
 	return seq_list_next(v, &dev_cfg->sec_list, pos);
 }
 
@@ -100,6 +102,7 @@ static int qat_dev_cfg_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
+
 		seq_f->private = inode->i_private;
 	}
 	return ret;

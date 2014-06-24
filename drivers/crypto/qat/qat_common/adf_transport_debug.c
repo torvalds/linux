@@ -57,6 +57,7 @@ static DEFINE_MUTEX(bank_read_lock);
 static void *adf_ring_start(struct seq_file *sfile, loff_t *pos)
 {
 	struct adf_etr_ring_data *ring = sfile->private;
+
 	mutex_lock(&ring_read_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
@@ -143,6 +144,7 @@ static int adf_ring_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
+
 		seq_f->private = inode->i_private;
 	}
 	return ret;
@@ -258,6 +260,7 @@ static int adf_bank_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
+
 		seq_f->private = inode->i_private;
 	}
 	return ret;

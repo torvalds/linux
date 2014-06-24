@@ -171,7 +171,6 @@ static void qat_uclo_wr_umem_by_words(struct icp_qat_fw_loader_handle *handle,
 		num_in_bytes -= 4;
 		ptr += 4;
 	}
-	return;
 }
 
 static void qat_uclo_batch_wr_umem(struct icp_qat_fw_loader_handle *handle,
@@ -186,6 +185,7 @@ static void qat_uclo_batch_wr_umem(struct icp_qat_fw_loader_handle *handle,
 	umem_init = umem_init_header->next;
 	while (umem_init) {
 		unsigned int addr, *value, size;
+
 		ae = umem_init->ae;
 		addr = umem_init->addr;
 		value = umem_init->value;
@@ -204,6 +204,7 @@ qat_uclo_cleanup_batch_init_list(struct icp_qat_fw_loader_handle *handle,
 	umem_init = *base;
 	while (umem_init) {
 		struct icp_qat_uof_batch_init *pre;
+
 		pre = umem_init;
 		umem_init = umem_init->next;
 		kfree(pre);
@@ -414,7 +415,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	uint64_t *fill_data;
 
 	uof_image = image->img_ptr;
-	fill_data = kzalloc(ICP_QAT_UCLO_MAX_USTORE * sizeof(uint64_t),
+	fill_data = kcalloc(ICP_QAT_UCLO_MAX_USTORE, sizeof(uint64_t),
 			    GFP_KERNEL);
 	if (!fill_data)
 		return -EFAULT;
@@ -720,6 +721,7 @@ qat_uclo_map_str_table(struct icp_qat_uclo_objhdr *obj_hdr,
 					obj_hdr->file_buff, tab_name, NULL);
 	if (chunk_hdr) {
 		int hdr_size;
+
 		memcpy(&str_table->table_len, obj_hdr->file_buff +
 		       chunk_hdr->offset, sizeof(str_table->table_len));
 		hdr_size = (char *)&str_table->strings - (char *)str_table;
@@ -821,6 +823,7 @@ static int qat_uclo_init_reg_sym(struct icp_qat_fw_loader_handle *handle,
 
 	for (i = 0; i < encap_ae->init_regsym_num; i++) {
 		unsigned int exp_res;
+
 		init_regsym = &encap_ae->init_regsym[i];
 		exp_res = init_regsym->value;
 		switch (init_regsym->init_type) {
@@ -949,7 +952,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int ae;
 
-	obj_handle->uword_buf = kzalloc(UWORD_CPYBUF_SIZE * sizeof(uint64_t),
+	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(uint64_t),
 					GFP_KERNEL);
 	if (!obj_handle->uword_buf)
 		return -ENOMEM;
@@ -957,20 +960,20 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	obj_handle->encap_uof_obj.obj_hdr = (struct icp_qat_uof_objhdr *)
 					     obj_handle->obj_hdr->file_buff;
 	obj_handle->encap_uof_obj.chunk_hdr = (struct icp_qat_uof_chunkhdr *)
-	    obj_handle->obj_hdr->file_buff + sizeof(struct icp_qat_uof_objhdr);
+	   (obj_handle->obj_hdr->file_buff + sizeof(struct icp_qat_uof_objhdr));
 	obj_handle->uword_in_bytes = 6;
 	obj_handle->prod_type = ICP_QAT_AC_C_CPU_TYPE;
 	obj_handle->prod_rev = PID_MAJOR_REV |
 			(PID_MINOR_REV & handle->hal_handle->revision_id);
 	if (qat_uclo_check_uof_compat(obj_handle)) {
-		pr_err("QAT: uof incompatible\n ");
+		pr_err("QAT: uof incompatible\n");
 		return -EINVAL;
 	}
 	obj_handle->ustore_phy_size = ICP_QAT_UCLO_MAX_USTORE;
 	if (!(obj_handle->obj_hdr->file_buff) ||
 	    !(qat_uclo_map_str_table(obj_handle->obj_hdr, ICP_QAT_UOF_STRT,
 				     &(obj_handle->str_table)))) {
-		pr_err("QAT: uof doesn't have effective images");
+		pr_err("QAT: uof doesn't have effective images\n");
 		goto out_err;
 	}
 	obj_handle->uimage_num =
@@ -979,7 +982,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	if (!obj_handle->uimage_num)
 		goto out_err;
 	if (qat_uclo_map_ae(handle, handle->hal_handle->ae_max_num)) {
-		pr_err("QAT: Bad object\n ");
+		pr_err("QAT: Bad object\n");
 		goto out_check_uof_aemask_err;
 	}
 	qat_uclo_init_uword_num(handle);

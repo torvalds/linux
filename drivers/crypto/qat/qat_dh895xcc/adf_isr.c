@@ -172,7 +172,7 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	if (!entries)
 		return -ENOMEM;
 
-	names = kzalloc(msix_num_entries * sizeof(char *), GFP_KERNEL);
+	names = kcalloc(msix_num_entries, sizeof(char *), GFP_KERNEL);
 	if (!names) {
 		kfree(entries);
 		return -ENOMEM;

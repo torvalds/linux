@@ -266,6 +266,7 @@ static unsigned short qat_hal_get_reg_addr(unsigned int type,
 					   unsigned short reg_num)
 {
 	unsigned short reg_addr;
+
 	switch (type) {
 	case ICP_GPA_ABS:
 	case ICP_GPB_ABS:
@@ -816,6 +817,7 @@ void qat_hal_wr_umem(struct icp_qat_fw_loader_handle *handle,
 	qat_hal_wr_ae_csr(handle, ae, USTORE_ADDRESS, uaddr);
 	for (i = 0; i < words_num; i++) {
 		unsigned int uwrd_lo, uwrd_hi, tmp;
+
 		uwrd_lo = ((data[i] & 0xfff0000) << 4) | (0x3 << 18) |
 			  ((data[i] & 0xff00) << 2) |
 			  (0x3 << 8) | (data[i] & 0xff);
@@ -888,6 +890,7 @@ static int qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 		return -EFAULT;
 	if (endpc) {
 		unsigned int ctx_status;
+
 		qat_hal_rd_indr_csr(handle, ae, ctx, CTX_STS_INDIRECT,
 				    &ctx_status);
 		*endpc = ctx_status & handle->hal_handle->upc_mask;
@@ -1111,8 +1114,8 @@ int qat_hal_batch_wr_lm(struct icp_qat_fw_loader_handle *handle,
 	alloc_inst_size = lm_init_header->size;
 	if ((unsigned int)alloc_inst_size > handle->hal_handle->max_ustore)
 		alloc_inst_size = handle->hal_handle->max_ustore;
-	micro_inst_arry = kmalloc(alloc_inst_size * sizeof(uint64_t),
-				  GFP_KERNEL);
+	micro_inst_arry = kmalloc_array(alloc_inst_size, sizeof(uint64_t),
+					GFP_KERNEL);
 	if (!micro_inst_arry)
 		return -ENOMEM;
 	micro_inst_num = 0;

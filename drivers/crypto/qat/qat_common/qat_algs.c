@@ -610,6 +610,7 @@ static void qat_alg_free_bufl(struct qat_crypto_instance *inst,
 	if (blp != blpout) {
 		/* If out of place operation dma unmap only data */
 		int bufless = bufs - blout->num_mapped_bufs;
+
 		for (i = bufless; i < bufs; i++) {
 			dma_unmap_single(dev, blout->bufers[i].addr,
 					 blout->bufers[i].len,
@@ -667,6 +668,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 
 	for_each_sg(sgl, sg, n, i) {
 		int y = i + bufs;
+
 		bufl->bufers[y].addr = dma_map_single(dev, sg_virt(sg),
 						      sg->length,
 						      DMA_BIDIRECTIONAL);
@@ -698,6 +700,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		}
 		for_each_sg(sglout, sg, n, i) {
 			int y = i + bufs;
+
 			bufers[y].addr = dma_map_single(dev, sg_virt(sg),
 							sg->length,
 							DMA_BIDIRECTIONAL);
@@ -729,6 +732,7 @@ err:
 	if (sgl != sglout && buflout) {
 		for_each_sg(sglout, sg, n, i) {
 			int y = i + bufs;
+
 			if (!dma_mapping_error(dev, buflout->bufers[y].addr))
 				dma_unmap_single(dev, buflout->bufers[y].addr,
 						 buflout->bufers[y].len,

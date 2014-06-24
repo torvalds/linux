@@ -55,6 +55,7 @@ static inline uint32_t adf_modulo(uint32_t data, uint32_t shift)
 {
 	uint32_t div = data >> shift;
 	uint32_t mult = div << shift;
+
 	return data - mult;
 }
 
@@ -68,6 +69,7 @@ static inline int adf_check_ring_alignment(uint64_t addr, uint64_t size)
 static int adf_verify_ring_size(uint32_t msg_size, uint32_t msg_num)
 {
 	int i = ADF_MIN_RING_SIZE;
+
 	for (; i <= ADF_MAX_RING_SIZE; i++)
 		if ((msg_size * msg_num) == ADF_SIZE_TO_RING_SIZE_IN_BYTES(i))
 			return i;
