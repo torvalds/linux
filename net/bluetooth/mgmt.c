@@ -1877,6 +1877,10 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
+	if (!cp->val && test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags))
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
+			     sizeof(cp->val), &cp->val);
+
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &cp->val);
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
@@ -5784,10 +5788,14 @@ void mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 
 	hci_req_init(&req, hdev);
 
-	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+		if (test_bit(HCI_USE_DEBUG_KEYS, &hdev->dev_flags))
+			hci_req_add(&req, HCI_OP_WRITE_SSP_DEBUG_MODE,
+				    sizeof(enable), &enable);
 		update_eir(&req);
-	else
+	} else {
 		clear_eir(&req);
+	}
 
 	hci_req_run(&req, NULL);
 }
