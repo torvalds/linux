@@ -1204,11 +1204,11 @@ static int rtw_validate_vendor_specific_ies(const u8 *pos, int elen)
 		/* Microsoft/Wi-Fi information elements are further typed and
 		 * subtyped */
 		switch (pos[3]) {
-		case 1:
+		case WLAN_OUI_TYPE_MICROSOFT_WPA:
 			/* Microsoft OUI (00:50:F2) with OUI Type 1:
 			 * real WPA information element */
 			break;
-		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
+		case WLAN_OUI_TYPE_MICROSOFT_WMM:
 			if (elen < 5) {
 				DBG_8723A("short WME information element "
 					  "ignored (len =%i)\n", elen);
@@ -1227,7 +1227,7 @@ static int rtw_validate_vendor_specific_ies(const u8 *pos, int elen)
 				return -EINVAL;
 			}
 			break;
-		case 4:
+		case WLAN_OUI_TYPE_MICROSOFT_WPS:
 			/* Wi-Fi Protected Setup (WPS) IE */
 			break;
 		default:
@@ -1289,6 +1289,7 @@ static int rtw_validate_frame_ies(const u8 *start, uint len)
 		case WLAN_EID_CHALLENGE:
 		case WLAN_EID_ERP_INFO:
 		case WLAN_EID_EXT_SUPP_RATES:
+			break;
 		case WLAN_EID_VENDOR_SPECIFIC:
 			if (rtw_validate_vendor_specific_ies(pos, elen))
 				unknown++;
