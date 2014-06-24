@@ -256,6 +256,8 @@ struct f2fs_nm_info {
 	unsigned int nat_cnt;		/* the # of cached nat entries */
 	struct list_head nat_entries;	/* cached nat entry list (clean) */
 	struct list_head dirty_nat_entries; /* cached nat entry list (dirty) */
+	struct list_head nat_entry_set;	/* nat entry set list */
+	unsigned int dirty_nat_cnt;	/* total num of nat entries in set */
 
 	/* free node ids management */
 	struct radix_tree_root free_nid_root;/* root of the free_nid cache */
