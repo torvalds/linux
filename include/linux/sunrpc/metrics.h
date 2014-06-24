@@ -79,6 +79,8 @@ struct rpc_clnt;
 struct rpc_iostats *	rpc_alloc_iostats(struct rpc_clnt *);
 void			rpc_count_iostats(const struct rpc_task *,
 					  struct rpc_iostats *);
+void			rpc_count_iostats_metrics(const struct rpc_task *,
+					  struct rpc_iostats *);
 void			rpc_print_iostats(struct seq_file *, struct rpc_clnt *);
 void			rpc_free_iostats(struct rpc_iostats *);
 
