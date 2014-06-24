@@ -4349,12 +4349,12 @@ static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
 			  void *data, u16 len)
 {
 	struct mgmt_mode *cp = data;
-	bool changed;
+	bool changed, use_changed;
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
 
-	if (cp->val != 0x00 && cp->val != 0x01)
+	if (cp->val != 0x00 && cp->val != 0x01 && cp->val != 0x02)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEBUG_KEYS,
 				  MGMT_STATUS_INVALID_PARAMS);
 
@@ -4366,6 +4366,20 @@ static int set_debug_keys(struct sock *sk, struct hci_dev *hdev,
 	else
 		changed = test_and_clear_bit(HCI_KEEP_DEBUG_KEYS,
 					     &hdev->dev_flags);
+
+	if (cp->val == 0x02)
+		use_changed = !test_and_set_bit(HCI_USE_DEBUG_KEYS,
+						&hdev->dev_flags);
+	else
+		use_changed = test_and_clear_bit(HCI_USE_DEBUG_KEYS,
+						 &hdev->dev_flags);
+
+	if (hdev_is_powered(hdev) && use_changed &&
+	    test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+		u8 mode = (cp->val == 0x02) ? 0x01 : 0x00;
+		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_DEBUG_MODE,
+			     sizeof(mode), &mode);
+	}
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_DEBUG_KEYS, hdev);
 	if (err < 0)
