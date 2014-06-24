@@ -2437,7 +2437,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		if (wps_ie && wps_ie[1] > 0) {
 			rtw_get_wps_attr_content23a(wps_ie, wps_ie[1],
 						    WPS_ATTR_SELECTED_REGISTRAR,
-						    (u8*)&sr, NULL);
+						    (u8*)&sr);
 		}
 		if (sr != 0)
 			set_fwstate(pmlmepriv, WIFI_UNDER_WPS);

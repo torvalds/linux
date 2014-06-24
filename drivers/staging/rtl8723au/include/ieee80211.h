@@ -389,7 +389,7 @@ int rtw_parse_wpa_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int
 int rtw_parse_wpa2_ie23a(const u8* wpa_ie, int wpa_ie_len, int *group_cipher, int *pairwise_cipher, int *is_8021x);
 
 const u8 *rtw_get_wps_attr23a(const u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_attr, u32 *len_attr);
-const u8 *rtw_get_wps_attr_content23a(const u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content, uint *len_content);
+const u8 *rtw_get_wps_attr_content23a(const u8 *wps_ie, uint wps_ielen, u16 target_attr_id ,u8 *buf_content);
 
 uint	rtw_get_rateset_len23a(u8	*rateset);
 

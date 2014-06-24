@@ -667,14 +667,10 @@ const u8 *rtw_get_wps_attr23a(const u8 *wps_ie, uint wps_ielen,
  * Returns: the address of the specific WPS attribute content found, or NULL
  */
 const u8 *rtw_get_wps_attr_content23a(const u8 *wps_ie, uint wps_ielen,
-				      u16 target_attr_id, u8 *buf_content,
-				      uint *len_content)
+				      u16 target_attr_id, u8 *buf_content)
 {
 	const u8 *attr_ptr;
 	u32 attr_len;
-
-	if (len_content)
-		*len_content = 0;
 
 	attr_ptr = rtw_get_wps_attr23a(wps_ie, wps_ielen, target_attr_id,
 				    NULL, &attr_len);
@@ -682,9 +678,6 @@ const u8 *rtw_get_wps_attr_content23a(const u8 *wps_ie, uint wps_ielen,
 	if (attr_ptr && attr_len) {
 		if (buf_content)
 			memcpy(buf_content, attr_ptr + 4, attr_len - 4);
-
-		if (len_content)
-			*len_content = attr_len - 4;
 
 		return attr_ptr + 4;
 	}
