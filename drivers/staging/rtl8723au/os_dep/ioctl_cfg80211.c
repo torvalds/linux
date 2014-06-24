@@ -514,17 +514,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 	DBG_8723A("%s\n", __func__);
 
-	param->u.crypt.err = 0;
-	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
-
-	/* sizeof(struct ieee_param) = 64 bytes; */
-	/* if (param_len !=  (u32) ((u8 *) param->u.crypt.key -
-	   (u8 *) param) + param->u.crypt.key_len) */
-	if (param_len != sizeof(struct ieee_param) + param->u.crypt.key_len) {
-		ret = -EINVAL;
-		goto exit;
-	}
-
 	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (key_index >= WEP_KEYS) {
 			ret = -EINVAL;
@@ -616,7 +605,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
-				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->
 				       dot118021XGrptxmickey[key_index].skey,
@@ -692,7 +680,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				psta->dot118021XPrivacy =
 					WLAN_CIPHER_SUITE_TKIP;
 
-				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psta->dot11tkiptxmickey.skey,
 				       &keyparms->key[16], 8);
@@ -738,9 +725,6 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
-				/* DEBUG_ERR("set key length :param->u"
-				   ".crypt.key_len =%d\n",
-				   param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->
 				       dot118021XGrptxmickey[key_index].skey,
@@ -804,16 +788,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 
 	DBG_8723A("%s\n", __func__);
 
-	param->u.crypt.err = 0;
-	param->u.crypt.alg[IEEE_CRYPT_ALG_NAME_LEN - 1] = '\0';
-
 	key_len = keyparms->key_len;
-
-	if (param_len <
-	    (u32) ((u8 *) param->u.crypt.key - (u8 *) param) + key_len) {
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (key_index >= WEP_KEYS) {
@@ -1028,18 +1003,6 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		set_tx = 0;	/* for wpa/wpa2 group key */
 	else
 		set_tx = 1;	/* for wpa/wpa2 pairwise key */
-
-	/* param->u.crypt.idx = key_index - 1; */
-	param->u.crypt.idx = key_index;
-
-	if (params->seq_len && params->seq) {
-		memcpy(param->u.crypt.seq, params->seq, params->seq_len);
-	}
-
-	if (params->key_len && params->key) {
-		param->u.crypt.key_len = params->key_len;
-		memcpy(param->u.crypt.key, params->key, params->key_len);
-	}
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		ret = rtw_cfg80211_set_encryption(ndev, key_index, set_tx,
