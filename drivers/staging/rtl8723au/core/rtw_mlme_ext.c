@@ -2430,11 +2430,9 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		pframe += (cur_network->IELength+len_diff);
 		pattrib->pktlen += (cur_network->IELength+len_diff);
 
-		iebuf = pmgntframe->buf_addr + TXDESC_OFFSET +
-			sizeof (struct ieee80211_hdr_3addr) +
-			_BEACON_IE_OFFSET_;
-		buflen = pattrib->pktlen - sizeof (struct ieee80211_hdr_3addr) -
-			_BEACON_IE_OFFSET_;
+		iebuf = mgmt->u.beacon.variable;
+		buflen = pattrib->pktlen -
+			offsetof(struct ieee80211_mgmt, u.beacon.variable);
 		wps_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 						 WLAN_OUI_TYPE_MICROSOFT_WPS,
 						 iebuf, buflen);
