@@ -368,6 +368,7 @@ struct reg_property {
 	const struct reg_value *values;
 	size_t num_values;
 	u32 def_value;
+	u32 set_value;
 };
 
 static const struct reg_value gpr13_tx_level[] = {
@@ -465,6 +466,10 @@ static const struct reg_property gpr13_props[] = {
 		.values = gpr13_rx_eq,
 		.num_values = ARRAY_SIZE(gpr13_rx_eq),
 		.def_value = IMX6Q_GPR13_SATA_RX_EQ_VAL_3_0_DB,
+	}, {
+		.name = "fsl,no-spread-spectrum",
+		.def_value = IMX6Q_GPR13_SATA_MPLL_SS_EN,
+		.set_value = 0,
 	},
 };
 
@@ -477,6 +482,14 @@ static u32 imx_ahci_parse_props(struct device *dev,
 
 	for (i = 0; i < num; i++, prop++) {
 		u32 of_val;
+
+		if (prop->num_values == 0) {
+			if (of_property_read_bool(np, prop->name))
+				reg_value |= prop->set_value;
+			else
+				reg_value |= prop->def_value;
+			continue;
+		}
 
 		if (of_property_read_u32(np, prop->name, &of_val)) {
 			dev_info(dev, "%s not specified, using %08x\n",
@@ -549,7 +562,6 @@ static int imx_ahci_probe(struct platform_device *pdev)
 				   IMX6Q_GPR13_SATA_RX_LOS_LVL_SATA2M |
 				   IMX6Q_GPR13_SATA_RX_DPLL_MODE_2P_4F |
 				   IMX6Q_GPR13_SATA_SPD_MODE_3P0G |
-				   IMX6Q_GPR13_SATA_MPLL_SS_EN |
 				   reg_value;
 	}
 
