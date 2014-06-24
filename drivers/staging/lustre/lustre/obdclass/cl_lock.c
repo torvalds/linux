@@ -932,7 +932,7 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 		 * LU-305 */
 		blocked = cfs_block_sigsinv(LUSTRE_FATAL_SIGS);
 
-		init_waitqueue_entry_current(&waiter);
+		init_waitqueue_entry(&waiter, current);
 		add_wait_queue(&lock->cll_wq, &waiter);
 		set_current_state(TASK_INTERRUPTIBLE);
 		cl_lock_mutex_put(env, lock);
@@ -943,7 +943,7 @@ int cl_lock_state_wait(const struct lu_env *env, struct cl_lock *lock)
 		 * can be restarted if signals are pending here */
 		result = -ERESTARTSYS;
 		if (likely(!OBD_FAIL_CHECK(OBD_FAIL_LOCK_STATE_WAIT_INTR))) {
-			waitq_wait(&waiter, TASK_INTERRUPTIBLE);
+			schedule();
 			if (!cfs_signal_pending())
 				result = 0;
 		}

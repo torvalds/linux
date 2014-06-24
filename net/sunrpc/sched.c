@@ -637,7 +637,8 @@ static void __rpc_queue_timer_fn(unsigned long ptr)
 
 static void __rpc_atrun(struct rpc_task *task)
 {
-	task->tk_status = 0;
+	if (task->tk_status == -ETIMEDOUT)
+		task->tk_status = 0;
 }
 
 /*

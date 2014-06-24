@@ -820,6 +820,9 @@ static int ctr_aes_crypt(struct blkcipher_desc *desc, long func,
 		else
 			memcpy(walk->iv, ctrptr, AES_BLOCK_SIZE);
 		spin_unlock(&ctrblk_lock);
+	} else {
+		if (!nbytes)
+			memcpy(walk->iv, ctrptr, AES_BLOCK_SIZE);
 	}
 	/*
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes

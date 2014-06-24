@@ -108,13 +108,9 @@ struct device;
 	SND_SOC_DAPM_INIT_REG_VAL(wreg, wshift, winvert), \
 	.kcontrol_news = wcontrols, .num_kcontrols = 1}
 #define SND_SOC_DAPM_VIRT_MUX(wname, wreg, wshift, winvert, wcontrols) \
-{	.id = snd_soc_dapm_virt_mux, .name = wname, \
-	SND_SOC_DAPM_INIT_REG_VAL(wreg, wshift, winvert), \
-	.kcontrol_news = wcontrols, .num_kcontrols = 1}
+	SND_SOC_DAPM_MUX(wname, wreg, wshift, winvert, wcontrols)
 #define SND_SOC_DAPM_VALUE_MUX(wname, wreg, wshift, winvert, wcontrols) \
-{	.id = snd_soc_dapm_value_mux, .name = wname, \
-	SND_SOC_DAPM_INIT_REG_VAL(wreg, wshift, winvert), \
-	.kcontrol_news = wcontrols, .num_kcontrols = 1}
+	SND_SOC_DAPM_MUX(wname, wreg, wshift, winvert, wcontrols)
 
 /* Simplified versions of above macros, assuming wncontrols = ARRAY_SIZE(wcontrols) */
 #define SOC_PGA_ARRAY(wname, wreg, wshift, winvert,\
@@ -172,10 +168,8 @@ struct device;
 	.event = wevent, .event_flags = wflags}
 #define SND_SOC_DAPM_VIRT_MUX_E(wname, wreg, wshift, winvert, wcontrols, \
 	wevent, wflags) \
-{	.id = snd_soc_dapm_virt_mux, .name = wname, \
-	SND_SOC_DAPM_INIT_REG_VAL(wreg, wshift, winvert), \
-	.kcontrol_news = wcontrols, .num_kcontrols = 1, \
-	.event = wevent, .event_flags = wflags}
+	SND_SOC_DAPM_MUX_E(wname, wreg, wshift, winvert, wcontrols, wevent, \
+		wflags)
 
 /* additional sequencing control within an event type */
 #define SND_SOC_DAPM_PGA_S(wname, wsubseq, wreg, wshift, winvert, \
@@ -311,12 +305,8 @@ struct device;
  	.get = snd_soc_dapm_get_enum_double, \
  	.put = snd_soc_dapm_put_enum_double, \
   	.private_value = (unsigned long)&xenum }
-#define SOC_DAPM_ENUM_VIRT(xname, xenum)		    \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_enum_double, \
-	.get = snd_soc_dapm_get_enum_virt, \
-	.put = snd_soc_dapm_put_enum_virt, \
-	.private_value = (unsigned long)&xenum }
+#define SOC_DAPM_ENUM_VIRT(xname, xenum) \
+	SOC_DAPM_ENUM(xname, xenum)
 #define SOC_DAPM_ENUM_EXT(xname, xenum, xget, xput) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_enum_double, \
@@ -324,11 +314,7 @@ struct device;
 	.put = xput, \
 	.private_value = (unsigned long)&xenum }
 #define SOC_DAPM_VALUE_ENUM(xname, xenum) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_enum_double, \
-	.get = snd_soc_dapm_get_value_enum_double, \
-	.put = snd_soc_dapm_put_value_enum_double, \
-	.private_value = (unsigned long)&xenum }
+	SOC_DAPM_ENUM(xname, xenum)
 #define SOC_DAPM_PIN_SWITCH(xname) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname " Switch", \
 	.info = snd_soc_dapm_info_pin_switch, \
@@ -392,14 +378,6 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_dapm_get_enum_virt(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_dapm_info_pin_switch(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
 int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
@@ -461,6 +439,7 @@ int snd_soc_dapm_nc_pin_unlocked(struct snd_soc_dapm_context *dapm,
 int snd_soc_dapm_get_pin_status(struct snd_soc_dapm_context *dapm,
 				const char *pin);
 int snd_soc_dapm_sync(struct snd_soc_dapm_context *dapm);
+int snd_soc_dapm_sync_unlocked(struct snd_soc_dapm_context *dapm);
 int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm,
 				  const char *pin);
 int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
@@ -470,7 +449,6 @@ int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec);
 
 /* Mostly internal - should not normally be used */
-void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason);
 void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm);
 
 /* dapm path query */
@@ -484,8 +462,6 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_input = 0,		/* input pin */
 	snd_soc_dapm_output,		/* output pin */
 	snd_soc_dapm_mux,			/* selects 1 analog signal from many inputs */
-	snd_soc_dapm_virt_mux,			/* virtual version of snd_soc_dapm_mux */
-	snd_soc_dapm_value_mux,			/* selects 1 analog signal from many inputs */
 	snd_soc_dapm_mixer,			/* mixes several analog signals together */
 	snd_soc_dapm_mixer_named_ctl,		/* mixer with named controls */
 	snd_soc_dapm_pga,			/* programmable gain/attenuation (volume) */

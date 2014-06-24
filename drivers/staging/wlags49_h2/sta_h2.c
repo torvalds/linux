@@ -4435,7 +4435,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0000,
 	0x000F368E,	/* Start execution address */
 	},
-	{ 0000, 0000, 0000, 0000, 00000000, 0000, 00000000}
+	{ 0000, 0000, 0000, 0000, 00000000, 0000, NULL}
 };
 
 static const CFG_RANGE20_STRCT fw_image_infocompat[] = {

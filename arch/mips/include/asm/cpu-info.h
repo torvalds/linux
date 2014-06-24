@@ -39,16 +39,17 @@ struct cache_desc {
 #define MIPS_CACHE_PINDEX	0x00000020	/* Physically indexed cache */
 
 struct cpuinfo_mips {
-	unsigned int		udelay_val;
-	unsigned int		asid_cache;
+	unsigned long		asid_cache;
 
 	/*
 	 * Capability and feature descriptor structure for MIPS CPU
 	 */
 	unsigned long		options;
 	unsigned long		ases;
+	unsigned int		udelay_val;
 	unsigned int		processor_id;
 	unsigned int		fpu_id;
+	unsigned int		msa_id;
 	unsigned int		cputype;
 	int			isa_level;
 	int			tlbsize;
@@ -94,5 +95,32 @@ extern void cpu_report(void);
 
 extern const char *__cpu_name[];
 #define cpu_name_string()	__cpu_name[smp_processor_id()]
+
+struct seq_file;
+struct notifier_block;
+
+extern int register_proc_cpuinfo_notifier(struct notifier_block *nb);
+extern int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v);
+
+#define proc_cpuinfo_notifier(fn, pri)					\
+({									\
+	static struct notifier_block fn##_nb = {			\
+		.notifier_call = fn,					\
+		.priority = pri						\
+	};								\
+									\
+	register_proc_cpuinfo_notifier(&fn##_nb);			\
+})
+
+struct proc_cpuinfo_notifier_args {
+	struct seq_file *m;
+	unsigned long n;
+};
+
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+# define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
+#else
+# define cpu_vpe_id(cpuinfo)	0
+#endif
 
 #endif /* __ASM_CPU_INFO_H */

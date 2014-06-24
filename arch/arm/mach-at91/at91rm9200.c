@@ -21,6 +21,7 @@
 #include <mach/at91rm9200.h>
 #include <mach/at91_st.h>
 #include <mach/cpu.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "soc.h"

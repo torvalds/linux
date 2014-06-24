@@ -132,7 +132,7 @@ static int ip6_finish_output(struct sk_buff *skb)
 		return ip6_finish_output2(skb);
 }
 
-int ip6_output(struct sk_buff *skb)
+int ip6_output(struct sock *sk, struct sk_buff *skb)
 {
 	struct net_device *dev = skb_dst(skb)->dev;
 	struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
@@ -344,11 +344,15 @@ static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 
 static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 {
-	if (skb->len <= mtu || skb->local_df)
+	if (skb->len <= mtu)
 		return false;
 
+	/* ipv6 conntrack defrag sets max_frag_size + local_df */
 	if (IP6CB(skb)->frag_max_size && IP6CB(skb)->frag_max_size > mtu)
 		return true;
+
+	if (skb->local_df)
+		return false;
 
 	if (skb_is_gso(skb) && skb_gso_network_seglen(skb) <= mtu)
 		return false;
@@ -367,6 +371,9 @@ int ip6_forward(struct sk_buff *skb)
 	if (net->ipv6.devconf_all->forwarding == 0)
 		goto error;
 
+	if (skb->pkt_type != PACKET_HOST)
+		goto drop;
+
 	if (skb_warn_if_lro(skb))
 		goto drop;
 
@@ -375,9 +382,6 @@ int ip6_forward(struct sk_buff *skb)
 				 IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
-
-	if (skb->pkt_type != PACKET_HOST)
-		goto drop;
 
 	skb_forward_csum(skb);
 
@@ -1225,13 +1229,15 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		unsigned int maxnonfragsize, headersize;
 
 		headersize = sizeof(struct ipv6hdr) +
-			     (opt ? opt->tot_len : 0) +
+			     (opt ? opt->opt_flen + opt->opt_nflen : 0) +
 			     (dst_allfrag(&rt->dst) ?
 			      sizeof(struct frag_hdr) : 0) +
 			     rt->rt6i_nfheader_len;
 
-		maxnonfragsize = (np->pmtudisc >= IPV6_PMTUDISC_DO) ?
-				 mtu : sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+		if (ip6_sk_local_df(sk))
+			maxnonfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+		else
+			maxnonfragsize = mtu;
 
 		/* dontfrag active */
 		if ((cork->length + length > mtu - headersize) && dontfrag &&
@@ -1538,8 +1544,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	}
 
 	/* Allow local fragmentation. */
-	if (np->pmtudisc < IPV6_PMTUDISC_DO)
-		skb->local_df = 1;
+	skb->local_df = ip6_sk_local_df(sk);
 
 	*final_dst = fl6->daddr;
 	__skb_pull(skb, skb_network_header_len(skb));
@@ -1566,8 +1571,8 @@ int ip6_push_pending_frames(struct sock *sk)
 	if (proto == IPPROTO_ICMPV6) {
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 
-		ICMP6MSGOUT_INC_STATS_BH(net, idev, icmp6_hdr(skb)->icmp6_type);
-		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
+		ICMP6MSGOUT_INC_STATS(net, idev, icmp6_hdr(skb)->icmp6_type);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
 	}
 
 	err = ip6_local_out(skb);

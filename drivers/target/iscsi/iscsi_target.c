@@ -460,6 +460,7 @@ int iscsit_del_np(struct iscsi_np *np)
 	spin_lock_bh(&np->np_thread_lock);
 	np->np_exports--;
 	if (np->np_exports) {
+		np->enabled = true;
 		spin_unlock_bh(&np->np_thread_lock);
 		return 0;
 	}
@@ -499,6 +500,23 @@ static int iscsit_queue_rsp(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 	return 0;
 }
 
+static void iscsit_aborted_task(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+{
+	bool scsi_cmd = (cmd->iscsi_opcode == ISCSI_OP_SCSI_CMD);
+
+	spin_lock_bh(&conn->cmd_lock);
+	if (!list_empty(&cmd->i_conn_node))
+		list_del_init(&cmd->i_conn_node);
+	spin_unlock_bh(&conn->cmd_lock);
+
+	__iscsit_free_cmd(cmd, scsi_cmd, true);
+}
+
+static enum target_prot_op iscsit_get_sup_prot_ops(struct iscsi_conn *conn)
+{
+	return TARGET_PROT_NORMAL;
+}
+
 static struct iscsit_transport iscsi_target_transport = {
 	.name			= "iSCSI/TCP",
 	.transport_type		= ISCSI_TCP,
@@ -513,6 +531,8 @@ static struct iscsit_transport iscsi_target_transport = {
 	.iscsit_response_queue	= iscsit_response_queue,
 	.iscsit_queue_data_in	= iscsit_queue_rsp,
 	.iscsit_queue_status	= iscsit_queue_rsp,
+	.iscsit_aborted_task	= iscsit_aborted_task,
+	.iscsit_get_sup_prot_ops = iscsit_get_sup_prot_ops,
 };
 
 static int __init iscsi_target_init_module(void)
@@ -1503,6 +1523,16 @@ int iscsit_setup_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 {
 	u32 payload_length = ntoh24(hdr->dlength);
 
+	if (!(hdr->flags & ISCSI_FLAG_CMD_FINAL)) {
+		pr_err("NopOUT Flag's, Left Most Bit not set, protocol error.\n");
+		if (!cmd)
+			return iscsit_add_reject(conn, ISCSI_REASON_PROTOCOL_ERROR,
+						 (unsigned char *)hdr);
+		
+		return iscsit_reject_cmd(cmd, ISCSI_REASON_PROTOCOL_ERROR,
+					 (unsigned char *)hdr);
+	}
+
 	if (hdr->itt == RESERVED_ITT && !(hdr->opcode & ISCSI_OP_IMMEDIATE)) {
 		pr_err("NOPOUT ITT is reserved, but Immediate Bit is"
 			" not set, protocol error.\n");
@@ -1564,7 +1594,9 @@ int iscsit_process_nop_out(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	 * Initiator is expecting a NopIN ping reply..
 	 */
 	if (hdr->itt != RESERVED_ITT) {
-		BUG_ON(!cmd);
+		if (!cmd)
+			return iscsit_add_reject(conn, ISCSI_REASON_PROTOCOL_ERROR,
+						(unsigned char *)hdr);
 
 		spin_lock_bh(&conn->cmd_lock);
 		list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
@@ -2468,6 +2500,7 @@ static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd *cmd;
 	struct iscsi_conn *conn_p;
+	bool found = false;
 
 	/*
 	 * Only send a Asynchronous Message on connections whos network
@@ -2476,11 +2509,12 @@ static void iscsit_build_conn_drop_async_message(struct iscsi_conn *conn)
 	list_for_each_entry(conn_p, &conn->sess->sess_conn_list, conn_list) {
 		if (conn_p->conn_state == TARG_CONN_STATE_LOGGED_IN) {
 			iscsit_inc_conn_usage_count(conn_p);
+			found = true;
 			break;
 		}
 	}
 
-	if (!conn_p)
+	if (!found)
 		return;
 
 	cmd = iscsit_allocate_cmd(conn_p, TASK_RUNNING);

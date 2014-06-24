@@ -35,11 +35,13 @@ ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
 
 ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[guard, future vmmemap]
 
-ffffffbffbc00000	ffffffbffbdfffff	   2MB		earlyprintk device
+ffffffbffa000000	ffffffbffaffffff	  16MB		PCI I/O space
 
-ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O space
+ffffffbffb000000	ffffffbffbbfffff	  12MB		[guard]
 
-ffffffbffbe10000	ffffffbcffffffff	  ~2MB		[guard]
+ffffffbffbc00000	ffffffbffbdfffff	   2MB		fixed mappings
+
+ffffffbffbe00000	ffffffbffbffffff	   2MB		[guard]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		modules
 
@@ -60,11 +62,13 @@ fffffdfc00000000	fffffdfdffffffff	   8GB		vmemmap
 
 fffffdfe00000000	fffffdfffbbfffff	  ~8GB		[guard, future vmmemap]
 
-fffffdfffbc00000	fffffdfffbdfffff	   2MB		earlyprintk device
+fffffdfffa000000	fffffdfffaffffff	  16MB		PCI I/O space
 
-fffffdfffbe00000	fffffdfffbe0ffff	  64KB		PCI I/O space
+fffffdfffb000000	fffffdfffbbfffff	  12MB		[guard]
 
-fffffdfffbe10000	fffffdfffbffffff	  ~2MB		[guard]
+fffffdfffbc00000	fffffdfffbdfffff	   2MB		fixed mappings
+
+fffffdfffbe00000	fffffdfffbffffff	   2MB		[guard]
 
 fffffdfffc000000	fffffdffffffffff	  64MB		modules
 

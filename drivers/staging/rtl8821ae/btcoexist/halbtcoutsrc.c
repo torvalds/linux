@@ -732,17 +732,7 @@ bool exhalbtc_initlize_variables(struct rtl_priv *adapter)
 	else
 		btcoexist->binded = true;
 
-#if ( defined(CONFIG_PCI_HCI))
-	btcoexist->chip_interface = BTC_INTF_PCI;
-#elif ( defined(CONFIG_USB_HCI))
-	btcoexist->chip_interface = BTC_INTF_USB;
-#elif ( defined(CONFIG_SDIO_HCI))
-	btcoexist->chip_interface = BTC_INTF_SDIO;
-#elif ( defined(CONFIG_GSPI_HCI))
-	btcoexist->chip_interface = BTC_INTF_GSPI;
-#else
 	btcoexist->chip_interface = BTC_INTF_UNKNOWN;
-#endif
 
 	if (NULL == btcoexist->adapter)
 		btcoexist->adapter = adapter;
@@ -1087,7 +1077,7 @@ void exhalbtc_dbg_control(struct btc_coexist *btcoexist,
 	btcoexist->statistics.cnt_dbg_ctrl++;
 }
 
-void exhalbtc_stack_update_profile_info()
+void exhalbtc_stack_update_profile_info(void)
 {
 }
 

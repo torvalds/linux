@@ -15,7 +15,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -267,8 +266,6 @@ static int tiny_spi_probe(struct platform_device *pdev)
 
 	/* setup the state for the bitbang driver */
 	hw->bitbang.master = master;
-	if (!hw->bitbang.master)
-		return err;
 	hw->bitbang.setup_transfer = tiny_spi_setup_transfer;
 	hw->bitbang.chipselect = tiny_spi_chipselect;
 	hw->bitbang.txrx_bufs = tiny_spi_txrx_bufs;

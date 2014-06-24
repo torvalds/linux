@@ -312,14 +312,6 @@ static int max9850_resume(struct snd_soc_codec *codec)
 
 static int max9850_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
 	/* enable zero-detect */
 	snd_soc_update_bits(codec, MAX9850_GENERAL_PURPOSE, 1, 1);
 	/* enable slew-rate control */

@@ -1201,8 +1201,6 @@ static int vpfe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long addr;
 	int ret;
 
-	if (count == 0)
-		return -ENOBUFS;
 	ret = mutex_lock_interruptible(&video->lock);
 	if (ret)
 		goto streamoff;
@@ -1249,9 +1247,18 @@ static int vpfe_stop_streaming(struct vb2_queue *vq)
 	struct vpfe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpfe_video_device *video = fh->video;
 
-	if (!vb2_is_streaming(vq))
-		return 0;
 	/* release all active buffers */
+	if (video->cur_frm == video->next_frm) {
+		vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_ERROR);
+	} else {
+		if (video->cur_frm != NULL)
+			vb2_buffer_done(&video->cur_frm->vb,
+					VB2_BUF_STATE_ERROR);
+		if (video->next_frm != NULL)
+			vb2_buffer_done(&video->next_frm->vb,
+					VB2_BUF_STATE_ERROR);
+	}
+
 	while (!list_empty(&video->dma_queue)) {
 		video->next_frm = list_entry(video->dma_queue.next,
 						struct vpfe_cap_buffer, list);
@@ -1327,6 +1334,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	q->type = req_buf->type;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = fh;
+	q->min_buffers_needed = 1;
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpfe_cap_buffer);

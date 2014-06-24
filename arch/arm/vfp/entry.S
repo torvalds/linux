@@ -8,9 +8,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/init.h>
+#include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/vfpmacros.h>
-#include "../kernel/entry-header.S"
+#include <asm/assembler.h>
+#include <asm/asm-offsets.h>
 
 @ VFP entry point.
 @
@@ -22,11 +25,7 @@
 @  IRQs disabled.
 @
 ENTRY(do_vfp)
-#ifdef CONFIG_PREEMPT_COUNT
-	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
-	add	r11, r4, #1		@ increment it
-	str	r11, [r10, #TI_PREEMPT]
-#endif
+	inc_preempt_count r10, r4
 	enable_irq
  	ldr	r4, .LCvfp
 	ldr	r11, [r10, #TI_CPU]	@ CPU number
@@ -35,12 +34,7 @@ ENTRY(do_vfp)
 ENDPROC(do_vfp)
 
 ENTRY(vfp_null_entry)
-#ifdef CONFIG_PREEMPT_COUNT
-	get_thread_info	r10
-	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
-	sub	r11, r4, #1		@ decrement it
-	str	r11, [r10, #TI_PREEMPT]
-#endif
+	dec_preempt_count_ti r10, r4
 	mov	pc, lr
 ENDPROC(vfp_null_entry)
 
@@ -53,12 +47,7 @@ ENDPROC(vfp_null_entry)
 
 	__INIT
 ENTRY(vfp_testing_entry)
-#ifdef CONFIG_PREEMPT_COUNT
-	get_thread_info	r10
-	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count
-	sub	r11, r4, #1		@ decrement it
-	str	r11, [r10, #TI_PREEMPT]
-#endif
+	dec_preempt_count_ti r10, r4
 	ldr	r0, VFP_arch_address
 	str	r0, [r0]		@ set to non-zero value
 	mov	pc, r9			@ we have handled the fault

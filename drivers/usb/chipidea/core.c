@@ -64,6 +64,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/chipidea.h>
 #include <linux/usb/of.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/regulator/consumer.h>
 
@@ -276,6 +277,39 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 }
 
 /**
+ * ci_usb_phy_init: initialize phy according to different phy type
+ * @ci: the controller
+  *
+ * This function returns an error code if usb_phy_init has failed
+ */
+static int ci_usb_phy_init(struct ci_hdrc *ci)
+{
+	int ret;
+
+	switch (ci->platdata->phy_mode) {
+	case USBPHY_INTERFACE_MODE_UTMI:
+	case USBPHY_INTERFACE_MODE_UTMIW:
+	case USBPHY_INTERFACE_MODE_HSIC:
+		ret = usb_phy_init(ci->transceiver);
+		if (ret)
+			return ret;
+		hw_phymode_configure(ci);
+		break;
+	case USBPHY_INTERFACE_MODE_ULPI:
+	case USBPHY_INTERFACE_MODE_SERIAL:
+		hw_phymode_configure(ci);
+		ret = usb_phy_init(ci->transceiver);
+		if (ret)
+			return ret;
+		break;
+	default:
+		ret = usb_phy_init(ci->transceiver);
+	}
+
+	return ret;
+}
+
+/**
  * hw_device_reset: resets chip (execute without interruption)
  * @ci: the controller
   *
@@ -297,6 +331,13 @@ int hw_device_reset(struct ci_hdrc *ci, u32 mode)
 
 	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
+		if (ci->hw_bank.lpm)
+			hw_write(ci, OP_DEVLC, DEVLC_PFSC, DEVLC_PFSC);
+		else
+			hw_write(ci, OP_PORTSC, PORTSC_PFSC, PORTSC_PFSC);
+	}
 
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
@@ -412,6 +453,9 @@ static int ci_get_platdata(struct device *dev,
 		}
 	}
 
+	if (of_usb_get_maximum_speed(dev->of_node) == USB_SPEED_FULL)
+		platdata->flags |= CI_HDRC_FORCE_FULLSPEED;
+
 	return 0;
 }
 
@@ -496,33 +540,6 @@ static void ci_get_otg_capable(struct ci_hdrc *ci)
 	}
 }
 
-static int ci_usb_phy_init(struct ci_hdrc *ci)
-{
-	if (ci->platdata->phy) {
-		ci->transceiver = ci->platdata->phy;
-		return usb_phy_init(ci->transceiver);
-	} else {
-		ci->global_phy = true;
-		ci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (IS_ERR(ci->transceiver))
-			ci->transceiver = NULL;
-
-		return 0;
-	}
-}
-
-static void ci_usb_phy_destroy(struct ci_hdrc *ci)
-{
-	if (!ci->transceiver)
-		return;
-
-	otg_set_peripheral(ci->transceiver->otg, NULL);
-	if (ci->global_phy)
-		usb_put_phy(ci->transceiver);
-	else
-		usb_phy_shutdown(ci->transceiver);
-}
-
 static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
@@ -532,7 +549,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	int		ret;
 	enum usb_dr_mode dr_mode;
 
-	if (!dev->platform_data) {
+	if (!dev_get_platdata(dev)) {
 		dev_err(dev, "platform data missing\n");
 		return -ENODEV;
 	}
@@ -549,7 +566,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	ci->dev = dev;
-	ci->platdata = dev->platform_data;
+	ci->platdata = dev_get_platdata(dev);
 	ci->imx28_write_fix = !!(ci->platdata->flags &
 		CI_HDRC_IMX28_WRITE_FIX);
 
@@ -559,7 +576,24 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	hw_phymode_configure(ci);
+	if (ci->platdata->phy)
+		ci->transceiver = ci->platdata->phy;
+	else
+		ci->transceiver = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+
+	if (IS_ERR(ci->transceiver)) {
+		ret = PTR_ERR(ci->transceiver);
+		/*
+		 * if -ENXIO is returned, it means PHY layer wasn't
+		 * enabled, so it makes no sense to return -EPROBE_DEFER
+		 * in that case, since no PHY driver will ever probe.
+		 */
+		if (ret == -ENXIO)
+			return ret;
+
+		dev_err(dev, "no usb2 phy configured\n");
+		return -EPROBE_DEFER;
+	}
 
 	ret = ci_usb_phy_init(ci);
 	if (ret) {
@@ -572,8 +606,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	ci->irq = platform_get_irq(pdev, 0);
 	if (ci->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
-		ret = -ENODEV;
-		goto destroy_phy;
+		ret = ci->irq;
+		goto deinit_phy;
 	}
 
 	ci_get_otg_capable(ci);
@@ -590,23 +624,12 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ret = ci_hdrc_gadget_init(ci);
 		if (ret)
 			dev_info(dev, "doesn't support gadget\n");
-		if (!ret && ci->transceiver) {
-			ret = otg_set_peripheral(ci->transceiver->otg,
-							&ci->gadget);
-			/*
-			 * If we implement all USB functions using chipidea drivers,
-			 * it doesn't need to call above API, meanwhile, if we only
-			 * use gadget function, calling above API is useless.
-			 */
-			if (ret && ret != -ENOTSUPP)
-				goto destroy_phy;
-		}
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
 		ret = -ENODEV;
-		goto destroy_phy;
+		goto deinit_phy;
 	}
 
 	if (ci->is_otg) {
@@ -663,8 +686,8 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 stop:
 	ci_role_destroy(ci);
-destroy_phy:
-	ci_usb_phy_destroy(ci);
+deinit_phy:
+	usb_phy_shutdown(ci->transceiver);
 
 	return ret;
 }
@@ -677,7 +700,8 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
-	ci_usb_phy_destroy(ci);
+	usb_phy_shutdown(ci->transceiver);
+	kfree(ci->hw_bank.regmap);
 
 	return 0;
 }

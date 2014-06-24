@@ -65,7 +65,6 @@ enum max77686_ramp_rate {
 };
 
 struct max77686_data {
-	struct regulator_dev *rdev[MAX77686_REGULATORS];
 	unsigned int opmode[MAX77686_REGULATORS];
 };
 
@@ -400,7 +399,7 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	unsigned int i;
 
 	pmic_np = iodev->dev->of_node;
-	regulators_np = of_find_node_by_name(pmic_np, "voltage-regulators");
+	regulators_np = of_get_child_by_name(pmic_np, "voltage-regulators");
 	if (!regulators_np) {
 		dev_err(&pdev->dev, "could not find regulators sub-node\n");
 		return -EINVAL;
@@ -410,8 +409,7 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
 			     pdata->num_regulators, GFP_KERNEL);
 	if (!rdata) {
-		dev_err(&pdev->dev,
-			"could not allocate memory for regulator data\n");
+		of_node_put(regulators_np);
 		return -ENOMEM;
 	}
 
@@ -425,6 +423,7 @@ static int max77686_pmic_dt_parse_pdata(struct platform_device *pdev,
 	}
 
 	pdata->regulators = rdata;
+	of_node_put(regulators_np);
 
 	return 0;
 }
@@ -474,16 +473,18 @@ static int max77686_pmic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, max77686);
 
 	for (i = 0; i < MAX77686_REGULATORS; i++) {
+		struct regulator_dev *rdev;
+
 		config.init_data = pdata->regulators[i].initdata;
 		config.of_node = pdata->regulators[i].of_node;
 
 		max77686->opmode[i] = regulators[i].enable_mask;
-		max77686->rdev[i] = devm_regulator_register(&pdev->dev,
+		rdev = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);
-		if (IS_ERR(max77686->rdev[i])) {
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev,
 				"regulator init failed for %d\n", i);
-			return PTR_ERR(max77686->rdev[i]);
+			return PTR_ERR(rdev);
 		}
 	}
 

@@ -243,40 +243,41 @@ static int packet_direct_xmit(struct sk_buff *skb)
 	const struct net_device_ops *ops = dev->netdev_ops;
 	netdev_features_t features;
 	struct netdev_queue *txq;
+	int ret = NETDEV_TX_BUSY;
 	u16 queue_map;
-	int ret;
 
 	if (unlikely(!netif_running(dev) ||
-		     !netif_carrier_ok(dev))) {
-		kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
+		     !netif_carrier_ok(dev)))
+		goto drop;
 
 	features = netif_skb_features(skb);
 	if (skb_needs_linearize(skb, features) &&
-	    __skb_linearize(skb)) {
-		kfree_skb(skb);
-		return NET_XMIT_DROP;
-	}
+	    __skb_linearize(skb))
+		goto drop;
 
 	queue_map = skb_get_queue_mapping(skb);
 	txq = netdev_get_tx_queue(dev, queue_map);
 
-	__netif_tx_lock_bh(txq);
-	if (unlikely(netif_xmit_frozen_or_stopped(txq))) {
-		ret = NETDEV_TX_BUSY;
-		kfree_skb(skb);
-		goto out;
-	}
+	local_bh_disable();
 
-	ret = ops->ndo_start_xmit(skb, dev);
-	if (likely(dev_xmit_complete(ret)))
-		txq_trans_update(txq);
-	else
+	HARD_TX_LOCK(dev, txq, smp_processor_id());
+	if (!netif_xmit_frozen_or_drv_stopped(txq)) {
+		ret = ops->ndo_start_xmit(skb, dev);
+		if (ret == NETDEV_TX_OK)
+			txq_trans_update(txq);
+	}
+	HARD_TX_UNLOCK(dev, txq);
+
+	local_bh_enable();
+
+	if (!dev_xmit_complete(ret))
 		kfree_skb(skb);
-out:
-	__netif_tx_unlock_bh(txq);
+
 	return ret;
+drop:
+	atomic_long_inc(&dev->tx_dropped);
+	kfree_skb(skb);
+	return NET_XMIT_DROP;
 }
 
 static struct net_device *packet_cached_dev_get(struct packet_sock *po)
@@ -1277,7 +1278,7 @@ static unsigned int fanout_demux_hash(struct packet_fanout *f,
 				      struct sk_buff *skb,
 				      unsigned int num)
 {
-	return reciprocal_scale(skb->rxhash, num);
+	return reciprocal_scale(skb_get_hash(skb), num);
 }
 
 static unsigned int fanout_demux_lb(struct packet_fanout *f,
@@ -1362,7 +1363,6 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 			if (!skb)
 				return 0;
 		}
-		skb_get_hash(skb);
 		idx = fanout_demux_hash(f, skb, num);
 		break;
 	case PACKET_FANOUT_LB:
@@ -1848,7 +1848,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->dropcount = atomic_read(&sk->sk_drops);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	spin_unlock(&sk->sk_receive_queue.lock);
-	sk->sk_data_ready(sk, skb->len);
+	sk->sk_data_ready(sk);
 	return 0;
 
 drop_n_acct:
@@ -2054,7 +2054,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	else
 		prb_clear_blk_fill_status(&po->rx_ring);
 
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 
 drop_n_restore:
 	if (skb_head != skb->data && skb_shared(skb)) {
@@ -2069,7 +2069,7 @@ ring_is_full:
 	po->stats.stats1.tp_drops++;
 	spin_unlock(&sk->sk_receive_queue.lock);
 
-	sk->sk_data_ready(sk, 0);
+	sk->sk_data_ready(sk);
 	kfree_skb(copy_skb);
 	goto drop_n_restore;
 }
@@ -2257,8 +2257,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	if (unlikely(!(dev->flags & IFF_UP)))
 		goto out_put;
 
-	reserve = dev->hard_header_len;
-
+	reserve = dev->hard_header_len + VLAN_HLEN;
 	size_max = po->tx_ring.frame_size
 		- (po->tp_hdrlen - sizeof(struct sockaddr_ll));
 
@@ -2285,8 +2284,19 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 			goto out_status;
 
 		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
-				addr, hlen);
+					  addr, hlen);
+		if (tp_len > dev->mtu + dev->hard_header_len) {
+			struct ethhdr *ehdr;
+			/* Earlier code assumed this would be a VLAN pkt,
+			 * double-check this now that we have the actual
+			 * packet in hand.
+			 */
 
+			skb_reset_mac_header(skb);
+			ehdr = eth_hdr(skb);
+			if (ehdr->h_proto != htons(ETH_P_8021Q))
+				tp_len = -EMSGSIZE;
+		}
 		if (unlikely(tp_len < 0)) {
 			if (po->tp_loss) {
 				__packet_set_status(po, ph,

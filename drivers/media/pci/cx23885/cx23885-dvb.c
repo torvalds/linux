@@ -473,6 +473,7 @@ static struct ds3000_config tevii_ds3000_config = {
 static struct ts2020_config tevii_ts2020_config  = {
 	.tuner_address = 0x60,
 	.clk_out_div = 1,
+	.frequency_div = 1146000,
 };
 
 static struct cx24116_config dvbworld_cx24116_config = {

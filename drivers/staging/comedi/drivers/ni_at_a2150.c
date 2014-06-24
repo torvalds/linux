@@ -184,7 +184,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	}
 	/*  initialize async here to make sure s is not NULL */
 	async = s->async;
-	async->events = 0;
 	cmd = &async->cmd;
 
 	status = inw(dev->iobase + STATUS_REG);
@@ -196,15 +195,14 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	if (status & OVFL_BIT) {
 		comedi_error(dev, "fifo overflow");
-		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
+		cfc_handle_events(dev, s);
 	}
 
 	if ((status & DMA_TC_BIT) == 0) {
 		comedi_error(dev, "caught non-dma interrupt?  Aborting.");
-		a2150_cancel(dev, s);
 		async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 		return IRQ_HANDLED;
 	}
 
@@ -249,7 +247,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		cfc_write_to_buffer(s, dpnt);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
-				a2150_cancel(dev, s);
 				async->events |= COMEDI_CB_EOA;
 				break;
 			}
@@ -265,7 +262,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 
 	async->events |= COMEDI_CB_BLOCK;
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 
 	/* clear interrupt */
 	outw(0x00, dev->iobase + DMA_TC_CLEAR_REG);
@@ -488,13 +485,25 @@ static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
+static int a2150_ai_eoc(struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + STATUS_REG);
+	if (status & FNE_BIT)
+		return 0;
+	return -EBUSY;
+}
+
 static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
 	struct a2150_private *devpriv = dev->private;
-	unsigned int i, n;
-	static const int timeout = 100000;
-	static const int filter_delay = 36;
+	unsigned int n;
+	int ret;
 
 	/*  clear fifo and reset triggering circuitry */
 	outw(0, dev->iobase + FIFO_RESET_REG);
@@ -524,30 +533,20 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	 * there is a 35.6 sample delay for data to get through the
 	 * antialias filter
 	 */
-	for (n = 0; n < filter_delay; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
+	for (n = 0; n < 36; n++) {
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		inw(dev->iobase + FIFO_DATA_REG);
 	}
 
 	/*  read data */
 	for (n = 0; n < insn->n; n++) {
-		for (i = 0; i < timeout; i++) {
-			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
-				break;
-			udelay(1);
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
+		ret = comedi_timeout(dev, s, insn, a2150_ai_eoc, 0);
+		if (ret)
+			return ret;
+
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 		data[n] ^= 0x8000;
 	}

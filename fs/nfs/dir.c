@@ -69,21 +69,28 @@ const struct address_space_operations nfs_dir_aops = {
 
 static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir, struct rpc_cred *cred)
 {
+	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_open_dir_context *ctx;
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx != NULL) {
 		ctx->duped = 0;
-		ctx->attr_gencount = NFS_I(dir)->attr_gencount;
+		ctx->attr_gencount = nfsi->attr_gencount;
 		ctx->dir_cookie = 0;
 		ctx->dup_cookie = 0;
 		ctx->cred = get_rpccred(cred);
+		spin_lock(&dir->i_lock);
+		list_add(&ctx->list, &nfsi->open_files);
+		spin_unlock(&dir->i_lock);
 		return ctx;
 	}
 	return  ERR_PTR(-ENOMEM);
 }
 
-static void put_nfs_open_dir_context(struct nfs_open_dir_context *ctx)
+static void put_nfs_open_dir_context(struct inode *dir, struct nfs_open_dir_context *ctx)
 {
+	spin_lock(&dir->i_lock);
+	list_del(&ctx->list);
+	spin_unlock(&dir->i_lock);
 	put_rpccred(ctx->cred);
 	kfree(ctx);
 }
@@ -126,7 +133,7 @@ out:
 static int
 nfs_closedir(struct inode *inode, struct file *filp)
 {
-	put_nfs_open_dir_context(filp->private_data);
+	put_nfs_open_dir_context(filp->f_path.dentry->d_inode, filp->private_data);
 	return 0;
 }
 
@@ -306,10 +313,9 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 					if (printk_ratelimit()) {
 						pr_notice("NFS: directory %pD2 contains a readdir loop."
 								"Please contact your server vendor.  "
-								"The file: %s has duplicate cookie %llu\n",
-								desc->file,
-								array->array[i].string.name,
-								*desc->dir_cookie);
+								"The file: %.*s has duplicate cookie %llu\n",
+								desc->file, array->array[i].string.len,
+								array->array[i].string.name, *desc->dir_cookie);
 					}
 					status = -ELOOP;
 					goto out;
@@ -435,6 +441,22 @@ static
 void nfs_advise_use_readdirplus(struct inode *dir)
 {
 	set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(dir)->flags);
+}
+
+/*
+ * This function is mainly for use by nfs_getattr().
+ *
+ * If this is an 'ls -l', we want to force use of readdirplus.
+ * Do this by checking if there is an active file descriptor
+ * and calling nfs_advise_use_readdirplus, then forcing a
+ * cache flush.
+ */
+void nfs_force_use_readdirplus(struct inode *dir)
+{
+	if (!list_empty(&NFS_I(dir)->open_files)) {
+		nfs_advise_use_readdirplus(dir);
+		nfs_zap_mapping(dir, dir->i_mapping);
+	}
 }
 
 static
@@ -815,6 +837,17 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc)
 	goto out;
 }
 
+static bool nfs_dir_mapping_need_revalidate(struct inode *dir)
+{
+	struct nfs_inode *nfsi = NFS_I(dir);
+
+	if (nfs_attribute_cache_expired(dir))
+		return true;
+	if (nfsi->cache_validity & NFS_INO_INVALID_DATA)
+		return true;
+	return false;
+}
+
 /* The file offset position represents the dirent entry number.  A
    last cookie cache takes care of the common case of reading the
    whole directory.
@@ -847,7 +880,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	desc->plus = nfs_use_readdirplus(inode, ctx) ? 1 : 0;
 
 	nfs_block_sillyrename(dentry);
-	if (ctx->pos == 0 || nfs_attribute_cache_expired(inode))
+	if (ctx->pos == 0 || nfs_dir_mapping_need_revalidate(inode))
 		res = nfs_revalidate_mapping(inode, file->f_mapping);
 	if (res < 0)
 		goto out;
@@ -1911,6 +1944,7 @@ int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct inode *old_inode = old_dentry->d_inode;
 	struct inode *new_inode = new_dentry->d_inode;
 	struct dentry *dentry = NULL, *rehash = NULL;
+	struct rpc_task *task;
 	int error = -EBUSY;
 
 	dfprintk(VFS, "NFS: rename(%pd2 -> %pd2, ct=%d)\n",
@@ -1958,8 +1992,16 @@ int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_inode != NULL)
 		NFS_PROTO(new_inode)->return_delegation(new_inode);
 
-	error = NFS_PROTO(old_dir)->rename(old_dir, &old_dentry->d_name,
-					   new_dir, &new_dentry->d_name);
+	task = nfs_async_rename(old_dir, new_dir, old_dentry, new_dentry, NULL);
+	if (IS_ERR(task)) {
+		error = PTR_ERR(task);
+		goto out;
+	}
+
+	error = rpc_wait_for_completion_task(task);
+	if (error == 0)
+		error = task->tk_status;
+	rpc_put_task(task);
 	nfs_mark_for_revalidate(old_inode);
 out:
 	if (rehash)

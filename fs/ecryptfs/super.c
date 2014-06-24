@@ -132,7 +132,7 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  */
 static void ecryptfs_evict_inode(struct inode *inode)
 {
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	iput(ecryptfs_inode_to_lower(inode));
 }

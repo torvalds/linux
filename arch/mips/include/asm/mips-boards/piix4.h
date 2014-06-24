@@ -50,4 +50,9 @@
 #define PIIX4_FUNC1_IDETIM_SECONDARY_HI		0x43
 #define   PIIX4_FUNC1_IDETIM_SECONDARY_HI_IDE_DECODE_EN	(1 << 7)
 
+/* Power Management Configuration Space */
+#define PIIX4_FUNC3_PMBA			0x40
+#define PIIX4_FUNC3_PMREGMISC			0x80
+#define   PIIX4_FUNC3_PMREGMISC_EN			(1 << 0)
+
 #endif /* __ASM_MIPS_BOARDS_PIIX4_H */

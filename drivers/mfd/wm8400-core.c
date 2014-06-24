@@ -161,31 +161,19 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct wm8400 *wm8400;
-	int ret;
 
 	wm8400 = devm_kzalloc(&i2c->dev, sizeof(struct wm8400), GFP_KERNEL);
-	if (wm8400 == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wm8400)
+		return -ENOMEM;
 
 	wm8400->regmap = devm_regmap_init_i2c(i2c, &wm8400_regmap_config);
-	if (IS_ERR(wm8400->regmap)) {
-		ret = PTR_ERR(wm8400->regmap);
-		goto err;
-	}
+	if (IS_ERR(wm8400->regmap))
+		return PTR_ERR(wm8400->regmap);
 
 	wm8400->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, wm8400);
 
-	ret = wm8400_init(wm8400, dev_get_platdata(&i2c->dev));
-	if (ret != 0)
-		goto err;
-
-	return 0;
-
-err:
-	return ret;
+	return wm8400_init(wm8400, dev_get_platdata(&i2c->dev));
 }
 
 static int wm8400_i2c_remove(struct i2c_client *i2c)

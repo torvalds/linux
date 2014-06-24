@@ -272,13 +272,7 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	unsigned long flags;
 	int ret;
 
-	/* If buffer queue is empty, return error */
 	spin_lock_irqsave(&common->irqlock, flags);
-	if (list_empty(&common->dma_queue)) {
-		spin_unlock_irqrestore(&common->irqlock, flags);
-		vpif_dbg(1, debug, "buffer queue is empty\n");
-		return -ENOBUFS;
-	}
 
 	/* Get the next frame from the buffer queue */
 	common->cur_frm = common->next_frm = list_entry(common->dma_queue.next,
@@ -364,8 +358,31 @@ static int vpif_stop_streaming(struct vb2_queue *vq)
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
+	/* Disable channel as per its device type and channel id */
+	if (VPIF_CHANNEL0_VIDEO == ch->channel_id) {
+		enable_channel0(0);
+		channel0_intr_enable(0);
+	}
+	if ((VPIF_CHANNEL1_VIDEO == ch->channel_id) ||
+		(2 == common->started)) {
+		enable_channel1(0);
+		channel1_intr_enable(0);
+	}
+	common->started = 0;
+
 	/* release all active buffers */
 	spin_lock_irqsave(&common->irqlock, flags);
+	if (common->cur_frm == common->next_frm) {
+		vb2_buffer_done(&common->cur_frm->vb, VB2_BUF_STATE_ERROR);
+	} else {
+		if (common->cur_frm != NULL)
+			vb2_buffer_done(&common->cur_frm->vb,
+					VB2_BUF_STATE_ERROR);
+		if (common->next_frm != NULL)
+			vb2_buffer_done(&common->next_frm->vb,
+					VB2_BUF_STATE_ERROR);
+	}
+
 	while (!list_empty(&common->dma_queue)) {
 		common->next_frm = list_entry(common->dma_queue.next,
 						struct vpif_cap_buffer, list);
@@ -939,17 +956,6 @@ static int vpif_release(struct file *filep)
 	if (fh->io_allowed[VPIF_VIDEO_INDEX]) {
 		/* Reset io_usrs member of channel object */
 		common->io_usrs = 0;
-		/* Disable channel as per its device type and channel id */
-		if (VPIF_CHANNEL0_VIDEO == ch->channel_id) {
-			enable_channel0(0);
-			channel0_intr_enable(0);
-		}
-		if ((VPIF_CHANNEL1_VIDEO == ch->channel_id) ||
-		    (2 == common->started)) {
-			enable_channel1(0);
-			channel1_intr_enable(0);
-		}
-		common->started = 0;
 		/* Free buffers allocated */
 		vb2_queue_release(&common->buffer_queue);
 		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
@@ -1023,7 +1029,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpif_cap_buffer);
-	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->min_buffers_needed = 1;
 
 	ret = vb2_queue_init(q);
 	if (ret) {

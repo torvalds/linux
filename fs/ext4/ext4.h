@@ -31,6 +31,7 @@
 #include <linux/percpu_counter.h>
 #include <linux/ratelimit.h>
 #include <crypto/hash.h>
+#include <linux/falloc.h>
 #ifdef __KERNEL__
 #include <linux/compat.h>
 #endif
@@ -567,6 +568,8 @@ enum {
 #define EXT4_GET_BLOCKS_NO_LOCK			0x0100
 	/* Do not put hole in extent cache */
 #define EXT4_GET_BLOCKS_NO_PUT_HOLE		0x0200
+	/* Convert written extents to unwritten */
+#define EXT4_GET_BLOCKS_CONVERT_UNWRITTEN	0x0400
 
 /*
  * The bit position of these flags must not overlap with any of the
@@ -998,6 +1001,8 @@ struct ext4_inode_info {
 #define EXT4_MOUNT2_STD_GROUP_SIZE	0x00000002 /* We have standard group
 						      size of blocksize * 8
 						      blocks */
+#define EXT4_MOUNT2_HURD_COMPAT		0x00000004 /* Support HURD-castrated
+						      file systems */
 
 #define clear_opt(sb, opt)		EXT4_SB(sb)->s_mount_opt &= \
 						~EXT4_MOUNT_##opt
@@ -1326,6 +1331,7 @@ struct ext4_sb_info {
 	struct list_head s_es_lru;
 	unsigned long s_es_last_sorted;
 	struct percpu_counter s_extent_cache_cnt;
+	struct mb_cache *s_mb_cache;
 	spinlock_t s_es_lru_lock ____cacheline_aligned_in_smp;
 
 	/* Ratelimit ext4 messages. */
@@ -2133,8 +2139,6 @@ extern int ext4_writepage_trans_blocks(struct inode *);
 extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
-extern int ext4_block_zero_page_range(handle_t *handle,
-		struct address_space *mapping, loff_t from, loff_t length);
 extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 			     loff_t lstart, loff_t lend);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
@@ -2462,23 +2466,6 @@ static inline void ext4_update_i_disksize(struct inode *inode, loff_t newsize)
 	up_write(&EXT4_I(inode)->i_data_sem);
 }
 
-/*
- * Update i_disksize after writeback has been started. Races with truncate
- * are avoided by checking i_size under i_data_sem.
- */
-static inline void ext4_wb_update_i_disksize(struct inode *inode, loff_t newsize)
-{
-	loff_t i_size;
-
-	down_write(&EXT4_I(inode)->i_data_sem);
-	i_size = i_size_read(inode);
-	if (newsize > i_size)
-		newsize = i_size;
-	if (newsize > EXT4_I(inode)->i_disksize)
-		EXT4_I(inode)->i_disksize = newsize;
-	up_write(&EXT4_I(inode)->i_data_sem);
-}
-
 struct ext4_group_info {
 	unsigned long   bb_state;
 	struct rb_root  bb_free_root;
@@ -2757,6 +2744,7 @@ extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
 extern int ext4_ext_precache(struct inode *inode);
+extern int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len);
 
 /* move_extent.c */
 extern void ext4_double_down_write_data_sem(struct inode *first,
@@ -2766,6 +2754,8 @@ extern void ext4_double_up_write_data_sem(struct inode *orig_inode,
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);
+extern int mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
+			    struct ext4_extent **extent);
 
 /* page-io.c */
 extern int __init ext4_init_pageio(void);

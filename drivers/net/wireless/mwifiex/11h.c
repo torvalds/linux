@@ -73,8 +73,8 @@ static int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag)
 {
 	u32 enable = flag;
 
-	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				     HostCmd_ACT_GEN_SET, DOT11H_I, &enable);
+	return mwifiex_send_cmd(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				HostCmd_ACT_GEN_SET, DOT11H_I, &enable, true);
 }
 
 /* This functions processes TLV buffer for a pending BSS Join command.

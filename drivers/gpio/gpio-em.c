@@ -99,23 +99,23 @@ static void em_gio_irq_enable(struct irq_data *d)
 	em_gio_write(p, GIO_IEN, BIT(irqd_to_hwirq(d)));
 }
 
-static unsigned int em_gio_irq_startup(struct irq_data *d)
+static int em_gio_irq_reqres(struct irq_data *d)
 {
 	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d)))
+	if (gpio_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d))) {
 		dev_err(p->gpio_chip.dev,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-	em_gio_irq_enable(d);
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static void em_gio_irq_shutdown(struct irq_data *d)
+static void em_gio_irq_relres(struct irq_data *d)
 {
 	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
 
-	em_gio_irq_disable(d);
 	gpio_unlock_as_irq(&p->gpio_chip, irqd_to_hwirq(d));
 }
 
@@ -359,8 +359,8 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_mask = em_gio_irq_disable;
 	irq_chip->irq_unmask = em_gio_irq_enable;
 	irq_chip->irq_set_type = em_gio_irq_set_type;
-	irq_chip->irq_startup = em_gio_irq_startup;
-	irq_chip->irq_shutdown = em_gio_irq_shutdown;
+	irq_chip->irq_request_resources = em_gio_irq_reqres;
+	irq_chip->irq_release_resources = em_gio_irq_relres;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
 	p->irq_domain = irq_domain_add_simple(pdev->dev.of_node,

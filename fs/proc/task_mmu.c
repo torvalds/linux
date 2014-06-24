@@ -1,4 +1,5 @@
 #include <linux/mm.h>
+#include <linux/vmacache.h>
 #include <linux/hugetlb.h>
 #include <linux/huge_mm.h>
 #include <linux/mount.h>
@@ -152,7 +153,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 
 	/*
 	 * We remember last_addr rather than next_addr to hit with
-	 * mmap_cache most of the time. We have zero last_addr at
+	 * vmacache most of the time. We have zero last_addr at
 	 * the beginning and also after lseek. We will have -1 last_addr
 	 * after the end of the vmas.
 	 */
@@ -1350,7 +1351,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
 	struct numa_maps *md;
 	struct page *page;
 
-	if (pte_none(*pte))
+	if (!pte_present(*pte))
 		return 0;
 
 	page = pte_page(*pte);

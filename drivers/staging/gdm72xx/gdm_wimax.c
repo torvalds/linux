@@ -62,21 +62,6 @@ static u8 gdm_wimax_macaddr[6] = {0x00, 0x0a, 0x3b, 0xf0, 0x01, 0x30};
 static void gdm_wimax_ind_fsm_update(struct net_device *dev, struct fsm_s *fsm);
 static void gdm_wimax_ind_if_updown(struct net_device *dev, int if_up);
 
-#if defined(DEBUG_SDU)
-static void printk_hex(u8 *buf, u32 size)
-{
-	int i;
-
-	for (i = 0; i < size; i++) {
-		if (i && i % 16 == 0)
-			printk(KERN_DEBUG "\n%02x ", *buf++);
-		else
-			printk(KERN_DEBUG "%02x ", *buf++);
-	}
-
-	printk(KERN_DEBUG "\n");
-}
-
 static const char *get_protocol_name(u16 protocol)
 {
 	static char buf[32];
@@ -140,7 +125,8 @@ static const char *get_port_name(u16 port)
 	return buf;
 }
 
-static void dump_eth_packet(const char *title, u8 *data, int len)
+static void dump_eth_packet(struct net_device *dev, const char *title,
+			    u8 *data, int len)
 {
 	struct iphdr *ih = NULL;
 	struct udphdr *uh = NULL;
@@ -162,48 +148,21 @@ static void dump_eth_packet(const char *title, u8 *data, int len)
 		port = ntohs(uh->dest);
 	}
 
-	printk(KERN_DEBUG "[%s] len=%d, %s, %s, %s\n",
+	netdev_dbg(dev, "[%s] len=%d, %s, %s, %s\n",
 		title, len,
 		get_protocol_name(protocol),
 		get_ip_protocol_name(ip_protocol),
 		get_port_name(port));
 
 	if (!(data[0] == 0xff && data[1] == 0xff)) {
-		if (protocol == ETH_P_IP) {
-			printk(KERN_DEBUG "     src=%pI4\n", &ih->saddr);
-		} else if (protocol == ETH_P_IPV6) {
-			printk(KERN_DEBUG "     src=%pI6\n", &ih->saddr);
-		}
+		if (protocol == ETH_P_IP)
+			netdev_dbg(dev, "     src=%pI4\n", &ih->saddr);
+		else if (protocol == ETH_P_IPV6)
+			netdev_dbg(dev, "     src=%pI6\n", &ih->saddr);
 	}
 
-	#if (DUMP_PACKET & DUMP_SDU_ALL)
-	printk_hex(data, len);
-	#else
-		#if (DUMP_PACKET & DUMP_SDU_ARP)
-		if (protocol == ETH_P_ARP)
-			printk_hex(data, len);
-		#endif
-		#if (DUMP_PACKET & DUMP_SDU_IP)
-		if (protocol == ETH_P_IP || protocol == ETH_P_IPV6)
-			printk_hex(data, len);
-		#else
-			#if (DUMP_PACKET & DUMP_SDU_IP_TCP)
-			if (ip_protocol == IPPROTO_TCP)
-				printk_hex(data, len);
-			#endif
-			#if (DUMP_PACKET & DUMP_SDU_IP_UDP)
-			if (ip_protocol == IPPROTO_UDP)
-				printk_hex(data, len);
-			#endif
-			#if (DUMP_PACKET & DUMP_SDU_IP_ICMP)
-			if (ip_protocol == IPPROTO_ICMP)
-				printk_hex(data, len);
-			#endif
-		#endif
-	#endif
+	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, data, len, false);
 }
-#endif
-
 
 static inline int gdm_wimax_header(struct sk_buff **pskb)
 {
@@ -237,12 +196,10 @@ static void gdm_wimax_event_rcv(struct net_device *dev, u16 type, void *msg,
 {
 	struct nic *nic = netdev_priv(dev);
 
-	#if defined(DEBUG_HCI)
 	u8 *buf = (u8 *) msg;
 	u16 hci_cmd =  (buf[0]<<8) | buf[1];
 	u16 hci_len = (buf[2]<<8) | buf[3];
-	printk(KERN_DEBUG "H=>D: 0x%04x(%d)\n", hci_cmd, hci_len);
-	#endif
+	netdev_dbg(dev, "H=>D: 0x%04x(%d)\n", hci_cmd, hci_len);
 
 	gdm_wimax_send(nic, msg, len);
 }
@@ -351,11 +308,9 @@ static int gdm_wimax_event_send(struct net_device *dev, char *buf, int size)
 	struct evt_entry *e;
 	unsigned long flags;
 
-	#if defined(DEBUG_HCI)
 	u16 hci_cmd =  ((u8)buf[0]<<8) | (u8)buf[1];
 	u16 hci_len = ((u8)buf[2]<<8) | (u8)buf[3];
-	printk(KERN_DEBUG "D=>H: 0x%04x(%d)\n", hci_cmd, hci_len);
-	#endif
+	netdev_dbg(dev, "D=>H: 0x%04x(%d)\n", hci_cmd, hci_len);
 
 	spin_lock_irqsave(&wm_event.evt_lock, flags);
 
@@ -415,9 +370,7 @@ static int gdm_wimax_tx(struct sk_buff *skb, struct net_device *dev)
 	struct nic *nic = netdev_priv(dev);
 	struct fsm_s *fsm = (struct fsm_s *) nic->sdk_data[SIOC_DATA_FSM].buf;
 
-	#if defined(DEBUG_SDU)
-	dump_eth_packet("TX", skb->data, skb->len);
-	#endif
+	dump_eth_packet(dev, "TX", skb->data, skb->len);
 
 	ret = gdm_wimax_header(&skb);
 	if (ret < 0) {
@@ -540,7 +493,7 @@ static int gdm_wimax_ioctl_get_data(struct data_s *dst, struct data_s *src)
 	if (src->size) {
 		if (!dst->buf)
 			return -EINVAL;
-		if (copy_to_user(dst->buf, src->buf, size))
+		if (copy_to_user((void __user *)dst->buf, src->buf, size))
 			return -EFAULT;
 	}
 	return 0;
@@ -563,7 +516,7 @@ static int gdm_wimax_ioctl_set_data(struct data_s *dst, struct data_s *src)
 			return -ENOMEM;
 	}
 
-	if (copy_from_user(dst->buf, src->buf, src->size)) {
+	if (copy_from_user(dst->buf, (void __user *)src->buf, src->size)) {
 		kdelete(&dst->buf);
 		return -EFAULT;
 	}
@@ -756,9 +709,7 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 	struct sk_buff *skb;
 	int ret;
 
-	#if defined(DEBUG_SDU)
-	dump_eth_packet("RX", buf, len);
-	#endif
+	dump_eth_packet(dev, "RX", buf, len);
 
 	skb = dev_alloc_skb(len + 2);
 	if (!skb) {

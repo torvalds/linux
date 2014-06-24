@@ -26,8 +26,6 @@
 #include <asm/smp_scu.h>
 #include <asm/firmware.h>
 
-#include <mach/hardware.h>
-
 #include <plat/cpu.h>
 
 #include "common.h"

@@ -1298,6 +1298,15 @@ static int __init ubi_init(void)
 		}
 	}
 
+	err = ubiblock_init();
+	if (err) {
+		ubi_err("block: cannot initialize, error %d", err);
+
+		/* See comment above re-ubi_is_module(). */
+		if (ubi_is_module())
+			goto out_detach;
+	}
+
 	return 0;
 
 out_detach:
@@ -1325,6 +1334,8 @@ late_initcall(ubi_init);
 static void __exit ubi_exit(void)
 {
 	int i;
+
+	ubiblock_exit();
 
 	for (i = 0; i < UBI_MAX_DEVICES; i++)
 		if (ubi_devices[i]) {

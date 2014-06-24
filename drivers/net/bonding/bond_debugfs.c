@@ -69,7 +69,7 @@ void bond_debug_register(struct bonding *bond)
 		debugfs_create_dir(bond->dev->name, bonding_debug_root);
 
 	if (!bond->debug_dir) {
-		pr_warning("%s: Warning: failed to register to debugfs\n",
+		pr_warn("%s: Warning: failed to register to debugfs\n",
 			bond->dev->name);
 		return;
 	}
@@ -98,9 +98,8 @@ void bond_debug_reregister(struct bonding *bond)
 	if (d) {
 		bond->debug_dir = d;
 	} else {
-		pr_warning("%s: Warning: failed to reregister, "
-				"so just unregister old one\n",
-				bond->dev->name);
+		pr_warn("%s: Warning: failed to reregister, so just unregister old one\n",
+			bond->dev->name);
 		bond_debug_unregister(bond);
 	}
 }
@@ -110,8 +109,7 @@ void bond_create_debugfs(void)
 	bonding_debug_root = debugfs_create_dir("bonding", NULL);
 
 	if (!bonding_debug_root) {
-		pr_warning("Warning: Cannot create bonding directory"
-				" in debugfs\n");
+		pr_warn("Warning: Cannot create bonding directory in debugfs\n");
 	}
 }
 

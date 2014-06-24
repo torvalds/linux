@@ -152,7 +152,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	}
 
 	/* locate specific data set for the attached memory */
-	strap = nvbios_ramcfg_index(bios);
+	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {
 		nv_error(pfb, "invalid ramcfg strap\n");
 		return -EINVAL;
@@ -505,7 +505,8 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 int
 nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, int size, void **pobject)
+		 struct nouveau_oclass *oclass, u32 maskaddr, int size,
+		 void **pobject)
 {
 	struct nouveau_fb *pfb = nouveau_fb(parent);
 	struct nouveau_bios *bios = nouveau_bios(pfb);
@@ -513,7 +514,7 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	const u32 rsvd_head = ( 256 * 1024) >> 12; /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024) >> 12; /* vbios etc */
 	u32 parts = nv_rd32(pfb, 0x022438);
-	u32 pmask = nv_rd32(pfb, 0x022554);
+	u32 pmask = nv_rd32(pfb, maskaddr);
 	u32 bsize = nv_rd32(pfb, 0x10f20c);
 	u32 offset, length;
 	bool uniform = true;
@@ -630,7 +631,7 @@ nvc0_ram_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_ram *ram;
 	int ret;
 
-	ret = nvc0_ram_create(parent, engine, oclass, &ram);
+	ret = nvc0_ram_create(parent, engine, oclass, 0x022554, &ram);
 	*pobject = nv_object(ram);
 	if (ret)
 		return ret;

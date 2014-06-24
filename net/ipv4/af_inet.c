@@ -1505,9 +1505,9 @@ u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp_offset)
 		bhptr = per_cpu_ptr(mib[0], cpu);
 		syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
 		do {
-			start = u64_stats_fetch_begin_bh(syncp);
+			start = u64_stats_fetch_begin_irq(syncp);
 			v = *(((u64 *) bhptr) + offt);
-		} while (u64_stats_fetch_retry_bh(syncp, start));
+		} while (u64_stats_fetch_retry_irq(syncp, start));
 
 		res += v;
 	}
@@ -1648,6 +1648,39 @@ static __net_initdata struct pernet_operations ipv4_mib_ops = {
 static int __init init_ipv4_mibs(void)
 {
 	return register_pernet_subsys(&ipv4_mib_ops);
+}
+
+static __net_init int inet_init_net(struct net *net)
+{
+	/*
+	 * Set defaults for local port range
+	 */
+	seqlock_init(&net->ipv4.ip_local_ports.lock);
+	net->ipv4.ip_local_ports.range[0] =  32768;
+	net->ipv4.ip_local_ports.range[1] =  61000;
+
+	seqlock_init(&net->ipv4.ping_group_range.lock);
+	/*
+	 * Sane defaults - nobody may create ping sockets.
+	 * Boot scripts should set this to distro-specific group.
+	 */
+	net->ipv4.ping_group_range.range[0] = make_kgid(&init_user_ns, 1);
+	net->ipv4.ping_group_range.range[1] = make_kgid(&init_user_ns, 0);
+	return 0;
+}
+
+static __net_exit void inet_exit_net(struct net *net)
+{
+}
+
+static __net_initdata struct pernet_operations af_inet_ops = {
+	.init = inet_init_net,
+	.exit = inet_exit_net,
+};
+
+static int __init init_inet_pernet_ops(void)
+{
+	return register_pernet_subsys(&af_inet_ops);
 }
 
 static int ipv4_proc_init(void);
@@ -1794,6 +1827,9 @@ static int __init inet_init(void)
 	if (ip_mr_init())
 		pr_crit("%s: Cannot init ipv4 mroute\n", __func__);
 #endif
+
+	if (init_inet_pernet_ops())
+		pr_crit("%s: Cannot init ipv4 inet pernet ops\n", __func__);
 	/*
 	 *	Initialise per-cpu ipv4 mibs
 	 */

@@ -1664,10 +1664,10 @@ qla82xx_iospace_config(struct qla_hw_data *ha)
 	/* Mapping of IO base pointer */
 	if (IS_QLA8044(ha)) {
 		ha->iobase =
-		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase);
+		    (device_reg_t *)((uint8_t *)ha->nx_pcibase);
 	} else if (IS_QLA82XX(ha)) {
 		ha->iobase =
-		    (device_reg_t __iomem *)((uint8_t *)ha->nx_pcibase +
+		    (device_reg_t *)((uint8_t *)ha->nx_pcibase +
 			0xbc000 + (ha->pdev->devfn << 11));
 	}
 
@@ -4501,4 +4501,21 @@ qla82xx_beacon_off(struct scsi_qla_host *vha)
 exit:
 	qla82xx_idc_unlock(ha);
 	return rval;
+}
+
+void
+qla82xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->allow_cna_fw_dump)
+		return;
+
+	scsi_block_requests(vha->host);
+	ha->flags.isp82xx_no_md_cap = 1;
+	qla82xx_idc_lock(ha);
+	qla82xx_set_reset_owner(vha);
+	qla82xx_idc_unlock(ha);
+	qla2x00_wait_for_chip_reset(vha);
+	scsi_unblock_requests(vha->host);
 }

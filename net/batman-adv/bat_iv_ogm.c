@@ -347,10 +347,10 @@ static void batadv_iv_ogm_iface_update_mac(struct batadv_hard_iface *hard_iface)
 	unsigned char *ogm_buff = hard_iface->bat_iv.ogm_buff;
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)ogm_buff;
-	memcpy(batadv_ogm_packet->orig,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
-	memcpy(batadv_ogm_packet->prev_sender,
-	       hard_iface->net_dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(batadv_ogm_packet->orig,
+			hard_iface->net_dev->dev_addr);
+	ether_addr_copy(batadv_ogm_packet->prev_sender,
+			hard_iface->net_dev->dev_addr);
 }
 
 static void
@@ -830,7 +830,7 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 	tvlv_len = ntohs(batadv_ogm_packet->tvlv_len);
 
 	batadv_ogm_packet->ttl--;
-	memcpy(batadv_ogm_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
+	ether_addr_copy(batadv_ogm_packet->prev_sender, ethhdr->h_source);
 
 	/* apply hop penalty */
 	batadv_ogm_packet->tq = batadv_hop_penalty(batadv_ogm_packet->tq,
@@ -1545,6 +1545,8 @@ out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
 		batadv_orig_node_free_ref(orig_neigh_node);
 out:
+	if (router_ifinfo)
+		batadv_neigh_ifinfo_free_ref(router_ifinfo);
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	if (router_router)

@@ -95,20 +95,12 @@ struct ad799x_state {
 	struct i2c_client		*client;
 	const struct ad799x_chip_info	*chip_info;
 	struct regulator		*reg;
-	u16				int_vref_mv;
+	struct regulator		*vref;
 	unsigned			id;
 	u16				config;
 
 	u8				*rx_buf;
 	unsigned int			transfer_size;
-};
-
-/*
- * TODO: struct ad799x_platform_data needs to go into include/linux/iio
- */
-
-struct ad799x_platform_data {
-	u16				vref_mv;
 };
 
 #ifdef CONFIG_AD799X_RING_BUFFER

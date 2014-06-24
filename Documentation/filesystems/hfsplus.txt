@@ -56,4 +56,4 @@ References
 
 kernel source:		<file:fs/hfsplus>
 
-Apple Technote 1150	http://developer.apple.com/technotes/tn/tn1150.html
+Apple Technote 1150	https://developer.apple.com/legacy/library/technotes/tn/tn1150.html

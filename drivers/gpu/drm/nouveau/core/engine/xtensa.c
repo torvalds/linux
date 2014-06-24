@@ -112,7 +112,7 @@ _nouveau_xtensa_init(struct nouveau_object *object)
 		snprintf(name, sizeof(name), "nouveau/nv84_xuc%03x",
 			 xtensa->addr >> 12);
 
-		ret = request_firmware(&fw, name, &device->pdev->dev);
+		ret = request_firmware(&fw, name, nv_device_base(device));
 		if (ret) {
 			nv_warn(xtensa, "unable to load firmware %s\n", name);
 			return ret;

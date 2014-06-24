@@ -169,6 +169,7 @@ static void delete_ptp_clock(struct posix_clock *pc)
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 
 	mutex_destroy(&ptp->tsevq_mux);
+	mutex_destroy(&ptp->pincfg_mux);
 	ida_simple_remove(&ptp_clocks_map, ptp->index);
 	kfree(ptp);
 }
@@ -203,6 +204,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	ptp->index = index;
 	spin_lock_init(&ptp->tsevq.lock);
 	mutex_init(&ptp->tsevq_mux);
+	mutex_init(&ptp->pincfg_mux);
 	init_waitqueue_head(&ptp->tsev_wq);
 
 	/* Create a new device in our class. */
@@ -249,6 +251,7 @@ no_sysfs:
 	device_destroy(ptp_class, ptp->devid);
 no_device:
 	mutex_destroy(&ptp->tsevq_mux);
+	mutex_destroy(&ptp->pincfg_mux);
 no_slot:
 	kfree(ptp);
 no_memory:
@@ -304,6 +307,26 @@ int ptp_clock_index(struct ptp_clock *ptp)
 	return ptp->index;
 }
 EXPORT_SYMBOL(ptp_clock_index);
+
+int ptp_find_pin(struct ptp_clock *ptp,
+		 enum ptp_pin_function func, unsigned int chan)
+{
+	struct ptp_pin_desc *pin = NULL;
+	int i;
+
+	mutex_lock(&ptp->pincfg_mux);
+	for (i = 0; i < ptp->info->n_pins; i++) {
+		if (ptp->info->pin_config[i].func == func &&
+		    ptp->info->pin_config[i].chan == chan) {
+			pin = &ptp->info->pin_config[i];
+			break;
+		}
+	}
+	mutex_unlock(&ptp->pincfg_mux);
+
+	return pin ? i : -1;
+}
+EXPORT_SYMBOL(ptp_find_pin);
 
 /* module operations */
 

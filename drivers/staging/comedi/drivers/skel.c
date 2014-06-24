@@ -142,6 +142,29 @@ static int skel_ns_to_timer(unsigned int *ns, int round)
 }
 
 /*
+ * This function doesn't require a particular form, this is just
+ * what happens to be used in some of the drivers. The comedi_timeout()
+ * helper uses this callback to check for the end-of-conversion while
+ * waiting for up to 1 second. This function should return 0 when the
+ * conversion is finished and -EBUSY to keep waiting. Any other errno
+ * will terminate comedi_timeout() and return that errno to the caller.
+ * If the timeout occurs, comedi_timeout() will return -ETIMEDOUT.
+ */
+static int skel_ai_eoc(struct comedi_device *dev,
+		       struct comedi_subdevice *s,
+		       struct comedi_insn *insn,
+		       unsigned long context)
+{
+	unsigned int status;
+
+	/* status = inb(dev->iobase + SKEL_STATUS); */
+	status = 1;
+	if (status)
+		return 0;
+	return -EBUSY;
+}
+
+/*
  * "instructions" read/write data in "one-shot" or "software-triggered"
  * mode.
  */
@@ -149,9 +172,9 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
 	const struct skel_board *thisboard = comedi_board(dev);
-	int n, i;
+	int n;
 	unsigned int d;
-	unsigned int status;
+	int ret;
 
 	/* a typical programming sequence */
 
@@ -165,18 +188,10 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* trigger conversion */
 		/* outw(0,dev->iobase + SKEL_CONVERT); */
 
-#define TIMEOUT 100
 		/* wait for conversion to end */
-		for (i = 0; i < TIMEOUT; i++) {
-			status = 1;
-			/* status = inb(dev->iobase + SKEL_STATUS); */
-			if (status)
-				break;
-		}
-		if (i == TIMEOUT) {
-			dev_warn(dev->class_dev, "ai timeout\n");
-			return -ETIMEDOUT;
-		}
+		ret = comedi_timeout(dev, s, insn, skel_ai_eoc, 0);
+		if (ret)
+			return ret;
 
 		/* read data */
 		/* d = inw(dev->iobase + SKEL_AI_DATA); */
@@ -455,8 +470,6 @@ static int skel_common_attach(struct comedi_device *dev)
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	dev_info(dev->class_dev, "skel: attached\n");
 
 	return 0;
 }

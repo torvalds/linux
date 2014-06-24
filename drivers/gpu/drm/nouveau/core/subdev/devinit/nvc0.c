@@ -24,7 +24,7 @@
 
 #include "nv50.h"
 
-static int
+int
 nvc0_devinit_pll_set(struct nouveau_devinit *devinit, u32 type, u32 freq)
 {
 	struct nv50_devinit_priv *priv = (void *)devinit;

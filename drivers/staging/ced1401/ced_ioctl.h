@@ -26,24 +26,21 @@
 ** TypeDefs
 *****************************************************************************/
 
-typedef unsigned short TBLOCKENTRY;	/* index the blk transfer table 0-7 */
-
-typedef struct TransferDesc {
+struct transfer_area_desc {
 	long long lpvBuff;	/* address of transfer area (for 64 or 32 bit) */
 	unsigned int dwLength;	/* length of the area */
-	TBLOCKENTRY wAreaNum;	/* number of transfer area to set up */
+	unsigned short wAreaNum;	/* number of transfer area to set up */
 	short eSize;		/* element size - is tohost flag for circular */
-} TRANSFERDESC;
+};
 
-typedef TRANSFERDESC *LPTRANSFERDESC;
 
-typedef struct TransferEvent {
+struct transfer_event {
 	unsigned int dwStart;		/* offset into the area */
 	unsigned int dwLength;		/* length of the region */
 	unsigned short wAreaNum;	/* the area number */
 	unsigned short wFlags;		/* bit 0 set for toHost */
 	int iSetEvent;			/* could be dummy in LINUX */
-} TRANSFEREVENT;
+};
 
 #define MAX_TRANSFER_SIZE	0x4000		/* Maximum data bytes per IRP */
 #define MAX_AREA_LENGTH		0x100000	/* Maximum size of transfer area */
@@ -85,12 +82,6 @@ typedef struct TCSBlock {
  */
 #define CED_MAGIC_IOC 0xce
 
-/* NBNB: READ and WRITE are from the point of view of the device, not user. */
-typedef struct ced_ioc_string {
-	int nChars;
-	char buffer[256];
-} CED_IOC_STRING;
-
 #define IOCTL_CED_SENDSTRING(n)		_IOC(_IOC_WRITE, CED_MAGIC_IOC, 2, n)
 
 #define IOCTL_CED_RESET1401		_IO(CED_MAGIC_IOC, 3)
@@ -100,9 +91,9 @@ typedef struct ced_ioc_string {
 #define IOCTL_CED_LINECOUNT		_IO(CED_MAGIC_IOC, 7)
 #define IOCTL_CED_GETSTRING(nMax)	_IOC(_IOC_READ, CED_MAGIC_IOC, 8, nMax)
 
-#define IOCTL_CED_SETTRANSFER		_IOW(CED_MAGIC_IOC, 11, TRANSFERDESC)
+#define IOCTL_CED_SETTRANSFER		_IOW(CED_MAGIC_IOC, 11, struct transfer_area_desc)
 #define IOCTL_CED_UNSETTRANSFER		_IO(CED_MAGIC_IOC, 12)
-#define IOCTL_CED_SETEVENT		_IOW(CED_MAGIC_IOC, 13, TRANSFEREVENT)
+#define IOCTL_CED_SETEVENT		_IOW(CED_MAGIC_IOC, 13, struct transfer_event)
 #define IOCTL_CED_GETOUTBUFSPACE	_IO(CED_MAGIC_IOC, 14)
 #define IOCTL_CED_GETBASEADDRESS	_IO(CED_MAGIC_IOC, 15)
 #define IOCTL_CED_GETDRIVERREVISION	_IO(CED_MAGIC_IOC, 16)
@@ -126,7 +117,7 @@ typedef struct ced_ioc_string {
 #define IOCTL_CED_DBGGETDATA		_IOR(CED_MAGIC_IOC, 39, TDBGBLOCK)
 #define IOCTL_CED_DBGSTOPLOOP		_IO(CED_MAGIC_IOC, 40)
 #define IOCTL_CED_FULLRESET		_IO(CED_MAGIC_IOC, 41)
-#define IOCTL_CED_SETCIRCULAR		_IOW(CED_MAGIC_IOC, 42, TRANSFERDESC)
+#define IOCTL_CED_SETCIRCULAR		_IOW(CED_MAGIC_IOC, 42, struct transfer_area_desc)
 #define IOCTL_CED_GETCIRCBLOCK		_IOWR(CED_MAGIC_IOC, 43, TCIRCBLOCK)
 #define IOCTL_CED_FREECIRCBLOCK		_IOWR(CED_MAGIC_IOC, 44, TCIRCBLOCK)
 #define IOCTL_CED_WAITEVENT		_IO(CED_MAGIC_IOC, 45)
@@ -198,7 +189,7 @@ inline int CED_GetDriverRevision(int fh)
 	return ioctl(fh, IOCTL_CED_GETDRIVERREVISION);
 }
 
-inline int CED_SetTransfer(int fh, TRANSFERDESC *pTD)
+inline int CED_SetTransfer(int fh, struct transfer_area_desc *pTD)
 {
 	return ioctl(fh, IOCTL_CED_SETTRANSFER, pTD);
 }
@@ -208,7 +199,7 @@ inline int CED_UnsetTransfer(int fh, int nArea)
 	return ioctl(fh, IOCTL_CED_UNSETTRANSFER, nArea);
 }
 
-inline int CED_SetEvent(int fh, TRANSFEREVENT *pTE)
+inline int CED_SetEvent(int fh, struct transfer_event *pTE)
 {
 	return ioctl(fh, IOCTL_CED_SETEVENT, pTE);
 }
@@ -299,7 +290,7 @@ inline int CED_FullReset(int fh)
 	return ioctl(fh, IOCTL_CED_FULLRESET);
 }
 
-inline int CED_SetCircular(int fh, TRANSFERDESC *pTD)
+inline int CED_SetCircular(int fh, struct transfer_area_desc *pTD)
 {
 	return ioctl(fh, IOCTL_CED_SETCIRCULAR, pTD);
 }

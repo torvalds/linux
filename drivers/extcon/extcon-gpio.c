@@ -176,9 +176,7 @@ static int gpio_extcon_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops gpio_extcon_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, gpio_extcon_resume)
-};
+static SIMPLE_DEV_PM_OPS(gpio_extcon_pm_ops, NULL, gpio_extcon_resume);
 
 static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,

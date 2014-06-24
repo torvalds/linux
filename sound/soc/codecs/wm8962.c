@@ -154,6 +154,7 @@ static struct reg_default wm8962_reg[] = {
 	{ 40, 0x0000 },   /* R40    - SPKOUTL volume */
 	{ 41, 0x0000 },   /* R41    - SPKOUTR volume */
 
+	{ 49, 0x0010 },   /* R49    - Class D Control 1 */
 	{ 51, 0x0003 },   /* R51    - Class D Control 2 */
 
 	{ 56, 0x0506 },   /* R56    - Clocking 4 */
@@ -795,7 +796,6 @@ static bool wm8962_volatile_register(struct device *dev, unsigned int reg)
 	case WM8962_ALC2:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
 	case WM8962_ADDITIONAL_CONTROL_4:
-	case WM8962_CLASS_D_CONTROL_1:
 	case WM8962_DC_SERVO_6:
 	case WM8962_INTERRUPT_STATUS_1:
 	case WM8962_INTERRUPT_STATUS_2:
@@ -1479,7 +1479,9 @@ static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
 static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
 {
-	return regcache_sync_region(codec->control_data,
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+
+	return regcache_sync_region(wm8962->regmap,
 				    WM8962_HDBASS_AI_1, WM8962_MAX_REGISTER);
 }
 
@@ -1658,16 +1660,16 @@ static const char *cap_hpf_mode_text[] = {
 	"Hi-fi", "Application"
 };
 
-static const struct soc_enum cap_hpf_mode =
-	SOC_ENUM_SINGLE(WM8962_ADC_DAC_CONTROL_2, 10, 2, cap_hpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(cap_hpf_mode,
+			    WM8962_ADC_DAC_CONTROL_2, 10, cap_hpf_mode_text);
 
 
 static const char *cap_lhpf_mode_text[] = {
 	"LPF", "HPF"
 };
 
-static const struct soc_enum cap_lhpf_mode =
-	SOC_ENUM_SINGLE(WM8962_LHPF1, 1, 2, cap_lhpf_mode_text);
+static SOC_ENUM_SINGLE_DECL(cap_lhpf_mode,
+			    WM8962_LHPF1, 1, cap_lhpf_mode_text);
 
 static const struct snd_kcontrol_new wm8962_snd_controls[] = {
 SOC_DOUBLE("Input Mixer Switch", WM8962_INPUT_MIXER_CONTROL_1, 3, 2, 1, 1),
@@ -2014,40 +2016,40 @@ static int dsp2_event(struct snd_soc_dapm_widget *w,
 
 static const char *st_text[] = { "None", "Left", "Right" };
 
-static const struct soc_enum str_enum =
-	SOC_ENUM_SINGLE(WM8962_DAC_DSP_MIXING_1, 2, 3, st_text);
+static SOC_ENUM_SINGLE_DECL(str_enum,
+			    WM8962_DAC_DSP_MIXING_1, 2, st_text);
 
 static const struct snd_kcontrol_new str_mux =
 	SOC_DAPM_ENUM("Right Sidetone", str_enum);
 
-static const struct soc_enum stl_enum =
-	SOC_ENUM_SINGLE(WM8962_DAC_DSP_MIXING_2, 2, 3, st_text);
+static SOC_ENUM_SINGLE_DECL(stl_enum,
+			    WM8962_DAC_DSP_MIXING_2, 2, st_text);
 
 static const struct snd_kcontrol_new stl_mux =
 	SOC_DAPM_ENUM("Left Sidetone", stl_enum);
 
 static const char *outmux_text[] = { "DAC", "Mixer" };
 
-static const struct soc_enum spkoutr_enum =
-	SOC_ENUM_SINGLE(WM8962_SPEAKER_MIXER_2, 7, 2, outmux_text);
+static SOC_ENUM_SINGLE_DECL(spkoutr_enum,
+			    WM8962_SPEAKER_MIXER_2, 7, outmux_text);
 
 static const struct snd_kcontrol_new spkoutr_mux =
 	SOC_DAPM_ENUM("SPKOUTR Mux", spkoutr_enum);
 
-static const struct soc_enum spkoutl_enum =
-	SOC_ENUM_SINGLE(WM8962_SPEAKER_MIXER_1, 7, 2, outmux_text);
+static SOC_ENUM_SINGLE_DECL(spkoutl_enum,
+			    WM8962_SPEAKER_MIXER_1, 7, outmux_text);
 
 static const struct snd_kcontrol_new spkoutl_mux =
 	SOC_DAPM_ENUM("SPKOUTL Mux", spkoutl_enum);
 
-static const struct soc_enum hpoutr_enum =
-	SOC_ENUM_SINGLE(WM8962_HEADPHONE_MIXER_2, 7, 2, outmux_text);
+static SOC_ENUM_SINGLE_DECL(hpoutr_enum,
+			    WM8962_HEADPHONE_MIXER_2, 7, outmux_text);
 
 static const struct snd_kcontrol_new hpoutr_mux =
 	SOC_DAPM_ENUM("HPOUTR Mux", hpoutr_enum);
 
-static const struct soc_enum hpoutl_enum =
-	SOC_ENUM_SINGLE(WM8962_HEADPHONE_MIXER_1, 7, 2, outmux_text);
+static SOC_ENUM_SINGLE_DECL(hpoutl_enum,
+			    WM8962_HEADPHONE_MIXER_1, 7, outmux_text);
 
 static const struct snd_kcontrol_new hpoutl_mux =
 	SOC_DAPM_ENUM("HPOUTL Mux", hpoutl_enum);
@@ -2884,17 +2886,19 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	snd_soc_write(codec, WM8962_FLL_CONTROL_7, fll_div.lambda);
 	snd_soc_write(codec, WM8962_FLL_CONTROL_8, fll_div.n);
 
-	try_wait_for_completion(&wm8962->fll_lock);
+	reinit_completion(&wm8962->fll_lock);
 
-	pm_runtime_get_sync(codec->dev);
+	ret = pm_runtime_get_sync(codec->dev);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to resume device: %d\n", ret);
+		return ret;
+	}
 
 	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
 			    WM8962_FLL_ENA, fll1 | WM8962_FLL_ENA);
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
-
-	ret = 0;
 
 	/* This should be a massive overestimate but go even
 	 * higher if we'll error out
@@ -2909,25 +2913,37 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	if (timeout == 0 && wm8962->irq) {
 		dev_err(codec->dev, "FLL lock timed out");
-		ret = -ETIMEDOUT;
+		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
+				    WM8962_FLL_ENA, 0);
+		pm_runtime_put(codec->dev);
+		return -ETIMEDOUT;
 	}
 
 	wm8962->fll_fref = Fref;
 	wm8962->fll_fout = Fout;
 	wm8962->fll_src = source;
 
-	return ret;
+	return 0;
 }
 
 static int wm8962_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int val;
+	int val, ret;
 
 	if (mute)
-		val = WM8962_DAC_MUTE;
+		val = WM8962_DAC_MUTE | WM8962_DAC_MUTE_ALT;
 	else
 		val = 0;
+
+	/**
+	 * The DAC mute bit is mirrored in two registers, update both to keep
+	 * the register cache consistent.
+	 */
+	ret = snd_soc_update_bits(codec, WM8962_CLASS_D_CONTROL_1,
+				  WM8962_DAC_MUTE_ALT, val);
+	if (ret < 0)
+		return ret;
 
 	return snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
 				   WM8962_DAC_MUTE, val);
@@ -3003,9 +3019,16 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	unsigned int active;
 	int reg, ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to resume: %d\n", ret);
+		return IRQ_NONE;
+	}
+
 	ret = regmap_read(wm8962->regmap, WM8962_INTERRUPT_STATUS_2_MASK,
 			  &mask);
 	if (ret != 0) {
+		pm_runtime_put(dev);
 		dev_err(dev, "Failed to read interrupt mask: %d\n",
 			ret);
 		return IRQ_NONE;
@@ -3013,14 +3036,17 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	ret = regmap_read(wm8962->regmap, WM8962_INTERRUPT_STATUS_2, &active);
 	if (ret != 0) {
+		pm_runtime_put(dev);
 		dev_err(dev, "Failed to read interrupt: %d\n", ret);
 		return IRQ_NONE;
 	}
 
 	active &= ~mask;
 
-	if (!active)
+	if (!active) {
+		pm_runtime_put(dev);
 		return IRQ_NONE;
+	}
 
 	/* Acknowledge the interrupts */
 	ret = regmap_write(wm8962->regmap, WM8962_INTERRUPT_STATUS_2, active);
@@ -3070,6 +3096,8 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 				   msecs_to_jiffies(250));
 	}
 
+	pm_runtime_put(dev);
+
 	return IRQ_HANDLED;
 }
 
@@ -3089,6 +3117,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int irq_mask, enable;
 
 	wm8962->jack = jack;
@@ -3109,13 +3138,17 @@ int wm8962_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	snd_soc_jack_report(wm8962->jack, 0,
 			    SND_JACK_MICROPHONE | SND_JACK_BTN_0);
 
+	snd_soc_dapm_mutex_lock(dapm);
+
 	if (jack) {
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "SYSCLK");
-		snd_soc_dapm_force_enable_pin(&codec->dapm, "MICBIAS");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "SYSCLK");
+		snd_soc_dapm_force_enable_pin_unlocked(dapm, "MICBIAS");
 	} else {
-		snd_soc_dapm_disable_pin(&codec->dapm, "SYSCLK");
-		snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "SYSCLK");
+		snd_soc_dapm_disable_pin_unlocked(dapm, "MICBIAS");
 	}
+
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return 0;
 }
@@ -3400,13 +3433,6 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	bool dmicclk, dmicdat;
 
 	wm8962->codec = codec;
-	codec->control_data = wm8962->regmap;
-
-	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
 
 	wm8962->disable_nb[0].notifier_call = wm8962_regulator_event_0;
 	wm8962->disable_nb[1].notifier_call = wm8962_regulator_event_1;

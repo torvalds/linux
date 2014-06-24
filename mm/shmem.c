@@ -242,19 +242,17 @@ static int shmem_radix_tree_replace(struct address_space *mapping,
 			pgoff_t index, void *expected, void *replacement)
 {
 	void **pslot;
-	void *item = NULL;
+	void *item;
 
 	VM_BUG_ON(!expected);
+	VM_BUG_ON(!replacement);
 	pslot = radix_tree_lookup_slot(&mapping->page_tree, index);
-	if (pslot)
-		item = radix_tree_deref_slot_protected(pslot,
-							&mapping->tree_lock);
+	if (!pslot)
+		return -ENOENT;
+	item = radix_tree_deref_slot_protected(pslot, &mapping->tree_lock);
 	if (item != expected)
 		return -ENOENT;
-	if (replacement)
-		radix_tree_replace_slot(pslot, replacement);
-	else
-		radix_tree_delete(&mapping->page_tree, index);
+	radix_tree_replace_slot(pslot, replacement);
 	return 0;
 }
 
@@ -331,84 +329,20 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
 }
 
 /*
- * Like find_get_pages, but collecting swap entries as well as pages.
- */
-static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
-					pgoff_t start, unsigned int nr_pages,
-					struct page **pages, pgoff_t *indices)
-{
-	void **slot;
-	unsigned int ret = 0;
-	struct radix_tree_iter iter;
-
-	if (!nr_pages)
-		return 0;
-
-	rcu_read_lock();
-restart:
-	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-		struct page *page;
-repeat:
-		page = radix_tree_deref_slot(slot);
-		if (unlikely(!page))
-			continue;
-		if (radix_tree_exception(page)) {
-			if (radix_tree_deref_retry(page))
-				goto restart;
-			/*
-			 * Otherwise, we must be storing a swap entry
-			 * here as an exceptional entry: so return it
-			 * without attempting to raise page count.
-			 */
-			goto export;
-		}
-		if (!page_cache_get_speculative(page))
-			goto repeat;
-
-		/* Has the page moved? */
-		if (unlikely(page != *slot)) {
-			page_cache_release(page);
-			goto repeat;
-		}
-export:
-		indices[ret] = iter.index;
-		pages[ret] = page;
-		if (++ret == nr_pages)
-			break;
-	}
-	rcu_read_unlock();
-	return ret;
-}
-
-/*
  * Remove swap entry from radix tree, free the swap and its page cache.
  */
 static int shmem_free_swap(struct address_space *mapping,
 			   pgoff_t index, void *radswap)
 {
-	int error;
+	void *old;
 
 	spin_lock_irq(&mapping->tree_lock);
-	error = shmem_radix_tree_replace(mapping, index, radswap, NULL);
+	old = radix_tree_delete_item(&mapping->page_tree, index, radswap);
 	spin_unlock_irq(&mapping->tree_lock);
-	if (!error)
-		free_swap_and_cache(radix_to_swp_entry(radswap));
-	return error;
-}
-
-/*
- * Pagevec may contain swap entries, so shuffle up pages before releasing.
- */
-static void shmem_deswap_pagevec(struct pagevec *pvec)
-{
-	int i, j;
-
-	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-		if (!radix_tree_exceptional_entry(page))
-			pvec->pages[j++] = page;
-	}
-	pvec->nr = j;
+	if (old != radswap)
+		return -ENOENT;
+	free_swap_and_cache(radix_to_swp_entry(radswap));
+	return 0;
 }
 
 /*
@@ -429,12 +363,12 @@ void shmem_unlock_mapping(struct address_space *mapping)
 		 * Avoid pagevec_lookup(): find_get_pages() returns 0 as if it
 		 * has finished, if it hits a row of PAGEVEC_SIZE swap entries.
 		 */
-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-					PAGEVEC_SIZE, pvec.pages, indices);
+		pvec.nr = find_get_entries(mapping, index,
+					   PAGEVEC_SIZE, pvec.pages, indices);
 		if (!pvec.nr)
 			break;
 		index = indices[pvec.nr - 1] + 1;
-		shmem_deswap_pagevec(&pvec);
+		pagevec_remove_exceptionals(&pvec);
 		check_move_unevictable_pages(pvec.pages, pvec.nr);
 		pagevec_release(&pvec);
 		cond_resched();
@@ -466,9 +400,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	pagevec_init(&pvec, 0);
 	index = start;
 	while (index < end) {
-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-							pvec.pages, indices);
+		pvec.nr = find_get_entries(mapping, index,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE),
+			pvec.pages, indices);
 		if (!pvec.nr)
 			break;
 		mem_cgroup_uncharge_start();
@@ -497,7 +431,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			}
 			unlock_page(page);
 		}
-		shmem_deswap_pagevec(&pvec);
+		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
 		mem_cgroup_uncharge_end();
 		cond_resched();
@@ -535,9 +469,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 	index = start;
 	for ( ; ; ) {
 		cond_resched();
-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
+
+		pvec.nr = find_get_entries(mapping, index,
 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-							pvec.pages, indices);
+				pvec.pages, indices);
 		if (!pvec.nr) {
 			if (index == start || unfalloc)
 				break;
@@ -545,7 +480,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			continue;
 		}
 		if ((index == start || unfalloc) && indices[0] >= end) {
-			shmem_deswap_pagevec(&pvec);
+			pagevec_remove_exceptionals(&pvec);
 			pagevec_release(&pvec);
 			break;
 		}
@@ -574,7 +509,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 			}
 			unlock_page(page);
 		}
-		shmem_deswap_pagevec(&pvec);
+		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
 		mem_cgroup_uncharge_end();
 		index++;
@@ -748,7 +683,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
 	 * Charged back to the user (not to caller) when swap account is used.
 	 */
-	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
+	error = mem_cgroup_charge_file(page, current->mm, GFP_KERNEL);
 	if (error)
 		goto out;
 	/* No radix_tree_preload: swap entry keeps a place for page in tree */
@@ -1080,7 +1015,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
 		return -EFBIG;
 repeat:
 	swap.val = 0;
-	page = find_lock_page(mapping, index);
+	page = find_lock_entry(mapping, index);
 	if (radix_tree_exceptional_entry(page)) {
 		swap = radix_to_swp_entry(page);
 		page = NULL;
@@ -1145,7 +1080,7 @@ repeat:
 				goto failed;
 		}
 
-		error = mem_cgroup_cache_charge(page, current->mm,
+		error = mem_cgroup_charge_file(page, current->mm,
 						gfp & GFP_RECLAIM_MASK);
 		if (!error) {
 			error = shmem_add_to_page_cache(page, mapping, index,
@@ -1199,7 +1134,7 @@ repeat:
 
 		SetPageSwapBacked(page);
 		__set_page_locked(page);
-		error = mem_cgroup_cache_charge(page, current->mm,
+		error = mem_cgroup_charge_file(page, current->mm,
 						gfp & GFP_RECLAIM_MASK);
 		if (error)
 			goto decused;
@@ -1417,6 +1352,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 	return inode;
 }
 
+bool shmem_mapping(struct address_space *mapping)
+{
+	return mapping->backing_dev_info == &shmem_backing_dev_info;
+}
+
 #ifdef CONFIG_TMPFS
 static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_short_symlink_operations;
@@ -1462,13 +1402,25 @@ shmem_write_end(struct file *file, struct address_space *mapping,
 	return copied;
 }
 
-static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_t *desc, read_actor_t actor)
+static ssize_t shmem_file_aio_read(struct kiocb *iocb,
+		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = file_inode(filp);
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	pgoff_t index;
 	unsigned long offset;
 	enum sgp_type sgp = SGP_READ;
+	int error = 0;
+	ssize_t retval;
+	size_t count;
+	loff_t *ppos = &iocb->ki_pos;
+	struct iov_iter iter;
+
+	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
+	if (retval)
+		return retval;
+	iov_iter_init(&iter, iov, nr_segs, count, 0);
 
 	/*
 	 * Might this read be for a stacking filesystem?  Then when reading
@@ -1496,10 +1448,10 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 				break;
 		}
 
-		desc->error = shmem_getpage(inode, index, &page, sgp, NULL);
-		if (desc->error) {
-			if (desc->error == -EINVAL)
-				desc->error = 0;
+		error = shmem_getpage(inode, index, &page, sgp, NULL);
+		if (error) {
+			if (error == -EINVAL)
+				error = 0;
 			break;
 		}
 		if (page)
@@ -1543,61 +1495,26 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 		/*
 		 * Ok, we have the page, and it's up-to-date, so
 		 * now we can copy it to user space...
-		 *
-		 * The actor routine returns how many bytes were actually used..
-		 * NOTE! This may not be the same as how much of a user buffer
-		 * we filled up (we may be padding etc), so we can only update
-		 * "pos" here (the actor routine has to update the user buffer
-		 * pointers and the remaining count).
 		 */
-		ret = actor(desc, page, offset, nr);
+		ret = copy_page_to_iter(page, offset, nr, &iter);
+		retval += ret;
 		offset += ret;
 		index += offset >> PAGE_CACHE_SHIFT;
 		offset &= ~PAGE_CACHE_MASK;
 
 		page_cache_release(page);
-		if (ret != nr || !desc->count)
+		if (!iov_iter_count(&iter))
 			break;
-
+		if (ret < nr) {
+			error = -EFAULT;
+			break;
+		}
 		cond_resched();
 	}
 
 	*ppos = ((loff_t) index << PAGE_CACHE_SHIFT) + offset;
-	file_accessed(filp);
-}
-
-static ssize_t shmem_file_aio_read(struct kiocb *iocb,
-		const struct iovec *iov, unsigned long nr_segs, loff_t pos)
-{
-	struct file *filp = iocb->ki_filp;
-	ssize_t retval;
-	unsigned long seg;
-	size_t count;
-	loff_t *ppos = &iocb->ki_pos;
-
-	retval = generic_segment_checks(iov, &nr_segs, &count, VERIFY_WRITE);
-	if (retval)
-		return retval;
-
-	for (seg = 0; seg < nr_segs; seg++) {
-		read_descriptor_t desc;
-
-		desc.written = 0;
-		desc.arg.buf = iov[seg].iov_base;
-		desc.count = iov[seg].iov_len;
-		if (desc.count == 0)
-			continue;
-		desc.error = 0;
-		do_shmem_file_read(filp, ppos, &desc, file_read_actor);
-		retval += desc.written;
-		if (desc.error) {
-			retval = retval ?: desc.error;
-			break;
-		}
-		if (desc.count > 0)
-			break;
-	}
-	return retval;
+	file_accessed(file);
+	return retval ? retval : error;
 }
 
 static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
@@ -1636,7 +1553,7 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 	index = *ppos >> PAGE_CACHE_SHIFT;
 	loff = *ppos & ~PAGE_CACHE_MASK;
 	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	nr_pages = min(req_pages, pipe->buffers);
+	nr_pages = min(req_pages, spd.nr_pages_max);
 
 	spd.nr_pages = find_get_pages_contig(mapping, index,
 						nr_pages, spd.pages);
@@ -1729,7 +1646,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
 	pagevec_init(&pvec, 0);
 	pvec.nr = 1;		/* start small: we may be there already */
 	while (!done) {
-		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
+		pvec.nr = find_get_entries(mapping, index,
 					pvec.nr, pvec.pages, indices);
 		if (!pvec.nr) {
 			if (whence == SEEK_DATA)
@@ -1756,7 +1673,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
 				break;
 			}
 		}
-		shmem_deswap_pagevec(&pvec);
+		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
 		pvec.nr = PAGEVEC_SIZE;
 		cond_resched();
@@ -2783,6 +2700,7 @@ static const struct super_operations shmem_ops = {
 
 static const struct vm_operations_struct shmem_vm_ops = {
 	.fault		= shmem_fault,
+	.map_pages	= filemap_map_pages,
 #ifdef CONFIG_NUMA
 	.set_policy     = shmem_set_policy,
 	.get_policy     = shmem_get_policy,

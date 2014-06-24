@@ -12821,6 +12821,10 @@ static struct cipher_testvec cast6_xts_dec_tv_template[] = {
 #define AES_DEC_TEST_VECTORS 4
 #define AES_CBC_ENC_TEST_VECTORS 5
 #define AES_CBC_DEC_TEST_VECTORS 5
+#define HMAC_MD5_ECB_CIPHER_NULL_ENC_TEST_VECTORS 2
+#define HMAC_MD5_ECB_CIPHER_NULL_DEC_TEST_VECTORS 2
+#define HMAC_SHA1_ECB_CIPHER_NULL_ENC_TEST_VECTORS 2
+#define HMAC_SHA1_ECB_CIPHER_NULL_DEC_TEST_VECTORS 2
 #define HMAC_SHA1_AES_CBC_ENC_TEST_VECTORS 7
 #define HMAC_SHA256_AES_CBC_ENC_TEST_VECTORS 7
 #define HMAC_SHA512_AES_CBC_ENC_TEST_VECTORS 7
@@ -13627,6 +13631,90 @@ static struct cipher_testvec aes_cbc_dec_tv_template[] = {
 	},
 };
 
+static struct aead_testvec hmac_md5_ecb_cipher_null_enc_tv_template[] = {
+	{ /* Input data from RFC 2410 Case 1 */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.klen   = 8 + 16 + 0,
+		.iv     = "",
+		.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef",
+		.ilen   = 8,
+		.result = "\x01\x23\x45\x67\x89\xab\xcd\xef"
+			  "\xaa\x42\xfe\x43\x8d\xea\xa3\x5a"
+			  "\xb9\x3d\x9f\xb1\xa3\x8e\x9b\xae",
+		.rlen   = 8 + 16,
+	}, { /* Input data from RFC 2410 Case 2 */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.klen   = 8 + 16 + 0,
+		.iv     = "",
+		.input  = "Network Security People Have A Strange Sense Of Humor",
+		.ilen   = 53,
+		.result = "Network Security People Have A Strange Sense Of Humor"
+			  "\x73\xa5\x3e\x1c\x08\x0e\x8a\x8a"
+			  "\x8e\xb5\x5f\x90\x8e\xfe\x13\x23",
+		.rlen   = 53 + 16,
+	},
+};
+
+static struct aead_testvec hmac_md5_ecb_cipher_null_dec_tv_template[] = {
+	{
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.klen   = 8 + 16 + 0,
+		.iv     = "",
+		.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef"
+			  "\xaa\x42\xfe\x43\x8d\xea\xa3\x5a"
+			  "\xb9\x3d\x9f\xb1\xa3\x8e\x9b\xae",
+		.ilen   = 8 + 16,
+		.result = "\x01\x23\x45\x67\x89\xab\xcd\xef",
+		.rlen   = 8,
+	}, {
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.klen   = 8 + 16 + 0,
+		.iv     = "",
+		.input  = "Network Security People Have A Strange Sense Of Humor"
+			  "\x73\xa5\x3e\x1c\x08\x0e\x8a\x8a"
+			  "\x8e\xb5\x5f\x90\x8e\xfe\x13\x23",
+		.ilen   = 53 + 16,
+		.result = "Network Security People Have A Strange Sense Of Humor",
+		.rlen   = 53,
+	},
+};
+
 static struct aead_testvec hmac_sha1_aes_cbc_enc_tv_template[] = {
 	{ /* RFC 3602 Case 1 */
 #ifdef __LITTLE_ENDIAN
@@ -13873,6 +13961,98 @@ static struct aead_testvec hmac_sha1_aes_cbc_enc_tv_template[] = {
 			  "\x1b\x9f\xc6\x81\x26\x43\x4a\x87"
 			  "\x51\xee\xd6\x4e",
 		.rlen   = 64 + 20,
+	},
+};
+
+static struct aead_testvec hmac_sha1_ecb_cipher_null_enc_tv_template[] = {
+	{ /* Input data from RFC 2410 Case 1 */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00",
+		.klen   = 8 + 20 + 0,
+		.iv     = "",
+		.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef",
+		.ilen   = 8,
+		.result = "\x01\x23\x45\x67\x89\xab\xcd\xef"
+			  "\x40\xc3\x0a\xa1\xc9\xa0\x28\xab"
+			  "\x99\x5e\x19\x04\xd1\x72\xef\xb8"
+			  "\x8c\x5e\xe4\x08",
+		.rlen   = 8 + 20,
+	}, { /* Input data from RFC 2410 Case 2 */
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00",
+		.klen   = 8 + 20 + 0,
+		.iv     = "",
+		.input  = "Network Security People Have A Strange Sense Of Humor",
+		.ilen   = 53,
+		.result = "Network Security People Have A Strange Sense Of Humor"
+			  "\x75\x6f\x42\x1e\xf8\x50\x21\xd2"
+			  "\x65\x47\xee\x8e\x1a\xef\x16\xf6"
+			  "\x91\x56\xe4\xd6",
+		.rlen   = 53 + 20,
+	},
+};
+
+static struct aead_testvec hmac_sha1_ecb_cipher_null_dec_tv_template[] = {
+	{
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00",
+		.klen   = 8 + 20 + 0,
+		.iv     = "",
+		.input  = "\x01\x23\x45\x67\x89\xab\xcd\xef"
+			  "\x40\xc3\x0a\xa1\xc9\xa0\x28\xab"
+			  "\x99\x5e\x19\x04\xd1\x72\xef\xb8"
+			  "\x8c\x5e\xe4\x08",
+		.ilen   = 8 + 20,
+		.result = "\x01\x23\x45\x67\x89\xab\xcd\xef",
+		.rlen   = 8,
+	}, {
+#ifdef __LITTLE_ENDIAN
+		.key    = "\x08\x00"		/* rta length */
+			  "\x01\x00"		/* rta type */
+#else
+		.key    = "\x00\x08"		/* rta length */
+			  "\x00\x01"		/* rta type */
+#endif
+			  "\x00\x00\x00\x00"	/* enc key length */
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00\x00\x00\x00\x00"
+			  "\x00\x00\x00\x00",
+		.klen   = 8 + 20 + 0,
+		.iv     = "",
+		.input  = "Network Security People Have A Strange Sense Of Humor"
+			  "\x75\x6f\x42\x1e\xf8\x50\x21\xd2"
+			  "\x65\x47\xee\x8e\x1a\xef\x16\xf6"
+			  "\x91\x56\xe4\xd6",
+		.ilen   = 53 + 20,
+		.result = "Network Security People Have A Strange Sense Of Humor",
+		.rlen   = 53,
 	},
 };
 

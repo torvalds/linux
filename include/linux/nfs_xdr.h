@@ -1402,6 +1402,7 @@ struct nfs_renamedata {
 	struct inode		*new_dir;
 	struct dentry		*new_dentry;
 	struct nfs_fattr	new_fattr;
+	void (*complete)(struct rpc_task *, struct nfs_renamedata *);
 };
 
 struct nfs_access_entry;
@@ -1444,8 +1445,6 @@ struct nfs_rpc_ops {
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
 	int	(*unlink_done) (struct rpc_task *, struct inode *);
-	int	(*rename)  (struct inode *, struct qstr *,
-			    struct inode *, struct qstr *);
 	void	(*rename_setup)  (struct rpc_message *msg, struct inode *dir);
 	void	(*rename_rpc_prepare)(struct rpc_task *task, struct nfs_renamedata *);
 	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);

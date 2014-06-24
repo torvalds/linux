@@ -703,6 +703,7 @@ void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(bth2);
+	this_cpu_inc(ibp->pmastats->n_unicast_xmit);
 }
 
 /**

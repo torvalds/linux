@@ -229,7 +229,23 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			use by PCI
 			Format: <irq>,<irq>...
 
+	acpi_no_auto_serialize	[HW,ACPI]
+			Disable auto-serialization of AML methods
+			AML control methods that contain the opcodes to create
+			named objects will be marked as "Serialized" by the
+			auto-serialization feature.
+			This feature is enabled by default.
+			This option allows to turn off the feature.
+
 	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+
+	acpica_no_return_repair [HW, ACPI]
+			Disable AML predefined validation mechanism
+			This mechanism can repair the evaluation result to make
+			the return objects more ACPI specification compliant.
+			This option is useful for developers to identify the
+			root cause of an AML interpreter issue when the issue
+			has something to do with the repair mechanism.
 
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
@@ -297,8 +313,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi_sci=	[HW,ACPI] ACPI System Control Interrupt trigger mode
 			Format: { level | edge | high | low }
-
-	acpi_serialize	[HW,ACPI] force serialization of AML methods
 
 	acpi_skip_timer_override [HW,ACPI]
 			Recognize and ignore IRQ0/pin2 Interrupt Override.
@@ -790,13 +804,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
 
-	digi=		[HW,SERIAL]
-			IO parameters + enable/disable command.
-
-	digiepca=	[HW,SERIAL]
-			See drivers/char/README.epca and
-			Documentation/serial/digiepca.txt.
-
 	disable=	[IPV6]
 			See Documentation/networking/ipv6.txt.
 
@@ -869,6 +876,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	module.dyndbg[="val"]
 			Enable debug messages at boot time.  See
 			Documentation/dynamic-debug-howto.txt for details.
+
+	early_ioremap_debug [KNL]
+			Enable debug messages in early_ioremap support. This
+			is useful for tracking down temporary early mappings
+			which are not unmapped.
 
 	earlycon=	[KNL] Output early console device and options.
 		uart[8250],io,<addr>[,options]
@@ -1010,6 +1022,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			buggy SAL_CACHE_FLUSH implementations. Using this
 			parameter will force ia64_sal_cache_flush to call
 			ia64_pal_cache_flush instead of SAL_CACHE_FLUSH.
+
+	forcepae [X86-32]
+			Forcefully enable Physical Address Extension (PAE).
+			Many Pentium M systems disable PAE but may have a
+			functionally usable PAE implementation.
+			Warning: use of this parameter will taint the kernel
+			and may cause unknown problems.
 
 	ftrace=[tracer]
 			[FTRACE] will set and start the specified tracer
@@ -2053,8 +2072,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			IOAPICs that may be present in the system.
 
 	nokaslr		[X86]
-			Disable kernel base offset ASLR (Address Space
-			Layout Randomization) if built into the kernel.
+			Disable kernel and module base offset ASLR (Address
+			Space Layout Randomization) if built into the kernel.
 
 	noautogroup	Disable scheduler automatic task group creation.
 
@@ -2199,10 +2218,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
 
-	nordrand	[X86] Disable the direct use of the RDRAND
-			instruction even if it is supported by the
-			processor.  RDRAND is still available to user
-			space applications.
+	nordrand	[X86] Disable kernel use of the RDRAND and
+			RDSEED instructions even if they are supported
+			by the processor.  RDRAND and RDSEED are still
+			available to user space applications.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
@@ -2536,6 +2555,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			all PCIe root ports use INTx for all services).
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
+
+	pd_ignore_unused
+			[PM]
+			Keep all power-domains already enabled by bootloader on,
+			even if no driver has claimed them. This is useful
+			for debug and development, but should not be
+			needed on a platform with proper driver support.
 
 	pd.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
@@ -2906,9 +2932,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rhash_entries=	[KNL,NET]
 			Set number of hash buckets for route cache
 
-	riscom8=	[HW,SERIAL]
-			Format: <io_board1>[,<io_board2>[,...<io_boardN>]]
-
 	ro		[KNL] Mount root device read-only on boot
 
 	root=		[KNL] Root filesystem
@@ -3049,9 +3072,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/laptops/sonypi.txt
-
-	specialix=	[HW,SERIAL] Specialix multi-serial port adapter
-			See Documentation/serial/specialix.txt.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=
@@ -3409,14 +3429,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					of CONFIG_HIGHPTE.
 
 	vdso=		[X86,SH]
-			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
-			vdso=1: enable VDSO (default)
+			On X86_32, this is an alias for vdso32=.  Otherwise:
+
+			vdso=1: enable VDSO (the default)
 			vdso=0: disable VDSO mapping
 
-	vdso32=		[X86]
-			vdso32=2: enable compat VDSO (default with COMPAT_VDSO)
-			vdso32=1: enable 32-bit VDSO (default)
-			vdso32=0: disable 32-bit VDSO mapping
+	vdso32=		[X86] Control the 32-bit vDSO
+			vdso32=1: enable 32-bit VDSO
+			vdso32=0 or vdso32=2: disable 32-bit VDSO
+
+			See the help text for CONFIG_COMPAT_VDSO for more
+			details.  If CONFIG_COMPAT_VDSO is set, the default is
+			vdso32=0; otherwise, the default is vdso32=1.
+
+			For compatibility with older kernels, vdso32=2 is an
+			alias for vdso32=0.
+
+			Try vdso32=0 if you encounter an error that says:
+			dl_main: Assertion `(void *) ph->p_vaddr == _rtld_local._dl_sysinfo_dso' failed!
 
 	vector=		[IA-64,SMP]
 			vector=percpu: enable percpu vector domain

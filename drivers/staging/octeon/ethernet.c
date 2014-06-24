@@ -55,17 +55,11 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-smix-defs.h>
 
-#if defined(CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS) \
-	&& CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS
-int num_packet_buffers = CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS;
-#else
-int num_packet_buffers = 1024;
-#endif
+static int num_packet_buffers = 1024;
 module_param(num_packet_buffers, int, 0444);
 MODULE_PARM_DESC(num_packet_buffers, "\n"
 	"\tNumber of packet buffers to allocate and store in the\n"
-	"\tFPA. By default, 1024 packet buffers are used unless\n"
-	"\tCONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS is defined.");
+	"\tFPA. By default, 1024 packet buffers are used.\n");
 
 int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);

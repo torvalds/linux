@@ -83,7 +83,10 @@ int uvd_v1_0_init(struct radeon_device *rdev)
 	int r;
 
 	/* raise clocks while booting up the VCPU */
-	radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (rdev->family < CHIP_RV740)
+		radeon_set_uvd_clocks(rdev, 10000, 10000);
+	else
+		radeon_set_uvd_clocks(rdev, 53300, 40000);
 
 	r = uvd_v1_0_start(rdev);
 	if (r)
@@ -262,7 +265,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(UVD_RBC_RB_RPTR, 0x0);
 
-	ring->wptr = ring->rptr = RREG32(UVD_RBC_RB_RPTR);
+	ring->wptr = RREG32(UVD_RBC_RB_RPTR);
 	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
 
 	/* set the ring address */
@@ -407,7 +410,10 @@ int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	struct radeon_fence *fence = NULL;
 	int r;
 
-	r = radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (rdev->family < CHIP_RV740)
+		r = radeon_set_uvd_clocks(rdev, 10000, 10000);
+	else
+		r = radeon_set_uvd_clocks(rdev, 53300, 40000);
 	if (r) {
 		DRM_ERROR("radeon: failed to raise UVD clocks (%d).\n", r);
 		return r;

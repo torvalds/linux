@@ -167,7 +167,7 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	rt->dst.dev = br->dev;
 	rt->dst.path = &rt->dst;
 	dst_init_metrics(&rt->dst, br_dst_default_metrics, true);
-	rt->dst.flags	= DST_NOXFRM | DST_NOPEER | DST_FAKE_RTABLE;
+	rt->dst.flags	= DST_NOXFRM | DST_FAKE_RTABLE;
 	rt->dst.ops = &fake_dst_ops;
 }
 
@@ -506,7 +506,7 @@ bridged_dnat:
 					       1);
 				return 0;
 			}
-			memcpy(eth_hdr(skb)->h_dest, dev->dev_addr, ETH_ALEN);
+			ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
 			skb->pkt_type = PACKET_HOST;
 		}
 	} else {
@@ -859,12 +859,12 @@ static unsigned int br_nf_forward_arp(const struct nf_hook_ops *ops,
 	return NF_STOLEN;
 }
 
-#if IS_ENABLED(CONFIG_NF_CONNTRACK_IPV4)
+#if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 static int br_nf_dev_queue_xmit(struct sk_buff *skb)
 {
 	int ret;
 
-	if (skb->nfct != NULL && skb->protocol == htons(ETH_P_IP) &&
+	if (skb->protocol == htons(ETH_P_IP) &&
 	    skb->len + nf_bridge_mtu_reduction(skb) > skb->dev->mtu &&
 	    !skb_is_gso(skb)) {
 		if (br_parse_ip_options(skb))

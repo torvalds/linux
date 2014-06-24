@@ -13,6 +13,7 @@
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/tracehook.h>
+#include <linux/uprobes.h>
 
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
@@ -590,6 +591,9 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 					return restart;
 				}
 				syscall = 0;
+			} else if (thread_flags & _TIF_UPROBE) {
+				clear_thread_flag(TIF_UPROBE);
+				uprobe_notify_resume(regs);
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);

@@ -32,6 +32,7 @@
 #include <mach/at91sam9_smc.h>
 #include <linux/platform_data/dma-atmel.h>
 #include <mach/atmel-mci.h>
+#include <mach/hardware.h>
 
 #include <media/atmel-isi.h>
 
@@ -1203,7 +1204,7 @@ static struct resource adc_resources[] = {
 };
 
 static struct platform_device at91_adc_device = {
-	.name		= "at91_adc",
+	.name		= "at91sam9g45-adc",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &adc_data,
@@ -1587,6 +1588,7 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);
@@ -1625,6 +1627,7 @@ static struct resource uart0_resources[] = {
 static struct atmel_uart_data uart0_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart0_dmamask = DMA_BIT_MASK(32);
@@ -1668,6 +1671,7 @@ static struct resource uart1_resources[] = {
 static struct atmel_uart_data uart1_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart1_dmamask = DMA_BIT_MASK(32);
@@ -1711,6 +1715,7 @@ static struct resource uart2_resources[] = {
 static struct atmel_uart_data uart2_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart2_dmamask = DMA_BIT_MASK(32);
@@ -1754,6 +1759,7 @@ static struct resource uart3_resources[] = {
 static struct atmel_uart_data uart3_data = {
 	.use_dma_tx	= 1,
 	.use_dma_rx	= 1,
+	.rts_gpio	= -EINVAL,
 };
 
 static u64 uart3_dmamask = DMA_BIT_MASK(32);

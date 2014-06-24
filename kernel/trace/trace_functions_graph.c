@@ -1476,7 +1476,8 @@ void graph_trace_close(struct trace_iterator *iter)
 	}
 }
 
-static int func_graph_set_flag(u32 old_flags, u32 bit, int set)
+static int
+func_graph_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 {
 	if (bit == TRACE_GRAPH_PRINT_IRQS)
 		ftrace_graph_skip_irqs = !set;

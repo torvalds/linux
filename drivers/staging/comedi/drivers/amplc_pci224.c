@@ -533,9 +533,8 @@ static void pci224_ao_start(struct comedi_device *dev,
 	set_bit(AO_CMD_STARTED, &devpriv->state);
 	if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
 		/* An empty acquisition! */
-		pci224_ao_stop(dev, s);
 		s->async->events |= COMEDI_CB_EOA;
-		comedi_event(dev, s);
+		cfc_handle_events(dev, s);
 	} else {
 		/* Enable interrupts. */
 		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
@@ -585,9 +584,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		room = PCI224_FIFO_ROOM_EMPTY;
 		if (!devpriv->ao_stop_continuous && devpriv->ao_stop_count == 0) {
 			/* FIFO empty at end of counted acquisition. */
-			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
+			cfc_handle_events(dev, s);
 			return;
 		}
 		break;
@@ -605,9 +603,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 		/* FIFO is less than half-full. */
 		if (num_scans == 0) {
 			/* Nothing left to put in the FIFO. */
-			pci224_ao_stop(dev, s);
-			s->async->events |= COMEDI_CB_OVERFLOW;
 			dev_err(dev->class_dev, "AO buffer underrun\n");
+			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 	}
 	/* Determine how many new scans can be put in the FIFO. */
@@ -670,9 +667,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 					  PCI224_DACCON_TRIG_MASK);
 		outw(devpriv->daccon, dev->iobase + PCI224_DACCON);
 	}
-	if (s->async->events)
-		comedi_event(dev, s);
 
+	cfc_handle_events(dev, s);
 }
 
 /*
@@ -1237,20 +1233,6 @@ static struct pci_dev *pci224_find_pci_dev(struct comedi_device *dev,
 	return NULL;
 }
 
-static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	char tmpbuf[30];
-
-	if (irq)
-		snprintf(tmpbuf, sizeof(tmpbuf), "irq %u%s", irq,
-			 (dev->irq ? "" : " UNAVAILABLE"));
-	else
-		snprintf(tmpbuf, sizeof(tmpbuf), "no irq");
-	dev_info(dev->class_dev, "%s (pci %s) (%s) attached\n",
-		 dev->board_name, pci_name(pcidev), tmpbuf);
-}
-
 /*
  * Common part of attach and auto_attach.
  */
@@ -1399,8 +1381,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 		}
 	}
 
-	pci224_report_attach(dev, irq);
-	return 1;
+	return 0;
 }
 
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)

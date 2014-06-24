@@ -8,9 +8,44 @@ Required properties:
 
 - reg : SRAM iomem address range
 
+Reserving sram areas:
+---------------------
+
+Each child of the sram node specifies a region of reserved memory. Each
+child node should use a 'reg' property to specify a specific range of
+reserved memory.
+
+Following the generic-names recommended practice, node names should
+reflect the purpose of the node. Unit address (@<address>) should be
+appended to the name.
+
+Required properties in the sram node:
+
+- #address-cells, #size-cells : should use the same values as the root node
+- ranges : standard definition, should translate from local addresses
+           within the sram to bus addresses
+
+Required properties in the area nodes:
+
+- reg : iomem address range, relative to the SRAM range
+
+Optional properties in the area nodes:
+
+- compatible : standard definition, should contain a vendor specific string
+               in the form <vendor>,[<device>-]<usage>
+
 Example:
 
 sram: sram@5c000000 {
 	compatible = "mmio-sram";
 	reg = <0x5c000000 0x40000>; /* 256 KiB SRAM at address 0x5c000000 */
+
+	#adress-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x5c000000 0x40000>;
+
+	smp-sram@100 {
+		compatible = "socvendor,smp-sram";
+		reg = <0x100 0x50>;
+	};
 };

@@ -73,7 +73,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	available += pagecache;
 
 	/*
-	 * Part of the reclaimable swap consists of items that are in use,
+	 * Part of the reclaimable slab consists of items that are in use,
 	 * and cannot be freed. Cap this estimate at the low watermark.
 	 */
 	available += global_page_state(NR_SLAB_RECLAIMABLE) -

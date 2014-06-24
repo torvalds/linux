@@ -82,7 +82,7 @@ static void hci_acl_create_connection(struct hci_conn *conn)
 			cp.pscan_rep_mode = ie->data.pscan_rep_mode;
 			cp.pscan_mode     = ie->data.pscan_mode;
 			cp.clock_offset   = ie->data.clock_offset |
-					    __constant_cpu_to_le16(0x8000);
+					    cpu_to_le16(0x8000);
 		}
 
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
@@ -182,8 +182,8 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 
 	cp.handle   = cpu_to_le16(handle);
 
-	cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
-	cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+	cp.tx_bandwidth   = cpu_to_le32(0x00001f40);
+	cp.rx_bandwidth   = cpu_to_le32(0x00001f40);
 	cp.voice_setting  = cpu_to_le16(conn->setting);
 
 	switch (conn->setting & SCO_AIRMODE_MASK) {
@@ -225,13 +225,13 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	cp.conn_interval_max	= cpu_to_le16(max);
 	cp.conn_latency		= cpu_to_le16(latency);
 	cp.supervision_timeout	= cpu_to_le16(to_multiplier);
-	cp.min_ce_len		= __constant_cpu_to_le16(0x0001);
-	cp.max_ce_len		= __constant_cpu_to_le16(0x0001);
+	cp.min_ce_len		= cpu_to_le16(0x0000);
+	cp.max_ce_len		= cpu_to_le16(0x0000);
 
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
 }
 
-void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
+void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
 		      __u8 ltk[16])
 {
 	struct hci_dev *hdev = conn->hdev;
@@ -242,9 +242,9 @@ void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 	memset(&cp, 0, sizeof(cp));
 
 	cp.handle = cpu_to_le16(conn->handle);
-	memcpy(cp.ltk, ltk, sizeof(cp.ltk));
+	cp.rand = rand;
 	cp.ediv = ediv;
-	memcpy(cp.rand, rand, sizeof(cp.rand));
+	memcpy(cp.ltk, ltk, sizeof(cp.ltk));
 
 	hci_send_cmd(hdev, HCI_OP_LE_START_ENC, sizeof(cp), &cp);
 }
@@ -337,9 +337,9 @@ static void hci_conn_idle(struct work_struct *work)
 	if (lmp_sniffsubr_capable(hdev) && lmp_sniffsubr_capable(conn)) {
 		struct hci_cp_sniff_subrate cp;
 		cp.handle             = cpu_to_le16(conn->handle);
-		cp.max_latency        = __constant_cpu_to_le16(0);
-		cp.min_remote_timeout = __constant_cpu_to_le16(0);
-		cp.min_local_timeout  = __constant_cpu_to_le16(0);
+		cp.max_latency        = cpu_to_le16(0);
+		cp.min_remote_timeout = cpu_to_le16(0);
+		cp.min_local_timeout  = cpu_to_le16(0);
 		hci_send_cmd(hdev, HCI_OP_SNIFF_SUBRATE, sizeof(cp), &cp);
 	}
 
@@ -348,8 +348,8 @@ static void hci_conn_idle(struct work_struct *work)
 		cp.handle       = cpu_to_le16(conn->handle);
 		cp.max_interval = cpu_to_le16(hdev->sniff_max_interval);
 		cp.min_interval = cpu_to_le16(hdev->sniff_min_interval);
-		cp.attempt      = __constant_cpu_to_le16(4);
-		cp.timeout      = __constant_cpu_to_le16(1);
+		cp.attempt      = cpu_to_le16(4);
+		cp.timeout      = cpu_to_le16(1);
 		hci_send_cmd(hdev, HCI_OP_SNIFF_MODE, sizeof(cp), &cp);
 	}
 }
@@ -361,6 +361,16 @@ static void hci_conn_auto_accept(struct work_struct *work)
 
 	hci_send_cmd(conn->hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
 		     &conn->dst);
+}
+
+static void le_conn_timeout(struct work_struct *work)
+{
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+					     le_conn_timeout.work);
+
+	BT_DBG("");
+
+	hci_le_create_connection_cancel(conn);
 }
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
@@ -410,6 +420,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
 	INIT_DELAYED_WORK(&conn->auto_accept_work, hci_conn_auto_accept);
 	INIT_DELAYED_WORK(&conn->idle_work, hci_conn_idle);
+	INIT_DELAYED_WORK(&conn->le_conn_timeout, le_conn_timeout);
 
 	atomic_set(&conn->refcnt, 0);
 
@@ -442,6 +453,8 @@ int hci_conn_del(struct hci_conn *conn)
 		/* Unacked frames */
 		hdev->acl_cnt += conn->sent;
 	} else if (conn->type == LE_LINK) {
+		cancel_delayed_work_sync(&conn->le_conn_timeout);
+
 		if (hdev->le_pkts)
 			hdev->le_cnt += conn->sent;
 		else
@@ -514,6 +527,26 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 }
 EXPORT_SYMBOL(hci_get_route);
 
+/* This function requires the caller holds hdev->lock */
+void hci_le_conn_failed(struct hci_conn *conn, u8 status)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	conn->state = BT_CLOSED;
+
+	mgmt_connect_failed(hdev, &conn->dst, conn->type, conn->dst_type,
+			    status);
+
+	hci_proto_connect_cfm(conn, status);
+
+	hci_conn_del(conn);
+
+	/* Since we may have temporarily stopped the background scanning in
+	 * favor of connection establishment, we should restart it.
+	 */
+	hci_update_background_scan(hdev);
+}
+
 static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
 {
 	struct hci_conn *conn;
@@ -530,55 +563,55 @@ static void create_le_conn_complete(struct hci_dev *hdev, u8 status)
 	if (!conn)
 		goto done;
 
-	conn->state = BT_CLOSED;
-
-	mgmt_connect_failed(hdev, &conn->dst, conn->type, conn->dst_type,
-			    status);
-
-	hci_proto_connect_cfm(conn, status);
-
-	hci_conn_del(conn);
+	hci_le_conn_failed(conn, status);
 
 done:
 	hci_dev_unlock(hdev);
 }
 
-static int hci_create_le_conn(struct hci_conn *conn)
+static void hci_req_add_le_create_conn(struct hci_request *req,
+				       struct hci_conn *conn)
 {
-	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_create_conn cp;
-	struct hci_request req;
-	int err;
-
-	hci_req_init(&req, hdev);
+	struct hci_dev *hdev = conn->hdev;
+	u8 own_addr_type;
 
 	memset(&cp, 0, sizeof(cp));
+
+	/* Update random address, but set require_privacy to false so
+	 * that we never connect with an unresolvable address.
+	 */
+	if (hci_update_random_address(req, false, &own_addr_type))
+		return;
+
+	/* Save the address type used for this connnection attempt so we able
+	 * to retrieve this information if we need it.
+	 */
+	conn->src_type = own_addr_type;
+
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
 	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
-	cp.own_address_type = conn->src_type;
-	cp.conn_interval_min = cpu_to_le16(hdev->le_conn_min_interval);
-	cp.conn_interval_max = cpu_to_le16(hdev->le_conn_max_interval);
-	cp.supervision_timeout = __constant_cpu_to_le16(0x002a);
-	cp.min_ce_len = __constant_cpu_to_le16(0x0000);
-	cp.max_ce_len = __constant_cpu_to_le16(0x0000);
+	cp.own_address_type = own_addr_type;
+	cp.conn_interval_min = cpu_to_le16(conn->le_conn_min_interval);
+	cp.conn_interval_max = cpu_to_le16(conn->le_conn_max_interval);
+	cp.supervision_timeout = cpu_to_le16(0x002a);
+	cp.min_ce_len = cpu_to_le16(0x0000);
+	cp.max_ce_len = cpu_to_le16(0x0000);
 
-	hci_req_add(&req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_LE_CREATE_CONN, sizeof(cp), &cp);
 
-	err = hci_req_run(&req, create_le_conn_complete);
-	if (err) {
-		hci_conn_del(conn);
-		return err;
-	}
-
-	return 0;
+	conn->state = BT_CONNECT;
 }
 
-static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
-				    u8 dst_type, u8 sec_level, u8 auth_type)
+struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
+				u8 dst_type, u8 sec_level, u8 auth_type)
 {
+	struct hci_conn_params *params;
 	struct hci_conn *conn;
+	struct smp_irk *irk;
+	struct hci_request req;
 	int err;
 
 	if (test_bit(HCI_ADVERTISING, &hdev->flags))
@@ -607,35 +640,74 @@ static struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	if (conn)
 		return ERR_PTR(-EBUSY);
 
+	/* When given an identity address with existing identity
+	 * resolving key, the connection needs to be established
+	 * to a resolvable random address.
+	 *
+	 * This uses the cached random resolvable address from
+	 * a previous scan. When no cached address is available,
+	 * try connecting to the identity address instead.
+	 *
+	 * Storing the resolvable random address is required here
+	 * to handle connection failures. The address will later
+	 * be resolved back into the original identity address
+	 * from the connect request.
+	 */
+	irk = hci_find_irk_by_addr(hdev, dst, dst_type);
+	if (irk && bacmp(&irk->rpa, BDADDR_ANY)) {
+		dst = &irk->rpa;
+		dst_type = ADDR_LE_DEV_RANDOM;
+	}
+
 	conn = hci_conn_add(hdev, LE_LINK, dst);
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 
-	if (dst_type == BDADDR_LE_PUBLIC)
-		conn->dst_type = ADDR_LE_DEV_PUBLIC;
-	else
-		conn->dst_type = ADDR_LE_DEV_RANDOM;
+	conn->dst_type = dst_type;
 
-	conn->src_type = hdev->own_addr_type;
-
-	conn->state = BT_CONNECT;
 	conn->out = true;
 	conn->link_mode |= HCI_LM_MASTER;
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->pending_sec_level = sec_level;
 	conn->auth_type = auth_type;
 
-	err = hci_create_le_conn(conn);
-	if (err)
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		conn->le_conn_min_interval = params->conn_min_interval;
+		conn->le_conn_max_interval = params->conn_max_interval;
+	} else {
+		conn->le_conn_min_interval = hdev->le_conn_min_interval;
+		conn->le_conn_max_interval = hdev->le_conn_max_interval;
+	}
+
+	hci_req_init(&req, hdev);
+
+	/* If controller is scanning, we stop it since some controllers are
+	 * not able to scan and connect at the same time. Also set the
+	 * HCI_LE_SCAN_INTERRUPTED flag so that the command complete
+	 * handler for scan disabling knows to set the correct discovery
+	 * state.
+	 */
+	if (test_bit(HCI_LE_SCAN, &hdev->dev_flags)) {
+		hci_req_add_le_scan_disable(&req);
+		set_bit(HCI_LE_SCAN_INTERRUPTED, &hdev->dev_flags);
+	}
+
+	hci_req_add_le_create_conn(&req, conn);
+
+	err = hci_req_run(&req, create_le_conn_complete);
+	if (err) {
+		hci_conn_del(conn);
 		return ERR_PTR(err);
+	}
 
 done:
 	hci_conn_hold(conn);
 	return conn;
 }
 
-static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
-						u8 sec_level, u8 auth_type)
+struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
+				 u8 sec_level, u8 auth_type)
 {
 	struct hci_conn *acl;
 
@@ -704,26 +776,21 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	return sco;
 }
 
-/* Create SCO, ACL or LE connection. */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
-			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
-{
-	BT_DBG("%s dst %pMR type 0x%x", hdev->name, dst, type);
-
-	switch (type) {
-	case LE_LINK:
-		return hci_connect_le(hdev, dst, dst_type, sec_level, auth_type);
-	case ACL_LINK:
-		return hci_connect_acl(hdev, dst, sec_level, auth_type);
-	}
-
-	return ERR_PTR(-EINVAL);
-}
-
 /* Check link security requirement */
 int hci_conn_check_link_mode(struct hci_conn *conn)
 {
 	BT_DBG("hcon %p", conn);
+
+	/* In Secure Connections Only mode, it is required that Secure
+	 * Connections is used and the link is encrypted with AES-CCM
+	 * using a P-256 authenticated combination key.
+	 */
+	if (test_bit(HCI_SC_ONLY, &conn->hdev->flags)) {
+		if (!hci_conn_sc_enabled(conn) ||
+		    !test_bit(HCI_CONN_AES_CCM, &conn->flags) ||
+		    conn->key_type != HCI_LK_AUTH_COMBINATION_P256)
+			return 0;
+	}
 
 	if (hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT))
 		return 0;
@@ -752,14 +819,17 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->flags)) {
 		struct hci_cp_auth_requested cp;
 
-		/* encrypt must be pending if auth is also pending */
-		set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
-
 		cp.handle = cpu_to_le16(conn->handle);
 		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
 			     sizeof(cp), &cp);
+
+		/* If we're already encrypted set the REAUTH_PEND flag,
+		 * otherwise set the ENCRYPT_PEND.
+		 */
 		if (conn->key_type != 0xff)
 			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
+		else
+			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 	}
 
 	return 0;
@@ -800,14 +870,23 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	if (!(conn->link_mode & HCI_LM_AUTH))
 		goto auth;
 
-	/* An authenticated combination key has sufficient security for any
-	   security level. */
-	if (conn->key_type == HCI_LK_AUTH_COMBINATION)
+	/* An authenticated FIPS approved combination key has sufficient
+	 * security for security level 4. */
+	if (conn->key_type == HCI_LK_AUTH_COMBINATION_P256 &&
+	    sec_level == BT_SECURITY_FIPS)
+		goto encrypt;
+
+	/* An authenticated combination key has sufficient security for
+	   security level 3. */
+	if ((conn->key_type == HCI_LK_AUTH_COMBINATION_P192 ||
+	     conn->key_type == HCI_LK_AUTH_COMBINATION_P256) &&
+	    sec_level == BT_SECURITY_HIGH)
 		goto encrypt;
 
 	/* An unauthenticated combination key has sufficient security for
 	   security level 1 and 2. */
-	if (conn->key_type == HCI_LK_UNAUTH_COMBINATION &&
+	if ((conn->key_type == HCI_LK_UNAUTH_COMBINATION_P192 ||
+	     conn->key_type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 	    (sec_level == BT_SECURITY_MEDIUM || sec_level == BT_SECURITY_LOW))
 		goto encrypt;
 
@@ -816,7 +895,8 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	   is generated using maximum PIN code length (16).
 	   For pre 2.1 units. */
 	if (conn->key_type == HCI_LK_COMBINATION &&
-	    (sec_level != BT_SECURITY_HIGH || conn->pin_length == 16))
+	    (sec_level == BT_SECURITY_MEDIUM || sec_level == BT_SECURITY_LOW ||
+	     conn->pin_length == 16))
 		goto encrypt;
 
 auth:
@@ -840,13 +920,17 @@ int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level)
 {
 	BT_DBG("hcon %p", conn);
 
-	if (sec_level != BT_SECURITY_HIGH)
-		return 1; /* Accept if non-secure is required */
-
-	if (conn->sec_level == BT_SECURITY_HIGH)
+	/* Accept if non-secure or higher security level is required */
+	if (sec_level != BT_SECURITY_HIGH && sec_level != BT_SECURITY_FIPS)
 		return 1;
 
-	return 0; /* Reject not secure link */
+	/* Accept if secure or higher security level is already present */
+	if (conn->sec_level == BT_SECURITY_HIGH ||
+	    conn->sec_level == BT_SECURITY_FIPS)
+		return 1;
+
+	/* Reject not secure link */
+	return 0;
 }
 EXPORT_SYMBOL(hci_conn_check_secure);
 

@@ -39,6 +39,8 @@ void blk_mq_init_cpu_notifier(struct blk_mq_cpu_notifier *notifier,
 void blk_mq_register_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
 void blk_mq_unregister_cpu_notifier(struct blk_mq_cpu_notifier *notifier);
 void blk_mq_cpu_init(void);
+void blk_mq_enable_hotplug(void);
+void blk_mq_disable_hotplug(void);
 
 /*
  * CPU -> queue mappings

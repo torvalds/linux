@@ -1,8 +1,6 @@
 #ifndef DRIVERS_PCI_H
 #define DRIVERS_PCI_H
 
-#include <linux/workqueue.h>
-
 #define PCI_CFG_SPACE_SIZE	256
 #define PCI_CFG_SPACE_EXP_SIZE	4096
 
@@ -240,8 +238,6 @@ struct pci_sriov {
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
 	struct mutex lock;	/* lock for VF bus */
-	struct work_struct mtask; /* VF Migration task */
-	u8 __iomem *mstate;	/* VF Migration State Array */
 };
 
 #ifdef CONFIG_PCI_ATS

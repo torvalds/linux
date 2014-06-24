@@ -38,6 +38,16 @@ static void ata_acpi_clear_gtf(struct ata_device *dev)
 	dev->gtf_cache = NULL;
 }
 
+struct ata_acpi_hotplug_context {
+	struct acpi_hotplug_context hp;
+	union {
+		struct ata_port *ap;
+		struct ata_device *dev;
+	} data;
+};
+
+#define ata_hotplug_data(context) (container_of((context), struct ata_acpi_hotplug_context, hp)->data)
+
 /**
  * ata_dev_acpi_handle - provide the acpi_handle for an ata_device
  * @dev: the acpi_handle returned will correspond to this device
@@ -121,18 +131,17 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 		ata_port_wait_eh(ap);
 }
 
-static void ata_acpi_dev_notify_dock(acpi_handle handle, u32 event, void *data)
+static int ata_acpi_dev_notify_dock(struct acpi_device *adev, u32 event)
 {
-	struct ata_device *dev = data;
-
+	struct ata_device *dev = ata_hotplug_data(adev->hp).dev;
 	ata_acpi_handle_hotplug(dev->link->ap, dev, event);
+	return 0;
 }
 
-static void ata_acpi_ap_notify_dock(acpi_handle handle, u32 event, void *data)
+static int ata_acpi_ap_notify_dock(struct acpi_device *adev, u32 event)
 {
-	struct ata_port *ap = data;
-
-	ata_acpi_handle_hotplug(ap, NULL, event);
+	ata_acpi_handle_hotplug(ata_hotplug_data(adev->hp).ap, NULL, event);
+	return 0;
 }
 
 static void ata_acpi_uevent(struct ata_port *ap, struct ata_device *dev,
@@ -154,31 +163,23 @@ static void ata_acpi_uevent(struct ata_port *ap, struct ata_device *dev,
 	}
 }
 
-static void ata_acpi_ap_uevent(acpi_handle handle, u32 event, void *data)
+static void ata_acpi_ap_uevent(struct acpi_device *adev, u32 event)
 {
-	ata_acpi_uevent(data, NULL, event);
+	ata_acpi_uevent(ata_hotplug_data(adev->hp).ap, NULL, event);
 }
 
-static void ata_acpi_dev_uevent(acpi_handle handle, u32 event, void *data)
+static void ata_acpi_dev_uevent(struct acpi_device *adev, u32 event)
 {
-	struct ata_device *dev = data;
+	struct ata_device *dev = ata_hotplug_data(adev->hp).dev;
 	ata_acpi_uevent(dev->link->ap, dev, event);
 }
-
-static const struct acpi_dock_ops ata_acpi_dev_dock_ops = {
-	.handler = ata_acpi_dev_notify_dock,
-	.uevent = ata_acpi_dev_uevent,
-};
-
-static const struct acpi_dock_ops ata_acpi_ap_dock_ops = {
-	.handler = ata_acpi_ap_notify_dock,
-	.uevent = ata_acpi_ap_uevent,
-};
 
 /* bind acpi handle to pata port */
 void ata_acpi_bind_port(struct ata_port *ap)
 {
 	struct acpi_device *host_companion = ACPI_COMPANION(ap->host->dev);
+	struct acpi_device *adev;
+	struct ata_acpi_hotplug_context *context;
 
 	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA || !host_companion)
 		return;
@@ -188,9 +189,17 @@ void ata_acpi_bind_port(struct ata_port *ap)
 	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 
-	/* we might be on a docking station */
-	register_hotplug_dock_device(ACPI_HANDLE(&ap->tdev),
-				     &ata_acpi_ap_dock_ops, ap, NULL, NULL);
+	adev = ACPI_COMPANION(&ap->tdev);
+	if (!adev || adev->hp)
+		return;
+
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return;
+
+	context->data.ap = ap;
+	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_ap_notify_dock,
+				   ata_acpi_ap_uevent);
 }
 
 void ata_acpi_bind_dev(struct ata_device *dev)
@@ -198,7 +207,8 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	struct acpi_device *port_companion = ACPI_COMPANION(&ap->tdev);
 	struct acpi_device *host_companion = ACPI_COMPANION(ap->host->dev);
-	struct acpi_device *parent;
+	struct acpi_device *parent, *adev;
+	struct ata_acpi_hotplug_context *context;
 	u64 adr;
 
 	/*
@@ -221,9 +231,17 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 	}
 
 	acpi_preset_companion(&dev->tdev, parent, adr);
+	adev = ACPI_COMPANION(&dev->tdev);
+	if (!adev || adev->hp)
+		return;
 
-	register_hotplug_dock_device(ata_dev_acpi_handle(dev),
-				     &ata_acpi_dev_dock_ops, dev, NULL, NULL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
+		return;
+
+	context->data.dev = dev;
+	acpi_initialize_hp_context(adev, &context->hp, ata_acpi_dev_notify_dock,
+				   ata_acpi_dev_uevent);
 }
 
 /**
@@ -835,6 +853,7 @@ void ata_acpi_on_resume(struct ata_port *ap)
 		ata_for_each_dev(dev, &ap->link, ALL) {
 			ata_acpi_clear_gtf(dev);
 			if (ata_dev_enabled(dev) &&
+			    ata_dev_acpi_handle(dev) &&
 			    ata_dev_get_GTF(dev, NULL) >= 0)
 				dev->flags |= ATA_DFLAG_ACPI_PENDING;
 		}

@@ -24,13 +24,13 @@
 	.globl stext
 stext:
 	;-------------------------------------------------------------------
-	; Don't clobber r0-r4 yet. It might have bootloader provided info
+	; Don't clobber r0-r2 yet. It might have bootloader provided info
 	;-------------------------------------------------------------------
 
 	sr	@_int_vec_base_lds, [AUX_INTR_VEC_BASE]
 
 #ifdef CONFIG_SMP
-	; Only Boot (Master) proceeds. Others wait in platform dependent way
+	; Ensure Boot (Master) proceeds. Others wait in platform dependent way
 	;	IDENTITY Reg [ 3  2  1  0 ]
 	;	(cpu-id)             ^^^	=> Zero for UP ARC700
 	;					=> #Core-ID if SMP (Master 0)
@@ -39,7 +39,8 @@ stext:
 	; need to make sure only boot cpu takes this path.
 	GET_CPU_ID  r5
 	cmp	r5, 0
-	jnz	arc_platform_smp_wait_to_boot
+	mov.ne	r0, r5
+	jne	arc_platform_smp_wait_to_boot
 #endif
 	; Clear BSS before updating any globals
 	; XXX: use ZOL here

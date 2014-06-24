@@ -1130,11 +1130,11 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 	/* Queue the packet to IP for output */
 	skb->local_df = 1;
 #if IS_ENABLED(CONFIG_IPV6)
-	if (skb->sk->sk_family == PF_INET6 && !tunnel->v4mapped)
-		error = inet6_csk_xmit(skb, NULL);
+	if (tunnel->sock->sk_family == PF_INET6 && !tunnel->v4mapped)
+		error = inet6_csk_xmit(tunnel->sock, skb, NULL);
 	else
 #endif
-		error = ip_queue_xmit(skb, fl);
+		error = ip_queue_xmit(tunnel->sock, skb, fl);
 
 	/* Update stats */
 	if (error >= 0) {
@@ -1148,23 +1148,6 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 	}
 
 	return 0;
-}
-
-/* Automatically called when the skb is freed.
- */
-static void l2tp_sock_wfree(struct sk_buff *skb)
-{
-	sock_put(skb->sk);
-}
-
-/* For data skbs that we transmit, we associate with the tunnel socket
- * but don't do accounting.
- */
-static inline void l2tp_skb_set_owner_w(struct sk_buff *skb, struct sock *sk)
-{
-	sock_hold(sk);
-	skb->sk = sk;
-	skb->destructor = l2tp_sock_wfree;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -1220,7 +1203,6 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 		return NET_XMIT_DROP;
 	}
 
-	skb_orphan(skb);
 	/* Setup L2TP header */
 	session->build_header(session, __skb_push(skb, hdr_len));
 
@@ -1285,8 +1267,6 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	case L2TP_ENCAPTYPE_IP:
 		break;
 	}
-
-	l2tp_skb_set_owner_w(skb, sk);
 
 	l2tp_xmit_core(session, skb, fl, data_len);
 out_unlock:
@@ -1808,8 +1788,6 @@ void l2tp_session_free(struct l2tp_session *session)
 	}
 
 	kfree(session);
-
-	return;
 }
 EXPORT_SYMBOL_GPL(l2tp_session_free);
 
@@ -2016,7 +1994,7 @@ static int __init l2tp_init(void)
 	if (rc)
 		goto out;
 
-	l2tp_wq = alloc_workqueue("l2tp", WQ_NON_REENTRANT | WQ_UNBOUND, 0);
+	l2tp_wq = alloc_workqueue("l2tp", WQ_UNBOUND, 0);
 	if (!l2tp_wq) {
 		pr_err("alloc_workqueue failed\n");
 		rc = -ENOMEM;

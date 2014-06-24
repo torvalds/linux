@@ -8,80 +8,28 @@
 
 #define MAX_COLUMNS			32
 
-static int __percent_color_snprintf(char *buf, size_t size, double percent)
+static int __percent_color_snprintf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	int ret = 0;
+	va_list args;
+	double percent;
 	const char *markup;
+	char *buf = hpp->buf;
+	size_t size = hpp->size;
+
+	va_start(args, fmt);
+	percent = va_arg(args, double);
+	va_end(args);
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)
 		ret += scnprintf(buf, size, markup);
 
-	ret += scnprintf(buf + ret, size - ret, " %6.2f%%", percent);
+	ret += scnprintf(buf + ret, size - ret, fmt, percent);
 
 	if (markup)
 		ret += scnprintf(buf + ret, size - ret, "</span>");
 
-	return ret;
-}
-
-
-static int __hpp__color_fmt(struct perf_hpp *hpp, struct hist_entry *he,
-			    u64 (*get_field)(struct hist_entry *))
-{
-	int ret;
-	double percent = 0.0;
-	struct hists *hists = he->hists;
-	struct perf_evsel *evsel = hists_to_evsel(hists);
-
-	if (hists->stats.total_period)
-		percent = 100.0 * get_field(he) / hists->stats.total_period;
-
-	ret = __percent_color_snprintf(hpp->buf, hpp->size, percent);
-
-	if (perf_evsel__is_group_event(evsel)) {
-		int prev_idx, idx_delta;
-		struct hist_entry *pair;
-		int nr_members = evsel->nr_members;
-
-		prev_idx = perf_evsel__group_idx(evsel);
-
-		list_for_each_entry(pair, &he->pairs.head, pairs.node) {
-			u64 period = get_field(pair);
-			u64 total = pair->hists->stats.total_period;
-
-			evsel = hists_to_evsel(pair->hists);
-			idx_delta = perf_evsel__group_idx(evsel) - prev_idx - 1;
-
-			while (idx_delta--) {
-				/*
-				 * zero-fill group members in the middle which
-				 * have no sample
-				 */
-				ret += __percent_color_snprintf(hpp->buf + ret,
-								hpp->size - ret,
-								0.0);
-			}
-
-			percent = 100.0 * period / total;
-			ret += __percent_color_snprintf(hpp->buf + ret,
-							hpp->size - ret,
-							percent);
-
-			prev_idx = perf_evsel__group_idx(evsel);
-		}
-
-		idx_delta = nr_members - prev_idx - 1;
-
-		while (idx_delta--) {
-			/*
-			 * zero-fill group members at last which have no sample
-			 */
-			ret += __percent_color_snprintf(hpp->buf + ret,
-							hpp->size - ret,
-							0.0);
-		}
-	}
 	return ret;
 }
 
@@ -95,7 +43,8 @@ static int perf_gtk__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,	
 				       struct perf_hpp *hpp,			\
 				       struct hist_entry *he)			\
 {										\
-	return __hpp__color_fmt(hpp, he, he_get_##_field);			\
+	return __hpp__fmt(hpp, he, he_get_##_field, NULL, " %6.2f%%",		\
+			  __percent_color_snprintf, true);			\
 }
 
 __HPP_COLOR_PERCENT_FN(overhead, period)
@@ -216,7 +165,6 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	struct perf_hpp hpp = {
 		.buf		= s,
 		.size		= sizeof(s),
-		.ptr		= hists_to_evsel(hists),
 	};
 
 	nr_cols = 0;
@@ -243,7 +191,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 	col_idx = 0;
 
 	perf_hpp__for_each_format(fmt) {
-		fmt->header(fmt, &hpp);
+		fmt->header(fmt, &hpp, hists_to_evsel(hists));
 
 		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
 							    -1, ltrim(s),

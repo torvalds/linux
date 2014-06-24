@@ -140,6 +140,11 @@ extern int parse_options(int argc, const char **argv,
                          const struct option *options,
                          const char * const usagestr[], int flags);
 
+extern int parse_options_subcommand(int argc, const char **argv,
+				const struct option *options,
+				const char *const subcommands[],
+				const char *usagestr[], int flags);
+
 extern NORETURN void usage_with_options(const char * const *usagestr,
                                         const struct option *options);
 
@@ -148,7 +153,8 @@ extern NORETURN void usage_with_options(const char * const *usagestr,
 enum {
 	PARSE_OPT_HELP = -1,
 	PARSE_OPT_DONE,
-	PARSE_OPT_LIST,
+	PARSE_OPT_LIST_OPTS,
+	PARSE_OPT_LIST_SUBCMDS,
 	PARSE_OPT_UNKNOWN,
 };
 

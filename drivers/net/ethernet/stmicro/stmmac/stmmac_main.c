@@ -1303,7 +1303,7 @@ static void stmmac_tx_clean(struct stmmac_priv *priv)
 		priv->hw->mode->clean_desc3(priv, p);
 
 		if (likely(skb != NULL)) {
-			dev_kfree_skb(skb);
+			dev_consume_skb_any(skb);
 			priv->tx_skbuff[entry] = NULL;
 		}
 
@@ -1704,7 +1704,7 @@ static int stmmac_open(struct net_device *dev)
 		if (ret) {
 			pr_err("%s: Cannot attach to PHY (error: %d)\n",
 			       __func__, ret);
-			goto phy_error;
+			return ret;
 		}
 	}
 
@@ -1779,8 +1779,6 @@ init_error:
 dma_desc_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
-phy_error:
-	clk_disable_unprepare(priv->stmmac_clk);
 
 	return ret;
 }

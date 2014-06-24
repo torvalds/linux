@@ -143,12 +143,12 @@ u16 MR_PdDevHandleGet(u32 pd, struct MR_FW_RAID_MAP_ALL *map)
 
 u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map)
 {
-	return map->raidMap.ldSpanMap[ld].ldRaid.targetId;
+	return le16_to_cpu(map->raidMap.ldSpanMap[ld].ldRaid.targetId);
 }
 
-u16 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map)
+u8 MR_TargetIdToLdGet(u32 ldTgtId, struct MR_FW_RAID_MAP_ALL *map)
 {
-	return le16_to_cpu(map->raidMap.ldTgtIdToLd[ldTgtId]);
+	return map->raidMap.ldTgtIdToLd[ldTgtId];
 }
 
 static struct MR_LD_SPAN *MR_LdSpanPtrGet(u32 ld, u32 span,
@@ -975,7 +975,10 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 			regSize += stripSize;
 	}
 
-	pRAID_Context->timeoutValue     = cpu_to_le16(map->raidMap.fpPdIoTimeoutSec);
+	pRAID_Context->timeoutValue =
+		cpu_to_le16(raid->fpIoTimeoutForLd ?
+			    raid->fpIoTimeoutForLd :
+			    map->raidMap.fpPdIoTimeoutSec);
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
 		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		pRAID_Context->regLockFlags = (isRead) ?

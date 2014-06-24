@@ -253,18 +253,17 @@ static void pcl711_set_changain(struct comedi_device *dev,
 	outb(mux | PCL711_MUX_CHAN(chan), dev->iobase + PCL711_MUX_REG);
 }
 
-static int pcl711_ai_wait_for_eoc(struct comedi_device *dev,
-				  unsigned int timeout)
+static int pcl711_ai_eoc(struct comedi_device *dev,
+			 struct comedi_subdevice *s,
+			 struct comedi_insn *insn,
+			 unsigned long context)
 {
-	unsigned int msb;
+	unsigned int status;
 
-	while (timeout--) {
-		msb = inb(dev->iobase + PCL711_AI_MSB_REG);
-		if ((msb & PCL711_AI_MSB_DRDY) == 0)
-			return 0;
-		udelay(1);
-	}
-	return -ETIME;
+	status = inb(dev->iobase + PCL711_AI_MSB_REG);
+	if ((status & PCL711_AI_MSB_DRDY) == 0)
+		return 0;
+	return -EBUSY;
 }
 
 static int pcl711_ai_insn_read(struct comedi_device *dev,
@@ -282,7 +281,7 @@ static int pcl711_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		outb(PCL711_SOFTTRIG, dev->iobase + PCL711_SOFTTRIG_REG);
 
-		ret = pcl711_ai_wait_for_eoc(dev, 100);
+		ret = comedi_timeout(dev, s, insn, pcl711_ai_eoc, 0);
 		if (ret)
 			return ret;
 
@@ -336,11 +335,8 @@ static int pcl711_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE) {
+	if (cmd->stop_src == TRIG_NONE)
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-	} else {
-		/* ignore */
-	}
 
 	if (err)
 		return 3;

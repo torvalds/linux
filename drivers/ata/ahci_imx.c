@@ -29,9 +29,25 @@
 #include "ahci.h"
 
 enum {
-	PORT_PHY_CTL = 0x178,			/* Port0 PHY Control */
-	PORT_PHY_CTL_PDDQ_LOC = 0x100000,	/* PORT_PHY_CTL bits */
-	HOST_TIMER1MS = 0xe0,			/* Timer 1-ms */
+	/* Timer 1-ms Register */
+	IMX_TIMER1MS				= 0x00e0,
+	/* Port0 PHY Control Register */
+	IMX_P0PHYCR				= 0x0178,
+	IMX_P0PHYCR_TEST_PDDQ			= 1 << 20,
+	IMX_P0PHYCR_CR_READ			= 1 << 19,
+	IMX_P0PHYCR_CR_WRITE			= 1 << 18,
+	IMX_P0PHYCR_CR_CAP_DATA			= 1 << 17,
+	IMX_P0PHYCR_CR_CAP_ADDR			= 1 << 16,
+	/* Port0 PHY Status Register */
+	IMX_P0PHYSR				= 0x017c,
+	IMX_P0PHYSR_CR_ACK			= 1 << 18,
+	IMX_P0PHYSR_CR_DATA_OUT			= 0xffff << 0,
+	/* Lane0 Output Status Register */
+	IMX_LANE0_OUT_STAT			= 0x2003,
+	IMX_LANE0_OUT_STAT_RX_PLL_STATE		= 1 << 1,
+	/* Clock Reset Register */
+	IMX_CLOCK_RESET				= 0x7f3f,
+	IMX_CLOCK_RESET_RESET			= 1 << 0,
 };
 
 enum ahci_imx_type {
@@ -42,13 +58,7 @@ enum ahci_imx_type {
 struct imx_ahci_priv {
 	struct platform_device *ahci_pdev;
 	enum ahci_imx_type type;
-
-	/* i.MX53 clock */
-	struct clk *sata_gate_clk;
-	/* Common clock */
-	struct clk *sata_ref_clk;
 	struct clk *ahb_clk;
-
 	struct regmap *gpr;
 	bool no_device;
 	bool first_time;
@@ -58,288 +68,172 @@ static int ahci_imx_hotplug;
 module_param_named(hotplug, ahci_imx_hotplug, int, 0644);
 MODULE_PARM_DESC(hotplug, "AHCI IMX hot-plug support (0=Don't support, 1=support)");
 
-static int imx_sata_clock_enable(struct device *dev)
+static void ahci_imx_host_stop(struct ata_host *host);
+
+static int imx_phy_crbit_assert(void __iomem *mmio, u32 bit, bool assert)
 {
-	struct imx_ahci_priv *imxpriv = dev_get_drvdata(dev->parent);
+	int timeout = 10;
+	u32 crval;
+	u32 srval;
+
+	/* Assert or deassert the bit */
+	crval = readl(mmio + IMX_P0PHYCR);
+	if (assert)
+		crval |= bit;
+	else
+		crval &= ~bit;
+	writel(crval, mmio + IMX_P0PHYCR);
+
+	/* Wait for the cr_ack signal */
+	do {
+		srval = readl(mmio + IMX_P0PHYSR);
+		if ((assert ? srval : ~srval) & IMX_P0PHYSR_CR_ACK)
+			break;
+		usleep_range(100, 200);
+	} while (--timeout);
+
+	return timeout ? 0 : -ETIMEDOUT;
+}
+
+static int imx_phy_reg_addressing(u16 addr, void __iomem *mmio)
+{
+	u32 crval = addr;
 	int ret;
 
-	if (imxpriv->type == AHCI_IMX53) {
-		ret = clk_prepare_enable(imxpriv->sata_gate_clk);
-		if (ret < 0) {
-			dev_err(dev, "prepare-enable sata_gate clock err:%d\n",
-				ret);
-			return ret;
-		}
-	}
+	/* Supply the address on cr_data_in */
+	writel(crval, mmio + IMX_P0PHYCR);
 
-	ret = clk_prepare_enable(imxpriv->sata_ref_clk);
-	if (ret < 0) {
-		dev_err(dev, "prepare-enable sata_ref clock err:%d\n",
-			ret);
-		goto clk_err;
-	}
-
-	if (imxpriv->type == AHCI_IMX6Q) {
-		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
-				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
-				   IMX6Q_GPR13_SATA_MPLL_CLK_EN);
-	}
-
-	usleep_range(1000, 2000);
-
-	return 0;
-
-clk_err:
-	if (imxpriv->type == AHCI_IMX53)
-		clk_disable_unprepare(imxpriv->sata_gate_clk);
-	return ret;
-}
-
-static void imx_sata_clock_disable(struct device *dev)
-{
-	struct imx_ahci_priv *imxpriv = dev_get_drvdata(dev->parent);
-
-	if (imxpriv->type == AHCI_IMX6Q) {
-		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
-				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
-				   !IMX6Q_GPR13_SATA_MPLL_CLK_EN);
-	}
-
-	clk_disable_unprepare(imxpriv->sata_ref_clk);
-
-	if (imxpriv->type == AHCI_IMX53)
-		clk_disable_unprepare(imxpriv->sata_gate_clk);
-}
-
-static void ahci_imx_error_handler(struct ata_port *ap)
-{
-	u32 reg_val;
-	struct ata_device *dev;
-	struct ata_host *host = dev_get_drvdata(ap->dev);
-	struct ahci_host_priv *hpriv = host->private_data;
-	void __iomem *mmio = hpriv->mmio;
-	struct imx_ahci_priv *imxpriv = dev_get_drvdata(ap->dev->parent);
-
-	ahci_error_handler(ap);
-
-	if (!(imxpriv->first_time) || ahci_imx_hotplug)
-		return;
-
-	imxpriv->first_time = false;
-
-	ata_for_each_dev(dev, &ap->link, ENABLED)
-		return;
-	/*
-	 * Disable link to save power.  An imx ahci port can't be recovered
-	 * without full reset once the pddq mode is enabled making it
-	 * impossible to use as part of libata LPM.
-	 */
-	reg_val = readl(mmio + PORT_PHY_CTL);
-	writel(reg_val | PORT_PHY_CTL_PDDQ_LOC, mmio + PORT_PHY_CTL);
-	imx_sata_clock_disable(ap->dev);
-	imxpriv->no_device = true;
-}
-
-static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
-		       unsigned long deadline)
-{
-	struct ata_port *ap = link->ap;
-	struct imx_ahci_priv *imxpriv = dev_get_drvdata(ap->dev->parent);
-	int ret = -EIO;
-
-	if (imxpriv->type == AHCI_IMX53)
-		ret = ahci_pmp_retry_srst_ops.softreset(link, class, deadline);
-	else if (imxpriv->type == AHCI_IMX6Q)
-		ret = ahci_ops.softreset(link, class, deadline);
-
-	return ret;
-}
-
-static struct ata_port_operations ahci_imx_ops = {
-	.inherits	= &ahci_platform_ops,
-	.error_handler	= ahci_imx_error_handler,
-	.softreset	= ahci_imx_softreset,
-};
-
-static const struct ata_port_info ahci_imx_port_info = {
-	.flags		= AHCI_FLAG_COMMON,
-	.pio_mask	= ATA_PIO4,
-	.udma_mask	= ATA_UDMA6,
-	.port_ops	= &ahci_imx_ops,
-};
-
-static int imx_sata_init(struct device *dev, void __iomem *mmio)
-{
-	int ret = 0;
-	unsigned int reg_val;
-	struct imx_ahci_priv *imxpriv = dev_get_drvdata(dev->parent);
-
-	ret = imx_sata_clock_enable(dev);
-	if (ret < 0)
+	/* Assert the cr_cap_addr signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_ADDR, true);
+	if (ret)
 		return ret;
 
-	/*
-	 * Configure the HWINIT bits of the HOST_CAP and HOST_PORTS_IMPL,
-	 * and IP vendor specific register HOST_TIMER1MS.
-	 * Configure CAP_SSS (support stagered spin up).
-	 * Implement the port0.
-	 * Get the ahb clock rate, and configure the TIMER1MS register.
-	 */
-	reg_val = readl(mmio + HOST_CAP);
-	if (!(reg_val & HOST_CAP_SSS)) {
-		reg_val |= HOST_CAP_SSS;
-		writel(reg_val, mmio + HOST_CAP);
-	}
-	reg_val = readl(mmio + HOST_PORTS_IMPL);
-	if (!(reg_val & 0x1)) {
-		reg_val |= 0x1;
-		writel(reg_val, mmio + HOST_PORTS_IMPL);
-	}
-
-	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
-	writel(reg_val, mmio + HOST_TIMER1MS);
+	/* Deassert cr_cap_addr */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_ADDR, false);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
-static void imx_sata_exit(struct device *dev)
+static int imx_phy_reg_write(u16 val, void __iomem *mmio)
 {
-	imx_sata_clock_disable(dev);
-}
-
-static int imx_ahci_suspend(struct device *dev)
-{
-	struct imx_ahci_priv *imxpriv =  dev_get_drvdata(dev->parent);
-
-	/*
-	 * If no_device is set, The CLKs had been gated off in the
-	 * initialization so don't do it again here.
-	 */
-	if (!imxpriv->no_device)
-		imx_sata_clock_disable(dev);
-
-	return 0;
-}
-
-static int imx_ahci_resume(struct device *dev)
-{
-	struct imx_ahci_priv *imxpriv =  dev_get_drvdata(dev->parent);
-	int ret = 0;
-
-	if (!imxpriv->no_device)
-		ret = imx_sata_clock_enable(dev);
-
-	return ret;
-}
-
-static struct ahci_platform_data imx_sata_pdata = {
-	.init		= imx_sata_init,
-	.exit		= imx_sata_exit,
-	.ata_port_info	= &ahci_imx_port_info,
-	.suspend	= imx_ahci_suspend,
-	.resume		= imx_ahci_resume,
-
-};
-
-static const struct of_device_id imx_ahci_of_match[] = {
-	{ .compatible = "fsl,imx53-ahci", .data = (void *)AHCI_IMX53 },
-	{ .compatible = "fsl,imx6q-ahci", .data = (void *)AHCI_IMX6Q },
-	{},
-};
-MODULE_DEVICE_TABLE(of, imx_ahci_of_match);
-
-static int imx_ahci_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct resource *mem, *irq, res[2];
-	const struct of_device_id *of_id;
-	enum ahci_imx_type type;
-	const struct ahci_platform_data *pdata = NULL;
-	struct imx_ahci_priv *imxpriv;
-	struct device *ahci_dev;
-	struct platform_device *ahci_pdev;
+	u32 crval = val;
 	int ret;
 
-	of_id = of_match_device(imx_ahci_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
+	/* Supply the data on cr_data_in */
+	writel(crval, mmio + IMX_P0PHYCR);
 
-	type = (enum ahci_imx_type)of_id->data;
-	pdata = &imx_sata_pdata;
+	/* Assert the cr_cap_data signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_DATA, true);
+	if (ret)
+		return ret;
 
-	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
-	if (!imxpriv) {
-		dev_err(dev, "can't alloc ahci_host_priv\n");
-		return -ENOMEM;
-	}
+	/* Deassert cr_cap_data */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_CAP_DATA, false);
+	if (ret)
+		return ret;
 
-	ahci_pdev = platform_device_alloc("ahci", -1);
-	if (!ahci_pdev)
-		return -ENODEV;
-
-	ahci_dev = &ahci_pdev->dev;
-	ahci_dev->parent = dev;
-
-	imxpriv->no_device = false;
-	imxpriv->first_time = true;
-	imxpriv->type = type;
-
-	imxpriv->ahb_clk = devm_clk_get(dev, "ahb");
-	if (IS_ERR(imxpriv->ahb_clk)) {
-		dev_err(dev, "can't get ahb clock.\n");
-		ret = PTR_ERR(imxpriv->ahb_clk);
-		goto err_out;
-	}
-
-	if (type == AHCI_IMX53) {
-		imxpriv->sata_gate_clk = devm_clk_get(dev, "sata_gate");
-		if (IS_ERR(imxpriv->sata_gate_clk)) {
-			dev_err(dev, "can't get sata_gate clock.\n");
-			ret = PTR_ERR(imxpriv->sata_gate_clk);
-			goto err_out;
-		}
-	}
-
-	imxpriv->sata_ref_clk = devm_clk_get(dev, "sata_ref");
-	if (IS_ERR(imxpriv->sata_ref_clk)) {
-		dev_err(dev, "can't get sata_ref clock.\n");
-		ret = PTR_ERR(imxpriv->sata_ref_clk);
-		goto err_out;
-	}
-
-	imxpriv->ahci_pdev = ahci_pdev;
-	platform_set_drvdata(pdev, imxpriv);
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!mem || !irq) {
-		dev_err(dev, "no mmio/irq resource\n");
-		ret = -ENOMEM;
-		goto err_out;
-	}
-
-	res[0] = *mem;
-	res[1] = *irq;
-
-	ahci_dev->coherent_dma_mask = DMA_BIT_MASK(32);
-	ahci_dev->dma_mask = &ahci_dev->coherent_dma_mask;
-	ahci_dev->of_node = dev->of_node;
-
-	if (type == AHCI_IMX6Q) {
-		imxpriv->gpr = syscon_regmap_lookup_by_compatible(
-							"fsl,imx6q-iomuxc-gpr");
-		if (IS_ERR(imxpriv->gpr)) {
-			dev_err(dev,
-				"failed to find fsl,imx6q-iomux-gpr regmap\n");
-			ret = PTR_ERR(imxpriv->gpr);
-			goto err_out;
-		}
-
+	if (val & IMX_CLOCK_RESET_RESET) {
 		/*
-		 * Set PHY Paremeters, two steps to configure the GPR13,
+		 * In case we're resetting the phy, it's unable to acknowledge,
+		 * so we return immediately here.
+		 */
+		crval |= IMX_P0PHYCR_CR_WRITE;
+		writel(crval, mmio + IMX_P0PHYCR);
+		goto out;
+	}
+
+	/* Assert the cr_write signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_WRITE, true);
+	if (ret)
+		return ret;
+
+	/* Deassert cr_write */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_WRITE, false);
+	if (ret)
+		return ret;
+
+out:
+	return 0;
+}
+
+static int imx_phy_reg_read(u16 *val, void __iomem *mmio)
+{
+	int ret;
+
+	/* Assert the cr_read signal */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_READ, true);
+	if (ret)
+		return ret;
+
+	/* Capture the data from cr_data_out[] */
+	*val = readl(mmio + IMX_P0PHYSR) & IMX_P0PHYSR_CR_DATA_OUT;
+
+	/* Deassert cr_read */
+	ret = imx_phy_crbit_assert(mmio, IMX_P0PHYCR_CR_READ, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int imx_sata_phy_reset(struct ahci_host_priv *hpriv)
+{
+	void __iomem *mmio = hpriv->mmio;
+	int timeout = 10;
+	u16 val;
+	int ret;
+
+	/* Reset SATA PHY by setting RESET bit of PHY register CLOCK_RESET */
+	ret = imx_phy_reg_addressing(IMX_CLOCK_RESET, mmio);
+	if (ret)
+		return ret;
+	ret = imx_phy_reg_write(IMX_CLOCK_RESET_RESET, mmio);
+	if (ret)
+		return ret;
+
+	/* Wait for PHY RX_PLL to be stable */
+	do {
+		usleep_range(100, 200);
+		ret = imx_phy_reg_addressing(IMX_LANE0_OUT_STAT, mmio);
+		if (ret)
+			return ret;
+		ret = imx_phy_reg_read(&val, mmio);
+		if (ret)
+			return ret;
+		if (val & IMX_LANE0_OUT_STAT_RX_PLL_STATE)
+			break;
+	} while (--timeout);
+
+	return timeout ? 0 : -ETIMEDOUT;
+}
+
+static int imx_sata_enable(struct ahci_host_priv *hpriv)
+{
+	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
+	struct device *dev = &imxpriv->ahci_pdev->dev;
+	int ret;
+
+	if (imxpriv->no_device)
+		return 0;
+
+	if (hpriv->target_pwr) {
+		ret = regulator_enable(hpriv->target_pwr);
+		if (ret)
+			return ret;
+	}
+
+	ret = ahci_platform_enable_clks(hpriv);
+	if (ret < 0)
+		goto disable_regulator;
+
+	if (imxpriv->type == AHCI_IMX6Q) {
+		/*
+		 * set PHY Paremeters, two steps to configure the GPR13,
 		 * one write for rest of parameters, mask of first write
-		 * is 0x07fffffe, and the other one write for setting
-		 * the mpll_clk_en happens in imx_sata_clock_enable().
+		 * is 0x07ffffff, and the other one write for setting
+		 * the mpll_clk_en.
 		 */
 		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
 				   IMX6Q_GPR13_SATA_RX_EQ_VAL_MASK |
@@ -360,42 +254,238 @@ static int imx_ahci_probe(struct platform_device *pdev)
 				   IMX6Q_GPR13_SATA_TX_ATTEN_9_16 |
 				   IMX6Q_GPR13_SATA_TX_BOOST_3_33_DB |
 				   IMX6Q_GPR13_SATA_TX_LVL_1_025_V);
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
+				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
+				   IMX6Q_GPR13_SATA_MPLL_CLK_EN);
+
+		usleep_range(100, 200);
+
+		ret = imx_sata_phy_reset(hpriv);
+		if (ret) {
+			dev_err(dev, "failed to reset phy: %d\n", ret);
+			goto disable_regulator;
+		}
 	}
 
-	ret = platform_device_add_resources(ahci_pdev, res, 2);
-	if (ret)
-		goto err_out;
-
-	ret = platform_device_add_data(ahci_pdev, pdata, sizeof(*pdata));
-	if (ret)
-		goto err_out;
-
-	ret = platform_device_add(ahci_pdev);
-	if (ret) {
-err_out:
-		platform_device_put(ahci_pdev);
-		return ret;
-	}
+	usleep_range(1000, 2000);
 
 	return 0;
+
+disable_regulator:
+	if (hpriv->target_pwr)
+		regulator_disable(hpriv->target_pwr);
+
+	return ret;
 }
 
-static int imx_ahci_remove(struct platform_device *pdev)
+static void imx_sata_disable(struct ahci_host_priv *hpriv)
 {
-	struct imx_ahci_priv *imxpriv = platform_get_drvdata(pdev);
-	struct platform_device *ahci_pdev = imxpriv->ahci_pdev;
+	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
 
-	platform_device_unregister(ahci_pdev);
+	if (imxpriv->no_device)
+		return;
+
+	if (imxpriv->type == AHCI_IMX6Q) {
+		regmap_update_bits(imxpriv->gpr, IOMUXC_GPR13,
+				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
+				   !IMX6Q_GPR13_SATA_MPLL_CLK_EN);
+	}
+
+	ahci_platform_disable_clks(hpriv);
+
+	if (hpriv->target_pwr)
+		regulator_disable(hpriv->target_pwr);
+}
+
+static void ahci_imx_error_handler(struct ata_port *ap)
+{
+	u32 reg_val;
+	struct ata_device *dev;
+	struct ata_host *host = dev_get_drvdata(ap->dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->mmio;
+	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
+
+	ahci_error_handler(ap);
+
+	if (!(imxpriv->first_time) || ahci_imx_hotplug)
+		return;
+
+	imxpriv->first_time = false;
+
+	ata_for_each_dev(dev, &ap->link, ENABLED)
+		return;
+	/*
+	 * Disable link to save power.  An imx ahci port can't be recovered
+	 * without full reset once the pddq mode is enabled making it
+	 * impossible to use as part of libata LPM.
+	 */
+	reg_val = readl(mmio + IMX_P0PHYCR);
+	writel(reg_val | IMX_P0PHYCR_TEST_PDDQ, mmio + IMX_P0PHYCR);
+	imx_sata_disable(hpriv);
+	imxpriv->no_device = true;
+}
+
+static int ahci_imx_softreset(struct ata_link *link, unsigned int *class,
+		       unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct ata_host *host = dev_get_drvdata(ap->dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	struct imx_ahci_priv *imxpriv = hpriv->plat_data;
+	int ret = -EIO;
+
+	if (imxpriv->type == AHCI_IMX53)
+		ret = ahci_pmp_retry_srst_ops.softreset(link, class, deadline);
+	else if (imxpriv->type == AHCI_IMX6Q)
+		ret = ahci_ops.softreset(link, class, deadline);
+
+	return ret;
+}
+
+static struct ata_port_operations ahci_imx_ops = {
+	.inherits	= &ahci_ops,
+	.host_stop	= ahci_imx_host_stop,
+	.error_handler	= ahci_imx_error_handler,
+	.softreset	= ahci_imx_softreset,
+};
+
+static const struct ata_port_info ahci_imx_port_info = {
+	.flags		= AHCI_FLAG_COMMON,
+	.pio_mask	= ATA_PIO4,
+	.udma_mask	= ATA_UDMA6,
+	.port_ops	= &ahci_imx_ops,
+};
+
+static const struct of_device_id imx_ahci_of_match[] = {
+	{ .compatible = "fsl,imx53-ahci", .data = (void *)AHCI_IMX53 },
+	{ .compatible = "fsl,imx6q-ahci", .data = (void *)AHCI_IMX6Q },
+	{},
+};
+MODULE_DEVICE_TABLE(of, imx_ahci_of_match);
+
+static int imx_ahci_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *of_id;
+	struct ahci_host_priv *hpriv;
+	struct imx_ahci_priv *imxpriv;
+	unsigned int reg_val;
+	int ret;
+
+	of_id = of_match_device(imx_ahci_of_match, dev);
+	if (!of_id)
+		return -EINVAL;
+
+	imxpriv = devm_kzalloc(dev, sizeof(*imxpriv), GFP_KERNEL);
+	if (!imxpriv)
+		return -ENOMEM;
+
+	imxpriv->ahci_pdev = pdev;
+	imxpriv->no_device = false;
+	imxpriv->first_time = true;
+	imxpriv->type = (enum ahci_imx_type)of_id->data;
+	imxpriv->ahb_clk = devm_clk_get(dev, "ahb");
+	if (IS_ERR(imxpriv->ahb_clk)) {
+		dev_err(dev, "can't get ahb clock.\n");
+		return PTR_ERR(imxpriv->ahb_clk);
+	}
+
+	if (imxpriv->type == AHCI_IMX6Q) {
+		imxpriv->gpr = syscon_regmap_lookup_by_compatible(
+							"fsl,imx6q-iomuxc-gpr");
+		if (IS_ERR(imxpriv->gpr)) {
+			dev_err(dev,
+				"failed to find fsl,imx6q-iomux-gpr regmap\n");
+			return PTR_ERR(imxpriv->gpr);
+		}
+	}
+
+	hpriv = ahci_platform_get_resources(pdev);
+	if (IS_ERR(hpriv))
+		return PTR_ERR(hpriv);
+
+	hpriv->plat_data = imxpriv;
+
+	ret = imx_sata_enable(hpriv);
+	if (ret)
+		return ret;
+
+	/*
+	 * Configure the HWINIT bits of the HOST_CAP and HOST_PORTS_IMPL,
+	 * and IP vendor specific register IMX_TIMER1MS.
+	 * Configure CAP_SSS (support stagered spin up).
+	 * Implement the port0.
+	 * Get the ahb clock rate, and configure the TIMER1MS register.
+	 */
+	reg_val = readl(hpriv->mmio + HOST_CAP);
+	if (!(reg_val & HOST_CAP_SSS)) {
+		reg_val |= HOST_CAP_SSS;
+		writel(reg_val, hpriv->mmio + HOST_CAP);
+	}
+	reg_val = readl(hpriv->mmio + HOST_PORTS_IMPL);
+	if (!(reg_val & 0x1)) {
+		reg_val |= 0x1;
+		writel(reg_val, hpriv->mmio + HOST_PORTS_IMPL);
+	}
+
+	reg_val = clk_get_rate(imxpriv->ahb_clk) / 1000;
+	writel(reg_val, hpriv->mmio + IMX_TIMER1MS);
+
+	ret = ahci_platform_init_host(pdev, hpriv, &ahci_imx_port_info, 0, 0);
+	if (ret)
+		imx_sata_disable(hpriv);
+
+	return ret;
+}
+
+static void ahci_imx_host_stop(struct ata_host *host)
+{
+	struct ahci_host_priv *hpriv = host->private_data;
+
+	imx_sata_disable(hpriv);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int imx_ahci_suspend(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	int ret;
+
+	ret = ahci_platform_suspend_host(dev);
+	if (ret)
+		return ret;
+
+	imx_sata_disable(hpriv);
+
 	return 0;
 }
+
+static int imx_ahci_resume(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	int ret;
+
+	ret = imx_sata_enable(hpriv);
+	if (ret)
+		return ret;
+
+	return ahci_platform_resume_host(dev);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(ahci_imx_pm_ops, imx_ahci_suspend, imx_ahci_resume);
 
 static struct platform_driver imx_ahci_driver = {
 	.probe = imx_ahci_probe,
-	.remove = imx_ahci_remove,
+	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "ahci-imx",
 		.owner = THIS_MODULE,
 		.of_match_table = imx_ahci_of_match,
+		.pm = &ahci_imx_pm_ops,
 	},
 };
 module_platform_driver(imx_ahci_driver);

@@ -139,6 +139,7 @@ static int phy_scan_fixups(struct phy_device *phydev)
 				mutex_unlock(&phy_fixup_lock);
 				return err;
 			}
+			phydev->has_fixups = true;
 		}
 	}
 	mutex_unlock(&phy_fixup_lock);
@@ -534,16 +535,16 @@ static int phy_poll_reset(struct phy_device *phydev)
 
 int phy_init_hw(struct phy_device *phydev)
 {
-	int ret;
+	int ret = 0;
 
 	if (!phydev->drv || !phydev->drv->config_init)
 		return 0;
 
-	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (ret < 0)
-		return ret;
+	if (phydev->drv->soft_reset)
+		ret = phydev->drv->soft_reset(phydev);
+	else
+		ret = genphy_soft_reset(phydev);
 
-	ret = phy_poll_reset(phydev);
 	if (ret < 0)
 		return ret;
 
@@ -613,8 +614,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	err = phy_init_hw(phydev);
 	if (err)
 		phy_detach(phydev);
-
-	phy_resume(phydev);
+	else
+		phy_resume(phydev);
 
 	return err;
 }
@@ -864,6 +865,22 @@ int genphy_config_aneg(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(genphy_config_aneg);
 
+/**
+ * genphy_aneg_done - return auto-negotiation status
+ * @phydev: target phy_device struct
+ *
+ * Description: Reads the status register and returns 0 either if
+ *   auto-negotiation is incomplete, or if there was an error.
+ *   Returns BMSR_ANEGCOMPLETE if auto-negotiation is done.
+ */
+int genphy_aneg_done(struct phy_device *phydev)
+{
+	int retval = phy_read(phydev, MII_BMSR);
+
+	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
+}
+EXPORT_SYMBOL(genphy_aneg_done);
+
 static int gen10g_config_aneg(struct phy_device *phydev)
 {
 	return 0;
@@ -1029,6 +1046,27 @@ static int gen10g_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+/**
+ * genphy_soft_reset - software reset the PHY via BMCR_RESET bit
+ * @phydev: target phy_device struct
+ *
+ * Description: Perform a software PHY reset using the standard
+ * BMCR_RESET bit and poll for the reset bit to be cleared.
+ *
+ * Returns: 0 on success, < 0 on failure
+ */
+int genphy_soft_reset(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (ret < 0)
+		return ret;
+
+	return phy_poll_reset(phydev);
+}
+EXPORT_SYMBOL(genphy_soft_reset);
+
 static int genphy_config_init(struct phy_device *phydev)
 {
 	int val;
@@ -1072,6 +1110,12 @@ static int genphy_config_init(struct phy_device *phydev)
 	phydev->supported = features;
 	phydev->advertising = features;
 
+	return 0;
+}
+
+static int gen10g_soft_reset(struct phy_device *phydev)
+{
+	/* Do nothing for now */
 	return 0;
 }
 
@@ -1249,9 +1293,11 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id		= 0xffffffff,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
+	.soft_reset	= genphy_soft_reset,
 	.config_init	= genphy_config_init,
 	.features	= 0,
 	.config_aneg	= genphy_config_aneg,
+	.aneg_done	= genphy_aneg_done,
 	.read_status	= genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -1260,6 +1306,7 @@ static struct phy_driver genphy_driver[] = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,
 	.name           = "Generic 10G PHY",
+	.soft_reset	= gen10g_soft_reset,
 	.config_init    = gen10g_config_init,
 	.features       = 0,
 	.config_aneg    = gen10g_config_aneg,

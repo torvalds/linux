@@ -41,19 +41,10 @@
 #define __LIBCFS_PRIM_H__
 
 /*
- * Schedule
- */
-void cfs_pause(cfs_duration_t ticks);
-
-/*
  * Timer
  */
 typedef  void (cfs_timer_func_t)(ulong_ptr_t);
-void schedule_timeout_and_set_state(long, int64_t);
 
-void init_waitqueue_entry_current(wait_queue_t *link);
-int64_t waitq_timedwait(wait_queue_t *, long, int64_t);
-void waitq_wait(wait_queue_t *, long);
 void add_wait_queue_exclusive_head(wait_queue_head_t *, wait_queue_t *);
 
 void cfs_init_timer(struct timer_list *t);

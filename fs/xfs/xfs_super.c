@@ -996,7 +996,7 @@ xfs_fs_evict_inode(
 
 	trace_xfs_evict_inode(ip);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
@@ -1197,6 +1197,7 @@ xfs_fs_remount(
 	char			*p;
 	int			error;
 
+	sync_filesystem(sb);
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
 
@@ -1432,11 +1433,11 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_fsname;
 
-	error = xfs_init_mount_workqueues(mp);
+	error = -xfs_init_mount_workqueues(mp);
 	if (error)
 		goto out_close_devices;
 
-	error = xfs_icsb_init_counters(mp);
+	error = -xfs_icsb_init_counters(mp);
 	if (error)
 		goto out_destroy_workqueues;
 

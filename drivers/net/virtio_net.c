@@ -882,7 +882,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev_warn(&dev->dev,
 				 "Unexpected TXQ (%d) queue failure: %d\n", qnum, err);
 		dev->stats.tx_dropped++;
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 	virtqueue_kick(sq->vq);
@@ -938,7 +938,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	sgs[out_num] = &stat;
 
 	BUG_ON(out_num + 1 > ARRAY_SIZE(sgs));
-	BUG_ON(virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC) < 0);
+	virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC);
 
 	if (unlikely(!virtqueue_kick(vi->cvq)))
 		return status == VIRTIO_NET_OK;
@@ -1000,16 +1000,16 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 		u64 tpackets, tbytes, rpackets, rbytes;
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->tx_syncp);
+			start = u64_stats_fetch_begin_irq(&stats->tx_syncp);
 			tpackets = stats->tx_packets;
 			tbytes   = stats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->tx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->tx_syncp, start));
 
 		do {
-			start = u64_stats_fetch_begin_bh(&stats->rx_syncp);
+			start = u64_stats_fetch_begin_irq(&stats->rx_syncp);
 			rpackets = stats->rx_packets;
 			rbytes   = stats->rx_bytes;
-		} while (u64_stats_fetch_retry_bh(&stats->rx_syncp, start));
+		} while (u64_stats_fetch_retry_irq(&stats->rx_syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
@@ -1285,7 +1285,7 @@ static int virtnet_set_channels(struct net_device *dev,
 	if (channels->rx_count || channels->tx_count || channels->other_count)
 		return -EINVAL;
 
-	if (queue_pairs > vi->max_queue_pairs)
+	if (queue_pairs > vi->max_queue_pairs || queue_pairs == 0)
 		return -EINVAL;
 
 	get_online_cpus();

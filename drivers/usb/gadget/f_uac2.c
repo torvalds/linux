@@ -394,7 +394,7 @@ static int snd_uac2_probe(struct platform_device *pdev)
 	int err;
 
 	/* Choose any slot, with no id */
-	err = snd_card_create(-1, NULL, THIS_MODULE, 0, &card);
+	err = snd_card_new(&pdev->dev, -1, NULL, THIS_MODULE, 0, &card);
 	if (err < 0)
 		return err;
 
@@ -420,8 +420,6 @@ static int snd_uac2_probe(struct platform_device *pdev)
 	strcpy(card->driver, "UAC2_Gadget");
 	strcpy(card->shortname, "UAC2_Gadget");
 	sprintf(card->longname, "UAC2_Gadget %i", pdev->id);
-
-	snd_card_set_dev(card, &pdev->dev);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
 		snd_dma_continuous_data(GFP_KERNEL), 0, BUFF_SIZE_MAX);

@@ -60,6 +60,19 @@
 			interrupts = <GIC_PPI 13 0xf04>;
 		};
 
+		sram: sram@10080000 {
+			compatible = "mmio-sram";
+			reg = <0x10080000 0x8000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x10080000 0x8000>;
+
+			smp-sram@0 {
+				compatible = "rockchip,rk3066-smp-sram";
+				reg = <0x0 0x50>;
+			};
+		};
+
 		pinctrl@20008000 {
 			compatible = "rockchip,rk3188-pinctrl";
 			reg = <0x20008000 0xa0>,
@@ -136,7 +149,7 @@
 
 			uart0 {
 				uart0_xfer: uart0-xfer {
-					rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_none>,
+					rockchip,pins = <RK_GPIO1 0 RK_FUNC_1 &pcfg_pull_up>,
 							<RK_GPIO1 1 RK_FUNC_1 &pcfg_pull_none>;
 				};
 
@@ -151,7 +164,7 @@
 
 			uart1 {
 				uart1_xfer: uart1-xfer {
-					rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_none>,
+					rockchip,pins = <RK_GPIO1 4 RK_FUNC_1 &pcfg_pull_up>,
 							<RK_GPIO1 5 RK_FUNC_1 &pcfg_pull_none>;
 				};
 
@@ -166,7 +179,7 @@
 
 			uart2 {
 				uart2_xfer: uart2-xfer {
-					rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_none>,
+					rockchip,pins = <RK_GPIO1 8 RK_FUNC_1 &pcfg_pull_up>,
 							<RK_GPIO1 9 RK_FUNC_1 &pcfg_pull_none>;
 				};
 				/* no rts / cts for uart2 */
@@ -174,7 +187,7 @@
 
 			uart3 {
 				uart3_xfer: uart3-xfer {
-					rockchip,pins = <RK_GPIO1 10 RK_FUNC_1 &pcfg_pull_none>,
+					rockchip,pins = <RK_GPIO1 10 RK_FUNC_1 &pcfg_pull_up>,
 							<RK_GPIO1 11 RK_FUNC_1 &pcfg_pull_none>;
 				};
 

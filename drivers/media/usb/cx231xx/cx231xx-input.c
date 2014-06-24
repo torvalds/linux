@@ -1,7 +1,7 @@
 /*
  *   cx231xx IR glue driver
  *
- *   Copyright (C) 2010 Mauro Carvalho Chehab <mchehab@redhat.com>
+ *   Copyright (C) 2010 Mauro Carvalho Chehab
  *
  *   Polaris (cx231xx) has its support for IR's with a design close to MCE.
  *   however, a few designs are using an external I2C chip for IR, instead

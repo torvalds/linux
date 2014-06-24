@@ -86,10 +86,17 @@ static int open_file_read(struct perf_data_file *file)
 
 static int open_file_write(struct perf_data_file *file)
 {
+	int fd;
+
 	if (check_backup(file))
 		return -1;
 
-	return open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+	fd = open(file->path, O_CREAT|O_RDWR|O_TRUNC, S_IRUSR|S_IWUSR);
+
+	if (fd < 0)
+		pr_err("failed to open %s : %s\n", file->path, strerror(errno));
+
+	return fd;
 }
 
 static int open_file(struct perf_data_file *file)

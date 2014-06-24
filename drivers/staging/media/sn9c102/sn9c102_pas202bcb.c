@@ -92,27 +92,32 @@ static int pas202bcb_get_ctrl(struct sn9c102_device* cam,
 		}
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x09)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x09);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x0f;
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x07)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x07);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x0f;
 		return 0;
 	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x10)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x10);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x1f;
 		return 0;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x08)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x08);
+		if (ctrl->value < 0)
 			return -EIO;
 		ctrl->value &= 0x0f;
 		return 0;
 	case SN9C102_V4L2_CID_DAC_MAGNITUDE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0c)) < 0)
+		ctrl->value = sn9c102_i2c_read(cam, 0x0c);
+		if (ctrl->value < 0)
 			return -EIO;
 		return 0;
 	default:

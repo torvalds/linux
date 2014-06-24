@@ -7,7 +7,7 @@
 // URL: http://coccinelle.lip6.fr/
 // Options: --no-includes --include-headers
 //
-// Keywords: ERR_PTR, PTR_ERR, PTR_RET, PTR_ERR_OR_ZERO
+// Keywords: ERR_PTR, PTR_ERR, PTR_ERR_OR_ZERO
 // Version min: 2.6.39
 //
 
@@ -62,35 +62,35 @@ position p3;
 p << r1.p1;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
+coccilib.org.print_todo(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")
 
 
 @script:python depends on org@
 p << r2.p2;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
+coccilib.org.print_todo(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")
 
 @script:python depends on org@
 p << r3.p3;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
+coccilib.org.print_todo(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")
 
 @script:python depends on report@
 p << r1.p1;
 @@
 
-coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")
+coccilib.report.print_report(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")
 
 @script:python depends on report@
 p << r2.p2;
 @@
 
-coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")
+coccilib.report.print_report(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")
 
 @script:python depends on report@
 p << r3.p3;
 @@
 
-coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")
+coccilib.report.print_report(p[0], "WARNING: PTR_ERR_OR_ZERO can be used")

@@ -192,8 +192,8 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CANCEL_BL_CB_RACE)) {
 		int to = cfs_time_seconds(1);
 		while (to > 0) {
-			schedule_timeout_and_set_state(
-				TASK_INTERRUPTIBLE, to);
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(to);
 			if (lock->l_granted_mode == lock->l_req_mode ||
 			    lock->l_flags & LDLM_FL_DESTROYED)
 				break;
@@ -228,6 +228,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 
 			lock_res_and_lock(lock);
 			LASSERT(lock->l_lvb_data == NULL);
+			lock->l_lvb_type = LVB_T_LAYOUT;
 			lock->l_lvb_data = lvb_data;
 			lock->l_lvb_len = lvb_len;
 			unlock_res_and_lock(lock);

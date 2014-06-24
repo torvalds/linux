@@ -91,7 +91,7 @@
 #define MVNETA_RX_MIN_FRAME_SIZE                 0x247c
 #define MVNETA_SERDES_CFG			 0x24A0
 #define      MVNETA_SGMII_SERDES_PROTO		 0x0cc7
-#define      MVNETA_RGMII_SERDES_PROTO		 0x0667
+#define      MVNETA_QSGMII_SERDES_PROTO		 0x0667
 #define MVNETA_TYPE_PRIO                         0x24bc
 #define      MVNETA_FORCE_UNI                    BIT(21)
 #define MVNETA_TXQ_CMD_1                         0x24e4
@@ -510,12 +510,12 @@ struct rtnl_link_stats64 *mvneta_get_stats64(struct net_device *dev,
 
 		cpu_stats = per_cpu_ptr(pp->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin_bh(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
 			rx_packets = cpu_stats->rx_packets;
 			rx_bytes   = cpu_stats->rx_bytes;
 			tx_packets = cpu_stats->tx_packets;
 			tx_bytes   = cpu_stats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;
@@ -2721,29 +2721,44 @@ static void mvneta_conf_mbus_windows(struct mvneta_port *pp,
 }
 
 /* Power up the port */
-static void mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
+static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 {
-	u32 val;
+	u32 ctrl;
 
 	/* MAC Cause register should be cleared */
 	mvreg_write(pp, MVNETA_UNIT_INTR_CAUSE, 0);
 
-	if (phy_mode == PHY_INTERFACE_MODE_SGMII)
+	ctrl = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
+
+	/* Even though it might look weird, when we're configured in
+	 * SGMII or QSGMII mode, the RGMII bit needs to be set.
+	 */
+	switch(phy_mode) {
+	case PHY_INTERFACE_MODE_QSGMII:
+		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_QSGMII_SERDES_PROTO);
+		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
 		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_SGMII_SERDES_PROTO);
-	else
-		mvreg_write(pp, MVNETA_SERDES_CFG, MVNETA_RGMII_SERDES_PROTO);
-
-	val = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
-
-	val |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		ctrl |= MVNETA_GMAC2_PCS_ENABLE | MVNETA_GMAC2_PORT_RGMII;
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+		ctrl |= MVNETA_GMAC2_PORT_RGMII;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Cancel Port Reset */
-	val &= ~MVNETA_GMAC2_PORT_RESET;
-	mvreg_write(pp, MVNETA_GMAC_CTRL_2, val);
+	ctrl &= ~MVNETA_GMAC2_PORT_RESET;
+	mvreg_write(pp, MVNETA_GMAC_CTRL_2, ctrl);
 
 	while ((mvreg_read(pp, MVNETA_GMAC_CTRL_2) &
 		MVNETA_GMAC2_PORT_RESET) != 0)
 		continue;
+
+	return 0;
 }
 
 /* Device initialization routine */
@@ -2761,7 +2776,6 @@ static int mvneta_probe(struct platform_device *pdev)
 	const char *mac_from;
 	int phy_mode;
 	int err;
-	int cpu;
 
 	/* Our multiqueue support is not complete, so for now, only
 	 * allow the usage of the first RX queue
@@ -2816,28 +2830,17 @@ static int mvneta_probe(struct platform_device *pdev)
 	clk_prepare_enable(pp->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -ENODEV;
-		goto err_clk;
-	}
-
 	pp->base = devm_ioremap_resource(&pdev->dev, res);
-	if (pp->base == NULL) {
+	if (IS_ERR(pp->base)) {
 		err = PTR_ERR(pp->base);
 		goto err_clk;
 	}
 
 	/* Alloc per-cpu stats */
-	pp->stats = alloc_percpu(struct mvneta_pcpu_stats);
+	pp->stats = netdev_alloc_pcpu_stats(struct mvneta_pcpu_stats);
 	if (!pp->stats) {
 		err = -ENOMEM;
 		goto err_clk;
-	}
-
-	for_each_possible_cpu(cpu) {
-		struct mvneta_pcpu_stats *stats;
-		stats = per_cpu_ptr(pp->stats, cpu);
-		u64_stats_init(&stats->syncp);
 	}
 
 	dt_mac_addr = of_get_mac_address(dn);
@@ -2866,7 +2869,12 @@ static int mvneta_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't init eth hal\n");
 		goto err_free_stats;
 	}
-	mvneta_port_power_up(pp, phy_mode);
+
+	err = mvneta_port_power_up(pp, phy_mode);
+	if (err < 0) {
+		dev_err(&pdev->dev, "can't power up port\n");
+		goto err_deinit;
+	}
 
 	dram_target_info = mv_mbus_dram_info();
 	if (dram_target_info)

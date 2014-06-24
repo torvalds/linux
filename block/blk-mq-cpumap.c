@@ -9,15 +9,6 @@
 #include "blk.h"
 #include "blk-mq.h"
 
-static void show_map(unsigned int *map, unsigned int nr)
-{
-	int i;
-
-	pr_info("blk-mq: CPU -> queue map\n");
-	for_each_online_cpu(i)
-		pr_info("  CPU%2u -> Queue %u\n", i, map[i]);
-}
-
 static int cpu_to_queue_index(unsigned int nr_cpus, unsigned int nr_queues,
 			      const int cpu)
 {
@@ -85,7 +76,6 @@ int blk_mq_update_queue_map(unsigned int *map, unsigned int nr_queues)
 			map[i] = map[first_sibling];
 	}
 
-	show_map(map, nr_cpus);
 	free_cpumask_var(cpus);
 	return 0;
 }

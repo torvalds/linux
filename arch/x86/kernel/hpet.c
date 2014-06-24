@@ -88,7 +88,7 @@ static inline void hpet_clear_mapping(void)
 /*
  * HPET command line enable / disable
  */
-static int boot_hpet_disable;
+int boot_hpet_disable;
 int hpet_force_user;
 static int hpet_verbose;
 
@@ -521,7 +521,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 {
 
 	if (request_irq(dev->irq, hpet_interrupt_handler,
-			IRQF_TIMER | IRQF_DISABLED | IRQF_NOBALANCING,
+			IRQF_TIMER | IRQF_NOBALANCING,
 			dev->name, dev))
 		return -1;
 
@@ -699,7 +699,7 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 		/* FIXME: add schedule_work_on() */
 		schedule_delayed_work_on(cpu, &work.work, 0);
 		wait_for_completion(&work.complete);
-		destroy_timer_on_stack(&work.work.timer);
+		destroy_delayed_work_on_stack(&work.work);
 		break;
 	case CPU_DEAD:
 		if (hdev) {
@@ -752,9 +752,7 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= hpet_resume_counter,
-#ifdef CONFIG_X86_64
 	.archdata	= { .vclock_mode = VCLOCK_HPET },
-#endif
 };
 
 static int hpet_clocksource_register(void)
@@ -943,12 +941,14 @@ static __init int hpet_late_init(void)
 	if (boot_cpu_has(X86_FEATURE_ARAT))
 		return 0;
 
+	cpu_notifier_register_begin();
 	for_each_online_cpu(cpu) {
 		hpet_cpuhp_notify(NULL, CPU_ONLINE, (void *)(long)cpu);
 	}
 
 	/* This notifier should be called after workqueue is ready */
-	hotcpu_notifier(hpet_cpuhp_notify, -20);
+	__hotcpu_notifier(hpet_cpuhp_notify, -20);
+	cpu_notifier_register_done();
 
 	return 0;
 }

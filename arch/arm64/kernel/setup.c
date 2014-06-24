@@ -42,6 +42,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 
+#include <asm/fixmap.h>
 #include <asm/cputype.h>
 #include <asm/elf.h>
 #include <asm/cputable.h>
@@ -69,6 +70,7 @@ EXPORT_SYMBOL_GPL(elf_hwcap);
 				 COMPAT_HWCAP_VFPv3|COMPAT_HWCAP_VFPv4|\
 				 COMPAT_HWCAP_NEON|COMPAT_HWCAP_IDIV)
 unsigned int compat_elf_hwcap __read_mostly = COMPAT_ELF_HWCAP_DEFAULT;
+unsigned int compat_elf_hwcap2 __read_mostly;
 #endif
 
 static const char *cpu_name;
@@ -242,6 +244,38 @@ static void __init setup_processor(void)
 	block = (features >> 16) & 0xf;
 	if (block && !(block & 0x8))
 		elf_hwcap |= HWCAP_CRC32;
+
+#ifdef CONFIG_COMPAT
+	/*
+	 * ID_ISAR5_EL1 carries similar information as above, but pertaining to
+	 * the Aarch32 32-bit execution state.
+	 */
+	features = read_cpuid(ID_ISAR5_EL1);
+	block = (features >> 4) & 0xf;
+	if (!(block & 0x8)) {
+		switch (block) {
+		default:
+		case 2:
+			compat_elf_hwcap2 |= COMPAT_HWCAP2_PMULL;
+		case 1:
+			compat_elf_hwcap2 |= COMPAT_HWCAP2_AES;
+		case 0:
+			break;
+		}
+	}
+
+	block = (features >> 8) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA1;
+
+	block = (features >> 12) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_SHA2;
+
+	block = (features >> 16) & 0xf;
+	if (block && !(block & 0x8))
+		compat_elf_hwcap2 |= COMPAT_HWCAP2_CRC32;
+#endif
 }
 
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
@@ -327,6 +361,9 @@ void __init setup_arch(char **cmdline_p)
 
 	*cmdline_p = boot_command_line;
 
+	init_mem_pgprot();
+	early_ioremap_init();
+
 	parse_early_param();
 
 	arm64_memblock_init();
@@ -356,11 +393,10 @@ void __init setup_arch(char **cmdline_p)
 
 static int __init arm64_device_init(void)
 {
-	of_clk_init(NULL);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	return 0;
 }
-arch_initcall(arm64_device_init);
+arch_initcall_sync(arm64_device_init);
 
 static DEFINE_PER_CPU(struct cpu, cpu_data);
 

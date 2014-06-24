@@ -455,6 +455,6 @@ module_init(wdt_init);
 module_exit(wdt_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Marcus Junker <junker@anduras.de>, "
-		"Samuel Tardieu <sam@rfc1149.net>");
+MODULE_AUTHOR("Marcus Junker <junker@anduras.de>");
+MODULE_AUTHOR("Samuel Tardieu <sam@rfc1149.net>");
 MODULE_DESCRIPTION("w83697hf/hg WDT driver");

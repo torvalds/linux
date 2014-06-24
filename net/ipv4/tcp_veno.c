@@ -203,7 +203,6 @@ static u32 tcp_veno_ssthresh(struct sock *sk)
 }
 
 static struct tcp_congestion_ops tcp_veno __read_mostly = {
-	.flags		= TCP_CONG_RTT_STAMP,
 	.init		= tcp_veno_init,
 	.ssthresh	= tcp_veno_ssthresh,
 	.cong_avoid	= tcp_veno_cong_avoid,

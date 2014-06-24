@@ -537,11 +537,11 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	spin_lock_bh(&pxmitpriv->lock);
 
 	xmitframe_phead = get_list_head(&ptxservq->sta_pending);
-	xmitframe_plist = get_next(xmitframe_phead);
+	xmitframe_plist = xmitframe_phead->next;
 
 	while (!rtw_end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
-		pxmitframe = LIST_CONTAINOR(xmitframe_plist, struct xmit_frame, list);
-		xmitframe_plist = get_next(xmitframe_plist);
+		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
+		xmitframe_plist = xmitframe_plist->next;
 
 		pxmitframe->agg_num = 0; /*  not first frame of aggregation */
 		pxmitframe->pkt_offset = 0; /*  not first frame of aggregation, no need to reserve offset */

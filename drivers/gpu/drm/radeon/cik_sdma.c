@@ -369,8 +369,6 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 		ring->wptr = 0;
 		WREG32(SDMA0_GFX_RB_WPTR + reg_offset, ring->wptr << 2);
 
-		ring->rptr = RREG32(SDMA0_GFX_RB_RPTR + reg_offset) >> 2;
-
 		/* enable DMA RB */
 		WREG32(SDMA0_GFX_RB_CNTL + reg_offset, rb_cntl | SDMA_RB_ENABLE);
 
@@ -564,6 +562,7 @@ int cik_copy_dma(struct radeon_device *rdev,
 	r = radeon_fence_emit(rdev, fence, ring->idx);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
+		radeon_semaphore_free(rdev, &sem, NULL);
 		return r;
 	}
 
@@ -599,7 +598,7 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 	tmp = 0xCAFEDEAD;
 	writel(tmp, ptr);
 
-	r = radeon_ring_lock(rdev, ring, 4);
+	r = radeon_ring_lock(rdev, ring, 5);
 	if (r) {
 		DRM_ERROR("radeon: dma failed to lock ring %d (%d).\n", ring->idx, r);
 		return r;
@@ -713,11 +712,9 @@ bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		mask = RADEON_RESET_DMA1;
 
 	if (!(reset_mask & mask)) {
-		radeon_ring_lockup_update(ring);
+		radeon_ring_lockup_update(rdev, ring);
 		return false;
 	}
-	/* force ring activities */
-	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 

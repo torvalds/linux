@@ -274,6 +274,18 @@ $(obj)/%.dtb: $(src)/%.dts FORCE
 
 dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
 
+# Helper targets for Installing DTBs into the boot directory
+quiet_cmd_dtb_install =	INSTALL $<
+      cmd_dtb_install =	cp $< $(2)
+
+_dtbinst_pre_:
+	$(Q)if [ -d $(INSTALL_DTBS_PATH).old ]; then rm -rf $(INSTALL_DTBS_PATH).old; fi
+	$(Q)if [ -d $(INSTALL_DTBS_PATH) ]; then mv $(INSTALL_DTBS_PATH) $(INSTALL_DTBS_PATH).old; fi
+	$(Q)mkdir -p $(INSTALL_DTBS_PATH)
+
+%.dtb_dtbinst_: $(obj)/%.dtb _dtbinst_pre_
+	$(call cmd,dtb_install,$(INSTALL_DTBS_PATH))
+
 # Bzip2
 # ---------------------------------------------------------------------------
 
@@ -368,7 +380,3 @@ quiet_cmd_xzmisc = XZMISC  $@
 cmd_xzmisc = (cat $(filter-out FORCE,$^) | \
 	xz --check=crc32 --lzma2=dict=1MiB) > $@ || \
 	(rm -f $@ ; false)
-
-# misc stuff
-# ---------------------------------------------------------------------------
-quote:="

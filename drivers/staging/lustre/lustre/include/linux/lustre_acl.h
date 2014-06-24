@@ -44,7 +44,7 @@
 #define _LUSTRE_LINUX_ACL_H
 
 #ifndef	_LUSTRE_ACL_H
-#error	Shoud not include direectly. use #include <lustre_acl.h> instead
+#error	Should not include directly. use #include <lustre_acl.h> instead
 #endif
 
 #include <linux/fs.h>

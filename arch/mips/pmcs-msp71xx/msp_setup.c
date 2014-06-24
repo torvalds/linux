@@ -49,7 +49,7 @@ void msp7120_reset(void)
 	/* Cache the reset code of this function */
 	__asm__ __volatile__ (
 		"	.set	push				\n"
-		"	.set	mips3				\n"
+		"	.set	arch=r4000			\n"
 		"	la	%0,startpoint			\n"
 		"	la	%1,endpoint			\n"
 		"	.set	pop				\n"

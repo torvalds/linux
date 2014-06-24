@@ -831,7 +831,7 @@ EXPORT_SYMBOL_GPL(usb_unpoison_anchored_urbs);
  *
  * this allows all outstanding URBs to be unlinked starting
  * from the back of the queue. This function is asynchronous.
- * The unlinking is just tiggered. It may happen after this
+ * The unlinking is just triggered. It may happen after this
  * function has returned.
  *
  * This routine should not be called by a driver after its disconnect

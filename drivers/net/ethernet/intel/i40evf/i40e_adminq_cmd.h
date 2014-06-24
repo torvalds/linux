@@ -1229,7 +1229,7 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_NGE                 2
 #define I40E_AQC_ADD_CLOUD_TNL_TYPE_IP                  3
 
-	__le32 tenant_id ;
+	__le32 tenant_id;
 	u8     reserved[4];
 	__le16 queue_number;
 #define I40E_AQC_ADD_CLOUD_QUEUE_SHIFT                  0

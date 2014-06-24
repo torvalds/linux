@@ -22,18 +22,20 @@
 #include "comet.h"
 #include "comet_tables.h"
 
-extern int  cxt1e1_log_level;
 
 #define COMET_NUM_SAMPLES   24  /* Number of entries in the waveform table */
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
 
 /* forward references */
 static void SetPwrLevel(struct s_comet_reg *comet);
-static void WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table);
-static void WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
+static void WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet,
+				u_int32_t *table);
+static void WrtXmtWaveformTbl(ci_t *ci, struct s_comet_reg *comet,
+				u_int8_t table[COMET_NUM_SAMPLES]
+				[COMET_NUM_UNITS]);
 
 
-void       *TWV_table[12] = {
+static void *TWV_table[12] = {
 	TWVLongHaul0DB, TWVLongHaul7_5DB, TWVLongHaul15DB, TWVLongHaul22_5DB,
 	TWVShortHaul0, TWVShortHaul1, TWVShortHaul2, TWVShortHaul3,
 	TWVShortHaul4, TWVShortHaul5,
@@ -50,6 +52,7 @@ lbo_tbl_lkup(int t1, int lbo) {
 		if (t1)
 			/* default T1 waveform table */
 			lbo = CFG_LBO_LH0;
+
 		else
 			/* default E1 waveform table */
 			lbo = CFG_LBO_E120;
@@ -58,8 +61,8 @@ lbo_tbl_lkup(int t1, int lbo) {
 	return lbo - 1;
 }
 
-void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int clockmaster,
-		u_int8_t moreParams)
+void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode,
+		int clockmaster, u_int8_t moreParams)
 {
 	u_int8_t isT1mode;
 	/* T1 default */
@@ -146,7 +149,9 @@ void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int cl
 	 /* t1RBOC enable(BOC:BitOriented Code) */
 	pci_write_32((u_int32_t *) &comet->t1_rboc_ena, 0x00);
 	if (isT1mode) {
-		/* IBCD cfg: aka Inband Code Detection ** loopback code length set to */
+		/* IBCD cfg: aka Inband Code Detection ** loopback code length
+		 * set to
+		 */
 		/* 6 bit down, 5 bit up (assert) */
 		pci_write_32((u_int32_t *) &comet->ibcd_cfg, 0x04);
 		/* line loopback activate pattern */
@@ -286,7 +291,9 @@ void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int cl
     /* 0x30: "BRIF cfg"; 0x20 is 'CMODE', 0x03 is (bit) rate */
     /* note "rate bits can only be set once after reset" */
 	if (clockmaster) {
-		/* CMODE == clockMode, 0=clock master (so all 3 others should be slave) */
+		/* CMODE == clockMode, 0=clock master
+		 * (so all 3 others should be slave)
+		 */
 		/* rate = 1.544 Mb/s */
 		if (isT1mode)
 			/* Comet 0 Master Mode(CMODE=0) */
@@ -398,7 +405,8 @@ void init_comet(void *ci, struct s_comet_reg *comet, u_int32_t port_mode, int cl
 ** Returns:     Nothing
 */
 static void
-WrtXmtWaveform(ci_t *ci, struct s_comet_reg *comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
+WrtXmtWaveform(ci_t *ci, struct s_comet_reg *comet, u_int32_t sample,
+		u_int32_t unit, u_int8_t data)
 {
 	u_int8_t    WaveformAddr;
 
@@ -447,7 +455,7 @@ static void
 WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 {
 	u_int32_t   ramaddr;
-	volatile u_int32_t value;
+	u_int32_t value;
 
 	for (ramaddr = 0; ramaddr < 256; ramaddr++) {
 		/*** the following lines are per Errata 7, 2.5 ***/
@@ -515,7 +523,7 @@ WrtRcvEqualizerTbl(ci_t *ci, struct s_comet_reg *comet, u_int32_t *table)
 static void
 SetPwrLevel(struct s_comet_reg *comet)
 {
-	volatile u_int32_t temp;
+	u_int32_t temp;
 
 /*
 **    Algorithm to Balance the Power Distribution of Ttip Tring
@@ -557,17 +565,21 @@ SetPwrLevel(struct s_comet_reg *comet)
 static void
 SetCometOps(struct s_comet_reg *comet)
 {
-	volatile u_int8_t rd_value;
+	u_int8_t rd_value;
 
 	if (comet == mConfig.C4Func1Base + (COMET0_OFFSET >> 2)) {
 		/* read the BRIF Configuration */
-		rd_value = (u_int8_t) pci_read_32((u_int32_t *) &comet->brif_cfg);
+		rd_value = (u_int8_t) pci_read_32((u_int32_t *)
+				&comet->brif_cfg);
 		rd_value &= ~0x20;
-		pci_write_32((u_int32_t *) &comet->brif_cfg, (u_int32_t) rd_value);
+		pci_write_32((u_int32_t *) &comet->brif_cfg,
+				(u_int32_t) rd_value);
 		/* read the BRIF Frame Pulse Configuration */
-		rd_value = (u_int8_t) pci_read_32((u_int32_t *) &comet->brif_fpcfg);
+		rd_value = (u_int8_t) pci_read_32((u_int32_t *)
+				&comet->brif_fpcfg);
 		rd_value &= ~0x20;
-		pci_write_32((u_int32_t *) &comet->brif_fpcfg, (u_int8_t) rd_value);
+		pci_write_32((u_int32_t *) &comet->brif_fpcfg,
+				(u_int8_t) rd_value);
 	} else {
 	/* read the BRIF Configuration */
 	rd_value = (u_int8_t) pci_read_32((u_int32_t *) &comet->brif_cfg);

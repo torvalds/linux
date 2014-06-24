@@ -872,16 +872,6 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* Tell ASoC what kind of I/O to use to read the registers.  ASoC will
-	 * then do the I2C transactions itself.
-	 */
-	codec->control_data = sta32x->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to set cache I/O (ret=%i)\n", ret);
-		goto err;
-	}
-
 	/* Chip documentation explicitly requires that the reset values
 	 * of reserved register bits are left untouched.
 	 * Write the register default value to cache for reserved registers,
@@ -946,10 +936,6 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
-
-err:
-	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
-	return ret;
 }
 
 static int sta32x_remove(struct snd_soc_codec *codec)

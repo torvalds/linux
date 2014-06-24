@@ -1871,7 +1871,15 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 		rc = SCSI_MLQUEUE_TARGET_BUSY;
 		goto exit_qcmd;
 	}
-
+	if (tgt->retry_delay_timestamp) {
+		if (time_after(jiffies, tgt->retry_delay_timestamp)) {
+			tgt->retry_delay_timestamp = 0;
+		} else {
+			/* If retry_delay timer is active, flow off the ML */
+			rc = SCSI_MLQUEUE_TARGET_BUSY;
+			goto exit_qcmd;
+		}
+	}
 	io_req = bnx2fc_cmd_alloc(tgt);
 	if (!io_req) {
 		rc = SCSI_MLQUEUE_HOST_BUSY;
@@ -1961,6 +1969,15 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 				 " fcp_resid = 0x%x\n",
 				io_req->cdb_status, io_req->fcp_resid);
 			sc_cmd->result = (DID_OK << 16) | io_req->cdb_status;
+
+			if (io_req->cdb_status == SAM_STAT_TASK_SET_FULL ||
+			    io_req->cdb_status == SAM_STAT_BUSY) {
+				/* Set the jiffies + retry_delay_timer * 100ms
+				   for the rport/tgt */
+				tgt->retry_delay_timestamp = jiffies +
+					fcp_rsp->retry_delay_timer * HZ / 10;
+			}
+
 		}
 		if (io_req->fcp_resid)
 			scsi_set_resid(sc_cmd, io_req->fcp_resid);

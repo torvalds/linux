@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -90,7 +91,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 
 	of_node_put(gg_data.gpiospec.np);
 	pr_debug("%s exited with status %d\n", __func__,
-		 PTR_RET(gg_data.out_gpio));
+		 PTR_ERR_OR_ZERO(gg_data.out_gpio));
 	return gg_data.out_gpio;
 }
 EXPORT_SYMBOL(of_get_named_gpiod_flags);

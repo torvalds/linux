@@ -21,6 +21,7 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91sam9260.h>
+#include <mach/hardware.h>
 
 #include "at91_aic.h"
 #include "at91_rstc.h"

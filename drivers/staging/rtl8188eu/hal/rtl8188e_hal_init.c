@@ -20,6 +20,7 @@
 #define _HAL_INIT_C_
 
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 #include <drv_types.h>
 #include <rtw_efuse.h>
 
@@ -365,7 +366,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 	u32 fifo_data, reg_140;
 	u32 addr, rstatus, loop = 0;
 	u16 data_cnts = (data_len/8)+1;
-	u8 *pbuf = rtw_zvmalloc(data_len+10);
+	u8 *pbuf = vzalloc(data_len+10);
 	DBG_88E("###### %s ######\n", __func__);
 
 	rtw_write8(Adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
@@ -387,7 +388,7 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(struct adapter *Adapter, int data_len)
 			} while (!rstatus && (loop++ < 10));
 		}
 		rtw_IOL_cmd_buf_dump(Adapter, data_len, pbuf);
-		rtw_vmfree(pbuf, data_len+10);
+		vfree(pbuf);
 	}
 	DBG_88E("###### %s ######\n", __func__);
 }
@@ -583,6 +584,45 @@ static s32 _FWFreeToGo(struct adapter *padapter)
 
 #define IS_FW_81xxC(padapter)	(((GET_HAL_DATA(padapter))->FirmwareSignature & 0xFFF0) == 0x88C0)
 
+static int load_firmware(struct rt_firmware *pFirmware, struct device *device)
+{
+	int rtstatus = _SUCCESS;
+	const struct firmware *fw;
+	const char fw_name[] = "rtlwifi/rtl8188eufw.bin";
+
+	if (request_firmware(&fw, fw_name, device)) {
+		rtstatus = _FAIL;
+		goto exit;
+	}
+	if (!fw) {
+		pr_err("Firmware %s not available\n", fw_name);
+		rtstatus = _FAIL;
+		goto exit;
+	}
+	if (fw->size > FW_8188E_SIZE) {
+		rtstatus = _FAIL;
+		RT_TRACE(_module_hal_init_c_, _drv_err_,
+			 ("Firmware size exceed 0x%X. Check it.\n",
+			 FW_8188E_SIZE));
+		goto exit;
+	}
+
+	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
+	if (!pFirmware->szFwBuffer) {
+		rtstatus = _FAIL;
+		goto exit;
+	}
+	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
+	pFirmware->ulFwLength = fw->size;
+	release_firmware(fw);
+
+	DBG_88E_LEVEL(_drv_info_,
+		      "+%s: !bUsedWoWLANFw, FmrmwareLen:%d+\n", __func__,
+		      pFirmware->ulFwLength);
+exit:
+	return rtstatus;
+}
+
 s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 {
 	s32	rtStatus = _SUCCESS;
@@ -591,51 +631,23 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(padapter);
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct device *device = dvobj_to_dev(dvobj);
-	struct rt_firmware *pFirmware = NULL;
-	const struct firmware *fw;
 	struct rt_firmware_hdr *pFwHdr = NULL;
 	u8 *pFirmwareBuf;
 	u32 FirmwareLen;
-	char fw_name[] = "rtlwifi/rtl8188eufw.bin";
 	static int log_version;
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("+%s\n", __func__));
-	pFirmware = (struct rt_firmware *)rtw_zmalloc(sizeof(struct rt_firmware));
-	if (!pFirmware) {
-		rtStatus = _FAIL;
+	if (!dvobj->firmware.szFwBuffer)
+		rtStatus = load_firmware(&dvobj->firmware, device);
+	if (rtStatus == _FAIL) {
+		dvobj->firmware.szFwBuffer = NULL;
 		goto Exit;
 	}
-
-	if (request_firmware(&fw, fw_name, device)) {
-		rtStatus = _FAIL;
-		goto Exit;
-	}
-	if (!fw) {
-		pr_err("Firmware %s not available\n", fw_name);
-		rtStatus = _FAIL;
-		goto Exit;
-	}
-	if (fw->size > FW_8188E_SIZE) {
-		rtStatus = _FAIL;
-		RT_TRACE(_module_hal_init_c_, _drv_err_, ("Firmware size exceed 0x%X. Check it.\n", FW_8188E_SIZE));
-		goto Exit;
-	}
-
-	pFirmware->szFwBuffer = kzalloc(FW_8188E_SIZE, GFP_KERNEL);
-	if (!pFirmware->szFwBuffer) {
-		rtStatus = _FAIL;
-		goto Exit;
-	}
-	memcpy(pFirmware->szFwBuffer, fw->data, fw->size);
-	pFirmware->ulFwLength = fw->size;
-	pFirmwareBuf = pFirmware->szFwBuffer;
-	FirmwareLen = pFirmware->ulFwLength;
-	release_firmware(fw);
-
-	DBG_88E_LEVEL(_drv_info_, "+%s: !bUsedWoWLANFw, FmrmwareLen:%d+\n", __func__, FirmwareLen);
+	pFirmwareBuf = dvobj->firmware.szFwBuffer;
+	FirmwareLen = dvobj->firmware.ulFwLength;
 
 	/*  To Check Fw header. Added by tynli. 2009.12.04. */
-	pFwHdr = (struct rt_firmware_hdr *)pFirmware->szFwBuffer;
+	pFwHdr = (struct rt_firmware_hdr *)dvobj->firmware.szFwBuffer;
 
 	pHalData->FirmwareVersion =  le16_to_cpu(pFwHdr->Version);
 	pHalData->FirmwareSubVersion = pFwHdr->Subversion;
@@ -687,10 +699,7 @@ s32 rtl8188e_FirmwareDownload(struct adapter *padapter)
 		goto Exit;
 	}
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("Firmware is ready to run!\n"));
-	kfree(pFirmware->szFwBuffer);
 Exit:
-
-	kfree(pFirmware);
 	return rtStatus;
 }
 
@@ -707,10 +716,8 @@ void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
 
 static void rtl8188e_free_hal_data(struct adapter *padapter)
 {
-_func_enter_;
 	kfree(padapter->HalData);
 	padapter->HalData = NULL;
-_func_exit_;
 }
 
 /*  */

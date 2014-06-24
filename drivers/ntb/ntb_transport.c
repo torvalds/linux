@@ -56,7 +56,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/ntb.h>
 #include "ntb_hw.h"
 
 #define NTB_TRANSPORT_VERSION	3
@@ -107,8 +106,8 @@ struct ntb_transport_qp {
 	struct ntb_rx_info __iomem *rx_info;
 	struct ntb_rx_info *remote_rx_info;
 
-	void (*tx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
+	void (*tx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
 	struct list_head tx_free_q;
 	spinlock_t ntb_tx_free_q_lock;
 	void __iomem *tx_mw;
@@ -117,8 +116,8 @@ struct ntb_transport_qp {
 	unsigned int tx_max_entry;
 	unsigned int tx_max_frame;
 
-	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
-			    void *data, int len);
+	void (*rx_handler)(struct ntb_transport_qp *qp, void *qp_data,
+			   void *data, int len);
 	struct list_head rx_pend_q;
 	struct list_head rx_free_q;
 	spinlock_t ntb_rx_pend_q_lock;
@@ -129,7 +128,7 @@ struct ntb_transport_qp {
 	unsigned int rx_max_frame;
 	dma_cookie_t last_cookie;
 
-	void (*event_handler) (void *data, int status);
+	void (*event_handler)(void *data, int status);
 	struct delayed_work link_work;
 	struct work_struct link_cleanup;
 
@@ -480,7 +479,7 @@ static void ntb_list_add(spinlock_t *lock, struct list_head *entry,
 }
 
 static struct ntb_queue_entry *ntb_list_rm(spinlock_t *lock,
-						struct list_head *list)
+					   struct list_head *list)
 {
 	struct ntb_queue_entry *entry;
 	unsigned long flags;
@@ -839,7 +838,7 @@ static void ntb_qp_link_work(struct work_struct *work)
 }
 
 static int ntb_transport_init_queue(struct ntb_transport *nt,
-				     unsigned int qp_num)
+				    unsigned int qp_num)
 {
 	struct ntb_transport_qp *qp;
 	unsigned int num_qps_mw, tx_size;
@@ -1055,7 +1054,7 @@ static void ntb_async_rx(struct ntb_queue_entry *entry, void *offset,
 	if (!chan)
 		goto err;
 
-	if (len < copy_bytes) 
+	if (len < copy_bytes)
 		goto err_wait;
 
 	device = chan->device;
@@ -1190,8 +1189,7 @@ out:
 	return 0;
 
 err:
-	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry,
-		     &qp->rx_pend_q);
+	ntb_list_add(&qp->ntb_rx_pend_q_lock, &entry->entry, &qp->rx_pend_q);
 	/* Ensure that the data is fully copied out before clearing the flag */
 	wmb();
 	hdr->flags = 0;

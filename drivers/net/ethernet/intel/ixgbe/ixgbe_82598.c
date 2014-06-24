@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,6 +20,7 @@
   the file called "COPYING".
 
   Contact Information:
+  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -57,9 +58,11 @@ static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
  **/
 static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 {
-	struct ixgbe_adapter *adapter = hw->back;
 	u32 gcr = IXGBE_READ_REG(hw, IXGBE_GCR);
 	u16 pcie_devctl2;
+
+	if (ixgbe_removed(hw->hw_addr))
+		return;
 
 	/* only take action if timeout value is defaulted to 0 */
 	if (gcr & IXGBE_GCR_CMPL_TMOUT_MASK)
@@ -79,11 +82,9 @@ static void ixgbe_set_pcie_completion_timeout(struct ixgbe_hw *hw)
 	 * directly in order to set the completion timeout value for
 	 * 16ms to 55ms
 	 */
-	pci_read_config_word(adapter->pdev,
-	                     IXGBE_PCI_DEVICE_CONTROL2, &pcie_devctl2);
+	pcie_devctl2 = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2);
 	pcie_devctl2 |= IXGBE_PCI_DEVICE_CONTROL2_16ms;
-	pci_write_config_word(adapter->pdev,
-	                      IXGBE_PCI_DEVICE_CONTROL2, pcie_devctl2);
+	ixgbe_write_pci_cfg_word(hw, IXGBE_PCI_DEVICE_CONTROL2, pcie_devctl2);
 out:
 	/* disable completion timeout resend */
 	gcr &= ~IXGBE_GCR_CMPL_TMOUT_RESEND;
@@ -100,6 +101,7 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 	mac->mcft_size = IXGBE_82598_MC_TBL_SIZE;
 	mac->vft_size = IXGBE_82598_VFT_TBL_SIZE;
 	mac->num_rar_entries = IXGBE_82598_RAR_ENTRIES;
+	mac->rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 	mac->max_rx_queues = IXGBE_82598_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82598_MAX_TX_QUEUES;
 	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
@@ -200,8 +202,6 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
-
-	hw->mac.rx_pb_size = IXGBE_82598_RX_PB_SIZE;
 
 	/* set the completion timeout for interface */
 	if (ret_val == 0)
@@ -1237,14 +1237,14 @@ static void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw)
 }
 
 /**
- * ixgbe_set_rxpba_82598 - Configure packet buffers
+ * ixgbe_set_rxpba_82598 - Initialize RX packet buffer
  * @hw: pointer to hardware structure
- * @dcb_config: pointer to ixgbe_dcb_config structure
- *
- * Configure packet buffers.
- */
-static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb, u32 headroom,
-				  int strategy)
+ * @num_pb: number of packet buffers to allocate
+ * @headroom: reserve n KB of headroom
+ * @strategy: packet buffer allocation strategy
+ **/
+static void ixgbe_set_rxpba_82598(struct ixgbe_hw *hw, int num_pb,
+				  u32 headroom, int strategy)
 {
 	u32 rxpktsize = IXGBE_RXPBSIZE_64KB;
 	u8  i = 0;
@@ -1315,7 +1315,8 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
-	.mng_fw_enabled		= NULL,
+	.prot_autoc_read	= &prot_autoc_read_generic,
+	.prot_autoc_write	= &prot_autoc_write_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {

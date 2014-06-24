@@ -263,11 +263,9 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	const struct macvlan_port *port = vlan->port;
 	const struct macvlan_dev *dest;
-	__u8 ip_summed = skb->ip_summed;
 
 	if (vlan->mode == MACVLAN_MODE_BRIDGE) {
 		const struct ethhdr *eth = (void *)skb->data;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		/* send to other bridge ports directly */
 		if (is_multicast_ether_addr(eth->h_dest)) {
@@ -285,7 +283,6 @@ static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 xmit_world:
-	skb->ip_summed = ip_summed;
 	skb->dev = vlan->lowerdev;
 	return dev_queue_xmit(skb);
 }
@@ -461,8 +458,10 @@ static void macvlan_change_rx_flags(struct net_device *dev, int change)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (change & IFF_ALLMULTI)
-		dev_set_allmulti(lowerdev, dev->flags & IFF_ALLMULTI ? 1 : -1);
+	if (dev->flags & IFF_UP) {
+		if (change & IFF_ALLMULTI)
+			dev_set_allmulti(lowerdev, dev->flags & IFF_ALLMULTI ? 1 : -1);
+	}
 }
 
 static void macvlan_set_mac_lists(struct net_device *dev)
@@ -518,6 +517,11 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
 
+static int macvlan_get_nest_level(struct net_device *dev)
+{
+	return ((struct macvlan_dev *)netdev_priv(dev))->nest_level;
+}
+
 static void macvlan_set_lockdep_class_one(struct net_device *dev,
 					  struct netdev_queue *txq,
 					  void *_unused)
@@ -528,8 +532,9 @@ static void macvlan_set_lockdep_class_one(struct net_device *dev,
 
 static void macvlan_set_lockdep_class(struct net_device *dev)
 {
-	lockdep_set_class(&dev->addr_list_lock,
-			  &macvlan_netdev_addr_lock_key);
+	lockdep_set_class_and_subclass(&dev->addr_list_lock,
+				       &macvlan_netdev_addr_lock_key,
+				       macvlan_get_nest_level(dev));
 	netdev_for_each_tx_queue(dev, macvlan_set_lockdep_class_one, NULL);
 }
 
@@ -537,7 +542,6 @@ static int macvlan_init(struct net_device *dev)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	const struct net_device *lowerdev = vlan->lowerdev;
-	int i;
 
 	dev->state		= (dev->state & ~MACVLAN_STATE_MASK) |
 				  (lowerdev->state & MACVLAN_STATE_MASK);
@@ -549,15 +553,9 @@ static int macvlan_init(struct net_device *dev)
 
 	macvlan_set_lockdep_class(dev);
 
-	vlan->pcpu_stats = alloc_percpu(struct vlan_pcpu_stats);
+	vlan->pcpu_stats = netdev_alloc_pcpu_stats(struct vlan_pcpu_stats);
 	if (!vlan->pcpu_stats)
 		return -ENOMEM;
-
-	for_each_possible_cpu(i) {
-		struct vlan_pcpu_stats *mvlstats;
-		mvlstats = per_cpu_ptr(vlan->pcpu_stats, i);
-		u64_stats_init(&mvlstats->syncp);
-	}
 
 	return 0;
 }
@@ -589,13 +587,13 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 		for_each_possible_cpu(i) {
 			p = per_cpu_ptr(vlan->pcpu_stats, i);
 			do {
-				start = u64_stats_fetch_begin_bh(&p->syncp);
+				start = u64_stats_fetch_begin_irq(&p->syncp);
 				rx_packets	= p->rx_packets;
 				rx_bytes	= p->rx_bytes;
 				rx_multicast	= p->rx_multicast;
 				tx_packets	= p->tx_packets;
 				tx_bytes	= p->tx_bytes;
-			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+			} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 			stats->rx_packets	+= rx_packets;
 			stats->rx_bytes		+= rx_bytes;
@@ -731,6 +729,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_fdb_add		= macvlan_fdb_add,
 	.ndo_fdb_del		= macvlan_fdb_del,
 	.ndo_fdb_dump		= ndo_dflt_fdb_dump,
+	.ndo_get_lock_subclass  = macvlan_get_nest_level,
 };
 
 void macvlan_common_setup(struct net_device *dev)
@@ -859,6 +858,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	vlan->dev      = dev;
 	vlan->port     = port;
 	vlan->set_features = MACVLAN_FEATURES;
+	vlan->nest_level = dev_get_nest_level(lowerdev, netif_is_macvlan) + 1;
 
 	vlan->mode     = MACVLAN_MODE_VEPA;
 	if (data && data[IFLA_MACVLAN_MODE])

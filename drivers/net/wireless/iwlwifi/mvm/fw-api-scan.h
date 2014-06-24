@@ -183,9 +183,9 @@ enum iwl_scan_type {
  *	this number of packets were received (typically 1)
  * @passive2active: is auto switching from passive to active during scan allowed
  * @rxchain_sel_flags: RXON_RX_CHAIN_*
- * @max_out_time: in usecs, max out of serving channel time
+ * @max_out_time: in TUs, max out of serving channel time
  * @suspend_time: how long to pause scan when returning to service channel:
- *	bits 0-19: beacon interal in usecs (suspend before executing)
+ *	bits 0-19: beacon interal in TUs (suspend before executing)
  *	bits 20-23: reserved
  *	bits 24-31: number of beacons (suspend between channels)
  * @rxon_flags: RXON_FLG_*
@@ -383,8 +383,8 @@ enum scan_framework_client {
  * @quiet_plcp_th:	quiet channel num of packets threshold
  * @good_CRC_th:	passive to active promotion threshold
  * @rx_chain:		RXON rx chain.
- * @max_out_time:	max uSec to be out of assoceated channel
- * @suspend_time:	pause scan this long when returning to service channel
+ * @max_out_time:	max TUs to be out of assoceated channel
+ * @suspend_time:	pause scan this TUs when returning to service channel
  * @flags:		RXON flags
  * @filter_flags:	RXONfilter
  * @tx_cmd:		tx command for active scan; for 2GHz and for 5GHz.

@@ -270,8 +270,6 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		radeon_crtc->enabled = true;
-		/* adjust pm to dpms changes BEFORE enabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
@@ -289,10 +287,10 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
-		/* adjust pm to dpms changes AFTER disabling crtcs */
-		radeon_pm_compute_clocks(rdev);
 		break;
 	}
+	/* adjust pm to dpms */
+	radeon_pm_compute_clocks(rdev);
 }
 
 static void
@@ -1106,7 +1104,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	int r;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1116,8 +1114,8 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
@@ -1177,27 +1175,43 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 
 		/* Set NUM_BANKS. */
 		if (rdev->family >= CHIP_TAHITI) {
-			unsigned tileb, index, num_banks, tile_split_bytes;
+			unsigned index, num_banks;
 
-			/* Calculate the macrotile mode index. */
-			tile_split_bytes = 64 << tile_split;
-			tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
-			tileb = min(tile_split_bytes, tileb);
+			if (rdev->family >= CHIP_BONAIRE) {
+				unsigned tileb, tile_split_bytes;
 
-			for (index = 0; tileb > 64; index++) {
-				tileb >>= 1;
-			}
+				/* Calculate the macrotile mode index. */
+				tile_split_bytes = 64 << tile_split;
+				tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
+				tileb = min(tile_split_bytes, tileb);
 
-			if (index >= 16) {
-				DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
-					  target_fb->bits_per_pixel, tile_split);
-				return -EINVAL;
-			}
+				for (index = 0; tileb > 64; index++)
+					tileb >>= 1;
 
-			if (rdev->family >= CHIP_BONAIRE)
+				if (index >= 16) {
+					DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
+						  target_fb->bits_per_pixel, tile_split);
+					return -EINVAL;
+				}
+
 				num_banks = (rdev->config.cik.macrotile_mode_array[index] >> 6) & 0x3;
-			else
+			} else {
+				switch (target_fb->bits_per_pixel) {
+				case 8:
+					index = 10;
+					break;
+				case 16:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP;
+					break;
+				default:
+				case 32:
+					index = SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP;
+					break;
+				}
+
 				num_banks = (rdev->config.si.tile_mode_array[index] >> 20) & 0x3;
+			}
+
 			fb_format |= EVERGREEN_GRPH_NUM_BANKS(num_banks);
 		} else {
 			/* NI and older. */
@@ -1316,7 +1330,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1350,7 +1364,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	int r;
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -1360,8 +1374,8 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
+		target_fb = crtc->primary->fb;
 	}
 
 	obj = radeon_fb->obj;
@@ -1485,7 +1499,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	/* set pageflip to happen anywhere in vblank interval */
 	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != crtc->primary->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -1720,8 +1734,9 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* otherwise, pick one of the plls */
 		if ((rdev->family == CHIP_KAVERI) ||
-		    (rdev->family == CHIP_KABINI)) {
-			/* KB/KV has PPLL1 and PPLL2 */
+		    (rdev->family == CHIP_KABINI) ||
+		    (rdev->family == CHIP_MULLINS)) {
+			/* KB/KV/ML has PPLL1 and PPLL2 */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
@@ -1885,6 +1900,9 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	    (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
 		is_tvcv = true;
 
+	if (!radeon_crtc->adjusted_clock)
+		return -EINVAL;
+
 	atombios_crtc_set_pll(crtc, adjusted_mode);
 
 	if (ASIC_IS_DCE4(rdev))
@@ -1972,12 +1990,12 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
-	if (crtc->fb) {
+	if (crtc->primary->fb) {
 		int r;
 		struct radeon_framebuffer *radeon_fb;
 		struct radeon_bo *rbo;
 
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
+		radeon_fb = to_radeon_framebuffer(crtc->primary->fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r))

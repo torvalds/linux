@@ -170,7 +170,7 @@ void sb1250_mailbox_interrupt(void)
 	int irq = K_INT_MBOX_0;
 	unsigned int action;
 
-	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
+	kstat_incr_irq_this_cpu(irq);
 	/* Load the mailbox register to figure out what we're supposed to do */
 	action = (____raw_readq(mailbox_regs[cpu]) >> 48) & 0xffff;
 

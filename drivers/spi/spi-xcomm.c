@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -74,15 +73,13 @@ static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
 static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
 	struct spi_device *spi, struct spi_transfer *t, unsigned int *settings)
 {
-	unsigned int speed;
-
 	if (t->len > 62)
 		return -EINVAL;
 
-	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
+	if (t->speed_hz != spi_xcomm->current_speed) {
+		unsigned int divider;
 
-	if (speed != spi_xcomm->current_speed) {
-		unsigned int divider = DIV_ROUND_UP(SPI_XCOMM_CLOCK, speed);
+		divider = DIV_ROUND_UP(SPI_XCOMM_CLOCK, t->speed_hz);
 		if (divider >= 64)
 			*settings |= SPI_XCOMM_SETTINGS_CLOCK_DIV_64;
 		else if (divider >= 16)
@@ -90,7 +87,7 @@ static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
 		else
 			*settings |= SPI_XCOMM_SETTINGS_CLOCK_DIV_4;
 
-		spi_xcomm->current_speed = speed;
+		spi_xcomm->current_speed = t->speed_hz;
 	}
 
 	if (spi->mode & SPI_CPOL)
@@ -147,8 +144,6 @@ static int spi_xcomm_transfer_one(struct spi_master *master,
 	bool is_first = true;
 	int status = 0;
 	bool is_last;
-
-	is_first = true;
 
 	spi_xcomm_chipselect(spi_xcomm, spi, true);
 

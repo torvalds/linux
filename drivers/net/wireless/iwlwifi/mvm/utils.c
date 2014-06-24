@@ -289,8 +289,8 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	return last_idx;
 }
 
-static struct {
-	char *name;
+static const struct {
+	const char *name;
 	u8 num;
 } advanced_lookup[] = {
 	{ "NMI_INTERRUPT_WDG", 0x34 },
@@ -376,8 +376,66 @@ struct iwl_error_event_table {
 	u32 flow_handler;	/* FH read/write pointers, RX credit */
 } __packed;
 
+/*
+ * UMAC error struct - relevant starting from family 8000 chip.
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_umac_error_event_table {
+	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 error_id;		/* type of error */
+	u32 pc;			/* program counter */
+	u32 blink1;		/* branch link */
+	u32 blink2;		/* branch link */
+	u32 ilink1;		/* interrupt link */
+	u32 ilink2;		/* interrupt link */
+	u32 data1;		/* error-specific data */
+	u32 data2;		/* error-specific data */
+	u32 line;		/* source code line of error */
+	u32 umac_ver;		/* umac version */
+} __packed;
+
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
 #define ERROR_ELEM_SIZE     (7 * sizeof(u32))
+
+static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
+{
+	struct iwl_trans *trans = mvm->trans;
+	struct iwl_umac_error_event_table table;
+	u32 base;
+
+	base = mvm->umac_error_event_table;
+
+	if (base < 0x800000 || base >= 0x80C000) {
+		IWL_ERR(mvm,
+			"Not valid error log pointer 0x%08X for %s uCode\n",
+			base,
+			(mvm->cur_ucode == IWL_UCODE_INIT)
+					? "Init" : "RT");
+		return;
+	}
+
+	iwl_trans_read_mem_bytes(trans, base, &table, sizeof(table));
+
+	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
+		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
+		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
+			mvm->status, table.valid);
+	}
+
+	IWL_ERR(mvm, "0x%08X | %-28s\n", table.error_id,
+		desc_lookup(table.error_id));
+	IWL_ERR(mvm, "0x%08X | umac uPc\n", table.pc);
+	IWL_ERR(mvm, "0x%08X | umac branchlink1\n", table.blink1);
+	IWL_ERR(mvm, "0x%08X | umac branchlink2\n", table.blink2);
+	IWL_ERR(mvm, "0x%08X | umac interruptlink1\n", table.ilink1);
+	IWL_ERR(mvm, "0x%08X | umac interruptlink2\n", table.ilink2);
+	IWL_ERR(mvm, "0x%08X | umac data1\n", table.data1);
+	IWL_ERR(mvm, "0x%08X | umac data2\n", table.data2);
+	IWL_ERR(mvm, "0x%08X | umac version\n", table.umac_ver);
+}
 
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 {
@@ -394,7 +452,7 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 			base = mvm->fw->inst_errlog_ptr;
 	}
 
-	if (base < 0x800000 || base >= 0x80C000) {
+	if (base < 0x800000) {
 		IWL_ERR(mvm,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
@@ -453,29 +511,31 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 	IWL_ERR(mvm, "0x%08X | lmpm_pmg_sel\n", table.lmpm_pmg_sel);
 	IWL_ERR(mvm, "0x%08X | timestamp\n", table.u_timestamp);
 	IWL_ERR(mvm, "0x%08X | flow_handler\n", table.flow_handler);
+
+	if (mvm->support_umac_log)
+		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-void iwl_mvm_dump_sram(struct iwl_mvm *mvm)
+void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
 {
 	const struct fw_img *img;
-	int ofs, len = 0;
-	u8 *buf;
+	u32 ofs, sram_len;
+	void *sram;
 
-	if (!mvm->ucode_loaded)
+	if (!mvm->ucode_loaded || mvm->fw_error_sram)
 		return;
 
 	img = &mvm->fw->img[mvm->cur_ucode];
 	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
-	buf = kzalloc(len, GFP_ATOMIC);
-	if (!buf)
+	sram = kzalloc(sram_len, GFP_ATOMIC);
+	if (!sram)
 		return;
 
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, buf, len);
-	iwl_print_hex_error(mvm->trans, buf, len);
-
-	kfree(buf);
+	iwl_trans_read_mem_bytes(mvm->trans, ofs, sram, sram_len);
+	mvm->fw_error_sram = sram;
+	mvm->fw_error_sram_len = sram_len;
 }
 
 /**
@@ -516,14 +576,19 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum ieee80211_smps_mode smps_request)
 {
 	struct iwl_mvm_vif *mvmvif;
-	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
+	enum ieee80211_smps_mode smps_mode;
 	int i;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	/* SMPS is irrelevant for NICs that don't have at least 2 RX antenna */
-	if (num_of_ant(iwl_fw_valid_rx_ant(mvm->fw)) == 1)
+	if (num_of_ant(mvm->fw->valid_rx_ant) == 1)
 		return;
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		smps_mode = IEEE80211_SMPS_OFF;
+	else
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmvif->smps_requests[req_type] = smps_request;
@@ -537,4 +602,64 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	ieee80211_request_smps(vif, smps_mode);
+}
+
+int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       bool value)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int res;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvmvif->low_latency == value)
+		return 0;
+
+	mvmvif->low_latency = value;
+
+	res = iwl_mvm_update_quotas(mvm, NULL);
+	if (res)
+		return res;
+
+	iwl_mvm_bt_coex_vif_change(mvm);
+
+	return iwl_mvm_power_update_mac(mvm, vif);
+}
+
+static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *result = _data;
+
+	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(vif)))
+		*result = true;
+}
+
+bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
+{
+	bool result = false;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_ll_iter, &result);
+
+	return result;
+}
+
+static void iwl_mvm_idle_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	bool *idle = _data;
+
+	if (!vif->bss_conf.idle)
+		*idle = false;
+}
+
+bool iwl_mvm_is_idle(struct iwl_mvm *mvm)
+{
+	bool idle = true;
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_idle_iter, &idle);
+
+	return idle;
 }

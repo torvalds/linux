@@ -1401,11 +1401,6 @@ static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
 	return ret;
 }
 
-static int tg3_mdio_reset(struct mii_bus *bp)
-{
-	return 0;
-}
-
 static void tg3_mdio_config_5785(struct tg3 *tp)
 {
 	u32 val;
@@ -1542,7 +1537,6 @@ static int tg3_mdio_init(struct tg3 *tp)
 	tp->mdio_bus->parent   = &tp->pdev->dev;
 	tp->mdio_bus->read     = &tg3_mdio_read;
 	tp->mdio_bus->write    = &tg3_mdio_write;
-	tp->mdio_bus->reset    = &tg3_mdio_reset;
 	tp->mdio_bus->phy_mask = ~(1 << tp->phy_addr);
 	tp->mdio_bus->irq      = &tp->mdio_irq[0];
 
@@ -6322,6 +6316,7 @@ static const struct ptp_clock_info tg3_ptp_caps = {
 	.n_alarm	= 0,
 	.n_ext_ts	= 0,
 	.n_per_out	= 1,
+	.n_pins		= 0,
 	.pps		= 0,
 	.adjfreq	= tg3_ptp_adjfreq,
 	.adjtime	= tg3_ptp_adjtime,
@@ -6593,7 +6588,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		pkts_compl++;
 		bytes_compl += skb->len;
 
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 
 		if (unlikely(tx_bug)) {
 			tg3_tx_recover(tp);
@@ -6924,7 +6919,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 
 		if (len > (tp->dev->mtu + ETH_HLEN) &&
 		    skb->protocol != htons(ETH_P_8021Q)) {
-			dev_kfree_skb(skb);
+			dev_kfree_skb_any(skb);
 			goto drop_it_no_recycle;
 		}
 
@@ -7807,7 +7802,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					  PCI_DMA_TODEVICE);
 		/* Make sure the mapping succeeded */
 		if (pci_dma_mapping_error(tp->pdev, new_addr)) {
-			dev_kfree_skb(new_skb);
+			dev_kfree_skb_any(new_skb);
 			ret = -1;
 		} else {
 			u32 save_entry = *entry;
@@ -7822,13 +7817,13 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 					    new_skb->len, base_flags,
 					    mss, vlan)) {
 				tg3_tx_skb_unmap(tnapi, save_entry, -1);
-				dev_kfree_skb(new_skb);
+				dev_kfree_skb_any(new_skb);
 				ret = -1;
 			}
 		}
 	}
 
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	*pskb = new_skb;
 	return ret;
 }
@@ -7871,7 +7866,7 @@ static int tg3_tso_bug(struct tg3 *tp, struct sk_buff *skb)
 	} while (segs);
 
 tg3_tso_bug_end:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -7923,8 +7918,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct iphdr *iph;
 		u32 tcp_opt_len, hdr_len;
 
-		if (skb_header_cloned(skb) &&
-		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+		if (skb_cow_head(skb, 0))
 			goto drop;
 
 		iph = ip_hdr(skb);
@@ -8093,7 +8087,7 @@ dma_error:
 	tg3_tx_skb_unmap(tnapi, tnapi->tx_prod, --i);
 	tnapi->tx_buffers[tnapi->tx_prod].skb = NULL;
 drop:
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 drop_nofree:
 	tp->tx_dropped++;
 	return NETDEV_TX_OK;
@@ -11361,12 +11355,10 @@ static bool tg3_enable_msix(struct tg3 *tp)
 		msix_ent[i].vector = 0;
 	}
 
-	rc = pci_enable_msix(tp->pdev, msix_ent, tp->irq_cnt);
+	rc = pci_enable_msix_range(tp->pdev, msix_ent, 1, tp->irq_cnt);
 	if (rc < 0) {
 		return false;
-	} else if (rc != 0) {
-		if (pci_enable_msix(tp->pdev, msix_ent, rc))
-			return false;
+	} else if (rc < tp->irq_cnt) {
 		netdev_notice(tp->dev, "Requested %d MSI-X vectors, received %d\n",
 			      tp->irq_cnt, rc);
 		tp->irq_cnt = rc;
@@ -12294,7 +12286,9 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 	if (tg3_flag(tp, MAX_RXPEND_64) &&
 	    tp->rx_pending > 63)
 		tp->rx_pending = 63;
-	tp->rx_jumbo_pending = ering->rx_jumbo_pending;
+
+	if (tg3_flag(tp, JUMBO_RING_ENABLE))
+		tp->rx_jumbo_pending = ering->rx_jumbo_pending;
 
 	for (i = 0; i < tp->irq_max; i++)
 		tp->napi[i].tx_pending = ering->tx_pending;

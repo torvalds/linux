@@ -1509,8 +1509,8 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 		ret = qgroup_rescan_init(fs_info, 0, 1);
 		if (!ret) {
 			qgroup_rescan_zero_tracking(fs_info);
-			btrfs_queue_worker(&fs_info->qgroup_rescan_workers,
-					   &fs_info->qgroup_rescan_work);
+			btrfs_queue_work(fs_info->qgroup_rescan_workers,
+					 &fs_info->qgroup_rescan_work);
 		}
 		ret = 0;
 	}
@@ -2095,7 +2095,8 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 
 	memset(&fs_info->qgroup_rescan_work, 0,
 	       sizeof(fs_info->qgroup_rescan_work));
-	fs_info->qgroup_rescan_work.func = btrfs_qgroup_rescan_worker;
+	btrfs_init_work(&fs_info->qgroup_rescan_work,
+			btrfs_qgroup_rescan_worker, NULL, NULL);
 
 	if (ret) {
 err:
@@ -2158,8 +2159,8 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 
 	qgroup_rescan_zero_tracking(fs_info);
 
-	btrfs_queue_worker(&fs_info->qgroup_rescan_workers,
-			   &fs_info->qgroup_rescan_work);
+	btrfs_queue_work(fs_info->qgroup_rescan_workers,
+			 &fs_info->qgroup_rescan_work);
 
 	return 0;
 }
@@ -2190,6 +2191,6 @@ void
 btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info)
 {
 	if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN)
-		btrfs_queue_worker(&fs_info->qgroup_rescan_workers,
-				   &fs_info->qgroup_rescan_work);
+		btrfs_queue_work(fs_info->qgroup_rescan_workers,
+				 &fs_info->qgroup_rescan_work);
 }

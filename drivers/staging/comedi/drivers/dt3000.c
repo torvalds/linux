@@ -369,12 +369,10 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 
 	debug_n_ints++;
-	if (debug_n_ints >= 10) {
-		dt3k_ai_cancel(dev, s);
+	if (debug_n_ints >= 10)
 		s->async->events |= COMEDI_CB_EOA;
-	}
 
-	comedi_event(dev, s);
+	cfc_handle_events(dev, s);
 	return IRQ_HANDLED;
 }
 
@@ -766,8 +764,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	/* proc subsystem */
 	s->type = COMEDI_SUBD_PROC;
 #endif
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }

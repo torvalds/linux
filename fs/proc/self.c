@@ -16,7 +16,7 @@ static int proc_self_readlink(struct dentry *dentry, char __user *buffer,
 	if (!tgid)
 		return -ENOENT;
 	sprintf(tmp, "%d", tgid);
-	return vfs_readlink(dentry,buffer,buflen,tmp);
+	return readlink_copy(buffer, buflen, tmp);
 }
 
 static void *proc_self_follow_link(struct dentry *dentry, struct nameidata *nd)

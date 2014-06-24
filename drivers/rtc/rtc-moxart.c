@@ -247,10 +247,8 @@ static int moxart_rtc_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	moxart_rtc = devm_kzalloc(&pdev->dev, sizeof(*moxart_rtc), GFP_KERNEL);
-	if (!moxart_rtc) {
-		dev_err(&pdev->dev, "devm_kzalloc failed\n");
+	if (!moxart_rtc)
 		return -ENOMEM;
-	}
 
 	moxart_rtc->gpio_data = of_get_named_gpio(pdev->dev.of_node,
 						  "gpio-rtc-data", 0);

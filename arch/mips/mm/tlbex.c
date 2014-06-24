@@ -509,7 +509,10 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		switch (current_cpu_type()) {
 		case CPU_M14KC:
 		case CPU_74K:
+		case CPU_1074K:
 		case CPU_PROAPTIV:
+		case CPU_P5600:
+		case CPU_M5150:
 			break;
 
 		default:
@@ -579,6 +582,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_BMIPS4380:
 	case CPU_BMIPS5000:
 	case CPU_LOONGSON2:
+	case CPU_LOONGSON3:
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);
@@ -621,7 +625,7 @@ static void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 
 	default:
 		panic("No TLB refill handler yet (CPU type: %d)",
-		      current_cpu_data.cputype);
+		      current_cpu_type());
 		break;
 	}
 }
@@ -1418,16 +1422,17 @@ static void build_r4000_tlb_refill_handler(void)
 extern u32 handle_tlbl[], handle_tlbl_end[];
 extern u32 handle_tlbs[], handle_tlbs_end[];
 extern u32 handle_tlbm[], handle_tlbm_end[];
-extern u32 tlbmiss_handler_setup_pgd[], tlbmiss_handler_setup_pgd_end[];
+extern u32 tlbmiss_handler_setup_pgd_start[], tlbmiss_handler_setup_pgd[];
+extern u32 tlbmiss_handler_setup_pgd_end[];
 
 static void build_setup_pgd(void)
 {
 	const int a0 = 4;
 	const int __maybe_unused a1 = 5;
 	const int __maybe_unused a2 = 6;
-	u32 *p = tlbmiss_handler_setup_pgd;
+	u32 *p = tlbmiss_handler_setup_pgd_start;
 	const int tlbmiss_handler_setup_pgd_size =
-		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd;
+		tlbmiss_handler_setup_pgd_end - tlbmiss_handler_setup_pgd_start;
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 	long pgdc = (long)pgd_current;
 #endif

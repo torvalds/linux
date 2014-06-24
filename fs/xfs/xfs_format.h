@@ -145,6 +145,8 @@ struct xfs_dsymlink_hdr {
 	__be64	sl_lsn;
 };
 
+#define XFS_SYMLINK_CRC_OFF	offsetof(struct xfs_dsymlink_hdr, sl_crc)
+
 /*
  * The maximum pathlen is 1024 bytes. Since the minimum file system
  * blocksize is 512 bytes, we can get a max of 3 extents back from

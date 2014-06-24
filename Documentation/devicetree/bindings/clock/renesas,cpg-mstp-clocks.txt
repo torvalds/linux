@@ -43,7 +43,7 @@ Example
 		clock-output-names =
 			"tpu0", "mmcif1", "sdhi3", "sdhi2",
 			 "sdhi1", "sdhi0", "mmcif0";
-		renesas,clock-indices = <
+		clock-indices = <
 			R8A7790_CLK_TPU0 R8A7790_CLK_MMCIF1 R8A7790_CLK_SDHI3
 			R8A7790_CLK_SDHI2 R8A7790_CLK_SDHI1 R8A7790_CLK_SDHI0
 			R8A7790_CLK_MMCIF0

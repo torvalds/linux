@@ -942,7 +942,7 @@ int cl_io_cancel(const struct lu_env *env, struct cl_io *io,
 	struct cl_page *page;
 	int result = 0;
 
-	CERROR("Canceling ongoing page trasmission\n");
+	CERROR("Canceling ongoing page transmission\n");
 	cl_page_list_for_each(page, queue) {
 		int rc;
 

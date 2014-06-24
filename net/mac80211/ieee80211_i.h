@@ -317,6 +317,7 @@ struct ieee80211_roc_work {
 
 	bool started, abort, hw_begun, notified;
 	bool to_be_freed;
+	bool on_channel;
 
 	unsigned long hw_start_time;
 
@@ -616,7 +617,11 @@ struct ieee80211_if_mesh {
 	struct ps_data ps;
 	/* Channel Switching Support */
 	struct mesh_csa_settings __rcu *csa;
-	bool chsw_init;
+	enum {
+		IEEE80211_MESH_CSA_ROLE_NONE,
+		IEEE80211_MESH_CSA_ROLE_INIT,
+		IEEE80211_MESH_CSA_ROLE_REPEATER,
+	} csa_role;
 	u8 chsw_ttl;
 	u16 pre_value;
 
@@ -1238,6 +1243,8 @@ struct ieee80211_local {
 
 	struct ieee80211_sub_if_data __rcu *p2p_sdata;
 
+	struct napi_struct *napi;
+
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 	struct cfg80211_chan_def monitor_chandef;
@@ -1385,6 +1392,7 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mgd_conn_tx_status(struct ieee80211_sub_if_data *sdata,
 				  __le16 fc, bool acked);
+void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 
 /* IBSS code */
@@ -1408,8 +1416,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				   struct sk_buff *skb);
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings,
-			      bool csa_action);
+			      struct cfg80211_csa_settings *csa_settings);
 int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
@@ -1553,6 +1560,9 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
+                                  struct sta_info *sta, u8 opmode,
+                                  enum ieee80211_band band, bool nss_only);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				 struct sta_info *sta, u8 opmode,
 				 enum ieee80211_band band, bool nss_only);
@@ -1605,7 +1615,7 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 }
 
 /* utility functions/constants */
-extern void *mac80211_wiphy_privid; /* for wiphy privid */
+extern const void *const mac80211_wiphy_privid; /* for wiphy privid */
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type);
 int ieee80211_frame_duration(enum ieee80211_band band, size_t len,

@@ -135,7 +135,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		}
 
 		/*
-		 * Loop-back driver calls ->prepare_write() and ->sendfile()
+		 * Loop-back driver calls ->prepare_write().
 		 * methods directly, bypassing file system ->write() operation,
 		 * so cl_io has to be created here.
 		 */
@@ -558,10 +558,10 @@ static int ll_read_ahead_page(const struct lu_env *env, struct cl_io *io,
  * striped over, rather than having a constant value for all files here. */
 
 /* RAS_INCREASE_STEP should be (1UL << (inode->i_blkbits - PAGE_CACHE_SHIFT)).
- * Temprarily set RAS_INCREASE_STEP to 1MB. After 4MB RPC is enabled
+ * Temporarily set RAS_INCREASE_STEP to 1MB. After 4MB RPC is enabled
  * by default, this should be adjusted corresponding with max_read_ahead_mb
  * and max_read_ahead_per_file_mb otherwise the readahead budget can be used
- * up quickly which will affect read performance siginificantly. See LU-2816 */
+ * up quickly which will affect read performance significantly. See LU-2816 */
 #define RAS_INCREASE_STEP(inode) (ONE_MB_BRW_SIZE >> PAGE_CACHE_SHIFT)
 
 static inline int stride_io_mode(struct ll_readahead_state *ras)
@@ -570,7 +570,7 @@ static inline int stride_io_mode(struct ll_readahead_state *ras)
 }
 /* The function calculates how much pages will be read in
  * [off, off + length], in such stride IO area,
- * stride_offset = st_off, stride_lengh = st_len,
+ * stride_offset = st_off, stride_length = st_len,
  * stride_pages = st_pgs
  *
  *   |------------------|*****|------------------|*****|------------|*****|....
@@ -1090,7 +1090,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	ras_set_start(inode, ras, index);
 
 	if (stride_io_mode(ras))
-		/* Since stride readahead is sentivite to the offset
+		/* Since stride readahead is sensitive to the offset
 		 * of read-ahead, so we use original offset here,
 		 * instead of ras_window_start, which is RPC aligned */
 		ras->ras_next_readahead = max(index, ras->ras_next_readahead);

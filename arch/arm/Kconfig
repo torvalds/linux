@@ -24,14 +24,15 @@ config ARM
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select HARDIRQS_SW_RESEND
+	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_BPF_JIT
+	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
@@ -113,9 +114,6 @@ config ARM_DMA_IOMMU_ALIGNMENT
 
 endif
 
-config HAVE_PWM
-	bool
-
 config MIGHT_HAVE_PCI
 	bool
 
@@ -129,7 +127,7 @@ config HAVE_TCM
 config HAVE_PROC_CPU
 	bool
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	bool
 
 config EISA
@@ -206,6 +204,9 @@ config ZONE_DMA
 
 config NEED_DMA_MAP_STATE
        def_bool y
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
 
 config ARCH_HAS_DMA_SET_COHERENT_MASK
 	bool
@@ -306,9 +307,13 @@ choice
 config ARCH_MULTIPLATFORM
 	bool "Allow multiple platforms to be selected"
 	depends on MMU
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
+	select CLKSRC_OF
 	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
@@ -388,8 +393,6 @@ config ARCH_CLPS711X
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
 	select MFD_SYSCON
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.
 
@@ -409,7 +412,7 @@ config ARCH_EBSA110
 	select ISA
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -421,15 +424,13 @@ config ARCH_EFM32
 	depends on !MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_NVIC
-	# CLKSRC_MMIO is wrong here, but needed until a proper fix is merged,
-	# i.e. CLKSRC_EFM32 selecting CLKSRC_MMIO
-	select CLKSRC_MMIO
+	select AUTO_ZRELADDR
 	select CLKSRC_OF
 	select COMMON_CLK
 	select CPU_V7M
 	select GENERIC_CLOCKEVENTS
 	select NO_DMA
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -511,8 +512,8 @@ config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
-	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_SUPPORTS_BIG_ENDIAN
 	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
@@ -534,7 +535,6 @@ config ARCH_DOVE
 	select PINCTRL
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
-	select USB_ARCH_HAS_EHCI
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
@@ -632,8 +632,6 @@ config ARCH_LPC32XX
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
-	select HAVE_PWM
-	select USB_ARCH_HAS_OHCI
 	select USE_OF
 	help
 	  Support for the NXP LPC32XX family of processors
@@ -657,9 +655,8 @@ config ARCH_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
-config ARCH_MSM_NODT
-	bool "Qualcomm MSM"
-	select ARCH_MSM
+config ARCH_MSM
+	bool "Qualcomm MSM (non-multiplatform)"
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
@@ -682,7 +679,7 @@ config ARCH_SHMOBILE_LEGACY
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select MULTI_IRQ_HANDLER
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PINCTRL
 	select PM_GENERIC_DOMAINS if PM
 	select SPARSE_IRQ
@@ -697,13 +694,14 @@ config ARCH_RPC
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
+	select CPU_SA110
 	select FIQ
 	select HAVE_IDE
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select VIRT_TO_BUS
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
@@ -731,6 +729,7 @@ config ARCH_S3C24XX
 	bool "Samsung S3C24XX SoCs"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select GENERIC_CLOCKEVENTS
@@ -753,6 +752,7 @@ config ARCH_S3C64XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_VIC
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select COMMON_CLK
@@ -762,20 +762,20 @@ config ARCH_S3C64XX
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_TCM
-	select NO_IOPORT
+	select NO_IOPORT_MAP
 	select PLAT_SAMSUNG
-	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS if PM
 	select S3C_DEV_NAND
 	select S3C_GPIO_TRACK
 	select SAMSUNG_ATAGS
 	select SAMSUNG_WAKEMASK
 	select SAMSUNG_WDT_RESET
-	select USB_ARCH_HAS_OHCI
 	help
 	  Samsung S3C64XX series based systems
 
 config ARCH_S5P64X0
 	bool "Samsung S5P6440 S5P6450"
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V6
@@ -794,6 +794,7 @@ config ARCH_S5P64X0
 config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select ARCH_REQUIRE_GPIOLIB
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
@@ -813,6 +814,7 @@ config ARCH_S5PV210
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SPARSEMEM_ENABLE
+	select ATAGS
 	select CLKDEV_LOOKUP
 	select CLKSRC_SAMSUNG_PWM
 	select CPU_V7
@@ -886,6 +888,12 @@ menu "Multiple platform selection"
 
 comment "CPU Core family selection"
 
+config ARCH_MULTI_V4
+	bool "ARMv4 based platforms (FA526)"
+	depends on !ARCH_MULTI_V6_V7
+	select ARCH_MULTI_V4_V5
+	select CPU_FA526
+
 config ARCH_MULTI_V4T
 	bool "ARMv4T based platforms (ARM720T, ARM920T, ...)"
 	depends on !ARCH_MULTI_V6_V7
@@ -898,7 +906,7 @@ config ARCH_MULTI_V5
 	bool "ARMv5 based platforms (ARM926T, XSCALE, PJ1, ...)"
 	depends on !ARCH_MULTI_V6_V7
 	select ARCH_MULTI_V4_V5
-	select CPU_ARM926T if (!CPU_ARM946E || CPU_ARM1020 || \
+	select CPU_ARM926T if !(CPU_ARM946E || CPU_ARM1020 || \
 		CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || \
 		CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_FEROCEON)
 
@@ -908,22 +916,31 @@ config ARCH_MULTI_V4_V5
 config ARCH_MULTI_V6
 	bool "ARMv6 based platforms (ARM11)"
 	select ARCH_MULTI_V6_V7
-	select CPU_V6
+	select CPU_V6K
 
 config ARCH_MULTI_V7
 	bool "ARMv7 based platforms (Cortex-A, PJ4, Scorpion, Krait)"
 	default y
 	select ARCH_MULTI_V6_V7
 	select CPU_V7
+	select HAVE_SMP
 
 config ARCH_MULTI_V6_V7
 	bool
+	select MIGHT_HAVE_CACHE_L2X0
 
 config ARCH_MULTI_CPU_AUTO
 	def_bool !(ARCH_MULTI_V4 || ARCH_MULTI_V4T || ARCH_MULTI_V6_V7)
 	select ARCH_MULTI_V5
 
 endmenu
+
+config ARCH_VIRT
+	bool "Dummy Virtual Machine" if ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
 
 #
 # This is sorted alphabetically by mach-* pathname.  However, plat-*
@@ -935,8 +952,6 @@ source "arch/arm/mach-mvebu/Kconfig"
 source "arch/arm/mach-at91/Kconfig"
 
 source "arch/arm/mach-bcm/Kconfig"
-
-source "arch/arm/mach-bcm2835/Kconfig"
 
 source "arch/arm/mach-berlin/Kconfig"
 
@@ -1005,6 +1020,8 @@ source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-mmp/Kconfig"
 
+source "arch/arm/mach-qcom/Kconfig"
+
 source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-rockchip/Kconfig"
@@ -1047,8 +1064,6 @@ source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/plat-versatile/Kconfig"
-
-source "arch/arm/mach-virt/Kconfig"
 
 source "arch/arm/mach-vt8500/Kconfig"
 
@@ -1096,9 +1111,9 @@ config ARM_NR_BANKS
 	default 8
 
 config IWMMXT
-	bool "Enable iWMMXt support" if !CPU_PJ4
-	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
-	default y if PXA27x || PXA3xx || ARCH_MMP || CPU_PJ4
+	bool "Enable iWMMXt support"
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4 || CPU_PJ4B
+	default y if PXA27x || PXA3xx || ARCH_MMP || CPU_PJ4 || CPU_PJ4B
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -1561,8 +1576,8 @@ config BIG_LITTLE
 config BL_SWITCHER
 	bool "big.LITTLE switcher support"
 	depends on BIG_LITTLE && MCPM && HOTPLUG_CPU
-	select CPU_PM
 	select ARM_CPU_SUSPEND
+	select CPU_PM
 	help
 	  The big.LITTLE "switcher" provides the core functionality to
 	  transparently handle transition between a cluster of A15's
@@ -1906,9 +1921,9 @@ config XEN
 	depends on CPU_V7 && !CPU_V6
 	depends on !GENERIC_ATOMIC64
 	depends on MMU
+	select ARCH_DMA_ADDR_T_64BIT
 	select ARM_PSCI
 	select SWIOTLB_XEN
-	select ARCH_DMA_ADDR_T_64BIT
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
@@ -1921,6 +1936,7 @@ config USE_OF
 	select IRQ_DOMAIN
 	select OF
 	select OF_EARLY_FLATTREE
+	select OF_RESERVED_MEM
 	help
 	  Include support for flattened device tree machine descriptions.
 
@@ -2273,7 +2289,7 @@ source "kernel/power/Kconfig"
 config ARCH_SUSPEND_POSSIBLE
 	depends on !ARCH_S5PC100
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_FEROCEON || CPU_SA1100 || \
-		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE || CPU_MOHAWK
+		CPU_V6 || CPU_V6K || CPU_V7 || CPU_V7M || CPU_XSC3 || CPU_XSCALE || CPU_MOHAWK
 	def_bool y
 
 config ARM_CPU_SUSPEND

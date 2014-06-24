@@ -89,11 +89,22 @@ static int w1_gpio_probe_dt(struct platform_device *pdev)
 		pdata->is_open_drain = 1;
 
 	gpio = of_get_gpio(np, 0);
-	if (gpio < 0)
+	if (gpio < 0) {
+		if (gpio != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+					"Failed to parse gpio property for data pin (%d)\n",
+					gpio);
+
 		return gpio;
+	}
 	pdata->pin = gpio;
 
-	pdata->ext_pullup_enable_pin = of_get_gpio(np, 1);
+	gpio = of_get_gpio(np, 1);
+	if (gpio == -EPROBE_DEFER)
+		return gpio;
+	/* ignore other errors as the pullup gpio is optional */
+	pdata->ext_pullup_enable_pin = gpio;
+
 	pdev->dev.platform_data = pdata;
 
 	return 0;
@@ -107,10 +118,8 @@ static int w1_gpio_probe(struct platform_device *pdev)
 
 	if (of_have_populated_dt()) {
 		err = w1_gpio_probe_dt(pdev);
-		if (err < 0) {
-			dev_err(&pdev->dev, "Failed to parse DT\n");
+		if (err < 0)
 			return err;
-		}
 	}
 
 	pdata = dev_get_platdata(&pdev->dev);

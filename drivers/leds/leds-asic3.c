@@ -7,7 +7,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/slab.h>

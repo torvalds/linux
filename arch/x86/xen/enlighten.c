@@ -1515,7 +1515,7 @@ static void __init xen_pvh_early_guest_init(void)
 }
 
 /* First C function to be called on Xen boot */
-asmlinkage void __init xen_start_kernel(void)
+asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	int rc;

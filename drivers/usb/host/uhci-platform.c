@@ -148,6 +148,7 @@ static void uhci_hcd_platform_shutdown(struct platform_device *op)
 }
 
 static const struct of_device_id platform_uhci_ids[] = {
+	{ .compatible = "generic-uhci", },
 	{ .compatible = "platform-uhci", },
 	{}
 };

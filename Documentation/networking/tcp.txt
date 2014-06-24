@@ -30,7 +30,7 @@ A congestion control mechanism can be registered through functions in
 tcp_cong.c. The functions used by the congestion control mechanism are
 registered via passing a tcp_congestion_ops struct to
 tcp_register_congestion_control. As a minimum name, ssthresh,
-cong_avoid, min_cwnd must be valid.
+cong_avoid must be valid.
 
 Private data for a congestion control mechanism is stored in tp->ca_priv.
 tcp_ca(tp) returns a pointer to this space.  This is preallocated space - it

@@ -112,7 +112,7 @@ static void sep_do_callback(struct work_struct *work)
  *	on what operation is to be done
  */
 static int sep_submit_work(struct workqueue_struct *work_queue,
-	void(*funct)(void *),
+	void (*funct)(void *),
 	void *data)
 {
 	struct sep_work_struct *sep_work;

@@ -30,8 +30,6 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
@@ -52,17 +50,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 		}
 	}
 
-	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		cpu_dai->playback_active++;
-		codec_dai->playback_active++;
-	} else {
-		cpu_dai->capture_active++;
-		codec_dai->capture_active++;
-	}
-
-	cpu_dai->active++;
-	codec_dai->active++;
-	rtd->codec->active++;
+	snd_soc_runtime_activate(rtd, cstream->direction);
 
 	mutex_unlock(&rtd->pcm_mutex);
 
@@ -81,8 +69,6 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_pcm_substream *fe_substream = fe->pcm->streams[0].substream;
 	struct snd_soc_platform *platform = fe->platform;
-	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
-	struct snd_soc_dai *codec_dai = fe->codec_dai;
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dapm_widget_list *list;
 	int stream;
@@ -140,17 +126,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_OPEN;
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
 
-	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		cpu_dai->playback_active++;
-		codec_dai->playback_active++;
-	} else {
-		cpu_dai->capture_active++;
-		codec_dai->capture_active++;
-	}
-
-	cpu_dai->active++;
-	codec_dai->active++;
-	fe->codec->active++;
+	snd_soc_runtime_activate(fe, stream);
 
 	mutex_unlock(&fe->card->mutex);
 
@@ -202,23 +178,18 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	int stream;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		cpu_dai->playback_active--;
-		codec_dai->playback_active--;
-	} else {
-		cpu_dai->capture_active--;
-		codec_dai->capture_active--;
-	}
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
+		stream = SNDRV_PCM_STREAM_PLAYBACK;
+	else
+		stream = SNDRV_PCM_STREAM_CAPTURE;
+
+	snd_soc_runtime_deactivate(rtd, stream);
 
 	snd_soc_dai_digital_mute(codec_dai, 1, cstream->direction);
-
-	cpu_dai->active--;
-	codec_dai->active--;
-	codec->active--;
 
 	if (!cpu_dai->active)
 		cpu_dai->rate = 0;
@@ -235,8 +206,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	cpu_dai->runtime = NULL;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		if (!rtd->pmdown_time || codec->ignore_pmdown_time ||
-		    rtd->dai_link->ignore_pmdown_time) {
+		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
 			snd_soc_dapm_stream_event(rtd,
 					SNDRV_PCM_STREAM_PLAYBACK,
 					SND_SOC_DAPM_STREAM_STOP);
@@ -261,26 +231,17 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_soc_platform *platform = fe->platform;
-	struct snd_soc_dai *cpu_dai = fe->cpu_dai;
-	struct snd_soc_dai *codec_dai = fe->codec_dai;
 	struct snd_soc_dpcm *dpcm;
 	int stream, ret;
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
-	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
 		stream = SNDRV_PCM_STREAM_PLAYBACK;
-		cpu_dai->playback_active--;
-		codec_dai->playback_active--;
-	} else {
+	else
 		stream = SNDRV_PCM_STREAM_CAPTURE;
-		cpu_dai->capture_active--;
-		codec_dai->capture_active--;
-	}
 
-	cpu_dai->active--;
-	codec_dai->active--;
-	fe->codec->active--;
+	snd_soc_runtime_deactivate(fe, stream);
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 

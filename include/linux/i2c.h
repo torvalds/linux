@@ -487,6 +487,7 @@ void i2c_unlock_adapter(struct i2c_adapter *);
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
+#define I2C_CLASS_DEPRECATED	(1<<8)	/* Warn users that adapter will stop using classes */
 
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU

@@ -32,7 +32,6 @@
 #include <linux/fb.h>
 #include <linux/hdmi.h>
 #include <drm/drm_mode.h>
-
 #include <drm/drm_fourcc.h>
 
 struct drm_device;
@@ -65,130 +64,14 @@ struct drm_object_properties {
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
-/*
- * Note on terminology:  here, for brevity and convenience, we refer to connector
- * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
- * DVI, etc.  And 'screen' refers to the whole of the visible display, which
- * may span multiple monitors (and therefore multiple CRTC and connector
- * structures).
- */
-
-enum drm_mode_status {
-    MODE_OK	= 0,	/* Mode OK */
-    MODE_HSYNC,		/* hsync out of range */
-    MODE_VSYNC,		/* vsync out of range */
-    MODE_H_ILLEGAL,	/* mode has illegal horizontal timings */
-    MODE_V_ILLEGAL,	/* mode has illegal horizontal timings */
-    MODE_BAD_WIDTH,	/* requires an unsupported linepitch */
-    MODE_NOMODE,	/* no mode with a matching name */
-    MODE_NO_INTERLACE,	/* interlaced mode not supported */
-    MODE_NO_DBLESCAN,	/* doublescan mode not supported */
-    MODE_NO_VSCAN,	/* multiscan mode not supported */
-    MODE_MEM,		/* insufficient video memory */
-    MODE_VIRTUAL_X,	/* mode width too large for specified virtual size */
-    MODE_VIRTUAL_Y,	/* mode height too large for specified virtual size */
-    MODE_MEM_VIRT,	/* insufficient video memory given virtual size */
-    MODE_NOCLOCK,	/* no fixed clock available */
-    MODE_CLOCK_HIGH,	/* clock required is too high */
-    MODE_CLOCK_LOW,	/* clock required is too low */
-    MODE_CLOCK_RANGE,	/* clock/mode isn't in a ClockRange */
-    MODE_BAD_HVALUE,	/* horizontal timing was out of range */
-    MODE_BAD_VVALUE,	/* vertical timing was out of range */
-    MODE_BAD_VSCAN,	/* VScan value out of range */
-    MODE_HSYNC_NARROW,	/* horizontal sync too narrow */
-    MODE_HSYNC_WIDE,	/* horizontal sync too wide */
-    MODE_HBLANK_NARROW,	/* horizontal blanking too narrow */
-    MODE_HBLANK_WIDE,	/* horizontal blanking too wide */
-    MODE_VSYNC_NARROW,	/* vertical sync too narrow */
-    MODE_VSYNC_WIDE,	/* vertical sync too wide */
-    MODE_VBLANK_NARROW,	/* vertical blanking too narrow */
-    MODE_VBLANK_WIDE,	/* vertical blanking too wide */
-    MODE_PANEL,         /* exceeds panel dimensions */
-    MODE_INTERLACE_WIDTH, /* width too large for interlaced mode */
-    MODE_ONE_WIDTH,     /* only one width is supported */
-    MODE_ONE_HEIGHT,    /* only one height is supported */
-    MODE_ONE_SIZE,      /* only one resolution is supported */
-    MODE_NO_REDUCED,    /* monitor doesn't accept reduced blanking */
-    MODE_NO_STEREO,	/* stereo modes not supported */
-    MODE_UNVERIFIED = -3, /* mode needs to reverified */
-    MODE_BAD = -2,	/* unspecified reason */
-    MODE_ERROR	= -1	/* error condition */
+enum drm_connector_force {
+	DRM_FORCE_UNSPECIFIED,
+	DRM_FORCE_OFF,
+	DRM_FORCE_ON,         /* force on analog part normally */
+	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
-#define DRM_MODE_TYPE_CLOCK_CRTC_C (DRM_MODE_TYPE_CLOCK_C | \
-				    DRM_MODE_TYPE_CRTC_C)
-
-#define DRM_MODE(nm, t, c, hd, hss, hse, ht, hsk, vd, vss, vse, vt, vs, f) \
-	.name = nm, .status = 0, .type = (t), .clock = (c), \
-	.hdisplay = (hd), .hsync_start = (hss), .hsync_end = (hse), \
-	.htotal = (ht), .hskew = (hsk), .vdisplay = (vd), \
-	.vsync_start = (vss), .vsync_end = (vse), .vtotal = (vt), \
-	.vscan = (vs), .flags = (f), \
-	.base.type = DRM_MODE_OBJECT_MODE
-
-#define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
-#define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
-
-#define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
-
-struct drm_display_mode {
-	/* Header */
-	struct list_head head;
-	struct drm_mode_object base;
-
-	char name[DRM_DISPLAY_MODE_LEN];
-
-	enum drm_mode_status status;
-	unsigned int type;
-
-	/* Proposed mode values */
-	int clock;		/* in kHz */
-	int hdisplay;
-	int hsync_start;
-	int hsync_end;
-	int htotal;
-	int hskew;
-	int vdisplay;
-	int vsync_start;
-	int vsync_end;
-	int vtotal;
-	int vscan;
-	unsigned int flags;
-
-	/* Addressable image size (may be 0 for projectors, etc.) */
-	int width_mm;
-	int height_mm;
-
-	/* Actual mode we give to hw */
-	int crtc_clock;		/* in KHz */
-	int crtc_hdisplay;
-	int crtc_hblank_start;
-	int crtc_hblank_end;
-	int crtc_hsync_start;
-	int crtc_hsync_end;
-	int crtc_htotal;
-	int crtc_hskew;
-	int crtc_vdisplay;
-	int crtc_vblank_start;
-	int crtc_vblank_end;
-	int crtc_vsync_start;
-	int crtc_vsync_end;
-	int crtc_vtotal;
-
-	/* Driver private mode info */
-	int private_size;
-	int *private;
-	int private_flags;
-
-	int vrefresh;		/* in Hz */
-	int hsync;		/* in kHz */
-	enum hdmi_picture_aspect picture_aspect_ratio;
-};
-
-static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
-{
-	return mode->flags & DRM_MODE_FLAG_3D_MASK;
-}
+#include <drm/drm_modes.h>
 
 enum drm_connector_status {
 	connector_status_connected = 1,
@@ -387,6 +270,8 @@ struct drm_crtc_funcs {
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object for ID tracking etc.
+ * @primary: primary plane for this CRTC
+ * @cursor: cursor plane for this CRTC
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
@@ -422,8 +307,9 @@ struct drm_crtc {
 
 	struct drm_mode_object base;
 
-	/* framebuffer the connector is currently bound to */
-	struct drm_framebuffer *fb;
+	/* primary and cursor planes for CRTC */
+	struct drm_plane *primary;
+	struct drm_plane *cursor;
 
 	/* Temporary tracking of the old fb while a modeset is ongoing. Used
 	 * by drm_mode_set_config_internal to implement correct refcounting. */
@@ -538,13 +424,6 @@ struct drm_encoder {
 	struct drm_bridge *bridge;
 	const struct drm_encoder_funcs *funcs;
 	void *helper_private;
-};
-
-enum drm_connector_force {
-	DRM_FORCE_UNSPECIFIED,
-	DRM_FORCE_OFF,
-	DRM_FORCE_ON,         /* force on analog part normally */
-	DRM_FORCE_ON_DIGITAL, /* for DVI-I use digital connector */
 };
 
 /* should we poll this connector for connects and disconnects */
@@ -665,6 +544,12 @@ struct drm_plane_funcs {
 			    struct drm_property *property, uint64_t val);
 };
 
+enum drm_plane_type {
+	DRM_PLANE_TYPE_OVERLAY,
+	DRM_PLANE_TYPE_PRIMARY,
+	DRM_PLANE_TYPE_CURSOR,
+};
+
 /**
  * drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
@@ -677,6 +562,7 @@ struct drm_plane_funcs {
  * @fb: currently bound fb
  * @funcs: helper functions
  * @properties: property tracking for this plane
+ * @type: type of plane (overlay, primary, cursor)
  */
 struct drm_plane {
 	struct drm_device *dev;
@@ -694,6 +580,8 @@ struct drm_plane {
 	const struct drm_plane_funcs *funcs;
 
 	struct drm_object_properties properties;
+
+	enum drm_plane_type type;
 };
 
 /**
@@ -856,7 +744,15 @@ struct drm_mode_config {
 	struct list_head bridge_list;
 	int num_encoder;
 	struct list_head encoder_list;
-	int num_plane;
+
+	/*
+	 * Track # of overlay planes separately from # of total planes.  By
+	 * default we only advertise overlay planes to userspace; if userspace
+	 * sets the "universal plane" capability bit, we'll go ahead and
+	 * expose all planes.
+	 */
+	int num_overlay_plane;
+	int num_total_plane;
 	struct list_head plane_list;
 
 	int num_crtc;
@@ -878,6 +774,7 @@ struct drm_mode_config {
 	struct list_head property_blob_list;
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
+	struct drm_property *plane_type_property;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -930,6 +827,11 @@ extern void drm_modeset_lock_all(struct drm_device *dev);
 extern void drm_modeset_unlock_all(struct drm_device *dev);
 extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
+extern int drm_crtc_init_with_planes(struct drm_device *dev,
+				     struct drm_crtc *crtc,
+				     struct drm_plane *primary,
+				     void *cursor,
+				     const struct drm_crtc_funcs *funcs);
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
@@ -981,19 +883,31 @@ static inline bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 	return !!(encoder->possible_crtcs & drm_crtc_mask(crtc));
 }
 
+extern int drm_universal_plane_init(struct drm_device *dev,
+				    struct drm_plane *plane,
+				    unsigned long possible_crtcs,
+				    const struct drm_plane_funcs *funcs,
+				    const uint32_t *formats,
+				    uint32_t format_count,
+				    enum drm_plane_type type);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
 			  unsigned long possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
 			  const uint32_t *formats, uint32_t format_count,
-			  bool priv);
+			  bool is_primary);
 extern void drm_plane_cleanup(struct drm_plane *plane);
 extern void drm_plane_force_disable(struct drm_plane *plane);
+extern int drm_crtc_check_viewport(const struct drm_crtc *crtc,
+				   int x, int y,
+				   const struct drm_display_mode *mode,
+				   const struct drm_framebuffer *fb);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
 extern const char *drm_get_connector_name(const struct drm_connector *connector);
 extern const char *drm_get_connector_status_name(enum drm_connector_status status);
+extern const char *drm_get_subpixel_order_name(enum subpixel_order order);
 extern const char *drm_get_dpms_name(int val);
 extern const char *drm_get_dvi_i_subconnector_name(int val);
 extern const char *drm_get_dvi_i_select_name(int val);
@@ -1006,34 +920,10 @@ extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
 extern struct edid *drm_edid_duplicate(const struct edid *edid);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
-extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
-extern void drm_mode_copy(struct drm_display_mode *dst, const struct drm_display_mode *src);
-extern struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
-						   const struct drm_display_mode *mode);
-extern void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
 extern void drm_mode_config_init(struct drm_device *dev);
 extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
-extern void drm_mode_set_name(struct drm_display_mode *mode);
-extern bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
-extern bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2);
-extern int drm_mode_width(const struct drm_display_mode *mode);
-extern int drm_mode_height(const struct drm_display_mode *mode);
 
-/* for us by fb module */
-extern struct drm_display_mode *drm_mode_create(struct drm_device *dev);
-extern void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode);
-extern void drm_mode_validate_size(struct drm_device *dev,
-				   struct list_head *mode_list,
-				   int maxX, int maxY, int maxPitch);
-extern void drm_mode_prune_invalid(struct drm_device *dev,
-				   struct list_head *mode_list, bool verbose);
-extern void drm_mode_sort(struct list_head *mode_list);
-extern int drm_mode_hsync(const struct drm_display_mode *mode);
-extern int drm_mode_vrefresh(const struct drm_display_mode *mode);
-extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
-				  int adjust_flags);
-extern void drm_mode_connector_list_update(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						struct edid *edid);
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
@@ -1081,8 +971,6 @@ extern const char *drm_get_encoder_name(const struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
-extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
-					   struct drm_encoder *encoder);
 extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
@@ -1137,16 +1025,6 @@ extern bool drm_detect_monitor_audio(struct edid *edid);
 extern bool drm_rgb_quant_range_selectable(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
-extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
-				int hdisplay, int vdisplay, int vrefresh,
-				bool reduced, bool interlaced, bool margins);
-extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
-				int hdisplay, int vdisplay, int vrefresh,
-				bool interlaced, int margins);
-extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
-				int hdisplay, int vdisplay, int vrefresh,
-				bool interlaced, int margins, int GTF_M,
-				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
 extern void drm_set_preferred_mode(struct drm_connector *connector,
@@ -1194,5 +1072,10 @@ static inline struct drm_encoder *drm_encoder_find(struct drm_device *dev,
 	mo = drm_mode_object_find(dev, id, DRM_MODE_OBJECT_ENCODER);
 	return mo ? obj_to_encoder(mo) : NULL;
 }
+
+/* Plane list iterator for legacy (overlay only) planes. */
+#define drm_for_each_legacy_plane(plane, planelist) \
+	list_for_each_entry(plane, planelist, head) \
+		if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 
 #endif /* __DRM_CRTC_H__ */

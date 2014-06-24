@@ -876,10 +876,8 @@ static int dvb_input_attach(struct ddb_input *input)
 			return -ENODEV;
 		if (tuner_attach_tda18271(input) < 0)
 			return -ENODEV;
-		if (input->fe) {
-			if (dvb_register_frontend(adap, input->fe) < 0)
-				return -ENODEV;
-		}
+		if (dvb_register_frontend(adap, input->fe) < 0)
+			return -ENODEV;
 		if (input->fe2) {
 			if (dvb_register_frontend(adap, input->fe2) < 0)
 				return -ENODEV;

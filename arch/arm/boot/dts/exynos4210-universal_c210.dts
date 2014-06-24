@@ -17,7 +17,7 @@
 
 / {
 	model = "Samsung Universal C210 based on Exynos4210 rev0";
-	compatible = "samsung,universal_c210", "samsung,exynos4210";
+	compatible = "samsung,universal_c210", "samsung,exynos4210", "samsung,exynos4";
 
 	memory {
 		reg =  <0x40000000 0x10000000
@@ -341,6 +341,70 @@
 					regulator-name = "SAFEOUT2";
 					regulator-boot-on;
 				};
+			};
+		};
+	};
+
+	spi-lcd {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpio-sck = <&gpy3 1 0>;
+		gpio-mosi = <&gpy3 3 0>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpy4 3 0>;
+
+		lcd@0 {
+			compatible = "samsung,ld9040";
+			reg = <0>;
+			vdd3-supply = <&ldo7_reg>;
+			vci-supply = <&ldo17_reg>;
+			reset-gpios = <&gpy4 5 0>;
+			spi-max-frequency = <1200000>;
+			spi-cpol;
+			spi-cpha;
+			power-on-delay = <10>;
+			reset-delay = <10>;
+			panel-width-mm = <90>;
+			panel-height-mm = <154>;
+			display-timings {
+				timing {
+					clock-frequency = <23492370>;
+					hactive = <480>;
+					vactive = <800>;
+					hback-porch = <16>;
+					hfront-porch = <16>;
+					vback-porch = <2>;
+					vfront-porch = <28>;
+					hsync-len = <2>;
+					vsync-len = <1>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <0>;
+				};
+			};
+			port {
+				lcd_ep: endpoint {
+					remote-endpoint = <&fimd_dpi_ep>;
+				};
+			};
+		};
+	};
+
+	fimd: fimd@11c00000 {
+		pinctrl-0 = <&lcd_clk>, <&lcd_data24>;
+		pinctrl-names = "default";
+		status = "okay";
+		samsung,invert-vden;
+		samsung,invert-vclk;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@3 {
+			reg = <3>;
+			fimd_dpi_ep: endpoint {
+				remote-endpoint = <&lcd_ep>;
 			};
 		};
 	};

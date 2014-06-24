@@ -15,7 +15,7 @@
  * management
 */
 
-#include <linux/irq.h>
+#include <plat/pm-common.h>
 
 struct device;
 
@@ -54,55 +54,9 @@ extern int (*pm_cpu_sleep)(unsigned long);
 
 extern unsigned long s3c_pm_flags;
 
-extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
-
 /* from sleep.S */
 
 extern int s3c2410_cpu_suspend(unsigned long);
-
-/* sleep save info */
-
-/**
- * struct sleep_save - save information for shared peripherals.
- * @reg: Pointer to the register to save.
- * @val: Holder for the value saved from reg.
- *
- * This describes a list of registers which is used by the pm core and
- * other subsystem to save and restore register values over suspend.
- */
-struct sleep_save {
-	void __iomem	*reg;
-	unsigned long	val;
-};
-
-#define SAVE_ITEM(x) \
-	{ .reg = (x) }
-
-/**
- * struct pm_uart_save - save block for core UART
- * @ulcon: Save value for S3C2410_ULCON
- * @ucon: Save value for S3C2410_UCON
- * @ufcon: Save value for S3C2410_UFCON
- * @umcon: Save value for S3C2410_UMCON
- * @ubrdiv: Save value for S3C2410_UBRDIV
- *
- * Save block for UART registers to be held over sleep and restored if they
- * are needed (say by debug).
-*/
-struct pm_uart_save {
-	u32	ulcon;
-	u32	ucon;
-	u32	ufcon;
-	u32	umcon;
-	u32	ubrdiv;
-	u32	udivslot;
-};
-
-/* helper functions to save/restore lists of registers. */
-
-extern void s3c_pm_do_save(struct sleep_save *ptr, int count);
-extern void s3c_pm_do_restore(const struct sleep_save *ptr, int count);
-extern void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count);
 
 #ifdef CONFIG_SAMSUNG_PM
 extern int s3c_irq_wake(struct irq_data *data, unsigned int state);
@@ -112,24 +66,6 @@ extern void s3c_cpu_resume(void);
 #define s3c_irq_wake NULL
 #define s3c_irqext_wake NULL
 #define s3c_cpu_resume NULL
-#endif
-
-/* PM debug functions */
-
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-/**
- * s3c_pm_dbg() - low level debug function for use in suspend/resume.
- * @msg: The message to print.
- *
- * This function is used mainly to debug the resume process before the system
- * can rely on printk/console output. It uses the low-level debugging output
- * routine printascii() to do its work.
- */
-extern void s3c_pm_dbg(const char *msg, ...);
-
-#define S3C_PMDBG(fmt...) s3c_pm_dbg(fmt)
-#else
-#define S3C_PMDBG(fmt...) printk(KERN_DEBUG fmt)
 #endif
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
@@ -143,20 +79,6 @@ extern void s3c_pm_debug_smdkled(u32 set, u32 clear);
 #else
 static inline void s3c_pm_debug_smdkled(u32 set, u32 clear) { }
 #endif /* CONFIG_S3C_PM_DEBUG_LED_SMDK */
-
-/* suspend memory checking */
-
-#ifdef CONFIG_SAMSUNG_PM_CHECK
-extern void s3c_pm_check_prepare(void);
-extern void s3c_pm_check_restore(void);
-extern void s3c_pm_check_cleanup(void);
-extern void s3c_pm_check_store(void);
-#else
-#define s3c_pm_check_prepare() do { } while(0)
-#define s3c_pm_check_restore() do { } while(0)
-#define s3c_pm_check_cleanup() do { } while(0)
-#define s3c_pm_check_store()   do { } while(0)
-#endif
 
 /**
  * s3c_pm_configure_extint() - ensure pins are correctly set for IRQ

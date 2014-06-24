@@ -111,7 +111,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
 	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
-	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 	if (!memslot)
 		return;
 
@@ -192,7 +192,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	/* Find the memslot (if any) for this address */
 	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
 	gfn = gpa >> PAGE_SHIFT;
-	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+	memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 	pa = 0;
 	is_io = ~0ul;
 	rmap = NULL;
@@ -234,7 +234,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		pte_size = psize;
 		pte = lookup_linux_pte_and_update(pgdir, hva, writing,
 						  &pte_size);
-		if (pte_present(pte)) {
+		if (pte_present(pte) && !pte_numa(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
 				ptel = hpte_make_readonly(ptel);
@@ -670,7 +670,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 
 			psize = hpte_page_size(v, r);
 			gfn = ((r & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
-			memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
+			memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
 			if (memslot) {
 				hva = __gfn_to_hva_memslot(memslot, gfn);
 				pte = lookup_linux_pte_and_update(pgdir, hva,

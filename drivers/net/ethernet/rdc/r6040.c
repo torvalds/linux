@@ -270,11 +270,6 @@ static int r6040_mdiobus_write(struct mii_bus *bus, int phy_addr,
 	return r6040_phy_write(ioaddr, phy_addr, reg, value);
 }
 
-static int r6040_mdiobus_reset(struct mii_bus *bus)
-{
-	return 0;
-}
-
 static void r6040_free_txbufs(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
@@ -1191,7 +1186,6 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	lp->mii_bus->priv = dev;
 	lp->mii_bus->read = r6040_mdiobus_read;
 	lp->mii_bus->write = r6040_mdiobus_write;
-	lp->mii_bus->reset = r6040_mdiobus_reset;
 	lp->mii_bus->name = "r6040_eth_mii";
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		dev_name(&pdev->dev), card_idx);

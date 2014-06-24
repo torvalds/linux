@@ -20,6 +20,8 @@
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
 
+int sysctl_ldt16 = 0;
+
 #ifdef CONFIG_SMP
 static void flush_ldt(void *current_mm)
 {
@@ -228,6 +230,17 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 			goto install;
 		}
 	}
+
+	/*
+	 * On x86-64 we do not support 16-bit segments due to
+	 * IRET leaking the high bits of the kernel stack address.
+	 */
+#ifdef CONFIG_X86_64
+	if (!ldt_info.seg_32bit && !sysctl_ldt16) {
+		error = -EINVAL;
+		goto out_unlock;
+	}
+#endif
 
 	fill_ldt(&ldt, &ldt_info);
 	if (oldmode)

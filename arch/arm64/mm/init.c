@@ -30,6 +30,7 @@
 #include <linux/memblock.h>
 #include <linux/sort.h>
 #include <linux/of_fdt.h>
+#include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 
 #include <asm/sections.h>
@@ -59,22 +60,22 @@ static int __init early_initrd(char *p)
 early_param("initrd", early_initrd);
 #endif
 
-#define MAX_DMA32_PFN ((4UL * 1024 * 1024 * 1024) >> PAGE_SHIFT)
-
 static void __init zone_sizes_init(unsigned long min, unsigned long max)
 {
 	struct memblock_region *reg;
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	unsigned long max_dma32 = min;
+	unsigned long max_dma = min;
 
 	memset(zone_size, 0, sizeof(zone_size));
 
-#ifdef CONFIG_ZONE_DMA32
 	/* 4GB maximum for 32-bit only capable devices */
-	max_dma32 = max(min, min(max, MAX_DMA32_PFN));
-	zone_size[ZONE_DMA32] = max_dma32 - min;
-#endif
-	zone_size[ZONE_NORMAL] = max - max_dma32;
+	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
+		unsigned long max_dma_phys =
+			(unsigned long)dma_to_phys(NULL, DMA_BIT_MASK(32) + 1);
+		max_dma = max(min, min(max, max_dma_phys >> PAGE_SHIFT));
+		zone_size[ZONE_DMA] = max_dma - min;
+	}
+	zone_size[ZONE_NORMAL] = max - max_dma;
 
 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
 
@@ -84,15 +85,15 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 
 		if (start >= max)
 			continue;
-#ifdef CONFIG_ZONE_DMA32
-		if (start < max_dma32) {
-			unsigned long dma_end = min(end, max_dma32);
-			zhole_size[ZONE_DMA32] -= dma_end - start;
+
+		if (IS_ENABLED(CONFIG_ZONE_DMA) && start < max_dma) {
+			unsigned long dma_end = min(end, max_dma);
+			zhole_size[ZONE_DMA] -= dma_end - start;
 		}
-#endif
-		if (end > max_dma32) {
+
+		if (end > max_dma) {
 			unsigned long normal_end = min(end, max);
-			unsigned long normal_start = max(start, max_dma32);
+			unsigned long normal_start = max(start, max_dma);
 			zhole_size[ZONE_NORMAL] -= normal_end - normal_start;
 		}
 	}
@@ -160,6 +161,7 @@ void __init arm64_memblock_init(void)
 		memblock_reserve(base, size);
 	}
 
+	early_init_fdt_scan_reserved_mem();
 	dma_contiguous_reserve(0);
 
 	memblock_allow_resize();
@@ -261,8 +263,6 @@ static void __init free_unused_memmap(void)
  */
 void __init mem_init(void)
 {
-	arm64_swiotlb_init();
-
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
 
 #ifndef CONFIG_SPARSEMEM_VMEMMAP
