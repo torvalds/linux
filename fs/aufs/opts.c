@@ -110,7 +110,6 @@ static match_table_t options = {
 	{Opt_nowarn_perm, "nowarn_perm"},
 
 	/* keep them temporary */
-	{Opt_ignore_silent, "coo=%s"},
 	{Opt_ignore_silent, "nodlgt"},
 	{Opt_ignore_silent, "nodirperm1"},
 	{Opt_ignore_silent, "clean_plink"},
@@ -206,9 +205,17 @@ static match_table_t brperm = {
 };
 
 static match_table_t brattr = {
+	/* general */
+	{AuBrAttr_COO_REG, AUFS_BRATTR_COO_REG},
+	{AuBrAttr_COO_ALL, AUFS_BRATTR_COO_ALL},
 	{AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN},
+
+	/* ro/rr branch */
 	{AuBrRAttr_WH, AUFS_BRRATTR_WH},
+
+	/* rw branch */
 	{AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH},
+
 	{0, NULL}
 };
 
@@ -223,9 +230,11 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 		if (p)
 			*p = 0;
 		v = match_token(str, table, args);
-		if (v)
+		if (v) {
+			if (v & AuBrAttr_COO_Mask)
+				attr &= ~AuBrAttr_COO_Mask;
 			attr |= v;
-		else {
+		} else {
 			if (p)
 				*p = '+';
 			pr_warn("ignored branch attribute %s\n", str);
