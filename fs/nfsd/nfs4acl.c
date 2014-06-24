@@ -161,11 +161,12 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 			size += 2 * dpacl->a_count;
 	}
 
-	*acl = nfs4_acl_new(size);
+	*acl = kmalloc(nfs4_acl_bytes(size), GFP_KERNEL);
 	if (*acl == NULL) {
 		error = -ENOMEM;
 		goto out;
 	}
+	(*acl)->naces = 0;
 
 	_posix_to_nfsv4_one(pacl, *acl, flags & ~NFS4_ACL_TYPE_DEFAULT);
 
@@ -872,16 +873,13 @@ ace2type(struct nfs4_ace *ace)
 	return -1;
 }
 
-struct nfs4_acl *
-nfs4_acl_new(int n)
+/*
+ * return the size of the struct nfs4_acl required to represent an acl
+ * with @entries entries.
+ */
+int nfs4_acl_bytes(int entries)
 {
-	struct nfs4_acl *acl;
-
-	acl = kmalloc(sizeof(*acl) + n*sizeof(struct nfs4_ace), GFP_KERNEL);
-	if (acl == NULL)
-		return NULL;
-	acl->naces = 0;
-	return acl;
+	return sizeof(struct nfs4_acl) + entries * sizeof(struct nfs4_ace);
 }
 
 static struct {
