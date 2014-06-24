@@ -37,8 +37,8 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 
 /*************************************
  * ARC UART Hardware Specs
@@ -491,11 +491,9 @@ static struct uart_ops arc_serial_pops = {
 static int
 arc_uart_init_one(struct platform_device *pdev, int dev_id)
 {
-	struct resource *res, *res2;
+	struct device_node *np = pdev->dev.of_node;
 	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 	struct uart_port *port = &uart->port;
-
-	struct device_node *np = pdev->dev.of_node;
 	u32 val;
 
 	if (of_property_read_u32(np, "clock-frequency", &val)) {
@@ -510,21 +508,13 @@ arc_uart_init_one(struct platform_device *pdev, int dev_id)
 	}
 	uart->baud = val;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	res2 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res2)
-		return -ENODEV;
-
-	port->mapbase = res->start;
-	port->membase = ioremap_nocache(res->start, resource_size(res));
+	port->membase = of_iomap(np, 0);
 	if (!port->membase)
 		/* No point of dev_err since UART itself is hosed here */
 		return -ENXIO;
 
-	port->irq = res2->start;
+	port->irq = irq_of_parse_and_map(np, 0);
+
 	port->dev = &pdev->dev;
 	port->iotype = UPIO_MEM;
 	port->flags = UPF_BOOT_AUTOCONF;
