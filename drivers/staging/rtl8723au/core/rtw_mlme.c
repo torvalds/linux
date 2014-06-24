@@ -1984,7 +1984,7 @@ static int rtw_append_pmkid(struct rtw_adapter *Adapter, int iEntry,
 {
 	struct security_priv *psecuritypriv = &Adapter->securitypriv;
 
-	if (ie[13] <= 20) {
+	if (ie[1] <= 20) {
 		/*  The RSN IE didn't include the PMK ID,
 		    append the PMK information */
 			ie[ie_len] = 1;
@@ -1995,7 +1995,7 @@ static int rtw_append_pmkid(struct rtw_adapter *Adapter, int iEntry,
 			       &psecuritypriv->PMKIDList[iEntry].PMKID, 16);
 
 			ie_len += 16;
-			ie[13] += 18;/* PMKID length = 2+16 */
+			ie[1] += 18;/* PMKID length = 2+16 */
 	}
 	return ie_len;
 }
