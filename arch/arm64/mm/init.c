@@ -136,7 +136,10 @@ void __init arm64_memblock_init(void)
 {
 	u64 *reserve_map, base, size;
 
-	/* Register the kernel text, kernel data and initrd with memblock */
+	/*
+	 * Register the kernel text, kernel data, initrd, and initial
+	 * pagetables with memblock.
+	 */
 	memblock_reserve(__pa(_text), _end - _text);
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (phys_initrd_size) {
@@ -147,13 +150,6 @@ void __init arm64_memblock_init(void)
 		initrd_end = initrd_start + phys_initrd_size;
 	}
 #endif
-
-	/*
-	 * Reserve the page tables.  These are already in use,
-	 * and can only be in node 0.
-	 */
-	memblock_reserve(__pa(swapper_pg_dir), SWAPPER_DIR_SIZE);
-	memblock_reserve(__pa(idmap_pg_dir), IDMAP_DIR_SIZE);
 
 	/* Reserve the dtb region */
 	memblock_reserve(virt_to_phys(initial_boot_params),
