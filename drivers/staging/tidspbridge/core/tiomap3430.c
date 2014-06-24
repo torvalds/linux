@@ -280,8 +280,10 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
 
 		/* Wait until the state has moved to ON */
-		while (*pdata->dsp_prm_read(OMAP3430_IVA2_MOD, OMAP2_PM_PWSTST)&
-					OMAP_INTRANSITION_MASK);
+		while ((*pdata->dsp_prm_read)(OMAP3430_IVA2_MOD,
+					      OMAP2_PM_PWSTST) &
+						OMAP_INTRANSITION_MASK)
+			;
 		/* Disable Automatic transition */
 		(*pdata->dsp_cm_write)(OMAP34XX_CLKSTCTRL_DISABLE_AUTO,
 					OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
