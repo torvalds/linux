@@ -417,10 +417,9 @@ exit:
 	return res;
 }
 
-static int set_group_key(struct rtw_adapter *padapter, const u8 *key, u32 alg,
-			 u8 keyid)
+static int set_group_key(struct rtw_adapter *padapter, struct key_params *parms,
+			 u32 alg, u8 keyid)
 {
-	u8 keylen;
 	struct cmd_obj *pcmd;
 	struct setkey_parm *psetkeyparm;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
@@ -453,20 +452,7 @@ static int set_group_key(struct rtw_adapter *padapter, const u8 *key, u32 alg,
 
 	psetkeyparm->set_tx = 1;
 
-	switch (alg) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		keylen = 5;
-		break;
-	case WLAN_CIPHER_SUITE_WEP104:
-		keylen = 13;
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-	case WLAN_CIPHER_SUITE_CCMP:
-	default:
-		keylen = 16;
-	}
-
-	memcpy(&psetkeyparm->key[0], key, keylen);
+	memcpy(&psetkeyparm->key, parms->key, parms->key_len);
 
 	pcmd->cmdcode = _SetKey_CMD_;
 	pcmd->parmbuf = (u8 *) psetkeyparm;
@@ -478,25 +464,6 @@ static int set_group_key(struct rtw_adapter *padapter, const u8 *key, u32 alg,
 
 exit:
 	return res;
-}
-
-static int set_wep_key(struct rtw_adapter *padapter, const u8 *key, u16 keylen,
-		       u8 keyid)
-{
-	u32 alg;
-
-	switch (keylen) {
-	case 5:
-		alg = WLAN_CIPHER_SUITE_WEP40;
-		break;
-	case 13:
-		alg = WLAN_CIPHER_SUITE_WEP104;
-		break;
-	default:
-		alg = 0;
-	}
-
-	return set_group_key(padapter, key, alg, keyid);
 }
 
 static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
@@ -548,7 +515,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 		psecuritypriv->wep_key[key_index].keylen = key_len;
 
-		set_wep_key(padapter, keyparms->key, key_len, key_index);
+		set_group_key(padapter, keyparms, keyparms->cipher, key_index);
 
 		goto exit;
 	}
@@ -612,7 +579,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			psecuritypriv->dot11PrivacyAlgrthm =
 				psecuritypriv->dot118021XGrpPrivacy;
 
-			set_group_key(padapter, keyparms->key,
+			set_group_key(padapter, keyparms,
 				      psecuritypriv->dot118021XGrpPrivacy,
 				      key_index);
 
@@ -723,7 +690,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			psecuritypriv->dot11PrivacyAlgrthm =
 				psecuritypriv->dot118021XGrpPrivacy;
 
-			set_group_key(padapter, keyparms->key,
+			set_group_key(padapter, keyparms,
 				      psecuritypriv->dot118021XGrpPrivacy,
 				      key_index);
 
