@@ -1036,194 +1036,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-u16 DrvAggr_PaddingAdd(struct net_device *dev, struct sk_buff *skb)
-{
-	u16     PaddingNum =  256 - ((skb->len + TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES) % 256);
-	return  PaddingNum & 0xff;
-}
-
-u8 MRateToHwRate8190Pci(u8 rate);
-u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc);
-u8 MapHwQueueToFirmwareQueue(u8 QueueID);
-struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv_agg_txb *pSendList)
-{
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	cb_desc		*tcb_desc = NULL;
-	u8		i;
-	u32		TotalLength;
-	struct sk_buff	*skb;
-	struct sk_buff  *agg_skb;
-	tx_desc_819x_usb_aggr_subframe *tx_agg_desc = NULL;
-	tx_fwinfo_819x_usb	       *tx_fwinfo = NULL;
-
-	//
-	// Local variable initialization.
-	//
-	/* first skb initialization */
-	skb = pSendList->tx_agg_frames[0];
-	TotalLength = skb->len;
-
-	/* Get the total aggregation length including the padding space and
-	 * sub frame header.
-	 */
-	for (i = 1; i < pSendList->nr_drv_agg_frames; i++) {
-		TotalLength += DrvAggr_PaddingAdd(dev, skb);
-		skb = pSendList->tx_agg_frames[i];
-		TotalLength += (skb->len + TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES);
-	}
-
-	/* allocate skb to contain the aggregated packets */
-	agg_skb = dev_alloc_skb(TotalLength + ieee->tx_headroom);
-	memset(agg_skb->data, 0, agg_skb->len);
-	skb_reserve(agg_skb, ieee->tx_headroom);
-
-	/* reserve info for first subframe Tx descriptor to be set in the tx function */
-	skb = pSendList->tx_agg_frames[0];
-	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tcb_desc->drv_agg_enable = 1;
-	tcb_desc->pkt_size = skb->len;
-	tcb_desc->DrvAggrNum = pSendList->nr_drv_agg_frames;
-	netdev_dbg(dev, "DrvAggNum = %d\n", tcb_desc->DrvAggrNum);
-	memcpy(agg_skb->cb, skb->cb, sizeof(skb->cb));
-	memcpy(skb_put(agg_skb, skb->len), skb->data, skb->len);
-
-	for (i = 1; i < pSendList->nr_drv_agg_frames; i++) {
-		/* push the next sub frame to be 256 byte aline */
-		skb_put(agg_skb, DrvAggr_PaddingAdd(dev, skb));
-
-		/* Subframe drv Tx descriptor and firmware info setting */
-		skb = pSendList->tx_agg_frames[i];
-		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-		tx_agg_desc = (tx_desc_819x_usb_aggr_subframe *)skb_tail_pointer(agg_skb);
-		tx_fwinfo = (tx_fwinfo_819x_usb *)(skb_tail_pointer(agg_skb) + sizeof(tx_desc_819x_usb_aggr_subframe));
-
-		memset(tx_fwinfo, 0, sizeof(tx_fwinfo_819x_usb));
-		/* DWORD 0 */
-		tx_fwinfo->TxHT = (tcb_desc->data_rate&0x80) ? 1 : 0;
-		tx_fwinfo->TxRate = MRateToHwRate8190Pci(tcb_desc->data_rate);
-		tx_fwinfo->EnableCPUDur = tcb_desc->bTxEnableFwCalcDur;
-		tx_fwinfo->Short = QueryIsShort(tx_fwinfo->TxHT, tx_fwinfo->TxRate, tcb_desc);
-		if (tcb_desc->bAMPDUEnable) { /* AMPDU enabled */
-			tx_fwinfo->AllowAggregation = 1;
-			/* DWORD 1 */
-			tx_fwinfo->RxMF = tcb_desc->ampdu_factor;
-			tx_fwinfo->RxAMD = tcb_desc->ampdu_density&0x07;//ampdudensity
-		} else {
-			tx_fwinfo->AllowAggregation = 0;
-			/* DWORD 1 */
-			tx_fwinfo->RxMF = 0;
-			tx_fwinfo->RxAMD = 0;
-		}
-
-		/* Protection mode related */
-		tx_fwinfo->RtsEnable = (tcb_desc->bRTSEnable) ? 1 : 0;
-		tx_fwinfo->CtsEnable = (tcb_desc->bCTSEnable) ? 1 : 0;
-		tx_fwinfo->RtsSTBC = (tcb_desc->bRTSSTBC) ? 1 : 0;
-		tx_fwinfo->RtsHT = (tcb_desc->rts_rate&0x80) ? 1 : 0;
-		tx_fwinfo->RtsRate =  MRateToHwRate8190Pci((u8)tcb_desc->rts_rate);
-		tx_fwinfo->RtsSubcarrier = (tx_fwinfo->RtsHT == 0) ? (tcb_desc->RTSSC) : 0;
-		tx_fwinfo->RtsBandwidth = (tx_fwinfo->RtsHT == 1) ? ((tcb_desc->bRTSBW) ? 1 : 0) : 0;
-		tx_fwinfo->RtsShort = (tx_fwinfo->RtsHT == 0) ? (tcb_desc->bRTSUseShortPreamble ? 1 : 0) :
-				      (tcb_desc->bRTSUseShortGI ? 1 : 0);
-
-		/* Set Bandwidth and sub-channel settings. */
-		if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20_40) {
-			if (tcb_desc->bPacketBW) {
-				tx_fwinfo->TxBandwidth = 1;
-				tx_fwinfo->TxSubCarrier = 0;    //By SD3's Jerry suggestion, use duplicated mode
-			} else {
-				tx_fwinfo->TxBandwidth = 0;
-				tx_fwinfo->TxSubCarrier = priv->nCur40MhzPrimeSC;
-			}
-		} else {
-			tx_fwinfo->TxBandwidth = 0;
-			tx_fwinfo->TxSubCarrier = 0;
-		}
-
-		/* Fill Tx descriptor */
-		memset(tx_agg_desc, 0, sizeof(tx_desc_819x_usb_aggr_subframe));
-		/* DWORD 0 */
-		tx_agg_desc->Offset =  sizeof(tx_fwinfo_819x_usb) + 8;
-		/* already raw data, need not to subtract header length */
-		tx_agg_desc->PktSize = skb->len & 0xffff;
-
-		/*DWORD 1*/
-		tx_agg_desc->SecCAMID = 0;
-		tx_agg_desc->RATid = tcb_desc->RATRIndex;
-		tx_agg_desc->NoEnc = 1;
-		tx_agg_desc->SecType = 0x0;
-
-		if (tcb_desc->bHwSec) {
-			switch (priv->ieee80211->pairwise_key_type) {
-			case KEY_TYPE_WEP40:
-			case KEY_TYPE_WEP104:
-				tx_agg_desc->SecType = 0x1;
-				tx_agg_desc->NoEnc = 0;
-				break;
-			case KEY_TYPE_TKIP:
-				tx_agg_desc->SecType = 0x2;
-				tx_agg_desc->NoEnc = 0;
-				break;
-			case KEY_TYPE_CCMP:
-				tx_agg_desc->SecType = 0x3;
-				tx_agg_desc->NoEnc = 0;
-				break;
-			case KEY_TYPE_NA:
-				tx_agg_desc->SecType = 0x0;
-				tx_agg_desc->NoEnc = 1;
-				break;
-			}
-		}
-
-		tx_agg_desc->QueueSelect = MapHwQueueToFirmwareQueue(tcb_desc->queue_index);
-		tx_agg_desc->TxFWInfoSize =  sizeof(tx_fwinfo_819x_usb);
-
-		tx_agg_desc->DISFB = tcb_desc->bTxDisableRateFallBack;
-		tx_agg_desc->USERATE = tcb_desc->bTxUseDriverAssingedRate;
-
-		tx_agg_desc->OWN = 1;
-
-		//DWORD 2
-		/* According windows driver, it seems that there no need to fill this field */
-
-		/* to fill next packet */
-		skb_put(agg_skb, TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES);
-		memcpy(skb_put(agg_skb, skb->len), skb->data, skb->len);
-	}
-
-	for (i = 0; i < pSendList->nr_drv_agg_frames; i++)
-		dev_kfree_skb_any(pSendList->tx_agg_frames[i]);
-
-	return agg_skb;
-}
-
-/* NOTE:
-	This function return a list of PTCB which is proper to be aggregate with the input TCB.
-	If no proper TCB is found to do aggregation, SendList will only contain the input TCB.
-*/
-u8 DrvAggr_GetAggregatibleList(struct net_device *dev, struct sk_buff *skb,
-			       struct ieee80211_drv_agg_txb *pSendList)
-{
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	u16		nMaxAggrNum = pHTInfo->UsbTxAggrNum;
-	cb_desc		*tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	u8		QueueID = tcb_desc->queue_index;
-
-	do {
-		pSendList->tx_agg_frames[pSendList->nr_drv_agg_frames++] = skb;
-		if (pSendList->nr_drv_agg_frames >= nMaxAggrNum)
-			break;
-
-	} while ((skb = skb_dequeue(&ieee->skb_drv_aggQ[QueueID])));
-
-	RT_TRACE(COMP_AMSDU, "DrvAggr_GetAggregatibleList, nAggrTcbNum = %d \n", pSendList->nr_drv_agg_frames);
-	return pSendList->nr_drv_agg_frames;
-}
-#endif
-
 static void rtl8192_tx_isr(struct urb *tx_urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)tx_urb->context;
@@ -1275,37 +1087,6 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 
 			return; //modified by david to avoid further processing AMSDU
 		}
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-		else if ((skb_queue_len(&priv->ieee80211->skb_drv_aggQ[queue_index]) != 0) &&
-			 (!(priv->ieee80211->queue_stop))) {
-			// Tx Driver Aggregation process
-			/* The driver will aggregation the packets according to the following stats
-			 * 1. check whether there's tx irq available, for it's a completion return
-			 *    function, it should contain enough tx irq;
-			 * 2. check packet type;
-			 * 3. initialize sendlist, check whether the to-be send packet no greater than 1
-			 * 4. aggregates the packets, and fill firmware info and tx desc into it, etc.
-			 * 5. check whether the packet could be sent, otherwise just insert into wait head
-			 * */
-			skb = skb_dequeue(&priv->ieee80211->skb_drv_aggQ[queue_index]);
-			if (!check_nic_enough_desc(dev, queue_index)) {
-				skb_queue_head(&(priv->ieee80211->skb_drv_aggQ[queue_index]), skb);
-				return;
-			}
-
-			/*TODO*/
-			{
-				struct ieee80211_drv_agg_txb SendList;
-
-				memset(&SendList, 0, sizeof(struct ieee80211_drv_agg_txb));
-				if (DrvAggr_GetAggregatibleList(dev, skb, &SendList) > 1) {
-					skb = DrvAggr_Aggregation(dev, &SendList);
-
-				}
-			}
-			priv->ieee80211->softmac_hard_start_xmit(skb, dev);
-		}
-#endif
 	}
 
 }
@@ -1833,25 +1614,13 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 		tx_fwinfo->TxSubCarrier = 0;
 	}
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	if (tcb_desc->drv_agg_enable)
-		tx_fwinfo->Tx_INFO_RSVD = (tcb_desc->DrvAggrNum & 0x1f) << 1;
-#endif
 	/* Fill Tx descriptor */
 	memset(tx_desc, 0, sizeof(tx_desc_819x_usb));
 	/* DWORD 0 */
 	tx_desc->LINIP = 0;
 	tx_desc->CmdInit = 1;
 	tx_desc->Offset =  sizeof(tx_fwinfo_819x_usb) + 8;
-
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	if (tcb_desc->drv_agg_enable)
-		tx_desc->PktSize = tcb_desc->pkt_size;
-	else
-#endif
-	{
-		tx_desc->PktSize = (skb->len - TX_PACKET_SHIFT_BYTES) & 0xffff;
-	}
+	tx_desc->PktSize = (skb->len - TX_PACKET_SHIFT_BYTES) & 0xffff;
 
 	/*DWORD 1*/
 	tx_desc->SecCAMID = 0;
@@ -1892,15 +1661,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	tx_desc->LastSeg = 1;
 	tx_desc->OWN = 1;
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	if (tcb_desc->drv_agg_enable) {
-		tx_desc->TxBufferSize = tcb_desc->pkt_size + sizeof(tx_fwinfo_819x_usb);
-	} else
-#endif
-	{
-		//DWORD 2
-		tx_desc->TxBufferSize = (u32)(skb->len - USB_HWDESC_HEADER_LEN);
-	}
+	/* DWORD 2 */
+	tx_desc->TxBufferSize = (u32)(skb->len - USB_HWDESC_HEADER_LEN);
 	idx_pipe = 0x5;
 
 	/* To submit bulk urb */
@@ -3203,12 +2965,8 @@ static RESET_TYPE TxCheckStuck(struct net_device *dev)
 	for (QueueID = 0; QueueID <= BEACON_QUEUE; QueueID++) {
 		if (QueueID == TXCMD_QUEUE)
 			continue;
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-		if ((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0) && (skb_queue_len(&priv->ieee80211->skb_drv_aggQ[QueueID]) == 0))
-#else
 		if ((skb_queue_len(&priv->ieee80211->skb_waitQ[QueueID]) == 0)  && (skb_queue_len(&priv->ieee80211->skb_aggQ[QueueID]) == 0))
-#endif
-				continue;
+			continue;
 
 		bCheckFwTxCnt = true;
 	}
