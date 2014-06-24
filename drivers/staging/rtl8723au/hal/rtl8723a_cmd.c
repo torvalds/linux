@@ -398,7 +398,7 @@ ConstructNullFunctionData(struct rtw_adapter *padapter, u8 *pframe,
 static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
 			      u32 *pLength, u8 *StaAddr, bool bHideSSID)
 {
-	struct ieee80211_hdr *pwlanhdr;
+	struct ieee80211_mgmt *mgmt;
 	u8 *mac, *bssid;
 	u32 pktlen;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -407,29 +407,36 @@ static void ConstructProbeRsp(struct rtw_adapter *padapter, u8 *pframe,
 
 	/* DBG_8723A("%s\n", __func__); */
 
-	pwlanhdr = (struct ieee80211_hdr *)pframe;
+	mgmt = (struct ieee80211_mgmt *)pframe;
 
 	mac = myid(&padapter->eeprompriv);
 	bssid = cur_network->MacAddress;
 
-	pwlanhdr->frame_control =
+	mgmt->frame_control =
 		cpu_to_le16(IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP);
 
-	pwlanhdr->seq_ctrl = 0;
+	mgmt->seq_ctrl = 0;
 
-	memcpy(pwlanhdr->addr1, StaAddr, ETH_ALEN);
-	memcpy(pwlanhdr->addr2, mac, ETH_ALEN);
-	memcpy(pwlanhdr->addr3, bssid, ETH_ALEN);
+	memcpy(mgmt->da, StaAddr, ETH_ALEN);
+	memcpy(mgmt->sa, mac, ETH_ALEN);
+	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 
-	pktlen = sizeof(struct ieee80211_hdr_3addr);
-	pframe += pktlen;
+	put_unaligned_le64(cur_network->tsf,
+			   &mgmt->u.probe_resp.timestamp);
+	put_unaligned_le16(cur_network->beacon_interval,
+			   &mgmt->u.probe_resp.beacon_int);
+	put_unaligned_le16(cur_network->capability,
+			   &mgmt->u.probe_resp.capab_info);
+
+	pktlen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
 
 	if (cur_network->IELength > MAX_IE_SZ)
 		return;
 
-	memcpy(pframe, cur_network->IEs, cur_network->IELength);
-	pframe += cur_network->IELength;
-	pktlen += cur_network->IELength;
+	memcpy(mgmt->u.probe_resp.variable,
+	       cur_network->IEs + _FIXED_IE_LENGTH_,
+	       cur_network->IELength - _FIXED_IE_LENGTH_);
+	pktlen += (cur_network->IELength - _FIXED_IE_LENGTH_);
 
 	*pLength = pktlen;
 }
