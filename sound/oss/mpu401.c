@@ -316,6 +316,7 @@ static int mpu_input_scanner(struct mpu_config *devc, unsigned char midic)
 				case 0xf6:
 					/* printk( "tune_request\n"); */
 					devc->m_state = ST_INIT;
+					break;
 
 					/*
 					 *    Real time messages
