@@ -6,8 +6,6 @@ Each SATA controller should have its own node.
 Required properties:
 - compatible        : compatible string, one of:
   - "allwinner,sun4i-a10-ahci"
-  - "fsl,imx53-ahci"
-  - "fsl,imx6q-ahci"
   - "hisilicon,hisi-ahci"
   - "ibm,476gtr-ahci"
   - "marvell,armada-380-ahci"
@@ -21,10 +19,6 @@ Optional properties:
 - dma-coherent      : Present if dma operations are coherent
 - clocks            : a list of phandle + clock specifier pairs
 - target-supply     : regulator for SATA target power
-
-"fsl,imx53-ahci", "fsl,imx6q-ahci" required properties:
-- clocks            : must contain the sata, sata_ref and ahb clocks
-- clock-names       : must contain "ahb" for the ahb clock
 
 Examples:
         sata@ffe08000 {

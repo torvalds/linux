@@ -1,0 +1,26 @@
+* Freescale i.MX AHCI SATA Controller
+
+The Freescale i.MX SATA controller mostly conforms to the AHCI interface
+with some special extensions at integration level.
+
+Required properties:
+- compatible : should be one of the following:
+   - "fsl,imx53-ahci" for i.MX53 SATA controller
+   - "fsl,imx6q-ahci" for i.MX6Q SATA controller
+- interrupts : interrupt mapping for SATA IRQ
+- reg : registers mapping
+- clocks : list of clock specifiers, must contain an entry for each
+  required entry in clock-names
+- clock-names : should include "sata", "sata_ref" and "ahb" entries
+
+Examples:
+
+sata@02200000 {
+	compatible = "fsl,imx6q-ahci";
+	reg = <0x02200000 0x4000>;
+	interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clks IMX6QDL_CLK_SATA>,
+		 <&clks IMX6QDL_CLK_SATA_REF_100M>,
+		 <&clks IMX6QDL_CLK_AHB>;
+	clock-names = "sata", "sata_ref", "ahb";
+};
