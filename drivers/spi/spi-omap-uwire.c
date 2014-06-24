@@ -41,6 +41,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/device.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
