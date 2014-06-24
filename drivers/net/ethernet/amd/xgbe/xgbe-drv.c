@@ -1000,6 +1000,38 @@ static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
 	return s;
 }
 
+static int xgbe_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,
+				u16 vid)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+
+	DBGPR("-->%s\n", __func__);
+
+	set_bit(vid, pdata->active_vlans);
+	hw_if->update_vlan_hash_table(pdata);
+
+	DBGPR("<--%s\n", __func__);
+
+	return 0;
+}
+
+static int xgbe_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto,
+				 u16 vid)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+
+	DBGPR("-->%s\n", __func__);
+
+	clear_bit(vid, pdata->active_vlans);
+	hw_if->update_vlan_hash_table(pdata);
+
+	DBGPR("<--%s\n", __func__);
+
+	return 0;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void xgbe_poll_controller(struct net_device *netdev)
 {
@@ -1022,26 +1054,26 @@ static int xgbe_set_features(struct net_device *netdev,
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int rxcsum_enabled, rxvlan_enabled;
+	unsigned int rxcsum, rxvlan, rxvlan_filter;
 
-	rxcsum_enabled = !!(pdata->netdev_features & NETIF_F_RXCSUM);
-	rxvlan_enabled = !!(pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX);
+	rxcsum = pdata->netdev_features & NETIF_F_RXCSUM;
+	rxvlan = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX;
+	rxvlan_filter = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	if ((features & NETIF_F_RXCSUM) && !rxcsum_enabled) {
+	if ((features & NETIF_F_RXCSUM) && !rxcsum)
 		hw_if->enable_rx_csum(pdata);
-		netdev_alert(netdev, "state change - rxcsum enabled\n");
-	} else if (!(features & NETIF_F_RXCSUM) && rxcsum_enabled) {
+	else if (!(features & NETIF_F_RXCSUM) && rxcsum)
 		hw_if->disable_rx_csum(pdata);
-		netdev_alert(netdev, "state change - rxcsum disabled\n");
-	}
 
-	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan_enabled) {
+	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan)
 		hw_if->enable_rx_vlan_stripping(pdata);
-		netdev_alert(netdev, "state change - rxvlan enabled\n");
-	} else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) && rxvlan_enabled) {
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) && rxvlan)
 		hw_if->disable_rx_vlan_stripping(pdata);
-		netdev_alert(netdev, "state change - rxvlan disabled\n");
-	}
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) && !rxvlan_filter)
+		hw_if->enable_rx_vlan_filtering(pdata);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) && rxvlan_filter)
+		hw_if->disable_rx_vlan_filtering(pdata);
 
 	pdata->netdev_features = features;
 
@@ -1059,6 +1091,8 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= xgbe_change_mtu,
 	.ndo_get_stats64	= xgbe_get_stats64,
+	.ndo_vlan_rx_add_vid	= xgbe_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= xgbe_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= xgbe_poll_controller,
 #endif

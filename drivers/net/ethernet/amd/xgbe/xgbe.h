@@ -121,6 +121,8 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/phy.h>
+#include <linux/if_vlan.h>
+#include <linux/bitops.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -393,6 +395,9 @@ struct xgbe_hw_if {
 
 	int (*enable_rx_vlan_stripping)(struct xgbe_prv_data *);
 	int (*disable_rx_vlan_stripping)(struct xgbe_prv_data *);
+	int (*enable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*disable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*update_vlan_hash_table)(struct xgbe_prv_data *);
 
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
@@ -587,6 +592,9 @@ struct xgbe_prv_data {
 	netdev_features_t netdev_features;
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
+
+	/* Filtering support */
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	/* System clock value used for Rx watchdog */
 	struct clk *sysclock;

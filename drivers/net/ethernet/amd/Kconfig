@@ -182,6 +182,7 @@ config AMD_XGBE
 	depends on OF_NET
 	select PHYLIB
 	select AMD_XGBE_PHY
+	select BITREVERSE
 	---help---
 	  This driver supports the AMD 10GbE Ethernet device found on an
 	  AMD SoC.

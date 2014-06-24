@@ -116,6 +116,7 @@
 
 #include <linux/phy.h>
 #include <linux/clk.h>
+#include <linux/bitrev.h>
 
 #include "xgbe.h"
 #include "xgbe-common.h"
@@ -734,6 +735,89 @@ static int xgbe_enable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
 static int xgbe_disable_rx_vlan_stripping(struct xgbe_prv_data *pdata)
 {
 	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, EVLS, 0);
+
+	return 0;
+}
+
+static int xgbe_enable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
+{
+	/* Enable VLAN filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
+
+	/* Enable VLAN Hash Table filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTHM, 1);
+
+	/* Disable VLAN tag inverse matching */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VTIM, 0);
+
+	/* Only filter on the lower 12-bits of the VLAN tag */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, ETV, 1);
+
+	/* In order for the VLAN Hash Table filtering to be effective,
+	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * be zero.  Set the VLAN tag identifier to "1" to enable the
+	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
+	 * 1 will always pass filtering.
+	 */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANTR, VL, 1);
+
+	return 0;
+}
+
+static int xgbe_disable_rx_vlan_filtering(struct xgbe_prv_data *pdata)
+{
+	/* Disable VLAN filtering */
+	XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
+
+	return 0;
+}
+
+#ifndef CRCPOLY_LE
+#define CRCPOLY_LE 0xedb88320
+#endif
+static u32 xgbe_vid_crc32_le(__le16 vid_le)
+{
+	u32 poly = CRCPOLY_LE;
+	u32 crc = ~0;
+	u32 temp = 0;
+	unsigned char *data = (unsigned char *)&vid_le;
+	unsigned char data_byte = 0;
+	int i, bits;
+
+	bits = get_bitmask_order(VLAN_VID_MASK);
+	for (i = 0; i < bits; i++) {
+		if ((i % 8) == 0)
+			data_byte = data[i / 8];
+
+		temp = ((crc & 1) ^ data_byte) & 1;
+		crc >>= 1;
+		data_byte >>= 1;
+
+		if (temp)
+			crc ^= poly;
+	}
+
+	return crc;
+}
+
+static int xgbe_update_vlan_hash_table(struct xgbe_prv_data *pdata)
+{
+	u32 crc;
+	u16 vid;
+	__le16 vid_le;
+	u16 vlan_hash_table = 0;
+
+	/* Generate the VLAN Hash Table value */
+	for_each_set_bit(vid, pdata->active_vlans, VLAN_N_VID) {
+		/* Get the CRC32 value of the VLAN ID */
+		vid_le = cpu_to_le16(vid);
+		crc = bitrev32(~xgbe_vid_crc32_le(vid_le)) >> 28;
+
+		vlan_hash_table |= (1 << crc);
+	}
+
+	/* Set the VLAN Hash Table filtering register */
+	XGMAC_IOWRITE_BITS(pdata, MAC_VLANHTR, VLHT, vlan_hash_table);
 
 	return 0;
 }
@@ -1547,6 +1631,14 @@ static void xgbe_config_vlan_support(struct xgbe_prv_data *pdata)
 	XGMAC_IOWRITE_BITS(pdata, MAC_VLANIR, CSVL, 0);
 	XGMAC_IOWRITE_BITS(pdata, MAC_VLANIR, VLTI, 1);
 
+	/* Set the current VLAN Hash Table register value */
+	xgbe_update_vlan_hash_table(pdata);
+
+	if (pdata->netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+		xgbe_enable_rx_vlan_filtering(pdata);
+	else
+		xgbe_disable_rx_vlan_filtering(pdata);
+
 	if (pdata->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		xgbe_enable_rx_vlan_stripping(pdata);
 	else
@@ -2118,6 +2210,9 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 
 	hw_if->enable_rx_vlan_stripping = xgbe_enable_rx_vlan_stripping;
 	hw_if->disable_rx_vlan_stripping = xgbe_disable_rx_vlan_stripping;
+	hw_if->enable_rx_vlan_filtering = xgbe_enable_rx_vlan_filtering;
+	hw_if->disable_rx_vlan_filtering = xgbe_disable_rx_vlan_filtering;
+	hw_if->update_vlan_hash_table = xgbe_update_vlan_hash_table;
 
 	hw_if->read_mmd_regs = xgbe_read_mmd_regs;
 	hw_if->write_mmd_regs = xgbe_write_mmd_regs;
