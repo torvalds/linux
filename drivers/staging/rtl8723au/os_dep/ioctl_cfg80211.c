@@ -499,14 +499,13 @@ static int set_wep_key(struct rtw_adapter *padapter, const u8 *key, u16 keylen,
 	return set_group_key(padapter, key, alg, keyid);
 }
 
-static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
+static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 					  struct ieee_param *param,
 					  u32 param_len,
 					  struct key_params *keyparms)
 {
 	int ret = 0;
 	int key_len;
-	u8 wep_key_idx;
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct rtw_adapter *padapter = netdev_priv(dev);
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -526,7 +525,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 	}
 
 	if (is_broadcast_ether_addr(param->sta_addr)) {
-		if (param->u.crypt.idx >= WEP_KEYS) {
+		if (key_index >= WEP_KEYS) {
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -557,12 +556,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 		      keyparms->cipher == WLAN_CIPHER_SUITE_WEP104)) {
 		DBG_8723A("r871x_set_encryption, crypt.alg = WEP\n");
 
-		wep_key_idx = param->u.crypt.idx;
-
 		DBG_8723A("r871x_set_encryption, wep_key_idx =%d, len =%d\n",
-			  wep_key_idx, key_len);
+			  key_index, key_len);
 
-		if (wep_key_idx >= WEP_KEYS || key_len <= 0) {
+		if (key_index >= WEP_KEYS || key_len <= 0) {
 			ret = -EINVAL;
 			goto exit;
 		}
@@ -580,15 +577,15 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 			psecuritypriv->dot11PrivacyAlgrthm = keyparms->cipher;
 			psecuritypriv->dot118021XGrpPrivacy = keyparms->cipher;
 
-			psecuritypriv->dot11PrivacyKeyIndex = wep_key_idx;
+			psecuritypriv->dot11PrivacyKeyIndex = key_index;
 		}
 
-		memcpy(&psecuritypriv->wep_key[wep_key_idx].key,
+		memcpy(&psecuritypriv->wep_key[key_index].key,
 		       keyparms->key, key_len);
 
-		psecuritypriv->wep_key[wep_key_idx].keylen = key_len;
+		psecuritypriv->wep_key[key_index].keylen = key_len;
 
-		set_wep_key(padapter, keyparms->key, key_len, wep_key_idx);
+		set_wep_key(padapter, keyparms->key, key_len, key_index);
 
 		goto exit;
 	}
@@ -600,8 +597,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				DBG_8723A("%s, set group_key, WEP\n", __func__);
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.idx].
-				       skey, keyparms->key,
+				       dot118021XGrpKey[key_index].skey,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
 				psecuritypriv->dot118021XGrpPrivacy =
@@ -614,19 +611,17 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					WLAN_CIPHER_SUITE_TKIP;
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.idx].
-				       skey, param->u.crypt.key,
+				       dot118021XGrpKey[key_index].skey,
+				       param->u.crypt.key,
 				       (key_len > 16 ? 16 : key_len));
 
 				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->
-				       dot118021XGrptxmickey[param->u.crypt.
-							     idx].skey,
+				       dot118021XGrptxmickey[key_index].skey,
 				       &param->u.crypt.key[16], 8);
 				memcpy(psecuritypriv->
-				       dot118021XGrprxmickey[param->u.crypt.
-							     idx].skey,
+				       dot118021XGrprxmickey[key_index].skey,
 				       &param->u.crypt.key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
@@ -639,7 +634,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					WLAN_CIPHER_SUITE_CCMP;
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.idx].
+				       dot118021XGrpKey[key_index].
 				       skey, param->u.crypt.key,
 				       (key_len > 16 ? 16 : key_len));
 			} else {
@@ -650,7 +645,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				    0;
 			}
 
-			psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
+			psecuritypriv->dot118021XGrpKeyid = key_index;
 
 			psecuritypriv->binstallGrpkey = 1;
 
@@ -659,7 +654,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 			set_group_key(padapter, param->u.crypt.key,
 				      psecuritypriv->dot118021XGrpPrivacy,
-				      param->u.crypt.idx);
+				      key_index);
 
 			pbcmc_sta = rtw_get_bcmc_stainfo23a(padapter);
 			if (pbcmc_sta) {
@@ -728,8 +723,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 			if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.
-							idx].skey,
+				       dot118021XGrpKey[key_index].skey,
 				       param->u.crypt.key,
 				       (key_len > 16 ? 16 : key_len));
 
@@ -740,8 +734,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					WLAN_CIPHER_SUITE_TKIP;
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.
-							idx].skey,
+				       dot118021XGrpKey[key_index].skey,
 				       param->u.crypt.key,
 				       (key_len > 16 ? 16 : key_len));
 
@@ -750,12 +743,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 				   param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->
-				       dot118021XGrptxmickey[param->u.
-							     crypt.idx].skey,
+				       dot118021XGrptxmickey[key_index].skey,
 				       &param->u.crypt.key[16], 8);
 				memcpy(psecuritypriv->
-				       dot118021XGrprxmickey[param->u.
-							     crypt.idx].skey,
+				       dot118021XGrprxmickey[key_index].skey,
 				       &param->u.crypt.key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
@@ -765,15 +756,14 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 					WLAN_CIPHER_SUITE_CCMP;
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[param->u.crypt.
-							idx].skey,
+				       dot118021XGrpKey[key_index].skey,
 				       param->u.crypt.key,
 				       (key_len > 16 ? 16 : key_len));
 			} else {
 				psecuritypriv->dot118021XGrpPrivacy = 0;
 			}
 
-			psecuritypriv->dot118021XGrpKeyid = param->u.crypt.idx;
+			psecuritypriv->dot118021XGrpKeyid = key_index;
 
 			psecuritypriv->binstallGrpkey = 1;
 
@@ -782,7 +772,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev,
 
 			set_group_key(padapter, param->u.crypt.key,
 				      psecuritypriv->dot118021XGrpPrivacy,
-				      param->u.crypt.idx);
+				      key_index);
 
 			pbcmc_sta = rtw_get_bcmc_stainfo23a(padapter);
 			if (pbcmc_sta) {
@@ -1059,8 +1049,8 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		if (mac_addr)
 			ether_addr_copy(param->sta_addr, mac_addr);
 
-		ret = rtw_cfg80211_ap_set_encryption(ndev, param, param_len,
-						     params);
+		ret = rtw_cfg80211_ap_set_encryption(ndev, key_index, param,
+						     param_len, params);
 #endif
 	} else {
 		DBG_8723A("error! fw_state = 0x%x, iftype =%d\n",
