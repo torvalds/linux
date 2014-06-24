@@ -1281,16 +1281,6 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 	ceph_osdc_put_request(req);
 }
 
-void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
-					 struct ceph_osd_request *req)
-{
-	mutex_lock(&osdc->request_mutex);
-	if (req->r_linger)
-		__unregister_linger_request(osdc, req);
-	mutex_unlock(&osdc->request_mutex);
-}
-EXPORT_SYMBOL(ceph_osdc_unregister_linger_request);
-
 void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 				  struct ceph_osd_request *req)
 {

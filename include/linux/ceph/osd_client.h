@@ -325,8 +325,6 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 
 extern void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 					 struct ceph_osd_request *req);
-extern void ceph_osdc_unregister_linger_request(struct ceph_osd_client *osdc,
-						struct ceph_osd_request *req);
 
 extern void ceph_osdc_get_request(struct ceph_osd_request *req);
 extern void ceph_osdc_put_request(struct ceph_osd_request *req);
