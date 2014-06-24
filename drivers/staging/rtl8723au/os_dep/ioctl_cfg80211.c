@@ -2535,16 +2535,18 @@ void rtw_cfg80211_indicate_sta_assoc(struct rtw_adapter *padapter,
 	{
 		struct station_info sinfo;
 		u8 ie_offset;
+
 		if (ieee80211_is_assoc_req(hdr->frame_control))
-			ie_offset = _ASOCREQ_IE_OFFSET_;
+			ie_offset = offsetof(struct ieee80211_mgmt,
+					     u.assoc_req.variable);
 		else		/*  WIFI_REASSOCREQ */
-			ie_offset = _REASOCREQ_IE_OFFSET_;
+			ie_offset = offsetof(struct ieee80211_mgmt,
+					     u.reassoc_req.variable);
 
 		sinfo.filled = 0;
 		sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
-		sinfo.assoc_req_ies = pmgmt_frame + WLAN_HDR_A3_LEN + ie_offset;
-		sinfo.assoc_req_ies_len =
-			frame_len - WLAN_HDR_A3_LEN - ie_offset;
+		sinfo.assoc_req_ies = pmgmt_frame + ie_offset;
+		sinfo.assoc_req_ies_len = frame_len - ie_offset;
 		cfg80211_new_sta(ndev, hdr->addr2, &sinfo, GFP_ATOMIC);
 	}
 #else /* defined(RTW_USE_CFG80211_STA_EVENT) */
