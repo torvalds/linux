@@ -492,33 +492,23 @@ static int
 arc_uart_init_one(struct platform_device *pdev, int dev_id)
 {
 	struct resource *res, *res2;
-	unsigned long *plat_data;
 	struct arc_uart_port *uart = &arc_uart_ports[dev_id];
 	struct uart_port *port = &uart->port;
 
-	plat_data = dev_get_platdata(&pdev->dev);
-	if (!plat_data)
-		return -ENODEV;
+	struct device_node *np = pdev->dev.of_node;
+	u32 val;
 
-	if (is_early_platform_device(pdev)) {
-		port->uartclk = plat_data[1];
-		uart->baud = plat_data[2];
-	} else {
-		struct device_node *np = pdev->dev.of_node;
-		u32 val;
-
-		if (of_property_read_u32(np, "clock-frequency", &val)) {
-			dev_err(&pdev->dev, "clock-frequency property NOTset\n");
-			return -EINVAL;
-		}
-		port->uartclk = val;
-
-		if (of_property_read_u32(np, "current-speed", &val)) {
-			dev_err(&pdev->dev, "current-speed property NOT set\n");
-			return -EINVAL;
-		}
-		uart->baud = val;
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
+		dev_err(&pdev->dev, "clock-frequency property NOTset\n");
+		return -EINVAL;
 	}
+	port->uartclk = val;
+
+	if (of_property_read_u32(np, "current-speed", &val)) {
+		dev_err(&pdev->dev, "current-speed property NOT set\n");
+		return -EINVAL;
+	}
+	uart->baud = val;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -607,38 +597,6 @@ static struct console arc_console = {
 	.data	= &arc_uart_driver
 };
 
-static __init void early_serial_write(struct console *con, const char *s,
-					unsigned int n)
-{
-	struct uart_port *port = &arc_uart_ports[con->index].port;
-
-	uart_console_write(port, s, n, arc_serial_poll_putchar);
-}
-
-static struct console arc_early_serial_console __initdata = {
-	.name = "early_ARCuart",
-	.write = early_serial_write,
-	.flags = CON_PRINTBUFFER | CON_BOOT,
-	.index = -1
-};
-
-static int __init arc_serial_probe_earlyprintk(struct platform_device *pdev)
-{
-	int dev_id = pdev->id < 0 ? 0 : pdev->id;
-	int rc;
-
-	arc_early_serial_console.index = dev_id;
-
-	rc = arc_uart_init_one(pdev, dev_id);
-	if (rc)
-		panic("early console init failed\n");
-
-	arc_serial_console_setup(&arc_early_serial_console, NULL);
-
-	register_console(&arc_early_serial_console);
-	return 0;
-}
-
 static __init void arc_early_serial_write(struct console *con, const char *s,
 					  unsigned int n)
 {
@@ -712,27 +670,6 @@ static struct platform_driver arc_platform_driver = {
 		.of_match_table  = arc_uart_dt_ids,
 	 },
 };
-
-#ifdef CONFIG_SERIAL_ARC_CONSOLE
-
-static struct platform_driver early_arc_platform_driver __initdata = {
-	.probe = arc_serial_probe_earlyprintk,
-	.remove = arc_serial_remove,
-	.driver = {
-		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
-	 },
-};
-/*
- * Register an early platform driver of "earlyprintk" class.
- * ARCH platform code installs the driver and probes the early devices
- * The installation could rely on user specifying earlyprintk=xyx in cmd line
- * or it could be done independently, for all "earlyprintk" class drivers.
- * [see arch/arc/plat-arcfpga/platform.c]
- */
-early_platform_init("earlyprintk", &early_arc_platform_driver);
-
-#endif  /* CONFIG_SERIAL_ARC_CONSOLE */
 
 static int __init arc_serial_init(void)
 {
