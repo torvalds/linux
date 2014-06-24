@@ -1382,7 +1382,7 @@ static struct sk_filter *__sk_migrate_realloc(struct sk_filter *fp,
 	fp_new = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (fp_new) {
 		*fp_new = *fp;
-		/* As we're kepping orig_prog in fp_new along,
+		/* As we're keeping orig_prog in fp_new along,
 		 * we need to make sure we're not evicting it
 		 * from the old fp.
 		 */
