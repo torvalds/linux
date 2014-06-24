@@ -644,10 +644,6 @@ struct biovec_slab {
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
-
-
-#define bip_vec_idx(bip, idx)	(&(bip->bip_vec[(idx)]))
-
 #define bip_for_each_vec(bvl, bip, iter)				\
 	for_each_bvec(bvl, (bip)->bip_vec, iter, (bip)->bip_iter)
 
