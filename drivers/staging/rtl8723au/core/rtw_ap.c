@@ -797,7 +797,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	u8 *pHT_caps_ie = NULL;
 	u8 *pHT_info_ie = NULL;
 	struct sta_info *psta = NULL;
-	u16 cap, ht_cap = false;
+	u16 ht_cap = false;
 	uint ie_len = 0;
 	int group_cipher, pairwise_cipher;
 	u8 channel, network_type, supportRate[NDIS_802_11_LENGTH_RATES_EX];
@@ -843,9 +843,6 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 	pbss_network->Rssi = 0;
 
 	memcpy(pbss_network->MacAddress, myid(&padapter->eeprompriv), ETH_ALEN);
-
-	/* capability */
-	cap = get_unaligned_le16(ie);
 
 	/* SSID */
 	p = rtw_get_ie23a(ie + _BEACON_IE_OFFSET_, WLAN_EID_SSID, &ie_len,
@@ -894,7 +891,7 @@ int rtw_check_beacon_data23a(struct rtw_adapter *padapter,
 		ERP_IE_handler23a(padapter, p);
 
 	/* update privacy/security */
-	if (cap & BIT(4))
+	if (pbss_network->capability & BIT(4))
 		pbss_network->Privacy = 1;
 	else
 		pbss_network->Privacy = 0;
