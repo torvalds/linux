@@ -20,6 +20,8 @@ Optional properties:
 - fsl,receive-eq-mdB : receive equalisation, in milli-decibels
   Please refer to the technical documentation or the driver source code
   for the list of legal values for these options.
+- fsl,no-spread-spectrum : disable spread-spectrum clocking on the SATA
+  link.
 
 Examples:
 
