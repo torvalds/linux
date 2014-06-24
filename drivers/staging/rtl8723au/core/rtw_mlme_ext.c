@@ -2420,6 +2420,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
 		u8 *iebuf;
 		int buflen;
+		pframe -= _BEACON_IE_OFFSET_;
 		/* DBG_8723A("ie len =%d\n", cur_network->IELength); */
 		memcpy(pframe, cur_network->IEs, cur_network->IELength);
 		len_diff = update_hidden_ssid(pframe + _BEACON_IE_OFFSET_,
