@@ -196,7 +196,7 @@ static void exynos_power_down(void)
 	if (last_man && __mcpm_outbound_enter_critical(cpu, cluster)) {
 		arch_spin_unlock(&exynos_mcpm_lock);
 
-		if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+		if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A15) {
 			/*
 			 * On the Cortex-A15 we need to disable
 			 * L2 prefetching before flushing the cache.
@@ -291,7 +291,7 @@ static void __naked exynos_pm_power_up_setup(unsigned int affinity_level)
 
 static void __init exynos_cache_off(void)
 {
-	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A15) {
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A15) {
 		/* disable L2 prefetching on the Cortex-A15 */
 		asm volatile(
 		"mcr	p15, 1, %0, c15, c0, 3\n\t"
