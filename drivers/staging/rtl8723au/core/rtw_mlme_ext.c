@@ -4254,7 +4254,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 		memcpy(bssid->SupportedRates + i, p + 2, p[1]);
 	}
 
-	if (bssid->IELength < 12)
+	if (bssid->IELength < _FIXED_IE_LENGTH_)
 		goto fail;
 
 	/*  Checking for DSConfig */
