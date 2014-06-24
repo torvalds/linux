@@ -1190,8 +1190,9 @@ static u16 rtw_get_cur_max_rate(struct rtw_adapter *adapter)
 	u8 bw_40MHz = 0, short_GI_20 = 0, short_GI_40 = 0;
 	u16 mcs_rate = 0;
 
-	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY, &pcur_bss->IEs[12],
-			     pcur_bss->IELength - 12);
+	p = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
+			     &pcur_bss->IEs[_FIXED_IE_LENGTH_],
+			     pcur_bss->IELength - _FIXED_IE_LENGTH_);
 	if (p && p[1] > 0) {
 		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
 
