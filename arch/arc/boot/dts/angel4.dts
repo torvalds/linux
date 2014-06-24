@@ -17,7 +17,8 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
+		bootargs = "earlycon";
+		stdout-path = &arcuart0;
 	};
 
 	aliases {
