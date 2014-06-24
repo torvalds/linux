@@ -959,8 +959,6 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	obj_handle->encap_uof_obj.beg_uof = obj_handle->obj_hdr->file_buff;
 	obj_handle->encap_uof_obj.obj_hdr = (struct icp_qat_uof_objhdr *)
 					     obj_handle->obj_hdr->file_buff;
-	obj_handle->encap_uof_obj.chunk_hdr = (struct icp_qat_uof_chunkhdr *)
-	   (obj_handle->obj_hdr->file_buff + sizeof(struct icp_qat_uof_objhdr));
 	obj_handle->uword_in_bytes = 6;
 	obj_handle->prod_type = ICP_QAT_AC_C_CPU_TYPE;
 	obj_handle->prod_rev = PID_MAJOR_REV |
@@ -1040,10 +1038,13 @@ out_objbuf_err:
 	return -ENOMEM;
 }
 
-int qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
+void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	int a;
+
+	if (!obj_handle)
+		return;
 
 	kfree(obj_handle->uword_buf);
 	for (a = 0; a < obj_handle->uimage_num; a++)
@@ -1051,12 +1052,11 @@ int qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
 
 	for (a = 0; a <= (int)handle->hal_handle->ae_max_num; a++)
 		qat_uclo_free_ae_data(&obj_handle->ae_data[a]);
-	kfree(obj_handle->obj_hdr);
 
+	kfree(obj_handle->obj_hdr);
 	kfree(obj_handle->obj_buf);
 	kfree(obj_handle);
 	handle->obj_handle = NULL;
-	return 0;
 }
 
 static void qat_uclo_fill_uwords(struct icp_qat_uclo_objhandle *obj_handle,

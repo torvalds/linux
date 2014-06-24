@@ -186,7 +186,7 @@ int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
-int qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
+void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle);
 int qat_uclo_map_uof_obj(struct icp_qat_fw_loader_handle *handle,
 			 void *addr_ptr, int mem_size);
 #endif
