@@ -515,8 +515,7 @@ int dwc_otg_hcd_urb_enqueue(dwc_otg_hcd_t *hcd,
 	}
 	DWC_SPINLOCK_IRQSAVE(hcd->lock, &flags);
 	retval =
-	    dwc_otg_hcd_qtd_add(qtd, hcd, (dwc_otg_qh_t **) ep_handle,
-				atomic_alloc);
+	    dwc_otg_hcd_qtd_add(qtd, hcd, (dwc_otg_qh_t **) ep_handle, 1);
 
 	if (retval < 0) {
 		DWC_ERROR("DWC OTG HCD URB Enqueue failed adding QTD. "
