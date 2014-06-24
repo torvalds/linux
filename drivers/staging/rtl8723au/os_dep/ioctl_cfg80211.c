@@ -835,7 +835,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 		goto exit;
 	}
 
-	if (strcmp(param->u.crypt.alg, "WEP") == 0) {
+	if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 		RT_TRACE(_module_rtl871x_ioctl_os_c, _drv_err_,
 			 ("wpa_set_encryption, crypt.alg = WEP\n"));
 		DBG_8723A("wpa_set_encryption, crypt.alg = WEP\n");
@@ -912,8 +913,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev,
 					       param->u.crypt.key,
 					       (key_len > 16 ? 16 : key_len));
 
-					if (strcmp(param->u.crypt.alg,
-						   "TKIP") == 0) {
+					if (keyparms->cipher ==
+					    WLAN_CIPHER_SUITE_TKIP) {
 						memcpy(psta->dot11tkiptxmickey.
 						       skey,
 						       &param->u.crypt.key[16],
