@@ -201,49 +201,39 @@ static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 static int probe_current_pmu(struct arm_pmu *pmu)
 {
 	int cpu = get_cpu();
-	unsigned long implementor = read_cpuid_implementor();
-	unsigned long part_number = read_cpuid_part_number();
 	int ret = -ENODEV;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
+	switch (read_cpuid_part()) {
 	/* ARM Ltd CPUs. */
-	if (implementor == ARM_CPU_IMP_ARM) {
-		switch (part_number) {
-		case ARM_CPU_PART_ARM1136:
-		case ARM_CPU_PART_ARM1156:
-		case ARM_CPU_PART_ARM1176:
-			ret = armv6pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_ARM11MPCORE:
-			ret = armv6mpcore_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A8:
-			ret = armv7_a8_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A9:
-			ret = armv7_a9_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A5:
-			ret = armv7_a5_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A15:
-			ret = armv7_a15_pmu_init(pmu);
-			break;
-		case ARM_CPU_PART_CORTEX_A7:
-			ret = armv7_a7_pmu_init(pmu);
-			break;
+	case ARM_CPU_PART_ARM1136:
+	case ARM_CPU_PART_ARM1156:
+	case ARM_CPU_PART_ARM1176:
+		ret = armv6pmu_init(pmu);
+		break;
+	case ARM_CPU_PART_ARM11MPCORE:
+		ret = armv6mpcore_pmu_init(pmu);
+		break;
+	case ARM_CPU_PART_CORTEX_A8:
+		ret = armv7_a8_pmu_init(pmu);
+		break;
+	case ARM_CPU_PART_CORTEX_A9:
+		ret = armv7_a9_pmu_init(pmu);
+		break;
+
+	default:
+		if (read_cpuid_implementor() == ARM_CPU_IMP_INTEL) {
+			switch (xscale_cpu_arch_version()) {
+			case ARM_CPU_XSCALE_ARCH_V1:
+				ret = xscale1pmu_init(pmu);
+				break;
+			case ARM_CPU_XSCALE_ARCH_V2:
+				ret = xscale2pmu_init(pmu);
+				break;
+			}
 		}
-	/* Intel CPUs [xscale]. */
-	} else if (implementor == ARM_CPU_IMP_INTEL) {
-		switch (xscale_cpu_arch_version()) {
-		case ARM_CPU_XSCALE_ARCH_V1:
-			ret = xscale1pmu_init(pmu);
-			break;
-		case ARM_CPU_XSCALE_ARCH_V2:
-			ret = xscale2pmu_init(pmu);
-			break;
-		}
+		break;
 	}
 
 	put_cpu();
