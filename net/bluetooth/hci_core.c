@@ -3002,12 +3002,11 @@ struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
-				  int new_key, bdaddr_t *bdaddr, u8 *val,
-				  u8 type, u8 pin_len)
+				  bdaddr_t *bdaddr, u8 *val, u8 type,
+				  u8 pin_len, bool *persistent)
 {
 	struct link_key *key, *old_key;
 	u8 old_key_type;
-	bool persistent;
 
 	old_key = hci_find_link_key(hdev, bdaddr);
 	if (old_key) {
@@ -3042,15 +3041,9 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 	else
 		key->type = type;
 
-	if (!new_key)
-		return key;
-
-	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
-
-	mgmt_new_link_key(hdev, key, persistent);
-
-	if (conn)
-		conn->flush_key = !persistent;
+	if (persistent)
+		*persistent = hci_persistent_key(hdev, conn, type,
+						 old_key_type);
 
 	return key;
 }
