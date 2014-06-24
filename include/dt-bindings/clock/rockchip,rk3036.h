@@ -1,0 +1,12 @@
+#ifndef _DT_BINDINGS_CLOCK_ROCKCHIP_RK3036_H
+#define _DT_BINDINGS_CLOCK_ROCKCHIP_RK3036_H
+
+#include "rockchip.h"
+
+/* pll id */
+#define RK3036_APLL_ID		0
+#define RK3036_DPLL_ID		1
+#define RK3036_GPLL_ID		2
+#define RK3036_END_PLL_ID	3
+
+#endif /* _DT_BINDINGS_CLOCK_ROCKCHIP_RK3036_H */

@@ -20,8 +20,13 @@
 		ldr	\rv, = 0x413fc090
 		cmp	\tmp, \rv
 		ldreq	\rp, = RK3188_UART2_PHYS
-		ldrne	\rp, = RK3288_UART_DBG_PHYS
-		ldr	\rv, = 0xfec00000
+		beq	10f
+		ldr	\rv, = 0x410fc075
+		cmp	\tmp, \rv
+		ldreq	\rp, = RK3036_UART2_PHYS
+		beq	10f
+		ldr	\rp, = RK3288_UART_DBG_PHYS
+10:		ldr	\rv, = 0xfec00000
 		mov	\tmp, \rp
 		bic	\tmp, \tmp, #0xff000000
 		bic	\tmp, \tmp, #0x00f00000

@@ -1,5 +1,6 @@
 obj-y += common.o
 obj-y += cpu.o
+obj-y += rk3036.o
 obj-y += rk3188.o
 obj-y += rk3288.o
 obj-y += ddr_freq.o
