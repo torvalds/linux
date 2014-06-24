@@ -612,17 +612,17 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       param->u.crypt.key,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
 				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psecuritypriv->
 				       dot118021XGrptxmickey[key_index].skey,
-				       &param->u.crypt.key[16], 8);
+				       &keyparms->key[16], 8);
 				memcpy(psecuritypriv->
 				       dot118021XGrprxmickey[key_index].skey,
-				       &param->u.crypt.key[24], 8);
+				       &keyparms->key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
 
@@ -634,8 +634,8 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 					WLAN_CIPHER_SUITE_CCMP;
 
 				memcpy(psecuritypriv->
-				       dot118021XGrpKey[key_index].
-				       skey, param->u.crypt.key,
+				       dot118021XGrpKey[key_index].skey,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 			} else {
 				DBG_8723A("%s, set group_key, none\n",
@@ -652,7 +652,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			psecuritypriv->dot11PrivacyAlgrthm =
 				psecuritypriv->dot118021XGrpPrivacy;
 
-			set_group_key(padapter, param->u.crypt.key,
+			set_group_key(padapter, keyparms->key,
 				      psecuritypriv->dot118021XGrpPrivacy,
 				      key_index);
 
@@ -675,8 +675,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 		if (param->u.crypt.set_tx == 1) {
 			/* pairwise key */
 			memcpy(psta->dot118021x_UncstKey.skey,
-			       param->u.crypt.key,
-			       (key_len > 16 ? 16 : key_len));
+			       keyparms->key, (key_len > 16 ? 16 : key_len));
 
 			if (keyparms->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
@@ -695,9 +694,9 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				/* DEBUG_ERR("set key length :param->u.crypt.key_len =%d\n", param->u.crypt.key_len); */
 				/* set mic key */
 				memcpy(psta->dot11tkiptxmickey.skey,
-				       &param->u.crypt.key[16], 8);
+				       &keyparms->key[16], 8);
 				memcpy(psta->dot11tkiprxmickey.skey,
-				       &param->u.crypt.key[24], 8);
+				       &keyparms->key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
 
@@ -724,7 +723,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			    keyparms->cipher == WLAN_CIPHER_SUITE_WEP104) {
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       param->u.crypt.key,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
 				psecuritypriv->dot118021XGrpPrivacy =
@@ -735,7 +734,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       param->u.crypt.key,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 
 				/* DEBUG_ERR("set key length :param->u"
@@ -744,10 +743,10 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 				/* set mic key */
 				memcpy(psecuritypriv->
 				       dot118021XGrptxmickey[key_index].skey,
-				       &param->u.crypt.key[16], 8);
+				       &keyparms->key[16], 8);
 				memcpy(psecuritypriv->
 				       dot118021XGrprxmickey[key_index].skey,
-				       &param->u.crypt.key[24], 8);
+				       &keyparms->key[24], 8);
 
 				psecuritypriv->busetkipkey = 1;
 
@@ -757,7 +756,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 
 				memcpy(psecuritypriv->
 				       dot118021XGrpKey[key_index].skey,
-				       param->u.crypt.key,
+				       keyparms->key,
 				       (key_len > 16 ? 16 : key_len));
 			} else {
 				psecuritypriv->dot118021XGrpPrivacy = 0;
@@ -770,7 +769,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, u8 key_index,
 			psecuritypriv->dot11PrivacyAlgrthm =
 				psecuritypriv->dot118021XGrpPrivacy;
 
-			set_group_key(padapter, param->u.crypt.key,
+			set_group_key(padapter, keyparms->key,
 				      psecuritypriv->dot118021XGrpPrivacy,
 				      key_index);
 
