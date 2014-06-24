@@ -880,7 +880,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	unsigned short val16;
 	u8 crypto, bcn_channel;
 	int group_cipher = 0, pairwise_cipher = 0, is_8021x = 0, r;
-	int pie_len, ie_offset, ssid_len, privacy;
+	int pie_len, ssid_len, privacy;
 	const u8 *p, *ssid;
 
 	if (is_client_associated_to_ap23a(Adapter) == false)
@@ -901,8 +901,6 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 
 	/* check bw and channel offset */
 	/* parsing HT_CAP_IE */
-	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u);
 	pie_len = pkt_len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
 
 	/* Checking for channel */
@@ -1070,13 +1068,9 @@ bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	const u8 *p;
-	int bcn_fixed_size;
-
-	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
-		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
+		for (i = 0; i < pmlmeinfo->network.IELength;) {
 			p = pmlmeinfo->network.IEs + i;
 
 			switch (p[0]) {
@@ -1105,13 +1099,9 @@ bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex  *cur_network = &pmlmepriv->cur_network.network;
 	const u8 *p;
-	int bcn_fixed_size;
-
-	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
-		for (i = bcn_fixed_size; i < cur_network->IELength;) {
+		for (i = 0; i < cur_network->IELength;) {
 			p = cur_network->IEs + i;
 
 			switch (p[0]) {
@@ -1148,13 +1138,9 @@ bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *cur_network = &pmlmeinfo->network;
 	const u8 *p;
-	int bcn_fixed_size;
-
-	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
 
 	if (cur_network->capability & WLAN_CAPABILITY_PRIVACY) {
-		for (i = bcn_fixed_size; i < pmlmeinfo->network.IELength;) {
+		for (i = 0; i < pmlmeinfo->network.IELength;) {
 			p = pmlmeinfo->network.IEs + i;
 
 			switch (p[0]) {
@@ -1334,17 +1320,14 @@ void update_tx_basic_rate23a(struct rtw_adapter *padapter, u8 wirelessmode)
 
 unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 {
-	int i, bcn_fixed_size;
+	int i;
 	u8 epigram_vendor_flag;
 	u8 ralink_vendor_flag;
 	const u8 *p;
 	epigram_vendor_flag = 0;
 	ralink_vendor_flag = 0;
 
-	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
-
-	for (i = bcn_fixed_size; i < len;) {
+	for (i = 0; i < len;) {
 		p = pframe + i;
 
 		switch (p[0]) {

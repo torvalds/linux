@@ -424,16 +424,11 @@ static void update_current_network(struct rtw_adapter *adapter,
 
 	if (check_fwstate(pmlmepriv, _FW_LINKED) &&
 	    is_same_network23a(&pmlmepriv->cur_network.network, pnetwork)) {
-		int bcn_size;
 		update_network23a(&pmlmepriv->cur_network.network,
 				  pnetwork,adapter, true);
 
-		bcn_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-			offsetof(struct ieee80211_mgmt, u.beacon);
-
 		rtw_update_protection23a(adapter,
-					 pmlmepriv->cur_network.network.IEs +
-					 bcn_size,
+					 pmlmepriv->cur_network.network.IEs,
 					 pmlmepriv->cur_network.network.IELength);
 	}
 }
@@ -619,8 +614,6 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 				     pnetwork->MacAddress)) {
 			struct wlan_network* ibss_wlan;
 
-			memcpy(pmlmepriv->cur_network.network.IEs,
-			       pnetwork->IEs, 8);
 			pmlmepriv->cur_network.network.beacon_interval =
 				pnetwork->beacon_interval;
 			pmlmepriv->cur_network.network.capability =
@@ -631,8 +624,6 @@ void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
 				&pmlmepriv->scanned_queue,
 				pnetwork->MacAddress);
 			if (ibss_wlan) {
-				memcpy(ibss_wlan->network.IEs,
-				       pnetwork->IEs, 8);
 				pmlmepriv->cur_network.network.beacon_interval =
 					ibss_wlan->network.beacon_interval;
 				pmlmepriv->cur_network.network.capability =
@@ -1019,7 +1010,6 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
-	int bcn_size;
 
 	DBG_8723A("%s\n", __func__);
 
@@ -1076,11 +1066,8 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 		break;
 	}
 
-	bcn_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
-
-	rtw_update_protection23a(padapter, cur_network->network.IEs +
-				 bcn_size, cur_network->network.IELength);
+	rtw_update_protection23a(padapter, cur_network->network.IEs,
+				 cur_network->network.IELength);
 
 	rtw_update_ht_cap23a(padapter, cur_network->network.IEs,
 			     cur_network->network.IELength);
@@ -2243,7 +2230,6 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-	int bcn_fixed_size;
 
 	if (!phtpriv->ht_option)
 		return;
@@ -2252,13 +2238,6 @@ void rtw_update_ht_cap23a(struct rtw_adapter *padapter, u8 *pie, uint ie_len)
 		return;
 
 	DBG_8723A("+rtw_update_ht_cap23a()\n");
-
-	bcn_fixed_size = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u.beacon);
-
-	/* Adjust pie + ie_len for our searches */
-	pie += bcn_fixed_size;
-	ie_len -= bcn_fixed_size;
 
 	/* maybe needs check if ap supports rx ampdu. */
 	if (!phtpriv->ampdu_enable && pregistrypriv->ampdu_enable == 1) {

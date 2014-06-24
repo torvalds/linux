@@ -355,36 +355,15 @@ int rtw_generate_ie23a(struct registry_priv *pregistrypriv)
 
 	pdev_network->tsf = 0;
 
-	/* timestamp will be inserted by hardware */
-	sz += 8;
-	ie += sz;
-
-	/* beacon interval : 2bytes */
-	/* BCN_INTERVAL; */
-	*(u16*)ie = cpu_to_le16(pdev_network->beacon_interval);
-	sz += 2;
-	ie += 2;
-
-	/* capability info */
-	*(u16*)ie = 0;
-
-	*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_IBSS);
 	cap = WLAN_CAPABILITY_IBSS;
 
-	if (pregistrypriv->preamble == PREAMBLE_SHORT) {
-		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
+	if (pregistrypriv->preamble == PREAMBLE_SHORT)
 		cap |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-	}
 
-	if (pdev_network->Privacy) {
-		*(u16*)ie |= cpu_to_le16(WLAN_CAPABILITY_PRIVACY);
+	if (pdev_network->Privacy)
 		cap |= WLAN_CAPABILITY_PRIVACY;
 
-	}
-
 	pdev_network->capability = cap;
-	sz += 2;
-	ie += 2;
 
 	/* SSID */
 	ie = rtw_set_ie23a(ie, WLAN_EID_SSID, pdev_network->Ssid.ssid_len,
@@ -718,13 +697,11 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 	const u8 *pbuf;
 	int group_cipher = 0, pairwise_cipher = 0, is8021x = 0;
 	int ret = _FAIL;
-	int r, offset, plen;
+	int r, plen;
 	char *pie;
 
-	offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u);
-	pie = &pnetwork->network.IEs[offset];
-	plen = pnetwork->network.IELength - offset;
+	pie = pnetwork->network.IEs;
+	plen = pnetwork->network.IELength;
 
 	pbuf = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
 				       WLAN_OUI_TYPE_MICROSOFT_WPA, pie, plen);
@@ -779,7 +756,7 @@ static int rtw_get_cipher_info(struct wlan_network *pnetwork)
 void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 {
 	u8 bencrypt = 0;
-	int pie_len, ie_offset;
+	int pie_len;
 	u8 *pie;
 	const u8 *p;
 
@@ -792,10 +769,8 @@ void rtw_get_bcn_info23a(struct wlan_network *pnetwork)
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
 		 ("%s: ssid =%s\n", __func__, pnetwork->network.Ssid.ssid));
 
-	ie_offset = offsetof(struct ieee80211_mgmt, u.beacon.variable) -
-		offsetof(struct ieee80211_mgmt, u);
-	pie = pnetwork->network.IEs + ie_offset;
-	pie_len = pnetwork->network.IELength - ie_offset;
+	pie = pnetwork->network.IEs;
+	pie_len = pnetwork->network.IELength;
 
 	p = cfg80211_find_ie(WLAN_EID_RSN, pie, pie_len);
 	if (p && p[1]) {
