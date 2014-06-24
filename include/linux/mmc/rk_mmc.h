@@ -16,6 +16,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/mmc/core.h>
+#include <linux/timer.h>
 
 #define MAX_MCI_SLOTS	2
 
@@ -177,6 +178,7 @@ struct dw_mci {
 	struct mmc_command	*pre_cmd;
 	unsigned int    hold_reg_flag;//to fix the hold_reg value
 
+	struct timer_list	dto_timer;     //the timer for INT_DTO
 	/* FIFO push and pull */
 	int			fifo_depth;
 	int			data_shift;
