@@ -1113,6 +1113,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
+	struct net_device *netdev = channel->pdata->netdev;
 	unsigned int err, etlt;
 
 	DBGPR("-->xgbe_dev_read: cur = %d\n", ring->cur);
@@ -1153,7 +1154,8 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 	DBGPR("  err=%u, etlt=%#x\n", err, etlt);
 
 	if (!err || (err && !etlt)) {
-		if (etlt == 0x09) {
+		if ((etlt == 0x09) &&
+		    (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)) {
 			XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 				       VLAN_CTAG, 1);
 			packet->vlan_ctag = XGMAC_GET_BITS_LE(rdesc->desc0,
