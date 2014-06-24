@@ -501,7 +501,7 @@ static inline char * __deprecated pack_hex_byte(char *buf, u8 byte)
 extern int hex_to_bin(char ch);
 extern int __must_check hex2bin(u8 *dst, const char *src, size_t count);
 
-int mac_pton(const char *s, u8 *mac);
+bool mac_pton(const char *s, u8 *mac);
 
 /*
  * General tracing related utility functions - trace_printk(),
