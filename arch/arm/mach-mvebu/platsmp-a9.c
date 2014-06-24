@@ -33,7 +33,7 @@
 extern unsigned char armada_375_smp_cpu1_enable_code_end;
 extern unsigned char armada_375_smp_cpu1_enable_code_start;
 
-void armada_375_smp_cpu1_enable_wa(void)
+static void armada_375_smp_cpu1_enable_wa(void)
 {
 	void __iomem *sram_virt_base;
 
