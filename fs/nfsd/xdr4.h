@@ -107,8 +107,8 @@ struct nfsd4_create {
 	u32		cr_type;            /* request */
 	union {                             /* request */
 		struct {
-			u32 namelen;
-			char *name;
+			u32 datalen;
+			char *data;
 		} link;   /* NF4LNK */
 		struct {
 			u32 specdata1;
@@ -121,8 +121,8 @@ struct nfsd4_create {
 	struct nfs4_acl *cr_acl;
 	struct xdr_netobj cr_label;
 };
-#define cr_linklen	u.link.namelen
-#define cr_linkname	u.link.name
+#define cr_datalen	u.link.datalen
+#define cr_data		u.link.data
 #define cr_specdata1	u.dev.specdata1
 #define cr_specdata2	u.dev.specdata2
 

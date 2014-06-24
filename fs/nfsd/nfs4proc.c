@@ -623,7 +623,7 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	case NF4LNK:
 		status = nfsd_symlink(rqstp, &cstate->current_fh,
 				      create->cr_name, create->cr_namelen,
-				      create->cr_linkname,
+				      create->cr_data,
 				      &resfh, &create->cr_iattr);
 		break;
 
