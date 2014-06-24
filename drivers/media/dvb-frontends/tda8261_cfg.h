@@ -19,15 +19,11 @@
 
 static int tda8261_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
-	struct dvb_frontend_ops	*frontend_ops = NULL;
-	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct dvb_frontend_ops	*frontend_ops = &fe->ops;
+	struct dvb_tuner_ops	*tuner_ops = &frontend_ops->tuner_ops;
 	struct tuner_state	t_state;
 	int err = 0;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->get_state) {
 		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
 			printk("%s: Invalid parameter\n", __func__);
@@ -41,16 +37,13 @@ static int tda8261_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static int tda8261_set_frequency(struct dvb_frontend *fe, u32 frequency)
 {
-	struct dvb_frontend_ops	*frontend_ops = NULL;
-	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct dvb_frontend_ops	*frontend_ops = &fe->ops;
+	struct dvb_tuner_ops	*tuner_ops = &frontend_ops->tuner_ops;
 	struct tuner_state	t_state;
 	int err = 0;
 
 	t_state.frequency = frequency;
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
+
 	if (tuner_ops->set_state) {
 		if ((err = tuner_ops->set_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
 			printk("%s: Invalid parameter\n", __func__);
@@ -68,10 +61,6 @@ static int tda8261_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	struct tuner_state	t_state;
 	int err = 0;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->get_state) {
 		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state)) < 0) {
 			printk("%s: Invalid parameter\n", __func__);
