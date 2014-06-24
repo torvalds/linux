@@ -3001,8 +3001,9 @@ struct smp_irk *hci_find_irk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	return NULL;
 }
 
-int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
-		     bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
+struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
+				  int new_key, bdaddr_t *bdaddr, u8 *val,
+				  u8 type, u8 pin_len)
 {
 	struct link_key *key, *old_key;
 	u8 old_key_type;
@@ -3016,7 +3017,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		old_key_type = conn ? conn->key_type : 0xff;
 		key = kzalloc(sizeof(*key), GFP_KERNEL);
 		if (!key)
-			return -ENOMEM;
+			return NULL;
 		list_add(&key->list, &hdev->link_keys);
 	}
 
@@ -3042,7 +3043,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		key->type = type;
 
 	if (!new_key)
-		return 0;
+		return key;
 
 	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
 
@@ -3051,7 +3052,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	if (conn)
 		conn->flush_key = !persistent;
 
-	return 0;
+	return key;
 }
 
 struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
