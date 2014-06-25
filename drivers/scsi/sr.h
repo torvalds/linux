@@ -55,6 +55,10 @@ typedef struct scsi_cd {
 	struct gendisk *disk;
 } Scsi_CD;
 
+#define sr_printk(prefix, cd, fmt, a...) \
+	sdev_printk(prefix, (cd)->device, "[%s] " fmt, \
+		    (cd)->cdi.name, ##a)
+
 int sr_do_ioctl(Scsi_CD *, struct packet_command *);
 
 int sr_lock_door(struct cdrom_device_info *, int);
