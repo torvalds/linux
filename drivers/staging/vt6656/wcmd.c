@@ -855,7 +855,7 @@ void vRunCommand(struct work_struct *work)
 	case WLAN_CMD_SETPOWER_START:
 
 		vnt_rf_setpower(pDevice, pDevice->wCurrentRate,
-							pMgmt->uCurrChannel);
+				pDevice->hw->conf.chandef.chan->hw_value);
 
 		break;
 
@@ -895,10 +895,7 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_11H_CHSW_START:
-		vnt_set_channel(pDevice, pDevice->byNewChannel);
-		pDevice->bChannelSwitch = false;
-		pMgmt->uCurrChannel = pDevice->byNewChannel;
-		pDevice->bStopDataPkt = false;
+		vnt_set_channel(pDevice, pDevice->hw->conf.chandef.chan->hw_value);
 		break;
 
 	case WLAN_CMD_CONFIGURE_FILTER_START:
