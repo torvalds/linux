@@ -990,11 +990,10 @@ mptsas_queue_device_delete(MPT_ADAPTER *ioc,
 	MpiEventDataSasDeviceStatusChange_t *sas_event_data)
 {
 	struct fw_event_work *fw_event;
-	int sz;
 
-	sz = offsetof(struct fw_event_work, event_data) +
-	    sizeof(MpiEventDataSasDeviceStatusChange_t);
-	fw_event = kzalloc(sz, GFP_ATOMIC);
+	fw_event = kzalloc(sizeof(*fw_event) +
+			   sizeof(MpiEventDataSasDeviceStatusChange_t),
+			   GFP_ATOMIC);
 	if (!fw_event) {
 		printk(MYIOC_s_WARN_FMT "%s: failed at (line=%d)\n",
 		    ioc->name, __func__, __LINE__);
@@ -1011,10 +1010,8 @@ static void
 mptsas_queue_rescan(MPT_ADAPTER *ioc)
 {
 	struct fw_event_work *fw_event;
-	int sz;
 
-	sz = offsetof(struct fw_event_work, event_data);
-	fw_event = kzalloc(sz, GFP_ATOMIC);
+	fw_event = kzalloc(sizeof(*fw_event), GFP_ATOMIC);
 	if (!fw_event) {
 		printk(MYIOC_s_WARN_FMT "%s: failed at (line=%d)\n",
 		    ioc->name, __func__, __LINE__);
@@ -4983,7 +4980,7 @@ static int
 mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 {
 	u32 event = le32_to_cpu(reply->Event);
-	int sz, event_data_sz;
+	int event_data_sz;
 	struct fw_event_work *fw_event;
 	unsigned long delay;
 
@@ -5093,8 +5090,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 
 	event_data_sz = ((reply->MsgLength * 4) -
 	    offsetof(EventNotificationReply_t, Data));
-	sz = offsetof(struct fw_event_work, event_data) + event_data_sz;
-	fw_event = kzalloc(sz, GFP_ATOMIC);
+	fw_event = kzalloc(sizeof(*fw_event) + event_data_sz, GFP_ATOMIC);
 	if (!fw_event) {
 		printk(MYIOC_s_WARN_FMT "%s: failed at (line=%d)\n", ioc->name,
 		 __func__, __LINE__);
