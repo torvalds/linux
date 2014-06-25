@@ -4483,7 +4483,11 @@ unlock:
 #else
 		new_cpu = hmp_select_slower_cpu(p, prev_cpu);
 #endif
-		if (new_cpu != prev_cpu) {
+		/*
+		 * we might have no suitable CPU
+		 * in which case new_cpu == NR_CPUS
+		 */
+		if (new_cpu < NR_CPUS && new_cpu != prev_cpu) {
 			hmp_next_down_delay(&p->se, new_cpu);
 			trace_sched_hmp_migrate(p, new_cpu, HMP_MIGRATE_WAKEUP);
 			return new_cpu;
