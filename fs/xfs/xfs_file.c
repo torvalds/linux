@@ -155,7 +155,7 @@ xfs_dir_fsync(
 
 	if (!lsn)
 		return 0;
-	return -_xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
+	return _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, NULL);
 }
 
 STATIC int
@@ -225,7 +225,7 @@ xfs_file_fsync(
 	    !log_flushed)
 		xfs_blkdev_issue_flush(mp->m_ddev_targp);
 
-	return -error;
+	return error;
 }
 
 STATIC ssize_t
@@ -524,7 +524,7 @@ restart:
 			xfs_rw_ilock(ip, *iolock);
 			goto restart;
 		}
-		error = -xfs_zero_eof(ip, *pos, i_size_read(inode));
+		error = xfs_zero_eof(ip, *pos, i_size_read(inode));
 		if (error)
 			return error;
 	}
@@ -772,7 +772,7 @@ xfs_file_fallocate(
 		unsigned blksize_mask = (1 << inode->i_blkbits) - 1;
 
 		if (offset & blksize_mask || len & blksize_mask) {
-			error = EINVAL;
+			error = -EINVAL;
 			goto out_unlock;
 		}
 
@@ -781,7 +781,7 @@ xfs_file_fallocate(
 		 * in which case it is effectively a truncate operation
 		 */
 		if (offset + len >= i_size_read(inode)) {
-			error = EINVAL;
+			error = -EINVAL;
 			goto out_unlock;
 		}
 
@@ -794,7 +794,7 @@ xfs_file_fallocate(
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
 		    offset + len > i_size_read(inode)) {
 			new_size = offset + len;
-			error = -inode_newsize_ok(inode, new_size);
+			error = inode_newsize_ok(inode, new_size);
 			if (error)
 				goto out_unlock;
 		}
@@ -844,7 +844,7 @@ xfs_file_fallocate(
 
 out_unlock:
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-	return -error;
+	return error;
 }
 
 
@@ -889,7 +889,7 @@ xfs_file_release(
 	struct inode	*inode,
 	struct file	*filp)
 {
-	return -xfs_release(XFS_I(inode));
+	return xfs_release(XFS_I(inode));
 }
 
 STATIC int
@@ -918,7 +918,7 @@ xfs_file_readdir(
 
 	error = xfs_readdir(ip, ctx, bufsize);
 	if (error)
-		return -error;
+		return error;
 	return 0;
 }
 
@@ -1184,7 +1184,7 @@ xfs_seek_data(
 
 	isize = i_size_read(inode);
 	if (start >= isize) {
-		error = ENXIO;
+		error = -ENXIO;
 		goto out_unlock;
 	}
 
@@ -1206,7 +1206,7 @@ xfs_seek_data(
 
 		/* No extents at given offset, must be beyond EOF */
 		if (nmap == 0) {
-			error = ENXIO;
+			error = -ENXIO;
 			goto out_unlock;
 		}
 
@@ -1237,7 +1237,7 @@ xfs_seek_data(
 		 * we are reading after EOF if nothing in map[1].
 		 */
 		if (nmap == 1) {
-			error = ENXIO;
+			error = -ENXIO;
 			goto out_unlock;
 		}
 
@@ -1250,7 +1250,7 @@ xfs_seek_data(
 		fsbno = map[i - 1].br_startoff + map[i - 1].br_blockcount;
 		start = XFS_FSB_TO_B(mp, fsbno);
 		if (start >= isize) {
-			error = ENXIO;
+			error = -ENXIO;
 			goto out_unlock;
 		}
 	}
@@ -1262,7 +1262,7 @@ out_unlock:
 	xfs_iunlock(ip, lock);
 
 	if (error)
-		return -error;
+		return error;
 	return offset;
 }
 
@@ -1288,7 +1288,7 @@ xfs_seek_hole(
 
 	isize = i_size_read(inode);
 	if (start >= isize) {
-		error = ENXIO;
+		error = -ENXIO;
 		goto out_unlock;
 	}
 
@@ -1307,7 +1307,7 @@ xfs_seek_hole(
 
 		/* No extents at given offset, must be beyond EOF */
 		if (nmap == 0) {
-			error = ENXIO;
+			error = -ENXIO;
 			goto out_unlock;
 		}
 
@@ -1370,7 +1370,7 @@ out_unlock:
 	xfs_iunlock(ip, lock);
 
 	if (error)
-		return -error;
+		return error;
 	return offset;
 }
 

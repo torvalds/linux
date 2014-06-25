@@ -124,7 +124,7 @@ xfs_trim_extents(
 		}
 
 		trace_xfs_discard_extent(mp, agno, fbno, flen);
-		error = -blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
+		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
 		if (error)
 			goto out_del_cursor;
 		*blocks_trimmed += flen;
@@ -195,7 +195,7 @@ xfs_ioc_trim(
 	end_agno = xfs_daddr_to_agno(mp, end);
 
 	for (agno = start_agno; agno <= end_agno; agno++) {
-		error = -xfs_trim_extents(mp, agno, start, end, minlen,
+		error = xfs_trim_extents(mp, agno, start, end, minlen,
 					  &blocks_trimmed);
 		if (error)
 			last_error = error;
@@ -222,11 +222,11 @@ xfs_discard_extents(
 		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
 					 busyp->length);
 
-		error = -blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
+		error = blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
 				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_NOFS, 0);
-		if (error && error != EOPNOTSUPP) {
+		if (error && error != -EOPNOTSUPP) {
 			xfs_info(mp,
 	 "discard failed for extent [0x%llu,%u], error %d",
 				 (unsigned long long)busyp->bno,

@@ -100,7 +100,7 @@ __xfs_dir3_data_check(
 		break;
 	default:
 		XFS_ERROR_REPORT("Bad Magic", XFS_ERRLEVEL_LOW, mp);
-		return EFSCORRUPTED;
+		return -EFSCORRUPTED;
 	}
 
 	/*
@@ -256,7 +256,7 @@ xfs_dir3_data_reada_verify(
 		xfs_dir3_data_verify(bp);
 		return;
 	default:
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		break;
 	}
@@ -270,9 +270,9 @@ xfs_dir3_data_read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_DIR3_DATA_CRC_OFF))
-		 xfs_buf_ioerror(bp, EFSBADCRC);
+		 xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_dir3_data_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
 		xfs_verifier_error(bp);
@@ -287,7 +287,7 @@ xfs_dir3_data_write_verify(
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
 	if (!xfs_dir3_data_verify(bp)) {
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}

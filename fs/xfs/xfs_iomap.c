@@ -110,7 +110,7 @@ xfs_alert_fsblock_zero(
 		(unsigned long long)imap->br_startoff,
 		(unsigned long long)imap->br_blockcount,
 		imap->br_state);
-	return EFSCORRUPTED;
+	return -EFSCORRUPTED;
 }
 
 int
@@ -225,7 +225,7 @@ xfs_iomap_write_direct(
 	 * Copy any maps to caller's array and return any error.
 	 */
 	if (nimaps == 0) {
-		error = ENOSPC;
+		error = -ENOSPC;
 		goto out_unlock;
 	}
 
@@ -596,8 +596,8 @@ retry:
 				imap, &nimaps, XFS_BMAPI_ENTIRE);
 	switch (error) {
 	case 0:
-	case ENOSPC:
-	case EDQUOT:
+	case -ENOSPC:
+	case -EDQUOT:
 		break;
 	default:
 		return error;
@@ -614,7 +614,7 @@ retry:
 			error = 0;
 			goto retry;
 		}
-		return error ? error : ENOSPC;
+		return error ? error : -ENOSPC;
 	}
 
 	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
@@ -739,7 +739,7 @@ xfs_iomap_write_allocate(
 			if ((map_start_fsb + count_fsb) > last_block) {
 				count_fsb = last_block - map_start_fsb;
 				if (count_fsb == 0) {
-					error = EAGAIN;
+					error = -EAGAIN;
 					goto trans_cancel;
 				}
 			}

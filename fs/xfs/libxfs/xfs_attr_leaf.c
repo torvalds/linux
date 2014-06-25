@@ -214,7 +214,7 @@ xfs_attr3_leaf_write_verify(
 	struct xfs_attr3_leaf_hdr *hdr3 = bp->b_addr;
 
 	if (!xfs_attr3_leaf_verify(bp)) {
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -242,9 +242,9 @@ xfs_attr3_leaf_read_verify(
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
 	     !xfs_buf_verify_cksum(bp, XFS_ATTR3_LEAF_CRC_OFF))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_attr3_leaf_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
 		xfs_verifier_error(bp);
@@ -547,7 +547,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 		break;
 	}
 	if (i == end)
-		return ENOATTR;
+		return -ENOATTR;
 
 	/*
 	 * Fix up the attribute fork data, covering the hole
@@ -611,9 +611,9 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 			continue;
 		if (!xfs_attr_namesp_match(args->flags, sfe->flags))
 			continue;
-		return EEXIST;
+		return -EEXIST;
 	}
-	return ENOATTR;
+	return -ENOATTR;
 }
 
 /*
@@ -640,18 +640,18 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 			continue;
 		if (args->flags & ATTR_KERNOVAL) {
 			args->valuelen = sfe->valuelen;
-			return EEXIST;
+			return -EEXIST;
 		}
 		if (args->valuelen < sfe->valuelen) {
 			args->valuelen = sfe->valuelen;
-			return ERANGE;
+			return -ERANGE;
 		}
 		args->valuelen = sfe->valuelen;
 		memcpy(args->value, &sfe->nameval[args->namelen],
 						    args->valuelen);
-		return EEXIST;
+		return -EEXIST;
 	}
-	return ENOATTR;
+	return -ENOATTR;
 }
 
 /*
@@ -691,7 +691,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 		 * If we hit an IO error middle of the transaction inside
 		 * grow_inode(), we may have inconsistent data. Bail out.
 		 */
-		if (error == EIO)
+		if (error == -EIO)
 			goto out;
 		xfs_idata_realloc(dp, size, XFS_ATTR_FORK);	/* try to put */
 		memcpy(ifp->if_u1.if_data, tmpbuffer, size);	/* it back */
@@ -730,9 +730,9 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 						sfe->namelen);
 		nargs.flags = XFS_ATTR_NSP_ONDISK_TO_ARGS(sfe->flags);
 		error = xfs_attr3_leaf_lookup_int(bp, &nargs); /* set a->index */
-		ASSERT(error == ENOATTR);
+		ASSERT(error == -ENOATTR);
 		error = xfs_attr3_leaf_add(bp, &nargs);
-		ASSERT(error != ENOSPC);
+		ASSERT(error != -ENOSPC);
 		if (error)
 			goto out;
 		sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
@@ -809,7 +809,7 @@ xfs_attr3_leaf_to_shortform(
 
 	tmpbuffer = kmem_alloc(args->geo->blksize, KM_SLEEP);
 	if (!tmpbuffer)
-		return ENOMEM;
+		return -ENOMEM;
 
 	memcpy(tmpbuffer, bp->b_addr, args->geo->blksize);
 
@@ -1108,7 +1108,7 @@ xfs_attr3_leaf_add(
 	 * no good and we should just give up.
 	 */
 	if (!ichdr.holes && sum < entsize)
-		return ENOSPC;
+		return -ENOSPC;
 
 	/*
 	 * Compact the entries to coalesce free space.
@@ -1121,7 +1121,7 @@ xfs_attr3_leaf_add(
 	 * free region, in freemap[0].  If it is not big enough, give up.
 	 */
 	if (ichdr.freemap[0].size < (entsize + sizeof(xfs_attr_leaf_entry_t))) {
-		tmp = ENOSPC;
+		tmp = -ENOSPC;
 		goto out_log_hdr;
 	}
 
@@ -2123,7 +2123,7 @@ xfs_attr3_leaf_lookup_int(
 	}
 	if (probe == ichdr.count || be32_to_cpu(entry->hashval) != hashval) {
 		args->index = probe;
-		return ENOATTR;
+		return -ENOATTR;
 	}
 
 	/*
@@ -2152,7 +2152,7 @@ xfs_attr3_leaf_lookup_int(
 			if (!xfs_attr_namesp_match(args->flags, entry->flags))
 				continue;
 			args->index = probe;
-			return EEXIST;
+			return -EEXIST;
 		} else {
 			name_rmt = xfs_attr3_leaf_name_remote(leaf, probe);
 			if (name_rmt->namelen != args->namelen)
@@ -2168,11 +2168,11 @@ xfs_attr3_leaf_lookup_int(
 			args->rmtblkcnt = xfs_attr3_rmt_blocks(
 							args->dp->i_mount,
 							args->rmtvaluelen);
-			return EEXIST;
+			return -EEXIST;
 		}
 	}
 	args->index = probe;
-	return ENOATTR;
+	return -ENOATTR;
 }
 
 /*
@@ -2208,7 +2208,7 @@ xfs_attr3_leaf_getvalue(
 		}
 		if (args->valuelen < valuelen) {
 			args->valuelen = valuelen;
-			return ERANGE;
+			return -ERANGE;
 		}
 		args->valuelen = valuelen;
 		memcpy(args->value, &name_loc->nameval[args->namelen], valuelen);
@@ -2226,7 +2226,7 @@ xfs_attr3_leaf_getvalue(
 		}
 		if (args->valuelen < args->rmtvaluelen) {
 			args->valuelen = args->rmtvaluelen;
-			return ERANGE;
+			return -ERANGE;
 		}
 		args->valuelen = args->rmtvaluelen;
 	}

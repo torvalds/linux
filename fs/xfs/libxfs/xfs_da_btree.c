@@ -185,7 +185,7 @@ xfs_da3_node_write_verify(
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 
 	if (!xfs_da3_node_verify(bp)) {
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}
@@ -214,13 +214,13 @@ xfs_da3_node_read_verify(
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA3_NODE_MAGIC:
 			if (!xfs_buf_verify_cksum(bp, XFS_DA3_NODE_CRC_OFF)) {
-				xfs_buf_ioerror(bp, EFSBADCRC);
+				xfs_buf_ioerror(bp, -EFSBADCRC);
 				break;
 			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
 			if (!xfs_da3_node_verify(bp)) {
-				xfs_buf_ioerror(bp, EFSCORRUPTED);
+				xfs_buf_ioerror(bp, -EFSCORRUPTED);
 				break;
 			}
 			return;
@@ -385,7 +385,7 @@ xfs_da3_split(
 		switch (oldblk->magic) {
 		case XFS_ATTR_LEAF_MAGIC:
 			error = xfs_attr3_leaf_split(state, oldblk, newblk);
-			if ((error != 0) && (error != ENOSPC)) {
+			if ((error != 0) && (error != -ENOSPC)) {
 				return error;	/* GROT: attr is inconsistent */
 			}
 			if (!error) {
@@ -1579,9 +1579,9 @@ xfs_da3_node_lookup_int(
 			args->blkno = blk->blkno;
 		} else {
 			ASSERT(0);
-			return EFSCORRUPTED;
+			return -EFSCORRUPTED;
 		}
-		if (((retval == ENOENT) || (retval == ENOATTR)) &&
+		if (((retval == -ENOENT) || (retval == -ENOATTR)) &&
 		    (blk->hashval == args->hashval)) {
 			error = xfs_da3_path_shift(state, &state->path, 1, 1,
 							 &retval);
@@ -1591,7 +1591,7 @@ xfs_da3_node_lookup_int(
 				continue;
 			} else if (blk->magic == XFS_ATTR_LEAF_MAGIC) {
 				/* path_shift() gives ENOENT */
-				retval = ENOATTR;
+				retval = -ENOATTR;
 			}
 		}
 		break;
@@ -1859,7 +1859,7 @@ xfs_da3_path_shift(
 		}
 	}
 	if (level < 0) {
-		*result = ENOENT;	/* we're out of our tree */
+		*result = -ENOENT;	/* we're out of our tree */
 		ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 		return 0;
 	}
@@ -2068,7 +2068,7 @@ xfs_da_grow_inode_int(
 	if (got != count || mapp[0].br_startoff != *bno ||
 	    mapp[mapi - 1].br_startoff + mapp[mapi - 1].br_blockcount !=
 	    *bno + count) {
-		error = ENOSPC;
+		error = -ENOSPC;
 		goto out_free_map;
 	}
 
@@ -2158,7 +2158,7 @@ xfs_da3_swap_lastblock(
 	if (unlikely(lastoff == 0)) {
 		XFS_ERROR_REPORT("xfs_da_swap_lastblock(1)", XFS_ERRLEVEL_LOW,
 				 mp);
-		return EFSCORRUPTED;
+		return -EFSCORRUPTED;
 	}
 	/*
 	 * Read the last block in the btree space.
@@ -2209,7 +2209,7 @@ xfs_da3_swap_lastblock(
 		    sib_info->magic != dead_info->magic)) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(2)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		sib_info->forw = cpu_to_be32(dead_blkno);
@@ -2231,7 +2231,7 @@ xfs_da3_swap_lastblock(
 		       sib_info->magic != dead_info->magic)) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(3)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		sib_info->back = cpu_to_be32(dead_blkno);
@@ -2254,7 +2254,7 @@ xfs_da3_swap_lastblock(
 		if (level >= 0 && level != par_hdr.level + 1) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(4)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		level = par_hdr.level;
@@ -2267,7 +2267,7 @@ xfs_da3_swap_lastblock(
 		if (entno == par_hdr.count) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(5)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		par_blkno = be32_to_cpu(btree[entno].before);
@@ -2294,7 +2294,7 @@ xfs_da3_swap_lastblock(
 		if (unlikely(par_blkno == 0)) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(6)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		error = xfs_da3_node_read(tp, dp, par_blkno, -1, &par_buf, w);
@@ -2305,7 +2305,7 @@ xfs_da3_swap_lastblock(
 		if (par_hdr.level != level) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(7)",
 					 XFS_ERRLEVEL_LOW, mp);
-			error = EFSCORRUPTED;
+			error = -EFSCORRUPTED;
 			goto done;
 		}
 		btree = dp->d_ops->node_tree_p(par_node);
@@ -2359,7 +2359,7 @@ xfs_da_shrink_inode(
 		error = xfs_bunmapi(tp, dp, dead_blkno, count,
 				    xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
 				    0, args->firstblock, args->flist, &done);
-		if (error == ENOSPC) {
+		if (error == -ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				break;
 			error = xfs_da3_swap_lastblock(args, &dead_blkno,
@@ -2427,7 +2427,7 @@ xfs_buf_map_from_irec(
 		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map),
 				  KM_SLEEP | KM_NOFS);
 		if (!map)
-			return ENOMEM;
+			return -ENOMEM;
 		*mapp = map;
 	}
 
@@ -2500,8 +2500,8 @@ xfs_dabuf_map(
 	}
 
 	if (!xfs_da_map_covers_blocks(nirecs, irecs, bno, nfsb)) {
-		error = mappedbno == -2 ? -1 : EFSCORRUPTED;
-		if (unlikely(error == EFSCORRUPTED)) {
+		error = mappedbno == -2 ? -1 : -EFSCORRUPTED;
+		if (unlikely(error == -EFSCORRUPTED)) {
 			if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
 				int i;
 				xfs_alert(mp, "%s: bno %lld dir: inode %lld",
@@ -2561,7 +2561,7 @@ xfs_da_get_buf(
 
 	bp = xfs_trans_get_buf_map(trans, dp->i_mount->m_ddev_targp,
 				    mapp, nmap, 0);
-	error = bp ? bp->b_error : EIO;
+	error = bp ? bp->b_error : -EIO;
 	if (error) {
 		xfs_trans_brelse(trans, bp);
 		goto out_free;

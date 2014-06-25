@@ -70,7 +70,7 @@ xfs_compat_ioc_fsgeometry_v1(
 
 	error = xfs_fs_geometry(mp, &fsgeo, 3);
 	if (error)
-		return -error;
+		return error;
 	/* The 32-bit variant simply has some padding at the end */
 	if (copy_to_user(arg32, &fsgeo, sizeof(struct compat_xfs_fsop_geom_v1)))
 		return -EFAULT;
@@ -195,7 +195,7 @@ xfs_bulkstat_one_fmt_compat(
 	compat_xfs_bstat_t	__user *p32 = ubuffer;
 
 	if (ubsize < sizeof(*p32))
-		return ENOMEM;
+		return -ENOMEM;
 
 	if (put_user(buffer->bs_ino,	  &p32->bs_ino)		||
 	    put_user(buffer->bs_mode,	  &p32->bs_mode)	||
@@ -218,7 +218,7 @@ xfs_bulkstat_one_fmt_compat(
 	    put_user(buffer->bs_dmevmask, &p32->bs_dmevmask)	||
 	    put_user(buffer->bs_dmstate,  &p32->bs_dmstate)	||
 	    put_user(buffer->bs_aextents, &p32->bs_aextents))
-		return EFAULT;
+		return -EFAULT;
 	if (ubused)
 		*ubused = sizeof(*p32);
 	return 0;
@@ -294,9 +294,9 @@ xfs_compat_ioc_bulkstat(
 			xfs_bulkstat_one_compat, sizeof(compat_xfs_bstat_t),
 			bulkreq.ubuffer, &done);
 	} else
-		error = EINVAL;
+		error = -EINVAL;
 	if (error)
-		return -error;
+		return error;
 
 	if (bulkreq.ocount != NULL) {
 		if (copy_to_user(bulkreq.lastip, &inlast,
@@ -376,7 +376,7 @@ xfs_compat_attrlist_by_handle(
 		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = -xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
+	error = xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -417,7 +417,7 @@ xfs_compat_attrmulti_by_handle(
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	error = E2BIG;
+	error = -E2BIG;
 	size = am_hreq.opcount * sizeof(compat_xfs_attr_multiop_t);
 	if (!size || size > 16 * PAGE_SIZE)
 		goto out_dput;
@@ -428,7 +428,7 @@ xfs_compat_attrmulti_by_handle(
 		goto out_dput;
 	}
 
-	error = ENOMEM;
+	error = -ENOMEM;
 	attr_name = kmalloc(MAXNAMELEN, GFP_KERNEL);
 	if (!attr_name)
 		goto out_kfree_ops;
@@ -439,7 +439,7 @@ xfs_compat_attrmulti_by_handle(
 				compat_ptr(ops[i].am_attrname),
 				MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
-			error = ERANGE;
+			error = -ERANGE;
 		if (ops[i].am_error < 0)
 			break;
 
@@ -470,19 +470,19 @@ xfs_compat_attrmulti_by_handle(
 			mnt_drop_write_file(parfilp);
 			break;
 		default:
-			ops[i].am_error = EINVAL;
+			ops[i].am_error = -EINVAL;
 		}
 	}
 
 	if (copy_to_user(compat_ptr(am_hreq.ops), ops, size))
-		error = EFAULT;
+		error = -EFAULT;
 
 	kfree(attr_name);
  out_kfree_ops:
 	kfree(ops);
  out_dput:
 	dput(dentry);
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -515,7 +515,7 @@ xfs_compat_fssetdm_by_handle(
 		goto out;
 	}
 
-	error = -xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
+	error = xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
 				 fsd.fsd_dmstate);
 
 out:
@@ -604,7 +604,7 @@ xfs_file_compat_ioctl(
 			return error;
 		error = xfs_growfs_data(mp, &in);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 	case XFS_IOC_FSGROWFSRT_32: {
 		struct xfs_growfs_rt	in;
@@ -616,7 +616,7 @@ xfs_file_compat_ioctl(
 			return error;
 		error = xfs_growfs_rt(mp, &in);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 #endif
 	/* long changes size, but xfs only copiese out 32 bits */
@@ -639,7 +639,7 @@ xfs_file_compat_ioctl(
 			return error;
 		error = xfs_ioc_swapext(&sxp);
 		mnt_drop_write_file(filp);
-		return -error;
+		return error;
 	}
 	case XFS_IOC_FSBULKSTAT_32:
 	case XFS_IOC_FSBULKSTAT_SINGLE_32:

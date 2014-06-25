@@ -95,7 +95,7 @@ xfs_attr3_leaf_freextent(
 					dp->i_mount->m_ddev_targp,
 					dblkno, dblkcnt, 0);
 			if (!bp)
-				return ENOMEM;
+				return -ENOMEM;
 			xfs_trans_binval(*trans, bp);
 			/*
 			 * Roll to next transaction.
@@ -227,7 +227,7 @@ xfs_attr3_node_inactive(
 	 */
 	if (level > XFS_DA_NODE_MAXDEPTH) {
 		xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
-		return EIO;
+		return -EIO;
 	}
 
 	node = bp->b_addr;
@@ -277,7 +277,7 @@ xfs_attr3_node_inactive(
 							child_bp);
 				break;
 			default:
-				error = EIO;
+				error = -EIO;
 				xfs_trans_brelse(*trans, child_bp);
 				break;
 			}
@@ -360,7 +360,7 @@ xfs_attr3_root_inactive(
 		error = xfs_attr3_leaf_inactive(trans, dp, bp);
 		break;
 	default:
-		error = EIO;
+		error = -EIO;
 		xfs_trans_brelse(*trans, bp);
 		break;
 	}

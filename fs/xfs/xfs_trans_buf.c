@@ -266,7 +266,7 @@ xfs_trans_read_buf_map(
 		bp = xfs_buf_read_map(target, map, nmaps, flags, ops);
 		if (!bp)
 			return (flags & XBF_TRYLOCK) ?
-					EAGAIN : ENOMEM;
+					-EAGAIN : -ENOMEM;
 
 		if (bp->b_error) {
 			error = bp->b_error;
@@ -276,8 +276,8 @@ xfs_trans_read_buf_map(
 			xfs_buf_relse(bp);
 
 			/* bad CRC means corrupted metadata */
-			if (error == EFSBADCRC)
-				error = EFSCORRUPTED;
+			if (error == -EFSBADCRC)
+				error = -EFSCORRUPTED;
 			return error;
 		}
 #ifdef DEBUG
@@ -286,7 +286,7 @@ xfs_trans_read_buf_map(
 				if (((xfs_req_num++) % xfs_error_mod) == 0) {
 					xfs_buf_relse(bp);
 					xfs_debug(mp, "Returning error!");
-					return EIO;
+					return -EIO;
 				}
 			}
 		}
@@ -342,8 +342,8 @@ xfs_trans_read_buf_map(
 					xfs_force_shutdown(tp->t_mountp,
 							SHUTDOWN_META_IO_ERROR);
 				/* bad CRC means corrupted metadata */
-				if (error == EFSBADCRC)
-					error = EFSCORRUPTED;
+				if (error == -EFSBADCRC)
+					error = -EFSCORRUPTED;
 				return error;
 			}
 		}
@@ -354,7 +354,7 @@ xfs_trans_read_buf_map(
 		if (XFS_FORCED_SHUTDOWN(mp)) {
 			trace_xfs_trans_read_buf_shut(bp, _RET_IP_);
 			*bpp = NULL;
-			return EIO;
+			return -EIO;
 		}
 
 
@@ -371,7 +371,7 @@ xfs_trans_read_buf_map(
 	if (bp == NULL) {
 		*bpp = NULL;
 		return (flags & XBF_TRYLOCK) ?
-					0 : ENOMEM;
+					0 : -ENOMEM;
 	}
 	if (bp->b_error) {
 		error = bp->b_error;
@@ -383,8 +383,8 @@ xfs_trans_read_buf_map(
 		xfs_buf_relse(bp);
 
 		/* bad CRC means corrupted metadata */
-		if (error == EFSBADCRC)
-			error = EFSCORRUPTED;
+		if (error == -EFSBADCRC)
+			error = -EFSCORRUPTED;
 		return error;
 	}
 #ifdef DEBUG
@@ -395,7 +395,7 @@ xfs_trans_read_buf_map(
 						   SHUTDOWN_META_IO_ERROR);
 				xfs_buf_relse(bp);
 				xfs_debug(mp, "Returning trans error!");
-				return EIO;
+				return -EIO;
 			}
 		}
 	}
@@ -413,7 +413,7 @@ shutdown_abort:
 	trace_xfs_trans_read_buf_shut(bp, _RET_IP_);
 	xfs_buf_relse(bp);
 	*bpp = NULL;
-	return EIO;
+	return -EIO;
 }
 
 /*

@@ -64,10 +64,10 @@ xfs_qm_scall_quotaoff(
 	/*
 	 * No file system can have quotas enabled on disk but not in core.
 	 * Note that quota utilities (like quotaoff) _expect_
-	 * errno == EEXIST here.
+	 * errno == -EEXIST here.
 	 */
 	if ((mp->m_qflags & flags) == 0)
-		return EEXIST;
+		return -EEXIST;
 	error = 0;
 
 	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
@@ -278,13 +278,13 @@ xfs_qm_scall_trunc_qfiles(
 	xfs_mount_t	*mp,
 	uint		flags)
 {
-	int		error = EINVAL;
+	int		error = -EINVAL;
 
 	if (!xfs_sb_version_hasquota(&mp->m_sb) || flags == 0 ||
 	    (flags & ~XFS_DQ_ALLTYPES)) {
 		xfs_debug(mp, "%s: flags=%x m_qflags=%x",
 			__func__, flags, mp->m_qflags);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if (flags & XFS_DQ_USER) {
@@ -328,7 +328,7 @@ xfs_qm_scall_quotaon(
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
 			__func__, mp->m_qflags);
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	/* No fs can turn on quotas with a delayed effect */
@@ -351,13 +351,13 @@ xfs_qm_scall_quotaon(
 		xfs_debug(mp,
 			"%s: Can't enforce without acct, flags=%x sbflags=%x",
 			__func__, flags, mp->m_sb.sb_qflags);
-		return EINVAL;
+		return -EINVAL;
 	}
 	/*
 	 * If everything's up to-date incore, then don't waste time.
 	 */
 	if ((mp->m_qflags & flags) == flags)
-		return EEXIST;
+		return -EEXIST;
 
 	/*
 	 * Change sb_qflags on disk but not incore mp->qflags
@@ -372,7 +372,7 @@ xfs_qm_scall_quotaon(
 	 * There's nothing to change if it's the same.
 	 */
 	if ((qf & flags) == flags && sbflags == 0)
-		return EEXIST;
+		return -EEXIST;
 	sbflags |= XFS_SB_QFLAGS;
 
 	if ((error = xfs_qm_write_sb_changes(mp, sbflags)))
@@ -390,7 +390,7 @@ xfs_qm_scall_quotaon(
 		return 0;
 
 	if (! XFS_IS_QUOTA_RUNNING(mp))
-		return ESRCH;
+		return -ESRCH;
 
 	/*
 	 * Switch on quota enforcement in core.
@@ -595,7 +595,7 @@ xfs_qm_scall_setqlim(
 	xfs_qcnt_t		hard, soft;
 
 	if (newlim->d_fieldmask & ~XFS_DQ_MASK)
-		return EINVAL;
+		return -EINVAL;
 	if ((newlim->d_fieldmask & XFS_DQ_MASK) == 0)
 		return 0;
 
@@ -615,7 +615,7 @@ xfs_qm_scall_setqlim(
 	 */
 	error = xfs_qm_dqget(mp, NULL, id, type, XFS_QMOPT_DQALLOC, &dqp);
 	if (error) {
-		ASSERT(error != ENOENT);
+		ASSERT(error != -ENOENT);
 		goto out_unlock;
 	}
 	xfs_dqunlock(dqp);
@@ -850,7 +850,7 @@ xfs_qm_scall_getquota(
 	 * our utility programs are concerned.
 	 */
 	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
-		error = ENOENT;
+		error = -ENOENT;
 		goto out_put;
 	}
 

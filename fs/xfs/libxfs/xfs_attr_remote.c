@@ -138,11 +138,11 @@ xfs_attr3_rmt_read_verify(
 
 	while (len > 0) {
 		if (!xfs_verify_cksum(ptr, blksize, XFS_ATTR3_RMT_CRC_OFF)) {
-			xfs_buf_ioerror(bp, EFSBADCRC);
+			xfs_buf_ioerror(bp, -EFSBADCRC);
 			break;
 		}
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			break;
 		}
 		len -= blksize;
@@ -178,7 +178,7 @@ xfs_attr3_rmt_write_verify(
 
 	while (len > 0) {
 		if (!xfs_attr3_rmt_verify(mp, ptr, blksize, bno)) {
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
+			xfs_buf_ioerror(bp, -EFSCORRUPTED);
 			xfs_verifier_error(bp);
 			return;
 		}
@@ -257,7 +257,7 @@ xfs_attr_rmtval_copyout(
 				xfs_alert(mp,
 "remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
 					bno, *offset, byte_cnt, ino);
-				return EFSCORRUPTED;
+				return -EFSCORRUPTED;
 			}
 			hdr_size = sizeof(struct xfs_attr3_rmt_hdr);
 		}
@@ -508,7 +508,7 @@ xfs_attr_rmtval_set(
 
 		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, dblkcnt, 0);
 		if (!bp)
-			return ENOMEM;
+			return -ENOMEM;
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 
 		xfs_attr_rmtval_copyin(mp, bp, args->dp->i_ino, &offset,

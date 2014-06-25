@@ -272,9 +272,9 @@ xfs_inobt_read_verify(
 	struct xfs_buf	*bp)
 {
 	if (!xfs_btree_sblock_verify_crc(bp))
-		xfs_buf_ioerror(bp, EFSBADCRC);
+		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (!xfs_inobt_verify(bp))
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
@@ -288,7 +288,7 @@ xfs_inobt_write_verify(
 {
 	if (!xfs_inobt_verify(bp)) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 		xfs_verifier_error(bp);
 		return;
 	}

@@ -47,7 +47,7 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_GOTO", \
 					 XFS_ERRLEVEL_LOW, NULL); \
-			error = EFSCORRUPTED; \
+			error = -EFSCORRUPTED; \
 			goto l; \
 		} \
 	}
@@ -59,7 +59,7 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
 					 XFS_ERRLEVEL_LOW, NULL); \
-			return EFSCORRUPTED; \
+			return -EFSCORRUPTED; \
 		} \
 	}
 

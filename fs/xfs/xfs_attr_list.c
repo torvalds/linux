@@ -150,7 +150,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe);
 			kmem_free(sbuf);
-			return EFSCORRUPTED;
+			return -EFSCORRUPTED;
 		}
 
 		sbp->entno = i;
@@ -243,7 +243,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	if (cursor->blkno > 0) {
 		error = xfs_da3_node_read(NULL, dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);
-		if ((error != 0) && (error != EFSCORRUPTED))
+		if ((error != 0) && (error != -EFSCORRUPTED))
 			return error;
 		if (bp) {
 			struct xfs_attr_leaf_entry *entries;
@@ -308,7 +308,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 						     context->dp->i_mount,
 						     node);
 				xfs_trans_brelse(NULL, bp);
-				return EFSCORRUPTED;
+				return -EFSCORRUPTED;
 			}
 
 			dp->d_ops->node_hdr_from_disk(&nodehdr, node);
@@ -514,7 +514,7 @@ xfs_attr_list_int(
 	XFS_STATS_INC(xs_attr_list);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return EIO;
+		return -EIO;
 
 	/*
 	 * Decide on what work routines to call based on the inode size.
@@ -616,16 +616,16 @@ xfs_attr_list(
 	 * Validate the cursor.
 	 */
 	if (cursor->pad1 || cursor->pad2)
-		return EINVAL;
+		return -EINVAL;
 	if ((cursor->initted == 0) &&
 	    (cursor->hashval || cursor->blkno || cursor->offset))
-		return EINVAL;
+		return -EINVAL;
 
 	/*
 	 * Check for a properly aligned buffer.
 	 */
 	if (((long)buffer) & (sizeof(int)-1))
-		return EFAULT;
+		return -EFAULT;
 	if (flags & ATTR_KERNOVAL)
 		bufsize = 0;
 
@@ -648,6 +648,6 @@ xfs_attr_list(
 	alist->al_offset[0] = context.bufsize;
 
 	error = xfs_attr_list_int(&context);
-	ASSERT(error >= 0);
+	ASSERT(error <= 0);
 	return error;
 }
