@@ -60,8 +60,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 {
-	struct vnt_manager *mgmt = &priv->vnt_mgmt;
-	u16 aid = mgmt->wCurrAID | BIT14 | BIT15;
+	u16 aid = priv->current_aid | BIT(14) | BIT(15);
 
 	/* set period of power up before TBTT */
 	vnt_mac_write_word(priv, MAC_REG_PWBT, C_PWBT);
@@ -92,26 +91,12 @@ void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 
 		/* first time set listen next beacon */
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
-
-		mgmt->wCountToWakeUp = listen_interval;
-
 	} else {
 
 		/* always listen beacon */
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
-
-		mgmt->wCountToWakeUp = 0;
 	}
 
-	priv->bEnablePSMode = true;
-
-	/* We don't send null pkt in ad hoc mode
-	 * since beacon will handle this.
-	 */
-	if (priv->op_mode == NL80211_IFTYPE_STATION)
-		PSbSendNullPacket(priv);
-
-	priv->bPWBitOn = true;
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "PS:Power Saving Mode Enable...\n");
 }
 
@@ -137,12 +122,6 @@ void vnt_disable_power_saving(struct vnt_private *priv)
 
 	/* set always listen beacon */
 	vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
-	priv->bEnablePSMode = false;
-
-	if (priv->op_mode == NL80211_IFTYPE_STATION)
-		PSbSendNullPacket(priv);
-
-	priv->bPWBitOn = false;
 }
 
 /*
