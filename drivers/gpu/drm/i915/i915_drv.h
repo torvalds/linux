@@ -229,7 +229,6 @@ void intel_link_compute_m_n(int bpp, int nlanes,
 			    struct intel_link_m_n *m_n);
 
 struct intel_ddi_plls {
-	int spll_refcount;
 	int wrpll1_refcount;
 	int wrpll2_refcount;
 };

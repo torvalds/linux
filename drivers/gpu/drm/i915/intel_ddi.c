@@ -394,14 +394,11 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 
 	switch (intel_crtc->ddi_pll_sel) {
 	case PORT_CLK_SEL_SPLL:
-		plls->spll_refcount--;
-		if (plls->spll_refcount == 0) {
-			DRM_DEBUG_KMS("Disabling SPLL\n");
-			val = I915_READ(SPLL_CTL);
-			WARN_ON(!(val & SPLL_PLL_ENABLE));
-			I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
-			POSTING_READ(SPLL_CTL);
-		}
+		DRM_DEBUG_KMS("Disabling SPLL\n");
+		val = I915_READ(SPLL_CTL);
+		WARN_ON(!(val & SPLL_PLL_ENABLE));
+		I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
+		POSTING_READ(SPLL_CTL);
 		break;
 	case PORT_CLK_SEL_WRPLL1:
 		plls->wrpll1_refcount--;
@@ -425,7 +422,6 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 		break;
 	}
 
-	WARN(plls->spll_refcount < 0, "Invalid SPLL refcount\n");
 	WARN(plls->wrpll1_refcount < 0, "Invalid WRPLL1 refcount\n");
 	WARN(plls->wrpll2_refcount < 0, "Invalid WRPLL2 refcount\n");
 
@@ -821,16 +817,9 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 		}
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
-		if (plls->spll_refcount == 0) {
-			DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
-				      pipe_name(pipe));
-			plls->spll_refcount++;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
-		} else {
-			DRM_ERROR("SPLL already in use\n");
-			return false;
-		}
-
+		DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
+			      pipe_name(pipe));
+		intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
 	} else {
 		WARN(1, "Invalid DDI encoder type %d\n", type);
 		return false;
@@ -869,13 +858,13 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 		return;
 
 	case PORT_CLK_SEL_SPLL:
-		pll_name = "SPLL";
-		reg = SPLL_CTL;
-		refcount = plls->spll_refcount;
 		new_val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz |
 			  SPLL_PLL_SSC;
-		break;
-
+		WARN(I915_READ(SPLL_CTL) & enable_bit, "SPLL already enabled\n");
+		I915_WRITE(SPLL_CTL, new_val);
+		POSTING_READ(SPLL_CTL);
+		udelay(20);
+		return;
 	case PORT_CLK_SEL_WRPLL1:
 	case PORT_CLK_SEL_WRPLL2:
 		if (crtc->ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
@@ -1188,7 +1177,6 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 	enum pipe pipe;
 	struct intel_crtc *intel_crtc;
 
-	dev_priv->ddi_plls.spll_refcount = 0;
 	dev_priv->ddi_plls.wrpll1_refcount = 0;
 	dev_priv->ddi_plls.wrpll2_refcount = 0;
 
@@ -1205,9 +1193,6 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 								 pipe);
 
 		switch (intel_crtc->ddi_pll_sel) {
-		case PORT_CLK_SEL_SPLL:
-			dev_priv->ddi_plls.spll_refcount++;
-			break;
 		case PORT_CLK_SEL_WRPLL1:
 			dev_priv->ddi_plls.wrpll1_refcount++;
 			break;
