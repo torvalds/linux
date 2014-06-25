@@ -1154,9 +1154,9 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 	}
 
 	/* Strip ending newline */
-	if (s->buffer[s->len - 1] == '\n') {
-		s->buffer[s->len - 1] = '\0';
-		s->len--;
+	if (s->buffer[s->seq.len - 1] == '\n') {
+		s->buffer[s->seq.len - 1] = '\0';
+		s->seq.len--;
 	}
 
 	trace_seq_puts(s, " */\n");
