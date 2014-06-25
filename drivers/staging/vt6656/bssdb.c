@@ -432,10 +432,6 @@ int BSSbInsertToBSSList(struct vnt_private *pDevice,
 			     ((PWLAN_IE_SSID) pMgmt->abyDesireSSID)->abySSID,
 			     pSSID->len)) {
 
-			bAdd_PMKID_Candidate((void *) pDevice,
-					 pBSSList->abyBSSID,
-					 &pBSSList->sRSNCapObj);
-
 			if (pDevice->bLinkPass == true &&
 			    pMgmt->eCurrState == WMAC_STATE_ASSOC &&
 			    (KeybGetTransmitKey(&(pDevice->sKey),

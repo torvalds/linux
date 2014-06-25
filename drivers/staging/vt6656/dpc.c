@@ -147,7 +147,6 @@ void RXvMngWorkItem(struct work_struct *work)
             break;
         }
         pRxPacket = &(pRCB->sMngPacket);
-	vMgrRxManagePacket(pDevice, &pDevice->vnt_mgmt, pRxPacket);
         pRCB->Ref--;
 	if (pRCB->Ref == 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeMng %d %d\n",

@@ -348,48 +348,4 @@ struct vnt_manager {
 
 };
 
-void vMgrObjectInit(struct vnt_private *pDevice);
-
-void vMgrAssocBeginSta(struct vnt_private *pDevice,
-		struct vnt_manager *, PCMD_STATUS pStatus);
-
-void vMgrReAssocBeginSta(struct vnt_private *pDevice,
-		struct vnt_manager *, PCMD_STATUS pStatus);
-
-void vMgrDisassocBeginSta(struct vnt_private *pDevice,
-	struct vnt_manager *, u8 *abyDestAddress, u16 wReason,
-	PCMD_STATUS pStatus);
-
-void vMgrAuthenBeginSta(struct vnt_private *pDevice,
-	struct vnt_manager *, PCMD_STATUS pStatus);
-
-void vMgrCreateOwnIBSS(struct vnt_private *pDevice,
-	PCMD_STATUS pStatus);
-
-void vMgrJoinBSSBegin(struct vnt_private *pDevice,
-	PCMD_STATUS pStatus);
-
-void vMgrRxManagePacket(struct vnt_private *pDevice,
-	struct vnt_manager *, struct vnt_rx_mgmt *);
-
-/*
-void
-vMgrScanBegin(
-      void *hDeviceContext,
-     PCMD_STATUS pStatus
-    );
-*/
-
-void vMgrDeAuthenBeginSta(struct vnt_private *pDevice,
-	struct vnt_manager *, u8 *abyDestAddress, u16 wReason,
-	PCMD_STATUS pStatus);
-
-int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
-	struct vnt_manager *);
-
-int bAdd_PMKID_Candidate(struct vnt_private *pDevice,
-	u8 *pbyBSSID, PSRSNCapObject psRSNCapObj);
-
-void vFlush_PMKID_Candidate(struct vnt_private *pDevice);
-
 #endif /* __WMGR_H__ */
