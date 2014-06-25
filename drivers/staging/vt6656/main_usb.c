@@ -53,7 +53,6 @@
 #include "mac.h"
 #include "tether.h"
 #include "wmgr.h"
-#include "wctl.h"
 #include "power.h"
 #include "wcmd.h"
 #include "rxtx.h"

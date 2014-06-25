@@ -46,7 +46,6 @@
 #include "wcmd.h"
 #include "wmgr.h"
 #include "power.h"
-#include "wctl.h"
 #include "baseband.h"
 #include "usbpipe.h"
 #include "rxtx.h"

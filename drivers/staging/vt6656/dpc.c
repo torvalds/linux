@@ -45,7 +45,6 @@
 #include "baseband.h"
 #include "michael.h"
 #include "tkip.h"
-#include "wctl.h"
 #include "rf.h"
 #include "iowpa.h"
 #include "datarate.h"

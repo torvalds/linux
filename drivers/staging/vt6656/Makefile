@@ -6,7 +6,6 @@ vt6656_stage-y +=	main_usb.o \
 			card.o  \
 			mac.o   \
 			baseband.o \
-			wctl.o  \
 			80211mgr.o \
 			wcmd.o\
 			rxtx.o \
