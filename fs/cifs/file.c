@@ -2917,7 +2917,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		     struct cifs_sb_info *cifs_sb, struct list_head *rdata_list)
 {
 	struct cifs_readdata *rdata;
-	unsigned int npages;
+	unsigned int npages, rsize, credits;
 	size_t cur_len;
 	int rc;
 	pid_t pid;
@@ -2931,13 +2931,19 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		pid = current->tgid;
 
 	do {
-		cur_len = min_t(const size_t, len, cifs_sb->rsize);
+		rc = server->ops->wait_mtu_credits(server, cifs_sb->rsize,
+						   &rsize, &credits);
+		if (rc)
+			break;
+
+		cur_len = min_t(const size_t, len, rsize);
 		npages = DIV_ROUND_UP(cur_len, PAGE_SIZE);
 
 		/* allocate a readdata struct */
 		rdata = cifs_readdata_alloc(npages,
 					    cifs_uncached_readv_complete);
 		if (!rdata) {
+			add_credits_and_wake_if(server, credits, 0);
 			rc = -ENOMEM;
 			break;
 		}
@@ -2953,12 +2959,14 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		rdata->pid = pid;
 		rdata->pagesz = PAGE_SIZE;
 		rdata->read_into_pages = cifs_uncached_read_into_pages;
+		rdata->credits = credits;
 
 		if (!rdata->cfile->invalidHandle ||
 		    !cifs_reopen_file(rdata->cfile, true))
 			rc = server->ops->async_readv(rdata);
 error:
 		if (rc) {
+			add_credits_and_wake_if(server, rdata->credits, 0);
 			kref_put(&rdata->refcount,
 				 cifs_uncached_readdata_release);
 			if (rc == -EAGAIN)
@@ -3458,10 +3466,16 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	 * the rdata->pages, then we want them in increasing order.
 	 */
 	while (!list_empty(page_list)) {
-		unsigned int i, nr_pages, bytes;
+		unsigned int i, nr_pages, bytes, rsize;
 		loff_t offset;
 		struct page *page, *tpage;
 		struct cifs_readdata *rdata;
+		unsigned credits;
+
+		rc = server->ops->wait_mtu_credits(server, cifs_sb->rsize,
+						   &rsize, &credits);
+		if (rc)
+			break;
 
 		/*
 		 * Give up immediately if rsize is too small to read an entire
@@ -3469,13 +3483,17 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		 * reach this point however since we set ra_pages to 0 when the
 		 * rsize is smaller than a cache page.
 		 */
-		if (unlikely(cifs_sb->rsize < PAGE_CACHE_SIZE))
+		if (unlikely(rsize < PAGE_CACHE_SIZE)) {
+			add_credits_and_wake_if(server, credits, 0);
 			return 0;
+		}
 
-		rc = readpages_get_pages(mapping, page_list, cifs_sb->rsize,
-					 &tmplist, &nr_pages, &offset, &bytes);
-		if (rc)
+		rc = readpages_get_pages(mapping, page_list, rsize, &tmplist,
+					 &nr_pages, &offset, &bytes);
+		if (rc) {
+			add_credits_and_wake_if(server, credits, 0);
 			break;
+		}
 
 		rdata = cifs_readdata_alloc(nr_pages, cifs_readv_complete);
 		if (!rdata) {
@@ -3487,6 +3505,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				page_cache_release(page);
 			}
 			rc = -ENOMEM;
+			add_credits_and_wake_if(server, credits, 0);
 			break;
 		}
 
@@ -3497,6 +3516,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		rdata->pid = pid;
 		rdata->pagesz = PAGE_CACHE_SIZE;
 		rdata->read_into_pages = cifs_readpages_read_into_pages;
+		rdata->credits = credits;
 
 		list_for_each_entry_safe(page, tpage, &tmplist, lru) {
 			list_del(&page->lru);
@@ -3507,6 +3527,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		    !cifs_reopen_file(rdata->cfile, true))
 			rc = server->ops->async_readv(rdata);
 		if (rc) {
+			add_credits_and_wake_if(server, rdata->credits, 0);
 			for (i = 0; i < rdata->nr_pages; i++) {
 				page = rdata->pages[i];
 				lru_cache_add_file(page);
