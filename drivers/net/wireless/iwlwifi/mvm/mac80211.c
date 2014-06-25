@@ -374,6 +374,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->wiphy->max_sched_scan_ie_len = SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
+			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
 			       NL80211_FEATURE_P2P_GO_OPPPS;
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
@@ -688,6 +689,16 @@ static int iwl_mvm_mac_start(struct ieee80211_hw *hw)
 		iwl_mvm_restart_cleanup(mvm);
 
 	ret = iwl_mvm_up(mvm);
+
+	if (ret && test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		/* Something went wrong - we need to finish some cleanup
+		 * that normally iwl_mvm_mac_restart_complete() below
+		 * would do.
+		 */
+		clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+		iwl_mvm_d0i3_enable_tx(mvm, NULL);
+	}
+
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -1464,6 +1475,7 @@ static void iwl_mvm_stop_ap_ibss(struct ieee80211_hw *hw,
 	mutex_lock(&mvm->mutex);
 
 	mvmvif->ap_ibss_active = false;
+	mvm->ap_last_beacon_gp2 = 0;
 
 	iwl_mvm_bt_coex_vif_change(mvm);
 
@@ -1543,7 +1555,8 @@ static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
-	if (req->n_channels == 0 || req->n_channels > MAX_NUM_SCAN_CHANNELS)
+	if (req->n_channels == 0 ||
+	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);

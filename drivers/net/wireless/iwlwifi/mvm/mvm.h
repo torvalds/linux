@@ -235,6 +235,15 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_COUNT,
 };
 
+enum iwl_bt_force_ant_mode {
+	BT_FORCE_ANT_DIS = 0,
+	BT_FORCE_ANT_AUTO,
+	BT_FORCE_ANT_BT,
+	BT_FORCE_ANT_WIFI,
+
+	BT_FORCE_ANT_MAX,
+};
+
 /**
 * struct iwl_mvm_vif_bf_data - beacon filtering related data
 * @bf_enabled: indicates if beacon filtering is enabled
@@ -629,6 +638,7 @@ struct iwl_mvm {
 	u32 last_ant_isol;
 	u8 last_corun_lut;
 	u8 bt_tx_prio;
+	enum iwl_bt_force_ant_mode bt_force_ant_mode;
 
 	/* Thermal Throttling and CTkill */
 	struct iwl_mvm_tt_mgmt thermal_throttle;
@@ -648,6 +658,9 @@ struct iwl_mvm {
 	bool ps_disabled;
 
 	struct ieee80211_vif *csa_vif;
+
+	/* system time of last beacon (for AP/GO interface) */
+	u32 ap_last_beacon_gp2;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -963,6 +976,7 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta);
 bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta);
+bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm);
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 				    enum ieee80211_band band);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
