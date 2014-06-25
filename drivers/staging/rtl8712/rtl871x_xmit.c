@@ -103,7 +103,7 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 		pxframe->pkt = NULL;
 		pxframe->buf_addr = NULL;
 		pxframe->pxmitbuf = NULL;
-		list_insert_tail(&(pxframe->list),
+		list_add_tail(&(pxframe->list),
 				 &(pxmitpriv->free_xmit_queue.queue));
 		pxframe++;
 	}
@@ -143,7 +143,7 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 				 ((addr_t) (pxmitbuf->pallocated_buf) &
 				 (XMITBUF_ALIGN_SZ - 1));
 		r8712_xmit_resource_alloc(padapter, pxmitbuf);
-		list_insert_tail(&pxmitbuf->list,
+		list_add_tail(&pxmitbuf->list,
 				 &(pxmitpriv->free_xmitbuf_queue.queue));
 		pxmitbuf++;
 	}
@@ -767,7 +767,7 @@ int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 		return _FAIL;
 	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irqL);
 	list_delete(&pxmitbuf->list);
-	list_insert_tail(&(pxmitbuf->list), get_list_head(pfree_xmitbuf_queue));
+	list_add_tail(&(pxmitbuf->list), get_list_head(pfree_xmitbuf_queue));
 	pxmitpriv->free_xmitbuf_cnt++;
 	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irqL);
 	return _SUCCESS;
@@ -833,7 +833,7 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 		pndis_pkt = pxmitframe->pkt;
 		pxmitframe->pkt = NULL;
 	}
-	list_insert_tail(&pxmitframe->list, get_list_head(pfree_xmit_queue));
+	list_add_tail(&pxmitframe->list, get_list_head(pfree_xmit_queue));
 	pxmitpriv->free_xmitframe_cnt++;
 	spin_unlock_irqrestore(&pfree_xmit_queue->lock, irqL);
 	if (netif_queue_stopped(padapter->pnetdev))
@@ -940,9 +940,9 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 		   psta, pattrib->priority);
 	spin_lock_irqsave(&pstapending->lock, irqL0);
 	if (list_empty(&ptxservq->tx_pending))
-		list_insert_tail(&ptxservq->tx_pending,
+		list_add_tail(&ptxservq->tx_pending,
 				 get_list_head(pstapending));
-	list_insert_tail(&pxmitframe->list,
+	list_add_tail(&pxmitframe->list,
 			 get_list_head(&ptxservq->sta_pending));
 	ptxservq->qcnt++;
 	spin_unlock_irqrestore(&pstapending->lock, irqL0);

@@ -132,7 +132,7 @@ uint r8712_alloc_io_queue(struct _adapter *adapter)
 	pio_req = (struct io_req *)(pio_queue->free_ioreqs_buf);
 	for (i = 0; i < NUM_IOREQ; i++) {
 		INIT_LIST_HEAD(&pio_req->list);
-		list_insert_tail(&pio_req->list, &pio_queue->free_ioreqs);
+		list_add_tail(&pio_req->list, &pio_queue->free_ioreqs);
 		pio_req++;
 	}
 	if ((register_intf_hdl((u8 *)adapter, &(pio_queue->intf))) == _FAIL)

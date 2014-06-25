@@ -115,12 +115,6 @@ For the following list_xxx operations,
 caller must guarantee the atomic context.
 Otherwise, there will be racing condition.
 */
-static inline void list_insert_tail(struct list_head *plist,
-				    struct list_head *phead)
-{
-	list_add_tail(plist, phead);
-}
-
 static inline u32 _down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))

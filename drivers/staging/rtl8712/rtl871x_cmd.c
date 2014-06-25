@@ -126,7 +126,7 @@ static sint _enqueue_cmd(struct  __queue *queue, struct cmd_obj *obj)
 	if (obj == NULL)
 		return _SUCCESS;
 	spin_lock_irqsave(&queue->lock, irqL);
-	list_insert_tail(&obj->list, &queue->queue);
+	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	return _SUCCESS;
 }
@@ -190,7 +190,7 @@ u32 r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 		return _FAIL;
 	queue = &pcmdpriv->cmd_queue;
 	spin_lock_irqsave(&queue->lock, irqL);
-	list_insert_tail(&obj->list, &queue->queue);
+	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	up(&pcmdpriv->cmd_queue_sema);
 	return _SUCCESS;
@@ -956,7 +956,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 				goto createbss_cmd_fail;
 			pwlan->last_scanned = jiffies;
 		} else
-			list_insert_tail(&(pwlan->list),
+			list_add_tail(&(pwlan->list),
 					 &pmlmepriv->scanned_queue.queue);
 		pnetwork->Length = r8712_get_ndis_wlan_bssid_ex_sz(pnetwork);
 		memcpy(&(pwlan->network), pnetwork, pnetwork->Length);

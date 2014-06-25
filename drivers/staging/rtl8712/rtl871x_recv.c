@@ -87,7 +87,7 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
 	for (i = 0; i < NR_RECVFRAME; i++) {
 		INIT_LIST_HEAD(&(precvframe->u.list));
-		list_insert_tail(&(precvframe->u.list),
+		list_add_tail(&(precvframe->u.list),
 				 &(precvpriv->free_recv_queue.queue));
 		r8712_os_recv_resource_alloc(padapter, precvframe);
 		precvframe->u.hdr.adapter = padapter;

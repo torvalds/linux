@@ -66,7 +66,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	for (i = 0; i < NUM_STA; i++) {
 		_init_stainfo(psta);
 		INIT_LIST_HEAD(&(pstapriv->sta_hash[i]));
-		list_insert_tail(&psta->list,
+		list_add_tail(&psta->list,
 				 get_list_head(&pstapriv->free_sta_queue));
 		psta++;
 	}
@@ -137,7 +137,7 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 			goto exit;
 		}
 		phash_list = &(pstapriv->sta_hash[index]);
-		list_insert_tail(&psta->hash_list, phash_list);
+		list_add_tail(&psta->hash_list, phash_list);
 		pstapriv->asoc_sta_count++;
 
 /* For the SMC router, the sequence number of first packet of WPS handshake
@@ -208,7 +208,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	}
 	spin_lock(&(pfree_sta_queue->lock));
 	/* insert into free_sta_queue; 20061114 */
-	list_insert_tail(&psta->list, get_list_head(pfree_sta_queue));
+	list_add_tail(&psta->list, get_list_head(pfree_sta_queue));
 	spin_unlock(&(pfree_sta_queue->lock));
 }
 

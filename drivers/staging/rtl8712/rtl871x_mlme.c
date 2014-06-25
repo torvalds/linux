@@ -70,7 +70,7 @@ static sint _init_mlme_priv(struct _adapter *padapter)
 	pnetwork = (struct wlan_network *)pbuf;
 	for (i = 0; i < MAX_BSS_CNT; i++) {
 		INIT_LIST_HEAD(&(pnetwork->list));
-		list_insert_tail(&(pnetwork->list),
+		list_add_tail(&(pnetwork->list),
 				 &(pmlmepriv->free_bss_pool.queue));
 		pnetwork++;
 	}
@@ -118,7 +118,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 		return;
 	spin_lock_irqsave(&free_queue->lock, irqL);
 	list_delete(&pnetwork->list);
-	list_insert_tail(&pnetwork->list, &free_queue->queue);
+	list_add_tail(&pnetwork->list, &free_queue->queue);
 	pmlmepriv->num_of_scanned--;
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
 }
@@ -133,7 +133,7 @@ static void _free_network_nolock(struct mlme_priv *pmlmepriv,
 	if (pnetwork->fixed == true)
 		return;
 	list_delete(&pnetwork->list);
-	list_insert_tail(&pnetwork->list, get_list_head(free_queue));
+	list_add_tail(&pnetwork->list, get_list_head(free_queue));
 	pmlmepriv->num_of_scanned--;
 }
 
@@ -437,7 +437,7 @@ static void update_scanned_network(struct _adapter *adapter,
 			bssid_ex_sz = r8712_get_ndis_wlan_bssid_ex_sz(target);
 			target->Length = bssid_ex_sz;
 			memcpy(&pnetwork->network, target, bssid_ex_sz);
-			list_insert_tail(&pnetwork->list, &queue->queue);
+			list_add_tail(&pnetwork->list, &queue->queue);
 		}
 	} else {
 		/* we have an entry and we are going to update it. But

@@ -73,7 +73,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 			break;
 		precvbuf->ref_cnt = 0;
 		precvbuf->adapter = padapter;
-		list_insert_tail(&precvbuf->list,
+		list_add_tail(&precvbuf->list,
 				 &(precvpriv->free_recv_buf_queue.queue));
 		precvbuf++;
 	}
@@ -146,7 +146,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 	}
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
 	list_delete(&(precvframe->u.hdr.list));
-	list_insert_tail(&(precvframe->u.hdr.list),
+	list_add_tail(&(precvframe->u.hdr.list),
 			 get_list_head(pfree_recv_queue));
 	if (padapter != NULL) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
@@ -297,7 +297,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 			}
 			/* Then enqueue the 0~(n-1) fragment to the defrag_q */
 			phead = get_list_head(pdefrag_q);
-			list_insert_tail(&pfhdr->list, phead);
+			list_add_tail(&pfhdr->list, phead);
 			prtnframe = NULL;
 		} else {
 			/* can't find this ta's defrag_queue, so free this
@@ -312,7 +312,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 		 * enqueue the last fragment */
 		if (pdefrag_q != NULL) {
 			phead = get_list_head(pdefrag_q);
-			list_insert_tail(&pfhdr->list, phead);
+			list_add_tail(&pfhdr->list, phead);
 			/*call recvframe_defrag to defrag*/
 			precv_frame = recvframe_defrag(padapter, pdefrag_q);
 			prtnframe = precv_frame;
@@ -512,7 +512,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 			break;
 	}
 	list_delete(&(prframe->u.hdr.list));
-	list_insert_tail(&(prframe->u.hdr.list), plist);
+	list_add_tail(&(prframe->u.hdr.list), plist);
 	return true;
 }
 
