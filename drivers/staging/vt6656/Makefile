@@ -9,7 +9,6 @@ vt6656_stage-y +=	main_usb.o \
 			wctl.o  \
 			80211mgr.o \
 			wcmd.o\
-			bssdb.o \
 			wpa2.o \
 			rxtx.o \
 			dpc.o \
