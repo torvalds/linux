@@ -1263,14 +1263,15 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
  *     truncation before using this function.
  *
  * Notes:
- *     The struct scsi_lun is assumed to be four levels, with each level
- *     effectively containing a SCSI byte-ordered (big endian) short; the
- *     addressing bits of each level are ignored (the highest two bits).
  *     For a description of the LUN format, post SCSI-3 see the SCSI
  *     Architecture Model, for SCSI-3 see the SCSI Controller Commands.
  *
- *     Given a struct scsi_lun of: 0a 04 0b 03 00 00 00 00, this function returns
- *     the integer: 0x0b030a04
+ *     Given a struct scsi_lun of: d2 04 0b 03 00 00 00 00, this function
+ *     returns the integer: 0x0b03d204
+ *
+ *     This encoding will return a standard integer LUN for LUNs smaller
+ *     than 256, which typically use a single level LUN structure with
+ *     addressing method 0.
  **/
 u64 scsilun_to_int(struct scsi_lun *scsilun)
 {
@@ -1279,8 +1280,8 @@ u64 scsilun_to_int(struct scsi_lun *scsilun)
 
 	lun = 0;
 	for (i = 0; i < sizeof(lun); i += 2)
-		lun = lun | (((scsilun->scsi_lun[i] << 8) |
-			      scsilun->scsi_lun[i + 1]) << (i * 8));
+		lun = lun | (((u64)scsilun->scsi_lun[i] << ((i + 1) * 8)) |
+			     ((u64)scsilun->scsi_lun[i + 1] << (i * 8)));
 	return lun;
 }
 EXPORT_SYMBOL(scsilun_to_int);
@@ -1294,13 +1295,10 @@ EXPORT_SYMBOL(scsilun_to_int);
  *     Reverts the functionality of the scsilun_to_int, which packed
  *     an 8-byte lun value into an int. This routine unpacks the int
  *     back into the lun value.
- *     Note: the scsilun_to_int() routine does not truly handle all
- *     8bytes of the lun value. This functions restores only as much
- *     as was set by the routine.
  *
  * Notes:
- *     Given an integer : 0x0b030a04,  this function returns a
- *     scsi_lun of : struct scsi_lun of: 0a 04 0b 03 00 00 00 00
+ *     Given an integer : 0x0b03d204,  this function returns a
+ *     struct scsi_lun of: d2 04 0b 03 00 00 00 00
  *
  **/
 void int_to_scsilun(u64 lun, struct scsi_lun *scsilun)
