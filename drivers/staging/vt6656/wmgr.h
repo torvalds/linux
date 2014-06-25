@@ -38,7 +38,6 @@
 #include "80211hdr.h"
 #include "wcmd.h"
 #include "bssdb.h"
-#include "wpa2.h"
 #include "card.h"
 
 // Scan time
@@ -324,7 +323,6 @@ struct vnt_manager {
 	KnownNodeDB sNodeDBTable[MAX_NODE_NUM + 1];
 
 	/* WPA2 PMKID Cache */
-	SPMKIDCache gsPMKIDCache;
 	int bRoaming;
 
 	/* associate info */
