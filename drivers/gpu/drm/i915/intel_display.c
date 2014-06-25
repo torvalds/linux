@@ -7312,7 +7312,6 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
-	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *crtc;
 
 	for_each_intel_crtc(dev, crtc)
@@ -7320,9 +7319,9 @@ static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 		     pipe_name(crtc->pipe));
 
 	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on\n");
-	WARN(plls->spll_refcount, "SPLL enabled\n");
-	WARN(plls->wrpll1_refcount, "WRPLL1 enabled\n");
-	WARN(plls->wrpll2_refcount, "WRPLL2 enabled\n");
+	WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL enabled\n");
+	WARN(I915_READ(WRPLL_CTL1) & WRPLL_PLL_ENABLE, "WRPLL1 enabled\n");
+	WARN(I915_READ(WRPLL_CTL2) & WRPLL_PLL_ENABLE, "WRPLL2 enabled\n");
 	WARN(I915_READ(PCH_PP_STATUS) & PP_ON, "Panel power on\n");
 	WARN(I915_READ(BLC_PWM_CPU_CTL2) & BLM_PWM_ENABLE,
 	     "CPU PWM1 enabled\n");
