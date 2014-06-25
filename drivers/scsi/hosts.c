@@ -204,12 +204,12 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	struct scsi_host_template *sht = shost->hostt;
 	int error = -EINVAL;
 
-	printk(KERN_INFO "scsi%d : %s\n", shost->host_no,
+	shost_printk(KERN_INFO, shost, "%s\n",
 			sht->info ? sht->info(shost) : sht->name);
 
 	if (!shost->can_queue) {
-		printk(KERN_ERR "%s: can_queue = 0 no longer supported\n",
-				sht->name);
+		shost_printk(KERN_ERR, shost,
+			     "can_queue = 0 no longer supported\n");
 		goto fail;
 	}
 
@@ -450,8 +450,9 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
 			"scsi_eh_%d", shost->host_no);
 	if (IS_ERR(shost->ehandler)) {
-		printk(KERN_WARNING "scsi%d: error handler thread failed to spawn, error = %ld\n",
-			shost->host_no, PTR_ERR(shost->ehandler));
+		shost_printk(KERN_WARNING, shost,
+			"error handler thread failed to spawn, error = %ld\n",
+			PTR_ERR(shost->ehandler));
 		goto fail_kfree;
 	}
 
@@ -584,7 +585,7 @@ EXPORT_SYMBOL(scsi_is_host_device);
 int scsi_queue_work(struct Scsi_Host *shost, struct work_struct *work)
 {
 	if (unlikely(!shost->work_q)) {
-		printk(KERN_ERR
+		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to queue scsi-work, "
 			"when no workqueue created.\n", shost->hostt->name);
 		dump_stack();
@@ -603,7 +604,7 @@ EXPORT_SYMBOL_GPL(scsi_queue_work);
 void scsi_flush_work(struct Scsi_Host *shost)
 {
 	if (!shost->work_q) {
-		printk(KERN_ERR
+		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to flush scsi-work, "
 			"when no workqueue created.\n", shost->hostt->name);
 		dump_stack();
