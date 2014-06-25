@@ -123,6 +123,7 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.base_params = &iwl8000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_8000,	\
+	.d0i3 = true,						\
 	.non_shared_ant = ANT_A
 
 const struct iwl_cfg iwl8260_2n_cfg = {
