@@ -4100,15 +4100,14 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 
 	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
-	if (intel_crtc->config.has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
-
-	if (intel_crtc->config.has_pch_encoder)
-		dev_priv->display.fdi_link_train(crtc);
-
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
+
+	if (intel_crtc->config.has_pch_encoder) {
+		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
+		dev_priv->display.fdi_link_train(crtc);
+	}
 
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
