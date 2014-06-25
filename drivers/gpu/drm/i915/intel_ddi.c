@@ -394,13 +394,6 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 	uint32_t val;
 
 	switch (intel_crtc->ddi_pll_sel) {
-	case PORT_CLK_SEL_SPLL:
-		DRM_DEBUG_KMS("Disabling SPLL\n");
-		val = I915_READ(SPLL_CTL);
-		WARN_ON(!(val & SPLL_PLL_ENABLE));
-		I915_WRITE(SPLL_CTL, val & ~SPLL_PLL_ENABLE);
-		POSTING_READ(SPLL_CTL);
-		break;
 	case PORT_CLK_SEL_WRPLL1:
 		plls->wrpll1_refcount--;
 		if (plls->wrpll1_refcount == 0) {
