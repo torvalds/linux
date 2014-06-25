@@ -1501,7 +1501,7 @@ out_rmdir:
 				GOTO(out_req, rc = -EFAULT);
 			rc = -EOVERFLOW;
 		}
-	skip_lmm:
+skip_lmm:
 		if (cmd == IOC_MDC_GETFILEINFO || cmd == LL_IOC_MDC_GETINFO) {
 			struct lov_user_mds_data *lmdp;
 			lstat_t st = { 0 };
@@ -1525,7 +1525,7 @@ out_rmdir:
 				GOTO(out_req, rc = -EFAULT);
 		}
 
-	out_req:
+out_req:
 		ptlrpc_req_finished(request);
 		if (filename)
 			ll_putname(filename);
@@ -1589,9 +1589,9 @@ out_rmdir:
 		if (copy_to_user(&lumd->lmd_st, &st, sizeof(st)))
 			GOTO(free_lsm, rc = -EFAULT);
 
-	free_lsm:
+free_lsm:
 		obd_free_memmd(sbi->ll_dt_exp, &lsm);
-	free_lmm:
+free_lmm:
 		OBD_FREE_LARGE(lmm, lmmsize);
 		return rc;
 	}
@@ -1653,7 +1653,7 @@ out_rmdir:
 				CDEBUG(D_QUOTA, "copy_to_user failed\n");
 			GOTO(out_poll, rc);
 		}
-	out_poll:
+out_poll:
 		OBD_FREE_PTR(check);
 		return rc;
 	}
@@ -1702,9 +1702,9 @@ out_rmdir:
 				rc = -EFAULT;
 		}
 
-	out_quotactl_20:
+out_quotactl_20:
 		OBD_FREE_PTR(qctl_20);
-	out_quotactl_18:
+out_quotactl_18:
 		OBD_FREE_PTR(qctl_18);
 		return rc;
 	}
@@ -1726,7 +1726,7 @@ out_rmdir:
 		if (rc == 0 && copy_to_user((void *)arg,qctl,sizeof(*qctl)))
 			rc = -EFAULT;
 
-	out_quotactl:
+out_quotactl:
 		OBD_FREE_PTR(qctl);
 		return rc;
 	}
