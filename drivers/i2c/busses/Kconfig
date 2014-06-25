@@ -466,9 +466,9 @@ config I2C_EG20T
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS5 && OF
+	default y
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Exynos5 based Samsung SoCs.
+	  High-speed I2C controller on Exynos5 based Samsung SoCs.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
