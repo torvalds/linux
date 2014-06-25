@@ -112,52 +112,6 @@ void RXvFreeRCB(struct vnt_rcb *rcb, int re_alloc_skb)
 			priv->NumRecvFreeList, priv->NumRecvMngList);
 }
 
-void RXvMngWorkItem(struct work_struct *work)
-{
-	struct vnt_private *pDevice =
-		container_of(work, struct vnt_private, rx_mng_work_item);
-	struct vnt_rcb *pRCB = NULL;
-	struct vnt_rx_mgmt *pRxPacket;
-	int bReAllocSkb = false;
-	unsigned long flags;
-
-	if (pDevice->Flags & fMP_DISCONNECTED)
-		return;
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Rx Mng Thread\n");
-
-    while (pDevice->NumRecvMngList!=0)
-    {
-	spin_lock_irqsave(&pDevice->lock, flags);
-
-        pRCB = pDevice->FirstRecvMngList;
-        pDevice->NumRecvMngList--;
-        DequeueRCB(pDevice->FirstRecvMngList, pDevice->LastRecvMngList);
-
-	spin_unlock_irqrestore(&pDevice->lock, flags);
-
-        if(!pRCB){
-            break;
-        }
-        pRxPacket = &(pRCB->sMngPacket);
-        pRCB->Ref--;
-	if (pRCB->Ref == 0) {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"RxvFreeMng %d %d\n",
-			pDevice->NumRecvFreeList, pDevice->NumRecvMngList);
-
-		spin_lock_irqsave(&pDevice->lock, flags);
-
-		RXvFreeRCB(pRCB, bReAllocSkb);
-
-		spin_unlock_irqrestore(&pDevice->lock, flags);
-	} else {
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Rx Mng Only we have the right to free RCB\n");
-        }
-    }
-
-	pDevice->bIsRxMngWorkItemQueued = false;
-}
-
 int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	unsigned long bytes_received)
 {
