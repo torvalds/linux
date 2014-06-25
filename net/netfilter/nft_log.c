@@ -50,6 +50,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	struct nft_log *priv = nft_expr_priv(expr);
 	struct nf_loginfo *li = &priv->loginfo;
 	const struct nlattr *nla;
+	int ret;
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -71,16 +72,37 @@ static int nft_log_init(const struct nft_ctx *ctx,
 			ntohs(nla_get_be16(tb[NFTA_LOG_QTHRESHOLD]));
 	}
 
-	return 0;
+	if (ctx->afi->family == NFPROTO_INET) {
+		ret = nf_logger_find_get(NFPROTO_IPV4, li->type);
+		if (ret < 0)
+			return ret;
+
+		ret = nf_logger_find_get(NFPROTO_IPV6, li->type);
+		if (ret < 0) {
+			nf_logger_put(NFPROTO_IPV4, li->type);
+			return ret;
+		}
+		return 0;
+	}
+
+	return nf_logger_find_get(ctx->afi->family, li->type);
 }
 
 static void nft_log_destroy(const struct nft_ctx *ctx,
 			    const struct nft_expr *expr)
 {
 	struct nft_log *priv = nft_expr_priv(expr);
+	struct nf_loginfo *li = &priv->loginfo;
 
 	if (priv->prefix != nft_log_null_prefix)
 		kfree(priv->prefix);
+
+	if (ctx->afi->family == NFPROTO_INET) {
+		nf_logger_put(NFPROTO_IPV4, li->type);
+		nf_logger_put(NFPROTO_IPV6, li->type);
+	} else {
+		nf_logger_put(ctx->afi->family, li->type);
+	}
 }
 
 static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
