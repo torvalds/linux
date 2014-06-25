@@ -492,6 +492,8 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 {
 
 	struct vnt_private *priv = tx_context->priv;
+	struct ieee80211_hdr *hdr =
+				(struct ieee80211_hdr *)tx_context->skb->data;
 
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->a);
@@ -499,8 +501,16 @@ static u16 vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 							PK_TYPE_11B, &buf->b);
 
 	/* Get Duration and TimeStamp */
-	buf->duration_a = s_uGetDataDuration(priv, pkt_type, need_ack);
-	buf->duration_b = s_uGetDataDuration(priv, PK_TYPE_11B, need_ack);
+	if (ieee80211_is_pspoll(hdr->frame_control)) {
+		__le16 dur = cpu_to_le16(priv->current_aid | BIT(14) | BIT(15));
+
+		buf->duration_a = dur;
+		buf->duration_b = dur;
+	} else {
+		buf->duration_a = s_uGetDataDuration(priv, pkt_type, need_ack);
+		buf->duration_b = s_uGetDataDuration(priv,
+							PK_TYPE_11B, need_ack);
+	}
 
 	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
 	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
@@ -565,11 +575,20 @@ static u16 vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 		u32 frame_len, int need_ack)
 {
 	struct vnt_private *priv = tx_context->priv;
+	struct ieee80211_hdr *hdr =
+				(struct ieee80211_hdr *)tx_context->skb->data;
 
 	/* Get SignalField,ServiceField,Length */
 	vnt_get_phy_field(priv, frame_len, rate, pkt_type, &buf->ab);
+
 	/* Get Duration and TimeStampOff */
-	buf->duration = s_uGetDataDuration(priv, pkt_type, need_ack);
+	if (ieee80211_is_pspoll(hdr->frame_control)) {
+		__le16 dur = cpu_to_le16(priv->current_aid | BIT(14) | BIT(15));
+
+		buf->duration = dur;
+	} else {
+		buf->duration = s_uGetDataDuration(priv, pkt_type, need_ack);
+	}
 
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
 
