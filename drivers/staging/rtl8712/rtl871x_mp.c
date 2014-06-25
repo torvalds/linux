@@ -65,7 +65,7 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 			 ((addr_t)(pmp_priv->pallocated_mp_xmitframe_buf) & 3);
 	pmp_xmitframe = (struct mp_xmit_frame *)pmp_priv->pmp_xmtframe_buf;
 	for (i = 0; i < NR_MP_XMITFRAME; i++) {
-		_init_listhead(&(pmp_xmitframe->list));
+		INIT_LIST_HEAD(&(pmp_xmitframe->list));
 		list_insert_tail(&(pmp_xmitframe->list),
 				 &(pmp_priv->free_mp_xmitqueue.queue));
 		pmp_xmitframe->pkt = NULL;

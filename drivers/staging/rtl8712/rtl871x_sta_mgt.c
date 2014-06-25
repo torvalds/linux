@@ -38,12 +38,12 @@ static void _init_stainfo(struct sta_info *psta)
 {
 	memset((u8 *)psta, 0, sizeof(struct sta_info));
 	 spin_lock_init(&psta->lock);
-	_init_listhead(&psta->list);
-	_init_listhead(&psta->hash_list);
+	INIT_LIST_HEAD(&psta->list);
+	INIT_LIST_HEAD(&psta->hash_list);
 	_r8712_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	_r8712_init_sta_recv_priv(&psta->sta_recvpriv);
-	_init_listhead(&psta->asoc_list);
-	_init_listhead(&psta->auth_list);
+	INIT_LIST_HEAD(&psta->asoc_list);
+	INIT_LIST_HEAD(&psta->auth_list);
 }
 
 u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
@@ -65,13 +65,13 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	psta = (struct sta_info *)(pstapriv->pstainfo_buf);
 	for (i = 0; i < NUM_STA; i++) {
 		_init_stainfo(psta);
-		_init_listhead(&(pstapriv->sta_hash[i]));
+		INIT_LIST_HEAD(&(pstapriv->sta_hash[i]));
 		list_insert_tail(&psta->list,
 				 get_list_head(&pstapriv->free_sta_queue));
 		psta++;
 	}
-	_init_listhead(&pstapriv->asoc_list);
-	_init_listhead(&pstapriv->auth_list);
+	INIT_LIST_HEAD(&pstapriv->asoc_list);
+	INIT_LIST_HEAD(&pstapriv->auth_list);
 	return _SUCCESS;
 }
 

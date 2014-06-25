@@ -54,7 +54,7 @@ struct	__queue	{
 
 #define _init_queue(pqueue)				\
 	do {						\
-		_init_listhead(&((pqueue)->queue));	\
+		INIT_LIST_HEAD(&((pqueue)->queue));	\
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
@@ -135,11 +135,6 @@ static inline u32 _down_sema(struct semaphore *sema)
 		return _FAIL;
 	else
 		return _SUCCESS;
-}
-
-static inline void _init_listhead(struct list_head *list)
-{
-	INIT_LIST_HEAD(list);
 }
 
 static inline u32 _queue_empty(struct  __queue *pqueue)

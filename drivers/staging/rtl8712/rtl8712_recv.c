@@ -66,7 +66,7 @@ int r8712_init_recv_priv(struct recv_priv *precvpriv, struct _adapter *padapter)
 			      ((addr_t) (precvpriv->pallocated_recv_buf) & 3);
 	precvbuf = (struct recv_buf *)precvpriv->precv_buf;
 	for (i = 0; i < NR_RECVBUFF; i++) {
-		_init_listhead(&precvbuf->list);
+		INIT_LIST_HEAD(&precvbuf->list);
 		spin_lock_init(&precvbuf->recvbuf_lock);
 		res = r8712_os_recvbuf_resource_alloc(padapter, precvbuf);
 		if (res == _FAIL)
@@ -1061,7 +1061,7 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		precvframe = r8712_alloc_recvframe(pfree_recv_queue);
 		if (precvframe == NULL)
 			goto  _exit_recvbuf2recvframe;
-		_init_listhead(&precvframe->u.hdr.list);
+		INIT_LIST_HEAD(&precvframe->u.hdr.list);
 		precvframe->u.hdr.precvbuf = NULL; /*can't access the precvbuf*/
 		precvframe->u.hdr.len = 0;
 		tmp_len = pkt_len + drvinfo_sz + RXDESC_SIZE;

@@ -43,7 +43,7 @@ static void free_hwxmits(struct _adapter *padapter);
 
 static void _init_txservq(struct tx_servq *ptxservq)
 {
-	_init_listhead(&ptxservq->tx_pending);
+	INIT_LIST_HEAD(&ptxservq->tx_pending);
 	_init_queue(&ptxservq->sta_pending);
 	ptxservq->qcnt = 0;
 }
@@ -57,8 +57,8 @@ void _r8712_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv)
 	_init_txservq(&psta_xmitpriv->bk_q);
 	_init_txservq(&psta_xmitpriv->vi_q);
 	_init_txservq(&psta_xmitpriv->vo_q);
-	_init_listhead(&psta_xmitpriv->legacy_dz);
-	_init_listhead(&psta_xmitpriv->apsd);
+	INIT_LIST_HEAD(&psta_xmitpriv->legacy_dz);
+	INIT_LIST_HEAD(&psta_xmitpriv->apsd);
 }
 
 sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
@@ -97,7 +97,7 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 			((addr_t) (pxmitpriv->pallocated_frame_buf) & 3);
 	pxframe = (struct xmit_frame *) pxmitpriv->pxmit_frame_buf;
 	for (i = 0; i < NR_XMITFRAME; i++) {
-		_init_listhead(&(pxframe->list));
+		INIT_LIST_HEAD(&(pxframe->list));
 		pxframe->padapter = padapter;
 		pxframe->frame_tag = DATA_FRAMETAG;
 		pxframe->pkt = NULL;
@@ -134,7 +134,7 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 			      ((addr_t)(pxmitpriv->pallocated_xmitbuf) & 3);
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
 	for (i = 0; i < NR_XMITBUFF; i++) {
-		_init_listhead(&pxmitbuf->list);
+		INIT_LIST_HEAD(&pxmitbuf->list);
 		pxmitbuf->pallocated_buf = kmalloc(MAX_XMITBUF_SZ + XMITBUF_ALIGN_SZ,
 						   GFP_ATOMIC);
 		if (pxmitbuf->pallocated_buf == NULL)
@@ -1005,7 +1005,7 @@ static void init_hwxmits(struct hw_xmit *phwxmit, sint entry)
 
 	for (i = 0; i < entry; i++, phwxmit++) {
 		spin_lock_init(&phwxmit->xmit_lock);
-		_init_listhead(&phwxmit->pending);
+		INIT_LIST_HEAD(&phwxmit->pending);
 		phwxmit->txcmdcnt = 0;
 		phwxmit->accnt = 0;
 	}
