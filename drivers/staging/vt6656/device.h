@@ -77,7 +77,6 @@
 #include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
-#include "rc4.h"
 #include "desc.h"
 #include "key.h"
 #include "card.h"
@@ -640,7 +639,6 @@ struct vnt_private {
 	SKeyManagement sKey;
 	u32 dwIVCounter;
 
-	RC4Ext SBox;
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
 
