@@ -80,7 +80,7 @@ const char *scsi_host_state_name(enum scsi_host_state state)
 	return name;
 }
 
-static int check_set(unsigned int *val, char *src)
+static int check_set(unsigned long long *val, char *src)
 {
 	char *last;
 
@@ -90,7 +90,7 @@ static int check_set(unsigned int *val, char *src)
 		/*
 		 * Doesn't check for int overflow
 		 */
-		*val = simple_strtoul(src, &last, 0);
+		*val = simple_strtoull(src, &last, 0);
 		if (*last != '\0')
 			return 1;
 	}
@@ -99,11 +99,11 @@ static int check_set(unsigned int *val, char *src)
 
 static int scsi_scan(struct Scsi_Host *shost, const char *str)
 {
-	char s1[15], s2[15], s3[15], junk;
-	unsigned int channel, id, lun;
+	char s1[15], s2[15], s3[17], junk;
+	unsigned long long channel, id, lun;
 	int res;
 
-	res = sscanf(str, "%10s %10s %10s %c", s1, s2, s3, &junk);
+	res = sscanf(str, "%10s %10s %16s %c", s1, s2, s3, &junk);
 	if (res != 3)
 		return -EINVAL;
 	if (check_set(&channel, s1))
@@ -1230,13 +1230,13 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	device_initialize(&sdev->sdev_gendev);
 	sdev->sdev_gendev.bus = &scsi_bus_type;
 	sdev->sdev_gendev.type = &scsi_dev_type;
-	dev_set_name(&sdev->sdev_gendev, "%d:%d:%d:%d",
+	dev_set_name(&sdev->sdev_gendev, "%d:%d:%d:%llu",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
 
 	device_initialize(&sdev->sdev_dev);
 	sdev->sdev_dev.parent = get_device(&sdev->sdev_gendev);
 	sdev->sdev_dev.class = &sdev_class;
-	dev_set_name(&sdev->sdev_dev, "%d:%d:%d:%d",
+	dev_set_name(&sdev->sdev_dev, "%d:%d:%d:%llu",
 		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
 	sdev->scsi_level = starget->scsi_level;
 	transport_setup_device(&sdev->sdev_gendev);

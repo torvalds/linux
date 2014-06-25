@@ -3945,7 +3945,7 @@ void ata_scsi_hotplug(struct work_struct *work)
  *	Zero.
  */
 int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
-		       unsigned int id, unsigned int lun)
+		       unsigned int id, u64 lun)
 {
 	struct ata_port *ap = ata_shost_to_port(shost);
 	unsigned long flags;

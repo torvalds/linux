@@ -1230,7 +1230,7 @@ static void handle_msgin(struct mesh_state *ms)
 				ms->msgphase = msg_out;
 			} else if (code != cmd->device->lun + IDENTIFY_BASE) {
 				printk(KERN_WARNING "mesh: lun mismatch "
-				       "(%d != %d) on reselection from "
+				       "(%d != %llu) on reselection from "
 				       "target %d\n", code - IDENTIFY_BASE,
 				       cmd->device->lun, ms->conn_tgt);
 			}

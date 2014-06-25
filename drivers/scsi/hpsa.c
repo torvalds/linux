@@ -4590,7 +4590,7 @@ static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
 		return FAILED;
 
 	memset(msg, 0, sizeof(msg));
-	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%d ",
+	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%llu ",
 		h->scsi_host->host_no, sc->device->channel,
 		sc->device->id, sc->device->lun);
 

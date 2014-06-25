@@ -405,7 +405,7 @@ typedef struct _VirtTarget {
 typedef struct _VirtDevice {
 	VirtTarget		*vtarget;
 	u8			 configured_lun;
-	int			 lun;
+	u64			 lun;
 } VirtDevice;
 
 /*

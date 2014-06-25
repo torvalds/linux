@@ -2542,7 +2542,7 @@ static int sg_proc_seq_show_dev(struct seq_file *s, void *v)
 		seq_puts(s, "-1\t-1\t-1\t-1\t-1\t-1\t-1\t-1\t-1\n");
 	else {
 		scsidp = sdp->device;
-		seq_printf(s, "%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+		seq_printf(s, "%d\t%d\t%d\t%llu\t%d\t%d\t%d\t%d\t%d\n",
 			      scsidp->host->host_no, scsidp->channel,
 			      scsidp->id, scsidp->lun, (int) scsidp->type,
 			      1,
@@ -2671,7 +2671,7 @@ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
 		else if (sdp->device) {
 			struct scsi_device *scsidp = sdp->device;
 
-			seq_printf(s, "%d:%d:%d:%d   em=%d",
+			seq_printf(s, "%d:%d:%d:%llu   em=%d",
 				   scsidp->host->host_no,
 				   scsidp->channel, scsidp->id,
 				   scsidp->lun,

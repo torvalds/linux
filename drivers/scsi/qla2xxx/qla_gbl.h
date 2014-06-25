@@ -212,7 +212,7 @@ extern void qla2x00_build_scsi_iocbs_64(srb_t *, cmd_entry_t *, uint16_t);
 extern int qla2x00_start_scsi(srb_t *sp);
 extern int qla24xx_start_scsi(srb_t *sp);
 int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
-						uint16_t, uint16_t, uint8_t);
+						uint16_t, uint64_t, uint8_t);
 extern int qla2x00_start_sp(srb_t *);
 extern int qla24xx_dif_start_scsi(srb_t *);
 extern int qla2x00_start_bidir(srb_t *, struct scsi_qla_host *, uint32_t);
@@ -262,10 +262,10 @@ extern int
 qla2x00_abort_command(srb_t *);
 
 extern int
-qla2x00_abort_target(struct fc_port *, unsigned int, int);
+qla2x00_abort_target(struct fc_port *, uint64_t, int);
 
 extern int
-qla2x00_lun_reset(struct fc_port *, unsigned int, int);
+qla2x00_lun_reset(struct fc_port *, uint64_t, int);
 
 extern int
 qla2x00_get_adapter_id(scsi_qla_host_t *, uint16_t *, uint8_t *, uint8_t *,
@@ -339,12 +339,12 @@ qla24xx_get_isp_stats(scsi_qla_host_t *, struct link_statistics *,
 extern int qla24xx_abort_command(srb_t *);
 extern int qla24xx_async_abort_command(srb_t *);
 extern int
-qla24xx_abort_target(struct fc_port *, unsigned int, int);
+qla24xx_abort_target(struct fc_port *, uint64_t, int);
 extern int
-qla24xx_lun_reset(struct fc_port *, unsigned int, int);
+qla24xx_lun_reset(struct fc_port *, uint64_t, int);
 extern int
 qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *, unsigned int,
-	unsigned int, enum nexus_wait_type);
+	uint64_t, enum nexus_wait_type);
 extern int
 qla2x00_system_error(scsi_qla_host_t *);
 
@@ -617,8 +617,8 @@ extern char *qlafx00_fw_version_str(struct scsi_qla_host *, char *);
 extern irqreturn_t qlafx00_intr_handler(int, void *);
 extern void qlafx00_enable_intrs(struct qla_hw_data *);
 extern void qlafx00_disable_intrs(struct qla_hw_data *);
-extern int qlafx00_abort_target(fc_port_t *, unsigned int, int);
-extern int qlafx00_lun_reset(fc_port_t *, unsigned int, int);
+extern int qlafx00_abort_target(fc_port_t *, uint64_t, int);
+extern int qlafx00_lun_reset(fc_port_t *, uint64_t, int);
 extern int qlafx00_start_scsi(srb_t *);
 extern int qlafx00_abort_isp(scsi_qla_host_t *);
 extern int qlafx00_iospace_config(struct qla_hw_data *);

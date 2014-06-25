@@ -1291,7 +1291,7 @@ EXPORT_SYMBOL(__starget_for_each_device);
  * really want to use scsi_device_lookup_by_target instead.
  **/
 struct scsi_device *__scsi_device_lookup_by_target(struct scsi_target *starget,
-						   uint lun)
+						   u64 lun)
 {
 	struct scsi_device *sdev;
 
@@ -1316,7 +1316,7 @@ EXPORT_SYMBOL(__scsi_device_lookup_by_target);
  * needs to be released with scsi_device_put once you're done with it.
  **/
 struct scsi_device *scsi_device_lookup_by_target(struct scsi_target *starget,
-						 uint lun)
+						 u64 lun)
 {
 	struct scsi_device *sdev;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -1349,7 +1349,7 @@ EXPORT_SYMBOL(scsi_device_lookup_by_target);
  * really want to use scsi_device_lookup instead.
  **/
 struct scsi_device *__scsi_device_lookup(struct Scsi_Host *shost,
-		uint channel, uint id, uint lun)
+		uint channel, uint id, u64 lun)
 {
 	struct scsi_device *sdev;
 
@@ -1375,7 +1375,7 @@ EXPORT_SYMBOL(__scsi_device_lookup);
  * needs to be released with scsi_device_put once you're done with it.
  **/
 struct scsi_device *scsi_device_lookup(struct Scsi_Host *shost,
-		uint channel, uint id, uint lun)
+		uint channel, uint id, u64 lun)
 {
 	struct scsi_device *sdev;
 	unsigned long flags;

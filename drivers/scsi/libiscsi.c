@@ -260,7 +260,7 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 {
 	struct iscsi_conn *conn = task->conn;
 	struct iscsi_tm *tmf = &conn->tmhdr;
-	unsigned int hdr_lun;
+	u64 hdr_lun;
 
 	if (conn->tmf_state == TMF_INITIAL)
 		return 0;
@@ -1859,8 +1859,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
  * Fail commands. session lock held and recv side suspended and xmit
  * thread flushed
  */
-static void fail_scsi_tasks(struct iscsi_conn *conn, unsigned lun,
-			    int error)
+static void fail_scsi_tasks(struct iscsi_conn *conn, u64 lun, int error)
 {
 	struct iscsi_task *task;
 	int i;
@@ -2279,7 +2278,8 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
-	ISCSI_DBG_EH(session, "LU Reset [sc %p lun %u]\n", sc, sc->device->lun);
+	ISCSI_DBG_EH(session, "LU Reset [sc %p lun %llu]\n", sc,
+		     sc->device->lun);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);

@@ -891,7 +891,7 @@ static int inia100_build_scb(struct orc_host * host, struct orc_scb * scb, struc
 		printk("max cdb length= %x\b", cmd->cmd_len);
 		scb->cdb_len = IMAX_CDB;
 	}
-	scb->ident = cmd->device->lun | DISC_ALLOW;
+	scb->ident = (u8)(cmd->device->lun & 0xff) | DISC_ALLOW;
 	if (cmd->device->tagged_supported) {	/* Tag Support                  */
 		scb->tag_msg = SIMPLE_QUEUE_TAG;	/* Do simple tag only   */
 	} else {

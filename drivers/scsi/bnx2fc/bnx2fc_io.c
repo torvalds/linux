@@ -1450,9 +1450,9 @@ static void bnx2fc_lun_reset_cmpl(struct bnx2fc_cmd *io_req)
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	struct bnx2fc_cmd *cmd, *tmp;
-	int tm_lun = sc_cmd->device->lun;
+	u64 tm_lun = sc_cmd->device->lun;
+	u64 lun;
 	int rc = 0;
-	int lun;
 
 	/* called with tgt_lock held */
 	BNX2FC_IO_DBG(io_req, "Entered bnx2fc_lun_reset_cmpl\n");

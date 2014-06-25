@@ -237,7 +237,7 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
 		     scsi_dev->host->unique_id,
 		     scsi_dev->channel,
 		     scsi_dev->id,
-		     scsi_dev->lun);
+		     (u8)scsi_dev->lun);
 
 	if (RES_IS_GSCSI(res->cfg_entry)) {
 		scsi_dev->allow_restart = 1;

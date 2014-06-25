@@ -698,7 +698,7 @@ static int NCR53c406a_queue_lck(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 	int i;
 
 	VDEB(printk("NCR53c406a_queue called\n"));
-	DEB(printk("cmd=%02x, cmd_len=%02x, target=%02x, lun=%02x, bufflen=%d\n", SCpnt->cmnd[0], SCpnt->cmd_len, SCpnt->target, SCpnt->lun, scsi_bufflen(SCpnt)));
+        DEB(printk("cmd=%02x, cmd_len=%02x, target=%02x, lun=%02x, bufflen=%d\n", SCpnt->cmnd[0], SCpnt->cmd_len, SCpnt->device->target, (u8)SCpnt->device->lun, scsi_bufflen(SCpnt)));
 
 #if 0
 	VDEB(for (i = 0; i < SCpnt->cmd_len; i++)

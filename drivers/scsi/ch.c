@@ -247,7 +247,7 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
  retry:
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = READ_ELEMENT_STATUS;
-	cmd[1] = (ch->device->lun << 5) |
+	cmd[1] = ((ch->device->lun & 0x7) << 5) |
 		(ch->voltags ? 0x10 : 0) |
 		ch_elem_to_typecode(ch,elem);
 	cmd[2] = (elem >> 8) & 0xff;
@@ -283,7 +283,7 @@ ch_init_elem(scsi_changer *ch)
 	VPRINTK(KERN_INFO, "INITIALIZE ELEMENT STATUS, may take some time ...\n");
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = INITIALIZE_ELEMENT_STATUS;
-	cmd[1] = ch->device->lun << 5;
+	cmd[1] = (ch->device->lun & 0x7) << 5;
 	err = ch_do_scsi(ch, cmd, NULL, 0, DMA_NONE);
 	VPRINTK(KERN_INFO, "... finished\n");
 	return err;
@@ -303,7 +303,7 @@ ch_readconfig(scsi_changer *ch)
 
 	memset(cmd,0,sizeof(cmd));
 	cmd[0] = MODE_SENSE;
-	cmd[1] = ch->device->lun << 5;
+	cmd[1] = (ch->device->lun & 0x7) << 5;
 	cmd[2] = 0x1d;
 	cmd[4] = 255;
 	result = ch_do_scsi(ch, cmd, buffer, 255, DMA_FROM_DEVICE);
@@ -428,7 +428,7 @@ ch_position(scsi_changer *ch, u_int trans, u_int elem, int rotate)
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = POSITION_TO_ELEMENT;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (elem  >> 8) & 0xff;
@@ -447,7 +447,7 @@ ch_move(scsi_changer *ch, u_int trans, u_int src, u_int dest, int rotate)
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = MOVE_MEDIUM;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (src   >> 8) & 0xff;
@@ -470,7 +470,7 @@ ch_exchange(scsi_changer *ch, u_int trans, u_int src,
 		trans = ch->firsts[CHET_MT];
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = EXCHANGE_MEDIUM;
-	cmd[1]  = ch->device->lun << 5;
+	cmd[1]  = (ch->device->lun & 0x7) << 5;
 	cmd[2]  = (trans >> 8) & 0xff;
 	cmd[3]  =  trans       & 0xff;
 	cmd[4]  = (src   >> 8) & 0xff;
@@ -518,7 +518,7 @@ ch_set_voltag(scsi_changer *ch, u_int elem,
 		elem, tag);
 	memset(cmd,0,sizeof(cmd));
 	cmd[0]  = SEND_VOLUME_TAG;
-	cmd[1] = (ch->device->lun << 5) |
+	cmd[1] = ((ch->device->lun & 0x7) << 5) |
 		ch_elem_to_typecode(ch,elem);
 	cmd[2] = (elem >> 8) & 0xff;
 	cmd[3] = elem        & 0xff;
@@ -754,7 +754,7 @@ static long ch_ioctl(struct file *file,
 	voltag_retry:
 		memset(ch_cmd, 0, sizeof(ch_cmd));
 		ch_cmd[0] = READ_ELEMENT_STATUS;
-		ch_cmd[1] = (ch->device->lun << 5) |
+		ch_cmd[1] = ((ch->device->lun & 0x7) << 5) |
 			(ch->voltags ? 0x10 : 0) |
 			ch_elem_to_typecode(ch,elem);
 		ch_cmd[2] = (elem >> 8) & 0xff;

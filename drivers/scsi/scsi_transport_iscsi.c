@@ -1780,7 +1780,7 @@ EXPORT_SYMBOL_GPL(iscsi_scan_finished);
 struct iscsi_scan_data {
 	unsigned int channel;
 	unsigned int id;
-	unsigned int lun;
+	u64 lun;
 };
 
 static int iscsi_user_scan_session(struct device *dev, void *data)
@@ -1827,7 +1827,7 @@ user_scan_exit:
 }
 
 static int iscsi_user_scan(struct Scsi_Host *shost, uint channel,
-			   uint id, uint lun)
+			   uint id, u64 lun)
 {
 	struct iscsi_scan_data scan_data;
 

@@ -1285,14 +1285,14 @@ static int u14_34f_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct
    cpp->cpp_index = i;
    SCpnt->host_scribble = (unsigned char *) &cpp->cpp_index;
 
-   if (do_trace) printk("%s: qcomm, mbox %d, target %d.%d:%d.\n",
+   if (do_trace) printk("%s: qcomm, mbox %d, target %d.%d:%llu.\n",
                         BN(j), i, SCpnt->device->channel, SCpnt->device->id,
-                        SCpnt->device->lun);
+                        (u8)SCpnt->device->lun);
 
    cpp->opcode = OP_SCSI;
    cpp->channel = SCpnt->device->channel;
    cpp->target = SCpnt->device->id;
-   cpp->lun = SCpnt->device->lun;
+   cpp->lun = (u8)SCpnt->device->lun;
    cpp->SCpnt = SCpnt;
    cpp->cdb_len = SCpnt->cmd_len;
    memcpy(cpp->cdb, SCpnt->cmnd, SCpnt->cmd_len);
@@ -1663,10 +1663,10 @@ static int reorder(unsigned int j, unsigned long cursec,
    if (link_statistics && (overlap || !(flushcount % link_statistics)))
       for (n = 0; n < n_ready; n++) {
          k = il[n]; cpp = &HD(j)->cp[k]; SCpnt = cpp->SCpnt;
-         printk("%s %d.%d:%d mb %d fc %d nr %d sec %ld ns %u"\
+         printk("%s %d.%d:%llu mb %d fc %d nr %d sec %ld ns %u"\
                 " cur %ld s:%c r:%c rev:%c in:%c ov:%c xd %d.\n",
                 (ihdlr ? "ihdlr" : "qcomm"), SCpnt->channel, SCpnt->target,
-                SCpnt->lun, k, flushcount, n_ready,
+                (u8)SCpnt->lun, k, flushcount, n_ready,
                 blk_rq_pos(SCpnt->request), blk_rq_sectors(SCpnt->request),
 		cursec, YESNO(s), YESNO(r), YESNO(rev), YESNO(input_only),
                 YESNO(overlap), cpp->xdir);

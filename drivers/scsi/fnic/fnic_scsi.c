@@ -1753,7 +1753,7 @@ int fnic_abort_cmd(struct scsi_cmnd *sc)
 	tag = sc->request->tag;
 	FNIC_SCSI_DBG(KERN_DEBUG,
 		fnic->lport->host,
-		"Abort Cmd called FCID 0x%x, LUN 0x%x TAG %x flags %x\n",
+		"Abort Cmd called FCID 0x%x, LUN 0x%llx TAG %x flags %x\n",
 		rport->port_id, sc->device->lun, tag, CMD_FLAGS(sc));
 
 	CMD_FLAGS(sc) = FNIC_NO_FLAGS;
@@ -2207,7 +2207,7 @@ int fnic_device_reset(struct scsi_cmnd *sc)
 
 	rport = starget_to_rport(scsi_target(sc->device));
 	FNIC_SCSI_DBG(KERN_DEBUG, fnic->lport->host,
-		      "Device reset called FCID 0x%x, LUN 0x%x sc 0x%p\n",
+		      "Device reset called FCID 0x%x, LUN 0x%llx sc 0x%p\n",
 		      rport->port_id, sc->device->lun, sc);
 
 	if (lp->state != LPORT_ST_READY || !(lp->link_up))

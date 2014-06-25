@@ -1690,7 +1690,7 @@ NonFastPath:
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 	}
 	io_request->RaidContext.VirtualDiskTgtId = cpu_to_le16(device_id);
-	io_request->LUN[1] = scmd->device->lun;
+	int_to_scsilun(scmd->device->lun, (struct scsi_lun *)io_request->LUN);
 }
 
 /**
@@ -1713,7 +1713,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	device_id = MEGASAS_DEV_INDEX(instance, scp);
 
 	/* Zero out some fields so they don't get reused */
-	io_request->LUN[1] = 0;
+	memset(io_request->LUN, 0x0, 8);
 	io_request->CDB.EEDP32.PrimaryReferenceTag = 0;
 	io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0;
 	io_request->EEDPFlags = 0;

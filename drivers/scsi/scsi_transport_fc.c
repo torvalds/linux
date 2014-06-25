@@ -2089,7 +2089,7 @@ fc_timed_out(struct scsi_cmnd *scmd)
  * on the rport.
  */
 static void
-fc_user_scan_tgt(struct Scsi_Host *shost, uint channel, uint id, uint lun)
+fc_user_scan_tgt(struct Scsi_Host *shost, uint channel, uint id, u64 lun)
 {
 	struct fc_rport *rport;
 	unsigned long flags;
@@ -2121,7 +2121,7 @@ fc_user_scan_tgt(struct Scsi_Host *shost, uint channel, uint id, uint lun)
  * object as the parent.
  */
 static int
-fc_user_scan(struct Scsi_Host *shost, uint channel, uint id, uint lun)
+fc_user_scan(struct Scsi_Host *shost, uint channel, uint id, u64 lun)
 {
 	uint chlo, chhi;
 	uint tgtlo, tgthi;

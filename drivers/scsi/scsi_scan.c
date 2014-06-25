@@ -220,7 +220,7 @@ static void scsi_unlock_floptical(struct scsi_device *sdev,
  *     scsi_Device pointer, or NULL on failure.
  **/
 static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
-					   unsigned int lun, void *hostdata)
+					   u64 lun, void *hostdata)
 {
 	struct scsi_device *sdev;
 	int display_failure_msg = 1, ret;
@@ -1028,7 +1028,7 @@ static unsigned char *scsi_inq_str(unsigned char *buf, unsigned char *inq,
  *     SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
 static int scsi_probe_and_add_lun(struct scsi_target *starget,
-				  uint lun, int *bflagsp,
+				  u64 lun, int *bflagsp,
 				  struct scsi_device **sdevp, int rescan,
 				  void *hostdata)
 {
@@ -1181,7 +1181,8 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 static void scsi_sequential_lun_scan(struct scsi_target *starget,
 				     int bflags, int scsi_level, int rescan)
 {
-	unsigned int sparse_lun, lun, max_dev_lun;
+	uint max_dev_lun;
+	u64 sparse_lun, lun;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 
 	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: Sequential scan of"
@@ -1271,10 +1272,10 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
  *     Given a struct scsi_lun of: 0a 04 0b 03 00 00 00 00, this function returns
  *     the integer: 0x0b030a04
  **/
-int scsilun_to_int(struct scsi_lun *scsilun)
+u64 scsilun_to_int(struct scsi_lun *scsilun)
 {
 	int i;
-	unsigned int lun;
+	u64 lun;
 
 	lun = 0;
 	for (i = 0; i < sizeof(lun); i += 2)
@@ -1302,7 +1303,7 @@ EXPORT_SYMBOL(scsilun_to_int);
  *     scsi_lun of : struct scsi_lun of: 0a 04 0b 03 00 00 00 00
  *
  **/
-void int_to_scsilun(unsigned int lun, struct scsi_lun *scsilun)
+void int_to_scsilun(u64 lun, struct scsi_lun *scsilun)
 {
 	int i;
 
@@ -1342,7 +1343,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	char devname[64];
 	unsigned char scsi_cmd[MAX_COMMAND_SIZE];
 	unsigned int length;
-	unsigned int lun;
+	u64 lun;
 	unsigned int num_luns;
 	unsigned int retries;
 	int result;
@@ -1485,25 +1486,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	for (lunp = &lun_data[1]; lunp <= &lun_data[num_luns]; lunp++) {
 		lun = scsilun_to_int(lunp);
 
-		/*
-		 * Check if the unused part of lunp is non-zero, and so
-		 * does not fit in lun.
-		 */
-		if (memcmp(&lunp->scsi_lun[sizeof(lun)], "\0\0\0\0", 4)) {
-			int i;
-
-			/*
-			 * Output an error displaying the LUN in byte order,
-			 * this differs from what linux would print for the
-			 * integer LUN value.
-			 */
-			printk(KERN_WARNING "scsi: %s lun 0x", devname);
-			data = (char *)lunp->scsi_lun;
-			for (i = 0; i < sizeof(struct scsi_lun); i++)
-				printk("%02x", data[i]);
-			printk(" has a LUN larger than currently supported.\n");
-		} else if (lun > sdev->host->max_lun) {
-			printk(KERN_WARNING "scsi: %s lun%d has a LUN larger"
+		if (lun > sdev->host->max_lun) {
+			printk(KERN_WARNING "scsi: %s lun%llu has a LUN larger"
 			       " than allowed by the host adapter\n",
 			       devname, lun);
 		} else {
@@ -1517,8 +1501,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 				 */
 				sdev_printk(KERN_ERR, sdev,
 					"Unexpected response"
-				        " from lun %d while scanning, scan"
-				        " aborted\n", lun);
+					" from lun %llu while scanning, scan"
+					" aborted\n", (unsigned long long)lun);
 				break;
 			}
 		}
@@ -1537,7 +1521,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 }
 
 struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
-				      uint id, uint lun, void *hostdata)
+				      uint id, u64 lun, void *hostdata)
 {
 	struct scsi_device *sdev = ERR_PTR(-ENODEV);
 	struct device *parent = &shost->shost_gendev;
@@ -1573,7 +1557,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 EXPORT_SYMBOL(__scsi_add_device);
 
 int scsi_add_device(struct Scsi_Host *host, uint channel,
-		    uint target, uint lun)
+		    uint target, u64 lun)
 {
 	struct scsi_device *sdev = 
 		__scsi_add_device(host, channel, target, lun, NULL);
@@ -1602,7 +1586,7 @@ void scsi_rescan_device(struct device *dev)
 EXPORT_SYMBOL(scsi_rescan_device);
 
 static void __scsi_scan_target(struct device *parent, unsigned int channel,
-		unsigned int id, unsigned int lun, int rescan)
+		unsigned int id, u64 lun, int rescan)
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	int bflags = 0;
@@ -1670,7 +1654,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
  *     sequential scan of LUNs on the target id.
  **/
 void scsi_scan_target(struct device *parent, unsigned int channel,
-		      unsigned int id, unsigned int lun, int rescan)
+		      unsigned int id, u64 lun, int rescan)
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
 
@@ -1690,7 +1674,7 @@ void scsi_scan_target(struct device *parent, unsigned int channel,
 EXPORT_SYMBOL(scsi_scan_target);
 
 static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
-			      unsigned int id, unsigned int lun, int rescan)
+			      unsigned int id, u64 lun, int rescan)
 {
 	uint order_id;
 
@@ -1721,10 +1705,10 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 }
 
 int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
-			    unsigned int id, unsigned int lun, int rescan)
+			    unsigned int id, u64 lun, int rescan)
 {
 	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
-		"%s: <%u:%u:%u>\n",
+		"%s: <%u:%u:%llu>\n",
 		__func__, channel, id, lun));
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||

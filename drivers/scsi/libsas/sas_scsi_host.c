@@ -404,7 +404,7 @@ static int sas_recover_lu(struct domain_device *dev, struct scsi_cmnd *cmd)
 
 	int_to_scsilun(cmd->device->lun, &lun);
 
-	SAS_DPRINTK("eh: device %llx LUN %x has the task\n",
+	SAS_DPRINTK("eh: device %llx LUN %llx has the task\n",
 		    SAS_ADDR(dev->sas_addr),
 		    cmd->device->lun);
 
@@ -490,7 +490,8 @@ static void sas_wait_eh(struct domain_device *dev)
 }
 EXPORT_SYMBOL(sas_wait_eh);
 
-static int sas_queue_reset(struct domain_device *dev, int reset_type, int lun, int wait)
+static int sas_queue_reset(struct domain_device *dev, int reset_type,
+			   u64 lun, int wait)
 {
 	struct sas_ha_struct *ha = dev->port->ha;
 	int scheduled = 0, tries = 100;
@@ -689,7 +690,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
-				SAS_DPRINTK("dev %016llx LU %x is "
+				SAS_DPRINTK("dev %016llx LU %llx is "
 					    "recovered\n",
 					    SAS_ADDR(task->dev),
 					    cmd->device->lun);
@@ -742,7 +743,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			 * of effort could recover from errors.  Quite
 			 * possibly the HA just disappeared.
 			 */
-			SAS_DPRINTK("error from  device %llx, LUN %x "
+			SAS_DPRINTK("error from  device %llx, LUN %llx "
 				    "couldn't be recovered in any way\n",
 				    SAS_ADDR(task->dev->sas_addr),
 				    cmd->device->lun);
@@ -941,7 +942,7 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 		scsi_set_tag_type(scsi_dev, MSG_SIMPLE_TAG);
 		scsi_activate_tcq(scsi_dev, SAS_DEF_QD);
 	} else {
-		SAS_DPRINTK("device %llx, LUN %x doesn't support "
+		SAS_DPRINTK("device %llx, LUN %llx doesn't support "
 			    "TCQ\n", SAS_ADDR(dev->sas_addr),
 			    scsi_dev->lun);
 		scsi_dev->tagged_supported = 0;

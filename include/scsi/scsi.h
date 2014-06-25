@@ -385,7 +385,7 @@ struct scsi_lun {
 #define SCSI_W_LUN_ACCESS_CONTROL (SCSI_W_LUN_BASE + 2)
 #define SCSI_W_LUN_TARGET_LOG_PAGE (SCSI_W_LUN_BASE + 3)
 
-static inline int scsi_is_wlun(unsigned int lun)
+static inline int scsi_is_wlun(u64 lun)
 {
 	return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }
