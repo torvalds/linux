@@ -509,7 +509,7 @@ struct iwl_scan_offload_profile_cfg {
  * @full_scan_mul:	number of partial scans before each full scan
  */
 struct iwl_scan_offload_schedule {
-	u16 delay;
+	__le16 delay;
 	u8 iterations;
 	u8 full_scan_mul;
 } __packed;

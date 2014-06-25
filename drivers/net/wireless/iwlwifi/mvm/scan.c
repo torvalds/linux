@@ -899,11 +899,11 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		.watchdog = IWL_SCHED_SCAN_WATCHDOG,
 
 		.schedule_line[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS,
-		.schedule_line[0].delay = req->interval / 1000,
+		.schedule_line[0].delay = cpu_to_le16(req->interval / 1000),
 		.schedule_line[0].full_scan_mul = 1,
 
 		.schedule_line[1].iterations = 0xff,
-		.schedule_line[1].delay = req->interval / 1000,
+		.schedule_line[1].delay = cpu_to_le16(req->interval / 1000),
 		.schedule_line[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER,
 	};
 
@@ -1281,11 +1281,11 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	iwl_mvm_unified_scan_fill_tx_cmd(mvm, cmd->tx_cmd, false);
 	iwl_scan_offload_build_ssid(req, cmd->direct_scan, &ssid_bitmap, false);
 
-	cmd->schedule[0].delay = req->interval / MSEC_PER_SEC;
+	cmd->schedule[0].delay = cpu_to_le16(req->interval / MSEC_PER_SEC);
 	cmd->schedule[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS;
 	cmd->schedule[0].full_scan_mul = 1;
 
-	cmd->schedule[1].delay = req->interval / MSEC_PER_SEC;
+	cmd->schedule[1].delay = cpu_to_le16(req->interval / MSEC_PER_SEC);
 	cmd->schedule[1].iterations = 0xff;
 	cmd->schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
 
