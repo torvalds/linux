@@ -1070,16 +1070,16 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	af_ops->init_req(req, sk, skb);
 
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_release;
+
 	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, skb, sock_net(sk));
 
-	if (!isn) {
-		if (want_cookie) {
-			isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
-			req->cookie_ts = tmp_opt.tstamp_ok;
-			goto have_isn;
-		}
-
+	if (want_cookie) {
+		isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
+		req->cookie_ts = tmp_opt.tstamp_ok;
+	} else if (!isn) {
 		/* VJ's idea. We save last timestamp seen
 		 * from the destination in peer table, when entering
 		 * state TIME-WAIT, and check against it before
@@ -1116,10 +1116,6 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 
 		isn = tcp_v6_init_sequence(skb);
 	}
-have_isn:
-
-	if (security_inet_conn_request(sk, skb, req))
-		goto drop_and_release;
 
 	if (!dst) {
 		dst = af_ops->route_req(sk, (struct flowi *)&fl6, req, NULL);
