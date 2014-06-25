@@ -1266,7 +1266,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (mdtidx < 0)
 			return mdtidx;
 
-		if (put_user((int)mdtidx, (int*)arg))
+		if (put_user((int)mdtidx, (int *)arg))
 			return -EFAULT;
 
 		return 0;
@@ -1778,7 +1778,7 @@ out_quotactl:
 			return -EFAULT;
 		return 0;
 	case LL_IOC_GET_CONNECT_FLAGS: {
-		return obd_iocontrol(cmd, sbi->ll_md_exp, 0, NULL, (void*)arg);
+		return obd_iocontrol(cmd, sbi->ll_md_exp, 0, NULL, (void *)arg);
 	}
 	case OBD_IOC_CHANGELOG_SEND:
 	case OBD_IOC_CHANGELOG_CLEAR:
