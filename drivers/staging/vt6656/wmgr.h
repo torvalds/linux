@@ -53,10 +53,8 @@
 #define WCMD_PASSIVE_SCAN_TIME  100 //(ms)
 
 #define DEFAULT_MSDU_LIFETIME           512  // ms
-#define DEFAULT_MSDU_LIFETIME_RES_64us  8000 // 64us
 
 #define DEFAULT_MGN_LIFETIME            8    // ms
-#define DEFAULT_MGN_LIFETIME_RES_64us   125  // 64us
 
 #define MAKE_BEACON_RESERVED            10  //(us)
 

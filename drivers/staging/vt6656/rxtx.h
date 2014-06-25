@@ -33,6 +33,9 @@
 #include "wcmd.h"
 #include "baseband.h"
 
+#define DEFAULT_MGN_LIFETIME_RES_64us	125  /* 64us */
+#define DEFAULT_MSDU_LIFETIME_RES_64us  8000
+
 /* MIC HDR data header */
 struct vnt_mic_hdr {
 	u8 id;
