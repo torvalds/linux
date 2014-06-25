@@ -2369,6 +2369,31 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_shared_dplls_info(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	drm_modeset_lock_all(dev);
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+
+		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->name, pll->id);
+		seq_printf(m, " refcount: %i, active: %i, on: %s\n", pll->refcount,
+			   pll->active, yesno(pll->on));
+		seq_printf(m, " tracked hardware state:\n");
+		seq_printf(m, " dpll:    0x%08x\n", pll->hw_state.dpll);
+		seq_printf(m, " dpll_md: 0x%08x\n", pll->hw_state.dpll_md);
+		seq_printf(m, " fp0:     0x%08x\n", pll->hw_state.fp0);
+		seq_printf(m, " fp1:     0x%08x\n", pll->hw_state.fp1);
+	}
+	drm_modeset_unlock_all(dev);
+
+	return 0;
+}
+
 struct pipe_crc_info {
 	const char *name;
 	struct drm_device *dev;
@@ -3875,6 +3900,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_semaphore_status", i915_semaphore_status, 0},
+	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
