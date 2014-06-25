@@ -35,8 +35,8 @@ static const struct {
 	.header = {
 		.magic = htole32(FUNCTIONFS_DESCRIPTORS_MAGIC),
 		.length = htole32(sizeof(descriptors)),
-		.fs_count = 3,
-		.hs_count = 3,
+		.fs_count = htole32(3),
+		.hs_count = htole32(3),
 	},
 	.fs_descs = {
 		.intf = {
