@@ -891,6 +891,8 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			return false;
 
 		if (rate <= RATE_11M) {
+			u16 hw_value = priv->hw->conf.chandef.chan->hw_value;
+
 			power_setting = ((0x3f-priv->byCurPwr) << 20) |
 				(0xe07 << 8) | (BY_VT3226_REG_LEN << 3) |
 						IFREGCTL_REGW;
@@ -899,21 +901,14 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x03c6a200 +
 					(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
 
-			if (priv->vnt_mgmt.eScanState != WMAC_NO_SCANNING) {
-				dev_dbg(&priv->usb->dev,
-				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
-						priv->vnt_mgmt.uScanChannel);
+			dev_dbg(&priv->usb->dev,
+				"%s 11b channel [%d]\n", __func__, hw_value);
+
+			hw_value--;
+
+			if (hw_value < ARRAY_SIZE(vt3226d0_lo_current_table))
 				ret &= vnt_rf_write_embedded(priv,
-					vt3226d0_lo_current_table[priv->
-						vnt_mgmt.uScanChannel - 1]);
-			} else {
-				dev_dbg(&priv->usb->dev,
-				"vnt_rf_set_txpower> 11B mode uCurrChannel[%d]\n",
-						priv->vnt_mgmt.uCurrChannel);
-				ret &= vnt_rf_write_embedded(priv,
-					vt3226d0_lo_current_table[priv->
-						vnt_mgmt.uCurrChannel - 1]);
-			}
+					vt3226d0_lo_current_table[hw_value]);
 
 			ret &= vnt_rf_write_embedded(priv, 0x015C0800 +
 				(BY_VT3226_REG_LEN<<3)+IFREGCTL_REGW);
