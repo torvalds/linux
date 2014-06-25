@@ -37,6 +37,7 @@
 
 // Command code
 typedef enum tagCMD_CODE {
+    WLAN_CMD_INIT_MAC80211,
     WLAN_CMD_BSSID_SCAN,
     WLAN_CMD_SSID,
     WLAN_CMD_DISASSOCIATE,
@@ -78,6 +79,7 @@ typedef struct tagCMD_ITEM {
 
 // Command state
 typedef enum tagCMD_STATE {
+    WLAN_CMD_INIT_MAC80211_START,
     WLAN_CMD_SCAN_START,
     WLAN_CMD_SCAN_END,
     WLAN_CMD_DISASSOCIATE_START,

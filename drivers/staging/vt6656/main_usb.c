@@ -1383,6 +1383,8 @@ int vnt_init(struct vnt_private *priv)
 	if (ieee80211_register_hw(priv->hw))
 		return -ENODEV;
 
+	priv->mac_hw = true;
+
 	return 0;
 }
 
@@ -1443,6 +1445,11 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	usb_device_reset(priv);
 
+	MP_CLEAR_FLAG(priv, fMP_DISCONNECTED);
+	vResetCommandTimer(priv);
+
+	bScheduleCommand(priv, WLAN_CMD_INIT_MAC80211, NULL);
+
 	return 0;
 
 err_nomem:
@@ -1458,7 +1465,8 @@ static void vt6656_disconnect(struct usb_interface *intf)
 	if (!priv)
 		return;
 
-	ieee80211_unregister_hw(priv->hw);
+	if (priv->mac_hw)
+		ieee80211_unregister_hw(priv->hw);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));

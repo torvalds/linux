@@ -287,7 +287,20 @@ void vRunCommand(struct work_struct *work)
 		return;
 
 	switch (pDevice->eCommandState) {
+	case WLAN_CMD_INIT_MAC80211_START:
+		if (pDevice->mac_hw)
+			break;
 
+		dev_info(&pDevice->usb->dev, "Starting mac80211\n");
+
+		if (vnt_init(pDevice)) {
+			/* If fail all ends TODO retry */
+			dev_err(&pDevice->usb->dev, "failed to start\n");
+			ieee80211_free_hw(pDevice->hw);
+			return;
+		}
+
+		break;
 	case WLAN_CMD_SCAN_START:
 
 		pDevice->byReAssocCount = 0;
@@ -915,6 +928,10 @@ static int s_bCommandComplete(struct vnt_private *pDevice)
 		pDevice->cbFreeCmdQueue++;
 		pDevice->bCmdRunning = true;
 		switch (pDevice->eCommand) {
+		case WLAN_CMD_INIT_MAC80211:
+			pDevice->eCommandState = WLAN_CMD_INIT_MAC80211_START;
+			break;
+
 		case WLAN_CMD_BSSID_SCAN:
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState= WLAN_CMD_BSSID_SCAN\n");
 			pDevice->eCommandState = WLAN_CMD_SCAN_START;
@@ -1083,8 +1100,6 @@ static int s_bClearBSSID_SCAN(struct vnt_private *pDevice)
 //mike add:reset command timer
 void vResetCommandTimer(struct vnt_private *pDevice)
 {
-	cancel_delayed_work_sync(&pDevice->run_command_work);
-
 	pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
 	pDevice->uCmdDequeueIdx = 0;
 	pDevice->uCmdEnqueueIdx = 0;

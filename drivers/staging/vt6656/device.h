@@ -397,6 +397,7 @@ struct vnt_private {
 	/* mac80211 */
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
+	u8 mac_hw;
 	/* netdev */
 	struct usb_device *usb;
 	struct net_device *dev;
@@ -744,5 +745,6 @@ struct vnt_private {
 
 int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
 void vnt_configure_filter(struct vnt_private *);
+int vnt_init(struct vnt_private *priv);
 
 #endif
