@@ -84,15 +84,19 @@ static const char * vendor_labels[CH_TYPES-4] = {
 };
 // module_param_string_array(vendor_labels, NULL, 0444);
 
+#define ch_printk(prefix, ch, fmt, a...) \
+	sdev_printk(prefix, (ch)->device, "[%s] " fmt, \
+		    (ch)->name, ##a)
+
 #define DPRINTK(fmt, arg...)						\
 do {									\
 	if (debug)							\
-		printk(KERN_DEBUG "%s: " fmt, ch->name, ##arg);		\
+		ch_printk(KERN_DEBUG, ch, fmt, ##arg);			\
 } while (0)
 #define VPRINTK(level, fmt, arg...)					\
 do {									\
 	if (verbose)							\
-		printk(level "%s: " fmt, ch->name, ##arg);		\
+		ch_printk(level, ch, fmt, ##arg);			\
 } while (0)
 
 /* ------------------------------------------------------------------- */
@@ -196,7 +200,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd,
 		__scsi_print_command(cmd);
 	}
 
-        result = scsi_execute_req(ch->device, cmd, direction, buffer,
+	result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
 				  MAX_RETRIES, NULL);
 
@@ -924,8 +928,8 @@ static int ch_probe(struct device *dev)
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
-		printk(KERN_WARNING "ch%d: device_create failed\n",
-		       ch->minor);
+		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
+			    ch->minor);
 		ret = PTR_ERR(class_dev);
 		goto remove_idr;
 	}
