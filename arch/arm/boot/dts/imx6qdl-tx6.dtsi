@@ -620,6 +620,7 @@
 		MATRIX_KEY(2, 7, KEY_KP8) /* 0x02070048 */
 		MATRIX_KEY(2, 2, KEY_KP9) /* 0x02020049 */
 	>;
+	status = "okay";
 };
 
 &pwm1 {

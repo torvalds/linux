@@ -403,6 +403,7 @@
 				reg = <0x020b8000 0x4000>;
 				interrupts = <0 82 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SL_CLK_DUMMY>;
+				status = "disabled";
 			};
 
 			wdog1: wdog@020bc000 {
