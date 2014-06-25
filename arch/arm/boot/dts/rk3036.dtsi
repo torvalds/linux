@@ -255,4 +255,53 @@
 		clock-names = "pclk_pwm";
 		status = "disabled";
 	};
+
+	emmc: rksdmmc@1021c000 {
+		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
+		reg = <0x1021c000 0x4000>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		//pinctrl-names = "default",,"suspend";
+		//pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_cd &sd0_wp &sd0_pwr &sd0_bus1 &sd0_bus4>;
+		clocks = <&clk_emmc>, <&clk_gates7 0>;
+		clock-names = "clk_mmc", "hclk_mmc";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <8>;
+	};
+
+
+	sdmmc: rksdmmc@10214000 {
+		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
+		reg = <0x10214000 0x4000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		//pinctrl-names = "default", "idle";
+		//pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_dectn &sdmmc0_bus4>;
+		//pinctrl-1 = <&sdmmc0_gpio>;
+		cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
+		clocks = <&clk_sdmmc>, <&clk_gates2 11>;
+		clock-names = "clk_mmc", "hclk_mmc";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <4>;
+	};
+
+	sdio: rksdmmc@10218000 {
+		compatible = "rockchip,rk_mmc", "rockchip,rk3036-sdmmc";
+		reg = <0x10218000 0x4000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		//pinctrl-names = "default","idle";
+		//pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_wrprt &sdio_pwr &sdio_bkpwr &sdio_intn &sdio_bus4>;
+		//pinctrl-1 = <&sdio_gpio>;
+		clocks = <&clk_sdio>, <&clk_gates5 11>;
+		clock-names = "clk_mmc", "hclk_mmc";
+		num-slots = <1>;
+		fifo-depth = <0x100>;
+		bus-width = <4>;
+	};
 };

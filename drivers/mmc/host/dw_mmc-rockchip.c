@@ -124,7 +124,8 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 
-	if (priv->ctrl_type == DW_MCI_TYPE_RK3288)
+	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) || 
+	        (priv->ctrl_type == DW_MCI_TYPE_RK3036))
 		host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;
