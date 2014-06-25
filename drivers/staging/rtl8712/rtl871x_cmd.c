@@ -140,7 +140,7 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	if (list_empty(&(queue->queue)))
 		obj = NULL;
 	else {
-		obj = LIST_CONTAINOR(get_next(&(queue->queue)),
+		obj = LIST_CONTAINOR(queue->queue.next,
 				     struct cmd_obj, list);
 		list_del_init(&obj->list);
 	}

@@ -63,7 +63,7 @@ static u8 do_join(struct _adapter *padapter)
 	struct  __queue	*queue	= &(pmlmepriv->scanned_queue);
 
 	phead = get_list_head(queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	pmlmepriv->cur_network.join_res = -2;
 	pmlmepriv->fw_state |= _FW_UNDER_LINKING;
 	pmlmepriv->pscanned = plist;

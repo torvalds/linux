@@ -84,10 +84,10 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = get_list_head(&pstapriv->free_sta_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while ((end_of_queue_search(phead, plist)) == false) {
 		psta = LIST_CONTAINOR(plist, struct sta_info, list);
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
@@ -125,7 +125,7 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	if (_queue_empty(pfree_sta_queue) == true)
 		psta = NULL;
 	else {
-		psta = LIST_CONTAINOR(get_next(&pfree_sta_queue->queue),
+		psta = LIST_CONTAINOR(pfree_sta_queue->queue.next,
 				      struct sta_info, list);
 		list_del_init(&(psta->list));
 		tmp_aid = psta->aid;
@@ -227,11 +227,11 @@ void r8712_free_all_stainfo(struct _adapter *padapter)
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	for (index = 0; index < NUM_STA; index++) {
 		phead = &(pstapriv->sta_hash[index]);
-		plist = get_next(phead);
+		plist = phead->next;
 		while ((end_of_queue_search(phead, plist)) == false) {
 			psta = LIST_CONTAINOR(plist,
 					      struct sta_info, hash_list);
-			plist = get_next(plist);
+			plist = plist->next;
 			if (pbcmc_stainfo != psta)
 				r8712_free_stainfo(padapter , psta);
 		}
@@ -252,7 +252,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	index = wifi_mac_hash(hwaddr);
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
 	phead = &(pstapriv->sta_hash[index]);
-	plist = get_next(phead);
+	plist = phead->next;
 	while ((end_of_queue_search(phead, plist)) == false) {
 		psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
 		if ((!memcmp(psta->hwaddr, hwaddr, ETH_ALEN))) {
@@ -260,7 +260,7 @@ struct sta_info *r8712_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 			break;
 		}
 		psta = NULL;
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 	spin_unlock_irqrestore(&pstapriv->sta_hash_lock, irqL);
 	return psta;

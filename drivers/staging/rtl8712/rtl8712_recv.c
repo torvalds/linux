@@ -209,7 +209,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 
 	pfree_recv_queue = &adapter->recvpriv.free_recv_queue;
 	phead = get_list_head(defrag_q);
-	plist = get_next(phead);
+	plist = phead->next;
 	prframe = LIST_CONTAINOR(plist, union recv_frame, u);
 	list_del_init(&prframe->u.list);
 	pfhdr = &prframe->u.hdr;
@@ -223,7 +223,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	}
 	curfragnum++;
 	plist = get_list_head(defrag_q);
-	plist = get_next(plist);
+	plist = plist->next;
 	data = get_recvframe_data(prframe);
 	while (end_of_queue_search(phead, plist) == false) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
@@ -247,7 +247,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 		memcpy(pfhdr->rx_tail, pnfhdr->rx_data, pnfhdr->len);
 		recvframe_put(prframe, pnfhdr->len);
 		pfhdr->attrib.icv_len = pnfhdr->attrib.icv_len;
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 	/* free the defrag_q queue and return the prframe */
 	r8712_free_recvframe_queue(defrag_q, pfree_recv_queue);
@@ -500,12 +500,12 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 
 	phead = get_list_head(ppending_recvframe_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pnextattrib = &pnextrframe->u.hdr.attrib;
 		if (SN_LESS(pnextattrib->seq_num, pattrib->seq_num))
-			plist = get_next(plist);
+			plist = plist->next;
 		else if (SN_EQUAL(pnextattrib->seq_num, pattrib->seq_num))
 			return false;
 		else
@@ -529,7 +529,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 			 &preorder_ctrl->pending_recvframe_queue;
 
 	phead = get_list_head(ppending_recvframe_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	/* Handling some condition for forced indicate case.*/
 	if (bforced == true) {
 		if (list_empty(phead))
@@ -546,7 +546,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pattrib = &prframe->u.hdr.attrib;
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
-			plist = get_next(plist);
+			plist = plist->next;
 			list_del_init(&(prframe->u.hdr.list));
 			if (SN_EQUAL(preorder_ctrl->indicate_seq,
 			    pattrib->seq_num))

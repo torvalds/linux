@@ -748,7 +748,7 @@ struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 		pxmitbuf = NULL;
 	else {
 		phead = get_list_head(pfree_xmitbuf_queue);
-		plist = get_next(phead);
+		plist = phead->next;
 		pxmitbuf = LIST_CONTAINOR(plist, struct xmit_buf, list);
 		list_del_init(&(pxmitbuf->list));
 	}
@@ -802,7 +802,7 @@ struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 		pxframe =  NULL;
 	else {
 		phead = get_list_head(pfree_xmit_queue);
-		plist = get_next(phead);
+		plist = phead->next;
 		pxframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
 		list_del_init(&(pxframe->list));
 	}
@@ -858,10 +858,10 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 
 	spin_lock_irqsave(&(pframequeue->lock), irqL);
 	phead = get_list_head(pframequeue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
-		plist = get_next(plist);
+		plist = plist->next;
 		r8712_free_xmitframe(pxmitpriv, pxmitframe);
 	}
 	spin_unlock_irqrestore(&(pframequeue->lock), irqL);

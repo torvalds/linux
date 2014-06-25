@@ -92,7 +92,7 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 	if (_queue_empty(free_queue) == true)
 		return NULL;
 	spin_lock_irqsave(&free_queue->lock, irqL);
-	plist = get_next(&(free_queue->queue));
+	plist = free_queue->queue.next;
 	pnetwork = LIST_CONTAINOR(plist , struct wlan_network, list);
 	list_del_init(&pnetwork->list);
 	pnetwork->last_scanned = jiffies;
@@ -154,10 +154,10 @@ static struct wlan_network *_r8712_find_network(struct  __queue *scanned_queue,
 		return NULL;
 	spin_lock_irqsave(&scanned_queue->lock, irqL);
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while (plist != phead) {
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
-		plist = get_next(plist);
+		plist = plist->next;
 		if (!memcmp(addr, pnetwork->network.MacAddress, ETH_ALEN))
 			break;
 	}
@@ -175,10 +175,10 @@ static void _free_network_queue(struct _adapter *padapter)
 
 	spin_lock_irqsave(&scanned_queue->lock, irqL);
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
-		plist = get_next(plist);
+		plist = plist->next;
 		_free_network(pmlmepriv, pnetwork);
 	}
 	spin_unlock_irqrestore(&scanned_queue->lock, irqL);
@@ -316,7 +316,7 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 	struct	wlan_network	*oldest = NULL;
 
 	phead = get_list_head(scanned_queue);
-	plist = get_next(phead);
+	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) ==  true)
 			break;
@@ -327,7 +327,7 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 			    (unsigned long)pwlan->last_scanned))
 				oldest = pwlan;
 		}
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 	return oldest;
 }
@@ -399,7 +399,7 @@ static void update_scanned_network(struct _adapter *adapter,
 	struct wlan_network *oldest = NULL;
 
 	phead = get_list_head(queue);
-	plist = get_next(phead);
+	plist = phead->next;
 
 	while (1) {
 		if (end_of_queue_search(phead, plist) == true)
@@ -413,7 +413,7 @@ static void update_scanned_network(struct _adapter *adapter,
 				(unsigned long)pnetwork->last_scanned))
 			oldest = pnetwork;
 
-		plist = get_next(plist);
+		plist = plist->next;
 	}
 
 
@@ -1139,7 +1139,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 	adapter = (struct _adapter *)pmlmepriv->nic_hdl;
 	queue = &pmlmepriv->scanned_queue;
 	phead = get_list_head(queue);
-	pmlmepriv->pscanned = get_next(phead);
+	pmlmepriv->pscanned = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true) {
 			if ((pmlmepriv->assoc_by_rssi == true) &&
@@ -1153,7 +1153,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 					  struct wlan_network, list);
 		if (pnetwork == NULL)
 			return _FAIL;
-		pmlmepriv->pscanned = get_next(pmlmepriv->pscanned);
+		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 		if (pmlmepriv->assoc_by_bssid == true) {
 			dst_ssid = pnetwork->network.MacAddress;
 			src_ssid = pmlmepriv->assoc_bssid;
