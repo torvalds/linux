@@ -315,8 +315,17 @@ static void dedotify_versions(struct modversion_info *vers,
 	struct modversion_info *end;
 
 	for (end = (void *)vers + size; vers < end; vers++)
-		if (vers->name[0] == '.')
+		if (vers->name[0] == '.') {
 			memmove(vers->name, vers->name+1, strlen(vers->name));
+#ifdef ARCH_RELOCATES_KCRCTAB
+			/* The TOC symbol has no CRC computed. To avoid CRC
+			 * check failing, we must force it to the expected
+			 * value (see CRC check in module.c).
+			 */
+			if (!strcmp(vers->name, "TOC."))
+				vers->crc = -(unsigned long)reloc_start;
+#endif
+		}
 }
 
 /* Undefined symbols which refer to .funcname, hack to funcname (or .TOC.) */
