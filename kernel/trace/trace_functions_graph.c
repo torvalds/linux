@@ -40,11 +40,6 @@ bool ftrace_graph_is_dead(void)
 void ftrace_graph_stop(void)
 {
 	kill_ftrace_graph = true;
-	/*
-	 * ftrace_stop() will be removed when all archs are updated to
-	 * use ftrace_graph_is_dead()
-	 */
-	ftrace_stop();
 }
 
 /* When set, irq functions will be ignored */
