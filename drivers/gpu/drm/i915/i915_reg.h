@@ -5794,6 +5794,7 @@ enum punit_power_well {
 #define  TRANS_DDI_FUNC_ENABLE		(1<<31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
 #define  TRANS_DDI_PORT_MASK		(7<<28)
+#define  TRANS_DDI_PORT_SHIFT		28
 #define  TRANS_DDI_SELECT_PORT(x)	((x)<<28)
 #define  TRANS_DDI_PORT_NONE		(0<<28)
 #define  TRANS_DDI_MODE_SELECT_MASK	(7<<24)

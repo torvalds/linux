@@ -612,11 +612,10 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 				struct intel_crtc_config *pipe_config)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
-	enum port port = intel_ddi_get_encoder_port(encoder);
 	int link_clock = 0;
 	u32 val, pll;
 
-	val = I915_READ(PORT_CLK_SEL(port));
+	val = pipe_config->ddi_pll_sel;
 	switch (val & PORT_CLK_SEL_MASK) {
 	case PORT_CLK_SEL_LCPLL_810:
 		link_clock = 81000;
@@ -1113,40 +1112,6 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	return false;
 }
 
-static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
-				       enum pipe pipe)
-{
-	uint32_t temp, ret;
-	enum port port = I915_MAX_PORTS;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
-	int i;
-
-	if (cpu_transcoder == TRANSCODER_EDP) {
-		port = PORT_A;
-	} else {
-		temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
-		temp &= TRANS_DDI_PORT_MASK;
-
-		for (i = PORT_B; i <= PORT_E; i++)
-			if (temp == TRANS_DDI_SELECT_PORT(i))
-				port = i;
-	}
-
-	if (port == I915_MAX_PORTS) {
-		WARN(1, "Pipe %c enabled on an unknown port\n",
-		     pipe_name(pipe));
-		ret = PORT_CLK_SEL_NONE;
-	} else {
-		ret = I915_READ(PORT_CLK_SEL(port));
-		DRM_DEBUG_KMS("Pipe %c connected to port %c using clock "
-			      "0x%08x\n", pipe_name(pipe), port_name(port),
-			      ret);
-	}
-
-	return ret;
-}
-
 void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1164,9 +1129,6 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 			continue;
 		}
-
-		intel_crtc->config.ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
-								 pipe);
 
 		switch (intel_crtc->config.ddi_pll_sel) {
 		case PORT_CLK_SEL_WRPLL1:
