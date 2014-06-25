@@ -1894,7 +1894,8 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/genet/
 
 BROADCOM BNX2 GIGABIT ETHERNET DRIVER
-M:	Michael Chan <mchan@broadcom.com>
+M:	Sony Chacko <sony.chacko@qlogic.com>
+M:	Dept-HSGLinuxNICDev@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/broadcom/bnx2.*
