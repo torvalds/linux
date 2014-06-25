@@ -74,7 +74,6 @@
  */
 
 #include "80211hdr.h"
-#include "tether.h"
 #include "wmgr.h"
 #include "wcmd.h"
 #include "desc.h"

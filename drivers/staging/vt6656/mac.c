@@ -31,7 +31,6 @@
  */
 
 #include "tmacro.h"
-#include "tether.h"
 #include "desc.h"
 #include "mac.h"
 #include "80211hdr.h"

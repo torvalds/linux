@@ -33,7 +33,6 @@
 #ifndef __BASEBAND_H__
 #define __BASEBAND_H__
 
-#include "tether.h"
 #include "device.h"
 
 #define PREAMBLE_LONG   0

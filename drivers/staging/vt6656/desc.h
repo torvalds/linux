@@ -34,8 +34,6 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 
-#include "tether.h"
-
 /* max transmit or receive buffer size */
 #define CB_MAX_BUF_SIZE     2900U       /* NOTE: must be multiple of 4 */
 

@@ -30,7 +30,6 @@
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#include "tether.h"
 #include "80211mgr.h"
 
 #define MAX_GROUP_KEY       4
