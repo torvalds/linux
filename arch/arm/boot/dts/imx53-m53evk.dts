@@ -21,27 +21,25 @@
 		      <0xb0000000 0x20000000>;
 	};
 
-	soc {
-		display1: display@di1 {
-			compatible = "fsl,imx-parallel-display";
-			interface-pix-fmt = "bgr666";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_ipu_disp1>;
+	display1: display@di1 {
+		compatible = "fsl,imx-parallel-display";
+		interface-pix-fmt = "bgr666";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ipu_disp1>;
 
-			display-timings {
-				800x480p60 {
-					native-mode;
-					clock-frequency = <31500000>;
-					hactive = <800>;
-					vactive = <480>;
-					hfront-porch = <40>;
-					hback-porch = <88>;
-					hsync-len = <128>;
-					vback-porch = <33>;
-					vfront-porch = <9>;
-					vsync-len = <3>;
-					vsync-active = <1>;
-				};
+		display-timings {
+			800x480p60 {
+				native-mode;
+				clock-frequency = <31500000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <40>;
+				hback-porch = <88>;
+				hsync-len = <128>;
+				vback-porch = <33>;
+				vfront-porch = <9>;
+				vsync-len = <3>;
+				vsync-active = <1>;
 			};
 		};
 

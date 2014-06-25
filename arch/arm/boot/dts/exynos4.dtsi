@@ -113,7 +113,7 @@
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		reg = <0x10490000 0x1000>, <0x10480000 0x100>;
+		reg = <0x10490000 0x10000>, <0x10480000 0x10000>;
 	};
 
 	combiner: interrupt-controller@10440000 {

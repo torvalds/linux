@@ -153,12 +153,9 @@ static void exynos4_mct_write(unsigned int value, unsigned long offset)
 }
 
 /* Clocksource handling */
-static void exynos4_mct_frc_start(u32 hi, u32 lo)
+static void exynos4_mct_frc_start(void)
 {
 	u32 reg;
-
-	exynos4_mct_write(lo, EXYNOS4_MCT_G_CNT_L);
-	exynos4_mct_write(hi, EXYNOS4_MCT_G_CNT_U);
 
 	reg = __raw_readl(reg_base + EXYNOS4_MCT_G_TCON);
 	reg |= MCT_G_TCON_START;
@@ -181,7 +178,7 @@ static cycle_t exynos4_frc_read(struct clocksource *cs)
 
 static void exynos4_frc_resume(struct clocksource *cs)
 {
-	exynos4_mct_frc_start(0, 0);
+	exynos4_mct_frc_start();
 }
 
 struct clocksource mct_frc = {
@@ -200,7 +197,7 @@ static u64 notrace exynos4_read_sched_clock(void)
 
 static void __init exynos4_clocksource_init(void)
 {
-	exynos4_mct_frc_start(0, 0);
+	exynos4_mct_frc_start();
 
 	if (clocksource_register_hz(&mct_frc, clk_rate))
 		panic("%s: can't register clocksource\n", mct_frc.name);
