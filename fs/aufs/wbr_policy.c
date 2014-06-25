@@ -675,18 +675,26 @@ static int au_wbr_copyup_bup(struct dentry *dentry)
 }
 
 /* bottom up */
-static int au_wbr_copyup_bu(struct dentry *dentry)
+int au_wbr_do_copyup_bu(struct dentry *dentry, aufs_bindex_t bstart)
 {
 	int err;
-	aufs_bindex_t bstart;
 
-	bstart = au_dbstart(dentry);
 	err = au_wbr_bu(dentry->d_sb, bstart);
 	AuDbg("b%d\n", err);
 	if (err > bstart)
 		err = au_wbr_nonopq(dentry, err);
 
 	AuDbg("b%d\n", err);
+	return err;
+}
+
+static int au_wbr_copyup_bu(struct dentry *dentry)
+{
+	int err;
+	aufs_bindex_t bstart;
+
+	bstart = au_dbstart(dentry);
+	err = au_wbr_do_copyup_bu(dentry, bstart);
 	return err;
 }
 
