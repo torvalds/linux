@@ -1860,7 +1860,7 @@ megaraid_info(struct Scsi_Host *host)
 		 "LSI Logic MegaRAID %s %d commands %d targs %d chans %d luns",
 		 adapter->fw_version, adapter->product_info.max_commands,
 		 adapter->host->max_id, adapter->host->max_channel,
-		 adapter->host->max_lun);
+		 (u32)adapter->host->max_lun);
 	return buffer;
 }
 

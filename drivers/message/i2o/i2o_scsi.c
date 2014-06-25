@@ -287,7 +287,7 @@ static int i2o_scsi_probe(struct device *dev)
 	}
 
 	if (le64_to_cpu(lun) >= scsi_host->max_lun) {
-		osm_warn("SCSI device lun (%llu) >= max_lun of I2O host (%d)",
+		osm_warn("SCSI device lun (%llu) >= max_lun of I2O host (%llu)",
 			 le64_to_cpu(lun), scsi_host->max_lun);
 		return -EFAULT;
 	}

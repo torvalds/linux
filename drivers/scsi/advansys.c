@@ -3345,7 +3345,7 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 		shost->host_no);
 
 	seq_printf(m,
-		   " host_busy %u, max_id %u, max_lun %u, max_channel %u\n",
+		   " host_busy %u, max_id %u, max_lun %llu, max_channel %u\n",
 		   shost->host_busy, shost->max_id,
 		   shost->max_lun, shost->max_channel);
 

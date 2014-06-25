@@ -112,8 +112,8 @@ MODULE_PARM_DESC(missing_delay, " device missing delay , io missing delay");
 
 /* scsi-mid layer global parmeter is max_report_luns, which is 511 */
 #define MPT3SAS_MAX_LUN (16895)
-static int max_lun = MPT3SAS_MAX_LUN;
-module_param(max_lun, int, 0);
+static u64 max_lun = MPT3SAS_MAX_LUN;
+module_param(max_lun, ullong, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
 

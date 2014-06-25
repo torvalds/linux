@@ -4638,7 +4638,7 @@ static int dc395x_show_info(struct seq_file *m, struct Scsi_Host *host)
 	SPRINTF("irq_level 0x%04x, ", acb->irq_level);
 	SPRINTF(" SelTimeout %ims\n", (1638 * acb->sel_timeout) / 1000);
 
-	SPRINTF("MaxID %i, MaxLUN %i, ", host->max_id, host->max_lun);
+	SPRINTF("MaxID %i, MaxLUN %llu, ", host->max_id, host->max_lun);
 	SPRINTF("AdapterID %i\n", host->this_id);
 
 	SPRINTF("tag_max_num %i", acb->tag_max_num);

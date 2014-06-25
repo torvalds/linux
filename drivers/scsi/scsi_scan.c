@@ -81,11 +81,11 @@ static const char *scsi_null_device_strs = "nullnullnullnull";
 
 #define MAX_SCSI_LUNS	512
 
-static unsigned int max_scsi_luns = MAX_SCSI_LUNS;
+static u64 max_scsi_luns = MAX_SCSI_LUNS;
 
-module_param_named(max_luns, max_scsi_luns, uint, S_IRUGO|S_IWUSR);
+module_param_named(max_luns, max_scsi_luns, ullong, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(max_luns,
-		 "last scsi LUN (should be between 1 and 2^32-1)");
+		 "last scsi LUN (should be between 1 and 2^64-1)");
 
 #ifdef CONFIG_SCSI_SCAN_ASYNC
 #define SCSI_SCAN_TYPE_DEFAULT "async"
