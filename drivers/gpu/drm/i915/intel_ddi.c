@@ -588,9 +588,9 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	u32 wrpll;
 
 	wrpll = I915_READ(reg);
-	switch (wrpll & SPLL_PLL_REF_MASK) {
-	case SPLL_PLL_SSC:
-	case SPLL_PLL_NON_SSC:
+	switch (wrpll & WRPLL_PLL_REF_MASK) {
+	case WRPLL_PLL_SSC:
+	case WRPLL_PLL_NON_SSC:
 		/*
 		 * We could calculate spread here, but our checking
 		 * code only cares about 5% accuracy, and spread is a max of
@@ -598,7 +598,7 @@ static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		 */
 		refclk = 135;
 		break;
-	case SPLL_PLL_LCPLL:
+	case WRPLL_PLL_LCPLL:
 		refclk = LC_FREQ;
 		break;
 	default:
@@ -780,7 +780,7 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 
 		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
 
-		val = WRPLL_PLL_ENABLE | WRPLL_PLL_SELECT_LCPLL_2700 |
+		val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
@@ -879,7 +879,7 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 
 		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
 
-		new_val = WRPLL_PLL_ENABLE | WRPLL_PLL_SELECT_LCPLL_2700 |
+		new_val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
 			  WRPLL_DIVIDER_REFERENCE(r2) |
 			  WRPLL_DIVIDER_FEEDBACK(n2) | WRPLL_DIVIDER_POST(p);
 

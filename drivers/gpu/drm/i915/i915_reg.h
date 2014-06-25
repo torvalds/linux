@@ -5922,9 +5922,10 @@ enum punit_power_well {
 #define WRPLL_CTL1			0x46040
 #define WRPLL_CTL2			0x46060
 #define  WRPLL_PLL_ENABLE		(1<<31)
-#define  WRPLL_PLL_SELECT_SSC		(0x01<<28)
-#define  WRPLL_PLL_SELECT_NON_SSC	(0x02<<28)
-#define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+#define  WRPLL_PLL_SSC			(1<<28)
+#define  WRPLL_PLL_NON_SSC		(2<<28)
+#define  WRPLL_PLL_LCPLL		(3<<28)
+#define  WRPLL_PLL_REF_MASK		(3<<28)
 /* WRPLL divider programming */
 #define  WRPLL_DIVIDER_REFERENCE(x)	((x)<<0)
 #define  WRPLL_DIVIDER_REF_MASK		(0xff)
