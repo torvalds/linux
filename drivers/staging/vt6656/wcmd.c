@@ -899,7 +899,6 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_CONFIGURE_FILTER_START:
-		vnt_configure_filter(pDevice);
 		break;
 	default:
 		break;

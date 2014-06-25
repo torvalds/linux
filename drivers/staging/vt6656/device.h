@@ -754,8 +754,6 @@ struct vnt_private {
 
 #define MP_IS_READY(_M)        (((_M)->Flags & fMP_DISCONNECTED) == 0)
 
-int device_alloc_frag_buf(struct vnt_private *, PSDeFragControlBlock pDeF);
-void vnt_configure_filter(struct vnt_private *);
 int vnt_init(struct vnt_private *priv);
 
 #endif
