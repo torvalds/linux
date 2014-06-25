@@ -695,7 +695,7 @@ filelayout_get_device_info(struct inode *inode,
 	if (pdev == NULL)
 		return NULL;
 
-	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
+	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
 	if (pages == NULL) {
 		kfree(pdev);
 		return NULL;

@@ -1062,7 +1062,7 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pages = kzalloc(max_pages * sizeof(struct page *), GFP_NOFS);
+	pages = kcalloc(max_pages, sizeof(struct page *), GFP_NOFS);
 	if (pages == NULL) {
 		kfree(dev);
 		return ERR_PTR(-ENOMEM);
