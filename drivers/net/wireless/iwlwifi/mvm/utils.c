@@ -519,49 +519,6 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 		iwl_mvm_dump_umac_error_log(mvm);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm)
-{
-	int i, reg_val;
-	unsigned long flags;
-
-	if (!mvm->ucode_loaded || mvm->fw_error_rxf || mvm->fw_error_dump)
-		return;
-
-	/* reading buffer size */
-	reg_val = iwl_trans_read_prph(mvm->trans, RXF_SIZE_ADDR);
-	mvm->fw_error_rxf_len =
-		(reg_val & RXF_SIZE_BYTE_CNT_MSK) >> RXF_SIZE_BYTE_CND_POS;
-
-	/* the register holds the value divided by 128 */
-	mvm->fw_error_rxf_len = mvm->fw_error_rxf_len << 7;
-
-	if (!mvm->fw_error_rxf_len)
-		return;
-
-	mvm->fw_error_rxf =  kzalloc(mvm->fw_error_rxf_len, GFP_ATOMIC);
-	if (!mvm->fw_error_rxf) {
-		mvm->fw_error_rxf_len = 0;
-		return;
-	}
-
-	if (!iwl_trans_grab_nic_access(mvm->trans, false, &flags)) {
-		kfree(mvm->fw_error_rxf);
-		mvm->fw_error_rxf = NULL;
-		mvm->fw_error_rxf_len = 0;
-		return;
-	}
-
-	for (i = 0; i < (mvm->fw_error_rxf_len / sizeof(u32)); i++) {
-		iwl_trans_write_prph(mvm->trans, RXF_LD_FENCE_OFFSET_ADDR,
-				     i * sizeof(u32));
-		mvm->fw_error_rxf[i] =
-			iwl_trans_read_prph(mvm->trans, RXF_FIFO_RD_FENCE_ADDR);
-	}
-	iwl_trans_release_nic_access(mvm->trans, &flags);
-}
-#endif
-
 /**
  * iwl_mvm_send_lq_cmd() - Send link quality command
  * @init: This command is sent as part of station initialization right

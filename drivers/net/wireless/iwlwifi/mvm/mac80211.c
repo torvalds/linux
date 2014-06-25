@@ -80,6 +80,8 @@
 #include "fw-api-scan.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
+#include "iwl-fw-error-dump.h"
+#include "iwl-prph.h"
 
 static const struct ieee80211_iface_limit iwl_mvm_limits[] = {
 	{
@@ -644,6 +646,104 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 
 	mvmvif->phy_ctxt = NULL;
 }
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
+{
+	struct iwl_fw_error_dump_file *dump_file;
+	struct iwl_fw_error_dump_data *dump_data;
+	struct iwl_fw_error_dump_info *dump_info;
+	const struct fw_img *img;
+	u32 sram_len, sram_ofs;
+	u32 file_len, rxf_len;
+	unsigned long flags;
+	u32 trans_len;
+	int reg_val;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvm->fw_error_dump)
+		return;
+
+	img = &mvm->fw->img[mvm->cur_ucode];
+	sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+
+	/* reading buffer size */
+	reg_val = iwl_trans_read_prph(mvm->trans, RXF_SIZE_ADDR);
+	rxf_len = (reg_val & RXF_SIZE_BYTE_CNT_MSK) >> RXF_SIZE_BYTE_CND_POS;
+
+	/* the register holds the value divided by 128 */
+	rxf_len = rxf_len << 7;
+
+	file_len = sizeof(*dump_file) +
+		   sizeof(*dump_data) * 3 +
+		   sram_len +
+		   rxf_len +
+		   sizeof(*dump_info);
+
+	trans_len = iwl_trans_dump_data(mvm->trans, NULL, 0);
+	if (trans_len)
+		file_len += trans_len;
+
+	dump_file = vmalloc(file_len);
+	if (!dump_file)
+		return;
+
+	mvm->fw_error_dump = dump_file;
+
+	dump_file->barker = cpu_to_le32(IWL_FW_ERROR_DUMP_BARKER);
+	dump_file->file_len = cpu_to_le32(file_len);
+	dump_data = (void *)dump_file->data;
+
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_DEV_FW_INFO);
+	dump_data->len = cpu_to_le32(sizeof(*dump_info));
+	dump_info = (void *) dump_data->data;
+	dump_info->device_family =
+		mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000 ?
+			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_7) :
+			cpu_to_le32(IWL_FW_ERROR_DUMP_FAMILY_8);
+	memcpy(dump_info->fw_human_readable, mvm->fw->human_readable,
+	       sizeof(dump_info->fw_human_readable));
+	strncpy(dump_info->dev_human_readable, mvm->cfg->name,
+		sizeof(dump_info->dev_human_readable));
+	strncpy(dump_info->bus_human_readable, mvm->dev->bus->name,
+		sizeof(dump_info->bus_human_readable));
+
+	dump_data = iwl_fw_error_next_data(dump_data);
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
+	dump_data->len = cpu_to_le32(rxf_len);
+
+	if (iwl_trans_grab_nic_access(mvm->trans, false, &flags)) {
+		u32 *rxf = (void *)dump_data->data;
+		int i;
+
+		for (i = 0; i < (rxf_len / sizeof(u32)); i++) {
+			iwl_trans_write_prph(mvm->trans,
+					     RXF_LD_FENCE_OFFSET_ADDR,
+					     i * sizeof(u32));
+			rxf[i] = iwl_trans_read_prph(mvm->trans,
+						     RXF_FIFO_RD_FENCE_ADDR);
+		}
+		iwl_trans_release_nic_access(mvm->trans, &flags);
+	}
+
+	dump_data = iwl_fw_error_next_data(dump_data);
+	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
+	dump_data->len = cpu_to_le32(sram_len);
+	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_data->data,
+				 sram_len);
+
+	if (trans_len) {
+		void *buf = iwl_fw_error_next_data(dump_data);
+		u32 real_trans_len = iwl_trans_dump_data(mvm->trans, buf,
+							 trans_len);
+		dump_data = (void *)((u8 *)buf + real_trans_len);
+		dump_file->file_len =
+			cpu_to_le32(file_len - trans_len + real_trans_len);
+	}
+}
+#endif
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
