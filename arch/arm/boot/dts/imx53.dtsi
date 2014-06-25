@@ -259,6 +259,11 @@
 				};
 			};
 
+			aipstz1: bridge@53f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x53f00000 0x60>;
+			};
+
 			usbphy0: usbphy@0 {
 				compatible = "usb-nop-xceiv";
 				clocks = <&clks IMX5_CLK_USB_PHY1_GATE>;
@@ -570,6 +575,11 @@
 			#size-cells = <1>;
 			reg = <0x60000000 0x10000000>;
 			ranges;
+
+			aipstz2: bridge@63f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x63f00000 0x60>;
+			};
 
 			iim: iim@63f98000 {
 				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
