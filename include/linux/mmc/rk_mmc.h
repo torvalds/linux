@@ -16,6 +16,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/mmc/core.h>
+#include <linux/dmaengine.h>
 
 #define MAX_MCI_SLOTS	2
 
@@ -35,6 +36,13 @@ enum {
 	EVENT_DATA_ERROR,
 	EVENT_XFER_ERROR
 };
+
+struct dw_mci_dma_slave {
+	struct dma_chan *ch;
+	enum dma_transfer_direction direction;
+	unsigned int dmach;
+};
+
 
 struct mmc_data;
 
@@ -147,6 +155,10 @@ struct dw_mci {
 #else
 	struct dw_mci_dma_data	*dma_data;
 #endif
+
+#ifdef CONFIG_MMC_DW_EDMAC
+        struct dw_mci_dma_slave	*dms;
+#endif
 	u32			cmd_status;
 	u32			data_status;
 	u32			stop_cmdr;
@@ -209,7 +221,7 @@ struct dw_mci_dma_ops {
 	/* DMA Ops */
 	int (*init)(struct dw_mci *host);
 	void (*start)(struct dw_mci *host, unsigned int sg_len);
-	void (*complete)(struct dw_mci *host);
+	void (*complete)(void *host);
 	void (*stop)(struct dw_mci *host);
 	void (*cleanup)(struct dw_mci *host);
 	void (*exit)(struct dw_mci *host);

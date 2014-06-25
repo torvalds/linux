@@ -18,6 +18,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -453,8 +454,9 @@ static void dw_mci_idmac_stop_dma(struct dw_mci *host)
 	mci_writel(host, BMOD, temp);
 }
 
-static void dw_mci_idmac_complete_dma(struct dw_mci *host)
+static void dw_mci_idmac_complete_dma(void *arg)
 {
+        struct dw_mci *host = arg;
 	struct mmc_data *data = host->data;
 
 	dev_vdbg(host->dev, "DMA complete\n");
@@ -566,6 +568,138 @@ static const struct dw_mci_dma_ops dw_mci_idmac_ops = {
 	.cleanup = dw_mci_dma_cleanup,
 };
 #endif /* CONFIG_MMC_DW_IDMAC */
+
+#ifdef CONFIG_MMC_DW_EDMAC
+static void dw_mci_edma_cleanup(struct dw_mci *host)
+{
+	struct mmc_data *data = host->data;
+
+	if (data)
+                if (!data->host_cookie)
+			dma_unmap_sg(host->dev,
+                                        data->sg, data->sg_len,
+                                        dw_mci_get_dma_dir(data));
+}
+
+static void dw_mci_edmac_stop_dma(struct dw_mci *host)
+{
+        dmaengine_terminate_all(host->dms->ch);
+}
+
+static void dw_mci_edmac_complete_dma(void *arg)
+{
+        struct dw_mci *host = arg;
+        struct mmc_data *data = host->data;
+
+        dev_vdbg(host->dev, "DMA complete\n");
+
+	host->dma_ops->cleanup(host);
+
+	/*
+	 * If the card was removed, data will be NULL. No point in trying to
+	 * send the stop command or waiting for NBUSY in this case.
+	 */
+	if (data) {
+		set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
+		tasklet_schedule(&host->tasklet);
+	}
+}
+
+static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
+{
+        struct dma_slave_config slave_config;
+        struct dma_async_tx_descriptor *desc = NULL;
+        struct scatterlist *sgl = host->data->sg;
+        int ret = 0;
+
+	/* set external dma config: burst size, burst width*/
+	if(host->data->flags & MMC_DATA_WRITE){
+                slave_config.direction = DMA_MEM_TO_DEV;
+                slave_config.dst_addr = (dma_addr_t)(host->regs + host->data_offset);
+                slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+                slave_config.dst_maxburst = 16;
+
+                ret = dmaengine_slave_config(host->dms->ch, &slave_config);
+                if (ret) {
+                        dev_err(host->dev, "error in dw_mci edma configuration.\n");
+                        return;
+                }
+
+                desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
+                                DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
+                if (!desc) {
+			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
+			return;
+		}
+		 /* set dw_mci_edmac_complete_dma as callback */
+		desc->callback = dw_mci_edmac_complete_dma;
+		desc->callback_param = (void *)host;
+		dmaengine_submit(desc);
+		/* flush cache before write & Invalidate cache after read ??? */
+                //dma_sync_single_for_device(host->dms->ch->device->dev, host->sg_dma,
+                //                        sg_len, DMA_TO_DEVICE);
+                dma_async_issue_pending(host->dms->ch);
+	}else{
+                /* MMC_DATA_READ*/
+                slave_config.direction = DMA_DEV_TO_MEM;
+                slave_config.src_addr = (dma_addr_t)(host->regs + host->data_offset);
+                slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+                slave_config.src_maxburst = 16;
+
+                ret = dmaengine_slave_config(host->dms->ch, &slave_config);
+                if (ret) {
+                        dev_err(host->dev, "error in dw_mci edma configuration.\n");
+                        return;
+                }
+                desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
+			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+                if (!desc) {
+			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
+			return;
+		}
+		 /* set dw_mci_edmac_complete_dma as callback */
+		desc->callback = dw_mci_edmac_complete_dma;
+		desc->callback_param = (void *)host;
+		dmaengine_submit(desc);
+		dma_async_issue_pending(host->dms->ch);
+	}
+
+	return;
+}
+
+static int dw_mci_edmac_init(struct dw_mci *host)
+{
+        MMC_DBG_BOOT_FUNC(host->mmc,"dw_mci_edmac_init: Soc is 0x%x [%s]\n",
+                                (unsigned int)(rockchip_soc_id & ROCKCHIP_CPU_MASK), mmc_hostname(host->mmc));
+
+        /* 1) request external dma channel, SHOULD decide chn in dts */
+        host->dms->ch = dma_request_slave_channel(host->dev, "dw_mci");
+        if (!host->dms->ch)
+	{
+		dev_err(host->dev, "Failed to get external DMA channel: channel id = %d\n",
+		                host->dms->ch->chan_id);
+		goto err_exit;
+	}
+
+        /* anything? */
+
+	return 0;
+
+err_exit:
+        return -ENODEV;
+
+}
+
+
+
+static const struct dw_mci_dma_ops dw_mci_edmac_ops = {
+        .init = dw_mci_edmac_init,
+        .start = dw_mci_edmac_start_dma,
+	.stop = dw_mci_edmac_stop_dma,
+	.complete = dw_mci_edmac_complete_dma,
+	.cleanup = dw_mci_edma_cleanup,
+};
+#endif
 
 static int dw_mci_pre_dma_transfer(struct dw_mci *host,
 				   struct mmc_data *data,
@@ -2680,7 +2814,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	if (pending & (SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI)) {
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_TI | SDMMC_IDMAC_INT_RI);
 		mci_writel(host, IDSTS, SDMMC_IDMAC_INT_NI);
-		host->dma_ops->complete(host);
+		host->dma_ops->complete((void *)host);
 	}
 #endif
 
@@ -3183,9 +3317,12 @@ static void dw_mci_init_dma(struct dw_mci *host)
 	}
 
 	/* Determine which DMA interface to use */
-#ifdef CONFIG_MMC_DW_IDMAC
+#if defined(CONFIG_MMC_DW_IDMAC)
 	host->dma_ops = &dw_mci_idmac_ops;
 	dev_info(host->dev, "Using internal DMA controller.\n");
+#elif defined(CONFIG_MMC_DW_EDMAC)
+        host->dma_ops = &dw_mci_edmac_ops;
+        dev_info(host->dev, "Using external DMA controller.\n"); 
 #endif
 
 	if (!host->dma_ops)
