@@ -125,10 +125,6 @@ void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 	struct vnt_mac_set_key set_key;
 	u16 offset;
 
-	if (priv->byLocalID <= MAC_REVISION_A1)
-		if (priv->vnt_mgmt.byCSSPK == KEY_CTL_CCMP)
-			return;
-
 	offset = MISCFIFO_KEYETRY0;
 	offset += (entry_idx * MISCFIFO_KEYENTRYSIZE);
 
