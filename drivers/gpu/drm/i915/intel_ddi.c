@@ -391,28 +391,20 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	uint32_t val;
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(intel_crtc);
 
 	switch (intel_crtc->config.ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
 		plls->wrpll1_refcount--;
 		if (plls->wrpll1_refcount == 0) {
-			DRM_DEBUG_KMS("Disabling WRPLL 1\n");
-			val = I915_READ(WRPLL_CTL1);
-			WARN_ON(!(val & WRPLL_PLL_ENABLE));
-			I915_WRITE(WRPLL_CTL1, val & ~WRPLL_PLL_ENABLE);
-			POSTING_READ(WRPLL_CTL1);
+			pll->disable(dev_priv, pll);
 		}
 		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 		break;
 	case PORT_CLK_SEL_WRPLL2:
 		plls->wrpll2_refcount--;
 		if (plls->wrpll2_refcount == 0) {
-			DRM_DEBUG_KMS("Disabling WRPLL 2\n");
-			val = I915_READ(WRPLL_CTL2);
-			WARN_ON(!(val & WRPLL_PLL_ENABLE));
-			I915_WRITE(WRPLL_CTL2, val & ~WRPLL_PLL_ENABLE);
-			POSTING_READ(WRPLL_CTL2);
+			pll->disable(dev_priv, pll);
 		}
 		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 		break;
@@ -1319,6 +1311,17 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void hsw_ddi_pll_disable(struct drm_i915_private *dev_priv,
+				struct intel_shared_dpll *pll)
+{
+	uint32_t val;
+
+	val = I915_READ(WRPLL_CTL(pll->id));
+	WARN_ON(!(val & WRPLL_PLL_ENABLE));
+	I915_WRITE(WRPLL_CTL(pll->id), val & ~WRPLL_PLL_ENABLE);
+	POSTING_READ(WRPLL_CTL(pll->id));
+}
+
 static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				     struct intel_shared_dpll *pll,
 				     struct intel_dpll_hw_state *hw_state)
@@ -1352,6 +1355,7 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	for (i = 0; i < 2; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
+		dev_priv->shared_dplls[i].disable = hsw_ddi_pll_disable;
 		dev_priv->shared_dplls[i].get_hw_state =
 			hsw_ddi_pll_get_hw_state;
 	}

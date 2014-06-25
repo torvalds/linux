@@ -5224,9 +5224,11 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	if (HAS_IPS(dev))
 		hsw_compute_ips_config(crtc, pipe_config);
 
-	/* XXX: PCH clock sharing is done in ->mode_set, so make sure the old
-	 * clock survives for now. */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	/*
+	 * XXX: PCH/WRPLL clock sharing is done in ->mode_set, so make sure the
+	 * old clock survives for now.
+	 */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev) || HAS_DDI(dev))
 		pipe_config->shared_dpll = crtc->config.shared_dpll;
 
 	if (pipe_config->has_pch_encoder)
