@@ -63,10 +63,10 @@ static struct list_head *ll_capa_list = &capa_list[CAPA_SITE_CLIENT];
 struct timer_list ll_capa_timer;
 /* for debug: indicate whether capa on llite is enabled or not */
 static atomic_t ll_capa_debug = ATOMIC_INIT(0);
-static unsigned long long ll_capa_renewed = 0;
-static unsigned long long ll_capa_renewal_noent = 0;
-static unsigned long long ll_capa_renewal_failed = 0;
-static unsigned long long ll_capa_renewal_retries = 0;
+static unsigned long long ll_capa_renewed;
+static unsigned long long ll_capa_renewal_noent;
+static unsigned long long ll_capa_renewal_failed;
+static unsigned long long ll_capa_renewal_retries;
 
 static int ll_update_capa(struct obd_capa *ocapa, struct lustre_capa *capa);
 
