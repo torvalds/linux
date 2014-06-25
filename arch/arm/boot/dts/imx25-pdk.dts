@@ -248,3 +248,10 @@
 	dr_mode = "host";
 	status = "okay";
 };
+
+&usbotg {
+	phy_type = "utmi";
+	dr_mode = "otg";
+	external-vbus-divider;
+	status = "okay";
+};
