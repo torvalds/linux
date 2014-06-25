@@ -49,7 +49,6 @@
 #include "bssdb.h"
 #include "mac.h"
 #include "rf.h"
-#include "datarate.h"
 #include "usbpipe.h"
 
 static int          msglevel                = MSG_LEVEL_INFO;

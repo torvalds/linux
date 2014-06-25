@@ -39,7 +39,6 @@
 #include "rf.h"
 #include "baseband.h"
 #include "usbpipe.h"
-#include "datarate.h"
 
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15

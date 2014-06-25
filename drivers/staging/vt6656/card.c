@@ -54,7 +54,6 @@
 #include "rf.h"
 #include "power.h"
 #include "key.h"
-#include "datarate.h"
 #include "usbpipe.h"
 
 //const u16 cwRXBCNTSFOff[MAX_RATE] =

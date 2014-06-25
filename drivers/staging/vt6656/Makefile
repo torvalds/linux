@@ -11,7 +11,6 @@ vt6656_stage-y +=	main_usb.o \
 			rxtx.o \
 			dpc.o \
 			power.o \
-			datarate.o \
 			key.o \
 			rf.o \
 			usbpipe.o \

@@ -40,7 +40,6 @@
 #include "baseband.h"
 #include "rf.h"
 #include "usbpipe.h"
-#include "datarate.h"
 
 static u8 abyVT3184_AGC[] = {
     0x00,   //0

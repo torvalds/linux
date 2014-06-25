@@ -36,7 +36,6 @@
 
 #include <linux/kernel.h>
 #include "device.h"
-#include "datarate.h"
 #include "channel.h"
 #include "rf.h"
 
