@@ -1573,6 +1573,8 @@ int tcp4_proc_init(void);
 void tcp4_proc_exit(void);
 #endif
 
+int tcp_rtx_synack(struct sock *sk, struct request_sock *req);
+
 /* TCP af-specific functions */
 struct tcp_sock_af_ops {
 #ifdef CONFIG_TCP_MD5SIG

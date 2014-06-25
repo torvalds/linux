@@ -845,18 +845,6 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	return err;
 }
 
-static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req)
-{
-	const struct  tcp_request_sock_ops *af_ops = tcp_rsk(req)->af_specific;
-	int res = af_ops->send_synack(sk, NULL, NULL, req, 0, NULL);
-
-	if (!res) {
-		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
-	}
-	return res;
-}
-
 /*
  *	IPv4 request_sock destructor.
  */
@@ -1269,7 +1257,7 @@ static struct dst_entry *tcp_v4_route_req(struct sock *sk, struct flowi *fl,
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
-	.rtx_syn_ack	=	tcp_v4_rtx_synack,
+	.rtx_syn_ack	=	tcp_rtx_synack,
 	.send_ack	=	tcp_v4_reqsk_send_ack,
 	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
