@@ -1155,7 +1155,7 @@ static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
 
 static inline bool hci_bdaddr_is_rpa(bdaddr_t *bdaddr, u8 addr_type)
 {
-	if (addr_type != 0x01)
+	if (addr_type != ADDR_LE_DEV_RANDOM)
 		return false;
 
 	if ((bdaddr->b[5] & 0xc0) == 0x40)
