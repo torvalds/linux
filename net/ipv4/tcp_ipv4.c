@@ -1264,6 +1264,9 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
 #endif
 	.init_req	=	tcp_v4_init_req,
+#ifdef CONFIG_SYN_COOKIES
+	.cookie_init_seq =	cookie_v4_init_sequence,
+#endif
 };
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
@@ -1331,7 +1334,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		TCP_ECN_create_request(req, skb, sock_net(sk));
 
 	if (want_cookie) {
-		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
+		isn = cookie_init_sequence(af_ops, sk, skb, &req->mss);
 		req->cookie_ts = tmp_opt.tstamp_ok;
 	} else if (!isn) {
 		/* VJ's idea. We save last timestamp seen
