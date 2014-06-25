@@ -28,6 +28,7 @@
 #include <linux/mfd/samsung/s2mpa01.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps14.h>
+#include <linux/mfd/samsung/s2mpu02.h>
 #include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
@@ -144,6 +145,18 @@ static bool s2mps11_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool s2mpu02_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S2MPU02_REG_INT1M:
+	case S2MPU02_REG_INT2M:
+	case S2MPU02_REG_INT3M:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static bool s5m8763_volatile(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -186,6 +199,15 @@ static const struct regmap_config s2mps14_regmap_config = {
 
 	.max_register = S2MPS14_REG_LDODSCH3,
 	.volatile_reg = s2mps11_volatile,
+	.cache_type = REGCACHE_FLAT,
+};
+
+static const struct regmap_config s2mpu02_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MPU02_REG_DVSDATA,
+	.volatile_reg = s2mpu02_volatile,
 	.cache_type = REGCACHE_FLAT,
 };
 
@@ -309,6 +331,9 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		break;
 	case S5M8767X:
 		regmap = &s5m8767_regmap_config;
+		break;
+	case S2MPU02:
+		regmap = &s2mpu02_regmap_config;
 		break;
 	default:
 		regmap = &sec_regmap_config;
