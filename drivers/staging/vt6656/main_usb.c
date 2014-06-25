@@ -58,7 +58,6 @@
 #include "wcmd.h"
 #include "rxtx.h"
 #include "bssdb.h"
-#include "wpactl.h"
 #include "dpc.h"
 #include "datarate.h"
 #include "rf.h"
