@@ -2567,11 +2567,14 @@ static void nvme_dev_list_remove(struct nvme_dev *dev)
 static void nvme_dev_shutdown(struct nvme_dev *dev)
 {
 	int i;
+	u32 csts = -1;
 
 	dev->initialized = 0;
 	nvme_dev_list_remove(dev);
 
-	if (!dev->bar || (dev->bar && readl(&dev->bar->csts) == -1)) {
+	if (dev->bar)
+		csts = readl(&dev->bar->csts);
+	if (csts & NVME_CSTS_CFS || !(csts & NVME_CSTS_RDY)) {
 		for (i = dev->queue_count - 1; i >= 0; i--) {
 			struct nvme_queue *nvmeq = raw_nvmeq(dev, i);
 			nvme_suspend_queue(nvmeq);
