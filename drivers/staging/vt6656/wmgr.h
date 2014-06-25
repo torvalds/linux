@@ -34,7 +34,6 @@
 #ifndef __WMGR_H__
 #define __WMGR_H__
 
-#include "80211mgr.h"
 #include "80211hdr.h"
 #include "wcmd.h"
 #include "bssdb.h"
@@ -332,7 +331,6 @@ struct vnt_manager {
 	int b11hEnable;
 	int bSwitchChannel;
 	u8 byNewChannel;
-	PWLAN_IE_MEASURE_REP    pCurrMeasureEIDRep;
 	u32 uLengthOfRepEIDs;
 	u8 abyCurrentMSRReq[sizeof(struct vnt_tx_mgmt)
 		+ WLAN_A3FR_MAXLEN];

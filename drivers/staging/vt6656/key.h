@@ -30,7 +30,7 @@
 #ifndef __KEY_H__
 #define __KEY_H__
 
-#include "80211mgr.h"
+#include "device.h"
 
 #define MAX_GROUP_KEY       4
 #define MAX_KEY_TABLE       11

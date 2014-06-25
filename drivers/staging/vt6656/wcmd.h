@@ -30,7 +30,7 @@
 #define __WCMD_H__
 
 #include "80211hdr.h"
-#include "80211mgr.h"
+#include "device.h"
 
 #define AUTHENTICATE_TIMEOUT   1000 //ms
 #define ASSOCIATE_TIMEOUT      1000 //ms
