@@ -1056,6 +1056,30 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
+static void
+ieee80211_vif_chanctx_reservation_complete(struct ieee80211_sub_if_data *sdata)
+{
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
+		ieee80211_queue_work(&sdata->local->hw,
+				     &sdata->csa_finalize_work);
+		break;
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NUM_NL80211_IFTYPES:
+		WARN_ON(1);
+		break;
+	}
+}
+
 static int
 ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 {
@@ -1103,7 +1127,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 		if (ieee80211_chanctx_refcount(local, new_ctx) == 0)
 			ieee80211_free_chanctx(local, new_ctx);
 
-		return err;
+		goto out;
 	}
 
 	list_move(&sdata->assigned_chanctx_list, &new_ctx->assigned_vifs);
@@ -1123,6 +1147,8 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (changed)
 		ieee80211_bss_info_change_notify(sdata, changed);
 
+out:
+	ieee80211_vif_chanctx_reservation_complete(sdata);
 	return err;
 }
 
@@ -1167,6 +1193,7 @@ ieee80211_vif_use_reserved_assign(struct ieee80211_sub_if_data *sdata)
 	}
 
 out:
+	ieee80211_vif_chanctx_reservation_complete(sdata);
 	return err;
 }
 
@@ -1480,6 +1507,8 @@ ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			list_move(&sdata->assigned_chanctx_list,
 				  &new_ctx->assigned_vifs);
 			sdata->reserved_chanctx = NULL;
+
+			ieee80211_vif_chanctx_reservation_complete(sdata);
 		}
 
 		/*
@@ -1543,8 +1572,10 @@ err:
 			continue;
 
 		list_for_each_entry_safe(sdata, sdata_tmp, &ctx->reserved_vifs,
-					 reserved_chanctx_list)
+					 reserved_chanctx_list) {
 			ieee80211_vif_unreserve_chanctx(sdata);
+			ieee80211_vif_chanctx_reservation_complete(sdata);
+		}
 	}
 
 	return err;
