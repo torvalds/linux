@@ -19,20 +19,15 @@
 
 /*
  * Early Hardware specific Interrupt setup
+ * -Platform independent, needed for each CPU (not foldable into init_IRQ)
  * -Called very early (start_kernel -> setup_arch -> setup_processor)
- * -Platform Independent (must for any ARC700)
- * -Needed for each CPU (hence not foldable into init_IRQ)
  *
  * what it does ?
- * -Disable all IRQs (on CPU side)
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
 void arc_init_IRQ(void)
 {
 	int level_mask = 0;
-
-	/* Disable all IRQs: enable them as devices request */
-	write_aux_reg(AUX_IENABLE, 0);
 
        /* setup any high priority Interrupts (Level2 in ARCompact jargon) */
 	level_mask |= IS_ENABLED(CONFIG_ARC_IRQ3_LV2) << 3;
