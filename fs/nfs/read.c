@@ -115,12 +115,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 
 		unlock_page(req->wb_page);
 	}
-
-	dprintk("NFS: read done (%s/%Lu %d@%Ld)\n",
-			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(req->wb_context->dentry->d_inode),
-			req->wb_bytes,
-			(long long)req_offset(req));
 	nfs_release_request(req);
 }
 
