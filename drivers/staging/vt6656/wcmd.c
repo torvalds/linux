@@ -51,7 +51,6 @@
 #include "rxtx.h"
 #include "rf.h"
 #include "channel.h"
-#include "iowpa.h"
 
 static int msglevel = MSG_LEVEL_INFO;
 //static int msglevel = MSG_LEVEL_DEBUG;

@@ -64,7 +64,6 @@
 #include "usbpipe.h"
 #include "channel.h"
 #include "int.h"
-#include "iowpa.h"
 
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
