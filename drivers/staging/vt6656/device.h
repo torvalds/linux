@@ -396,6 +396,7 @@ typedef struct __device_opt {
 struct vnt_private {
 	/* mac80211 */
 	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
 	/* netdev */
 	struct usb_device *usb;
 	struct net_device *dev;
@@ -410,6 +411,7 @@ struct vnt_private {
 	u8 rx_rate;
 
 	u32 rx_buf_sz;
+	int mc_list_count;
 	int multicast_limit;
 	u8 byRxMode;
 
@@ -574,6 +576,7 @@ struct vnt_private {
 	int bRadioOff;
 
 	/* Power save */
+	u16 current_aid;
 	int bEnablePSMode;
 	u16 wListenInterval;
 	int bPWBitOn;
