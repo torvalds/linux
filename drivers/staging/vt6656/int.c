@@ -33,7 +33,6 @@
  */
 
 #include "int.h"
-#include "tmacro.h"
 #include "mac.h"
 #include "power.h"
 #include "bssdb.h"

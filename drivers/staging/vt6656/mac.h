@@ -35,7 +35,6 @@
 #define __MAC_H__
 
 #include "device.h"
-#include "tmacro.h"
 
 #define REV_ID_VT3253_A0    0x00
 #define REV_ID_VT3253_A1    0x01

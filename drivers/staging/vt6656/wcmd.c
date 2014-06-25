@@ -38,7 +38,6 @@
  *
  */
 
-#include "tmacro.h"
 #include "device.h"
 #include "mac.h"
 #include "card.h"

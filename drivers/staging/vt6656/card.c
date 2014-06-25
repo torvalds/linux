@@ -46,7 +46,6 @@
  */
 
 #include "device.h"
-#include "tmacro.h"
 #include "card.h"
 #include "baseband.h"
 #include "mac.h"

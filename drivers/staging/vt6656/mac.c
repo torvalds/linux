@@ -30,7 +30,6 @@
  * Revision History:
  */
 
-#include "tmacro.h"
 #include "desc.h"
 #include "mac.h"
 #include "80211hdr.h"
