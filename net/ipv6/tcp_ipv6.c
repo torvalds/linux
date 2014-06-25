@@ -720,6 +720,31 @@ static int tcp_v6_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 }
 #endif
 
+static void tcp_v6_init_req(struct request_sock *req, struct sock *sk,
+			    struct sk_buff *skb)
+{
+	struct inet_request_sock *ireq = inet_rsk(req);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+
+	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
+	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
+
+	ireq->ir_iif = sk->sk_bound_dev_if;
+
+	/* So that link locals have meaning */
+	if (!sk->sk_bound_dev_if &&
+	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
+		ireq->ir_iif = inet6_iif(skb);
+
+	if (!TCP_SKB_CB(skb)->when &&
+	    (ipv6_opt_accepted(sk, skb) || np->rxopt.bits.rxinfo ||
+	     np->rxopt.bits.rxoinfo || np->rxopt.bits.rxhlim ||
+	     np->rxopt.bits.rxohlim || np->repflow)) {
+		atomic_inc(&skb->users);
+		ireq->pktopts = skb;
+	}
+}
+
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
@@ -730,12 +755,13 @@ struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.syn_ack_timeout =	tcp_syn_ack_timeout,
 };
 
-#ifdef CONFIG_TCP_MD5SIG
 static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
+#ifdef CONFIG_TCP_MD5SIG
 	.md5_lookup	=	tcp_v6_reqsk_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_md5_hash_skb,
-};
 #endif
+	.init_req	=	tcp_v6_init_req,
+};
 
 static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 				 u32 tsval, u32 tsecr, int oif,
@@ -983,13 +1009,13 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct tcp_options_received tmp_opt;
 	struct request_sock *req;
 	struct inet_request_sock *ireq;
-	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 isn = TCP_SKB_CB(skb)->when;
 	struct dst_entry *dst = NULL;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
 	bool want_cookie = false, fastopen;
 	struct flowi6 fl6;
+	const struct tcp_request_sock_ops *af_ops;
 	int err;
 
 	if (skb->protocol == htons(ETH_P_IP))
@@ -1014,9 +1040,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-#ifdef CONFIG_TCP_MD5SIG
-	tcp_rsk(req)->af_specific = &tcp_request_sock_ipv6_ops;
-#endif
+	af_ops = tcp_rsk(req)->af_specific = &tcp_request_sock_ipv6_ops;
 
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = IPV6_MIN_MTU - sizeof(struct tcphdr) - sizeof(struct ipv6hdr);
@@ -1030,27 +1054,12 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_openreq_init(req, &tmp_opt, skb, sk);
 
 	ireq = inet_rsk(req);
-	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
-	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
+	af_ops->init_req(req, sk, skb);
+
 	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, skb, sock_net(sk));
 
-	ireq->ir_iif = sk->sk_bound_dev_if;
-
-	/* So that link locals have meaning */
-	if (!sk->sk_bound_dev_if &&
-	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
-		ireq->ir_iif = inet6_iif(skb);
-
 	if (!isn) {
-		if (ipv6_opt_accepted(sk, skb) ||
-		    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
-		    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim ||
-		    np->repflow) {
-			atomic_inc(&skb->users);
-			ireq->pktopts = skb;
-		}
-
 		if (want_cookie) {
 			isn = cookie_v6_init_sequence(sk, skb, &req->mss);
 			req->cookie_ts = tmp_opt.tstamp_ok;

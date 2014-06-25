@@ -1237,6 +1237,17 @@ static bool tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 
 #endif
 
+static void tcp_v4_init_req(struct request_sock *req, struct sock *sk,
+			    struct sk_buff *skb)
+{
+	struct inet_request_sock *ireq = inet_rsk(req);
+
+	ireq->ir_loc_addr = ip_hdr(skb)->daddr;
+	ireq->ir_rmt_addr = ip_hdr(skb)->saddr;
+	ireq->no_srccheck = inet_sk(sk)->transparent;
+	ireq->opt = tcp_v4_save_options(skb);
+}
+
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
@@ -1247,26 +1258,26 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
-#ifdef CONFIG_TCP_MD5SIG
 static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+#ifdef CONFIG_TCP_MD5SIG
 	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
-};
 #endif
+	.init_req	=	tcp_v4_init_req,
+};
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_options_received tmp_opt;
 	struct request_sock *req;
-	struct inet_request_sock *ireq;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct dst_entry *dst = NULL;
 	__be32 saddr = ip_hdr(skb)->saddr;
-	__be32 daddr = ip_hdr(skb)->daddr;
 	__u32 isn = TCP_SKB_CB(skb)->when;
 	bool want_cookie = false, fastopen;
 	struct flowi4 fl4;
 	struct tcp_fastopen_cookie foc = { .len = -1 };
+	const struct tcp_request_sock_ops *af_ops;
 	int err;
 
 	/* Never answer to SYNs send to broadcast or multicast */
@@ -1298,9 +1309,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (!req)
 		goto drop;
 
-#ifdef CONFIG_TCP_MD5SIG
-	tcp_rsk(req)->af_specific = &tcp_request_sock_ipv4_ops;
-#endif
+	af_ops = tcp_rsk(req)->af_specific = &tcp_request_sock_ipv4_ops;
 
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = TCP_MSS_DEFAULT;
@@ -1313,11 +1322,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb, sk);
 
-	ireq = inet_rsk(req);
-	ireq->ir_loc_addr = daddr;
-	ireq->ir_rmt_addr = saddr;
-	ireq->no_srccheck = inet_sk(sk)->transparent;
-	ireq->opt = tcp_v4_save_options(skb);
+	af_ops->init_req(req, sk, skb);
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;

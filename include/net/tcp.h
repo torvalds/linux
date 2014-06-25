@@ -1613,6 +1613,8 @@ struct tcp_request_sock_ops {
 						  const struct request_sock *req,
 						  const struct sk_buff *skb);
 #endif
+	void (*init_req)(struct request_sock *req, struct sock *sk,
+			 struct sk_buff *skb);
 };
 
 int tcpv4_offload_init(void);
