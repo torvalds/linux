@@ -151,6 +151,8 @@ static inline int optimize_div(u32 *k)
 	return 0;
 }
 
+static inline void emit_jit_reg_move(ptr dst, ptr src, struct jit_ctx *ctx);
+
 /* Simply emit the instruction if the JIT memory space has been allocated */
 #define emit_instr(ctx, func, ...)			\
 do {							\
@@ -309,8 +311,11 @@ static inline void emit_sll(unsigned int dst, unsigned int src,
 			    unsigned int sa, struct jit_ctx *ctx)
 {
 	/* sa is 5-bits long */
-	BUG_ON(sa >= BIT(5));
-	emit_instr(ctx, sll, dst, src, sa);
+	if (sa >= BIT(5))
+		/* Shifting >= 32 results in zero */
+		emit_jit_reg_move(dst, r_zero, ctx);
+	else
+		emit_instr(ctx, sll, dst, src, sa);
 }
 
 static inline void emit_srlv(unsigned int dst, unsigned int src,
@@ -323,8 +328,11 @@ static inline void emit_srl(unsigned int dst, unsigned int src,
 			    unsigned int sa, struct jit_ctx *ctx)
 {
 	/* sa is 5-bits long */
-	BUG_ON(sa >= BIT(5));
-	emit_instr(ctx, srl, dst, src, sa);
+	if (sa >= BIT(5))
+		/* Shifting >= 32 results in zero */
+		emit_jit_reg_move(dst, r_zero, ctx);
+	else
+		emit_instr(ctx, srl, dst, src, sa);
 }
 
 static inline void emit_slt(unsigned int dst, unsigned int src1,
