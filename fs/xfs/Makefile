@@ -17,6 +17,7 @@
 #
 
 ccflags-y += -I$(src)			# needed for trace events
+ccflags-y += -I$(src)/libxfs
 
 ccflags-$(CONFIG_XFS_DEBUG) += -g
 
@@ -24,6 +25,11 @@ obj-$(CONFIG_XFS_FS)		+= xfs.o
 
 # this one should be compiled first, as the tracing macros can easily blow up
 xfs-y				+= xfs_trace.o
+
+# build the libxfs code first
+xfs-y				+= $(addprefix libxfs/, \
+				   xfs_sb.o \
+				   )
 
 # highlevel code
 xfs-y				+= xfs_aops.o \
@@ -82,7 +88,6 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_inode_buf.o \
 				   xfs_log_recover.o \
 				   xfs_log_rlimit.o \
-				   xfs_sb.o \
 				   xfs_symlink_remote.o \
 				   xfs_trans_resv.o
 
