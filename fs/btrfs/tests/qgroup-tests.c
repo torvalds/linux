@@ -415,6 +415,8 @@ int btrfs_test_qgroups(void)
 		ret = -ENOMEM;
 		goto out;
 	}
+	btrfs_set_header_level(root->node, 0);
+	btrfs_set_header_nritems(root->node, 0);
 	root->alloc_bytenr += 8192;
 
 	tmp_root = btrfs_alloc_dummy_root();

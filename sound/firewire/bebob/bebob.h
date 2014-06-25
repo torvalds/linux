@@ -208,8 +208,6 @@ int snd_bebob_stream_set_rate(struct snd_bebob *bebob, unsigned int rate);
 int snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob,
 					  bool *internal);
 int snd_bebob_stream_discover(struct snd_bebob *bebob);
-int snd_bebob_stream_map(struct snd_bebob *bebob,
-			 struct amdtp_stream *stream);
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob);
 int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate);
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob);

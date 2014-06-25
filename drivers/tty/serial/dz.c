@@ -625,7 +625,7 @@ static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 	dport->port.read_status_mask = DZ_OERR;
 	if (termios->c_iflag & INPCK)
 		dport->port.read_status_mask |= DZ_FERR | DZ_PERR;
-	if (termios->c_iflag & (BRKINT | PARMRK))
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		dport->port.read_status_mask |= DZ_BREAK;
 
 	/* characters to ignore */

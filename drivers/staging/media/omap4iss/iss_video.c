@@ -396,7 +396,7 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 	}
 }
 
-static struct vb2_ops iss_video_vb2ops = {
+static const struct vb2_ops iss_video_vb2ops = {
 	.queue_setup	= iss_video_queue_setup,
 	.buf_prepare	= iss_video_buf_prepare,
 	.buf_queue	= iss_video_buf_queue,

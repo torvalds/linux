@@ -1,4 +1,4 @@
-config ARCH_NOMADIK
+menuconfig ARCH_NOMADIK
 	bool "ST-Ericsson Nomadik"
 	depends on ARCH_MULTI_V5
 	select ARCH_REQUIRE_GPIOLIB
@@ -15,7 +15,6 @@ config ARCH_NOMADIK
 	  Support for the Nomadik platform by ST-Ericsson
 
 if ARCH_NOMADIK
-menu "Nomadik boards"
 
 config MACH_NOMADIK_8815NHK
 	bool "ST 8815 Nomadik Hardware Kit (evaluation board)"
@@ -24,7 +23,6 @@ config MACH_NOMADIK_8815NHK
 	select I2C_ALGOBIT
 	select I2C_NOMADIK
 
-endmenu
 endif
 
 config NOMADIK_8815
