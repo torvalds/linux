@@ -1574,6 +1574,9 @@ void tcp4_proc_exit(void);
 #endif
 
 int tcp_rtx_synack(struct sock *sk, struct request_sock *req);
+int tcp_conn_request(struct request_sock_ops *rsk_ops,
+		     const struct tcp_request_sock_ops *af_ops,
+		     struct sock *sk, struct sk_buff *skb);
 
 /* TCP af-specific functions */
 struct tcp_sock_af_ops {
