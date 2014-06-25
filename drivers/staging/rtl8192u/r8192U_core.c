@@ -2463,7 +2463,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->ieee80211->FwRWRF = 0;	//we don't use FW read/write RF until stable firmware is available.
 	priv->ieee80211->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
-	priv->ieee80211->iw_mode = IW_MODE_INFRA;
 	priv->ieee80211->softmac_features  = IEEE_SOFTMAC_SCAN |
 		IEEE_SOFTMAC_ASSOCIATE | IEEE_SOFTMAC_PROBERQ |
 		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE |
