@@ -181,6 +181,11 @@ int bench_mem_memset(int argc, const char **argv,
 	argc = parse_options(argc, argv, options,
 			     bench_mem_memset_usage, 0);
 
+	if (no_prefault && only_prefault) {
+		fprintf(stderr, "Invalid options: -o and -n are mutually exclusive\n");
+		return 1;
+	}
+
 	if (use_cycle)
 		init_cycle();
 

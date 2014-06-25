@@ -1108,6 +1108,7 @@ struct syscall {
 	struct event_format *tp_format;
 	const char	    *name;
 	bool		    filtered;
+	bool		    is_exit;
 	struct syscall_fmt  *fmt;
 	size_t		    (**arg_scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
 	void		    **arg_parm;
@@ -1276,11 +1277,11 @@ static const char *thread__fd_path(struct thread *thread, int fd,
 	if (fd < 0)
 		return NULL;
 
-	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL))
+	if ((fd > ttrace->paths.max || ttrace->paths.table[fd] == NULL)) {
 		if (!trace->live)
 			return NULL;
 		++trace->stats.proc_getname;
-		if (thread__read_fd_path(thread, fd)) {
+		if (thread__read_fd_path(thread, fd))
 			return NULL;
 	}
 
@@ -1473,6 +1474,8 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	if (sc->tp_format == NULL)
 		return -1;
 
+	sc->is_exit = !strcmp(name, "exit_group") || !strcmp(name, "exit");
+
 	return syscall__set_arg_fmts(sc);
 }
 
@@ -1629,7 +1632,6 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 		return -1;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
-	ttrace = thread->priv;
 
 	if (ttrace->entry_str == NULL) {
 		ttrace->entry_str = malloc(1024);
@@ -1644,7 +1646,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	printed += syscall__scnprintf_args(sc, msg + printed, 1024 - printed,
 					   args, trace, thread);
 
-	if (!strcmp(sc->name, "exit_group") || !strcmp(sc->name, "exit")) {
+	if (sc->is_exit) {
 		if (!trace->duration_filter && !trace->summary_only) {
 			trace__fprintf_entry_head(trace, thread, 1, sample->time, trace->output);
 			fprintf(trace->output, "%-70s\n", ttrace->entry_str);
@@ -1686,8 +1688,6 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		trace->last_vfs_getname = NULL;
 		++trace->stats.vfs_getname;
 	}
-
-	ttrace = thread->priv;
 
 	ttrace->exit_time = sample->time;
 
