@@ -115,14 +115,6 @@ For the following list_xxx operations,
 caller must guarantee the atomic context.
 Otherwise, there will be racing condition.
 */
-static inline u32 is_list_empty(struct list_head *phead)
-{
-	if (list_empty(phead))
-		return true;
-	else
-		return false;
-}
-
 static inline void list_insert_tail(struct list_head *plist,
 				    struct list_head *phead)
 {
@@ -139,7 +131,7 @@ static inline u32 _down_sema(struct semaphore *sema)
 
 static inline u32 _queue_empty(struct  __queue *pqueue)
 {
-	return is_list_empty(&(pqueue->queue));
+	return list_empty(&(pqueue->queue));
 }
 
 static inline u32 end_of_queue_search(struct list_head *head,

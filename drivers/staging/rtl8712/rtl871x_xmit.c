@@ -939,7 +939,7 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 	ptxservq = get_sta_pending(padapter, &pstapending,
 		   psta, pattrib->priority);
 	spin_lock_irqsave(&pstapending->lock, irqL0);
-	if (is_list_empty(&ptxservq->tx_pending))
+	if (list_empty(&ptxservq->tx_pending))
 		list_insert_tail(&ptxservq->tx_pending,
 				 get_list_head(pstapending));
 	list_insert_tail(&pxmitframe->list,

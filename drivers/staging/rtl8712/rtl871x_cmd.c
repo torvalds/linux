@@ -137,7 +137,7 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	struct cmd_obj *obj;
 
 	spin_lock_irqsave(&(queue->lock), irqL);
-	if (is_list_empty(&(queue->queue)))
+	if (list_empty(&(queue->queue)))
 		obj = NULL;
 	else {
 		obj = LIST_CONTAINOR(get_next(&(queue->queue)),

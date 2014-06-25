@@ -532,7 +532,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	plist = get_next(phead);
 	/* Handling some condition for forced indicate case.*/
 	if (bforced == true) {
-		if (is_list_empty(phead))
+		if (list_empty(phead))
 			return true;
 		else {
 			prframe = LIST_CONTAINOR(plist, union recv_frame, u);
@@ -542,7 +542,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	}
 	/* Prepare indication list and indication.
 	 * Check if there is any packet need indicate. */
-	while (!is_list_empty(phead)) {
+	while (!list_empty(phead)) {
 		prframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		pattrib = &prframe->u.hdr.attrib;
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
