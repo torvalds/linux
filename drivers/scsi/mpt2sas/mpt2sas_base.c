@@ -4295,12 +4295,13 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	if (ioc->is_warpdrive) {
-		ioc->reply_post_host_index[0] =
-		    (resource_size_t *)&ioc->chip->ReplyPostHostIndex;
+		ioc->reply_post_host_index[0] = (resource_size_t __iomem *)
+		    &ioc->chip->ReplyPostHostIndex;
 
 		for (i = 1; i < ioc->cpu_msix_table_sz; i++)
-			ioc->reply_post_host_index[i] = (resource_size_t *)
-			((u8 *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
+			ioc->reply_post_host_index[i] =
+			(resource_size_t __iomem *)
+			((u8 __iomem *)&ioc->chip->Doorbell + (0x4000 + ((i - 1)
 			* 4)));
 	}
 
