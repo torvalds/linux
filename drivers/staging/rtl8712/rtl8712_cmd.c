@@ -410,7 +410,7 @@ _next:
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
-			if (_queue_empty(&(pcmdpriv->cmd_queue))) {
+			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
 			} else

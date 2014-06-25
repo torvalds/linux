@@ -89,7 +89,7 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 	struct  __queue *free_queue = &pmlmepriv->free_bss_pool;
 	struct list_head *plist = NULL;
 
-	if (_queue_empty(free_queue) == true)
+	if (list_empty(&free_queue->queue))
 		return NULL;
 	spin_lock_irqsave(&free_queue->lock, irqL);
 	plist = free_queue->queue.next;
@@ -420,7 +420,7 @@ static void update_scanned_network(struct _adapter *adapter,
 	/* If we didn't find a match, then get a new network slot to initialize
 	 * with this beacon's information */
 	if (end_of_queue_search(phead, plist) == true) {
-		if (_queue_empty(&pmlmepriv->free_bss_pool) == true) {
+		if (list_empty(&pmlmepriv->free_bss_pool.queue)) {
 			/* If there are no more slots, expire the oldest */
 			pnetwork = oldest;
 			target->Rssi = (pnetwork->network.Rssi +

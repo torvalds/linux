@@ -112,7 +112,7 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 	struct recv_priv *precvpriv;
 
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	if (_queue_empty(pfree_recv_queue) == true)
+	if (list_empty(&pfree_recv_queue->queue))
 		precvframe = NULL;
 	else {
 		phead = &pfree_recv_queue->queue;

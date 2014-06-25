@@ -744,7 +744,7 @@ struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 	struct  __queue *pfree_xmitbuf_queue = &pxmitpriv->free_xmitbuf_queue;
 
 	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irqL);
-	if (_queue_empty(pfree_xmitbuf_queue) == true)
+	if (list_empty(&pfree_xmitbuf_queue->queue))
 		pxmitbuf = NULL;
 	else {
 		phead = &pfree_xmitbuf_queue->queue;
@@ -798,7 +798,7 @@ struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 	struct  __queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;
 
 	spin_lock_irqsave(&pfree_xmit_queue->lock, irqL);
-	if (_queue_empty(pfree_xmit_queue) == true)
+	if (list_empty(&pfree_xmit_queue->queue))
 		pxframe =  NULL;
 	else {
 		phead = &pfree_xmit_queue->queue;

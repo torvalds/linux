@@ -288,7 +288,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 		if (pdefrag_q != NULL) {
 			if (fragnum == 0) {
 				/*the first fragment*/
-				if (_queue_empty(pdefrag_q) == false) {
+				if (!list_empty(&pdefrag_q->queue)) {
 					/*free current defrag_q */
 					r8712_free_recvframe_queue(pdefrag_q,
 							     pfree_recv_queue);

@@ -108,11 +108,6 @@ static inline u32 _down_sema(struct semaphore *sema)
 		return _SUCCESS;
 }
 
-static inline u32 _queue_empty(struct  __queue *pqueue)
-{
-	return list_empty(&(pqueue->queue));
-}
-
 static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {
