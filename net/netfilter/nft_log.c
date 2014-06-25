@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2012-2014 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -41,6 +42,8 @@ static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING },
 	[NFTA_LOG_SNAPLEN]	= { .type = NLA_U32 },
 	[NFTA_LOG_QTHRESHOLD]	= { .type = NLA_U16 },
+	[NFTA_LOG_LEVEL]	= { .type = NLA_U32 },
+	[NFTA_LOG_FLAGS]	= { .type = NLA_U32 },
 };
 
 static int nft_log_init(const struct nft_ctx *ctx,
@@ -58,18 +61,41 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		if (priv->prefix == NULL)
 			return -ENOMEM;
 		nla_strlcpy(priv->prefix, nla, nla_len(nla) + 1);
-	} else
+	} else {
 		priv->prefix = (char *)nft_log_null_prefix;
+	}
 
-	li->type = NF_LOG_TYPE_ULOG;
+	li->type = NF_LOG_TYPE_LOG;
+	if (tb[NFTA_LOG_LEVEL] != NULL &&
+	    tb[NFTA_LOG_GROUP] != NULL)
+		return -EINVAL;
 	if (tb[NFTA_LOG_GROUP] != NULL)
-		li->u.ulog.group = ntohs(nla_get_be16(tb[NFTA_LOG_GROUP]));
+		li->type = NF_LOG_TYPE_ULOG;
 
-	if (tb[NFTA_LOG_SNAPLEN] != NULL)
-		li->u.ulog.copy_len = ntohl(nla_get_be32(tb[NFTA_LOG_SNAPLEN]));
-	if (tb[NFTA_LOG_QTHRESHOLD] != NULL) {
-		li->u.ulog.qthreshold =
-			ntohs(nla_get_be16(tb[NFTA_LOG_QTHRESHOLD]));
+	switch (li->type) {
+	case NF_LOG_TYPE_LOG:
+		if (tb[NFTA_LOG_LEVEL] != NULL) {
+			li->u.log.level =
+				ntohl(nla_get_be32(tb[NFTA_LOG_LEVEL]));;
+		} else {
+			li->u.log.level = 4;
+		}
+		if (tb[NFTA_LOG_FLAGS] != NULL) {
+			li->u.log.logflags =
+				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
+		}
+		break;
+	case NF_LOG_TYPE_ULOG:
+		li->u.ulog.group = ntohs(nla_get_be16(tb[NFTA_LOG_GROUP]));
+		if (tb[NFTA_LOG_SNAPLEN] != NULL) {
+			li->u.ulog.copy_len =
+				ntohl(nla_get_be32(tb[NFTA_LOG_SNAPLEN]));
+		}
+		if (tb[NFTA_LOG_QTHRESHOLD] != NULL) {
+			li->u.ulog.qthreshold =
+				ntohs(nla_get_be16(tb[NFTA_LOG_QTHRESHOLD]));
+		}
+		break;
 	}
 
 	if (ctx->afi->family == NFPROTO_INET) {
@@ -113,17 +139,33 @@ static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	if (priv->prefix != nft_log_null_prefix)
 		if (nla_put_string(skb, NFTA_LOG_PREFIX, priv->prefix))
 			goto nla_put_failure;
-	if (li->u.ulog.group)
+	switch (li->type) {
+	case NF_LOG_TYPE_LOG:
+		if (nla_put_be32(skb, NFTA_LOG_LEVEL, htonl(li->u.log.level)))
+			goto nla_put_failure;
+
+		if (li->u.log.logflags) {
+			if (nla_put_be32(skb, NFTA_LOG_FLAGS,
+					 htonl(li->u.log.logflags)))
+				goto nla_put_failure;
+		}
+		break;
+	case NF_LOG_TYPE_ULOG:
 		if (nla_put_be16(skb, NFTA_LOG_GROUP, htons(li->u.ulog.group)))
 			goto nla_put_failure;
-	if (li->u.ulog.copy_len)
-		if (nla_put_be32(skb, NFTA_LOG_SNAPLEN,
-				 htonl(li->u.ulog.copy_len)))
-			goto nla_put_failure;
-	if (li->u.ulog.qthreshold)
-		if (nla_put_be16(skb, NFTA_LOG_QTHRESHOLD,
-				 htons(li->u.ulog.qthreshold)))
-			goto nla_put_failure;
+
+		if (li->u.ulog.copy_len) {
+			if (nla_put_be32(skb, NFTA_LOG_SNAPLEN,
+					 htonl(li->u.ulog.copy_len)))
+				goto nla_put_failure;
+		}
+		if (li->u.ulog.qthreshold) {
+			if (nla_put_be16(skb, NFTA_LOG_QTHRESHOLD,
+					 htons(li->u.ulog.qthreshold)))
+				goto nla_put_failure;
+		}
+		break;
+	}
 	return 0;
 
 nla_put_failure:
