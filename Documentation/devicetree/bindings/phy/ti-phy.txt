@@ -9,15 +9,17 @@ Required properties:
                         e.g. USB2_PHY on OMAP5.
  "ti,control-phy-pipe3" - if it has DPLL and individual Rx & Tx power control
                         e.g. USB3 PHY and SATA PHY on OMAP5.
+ "ti,control-phy-pcie" - for pcie to support external clock for pcie and to
+			set PCS delay value.
+			e.g. PCIE PHY in DRA7x
  "ti,control-phy-usb2-dra7" - if it has power down register like USB2 PHY on
                         DRA7 platform.
  "ti,control-phy-usb2-am437" - if it has power down register like USB2 PHY on
                         AM437 platform.
- - reg : Address and length of the register set for the device. It contains
-   the address of "otghs_control" for control-phy-otghs or "power" register
-   for other types.
- - reg-names: should be "otghs_control" control-phy-otghs and "power" for
-   other types.
+ - reg : register ranges as listed in the reg-names property
+ - reg-names: "otghs_control" for control-phy-otghs
+	      "power", "pcie_pcs" and "control_sma" for control-phy-pcie
+	      "power" for all other types
 
 omap_control_usb: omap-control-usb@4a002300 {
         compatible = "ti,control-phy-otghs";

@@ -217,8 +217,10 @@ static int ti_pipe3_init(struct phy *x)
 	u32 val;
 	int ret = 0;
 
-	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie"))
+	if (of_device_is_compatible(phy->dev->of_node, "ti,phy-pipe3-pcie")) {
+		omap_control_pcie_pcs(phy->control_dev, phy->id, 0xF1);
 		return 0;
+	}
 
 	/* Bring it out of IDLE if it is IDLE */
 	val = ti_pipe3_readl(phy->pll_ctrl_base, PLL_CONFIGURATION2);
