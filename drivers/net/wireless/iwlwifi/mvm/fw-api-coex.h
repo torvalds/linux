@@ -76,6 +76,9 @@
  * @BT_COEX_2W:
  * @BT_COEX_3W:
  * @BT_COEX_NW:
+ * @BT_COEX_AUTO:
+ * @BT_COEX_BT: Antenna is for BT (manufacuring tests)
+ * @BT_COEX_WIFI: Antenna is for BT (manufacuring tests)
  * @BT_COEX_SYNC2SCO:
  * @BT_COEX_CORUNNING:
  * @BT_COEX_MPLUT:
@@ -89,6 +92,9 @@ enum iwl_bt_coex_flags {
 	BT_COEX_2W			= 0x1 << BT_COEX_MODE_POS,
 	BT_COEX_3W			= 0x2 << BT_COEX_MODE_POS,
 	BT_COEX_NW			= 0x3 << BT_COEX_MODE_POS,
+	BT_COEX_AUTO			= 0x5 << BT_COEX_MODE_POS,
+	BT_COEX_BT			= 0x6 << BT_COEX_MODE_POS,
+	BT_COEX_WIFI			= 0x7 << BT_COEX_MODE_POS,
 	BT_COEX_SYNC2SCO		= BIT(7),
 	BT_COEX_CORUNNING		= BIT(8),
 	BT_COEX_MPLUT			= BIT(9),
@@ -299,6 +305,7 @@ enum iwl_bt_activity_grading {
  * @bt_traffic_load: load of BT traffic
  * @bt_agg_traffic_load: aggregated load of BT traffic
  * @bt_ci_compliance: 0 - no CI compliance, 1 - CI compliant
+ * @ttc_enabled: true if ttc has been enabled by the firmware
  * @primary_ch_lut: LUT used for primary channel
  * @secondary_ch_lut: LUT used for secondary channel
  * @bt_activity_grading: the activity of BT enum %iwl_bt_activity_grading
@@ -311,7 +318,8 @@ struct iwl_bt_coex_profile_notif {
 	u8 bt_traffic_load;
 	u8 bt_agg_traffic_load;
 	u8 bt_ci_compliance;
-	u8 reserved[3];
+	u8 ttc_enabled;
+	__le16 reserved;
 
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;

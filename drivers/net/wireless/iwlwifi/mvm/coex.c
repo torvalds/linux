@@ -100,12 +100,13 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
-#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
 #define BT_ANTENNA_COUPLING_THRESHOLD		(30)
 
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
+	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
+		return 0;
+
 	return iwl_mvm_send_cmd_pdu(mvm, BT_COEX_PRIO_TABLE, 0,
 				    sizeof(struct iwl_bt_coex_prio_tbl_cmd),
 				    &iwl_bt_prio_tbl);
@@ -535,7 +536,7 @@ iwl_get_coex_type(struct iwl_mvm *mvm, const struct ieee80211_vif *vif)
 	if (!chanctx_conf ||
 	     chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
 		rcu_read_unlock();
-		return BT_COEX_LOOSE_LUT;
+		return BT_COEX_INVALID_LUT;
 	}
 
 	ret = BT_COEX_TX_DIS_LUT;
@@ -577,6 +578,29 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	if (!bt_cmd)
 		return -ENOMEM;
 	cmd.data[0] = bt_cmd;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS)) {
+		switch (mvm->bt_force_ant_mode) {
+		case BT_FORCE_ANT_AUTO:
+			flags = BT_COEX_AUTO;
+			break;
+		case BT_FORCE_ANT_BT:
+			flags = BT_COEX_BT;
+			break;
+		case BT_FORCE_ANT_WIFI:
+			flags = BT_COEX_WIFI;
+			break;
+		default:
+			WARN_ON(1);
+			flags = 0;
+		}
+
+		bt_cmd->flags = cpu_to_le32(flags);
+		bt_cmd->valid_bit_msk = cpu_to_le32(BT_VALID_ENABLE);
+		goto send_cmd;
+	}
 
 	bt_cmd->max_kill = 5;
 	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
@@ -642,6 +666,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 	bt_cmd->kill_cts_msk =
 		cpu_to_le32(iwl_bt_cts_kill_msk[BT_KILL_MSK_DEFAULT]);
 
+send_cmd:
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 	memset(&mvm->last_bt_ci_cmd, 0, sizeof(mvm->last_bt_ci_cmd));
 
@@ -780,9 +805,9 @@ void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
 
 	mvmvif->bf_data.last_bt_coex_event = rssi;
 	mvmvif->bf_data.bt_coex_max_thold =
-		enable ? BT_ENABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+		enable ? -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH : 0;
 	mvmvif->bf_data.bt_coex_min_thold =
-		enable ? BT_DISABLE_REDUCED_TXPOWER_THRESHOLD : 0;
+		enable ? -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH : 0;
 }
 
 /* must be called under rcu_read_lock */
@@ -919,7 +944,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	/* if the RSSI isn't valid, fake it is very low */
 	if (!ave_rssi)
 		ave_rssi = -100;
-	if (ave_rssi > BT_ENABLE_REDUCED_TXPOWER_THRESHOLD) {
+	if (ave_rssi > -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 
@@ -930,7 +955,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		 * the iteration, if one interface's rssi isn't good enough,
 		 * bt_kill_msk will be set to default values.
 		 */
-	} else if (ave_rssi < BT_DISABLE_REDUCED_TXPOWER_THRESHOLD) {
+	} else if (ave_rssi < -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH) {
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
 
@@ -954,6 +979,10 @@ static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 	};
 	struct iwl_bt_coex_ci_cmd cmd = {};
 	u8 ci_bw_idx;
+
+	/* Ignore updates if we are in force mode */
+	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
+		return;
 
 	rcu_read_lock();
 	ieee80211_iterate_active_interfaces_atomic(
@@ -1121,6 +1150,10 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	/* Ignore updates if we are in force mode */
+	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
+		return;
+
 	/*
 	 * Rssi update while not associated - can happen since the statistics
 	 * are handled asynchronously
@@ -1177,9 +1210,12 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 	    BT_HIGH_TRAFFIC)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
+	if (mvm->last_bt_notif.ttc_enabled)
+		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
+
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 
-	if (lut_type == BT_COEX_LOOSE_LUT)
+	if (lut_type == BT_COEX_LOOSE_LUT || lut_type == BT_COEX_INVALID_LUT)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
 
 	/* tight coex, high bt traffic, reduce AGG time limit */
@@ -1190,18 +1226,29 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	enum iwl_bt_coex_lut_type lut_type;
+
+	if (mvm->last_bt_notif.ttc_enabled)
+		return true;
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return true;
 
 	/*
-	 * In Tight, BT can't Rx while we Tx, so use both antennas since BT is
-	 * already killed.
-	 * In Loose, BT can Rx while we Tx, so forbid MIMO to let BT Rx while we
-	 * Tx.
+	 * In Tight / TxTxDis, BT can't Rx while we Tx, so use both antennas
+	 * since BT is already killed.
+	 * In Loose, BT can Rx while we Tx, so forbid MIMO to let BT Rx while
+	 * we Tx.
+	 * When we are in 5GHz, we'll get BT_COEX_INVALID_LUT allowing MIMO.
 	 */
-	return iwl_get_coex_type(mvm, mvmsta->vif) == BT_COEX_TIGHT_LUT;
+	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
+	return lut_type != BT_COEX_LOOSE_LUT;
+}
+
+bool iwl_mvm_bt_coex_is_shared_ant_avail(struct iwl_mvm *mvm)
+{
+	return le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF;
 }
 
 bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
@@ -1273,6 +1320,10 @@ int iwl_mvm_rx_ant_coupling_notif(struct iwl_mvm *mvm,
 		return 0;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	/* Ignore updates if we are in force mode */
+	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
+		return 0;
 
 	if (ant_isolation ==  mvm->last_ant_isol)
 		return 0;

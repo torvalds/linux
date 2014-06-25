@@ -404,5 +404,7 @@ void iwl_mvm_sta_modify_sleep_tx_count(struct iwl_mvm *mvm,
 				       bool agg);
 int iwl_mvm_drain_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 		      bool drain);
+void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
+				   struct iwl_mvm_sta *mvmsta, bool disable);
 
 #endif /* __sta_h__ */

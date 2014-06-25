@@ -8,7 +8,30 @@
  */
 
 #include <linux/ieee80211.h>
+#include <net/cfg80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
+
+/* give usermode some time for retries in setting up the TDLS session */
+#define TDLS_PEER_SETUP_TIMEOUT	(15 * HZ)
+
+void ieee80211_tdls_peer_del_work(struct work_struct *wk)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_local *local;
+
+	sdata = container_of(wk, struct ieee80211_sub_if_data,
+			     tdls_peer_del_work.work);
+	local = sdata->local;
+
+	mutex_lock(&local->mtx);
+	if (!is_zero_ether_addr(sdata->tdls_peer)) {
+		tdls_dbg(sdata, "TDLS del peer %pM\n", sdata->tdls_peer);
+		sta_info_destroy_addr(sdata, sdata->tdls_peer);
+		eth_zero_addr(sdata->tdls_peer);
+	}
+	mutex_unlock(&local->mtx);
+}
 
 static void ieee80211_tdls_add_ext_capab(struct sk_buff *skb)
 {
@@ -168,27 +191,19 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-			const u8 *peer, u8 action_code, u8 dialog_token,
-			u16 status_code, u32 peer_capability,
-			const u8 *extra_ies, size_t extra_ies_len)
+static int
+ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
+				const u8 *peer, u8 action_code,
+				u8 dialog_token, u16 status_code,
+				u32 peer_capability, bool initiator,
+				const u8 *extra_ies, size_t extra_ies_len)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = NULL;
 	bool send_direct;
+	const u8 *init_addr, *rsp_addr;
 	int ret;
-
-	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
-
-	/* make sure we are in managed mode, and associated */
-	if (sdata->vif.type != NL80211_IFTYPE_STATION ||
-	    !sdata->u.mgd.associated)
-		return -EINVAL;
-
-	tdls_dbg(sdata, "TDLS mgmt action %d peer %pM\n",
-		 action_code, peer);
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    max(sizeof(struct ieee80211_mgmt),
@@ -230,26 +245,41 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (extra_ies_len)
 		memcpy(skb_put(skb, extra_ies_len), extra_ies, extra_ies_len);
 
-	/* the TDLS link IE is always added last */
+	/* sanity check for initiator */
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
 	case WLAN_TDLS_SETUP_CONFIRM:
-	case WLAN_TDLS_TEARDOWN:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
-		/* we are the initiator */
-		ieee80211_tdls_add_link_ie(skb, sdata->vif.addr, peer,
-					   sdata->u.mgd.bssid);
+		if (!initiator) {
+			ret = -EINVAL;
+			goto fail;
+		}
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
-		/* we are the responder */
-		ieee80211_tdls_add_link_ie(skb, peer, sdata->vif.addr,
-					   sdata->u.mgd.bssid);
+		if (initiator) {
+			ret = -EINVAL;
+			goto fail;
+		}
+		break;
+	case WLAN_TDLS_TEARDOWN:
+		/* any value is ok */
 		break;
 	default:
 		ret = -ENOTSUPP;
 		goto fail;
 	}
+
+	if (initiator) {
+		init_addr = sdata->vif.addr;
+		rsp_addr = peer;
+	} else {
+		init_addr = peer;
+		rsp_addr = sdata->vif.addr;
+	}
+
+	ieee80211_tdls_add_link_ie(skb, init_addr, rsp_addr,
+				   sdata->u.mgd.bssid);
 
 	if (send_direct) {
 		ieee80211_tx_skb(sdata, skb);
@@ -284,11 +314,171 @@ fail:
 	return ret;
 }
 
+static int
+ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
+			  const u8 *peer, u8 action_code, u8 dialog_token,
+			  u16 status_code, u32 peer_capability, bool initiator,
+			  const u8 *extra_ies, size_t extra_ies_len)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	int ret;
+
+	mutex_lock(&local->mtx);
+
+	/* we don't support concurrent TDLS peer setups */
+	if (!is_zero_ether_addr(sdata->tdls_peer) &&
+	    !ether_addr_equal(sdata->tdls_peer, peer)) {
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	/*
+	 * make sure we have a STA representing the peer so we drop or buffer
+	 * non-TDLS-setup frames to the peer. We can't send other packets
+	 * during setup through the AP path
+	 */
+	rcu_read_lock();
+	if (!sta_info_get(sdata, peer)) {
+		rcu_read_unlock();
+		ret = -ENOLINK;
+		goto exit;
+	}
+	rcu_read_unlock();
+
+	ieee80211_flush_queues(local, sdata);
+
+	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
+					      dialog_token, status_code,
+					      peer_capability, initiator,
+					      extra_ies, extra_ies_len);
+	if (ret < 0)
+		goto exit;
+
+	memcpy(sdata->tdls_peer, peer, ETH_ALEN);
+	ieee80211_queue_delayed_work(&sdata->local->hw,
+				     &sdata->tdls_peer_del_work,
+				     TDLS_PEER_SETUP_TIMEOUT);
+
+exit:
+	mutex_unlock(&local->mtx);
+	return ret;
+}
+
+static int
+ieee80211_tdls_mgmt_teardown(struct wiphy *wiphy, struct net_device *dev,
+			     const u8 *peer, u8 action_code, u8 dialog_token,
+			     u16 status_code, u32 peer_capability,
+			     bool initiator, const u8 *extra_ies,
+			     size_t extra_ies_len)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+	int ret;
+
+	/*
+	 * No packets can be transmitted to the peer via the AP during setup -
+	 * the STA is set as a TDLS peer, but is not authorized.
+	 * During teardown, we prevent direct transmissions by stopping the
+	 * queues and flushing all direct packets.
+	 */
+	ieee80211_stop_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
+	ieee80211_flush_queues(local, sdata);
+
+	ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer, action_code,
+					      dialog_token, status_code,
+					      peer_capability, initiator,
+					      extra_ies, extra_ies_len);
+	if (ret < 0)
+		sdata_err(sdata, "Failed sending TDLS teardown packet %d\n",
+			  ret);
+
+	/*
+	 * Remove the STA AUTH flag to force further traffic through the AP. If
+	 * the STA was unreachable, it was already removed.
+	 */
+	rcu_read_lock();
+	sta = sta_info_get(sdata, peer);
+	if (sta)
+		clear_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
+	rcu_read_unlock();
+
+	ieee80211_wake_vif_queues(local, sdata,
+				  IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN);
+
+	return 0;
+}
+
+int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
+			const u8 *peer, u8 action_code, u8 dialog_token,
+			u16 status_code, u32 peer_capability,
+			bool initiator, const u8 *extra_ies,
+			size_t extra_ies_len)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int ret;
+
+	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
+		return -ENOTSUPP;
+
+	/* make sure we are in managed mode, and associated */
+	if (sdata->vif.type != NL80211_IFTYPE_STATION ||
+	    !sdata->u.mgd.associated)
+		return -EINVAL;
+
+	switch (action_code) {
+	case WLAN_TDLS_SETUP_REQUEST:
+	case WLAN_TDLS_SETUP_RESPONSE:
+		ret = ieee80211_tdls_mgmt_setup(wiphy, dev, peer, action_code,
+						dialog_token, status_code,
+						peer_capability, initiator,
+						extra_ies, extra_ies_len);
+		break;
+	case WLAN_TDLS_TEARDOWN:
+		ret = ieee80211_tdls_mgmt_teardown(wiphy, dev, peer,
+						   action_code, dialog_token,
+						   status_code,
+						   peer_capability, initiator,
+						   extra_ies, extra_ies_len);
+		break;
+	case WLAN_TDLS_DISCOVERY_REQUEST:
+		/*
+		 * Protect the discovery so we can hear the TDLS discovery
+		 * response frame. It is transmitted directly and not buffered
+		 * by the AP.
+		 */
+		drv_mgd_protect_tdls_discover(sdata->local, sdata);
+		/* fall-through */
+	case WLAN_TDLS_SETUP_CONFIRM:
+	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
+		/* no special handling */
+		ret = ieee80211_tdls_prep_mgmt_packet(wiphy, dev, peer,
+						      action_code,
+						      dialog_token,
+						      status_code,
+						      peer_capability,
+						      initiator, extra_ies,
+						      extra_ies_len);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	tdls_dbg(sdata, "TDLS mgmt action %d peer %pM status %d\n",
+		 action_code, peer, ret);
+	return ret;
+}
+
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper)
 {
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	int ret;
 
 	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
 		return -ENOTSUPP;
@@ -296,6 +486,18 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
+	switch (oper) {
+	case NL80211_TDLS_ENABLE_LINK:
+	case NL80211_TDLS_DISABLE_LINK:
+		break;
+	case NL80211_TDLS_TEARDOWN:
+	case NL80211_TDLS_SETUP:
+	case NL80211_TDLS_DISCOVERY_REQ:
+		/* We don't support in-driver setup/teardown/discovery */
+		return -ENOTSUPP;
+	}
+
+	mutex_lock(&local->mtx);
 	tdls_dbg(sdata, "TDLS oper %d peer %pM\n", oper, peer);
 
 	switch (oper) {
@@ -304,22 +506,49 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 		sta = sta_info_get(sdata, peer);
 		if (!sta) {
 			rcu_read_unlock();
-			return -ENOLINK;
+			ret = -ENOLINK;
+			break;
 		}
 
 		set_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH);
 		rcu_read_unlock();
+
+		WARN_ON_ONCE(is_zero_ether_addr(sdata->tdls_peer) ||
+			     !ether_addr_equal(sdata->tdls_peer, peer));
+		ret = 0;
 		break;
 	case NL80211_TDLS_DISABLE_LINK:
-		return sta_info_destroy_addr(sdata, peer);
-	case NL80211_TDLS_TEARDOWN:
-	case NL80211_TDLS_SETUP:
-	case NL80211_TDLS_DISCOVERY_REQ:
-		/* We don't support in-driver setup/teardown/discovery */
-		return -ENOTSUPP;
+		/* flush a potentially queued teardown packet */
+		ieee80211_flush_queues(local, sdata);
+
+		ret = sta_info_destroy_addr(sdata, peer);
+		break;
 	default:
-		return -ENOTSUPP;
+		ret = -ENOTSUPP;
+		break;
 	}
 
-	return 0;
+	if (ret == 0 && ether_addr_equal(sdata->tdls_peer, peer)) {
+		cancel_delayed_work(&sdata->tdls_peer_del_work);
+		eth_zero_addr(sdata->tdls_peer);
+	}
+
+	mutex_unlock(&local->mtx);
+	return ret;
 }
+
+void ieee80211_tdls_oper_request(struct ieee80211_vif *vif, const u8 *peer,
+				 enum nl80211_tdls_operation oper,
+				 u16 reason_code, gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc) {
+		sdata_err(sdata, "Discarding TDLS oper %d - not STA or disconnected\n",
+			  oper);
+		return;
+	}
+
+	cfg80211_tdls_oper_request(sdata->dev, peer, oper, reason_code, gfp);
+}
+EXPORT_SYMBOL(ieee80211_tdls_oper_request);

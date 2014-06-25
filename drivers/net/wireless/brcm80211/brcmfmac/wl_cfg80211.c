@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <net/cfg80211.h>
 #include <net/netlink.h>
 
@@ -33,6 +34,7 @@
 #include "btcoex.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
+#include "vendor.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
 #define BRCMF_PNO_VERSION		2
@@ -588,6 +590,12 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	}
 }
 
+static void brcmf_scan_config_mpc(struct brcmf_if *ifp, int mpc)
+{
+	if ((brcmf_get_chip_info(ifp) >> 4) == 0x4329)
+		brcmf_set_mpc(ifp, mpc);
+}
+
 void brcmf_set_mpc(struct brcmf_if *ifp, int mpc)
 {
 	s32 err = 0;
@@ -641,7 +649,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 			brcmf_err("Scan abort  failed\n");
 	}
 
-	brcmf_set_mpc(ifp, 1);
+	brcmf_scan_config_mpc(ifp, 1);
 
 	/*
 	 * e-scan can be initiated by scheduled scan
@@ -920,7 +928,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 		brcmf_err("error (%d)\n", err);
 		return err;
 	}
-	brcmf_set_mpc(ifp, 0);
+	brcmf_scan_config_mpc(ifp, 0);
 	results = (struct brcmf_scan_results *)cfg->escan_info.escan_buf;
 	results->version = 0;
 	results->count = 0;
@@ -928,7 +936,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 
 	err = escan->run(cfg, ifp, request, WL_ESCAN_ACTION_START);
 	if (err)
-		brcmf_set_mpc(ifp, 1);
+		brcmf_scan_config_mpc(ifp, 1);
 	return err;
 }
 
@@ -1019,7 +1027,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			brcmf_err("WLC_SET_PASSIVE_SCAN error (%d)\n", err);
 			goto scan_out;
 		}
-		brcmf_set_mpc(ifp, 0);
+		brcmf_scan_config_mpc(ifp, 0);
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
 					     &sr->ssid_le, sizeof(sr->ssid_le));
 		if (err) {
@@ -1029,7 +1037,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			else
 				brcmf_err("WLC_SCAN error (%d)\n", err);
 
-			brcmf_set_mpc(ifp, 1);
+			brcmf_scan_config_mpc(ifp, 1);
 			goto scan_out;
 		}
 	}
@@ -3257,35 +3265,6 @@ static int brcmf_cfg80211_sched_scan_stop(struct wiphy *wiphy,
 	return 0;
 }
 
-#ifdef CONFIG_NL80211_TESTMODE
-static int brcmf_cfg80211_testmode(struct wiphy *wiphy,
-				   struct wireless_dev *wdev,
-				   void *data, int len)
-{
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_dcmd *dcmd = data;
-	struct sk_buff *reply;
-	int ret;
-
-	brcmf_dbg(TRACE, "cmd %x set %d buf %p len %d\n", dcmd->cmd, dcmd->set,
-		  dcmd->buf, dcmd->len);
-
-	if (dcmd->set)
-		ret = brcmf_fil_cmd_data_set(netdev_priv(ndev), dcmd->cmd,
-					     dcmd->buf, dcmd->len);
-	else
-		ret = brcmf_fil_cmd_data_get(netdev_priv(ndev), dcmd->cmd,
-					     dcmd->buf, dcmd->len);
-	if (ret == 0) {
-		reply = cfg80211_testmode_alloc_reply_skb(wiphy, sizeof(*dcmd));
-		nla_put(reply, NL80211_ATTR_TESTDATA, sizeof(*dcmd), dcmd);
-		ret = cfg80211_testmode_reply(reply);
-	}
-	return ret;
-}
-#endif
-
 static s32 brcmf_configure_opensecurity(struct brcmf_if *ifp)
 {
 	s32 err;
@@ -4303,7 +4282,6 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
 	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 	.tdls_oper = brcmf_cfg80211_tdls_oper,
-	CFG80211_TESTMODE_CMD(brcmf_cfg80211_testmode)
 };
 
 static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
@@ -4408,6 +4386,11 @@ static struct wiphy *brcmf_setup_wiphy(struct device *phydev)
 	brcmf_dbg(INFO, "Registering custom regulatory\n");
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy_apply_custom_regulatory(wiphy, &brcmf_regdom);
+
+	/* vendor commands/events support */
+	wiphy->vendor_commands = brcmf_vendor_cmds;
+	wiphy->n_vendor_commands = BRCMF_VNDR_CMDS_LAST - 1;
+
 	err = wiphy_register(wiphy);
 	if (err < 0) {
 		brcmf_err("Could not register wiphy device (%d)\n", err);
@@ -5051,6 +5034,9 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 			err = brcmf_fil_iovar_int_set(ifp, "obss_coex",
 						      BRCMF_OBSS_COEX_AUTO);
 	}
+	/* clear for now and rely on update later */
+	wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.ht_supported = false;
+	wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap.cap = 0;
 
 	err = brcmf_fil_iovar_int_set(ifp, "tdls_enable", 1);
 	if (err) {
@@ -5619,16 +5605,15 @@ enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp)
 	return wdev->iftype;
 }
 
-u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state)
+bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg, unsigned long state)
 {
 	struct brcmf_cfg80211_vif *vif;
-	bool result = 0;
 
 	list_for_each_entry(vif, &cfg->vif_list, list) {
 		if (test_bit(state, &vif->sme_state))
-			result++;
+			return true;
 	}
-	return result;
+	return false;
 }
 
 static inline bool vif_event_equals(struct brcmf_cfg80211_vif_event *event,

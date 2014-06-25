@@ -549,6 +549,20 @@ struct iwl_beacon_notif {
 } __packed;
 
 /**
+ * struct iwl_extended_beacon_notif - notifies about beacon transmission
+ * @beacon_notify_hdr: tx response command associated with the beacon
+ * @tsf: last beacon tsf
+ * @ibss_mgr_status: whether IBSS is manager
+ * @gp2: last beacon time in gp2
+ */
+struct iwl_extended_beacon_notif {
+	struct iwl_mvm_tx_resp beacon_notify_hdr;
+	__le64 tsf;
+	__le32 ibss_mgr_status;
+	__le32 gp2;
+} __packed; /* BEACON_NTFY_API_S_VER_5 */
+
+/**
  * enum iwl_dump_control - dump (flush) control flags
  * @DUMP_TX_FIFO_FLUSH: Dump MSDUs until the the FIFO is empty
  *	and the TFD queues are empty.

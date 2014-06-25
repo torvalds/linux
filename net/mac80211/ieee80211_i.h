@@ -229,16 +229,29 @@ struct ieee80211_rx_data {
 	u16 tkip_iv16;
 };
 
+struct ieee80211_csa_settings {
+	const u16 *counter_offsets_beacon;
+	const u16 *counter_offsets_presp;
+
+	int n_counter_offsets_beacon;
+	int n_counter_offsets_presp;
+
+	u8 count;
+};
+
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
 	struct ieee80211_meshconf_ie *meshconf;
+	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
+	u8 csa_current_counter;
 	struct rcu_head rcu_head;
 };
 
 struct probe_resp {
 	struct rcu_head rcu_head;
 	int len;
+	u16 csa_counter_offsets[IEEE80211_MAX_CSA_COUNTERS_NUM];
 	u8 data[0];
 };
 
@@ -688,12 +701,33 @@ enum ieee80211_chanctx_mode {
 	IEEE80211_CHANCTX_EXCLUSIVE
 };
 
+/**
+ * enum ieee80211_chanctx_replace_state - channel context replacement state
+ *
+ * This is used for channel context in-place reservations that require channel
+ * context switch/swap.
+ *
+ * @IEEE80211_CHANCTX_REPLACE_NONE: no replacement is taking place
+ * @IEEE80211_CHANCTX_WILL_BE_REPLACED: this channel context will be replaced
+ *	by a (not yet registered) channel context pointed by %replace_ctx.
+ * @IEEE80211_CHANCTX_REPLACES_OTHER: this (not yet registered) channel context
+ *	replaces an existing channel context pointed to by %replace_ctx.
+ */
+enum ieee80211_chanctx_replace_state {
+	IEEE80211_CHANCTX_REPLACE_NONE,
+	IEEE80211_CHANCTX_WILL_BE_REPLACED,
+	IEEE80211_CHANCTX_REPLACES_OTHER,
+};
+
 struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
 	struct list_head assigned_vifs;
 	struct list_head reserved_vifs;
+
+	enum ieee80211_chanctx_replace_state replace_state;
+	struct ieee80211_chanctx *replace_ctx;
 
 	enum ieee80211_chanctx_mode mode;
 	bool driver_present;
@@ -754,9 +788,6 @@ struct ieee80211_sub_if_data {
 	struct mac80211_qos_map __rcu *qos_map;
 
 	struct work_struct csa_finalize_work;
-	u16 csa_counter_offset_beacon[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	u16 csa_counter_offset_presp[IEEE80211_MAX_CSA_COUNTERS_NUM];
-	bool csa_radar_required;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
 	struct cfg80211_chan_def csa_chandef;
 
@@ -767,7 +798,7 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;
 	bool reserved_radar_required;
-	u8 csa_current_counter;
+	bool reserved_ready;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -783,6 +814,9 @@ struct ieee80211_sub_if_data {
 
 	bool radar_required;
 	struct delayed_work dfs_cac_timer_work;
+
+	u8 tdls_peer[ETH_ALEN] __aligned(2);
+	struct delayed_work tdls_peer_del_work;
 
 	/*
 	 * AP this belongs to: self in AP mode and
@@ -912,6 +946,9 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 	IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL,
 	IEEE80211_QUEUE_STOP_REASON_FLUSH,
+	IEEE80211_QUEUE_STOP_REASON_TDLS_TEARDOWN,
+
+	IEEE80211_QUEUE_STOP_REASONS,
 };
 
 #ifdef CONFIG_MAC80211_LEDS
@@ -1008,6 +1045,7 @@ struct ieee80211_local {
 	struct workqueue_struct *workqueue;
 
 	unsigned long queue_stop_reasons[IEEE80211_MAX_QUEUES];
+	int q_stop_reasons[IEEE80211_MAX_QUEUES][IEEE80211_QUEUE_STOP_REASONS];
 	/* also used to protect ampdu_ac_queue and amdpu_ac_stop_refcnt */
 	spinlock_t queue_stop_reason_lock;
 
@@ -1135,7 +1173,8 @@ struct ieee80211_local {
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;
-	struct cfg80211_scan_request *scan_req, *hw_scan_req;
+	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_scan_request *hw_scan_req;
 	struct cfg80211_chan_def scan_chandef;
 	enum ieee80211_band hw_scan_band;
 	int scan_channel_idx;
@@ -1476,7 +1515,6 @@ void ieee80211_sw_roc_work(struct work_struct *work);
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
 
 /* channel switch handling */
-bool ieee80211_csa_needs_block_tx(struct ieee80211_local *local);
 void ieee80211_csa_finalize_work(struct work_struct *work);
 int ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_csa_settings *params);
@@ -1705,14 +1743,24 @@ void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 				     unsigned long queues,
-				     enum queue_stop_reason reason);
+				     enum queue_stop_reason reason,
+				     bool refcounted);
+void ieee80211_stop_vif_queues(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       enum queue_stop_reason reason);
+void ieee80211_wake_vif_queues(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       enum queue_stop_reason reason);
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 				     unsigned long queues,
-				     enum queue_stop_reason reason);
+				     enum queue_stop_reason reason,
+				     bool refcounted);
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason);
+				    enum queue_stop_reason reason,
+				    bool refcounted);
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason);
+				    enum queue_stop_reason reason,
+				    bool refcounted);
 void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue);
 void ieee80211_add_pending_skb(struct ieee80211_local *local,
 			       struct sk_buff *skb);
@@ -1730,8 +1778,10 @@ void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 				    const u8 *bssid, u16 stype, u16 reason,
 				    bool send_frame, u8 *frame_buf);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     size_t buffer_len, const u8 *ie, size_t ie_len,
-			     enum ieee80211_band band, u32 rate_mask,
+			     size_t buffer_len,
+			     struct ieee80211_scan_ies *ie_desc,
+			     const u8 *ie, size_t ie_len,
+			     u8 bands_used, u32 *rate_masks,
 			     struct cfg80211_chan_def *chandef);
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  u8 *dst, u32 ratemask,
@@ -1791,18 +1841,14 @@ ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 			      enum ieee80211_chanctx_mode mode,
 			      bool radar_required);
 int __must_check
-ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
-				   u32 *changed);
+ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata);
 int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata);
+int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local);
 
 int __must_check
 ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 			       const struct cfg80211_chan_def *chandef,
 			       u32 *changed);
-/* NOTE: only use ieee80211_vif_change_channel() for channel switch */
-int __must_check
-ieee80211_vif_change_channel(struct ieee80211_sub_if_data *sdata,
-			     u32 *changed);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
@@ -1842,10 +1888,13 @@ int ieee80211_max_num_channels(struct ieee80211_local *local);
 int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, u8 action_code, u8 dialog_token,
 			u16 status_code, u32 peer_capability,
-			const u8 *extra_ies, size_t extra_ies_len);
+			bool initiator, const u8 *extra_ies,
+			size_t extra_ies_len);
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			const u8 *peer, enum nl80211_tdls_operation oper);
 
+
+extern const struct ethtool_ops ieee80211_ethtool_ops;
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
@@ -1854,3 +1903,4 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 #endif
 
 #endif /* IEEE80211_I_H */
+void ieee80211_tdls_peer_del_work(struct work_struct *wk);

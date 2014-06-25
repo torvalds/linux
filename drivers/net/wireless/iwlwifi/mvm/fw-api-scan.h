@@ -170,18 +170,12 @@ enum iwl_scan_type {
 }; /* SCAN_ACTIVITY_TYPE_E_VER_1 */
 
 /**
- * Maximal number of channels to scan
- * it should be equal to:
- * max(IWL_NUM_CHANNELS, IWL_NUM_CHANNELS_FAMILY_8000)
- */
-#define MAX_NUM_SCAN_CHANNELS 50
-
-/**
  * struct iwl_scan_cmd - scan request command
  * ( SCAN_REQUEST_CMD = 0x80 )
  * @len: command length in bytes
  * @scan_flags: scan flags from SCAN_FLAGS_*
- * @channel_count: num of channels in channel list (1 - MAX_NUM_SCAN_CHANNELS)
+ * @channel_count: num of channels in channel list
+ *	(1 - ucode_capa.n_scan_channels)
  * @quiet_time: in msecs, dwell this time for active scan on quiet channels
  * @quiet_plcp_th: quiet PLCP threshold (channel is quiet if less than
  *	this number of packets were received (typically 1)
@@ -345,7 +339,7 @@ struct iwl_scan_results_notif {
  * @last_channel: last channel that was scanned
  * @tsf_low: TSF timer (lower half) in usecs
  * @tsf_high: TSF timer (higher half) in usecs
- * @results: all scan results, only "scanned_channels" of them are valid
+ * @results: array of scan results, only "scanned_channels" of them are valid
  */
 struct iwl_scan_complete_notif {
 	u8 scanned_channels;
@@ -354,11 +348,10 @@ struct iwl_scan_complete_notif {
 	u8 last_channel;
 	__le32 tsf_low;
 	__le32 tsf_high;
-	struct iwl_scan_results_notif results[MAX_NUM_SCAN_CHANNELS];
+	struct iwl_scan_results_notif results[];
 } __packed; /* SCAN_COMPLETE_NTF_API_S_VER_2 */
 
 /* scan offload */
-#define IWL_MAX_SCAN_CHANNELS		40
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
@@ -423,36 +416,24 @@ enum iwl_scan_offload_channel_flags {
 	IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL	= BIT(25),
 };
 
-/**
- * iwl_scan_channel_cfg - SCAN_CHANNEL_CFG_S
- * @type:		bitmap - see enum iwl_scan_offload_channel_flags.
- *			0:	passive (0) or active (1) scan.
- *			1-20:	directed scan to i'th ssid.
- *			22:	channel width configuation - 1 for narrow.
- *			24:	full scan.
- *			25:	partial scan.
- * @channel_number:	channel number 1-13 etc.
- * @iter_count:		repetition count for the channel.
- * @iter_interval:	interval between two innteration on one channel.
- * @dwell_time:	entry 0 - active scan, entry 1 - passive scan.
+/* channel configuration for struct iwl_scan_offload_cfg. Each channels needs:
+ * __le32 type:	bitmap; bits 1-20 are for directed scan to i'th ssid and
+ *	see enum iwl_scan_offload_channel_flags.
+ * __le16 channel_number: channel number 1-13 etc.
+ * __le16 iter_count: repetition count for the channel.
+ * __le32 iter_interval: interval between two innteration on one channel.
+ * u8 active_dwell.
+ * u8 passive_dwell.
  */
-struct iwl_scan_channel_cfg {
-	__le32 type[IWL_MAX_SCAN_CHANNELS];
-	__le16 channel_number[IWL_MAX_SCAN_CHANNELS];
-	__le16 iter_count[IWL_MAX_SCAN_CHANNELS];
-	__le32 iter_interval[IWL_MAX_SCAN_CHANNELS];
-	u8 dwell_time[IWL_MAX_SCAN_CHANNELS][2];
-} __packed;
+#define IWL_SCAN_CHAN_SIZE 14
 
 /**
  * iwl_scan_offload_cfg - SCAN_OFFLOAD_CONFIG_API_S
  * @scan_cmd:		scan command fixed part
- * @channel_cfg:	scan channel configuration
- * @data:		probe request frames (one per band)
+ * @data:		scan channel configuration and probe request frames
  */
 struct iwl_scan_offload_cfg {
 	struct iwl_scan_offload_cmd scan_cmd;
-	struct iwl_scan_channel_cfg channel_cfg;
 	u8 data[0];
 } __packed;
 

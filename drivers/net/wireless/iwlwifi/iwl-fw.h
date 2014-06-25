@@ -65,6 +65,8 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
+#include "iwl-fw-file.h"
+
 /**
  * enum iwl_ucode_tlv_flag - ucode API flags
  * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
@@ -118,11 +120,15 @@ enum iwl_ucode_tlv_flag {
 /**
  * enum iwl_ucode_tlv_api - ucode api
  * @IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID: wowlan config includes tid field.
+ * @IWL_UCODE_TLV_CAPA_EXTENDED_BEACON: Support Extended beacon notification
  * @IWL_UCODE_TLV_API_CSA_FLOW: ucode can do unbind-bind flow for CSA.
+ * @IWL_UCODE_TLV_API_DISABLE_STA_TX: ucode supports tx_disable bit.
  */
 enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_WOWLAN_CONFIG_TID	= BIT(0),
+	IWL_UCODE_TLV_CAPA_EXTENDED_BEACON	= BIT(1),
 	IWL_UCODE_TLV_API_CSA_FLOW		= BIT(4),
+	IWL_UCODE_TLV_API_DISABLE_STA_TX	= BIT(5),
 };
 
 /**
@@ -179,6 +185,7 @@ enum iwl_ucode_sec {
 
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
+	u32 n_scan_channels;
 	u32 standard_phy_calibration_size;
 	u32 flags;
 	u32 api[IWL_API_ARRAY_SIZE];
@@ -312,6 +319,7 @@ struct iwl_fw {
 	bool mvm_fw;
 
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
+	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
 };
 
 #endif  /* __iwl_fw_h__ */
