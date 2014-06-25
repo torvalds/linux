@@ -4080,6 +4080,9 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->active)
 		return;
 
+	if (intel_crtc_to_shared_dpll(intel_crtc))
+		intel_enable_shared_dpll(intel_crtc);
+
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
 
@@ -4266,6 +4269,9 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	if (intel_crtc_to_shared_dpll(intel_crtc))
+		intel_disable_shared_dpll(intel_crtc);
 }
 
 static void ironlake_crtc_off(struct drm_crtc *crtc)
@@ -4274,10 +4280,6 @@ static void ironlake_crtc_off(struct drm_crtc *crtc)
 	intel_put_shared_dpll(intel_crtc);
 }
 
-static void haswell_crtc_off(struct drm_crtc *crtc)
-{
-	intel_ddi_put_crtc_pll(crtc);
-}
 
 static void i9xx_pfit_enable(struct intel_crtc *crtc)
 {
@@ -7569,9 +7571,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (!intel_ddi_pll_select(intel_crtc))
 		return -EINVAL;
-
-	if (intel_crtc_to_shared_dpll(intel_crtc))
-		intel_enable_shared_dpll(intel_crtc);
 
 	intel_crtc->lowfreq_avail = false;
 
@@ -12216,7 +12215,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
-		dev_priv->display.off = haswell_crtc_off;
+		dev_priv->display.off = ironlake_crtc_off;
 		dev_priv->display.update_primary_plane =
 			ironlake_update_primary_plane;
 	} else if (HAS_PCH_SPLIT(dev)) {

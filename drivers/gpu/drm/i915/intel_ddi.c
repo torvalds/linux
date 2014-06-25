@@ -386,16 +386,6 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 	return ret;
 }
 
-void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	if (intel_crtc_to_shared_dpll(intel_crtc))
-		intel_disable_shared_dpll(intel_crtc);
-
-	intel_put_shared_dpll(intel_crtc);
-}
-
 #define LC_FREQ 2700
 #define LC_FREQ_2K (LC_FREQ * 2000)
 
@@ -716,7 +706,7 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 	int type = intel_encoder->type;
 	int clock = intel_crtc->config.port_clock;
 
-	intel_ddi_put_crtc_pll(crtc);
+	intel_put_shared_dpll(intel_crtc);
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_shared_dpll *pll;
