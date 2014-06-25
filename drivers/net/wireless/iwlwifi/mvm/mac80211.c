@@ -686,7 +686,7 @@ static void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (trans_len)
 		file_len += trans_len;
 
-	dump_file = vmalloc(file_len);
+	dump_file = vzalloc(file_len);
 	if (!dump_file)
 		return;
 
