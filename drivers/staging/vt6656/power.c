@@ -217,9 +217,6 @@ void PSvSendPSPOLL(struct vnt_private *pDevice)
 	pTxPacket->cbPayloadLen = 0;
 
 	/* log failure if sending failed */
-	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING)
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO "Send PS-Poll packet failed..\n");
 }
 
 /*
@@ -273,11 +270,6 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 	pTxPacket->cbMPDULen = WLAN_HDR_ADDR3_LEN;
 	pTxPacket->cbPayloadLen = 0;
 	/* log error if sending failed */
-	if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-		DBG_PRT(MSG_LEVEL_DEBUG,
-			KERN_INFO "Send Null Packet failed !\n");
-		return false;
-	}
 	return true;
 }
 

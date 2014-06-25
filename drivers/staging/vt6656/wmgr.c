@@ -280,7 +280,6 @@ void vMgrAssocBeginSta(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         // send the frame
-        *pStatus = csMgmt_xmit(pDevice, pTxPacket);
         if (*pStatus == CMD_STATUS_PENDING) {
             pMgmt->eCurrState = WMAC_STATE_ASSOCPENDING;
             *pStatus = CMD_STATUS_SUCCESS;
@@ -349,7 +348,6 @@ void vMgrReAssocBeginSta(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         // send the frame
-        *pStatus = csMgmt_xmit(pDevice, pTxPacket);
         if (*pStatus != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Reassociation tx failed.\n");
         }
@@ -408,7 +406,6 @@ void vMgrDisassocBeginSta(struct vnt_private *pDevice,
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
 
     // send the frame
-    *pStatus = csMgmt_xmit(pDevice, pTxPacket);
     if (*pStatus == CMD_STATUS_PENDING) {
         pMgmt->eCurrState = WMAC_STATE_IDLE;
         *pStatus = CMD_STATUS_SUCCESS;
@@ -541,7 +538,6 @@ static void s_vMgrRxAssocRequest(struct vnt_private *pDevice,
                 );
     if (pTxPacket != NULL ){
         /* send the frame */
-        Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Assoc response tx failed\n");
         }
@@ -685,7 +681,6 @@ static void s_vMgrRxReAssocRequest(struct vnt_private *pDevice,
 
     if (pTxPacket != NULL ){
         /* send the frame */
-        Status = csMgmt_xmit(pDevice, pTxPacket);
         if (Status != CMD_STATUS_PENDING) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:ReAssoc response tx failed\n");
         }
@@ -869,7 +864,6 @@ void vMgrAuthenBeginSta(struct vnt_private *pDevice,
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
 
-    *pStatus = csMgmt_xmit(pDevice, pTxPacket);
     if (*pStatus == CMD_STATUS_PENDING){
         pMgmt->eCurrState = WMAC_STATE_AUTHPENDING;
         *pStatus = CMD_STATUS_SUCCESS;
@@ -920,7 +914,6 @@ void vMgrDeAuthenBeginSta(struct vnt_private *pDevice,
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
 
-    *pStatus = csMgmt_xmit(pDevice, pTxPacket);
     if (*pStatus == CMD_STATUS_PENDING){
         *pStatus = CMD_STATUS_SUCCESS;
     }
@@ -1069,9 +1062,6 @@ static void s_vMgrRxAuthenSequence_1(struct vnt_private *pDevice,
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx.. \n");
-    if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_1 tx failed.\n");
-    }
     return;
 }
 
@@ -1149,9 +1139,6 @@ static void s_vMgrRxAuthenSequence_2(struct vnt_private *pDevice,
                 pTxPacket->cbMPDULen = sFrame.len;
                 pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
                 // send the frame
-                if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Auth_reply sequence_2 tx failed.\n");
-                }
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Auth_reply sequence_2 tx ...\n");
             }
             else {
@@ -1247,9 +1234,6 @@ reply:
     pTxPacket->cbMPDULen = sFrame.len;
     pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
     // send the frame
-    if (csMgmt_xmit(pDevice, pTxPacket) != CMD_STATUS_PENDING) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Authreq_reply sequence_4 tx failed.\n");
-    }
     return;
 
 }
@@ -3853,7 +3837,6 @@ static void s_vMgrRxProbeRequest(struct vnt_private *pDevice,
                     );
         if (pTxPacket != NULL ){
             /* send the frame */
-            Status = csMgmt_xmit(pDevice, pTxPacket);
             if (Status != CMD_STATUS_PENDING) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Mgt:Probe response tx failed\n");
             }
@@ -4054,8 +4037,6 @@ int bMgrPrepareBeaconToSend(struct vnt_private *pDevice,
         return false;
 
 	spin_lock_irqsave(&pDevice->lock, flags);
-
-	csBeacon_xmit(pDevice, pTxPacket);
 
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 

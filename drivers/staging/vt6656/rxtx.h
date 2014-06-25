@@ -253,11 +253,6 @@ struct vnt_beacon_buffer {
 	struct ieee80211_mgmt mgmt_hdr;
 } __packed;
 
-void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb);
-int nsDMA_tx_packet(struct vnt_private *, struct sk_buff *skb);
-CMD_STATUS csMgmt_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
-CMD_STATUS csBeacon_xmit(struct vnt_private *, struct vnt_tx_mgmt *);
-
 int vnt_tx_packet(struct vnt_private *, struct sk_buff *);
 int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
 int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
