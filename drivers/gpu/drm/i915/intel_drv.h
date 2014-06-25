@@ -307,6 +307,9 @@ struct intel_crtc_config {
 	/* Selected dpll when shared or DPLL_ID_PRIVATE. */
 	enum intel_dpll_id shared_dpll;
 
+	/* PORT_CLK_SEL for DDI ports. */
+	uint32_t ddi_pll_sel;
+
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
 
@@ -398,8 +401,6 @@ struct intel_crtc {
 	struct intel_crtc_config config;
 	struct intel_crtc_config *new_config;
 	bool new_enabled;
-
-	uint32_t ddi_pll_sel;
 
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;

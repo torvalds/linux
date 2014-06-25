@@ -277,8 +277,8 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
 
 	/* Configure Port Clock Select */
-	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->ddi_pll_sel);
-	WARN_ON(intel_crtc->ddi_pll_sel != PORT_CLK_SEL_SPLL);
+	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->config.ddi_pll_sel);
+	WARN_ON(intel_crtc->config.ddi_pll_sel != PORT_CLK_SEL_SPLL);
 
 	/* Start the training iterating through available voltages and emphasis,
 	 * testing each value twice. */
@@ -393,7 +393,7 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t val;
 
-	switch (intel_crtc->ddi_pll_sel) {
+	switch (intel_crtc->config.ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
 		plls->wrpll1_refcount--;
 		if (plls->wrpll1_refcount == 0) {
@@ -419,7 +419,7 @@ void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 	WARN(plls->wrpll1_refcount < 0, "Invalid WRPLL1 refcount\n");
 	WARN(plls->wrpll2_refcount < 0, "Invalid WRPLL2 refcount\n");
 
-	intel_crtc->ddi_pll_sel = PORT_CLK_SEL_NONE;
+	intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 }
 
 #define LC_FREQ 2700
@@ -754,13 +754,13 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 
 		switch (intel_dp->link_bw) {
 		case DP_LINK_BW_1_62:
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_810;
 			break;
 		case DP_LINK_BW_2_7:
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_1350;
 			break;
 		case DP_LINK_BW_5_4:
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_LCPLL_2700;
 			break;
 		default:
 			DRM_ERROR("Link bandwidth %d unsupported\n",
@@ -804,16 +804,16 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 
 		if (reg == WRPLL_CTL1) {
 			plls->wrpll1_refcount++;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
 		} else {
 			plls->wrpll2_refcount++;
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
 		}
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		DRM_DEBUG_KMS("Using SPLL on pipe %c\n",
 			      pipe_name(pipe));
-		intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
+		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_SPLL;
 	} else {
 		WARN(1, "Invalid DDI encoder type %d\n", type);
 		return false;
@@ -841,10 +841,10 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 	BUILD_BUG_ON(enable_bit != SPLL_PLL_ENABLE);
 	BUILD_BUG_ON(enable_bit != WRPLL_PLL_ENABLE);
 
-	switch (crtc->ddi_pll_sel) {
+	switch (crtc->config.ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
 	case PORT_CLK_SEL_WRPLL2:
-		if (crtc->ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
+		if (crtc->config.ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
 			pll_name = "WRPLL1";
 			reg = WRPLL_CTL1;
 			refcount = plls->wrpll1_refcount;
@@ -1161,14 +1161,14 @@ void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
 			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 
 		if (!intel_crtc->active) {
-			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_NONE;
+			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
 			continue;
 		}
 
-		intel_crtc->ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
+		intel_crtc->config.ddi_pll_sel = intel_ddi_get_crtc_pll(dev_priv,
 								 pipe);
 
-		switch (intel_crtc->ddi_pll_sel) {
+		switch (intel_crtc->config.ddi_pll_sel) {
 		case PORT_CLK_SEL_WRPLL1:
 			dev_priv->ddi_plls.wrpll1_refcount++;
 			break;
@@ -1224,8 +1224,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 		intel_edp_panel_on(intel_dp);
 	}
 
-	WARN_ON(crtc->ddi_pll_sel == PORT_CLK_SEL_NONE);
-	I915_WRITE(PORT_CLK_SEL(port), crtc->ddi_pll_sel);
+	WARN_ON(crtc->config.ddi_pll_sel == PORT_CLK_SEL_NONE);
+	I915_WRITE(PORT_CLK_SEL(port), crtc->config.ddi_pll_sel);
 
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
