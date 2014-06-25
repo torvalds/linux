@@ -42,6 +42,14 @@ MODULE_FIRMWARE("radeon/TAHITI_mc.bin");
 MODULE_FIRMWARE("radeon/TAHITI_mc2.bin");
 MODULE_FIRMWARE("radeon/TAHITI_rlc.bin");
 MODULE_FIRMWARE("radeon/TAHITI_smc.bin");
+
+MODULE_FIRMWARE("radeon/tahiti_pfp.bin");
+MODULE_FIRMWARE("radeon/tahiti_me.bin");
+MODULE_FIRMWARE("radeon/tahiti_ce.bin");
+MODULE_FIRMWARE("radeon/tahiti_mc.bin");
+MODULE_FIRMWARE("radeon/tahiti_rlc.bin");
+MODULE_FIRMWARE("radeon/tahiti_smc.bin");
+
 MODULE_FIRMWARE("radeon/PITCAIRN_pfp.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_me.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_ce.bin");
@@ -49,6 +57,14 @@ MODULE_FIRMWARE("radeon/PITCAIRN_mc.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_mc2.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_rlc.bin");
 MODULE_FIRMWARE("radeon/PITCAIRN_smc.bin");
+
+MODULE_FIRMWARE("radeon/pitcairn_pfp.bin");
+MODULE_FIRMWARE("radeon/pitcairn_me.bin");
+MODULE_FIRMWARE("radeon/pitcairn_ce.bin");
+MODULE_FIRMWARE("radeon/pitcairn_mc.bin");
+MODULE_FIRMWARE("radeon/pitcairn_rlc.bin");
+MODULE_FIRMWARE("radeon/pitcairn_smc.bin");
+
 MODULE_FIRMWARE("radeon/VERDE_pfp.bin");
 MODULE_FIRMWARE("radeon/VERDE_me.bin");
 MODULE_FIRMWARE("radeon/VERDE_ce.bin");
@@ -56,6 +72,14 @@ MODULE_FIRMWARE("radeon/VERDE_mc.bin");
 MODULE_FIRMWARE("radeon/VERDE_mc2.bin");
 MODULE_FIRMWARE("radeon/VERDE_rlc.bin");
 MODULE_FIRMWARE("radeon/VERDE_smc.bin");
+
+MODULE_FIRMWARE("radeon/verde_pfp.bin");
+MODULE_FIRMWARE("radeon/verde_me.bin");
+MODULE_FIRMWARE("radeon/verde_ce.bin");
+MODULE_FIRMWARE("radeon/verde_mc.bin");
+MODULE_FIRMWARE("radeon/verde_rlc.bin");
+MODULE_FIRMWARE("radeon/verde_smc.bin");
+
 MODULE_FIRMWARE("radeon/OLAND_pfp.bin");
 MODULE_FIRMWARE("radeon/OLAND_me.bin");
 MODULE_FIRMWARE("radeon/OLAND_ce.bin");
@@ -63,6 +87,14 @@ MODULE_FIRMWARE("radeon/OLAND_mc.bin");
 MODULE_FIRMWARE("radeon/OLAND_mc2.bin");
 MODULE_FIRMWARE("radeon/OLAND_rlc.bin");
 MODULE_FIRMWARE("radeon/OLAND_smc.bin");
+
+MODULE_FIRMWARE("radeon/oland_pfp.bin");
+MODULE_FIRMWARE("radeon/oland_me.bin");
+MODULE_FIRMWARE("radeon/oland_ce.bin");
+MODULE_FIRMWARE("radeon/oland_mc.bin");
+MODULE_FIRMWARE("radeon/oland_rlc.bin");
+MODULE_FIRMWARE("radeon/oland_smc.bin");
+
 MODULE_FIRMWARE("radeon/HAINAN_pfp.bin");
 MODULE_FIRMWARE("radeon/HAINAN_me.bin");
 MODULE_FIRMWARE("radeon/HAINAN_ce.bin");
@@ -70,6 +102,13 @@ MODULE_FIRMWARE("radeon/HAINAN_mc.bin");
 MODULE_FIRMWARE("radeon/HAINAN_mc2.bin");
 MODULE_FIRMWARE("radeon/HAINAN_rlc.bin");
 MODULE_FIRMWARE("radeon/HAINAN_smc.bin");
+
+MODULE_FIRMWARE("radeon/hainan_pfp.bin");
+MODULE_FIRMWARE("radeon/hainan_me.bin");
+MODULE_FIRMWARE("radeon/hainan_ce.bin");
+MODULE_FIRMWARE("radeon/hainan_mc.bin");
+MODULE_FIRMWARE("radeon/hainan_rlc.bin");
+MODULE_FIRMWARE("radeon/hainan_smc.bin");
 
 static u32 si_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh);
 static void si_pcie_gen3_enable(struct radeon_device *rdev);
@@ -1470,38 +1509,54 @@ static const u32 hainan_io_mc_regs[TAHITI_IO_MC_REGS_SIZE][2] = {
 /* ucode loading */
 int si_mc_load_microcode(struct radeon_device *rdev)
 {
-	const __be32 *fw_data;
+	const __be32 *fw_data = NULL;
+	const __le32 *new_fw_data = NULL;
 	u32 running, blackout = 0;
-	u32 *io_mc_regs;
+	u32 *io_mc_regs = NULL;
+	const __le32 *new_io_mc_regs = NULL;
 	int i, regs_size, ucode_size;
 
 	if (!rdev->mc_fw)
 		return -EINVAL;
 
-	ucode_size = rdev->mc_fw->size / 4;
+	if (rdev->new_fw) {
+		const struct mc_firmware_header_v1_0 *hdr =
+			(const struct mc_firmware_header_v1_0 *)rdev->mc_fw->data;
 
-	switch (rdev->family) {
-	case CHIP_TAHITI:
-		io_mc_regs = (u32 *)&tahiti_io_mc_regs;
-		regs_size = TAHITI_IO_MC_REGS_SIZE;
-		break;
-	case CHIP_PITCAIRN:
-		io_mc_regs = (u32 *)&pitcairn_io_mc_regs;
-		regs_size = TAHITI_IO_MC_REGS_SIZE;
-		break;
-	case CHIP_VERDE:
-	default:
-		io_mc_regs = (u32 *)&verde_io_mc_regs;
-		regs_size = TAHITI_IO_MC_REGS_SIZE;
-		break;
-	case CHIP_OLAND:
-		io_mc_regs = (u32 *)&oland_io_mc_regs;
-		regs_size = TAHITI_IO_MC_REGS_SIZE;
-		break;
-	case CHIP_HAINAN:
-		io_mc_regs = (u32 *)&hainan_io_mc_regs;
-		regs_size = TAHITI_IO_MC_REGS_SIZE;
-		break;
+		radeon_ucode_print_mc_hdr(&hdr->header);
+		regs_size = le32_to_cpu(hdr->io_debug_size_bytes) / (4 * 2);
+		new_io_mc_regs = (const __le32 *)
+			(rdev->mc_fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
+		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
+		new_fw_data = (const __le32 *)
+			(rdev->mc_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+	} else {
+		ucode_size = rdev->mc_fw->size / 4;
+
+		switch (rdev->family) {
+		case CHIP_TAHITI:
+			io_mc_regs = (u32 *)&tahiti_io_mc_regs;
+			regs_size = TAHITI_IO_MC_REGS_SIZE;
+			break;
+		case CHIP_PITCAIRN:
+			io_mc_regs = (u32 *)&pitcairn_io_mc_regs;
+			regs_size = TAHITI_IO_MC_REGS_SIZE;
+			break;
+		case CHIP_VERDE:
+		default:
+			io_mc_regs = (u32 *)&verde_io_mc_regs;
+			regs_size = TAHITI_IO_MC_REGS_SIZE;
+			break;
+		case CHIP_OLAND:
+			io_mc_regs = (u32 *)&oland_io_mc_regs;
+			regs_size = TAHITI_IO_MC_REGS_SIZE;
+			break;
+		case CHIP_HAINAN:
+			io_mc_regs = (u32 *)&hainan_io_mc_regs;
+			regs_size = TAHITI_IO_MC_REGS_SIZE;
+			break;
+		}
+		fw_data = (const __be32 *)rdev->mc_fw->data;
 	}
 
 	running = RREG32(MC_SEQ_SUP_CNTL) & RUN_MASK;
@@ -1518,13 +1573,21 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 
 		/* load mc io regs */
 		for (i = 0; i < regs_size; i++) {
-			WREG32(MC_SEQ_IO_DEBUG_INDEX, io_mc_regs[(i << 1)]);
-			WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
+			if (rdev->new_fw) {
+				WREG32(MC_SEQ_IO_DEBUG_INDEX, le32_to_cpup(new_io_mc_regs++));
+				WREG32(MC_SEQ_IO_DEBUG_DATA, le32_to_cpup(new_io_mc_regs++));
+			} else {
+				WREG32(MC_SEQ_IO_DEBUG_INDEX, io_mc_regs[(i << 1)]);
+				WREG32(MC_SEQ_IO_DEBUG_DATA, io_mc_regs[(i << 1) + 1]);
+			}
 		}
 		/* load the MC ucode */
-		fw_data = (const __be32 *)rdev->mc_fw->data;
-		for (i = 0; i < ucode_size; i++)
-			WREG32(MC_SEQ_SUP_PGM, be32_to_cpup(fw_data++));
+		for (i = 0; i < ucode_size; i++) {
+			if (rdev->new_fw)
+				WREG32(MC_SEQ_SUP_PGM, le32_to_cpup(new_fw_data++));
+			else
+				WREG32(MC_SEQ_SUP_PGM, be32_to_cpup(fw_data++));
+		}
 
 		/* put the engine back into the active state */
 		WREG32(MC_SEQ_SUP_CNTL, 0x00000008);
@@ -1553,18 +1616,19 @@ int si_mc_load_microcode(struct radeon_device *rdev)
 static int si_init_microcode(struct radeon_device *rdev)
 {
 	const char *chip_name;
-	const char *rlc_chip_name;
+	const char *new_chip_name;
 	size_t pfp_req_size, me_req_size, ce_req_size, rlc_req_size, mc_req_size;
 	size_t smc_req_size, mc2_req_size;
 	char fw_name[30];
 	int err;
+	int new_fw = 0;
 
 	DRM_DEBUG("\n");
 
 	switch (rdev->family) {
 	case CHIP_TAHITI:
 		chip_name = "TAHITI";
-		rlc_chip_name = "TAHITI";
+		new_chip_name = "tahiti";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
@@ -1575,7 +1639,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_PITCAIRN:
 		chip_name = "PITCAIRN";
-		rlc_chip_name = "PITCAIRN";
+		new_chip_name = "pitcairn";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
@@ -1586,7 +1650,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_VERDE:
 		chip_name = "VERDE";
-		rlc_chip_name = "VERDE";
+		new_chip_name = "verde";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
@@ -1597,7 +1661,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_OLAND:
 		chip_name = "OLAND";
-		rlc_chip_name = "OLAND";
+		new_chip_name = "oland";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
@@ -1607,7 +1671,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_HAINAN:
 		chip_name = "HAINAN";
-		rlc_chip_name = "HAINAN";
+		new_chip_name = "hainan";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
@@ -1618,86 +1682,178 @@ static int si_init_microcode(struct radeon_device *rdev)
 	default: BUG();
 	}
 
-	DRM_INFO("Loading %s Microcode\n", chip_name);
+	DRM_INFO("Loading %s Microcode\n", new_chip_name);
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", new_chip_name);
 	err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
-	if (err)
-		goto out;
-	if (rdev->pfp_fw->size != pfp_req_size) {
-		printk(KERN_ERR
-		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->pfp_fw->size, fw_name);
-		err = -EINVAL;
-		goto out;
-	}
-
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
-	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
-	if (err)
-		goto out;
-	if (rdev->me_fw->size != me_req_size) {
-		printk(KERN_ERR
-		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->me_fw->size, fw_name);
-		err = -EINVAL;
-	}
-
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
-	err = request_firmware(&rdev->ce_fw, fw_name, rdev->dev);
-	if (err)
-		goto out;
-	if (rdev->ce_fw->size != ce_req_size) {
-		printk(KERN_ERR
-		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->ce_fw->size, fw_name);
-		err = -EINVAL;
-	}
-
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
-	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
-	if (err)
-		goto out;
-	if (rdev->rlc_fw->size != rlc_req_size) {
-		printk(KERN_ERR
-		       "si_rlc: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->rlc_fw->size, fw_name);
-		err = -EINVAL;
-	}
-
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc2.bin", chip_name);
-	err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
 	if (err) {
-		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+		err = request_firmware(&rdev->pfp_fw, fw_name, rdev->dev);
 		if (err)
 			goto out;
+		if (rdev->pfp_fw->size != pfp_req_size) {
+			printk(KERN_ERR
+			       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->pfp_fw->size, fw_name);
+			err = -EINVAL;
+			goto out;
+		}
+	} else {
+		err = radeon_ucode_validate(rdev->pfp_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
 	}
-	if ((rdev->mc_fw->size != mc_req_size) &&
-	    (rdev->mc_fw->size != mc2_req_size)) {
-		printk(KERN_ERR
-		       "si_mc: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->mc_fw->size, fw_name);
-		err = -EINVAL;
-	}
-	DRM_INFO("%s: %zu bytes\n", fw_name, rdev->mc_fw->size);
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", new_chip_name);
+	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
+	if (err) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
+		err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
+		if (err)
+			goto out;
+		if (rdev->me_fw->size != me_req_size) {
+			printk(KERN_ERR
+			       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->me_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	} else {
+		err = radeon_ucode_validate(rdev->me_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", new_chip_name);
+	err = request_firmware(&rdev->ce_fw, fw_name, rdev->dev);
+	if (err) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
+		err = request_firmware(&rdev->ce_fw, fw_name, rdev->dev);
+		if (err)
+			goto out;
+		if (rdev->ce_fw->size != ce_req_size) {
+			printk(KERN_ERR
+			       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->ce_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	} else {
+		err = radeon_ucode_validate(rdev->ce_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", new_chip_name);
+	err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
+	if (err) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", chip_name);
+		err = request_firmware(&rdev->rlc_fw, fw_name, rdev->dev);
+		if (err)
+			goto out;
+		if (rdev->rlc_fw->size != rlc_req_size) {
+			printk(KERN_ERR
+			       "si_rlc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->rlc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	} else {
+		err = radeon_ucode_validate(rdev->rlc_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", new_chip_name);
+	err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
+	if (err) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc2.bin", chip_name);
+		err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
+		if (err) {
+			snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+			err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
+			if (err)
+				goto out;
+		}
+		if ((rdev->mc_fw->size != mc_req_size) &&
+		    (rdev->mc_fw->size != mc2_req_size)) {
+			printk(KERN_ERR
+			       "si_mc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->mc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+		DRM_INFO("%s: %zu bytes\n", fw_name, rdev->mc_fw->size);
+	} else {
+		err = radeon_ucode_validate(rdev->mc_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", new_chip_name);
 	err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 	if (err) {
-		printk(KERN_ERR
-		       "smc: error loading firmware \"%s\"\n",
-		       fw_name);
-		release_firmware(rdev->smc_fw);
-		rdev->smc_fw = NULL;
-		err = 0;
-	} else if (rdev->smc_fw->size != smc_req_size) {
-		printk(KERN_ERR
-		       "si_smc: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->smc_fw->size, fw_name);
-		err = -EINVAL;
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", chip_name);
+		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
+		if (err) {
+			printk(KERN_ERR
+			       "smc: error loading firmware \"%s\"\n",
+			       fw_name);
+			release_firmware(rdev->smc_fw);
+			rdev->smc_fw = NULL;
+			err = 0;
+		} else if (rdev->smc_fw->size != smc_req_size) {
+			printk(KERN_ERR
+			       "si_smc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->smc_fw->size, fw_name);
+			err = -EINVAL;
+		}
+	} else {
+		err = radeon_ucode_validate(rdev->smc_fw);
+		if (err) {
+			printk(KERN_ERR
+			       "si_cp: validation failed for firmware \"%s\"\n",
+			       fw_name);
+			goto out;
+		} else {
+			new_fw++;
+		}
 	}
 
+	if (new_fw == 0) {
+		rdev->new_fw = false;
+	} else if (new_fw < 6) {
+		printk(KERN_ERR "si_fw: mixing new and old firmware!\n");
+		err = -EINVAL;
+	} else {
+		rdev->new_fw = true;
+	}
 out:
 	if (err) {
 		if (err != -EINVAL)
@@ -3282,34 +3438,77 @@ static void si_cp_enable(struct radeon_device *rdev, bool enable)
 
 static int si_cp_load_microcode(struct radeon_device *rdev)
 {
-	const __be32 *fw_data;
 	int i;
 
-	if (!rdev->me_fw || !rdev->pfp_fw)
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw)
 		return -EINVAL;
 
 	si_cp_enable(rdev, false);
 
-	/* PFP */
-	fw_data = (const __be32 *)rdev->pfp_fw->data;
-	WREG32(CP_PFP_UCODE_ADDR, 0);
-	for (i = 0; i < SI_PFP_UCODE_SIZE; i++)
-		WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
-	WREG32(CP_PFP_UCODE_ADDR, 0);
+	if (rdev->new_fw) {
+		const struct gfx_firmware_header_v1_0 *pfp_hdr =
+			(const struct gfx_firmware_header_v1_0 *)rdev->pfp_fw->data;
+		const struct gfx_firmware_header_v1_0 *ce_hdr =
+			(const struct gfx_firmware_header_v1_0 *)rdev->ce_fw->data;
+		const struct gfx_firmware_header_v1_0 *me_hdr =
+			(const struct gfx_firmware_header_v1_0 *)rdev->me_fw->data;
+		const __le32 *fw_data;
+		u32 fw_size;
 
-	/* CE */
-	fw_data = (const __be32 *)rdev->ce_fw->data;
-	WREG32(CP_CE_UCODE_ADDR, 0);
-	for (i = 0; i < SI_CE_UCODE_SIZE; i++)
-		WREG32(CP_CE_UCODE_DATA, be32_to_cpup(fw_data++));
-	WREG32(CP_CE_UCODE_ADDR, 0);
+		radeon_ucode_print_gfx_hdr(&pfp_hdr->header);
+		radeon_ucode_print_gfx_hdr(&ce_hdr->header);
+		radeon_ucode_print_gfx_hdr(&me_hdr->header);
 
-	/* ME */
-	fw_data = (const __be32 *)rdev->me_fw->data;
-	WREG32(CP_ME_RAM_WADDR, 0);
-	for (i = 0; i < SI_PM4_UCODE_SIZE; i++)
-		WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
-	WREG32(CP_ME_RAM_WADDR, 0);
+		/* PFP */
+		fw_data = (const __le32 *)
+			(rdev->pfp_fw->data + le32_to_cpu(pfp_hdr->header.ucode_array_offset_bytes));
+		fw_size = le32_to_cpu(pfp_hdr->header.ucode_size_bytes) / 4;
+		WREG32(CP_PFP_UCODE_ADDR, 0);
+		for (i = 0; i < fw_size; i++)
+			WREG32(CP_PFP_UCODE_DATA, le32_to_cpup(fw_data++));
+		WREG32(CP_PFP_UCODE_ADDR, 0);
+
+		/* CE */
+		fw_data = (const __le32 *)
+			(rdev->ce_fw->data + le32_to_cpu(ce_hdr->header.ucode_array_offset_bytes));
+		fw_size = le32_to_cpu(ce_hdr->header.ucode_size_bytes) / 4;
+		WREG32(CP_CE_UCODE_ADDR, 0);
+		for (i = 0; i < fw_size; i++)
+			WREG32(CP_CE_UCODE_DATA, le32_to_cpup(fw_data++));
+		WREG32(CP_CE_UCODE_ADDR, 0);
+
+		/* ME */
+		fw_data = (const __be32 *)
+			(rdev->me_fw->data + le32_to_cpu(me_hdr->header.ucode_array_offset_bytes));
+		fw_size = le32_to_cpu(me_hdr->header.ucode_size_bytes) / 4;
+		WREG32(CP_ME_RAM_WADDR, 0);
+		for (i = 0; i < fw_size; i++)
+			WREG32(CP_ME_RAM_DATA, le32_to_cpup(fw_data++));
+		WREG32(CP_ME_RAM_WADDR, 0);
+	} else {
+		const __be32 *fw_data;
+
+		/* PFP */
+		fw_data = (const __be32 *)rdev->pfp_fw->data;
+		WREG32(CP_PFP_UCODE_ADDR, 0);
+		for (i = 0; i < SI_PFP_UCODE_SIZE; i++)
+			WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
+		WREG32(CP_PFP_UCODE_ADDR, 0);
+
+		/* CE */
+		fw_data = (const __be32 *)rdev->ce_fw->data;
+		WREG32(CP_CE_UCODE_ADDR, 0);
+		for (i = 0; i < SI_CE_UCODE_SIZE; i++)
+			WREG32(CP_CE_UCODE_DATA, be32_to_cpup(fw_data++));
+		WREG32(CP_CE_UCODE_ADDR, 0);
+
+		/* ME */
+		fw_data = (const __be32 *)rdev->me_fw->data;
+		WREG32(CP_ME_RAM_WADDR, 0);
+		for (i = 0; i < SI_PM4_UCODE_SIZE; i++)
+			WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
+		WREG32(CP_ME_RAM_WADDR, 0);
+	}
 
 	WREG32(CP_PFP_UCODE_ADDR, 0);
 	WREG32(CP_CE_UCODE_ADDR, 0);
@@ -5592,7 +5791,6 @@ static void si_enable_lbpw(struct radeon_device *rdev, bool enable)
 static int si_rlc_resume(struct radeon_device *rdev)
 {
 	u32 i;
-	const __be32 *fw_data;
 
 	if (!rdev->rlc_fw)
 		return -EINVAL;
@@ -5615,10 +5813,26 @@ static int si_rlc_resume(struct radeon_device *rdev)
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
 
-	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	for (i = 0; i < SI_RLC_UCODE_SIZE; i++) {
-		WREG32(RLC_UCODE_ADDR, i);
-		WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+	if (rdev->new_fw) {
+		const struct rlc_firmware_header_v1_0 *hdr =
+			(const struct rlc_firmware_header_v1_0 *)rdev->rlc_fw->data;
+		u32 fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
+		const __le32 *fw_data = (const __le32 *)
+			(rdev->rlc_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+
+		radeon_ucode_print_rlc_hdr(&hdr->header);
+
+		for (i = 0; i < fw_size; i++) {
+			WREG32(RLC_UCODE_ADDR, i);
+			WREG32(RLC_UCODE_DATA, le32_to_cpup(fw_data++));
+		}
+	} else {
+		const __be32 *fw_data =
+			(const __be32 *)rdev->rlc_fw->data;
+		for (i = 0; i < SI_RLC_UCODE_SIZE; i++) {
+			WREG32(RLC_UCODE_ADDR, i);
+			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+		}
 	}
 	WREG32(RLC_UCODE_ADDR, 0);
 
