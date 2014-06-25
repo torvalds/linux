@@ -595,8 +595,6 @@ struct iwl_mvm {
 	/* -1 for always, 0 for never, >0 for that many times */
 	s8 restart_fw;
 	void *fw_error_dump;
-	void *fw_error_sram;
-	u32 fw_error_sram_len;
 	u32 *fw_error_rxf;
 	u32 fw_error_rxf_len;
 
@@ -734,7 +732,6 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx);
 void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
-void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm);
 void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm);
 #endif
 u8 first_antenna(u8 mask);

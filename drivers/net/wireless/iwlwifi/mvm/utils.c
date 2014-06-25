@@ -520,28 +520,6 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_mvm_fw_error_sram_dump(struct iwl_mvm *mvm)
-{
-	const struct fw_img *img;
-	u32 ofs, sram_len;
-	void *sram;
-
-	if (!mvm->ucode_loaded || mvm->fw_error_sram || mvm->fw_error_dump)
-		return;
-
-	img = &mvm->fw->img[mvm->cur_ucode];
-	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
-	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
-
-	sram = kzalloc(sram_len, GFP_ATOMIC);
-	if (!sram)
-		return;
-
-	iwl_trans_read_mem_bytes(mvm->trans, ofs, sram, sram_len);
-	mvm->fw_error_sram = sram;
-	mvm->fw_error_sram_len = sram_len;
-}
-
 void iwl_mvm_fw_error_rxf_dump(struct iwl_mvm *mvm)
 {
 	int i, reg_val;

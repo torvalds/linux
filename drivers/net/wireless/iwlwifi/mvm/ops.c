@@ -550,7 +550,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	kfree(mvm->scan_cmd);
 	vfree(mvm->fw_error_dump);
-	kfree(mvm->fw_error_sram);
 	kfree(mvm->fw_error_rxf);
 	kfree(mvm->mcast_filter_cmd);
 	mvm->mcast_filter_cmd = NULL;
@@ -828,6 +827,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
+	const struct fw_img *img;
+	u32 sram_len, sram_ofs;
 	u32 file_len;
 	u32 trans_len;
 
@@ -836,9 +837,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (mvm->fw_error_dump)
 		return;
 
+	img = &mvm->fw->img[mvm->cur_ucode];
+	sram_ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+	sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+
 	file_len = sizeof(*dump_file) +
 		   sizeof(*dump_data) * 3 +
-		   mvm->fw_error_sram_len +
+		   sram_len +
 		   mvm->fw_error_rxf_len +
 		   sizeof(*dump_info);
 
@@ -870,6 +875,8 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	strncpy(dump_info->bus_human_readable, mvm->dev->bus->name,
 		sizeof(dump_info->bus_human_readable));
 
+	iwl_mvm_fw_error_rxf_dump(mvm);
+
 	dump_data = iwl_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_RXF);
 	dump_data->len = cpu_to_le32(mvm->fw_error_rxf_len);
@@ -877,22 +884,13 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	dump_data = iwl_fw_error_next_data(dump_data);
 	dump_data->type = cpu_to_le32(IWL_FW_ERROR_DUMP_SRAM);
-	dump_data->len = cpu_to_le32(mvm->fw_error_sram_len);
-
-	/*
-	 * No need for lock since at the stage the FW isn't loaded. So it
-	 * can't assert - we are the only one who can possibly be accessing
-	 * mvm->fw_error_sram right now.
-	 */
-	memcpy(dump_data->data, mvm->fw_error_sram, mvm->fw_error_sram_len);
+	dump_data->len = cpu_to_le32(sram_len);
+	iwl_trans_read_mem_bytes(mvm->trans, sram_ofs, dump_data->data,
+				 sram_len);
 
 	kfree(mvm->fw_error_rxf);
 	mvm->fw_error_rxf = NULL;
 	mvm->fw_error_rxf_len = 0;
-
-	kfree(mvm->fw_error_sram);
-	mvm->fw_error_sram = NULL;
-	mvm->fw_error_sram_len = 0;
 
 	if (trans_len) {
 		void *buf = iwl_fw_error_next_data(dump_data);
@@ -910,11 +908,6 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
 	iwl_mvm_dump_nic_error_log(mvm);
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	iwl_mvm_fw_error_sram_dump(mvm);
-	iwl_mvm_fw_error_rxf_dump(mvm);
-#endif
 
 	iwl_mvm_nic_restart(mvm);
 }
