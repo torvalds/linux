@@ -876,12 +876,12 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		 */
 		cfg->cbar = CBAR_TYPE_S1_TRANS_S2_BYPASS;
 		start = smmu->num_s2_context_banks;
-	} else if (smmu->features & ARM_SMMU_FEAT_TRANS_S2) {
-		cfg->cbar = CBAR_TYPE_S2_TRANS;
-		start = 0;
-	} else {
+	} else if (smmu->features & ARM_SMMU_FEAT_TRANS_S1) {
 		cfg->cbar = CBAR_TYPE_S1_TRANS_S2_BYPASS;
 		start = smmu->num_s2_context_banks;
+	} else {
+		cfg->cbar = CBAR_TYPE_S2_TRANS;
+		start = 0;
 	}
 
 	ret = __arm_smmu_alloc_bitmap(smmu->context_map, start,
