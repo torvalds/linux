@@ -243,6 +243,21 @@ iwl_mvm_unref_all_except(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref)
 	}
 }
 
+static int iwl_mvm_ref_sync(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
+{
+	iwl_mvm_ref(mvm, ref_type);
+
+	if (!wait_event_timeout(mvm->d0i3_exit_waitq,
+				!test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status),
+				HZ)) {
+		WARN_ON_ONCE(1);
+		iwl_mvm_unref(mvm, ref_type);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void iwl_mvm_reset_phy_ctxts(struct iwl_mvm *mvm)
 {
 	int i;
@@ -559,9 +574,6 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		iwl_mvm_ref(mvm, IWL_MVM_REF_TX_AGG);
-		tx_agg_ref = true;
-
 		/*
 		 * for tx start, wait synchronously until D0i3 exit to
 		 * get the correct sequence number for the tid.
@@ -570,12 +582,11 @@ static int iwl_mvm_mac_ampdu_action(struct ieee80211_hw *hw,
 		 * by the trans layer (unlike commands), so wait for
 		 * d0i3 exit in these cases as well.
 		 */
-		if (!wait_event_timeout(mvm->d0i3_exit_waitq,
-			  !test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status), HZ)) {
-			WARN_ON_ONCE(1);
-			iwl_mvm_unref(mvm, IWL_MVM_REF_TX_AGG);
-			return -EIO;
-		}
+		ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_TX_AGG);
+		if (ret)
+			return ret;
+
+		tx_agg_ref = true;
 		break;
 	default:
 		break;
@@ -904,6 +915,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	int ret;
 
 	/*
+	 * make sure D0i3 exit is completed, otherwise a target access
+	 * during tx queue configuration could be done when still in
+	 * D0i3 state.
+	 */
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_ADD_IF);
+	if (ret)
+		return ret;
+
+	/*
 	 * Not much to do here. The stack will not allow interface
 	 * types or combinations that we didn't advertise, so we
 	 * don't really have to check the types.
@@ -1016,6 +1036,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	iwl_mvm_mac_ctxt_release(mvm, vif);
  out_unlock:
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_ADD_IF);
 
 	return ret;
 }
