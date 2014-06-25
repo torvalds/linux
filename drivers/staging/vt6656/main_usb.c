@@ -242,7 +242,6 @@ device_set_options(struct vnt_private *pDevice) {
  */
 static int device_init_registers(struct vnt_private *pDevice)
 {
-	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct vnt_cmd_card_init *init_cmd = &pDevice->init_command;
 	struct vnt_rsp_card_init *init_rsp = &pDevice->init_response;
 	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -467,12 +466,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 			}
 		}
 	}
-
-	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-	pMgmt->uCurrChannel = pDevice->uChannel;
-	pMgmt->uIBSSChannel = pDevice->uChannel;
-
-	vnt_set_channel(pDevice, pMgmt->uCurrChannel);
 
 	/* get permanent network address */
 	memcpy(pDevice->abyPermanentNetAddr, init_rsp->net_addr, 6);
