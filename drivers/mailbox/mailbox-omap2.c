@@ -236,23 +236,24 @@ static int omap2_mbox_probe(struct platform_device *pdev)
 	}
 
 	/* allocate one extra for marking end of list */
-	list = kzalloc((pdata->info_cnt + 1) * sizeof(*list), GFP_KERNEL);
+	list = devm_kzalloc(&pdev->dev, (pdata->info_cnt + 1) * sizeof(*list),
+			    GFP_KERNEL);
 	if (!list)
 		return -ENOMEM;
 
-	mboxblk = mbox = kzalloc(pdata->info_cnt * sizeof(*mbox), GFP_KERNEL);
-	if (!mboxblk) {
-		ret = -ENOMEM;
-		goto free_list;
-	}
+	mboxblk = devm_kzalloc(&pdev->dev, pdata->info_cnt * sizeof(*mbox),
+			       GFP_KERNEL);
+	if (!mboxblk)
+		return -ENOMEM;
 
-	privblk = priv = kzalloc(pdata->info_cnt * sizeof(*priv), GFP_KERNEL);
-	if (!privblk) {
-		ret = -ENOMEM;
-		goto free_mboxblk;
-	}
+	privblk = devm_kzalloc(&pdev->dev, pdata->info_cnt * sizeof(*priv),
+			       GFP_KERNEL);
+	if (!privblk)
+		return -ENOMEM;
 
 	info = pdata->info;
+	mbox = mboxblk;
+	priv = privblk;
 	for (i = 0; i < pdata->info_cnt; i++, info++, priv++) {
 		priv->tx_fifo.msg = MAILBOX_MESSAGE(info->tx_id);
 		priv->tx_fifo.fifo_stat = MAILBOX_FIFOSTATUS(info->tx_id);
@@ -276,55 +277,28 @@ static int omap2_mbox_probe(struct platform_device *pdev)
 		mbox->name = info->name;
 		mbox->ops = &omap2_mbox_ops;
 		mbox->irq = platform_get_irq(pdev, info->irq_id);
-		if (mbox->irq < 0) {
-			ret = mbox->irq;
-			goto free_privblk;
-		}
+		if (mbox->irq < 0)
+			return mbox->irq;
 		list[i] = mbox++;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		ret = -ENOENT;
-		goto free_privblk;
-	}
-
-	mbox_base = ioremap(mem->start, resource_size(mem));
-	if (!mbox_base) {
-		ret = -ENOMEM;
-		goto free_privblk;
-	}
+	mbox_base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(mbox_base))
+		return PTR_ERR(mbox_base);
 
 	ret = omap_mbox_register(&pdev->dev, list);
 	if (ret)
-		goto unmap_mbox;
+		return ret;
+
 	platform_set_drvdata(pdev, list);
 
 	return 0;
-
-unmap_mbox:
-	iounmap(mbox_base);
-free_privblk:
-	kfree(privblk);
-free_mboxblk:
-	kfree(mboxblk);
-free_list:
-	kfree(list);
-	return ret;
 }
 
 static int omap2_mbox_remove(struct platform_device *pdev)
 {
-	struct omap_mbox2_priv *privblk;
-	struct omap_mbox **list = platform_get_drvdata(pdev);
-	struct omap_mbox *mboxblk = list[0];
-
-	privblk = mboxblk->priv;
 	omap_mbox_unregister();
-	iounmap(mbox_base);
-	kfree(privblk);
-	kfree(mboxblk);
-	kfree(list);
 
 	return 0;
 }
