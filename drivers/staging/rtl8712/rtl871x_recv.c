@@ -118,7 +118,7 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 		phead = get_list_head(pfree_recv_queue);
 		plist = get_next(phead);
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
-		list_delete(&precvframe->u.hdr.list);
+		list_del_init(&precvframe->u.hdr.list);
 		padapter = precvframe->u.hdr.adapter;
 		if (padapter != NULL) {
 			precvpriv = &padapter->recvpriv;

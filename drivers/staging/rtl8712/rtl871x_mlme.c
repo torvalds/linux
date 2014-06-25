@@ -94,7 +94,7 @@ struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv)
 	spin_lock_irqsave(&free_queue->lock, irqL);
 	plist = get_next(&(free_queue->queue));
 	pnetwork = LIST_CONTAINOR(plist , struct wlan_network, list);
-	list_delete(&pnetwork->list);
+	list_del_init(&pnetwork->list);
 	pnetwork->last_scanned = jiffies;
 	pmlmepriv->num_of_scanned++;
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
@@ -117,7 +117,7 @@ static void _free_network(struct mlme_priv *pmlmepriv,
 	if (delta_time < SCANQUEUE_LIFETIME)
 		return;
 	spin_lock_irqsave(&free_queue->lock, irqL);
-	list_delete(&pnetwork->list);
+	list_del_init(&pnetwork->list);
 	list_add_tail(&pnetwork->list, &free_queue->queue);
 	pmlmepriv->num_of_scanned--;
 	spin_unlock_irqrestore(&free_queue->lock, irqL);
@@ -132,7 +132,7 @@ static void _free_network_nolock(struct mlme_priv *pmlmepriv,
 		return;
 	if (pnetwork->fixed == true)
 		return;
-	list_delete(&pnetwork->list);
+	list_del_init(&pnetwork->list);
 	list_add_tail(&pnetwork->list, get_list_head(free_queue));
 	pmlmepriv->num_of_scanned--;
 }

@@ -171,7 +171,7 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 	if ((end_of_queue_search(xmitframe_phead, xmitframe_plist)) == false) {
 		pxmitframe = LIST_CONTAINOR(xmitframe_plist,
 			     struct xmit_frame, list);
-		list_delete(&pxmitframe->list);
+		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->txcmdcnt++;
 	}
@@ -226,7 +226,7 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 			/*Remove sta node when there are no pending packets.*/
 			if (_queue_empty(pframe_queue)) {
 				/*must be done after get_next and before break*/
-				list_delete(&ptxservq->tx_pending);
+				list_del_init(&ptxservq->tx_pending);
 			}
 		}
 	}

@@ -127,7 +127,7 @@ struct sta_info *r8712_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	else {
 		psta = LIST_CONTAINOR(get_next(&pfree_sta_queue->queue),
 				      struct sta_info, list);
-		list_delete(&(psta->list));
+		list_del_init(&(psta->list));
 		tmp_aid = psta->aid;
 		_init_stainfo(psta);
 		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
@@ -181,21 +181,21 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	pstaxmitpriv = &psta->sta_xmitpriv;
 	spin_lock_irqsave(&(pxmitpriv->vo_pending.lock), irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vo_q.sta_pending);
-	list_delete(&(pstaxmitpriv->vo_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->vo_q.tx_pending));
 	spin_unlock_irqrestore(&(pxmitpriv->vo_pending.lock), irqL0);
 	spin_lock_irqsave(&(pxmitpriv->vi_pending.lock), irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->vi_q.sta_pending);
-	list_delete(&(pstaxmitpriv->vi_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->vi_q.tx_pending));
 	spin_unlock_irqrestore(&(pxmitpriv->vi_pending.lock), irqL0);
 	spin_lock_irqsave(&(pxmitpriv->bk_pending.lock), irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->bk_q.sta_pending);
-	list_delete(&(pstaxmitpriv->bk_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->bk_q.tx_pending));
 	spin_unlock_irqrestore(&(pxmitpriv->bk_pending.lock), irqL0);
 	spin_lock_irqsave(&(pxmitpriv->be_pending.lock), irqL0);
 	r8712_free_xmitframe_queue(pxmitpriv, &pstaxmitpriv->be_q.sta_pending);
-	list_delete(&(pstaxmitpriv->be_q.tx_pending));
+	list_del_init(&(pstaxmitpriv->be_q.tx_pending));
 	spin_unlock_irqrestore(&(pxmitpriv->be_pending.lock), irqL0);
-	list_delete(&psta->hash_list);
+	list_del_init(&psta->hash_list);
 	pstapriv->asoc_sta_count--;
 	/* re-init sta_info; 20061114 */
 	_r8712_init_sta_xmit_priv(&psta->sta_xmitpriv);

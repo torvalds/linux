@@ -142,7 +142,7 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	else {
 		obj = LIST_CONTAINOR(get_next(&(queue->queue)),
 				     struct cmd_obj, list);
-		list_delete(&obj->list);
+		list_del_init(&obj->list);
 	}
 	spin_unlock_irqrestore(&(queue->lock), irqL);
 	return obj;

@@ -71,11 +71,6 @@ static inline struct list_head *get_list_head(struct  __queue *queue)
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 
-static inline void list_delete(struct list_head *plist)
-{
-	list_del_init(plist);
-}
-
 static inline void _init_timer(struct timer_list *ptimer,
 			       struct  net_device *padapter,
 			       void *pfunc, void *cntx)
