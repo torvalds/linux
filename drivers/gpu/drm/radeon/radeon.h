@@ -2302,6 +2302,7 @@ struct radeon_device {
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	const struct firmware *ce_fw;	/* SI CE firmware */
 	const struct firmware *mec_fw;	/* CIK MEC firmware */
+	const struct firmware *mec2_fw;	/* KV MEC2 firmware */
 	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	const struct firmware *smc_fw;	/* SMC firmware */
 	const struct firmware *uvd_fw;	/* UVD firmware */

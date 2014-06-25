@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <drm/drmP.h>
 #include "radeon.h"
+#include "radeon_ucode.h"
 #include "radeon_asic.h"
 #include "radeon_trace.h"
 #include "cikd.h"
@@ -419,7 +420,6 @@ static int cik_sdma_rlc_resume(struct radeon_device *rdev)
  */
 static int cik_sdma_load_microcode(struct radeon_device *rdev)
 {
-	const __be32 *fw_data;
 	int i;
 
 	if (!rdev->sdma_fw)
@@ -428,19 +428,48 @@ static int cik_sdma_load_microcode(struct radeon_device *rdev)
 	/* halt the MEs */
 	cik_sdma_enable(rdev, false);
 
-	/* sdma0 */
-	fw_data = (const __be32 *)rdev->sdma_fw->data;
-	WREG32(SDMA0_UCODE_ADDR + SDMA0_REGISTER_OFFSET, 0);
-	for (i = 0; i < CIK_SDMA_UCODE_SIZE; i++)
-		WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, be32_to_cpup(fw_data++));
-	WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+	if (rdev->new_fw) {
+		const struct sdma_firmware_header_v1_0 *hdr =
+			(const struct sdma_firmware_header_v1_0 *)rdev->sdma_fw->data;
+		const __le32 *fw_data;
+		u32 fw_size;
 
-	/* sdma1 */
-	fw_data = (const __be32 *)rdev->sdma_fw->data;
-	WREG32(SDMA0_UCODE_ADDR + SDMA1_REGISTER_OFFSET, 0);
-	for (i = 0; i < CIK_SDMA_UCODE_SIZE; i++)
-		WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, be32_to_cpup(fw_data++));
-	WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+		radeon_ucode_print_sdma_hdr(&hdr->header);
+
+		/* sdma0 */
+		fw_data = (const __le32 *)
+			(rdev->sdma_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+		fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
+		WREG32(SDMA0_UCODE_ADDR + SDMA0_REGISTER_OFFSET, 0);
+		for (i = 0; i < fw_size; i++)
+			WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, le32_to_cpup(fw_data++));
+		WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+
+		/* sdma1 */
+		fw_data = (const __le32 *)
+			(rdev->sdma_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+		fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
+		WREG32(SDMA0_UCODE_ADDR + SDMA1_REGISTER_OFFSET, 0);
+		for (i = 0; i < fw_size; i++)
+			WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, le32_to_cpup(fw_data++));
+		WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+	} else {
+		const __be32 *fw_data;
+
+		/* sdma0 */
+		fw_data = (const __be32 *)rdev->sdma_fw->data;
+		WREG32(SDMA0_UCODE_ADDR + SDMA0_REGISTER_OFFSET, 0);
+		for (i = 0; i < CIK_SDMA_UCODE_SIZE; i++)
+			WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, be32_to_cpup(fw_data++));
+		WREG32(SDMA0_UCODE_DATA + SDMA0_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+
+		/* sdma1 */
+		fw_data = (const __be32 *)rdev->sdma_fw->data;
+		WREG32(SDMA0_UCODE_ADDR + SDMA1_REGISTER_OFFSET, 0);
+		for (i = 0; i < CIK_SDMA_UCODE_SIZE; i++)
+			WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, be32_to_cpup(fw_data++));
+		WREG32(SDMA0_UCODE_DATA + SDMA1_REGISTER_OFFSET, CIK_SDMA_UCODE_VERSION);
+	}
 
 	WREG32(SDMA0_UCODE_ADDR + SDMA0_REGISTER_OFFSET, 0);
 	WREG32(SDMA0_UCODE_ADDR + SDMA1_REGISTER_OFFSET, 0);
