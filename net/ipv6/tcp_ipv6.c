@@ -470,13 +470,14 @@ out:
 
 
 static int tcp_v6_send_synack(struct sock *sk, struct dst_entry *dst,
-			      struct flowi6 *fl6,
+			      struct flowi *fl,
 			      struct request_sock *req,
 			      u16 queue_mapping,
 			      struct tcp_fastopen_cookie *foc)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct flowi6 *fl6 = &fl->u.ip6;
 	struct sk_buff *skb;
 	int err = -ENOMEM;
 
@@ -507,10 +508,11 @@ done:
 
 static int tcp_v6_rtx_synack(struct sock *sk, struct request_sock *req)
 {
-	struct flowi6 fl6;
+	const struct tcp_request_sock_ops *af_ops = tcp_rsk(req)->af_specific;
+	struct flowi fl;
 	int res;
 
-	res = tcp_v6_send_synack(sk, NULL, &fl6, req, 0, NULL);
+	res = af_ops->send_synack(sk, NULL, &fl, req, 0, NULL);
 	if (!res) {
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPSYNRETRANS);
@@ -754,7 +756,6 @@ static struct dst_entry *tcp_v6_route_req(struct sock *sk, struct flowi *fl,
 	return inet6_csk_route_req(sk, &fl->u.ip6, req);
 }
 
-
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
@@ -776,6 +777,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 #endif
 	.route_req	=	tcp_v6_route_req,
 	.init_seq	=	tcp_v6_init_sequence,
+	.send_synack	=	tcp_v6_send_synack,
 };
 
 static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
@@ -1128,8 +1130,8 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_openreq_init_rwin(req, sk, dst);
 	fastopen = !want_cookie &&
 		   tcp_try_fastopen(sk, skb, req, &foc, dst);
-	err = tcp_v6_send_synack(sk, dst, &fl6, req,
-				 skb_get_queue_mapping(skb), &foc);
+	err = af_ops->send_synack(sk, dst, (struct flowi *)&fl6, req,
+				  skb_get_queue_mapping(skb), &foc);
 	if (!fastopen) {
 		if (err || want_cookie)
 			goto drop_and_free;
