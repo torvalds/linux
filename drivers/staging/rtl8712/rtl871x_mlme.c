@@ -133,7 +133,7 @@ static void _free_network_nolock(struct mlme_priv *pmlmepriv,
 	if (pnetwork->fixed == true)
 		return;
 	list_del_init(&pnetwork->list);
-	list_add_tail(&pnetwork->list, get_list_head(free_queue));
+	list_add_tail(&pnetwork->list, &free_queue->queue);
 	pmlmepriv->num_of_scanned--;
 }
 
@@ -153,7 +153,7 @@ static struct wlan_network *_r8712_find_network(struct  __queue *scanned_queue,
 	if (is_zero_ether_addr(addr))
 		return NULL;
 	spin_lock_irqsave(&scanned_queue->lock, irqL);
-	phead = get_list_head(scanned_queue);
+	phead = &scanned_queue->queue;
 	plist = phead->next;
 	while (plist != phead) {
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
@@ -174,7 +174,7 @@ static void _free_network_queue(struct _adapter *padapter)
 	struct  __queue *scanned_queue = &pmlmepriv->scanned_queue;
 
 	spin_lock_irqsave(&scanned_queue->lock, irqL);
-	phead = get_list_head(scanned_queue);
+	phead = &scanned_queue->queue;
 	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
@@ -315,7 +315,7 @@ struct	wlan_network *r8712_get_oldest_wlan_network(
 	struct	wlan_network	*pwlan = NULL;
 	struct	wlan_network	*oldest = NULL;
 
-	phead = get_list_head(scanned_queue);
+	phead = &scanned_queue->queue;
 	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) ==  true)
@@ -398,7 +398,7 @@ static void update_scanned_network(struct _adapter *adapter,
 	struct wlan_network *pnetwork = NULL;
 	struct wlan_network *oldest = NULL;
 
-	phead = get_list_head(queue);
+	phead = &queue->queue;
 	plist = phead->next;
 
 	while (1) {
@@ -1138,7 +1138,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 
 	adapter = (struct _adapter *)pmlmepriv->nic_hdl;
 	queue = &pmlmepriv->scanned_queue;
-	phead = get_list_head(queue);
+	phead = &queue->queue;
 	pmlmepriv->pscanned = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true) {

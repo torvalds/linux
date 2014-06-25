@@ -66,8 +66,7 @@ u32 _r8712_init_sta_priv(struct	sta_priv *pstapriv)
 	for (i = 0; i < NUM_STA; i++) {
 		_init_stainfo(psta);
 		INIT_LIST_HEAD(&(pstapriv->sta_hash[i]));
-		list_add_tail(&psta->list,
-				 get_list_head(&pstapriv->free_sta_queue));
+		list_add_tail(&psta->list, &pstapriv->free_sta_queue.queue);
 		psta++;
 	}
 	INIT_LIST_HEAD(&pstapriv->asoc_list);
@@ -83,7 +82,7 @@ static void mfree_all_stainfo(struct sta_priv *pstapriv)
 	struct sta_info *psta = NULL;
 
 	spin_lock_irqsave(&pstapriv->sta_hash_lock, irqL);
-	phead = get_list_head(&pstapriv->free_sta_queue);
+	phead = &pstapriv->free_sta_queue.queue;
 	plist = phead->next;
 	while ((end_of_queue_search(phead, plist)) == false) {
 		psta = LIST_CONTAINOR(plist, struct sta_info, list);
@@ -208,7 +207,7 @@ void r8712_free_stainfo(struct _adapter *padapter, struct sta_info *psta)
 	}
 	spin_lock(&(pfree_sta_queue->lock));
 	/* insert into free_sta_queue; 20061114 */
-	list_add_tail(&psta->list, get_list_head(pfree_sta_queue));
+	list_add_tail(&psta->list, &pfree_sta_queue->queue);
 	spin_unlock(&(pfree_sta_queue->lock));
 }
 

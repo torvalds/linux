@@ -58,11 +58,6 @@ struct	__queue	{
 		spin_lock_init(&((pqueue)->lock));	\
 	} while (0)
 
-static inline struct list_head *get_list_head(struct  __queue *queue)
-{
-	return &(queue->queue);
-}
-
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 

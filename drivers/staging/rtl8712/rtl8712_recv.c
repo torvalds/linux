@@ -146,8 +146,7 @@ int r8712_free_recvframe(union recv_frame *precvframe,
 	}
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
 	list_del_init(&(precvframe->u.hdr.list));
-	list_add_tail(&(precvframe->u.hdr.list),
-			 get_list_head(pfree_recv_queue));
+	list_add_tail(&(precvframe->u.hdr.list), &pfree_recv_queue->queue);
 	if (padapter != NULL) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
 				precvpriv->free_recvframe_cnt++;
@@ -208,7 +207,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 	struct  __queue	*pfree_recv_queue;
 
 	pfree_recv_queue = &adapter->recvpriv.free_recv_queue;
-	phead = get_list_head(defrag_q);
+	phead = &defrag_q->queue;
 	plist = phead->next;
 	prframe = LIST_CONTAINOR(plist, union recv_frame, u);
 	list_del_init(&prframe->u.list);
@@ -222,7 +221,7 @@ static union recv_frame *recvframe_defrag(struct _adapter *adapter,
 		return NULL;
 	}
 	curfragnum++;
-	plist = get_list_head(defrag_q);
+	plist = &defrag_q->queue;
 	plist = plist->next;
 	data = get_recvframe_data(prframe);
 	while (end_of_queue_search(phead, plist) == false) {
@@ -296,7 +295,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 				}
 			}
 			/* Then enqueue the 0~(n-1) fragment to the defrag_q */
-			phead = get_list_head(pdefrag_q);
+			phead = &pdefrag_q->queue;
 			list_add_tail(&pfhdr->list, phead);
 			prtnframe = NULL;
 		} else {
@@ -311,7 +310,7 @@ union recv_frame *r8712_recvframe_chk_defrag(struct _adapter *padapter,
 		/* the last fragment frame
 		 * enqueue the last fragment */
 		if (pdefrag_q != NULL) {
-			phead = get_list_head(pdefrag_q);
+			phead = &pdefrag_q->queue;
 			list_add_tail(&pfhdr->list, phead);
 			/*call recvframe_defrag to defrag*/
 			precv_frame = recvframe_defrag(padapter, pdefrag_q);
@@ -499,7 +498,7 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 					&preorder_ctrl->pending_recvframe_queue;
 	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
 
-	phead = get_list_head(ppending_recvframe_queue);
+	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pnextrframe = LIST_CONTAINOR(plist, union recv_frame, u);
@@ -528,7 +527,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 	struct  __queue *ppending_recvframe_queue =
 			 &preorder_ctrl->pending_recvframe_queue;
 
-	phead = get_list_head(ppending_recvframe_queue);
+	phead = &ppending_recvframe_queue->queue;
 	plist = phead->next;
 	/* Handling some condition for forced indicate case.*/
 	if (bforced == true) {

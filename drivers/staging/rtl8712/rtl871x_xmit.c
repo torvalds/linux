@@ -747,7 +747,7 @@ struct xmit_buf *r8712_alloc_xmitbuf(struct xmit_priv *pxmitpriv)
 	if (_queue_empty(pfree_xmitbuf_queue) == true)
 		pxmitbuf = NULL;
 	else {
-		phead = get_list_head(pfree_xmitbuf_queue);
+		phead = &pfree_xmitbuf_queue->queue;
 		plist = phead->next;
 		pxmitbuf = LIST_CONTAINOR(plist, struct xmit_buf, list);
 		list_del_init(&(pxmitbuf->list));
@@ -767,7 +767,7 @@ int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 		return _FAIL;
 	spin_lock_irqsave(&pfree_xmitbuf_queue->lock, irqL);
 	list_del_init(&pxmitbuf->list);
-	list_add_tail(&(pxmitbuf->list), get_list_head(pfree_xmitbuf_queue));
+	list_add_tail(&(pxmitbuf->list), &pfree_xmitbuf_queue->queue);
 	pxmitpriv->free_xmitbuf_cnt++;
 	spin_unlock_irqrestore(&pfree_xmitbuf_queue->lock, irqL);
 	return _SUCCESS;
@@ -801,7 +801,7 @@ struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 	if (_queue_empty(pfree_xmit_queue) == true)
 		pxframe =  NULL;
 	else {
-		phead = get_list_head(pfree_xmit_queue);
+		phead = &pfree_xmit_queue->queue;
 		plist = phead->next;
 		pxframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
 		list_del_init(&(pxframe->list));
@@ -833,7 +833,7 @@ void r8712_free_xmitframe(struct xmit_priv *pxmitpriv,
 		pndis_pkt = pxmitframe->pkt;
 		pxmitframe->pkt = NULL;
 	}
-	list_add_tail(&pxmitframe->list, get_list_head(pfree_xmit_queue));
+	list_add_tail(&pxmitframe->list, &pfree_xmit_queue->queue);
 	pxmitpriv->free_xmitframe_cnt++;
 	spin_unlock_irqrestore(&pfree_xmit_queue->lock, irqL);
 	if (netif_queue_stopped(padapter->pnetdev))
@@ -857,7 +857,7 @@ void r8712_free_xmitframe_queue(struct xmit_priv *pxmitpriv,
 	struct	xmit_frame	*pxmitframe;
 
 	spin_lock_irqsave(&(pframequeue->lock), irqL);
-	phead = get_list_head(pframequeue);
+	phead = &pframequeue->queue;
 	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		pxmitframe = LIST_CONTAINOR(plist, struct xmit_frame, list);
@@ -940,10 +940,8 @@ sint r8712_xmit_classifier(struct _adapter *padapter,
 		   psta, pattrib->priority);
 	spin_lock_irqsave(&pstapending->lock, irqL0);
 	if (list_empty(&ptxservq->tx_pending))
-		list_add_tail(&ptxservq->tx_pending,
-				 get_list_head(pstapending));
-	list_add_tail(&pxmitframe->list,
-			 get_list_head(&ptxservq->sta_pending));
+		list_add_tail(&ptxservq->tx_pending, &pstapending->queue);
+	list_add_tail(&pxmitframe->list, &ptxservq->sta_pending.queue);
 	ptxservq->qcnt++;
 	spin_unlock_irqrestore(&pstapending->lock, irqL0);
 	return _SUCCESS;

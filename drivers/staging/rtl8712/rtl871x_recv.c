@@ -115,7 +115,7 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 	if (_queue_empty(pfree_recv_queue) == true)
 		precvframe = NULL;
 	else {
-		phead = get_list_head(pfree_recv_queue);
+		phead = &pfree_recv_queue->queue;
 		plist = phead->next;
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
 		list_del_init(&precvframe->u.hdr.list);
@@ -145,7 +145,7 @@ void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 	struct list_head *plist, *phead;
 
 	spin_lock(&pframequeue->lock);
-	phead = get_list_head(pframequeue);
+	phead = &pframequeue->queue;
 	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);

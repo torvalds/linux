@@ -1078,7 +1078,7 @@ static int r8711_wx_set_wap(struct net_device *dev,
 		return -EINVAL;
 	authmode = padapter->securitypriv.ndisauthtype;
 	spin_lock_irqsave(&queue->lock, irqL);
-	phead = get_list_head(queue);
+	phead = &queue->queue;
 	pmlmepriv->pscanned = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned) == true)
@@ -1227,7 +1227,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 			break;
 	}
 	spin_lock_irqsave(&queue->lock, irqL);
-	phead = get_list_head(queue);
+	phead = &queue->queue;
 	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) == true)
@@ -1286,7 +1286,7 @@ static int r8711_wx_set_essid(struct net_device *dev,
 		ndis_ssid.SsidLength = len;
 		memcpy(ndis_ssid.Ssid, extra, len);
 		src_ssid = ndis_ssid.Ssid;
-		phead = get_list_head(queue);
+		phead = &queue->queue;
 		pmlmepriv->pscanned = phead->next;
 		while (1) {
 			if (end_of_queue_search(phead, pmlmepriv->pscanned))
@@ -2002,7 +2002,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	} else
 		 return -EINVAL;
 	spin_lock_irqsave(&(pmlmepriv->scanned_queue.lock), irqL);
-	phead = get_list_head(queue);
+	phead = &queue->queue;
 	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist) == true)
