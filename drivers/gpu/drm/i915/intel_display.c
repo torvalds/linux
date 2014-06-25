@@ -7583,6 +7583,16 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 	port = (tmp & TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 
 	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
+
+	switch (pipe_config->ddi_pll_sel) {
+	case PORT_CLK_SEL_WRPLL1:
+		pipe_config->shared_dpll = DPLL_ID_WRPLL1;
+		break;
+	case PORT_CLK_SEL_WRPLL2:
+		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
+		break;
+	}
+
 	/*
 	 * Haswell has only FDI/PCH transcoder A. It is which is connected to
 	 * DDI E. So just check whether this pipe is wired to DDI E and whether
@@ -11286,12 +11296,6 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.page_flip = intel_crtc_page_flip,
 };
 
-static void intel_cpu_pll_init(struct drm_device *dev)
-{
-	if (HAS_DDI(dev))
-		intel_ddi_pll_init(dev);
-}
-
 static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 				      struct intel_shared_dpll *pll,
 				      struct intel_dpll_hw_state *hw_state)
@@ -11379,7 +11383,9 @@ static void intel_shared_dpll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+	if (HAS_DDI(dev))
+		intel_ddi_pll_init(dev);
+	else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		ibx_pch_dpll_init(dev);
 	else
 		dev_priv->num_shared_dpll = 0;
@@ -12536,7 +12542,6 @@ void intel_modeset_init(struct drm_device *dev)
 	intel_init_dpio(dev);
 	intel_reset_dpio(dev);
 
-	intel_cpu_pll_init(dev);
 	intel_shared_dpll_init(dev);
 
 	/* Just disable it once at startup */

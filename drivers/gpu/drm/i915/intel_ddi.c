@@ -784,9 +784,11 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 		if (reg == WRPLL_CTL1) {
 			plls->wrpll1_refcount++;
 			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
+			intel_crtc->config.shared_dpll = DPLL_ID_WRPLL1;
 		} else {
 			plls->wrpll2_refcount++;
 			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
+			intel_crtc->config.shared_dpll = DPLL_ID_WRPLL2;
 		}
 	}
 
@@ -1315,10 +1317,25 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 	}
 }
 
+static char *hsw_ddi_pll_names[] = {
+	"WRPLL 1",
+	"WRPLL 2",
+};
+
 void intel_ddi_pll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t val = I915_READ(LCPLL_CTL);
+	int i;
+
+	/* Dummy setup until everything is moved over to avoid upsetting the hw
+	 * state cross checker. */
+	dev_priv->num_shared_dpll = 0;
+
+	for (i = 0; i < 2; i++) {
+		dev_priv->shared_dplls[i].id = i;
+		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
+	}
 
 	/* The LCPLL register should be turned on by the BIOS. For now let's
 	 * just check its state and print errors in case something is wrong.

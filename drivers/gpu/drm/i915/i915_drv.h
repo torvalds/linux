@@ -184,8 +184,10 @@ struct i915_mmu_object;
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
-	DPLL_ID_PCH_PLL_A,
-	DPLL_ID_PCH_PLL_B,
+	DPLL_ID_PCH_PLL_A = 0,
+	DPLL_ID_PCH_PLL_B = 1,
+	DPLL_ID_WRPLL1 = 0,
+	DPLL_ID_WRPLL2 = 1,
 };
 #define I915_NUM_PLLS 2
 
