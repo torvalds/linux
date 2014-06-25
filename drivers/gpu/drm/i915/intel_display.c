@@ -4890,17 +4890,10 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 
 	if (enable) {
 		if (!intel_crtc->active) {
-			/*
-			 * FIXME: DDI plls and relevant code isn't converted
-			 * yet, so do runtime PM for DPMS only for all other
-			 * platforms for now.
-			 */
-			if (!HAS_DDI(dev)) {
-				domains = get_crtc_power_domains(crtc);
-				for_each_power_domain(domain, domains)
-					intel_display_power_get(dev_priv, domain);
-				intel_crtc->enabled_power_domains = domains;
-			}
+			domains = get_crtc_power_domains(crtc);
+			for_each_power_domain(domain, domains)
+				intel_display_power_get(dev_priv, domain);
+			intel_crtc->enabled_power_domains = domains;
 
 			dev_priv->display.crtc_enable(crtc);
 		}
@@ -4908,12 +4901,10 @@ void intel_crtc_update_dpms(struct drm_crtc *crtc)
 		if (intel_crtc->active) {
 			dev_priv->display.crtc_disable(crtc);
 
-			if (!HAS_DDI(dev)) {
-				domains = intel_crtc->enabled_power_domains;
-				for_each_power_domain(domain, domains)
-					intel_display_power_put(dev_priv, domain);
-				intel_crtc->enabled_power_domains = 0;
-			}
+			domains = intel_crtc->enabled_power_domains;
+			for_each_power_domain(domain, domains)
+				intel_display_power_put(dev_priv, domain);
+			intel_crtc->enabled_power_domains = 0;
 		}
 	}
 
