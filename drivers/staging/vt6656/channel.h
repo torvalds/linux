@@ -41,4 +41,6 @@ typedef struct tagSChannelTblElement {
 bool    ChannelValid(unsigned int CountryCode, unsigned int ChannelNum);
 void    CHvInitChannelTable(struct vnt_private *pDevice);
 
+void vnt_init_bands(struct vnt_private *);
+
 #endif  /* _CHANNEL_H_ */
