@@ -266,14 +266,4 @@ ret_unlock:
 	return res;
 }
 
-#else
-
-void enic_rfs_flw_tbl_init(struct enic *enic)
-{
-}
-
-void enic_rfs_flw_tbl_free(struct enic *enic)
-{
-}
-
 #endif /* CONFIG_RFS_ACCEL */
