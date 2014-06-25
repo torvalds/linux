@@ -1226,6 +1226,13 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = 0;
 
+	if (!IS_ERR(mmc->supply.vmmc)) {
+		spin_unlock_irq(&host->lock);
+		mmc_regulator_set_ocr(host->mmc, mmc->supply.vmmc, vdd);
+		spin_lock_irq(&host->lock);
+		return;
+	}
+
 	if (mode != MMC_POWER_OFF) {
 		switch (1 << vdd) {
 		case MMC_VDD_165_195:
@@ -1283,12 +1290,6 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		 */
 		if (host->quirks & SDHCI_QUIRK_DELAY_AFTER_POWER)
 			mdelay(10);
-	}
-
-	if (!IS_ERR(mmc->supply.vmmc)) {
-		spin_unlock_irq(&host->lock);
-		mmc_regulator_set_ocr(host->mmc, mmc->supply.vmmc, vdd);
-		spin_lock_irq(&host->lock);
 	}
 }
 
@@ -3092,8 +3093,9 @@ int sdhci_add_host(struct sdhci_host *host)
 				   SDHCI_MAX_CURRENT_MULTIPLIER;
 	}
 
+	/* If OCR set by external regulators, use it instead */
 	if (mmc->ocr_avail)
-		ocr_avail &= mmc->ocr_avail;
+		ocr_avail = mmc->ocr_avail;
 
 	if (host->ocr_mask)
 		ocr_avail &= host->ocr_mask;
