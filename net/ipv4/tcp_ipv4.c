@@ -1265,6 +1265,7 @@ struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 };
 
 static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
+	.mss_clamp	=	TCP_MSS_DEFAULT,
 #ifdef CONFIG_TCP_MD5SIG
 	.md5_lookup	=	tcp_v4_reqsk_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
@@ -1324,7 +1325,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	af_ops = tcp_rsk(req)->af_specific = &tcp_request_sock_ipv4_ops;
 
 	tcp_clear_options(&tmp_opt);
-	tmp_opt.mss_clamp = TCP_MSS_DEFAULT;
+	tmp_opt.mss_clamp = af_ops->mss_clamp;
 	tmp_opt.user_mss  = tp->rx_opt.user_mss;
 	tcp_parse_options(skb, &tmp_opt, 0, want_cookie ? NULL : &foc);
 

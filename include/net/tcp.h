@@ -1592,6 +1592,7 @@ struct tcp_sock_af_ops {
 };
 
 struct tcp_request_sock_ops {
+	u16 mss_clamp;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key	*(*md5_lookup) (struct sock *sk,
 						struct request_sock *req);
