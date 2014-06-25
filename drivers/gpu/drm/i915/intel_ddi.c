@@ -740,6 +740,7 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 	intel_ddi_put_crtc_pll(crtc);
 
 	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_shared_dpll *pll;
 		uint32_t reg, val;
 		unsigned p, n2, r2;
 
@@ -784,6 +785,9 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 		}
 
 		intel_crtc->config.dpll_hw_state.wrpll = val;
+
+		pll = &dev_priv->shared_dplls[intel_crtc->config.shared_dpll];
+		pll->hw_state.wrpll = val;
 	}
 
 	return true;
@@ -798,54 +802,24 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
-	int clock = crtc->config.port_clock;
-	uint32_t reg, cur_val, new_val;
 	int refcount;
-	const char *pll_name;
-	uint32_t enable_bit = (1 << 31);
-	unsigned int p, n2, r2;
-
-	BUILD_BUG_ON(enable_bit != SPLL_PLL_ENABLE);
-	BUILD_BUG_ON(enable_bit != WRPLL_PLL_ENABLE);
+	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
 	switch (crtc->config.ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
 	case PORT_CLK_SEL_WRPLL2:
 		if (crtc->config.ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
-			pll_name = "WRPLL1";
-			reg = WRPLL_CTL1;
 			refcount = plls->wrpll1_refcount;
 		} else {
-			pll_name = "WRPLL2";
-			reg = WRPLL_CTL2;
 			refcount = plls->wrpll2_refcount;
 		}
-
-		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
-
-		new_val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
-			  WRPLL_DIVIDER_REFERENCE(r2) |
-			  WRPLL_DIVIDER_FEEDBACK(n2) | WRPLL_DIVIDER_POST(p);
-
 		break;
-
-	case PORT_CLK_SEL_NONE:
-		WARN(1, "Bad selected pll: PORT_CLK_SEL_NONE\n");
-		return;
 	default:
 		return;
 	}
 
-	cur_val = I915_READ(reg);
-
-	WARN(refcount < 1, "Bad %s refcount: %d\n", pll_name, refcount);
 	if (refcount == 1) {
-		WARN(cur_val & enable_bit, "%s already enabled\n", pll_name);
-		I915_WRITE(reg, new_val);
-		POSTING_READ(reg);
-		udelay(20);
-	} else {
-		WARN((cur_val & enable_bit) == 0, "%s disabled\n", pll_name);
+		pll->enable(dev_priv, pll);
 	}
 }
 
@@ -1311,6 +1285,18 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 	}
 }
 
+static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
+			       struct intel_shared_dpll *pll)
+{
+	uint32_t cur_val;
+
+	cur_val = I915_READ(WRPLL_CTL(pll->id));
+	WARN(cur_val & WRPLL_PLL_ENABLE, "%s already enabled\n", pll->name);
+	I915_WRITE(WRPLL_CTL(pll->id), pll->hw_state.wrpll);
+	POSTING_READ(WRPLL_CTL(pll->id));
+	udelay(20);
+}
+
 static void hsw_ddi_pll_disable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
@@ -1356,6 +1342,7 @@ void intel_ddi_pll_init(struct drm_device *dev)
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
 		dev_priv->shared_dplls[i].disable = hsw_ddi_pll_disable;
+		dev_priv->shared_dplls[i].enable = hsw_ddi_pll_enable;
 		dev_priv->shared_dplls[i].get_hw_state =
 			hsw_ddi_pll_get_hw_state;
 	}
