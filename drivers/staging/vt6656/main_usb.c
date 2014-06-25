@@ -793,7 +793,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 			goto free_rx_tx;
 		}
 
-		rcb->skb = netdev_alloc_skb(priv->dev, priv->rx_buf_sz);
+		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
 		if (rcb->skb == NULL) {
 			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
 						" Failed to alloc rx skb\n");

@@ -242,7 +242,7 @@ int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 	usb_fill_bulk_urb(urb,
 		priv->usb,
 		usb_rcvbulkpipe(priv->usb, 2),
-		(void *) (rcb->skb->data),
+		skb_put(rcb->skb, skb_tailroom(rcb->skb)),
 		MAX_TOTAL_SIZE_WITH_ALL_HEADERS,
 		s_nsBulkInUsbIoCompleteRead,
 		rcb);
@@ -297,7 +297,7 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 	if (urb->actual_length) {
 		spin_lock_irqsave(&priv->lock, flags);
 
-		if (RXbBulkInProcessData(priv, rcb, urb->actual_length) == true)
+		if (vnt_rx_data(priv, rcb, urb->actual_length))
 			re_alloc_skb = true;
 
 		spin_unlock_irqrestore(&priv->lock, flags);

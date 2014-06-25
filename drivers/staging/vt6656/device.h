@@ -44,6 +44,7 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <linux/crc32.h>
+#include <net/mac80211.h>
 
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
@@ -392,6 +393,8 @@ typedef struct __device_opt {
 } OPTIONS, *POPTIONS;
 
 struct vnt_private {
+	/* mac80211 */
+	struct ieee80211_hw *hw;
 	/* netdev */
 	struct usb_device *usb;
 	struct net_device *dev;
@@ -401,6 +404,9 @@ struct vnt_private {
 
 	struct work_struct read_work_item;
 	struct work_struct rx_mng_work_item;
+
+	u64 tsf_time;
+	u8 rx_rate;
 
 	u32 rx_buf_sz;
 	int multicast_limit;
