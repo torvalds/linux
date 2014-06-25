@@ -1698,7 +1698,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (local->use_chanctx) {
 		mutex_lock(&local->chanctx_mtx);
 		list_for_each_entry(ctx, &local->chanctx_list, list)
-			WARN_ON(drv_add_chanctx(local, ctx));
+			if (ctx->replace_state !=
+			    IEEE80211_CHANCTX_REPLACES_OTHER)
+				WARN_ON(drv_add_chanctx(local, ctx));
 		mutex_unlock(&local->chanctx_mtx);
 
 		list_for_each_entry(sdata, &local->interfaces, list) {
@@ -2972,6 +2974,8 @@ int ieee80211_check_combinations(struct ieee80211_sub_if_data *sdata,
 		num[iftype] = 1;
 
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		if (ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED)
+			continue;
 		if (ctx->conf.radar_enabled)
 			radar_detect |= BIT(ctx->conf.def.width);
 		if (ctx->mode == IEEE80211_CHANCTX_EXCLUSIVE) {
@@ -3030,6 +3034,9 @@ int ieee80211_max_num_channels(struct ieee80211_local *local)
 	lockdep_assert_held(&local->chanctx_mtx);
 
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		if (ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED)
+			continue;
+
 		num_different_channels++;
 
 		if (ctx->conf.radar_enabled)

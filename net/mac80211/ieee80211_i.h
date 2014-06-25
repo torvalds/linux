@@ -701,12 +701,33 @@ enum ieee80211_chanctx_mode {
 	IEEE80211_CHANCTX_EXCLUSIVE
 };
 
+/**
+ * enum ieee80211_chanctx_replace_state - channel context replacement state
+ *
+ * This is used for channel context in-place reservations that require channel
+ * context switch/swap.
+ *
+ * @IEEE80211_CHANCTX_REPLACE_NONE: no replacement is taking place
+ * @IEEE80211_CHANCTX_WILL_BE_REPLACED: this channel context will be replaced
+ *	by a (not yet registered) channel context pointed by %replace_ctx.
+ * @IEEE80211_CHANCTX_REPLACES_OTHER: this (not yet registered) channel context
+ *	replaces an existing channel context pointed to by %replace_ctx.
+ */
+enum ieee80211_chanctx_replace_state {
+	IEEE80211_CHANCTX_REPLACE_NONE,
+	IEEE80211_CHANCTX_WILL_BE_REPLACED,
+	IEEE80211_CHANCTX_REPLACES_OTHER,
+};
+
 struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
 	struct list_head assigned_vifs;
 	struct list_head reserved_vifs;
+
+	enum ieee80211_chanctx_replace_state replace_state;
+	struct ieee80211_chanctx *replace_ctx;
 
 	enum ieee80211_chanctx_mode mode;
 	bool driver_present;
@@ -778,6 +799,7 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_chanctx *reserved_chanctx;
 	struct cfg80211_chan_def reserved_chandef;
 	bool reserved_radar_required;
+	bool reserved_ready;
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -1820,9 +1842,9 @@ ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 			      enum ieee80211_chanctx_mode mode,
 			      bool radar_required);
 int __must_check
-ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata,
-				   u32 *changed);
+ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata);
 int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata);
+int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local);
 
 int __must_check
 ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
