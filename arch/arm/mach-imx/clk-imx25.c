@@ -242,7 +242,7 @@ int __init mx25_clocks_init(void)
 {
 	__mx25_clocks_init(24000000);
 
-	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
+	clk_register_clkdev(clk[gpt1_ipg], "ipg", "imx-gpt.0");
 	clk_register_clkdev(clk[gpt_ipg_per], "per", "imx-gpt.0");
 	/* i.mx25 has the i.mx21 type uart */
 	clk_register_clkdev(clk[uart1_ipg], "ipg", "imx21-uart.0");
