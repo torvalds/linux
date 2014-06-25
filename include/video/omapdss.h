@@ -166,13 +166,6 @@ enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_ACTIVE,
 };
 
-enum omap_dss_audio_state {
-	OMAP_DSS_AUDIO_DISABLED = 0,
-	OMAP_DSS_AUDIO_ENABLED,
-	OMAP_DSS_AUDIO_CONFIGURED,
-	OMAP_DSS_AUDIO_PLAYING,
-};
-
 struct omap_dss_audio {
 	struct snd_aes_iec958 *iec;
 	struct snd_cea_861_aud_if *cea;
@@ -635,19 +628,6 @@ struct omapdss_hdmi_ops {
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
-
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
 };
 
 struct omapdss_dsi_ops {
@@ -783,8 +763,6 @@ struct omap_dss_device {
 
 	enum omap_dss_display_state state;
 
-	enum omap_dss_audio_state audio_state;
-
 	/* OMAP DSS output specific fields */
 
 	struct list_head list;
@@ -861,24 +839,6 @@ struct omap_dss_driver {
 	int (*set_hdmi_mode)(struct omap_dss_device *dssdev, bool hdmi_mode);
 	int (*set_hdmi_infoframe)(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi);
-
-	/*
-	 * For display drivers that support audio. This encompasses
-	 * HDMI and DisplayPort at the moment.
-	 */
-	/*
-	 * Note: These functions might sleep. Do not call while
-	 * holding a spinlock/readlock.
-	 */
-	int (*audio_enable)(struct omap_dss_device *dssdev);
-	void (*audio_disable)(struct omap_dss_device *dssdev);
-	bool (*audio_supported)(struct omap_dss_device *dssdev);
-	int (*audio_config)(struct omap_dss_device *dssdev,
-		struct omap_dss_audio *audio);
-	/* Note: These functions may not sleep */
-	int (*audio_start)(struct omap_dss_device *dssdev);
-	void (*audio_stop)(struct omap_dss_device *dssdev);
-
 };
 
 enum omapdss_version omapdss_get_version(void);
