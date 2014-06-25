@@ -650,9 +650,8 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
 								GFP_KERNEL);
 		if (tx_context == NULL) {
-			DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
-				"%s : allocate tx usb context failed\n",
-					priv->dev->name);
+			dev_err(&priv->usb->dev,
+					"allocate tx usb context failed\n");
 			goto free_tx;
 		}
 
@@ -674,9 +673,7 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 	priv->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * priv->cbRD),
 								GFP_KERNEL);
 	if (priv->pRCBMem == NULL) {
-		DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
-			"%s : alloc rx usb context failed\n",
-				priv->dev->name);
+		dev_err(&priv->usb->dev, "alloc rx usb context failed\n");
 		goto free_tx;
 	}
 
