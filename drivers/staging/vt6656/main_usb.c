@@ -208,7 +208,6 @@ static void
 device_set_options(struct vnt_private *pDevice) {
     pDevice->cbTD = TX_DESC_DEF0;
     pDevice->cbRD = RX_DESC_DEF0;
-    pDevice->uChannel = CHANNEL_DEF;
     pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
     pDevice->byLongRetryLimit = LONG_RETRY_DEF;
     pDevice->op_mode = NL80211_IFTYPE_UNSPECIFIED;
@@ -286,11 +285,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 		return false;
 
 	/* do MACbSoftwareReset in MACvInitialize */
-
-	pDevice->bProtectMode = false;
-	/* only used in 11g type, sync with ERP IE */
-	pDevice->bNonERPPresent = false;
-	pDevice->bBarkerPreambleMd = false;
 
 	pDevice->byTopOFDMBasicRate = RATE_24M;
 	pDevice->byTopCCKBasicRate = RATE_1M;

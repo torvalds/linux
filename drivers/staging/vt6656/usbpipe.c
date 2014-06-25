@@ -338,8 +338,6 @@ int PIPEnsSendBulkOut(struct vnt_private *priv,
 	int status;
 	struct urb *urb;
 
-	priv->bPWBitOn = false;
-
 	if (!(MP_IS_READY(priv) && priv->Flags & fMP_POST_WRITES)) {
 		context->in_use = false;
 		return STATUS_RESOURCES;
