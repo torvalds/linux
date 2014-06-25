@@ -281,8 +281,8 @@
 		//pinctrl-names = "default", "idle";
 		//pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_dectn &sdmmc0_bus4>;
 		//pinctrl-1 = <&sdmmc0_gpio>;
-		cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
-		clocks = <&clk_sdmmc>, <&clk_gates2 11>;
+		//cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
+		clocks = <&clk_sdmmc0>, <&clk_gates2 11>;
 		clock-names = "clk_mmc", "hclk_mmc";
 		num-slots = <1>;
 		fifo-depth = <0x100>;
