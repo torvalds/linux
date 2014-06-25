@@ -99,7 +99,7 @@ static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 struct inet_hashinfo tcp_hashinfo;
 EXPORT_SYMBOL(tcp_hashinfo);
 
-static inline __u32 tcp_v4_init_sequence(const struct sk_buff *skb)
+static  __u32 tcp_v4_init_sequence(const struct sk_buff *skb)
 {
 	return secure_tcp_sequence_number(ip_hdr(skb)->daddr,
 					  ip_hdr(skb)->saddr,
@@ -1284,6 +1284,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 	.cookie_init_seq =	cookie_v4_init_sequence,
 #endif
 	.route_req	=	tcp_v4_route_req,
+	.init_seq	=	tcp_v4_init_sequence,
 };
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
@@ -1391,7 +1392,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 			goto drop_and_release;
 		}
 
-		isn = tcp_v4_init_sequence(skb);
+		isn = af_ops->init_seq(skb);
 	}
 	if (!dst) {
 		dst = af_ops->route_req(sk, (struct flowi *)&fl4, req, NULL);
