@@ -144,12 +144,12 @@ static struct clocksource arc_counter = {
 /********** Clock Event Device *********/
 
 /*
- * Arm the timer to interrupt after @limit cycles
+ * Arm the timer to interrupt after @cycles
  * The distinction for oneshot/periodic is done in arc_event_timer_ack() below
  */
-static void arc_timer_event_setup(unsigned int limit)
+static void arc_timer_event_setup(unsigned int cycles)
 {
-	write_aux_reg(ARC_REG_TIMER0_LIMIT, limit);
+	write_aux_reg(ARC_REG_TIMER0_LIMIT, cycles);
 	write_aux_reg(ARC_REG_TIMER0_CNT, 0);	/* start from 0 */
 
 	write_aux_reg(ARC_REG_TIMER0_CTRL, TIMER_CTRL_IE | TIMER_CTRL_NH);
@@ -168,6 +168,10 @@ static void arc_clkevent_set_mode(enum clock_event_mode mode,
 {
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
+                /*
+                 * At X Hz, 1 sec = 1000ms -> X cycles;
+                 *                    10ms -> X / 100 cycles
+                 */
 		arc_timer_event_setup(arc_get_core_freq() / HZ);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
