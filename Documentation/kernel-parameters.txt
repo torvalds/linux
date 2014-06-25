@@ -566,6 +566,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			possible to determine what the correct size should be.
 			This option provides an override for these situations.
 
+	cca=		[MIPS] Override the kernel pages' cache coherency
+			algorithm.  Accepted values range from 0 to 7
+			inclusive. See arch/mips/include/asm/pgtable-bits.h
+			for platform specific values (SB1, Loongson3 and
+			others).
+
 	ccw_timeout_log [S390]
 			See Documentation/s390/CommonIO for details.
 
