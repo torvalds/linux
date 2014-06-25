@@ -160,20 +160,14 @@ static void irq_work_run_list(struct llist_head *list)
 	}
 }
 
-static void __irq_work_run(void)
-{
-	irq_work_run_list(&__get_cpu_var(raised_list));
-	irq_work_run_list(&__get_cpu_var(lazy_list));
-}
-
 /*
- * Run the irq_work entries on this cpu. Requires to be ran from hardirq
- * context with local IRQs disabled.
+ * hotplug calls this through:
+ *  hotplug_cfd() -> flush_smp_call_function_queue()
  */
 void irq_work_run(void)
 {
-	BUG_ON(!in_irq());
-	__irq_work_run();
+	irq_work_run_list(&__get_cpu_var(raised_list));
+	irq_work_run_list(&__get_cpu_var(lazy_list));
 }
 EXPORT_SYMBOL_GPL(irq_work_run);
 
@@ -189,35 +183,3 @@ void irq_work_sync(struct irq_work *work)
 		cpu_relax();
 }
 EXPORT_SYMBOL_GPL(irq_work_sync);
-
-#ifdef CONFIG_HOTPLUG_CPU
-static int irq_work_cpu_notify(struct notifier_block *self,
-			       unsigned long action, void *hcpu)
-{
-	long cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_DYING:
-		/* Called from stop_machine */
-		if (WARN_ON_ONCE(cpu != smp_processor_id()))
-			break;
-		__irq_work_run();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cpu_notify;
-
-static __init int irq_work_init_cpu_notifier(void)
-{
-	cpu_notify.notifier_call = irq_work_cpu_notify;
-	cpu_notify.priority = 0;
-	register_cpu_notifier(&cpu_notify);
-	return 0;
-}
-device_initcall(irq_work_init_cpu_notifier);
-
-#endif /* CONFIG_HOTPLUG_CPU */
