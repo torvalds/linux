@@ -3148,18 +3148,19 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 
 	for (total_read = 0, cur_offset = read_data; read_size > total_read;
 	     total_read += bytes_read, cur_offset += bytes_read) {
-		current_read_size = min_t(uint, read_size - total_read, rsize);
-		/*
-		 * For windows me and 9x we do not want to request more than it
-		 * negotiated since it will refuse the read then.
-		 */
-		if ((tcon->ses) && !(tcon->ses->capabilities &
+		do {
+			current_read_size = min_t(uint, read_size - total_read,
+						  rsize);
+			/*
+			 * For windows me and 9x we do not want to request more
+			 * than it negotiated since it will refuse the read
+			 * then.
+			 */
+			if ((tcon->ses) && !(tcon->ses->capabilities &
 				tcon->ses->server->vals->cap_large_files)) {
-			current_read_size = min_t(uint, current_read_size,
-					CIFSMaxBufSize);
-		}
-		rc = -EAGAIN;
-		while (rc == -EAGAIN) {
+				current_read_size = min_t(uint,
+					current_read_size, CIFSMaxBufSize);
+			}
 			if (open_file->invalidHandle) {
 				rc = cifs_reopen_file(open_file, true);
 				if (rc != 0)
@@ -3172,7 +3173,8 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 			rc = server->ops->sync_read(xid, open_file, &io_parms,
 						    &bytes_read, &cur_offset,
 						    &buf_type);
-		}
+		} while (rc == -EAGAIN);
+
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
 				break;
