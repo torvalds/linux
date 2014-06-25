@@ -95,11 +95,6 @@ static inline void _set_workitem(_workitem *pwork)
 	#define BIT(x)	(1 << (x))
 #endif
 
-/*
-For the following list_xxx operations,
-caller must guarantee the atomic context.
-Otherwise, there will be racing condition.
-*/
 static inline u32 _down_sema(struct semaphore *sema)
 {
 	if (down_interruptible(sema))
