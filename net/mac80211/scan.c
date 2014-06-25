@@ -235,38 +235,51 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 {
 	struct cfg80211_scan_request *req = local->scan_req;
 	struct cfg80211_chan_def chandef;
-	enum ieee80211_band band;
+	u8 bands_used = 0;
 	int i, ielen, n_chans;
 
 	if (test_bit(SCAN_HW_CANCELLED, &local->scanning))
 		return false;
 
-	do {
-		if (local->hw_scan_band == IEEE80211_NUM_BANDS)
-			return false;
-
-		band = local->hw_scan_band;
-		n_chans = 0;
+	if (local->hw.flags & IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS) {
 		for (i = 0; i < req->n_channels; i++) {
-			if (req->channels[i]->band == band) {
-				local->hw_scan_req->channels[n_chans] =
-							req->channels[i];
-				n_chans++;
-			}
+			local->hw_scan_req->req.channels[i] = req->channels[i];
+			bands_used |= BIT(req->channels[i]->band);
 		}
 
-		local->hw_scan_band++;
-	} while (!n_chans);
+		n_chans = req->n_channels;
+	} else {
+		do {
+			if (local->hw_scan_band == IEEE80211_NUM_BANDS)
+				return false;
 
-	local->hw_scan_req->n_channels = n_chans;
+			n_chans = 0;
+
+			for (i = 0; i < req->n_channels; i++) {
+				if (req->channels[i]->band !=
+				    local->hw_scan_band)
+					continue;
+				local->hw_scan_req->req.channels[n_chans] =
+							req->channels[i];
+				n_chans++;
+				bands_used |= BIT(req->channels[i]->band);
+			}
+
+			local->hw_scan_band++;
+		} while (!n_chans);
+	}
+
+	local->hw_scan_req->req.n_channels = n_chans;
 	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
 
-	ielen = ieee80211_build_preq_ies(local, (u8 *)local->hw_scan_req->ie,
+	ielen = ieee80211_build_preq_ies(local,
+					 (u8 *)local->hw_scan_req->req.ie,
 					 local->hw_scan_ies_bufsize,
-					 req->ie, req->ie_len, band,
-					 req->rates[band], &chandef);
-	local->hw_scan_req->ie_len = ielen;
-	local->hw_scan_req->no_cck = req->no_cck;
+					 &local->hw_scan_req->ies,
+					 req->ie, req->ie_len,
+					 bands_used, req->rates, &chandef);
+	local->hw_scan_req->req.ie_len = ielen;
+	local->hw_scan_req->req.no_cck = req->no_cck;
 
 	return true;
 }
@@ -291,7 +304,9 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	if (WARN_ON(!local->scan_req))
 		return;
 
-	if (hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
+	if (hw_scan && !aborted &&
+	    !(local->hw.flags & IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS) &&
+	    ieee80211_prep_hw_scan(local)) {
 		int rc;
 
 		rc = drv_hw_scan(local,
@@ -473,6 +488,21 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		u8 *ies;
 
 		local->hw_scan_ies_bufsize = local->scan_ies_len + req->ie_len;
+
+		if (local->hw.flags & IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS) {
+			int i, n_bands = 0;
+			u8 bands_counted = 0;
+
+			for (i = 0; i < req->n_channels; i++) {
+				if (bands_counted & BIT(req->channels[i]->band))
+					continue;
+				bands_counted |= BIT(req->channels[i]->band);
+				n_bands++;
+			}
+
+			local->hw_scan_ies_bufsize *= n_bands;
+		}
+
 		local->hw_scan_req = kmalloc(
 				sizeof(*local->hw_scan_req) +
 				req->n_channels * sizeof(req->channels[0]) +
@@ -480,13 +510,13 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		if (!local->hw_scan_req)
 			return -ENOMEM;
 
-		local->hw_scan_req->ssids = req->ssids;
-		local->hw_scan_req->n_ssids = req->n_ssids;
+		local->hw_scan_req->req.ssids = req->ssids;
+		local->hw_scan_req->req.n_ssids = req->n_ssids;
 		ies = (u8 *)local->hw_scan_req +
 			sizeof(*local->hw_scan_req) +
 			req->n_channels * sizeof(req->channels[0]);
-		local->hw_scan_req->ie = ies;
-		local->hw_scan_req->flags = req->flags;
+		local->hw_scan_req->req.ie = ies;
+		local->hw_scan_req->req.flags = req->flags;
 
 		local->hw_scan_band = 0;
 
@@ -973,9 +1003,13 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 					struct cfg80211_sched_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_sched_scan_ies sched_scan_ies = {};
+	struct ieee80211_scan_ies sched_scan_ies = {};
 	struct cfg80211_chan_def chandef;
-	int ret, i, iebufsz;
+	int ret, i, iebufsz, num_bands = 0;
+	u32 rate_masks[IEEE80211_NUM_BANDS] = {};
+	u8 bands_used = 0;
+	u8 *ie;
+	size_t len;
 
 	iebufsz = local->scan_ies_len + req->ie_len;
 
@@ -985,22 +1019,25 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		return -ENOTSUPP;
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
-		if (!local->hw.wiphy->bands[i])
-			continue;
-
-		sched_scan_ies.ie[i] = kzalloc(iebufsz, GFP_KERNEL);
-		if (!sched_scan_ies.ie[i]) {
-			ret = -ENOMEM;
-			goto out_free;
+		if (local->hw.wiphy->bands[i]) {
+			bands_used |= BIT(i);
+			rate_masks[i] = (u32) -1;
+			num_bands++;
 		}
-
-		ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
-
-		sched_scan_ies.len[i] =
-			ieee80211_build_preq_ies(local, sched_scan_ies.ie[i],
-						 iebufsz, req->ie, req->ie_len,
-						 i, (u32) -1, &chandef);
 	}
+
+	ie = kzalloc(num_bands * iebufsz, GFP_KERNEL);
+	if (!ie) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ieee80211_prepare_scan_chandef(&chandef, req->scan_width);
+
+	len = ieee80211_build_preq_ies(local, ie, num_bands * iebufsz,
+				       &sched_scan_ies, req->ie,
+				       req->ie_len, bands_used,
+				       rate_masks, &chandef);
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
 	if (ret == 0) {
@@ -1008,10 +1045,9 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		local->sched_scan_req = req;
 	}
 
-out_free:
-	while (i > 0)
-		kfree(sched_scan_ies.ie[--i]);
+	kfree(ie);
 
+out:
 	if (ret) {
 		/* Clean in case of failure after HW restart or upon resume. */
 		RCU_INIT_POINTER(local->sched_scan_sdata, NULL);
