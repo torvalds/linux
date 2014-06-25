@@ -4246,15 +4246,15 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
-	for_each_encoder_on_crtc(dev, crtc, encoder)
-		if (encoder->post_disable)
-			encoder->post_disable(encoder);
-
 	if (intel_crtc->config.has_pch_encoder) {
 		lpt_disable_pch_transcoder(dev_priv);
 		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
 		intel_ddi_fdi_disable(crtc);
 	}
+
+	for_each_encoder_on_crtc(dev, crtc, encoder)
+		if (encoder->post_disable)
+			encoder->post_disable(encoder);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(crtc);
