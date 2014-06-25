@@ -323,8 +323,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 			pDevice->wCurrentRate = RATE_54M;
 	}
 
-	CHvInitChannelTable(pDevice);
-
 	pDevice->byTopOFDMBasicRate = RATE_24M;
 	pDevice->byTopCCKBasicRate = RATE_1M;
 
