@@ -1821,7 +1821,7 @@ static void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	pll->on = true;
 }
 
-static void intel_disable_shared_dpll(struct intel_crtc *crtc)
+void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3621,7 +3621,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	lpt_enable_pch_transcoder(dev_priv, cpu_transcoder);
 }
 
-static void intel_put_shared_dpll(struct intel_crtc *crtc)
+void intel_put_shared_dpll(struct intel_crtc *crtc)
 {
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
 
@@ -3641,7 +3641,7 @@ static void intel_put_shared_dpll(struct intel_crtc *crtc)
 	crtc->config.shared_dpll = DPLL_ID_PRIVATE;
 }
 
-static struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
+struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
@@ -7569,7 +7569,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	if (!intel_ddi_pll_select(intel_crtc))
 		return -EINVAL;
-	intel_ddi_pll_enable(intel_crtc);
+
+	if (intel_crtc_to_shared_dpll(intel_crtc))
+		intel_enable_shared_dpll(intel_crtc);
 
 	intel_crtc->lowfreq_avail = false;
 
@@ -12867,10 +12869,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			      crtc->base.base.id,
 			      crtc->active ? "enabled" : "disabled");
 	}
-
-	/* FIXME: Smash this into the new shared dpll infrastructure. */
-	if (HAS_DDI(dev))
-		intel_ddi_setup_hw_pll_state(dev);
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];

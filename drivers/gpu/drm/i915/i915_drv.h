@@ -234,11 +234,6 @@ void intel_link_compute_m_n(int bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n);
 
-struct intel_ddi_plls {
-	int wrpll1_refcount;
-	int wrpll2_refcount;
-};
-
 /* Interface history:
  *
  * 1.1: Original.
@@ -1517,7 +1512,6 @@ struct drm_i915_private {
 
 	int num_shared_dpll;
 	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
-	struct intel_ddi_plls ddi_plls;
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
 	/* Reclocking support */

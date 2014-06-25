@@ -388,30 +388,12 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 
 void intel_ddi_put_crtc_pll(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(intel_crtc);
 
-	switch (intel_crtc->config.ddi_pll_sel) {
-	case PORT_CLK_SEL_WRPLL1:
-		plls->wrpll1_refcount--;
-		if (plls->wrpll1_refcount == 0) {
-			pll->disable(dev_priv, pll);
-		}
-		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
-		break;
-	case PORT_CLK_SEL_WRPLL2:
-		plls->wrpll2_refcount--;
-		if (plls->wrpll2_refcount == 0) {
-			pll->disable(dev_priv, pll);
-		}
-		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
-		break;
-	}
+	if (intel_crtc_to_shared_dpll(intel_crtc))
+		intel_disable_shared_dpll(intel_crtc);
 
-	WARN(plls->wrpll1_refcount < 0, "Invalid WRPLL1 refcount\n");
-	WARN(plls->wrpll2_refcount < 0, "Invalid WRPLL2 refcount\n");
+	intel_put_shared_dpll(intel_crtc);
 }
 
 #define LC_FREQ 2700
@@ -731,17 +713,14 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
-	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	int type = intel_encoder->type;
-	enum pipe pipe = intel_crtc->pipe;
 	int clock = intel_crtc->config.port_clock;
 
 	intel_ddi_put_crtc_pll(crtc);
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_shared_dpll *pll;
-		uint32_t reg, val;
+		uint32_t val;
 		unsigned p, n2, r2;
 
 		intel_ddi_calculate_wrpll(clock * 1000, &r2, &n2, &p);
@@ -750,77 +729,19 @@ bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
-		if (val == I915_READ(WRPLL_CTL1)) {
-			DRM_DEBUG_KMS("Reusing WRPLL 1 on pipe %c\n",
-				      pipe_name(pipe));
-			reg = WRPLL_CTL1;
-		} else if (val == I915_READ(WRPLL_CTL2)) {
-			DRM_DEBUG_KMS("Reusing WRPLL 2 on pipe %c\n",
-				      pipe_name(pipe));
-			reg = WRPLL_CTL2;
-		} else if (plls->wrpll1_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 1 on pipe %c\n",
-				      pipe_name(pipe));
-			reg = WRPLL_CTL1;
-		} else if (plls->wrpll2_refcount == 0) {
-			DRM_DEBUG_KMS("Using WRPLL 2 on pipe %c\n",
-				      pipe_name(pipe));
-			reg = WRPLL_CTL2;
-		} else {
-			DRM_ERROR("No WRPLLs available!\n");
+		intel_crtc->config.dpll_hw_state.wrpll = val;
+
+		pll = intel_get_shared_dpll(intel_crtc);
+		if (pll == NULL) {
+			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+					 pipe_name(intel_crtc->pipe));
 			return false;
 		}
 
-		DRM_DEBUG_KMS("WRPLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
-			      clock, p, n2, r2);
-
-		if (reg == WRPLL_CTL1) {
-			plls->wrpll1_refcount++;
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL1;
-			intel_crtc->config.shared_dpll = DPLL_ID_WRPLL1;
-		} else {
-			plls->wrpll2_refcount++;
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL2;
-			intel_crtc->config.shared_dpll = DPLL_ID_WRPLL2;
-		}
-
-		intel_crtc->config.dpll_hw_state.wrpll = val;
-
-		pll = &dev_priv->shared_dplls[intel_crtc->config.shared_dpll];
-		pll->hw_state.wrpll = val;
+		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
 	}
 
 	return true;
-}
-
-/*
- * To be called after intel_ddi_pll_select(). That one selects the PLL to be
- * used, this one actually enables the PLL.
- */
-void intel_ddi_pll_enable(struct intel_crtc *crtc)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
-	int refcount;
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
-
-	switch (crtc->config.ddi_pll_sel) {
-	case PORT_CLK_SEL_WRPLL1:
-	case PORT_CLK_SEL_WRPLL2:
-		if (crtc->config.ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
-			refcount = plls->wrpll1_refcount;
-		} else {
-			refcount = plls->wrpll2_refcount;
-		}
-		break;
-	default:
-		return;
-	}
-
-	if (refcount == 1) {
-		pll->enable(dev_priv, pll);
-	}
 }
 
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
@@ -1054,35 +975,6 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	return false;
 }
 
-void intel_ddi_setup_hw_pll_state(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe;
-	struct intel_crtc *intel_crtc;
-
-	dev_priv->ddi_plls.wrpll1_refcount = 0;
-	dev_priv->ddi_plls.wrpll2_refcount = 0;
-
-	for_each_pipe(pipe) {
-		intel_crtc =
-			to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-
-		if (!intel_crtc->active) {
-			intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_NONE;
-			continue;
-		}
-
-		switch (intel_crtc->config.ddi_pll_sel) {
-		case PORT_CLK_SEL_WRPLL1:
-			dev_priv->ddi_plls.wrpll1_refcount++;
-			break;
-		case PORT_CLK_SEL_WRPLL2:
-			dev_priv->ddi_plls.wrpll2_refcount++;
-			break;
-		}
-	}
-}
-
 void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
@@ -1288,10 +1180,6 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
-	uint32_t cur_val;
-
-	cur_val = I915_READ(WRPLL_CTL(pll->id));
-	WARN(cur_val & WRPLL_PLL_ENABLE, "%s already enabled\n", pll->name);
 	I915_WRITE(WRPLL_CTL(pll->id), pll->hw_state.wrpll);
 	POSTING_READ(WRPLL_CTL(pll->id));
 	udelay(20);
@@ -1303,7 +1191,6 @@ static void hsw_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	uint32_t val;
 
 	val = I915_READ(WRPLL_CTL(pll->id));
-	WARN_ON(!(val & WRPLL_PLL_ENABLE));
 	I915_WRITE(WRPLL_CTL(pll->id), val & ~WRPLL_PLL_ENABLE);
 	POSTING_READ(WRPLL_CTL(pll->id));
 }
@@ -1334,11 +1221,9 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	uint32_t val = I915_READ(LCPLL_CTL);
 	int i;
 
-	/* Dummy setup until everything is moved over to avoid upsetting the hw
-	 * state cross checker. */
-	dev_priv->num_shared_dpll = 0;
+	dev_priv->num_shared_dpll = 2;
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		dev_priv->shared_dplls[i].id = i;
 		dev_priv->shared_dplls[i].name = hsw_ddi_pll_names[i];
 		dev_priv->shared_dplls[i].disable = hsw_ddi_pll_disable;

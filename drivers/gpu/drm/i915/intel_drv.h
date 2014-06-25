@@ -710,9 +710,7 @@ void intel_ddi_disable_transcoder_func(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder);
 void intel_ddi_enable_pipe_clock(struct intel_crtc *intel_crtc);
 void intel_ddi_disable_pipe_clock(struct intel_crtc *intel_crtc);
-void intel_ddi_setup_hw_pll_state(struct drm_device *dev);
 bool intel_ddi_pll_select(struct intel_crtc *crtc);
-void intel_ddi_pll_enable(struct intel_crtc *crtc);
 void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
@@ -796,12 +794,19 @@ __intel_framebuffer_create(struct drm_device *dev,
 void intel_prepare_page_flip(struct drm_device *dev, int plane);
 void intel_finish_page_flip(struct drm_device *dev, int pipe);
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane);
+
+/* shared dpll functions */
 struct intel_shared_dpll *intel_crtc_to_shared_dpll(struct intel_crtc *crtc);
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+void intel_disable_shared_dpll(struct intel_crtc *crtc);
+struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc);
+void intel_put_shared_dpll(struct intel_crtc *crtc);
+
+/* modesetting asserts */
 void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state);
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
