@@ -49,7 +49,6 @@
 #include "card.h"
 #include "bssdb.h"
 #include "mac.h"
-#include "michael.h"
 #include "rf.h"
 #include "datarate.h"
 #include "usbpipe.h"

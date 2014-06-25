@@ -15,7 +15,6 @@ vt6656_stage-y +=	main_usb.o \
 			rc4.o \
 			tether.o \
 			key.o \
-			michael.o \
 			rf.o \
 			usbpipe.o \
 			channel.o \
