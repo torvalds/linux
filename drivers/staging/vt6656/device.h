@@ -223,7 +223,8 @@ struct vnt_rsp_card_init {
  */
 enum {
 	CONTEXT_DATA_PACKET = 1,
-	CONTEXT_MGMT_PACKET
+	CONTEXT_MGMT_PACKET,
+	CONTEXT_BEACON_PACKET
 };
 
 /* RCB (Receive Control Block) */

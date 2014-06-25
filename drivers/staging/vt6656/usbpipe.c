@@ -398,7 +398,7 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 {
 	struct vnt_usb_send_context *context = urb->context;
 	struct vnt_private *priv = context->priv;
-	u8 context_type = context->type;
+	struct ieee80211_tx_info *info;
 
 	switch (urb->status) {
 	case 0:
@@ -415,24 +415,18 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 		break;
 	}
 
-	if (!netif_device_present(priv->dev))
-		return;
-
-	if (CONTEXT_DATA_PACKET == context_type) {
-		if (context->skb != NULL) {
-			dev_kfree_skb_irq(context->skb);
-			context->skb = NULL;
-			dev_dbg(&priv->usb->dev,
-					"tx  %d bytes\n", context->buf_len);
-		}
-
-		priv->dev->trans_start = jiffies;
+	if (context->skb) {
+		info = IEEE80211_SKB_CB(context->skb);
+		ieee80211_tx_info_clear_status(info);
+		info->status.rates[0].idx = priv->wCurrentRate;
+		info->status.rates[0].count = 0;
+		if (!urb->status)
+			info->flags |= IEEE80211_TX_STAT_ACK;
+		ieee80211_tx_status_irqsafe(priv->hw, context->skb);
 	}
 
-	if (priv->bLinkPass == true) {
-		if (netif_queue_stopped(priv->dev))
-			netif_wake_queue(priv->dev);
-	}
+	if (context->type == CONTEXT_DATA_PACKET)
+		ieee80211_wake_queues(priv->hw);
 
 	context->in_use = false;
 
