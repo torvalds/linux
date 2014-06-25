@@ -51,7 +51,6 @@
 #include "card.h"
 #include "baseband.h"
 #include "mac.h"
-#include "wmgr.h"
 #include "power.h"
 #include "wcmd.h"
 #include "rxtx.h"
@@ -223,9 +222,7 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->wFragmentationThreshold = FRAG_THRESH_DEF;
     pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
     pDevice->byLongRetryLimit = LONG_RETRY_DEF;
-    pDevice->wMaxTransmitMSDULifetime = DEFAULT_MSDU_LIFETIME;
     pDevice->byShortPreamble = PREAMBLE_TYPE_DEF;
-    pDevice->ePSMode = PS_MODE_DEF;
     pDevice->b11hEnable = X80211h_MODE_DEF;
     pDevice->op_mode = NL80211_IFTYPE_UNSPECIFIED;
     pDevice->uConnectionRate = DATA_RATE_DEF;
@@ -1161,8 +1158,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	INIT_DELAYED_WORK(&priv->run_command_work, vRunCommand);
 	INIT_WORK(&priv->read_work_item, RXvWorkItem);
-
-	priv->vnt_mgmt.pAdapter = priv;
 
 	usb_set_intfdata(intf, priv);
 

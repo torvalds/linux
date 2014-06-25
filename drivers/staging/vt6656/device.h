@@ -74,7 +74,6 @@
  */
 
 #include "80211hdr.h"
-#include "wmgr.h"
 #include "wcmd.h"
 #include "desc.h"
 #include "key.h"
@@ -328,31 +327,6 @@ typedef enum _NDIS_802_11_STATUS_TYPE
 	Ndis802_11StatusTypeMax, /* not a real type, defined as upper bound */
 } NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
 
-/* added new types for PMKID Candidate lists */
-typedef struct _PMKID_CANDIDATE {
-    NDIS_802_11_MAC_ADDRESS BSSID;
-    unsigned long Flags;
-} PMKID_CANDIDATE, *PPMKID_CANDIDATE;
-
-typedef struct _BSSID_INFO
-{
-    NDIS_802_11_MAC_ADDRESS BSSID;
-    NDIS_802_11_PMKID_VALUE PMKID;
-} BSSID_INFO, *PBSSID_INFO;
-
-typedef struct tagSPMKID {
-    unsigned long Length;
-    unsigned long BSSIDInfoCount;
-    BSSID_INFO BSSIDInfo[MAX_BSSIDINFO_4_PMKID];
-} SPMKID, *PSPMKID;
-
-typedef struct tagSPMKIDCandidateEvent {
-    NDIS_802_11_STATUS_TYPE     StatusType;
-	unsigned long Version;       /* Version of the structure */
-	unsigned long NumCandidates; /* No. of pmkid candidates */
-    PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
-} SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
-
 /* The receive duplicate detection cache entry */
 typedef struct tagSCacheEntry{
 	__le16 wFmSequence;
@@ -489,9 +463,6 @@ struct vnt_private {
 	unsigned long SendContextsInUse;
 	unsigned long RcvBuffersInUse;
 
-	/* 802.11 management */
-	struct vnt_manager vnt_mgmt;
-
 	u64 qwCurrTSF;
 	u32 cbBulkInMax;
 	int bPSRxBeacon;
@@ -564,7 +535,6 @@ struct vnt_private {
 	enum nl80211_iftype op_mode;
 
 	int bBSSIDFilter;
-	u16 wMaxTransmitMSDULifetime;
 	u8 abyBSSID[ETH_ALEN];
 	u8 abyDesireBSSID[ETH_ALEN];
 
@@ -584,10 +554,9 @@ struct vnt_private {
 
 	/* Power save */
 	u16 current_aid;
-	int bEnablePSMode;
 	u16 wListenInterval;
 	int bPWBitOn;
-	WMAC_POWER_MODE ePSMode;
+
 	unsigned long ulPSModeWaitTx;
 	int bPSModeTxBurst;
 
@@ -681,10 +650,6 @@ struct vnt_private {
 	u8 abyBroadcastAddr[ETH_ALEN];
 	u8 abySNAP_RFC1042[ETH_ALEN];
 	u8 abySNAP_Bridgetunnel[ETH_ALEN];
-
-	/* Pre-Authentication & PMK cache */
-	SPMKID gsPMKID;
-	SPMKIDCandidateEvent gsPMKIDCandidate;
 
 	/* for 802.11h */
 	int b11hEnable;

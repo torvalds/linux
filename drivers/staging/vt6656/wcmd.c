@@ -43,7 +43,6 @@
 #include "card.h"
 #include "80211hdr.h"
 #include "wcmd.h"
-#include "wmgr.h"
 #include "power.h"
 #include "baseband.h"
 #include "usbpipe.h"
