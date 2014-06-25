@@ -33,15 +33,8 @@
 #define     PS_FAST_INTERVAL         1         // Fast power saving listen interval
 #define     PS_MAX_INTERVAL          4         // MAX power saving listen interval
 
-/*  PSDevice pDevice */
-/*  PSDevice hDeviceContext */
-
-int PSbConsiderPowerDown(struct vnt_private *, int bCheckRxDMA,
-	int bCheckCountToWakeUp);
 void vnt_disable_power_saving(struct vnt_private *);
 void vnt_enable_power_saving(struct vnt_private *, u16);
-void PSvSendPSPOLL(struct vnt_private *);
-int PSbSendNullPacket(struct vnt_private *);
 int vnt_next_tbtt_wakeup(struct vnt_private *);
 
 #endif /* __POWER_H__ */
