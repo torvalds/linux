@@ -55,20 +55,28 @@ void arc_init_IRQ(void)
  * below, per IRQ.
  */
 
-static void arc_mask_irq(struct irq_data *data)
+static void arc_irq_mask(struct irq_data *data)
 {
-	arch_mask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb &= ~(1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
-static void arc_unmask_irq(struct irq_data *data)
+static void arc_irq_unmask(struct irq_data *data)
 {
-	arch_unmask_irq(data->irq);
+	unsigned int ienb;
+
+	ienb = read_aux_reg(AUX_IENABLE);
+	ienb |= (1 << data->irq);
+	write_aux_reg(AUX_IENABLE, ienb);
 }
 
 static struct irq_chip onchip_intc = {
 	.name           = "ARC In-core Intc",
-	.irq_mask	= arc_mask_irq,
-	.irq_unmask	= arc_unmask_irq,
+	.irq_mask	= arc_irq_mask,
+	.irq_unmask	= arc_irq_unmask,
 };
 
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
