@@ -278,6 +278,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 	/* Configure Port Clock Select */
 	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->ddi_pll_sel);
+	WARN_ON(intel_crtc->ddi_pll_sel != PORT_CLK_SEL_SPLL);
 
 	/* Start the training iterating through available voltages and emphasis,
 	 * testing each value twice. */
@@ -848,23 +849,6 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 	BUILD_BUG_ON(enable_bit != WRPLL_PLL_ENABLE);
 
 	switch (crtc->ddi_pll_sel) {
-	case PORT_CLK_SEL_LCPLL_2700:
-	case PORT_CLK_SEL_LCPLL_1350:
-	case PORT_CLK_SEL_LCPLL_810:
-		/*
-		 * LCPLL should always be enabled at this point of the mode set
-		 * sequence, so nothing to do.
-		 */
-		return;
-
-	case PORT_CLK_SEL_SPLL:
-		new_val = SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz |
-			  SPLL_PLL_SSC;
-		WARN(I915_READ(SPLL_CTL) & enable_bit, "SPLL already enabled\n");
-		I915_WRITE(SPLL_CTL, new_val);
-		POSTING_READ(SPLL_CTL);
-		udelay(20);
-		return;
 	case PORT_CLK_SEL_WRPLL1:
 	case PORT_CLK_SEL_WRPLL2:
 		if (crtc->ddi_pll_sel == PORT_CLK_SEL_WRPLL1) {
@@ -889,7 +873,6 @@ void intel_ddi_pll_enable(struct intel_crtc *crtc)
 		WARN(1, "Bad selected pll: PORT_CLK_SEL_NONE\n");
 		return;
 	default:
-		WARN(1, "Bad selected pll: 0x%08x\n", crtc->ddi_pll_sel);
 		return;
 	}
 

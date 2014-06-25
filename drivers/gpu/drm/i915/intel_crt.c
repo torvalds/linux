@@ -137,6 +137,18 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 	pipe_config->adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
+static void hsw_crt_pre_enable(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	WARN(I915_READ(SPLL_CTL) & SPLL_PLL_ENABLE, "SPLL already enabled\n");
+	I915_WRITE(SPLL_CTL,
+		   SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC);
+	POSTING_READ(SPLL_CTL);
+	udelay(20);
+}
+
 /* Note: The caller is required to filter out dpms modes not supported by the
  * platform. */
 static void intel_crt_set_dpms(struct intel_encoder *encoder, int mode)
@@ -860,6 +872,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		crt->base.get_config = hsw_crt_get_config;
 		crt->base.get_hw_state = intel_ddi_get_hw_state;
+		crt->base.pre_enable = hsw_crt_pre_enable;
 	} else {
 		crt->base.get_config = intel_crt_get_config;
 		crt->base.get_hw_state = intel_crt_get_hw_state;
