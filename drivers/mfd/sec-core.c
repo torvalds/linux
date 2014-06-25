@@ -89,6 +89,15 @@ static const struct mfd_cell s2mpa01_devs[] = {
 	},
 };
 
+static const struct mfd_cell s2mpu02_devs[] = {
+	{ .name = "s2mpu02-pmic", },
+	{ .name = "s2mpu02-rtc", },
+	{
+		.name = "s2mpu02-clk",
+		.of_compatible = "samsung,s2mpu02-clk",
+	}
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id sec_dt_match[] = {
 	{	.compatible = "samsung,s5m8767-pmic",
@@ -102,6 +111,9 @@ static const struct of_device_id sec_dt_match[] = {
 	}, {
 		.compatible = "samsung,s2mpa01-pmic",
 		.data = (void *)S2MPA01,
+	}, {
+		.compatible = "samsung,s2mpu02-pmic",
+		.data = (void *)S2MPU02,
 	}, {
 		/* Sentinel */
 	},
@@ -250,9 +262,10 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 {
 	struct sec_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	const struct regmap_config *regmap;
+	const struct mfd_cell *sec_devs;
 	struct sec_pmic_dev *sec_pmic;
 	unsigned long device_type;
-	int ret;
+	int ret, num_sec_devs;
 
 	sec_pmic = devm_kzalloc(&i2c->dev, sizeof(struct sec_pmic_dev),
 				GFP_KERNEL);
@@ -319,34 +332,39 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 
 	switch (sec_pmic->device_type) {
 	case S5M8751X:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8751_devs,
-				      ARRAY_SIZE(s5m8751_devs), NULL, 0, NULL);
+		sec_devs = s5m8751_devs;
+		num_sec_devs = ARRAY_SIZE(s5m8751_devs);
 		break;
 	case S5M8763X:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8763_devs,
-				      ARRAY_SIZE(s5m8763_devs), NULL, 0, NULL);
+		sec_devs = s5m8763_devs;
+		num_sec_devs = ARRAY_SIZE(s5m8763_devs);
 		break;
 	case S5M8767X:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s5m8767_devs,
-				      ARRAY_SIZE(s5m8767_devs), NULL, 0, NULL);
+		sec_devs = s5m8767_devs;
+		num_sec_devs = ARRAY_SIZE(s5m8767_devs);
 		break;
 	case S2MPA01:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s2mpa01_devs,
-				      ARRAY_SIZE(s2mpa01_devs), NULL, 0, NULL);
+		sec_devs = s2mpa01_devs;
+		num_sec_devs = ARRAY_SIZE(s2mpa01_devs);
 		break;
 	case S2MPS11X:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps11_devs,
-				      ARRAY_SIZE(s2mps11_devs), NULL, 0, NULL);
+		sec_devs = s2mps11_devs;
+		num_sec_devs = ARRAY_SIZE(s2mps11_devs);
 		break;
 	case S2MPS14X:
-		ret = mfd_add_devices(sec_pmic->dev, -1, s2mps14_devs,
-				      ARRAY_SIZE(s2mps14_devs), NULL, 0, NULL);
+		sec_devs = s2mps14_devs;
+		num_sec_devs = ARRAY_SIZE(s2mps14_devs);
+		break;
+	case S2MPU02:
+		sec_devs = s2mpu02_devs;
+		num_sec_devs = ARRAY_SIZE(s2mpu02_devs);
 		break;
 	default:
 		/* If this happens the probe function is problem */
 		BUG();
 	}
-
+	ret = mfd_add_devices(sec_pmic->dev, -1, sec_devs, num_sec_devs, NULL,
+			      0, NULL);
 	if (ret)
 		goto err_mfd;
 
