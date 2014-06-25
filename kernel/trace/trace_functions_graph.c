@@ -15,6 +15,38 @@
 #include "trace.h"
 #include "trace_output.h"
 
+static bool kill_ftrace_graph;
+
+/**
+ * ftrace_graph_is_dead - returns true if ftrace_graph_stop() was called
+ *
+ * ftrace_graph_stop() is called when a severe error is detected in
+ * the function graph tracing. This function is called by the critical
+ * paths of function graph to keep those paths from doing any more harm.
+ */
+bool ftrace_graph_is_dead(void)
+{
+	return kill_ftrace_graph;
+}
+
+/**
+ * ftrace_graph_stop - set to permanently disable function graph tracincg
+ *
+ * In case of an error int function graph tracing, this is called
+ * to try to keep function graph tracing from causing any more harm.
+ * Usually this is pretty severe and this is called to try to at least
+ * get a warning out to the user.
+ */
+void ftrace_graph_stop(void)
+{
+	kill_ftrace_graph = true;
+	/*
+	 * ftrace_stop() will be removed when all archs are updated to
+	 * use ftrace_graph_is_dead()
+	 */
+	ftrace_stop();
+}
+
 /* When set, irq functions will be ignored */
 static int ftrace_graph_skip_irqs;
 
@@ -91,6 +123,9 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func, int *depth,
 {
 	unsigned long long calltime;
 	int index;
+
+	if (unlikely(ftrace_graph_is_dead()))
+		return -EBUSY;
 
 	if (!current->ret_stack)
 		return -EBUSY;

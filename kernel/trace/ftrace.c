@@ -5473,9 +5473,4 @@ void ftrace_graph_exit_task(struct task_struct *t)
 
 	kfree(ret_stack);
 }
-
-void ftrace_graph_stop(void)
-{
-	ftrace_stop();
-}
 #endif
