@@ -2932,43 +2932,23 @@ cifs_uncached_read_into_pages(struct TCP_Server_Info *server,
 	return total_read > 0 && result != -EAGAIN ? total_read : result;
 }
 
-ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
+static int
+cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
+		     struct cifs_sb_info *cifs_sb, struct list_head *rdata_list)
 {
-	struct file *file = iocb->ki_filp;
-	ssize_t rc;
-	size_t len, cur_len;
-	ssize_t total_read = 0;
-	loff_t offset = iocb->ki_pos;
+	struct cifs_readdata *rdata;
 	unsigned int npages;
-	struct cifs_sb_info *cifs_sb;
-	struct cifs_tcon *tcon;
-	struct cifsFileInfo *open_file;
-	struct cifs_readdata *rdata, *tmp;
-	struct list_head rdata_list;
+	size_t cur_len;
+	int rc;
 	pid_t pid;
-
-	len = iov_iter_count(to);
-	if (!len)
-		return 0;
-
-	INIT_LIST_HEAD(&rdata_list);
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-	open_file = file->private_data;
-	tcon = tlink_tcon(open_file->tlink);
-
-	if (!tcon->ses->server->ops->async_readv)
-		return -ENOSYS;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
 	else
 		pid = current->tgid;
 
-	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
-		cifs_dbg(FYI, "attempting read on write only file instance\n");
-
 	do {
-		cur_len = min_t(const size_t, len - total_read, cifs_sb->rsize);
+		cur_len = min_t(const size_t, len, cifs_sb->rsize);
 		npages = DIV_ROUND_UP(cur_len, PAGE_SIZE);
 
 		/* allocate a readdata struct */
@@ -2999,10 +2979,43 @@ error:
 			break;
 		}
 
-		list_add_tail(&rdata->list, &rdata_list);
+		list_add_tail(&rdata->list, rdata_list);
 		offset += cur_len;
 		len -= cur_len;
 	} while (len > 0);
+
+	return rc;
+}
+
+ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to)
+{
+	struct file *file = iocb->ki_filp;
+	ssize_t rc;
+	size_t len;
+	ssize_t total_read = 0;
+	loff_t offset = iocb->ki_pos;
+	struct cifs_sb_info *cifs_sb;
+	struct cifs_tcon *tcon;
+	struct cifsFileInfo *open_file;
+	struct cifs_readdata *rdata, *tmp;
+	struct list_head rdata_list;
+
+	len = iov_iter_count(to);
+	if (!len)
+		return 0;
+
+	INIT_LIST_HEAD(&rdata_list);
+	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
+	open_file = file->private_data;
+	tcon = tlink_tcon(open_file->tlink);
+
+	if (!tcon->ses->server->ops->async_readv)
+		return -ENOSYS;
+
+	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
+		cifs_dbg(FYI, "attempting read on write only file instance\n");
+
+	rc = cifs_send_async_read(offset, len, open_file, cifs_sb, &rdata_list);
 
 	/* if at least one read request send succeeded, then reset rc */
 	if (!list_empty(&rdata_list))
