@@ -25,12 +25,20 @@
 #define MAILBOX_MESSAGE(m)		(0x040 + 4 * (m))
 #define MAILBOX_FIFOSTATUS(m)		(0x080 + 4 * (m))
 #define MAILBOX_MSGSTATUS(m)		(0x0c0 + 4 * (m))
-#define MAILBOX_IRQSTATUS(u)		(0x100 + 8 * (u))
-#define MAILBOX_IRQENABLE(u)		(0x104 + 8 * (u))
+
+#define OMAP2_MAILBOX_IRQSTATUS(u)	(0x100 + 8 * (u))
+#define OMAP2_MAILBOX_IRQENABLE(u)	(0x104 + 8 * (u))
 
 #define OMAP4_MAILBOX_IRQSTATUS(u)	(0x104 + 0x10 * (u))
 #define OMAP4_MAILBOX_IRQENABLE(u)	(0x108 + 0x10 * (u))
 #define OMAP4_MAILBOX_IRQENABLE_CLR(u)	(0x10c + 0x10 * (u))
+
+#define MAILBOX_IRQSTATUS(type, u)	(type ? OMAP4_MAILBOX_IRQSTATUS(u) : \
+						OMAP2_MAILBOX_IRQSTATUS(u))
+#define MAILBOX_IRQENABLE(type, u)	(type ? OMAP4_MAILBOX_IRQENABLE(u) : \
+						OMAP2_MAILBOX_IRQENABLE(u))
+#define MAILBOX_IRQDISABLE(type, u)	(type ? OMAP4_MAILBOX_IRQENABLE_CLR(u) \
+						: OMAP2_MAILBOX_IRQENABLE(u))
 
 #define MAILBOX_IRQ_NEWMSG(m)		(1 << (2 * (m)))
 #define MAILBOX_IRQ_NOTFULL(m)		(1 << (2 * (m) + 1))
@@ -227,6 +235,7 @@ static int omap2_mbox_probe(struct platform_device *pdev)
 	struct omap_mbox2_priv *priv, *privblk;
 	struct omap_mbox_pdata *pdata = pdev->dev.platform_data;
 	struct omap_mbox_dev_info *info;
+	u32 intr_type;
 	int i;
 
 	if (!pdata || !pdata->info_cnt || !pdata->info) {
@@ -251,6 +260,7 @@ static int omap2_mbox_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info = pdata->info;
+	intr_type = pdata->intr_type;
 	mbox = mboxblk;
 	priv = privblk;
 	for (i = 0; i < pdata->info_cnt; i++, info++, priv++) {
@@ -260,17 +270,10 @@ static int omap2_mbox_probe(struct platform_device *pdev)
 		priv->rx_fifo.msg_stat =  MAILBOX_MSGSTATUS(info->rx_id);
 		priv->notfull_bit = MAILBOX_IRQ_NOTFULL(info->tx_id);
 		priv->newmsg_bit = MAILBOX_IRQ_NEWMSG(info->rx_id);
-		if (pdata->intr_type) {
-			priv->irqenable = OMAP4_MAILBOX_IRQENABLE(info->usr_id);
-			priv->irqstatus = OMAP4_MAILBOX_IRQSTATUS(info->usr_id);
-			priv->irqdisable =
-				OMAP4_MAILBOX_IRQENABLE_CLR(info->usr_id);
-		} else {
-			priv->irqenable = MAILBOX_IRQENABLE(info->usr_id);
-			priv->irqstatus = MAILBOX_IRQSTATUS(info->usr_id);
-			priv->irqdisable = MAILBOX_IRQENABLE(info->usr_id);
-		}
-		priv->intr_type = pdata->intr_type;
+		priv->irqenable = MAILBOX_IRQENABLE(intr_type, info->usr_id);
+		priv->irqstatus = MAILBOX_IRQSTATUS(intr_type, info->usr_id);
+		priv->irqdisable = MAILBOX_IRQDISABLE(intr_type, info->usr_id);
+		priv->intr_type = intr_type;
 
 		mbox->priv = priv;
 		mbox->name = info->name;
