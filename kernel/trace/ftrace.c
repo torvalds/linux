@@ -2261,11 +2261,6 @@ static void ftrace_run_update_code(int command)
 	FTRACE_WARN_ON(ret);
 	if (ret)
 		return;
-	/*
-	 * Do not call function tracer while we update the code.
-	 * We are in stop machine.
-	 */
-	function_trace_stop++;
 
 	/*
 	 * By default we use stop_machine() to modify the code.
@@ -2274,8 +2269,6 @@ static void ftrace_run_update_code(int command)
 	 * produces the most overhead.
 	 */
 	arch_ftrace_update_code(command);
-
-	function_trace_stop--;
 
 	ret = ftrace_arch_code_modify_post_process();
 	FTRACE_WARN_ON(ret);
