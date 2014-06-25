@@ -241,10 +241,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 {
 	struct vnt_cmd_card_init *init_cmd = &pDevice->init_command;
 	struct vnt_rsp_card_init *init_rsp = &pDevice->init_response;
-	u8 abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 abySNAP_RFC1042[ETH_ALEN] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
-	u8 abySNAP_Bridgetunnel[ETH_ALEN]
-		= {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
 	u8 byAntenna;
 	int ii;
 	int ntStatus = STATUS_SUCCESS;
@@ -253,10 +249,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---->INIbInitAdapter. [%d][%d]\n",
 				DEVICE_INIT_COLD, pDevice->byPacketType);
-
-	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
 
 	if (!vnt_check_firmware_version(pDevice)) {
 		if (vnt_download_firmware(pDevice) == true) {
@@ -412,13 +404,7 @@ static int device_init_registers(struct vnt_private *pDevice)
 	pDevice->byAutoFBCtrl = AUTO_FB_0;
 
 	/* default Auto Mode */
-	/* pDevice->NetworkType = Ndis802_11Automode; */
-	pDevice->eConfigPHYMode = PHY_TYPE_AUTO;
 	pDevice->byBBType = BB_TYPE_11G;
-
-	/* get channel range */
-	pDevice->byMinChannel = 1;
-	pDevice->byMaxChannel = CB_MAX_CHANNEL;
 
 	/* get RFType */
 	pDevice->byRFType = init_rsp->rf_type;
