@@ -80,7 +80,6 @@ void INTvWorkItem(struct vnt_private *pDevice)
 void INTnsProcessData(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
-	struct vnt_manager *mgmt = &priv->vnt_mgmt;
 	struct net_device_stats *stats = &priv->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
@@ -92,10 +91,6 @@ void INTnsProcessData(struct vnt_private *priv)
 			priv->wstats.discard.retries++;
 		else
 			stats->tx_packets++;
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr0,
-					int_data->pkt0);
 	}
 
 	if (int_data->tsr1 & TSR_VALID) {
@@ -103,11 +98,6 @@ void INTnsProcessData(struct vnt_private *priv)
 			priv->wstats.discard.retries++;
 		else
 			stats->tx_packets++;
-
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr1,
-					int_data->pkt1);
 	}
 
 	if (int_data->tsr2 & TSR_VALID) {
@@ -115,10 +105,6 @@ void INTnsProcessData(struct vnt_private *priv)
 			priv->wstats.discard.retries++;
 		else
 			stats->tx_packets++;
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr2,
-					int_data->pkt2);
 	}
 
 	if (int_data->tsr3 & TSR_VALID) {
@@ -126,43 +112,19 @@ void INTnsProcessData(struct vnt_private *priv)
 			priv->wstats.discard.retries++;
 		else
 			stats->tx_packets++;
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr3,
-					int_data->pkt3);
 	}
 
 	if (int_data->isr0 != 0) {
-		if (int_data->isr0 & ISR_BNTX) {
-			if (priv->op_mode == NL80211_IFTYPE_AP) {
-				if (mgmt->byDTIMCount > 0) {
-					mgmt->byDTIMCount--;
-					mgmt->sNodeDBTable[0].bRxPSPoll =
-						false;
-				} else if (mgmt->byDTIMCount == 0) {
-					/* check if multicast tx buffering */
-					mgmt->byDTIMCount =
-						mgmt->byDTIMPeriod-1;
-					mgmt->sNodeDBTable[0].bRxPSPoll = true;
-					if (mgmt->sNodeDBTable[0].bPSEnable)
-						bScheduleCommand((void *) priv,
-								 WLAN_CMD_RX_PSPOLL,
-								 NULL);
-				}
-				bScheduleCommand((void *) priv,
-						WLAN_CMD_BECON_SEND,
-						NULL);
-			}
-			priv->bBeaconSent = true;
-		} else {
-			priv->bBeaconSent = false;
-		}
+		if (int_data->isr0 & ISR_BNTX &&
+				priv->op_mode == NL80211_IFTYPE_AP)
+			bScheduleCommand(priv, WLAN_CMD_BECON_SEND, NULL);
 
 		if (int_data->isr0 & ISR_TBTT) {
-			if (priv->bEnablePSMode)
+			if (priv->hw->conf.flags & IEEE80211_CONF_PS)
 				bScheduleCommand((void *) priv,
 						WLAN_CMD_TBTT_WAKEUP,
 						NULL);
+#if 0 /* TODO channel switch */
 			if (priv->bChannelSwitch) {
 				priv->byChannelSwitchCount--;
 				if (priv->byChannelSwitchCount == 0)
@@ -170,6 +132,7 @@ void INTnsProcessData(struct vnt_private *priv)
 							WLAN_CMD_11H_CHSW,
 							NULL);
 			}
+#endif
 		}
 		priv->qwCurrTSF = le64_to_cpu(int_data->tsf);
 	}
