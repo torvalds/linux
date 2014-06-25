@@ -31,6 +31,7 @@
 		regulator-max-microvolt = <3000000>;
 		gpio = <&gpio3 7 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
 	};
 
 	gpio-keys {
@@ -58,6 +59,92 @@
 		/* VOL+ comes somehow thru the ADC */
 	};
 };
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps: tps@2d {
+		reg = <0x2d>;
+
+		interrupt-parent = <&gpio6>;
+		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+
+		vcc5-supply = <&vcc_io>;
+		vcc6-supply = <&vcc_io>;
+
+		regulators {
+			vcc_rtc: regulator@0 {
+				regulator-name = "vcc_rtc";
+				regulator-always-on;
+			};
+
+			vcc_io: regulator@1 {
+				regulator-name = "vcc_io";
+				regulator-always-on;
+			};
+
+			vdd_arm: regulator@2 {
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vcc_ddr: regulator@3 {
+				regulator-name = "vcc_ddr";
+				regulator-min-microvolt = <600000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vcc18_cif: regulator@5 {
+				regulator-name = "vcc18_cif";
+				regulator-always-on;
+			};
+
+			vdd_11: regulator@6 {
+				regulator-name = "vdd_11";
+				regulator-always-on;
+			};
+
+			vcc_25: regulator@7 {
+				regulator-name = "vcc_25";
+				regulator-always-on;
+			};
+
+			vcc_18: regulator@8 {
+				regulator-name = "vcc_18";
+				regulator-always-on;
+			};
+
+			vcc25_hdmi: regulator@9 {
+				regulator-name = "vcc25_hdmi";
+				regulator-always-on;
+			};
+
+			vcca_33: regulator@10 {
+				regulator-name = "vcca_33";
+				regulator-always-on;
+			};
+
+			vcc_tp: regulator@11 {
+				regulator-name = "vcc_tp";
+				regulator-always-on;
+			};
+
+			vcc28_cif: regulator@12 {
+				regulator-name = "vcc28_cif";
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+/* must be included after &tps gets defined */
+#include "tps65910.dtsi"
 
 &mmc0 { /* sdmmc */
 	num-slots = <1>;
