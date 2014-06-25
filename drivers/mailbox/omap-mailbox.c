@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/err.h>
@@ -74,20 +73,6 @@ static inline int is_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 /*
  * message sender
  */
-static int __mbox_poll_for_space(struct omap_mbox *mbox)
-{
-	int ret = 0, i = 1000;
-
-	while (mbox_fifo_full(mbox)) {
-		if (mbox->ops->type == OMAP_MBOX_TYPE2)
-			return -1;
-		if (--i == 0)
-			return -1;
-		udelay(1);
-	}
-	return ret;
-}
-
 int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
 {
 	struct omap_mbox_queue *mq = mbox->txq;
@@ -100,7 +85,7 @@ int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
 		goto out;
 	}
 
-	if (kfifo_is_empty(&mq->fifo) && !__mbox_poll_for_space(mbox)) {
+	if (kfifo_is_empty(&mq->fifo) && !mbox_fifo_full(mbox)) {
 		mbox_fifo_write(mbox, msg);
 		goto out;
 	}
@@ -158,7 +143,7 @@ static void mbox_tx_tasklet(unsigned long tx_data)
 	int ret;
 
 	while (kfifo_len(&mq->fifo)) {
-		if (__mbox_poll_for_space(mbox)) {
+		if (mbox_fifo_full(mbox)) {
 			omap_mbox_enable_irq(mbox, IRQ_TX);
 			break;
 		}
@@ -223,9 +208,6 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 
 		len = kfifo_in(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
 		WARN_ON(len != sizeof(msg));
-
-		if (mbox->ops->type == OMAP_MBOX_TYPE1)
-			break;
 	}
 
 	/* no more messages in the fifo. clear IRQ source. */

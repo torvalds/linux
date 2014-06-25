@@ -16,12 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/omap-mailbox.h>
 
-typedef int __bitwise omap_mbox_type_t;
-#define OMAP_MBOX_TYPE1 ((__force omap_mbox_type_t) 1)
-#define OMAP_MBOX_TYPE2 ((__force omap_mbox_type_t) 2)
-
 struct omap_mbox_ops {
-	omap_mbox_type_t	type;
 	int		(*startup)(struct omap_mbox *mbox);
 	void		(*shutdown)(struct omap_mbox *mbox);
 	/* fifo */

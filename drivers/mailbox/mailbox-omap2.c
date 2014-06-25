@@ -205,7 +205,6 @@ static void omap2_mbox_restore_ctx(struct omap_mbox *mbox)
 }
 
 static struct omap_mbox_ops omap2_mbox_ops = {
-	.type		= OMAP_MBOX_TYPE2,
 	.startup	= omap2_mbox_startup,
 	.shutdown	= omap2_mbox_shutdown,
 	.fifo_read	= omap2_mbox_fifo_read,
