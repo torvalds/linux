@@ -843,7 +843,13 @@ void vRunCommand(struct work_struct *work)
 		break;
 
 	case WLAN_CMD_BECON_SEND_START:
-		bMgrPrepareBeaconToSend(pDevice, pMgmt);
+		if (!pDevice->vif)
+			break;
+
+		vnt_beacon_make(pDevice, pDevice->vif);
+
+		vnt_mac_reg_bits_on(pDevice, MAC_REG_TCR, TCR_AUTOBCNTX);
+
 		break;
 
 	case WLAN_CMD_SETPOWER_START:
