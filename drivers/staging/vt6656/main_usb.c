@@ -59,7 +59,6 @@
 #include "rxtx.h"
 #include "bssdb.h"
 #include "wpactl.h"
-#include "iwctl.h"
 #include "dpc.h"
 #include "datarate.h"
 #include "rf.h"
@@ -192,7 +191,6 @@ static const long frequency_list[] = {
     5700, 5745, 5765, 5785, 5805, 5825
 	};
 
-static const struct iw_handler_def	iwctl_handler_def;
 */
 
 static int vt6656_probe(struct usb_interface *intf,

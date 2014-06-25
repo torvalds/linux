@@ -23,7 +23,6 @@ vt6656_stage-y +=	main_usb.o \
 			tkip.o \
 			michael.o \
 			rf.o \
-			iwctl.o \
 			wpactl.o \
 			usbpipe.o \
 			channel.o \
