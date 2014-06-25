@@ -41,7 +41,6 @@
 #include "device.h"
 #include "mac.h"
 #include "card.h"
-#include "80211hdr.h"
 #include "wcmd.h"
 #include "power.h"
 #include "baseband.h"
@@ -237,7 +236,6 @@ int bScheduleCommand(struct vnt_private *pDevice,
 		return false;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].eCmd = eCommand;
 	pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].bForceSCAN = true;
-	memset(pDevice->eCmdQueue[pDevice->uCmdEnqueueIdx].abyCmdDesireSSID, 0 , WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 	if (pbyItem0 != NULL) {
 		switch (eCommand) {
 		case WLAN_CMD_RADIO:

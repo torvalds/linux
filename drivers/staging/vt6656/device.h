@@ -73,7 +73,6 @@
  * device specific
  */
 
-#include "80211hdr.h"
 #include "wcmd.h"
 #include "desc.h"
 #include "key.h"
@@ -603,11 +602,9 @@ struct vnt_private {
 	NDIS_802_11_WEP_STATUS eOldEncryptionStatus;
 	u32 dwIVCounter;
 
-	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
 	u8 byKeyIndex;
 
 	u32 uKeyLength;
-	u8 abyKey[WLAN_WEP232_KEYLEN];
 	unsigned long key_entry_inuse;
 
 	/* for AP mode */

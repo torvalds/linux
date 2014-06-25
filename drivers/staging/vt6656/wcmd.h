@@ -29,7 +29,6 @@
 #ifndef __WCMD_H__
 #define __WCMD_H__
 
-#include "80211hdr.h"
 #include "device.h"
 
 #define AUTHENTICATE_TIMEOUT   1000 //ms
@@ -70,7 +69,6 @@ typedef enum tagCMD_STATUS {
 
 typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
-    u8     abyCmdDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     bool     bNeedRadioOFF;
     bool     bRadioCmd;
     bool     bForceSCAN;

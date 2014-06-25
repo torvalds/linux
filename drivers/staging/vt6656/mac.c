@@ -32,7 +32,6 @@
 
 #include "desc.h"
 #include "mac.h"
-#include "80211hdr.h"
 #include "usbpipe.h"
 
 /*
