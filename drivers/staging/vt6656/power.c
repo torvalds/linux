@@ -293,25 +293,15 @@ int PSbSendNullPacket(struct vnt_private *pDevice)
 
 int vnt_next_tbtt_wakeup(struct vnt_private *priv)
 {
-	struct vnt_manager *mgmt = &priv->vnt_mgmt;
+	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_conf *conf = &hw->conf;
 	int wake_up = false;
 
-	if (mgmt->wListenInterval >= 2) {
-		if (mgmt->wCountToWakeUp == 0)
-			mgmt->wCountToWakeUp = mgmt->wListenInterval;
-
-		mgmt->wCountToWakeUp--;
-
-		if (mgmt->wCountToWakeUp == 1) {
-			/* Turn on wake up to listen next beacon */
-			vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
-			priv->bPSRxBeacon = false;
-			wake_up = true;
-		} else if (!priv->bPSRxBeacon) {
-			/* Listen until RxBeacon */
-			vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
-		}
+	if (conf->listen_interval == 1) {
+		/* Turn on wake up to listen next beacon */
+		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
+		wake_up = true;
 	}
+
 	return wake_up;
 }
-
