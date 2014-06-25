@@ -649,12 +649,10 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
 	case MPI_FUNCTION_CONFIG:
 	case MPI_FUNCTION_SAS_IO_UNIT_CONTROL:
 		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
-		if (reply) {
-			ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
-			memcpy(ioc->mptbase_cmds.reply, reply,
-			    min(MPT_DEFAULT_FRAME_SIZE,
-				4 * reply->u.reply.MsgLength));
-		}
+		ioc->mptbase_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
+		memcpy(ioc->mptbase_cmds.reply, reply,
+		    min(MPT_DEFAULT_FRAME_SIZE,
+			4 * reply->u.reply.MsgLength));
 		if (ioc->mptbase_cmds.status & MPT_MGMT_STATUS_PENDING) {
 			ioc->mptbase_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
 			complete(&ioc->mptbase_cmds.done);

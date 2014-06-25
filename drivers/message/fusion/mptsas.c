@@ -1203,27 +1203,28 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	    "(mf = %p, mr = %p)\n", ioc->name, mf, mr));
 
 	pScsiTmReply = (SCSITaskMgmtReply_t *)mr;
-	if (pScsiTmReply) {
-		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-		    "\tTaskMgmt completed: fw_channel = %d, fw_id = %d,\n"
-		    "\ttask_type = 0x%02X, iocstatus = 0x%04X "
-		    "loginfo = 0x%08X,\n\tresponse_code = 0x%02X, "
-		    "term_cmnds = %d\n", ioc->name,
-		    pScsiTmReply->Bus, pScsiTmReply->TargetID,
-		    pScsiTmReply->TaskType,
-		    le16_to_cpu(pScsiTmReply->IOCStatus),
-		    le32_to_cpu(pScsiTmReply->IOCLogInfo),
-		    pScsiTmReply->ResponseCode,
-		    le32_to_cpu(pScsiTmReply->TerminationCount)));
+	if (!pScsiTmReply)
+		return 0;
 
-		if (pScsiTmReply->ResponseCode)
-			mptscsih_taskmgmt_response_code(ioc,
-			pScsiTmReply->ResponseCode);
-	}
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+	    "\tTaskMgmt completed: fw_channel = %d, fw_id = %d,\n"
+	    "\ttask_type = 0x%02X, iocstatus = 0x%04X "
+	    "loginfo = 0x%08X,\n\tresponse_code = 0x%02X, "
+	    "term_cmnds = %d\n", ioc->name,
+	    pScsiTmReply->Bus, pScsiTmReply->TargetID,
+	    pScsiTmReply->TaskType,
+	    le16_to_cpu(pScsiTmReply->IOCStatus),
+	    le32_to_cpu(pScsiTmReply->IOCLogInfo),
+	    pScsiTmReply->ResponseCode,
+	    le32_to_cpu(pScsiTmReply->TerminationCount)));
 
-	if (pScsiTmReply && (pScsiTmReply->TaskType ==
+	if (pScsiTmReply->ResponseCode)
+		mptscsih_taskmgmt_response_code(ioc,
+		pScsiTmReply->ResponseCode);
+
+	if (pScsiTmReply->TaskType ==
 	    MPI_SCSITASKMGMT_TASKTYPE_QUERY_TASK || pScsiTmReply->TaskType ==
-	     MPI_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET)) {
+	     MPI_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET) {
 		ioc->taskmgmt_cmds.status |= MPT_MGMT_STATUS_COMMAND_GOOD;
 		ioc->taskmgmt_cmds.status |= MPT_MGMT_STATUS_RF_VALID;
 		memcpy(ioc->taskmgmt_cmds.reply, mr,
@@ -3853,10 +3854,8 @@ retry_page:
 			phy_info = mptsas_find_phyinfo_by_sas_address(ioc,
 					sas_info->sas_address);
 
-			if (phy_info) {
-				mptsas_del_end_device(ioc, phy_info);
-				goto redo_device_scan;
-			}
+			mptsas_del_end_device(ioc, phy_info);
+			goto redo_device_scan;
 		} else
 			mptsas_volume_delete(ioc, sas_info->fw.id);
 	}
@@ -3867,9 +3866,8 @@ retry_page:
  redo_expander_scan:
 	list_for_each_entry(port_info, &ioc->sas_topology, list) {
 
-		if (port_info->phy_info &&
-		    (!(port_info->phy_info[0].identify.device_info &
-		    MPI_SAS_DEVICE_INFO_SMP_TARGET)))
+		if (!(port_info->phy_info[0].identify.device_info &
+		    MPI_SAS_DEVICE_INFO_SMP_TARGET))
 			continue;
 		found_expander = 0;
 		handle = 0xFFFF;

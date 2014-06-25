@@ -1271,15 +1271,13 @@ mptscsih_info(struct Scsi_Host *SChost)
 
 	h = shost_priv(SChost);
 
-	if (h) {
-		if (h->info_kbuf == NULL)
-			if ((h->info_kbuf = kmalloc(0x1000 /* 4Kb */, GFP_KERNEL)) == NULL)
-				return h->info_kbuf;
-		h->info_kbuf[0] = '\0';
+	if (h->info_kbuf == NULL)
+		if ((h->info_kbuf = kmalloc(0x1000 /* 4Kb */, GFP_KERNEL)) == NULL)
+			return h->info_kbuf;
+	h->info_kbuf[0] = '\0';
 
-		mpt_print_ioc_summary(h->ioc, h->info_kbuf, &size, 0, 0);
-		h->info_kbuf[size-1] = '\0';
-	}
+	mpt_print_ioc_summary(h->ioc, h->info_kbuf, &size, 0, 0);
+	h->info_kbuf[size-1] = '\0';
 
 	return h->info_kbuf;
 }
@@ -1368,8 +1366,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt)
 	/* Default to untagged. Once a target structure has been allocated,
 	 * use the Inquiry data to determine if device supports tagged.
 	 */
-	if (vdevice
-	    && (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_Q_YES)
+	if ((vdevice->vtarget->tflags & MPT_TARGET_FLAGS_Q_YES)
 	    && (SCpnt->device->tagged_supported)) {
 		scsictl = scsidir | MPI_SCSIIO_CONTROL_SIMPLEQ;
 		if (SCpnt->request && SCpnt->request->ioprio) {
