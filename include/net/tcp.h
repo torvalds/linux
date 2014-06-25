@@ -1605,6 +1605,9 @@ struct tcp_request_sock_ops {
 	__u32 (*cookie_init_seq)(struct sock *sk, const struct sk_buff *skb,
 				 __u16 *mss);
 #endif
+	struct dst_entry *(*route_req)(struct sock *sk, struct flowi *fl,
+				       const struct request_sock *req,
+				       bool *strict);
 };
 
 #ifdef CONFIG_SYN_COOKIES

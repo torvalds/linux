@@ -745,6 +745,16 @@ static void tcp_v6_init_req(struct request_sock *req, struct sock *sk,
 	}
 }
 
+static struct dst_entry *tcp_v6_route_req(struct sock *sk, struct flowi *fl,
+					  const struct request_sock *req,
+					  bool *strict)
+{
+	if (strict)
+		*strict = true;
+	return inet6_csk_route_req(sk, &fl->u.ip6, req);
+}
+
+
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
@@ -764,6 +774,7 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 #ifdef CONFIG_SYN_COOKIES
 	.cookie_init_seq =	cookie_v6_init_sequence,
 #endif
+	.route_req	=	tcp_v6_route_req,
 };
 
 static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
@@ -1078,10 +1089,10 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		 * timewait bucket, so that all the necessary checks
 		 * are made in the function processing timewait state.
 		 */
-		if (tmp_opt.saw_tstamp &&
-		    tcp_death_row.sysctl_tw_recycle &&
-		    (dst = inet6_csk_route_req(sk, &fl6, req)) != NULL) {
-			if (!tcp_peer_is_proven(req, dst, true)) {
+		if (tmp_opt.saw_tstamp && tcp_death_row.sysctl_tw_recycle) {
+			dst = af_ops->route_req(sk, (struct flowi *)&fl6, req,
+						NULL);
+			if (dst && !tcp_peer_is_proven(req, dst, true)) {
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
 				goto drop_and_release;
 			}
@@ -1110,8 +1121,11 @@ have_isn:
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_release;
 
-	if (!dst && (dst = inet6_csk_route_req(sk, &fl6, req)) == NULL)
-		goto drop_and_free;
+	if (!dst) {
+		dst = af_ops->route_req(sk, (struct flowi *)&fl6, req, NULL);
+		if (!dst)
+			goto drop_and_free;
+	}
 
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_openreq_init_rwin(req, sk, dst);
