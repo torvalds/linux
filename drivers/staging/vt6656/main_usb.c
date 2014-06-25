@@ -206,27 +206,12 @@ static void usb_device_reset(struct vnt_private *pDevice);
 
 static void
 device_set_options(struct vnt_private *pDevice) {
-
-    u8    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    u8    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
-
-    memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-    memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-    memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
-
     pDevice->cbTD = TX_DESC_DEF0;
     pDevice->cbRD = RX_DESC_DEF0;
     pDevice->uChannel = CHANNEL_DEF;
-    pDevice->wRTSThreshold = RTS_THRESH_DEF;
-    pDevice->wFragmentationThreshold = FRAG_THRESH_DEF;
     pDevice->byShortRetryLimit = SHORT_RETRY_DEF;
     pDevice->byLongRetryLimit = LONG_RETRY_DEF;
-    pDevice->byShortPreamble = PREAMBLE_TYPE_DEF;
-    pDevice->b11hEnable = X80211h_MODE_DEF;
     pDevice->op_mode = NL80211_IFTYPE_UNSPECIFIED;
-    pDevice->uConnectionRate = DATA_RATE_DEF;
-    if (pDevice->uConnectionRate < RATE_AUTO) pDevice->bFixRate = true;
     pDevice->byBBType = BBP_TYPE_DEF;
     pDevice->byPacketType = pDevice->byBBType;
     pDevice->byAutoFBCtrl = AUTO_FB_0;
@@ -306,14 +291,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	/* only used in 11g type, sync with ERP IE */
 	pDevice->bNonERPPresent = false;
 	pDevice->bBarkerPreambleMd = false;
-	if (pDevice->bFixRate) {
-		pDevice->wCurrentRate = (u16)pDevice->uConnectionRate;
-	} else {
-		if (pDevice->byBBType == BB_TYPE_11B)
-			pDevice->wCurrentRate = RATE_11M;
-		else
-			pDevice->wCurrentRate = RATE_54M;
-	}
 
 	pDevice->byTopOFDMBasicRate = RATE_24M;
 	pDevice->byTopCCKBasicRate = RATE_1M;
