@@ -35,12 +35,9 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/etherdevice.h>
 #include <linux/suspend.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
-#include <net/iw_handler.h>
-#include <net/cfg80211.h>
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <linux/crc32.h>
