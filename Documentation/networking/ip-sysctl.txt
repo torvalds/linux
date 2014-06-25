@@ -1210,6 +1210,18 @@ accept_ra_defrtr - BOOLEAN
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
 
+accept_ra_from_local - BOOLEAN
+	Accept RA with source-address that is found on local machine
+        if the RA is otherwise proper and able to be accepted.
+        Default is to NOT accept these as it may be an un-intended
+        network loop.
+
+	Functional default:
+           enabled if accept_ra_from_local is enabled
+               on a specific interface.
+	   disabled if accept_ra_from_local is disabled
+               on a specific interface.
+
 accept_ra_pinfo - BOOLEAN
 	Learn Prefix Information in Router Advertisement.
 

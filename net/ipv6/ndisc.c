@@ -1148,11 +1148,15 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		goto skip_defrtr;
 	}
 
-	if (ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+	/* Do not accept RA with source-addr found on local machine unless
+	 * accept_ra_from_local is set to true.
+	 */
+	if (!(in6_dev->cnf.accept_ra_from_local ||
+	      ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
+			    NULL, 0))) {
 		ND_PRINTK(2, info,
-			  "RA: %s, chk_addr failed for dev: %s\n",
-			  __func__, skb->dev->name);
+			  "RA from local address detected on dev: %s: default router ignored\n",
+			  skb->dev->name);
 		goto skip_defrtr;
 	}
 
@@ -1290,11 +1294,12 @@ skip_linkparms:
 	}
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
-	if (ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
-			  NULL, 0)) {
+	if (!(in6_dev->cnf.accept_ra_from_local ||
+	      ipv6_chk_addr(dev_net(in6_dev->dev), &ipv6_hdr(skb)->saddr,
+			    NULL, 0))) {
 		ND_PRINTK(2, info,
-			  "RA: %s, chk-addr (route info) is false for dev: %s\n",
-			  __func__, skb->dev->name);
+			  "RA from local address detected on dev: %s: router info ignored.\n",
+			  skb->dev->name);
 		goto skip_routeinfo;
 	}
 
