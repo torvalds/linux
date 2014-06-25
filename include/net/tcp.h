@@ -493,10 +493,11 @@ static inline u32 tcp_cookie_time(void)
 
 u32 __cookie_v4_init_sequence(const struct iphdr *iph, const struct tcphdr *th,
 			      u16 *mssp);
-__u32 cookie_v4_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mss);
+__u32 cookie_v4_init_sequence(struct sock *sk, const struct sk_buff *skb,
+			      __u16 *mss);
 #else
 static inline __u32 cookie_v4_init_sequence(struct sock *sk,
-					    struct sk_buff *skb,
+					    const struct sk_buff *skb,
 					    __u16 *mss)
 {
 	return 0;
