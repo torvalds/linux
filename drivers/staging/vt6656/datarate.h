@@ -39,20 +39,6 @@
 #define RETRY_TIMES_THRD_H         2    /* times */
 #define RETRY_TIMES_THRD_L         1    /* times */
 
-#define RATE_1M         0
-#define RATE_2M         1
-#define RATE_5M         2
-#define RATE_11M        3
-#define RATE_6M         4
-#define RATE_9M         5
-#define RATE_12M        6
-#define RATE_18M        7
-#define RATE_24M        8
-#define RATE_36M        9
-#define RATE_48M       10
-#define RATE_54M       11
-#define RATE_AUTO      12
-
 void RATEvParseMaxRate(struct vnt_private *, PWLAN_IE_SUPP_RATES pItemRates,
 	PWLAN_IE_SUPP_RATES pItemExtRates, int bUpdateBasicRate,
 	u16 *pwMaxBasicRate, u16 *pwMaxSuppRate, u16 *pwSuppRate,
