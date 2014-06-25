@@ -36,7 +36,6 @@
 
 #include "80211hdr.h"
 #include "wcmd.h"
-#include "bssdb.h"
 #include "card.h"
 
 // Scan time
@@ -221,7 +220,6 @@ struct vnt_manager {
 	WMAC_BSS_STATE eCurrState; /* MAC current BSS state */
 	WMAC_BSS_STATE eLastState; /* MAC last BSS state */
 
-	PKnownBSS pCurrBSS;
 	u8 byCSSGK;
 	u8 byCSSPK;
 
@@ -257,7 +255,6 @@ struct vnt_manager {
 	u32 uIBSSChannel;
 	u8 abyIBSSSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 	u8 byAPBBType;
-	u8 abyWPAIE[MAX_WPA_IE_LEN];
 	u16 wWPAIELen;
 
 	u32 uAssocCount;
@@ -295,7 +292,6 @@ struct vnt_manager {
 	u8 byPSPacketPool[sizeof(struct vnt_tx_mgmt)
 		+ WLAN_NULLDATA_FR_MAXLEN];
 	int bRxBeaconInTBTTWake;
-	u8 abyPSTxMap[MAX_NODE_NUM + 1];
 
 	/* management command related */
 	u32 uCmdBusy;
@@ -310,16 +306,13 @@ struct vnt_manager {
 	struct vnt_rx_mgmt sRxPacket;
 
 	/* link list of known bss's (scan results) */
-	KnownBSS sBSSList[MAX_BSS_NUM];
 	/* link list of same bss's */
-	KnownBSS pSameBSS[6];
 	int Cisco_cckm;
 	u8 Roam_dbm;
 
 	/* table list of known node */
 	/* sNodeDBList[0] is reserved for AP under Infra mode */
 	/* sNodeDBList[0] is reserved for Multicast under adhoc/AP mode */
-	KnownNodeDB sNodeDBTable[MAX_NODE_NUM + 1];
 
 	/* WPA2 PMKID Cache */
 	int bRoaming;

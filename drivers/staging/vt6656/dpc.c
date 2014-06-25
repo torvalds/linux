@@ -39,7 +39,6 @@
 #include "device.h"
 #include "rxtx.h"
 #include "card.h"
-#include "bssdb.h"
 #include "mac.h"
 #include "baseband.h"
 #include "rf.h"

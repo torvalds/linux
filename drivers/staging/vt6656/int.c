@@ -35,7 +35,6 @@
 #include "int.h"
 #include "mac.h"
 #include "power.h"
-#include "bssdb.h"
 #include "usbpipe.h"
 
 static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
