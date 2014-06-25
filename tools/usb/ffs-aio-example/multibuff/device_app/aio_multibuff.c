@@ -27,7 +27,9 @@
 /******************** Descriptors and Strings *******************************/
 
 static const struct {
-	struct usb_functionfs_descs_head header;
+	struct usb_functionfs_descs_head_v2 header;
+	__le32 fs_count;
+	__le32 hs_count;
 	struct {
 		struct usb_interface_descriptor intf;
 		struct usb_endpoint_descriptor_no_audio bulk_sink;
@@ -35,11 +37,12 @@ static const struct {
 	} __attribute__ ((__packed__)) fs_descs, hs_descs;
 } __attribute__ ((__packed__)) descriptors = {
 	.header = {
-		.magic = htole32(FUNCTIONFS_DESCRIPTORS_MAGIC),
+		.magic = htole32(FUNCTIONFS_DESCRIPTORS_MAGIC_V2),
+		.flags = htole32(FUNCTIONFS_HAS_FS_DESC |
+				     FUNCTIONFS_HAS_HS_DESC),
 		.length = htole32(sizeof(descriptors)),
-		.fs_count = htole32(3),
-		.hs_count = htole32(3),
 	},
+	.fs_count = htole32(3),
 	.fs_descs = {
 		.intf = {
 			.bLength = sizeof(descriptors.fs_descs.intf),
@@ -61,6 +64,7 @@ static const struct {
 			.bmAttributes = USB_ENDPOINT_XFER_BULK,
 		},
 	},
+	.hs_count = htole32(3),
 	.hs_descs = {
 		.intf = {
 			.bLength = sizeof(descriptors.hs_descs.intf),
