@@ -899,44 +899,7 @@ int BBbVT3184Init(struct vnt_private *priv)
 	if (status != STATUS_SUCCESS)
 		return false;
 
-	/* zonetype initial */
-	priv->byOriginalZonetype = priv->abyEEPROM[EEP_OFS_ZONETYPE];
-
-	if (priv->config_file.ZoneType >= 0) {
-		if ((priv->config_file.ZoneType == 0) &&
-			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x00)) {
-			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0;
-			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0B;
-
-			dev_dbg(&priv->usb->dev, "Init Zone Type :USA\n");
-		} else if ((priv->config_file.ZoneType == 1) &&
-			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x01)) {
-			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0x01;
-			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
-
-			dev_dbg(&priv->usb->dev, "Init Zone Type :Japan\n");
-		} else if ((priv->config_file.ZoneType == 2) &&
-			(priv->abyEEPROM[EEP_OFS_ZONETYPE] != 0x02)) {
-			priv->abyEEPROM[EEP_OFS_ZONETYPE] = 0x02;
-			priv->abyEEPROM[EEP_OFS_MAXCHANNEL] = 0x0D;
-
-			dev_dbg(&priv->usb->dev, "Init Zone Type :Europe\n");
-		} else {
-			if (priv->config_file.ZoneType !=
-					priv->abyEEPROM[EEP_OFS_ZONETYPE])
-				printk("zonetype in file[%02x]\
-					 mismatch with in EEPROM[%02x]\n",
-					priv->config_file.ZoneType,
-					priv->abyEEPROM[EEP_OFS_ZONETYPE]);
-			else
-				printk("Read Zonetype file success,\
-					use default zonetype setting[%02x]\n",
-					priv->config_file.ZoneType);
-		}
-	}
-
-	if (!priv->bZoneRegExist)
-		priv->byZoneType = priv->abyEEPROM[EEP_OFS_ZONETYPE];
+	priv->byZoneType = priv->abyEEPROM[EEP_OFS_ZONETYPE];
 
 	priv->byRFType = priv->abyEEPROM[EEP_OFS_RFTYPE];
 

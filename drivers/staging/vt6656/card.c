@@ -55,7 +55,6 @@
 #include "power.h"
 #include "key.h"
 #include "rc4.h"
-#include "country.h"
 #include "datarate.h"
 #include "usbpipe.h"
 

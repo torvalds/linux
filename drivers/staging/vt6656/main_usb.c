@@ -56,7 +56,6 @@
 #include "wctl.h"
 #include "power.h"
 #include "wcmd.h"
-#include "iocmd.h"
 #include "rxtx.h"
 #include "bssdb.h"
 #include "wpactl.h"
@@ -222,12 +221,6 @@ static void device_free_int_bufs(struct vnt_private *pDevice);
 static void device_free_frag_bufs(struct vnt_private *pDevice);
 static bool device_alloc_bufs(struct vnt_private *pDevice);
 
-static int Read_config_file(struct vnt_private *pDevice);
-static unsigned char *Config_FileOperation(struct vnt_private *pDevice);
-static int Config_FileGetParameter(unsigned char *string,
-				   unsigned char *dest,
-				   unsigned char *source);
-
 static void usb_device_reset(struct vnt_private *pDevice);
 
 static void
@@ -379,13 +372,9 @@ static int device_init_registers(struct vnt_private *pDevice)
 	 * original zonetype is USA, but custom zonetype is Europe,
 	 * then need to recover 12, 13, 14 channels with 11 channel
 	 */
-	if (((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
-		(pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe)) &&
-		(pDevice->byOriginalZonetype == ZoneType_USA)) {
-		for (ii = 11; ii < 14; ii++) {
-			pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
-			pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
-		}
+	for (ii = 11; ii < 14; ii++) {
+		pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
+		pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
 	}
 
 	pDevice->byOFDMPwrA = 0x34; /* same as RFbMA2829SelectChannel */
@@ -807,9 +796,6 @@ static int  device_open(struct net_device *dev)
     MP_CLEAR_FLAG(pDevice, fMP_DISCONNECTED);
     MP_SET_FLAG(pDevice, fMP_POST_READS);
     MP_SET_FLAG(pDevice, fMP_POST_WRITES);
-
-    /* read config file */
-    Read_config_file(pDevice);
 
 	if (device_init_registers(pDevice) == false) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " init register fail\n");
@@ -1517,160 +1503,6 @@ out:
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 
 	return NETDEV_TX_OK;
-}
-
-/* find out the start position of str2 from str1 */
-static unsigned char *kstrstr(const unsigned char *str1,
-			      const unsigned char *str2) {
-  int str1_len = strlen(str1);
-  int str2_len = strlen(str2);
-
-  while (str1_len >= str2_len) {
-       str1_len--;
-      if(memcmp(str1,str2,str2_len)==0)
-	return (unsigned char *) str1;
-        str1++;
-  }
-  return NULL;
-}
-
-static int Config_FileGetParameter(unsigned char *string,
-				   unsigned char *dest,
-				   unsigned char *source)
-{
-  unsigned char buf1[100];
-  unsigned char buf2[100];
-  unsigned char *start_p = NULL, *end_p = NULL, *tmp_p = NULL;
-  int ii;
-
-    memset(buf1,0,100);
-    strcat(buf1, string);
-    strcat(buf1, "=");
-    source+=strlen(buf1);
-
-    /* find target string start point */
-    start_p = kstrstr(source,buf1);
-    if (start_p == NULL)
-	return false;
-
-    /* check if current config line is marked by "#" */
-    for (ii = 1; ; ii++) {
-	if (memcmp(start_p - ii, "\n", 1) == 0)
-		break;
-	if (memcmp(start_p - ii, "#", 1) == 0)
-		return false;
-    }
-
-    /* find target string end point */
-     end_p = kstrstr(start_p,"\n");
-     if (end_p == NULL) {       /* can't find "\n", but don't care */
-	     end_p = start_p + strlen(start_p);   /* no include "\n" */
-     }
-
-   memset(buf2,0,100);
-   memcpy(buf2, start_p, end_p-start_p); /* get the target line */
-   buf2[end_p-start_p]='\0';
-
-   /* find value */
-   start_p = kstrstr(buf2,"=");
-   if (start_p == NULL)
-      return false;
-   memset(buf1,0,100);
-   strcpy(buf1,start_p+1);
-
-   /* except space */
-  tmp_p = buf1;
-  while(*tmp_p != 0x00) {
-  	if(*tmp_p==' ')
-	    tmp_p++;
-         else
-	  break;
-  }
-
-   memcpy(dest,tmp_p,strlen(tmp_p));
- return true;
-}
-
-/* if read fails, return NULL, or return data pointer */
-static unsigned char *Config_FileOperation(struct vnt_private *pDevice)
-{
-	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
-	struct file   *file;
-
-	if (!buffer) {
-		printk("allocate mem for file fail?\n");
-		return NULL;
-	}
-
-	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
-	if (IS_ERR(file)) {
-		kfree(buffer);
-		printk("Config_FileOperation file Not exist\n");
-		return NULL;
-	}
-
-	if (kernel_read(file, 0, buffer, 1024) < 0) {
-		printk("read file error?\n");
-		kfree(buffer);
-		buffer = NULL;
-	}
-
-	fput(file);
-	return buffer;
-}
-
-/* return --->-1:fail; >=0:successful */
-static int Read_config_file(struct vnt_private *pDevice)
-{
-	int result = 0;
-	unsigned char tmpbuffer[100];
-	unsigned char *buffer = NULL;
-
-	/* init config setting */
- pDevice->config_file.ZoneType = -1;
- pDevice->config_file.eAuthenMode = -1;
- pDevice->config_file.eEncryptionStatus = -1;
-
-  buffer = Config_FileOperation(pDevice);
-  if (buffer == NULL) {
-     result =-1;
-     return result;
-  }
-
-/* get zonetype */
-{
-    memset(tmpbuffer,0,sizeof(tmpbuffer));
-    if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer) ==true) {
-    if(memcmp(tmpbuffer,"USA",3)==0) {
-      pDevice->config_file.ZoneType=ZoneType_USA;
-    }
-    else if(memcmp(tmpbuffer,"JAPAN",5)==0) {
-      pDevice->config_file.ZoneType=ZoneType_Japan;
-    }
-    else if(memcmp(tmpbuffer,"EUROPE",6)==0) {
-     pDevice->config_file.ZoneType=ZoneType_Europe;
-    }
-    else {
-      printk("Unknown Zonetype[%s]?\n",tmpbuffer);
-   }
- }
-}
-
-/* get other parameter */
-  {
-	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("AUTHENMODE",tmpbuffer,buffer)==true) {
-	 pDevice->config_file.eAuthenMode = (int) simple_strtol(tmpbuffer, NULL, 10);
-       }
-
-	memset(tmpbuffer,0,sizeof(tmpbuffer));
-       if(Config_FileGetParameter("ENCRYPTIONMODE",tmpbuffer,buffer)==true) {
-	 pDevice->config_file.eEncryptionStatus= (int) simple_strtol(tmpbuffer, NULL, 10);
-       }
-  }
-
-  kfree(buffer);
-  return result;
 }
 
 static void device_set_multi(struct net_device *dev)

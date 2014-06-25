@@ -36,7 +36,6 @@
 #include "mac.h"
 #include "device.h"
 #include "wmgr.h"
-#include "iocmd.h"
 #include "iowpa.h"
 #include "usbpipe.h"
 #include "rf.h"

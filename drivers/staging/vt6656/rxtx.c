@@ -58,7 +58,6 @@
 #include "rf.h"
 #include "datarate.h"
 #include "usbpipe.h"
-#include "iocmd.h"
 
 static int          msglevel                = MSG_LEVEL_INFO;
 

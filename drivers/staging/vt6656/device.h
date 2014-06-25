@@ -481,9 +481,6 @@ struct vnt_private {
 	u8 byBBRxConf;
 
 	u8 byZoneType;
-	int bZoneRegExist;
-
-	u8 byOriginalZonetype;
 
 	int bLinkPass; /* link status: OK or fail */
 	struct vnt_cmd_card_init init_command;
