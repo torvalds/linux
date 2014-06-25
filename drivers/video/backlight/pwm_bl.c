@@ -239,13 +239,10 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	pb->dev = &pdev->dev;
 	pb->enabled = false;
 
-	pb->enable_gpio = devm_gpiod_get(&pdev->dev, "enable");
+	pb->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable");
 	if (IS_ERR(pb->enable_gpio)) {
 		ret = PTR_ERR(pb->enable_gpio);
-		if (ret == -ENOENT)
-			pb->enable_gpio = NULL;
-		else
-			goto err_alloc;
+		goto err_alloc;
 	}
 
 	/*
