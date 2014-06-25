@@ -11097,6 +11097,22 @@ const char *intel_output_name(int output)
 	return names[output];
 }
 
+static bool intel_crt_present(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_ULT(dev))
+		return false;
+
+	if (IS_CHERRYVIEW(dev))
+		return false;
+
+	if (IS_VALLEYVIEW(dev) && !dev_priv->vbt.int_crt_support)
+		return false;
+
+	return true;
+}
+
 static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -11105,7 +11121,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_lvds_init(dev);
 
-	if (!IS_ULT(dev) && !IS_CHERRYVIEW(dev) && dev_priv->vbt.int_crt_support)
+	if (intel_crt_present(dev))
 		intel_crt_init(dev);
 
 	if (HAS_DDI(dev)) {
