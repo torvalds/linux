@@ -245,7 +245,6 @@ struct vnt_rcb {
 	signed long Ref;
 	void *pDevice;
 	struct urb *pUrb;
-	struct vnt_rx_mgmt sMngPacket;
 	struct sk_buff *skb;
 	int bBoolInUse;
 };
@@ -454,9 +453,7 @@ struct vnt_private {
 	struct vnt_rcb *FirstRecvFreeList;
 	struct vnt_rcb *LastRecvFreeList;
 	u32 NumRecvFreeList;
-	struct vnt_rcb *FirstRecvMngList;
-	struct vnt_rcb *LastRecvMngList;
-	u32 NumRecvMngList;
+
 	int bIsRxWorkItemQueued;
 	int bIsRxMngWorkItemQueued;
 	unsigned long ulRcvRefCount; /* packets that have not returned back */

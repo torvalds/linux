@@ -108,8 +108,8 @@ void RXvFreeRCB(struct vnt_rcb *rcb, int re_alloc_skb)
 		schedule_work(&priv->read_work_item);
 	}
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d %d\n",
-			priv->NumRecvFreeList, priv->NumRecvMngList);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----RXFreeRCB %d\n",
+			priv->NumRecvFreeList);
 }
 
 int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,

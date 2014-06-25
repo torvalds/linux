@@ -634,8 +634,6 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 
 	priv->FirstRecvFreeList = NULL;
 	priv->LastRecvFreeList = NULL;
-	priv->FirstRecvMngList = NULL;
-	priv->LastRecvMngList = NULL;
 	priv->NumRecvFreeList = 0;
 
 	rcb = (struct vnt_rcb *)priv->pRCBMem;
