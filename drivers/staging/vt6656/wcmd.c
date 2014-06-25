@@ -139,10 +139,6 @@ void vRunCommand(struct work_struct *work)
 		}
 		break;
 
-	case WLAN_CMD_REMOVE_ALLKEY_START:
-		KeybRemoveAllKey(pDevice, &(pDevice->sKey), pDevice->abyBSSID);
-		break;
-
 	case WLAN_CMD_MAC_DISPOWERSAVING_START:
 		vnt_control_in_u8(pDevice, MESSAGE_REQUEST_MACREG, MAC_REG_PSCTL, &byData);
 		if ((byData & PSCTL_PS) != 0) {

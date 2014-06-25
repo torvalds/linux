@@ -635,7 +635,6 @@ struct vnt_private {
 	NDIS_802_11_WEP_STATUS eEncryptionStatus;
 	int  bTransmitKey;
 	NDIS_802_11_WEP_STATUS eOldEncryptionStatus;
-	SKeyManagement sKey;
 	u32 dwIVCounter;
 
 	u8 abyPRNG[WLAN_WEPMAX_KEYLEN+3];
