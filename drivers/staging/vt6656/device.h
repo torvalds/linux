@@ -631,6 +631,7 @@ struct vnt_private {
 
 	u32 uKeyLength;
 	u8 abyKey[WLAN_WEP232_KEYLEN];
+	unsigned long key_entry_inuse;
 
 	/* for AP mode */
 	u32 uAssocCount;

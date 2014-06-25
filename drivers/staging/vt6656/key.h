@@ -51,6 +51,14 @@
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF
 
+#define VNT_KEY_DEFAULTKEY	0x1
+#define VNT_KEY_GROUP_ADDRESS	0x2
+#define VNT_KEY_ALLGROUP	0x4
+#define VNT_KEY_GROUP		0x40
+#define VNT_KEY_PAIRWISE	0x00
+#define VNT_KEY_ONFLY		0x8000
+#define VNT_KEY_ONFLY_ALL	0x4000
+
 typedef struct tagSKeyItem
 {
     bool        bKeyValid;
@@ -108,5 +116,10 @@ int KeybSetDefaultKey(struct vnt_private *, PSKeyManagement pTable,
 int KeybSetAllGroupKey(struct vnt_private *, PSKeyManagement pTable,
 	u32 dwKeyIndex, u32 uKeyLength, u64 *KeyRSC, u8 *pbyKey,
 	u8 byKeyDecMode);
+
+int vnt_key_init_table(struct vnt_private *);
+
+int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+	struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
 
 #endif /* __KEY_H__ */
