@@ -1254,28 +1254,17 @@ static inline void umac_enable_set(struct bcm_sysport_priv *priv,
 		usleep_range(1000, 2000);
 }
 
-static inline int umac_reset(struct bcm_sysport_priv *priv)
+static inline void umac_reset(struct bcm_sysport_priv *priv)
 {
-	unsigned int timeout = 0;
 	u32 reg;
-	int ret = 0;
 
-	umac_writel(priv, 0, UMAC_CMD);
-	while (timeout++ < 1000) {
-		reg = umac_readl(priv, UMAC_CMD);
-		if (!(reg & CMD_SW_RESET))
-			break;
-
-		udelay(1);
-	}
-
-	if (timeout == 1000) {
-		dev_err(&priv->pdev->dev,
-			"timeout waiting for MAC to come out of reset\n");
-		ret = -ETIMEDOUT;
-	}
-
-	return ret;
+	reg = umac_readl(priv, UMAC_CMD);
+	reg |= CMD_SW_RESET;
+	umac_writel(priv, reg, UMAC_CMD);
+	udelay(10);
+	reg = umac_readl(priv, UMAC_CMD);
+	reg &= ~CMD_SW_RESET;
+	umac_writel(priv, reg, UMAC_CMD);
 }
 
 static void umac_set_hw_addr(struct bcm_sysport_priv *priv,
@@ -1303,11 +1292,7 @@ static int bcm_sysport_open(struct net_device *dev)
 	int ret;
 
 	/* Reset UniMAC */
-	ret = umac_reset(priv);
-	if (ret) {
-		netdev_err(dev, "UniMAC reset failed\n");
-		return ret;
-	}
+	umac_reset(priv);
 
 	/* Flush TX and RX FIFOs at TOPCTRL level */
 	topctrl_flush(priv);
