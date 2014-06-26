@@ -186,12 +186,6 @@ exit:
 	tipc_port_list_free(dp);
 }
 
-
-void tipc_port_wakeup(struct tipc_port *port)
-{
-	tipc_sock_wakeup(tipc_port_to_sock(port));
-}
-
 /* tipc_port_init - intiate TIPC port and lock it
  *
  * Returns obtained reference if initialization is successful, zero otherwise
@@ -209,7 +203,6 @@ u32 tipc_port_init(struct tipc_port *p_ptr,
 	}
 
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
-	p_ptr->sent = 1;
 	p_ptr->ref = ref;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
@@ -459,10 +452,9 @@ void tipc_acknowledge(u32 ref, u32 ack)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return;
-	if (p_ptr->connected) {
-		p_ptr->conn_unacked -= ack;
+	if (p_ptr->connected)
 		buf = port_build_proto_msg(p_ptr, CONN_ACK, ack);
-	}
+
 	tipc_port_unlock(p_ptr);
 	if (!buf)
 		return;

@@ -332,13 +332,15 @@ void tipc_link_delete_list(unsigned int bearer_id, bool shutting_down)
 static int link_schedule_port(struct tipc_link *l_ptr, u32 origport, u32 sz)
 {
 	struct tipc_port *p_ptr;
+	struct tipc_sock *tsk;
 
 	spin_lock_bh(&tipc_port_list_lock);
 	p_ptr = tipc_port_lock(origport);
 	if (p_ptr) {
 		if (!list_empty(&p_ptr->wait_list))
 			goto exit;
-		p_ptr->congested = 1;
+		tsk = tipc_port_to_sock(p_ptr);
+		tsk->link_cong = 1;
 		p_ptr->waiting_pkts = 1 + ((sz - 1) / l_ptr->max_pkt);
 		list_add_tail(&p_ptr->wait_list, &l_ptr->waiting_ports);
 		l_ptr->stats.link_congs++;
@@ -352,6 +354,7 @@ exit:
 void tipc_link_wakeup_ports(struct tipc_link *l_ptr, int all)
 {
 	struct tipc_port *p_ptr;
+	struct tipc_sock *tsk;
 	struct tipc_port *temp_p_ptr;
 	int win = l_ptr->queue_limit[0] - l_ptr->out_queue_size;
 
@@ -367,10 +370,11 @@ void tipc_link_wakeup_ports(struct tipc_link *l_ptr, int all)
 				 wait_list) {
 		if (win <= 0)
 			break;
+		tsk = tipc_port_to_sock(p_ptr);
 		list_del_init(&p_ptr->wait_list);
 		spin_lock_bh(p_ptr->lock);
-		p_ptr->congested = 0;
-		tipc_port_wakeup(p_ptr);
+		tsk->link_cong = 0;
+		tipc_sock_wakeup(tsk);
 		win -= p_ptr->waiting_pkts;
 		spin_unlock_bh(p_ptr->lock);
 	}

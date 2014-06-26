@@ -53,17 +53,13 @@
  * @connected: non-zero if port is currently connected to a peer port
  * @conn_type: TIPC type used when connection was established
  * @conn_instance: TIPC instance used when connection was established
- * @conn_unacked: number of unacknowledged messages received from peer port
  * @published: non-zero if port has one or more associated names
- * @congested: non-zero if cannot send because of link or port congestion
  * @max_pkt: maximum packet size "hint" used when building messages sent by port
  * @ref: unique reference to port in TIPC object registry
  * @phdr: preformatted message header used when sending messages
  * @port_list: adjacent ports in TIPC's global list of ports
  * @wait_list: adjacent ports in list of ports waiting on link congestion
  * @waiting_pkts:
- * @sent: # of non-empty messages sent by port
- * @acked: # of non-empty message acknowledgements from connected port's peer
  * @publications: list of publications for port
  * @pub_count: total # of publications port has made during its lifetime
  * @probing_state:
@@ -76,17 +72,13 @@ struct tipc_port {
 	int connected;
 	u32 conn_type;
 	u32 conn_instance;
-	u32 conn_unacked;
 	int published;
-	u32 congested;
 	u32 max_pkt;
 	u32 ref;
 	struct tipc_msg phdr;
 	struct list_head port_list;
 	struct list_head wait_list;
 	u32 waiting_pkts;
-	u32 sent;
-	u32 acked;
 	struct list_head publications;
 	u32 pub_count;
 	u32 probing_state;
@@ -119,8 +111,6 @@ int tipc_port_connect(u32 portref, struct tipc_portid const *port);
 int tipc_port_disconnect(u32 portref);
 
 int tipc_port_shutdown(u32 ref);
-
-void tipc_port_wakeup(struct tipc_port *port);
 
 /*
  * The following routines require that the port be locked on entry
@@ -160,12 +150,6 @@ static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 {
 	spin_unlock_bh(p_ptr->lock);
 }
-
-static inline int tipc_port_congested(struct tipc_port *p_ptr)
-{
-	return ((p_ptr->sent - p_ptr->acked) >= TIPC_FLOWCTRL_WIN);
-}
-
 
 static inline u32 tipc_port_peernode(struct tipc_port *p_ptr)
 {
