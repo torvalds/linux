@@ -17,6 +17,7 @@
 #include <linux/irqchip/arm-gic.h>
 
 #define IRQ_FREE	-1
+#define IRQ_RESERVED	-2
 #define GIC_IRQ_START	32
 
 /*
@@ -139,7 +140,7 @@ static int __init crossbar_of_init(struct device_node *node)
 				pr_err("Invalid reserved entry\n");
 				goto err3;
 			}
-			cb->irq_map[entry] = 0;
+			cb->irq_map[entry] = IRQ_RESERVED;
 		}
 	}
 
@@ -170,7 +171,7 @@ static int __init crossbar_of_init(struct device_node *node)
 	 * reserved irqs. so find and store the offsets once.
 	 */
 	for (i = 0; i < max; i++) {
-		if (!cb->irq_map[i])
+		if (cb->irq_map[i] == IRQ_RESERVED)
 			continue;
 
 		cb->register_offsets[i] = reserved;
