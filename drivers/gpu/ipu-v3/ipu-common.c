@@ -101,6 +101,18 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 }
 EXPORT_SYMBOL_GPL(ipu_pixelformat_to_colorspace);
 
+bool ipu_pixelformat_is_planar(u32 pixelformat)
+{
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(ipu_pixelformat_is_planar);
+
 enum ipu_color_space ipu_mbus_code_to_colorspace(u32 mbus_code)
 {
 	switch (mbus_code & 0xf000) {
