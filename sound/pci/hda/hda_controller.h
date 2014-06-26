@@ -25,9 +25,9 @@ static inline struct azx_dev *get_azx_dev(struct snd_pcm_substream *substream)
 {
 	return substream->runtime->private_data;
 }
-unsigned int azx_get_position(struct azx *chip,
-			      struct azx_dev *azx_dev,
-			      bool with_check);
+unsigned int azx_get_position(struct azx *chip, struct azx_dev *azx_dev);
+unsigned int azx_get_pos_lpib(struct azx *chip, struct azx_dev *azx_dev);
+unsigned int azx_get_pos_posbuf(struct azx *chip, struct azx_dev *azx_dev);
 
 /* Stream control. */
 void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev);

@@ -66,6 +66,15 @@
 #include "hda_controller.h"
 #include "hda_priv.h"
 
+/* position fix mode */
+enum {
+	POS_FIX_AUTO,
+	POS_FIX_LPIB,
+	POS_FIX_POSBUF,
+	POS_FIX_VIACOMBO,
+	POS_FIX_COMBO,
+};
+
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -434,6 +443,38 @@ static void azx_init_pci(struct azx *chip)
         }
 }
 
+/* calculate runtime delay from LPIB */
+static int azx_get_delay_from_lpib(struct azx *chip, struct azx_dev *azx_dev,
+				   unsigned int pos)
+{
+	struct snd_pcm_substream *substream = azx_dev->substream;
+	int stream = substream->stream;
+	unsigned int lpib_pos = azx_get_pos_lpib(chip, azx_dev);
+	int delay;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		delay = pos - lpib_pos;
+	else
+		delay = lpib_pos - pos;
+	if (delay < 0) {
+		if (delay >= azx_dev->delay_negative_threshold)
+			delay = 0;
+		else
+			delay += azx_dev->bufsize;
+	}
+
+	if (delay >= azx_dev->period_bytes) {
+		dev_info(chip->card->dev,
+			 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
+			 delay, azx_dev->period_bytes);
+		delay = 0;
+		chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
+		chip->get_delay[stream] = NULL;
+	}
+
+	return bytes_to_frames(substream->runtime, delay);
+}
+
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev);
 
 /* called from IRQ */
@@ -464,6 +505,8 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
  */
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
+	struct snd_pcm_substream *substream = azx_dev->substream;
+	int stream = substream->stream;
 	u32 wallclk;
 	unsigned int pos;
 
@@ -471,7 +514,25 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
 
-	pos = azx_get_position(chip, azx_dev, true);
+	if (chip->get_position[stream])
+		pos = chip->get_position[stream](chip, azx_dev);
+	else { /* use the position buffer as default */
+		pos = azx_get_pos_posbuf(chip, azx_dev);
+		if (!pos || pos == (u32)-1) {
+			dev_info(chip->card->dev,
+				 "Invalid position buffer, using LPIB read method instead.\n");
+			chip->get_position[stream] = azx_get_pos_lpib;
+			pos = azx_get_pos_lpib(chip, azx_dev);
+			chip->get_delay[stream] = NULL;
+		} else {
+			chip->get_position[stream] = azx_get_pos_posbuf;
+			if (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)
+				chip->get_delay[stream] = azx_get_delay_from_lpib;
+		}
+	}
+
+	if (pos >= azx_dev->bufsize)
+		pos = 0;
 
 	if (WARN_ONCE(!azx_dev->period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
@@ -552,6 +613,62 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 	chip->irq = chip->pci->irq;
 	pci_intx(chip->pci, !chip->msi);
 	return 0;
+}
+
+/* get the current DMA position with correction on VIA chips */
+static unsigned int azx_via_get_position(struct azx *chip,
+					 struct azx_dev *azx_dev)
+{
+	unsigned int link_pos, mini_pos, bound_pos;
+	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
+	unsigned int fifo_size;
+
+	link_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
+	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		/* Playback, no problem using link position */
+		return link_pos;
+	}
+
+	/* Capture */
+	/* For new chipset,
+	 * use mod to get the DMA position just like old chipset
+	 */
+	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
+	mod_dma_pos %= azx_dev->period_bytes;
+
+	/* azx_dev->fifo_size can't get FIFO size of in stream.
+	 * Get from base address + offset.
+	 */
+	fifo_size = readw(chip->remap_addr + VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+
+	if (azx_dev->insufficient) {
+		/* Link position never gather than FIFO size */
+		if (link_pos <= fifo_size)
+			return 0;
+
+		azx_dev->insufficient = 0;
+	}
+
+	if (link_pos <= fifo_size)
+		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
+	else
+		mini_pos = link_pos - fifo_size;
+
+	/* Find nearest previous boudary */
+	mod_mini_pos = mini_pos % azx_dev->period_bytes;
+	mod_link_pos = link_pos % azx_dev->period_bytes;
+	if (mod_link_pos >= fifo_size)
+		bound_pos = link_pos - mod_link_pos;
+	else if (mod_dma_pos >= mod_mini_pos)
+		bound_pos = mini_pos - mod_mini_pos;
+	else {
+		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
+		if (bound_pos >= azx_dev->bufsize)
+			bound_pos = 0;
+	}
+
+	/* Calculate real DMA position we want */
+	return bound_pos + mod_dma_pos;
 }
 
 #ifdef CONFIG_PM
@@ -1084,6 +1201,30 @@ static int check_position_fix(struct azx *chip, int fix)
 	return POS_FIX_AUTO;
 }
 
+static void assign_position_fix(struct azx *chip, int fix)
+{
+	static azx_get_pos_callback_t callbacks[] = {
+		[POS_FIX_AUTO] = NULL,
+		[POS_FIX_LPIB] = azx_get_pos_lpib,
+		[POS_FIX_POSBUF] = azx_get_pos_posbuf,
+		[POS_FIX_VIACOMBO] = azx_via_get_position,
+		[POS_FIX_COMBO] = azx_get_pos_lpib,
+	};
+
+	chip->get_position[0] = chip->get_position[1] = callbacks[fix];
+
+	/* combo mode uses LPIB only for playback */
+	if (fix == POS_FIX_COMBO)
+		chip->get_position[1] = NULL;
+
+	if (fix == POS_FIX_POSBUF &&
+	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
+		chip->get_delay[0] = chip->get_delay[1] =
+			azx_get_delay_from_lpib;
+	}
+
+}
+
 /*
  * black-lists for probe_mask
  */
@@ -1258,13 +1399,7 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	init_vga_switcheroo(chip);
 	init_completion(&chip->probe_wait);
 
-	chip->position_fix[0] = chip->position_fix[1] =
-		check_position_fix(chip, position_fix[dev]);
-	/* combo mode uses LPIB for playback */
-	if (chip->position_fix[0] == POS_FIX_COMBO) {
-		chip->position_fix[0] = POS_FIX_LPIB;
-		chip->position_fix[1] = POS_FIX_AUTO;
-	}
+	assign_position_fix(chip, check_position_fix(chip, position_fix[dev]));
 
 	check_probe_mask(chip, dev);
 

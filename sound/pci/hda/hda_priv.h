@@ -188,15 +188,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_DCAPS_I915_POWERWELL (1 << 27)	/* HSW i915 powerwell support */
 #define AZX_DCAPS_CORBRP_SELF_CLEAR (1 << 28)	/* CORBRP clears itself after reset */
 
-/* position fix mode */
-enum {
-	POS_FIX_AUTO,
-	POS_FIX_LPIB,
-	POS_FIX_POSBUF,
-	POS_FIX_VIACOMBO,
-	POS_FIX_COMBO,
-};
-
 /* Defines for ATI HD Audio support in SB450 south bridge */
 #define ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR   0x42
 #define ATI_SB450_HDAUDIO_ENABLE_SNOOP      0x02
@@ -321,6 +312,9 @@ struct azx_pcm {
 	struct list_head list;
 };
 
+typedef unsigned int (*azx_get_pos_callback_t)(struct azx *, struct azx_dev *);
+typedef int (*azx_get_delay_callback_t)(struct azx *, struct azx_dev *, unsigned int pos);
+
 struct azx {
 	struct snd_card *card;
 	struct pci_dev *pci;
@@ -338,6 +332,10 @@ struct azx {
 
 	/* Register interaction. */
 	const struct hda_controller_ops *ops;
+
+	/* position adjustment callbacks */
+	azx_get_pos_callback_t get_position[2];
+	azx_get_delay_callback_t get_delay[2];
 
 	/* pci resources */
 	unsigned long addr;
@@ -374,7 +372,6 @@ struct azx {
 #endif
 
 	/* flags */
-	int position_fix[2]; /* for both playback/capture streams */
 	const int *bdl_pos_adj;
 	int poll_count;
 	unsigned int running:1;

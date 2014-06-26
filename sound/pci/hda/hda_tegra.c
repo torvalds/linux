@@ -480,8 +480,6 @@ static int hda_tegra_create(struct snd_card *card,
 	INIT_LIST_HEAD(&chip->pcm_list);
 	INIT_LIST_HEAD(&chip->list);
 
-	chip->position_fix[0] = POS_FIX_AUTO;
-	chip->position_fix[1] = POS_FIX_AUTO;
 	chip->codec_probe_mask = -1;
 
 	chip->single_cmd = false;

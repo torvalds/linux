@@ -152,8 +152,8 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 		      upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
-	if (chip->position_fix[0] != POS_FIX_LPIB ||
-	    chip->position_fix[1] != POS_FIX_LPIB) {
+	if (chip->get_position[0] != azx_get_pos_lpib ||
+	    chip->get_position[1] != azx_get_pos_lpib) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
 				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
@@ -673,125 +673,40 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-/* get the current DMA position with correction on VIA chips */
-static unsigned int azx_via_get_position(struct azx *chip,
-					 struct azx_dev *azx_dev)
+unsigned int azx_get_pos_lpib(struct azx *chip, struct azx_dev *azx_dev)
 {
-	unsigned int link_pos, mini_pos, bound_pos;
-	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
-	unsigned int fifo_size;
-
-	link_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		/* Playback, no problem using link position */
-		return link_pos;
-	}
-
-	/* Capture */
-	/* For new chipset,
-	 * use mod to get the DMA position just like old chipset
-	 */
-	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
-	mod_dma_pos %= azx_dev->period_bytes;
-
-	/* azx_dev->fifo_size can't get FIFO size of in stream.
-	 * Get from base address + offset.
-	 */
-	fifo_size = readw(chip->remap_addr + VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
-
-	if (azx_dev->insufficient) {
-		/* Link position never gather than FIFO size */
-		if (link_pos <= fifo_size)
-			return 0;
-
-		azx_dev->insufficient = 0;
-	}
-
-	if (link_pos <= fifo_size)
-		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
-	else
-		mini_pos = link_pos - fifo_size;
-
-	/* Find nearest previous boudary */
-	mod_mini_pos = mini_pos % azx_dev->period_bytes;
-	mod_link_pos = link_pos % azx_dev->period_bytes;
-	if (mod_link_pos >= fifo_size)
-		bound_pos = link_pos - mod_link_pos;
-	else if (mod_dma_pos >= mod_mini_pos)
-		bound_pos = mini_pos - mod_mini_pos;
-	else {
-		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
-		if (bound_pos >= azx_dev->bufsize)
-			bound_pos = 0;
-	}
-
-	/* Calculate real DMA position we want */
-	return bound_pos + mod_dma_pos;
+	return azx_sd_readl(chip, azx_dev, SD_LPIB);
 }
+EXPORT_SYMBOL_GPL(azx_get_pos_lpib);
+
+unsigned int azx_get_pos_posbuf(struct azx *chip, struct azx_dev *azx_dev)
+{
+	return le32_to_cpu(*azx_dev->posbuf);
+}
+EXPORT_SYMBOL_GPL(azx_get_pos_posbuf);
 
 unsigned int azx_get_position(struct azx *chip,
-			      struct azx_dev *azx_dev,
-			      bool with_check)
+			      struct azx_dev *azx_dev)
 {
 	struct snd_pcm_substream *substream = azx_dev->substream;
-	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	unsigned int pos;
 	int stream = substream->stream;
-	struct hda_pcm_stream *hinfo = apcm->hinfo[stream];
 	int delay = 0;
 
-	switch (chip->position_fix[stream]) {
-	case POS_FIX_LPIB:
-		/* read LPIB */
-		pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-		break;
-	case POS_FIX_VIACOMBO:
-		pos = azx_via_get_position(chip, azx_dev);
-		break;
-	default:
-		/* use the position buffer */
-		pos = le32_to_cpu(*azx_dev->posbuf);
-		if (with_check && chip->position_fix[stream] == POS_FIX_AUTO) {
-			if (!pos || pos == (u32)-1) {
-				dev_info(chip->card->dev,
-					 "Invalid position buffer, using LPIB read method instead.\n");
-				chip->position_fix[stream] = POS_FIX_LPIB;
-				pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-			} else
-				chip->position_fix[stream] = POS_FIX_POSBUF;
-		}
-		break;
-	}
+	if (chip->get_position[stream])
+		pos = chip->get_position[stream](chip, azx_dev);
+	else /* use the position buffer as default */
+		pos = azx_get_pos_posbuf(chip, azx_dev);
 
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
 
-	/* calculate runtime delay from LPIB */
-	if (substream->runtime &&
-	    chip->position_fix[stream] == POS_FIX_POSBUF &&
-	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
-		unsigned int lpib_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-		if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-			delay = pos - lpib_pos;
-		else
-			delay = lpib_pos - pos;
-		if (delay < 0) {
-			if (delay >= azx_dev->delay_negative_threshold)
-				delay = 0;
-			else
-				delay += azx_dev->bufsize;
-		}
-		if (delay >= azx_dev->period_bytes) {
-			dev_info(chip->card->dev,
-				 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
-				 delay, azx_dev->period_bytes);
-			delay = 0;
-			chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
-		}
-		delay = bytes_to_frames(substream->runtime, delay);
-	}
-
 	if (substream->runtime) {
+		struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+		struct hda_pcm_stream *hinfo = apcm->hinfo[stream];
+
+		if (chip->get_delay[stream])
+			delay += chip->get_delay[stream](chip, azx_dev, pos);
 		if (hinfo->ops.get_delay)
 			delay += hinfo->ops.get_delay(hinfo, apcm->codec,
 						      substream);
@@ -809,7 +724,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	return bytes_to_frames(substream->runtime,
-			       azx_get_position(chip, azx_dev, false));
+			       azx_get_position(chip, azx_dev));
 }
 
 static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
