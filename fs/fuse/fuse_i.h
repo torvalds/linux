@@ -26,6 +26,7 @@
 #include <linux/xattr.h>
 #include <linux/pid_namespace.h>
 #include <linux/refcount.h>
+#include <linux/user_namespace.h>
 
 /** Max number of pages that can be used in a single read request */
 #define FUSE_MAX_PAGES_PER_REQ 32
@@ -466,6 +467,9 @@ struct fuse_conn {
 	/** The pid namespace for this mount */
 	struct pid_namespace *pid_ns;
 
+	/** The user namespace for this mount */
+	struct user_namespace *user_ns;
+
 	/** Maximum read size */
 	unsigned max_read;
 
@@ -870,7 +874,7 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc);
 /**
  * Initialize fuse_conn
  */
-void fuse_conn_init(struct fuse_conn *fc);
+void fuse_conn_init(struct fuse_conn *fc, struct user_namespace *user_ns);
 
 /**
  * Release reference to fuse_conn

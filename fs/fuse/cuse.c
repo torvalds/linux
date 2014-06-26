@@ -48,6 +48,7 @@
 #include <linux/stat.h>
 #include <linux/module.h>
 #include <linux/uio.h>
+#include <linux/user_namespace.h>
 
 #include "fuse_i.h"
 
@@ -498,7 +499,7 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	if (!cc)
 		return -ENOMEM;
 
-	fuse_conn_init(&cc->fc);
+	fuse_conn_init(&cc->fc, current_user_ns());
 
 	fud = fuse_dev_alloc(&cc->fc);
 	if (!fud) {
