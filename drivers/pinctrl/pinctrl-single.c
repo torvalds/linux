@@ -1683,11 +1683,10 @@ static void pcs_irq_chain_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct pcs_soc_data *pcs_soc = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip;
-	int res;
 
 	chip = irq_get_chip(irq);
 	chained_irq_enter(chip, desc);
-	res = pcs_irq_handle(pcs_soc);
+	pcs_irq_handle(pcs_soc);
 	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
 	chained_irq_exit(chip, desc);
 
