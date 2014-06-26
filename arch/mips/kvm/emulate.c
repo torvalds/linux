@@ -846,11 +846,6 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 	get_random_bytes(&index, sizeof(index));
 	index &= (KVM_MIPS_GUEST_TLB_SIZE - 1);
 
-	if (index < 0 || index >= KVM_MIPS_GUEST_TLB_SIZE) {
-		kvm_err("%s: illegal index: %d\n", __func__, index);
-		return EMULATE_FAIL;
-	}
-
 	tlb = &vcpu->arch.guest_tlb[index];
 
 	/*
