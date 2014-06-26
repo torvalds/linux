@@ -465,7 +465,7 @@ static int inv_get_silicon_rev_mpu6050(
 
 	} else {
 		MPL_LOGE("Software revision key is outside of known "
-			 "range [0..%d] : %d\n", ARRAY_SIZE(sw_rev_map));
+			 "range [0..%d] : %d\n", ARRAY_SIZE(sw_rev_map),ARRAY_SIZE(sw_rev_map));
 		return INV_ERROR_INVALID_MODULE;
 	}
 
