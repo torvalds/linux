@@ -1235,6 +1235,41 @@ static void bnx2x_vf_mbx_acquire_resp(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	bnx2x_vf_mbx_resp_send_msg(bp, vf, vfop_status);
 }
 
+static bool bnx2x_vf_mbx_is_windows_vm(struct bnx2x *bp,
+				       struct vfpf_acquire_tlv *acquire)
+{
+	/* Windows driver does one of three things:
+	 * 1. Old driver doesn't have bulletin board address set.
+	 * 2. 'Middle' driver sends mc_num == 32.
+	 * 3. New driver sets the OS field.
+	 */
+	if (!acquire->bulletin_addr ||
+	    acquire->resc_request.num_mc_filters == 32 ||
+	    ((acquire->vfdev_info.vf_os & VF_OS_MASK) ==
+	     VF_OS_WINDOWS))
+		return true;
+
+	return false;
+}
+
+static int bnx2x_vf_mbx_acquire_chk_dorq(struct bnx2x *bp,
+					 struct bnx2x_virtf *vf,
+					 struct bnx2x_vf_mbx *mbx)
+{
+	/* Linux drivers which correctly set the doorbell size also
+	 * send a physical port request
+	 */
+	if (bnx2x_search_tlv_list(bp, &mbx->msg->req,
+				  CHANNEL_TLV_PHYS_PORT_ID))
+		return 0;
+
+	/* Issue does not exist in windows VMs */
+	if (bnx2x_vf_mbx_is_windows_vm(bp, &mbx->msg->req.acquire))
+		return 0;
+
+	return -EOPNOTSUPP;
+}
+
 static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 				 struct bnx2x_vf_mbx *mbx)
 {
@@ -1250,6 +1285,18 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	   acquire->resc_request.num_vlan_filters,
 	   acquire->resc_request.num_mc_filters);
 
+	/* Prevent VFs with old drivers from loading, since they calculate
+	 * CIDs incorrectly requiring a VF-flr [VM reboot] in order to recover
+	 * while being upgraded.
+	 */
+	rc = bnx2x_vf_mbx_acquire_chk_dorq(bp, vf, mbx);
+	if (rc) {
+		DP(BNX2X_MSG_IOV,
+		   "VF [%d] - Can't support acquire request due to doorbell mismatch. Please update VM driver\n",
+		   vf->abs_vfid);
+		goto out;
+	}
+
 	/* acquire the resources */
 	rc = bnx2x_vf_acquire(bp, vf, &acquire->resc_request);
 
@@ -1263,6 +1310,7 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 		vf->cfg_flags &= ~VF_CFG_EXT_BULLETIN;
 	}
 
+out:
 	/* response */
 	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
 }
