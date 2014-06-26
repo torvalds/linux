@@ -234,6 +234,25 @@ EXPORT_SYMBOL_GPL(ipu_idmac_put);
 
 #define idma_mask(ch)			(1 << ((ch) & 0x1f))
 
+/*
+ * This is an undocumented feature, a write one to a channel bit in
+ * IPU_CHA_CUR_BUF and IPU_CHA_TRIPLE_CUR_BUF will reset the channel's
+ * internal current buffer pointer so that transfers start from buffer
+ * 0 on the next channel enable (that's the theory anyway, the imx6 TRM
+ * only says these are read-only registers). This operation is required
+ * for channel linking to work correctly, for instance video capture
+ * pipelines that carry out image rotations will fail after the first
+ * streaming unless this function is called for each channel before
+ * re-enabling the channels.
+ */
+static void __ipu_idmac_reset_current_buffer(struct ipuv3_channel *channel)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned int chno = channel->num;
+
+	ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_CUR_BUF(chno));
+}
+
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer)
 {
@@ -249,6 +268,8 @@ void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 	else
 		reg &= ~idma_mask(channel->num);
 	ipu_cm_write(ipu, reg, IPU_CHA_DB_MODE_SEL(channel->num));
+
+	__ipu_idmac_reset_current_buffer(channel);
 
 	spin_unlock_irqrestore(&ipu->lock, flags);
 }
@@ -454,6 +475,8 @@ int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 	val = ipu_idmac_read(ipu, IDMAC_CHA_EN(channel->num));
 	val &= ~idma_mask(channel->num);
 	ipu_idmac_write(ipu, val, IDMAC_CHA_EN(channel->num));
+
+	__ipu_idmac_reset_current_buffer(channel);
 
 	/* Set channel buffers NOT to be ready */
 	ipu_cm_write(ipu, 0xf0000000, IPU_GPR); /* write one to clear */
