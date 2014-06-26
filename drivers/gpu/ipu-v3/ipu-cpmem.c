@@ -538,7 +538,7 @@ EXPORT_SYMBOL_GPL(ipu_cpmem_set_fmt);
 int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 {
 	struct v4l2_pix_format *pix = &image->pix;
-	int y_offset, u_offset, v_offset;
+	int offset, y_offset, u_offset, v_offset;
 
 	pr_debug("%s: resolution: %dx%d stride: %d\n",
 		 __func__, pix->width, pix->height,
@@ -560,30 +560,30 @@ int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image)
 
 		ipu_cpmem_set_yuv_planar_full(ch, pix->pixelformat,
 				pix->bytesperline, u_offset, v_offset);
-		ipu_cpmem_set_buffer(ch, 0, image->phys + y_offset);
+		ipu_cpmem_set_buffer(ch, 0, image->phys0 + y_offset);
+		ipu_cpmem_set_buffer(ch, 1, image->phys1 + y_offset);
 		break;
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
-		ipu_cpmem_set_buffer(ch, 0, image->phys +
-				     image->rect.left * 2 +
-				     image->rect.top * image->pix.bytesperline);
+	case V4L2_PIX_FMT_RGB565:
+		offset = image->rect.left * 2 +
+			image->rect.top * pix->bytesperline;
+		ipu_cpmem_set_buffer(ch, 0, image->phys0 + offset);
+		ipu_cpmem_set_buffer(ch, 1, image->phys1 + offset);
 		break;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
-		ipu_cpmem_set_buffer(ch, 0, image->phys +
-				     image->rect.left * 4 +
-				     image->rect.top * image->pix.bytesperline);
-		break;
-	case V4L2_PIX_FMT_RGB565:
-		ipu_cpmem_set_buffer(ch, 0, image->phys +
-				     image->rect.left * 2 +
-				     image->rect.top * image->pix.bytesperline);
+		offset = image->rect.left * 4 +
+			image->rect.top * pix->bytesperline;
+		ipu_cpmem_set_buffer(ch, 0, image->phys0 + offset);
+		ipu_cpmem_set_buffer(ch, 1, image->phys1 + offset);
 		break;
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_BGR24:
-		ipu_cpmem_set_buffer(ch, 0, image->phys +
-				     image->rect.left * 3 +
-				     image->rect.top * image->pix.bytesperline);
+		offset = image->rect.left * 3 +
+			image->rect.top * pix->bytesperline;
+		ipu_cpmem_set_buffer(ch, 0, image->phys0 + offset);
+		ipu_cpmem_set_buffer(ch, 1, image->phys1 + offset);
 		break;
 	default:
 		return -EINVAL;

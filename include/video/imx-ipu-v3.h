@@ -185,7 +185,8 @@ struct ipu_rgb {
 struct ipu_image {
 	struct v4l2_pix_format pix;
 	struct v4l2_rect rect;
-	dma_addr_t phys;
+	dma_addr_t phys0;
+	dma_addr_t phys1;
 };
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
