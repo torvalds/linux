@@ -1313,35 +1313,29 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 static void vlv_update_drain_latency(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int planea_prec, planea_dl, planeb_prec, planeb_dl;
-	int cursora_prec, cursora_dl, cursorb_prec, cursorb_dl;
-	int plane_prec_mult, cursor_prec_mult; /* Precision multiplier is
-							either 16 or 32 */
+	enum pipe pipe;
 
-	/* For plane A, Cursor A */
-	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
-				      &cursor_prec_mult, &cursora_dl)) {
-		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_64;
-		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_64;
+	for_each_pipe(pipe) {
+		int plane_prec, plane_dl;
+		int cursor_prec, cursor_dl;
+		int plane_prec_mult, cursor_prec_mult;
 
-		I915_WRITE(VLV_DDL1, cursora_prec |
-				(cursora_dl << DDL_CURSORA_SHIFT) |
-				planea_prec | planea_dl);
-	}
+		if (!vlv_compute_drain_latency(dev, pipe, &plane_prec_mult, &plane_dl,
+					       &cursor_prec_mult, &cursor_dl))
+			continue;
 
-	/* For plane B, Cursor B */
-	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
-				      &cursor_prec_mult, &cursorb_dl)) {
-		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_64;
-		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
-			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_64;
+		/*
+		 * FIXME CHV spec still lists 16 and 32 as the precision
+		 * values. Need to figure out if spec is outdated or what.
+		 */
+		cursor_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+			DDL_CURSOR_PRECISION_64 : DDL_CURSOR_PRECISION_32;
+		plane_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_64) ?
+			DDL_PLANE_PRECISION_64 : DDL_PLANE_PRECISION_32;
 
-		I915_WRITE(VLV_DDL2, cursorb_prec |
-				(cursorb_dl << DDL_CURSORB_SHIFT) |
-				planeb_prec | planeb_dl);
+		I915_WRITE(VLV_DDL(pipe), cursor_prec |
+			   (cursor_dl << DDL_CURSOR_SHIFT) |
+			   plane_prec | (plane_dl << DDL_PLANE_SHIFT));
 	}
 }
 
