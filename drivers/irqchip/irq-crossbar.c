@@ -84,10 +84,20 @@ static inline int allocate_free_irq(int cb_no)
 	return -ENODEV;
 }
 
+static inline bool needs_crossbar_write(irq_hw_number_t hw)
+{
+	if (hw > GIC_IRQ_START)
+		return true;
+
+	return false;
+}
+
 static int crossbar_domain_map(struct irq_domain *d, unsigned int irq,
 			       irq_hw_number_t hw)
 {
-	cb->write(hw - GIC_IRQ_START, cb->irq_map[hw - GIC_IRQ_START]);
+	if (needs_crossbar_write(hw))
+		cb->write(hw - GIC_IRQ_START, cb->irq_map[hw - GIC_IRQ_START]);
+
 	return 0;
 }
 
@@ -106,7 +116,7 @@ static void crossbar_domain_unmap(struct irq_domain *d, unsigned int irq)
 {
 	irq_hw_number_t hw = irq_get_irq_data(irq)->hwirq;
 
-	if (hw > GIC_IRQ_START) {
+	if (needs_crossbar_write(hw)) {
 		cb->irq_map[hw - GIC_IRQ_START] = IRQ_FREE;
 		cb->write(hw - GIC_IRQ_START, cb->safe_map);
 	}
