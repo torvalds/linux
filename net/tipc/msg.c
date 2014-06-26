@@ -144,6 +144,108 @@ out_free:
 	return 0;
 }
 
+
+/**
+ * tipc_msg_build2 - create buffer chain containing specified header and data
+ * @mhdr: Message header, to be prepended to data
+ * @iov: User data
+ * @offset: Posision in iov to start copying from
+ * @dsz: Total length of user data
+ * @pktmax: Max packet size that can be used
+ * @chain: Buffer or chain of buffers to be returned to caller
+ * Returns message data size or errno: -ENOMEM, -EFAULT
+ */
+int tipc_msg_build2(struct tipc_msg *mhdr, struct iovec const *iov,
+		    int offset, int dsz, int pktmax , struct sk_buff **chain)
+{
+	int mhsz = msg_hdr_sz(mhdr);
+	int msz = mhsz + dsz;
+	int pktno = 1;
+	int pktsz;
+	int pktrem = pktmax;
+	int drem = dsz;
+	struct tipc_msg pkthdr;
+	struct sk_buff *buf, *prev;
+	char *pktpos;
+	int rc;
+
+	msg_set_size(mhdr, msz);
+
+	/* No fragmentation needed? */
+	if (likely(msz <= pktmax)) {
+		buf = tipc_buf_acquire(msz);
+		*chain = buf;
+		if (unlikely(!buf))
+			return -ENOMEM;
+		skb_copy_to_linear_data(buf, mhdr, mhsz);
+		pktpos = buf->data + mhsz;
+		if (!dsz || !memcpy_fromiovecend(pktpos, iov, offset, dsz))
+			return dsz;
+		rc = -EFAULT;
+		goto error;
+	}
+
+	/* Prepare reusable fragment header */
+	tipc_msg_init(&pkthdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
+		      INT_H_SIZE, msg_destnode(mhdr));
+	msg_set_size(&pkthdr, pktmax);
+	msg_set_fragm_no(&pkthdr, pktno);
+
+	/* Prepare first fragment */
+	*chain = buf = tipc_buf_acquire(pktmax);
+	if (!buf)
+		return -ENOMEM;
+	pktpos = buf->data;
+	skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
+	pktpos += INT_H_SIZE;
+	pktrem -= INT_H_SIZE;
+	skb_copy_to_linear_data_offset(buf, INT_H_SIZE, mhdr, mhsz);
+	pktpos += mhsz;
+	pktrem -= mhsz;
+
+	do {
+		if (drem < pktrem)
+			pktrem = drem;
+
+		if (memcpy_fromiovecend(pktpos, iov, offset, pktrem)) {
+			rc = -EFAULT;
+			goto error;
+		}
+		drem -= pktrem;
+		offset += pktrem;
+
+		if (!drem)
+			break;
+
+		/* Prepare new fragment: */
+		if (drem < (pktmax - INT_H_SIZE))
+			pktsz = drem + INT_H_SIZE;
+		else
+			pktsz = pktmax;
+		prev = buf;
+		buf = tipc_buf_acquire(pktsz);
+		if (!buf) {
+			rc = -ENOMEM;
+			goto error;
+		}
+		prev->next = buf;
+		msg_set_type(&pkthdr, FRAGMENT);
+		msg_set_size(&pkthdr, pktsz);
+		msg_set_fragm_no(&pkthdr, ++pktno);
+		skb_copy_to_linear_data(buf, &pkthdr, INT_H_SIZE);
+		pktpos = buf->data + INT_H_SIZE;
+		pktrem = pktsz - INT_H_SIZE;
+
+	} while (1);
+
+	msg_set_type(buf_msg(buf), LAST_FRAGMENT);
+	return dsz;
+error:
+	kfree_skb_list(*chain);
+	*chain = NULL;
+	return rc;
+}
+
 /**
  * tipc_msg_bundle(): Append contents of a buffer to tail of an existing one
  * @bbuf: the existing buffer ("bundle")

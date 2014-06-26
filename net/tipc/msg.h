@@ -737,4 +737,7 @@ bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu);
 
 bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode);
 
+int tipc_msg_build2(struct tipc_msg *mhdr, struct iovec const *iov,
+		    int offset, int dsz, int mtu , struct sk_buff **chain);
+
 #endif
