@@ -107,9 +107,9 @@ are not supported.
 
 static const struct ni_board_struct ni_boards[] = {
 	{
+		.name		= "at-mio-16e-1",
 		.device_id	= 44,
 		.isapnp_id	= 0x0000,	/* XXX unknown */
-		.name		= "at-mio-16e-1",
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 8192,
@@ -124,9 +124,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },
 	}, {
+		.name		= "at-mio-16e-2",
 		.device_id	= 25,
 		.isapnp_id	= 0x1900,
-		.name		= "at-mio-16e-2",
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 2048,
@@ -141,9 +141,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },
 	}, {
+		.name		= "at-mio-16e-10",
 		.device_id	= 36,
 		.isapnp_id	= 0x2400,
-		.name		= "at-mio-16e-10",
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 512,
@@ -157,9 +157,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
+		.name		= "at-mio-16de-10",
 		.device_id	= 37,
 		.isapnp_id	= 0x2500,
-		.name		= "at-mio-16de-10",
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 512,
@@ -174,9 +174,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.caldac		= { ad8804_debug },
 		.has_8255	= 1,
 	}, {
+		.name		= "at-mio-64e-3",
 		.device_id	= 38,
 		.isapnp_id	= 0x2600,
-		.name		= "at-mio-64e-3",
 		.n_adchan	= 64,
 		.adbits		= 12,
 		.ai_fifo_depth	= 2048,
@@ -191,9 +191,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
+		.name		= "at-mio-16xe-50",
 		.device_id	= 39,
 		.isapnp_id	= 0x2700,
-		.name		= "at-mio-16xe-50",
 		.n_adchan	= 16,
 		.adbits		= 16,
 		.ai_fifo_depth	= 512,
@@ -207,9 +207,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043 },
 	}, {
+		.name		= "at-mio-16xe-10",
 		.device_id	= 50,
 		.isapnp_id	= 0x0000,	/* XXX unknown */
-		.name		= "at-mio-16xe-10",
 		.n_adchan	= 16,
 		.adbits		= 16,
 		.ai_fifo_depth	= 512,
@@ -225,9 +225,9 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043, ad8522 },
 	}, {
+		.name		= "at-ai-16xe-10",
 		.device_id	= 51,
 		.isapnp_id	= 0x0000,	/* XXX unknown */
-		.name		= "at-ai-16xe-10",
 		.n_adchan	= 16,
 		.adbits		= 16,
 		.ai_fifo_depth	= 512,

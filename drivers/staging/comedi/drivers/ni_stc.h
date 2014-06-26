@@ -1388,9 +1388,9 @@ enum Interrupt_C_Status_Bits {
 #define M_SERIES_EEPROM_SIZE 1024
 
 struct ni_board_struct {
+	const char *name;
 	int device_id;
 	int isapnp_id;
-	char *name;
 
 	int n_adchan;
 	int adbits;

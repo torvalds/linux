@@ -56,8 +56,8 @@ See the notes in the ni_atmio.o driver.
 
 static const struct ni_board_struct ni_boards[] = {
 	{
-		.device_id	= 0x010d,
 		.name		= "DAQCard-ai-16xe-50",
+		.device_id	= 0x010d,
 		.n_adchan	= 16,
 		.adbits		= 16,
 		.ai_fifo_depth	= 1024,
@@ -66,8 +66,8 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043 },
 	}, {
-		.device_id	= 0x010c,
 		.name		= "DAQCard-ai-16e-4",
+		.device_id	= 0x010c,
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 1024,
@@ -76,8 +76,8 @@ static const struct ni_board_struct ni_boards[] = {
 		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },		/* verified */
 	}, {
-		.device_id	= 0x02c4,
 		.name		= "DAQCard-6062E",
+		.device_id	= 0x02c4,
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 8192,
@@ -92,8 +92,8 @@ static const struct ni_board_struct ni_boards[] = {
 		.caldac		= { ad8804_debug },	/* verified */
 	 }, {
 		/* specs incorrect! */
-		.device_id	= 0x075e,
 		.name		= "DAQCard-6024E",
+		.device_id	= 0x075e,
 		.n_adchan	= 16,
 		.adbits		= 12,
 		.ai_fifo_depth	= 1024,
@@ -107,8 +107,8 @@ static const struct ni_board_struct ni_boards[] = {
 		.caldac		= { ad8804_debug },
 	}, {
 		/* specs incorrect! */
-		.device_id	= 0x0245,
 		.name		= "DAQCard-6036E",
+		.device_id	= 0x0245,
 		.n_adchan	= 16,
 		.adbits		= 16,
 		.ai_fifo_depth	= 1024,
@@ -124,8 +124,8 @@ static const struct ni_board_struct ni_boards[] = {
 	 },
 #if 0
 	{
-		.device_id	= 0x0000,	/* unknown */
 		.name		= "DAQCard-6715",
+		.device_id	= 0x0000,	/* unknown */
 		.n_aochan	= 8,
 		.aobits		= 12,
 		.ao_671x	= 8192,
