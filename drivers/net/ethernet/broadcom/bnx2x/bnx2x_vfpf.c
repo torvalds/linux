@@ -251,6 +251,9 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length,
 		      CHANNEL_TLV_PHYS_PORT_ID, sizeof(struct channel_tlv));
 
+	/* Bulletin support for bulletin board with length > legacy length */
+	req->vfdev_info.caps |= VF_CAP_SUPPORT_EXT_BULLETIN;
+
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req,
 		      req->first_tlv.tl.length + sizeof(struct channel_tlv),
@@ -1252,6 +1255,13 @@ static void bnx2x_vf_mbx_acquire(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* store address of vf's bulletin board */
 	vf->bulletin_map = acquire->bulletin_addr;
+	if (acquire->vfdev_info.caps & VF_CAP_SUPPORT_EXT_BULLETIN) {
+		DP(BNX2X_MSG_IOV, "VF[%d] supports long bulletin boards\n",
+		   vf->abs_vfid);
+		vf->cfg_flags |= VF_CFG_EXT_BULLETIN;
+	} else {
+		vf->cfg_flags &= ~VF_CFG_EXT_BULLETIN;
+	}
 
 	/* response */
 	bnx2x_vf_mbx_acquire_resp(bp, vf, mbx, rc);
@@ -1272,6 +1282,10 @@ static void bnx2x_vf_mbx_init_vf(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	/* set VF multiqueue statistics collection mode */
 	if (init->flags & VFPF_INIT_FLG_STATS_COALESCE)
 		vf->cfg_flags |= VF_CFG_STATS_COALESCE;
+
+	/* Update VF's view of link state */
+	if (vf->cfg_flags & VF_CFG_EXT_BULLETIN)
+		bnx2x_iov_link_update_vf(bp, vf->index);
 
 	/* response */
 	bnx2x_vf_mbx_resp(bp, vf, rc);
@@ -2007,6 +2021,17 @@ void bnx2x_vf_mbx(struct bnx2x *bp)
 	}
 }
 
+void bnx2x_vf_bulletin_finalize(struct pf_vf_bulletin_content *bulletin,
+				bool support_long)
+{
+	/* Older VFs contain a bug where they can't check CRC for bulletin
+	 * boards of length greater than legacy size.
+	 */
+	bulletin->length = support_long ? BULLETIN_CONTENT_SIZE :
+					  BULLETIN_CONTENT_LEGACY_SIZE;
+	bulletin->crc = bnx2x_crc_vf_bulletin(bulletin);
+}
+
 /* propagate local bulletin board to vf */
 int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf)
 {
@@ -2023,8 +2048,9 @@ int bnx2x_post_vf_bulletin(struct bnx2x *bp, int vf)
 
 	/* increment bulletin board version and compute crc */
 	bulletin->version++;
-	bulletin->length = BULLETIN_CONTENT_SIZE;
-	bulletin->crc = bnx2x_crc_vf_bulletin(bp, bulletin);
+	bnx2x_vf_bulletin_finalize(bulletin,
+				   (bnx2x_vf(bp, vf, cfg_flags) &
+				    VF_CFG_EXT_BULLETIN) ? true : false);
 
 	/* propagate bulletin board via dmae to vm memory */
 	rc = bnx2x_copy32_vf_dmae(bp, false, pf_addr,
