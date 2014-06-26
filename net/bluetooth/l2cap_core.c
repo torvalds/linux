@@ -5213,27 +5213,6 @@ static inline int l2cap_move_channel_confirm_rsp(struct l2cap_conn *conn,
 	return 0;
 }
 
-static inline int l2cap_check_conn_param(u16 min, u16 max, u16 latency,
-					 u16 to_multiplier)
-{
-	u16 max_latency;
-
-	if (min > max || min < 6 || max > 3200)
-		return -EINVAL;
-
-	if (to_multiplier < 10 || to_multiplier > 3200)
-		return -EINVAL;
-
-	if (max >= to_multiplier * 8)
-		return -EINVAL;
-
-	max_latency = (to_multiplier * 8 / max) - 1;
-	if (latency > 499 || latency > max_latency)
-		return -EINVAL;
-
-	return 0;
-}
-
 static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 					      struct l2cap_cmd_hdr *cmd,
 					      u16 cmd_len, u8 *data)
@@ -5261,7 +5240,7 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 
 	memset(&rsp, 0, sizeof(rsp));
 
-	err = l2cap_check_conn_param(min, max, latency, to_multiplier);
+	err = hci_check_conn_params(min, max, latency, to_multiplier);
 	if (err)
 		rsp.result = cpu_to_le16(L2CAP_CONN_PARAM_REJECTED);
 	else
