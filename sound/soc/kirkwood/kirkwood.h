@@ -124,9 +124,9 @@
 
 /* Theses values come from the marvell alsa driver */
 /* need to find where they come from               */
-#define KIRKWOOD_SND_MIN_PERIODS		8
+#define KIRKWOOD_SND_MIN_PERIODS		2
 #define KIRKWOOD_SND_MAX_PERIODS		16
-#define KIRKWOOD_SND_MIN_PERIOD_BYTES		0x800
+#define KIRKWOOD_SND_MIN_PERIOD_BYTES		256
 #define KIRKWOOD_SND_MAX_PERIOD_BYTES		0x8000
 #define KIRKWOOD_SND_MAX_BUFFER_BYTES		(KIRKWOOD_SND_MAX_PERIOD_BYTES \
 						 * KIRKWOOD_SND_MAX_PERIODS)
