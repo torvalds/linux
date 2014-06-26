@@ -1399,6 +1399,85 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 		intel_set_memory_cxsr(dev_priv, true);
 }
 
+static void cherryview_update_wm(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	static const int sr_latency_ns = 12000;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, planec_wm;
+	int cursora_wm, cursorb_wm, cursorc_wm;
+	int plane_sr, cursor_sr;
+	int ignore_plane_sr, ignore_cursor_sr;
+	unsigned int enabled = 0;
+	bool cxsr_enabled;
+
+	vlv_update_drain_latency(crtc);
+
+	if (g4x_compute_wm0(dev, PIPE_A,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planea_wm, &cursora_wm))
+		enabled |= 1 << PIPE_A;
+
+	if (g4x_compute_wm0(dev, PIPE_B,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planeb_wm, &cursorb_wm))
+		enabled |= 1 << PIPE_B;
+
+	if (g4x_compute_wm0(dev, PIPE_C,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planec_wm, &cursorc_wm))
+		enabled |= 1 << PIPE_C;
+
+	if (single_plane_enabled(enabled) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &plane_sr, &ignore_cursor_sr) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     2*sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &ignore_plane_sr, &cursor_sr)) {
+		cxsr_enabled = true;
+	} else {
+		cxsr_enabled = false;
+		intel_set_memory_cxsr(dev_priv, false);
+		plane_sr = cursor_sr = 0;
+	}
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, "
+		      "B: plane=%d, cursor=%d, C: plane=%d, cursor=%d, "
+		      "SR: plane=%d, cursor=%d\n",
+		      planea_wm, cursora_wm,
+		      planeb_wm, cursorb_wm,
+		      planec_wm, cursorc_wm,
+		      plane_sr, cursor_sr);
+
+	I915_WRITE(DSPFW1,
+		   (plane_sr << DSPFW_SR_SHIFT) |
+		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
+		   (planea_wm << DSPFW_PLANEA_SHIFT));
+	I915_WRITE(DSPFW2,
+		   (I915_READ(DSPFW2) & ~DSPFW_CURSORA_MASK) |
+		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+	I915_WRITE(DSPFW3,
+		   (I915_READ(DSPFW3) & ~DSPFW_CURSOR_SR_MASK) |
+		   (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
+	I915_WRITE(DSPFW9_CHV,
+		   (I915_READ(DSPFW9_CHV) & ~(DSPFW_PLANEC_MASK |
+					      DSPFW_CURSORC_MASK)) |
+		   (planec_wm << DSPFW_PLANEC_SHIFT) |
+		   (cursorc_wm << DSPFW_CURSORC_SHIFT));
+
+	if (cxsr_enabled)
+		intel_set_memory_cxsr(dev_priv, true);
+}
+
 static void g4x_update_wm(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -7119,7 +7198,7 @@ void intel_init_pm(struct drm_device *dev)
 		else if (INTEL_INFO(dev)->gen == 8)
 			dev_priv->display.init_clock_gating = gen8_init_clock_gating;
 	} else if (IS_CHERRYVIEW(dev)) {
-		dev_priv->display.update_wm = valleyview_update_wm;
+		dev_priv->display.update_wm = cherryview_update_wm;
 		dev_priv->display.init_clock_gating =
 			cherryview_init_clock_gating;
 	} else if (IS_VALLEYVIEW(dev)) {
