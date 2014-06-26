@@ -140,17 +140,6 @@ int tipc_send(struct tipc_port *port,
 	      struct iovec const *msg_sect,
 	      unsigned int len);
 
-int tipc_send2name(struct tipc_port *port,
-		   struct tipc_name const *name,
-		   u32 domain,
-		   struct iovec const *msg_sect,
-		   unsigned int len);
-
-int tipc_send2port(struct tipc_port *port,
-		   struct tipc_portid const *dest,
-		   struct iovec const *msg_sect,
-		   unsigned int len);
-
 int tipc_port_mcast_xmit(struct tipc_port *port,
 			 struct tipc_name_seq const *seq,
 			 struct iovec const *msg,
