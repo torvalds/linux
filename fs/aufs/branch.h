@@ -138,8 +138,13 @@ static inline struct super_block *au_br_sb(struct au_branch *br)
 						   branch */
 
 #define AuBrRAttr_WH		(1 << 6)	/* whiteout-able */
+#define AuBrRAttr_Mask		AuBrRAttr_WH
 
 #define AuBrWAttr_NoLinkWH	(1 << 7)	/* un-hardlinkable whiteouts */
+#define AuBrWAttr_MOO		(1 << 8)	/* move-up on open */
+#define AuBrWAttr_Mask		(AuBrWAttr_NoLinkWH | AuBrWAttr_MOO)
+
+#define AuBrAttr_CMOO_Mask	(AuBrAttr_COO_Mask | AuBrWAttr_MOO)
 
 /* the longest combination */
 #define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
