@@ -80,6 +80,26 @@ int ipu_smfc_map_channel(struct ipu_smfc *smfc, int csi_id, int mipi_id)
 }
 EXPORT_SYMBOL_GPL(ipu_smfc_map_channel);
 
+int ipu_smfc_set_watermark(struct ipu_smfc *smfc, u32 set_level, u32 clr_level)
+{
+	struct ipu_smfc_priv *priv = smfc->priv;
+	unsigned long flags;
+	u32 val, shift;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	shift = smfc->chno * 6 + (smfc->chno > 1 ? 4 : 0);
+	val = readl(priv->base + SMFC_WMC);
+	val &= ~(0x3f << shift);
+	val |= ((clr_level << 3) | set_level) << shift;
+	writel(val, priv->base + SMFC_WMC);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_smfc_set_watermark);
+
 int ipu_smfc_enable(struct ipu_smfc *smfc)
 {
 	struct ipu_smfc_priv *priv = smfc->priv;
