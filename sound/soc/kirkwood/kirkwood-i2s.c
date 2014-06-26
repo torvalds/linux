@@ -238,7 +238,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 	uint32_t ctl, value;
 
 	ctl = readl(priv->io + KIRKWOOD_PLAYCTL);
-	if (ctl & KIRKWOOD_PLAYCTL_PAUSE) {
+	if ((ctl & KIRKWOOD_PLAYCTL_ENABLE_MASK) == 0) {
 		unsigned timeout = 5000;
 		/*
 		 * The Armada510 spec says that if we enter pause mode, the
