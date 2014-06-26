@@ -222,6 +222,15 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static unsigned kirkwood_i2s_play_mute(unsigned ctl)
+{
+	if (!(ctl & KIRKWOOD_PLAYCTL_I2S_EN))
+		ctl |= KIRKWOOD_PLAYCTL_I2S_MUTE;
+	if (!(ctl & KIRKWOOD_PLAYCTL_SPDIF_EN))
+		ctl |= KIRKWOOD_PLAYCTL_SPDIF_MUTE;
+	return ctl;
+}
+
 static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
@@ -257,7 +266,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 			ctl &= ~KIRKWOOD_PLAYCTL_SPDIF_EN;	/* i2s */
 		else
 			ctl &= ~KIRKWOOD_PLAYCTL_I2S_EN;	/* spdif */
-
+		ctl = kirkwood_i2s_play_mute(ctl);
 		value = ctl & ~KIRKWOOD_PLAYCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
@@ -296,6 +305,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ctl &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE |
 				KIRKWOOD_PLAYCTL_SPDIF_MUTE);
+		ctl = kirkwood_i2s_play_mute(ctl);
 		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
