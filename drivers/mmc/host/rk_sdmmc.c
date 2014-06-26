@@ -617,7 +617,8 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
                 slave_config.direction = DMA_MEM_TO_DEV;
                 slave_config.dst_addr = (dma_addr_t)(host->regs + host->data_offset);
                 slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-                slave_config.dst_maxburst = 16;
+                //slave_config.dst_maxburst = 16;
+                slave_config.dst_maxburst = ((host->fifoth_val) >> 28) && 0x7;
 
                 ret = dmaengine_slave_config(host->dms->ch, &slave_config);
                 if (ret) {
@@ -626,7 +627,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
                 }
 
                 desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
-                                DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
+                                DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
                 if (!desc) {
 			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
 			return;
@@ -644,7 +645,8 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
                 slave_config.direction = DMA_DEV_TO_MEM;
                 slave_config.src_addr = (dma_addr_t)(host->regs + host->data_offset);
                 slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-                slave_config.src_maxburst = 16;
+                //slave_config.src_maxburst = 16;
+                slave_config.dst_maxburst = ((host->fifoth_val) >> 28) && 0x7;
 
                 ret = dmaengine_slave_config(host->dms->ch, &slave_config);
                 if (ret) {
@@ -652,7 +654,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
                         return;
                 }
                 desc = dmaengine_prep_slave_sg(host->dms->ch, sgl, sg_len,
-			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
                 if (!desc) {
 			dev_err(host->dev, "We cannot prepare for the dw_mci slave edma!\n");
 			return;
@@ -779,7 +781,7 @@ static void dw_mci_post_req(struct mmc_host *mmc,
 
 static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 {
-#ifdef CONFIG_MMC_DW_IDMAC
+#if defined(CONFIG_MMC_DW_IDMAC) || defined(CONFIG_MMC_DW_EDMAC)
 	unsigned int blksz = data->blksz;
 	const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
 	u32 fifo_width = 1 << host->data_shift;
