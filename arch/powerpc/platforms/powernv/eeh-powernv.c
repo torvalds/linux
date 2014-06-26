@@ -107,6 +107,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	struct pnv_phb *phb = hose->private_data;
 	struct device_node *dn = pci_device_to_OF_node(dev);
 	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	int ret;
 
 	/*
 	 * When probing the root bridge, which doesn't have any
@@ -143,7 +144,21 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	edev->pe_config_addr	= phb->bdfn_to_pe(phb, dev->bus, dev->devfn & 0xff);
 
 	/* Create PE */
-	eeh_add_to_parent_pe(edev);
+	ret = eeh_add_to_parent_pe(edev);
+	if (ret) {
+		pr_warn("%s: Can't add PCI dev %s to parent PE (%d)\n",
+			__func__, pci_name(dev), ret);
+		return ret;
+	}
+
+	/*
+	 * Cache the PE primary bus, which can't be fetched when
+	 * full hotplug is in progress. In that case, all child
+	 * PCI devices of the PE are expected to be removed prior
+	 * to PE reset.
+	 */
+	if (!edev->pe->bus)
+		edev->pe->bus = dev->bus;
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check

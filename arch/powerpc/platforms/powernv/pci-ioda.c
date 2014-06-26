@@ -1145,8 +1145,8 @@ static void pnv_pci_ioda_fixup(void)
 
 #ifdef CONFIG_EEH
 	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
-	eeh_addr_cache_build();
 	eeh_init();
+	eeh_addr_cache_build();
 #endif
 }
 
