@@ -52,22 +52,8 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 			}
 		}
 	}
-
-	if (psrtpriv->dbg_trigger_point == SRESET_TGP_XMIT_STATUS) {
-		psrtpriv->dbg_trigger_point = SRESET_TGP_NULL;
-		rtw_sreset_reset(padapter);
-		return;
-	}
 }
 
 void rtl8723a_sreset_linked_status_check(struct rtw_adapter *padapter)
 {
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-
-	if (psrtpriv->dbg_trigger_point == SRESET_TGP_LINK_STATUS) {
-		psrtpriv->dbg_trigger_point = SRESET_TGP_NULL;
-		rtw_sreset_reset(padapter);
-		return;
-	}
 }

@@ -18,19 +18,11 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-enum {
-	SRESET_TGP_NULL = 0,
-	SRESET_TGP_XMIT_STATUS = 1,
-	SRESET_TGP_LINK_STATUS = 2,
-};
-
 struct sreset_priv {
 	struct mutex	silentreset_mutex;
 	u8	silent_reset_inprogress;
 	unsigned long last_tx_time;
 	unsigned long last_tx_complete_time;
-
-	s32 dbg_trigger_point;
 };
 
 #include <rtl8723a_hal.h>

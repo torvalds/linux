@@ -37,13 +37,6 @@ void rtw_sreset_reset_value(struct rtw_adapter *padapter)
 	psrtpriv->last_tx_complete_time = 0;
 }
 
-void sreset_set_trigger_point(struct rtw_adapter *padapter, s32 tgp)
-{
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
-
-	pHalData->srestpriv.dbg_trigger_point = tgp;
-}
-
 bool rtw_sreset_inprogress(struct rtw_adapter *padapter)
 {
 	struct rtw_adapter *primary_adapter = GET_PRIMARY_ADAPTER(padapter);
