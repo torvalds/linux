@@ -151,6 +151,7 @@ int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
  */
 void ipu_set_csi_src_mux(struct ipu_soc *ipu, int csi_id, bool mipi_csi2);
 void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi);
+void ipu_dump(struct ipu_soc *ipu);
 
 /*
  * IPU Image DMA Controller (idmac) functions
