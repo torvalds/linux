@@ -260,6 +260,12 @@ void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize)
 };
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_burstsize);
 
+void ipu_cpmem_set_block_mode(struct ipuv3_channel *ch)
+{
+	ipu_ch_param_write_field(ch, IPU_FIELD_BM, 1);
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_set_block_mode);
+
 int ipu_cpmem_set_format_rgb(struct ipuv3_channel *ch,
 			     const struct ipu_rgb *rgb)
 {
