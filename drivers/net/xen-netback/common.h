@@ -222,6 +222,7 @@ struct xenvif {
 
 	/* Queues */
 	struct xenvif_queue *queues;
+	unsigned int num_queues; /* active queues, resource allocated */
 
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;

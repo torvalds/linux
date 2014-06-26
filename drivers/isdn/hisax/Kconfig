@@ -16,7 +16,7 @@ config ISDN_DRV_HISAX
 	  also to the configuration option of the driver for your particular
 	  card, below.
 
-if ISDN_DRV_HISAX!=n
+if ISDN_DRV_HISAX
 
 comment "D-channel protocol features"
 
@@ -348,10 +348,6 @@ config HISAX_ENTERNOW_PCI
 	  This enables HiSax support for the Formula-n enter:now PCI
 	  ISDN card.
 
-endif
-
-if ISDN_DRV_HISAX
-
 config HISAX_DEBUG
 	bool "HiSax debugging"
 	help
@@ -419,11 +415,6 @@ config HISAX_FRITZ_PCIPNP
 	  Fritz!Card PCI v2 and Fritz!Card PnP.
 	  (the latter also needs you to select "ISA Plug and Play support"
 	  from the menu "Plug and Play configuration")
-
-config HISAX_AVM_A1_PCMCIA
-	bool
-	depends on HISAX_AVM_A1_CS
-	default y
 
 endif
 

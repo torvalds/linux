@@ -3189,14 +3189,6 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/eata_pio.*
 
-EBTABLES
-L:	netfilter-devel@vger.kernel.org
-W:	http://ebtables.sourceforge.net/
-S:	Orphan
-F:	include/linux/netfilter_bridge/ebt_*.h
-F:	include/uapi/linux/netfilter_bridge/ebt_*.h
-F:	net/bridge/netfilter/ebt*.c
-
 EC100 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
@@ -6105,12 +6097,11 @@ F:	Documentation/networking/s2io.txt
 F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
-NETFILTER/IPTABLES
+NETFILTER ({IP,IP6,ARP,EB,NF}TABLES)
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
 M:	Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
 L:	netfilter-devel@vger.kernel.org
-L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
