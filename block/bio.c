@@ -746,6 +746,14 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 
 			goto done;
 		}
+
+		/*
+		 * If the queue doesn't support SG gaps and adding this
+		 * offset would create a gap, disallow it.
+		 */
+		if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS) &&
+		    bvec_gap_to_prev(prev, offset))
+			return 0;
 	}
 
 	if (bio->bi_vcnt >= bio->bi_max_vecs)
