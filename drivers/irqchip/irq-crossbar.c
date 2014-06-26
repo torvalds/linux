@@ -26,6 +26,7 @@
  * struct crossbar_device - crossbar device description
  * @int_max: maximum number of supported interrupts
  * @safe_map: safe default value to initialize the crossbar
+ * @max_crossbar_sources: Maximum number of crossbar sources
  * @irq_map: array of interrupts to crossbar number mapping
  * @crossbar_base: crossbar base address
  * @register_offsets: offsets for each irq number
@@ -34,6 +35,7 @@
 struct crossbar_device {
 	uint int_max;
 	uint safe_map;
+	uint max_crossbar_sources;
 	uint *irq_map;
 	void __iomem *crossbar_base;
 	int *register_offsets;
@@ -117,12 +119,19 @@ static int crossbar_domain_xlate(struct irq_domain *d,
 				 unsigned int *out_type)
 {
 	int ret;
+	int req_num = intspec[1];
 
-	ret = get_prev_map_irq(intspec[1]);
+	if (req_num >= cb->max_crossbar_sources) {
+		pr_err("%s: requested crossbar number %d > max %d\n",
+		       __func__, req_num, cb->max_crossbar_sources);
+		return -EINVAL;
+	}
+
+	ret = get_prev_map_irq(req_num);
 	if (ret >= 0)
 		goto found;
 
-	ret = allocate_free_irq(intspec[1]);
+	ret = allocate_free_irq(req_num);
 
 	if (ret < 0)
 		return ret;
@@ -152,6 +161,14 @@ static int __init crossbar_of_init(struct device_node *node)
 	cb->crossbar_base = of_iomap(node, 0);
 	if (!cb->crossbar_base)
 		goto err_cb;
+
+	of_property_read_u32(node, "ti,max-crossbar-sources",
+			     &cb->max_crossbar_sources);
+	if (!cb->max_crossbar_sources) {
+		pr_err("missing 'ti,max-crossbar-sources' property\n");
+		ret = -EINVAL;
+		goto err_base;
+	}
 
 	of_property_read_u32(node, "ti,max-irqs", &max);
 	if (!max) {
