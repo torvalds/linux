@@ -253,8 +253,6 @@ int _rtw_pwr_wakeup23a(struct rtw_adapter *padapter, u32 ips_deffer_ms,
 		    const char *caller);
 #define rtw_pwr_wakeup(adapter) _rtw_pwr_wakeup23a(adapter,		\
 	 RTW_PWR_STATE_CHK_INTERVAL, __func__)
-#define rtw_pwr_wakeup_ex(adapter, ips_deffer_ms)			\
-	 _rtw_pwr_wakeup23a(adapter, ips_deffer_ms, __func__)
 int rtw_pm_set_ips23a(struct rtw_adapter *padapter, u8 mode);
 int rtw_pm_set_lps23a(struct rtw_adapter *padapter, u8 mode);
 
