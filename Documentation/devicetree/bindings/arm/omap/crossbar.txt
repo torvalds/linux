@@ -22,6 +22,9 @@ Optional properties:
   SOC-specific hard-wiring of those irqs which unexpectedly bypasses the
   crossbar. These irqs have a crossbar register, but still cannot be used.
 
+- ti,irqs-safe-map: integer which maps to a safe configuration to use
+  when the interrupt controller irq is unused (when not provided, default is 0)
+
 Examples:
 		crossbar_mpu: @4a020000 {
 			compatible = "ti,irq-crossbar";
