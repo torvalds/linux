@@ -148,13 +148,13 @@ static void __init rockchip_a9_smp_prepare_cpus(unsigned int max_cpus)
 static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int i, cpu;
-	unsigned long scuctlr;
+	unsigned long l2ctlr;
 
 	if (scu_a9_has_base())
 		return rockchip_a9_smp_prepare_cpus(max_cpus);
 
-	asm("mrc p15, 1, %0, c9, c0, 4" : "=r" (scuctlr));
-	ncores = (scuctlr & 3) + 1;
+	asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (l2ctlr));
+	ncores = ((l2ctlr >> 24) & 3) + 1;
 	cpu = MPIDR_AFFINITY_LEVEL(read_cpuid_mpidr(), 0);
 	/* Make sure that all cores except myself are really off */
 	for (i = 0; i < ncores; i++) {
