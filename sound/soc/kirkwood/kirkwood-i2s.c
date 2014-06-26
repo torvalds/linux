@@ -234,6 +234,7 @@ static unsigned kirkwood_i2s_play_mute(unsigned ctl)
 static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
 	uint32_t ctl, value;
 
@@ -271,9 +272,11 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 		/* enable interrupts */
-		value = readl(priv->io + KIRKWOOD_INT_MASK);
-		value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
-		writel(value, priv->io + KIRKWOOD_INT_MASK);
+		if (!runtime->no_period_wakeup) {
+			value = readl(priv->io + KIRKWOOD_INT_MASK);
+			value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
+			writel(value, priv->io + KIRKWOOD_INT_MASK);
+		}
 
 		/* enable playback */
 		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
