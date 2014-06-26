@@ -97,9 +97,7 @@ void kvm_arch_hardware_unsetup(void)
 
 void kvm_arch_check_processor_compat(void *rtn)
 {
-	int *r = (int *)rtn;
-	*r = 0;
-	return;
+	*(int *)rtn = 0;
 }
 
 static void kvm_mips_init_tlbs(struct kvm *kvm)
@@ -225,7 +223,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   enum kvm_mr_change change)
 {
 	unsigned long npages = 0;
-	int i, err = 0;
+	int i;
 
 	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
@@ -243,8 +241,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 			if (!kvm->arch.guest_pmap) {
 				kvm_err("Failed to allocate guest PMAP");
-				err = -ENOMEM;
-				goto out;
+				return;
 			}
 
 			kvm_debug("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
@@ -255,8 +252,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				kvm->arch.guest_pmap[i] = KVM_INVALID_PAGE;
 		}
 	}
-out:
-	return;
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
@@ -845,16 +840,12 @@ long kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 
 int kvm_arch_init(void *opaque)
 {
-	int ret;
-
 	if (kvm_mips_callbacks) {
 		kvm_err("kvm: module already exists\n");
 		return -EEXIST;
 	}
 
-	ret = kvm_mips_emulation_init(&kvm_mips_callbacks);
-
-	return ret;
+	return kvm_mips_emulation_init(&kvm_mips_callbacks);
 }
 
 void kvm_arch_exit(void)
@@ -1008,7 +999,6 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
-	return;
 }
 
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,

@@ -63,7 +63,7 @@ char *kvm_cop0_str[N_MIPS_COPROC_REGS] = {
 	"DESAVE"
 };
 
-int kvm_mips_dump_stats(struct kvm_vcpu *vcpu)
+void kvm_mips_dump_stats(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_KVM_MIPS_DEBUG_COP0_COUNTERS
 	int i, j;
@@ -77,6 +77,4 @@ int kvm_mips_dump_stats(struct kvm_vcpu *vcpu)
 		}
 	}
 #endif
-
-	return 0;
 }

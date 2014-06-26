@@ -33,6 +33,4 @@ void kvm_mips_commpage_init(struct kvm_vcpu *vcpu)
 	/* Specific init values for fields */
 	vcpu->arch.cop0 = &page->cop0;
 	memset(vcpu->arch.cop0, 0, sizeof(struct mips_coproc));
-
-	return;
 }

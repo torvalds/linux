@@ -761,8 +761,6 @@ enum emulation_result kvm_mips_emul_eret(struct kvm_vcpu *vcpu)
 
 enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 {
-	enum emulation_result er = EMULATE_DONE;
-
 	kvm_debug("[%#lx] !!!WAIT!!! (%#lx)\n", vcpu->arch.pc,
 		  vcpu->arch.pending_exceptions);
 
@@ -782,7 +780,7 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	return er;
+	return EMULATE_DONE;
 }
 
 /*
@@ -792,11 +790,10 @@ enum emulation_result kvm_mips_emul_wait(struct kvm_vcpu *vcpu)
 enum emulation_result kvm_mips_emul_tlbr(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	enum emulation_result er = EMULATE_FAIL;
 	uint32_t pc = vcpu->arch.pc;
 
 	kvm_err("[%#x] COP0_TLBR [%ld]\n", pc, kvm_read_c0_guest_index(cop0));
-	return er;
+	return EMULATE_FAIL;
 }
 
 /* Write Guest TLB Entry @ Index */
@@ -804,7 +801,6 @@ enum emulation_result kvm_mips_emul_tlbwi(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int index = kvm_read_c0_guest_index(cop0);
-	enum emulation_result er = EMULATE_DONE;
 	struct kvm_mips_tlb *tlb = NULL;
 	uint32_t pc = vcpu->arch.pc;
 
@@ -836,14 +832,13 @@ enum emulation_result kvm_mips_emul_tlbwi(struct kvm_vcpu *vcpu)
 		  kvm_read_c0_guest_entrylo1(cop0),
 		  kvm_read_c0_guest_pagemask(cop0));
 
-	return er;
+	return EMULATE_DONE;
 }
 
 /* Write Guest TLB Entry @ Random Index */
 enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	enum emulation_result er = EMULATE_DONE;
 	struct kvm_mips_tlb *tlb = NULL;
 	uint32_t pc = vcpu->arch.pc;
 	int index;
@@ -874,14 +869,13 @@ enum emulation_result kvm_mips_emul_tlbwr(struct kvm_vcpu *vcpu)
 		  kvm_read_c0_guest_entrylo0(cop0),
 		  kvm_read_c0_guest_entrylo1(cop0));
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emul_tlbp(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	long entryhi = kvm_read_c0_guest_entryhi(cop0);
-	enum emulation_result er = EMULATE_DONE;
 	uint32_t pc = vcpu->arch.pc;
 	int index = -1;
 
@@ -892,7 +886,7 @@ enum emulation_result kvm_mips_emul_tlbp(struct kvm_vcpu *vcpu)
 	kvm_debug("[%#x] COP0_TLBP (entryhi: %#lx), index: %d\n", pc, entryhi,
 		  index);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
@@ -1638,7 +1632,6 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 	unsigned long entryhi = (vcpu->arch.  host_cp0_badvaddr & VPN2_MASK) |
 				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
 
@@ -1675,7 +1668,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_ld(unsigned long cause,
 	/* Blow away the shadow host TLBs */
 	kvm_mips_flush_host_tlb(1);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
@@ -1685,7 +1678,6 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 	unsigned long entryhi =
 		(vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
@@ -1722,7 +1714,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_ld(unsigned long cause,
 	/* Blow away the shadow host TLBs */
 	kvm_mips_flush_host_tlb(1);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
@@ -1732,7 +1724,6 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
 
@@ -1767,7 +1758,7 @@ enum emulation_result kvm_mips_emulate_tlbmiss_st(unsigned long cause,
 	/* Blow away the shadow host TLBs */
 	kvm_mips_flush_host_tlb(1);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
@@ -1777,7 +1768,6 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 		(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
 
@@ -1812,7 +1802,7 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(unsigned long cause,
 	/* Blow away the shadow host TLBs */
 	kvm_mips_flush_host_tlb(1);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 /* TLBMOD: store into address matching TLB with Dirty bit off */
@@ -1853,7 +1843,6 @@ enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
 	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
 				(kvm_read_c0_guest_entryhi(cop0) & ASID_MASK);
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1884,7 +1873,7 @@ enum emulation_result kvm_mips_emulate_tlbmod(unsigned long cause,
 	/* Blow away the shadow host TLBs */
 	kvm_mips_flush_host_tlb(1);
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_fpu_exc(unsigned long cause,
@@ -1894,7 +1883,6 @@ enum emulation_result kvm_mips_emulate_fpu_exc(unsigned long cause,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_vcpu_arch *arch = &vcpu->arch;
-	enum emulation_result er = EMULATE_DONE;
 
 	if ((kvm_read_c0_guest_status(cop0) & ST0_EXL) == 0) {
 		/* save old pc */
@@ -1914,7 +1902,7 @@ enum emulation_result kvm_mips_emulate_fpu_exc(unsigned long cause,
 				  (T_COP_UNUSABLE << CAUSEB_EXCCODE));
 	kvm_change_c0_guest_cause(cop0, (CAUSEF_CE), (0x1 << CAUSEB_CE));
 
-	return er;
+	return EMULATE_DONE;
 }
 
 enum emulation_result kvm_mips_emulate_ri_exc(unsigned long cause,
