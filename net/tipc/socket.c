@@ -1466,16 +1466,10 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	uint limit;
 	u32 dnode;
 
-	/* Forward unresolved named message */
-	if (unlikely(!dport)) {
-		tipc_net_route_msg(buf);
-		return 0;
-	}
-
-	/* Validate destination */
+	/* Validate destination and message */
 	port = tipc_port_lock(dport);
 	if (unlikely(!port)) {
-		rc = -TIPC_ERR_NO_PORT;
+		rc = tipc_msg_eval(buf, &dnode);
 		goto exit;
 	}
 
@@ -1494,17 +1488,17 @@ int tipc_sk_rcv(struct sk_buff *buf)
 		if (sk_add_backlog(sk, buf, limit))
 			rc = -TIPC_ERR_OVERLOAD;
 	}
-
 	bh_unlock_sock(sk);
 	tipc_port_unlock(port);
 
 	if (likely(!rc))
 		return 0;
 exit:
-	if (!tipc_msg_reverse(buf, &dnode, -rc))
+	if ((rc < 0) && !tipc_msg_reverse(buf, &dnode, -rc))
 		return -EHOSTUNREACH;
+
 	tipc_link_xmit2(buf, dnode, 0);
-	return -EHOSTUNREACH;
+	return (rc < 0) ? -EHOSTUNREACH : 0;
 }
 
 static int tipc_wait_for_connect(struct socket *sock, long *timeo_p)

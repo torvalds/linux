@@ -1,7 +1,7 @@
 /*
  * net/tipc/net.c: TIPC network routing code
  *
- * Copyright (c) 1995-2006, Ericsson AB
+ * Copyright (c) 1995-2006, 2014, Ericsson AB
  * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -103,29 +103,6 @@
  *       This is always used within the scope of a tipc_nametbl_lock(read).
  *     - A local spin_lock protecting the queue of subscriber events.
 */
-
-static void net_route_named_msg(struct sk_buff *buf)
-{
-	struct tipc_msg *msg = buf_msg(buf);
-	u32 dnode;
-	u32 dport;
-
-	if (!msg_named(msg)) {
-		kfree_skb(buf);
-		return;
-	}
-
-	dnode = addr_domain(msg_lookup_scope(msg));
-	dport = tipc_nametbl_translate(msg_nametype(msg), msg_nameinst(msg), &dnode);
-	if (dport) {
-		msg_set_destnode(msg, dnode);
-		msg_set_destport(msg, dport);
-		tipc_net_route_msg(buf);
-		return;
-	}
-	tipc_reject_msg(buf, TIPC_ERR_NO_NAME);
-}
-
 void tipc_net_route_msg(struct sk_buff *buf)
 {
 	struct tipc_msg *msg;
@@ -141,10 +118,12 @@ void tipc_net_route_msg(struct sk_buff *buf)
 		if (msg_isdata(msg)) {
 			if (msg_mcast(msg))
 				tipc_port_mcast_rcv(buf, NULL);
-			else if (msg_destport(msg))
+			else if (msg_destport(msg)) {
 				tipc_sk_rcv(buf);
-			else
-				net_route_named_msg(buf);
+			} else {
+				pr_warn("Cannot route msg; no destination\n");
+				kfree_skb(buf);
+			}
 			return;
 		}
 		switch (msg_user(msg)) {

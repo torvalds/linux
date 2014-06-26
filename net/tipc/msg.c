@@ -36,6 +36,8 @@
 
 #include "core.h"
 #include "msg.h"
+#include "addr.h"
+#include "name_table.h"
 
 #define MAX_FORWARD_SIZE 1024
 
@@ -369,4 +371,40 @@ bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err)
 exit:
 	kfree_skb(buf);
 	return false;
+}
+
+/**
+ * tipc_msg_eval: determine fate of message that found no destination
+ * @buf: the buffer containing the message.
+ * @dnode: return value: next-hop node, if message to be forwarded
+ * @err: error code to use, if message to be rejected
+ *
+ * Does not consume buffer
+ * Returns 0 (TIPC_OK) if message ok and we can try again, -TIPC error
+ * code if message to be rejected
+ */
+int tipc_msg_eval(struct sk_buff *buf, u32 *dnode)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+	u32 dport;
+
+	if (msg_type(msg) != TIPC_NAMED_MSG)
+		return -TIPC_ERR_NO_PORT;
+	if (skb_linearize(buf))
+		return -TIPC_ERR_NO_NAME;
+	if (msg_data_sz(msg) > MAX_FORWARD_SIZE)
+		return -TIPC_ERR_NO_NAME;
+	if (msg_reroute_cnt(msg) > 0)
+		return -TIPC_ERR_NO_NAME;
+
+	*dnode = addr_domain(msg_lookup_scope(msg));
+	dport = tipc_nametbl_translate(msg_nametype(msg),
+				       msg_nameinst(msg),
+				       dnode);
+	if (!dport)
+		return -TIPC_ERR_NO_NAME;
+	msg_incr_reroute_cnt(msg);
+	msg_set_destnode(msg, *dnode);
+	msg_set_destport(msg, dport);
+	return TIPC_OK;
 }
