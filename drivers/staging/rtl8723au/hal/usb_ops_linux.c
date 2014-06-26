@@ -28,7 +28,6 @@ static int usbctrl_vendorreq(struct rtw_adapter *padapter, u8 request,
 {
 	struct dvobj_priv *pdvobjpriv = adapter_to_dvobj(padapter);
 	struct usb_device *udev = pdvobjpriv->pusbdev;
-
 	unsigned int pipe;
 	int status = 0;
 	u8 reqtype;
@@ -97,6 +96,7 @@ static int usbctrl_vendorreq(struct rtw_adapter *padapter, u8 request,
 					padapter->bSurpriseRemoved = true;
 				else {
 					struct hal_data_8723a *pHalData;
+
 					pHalData = GET_HAL_DATA(padapter);
 					pHalData->srestpriv.Wifi_Error_Status =
 						USB_VEN_REQ_CMD_FAIL;
