@@ -401,7 +401,7 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
-		snprintf(buf, 16, "gpio-irq%d", irq);
+		snprintf(buf, 16, "gpio-irq%u", irq);
 		port_setup(port, d->hwirq, true);
 	} else
 		goto out;
