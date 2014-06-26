@@ -57,6 +57,16 @@
 			default-state = "off";
 		};
 	};
+
+	vcc_sd0: sdmmc-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "sdmmc-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 1 GPIO_ACTIVE_LOW>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
+	};
 };
 
 &i2c1 {
@@ -156,6 +166,18 @@
 				regulator-always-on;
 			};
 		};
+	};
+};
+
+&mmc0 {
+	num-slots = <1>;
+	status = "okay";
+	vmmc-supply = <&vcc_sd0>;
+
+	slot@0 {
+		reg = <0>;
+		bus-width = <4>;
+		disable-wp;
 	};
 };
 
