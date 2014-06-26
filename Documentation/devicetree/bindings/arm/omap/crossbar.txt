@@ -17,6 +17,11 @@ Required properties:
 		 so crossbar bar driver should not consider them as free
 		 lines.
 
+Optional properties:
+- ti,irqs-skip: This is similar to "ti,irqs-reserved", but these are for
+  SOC-specific hard-wiring of those irqs which unexpectedly bypasses the
+  crossbar. These irqs have a crossbar register, but still cannot be used.
+
 Examples:
 		crossbar_mpu: @4a020000 {
 			compatible = "ti,irq-crossbar";
@@ -24,4 +29,5 @@ Examples:
 			ti,max-irqs = <160>;
 			ti,reg-size = <2>;
 			ti,irqs-reserved = <0 1 2 3 5 6 131 132 139 140>;
+			ti,irqs-skip = <10 133 139 140>;
 		};
