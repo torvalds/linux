@@ -405,7 +405,6 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 
 	int_status = readl(i2c->regs + HSI2C_INT_STATUS);
 	writel(int_status, i2c->regs + HSI2C_INT_STATUS);
-	fifo_status = readl(i2c->regs + HSI2C_FIFO_STATUS);
 
 	/* handle interrupt related to the transfer status */
 	if (int_status & HSI2C_INT_I2C) {
