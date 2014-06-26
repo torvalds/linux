@@ -981,7 +981,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	int error = 0;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT | GL_NOCACHE;
+	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT;
 
 	mutex_lock(&fp->f_fl_mutex);
 
