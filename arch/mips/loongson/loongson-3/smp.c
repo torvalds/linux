@@ -31,6 +31,12 @@
 DEFINE_PER_CPU(int, cpu_state);
 DEFINE_PER_CPU(uint32_t, core0_c0count);
 
+static void *ipi_set0_regs[16];
+static void *ipi_clear0_regs[16];
+static void *ipi_status0_regs[16];
+static void *ipi_en0_regs[16];
+static void *ipi_mailbox_buf[16];
+
 /* read a 32bit value from ipi register */
 #define loongson3_ipi_read32(addr) readl(addr)
 /* read a 64bit value from ipi register */
@@ -48,100 +54,185 @@ DEFINE_PER_CPU(uint32_t, core0_c0count);
 		__wbflush();			\
 	} while (0)
 
-static void *ipi_set0_regs[] = {
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + SET0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + SET0),
-};
+static void ipi_set0_regs_init(void)
+{
+	ipi_set0_regs[0] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + SET0);
+	ipi_set0_regs[1] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + SET0);
+	ipi_set0_regs[2] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + SET0);
+	ipi_set0_regs[3] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + SET0);
+	ipi_set0_regs[4] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + SET0);
+	ipi_set0_regs[5] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + SET0);
+	ipi_set0_regs[6] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + SET0);
+	ipi_set0_regs[7] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + SET0);
+	ipi_set0_regs[8] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + SET0);
+	ipi_set0_regs[9] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + SET0);
+	ipi_set0_regs[10] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + SET0);
+	ipi_set0_regs[11] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + SET0);
+	ipi_set0_regs[12] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + SET0);
+	ipi_set0_regs[13] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + SET0);
+	ipi_set0_regs[14] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + SET0);
+	ipi_set0_regs[15] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + SET0);
+}
 
-static void *ipi_clear0_regs[] = {
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + CLEAR0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + CLEAR0),
-};
+static void ipi_clear0_regs_init(void)
+{
+	ipi_clear0_regs[0] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + CLEAR0);
+	ipi_clear0_regs[1] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + CLEAR0);
+	ipi_clear0_regs[2] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + CLEAR0);
+	ipi_clear0_regs[3] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + CLEAR0);
+	ipi_clear0_regs[4] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + CLEAR0);
+	ipi_clear0_regs[5] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + CLEAR0);
+	ipi_clear0_regs[6] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + CLEAR0);
+	ipi_clear0_regs[7] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + CLEAR0);
+	ipi_clear0_regs[8] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + CLEAR0);
+	ipi_clear0_regs[9] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + CLEAR0);
+	ipi_clear0_regs[10] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + CLEAR0);
+	ipi_clear0_regs[11] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + CLEAR0);
+	ipi_clear0_regs[12] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + CLEAR0);
+	ipi_clear0_regs[13] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + CLEAR0);
+	ipi_clear0_regs[14] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + CLEAR0);
+	ipi_clear0_regs[15] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + CLEAR0);
+}
 
-static void *ipi_status0_regs[] = {
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + STATUS0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + STATUS0),
-};
+static void ipi_status0_regs_init(void)
+{
+	ipi_status0_regs[0] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + STATUS0);
+	ipi_status0_regs[1] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + STATUS0);
+	ipi_status0_regs[2] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + STATUS0);
+	ipi_status0_regs[3] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + STATUS0);
+	ipi_status0_regs[4] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + STATUS0);
+	ipi_status0_regs[5] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + STATUS0);
+	ipi_status0_regs[6] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + STATUS0);
+	ipi_status0_regs[7] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + STATUS0);
+	ipi_status0_regs[8] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + STATUS0);
+	ipi_status0_regs[9] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + STATUS0);
+	ipi_status0_regs[10] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + STATUS0);
+	ipi_status0_regs[11] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + STATUS0);
+	ipi_status0_regs[12] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + STATUS0);
+	ipi_status0_regs[13] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + STATUS0);
+	ipi_status0_regs[14] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + STATUS0);
+	ipi_status0_regs[15] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + STATUS0);
+}
 
-static void *ipi_en0_regs[] = {
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + EN0),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + EN0),
-};
+static void ipi_en0_regs_init(void)
+{
+	ipi_en0_regs[0] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + EN0);
+	ipi_en0_regs[1] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + EN0);
+	ipi_en0_regs[2] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + EN0);
+	ipi_en0_regs[3] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + EN0);
+	ipi_en0_regs[4] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + EN0);
+	ipi_en0_regs[5] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + EN0);
+	ipi_en0_regs[6] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + EN0);
+	ipi_en0_regs[7] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + EN0);
+	ipi_en0_regs[8] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + EN0);
+	ipi_en0_regs[9] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + EN0);
+	ipi_en0_regs[10] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + EN0);
+	ipi_en0_regs[11] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + EN0);
+	ipi_en0_regs[12] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + EN0);
+	ipi_en0_regs[13] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + EN0);
+	ipi_en0_regs[14] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + EN0);
+	ipi_en0_regs[15] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + EN0);
+}
 
-static void *ipi_mailbox_buf[] = {
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + BUF),
-	(void *)(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + BUF),
-};
+static void ipi_mailbox_buf_init(void)
+{
+	ipi_mailbox_buf[0] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE0_OFFSET + BUF);
+	ipi_mailbox_buf[1] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE1_OFFSET + BUF);
+	ipi_mailbox_buf[2] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE2_OFFSET + BUF);
+	ipi_mailbox_buf[3] = (void *)
+		(SMP_CORE_GROUP0_BASE + SMP_CORE3_OFFSET + BUF);
+	ipi_mailbox_buf[4] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE0_OFFSET + BUF);
+	ipi_mailbox_buf[5] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE1_OFFSET + BUF);
+	ipi_mailbox_buf[6] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE2_OFFSET + BUF);
+	ipi_mailbox_buf[7] = (void *)
+		(SMP_CORE_GROUP1_BASE + SMP_CORE3_OFFSET + BUF);
+	ipi_mailbox_buf[8] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE0_OFFSET + BUF);
+	ipi_mailbox_buf[9] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE1_OFFSET + BUF);
+	ipi_mailbox_buf[10] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE2_OFFSET + BUF);
+	ipi_mailbox_buf[11] = (void *)
+		(SMP_CORE_GROUP2_BASE + SMP_CORE3_OFFSET + BUF);
+	ipi_mailbox_buf[12] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE0_OFFSET + BUF);
+	ipi_mailbox_buf[13] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE1_OFFSET + BUF);
+	ipi_mailbox_buf[14] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE2_OFFSET + BUF);
+	ipi_mailbox_buf[15] = (void *)
+		(SMP_CORE_GROUP3_BASE + SMP_CORE3_OFFSET + BUF);
+}
 
 /*
  * Simple enough, just poke the appropriate ipi register
@@ -248,6 +339,11 @@ static void __init loongson3_smp_setup(void)
 		__cpu_number_map[i] = ++num;
 		__cpu_logical_map[num] = i;
 	}
+	ipi_set0_regs_init();
+	ipi_clear0_regs_init();
+	ipi_status0_regs_init();
+	ipi_en0_regs_init();
+	ipi_mailbox_buf_init();
 	pr_info("Detected %i available secondary CPU(s)\n", num);
 }
 
@@ -315,7 +411,7 @@ static void loongson3_cpu_die(unsigned int cpu)
  * flush all L1 entries at first. Then, another core (usually Core 0) can
  * safely disable the clock of the target core. loongson3_play_dead() is
  * called via CKSEG1 (uncached and unmmaped) */
-static void loongson3_play_dead(int *state_addr)
+static void loongson3a_play_dead(int *state_addr)
 {
 	register int val;
 	register long cpuid, core, node, count;
@@ -377,6 +473,70 @@ static void loongson3_play_dead(int *state_addr)
 		: "a1");
 }
 
+static void loongson3b_play_dead(int *state_addr)
+{
+	register int val;
+	register long cpuid, core, node, count;
+	register void *addr, *base, *initfunc;
+
+	__asm__ __volatile__(
+		"   .set push                     \n"
+		"   .set noreorder                \n"
+		"   li %[addr], 0x80000000        \n" /* KSEG0 */
+		"1: cache 0, 0(%[addr])           \n" /* flush L1 ICache */
+		"   cache 0, 1(%[addr])           \n"
+		"   cache 0, 2(%[addr])           \n"
+		"   cache 0, 3(%[addr])           \n"
+		"   cache 1, 0(%[addr])           \n" /* flush L1 DCache */
+		"   cache 1, 1(%[addr])           \n"
+		"   cache 1, 2(%[addr])           \n"
+		"   cache 1, 3(%[addr])           \n"
+		"   addiu %[sets], %[sets], -1    \n"
+		"   bnez  %[sets], 1b             \n"
+		"   addiu %[addr], %[addr], 0x20  \n"
+		"   li    %[val], 0x7             \n" /* *state_addr = CPU_DEAD; */
+		"   sw    %[val], (%[state_addr]) \n"
+		"   sync                          \n"
+		"   cache 21, (%[state_addr])     \n" /* flush entry of *state_addr */
+		"   .set pop                      \n"
+		: [addr] "=&r" (addr), [val] "=&r" (val)
+		: [state_addr] "r" (state_addr),
+		  [sets] "r" (cpu_data[smp_processor_id()].dcache.sets));
+
+	__asm__ __volatile__(
+		"   .set push                         \n"
+		"   .set noreorder                    \n"
+		"   .set mips64                       \n"
+		"   mfc0  %[cpuid], $15, 1            \n"
+		"   andi  %[cpuid], 0x3ff             \n"
+		"   dli   %[base], 0x900000003ff01000 \n"
+		"   andi  %[core], %[cpuid], 0x3      \n"
+		"   sll   %[core], 8                  \n" /* get core id */
+		"   or    %[base], %[base], %[core]   \n"
+		"   andi  %[node], %[cpuid], 0xc      \n"
+		"   dsll  %[node], 42                 \n" /* get node id */
+		"   or    %[base], %[base], %[node]   \n"
+		"   dsrl  %[node], 30                 \n" /* 15:14 */
+		"   or    %[base], %[base], %[node]   \n"
+		"1: li    %[count], 0x100             \n" /* wait for init loop */
+		"2: bnez  %[count], 2b                \n" /* limit mailbox access */
+		"   addiu %[count], -1                \n"
+		"   ld    %[initfunc], 0x20(%[base])  \n" /* get PC via mailbox */
+		"   beqz  %[initfunc], 1b             \n"
+		"   nop                               \n"
+		"   ld    $sp, 0x28(%[base])          \n" /* get SP via mailbox */
+		"   ld    $gp, 0x30(%[base])          \n" /* get GP via mailbox */
+		"   ld    $a1, 0x38(%[base])          \n"
+		"   jr    %[initfunc]                 \n" /* jump to initial PC */
+		"   nop                               \n"
+		"   .set pop                          \n"
+		: [core] "=&r" (core), [node] "=&r" (node),
+		  [base] "=&r" (base), [cpuid] "=&r" (cpuid),
+		  [count] "=&r" (count), [initfunc] "=&r" (initfunc)
+		: /* No Input */
+		: "a1");
+}
+
 void play_dead(void)
 {
 	int *state_addr;
@@ -384,11 +544,46 @@ void play_dead(void)
 	void (*play_dead_at_ckseg1)(int *);
 
 	idle_task_exit();
-	play_dead_at_ckseg1 =
-		(void *)CKSEG1ADDR((unsigned long)loongson3_play_dead);
+	switch (loongson_sysconf.cputype) {
+	case Loongson_3A:
+	default:
+		play_dead_at_ckseg1 =
+			(void *)CKSEG1ADDR((unsigned long)loongson3a_play_dead);
+		break;
+	case Loongson_3B:
+		play_dead_at_ckseg1 =
+			(void *)CKSEG1ADDR((unsigned long)loongson3b_play_dead);
+		break;
+	}
 	state_addr = &per_cpu(cpu_state, cpu);
 	mb();
 	play_dead_at_ckseg1(state_addr);
+}
+
+void loongson3_disable_clock(int cpu)
+{
+	uint64_t core_id = cpu_data[cpu].core;
+	uint64_t package_id = cpu_data[cpu].package;
+
+	if (loongson_sysconf.cputype == Loongson_3A) {
+		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
+	} else if (loongson_sysconf.cputype == Loongson_3B) {
+		if (!cpuhotplug_workaround)
+			LOONGSON_FREQCTRL(package_id) &= ~(1 << (core_id * 4 + 3));
+	}
+}
+
+void loongson3_enable_clock(int cpu)
+{
+	uint64_t core_id = cpu_data[cpu].core;
+	uint64_t package_id = cpu_data[cpu].package;
+
+	if (loongson_sysconf.cputype == Loongson_3A) {
+		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);
+	} else if (loongson_sysconf.cputype == Loongson_3B) {
+		if (!cpuhotplug_workaround)
+			LOONGSON_FREQCTRL(package_id) |= 1 << (core_id * 4 + 3);
+	}
 }
 
 #define CPU_POST_DEAD_FROZEN	(CPU_POST_DEAD | CPU_TASKS_FROZEN)
@@ -396,19 +591,17 @@ static int loongson3_cpu_callback(struct notifier_block *nfb,
 	unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	uint64_t core_id = cpu_data[cpu].core;
-	uint64_t package_id = cpu_data[cpu].package;
 
 	switch (action) {
 	case CPU_POST_DEAD:
 	case CPU_POST_DEAD_FROZEN:
 		pr_info("Disable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
+		loongson3_disable_clock(cpu);
 		break;
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		pr_info("Enable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);
+		loongson3_enable_clock(cpu);
 		break;
 	}
 

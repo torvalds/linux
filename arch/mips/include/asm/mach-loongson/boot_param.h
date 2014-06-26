@@ -163,4 +163,5 @@ struct loongson_system_configuration {
 
 extern struct efi_memory_map_loongson *loongson_memmap;
 extern struct loongson_system_configuration loongson_sysconf;
+extern int cpuhotplug_workaround;
 #endif

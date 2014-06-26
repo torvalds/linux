@@ -255,6 +255,10 @@ static inline void do_perfcnt_IRQ(void)
 extern u64 loongson_chipcfg[MAX_PACKAGES];
 #define LOONGSON_CHIPCFG(id) (*(volatile u32 *)(loongson_chipcfg[id]))
 
+/* Freq Control register of each physical cpu package, PRid >= Loongson-3B */
+extern u64 loongson_freqctrl[MAX_PACKAGES];
+#define LOONGSON_FREQCTRL(id) (*(volatile u32 *)(loongson_freqctrl[id]))
+
 /* pcimap */
 
 #define LOONGSON_PCIMAP_PCIMAP_LO0	0x0000003f
