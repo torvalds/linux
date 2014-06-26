@@ -1172,9 +1172,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	const __be32 *list;
 	struct property *pp;
 	struct st_pinconf *conf;
-	phandle phandle;
 	struct device_node *pins;
-	u32 pin;
 	int i = 0, npins = 0, nr_props;
 
 	pins = of_get_child_by_name(np, "st,pins");
@@ -1212,8 +1210,8 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		conf = &grp->pin_conf[i];
 
 		/* bank & offset */
-		phandle = be32_to_cpup(list++);
-		pin = be32_to_cpup(list++);
+		be32_to_cpup(list++);
+		be32_to_cpup(list++);
 		conf->pin = of_get_named_gpio(pins, pp->name, 0);
 		conf->name = pp->name;
 		grp->pins[i] = conf->pin;
