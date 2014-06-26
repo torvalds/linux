@@ -1191,7 +1191,6 @@ int __init kvm_mips_init(void)
 	kvm_mips_release_pfn_clean = kvm_release_pfn_clean;
 	kvm_mips_is_error_pfn = is_error_pfn;
 
-	pr_info("KVM/MIPS Initialized\n");
 	return 0;
 }
 
@@ -1202,8 +1201,6 @@ void __exit kvm_mips_exit(void)
 	kvm_mips_gfn_to_pfn = NULL;
 	kvm_mips_release_pfn_clean = NULL;
 	kvm_mips_is_error_pfn = NULL;
-
-	pr_info("KVM/MIPS unloaded\n");
 }
 
 module_init(kvm_mips_init);
