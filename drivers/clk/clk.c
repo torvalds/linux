@@ -358,6 +358,18 @@ static void clk_debug_unregister(struct clk *clk)
 	debugfs_remove_recursive(clk->dentry);
 }
 
+struct dentry *clk_debugfs_add_file(struct clk *clk, char *name, umode_t mode,
+				void *data, const struct file_operations *fops)
+{
+	struct dentry *d = NULL;
+
+	if (clk->dentry)
+		d = debugfs_create_file(name, mode, clk->dentry, data, fops);
+
+	return d;
+}
+EXPORT_SYMBOL_GPL(clk_debugfs_add_file);
+
 /**
  * clk_debug_init - lazily create the debugfs clk tree visualization
  *
