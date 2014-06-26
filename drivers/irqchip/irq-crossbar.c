@@ -51,6 +51,17 @@ static inline void crossbar_writeb(int irq_no, int cb_no)
 	writeb(cb_no, cb->crossbar_base + cb->register_offsets[irq_no]);
 }
 
+static inline int get_prev_map_irq(int cb_no)
+{
+	int i;
+
+	for (i = 0; i < cb->int_max; i++)
+		if (cb->irq_map[i] == cb_no)
+			return i;
+
+	return -ENODEV;
+}
+
 static inline int allocate_free_irq(int cb_no)
 {
 	int i;
@@ -88,11 +99,16 @@ static int crossbar_domain_xlate(struct irq_domain *d,
 {
 	unsigned long ret;
 
+	ret = get_prev_map_irq(intspec[1]);
+	if (!IS_ERR_VALUE(ret))
+		goto found;
+
 	ret = allocate_free_irq(intspec[1]);
 
 	if (IS_ERR_VALUE(ret))
 		return ret;
 
+found:
 	*out_hwirq = ret + GIC_IRQ_START;
 	return 0;
 }
