@@ -525,7 +525,7 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 	if (i2c->msg->flags & I2C_M_RD) {
 		i2c_ctl |= HSI2C_RXCHON;
 
-		i2c_auto_conf = HSI2C_READ_WRITE;
+		i2c_auto_conf |= HSI2C_READ_WRITE;
 
 		trig_lvl = (i2c->msg->len > i2c->variant->fifo_depth) ?
 			(i2c->variant->fifo_depth * 3 / 4) : i2c->msg->len;
@@ -547,7 +547,6 @@ static void exynos5_i2c_message_start(struct exynos5_i2c *i2c, int stop)
 
 	writel(fifo_ctl, i2c->regs + HSI2C_FIFO_CTL);
 	writel(i2c_ctl, i2c->regs + HSI2C_CTL);
-
 
 	/*
 	 * Enable interrupts before starting the transfer so that we don't
