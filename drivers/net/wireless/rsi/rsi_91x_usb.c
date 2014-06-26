@@ -397,7 +397,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 		return -ENOMEM;
 	}
 
-	rsi_dev->tx_buffer = kmalloc(2048, GFP_ATOMIC);
+	rsi_dev->tx_buffer = kmalloc(2048, GFP_KERNEL);
 	rsi_dev->rx_usb_urb[0] = usb_alloc_urb(0, GFP_KERNEL);
 	rsi_dev->rx_usb_urb[0]->transfer_buffer = adapter->priv->rx_data_pkt;
 	rsi_dev->tx_blk_size = 252;
