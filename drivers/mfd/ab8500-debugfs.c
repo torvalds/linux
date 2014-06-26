@@ -1350,12 +1350,11 @@ static int ab8500_print_all_banks(struct seq_file *s, void *p)
 {
 	struct device *dev = s->private;
 	unsigned int i;
-	int err;
 
 	seq_printf(s, AB8500_NAME_STRING " register values:\n");
 
 	for (i = 0; i < AB8500_NUM_BANKS; i++) {
-		err = seq_printf(s, " bank 0x%02X:\n", i);
+		seq_printf(s, " bank 0x%02X:\n", i);
 
 		ab8500_registers_print(dev, i, s);
 	}
