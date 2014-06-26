@@ -23,7 +23,6 @@ void rtw_sreset_init(struct rtw_adapter *padapter)
 
 	mutex_init(&psrtpriv->silentreset_mutex);
 	psrtpriv->silent_reset_inprogress = false;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 	psrtpriv->last_tx_time = 0;
 	psrtpriv->last_tx_complete_time = 0;
 }
@@ -34,16 +33,8 @@ void rtw_sreset_reset_value(struct rtw_adapter *padapter)
 	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
 
 	psrtpriv->silent_reset_inprogress = false;
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 	psrtpriv->last_tx_time = 0;
 	psrtpriv->last_tx_complete_time = 0;
-}
-
-void sreset_set_wifi_error_status23a(struct rtw_adapter *padapter, u32 status)
-{
-	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
-
-	pHalData->srestpriv.Wifi_Error_Status = status;
 }
 
 void sreset_set_trigger_point(struct rtw_adapter *padapter, s32 tgp)
@@ -212,8 +203,6 @@ void rtw_sreset_reset(struct rtw_adapter *active_adapter)
 	unsigned long start = jiffies;
 
 	DBG_8723A("%s\n", __func__);
-
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 
 	mutex_lock(&psrtpriv->silentreset_mutex);
 	psrtpriv->silent_reset_inprogress = true;

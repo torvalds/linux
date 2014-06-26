@@ -96,8 +96,6 @@ static void usb_write_port23a_complete(struct urb *purb)
 		DBG_8723A("###=> urb_write_port_complete status(%d)\n",
 			  purb->status);
 		if (purb->status == -EPIPE || purb->status == -EPROTO) {
-			sreset_set_wifi_error_status23a(padapter,
-						     USB_WRITE_PORT_FAIL);
 		} else if (purb->status == -EINPROGRESS) {
 			RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 				 ("usb_write_port23a_complete: EINPROGESS\n"));

@@ -94,13 +94,6 @@ static int usbctrl_vendorreq(struct rtw_adapter *padapter, u8 request,
 			if (status < 0) {
 				if (status == -ESHUTDOWN || status == -ENODEV)
 					padapter->bSurpriseRemoved = true;
-				else {
-					struct hal_data_8723a *pHalData;
-
-					pHalData = GET_HAL_DATA(padapter);
-					pHalData->srestpriv.Wifi_Error_Status =
-						USB_VEN_REQ_CMD_FAIL;
-				}
 			} else { /*  status != len && status >= 0 */
 				if (status > 0) {
 					if (requesttype == 0x01) {
@@ -647,7 +640,6 @@ static void usb_read_port_complete(struct urb *purb)
 	struct recv_buf *precvbuf = (struct recv_buf *)purb->context;
 	struct rtw_adapter *padapter = (struct rtw_adapter *)precvbuf->adapter;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct hal_data_8723a *pHalData;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 		 ("usb_read_port_complete!!!\n"));
@@ -726,9 +718,6 @@ static void usb_read_port_complete(struct urb *purb)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			pHalData = GET_HAL_DATA(padapter);
-			pHalData->srestpriv.Wifi_Error_Status =
-				USB_READ_PORT_FAIL;
 			rtl8723au_read_port(padapter, RECV_BULK_IN_ADDR, 0,
 					    precvbuf);
 			break;

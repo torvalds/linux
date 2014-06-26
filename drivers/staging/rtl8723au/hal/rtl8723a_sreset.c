@@ -46,7 +46,6 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 			} else {
 				diff_time = jiffies_to_msecs(jiffies - psrtpriv->last_tx_complete_time);
 				if (diff_time > 4000) {
-					/* padapter->Wifi_Error_Status = WIFI_TX_HANG; */
 					DBG_8723A("%s tx hang\n", __func__);
 					rtw_sreset_reset(padapter);
 				}
