@@ -103,23 +103,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
  * other constants
  */
 
-/* max number of SDs */
-/* ICH, ATI and VIA have 4 playback and 4 capture */
-#define ICH6_NUM_CAPTURE	4
-#define ICH6_NUM_PLAYBACK	4
-
-/* ULI has 6 playback and 5 capture */
-#define ULI_NUM_CAPTURE		5
-#define ULI_NUM_PLAYBACK	6
-
-/* ATI HDMI may have up to 8 playbacks and 0 capture */
-#define ATIHDMI_NUM_CAPTURE	0
-#define ATIHDMI_NUM_PLAYBACK	8
-
-/* TERA has 4 playback and 3 capture */
-#define TERA_NUM_CAPTURE	3
-#define TERA_NUM_PLAYBACK	4
-
 /* max number of fragments - we may use more if allocating more pages for BDL */
 #define BDL_SIZE		4096
 #define AZX_MAX_BDL_ENTRIES	(BDL_SIZE / 16)
