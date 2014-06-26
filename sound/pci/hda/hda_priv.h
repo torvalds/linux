@@ -120,9 +120,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define TERA_NUM_CAPTURE	3
 #define TERA_NUM_PLAYBACK	4
 
-/* this number is statically defined for simplicity */
-#define MAX_AZX_DEV		16
-
 /* max number of fragments - we may use more if allocating more pages for BDL */
 #define BDL_SIZE		4096
 #define AZX_MAX_BDL_ENTRIES	(BDL_SIZE / 16)
