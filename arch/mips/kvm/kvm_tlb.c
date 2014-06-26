@@ -201,7 +201,7 @@ int kvm_mips_host_tlb_write(struct kvm_vcpu *vcpu, unsigned long entryhi,
 {
 	unsigned long flags;
 	unsigned long old_entryhi;
-	volatile int idx;
+	int idx;
 
 	local_irq_save(flags);
 
@@ -426,7 +426,7 @@ EXPORT_SYMBOL(kvm_mips_guest_tlb_lookup);
 int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr)
 {
 	unsigned long old_entryhi, flags;
-	volatile int idx;
+	int idx;
 
 	local_irq_save(flags);
 
