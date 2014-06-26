@@ -26,6 +26,7 @@
 
 #include <net/dst.h>
 #include <net/xfrm.h>
+#include <net/rtnetlink.h>
 
 #include "datapath.h"
 #include "vport-internal_dev.h"
@@ -121,6 +122,10 @@ static const struct net_device_ops internal_dev_netdev_ops = {
 	.ndo_get_stats64 = internal_dev_get_stats,
 };
 
+static struct rtnl_link_ops internal_dev_link_ops __read_mostly = {
+	.kind = "openvswitch",
+};
+
 static void do_setup(struct net_device *netdev)
 {
 	ether_setup(netdev);
@@ -131,6 +136,7 @@ static void do_setup(struct net_device *netdev)
 	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	netdev->destructor = internal_dev_destructor;
 	netdev->ethtool_ops = &internal_dev_ethtool_ops;
+	netdev->rtnl_link_ops = &internal_dev_link_ops;
 	netdev->tx_queue_len = 0;
 
 	netdev->features = NETIF_F_LLTX | NETIF_F_SG | NETIF_F_FRAGLIST |
@@ -247,4 +253,14 @@ struct vport *ovs_internal_dev_get_vport(struct net_device *netdev)
 		return NULL;
 
 	return internal_dev_priv(netdev)->vport;
+}
+
+int ovs_internal_dev_rtnl_link_register(void)
+{
+	return rtnl_link_register(&internal_dev_link_ops);
+}
+
+void ovs_internal_dev_rtnl_link_unregister(void)
+{
+	rtnl_link_unregister(&internal_dev_link_ops);
 }
