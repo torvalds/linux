@@ -211,6 +211,7 @@ u32 tipc_port_init(struct tipc_port *p_ptr,
 	}
 
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
+	p_ptr->sent = 1;
 	p_ptr->ref = ref;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
@@ -277,92 +278,6 @@ static struct sk_buff *port_build_proto_msg(struct tipc_port *p_ptr,
 		msg_set_msgcnt(msg, ack);
 	}
 	return buf;
-}
-
-int tipc_reject_msg(struct sk_buff *buf, u32 err)
-{
-	struct tipc_msg *msg = buf_msg(buf);
-	struct sk_buff *rbuf;
-	struct tipc_msg *rmsg;
-	int hdr_sz;
-	u32 imp;
-	u32 data_sz = msg_data_sz(msg);
-	u32 src_node;
-	u32 rmsg_sz;
-
-	/* discard rejected message if it shouldn't be returned to sender */
-	if (WARN(!msg_isdata(msg),
-		 "attempt to reject message with user=%u", msg_user(msg))) {
-		dump_stack();
-		goto exit;
-	}
-	if (msg_errcode(msg) || msg_dest_droppable(msg))
-		goto exit;
-
-	/*
-	 * construct returned message by copying rejected message header and
-	 * data (or subset), then updating header fields that need adjusting
-	 */
-	hdr_sz = msg_hdr_sz(msg);
-	rmsg_sz = hdr_sz + min_t(u32, data_sz, MAX_REJECT_SIZE);
-
-	rbuf = tipc_buf_acquire(rmsg_sz);
-	if (rbuf == NULL)
-		goto exit;
-
-	rmsg = buf_msg(rbuf);
-	skb_copy_to_linear_data(rbuf, msg, rmsg_sz);
-
-	if (msg_connected(rmsg)) {
-		imp = msg_importance(rmsg);
-		if (imp < TIPC_CRITICAL_IMPORTANCE)
-			msg_set_importance(rmsg, ++imp);
-	}
-	msg_set_non_seq(rmsg, 0);
-	msg_set_size(rmsg, rmsg_sz);
-	msg_set_errcode(rmsg, err);
-	msg_set_prevnode(rmsg, tipc_own_addr);
-	msg_swap_words(rmsg, 4, 5);
-	if (!msg_short(rmsg))
-		msg_swap_words(rmsg, 6, 7);
-
-	/* send self-abort message when rejecting on a connected port */
-	if (msg_connected(msg)) {
-		struct tipc_port *p_ptr = tipc_port_lock(msg_destport(msg));
-
-		if (p_ptr) {
-			struct sk_buff *abuf = NULL;
-
-			if (p_ptr->connected)
-				abuf = port_build_self_abort_msg(p_ptr, err);
-			tipc_port_unlock(p_ptr);
-			tipc_net_route_msg(abuf);
-		}
-	}
-
-	/* send returned message & dispose of rejected message */
-	src_node = msg_prevnode(msg);
-	if (in_own_node(src_node))
-		tipc_sk_rcv(rbuf);
-	else
-		tipc_link_xmit(rbuf, src_node, msg_link_selector(rmsg));
-exit:
-	kfree_skb(buf);
-	return data_sz;
-}
-
-int tipc_port_iovec_reject(struct tipc_port *p_ptr, struct tipc_msg *hdr,
-			   struct iovec const *msg_sect, unsigned int len,
-			   int err)
-{
-	struct sk_buff *buf;
-	int res;
-
-	res = tipc_msg_build(hdr, msg_sect, len, MAX_MSG_SIZE, &buf);
-	if (!buf)
-		return res;
-
-	return tipc_reject_msg(buf, err);
 }
 
 static void port_timeout(unsigned long ref)
@@ -698,7 +613,7 @@ int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 			  (net_ev_handler)port_handle_node_down);
 	res = 0;
 exit:
-	p_ptr->max_pkt = tipc_link_get_max_pkt(peer->node, ref);
+	p_ptr->max_pkt = tipc_node_get_mtu(peer->node, ref);
 	return res;
 }
 
@@ -752,57 +667,4 @@ int tipc_port_shutdown(u32 ref)
 	tipc_port_unlock(p_ptr);
 	tipc_net_route_msg(buf);
 	return tipc_port_disconnect(ref);
-}
-
-/*
- *  tipc_port_iovec_rcv: Concatenate and deliver sectioned
- *                       message for this node.
- */
-static int tipc_port_iovec_rcv(struct tipc_port *sender,
-			       struct iovec const *msg_sect,
-			       unsigned int len)
-{
-	struct sk_buff *buf;
-	int res;
-
-	res = tipc_msg_build(&sender->phdr, msg_sect, len, MAX_MSG_SIZE, &buf);
-	if (likely(buf))
-		tipc_sk_rcv(buf);
-	return res;
-}
-
-/**
- * tipc_send - send message sections on connection
- */
-int tipc_send(struct tipc_port *p_ptr,
-	      struct iovec const *msg_sect,
-	      unsigned int len)
-{
-	u32 destnode;
-	int res;
-
-	if (!p_ptr->connected)
-		return -EINVAL;
-
-	p_ptr->congested = 1;
-	if (!tipc_port_congested(p_ptr)) {
-		destnode = tipc_port_peernode(p_ptr);
-		if (likely(!in_own_node(destnode)))
-			res = tipc_link_iovec_xmit_fast(p_ptr, msg_sect, len,
-							destnode);
-		else
-			res = tipc_port_iovec_rcv(p_ptr, msg_sect, len);
-
-		if (likely(res != -ELINKCONG)) {
-			p_ptr->congested = 0;
-			if (res > 0)
-				p_ptr->sent++;
-			return res;
-		}
-	}
-	if (tipc_port_unreliable(p_ptr)) {
-		p_ptr->congested = 0;
-		return len;
-	}
-	return -ELINKCONG;
 }

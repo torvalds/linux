@@ -104,8 +104,6 @@ struct tipc_port_list;
 u32 tipc_port_init(struct tipc_port *p_ptr,
 		   const unsigned int importance);
 
-int tipc_reject_msg(struct sk_buff *buf, u32 err);
-
 void tipc_acknowledge(u32 port_ref, u32 ack);
 
 void tipc_port_destroy(struct tipc_port *p_ptr);
@@ -136,20 +134,10 @@ int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
  * TIPC messaging routines
  */
 
-int tipc_send(struct tipc_port *port,
-	      struct iovec const *msg_sect,
-	      unsigned int len);
-
 int tipc_port_mcast_xmit(struct tipc_port *port,
 			 struct tipc_name_seq const *seq,
 			 struct iovec const *msg,
 			 unsigned int len);
-
-int tipc_port_iovec_reject(struct tipc_port *p_ptr,
-			   struct tipc_msg *hdr,
-			   struct iovec const *msg_sect,
-			   unsigned int len,
-			   int err);
 
 struct sk_buff *tipc_port_get_ports(void);
 void tipc_port_proto_rcv(struct sk_buff *buf);
