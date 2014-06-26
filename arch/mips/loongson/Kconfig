@@ -60,8 +60,8 @@ config LEMOTE_MACH2F
 	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
 	  LingLoong allinone PC and so forth.
 
-config LEMOTE_MACH3A
-	bool "Lemote Loongson 3A family machines"
+config LOONGSON_MACH3X
+	bool "Generic Loongson 3 family machines"
 	select ARCH_SPARSEMEM_ENABLE
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select BOOT_ELF32
@@ -87,8 +87,8 @@ config LEMOTE_MACH3A
 	select ZONE_DMA32
 	select LEFI_FIRMWARE_INTERFACE
 	help
-		Lemote Loongson 3A family machines utilize the 3A revision of
-		Loongson processor and RS780/SBX00 chipset.
+		Generic Loongson 3 family machines utilize the 3A/3B revision
+		of Loongson processor and RS780/SBX00 chipset.
 endchoice
 
 config CS5536
