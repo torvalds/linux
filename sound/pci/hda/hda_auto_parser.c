@@ -17,8 +17,6 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 
-#define SFX	"hda_codec: "
-
 /*
  * Helper for automatic pin configuration
  */

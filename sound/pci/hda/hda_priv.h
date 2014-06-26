@@ -358,12 +358,6 @@ struct azx {
 #endif
 };
 
-#ifdef CONFIG_SND_VERBOSE_PRINTK
-#define SFX	/* nop */
-#else
-#define SFX	"hda-intel "
-#endif
-
 #ifdef CONFIG_X86
 #define azx_snoop(chip)		((chip)->snoop)
 #else
