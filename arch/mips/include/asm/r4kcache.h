@@ -19,6 +19,9 @@
 #include <asm/mipsmtregs.h>
 #include <asm/uaccess.h> /* for segment_eq() */
 
+extern void (*r4k_blast_dcache)(void);
+extern void (*r4k_blast_icache)(void);
+
 /*
  * This macro return a properly sign-extended address suitable as base address
  * for indexed cache operations.  Two issues here:

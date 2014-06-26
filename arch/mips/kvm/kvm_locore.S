@@ -16,7 +16,6 @@
 #include <asm/stackframe.h>
 #include <asm/asm-offsets.h>
 
-
 #define _C_LABEL(x)     x
 #define MIPSX(name)     mips32_ ## name
 #define CALLFRAME_SIZ   32
@@ -91,7 +90,10 @@ FEXPORT(__kvm_mips_vcpu_run)
 	LONG_S	$24, PT_R24(k1)
 	LONG_S	$25, PT_R25(k1)
 
-	/* XXXKYMA k0/k1 not saved, not being used if we got here through an ioctl() */
+	/*
+	 * XXXKYMA k0/k1 not saved, not being used if we got here through
+	 * an ioctl()
+	 */
 
 	LONG_S	$28, PT_R28(k1)
 	LONG_S	$29, PT_R29(k1)
@@ -132,7 +134,10 @@ FEXPORT(__kvm_mips_vcpu_run)
 	/* Save the kernel gp as well */
 	LONG_S	gp, VCPU_HOST_GP(k1)
 
-	/* Setup status register for running the guest in UM, interrupts are disabled */
+	/*
+	 * Setup status register for running the guest in UM, interrupts
+	 * are disabled
+	 */
 	li	k0, (ST0_EXL | KSU_USER | ST0_BEV)
 	mtc0	k0, CP0_STATUS
 	ehb
@@ -152,7 +157,6 @@ FEXPORT(__kvm_mips_vcpu_run)
 	mtc0	k0, CP0_STATUS
 	ehb
 
-
 	/* Set Guest EPC */
 	LONG_L	t0, VCPU_PC(k1)
 	mtc0	t0, CP0_EPC
@@ -165,7 +169,7 @@ FEXPORT(__kvm_mips_load_asid)
 	 INT_ADDIU t1, k1, VCPU_GUEST_KERNEL_ASID  /* (BD)  */
 	INT_ADDIU t1, k1, VCPU_GUEST_USER_ASID    /* else user */
 1:
-	     /* t1: contains the base of the ASID array, need to get the cpu id  */
+	/* t1: contains the base of the ASID array, need to get the cpu id */
 	LONG_L	t2, TI_CPU($28)             /* smp_processor_id */
 	INT_SLL	t2, t2, 2                   /* x4 */
 	REG_ADDU t3, t1, t2
@@ -229,9 +233,7 @@ FEXPORT(__kvm_mips_load_k0k1)
 	eret
 
 VECTOR(MIPSX(exception), unknown)
-/*
- * Find out what mode we came from and jump to the proper handler.
- */
+/* Find out what mode we came from and jump to the proper handler. */
 	mtc0	k0, CP0_ERROREPC	#01: Save guest k0
 	ehb				#02:
 
@@ -239,7 +241,8 @@ VECTOR(MIPSX(exception), unknown)
 	INT_SRL	k0, k0, 10		#03: Get rid of CPUNum
 	INT_SLL	k0, k0, 10		#04
 	LONG_S	k1, 0x3000(k0)		#05: Save k1 @ offset 0x3000
-	INT_ADDIU k0, k0, 0x2000		#06: Exception handler is installed @ offset 0x2000
+	INT_ADDIU k0, k0, 0x2000	#06: Exception handler is
+					#    installed @ offset 0x2000
 	j	k0			#07: jump to the function
 	 nop				#08: branch delay slot
 VECTOR_END(MIPSX(exceptionEnd))
@@ -248,7 +251,6 @@ VECTOR_END(MIPSX(exceptionEnd))
 /*
  * Generic Guest exception handler. We end up here when the guest
  * does something that causes a trap to kernel mode.
- *
  */
 NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	/* Get the VCPU pointer from DDTATA_LO */
@@ -290,9 +292,7 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_S	$30, VCPU_R30(k1)
 	LONG_S	$31, VCPU_R31(k1)
 
-	/* We need to save hi/lo and restore them on
-	 * the way out
-	 */
+	/* We need to save hi/lo and restore them on the way out */
 	mfhi	t0
 	LONG_S	t0, VCPU_HI(k1)
 
@@ -321,8 +321,10 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	/* Save pointer to run in s0, will be saved by the compiler */
 	move	s0, a0
 
-	/* Save Host level EPC, BadVaddr and Cause to VCPU, useful to
-	 * process the exception */
+	/*
+	 * Save Host level EPC, BadVaddr and Cause to VCPU, useful to
+	 * process the exception
+	 */
 	mfc0	k0,CP0_EPC
 	LONG_S	k0, VCPU_PC(k1)
 
@@ -351,7 +353,6 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	LONG_L	k0, VCPU_HOST_EBASE(k1)
 	mtc0	k0,CP0_EBASE
 
-
 	/* Now that the new EBASE has been loaded, unset BEV and KSU_USER */
 	.set	at
 	and	v0, v0, ~(ST0_EXL | KSU_USER | ST0_IE)
@@ -369,7 +370,8 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 	/* Saved host state */
 	INT_ADDIU sp, sp, -PT_SIZE
 
-	/* XXXKYMA do we need to load the host ASID, maybe not because the
+	/*
+	 * XXXKYMA do we need to load the host ASID, maybe not because the
 	 * kernel entries are marked GLOBAL, need to verify
 	 */
 
@@ -383,9 +385,11 @@ NESTED (MIPSX(GuestException), CALLFRAME_SIZ, ra)
 
 	/* Jump to handler */
 FEXPORT(__kvm_mips_jump_to_handler)
-	/* XXXKYMA: not sure if this is safe, how large is the stack??
+	/*
+	 * XXXKYMA: not sure if this is safe, how large is the stack??
 	 * Now jump to the kvm_mips_handle_exit() to see if we can deal
-	 * with this in the kernel */
+	 * with this in the kernel
+	 */
 	PTR_LA	t9, kvm_mips_handle_exit
 	jalr.hb	t9
 	 INT_ADDIU sp, sp, -CALLFRAME_SIZ           /* BD Slot */
@@ -394,7 +398,8 @@ FEXPORT(__kvm_mips_jump_to_handler)
 	di
 	ehb
 
-	/* XXXKYMA: k0/k1 could have been blown away if we processed
+	/*
+	 * XXXKYMA: k0/k1 could have been blown away if we processed
 	 * an exception while we were handling the exception from the
 	 * guest, reload k1
 	 */
@@ -402,7 +407,8 @@ FEXPORT(__kvm_mips_jump_to_handler)
 	move	k1, s1
 	INT_ADDIU k1, k1, VCPU_HOST_ARCH
 
-	/* Check return value, should tell us if we are returning to the
+	/*
+	 * Check return value, should tell us if we are returning to the
 	 * host (handle I/O etc)or resuming the guest
 	 */
 	andi	t0, v0, RESUME_HOST
@@ -521,8 +527,10 @@ __kvm_mips_return_to_host:
 	LONG_L	$0, PT_R0(k1)
 	LONG_L	$1, PT_R1(k1)
 
-	/* r2/v0 is the return code, shift it down by 2 (arithmetic)
-	 * to recover the err code  */
+	/*
+	 * r2/v0 is the return code, shift it down by 2 (arithmetic)
+	 * to recover the err code
+	 */
 	INT_SRA	k0, v0, 2
 	move	$2, k0
 
@@ -565,7 +573,6 @@ __kvm_mips_return_to_host:
 	/* Restore RDHWR access */
 	PTR_LI	k0, 0x2000000F
 	mtc0	k0,  CP0_HWRENA
-
 
 	/* Restore RA, which is the address we will return to */
 	LONG_L  ra, PT_R31(k1)

@@ -1,14 +1,15 @@
 /*
-* This file is subject to the terms and conditions of the GNU General Public
-* License.  See the file "COPYING" in the main directory of this archive
-* for more details.
-*
-* KVM/MIPS: Interrupts
-* Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
-* Authors: Sanjay Lal <sanjayl@kymasys.com>
-*/
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * KVM/MIPS: Interrupts
+ * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Authors: Sanjay Lal <sanjayl@kymasys.com>
+ */
 
-/* MIPS Exception Priorities, exceptions (including interrupts) are queued up
+/*
+ * MIPS Exception Priorities, exceptions (including interrupts) are queued up
  * for the guest in the order specified by their priorities
  */
 
@@ -26,6 +27,9 @@
 #define MIPS_EXC_INT_IPI_2          11
 #define MIPS_EXC_MAX                12
 /* XXXSL More to follow */
+
+extern char mips32_exception[], mips32_exceptionEnd[];
+extern char mips32_GuestException[], mips32_GuestExceptionEnd[];
 
 #define C_TI        (_ULCAST_(1) << 30)
 
