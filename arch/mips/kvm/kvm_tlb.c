@@ -77,8 +77,8 @@ void kvm_mips_dump_host_tlbs(void)
 	old_entryhi = read_c0_entryhi();
 	old_pagemask = read_c0_pagemask();
 
-	printk("HOST TLBs:\n");
-	printk("ASID: %#lx\n", read_c0_entryhi() & ASID_MASK);
+	kvm_info("HOST TLBs:\n");
+	kvm_info("ASID: %#lx\n", read_c0_entryhi() & ASID_MASK);
 
 	for (i = 0; i < current_cpu_data.tlbsize; i++) {
 		write_c0_index(i);
@@ -92,19 +92,19 @@ void kvm_mips_dump_host_tlbs(void)
 		tlb.tlb_lo1 = read_c0_entrylo1();
 		tlb.tlb_mask = read_c0_pagemask();
 
-		printk("TLB%c%3d Hi 0x%08lx ",
-		       (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
-		       i, tlb.tlb_hi);
-		printk("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
-		       (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo0 >> 3) & 7);
-		printk("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
-		       (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
+		kvm_info("TLB%c%3d Hi 0x%08lx ",
+			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
+			 i, tlb.tlb_hi);
+		kvm_info("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
+			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
+			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo0 >> 3) & 7);
+		kvm_info("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
+			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
+			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
 	}
 	write_c0_entryhi(old_entryhi);
 	write_c0_pagemask(old_pagemask);
@@ -119,24 +119,24 @@ void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu)
 	struct kvm_mips_tlb tlb;
 	int i;
 
-	printk("Guest TLBs:\n");
-	printk("Guest EntryHi: %#lx\n", kvm_read_c0_guest_entryhi(cop0));
+	kvm_info("Guest TLBs:\n");
+	kvm_info("Guest EntryHi: %#lx\n", kvm_read_c0_guest_entryhi(cop0));
 
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		tlb = vcpu->arch.guest_tlb[i];
-		printk("TLB%c%3d Hi 0x%08lx ",
-		       (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
-		       i, tlb.tlb_hi);
-		printk("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
-		       (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo0 >> 3) & 7);
-		printk("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
-		       (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
-		       (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
-		       (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
-		       (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
+		kvm_info("TLB%c%3d Hi 0x%08lx ",
+			 (tlb.tlb_lo0 | tlb.tlb_lo1) & MIPS3_PG_V ? ' ' : '*',
+			 i, tlb.tlb_hi);
+		kvm_info("Lo0=0x%09" PRIx64 " %c%c attr %lx ",
+			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo0),
+			 (tlb.tlb_lo0 & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo0 & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo0 >> 3) & 7);
+		kvm_info("Lo1=0x%09" PRIx64 " %c%c attr %lx sz=%lx\n",
+			 (uint64_t) mips3_tlbpfn_to_paddr(tlb.tlb_lo1),
+			 (tlb.tlb_lo1 & MIPS3_PG_D) ? 'D' : ' ',
+			 (tlb.tlb_lo1 & MIPS3_PG_G) ? 'G' : ' ',
+			 (tlb.tlb_lo1 >> 3) & 7, tlb.tlb_mask);
 	}
 }
 EXPORT_SYMBOL(kvm_mips_dump_guest_tlbs);

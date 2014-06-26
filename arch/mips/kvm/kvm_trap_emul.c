@@ -27,7 +27,7 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 	if ((kseg == CKSEG0) || (kseg == CKSEG1))
 		gpa = CPHYSADDR(gva);
 	else {
-		printk("%s: cannot find GPA for GVA: %#lx\n", __func__, gva);
+		kvm_err("%s: cannot find GPA for GVA: %#lx\n", __func__, gva);
 		kvm_mips_dump_host_tlbs();
 		gpa = KVM_INVALID_ADDR;
 	}
@@ -98,17 +98,15 @@ static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 		 * when we are not using HIGHMEM. Need to address this in a
 		 * HIGHMEM kernel
 		 */
-		printk
-		    ("TLB MOD fault not handled, cause %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, opc, badvaddr);
+		kvm_err("TLB MOD fault not handled, cause %#lx, PC: %p, BadVaddr: %#lx\n",
+			cause, opc, badvaddr);
 		kvm_mips_dump_host_tlbs();
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
 	} else {
-		printk
-		    ("Illegal TLB Mod fault address , cause %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, opc, badvaddr);
+		kvm_err("Illegal TLB Mod fault address , cause %#lx, PC: %p, BadVaddr: %#lx\n",
+			cause, opc, badvaddr);
 		kvm_mips_dump_host_tlbs();
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -208,9 +206,8 @@ static int kvm_trap_emul_handle_tlb_ld_miss(struct kvm_vcpu *vcpu)
 			ret = RESUME_HOST;
 		}
 	} else {
-		printk
-		    ("Illegal TLB ST fault address , cause %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, opc, badvaddr);
+		kvm_err("Illegal TLB ST fault address , cause %#lx, PC: %p, BadVaddr: %#lx\n",
+			cause, opc, badvaddr);
 		kvm_mips_dump_host_tlbs();
 		kvm_arch_vcpu_dump_regs(vcpu);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -233,7 +230,7 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 		kvm_debug("Emulate Store to MMIO space\n");
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
-			printk("Emulate Store to MMIO space failed\n");
+			kvm_err("Emulate Store to MMIO space failed\n");
 			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			ret = RESUME_HOST;
 		} else {
@@ -241,9 +238,8 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 			ret = RESUME_HOST;
 		}
 	} else {
-		printk
-		    ("Address Error (STORE): cause %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, opc, badvaddr);
+		kvm_err("Address Error (STORE): cause %#lx, PC: %p, BadVaddr: %#lx\n",
+			cause, opc, badvaddr);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
 	}
@@ -263,7 +259,7 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 		kvm_debug("Emulate Load from MMIO space @ %#lx\n", badvaddr);
 		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
 		if (er == EMULATE_FAIL) {
-			printk("Emulate Load from MMIO space failed\n");
+			kvm_err("Emulate Load from MMIO space failed\n");
 			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			ret = RESUME_HOST;
 		} else {
@@ -271,9 +267,8 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 			ret = RESUME_HOST;
 		}
 	} else {
-		printk
-		    ("Address Error (LOAD): cause %#lx, PC: %p, BadVaddr: %#lx\n",
-		     cause, opc, badvaddr);
+		kvm_err("Address Error (LOAD): cause %#lx, PC: %p, BadVaddr: %#lx\n",
+			cause, opc, badvaddr);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
 		er = EMULATE_FAIL;

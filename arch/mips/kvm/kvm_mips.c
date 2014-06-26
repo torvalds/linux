@@ -817,8 +817,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 		ga = memslot->base_gfn << PAGE_SHIFT;
 		ga_end = ga + (memslot->npages << PAGE_SHIFT);
 
-		printk("%s: dirty, ga: %#lx, ga_end %#lx\n", __func__, ga,
-		       ga_end);
+		kvm_info("%s: dirty, ga: %#lx, ga_end %#lx\n", __func__, ga,
+			 ga_end);
 
 		n = kvm_dirty_bitmap_bytes(memslot);
 		memset(memslot->dirty_bitmap, 0, n);
@@ -925,24 +925,25 @@ int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
 	if (!vcpu)
 		return -1;
 
-	printk("VCPU Register Dump:\n");
-	printk("\tpc = 0x%08lx\n", vcpu->arch.pc);
-	printk("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
+	kvm_debug("VCPU Register Dump:\n");
+	kvm_debug("\tpc = 0x%08lx\n", vcpu->arch.pc);
+	kvm_debug("\texceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
-		printk("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
+		kvm_debug("\tgpr%02d: %08lx %08lx %08lx %08lx\n", i,
 		       vcpu->arch.gprs[i],
 		       vcpu->arch.gprs[i + 1],
 		       vcpu->arch.gprs[i + 2], vcpu->arch.gprs[i + 3]);
 	}
-	printk("\thi: 0x%08lx\n", vcpu->arch.hi);
-	printk("\tlo: 0x%08lx\n", vcpu->arch.lo);
+	kvm_debug("\thi: 0x%08lx\n", vcpu->arch.hi);
+	kvm_debug("\tlo: 0x%08lx\n", vcpu->arch.lo);
 
 	cop0 = vcpu->arch.cop0;
-	printk("\tStatus: 0x%08lx, Cause: 0x%08lx\n",
-	       kvm_read_c0_guest_status(cop0), kvm_read_c0_guest_cause(cop0));
+	kvm_debug("\tStatus: 0x%08lx, Cause: 0x%08lx\n",
+		  kvm_read_c0_guest_status(cop0),
+		  kvm_read_c0_guest_cause(cop0));
 
-	printk("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
+	kvm_debug("\tEPC: 0x%08lx\n", kvm_read_c0_guest_epc(cop0));
 
 	return 0;
 }
