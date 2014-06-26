@@ -1967,6 +1967,7 @@ registers, find a list below:
   MIPS  | KVM_REG_MIPS_CP0_STATUS       | 32
   MIPS  | KVM_REG_MIPS_CP0_CAUSE        | 32
   MIPS  | KVM_REG_MIPS_CP0_EPC          | 64
+  MIPS  | KVM_REG_MIPS_CP0_PRID         | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG       | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG1      | 32
   MIPS  | KVM_REG_MIPS_CP0_CONFIG2      | 32

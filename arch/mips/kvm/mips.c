@@ -505,6 +505,7 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_STATUS,
 	KVM_REG_MIPS_CP0_CAUSE,
 	KVM_REG_MIPS_CP0_EPC,
+	KVM_REG_MIPS_CP0_PRID,
 	KVM_REG_MIPS_CP0_CONFIG,
 	KVM_REG_MIPS_CP0_CONFIG1,
 	KVM_REG_MIPS_CP0_CONFIG2,
@@ -573,6 +574,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_EPC:
 		v = (long)kvm_read_c0_guest_epc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		v = (long)kvm_read_c0_guest_prid(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		v = (long)kvm_read_c0_guest_errorepc(cop0);
@@ -686,6 +690,9 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_EPC:
 		kvm_write_c0_guest_epc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		kvm_write_c0_guest_prid(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_ERROREPC:
 		kvm_write_c0_guest_errorepc(cop0, v);
