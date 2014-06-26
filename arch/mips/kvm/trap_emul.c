@@ -418,8 +418,14 @@ static int kvm_trap_emul_vcpu_setup(struct kvm_vcpu *vcpu)
 	kvm_write_c0_guest_config2(cop0, MIPS_CONF_M);
 	/* MIPS_CONF_M | (read_c0_config2() & 0xfff) */
 
-	/* No config4, UserLocal */
-	kvm_write_c0_guest_config3(cop0, MIPS_CONF3_ULRI);
+	/* Have config4, UserLocal */
+	kvm_write_c0_guest_config3(cop0, MIPS_CONF_M | MIPS_CONF3_ULRI);
+
+	/* Have config5 */
+	kvm_write_c0_guest_config4(cop0, MIPS_CONF_M);
+
+	/* No config6 */
+	kvm_write_c0_guest_config5(cop0, 0);
 
 	/* Set Wait IE/IXMT Ignore in Config7, IAR, AR */
 	kvm_write_c0_guest_config7(cop0, (MIPS_CONF7_WII) | (1 << 10));
@@ -464,6 +470,7 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int ret = 0;
+	unsigned int cur, change;
 
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_COUNT:
@@ -490,6 +497,44 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			}
 		} else {
 			kvm_write_c0_guest_cause(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG:
+		/* read-only for now */
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG1:
+		cur = kvm_read_c0_guest_config1(cop0);
+		change = (cur ^ v) & kvm_mips_config1_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config1(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG2:
+		/* read-only for now */
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG3:
+		cur = kvm_read_c0_guest_config3(cop0);
+		change = (cur ^ v) & kvm_mips_config3_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config3(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG4:
+		cur = kvm_read_c0_guest_config4(cop0);
+		change = (cur ^ v) & kvm_mips_config4_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config4(cop0, v);
+		}
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG5:
+		cur = kvm_read_c0_guest_config5(cop0);
+		change = (cur ^ v) & kvm_mips_config5_wrmask(vcpu);
+		if (change) {
+			v = cur ^ change;
+			kvm_write_c0_guest_config5(cop0, v);
 		}
 		break;
 	case KVM_REG_MIPS_COUNT_CTL:

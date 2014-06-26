@@ -48,6 +48,8 @@
 #define KVM_REG_MIPS_CP0_CONFIG1	MIPS_CP0_32(16, 1)
 #define KVM_REG_MIPS_CP0_CONFIG2	MIPS_CP0_32(16, 2)
 #define KVM_REG_MIPS_CP0_CONFIG3	MIPS_CP0_32(16, 3)
+#define KVM_REG_MIPS_CP0_CONFIG4	MIPS_CP0_32(16, 4)
+#define KVM_REG_MIPS_CP0_CONFIG5	MIPS_CP0_32(16, 5)
 #define KVM_REG_MIPS_CP0_CONFIG7	MIPS_CP0_32(16, 7)
 #define KVM_REG_MIPS_CP0_XCONTEXT	MIPS_CP0_64(20, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC	MIPS_CP0_64(30, 0)
@@ -209,6 +211,8 @@ struct mips_coproc {
 #define MIPS_CP0_CONFIG1_SEL	1
 #define MIPS_CP0_CONFIG2_SEL	2
 #define MIPS_CP0_CONFIG3_SEL	3
+#define MIPS_CP0_CONFIG4_SEL	4
+#define MIPS_CP0_CONFIG5_SEL	5
 
 /* Config0 register bits */
 #define CP0C0_M			31
@@ -461,11 +465,15 @@ struct kvm_vcpu_arch {
 #define kvm_read_c0_guest_config1(cop0)		(cop0->reg[MIPS_CP0_CONFIG][1])
 #define kvm_read_c0_guest_config2(cop0)		(cop0->reg[MIPS_CP0_CONFIG][2])
 #define kvm_read_c0_guest_config3(cop0)		(cop0->reg[MIPS_CP0_CONFIG][3])
+#define kvm_read_c0_guest_config4(cop0)		(cop0->reg[MIPS_CP0_CONFIG][4])
+#define kvm_read_c0_guest_config5(cop0)		(cop0->reg[MIPS_CP0_CONFIG][5])
 #define kvm_read_c0_guest_config7(cop0)		(cop0->reg[MIPS_CP0_CONFIG][7])
 #define kvm_write_c0_guest_config(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][0] = (val))
 #define kvm_write_c0_guest_config1(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][1] = (val))
 #define kvm_write_c0_guest_config2(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][2] = (val))
 #define kvm_write_c0_guest_config3(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][3] = (val))
+#define kvm_write_c0_guest_config4(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][4] = (val))
+#define kvm_write_c0_guest_config5(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][5] = (val))
 #define kvm_write_c0_guest_config7(cop0, val)	(cop0->reg[MIPS_CP0_CONFIG][7] = (val))
 #define kvm_read_c0_guest_errorepc(cop0)	(cop0->reg[MIPS_CP0_ERROR_PC][0])
 #define kvm_write_c0_guest_errorepc(cop0, val)	(cop0->reg[MIPS_CP0_ERROR_PC][0] = (val))
@@ -734,6 +742,11 @@ enum emulation_result kvm_mips_emulate_load(uint32_t inst,
 					    uint32_t cause,
 					    struct kvm_run *run,
 					    struct kvm_vcpu *vcpu);
+
+unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu);
+unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu);
+unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu);
+unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu);
 
 /* Dynamic binary translation */
 extern int kvm_mips_trans_cache_index(uint32_t inst, uint32_t *opc,

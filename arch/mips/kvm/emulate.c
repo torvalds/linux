@@ -884,6 +884,58 @@ enum emulation_result kvm_mips_emul_tlbp(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+/**
+ * kvm_mips_config1_wrmask() - Find mask of writable bits in guest Config1
+ * @vcpu:	Virtual CPU.
+ *
+ * Finds the mask of bits which are writable in the guest's Config1 CP0
+ * register, by userland (currently read-only to the guest).
+ */
+unsigned int kvm_mips_config1_wrmask(struct kvm_vcpu *vcpu)
+{
+	/* Read-only */
+	return 0;
+}
+
+/**
+ * kvm_mips_config3_wrmask() - Find mask of writable bits in guest Config3
+ * @vcpu:	Virtual CPU.
+ *
+ * Finds the mask of bits which are writable in the guest's Config3 CP0
+ * register, by userland (currently read-only to the guest).
+ */
+unsigned int kvm_mips_config3_wrmask(struct kvm_vcpu *vcpu)
+{
+	/* Config4 is optional */
+	return MIPS_CONF_M;
+}
+
+/**
+ * kvm_mips_config4_wrmask() - Find mask of writable bits in guest Config4
+ * @vcpu:	Virtual CPU.
+ *
+ * Finds the mask of bits which are writable in the guest's Config4 CP0
+ * register, by userland (currently read-only to the guest).
+ */
+unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu)
+{
+	/* Config5 is optional */
+	return MIPS_CONF_M;
+}
+
+/**
+ * kvm_mips_config5_wrmask() - Find mask of writable bits in guest Config5
+ * @vcpu:	Virtual CPU.
+ *
+ * Finds the mask of bits which are writable in the guest's Config5 CP0
+ * register, by the guest itself.
+ */
+unsigned int kvm_mips_config5_wrmask(struct kvm_vcpu *vcpu)
+{
+	/* Read-only */
+	return 0;
+}
+
 enum emulation_result kvm_mips_emulate_CP0(uint32_t inst, uint32_t *opc,
 					   uint32_t cause, struct kvm_run *run,
 					   struct kvm_vcpu *vcpu)

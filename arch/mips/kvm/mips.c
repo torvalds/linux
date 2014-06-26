@@ -510,6 +510,8 @@ static u64 kvm_mips_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_CONFIG1,
 	KVM_REG_MIPS_CP0_CONFIG2,
 	KVM_REG_MIPS_CP0_CONFIG3,
+	KVM_REG_MIPS_CP0_CONFIG4,
+	KVM_REG_MIPS_CP0_CONFIG5,
 	KVM_REG_MIPS_CP0_CONFIG7,
 	KVM_REG_MIPS_CP0_ERROREPC,
 
@@ -589,6 +591,12 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG3:
 		v = (long)kvm_read_c0_guest_config3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG4:
+		v = (long)kvm_read_c0_guest_config4(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG5:
+		v = (long)kvm_read_c0_guest_config5(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG7:
 		v = (long)kvm_read_c0_guest_config7(cop0);
@@ -701,6 +709,12 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_COUNT:
 	case KVM_REG_MIPS_CP0_COMPARE:
 	case KVM_REG_MIPS_CP0_CAUSE:
+	case KVM_REG_MIPS_CP0_CONFIG:
+	case KVM_REG_MIPS_CP0_CONFIG1:
+	case KVM_REG_MIPS_CP0_CONFIG2:
+	case KVM_REG_MIPS_CP0_CONFIG3:
+	case KVM_REG_MIPS_CP0_CONFIG4:
+	case KVM_REG_MIPS_CP0_CONFIG5:
 	case KVM_REG_MIPS_COUNT_CTL:
 	case KVM_REG_MIPS_COUNT_RESUME:
 	case KVM_REG_MIPS_COUNT_HZ:
