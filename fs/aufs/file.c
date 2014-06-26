@@ -109,9 +109,10 @@ out:
 	return h_file;
 }
 
-static int au_cpup_on_open(struct dentry *dentry)
+static int au_cmoo(struct dentry *dentry)
 {
-	int err, coo;
+	int err, cmoo;
+	struct path h_path;
 	struct au_pin pin;
 	struct au_cp_generic cpg = {
 		.dentry	= dentry,
@@ -125,6 +126,7 @@ static int au_cpup_on_open(struct dentry *dentry)
 	struct super_block *sb;
 	struct au_branch *br;
 	struct dentry *parent;
+	struct au_hinode *hdir;
 
 	DiMustWriteLock(dentry);
 	inode = dentry->d_inode;
@@ -139,12 +141,12 @@ static int au_cpup_on_open(struct dentry *dentry)
 
 	sb = dentry->d_sb;
 	br = au_sbr(sb, cpg.bsrc);
-	coo = au_br_coo(br->br_perm);
-	if (!coo)
+	cmoo = au_br_cmoo(br->br_perm);
+	if (!cmoo)
 		goto out;
 	if (!S_ISREG(inode->i_mode))
-		coo &= AuBrAttr_COO_ALL;
-	if (!coo)
+		cmoo &= AuBrAttr_COO_ALL;
+	if (!cmoo)
 		goto out;
 
 	parent = dget_parent(dentry);
@@ -168,6 +170,20 @@ static int au_cpup_on_open(struct dentry *dentry)
 	if (!err) {
 		err = au_sio_cpup_simple(&cpg);
 		au_unpin(&pin);
+	}
+	if (!err && (cmoo & AuBrWAttr_MOO)) {
+		/* todo: keep h_dentry? */
+		h_path.mnt = au_br_mnt(br);
+		h_path.dentry = au_h_dptr(dentry, cpg.bsrc);
+		hdir = au_hi(parent->d_inode, cpg.bsrc);
+		au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT2);
+		err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/1);
+		au_hn_imtx_unlock(hdir);
+		if (unlikely(err)) {
+			pr_err("unlink %.*s after coo failed (%d), ignored\n",
+			       AuDLNPair(dentry), err);
+			err = 0;
+		}
 	}
 	goto out_parent;
 
@@ -193,7 +209,7 @@ int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 
 	dentry = file->f_dentry;
 	di_write_lock_child(dentry);
-	err = au_cpup_on_open(dentry);
+	err = au_cmoo(dentry);
 	di_downgrade_lock(dentry, AuLock_IR);
 	if (!err)
 		err = open(file, vfsub_file_flags(file));
