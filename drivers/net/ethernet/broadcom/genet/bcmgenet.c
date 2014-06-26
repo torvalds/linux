@@ -1408,13 +1408,6 @@ static int bcmgenet_alloc_rx_buffers(struct bcmgenet_priv *priv)
 		if (cb->skb)
 			continue;
 
-		/* set the DMA descriptor length once and for all
-		 * it will only change if we support dynamically sizing
-		 * priv->rx_buf_len, but we do not
-		 */
-		dmadesc_set_length_status(priv, priv->rx_bd_assign_ptr,
-				priv->rx_buf_len << DMA_BUFLENGTH_SHIFT);
-
 		ret = bcmgenet_rx_refill(priv, cb);
 		if (ret)
 			break;
