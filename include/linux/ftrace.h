@@ -129,8 +129,6 @@ struct ftrace_ops {
 #endif
 };
 
-extern int function_trace_stop;
-
 /*
  * Type of the current tracing.
  */

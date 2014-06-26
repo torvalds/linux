@@ -80,9 +80,6 @@ static struct ftrace_ops ftrace_list_end __read_mostly = {
 int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
-/* Quick disabling of function tracer. */
-int function_trace_stop __read_mostly;
-
 /* Current function tracing op */
 struct ftrace_ops *function_trace_op __read_mostly = &ftrace_list_end;
 /* What to set function_trace_op to */
