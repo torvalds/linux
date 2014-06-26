@@ -2905,7 +2905,9 @@ retry_root_backup:
 		if (ret)
 			goto fail_qgroup;
 
+		mutex_lock(&fs_info->cleaner_mutex);
 		ret = btrfs_recover_relocation(tree_root);
+		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
 			printk(KERN_WARNING
 			       "BTRFS: failed to recover relocation\n");
