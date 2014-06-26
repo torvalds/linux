@@ -155,9 +155,9 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	/* enable the position buffer */
 	if (chip->get_position[0] != azx_get_pos_lpib ||
 	    chip->get_position[1] != azx_get_pos_lpib) {
-		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
+		if (!(azx_readl(chip, DPLBASE) & AZX_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
-				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
+				(u32)chip->posbuf.addr | AZX_DPLBASE_ENABLE);
 	}
 
 	/* set the interrupt enable bits in the descriptor control register */
@@ -975,10 +975,10 @@ static void azx_init_cmd_io(struct azx *chip)
 	azx_writew(chip, CORBWP, 0);
 
 	/* reset the corb hw read pointer */
-	azx_writew(chip, CORBRP, ICH6_CORBRP_RST);
+	azx_writew(chip, CORBRP, AZX_CORBRP_RST);
 	if (!(chip->driver_caps & AZX_DCAPS_CORBRP_SELF_CLEAR)) {
 		for (timeout = 1000; timeout > 0; timeout--) {
-			if ((azx_readw(chip, CORBRP) & ICH6_CORBRP_RST) == ICH6_CORBRP_RST)
+			if ((azx_readw(chip, CORBRP) & AZX_CORBRP_RST) == AZX_CORBRP_RST)
 				break;
 			udelay(1);
 		}
@@ -998,7 +998,7 @@ static void azx_init_cmd_io(struct azx *chip)
 	}
 
 	/* enable corb dma */
-	azx_writeb(chip, CORBCTL, ICH6_CORBCTL_RUN);
+	azx_writeb(chip, CORBCTL, AZX_CORBCTL_RUN);
 
 	/* RIRB set up */
 	chip->rirb.addr = chip->rb.addr + 2048;
@@ -1011,14 +1011,14 @@ static void azx_init_cmd_io(struct azx *chip)
 	/* set the rirb size to 256 entries (ULI requires explicitly) */
 	azx_writeb(chip, RIRBSIZE, 0x02);
 	/* reset the rirb hw write pointer */
-	azx_writew(chip, RIRBWP, ICH6_RIRBWP_RST);
+	azx_writew(chip, RIRBWP, AZX_RIRBWP_RST);
 	/* set N=1, get RIRB response interrupt for new entry */
 	if (chip->driver_caps & AZX_DCAPS_CTX_WORKAROUND)
 		azx_writew(chip, RINTCNT, 0xc0);
 	else
 		azx_writew(chip, RINTCNT, 1);
 	/* enable rirb dma and response irq */
-	azx_writeb(chip, RIRBCTL, ICH6_RBCTL_DMA_EN | ICH6_RBCTL_IRQ_EN);
+	azx_writeb(chip, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
 	spin_unlock_irq(&chip->reg_lock);
 }
 EXPORT_SYMBOL_GPL(azx_init_cmd_io);
@@ -1062,7 +1062,7 @@ static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
 		return -EIO;
 	}
 	wp++;
-	wp %= ICH6_MAX_CORB_ENTRIES;
+	wp %= AZX_MAX_CORB_ENTRIES;
 
 	rp = azx_readw(chip, CORBRP);
 	if (wp == rp) {
@@ -1080,7 +1080,7 @@ static int azx_corb_send_cmd(struct hda_bus *bus, u32 val)
 	return 0;
 }
 
-#define ICH6_RIRB_EX_UNSOL_EV	(1<<4)
+#define AZX_RIRB_EX_UNSOL_EV	(1<<4)
 
 /* retrieve RIRB entry - called from interrupt handler */
 static void azx_update_rirb(struct azx *chip)
@@ -1101,7 +1101,7 @@ static void azx_update_rirb(struct azx *chip)
 
 	while (chip->rirb.rp != wp) {
 		chip->rirb.rp++;
-		chip->rirb.rp %= ICH6_MAX_RIRB_ENTRIES;
+		chip->rirb.rp %= AZX_MAX_RIRB_ENTRIES;
 
 		rp = chip->rirb.rp << 1; /* an RIRB entry is 8-bytes */
 		res_ex = le32_to_cpu(chip->rirb.buf[rp + 1]);
@@ -1112,8 +1112,7 @@ static void azx_update_rirb(struct azx *chip)
 				res, res_ex,
 				chip->rirb.rp, wp);
 			snd_BUG();
-		}
-		else if (res_ex & ICH6_RIRB_EX_UNSOL_EV)
+		} else if (res_ex & AZX_RIRB_EX_UNSOL_EV)
 			snd_hda_queue_unsol_event(chip->bus, res, res_ex);
 		else if (chip->rirb.cmds[addr]) {
 			chip->rirb.res[addr] = res;
@@ -1221,7 +1220,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 	/* release CORB/RIRB */
 	azx_free_cmd_io(chip);
 	/* disable unsolicited responses */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_UNSOL);
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~AZX_GCTL_UNSOL);
 	return -1;
 }
 
@@ -1242,7 +1241,7 @@ static int azx_single_wait_for_response(struct azx *chip, unsigned int addr)
 
 	while (timeout--) {
 		/* check IRV busy bit */
-		if (azx_readw(chip, IRS) & ICH6_IRS_VALID) {
+		if (azx_readw(chip, IRS) & AZX_IRS_VALID) {
 			/* reuse rirb.res as the response return value */
 			chip->rirb.res[addr] = azx_readl(chip, IR);
 			return 0;
@@ -1266,13 +1265,13 @@ static int azx_single_send_cmd(struct hda_bus *bus, u32 val)
 	bus->rirb_error = 0;
 	while (timeout--) {
 		/* check ICB busy bit */
-		if (!((azx_readw(chip, IRS) & ICH6_IRS_BUSY))) {
+		if (!((azx_readw(chip, IRS) & AZX_IRS_BUSY))) {
 			/* Clear IRV valid bit */
 			azx_writew(chip, IRS, azx_readw(chip, IRS) |
-				   ICH6_IRS_VALID);
+				   AZX_IRS_VALID);
 			azx_writel(chip, IC, val);
 			azx_writew(chip, IRS, azx_readw(chip, IRS) |
-				   ICH6_IRS_BUSY);
+				   AZX_IRS_BUSY);
 			return azx_single_wait_for_response(chip, addr);
 		}
 		udelay(1);
@@ -1501,10 +1500,10 @@ void azx_enter_link_reset(struct azx *chip)
 	unsigned long timeout;
 
 	/* reset controller */
-	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_RESET);
+	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~AZX_GCTL_RESET);
 
 	timeout = jiffies + msecs_to_jiffies(100);
-	while ((azx_readb(chip, GCTL) & ICH6_GCTL_RESET) &&
+	while ((azx_readb(chip, GCTL) & AZX_GCTL_RESET) &&
 			time_before(jiffies, timeout))
 		usleep_range(500, 1000);
 }
@@ -1515,7 +1514,7 @@ static void azx_exit_link_reset(struct azx *chip)
 {
 	unsigned long timeout;
 
-	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | ICH6_GCTL_RESET);
+	azx_writeb(chip, GCTL, azx_readb(chip, GCTL) | AZX_GCTL_RESET);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 	while (!azx_readb(chip, GCTL) &&
@@ -1556,7 +1555,7 @@ static int azx_reset(struct azx *chip, bool full_reset)
 	/* Accept unsolicited responses */
 	if (!chip->single_cmd)
 		azx_writel(chip, GCTL, azx_readl(chip, GCTL) |
-			   ICH6_GCTL_UNSOL);
+			   AZX_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!chip->codec_mask) {
@@ -1573,7 +1572,7 @@ static void azx_int_enable(struct azx *chip)
 {
 	/* enable controller CIE and GIE */
 	azx_writel(chip, INTCTL, azx_readl(chip, INTCTL) |
-		   ICH6_INT_CTRL_EN | ICH6_INT_GLOBAL_EN);
+		   AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
 }
 
 /* disable interrupts */
@@ -1594,7 +1593,7 @@ static void azx_int_disable(struct azx *chip)
 
 	/* disable controller CIE and GIE */
 	azx_writel(chip, INTCTL, azx_readl(chip, INTCTL) &
-		   ~(ICH6_INT_CTRL_EN | ICH6_INT_GLOBAL_EN));
+		   ~(AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN));
 }
 
 /* clear interrupts */
@@ -1615,7 +1614,7 @@ static void azx_int_clear(struct azx *chip)
 	azx_writeb(chip, RIRBSTS, RIRB_INT_MASK);
 
 	/* clear int status */
-	azx_writel(chip, INTSTS, ICH6_INT_CTRL_EN | ICH6_INT_ALL_STREAM);
+	azx_writel(chip, INTSTS, AZX_INT_CTRL_EN | AZX_INT_ALL_STREAM);
 }
 
 /*

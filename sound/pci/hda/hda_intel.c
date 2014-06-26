@@ -339,8 +339,8 @@ static char *driver_short_names[] = {
  * Clock) to 24MHz BCLK: BCLK = CDCLK * M / N
  * The values will be lost when the display power well is disabled.
  */
-#define ICH6_REG_EM4			0x100c
-#define ICH6_REG_EM5			0x1010
+#define AZX_REG_EM4			0x100c
+#define AZX_REG_EM5			0x1010
 
 struct hda_intel {
 	struct azx chip;
@@ -451,7 +451,7 @@ static void azx_init_pci(struct azx *chip)
 	 */
 	if (!(chip->driver_caps & AZX_DCAPS_NO_TCSEL)) {
 		dev_dbg(chip->card->dev, "Clearing TCSEL\n");
-		update_pci_byte(chip->pci, ICH6_PCIREG_TCSEL, 0x07, 0);
+		update_pci_byte(chip->pci, AZX_PCIREG_TCSEL, 0x07, 0);
 	}
 
 	/* For ATI SB450/600/700/800/900 and AMD Hudson azalia HD audio,
@@ -1529,7 +1529,7 @@ static int azx_first_init(struct azx *chip)
 					 NULL);
 		if (p_smbus) {
 			if (p_smbus->revision < 0x30)
-				gcap &= ~ICH6_GCAP_64OK;
+				gcap &= ~AZX_GCAP_64OK;
 			pci_dev_put(p_smbus);
 		}
 	}
@@ -1537,7 +1537,7 @@ static int azx_first_init(struct azx *chip)
 	/* disable 64bit DMA address on some devices */
 	if (chip->driver_caps & AZX_DCAPS_NO_64BIT) {
 		dev_dbg(card->dev, "Disabling 64bit DMA\n");
-		gcap &= ~ICH6_GCAP_64OK;
+		gcap &= ~AZX_GCAP_64OK;
 	}
 
 	/* disable buffer size rounding to 128-byte multiples if supported */
@@ -1553,7 +1553,7 @@ static int azx_first_init(struct azx *chip)
 	}
 
 	/* allow 64bit DMA address if supported by H/W */
-	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
+	if ((gcap & AZX_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))
 		pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(64));
 	else {
 		pci_set_dma_mask(pci, DMA_BIT_MASK(32));
