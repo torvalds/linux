@@ -3221,8 +3221,8 @@ static void dasd_generic_auto_online(void *data, async_cookie_t cookie)
 
 	ret = ccw_device_set_online(cdev);
 	if (ret)
-		pr_warning("%s: Setting the DASD online failed with rc=%d\n",
-			   dev_name(&cdev->dev), ret);
+		pr_warn("%s: Setting the DASD online failed with rc=%d\n",
+			dev_name(&cdev->dev), ret);
 }
 
 /*
@@ -3319,9 +3319,8 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
-			pr_warning("%s Setting the DASD online failed because "
-				   "of missing DIAG discipline\n",
-				   dev_name(&cdev->dev));
+			pr_warn("%s Setting the DASD online failed because of missing DIAG discipline\n",
+				dev_name(&cdev->dev));
 			dasd_delete_device(device);
 			return -ENODEV;
 		}
@@ -3342,9 +3341,8 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	/* check_device will allocate block device if necessary */
 	rc = discipline->check_device(device);
 	if (rc) {
-		pr_warning("%s Setting the DASD online with discipline %s "
-			   "failed with rc=%i\n",
-			   dev_name(&cdev->dev), discipline->name, rc);
+		pr_warn("%s Setting the DASD online with discipline %s failed with rc=%i\n",
+			dev_name(&cdev->dev), discipline->name, rc);
 		module_put(discipline->owner);
 		module_put(base_discipline->owner);
 		dasd_delete_device(device);
@@ -3353,8 +3351,8 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 
 	dasd_set_target_state(device, DASD_STATE_ONLINE);
 	if (device->state <= DASD_STATE_KNOWN) {
-		pr_warning("%s Setting the DASD online failed because of a "
-			   "missing discipline\n", dev_name(&cdev->dev));
+		pr_warn("%s Setting the DASD online failed because of a missing discipline\n",
+			dev_name(&cdev->dev));
 		rc = -ENODEV;
 		dasd_set_target_state(device, DASD_STATE_NEW);
 		if (device->block)
@@ -3393,13 +3391,11 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 		open_count = atomic_read(&device->block->open_count);
 		if (open_count > max_count) {
 			if (open_count > 0)
-				pr_warning("%s: The DASD cannot be set offline "
-					   "with open count %i\n",
-					   dev_name(&cdev->dev), open_count);
+				pr_warn("%s: The DASD cannot be set offline with open count %i\n",
+					dev_name(&cdev->dev), open_count);
 			else
-				pr_warning("%s: The DASD cannot be set offline "
-					   "while it is in use\n",
-					   dev_name(&cdev->dev));
+				pr_warn("%s: The DASD cannot be set offline while it is in use\n",
+					dev_name(&cdev->dev));
 			clear_bit(DASD_FLAG_OFFLINE, &device->flags);
 			dasd_put_device(device);
 			return -EBUSY;
