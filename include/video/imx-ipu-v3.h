@@ -165,6 +165,7 @@ int ipu_idmac_wait_busy(struct ipuv3_channel *channel, int ms);
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer);
 int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel);
+bool ipu_idmac_buffer_is_ready(struct ipuv3_channel *channel, u32 buf_num);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num);
 
 /*

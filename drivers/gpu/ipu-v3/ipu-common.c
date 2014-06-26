@@ -232,7 +232,7 @@ void ipu_idmac_put(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_put);
 
-#define idma_mask(ch)			(1 << (ch & 0x1f))
+#define idma_mask(ch)			(1 << ((ch) & 0x1f))
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 		bool doublebuffer)
@@ -314,6 +314,30 @@ int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel)
 	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chno)) & idma_mask(chno)) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_get_current_buffer);
+
+bool ipu_idmac_buffer_is_ready(struct ipuv3_channel *channel, u32 buf_num)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned long flags;
+	u32 reg = 0;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+	switch (buf_num) {
+	case 0:
+		reg = ipu_cm_read(ipu, IPU_CHA_BUF0_RDY(channel->num));
+		break;
+	case 1:
+		reg = ipu_cm_read(ipu, IPU_CHA_BUF1_RDY(channel->num));
+		break;
+	case 2:
+		reg = ipu_cm_read(ipu, IPU_CHA_BUF2_RDY(channel->num));
+		break;
+	}
+	spin_unlock_irqrestore(&ipu->lock, flags);
+
+	return ((reg & idma_mask(channel->num)) != 0);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_buffer_is_ready);
 
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
