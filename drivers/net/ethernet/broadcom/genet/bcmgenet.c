@@ -2535,13 +2535,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	netif_set_real_num_tx_queues(priv->dev, priv->hw_params->tx_queues + 1);
 	netif_set_real_num_rx_queues(priv->dev, priv->hw_params->rx_queues + 1);
 
-	err = register_netdev(dev);
-	if (err)
-		goto err_clk_disable;
-
 	/* Turn off the main clock, WOL clock is handled separately */
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
+
+	err = register_netdev(dev);
+	if (err)
+		goto err;
 
 	return err;
 
