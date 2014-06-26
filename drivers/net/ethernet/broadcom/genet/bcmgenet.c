@@ -2535,6 +2535,9 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	netif_set_real_num_tx_queues(priv->dev, priv->hw_params->tx_queues + 1);
 	netif_set_real_num_rx_queues(priv->dev, priv->hw_params->rx_queues + 1);
 
+	/* libphy will determine the link state */
+	netif_carrier_off(dev);
+
 	/* Turn off the main clock, WOL clock is handled separately */
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
