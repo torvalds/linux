@@ -654,13 +654,13 @@ static int bcm_sysport_tx_poll(struct napi_struct *napi, int budget)
 
 	work_done = bcm_sysport_tx_reclaim(ring->priv, ring);
 
-	if (work_done < budget) {
+	if (work_done == 0) {
 		napi_complete(napi);
 		/* re-enable TX interrupt */
 		intrl2_1_mask_clear(ring->priv, BIT(ring->index));
 	}
 
-	return work_done;
+	return 0;
 }
 
 static void bcm_sysport_tx_reclaim_all(struct bcm_sysport_priv *priv)
