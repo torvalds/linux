@@ -27,6 +27,8 @@ EXPORT_SYMBOL(cpu_clock_freq);
 struct efi_memory_map_loongson *loongson_memmap;
 struct loongson_system_configuration loongson_sysconf;
 
+u64 loongson_chipcfg[MAX_PACKAGES] = {0xffffffffbfc00180};
+
 #define parse_even_earlier(res, option, p)				\
 do {									\
 	unsigned int tmp __maybe_unused;				\
@@ -77,6 +79,15 @@ void __init prom_init_env(void)
 
 	cpu_clock_freq = ecpu->cpu_clock_freq;
 	loongson_sysconf.cputype = ecpu->cputype;
+	if (ecpu->cputype == Loongson_3A) {
+		loongson_chipcfg[0] = 0x900000001fe00180;
+		loongson_chipcfg[1] = 0x900010001fe00180;
+		loongson_chipcfg[2] = 0x900020001fe00180;
+		loongson_chipcfg[3] = 0x900030001fe00180;
+	} else {
+		loongson_chipcfg[0] = 0x900000001fe00180;
+	}
+
 	loongson_sysconf.nr_cpus = ecpu->nr_cpus;
 	if (ecpu->nr_cpus > NR_CPUS || ecpu->nr_cpus == 0)
 		loongson_sysconf.nr_cpus = NR_CPUS;

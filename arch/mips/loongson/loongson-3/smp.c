@@ -399,12 +399,12 @@ static int loongson3_cpu_callback(struct notifier_block *nfb,
 	case CPU_POST_DEAD:
 	case CPU_POST_DEAD_FROZEN:
 		pr_info("Disable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG0 &= ~(1 << (12 + cpu));
+		LOONGSON_CHIPCFG(0) &= ~(1 << (12 + cpu));
 		break;
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		pr_info("Enable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG0 |= 1 << (12 + cpu);
+		LOONGSON_CHIPCFG(0) |= 1 << (12 + cpu);
 		break;
 	}
 
