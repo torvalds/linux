@@ -188,26 +188,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_DCAPS_I915_POWERWELL (1 << 27)	/* HSW i915 powerwell support */
 #define AZX_DCAPS_CORBRP_SELF_CLEAR (1 << 28)	/* CORBRP clears itself after reset */
 
-/* Defines for ATI HD Audio support in SB450 south bridge */
-#define ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR   0x42
-#define ATI_SB450_HDAUDIO_ENABLE_SNOOP      0x02
-
-/* Defines for Nvidia HDA support */
-#define NVIDIA_HDA_TRANSREG_ADDR      0x4e
-#define NVIDIA_HDA_ENABLE_COHBITS     0x0f
-#define NVIDIA_HDA_ISTRM_COH          0x4d
-#define NVIDIA_HDA_OSTRM_COH          0x4c
-#define NVIDIA_HDA_ENABLE_COHBIT      0x01
-
-/* Defines for Intel SCH HDA snoop control */
-#define INTEL_SCH_HDA_DEVC      0x78
-#define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
-
-/* Define IN stream 0 FIFO size offset in VIA controller */
-#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
-/* Define VIA HD Audio Device ID*/
-#define VIA_HDAC_DEVICE_ID		0x3288
-
 /* HD Audio class code */
 #define PCI_CLASS_MULTIMEDIA_HD_AUDIO	0x0403
 
@@ -345,7 +325,6 @@ struct azx {
 	/* locks */
 	spinlock_t reg_lock;
 	struct mutex open_mutex; /* Prevents concurrent open/close operations */
-	struct completion probe_wait;
 
 	/* streams (x num_streams) */
 	struct azx_dev *azx_dev;
@@ -379,38 +358,21 @@ struct azx {
 	unsigned int single_cmd:1;
 	unsigned int polling_mode:1;
 	unsigned int msi:1;
-	unsigned int irq_pending_warned:1;
 	unsigned int probing:1; /* codec probing phase */
 	unsigned int snoop:1;
 	unsigned int align_buffer_size:1;
 	unsigned int region_requested:1;
-
-	/* VGA-switcheroo setup */
-	unsigned int use_vga_switcheroo:1;
-	unsigned int vga_switcheroo_registered:1;
-	unsigned int init_failed:1; /* delayed init failed */
 	unsigned int disabled:1; /* disabled by VGA-switcher */
 
 	/* for debugging */
 	unsigned int last_cmd[AZX_MAX_CODECS];
 
-	/* for pending irqs */
-	struct work_struct irq_pending_work;
-
-	struct work_struct probe_work;
-
 	/* reboot notifier (for mysterious hangup problem at power-down) */
 	struct notifier_block reboot_notifier;
-
-	/* card list (for power_save trigger) */
-	struct list_head list;
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
 	struct azx_dev saved_azx_dev;
 #endif
-
-	/* secondary power domain for hdmi audio under vga device */
-	struct dev_pm_domain hdmi_pm_domain;
 };
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK
