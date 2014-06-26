@@ -20,6 +20,12 @@
 	compatible = "samsung,exynos5410", "samsung,exynos5";
 	interrupt-parent = <&gic>;
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
