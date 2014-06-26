@@ -578,9 +578,6 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_MIPS_CP0_PRID:
 		v = (long)kvm_read_c0_guest_prid(cop0);
 		break;
-	case KVM_REG_MIPS_CP0_ERROREPC:
-		v = (long)kvm_read_c0_guest_errorepc(cop0);
-		break;
 	case KVM_REG_MIPS_CP0_CONFIG:
 		v = (long)kvm_read_c0_guest_config(cop0);
 		break;
@@ -595,6 +592,9 @@ static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_CP0_CONFIG7:
 		v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		v = (long)kvm_read_c0_guest_errorepc(cop0);
 		break;
 	/* registers to be handled specially */
 	case KVM_REG_MIPS_CP0_COUNT:
