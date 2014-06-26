@@ -290,10 +290,12 @@ void ipu_ic_dump(struct ipu_ic *ic);
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
  */
-int ipu_smfc_enable(struct ipu_soc *ipu);
-int ipu_smfc_disable(struct ipu_soc *ipu);
-int ipu_smfc_map_channel(struct ipu_soc *ipu, int channel, int csi_id, int mipi_id);
-int ipu_smfc_set_burstsize(struct ipu_soc *ipu, int channel, int burstsize);
+struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chno);
+void ipu_smfc_put(struct ipu_smfc *smfc);
+int ipu_smfc_enable(struct ipu_smfc *smfc);
+int ipu_smfc_disable(struct ipu_smfc *smfc);
+int ipu_smfc_map_channel(struct ipu_smfc *smfc, int csi_id, int mipi_id);
+int ipu_smfc_set_burstsize(struct ipu_smfc *smfc, int burstsize);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
