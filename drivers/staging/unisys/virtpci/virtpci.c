@@ -794,8 +794,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 	BusDeviceInfo_Init(&devInfo, stype,
 			   virtpcidrv->name,
 			   virtpcidrv->version,
-			   virtpcidrv->vertag,
-			   virtpcidrv->build_date, virtpcidrv->build_time);
+			   virtpcidrv->vertag);
 	write_vbus_devInfo(pChan, &devInfo, devNo);
 
 	/* Re-write bus+chipset info, because it is possible that this
@@ -1480,10 +1479,6 @@ static ssize_t info_proc_read(struct file *file, char __user *buf,
 	}
 	read_unlock_irqrestore(&VpcidevListLock, flags);
 
-	length +=
-	    sprintf(vbuf + length, "\nModule build: Date:%s Time:%s\n", __DATE__,
-		    __TIME__);
-
 	length += sprintf(vbuf + length, "\n");
 	if (copy_to_user(buf, vbuf, length)) {
 		kfree(vbuf);
@@ -1686,8 +1681,6 @@ static int __init virtpci_mod_init(void)
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
-	LOGINF("Module build: Date:%s Time:%s...\n", __DATE__, __TIME__);
-
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
 	ret = bus_register(&virtpci_bus_type);
@@ -1701,9 +1694,8 @@ static int __init virtpci_mod_init(void)
 		return ret;
 	}
 	DBGINF("bus_register successful\n");
-	BusDeviceInfo_Init(&Bus_DriverInfo,
-			   "clientbus", "virtpci",
-			   VERSION, NULL, __DATE__, __TIME__);
+	BusDeviceInfo_Init(&Bus_DriverInfo, "clientbus", "virtpci",
+			   VERSION, NULL);
 
 	/* create a root bus used to parent all the virtpci buses. */
 	ret = device_register(&virtpci_rootbus_device);

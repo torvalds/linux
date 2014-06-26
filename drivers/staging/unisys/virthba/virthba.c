@@ -139,8 +139,6 @@ static struct virtpci_driver virthba_driver = {
 	.name = "uisvirthba",
 	.version = VERSION,
 	.vertag = NULL,
-	.build_date = __DATE__,
-	.build_time = __TIME__,
 	.id_table = virthba_id_table,
 	.probe = virthba_probe,
 	.remove = virthba_remove,
@@ -1413,9 +1411,6 @@ info_proc_read(struct file *file, char __user *buf, size_t len, loff_t *offset)
 		length += sprintf(vbuf + length, "\nvirthba result queue poll wait:%d usecs.\n",
 				  rsltq_wait_usecs);
 
-		length += sprintf(vbuf + length,
-				  "\nModule build: Date:%s Time:%s\n",
-				  __DATE__, __TIME__);
 		length += sprintf(vbuf + length, "\ninterrupts_rcvd = %llu, interrupts_disabled = %llu\n",
 				  virthbainfo->interrupts_rcvd,
 				  virthbainfo->interrupts_disabled);

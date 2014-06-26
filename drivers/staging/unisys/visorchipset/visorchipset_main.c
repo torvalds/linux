@@ -569,7 +569,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 		*responders = BusDev_Responders;
 	if (driverInfo)
 		BusDeviceInfo_Init(driverInfo, "chipset", "visorchipset",
-				   VERSION, NULL, __DATE__, __TIME__);
+				   VERSION, NULL);
 
 	UNLOCKSEM(&NotifierLock);
 }
@@ -593,7 +593,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 		*responders = BusDev_Responders;
 	if (driverInfo)
 		BusDeviceInfo_Init(driverInfo, "chipset(bolts)", "visorchipset",
-				   VERSION, NULL, __DATE__, __TIME__);
+				   VERSION, NULL);
 	UNLOCKSEM(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);

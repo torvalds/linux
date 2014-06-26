@@ -77,8 +77,6 @@ struct virtpci_driver {
 	const char *name;	/* the name of the driver in sysfs */
 	const char *version;
 	const char *vertag;
-	const char *build_date;
-	const char *build_time;
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe
 						 * to be called */
 	int (*probe)(struct virtpci_dev *dev,
