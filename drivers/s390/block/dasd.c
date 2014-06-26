@@ -976,37 +976,37 @@ static void dasd_stats_seq_print(struct seq_file *m,
 	seq_printf(m, "total_sectors %u\n", data->dasd_io_sects);
 	seq_printf(m, "total_pav %u\n", data->dasd_io_alias);
 	seq_printf(m, "total_hpf %u\n", data->dasd_io_tpm);
-	seq_printf(m, "histogram_sectors ");
+	seq_puts(m, "histogram_sectors ");
 	dasd_stats_array(m, data->dasd_io_secs);
-	seq_printf(m, "histogram_io_times ");
+	seq_puts(m, "histogram_io_times ");
 	dasd_stats_array(m, data->dasd_io_times);
-	seq_printf(m, "histogram_io_times_weighted ");
+	seq_puts(m, "histogram_io_times_weighted ");
 	dasd_stats_array(m, data->dasd_io_timps);
-	seq_printf(m, "histogram_time_build_to_ssch ");
+	seq_puts(m, "histogram_time_build_to_ssch ");
 	dasd_stats_array(m, data->dasd_io_time1);
-	seq_printf(m, "histogram_time_ssch_to_irq ");
+	seq_puts(m, "histogram_time_ssch_to_irq ");
 	dasd_stats_array(m, data->dasd_io_time2);
-	seq_printf(m, "histogram_time_ssch_to_irq_weighted ");
+	seq_puts(m, "histogram_time_ssch_to_irq_weighted ");
 	dasd_stats_array(m, data->dasd_io_time2ps);
-	seq_printf(m, "histogram_time_irq_to_end ");
+	seq_puts(m, "histogram_time_irq_to_end ");
 	dasd_stats_array(m, data->dasd_io_time3);
-	seq_printf(m, "histogram_ccw_queue_length ");
+	seq_puts(m, "histogram_ccw_queue_length ");
 	dasd_stats_array(m, data->dasd_io_nr_req);
 	seq_printf(m, "total_read_requests %u\n", data->dasd_read_reqs);
 	seq_printf(m, "total_read_sectors %u\n", data->dasd_read_sects);
 	seq_printf(m, "total_read_pav %u\n", data->dasd_read_alias);
 	seq_printf(m, "total_read_hpf %u\n", data->dasd_read_tpm);
-	seq_printf(m, "histogram_read_sectors ");
+	seq_puts(m, "histogram_read_sectors ");
 	dasd_stats_array(m, data->dasd_read_secs);
-	seq_printf(m, "histogram_read_times ");
+	seq_puts(m, "histogram_read_times ");
 	dasd_stats_array(m, data->dasd_read_times);
-	seq_printf(m, "histogram_read_time_build_to_ssch ");
+	seq_puts(m, "histogram_read_time_build_to_ssch ");
 	dasd_stats_array(m, data->dasd_read_time1);
-	seq_printf(m, "histogram_read_time_ssch_to_irq ");
+	seq_puts(m, "histogram_read_time_ssch_to_irq ");
 	dasd_stats_array(m, data->dasd_read_time2);
-	seq_printf(m, "histogram_read_time_irq_to_end ");
+	seq_puts(m, "histogram_read_time_irq_to_end ");
 	dasd_stats_array(m, data->dasd_read_time3);
-	seq_printf(m, "histogram_read_ccw_queue_length ");
+	seq_puts(m, "histogram_read_ccw_queue_length ");
 	dasd_stats_array(m, data->dasd_read_nr_req);
 }
 
@@ -1020,7 +1020,7 @@ static int dasd_stats_show(struct seq_file *m, void *v)
 	data = profile->data;
 	if (!data) {
 		spin_unlock_bh(&profile->lock);
-		seq_printf(m, "disabled\n");
+		seq_puts(m, "disabled\n");
 		return 0;
 	}
 	dasd_stats_seq_print(m, data);
@@ -1073,7 +1073,7 @@ static ssize_t dasd_stats_global_write(struct file *file,
 static int dasd_stats_global_show(struct seq_file *m, void *v)
 {
 	if (!dasd_global_profile_level) {
-		seq_printf(m, "disabled\n");
+		seq_puts(m, "disabled\n");
 		return 0;
 	}
 	dasd_stats_seq_print(m, &dasd_global_profile_data);
@@ -1176,7 +1176,7 @@ static void dasd_statistics_removeroot(void)
 
 int dasd_stats_generic_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "Statistics are not activated in this kernel\n");
+	seq_puts(m, "Statistics are not activated in this kernel\n");
 	return 0;
 }
 
