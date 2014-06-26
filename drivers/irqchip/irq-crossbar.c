@@ -86,8 +86,13 @@ static inline int allocate_free_irq(int cb_no)
 
 static inline bool needs_crossbar_write(irq_hw_number_t hw)
 {
-	if (hw > GIC_IRQ_START)
-		return true;
+	int cb_no;
+
+	if (hw > GIC_IRQ_START) {
+		cb_no = cb->irq_map[hw - GIC_IRQ_START];
+		if (cb_no != IRQ_RESERVED && cb_no != IRQ_SKIP)
+			return true;
+	}
 
 	return false;
 }
@@ -130,8 +135,19 @@ static int crossbar_domain_xlate(struct irq_domain *d,
 {
 	int ret;
 	int req_num = intspec[1];
+	int direct_map_num;
 
 	if (req_num >= cb->max_crossbar_sources) {
+		direct_map_num = req_num - cb->max_crossbar_sources;
+		if (direct_map_num < cb->int_max) {
+			ret = cb->irq_map[direct_map_num];
+			if (ret == IRQ_RESERVED || ret == IRQ_SKIP) {
+				/* We use the interrupt num as h/w irq num */
+				ret = direct_map_num;
+				goto found;
+			}
+		}
+
 		pr_err("%s: requested crossbar number %d > max %d\n",
 		       __func__, req_num, cb->max_crossbar_sources);
 		return -EINVAL;
