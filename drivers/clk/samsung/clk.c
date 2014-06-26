@@ -285,7 +285,7 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 			struct samsung_fixed_rate_clock *fixed_rate_clk,
 			unsigned int nr_fixed_rate_clk,
-			struct of_device_id *clk_matches)
+			const struct of_device_id *clk_matches)
 {
 	const struct of_device_id *match;
 	struct device_node *clk_np;

@@ -1192,7 +1192,7 @@ static struct samsung_pll_clock exynos5x_plls[nr_plls] __initdata = {
 		KPLL_CON0, NULL),
 };
 
-static struct of_device_id ext_clk_match[] __initdata = {
+static const struct of_device_id ext_clk_match[] __initconst = {
 	{ .compatible = "samsung,exynos5420-oscclk", .data = (void *)0, },
 	{ },
 };

@@ -1254,7 +1254,7 @@ static void __init exynos4_clk_register_finpll(struct samsung_clk_provider *ctx)
 
 }
 
-static struct of_device_id ext_clk_match[] __initdata = {
+static const struct of_device_id ext_clk_match[] __initconst = {
 	{ .compatible = "samsung,clock-xxti", .data = (void *)0, },
 	{ .compatible = "samsung,clock-xusbxti", .data = (void *)1, },
 	{},
