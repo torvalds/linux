@@ -311,7 +311,7 @@ struct sbridge_channel {
 };
 
 struct pci_id_descr {
-	int 			dev_id;
+	int			dev_id;
 	int			optional;
 };
 
@@ -946,7 +946,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	struct mem_ctl_info	*new_mci;
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev		*pci_ha;
-	int 			n_rir, n_sads, n_tads, sad_way, sck_xch;
+	int			n_rir, n_sads, n_tads, sad_way, sck_xch;
 	int			sad_interl, idx, base_ch;
 	int			interleave_mode;
 	unsigned		sad_interleave[pvt->info.max_interleave];
@@ -1348,7 +1348,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
  * sbridge_get_all_devices - Find and perform 'get' operation on the MCH's
  *			     devices we want to reference for this driver.
  * @num_mc: pointer to the memory controllers count, to be incremented in case
- * 	    of success.
+ *	    of success.
  * @table: model specific table
  *
  * returns 0 in case of success or error code
