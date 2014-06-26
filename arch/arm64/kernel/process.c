@@ -215,7 +215,7 @@ void release_thread(struct task_struct *dead_task)
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-	fpsimd_preserve_current_state();
+	fpsimd_save_state(&current->thread.fpsimd_state);
 	*dst = *src;
 	return 0;
 }
