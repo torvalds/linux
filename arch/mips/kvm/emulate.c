@@ -29,9 +29,9 @@
 #include <asm/r4kcache.h>
 #define CONFIG_MIPS_MT
 
-#include "kvm_mips_opcode.h"
-#include "kvm_mips_int.h"
-#include "kvm_mips_comm.h"
+#include "opcode.h"
+#include "interrupt.h"
+#include "commpage.h"
 
 #include "trace.h"
 

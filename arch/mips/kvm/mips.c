@@ -21,8 +21,8 @@
 
 #include <linux/kvm_host.h>
 
-#include "kvm_mips_int.h"
-#include "kvm_mips_comm.h"
+#include "interrupt.h"
+#include "commpage.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -1188,7 +1188,7 @@ int __init kvm_mips_init(void)
 	/*
 	 * On MIPS, kernel modules are executed from "mapped space", which
 	 * requires TLBs. The TLB handling code is statically linked with
-	 * the rest of the kernel (kvm_tlb.c) to avoid the possibility of
+	 * the rest of the kernel (tlb.c) to avoid the possibility of
 	 * double faulting. The issue is that the TLB code references
 	 * routines that are part of the the KVM module, which are only
 	 * available once the module is loaded.

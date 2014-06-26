@@ -22,7 +22,7 @@
 
 #include <linux/kvm_host.h>
 
-#include "kvm_mips_comm.h"
+#include "commpage.h"
 
 void kvm_mips_commpage_init(struct kvm_vcpu *vcpu)
 {

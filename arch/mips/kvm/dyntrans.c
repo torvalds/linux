@@ -18,7 +18,7 @@
 #include <linux/bootmem.h>
 #include <asm/cacheflush.h>
 
-#include "kvm_mips_comm.h"
+#include "commpage.h"
 
 #define SYNCI_TEMPLATE  0x041f0000
 #define SYNCI_BASE(x)   (((x) >> 21) & 0x1f)

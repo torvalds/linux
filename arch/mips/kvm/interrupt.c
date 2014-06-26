@@ -20,7 +20,7 @@
 
 #include <linux/kvm_host.h>
 
-#include "kvm_mips_int.h"
+#include "interrupt.h"
 
 void kvm_mips_queue_irq(struct kvm_vcpu *vcpu, uint32_t priority)
 {
