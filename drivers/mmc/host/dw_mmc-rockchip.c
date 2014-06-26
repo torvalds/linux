@@ -19,6 +19,7 @@
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cru.h>
 
 #include "rk_sdmmc.h"
 #include "dw_mmc-pltfm.h"
@@ -31,7 +32,10 @@
 *   sdmmc,sdio0,sdio1,emmc id=0~3
 *   cclk_in_drv, cclk_in_sample  i=0,1
 */
-#define CRU_SDMMC_CON(id, tuning_type)	(0x200 + ((id) * 8) + ((tuning_type) * 4))
+
+static  u32 cru_tuning_base = 0;
+
+#define CRU_SDMMC_CON(id, tuning_type)	(cru_tuning_base + ((id) * 8) + ((tuning_type) * 4))
 
 #define MAX_DELAY_LINE  (0xff)
 #define FREQ_REF_150MHZ (150000000)
@@ -67,6 +71,7 @@ enum{
 enum dw_mci_rockchip_type {
 	DW_MCI_TYPE_RK3188,
 	DW_MCI_TYPE_RK3288,
+	DW_MCI_TYPE_RK3036,
 };
 
 /* Rockchip implementation specific driver private data */
@@ -88,6 +93,9 @@ static struct dw_mci_rockchip_compatible {
 	},{
 		.compatible	= "rockchip,rk32xx-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK3288,
+	},{
+		.compatible	= "rockchip,rk3036-sdmmc",
+		.ctrl_type	= DW_MCI_TYPE_RK3036,
 	},
 };
 
@@ -97,14 +105,14 @@ static int dw_mci_rockchip_priv_init(struct dw_mci *host)
 	int idx;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
+	if(!priv){
 		dev_err(host->dev, "mem alloc failed for private data\n");
 		return -ENOMEM;
 	}
 
-	for (idx = 0; idx < ARRAY_SIZE(rockchip_compat); idx++) {
-		if (of_device_is_compatible(host->dev->of_node,
-					rockchip_compat[idx].compatible))
+	for(idx = 0; idx < ARRAY_SIZE(rockchip_compat); idx++){
+                if(of_device_is_compatible(host->dev->of_node,
+                                rockchip_compat[idx].compatible))
 			priv->ctrl_type = rockchip_compat[idx].ctrl_type;
 	}
 
@@ -116,7 +124,8 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_rockchip_priv_data *priv = host->priv;
 
-	if (priv->ctrl_type == DW_MCI_TYPE_RK3288)
+	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) ||
+	        (priv->ctrl_type == DW_MCI_TYPE_RK3036))
 		host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;
@@ -124,8 +133,7 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 
 static void dw_mci_rockchip_prepare_command(struct dw_mci *host, u32 *cmdr)
 {
-//	if (SDMMC_CLKSEL_GET_DRV_WD3(mci_readl(host, CLKSEL)))
-//		*cmdr |= SDMMC_CMD_USE_HOLD_REG;
+
 }
 
 static void dw_mci_rockchip_set_ios(struct dw_mci *host, struct mmc_ios *ios)
@@ -210,9 +218,16 @@ static inline u8 dw_mci_rockchip_move_next_clksmpl(struct dw_mci *host, u8 con_i
 	return val;
 }
 
+static void dw_mci_rockchip_load_tuning_base(void)
+{
+        if(cpu_is_rk3288())
+                cru_tuning_base =  RK3288_CRU_SDMMC_CON0;
 
-    
-        
+     /* Fixme: 3036
+        else if(cpu_is_rk3036())
+                cru_tuning_base =  RK3036_CRU_SDMMC_CON0;
+     */
+}
 
 static int inline __dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 					u8 *blk_test, unsigned int blksz)
@@ -273,7 +288,9 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 	int ref = 0;
 	unsigned int blksz = tuning_data->blksz;
 
-        MMC_DBG_INFO_FUNC(host->mmc,"execute tuning:  [%s]", mmc_hostname(host->mmc));
+	MMC_DBG_INFO_FUNC(host->mmc,"execute tuning:  [%s]", mmc_hostname(host->mmc));
+
+	dw_mci_rockchip_load_tuning_base();
        
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 	if (!blk_test)
@@ -293,6 +310,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
            0.9 / 60ps = 15 delayline
          */
         if(cpu_is_rk3288()){
+                /* Fixme: 3036:  dose it compatitable? */
                  ref = ((FREQ_REF_150MHZ + host->bus_hz - 1) / host->bus_hz);
                  step = (15 * ref);
 
