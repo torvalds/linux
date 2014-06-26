@@ -34,26 +34,33 @@ config ION_TEGRA
 	  Choose this option if you wish to use ion on an nVidia Tegra.
 
 config ION_ROCKCHIP
-    tristate "Ion for Rockchip"
-    depends on ARCH_ROCKCHIP && ION
-    select ARM_HAS_SG_CHAIN
-    help
-      Choose this option if you wish to use ion on an Rockchip.
+	tristate "Ion for Rockchip"
+	depends on ARCH_ROCKCHIP && ION
+	select ARM_HAS_SG_CHAIN
+	help
+	  Choose this option if you wish to use ion on an Rockchip.
 
 if ION_ROCKCHIP
 
+config ION_CMA_HIGHMEM
+	bool "CMA Support HighMem Zone"
+	depends on ION_ROCKCHIP && CMA
+	help
+	  Choose this option to support CMA regions placed in highmem zone.
+	  This will allocate memory from CMA regions without mapping.
+
 config ION_ROCKCHIP_SNAPSHOT
-    bool "Snapshot for rockchip ion"
-    depends on ION_ROCKCHIP
-    help
+	bool "Snapshot for rockchip ion"
+	depends on ION_ROCKCHIP
+	help
 	  Provide ion snapshot for debug
 
 config ION_SNAPSHOT_BUF_SHIFT
-   int "ION snapshot buffer size (18 => 256KB, 19 => 512KB)"
-   depends on ION_ROCKCHIP_SNAPSHOT
-   range 12 21
-   default 18
-   help
-     Select ION snapshot buffer size as a power of 2
+	int "ION snapshot buffer size (18 => 256KB, 19 => 512KB)"
+	depends on ION_ROCKCHIP_SNAPSHOT
+	range 12 21
+	default 18
+	help
+	  Select ION snapshot buffer size as a power of 2
 
 endif
