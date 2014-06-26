@@ -305,6 +305,75 @@ void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_set_double_buffer);
 
+static const struct {
+	int chnum;
+	u32 reg;
+	int shift;
+} idmac_lock_en_info[] = {
+	{ .chnum =  5, .reg = IDMAC_CH_LOCK_EN_1, .shift =  0, },
+	{ .chnum = 11, .reg = IDMAC_CH_LOCK_EN_1, .shift =  2, },
+	{ .chnum = 12, .reg = IDMAC_CH_LOCK_EN_1, .shift =  4, },
+	{ .chnum = 14, .reg = IDMAC_CH_LOCK_EN_1, .shift =  6, },
+	{ .chnum = 15, .reg = IDMAC_CH_LOCK_EN_1, .shift =  8, },
+	{ .chnum = 20, .reg = IDMAC_CH_LOCK_EN_1, .shift = 10, },
+	{ .chnum = 21, .reg = IDMAC_CH_LOCK_EN_1, .shift = 12, },
+	{ .chnum = 22, .reg = IDMAC_CH_LOCK_EN_1, .shift = 14, },
+	{ .chnum = 23, .reg = IDMAC_CH_LOCK_EN_1, .shift = 16, },
+	{ .chnum = 27, .reg = IDMAC_CH_LOCK_EN_1, .shift = 18, },
+	{ .chnum = 28, .reg = IDMAC_CH_LOCK_EN_1, .shift = 20, },
+	{ .chnum = 45, .reg = IDMAC_CH_LOCK_EN_2, .shift =  0, },
+	{ .chnum = 46, .reg = IDMAC_CH_LOCK_EN_2, .shift =  2, },
+	{ .chnum = 47, .reg = IDMAC_CH_LOCK_EN_2, .shift =  4, },
+	{ .chnum = 48, .reg = IDMAC_CH_LOCK_EN_2, .shift =  6, },
+	{ .chnum = 49, .reg = IDMAC_CH_LOCK_EN_2, .shift =  8, },
+	{ .chnum = 50, .reg = IDMAC_CH_LOCK_EN_2, .shift = 10, },
+};
+
+int ipu_idmac_lock_enable(struct ipuv3_channel *channel, int num_bursts)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned long flags;
+	u32 bursts, regval;
+	int i;
+
+	switch (num_bursts) {
+	case 0:
+	case 1:
+		bursts = 0x00; /* locking disabled */
+		break;
+	case 2:
+		bursts = 0x01;
+		break;
+	case 4:
+		bursts = 0x02;
+		break;
+	case 8:
+		bursts = 0x03;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(idmac_lock_en_info); i++) {
+		if (channel->num == idmac_lock_en_info[i].chnum)
+			break;
+	}
+	if (i >= ARRAY_SIZE(idmac_lock_en_info))
+		return -EINVAL;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	regval = ipu_idmac_read(ipu, idmac_lock_en_info[i].reg);
+	regval &= ~(0x03 << idmac_lock_en_info[i].shift);
+	regval |= (bursts << idmac_lock_en_info[i].shift);
+	ipu_idmac_write(ipu, regval, idmac_lock_en_info[i].reg);
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_lock_enable);
+
 int ipu_module_enable(struct ipu_soc *ipu, u32 mask)
 {
 	unsigned long lock_flags;
