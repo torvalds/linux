@@ -203,6 +203,8 @@ static void loongson3_init_secondary(void)
 	for (i = 0; i < loongson_sysconf.nr_cpus; i++)
 		loongson3_ipi_write32(0xffffffff, ipi_en0_regs[i]);
 
+	cpu_data[cpu].package = cpu / loongson_sysconf.cores_per_package;
+	cpu_data[cpu].core = cpu % loongson_sysconf.cores_per_package;
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
 
 	i = 0;
@@ -394,17 +396,19 @@ static int loongson3_cpu_callback(struct notifier_block *nfb,
 	unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
+	uint64_t core_id = cpu_data[cpu].core;
+	uint64_t package_id = cpu_data[cpu].package;
 
 	switch (action) {
 	case CPU_POST_DEAD:
 	case CPU_POST_DEAD_FROZEN:
 		pr_info("Disable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG(0) &= ~(1 << (12 + cpu));
+		LOONGSON_CHIPCFG(package_id) &= ~(1 << (12 + core_id));
 		break;
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
 		pr_info("Enable clock for CPU#%d\n", cpu);
-		LOONGSON_CHIPCFG(0) |= 1 << (12 + cpu);
+		LOONGSON_CHIPCFG(package_id) |= 1 << (12 + core_id);
 		break;
 	}
 

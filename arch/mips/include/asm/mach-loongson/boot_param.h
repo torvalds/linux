@@ -146,6 +146,9 @@ struct boot_params {
 
 struct loongson_system_configuration {
 	u32 nr_cpus;
+	u32 nr_nodes;
+	int cores_per_node;
+	int cores_per_package;
 	enum loongson_cpu_type cputype;
 	u64 ht_control_base;
 	u64 pci_mem_start_addr;

@@ -80,17 +80,24 @@ void __init prom_init_env(void)
 	cpu_clock_freq = ecpu->cpu_clock_freq;
 	loongson_sysconf.cputype = ecpu->cputype;
 	if (ecpu->cputype == Loongson_3A) {
+		loongson_sysconf.cores_per_node = 4;
+		loongson_sysconf.cores_per_package = 4;
 		loongson_chipcfg[0] = 0x900000001fe00180;
 		loongson_chipcfg[1] = 0x900010001fe00180;
 		loongson_chipcfg[2] = 0x900020001fe00180;
 		loongson_chipcfg[3] = 0x900030001fe00180;
 	} else {
+		loongson_sysconf.cores_per_node = 1;
+		loongson_sysconf.cores_per_package = 1;
 		loongson_chipcfg[0] = 0x900000001fe00180;
 	}
 
 	loongson_sysconf.nr_cpus = ecpu->nr_cpus;
 	if (ecpu->nr_cpus > NR_CPUS || ecpu->nr_cpus == 0)
 		loongson_sysconf.nr_cpus = NR_CPUS;
+	loongson_sysconf.nr_nodes = (loongson_sysconf.nr_cpus +
+		loongson_sysconf.cores_per_node - 1) /
+		loongson_sysconf.cores_per_node;
 
 	loongson_sysconf.pci_mem_start_addr = eirq_source->pci_mem_start_addr;
 	loongson_sysconf.pci_mem_end_addr = eirq_source->pci_mem_end_addr;
