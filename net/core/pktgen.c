@@ -3407,9 +3407,9 @@ static int pktgen_thread_worker(void *arg)
 
 	pr_debug("starting pktgen/%d:  pid=%d\n", cpu, task_pid_nr(current));
 
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	set_freezable();
+
+	__set_current_state(TASK_RUNNING);
 
 	while (!kthread_should_stop()) {
 		pkt_dev = next_to_run(t);
@@ -3423,8 +3423,6 @@ static int pktgen_thread_worker(void *arg)
 			try_to_freeze();
 			continue;
 		}
-
-		__set_current_state(TASK_RUNNING);
 
 		if (likely(pkt_dev)) {
 			pktgen_xmit(pkt_dev);
@@ -3456,9 +3454,8 @@ static int pktgen_thread_worker(void *arg)
 		}
 
 		try_to_freeze();
-
-		set_current_state(TASK_INTERRUPTIBLE);
 	}
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	pr_debug("%s stopping all device\n", t->tsk->comm);
 	pktgen_stop(t);
