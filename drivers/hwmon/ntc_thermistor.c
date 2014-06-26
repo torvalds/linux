@@ -512,7 +512,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "Thermistor type: %s successfully probed.\n",
-								pdev->name);
+								pdev_id->name);
 
 	return 0;
 err_after_sysfs:
