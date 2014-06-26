@@ -3126,7 +3126,10 @@ CONFIG_DMA_ENGINE=y
 # Microsoft Hyper-V guest support
 #
 CONFIG_STAGING=y
-# CONFIG_USBIP_CORE is not set
+CONFIG_USBIP_CORE=m
+CONFIG_USBIP_VHCI_HCD=m
+CONFIG_USBIP_HOST=m
+# CONFIG_USBIP_DEBUG is not set
 # CONFIG_W35UND is not set
 # CONFIG_PRISM2_USB is not set
 # CONFIG_ECHO is not set
