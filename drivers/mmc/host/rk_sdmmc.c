@@ -593,7 +593,14 @@ static void dw_mci_edmac_complete_dma(void *arg)
 
         dev_vdbg(host->dev, "DMA complete\n");
 
-	host->dma_ops->cleanup(host);
+        if(data->flags & MMC_DATA_READ)
+        {
+                /* Invalidate cache after read */
+                dma_sync_sg_for_cpu(host->dms->ch->device->dev, data->sg,
+                        data->sg_len, DMA_FROM_DEVICE);
+        }
+
+        host->dma_ops->cleanup(host);
 
 	/*
 	 * If the card was removed, data will be NULL. No point in trying to
@@ -610,6 +617,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         struct dma_slave_config slave_config;
         struct dma_async_tx_descriptor *desc = NULL;
         struct scatterlist *sgl = host->data->sg;
+        u32 sg_elems = host->data->sg_len;
         int ret = 0;
 
 	/* set external dma config: burst size, burst width*/
@@ -636,9 +644,10 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 		desc->callback = dw_mci_edmac_complete_dma;
 		desc->callback_param = (void *)host;
 		dmaengine_submit(desc);
-		/* flush cache before write & Invalidate cache after read ??? */
-                //dma_sync_single_for_device(host->dms->ch->device->dev, host->sg_dma,
-                //                        sg_len, DMA_TO_DEVICE);
+
+		/* Flush cache before write */
+                dma_sync_sg_for_device(host->dms->ch->device->dev, sgl,
+                                        sg_elems, DMA_TO_DEVICE);
                 dma_async_issue_pending(host->dms->ch);
 	}else{
                 /* MMC_DATA_READ*/
