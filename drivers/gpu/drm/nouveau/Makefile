@@ -354,3 +354,6 @@ nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
 nouveau-$(CONFIG_DEBUG_FS) += nouveau_debugfs.o
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o
+
+# platform driver
+obj-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o

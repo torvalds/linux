@@ -39,6 +39,7 @@
 #include <drm/ttm/ttm_page_alloc.h>
 
 struct nouveau_channel;
+struct platform_device;
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
@@ -156,6 +157,13 @@ nouveau_dev(struct drm_device *dev)
 
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
+
+#define nouveau_platform_device_create(p, u)                                   \
+	nouveau_platform_device_create_(p, sizeof(**u), (void **)u)
+struct drm_device *
+nouveau_platform_device_create_(struct platform_device *pdev,
+				int size, void **pobject);
+void nouveau_drm_device_remove(struct drm_device *dev);
 
 #define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
 #define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)

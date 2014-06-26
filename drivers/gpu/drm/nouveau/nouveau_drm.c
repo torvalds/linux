@@ -494,10 +494,9 @@ nouveau_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
-static void
-nouveau_drm_remove(struct pci_dev *pdev)
+void
+nouveau_drm_device_remove(struct drm_device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_object *device;
 
@@ -507,6 +506,15 @@ nouveau_drm_remove(struct pci_dev *pdev)
 
 	nouveau_object_ref(NULL, &device);
 	nouveau_object_debug();
+}
+EXPORT_SYMBOL(nouveau_drm_device_remove);
+
+static void
+nouveau_drm_remove(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+
+	nouveau_drm_device_remove(dev);
 }
 
 static int
@@ -1004,24 +1012,41 @@ nouveau_drm_pci_driver = {
 	.driver.pm = &nouveau_pm_ops,
 };
 
-int nouveau_drm_platform_probe(struct platform_device *pdev)
+struct drm_device *
+nouveau_platform_device_create_(struct platform_device *pdev, int size,
+				void **pobject)
 {
-	struct nouveau_device *device;
-	int ret;
+	struct drm_device *drm;
+	int err;
 
-	ret = nouveau_device_create(pdev, NOUVEAU_BUS_PLATFORM,
+	err = nouveau_device_create_(pdev, NOUVEAU_BUS_PLATFORM,
 				    nouveau_platform_name(pdev),
 				    dev_name(&pdev->dev), nouveau_config,
-				    nouveau_debug, &device);
+				    nouveau_debug, size, pobject);
+	if (err)
+		return ERR_PTR(err);
 
-	ret = drm_platform_init(&driver, pdev);
-	if (ret) {
-		nouveau_object_ref(NULL, (struct nouveau_object **)&device);
-		return ret;
+	drm = drm_dev_alloc(&driver, &pdev->dev);
+	if (!drm) {
+		err = -ENOMEM;
+		goto err_free;
 	}
 
-	return ret;
+	err = drm_dev_set_unique(drm, "%s", dev_name(&pdev->dev));
+	if (err < 0)
+		goto err_free;
+
+	drm->platformdev = pdev;
+	platform_set_drvdata(pdev, drm);
+
+	return drm;
+
+err_free:
+	nouveau_object_ref(NULL, (struct nouveau_object **)pobject);
+
+	return ERR_PTR(err);
 }
+EXPORT_SYMBOL(nouveau_platform_device_create_);
 
 static int __init
 nouveau_drm_init(void)
