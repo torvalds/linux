@@ -1589,12 +1589,6 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(sizeof(struct bcm_tsb) != 8);
 	dev->needed_headroom += sizeof(struct bcm_tsb);
 
-	/* We are interfaced to a switch which handles the multicast
-	 * filtering for us, so we do not support programming any
-	 * multicast hash table in this Ethernet MAC.
-	 */
-	dev->flags &= ~IFF_MULTICAST;
-
 	/* libphy will adjust the link state accordingly */
 	netif_carrier_off(dev);
 
