@@ -971,12 +971,14 @@ i40e_status i40e_aq_clear_pxe_mode(struct i40e_hw *hw,
 /**
  * i40e_aq_set_link_restart_an
  * @hw: pointer to the hw struct
+ * @enable_link: if true: enable link, if false: disable link
  * @cmd_details: pointer to command details structure or NULL
  *
  * Sets up the link and restarts the Auto-Negotiation over the link.
  **/
 i40e_status i40e_aq_set_link_restart_an(struct i40e_hw *hw,
-				struct i40e_asq_cmd_details *cmd_details)
+					bool enable_link,
+					struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
 	struct i40e_aqc_set_link_restart_an *cmd =
@@ -987,6 +989,10 @@ i40e_status i40e_aq_set_link_restart_an(struct i40e_hw *hw,
 					  i40e_aqc_opc_set_link_restart_an);
 
 	cmd->command = I40E_AQ_PHY_RESTART_AN;
+	if (enable_link)
+		cmd->command |= I40E_AQ_PHY_LINK_ENABLE;
+	else
+		cmd->command &= ~I40E_AQ_PHY_LINK_ENABLE;
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 

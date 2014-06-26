@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 0
 #define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 13
+#define DRV_VERSION_BUILD 17
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -278,7 +278,7 @@ static void i40e_tx_timeout(struct net_device *netdev)
 	pf->tx_timeout_count++;
 
 	if (time_after(jiffies, (pf->tx_timeout_last_recovery + HZ*20)))
-		pf->tx_timeout_recovery_level = 0;
+		pf->tx_timeout_recovery_level = 1;
 	pf->tx_timeout_last_recovery = jiffies;
 	netdev_info(netdev, "tx_timeout recovery level %d\n",
 		    pf->tx_timeout_recovery_level);
@@ -1327,9 +1327,6 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 
 	netdev_info(netdev, "set mac address=%pM\n", addr->sa_data);
 
-	if (ether_addr_equal(netdev->dev_addr, addr->sa_data))
-		return 0;
-
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
 		return -EADDRNOTAVAIL;
@@ -1337,7 +1334,7 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 	if (vsi->type == I40E_VSI_MAIN) {
 		i40e_status ret;
 		ret = i40e_aq_mac_address_write(&vsi->back->hw,
-						I40E_AQC_WRITE_TYPE_LAA_ONLY,
+						I40E_AQC_WRITE_TYPE_LAA_WOL,
 						addr->sa_data, NULL);
 		if (ret) {
 			netdev_info(netdev,
@@ -1345,22 +1342,27 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 				    ret);
 			return -EADDRNOTAVAIL;
 		}
-
-		ether_addr_copy(vsi->back->hw.mac.addr, addr->sa_data);
 	}
 
-	/* In order to be sure to not drop any packets, add the new address
-	 * then delete the old one.
-	 */
-	f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY, false, false);
-	if (!f)
-		return -ENOMEM;
+	f = i40e_find_mac(vsi, addr->sa_data, false, true);
+	if (!f) {
+		/* In order to be sure to not drop any packets, add the
+		 * new address first then delete the old one.
+		 */
+		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
+				    false, false);
+		if (!f)
+			return -ENOMEM;
 
-	i40e_sync_vsi_filters(vsi);
-	i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY, false, false);
-	i40e_sync_vsi_filters(vsi);
+		i40e_sync_vsi_filters(vsi);
+		i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
+				false, false);
+		i40e_sync_vsi_filters(vsi);
+	}
 
-	ether_addr_copy(netdev->dev_addr, addr->sa_data);
+	f->is_laa = true;
+	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
+		ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
 }
@@ -2765,6 +2767,22 @@ void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector)
 	      (I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT);
 	wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
 	/* skip the flush */
+}
+
+/**
+ * i40e_irq_dynamic_disable - Disable default interrupt generation settings
+ * @vsi: pointer to a vsi
+ * @vector: enable a particular Hw Interrupt vector
+ **/
+void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector)
+{
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	u32 val;
+
+	val = I40E_ITR_NONE << I40E_PFINT_DYN_CTLN_ITR_INDX_SHIFT;
+	wr32(hw, I40E_PFINT_DYN_CTLN(vector - 1), val);
+	i40e_flush(hw);
 }
 
 /**
@@ -5611,7 +5629,7 @@ static void i40e_fdir_teardown(struct i40e_pf *pf)
  *
  * Close up the VFs and other things in prep for pf Reset.
   **/
-static int i40e_prep_for_reset(struct i40e_pf *pf)
+static void i40e_prep_for_reset(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status ret = 0;
@@ -5619,7 +5637,7 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 
 	clear_bit(__I40E_RESET_INTR_RECEIVED, &pf->state);
 	if (test_and_set_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state))
-		return 0;
+		return;
 
 	dev_dbg(&pf->pdev->dev, "Tearing down internal switch for reset\n");
 
@@ -5636,13 +5654,10 @@ static int i40e_prep_for_reset(struct i40e_pf *pf)
 	/* call shutdown HMC */
 	if (hw->hmc.hmc_obj) {
 		ret = i40e_shutdown_lan_hmc(hw);
-		if (ret) {
+		if (ret)
 			dev_warn(&pf->pdev->dev,
 				 "shutdown_lan_hmc failed: %d\n", ret);
-			clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
-		}
 	}
-	return ret;
 }
 
 /**
@@ -5778,7 +5793,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	}
 
 	if (pf->vsi[pf->lan_vsi]->uplink_seid == pf->mac_seid) {
-		dev_info(&pf->pdev->dev, "attempting to rebuild PF VSI\n");
+		dev_dbg(&pf->pdev->dev, "attempting to rebuild PF VSI\n");
 		/* no VEB, so rebuild only the Main VSI */
 		ret = i40e_add_vsi(pf->vsi[pf->lan_vsi]);
 		if (ret) {
@@ -5816,11 +5831,8 @@ end_core_reset:
  **/
 static void i40e_handle_reset_warning(struct i40e_pf *pf)
 {
-	i40e_status ret;
-
-	ret = i40e_prep_for_reset(pf);
-	if (!ret)
-		i40e_reset_and_rebuild(pf, false);
+	i40e_prep_for_reset(pf);
+	i40e_reset_and_rebuild(pf, false);
 }
 
 /**
@@ -5833,6 +5845,7 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
 	bool mdd_detected = false;
+	bool pf_mdd_detected = false;
 	struct i40e_vf *vf;
 	u32 reg;
 	int i;
@@ -5870,6 +5883,30 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 			 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
+	}
+
+	if (mdd_detected) {
+		reg = rd32(hw, I40E_PF_MDET_TX);
+		if (reg & I40E_PF_MDET_TX_VALID_MASK) {
+			wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
+			dev_info(&pf->pdev->dev,
+				 "MDD TX event is for this function 0x%08x, requesting PF reset.\n",
+				 reg);
+			pf_mdd_detected = true;
+		}
+		reg = rd32(hw, I40E_PF_MDET_RX);
+		if (reg & I40E_PF_MDET_RX_VALID_MASK) {
+			wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
+			dev_info(&pf->pdev->dev,
+				 "MDD RX event is for this function 0x%08x, requesting PF reset.\n",
+				 reg);
+			pf_mdd_detected = true;
+		}
+		/* Queue belongs to the PF, initiate a reset */
+		if (pf_mdd_detected) {
+			set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
+			i40e_service_event_schedule(pf);
+		}
 	}
 
 	/* see if one of the VFs needs its hand slapped */
@@ -6789,6 +6826,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	pf->irq_pile->num_entries = pf->hw.func_caps.num_msix_vectors;
 	pf->irq_pile->search_hint = 0;
 
+	pf->tx_timeout_recovery_level = 1;
+
 	mutex_init(&pf->switch_mutex);
 
 sw_init_done:
@@ -7342,6 +7381,12 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 	list_for_each_entry_safe(f, ftmp, &vsi->mac_filter_list, list) {
 		f->changed = true;
 		f_count++;
+
+		if (f->is_laa && vsi->type == I40E_VSI_MAIN) {
+			i40e_aq_mac_address_write(&vsi->back->hw,
+						  I40E_AQC_WRITE_TYPE_LAA_WOL,
+						  f->macaddr, NULL);
+		}
 	}
 	if (f_count) {
 		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
@@ -8614,6 +8659,20 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_pf_reset;
 	}
 
+	if (hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
+		dev_info(&pdev->dev,
+			 "Note: FW API version %02x.%02x newer than expected %02x.%02x, recommend driver update.\n",
+			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+
+	if (hw->aq.api_maj_ver < I40E_FW_API_VERSION_MAJOR ||
+	    hw->aq.api_min_ver < (I40E_FW_API_VERSION_MINOR-1))
+		dev_info(&pdev->dev,
+			 "Note: FW API version %02x.%02x older than expected %02x.%02x, recommend nvm update.\n",
+			 hw->aq.api_maj_ver, hw->aq.api_min_ver,
+			 I40E_FW_API_VERSION_MAJOR, I40E_FW_API_VERSION_MINOR);
+
+
 	i40e_verify_eeprom(pf);
 
 	/* Rev 0 hardware was never productized */
@@ -8841,7 +8900,6 @@ static void i40e_remove(struct pci_dev *pdev)
 {
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 	i40e_status ret_code;
-	u32 reg;
 	int i;
 
 	i40e_dbg_pf_exit(pf);
@@ -8918,11 +8976,6 @@ static void i40e_remove(struct pci_dev *pdev)
 	kfree(pf->qp_pile);
 	kfree(pf->irq_pile);
 	kfree(pf->vsi);
-
-	/* force a PF reset to clean anything leftover */
-	reg = rd32(&pf->hw, I40E_PFGEN_CTRL);
-	wr32(&pf->hw, I40E_PFGEN_CTRL, (reg | I40E_PFGEN_CTRL_PFSWR_MASK));
-	i40e_flush(&pf->hw);
 
 	iounmap(pf->hw.hw_addr);
 	kfree(pf);

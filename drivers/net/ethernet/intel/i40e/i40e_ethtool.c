@@ -1027,9 +1027,10 @@ static int i40e_nway_reset(struct net_device *netdev)
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	bool link_up = hw->phy.link_info.link_info & I40E_AQ_LINK_UP;
 	i40e_status ret = 0;
 
-	ret = i40e_aq_set_link_restart_an(hw, NULL);
+	ret = i40e_aq_set_link_restart_an(hw, link_up, NULL);
 	if (ret) {
 		netdev_info(netdev, "link restart failed, aq_err=%d\n",
 			    pf->hw.aq.asq_last_status);
@@ -1105,17 +1106,36 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq || ec->rx_max_coalesced_frames_irq)
 		vsi->work_limit = ec->tx_max_coalesced_frames_irq;
 
+	vector = vsi->base_vector;
 	if ((ec->rx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
+	    (ec->rx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-	else
+	} else if (ec->rx_coalesce_usecs == 0) {
+		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
+		i40e_irq_dynamic_disable(vsi, vector);
+		if (ec->use_adaptive_rx_coalesce)
+			netif_info(pf, drv, netdev,
+				   "Rx-secs=0, need to disable adaptive-Rx for a complete disable\n");
+	} else {
+		netif_info(pf, drv, netdev,
+			   "Invalid value, Rx-usecs range is 0, 8-8160\n");
 		return -EINVAL;
+	}
 
 	if ((ec->tx_coalesce_usecs >= (I40E_MIN_ITR << 1)) &&
-	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1)))
+	    (ec->tx_coalesce_usecs <= (I40E_MAX_ITR << 1))) {
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-	else
+	} else if (ec->tx_coalesce_usecs == 0) {
+		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
+		i40e_irq_dynamic_disable(vsi, vector);
+		if (ec->use_adaptive_tx_coalesce)
+			netif_info(pf, drv, netdev,
+				   "Tx-secs=0, need to disable adaptive-Tx for a complete disable\n");
+	} else {
+		netif_info(pf, drv, netdev,
+			   "Invalid value, Tx-usecs range is 0, 8-8160\n");
 		return -EINVAL;
+	}
 
 	if (ec->use_adaptive_rx_coalesce)
 		vsi->rx_itr_setting |= I40E_ITR_DYNAMIC;
@@ -1127,7 +1147,6 @@ static int i40e_set_coalesce(struct net_device *netdev,
 	else
 		vsi->tx_itr_setting &= ~I40E_ITR_DYNAMIC;
 
-	vector = vsi->base_vector;
 	for (i = 0; i < vsi->num_q_vectors; i++, vector++) {
 		q_vector = vsi->q_vectors[i];
 		q_vector->rx.itr = ITR_TO_REG(vsi->rx_itr_setting);

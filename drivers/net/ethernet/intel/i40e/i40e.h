@@ -362,6 +362,7 @@ struct i40e_mac_filter {
 	bool is_vf;		/* filter belongs to a VF */
 	bool is_netdev;		/* filter belongs to a netdev */
 	bool changed;		/* filter needs to be sync'd to the HW */
+	bool is_laa;		/* filter is a Locally Administered Address */
 };
 
 struct i40e_veb {
@@ -617,6 +618,7 @@ static inline void i40e_dbg_init(void) {}
 static inline void i40e_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS*/
 void i40e_irq_dynamic_enable(struct i40e_vsi *vsi, int vector);
+void i40e_irq_dynamic_disable(struct i40e_vsi *vsi, int vector);
 void i40e_irq_dynamic_disable_icr0(struct i40e_pf *pf);
 void i40e_irq_dynamic_enable_icr0(struct i40e_pf *pf);
 int i40e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
