@@ -322,8 +322,7 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 		else
 			ctl &= ~KIRKWOOD_RECCTL_I2S_EN;		/* spdif */
 
-		value = ctl & ~(KIRKWOOD_RECCTL_I2S_EN |
-				KIRKWOOD_RECCTL_SPDIF_EN);
+		value = ctl & ~KIRKWOOD_RECCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 
 		/* enable interrupts */
@@ -347,7 +346,7 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 
 		/* disable all records */
 		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value &= ~(KIRKWOOD_RECCTL_I2S_EN | KIRKWOOD_RECCTL_SPDIF_EN);
+		value &= ~KIRKWOOD_RECCTL_ENABLE_MASK;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 		break;
 
@@ -411,7 +410,7 @@ static int kirkwood_i2s_init(struct kirkwood_dma_data *priv)
 	writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 	value = readl(priv->io + KIRKWOOD_RECCTL);
-	value &= ~(KIRKWOOD_RECCTL_I2S_EN | KIRKWOOD_RECCTL_SPDIF_EN);
+	value &= ~KIRKWOOD_RECCTL_ENABLE_MASK;
 	writel(value, priv->io + KIRKWOOD_RECCTL);
 
 	return 0;
