@@ -217,18 +217,6 @@ int ipu_module_disable(struct ipu_soc *ipu, u32 mask)
 }
 EXPORT_SYMBOL_GPL(ipu_module_disable);
 
-int ipu_smfc_enable(struct ipu_soc *ipu)
-{
-	return ipu_module_enable(ipu, IPU_CONF_SMFC_EN);
-}
-EXPORT_SYMBOL_GPL(ipu_smfc_enable);
-
-int ipu_smfc_disable(struct ipu_soc *ipu)
-{
-	return ipu_module_disable(ipu, IPU_CONF_SMFC_EN);
-}
-EXPORT_SYMBOL_GPL(ipu_smfc_disable);
-
 int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;

@@ -71,6 +71,18 @@ int ipu_smfc_map_channel(struct ipu_soc *ipu, int channel, int csi_id, int mipi_
 }
 EXPORT_SYMBOL_GPL(ipu_smfc_map_channel);
 
+int ipu_smfc_enable(struct ipu_soc *ipu)
+{
+	return ipu_module_enable(ipu, IPU_CONF_SMFC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_smfc_enable);
+
+int ipu_smfc_disable(struct ipu_soc *ipu)
+{
+	return ipu_module_disable(ipu, IPU_CONF_SMFC_EN);
+}
+EXPORT_SYMBOL_GPL(ipu_smfc_disable);
+
 int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev,
 		  unsigned long base)
 {
