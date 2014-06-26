@@ -112,6 +112,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Trace pagefaults. Optionally, you can specify whether you want minor,
 	major or all pagefaults. Default value is maj.
 
+--syscalls::
+	Trace system calls. This options is enabled by default.
+
 PAGEFAULTS
 ----------
 
@@ -136,6 +139,10 @@ for both IP and fault address in the form of dso@symbol+offset.
 
 EXAMPLES
 --------
+
+Trace only major pagefaults:
+
+ $ perf trace --no-syscalls -F
 
 Trace syscalls, major and minor pagefaults:
 
