@@ -75,7 +75,8 @@
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART0>;
+		clock-names = "baudclk", "apb_pclk";
+		clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 		status = "disabled";
 	};
 
@@ -85,7 +86,8 @@
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART1>;
+		clock-names = "baudclk", "apb_pclk";
+		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 		status = "disabled";
 	};
 
@@ -207,7 +209,8 @@
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART2>;
+		clock-names = "baudclk", "apb_pclk";
+		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
 		status = "disabled";
 	};
 
@@ -217,7 +220,8 @@
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		reg-shift = <2>;
 		reg-io-width = <1>;
-		clocks = <&cru SCLK_UART3>;
+		clock-names = "baudclk", "apb_pclk";
+		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
 		status = "disabled";
 	};
 };
