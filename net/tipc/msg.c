@@ -37,6 +37,8 @@
 #include "core.h"
 #include "msg.h"
 
+#define MAX_FORWARD_SIZE 1024
+
 static unsigned int align(unsigned int i)
 {
 	return (i + 3) & ~3u;
@@ -327,4 +329,44 @@ bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
 	tipc_msg_bundle(bbuf, *buf, mtu);
 	*buf = bbuf;
 	return true;
+}
+
+/**
+ * tipc_msg_reverse(): swap source and destination addresses and add error code
+ * @buf:  buffer containing message to be reversed
+ * @dnode: return value: node where to send message after reversal
+ * @err:  error code to be set in message
+ * Consumes buffer if failure
+ * Returns true if success, otherwise false
+ */
+bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+	uint imp = msg_importance(msg);
+	struct tipc_msg ohdr;
+	uint rdsz = min_t(uint, msg_data_sz(msg), MAX_FORWARD_SIZE);
+
+	if (skb_linearize(buf) || !msg_isdata(msg))
+		goto exit;
+	if (msg_dest_droppable(msg) || msg_errcode(msg))
+		goto exit;
+
+	memcpy(&ohdr, msg, msg_hdr_sz(msg));
+	msg_set_importance(msg, min_t(uint, ++imp, TIPC_CRITICAL_IMPORTANCE));
+	msg_set_errcode(msg, err);
+	msg_set_origport(msg, msg_destport(&ohdr));
+	msg_set_destport(msg, msg_origport(&ohdr));
+	msg_set_prevnode(msg, tipc_own_addr);
+	if (!msg_short(msg)) {
+		msg_set_orignode(msg, msg_destnode(&ohdr));
+		msg_set_destnode(msg, msg_orignode(&ohdr));
+	}
+	msg_set_size(msg, msg_hdr_sz(msg) + rdsz);
+	skb_trim(buf, msg_size(msg));
+	skb_orphan(buf);
+	*dnode = msg_orignode(&ohdr);
+	return true;
+exit:
+	kfree_skb(buf);
+	return false;
 }

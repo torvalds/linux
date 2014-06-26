@@ -39,6 +39,7 @@
 #include "node.h"
 
 #include <linux/export.h>
+#include "link.h"
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
@@ -123,9 +124,12 @@ static void advance_rx_queue(struct sock *sk)
 static void reject_rx_queue(struct sock *sk)
 {
 	struct sk_buff *buf;
+	u32 dnode;
 
-	while ((buf = __skb_dequeue(&sk->sk_receive_queue)))
-		tipc_reject_msg(buf, TIPC_ERR_NO_PORT);
+	while ((buf = __skb_dequeue(&sk->sk_receive_queue))) {
+		if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
+			tipc_link_xmit2(buf, dnode, 0);
+	}
 }
 
 /**
@@ -303,6 +307,7 @@ static int tipc_release(struct socket *sock)
 	struct tipc_sock *tsk;
 	struct tipc_port *port;
 	struct sk_buff *buf;
+	u32 dnode;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -331,7 +336,8 @@ static int tipc_release(struct socket *sock)
 				sock->state = SS_DISCONNECTING;
 				tipc_port_disconnect(port->ref);
 			}
-			tipc_reject_msg(buf, TIPC_ERR_NO_PORT);
+			if (tipc_msg_reverse(buf, &dnode, TIPC_ERR_NO_PORT))
+				tipc_link_xmit2(buf, dnode, 0);
 		}
 	}
 
@@ -1430,14 +1436,15 @@ static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 {
 	int rc;
+	u32 onode;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	uint truesize = buf->truesize;
 
 	rc = filter_rcv(sk, buf);
-	if (unlikely(rc))
-		tipc_reject_msg(buf, -rc);
 
-	if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
+	if (unlikely(rc && tipc_msg_reverse(buf, &onode, -rc)))
+		tipc_link_xmit2(buf, onode, 0);
+	else if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
 		atomic_add(truesize, &tsk->dupl_rcvcnt);
 
 	return 0;
@@ -1457,6 +1464,7 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	u32 dport = msg_destport(buf_msg(buf));
 	int rc = TIPC_OK;
 	uint limit;
+	u32 dnode;
 
 	/* Forward unresolved named message */
 	if (unlikely(!dport)) {
@@ -1493,7 +1501,9 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	if (likely(!rc))
 		return 0;
 exit:
-	tipc_reject_msg(buf, -rc);
+	if (!tipc_msg_reverse(buf, &dnode, -rc))
+		return -EHOSTUNREACH;
+	tipc_link_xmit2(buf, dnode, 0);
 	return -EHOSTUNREACH;
 }
 
@@ -1758,6 +1768,7 @@ static int tipc_shutdown(struct socket *sock, int how)
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_port *port = &tsk->port;
 	struct sk_buff *buf;
+	u32 peer;
 	int res;
 
 	if (how != SHUT_RDWR)
@@ -1778,7 +1789,8 @@ restart:
 				goto restart;
 			}
 			tipc_port_disconnect(port->ref);
-			tipc_reject_msg(buf, TIPC_CONN_SHUTDOWN);
+			if (tipc_msg_reverse(buf, &peer, TIPC_CONN_SHUTDOWN))
+				tipc_link_xmit2(buf, peer, 0);
 		} else {
 			tipc_port_shutdown(port->ref);
 		}
