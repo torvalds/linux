@@ -894,8 +894,8 @@ config SENSORS_LM75
 		- NXP's LM75A
 		- ST Microelectronics STDS75
 		- TelCom (now Microchip) TCN75
-		- Texas Instruments TMP100, TMP101, TMP105, TMP75, TMP175,
-		  TMP275
+		- Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75,
+		  TMP175, TMP275
 
 	  This driver supports driver model based binding through board
 	  specific I2C device tables.
