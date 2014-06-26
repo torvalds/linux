@@ -22,7 +22,7 @@
 #include <sta_info.h>
 #include <rtl8723a_hal.h>
 
-static u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static const u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 static void _rtw_init_stainfo(struct sta_info *psta)
 {
@@ -109,7 +109,7 @@ int _rtw_free_sta_priv23a(struct sta_priv *pstapriv)
 }
 
 struct sta_info *
-rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp)
+rtw_alloc_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr, gfp_t gfp)
 {
 	struct list_head	*phash_list;
 	struct sta_info	*psta;
