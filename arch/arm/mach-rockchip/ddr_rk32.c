@@ -3656,8 +3656,10 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     uint32 gpllvaluel;
     freq_t *p_freq_t=(freq_t *)arg;    
     uint32 nMHz=p_freq_t->nMHz;
+    
+#if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
     struct ddr_freq_t *p_ddr_freq_t=p_freq_t->p_ddr_freq_t;
-
+#endif
 
 #if defined(CONFIG_ARCH_RK3066B)
     if(dqstr_flag==true)
@@ -3990,10 +3992,13 @@ static int __ddr_change_freq(uint32_t nMHz, struct ddr_freq_t ddr_freq_t)
 static int _ddr_change_freq(uint32 nMHz)
 {
 	struct ddr_freq_t ddr_freq_t;
+        #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 	unsigned long remain_t, vblank_t, pass_t;
 	static unsigned long reserve_t = 800;//us
 	unsigned long long tmp;
-	int ret, test_count=0;
+	int test_count=0;
+        #endif
+        int ret;
 
 	memset(&ddr_freq_t, 0x00, sizeof(ddr_freq_t));
 
