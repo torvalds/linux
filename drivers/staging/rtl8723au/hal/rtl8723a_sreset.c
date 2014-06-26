@@ -53,7 +53,3 @@ void rtl8723a_sreset_xmit_status_check(struct rtw_adapter *padapter)
 		}
 	}
 }
-
-void rtl8723a_sreset_linked_status_check(struct rtw_adapter *padapter)
-{
-}

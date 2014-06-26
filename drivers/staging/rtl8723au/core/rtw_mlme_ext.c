@@ -5215,8 +5215,6 @@ void linked_status_chk23a(struct rtw_adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-	rtl8723a_sreset_linked_status_check(padapter);
-
 	if (is_client_associated_to_ap23a(padapter)) {
 		/* linked infrastructure client mode */
 
