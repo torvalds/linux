@@ -330,9 +330,11 @@ static int fsl_emb_pmu_add(struct perf_event *event, int flags)
 	}
 	local64_set(&event->hw.prev_count, val);
 
-	if (!(flags & PERF_EF_START)) {
+	if (unlikely(!(flags & PERF_EF_START))) {
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 		val = 0;
+	} else {
+		event->hw.state &= ~(PERF_HES_STOPPED | PERF_HES_UPTODATE);
 	}
 
 	write_pmc(i, val);
