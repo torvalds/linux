@@ -1957,11 +1957,11 @@ void i915_driver_lastclose(struct drm_device *dev)
 	i915_dma_cleanup(dev);
 }
 
-void i915_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
+void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
 {
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_context_close(dev, file_priv);
-	i915_gem_release(dev, file_priv);
+	i915_gem_context_close(dev, file);
+	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
 }
 
