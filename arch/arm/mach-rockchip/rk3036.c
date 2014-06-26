@@ -65,7 +65,7 @@ static void __init rk3036_dt_map_io(void)
 	rockchip_soc_id = ROCKCHIP_SOC_RK3036;
 
 	iotable_init(rk3036_io_desc, ARRAY_SIZE(rk3036_io_desc));
-
+        debug_ll_io_init();
 	/* enable timer5 for core */
 	writel_relaxed(0, RK3036_TIMER5_VIRT + 0x10);
 	dsb();
@@ -76,8 +76,26 @@ static void __init rk3036_dt_map_io(void)
 	dsb();
 }
 
+static int rk3036_sys_set_power_domain(enum pmu_power_domain pd, bool on)
+{
+    return 0;
+}
+
+static bool rk3036_pmu_power_domain_is_on(enum pmu_power_domain pd)
+{
+    return 0;
+}
+
+static int rk3036_pmu_set_idle_request(enum pmu_idle_req req, bool idle)
+{
+    return 0;
+}
+
 static void __init rk3036_dt_init_timer(void)
 {
+        rockchip_pmu_ops.set_power_domain = rk3036_sys_set_power_domain;
+        rockchip_pmu_ops.power_domain_is_on = rk3036_pmu_power_domain_is_on;
+        rockchip_pmu_ops.set_idle_request = rk3036_pmu_set_idle_request;
 	clocksource_of_init();
 }
 

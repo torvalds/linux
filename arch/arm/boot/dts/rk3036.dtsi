@@ -57,7 +57,7 @@
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
-			     <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
 	};
 
@@ -90,10 +90,11 @@
 		};
 	};
 
-	nandc: nandc@0xff400000 {
+	nandc: nandc@10500000 {
 		compatible = "rockchip,rk-nandc";
-		reg = <0xff400000 0x4000>;
+		reg = <0x10500000 0x4000>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+                nandc_id = <0>;
 		clocks = <&clk_nandc>, <&clk_gates5 9>;
 		clock-names = "clk_nandc", "hclk_nandc";
 	};
