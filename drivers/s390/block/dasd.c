@@ -283,8 +283,7 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 
 	if (device->block) {
 		dasd_profile_exit(&device->block->profile);
-		if (device->block->debugfs_dentry)
-			debugfs_remove(device->block->debugfs_dentry);
+		debugfs_remove(device->block->debugfs_dentry);
 		dasd_gendisk_free(device->block);
 		dasd_block_clear_timer(device->block);
 	}
@@ -293,9 +292,7 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 		return rc;
 	dasd_device_clear_timer(device);
 	dasd_profile_exit(&device->profile);
-	if (device->debugfs_dentry)
-		debugfs_remove(device->debugfs_dentry);
-
+	debugfs_remove(device->debugfs_dentry);
 	DBF_DEV_EVENT(DBF_EMERG, device, "%p debug area deleted", device);
 	if (device->debug_area != NULL) {
 		debug_unregister(device->debug_area);
@@ -1111,23 +1108,17 @@ static void dasd_profile_init(struct dasd_profile *profile,
 static void dasd_profile_exit(struct dasd_profile *profile)
 {
 	dasd_profile_off(profile);
-	if (profile->dentry) {
-		debugfs_remove(profile->dentry);
-		profile->dentry = NULL;
-	}
+	debugfs_remove(profile->dentry);
+	profile->dentry = NULL;
 }
 
 static void dasd_statistics_removeroot(void)
 {
 	dasd_global_profile_level = DASD_PROFILE_OFF;
-	if (dasd_global_profile_dentry) {
-		debugfs_remove(dasd_global_profile_dentry);
-		dasd_global_profile_dentry = NULL;
-	}
-	if (dasd_debugfs_global_entry)
-		debugfs_remove(dasd_debugfs_global_entry);
-	if (dasd_debugfs_root_entry)
-		debugfs_remove(dasd_debugfs_root_entry);
+	debugfs_remove(dasd_global_profile_dentry);
+	dasd_global_profile_dentry = NULL;
+	debugfs_remove(dasd_debugfs_global_entry);
+	debugfs_remove(dasd_debugfs_root_entry);
 }
 
 static void dasd_statistics_createroot(void)
