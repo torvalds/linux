@@ -924,7 +924,7 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 	/* Initialise function */
 	func->name = np->name;
 	func->ngroups = of_get_child_count(np);
-	if (func->ngroups <= 0) {
+	if (func->ngroups == 0) {
 		dev_err(info->dev, "no groups defined\n");
 		return -EINVAL;
 	}
