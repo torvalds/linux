@@ -64,6 +64,7 @@ struct ipu_cpmem {
 #define IPU_FIELD_BNDM		IPU_CPMEM_WORD(0, 114, 3)
 #define IPU_FIELD_BM		IPU_CPMEM_WORD(0, 117, 2)
 #define IPU_FIELD_ROT		IPU_CPMEM_WORD(0, 119, 1)
+#define IPU_FIELD_ROT_HF_VF	IPU_CPMEM_WORD(0, 119, 3)
 #define IPU_FIELD_HF		IPU_CPMEM_WORD(0, 120, 1)
 #define IPU_FIELD_VF		IPU_CPMEM_WORD(0, 121, 1)
 #define IPU_FIELD_THE		IPU_CPMEM_WORD(0, 122, 1)
@@ -272,6 +273,15 @@ void ipu_cpmem_set_block_mode(struct ipuv3_channel *ch)
 	ipu_ch_param_write_field(ch, IPU_FIELD_BM, 1);
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_block_mode);
+
+void ipu_cpmem_set_rotation(struct ipuv3_channel *ch,
+			    enum ipu_rotate_mode rot)
+{
+	u32 temp_rot = bitrev8(rot) >> 5;
+
+	ipu_ch_param_write_field(ch, IPU_FIELD_ROT_HF_VF, temp_rot);
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_set_rotation);
 
 int ipu_cpmem_set_format_rgb(struct ipuv3_channel *ch,
 			     const struct ipu_rgb *rgb)
