@@ -312,8 +312,9 @@ static void rk3188_restart(char mode, const char *cmd)
 	writel_relaxed(0xeca8, RK_CRU_VIRT + RK3188_CRU_GLB_SRST_SND);
 	dsb();
 }
-
+#ifdef CONFIG_PM
 static void __init rk3188_init_suspend(void);
+#endif
 DT_MACHINE_START(RK3188_DT, "RK30board")
 	.smp		= smp_ops(rockchip_smp_ops),
 	.map_io		= rk3188_dt_map_io,

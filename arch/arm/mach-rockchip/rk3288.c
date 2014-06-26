@@ -489,9 +489,9 @@ static void __init rk3288_init_cpuidle(void)
 	if (ret)
 		pr_err("%s: failed to register cpuidle driver: %d\n", __func__, ret);
 }
-
+#ifdef CONFIG_PM
 static void __init rk3288_init_suspend(void);
-
+#endif
 static void __init rk3288_init_late(void)
 {
 #ifdef CONFIG_PM
