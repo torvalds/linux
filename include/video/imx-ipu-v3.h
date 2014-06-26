@@ -211,6 +211,7 @@ void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
 			      u32 pixel_format, int stride, int height);
 int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc);
 int ipu_cpmem_set_image(struct ipuv3_channel *ch, struct ipu_image *image);
+void ipu_cpmem_dump(struct ipuv3_channel *ch);
 
 /*
  * IPU Display Controller (dc) functions
