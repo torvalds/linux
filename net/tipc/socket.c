@@ -1269,17 +1269,16 @@ static void tipc_data_ready(struct sock *sk)
  * @tsk: TIPC socket
  * @msg: message
  *
- * Returns TIPC error status code and socket error status code
- * once it encounters some errors
+ * Returns 0 (TIPC_OK) if everyting ok, -TIPC_ERR_NO_PORT otherwise
  */
-static u32 filter_connect(struct tipc_sock *tsk, struct sk_buff **buf)
+static int filter_connect(struct tipc_sock *tsk, struct sk_buff **buf)
 {
 	struct sock *sk = &tsk->sk;
 	struct tipc_port *port = &tsk->port;
 	struct socket *sock = sk->sk_socket;
 	struct tipc_msg *msg = buf_msg(*buf);
 
-	u32 retval = TIPC_ERR_NO_PORT;
+	int retval = -TIPC_ERR_NO_PORT;
 	int res;
 
 	if (msg_mcast(msg))
@@ -1382,32 +1381,33 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *buf)
  *
  * Called with socket lock already taken; port lock may also be taken.
  *
- * Returns TIPC error status code (TIPC_OK if message is not to be rejected)
+ * Returns 0 (TIPC_OK) if message was consumed, -TIPC error code if message
+ * to be rejected.
  */
-static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
+static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 {
 	struct socket *sock = sk->sk_socket;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_msg *msg = buf_msg(buf);
 	unsigned int limit = rcvbuf_limit(sk, buf);
-	u32 res = TIPC_OK;
+	int rc = TIPC_OK;
 
 	/* Reject message if it is wrong sort of message for socket */
 	if (msg_type(msg) > TIPC_DIRECT_MSG)
-		return TIPC_ERR_NO_PORT;
+		return -TIPC_ERR_NO_PORT;
 
 	if (sock->state == SS_READY) {
 		if (msg_connected(msg))
-			return TIPC_ERR_NO_PORT;
+			return -TIPC_ERR_NO_PORT;
 	} else {
-		res = filter_connect(tsk, &buf);
-		if (res != TIPC_OK || buf == NULL)
-			return res;
+		rc = filter_connect(tsk, &buf);
+		if (rc != TIPC_OK || buf == NULL)
+			return rc;
 	}
 
 	/* Reject message if there isn't room to queue it */
 	if (sk_rmem_alloc_get(sk) + buf->truesize >= limit)
-		return TIPC_ERR_OVERLOAD;
+		return -TIPC_ERR_OVERLOAD;
 
 	/* Enqueue message */
 	TIPC_SKB_CB(buf)->handle = NULL;
@@ -1429,13 +1429,13 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
  */
 static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 {
-	u32 res;
+	int rc;
 	struct tipc_sock *tsk = tipc_sk(sk);
 	uint truesize = buf->truesize;
 
-	res = filter_rcv(sk, buf);
-	if (unlikely(res))
-		tipc_reject_msg(buf, res);
+	rc = filter_rcv(sk, buf);
+	if (unlikely(rc))
+		tipc_reject_msg(buf, -rc);
 
 	if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
 		atomic_add(truesize, &tsk->dupl_rcvcnt);
@@ -1455,7 +1455,7 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	struct tipc_port *port;
 	struct sock *sk;
 	u32 dport = msg_destport(buf_msg(buf));
-	int err = TIPC_OK;
+	int rc = TIPC_OK;
 	uint limit;
 
 	/* Forward unresolved named message */
@@ -1467,7 +1467,7 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	/* Validate destination */
 	port = tipc_port_lock(dport);
 	if (unlikely(!port)) {
-		err = TIPC_ERR_NO_PORT;
+		rc = -TIPC_ERR_NO_PORT;
 		goto exit;
 	}
 
@@ -1478,22 +1478,22 @@ int tipc_sk_rcv(struct sk_buff *buf)
 	bh_lock_sock(sk);
 
 	if (!sock_owned_by_user(sk)) {
-		err = filter_rcv(sk, buf);
+		rc = filter_rcv(sk, buf);
 	} else {
 		if (sk->sk_backlog.len == 0)
 			atomic_set(&tsk->dupl_rcvcnt, 0);
 		limit = rcvbuf_limit(sk, buf) + atomic_read(&tsk->dupl_rcvcnt);
 		if (sk_add_backlog(sk, buf, limit))
-			err = TIPC_ERR_OVERLOAD;
+			rc = -TIPC_ERR_OVERLOAD;
 	}
 
 	bh_unlock_sock(sk);
 	tipc_port_unlock(port);
 
-	if (likely(!err))
+	if (likely(!rc))
 		return 0;
 exit:
-	tipc_reject_msg(buf, err);
+	tipc_reject_msg(buf, -rc);
 	return -EHOSTUNREACH;
 }
 
