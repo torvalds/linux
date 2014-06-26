@@ -300,6 +300,7 @@ int ipu_smfc_set_watermark(struct ipu_smfc *smfc, u32 set_level, u32 clr_level);
 
 enum ipu_color_space ipu_drm_fourcc_to_colorspace(u32 drm_fourcc);
 enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat);
+enum ipu_color_space ipu_mbus_code_to_colorspace(u32 mbus_code);
 
 struct ipu_client_platformdata {
 	int csi;

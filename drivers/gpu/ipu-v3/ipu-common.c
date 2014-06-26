@@ -101,6 +101,19 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 }
 EXPORT_SYMBOL_GPL(ipu_pixelformat_to_colorspace);
 
+enum ipu_color_space ipu_mbus_code_to_colorspace(u32 mbus_code)
+{
+	switch (mbus_code & 0xf000) {
+	case 0x1000:
+		return IPUV3_COLORSPACE_RGB;
+	case 0x2000:
+		return IPUV3_COLORSPACE_YUV;
+	default:
+		return IPUV3_COLORSPACE_UNKNOWN;
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_mbus_code_to_colorspace);
+
 struct ipuv3_channel *ipu_idmac_get(struct ipu_soc *ipu, unsigned num)
 {
 	struct ipuv3_channel *channel;
