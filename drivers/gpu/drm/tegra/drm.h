@@ -39,6 +39,9 @@ struct tegra_fbdev {
 struct tegra_drm {
 	struct drm_device *drm;
 
+	struct iommu_domain *domain;
+	struct drm_mm mm;
+
 	struct mutex clients_lock;
 	struct list_head clients;
 
@@ -121,6 +124,8 @@ struct tegra_dc {
 	struct drm_pending_vblank_event *event;
 
 	const struct tegra_dc_soc_info *soc;
+
+	struct iommu_domain *domain;
 };
 
 static inline struct tegra_dc *

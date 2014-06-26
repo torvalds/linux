@@ -8,6 +8,7 @@
  */
 
 #include <linux/host1x.h>
+#include <linux/iommu.h>
 
 #include "drm.h"
 #include "gem.h"
@@ -32,6 +33,17 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 	tegra = kzalloc(sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
 		return -ENOMEM;
+
+	if (iommu_present(&platform_bus_type)) {
+		tegra->domain = iommu_domain_alloc(&platform_bus_type);
+		if (IS_ERR(tegra->domain)) {
+			err = PTR_ERR(tegra->domain);
+			goto free;
+		}
+
+		DRM_DEBUG("IOMMU context initialized\n");
+		drm_mm_init(&tegra->mm, 0, SZ_2G);
+	}
 
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
@@ -76,6 +88,12 @@ fbdev:
 	tegra_drm_fb_free(drm);
 config:
 	drm_mode_config_cleanup(drm);
+
+	if (tegra->domain) {
+		iommu_domain_free(tegra->domain);
+		drm_mm_takedown(&tegra->mm);
+	}
+free:
 	kfree(tegra);
 	return err;
 }
@@ -83,6 +101,7 @@ config:
 static int tegra_drm_unload(struct drm_device *drm)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
+	struct tegra_drm *tegra = drm->dev_private;
 	int err;
 
 	drm_kms_helper_poll_fini(drm);
@@ -93,6 +112,11 @@ static int tegra_drm_unload(struct drm_device *drm)
 	err = host1x_device_exit(device);
 	if (err < 0)
 		return err;
+
+	if (tegra->domain) {
+		iommu_domain_free(tegra->domain);
+		drm_mm_takedown(&tegra->mm);
+	}
 
 	return 0;
 }

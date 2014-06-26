@@ -65,8 +65,12 @@ static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
 	for (i = 0; i < fb->num_planes; i++) {
 		struct tegra_bo *bo = fb->planes[i];
 
-		if (bo)
+		if (bo) {
+			if (bo->pages && bo->vaddr)
+				vunmap(bo->vaddr);
+
 			drm_gem_object_unreference_unlocked(&bo->gem);
+		}
 	}
 
 	drm_framebuffer_cleanup(framebuffer);
@@ -253,6 +257,16 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 
 	offset = info->var.xoffset * bytes_per_pixel +
 		 info->var.yoffset * fb->pitches[0];
+
+	if (bo->pages) {
+		bo->vaddr = vmap(bo->pages, bo->num_pages, VM_MAP,
+				 pgprot_writecombine(PAGE_KERNEL));
+		if (!bo->vaddr) {
+			dev_err(drm->dev, "failed to vmap() framebuffer\n");
+			err = -ENOMEM;
+			goto destroy;
+		}
+	}
 
 	drm->mode_config.fb_base = (resource_size_t)bo->paddr;
 	info->screen_base = (void __iomem *)bo->vaddr + offset;

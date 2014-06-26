@@ -38,6 +38,12 @@ struct tegra_bo {
 	dma_addr_t paddr;
 	void *vaddr;
 
+	struct drm_mm_node *mm;
+	unsigned long num_pages;
+	struct page **pages;
+	/* size of IOMMU mapping */
+	size_t size;
+
 	struct tegra_bo_tiling tiling;
 };
 
