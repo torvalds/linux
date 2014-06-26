@@ -29,7 +29,6 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 
@@ -295,30 +294,6 @@ static const struct dev_pm_ops hda_tegra_pm = {
 };
 
 /*
- * reboot notifier for hang-up problem at power-down
- */
-static int hda_tegra_halt(struct notifier_block *nb, unsigned long event,
-			  void *buf)
-{
-	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
-	snd_hda_bus_reboot_notify(chip->bus);
-	azx_stop_chip(chip);
-	return NOTIFY_OK;
-}
-
-static void hda_tegra_notifier_register(struct azx *chip)
-{
-	chip->reboot_notifier.notifier_call = hda_tegra_halt;
-	register_reboot_notifier(&chip->reboot_notifier);
-}
-
-static void hda_tegra_notifier_unregister(struct azx *chip)
-{
-	if (chip->reboot_notifier.notifier_call)
-		unregister_reboot_notifier(&chip->reboot_notifier);
-}
-
-/*
  * destructor
  */
 static int hda_tegra_dev_free(struct snd_device *device)
@@ -326,7 +301,7 @@ static int hda_tegra_dev_free(struct snd_device *device)
 	int i;
 	struct azx *chip = device->device_data;
 
-	hda_tegra_notifier_unregister(chip);
+	azx_notifier_unregister(chip);
 
 	if (chip->initialized) {
 		for (i = 0; i < chip->num_streams; i++)
@@ -557,7 +532,7 @@ static int hda_tegra_probe(struct platform_device *pdev)
 
 	chip->running = 1;
 	power_down_all_codecs(chip);
-	hda_tegra_notifier_register(chip);
+	azx_notifier_register(chip);
 
 	return 0;
 

@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/mutex.h>
-#include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/clocksource.h>
@@ -951,29 +950,6 @@ static const struct dev_pm_ops azx_pm = {
 #define AZX_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
-
-/*
- * reboot notifier for hang-up problem at power-down
- */
-static int azx_halt(struct notifier_block *nb, unsigned long event, void *buf)
-{
-	struct azx *chip = container_of(nb, struct azx, reboot_notifier);
-	snd_hda_bus_reboot_notify(chip->bus);
-	azx_stop_chip(chip);
-	return NOTIFY_OK;
-}
-
-static void azx_notifier_register(struct azx *chip)
-{
-	chip->reboot_notifier.notifier_call = azx_halt;
-	register_reboot_notifier(&chip->reboot_notifier);
-}
-
-static void azx_notifier_unregister(struct azx *chip)
-{
-	if (chip->reboot_notifier.notifier_call)
-		unregister_reboot_notifier(&chip->reboot_notifier);
-}
 
 static int azx_probe_continue(struct azx *chip);
 

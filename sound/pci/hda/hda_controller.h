@@ -50,4 +50,7 @@ int azx_codec_configure(struct azx *chip);
 int azx_mixer_create(struct azx *chip);
 int azx_init_stream(struct azx *chip);
 
+void azx_notifier_register(struct azx *chip);
+void azx_notifier_unregister(struct azx *chip);
+
 #endif /* __SOUND_HDA_CONTROLLER_H */
