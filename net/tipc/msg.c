@@ -37,19 +37,10 @@
 #include "core.h"
 #include "msg.h"
 
-u32 tipc_msg_tot_importance(struct tipc_msg *m)
+static unsigned int align(unsigned int i)
 {
-	if (likely(msg_isdata(m))) {
-		if (likely(msg_orignode(m) == tipc_own_addr))
-			return msg_importance(m);
-		return msg_importance(m) + 4;
-	}
-	if ((msg_user(m) == MSG_FRAGMENTER)  &&
-	    (msg_type(m) == FIRST_FRAGMENT))
-		return msg_importance(msg_get_wrapped(m));
-	return msg_importance(m);
+	return (i + 3) & ~3u;
 }
-
 
 void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type, u32 hsize,
 		   u32 destnode)
@@ -151,4 +142,87 @@ out_free:
 	pr_warn_ratelimited("Unable to build fragment list\n");
 	kfree_skb(*buf);
 	return 0;
+}
+
+/**
+ * tipc_msg_bundle(): Append contents of a buffer to tail of an existing one
+ * @bbuf: the existing buffer ("bundle")
+ * @buf:  buffer to be appended
+ * @mtu:  max allowable size for the bundle buffer
+ * Consumes buffer if successful
+ * Returns true if bundling could be performed, otherwise false
+ */
+bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu)
+{
+	struct tipc_msg *bmsg = buf_msg(bbuf);
+	struct tipc_msg *msg = buf_msg(buf);
+	unsigned int bsz = msg_size(bmsg);
+	unsigned int msz = msg_size(msg);
+	u32 start = align(bsz);
+	u32 max = mtu - INT_H_SIZE;
+	u32 pad = start - bsz;
+
+	if (likely(msg_user(msg) == MSG_FRAGMENTER))
+		return false;
+	if (unlikely(msg_user(msg) == CHANGEOVER_PROTOCOL))
+		return false;
+	if (unlikely(msg_user(msg) == BCAST_PROTOCOL))
+		return false;
+	if (likely(msg_user(bmsg) != MSG_BUNDLER))
+		return false;
+	if (likely(msg_type(bmsg) != BUNDLE_OPEN))
+		return false;
+	if (unlikely(skb_tailroom(bbuf) < (pad + msz)))
+		return false;
+	if (unlikely(max < (start + msz)))
+		return false;
+
+	skb_put(bbuf, pad + msz);
+	skb_copy_to_linear_data_offset(bbuf, start, buf->data, msz);
+	msg_set_size(bmsg, start + msz);
+	msg_set_msgcnt(bmsg, msg_msgcnt(bmsg) + 1);
+	bbuf->next = buf->next;
+	kfree_skb(buf);
+	return true;
+}
+
+/**
+ * tipc_msg_make_bundle(): Create bundle buf and append message to its tail
+ * @buf:  buffer to be appended and replaced
+ * @mtu:  max allowable size for the bundle buffer, inclusive header
+ * @dnode: destination node for message. (Not always present in header)
+ * Replaces buffer if successful
+ * Returns true if sucess, otherwise false
+ */
+bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
+{
+	struct sk_buff *bbuf;
+	struct tipc_msg *bmsg;
+	struct tipc_msg *msg = buf_msg(*buf);
+	u32 msz = msg_size(msg);
+	u32 max = mtu - INT_H_SIZE;
+
+	if (msg_user(msg) == MSG_FRAGMENTER)
+		return false;
+	if (msg_user(msg) == CHANGEOVER_PROTOCOL)
+		return false;
+	if (msg_user(msg) == BCAST_PROTOCOL)
+		return false;
+	if (msz > (max / 2))
+		return false;
+
+	bbuf = tipc_buf_acquire(max);
+	if (!bbuf)
+		return false;
+
+	skb_trim(bbuf, INT_H_SIZE);
+	bmsg = buf_msg(bbuf);
+	tipc_msg_init(bmsg, MSG_BUNDLER, BUNDLE_OPEN, INT_H_SIZE, dnode);
+	msg_set_seqno(bmsg, msg_seqno(msg));
+	msg_set_ack(bmsg, msg_ack(msg));
+	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
+	bbuf->next = (*buf)->next;
+	tipc_msg_bundle(bbuf, *buf, mtu);
+	*buf = bbuf;
+	return true;
 }
