@@ -536,6 +536,31 @@ int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_disable_channel);
 
+/*
+ * The imx6 rev. D TRM says that enabling the WM feature will increase
+ * a channel's priority. Refer to Table 36-8 Calculated priority value.
+ * The sub-module that is the sink or source for the channel must enable
+ * watermark signal for this to take effect (SMFC_WM for instance).
+ */
+void ipu_idmac_enable_watermark(struct ipuv3_channel *channel, bool enable)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	val = ipu_idmac_read(ipu, IDMAC_WM_EN(channel->num));
+	if (enable)
+		val |= 1 << (channel->num % 32);
+	else
+		val &= ~(1 << (channel->num % 32));
+	ipu_idmac_write(ipu, val, IDMAC_WM_EN(channel->num));
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_enable_watermark);
+
 static int ipu_memory_reset(struct ipu_soc *ipu)
 {
 	unsigned long timeout;
