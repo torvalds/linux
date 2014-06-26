@@ -126,7 +126,7 @@ rtw_alloc_stainfo23a(struct sta_priv *pstapriv, u8 *hwaddr, gfp_t gfp)
 
 	psta->padapter = pstapriv->padapter;
 
-	memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
+	ether_addr_copy(psta->hwaddr, hwaddr);
 
 	index = wifi_mac_hash(hwaddr);
 
@@ -363,10 +363,10 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	list_for_each(plist, phead) {
 		psta = container_of(plist, struct sta_info, hash_list);
 
-		if (!memcmp(psta->hwaddr, addr, ETH_ALEN)) {
-			/*  if found the matched address */
+		/*  if found the matched address */
+		if (ether_addr_equal(psta->hwaddr, addr))
 			break;
-		}
+
 		psta = NULL;
 	}
 	spin_unlock_bh(&pstapriv->sta_hash_lock);
@@ -422,7 +422,7 @@ bool rtw_access_ctrl23a(struct rtw_adapter *padapter, u8 *mac_addr)
 	list_for_each(plist, phead) {
 		paclnode = container_of(plist, struct rtw_wlan_acl_node, list);
 
-		if (!memcmp(paclnode->addr, mac_addr, ETH_ALEN)) {
+		if (ether_addr_equal(paclnode->addr, mac_addr)) {
 			if (paclnode->valid) {
 				match = true;
 				break;
