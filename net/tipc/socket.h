@@ -38,6 +38,9 @@
 #include "port.h"
 #include <net/sock.h>
 
+#define TIPC_CONN_OK      0
+#define TIPC_CONN_PROBING 1
+
 /**
  * struct tipc_sock - TIPC socket structure
  * @sk: socket - interacts with 'port' and with user via the socket API

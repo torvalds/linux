@@ -46,6 +46,7 @@
 #define SS_READY	-2	/* socket is connectionless */
 
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
+#define TIPC_FWD_MSG	        1
 
 static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *skb);
 static void tipc_data_ready(struct sock *sk);
@@ -531,6 +532,46 @@ static unsigned int tipc_poll(struct file *file, struct socket *sock,
 	}
 
 	return mask;
+}
+
+/**
+ * tipc_sk_proto_rcv - receive a connection mng protocol message
+ * @tsk: receiving socket
+ * @dnode: node to send response message to, if any
+ * @buf: buffer containing protocol message
+ * Returns 0 (TIPC_OK) if message was consumed, 1 (TIPC_FWD_MSG) if
+ * (CONN_PROBE_REPLY) message should be forwarded.
+ */
+int tipc_sk_proto_rcv(struct tipc_sock *tsk, u32 *dnode, struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+	struct tipc_port *port = &tsk->port;
+	int wakeable;
+
+	/* Ignore if connection cannot be validated: */
+	if (!port->connected || !tipc_port_peer_msg(port, msg))
+		goto exit;
+
+	port->probing_state = TIPC_CONN_OK;
+
+	if (msg_type(msg) == CONN_ACK) {
+		wakeable = tipc_port_congested(port) && port->congested;
+		port->acked += msg_msgcnt(msg);
+		if (!tipc_port_congested(port)) {
+			port->congested = 0;
+			if (wakeable)
+				tipc_port_wakeup(port);
+		}
+	} else if (msg_type(msg) == CONN_PROBE) {
+		if (!tipc_msg_reverse(buf, dnode, TIPC_OK))
+			return TIPC_OK;
+		msg_set_type(msg, CONN_PROBE_REPLY);
+		return TIPC_FWD_MSG;
+	}
+	/* Do nothing if msg_type() == CONN_PROBE_REPLY */
+exit:
+	kfree_skb(buf);
+	return TIPC_OK;
 }
 
 /**
@@ -1406,7 +1447,7 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *buf)
  * Called with socket lock already taken; port lock may also be taken.
  *
  * Returns 0 (TIPC_OK) if message was consumed, -TIPC error code if message
- * to be rejected.
+ * to be rejected, 1 (TIPC_FWD_MSG) if (CONN_MANAGER) message to be forwarded
  */
 static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 {
@@ -1414,12 +1455,11 @@ static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 	struct tipc_sock *tsk = tipc_sk(sk);
 	struct tipc_msg *msg = buf_msg(buf);
 	unsigned int limit = rcvbuf_limit(sk, buf);
+	u32 onode;
 	int rc = TIPC_OK;
 
-	if (unlikely(msg_user(msg) == CONN_MANAGER)) {
-		tipc_port_proto_rcv(&tsk->port, buf);
-		return TIPC_OK;
-	}
+	if (unlikely(msg_user(msg) == CONN_MANAGER))
+		return tipc_sk_proto_rcv(tsk, &onode, buf);
 
 	/* Reject message if it is wrong sort of message for socket */
 	if (msg_type(msg) > TIPC_DIRECT_MSG)
@@ -1465,10 +1505,16 @@ static int tipc_backlog_rcv(struct sock *sk, struct sk_buff *buf)
 
 	rc = filter_rcv(sk, buf);
 
-	if (unlikely(rc && tipc_msg_reverse(buf, &onode, -rc)))
-		tipc_link_xmit2(buf, onode, 0);
-	else if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
-		atomic_add(truesize, &tsk->dupl_rcvcnt);
+	if (likely(!rc)) {
+		if (atomic_read(&tsk->dupl_rcvcnt) < TIPC_CONN_OVERLOAD_LIMIT)
+			atomic_add(truesize, &tsk->dupl_rcvcnt);
+		return 0;
+	}
+
+	if ((rc < 0) && !tipc_msg_reverse(buf, &onode, -rc))
+		return 0;
+
+	tipc_link_xmit2(buf, onode, 0);
 
 	return 0;
 }

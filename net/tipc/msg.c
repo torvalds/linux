@@ -348,13 +348,17 @@ bool tipc_msg_reverse(struct sk_buff *buf, u32 *dnode, int err)
 	struct tipc_msg ohdr;
 	uint rdsz = min_t(uint, msg_data_sz(msg), MAX_FORWARD_SIZE);
 
-	if (skb_linearize(buf) || !msg_isdata(msg))
+	if (skb_linearize(buf))
 		goto exit;
-	if (msg_dest_droppable(msg) || msg_errcode(msg))
+	if (msg_dest_droppable(msg))
+		goto exit;
+	if (msg_errcode(msg))
 		goto exit;
 
 	memcpy(&ohdr, msg, msg_hdr_sz(msg));
-	msg_set_importance(msg, min_t(uint, ++imp, TIPC_CRITICAL_IMPORTANCE));
+	imp = min_t(uint, imp + 1, TIPC_CRITICAL_IMPORTANCE);
+	if (msg_isdata(msg))
+		msg_set_importance(msg, imp);
 	msg_set_errcode(msg, err);
 	msg_set_origport(msg, msg_destport(&ohdr));
 	msg_set_destport(msg, msg_origport(&ohdr));

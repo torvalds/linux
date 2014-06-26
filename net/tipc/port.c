@@ -42,8 +42,6 @@
 
 /* Connection management: */
 #define PROBING_INTERVAL 3600000	/* [ms] => 1 h */
-#define CONFIRMED 0
-#define PROBING 1
 
 #define MAX_REJECT_SIZE 1024
 
@@ -299,11 +297,11 @@ static void port_timeout(unsigned long ref)
 	}
 
 	/* Last probe answered ? */
-	if (p_ptr->probing_state == PROBING) {
+	if (p_ptr->probing_state == TIPC_CONN_PROBING) {
 		buf = port_build_self_abort_msg(p_ptr, TIPC_ERR_NO_PORT);
 	} else {
 		buf = port_build_proto_msg(p_ptr, CONN_PROBE, 0);
-		p_ptr->probing_state = PROBING;
+		p_ptr->probing_state = TIPC_CONN_PROBING;
 		k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
 	}
 	tipc_port_unlock(p_ptr);
@@ -363,51 +361,6 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 		buf->next = NULL;
 	}
 	return buf;
-}
-
-void tipc_port_proto_rcv(struct tipc_port *p_ptr, struct sk_buff *buf)
-{
-	struct tipc_msg *msg = buf_msg(buf);
-	struct sk_buff *r_buf = NULL;
-	u32 destport = msg_destport(msg);
-	int wakeable;
-
-	/* Validate connection */
-	if (!p_ptr || !p_ptr->connected || !tipc_port_peer_msg(p_ptr, msg)) {
-		r_buf = tipc_buf_acquire(BASIC_H_SIZE);
-		if (r_buf) {
-			msg = buf_msg(r_buf);
-			tipc_msg_init(msg, TIPC_HIGH_IMPORTANCE, TIPC_CONN_MSG,
-				      BASIC_H_SIZE, msg_orignode(msg));
-			msg_set_errcode(msg, TIPC_ERR_NO_PORT);
-			msg_set_origport(msg, destport);
-			msg_set_destport(msg, msg_origport(msg));
-		}
-		goto exit;
-	}
-
-	/* Process protocol message sent by peer */
-	switch (msg_type(msg)) {
-	case CONN_ACK:
-		wakeable = tipc_port_congested(p_ptr) && p_ptr->congested;
-		p_ptr->acked += msg_msgcnt(msg);
-		if (!tipc_port_congested(p_ptr)) {
-			p_ptr->congested = 0;
-			if (wakeable)
-				tipc_port_wakeup(p_ptr);
-		}
-		break;
-	case CONN_PROBE:
-		r_buf = port_build_proto_msg(p_ptr, CONN_PROBE_REPLY, 0);
-		break;
-	default:
-		/* CONN_PROBE_REPLY or unrecognized - no action required */
-		break;
-	}
-	p_ptr->probing_state = CONFIRMED;
-exit:
-	tipc_link_xmit2(r_buf, msg_destnode(msg), msg_link_selector(msg));
-	kfree_skb(buf);
 }
 
 static int port_print(struct tipc_port *p_ptr, char *buf, int len, int full_id)
@@ -613,7 +566,7 @@ int __tipc_port_connect(u32 ref, struct tipc_port *p_ptr,
 	msg_set_hdr_sz(msg, SHORT_H_SIZE);
 
 	p_ptr->probing_interval = PROBING_INTERVAL;
-	p_ptr->probing_state = CONFIRMED;
+	p_ptr->probing_state = TIPC_CONN_OK;
 	p_ptr->connected = 1;
 	k_start_timer(&p_ptr->timer, p_ptr->probing_interval);
 

@@ -140,7 +140,6 @@ int tipc_port_mcast_xmit(struct tipc_port *port,
 			 unsigned int len);
 
 struct sk_buff *tipc_port_get_ports(void);
-void tipc_port_proto_rcv(struct tipc_port *port, struct sk_buff *buf);
 void tipc_port_mcast_rcv(struct sk_buff *buf, struct tipc_port_list *dp);
 void tipc_port_reinit(void);
 
