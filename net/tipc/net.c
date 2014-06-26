@@ -103,46 +103,6 @@
  *       This is always used within the scope of a tipc_nametbl_lock(read).
  *     - A local spin_lock protecting the queue of subscriber events.
 */
-void tipc_net_route_msg(struct sk_buff *buf)
-{
-	struct tipc_msg *msg;
-	u32 dnode;
-
-	if (!buf)
-		return;
-	msg = buf_msg(buf);
-
-	/* Handle message for this node */
-	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
-	if (tipc_in_scope(dnode, tipc_own_addr)) {
-		if (msg_isdata(msg)) {
-			if (msg_mcast(msg))
-				tipc_port_mcast_rcv(buf, NULL);
-			else if (msg_destport(msg)) {
-				tipc_sk_rcv(buf);
-			} else {
-				pr_warn("Cannot route msg; no destination\n");
-				kfree_skb(buf);
-			}
-			return;
-		}
-		switch (msg_user(msg)) {
-		case NAME_DISTRIBUTOR:
-			tipc_named_rcv(buf);
-			break;
-		case CONN_MANAGER:
-			tipc_port_proto_rcv(buf);
-			break;
-		default:
-			kfree_skb(buf);
-		}
-		return;
-	}
-
-	/* Handle message for another node */
-	skb_trim(buf, msg_size(msg));
-	tipc_link_xmit(buf, dnode, msg_link_selector(msg));
-}
 
 int tipc_net_start(u32 addr)
 {

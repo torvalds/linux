@@ -365,16 +365,14 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 	return buf;
 }
 
-void tipc_port_proto_rcv(struct sk_buff *buf)
+void tipc_port_proto_rcv(struct tipc_port *p_ptr, struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
-	struct tipc_port *p_ptr;
 	struct sk_buff *r_buf = NULL;
 	u32 destport = msg_destport(msg);
 	int wakeable;
 
 	/* Validate connection */
-	p_ptr = tipc_port_lock(destport);
 	if (!p_ptr || !p_ptr->connected || !tipc_port_peer_msg(p_ptr, msg)) {
 		r_buf = tipc_buf_acquire(BASIC_H_SIZE);
 		if (r_buf) {
@@ -385,8 +383,6 @@ void tipc_port_proto_rcv(struct sk_buff *buf)
 			msg_set_origport(msg, destport);
 			msg_set_destport(msg, msg_origport(msg));
 		}
-		if (p_ptr)
-			tipc_port_unlock(p_ptr);
 		goto exit;
 	}
 
@@ -409,7 +405,6 @@ void tipc_port_proto_rcv(struct sk_buff *buf)
 		break;
 	}
 	p_ptr->probing_state = CONFIRMED;
-	tipc_port_unlock(p_ptr);
 exit:
 	tipc_link_xmit2(r_buf, msg_destnode(msg), msg_link_selector(msg));
 	kfree_skb(buf);

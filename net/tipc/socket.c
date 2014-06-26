@@ -1416,6 +1416,11 @@ static int filter_rcv(struct sock *sk, struct sk_buff *buf)
 	unsigned int limit = rcvbuf_limit(sk, buf);
 	int rc = TIPC_OK;
 
+	if (unlikely(msg_user(msg) == CONN_MANAGER)) {
+		tipc_port_proto_rcv(&tsk->port, buf);
+		return TIPC_OK;
+	}
+
 	/* Reject message if it is wrong sort of message for socket */
 	if (msg_type(msg) > TIPC_DIRECT_MSG)
 		return -TIPC_ERR_NO_PORT;

@@ -1479,6 +1479,7 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		case TIPC_MEDIUM_IMPORTANCE:
 		case TIPC_HIGH_IMPORTANCE:
 		case TIPC_CRITICAL_IMPORTANCE:
+		case CONN_MANAGER:
 			tipc_node_unlock(n_ptr);
 			tipc_sk_rcv(buf);
 			continue;
@@ -1492,10 +1493,6 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			n_ptr->bclink.recv_permitted = true;
 			tipc_node_unlock(n_ptr);
 			tipc_named_rcv(buf);
-			continue;
-		case CONN_MANAGER:
-			tipc_node_unlock(n_ptr);
-			tipc_port_proto_rcv(buf);
 			continue;
 		case BCAST_PROTOCOL:
 			tipc_link_sync_rcv(n_ptr, buf);
@@ -2106,6 +2103,7 @@ void tipc_link_bundle_rcv(struct sk_buff *buf)
 	u32 msgcount = msg_msgcnt(buf_msg(buf));
 	u32 pos = INT_H_SIZE;
 	struct sk_buff *obuf;
+	struct tipc_msg *omsg;
 
 	while (msgcount--) {
 		obuf = buf_extract(buf, pos);
@@ -2113,8 +2111,16 @@ void tipc_link_bundle_rcv(struct sk_buff *buf)
 			pr_warn("Link unable to unbundle message(s)\n");
 			break;
 		}
-		pos += align(msg_size(buf_msg(obuf)));
-		tipc_net_route_msg(obuf);
+		omsg = buf_msg(obuf);
+		pos += align(msg_size(omsg));
+		if (msg_isdata(omsg) || (msg_user(omsg) == CONN_MANAGER)) {
+			tipc_sk_rcv(obuf);
+		} else if (msg_user(omsg) == NAME_DISTRIBUTOR) {
+			tipc_named_rcv(obuf);
+		} else {
+			pr_warn("Illegal bundled msg: %u\n", msg_user(omsg));
+			kfree_skb(obuf);
+		}
 	}
 	kfree_skb(buf);
 }
