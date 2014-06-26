@@ -47,7 +47,6 @@ struct sreset_priv {
 
 void rtw_sreset_init(struct rtw_adapter *padapter);
 void rtw_sreset_reset_value(struct rtw_adapter *padapter);
-u8 rtw_sreset_get_wifi_status(struct rtw_adapter *padapter);
 bool rtw_sreset_inprogress(struct rtw_adapter *padapter);
 void sreset_set_wifi_error_status23a(struct rtw_adapter *padapter, u32 status);
 void sreset_set_trigger_point(struct rtw_adapter *padapter, s32 tgp);

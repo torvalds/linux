@@ -39,35 +39,6 @@ void rtw_sreset_reset_value(struct rtw_adapter *padapter)
 	psrtpriv->last_tx_complete_time = 0;
 }
 
-u8 rtw_sreset_get_wifi_status(struct rtw_adapter *padapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
-	u8 status = WIFI_STATUS_SUCCESS;
-	u32 val32 = 0;
-
-	if (psrtpriv->silent_reset_inprogress)
-		return status;
-	val32 = rtl8723au_read32(padapter, REG_TXDMA_STATUS);
-	if (val32 == 0xeaeaeaea) {
-		psrtpriv->Wifi_Error_Status = WIFI_IF_NOT_EXIST;
-	} else if (val32 != 0) {
-		DBG_8723A("txdmastatu(%x)\n", val32);
-		psrtpriv->Wifi_Error_Status = WIFI_MAC_TXDMA_ERROR;
-	}
-
-	if (WIFI_STATUS_SUCCESS != psrtpriv->Wifi_Error_Status) {
-		DBG_8723A("==>%s error_status(0x%x)\n", __func__, psrtpriv->Wifi_Error_Status);
-		status = (psrtpriv->Wifi_Error_Status &~(USB_READ_PORT_FAIL|USB_WRITE_PORT_FAIL));
-	}
-	DBG_8723A("==> %s wifi_status(0x%x)\n", __func__, status);
-
-	/* status restore */
-	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
-
-	return status;
-}
-
 void sreset_set_wifi_error_status23a(struct rtw_adapter *padapter, u32 status)
 {
 	struct hal_data_8723a	*pHalData = GET_HAL_DATA(padapter);
