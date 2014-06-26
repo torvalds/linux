@@ -382,6 +382,57 @@ static int ipu_memory_reset(struct ipu_soc *ipu)
 	return 0;
 }
 
+/*
+ * Set the source mux for the given CSI. Selects either parallel or
+ * MIPI CSI2 sources.
+ */
+void ipu_set_csi_src_mux(struct ipu_soc *ipu, int csi_id, bool mipi_csi2)
+{
+	unsigned long flags;
+	u32 val, mask;
+
+	mask = (csi_id == 1) ? IPU_CONF_CSI1_DATA_SOURCE :
+		IPU_CONF_CSI0_DATA_SOURCE;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	val = ipu_cm_read(ipu, IPU_CONF);
+	if (mipi_csi2)
+		val |= mask;
+	else
+		val &= ~mask;
+	ipu_cm_write(ipu, val, IPU_CONF);
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+}
+EXPORT_SYMBOL_GPL(ipu_set_csi_src_mux);
+
+/*
+ * Set the source mux for the IC. Selects either CSI[01] or the VDI.
+ */
+void ipu_set_ic_src_mux(struct ipu_soc *ipu, int csi_id, bool vdi)
+{
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	val = ipu_cm_read(ipu, IPU_CONF);
+	if (vdi) {
+		val |= IPU_CONF_IC_INPUT;
+	} else {
+		val &= ~IPU_CONF_IC_INPUT;
+		if (csi_id == 1)
+			val |= IPU_CONF_CSI_SEL;
+		else
+			val &= ~IPU_CONF_CSI_SEL;
+	}
+	ipu_cm_write(ipu, val, IPU_CONF);
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+}
+EXPORT_SYMBOL_GPL(ipu_set_ic_src_mux);
+
 struct ipu_devtype {
 	const char *name;
 	unsigned long cm_ofs;
