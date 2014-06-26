@@ -140,7 +140,7 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	 * If the controller does not generate notifications for command
 	 * completions, we never need to wait between writes.
 	 */
-	if (ctrl->no_cmd_complete)
+	if (NO_CMD_CMPL(ctrl))
 		return;
 
 	if (!ctrl->cmd_busy)
@@ -771,15 +771,6 @@ struct controller *pcie_init(struct pcie_device *dev)
 	mutex_init(&ctrl->ctrl_lock);
 	init_waitqueue_head(&ctrl->queue);
 	dbg_ctrl(ctrl);
-
-	/*
-	 * Controller doesn't notify of command completion if the "No
-	 * Command Completed Support" bit is set in Slot Capabilities.
-	 * If set, it means the controller can accept hotplug commands
-	 * with no delay between them.
-	 */
-	if (NO_CMD_CMPL(ctrl))
-		ctrl->no_cmd_complete = 1;
 
 	/* Check if Data Link Layer Link Active Reporting is implemented */
 	pcie_capability_read_dword(pdev, PCI_EXP_LNKCAP, &link_cap);
