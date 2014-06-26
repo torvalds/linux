@@ -14,5 +14,3 @@ ccflags-y += -Idrivers/staging/unisys/common-spar/include
 ccflags-y += -Idrivers/staging/unisys/common-spar/include/channels
 ccflags-y += -Idrivers/staging/unisys/visorutil
 ccflags-y += -Iinclude/generated
-ccflags-y += -DCONFIG_SPAR_GUEST -DGUESTDRIVERBUILD -DNOAUTOVERSION
-
