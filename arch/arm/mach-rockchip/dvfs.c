@@ -62,26 +62,28 @@ static int clk_pd_gpu_notifier_call(struct notifier_block *nb,
 {
 	int ret;
 
-	mutex_lock(&switch_vdd_gpu_mutex);
 	switch (event) {
 	case RK_CLK_PD_PREPARE:
+		mutex_lock(&switch_vdd_gpu_mutex);
 		pd_gpu_off = 0;
 		if (early_suspend) {
 			if (!regulator_is_enabled(vdd_gpu_regulator))
 				ret = regulator_enable(vdd_gpu_regulator);
 		}
+		mutex_unlock(&switch_vdd_gpu_mutex);
 		break;
 	case RK_CLK_PD_UNPREPARE:
+		mutex_lock(&switch_vdd_gpu_mutex);
 		pd_gpu_off = 1;
 		if (early_suspend) {
 			if (regulator_is_enabled(vdd_gpu_regulator))
 				ret = regulator_disable(vdd_gpu_regulator);
 		}
+		mutex_unlock(&switch_vdd_gpu_mutex);
 		break;
 	default:
 		break;
 	}
-	mutex_unlock(&switch_vdd_gpu_mutex);
 
 	return NOTIFY_OK;
 }
@@ -135,7 +137,6 @@ static int early_suspend_notifier_call(struct notifier_block *self,
 static struct notifier_block early_suspend_notifier = {
 		.notifier_call = early_suspend_notifier_call,
 };
-
 
 static void dvfs_volt_up_delay(struct vd_node *vd, int new_volt, int old_volt)
 {
