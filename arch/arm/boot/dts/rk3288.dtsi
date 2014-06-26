@@ -971,7 +971,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		rockchip,ion-heap@1 { /* CMA HEAP */
+		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
 			compatible = "rockchip,ion-reserve";
 			rockchip,ion_heap = <1>;
 			reg = <0x00000000 0x20000000>; /* 512MB */

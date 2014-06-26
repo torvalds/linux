@@ -156,21 +156,6 @@
         chosen {
                 bootargs = "vmalloc=512M";
         };
-
-        ion {
-                compatible = "rockchip,ion";
-                #address-cells = <1>;
-                #size-cells = <0>;
-
-                rockchip,ion-heap@1 { /* CMA HEAP */
-                        compatible = "rockchip,ion-reserve";
-                        rockchip,ion_heap = <1>;
-                        reg = <0x40000000 0x20000000>; /* 512MB */
-                };
-                rockchip,ion-heap@3 { /* VMALLOC HEAP */
-                        rockchip,ion_heap = <3>;
-                };
-        };
 };
 &pinctrl {
 	gpio0_gpio {
@@ -772,4 +757,6 @@
 &sdmmc0_vdd_domain{
 	regulator-name = "vcc_sd";			
 	};
-	
+&ion_cma {
+	reg = <0x40000000 0x20000000>; /* 512MB */
+};
