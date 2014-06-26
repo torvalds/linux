@@ -495,8 +495,8 @@ EXPORT(sys_call_table)
 	PTR	sys_tgkill
 	PTR	sys_utimes
 	PTR	sys_mbind
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* 4270 sys_set_mempolicy */
+	PTR	sys_get_mempolicy
+	PTR	sys_set_mempolicy		/* 4270 */
 	PTR	sys_mq_open
 	PTR	sys_mq_unlink
 	PTR	sys_mq_timedsend

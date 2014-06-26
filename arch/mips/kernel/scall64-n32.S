@@ -339,9 +339,9 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_clock_nanosleep
 	PTR	sys_tgkill
 	PTR	compat_sys_utimes		/* 6230 */
-	PTR	sys_ni_syscall			/* sys_mbind */
-	PTR	sys_ni_syscall			/* sys_get_mempolicy */
-	PTR	sys_ni_syscall			/* sys_set_mempolicy */
+	PTR	compat_sys_mbind
+	PTR	compat_sys_get_mempolicy
+	PTR	compat_sys_set_mempolicy
 	PTR	compat_sys_mq_open
 	PTR	sys_mq_unlink			/* 6235 */
 	PTR	compat_sys_mq_timedsend
@@ -358,7 +358,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch
 	PTR	sys_inotify_rm_watch
-	PTR	sys_migrate_pages		/* 6250 */
+	PTR	compat_sys_migrate_pages	/* 6250 */
 	PTR	sys_openat
 	PTR	sys_mkdirat
 	PTR	sys_mknodat
@@ -379,7 +379,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_sync_file_range
 	PTR	sys_tee
 	PTR	compat_sys_vmsplice		/* 6270 */
-	PTR	sys_move_pages
+	PTR	compat_sys_move_pages
 	PTR	compat_sys_set_robust_list
 	PTR	compat_sys_get_robust_list
 	PTR	compat_sys_kexec_load
