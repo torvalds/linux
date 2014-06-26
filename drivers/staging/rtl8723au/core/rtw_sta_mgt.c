@@ -22,6 +22,8 @@
 #include <sta_info.h>
 #include <rtl8723a_hal.h>
 
+static u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 static void _rtw_init_stainfo(struct sta_info *psta)
 {
 	memset((u8 *)psta, 0, sizeof (struct sta_info));
@@ -344,7 +346,6 @@ struct sta_info *rtw_get_stainfo23a(struct sta_priv *pstapriv, const u8 *hwaddr)
 	struct sta_info *psta = NULL;
 	u32	index;
 	const u8 *addr;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	if (hwaddr == NULL)
 		return NULL;
@@ -379,9 +380,8 @@ int rtw_init_bcmc_stainfo23a(struct rtw_adapter* padapter)
 	struct sta_info		*psta;
 	struct tx_servq	*ptxservq;
 	int res = _SUCCESS;
-	unsigned char bcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	psta = rtw_alloc_stainfo23a(pstapriv, bcast_addr, GFP_KERNEL);
+	psta = rtw_alloc_stainfo23a(pstapriv, bc_addr, GFP_KERNEL);
 	if (psta == NULL) {
 		res = _FAIL;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_, _drv_err_,
@@ -399,9 +399,8 @@ struct sta_info *rtw_get_bcmc_stainfo23a(struct rtw_adapter *padapter)
 {
 	struct sta_info		*psta;
 	struct sta_priv		*pstapriv = &padapter->stapriv;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	 psta = rtw_get_stainfo23a(pstapriv, bc_addr);
+	psta = rtw_get_stainfo23a(pstapriv, bc_addr);
 	return psta;
 }
 
