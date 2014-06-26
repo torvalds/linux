@@ -357,6 +357,34 @@ void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_select_buffer);
 
+void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num)
+{
+	struct ipu_soc *ipu = channel->ipu;
+	unsigned int chno = channel->num;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ipu->lock, flags);
+
+	ipu_cm_write(ipu, 0xF0300000, IPU_GPR); /* write one to clear */
+	switch (buf_num) {
+	case 0:
+		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF0_RDY(chno));
+		break;
+	case 1:
+		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF1_RDY(chno));
+		break;
+	case 2:
+		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF2_RDY(chno));
+		break;
+	default:
+		break;
+	}
+	ipu_cm_write(ipu, 0x0, IPU_GPR); /* write one to set */
+
+	spin_unlock_irqrestore(&ipu->lock, flags);
+}
+EXPORT_SYMBOL_GPL(ipu_idmac_clear_buffer);
+
 int ipu_idmac_enable_channel(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
