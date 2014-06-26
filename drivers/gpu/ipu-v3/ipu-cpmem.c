@@ -254,6 +254,13 @@ void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
 };
 EXPORT_SYMBOL_GPL(ipu_cpmem_interlaced_scan);
 
+void ipu_cpmem_set_axi_id(struct ipuv3_channel *ch, u32 id)
+{
+	id &= 0x3;
+	ipu_ch_param_write_field(ch, IPU_FIELD_ID, id);
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_set_axi_id);
+
 void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize)
 {
 	ipu_ch_param_write_field(ch, IPU_FIELD_NPB, burstsize - 1);
