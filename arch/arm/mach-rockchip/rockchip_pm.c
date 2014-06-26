@@ -23,22 +23,31 @@ void rkpm_ddr_reg_offset_dump(void __iomem * base_addr,u32 _offset)
 void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offset)
 {
 	u32 i;
-        u32 line=0;
+        //u32 line=0;
 
         rkpm_ddr_printascii("start from:");     
         rkpm_ddr_printhex((u32)(base_addr +start_offset));       
         rkpm_ddr_printch('\n');
+                   
         
 	for(i=start_offset;i<=end_offset;)
 	{
+         
             rkpm_ddr_printhex(reg_readl((base_addr + i)));  
-            line++;
-            if((line%4==0)||i==end_offset)
+            if(i%16==12) 
+            {   
                 rkpm_ddr_printch('\n');
-            else              
-                rkpm_ddr_printch('-');
-            i+=4;
+            }
+            else
+            {
+                    if(i!=end_offset)
+                    rkpm_ddr_printch('-');
+                    else                        
+                    rkpm_ddr_printch('\n');
+            }
+            i=i+4;
 	} 
+    
     
 }
 
