@@ -212,7 +212,8 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 				    KIRKWOOD_PLAYCTL_SIZE_MASK);
 		priv->ctl_play |= ctl_play;
 	} else {
-		priv->ctl_rec &= ~KIRKWOOD_RECCTL_SIZE_MASK;
+		priv->ctl_rec &= ~(KIRKWOOD_RECCTL_ENABLE_MASK |
+				   KIRKWOOD_RECCTL_SIZE_MASK);
 		priv->ctl_rec |= ctl_rec;
 	}
 
