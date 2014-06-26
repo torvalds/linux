@@ -314,7 +314,7 @@ void rtw23a_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
 void _rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv);
 
-struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, int gfp);
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, gfp_t gfp);
 
 int rtw_if_up23a(struct rtw_adapter *padapter);
 

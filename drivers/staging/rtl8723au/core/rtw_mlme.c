@@ -100,7 +100,7 @@ void rtw_free_mlme_priv23a(struct mlme_priv *pmlmepriv)
 	rtw23a_free_mlme_priv_ie_data(pmlmepriv);
 }
 
-struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, int gfp)
+struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, gfp_t gfp)
 {
 	struct wlan_network *pnetwork;
 
