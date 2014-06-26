@@ -1193,16 +1193,20 @@
 			 |RKPM_CTR_PWR_DMNS
 			 |RKPM_CTR_GTCLKS
 			 |RKPM_CTR_PLLS
+                 //      |RKPM_CTR_GPIOS
 		//	 |RKPM_CTR_SYSCLK_DIV
 		//	 |RKPM_CTR_IDLEAUTO_MD
 		//	 |RKPM_CTR_ARMOFF_LPMD
 			 |RKPM_CTR_ARMOFF_LOGDP_LPMD
 			)
 			>;
-		rockchip,pmic-gpios = <
-			RKPM_PINGPIO_BITS_OUTPUT(GPIO0_A0,RKPM_GPIO_OUT_L)
-			RKPM_PINGPIO_BITS_INTPUT(GPIO0_A1,RKPM_GPIO_PULL_UP)
+		rockchip,pmic-suspend_gpios = <
+			RKPM_PINGPIO_BITS_OUTPUT(GPIO7_A1,RKPM_GPIO_OUT_H)
 			>;
+                rockchip,pmic-resume_gpios = <
+			RKPM_PINGPIO_BITS_FUN(PWM1,RKPM_GPIO_PULL_DN)
+			>;
+        
 	};
 
 	isp: isp@ff910000{
