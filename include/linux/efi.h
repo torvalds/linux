@@ -521,6 +521,8 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      int *reset_type);
 typedef efi_status_t efi_query_variable_store_t(u32 attributes, unsigned long size);
 
+void efi_native_runtime_setup(void);
+
 /*
  *  EFI Configuration Table and GUID definitions
  */

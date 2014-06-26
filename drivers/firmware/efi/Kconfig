@@ -54,6 +54,9 @@ config EFI_PARAMS_FROM_FDT
 	  the EFI runtime support gets system table address, memory
           map address, and other parameters from the device tree.
 
+config EFI_RUNTIME_WRAPPERS
+	bool
+
 endmenu
 
 config UEFI_CPER
