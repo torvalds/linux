@@ -1,3 +1,6 @@
+#include <asm/bug.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"
@@ -136,7 +139,48 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	return ret;
 }
 
-static int open_dso(struct dso *dso, struct machine *machine)
+/*
+ * Global list of open DSOs and the counter.
+ */
+static LIST_HEAD(dso__data_open);
+static long dso__data_open_cnt;
+
+static void dso__list_add(struct dso *dso)
+{
+	list_add_tail(&dso->data.open_entry, &dso__data_open);
+	dso__data_open_cnt++;
+}
+
+static void dso__list_del(struct dso *dso)
+{
+	list_del(&dso->data.open_entry);
+	WARN_ONCE(dso__data_open_cnt <= 0,
+		  "DSO data fd counter out of bounds.");
+	dso__data_open_cnt--;
+}
+
+static void close_first_dso(void);
+
+static int do_open(char *name)
+{
+	int fd;
+
+	do {
+		fd = open(name, O_RDONLY);
+		if (fd >= 0)
+			return fd;
+
+		pr_debug("dso open failed, mmap: %s\n", strerror(errno));
+		if (!dso__data_open_cnt || errno != EMFILE)
+			break;
+
+		close_first_dso();
+	} while (1);
+
+	return -1;
+}
+
+static int __open_dso(struct dso *dso, struct machine *machine)
 {
 	int fd;
 	char *root_dir = (char *)"";
@@ -154,11 +198,130 @@ static int open_dso(struct dso *dso, struct machine *machine)
 		return -EINVAL;
 	}
 
-	fd = open(name, O_RDONLY);
+	fd = do_open(name);
 	free(name);
 	return fd;
 }
 
+static void check_data_close(void);
+
+/**
+ * dso_close - Open DSO data file
+ * @dso: dso object
+ *
+ * Open @dso's data file descriptor and updates
+ * list/count of open DSO objects.
+ */
+static int open_dso(struct dso *dso, struct machine *machine)
+{
+	int fd = __open_dso(dso, machine);
+
+	if (fd > 0) {
+		dso__list_add(dso);
+		/*
+		 * Check if we crossed the allowed number
+		 * of opened DSOs and close one if needed.
+		 */
+		check_data_close();
+	}
+
+	return fd;
+}
+
+static void close_data_fd(struct dso *dso)
+{
+	if (dso->data.fd >= 0) {
+		close(dso->data.fd);
+		dso->data.fd = -1;
+		dso->data.file_size = 0;
+		dso__list_del(dso);
+	}
+}
+
+/**
+ * dso_close - Close DSO data file
+ * @dso: dso object
+ *
+ * Close @dso's data file descriptor and updates
+ * list/count of open DSO objects.
+ */
+static void close_dso(struct dso *dso)
+{
+	close_data_fd(dso);
+}
+
+static void close_first_dso(void)
+{
+	struct dso *dso;
+
+	dso = list_first_entry(&dso__data_open, struct dso, data.open_entry);
+	close_dso(dso);
+}
+
+static rlim_t get_fd_limit(void)
+{
+	struct rlimit l;
+	rlim_t limit = 0;
+
+	/* Allow half of the current open fd limit. */
+	if (getrlimit(RLIMIT_NOFILE, &l) == 0) {
+		if (l.rlim_cur == RLIM_INFINITY)
+			limit = l.rlim_cur;
+		else
+			limit = l.rlim_cur / 2;
+	} else {
+		pr_err("failed to get fd limit\n");
+		limit = 1;
+	}
+
+	return limit;
+}
+
+static bool may_cache_fd(void)
+{
+	static rlim_t limit;
+
+	if (!limit)
+		limit = get_fd_limit();
+
+	if (limit == RLIM_INFINITY)
+		return true;
+
+	return limit > (rlim_t) dso__data_open_cnt;
+}
+
+/*
+ * Check and close LRU dso if we crossed allowed limit
+ * for opened dso file descriptors. The limit is half
+ * of the RLIMIT_NOFILE files opened.
+*/
+static void check_data_close(void)
+{
+	bool cache_fd = may_cache_fd();
+
+	if (!cache_fd)
+		close_first_dso();
+}
+
+/**
+ * dso__data_close - Close DSO data file
+ * @dso: dso object
+ *
+ * External interface to close @dso's data file descriptor.
+ */
+void dso__data_close(struct dso *dso)
+{
+	close_dso(dso);
+}
+
+/**
+ * dso__data_fd - Get dso's data file descriptor
+ * @dso: dso object
+ * @machine: machine object
+ *
+ * External interface to find dso's file, open it and
+ * returns file descriptor.
+ */
 int dso__data_fd(struct dso *dso, struct machine *machine)
 {
 	enum dso_binary_type binary_type_data[] = {
@@ -168,8 +331,13 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 	};
 	int i = 0;
 
-	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND)
-		return open_dso(dso, machine);
+	if (dso->data.fd >= 0)
+		return dso->data.fd;
+
+	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND) {
+		dso->data.fd = open_dso(dso, machine);
+		return dso->data.fd;
+	}
 
 	do {
 		int fd;
@@ -178,7 +346,7 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 
 		fd = open_dso(dso, machine);
 		if (fd >= 0)
-			return fd;
+			return dso->data.fd = fd;
 
 	} while (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND);
 
@@ -260,16 +428,10 @@ dso_cache__memcpy(struct dso_cache *cache, u64 offset,
 }
 
 static ssize_t
-dso_cache__read(struct dso *dso, struct machine *machine,
-		 u64 offset, u8 *data, ssize_t size)
+dso_cache__read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 {
 	struct dso_cache *cache;
 	ssize_t ret;
-	int fd;
-
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return -1;
 
 	do {
 		u64 cache_offset;
@@ -283,16 +445,16 @@ dso_cache__read(struct dso *dso, struct machine *machine,
 		cache_offset = offset & DSO__DATA_CACHE_MASK;
 		ret = -EINVAL;
 
-		if (-1 == lseek(fd, cache_offset, SEEK_SET))
+		if (-1 == lseek(dso->data.fd, cache_offset, SEEK_SET))
 			break;
 
-		ret = read(fd, cache->data, DSO__DATA_CACHE_SIZE);
+		ret = read(dso->data.fd, cache->data, DSO__DATA_CACHE_SIZE);
 		if (ret <= 0)
 			break;
 
 		cache->offset = cache_offset;
 		cache->size   = ret;
-		dso_cache__insert(&dso->cache, cache);
+		dso_cache__insert(&dso->data.cache, cache);
 
 		ret = dso_cache__memcpy(cache, offset, data, size);
 
@@ -301,24 +463,27 @@ dso_cache__read(struct dso *dso, struct machine *machine,
 	if (ret <= 0)
 		free(cache);
 
-	close(fd);
 	return ret;
 }
 
-static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
-			      u64 offset, u8 *data, ssize_t size)
+static ssize_t dso_cache_read(struct dso *dso, u64 offset,
+			      u8 *data, ssize_t size)
 {
 	struct dso_cache *cache;
 
-	cache = dso_cache__find(&dso->cache, offset);
+	cache = dso_cache__find(&dso->data.cache, offset);
 	if (cache)
 		return dso_cache__memcpy(cache, offset, data, size);
 	else
-		return dso_cache__read(dso, machine, offset, data, size);
+		return dso_cache__read(dso, offset, data, size);
 }
 
-ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
-			      u64 offset, u8 *data, ssize_t size)
+/*
+ * Reads and caches dso data DSO__DATA_CACHE_SIZE size chunks
+ * in the rb_tree. Any read to already cached data is served
+ * by cached data.
+ */
+static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 {
 	ssize_t r = 0;
 	u8 *p = data;
@@ -326,7 +491,7 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 	do {
 		ssize_t ret;
 
-		ret = dso_cache_read(dso, machine, offset, p, size);
+		ret = dso_cache_read(dso, offset, p, size);
 		if (ret < 0)
 			return ret;
 
@@ -346,6 +511,67 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 	return r;
 }
 
+static int data_file_size(struct dso *dso)
+{
+	struct stat st;
+
+	if (!dso->data.file_size) {
+		if (fstat(dso->data.fd, &st)) {
+			pr_err("dso mmap failed, fstat: %s\n", strerror(errno));
+			return -1;
+		}
+		dso->data.file_size = st.st_size;
+	}
+
+	return 0;
+}
+
+static ssize_t data_read_offset(struct dso *dso, u64 offset,
+				u8 *data, ssize_t size)
+{
+	if (data_file_size(dso))
+		return -1;
+
+	/* Check the offset sanity. */
+	if (offset > dso->data.file_size)
+		return -1;
+
+	if (offset + size < offset)
+		return -1;
+
+	return cached_read(dso, offset, data, size);
+}
+
+/**
+ * dso__data_read_offset - Read data from dso file offset
+ * @dso: dso object
+ * @machine: machine object
+ * @offset: file offset
+ * @data: buffer to store data
+ * @size: size of the @data buffer
+ *
+ * External interface to read data from dso file offset. Open
+ * dso data file and use cached_read to get the data.
+ */
+ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
+{
+	if (dso__data_fd(dso, machine) < 0)
+		return -1;
+
+	return data_read_offset(dso, offset, data, size);
+}
+
+/**
+ * dso__data_read_addr - Read data from dso address
+ * @dso: dso object
+ * @machine: machine object
+ * @add: virtual memory address
+ * @data: buffer to store data
+ * @size: size of the @data buffer
+ *
+ * External interface to read data from dso address.
+ */
 ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size)
@@ -473,7 +699,8 @@ struct dso *dso__new(const char *name)
 		dso__set_short_name(dso, dso->name, false);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
-		dso->cache = RB_ROOT;
+		dso->data.cache = RB_ROOT;
+		dso->data.fd = -1;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->binary_type = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
@@ -485,6 +712,7 @@ struct dso *dso__new(const char *name)
 		dso->kernel = DSO_TYPE_USER;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		INIT_LIST_HEAD(&dso->node);
+		INIT_LIST_HEAD(&dso->data.open_entry);
 	}
 
 	return dso;
@@ -506,7 +734,8 @@ void dso__delete(struct dso *dso)
 		dso->long_name_allocated = false;
 	}
 
-	dso_cache__free(&dso->cache);
+	dso__data_close(dso);
+	dso_cache__free(&dso->data.cache);
 	dso__free_a2l(dso);
 	zfree(&dso->symsrc_filename);
 	free(dso);

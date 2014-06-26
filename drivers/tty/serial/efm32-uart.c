@@ -407,7 +407,7 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	if (new->c_iflag & INPCK)
 		port->read_status_mask |=
 			UARTn_RXDATAX_FERR | UARTn_RXDATAX_PERR;
-	if (new->c_iflag & (BRKINT | PARMRK))
+	if (new->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SW_UARTn_RXDATAX_BERR;
 
 	port->ignore_status_mask = 0;

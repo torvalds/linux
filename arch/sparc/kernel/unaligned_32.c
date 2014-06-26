@@ -16,6 +16,10 @@
 #include <linux/smp.h>
 #include <linux/perf_event.h>
 
+#include <asm/setup.h>
+
+#include "kernel.h"
+
 enum direction {
 	load,    /* ld, ldd, ldh, ldsh */
 	store,   /* st, std, sth, stsh */

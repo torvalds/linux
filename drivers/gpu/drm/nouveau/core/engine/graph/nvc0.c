@@ -789,17 +789,40 @@ nvc0_graph_ctxctl_debug(struct nvc0_graph_priv *priv)
 static void
 nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 {
-	u32 ustat = nv_rd32(priv, 0x409c18);
+	u32 stat = nv_rd32(priv, 0x409c18);
 
-	if (ustat & 0x00000001)
-		nv_error(priv, "CTXCTL ucode error\n");
-	if (ustat & 0x00080000)
-		nv_error(priv, "CTXCTL watchdog timeout\n");
-	if (ustat & ~0x00080001)
-		nv_error(priv, "CTXCTL 0x%08x\n", ustat);
+	if (stat & 0x00000001) {
+		u32 code = nv_rd32(priv, 0x409814);
+		if (code == E_BAD_FWMTHD) {
+			u32 class = nv_rd32(priv, 0x409808);
+			u32  addr = nv_rd32(priv, 0x40980c);
+			u32  subc = (addr & 0x00070000) >> 16;
+			u32  mthd = (addr & 0x00003ffc);
+			u32  data = nv_rd32(priv, 0x409810);
 
-	nvc0_graph_ctxctl_debug(priv);
-	nv_wr32(priv, 0x409c20, ustat);
+			nv_error(priv, "FECS MTHD subc %d class 0x%04x "
+				       "mthd 0x%04x data 0x%08x\n",
+				 subc, class, mthd, data);
+
+			nv_wr32(priv, 0x409c20, 0x00000001);
+			stat &= ~0x00000001;
+		} else {
+			nv_error(priv, "FECS ucode error %d\n", code);
+		}
+	}
+
+	if (stat & 0x00080000) {
+		nv_error(priv, "FECS watchdog timeout\n");
+		nvc0_graph_ctxctl_debug(priv);
+		nv_wr32(priv, 0x409c20, 0x00080000);
+		stat &= ~0x00080000;
+	}
+
+	if (stat) {
+		nv_error(priv, "FECS 0x%08x\n", stat);
+		nvc0_graph_ctxctl_debug(priv);
+		nv_wr32(priv, 0x409c20, stat);
+	}
 }
 
 static void

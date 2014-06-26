@@ -2687,6 +2687,7 @@ nfsd4_encode_dirent(void *ccdv, const char *name, int namlen,
 		nfserr = nfserr_toosmall;
 		goto fail;
 	case nfserr_noent:
+		xdr_truncate_encode(xdr, start_offset);
 		goto skip_entry;
 	default:
 		/*

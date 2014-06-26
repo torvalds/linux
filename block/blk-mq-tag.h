@@ -24,7 +24,7 @@ struct blk_mq_bitmap_tags {
 	unsigned int map_nr;
 	struct blk_align_bitmap *map;
 
-	unsigned int wake_index;
+	atomic_t wake_index;
 	struct bt_wait_state *bs;
 };
 
