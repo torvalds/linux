@@ -100,6 +100,36 @@ enum ipu_channel_irq {
 	IPU_IRQ_EOS = 192,
 };
 
+/*
+ * Enumeration of IDMAC channels
+ */
+#define IPUV3_CHANNEL_CSI0			 0
+#define IPUV3_CHANNEL_CSI1			 1
+#define IPUV3_CHANNEL_CSI2			 2
+#define IPUV3_CHANNEL_CSI3			 3
+#define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
+#define IPUV3_CHANNEL_MEM_IC_PP			11
+#define IPUV3_CHANNEL_MEM_IC_PRP_VF		12
+#define IPUV3_CHANNEL_G_MEM_IC_PRP_VF		14
+#define IPUV3_CHANNEL_G_MEM_IC_PP		15
+#define IPUV3_CHANNEL_IC_PRP_ENC_MEM		20
+#define IPUV3_CHANNEL_IC_PRP_VF_MEM		21
+#define IPUV3_CHANNEL_IC_PP_MEM			22
+#define IPUV3_CHANNEL_MEM_BG_SYNC		23
+#define IPUV3_CHANNEL_MEM_BG_ASYNC		24
+#define IPUV3_CHANNEL_MEM_FG_SYNC		27
+#define IPUV3_CHANNEL_MEM_DC_SYNC		28
+#define IPUV3_CHANNEL_MEM_FG_ASYNC		29
+#define IPUV3_CHANNEL_MEM_FG_SYNC_ALPHA		31
+#define IPUV3_CHANNEL_MEM_DC_ASYNC		41
+#define IPUV3_CHANNEL_MEM_ROT_ENC		45
+#define IPUV3_CHANNEL_MEM_ROT_VF		46
+#define IPUV3_CHANNEL_MEM_ROT_PP		47
+#define IPUV3_CHANNEL_ROT_ENC_MEM		48
+#define IPUV3_CHANNEL_ROT_VF_MEM		49
+#define IPUV3_CHANNEL_ROT_PP_MEM		50
+#define IPUV3_CHANNEL_MEM_BG_SYNC_ALPHA		51
+
 int ipu_map_irq(struct ipu_soc *ipu, int irq);
 int ipu_idmac_channel_irq(struct ipu_soc *ipu, struct ipuv3_channel *channel,
 		enum ipu_channel_irq irq);
