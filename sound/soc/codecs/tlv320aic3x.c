@@ -880,6 +880,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 		data |= (0x01 << 4);
 		break;
 	case SNDRV_PCM_FORMAT_S24_3LE:
+	case SNDRV_PCM_FORMAT_S24_LE:
 		data |= (0x02 << 4);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
@@ -1194,7 +1195,8 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 
 #define AIC3X_RATES	SNDRV_PCM_RATE_8000_96000
 #define AIC3X_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
+			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE | \
+			 SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops aic3x_dai_ops = {
 	.hw_params	= aic3x_hw_params,
