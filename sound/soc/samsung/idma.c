@@ -261,10 +261,9 @@ static int idma_mmap(struct snd_pcm_substream *substream,
 static irqreturn_t iis_irq(int irqno, void *dev_id)
 {
 	struct idma_ctrl *prtd = (struct idma_ctrl *)dev_id;
-	u32 iiscon, iisahb, val, addr;
+	u32 iisahb, val, addr;
 
 	iisahb  = readl(idma.regs + I2SAHB);
-	iiscon  = readl(idma.regs + I2SCON);
 
 	val = (iisahb & AHB_LVL0INT) ? AHB_CLRLVL0INT : 0;
 
