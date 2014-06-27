@@ -501,6 +501,18 @@
 #define   DSPFREQSTAT_MASK			(0x3 << DSPFREQSTAT_SHIFT)
 #define   DSPFREQGUAR_SHIFT			14
 #define   DSPFREQGUAR_MASK			(0x3 << DSPFREQGUAR_SHIFT)
+#define   _DP_SSC(val, pipe)			((val) << (2 * (pipe)))
+#define   DP_SSC_MASK(pipe)			_DP_SSC(0x3, (pipe))
+#define   DP_SSC_PWR_ON(pipe)			_DP_SSC(0x0, (pipe))
+#define   DP_SSC_CLK_GATE(pipe)			_DP_SSC(0x1, (pipe))
+#define   DP_SSC_RESET(pipe)			_DP_SSC(0x2, (pipe))
+#define   DP_SSC_PWR_GATE(pipe)			_DP_SSC(0x3, (pipe))
+#define   _DP_SSS(val, pipe)			((val) << (2 * (pipe) + 16))
+#define   DP_SSS_MASK(pipe)			_DP_SSS(0x3, (pipe))
+#define   DP_SSS_PWR_ON(pipe)			_DP_SSS(0x0, (pipe))
+#define   DP_SSS_CLK_GATE(pipe)			_DP_SSS(0x1, (pipe))
+#define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
+#define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
 
 /* See the PUNIT HAS v0.8 for the below bits */
 enum punit_power_well {

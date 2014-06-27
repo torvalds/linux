@@ -6312,6 +6312,95 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 	vlv_set_power_well(dev_priv, power_well, false);
 }
 
+static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	enum pipe pipe = power_well->data;
+	bool enabled;
+	u32 state, ctrl;
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+	state = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe);
+	/*
+	 * We only ever set the power-on and power-gate states, anything
+	 * else is unexpected.
+	 */
+	WARN_ON(state != DP_SSS_PWR_ON(pipe) && state != DP_SSS_PWR_GATE(pipe));
+	enabled = state == DP_SSS_PWR_ON(pipe);
+
+	/*
+	 * A transient state at this point would mean some unexpected party
+	 * is poking at the power controls too.
+	 */
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSC_MASK(pipe);
+	WARN_ON(ctrl << 16 != state);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	return enabled;
+}
+
+static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
+				    struct i915_power_well *power_well,
+				    bool enable)
+{
+	enum pipe pipe = power_well->data;
+	u32 state;
+	u32 ctrl;
+
+	state = enable ? DP_SSS_PWR_ON(pipe) : DP_SSS_PWR_GATE(pipe);
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+
+#define COND \
+	((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe)) == state)
+
+	if (COND)
+		goto out;
+
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	ctrl &= ~DP_SSC_MASK(pipe);
+	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, ctrl);
+
+	if (wait_for(COND, 100))
+		DRM_ERROR("timout setting power well state %08x (%08x)\n",
+			  state,
+			  vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ));
+
+#undef COND
+
+out:
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
+static void chv_pipe_power_well_sync_hw(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	chv_set_pipe_power_well(dev_priv, power_well, power_well->count > 0);
+}
+
+static void chv_pipe_power_well_enable(struct drm_i915_private *dev_priv,
+				       struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PIPE_A &&
+		     power_well->data != PIPE_B &&
+		     power_well->data != PIPE_C);
+
+	chv_set_pipe_power_well(dev_priv, power_well, true);
+}
+
+static void chv_pipe_power_well_disable(struct drm_i915_private *dev_priv,
+					struct i915_power_well *power_well)
+{
+	WARN_ON_ONCE(power_well->data != PIPE_A &&
+		     power_well->data != PIPE_B &&
+		     power_well->data != PIPE_C);
+
+	chv_set_pipe_power_well(dev_priv, power_well, false);
+}
+
 static void check_power_well_state(struct drm_i915_private *dev_priv,
 				   struct i915_power_well *power_well)
 {
@@ -6503,6 +6592,18 @@ EXPORT_SYMBOL_GPL(i915_get_cdclk_freq);
 	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |	\
 	BIT(POWER_DOMAIN_INIT))
 
+#define CHV_PIPE_A_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_A) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_PIPE_B_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_B) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_PIPE_C_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PIPE_C) |	\
+	BIT(POWER_DOMAIN_INIT))
+
 #define CHV_DPIO_CMN_BC_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
@@ -6520,6 +6621,13 @@ static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.enable = i9xx_always_on_power_well_noop,
 	.disable = i9xx_always_on_power_well_noop,
 	.is_enabled = i9xx_always_on_power_well_enabled,
+};
+
+static const struct i915_power_well_ops chv_pipe_power_well_ops = {
+	.sync_hw = chv_pipe_power_well_sync_hw,
+	.enable = chv_pipe_power_well_enable,
+	.disable = chv_pipe_power_well_disable,
+	.is_enabled = chv_pipe_power_well_enabled,
 };
 
 static const struct i915_power_well_ops chv_dpio_cmn_power_well_ops = {
@@ -6664,6 +6772,24 @@ static struct i915_power_well chv_power_wells[] = {
 		.domains = VLV_DISPLAY_POWER_DOMAINS,
 		.data = PUNIT_POWER_WELL_DISP2D,
 		.ops = &vlv_display_power_well_ops,
+	},
+	{
+		.name = "pipe-a",
+		.domains = CHV_PIPE_A_POWER_DOMAINS,
+		.data = PIPE_A,
+		.ops = &chv_pipe_power_well_ops,
+	},
+	{
+		.name = "pipe-b",
+		.domains = CHV_PIPE_B_POWER_DOMAINS,
+		.data = PIPE_B,
+		.ops = &chv_pipe_power_well_ops,
+	},
+	{
+		.name = "pipe-c",
+		.domains = CHV_PIPE_C_POWER_DOMAINS,
+		.data = PIPE_C,
+		.ops = &chv_pipe_power_well_ops,
 	},
 #endif
 	{
