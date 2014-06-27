@@ -157,7 +157,9 @@ struct kvm_s390_sie_block {
 	__u8	armid;			/* 0x00e3 */
 	__u8	reservede4[4];		/* 0x00e4 */
 	__u64	tecmc;			/* 0x00e8 */
-	__u8	reservedf0[16];		/* 0x00f0 */
+	__u8	reservedf0[12];		/* 0x00f0 */
+#define CRYCB_FORMAT1 0x00000001
+	__u32	crycbd;			/* 0x00fc */
 	__u64	gcr[16];		/* 0x0100 */
 	__u64	gbea;			/* 0x0180 */
 	__u8	reserved188[24];	/* 0x0188 */
@@ -410,6 +412,15 @@ struct s390_io_adapter {
 #define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
 #define MAX_S390_ADAPTER_MAPS 256
 
+struct kvm_s390_crypto {
+	struct kvm_s390_crypto_cb *crycb;
+	__u32 crycbd;
+};
+
+struct kvm_s390_crypto_cb {
+	__u8    reserved00[128];                /* 0x0000 */
+};
+
 struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
@@ -423,6 +434,7 @@ struct kvm_arch{
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
 	spinlock_t start_stop_lock;
+	struct kvm_s390_crypto crypto;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)
