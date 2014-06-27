@@ -37,24 +37,9 @@
 #include "hdmi4_core.h"
 #include "dss.h"
 #include "dss_features.h"
+#include "hdmi.h"
 
-static struct {
-	struct mutex lock;
-	struct platform_device *pdev;
-
-	struct hdmi_wp_data	wp;
-	struct hdmi_pll_data	pll;
-	struct hdmi_phy_data	phy;
-	struct hdmi_core_data	core;
-
-	struct hdmi_config cfg;
-
-	struct regulator *vdda_hdmi_dac_reg;
-
-	bool core_enabled;
-
-	struct omap_dss_device output;
-} hdmi;
+static struct omap_hdmi hdmi;
 
 static int hdmi_runtime_get(void)
 {
@@ -116,7 +101,7 @@ static int hdmi_init_regulator(void)
 	int r;
 	struct regulator *reg;
 
-	if (hdmi.vdda_hdmi_dac_reg != NULL)
+	if (hdmi.vdda_reg != NULL)
 		return 0;
 
 	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda");
@@ -136,7 +121,7 @@ static int hdmi_init_regulator(void)
 		}
 	}
 
-	hdmi.vdda_hdmi_dac_reg = reg;
+	hdmi.vdda_reg = reg;
 
 	return 0;
 }
@@ -145,7 +130,7 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	r = regulator_enable(hdmi.vdda_hdmi_dac_reg);
+	r = regulator_enable(hdmi.vdda_reg);
 	if (r)
 		return r;
 
@@ -161,7 +146,7 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 	return 0;
 
 err_runtime_get:
-	regulator_disable(hdmi.vdda_hdmi_dac_reg);
+	regulator_disable(hdmi.vdda_reg);
 
 	return r;
 }
@@ -171,7 +156,7 @@ static void hdmi_power_off_core(struct omap_dss_device *dssdev)
 	hdmi.core_enabled = false;
 
 	hdmi_runtime_put();
-	regulator_disable(hdmi.vdda_hdmi_dac_reg);
+	regulator_disable(hdmi.vdda_reg);
 }
 
 static int hdmi_power_on_full(struct omap_dss_device *dssdev)
@@ -666,6 +651,7 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	int irq;
 
 	hdmi.pdev = pdev;
+	dev_set_drvdata(&pdev->dev, &hdmi);
 
 	mutex_init(&hdmi.lock);
 
