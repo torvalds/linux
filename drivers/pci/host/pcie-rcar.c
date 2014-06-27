@@ -260,11 +260,6 @@ static int rcar_pcie_read_conf(struct pci_bus *bus, unsigned int devfn,
 	struct rcar_pcie *pcie = sys_to_pcie(bus->sysdata);
 	int ret;
 
-	if ((size == 2) && (where & 1))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-	else if ((size == 4) && (where & 3))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
 	ret = rcar_pcie_config_access(pcie, PCI_ACCESS_READ,
 				      bus, devfn, where, val);
 	if (ret != PCIBIOS_SUCCESSFUL) {
@@ -290,11 +285,6 @@ static int rcar_pcie_write_conf(struct pci_bus *bus, unsigned int devfn,
 	struct rcar_pcie *pcie = sys_to_pcie(bus->sysdata);
 	int shift, ret;
 	u32 data;
-
-	if ((size == 2) && (where & 1))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-	else if ((size == 4) && (where & 3))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	ret = rcar_pcie_config_access(pcie, PCI_ACCESS_READ,
 				      bus, devfn, where, &data);
