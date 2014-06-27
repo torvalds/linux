@@ -1697,12 +1697,9 @@ enum punit_power_well {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
-#define   PHY_COM_LANE_RESET_DEASSERT(phy, val) \
-				((phy == DPIO_PHY0) ? (val | 1) : (val | 2))
-#define   PHY_COM_LANE_RESET_ASSERT(phy, val) \
-				((phy == DPIO_PHY0) ? (val & ~1) : (val & ~2))
+#define   PHY_COM_LANE_RESET_DEASSERT(phy) (1 << (phy))
 #define DISPLAY_PHY_STATUS (VLV_DISPLAY_BASE + 0x60104)
-#define   PHY_POWERGOOD(phy)	((phy == DPIO_PHY0) ? (1<<31) : (1<<30))
+#define   PHY_POWERGOOD(phy)	(((phy) == DPIO_PHY0) ? (1<<31) : (1<<30))
 
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within

@@ -6359,8 +6359,8 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	if (wait_for(I915_READ(DISPLAY_PHY_STATUS) & PHY_POWERGOOD(phy), 1))
 		DRM_ERROR("Display PHY %d is not power up\n", phy);
 
-	I915_WRITE(DISPLAY_PHY_CONTROL,
-		   PHY_COM_LANE_RESET_DEASSERT(phy, I915_READ(DISPLAY_PHY_CONTROL)));
+	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) |
+		   PHY_COM_LANE_RESET_DEASSERT(phy));
 }
 
 static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
@@ -6380,8 +6380,8 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 		assert_pll_disabled(dev_priv, PIPE_C);
 	}
 
-	I915_WRITE(DISPLAY_PHY_CONTROL,
-		   PHY_COM_LANE_RESET_ASSERT(phy, I915_READ(DISPLAY_PHY_CONTROL)));
+	I915_WRITE(DISPLAY_PHY_CONTROL, I915_READ(DISPLAY_PHY_CONTROL) &
+		   ~PHY_COM_LANE_RESET_DEASSERT(phy));
 
 	vlv_set_power_well(dev_priv, power_well, false);
 }
