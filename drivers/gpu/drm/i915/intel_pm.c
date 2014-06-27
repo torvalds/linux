@@ -6616,6 +6616,15 @@ EXPORT_SYMBOL_GPL(i915_get_cdclk_freq);
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
 	BIT(POWER_DOMAIN_INIT))
 
+#define CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+#define CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS (	\
+	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
+	BIT(POWER_DOMAIN_INIT))
+
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.sync_hw = i9xx_always_on_power_well_noop,
 	.enable = i9xx_always_on_power_well_noop,
@@ -6832,6 +6841,20 @@ static struct i915_power_well chv_power_wells[] = {
 			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
 		.ops = &vlv_dpio_power_well_ops,
 		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
+	},
+	{
+		.name = "dpio-tx-d-01",
+		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
+			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_01,
+	},
+	{
+		.name = "dpio-tx-d-23",
+		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
+			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
+		.ops = &vlv_dpio_power_well_ops,
+		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_23,
 	},
 #endif
 };
