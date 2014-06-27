@@ -2649,8 +2649,8 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	/* Program swing margin */
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-		val &= ~DPIO_SWING_MARGIN_MASK;
-		val |= margin_reg_value << DPIO_SWING_MARGIN_SHIFT;
+		val &= ~DPIO_SWING_MARGIN000_MASK;
+		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
