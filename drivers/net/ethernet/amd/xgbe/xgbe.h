@@ -121,6 +121,8 @@
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
 #include <linux/phy.h>
+#include <linux/if_vlan.h>
+#include <linux/bitops.h>
 
 
 #define XGBE_DRV_NAME		"amd-xgbe"
@@ -128,32 +130,31 @@
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
 
 /* Descriptor related defines */
-#define TX_DESC_CNT		512
-#define TX_DESC_MIN_FREE	(TX_DESC_CNT >> 3)
-#define TX_DESC_MAX_PROC	(TX_DESC_CNT >> 1)
-#define RX_DESC_CNT		512
+#define XGBE_TX_DESC_CNT	512
+#define XGBE_TX_DESC_MIN_FREE	(XGBE_TX_DESC_CNT >> 3)
+#define XGBE_TX_DESC_MAX_PROC	(XGBE_TX_DESC_CNT >> 1)
+#define XGBE_RX_DESC_CNT	512
 
-#define TX_MAX_BUF_SIZE		(0x3fff & ~(64 - 1))
+#define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
-#define RX_MIN_BUF_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
-#define RX_BUF_ALIGN		64
+#define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
+#define XGBE_RX_BUF_ALIGN	64
 
 #define XGBE_MAX_DMA_CHANNELS	16
-#define DMA_ARDOMAIN_SETTING	0x2
-#define DMA_ARCACHE_SETTING	0xb
-#define DMA_AWDOMAIN_SETTING	0x2
-#define DMA_AWCACHE_SETTING	0x7
-#define DMA_INTERRUPT_MASK	0x31c7
+
+/* DMA cache settings - Outer sharable, write-back, write-allocate */
+#define XGBE_DMA_ARDOMAIN	0x2
+#define XGBE_DMA_ARCACHE	0xb
+#define XGBE_DMA_AWDOMAIN	0x2
+#define XGBE_DMA_AWCACHE	0x7
+
+#define XGBE_DMA_INTERRUPT_MASK	0x31c7
 
 #define XGMAC_MIN_PACKET	60
 #define XGMAC_STD_PACKET_MTU	1500
 #define XGMAC_MAX_STD_PACKET	1518
 #define XGMAC_JUMBO_PACKET_MTU	9000
 #define XGMAC_MAX_JUMBO_PACKET	9018
-
-#define MAX_MULTICAST_LIST	14
-#define TX_FLAGS_IP_PKT		0x00000001
-#define TX_FLAGS_TCP_PKT	0x00000002
 
 /* MDIO bus phy name */
 #define XGBE_PHY_NAME		"amd_xgbe_phy"
@@ -163,18 +164,18 @@
 #define XGMAC_DRIVER_CONTEXT	1
 #define XGMAC_IOCTL_CONTEXT	2
 
-#define FIFO_SIZE_B(x)		(x)
-#define FIFO_SIZE_KB(x)		(x * 1024)
+#define XGBE_FIFO_SIZE_B(x)	(x)
+#define XGBE_FIFO_SIZE_KB(x)	(x * 1024)
 
 #define XGBE_TC_CNT		2
 
 /* Helper macro for descriptor handling
- *  Always use GET_DESC_DATA to access the descriptor data
+ *  Always use XGBE_GET_DESC_DATA to access the descriptor data
  *  since the index is free-running and needs to be and-ed
  *  with the descriptor count value of the ring to index to
  *  the proper descriptor data.
  */
-#define GET_DESC_DATA(_ring, _idx)				\
+#define XGBE_GET_DESC_DATA(_ring, _idx)				\
 	((_ring)->rdata +					\
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
 
@@ -190,6 +191,8 @@
 /* Flow control queue count */
 #define XGMAC_MAX_FLOW_CONTROL_QUEUES	8
 
+/* Maximum MAC address hash table size (256 bits = 8 bytes) */
+#define XGBE_MAC_HASH_TABLE_SIZE	8
 
 struct xgbe_prv_data;
 
@@ -219,7 +222,7 @@ struct xgbe_ring_desc {
 
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
- * use the GET_DESC_DATA macro to access this data from the ring)
+ * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
  */
 struct xgbe_ring_data {
 	struct xgbe_ring_desc *rdesc;	/* Virtual address of descriptor */
@@ -250,7 +253,7 @@ struct xgbe_ring {
 	unsigned int rdesc_count;
 
 	/* Array of descriptor data corresponding the descriptor memory
-	 * (always use the GET_DESC_DATA macro to access this data)
+	 * (always use the XGBE_GET_DESC_DATA macro to access this data)
 	 */
 	struct xgbe_ring_data *rdata;
 
@@ -386,7 +389,7 @@ struct xgbe_hw_if {
 
 	int (*set_promiscuous_mode)(struct xgbe_prv_data *, unsigned int);
 	int (*set_all_multicast_mode)(struct xgbe_prv_data *, unsigned int);
-	int (*set_addn_mac_addrs)(struct xgbe_prv_data *, unsigned int);
+	int (*add_mac_addresses)(struct xgbe_prv_data *);
 	int (*set_mac_address)(struct xgbe_prv_data *, u8 *addr);
 
 	int (*enable_rx_csum)(struct xgbe_prv_data *);
@@ -394,6 +397,9 @@ struct xgbe_hw_if {
 
 	int (*enable_rx_vlan_stripping)(struct xgbe_prv_data *);
 	int (*disable_rx_vlan_stripping)(struct xgbe_prv_data *);
+	int (*enable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*disable_rx_vlan_filtering)(struct xgbe_prv_data *);
+	int (*update_vlan_hash_table)(struct xgbe_prv_data *);
 
 	int (*read_mmd_regs)(struct xgbe_prv_data *, int, int);
 	void (*write_mmd_regs)(struct xgbe_prv_data *, int, int, int);
@@ -588,6 +594,9 @@ struct xgbe_prv_data {
 	netdev_features_t netdev_features;
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
+
+	/* Filtering support */
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	/* System clock value used for Rx watchdog */
 	struct clk *sysclock;

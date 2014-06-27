@@ -144,9 +144,10 @@ static int xgbe_calc_rx_buf_size(struct net_device *netdev, unsigned int mtu)
 	}
 
 	rx_buf_size = mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
-	if (rx_buf_size < RX_MIN_BUF_SIZE)
-		rx_buf_size = RX_MIN_BUF_SIZE;
-	rx_buf_size = (rx_buf_size + RX_BUF_ALIGN - 1) & ~(RX_BUF_ALIGN - 1);
+	if (rx_buf_size < XGBE_RX_MIN_BUF_SIZE)
+		rx_buf_size = XGBE_RX_MIN_BUF_SIZE;
+	rx_buf_size = (rx_buf_size + XGBE_RX_BUF_ALIGN - 1) &
+		      ~(XGBE_RX_BUF_ALIGN - 1);
 
 	return rx_buf_size;
 }
@@ -377,6 +378,21 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	hw_feat->pps_out_num  = XGMAC_GET_BITS(mac_hfr2, MAC_HWF2R, PPSOUTNUM);
 	hw_feat->aux_snap_num = XGMAC_GET_BITS(mac_hfr2, MAC_HWF2R, AUXSNAPNUM);
 
+	/* Translate the Hash Table size into actual number */
+	switch (hw_feat->hash_table_size) {
+	case 0:
+		break;
+	case 1:
+		hw_feat->hash_table_size = 64;
+		break;
+	case 2:
+		hw_feat->hash_table_size = 128;
+		break;
+	case 3:
+		hw_feat->hash_table_size = 256;
+		break;
+	}
+
 	/* The Queue and Channel counts are zero based so increment them
 	 * to get the actual number
 	 */
@@ -446,7 +462,7 @@ static void xgbe_free_tx_skbuff(struct xgbe_prv_data *pdata)
 			break;
 
 		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = GET_DESC_DATA(ring, j);
+			rdata = XGBE_GET_DESC_DATA(ring, j);
 			desc_if->unmap_skb(pdata, rdata);
 		}
 	}
@@ -471,7 +487,7 @@ static void xgbe_free_rx_skbuff(struct xgbe_prv_data *pdata)
 			break;
 
 		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = GET_DESC_DATA(ring, j);
+			rdata = XGBE_GET_DESC_DATA(ring, j);
 			desc_if->unmap_skb(pdata, rdata);
 		}
 	}
@@ -726,14 +742,14 @@ static void xgbe_packet_info(struct xgbe_ring *ring, struct sk_buff *skb,
 
 	for (len = skb_headlen(skb); len;) {
 		packet->rdesc_count++;
-		len -= min_t(unsigned int, len, TX_MAX_BUF_SIZE);
+		len -= min_t(unsigned int, len, XGBE_TX_MAX_BUF_SIZE);
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		frag = &skb_shinfo(skb)->frags[i];
 		for (len = skb_frag_size(frag); len; ) {
 			packet->rdesc_count++;
-			len -= min_t(unsigned int, len, TX_MAX_BUF_SIZE);
+			len -= min_t(unsigned int, len, XGBE_TX_MAX_BUF_SIZE);
 		}
 	}
 }
@@ -911,18 +927,10 @@ static void xgbe_set_rx_mode(struct net_device *netdev)
 	pr_mode = ((netdev->flags & IFF_PROMISC) != 0);
 	am_mode = ((netdev->flags & IFF_ALLMULTI) != 0);
 
-	if (netdev_uc_count(netdev) > pdata->hw_feat.addn_mac)
-		pr_mode = 1;
-	if (netdev_mc_count(netdev) > pdata->hw_feat.addn_mac)
-		am_mode = 1;
-	if ((netdev_uc_count(netdev) + netdev_mc_count(netdev)) >
-	     pdata->hw_feat.addn_mac)
-		pr_mode = 1;
-
 	hw_if->set_promiscuous_mode(pdata, pr_mode);
 	hw_if->set_all_multicast_mode(pdata, am_mode);
-	if (!pr_mode)
-		hw_if->set_addn_mac_addrs(pdata, am_mode);
+
+	hw_if->add_mac_addresses(pdata);
 
 	DBGPR("<--xgbe_set_rx_mode\n");
 }
@@ -999,6 +1007,38 @@ static struct rtnl_link_stats64 *xgbe_get_stats64(struct net_device *netdev,
 	return s;
 }
 
+static int xgbe_vlan_rx_add_vid(struct net_device *netdev, __be16 proto,
+				u16 vid)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+
+	DBGPR("-->%s\n", __func__);
+
+	set_bit(vid, pdata->active_vlans);
+	hw_if->update_vlan_hash_table(pdata);
+
+	DBGPR("<--%s\n", __func__);
+
+	return 0;
+}
+
+static int xgbe_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto,
+				 u16 vid)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+
+	DBGPR("-->%s\n", __func__);
+
+	clear_bit(vid, pdata->active_vlans);
+	hw_if->update_vlan_hash_table(pdata);
+
+	DBGPR("<--%s\n", __func__);
+
+	return 0;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void xgbe_poll_controller(struct net_device *netdev)
 {
@@ -1021,26 +1061,26 @@ static int xgbe_set_features(struct net_device *netdev,
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int rxcsum_enabled, rxvlan_enabled;
+	unsigned int rxcsum, rxvlan, rxvlan_filter;
 
-	rxcsum_enabled = !!(pdata->netdev_features & NETIF_F_RXCSUM);
-	rxvlan_enabled = !!(pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX);
+	rxcsum = pdata->netdev_features & NETIF_F_RXCSUM;
+	rxvlan = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX;
+	rxvlan_filter = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	if ((features & NETIF_F_RXCSUM) && !rxcsum_enabled) {
+	if ((features & NETIF_F_RXCSUM) && !rxcsum)
 		hw_if->enable_rx_csum(pdata);
-		netdev_alert(netdev, "state change - rxcsum enabled\n");
-	} else if (!(features & NETIF_F_RXCSUM) && rxcsum_enabled) {
+	else if (!(features & NETIF_F_RXCSUM) && rxcsum)
 		hw_if->disable_rx_csum(pdata);
-		netdev_alert(netdev, "state change - rxcsum disabled\n");
-	}
 
-	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan_enabled) {
+	if ((features & NETIF_F_HW_VLAN_CTAG_RX) && !rxvlan)
 		hw_if->enable_rx_vlan_stripping(pdata);
-		netdev_alert(netdev, "state change - rxvlan enabled\n");
-	} else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) && rxvlan_enabled) {
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_RX) && rxvlan)
 		hw_if->disable_rx_vlan_stripping(pdata);
-		netdev_alert(netdev, "state change - rxvlan disabled\n");
-	}
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) && !rxvlan_filter)
+		hw_if->enable_rx_vlan_filtering(pdata);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) && rxvlan_filter)
+		hw_if->disable_rx_vlan_filtering(pdata);
 
 	pdata->netdev_features = features;
 
@@ -1058,6 +1098,8 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= xgbe_change_mtu,
 	.ndo_get_stats64	= xgbe_get_stats64,
+	.ndo_vlan_rx_add_vid	= xgbe_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= xgbe_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= xgbe_poll_controller,
 #endif
@@ -1089,8 +1131,9 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 
 	spin_lock_irqsave(&ring->lock, flags);
 
-	while ((processed < TX_DESC_MAX_PROC) && (ring->dirty < ring->cur)) {
-		rdata = GET_DESC_DATA(ring, ring->dirty);
+	while ((processed < XGBE_TX_DESC_MAX_PROC) &&
+	       (ring->dirty < ring->cur)) {
+		rdata = XGBE_GET_DESC_DATA(ring, ring->dirty);
 		rdesc = rdata->rdesc;
 
 		if (!hw_if->tx_complete(rdesc))
@@ -1109,7 +1152,7 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 	}
 
 	if ((ring->tx.queue_stopped == 1) &&
-	    (xgbe_tx_avail_desc(ring) > TX_DESC_MIN_FREE)) {
+	    (xgbe_tx_avail_desc(ring) > XGBE_TX_DESC_MIN_FREE)) {
 		ring->tx.queue_stopped = 0;
 		netif_wake_subqueue(netdev, channel->queue_index);
 	}
@@ -1152,7 +1195,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 		cur_len = 0;
 
 read_again:
-		rdata = GET_DESC_DATA(ring, ring->cur);
+		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 
 		if (hw_if->dev_read(channel))
 			break;
@@ -1244,7 +1287,7 @@ read_again:
 
 		/* Update the Rx Tail Pointer Register with address of
 		 * the last cleaned entry */
-		rdata = GET_DESC_DATA(ring, ring->rx.realloc_index - 1);
+		rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index - 1);
 		XGMAC_DMA_IOWRITE(channel, DMA_CH_RDTR_LO,
 				  lower_32_bits(rdata->rdesc_dma));
 	}
@@ -1296,7 +1339,7 @@ void xgbe_dump_tx_desc(struct xgbe_ring *ring, unsigned int idx,
 	struct xgbe_ring_desc *rdesc;
 
 	while (count--) {
-		rdata = GET_DESC_DATA(ring, idx);
+		rdata = XGBE_GET_DESC_DATA(ring, idx);
 		rdesc = rdata->rdesc;
 		DBGPR("TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
 		      (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",

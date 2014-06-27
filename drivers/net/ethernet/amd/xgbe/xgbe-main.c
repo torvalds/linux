@@ -247,16 +247,16 @@ static int xgbe_probe(struct platform_device *pdev)
 	mutex_init(&pdata->xpcs_mutex);
 
 	/* Set and validate the number of descriptors for a ring */
-	BUILD_BUG_ON_NOT_POWER_OF_2(TX_DESC_CNT);
-	pdata->tx_desc_count = TX_DESC_CNT;
+	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_TX_DESC_CNT);
+	pdata->tx_desc_count = XGBE_TX_DESC_CNT;
 	if (pdata->tx_desc_count & (pdata->tx_desc_count - 1)) {
 		dev_err(dev, "tx descriptor count (%d) is not valid\n",
 			pdata->tx_desc_count);
 		ret = -EINVAL;
 		goto err_io;
 	}
-	BUILD_BUG_ON_NOT_POWER_OF_2(RX_DESC_CNT);
-	pdata->rx_desc_count = RX_DESC_CNT;
+	BUILD_BUG_ON_NOT_POWER_OF_2(XGBE_RX_DESC_CNT);
+	pdata->rx_desc_count = XGBE_RX_DESC_CNT;
 	if (pdata->rx_desc_count & (pdata->rx_desc_count - 1)) {
 		dev_err(dev, "rx descriptor count (%d) is not valid\n",
 			pdata->rx_desc_count);
@@ -385,7 +385,8 @@ static int xgbe_probe(struct platform_device *pdev)
 			      NETIF_F_TSO6 |
 			      NETIF_F_GRO |
 			      NETIF_F_HW_VLAN_CTAG_RX |
-			      NETIF_F_HW_VLAN_CTAG_TX;
+			      NETIF_F_HW_VLAN_CTAG_TX |
+			      NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= NETIF_F_SG |
 				 NETIF_F_IP_CSUM |
@@ -395,6 +396,8 @@ static int xgbe_probe(struct platform_device *pdev)
 
 	netdev->features |= netdev->hw_features;
 	pdata->netdev_features = netdev->features;
+
+	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	xgbe_init_rx_coalesce(pdata);
 	xgbe_init_tx_coalesce(pdata);

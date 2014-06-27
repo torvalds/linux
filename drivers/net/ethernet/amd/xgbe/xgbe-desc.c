@@ -131,7 +131,7 @@ static void xgbe_free_ring(struct xgbe_prv_data *pdata,
 
 	if (ring->rdata) {
 		for (i = 0; i < ring->rdesc_count; i++) {
-			rdata = GET_DESC_DATA(ring, i);
+			rdata = XGBE_GET_DESC_DATA(ring, i);
 			xgbe_unmap_skb(pdata, rdata);
 		}
 
@@ -256,7 +256,7 @@ static void xgbe_wrapper_tx_descriptor_init(struct xgbe_prv_data *pdata)
 		rdesc_dma = ring->rdesc_dma;
 
 		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = GET_DESC_DATA(ring, j);
+			rdata = XGBE_GET_DESC_DATA(ring, j);
 
 			rdata->rdesc = rdesc;
 			rdata->rdesc_dma = rdesc_dma;
@@ -298,7 +298,7 @@ static void xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
 		rdesc_dma = ring->rdesc_dma;
 
 		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = GET_DESC_DATA(ring, j);
+			rdata = XGBE_GET_DESC_DATA(ring, j);
 
 			rdata->rdesc = rdesc;
 			rdata->rdesc_dma = rdesc_dma;
@@ -392,7 +392,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 	if ((tso && (packet->mss != ring->tx.cur_mss)) ||
 	    (vlan && (packet->vlan_ctag != ring->tx.cur_vlan_ctag)))
 		cur_index++;
-	rdata = GET_DESC_DATA(ring, cur_index);
+	rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 
 	if (tso) {
 		DBGPR("  TSO packet\n");
@@ -413,12 +413,12 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		packet->length += packet->header_len;
 
 		cur_index++;
-		rdata = GET_DESC_DATA(ring, cur_index);
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 	}
 
 	/* Map the (remainder of the) packet */
 	for (datalen = skb_headlen(skb) - offset; datalen; ) {
-		len = min_t(unsigned int, datalen, TX_MAX_BUF_SIZE);
+		len = min_t(unsigned int, datalen, XGBE_TX_MAX_BUF_SIZE);
 
 		skb_dma = dma_map_single(pdata->dev, skb->data + offset, len,
 					 DMA_TO_DEVICE);
@@ -437,7 +437,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		packet->length += len;
 
 		cur_index++;
-		rdata = GET_DESC_DATA(ring, cur_index);
+		rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -447,7 +447,8 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 		offset = 0;
 
 		for (datalen = skb_frag_size(frag); datalen; ) {
-			len = min_t(unsigned int, datalen, TX_MAX_BUF_SIZE);
+			len = min_t(unsigned int, datalen,
+				    XGBE_TX_MAX_BUF_SIZE);
 
 			skb_dma = skb_frag_dma_map(pdata->dev, frag, offset,
 						   len, DMA_TO_DEVICE);
@@ -468,7 +469,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 			packet->length += len;
 
 			cur_index++;
-			rdata = GET_DESC_DATA(ring, cur_index);
+			rdata = XGBE_GET_DESC_DATA(ring, cur_index);
 		}
 	}
 
@@ -484,7 +485,7 @@ static int xgbe_map_tx_skb(struct xgbe_channel *channel, struct sk_buff *skb)
 
 err_out:
 	while (start_index < cur_index) {
-		rdata = GET_DESC_DATA(ring, start_index++);
+		rdata = XGBE_GET_DESC_DATA(ring, start_index++);
 		xgbe_unmap_skb(pdata, rdata);
 	}
 
@@ -507,7 +508,7 @@ static void xgbe_realloc_skb(struct xgbe_channel *channel)
 	      ring->rx.realloc_index);
 
 	for (i = 0; i < ring->dirty; i++) {
-		rdata = GET_DESC_DATA(ring, ring->rx.realloc_index);
+		rdata = XGBE_GET_DESC_DATA(ring, ring->rx.realloc_index);
 
 		/* Reset rdata values */
 		xgbe_unmap_skb(pdata, rdata);
