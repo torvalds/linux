@@ -591,12 +591,11 @@ static void dw_mci_edmac_complete_dma(void *arg)
 
         dev_vdbg(host->dev, "DMA complete\n");
 
-        if(data->flags & MMC_DATA_READ)
-        {
-                /* Invalidate cache after read */
-                dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
-                        data->sg_len, DMA_FROM_DEVICE);
-        }
+        if(data)
+                if(data->flags & MMC_DATA_READ)
+                        /* Invalidate cache after read */
+                        dma_sync_sg_for_cpu(mmc_dev(host->mmc), data->sg,
+                                data->sg_len, DMA_FROM_DEVICE);
 
         host->dma_ops->cleanup(host);
 
@@ -1059,7 +1058,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	                MMC_DBG_BOOT_FUNC(host->mmc,
                                 "dw_mci_setup_bus: argue clk_mmc workaround out %dHz for init[%s]",
                                 clock * 2, mmc_hostname(host->mmc)); 
-                        /* RK3288 clk_mmc will change parents to 24MHz xtal*/
+                        /* clk_mmc will change parents to 24MHz xtal*/
 	                clk_set_rate(host->clk_mmc, clock * 2);	               
 
 	                div = 0;
@@ -1673,21 +1672,31 @@ enum{
 };
 static void dw_mci_do_grf_io_domain_switch(struct dw_mci *host, u32 voltage)
 {
-        if(cpu_is_rk3288()){
-        	if(voltage == IO_DOMAIN_33)
+        switch(voltage){
+                case IO_DOMAIN_33:
                         voltage = 0;
-                else if(voltage == IO_DOMAIN_18)
+                        break;
+                case IO_DOMAIN_18:
                         voltage = 1;
-                else
-                     MMC_DBG_ERR_FUNC(host->mmc,"%s : err io domain voltage [%s]\n", 
-        		   __FUNCTION__, mmc_hostname(host->mmc));
+                        break;
+                case IO_DOMAIN_12:
+                        MMC_DBG_ERR_FUNC(host->mmc,"%s : Not support io domain voltage [%s]\n",
+                                                        __FUNCTION__, mmc_hostname(host->mmc));
+                        break;
+                default:
+                        MMC_DBG_ERR_FUNC(host->mmc,"%s : Err io domain voltage [%s]\n",
+                                                        __FUNCTION__, mmc_hostname(host->mmc));
+                        break;
+        }
+
+        if(cpu_is_rk3288()){
                 if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)	   
                         grf_writel((voltage << 7) | (1 << 23), RK3288_GRF_IO_VSEL);
                 else
                         return ;
         }else{
-                 MMC_DBG_ERR_FUNC(host->mmc,"%s : unknown chip [%s]\n", 
-        		   __FUNCTION__, mmc_hostname(host->mmc));
+                MMC_DBG_ERR_FUNC(host->mmc,"%s : unknown chip [%s]\n",
+                                        __FUNCTION__, mmc_hostname(host->mmc));
         }
 }
 
@@ -1822,6 +1831,13 @@ static int dw_mci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	struct dw_mci_tuning_data tuning_data;
 	int err = -ENOSYS;
+
+        /* Fixme: 3036/3126 doesn't support 1.8 io domain, no sense exe tuning
+        if(cpu_is_3036() || cpu_is_3126())
+                return ENOSYS;
+        AND
+                what about audi-b?
+        */
 
 	if (opcode == MMC_SEND_TUNING_BLOCK_HS200) {
 		if (mmc->ios.bus_width == MMC_BUS_WIDTH_8) {
@@ -3905,30 +3921,38 @@ int dw_mci_resume(struct dw_mci *host)
     	/*only for sdmmc controller*/
 	if(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
 		disable_irq_wake(host->mmc->slot.cd_irq);
-		mmc_gpio_free_cd(host->mmc);
+                mmc_gpio_free_cd(host->mmc);
 		if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
                         MMC_DBG_ERR_FUNC(host->mmc, "Default pinctrl setting failed! [%s]",
                                                 mmc_hostname(host->mmc));
 		host->mmc->rescan_disable = 0;
-		if(cpu_is_rk3288()) {
-			grf_writel(((1<<12)<<16)|(0<<12), RK3288_GRF_SOC_CON0);//disable jtag
-		}
+		/* Disable jtag*/
+		if(cpu_is_rk3288())
+                        grf_writel(((1 << 12) << 16) | (0 << 12), RK3288_GRF_SOC_CON0);
+                /*
+                else if(cpu_is_rk3036())
+                        grf_writel(((1 << 11) << 16) | (0 << 11), RK3036_GRF_SOC_CON0);
+                else if(cpu_is_rk3126())
+                        TODO;
+                else if audi-b
+                        TODO;
+                */
 	}
-	if (host->vmmc) {
+	if(host->vmmc){
 		ret = regulator_enable(host->vmmc);
-		if (ret) {
+		if (ret){
 			dev_err(host->dev,
 				"failed to enable regulator: %d\n", ret);
 			return ret;
 		}
 	}
 	
-	if (!dw_mci_ctrl_all_reset(host)) {
+	if(!dw_mci_ctrl_all_reset(host)){
 		ret = -ENODEV;
 		return ret;
 	}
 
-	if (host->use_dma && host->dma_ops->init)
+	if(host->use_dma && host->dma_ops->init)
 		host->dma_ops->init(host);
 
 	/*
@@ -3948,21 +3972,20 @@ int dw_mci_resume(struct dw_mci *host)
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 	/*only for sdmmc controller*/
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)) {
+	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)&& (!retry_cnt)){
 		enable_irq(host->irq);	
 	}   
-	
 
-	for (i = 0; i < host->num_slots; i++) {
+	for(i = 0; i < host->num_slots; i++){
 		struct dw_mci_slot *slot = host->slot[i];
-		if (!slot)
+		if(!slot)
 			continue;
-		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
+		if(slot->mmc->pm_flags & MMC_PM_KEEP_POWER){
 			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
 			dw_mci_setup_bus(slot, true);
 		}
 	}
-	
+
 	return 0;
 }
 EXPORT_SYMBOL(dw_mci_resume);
