@@ -16,16 +16,18 @@
 		status = "okay";
 	};
     
-        rockchip_ft_test {
-            // rockchip,arm_rate =<408000000 504000000 600000000 792000000>;     
-            // firs rate is setting in rockchip_clocks_init,so it is set 0xfffffffff
+        rockchip_ft_test {            
+            // firs rate is setting in rockchip_clocks_init,so it is set 0xfffffffff            
+            //rockchip,arm_rate =<0xffffffff 456000000 504000000 552000000>;     
             rockchip,arm_rate =<0xffffffff (1728000000*1) (1752000000*1)  (1800000000*1)>;   
             rockchip,l1_tst_cnt=<(5*10*2-10) (5*10*2-10) (5*10*2-10) (80-10+0) >;
             rockchip,l2_cpy_cnt= <5 5 4 (4+0)>;
             rockchip,ftt_tst_cnt= <1 1 1 (0+0)>;
             rockchip,pi_tst_cnt= <12 12 10 (8+0)>;
             rockchip,stp_task_num= <300 250 250 (80+0)>;
-            rockchip,ft_end_cnt= <0x23>;   
+            rockchip,ft_end_cnt= <(0x24)>;    
+                                               //ready_pin idle_pin
+           rockchip,ft_vol_gpios= <GPIO0_C2 GPIO0_A0>;   
         };
 };
 

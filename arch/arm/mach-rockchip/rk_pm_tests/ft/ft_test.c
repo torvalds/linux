@@ -99,7 +99,7 @@ const static unsigned int ftt_tst_cnt [TST_SETUPS]={1,1,1,0};
 const static unsigned int pi_tst_cnt[TST_SETUPS]={12,12,10,8};
 const static unsigned int stp_task_num[TST_SETUPS]={300,250,250,80};
 
-static u32 ft_end_cnt=0x24;
+static u32 ft_end_cnt=0x20;
 
 //
 #define get_setup_tasks(a) ft_get_min(a,TST_TASK_NUM)
@@ -616,25 +616,20 @@ int ft_cpu_test_type0_check(int steps,const char *str)
 	return ret;
 }	
 /*************************************type1 rate tst case**************************************/
-#define ENABLE_FT_TEST_GPIO   // for ft seting 1.6G volt
 
-#ifdef ENABLE_FT_TEST_GPIO
+static u32 ft_client_ready_pin =0;
+static u32 ft_client_idle_pin =0;
 
-#define FT_CLIENT_READY_PIN    (0x0c20)
-#define FT_CLIENT_IDLE_PIN     (0x0a00)
 #include "rk_ft_io.c"
 
-#endif
-
-//uint32_t ddr_change_freq(uint32_t nMHz);
+//#define FT_CLIENT_READY_PIN    (0x0c20)
+//#define FT_CLIENT_IDLE_PIN     (0x0a00)
 
 int ft_cpu_test_type1_check(int steps,const char *str)
 {
 	int cpu, ret = 0,i;
 	int rate;
-        #ifdef ENABLE_FT_TEST_GPIO
         u8 idle_gpio_level;
-        #endif
 
 	if(arm_setups_rate[steps])
 	{	
@@ -656,24 +651,20 @@ int ft_cpu_test_type1_check(int steps,const char *str)
                         #endif    
 		}
 		
-	
+                if(ft_client_ready_pin&&ft_client_ready_pin)
+                {
 
-		#ifdef ENABLE_FT_TEST_GPIO
-               
-		//ft_printk("S%s,will set gpio\n",str);
+                    //ft_printk("S%s,will set gpio\n",str);
+                    idle_gpio_level=gpio_get_input_level(ft_client_idle_pin);
+                    // send msg to ctr board to up the volt
+                    gpio_set_output_level(ft_client_ready_pin,RKPM_GPIO_OUT_H);  
 
-        
-		idle_gpio_level=gpio_get_input_level(FT_CLIENT_IDLE_PIN);
-		// send msg to ctr board to up the volt
-                gpio_set_output_level(FT_CLIENT_READY_PIN,RKPM_GPIO_OUT_H);  
-		
-		// waiting for volt upping ok 
-        	while( idle_gpio_level== gpio_get_input_level(FT_CLIENT_IDLE_PIN));
-	         gpio_set_output_level(FT_CLIENT_READY_PIN,RKPM_GPIO_OUT_L);  
-
-		//ft_printk("S%s,set gpio end\n",str);
-		#endif
-
+                    // waiting for volt upping ok 
+                    while( idle_gpio_level== gpio_get_input_level(ft_client_idle_pin));
+                    gpio_set_output_level(ft_client_ready_pin,RKPM_GPIO_OUT_L);  
+                    //ft_printk("S%s,set gpio end\n",str);
+                    
+                }
 		if(arm_setups_rate[steps]>=rate)
 		{	
 			clk_set_rate(arm_clk,arm_setups_rate[steps]);
@@ -918,9 +909,9 @@ int rk_ft_tests_cpus_init(int cpu)
 static int __init rk_ft_tests_init(void)
 {
 	int cpu, i,ret = 0;
-	struct sched_param param = { .sched_priority =0 };	
-    
+	struct sched_param param = { .sched_priority =0 };	    
         struct device_node *parent;
+        u32 temp_gpios[2];
 
         ft_printk_info("%s\n",__FUNCTION__);
 
@@ -976,20 +967,26 @@ static int __init rk_ft_tests_init(void)
                                     ,i,l1_tst_cnt[i],l2_cpy_cnt[i],ftt_tst_cnt[i],pi_tst_cnt[i],stp_task_num[i]);
        
         }
-
-        if(of_property_read_u32_array(parent,"rockchip,ft_end_cnt",&ft_end_cnt,1))
+        
+        if(of_property_read_u32_array(parent,"rockchip,ft_end_cnt",(u32 *)&ft_end_cnt,1))
         {
              printk("%s:ft_end_cnt error\n",__FUNCTION__);
              return -1;
         }
 
-        
-
-        
+        if(of_property_read_u32_array(parent,"rockchip,ft_vol_gpios",(u32 *)&temp_gpios[0],2))
+        {
+             printk("%s:no ft_vol_gpios info,so ft ctr vol is not support\n",__FUNCTION__);
+        }  
+        else
+        {       
+            ft_client_ready_pin=temp_gpios[0];        
+            ft_client_idle_pin=temp_gpios[1];      
+            ft_printk_info("ft_vol_gpio%x,%x\n",ft_client_ready_pin,ft_client_idle_pin);
+        }
 
 	//ddr_clk = clk_get(NULL, "clk_ddr");
 	//clk_set_rate(ddr_clk,0);
-
 
 	for(i=0;i<TST_SETUPS;i++)
 	{	
@@ -1032,22 +1029,26 @@ static int __init rk_ft_tests_init(void)
 static int rk_ft_tests_over(void)
 {
 	int ret = 0;
-	//int gpio_ret,gpio_ret1;
-        rk_ft_tests_init();
-
-    
-        #ifdef ENABLE_FT_TEST_GPIO
+        //return 0;
+        //int gpio_ret,gpio_ret1;
+        ret=rk_ft_tests_init();
+        if(ret)
+        {
+            printk("rk_ft_tests_init error\n");
+            while(1);
+        }
+   
+        if(ft_client_ready_pin&&ft_client_ready_pin)
+        {
             //GPIO0_A0
-            gpio_set_in_output(FT_CLIENT_READY_PIN,RKPM_GPIO_OUTPUT);    
-            gpio_set_output_level(FT_CLIENT_READY_PIN,RKPM_GPIO_OUT_L);  
-            
-            gpio_set_in_output(FT_CLIENT_IDLE_PIN,RKPM_GPIO_INPUT);
-            
-            pin_set_fun(FT_CLIENT_READY_PIN);    //ready
-            pin_set_fun(FT_CLIENT_IDLE_PIN);    // idle
-           
-       #endif	
+            gpio_set_in_output(ft_client_ready_pin,RKPM_GPIO_OUTPUT);    
+            gpio_set_output_level(ft_client_ready_pin,RKPM_GPIO_OUT_L);  
 
+            gpio_set_in_output(ft_client_idle_pin,RKPM_GPIO_INPUT);
+
+            pin_set_fun(ft_client_ready_pin);    //ready
+            pin_set_fun(ft_client_idle_pin);    // idle    
+        }
 	ft_cpu_test_type0_check(0,"KERNEL");
 	
 	ft_cpu_test_type1_check(1,"HSPEED");
