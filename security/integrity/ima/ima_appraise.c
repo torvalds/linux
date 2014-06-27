@@ -202,8 +202,11 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			goto out;
 
 		cause = "missing-hash";
-		status =
-		    (inode->i_size == 0) ? INTEGRITY_PASS : INTEGRITY_NOLABEL;
+		status = INTEGRITY_NOLABEL;
+		if (inode->i_size == 0) {
+			iint->flags |= IMA_NEW_FILE;
+			status = INTEGRITY_PASS;
+		}
 		goto out;
 	}
 

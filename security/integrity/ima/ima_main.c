@@ -124,11 +124,13 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 		return;
 
 	mutex_lock(&inode->i_mutex);
-	if (atomic_read(&inode->i_writecount) == 1 &&
-	    iint->version != inode->i_version) {
-		iint->flags &= ~IMA_DONE_MASK;
-		if (iint->flags & IMA_APPRAISE)
-			ima_update_xattr(iint, file);
+	if (atomic_read(&inode->i_writecount) == 1) {
+		if ((iint->version != inode->i_version) ||
+		    (iint->flags & IMA_NEW_FILE)) {
+			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
+			if (iint->flags & IMA_APPRAISE)
+				ima_update_xattr(iint, file);
+		}
 	}
 	mutex_unlock(&inode->i_mutex);
 }
