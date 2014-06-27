@@ -786,17 +786,17 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		case DDR_80_MHZ:
 			psDDRSetting = asT3LP_DDRSetting80MHz;
 			RegCount = (sizeof(asT3LP_DDRSetting80MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_100_MHZ:
 			psDDRSetting = asT3LP_DDRSetting100MHz;
 			RegCount = (sizeof(asT3LP_DDRSetting100MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_133_MHZ:
 			psDDRSetting = asT3LP_DDRSetting133MHz;
 			RegCount = (sizeof(asT3LP_DDRSetting133MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			if (Adapter->bMipsConfig == MIPS_200_MHZ)
 				uiClockSetting = 0x03F13652;
 			else
@@ -837,17 +837,17 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		case DDR_80_MHZ:
 			psDDRSetting = asT3LPB_DDRSetting80MHz;
 			RegCount = (sizeof(asT3B_DDRSetting80MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_100_MHZ:
 			psDDRSetting = asT3LPB_DDRSetting100MHz;
 			RegCount = (sizeof(asT3B_DDRSetting100MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_133_MHZ:
 			psDDRSetting = asT3LPB_DDRSetting133MHz;
 			RegCount = (sizeof(asT3B_DDRSetting133MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 
 			if (Adapter->bMipsConfig == MIPS_200_MHZ)
 				uiClockSetting = 0x03F13652;
@@ -876,17 +876,17 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		case DDR_80_MHZ:
 			psDDRSetting = asT3_DDRSetting80MHz;
 			RegCount = (sizeof(asT3_DDRSetting80MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_100_MHZ:
 			psDDRSetting = asT3_DDRSetting100MHz;
 			RegCount = (sizeof(asT3_DDRSetting100MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_133_MHZ:
 			psDDRSetting = asT3_DDRSetting133MHz;
 			RegCount = (sizeof(asT3_DDRSetting133MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		default:
 			return -EINVAL;
@@ -897,25 +897,25 @@ int ddr_init(struct bcm_mini_adapter *Adapter)
 		case DDR_80_MHZ:
 			psDDRSetting = asT3B_DDRSetting80MHz;
 			RegCount = (sizeof(asT3B_DDRSetting80MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_100_MHZ:
 			psDDRSetting = asT3B_DDRSetting100MHz;
 			RegCount = (sizeof(asT3B_DDRSetting100MHz) /
-			sizeof(struct bcm_ddr_setting));
+				    sizeof(struct bcm_ddr_setting));
 			break;
 		case DDR_133_MHZ:
 
 			if (Adapter->bDPLLConfig == PLL_266_MHZ) {  /* 266Mhz PLL selected. */
 				memcpy(asT3B_DDRSetting133MHz, asDPLL_266MHZ,
-				sizeof(asDPLL_266MHZ));
+				       sizeof(asDPLL_266MHZ));
 				psDDRSetting = asT3B_DDRSetting133MHz;
 				RegCount = (sizeof(asT3B_DDRSetting133MHz) /
-				sizeof(struct bcm_ddr_setting));
+					    sizeof(struct bcm_ddr_setting));
 			} else {
 				psDDRSetting = asT3B_DDRSetting133MHz;
 				RegCount = (sizeof(asT3B_DDRSetting133MHz) /
-				sizeof(struct bcm_ddr_setting));
+					    sizeof(struct bcm_ddr_setting));
 				if (Adapter->bMipsConfig == MIPS_200_MHZ)
 					uiClockSetting = 0x07F13652;
 				else
@@ -1217,7 +1217,7 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018)) {
 				value = (psDDRSetting->ulRegValue | (1<<8));
 			if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
-				&value, sizeof(value))) {
+					&value, sizeof(value))) {
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
 				break;
 			}
