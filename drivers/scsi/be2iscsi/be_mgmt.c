@@ -1015,7 +1015,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		if (if_info->dhcp_state) {
 			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 				    "BG_%d : DHCP Already Enabled\n");
-			return 0;
+			goto exit;
 		}
 		/* The ip_param->len is 1 in DHCP case. Setting
 		   proper IP len as this it is used while
@@ -1033,7 +1033,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 				sizeof(*reldhcp));
 
 			if (rc)
-				return rc;
+				goto exit;
 
 			reldhcp = nonemb_cmd.va;
 			reldhcp->interface_hndl = phba->interface_handle;
@@ -1044,7 +1044,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 				beiscsi_log(phba, KERN_WARNING,
 					    BEISCSI_LOG_CONFIG,
 					    "BG_%d : Failed to Delete existing dhcp\n");
-				return rc;
+				goto exit;
 			}
 		}
 	}
@@ -1054,7 +1054,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		rc = mgmt_static_ip_modify(phba, if_info, ip_param, NULL,
 					   IP_ACTION_DEL);
 		if (rc)
-			return rc;
+			goto exit;
 	}
 
 	/* Delete the Gateway settings if mode change is to DHCP */
@@ -1064,7 +1064,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		if (rc) {
 			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
 				    "BG_%d : Failed to Get Gateway Addr\n");
-			return rc;
+			goto exit;
 		}
 
 		if (gtway_addr_set.ip_addr.addr[0]) {
@@ -1076,7 +1076,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 				beiscsi_log(phba, KERN_WARNING,
 					    BEISCSI_LOG_CONFIG,
 					    "BG_%d : Failed to clear Gateway Addr Set\n");
-				return rc;
+				goto exit;
 			}
 		}
 	}
@@ -1087,7 +1087,7 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 			OPCODE_COMMON_ISCSI_NTWK_CONFIG_STATELESS_IP_ADDR,
 			sizeof(*dhcpreq));
 		if (rc)
-			return rc;
+			goto exit;
 
 		dhcpreq = nonemb_cmd.va;
 		dhcpreq->flags = BLOCKING;
@@ -1095,12 +1095,14 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		dhcpreq->interface_hndl = phba->interface_handle;
 		dhcpreq->ip_type = BE2_DHCP_V4;
 
-		return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
+		rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 	} else {
-		return mgmt_static_ip_modify(phba, if_info, ip_param,
+		rc = mgmt_static_ip_modify(phba, if_info, ip_param,
 					     subnet_param, IP_ACTION_ADD);
 	}
 
+exit:
+	kfree(if_info);
 	return rc;
 }
 
