@@ -4944,7 +4944,20 @@ static void i40e_service_event_complete(struct i40e_pf *pf)
 }
 
 /**
- * i40e_get_current_fd_count - Get the count of FD filters programmed in the HW
+ * i40e_get_cur_guaranteed_fd_count - Get the consumed guaranteed FD filters
+ * @pf: board private structure
+ **/
+int i40e_get_cur_guaranteed_fd_count(struct i40e_pf *pf)
+{
+	int val, fcnt_prog;
+
+	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
+	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK);
+	return fcnt_prog;
+}
+
+/**
+ * i40e_get_current_fd_count - Get the count of total FD filters programmed
  * @pf: board private structure
  **/
 int i40e_get_current_fd_count(struct i40e_pf *pf)
@@ -4956,7 +4969,6 @@ int i40e_get_current_fd_count(struct i40e_pf *pf)
 		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
 	return fcnt_prog;
 }
-
 /**
  * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
  * @pf: board private structure
@@ -4971,8 +4983,8 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
 		return;
-	fcnt_prog = i40e_get_current_fd_count(pf);
-	fcnt_avail = i40e_get_fd_cnt_all(pf);
+	fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
+	fcnt_avail = pf->fdir_pf_filter_count;
 	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {

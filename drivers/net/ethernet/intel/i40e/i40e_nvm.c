@@ -324,13 +324,9 @@ i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 	u16 checksum_sr = 0;
 	u16 checksum_local = 0;
 
-	ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-	if (ret_code)
-		goto i40e_validate_nvm_checksum_exit;
-
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum_local);
 	if (ret_code)
-		goto i40e_validate_nvm_checksum_free;
+		goto i40e_validate_nvm_checksum_exit;
 
 	/* Do not use i40e_read_nvm_word() because we do not want to take
 	 * the synchronization semaphores twice here.
@@ -346,9 +342,6 @@ i40e_status i40e_validate_nvm_checksum(struct i40e_hw *hw,
 	/* If the user cares, return the calculated checksum */
 	if (checksum)
 		*checksum = checksum_local;
-
-i40e_validate_nvm_checksum_free:
-	i40e_release_nvm(hw);
 
 i40e_validate_nvm_checksum_exit:
 	return ret_code;

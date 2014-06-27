@@ -2018,11 +2018,15 @@ static void i40evf_init_task(struct work_struct *work)
 		if (err) {
 			dev_info(&pdev->dev, "Unable to verify API version (%d), retrying\n",
 				err);
+			if (err == I40E_ERR_ADMIN_QUEUE_NO_WORK) {
+				dev_info(&pdev->dev, "Resending request\n");
+				err = i40evf_send_api_ver(adapter);
+			}
 			goto err;
 		}
 		err = i40evf_send_vf_config_msg(adapter);
 		if (err) {
-			dev_err(&pdev->dev, "Unable send config request (%d)\n",
+			dev_err(&pdev->dev, "Unable to send config request (%d)\n",
 				err);
 			goto err;
 		}
@@ -2408,7 +2412,9 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_reset_interrupt_capability(adapter);
 	}
 
-	del_timer_sync(&adapter->watchdog_timer);
+	if (adapter->watchdog_timer.function)
+		del_timer_sync(&adapter->watchdog_timer);
+
 	flush_scheduled_work();
 
 	if (hw->aq.asq.count)
