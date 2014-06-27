@@ -380,12 +380,32 @@ gen7_render_ring_flush(struct intel_engine_cs *ring,
 }
 
 static int
+gen8_emit_pipe_control(struct intel_engine_cs *ring,
+		       u32 flags, u32 scratch_addr)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
+	intel_ring_emit(ring, flags);
+	intel_ring_emit(ring, scratch_addr);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
 gen8_render_ring_flush(struct intel_engine_cs *ring,
 		       u32 invalidate_domains, u32 flush_domains)
 {
 	u32 flags = 0;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
-	int ret;
 
 	flags |= PIPE_CONTROL_CS_STALL;
 
@@ -404,20 +424,7 @@ gen8_render_ring_flush(struct intel_engine_cs *ring,
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
 	}
 
-	ret = intel_ring_begin(ring, 6);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(6));
-	intel_ring_emit(ring, flags);
-	intel_ring_emit(ring, scratch_addr);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
-	intel_ring_emit(ring, 0);
-	intel_ring_advance(ring);
-
-	return 0;
-
+	return gen8_emit_pipe_control(ring, flags, scratch_addr);
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,
