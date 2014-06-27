@@ -1684,7 +1684,7 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	assert_pipe_disabled(dev_priv, pipe);
 
 	/* Set PLL en = 0 */
-	val = DPLL_SSC_REF_CLOCK_CHV;
+	val = DPLL_SSC_REF_CLOCK_CHV | DPLL_REFA_CLK_ENABLE_VLV;
 	if (pipe != PIPE_A)
 		val |= DPLL_INTEGRATED_CRI_CLK_VLV;
 	I915_WRITE(DPLL(pipe), val);
