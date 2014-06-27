@@ -1208,12 +1208,6 @@ static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 
 	current->utask->vaddr = (unsigned long) &udd;
 
-#ifdef CONFIG_PERF_EVENTS
-	if ((tu->tp.flags & TP_FLAG_TRACE) == 0 &&
-	    !uprobe_perf_filter(&tu->consumer, 0, current->mm))
-		return UPROBE_HANDLER_REMOVE;
-#endif
-
 	if (WARN_ON_ONCE(!uprobe_cpu_buffer))
 		return 0;
 
