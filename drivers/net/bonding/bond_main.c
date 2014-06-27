@@ -1001,12 +1001,6 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 	netdev_features_t mask;
 	struct slave *slave;
 
-	if (!bond_has_slaves(bond)) {
-		/* Disable adding VLANs to empty bond. But why? --mq */
-		features |= NETIF_F_VLAN_CHALLENGED;
-		return features;
-	}
-
 	mask = features;
 	features &= ~NETIF_F_ONE_FOR_ALL;
 	features |= NETIF_F_ALL_FOR_ALL;
@@ -3955,13 +3949,6 @@ void bond_setup(struct net_device *bond_dev)
 	bond_dev->flags |= IFF_MASTER|IFF_MULTICAST;
 	bond_dev->priv_flags |= IFF_BONDING | IFF_UNICAST_FLT;
 	bond_dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_TX_SKB_SHARING);
-
-	/* At first, we block adding VLANs. That's the only way to
-	 * prevent problems that occur when adding VLANs over an
-	 * empty bond. The block will be removed once non-challenged
-	 * slaves are enslaved.
-	 */
-	bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 
 	/* don't acquire bond device's netif_tx_lock when
 	 * transmitting */
