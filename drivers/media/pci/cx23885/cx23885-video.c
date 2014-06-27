@@ -1157,7 +1157,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		V4L2_CAP_READWRITE     |
 		V4L2_CAP_STREAMING     |
 		V4L2_CAP_VBI_CAPTURE;
-	if (UNSET != dev->tuner_type)
+	if (dev->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
@@ -1475,7 +1475,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
-	if (unlikely(UNSET == dev->tuner_type))
+	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1491,7 +1491,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
-	if (UNSET == dev->tuner_type)
+	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1507,7 +1507,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev = fh->dev;
 
-	if (unlikely(UNSET == dev->tuner_type))
+	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 
 	/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
@@ -1523,7 +1523,7 @@ static int cx23885_set_freq(struct cx23885_dev *dev, const struct v4l2_frequency
 {
 	struct v4l2_control ctrl;
 
-	if (unlikely(UNSET == dev->tuner_type))
+	if (dev->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
