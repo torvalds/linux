@@ -88,8 +88,10 @@ static void octeon_smp_hotplug_setup(void)
 		return;
 
 	labi = (struct linux_app_boot_info *)PHYS_TO_XKSEG_CACHED(LABI_ADDR_IN_BOOTLOADER);
-	if (labi->labi_signature != LABI_SIGNATURE)
-		panic("The bootloader version on this board is incorrect.");
+	if (labi->labi_signature != LABI_SIGNATURE) {
+		pr_info("The bootloader on this board does not support HOTPLUG_CPU.");
+		return;
+	}
 
 	octeon_bootloader_entry_addr = labi->InitTLBStart_addr;
 #endif
@@ -132,7 +134,8 @@ static void octeon_smp_setup(void)
 	 * will assign CPU numbers for possible cores as well.	Cores
 	 * are always consecutively numberd from 0.
 	 */
-	for (id = 0; setup_max_cpus && id < num_cores && id < NR_CPUS; id++) {
+	for (id = 0; setup_max_cpus && octeon_bootloader_entry_addr &&
+		     id < num_cores && id < NR_CPUS; id++) {
 		if (!(core_mask & (1 << id))) {
 			set_cpu_possible(cpus, true);
 			__cpu_number_map[id] = cpus;
@@ -231,6 +234,9 @@ static int octeon_cpu_disable(void)
 
 	if (cpu == 0)
 		return -EBUSY;
+
+	if (!octeon_bootloader_entry_addr)
+		return -ENOTSUPP;
 
 	set_cpu_online(cpu, false);
 	cpu_clear(cpu, cpu_callin_map);
