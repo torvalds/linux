@@ -6877,13 +6877,23 @@ static struct i915_power_well chv_power_wells[] = {
 #endif
 	{
 		.name = "dpio-common-bc",
-		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS,
+		/*
+		 * XXX: cmnreset for one PHY seems to disturb the other.
+		 * As a workaround keep both powered on at the same
+		 * time for now.
+		 */
+		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS | CHV_DPIO_CMN_D_POWER_DOMAINS,
 		.data = PUNIT_POWER_WELL_DPIO_CMN_BC,
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
 	{
 		.name = "dpio-common-d",
-		.domains = CHV_DPIO_CMN_D_POWER_DOMAINS,
+		/*
+		 * XXX: cmnreset for one PHY seems to disturb the other.
+		 * As a workaround keep both powered on at the same
+		 * time for now.
+		 */
+		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS | CHV_DPIO_CMN_D_POWER_DOMAINS,
 		.data = PUNIT_POWER_WELL_DPIO_CMN_D,
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
