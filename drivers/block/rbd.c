@@ -4072,6 +4072,8 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 		parent_spec->snap_id = snap_id;
 		rbd_dev->parent_spec = parent_spec;
 		parent_spec = NULL;	/* rbd_dev now owns this */
+	} else {
+		kfree(image_id);
 	}
 
 	/*
