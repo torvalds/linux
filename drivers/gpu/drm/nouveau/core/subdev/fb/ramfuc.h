@@ -26,7 +26,7 @@ ramfuc_reg2(u32 addr1, u32 addr2)
 	};
 }
 
-static inline struct ramfuc_reg
+static noinline struct ramfuc_reg
 ramfuc_reg(u32 addr)
 {
 	return ramfuc_reg2(addr, addr);
