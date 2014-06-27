@@ -271,21 +271,6 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 	}
 }
 
-static void hci_conn_disconnect(struct hci_conn *conn)
-{
-	__u8 reason;
-
-	switch (conn->type) {
-	case AMP_LINK:
-		hci_amp_disconn(conn);
-		break;
-	default:
-		reason = hci_proto_disconn_ind(conn);
-		hci_disconnect(conn, reason);
-		break;
-	}
-}
-
 static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
@@ -320,7 +305,12 @@ static void hci_conn_timeout(struct work_struct *work)
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
-		hci_conn_disconnect(conn);
+		if (conn->type == AMP_LINK) {
+			hci_amp_disconn(conn);
+		} else {
+			__u8 reason = hci_proto_disconn_ind(conn);
+			hci_disconnect(conn, reason);
+		}
 		break;
 	default:
 		conn->state = BT_CLOSED;
