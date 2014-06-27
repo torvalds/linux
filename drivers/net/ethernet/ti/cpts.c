@@ -256,23 +256,21 @@ static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
 		      u16 ts_seqid, u8 ts_msgtype)
 {
 	u16 *seqid;
-	unsigned int offset;
+	unsigned int offset = 0;
 	u8 *msgtype, *data = skb->data;
 
-	switch (ptp_class) {
-	case PTP_CLASS_V1_IPV4:
-	case PTP_CLASS_V2_IPV4:
-		offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
+	if (ptp_class & PTP_CLASS_VLAN)
+		offset += VLAN_HLEN;
+
+	switch (ptp_class & PTP_CLASS_PMASK) {
+	case PTP_CLASS_IPV4:
+		offset += ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
 		break;
-	case PTP_CLASS_V1_IPV6:
-	case PTP_CLASS_V2_IPV6:
-		offset = OFF_PTP6;
+	case PTP_CLASS_IPV6:
+		offset += ETH_HLEN + IP6_HLEN + UDP_HLEN;
 		break;
-	case PTP_CLASS_V2_L2:
-		offset = ETH_HLEN;
-		break;
-	case PTP_CLASS_V2_VLAN:
-		offset = ETH_HLEN + VLAN_HLEN;
+	case PTP_CLASS_L2:
+		offset += ETH_HLEN;
 		break;
 	default:
 		return 0;
