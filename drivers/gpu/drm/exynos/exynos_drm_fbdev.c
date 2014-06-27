@@ -266,7 +266,8 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	private->fb_helper = helper = &fbdev->drm_fb_helper;
-	helper->funcs = &exynos_drm_fb_helper_funcs;
+
+	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
 
 	num_crtc = dev->mode_config.num_crtc;
 

@@ -149,7 +149,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	priv->fbdev = fbh;
 
-	fbh->funcs = &armada_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fbh, 1, 1);
 	if (ret) {

@@ -293,8 +293,9 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 		return -ENOMEM;
 
 	mdev->mfbdev = mfbdev;
-	mfbdev->helper.funcs = &mga_fb_helper_funcs;
 	spin_lock_init(&mfbdev->dirty_lock);
+
+	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
 				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);

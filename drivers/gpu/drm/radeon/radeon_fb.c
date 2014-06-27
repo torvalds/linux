@@ -353,7 +353,9 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 
 	rfbdev->rdev = rdev;
 	rdev->mode_info.rfbdev = rfbdev;
-	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
+
+	drm_fb_helper_prepare(rdev->ddev, &rfbdev->helper,
+			      &radeon_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(rdev->ddev, &rfbdev->helper,
 				 rdev->num_crtc,

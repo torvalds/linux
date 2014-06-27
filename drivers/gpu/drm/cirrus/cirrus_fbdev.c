@@ -306,8 +306,10 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 		return -ENOMEM;
 
 	cdev->mode_info.gfbdev = gfbdev;
-	gfbdev->helper.funcs = &cirrus_fb_helper_funcs;
 	spin_lock_init(&gfbdev->dirty_lock);
+
+	drm_fb_helper_prepare(cdev->dev, &gfbdev->helper,
+			      &cirrus_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
 				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);

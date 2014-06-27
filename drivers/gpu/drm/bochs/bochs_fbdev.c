@@ -189,7 +189,8 @@ int bochs_fbdev_init(struct bochs_device *bochs)
 {
 	int ret;
 
-	bochs->fb.helper.funcs = &bochs_fb_helper_funcs;
+	drm_fb_helper_prepare(bochs->dev, &bochs->fb.helper,
+			      &bochs_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(bochs->dev, &bochs->fb.helper,
 				 1, 1);

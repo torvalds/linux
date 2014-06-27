@@ -583,7 +583,8 @@ int udl_fbdev_init(struct drm_device *dev)
 		return -ENOMEM;
 
 	udl->fbdev = ufbdev;
-	ufbdev->helper.funcs = &udl_fb_helper_funcs;
+
+	drm_fb_helper_prepare(dev, &ufbdev->helper, &udl_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, &ufbdev->helper,
 				 1, 1);
