@@ -294,6 +294,10 @@ EXPORT_SYMBOL_GPL(qeth_realloc_buffer_pool);
 
 static void qeth_free_qdio_queue(struct qeth_qdio_q *q)
 {
+	if (!q)
+		return;
+
+	qdio_free_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
 	kfree(q);
 }
 
@@ -305,8 +309,13 @@ static struct qeth_qdio_q *qeth_alloc_qdio_queue(void)
 	if (!q)
 		return NULL;
 
+	if (qdio_alloc_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q)) {
+		kfree(q);
+		return NULL;
+	}
+
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i)
-		q->bufs[i].buffer = &q->qdio_bufs[i];
+		q->bufs[i].buffer = q->qdio_bufs[i];
 
 	QETH_DBF_HEX(SETUP, 2, &q, sizeof(void *));
 	return q;
@@ -318,8 +327,8 @@ static inline int qeth_cq_init(struct qeth_card *card)
 
 	if (card->options.cq == QETH_CQ_ENABLED) {
 		QETH_DBF_TEXT(SETUP, 2, "cqinit");
-		memset(card->qdio.c_q->qdio_bufs, 0,
-		       QDIO_MAX_BUFFERS_PER_Q * sizeof(struct qdio_buffer));
+		qdio_reset_buffers(card->qdio.c_q->qdio_bufs,
+				   QDIO_MAX_BUFFERS_PER_Q);
 		card->qdio.c_q->next_buf_to_init = 127;
 		rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT,
 			     card->qdio.no_in_queues - 1, 0,
@@ -2791,8 +2800,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	QETH_DBF_TEXT(SETUP, 2, "initqdqs");
 
 	/* inbound queue */
-	memset(card->qdio.in_q->qdio_bufs, 0,
-	       QDIO_MAX_BUFFERS_PER_Q * sizeof(struct qdio_buffer));
+	qdio_reset_buffers(card->qdio.in_q->qdio_bufs,
+			   QDIO_MAX_BUFFERS_PER_Q);
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
 	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; ++i)
@@ -3533,7 +3542,7 @@ static void qeth_qdio_cq_handler(struct qeth_card *card,
 
 	for (i = first_element; i < first_element + count; ++i) {
 		int bidx = i % QDIO_MAX_BUFFERS_PER_Q;
-		struct qdio_buffer *buffer = &cq->qdio_bufs[bidx];
+		struct qdio_buffer *buffer = cq->qdio_bufs[bidx];
 		int e;
 
 		e = 0;

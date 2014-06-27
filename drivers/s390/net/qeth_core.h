@@ -439,10 +439,10 @@ struct qeth_qdio_buffer {
 };
 
 struct qeth_qdio_q {
-	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_buffer bufs[QDIO_MAX_BUFFERS_PER_Q];
 	int next_buf_to_init;
-} __attribute__ ((aligned(256)));
+};
 
 struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
