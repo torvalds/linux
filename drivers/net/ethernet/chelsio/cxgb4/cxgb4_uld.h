@@ -253,6 +253,7 @@ struct cxgb4_lld_info {
 	int dbfifo_int_thresh;		     /* doorbell fifo int threshold */
 	unsigned int sge_pktshift;           /* Padding between CPL and */
 					     /*	packet data */
+	unsigned int pf;		     /* Physical Function we're using */
 	bool enable_fw_ofld_conn;            /* Enable connection through fw */
 					     /* WR */
 	bool ulptx_memwrite_dsgl;            /* use of T5 DSGL allowed */
