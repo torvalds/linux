@@ -1159,7 +1159,8 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 {
 	struct bcm_ddr_setting *psDDRSetting = NULL;
 	ULONG RegCount = 0;
-	unsigned long ul_ddr_setting_load_addr = DDR_DUMP_INTERNAL_DEVICE_MEMORY;
+	unsigned long ul_ddr_setting_load_addr =
+		DDR_DUMP_INTERNAL_DEVICE_MEMORY;
 	UINT value = 0;
 	int retval = STATUS_SUCCESS;
 	bool bOverrideSelfRefresh = false;
@@ -1283,18 +1284,22 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 	}
 	/* total number of Register that has to be dumped */
 	value = RegCount;
-	retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value, sizeof(value));
+	retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value,
+			sizeof(value));
 	if (retval) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"%s:%d\n", __func__, __LINE__);
 
 		return retval;
 	}
 	ul_ddr_setting_load_addr += sizeof(ULONG);
 	/* signature */
 	value = (0x1d1e0dd0);
-	retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value, sizeof(value));
+	retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value,
+			sizeof(value));
 	if (retval) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"%s:%d\n", __func__, __LINE__);
 		return retval;
 	}
 
@@ -1303,17 +1308,23 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 
 	while (RegCount && !retval) {
 		value = psDDRSetting->ulRegAddress;
-		retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value, sizeof(value));
+		retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value,
+				sizeof(value));
 		ul_ddr_setting_load_addr += sizeof(ULONG);
 		if (!retval) {
-			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018))
+			if (bOverrideSelfRefresh
+					&& (psDDRSetting->ulRegAddress
+						== 0x0F007018))
 				value = (psDDRSetting->ulRegValue | (1<<8));
 			else
 				value = psDDRSetting->ulRegValue;
 
-			if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
-					&value, sizeof(value))) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
+			if (STATUS_SUCCESS != wrmalt(Adapter,
+						     ul_ddr_setting_load_addr,
+						     &value,
+						     sizeof(value))) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+						"%s:%d\n", __func__, __LINE__);
 				break;
 			}
 		}
