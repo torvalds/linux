@@ -55,11 +55,9 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
-			const struct ipv6_pinfo *np = inet6_sk(sk);
-
 			tw->tw_v6_daddr = sk->sk_v6_daddr;
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
-			tw->tw_ipv6only = np->ipv6only;
+			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
 		/* Linkage updates. */

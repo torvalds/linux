@@ -108,6 +108,7 @@ struct inet_timewait_sock {
 #define tw_family		__tw_common.skc_family
 #define tw_state		__tw_common.skc_state
 #define tw_reuse		__tw_common.skc_reuse
+#define tw_ipv6only		__tw_common.skc_ipv6only
 #define tw_bound_dev_if		__tw_common.skc_bound_dev_if
 #define tw_node			__tw_common.skc_nulls_node
 #define tw_bind_node		__tw_common.skc_bind_node
@@ -131,7 +132,7 @@ struct inet_timewait_sock {
 	__be16			tw_sport;
 	kmemcheck_bitfield_begin(flags);
 	/* And these are ours. */
-	unsigned int		tw_ipv6only     : 1,
+	unsigned int		tw_pad0		: 1,	/* 1 bit hole */
 				tw_transparent  : 1,
 				tw_flowlabel	: 20,
 				tw_pad		: 2,	/* 2 bits hole */
