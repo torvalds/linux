@@ -15,6 +15,7 @@
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
+		spi0 = &spi0;
 	};
 
 	cpus {
@@ -99,7 +100,7 @@
 		clock-names = "clk_nandc", "hclk_nandc";
 	};
 
-	spi: spi@20074000 {
+	spi0: spi@20074000 {
 		compatible = "rockchip,rockchip-spi";
 		reg = <0x20074000 0x1000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -109,9 +110,9 @@
 		//pinctrl-0 = <&spi0_txd &spi0_rxd &spi0_clk &spi0_cs0 &spi0_cs1>;
 		rockchip,spi-src-clk = <0>;
 		num-cs = <2>;
-		clocks =<&clk_spi0>, <&clk_gates7 12>;
-		clock-names = "spi","pclk_spi0";
-		//dmas = <&pdma1 11>, <&pdma1 12>;
+		//clocks =<&clk_spi0>, <&clk_gates7 12>;
+		//clock-names = "spi","pclk_spi0";
+		//dmas = <&pdma 8>, <&pdma 9>;
 		//#dma-cells = <2>;
 		//dma-names = "tx", "rx";
 		status = "disabled";
