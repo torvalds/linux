@@ -24,7 +24,6 @@
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/irqchip/chained_irq.h>
 #include <linux/gpio.h>
 #include <linux/bitops.h>
 #include <linux/platform_data/gpio-omap.h>
