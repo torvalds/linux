@@ -334,14 +334,8 @@ static int __init init_ima(void)
 
 	hash_setup(CONFIG_IMA_DEFAULT_HASH);
 	error = ima_init();
-	if (error)
-		goto out;
-
-	error = ima_init_keyring(INTEGRITY_KEYRING_IMA);
-	if (error)
-		goto out;
-	ima_initialized = 1;
-out:
+	if (!error)
+		ima_initialized = 1;
 	return error;
 }
 
