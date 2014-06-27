@@ -3781,7 +3781,7 @@ void gen6_update_ring_freq(struct drm_device *dev)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
+static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
 
@@ -3801,7 +3801,7 @@ static int cherryview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 	return rpe;
 }
 
-int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
+static int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rpn;
 
@@ -3810,7 +3810,7 @@ int cherryview_rps_min_freq(struct drm_i915_private *dev_priv)
 	return rpn;
 }
 
-int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
+static int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
 
@@ -3835,7 +3835,7 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 	return rpe;
 }
 
-int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
+static int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
 	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
 }

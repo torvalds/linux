@@ -1108,20 +1108,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
 			   dev_priv->rps.max_freq * GT_FREQUENCY_MULTIPLIER);
 	} else if (IS_VALLEYVIEW(dev)) {
-		u32 freq_sts, val;
+		u32 freq_sts;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
 		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		val = valleyview_rps_max_freq(dev_priv);
 		seq_printf(m, "max GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, val));
+			   dev_priv->rps.max_freq);
 
-		val = valleyview_rps_min_freq(dev_priv);
 		seq_printf(m, "min GPU freq: %d MHz\n",
-			   vlv_gpu_freq(dev_priv, val));
+			   dev_priv->rps.min_freq);
+
+		seq_printf(m, "efficient (RPe) frequency: %d MHz\n",
+			   dev_priv->rps.efficient_freq);
 
 		seq_printf(m, "current GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
@@ -3632,8 +3633,8 @@ i915_max_freq_set(void *data, u64 val)
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
+		hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 
@@ -3713,8 +3714,8 @@ i915_min_freq_set(void *data, u64 val)
 	if (IS_VALLEYVIEW(dev)) {
 		val = vlv_freq_opcode(dev_priv, val);
 
-		hw_max = valleyview_rps_max_freq(dev_priv);
-		hw_min = valleyview_rps_min_freq(dev_priv);
+		hw_max = dev_priv->rps.max_freq;
+		hw_min = dev_priv->rps.min_freq;
 	} else {
 		do_div(val, GT_FREQUENCY_MULTIPLIER);
 
