@@ -1287,15 +1287,14 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
 
 	entries = (clock / 1000) * pixel_size;
-	*plane_prec_mult = (entries > 256) ?
+	*plane_prec_mult = (entries > 128) ?
 		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*plane_dl = (64 * (*plane_prec_mult) * 4) / ((clock / 1000) *
-						     pixel_size);
+	*plane_dl = (64 * (*plane_prec_mult) * 4) / entries;
 
 	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
-	*cursor_prec_mult = (entries > 256) ?
+	*cursor_prec_mult = (entries > 128) ?
 		DRAIN_LATENCY_PRECISION_64 : DRAIN_LATENCY_PRECISION_32;
-	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / ((clock / 1000) * 4);
+	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / entries;
 
 	return true;
 }
