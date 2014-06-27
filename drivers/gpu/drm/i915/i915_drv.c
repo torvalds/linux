@@ -520,6 +520,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
+		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
+
 		intel_runtime_pm_disable_interrupts(dev);
 		dev_priv->enable_hotplug_processing = false;
 
