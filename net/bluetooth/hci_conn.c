@@ -136,7 +136,7 @@ void hci_disconnect(struct hci_conn *conn, __u8 reason)
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
-static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
+static void hci_amp_disconn(struct hci_conn *conn)
 {
 	struct hci_cp_disconn_phy_link cp;
 
@@ -145,7 +145,7 @@ static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
 	conn->state = BT_DISCONN;
 
 	cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
-	cp.reason = reason;
+	cp.reason = hci_proto_disconn_ind(conn);
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONN_PHY_LINK,
 		     sizeof(cp), &cp);
 }
@@ -273,13 +273,14 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 
 static void hci_conn_disconnect(struct hci_conn *conn)
 {
-	__u8 reason = hci_proto_disconn_ind(conn);
+	__u8 reason;
 
 	switch (conn->type) {
 	case AMP_LINK:
-		hci_amp_disconn(conn, reason);
+		hci_amp_disconn(conn);
 		break;
 	default:
+		reason = hci_proto_disconn_ind(conn);
 		hci_disconnect(conn, reason);
 		break;
 	}
