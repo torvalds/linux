@@ -183,7 +183,7 @@ int ima_read_xattr(struct dentry *dentry,
 int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
-			     int xattr_len)
+			     int xattr_len, int opened)
 {
 	static const char op[] = "appraise_data";
 	char *cause = "unknown";
@@ -203,7 +203,7 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 
 		cause = "missing-hash";
 		status = INTEGRITY_NOLABEL;
-		if (inode->i_size == 0) {
+		if (opened & FILE_CREATED) {
 			iint->flags |= IMA_NEW_FILE;
 			status = INTEGRITY_PASS;
 		}
