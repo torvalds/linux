@@ -638,7 +638,7 @@ int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 
 	BT_DBG("");
 
-	if (!conn)
+	if (!conn || !test_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return -ENOTCONN;
 
 	smp = conn->smp_chan;
