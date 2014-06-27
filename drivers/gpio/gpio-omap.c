@@ -1025,11 +1025,6 @@ static void __init omap_gpio_show_rev(struct gpio_bank *bank)
 	called = true;
 }
 
-/* This lock class tells lockdep that GPIO irqs are in a different
- * category than their parents, so it won't report false recursion.
- */
-static struct lock_class_key gpio_lock_class;
-
 static void omap_gpio_mod_init(struct gpio_bank *bank)
 {
 	void __iomem *base = bank->base;
@@ -1152,7 +1147,6 @@ static int omap_gpio_chip_init(struct gpio_bank *bank)
 
 	for (j = 0; j < bank->width; j++) {
 		int irq = irq_find_mapping(bank->chip.irqdomain, j);
-		irq_set_lockdep_class(irq, &gpio_lock_class);
 		if (bank->is_mpuio) {
 			omap_mpuio_alloc_gc(bank, irq, bank->width);
 			irq_set_chip_and_handler(irq, NULL, NULL);
