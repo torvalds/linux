@@ -409,7 +409,6 @@ struct hci_conn {
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
 	void		*sco_data;
-	void		*smp_conn;
 	struct amp_mgr	*amp_mgr;
 
 	struct hci_conn	*link;

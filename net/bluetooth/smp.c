@@ -584,7 +584,6 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 
 	smp->conn = conn;
 	conn->smp_chan = smp;
-	conn->hcon->smp_conn = conn;
 
 	hci_conn_hold(conn->hcon);
 
@@ -626,13 +625,12 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 
 	kfree(smp);
 	conn->smp_chan = NULL;
-	conn->hcon->smp_conn = NULL;
 	hci_conn_drop(conn->hcon);
 }
 
 int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)
 {
-	struct l2cap_conn *conn = hcon->smp_conn;
+	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct smp_chan *smp;
 	u32 value;
 
