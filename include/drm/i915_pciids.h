@@ -237,13 +237,21 @@
 #define INTEL_BDW_GT3D_IDS(info) \
 	_INTEL_BDW_D_IDS(3, info)
 
+#define INTEL_BDW_RSVDM_IDS(info) \
+	_INTEL_BDW_M_IDS(4, info)
+
+#define INTEL_BDW_RSVDD_IDS(info) \
+	_INTEL_BDW_D_IDS(4, info)
+
 #define INTEL_BDW_M_IDS(info) \
 	INTEL_BDW_GT12M_IDS(info), \
-	INTEL_BDW_GT3M_IDS(info)
+	INTEL_BDW_GT3M_IDS(info), \
+	INTEL_BDW_RSVDM_IDS(info)
 
 #define INTEL_BDW_D_IDS(info) \
 	INTEL_BDW_GT12D_IDS(info), \
-	INTEL_BDW_GT3D_IDS(info)
+	INTEL_BDW_GT3D_IDS(info), \
+	INTEL_BDW_RSVDD_IDS(info)
 
 #define INTEL_CHV_IDS(info) \
 	INTEL_VGA_DEVICE(0x22b0, info), \
