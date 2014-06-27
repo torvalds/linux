@@ -1216,11 +1216,11 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 		if (!retval) {
 			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018)) {
 				value = (psDDRSetting->ulRegValue | (1<<8));
-			if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
-					&value, sizeof(value))) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
-				break;
-			}
+				if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
+						&value, sizeof(value))) {
+					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
+					break;
+				}
 			} else {
 				value = psDDRSetting->ulRegValue;
 
