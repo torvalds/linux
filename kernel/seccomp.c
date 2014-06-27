@@ -222,6 +222,8 @@ static u32 seccomp_run_filters(int syscall)
 
 static inline bool seccomp_may_assign_mode(unsigned long seccomp_mode)
 {
+	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+
 	if (current->seccomp.mode && current->seccomp.mode != seccomp_mode)
 		return false;
 
@@ -230,6 +232,8 @@ static inline bool seccomp_may_assign_mode(unsigned long seccomp_mode)
 
 static inline void seccomp_assign_mode(unsigned long seccomp_mode)
 {
+	BUG_ON(!spin_is_locked(&current->sighand->siglock));
+
 	current->seccomp.mode = seccomp_mode;
 	set_tsk_thread_flag(current, TIF_SECCOMP);
 }
@@ -330,6 +334,8 @@ out:
  * @flags:  flags to change filter behavior
  * @filter: seccomp filter to add to the current process
  *
+ * Caller must be holding current->sighand->siglock lock.
+ *
  * Returns 0 on success, -ve on error.
  */
 static long seccomp_attach_filter(unsigned int flags,
@@ -337,6 +343,8 @@ static long seccomp_attach_filter(unsigned int flags,
 {
 	unsigned long total_insns;
 	struct seccomp_filter *walker;
+
+	BUG_ON(!spin_is_locked(&current->sighand->siglock));
 
 	/* Validate resulting filter length. */
 	total_insns = filter->len;
@@ -523,6 +531,8 @@ static long seccomp_set_mode_strict(void)
 	const unsigned long seccomp_mode = SECCOMP_MODE_STRICT;
 	long ret = -EINVAL;
 
+	spin_lock_irq(&current->sighand->siglock);
+
 	if (!seccomp_may_assign_mode(seccomp_mode))
 		goto out;
 
@@ -533,6 +543,7 @@ static long seccomp_set_mode_strict(void)
 	ret = 0;
 
 out:
+	spin_unlock_irq(&current->sighand->siglock);
 
 	return ret;
 }
@@ -560,12 +571,14 @@ static long seccomp_set_mode_filter(unsigned int flags,
 
 	/* Validate flags. */
 	if (flags != 0)
-		goto out;
+		return -EINVAL;
 
 	/* Prepare the new filter before holding any locks. */
 	prepared = seccomp_prepare_user_filter(filter);
 	if (IS_ERR(prepared))
 		return PTR_ERR(prepared);
+
+	spin_lock_irq(&current->sighand->siglock);
 
 	if (!seccomp_may_assign_mode(seccomp_mode))
 		goto out;
@@ -578,6 +591,7 @@ static long seccomp_set_mode_filter(unsigned int flags,
 
 	seccomp_assign_mode(seccomp_mode);
 out:
+	spin_unlock_irq(&current->sighand->siglock);
 	seccomp_filter_free(prepared);
 	return ret;
 }
