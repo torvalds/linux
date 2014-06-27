@@ -103,9 +103,11 @@ typedef int16_t aufs_bindex_t;
 #define AUFS_BRPERM_RW		"rw"
 #define AUFS_BRPERM_RO		"ro"
 #define AUFS_BRPERM_RR		"rr"
+#define AUFS_BRATTR_COO_REG	"coo_reg"
+#define AUFS_BRATTR_COO_ALL	"coo_all"
+#define AUFS_BRATTR_UNPIN	"unpin"
 #define AUFS_BRRATTR_WH		"wh"
 #define AUFS_BRWATTR_NLWH	"nolwh"
-#define AUFS_BRATTR_UNPIN	"unpin"
 
 /* ---------------------------------------------------------------------- */
 

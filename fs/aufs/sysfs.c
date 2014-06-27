@@ -47,7 +47,7 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 	struct path path;
 	struct dentry *root;
 	struct au_branch *br;
-	char *perm;
+	au_br_perm_str_t perm;
 
 	AuDbg("b%d\n", bindex);
 
@@ -62,14 +62,10 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 		path.dentry = au_h_dptr(root, bindex);
 		au_seq_path(seq, &path);
 		di_read_unlock(root, !AuLock_IR);
-		perm = au_optstr_br_perm(br->br_perm);
-		if (perm) {
-			err = seq_printf(seq, "=%s\n", perm);
-			kfree(perm);
-			if (err == -1)
-				err = -E2BIG;
-		} else
-			err = -ENOMEM;
+		au_optstr_br_perm(&perm, br->br_perm);
+		err = seq_printf(seq, "=%s\n", perm.a);
+		if (err == -1)
+			err = -E2BIG;
 		break;
 	case AuBrSysfs_BRID:
 		err = seq_printf(seq, "%d\n", br->br_id);
