@@ -6658,6 +6658,14 @@ static struct i915_power_well chv_power_wells[] = {
 		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
+#if 0
+	{
+		.name = "display",
+		.domains = VLV_DISPLAY_POWER_DOMAINS,
+		.data = PUNIT_POWER_WELL_DISP2D,
+		.ops = &vlv_display_power_well_ops,
+	},
+#endif
 	{
 		.name = "dpio-common-bc",
 		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS,
