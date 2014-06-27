@@ -500,18 +500,25 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
+		man->flags = TTM_MEMTYPE_FLAG_FIXED |
+			     TTM_MEMTYPE_FLAG_MAPPABLE;
+		man->available_caching = TTM_PL_FLAG_UNCACHED |
+					 TTM_PL_FLAG_WC;
+		man->default_caching = TTM_PL_FLAG_WC;
+
 		if (nv_device(drm->device)->card_type >= NV_50) {
+			/* Some BARs do not support being ioremapped WC */
+			if (nouveau_bar(drm->device)->iomap_uncached) {
+				man->available_caching = TTM_PL_FLAG_UNCACHED;
+				man->default_caching = TTM_PL_FLAG_UNCACHED;
+			}
+
 			man->func = &nouveau_vram_manager;
 			man->io_reserve_fastpath = false;
 			man->use_io_reserve_lru = true;
 		} else {
 			man->func = &ttm_bo_manager_func;
 		}
-		man->flags = TTM_MEMTYPE_FLAG_FIXED |
-			     TTM_MEMTYPE_FLAG_MAPPABLE;
-		man->available_caching = TTM_PL_FLAG_UNCACHED |
-					 TTM_PL_FLAG_WC;
-		man->default_caching = TTM_PL_FLAG_WC;
 		break;
 	case TTM_PL_TT:
 		if (nv_device(drm->device)->card_type >= NV_50)
