@@ -4501,6 +4501,47 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	vlv_update_cdclk(dev);
 }
 
+static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 val, cmd;
+
+	WARN_ON(dev_priv->display.get_display_clock_speed(dev) != dev_priv->vlv_cdclk_freq);
+
+	switch (cdclk) {
+	case 400000:
+		cmd = 3;
+		break;
+	case 333333:
+	case 320000:
+		cmd = 2;
+		break;
+	case 266667:
+		cmd = 1;
+		break;
+	case 200000:
+		cmd = 0;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	mutex_lock(&dev_priv->rps.hw_lock);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val &= ~DSPFREQGUAR_MASK_CHV;
+	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+		      DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
+		     50)) {
+		DRM_ERROR("timed out waiting for CDclk change\n");
+	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	vlv_update_cdclk(dev);
+}
+
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 				 int max_pixclk)
 {
@@ -4569,8 +4610,13 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 	int max_pixclk = intel_mode_max_pixclk(dev_priv);
 	int req_cdclk = valleyview_calc_cdclk(dev_priv, max_pixclk);
 
-	if (req_cdclk != dev_priv->vlv_cdclk_freq)
-		valleyview_set_cdclk(dev, req_cdclk);
+	if (req_cdclk != dev_priv->vlv_cdclk_freq) {
+		if (IS_CHERRYVIEW(dev))
+			cherryview_set_cdclk(dev, req_cdclk);
+		else
+			valleyview_set_cdclk(dev, req_cdclk);
+	}
+
 	modeset_update_crtc_power_domains(dev);
 }
 
