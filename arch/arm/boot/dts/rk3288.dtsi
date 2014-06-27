@@ -239,6 +239,13 @@
 		};
 	};
 
+	reset: reset@ff7601b8{
+		compatible = "rockchip,reset";
+		reg = <0xff7601b8 0x30>;
+		rockchip,reset-flag = <ROCKCHIP_RESET_HIWORD_MASK>;
+		#reset-cells = <1>;
+	};
+
 	nandc0: nandc@0xff400000 {
 		compatible = "rockchip,rk-nandc";
 		reg = <0xff400000 0x4000>;
