@@ -3023,3 +3023,12 @@ Parameters: args[0] is the XICS device fd
             args[1] is the XICS CPU number (server ID) for this vcpu
 
 This capability connects the vcpu to an in-kernel XICS device.
+
+6.8 KVM_CAP_S390_IRQCHIP
+
+Architectures: s390
+Target: vm
+Parameters: none
+
+This capability enables the in-kernel irqchip for s390. Please refer to
+"4.24 KVM_CREATE_IRQCHIP" for details.
