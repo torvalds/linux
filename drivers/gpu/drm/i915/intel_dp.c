@@ -2281,6 +2281,8 @@ static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;
 
+	intel_dp_prepare(encoder);
+
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* program left/right clock distribution */

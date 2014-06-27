@@ -1260,6 +1260,8 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;
 
+	intel_hdmi_prepare(encoder);
+
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* program left/right clock distribution */
