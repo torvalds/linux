@@ -85,7 +85,8 @@ enum {
 	MEMWIN1_BASE_T5  = 0x52000,
 	MEMWIN2_APERTURE = 65536,
 	MEMWIN2_BASE     = 0x30000,
-	MEMWIN2_BASE_T5  = 0x54000,
+	MEMWIN2_APERTURE_T5 = 131072,
+	MEMWIN2_BASE_T5  = 0x60000,
 };
 
 enum dev_master {
@@ -608,6 +609,7 @@ struct l2t_data;
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
+	u32 t4_bar0;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
 	unsigned int mbox;
@@ -946,6 +948,7 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 		      unsigned int data_reg, u32 *vals, unsigned int nregs,
 		      unsigned int start_idx);
+void t4_hw_pci_read_cfg4(struct adapter *adapter, int reg, u32 *val);
 
 struct fw_filter_wr;
 

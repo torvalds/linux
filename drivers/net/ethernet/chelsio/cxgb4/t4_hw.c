@@ -144,6 +144,30 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
 }
 
 /*
+ * Read a 32-bit PCI Configuration Space register via the PCI-E backdoor
+ * mechanism.  This guarantees that we get the real value even if we're
+ * operating within a Virtual Machine and the Hypervisor is trapping our
+ * Configuration Space accesses.
+ */
+void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
+{
+	u32 req = ENABLE | FUNCTION(adap->fn) | reg;
+
+	if (is_t4(adap->params.chip))
+		req |= F_LOCALCFG;
+
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, req);
+	*val = t4_read_reg(adap, PCIE_CFG_SPACE_DATA);
+
+	/* Reset ENABLE to 0 so reads of PCIE_CFG_SPACE_DATA won't cause a
+	 * Configuration Space read.  (None of the other fields matter when
+	 * ENABLE is 0 so a simple register write is easier than a
+	 * read-modify-write via t4_set_reg_field().)
+	 */
+	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, 0);
+}
+
+/*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
 static void get_mbox_rpl(struct adapter *adap, __be64 *rpl, int nflit,

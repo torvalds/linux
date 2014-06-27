@@ -4773,20 +4773,75 @@ void t4_fatal_err(struct adapter *adap)
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
 }
 
+/* Return the specified PCI-E Configuration Space register from our Physical
+ * Function.  We try first via a Firmware LDST Command since we prefer to let
+ * the firmware own all of these registers, but if that fails we go for it
+ * directly ourselves.
+ */
+static u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
+{
+	struct fw_ldst_cmd ldst_cmd;
+	u32 val;
+	int ret;
+
+	/* Construct and send the Firmware LDST Command to retrieve the
+	 * specified PCI-E Configuration Space register.
+	 */
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_cmd.op_to_addrspace =
+		htonl(FW_CMD_OP(FW_LDST_CMD) |
+		      FW_CMD_REQUEST |
+		      FW_CMD_READ |
+		      FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_PCIE));
+	ldst_cmd.cycles_to_len16 = htonl(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS(1);
+	ldst_cmd.u.pcie.ctrl_to_fn =
+		(FW_LDST_CMD_LC | FW_LDST_CMD_FN(adap->fn));
+	ldst_cmd.u.pcie.r = reg;
+	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
+			 &ldst_cmd);
+
+	/* If the LDST Command suucceeded, exctract the returned register
+	 * value.  Otherwise read it directly ourself.
+	 */
+	if (ret == 0)
+		val = ntohl(ldst_cmd.u.pcie.data[0]);
+	else
+		t4_hw_pci_read_cfg4(adap, reg, &val);
+
+	return val;
+}
+
 static void setup_memwin(struct adapter *adap)
 {
-	u32 bar0, mem_win0_base, mem_win1_base, mem_win2_base;
+	u32 mem_win0_base, mem_win1_base, mem_win2_base, mem_win2_aperture;
 
-	bar0 = pci_resource_start(adap->pdev, 0);  /* truncation intentional */
 	if (is_t4(adap->params.chip)) {
+		u32 bar0;
+
+		/* Truncation intentional: we only read the bottom 32-bits of
+		 * the 64-bit BAR0/BAR1 ...  We use the hardware backdoor
+		 * mechanism to read BAR0 instead of using
+		 * pci_resource_start() because we could be operating from
+		 * within a Virtual Machine which is trapping our accesses to
+		 * our Configuration Space and we need to set up the PCI-E
+		 * Memory Window decoders with the actual addresses which will
+		 * be coming across the PCI-E link.
+		 */
+		bar0 = t4_read_pcie_cfg4(adap, PCI_BASE_ADDRESS_0);
+		bar0 &= PCI_BASE_ADDRESS_MEM_MASK;
+		adap->t4_bar0 = bar0;
+
 		mem_win0_base = bar0 + MEMWIN0_BASE;
 		mem_win1_base = bar0 + MEMWIN1_BASE;
 		mem_win2_base = bar0 + MEMWIN2_BASE;
+		mem_win2_aperture = MEMWIN2_APERTURE;
 	} else {
 		/* For T5, only relative offset inside the PCIe BAR is passed */
 		mem_win0_base = MEMWIN0_BASE;
-		mem_win1_base = MEMWIN1_BASE_T5;
+		mem_win1_base = MEMWIN1_BASE;
 		mem_win2_base = MEMWIN2_BASE_T5;
+		mem_win2_aperture = MEMWIN2_APERTURE_T5;
 	}
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 0),
 		     mem_win0_base | BIR(0) |
@@ -4796,16 +4851,19 @@ static void setup_memwin(struct adapter *adap)
 		     WINDOW(ilog2(MEMWIN1_APERTURE) - 10));
 	t4_write_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2),
 		     mem_win2_base | BIR(0) |
-		     WINDOW(ilog2(MEMWIN2_APERTURE) - 10));
+		     WINDOW(ilog2(mem_win2_aperture) - 10));
+	t4_read_reg(adap, PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 2));
 }
 
 static void setup_memwin_rdma(struct adapter *adap)
 {
 	if (adap->vres.ocq.size) {
-		unsigned int start, sz_kb;
+		u32 start;
+		unsigned int sz_kb;
 
-		start = pci_resource_start(adap->pdev, 2) +
-			OCQ_WIN_OFFSET(adap->pdev, &adap->vres);
+		start = t4_read_pcie_cfg4(adap, PCI_BASE_ADDRESS_2);
+		start &= PCI_BASE_ADDRESS_MEM_MASK;
+		start += OCQ_WIN_OFFSET(adap->pdev, &adap->vres);
 		sz_kb = roundup_pow_of_two(adap->vres.ocq.size) >> 10;
 		t4_write_reg(adap,
 			     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN, 3),
