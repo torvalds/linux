@@ -1,7 +1,7 @@
 /*
  * net/tipc/node.c: TIPC node management routines
  *
- * Copyright (c) 2000-2006, 2012 Ericsson AB
+ * Copyright (c) 2000-2006, 2012-2014, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2014, Wind River Systems
  * All rights reserved.
  *
@@ -155,21 +155,25 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	if (!active[0]) {
 		active[0] = active[1] = l_ptr;
 		node_established_contact(n_ptr);
-		return;
+		goto exit;
 	}
 	if (l_ptr->priority < active[0]->priority) {
 		pr_info("New link <%s> becomes standby\n", l_ptr->name);
-		return;
+		goto exit;
 	}
 	tipc_link_dup_queue_xmit(active[0], l_ptr);
 	if (l_ptr->priority == active[0]->priority) {
 		active[0] = l_ptr;
-		return;
+		goto exit;
 	}
 	pr_info("Old link <%s> becomes standby\n", active[0]->name);
 	if (active[1] != active[0])
 		pr_info("Old link <%s> becomes standby\n", active[1]->name);
 	active[0] = active[1] = l_ptr;
+exit:
+	/* Leave room for changeover header when returning 'mtu' to users: */
+	n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
+	n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
 }
 
 /**
@@ -229,6 +233,19 @@ void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 		tipc_link_failover_send_queue(l_ptr);
 	else
 		node_lost_contact(n_ptr);
+
+	/* Leave room for changeover header when returning 'mtu' to users: */
+	if (active[0]) {
+		n_ptr->act_mtus[0] = active[0]->max_pkt - INT_H_SIZE;
+		n_ptr->act_mtus[1] = active[1]->max_pkt - INT_H_SIZE;
+		return;
+	}
+
+	/* Loopback link went down? No fragmentation needed from now on. */
+	if (n_ptr->addr == tipc_own_addr) {
+		n_ptr->act_mtus[0] = MAX_MSG_SIZE;
+		n_ptr->act_mtus[1] = MAX_MSG_SIZE;
+	}
 }
 
 int tipc_node_active_links(struct tipc_node *n_ptr)
