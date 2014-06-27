@@ -35,6 +35,7 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	struct i2c_client *client = ec_dev->priv;
 	int ret = -ENOMEM;
 	int i;
+	int len;
 	int packet_len;
 	u8 *out_buf = NULL;
 	u8 *in_buf = NULL;
@@ -97,21 +98,29 @@ static int cros_ec_cmd_xfer_i2c(struct cros_ec_device *ec_dev,
 	if (ret)
 		goto done;
 
+	len = in_buf[1];
+	if (len > msg->insize) {
+		dev_err(ec_dev->dev, "packet too long (%d bytes, expected %d)",
+			len, msg->insize);
+		ret = -ENOSPC;
+		goto done;
+	}
+
 	/* copy response packet payload and compute checksum */
 	sum = in_buf[0] + in_buf[1];
-	for (i = 0; i < msg->insize; i++) {
+	for (i = 0; i < len; i++) {
 		msg->indata[i] = in_buf[2 + i];
 		sum += in_buf[2 + i];
 	}
 	dev_dbg(ec_dev->dev, "packet: %*ph, sum = %02x\n",
 		i2c_msg[1].len, in_buf, sum);
-	if (sum != in_buf[2 + msg->insize]) {
+	if (sum != in_buf[2 + len]) {
 		dev_err(ec_dev->dev, "bad packet checksum\n");
 		ret = -EBADMSG;
 		goto done;
 	}
 
-	ret = i2c_msg[1].buf[1];
+	ret = len;
  done:
 	kfree(in_buf);
 	kfree(out_buf);
