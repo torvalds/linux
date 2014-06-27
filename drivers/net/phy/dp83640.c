@@ -40,6 +40,7 @@
 #define LAYER2		0x01
 #define MAX_RXTS	64
 #define N_EXT_TS	6
+#define N_PER_OUT	7
 #define PSF_PTPVER	2
 #define PSF_EVNT	0x4000
 #define PSF_RX		0x2000
@@ -47,7 +48,6 @@
 #define EXT_EVENT	1
 #define CAL_EVENT	7
 #define CAL_TRIGGER	7
-#define PER_TRIGGER	6
 #define DP83640_N_PINS	12
 
 #define MII_DP83640_MICR 0x11
@@ -300,22 +300,22 @@ static u64 phy2txts(struct phy_txts *p)
 }
 
 static int periodic_output(struct dp83640_clock *clock,
-			   struct ptp_clock_request *clkreq, bool on)
+			   struct ptp_clock_request *clkreq, bool on,
+			   int trigger)
 {
 	struct dp83640_private *dp83640 = clock->chosen;
 	struct phy_device *phydev = dp83640->phydev;
 	u32 sec, nsec, pwidth;
-	u16 gpio, ptp_trig, trigger, val;
+	u16 gpio, ptp_trig, val;
 
 	if (on) {
-		gpio = 1 + ptp_find_pin(clock->ptp_clock, PTP_PF_PEROUT, 0);
+		gpio = 1 + ptp_find_pin(clock->ptp_clock, PTP_PF_PEROUT,
+					trigger);
 		if (gpio < 1)
 			return -EINVAL;
 	} else {
 		gpio = 0;
 	}
-
-	trigger = PER_TRIGGER;
 
 	ptp_trig = TRIG_WR |
 		(trigger & TRIG_CSEL_MASK) << TRIG_CSEL_SHIFT |
@@ -496,9 +496,9 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 		return 0;
 
 	case PTP_CLK_REQ_PEROUT:
-		if (rq->perout.index != 0)
+		if (rq->perout.index >= N_PER_OUT)
 			return -EINVAL;
-		return periodic_output(clock, rq, on);
+		return periodic_output(clock, rq, on, rq->perout.index);
 
 	default:
 		break;
@@ -949,7 +949,7 @@ static void dp83640_clock_init(struct dp83640_clock *clock, struct mii_bus *bus)
 	clock->caps.max_adj	= 1953124;
 	clock->caps.n_alarm	= 0;
 	clock->caps.n_ext_ts	= N_EXT_TS;
-	clock->caps.n_per_out	= 1;
+	clock->caps.n_per_out	= N_PER_OUT;
 	clock->caps.n_pins	= DP83640_N_PINS;
 	clock->caps.pps		= 0;
 	clock->caps.adjfreq	= ptp_dp83640_adjfreq;
