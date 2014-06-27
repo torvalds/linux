@@ -4548,6 +4548,10 @@ static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 	int vco = valleyview_get_vco(dev_priv);
 	int freq_320 = (vco <<  1) % 320000 != 0 ? 333333 : 320000;
 
+	/* FIXME: Punit isn't quite ready yet */
+	if (IS_CHERRYVIEW(dev_priv->dev))
+		return 400000;
+
 	/*
 	 * Really only a few cases to deal with, as only 4 CDclks are supported:
 	 *   200MHz
@@ -5282,6 +5286,10 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 	int vco = valleyview_get_vco(dev_priv);
 	u32 val;
 	int divider;
+
+	/* FIXME: Punit isn't quite ready yet */
+	if (IS_CHERRYVIEW(dev))
+		return 400000;
 
 	mutex_lock(&dev_priv->dpio_lock);
 	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
