@@ -3587,10 +3587,12 @@ static enum hrtimer_restart hmp_cpu_keepalive_notify(struct hrtimer *hrtimer)
  * If there are any, set ns_delay to
  * ('target_residency of state with shortest too-big latency' - 1) * 1000.
  */
-static void hmp_keepalive_delay(unsigned int *ns_delay)
+static void hmp_keepalive_delay(int cpu, unsigned int *ns_delay)
 {
+	struct cpuidle_device *dev = per_cpu(cpuidle_devices, cpu);
 	struct cpuidle_driver *drv;
-	drv = cpuidle_driver_ref();
+
+	drv = cpuidle_get_cpu_driver(dev);
 	if (drv) {
 		unsigned int us_delay = UINT_MAX;
 		unsigned int us_max_delay = *ns_delay / 1000;
@@ -3609,7 +3611,6 @@ static void hmp_keepalive_delay(unsigned int *ns_delay)
 		else
 			*ns_delay = 1000 * (us_delay - 1);
 	}
-	cpuidle_driver_unref();
 }
 
 static void hmp_cpu_keepalive_trigger(void)
@@ -3623,7 +3624,7 @@ static void hmp_cpu_keepalive_trigger(void)
 				CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED);
 		keepalive->timer.function = hmp_cpu_keepalive_notify;
 
-		hmp_keepalive_delay(&ns_delay);
+		hmp_keepalive_delay(cpu, &ns_delay);
 		keepalive->delay = ns_to_ktime(ns_delay);
 		keepalive->init = true;
 	}
