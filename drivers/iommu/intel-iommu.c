@@ -450,7 +450,7 @@ EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
 static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
-static struct iommu_ops intel_iommu_ops;
+static const struct iommu_ops intel_iommu_ops;
 
 static int __init intel_iommu_setup(char *str)
 {
@@ -4453,7 +4453,7 @@ static void intel_iommu_remove_device(struct device *dev)
 	iommu_device_unlink(iommu->iommu_dev, dev);
 }
 
-static struct iommu_ops intel_iommu_ops = {
+static const struct iommu_ops intel_iommu_ops = {
 	.domain_init	= intel_iommu_domain_init,
 	.domain_destroy = intel_iommu_domain_destroy,
 	.attach_dev	= intel_iommu_attach_device,

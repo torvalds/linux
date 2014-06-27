@@ -1291,7 +1291,7 @@ static void omap_iommu_remove_device(struct device *dev)
 	kfree(arch_data);
 }
 
-static struct iommu_ops omap_iommu_ops = {
+static const struct iommu_ops omap_iommu_ops = {
 	.domain_init	= omap_iommu_domain_init,
 	.domain_destroy	= omap_iommu_domain_destroy,
 	.attach_dev	= omap_iommu_attach_dev,
