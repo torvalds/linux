@@ -654,6 +654,7 @@ struct adapter {
 	struct dentry *debugfs_root;
 
 	spinlock_t stats_lock;
+	spinlock_t win0_lock ____cacheline_aligned_in_smp;
 };
 
 /* Defined bit width of user definable filter tuples
@@ -960,8 +961,17 @@ int t4_wait_dev_ready(struct adapter *adap);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
-int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
-		    __be32 *buf);
+
+#define T4_MEMORY_WRITE	0
+#define T4_MEMORY_READ	1
+int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr, u32 len,
+		 __be32 *buf, int dir);
+static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
+				  u32 len, __be32 *buf)
+{
+	return t4_memory_rw(adap, 0, mtype, addr, len, buf, 0);
+}
+
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
@@ -1059,7 +1069,6 @@ int t4_ofld_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 void t4_db_full(struct adapter *adapter);
 void t4_db_dropped(struct adapter *adapter);
-int t4_mem_win_read_len(struct adapter *adap, u32 addr, __be32 *data, int len);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);

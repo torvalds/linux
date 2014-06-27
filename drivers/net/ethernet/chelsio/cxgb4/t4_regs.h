@@ -400,6 +400,7 @@
 #define  WINDOW_MASK     0x000000ffU
 #define  WINDOW_SHIFT    0
 #define  WINDOW(x)       ((x) << WINDOW_SHIFT)
+#define  GET_WINDOW(x)	 (((x) >> WINDOW_SHIFT) & WINDOW_MASK)
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
 #define ENABLE	(1U << 30)
 #define FUNCTION(x) ((x) << 12)
