@@ -561,7 +561,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	return psbfb_create(psb_fbdev, sizes);
 }
 
-static struct drm_fb_helper_funcs psb_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.gamma_set = psbfb_gamma_set,
 	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,

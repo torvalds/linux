@@ -660,7 +660,7 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 	return 0;
 }
 
-static struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
 	.fb_probe = qxl_fb_find_or_create_single,
 };
 

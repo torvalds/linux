@@ -87,7 +87,7 @@ struct drm_fb_helper {
 	struct drm_fb_helper_crtc *crtc_info;
 	int connector_count;
 	struct drm_fb_helper_connector **connector_info;
-	struct drm_fb_helper_funcs *funcs;
+	const struct drm_fb_helper_funcs *funcs;
 	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head kernel_fb_list;

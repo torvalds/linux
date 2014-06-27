@@ -327,7 +327,7 @@ err_drm_gem_cma_free_object:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
+static const struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
 	.fb_probe = drm_fbdev_cma_create,
 };
 

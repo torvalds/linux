@@ -452,7 +452,7 @@ out:
 	return true;
 }
 
-static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.initial_config = intel_fb_initial_config,
 	.gamma_set = intel_crtc_fb_gamma_set,
 	.gamma_get = intel_crtc_fb_gamma_get,

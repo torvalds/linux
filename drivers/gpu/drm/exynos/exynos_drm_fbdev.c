@@ -225,7 +225,7 @@ out:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
 	.fb_probe =	exynos_drm_fbdev_create,
 };
 

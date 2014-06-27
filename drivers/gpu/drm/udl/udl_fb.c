@@ -550,7 +550,7 @@ out:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs udl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs udl_fb_helper_funcs = {
 	.fb_probe = udlfb_create,
 };
 

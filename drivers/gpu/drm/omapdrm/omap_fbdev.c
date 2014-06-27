@@ -281,7 +281,7 @@ fail:
 	return ret;
 }
 
-static struct drm_fb_helper_funcs omap_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs omap_fb_helper_funcs = {
 	.fb_probe = omap_fbdev_create,
 };
 

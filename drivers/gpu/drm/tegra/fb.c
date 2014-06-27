@@ -267,7 +267,7 @@ release:
 	return err;
 }
 
-static struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs tegra_fb_helper_funcs = {
 	.fb_probe = tegra_fbdev_probe,
 };
 
