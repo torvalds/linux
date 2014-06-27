@@ -1214,21 +1214,15 @@ int download_ddr_settings(struct bcm_mini_adapter *Adapter)
 		retval = wrmalt(Adapter, ul_ddr_setting_load_addr, &value, sizeof(value));
 		ul_ddr_setting_load_addr += sizeof(ULONG);
 		if (!retval) {
-			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018)) {
+			if (bOverrideSelfRefresh && (psDDRSetting->ulRegAddress == 0x0F007018))
 				value = (psDDRSetting->ulRegValue | (1<<8));
-				if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
-						&value, sizeof(value))) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
-					break;
-				}
-			} else {
+			else
 				value = psDDRSetting->ulRegValue;
 
-				if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
+			if (STATUS_SUCCESS != wrmalt(Adapter, ul_ddr_setting_load_addr,
 					&value, sizeof(value))) {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
-					break;
-				}
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "%s:%d\n", __func__, __LINE__);
+				break;
 			}
 		}
 		ul_ddr_setting_load_addr += sizeof(ULONG);
