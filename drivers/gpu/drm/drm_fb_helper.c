@@ -1609,8 +1609,10 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  * either the output polling work or a work item launched from the driver's
  * hotplug interrupt).
  *
- * Note that the driver must ensure that this is only called _after_ the fb has
- * been fully set up, i.e. after the call to drm_fb_helper_initial_config.
+ * Note that drivers may call this even before calling
+ * drm_fb_helper_initial_config but only aftert drm_fb_helper_init. This allows
+ * for a race-free fbcon setup and will make sure that the fbdev emulation will
+ * not miss any hotplug events.
  *
  * RETURNS:
  * 0 on success and a non-zero error code otherwise.
@@ -1620,11 +1622,8 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	u32 max_width, max_height;
 
-	if (!fb_helper->fb)
-		return 0;
-
 	mutex_lock(&fb_helper->dev->mode_config.mutex);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
+	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {
 		fb_helper->delayed_hotplug = true;
 		mutex_unlock(&fb_helper->dev->mode_config.mutex);
 		return 0;

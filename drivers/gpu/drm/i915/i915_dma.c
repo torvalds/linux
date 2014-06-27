@@ -1375,9 +1375,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 */
 	intel_fbdev_initial_config(dev);
 
-	/* Only enable hotplug handling once the fbdev is fully set up. */
-	dev_priv->enable_hotplug_processing = true;
-
 	drm_kms_helper_poll_init(dev);
 
 	return 0;
