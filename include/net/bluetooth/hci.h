@@ -533,6 +533,11 @@ struct hci_cp_read_remote_version {
 	__le16   handle;
 } __packed;
 
+#define HCI_OP_READ_CLOCK_OFFSET	0x041f
+struct hci_cp_read_clock_offset {
+	__le16   handle;
+} __packed;
+
 #define HCI_OP_SETUP_SYNC_CONN		0x0428
 struct hci_cp_setup_sync_conn {
 	__le16   handle;
