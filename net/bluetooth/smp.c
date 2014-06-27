@@ -1076,6 +1076,8 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 
 	skb_pull(skb, sizeof(*info));
 
+	hci_dev_lock(hcon->hdev);
+
 	/* Strictly speaking the Core Specification (4.1) allows sending
 	 * an empty address which would force us to rely on just the IRK
 	 * as "identity information". However, since such
@@ -1085,8 +1087,7 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	 */
 	if (!bacmp(&info->bdaddr, BDADDR_ANY)) {
 		BT_ERR("Ignoring IRK with no identity address");
-		smp_distribute_keys(conn);
-		return 0;
+		goto distribute;
 	}
 
 	bacpy(&smp->id_addr, &info->bdaddr);
@@ -1100,7 +1101,10 @@ static int smp_cmd_ident_addr_info(struct l2cap_conn *conn,
 	smp->remote_irk = hci_add_irk(conn->hcon->hdev, &smp->id_addr,
 				      smp->id_addr_type, smp->irk, &rpa);
 
+distribute:
 	smp_distribute_keys(conn);
+
+	hci_dev_unlock(hcon->hdev);
 
 	return 0;
 }
