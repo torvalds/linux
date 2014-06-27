@@ -33,5 +33,6 @@ nouveau_bar(void *obj)
 
 extern struct nouveau_oclass nv50_bar_oclass;
 extern struct nouveau_oclass nvc0_bar_oclass;
+extern struct nouveau_oclass gk20a_bar_oclass;
 
 #endif

@@ -26,6 +26,7 @@ nouveau-y += core/core/subdev.o
 nouveau-y += core/subdev/bar/base.o
 nouveau-y += core/subdev/bar/nv50.o
 nouveau-y += core/subdev/bar/nvc0.o
+nouveau-y += core/subdev/bar/gk20a.o
 nouveau-y += core/subdev/bios/base.o
 nouveau-y += core/subdev/bios/bit.o
 nouveau-y += core/subdev/bios/boost.o
