@@ -197,6 +197,26 @@ void call_rcu_sched(struct rcu_head *head,
 
 void synchronize_sched(void);
 
+/**
+ * call_rcu_tasks() - Queue an RCU for invocation task-based grace period
+ * @head: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all currently executing RCU
+ * read-side critical sections have completed. call_rcu_tasks() assumes
+ * that the read-side critical sections end at a voluntary context
+ * switch (not a preemption!), entry into idle, or transition to usermode
+ * execution.  As such, there are no read-side primitives analogous to
+ * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
+ * to determine that all tasks have passed through a safe state, not so
+ * much for data-strcuture synchronization.
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
+ */
+void call_rcu_tasks(struct rcu_head *head, void (*func)(struct rcu_head *head));
+
 #ifdef CONFIG_PREEMPT_RCU
 
 void __rcu_read_lock(void);
@@ -293,6 +313,22 @@ static inline void rcu_user_hooks_switch(struct task_struct *prev,
 		do { a; } while (0); \
 		rcu_irq_exit(); \
 	} while (0)
+
+/*
+ * Note a voluntary context switch for RCU-tasks benefit.  This is a
+ * macro rather than an inline function to avoid #include hell.
+ */
+#ifdef CONFIG_TASKS_RCU
+#define rcu_note_voluntary_context_switch(t) \
+	do { \
+		preempt_disable(); /* Exclude synchronize_sched(); */ \
+		if (ACCESS_ONCE((t)->rcu_tasks_holdout)) \
+			ACCESS_ONCE((t)->rcu_tasks_holdout) = false; \
+		preempt_enable(); \
+	} while (0)
+#else /* #ifdef CONFIG_TASKS_RCU */
+#define rcu_note_voluntary_context_switch(t)	do { } while (0)
+#endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP)
 bool __rcu_is_watching(void);

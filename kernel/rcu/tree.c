@@ -2410,6 +2410,8 @@ void rcu_check_callbacks(int cpu, int user)
 	rcu_preempt_check_callbacks(cpu);
 	if (rcu_pending(cpu))
 		invoke_rcu_core();
+	if (user)
+		rcu_note_voluntary_context_switch(current);
 	trace_rcu_utilization(TPS("End scheduler-tick"));
 }
 
