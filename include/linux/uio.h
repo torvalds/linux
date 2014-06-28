@@ -123,6 +123,9 @@ static inline void iov_iter_reexpand(struct iov_iter *i, size_t count)
 
 int memcpy_fromiovec(unsigned char *kdata, struct iovec *iov, int len);
 int memcpy_toiovec(struct iovec *iov, unsigned char *kdata, int len);
-
+int memcpy_fromiovecend(unsigned char *kdata, const struct iovec *iov,
+			int offset, int len);
+int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
+		      int offset, int len);
 
 #endif
