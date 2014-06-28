@@ -18,8 +18,6 @@
 #include <linux/usb.h>
 #include <linux/list.h>
 
-#define BOOLEAN	u8
-
 #define QOS_MAX				16
 #define IPTYPEOFSERVICE			0x8000
 #define	PROTOCOL			0x4000
@@ -34,7 +32,7 @@
 #define	IEEE802_1QVLANID		0x10
 
 struct gdm_wimax_csr_s {
-	BOOLEAN		enabled;
+	bool		enabled;
 	u32		SFID;
 	u8		qos_buf_count;
 	u16		classifier_rule_en;

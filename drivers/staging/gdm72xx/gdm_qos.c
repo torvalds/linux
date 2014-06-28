@@ -100,7 +100,7 @@ void gdm_qos_init(void *nic_ptr)
 	for (i = 0; i < QOS_MAX; i++) {
 		INIT_LIST_HEAD(&qcb->qos_list[i]);
 		qcb->csr[i].qos_buf_count = 0;
-		qcb->csr[i].enabled = 0;
+		qcb->csr[i].enabled = false;
 	}
 
 	qcb->qos_list_cnt = 0;
@@ -127,7 +127,7 @@ void gdm_qos_release_list(void *nic_ptr)
 
 	for (i = 0; i < QOS_MAX; i++) {
 		qcb->csr[i].qos_buf_count = 0;
-		qcb->csr[i].enabled = 0;
+		qcb->csr[i].enabled = false;
 	}
 
 	qcb->qos_list_cnt = 0;
@@ -316,8 +316,8 @@ static u32 get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
 
 	if (mode) {
 		for (i = 0; i < QOS_MAX; i++) {
-			if (qcb->csr[i].enabled == 0) {
-				qcb->csr[i].enabled = 1;
+			if (!qcb->csr[i].enabled) {
+				qcb->csr[i].enabled = true;
 				qcb->qos_list_cnt++;
 				return i;
 			}
@@ -428,7 +428,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		INIT_LIST_HEAD(&free_list);
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
-		qcb->csr[index].enabled = 0;
+		qcb->csr[index].enabled = false;
 		qcb->qos_list_cnt--;
 		qcb->qos_limit_size = 254/qcb->qos_list_cnt;
 
