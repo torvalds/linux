@@ -88,8 +88,7 @@ module_exit(dgnc_cleanup_module);
 /*
  * File operations permitted on Control/Management major.
  */
-static const struct file_operations dgnc_BoardFops =
-{
+static const struct file_operations dgnc_BoardFops = {
 	.owner		=	THIS_MODULE,
 	.unlocked_ioctl =  	dgnc_mgmt_ioctl,
 	.open		=	dgnc_mgmt_open,
@@ -407,7 +406,7 @@ static void dgnc_cleanup_board(struct dgnc_board *brd)
 {
 	int i = 0;
 
-	if(!brd || brd->magic != DGNC_BOARD_MAGIC)
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	switch (brd->device) {
@@ -480,7 +479,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	/* get the board structure and prep it */
 	brd = dgnc_Board[dgnc_NumBoards] =
 		kzalloc(sizeof(*brd), GFP_KERNEL);
-	if (!brd) 
+	if (!brd)
 		return -ENOMEM;
 
 	/* make a temporary message buffer for the boot messages */
@@ -523,7 +522,7 @@ static int dgnc_found_board(struct pci_dev *pdev, int id)
 	brd->irq = pci_irq;
 
 
-	switch(brd->device) {
+	switch (brd->device) {
 
 	case PCI_DEVICE_CLASSIC_4_DID:
 	case PCI_DEVICE_CLASSIC_8_DID:
@@ -887,7 +886,7 @@ int dgnc_ms_sleep(ulong ms)
  */
 char *dgnc_ioctl_name(int cmd)
 {
-	switch(cmd) {
+	switch (cmd) {
 
 	case TCGETA:		return "TCGETA";
 	case TCGETS:		return "TCGETS";
