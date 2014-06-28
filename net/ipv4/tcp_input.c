@@ -5885,9 +5885,11 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
 	if (family == AF_INET)
 		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI4/%u\n"),
 			       &ireq->ir_rmt_addr, port);
-	else
+#if IS_ENABLED(CONFIG_IPV6)
+	else if (family == AF_INET6)
 		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("drop open request from %pI6/%u\n"),
 			       &ireq->ir_v6_rmt_addr, port);
+#endif
 }
 
 int tcp_conn_request(struct request_sock_ops *rsk_ops,
