@@ -12,6 +12,7 @@
 #ifdef __KERNEL__
 
 #include <linux/path.h>
+#include "branch.h"
 
 struct file;
 struct super_block;
@@ -177,7 +178,7 @@ struct au_opts {
 
 /* ---------------------------------------------------------------------- */
 
-char *au_optstr_br_perm(int brperm);
+void au_optstr_br_perm(au_br_perm_str_t *str, int perm);
 const char *au_optstr_udba(int udba);
 const char *au_optstr_wbr_copyup(int wbr_copyup);
 const char *au_optstr_wbr_create(int wbr_create);

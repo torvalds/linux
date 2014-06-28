@@ -95,6 +95,11 @@ int sysaufs_brs = 1;
 MODULE_PARM_DESC(brs, "use <sysfs>/fs/aufs/si_*/brN");
 module_param_named(brs, sysaufs_brs, int, S_IRUGO);
 
+/* this module parameter has no meaning when USER_NS is disabled */
+static bool au_userns;
+MODULE_PARM_DESC(allow_userns, "allow unprivileged to mount under userns");
+module_param_named(allow_userns, au_userns, bool, S_IRUGO);
+
 /* ---------------------------------------------------------------------- */
 
 static char au_esc_chars[0x20 + 3]; /* 0x01-0x20, backslash, del, and NULL */
@@ -145,9 +150,12 @@ static int __init aufs_init(void)
 	err = au_cache_init();
 	if (unlikely(err))
 		goto out_sysrq;
+
+	aufs_fs_type.fs_flags |= au_userns ? FS_USERNS_MOUNT : 0;
 	err = register_filesystem(&aufs_fs_type);
 	if (unlikely(err))
 		goto out_cache;
+
 	/* since we define pr_fmt, call printk directly */
 	printk(KERN_INFO AUFS_NAME " " AUFS_VERSION "\n");
 	goto out; /* success */
