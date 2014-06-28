@@ -268,7 +268,7 @@ static int txx9_i8259_irq_setup(int irq)
 	return err;
 }
 
-static void quirk_slc90e66_bridge(struct pci_dev *dev)
+static void __init_refok quirk_slc90e66_bridge(struct pci_dev *dev)
 {
 	int irq;	/* PCI/ISA Bridge interrupt */
 	u8 reg_64;
