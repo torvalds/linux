@@ -424,6 +424,18 @@ struct mgmt_rp_get_conn_info {
 	__s8	max_tx_power;
 } __packed;
 
+#define MGMT_OP_GET_CLOCK_INFO		0x0032
+struct mgmt_cp_get_clock_info {
+	struct mgmt_addr_info addr;
+} __packed;
+#define MGMT_GET_CLOCK_INFO_SIZE	MGMT_ADDR_INFO_SIZE
+struct mgmt_rp_get_clock_info {
+	struct mgmt_addr_info addr;
+	__le32  local_clock;
+	__le32  piconet_clock;
+	__le16  accuracy;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16	opcode;
