@@ -2503,7 +2503,7 @@ static ssize_t ab8500_gpadc_trig_timer_write(struct file *file,
 	if (err)
 		return err;
 
-	if ((user_trig_timer >= 0) && (user_trig_timer <= 255)) {
+	if (user_trig_timer <= 255) {
 		trig_timer = (u8) user_trig_timer;
 	} else {
 		dev_err(dev, "debugfs error input: "
