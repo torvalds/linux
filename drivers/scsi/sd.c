@@ -884,21 +884,7 @@ static int sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
 	return BLKPREP_OK;
 }
 
-static void sd_uninit_command(struct scsi_cmnd *SCpnt)
-{
-	struct request *rq = SCpnt->request;
-
-	if (rq->cmd_flags & REQ_DISCARD)
-		__free_page(rq->completion_data);
-
-	if (SCpnt->cmnd != rq->cmd) {
-		mempool_free(SCpnt->cmnd, sd_cdb_pool);
-		SCpnt->cmnd = NULL;
-		SCpnt->cmd_len = 0;
-	}
-}
-
-static int sd_init_command(struct scsi_cmnd *SCpnt)
+static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = SCpnt->request;
 	struct scsi_device *sdp = SCpnt->device;
@@ -910,20 +896,6 @@ static int sd_init_command(struct scsi_cmnd *SCpnt)
 	int ret, host_dif;
 	unsigned char protect;
 
-	/*
-	 * Discard request come in as REQ_TYPE_FS but we turn them into
-	 * block PC requests to make life easier.
-	 */
-	if (rq->cmd_flags & REQ_DISCARD) {
-		ret = sd_setup_discard_cmnd(SCpnt);
-		goto out;
-	} else if (rq->cmd_flags & REQ_WRITE_SAME) {
-		ret = sd_setup_write_same_cmnd(SCpnt);
-		goto out;
-	} else if (rq->cmd_flags & REQ_FLUSH) {
-		ret = sd_setup_flush_cmnd(SCpnt);
-		goto out;
-	}
 	ret = scsi_init_io(SCpnt, GFP_ATOMIC);
 	if (ret != BLKPREP_OK)
 		goto out;
@@ -1153,6 +1125,34 @@ static int sd_init_command(struct scsi_cmnd *SCpnt)
 	ret = BLKPREP_OK;
  out:
 	return ret;
+}
+
+static int sd_init_command(struct scsi_cmnd *cmd)
+{
+	struct request *rq = cmd->request;
+
+	if (rq->cmd_flags & REQ_DISCARD)
+		return sd_setup_discard_cmnd(cmd);
+	else if (rq->cmd_flags & REQ_WRITE_SAME)
+		return sd_setup_write_same_cmnd(cmd);
+	else if (rq->cmd_flags & REQ_FLUSH)
+		return sd_setup_flush_cmnd(cmd);
+	else
+		return sd_setup_read_write_cmnd(cmd);
+}
+
+static void sd_uninit_command(struct scsi_cmnd *SCpnt)
+{
+	struct request *rq = SCpnt->request;
+
+	if (rq->cmd_flags & REQ_DISCARD)
+		__free_page(rq->completion_data);
+
+	if (SCpnt->cmnd != rq->cmd) {
+		mempool_free(SCpnt->cmnd, sd_cdb_pool);
+		SCpnt->cmnd = NULL;
+		SCpnt->cmd_len = 0;
+	}
 }
 
 /**
