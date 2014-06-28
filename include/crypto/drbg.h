@@ -50,6 +50,7 @@
 #include <crypto/rng.h>
 #include <linux/fips.h>
 #include <linux/spinlock.h>
+#include <linux/list.h>
 
 /*
  * Concatenation Helper and string operation helper
@@ -64,7 +65,7 @@
 struct drbg_string {
 	const unsigned char *buf;
 	size_t len;
-	struct drbg_string *next;
+	struct list_head list;
 };
 
 static inline void drbg_string_fill(struct drbg_string *string,
@@ -72,7 +73,7 @@ static inline void drbg_string_fill(struct drbg_string *string,
 {
 	string->buf = buf;
 	string->len = len;
-	string->next = NULL;
+	INIT_LIST_HEAD(&string->list);
 }
 
 struct drbg_state;
@@ -97,7 +98,7 @@ struct drbg_core {
 };
 
 struct drbg_state_ops {
-	int (*update)(struct drbg_state *drbg, struct drbg_string *seed,
+	int (*update)(struct drbg_state *drbg, struct list_head *seed,
 		      int reseed);
 	int (*generate)(struct drbg_state *drbg,
 			unsigned char *buf, unsigned int buflen,
