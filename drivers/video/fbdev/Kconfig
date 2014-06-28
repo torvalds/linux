@@ -302,7 +302,7 @@ config FB_ACORN
 	  unsure, say N.
 
 config FB_CLPS711X_OLD
-	bool
+	tristate
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
