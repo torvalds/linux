@@ -844,14 +844,20 @@ static int sd_setup_write_same_cmnd(struct scsi_device *sdp, struct request *rq)
 	return ret;
 }
 
-static int scsi_setup_flush_cmnd(struct scsi_device *sdp, struct request *rq)
+static int sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
 {
-	rq->timeout *= SD_FLUSH_TIMEOUT_MULTIPLIER;
-	rq->retries = SD_MAX_RETRIES;
-	rq->cmd[0] = SYNCHRONIZE_CACHE;
-	rq->cmd_len = 10;
+	struct request *rq = cmd->request;
 
-	return scsi_setup_blk_pc_cmnd(sdp, rq);
+	/* flush requests don't perform I/O, zero the S/G table */
+	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
+
+	cmd->cmnd[0] = SYNCHRONIZE_CACHE;
+	cmd->cmd_len = 10;
+	cmd->transfersize = 0;
+	cmd->allowed = SD_MAX_RETRIES;
+
+	rq->timeout *= SD_FLUSH_TIMEOUT_MULTIPLIER;
+	return BLKPREP_OK;
 }
 
 static void sd_uninit_command(struct scsi_cmnd *SCpnt)
@@ -891,7 +897,7 @@ static int sd_init_command(struct scsi_cmnd *SCpnt)
 		ret = sd_setup_write_same_cmnd(sdp, rq);
 		goto out;
 	} else if (rq->cmd_flags & REQ_FLUSH) {
-		ret = scsi_setup_flush_cmnd(sdp, rq);
+		ret = sd_setup_flush_cmnd(SCpnt);
 		goto out;
 	}
 	ret = scsi_init_io(SCpnt, GFP_ATOMIC);
