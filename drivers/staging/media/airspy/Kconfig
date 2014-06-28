@@ -1,0 +1,5 @@
+config USB_AIRSPY
+	tristate "AirSpy"
+	depends on USB && VIDEO_DEV && VIDEO_V4L2 && I2C
+	select VIDEOBUF2_VMALLOC
+	default m if !MEDIA_SUBDRV_AUTOSELECT
