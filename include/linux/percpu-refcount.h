@@ -61,7 +61,7 @@ struct percpu_ref {
 	 * hack because we need to keep the pointer around for
 	 * percpu_ref_kill_rcu())
 	 */
-	unsigned __percpu	*pcpu_count;
+	unsigned long		pcpu_count_ptr;
 	percpu_ref_func_t	*release;
 	percpu_ref_func_t	*confirm_kill;
 	struct rcu_head		rcu;
@@ -99,7 +99,7 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
 				    unsigned __percpu **pcpu_countp)
 {
-	unsigned long pcpu_ptr = (unsigned long)ACCESS_ONCE(ref->pcpu_count);
+	unsigned long pcpu_ptr = ACCESS_ONCE(ref->pcpu_count_ptr);
 
 	if (unlikely(pcpu_ptr & PCPU_REF_DEAD))
 		return false;
