@@ -3191,8 +3191,7 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	return 0;
 
 err:
-	if (ab8500_dir)
-		debugfs_remove_recursive(ab8500_dir);
+	debugfs_remove_recursive(ab8500_dir);
 	dev_err(&plf->dev, "failed to create debugfs entries.\n");
 
 	return -ENOMEM;
