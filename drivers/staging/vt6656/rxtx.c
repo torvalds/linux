@@ -978,21 +978,21 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)
 		is_pspoll = true;
 
-	tx_buffer_head->wFragCtl =
-			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb)) << 10;
+	tx_buffer_head->frag_ctl =
+			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb) << 10);
 
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		switch (info->control.hw_key->cipher) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
-			tx_buffer_head->wFragCtl |= FRAGCTL_LEGACY;
+			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_LEGACY);
 			break;
 		case WLAN_CIPHER_SUITE_TKIP:
-			tx_buffer_head->wFragCtl |= FRAGCTL_TKIP;
+			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_TKIP);
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
-			tx_buffer_head->wFragCtl |= FRAGCTL_AES;
+			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_AES);
 			need_mic = true;
 		default:
 			break;
@@ -1033,7 +1033,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		return -ENOMEM;
 	}
 
-	tx_buffer_head->wFragCtl |= (u16)FRAGCTL_NONFRAG;
+	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
 	tx_bytes = tx_header_size + tx_body_size;
 
