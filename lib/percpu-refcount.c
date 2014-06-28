@@ -96,7 +96,7 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 
 	/* Mask out PCPU_REF_DEAD */
 	pcpu_count = (unsigned __percpu *)
-		(((unsigned long) pcpu_count) & ~PCPU_STATUS_MASK);
+		(((unsigned long) pcpu_count) & ~PCPU_REF_DEAD);
 
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(pcpu_count, cpu);

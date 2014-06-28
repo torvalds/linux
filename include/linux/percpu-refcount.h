@@ -88,12 +88,10 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 	return percpu_ref_kill_and_confirm(ref, NULL);
 }
 
-#define PCPU_STATUS_BITS	2
-#define PCPU_STATUS_MASK	((1 << PCPU_STATUS_BITS) - 1)
 #define PCPU_REF_PTR		0
 #define PCPU_REF_DEAD		1
 
-#define REF_STATUS(count)	(((unsigned long) count) & PCPU_STATUS_MASK)
+#define REF_STATUS(count)	(((unsigned long) count) & PCPU_REF_DEAD)
 
 /**
  * percpu_ref_get - increment a percpu refcount
