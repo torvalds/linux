@@ -331,7 +331,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 	 * !!! DO NOT REMOVE THIS COMMENT IT IS REQUIRED BY SMSC !!!
 	 */
 	dat |= 0x01;
-	pci_write_config_byte(dev, regs[i], dat);
+	pci_write_config_byte(dev, 0x5c, dat);
 	pci_read_config_byte(dev, 0x5c, &dat);
 	printk(KERN_CONT " REG5C %02x", dat);
 	printk(KERN_CONT "\n");
