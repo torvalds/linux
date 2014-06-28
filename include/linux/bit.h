@@ -1,13 +1,18 @@
 /*
  *
- *  Copyright (C) 2014 Burak Köken
+ *  Copyright (C) 2014 Burak Köken - colcsky@gmail.com
  *
- *  Get & set bits
+ *  Get & set bit macro
+ *
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version
+ *  2 of the License, or (at your option) any later version.
  *
  */
  
-#ifndef __LINUX_BITS_H__
-#define __LINUX_BITS_H__
+#ifndef __LINUX_BIT_H__
+#define __LINUX_BIT_H__
 
 #include <linux/types.h>
 
@@ -32,4 +37,4 @@
 
 
 
-#endif  /* __LINUX_BITS_H__ */
+#endif  /* __LINUX_BIT_H__ */
