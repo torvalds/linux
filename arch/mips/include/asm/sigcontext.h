@@ -32,8 +32,6 @@ struct sigcontext32 {
 	__u32		sc_lo2;
 	__u32		sc_hi3;
 	__u32		sc_lo3;
-	__u64		sc_msaregs[32];	/* Most significant 64 bits */
-	__u32		sc_msa_csr;
 };
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
 #endif /* _ASM_SIGCONTEXT_H */
