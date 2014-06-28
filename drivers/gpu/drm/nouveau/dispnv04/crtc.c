@@ -915,9 +915,9 @@ nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 	struct drm_device *dev = drm->dev;
 
 	if (state == ENTER_ATOMIC_MODE_SET)
-		nouveau_fbcon_save_disable_accel(dev);
+		nouveau_fbcon_accel_save_disable(dev);
 	else
-		nouveau_fbcon_restore_accel(dev);
+		nouveau_fbcon_accel_restore(dev);
 
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
