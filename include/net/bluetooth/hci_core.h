@@ -207,6 +207,7 @@ struct hci_dev {
 	__u16		conn_info_min_age;
 	__u16		conn_info_max_age;
 	__u8		ssp_debug_mode;
+	__u32		clock;
 
 	__u16		devid_source;
 	__u16		devid_vendor;
@@ -387,6 +388,9 @@ struct hci_conn {
 	__s8		tx_power;
 	__s8		max_tx_power;
 	unsigned long	flags;
+
+	__u32		clock;
+	__u16		clock_accuracy;
 
 	unsigned long	conn_info_timestamp;
 

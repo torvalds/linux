@@ -1087,6 +1087,18 @@ struct hci_rp_read_rssi {
 	__s8     rssi;
 } __packed;
 
+#define HCI_OP_READ_CLOCK		0x1407
+struct hci_cp_read_clock {
+	__le16   handle;
+	__u8     which;
+} __packed;
+struct hci_rp_read_clock {
+	__u8     status;
+	__le16   handle;
+	__le32   clock;
+	__le16   accuracy;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
 struct hci_rp_read_local_amp_info {
 	__u8     status;
