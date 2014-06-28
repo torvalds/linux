@@ -850,7 +850,7 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	}
 
 	cmd->transfersize = sdp->sector_size;
-	cmd->allowed = rq->retries;
+	cmd->allowed = SD_MAX_RETRIES;
 
 	/*
 	 * For WRITE_SAME the data transferred in the DATA IN buffer is
