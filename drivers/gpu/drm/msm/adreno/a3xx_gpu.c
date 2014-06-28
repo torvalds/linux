@@ -392,12 +392,9 @@ static const unsigned int a3xx_registers[] = {
 #ifdef CONFIG_DEBUG_FS
 static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
-	struct drm_device *dev = gpu->dev;
 	int i;
 
 	adreno_show(gpu, m);
-
-	mutex_lock(&dev->struct_mutex);
 
 	gpu->funcs->pm_resume(gpu);
 
@@ -418,8 +415,6 @@ static void a3xx_show(struct msm_gpu *gpu, struct seq_file *m)
 	}
 
 	gpu->funcs->pm_suspend(gpu);
-
-	mutex_unlock(&dev->struct_mutex);
 }
 #endif
 
