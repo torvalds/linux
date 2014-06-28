@@ -96,6 +96,78 @@ out:
 	return h_file;
 }
 
+static int au_cpup_on_open(struct dentry *dentry)
+{
+	int err, coo;
+	struct au_pin pin;
+	struct au_cp_generic cpg = {
+		.dentry	= dentry,
+		.bdst	= -1,
+		.bsrc	= -1,
+		.len	= -1,
+		.pin	= &pin,
+		.flags	= AuCpup_DTIME | AuCpup_HOPEN
+	};
+	struct inode *inode;
+	struct super_block *sb;
+	struct au_branch *br;
+	struct dentry *parent;
+
+	DiMustWriteLock(dentry);
+	inode = dentry->d_inode;
+	IiMustWriteLock(inode);
+
+	err = 0;
+	if (IS_ROOT(dentry))
+		goto out;
+	cpg.bsrc = au_dbstart(dentry);
+	if (!cpg.bsrc)
+		goto out;
+
+	sb = dentry->d_sb;
+	br = au_sbr(sb, cpg.bsrc);
+	coo = au_br_coo(br->br_perm);
+	if (!coo)
+		goto out;
+	if (!S_ISREG(inode->i_mode))
+		coo &= AuBrAttr_COO_ALL;
+	if (!coo)
+		goto out;
+
+	parent = dget_parent(dentry);
+	di_write_lock_parent(parent);
+	err = au_wbr_do_copyup_bu(dentry, cpg.bsrc - 1);
+	cpg.bdst = err;
+	if (unlikely(err < 0)) {
+		err = 0;	/* there is no upper writable branch */
+		goto out_dgrade;
+	}
+	AuDbg("bsrc %d, bdst %d\n", cpg.bsrc, cpg.bdst);
+
+	/* do not respect the coo attrib for the target branch */
+	err = au_cpup_dirs(dentry, cpg.bdst);
+	if (unlikely(err))
+		goto out_dgrade;
+
+	di_downgrade_lock(parent, AuLock_IR);
+	err = au_pin(&pin, dentry, cpg.bdst, au_opt_udba(sb),
+		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
+	if (!err) {
+		err = au_sio_cpup_simple(&cpg);
+		au_unpin(&pin);
+	}
+	goto out_parent;
+
+out_dgrade:
+	di_downgrade_lock(parent, AuLock_IR);
+out_parent:
+	di_read_unlock(parent, AuLock_IR);
+	dput(parent);
+out:
+	AuTraceErr(err);
+	return err;
+}
+
 int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 	       struct au_fidir *fidir)
 {
@@ -107,8 +179,11 @@ int au_do_open(struct file *file, int (*open)(struct file *file, int flags),
 		goto out;
 
 	dentry = file->f_dentry;
-	di_read_lock_child(dentry, AuLock_IR);
-	err = open(file, vfsub_file_flags(file));
+	di_write_lock_child(dentry);
+	err = au_cpup_on_open(dentry);
+	di_downgrade_lock(dentry, AuLock_IR);
+	if (!err)
+		err = open(file, vfsub_file_flags(file));
 	di_read_unlock(dentry, AuLock_IR);
 
 	fi_write_unlock(file);
