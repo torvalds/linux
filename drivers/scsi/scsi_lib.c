@@ -1047,7 +1047,7 @@ static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 	return cmd;
 }
 
-int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
+static int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
@@ -1072,7 +1072,6 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 	cmd->allowed = req->retries;
 	return BLKPREP_OK;
 }
-EXPORT_SYMBOL(scsi_setup_blk_pc_cmnd);
 
 /*
  * Setup a REQ_TYPE_FS command.  These are simple request from filesystems
