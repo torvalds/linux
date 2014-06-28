@@ -758,7 +758,7 @@ static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 	rq->timeout = SD_TIMEOUT;
 
 	cmd->transfersize = len;
-	cmd->allowed = rq->retries;
+	cmd->allowed = SD_MAX_RETRIES;
 
 	/*
 	 * Initially __data_len is set to the amount of data that needs to be
