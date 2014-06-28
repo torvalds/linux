@@ -417,6 +417,27 @@ struct snd_hda_pin_quirk {
 	int value;			/* quirk value */
 };
 
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .name = _name,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+#else
+
+#define SND_HDA_PIN_QUIRK(_codec, _subvendor, _name, _value, _pins...) \
+	{ .codec = _codec,\
+	  .subvendor = _subvendor,\
+	  .value = _value,\
+	  .pins = (const struct hda_pintbl[]) { _pins } \
+	}
+
+#endif
+
+
 /* fixup types */
 enum {
 	HDA_FIXUP_INVALID,

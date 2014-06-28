@@ -898,6 +898,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			if (!strcmp(codec->modelname, models->name)) {
 				codec->fixup_id = models->id;
 				codec->fixup_name = models->name;
+				codec->fixup_list = fixlist;
 				codec->fixup_forced = 1;
 				return;
 			}
