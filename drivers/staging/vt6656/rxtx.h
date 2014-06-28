@@ -41,8 +41,7 @@ struct vnt_mic_hdr {
 	u8 id;
 	u8 tx_priority;
 	u8 mic_addr2[6];
-	__be32 tsc_47_16;
-	__be16 tsc_15_0;
+	u8 ccmp_pn[IEEE80211_CCMP_PN_LEN];
 	__be16 payload_len;
 	__be16 hlen;
 	__le16 frame_control;

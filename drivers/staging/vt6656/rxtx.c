@@ -848,13 +848,7 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 
 		ieee80211_get_key_tx_seq(tx_key, &seq);
 
-		mic_hdr->tsc_47_16 = cpu_to_be32((u32)seq.ccmp.pn[3] |
-						((u32)seq.ccmp.pn[2] << 8) |
-						((u32)seq.ccmp.pn[1] << 16) |
-						((u32)seq.ccmp.pn[0] << 24));
-
-		mic_hdr->tsc_15_0 = cpu_to_be16((u16)seq.ccmp.pn[5] |
-						((u16)seq.ccmp.pn[4] << 8));
+		memcpy(mic_hdr->ccmp_pn, seq.ccmp.pn, IEEE80211_CCMP_PN_LEN);
 
 		if (ieee80211_has_a4(hdr->frame_control))
 			mic_hdr->hlen = cpu_to_be16(28);
