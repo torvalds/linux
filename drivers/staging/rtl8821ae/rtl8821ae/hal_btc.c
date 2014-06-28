@@ -2045,8 +2045,7 @@ void rtl_8821ae_c2h_command_handle(struct ieee80211_hw *hw)
 		break;
 	}
 
-	if(ptmp_buf)
-		kfree(ptmp_buf);
+	kfree(ptmp_buf);
 
 	rtl_write_byte(rtlpriv, 0x01AF, C2H_EVT_HOST_CLOSE);
 }
