@@ -377,6 +377,20 @@ static void mixer_run(struct mixer_context *ctx)
 	mixer_regs_dump(ctx);
 }
 
+static void mixer_stop(struct mixer_context *ctx)
+{
+	struct mixer_resources *res = &ctx->mixer_res;
+	int timeout = 20;
+
+	mixer_reg_writemask(res, MXR_STATUS, 0, MXR_STATUS_REG_RUN);
+
+	while (!(mixer_reg_read(res, MXR_STATUS) & MXR_STATUS_REG_IDLE) &&
+			--timeout)
+		usleep_range(10000, 12000);
+
+	mixer_regs_dump(ctx);
+}
+
 static void vp_video_buffer(struct mixer_context *ctx, int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
@@ -497,13 +511,8 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 static void mixer_layer_update(struct mixer_context *ctx)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val;
 
-	val = mixer_reg_read(res, MXR_CFG);
-
-	/* allow one update per vsync only */
-	if (!(val & MXR_CFG_LAYER_UPDATE_COUNT_MASK))
-		mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
+	mixer_reg_writemask(res, MXR_CFG, ~0, MXR_CFG_LAYER_UPDATE);
 }
 
 static void mixer_graph_buffer(struct mixer_context *ctx, int win)
@@ -1010,6 +1019,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 	}
 	mutex_unlock(&mixer_ctx->mixer_mutex);
 
+	drm_vblank_get(mgr->crtc->dev, mixer_ctx->pipe);
+
 	atomic_set(&mixer_ctx->wait_vsync_event, 1);
 
 	/*
@@ -1020,6 +1031,8 @@ static void mixer_wait_for_vblank(struct exynos_drm_manager *mgr)
 				!atomic_read(&mixer_ctx->wait_vsync_event),
 				HZ/20))
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
+
+	drm_vblank_put(mgr->crtc->dev, mixer_ctx->pipe);
 }
 
 static void mixer_window_suspend(struct exynos_drm_manager *mgr)
@@ -1061,7 +1074,7 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		mutex_unlock(&ctx->mixer_mutex);
 		return;
 	}
-	ctx->powered = true;
+
 	mutex_unlock(&ctx->mixer_mutex);
 
 	pm_runtime_get_sync(ctx->dev);
@@ -1071,6 +1084,12 @@ static void mixer_poweron(struct exynos_drm_manager *mgr)
 		clk_prepare_enable(res->vp);
 		clk_prepare_enable(res->sclk_mixer);
 	}
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = true;
+	mutex_unlock(&ctx->mixer_mutex);
+
+	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_SOFT_RESET);
 
 	mixer_reg_write(res, MXR_INT_EN, ctx->int_en);
 	mixer_win_reset(ctx);
@@ -1084,13 +1103,20 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mutex_lock(&ctx->mixer_mutex);
-	if (!ctx->powered)
-		goto out;
+	if (!ctx->powered) {
+		mutex_unlock(&ctx->mixer_mutex);
+		return;
+	}
 	mutex_unlock(&ctx->mixer_mutex);
 
+	mixer_stop(ctx);
 	mixer_window_suspend(mgr);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
+
+	mutex_lock(&ctx->mixer_mutex);
+	ctx->powered = false;
+	mutex_unlock(&ctx->mixer_mutex);
 
 	clk_disable_unprepare(res->mixer);
 	if (ctx->vp_enabled) {
@@ -1099,12 +1125,6 @@ static void mixer_poweroff(struct exynos_drm_manager *mgr)
 	}
 
 	pm_runtime_put_sync(ctx->dev);
-
-	mutex_lock(&ctx->mixer_mutex);
-	ctx->powered = false;
-
-out:
-	mutex_unlock(&ctx->mixer_mutex);
 }
 
 static void mixer_dpms(struct exynos_drm_manager *mgr, int mode)
