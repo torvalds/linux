@@ -1094,9 +1094,7 @@ close:
 	vmbus_close(device->channel);
 
 cleanup:
-
-	if (net_device)
-		kfree(net_device);
+	kfree(net_device);
 
 	return ret;
 }
