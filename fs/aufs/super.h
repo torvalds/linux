@@ -280,6 +280,7 @@ extern struct au_wbr_copyup_operations au_wbr_copyup_ops[];
 extern struct au_wbr_create_operations au_wbr_create_ops[];
 int au_cpdown_dirs(struct dentry *dentry, aufs_bindex_t bdst);
 int au_wbr_nonopq(struct dentry *dentry, aufs_bindex_t bindex);
+int au_wbr_do_copyup_bu(struct dentry *dentry, aufs_bindex_t bstart);
 
 /* mvdown.c */
 int au_mvdown(struct dentry *dentry, struct aufs_mvdown __user *arg);
