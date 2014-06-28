@@ -3289,7 +3289,9 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (dev_priv->rps.enabled) {
-		if (IS_VALLEYVIEW(dev))
+		if (IS_CHERRYVIEW(dev))
+			valleyview_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
+		else if (IS_VALLEYVIEW(dev))
 			vlv_set_rps_idle(dev_priv);
 		else
 			gen6_set_rps(dev_priv->dev, dev_priv->rps.min_freq_softlimit);
