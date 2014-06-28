@@ -432,13 +432,10 @@ static int device_init_registers(struct vnt_private *pDevice)
 	* set BB and packet type at the same time
 	* set Short Slot Time, xIFS, and RSPINF
 	*/
-	if (pDevice->byBBType == BB_TYPE_11A) {
-		vnt_add_basic_rate(pDevice, RATE_6M);
+	if (pDevice->byBBType == BB_TYPE_11A)
 		pDevice->bShortSlotTime = true;
-	} else {
-		vnt_add_basic_rate(pDevice, RATE_1M);
+	else
 		pDevice->bShortSlotTime = false;
-	}
 
 	BBvSetShortSlotTime(pDevice);
 	vnt_set_bss_mode(pDevice);

@@ -470,28 +470,6 @@ void vnt_update_top_rates(struct vnt_private *priv)
 	priv->byTopCCKBasicRate = top_cck;
  }
 
-/*
- * Description: Set NIC Tx Basic Rate
- *
- * Parameters:
- *  In:
- *      pDevice         - The adapter to be set
- *      wBasicRate      - Basic Rate to be set
- *  Out:
- *      none
- *
- * Return Value: true if succeeded; false if failed.
- *
- */
-void vnt_add_basic_rate(struct vnt_private *priv, u16 rate_idx)
-{
-
-	priv->wBasicRate |= (1 << rate_idx);
-
-	/*Determines the highest basic rate.*/
-	vnt_update_top_rates(priv);
-}
-
 int vnt_ofdm_min_rate(struct vnt_private *priv)
 {
 	int ii;
