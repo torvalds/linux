@@ -117,12 +117,26 @@ static inline struct super_block *au_br_sb(struct au_branch *br)
 #define AuBrPerm_RR		(1 << 2)	/* natively readonly */
 #define AuBrPerm_Mask		(AuBrPerm_RW | AuBrPerm_RO | AuBrPerm_RR)
 
-#define AuBrRAttr_WH		(1 << 3)	/* whiteout-able */
-
-#define AuBrWAttr_NoLinkWH	(1 << 4)	/* un-hardlinkable whiteouts */
+#define AuBrAttr_COO_REG	(1 << 3)	/* copy-up on open */
+#define AuBrAttr_COO_ALL	(1 << 4)
+#define AuBrAttr_COO_Mask	(AuBrAttr_COO_REG | AuBrAttr_COO_ALL)
 
 #define AuBrAttr_UNPIN		(1 << 5)	/* rename-able top dir of
 						   branch */
+
+#define AuBrRAttr_WH		(1 << 6)	/* whiteout-able */
+
+#define AuBrWAttr_NoLinkWH	(1 << 7)	/* un-hardlinkable whiteouts */
+
+/* the longest combination */
+#define AuBrPermStrSz	sizeof(AUFS_BRPERM_RW		\
+			       "+" AUFS_BRATTR_COO_REG	\
+			       "+" AUFS_BRATTR_UNPIN	\
+			       "+" AUFS_BRWATTR_NLWH)
+
+typedef struct {
+	char a[AuBrPermStrSz];
+} au_br_perm_str_t;
 
 static inline int au_br_writable(int brperm)
 {
@@ -144,6 +158,11 @@ static inline int au_br_rdonly(struct au_branch *br)
 	return ((au_br_sb(br)->s_flags & MS_RDONLY)
 		|| !au_br_writable(br->br_perm))
 		? -EROFS : 0;
+}
+
+static inline int au_br_coo(int brperm)
+{
+	return (brperm & AuBrAttr_COO_Mask);
 }
 
 static inline int au_br_hnotifyable(int brperm __maybe_unused)
