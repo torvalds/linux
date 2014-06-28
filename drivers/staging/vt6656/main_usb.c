@@ -1104,7 +1104,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	mutex_init(&priv->usb_lock);
 
 	INIT_DELAYED_WORK(&priv->run_command_work, vRunCommand);
-	INIT_WORK(&priv->read_work_item, RXvWorkItem);
 
 	usb_set_intfdata(intf, priv);
 

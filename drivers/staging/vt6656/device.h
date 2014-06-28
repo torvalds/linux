@@ -289,8 +289,6 @@ struct vnt_private {
 	struct usb_device *usb;
 	struct net_device_stats stats;
 
-	struct work_struct read_work_item;
-
 	u64 tsf_time;
 	u8 rx_rate;
 
@@ -308,14 +306,8 @@ struct vnt_private {
 	u32 int_interval;
 
 	/* Variables to track resources for the BULK In Pipe */
-	struct vnt_rcb *pRCBMem;
 	struct vnt_rcb *apRCB[CB_MAX_RX_DESC];
 	u32 cbRD;
-	struct vnt_rcb *FirstRecvFreeList;
-	struct vnt_rcb *LastRecvFreeList;
-	u32 NumRecvFreeList;
-
-	int bIsRxWorkItemQueued;
 
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *apTD[CB_MAX_TX_DESC];
@@ -447,27 +439,6 @@ struct vnt_private {
 
 	struct iw_statistics wstats; /* wireless stats */
 };
-
-#define EnqueueRCB(_Head, _Tail, _RCB)                  \
-{                                                       \
-    if (!_Head) {                                       \
-        _Head = _RCB;                                   \
-    }                                                   \
-    else {                                              \
-        _Tail->Next = _RCB;                             \
-    }                                                   \
-    _RCB->Next = NULL;                                  \
-    _Tail = _RCB;                                       \
-}
-
-#define DequeueRCB(Head, Tail)                          \
-{                                                       \
-    struct vnt_rcb *RCB = Head;                         \
-    if (!RCB->Next) {                                   \
-        Tail = NULL;                                    \
-    }                                                   \
-    Head = RCB->Next;                                   \
-}
 
 #define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \
     if ((uVar) >= ((uModulo) - 1))                  \
