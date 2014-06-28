@@ -691,8 +691,10 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
  * Will issue either UNMAP or WRITE SAME(16) depending on preference
  * indicated by target device.
  **/
-static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
+static int sd_setup_discard_cmnd(struct scsi_cmnd *cmd)
 {
+	struct request *rq = cmd->request;
+	struct scsi_device *sdp = cmd->device;
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	sector_t sector = blk_rq_pos(rq);
 	unsigned int nr_sectors = blk_rq_sectors(rq);
@@ -704,9 +706,6 @@ static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 
 	sector >>= ilog2(sdp->sector_size) - 9;
 	nr_sectors >>= ilog2(sdp->sector_size) - 9;
-	rq->timeout = SD_TIMEOUT;
-
-	memset(rq->cmd, 0, rq->cmd_len);
 
 	page = alloc_page(GFP_ATOMIC | __GFP_ZERO);
 	if (!page)
@@ -716,9 +715,9 @@ static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	case SD_LBP_UNMAP:
 		buf = page_address(page);
 
-		rq->cmd_len = 10;
-		rq->cmd[0] = UNMAP;
-		rq->cmd[8] = 24;
+		cmd->cmd_len = 10;
+		cmd->cmnd[0] = UNMAP;
+		cmd->cmnd[8] = 24;
 
 		put_unaligned_be16(6 + 16, &buf[0]);
 		put_unaligned_be16(16, &buf[2]);
@@ -729,23 +728,23 @@ static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 		break;
 
 	case SD_LBP_WS16:
-		rq->cmd_len = 16;
-		rq->cmd[0] = WRITE_SAME_16;
-		rq->cmd[1] = 0x8; /* UNMAP */
-		put_unaligned_be64(sector, &rq->cmd[2]);
-		put_unaligned_be32(nr_sectors, &rq->cmd[10]);
+		cmd->cmd_len = 16;
+		cmd->cmnd[0] = WRITE_SAME_16;
+		cmd->cmnd[1] = 0x8; /* UNMAP */
+		put_unaligned_be64(sector, &cmd->cmnd[2]);
+		put_unaligned_be32(nr_sectors, &cmd->cmnd[10]);
 
 		len = sdkp->device->sector_size;
 		break;
 
 	case SD_LBP_WS10:
 	case SD_LBP_ZERO:
-		rq->cmd_len = 10;
-		rq->cmd[0] = WRITE_SAME;
+		cmd->cmd_len = 10;
+		cmd->cmnd[0] = WRITE_SAME;
 		if (sdkp->provisioning_mode == SD_LBP_WS10)
-			rq->cmd[1] = 0x8; /* UNMAP */
-		put_unaligned_be32(sector, &rq->cmd[2]);
-		put_unaligned_be16(nr_sectors, &rq->cmd[7]);
+			cmd->cmnd[1] = 0x8; /* UNMAP */
+		put_unaligned_be32(sector, &cmd->cmnd[2]);
+		put_unaligned_be16(nr_sectors, &cmd->cmnd[7]);
 
 		len = sdkp->device->sector_size;
 		break;
@@ -756,8 +755,21 @@ static int sd_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	}
 
 	rq->completion_data = page;
+	rq->timeout = SD_TIMEOUT;
+
+	cmd->transfersize = len;
+	cmd->allowed = rq->retries;
+
+	/*
+	 * Initially __data_len is set to the amount of data that needs to be
+	 * transferred to the target. This amount depends on whether WRITE SAME
+	 * or UNMAP is being used. After the scatterlist has been mapped by
+	 * scsi_init_io() we set __data_len to the size of the area to be
+	 * discarded on disk. This allows us to report completion on the full
+	 * amount of blocks described by the request.
+	 */
 	blk_add_request_payload(rq, page, len);
-	ret = scsi_setup_blk_pc_cmnd(sdp, rq);
+	ret = scsi_init_io(cmd, GFP_ATOMIC);
 	rq->__data_len = nr_bytes;
 
 out:
@@ -903,7 +915,7 @@ static int sd_init_command(struct scsi_cmnd *SCpnt)
 	 * block PC requests to make life easier.
 	 */
 	if (rq->cmd_flags & REQ_DISCARD) {
-		ret = sd_setup_discard_cmnd(sdp, rq);
+		ret = sd_setup_discard_cmnd(SCpnt);
 		goto out;
 	} else if (rq->cmd_flags & REQ_WRITE_SAME) {
 		ret = sd_setup_write_same_cmnd(SCpnt);
