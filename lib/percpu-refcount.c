@@ -61,36 +61,25 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 EXPORT_SYMBOL_GPL(percpu_ref_init);
 
 /**
- * percpu_ref_cancel_init - cancel percpu_ref_init()
- * @ref: percpu_ref to cancel init for
+ * percpu_ref_exit - undo percpu_ref_init()
+ * @ref: percpu_ref to exit
  *
- * Once a percpu_ref is initialized, its destruction is initiated by
- * percpu_ref_kill() and completes asynchronously, which can be painful to
- * do when destroying a half-constructed object in init failure path.
- *
- * This function destroys @ref without invoking @ref->release and the
- * memory area containing it can be freed immediately on return.  To
- * prevent accidental misuse, it's required that @ref has finished
- * percpu_ref_init(), whether successful or not, but never used.
- *
- * The weird name and usage restriction are to prevent people from using
- * this function by mistake for normal shutdown instead of
- * percpu_ref_kill().
+ * This function exits @ref.  The caller is responsible for ensuring that
+ * @ref is no longer in active use.  The usual places to invoke this
+ * function from are the @ref->release() callback or in init failure path
+ * where percpu_ref_init() succeeded but other parts of the initialization
+ * of the embedding object failed.
  */
-void percpu_ref_cancel_init(struct percpu_ref *ref)
+void percpu_ref_exit(struct percpu_ref *ref)
 {
 	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
-	int cpu;
-
-	WARN_ON_ONCE(atomic_read(&ref->count) != 1 + PCPU_COUNT_BIAS);
 
 	if (pcpu_count) {
-		for_each_possible_cpu(cpu)
-			WARN_ON_ONCE(*per_cpu_ptr(pcpu_count, cpu));
 		free_percpu(pcpu_count);
+		ref->pcpu_count_ptr = PCPU_REF_DEAD;
 	}
 }
-EXPORT_SYMBOL_GPL(percpu_ref_cancel_init);
+EXPORT_SYMBOL_GPL(percpu_ref_exit);
 
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
@@ -101,8 +90,6 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(pcpu_count, cpu);
-
-	free_percpu(pcpu_count);
 
 	pr_debug("global %i pcpu %i", atomic_read(&ref->count), (int) count);
 

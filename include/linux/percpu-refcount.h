@@ -57,9 +57,7 @@ struct percpu_ref {
 	atomic_t		count;
 	/*
 	 * The low bit of the pointer indicates whether the ref is in percpu
-	 * mode; if set, then get/put will manipulate the atomic_t (this is a
-	 * hack because we need to keep the pointer around for
-	 * percpu_ref_kill_rcu())
+	 * mode; if set, then get/put will manipulate the atomic_t.
 	 */
 	unsigned long		pcpu_count_ptr;
 	percpu_ref_func_t	*release;
@@ -69,7 +67,7 @@ struct percpu_ref {
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
 				 percpu_ref_func_t *release);
-void percpu_ref_cancel_init(struct percpu_ref *ref);
+void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
 
