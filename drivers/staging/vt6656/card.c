@@ -825,4 +825,6 @@ void vnt_set_bss_mode(struct vnt_private *priv)
 		priv->abyBBVGA[2] = 0x0;
 		priv->abyBBVGA[3] = 0x0;
 	}
+
+	BBvSetVGAGainOffset(priv, priv->abyBBVGA[0]);
 }

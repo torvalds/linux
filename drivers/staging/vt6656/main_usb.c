@@ -440,11 +440,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 	BBvSetShortSlotTime(pDevice);
 	vnt_set_bss_mode(pDevice);
 
-	pDevice->byBBVGACurrent = pDevice->abyBBVGA[0];
-	pDevice->byBBVGANew = pDevice->byBBVGACurrent;
-
-	BBvSetVGAGainOffset(pDevice, pDevice->abyBBVGA[0]);
-
 	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
 	pDevice->bHWRadioOff = false;
 
