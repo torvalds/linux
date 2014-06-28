@@ -88,10 +88,25 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 	return percpu_ref_kill_and_confirm(ref, NULL);
 }
 
-#define PCPU_REF_PTR		0
 #define PCPU_REF_DEAD		1
 
-#define REF_STATUS(count)	(((unsigned long) count) & PCPU_REF_DEAD)
+/*
+ * Internal helper.  Don't use outside percpu-refcount proper.  The
+ * function doesn't return the pointer and let the caller test it for NULL
+ * because doing so forces the compiler to generate two conditional
+ * branches as it can't assume that @ref->pcpu_count is not NULL.
+ */
+static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
+				    unsigned __percpu **pcpu_countp)
+{
+	unsigned long pcpu_ptr = (unsigned long)ACCESS_ONCE(ref->pcpu_count);
+
+	if (unlikely(pcpu_ptr & PCPU_REF_DEAD))
+		return false;
+
+	*pcpu_countp = (unsigned __percpu *)pcpu_ptr;
+	return true;
+}
 
 /**
  * percpu_ref_get - increment a percpu refcount
@@ -105,9 +120,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR))
+	if (__pcpu_ref_alive(ref, &pcpu_count))
 		this_cpu_inc(*pcpu_count);
 	else
 		atomic_inc(&ref->count);
@@ -131,9 +144,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR)) {
+	if (__pcpu_ref_alive(ref, &pcpu_count)) {
 		this_cpu_inc(*pcpu_count);
 		ret = true;
 	} else {
@@ -166,9 +177,7 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR)) {
+	if (__pcpu_ref_alive(ref, &pcpu_count)) {
 		this_cpu_inc(*pcpu_count);
 		ret = true;
 	}
@@ -191,9 +200,7 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR))
+	if (__pcpu_ref_alive(ref, &pcpu_count))
 		this_cpu_dec(*pcpu_count);
 	else if (unlikely(atomic_dec_and_test(&ref->count)))
 		ref->release(ref);

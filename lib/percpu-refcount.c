@@ -31,6 +31,11 @@
 
 #define PCPU_COUNT_BIAS		(1U << 31)
 
+static unsigned __percpu *pcpu_count_ptr(struct percpu_ref *ref)
+{
+	return (unsigned __percpu *)((unsigned long)ref->pcpu_count & ~PCPU_REF_DEAD);
+}
+
 /**
  * percpu_ref_init - initialize a percpu refcount
  * @ref: percpu_ref to initialize
@@ -74,7 +79,7 @@ EXPORT_SYMBOL_GPL(percpu_ref_init);
  */
 void percpu_ref_cancel_init(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count = ref->pcpu_count;
+	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
 	int cpu;
 
 	WARN_ON_ONCE(atomic_read(&ref->count) != 1 + PCPU_COUNT_BIAS);
@@ -82,7 +87,7 @@ void percpu_ref_cancel_init(struct percpu_ref *ref)
 	if (pcpu_count) {
 		for_each_possible_cpu(cpu)
 			WARN_ON_ONCE(*per_cpu_ptr(pcpu_count, cpu));
-		free_percpu(ref->pcpu_count);
+		free_percpu(pcpu_count);
 	}
 }
 EXPORT_SYMBOL_GPL(percpu_ref_cancel_init);
@@ -90,13 +95,9 @@ EXPORT_SYMBOL_GPL(percpu_ref_cancel_init);
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
 	struct percpu_ref *ref = container_of(rcu, struct percpu_ref, rcu);
-	unsigned __percpu *pcpu_count = ref->pcpu_count;
+	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
 	unsigned count = 0;
 	int cpu;
-
-	/* Mask out PCPU_REF_DEAD */
-	pcpu_count = (unsigned __percpu *)
-		(((unsigned long) pcpu_count) & ~PCPU_REF_DEAD);
 
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(pcpu_count, cpu);
@@ -152,7 +153,7 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
 {
-	WARN_ONCE(REF_STATUS(ref->pcpu_count) == PCPU_REF_DEAD,
+	WARN_ONCE((unsigned long)ref->pcpu_count & PCPU_REF_DEAD,
 		  "percpu_ref_kill() called more than once!\n");
 
 	ref->pcpu_count = (unsigned __percpu *)
