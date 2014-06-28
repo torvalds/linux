@@ -40,7 +40,7 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	li.u.log.logflags = loginfo->logflags;
 
 	nf_log_packet(net, par->family, par->hooknum, skb, par->in, par->out,
-		      &li, loginfo->prefix);
+		      &li, "%s", loginfo->prefix);
 	return XT_CONTINUE;
 }
 
