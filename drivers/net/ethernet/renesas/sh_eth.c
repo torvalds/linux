@@ -1094,20 +1094,16 @@ static void sh_eth_ring_free(struct net_device *ndev)
 
 	/* Free Rx skb ringbuffer */
 	if (mdp->rx_skbuff) {
-		for (i = 0; i < mdp->num_rx_ring; i++) {
-			if (mdp->rx_skbuff[i])
-				dev_kfree_skb(mdp->rx_skbuff[i]);
-		}
+		for (i = 0; i < mdp->num_rx_ring; i++)
+			dev_kfree_skb(mdp->rx_skbuff[i]);
 	}
 	kfree(mdp->rx_skbuff);
 	mdp->rx_skbuff = NULL;
 
 	/* Free Tx skb ringbuffer */
 	if (mdp->tx_skbuff) {
-		for (i = 0; i < mdp->num_tx_ring; i++) {
-			if (mdp->tx_skbuff[i])
-				dev_kfree_skb(mdp->tx_skbuff[i]);
-		}
+		for (i = 0; i < mdp->num_tx_ring; i++)
+			dev_kfree_skb(mdp->tx_skbuff[i]);
 	}
 	kfree(mdp->tx_skbuff);
 	mdp->tx_skbuff = NULL;
@@ -2077,13 +2073,11 @@ static void sh_eth_tx_timeout(struct net_device *ndev)
 		rxdesc = &mdp->rx_ring[i];
 		rxdesc->status = 0;
 		rxdesc->addr = 0xBADF00D0;
-		if (mdp->rx_skbuff[i])
-			dev_kfree_skb(mdp->rx_skbuff[i]);
+		dev_kfree_skb(mdp->rx_skbuff[i]);
 		mdp->rx_skbuff[i] = NULL;
 	}
 	for (i = 0; i < mdp->num_tx_ring; i++) {
-		if (mdp->tx_skbuff[i])
-			dev_kfree_skb(mdp->tx_skbuff[i]);
+		dev_kfree_skb(mdp->tx_skbuff[i]);
 		mdp->tx_skbuff[i] = NULL;
 	}
 
