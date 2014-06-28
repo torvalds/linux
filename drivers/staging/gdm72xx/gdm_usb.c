@@ -312,7 +312,8 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 		return -ENODEV;
 	}
 
-	BUG_ON(len > TX_BUF_SIZE - padding - 1);
+	if (len > TX_BUF_SIZE - padding - 1)
+		return -EINVAL;
 
 	spin_lock_irqsave(&tx->lock, flags);
 

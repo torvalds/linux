@@ -390,7 +390,8 @@ static int gdm_sdio_send(void *priv_dev, void *data, int len,
 	u16 cmd_evt;
 	unsigned long flags;
 
-	BUG_ON(len > TX_BUF_SIZE - TYPE_A_HEADER_SIZE);
+	if (len > TX_BUF_SIZE - TYPE_A_HEADER_SIZE)
+		return -EINVAL;
 
 	spin_lock_irqsave(&tx->lock, flags);
 
