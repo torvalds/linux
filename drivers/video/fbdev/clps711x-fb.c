@@ -311,7 +311,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 		/* Setup start FB address */
 		writeb(info->fix.smem_start >> 28, cfb->base + CLPS711X_FBADDR);
 		/* Clean FB memory */
-		memset(info->screen_base, 0, cfb->buffsize);
+		memset_io(info->screen_base, 0, cfb->buffsize);
 	}
 
 	cfb->lcd_pwr = devm_regulator_get(dev, "lcd");
