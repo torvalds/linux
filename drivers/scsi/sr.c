@@ -438,11 +438,9 @@ static int sr_init_command(struct scsi_cmnd *SCpnt)
 		if (!cd->device->writeable)
 			goto out;
 		SCpnt->cmnd[0] = WRITE_10;
-		SCpnt->sc_data_direction = DMA_TO_DEVICE;
 		cd->cdi.media_written = 1;
 	} else if (rq_data_dir(rq) == READ) {
 		SCpnt->cmnd[0] = READ_10;
-		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
 	} else {
 		blk_dump_rq_flags(rq, "Unknown sr command");
 		goto out;
