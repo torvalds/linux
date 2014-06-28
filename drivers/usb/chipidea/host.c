@@ -190,6 +190,7 @@ static void host_stop(struct ci_hdrc *ci)
 			(ci->platdata->flags & CI_HDRC_TURN_VBUS_EARLY_ON))
 				regulator_disable(ci->platdata->reg_vbus);
 	}
+	ci->hcd = NULL;
 }
 
 bool ci_hdrc_host_has_device(struct ci_hdrc *ci)
