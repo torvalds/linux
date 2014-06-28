@@ -118,6 +118,7 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 	 */
 	orig = readl(drv_data->ioaddr + offset + SPI_CS_CONTROL);
 
+	/* Test SPI_CS_CONTROL_SW_MODE bit enabling */
 	value = orig | SPI_CS_CONTROL_SW_MODE;
 	writel(value, drv_data->ioaddr + offset + SPI_CS_CONTROL);
 	value = readl(drv_data->ioaddr + offset + SPI_CS_CONTROL);
@@ -126,10 +127,13 @@ static void lpss_ssp_setup(struct driver_data *drv_data)
 		goto detection_done;
 	}
 
-	value &= ~SPI_CS_CONTROL_SW_MODE;
+	orig = readl(drv_data->ioaddr + offset + SPI_CS_CONTROL);
+
+	/* Test SPI_CS_CONTROL_SW_MODE bit disabling */
+	value = orig & ~SPI_CS_CONTROL_SW_MODE;
 	writel(value, drv_data->ioaddr + offset + SPI_CS_CONTROL);
 	value = readl(drv_data->ioaddr + offset + SPI_CS_CONTROL);
-	if (value != orig) {
+	if (value != (orig & ~SPI_CS_CONTROL_SW_MODE)) {
 		offset = 0x800;
 		goto detection_done;
 	}
