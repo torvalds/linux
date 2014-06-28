@@ -385,10 +385,9 @@ static int sr_init_command(struct scsi_cmnd *SCpnt)
 	int block = 0, this_count, s_size;
 	struct scsi_cd *cd;
 	struct request *rq = SCpnt->request;
-	struct scsi_device *sdp = SCpnt->device;
 	int ret;
 
-	ret = scsi_setup_fs_cmnd(sdp, rq);
+	ret = scsi_init_io(SCpnt, GFP_ATOMIC);
 	if (ret != BLKPREP_OK)
 		goto out;
 	SCpnt = rq->special;

@@ -1082,11 +1082,10 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 EXPORT_SYMBOL(scsi_setup_blk_pc_cmnd);
 
 /*
- * Setup a REQ_TYPE_FS command.  These are simple read/write request
- * from filesystems that still need to be translated to SCSI CDBs from
- * the ULD.
+ * Setup a REQ_TYPE_FS command.  These are simple request from filesystems
+ * that still need to be translated to SCSI CDBs from the ULD.
  */
-int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
+static int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 {
 	struct scsi_cmnd *cmd = req->special;
 
@@ -1098,9 +1097,8 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	}
 
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
-	return scsi_init_io(cmd, GFP_ATOMIC);
+	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
-EXPORT_SYMBOL(scsi_setup_fs_cmnd);
 
 static int
 scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
@@ -1205,12 +1203,16 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		goto out;
 	}
 
-	if (req->cmd_type == REQ_TYPE_FS)
-		ret = scsi_cmd_to_driver(cmd)->init_command(cmd);
-	else if (req->cmd_type == REQ_TYPE_BLOCK_PC)
+	switch (req->cmd_type) {
+	case REQ_TYPE_FS:
+		ret = scsi_setup_fs_cmnd(sdev, req);
+		break;
+	case REQ_TYPE_BLOCK_PC:
 		ret = scsi_setup_blk_pc_cmnd(sdev, req);
-	else
+		break;
+	default:
 		ret = BLKPREP_KILL;
+	}
 
 out:
 	return scsi_prep_return(q, req, ret);

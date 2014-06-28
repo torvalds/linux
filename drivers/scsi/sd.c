@@ -894,7 +894,7 @@ static int sd_init_command(struct scsi_cmnd *SCpnt)
 		ret = scsi_setup_flush_cmnd(sdp, rq);
 		goto out;
 	}
-	ret = scsi_setup_fs_cmnd(sdp, rq);
+	ret = scsi_init_io(SCpnt, GFP_ATOMIC);
 	if (ret != BLKPREP_OK)
 		goto out;
 	SCpnt = rq->special;

@@ -30,6 +30,5 @@ extern int scsi_register_interface(struct class_interface *);
 	class_interface_unregister(intf)
 
 int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req);
-int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req);
 
 #endif /* _SCSI_SCSI_DRIVER_H */
