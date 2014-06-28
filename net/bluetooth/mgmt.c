@@ -35,7 +35,7 @@
 #include "smp.h"
 
 #define MGMT_VERSION	1
-#define MGMT_REVISION	6
+#define MGMT_REVISION	7
 
 static const u16 mgmt_commands[] = {
 	MGMT_OP_READ_INDEX_LIST,
