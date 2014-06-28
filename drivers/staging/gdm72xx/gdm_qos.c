@@ -142,7 +142,7 @@ void gdm_qos_release_list(void *nic_ptr)
 	free_qos_entry_list(&free_list);
 }
 
-static u32 chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *stream, u8 *port)
+static int chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *stream, u8 *port)
 {
 	int i;
 
@@ -188,9 +188,9 @@ static u32 chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *stream, u8 *port)
 	return 0;
 }
 
-static u32 get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
+static int get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 {
-	u32 IP_ver, i;
+	int IP_ver, i;
 	struct qos_cb_s *qcb = &nic->qos;
 
 	if (iph == NULL || tcpudph == NULL)
@@ -213,7 +213,7 @@ static u32 get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 	return -1;
 }
 
-static u32 extract_qos_list(struct nic *nic, struct list_head *head)
+static void extract_qos_list(struct nic *nic, struct list_head *head)
 {
 	struct qos_cb_s *qcb = &nic->qos;
 	struct qos_entry_s *entry;
@@ -238,8 +238,6 @@ static u32 extract_qos_list(struct nic *nic, struct list_head *head)
 		if (!list_empty(&qcb->qos_list[i]))
 			netdev_warn(nic->netdev, "Index(%d) is piled!!\n", i);
 	}
-
-	return 0;
 }
 
 static void send_qos_list(struct nic *nic, struct list_head *head)
@@ -305,7 +303,7 @@ out:
 	return ret;
 }
 
-static u32 get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
+static int get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
 {
 	int i;
 
@@ -333,7 +331,8 @@ static u32 get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
 void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 {
 	struct nic *nic = nic_ptr;
-	u32 i, SFID, index, pos;
+	int i, index, pos;
+	u32 SFID;
 	u8 sub_cmd_evt;
 	struct qos_cb_s *qcb = &nic->qos;
 	struct qos_entry_s *entry, *n;
