@@ -438,7 +438,6 @@ static int device_init_registers(struct vnt_private *pDevice)
 		pDevice->bShortSlotTime = false;
 
 	BBvSetShortSlotTime(pDevice);
-	vnt_set_bss_mode(pDevice);
 
 	pDevice->byRadioCtl = pDevice->abyEEPROM[EEP_OFS_RADIOCTL];
 	pDevice->bHWRadioOff = false;
@@ -749,6 +748,8 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	priv->op_mode = vif->type;
 
+	vnt_set_bss_mode(priv);
+
 	/* LED blink on TX */
 	vnt_mac_set_led(priv, LEDSTS_STS, LEDSTS_INTER);
 
@@ -992,6 +993,7 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct vnt_private *priv = hw->priv;
 
+	vnt_set_bss_mode(priv);
 	/* Set max sensitivity*/
 	BBvUpdatePreEDThreshold(priv, true);
 }
