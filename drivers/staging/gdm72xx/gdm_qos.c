@@ -190,15 +190,15 @@ static int chk_ipv4_rule(struct gdm_wimax_csr_s *csr, u8 *stream, u8 *port)
 
 static int get_qos_index(struct nic *nic, u8 *iph, u8 *tcpudph)
 {
-	int IP_ver, i;
+	int ip_ver, i;
 	struct qos_cb_s *qcb = &nic->qos;
 
 	if (iph == NULL || tcpudph == NULL)
 		return -1;
 
-	IP_ver = (iph[0]>>4)&0xf;
+	ip_ver = (iph[0]>>4)&0xf;
 
-	if (IP_ver != 4)
+	if (ip_ver != 4)
 		return -1;
 
 	for (i = 0; i < QOS_MAX; i++) {
@@ -303,12 +303,12 @@ out:
 	return ret;
 }
 
-static int get_csr(struct qos_cb_s *qcb, u32 SFID, int mode)
+static int get_csr(struct qos_cb_s *qcb, u32 sfid, int mode)
 {
 	int i;
 
 	for (i = 0; i < qcb->qos_list_cnt; i++) {
-		if (qcb->csr[i].SFID == SFID)
+		if (qcb->csr[i].sfid == sfid)
 			return i;
 	}
 
@@ -332,7 +332,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 {
 	struct nic *nic = nic_ptr;
 	int i, index, pos;
-	u32 SFID;
+	u32 sfid;
 	u8 sub_cmd_evt;
 	struct qos_cb_s *qcb = &nic->qos;
 	struct qos_entry_s *entry, *n;
@@ -345,11 +345,11 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 	if (sub_cmd_evt == QOS_REPORT) {
 		spin_lock_irqsave(&qcb->qos_lock, flags);
 		for (i = 0; i < qcb->qos_list_cnt; i++) {
-			SFID = ((buf[(i*5)+6]<<24)&0xff000000);
-			SFID += ((buf[(i*5)+7]<<16)&0xff0000);
-			SFID += ((buf[(i*5)+8]<<8)&0xff00);
-			SFID += (buf[(i*5)+9]);
-			index = get_csr(qcb, SFID, 0);
+			sfid = ((buf[(i*5)+6]<<24)&0xff000000);
+			sfid += ((buf[(i*5)+7]<<16)&0xff0000);
+			sfid += ((buf[(i*5)+8]<<8)&0xff00);
+			sfid += (buf[(i*5)+9]);
+			index = get_csr(qcb, sfid, 0);
 			if (index == -1) {
 				spin_unlock_irqrestore(&qcb->qos_lock, flags);
 				netdev_err(nic->netdev, "QoS ERROR: No SF\n");
@@ -366,12 +366,12 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 	/* sub_cmd_evt == QOS_ADD || sub_cmd_evt == QOS_CHANG_DEL */
 	pos = 6;
-	SFID = ((buf[pos++]<<24)&0xff000000);
-	SFID += ((buf[pos++]<<16)&0xff0000);
-	SFID += ((buf[pos++]<<8)&0xff00);
-	SFID += (buf[pos++]);
+	sfid = ((buf[pos++]<<24)&0xff000000);
+	sfid += ((buf[pos++]<<16)&0xff0000);
+	sfid += ((buf[pos++]<<8)&0xff00);
+	sfid += (buf[pos++]);
 
-	index = get_csr(qcb, SFID, 1);
+	index = get_csr(qcb, sfid, 1);
 	if (index == -1) {
 		netdev_err(nic->netdev,
 			   "QoS ERROR: csr Update Error / Wrong index (%d)\n",
@@ -381,10 +381,10 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 
 	if (sub_cmd_evt == QOS_ADD) {
 		netdev_dbg(nic->netdev, "QOS_ADD SFID = 0x%x, index=%d\n",
-			   SFID, index);
+			   sfid, index);
 
 		spin_lock_irqsave(&qcb->qos_lock, flags);
-		qcb->csr[index].SFID = SFID;
+		qcb->csr[index].sfid = sfid;
 		qcb->csr[index].classifier_rule_en = ((buf[pos++]<<8)&0xff00);
 		qcb->csr[index].classifier_rule_en += buf[pos++];
 		if (qcb->csr[index].classifier_rule_en == 0)
@@ -422,7 +422,7 @@ void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size)
 		spin_unlock_irqrestore(&qcb->qos_lock, flags);
 	} else if (sub_cmd_evt == QOS_CHANGE_DEL) {
 		netdev_dbg(nic->netdev, "QOS_CHANGE_DEL SFID = 0x%x, index=%d\n",
-			   SFID, index);
+			   sfid, index);
 
 		INIT_LIST_HEAD(&free_list);
 

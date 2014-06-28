@@ -33,7 +33,7 @@
 
 struct gdm_wimax_csr_s {
 	bool		enabled;
-	u32		SFID;
+	u32		sfid;
 	u8		qos_buf_count;
 	u16		classifier_rule_en;
 	u8		ip2s_lo;
