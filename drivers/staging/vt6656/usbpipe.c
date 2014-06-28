@@ -230,9 +230,6 @@ int PIPEnsBulkInUsbRead(struct vnt_private *priv, struct vnt_rcb *rcb)
 	int status = 0;
 	struct urb *urb;
 
-	if (priv->Flags & fMP_DISCONNECTED)
-		return STATUS_FAILURE;
-
 	urb = rcb->pUrb;
 	if (rcb->skb == NULL) {
 		dev_dbg(&priv->usb->dev, "rcb->skb is null\n");
@@ -303,16 +300,24 @@ static void s_nsBulkInUsbIoCompleteRead(struct urb *urb)
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
-	rcb->Ref--;
-	if (rcb->Ref == 0) {
-		dev_dbg(&priv->usb->dev,
-				"RxvFreeNormal %d\n", priv->NumRecvFreeList);
+	if (re_alloc_skb) {
+		rcb->skb = dev_alloc_skb(priv->rx_buf_sz);
+		if (!rcb->skb) {
+			dev_dbg(&priv->usb->dev, "Failed to re-alloc rx skb\n");
 
-		spin_lock_irqsave(&priv->lock, flags);
+			rcb->bBoolInUse = false;
 
-		RXvFreeRCB(rcb, re_alloc_skb);
+			return;
+		}
 
-		spin_unlock_irqrestore(&priv->lock, flags);
+		urb->transfer_buffer = skb_put(rcb->skb,
+						skb_tailroom(rcb->skb));
+	}
+
+	if (usb_submit_urb(urb, GFP_ATOMIC)) {
+		dev_dbg(&priv->usb->dev, "Failed to re submit rx skb\n");
+
+		rcb->bBoolInUse = false;
 	}
 
 	return;

@@ -514,6 +514,8 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->cbRD; ii++) {
 		rcb = priv->apRCB[ii];
+		if (!rcb)
+			continue;
 
 		/* deallocate URBs */
 		if (rcb->pUrb) {
@@ -524,9 +526,9 @@ static void device_free_rx_bufs(struct vnt_private *priv)
 		/* deallocate skb */
 		if (rcb->skb)
 			dev_kfree_skb(rcb->skb);
-	}
 
-	kfree(priv->pRCBMem);
+		kfree(rcb);
+	}
 
 	return;
 }
@@ -576,22 +578,16 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 		tx_context->in_use = false;
 	}
 
-	/* allocate RCB mem */
-	priv->pRCBMem = kzalloc((sizeof(struct vnt_rcb) * priv->cbRD),
-								GFP_KERNEL);
-	if (priv->pRCBMem == NULL) {
-		dev_err(&priv->usb->dev, "alloc rx usb context failed\n");
-		goto free_tx;
-	}
-
-	priv->FirstRecvFreeList = NULL;
-	priv->LastRecvFreeList = NULL;
-	priv->NumRecvFreeList = 0;
-
-	rcb = (struct vnt_rcb *)priv->pRCBMem;
-
 	for (ii = 0; ii < priv->cbRD; ii++) {
-		priv->apRCB[ii] = rcb;
+		priv->apRCB[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
+		if (!priv->apRCB[ii]) {
+			dev_err(&priv->usb->dev,
+					"failed to allocate rcb no %d\n", ii);
+			goto free_rx_tx;
+		}
+
+		rcb = priv->apRCB[ii];
+
 		rcb->pDevice = priv;
 
 		/* allocate URBs */
@@ -611,11 +607,9 @@ static bool device_alloc_bufs(struct vnt_private *priv)
 
 		rcb->bBoolInUse = false;
 
-		EnqueueRCB(priv->FirstRecvFreeList,
-						priv->LastRecvFreeList, rcb);
-
-		priv->NumRecvFreeList++;
-		rcb++;
+		/* submit rx urb */
+		if (PIPEnsBulkInUsbRead(priv, rcb))
+			goto free_rx_tx;
 	}
 
 	priv->pInterruptURB = usb_alloc_urb(0, GFP_ATOMIC);
@@ -678,7 +672,6 @@ static int vnt_start(struct ieee80211_hw *hw)
 
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
-	schedule_work(&priv->read_work_item);
 	INTvWorkItem(priv);
 
 	priv->flags |= DEVICE_FLAGS_OPENED;
@@ -722,7 +715,6 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	MP_CLEAR_FLAG(priv, fMP_POST_READS);
 
 	cancel_delayed_work_sync(&priv->run_command_work);
-	cancel_work_sync(&priv->read_work_item);
 
 	priv->bCmdRunning = false;
 
