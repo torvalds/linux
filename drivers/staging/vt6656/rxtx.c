@@ -929,9 +929,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	frame_size = tx_body_size + 4;
 
-	/* Set time stamp */
-	tx_buffer_head->time_stamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
-
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
 		tx_buffer_head->wFIFOCtl = 0;
