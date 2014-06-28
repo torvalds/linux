@@ -36,6 +36,16 @@ config NF_CONNTRACK_PROC_COMPAT
 
 	  If unsure, say Y.
 
+config NF_LOG_ARP
+	tristate "ARP packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
+config NF_LOG_IPV4
+	tristate "IPv4 packet logging"
+	default m if NETFILTER_ADVANCED=n
+	select NF_LOG_COMMON
+
 config NF_TABLES_IPV4
 	depends on NF_TABLES
 	tristate "IPv4 nf_tables support"
@@ -158,16 +168,6 @@ config IP_NF_TARGET_SYNPROXY
 	  during SYN-flood attacks.
 
 	  To compile it as a module, choose M here. If unsure, say N.
-
-config NF_LOG_ARP
-	tristate "ARP packet logging"
-	default m if NETFILTER_ADVANCED=n
-	select NF_LOG_INET
-
-config NF_LOG_IPV4
-	tristate "IPv4 packet logging"
-	default m if NETFILTER_ADVANCED=n
-	select NF_LOG_COMMON
 
 # NAT + specific targets: nf_conntrack
 config NF_NAT_IPV4
