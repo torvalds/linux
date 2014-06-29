@@ -3074,10 +3074,7 @@ static void dfx_rcv_queue_process(
 					break;
 					}
 				else {
-#ifndef DYNAMIC_BUFFERS
-					if (! rx_in_place)
-#endif
-					{
+					if (!rx_in_place) {
 						/* Receive buffer allocated, pass receive packet up */
 
 						skb_copy_to_linear_data(skb,
