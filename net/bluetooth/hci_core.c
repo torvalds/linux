@@ -959,7 +959,6 @@ static ssize_t le_auto_conn_write(struct file *file, const char __user *data,
 	} else if (memcmp(buf, "clr", 3) == 0) {
 		hci_dev_lock(hdev);
 		hci_conn_params_clear(hdev);
-		hci_update_background_scan(hdev);
 		hci_dev_unlock(hdev);
 	} else {
 		err = -EINVAL;
@@ -3483,6 +3482,8 @@ void hci_pend_le_conns_clear(struct hci_dev *hdev)
 	}
 
 	BT_DBG("All LE pending connections cleared");
+
+	hci_update_background_scan(hdev);
 }
 
 /* This function requires the caller holds hdev->lock */
@@ -5292,6 +5293,9 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	struct hci_request req;
 	struct hci_conn *conn;
 	int err;
+
+	if (test_bit(HCI_UNREGISTER, &hdev->dev_flags))
+		return;
 
 	hci_req_init(&req, hdev);
 
