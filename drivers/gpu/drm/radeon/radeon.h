@@ -750,10 +750,6 @@ union radeon_irq_stat_regs {
 	struct cik_irq_stat_regs cik;
 };
 
-#define RADEON_MAX_HPD_PINS 7
-#define RADEON_MAX_CRTCS 6
-#define RADEON_MAX_AFMT_BLOCKS 7
-
 struct radeon_irq {
 	bool				installed;
 	spinlock_t			lock;
