@@ -4,7 +4,6 @@ menuconfig ARCH_SUNXI
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select PINCTRL
-	select PINCTRL_SUNXI
 	select SUN4I_TIMER
 
 if ARCH_SUNXI
