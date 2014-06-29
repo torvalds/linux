@@ -959,7 +959,6 @@ static ssize_t le_auto_conn_write(struct file *file, const char __user *data,
 	} else if (memcmp(buf, "clr", 3) == 0) {
 		hci_dev_lock(hdev);
 		hci_conn_params_clear(hdev);
-		hci_pend_le_conns_clear(hdev);
 		hci_update_background_scan(hdev);
 		hci_dev_unlock(hdev);
 	} else {
@@ -3561,6 +3560,8 @@ void hci_conn_params_clear(struct hci_dev *hdev)
 		kfree(params);
 	}
 
+	hci_pend_le_conns_clear(hdev);
+
 	BT_DBG("All LE connection parameters were removed");
 }
 
@@ -4006,7 +4007,6 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	hci_remote_oob_data_clear(hdev);
 	hci_white_list_clear(hdev);
 	hci_conn_params_clear(hdev);
-	hci_pend_le_conns_clear(hdev);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
