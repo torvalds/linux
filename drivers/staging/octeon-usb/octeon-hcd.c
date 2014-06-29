@@ -2230,6 +2230,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 		urb->status = -EPROTO;
 		break;
 	}
+	usb_hcd_unlink_urb_from_ep(octeon_to_hcd(priv), urb);
 	spin_unlock(&priv->lock);
 	usb_hcd_giveback_urb(octeon_to_hcd(priv), urb, urb->status);
 	spin_lock(&priv->lock);
@@ -3291,9 +3292,16 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	unsigned long flags;
 	struct cvmx_usb_iso_packet *iso_packet;
 	struct usb_host_endpoint *ep = urb->ep;
+	int rc;
 
 	urb->status = 0;
 	spin_lock_irqsave(&priv->lock, flags);
+
+	rc = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (rc) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return rc;
+	}
 
 	if (!ep->hcpriv) {
 		enum cvmx_usb_transfer transfer_type;
@@ -3370,6 +3378,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 					   >> 11) & 0x3,
 					  split_device, split_port);
 		if (!pipe) {
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			dev_dbg(dev, "Failed to create pipe\n");
 			return -ENOMEM;
@@ -3440,6 +3449,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	}
 	if (!transaction) {
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		dev_dbg(dev, "Failed to submit\n");
 		return -ENOMEM;
@@ -3455,18 +3465,24 @@ static int octeon_usb_urb_dequeue(struct usb_hcd *hcd,
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	unsigned long flags;
+	int rc;
 
 	if (!urb->dev)
 		return -EINVAL;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto out;
+
 	urb->status = status;
 	cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
 
+out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return 0;
+	return rc;
 }
 
 static void octeon_usb_endpoint_disable(struct usb_hcd *hcd,
