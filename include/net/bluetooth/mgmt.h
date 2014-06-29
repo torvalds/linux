@@ -603,3 +603,14 @@ struct mgmt_ev_new_csrk {
 	__u8 store_hint;
 	struct mgmt_csrk_info key;
 } __packed;
+
+#define MGMT_EV_DEVICE_ADDED		0x001a
+struct mgmt_ev_device_added {
+	struct mgmt_addr_info addr;
+	__u8 action;
+} __packed;
+
+#define MGMT_EV_DEVICE_REMOVED		0x001b
+struct mgmt_ev_device_removed {
+	struct mgmt_addr_info addr;
+} __packed;

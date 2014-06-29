@@ -114,6 +114,8 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_PASSKEY_NOTIFY,
 	MGMT_EV_NEW_IRK,
 	MGMT_EV_NEW_CSRK,
+	MGMT_EV_DEVICE_ADDED,
+	MGMT_EV_DEVICE_REMOVED,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -4968,6 +4970,18 @@ unlock:
 	return err;
 }
 
+static void device_added(struct sock *sk, struct hci_dev *hdev,
+			 bdaddr_t *bdaddr, u8 type, u8 action)
+{
+	struct mgmt_ev_device_added ev;
+
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = type;
+	ev.action = action;
+
+	mgmt_event(MGMT_EV_DEVICE_ADDED, hdev, &ev, sizeof(ev), sk);
+}
+
 static int add_device(struct sock *sk, struct hci_dev *hdev,
 		      void *data, u16 len)
 {
@@ -5009,12 +5023,25 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
+	device_added(sk, hdev, &cp->addr.bdaddr, cp->addr.type, cp->action);
+
 	err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,
 			   MGMT_STATUS_SUCCESS, &cp->addr, sizeof(cp->addr));
 
 unlock:
 	hci_dev_unlock(hdev);
 	return err;
+}
+
+static void device_removed(struct sock *sk, struct hci_dev *hdev,
+			   bdaddr_t *bdaddr, u8 type)
+{
+	struct mgmt_ev_device_removed ev;
+
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = type;
+
+	mgmt_event(MGMT_EV_DEVICE_REMOVED, hdev, &ev, sizeof(ev), sk);
 }
 
 static int remove_device(struct sock *sk, struct hci_dev *hdev,
@@ -5043,6 +5070,8 @@ static int remove_device(struct sock *sk, struct hci_dev *hdev,
 			addr_type = ADDR_LE_DEV_RANDOM;
 
 		hci_conn_params_del(hdev, &cp->addr.bdaddr, addr_type);
+
+		device_removed(sk, hdev, &cp->addr.bdaddr, cp->addr.type);
 	} else {
 		if (cp->addr.type) {
 			err = cmd_complete(sk, hdev->id, MGMT_OP_REMOVE_DEVICE,
