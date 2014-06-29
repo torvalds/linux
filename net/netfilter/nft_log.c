@@ -76,7 +76,7 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	case NF_LOG_TYPE_LOG:
 		if (tb[NFTA_LOG_LEVEL] != NULL) {
 			li->u.log.level =
-				ntohl(nla_get_be32(tb[NFTA_LOG_LEVEL]));;
+				ntohl(nla_get_be32(tb[NFTA_LOG_LEVEL]));
 		} else {
 			li->u.log.level = 4;
 		}
