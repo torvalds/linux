@@ -4205,7 +4205,8 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		if (info->intercept == x86_intercept_cr_write)
 			icpt_info.exit_code += info->modrm_reg;
 
-		if (icpt_info.exit_code != SVM_EXIT_WRITE_CR0)
+		if (icpt_info.exit_code != SVM_EXIT_WRITE_CR0 ||
+		    info->intercept == x86_intercept_clts)
 			break;
 
 		intercept = svm->nested.intercept;
