@@ -1538,6 +1538,10 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 	    && !au_opt_test(sbinfo->si_mntflags, XINO))
 		pr_warn("udba=*notify requires xino\n");
 
+	if (au_opt_test(sbinfo->si_mntflags, DIRPERM1))
+		pr_warn("dirperm1 breaks the protection"
+			" by the permission bits on the lower branch\n");
+
 	err = 0;
 	root = sb->s_root;
 	dir = root->d_inode;

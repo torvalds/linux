@@ -126,7 +126,9 @@ int au_may_del(struct dentry *dentry, aufs_bindex_t bindex,
 	 * let's try heavy test.
 	 */
 	err = -EACCES;
-	if (unlikely(au_test_h_perm(h_parent->d_inode, MAY_EXEC | MAY_WRITE)))
+	if (unlikely(!au_opt_test(au_mntflags(dentry->d_sb), DIRPERM1)
+		     && au_test_h_perm(h_parent->d_inode,
+				       MAY_EXEC | MAY_WRITE)))
 		goto out;
 
 	h_latest = au_sio_lkup_one(&dentry->d_name, h_parent);
