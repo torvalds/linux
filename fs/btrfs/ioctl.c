@@ -3142,7 +3142,6 @@ out:
 static void clone_update_extent_map(struct inode *inode,
 				    const struct btrfs_trans_handle *trans,
 				    const struct btrfs_path *path,
-				    struct btrfs_file_extent_item *fi,
 				    const u64 hole_offset,
 				    const u64 hole_len)
 {
@@ -3157,7 +3156,11 @@ static void clone_update_extent_map(struct inode *inode,
 		return;
 	}
 
-	if (fi) {
+	if (path) {
+		struct btrfs_file_extent_item *fi;
+
+		fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				    struct btrfs_file_extent_item);
 		btrfs_extent_item_to_extent_map(inode, path, fi, false, em);
 		em->generation = -1;
 		if (btrfs_file_extent_type(path->nodes[0], fi) ==
@@ -3511,18 +3514,15 @@ process_slot:
 					    btrfs_item_ptr_offset(leaf, slot),
 					    size);
 				inode_add_bytes(inode, datal);
-				extent = btrfs_item_ptr(leaf, slot,
-						struct btrfs_file_extent_item);
 			}
 
 			/* If we have an implicit hole (NO_HOLES feature). */
 			if (drop_start < new_key.offset)
 				clone_update_extent_map(inode, trans,
-						path, NULL, drop_start,
+						NULL, drop_start,
 						new_key.offset - drop_start);
 
-			clone_update_extent_map(inode, trans, path,
-						extent, 0, 0);
+			clone_update_extent_map(inode, trans, path, 0, 0);
 
 			btrfs_mark_buffer_dirty(leaf);
 			btrfs_release_path(path);
@@ -3565,12 +3565,10 @@ process_slot:
 			btrfs_end_transaction(trans, root);
 			goto out;
 		}
+		clone_update_extent_map(inode, trans, NULL, last_dest_end,
+					destoff + len - last_dest_end);
 		ret = clone_finish_inode_update(trans, inode, destoff + len,
 						destoff, olen);
-		if (ret)
-			goto out;
-		clone_update_extent_map(inode, trans, path, NULL, last_dest_end,
-					destoff + len - last_dest_end);
 	}
 
 out:
