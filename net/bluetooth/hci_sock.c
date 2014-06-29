@@ -453,7 +453,8 @@ static int hci_sock_release(struct socket *sock)
 
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
-			mgmt_index_added(hdev);
+			if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+				mgmt_index_added(hdev);
 			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
 			hci_dev_close(hdev->id);
 		}
@@ -516,6 +517,9 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
 		return -EBUSY;
+
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+		return -EOPNOTSUPP;
 
 	if (hdev->dev_type != HCI_BREDR)
 		return -EOPNOTSUPP;
@@ -702,12 +706,14 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			goto done;
 		}
 
-		mgmt_index_removed(hdev);
+		if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+			mgmt_index_removed(hdev);
 
 		err = hci_dev_open(hdev->id);
 		if (err) {
 			clear_bit(HCI_USER_CHANNEL, &hdev->dev_flags);
-			mgmt_index_added(hdev);
+			if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+				mgmt_index_added(hdev);
 			hci_dev_put(hdev);
 			goto done;
 		}
@@ -960,7 +966,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			goto drop;
 		}
 
-		if (test_bit(HCI_RAW, &hdev->flags) || (ogf == 0x3f)) {
+		if (ogf == 0x3f) {
 			skb_queue_tail(&hdev->raw_q, skb);
 			queue_work(hdev->workqueue, &hdev->tx_work);
 		} else {

@@ -2117,6 +2117,11 @@ int hci_inquiry(void __user *arg)
 		goto done;
 	}
 
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	if (hdev->dev_type != HCI_BREDR) {
 		err = -EOPNOTSUPP;
 		goto done;
@@ -2246,10 +2251,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		ret = hdev->setup(hdev);
 
 	if (!ret) {
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-			set_bit(HCI_RAW, &hdev->flags);
-
-		if (!test_bit(HCI_RAW, &hdev->flags) &&
+		if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks) &&
 		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
 			ret = __hci_init(hdev);
 	}
@@ -2286,7 +2288,7 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 		}
 
 		hdev->close(hdev);
-		hdev->flags = 0;
+		hdev->flags &= BIT(HCI_RAW);
 	}
 
 done:
@@ -2305,6 +2307,21 @@ int hci_dev_open(__u16 dev)
 	if (!hdev)
 		return -ENODEV;
 
+	/* Devices that are marked for raw-only usage can only be powered
+	 * up as user channel. Trying to bring them up as normal devices
+	 * will result into a failure. Only user channel operation is
+	 * possible.
+	 *
+	 * When this function is called for a user channel, the flag
+	 * HCI_USER_CHANNEL will be set first before attempting to
+	 * open the device.
+	 */
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks) &&
+	    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+
 	/* We need to ensure that no other power on/off work is pending
 	 * before proceeding to call hci_dev_do_open. This is
 	 * particularly important if the setup procedure has not yet
@@ -2321,8 +2338,8 @@ int hci_dev_open(__u16 dev)
 
 	err = hci_dev_do_open(hdev);
 
+done:
 	hci_dev_put(hdev);
-
 	return err;
 }
 
@@ -2374,7 +2391,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	if (!test_bit(HCI_RAW, &hdev->flags) &&
+	if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks) &&
 	    !test_bit(HCI_AUTO_OFF, &hdev->dev_flags) &&
 	    test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks)) {
 		set_bit(HCI_INIT, &hdev->flags);
@@ -2405,7 +2422,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hdev->close(hdev);
 
 	/* Clear flags */
-	hdev->flags = 0;
+	hdev->flags &= BIT(HCI_RAW);
 	hdev->dev_flags &= ~HCI_PERSISTENT_MASK;
 
 	if (!test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
@@ -2474,6 +2491,11 @@ int hci_dev_reset(__u16 dev)
 		goto done;
 	}
 
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
+		ret = -EOPNOTSUPP;
+		goto done;
+	}
+
 	/* Drop queues */
 	skb_queue_purge(&hdev->rx_q);
 	skb_queue_purge(&hdev->cmd_q);
@@ -2489,8 +2511,7 @@ int hci_dev_reset(__u16 dev)
 	atomic_set(&hdev->cmd_cnt, 1);
 	hdev->acl_cnt = 0; hdev->sco_cnt = 0; hdev->le_cnt = 0;
 
-	if (!test_bit(HCI_RAW, &hdev->flags))
-		ret = __hci_req_sync(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
+	ret = __hci_req_sync(hdev, hci_reset_req, 0, HCI_INIT_TIMEOUT);
 
 done:
 	hci_req_unlock(hdev);
@@ -2509,6 +2530,11 @@ int hci_dev_reset_stat(__u16 dev)
 
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 		ret = -EBUSY;
+		goto done;
+	}
+
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
+		ret = -EOPNOTSUPP;
 		goto done;
 	}
 
@@ -2534,6 +2560,11 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 
 	if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 		err = -EBUSY;
+		goto done;
+	}
+
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
+		err = -EOPNOTSUPP;
 		goto done;
 	}
 
@@ -2760,8 +2791,10 @@ static void hci_power_on(struct work_struct *work)
 				   HCI_AUTO_OFF_TIMEOUT);
 	}
 
-	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
-		mgmt_index_added(hdev);
+	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags)) {
+		if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+			mgmt_index_added(hdev);
+	}
 }
 
 static void hci_power_off(struct work_struct *work)
@@ -3887,6 +3920,13 @@ int hci_register_dev(struct hci_dev *hdev)
 	list_add(&hdev->list, &hci_dev_list);
 	write_unlock(&hci_dev_list_lock);
 
+	/* Devices that are marked for raw-only usage need to set
+	 * the HCI_RAW flag to indicate that only user channel is
+	 * supported.
+	 */
+	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+		set_bit(HCI_RAW, &hdev->flags);
+
 	hci_notify(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
 
@@ -3929,7 +3969,8 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	cancel_work_sync(&hdev->power_on);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
-	    !test_bit(HCI_SETUP, &hdev->dev_flags)) {
+	    !test_bit(HCI_SETUP, &hdev->dev_flags) &&
+	    !test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
 		hci_dev_lock(hdev);
 		mgmt_index_removed(hdev);
 		hci_dev_unlock(hdev);
@@ -4694,7 +4735,7 @@ static inline int __get_blocks(struct hci_dev *hdev, struct sk_buff *skb)
 
 static void __check_timeout(struct hci_dev *hdev, unsigned int cnt)
 {
-	if (!test_bit(HCI_RAW, &hdev->flags)) {
+	if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
 		/* ACL tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
 		if (!cnt && time_after(jiffies, hdev->acl_last_tx +
@@ -4877,7 +4918,7 @@ static void hci_sched_le(struct hci_dev *hdev)
 	if (!hci_conn_num(hdev, LE_LINK))
 		return;
 
-	if (!test_bit(HCI_RAW, &hdev->flags)) {
+	if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks)) {
 		/* LE tx timeout must be longer than maximum
 		 * link supervision timeout (40.9 seconds) */
 		if (!hdev->le_cnt && hdev->le_pkts &&
@@ -5122,8 +5163,7 @@ static void hci_rx_work(struct work_struct *work)
 			hci_send_to_sock(hdev, skb);
 		}
 
-		if (test_bit(HCI_RAW, &hdev->flags) ||
-		    test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
+		if (test_bit(HCI_USER_CHANNEL, &hdev->dev_flags)) {
 			kfree_skb(skb);
 			continue;
 		}

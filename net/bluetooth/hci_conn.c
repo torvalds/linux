@@ -346,9 +346,6 @@ static void hci_conn_idle(struct work_struct *work)
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
 
-	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
-
 	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
 		return;
 
@@ -539,7 +536,6 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) ||
-		    test_bit(HCI_RAW, &d->flags) ||
 		    test_bit(HCI_USER_CHANNEL, &d->dev_flags) ||
 		    d->dev_type != HCI_BREDR)
 			continue;
@@ -1058,9 +1054,6 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 	struct hci_dev *hdev = conn->hdev;
 
 	BT_DBG("hcon %p mode %d", conn, conn->mode);
-
-	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
 
 	if (conn->mode != HCI_CM_SNIFF)
 		goto timer;
