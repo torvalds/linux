@@ -4331,6 +4331,13 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	analog_type = (tmp & B43_PHYVER_ANALOG) >> B43_PHYVER_ANALOG_SHIFT;
 	phy_type = (tmp & B43_PHYVER_TYPE) >> B43_PHYVER_TYPE_SHIFT;
 	phy_rev = (tmp & B43_PHYVER_VERSION);
+
+	/* LCNXN is continuation of N which run out of revisions */
+	if (phy_type == B43_PHYTYPE_LCNXN) {
+		phy_type = B43_PHYTYPE_N;
+		phy_rev += 16;
+	}
+
 	switch (phy_type) {
 #ifdef CONFIG_B43_PHY_G
 	case B43_PHYTYPE_G:
