@@ -42,6 +42,7 @@
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
+#include "of.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
@@ -1043,6 +1044,9 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
 	sdiodev->dev = &sdiodev->func[1]->dev;
 	sdiodev->pdata = brcmfmac_sdio_pdata;
+
+	if (!sdiodev->pdata)
+		brcmf_of_probe(sdiodev);
 
 	atomic_set(&sdiodev->suspend, false);
 	init_waitqueue_head(&sdiodev->request_word_wait);
