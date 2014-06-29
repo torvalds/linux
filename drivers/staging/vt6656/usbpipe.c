@@ -419,9 +419,14 @@ static void s_nsBulkOutIoCompleteWrite(struct urb *urb)
 	}
 
 	if (context->skb) {
+		s8 idx;
+
 		info = IEEE80211_SKB_CB(context->skb);
+
+		idx = info->control.rates[0].idx;
+
 		ieee80211_tx_info_clear_status(info);
-		info->status.rates[0].idx = priv->wCurrentRate;
+		info->status.rates[0].idx = idx;
 		info->status.rates[0].count = 0;
 		if (!urb->status)
 			info->flags |= IEEE80211_TX_STAT_ACK;
