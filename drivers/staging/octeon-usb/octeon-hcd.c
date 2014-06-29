@@ -2162,7 +2162,11 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	struct usb_hcd *hcd = octeon_to_hcd(priv);
 	struct device *dev = hcd->self.controller;
 
-	urb->actual_length = bytes_transferred;
+	if (likely(status == CVMX_USB_COMPLETE_SUCCESS))
+		urb->actual_length = bytes_transferred;
+	else
+		urb->actual_length = 0;
+
 	urb->hcpriv = NULL;
 
 	/* For Isochronous transactions we need to update the URB packet status
