@@ -147,6 +147,8 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	 */
 	/* This covers 14..54 bits of va*/
 	rb = (v & ~0x7fUL) << 16;		/* AVA field */
+
+	rb |= v >> (62 - 8);			/*  B field */
 	/*
 	 * AVA in v had cleared lower 23 bits. We need to derive
 	 * that from pteg index
@@ -177,10 +179,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	{
 		int aval_shift;
 		/*
-		 * remaining 7bits of AVA/LP fields
+		 * remaining bits of AVA/LP fields
 		 * Also contain the rr bits of LP
 		 */
-		rb |= (va_low & 0x7f) << 16;
+		rb |= (va_low << mmu_psize_defs[b_psize].shift) & 0x7ff000;
 		/*
 		 * Now clear not needed LP bits based on actual psize
 		 */

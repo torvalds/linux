@@ -2064,12 +2064,6 @@ static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
 	(*sps)->page_shift = def->shift;
 	(*sps)->slb_enc = def->sllp;
 	(*sps)->enc[0].page_shift = def->shift;
-	/*
-	 * Only return base page encoding. We don't want to return
-	 * all the supporting pte_enc, because our H_ENTER doesn't
-	 * support MPSS yet. Once they do, we can start passing all
-	 * support pte_enc here
-	 */
 	(*sps)->enc[0].pte_enc = def->penc[linux_psize];
 	/*
 	 * Add 16MB MPSS support if host supports it
