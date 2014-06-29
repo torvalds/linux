@@ -5250,12 +5250,13 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
 
-	/* Set require_privacy to true to avoid identification from
-	 * unknown peer devices. Since this is passive scanning, no
-	 * SCAN_REQ using the local identity should be sent. Mandating
-	 * privacy is just an extra precaution.
+	/* Set require_privacy to false since no SCAN_REQ are send
+	 * during passive scanning. Not using an unresolvable address
+	 * here is important so that peer devices using direct
+	 * advertising with our address will be correctly reported
+	 * by the controller.
 	 */
-	if (hci_update_random_address(req, true, &own_addr_type))
+	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
 	memset(&param_cp, 0, sizeof(param_cp));
