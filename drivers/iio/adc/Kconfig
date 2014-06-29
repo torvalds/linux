@@ -131,6 +131,15 @@ config LP8788_ADC
 	help
 	  Say yes here to build support for TI LP8788 ADC.
 
+config MAX1027
+	tristate "Maxim max1027 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Maxim SPI ADC models
+	  max1027, max1029 and max1031.
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C

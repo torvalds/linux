@@ -57,7 +57,7 @@ static int ad9832_write_frequency(struct ad9832_state *st,
 }
 
 static int ad9832_write_phase(struct ad9832_state *st,
-				  unsigned long addr, unsigned long phase)
+			      unsigned long addr, unsigned long phase)
 {
 	if (phase > (1 << AD9832_PHASE_BITS))
 		return -EINVAL;
@@ -72,10 +72,8 @@ static int ad9832_write_phase(struct ad9832_state *st,
 	return spi_sync(st->spi, &st->phase_msg);
 }
 
-static ssize_t ad9832_write(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+static ssize_t ad9832_write(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad9832_state *st = iio_priv(indio_dev);
@@ -109,11 +107,11 @@ static ssize_t ad9832_write(struct device *dev,
 		ret = spi_sync(st->spi, &st->msg);
 		break;
 	case AD9832_FREQ_SYM:
-		if (val == 1)
+		if (val == 1) {
 			st->ctrl_fp |= AD9832_FREQ;
-		else if (val == 0)
+		} else if (val == 0) {
 			st->ctrl_fp &= ~AD9832_FREQ;
-		else {
+		} else {
 			ret = -EINVAL;
 			break;
 		}
