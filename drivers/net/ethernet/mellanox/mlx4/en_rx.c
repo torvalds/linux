@@ -40,6 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
+#include <linux/irq.h>
 
 #include "mlx4_en.h"
 
@@ -896,16 +897,25 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 
 	/* If we used up all the quota - we're probably not done yet... */
 	if (done == budget) {
+		int cpu_curr;
+		const struct cpumask *aff;
+
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
-		if (unlikely(cq->mcq.irq_affinity_change)) {
-			cq->mcq.irq_affinity_change = false;
+
+		cpu_curr = smp_processor_id();
+		aff = irq_desc_get_irq_data(cq->irq_desc)->affinity;
+
+		if (unlikely(!cpumask_test_cpu(cpu_curr, aff))) {
+			/* Current cpu is not according to smp_irq_affinity -
+			 * probably affinity changed. need to stop this NAPI
+			 * poll, and restart it on the right CPU
+			 */
 			napi_complete(napi);
 			mlx4_en_arm_cq(priv, cq);
 			return 0;
 		}
 	} else {
 		/* Done for now */
-		cq->mcq.irq_affinity_change = false;
 		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
