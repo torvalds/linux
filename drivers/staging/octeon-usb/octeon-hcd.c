@@ -422,8 +422,6 @@ struct cvmx_usb_state {
 struct octeon_hcd {
 	spinlock_t lock;
 	struct cvmx_usb_state usb;
-	struct tasklet_struct dequeue_tasklet;
-	struct list_head dequeue_list;
 };
 
 /* This macro spins on a field waiting for it to reach a value */
@@ -2167,15 +2165,6 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	urb->actual_length = bytes_transferred;
 	urb->hcpriv = NULL;
 
-	if (!list_empty(&urb->urb_list))
-		/*
-		 * It is on the dequeue_list, but we are going to call
-		 * usb_hcd_giveback_urb(), so we must clear it from
-		 * the list.  We got to it before the
-		 * octeon_usb_urb_dequeue_work() tasklet did.
-		 */
-		list_del_init(&urb->urb_list);
-
 	/* For Isochronous transactions we need to update the URB packet status
 	   list from data in our private copy */
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
@@ -3304,7 +3293,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	struct usb_host_endpoint *ep = urb->ep;
 
 	urb->status = 0;
-	INIT_LIST_HEAD(&urb->urb_list);	/* not enqueued on dequeue_list */
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!ep->hcpriv) {
@@ -3461,23 +3449,6 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	return 0;
 }
 
-static void octeon_usb_urb_dequeue_work(unsigned long arg)
-{
-	struct urb *urb;
-	struct urb *next;
-	unsigned long flags;
-	struct octeon_hcd *priv = (struct octeon_hcd *)arg;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	list_for_each_entry_safe(urb, next, &priv->dequeue_list, urb_list) {
-		list_del_init(&urb->urb_list);
-		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int octeon_usb_urb_dequeue(struct usb_hcd *hcd,
 				  struct urb *urb,
 				  int status)
@@ -3491,11 +3462,9 @@ static int octeon_usb_urb_dequeue(struct usb_hcd *hcd,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	urb->status = status;
-	list_add_tail(&urb->urb_list, &priv->dequeue_list);
+	cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	tasklet_schedule(&priv->dequeue_tasklet);
 
 	return 0;
 }
@@ -3868,10 +3837,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 
-	tasklet_init(&priv->dequeue_tasklet, octeon_usb_urb_dequeue_work,
-		     (unsigned long)priv);
-	INIT_LIST_HEAD(&priv->dequeue_list);
-
 	status = cvmx_usb_initialize(&priv->usb, usb_num, initialize_flags);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
@@ -3908,7 +3873,6 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	unsigned long flags;
 
 	usb_remove_hcd(hcd);
-	tasklet_kill(&priv->dequeue_tasklet);
 	spin_lock_irqsave(&priv->lock, flags);
 	status = cvmx_usb_shutdown(&priv->usb);
 	spin_unlock_irqrestore(&priv->lock, flags);
