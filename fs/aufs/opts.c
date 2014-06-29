@@ -48,6 +48,7 @@ enum {
 	Opt_refrof, Opt_norefrof,
 	Opt_verbose, Opt_noverbose,
 	Opt_sum, Opt_nosum, Opt_wsum,
+	Opt_dirperm1, Opt_nodirperm1,
 	Opt_tail, Opt_ignore, Opt_ignore_silent, Opt_err
 };
 
@@ -111,13 +112,15 @@ static match_table_t options = {
 
 	/* keep them temporary */
 	{Opt_ignore_silent, "nodlgt"},
-	{Opt_ignore_silent, "nodirperm1"},
 	{Opt_ignore_silent, "clean_plink"},
 
 #ifdef CONFIG_AUFS_SHWH
 	{Opt_shwh, "shwh"},
 #endif
 	{Opt_noshwh, "noshwh"},
+
+	{Opt_dirperm1, "dirperm1"},
+	{Opt_nodirperm1, "nodirperm1"},
 
 	{Opt_rendir, "rendir=%d"},
 
@@ -618,6 +621,12 @@ static void dump_opts(struct au_opts *opts)
 			break;
 		case Opt_noshwh:
 			AuLabel(noshwh);
+			break;
+		case Opt_dirperm1:
+			AuLabel(dirperm1);
+			break;
+		case Opt_nodirperm1:
+			AuLabel(nodirperm1);
 			break;
 		case Opt_plink:
 			AuLabel(plink);
@@ -1122,6 +1131,8 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 		case Opt_notrunc_xib:
 		case Opt_shwh:
 		case Opt_noshwh:
+		case Opt_dirperm1:
+		case Opt_nodirperm1:
 		case Opt_plink:
 		case Opt_noplink:
 		case Opt_list_plink:
@@ -1361,6 +1372,13 @@ static int au_opt_simple(struct super_block *sb, struct au_opt *opt,
 		break;
 	case Opt_noshwh:
 		au_opt_clr(sbinfo->si_mntflags, SHWH);
+		break;
+
+	case Opt_dirperm1:
+		au_opt_set(sbinfo->si_mntflags, DIRPERM1);
+		break;
+	case Opt_nodirperm1:
+		au_opt_clr(sbinfo->si_mntflags, DIRPERM1);
 		break;
 
 	case Opt_trunc_xino:
