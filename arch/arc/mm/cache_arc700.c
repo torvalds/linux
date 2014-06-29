@@ -266,10 +266,32 @@ static inline void __cache_line_loop(unsigned long paddr, unsigned long vaddr,
  * Machine specific helpers for Entire D-Cache or Per Line ops
  */
 
-static inline void wait_for_flush(void)
+static unsigned int __before_dc_op(const int op)
 {
-	while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS)
-		;
+	unsigned int reg = reg;
+
+	if (op == OP_FLUSH_N_INV) {
+		/* Dcache provides 2 cmd: FLUSH or INV
+		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
+		 * flush-n-inv is achieved by INV cmd but with IM=1
+		 * So toggle INV sub-mode depending on op request and default
+		 */
+		reg = read_aux_reg(ARC_REG_DC_CTRL);
+		write_aux_reg(ARC_REG_DC_CTRL, reg | DC_CTRL_INV_MODE_FLUSH)
+			;
+	}
+
+	return reg;
+}
+
+static void __after_dc_op(const int op, unsigned int reg)
+{
+	if (op & OP_FLUSH)	/* flush / flush-n-inv both wait */
+		while (read_aux_reg(ARC_REG_DC_CTRL) & DC_CTRL_FLUSH_STATUS);
+
+	/* Switch back to default Invalidate mode */
+	if (op == OP_FLUSH_N_INV)
+		write_aux_reg(ARC_REG_DC_CTRL, reg & ~DC_CTRL_INV_MODE_FLUSH);
 }
 
 /*
@@ -280,18 +302,10 @@ static inline void wait_for_flush(void)
  */
 static inline void __dc_entire_op(const int cacheop)
 {
-	unsigned int tmp = tmp;
+	unsigned int ctrl_reg;
 	int aux;
 
-	if (cacheop == OP_FLUSH_N_INV) {
-		/* Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * Default INV sub-mode is DISCARD, which needs to be toggled
-		 */
-		tmp = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
-	}
+	ctrl_reg = __before_dc_op(cacheop);
 
 	if (cacheop & OP_INV)	/* Inv or flush-n-inv use same cmd reg */
 		aux = ARC_REG_DC_IVDC;
@@ -300,12 +314,7 @@ static inline void __dc_entire_op(const int cacheop)
 
 	write_aux_reg(aux, 0x1);
 
-	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
-		wait_for_flush();
-
-	/* Switch back the DISCARD ONLY Invalidate mode */
-	if (cacheop == OP_FLUSH_N_INV)
-		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
+	__after_dc_op(cacheop, ctrl_reg);
 }
 
 /* For kernel mappings cache operation: index is same as paddr */
@@ -317,29 +326,16 @@ static inline void __dc_entire_op(const int cacheop)
 static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz, const int cacheop)
 {
-	unsigned long flags, tmp = tmp;
+	unsigned long flags;
+	unsigned int ctrl_reg;
 
 	local_irq_save(flags);
 
-	if (cacheop == OP_FLUSH_N_INV) {
-		/*
-		 * Dcache provides 2 cmd: FLUSH or INV
-		 * INV inturn has sub-modes: DISCARD or FLUSH-BEFORE
-		 * flush-n-inv is achieved by INV cmd but with IM=1
-		 * Default INV sub-mode is DISCARD, which needs to be toggled
-		 */
-		tmp = read_aux_reg(ARC_REG_DC_CTRL);
-		write_aux_reg(ARC_REG_DC_CTRL, tmp | DC_CTRL_INV_MODE_FLUSH);
-	}
+	ctrl_reg = __before_dc_op(cacheop);
 
 	__cache_line_loop(paddr, vaddr, sz, cacheop);
 
-	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
-		wait_for_flush();
-
-	/* Switch back the DISCARD ONLY Invalidate mode */
-	if (cacheop == OP_FLUSH_N_INV)
-		write_aux_reg(ARC_REG_DC_CTRL, tmp & ~DC_CTRL_INV_MODE_FLUSH);
+	__after_dc_op(cacheop, ctrl_reg);
 
 	local_irq_restore(flags);
 }
