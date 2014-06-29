@@ -459,7 +459,7 @@ void ufshcd_copy_query_response(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 
 	/* Get the descriptor */
 	if (lrbp->ucd_rsp_ptr->qr.opcode == UPIU_QUERY_OPCODE_READ_DESC) {
-		u8 *descp = (u8 *)&lrbp->ucd_rsp_ptr +
+		u8 *descp = (u8 *)lrbp->ucd_rsp_ptr +
 				GENERAL_UPIU_REQUEST_SIZE;
 		u16 len;
 
@@ -1134,6 +1134,30 @@ out_put_tag:
 }
 
 /**
+ * ufshcd_init_query() - init the query response and request parameters
+ * @hba: per-adapter instance
+ * @request: address of the request pointer to be initialized
+ * @response: address of the response pointer to be initialized
+ * @opcode: operation to perform
+ * @idn: flag idn to access
+ * @index: LU number to access
+ * @selector: query/flag/descriptor further identification
+ */
+static inline void ufshcd_init_query(struct ufs_hba *hba,
+		struct ufs_query_req **request, struct ufs_query_res **response,
+		enum query_opcode opcode, u8 idn, u8 index, u8 selector)
+{
+	*request = &hba->dev_cmd.query.request;
+	*response = &hba->dev_cmd.query.response;
+	memset(*request, 0, sizeof(struct ufs_query_req));
+	memset(*response, 0, sizeof(struct ufs_query_res));
+	(*request)->upiu_req.opcode = opcode;
+	(*request)->upiu_req.idn = idn;
+	(*request)->upiu_req.index = index;
+	(*request)->upiu_req.selector = selector;
+}
+
+/**
  * ufshcd_query_flag() - API function for sending flag query requests
  * hba: per-adapter instance
  * query_opcode: flag query to perform
@@ -1145,17 +1169,15 @@ out_put_tag:
 static int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 			enum flag_idn idn, bool *flag_res)
 {
-	struct ufs_query_req *request;
-	struct ufs_query_res *response;
-	int err;
+	struct ufs_query_req *request = NULL;
+	struct ufs_query_res *response = NULL;
+	int err, index = 0, selector = 0;
 
 	BUG_ON(!hba);
 
 	mutex_lock(&hba->dev_cmd.lock);
-	request = &hba->dev_cmd.query.request;
-	response = &hba->dev_cmd.query.response;
-	memset(request, 0, sizeof(struct ufs_query_req));
-	memset(response, 0, sizeof(struct ufs_query_res));
+	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
+			selector);
 
 	switch (opcode) {
 	case UPIU_QUERY_OPCODE_SET_FLAG:
@@ -1180,12 +1202,8 @@ static int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 		err = -EINVAL;
 		goto out_unlock;
 	}
-	request->upiu_req.opcode = opcode;
-	request->upiu_req.idn = idn;
 
-	/* Send query request */
-	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY,
-			QUERY_REQ_TIMEOUT);
+	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY, QUERY_REQ_TIMEOUT);
 
 	if (err) {
 		dev_err(hba->dev,
@@ -1217,8 +1235,8 @@ out_unlock:
 static int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 			enum attr_idn idn, u8 index, u8 selector, u32 *attr_val)
 {
-	struct ufs_query_req *request;
-	struct ufs_query_res *response;
+	struct ufs_query_req *request = NULL;
+	struct ufs_query_res *response = NULL;
 	int err;
 
 	BUG_ON(!hba);
@@ -1231,10 +1249,8 @@ static int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	}
 
 	mutex_lock(&hba->dev_cmd.lock);
-	request = &hba->dev_cmd.query.request;
-	response = &hba->dev_cmd.query.response;
-	memset(request, 0, sizeof(struct ufs_query_req));
-	memset(response, 0, sizeof(struct ufs_query_res));
+	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
+			selector);
 
 	switch (opcode) {
 	case UPIU_QUERY_OPCODE_WRITE_ATTR:
@@ -1251,14 +1267,7 @@ static int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		goto out_unlock;
 	}
 
-	request->upiu_req.opcode = opcode;
-	request->upiu_req.idn = idn;
-	request->upiu_req.index = index;
-	request->upiu_req.selector = selector;
-
-	/* Send query request */
-	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY,
-						QUERY_REQ_TIMEOUT);
+	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY, QUERY_REQ_TIMEOUT);
 
 	if (err) {
 		dev_err(hba->dev, "%s: opcode 0x%.2x for idn %d failed, err = %d\n",
@@ -1267,6 +1276,82 @@ static int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	}
 
 	*attr_val = be32_to_cpu(response->upiu_res.value);
+
+out_unlock:
+	mutex_unlock(&hba->dev_cmd.lock);
+out:
+	return err;
+}
+
+/**
+ * ufshcd_query_descriptor - API function for sending descriptor requests
+ * hba: per-adapter instance
+ * opcode: attribute opcode
+ * idn: attribute idn to access
+ * index: index field
+ * selector: selector field
+ * desc_buf: the buffer that contains the descriptor
+ * buf_len: length parameter passed to the device
+ *
+ * Returns 0 for success, non-zero in case of failure.
+ * The buf_len parameter will contain, on return, the length parameter
+ * received on the response.
+ */
+int ufshcd_query_descriptor(struct ufs_hba *hba,
+			enum query_opcode opcode, enum desc_idn idn, u8 index,
+			u8 selector, u8 *desc_buf, int *buf_len)
+{
+	struct ufs_query_req *request = NULL;
+	struct ufs_query_res *response = NULL;
+	int err;
+
+	BUG_ON(!hba);
+
+	if (!desc_buf) {
+		dev_err(hba->dev, "%s: descriptor buffer required for opcode 0x%x\n",
+				__func__, opcode);
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (*buf_len <= QUERY_DESC_MIN_SIZE || *buf_len > QUERY_DESC_MAX_SIZE) {
+		dev_err(hba->dev, "%s: descriptor buffer size (%d) is out of range\n",
+				__func__, *buf_len);
+		err = -EINVAL;
+		goto out;
+	}
+
+	mutex_lock(&hba->dev_cmd.lock);
+	ufshcd_init_query(hba, &request, &response, opcode, idn, index,
+			selector);
+	hba->dev_cmd.query.descriptor = desc_buf;
+	request->upiu_req.length = *buf_len;
+
+	switch (opcode) {
+	case UPIU_QUERY_OPCODE_WRITE_DESC:
+		request->query_func = UPIU_QUERY_FUNC_STANDARD_WRITE_REQUEST;
+		break;
+	case UPIU_QUERY_OPCODE_READ_DESC:
+		request->query_func = UPIU_QUERY_FUNC_STANDARD_READ_REQUEST;
+		break;
+	default:
+		dev_err(hba->dev,
+				"%s: Expected query descriptor opcode but got = 0x%.2x\n",
+				__func__, opcode);
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	err = ufshcd_exec_dev_cmd(hba, DEV_CMD_TYPE_QUERY, QUERY_REQ_TIMEOUT);
+
+	if (err) {
+		dev_err(hba->dev, "%s: opcode 0x%.2x for idn %d failed, err = %d\n",
+				__func__, opcode, idn, err);
+		goto out_unlock;
+	}
+
+	hba->dev_cmd.query.descriptor = NULL;
+	*buf_len = response->upiu_res.length;
 
 out_unlock:
 	mutex_unlock(&hba->dev_cmd.lock);
