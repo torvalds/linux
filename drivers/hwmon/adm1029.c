@@ -110,7 +110,7 @@ static const u8 ADM1029_REG_FAN_DIV[] = {
  */
 
 struct adm1029_data {
-	struct device *hwmon_dev;
+	struct i2c_client *client;
 	struct mutex update_lock;
 	char valid;		/* zero until following fields are valid */
 	unsigned long last_updated;	/* in jiffies */
@@ -126,8 +126,8 @@ struct adm1029_data {
  */
 static struct adm1029_data *adm1029_update_device(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1029_data *data = i2c_get_clientdata(client);
+	struct adm1029_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 
 	mutex_lock(&data->update_lock);
 	/*
@@ -207,8 +207,8 @@ show_fan_div(struct device *dev, struct device_attribute *devattr, char *buf)
 static ssize_t set_fan_div(struct device *dev,
 	    struct device_attribute *devattr, const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adm1029_data *data = i2c_get_clientdata(client);
+	struct adm1029_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	u8 reg;
 	long val;
@@ -280,7 +280,7 @@ static SENSOR_DEVICE_ATTR(fan1_div, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
 			  show_fan_div, set_fan_div, 1);
 
-static struct attribute *adm1029_attributes[] = {
+static struct attribute *adm1029_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -299,9 +299,7 @@ static struct attribute *adm1029_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group adm1029_group = {
-	.attrs = adm1029_attributes,
-};
+ATTRIBUTE_GROUPS(adm1029);
 
 /*
  * Real code
@@ -371,15 +369,15 @@ static int adm1029_init_client(struct i2c_client *client)
 static int adm1029_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct adm1029_data *data;
-	int err;
+	struct device *hwmon_dev;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct adm1029_data),
-			    GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct adm1029_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, data);
+	data->client = client;
 	mutex_init(&data->update_lock);
 
 	/*
@@ -389,32 +387,10 @@ static int adm1029_probe(struct i2c_client *client,
 	if (adm1029_init_client(client) == 0)
 		return -ENODEV;
 
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&client->dev.kobj, &adm1029_group);
-	if (err)
-		return err;
-
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
- exit_remove_files:
-	sysfs_remove_group(&client->dev.kobj, &adm1029_group);
-	return err;
-}
-
-static int adm1029_remove(struct i2c_client *client)
-{
-	struct adm1029_data *data = i2c_get_clientdata(client);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &adm1029_group);
-
-	return 0;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+							   data,
+							   adm1029_groups);
+	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
 static const struct i2c_device_id adm1029_id[] = {
@@ -429,7 +405,6 @@ static struct i2c_driver adm1029_driver = {
 		.name = "adm1029",
 	},
 	.probe		= adm1029_probe,
-	.remove		= adm1029_remove,
 	.id_table	= adm1029_id,
 	.detect		= adm1029_detect,
 	.address_list	= normal_i2c,
