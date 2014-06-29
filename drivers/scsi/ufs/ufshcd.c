@@ -110,6 +110,8 @@ static void ufshcd_tmc_handler(struct ufs_hba *hba);
 static void ufshcd_async_scan(void *data, async_cookie_t cookie);
 static int ufshcd_reset_and_restore(struct ufs_hba *hba);
 static int ufshcd_clear_tm_cmd(struct ufs_hba *hba, int tag);
+static int ufshcd_read_sdev_qdepth(struct ufs_hba *hba,
+					struct scsi_device *sdev);
 
 /*
  * ufshcd_wait_for_register - wait for register value to change
@@ -1978,6 +1980,7 @@ static int ufshcd_verify_dev_init(struct ufs_hba *hba)
 static int ufshcd_slave_alloc(struct scsi_device *sdev)
 {
 	struct ufs_hba *hba;
+	int lun_qdepth;
 
 	hba = shost_priv(sdev->host);
 	sdev->tagged_supported = 1;
@@ -1988,6 +1991,14 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 
 	/* allow SCSI layer to restart the device in case of errors */
 	sdev->allow_restart = 1;
+	lun_qdepth = ufshcd_read_sdev_qdepth(hba, sdev);
+	if (lun_qdepth == 0 || lun_qdepth > hba->nutrs) {
+		dev_info(hba->dev, "%s, lun %d queue depth is %d\n", __func__,
+				sdev->lun, lun_qdepth);
+		lun_qdepth = hba->nutrs;
+	} else if (lun_qdepth < 0) {
+		lun_qdepth = 1;
+	}
 
 	/*
 	 * Inform SCSI Midlayer that the LUN queue depth is same as the
@@ -1996,7 +2007,7 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	 * SAM_STAT_TASK_SET_FULL, the LUN queue depth will be adjusted
 	 * with scsi_adjust_queue_depth.
 	 */
-	scsi_activate_tcq(sdev, hba->nutrs);
+	scsi_activate_tcq(sdev, lun_qdepth);
 	return 0;
 }
 
@@ -3068,6 +3079,38 @@ static int ufshcd_eh_host_reset_handler(struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 
 	return err;
+}
+
+/**
+ * ufshcd_read_sdev_qdepth - read the lun command queue depth
+ * @hba: Pointer to adapter instance
+ * @sdev: pointer to SCSI device
+ *
+ * Return in case of success the lun's queue depth else error.
+ */
+static int ufshcd_read_sdev_qdepth(struct ufs_hba *hba,
+				struct scsi_device *sdev)
+{
+	int ret;
+	int buff_len = UNIT_DESC_MAX_SIZE;
+	u8 desc_buf[UNIT_DESC_MAX_SIZE];
+
+	ret = ufshcd_query_descriptor(hba, UPIU_QUERY_OPCODE_READ_DESC,
+			QUERY_DESC_IDN_UNIT, sdev->lun, 0, desc_buf, &buff_len);
+
+	if (ret || (buff_len < UNIT_DESC_PARAM_LU_Q_DEPTH)) {
+		dev_err(hba->dev,
+			"%s:Failed reading unit descriptor. len = %d ret = %d"
+			, __func__, buff_len, ret);
+		if (!ret)
+			ret = -EINVAL;
+
+		goto out;
+	}
+
+	ret = desc_buf[UNIT_DESC_PARAM_LU_Q_DEPTH] & 0xFF;
+out:
+	return ret;
 }
 
 /**
