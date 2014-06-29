@@ -1118,8 +1118,7 @@ static int fsl_pamu_set_windows(struct iommu_domain *domain, u32 w_count)
 	ret = pamu_set_domain_geometry(dma_domain, &domain->geometry,
 				((w_count > 1) ? w_count : 0));
 	if (!ret) {
-		if (dma_domain->win_arr)
-			kfree(dma_domain->win_arr);
+		kfree(dma_domain->win_arr);
 		dma_domain->win_arr = kzalloc(sizeof(struct dma_window) *
 							  w_count, GFP_ATOMIC);
 		if (!dma_domain->win_arr) {
