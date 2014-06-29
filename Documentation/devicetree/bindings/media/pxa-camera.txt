@@ -1,0 +1,43 @@
+Marvell PXA camera host interface
+
+Required properties:
+ - compatible: Should be "marvell,pxa270-qci"
+ - reg: register base and size
+ - interrupts: the interrupt number
+ - any required generic properties defined in video-interfaces.txt
+
+Optional properties:
+ - clocks: input clock (see clock-bindings.txt)
+ - clock-output-names: should contain the name of the clock driving the
+                       sensor master clock MCLK
+ - clock-frequency: host interface is driving MCLK, and MCLK rate is this rate
+
+Example:
+
+	pxa_camera: pxa_camera@50000000 {
+		compatible = "marvell,pxa270-qci";
+		reg = <0x50000000 0x1000>;
+		interrupts = <33>;
+
+		clocks = <&pxa2xx_clks 24>;
+		clock-names = "ciclk";
+		clock-frequency = <50000000>;
+		clock-output-names = "qci_mclk";
+
+		status = "okay";
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* Parallel bus endpoint */
+			qci: endpoint@0 {
+				reg = <0>;		/* Local endpoint # */
+				remote-endpoint = <&mt9m111_1>;
+				bus-width = <8>;	/* Used data lines */
+				hsync-active = <0>;	/* Active low */
+				vsync-active = <0>;	/* Active low */
+				pclk-sample = <1>;	/* Rising */
+			};
+		};
+	};
