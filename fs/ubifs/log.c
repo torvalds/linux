@@ -407,12 +407,10 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 		c->lhead_offs = 0;
 	}
 
-	if (c->lhead_offs == 0) {
-		/* Must ensure next LEB has been unmapped */
-		err = ubifs_leb_unmap(c, c->lhead_lnum);
-		if (err)
-			goto out;
-	}
+	/* Must ensure next LEB has been unmapped */
+	err = ubifs_leb_unmap(c, c->lhead_lnum);
+	if (err)
+		goto out;
 
 	len = ALIGN(len, c->min_io_size);
 	dbg_log("writing commit start at LEB %d:0, len %d", c->lhead_lnum, len);
