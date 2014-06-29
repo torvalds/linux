@@ -2840,8 +2840,9 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		__cvmx_usb_perform_complete(usb, pipe, transaction,
 					    CVMX_USB_COMPLETE_BABBLEERR);
 	} else if (usbc_hcint.s.datatglerr) {
-		/* We'll retry the exact same transaction again */
-		transaction->retries++;
+		/* Data toggle error */
+		__cvmx_usb_perform_complete(usb, pipe, transaction,
+					    CVMX_USB_COMPLETE_DATATGLERR);
 	} else if (usbc_hcint.s.nyet) {
 		/*
 		 * NYET as a response is only allowed in three cases: as a
