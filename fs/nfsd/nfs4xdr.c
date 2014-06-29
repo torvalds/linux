@@ -3140,7 +3140,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	len = maxcount;
 	v = 0;
 
-	thislen = min(len, ((void *)xdr->end - (void *)xdr->p));
+	thislen = min_t(long, len, ((void *)xdr->end - (void *)xdr->p));
 	p = xdr_reserve_space(xdr, (thislen+3)&~3);
 	WARN_ON_ONCE(!p);
 	resp->rqstp->rq_vec[v].iov_base = p;
