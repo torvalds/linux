@@ -2446,6 +2446,9 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		retval = PTR_ERR(udc->clk);
 		goto err_clk;
 	}
+	retval = clk_prepare(udc->clk);
+	if (retval)
+		goto err_clk_prepare;
 
 	retval = -ENOMEM;
 	udc->regs = ioremap(regs->start, resource_size(regs));
@@ -2483,6 +2486,8 @@ err_add_udc:
 err_irq:
 	iounmap(udc->regs);
 err_map:
+	clk_unprepare(udc->clk);
+err_clk_prepare:
 	clk_put(udc->clk);
 	udc->clk = NULL;
 err_clk:
@@ -2509,6 +2514,7 @@ static int pxa_udc_remove(struct platform_device *_dev)
 
 	udc->transceiver = NULL;
 	the_controller = NULL;
+	clk_unprepare(udc->clk);
 	clk_put(udc->clk);
 	iounmap(udc->regs);
 
