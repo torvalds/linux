@@ -240,8 +240,6 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 	u8 buf[5];
 	int ret;
 
-	cp2112_gpio_set(chip, offset, value);
-
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
 				       sizeof(buf), HID_FEATURE_REPORT,
 				       HID_REQ_GET_REPORT);
@@ -259,6 +257,12 @@ static int cp2112_gpio_direction_output(struct gpio_chip *chip,
 		hid_err(hdev, "error setting GPIO config: %d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * Set gpio value when output direction is already set,
+	 * as specified in AN495, Rev. 0.2, cpt. 4.4
+	 */
+	cp2112_gpio_set(chip, offset, value);
 
 	return 0;
 }
