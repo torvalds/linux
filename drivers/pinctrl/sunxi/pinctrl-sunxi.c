@@ -643,6 +643,12 @@ static void sunxi_pinctrl_irq_unmask(struct irq_data *d)
 	spin_unlock_irqrestore(&pctl->lock, flags);
 }
 
+static void sunxi_pinctrl_irq_ack_unmask(struct irq_data *d)
+{
+	sunxi_pinctrl_irq_ack(d);
+	sunxi_pinctrl_irq_unmask(d);
+}
+
 static struct irq_chip sunxi_pinctrl_edge_irq_chip = {
 	.irq_ack	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
@@ -656,6 +662,10 @@ static struct irq_chip sunxi_pinctrl_level_irq_chip = {
 	.irq_eoi	= sunxi_pinctrl_irq_ack,
 	.irq_mask	= sunxi_pinctrl_irq_mask,
 	.irq_unmask	= sunxi_pinctrl_irq_unmask,
+	/* Define irq_enable / disable to avoid spurious irqs for drivers
+	 * using these to suppress irqs while they clear the irq source */
+	.irq_enable	= sunxi_pinctrl_irq_ack_unmask,
+	.irq_disable	= sunxi_pinctrl_irq_mask,
 	.irq_request_resources = sunxi_pinctrl_irq_request_resources,
 	.irq_set_type	= sunxi_pinctrl_irq_set_type,
 	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_EOI_THREADED |
