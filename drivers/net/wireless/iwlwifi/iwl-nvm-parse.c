@@ -549,6 +549,9 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 			data->hw_addr[1] = hw_addr[2];
 			data->hw_addr[0] = hw_addr[3];
 		}
+		if (!is_valid_ether_addr(data->hw_addr))
+			IWL_ERR_DEV(dev,
+				    "mac address from hw section is not valid\n");
 
 		return;
 	}
