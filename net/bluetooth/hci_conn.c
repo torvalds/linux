@@ -216,11 +216,23 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 			u16 latency, u16 to_multiplier)
 {
-	struct hci_cp_le_conn_update cp;
 	struct hci_dev *hdev = conn->hdev;
+	struct hci_conn_params *params;
+	struct hci_cp_le_conn_update cp;
+
+	hci_dev_lock(hdev);
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (params) {
+		params->conn_min_interval = min;
+		params->conn_max_interval = max;
+		params->conn_latency = latency;
+		params->supervision_timeout = to_multiplier;
+	}
+
+	hci_dev_unlock(hdev);
 
 	memset(&cp, 0, sizeof(cp));
-
 	cp.handle		= cpu_to_le16(conn->handle);
 	cp.conn_interval_min	= cpu_to_le16(min);
 	cp.conn_interval_max	= cpu_to_le16(max);
