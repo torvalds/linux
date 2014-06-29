@@ -438,6 +438,7 @@ struct vnt_private {
 	u8 byChannelSwitchCount;
 
 	struct iw_statistics wstats; /* wireless stats */
+	struct ieee80211_low_level_stats low_stats;
 };
 
 #define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {   \

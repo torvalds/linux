@@ -1006,6 +1006,16 @@ static void vnt_sw_scan_complete(struct ieee80211_hw *hw)
 	BBvUpdatePreEDThreshold(priv, false);
 }
 
+static int vnt_get_stats(struct ieee80211_hw *hw,
+				struct ieee80211_low_level_stats *stats)
+{
+	struct vnt_private *priv = hw->priv;
+
+	memcpy(stats, &priv->low_stats, sizeof(*stats));
+
+	return 0;
+}
+
 static u64 vnt_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct vnt_private *priv = hw->priv;
@@ -1043,6 +1053,7 @@ static const struct ieee80211_ops vnt_mac_ops = {
 	.set_key		= vnt_set_key,
 	.sw_scan_start		= vnt_sw_scan_start,
 	.sw_scan_complete	= vnt_sw_scan_complete,
+	.get_stats		= vnt_get_stats,
 	.get_tsf		= vnt_get_tsf,
 	.set_tsf		= vnt_set_tsf,
 	.reset_tsf		= vnt_reset_tsf,

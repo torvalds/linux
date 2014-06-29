@@ -79,6 +79,7 @@ void INTnsProcessData(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
 	struct net_device_stats *stats = &priv->stats;
+	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
 
@@ -133,6 +134,11 @@ void INTnsProcessData(struct vnt_private *priv)
 #endif
 		}
 		priv->qwCurrTSF = le64_to_cpu(int_data->tsf);
+
+		low_stats->dot11RTSSuccessCount += int_data->rts_success;
+		low_stats->dot11RTSFailureCount += int_data->rts_fail;
+		low_stats->dot11ACKFailureCount += int_data->ack_fail;
+		low_stats->dot11FCSErrorCount += int_data->fcs_err;
 	}
 
 	if (int_data->isr1 != 0)
