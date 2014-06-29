@@ -291,7 +291,11 @@ static int		dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type);
 
 static int		dfx_rcv_init(DFX_board_t *bp, int get_buffers);
 static void		dfx_rcv_queue_process(DFX_board_t *bp);
+#ifdef DYNAMIC_BUFFERS
 static void		dfx_rcv_flush(DFX_board_t *bp);
+#else
+static inline void	dfx_rcv_flush(DFX_board_t *bp) {}
+#endif
 
 static netdev_tx_t dfx_xmt_queue_pkt(struct sk_buff *skb,
 				     struct net_device *dev);
@@ -2849,7 +2853,7 @@ static int dfx_hw_dma_uninit(DFX_board_t *bp, PI_UINT32 type)
  *	Align an sk_buff to a boundary power of 2
  *
  */
-
+#ifdef DYNAMIC_BUFFERS
 static void my_skb_align(struct sk_buff *skb, int n)
 {
 	unsigned long x = (unsigned long)skb->data;
@@ -2859,7 +2863,7 @@ static void my_skb_align(struct sk_buff *skb, int n)
 
 	skb_reserve(skb, v - x);
 }
-
+#endif
 
 /*
  * ================
@@ -3450,10 +3454,6 @@ static void dfx_rcv_flush( DFX_board_t *bp )
 		}
 
 	}
-#else
-static inline void dfx_rcv_flush( DFX_board_t *bp )
-{
-}
 #endif /* DYNAMIC_BUFFERS */
 
 /*
