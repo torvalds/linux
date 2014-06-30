@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/seqlock.h>
 
 #include "iodev.h"
 
@@ -75,7 +76,8 @@ struct _irqfd {
 	struct kvm *kvm;
 	wait_queue_t wait;
 	/* Update side is protected by irqfds.lock */
-	struct kvm_kernel_irq_routing_entry __rcu *irq_entry;
+	struct kvm_kernel_irq_routing_entry irq_entry;
+	seqcount_t irq_entry_sc;
 	/* Used for level IRQ fast-path */
 	int gsi;
 	struct work_struct inject;
@@ -223,16 +225,20 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 {
 	struct _irqfd *irqfd = container_of(wait, struct _irqfd, wait);
 	unsigned long flags = (unsigned long)key;
-	struct kvm_kernel_irq_routing_entry *irq;
+	struct kvm_kernel_irq_routing_entry irq;
 	struct kvm *kvm = irqfd->kvm;
+	unsigned seq;
 	int idx;
 
 	if (flags & POLLIN) {
 		idx = srcu_read_lock(&kvm->irq_srcu);
-		irq = srcu_dereference(irqfd->irq_entry, &kvm->irq_srcu);
+		do {
+			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
+			irq = irqfd->irq_entry;
+		} while (read_seqcount_retry(&irqfd->irq_entry_sc, seq));
 		/* An event has been signaled, inject an interrupt */
-		if (irq)
-			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+		if (irq.type == KVM_IRQ_ROUTING_MSI)
+			kvm_set_msi(&irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					false);
 		else
 			schedule_work(&irqfd->inject);
@@ -277,18 +283,20 @@ static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
 {
 	struct kvm_kernel_irq_routing_entry *e;
 
-	if (irqfd->gsi >= irq_rt->nr_rt_entries) {
-		rcu_assign_pointer(irqfd->irq_entry, NULL);
-		return;
-	}
+	write_seqcount_begin(&irqfd->irq_entry_sc);
+
+	irqfd->irq_entry.type = 0;
+	if (irqfd->gsi >= irq_rt->nr_rt_entries)
+		goto out;
 
 	hlist_for_each_entry(e, &irq_rt->map[irqfd->gsi], link) {
 		/* Only fast-path MSI. */
 		if (e->type == KVM_IRQ_ROUTING_MSI)
-			rcu_assign_pointer(irqfd->irq_entry, e);
-		else
-			rcu_assign_pointer(irqfd->irq_entry, NULL);
+			irqfd->irq_entry = *e;
 	}
+
+ out:
+	write_seqcount_end(&irqfd->irq_entry_sc);
 }
 
 static int
@@ -310,6 +318,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	INIT_LIST_HEAD(&irqfd->list);
 	INIT_WORK(&irqfd->inject, irqfd_inject);
 	INIT_WORK(&irqfd->shutdown, irqfd_shutdown);
+	seqcount_init(&irqfd->irq_entry_sc);
 
 	file = eventfd_fget(args->fd);
 	if (IS_ERR(file)) {
@@ -466,14 +475,14 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 	list_for_each_entry_safe(irqfd, tmp, &kvm->irqfds.items, list) {
 		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi) {
 			/*
-			 * This rcu_assign_pointer is needed for when
+			 * This clearing of irq_entry.type is needed for when
 			 * another thread calls kvm_irq_routing_update before
 			 * we flush workqueue below (we synchronize with
 			 * kvm_irq_routing_update using irqfds.lock).
-			 * It is paired with synchronize_srcu done by caller
-			 * of that function.
 			 */
-			rcu_assign_pointer(irqfd->irq_entry, NULL);
+			write_seqcount_begin(&irqfd->irq_entry_sc);
+			irqfd->irq_entry.type = 0;
+			write_seqcount_end(&irqfd->irq_entry_sc);
 			irqfd_deactivate(irqfd);
 		}
 	}
