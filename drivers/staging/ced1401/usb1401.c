@@ -1328,7 +1328,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_wait_event(pdx, (int)(ulArg & 0xff), (int)(ulArg >> 8));
 
 	case _IOC_NR(IOCTL_CED_TESTEVENT):
-		return TestEvent(pdx, (int)ulArg);
+		return ced_test_event(pdx, (int)ulArg);
 
 	default:
 		return U14ERR_NO_SUCH_FN;

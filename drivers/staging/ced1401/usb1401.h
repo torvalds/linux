@@ -240,5 +240,5 @@ extern int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *
 extern int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
-extern int TestEvent(DEVICE_EXTENSION *pdx, int nArea);
+extern int ced_test_event(DEVICE_EXTENSION *pdx, int nArea);
 #endif

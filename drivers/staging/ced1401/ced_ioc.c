@@ -856,12 +856,12 @@ int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
 }
 
 /****************************************************************************
-** TestEvent
+** ced_test_event
 ** Test the event to see if a ced_wait_event would return immediately. Returns the
 ** number of times a block completed since the last call, or 0 if none or a
 ** negative error.
 ****************************************************************************/
-int TestEvent(DEVICE_EXTENSION *pdx, int nArea)
+int ced_test_event(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn;
 	if ((unsigned)nArea >= MAX_TRANSAREAS)
