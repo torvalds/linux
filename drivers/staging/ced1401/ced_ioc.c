@@ -1055,11 +1055,11 @@ int ced_check_self_test(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 }
 
 /****************************************************************************
-** TypeOf1401
+** ced_type_of_1401
 **
 ** Returns code for standard, plus, micro1401, power1401 or none
 ****************************************************************************/
-int TypeOf1401(DEVICE_EXTENSION *pdx)
+int ced_type_of_1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = TYPEUNKNOWN;
 	mutex_lock(&pdx->io_mutex);
