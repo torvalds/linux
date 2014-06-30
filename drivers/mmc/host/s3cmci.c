@@ -1787,7 +1787,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 		goto probe_free_dma;
 	}
 
-	ret = clk_enable(host->clk);
+	ret = clk_prepare_enable(host->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock source.\n");
 		goto clk_free;
@@ -1845,7 +1845,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	s3cmci_cpufreq_deregister(host);
 
  free_dmabuf:
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 
  clk_free:
 	clk_put(host->clk);
@@ -1897,7 +1897,7 @@ static void s3cmci_shutdown(struct platform_device *pdev)
 	s3cmci_debugfs_remove(host);
 	s3cmci_cpufreq_deregister(host);
 	mmc_remove_host(mmc);
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 }
 
 static int s3cmci_remove(struct platform_device *pdev)
