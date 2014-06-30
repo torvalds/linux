@@ -1106,11 +1106,11 @@ int ced_transfer_flags(DEVICE_EXTENSION *pdx)
 }
 
 /***************************************************************************
-** DbgCmd1401
+** ced_dbg_cmd
 ** Issues a debug\diagnostic command to the 1401 along with a 32-bit datum
 ** This is a utility command used for dbg operations.
 */
-static int DbgCmd1401(DEVICE_EXTENSION *pdx, unsigned char cmd,
+static int ced_dbg_cmd(DEVICE_EXTENSION *pdx, unsigned char cmd,
 		      unsigned int data)
 {
 	int iReturn;
@@ -1143,13 +1143,13 @@ int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
+	iReturn = ced_dbg_cmd(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_WIDTH, db.iWidth);
+		iReturn = ced_dbg_cmd(pdx, DB_WIDTH, db.iWidth);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_REPEATS, db.iRepeats);
+		iReturn = ced_dbg_cmd(pdx, DB_REPEATS, db.iRepeats);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_PEEK, 0);
+		iReturn = ced_dbg_cmd(pdx, DB_PEEK, 0);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -1172,13 +1172,13 @@ int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
+	iReturn = ced_dbg_cmd(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_WIDTH, db.iWidth);
+		iReturn = ced_dbg_cmd(pdx, DB_WIDTH, db.iWidth);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_REPEATS, db.iRepeats);
+		iReturn = ced_dbg_cmd(pdx, DB_REPEATS, db.iRepeats);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_POKE, db.iData);
+		iReturn = ced_dbg_cmd(pdx, DB_POKE, db.iData);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -1201,17 +1201,17 @@ int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s: @ %08x\n", __func__, db.iAddr);
 
-	iReturn = DbgCmd1401(pdx, DB_SETADD, db.iAddr);
+	iReturn = ced_dbg_cmd(pdx, DB_SETADD, db.iAddr);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_SETDEF, db.iDefault);
+		iReturn = ced_dbg_cmd(pdx, DB_SETDEF, db.iDefault);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_SETMASK, db.iMask);
+		iReturn = ced_dbg_cmd(pdx, DB_SETMASK, db.iMask);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_WIDTH, db.iWidth);
+		iReturn = ced_dbg_cmd(pdx, DB_WIDTH, db.iWidth);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_REPEATS, db.iRepeats);
+		iReturn = ced_dbg_cmd(pdx, DB_REPEATS, db.iRepeats);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_RAMPD, 0);
+		iReturn = ced_dbg_cmd(pdx, DB_RAMPD, 0);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -1233,15 +1233,15 @@ int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
-	iReturn = DbgCmd1401(pdx, DB_SETDEF, db.iDefault);
+	iReturn = ced_dbg_cmd(pdx, DB_SETDEF, db.iDefault);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_SETMASK, db.iMask);
+		iReturn = ced_dbg_cmd(pdx, DB_SETMASK, db.iMask);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_WIDTH, db.iWidth);
+		iReturn = ced_dbg_cmd(pdx, DB_WIDTH, db.iWidth);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_REPEATS, db.iRepeats);
+		iReturn = ced_dbg_cmd(pdx, DB_REPEATS, db.iRepeats);
 	if (iReturn == U14ERR_NOERROR)
-		iReturn = DbgCmd1401(pdx, DB_RAMPA, 0);
+		iReturn = ced_dbg_cmd(pdx, DB_RAMPA, 0);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
