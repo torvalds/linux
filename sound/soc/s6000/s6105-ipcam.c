@@ -19,8 +19,6 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 
-#include <variant/dmac.h>
-
 #include "s6000-pcm.h"
 #include "s6000-i2s.h"
 
