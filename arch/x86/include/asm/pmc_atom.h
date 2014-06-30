@@ -19,6 +19,27 @@
 /* ValleyView Power Control Unit PCI Device ID */
 #define	PCI_DEVICE_ID_VLV_PMC	0x0F1C
 
+/* PMC Memory mapped IO registers */
+#define	PMC_BASE_ADDR_OFFSET	0x44
+#define	PMC_BASE_ADDR_MASK	0xFFFFFE00
+#define	PMC_MMIO_REG_LEN	0x100
+#define	PMC_REG_BIT_WIDTH	32
+
+/* S0ix wake event control */
+#define	PMC_S0IX_WAKE_EN	0x3C
+
+#define	BIT_LPC_CLOCK_RUN		BIT(4)
+#define	BIT_SHARED_IRQ_GPSC		BIT(5)
+#define	BIT_ORED_DEDICATED_IRQ_GPSS	BIT(18)
+#define	BIT_ORED_DEDICATED_IRQ_GPSC	BIT(19)
+#define	BIT_SHARED_IRQ_GPSS		BIT(20)
+
+#define	PMC_WAKE_EN_SETTING	~(BIT_LPC_CLOCK_RUN | \
+				BIT_SHARED_IRQ_GPSC | \
+				BIT_ORED_DEDICATED_IRQ_GPSS | \
+				BIT_ORED_DEDICATED_IRQ_GPSC | \
+				BIT_SHARED_IRQ_GPSS)
+
 /* PMC I/O Registers */
 #define	ACPI_BASE_ADDR_OFFSET	0x40
 #define	ACPI_BASE_ADDR_MASK	0xFFFFFE00

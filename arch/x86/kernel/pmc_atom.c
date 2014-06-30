@@ -23,7 +23,23 @@
 
 #include <asm/pmc_atom.h>
 
+struct pmc_dev {
+	u32 base_addr;
+	void __iomem *regmap;
+};
+
+static struct pmc_dev pmc_device;
 static u32 acpi_base_addr;
+
+static inline u32 pmc_reg_read(struct pmc_dev *pmc, int reg_offset)
+{
+	return readl(pmc->regmap + reg_offset);
+}
+
+static inline void pmc_reg_write(struct pmc_dev *pmc, int reg_offset, u32 val)
+{
+	writel(val, pmc->regmap + reg_offset);
+}
 
 static void pmc_power_off(void)
 {
@@ -42,8 +58,23 @@ static void pmc_power_off(void)
 	outl(pm1_cnt_value, pm1_cnt_port);
 }
 
+static void pmc_hw_reg_setup(struct pmc_dev *pmc)
+{
+	/*
+	 * Disable PMC S0IX_WAKE_EN events coming from:
+	 * - LPC clock run
+	 * - GPIO_SUS ored dedicated IRQs
+	 * - GPIO_SCORE ored dedicated IRQs
+	 * - GPIO_SUS shared IRQ
+	 * - GPIO_SCORE shared IRQ
+	 */
+	pmc_reg_write(pmc, PMC_S0IX_WAKE_EN, (u32)PMC_WAKE_EN_SETTING);
+}
+
 static int pmc_setup_dev(struct pci_dev *pdev)
 {
+	struct pmc_dev *pmc = &pmc_device;
+
 	/* Obtain ACPI base address */
 	pci_read_config_dword(pdev, ACPI_BASE_ADDR_OFFSET, &acpi_base_addr);
 	acpi_base_addr &= ACPI_BASE_ADDR_MASK;
@@ -52,6 +83,17 @@ static int pmc_setup_dev(struct pci_dev *pdev)
 	if (acpi_base_addr != 0 && pm_power_off == NULL)
 		pm_power_off = pmc_power_off;
 
+	pci_read_config_dword(pdev, PMC_BASE_ADDR_OFFSET, &pmc->base_addr);
+	pmc->base_addr &= PMC_BASE_ADDR_MASK;
+
+	pmc->regmap = ioremap_nocache(pmc->base_addr, PMC_MMIO_REG_LEN);
+	if (!pmc->regmap) {
+		dev_err(&pdev->dev, "error: ioremap failed\n");
+		return -ENOMEM;
+	}
+
+	/* PMC hardware registers setup */
+	pmc_hw_reg_setup(pmc);
 	return 0;
 }
 
