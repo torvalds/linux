@@ -278,8 +278,7 @@ static int act8865_pmic_probe(struct i2c_client *client,
 	struct act8865 *act8865;
 	struct device_node *of_node[ACT8865_REG_NUM];
 	int i;
-	int ret = -EINVAL;
-	int error;
+	int ret;
 
 	if (dev->of_node && !pdata) {
 		const struct of_device_id *id;
@@ -307,10 +306,10 @@ static int act8865_pmic_probe(struct i2c_client *client,
 
 	act8865->regmap = devm_regmap_init_i2c(client, &act8865_regmap_config);
 	if (IS_ERR(act8865->regmap)) {
-		error = PTR_ERR(act8865->regmap);
+		ret = PTR_ERR(act8865->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
-			error);
-		return error;
+			ret);
+		return ret;
 	}
 
 	/* Finally register devices */
