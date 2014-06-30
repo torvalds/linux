@@ -130,16 +130,16 @@ int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData,
 }
 
 /****************************************************************************
-** SendChar
+** ced_send_char
 **
 ** Sends a single character to the 1401. User mode, holds io_mutex.
 ****************************************************************************/
-int SendChar(DEVICE_EXTENSION *pdx, char c)
+int ced_send_char(DEVICE_EXTENSION *pdx, char c)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	iReturn = ced_put_chars(pdx, &c, 1);
-	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)\n", c, c);
+	dev_dbg(&pdx->interface->dev, "ced_send_char >%c< (0x%02x)\n", c, c);
 	ced_allowi(pdx);	/*  Make sure char reads are running */
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
