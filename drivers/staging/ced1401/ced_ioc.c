@@ -1156,12 +1156,12 @@ int ced_dbg_peek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 }
 
 /****************************************************************************
-** DbgPoke
+** ced_dbg_poke
 **
 ** Execute the diagnostic poke operation. Parameters are in the CSBLOCK struct
 ** in order address, size, repeats and value to poke.
 ****************************************************************************/
-int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
+int ced_dbg_poke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
