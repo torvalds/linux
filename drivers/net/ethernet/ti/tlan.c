@@ -2568,6 +2568,7 @@ static void tlan_phy_reset(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		phy;
 	u16		value;
+	unsigned long timeout = jiffies + HZ;
 
 	phy = priv->phy[priv->phy_num];
 
@@ -2575,9 +2576,13 @@ static void tlan_phy_reset(struct net_device *dev)
 	tlan_mii_sync(dev->base_addr);
 	value = MII_GC_LOOPBK | MII_GC_RESET;
 	tlan_mii_write_reg(dev, phy, MII_GEN_CTL, value);
-	tlan_mii_read_reg(dev, phy, MII_GEN_CTL, &value);
-	while (value & MII_GC_RESET)
+	do {
 		tlan_mii_read_reg(dev, phy, MII_GEN_CTL, &value);
+		if (time_after(jiffies, timeout)) {
+			netdev_err(dev, "PHY reset timeout\n");
+			return;
+		}
+	} while (value & MII_GC_RESET);
 
 	/* Wait for 500 ms and initialize.
 	 * I don't remember why I wait this long.
