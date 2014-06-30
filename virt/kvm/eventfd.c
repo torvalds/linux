@@ -278,14 +278,13 @@ irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh,
 }
 
 /* Must be called under irqfds.lock */
-static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
-			 struct kvm_irq_routing_table *irq_rt)
+static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd)
 {
 	struct kvm_kernel_irq_routing_entry *e;
 	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
 	int i, n_entries;
 
-	n_entries = kvm_irq_map_gsi(entries, irq_rt, irqfd->gsi);
+	n_entries = kvm_irq_map_gsi(kvm, entries, irqfd->gsi);
 
 	write_seqcount_begin(&irqfd->irq_entry_sc);
 
@@ -304,12 +303,12 @@ static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
 static int
 kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 {
-	struct kvm_irq_routing_table *irq_rt;
 	struct _irqfd *irqfd, *tmp;
 	struct file *file = NULL;
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	int ret;
 	unsigned int events;
+	int idx;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
 	if (!irqfd)
@@ -403,9 +402,9 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		goto fail;
 	}
 
-	irq_rt = rcu_dereference_protected(kvm->irq_routing,
-					   lockdep_is_held(&kvm->irqfds.lock));
-	irqfd_update(kvm, irqfd, irq_rt);
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	irqfd_update(kvm, irqfd);
+	srcu_read_unlock(&kvm->irq_srcu, idx);
 
 	events = file->f_op->poll(file, &irqfd->pt);
 
@@ -539,20 +538,17 @@ kvm_irqfd_release(struct kvm *kvm)
 }
 
 /*
- * Change irq_routing and irqfd.
+ * Take note of a change in irq routing.
  * Caller must invoke synchronize_srcu(&kvm->irq_srcu) afterwards.
  */
-void kvm_irq_routing_update(struct kvm *kvm,
-			    struct kvm_irq_routing_table *irq_rt)
+void kvm_irq_routing_update(struct kvm *kvm)
 {
 	struct _irqfd *irqfd;
 
 	spin_lock_irq(&kvm->irqfds.lock);
 
-	rcu_assign_pointer(kvm->irq_routing, irq_rt);
-
 	list_for_each_entry(irqfd, &kvm->irqfds.items, list)
-		irqfd_update(kvm, irqfd, irq_rt);
+		irqfd_update(kvm, irqfd);
 
 	spin_unlock_irq(&kvm->irqfds.lock);
 }
