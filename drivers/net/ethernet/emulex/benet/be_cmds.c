@@ -3440,76 +3440,16 @@ err:
 	return status;
 }
 
-/* Uses mbox */
-static int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
-					  u8 domain, struct be_dma_mem *cmd)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_get_profile_config *req;
-	int status;
-
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
-	wrb = wrb_from_mbox(adapter);
-
-	req = cmd->va;
-	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_GET_PROFILE_CONFIG,
-			       cmd->size, wrb, cmd);
-
-	req->type = ACTIVE_PROFILE_TYPE;
-	req->hdr.domain = domain;
-	if (!lancer_chip(adapter))
-		req->hdr.version = 1;
-
-	status = be_mbox_notify_wait(adapter);
-
-	mutex_unlock(&adapter->mbox_lock);
-	return status;
-}
-
-/* Uses sync mcc */
-static int be_cmd_get_profile_config_mccq(struct be_adapter *adapter,
-					  u8 domain, struct be_dma_mem *cmd)
-{
-	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_get_profile_config *req;
-	int status;
-
-	spin_lock_bh(&adapter->mcc_lock);
-
-	wrb = wrb_from_mccq(adapter);
-	if (!wrb) {
-		status = -EBUSY;
-		goto err;
-	}
-
-	req = cmd->va;
-	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			       OPCODE_COMMON_GET_PROFILE_CONFIG,
-			       cmd->size, wrb, cmd);
-
-	req->type = ACTIVE_PROFILE_TYPE;
-	req->hdr.domain = domain;
-	if (!lancer_chip(adapter))
-		req->hdr.version = 1;
-
-	status = be_mcc_notify_wait(adapter);
-
-err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	return status;
-}
-
-/* Uses sync mcc, if MCCQ is already created otherwise mbox */
+/* Will use MBOX only if MCCQ has not been created */
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain)
 {
 	struct be_cmd_resp_get_profile_config *resp;
+	struct be_cmd_req_get_profile_config *req;
 	struct be_pcie_res_desc *pcie;
 	struct be_port_res_desc *port;
 	struct be_nic_res_desc *nic;
-	struct be_queue_info *mccq = &adapter->mcc_obj.q;
+	struct be_mcc_wrb wrb = {0};
 	struct be_dma_mem cmd;
 	u32 desc_count;
 	int status;
@@ -3520,10 +3460,17 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (!cmd.va)
 		return -ENOMEM;
 
-	if (!mccq->created)
-		status = be_cmd_get_profile_config_mbox(adapter, domain, &cmd);
-	else
-		status = be_cmd_get_profile_config_mccq(adapter, domain, &cmd);
+	req = cmd.va;
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PROFILE_CONFIG,
+			       cmd.size, &wrb, &cmd);
+
+	req->hdr.domain = domain;
+	if (!lancer_chip(adapter))
+		req->hdr.version = 1;
+	req->type = ACTIVE_PROFILE_TYPE;
+
+	status = be_cmd_notify_wait(adapter, &wrb);
 	if (status)
 		goto err;
 
