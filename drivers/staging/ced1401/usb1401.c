@@ -1325,7 +1325,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return FreeCircBlock(pdx, (TCIRCBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_WAITEVENT):
-		return WaitEvent(pdx, (int)(ulArg & 0xff), (int)(ulArg >> 8));
+		return ced_wait_event(pdx, (int)(ulArg & 0xff), (int)(ulArg >> 8));
 
 	case _IOC_NR(IOCTL_CED_TESTEVENT):
 		return TestEvent(pdx, (int)ulArg);

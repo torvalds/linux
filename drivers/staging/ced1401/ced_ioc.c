@@ -809,12 +809,12 @@ int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
 }
 
 /****************************************************************************
-** WaitEvent
+** ced_wait_event
 ** Sleep the process with a timeout waiting for an event. Returns the number
 ** of times that a block met the event condition since we last cleared it or
 ** 0 if timed out, or -ve error (bad area or not set, or signal).
 ****************************************************************************/
-int WaitEvent(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
+int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
 {
 	int iReturn;
 	if ((unsigned)nArea >= MAX_TRANSAREAS)
@@ -857,7 +857,7 @@ int WaitEvent(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
 
 /****************************************************************************
 ** TestEvent
-** Test the event to see if a WaitEvent would return immediately. Returns the
+** Test the event to see if a ced_wait_event would return immediately. Returns the
 ** number of times a block completed since the last call, or 0 if none or a
 ** negative error.
 ****************************************************************************/

@@ -239,6 +239,6 @@ extern int DbgStopLoop(DEVICE_EXTENSION *pdx);
 extern int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
 extern int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
-extern int WaitEvent(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
+extern int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
 extern int TestEvent(DEVICE_EXTENSION *pdx, int nArea);
 #endif
