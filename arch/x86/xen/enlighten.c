@@ -32,6 +32,7 @@
 #include <linux/gfp.h>
 #include <linux/memblock.h>
 #include <linux/edd.h>
+#include <linux/efi.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -1520,6 +1521,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	int rc;
+	efi_system_table_t *efi_systab_xen;
 
 	if (!xen_start_info)
 		return;
@@ -1714,6 +1716,19 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	xen_raw_console_write("about to get started...\n");
 
 	xen_setup_runstate_info(0);
+
+	efi_systab_xen = xen_efi_probe();
+
+	if (efi_systab_xen) {
+		strncpy((char *)&boot_params.efi_info.efi_loader_signature, "Xen",
+				sizeof(boot_params.efi_info.efi_loader_signature));
+		boot_params.efi_info.efi_systab = (__u32)__pa(efi_systab_xen);
+		boot_params.efi_info.efi_systab_hi = (__u32)(__pa(efi_systab_xen) >> 32);
+
+		set_bit(EFI_BOOT, &efi.flags);
+		set_bit(EFI_PARAVIRT, &efi.flags);
+		set_bit(EFI_64BIT, &efi.flags);
+	}
 
 	/* Start the world */
 #ifdef CONFIG_X86_32
