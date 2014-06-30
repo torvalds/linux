@@ -520,6 +520,7 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct sunxi_pinctrl *pctl = dev_get_drvdata(chip->dev);
 	struct sunxi_desc_function *desc;
+	unsigned irqnum;
 
 	if (offset >= chip->ngpio)
 		return -ENXIO;
@@ -528,10 +529,12 @@ static int sunxi_pinctrl_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	if (!desc)
 		return -EINVAL;
 
-	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
-		chip->label, offset + chip->base, desc->irqnum);
+	irqnum = desc->irqbank * IRQ_PER_BANK + desc->irqnum;
 
-	return irq_find_mapping(pctl->domain, desc->irqnum);
+	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
+		chip->label, offset + chip->base, irqnum);
+
+	return irq_find_mapping(pctl->domain, irqnum);
 }
 
 static int sunxi_pinctrl_irq_request_resources(struct irq_data *d)
