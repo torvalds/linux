@@ -133,21 +133,7 @@ static const struct snd_kcontrol_new audio_out_mux = {
 /* Logic for a aic3x as connected on the s6105 ip camera ref design */
 static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	struct snd_soc_card *card = rtd->card;
-
-	/* not present */
-	snd_soc_dapm_nc_pin(dapm, "MONO_LOUT");
-	snd_soc_dapm_nc_pin(dapm, "LINE2L");
-	snd_soc_dapm_nc_pin(dapm, "LINE2R");
-
-	/* not connected */
-	snd_soc_dapm_nc_pin(dapm, "MIC3L"); /* LINE2L on this chip */
-	snd_soc_dapm_nc_pin(dapm, "MIC3R"); /* LINE2R on this chip */
-	snd_soc_dapm_nc_pin(dapm, "LLOUT");
-	snd_soc_dapm_nc_pin(dapm, "RLOUT");
-	snd_soc_dapm_nc_pin(dapm, "HPRCOM");
 
 	/* must correspond to audio_out_mux.private_value initializer */
 	snd_soc_dapm_disable_pin(&card->dapm, "Audio Out Differential");
@@ -180,6 +166,7 @@ static struct snd_soc_card snd_soc_card_s6105 = {
 	.num_dapm_widgets = ARRAY_SIZE(aic3x_dapm_widgets),
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.fully_routed = true,
 };
 
 static struct s6000_snd_platform_data s6105_snd_data __initdata = {
