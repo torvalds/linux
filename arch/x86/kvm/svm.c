@@ -4261,9 +4261,9 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		if (info->intercept == x86_intercept_in ||
 		    info->intercept == x86_intercept_ins) {
 			exit_info |= SVM_IOIO_TYPE_MASK;
-			bytes = info->src_bytes;
-		} else {
 			bytes = info->dst_bytes;
+		} else {
+			bytes = info->src_bytes;
 		}
 
 		if (info->intercept == x86_intercept_outs ||
