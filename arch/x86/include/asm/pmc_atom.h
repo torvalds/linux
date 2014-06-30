@@ -25,6 +25,10 @@
 #define	PMC_MMIO_REG_LEN	0x100
 #define	PMC_REG_BIT_WIDTH	32
 
+/* BIOS uses FUNC_DIS to disable specific function */
+#define	PMC_FUNC_DIS		0x34
+#define	PMC_FUNC_DIS_2		0x38
+
 /* S0ix wake event control */
 #define	PMC_S0IX_WAKE_EN	0x3C
 
@@ -39,6 +43,57 @@
 				BIT_ORED_DEDICATED_IRQ_GPSS | \
 				BIT_ORED_DEDICATED_IRQ_GPSC | \
 				BIT_SHARED_IRQ_GPSS)
+
+/* The timers acumulate time spent in sleep state */
+#define	PMC_S0IR_TMR		0x80
+#define	PMC_S0I1_TMR		0x84
+#define	PMC_S0I2_TMR		0x88
+#define	PMC_S0I3_TMR		0x8C
+#define	PMC_S0_TMR		0x90
+/* Sleep state counter is in units of of 32us */
+#define	PMC_TMR_SHIFT		5
+
+/* These registers reflect D3 status of functions */
+#define	PMC_D3_STS_0		0xA0
+
+#define	BIT_LPSS1_F0_DMA	BIT(0)
+#define	BIT_LPSS1_F1_PWM1	BIT(1)
+#define	BIT_LPSS1_F2_PWM2	BIT(2)
+#define	BIT_LPSS1_F3_HSUART1	BIT(3)
+#define	BIT_LPSS1_F4_HSUART2	BIT(4)
+#define	BIT_LPSS1_F5_SPI	BIT(5)
+#define	BIT_LPSS1_F6_XXX	BIT(6)
+#define	BIT_LPSS1_F7_XXX	BIT(7)
+#define	BIT_SCC_EMMC		BIT(8)
+#define	BIT_SCC_SDIO		BIT(9)
+#define	BIT_SCC_SDCARD		BIT(10)
+#define	BIT_SCC_MIPI		BIT(11)
+#define	BIT_HDA			BIT(12)
+#define	BIT_LPE			BIT(13)
+#define	BIT_OTG			BIT(14)
+#define	BIT_USH			BIT(15)
+#define	BIT_GBE			BIT(16)
+#define	BIT_SATA		BIT(17)
+#define	BIT_USB_EHCI		BIT(18)
+#define	BIT_SEC			BIT(19)
+#define	BIT_PCIE_PORT0		BIT(20)
+#define	BIT_PCIE_PORT1		BIT(21)
+#define	BIT_PCIE_PORT2		BIT(22)
+#define	BIT_PCIE_PORT3		BIT(23)
+#define	BIT_LPSS2_F0_DMA	BIT(24)
+#define	BIT_LPSS2_F1_I2C1	BIT(25)
+#define	BIT_LPSS2_F2_I2C2	BIT(26)
+#define	BIT_LPSS2_F3_I2C3	BIT(27)
+#define	BIT_LPSS2_F4_I2C4	BIT(28)
+#define	BIT_LPSS2_F5_I2C5	BIT(29)
+#define	BIT_LPSS2_F6_I2C6	BIT(30)
+#define	BIT_LPSS2_F7_I2C7	BIT(31)
+
+#define	PMC_D3_STS_1		0xA4
+#define	BIT_SMB			BIT(0)
+#define	BIT_OTG_SS_PHY		BIT(1)
+#define	BIT_USH_SS_PHY		BIT(2)
+#define	BIT_DFX			BIT(3)
 
 /* PMC I/O Registers */
 #define	ACPI_BASE_ADDR_OFFSET	0x40
