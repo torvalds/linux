@@ -3,13 +3,6 @@
 #
 menu "Analog to digital converters"
 
-config AD7291
-	tristate "Analog Devices AD7291 ADC driver"
-	depends on I2C
-	help
-	  Say yes here to build support for Analog Devices AD7291
-	  8 Channel ADC with temperature sensor.
-
 config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB

@@ -6,22 +6,22 @@
  * Licensed under the GPL-2 or later.
  */
 
-#include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>
-#include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/sysfs.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-#include "ad7291.h"
+#include <linux/platform_data/ad7291.h>
 
 /*
  * Simplified handling
@@ -379,6 +379,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			if (chip->reg) {
 				int vref;
+
 				vref = regulator_get_voltage(chip->reg);
 				if (vref < 0)
 					return vref;
