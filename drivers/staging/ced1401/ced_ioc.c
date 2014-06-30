@@ -655,12 +655,12 @@ int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea)
 }
 
 /****************************************************************************
-** SetArea
+** ced_set_area
 **
 ** Sets up a transfer area - the functional part. Called by both
 ** SetTransfer and SetCircular.
 ****************************************************************************/
-static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
+static int ced_set_area(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 		   unsigned int dwLength, bool bCircular, bool bCircToHost)
 {
 	/*  Start by working out the page aligned start of the area and the size */
@@ -751,7 +751,7 @@ int SetTransfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 	/*  pointer. The pointer is always passed as a 64-bit object so that we don't have problems using */
 	/*  a 32-bit program on a 64-bit system. unsigned long is 64-bits on a 64-bit system. */
 	iReturn =
-	    SetArea(pdx, td.wAreaNum,
+	    ced_set_area(pdx, td.wAreaNum,
 		    (char __user *)((unsigned long)td.lpvBuff), td.dwLength,
 		    false, false);
 	mutex_unlock(&pdx->io_mutex);
@@ -1336,7 +1336,7 @@ int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 	/*  pointer. The pointer is always passed as a 64-bit object so that we don't have problems using */
 	/*  a 32-bit program on a 64-bit system. unsigned long is 64-bits on a 64-bit system. */
 	iReturn =
-	    SetArea(pdx, td.wAreaNum,
+	    ced_set_area(pdx, td.wAreaNum,
 		    (char __user *)((unsigned long)td.lpvBuff), td.dwLength,
 		    true, bToHost);
 	mutex_unlock(&pdx->io_mutex);
