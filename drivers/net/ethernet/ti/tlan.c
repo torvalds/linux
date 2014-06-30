@@ -1198,9 +1198,6 @@ static irqreturn_t tlan_handle_interrupt(int irq, void *dev_id)
 
 static int tlan_close(struct net_device *dev)
 {
-	struct tlan_priv *priv = netdev_priv(dev);
-
-	priv->neg_be_verbose = 0;
 	tlan_stop(dev);
 
 	free_irq(dev->irq, dev);
@@ -2701,12 +2698,6 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 		/* Wait for 8 sec to give the process
 		 * more time.  Perhaps we should fail after a while.
 		 */
-		if (!priv->neg_be_verbose++) {
-			pr_info("Giving autonegotiation more time.\n");
-			pr_info("Please check that your adapter has\n");
-			pr_info("been properly connected to a HUB or Switch.\n");
-			pr_info("Trying to establish link in the background...\n");
-		}
 		tlan_set_timer(dev, (8*HZ), TLAN_TIMER_PHY_FINISH_AN);
 		return;
 	}

@@ -208,7 +208,6 @@ struct tlan_priv {
 	u8			tlan_full_duplex;
 	spinlock_t		lock;
 	struct work_struct			tlan_tqueue;
-	u8			neg_be_verbose;
 };
 
 
