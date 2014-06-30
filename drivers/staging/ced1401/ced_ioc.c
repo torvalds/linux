@@ -1280,12 +1280,12 @@ int ced_dbg_get_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 }
 
 /****************************************************************************
-** DbgStopLoop
+** ced_dbg_stop_loop
 **
 ** Stop any never-ending debug loop, we just call ced_get_state for USB
 **
 ****************************************************************************/
-int DbgStopLoop(DEVICE_EXTENSION *pdx)
+int ced_dbg_stop_loop(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	unsigned int uState, uErr;

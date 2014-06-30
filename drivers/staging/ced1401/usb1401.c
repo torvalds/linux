@@ -1309,7 +1309,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_dbg_get_data(pdx, (TDBGBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_DBGSTOPLOOP):
-		return DbgStopLoop(pdx);
+		return ced_dbg_stop_loop(pdx);
 
 	case _IOC_NR(IOCTL_CED_FULLRESET):
 		pdx->bForceReset = true;	/*  Set a flag for a full reset */
