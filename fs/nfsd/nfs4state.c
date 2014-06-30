@@ -4783,11 +4783,10 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 			struct nfsd4_release_lockowner *rlockowner)
 {
 	clientid_t *clid = &rlockowner->rl_clientid;
-	struct nfs4_stateowner *sop;
+	struct nfs4_stateowner *sop = NULL, *tmp;
 	struct nfs4_lockowner *lo;
 	struct nfs4_ol_stateid *stp;
 	struct xdr_netobj *owner = &rlockowner->rl_owner;
-	struct list_head matches;
 	unsigned int hashval = ownerstr_hashval(clid->cl_id, owner);
 	__be32 status;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
@@ -4802,33 +4801,32 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		goto out;
 
 	status = nfserr_locks_held;
-	INIT_LIST_HEAD(&matches);
 
-	list_for_each_entry(sop, &nn->ownerstr_hashtbl[hashval], so_strhash) {
-		if (sop->so_is_open_owner)
+	/* Find the matching lock stateowner */
+	list_for_each_entry(tmp, &nn->ownerstr_hashtbl[hashval], so_strhash) {
+		if (tmp->so_is_open_owner)
 			continue;
-		if (!same_owner_str(sop, owner, clid))
-			continue;
-		list_for_each_entry(stp, &sop->so_stateids,
-				st_perstateowner) {
-			lo = lockowner(sop);
-			if (check_for_locks(stp->st_file, lo))
-				goto out;
-			list_add(&lo->lo_list, &matches);
+		if (same_owner_str(tmp, owner, clid)) {
+			sop = tmp;
+			break;
 		}
 	}
-	/* Clients probably won't expect us to return with some (but not all)
-	 * of the lockowner state released; so don't release any until all
-	 * have been checked. */
-	status = nfs_ok;
-	while (!list_empty(&matches)) {
-		lo = list_entry(matches.next, struct nfs4_lockowner,
-								lo_list);
-		/* unhash_stateowner deletes so_perclient only
-		 * for openowners. */
-		list_del(&lo->lo_list);
-		release_lockowner(lo);
+
+	/* No matching owner found, maybe a replay? Just declare victory... */
+	if (!sop) {
+		status = nfs_ok;
+		goto out;
 	}
+
+	lo = lockowner(sop);
+	/* see if there are still any locks associated with it */
+	list_for_each_entry(stp, &sop->so_stateids, st_perstateowner) {
+		if (check_for_locks(stp->st_file, lo))
+			goto out;
+	}
+
+	status = nfs_ok;
+	release_lockowner(lo);
 out:
 	nfs4_unlock_state();
 	return status;

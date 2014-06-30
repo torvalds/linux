@@ -364,7 +364,6 @@ struct nfs4_openowner {
 
 struct nfs4_lockowner {
 	struct nfs4_stateowner	lo_owner; /* must be first element */
-	struct list_head	lo_list; /* for temporary uses */
 };
 
 static inline struct nfs4_openowner * openowner(struct nfs4_stateowner *so)
