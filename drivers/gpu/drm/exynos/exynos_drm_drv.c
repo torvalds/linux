@@ -358,7 +358,7 @@ static int exynos_drm_sys_suspend(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	pm_message_t message;
 
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
 	message.event = PM_EVENT_SUSPEND;
@@ -369,7 +369,7 @@ static int exynos_drm_sys_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_suspended(dev) || !drm_dev)
 		return 0;
 
 	return exynos_drm_resume(drm_dev);
