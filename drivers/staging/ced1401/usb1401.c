@@ -1229,7 +1229,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(IOCTL_CED_SENDSTRING(0)):
-		return SendString(pdx, (const char __user *)ulArg,
+		return ced_send_string(pdx, (const char __user *)ulArg,
 				  _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_RESET1401):

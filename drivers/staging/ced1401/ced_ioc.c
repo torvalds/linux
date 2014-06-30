@@ -105,7 +105,7 @@ static int ced_put_chars(DEVICE_EXTENSION *pdx, const char *pCh,
 ** trigger an output transfer if this is appropriate. User mode.
 ** Holds the io_mutex
 *****************************************************************************/
-int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
+int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData,
 	       unsigned int n)
 {
 	int iReturn = U14ERR_NOERROR;	/*  assume all will be well */
