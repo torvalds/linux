@@ -1756,6 +1756,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	if (!priv->map) {
 		dev_err(&pdev->dev, "Cannot map device memory/PIO\n");
+		err = -ENOMEM;
 		goto err_free_dev;
 	}
 
@@ -1816,6 +1817,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown chip! (0x%x)\n",
 		       pci_name(pdev), reg >> 25);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
@@ -1866,12 +1868,14 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	default:
 		printk(KERN_ERR "%s (rtl8180): Unknown RF! (0x%x)\n",
 		       pci_name(pdev), priv->rf_type);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
 	if (!priv->rf) {
 		printk(KERN_ERR "%s (rtl8180): %s RF frontend not supported!\n",
 		       pci_name(pdev), rf_name);
+		err = -ENODEV;
 		goto err_iounmap;
 	}
 
