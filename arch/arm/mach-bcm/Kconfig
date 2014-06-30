@@ -9,7 +9,6 @@ config ARCH_BCM_MOBILE
 	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369 if SMP
 	select ARM_ERRATA_775420
 	select ARM_GIC
 	select GPIO_BCM_KONA
@@ -26,16 +25,18 @@ menu "Broadcom Mobile SoC Selection"
 config ARCH_BCM_281XX
 	bool "Broadcom BCM281XX SoC family"
 	default y
+	select HAVE_SMP
 	help
-	  Enable support for the the BCM281XX family, which includes
+	  Enable support for the BCM281XX family, which includes
 	  BCM11130, BCM11140, BCM11351, BCM28145 and BCM28155
 	  variants.
 
 config ARCH_BCM_21664
 	bool "Broadcom BCM21664 SoC family"
 	default y
+	select HAVE_SMP
 	help
-	  Enable support for the the BCM21664 family, which includes
+	  Enable support for the BCM21664 family, which includes
 	  BCM21663 and BCM21664 variants.
 
 config ARCH_BCM_MOBILE_L2_CACHE
@@ -48,6 +49,17 @@ config ARCH_BCM_MOBILE_L2_CACHE
 config ARCH_BCM_MOBILE_SMC
 	bool
 	depends on ARCH_BCM_281XX || ARCH_BCM_21664
+
+config ARCH_BCM_MOBILE_SMP
+	bool "Broadcom mobile SoC SMP support"
+	depends on (ARCH_BCM_281XX || ARCH_BCM_21664) && SMP
+	default y
+	select HAVE_ARM_SCU
+	select ARM_ERRATA_764369
+	help
+	  SMP support for the BCM281XX and BCM21664 SoC families.
+	  Provided as an option so SMP support for SoCs of this type
+	  can be disabled for an SMP-enabled kernel.
 
 endmenu
 
