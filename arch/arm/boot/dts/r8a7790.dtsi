@@ -946,8 +946,8 @@
 		ranges = <0x02000000 0 0xee080000 0 0xee080000 0 0x00010000>;
 		interrupt-map-mask = <0xff00 0 0 0x7>;
 		interrupt-map = <0x0000 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
-			      	 0x0800 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
-			      	 0x1000 0 0 2 &gic 0 108 IRQ_TYPE_LEVEL_HIGH>;
+				 0x0800 0 0 1 &gic 0 108 IRQ_TYPE_LEVEL_HIGH
+				 0x1000 0 0 2 &gic 0 108 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pci1: pci@ee0b0000 {
@@ -966,8 +966,8 @@
 		ranges = <0x02000000 0 0xee0a0000 0 0xee0a0000 0 0x00010000>;
 		interrupt-map-mask = <0xff00 0 0 0x7>;
 		interrupt-map = <0x0000 0 0 1 &gic 0 112 IRQ_TYPE_LEVEL_HIGH
-			      	 0x0800 0 0 1 &gic 0 112 IRQ_TYPE_LEVEL_HIGH
-			      	 0x1000 0 0 2 &gic 0 112 IRQ_TYPE_LEVEL_HIGH>;
+				 0x0800 0 0 1 &gic 0 112 IRQ_TYPE_LEVEL_HIGH
+				 0x1000 0 0 2 &gic 0 112 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pci2: pci@ee0d0000 {
@@ -986,8 +986,8 @@
 		ranges = <0x02000000 0 0xee0c0000 0 0xee0c0000 0 0x00010000>;
 		interrupt-map-mask = <0xff00 0 0 0x7>;
 		interrupt-map = <0x0000 0 0 1 &gic 0 113 IRQ_TYPE_LEVEL_HIGH
-			      	 0x0800 0 0 1 &gic 0 113 IRQ_TYPE_LEVEL_HIGH
-			      	 0x1000 0 0 2 &gic 0 113 IRQ_TYPE_LEVEL_HIGH>;
+				 0x0800 0 0 1 &gic 0 113 IRQ_TYPE_LEVEL_HIGH
+				 0x1000 0 0 2 &gic 0 113 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pciec: pcie@fe000000 {
