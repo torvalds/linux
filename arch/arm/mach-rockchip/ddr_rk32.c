@@ -3642,7 +3642,6 @@ typedef struct freq_tag{
     struct ddr_freq_t *p_ddr_freq_t;
 }freq_t;
 
-static int dclk_div;
 static noinline uint32 ddr_change_freq_sram(void *arg)
 {
     uint32 freq;
@@ -3656,7 +3655,9 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     uint32 gpllvaluel;
     freq_t *p_freq_t=(freq_t *)arg;    
     uint32 nMHz=p_freq_t->nMHz;
-    
+	struct rk_screen screen;
+	int dclk_div = 0;
+
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
     struct ddr_freq_t *p_ddr_freq_t=p_freq_t->p_ddr_freq_t;
 #endif
@@ -3669,7 +3670,11 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     }
 #endif
 
-    dclk_div = (cru_readl(RK3288_CRU_CLKSELS_CON(29)) >> 8) & 0xff;
+	rk_fb_get_prmry_screen(&screen);
+	if (screen.lcdc_id == 0)
+		dclk_div = (cru_readl(RK3288_CRU_CLKSELS_CON(27)) >> 8) & 0xff;
+	else if (screen.lcdc_id == 1)
+		dclk_div = (cru_readl(RK3288_CRU_CLKSELS_CON(29)) >> 8) & 0xff;
 
     param.arm_freq = ddr_get_pll_freq(APLL);
     gpllvaluel = ddr_get_pll_freq(GPLL);
@@ -3743,11 +3748,24 @@ static noinline uint32 ddr_change_freq_sram(void *arg)
     param.freq = freq;
     param.freq_slew = freq_slew;
     param.dqstr_value = dqstr_value;
-    cru_writel(0 |CRU_W_MSK_SETBITS(0xff,8,0xff), RK3288_CRU_CLKSELS_CON(29));
+	if (screen.lcdc_id == 0)
+		cru_writel(0 | CRU_W_MSK_SETBITS(0xff, 8, 0xff),
+		RK3288_CRU_CLKSELS_CON(27));
+	else if (screen.lcdc_id == 1)
+		cru_writel(0 | CRU_W_MSK_SETBITS(0xff, 8, 0xff),
+		RK3288_CRU_CLKSELS_CON(29));
+
     call_with_stack(fn_to_pie(rockchip_pie_chunk, &FUNC(ddr_change_freq_sram)),
                     &param,
                     rockchip_sram_stack-(NR_CPUS-1)*PAUSE_CPU_STACK_SIZE);
-    cru_writel(0 |CRU_W_MSK_SETBITS(dclk_div,8,0xff), RK3288_CRU_CLKSELS_CON(29));
+
+	if (screen.lcdc_id == 0)
+		cru_writel(0 | CRU_W_MSK_SETBITS(dclk_div, 8, 0xff),
+		RK3288_CRU_CLKSELS_CON(27));
+	else if (screen.lcdc_id == 1)
+		cru_writel(0 | CRU_W_MSK_SETBITS(dclk_div, 8, 0xff),
+		RK3288_CRU_CLKSELS_CON(29));
+
 #if defined (DDR_CHANGE_FREQ_IN_LCDC_VSYNC)
 end:
 #endif
