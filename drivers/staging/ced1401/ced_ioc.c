@@ -269,10 +269,10 @@ int ced_read_write_cancel(DEVICE_EXTENSION *pdx)
 }
 
 /***************************************************************************
-** InSelfTest - utility to check in self test. Return 1 for ST, 0 for not or
+** ced_in_self_test - utility to check in self test. Return 1 for ST, 0 for not or
 ** a -ve error code if we failed for some reason.
 ***************************************************************************/
-static int InSelfTest(DEVICE_EXTENSION *pdx, unsigned int *pState)
+static int ced_in_self_test(DEVICE_EXTENSION *pdx, unsigned int *pState)
 {
 	unsigned int state, error;
 	int iReturn = ced_get_state(pdx, &state, &error);	/*  see if in self-test */
@@ -326,12 +326,12 @@ bool Is1401(DEVICE_EXTENSION *pdx)
 	pdx->dwDMAFlag = MODE_CHAR;	/*  Clear DMA mode flag regardless! */
 	if (iReturn == 0) {	/*  if all is OK still */
 		unsigned int state;
-		iReturn = InSelfTest(pdx, &state);	/*  see if likely in self test */
+		iReturn = ced_in_self_test(pdx, &state);	/*  see if likely in self test */
 		if (iReturn > 0) {	/*  do we need to wait for self-test? */
 			unsigned long ulTimeOut = jiffies + 30 * HZ;	/*  when to give up */
 			while ((iReturn > 0) && time_before(jiffies, ulTimeOut)) {
 				schedule();	/*  let other stuff run */
-				iReturn = InSelfTest(pdx, &state);	/*  see if done yet */
+				iReturn = ced_in_self_test(pdx, &state);	/*  see if done yet */
 			}
 		}
 
