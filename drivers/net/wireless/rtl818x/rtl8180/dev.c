@@ -878,7 +878,15 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 		/* fix eccessive IFS after CTS-to-self */
-		rtl818x_iowrite8(priv, REG_ADDR1(0x1ff), 0x35);
+		if (priv->map_pio) {
+			u8 reg;
+
+			reg = rtl818x_ioread8(priv, &priv->map->PGSELECT);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg | 1);
+			rtl818x_iowrite8(priv, REG_ADDR1(0xff), 0x35);
+			rtl818x_iowrite8(priv, &priv->map->PGSELECT, reg);
+		} else
+			rtl818x_iowrite8(priv, REG_ADDR1(0x1ff), 0x35);
 	}
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -1739,13 +1747,15 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 
+	priv->map_pio = false;
 	priv->map = pci_iomap(pdev, 1, mem_len);
-	if (!priv->map)
+	if (!priv->map) {
 		priv->map = pci_iomap(pdev, 0, io_len);
+		priv->map_pio = true;
+	}
 
 	if (!priv->map) {
-		printk(KERN_ERR "%s (rtl8180): Cannot map device memory\n",
-		       pci_name(pdev));
+		dev_err(&pdev->dev, "Cannot map device memory/PIO\n");
 		goto err_free_dev;
 	}
 
@@ -1794,6 +1804,12 @@ static int rtl8180_probe(struct pci_dev *pdev,
 
 	case RTL818X_TX_CONF_RTL8187SE:
 		chip_name = "RTL8187SE";
+		if (priv->map_pio) {
+			dev_err(&pdev->dev,
+				"MMIO failed. PIO not supported on RTL8187SE\n");
+			err = -ENOMEM;
+			goto err_iounmap;
+		}
 		priv->chip_family = RTL818X_CHIP_FAMILY_RTL8187SE;
 		break;
 
