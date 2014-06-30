@@ -83,7 +83,7 @@ struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u32);
 int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
 		u32, struct se_device *);
 struct se_lun *core_tpg_pre_dellun(struct se_portal_group *, u32 unpacked_lun);
-int	core_tpg_post_dellun(struct se_portal_group *, struct se_lun *);
+void core_tpg_post_dellun(struct se_portal_group *, struct se_lun *);
 
 /* target_core_transport.c */
 extern struct kmem_cache *se_tmr_req_cache;
