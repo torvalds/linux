@@ -8,8 +8,27 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
+#ifndef __CRC32DEFS
+#define __CRC32DEFS
+#define CRCBIG_ENDIAN    (1)
+#define CRCLITTLE_ENDIAN (0)
+
+#define CRCPOLY32_BIGEND  0x04C11DB7  /* big endian poly. */
+#define CRCPOLY32_LITEND  0xEDB88320  /* little endian poly.*/
+#define CRCPOLY32_TENTRY  256         /* crc32 table entries */  
+#endif 
+
 extern u32  crc32_le(u32 crc, unsigned char const *p, size_t len);
 extern u32  crc32_be(u32 crc, unsigned char const *p, size_t len);
+
+/*
+ * crc32 endian select
+ * 
+ *  endian type : CRCBIG_ENDIAN , CRCLITTLE_ENDIAN
+ *
+ */
+extern u32  crc32_sel(u32 crc,unsigned char const *p,size_t len,u8 endian_type);
+
 
 /**
  * crc32_le_combine - Combine two crc32 check values into one. For two
