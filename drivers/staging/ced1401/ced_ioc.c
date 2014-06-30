@@ -879,10 +879,10 @@ int ced_test_event(DEVICE_EXTENSION *pdx, int nArea)
 }
 
 /****************************************************************************
-** GetTransferInfo
+** ced_get_transferInfo
 ** Puts the current state of the 1401 in a TGET_TX_BLOCK.
 *****************************************************************************/
-int GetTransfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pTX)
+int ced_get_transfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pTX)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int dwIdent;

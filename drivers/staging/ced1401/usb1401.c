@@ -1269,7 +1269,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return (2 << 24) | (DRIVERMAJREV << 16) | DRIVERMINREV;	/*  USB | MAJOR | MINOR */
 
 	case _IOC_NR(IOCTL_CED_GETTRANSFER):
-		return GetTransfer(pdx, (TGET_TX_BLOCK __user *) ulArg);
+		return ced_get_transfer(pdx, (TGET_TX_BLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_KILLIO1401):
 		return KillIO1401(pdx);

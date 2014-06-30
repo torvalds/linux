@@ -222,7 +222,7 @@ extern int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pT
 extern int ced_stat_1401(DEVICE_EXTENSION *pdx);
 extern int ced_line_count(DEVICE_EXTENSION *pdx);
 extern int ced_get_out_buf_space(DEVICE_EXTENSION *pdx);
-extern int GetTransfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pGTB);
+extern int ced_get_transfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pGTB);
 extern int KillIO1401(DEVICE_EXTENSION *pdx);
 extern int BlkTransState(DEVICE_EXTENSION *pdx);
 extern int StateOf1401(DEVICE_EXTENSION *pdx);
