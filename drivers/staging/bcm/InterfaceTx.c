@@ -200,8 +200,8 @@ static int TransmitTcb(struct bcm_interface_adapter *psIntfAdapter,
 int InterfaceTransmitPacket(PVOID arg, PVOID data, UINT len)
 {
 	struct bcm_usb_tcb *pTcb = NULL;
-
 	struct bcm_interface_adapter *psIntfAdapter = arg;
+
 	pTcb = GetBulkOutTcb(psIntfAdapter);
 	if (pTcb == NULL) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
