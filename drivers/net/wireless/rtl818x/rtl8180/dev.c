@@ -542,7 +542,7 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 
 	entry->flags2 = info->control.rates[1].idx >= 0 ?
 		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
-	entry->retry_limit = info->control.rates[0].count;
+	entry->retry_limit = info->control.rates[0].count - 1;
 
 	/* We must be sure that tx_flags is written last because the HW
 	 * looks at it to check if the rest of data is valid or not
