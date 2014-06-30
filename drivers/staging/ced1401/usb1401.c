@@ -492,7 +492,7 @@ static void ced_copy_user_space(DEVICE_EXTENSION *pdx, int n)
 }
 
 /*  Forward declarations for stuff used circularly */
-static int StageChunk(DEVICE_EXTENSION *pdx);
+static int ced_stage_chunk(DEVICE_EXTENSION *pdx);
 /***************************************************************************
 ** ReadWrite_Complete
 **
@@ -670,7 +670,7 @@ static void staged_callback(struct urb *pUrb)
 		}
 
 	} else			/*  Here for more to do */
-		StageChunk(pdx);	/*  fire off the next bit */
+		ced_stage_chunk(pdx);	/*  fire off the next bit */
 
 	/*  While we hold the stagedLock, see if we should reallow character input ints */
 	/*  Don't allow if cancelled, or if a new block has started or if there is a waiting block. */
@@ -689,14 +689,14 @@ static void staged_callback(struct urb *pUrb)
 }
 
 /****************************************************************************
-** StageChunk
+** ced_stage_chunk
 **
 ** Generates the next chunk of data making up a staged transfer.
 **
 ** The calling code must have acquired the staging spinlock before calling
 **  this function, and is responsible for releasing it. We are at callback level.
 ****************************************************************************/
-static int StageChunk(DEVICE_EXTENSION *pdx)
+static int ced_stage_chunk(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int ChunkSize;
@@ -838,7 +838,7 @@ int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 	pdx->bXFerWaiting = false;	/*  Clearly not a transfer waiting now */
 
 /*     KeClearEvent(&pdx->StagingDoneEvent);           // Clear the transfer done event */
-	StageChunk(pdx);	/*  fire off the first chunk */
+	ced_stage_chunk(pdx);	/*  fire off the first chunk */
 
 	return U14ERR_NOERROR;
 }
