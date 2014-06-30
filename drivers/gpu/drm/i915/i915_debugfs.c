@@ -2395,6 +2395,76 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_semaphore_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_engine_cs *ring;
+	int num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
+	int i, j, ret;
+
+	if (!i915_semaphore_is_enabled(dev)) {
+		seq_puts(m, "Semaphores are disabled\n");
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (IS_BROADWELL(dev)) {
+		struct page *page;
+		uint64_t *seqno;
+
+		page = i915_gem_object_get_page(dev_priv->semaphore_obj, 0);
+
+		seqno = (uint64_t *)kmap_atomic(page);
+		for_each_ring(ring, dev_priv, i) {
+			uint64_t offset;
+
+			seq_printf(m, "%s\n", ring->name);
+
+			seq_puts(m, "  Last signal:");
+			for (j = 0; j < num_rings; j++) {
+				offset = i * I915_NUM_RINGS + j;
+				seq_printf(m, "0x%08llx (0x%02llx) ",
+					   seqno[offset], offset * 8);
+			}
+			seq_putc(m, '\n');
+
+			seq_puts(m, "  Last wait:  ");
+			for (j = 0; j < num_rings; j++) {
+				offset = i + (j * I915_NUM_RINGS);
+				seq_printf(m, "0x%08llx (0x%02llx) ",
+					   seqno[offset], offset * 8);
+			}
+			seq_putc(m, '\n');
+
+		}
+		kunmap_atomic(seqno);
+	} else {
+		seq_puts(m, "  Last signal:");
+		for_each_ring(ring, dev_priv, i)
+			for (j = 0; j < num_rings; j++)
+				seq_printf(m, "0x%08x\n",
+					   I915_READ(ring->semaphore.mbox.signal[j]));
+		seq_putc(m, '\n');
+	}
+
+	seq_puts(m, "\nSync seqno:\n");
+	for_each_ring(ring, dev_priv, i) {
+		for (j = 0; j < num_rings; j++) {
+			seq_printf(m, "  0x%08x ", ring->semaphore.sync_seqno[j]);
+		}
+		seq_putc(m, '\n');
+	}
+	seq_putc(m, '\n');
+
+	mutex_unlock(&dev->struct_mutex);
+	return 0;
+}
+
 struct pipe_crc_info {
 	const char *name;
 	struct drm_device *dev;
@@ -3904,6 +3974,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_pc8_status", i915_pc8_status, 0},
 	{"i915_power_domain_info", i915_power_domain_info, 0},
 	{"i915_display_info", i915_display_info, 0},
+	{"i915_semaphore_status", i915_semaphore_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
