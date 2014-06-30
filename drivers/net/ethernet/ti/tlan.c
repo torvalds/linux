@@ -365,8 +365,10 @@ static int tlan_suspend(struct pci_dev *pdev, pm_message_t state)
 static int tlan_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	int rc = pci_enable_device(pdev);
 
-	pci_set_power_state(pdev, PCI_D0);
+	if (rc)
+		return rc;
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
 	netif_device_attach(dev);
