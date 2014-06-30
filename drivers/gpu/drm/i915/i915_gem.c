@@ -2842,6 +2842,8 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	idx = intel_ring_sync_index(from, to);
 
 	seqno = obj->last_read_seqno;
+	/* Optimization: Avoid semaphore sync when we are sure we already
+	 * waited for an object with higher seqno */
 	if (seqno <= from->semaphore.sync_seqno[idx])
 		return 0;
 
