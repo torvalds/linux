@@ -146,6 +146,79 @@ static INT SendPacketFromQueue(struct bcm_mini_adapter *Adapter,/**<Logical Adap
 	return Status;
 }
 
+static void get_data_packet(struct bcm_mini_adapter *ad,
+			    struct bcm_packet_info *ps_sf)
+{
+	int packet_len;
+	struct sk_buff *qpacket;
+
+	if (!ps_sf->ucDirection)
+		return;
+
+	BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
+			"UpdateTokenCount ");
+	if (ad->IdleMode || ad->bPreparingForLowPowerMode)
+		return; /* in idle mode */
+
+	/* Check for Free Descriptors */
+	if (atomic_read(&ad->CurrNumFreeTxDesc) <=
+	    MINIMUM_PENDING_DESCRIPTORS) {
+		BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
+				" No Free Tx Descriptor(%d) is available for Data pkt..",
+				atomic_read(&ad->CurrNumFreeTxDesc));
+		return;
+	}
+
+	spin_lock_bh(&ps_sf->SFQueueLock);
+	qpacket = ps_sf->FirstTxQueue;
+
+	if (qpacket) {
+		BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
+				"Dequeuing Data Packet");
+
+		if (ps_sf->bEthCSSupport)
+			packet_len = qpacket->len;
+		else
+			packet_len = qpacket->len - ETH_HLEN;
+
+		packet_len <<= 3;
+		if (packet_len <= GetSFTokenCount(ad, ps_sf)) {
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL, "Allowed bytes %d",
+					(packet_len >> 3));
+
+			DEQUEUEPACKET(ps_sf->FirstTxQueue, ps_sf->LastTxQueue);
+			ps_sf->uiCurrentBytesOnHost -= (qpacket->len);
+			ps_sf->uiCurrentPacketsOnHost--;
+				atomic_dec(&ad->TotalPacketCount);
+			spin_unlock_bh(&ps_sf->SFQueueLock);
+
+			SendPacketFromQueue(ad, ps_sf, qpacket);
+			ps_sf->uiPendedLast = false;
+		} else {
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL, "For Queue: %zd\n",
+					ps_sf - ad->PackInfo);
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL,
+					"\nAvailable Tokens = %d required = %d\n",
+					ps_sf->uiCurrentTokenCount,
+					packet_len);
+			/*
+			this part indicates that because of
+			non-availability of the tokens
+			pkt has not been send out hence setting the
+			pending flag indicating the host to send it out
+			first next iteration.
+			*/
+			ps_sf->uiPendedLast = TRUE;
+			spin_unlock_bh(&ps_sf->SFQueueLock);
+		}
+	} else {
+		spin_unlock_bh(&ps_sf->SFQueueLock);
+	}
+}
+
 /************************************************************************
 * Function    - CheckAndSendPacketFromIndex()
 *
@@ -161,87 +234,16 @@ static INT SendPacketFromQueue(struct bcm_mini_adapter *Adapter,/**<Logical Adap
 static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter,
 					struct bcm_packet_info *psSF)
 {
-	struct sk_buff *QueuePacket = NULL;
 	char *pControlPacket = NULL;
 	INT Status = 0;
-	int iPacketLen = 0;
-
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
 			"%zd ====>", (psSF-Adapter->PackInfo));
 	if ((psSF != &Adapter->PackInfo[HiPriority]) &&
 	    Adapter->LinkUpStatus &&
 	    atomic_read(&psSF->uiPerSFTxResourceCount)) { /* Get data packet */
-		if (!psSF->ucDirection)
-			return;
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
-				"UpdateTokenCount ");
-		if (Adapter->IdleMode || Adapter->bPreparingForLowPowerMode)
-			return;	/* in idle mode */
-
-		/* Check for Free Descriptors */
-		if (atomic_read(&Adapter->CurrNumFreeTxDesc) <=
-		    MINIMUM_PENDING_DESCRIPTORS) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS,
-					DBG_LVL_ALL,
-					" No Free Tx Descriptor(%d) is available for Data pkt..",
-					atomic_read(&Adapter->CurrNumFreeTxDesc));
-			return;
-		}
-
-		spin_lock_bh(&psSF->SFQueueLock);
-		QueuePacket = psSF->FirstTxQueue;
-
-		if (QueuePacket) {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS,
-					DBG_LVL_ALL, "Dequeuing Data Packet");
-
-			if (psSF->bEthCSSupport)
-				iPacketLen = QueuePacket->len;
-			else
-				iPacketLen = QueuePacket->len-ETH_HLEN;
-
-			iPacketLen <<= 3;
-			if (iPacketLen <= GetSFTokenCount(Adapter, psSF)) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
-						TX_PACKETS, DBG_LVL_ALL,
-						"Allowed bytes %d",
-					(iPacketLen >> 3));
-
-				DEQUEUEPACKET(psSF->FirstTxQueue,
-					      psSF->LastTxQueue);
-				psSF->uiCurrentBytesOnHost -=
-					(QueuePacket->len);
-				psSF->uiCurrentPacketsOnHost--;
-				atomic_dec(&Adapter->TotalPacketCount);
-				spin_unlock_bh(&psSF->SFQueueLock);
-
-				Status = SendPacketFromQueue(Adapter, psSF,
-							     QueuePacket);
-				psSF->uiPendedLast = false;
-			} else {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
-						TX_PACKETS, DBG_LVL_ALL,
-						"For Queue: %zd\n",
-						psSF-Adapter->PackInfo);
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
-						TX_PACKETS, DBG_LVL_ALL,
-						"\nAvailable Tokens = %d required = %d\n",
-					psSF->uiCurrentTokenCount, iPacketLen);
-				/*
-				this part indicates that because of
-				non-availability of the tokens
-				pkt has not been send out hence setting the
-				pending flag indicating the host to send it out
-				first next iteration.
-				*/
-				psSF->uiPendedLast = TRUE;
-				spin_unlock_bh(&psSF->SFQueueLock);
-			}
-		} else {
-			spin_unlock_bh(&psSF->SFQueueLock);
-		}
+		get_data_packet(Adapter, psSF);
 	} else {
 
 		if ((atomic_read(&Adapter->CurrNumFreeTxDesc) > 0) &&
