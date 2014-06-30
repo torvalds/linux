@@ -1461,9 +1461,10 @@ static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 	vif_priv = (struct rtl8180_vif *)&vif->drv_priv;
 
 	if (changed & BSS_CHANGED_BSSID) {
-		for (i = 0; i < ETH_ALEN; i++)
-			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
-					 info->bssid[i]);
+		rtl818x_iowrite16(priv, (__le16 __iomem *)&priv->map->BSSID[0],
+				  le16_to_cpu(*(__le16 *)info->bssid));
+		rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->BSSID[2],
+				  le32_to_cpu(*(__le32 *)(info->bssid + 2)));
 
 		if (is_valid_ether_addr(info->bssid)) {
 			if (vif->type == NL80211_IFTYPE_ADHOC)
