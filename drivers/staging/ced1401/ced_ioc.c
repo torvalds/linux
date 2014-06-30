@@ -92,7 +92,7 @@ static int PutChars(DEVICE_EXTENSION *pdx, const char *pCh,
 		}
 		pdx->dwNumOutput += uCount;
 		spin_unlock_irq(&pdx->charOutLock);
-		iReturn = SendChars(pdx);	/*  ...give a chance to transmit data */
+		iReturn = ced_send_chars(pdx);	/*  ...give a chance to transmit data */
 	} else {
 		iReturn = U14ERR_NOOUT;	/*  no room at the out (ha-ha) */
 		spin_unlock_irq(&pdx->charOutLock);
@@ -427,7 +427,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	Allowi(pdx);	/*  Make sure char reads are running */
-	SendChars(pdx);	/*  and send any buffered chars */
+	ced_send_chars(pdx);	/*  and send any buffered chars */
 
 	spin_lock_irq(&pdx->charInLock);
 	if (pdx->dwNumInput > 0) {	/*  worth looking */
@@ -465,7 +465,7 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	Allowi(pdx);	/*  Make sure char reads are running */
-	SendChars(pdx);		/*  and send any buffered chars */
+	ced_send_chars(pdx);		/*  and send any buffered chars */
 
 	spin_lock_irq(&pdx->charInLock);
 	nAvailable = pdx->dwNumInput;	/*  characters available now */
@@ -521,7 +521,7 @@ int Stat1401(DEVICE_EXTENSION *pdx)
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	Allowi(pdx);		/*  make sure we allow pending chars */
-	SendChars(pdx);		/*  in both directions */
+	ced_send_chars(pdx);		/*  in both directions */
 	iReturn = pdx->dwNumInput;	/*  no lock as single read */
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	return iReturn;
@@ -540,7 +540,7 @@ int LineCount(DEVICE_EXTENSION *pdx)
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	Allowi(pdx);		/*  Make sure char reads are running */
-	SendChars(pdx);		/*  and send any buffered chars */
+	ced_send_chars(pdx);		/*  and send any buffered chars */
 	spin_lock_irq(&pdx->charInLock);	/*  Get protection */
 
 	if (pdx->dwNumInput > 0) {	/*  worth looking? */
@@ -570,7 +570,7 @@ int GetOutBufSpace(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	SendChars(pdx);		/*  send any buffered chars */
+	ced_send_chars(pdx);		/*  send any buffered chars */
 	iReturn = (int)(OUTBUF_SZ - pdx->dwNumOutput);	/*  no lock needed for single read */
 	dev_dbg(&pdx->interface->dev, "%s: %d\n", __func__, iReturn);
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */

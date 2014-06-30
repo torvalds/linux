@@ -333,11 +333,11 @@ static void ced_writechar_callback(struct urb *pUrb)
 }
 
 /****************************************************************************
-** SendChars
+** ced_send_chars
 ** Transmit the characters in the output buffer to the 1401. This may need
 ** breaking down into multiple transfers.
 ****************************************************************************/
-int SendChars(DEVICE_EXTENSION *pdx)
+int ced_send_chars(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 
