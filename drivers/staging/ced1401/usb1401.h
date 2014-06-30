@@ -232,7 +232,7 @@ extern int ced_transfer_flags(DEVICE_EXTENSION *pdx);
 extern int ced_dbg_peek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int ced_dbg_poke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int ced_dbg_ramp_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
-extern int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
+extern int ced_dbg_ramp_addr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgStopLoop(DEVICE_EXTENSION *pdx);
 extern int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);

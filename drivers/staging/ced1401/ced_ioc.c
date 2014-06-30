@@ -1218,11 +1218,11 @@ int ced_dbg_ramp_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 }
 
 /****************************************************************************
-** DbgRampAddr
+** ced_dbg_ramp_addr
 **
 ** Execute the diagnostic ramp address operation
 ****************************************************************************/
-int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
+int ced_dbg_ramp_addr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
