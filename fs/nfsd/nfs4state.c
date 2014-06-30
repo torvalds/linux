@@ -4129,8 +4129,25 @@ out:
 
 static void nfsd4_close_open_stateid(struct nfs4_ol_stateid *s)
 {
-	unhash_open_stateid(s);
+	struct nfs4_client *clp = s->st_stid.sc_client;
+	struct nfs4_openowner *oo = openowner(s->st_stateowner);
+
 	s->st_stid.sc_type = NFS4_CLOSED_STID;
+	unhash_open_stateid(s);
+
+	if (clp->cl_minorversion) {
+		free_generic_stateid(s);
+		if (list_empty(&oo->oo_owner.so_stateids))
+			release_openowner(oo);
+	} else {
+		oo->oo_last_closed_stid = s;
+		/*
+		 * In the 4.0 case we need to keep the owners around a
+		 * little while to handle CLOSE replay.
+		 */
+		if (list_empty(&oo->oo_owner.so_stateids))
+			move_to_close_lru(oo, clp->net);
+	}
 }
 
 /*
@@ -4141,7 +4158,6 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    struct nfsd4_close *close)
 {
 	__be32 status;
-	struct nfs4_openowner *oo;
 	struct nfs4_ol_stateid *stp;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
@@ -4157,28 +4173,10 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfsd4_bump_seqid(cstate, status);
 	if (status)
 		goto out; 
-	oo = openowner(stp->st_stateowner);
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&close->cl_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
 	nfsd4_close_open_stateid(stp);
-
-	if (cstate->minorversion)
-		free_generic_stateid(stp);
-	else
-		oo->oo_last_closed_stid = stp;
-
-	if (list_empty(&oo->oo_owner.so_stateids)) {
-		if (cstate->minorversion)
-			release_openowner(oo);
-		else {
-			/*
-			 * In the 4.0 case we need to keep the owners around a
-			 * little while to handle CLOSE replay.
-			 */
-			move_to_close_lru(oo, SVC_NET(rqstp));
-		}
-	}
 out:
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
