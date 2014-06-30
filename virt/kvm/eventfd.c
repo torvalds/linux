@@ -34,7 +34,9 @@
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <linux/seqlock.h>
+#include <trace/events/kvm.h>
 
+#include "irq.h"
 #include "iodev.h"
 
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
@@ -829,4 +831,65 @@ kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		return kvm_deassign_ioeventfd(kvm, args);
 
 	return kvm_assign_ioeventfd(kvm, args);
+}
+
+bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	struct kvm_irq_ack_notifier *kian;
+	int gsi, idx;
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
+	if (gsi != -1)
+		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+					 link)
+			if (kian->gsi == gsi) {
+				srcu_read_unlock(&kvm->irq_srcu, idx);
+				return true;
+			}
+
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(kvm_irq_has_notifier);
+
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
+{
+	struct kvm_irq_ack_notifier *kian;
+	int gsi, idx;
+
+	trace_kvm_ack_irq(irqchip, pin);
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
+	if (gsi != -1)
+		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
+					 link)
+			if (kian->gsi == gsi)
+				kian->irq_acked(kian);
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+}
+
+void kvm_register_irq_ack_notifier(struct kvm *kvm,
+				   struct kvm_irq_ack_notifier *kian)
+{
+	mutex_lock(&kvm->irq_lock);
+	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
+	mutex_unlock(&kvm->irq_lock);
+#ifdef __KVM_HAVE_IOAPIC
+	kvm_vcpu_request_scan_ioapic(kvm);
+#endif
+}
+
+void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
+				    struct kvm_irq_ack_notifier *kian)
+{
+	mutex_lock(&kvm->irq_lock);
+	hlist_del_init_rcu(&kian->link);
+	mutex_unlock(&kvm->irq_lock);
+	synchronize_srcu(&kvm->irq_srcu);
+#ifdef __KVM_HAVE_IOAPIC
+	kvm_vcpu_request_scan_ioapic(kvm);
+#endif
 }
