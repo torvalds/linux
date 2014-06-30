@@ -932,18 +932,6 @@ int ced_kill_io(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** BlkTransState
-** Returns a 0 or a 1 for whether DMA is happening. No point holding a mutex
-** for this as it only does one read.
-*****************************************************************************/
-int BlkTransState(DEVICE_EXTENSION *pdx)
-{
-	int iReturn = pdx->dwDMAFlag != MODE_CHAR;
-	dev_dbg(&pdx->interface->dev, "%s: %d\n", __func__, iReturn);
-	return iReturn;
-}
-
-/****************************************************************************
 ** StateOf1401
 **
 ** Puts the current state of the 1401 in the Irp return buffer.
