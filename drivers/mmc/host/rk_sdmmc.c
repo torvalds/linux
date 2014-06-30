@@ -3839,9 +3839,6 @@ void dw_mci_remove(struct dw_mci *host)
 	int i;
 	del_timer_sync(&host->dto_timer);
 
-	if(host->use_dma && host->dma_ops->exit)
-	        host->dma_ops->exit(host);
-
         mci_writel(host, RINTSTS, 0xFFFFFFFF);
         mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
 
