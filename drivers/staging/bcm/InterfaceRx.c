@@ -28,8 +28,7 @@ static void format_eth_hdr_to_stack(struct bcm_interface_adapter *interface,
 				    struct urb *urb,
 				    UINT ui_index,
 				    int queue_index,
-				    bool b_header_supression_endabled,
-				    int *process_done)
+				    bool b_header_supression_endabled)
 {
 	/*
 	 * Data Packet, Format a proper Ethernet Header
@@ -68,7 +67,7 @@ static void format_eth_hdr_to_stack(struct bcm_interface_adapter *interface,
 		}
 
 		skb->protocol = eth_type_trans(skb, ad->dev);
-		*process_done = netif_rx(skb);
+		netif_rx(skb);
 	} else {
 		BCM_DEBUG_PRINT(interface->psAdapter, DBG_TYPE_RX,
 				RX_DATA, DBG_LVL_ALL,
@@ -129,7 +128,6 @@ static void read_bulk_callback(struct urb *urb)
 	bool bHeaderSupressionEnabled = false;
 	int QueueIndex = NO_OF_QUEUES + 1;
 	UINT uiIndex = 0;
-	int process_done = 1;
 	struct bcm_usb_rcb *pRcb = (struct bcm_usb_rcb *)urb->context;
 	struct bcm_interface_adapter *psIntfAdapter = pRcb->psIntfAdapter;
 	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter;
@@ -213,8 +211,7 @@ static void read_bulk_callback(struct urb *urb)
 	} else {
 		format_eth_hdr_to_stack(psIntfAdapter, Adapter, pLeader, skb,
 					urb, uiIndex, QueueIndex,
-					bHeaderSupressionEnabled,
-					&process_done);
+					bHeaderSupressionEnabled);
 	}
 	Adapter->PrevNumRecvDescs++;
 	pRcb->bUsed = false;
