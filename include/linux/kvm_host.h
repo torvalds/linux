@@ -413,7 +413,7 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 int kvm_irqfd_init(void);
 void kvm_irqfd_exit(void);
 #else
@@ -888,20 +888,20 @@ int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue);
 void kvm_free_irq_routing(struct kvm *kvm);
 
-int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
-
 #else
 
 static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 
 #endif
 
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
+
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 
 void kvm_eventfd_init(struct kvm *kvm);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef CONFIG_HAVE_KVM_IRQFD
 int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
 void kvm_irq_routing_update(struct kvm *);
