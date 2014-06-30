@@ -1523,10 +1523,17 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	if (IS_BROADWELL(dev) || I915_READ(IPS_CTL) & IPS_ENABLE)
-		seq_puts(m, "enabled\n");
-	else
-		seq_puts(m, "disabled\n");
+	seq_printf(m, "Enabled by kernel parameter: %s\n",
+		   yesno(i915.enable_ips));
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		seq_puts(m, "Currently: unknown\n");
+	} else {
+		if (I915_READ(IPS_CTL) & IPS_ENABLE)
+			seq_puts(m, "Currently: enabled\n");
+		else
+			seq_puts(m, "Currently: disabled\n");
+	}
 
 	intel_runtime_pm_put(dev_priv);
 
