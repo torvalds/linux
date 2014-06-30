@@ -746,6 +746,23 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	}
 }
 
+
+static void gen6_record_semaphore_state(struct drm_i915_private *dev_priv,
+					struct intel_engine_cs *ring,
+					struct drm_i915_error_ring *ering)
+{
+	ering->semaphore_mboxes[0] = I915_READ(RING_SYNC_0(ring->mmio_base));
+	ering->semaphore_mboxes[1] = I915_READ(RING_SYNC_1(ring->mmio_base));
+	ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
+	ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
+
+	if (HAS_VEBOX(dev_priv->dev)) {
+		ering->semaphore_mboxes[2] =
+			I915_READ(RING_SYNC_2(ring->mmio_base));
+		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
+	}
+}
+
 static void i915_record_ring_state(struct drm_device *dev,
 				   struct intel_engine_cs *ring,
 				   struct drm_i915_error_ring *ering)
@@ -755,18 +772,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ering->rc_psmi = I915_READ(ring->mmio_base + 0x50);
 		ering->fault_reg = I915_READ(RING_FAULT_REG(ring));
-		ering->semaphore_mboxes[0]
-			= I915_READ(RING_SYNC_0(ring->mmio_base));
-		ering->semaphore_mboxes[1]
-			= I915_READ(RING_SYNC_1(ring->mmio_base));
-		ering->semaphore_seqno[0] = ring->semaphore.sync_seqno[0];
-		ering->semaphore_seqno[1] = ring->semaphore.sync_seqno[1];
-	}
-
-	if (HAS_VEBOX(dev)) {
-		ering->semaphore_mboxes[2] =
-			I915_READ(RING_SYNC_2(ring->mmio_base));
-		ering->semaphore_seqno[2] = ring->semaphore.sync_seqno[2];
+		gen6_record_semaphore_state(dev_priv, ring, ering);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
