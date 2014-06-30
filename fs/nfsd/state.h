@@ -365,7 +365,6 @@ struct nfs4_openowner {
 struct nfs4_lockowner {
 	struct nfs4_stateowner	lo_owner; /* must be first element */
 	struct list_head	lo_owner_ino_hash; /* hash by owner,file */
-	struct list_head        lo_perstateid;
 	struct list_head	lo_list; /* for temporary uses */
 };
 
@@ -433,7 +432,7 @@ struct nfs4_ol_stateid {
 	struct nfs4_stid    st_stid; /* must be first field */
 	struct list_head              st_perfile;
 	struct list_head              st_perstateowner;
-	struct list_head              st_lockowners;
+	struct list_head              st_locks;
 	struct nfs4_stateowner      * st_stateowner;
 	struct nfs4_file            * st_file;
 	unsigned long                 st_access_bmap;
