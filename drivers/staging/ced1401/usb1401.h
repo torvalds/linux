@@ -204,7 +204,7 @@ typedef struct _DEVICE_EXTENSION {
 extern int Allowi(DEVICE_EXTENSION *pdx);
 extern int ced_send_chars(DEVICE_EXTENSION *pdx);
 extern void ced_draw_down(DEVICE_EXTENSION *pdx);
-extern int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
+extern int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 				unsigned int dwOffs, unsigned int dwLen);
 
 /*  in ced_ioc.c */

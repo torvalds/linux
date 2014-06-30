@@ -505,7 +505,7 @@ static void staged_callback(struct urb *pUrb)
 	bool bCancel = false;
 	bool bRestartCharInput;	/*  used at the end */
 
-	spin_lock(&pdx->stagedLock);	/*  stop ReadWriteMem() action while this routine is running */
+	spin_lock(&pdx->stagedLock);	/*  stop ced_read_write_mem() action while this routine is running */
 	pdx->bStagedUrbPending = false;	/*  clear the flag for staged IRP pending */
 
 	if (pUrb->status) {	/*  sync/async unlink faults aren't errors */
@@ -549,7 +549,7 @@ static void staged_callback(struct urb *pUrb)
 		/*  Here is where we sort out what to do with this transfer if using a circular buffer. We have */
 		/*   a completed transfer that can be assumed to fit into the transfer area. We should be able to */
 		/*   add this to the end of a growing block or to use it to start a new block unless the code */
-		/*   that calculates the offset to use (in ReadWriteMem) is totally duff. */
+		/*   that calculates the offset to use (in ced_read_write_mem) is totally duff. */
 		if ((pArea->bCircular) && (pArea->bCircToHost) && (!bCancel) &&	/*  Time to sort out circular buffer info? */
 		    (pdx->StagedRead)) {	/*  Only for tohost transfers for now */
 			if (pArea->aBlocks[1].dwSize > 0) {	/*  If block 1 is in use we must append to it */
@@ -648,7 +648,7 @@ static void staged_callback(struct urb *pUrb)
 			}
 		}
 
-		pdx->dwDMAFlag = MODE_CHAR;	/*  Switch back to char mode before ReadWriteMem call */
+		pdx->dwDMAFlag = MODE_CHAR;	/*  Switch back to char mode before ced_read_write_mem call */
 
 		if (!bCancel) {	/*  Don't look for waiting transfer if cancelled */
 			/*  If we have a transfer waiting, kick it off */
@@ -657,7 +657,7 @@ static void staged_callback(struct urb *pUrb)
 				dev_info(&pdx->interface->dev,
 					 "*** RWM_Complete *** pending transfer will now be set up!!!\n");
 				iReturn =
-				    ReadWriteMem(pdx, !pdx->rDMAInfo.bOutWard,
+				    ced_read_write_mem(pdx, !pdx->rDMAInfo.bOutWard,
 						 pdx->rDMAInfo.wIdent,
 						 pdx->rDMAInfo.dwOffset,
 						 pdx->rDMAInfo.dwSize);
@@ -742,7 +742,7 @@ static int ced_stage_chunk(DEVICE_EXTENSION *pdx)
 }
 
 /***************************************************************************
-** ReadWriteMem
+** ced_read_write_mem
 **
 ** This routine is used generally for block read and write operations.
 ** Breaks up a read or write in to specified sized chunks, as specified by pipe
@@ -758,7 +758,7 @@ static int ced_stage_chunk(DEVICE_EXTENSION *pdx)
 **             transfer.
 **    dwLen - the number of bytes to transfer.
 */
-int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
+int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 		 unsigned int dwOffs, unsigned int dwLen)
 {
 	TRANSAREA *pArea = &pdx->rTransDef[wIdent];	/*  Transfer area info */
@@ -1058,7 +1058,7 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 				if ((wTransType == TM_EXTTOHOST)
 				    || (wTransType == TM_EXTTO1401)) {
 					iReturn =
-					    ReadWriteMem(pdx,
+					    ced_read_write_mem(pdx,
 							 !pdx->rDMAInfo.
 							 bOutWard,
 							 pdx->rDMAInfo.wIdent,
@@ -1066,7 +1066,7 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 							 pdx->rDMAInfo.dwSize);
 					if (iReturn != U14ERR_NOERROR)
 						dev_err(&pdx->interface->dev,
-							"%s: ReadWriteMem() failed %d\n",
+							"%s: ced_read_write_mem() failed %d\n",
 							__func__, iReturn);
 				} else	/*  This covers non-linear transfer setup */
 					dev_err(&pdx->interface->dev,

@@ -1470,7 +1470,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 			/*  If we have one, kick off pending transfer */
 			if (bWaiting) {	/*  Got a block xfer waiting? */
 				int RWMStat =
-				    ReadWriteMem(pdx, !pdx->rDMAInfo.bOutWard,
+				    ced_read_write_mem(pdx, !pdx->rDMAInfo.bOutWard,
 						 pdx->rDMAInfo.wIdent,
 						 pdx->rDMAInfo.dwOffset,
 						 pdx->rDMAInfo.dwSize);
