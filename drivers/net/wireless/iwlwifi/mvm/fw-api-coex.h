@@ -394,6 +394,12 @@ enum iwl_bt_ci_compliance {
 	BT_CI_COMPLIANCE_BOTH		= 3,
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
+#define IWL_COEX_IS_TTC_ON(_ttc_rrc_status, _phy_id)	\
+		(_ttc_rrc_status & BIT(_phy_id))
+
+#define IWL_COEX_IS_RRC_ON(_ttc_rrc_status, _phy_id)	\
+		((_ttc_rrc_status >> 4) & BIT(_phy_id))
+
 /**
  * struct iwl_bt_coex_profile_notif - notification about BT coex
  * @mbox_msg: message from BT to WiFi

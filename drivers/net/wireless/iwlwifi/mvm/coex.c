@@ -787,6 +787,10 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 	if (!vif->bss_conf.assoc)
 		smps_mode = IEEE80211_SMPS_AUTOMATIC;
 
+	if (IWL_COEX_IS_RRC_ON(mvm->last_bt_notif.ttc_rrc_status,
+			       mvmvif->phy_ctxt->id))
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
 	IWL_DEBUG_COEX(data->mvm,
 		       "mac %d: bt_activity_grading %d smps_req %d\n",
 		       mvmvif->id, bt_activity_grading, smps_mode);
@@ -1114,19 +1118,19 @@ u16 iwl_mvm_coex_agg_time_limit(struct iwl_mvm *mvm,
 				struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_coex_agg_time_limit_old(mvm, sta);
 
+	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
+		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
+
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
 		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
-/*
-	TODO
-	if (mvm->last_bt_notif.ttc_enabled)
-		return LINK_QUAL_AGG_TIME_LIMIT_DEF;
-*/
 
 	lut_type = iwl_get_coex_type(mvm, mvmsta->vif);
 
@@ -1141,16 +1145,15 @@ bool iwl_mvm_bt_coex_is_mimo_allowed(struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta)
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+	struct iwl_mvm_phy_ctxt *phy_ctxt = mvmvif->phy_ctxt;
 	enum iwl_bt_coex_lut_type lut_type;
 
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT))
 		return iwl_mvm_coex_agg_time_limit_old(mvm, sta);
 
-/*
-	TODO
-	if (mvm->last_bt_notif.ttc_enabled)
+	if (IWL_COEX_IS_TTC_ON(mvm->last_bt_notif.ttc_rrc_status, phy_ctxt->id))
 		return true;
-*/
 
 	if (le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) <
 	    BT_HIGH_TRAFFIC)
