@@ -1332,11 +1332,11 @@ int ced_set_circular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pT
 }
 
 /****************************************************************************
-** GetCircBlock
+** ced_get_circ_block
 **
 ** Return the next available block of circularly-transferred data.
 ****************************************************************************/
-int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
+int ced_get_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea;
