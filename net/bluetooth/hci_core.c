@@ -3439,8 +3439,8 @@ int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 update:
 	params->conn_min_interval = conn_min_interval;
 	params->conn_max_interval = conn_max_interval;
-	params->conn_latency = 0x0000;
-	params->supervision_timeout = 0x002a;
+	params->conn_latency = hdev->le_conn_latency;
+	params->supervision_timeout = hdev->le_supv_timeout;
 	params->auto_connect = auto_connect;
 
 	switch (auto_connect) {
@@ -3706,6 +3706,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->le_scan_window = 0x0030;
 	hdev->le_conn_min_interval = 0x0028;
 	hdev->le_conn_max_interval = 0x0038;
+	hdev->le_conn_latency = 0x0000;
+	hdev->le_supv_timeout = 0x002a;
 
 	hdev->rpa_timeout = HCI_DEFAULT_RPA_TIMEOUT;
 	hdev->discov_interleaved_timeout = DISCOV_INTERLEAVED_TIMEOUT;

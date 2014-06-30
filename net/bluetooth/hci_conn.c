@@ -773,8 +773,8 @@ struct hci_conn *hci_connect_le(struct hci_dev *hdev, bdaddr_t *dst,
 	} else {
 		conn->le_conn_min_interval = hdev->le_conn_min_interval;
 		conn->le_conn_max_interval = hdev->le_conn_max_interval;
-		conn->le_conn_latency = 0x0000;
-		conn->le_supv_timeout = 0x002a;
+		conn->le_conn_latency = hdev->le_conn_latency;
+		conn->le_supv_timeout = hdev->le_supv_timeout;
 	}
 
 	/* If controller is scanning, we stop it since some controllers are
