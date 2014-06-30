@@ -2237,7 +2237,9 @@ tlan_reset_adapter(struct net_device *dev)
 		}
 	}
 
-	if (priv->phy_num == 0)
+	/* don't power down internal PHY if we're going to use it */
+	if (priv->phy_num == 0 ||
+	   (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10))
 		data |= TLAN_NET_CFG_PHY_EN;
 	tlan_dio_write16(dev->base_addr, TLAN_NET_CONFIG, (u16) data);
 
@@ -2688,7 +2690,6 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 	struct tlan_priv	*priv = netdev_priv(dev);
 	u16		an_adv;
 	u16		an_lpa;
-	u16		data;
 	u16		mode;
 	u16		phy;
 	u16		status;
@@ -2721,9 +2722,6 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 	    (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10) &&
 	    (priv->phy_num != 0)) {
 		priv->phy_num = 0;
-		data = TLAN_NET_CFG_1FRAG | TLAN_NET_CFG_1CHAN
-			| TLAN_NET_CFG_PHY_EN;
-		tlan_dio_write16(dev->base_addr, TLAN_NET_CONFIG, data);
 		tlan_set_timer(dev, (400*HZ/1000), TLAN_TIMER_PHY_PDOWN);
 		return;
 	}
