@@ -16,6 +16,7 @@
  *
  * based also on:
  *  - portions of rtl8187se Linux staging driver, Copyright Realtek corp.
+ *    (available in drivers/staging/rtl8187se directory of Linux 3.14)
  *  - other GPL, unpublished (until now), Linux driver code,
  *    Copyright Larry Finger <Larry.Finger@lwfinger.net>
  *
