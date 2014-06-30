@@ -53,11 +53,11 @@ static void ced_flush_out_buff(DEVICE_EXTENSION *pdx)
 
 /****************************************************************************
 **
-** FlushInBuff
+** ced_flush_in_buff
 **
 ** Empties the input buffer and sets int lines
 ****************************************************************************/
-static void FlushInBuff(DEVICE_EXTENSION *pdx)
+static void ced_flush_in_buff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s: currentState=%d\n",
 		__func__, pdx->sCurrentState);
@@ -307,7 +307,7 @@ bool Is1401(DEVICE_EXTENSION *pdx)
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
-	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
+	ced_flush_in_buff(pdx);	/*  Clear out input buffer & pipe */
 	ced_flush_out_buff(pdx);	/*  Clear output buffer & pipe */
 
 	/*  The next call returns 0 if OK, but has returned 1 in the past, meaning that */
@@ -926,7 +926,7 @@ int KillIO1401(DEVICE_EXTENSION *pdx)
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
 	ced_flush_out_buff(pdx);
-	FlushInBuff(pdx);
+	ced_flush_in_buff(pdx);
 	mutex_unlock(&pdx->io_mutex);
 	return U14ERR_NOERROR;
 }
@@ -975,7 +975,7 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
-	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
+	ced_flush_in_buff(pdx);	/*  Clear out input buffer & pipe */
 	ced_flush_out_buff(pdx);	/*  Clear output buffer & pipe */
 	/* so things stay tidy */
 	/* ReadWrite_Cancel(pDeviceObject); */
