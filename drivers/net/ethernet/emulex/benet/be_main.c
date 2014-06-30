@@ -1172,20 +1172,15 @@ static int be_vlan_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 static int be_vlan_rem_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	int status = 0;
 
 	/* Packets with VID 0 are always received by Lancer by default */
 	if (lancer_chip(adapter) && vid == 0)
-		goto ret;
+		return 0;
 
 	clear_bit(vid, adapter->vids);
-	status = be_vid_config(adapter);
-	if (!status)
-		adapter->vlans_added--;
-	else
-		set_bit(vid, adapter->vids);
-ret:
-	return status;
+	adapter->vlans_added--;
+
+	return be_vid_config(adapter);
 }
 
 static void be_clear_promisc(struct be_adapter *adapter)
