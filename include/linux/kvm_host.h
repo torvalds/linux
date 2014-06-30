@@ -325,24 +325,7 @@ struct kvm_kernel_irq_routing_entry {
 	struct hlist_node link;
 };
 
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
-
-struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
-	struct kvm_kernel_irq_routing_entry *rt_entries;
-	u32 nr_rt_entries;
-	/*
-	 * Array indexed by gsi. Each entry contains list of irq chips
-	 * the gsi is connected to.
-	 */
-	struct hlist_head map[0];
-};
-
-#else
-
-struct kvm_irq_routing_table {};
-
-#endif
+struct kvm_irq_routing_table;
 
 #ifndef KVM_PRIVATE_MEM_SLOTS
 #define KVM_PRIVATE_MEM_SLOTS 0
@@ -401,8 +384,7 @@ struct kvm {
 	struct mutex irq_lock;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	/*
-	 * Update side is protected by irq_lock and,
-	 * if configured, irqfds.lock.
+	 * Update side is protected by irq_lock.
 	 */
 	struct kvm_irq_routing_table __rcu *irq_routing;
 	struct hlist_head mask_notifier_list;
@@ -752,10 +734,9 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
 
-int kvm_irq_map_gsi(struct kvm_kernel_irq_routing_entry *entries,
-		    struct kvm_irq_routing_table *irq_rt, int gsi);
-int kvm_irq_map_chip_pin(struct kvm_irq_routing_table *irq_rt,
-			 unsigned irqchip, unsigned pin);
+int kvm_irq_map_gsi(struct kvm *kvm,
+		    struct kvm_kernel_irq_routing_entry *entries, int gsi);
+int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin);
 
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status);
@@ -967,7 +948,7 @@ int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
-void kvm_irq_routing_update(struct kvm *, struct kvm_irq_routing_table *);
+void kvm_irq_routing_update(struct kvm *);
 #else
 static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 {
@@ -989,10 +970,8 @@ static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
 
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
-static inline void kvm_irq_routing_update(struct kvm *kvm,
-					  struct kvm_irq_routing_table *irq_rt)
+static inline void kvm_irq_routing_update(struct kvm *kvm)
 {
-	rcu_assign_pointer(kvm->irq_routing, irq_rt);
 }
 #endif
 
