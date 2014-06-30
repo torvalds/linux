@@ -14,6 +14,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 
 	__CPUINIT
 #define CPU_RESUME_ADDR_REG 0xf10182d4
@@ -24,7 +25,7 @@
 armada_375_smp_cpu1_enable_code_start:
 	ldr     r0, [pc, #4]
 	ldr     r1, [r0]
-	mov     pc, r1
+	ret     r1
 	.word   CPU_RESUME_ADDR_REG
 armada_375_smp_cpu1_enable_code_end:
 

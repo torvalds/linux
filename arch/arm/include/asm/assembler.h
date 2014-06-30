@@ -427,4 +427,25 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 #endif
 	.endm
 
+	.irp	c,,eq,ne,cs,cc,mi,pl,vs,vc,hi,ls,ge,lt,gt,le,hs,lo
+	.macro	ret\c, reg
+#if __LINUX_ARM_ARCH__ < 6
+	mov\c	pc, \reg
+#else
+	.ifeqs	"\reg", "lr"
+	bx\c	\reg
+	.else
+	mov\c	pc, \reg
+	.endif
+#endif
+	.endm
+	.endr
+
+	.macro	ret.w, reg
+	ret	\reg
+#ifdef CONFIG_THUMB2_KERNEL
+	nop
+#endif
+	.endm
+
 #endif /* __ASM_ASSEMBLER_H__ */

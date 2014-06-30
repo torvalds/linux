@@ -142,7 +142,7 @@ ENTRY(tegra30_hotplug_shutdown)
 	/* Powergate this CPU */
 	mov	r0, #TEGRA30_POWER_HOTPLUG_SHUTDOWN
 	bl	tegra30_cpu_shutdown
-	mov	pc, lr			@ should never get here
+	ret	lr			@ should never get here
 ENDPROC(tegra30_hotplug_shutdown)
 
 /*
@@ -161,7 +161,7 @@ ENTRY(tegra30_cpu_shutdown)
 	bne	_no_cpu0_chk	@ It's not Tegra30
 
 	cmp	r3, #0
-	moveq	pc, lr		@ Must never be called for CPU 0
+	reteq	lr		@ Must never be called for CPU 0
 _no_cpu0_chk:
 
 	ldr	r12, =TEGRA_FLOW_CTRL_VIRT
@@ -266,7 +266,7 @@ ENTRY(tegra30_sleep_core_finish)
 	mov32	r1, TEGRA_IRAM_LPx_RESUME_AREA
 	add	r0, r0, r1
 
-	mov	pc, r3
+	ret	r3
 ENDPROC(tegra30_sleep_core_finish)
 
 /*
@@ -285,7 +285,7 @@ ENTRY(tegra30_sleep_cpu_secondary_finish)
 	mov	r0, #0                          @ power mode flags (!hotplug)
 	bl	tegra30_cpu_shutdown
 	mov	r0, #1                          @ never return here
-	mov	pc, r7
+	ret	r7
 ENDPROC(tegra30_sleep_cpu_secondary_finish)
 
 /*
@@ -529,7 +529,7 @@ __no_dual_emc_chanl:
 
 	mov32	r0, TEGRA_PMC_BASE
 	ldr	r0, [r0, #PMC_SCRATCH41]
-	mov	pc, r0			@ jump to tegra_resume
+	ret	r0			@ jump to tegra_resume
 ENDPROC(tegra30_lp1_reset)
 
 	.align	L1_CACHE_SHIFT
@@ -659,7 +659,7 @@ _no_pll_in_iddq:
 	mov	r0, #0	/* brust policy = 32KHz */
 	str	r0, [r5, #CLK_RESET_SCLK_BURST]
 
-	mov	pc, lr
+	ret	lr
 
 /*
  * tegra30_enter_sleep
@@ -819,7 +819,7 @@ pmc_io_dpd_skip:
 
 	dsb
 
-	mov	pc, lr
+	ret	lr
 
 	.ltorg
 /* dummy symbol for end of IRAM */

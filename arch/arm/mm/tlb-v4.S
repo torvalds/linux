@@ -14,6 +14,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/tlbflush.h>
 #include "proc-macros.S"
@@ -33,7 +34,7 @@ ENTRY(v4_flush_user_tlb_range)
 	vma_vm_mm ip, r2
 	act_mm	r3				@ get current->active_mm
 	eors	r3, ip, r3				@ == mm ?
-	movne	pc, lr				@ no, we dont do anything
+	retne	lr				@ no, we dont do anything
 .v4_flush_kern_tlb_range:
 	bic	r0, r0, #0x0ff
 	bic	r0, r0, #0xf00
@@ -41,7 +42,7 @@ ENTRY(v4_flush_user_tlb_range)
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
-	mov	pc, lr
+	ret	lr
 
 /*
  *	v4_flush_kern_tlb_range(start, end)

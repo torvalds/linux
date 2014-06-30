@@ -19,6 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
+#include <asm/assembler.h>
 
 #define TTB_IRGN_NC	(0 << 8)
 #define TTB_IRGN_WBWA	(1 << 8)
@@ -61,7 +62,7 @@ ENTRY(cpu_v7_switch_mm)
 	mcrr	p15, 0, rpgdl, rpgdh, c2		@ set TTB 0
 	isb
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(cpu_v7_switch_mm)
 
 #ifdef __ARMEB__
@@ -92,7 +93,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	ALT_SMP(W(nop))
 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
 #endif
-	mov	pc, lr
+	ret	lr
 ENDPROC(cpu_v7_set_pte_ext)
 
 	/*
