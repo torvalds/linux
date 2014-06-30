@@ -348,7 +348,6 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
-		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -540,8 +539,6 @@ static void rtl8180_tx(struct ieee80211_hw *dev,
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 
-	entry->flags2 = info->control.rates[1].idx >= 0 ?
-		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
 	entry->retry_limit = info->control.rates[0].count - 1;
 
 	/* We must be sure that tx_flags is written last because the HW
@@ -864,7 +861,7 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 
 	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180) {
 		rtl818x_iowrite8(priv, &priv->map->WPA_CONF, 0);
-		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0x81);
+		rtl818x_iowrite8(priv, &priv->map->RATE_FALLBACK, 0);
 	} else {
 		rtl818x_iowrite8(priv, &priv->map->SECURITY, 0);
 
@@ -1738,7 +1735,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 	priv = dev->priv;
 	priv->pdev = pdev;
 
-	dev->max_rates = 2;
+	dev->max_rates = 1;
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 
