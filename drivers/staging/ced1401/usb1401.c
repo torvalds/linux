@@ -76,7 +76,7 @@ pages that we hold a pointer to in the device driver. We also allocate a
 coherent transfer buffer of size STAGED_SZ (this must be a multiple of the
 bulk endpoint size so that the 1401 does not realise that we break large
 transfers down into smaller pieces). We use kmap_atomic() to get a kernel
-va for each page, as it is required, for copying; see CopyUserSpace().
+va for each page, as it is required, for copying; see ced_copy_user_space().
 
 All character and data transfers are done using asynchronous IO. All Urbs are
 tracked by anchoring them. Status and debug ioctls are implemented with the
@@ -424,7 +424,7 @@ int ced_send_chars(DEVICE_EXTENSION *pdx)
 }
 
 /***************************************************************************
-** CopyUserSpace
+** ced_copy_user_space
 ** This moves memory between pinned down user space and the pCoherStagedIO
 ** memory buffer we use for transfers. Copy n bytes in the directions that
 ** is defined by pdx->StagedRead. The user space is determined by the area
@@ -437,7 +437,7 @@ int ced_send_chars(DEVICE_EXTENSION *pdx)
 ** pdx  Is our device extension which holds all we know about the transfer.
 ** n    The number of bytes to move one way or the other.
 ***************************************************************************/
-static void CopyUserSpace(DEVICE_EXTENSION *pdx, int n)
+static void ced_copy_user_space(DEVICE_EXTENSION *pdx, int n)
 {
 	unsigned int nArea = pdx->StagedId;
 	if (nArea < MAX_TRANSAREAS) {
@@ -528,7 +528,7 @@ static void staged_callback(struct urb *pUrb)
 		dev_dbg(&pdx->interface->dev, "%s: %d chars xferred\n",
 			__func__, nGot);
 		if (pdx->StagedRead)	/*  if reading, save to user space */
-			CopyUserSpace(pdx, nGot);	/*  copy from buffer to user */
+			ced_copy_user_space(pdx, nGot);	/*  copy from buffer to user */
 		if (nGot == 0)
 			dev_dbg(&pdx->interface->dev, "%s: ZLP\n", __func__);
 	}
@@ -717,7 +717,7 @@ static int StageChunk(DEVICE_EXTENSION *pdx)
 		ChunkSize = STAGED_SZ;	/*   limit to max allowed */
 
 	if (!pdx->StagedRead)	/*  if writing... */
-		CopyUserSpace(pdx, ChunkSize);	/*  ...copy data into the buffer */
+		ced_copy_user_space(pdx, ChunkSize);	/*  ...copy data into the buffer */
 
 	usb_fill_bulk_urb(pdx->pStagedUrb, pdx->udev,
 			  pdx->StagedRead ? usb_rcvbulkpipe(pdx->udev,
