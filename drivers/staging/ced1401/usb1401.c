@@ -1282,7 +1282,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return U14ERR_NOERROR;
 
 	case _IOC_NR(IOCTL_CED_STARTSELFTEST):
-		return StartSelfTest(pdx);
+		return ced_start_self_test(pdx);
 
 	case _IOC_NR(IOCTL_CED_CHECKSELFTEST):
 		return CheckSelfTest(pdx, (TGET_SELFTEST __user *) ulArg);

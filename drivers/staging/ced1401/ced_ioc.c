@@ -951,12 +951,12 @@ int ced_state_of_1401(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** StartSelfTest
+** ced_start_self_test
 **
 ** Initiates a self-test cycle. The assumption is that we have no interrupts
 ** active, so we should make sure that this is the case.
 *****************************************************************************/
-int StartSelfTest(DEVICE_EXTENSION *pdx)
+int ced_start_self_test(DEVICE_EXTENSION *pdx)
 {
 	int nGot;
 	mutex_lock(&pdx->io_mutex);
