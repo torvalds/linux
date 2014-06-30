@@ -3046,24 +3046,6 @@ static inline int nfs4_access_to_access(u32 nfs4_access)
 	return flags;
 }
 
-static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
-		struct svc_fh *cur_fh, struct nfsd4_open *open)
-{
-	__be32 status;
-	int oflag = nfs4_access_to_omode(open->op_share_access);
-	int access = nfs4_access_to_access(open->op_share_access);
-
-	if (!fp->fi_fds[oflag]) {
-		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
-			&fp->fi_fds[oflag]);
-		if (status)
-			return status;
-	}
-	nfs4_file_get_access(fp, oflag);
-
-	return nfs_ok;
-}
-
 static inline __be32
 nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 		struct nfsd4_open *open)
@@ -3079,31 +3061,50 @@ nfsd4_truncate(struct svc_rqst *rqstp, struct svc_fh *fh,
 	return nfsd_setattr(rqstp, fh, &iattr, 0, (time_t)0);
 }
 
+static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
+		struct svc_fh *cur_fh, struct nfsd4_open *open)
+{
+	__be32 status;
+	int oflag = nfs4_access_to_omode(open->op_share_access);
+	int access = nfs4_access_to_access(open->op_share_access);
+
+	if (!fp->fi_fds[oflag]) {
+		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
+			&fp->fi_fds[oflag]);
+		if (status)
+			goto out;
+	}
+	nfs4_file_get_access(fp, oflag);
+
+	status = nfsd4_truncate(rqstp, cur_fh, open);
+	if (status)
+		goto out_put_access;
+
+	return nfs_ok;
+
+out_put_access:
+	nfs4_file_put_access(fp, oflag);
+out:
+	return status;
+}
+
 static __be32
 nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *cur_fh, struct nfs4_ol_stateid *stp, struct nfsd4_open *open)
 {
 	u32 op_share_access = open->op_share_access;
-	bool new_access;
 	__be32 status;
 
-	new_access = !test_access(op_share_access, stp);
-	if (new_access) {
+	if (!test_access(op_share_access, stp))
 		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
-		if (status)
-			return status;
-	}
-	status = nfsd4_truncate(rqstp, cur_fh, open);
-	if (status) {
-		if (new_access) {
-			int oflag = nfs4_access_to_omode(op_share_access);
-			nfs4_file_put_access(fp, oflag);
-		}
+	else
+		status = nfsd4_truncate(rqstp, cur_fh, open);
+
+	if (status)
 		return status;
-	}
+
 	/* remember the open */
 	set_access(op_share_access, stp);
 	set_deny(open->op_share_deny, stp);
-
 	return nfs_ok;
 }
 
@@ -3352,9 +3353,6 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 			goto out;
 	} else {
 		status = nfs4_get_vfs_file(rqstp, fp, current_fh, open);
-		if (status)
-			goto out;
-		status = nfsd4_truncate(rqstp, current_fh, open);
 		if (status)
 			goto out;
 		stp = open->op_stp;
