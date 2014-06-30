@@ -481,14 +481,15 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 	rcar_rmw32(pcie, RCONF(PCI_SUBORDINATE_BUS), 0xff, 1);
 
 	/* Initialize default capabilities. */
-	rcar_rmw32(pcie, REXPCAP(0), 0, PCI_CAP_ID_EXP);
+	rcar_rmw32(pcie, REXPCAP(0), 0xff, PCI_CAP_ID_EXP);
 	rcar_rmw32(pcie, REXPCAP(PCI_EXP_FLAGS),
 		PCI_EXP_FLAGS_TYPE, PCI_EXP_TYPE_ROOT_PORT << 4);
 	rcar_rmw32(pcie, RCONF(PCI_HEADER_TYPE), 0x7f,
 		PCI_HEADER_TYPE_BRIDGE);
 
 	/* Enable data link layer active state reporting */
-	rcar_rmw32(pcie, REXPCAP(PCI_EXP_LNKCAP), 0, PCI_EXP_LNKCAP_DLLLARC);
+	rcar_rmw32(pcie, REXPCAP(PCI_EXP_LNKCAP), PCI_EXP_LNKCAP_DLLLARC,
+		PCI_EXP_LNKCAP_DLLLARC);
 
 	/* Write out the physical slot number = 0 */
 	rcar_rmw32(pcie, REXPCAP(PCI_EXP_SLTCAP), PCI_EXP_SLTCAP_PSN, 0);
@@ -497,10 +498,7 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 	rcar_rmw32(pcie, TLCTLR+1, 0x3f, 50);
 
 	/* Terminate list of capabilities (Next Capability Offset=0) */
-	rcar_rmw32(pcie, RVCCAP(0), 0xfff0, 0);
-
-	/* Enable MAC data scrambling. */
-	rcar_rmw32(pcie, MACCTLR, SCRAMBLE_DISABLE, 0);
+	rcar_rmw32(pcie, RVCCAP(0), 0xfff00000, 0);
 
 	/* Enable MSI */
 	if (IS_ENABLED(CONFIG_PCI_MSI))
@@ -516,11 +514,6 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 
 	/* Enable INTx interrupts */
 	rcar_rmw32(pcie, PCIEINTXR, 0, 0xF << 8);
-
-	/* Enable slave Bus Mastering */
-	rcar_rmw32(pcie, RCONF(PCI_STATUS), PCI_STATUS_DEVSEL_MASK,
-		PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-		PCI_STATUS_CAP_LIST | PCI_STATUS_DEVSEL_FAST);
 
 	wmb();
 
