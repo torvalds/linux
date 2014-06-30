@@ -1275,7 +1275,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_kill_io(pdx);
 
 	case _IOC_NR(IOCTL_CED_STATEOF1401):
-		return StateOf1401(pdx);
+		return ced_state_of_1401(pdx);
 
 	case _IOC_NR(IOCTL_CED_GRAB1401):
 	case _IOC_NR(IOCTL_CED_FREE1401):

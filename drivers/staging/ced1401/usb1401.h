@@ -224,7 +224,7 @@ extern int ced_line_count(DEVICE_EXTENSION *pdx);
 extern int ced_get_out_buf_space(DEVICE_EXTENSION *pdx);
 extern int ced_get_transfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pGTB);
 extern int ced_kill_io(DEVICE_EXTENSION *pdx);
-extern int StateOf1401(DEVICE_EXTENSION *pdx);
+extern int ced_state_of_1401(DEVICE_EXTENSION *pdx);
 extern int StartSelfTest(DEVICE_EXTENSION *pdx);
 extern int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST);
 extern int TypeOf1401(DEVICE_EXTENSION *pdx);

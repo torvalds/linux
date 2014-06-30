@@ -932,11 +932,11 @@ int ced_kill_io(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** StateOf1401
+** ced_state_of_1401
 **
 ** Puts the current state of the 1401 in the Irp return buffer.
 *****************************************************************************/
-int StateOf1401(DEVICE_EXTENSION *pdx)
+int ced_state_of_1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
