@@ -345,7 +345,7 @@ static bool ced_is_1401(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** QuickCheck  - ALWAYS CALLED HOLDING THE io_mutex
+** ced_quick_check  - ALWAYS CALLED HOLDING THE io_mutex
 ** This is used to test for a 1401. It will try to do a quick check if all is
 **  OK, that is the 1401 was OK the last time it was asked, and there is no DMA
 **  in progress, and if the bTestBuff flag is set, the character buffers must be
@@ -358,7 +358,7 @@ static bool ced_is_1401(DEVICE_EXTENSION *pdx)
 **
 ** The return value is TRUE if a useable 1401 is found, FALSE if not
 */
-bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
+static bool ced_quick_check(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 {
 	bool bRet = false;	/*  assume it will fail and we will reset */
 	bool bShortTest;
@@ -407,9 +407,9 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 int Reset1401(DEVICE_EXTENSION *pdx)
 {
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	dev_dbg(&pdx->interface->dev, "%s: About to call QuickCheck\n",
+	dev_dbg(&pdx->interface->dev, "%s: About to call ced_quick_check\n",
 		__func__);
-	QuickCheck(pdx, true, true);	/*  Check 1401, reset if not OK */
+	ced_quick_check(pdx, true, true);	/*  Check 1401, reset if not OK */
 	mutex_unlock(&pdx->io_mutex);
 	return U14ERR_NOERROR;
 }
@@ -953,7 +953,7 @@ int StateOf1401(DEVICE_EXTENSION *pdx)
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
 
-	QuickCheck(pdx, false, false);	/*  get state up to date, no reset */
+	ced_quick_check(pdx, false, false);	/*  get state up to date, no reset */
 	iReturn = pdx->sCurrentState;
 
 	mutex_unlock(&pdx->io_mutex);
@@ -1056,7 +1056,7 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 		if ((pdx->nPipes == 4) && (pdx->s1401Type <= TYPEPOWER))
 			ced_is_1401(pdx);	/*  Get 1401 reset and OK */
 		else
-			QuickCheck(pdx, true, true);	/*  Otherwise check without reset unless problems */
+			ced_quick_check(pdx, true, true);	/*  Otherwise check without reset unless problems */
 	}
 	mutex_unlock(&pdx->io_mutex);
 
