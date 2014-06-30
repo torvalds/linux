@@ -147,7 +147,7 @@ int ced_send_char(DEVICE_EXTENSION *pdx, char c)
 
 /***************************************************************************
 **
-** Get1401State
+** ced_get_state
 **
 **  Retrieves state information from the 1401, adjusts the 1401 state held
 **  in the device extension to indicate the current 1401 type.
@@ -171,7 +171,7 @@ int ced_send_char(DEVICE_EXTENSION *pdx, char c)
 **
 ** return error code (U14ERR_NOERROR for OK)
 */
-int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
+int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 {
 	int nGot;
 	dev_dbg(&pdx->interface->dev, "%s: entry\n", __func__);
@@ -275,7 +275,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 static int InSelfTest(DEVICE_EXTENSION *pdx, unsigned int *pState)
 {
 	unsigned int state, error;
-	int iReturn = Get1401State(pdx, &state, &error);	/*  see if in self-test */
+	int iReturn = ced_get_state(pdx, &state, &error);	/*  see if in self-test */
 	if (iReturn == U14ERR_NOERROR)	/*  if all still OK */
 		iReturn = (state == (unsigned int)-1) ||	/*  TX problem or... */
 		    ((state & 0xff) == 0x80);	/*  ...self test */
@@ -382,8 +382,8 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 	if (bShortTest || !bCanReset) {	/*  Still OK to try the short test? */
 				/*  Always test if no reset - we want state update */
 		unsigned int state, error;
-		dev_dbg(&pdx->interface->dev, "%s: Get1401State\n", __func__);
-		if (Get1401State(pdx, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
+		dev_dbg(&pdx->interface->dev, "%s: ced_get_state\n", __func__);
+		if (ced_get_state(pdx, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
 			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
 				bRet = true;	/*  If that was zero, all is OK, no reset needed */
 		}
@@ -1007,23 +1007,23 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 	mutex_lock(&pdx->io_mutex);
 
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
-	iReturn = Get1401State(pdx, &state, &error);
+	iReturn = ced_get_state(pdx, &state, &error);
 	if (iReturn == U14ERR_NOERROR)	/*  Only accept zero if it happens twice */
-		iReturn = Get1401State(pdx, &state, &error);
+		iReturn = ced_get_state(pdx, &state, &error);
 
 	if (iReturn != U14ERR_NOERROR) {	/*  Self-test can cause comms errors */
 				/*  so we assume still testing */
 		dev_err(&pdx->interface->dev,
-			"%s: Get1401State=%d, assuming still testing\n",
+			"%s: ced_get_state=%d, assuming still testing\n",
 			__func__, iReturn);
 		state = 0x80;	/*  Force still-testing, no error */
 		error = 0;
 		iReturn = U14ERR_NOERROR;
 	}
 
-	if ((state == -1) && (error == -1)) {	/*  If Get1401State had problems */
+	if ((state == -1) && (error == -1)) {	/*  If ced_get_state had problems */
 		dev_err(&pdx->interface->dev,
-			"%s: Get1401State failed, assuming still testing\n",
+			"%s: ced_get_state failed, assuming still testing\n",
 			__func__);
 		state = 0x80;	/*  Force still-testing, no error */
 		error = 0;
@@ -1294,7 +1294,7 @@ int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 /****************************************************************************
 ** DbgStopLoop
 **
-** Stop any never-ending debug loop, we just call Get1401State for USB
+** Stop any never-ending debug loop, we just call ced_get_state for USB
 **
 ****************************************************************************/
 int DbgStopLoop(DEVICE_EXTENSION *pdx)
@@ -1304,7 +1304,7 @@ int DbgStopLoop(DEVICE_EXTENSION *pdx)
 
 	mutex_lock(&pdx->io_mutex);
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
-	iReturn = Get1401State(pdx, &uState, &uErr);
+	iReturn = ced_get_state(pdx, &uState, &uErr);
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
