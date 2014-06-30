@@ -847,6 +847,7 @@ gen8_ring_sync(struct intel_engine_cs *waiter,
 
 	intel_ring_emit(waiter, MI_SEMAPHORE_WAIT |
 				MI_SEMAPHORE_GLOBAL_GTT |
+				MI_SEMAPHORE_POLL |
 				MI_SEMAPHORE_SAD_GTE_SDD);
 	intel_ring_emit(waiter, seqno);
 	intel_ring_emit(waiter,
