@@ -1248,11 +1248,11 @@ int ced_dbg_ramp_addr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 }
 
 /****************************************************************************
-** DbgGetData
+** ced_dbg_get_data
 **
 ** Retrieve the data resulting from the last debug Peek operation
 ****************************************************************************/
-int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
+int ced_dbg_get_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;

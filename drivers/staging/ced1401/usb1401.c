@@ -1306,7 +1306,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_dbg_ramp_addr(pdx, (TDBGBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_DBGGETDATA):
-		return DbgGetData(pdx, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_get_data(pdx, (TDBGBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_DBGSTOPLOOP):
 		return DbgStopLoop(pdx);
