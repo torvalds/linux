@@ -5014,7 +5014,10 @@ static int add_device(struct sock *sk, struct hci_dev *hdev,
 	else
 		auto_conn = HCI_AUTO_CONN_DISABLED;
 
-	if (hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type, auto_conn,
+	/* If the connection parameters don't exist for this device,
+	 * they will be created and configured with defaults.
+	 */
+	if (hci_conn_params_set(hdev, &cp->addr.bdaddr, addr_type, auto_conn,
 				hdev->le_conn_min_interval,
 				hdev->le_conn_max_interval) < 0) {
 		err = cmd_complete(sk, hdev->id, MGMT_OP_ADD_DEVICE,

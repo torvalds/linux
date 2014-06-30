@@ -3472,7 +3472,41 @@ void hci_pend_le_conns_clear(struct hci_dev *hdev)
 }
 
 /* This function requires the caller holds hdev->lock */
-int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
+int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+{
+	struct hci_conn_params *params;
+
+	if (!is_identity_address(addr, addr_type))
+		return -EINVAL;
+
+	params = hci_conn_params_lookup(hdev, addr, addr_type);
+	if (params)
+		return 0;
+
+	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	if (!params) {
+		BT_ERR("Out of memory");
+		return -ENOMEM;
+	}
+
+	bacpy(&params->addr, addr);
+	params->addr_type = addr_type;
+
+	list_add(&params->list, &hdev->le_conn_params);
+
+	params->conn_min_interval = hdev->le_conn_min_interval;
+	params->conn_max_interval = hdev->le_conn_max_interval;
+	params->conn_latency = hdev->le_conn_latency;
+	params->supervision_timeout = hdev->le_supv_timeout;
+	params->auto_connect = HCI_AUTO_CONN_DISABLED;
+
+	BT_DBG("addr %pMR (type %u)", addr, addr_type);
+
+	return 0;
+}
+
+/* This function requires the caller holds hdev->lock */
+int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 			u8 auto_connect, u16 conn_min_interval,
 			u16 conn_max_interval)
 {
