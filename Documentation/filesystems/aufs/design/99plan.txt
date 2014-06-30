@@ -54,17 +54,6 @@ This feature was developed by a user's request. But it may not be used
 currecnly.
 
 
-Copy-up on Open (coo=)
-----------------------------------------------------------------------
-By default the internal copy-up is executed when it is really necessary.
-It is not done when a file is opened for writing, but when write(2) is
-done. Users who have many (over 100) branches want to know and analyse
-when and what file is copied-up. To insert a new upper branch which
-contains such files only may improve the performance of aufs.
-
-Aufs1 implemented "coo=none | leaf | all" option.
-
-
 Refresh the Opened File (refrof)
 ----------------------------------------------------------------------
 This option is implemented in aufs1 but incomplete.
