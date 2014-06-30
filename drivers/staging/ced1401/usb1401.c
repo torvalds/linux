@@ -1260,7 +1260,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return SetEvent(pdx, (struct transfer_event __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_GETOUTBUFSPACE):
-		return GetOutBufSpace(pdx);
+		return ced_get_out_buf_space(pdx);
 
 	case _IOC_NR(IOCTL_CED_GETBASEADDRESS):
 		return -1;

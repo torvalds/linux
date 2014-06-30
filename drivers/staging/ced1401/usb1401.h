@@ -221,7 +221,7 @@ extern int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea);
 extern int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE);
 extern int ced_stat_1401(DEVICE_EXTENSION *pdx);
 extern int ced_line_count(DEVICE_EXTENSION *pdx);
-extern int GetOutBufSpace(DEVICE_EXTENSION *pdx);
+extern int ced_get_out_buf_space(DEVICE_EXTENSION *pdx);
 extern int GetTransfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pGTB);
 extern int KillIO1401(DEVICE_EXTENSION *pdx);
 extern int BlkTransState(DEVICE_EXTENSION *pdx);

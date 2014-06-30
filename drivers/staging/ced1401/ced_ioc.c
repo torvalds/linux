@@ -562,11 +562,11 @@ int ced_line_count(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** GetOutBufSpace
+** ced_get_out_buf_space
 **
 ** Gets the space in the output buffer. Called from user code.
 *****************************************************************************/
-int GetOutBufSpace(DEVICE_EXTENSION *pdx)
+int ced_get_out_buf_space(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
