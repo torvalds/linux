@@ -679,23 +679,16 @@ static int gen6_signal(struct intel_engine_cs *signaller,
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *useless;
-	int i, ret;
+	int i, ret, num_rings;
 
-	/* NB: In order to be able to do semaphore MBOX updates for varying
-	 * number of rings, it's easiest if we round up each individual update
-	 * to a multiple of 2 (since ring updates must always be a multiple of
-	 * 2) even though the actual update only requires 3 dwords.
-	 */
-#define MBOX_UPDATE_DWORDS 4
-	if (i915_semaphore_is_enabled(dev))
-		num_dwords += ((I915_NUM_RINGS-1) * MBOX_UPDATE_DWORDS);
-	else
-		return intel_ring_begin(signaller, num_dwords);
+#define MBOX_UPDATE_DWORDS 3
+	num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
+	num_dwords += round_up((num_rings-1) * MBOX_UPDATE_DWORDS, 2);
+#undef MBOX_UPDATE_DWORDS
 
 	ret = intel_ring_begin(signaller, num_dwords);
 	if (ret)
 		return ret;
-#undef MBOX_UPDATE_DWORDS
 
 	for_each_ring(useless, dev_priv, i) {
 		u32 mbox_reg = signaller->semaphore.mbox.signal[i];
@@ -703,14 +696,12 @@ static int gen6_signal(struct intel_engine_cs *signaller,
 			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit(signaller, mbox_reg);
 			intel_ring_emit(signaller, signaller->outstanding_lazy_seqno);
-			intel_ring_emit(signaller, MI_NOOP);
-		} else {
-			intel_ring_emit(signaller, MI_NOOP);
-			intel_ring_emit(signaller, MI_NOOP);
-			intel_ring_emit(signaller, MI_NOOP);
-			intel_ring_emit(signaller, MI_NOOP);
 		}
 	}
+
+	/* If num_dwords was rounded, make sure the tail pointer is correct */
+	if (num_rings % 2 == 0)
+		intel_ring_emit(signaller, MI_NOOP);
 
 	return 0;
 }
