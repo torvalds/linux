@@ -516,7 +516,7 @@ int ced_get_string(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 /*******************************************************************************
 ** Get count of characters in the inout buffer.
 *******************************************************************************/
-int Stat1401(DEVICE_EXTENSION *pdx)
+int ced_stat_1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */

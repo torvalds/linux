@@ -1242,7 +1242,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_send_char(pdx, (char)ulArg);
 
 	case _IOC_NR(IOCTL_CED_STAT1401):
-		return Stat1401(pdx);
+		return ced_stat_1401(pdx);
 
 	case _IOC_NR(IOCTL_CED_LINECOUNT):
 		return LineCount(pdx);
