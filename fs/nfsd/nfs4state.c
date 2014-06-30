@@ -2611,17 +2611,18 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 {
 	unsigned int hashval = file_hashval(ino);
 
+	lockdep_assert_held(&state_lock);
+
 	atomic_set(&fp->fi_ref, 1);
 	INIT_LIST_HEAD(&fp->fi_stateids);
 	INIT_LIST_HEAD(&fp->fi_delegations);
-	fp->fi_inode = igrab(ino);
+	ihold(ino);
+	fp->fi_inode = ino;
 	fp->fi_had_conflict = false;
 	fp->fi_lease = NULL;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
-	spin_lock(&state_lock);
 	hlist_add_head(&fp->fi_hash, &file_hashtbl[hashval]);
-	spin_unlock(&state_lock);
 }
 
 void
@@ -2787,21 +2788,47 @@ find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open,
 
 /* search file_hashtbl[] for file */
 static struct nfs4_file *
-find_file(struct inode *ino)
+find_file_locked(struct inode *ino)
 {
 	unsigned int hashval = file_hashval(ino);
 	struct nfs4_file *fp;
 
-	spin_lock(&state_lock);
+	lockdep_assert_held(&state_lock);
+
 	hlist_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
 		if (fp->fi_inode == ino) {
 			get_nfs4_file(fp);
-			spin_unlock(&state_lock);
 			return fp;
 		}
 	}
-	spin_unlock(&state_lock);
 	return NULL;
+}
+
+static struct nfs4_file *
+find_file(struct inode *ino)
+{
+	struct nfs4_file *fp;
+
+	spin_lock(&state_lock);
+	fp = find_file_locked(ino);
+	spin_unlock(&state_lock);
+	return fp;
+}
+
+static struct nfs4_file *
+find_or_add_file(struct inode *ino, struct nfs4_file *new)
+{
+	struct nfs4_file *fp;
+
+	spin_lock(&state_lock);
+	fp = find_file_locked(ino);
+	if (fp == NULL) {
+		nfsd4_init_file(new, ino);
+		fp = new;
+	}
+	spin_unlock(&state_lock);
+
+	return fp;
 }
 
 /*
@@ -3325,21 +3352,19 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	 * and check for delegations in the process of being recalled.
 	 * If not found, create the nfs4_file struct
 	 */
-	fp = find_file(ino);
-	if (fp) {
+	fp = find_or_add_file(ino, open->op_file);
+	if (fp != open->op_file) {
 		if ((status = nfs4_check_open(fp, open, &stp)))
 			goto out;
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
 			goto out;
 	} else {
+		open->op_file = NULL;
 		status = nfserr_bad_stateid;
 		if (nfsd4_is_deleg_cur(open))
 			goto out;
 		status = nfserr_jukebox;
-		fp = open->op_file;
-		open->op_file = NULL;
-		nfsd4_init_file(fp, ino);
 	}
 
 	/*
