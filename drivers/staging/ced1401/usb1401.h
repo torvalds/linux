@@ -228,7 +228,7 @@ extern int ced_state_of_1401(DEVICE_EXTENSION *pdx);
 extern int ced_start_self_test(DEVICE_EXTENSION *pdx);
 extern int ced_check_self_test(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST);
 extern int ced_type_of_1401(DEVICE_EXTENSION *pdx);
-extern int TransferFlags(DEVICE_EXTENSION *pdx);
+extern int ced_transfer_flags(DEVICE_EXTENSION *pdx);
 extern int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);

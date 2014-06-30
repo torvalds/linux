@@ -1291,7 +1291,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_type_of_1401(pdx);
 
 	case _IOC_NR(IOCTL_CED_TRANSFERFLAGS):
-		return TransferFlags(pdx);
+		return ced_transfer_flags(pdx);
 
 	case _IOC_NR(IOCTL_CED_DBGPEEK):
 		return DbgPeek(pdx, (TDBGBLOCK __user *) ulArg);

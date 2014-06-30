@@ -1088,11 +1088,11 @@ int ced_type_of_1401(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** TransferFlags
+** ced_transfer_flags
 **
 ** Returns flags on block transfer abilities
 ****************************************************************************/
-int TransferFlags(DEVICE_EXTENSION *pdx)
+int ced_transfer_flags(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14TF_MULTIA | U14TF_DIAG |	/*  we always have multiple DMA area */
 	    U14TF_NOTIFY | U14TF_CIRCTH;	/*  diagnostics, notify and circular */
