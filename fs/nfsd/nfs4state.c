@@ -2768,10 +2768,10 @@ static void hash_openowner(struct nfs4_openowner *oo, struct nfs4_client *clp, u
 }
 
 static struct nfs4_openowner *
-alloc_init_open_stateowner(unsigned int strhashval, struct nfs4_client *clp,
-			   struct nfsd4_open *open,
+alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
 			   struct nfsd4_compound_state *cstate)
 {
+	struct nfs4_client *clp = cstate->clp;
 	struct nfs4_openowner *oo;
 
 	oo = alloc_stateowner(openowner_slab, &open->op_owner, clp);
@@ -3054,10 +3054,10 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	oo = find_openstateowner_str(strhashval, open, cstate->minorversion, nn);
 	open->op_openowner = oo;
 	if (!oo) {
-		clp = find_confirmed_client(clientid, cstate->minorversion,
-					    nn);
-		if (clp == NULL)
-			return nfserr_expired;
+		status = lookup_clientid(clientid, cstate, nn);
+		if (status)
+			return status;
+		clp = cstate->clp;
 		goto new_owner;
 	}
 	if (!(oo->oo_flags & NFS4_OO_CONFIRMED)) {
@@ -3073,7 +3073,7 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	clp = oo->oo_owner.so_client;
 	goto alloc_stateid;
 new_owner:
-	oo = alloc_init_open_stateowner(strhashval, clp, open, cstate);
+	oo = alloc_init_open_stateowner(strhashval, open, cstate);
 	if (oo == NULL)
 		return nfserr_jukebox;
 	open->op_openowner = oo;
