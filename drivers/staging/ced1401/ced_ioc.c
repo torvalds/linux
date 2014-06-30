@@ -528,13 +528,13 @@ int ced_stat_1401(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** LineCount
+** ced_line_count
 **
 ** Returns the number of newline chars in the buffer. There is no need for
 ** any fancy interlocks as we only read the interrupt routine data, and the
 ** system is arranged so nothing can be destroyed.
 ****************************************************************************/
-int LineCount(DEVICE_EXTENSION *pdx)
+int ced_line_count(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = 0;	/*  will be count of line ends */
 

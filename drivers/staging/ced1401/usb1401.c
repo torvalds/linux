@@ -1245,7 +1245,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_stat_1401(pdx);
 
 	case _IOC_NR(IOCTL_CED_LINECOUNT):
-		return LineCount(pdx);
+		return ced_line_count(pdx);
 
 	case _IOC_NR(IOCTL_CED_GETSTRING(0)):
 		return ced_get_string(pdx, (char __user *)ulArg, _IOC_SIZE(cmd));
