@@ -887,7 +887,7 @@ static bool ced_read_word(unsigned short *pWord, char *pBuf, unsigned int *pdDon
 #endif
 
 /****************************************************************************
-** ReadHuff
+** ced_read_huff
 **
 ** Reads a coded number in and returns it, Code is:
 ** If data is in range 0..127 we receive 1 byte. If data in range 128-16383
@@ -896,7 +896,7 @@ static bool ced_read_word(unsigned short *pWord, char *pBuf, unsigned int *pdDon
 ** to indicate three byte total.
 **
 *****************************************************************************/
-static bool ReadHuff(volatile unsigned int *pDWord, char *pBuf,
+static bool ced_read_huff(volatile unsigned int *pDWord, char *pBuf,
 		     unsigned int *pdDone, unsigned int dGot)
 {
 	unsigned char ucData;	/* for each read to ced_read_char */
@@ -970,9 +970,9 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 		case TM_EXTTO1401:
 			{
 				bResult =
-				    ReadHuff(&(pDmaDesc->dwOffset), pBuf,
+				    ced_read_huff(&(pDmaDesc->dwOffset), pBuf,
 					     &dDone, dwCount)
-				    && ReadHuff(&(pDmaDesc->dwSize), pBuf,
+				    && ced_read_huff(&(pDmaDesc->dwSize), pBuf,
 						&dDone, dwCount);
 				if (bResult) {
 					dev_dbg(&pdx->interface->dev,
