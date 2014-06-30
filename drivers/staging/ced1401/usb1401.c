@@ -1300,7 +1300,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_dbg_poke(pdx, (TDBGBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_DBGRAMPDATA):
-		return DbgRampData(pdx, (TDBGBLOCK __user *) ulArg);
+		return ced_dbg_ramp_data(pdx, (TDBGBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_DBGRAMPADDR):
 		return DbgRampAddr(pdx, (TDBGBLOCK __user *) ulArg);

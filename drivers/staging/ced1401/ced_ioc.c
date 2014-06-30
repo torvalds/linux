@@ -1185,12 +1185,12 @@ int ced_dbg_poke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 }
 
 /****************************************************************************
-** DbgRampData
+** ced_dbg_ramp_data
 **
 ** Execute the diagnostic ramp data operation. Parameters are in the CSBLOCK struct
 ** in order address, default, enable mask, size and repeats.
 ****************************************************************************/
-int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
+int ced_dbg_ramp_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
