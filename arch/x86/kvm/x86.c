@@ -6845,6 +6845,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu)
 	atomic_set(&vcpu->arch.nmi_queued, 0);
 	vcpu->arch.nmi_pending = 0;
 	vcpu->arch.nmi_injected = false;
+	kvm_clear_interrupt_queue(vcpu);
+	kvm_clear_exception_queue(vcpu);
 
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = DR6_FIXED_1;
