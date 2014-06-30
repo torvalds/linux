@@ -301,7 +301,7 @@ static int ced_in_self_test(DEVICE_EXTENSION *pdx, unsigned int *pState)
 **
 **  Returns TRUE if a 1401 detected and OK, else FALSE
 ****************************************************************************/
-bool ced_is_1401(DEVICE_EXTENSION *pdx)
+static bool ced_is_1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);

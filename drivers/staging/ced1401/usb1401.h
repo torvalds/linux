@@ -213,7 +213,6 @@ extern int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData, unsi
 extern int ced_send_char(DEVICE_EXTENSION *pdx, char c);
 extern int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error);
 extern int ced_read_write_cancel(DEVICE_EXTENSION *pdx);
-extern bool ced_is_1401(DEVICE_EXTENSION *pdx);
 extern bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset);
 extern int Reset1401(DEVICE_EXTENSION *pdx);
 extern int GetChar(DEVICE_EXTENSION *pdx);
