@@ -762,7 +762,7 @@ int ced_set_transfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pT
 ** UnSetTransfer
 ** Erases a transfer area record
 ****************************************************************************/
-int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea)
+int ced_unset_transfer(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
