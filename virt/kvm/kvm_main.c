@@ -2337,7 +2337,7 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 #ifdef CONFIG_HAVE_KVM_MSI
 	case KVM_CAP_SIGNAL_MSI:
 #endif
-#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQFD
 	case KVM_CAP_IRQFD_RESAMPLE:
 #endif
 	case KVM_CAP_CHECK_EXTENSION_VM:
