@@ -71,9 +71,11 @@ struct kvmppc_icp {
 #define XICS_RM_KICK_VCPU	0x1
 #define XICS_RM_CHECK_RESEND	0x2
 #define XICS_RM_REJECT		0x4
+#define XICS_RM_NOTIFY_EOI	0x8
 	u32 rm_action;
 	struct kvm_vcpu *rm_kick_target;
 	u32  rm_reject;
+	u32  rm_eoied_irq;
 
 	/* Debug stuff for real mode */
 	union kvmppc_icp_state rm_dbgstate;

@@ -170,6 +170,8 @@ config KVM_MPIC
 config KVM_XICS
 	bool "KVM in-kernel XICS emulation"
 	depends on KVM_BOOK3S_64 && !KVM_MPIC
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
 	---help---
 	  Include support for the XICS (eXternal Interrupt Controller
 	  Specification) interrupt controller architecture used on
