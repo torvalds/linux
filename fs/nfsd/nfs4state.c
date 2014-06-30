@@ -203,18 +203,6 @@ static void put_client_renew_locked(struct nfs4_client *clp)
 		renew_client_locked(clp);
 }
 
-void put_client_renew(struct nfs4_client *clp)
-{
-	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
-
-	if (!atomic_dec_and_lock(&clp->cl_refcount, &nn->client_lock))
-		return;
-	if (!is_client_expired(clp))
-		renew_client_locked(clp);
-	spin_unlock(&nn->client_lock);
-}
-
-
 static inline u32
 opaque_hashval(const void *ptr, int nbytes)
 {
@@ -1646,7 +1634,7 @@ out_err:
 /*
  * Cache a reply. nfsd4_check_resp_size() has bounded the cache size.
  */
-void
+static void
 nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 {
 	struct xdr_buf *buf = resp->xdr.buf;
@@ -2416,6 +2404,27 @@ out_put_session:
 out_put_client:
 	put_client_renew_locked(clp);
 	goto out_no_session;
+}
+
+void
+nfsd4_sequence_done(struct nfsd4_compoundres *resp)
+{
+	struct nfsd4_compound_state *cs = &resp->cstate;
+
+	if (nfsd4_has_session(cs)) {
+		struct nfs4_client *clp = cs->session->se_client;
+		struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
+		if (cs->status != nfserr_replay_cache) {
+			nfsd4_store_cache_entry(resp);
+			cs->slot->sl_flags &= ~NFSD4_SLOT_INUSE;
+		}
+		/* Renew the clientid on success and on replay */
+		spin_lock(&nn->client_lock);
+		nfsd4_put_session(cs->session);
+		put_client_renew_locked(clp);
+		spin_unlock(&nn->client_lock);
+	}
 }
 
 __be32

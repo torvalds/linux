@@ -476,7 +476,6 @@ extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
-extern void put_client_renew(struct nfs4_client *clp);
 
 /* nfs4recover operations */
 extern int nfsd4_client_tracking_init(struct net *net);
