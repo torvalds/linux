@@ -37,6 +37,7 @@ struct x86_instruction_info {
 	u8  modrm_reg;          /* index of register used               */
 	u8  modrm_rm;		/* rm part of modrm			*/
 	u64 src_val;            /* value of source operand              */
+	u64 dst_val;            /* value of destination operand         */
 	u8  src_bytes;          /* size of source operand               */
 	u8  dst_bytes;          /* size of destination operand          */
 	u8  ad_bytes;           /* size of src/dst address              */

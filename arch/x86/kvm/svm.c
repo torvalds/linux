@@ -4256,13 +4256,13 @@ static int svm_check_intercept(struct kvm_vcpu *vcpu,
 		u64 exit_info;
 		u32 bytes;
 
-		exit_info = (vcpu->arch.regs[VCPU_REGS_RDX] & 0xffff) << 16;
-
 		if (info->intercept == x86_intercept_in ||
 		    info->intercept == x86_intercept_ins) {
-			exit_info |= SVM_IOIO_TYPE_MASK;
+			exit_info = ((info->src_val & 0xffff) << 16) |
+				SVM_IOIO_TYPE_MASK;
 			bytes = info->dst_bytes;
 		} else {
+			exit_info = (info->dst_val & 0xffff) << 16;
 			bytes = info->src_bytes;
 		}
 
