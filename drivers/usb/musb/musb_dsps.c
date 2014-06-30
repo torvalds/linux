@@ -56,16 +56,24 @@ static const struct of_device_id musb_dsps_of_match[];
  * dependent on musb core layer symbols.
  */
 static inline u8 dsps_readb(const void __iomem *addr, unsigned offset)
-	{ return __raw_readb(addr + offset); }
+{
+	return __raw_readb(addr + offset);
+}
 
 static inline u32 dsps_readl(const void __iomem *addr, unsigned offset)
-	{ return __raw_readl(addr + offset); }
+{
+	return __raw_readl(addr + offset);
+}
 
 static inline void dsps_writeb(void __iomem *addr, unsigned offset, u8 data)
-	{ __raw_writeb(data, addr + offset); }
+{
+	__raw_writeb(data, addr + offset);
+}
 
 static inline void dsps_writel(void __iomem *addr, unsigned offset, u32 data)
-	{ __raw_writel(data, addr + offset); }
+{
+	__raw_writel(data, addr + offset);
+}
 
 /**
  * DSPS musb wrapper register offset.
