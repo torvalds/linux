@@ -56,8 +56,6 @@ static VOID UpdateTokenCount(register struct bcm_mini_adapter *Adapter)
 	}
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL,
 			"<=====\n");
-	return;
-
 }
 
 
