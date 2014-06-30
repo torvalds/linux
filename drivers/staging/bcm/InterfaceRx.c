@@ -1,5 +1,26 @@
 #include "headers.h"
 
+static void handle_control_packet(struct bcm_interface_adapter *interface,
+				  struct bcm_mini_adapter *ad,
+				  struct bcm_leader *leader,
+				  struct sk_buff *skb,
+				  struct urb *urb)
+{
+	BCM_DEBUG_PRINT(interface->psAdapter, DBG_TYPE_RX, RX_CTRL, DBG_LVL_ALL,
+			"Received control pkt...");
+	*(PUSHORT)skb->data = leader->Status;
+	memcpy(skb->data+sizeof(USHORT), urb->transfer_buffer +
+	       (sizeof(struct bcm_leader)), leader->PLength);
+	skb->len = leader->PLength + sizeof(USHORT);
+
+	spin_lock(&ad->control_queue_lock);
+	ENQUEUEPACKET(ad->RxControlHead, ad->RxControlTail, skb);
+	spin_unlock(&ad->control_queue_lock);
+
+	atomic_inc(&ad->cntrlpktCnt);
+	wake_up(&ad->process_rx_cntrlpkt);
+}
+
 static int SearchVcid(struct bcm_mini_adapter *Adapter, unsigned short usVcid)
 {
 	int iIndex = 0;
@@ -120,20 +141,8 @@ static void read_bulk_callback(struct urb *urb)
 	/* If it is a control Packet, then call handle_bcm_packet ()*/
 	if ((ntohs(pLeader->Vcid) == VCID_CONTROL_PACKET) ||
 	    (!(pLeader->Status >= 0x20  &&  pLeader->Status <= 0x3F))) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_RX, RX_CTRL,
-				DBG_LVL_ALL, "Received control pkt...");
-		*(PUSHORT)skb->data = pLeader->Status;
-		memcpy(skb->data+sizeof(USHORT), urb->transfer_buffer +
-		       (sizeof(struct bcm_leader)), pLeader->PLength);
-		skb->len = pLeader->PLength + sizeof(USHORT);
-
-		spin_lock(&Adapter->control_queue_lock);
-		ENQUEUEPACKET(Adapter->RxControlHead, Adapter->RxControlTail,
-			      skb);
-		spin_unlock(&Adapter->control_queue_lock);
-
-		atomic_inc(&Adapter->cntrlpktCnt);
-		wake_up(&Adapter->process_rx_cntrlpkt);
+		handle_control_packet(psIntfAdapter, Adapter, pLeader, skb,
+				      urb);
 	} else {
 		/*
 		 * Data Packet, Format a proper Ethernet Header
