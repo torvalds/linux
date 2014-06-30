@@ -1623,7 +1623,17 @@ static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 	 * resources, wait for the previously scheduled operations before
 	 * proceeding, so that we don't end up keep removing tasks added
 	 * after execution capability is restored.
+	 *
+	 * cpuset_hotplug_work calls back into cgroup core via
+	 * cgroup_transfer_tasks() and waiting for it from a cgroupfs
+	 * operation like this one can lead to a deadlock through kernfs
+	 * active_ref protection.  Let's break the protection.  Losing the
+	 * protection is okay as we check whether @cs is online after
+	 * grabbing cpuset_mutex anyway.  This only happens on the legacy
+	 * hierarchies.
 	 */
+	css_get(&cs->css);
+	kernfs_break_active_protection(of->kn);
 	flush_work(&cpuset_hotplug_work);
 
 	mutex_lock(&cpuset_mutex);
@@ -1651,6 +1661,8 @@ static ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 	free_trial_cpuset(trialcs);
 out_unlock:
 	mutex_unlock(&cpuset_mutex);
+	kernfs_unbreak_active_protection(of->kn);
+	css_put(&cs->css);
 	return retval ?: nbytes;
 }
 
