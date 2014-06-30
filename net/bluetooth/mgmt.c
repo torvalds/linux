@@ -2947,6 +2947,17 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		else
 			addr_type = ADDR_LE_DEV_RANDOM;
 
+		/* When pairing a new device, it is expected to remember
+		 * this device for future connections. Adding the connection
+		 * parameter information ahead of time allows tracking
+		 * of the slave preferred values and will speed up any
+		 * further connection establishment.
+		 *
+		 * If connection parameters already exist, then they
+		 * will be kept and this function does nothing.
+		 */
+		hci_conn_params_add(hdev, &cp->addr.bdaddr, addr_type);
+
 		conn = hci_connect_le(hdev, &cp->addr.bdaddr, addr_type,
 				      sec_level, auth_type);
 	}
