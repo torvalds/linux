@@ -324,6 +324,7 @@ struct drm_i915_error_state {
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct intel_overlay_error_state *overlay;
 	struct intel_display_error_state *display;
+	struct drm_i915_error_object *semaphore_obj;
 
 	struct drm_i915_error_ring {
 		bool valid;
