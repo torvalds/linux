@@ -1236,7 +1236,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_reset(pdx);
 
 	case _IOC_NR(IOCTL_CED_GETCHAR):
-		return GetChar(pdx);
+		return ced_get_char(pdx);
 
 	case _IOC_NR(IOCTL_CED_SENDCHAR):
 		return ced_send_char(pdx, (char)ulArg);
@@ -1248,7 +1248,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return LineCount(pdx);
 
 	case _IOC_NR(IOCTL_CED_GETSTRING(0)):
-		return GetString(pdx, (char __user *)ulArg, _IOC_SIZE(cmd));
+		return ced_get_string(pdx, (char __user *)ulArg, _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_SETTRANSFER):
 		return SetTransfer(pdx, (struct transfer_area_desc __user *) ulArg);

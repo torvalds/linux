@@ -415,11 +415,11 @@ int ced_reset(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** GetChar
+** ced_get_char
 **
 ** Gets a single character from the 1401
 ****************************************************************************/
-int GetChar(DEVICE_EXTENSION *pdx)
+int ced_get_char(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOIN;	/*  assume we will get  nothing */
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
@@ -446,7 +446,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** GetString
+** ced_get_string
 **
 ** Gets a string from the 1401. Returns chars up to the next CR or when
 ** there are no more to read or nowhere to put them. CR is translated to
@@ -456,7 +456,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 ** returns the count of characters (including the terminator, or 0 if none
 ** or a negative error code.
 ****************************************************************************/
-int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
+int ced_get_string(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 {
 	int nAvailable;		/*  character in the buffer */
 	int iReturn = U14ERR_NOIN;
