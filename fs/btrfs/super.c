@@ -1811,6 +1811,8 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 		list_for_each_entry(dev, head, dev_list) {
 			if (dev->missing)
 				continue;
+			if (!dev->name)
+				continue;
 			if (!first_dev || dev->devid < first_dev->devid)
 				first_dev = dev;
 		}
