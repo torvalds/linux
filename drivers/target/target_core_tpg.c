@@ -335,7 +335,7 @@ void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 			continue;
 
 		spin_unlock(&tpg->tpg_lun_lock);
-		core_dev_del_lun(tpg, lun->unpacked_lun);
+		core_dev_del_lun(tpg, lun);
 		spin_lock(&tpg->tpg_lun_lock);
 	}
 	spin_unlock(&tpg->tpg_lun_lock);
@@ -667,7 +667,7 @@ static void core_tpg_release_virtual_lun0(struct se_portal_group *se_tpg)
 {
 	struct se_lun *lun = &se_tpg->tpg_virt_lun0;
 
-	core_tpg_post_dellun(se_tpg, lun);
+	core_tpg_remove_lun(se_tpg, lun);
 }
 
 int core_tpg_register(
@@ -837,37 +837,7 @@ int core_tpg_add_lun(
 	return 0;
 }
 
-struct se_lun *core_tpg_pre_dellun(
-	struct se_portal_group *tpg,
-	u32 unpacked_lun)
-{
-	struct se_lun *lun;
-
-	if (unpacked_lun > (TRANSPORT_MAX_LUNS_PER_TPG-1)) {
-		pr_err("%s LUN: %u exceeds TRANSPORT_MAX_LUNS_PER_TPG"
-			"-1: %u for Target Portal Group: %u\n",
-			tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
-			TRANSPORT_MAX_LUNS_PER_TPG-1,
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		return ERR_PTR(-EOVERFLOW);
-	}
-
-	spin_lock(&tpg->tpg_lun_lock);
-	lun = tpg->tpg_lun_list[unpacked_lun];
-	if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) {
-		pr_err("%s Logical Unit Number: %u is not active on"
-			" Target Portal Group: %u, ignoring request.\n",
-			tpg->se_tpg_tfo->get_fabric_name(), unpacked_lun,
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		spin_unlock(&tpg->tpg_lun_lock);
-		return ERR_PTR(-ENODEV);
-	}
-	spin_unlock(&tpg->tpg_lun_lock);
-
-	return lun;
-}
-
-void core_tpg_post_dellun(
+void core_tpg_remove_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
