@@ -83,23 +83,30 @@
 
 #define TSADC_HIGHT_INT_DEBOUNCE  0x60
 #define TSADC_HIGHT_TSHUT_DEBOUNCE  0x64
-#define TSADC_HIGHT_INT_DEBOUNCE_TIME 0x03
-#define TSADC_HIGHT_TSHUT_DEBOUNCE_TIME 0x03
+#define TSADC_HIGHT_INT_DEBOUNCE_TIME 0x0a
+#define TSADC_HIGHT_TSHUT_DEBOUNCE_TIME 0x0a
 
 #define TSADC_AUTO_PERIOD  0x68
 #define TSADC_AUTO_PERIOD_HT  0x6c
-#define TSADC_AUTO_PERIOD_TIME  0x10
-#define TSADC_AUTO_PERIOD_HT_TIME  0x10
+#define TSADC_AUTO_PERIOD_TIME	0x03e8
+#define TSADC_AUTO_PERIOD_HT_TIME  0x64
 
 #define TSADC_AUTO_EVENT_NAME		"tsadc"
 
 #define TSADC_COMP_INT_DATA		80
 #define TSADC_COMP_INT_DATA_MASK		0xfff
-#define TSADC_COMP_SHUT_DATA		100
 #define TSADC_COMP_SHUT_DATA_MASK		0xfff
-#define TSADC_HIGH_TEMP_TO_SHUTDOWN 0  // 1: set gpio0_a0 output 0 ; 0:reset cpu
-#define TSADC_TEMP_INT_EN 1
+#define TSADC_TEMP_INT_EN 0
 #define TSADC_TEMP_SHUT_EN 1
+static int tsadc_ht_temp;
+static int tsadc_ht_reset_cru;
+static int tsadc_ht_pull_gpio;
+
+struct tsadc_port {
+	struct pinctrl		*pctl;
+	struct pinctrl_state	*pins_default;
+	struct pinctrl_state	*pins_tsadc_int;
+};
 
 struct rockchip_tsadc_temp {
 	struct delayed_work power_off_work;
@@ -247,20 +254,19 @@ static void rockchip_tsadc_set_auto_int_en( int chn, int ht_int_en,int tshut_en)
 	}
 	if (tshut_en){
 		ret = tsadc_readl(TSADC_INT_EN);
-		#ifdef TSADC_HIGH_TEMP_TO_SHUTDOWN
-		tsadc_writel( ret | (1 << (chn + 4)), TSADC_INT_EN);
-		#else
-		tsadc_writel( ret | (1 << (chn + 8)), TSADC_INT_EN);
-		#endif
+		if (tsadc_ht_pull_gpio)
+			tsadc_writel(ret | (0xf << (chn + 4)), TSADC_INT_EN);
+		else if (tsadc_ht_reset_cru)
+			tsadc_writel(ret | (0xf << (chn + 8)), TSADC_INT_EN);
 	}	
 
 }
-static void rockchip_tsadc_auto_mode_set( int chn, int int_temp, int shut_temp,int int_en, int shut_en)
+static void rockchip_tsadc_auto_mode_set(int chn, int int_temp,
+	int shut_temp, int int_en, int shut_en)
 {
-
 	u32 ret;
 	
-	if (!g_dev || chn > 1)
+	if (!g_dev || chn > 4)
 		return;
 	
 	mutex_lock(&tsadc_mutex);
@@ -270,17 +276,19 @@ static void rockchip_tsadc_auto_mode_set( int chn, int int_temp, int shut_temp,i
 	
 	msleep(10);
 	tsadc_writel(0, TSADC_AUTO_CON);
-	tsadc_writel( 1 << (4+chn), TSADC_AUTO_CON);
+	tsadc_writel(1 << (4+chn), TSADC_AUTO_CON);
 	msleep(10);
 	if ((tsadc_readl(TSADC_AUTO_CON) & TSADC_AUTO_STAS_BUSY_MASK) != TSADC_AUTO_STAS_BUSY) {
 		rockchip_tsadc_set_cmpn_int_vale(chn,int_temp);
 		rockchip_tsadc_set_cmpn_shut_vale(chn,shut_temp),
 
-//		tsadc_writel(TSADC_AUTO_PERIOD_TIME, TSADC_AUTO_PERIOD);
-//		tsadc_writel(TSADC_AUTO_PERIOD_HT_TIME, TSADC_AUTO_PERIOD_HT);
+		tsadc_writel(TSADC_AUTO_PERIOD_TIME, TSADC_AUTO_PERIOD);
+		tsadc_writel(TSADC_AUTO_PERIOD_HT_TIME, TSADC_AUTO_PERIOD_HT);
 
-//		tsadc_writel(TSADC_HIGHT_INT_DEBOUNCE_TIME, TSADC_HIGHT_INT_DEBOUNCE);
-//		tsadc_writel(TSADC_HIGHT_TSHUT_DEBOUNCE_TIME, TSADC_HIGHT_TSHUT_DEBOUNCE);
+		tsadc_writel(TSADC_HIGHT_INT_DEBOUNCE_TIME,
+			TSADC_HIGHT_INT_DEBOUNCE);
+		tsadc_writel(TSADC_HIGHT_TSHUT_DEBOUNCE_TIME,
+			TSADC_HIGHT_TSHUT_DEBOUNCE);
 		
 		rockchip_tsadc_set_auto_int_en(chn,int_en,shut_en);	
 	}
@@ -296,13 +304,15 @@ static void rockchip_tsadc_auto_mode_set( int chn, int int_temp, int shut_temp,i
 
 int rockchip_tsadc_set_auto_temp(int chn)
 {
-	rockchip_tsadc_auto_mode_set(chn, TSADC_COMP_INT_DATA,TSADC_COMP_SHUT_DATA,TSADC_TEMP_INT_EN,TSADC_TEMP_SHUT_EN);
+	rockchip_tsadc_auto_mode_set(chn, TSADC_COMP_INT_DATA,
+		tsadc_ht_temp, TSADC_TEMP_INT_EN, TSADC_TEMP_SHUT_EN);
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_tsadc_set_auto_temp);
 
 static void rockchip_tsadc_get(int chn, int *temp, int *code)
 {
+	int i;
 	*temp = 0;
 	*code = 0;
 
@@ -310,7 +320,7 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 		*temp = 150;
 		return ;
 	}
-		
+#if 0
 	mutex_lock(&tsadc_mutex);
 
 	clk_enable(g_dev->pclk);
@@ -321,7 +331,6 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 	tsadc_writel(TSADC_CTRL_POWER_UP | TSADC_CTRL_CH(chn), TSADC_USER_CON);
 	msleep(20);
 	if ((tsadc_readl(TSADC_USER_CON) & TSADC_STAS_BUSY_MASK) != TSADC_STAS_BUSY) {
-		int i;
 		*code = tsadc_readl((TSADC_DATA0 + chn*4)) & TSADC_DATA_MASK;
 		for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
 			if ((*code) <= table[i].code && (*code) > table[i + 1].code) {
@@ -336,6 +345,15 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 	clk_disable(g_dev->pclk);
 
 	mutex_unlock(&tsadc_mutex);
+#else
+	*code = tsadc_readl((TSADC_DATA0 + chn*4)) & TSADC_DATA_MASK;
+	for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
+		if ((*code) <= table[i].code && (*code) > table[i + 1].code)
+			*temp = table[i].temp + (table[i + 1].temp
+			- table[i].temp) * (table[i].code - (*code))
+			/ (table[i].code - table[i + 1].code);
+	}
+#endif
 }
 
  int rockchip_tsadc_get_temp(int chn)
@@ -343,6 +361,7 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 	int temp, code;
 	
 	rockchip_tsadc_get(chn, &temp, &code);
+
 	return temp;
 }
 EXPORT_SYMBOL(rockchip_tsadc_get_temp);
@@ -380,7 +399,6 @@ static ssize_t rockchip_show_label(struct device *dev,
 	return sprintf(buf, "%s\n", label);
 }
 
-
 int rockchip_hwmon_init(struct rockchip_temp *data)
 {
 	struct rockchip_tsadc_temp *rockchip_tsadc_data;
@@ -388,6 +406,7 @@ int rockchip_hwmon_init(struct rockchip_temp *data)
 	struct device_node *np = data->pdev->dev.of_node;
 	int ret,irq;
 	u32 rate;
+	struct tsadc_port *uap;
 	
 	rockchip_tsadc_data = devm_kzalloc(&data->pdev->dev, sizeof(*rockchip_tsadc_data),
 		GFP_KERNEL);
@@ -449,21 +468,48 @@ int rockchip_hwmon_init(struct rockchip_temp *data)
 	g_dev = rockchip_tsadc_data;
 	data->plat_data = rockchip_tsadc_data;
 
+	ret = tsadc_readl(TSADC_AUTO_CON);
+	tsadc_writel(ret | (1 << 8) , TSADC_AUTO_CON);/*gpio0_b2 = 0 shutdown*/
+
+	if (of_property_read_u32(np, "tsadc-ht-temp",
+		&tsadc_ht_temp)) {
+		dev_err(&data->pdev->dev, "Missing  tsadc_ht_temp in the DT.\n");
+		return -EPERM;
+	}
+	if (of_property_read_u32(np, "tsadc-ht-reset-cru",
+		&tsadc_ht_reset_cru)) {
+		dev_err(&data->pdev->dev, "Missing tsadc_ht_reset_cru in the DT.\n");
+		return -EPERM;
+	}
+	if (of_property_read_u32(np, "tsadc-ht-pull-gpio",
+		&tsadc_ht_pull_gpio)) {
+		dev_err(&data->pdev->dev, "Missing tsadc_ht_pull_gpio in the DT.\n");
+		return -EPERM;
+	}
+
+	uap = devm_kzalloc(&data->pdev->dev, sizeof(struct tsadc_port),
+			   GFP_KERNEL);
+	if (uap == NULL)
+		dev_err(&data->pdev->dev,
+		"uap is not set %s,line=%d\n", __func__, __LINE__);
+	uap->pctl = devm_pinctrl_get(&data->pdev->dev);
+	uap->pins_default = pinctrl_lookup_state(uap->pctl, "default");
+	uap->pins_tsadc_int = pinctrl_lookup_state(uap->pctl, "tsadc_int");
+	pinctrl_select_state(uap->pctl, uap->pins_tsadc_int);
+
+	rockchip_tsadc_set_auto_temp(1);
+
 	data->monitored_sensors = NUM_MONITORED_SENSORS;
 	data->ops.read_sensor = rockchip_tsadc_get_temp;
 	data->ops.show_name = rockchip_show_name;
 	data->ops.show_label = rockchip_show_label;
 	data->ops.is_visible = NULL;
 
-//	rockchip_tsadc_set_auto_temp(0);
-
 	dev_info(&data->pdev->dev, "initialized\n");
-
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_hwmon_init);
 
-MODULE_DESCRIPTION("Driver for TSADC");
-MODULE_AUTHOR("zhangqing, zhangqing@rock-chips.com");
 MODULE_LICENSE("GPL");
-
+MODULE_AUTHOR("zhangqing <zhangqing@rock-chips.com>");
+MODULE_DESCRIPTION("Driver for TSADC");
