@@ -64,7 +64,31 @@ Optional SDIO properties:
 - keep-power-in-suspend: Preserves card power during a suspend/resume cycle
 - enable-sdio-wakeup: Enables wake up of host system on SDIO IRQ assertion
 
-Example:
+
+Use of Function subnodes
+------------------------
+
+On embedded systems the cards connected to a host may need additional
+properties. These can be specified in subnodes to the host controller node.
+The subnodes are identified by the standard 'reg' property.
+Which information exactly can be specified depends on the bindings for the
+SDIO function driver for the subnode, as specified by the compatible string.
+
+Required host node properties when using function subnodes:
+- #address-cells: should be one. The cell is the slot id.
+- #size-cells: should be zero.
+
+Required function subnode properties:
+- compatible: name of SDIO function following generic names recommended practice
+- reg: Must contain the SDIO function number of the function this subnode
+       describes. A value of 0 denotes the memory SD function, values from
+       1 to 7 denote the SDIO functions.
+
+
+Examples
+--------
+
+Basic example:
 
 sdhci@ab000000 {
 	compatible = "sdhci";
@@ -78,3 +102,25 @@ sdhci@ab000000 {
 	keep-power-in-suspend;
 	enable-sdio-wakeup;
 }
+
+Example with sdio function subnode:
+
+mmc3: mmc@01c12000 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc3_pins_a>;
+	vmmc-supply = <&reg_vmmc3>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	brcmf: bcrmf@1 {
+		reg = <1>;
+		compatible = "brcm,bcm43xx-fmac";
+		interrupt-parent = <&pio>;
+		interrupts = <10 8>; /* PH10 / EINT10 */
+		interrupt-names = "host-wake";
+	};
+};
