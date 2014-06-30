@@ -1016,7 +1016,7 @@ static bool ced_read_dma_info(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 
 /****************************************************************************
 **
-** Handle1401Esc
+** ced_handle_esc
 **
 ** Deals with an escape sequence coming from the 1401. This can either be
 **  a DMA transfer request of various types or a response to an escape sequence
@@ -1028,7 +1028,7 @@ static bool ced_read_dma_info(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 **           this is known to be at least 2 or we will not be called.
 **
 ****************************************************************************/
-static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
+static int ced_handle_esc(DEVICE_EXTENSION *pdx, char *pCh,
 			 unsigned int dwCount)
 {
 	int iReturn = U14ERR_FAIL;
@@ -1116,7 +1116,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 		pdx->bPipeError[nPipe] = 1;	/*  Flag an error for later */
 	} else {
 		if ((nGot > 1) && ((pdx->pCoherCharIn[0] & 0x7f) == 0x1b)) {	/*  Esc sequence? */
-			Handle1401Esc(pdx, &pdx->pCoherCharIn[1], nGot - 1);	/*  handle it */
+			ced_handle_esc(pdx, &pdx->pCoherCharIn[1], nGot - 1);	/*  handle it */
 			spin_lock(&pdx->charInLock);	/*  already at irq level */
 		} else {
 			spin_lock(&pdx->charInLock);	/*  already at irq level */
