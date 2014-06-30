@@ -74,10 +74,6 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/wlags49_h2/Kconfig"
-
-source "drivers/staging/wlags49_h25/Kconfig"
-
 source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"

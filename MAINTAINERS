@@ -8496,12 +8496,6 @@ L:	devel@driverdev.osuosl.org
 S:	Supported
 F:	drivers/staging/
 
-STAGING - AGERE HERMES II and II.5 WIRELESS DRIVERS
-M:	Henk de Groot <pe1dnn@amsat.org>
-S:	Odd Fixes
-F:	drivers/staging/wlags49_h2/
-F:	drivers/staging/wlags49_h25/
-
 STAGING - ASUS OLED
 M:	Jakub Schmidtke <sjakub@gmail.com>
 S:	Odd Fixes
