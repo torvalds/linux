@@ -219,6 +219,45 @@ static void get_data_packet(struct bcm_mini_adapter *ad,
 	}
 }
 
+static void send_control_packet(struct bcm_mini_adapter *ad,
+				struct bcm_packet_info *ps_sf)
+{
+	char *ctrl_packet = NULL;
+	INT status = 0;
+
+	if ((atomic_read(&ad->CurrNumFreeTxDesc) > 0) &&
+	    (atomic_read(&ad->index_rd_txcntrlpkt) !=
+	     atomic_read(&ad->index_wr_txcntrlpkt))) {
+		ctrl_packet = ad->txctlpacket
+		[(atomic_read(&ad->index_rd_txcntrlpkt)%MAX_CNTRL_PKTS)];
+		if (ctrl_packet) {
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL,
+					"Sending Control packet");
+			status = SendControlPacket(ad, ctrl_packet);
+			if (STATUS_SUCCESS == status) {
+				spin_lock_bh(&ps_sf->SFQueueLock);
+				ps_sf->NumOfPacketsSent++;
+				ps_sf->uiSentBytes += ((struct bcm_leader *)ctrl_packet)->PLength;
+				ps_sf->uiSentPackets++;
+				atomic_dec(&ad->TotalPacketCount);
+				ps_sf->uiCurrentBytesOnHost -= ((struct bcm_leader *)ctrl_packet)->PLength;
+				ps_sf->uiCurrentPacketsOnHost--;
+				atomic_inc(&ad->index_rd_txcntrlpkt);
+				spin_unlock_bh(&ps_sf->SFQueueLock);
+			} else {
+				BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+						DBG_LVL_ALL,
+						"SendControlPacket Failed\n");
+			}
+		} else {
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, TX_PACKETS,
+					DBG_LVL_ALL,
+					" Control Pkt is not available, Indexing is wrong....");
+		}
+	}
+}
+
 /************************************************************************
 * Function    - CheckAndSendPacketFromIndex()
 *
@@ -234,9 +273,6 @@ static void get_data_packet(struct bcm_mini_adapter *ad,
 static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter,
 					struct bcm_packet_info *psSF)
 {
-	char *pControlPacket = NULL;
-	INT Status = 0;
-
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS, DBG_LVL_ALL,
 			"%zd ====>", (psSF-Adapter->PackInfo));
 	if ((psSF != &Adapter->PackInfo[HiPriority]) &&
@@ -245,39 +281,7 @@ static VOID CheckAndSendPacketFromIndex(struct bcm_mini_adapter *Adapter,
 
 		get_data_packet(Adapter, psSF);
 	} else {
-
-		if ((atomic_read(&Adapter->CurrNumFreeTxDesc) > 0) &&
-		    (atomic_read(&Adapter->index_rd_txcntrlpkt) !=
-		     atomic_read(&Adapter->index_wr_txcntrlpkt))) {
-			pControlPacket = Adapter->txctlpacket
-			[(atomic_read(&Adapter->index_rd_txcntrlpkt)%MAX_CNTRL_PKTS)];
-			if (pControlPacket) {
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_PACKETS,
-						DBG_LVL_ALL,
-						"Sending Control packet");
-				Status = SendControlPacket(Adapter,
-							   pControlPacket);
-				if (STATUS_SUCCESS == Status) {
-					spin_lock_bh(&psSF->SFQueueLock);
-					psSF->NumOfPacketsSent++;
-					psSF->uiSentBytes += ((struct bcm_leader *)pControlPacket)->PLength;
-					psSF->uiSentPackets++;
-					atomic_dec(&Adapter->TotalPacketCount);
-					psSF->uiCurrentBytesOnHost -= ((struct bcm_leader *)pControlPacket)->PLength;
-					psSF->uiCurrentPacketsOnHost--;
-					atomic_inc(&Adapter->index_rd_txcntrlpkt);
-					spin_unlock_bh(&psSF->SFQueueLock);
-				} else {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
-							TX_PACKETS, DBG_LVL_ALL,
-							"SendControlPacket Failed\n");
-				}
-			} else {
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX,
-							TX_PACKETS, DBG_LVL_ALL,
-							" Control Pkt is not available, Indexing is wrong....");
-			}
-		}
+		send_control_packet(Adapter, psSF);
 	}
 }
 
