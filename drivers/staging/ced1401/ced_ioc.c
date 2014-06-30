@@ -123,7 +123,7 @@ int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
 		iReturn = PutChars(pdx, buffer, n);
 	}
 
-	Allowi(pdx);		/*  make sure we have input int */
+	ced_allowi(pdx);		/*  make sure we have input int */
 	mutex_unlock(&pdx->io_mutex);
 
 	return iReturn;
@@ -140,7 +140,7 @@ int SendChar(DEVICE_EXTENSION *pdx, char c)
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	iReturn = PutChars(pdx, &c, 1);
 	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)\n", c, c);
-	Allowi(pdx);	/*  Make sure char reads are running */
+	ced_allowi(pdx);	/*  Make sure char reads are running */
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
 }
@@ -426,7 +426,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
-	Allowi(pdx);	/*  Make sure char reads are running */
+	ced_allowi(pdx);	/*  Make sure char reads are running */
 	ced_send_chars(pdx);	/*  and send any buffered chars */
 
 	spin_lock_irq(&pdx->charInLock);
@@ -439,7 +439,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 		iReturn = U14ERR_NOIN;	/*  no input data to read */
 	spin_unlock_irq(&pdx->charInLock);
 
-	Allowi(pdx);	/*  Make sure char reads are running */
+	ced_allowi(pdx);	/*  Make sure char reads are running */
 
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	return iReturn;
@@ -464,7 +464,7 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 		return -ENOMEM;
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	Allowi(pdx);	/*  Make sure char reads are running */
+	ced_allowi(pdx);	/*  Make sure char reads are running */
 	ced_send_chars(pdx);		/*  and send any buffered chars */
 
 	spin_lock_irq(&pdx->charInLock);
@@ -507,7 +507,7 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 	} else
 		spin_unlock_irq(&pdx->charInLock);
 
-	Allowi(pdx);	/*  Make sure char reads are running */
+	ced_allowi(pdx);	/*  Make sure char reads are running */
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 
 	return iReturn;
@@ -520,7 +520,7 @@ int Stat1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	Allowi(pdx);		/*  make sure we allow pending chars */
+	ced_allowi(pdx);		/*  make sure we allow pending chars */
 	ced_send_chars(pdx);		/*  in both directions */
 	iReturn = pdx->dwNumInput;	/*  no lock as single read */
 	mutex_unlock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
@@ -539,7 +539,7 @@ int LineCount(DEVICE_EXTENSION *pdx)
 	int iReturn = 0;	/*  will be count of line ends */
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	Allowi(pdx);		/*  Make sure char reads are running */
+	ced_allowi(pdx);		/*  Make sure char reads are running */
 	ced_send_chars(pdx);		/*  and send any buffered chars */
 	spin_lock_irq(&pdx->charInLock);	/*  Get protection */
 

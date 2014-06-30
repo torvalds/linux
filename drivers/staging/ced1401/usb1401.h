@@ -201,7 +201,7 @@ typedef struct _DEVICE_EXTENSION {
 
 /*  Definitions of routimes used between compilation object files */
 /*  in usb1401.c */
-extern int Allowi(DEVICE_EXTENSION *pdx);
+extern int ced_allowi(DEVICE_EXTENSION *pdx);
 extern int ced_send_chars(DEVICE_EXTENSION *pdx);
 extern void ced_draw_down(DEVICE_EXTENSION *pdx);
 extern int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,

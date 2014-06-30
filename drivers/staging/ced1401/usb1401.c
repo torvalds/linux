@@ -681,10 +681,10 @@ static void staged_callback(struct urb *pUrb)
 	spin_unlock(&pdx->stagedLock);	/*  Finally release the lock again */
 
 	/*  This is not correct as dwDMAFlag is protected by the staged lock, but it is treated */
-	/*  in Allowi as if it were protected by the char lock. In any case, most systems will */
+	/*  in ced_allowi as if it were protected by the char lock. In any case, most systems will */
 	/*  not be upset by char input during DMA... sigh. Needs sorting out. */
 	if (bRestartCharInput)	/*  may be out of date, but... */
-		Allowi(pdx);	/*  ...Allowi tests a lock too. */
+		ced_allowi(pdx);	/*  ...ced_allowi tests a lock too. */
 	dev_dbg(&pdx->interface->dev, "%s: done\n", __func__);
 }
 
@@ -1148,17 +1148,17 @@ static void ced_readchar_callback(struct urb *pUrb)
 	pdx->bReadCharsPending = false;	/*  No longer have a pending read */
 	spin_unlock(&pdx->charInLock);	/*  already at irq level */
 
-	Allowi(pdx);	/*  see if we can do the next one */
+	ced_allowi(pdx);	/*  see if we can do the next one */
 }
 
 /****************************************************************************
-** Allowi
+** ced_allowi
 **
 ** This is used to make sure that there is always a pending input transfer so
 ** we can pick up any inward transfers. This can be called in multiple contexts
 ** so we use the irqsave version of the spinlock.
 ****************************************************************************/
-int Allowi(DEVICE_EXTENSION *pdx)
+int ced_allowi(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned long flags;
