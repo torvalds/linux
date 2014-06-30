@@ -1381,11 +1381,11 @@ int ced_get_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 }
 
 /****************************************************************************
-** FreeCircBlock
+** ced_free_circ_block
 **
 ** Frees a block of circularly-transferred data and returns the next one.
 ****************************************************************************/
-int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
+int ced_free_circ_block(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea, uStart, uSize;

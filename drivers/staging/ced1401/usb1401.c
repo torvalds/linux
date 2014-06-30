@@ -1322,7 +1322,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_get_circ_block(pdx, (TCIRCBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_FREECIRCBLOCK):
-		return FreeCircBlock(pdx, (TCIRCBLOCK __user *) ulArg);
+		return ced_free_circ_block(pdx, (TCIRCBLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_WAITEVENT):
 		return ced_wait_event(pdx, (int)(ulArg & 0xff), (int)(ulArg >> 8));
