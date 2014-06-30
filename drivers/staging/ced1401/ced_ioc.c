@@ -214,11 +214,11 @@ int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 }
 
 /****************************************************************************
-** ReadWrite_Cancel
+** ced_read_write_cancel
 **
 ** Kills off staged read\write request from the USB if one is pending.
 ****************************************************************************/
-int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
+int ced_read_write_cancel(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s: entry %d\n",
 		__func__, pdx->bStagedUrbPending);
@@ -231,7 +231,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 
 	if (pdx->bStagedUrbPending) {	/*  anything to be cancelled? May need more... */
 		dev_info(&pdx->interface - dev,
-			 "ReadWrite_Cancel about to cancel Urb\n");
+			 "ced_read_write_cancel about to cancel Urb\n");
 		/* Clear the staging done flag */
 		/* KeClearEvent(&pdx->StagingDoneEvent); */
 		USB_ASSERT(pdx->pStagedIrp != NULL);
@@ -255,7 +255,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 			ntStatus = U14ERR_FAIL;
 		}
 		USB_KdPrint(DBGLVL_DEFAULT,
-			    ("ReadWrite_Cancel ntStatus = 0x%x decimal %d\n",
+			    ("ced_read_write_cancel ntStatus = 0x%x decimal %d\n",
 			     ntStatus, ntStatus));
 	} else
 		spin_unlock_irq(&pdx->stagedLock);
@@ -978,7 +978,7 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 	ced_flush_in_buff(pdx);	/*  Clear out input buffer & pipe */
 	ced_flush_out_buff(pdx);	/*  Clear output buffer & pipe */
 	/* so things stay tidy */
-	/* ReadWrite_Cancel(pDeviceObject); */
+	/* ced_read_write_cancel(pDeviceObject); */
 	pdx->dwDMAFlag = MODE_CHAR;	/* Clear DMA mode flags here */
 
 	nGot = usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0),
