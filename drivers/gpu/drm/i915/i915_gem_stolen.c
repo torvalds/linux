@@ -105,35 +105,61 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 
 static int find_compression_threshold(struct drm_device *dev,
 				      struct drm_mm_node *node,
-				      int size)
+				      int size,
+				      int fb_cpp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const int compression_threshold = 1;
+	int compression_threshold = 1;
 	int ret;
 
-	/* Try to over-allocate to reduce reallocations and fragmentation */
+	/* HACK: This code depends on what we will do in *_enable_fbc. If that
+	 * code changes, this code needs to change as well.
+	 *
+	 * The enable_fbc code will attempt to use one of our 2 compression
+	 * thresholds, therefore, in that case, we only have 1 resort.
+	 */
+
+	/* Try to over-allocate to reduce reallocations and fragmentation. */
 	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
 				 size <<= 1, 4096, DRM_MM_SEARCH_DEFAULT);
-	if (ret)
-		ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
-					 size >>= 1, 4096,
-					 DRM_MM_SEARCH_DEFAULT);
-	if (ret)
-		return 0;
-	else
+	if (ret == 0)
 		return compression_threshold;
+
+again:
+	/* HW's ability to limit the CFB is 1:4 */
+	if (compression_threshold > 4 ||
+	    (fb_cpp == 2 && compression_threshold == 2))
+		return 0;
+
+	ret = drm_mm_insert_node(&dev_priv->mm.stolen, node,
+				 size >>= 1, 4096,
+				 DRM_MM_SEARCH_DEFAULT);
+	if (ret && INTEL_INFO(dev)->gen <= 4) {
+		return 0;
+	} else if (ret) {
+		compression_threshold <<= 1;
+		goto again;
+	} else {
+		return compression_threshold;
+	}
 }
 
-static int i915_setup_compression(struct drm_device *dev, int size)
+static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *uninitialized_var(compressed_llb);
 	int ret;
 
 	ret = find_compression_threshold(dev, &dev_priv->fbc.compressed_fb,
-					 size);
+					 size, fb_cpp);
 	if (!ret)
 		goto err_llb;
+	else if (ret > 1) {
+		DRM_INFO("Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
+
+	}
+
+	dev_priv->fbc.threshold = ret;
 
 	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(ILK_DPFC_CB_BASE, dev_priv->fbc.compressed_fb.start);
@@ -157,7 +183,7 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->fbc.size = size;
+	dev_priv->fbc.size = size / dev_priv->fbc.threshold;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
 		      size);
@@ -172,7 +198,7 @@ err_llb:
 	return -ENOSPC;
 }
 
-int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
+int i915_gem_stolen_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -185,7 +211,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
 	/* Release any current block */
 	i915_gem_stolen_cleanup_compression(dev);
 
-	return i915_setup_compression(dev, size);
+	return i915_setup_compression(dev, size, fb_cpp);
 }
 
 void i915_gem_stolen_cleanup_compression(struct drm_device *dev)

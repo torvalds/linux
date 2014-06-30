@@ -229,9 +229,20 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dev_priv->fbc.threshold++;
+
+	switch (dev_priv->fbc.threshold) {
+	case 4:
+	case 3:
+		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
+		break;
+	case 2:
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-	else
+		break;
+	case 1:
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+		break;
+	}
 	dpfc_ctl |= DPFC_CTL_FENCE_EN;
 	if (IS_GEN5(dev))
 		dpfc_ctl |= obj->fence_reg;
@@ -285,9 +296,21 @@ static void gen7_enable_fbc(struct drm_crtc *crtc)
 
 	dpfc_ctl = IVB_DPFC_CTL_PLANE(intel_crtc->plane);
 	if (drm_format_plane_cpp(fb->pixel_format, 0) == 2)
+		dev_priv->fbc.threshold++;
+
+	switch (dev_priv->fbc.threshold) {
+	case 4:
+	case 3:
+		dpfc_ctl |= DPFC_CTL_LIMIT_4X;
+		break;
+	case 2:
 		dpfc_ctl |= DPFC_CTL_LIMIT_2X;
-	else
+		break;
+	case 1:
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
+		break;
+	}
+
 	dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -567,7 +590,8 @@ void intel_update_fbc(struct drm_device *dev)
 	if (in_dbg_master())
 		goto out_disable;
 
-	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
+	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size,
+					      drm_format_plane_cpp(fb->pixel_format, 0))) {
 		if (set_no_fbc_reason(dev_priv, FBC_STOLEN_TOO_SMALL))
 			DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
 		goto out_disable;

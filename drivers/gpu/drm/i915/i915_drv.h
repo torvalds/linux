@@ -600,6 +600,7 @@ struct intel_context {
 
 struct i915_fbc {
 	unsigned long size;
+	unsigned threshold;
 	unsigned int fb_id;
 	enum plane plane;
 	int y;
@@ -2487,7 +2488,7 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);
-int i915_gem_stolen_setup_compression(struct drm_device *dev, int size);
+int i915_gem_stolen_setup_compression(struct drm_device *dev, int size, int fb_cpp);
 void i915_gem_stolen_cleanup_compression(struct drm_device *dev);
 void i915_gem_cleanup_stolen(struct drm_device *dev);
 struct drm_i915_gem_object *
