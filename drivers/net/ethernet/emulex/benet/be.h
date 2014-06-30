@@ -411,6 +411,7 @@ struct be_resources {
 	u16 max_vlans;		/* Number of vlans supported */
 	u16 max_evt_qs;
 	u32 if_cap_flags;
+	u32 vf_if_cap_flags;	/* VF if capability flags */
 };
 
 struct rss_info {

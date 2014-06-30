@@ -3379,6 +3379,7 @@ static int be_get_resources(struct be_adapter *adapter)
 			if (status)
 				return status;
 			adapter->res.max_vfs = res.max_vfs;
+			adapter->res.vf_if_cap_flags = res.vf_if_cap_flags;
 		}
 
 		dev_info(dev, "Max: txqs %d, rxqs %d, rss %d, eqs %d, vfs %d\n",

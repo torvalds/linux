@@ -1835,6 +1835,7 @@ struct be_cmd_req_set_ext_fat_caps {
 #define PORT_RESOURCE_DESC_TYPE_V1		0x55
 #define MAX_RESOURCE_DESC			264
 
+#define VFT_SHIFT				3	/* VF template */
 #define IMM_SHIFT				6	/* Immediate */
 #define NOSV_SHIFT				7	/* No save */
 

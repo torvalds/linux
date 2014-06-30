@@ -3313,20 +3313,43 @@ err:
 	return status;
 }
 
-static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count)
+/* Descriptor type */
+enum {
+	FUNC_DESC = 1,
+	VFT_DESC = 2
+};
+
+static struct be_nic_res_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
+					       int desc_type)
 {
 	struct be_res_desc_hdr *hdr = (struct be_res_desc_hdr *)buf;
+	struct be_nic_res_desc *nic;
 	int i;
 
 	for (i = 0; i < desc_count; i++) {
 		if (hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
-		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
-			return (struct be_nic_res_desc *)hdr;
+		    hdr->desc_type == NIC_RESOURCE_DESC_TYPE_V1) {
+			nic = (struct be_nic_res_desc *)hdr;
+			if (desc_type == FUNC_DESC ||
+			    (desc_type == VFT_DESC &&
+			     nic->flags & (1 << VFT_SHIFT)))
+				return nic;
+		}
 
 		hdr->desc_len = hdr->desc_len ? : RESOURCE_DESC_SIZE_V0;
 		hdr = (void *)hdr + hdr->desc_len;
 	}
 	return NULL;
+}
+
+static struct be_nic_res_desc *be_get_vft_desc(u8 *buf, u32 desc_count)
+{
+	return be_get_nic_desc(buf, desc_count, VFT_DESC);
+}
+
+static struct be_nic_res_desc *be_get_func_nic_desc(u8 *buf, u32 desc_count)
+{
+	return be_get_nic_desc(buf, desc_count, FUNC_DESC);
 }
 
 static struct be_pcie_res_desc *be_get_pcie_desc(u8 devfn, u8 *buf,
@@ -3424,7 +3447,7 @@ int be_cmd_get_func_config(struct be_adapter *adapter, struct be_resources *res)
 		u32 desc_count = le32_to_cpu(resp->desc_count);
 		struct be_nic_res_desc *desc;
 
-		desc = be_get_nic_desc(resp->func_param, desc_count);
+		desc = be_get_func_nic_desc(resp->func_param, desc_count);
 		if (!desc) {
 			status = -EINVAL;
 			goto err;
@@ -3446,6 +3469,7 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 {
 	struct be_cmd_resp_get_profile_config *resp;
 	struct be_cmd_req_get_profile_config *req;
+	struct be_nic_res_desc *vf_res;
 	struct be_pcie_res_desc *pcie;
 	struct be_port_res_desc *port;
 	struct be_nic_res_desc *nic;
@@ -3486,10 +3510,13 @@ int be_cmd_get_profile_config(struct be_adapter *adapter,
 	if (port)
 		adapter->mc_type = port->mc_type;
 
-	nic = be_get_nic_desc(resp->func_param, desc_count);
+	nic = be_get_func_nic_desc(resp->func_param, desc_count);
 	if (nic)
 		be_copy_nic_desc(res, nic);
 
+	vf_res = be_get_vft_desc(resp->func_param, desc_count);
+	if (vf_res)
+		res->vf_if_cap_flags = vf_res->cap_flags;
 err:
 	if (cmd.va)
 		pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
