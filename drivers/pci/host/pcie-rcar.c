@@ -317,9 +317,10 @@ static struct pci_ops rcar_pcie_ops = {
 	.write	= rcar_pcie_write_conf,
 };
 
-static void rcar_pcie_setup_window(int win, struct resource *res,
-				   struct rcar_pcie *pcie)
+static void rcar_pcie_setup_window(int win, struct rcar_pcie *pcie)
 {
+	struct resource *res = &pcie->res[win];
+
 	/* Setup PCIe address space mappings for each resource */
 	resource_size_t size;
 	u32 mask;
@@ -360,7 +361,7 @@ static int rcar_pcie_setup(int nr, struct pci_sys_data *sys)
 		if (!res->flags)
 			continue;
 
-		rcar_pcie_setup_window(i, res, pcie);
+		rcar_pcie_setup_window(i, pcie);
 
 		if (res->flags & IORESOURCE_IO)
 			pci_ioremap_io(nr * SZ_64K, res->start);
