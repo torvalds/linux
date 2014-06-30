@@ -306,6 +306,12 @@ struct radeon_atom_ss {
 	uint16_t amount;
 };
 
+enum radeon_flip_status {
+	RADEON_FLIP_NONE,
+	RADEON_FLIP_PENDING,
+	RADEON_FLIP_SUBMITTED
+};
+
 struct radeon_crtc {
 	struct drm_crtc base;
 	int crtc_id;
@@ -331,6 +337,7 @@ struct radeon_crtc {
 	/* page flipping */
 	struct workqueue_struct *flip_queue;
 	struct radeon_flip_work *flip_work;
+	enum radeon_flip_status flip_status;
 	/* pll sharing */
 	struct radeon_atom_ss ss;
 	bool ss_enabled;
