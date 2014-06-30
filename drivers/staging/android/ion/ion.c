@@ -122,7 +122,7 @@ static void ion_iommu_force_unmap(struct ion_buffer *buffer);
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
 extern char *rockchip_ion_snapshot_get(unsigned *size);
 extern int rockchip_ion_snapshot_debugfs(struct dentry* root);
-static int ion_snapshot_save(struct ion_device *idev);
+static int ion_snapshot_save(struct ion_device *idev, size_t len);
 #endif
 
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
@@ -522,7 +522,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 
 	if (IS_ERR(buffer)) {
 #ifdef CONFIG_ION_ROCKCHIP_SNAPSHOT
-		ion_snapshot_save(client->dev);
+		ion_snapshot_save(client->dev, len);
 #endif
 		return ERR_PTR(PTR_ERR(buffer));
 	}
@@ -2029,7 +2029,7 @@ static unsigned long ion_find_max_zero_area(unsigned long *map, unsigned long si
 	return max_zero_sz;
 }
 
-static int ion_snapshot_save(struct ion_device *idev)
+static int ion_snapshot_save(struct ion_device *idev, size_t len)
 {
 	static struct seq_file seqf;
 	struct ion_heap *heap;
@@ -2043,6 +2043,9 @@ static int ion_snapshot_save(struct ion_device *idev)
 	seqf.count = 0;
 	pr_debug("%s: save snapshot 0x%x@0x%lx\n", __func__, seqf.size,
 		__pa(seqf.buf));
+
+	seq_printf(&seqf, "call by comm: %s pid: %d, alloc: %uKB\n",
+		current->comm, current->pid, len>>10);
 
 	down_read(&idev->lock);
 
