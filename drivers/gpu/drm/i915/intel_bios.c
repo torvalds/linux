@@ -315,9 +315,6 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
 
-	/* Err to enabling backlight if no backlight block. */
-	dev_priv->vbt.backlight.present = true;
-
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	if (!backlight_data)
 		return;
@@ -1087,6 +1084,9 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	enum port port;
 
 	dev_priv->vbt.crt_ddc_pin = GMBUS_PORT_VGADDC;
+
+	/* Default to having backlight */
+	dev_priv->vbt.backlight.present = true;
 
 	/* LFP panel data */
 	dev_priv->vbt.lvds_dither = 1;

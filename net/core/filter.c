@@ -840,11 +840,11 @@ int sk_convert_filter(struct sock_filter *prog, int len,
 	BUILD_BUG_ON(BPF_MEMWORDS * sizeof(u32) > MAX_BPF_STACK);
 	BUILD_BUG_ON(BPF_REG_FP + 1 != MAX_BPF_REG);
 
-	if (len <= 0 || len >= BPF_MAXINSNS)
+	if (len <= 0 || len > BPF_MAXINSNS)
 		return -EINVAL;
 
 	if (new_prog) {
-		addrs = kzalloc(len * sizeof(*addrs), GFP_KERNEL);
+		addrs = kcalloc(len, sizeof(*addrs), GFP_KERNEL);
 		if (!addrs)
 			return -ENOMEM;
 	}
@@ -1101,7 +1101,7 @@ static int check_load_and_stores(struct sock_filter *filter, int flen)
 
 	BUILD_BUG_ON(BPF_MEMWORDS > 16);
 
-	masks = kmalloc(flen * sizeof(*masks), GFP_KERNEL);
+	masks = kmalloc_array(flen, sizeof(*masks), GFP_KERNEL);
 	if (!masks)
 		return -ENOMEM;
 
@@ -1382,7 +1382,7 @@ static struct sk_filter *__sk_migrate_realloc(struct sk_filter *fp,
 	fp_new = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (fp_new) {
 		*fp_new = *fp;
-		/* As we're kepping orig_prog in fp_new along,
+		/* As we're keeping orig_prog in fp_new along,
 		 * we need to make sure we're not evicting it
 		 * from the old fp.
 		 */
@@ -1524,8 +1524,8 @@ static struct sk_filter *__sk_prepare_filter(struct sk_filter *fp,
 
 /**
  *	sk_unattached_filter_create - create an unattached filter
- *	@fprog: the filter program
  *	@pfp: the unattached filter that is created
+ *	@fprog: the filter program
  *
  * Create a filter independent of any socket. We first run some
  * sanity checks on it to make sure it does not explode on us later.

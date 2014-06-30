@@ -1,6 +1,17 @@
 Email clients info for Linux
 ======================================================================
 
+Git
+----------------------------------------------------------------------
+These days most developers use `git send-email` instead of regular
+email clients.  The man page for this is quite good.  On the receiving
+end, maintainers use `git am` to apply the patches.
+
+If you are new to git then send your first patch to yourself.  Save it
+as raw text including all the headers.  Run `git am raw_email.txt` and
+then review the changelog with `git log`.  When that works then send
+the patch to the appropriate mailing list(s).
+
 General Preferences
 ----------------------------------------------------------------------
 Patches for the Linux kernel are submitted via email, preferably as

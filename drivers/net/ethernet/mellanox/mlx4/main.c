@@ -2439,7 +2439,8 @@ slave_start:
 			    (num_vfs_argc > 1 || probe_vfs_argc > 1)) {
 				mlx4_err(dev,
 					 "Invalid syntax of num_vfs/probe_vfs with IB port - single port VFs syntax is only supported when all ports are configured as ethernet\n");
-				goto err_close;
+				err = -EINVAL;
+				goto err_master_mfunc;
 			}
 			for (i = 0; i < sizeof(nvfs)/sizeof(nvfs[0]); i++) {
 				unsigned j;

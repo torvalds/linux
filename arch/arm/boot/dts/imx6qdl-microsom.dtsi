@@ -10,14 +10,6 @@
 				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
 			>;
 		};
-
-		pinctrl_microsom_usbotg: microsom-usbotg {
-			/*
-			 * Similar to pinctrl_usbotg_2, but we want it
-			 * pulled down for a fixed host connection.
-			 */
-			fsl,pins = <MX6QDL_PAD_GPIO_1__USB_OTG_ID 0x13059>;
-		};
 	};
 };
 
@@ -25,9 +17,4 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_microsom_uart1>;
 	status = "okay";
-};
-
-&usbotg {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_microsom_usbotg>;
 };

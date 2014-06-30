@@ -34,12 +34,21 @@
  * Special constants
  */
 
-#define DPCNST(s, b, m)							\
+/*
+ * Older GCC requires the inner braces for initialization of union ieee754dp's
+ * anonymous struct member.  Without an error will result.
+ */
+#define xPCNST(s, b, m, ebias)						\
 {									\
-	.sign	= (s),							\
-	.bexp	= (b) + DP_EBIAS,					\
-	.mant	= (m)							\
+	{								\
+		.sign	= (s),						\
+		.bexp	= (b) + ebias,					\
+		.mant	= (m)						\
+	}								\
 }
+
+#define DPCNST(s, b, m)							\
+	xPCNST(s, b, m, DP_EBIAS)
 
 const union ieee754dp __ieee754dp_spcvals[] = {
 	DPCNST(0, DP_EMIN - 1, 0x0000000000000ULL),	/* + zero   */
@@ -62,11 +71,7 @@ const union ieee754dp __ieee754dp_spcvals[] = {
 };
 
 #define SPCNST(s, b, m)							\
-{									\
-	.sign	= (s),							\
-	.bexp	= (b) + SP_EBIAS,					\
-	.mant	= (m)							\
-}
+	xPCNST(s, b, m, SP_EBIAS)
 
 const union ieee754sp __ieee754sp_spcvals[] = {
 	SPCNST(0, SP_EMIN - 1, 0x000000),	/* + zero   */

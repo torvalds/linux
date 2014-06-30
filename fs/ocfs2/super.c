@@ -1925,14 +1925,10 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_shutdown_local_alloc(osb);
 
+	ocfs2_truncate_log_shutdown(osb);
+
 	/* This will disable recovery and flush any recovery work. */
 	ocfs2_recovery_exit(osb);
-
-	/*
-	 * During dismount, when it recovers another node it will call
-	 * ocfs2_recover_orphans and queue delayed work osb_truncate_log_wq.
-	 */
-	ocfs2_truncate_log_shutdown(osb);
 
 	ocfs2_journal_shutdown(osb);
 
