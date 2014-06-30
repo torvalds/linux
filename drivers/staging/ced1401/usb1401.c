@@ -1251,7 +1251,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_get_string(pdx, (char __user *)ulArg, _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_SETTRANSFER):
-		return SetTransfer(pdx, (struct transfer_area_desc __user *) ulArg);
+		return ced_set_transfer(pdx, (struct transfer_area_desc __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_UNSETTRANSFER):
 		return UnsetTransfer(pdx, (int)ulArg);
