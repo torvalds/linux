@@ -1716,8 +1716,7 @@ static struct s3c24xx_serial_drv_data s3c2440_serial_drv_data = {
 #define S3C2440_SERIAL_DRV_DATA (kernel_ulong_t)NULL
 #endif
 
-#if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410) || \
-	defined(CONFIG_CPU_S5PC100)
+#if defined(CONFIG_CPU_S3C6400) || defined(CONFIG_CPU_S3C6410)
 static struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung S3C6400 UART",
