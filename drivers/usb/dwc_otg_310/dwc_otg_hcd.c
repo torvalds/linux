@@ -286,8 +286,8 @@ static int32_t dwc_otg_hcd_disconnect_cb(void *p)
 	/* In some case, we don't disconnect a usb device, but
 	 * disconnect intr was triggered, so check hprt0 here. */
 	if ((!hprt0.b.prtenchng)
-	    && (hprt0.d32 != 0x1000)
-	    && (hprt0.d32 != 0x1100)) {
+	    && (!hprt0.b.prtconndet)
+	    && hprt0.b.prtconnsts) {
 		DWC_PRINTF("%s: hprt0 = 0x%08x\n", __func__, hprt0.d32);
 		return 1;
 	}
