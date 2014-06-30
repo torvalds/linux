@@ -3870,12 +3870,7 @@ nfsd4_free_lock_stateid(struct nfs4_ol_stateid *stp)
 
 	if (check_for_locks(stp->st_file, lo))
 		return nfserr_locks_held;
-	/*
-	 * Currently there's a 1-1 lock stateid<->lockowner
-	 * correspondance, and we have to delete the lockowner when we
-	 * delete the lock stateid:
-	 */
-	release_lockowner(lo);
+	release_lockowner_if_empty(lo);
 	return nfs_ok;
 }
 
@@ -4397,6 +4392,19 @@ alloc_init_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp, struct 
 	return stp;
 }
 
+static struct nfs4_ol_stateid *
+find_lock_stateid(struct nfs4_lockowner *lo, struct nfs4_file *fp)
+{
+	struct nfs4_ol_stateid *lst;
+
+	list_for_each_entry(lst, &lo->lo_owner.so_stateids, st_perstateowner) {
+		if (lst->st_file == fp)
+			return lst;
+	}
+	return NULL;
+}
+
+
 static int
 check_lock_length(u64 offset, u64 length)
 {
@@ -4426,25 +4434,28 @@ static __be32 lookup_or_create_lock_state(struct nfsd4_compound_state *cstate, s
 
 	lo = find_lockowner_str(fi->fi_inode, &cl->cl_clientid,
 				&lock->v.new.owner, nn);
-	if (lo) {
-		if (!cstate->minorversion)
+	if (!lo) {
+		strhashval = ownerstr_hashval(cl->cl_clientid.cl_id,
+				&lock->v.new.owner);
+		lo = alloc_init_lock_stateowner(strhashval, cl, ost, lock);
+		if (lo == NULL)
+			return nfserr_jukebox;
+	} else {
+		/* with an existing lockowner, seqids must be the same */
+		if (!cstate->minorversion &&
+		    lock->lk_new_lock_seqid != lo->lo_owner.so_seqid)
 			return nfserr_bad_seqid;
-		/* XXX: a lockowner always has exactly one stateid: */
-		*lst = list_first_entry(&lo->lo_owner.so_stateids,
-				struct nfs4_ol_stateid, st_perstateowner);
-		return nfs_ok;
 	}
-	strhashval = ownerstr_hashval(cl->cl_clientid.cl_id,
-			&lock->v.new.owner);
-	lo = alloc_init_lock_stateowner(strhashval, cl, ost, lock);
-	if (lo == NULL)
-		return nfserr_jukebox;
-	*lst = alloc_init_lock_stateid(lo, fi, ost);
+
+	*lst = find_lock_stateid(lo, fi);
 	if (*lst == NULL) {
-		release_lockowner(lo);
-		return nfserr_jukebox;
+		*lst = alloc_init_lock_stateid(lo, fi, ost);
+		if (*lst == NULL) {
+			release_lockowner_if_empty(lo);
+			return nfserr_jukebox;
+		}
+		*new = true;
 	}
-	*new = true;
 	return nfs_ok;
 }
 
@@ -4601,7 +4612,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 out:
 	if (status && new_state)
-		release_lockowner(lock_sop);
+		release_lock_stateid(lock_stp);
 	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
