@@ -1648,6 +1648,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			 int flags, const char *unused_dev_name,
 			 void *data)
 {
+	struct super_block *pinned_sb = NULL;
 	struct cgroup_subsys *ss;
 	struct cgroup_root *root;
 	struct cgroup_sb_opts opts;
@@ -1740,15 +1741,23 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		}
 
 		/*
-		 * A root's lifetime is governed by its root cgroup.
-		 * tryget_live failure indicate that the root is being
-		 * destroyed.  Wait for destruction to complete so that the
-		 * subsystems are free.  We can use wait_queue for the wait
-		 * but this path is super cold.  Let's just sleep for a bit
-		 * and retry.
+		 * We want to reuse @root whose lifetime is governed by its
+		 * ->cgrp.  Let's check whether @root is alive and keep it
+		 * that way.  As cgroup_kill_sb() can happen anytime, we
+		 * want to block it by pinning the sb so that @root doesn't
+		 * get killed before mount is complete.
+		 *
+		 * With the sb pinned, tryget_live can reliably indicate
+		 * whether @root can be reused.  If it's being killed,
+		 * drain it.  We can use wait_queue for the wait but this
+		 * path is super cold.  Let's just sleep a bit and retry.
 		 */
-		if (!percpu_ref_tryget_live(&root->cgrp.self.refcnt)) {
+		pinned_sb = kernfs_pin_sb(root->kf_root, NULL);
+		if (IS_ERR(pinned_sb) ||
+		    !percpu_ref_tryget_live(&root->cgrp.self.refcnt)) {
 			mutex_unlock(&cgroup_mutex);
+			if (!IS_ERR_OR_NULL(pinned_sb))
+				deactivate_super(pinned_sb);
 			msleep(10);
 			ret = restart_syscall();
 			goto out_free;
@@ -1793,6 +1802,16 @@ out_free:
 				CGROUP_SUPER_MAGIC, &new_sb);
 	if (IS_ERR(dentry) || !new_sb)
 		cgroup_put(&root->cgrp);
+
+	/*
+	 * If @pinned_sb, we're reusing an existing root and holding an
+	 * extra ref on its sb.  Mount is complete.  Put the extra ref.
+	 */
+	if (pinned_sb) {
+		WARN_ON(new_sb);
+		deactivate_super(pinned_sb);
+	}
+
 	return dentry;
 }
 
