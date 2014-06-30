@@ -636,6 +636,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			if (name == NULL) {
 				hid_err(hdev, "Failed MFD device name\n");
 					ret = -ENOMEM;
+					kfree(hsdev);
 					goto err_no_mem;
 			}
 			sd->hid_sensor_hub_client_devs[
