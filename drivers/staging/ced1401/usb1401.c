@@ -929,7 +929,7 @@ static bool ced_read_huff(volatile unsigned int *pDWord, char *pBuf,
 
 /***************************************************************************
 **
-** ReadDMAInfo
+** ced_read_dma_info
 **
 ** Tries to read info about the dma request from the 1401 and decode it into
 ** the dma descriptor block. We have at this point had the escape character
@@ -941,7 +941,7 @@ static bool ced_read_huff(volatile unsigned int *pDWord, char *pBuf,
 **  we start handling the data at offset zero.
 **
 *****************************************************************************/
-static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
+static bool ced_read_dma_info(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 			char *pBuf, unsigned int dwCount)
 {
 	bool bResult = false;	/*  assume we won't succeed */
@@ -1041,7 +1041,7 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 	} else {
 		spin_lock(&pdx->stagedLock);	/*  Lock others out */
 
-		if (ReadDMAInfo(&pdx->rDMAInfo, pdx, pCh, dwCount)) {	/*  Get DMA parameters */
+		if (ced_read_dma_info(&pdx->rDMAInfo, pdx, pCh, dwCount)) {	/*  Get DMA parameters */
 			unsigned short wTransType = pdx->rDMAInfo.wTransType;	/*  check transfer type */
 
 			dev_dbg(&pdx->interface->dev,
@@ -1074,7 +1074,7 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 						__func__, wTransType);
 			}
 		} else		/*  Failed to read parameters */
-			dev_err(&pdx->interface->dev, "%s: ReadDMAInfo() fail\n",
+			dev_err(&pdx->interface->dev, "%s: ced_read_dma_info() fail\n",
 				__func__);
 
 		spin_unlock(&pdx->stagedLock);	/*  OK here */
