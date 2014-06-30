@@ -212,8 +212,6 @@ struct nfsd4_session {
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 
-extern void nfsd4_put_session(struct nfsd4_session *ses);
-
 /* formatted contents of nfs4_sessionid */
 struct nfsd4_sessionid {
 	clientid_t	clientid;
