@@ -15,7 +15,7 @@
 
 #define CRCPOLY32_BIGEND  0x04C11DB7  /* big endian poly. */
 #define CRCPOLY32_LITEND  0xEDB88320  /* little endian poly.*/
-#define CRCPOLY32_TENTRY  256         /* crc32 table entries */  
+#define CRC_TENTRY        256         /* crc32 table entries */  
 #endif 
 
 extern u32  crc32_le(u32 crc, unsigned char const *p, size_t len);
