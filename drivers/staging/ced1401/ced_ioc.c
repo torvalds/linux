@@ -73,12 +73,12 @@ static void ced_flush_in_buff(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** PutChars
+** ced_put_chars
 **
 ** Utility routine to copy chars into the output buffer and fire them off.
 ** called from user mode, holds charOutLock.
 ****************************************************************************/
-static int PutChars(DEVICE_EXTENSION *pdx, const char *pCh,
+static int ced_put_chars(DEVICE_EXTENSION *pdx, const char *pCh,
 		    unsigned int uCount)
 {
 	int iReturn;
@@ -120,7 +120,7 @@ int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
 	if (n > 0) {		/*  do nothing if nowt to do! */
 		dev_dbg(&pdx->interface->dev, "%s: n=%d>%s<\n",
 			__func__, n, buffer);
-		iReturn = PutChars(pdx, buffer, n);
+		iReturn = ced_put_chars(pdx, buffer, n);
 	}
 
 	ced_allowi(pdx);		/*  make sure we have input int */
@@ -138,7 +138,7 @@ int SendChar(DEVICE_EXTENSION *pdx, char c)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	iReturn = PutChars(pdx, &c, 1);
+	iReturn = ced_put_chars(pdx, &c, 1);
 	dev_dbg(&pdx->interface->dev, "SendChar >%c< (0x%02x)\n", c, c);
 	ced_allowi(pdx);	/*  Make sure char reads are running */
 	mutex_unlock(&pdx->io_mutex);
