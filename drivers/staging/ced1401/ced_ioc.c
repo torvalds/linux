@@ -981,11 +981,11 @@ int ced_start_self_test(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** CheckSelfTest
+** ced_check_self_test
 **
 ** Check progress of a self-test cycle
 ****************************************************************************/
-int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
+int ced_check_self_test(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 {
 	unsigned int state, error;
 	int iReturn;

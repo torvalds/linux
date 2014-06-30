@@ -1285,7 +1285,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_start_self_test(pdx);
 
 	case _IOC_NR(IOCTL_CED_CHECKSELFTEST):
-		return CheckSelfTest(pdx, (TGET_SELFTEST __user *) ulArg);
+		return ced_check_self_test(pdx, (TGET_SELFTEST __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_TYPEOF1401):
 		return TypeOf1401(pdx);
