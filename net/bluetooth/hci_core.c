@@ -879,6 +879,34 @@ static int conn_latency_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(conn_latency_fops, conn_latency_get,
 			conn_latency_set, "%llu\n");
 
+static int supervision_timeout_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	if (val < 0x000a || val > 0x0c80)
+		return -EINVAL;
+
+	hci_dev_lock(hdev);
+	hdev->le_supv_timeout = val;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+static int supervision_timeout_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock(hdev);
+	*val = hdev->le_supv_timeout;
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(supervision_timeout_fops, supervision_timeout_get,
+			supervision_timeout_set, "%llu\n");
+
 static int adv_channel_map_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -1738,6 +1766,8 @@ static int __hci_init(struct hci_dev *hdev)
 				    hdev, &conn_max_interval_fops);
 		debugfs_create_file("conn_latency", 0644, hdev->debugfs,
 				    hdev, &conn_latency_fops);
+		debugfs_create_file("supervision_timeout", 0644, hdev->debugfs,
+				    hdev, &supervision_timeout_fops);
 		debugfs_create_file("adv_channel_map", 0644, hdev->debugfs,
 				    hdev, &adv_channel_map_fops);
 		debugfs_create_file("device_list", 0444, hdev->debugfs, hdev,
