@@ -845,13 +845,13 @@ int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 
 /****************************************************************************
 **
-** ReadChar
+** ced_read_char
 **
 ** Reads a character a buffer. If there is no more
 **  data we return FALSE. Used as part of decoding a DMA request.
 **
 ****************************************************************************/
-static bool ReadChar(unsigned char *pChar, char *pBuf, unsigned int *pdDone,
+static bool ced_read_char(unsigned char *pChar, char *pBuf, unsigned int *pdDone,
 		     unsigned int dGot)
 {
 	bool bRead = false;
@@ -872,14 +872,14 @@ static bool ReadChar(unsigned char *pChar, char *pBuf, unsigned int *pdDone,
 **
 ** ReadWord
 **
-** Reads a word from the 1401, just uses ReadChar twice; passes on any error
+** Reads a word from the 1401, just uses ced_read_char twice; passes on any error
 **
 *****************************************************************************/
 static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 		     unsigned int dGot)
 {
-	if (ReadChar((unsigned char *)pWord, pBuf, pdDone, dGot))
-		return ReadChar(((unsigned char *)pWord) + 1, pBuf, pdDone,
+	if (ced_read_char((unsigned char *)pWord, pBuf, pdDone, dGot))
+		return ced_read_char(((unsigned char *)pWord) + 1, pBuf, pdDone,
 				dGot);
 	else
 		return false;
@@ -899,19 +899,19 @@ static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 static bool ReadHuff(volatile unsigned int *pDWord, char *pBuf,
 		     unsigned int *pdDone, unsigned int dGot)
 {
-	unsigned char ucData;	/* for each read to ReadChar */
+	unsigned char ucData;	/* for each read to ced_read_char */
 	bool bReturn = true;	/* assume we will succeed */
 	unsigned int dwData = 0;	/* Accumulator for the data */
 
-	if (ReadChar(&ucData, pBuf, pdDone, dGot)) {
+	if (ced_read_char(&ucData, pBuf, pdDone, dGot)) {
 		dwData = ucData;	/* copy the data */
 		if ((dwData & 0x00000080) != 0) {	/* Bit set for more data ? */
 			dwData &= 0x0000007F;	/* Clear the relevant bit */
-			if (ReadChar(&ucData, pBuf, pdDone, dGot)) {
+			if (ced_read_char(&ucData, pBuf, pdDone, dGot)) {
 				dwData = (dwData << 8) | ucData;
 				if ((dwData & 0x00004000) != 0) {	/* three byte sequence ? */
 					dwData &= 0x00003FFF;	/* Clear the relevant bit */
-					if (ReadChar
+					if (ced_read_char
 					    (&ucData, pBuf, pdDone, dGot))
 						dwData = (dwData << 8) | ucData;
 					else
@@ -950,7 +950,7 @@ static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 
-	if (ReadChar(&ucData, pBuf, &dDone, dwCount)) {
+	if (ced_read_char(&ucData, pBuf, &dDone, dwCount)) {
 		unsigned char ucTransCode = (ucData & 0x0F);	/*  get code for transfer type */
 		unsigned short wIdent = ((ucData >> 4) & 0x07);	/*  and area identifier */
 
