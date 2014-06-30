@@ -322,7 +322,7 @@ static struct regs_info tps65917_regs_info[] = {
 		.bit_pos = _pos,			\
 	}
 
-struct palmas_sleep_requestor_info palma_sleep_req_info[] = {
+static struct palmas_sleep_requestor_info palma_sleep_req_info[] = {
 	EXTERNAL_REQUESTOR(REGEN1, 0, 0),
 	EXTERNAL_REQUESTOR(REGEN2, 0, 1),
 	EXTERNAL_REQUESTOR(SYSEN1, 0, 2),
@@ -1408,7 +1408,7 @@ static struct of_regulator_match tps65917_matches[] = {
 	{ .name = "sysen2", },
 };
 
-struct palmas_pmic_driver_data palmas_ddata = {
+static struct palmas_pmic_driver_data palmas_ddata = {
 	.smps_start = PALMAS_REG_SMPS12,
 	.smps_end = PALMAS_REG_SMPS10_OUT1,
 	.ldo_begin = PALMAS_REG_LDO1,
@@ -1421,7 +1421,7 @@ struct palmas_pmic_driver_data palmas_ddata = {
 	.ldo_register = palmas_ldo_registration,
 };
 
-struct palmas_pmic_driver_data tps65917_ddata = {
+static struct palmas_pmic_driver_data tps65917_ddata = {
 	.smps_start = TPS65917_REG_SMPS1,
 	.smps_end = TPS65917_REG_SMPS5,
 	.ldo_begin = TPS65917_REG_LDO1,
