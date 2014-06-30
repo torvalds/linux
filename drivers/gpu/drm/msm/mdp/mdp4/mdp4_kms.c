@@ -176,6 +176,8 @@ int mdp4_disable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_disable_unprepare(mdp4_kms->pclk);
 	clk_disable_unprepare(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_disable_unprepare(mdp4_kms->axi_clk);
 
 	return 0;
 }
@@ -188,6 +190,8 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_prepare_enable(mdp4_kms->pclk);
 	clk_prepare_enable(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_prepare_enable(mdp4_kms->axi_clk);
 
 	return 0;
 }
@@ -332,6 +336,13 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	if (IS_ERR(mdp4_kms->lut_clk)) {
 		dev_err(dev->dev, "failed to get lut_clk\n");
 		ret = PTR_ERR(mdp4_kms->lut_clk);
+		goto fail;
+	}
+
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	if (IS_ERR(mdp4_kms->axi_clk)) {
+		dev_err(dev->dev, "failed to get axi_clk\n");
+		ret = PTR_ERR(mdp4_kms->axi_clk);
 		goto fail;
 	}
 
