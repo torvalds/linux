@@ -218,7 +218,7 @@ extern int ced_get_char(DEVICE_EXTENSION *pdx);
 extern int ced_get_string(DEVICE_EXTENSION *pdx, char __user *pUser, int n);
 extern int ced_set_transfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
 extern int ced_unset_transfer(DEVICE_EXTENSION *pdx, int nArea);
-extern int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE);
+extern int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE);
 extern int ced_stat_1401(DEVICE_EXTENSION *pdx);
 extern int ced_line_count(DEVICE_EXTENSION *pdx);
 extern int ced_get_out_buf_space(DEVICE_EXTENSION *pdx);

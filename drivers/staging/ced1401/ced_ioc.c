@@ -772,14 +772,14 @@ int ced_unset_transfer(DEVICE_EXTENSION *pdx, int nArea)
 }
 
 /****************************************************************************
-** SetEvent
+** ced_set_event
 ** Creates an event that we can test for based on a transfer to/from an area.
 ** The area must be setup for a transfer. We attempt to simulate the Windows
 ** driver behavior for events (as we don't actually use them), which is to
 ** pretend that whatever the user asked for was achieved, so we return 1 if
 ** try to create one, and 0 if they ask to remove (assuming all else was OK).
 ****************************************************************************/
-int SetEvent(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
+int ced_set_event(DEVICE_EXTENSION *pdx, struct transfer_event __user *pTE)
 {
 	int iReturn = U14ERR_NOERROR;
 	struct transfer_event te;
