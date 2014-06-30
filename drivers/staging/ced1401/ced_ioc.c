@@ -32,11 +32,11 @@
 #include "usb1401.h"
 
 /****************************************************************************
-** FlushOutBuff
+** ced_flush_out_buff
 **
 ** Empties the Output buffer and sets int lines. Used from user level only
 ****************************************************************************/
-static void FlushOutBuff(DEVICE_EXTENSION *pdx)
+static void ced_flush_out_buff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s: currentState=%d\n",
 		__func__, pdx->sCurrentState);
@@ -308,7 +308,7 @@ bool Is1401(DEVICE_EXTENSION *pdx)
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
 	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
-	FlushOutBuff(pdx);	/*  Clear output buffer & pipe */
+	ced_flush_out_buff(pdx);	/*  Clear output buffer & pipe */
 
 	/*  The next call returns 0 if OK, but has returned 1 in the past, meaning that */
 	/*  usb_unlock_device() is needed... now it always is */
@@ -925,7 +925,7 @@ int KillIO1401(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
-	FlushOutBuff(pdx);
+	ced_flush_out_buff(pdx);
 	FlushInBuff(pdx);
 	mutex_unlock(&pdx->io_mutex);
 	return U14ERR_NOERROR;
@@ -976,7 +976,7 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 
 	ced_draw_down(pdx);	/*  wait for, then kill outstanding Urbs */
 	FlushInBuff(pdx);	/*  Clear out input buffer & pipe */
-	FlushOutBuff(pdx);	/*  Clear output buffer & pipe */
+	ced_flush_out_buff(pdx);	/*  Clear output buffer & pipe */
 	/* so things stay tidy */
 	/* ReadWrite_Cancel(pDeviceObject); */
 	pdx->dwDMAFlag = MODE_CHAR;	/* Clear DMA mode flags here */
