@@ -400,11 +400,11 @@ static bool ced_quick_check(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanRese
 }
 
 /****************************************************************************
-** Reset1401
+** ced_reset
 **
 ** Resets the 1401 and empties the i/o buffers
 *****************************************************************************/
-int Reset1401(DEVICE_EXTENSION *pdx)
+int ced_reset(DEVICE_EXTENSION *pdx)
 {
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
 	dev_dbg(&pdx->interface->dev, "%s: About to call ced_quick_check\n",

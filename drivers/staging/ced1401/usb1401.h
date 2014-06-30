@@ -213,7 +213,7 @@ extern int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData, unsi
 extern int ced_send_char(DEVICE_EXTENSION *pdx, char c);
 extern int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error);
 extern int ced_read_write_cancel(DEVICE_EXTENSION *pdx);
-extern int Reset1401(DEVICE_EXTENSION *pdx);
+extern int ced_reset(DEVICE_EXTENSION *pdx);
 extern int GetChar(DEVICE_EXTENSION *pdx);
 extern int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n);
 extern int SetTransfer(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);

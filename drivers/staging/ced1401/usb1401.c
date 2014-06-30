@@ -1233,7 +1233,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 				  _IOC_SIZE(cmd));
 
 	case _IOC_NR(IOCTL_CED_RESET1401):
-		return Reset1401(pdx);
+		return ced_reset(pdx);
 
 	case _IOC_NR(IOCTL_CED_GETCHAR):
 		return GetChar(pdx);
