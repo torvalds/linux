@@ -932,7 +932,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 		goto release_irq;
 	}
 
-	clk_enable(info->clk);
+	clk_prepare_enable(info->clk);
 	dprintk("got and enabled clock\n");
 
 	usleep_range(1000, 1100);
@@ -996,7 +996,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 free_video_memory:
 	s3c2410fb_unmap_video_memory(fbinfo);
 release_clock:
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 	clk_put(info->clk);
 release_irq:
 	free_irq(irq, info);
@@ -1038,7 +1038,7 @@ static int s3c2410fb_remove(struct platform_device *pdev)
 	s3c2410fb_unmap_video_memory(fbinfo);
 
 	if (info->clk) {
-		clk_disable(info->clk);
+		clk_disable_unprepare(info->clk);
 		clk_put(info->clk);
 		info->clk = NULL;
 	}
@@ -1070,7 +1070,7 @@ static int s3c2410fb_suspend(struct platform_device *dev, pm_message_t state)
 	 * before the clock goes off again (bjd) */
 
 	usleep_range(1000, 1100);
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 
 	return 0;
 }
@@ -1080,7 +1080,7 @@ static int s3c2410fb_resume(struct platform_device *dev)
 	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
-	clk_enable(info->clk);
+	clk_prepare_enable(info->clk);
 	usleep_range(1000, 1100);
 
 	s3c2410fb_init_registers(fbinfo);
