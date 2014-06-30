@@ -208,7 +208,7 @@ extern int ced_read_write_mem(DEVICE_EXTENSION *pdx, bool Read, unsigned short w
 				unsigned int dwOffs, unsigned int dwLen);
 
 /*  in ced_ioc.c */
-extern int ClearArea(DEVICE_EXTENSION *pdx, int nArea);
+extern int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea);
 extern int ced_send_string(DEVICE_EXTENSION *pdx, const char __user *pData, unsigned int n);
 extern int ced_send_char(DEVICE_EXTENSION *pdx, char c);
 extern int ced_get_state(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error);

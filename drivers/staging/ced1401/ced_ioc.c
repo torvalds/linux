@@ -579,12 +579,12 @@ int ced_get_out_buf_space(DEVICE_EXTENSION *pdx)
 
 /****************************************************************************
 **
-** ClearArea
+** ced_clear_area
 **
 ** Clears up a transfer area. This is always called in the context of a user
 ** request, never from a call-back.
 ****************************************************************************/
-int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
+int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn = U14ERR_NOERROR;
 
@@ -674,7 +674,7 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 	struct page **pPages = NULL;	/*  space for page tables */
 	int nPages = 0;		/*  and number of pages */
 
-	int iReturn = ClearArea(pdx, nArea);	/*  see if OK to use this area */
+	int iReturn = ced_clear_area(pdx, nArea);	/*  see if OK to use this area */
 	if ((iReturn != U14ERR_NOTSET) &&	/*  if not area unused and... */
 	    (iReturn != U14ERR_NOERROR))	/*  ...not all OK, then... */
 		return iReturn;	/*  ...we cannot use this area */
@@ -766,7 +766,7 @@ int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
-	iReturn = ClearArea(pdx, nArea);
+	iReturn = ced_clear_area(pdx, nArea);
 	mutex_unlock(&pdx->io_mutex);
 	return iReturn;
 }
