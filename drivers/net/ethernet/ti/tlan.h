@@ -240,6 +240,7 @@ struct tlan_priv {
 #define TLAN_EEPROM_ACK		0
 #define TLAN_EEPROM_STOP	1
 
+#define TLAN_EEPROM_SIZE	256
 
 
 

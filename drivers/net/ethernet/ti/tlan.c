@@ -778,7 +778,43 @@ static const struct net_device_ops tlan_netdev_ops = {
 #endif
 };
 
+static void tlan_get_drvinfo(struct net_device *dev,
+			     struct ethtool_drvinfo *info)
+{
+	struct tlan_priv *priv = netdev_priv(dev);
 
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	if (priv->pci_dev)
+		strlcpy(info->bus_info, pci_name(priv->pci_dev),
+			sizeof(info->bus_info));
+	else
+		strlcpy(info->bus_info, "EISA",	sizeof(info->bus_info));
+	info->eedump_len = TLAN_EEPROM_SIZE;
+}
+
+static int tlan_get_eeprom_len(struct net_device *dev)
+{
+	return TLAN_EEPROM_SIZE;
+}
+
+static int tlan_get_eeprom(struct net_device *dev,
+			   struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < TLAN_EEPROM_SIZE; i++)
+		if (tlan_ee_read_byte(dev, i, &data[i]))
+			return -EIO;
+
+	return 0;
+}
+
+static const struct ethtool_ops tlan_ethtool_ops = {
+	.get_drvinfo	= tlan_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+	.get_eeprom_len	= tlan_get_eeprom_len,
+	.get_eeprom	= tlan_get_eeprom,
+};
 
 /***************************************************************
  *	tlan_init
@@ -841,6 +877,7 @@ static int tlan_init(struct net_device *dev)
 
 	/* Device methods */
 	dev->netdev_ops = &tlan_netdev_ops;
+	dev->ethtool_ops = &tlan_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return 0;
