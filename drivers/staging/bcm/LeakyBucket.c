@@ -20,6 +20,7 @@ static VOID UpdateTokenCount(register struct bcm_mini_adapter *Adapter)
 	ULONG liCurrentTime;
 	INT i = 0;
 	struct timeval tv;
+	struct bcm_packet_info *curr_pi;
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL,
 			"=====>\n");
@@ -31,23 +32,25 @@ static VOID UpdateTokenCount(register struct bcm_mini_adapter *Adapter)
 
 	do_gettimeofday(&tv);
 	for (i = 0; i < NO_OF_QUEUES; i++) {
-		if (TRUE == Adapter->PackInfo[i].bValid &&
-		    (1 == Adapter->PackInfo[i].ucDirection)) {
+		curr_pi = &Adapter->PackInfo[i];
+
+		if (TRUE == curr_pi->bValid &&
+		    (1 == curr_pi->ucDirection)) {
 			liCurrentTime = ((tv.tv_sec-
-				Adapter->PackInfo[i].stLastUpdateTokenAt.tv_sec)*1000 +
-				(tv.tv_usec-Adapter->PackInfo[i].stLastUpdateTokenAt.tv_usec)/
+				curr_pi->stLastUpdateTokenAt.tv_sec)*1000 +
+				(tv.tv_usec-curr_pi->stLastUpdateTokenAt.tv_usec)/
 				1000);
 			if (0 != liCurrentTime) {
-				Adapter->PackInfo[i].uiCurrentTokenCount += (ULONG)
-					((Adapter->PackInfo[i].uiMaxAllowedRate) *
+				curr_pi->uiCurrentTokenCount += (ULONG)
+					((curr_pi->uiMaxAllowedRate) *
 					((ULONG)((liCurrentTime)))/1000);
-				memcpy(&Adapter->PackInfo[i].stLastUpdateTokenAt,
+				memcpy(&curr_pi->stLastUpdateTokenAt,
 					&tv, sizeof(struct timeval));
-				Adapter->PackInfo[i].liLastUpdateTokenAt = liCurrentTime;
-				if (Adapter->PackInfo[i].uiCurrentTokenCount >=
-				    Adapter->PackInfo[i].uiMaxBucketSize) {
-					Adapter->PackInfo[i].uiCurrentTokenCount =
-						Adapter->PackInfo[i].uiMaxBucketSize;
+				curr_pi->liLastUpdateTokenAt = liCurrentTime;
+				if (curr_pi->uiCurrentTokenCount >=
+				    curr_pi->uiMaxBucketSize) {
+					curr_pi->uiCurrentTokenCount =
+						curr_pi->uiMaxBucketSize;
 				}
 			}
 		}
