@@ -1272,7 +1272,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		return ced_get_transfer(pdx, (TGET_TX_BLOCK __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_KILLIO1401):
-		return KillIO1401(pdx);
+		return ced_kill_io(pdx);
 
 	case _IOC_NR(IOCTL_CED_STATEOF1401):
 		return StateOf1401(pdx);

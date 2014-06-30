@@ -917,11 +917,11 @@ int ced_get_transfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pTX)
 }
 
 /****************************************************************************
-** KillIO1401
+** ced_kill_io
 **
 ** Empties the host i/o buffers
 ****************************************************************************/
-int KillIO1401(DEVICE_EXTENSION *pdx)
+int ced_kill_io(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
 	mutex_lock(&pdx->io_mutex);
