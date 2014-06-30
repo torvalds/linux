@@ -1375,6 +1375,7 @@ struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 	struct intel_engine_cs ring[I915_NUM_RINGS];
+	struct drm_i915_gem_object *semaphore_obj;
 	uint32_t last_seqno, next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;

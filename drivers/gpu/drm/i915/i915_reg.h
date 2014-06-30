@@ -240,7 +240,7 @@
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_B (3 << 19)
 #define   MI_DISPLAY_FLIP_IVB_PLANE_C  (4 << 19)
 #define   MI_DISPLAY_FLIP_IVB_SPRITE_C (5 << 19)
-#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
+#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6, gen7 */
 #define   MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define   MI_SEMAPHORE_UPDATE	    (1<<21)
 #define   MI_SEMAPHORE_COMPARE	    (1<<20)
@@ -266,6 +266,8 @@
 #define   MI_RESTORE_EXT_STATE_EN	(1<<2)
 #define   MI_FORCE_RESTORE		(1<<1)
 #define   MI_RESTORE_INHIBIT		(1<<0)
+#define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
+#define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
@@ -360,6 +362,7 @@
 #define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
+#define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
 #define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
 #define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
