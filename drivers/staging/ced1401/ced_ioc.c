@@ -284,7 +284,7 @@ static int ced_in_self_test(DEVICE_EXTENSION *pdx, unsigned int *pState)
 }
 
 /***************************************************************************
-** Is1401 - ALWAYS CALLED HOLDING THE io_mutex
+** ced_is_1401 - ALWAYS CALLED HOLDING THE io_mutex
 **
 ** Tests for the current state of the 1401. Sets sCurrentState:
 **
@@ -301,7 +301,7 @@ static int ced_in_self_test(DEVICE_EXTENSION *pdx, unsigned int *pState)
 **
 **  Returns TRUE if a 1401 detected and OK, else FALSE
 ****************************************************************************/
-bool Is1401(DEVICE_EXTENSION *pdx)
+bool ced_is_1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	dev_dbg(&pdx->interface->dev, "%s\n", __func__);
@@ -353,7 +353,7 @@ bool Is1401(DEVICE_EXTENSION *pdx)
 **  all is OK.
 **
 ** If any of the above conditions are not met, or if the state or type of the
-**  1401 has changed since the previous test, the full Is1401 test is done, but
+**  1401 has changed since the previous test, the full ced_is_1401 test is done, but
 **  only if bCanReset is also TRUE.
 **
 ** The return value is TRUE if a useable 1401 is found, FALSE if not
@@ -390,10 +390,10 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 	}
 
 	if (!bRet && bCanReset)	{ /*  If all not OK, then */
-		dev_info(&pdx->interface->dev, "%s: Is1401 %d %d %d %d\n",
+		dev_info(&pdx->interface->dev, "%s: ced_is_1401 %d %d %d %d\n",
 			 __func__, bShortTest, pdx->sCurrentState, bTestBuff,
 			 pdx->bForceReset);
-		bRet = Is1401(pdx);	/*   do full test */
+		bRet = ced_is_1401(pdx);	/*   do full test */
 	}
 
 	return bRet;
@@ -1054,7 +1054,7 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 	if (gst.code < 0) {	/*  If we have a problem or finished */
 				/*  If using the 2890 we should reset properly */
 		if ((pdx->nPipes == 4) && (pdx->s1401Type <= TYPEPOWER))
-			Is1401(pdx);	/*  Get 1401 reset and OK */
+			ced_is_1401(pdx);	/*  Get 1401 reset and OK */
 		else
 			QuickCheck(pdx, true, true);	/*  Otherwise check without reset unless problems */
 	}
