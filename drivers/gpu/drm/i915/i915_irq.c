@@ -2927,12 +2927,7 @@ static bool
 ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 {
 	if (INTEL_INFO(dev)->gen >= 8) {
-		/*
-		 * FIXME: gen8 semaphore support - currently we don't emit
-		 * semaphores on bdw anyway, but this needs to be addressed when
-		 * we merge that code.
-		 */
-		return false;
+		return (ipehr >> 23) == 0x1c;
 	} else {
 		ipehr &= ~MI_SEMAPHORE_SYNC_MASK;
 		return ipehr == (MI_SEMAPHORE_MBOX | MI_SEMAPHORE_COMPARE |
@@ -2941,19 +2936,20 @@ ipehr_is_semaphore_wait(struct drm_device *dev, u32 ipehr)
 }
 
 static struct intel_engine_cs *
-semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr)
+semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr, u64 offset)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct intel_engine_cs *signaller;
 	int i;
 
 	if (INTEL_INFO(dev_priv->dev)->gen >= 8) {
-		/*
-		 * FIXME: gen8 semaphore support - currently we don't emit
-		 * semaphores on bdw anyway, but this needs to be addressed when
-		 * we merge that code.
-		 */
-		return NULL;
+		for_each_ring(signaller, dev_priv, i) {
+			if (ring == signaller)
+				continue;
+
+			if (offset == signaller->semaphore.signal_ggtt[ring->id])
+				return signaller;
+		}
 	} else {
 		u32 sync_bits = ipehr & MI_SEMAPHORE_SYNC_MASK;
 
@@ -2966,8 +2962,8 @@ semaphore_wait_to_signaller_ring(struct intel_engine_cs *ring, u32 ipehr)
 		}
 	}
 
-	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x\n",
-		  ring->id, ipehr);
+	DRM_ERROR("No signaller ring found for ring %i, ipehr 0x%08x, offset 0x%016llx\n",
+		  ring->id, ipehr, offset);
 
 	return NULL;
 }
@@ -2977,7 +2973,8 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	u32 cmd, ipehr, head;
-	int i;
+	u64 offset = 0;
+	int i, backwards;
 
 	ipehr = I915_READ(RING_IPEHR(ring->mmio_base));
 	if (!ipehr_is_semaphore_wait(ring->dev, ipehr))
@@ -2986,13 +2983,15 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 	/*
 	 * HEAD is likely pointing to the dword after the actual command,
 	 * so scan backwards until we find the MBOX. But limit it to just 3
-	 * dwords. Note that we don't care about ACTHD here since that might
+	 * or 4 dwords depending on the semaphore wait command size.
+	 * Note that we don't care about ACTHD here since that might
 	 * point at at batch, and semaphores are always emitted into the
 	 * ringbuffer itself.
 	 */
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
+	backwards = (INTEL_INFO(ring->dev)->gen >= 8) ? 5 : 4;
 
-	for (i = 4; i; --i) {
+	for (i = backwards; i; --i) {
 		/*
 		 * Be paranoid and presume the hw has gone off into the wild -
 		 * our ring is smaller than what the hardware (and hence
@@ -3012,7 +3011,12 @@ semaphore_waits_for(struct intel_engine_cs *ring, u32 *seqno)
 		return NULL;
 
 	*seqno = ioread32(ring->buffer->virtual_start + head + 4) + 1;
-	return semaphore_wait_to_signaller_ring(ring, ipehr);
+	if (INTEL_INFO(ring->dev)->gen >= 8) {
+		offset = ioread32(ring->buffer->virtual_start + head + 12);
+		offset <<= 32;
+		offset = ioread32(ring->buffer->virtual_start + head + 8);
+	}
+	return semaphore_wait_to_signaller_ring(ring, ipehr, offset);
 }
 
 static int semaphore_passed(struct intel_engine_cs *ring)
