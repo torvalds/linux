@@ -2675,6 +2675,9 @@ static long btrfs_ioctl_rm_dev(struct file *file, void __user *arg)
 	mutex_unlock(&root->fs_info->volume_mutex);
 	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
 
+	if (!ret)
+		btrfs_info(root->fs_info, "disk deleted %s",vol_args->name);
+
 out:
 	kfree(vol_args);
 err_drop:
