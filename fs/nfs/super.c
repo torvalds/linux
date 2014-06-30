@@ -1027,8 +1027,7 @@ static bool nfs_auth_info_add(struct nfs_auth_info *auth_info,
 			      rpc_authflavor_t flavor)
 {
 	unsigned int i;
-	unsigned int max_flavor_len = (sizeof(auth_info->flavors) /
-				       sizeof(auth_info->flavors[0]));
+	unsigned int max_flavor_len = ARRAY_SIZE(auth_info->flavors);
 
 	/* make sure this flavor isn't already in the list */
 	for (i = 0; i < auth_info->flavor_len; i++) {
