@@ -658,7 +658,7 @@ int ced_clear_area(DEVICE_EXTENSION *pdx, int nArea)
 ** ced_set_area
 **
 ** Sets up a transfer area - the functional part. Called by both
-** ced_set_transfer and SetCircular.
+** ced_set_transfer and ced_set_circular.
 ****************************************************************************/
 static int ced_set_area(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 		   unsigned int dwLength, bool bCircular, bool bCircToHost)
@@ -1299,14 +1299,14 @@ int ced_dbg_stop_loop(DEVICE_EXTENSION *pdx)
 }
 
 /****************************************************************************
-** SetCircular
+** ced_set_circular
 **
 ** Sets up a transfer area record for circular transfers. If the area is
 ** already set, we attempt to unset it. Unsetting will fail if the area is
 ** booked and a transfer to that area is in progress. Otherwise, we will
 ** release the area and re-assign it.
 ****************************************************************************/
-int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
+int ced_set_circular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD)
 {
 	int iReturn;
 	bool bToHost;

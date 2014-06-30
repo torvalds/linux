@@ -1316,7 +1316,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 		break;
 
 	case _IOC_NR(IOCTL_CED_SETCIRCULAR):
-		return SetCircular(pdx, (struct transfer_area_desc __user *) ulArg);
+		return ced_set_circular(pdx, (struct transfer_area_desc __user *) ulArg);
 
 	case _IOC_NR(IOCTL_CED_GETCIRCBLOCK):
 		return GetCircBlock(pdx, (TCIRCBLOCK __user *) ulArg);

@@ -235,7 +235,7 @@ extern int ced_dbg_ramp_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int ced_dbg_ramp_addr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int ced_dbg_get_data(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int ced_dbg_stop_loop(DEVICE_EXTENSION *pdx);
-extern int SetCircular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
+extern int ced_set_circular(DEVICE_EXTENSION *pdx, struct transfer_area_desc __user *pTD);
 extern int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int ced_wait_event(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
