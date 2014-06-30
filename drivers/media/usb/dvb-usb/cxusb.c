@@ -46,7 +46,7 @@
 #include "si2157.h"
 
 /* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  64
+#define MAX_XFER_SIZE  80
 
 /* debug */
 static int dvb_usb_cxusb_debug;
