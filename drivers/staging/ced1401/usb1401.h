@@ -92,11 +92,12 @@
 #define CR_CHAR          0x0D           /* The carriage return character */
 #define CR_CHAR_80       0x8d           /*  and with bit 7 set */
 
-/*  A structure holding information about a block of memory for use in circular transfers */
-typedef struct circBlk {
-	volatile UINT dwOffset;             /* Offset within area of block start */
-	volatile UINT dwSize;               /* Size of the block, in bytes (0 = unused) */
-} CIRCBLK;
+/* A structure holding information about a block */
+/* of memory for use in circular transfers       */
+struct circ_blk {
+	volatile UINT dwOffset;   /* Offset within area of block start */
+	volatile UINT dwSize;     /* Size of the block, in bytes (0 = unused) */
+};
 
 /*  A structure holding all of the information about a transfer area - an area of */
 /*   memory set up for use either as a source or destination in DMA transfers. */
@@ -113,7 +114,7 @@ typedef struct transarea {
 	int         iWakeUp;                /*  Set 1 on event, cleared by TestEvent() */
 	UINT        dwEventSt;              /*  Defines section within xfer area for... */
 	UINT        dwEventSz;              /*  ...notification by the event SZ is 0 if unset */
-	CIRCBLK     aBlocks[2];             /*  Info on a pair of circular blocks */
+	struct circ_blk aBlocks[2];         /*  Info on a pair of circular blocks */
 	wait_queue_head_t wqEvent;          /*  The wait queue for events in this area MUST BE LAST */
 } TRANSAREA;
 
