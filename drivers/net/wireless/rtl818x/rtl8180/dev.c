@@ -879,6 +879,8 @@ static int rtl8180_init_hw(struct ieee80211_hw *dev)
 		reg = rtl818x_ioread8(priv, &priv->map->CONFIG3);
 		rtl818x_iowrite8(priv, &priv->map->CONFIG3, reg | (1 << 2));
 		rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
+		/* fix eccessive IFS after CTS-to-self */
+		rtl818x_iowrite8(priv, REG_ADDR1(0x1ff), 0x35);
 	}
 
 	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
