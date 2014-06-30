@@ -58,7 +58,7 @@ static struct fsl_spi_match_data of_fsl_spi_grlib_config = {
 	.type = TYPE_GRLIB,
 };
 
-static struct of_device_id of_fsl_spi_match[] = {
+static const struct of_device_id of_fsl_spi_match[] = {
 	{
 		.compatible = "fsl,spi",
 		.data = &of_fsl_spi_fsl_config,
