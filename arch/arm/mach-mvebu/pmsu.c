@@ -66,6 +66,8 @@ static void __iomem *pmsu_mp_base;
 extern void ll_disable_coherency(void);
 extern void ll_enable_coherency(void);
 
+extern void armada_370_xp_cpu_resume(void);
+
 static struct platform_device armada_xp_cpuidle_device = {
 	.name = "cpuidle-armada-370-xp",
 };
@@ -138,13 +140,6 @@ static void armada_370_xp_pmsu_enable_l2_powerdown_onidle(void)
 	reg = readl(pmsu_mp_base + L2C_NFABRIC_PM_CTL);
 	reg |= L2C_NFABRIC_PM_CTL_PWR_DOWN;
 	writel(reg, pmsu_mp_base + L2C_NFABRIC_PM_CTL);
-}
-
-static void armada_370_xp_cpu_resume(void)
-{
-	asm volatile("bl    ll_add_cpu_to_smp_group\n\t"
-		     "bl    ll_enable_coherency\n\t"
-		     "b	    cpu_resume\n\t");
 }
 
 /* No locking is needed because we only access per-CPU registers */
