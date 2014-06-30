@@ -268,6 +268,9 @@
 #define   MI_RESTORE_INHIBIT		(1<<0)
 #define MI_SEMAPHORE_SIGNAL	MI_INSTR(0x1b, 0) /* GEN8+ */
 #define   MI_SEMAPHORE_TARGET(engine)	((engine)<<15)
+#define MI_SEMAPHORE_WAIT	MI_INSTR(0x1c, 2) /* GEN8+ */
+#define   MI_SEMAPHORE_POLL		(1<<15)
+#define   MI_SEMAPHORE_SAD_GTE_SDD	(1<<12)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)

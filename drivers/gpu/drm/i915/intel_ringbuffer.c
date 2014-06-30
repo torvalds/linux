@@ -832,6 +832,31 @@ static inline bool i915_gem_has_seqno_wrapped(struct drm_device *dev,
  * @signaller - ring which has, or will signal
  * @seqno - seqno which the waiter will block on
  */
+
+static int
+gen8_ring_sync(struct intel_engine_cs *waiter,
+	       struct intel_engine_cs *signaller,
+	       u32 seqno)
+{
+	struct drm_i915_private *dev_priv = waiter->dev->dev_private;
+	int ret;
+
+	ret = intel_ring_begin(waiter, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(waiter, MI_SEMAPHORE_WAIT |
+				MI_SEMAPHORE_GLOBAL_GTT |
+				MI_SEMAPHORE_SAD_GTE_SDD);
+	intel_ring_emit(waiter, seqno);
+	intel_ring_emit(waiter,
+			lower_32_bits(GEN8_WAIT_OFFSET(waiter, signaller->id)));
+	intel_ring_emit(waiter,
+			upper_32_bits(GEN8_WAIT_OFFSET(waiter, signaller->id)));
+	intel_ring_advance(waiter);
+	return 0;
+}
+
 static int
 gen6_ring_sync(struct intel_engine_cs *waiter,
 	       struct intel_engine_cs *signaller,
@@ -2056,7 +2081,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->set_seqno = ring_set_seqno;
 		if (i915_semaphore_is_enabled(dev)) {
 			WARN_ON(!dev_priv->semaphore_obj);
-			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.sync_to = gen8_ring_sync;
 			ring->semaphore.signal = gen8_rcs_signal;
 			GEN8_RING_SEMAPHORE_INIT;
 		}
@@ -2267,7 +2292,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 			ring->dispatch_execbuffer =
 				gen8_ring_dispatch_execbuffer;
 			if (i915_semaphore_is_enabled(dev)) {
-				ring->semaphore.sync_to = gen6_ring_sync;
+				ring->semaphore.sync_to = gen8_ring_sync;
 				ring->semaphore.signal = gen8_xcs_signal;
 				GEN8_RING_SEMAPHORE_INIT;
 			}
@@ -2343,8 +2368,8 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 	ring->irq_put = gen8_ring_put_irq;
 	ring->dispatch_execbuffer =
 			gen8_ring_dispatch_execbuffer;
-	ring->semaphore.sync_to = gen6_ring_sync;
 	if (i915_semaphore_is_enabled(dev)) {
+		ring->semaphore.sync_to = gen8_ring_sync;
 		ring->semaphore.signal = gen8_xcs_signal;
 		GEN8_RING_SEMAPHORE_INIT;
 	}
@@ -2374,7 +2399,7 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 		ring->irq_put = gen8_ring_put_irq;
 		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev)) {
-			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.sync_to = gen8_ring_sync;
 			ring->semaphore.signal = gen8_xcs_signal;
 			GEN8_RING_SEMAPHORE_INIT;
 		}
@@ -2432,7 +2457,7 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 		ring->irq_put = gen8_ring_put_irq;
 		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
 		if (i915_semaphore_is_enabled(dev)) {
-			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.sync_to = gen8_ring_sync;
 			ring->semaphore.signal = gen8_xcs_signal;
 			GEN8_RING_SEMAPHORE_INIT;
 		}
