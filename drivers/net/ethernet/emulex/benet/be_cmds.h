@@ -1963,8 +1963,8 @@ struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
 	u32 desc_count;
-	u8 desc[RESOURCE_DESC_SIZE_V1];
-};
+	u8 desc[2 * RESOURCE_DESC_SIZE_V1];
+} __packed;
 
 struct be_cmd_resp_set_profile_config {
 	struct be_cmd_resp_hdr hdr;
@@ -2158,8 +2158,6 @@ int be_cmd_get_func_config(struct be_adapter *adapter,
 			   struct be_resources *res);
 int be_cmd_get_profile_config(struct be_adapter *adapter,
 			      struct be_resources *res, u8 domain);
-int be_cmd_set_profile_config(struct be_adapter *adapter, void *desc,
-			      int size, u8 version, u8 domain);
 int be_cmd_get_active_profile(struct be_adapter *adapter, u16 *profile);
 int be_cmd_get_if_id(struct be_adapter *adapter, struct be_vf_cfg *vf_cfg,
 		     int vf_num);
@@ -2169,3 +2167,5 @@ int be_cmd_set_logical_link_config(struct be_adapter *adapter,
 					  int link_state, u8 domain);
 int be_cmd_set_vxlan_port(struct be_adapter *adapter, __be16 port);
 int be_cmd_manage_iface(struct be_adapter *adapter, u32 iface, u8 op);
+int be_cmd_set_sriov_config(struct be_adapter *adapter,
+			    struct be_resources res, u16 num_vfs);

@@ -501,6 +501,7 @@ struct be_adapter {
 	u32 flash_status;
 	struct completion et_cmd_compl;
 
+	struct be_resources pool_res;	/* resources available for the port */
 	struct be_resources res;	/* resources available for the func */
 	u16 num_vfs;			/* Number of VFs provisioned by PF */
 	u8 virtfn;
@@ -524,9 +525,8 @@ struct be_adapter {
 
 #define be_physfn(adapter)		(!adapter->virtfn)
 #define be_virtfn(adapter)		(adapter->virtfn)
-#define	sriov_enabled(adapter)		(adapter->num_vfs > 0)
-#define sriov_want(adapter)             (be_physfn(adapter) &&	\
-					 (num_vfs || pci_num_vf(adapter->pdev)))
+#define sriov_enabled(adapter)		(adapter->num_vfs > 0)
+
 #define for_all_vfs(adapter, vf_cfg, i)					\
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
@@ -537,7 +537,7 @@ struct be_adapter {
 #define be_max_vlans(adapter)		(adapter->res.max_vlans)
 #define be_max_uc(adapter)		(adapter->res.max_uc_mac)
 #define be_max_mc(adapter)		(adapter->res.max_mcast_mac)
-#define be_max_vfs(adapter)		(adapter->res.max_vfs)
+#define be_max_vfs(adapter)		(adapter->pool_res.max_vfs)
 #define be_max_rss(adapter)		(adapter->res.max_rss_qs)
 #define be_max_txqs(adapter)		(adapter->res.max_tx_qs)
 #define be_max_prio_txqs(adapter)	(adapter->res.max_prio_tx_qs)
