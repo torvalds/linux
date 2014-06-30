@@ -870,12 +870,12 @@ static bool ced_read_char(unsigned char *pChar, char *pBuf, unsigned int *pdDone
 #ifdef NOTUSED
 /****************************************************************************
 **
-** ReadWord
+** ced_read_word
 **
 ** Reads a word from the 1401, just uses ced_read_char twice; passes on any error
 **
 *****************************************************************************/
-static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
+static bool ced_read_word(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 		     unsigned int dGot)
 {
 	if (ced_read_char((unsigned char *)pWord, pBuf, pdDone, dGot))
