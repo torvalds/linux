@@ -54,7 +54,7 @@ au_do_lookup(struct dentry *h_parent, struct dentry *dentry,
 	br = au_sbr(dentry->d_sb, bindex);
 	wh_able = !!au_br_whable(br->br_perm);
 	if (wh_able)
-		wh_found = au_wh_test(h_parent, wh_name, br, /*try_sio*/0);
+		wh_found = au_wh_test(h_parent, wh_name, /*try_sio*/0);
 	h_dentry = ERR_PTR(wh_found);
 	if (!wh_found)
 		goto real_lookup;
@@ -92,7 +92,7 @@ real_lookup:
 		goto out; /* success */
 
 	mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
-	opq = au_diropq_test(h_dentry, br);
+	opq = au_diropq_test(h_dentry);
 	mutex_unlock(&h_inode->i_mutex);
 	if (opq > 0)
 		au_set_dbdiropq(dentry, bindex);
@@ -219,8 +219,7 @@ out:
 	return err;
 }
 
-struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
-			       struct au_branch *br)
+struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent)
 {
 	struct dentry *dentry;
 	int wkq_err;
@@ -257,7 +256,7 @@ int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex, int wh)
 	if (wh)
 		h_dentry = au_whtmp_lkup(h_parent, br, &dentry->d_name);
 	else
-		h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent, br);
+		h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent);
 	err = PTR_ERR(h_dentry);
 	if (IS_ERR(h_dentry))
 		goto out;

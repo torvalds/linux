@@ -129,8 +129,7 @@ int au_may_del(struct dentry *dentry, aufs_bindex_t bindex,
 	if (unlikely(au_test_h_perm(h_parent->d_inode, MAY_EXEC | MAY_WRITE)))
 		goto out;
 
-	h_latest = au_sio_lkup_one(&dentry->d_name, h_parent,
-				   au_sbr(dentry->d_sb, bindex));
+	h_latest = au_sio_lkup_one(&dentry->d_name, h_parent);
 	err = -EIO;
 	if (IS_ERR(h_latest))
 		goto out;
