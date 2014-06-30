@@ -729,7 +729,11 @@ gen6_add_request(struct intel_engine_cs *ring)
 {
 	int ret;
 
-	ret = ring->semaphore.signal(ring, 4);
+	if (ring->semaphore.signal)
+		ret = ring->semaphore.signal(ring, 4);
+	else
+		ret = intel_ring_begin(ring, 4);
+
 	if (ret)
 		return ret;
 
@@ -1952,40 +1956,59 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	ring->id = RCS;
 	ring->mmio_base = RENDER_RING_BASE;
 
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (INTEL_INFO(dev)->gen >= 8) {
+		ring->add_request = gen6_add_request;
+		ring->flush = gen8_render_ring_flush;
+		ring->irq_get = gen8_ring_get_irq;
+		ring->irq_put = gen8_ring_put_irq;
+		ring->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
+		ring->get_seqno = gen6_ring_get_seqno;
+		ring->set_seqno = ring_set_seqno;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.signal = gen6_signal;
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)
 			ring->flush = gen6_render_ring_flush;
-		if (INTEL_INFO(dev)->gen >= 8) {
-			ring->flush = gen8_render_ring_flush;
-			ring->irq_get = gen8_ring_get_irq;
-			ring->irq_put = gen8_ring_put_irq;
-		} else {
-			ring->irq_get = gen6_ring_get_irq;
-			ring->irq_put = gen6_ring_put_irq;
-		}
+		ring->irq_get = gen6_ring_get_irq;
+		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_RENDER_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
 		ring->set_seqno = ring_set_seqno;
-		ring->semaphore.sync_to = gen6_ring_sync;
-		ring->semaphore.signal = gen6_signal;
-		/*
-		 * The current semaphore is only applied on pre-gen8 platform.
-		 * And there is no VCS2 ring on the pre-gen8 platform. So the
-		 * semaphore between RCS and VCS2 is initialized as INVALID.
-		 * Gen8 will initialize the sema between VCS2 and RCS later.
-		 */
-		ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_RV;
-		ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_RB;
-		ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_RVE;
-		ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
-		ring->semaphore.mbox.signal[VCS] = GEN6_VRSYNC;
-		ring->semaphore.mbox.signal[BCS] = GEN6_BRSYNC;
-		ring->semaphore.mbox.signal[VECS] = GEN6_VERSYNC;
-		ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.signal = gen6_signal;
+			/*
+			 * The current semaphore is only applied on pre-gen8
+			 * platform.  And there is no VCS2 ring on the pre-gen8
+			 * platform. So the semaphore between RCS and VCS2 is
+			 * initialized as INVALID.  Gen8 will initialize the
+			 * sema between VCS2 and RCS later.
+			 */
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_RV;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_RB;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_RVE;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_VRSYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_BRSYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_VERSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->flush = gen4_render_ring_flush;
@@ -2013,6 +2036,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
+
 	if (IS_HASWELL(dev))
 		ring->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
 	else if (IS_GEN8(dev))
@@ -2163,31 +2187,49 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 			ring->irq_put = gen8_ring_put_irq;
 			ring->dispatch_execbuffer =
 				gen8_ring_dispatch_execbuffer;
+			if (i915_semaphore_is_enabled(dev)) {
+				ring->semaphore.sync_to = gen6_ring_sync;
+				ring->semaphore.signal = gen6_signal;
+				/*
+				 * The current semaphore is only applied on
+				 * pre-gen8 platform.  And there is no VCS2 ring
+				 * on the pre-gen8 platform. So the semaphore
+				 * between VCS and VCS2 is initialized as
+				 * INVALID.  Gen8 will initialize the sema
+				 * between VCS2 and VCS later.
+				 */
+				ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
+				ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
+				ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
+				ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
+				ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+			}
 		} else {
 			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 			ring->irq_get = gen6_ring_get_irq;
 			ring->irq_put = gen6_ring_put_irq;
 			ring->dispatch_execbuffer =
 				gen6_ring_dispatch_execbuffer;
+			if (i915_semaphore_is_enabled(dev)) {
+				ring->semaphore.sync_to = gen6_ring_sync;
+				ring->semaphore.signal = gen6_signal;
+				ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VR;
+				ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VB;
+				ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_VVE;
+				ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+				ring->semaphore.mbox.signal[RCS] = GEN6_RVSYNC;
+				ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
+				ring->semaphore.mbox.signal[BCS] = GEN6_BVSYNC;
+				ring->semaphore.mbox.signal[VECS] = GEN6_VEVSYNC;
+				ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+			}
 		}
-		ring->semaphore.sync_to = gen6_ring_sync;
-		ring->semaphore.signal = gen6_signal;
-		/*
-		 * The current semaphore is only applied on pre-gen8 platform.
-		 * And there is no VCS2 ring on the pre-gen8 platform. So the
-		 * semaphore between VCS and VCS2 is initialized as INVALID.
-		 * Gen8 will initialize the sema between VCS2 and VCS later.
-		 */
-		ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VR;
-		ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VB;
-		ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_VVE;
-		ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore.mbox.signal[RCS] = GEN6_RVSYNC;
-		ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
-		ring->semaphore.mbox.signal[BCS] = GEN6_BVSYNC;
-		ring->semaphore.mbox.signal[VECS] = GEN6_VEVSYNC;
-		ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
 	} else {
 		ring->mmio_base = BSD_RING_BASE;
 		ring->flush = bsd_ring_flush;
@@ -2283,30 +2325,47 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 		ring->irq_get = gen8_ring_get_irq;
 		ring->irq_put = gen8_ring_put_irq;
 		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.signal = gen6_signal;
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
 	} else {
 		ring->irq_enable_mask = GT_BLT_USER_INTERRUPT;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.signal = gen6_signal;
+			ring->semaphore.sync_to = gen6_ring_sync;
+			/*
+			 * The current semaphore is only applied on pre-gen8
+			 * platform.  And there is no VCS2 ring on the pre-gen8
+			 * platform. So the semaphore between BCS and VCS2 is
+			 * initialized as INVALID.  Gen8 will initialize the
+			 * sema between BCS and VCS2 later.
+			 */
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_BR;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_BV;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_BVE;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_RBSYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_VBSYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_VEBSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
 	}
-	ring->semaphore.sync_to = gen6_ring_sync;
-	ring->semaphore.signal = gen6_signal;
-	/*
-	 * The current semaphore is only applied on pre-gen8 platform. And
-	 * there is no VCS2 ring on the pre-gen8 platform. So the semaphore
-	 * between BCS and VCS2 is initialized as INVALID.
-	 * Gen8 will initialize the sema between BCS and VCS2 later.
-	 */
-	ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_BR;
-	ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_BV;
-	ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
-	ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_BVE;
-	ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
-	ring->semaphore.mbox.signal[RCS] = GEN6_RBSYNC;
-	ring->semaphore.mbox.signal[VCS] = GEN6_VBSYNC;
-	ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
-	ring->semaphore.mbox.signal[VECS] = GEN6_VEBSYNC;
-	ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
@@ -2333,24 +2392,40 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 		ring->irq_get = gen8_ring_get_irq;
 		ring->irq_put = gen8_ring_put_irq;
 		ring->dispatch_execbuffer = gen8_ring_dispatch_execbuffer;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.signal = gen6_signal;
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
 	} else {
 		ring->irq_enable_mask = PM_VEBOX_USER_INTERRUPT;
 		ring->irq_get = hsw_vebox_get_irq;
 		ring->irq_put = hsw_vebox_put_irq;
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+		if (i915_semaphore_is_enabled(dev)) {
+			ring->semaphore.sync_to = gen6_ring_sync;
+			ring->semaphore.signal = gen6_signal;
+			ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VER;
+			ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_VEV;
+			ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VEB;
+			ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
+			ring->semaphore.mbox.signal[RCS] = GEN6_RVESYNC;
+			ring->semaphore.mbox.signal[VCS] = GEN6_VVESYNC;
+			ring->semaphore.mbox.signal[BCS] = GEN6_BVESYNC;
+			ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
+			ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
+		}
 	}
-	ring->semaphore.sync_to = gen6_ring_sync;
-	ring->semaphore.signal = gen6_signal;
-	ring->semaphore.mbox.wait[RCS] = MI_SEMAPHORE_SYNC_VER;
-	ring->semaphore.mbox.wait[VCS] = MI_SEMAPHORE_SYNC_VEV;
-	ring->semaphore.mbox.wait[BCS] = MI_SEMAPHORE_SYNC_VEB;
-	ring->semaphore.mbox.wait[VECS] = MI_SEMAPHORE_SYNC_INVALID;
-	ring->semaphore.mbox.wait[VCS2] = MI_SEMAPHORE_SYNC_INVALID;
-	ring->semaphore.mbox.signal[RCS] = GEN6_RVESYNC;
-	ring->semaphore.mbox.signal[VCS] = GEN6_VVESYNC;
-	ring->semaphore.mbox.signal[BCS] = GEN6_BVESYNC;
-	ring->semaphore.mbox.signal[VECS] = GEN6_NOSYNC;
-	ring->semaphore.mbox.signal[VCS2] = GEN6_NOSYNC;
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
