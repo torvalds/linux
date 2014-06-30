@@ -1,5 +1,87 @@
 #include "headers.h"
 
+static void prepare_low_power_mode(struct urb *urb,
+				   struct bcm_interface_adapter *interface,
+				   struct bcm_mini_adapter *ps_adapter,
+				   struct bcm_mini_adapter *ad,
+				   struct bcm_link_request *p_control_msg,
+				   bool *b_power_down_msg)
+{
+	if (((p_control_msg->szData[0] == GO_TO_IDLE_MODE_PAYLOAD) &&
+		(p_control_msg->szData[1] == TARGET_CAN_GO_TO_IDLE_MODE))) {
+
+		*b_power_down_msg = TRUE;
+		/*
+		 * This covers the bus err while Idle Request msg
+		 * sent down.
+		 */
+		if (urb->status != STATUS_SUCCESS) {
+			ps_adapter->bPreparingForLowPowerMode = false;
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, NEXT_SEND,
+					DBG_LVL_ALL,
+					"Idle Mode Request msg failed to reach to Modem");
+			/* Signalling the cntrl pkt path in Ioctl */
+			wake_up(&ps_adapter->lowpower_mode_wait_queue);
+			StartInterruptUrb(interface);
+			return;
+		}
+
+		if (ps_adapter->bDoSuspend == false) {
+			ps_adapter->IdleMode = TRUE;
+			/* since going in Idle mode completed hence making this var false */
+			ps_adapter->bPreparingForLowPowerMode = false;
+
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, NEXT_SEND,
+					DBG_LVL_ALL,
+					"Host Entered in Idle Mode State...");
+			/* Signalling the cntrl pkt path in Ioctl*/
+			wake_up(&ps_adapter->lowpower_mode_wait_queue);
+		}
+
+	} else if ((p_control_msg->Leader.Status == LINK_UP_CONTROL_REQ) &&
+		(p_control_msg->szData[0] == LINK_UP_ACK) &&
+		(p_control_msg->szData[1] == LINK_SHUTDOWN_REQ_FROM_FIRMWARE)  &&
+		(p_control_msg->szData[2] == SHUTDOWN_ACK_FROM_DRIVER)) {
+		/*
+		 * This covers the bus err while shutdown Request
+		 * msg sent down.
+		 */
+		if (urb->status != STATUS_SUCCESS) {
+			ps_adapter->bPreparingForLowPowerMode = false;
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, NEXT_SEND,
+					DBG_LVL_ALL,
+					"Shutdown Request Msg failed to reach to Modem");
+			/* Signalling the cntrl pkt path in Ioctl */
+			wake_up(&ps_adapter->lowpower_mode_wait_queue);
+			StartInterruptUrb(interface);
+			return;
+		}
+
+		*b_power_down_msg = TRUE;
+		if (ps_adapter->bDoSuspend == false) {
+			ps_adapter->bShutStatus = TRUE;
+			/*
+			 * since going in shutdown mode completed hence
+			 * making this var false
+			 */
+			ps_adapter->bPreparingForLowPowerMode = false;
+			BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, NEXT_SEND,
+					DBG_LVL_ALL,
+					"Host Entered in shutdown Mode State...");
+			/* Signalling the cntrl pkt path in Ioctl */
+			wake_up(&ps_adapter->lowpower_mode_wait_queue);
+		}
+	}
+
+	if (ps_adapter->bDoSuspend && *b_power_down_msg) {
+		/* issuing bus suspend request */
+		BCM_DEBUG_PRINT(ad, DBG_TYPE_TX, NEXT_SEND, DBG_LVL_ALL,
+				"Issuing the Bus suspend request to USB stack");
+		interface->bPreparingForBusSuspend = TRUE;
+		schedule_work(&interface->usbSuspendWork);
+	}
+}
+
 /*this is transmit call-back(BULK OUT)*/
 static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
@@ -31,89 +113,10 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	atomic_dec(&psIntfAdapter->uNumTcbUsed);
 
 	if (TRUE == psAdapter->bPreparingForLowPowerMode) {
-
-		if (((pControlMsg->szData[0] == GO_TO_IDLE_MODE_PAYLOAD) &&
-			(pControlMsg->szData[1] ==
-			 TARGET_CAN_GO_TO_IDLE_MODE))) {
-
-			bpowerDownMsg = TRUE;
-			/*
-			 * This covers the bus err while Idle Request msg
-			 * sent down.
-			 */
-			if (urb->status != STATUS_SUCCESS) {
-				psAdapter->bPreparingForLowPowerMode = false;
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND,
-						DBG_LVL_ALL,
-						"Idle Mode Request msg failed to reach to Modem");
-				/* Signalling the cntrl pkt path in Ioctl */
-				wake_up(&psAdapter->lowpower_mode_wait_queue);
-				StartInterruptUrb(psIntfAdapter);
-				goto err_exit;
-			}
-
-			if (psAdapter->bDoSuspend == false) {
-				psAdapter->IdleMode = TRUE;
-				/* since going in Idle mode completed hence making this var false */
-				psAdapter->bPreparingForLowPowerMode = false;
-
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND,
-						DBG_LVL_ALL,
-						"Host Entered in Idle Mode State...");
-				/* Signalling the cntrl pkt path in Ioctl*/
-				wake_up(&psAdapter->lowpower_mode_wait_queue);
-			}
-
-		} else if ((pControlMsg->Leader.Status ==
-					LINK_UP_CONTROL_REQ) &&
-			(pControlMsg->szData[0] == LINK_UP_ACK) &&
-			(pControlMsg->szData[1] ==
-			 LINK_SHUTDOWN_REQ_FROM_FIRMWARE)  &&
-			(pControlMsg->szData[2] == SHUTDOWN_ACK_FROM_DRIVER)) {
-			/*
-			 * This covers the bus err while shutdown Request
-			 * msg sent down.
-			 */
-			if (urb->status != STATUS_SUCCESS) {
-				psAdapter->bPreparingForLowPowerMode = false;
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND,
-						DBG_LVL_ALL,
-						"Shutdown Request Msg failed to reach to Modem");
-				/* Signalling the cntrl pkt path in Ioctl */
-				wake_up(&psAdapter->lowpower_mode_wait_queue);
-				StartInterruptUrb(psIntfAdapter);
-				goto err_exit;
-			}
-
-			bpowerDownMsg = TRUE;
-			if (psAdapter->bDoSuspend == false) {
-				psAdapter->bShutStatus = TRUE;
-				/*
-				 * since going in shutdown mode completed hence
-				 * making this var false
-				 */
-				psAdapter->bPreparingForLowPowerMode = false;
-				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND,
-						DBG_LVL_ALL,
-						"Host Entered in shutdown Mode State...");
-				/* Signalling the cntrl pkt path in Ioctl */
-				wake_up(&psAdapter->lowpower_mode_wait_queue);
-			}
-		}
-
-		if (psAdapter->bDoSuspend && bpowerDownMsg) {
-			/* issuing bus suspend request */
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, NEXT_SEND,
-					DBG_LVL_ALL,
-					"Issuing the Bus suspend request to USB stack");
-			psIntfAdapter->bPreparingForBusSuspend = TRUE;
-			schedule_work(&psIntfAdapter->usbSuspendWork);
-
-		}
-
+		prepare_low_power_mode(urb, psIntfAdapter, psAdapter, Adapter,
+				       pControlMsg, &bpowerDownMsg);
 	}
 
-err_exit:
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
 			urb->transfer_buffer, urb->transfer_dma);
 }
