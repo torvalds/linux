@@ -2116,22 +2116,27 @@ static void nested_svm_unmap(struct page *page)
 
 static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
 {
-	unsigned port;
-	u8 val, bit;
+	unsigned port, size, iopm_len;
+	u16 val, mask;
+	u8 start_bit;
 	u64 gpa;
 
 	if (!(svm->nested.intercept & (1ULL << INTERCEPT_IOIO_PROT)))
 		return NESTED_EXIT_HOST;
 
 	port = svm->vmcb->control.exit_info_1 >> 16;
+	size = (svm->vmcb->control.exit_info_1 & SVM_IOIO_SIZE_MASK) >>
+		SVM_IOIO_SIZE_SHIFT;
 	gpa  = svm->nested.vmcb_iopm + (port / 8);
-	bit  = port % 8;
-	val  = 0;
+	start_bit = port % 8;
+	iopm_len = (start_bit + size > 8) ? 2 : 1;
+	mask = (0xf >> (4 - size)) << start_bit;
+	val = 0;
 
-	if (kvm_read_guest(svm->vcpu.kvm, gpa, &val, 1))
-		val &= (1 << bit);
+	if (kvm_read_guest(svm->vcpu.kvm, gpa, &val, iopm_len))
+		return NESTED_EXIT_DONE;
 
-	return val ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
+	return (val & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
 }
 
 static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
