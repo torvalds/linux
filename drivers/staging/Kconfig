@@ -114,8 +114,6 @@ source "drivers/staging/ced1401/Kconfig"
 
 source "drivers/staging/imx-drm/Kconfig"
 
-source "drivers/staging/dgrp/Kconfig"
-
 source "drivers/staging/fwserial/Kconfig"
 
 source "drivers/staging/goldfish/Kconfig"
