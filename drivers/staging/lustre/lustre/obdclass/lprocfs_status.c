@@ -1196,7 +1196,7 @@ out:
 	return (rc < 0) ? rc : 0;
 }
 
-struct seq_operations lprocfs_stats_seq_sops = {
+static const struct seq_operations lprocfs_stats_seq_sops = {
 	.start	= lprocfs_stats_seq_start,
 	.stop	= lprocfs_stats_seq_stop,
 	.next	= lprocfs_stats_seq_next,
