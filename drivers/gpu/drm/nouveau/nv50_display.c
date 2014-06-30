@@ -1741,7 +1741,8 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		}
 	}
 
-	mthd  = (ffs(nv_encoder->dcb->sorconf.link) - 1) << 2;
+	mthd  = (ffs(nv_encoder->dcb->heads) - 1) << 3;
+	mthd |= (ffs(nv_encoder->dcb->sorconf.link) - 1) << 2;
 	mthd |= nv_encoder->or;
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
