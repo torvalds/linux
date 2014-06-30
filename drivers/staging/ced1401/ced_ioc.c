@@ -1128,11 +1128,11 @@ static int ced_dbg_cmd(DEVICE_EXTENSION *pdx, unsigned char cmd,
 }
 
 /****************************************************************************
-** DbgPeek
+** ced_dbg_peek
 **
 ** Execute the diagnostic peek operation. Uses address, width and repeats.
 ****************************************************************************/
-int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
+int ced_dbg_peek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
