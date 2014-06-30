@@ -41,7 +41,7 @@ static const struct regulator_linear_range smps_high_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3300000, 0x7A, 0x7f, 0),
 };
 
-static struct palmas_regs_info palmas_regs_info[] = {
+static struct palmas_regs_info palmas_generic_regs_info[] = {
 	{
 		.name		= "SMPS12",
 		.sname		= "smps1-in",
@@ -1417,7 +1417,7 @@ static struct palmas_pmic_driver_data palmas_ddata = {
 	.ldo_begin = PALMAS_REG_LDO1,
 	.ldo_end = PALMAS_REG_LDOUSB,
 	.max_reg = PALMAS_NUM_REGS,
-	.palmas_regs_info = palmas_regs_info,
+	.palmas_regs_info = palmas_generic_regs_info,
 	.palmas_matches = palmas_matches,
 	.sleep_req_info = palma_sleep_req_info,
 	.smps_register = palmas_smps_registration,
