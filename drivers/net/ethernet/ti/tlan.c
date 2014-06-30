@@ -2720,6 +2720,7 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
 	else if (!(mode & 0x0080) && (mode & 0x0040))
 		priv->tlan_full_duplex = true;
 
+	/* switch to internal PHY for 10 Mbps */
 	if ((!(mode & 0x0180)) &&
 	    (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10) &&
 	    (priv->phy_num != 0)) {
@@ -2787,6 +2788,21 @@ static void tlan_phy_monitor(unsigned long data)
 			       dev->name);
 			tlan_dio_write8(dev->base_addr, TLAN_LED_REG, 0);
 			netif_carrier_off(dev);
+			if (priv->adapter->flags & TLAN_ADAPTER_USE_INTERN_10) {
+				/* power down internal PHY */
+				u16 data = MII_GC_PDOWN | MII_GC_LOOPBK |
+					   MII_GC_ISOLATE;
+
+				tlan_mii_sync(dev->base_addr);
+				tlan_mii_write_reg(dev, priv->phy[0],
+						   MII_GEN_CTL, data);
+				/* set to external PHY */
+				priv->phy_num = 1;
+				/* restart autonegotiation */
+				tlan_set_timer(dev, 4 * HZ / 10,
+					       TLAN_TIMER_PHY_PDOWN);
+				return;
+			}
 		}
 	}
 
