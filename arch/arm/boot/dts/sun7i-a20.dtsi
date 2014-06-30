@@ -786,7 +786,7 @@
 		};
 
 		ir0: ir@01c21800 {
-			compatible = "allwinner,sun7i-a20-ir";
+			compatible = "allwinner,sun4i-a10-ir";
 			clocks = <&apb0_gates 6>, <&ir0_clk>;
 			clock-names = "apb", "ir";
 			interrupts = <0 5 4>;
@@ -795,7 +795,7 @@
 		};
 
 		ir1: ir@01c21c00 {
-			compatible = "allwinner,sun7i-a20-ir";
+			compatible = "allwinner,sun4i-a10-ir";
 			clocks = <&apb0_gates 7>, <&ir1_clk>;
 			clock-names = "apb", "ir";
 			interrupts = <0 6 4>;
