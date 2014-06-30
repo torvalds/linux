@@ -282,20 +282,22 @@ static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
 			 struct kvm_irq_routing_table *irq_rt)
 {
 	struct kvm_kernel_irq_routing_entry *e;
+	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
+	int i, n_entries;
+
+	n_entries = kvm_irq_map_gsi(entries, irq_rt, irqfd->gsi);
 
 	write_seqcount_begin(&irqfd->irq_entry_sc);
 
 	irqfd->irq_entry.type = 0;
-	if (irqfd->gsi >= irq_rt->nr_rt_entries)
-		goto out;
 
-	hlist_for_each_entry(e, &irq_rt->map[irqfd->gsi], link) {
+	e = entries;
+	for (i = 0; i < n_entries; ++i, ++e) {
 		/* Only fast-path MSI. */
 		if (e->type == KVM_IRQ_ROUTING_MSI)
 			irqfd->irq_entry = *e;
 	}
 
- out:
 	write_seqcount_end(&irqfd->irq_entry_sc);
 }
 
