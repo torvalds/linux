@@ -245,13 +245,13 @@ static int ced_flush(struct file *file, fl_owner_t id)
 }
 
 /***************************************************************************
-** CanAcceptIoRequests
+** can_accept_io_requests
 ** If the device is removed, interface is set NULL. We also clear our pointer
 ** from the interface, so we should make sure that pdx is not NULL. This will
 ** not help with a device extension held by a file.
 ** return true if can accept new io requests, else false
 */
-static bool CanAcceptIoRequests(DEVICE_EXTENSION *pdx)
+static bool can_accept_io_requests(DEVICE_EXTENSION *pdx)
 {
 	return pdx && pdx->interface;	/*  Can we accept IO requests */
 }
@@ -345,7 +345,7 @@ int SendChars(DEVICE_EXTENSION *pdx)
 
 	if ((!pdx->bSendCharsPending) &&	/*  Not currently sending */
 	    (pdx->dwNumOutput > 0) &&	/*   has characters to output */
-	    (CanAcceptIoRequests(pdx)))	{ /*   and current activity is OK */
+	    (can_accept_io_requests(pdx)))	{ /*   and current activity is OK */
 		unsigned int dwCount = pdx->dwNumOutput;	/*  Get a copy of the character count */
 		pdx->bSendCharsPending = true;	/*  Set flag to lock out other threads */
 
@@ -706,7 +706,7 @@ static int StageChunk(DEVICE_EXTENSION *pdx)
 	if (nPipe < 0)		/*  and trap case that should never happen */
 		return U14ERR_FAIL;
 
-	if (!CanAcceptIoRequests(pdx)) {	/*  got sudden remove? */
+	if (!can_accept_io_requests(pdx)) {	/*  got sudden remove? */
 		dev_info(&pdx->interface->dev, "%s: sudden remove, giving up\n",
 			 __func__);
 		return U14ERR_FAIL;	/*  could do with a better error */
@@ -763,7 +763,7 @@ int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 {
 	TRANSAREA *pArea = &pdx->rTransDef[wIdent];	/*  Transfer area info */
 
-	if (!CanAcceptIoRequests(pdx)) {	/*  Are we in a state to accept new requests? */
+	if (!can_accept_io_requests(pdx)) {	/*  Are we in a state to accept new requests? */
 		dev_err(&pdx->interface->dev, "%s: can't accept requests\n",
 			__func__);
 		return U14ERR_FAIL;
@@ -1173,7 +1173,7 @@ int Allowi(DEVICE_EXTENSION *pdx)
 	    (pdx->dwNumInput < (INBUF_SZ / 2)) &&	/*   and there is some space */
 	    (pdx->dwDMAFlag == MODE_CHAR) &&	/*   not doing any DMA */
 	    (!pdx->bXFerWaiting) &&	/*   no xfer waiting to start */
-	    (CanAcceptIoRequests(pdx)))	{ /*   and activity is generally OK */
+	    (can_accept_io_requests(pdx)))	{ /*   and activity is generally OK */
 				/*   then off we go */
 		unsigned int nMax = INBUF_SZ - pdx->dwNumInput;	/*  max we could read */
 		int nPipe = pdx->nPipes == 4 ? 1 : 0;	/*  The pipe number to use */
@@ -1215,7 +1215,7 @@ static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
 {
 	int err = 0;
 	DEVICE_EXTENSION *pdx = file->private_data;
-	if (!CanAcceptIoRequests(pdx))	/*  check we still exist */
+	if (!can_accept_io_requests(pdx))	/*  check we still exist */
 		return -ENODEV;
 
 	/*  Check that access is allowed, where is is needed. Anything that would have an indeterminate */
