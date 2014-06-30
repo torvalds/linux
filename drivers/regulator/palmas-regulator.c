@@ -1312,6 +1312,11 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 			return ret;
 		pmic->current_reg_mode[id] = reg &
 				PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+		desc->enable_reg = PALMAS_BASE_TO_REG(PALMAS_SMPS_BASE,
+						      rinfo->ctrl_addr);
+		desc->enable_mask = PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+		/* set_mode overrides this value */
+		desc->enable_val = SMPS_CTRL_MODE_ON;
 
 		desc->type = REGULATOR_VOLTAGE;
 		desc->owner = THIS_MODULE;
