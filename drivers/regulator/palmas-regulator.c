@@ -41,7 +41,7 @@ static const struct regulator_linear_range smps_high_ranges[] = {
 	REGULATOR_LINEAR_RANGE(3300000, 0x7A, 0x7f, 0),
 };
 
-static struct regs_info palmas_regs_info[] = {
+static struct palmas_regs_info palmas_regs_info[] = {
 	{
 		.name		= "SMPS12",
 		.sname		= "smps1-in",
@@ -227,7 +227,7 @@ static struct regs_info palmas_regs_info[] = {
 	},
 };
 
-static struct regs_info tps65917_regs_info[] = {
+static struct palmas_regs_info tps65917_regs_info[] = {
 	{
 		.name		= "SMPS1",
 		.sname		= "smps1-in",
