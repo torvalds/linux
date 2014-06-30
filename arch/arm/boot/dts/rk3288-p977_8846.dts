@@ -155,6 +155,10 @@
 		rockchip,remote_wakeup;
 		rockchip,usb_irq_wakeup;
 	};
+
+        chosen {
+                bootargs = "vmalloc=512M";
+        };
 };
 &pinctrl {
 	gpio0_gpio {
@@ -926,4 +930,6 @@
 &sdmmc0_vdd_domain{
 	regulator-name = "vcc_sd";			
 	};
-	
+&ion_cma {
+	reg = <0x40000000 0x20000000>; /* 512MB */
+};
