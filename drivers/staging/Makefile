@@ -30,7 +30,6 @@ obj-$(CONFIG_VT6656)		+= vt6656/
 obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_DX_SEP)            += sep/
 obj-$(CONFIG_IIO)		+= iio/
-obj-$(CONFIG_CXT1E1)		+= cxt1e1/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
 obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
