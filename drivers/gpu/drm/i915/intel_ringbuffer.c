@@ -2224,7 +2224,7 @@ int intel_init_bsd2_ring_buffer(struct drm_device *dev)
 		return -EINVAL;
 	}
 
-	ring->name = "bds2_ring";
+	ring->name = "bsd2 ring";
 	ring->id = VCS2;
 
 	ring->write_tail = ring_write_tail;
