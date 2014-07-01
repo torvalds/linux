@@ -825,7 +825,7 @@ int core_tpg_add_lun(
 
 	ret = core_dev_export(dev, tpg, lun);
 	if (ret < 0) {
-		percpu_ref_cancel_init(&lun->lun_ref);
+		percpu_ref_exit(&lun->lun_ref);
 		return ret;
 	}
 
@@ -879,6 +879,8 @@ int core_tpg_post_dellun(
 	spin_lock(&tpg->tpg_lun_lock);
 	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	spin_unlock(&tpg->tpg_lun_lock);
+
+	percpu_ref_exit(&lun->lun_ref);
 
 	return 0;
 }
