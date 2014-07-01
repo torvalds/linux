@@ -2088,10 +2088,9 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 		goto out;
 	}
 
-	if (hole_mergeable(inode, leaf, path->slots[0]+1, offset, end)) {
+	if (hole_mergeable(inode, leaf, path->slots[0], offset, end)) {
 		u64 num_bytes;
 
-		path->slots[0]++;
 		key.offset = offset;
 		btrfs_set_item_key_safe(root, path, &key);
 		fi = btrfs_item_ptr(leaf, path->slots[0],
