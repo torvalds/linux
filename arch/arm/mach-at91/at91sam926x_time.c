@@ -9,11 +9,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#include <linux/clk.h>
+#include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
-#include <linux/clk.h>
-#include <linux/clockchips.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -22,17 +23,17 @@
 #include <mach/hardware.h>
 
 #define AT91_PIT_MR		0x00			/* Mode Register */
-#define		AT91_PIT_PITIEN		(1 << 25)		/* Timer Interrupt Enable */
-#define		AT91_PIT_PITEN		(1 << 24)		/* Timer Enabled */
-#define		AT91_PIT_PIV		(0xfffff)		/* Periodic Interval Value */
+#define AT91_PIT_PITIEN			BIT(25)			/* Timer Interrupt Enable */
+#define AT91_PIT_PITEN			BIT(24)			/* Timer Enabled */
+#define AT91_PIT_PIV			GENMASK(19, 0)		/* Periodic Interval Value */
 
 #define AT91_PIT_SR		0x04			/* Status Register */
-#define		AT91_PIT_PITS		(1 << 0)		/* Timer Status */
+#define AT91_PIT_PITS			BIT(0)			/* Timer Status */
 
 #define AT91_PIT_PIVR		0x08			/* Periodic Interval Value Register */
 #define AT91_PIT_PIIR		0x0c			/* Periodic Interval Image Register */
-#define		AT91_PIT_PICNT		(0xfff << 20)		/* Interval Counter */
-#define		AT91_PIT_CPIV		(0xfffff)		/* Inverval Value */
+#define AT91_PIT_PICNT			GENMASK(31, 20)		/* Interval Counter */
+#define AT91_PIT_CPIV			GENMASK(19, 0)		/* Inverval Value */
 
 #define PIT_CPIV(x)	((x) & AT91_PIT_CPIV)
 #define PIT_PICNT(x)	(((x) & AT91_PIT_PICNT) >> 20)
