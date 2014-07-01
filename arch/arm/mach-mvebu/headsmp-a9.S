@@ -15,6 +15,8 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+#include <asm/assembler.h>
+
 	__CPUINIT
 #define CPU_RESUME_ADDR_REG 0xf10182d4
 
@@ -22,13 +24,18 @@
 .global armada_375_smp_cpu1_enable_code_end
 
 armada_375_smp_cpu1_enable_code_start:
-	ldr     r0, [pc, #4]
+ARM_BE8(setend	be)
+	adr     r0, 1f
+	ldr	r0, [r0]
 	ldr     r1, [r0]
+ARM_BE8(rev	r1, r1)
 	mov     pc, r1
+1:
 	.word   CPU_RESUME_ADDR_REG
 armada_375_smp_cpu1_enable_code_end:
 
 ENTRY(mvebu_cortex_a9_secondary_startup)
+ARM_BE8(setend	be)
 	bl      v7_invalidate_l1
 	b	secondary_startup
 ENDPROC(mvebu_cortex_a9_secondary_startup)
