@@ -1113,11 +1113,6 @@ exit:
 	return res;
 }
 
-static void power_saving_wk_hdl(struct rtw_adapter *padapter, u8 *pbuf, int sz)
-{
-	 rtw_ps_processor23a(padapter);
-}
-
 int rtw_ps_cmd23a(struct rtw_adapter*padapter)
 {
 	struct cmd_obj *ppscmd;
@@ -1332,8 +1327,7 @@ int rtw_drvextra_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 				   pdrvextra_cmd->type_size);
 		break;
 	case POWER_SAVING_CTRL_WK_CID:
-		power_saving_wk_hdl(padapter, pdrvextra_cmd->pbuf,
-				    pdrvextra_cmd->type_size);
+		rtw_ps_processor23a(padapter);
 		break;
 	case LPS_CTRL_WK_CID:
 		lps_ctrl_wk_hdl(padapter, (u8)pdrvextra_cmd->type_size);
