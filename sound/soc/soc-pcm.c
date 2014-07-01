@@ -7,7 +7,7 @@
  * Copyright (C) 2010 Texas Instruments Inc.
  *
  * Authors: Liam Girdwood <lrg@ti.com>
- *          Mark Brown <broonie@opensource.wolfsonmicro.com>       
+ *          Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -284,15 +284,10 @@ static int sample_sizes[] = {
 	24, 32,
 };
 
-static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
-			      struct snd_soc_dai *dai)
+static void soc_pcm_set_msb(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai, int bits)
 {
-	int ret, i, bits;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		bits = dai->driver->playback.sig_bits;
-	else
-		bits = dai->driver->capture.sig_bits;
+	int ret, i;
 
 	if (!bits)
 		return;
@@ -308,6 +303,25 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
 				 "ASoC: Failed to set MSB %d/%d: %d\n",
 				 bits, sample_sizes[i], ret);
 	}
+}
+
+static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	unsigned int bits = 0, cpu_bits;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		bits = codec_dai->driver->playback.sig_bits;
+		cpu_bits = cpu_dai->driver->playback.sig_bits;
+	} else {
+		bits = codec_dai->driver->capture.sig_bits;
+		cpu_bits = cpu_dai->driver->capture.sig_bits;
+	}
+
+	soc_pcm_set_msb(substream, codec_dai, bits);
+	soc_pcm_set_msb(substream, cpu_dai, cpu_bits);
 }
 
 static void soc_pcm_init_runtime_hw(struct snd_pcm_runtime *runtime,
@@ -433,8 +447,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		goto config_err;
 	}
 
-	soc_pcm_apply_msb(substream, codec_dai);
-	soc_pcm_apply_msb(substream, cpu_dai);
+	soc_pcm_apply_msb(substream);
 
 	/* Symmetry only applies if we've already got an active stream. */
 	if (cpu_dai->active) {
