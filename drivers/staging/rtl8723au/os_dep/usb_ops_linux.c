@@ -153,12 +153,10 @@ int rtl8723au_write_port(struct rtw_adapter *padapter, u32 addr, u32 cnt,
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("+usb_write_port23a\n"));
 
-	if (padapter->bDriverStopped || padapter->bSurpriseRemoved ||
-	    padapter->pwrctrlpriv.pnp_bstop_trx) {
+	if (padapter->bDriverStopped || padapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usb_write_port23a:( padapter->bDriverStopped || "
-			  "padapter->bSurpriseRemoved || "
-			  "adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n"));
+			 ("%s:(padapter->bDriverStopped || "
+			  "padapter->bSurpriseRemoved)!!!\n", __func__));
 		rtw23a_sctx_done_err(&pxmitbuf->sctx, RTW_SCTX_DONE_TX_DENY);
 		goto exit;
 	}

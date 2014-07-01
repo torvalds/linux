@@ -184,8 +184,6 @@ struct pwrctrl_priv {
 	u8	bFwCurrentInPSMode;
 	unsigned long	DelayLPSLastTimeStamp;
 	u8	btcoex_rfon;
-	s32		pnp_current_pwr_state;
-	u8		pnp_bstop_trx;
 
 	u8		bInSuspend;
 #ifdef	CONFIG_8723AU_BT_COEXIST

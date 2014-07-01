@@ -34,10 +34,9 @@ static int usbctrl_vendorreq(struct rtw_adapter *padapter, u8 request,
 	u8 *pIo_buf;
 	int vendorreq_times = 0;
 
-	if (padapter->bSurpriseRemoved || padapter->pwrctrlpriv.pnp_bstop_trx) {
+	if (padapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
-			 ("usbctrl_vendorreq:(padapter->bSurpriseRemoved||"
-			  "adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n"));
+			 ("usbctrl_vendorreq:(padapter->bSurpriseRemoved)!!!"));
 		status = -EPERM;
 		goto exit;
 	}
@@ -743,12 +742,10 @@ int rtl8723au_read_port(struct rtw_adapter *adapter, u32 addr, u32 cnt,
 	struct recv_priv *precvpriv = &adapter->recvpriv;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
-	    adapter->pwrctrlpriv.pnp_bstop_trx) {
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved) {
 		RT_TRACE(_module_hci_ops_os_c_, _drv_err_,
 			 ("usb_read_port:(padapter->bDriverStopped ||"
-			  "padapter->bSurpriseRemoved ||adapter->"
-			  "pwrctrlpriv.pnp_bstop_trx)!!!\n"));
+			  "padapter->bSurpriseRemoved)!!!\n"));
 		return _FAIL;
 	}
 
