@@ -189,6 +189,7 @@ MODULE_PARM_DESC(debug, "Debug messages: 0=no, 1=yes(default: no)");
 static void free_imon_context(struct imon_context *context)
 {
 	struct device *dev = context->driver->dev;
+
 	usb_free_urb(context->tx_urb);
 	usb_free_urb(context->rx_urb);
 	lirc_buffer_free(context->driver->rbuf);
@@ -656,6 +657,7 @@ static void imon_incoming_packet(struct imon_context *context,
 		mask = 0x80;
 		for (bit = 0; bit < 8; ++bit) {
 			int curr_bit = !(buf[octet] & mask);
+
 			if (curr_bit != context->rx.prev_bit) {
 				if (context->rx.count) {
 					submit_data(context);
@@ -775,6 +777,7 @@ static int imon_probe(struct usb_interface *interface,
 		struct usb_endpoint_descriptor *ep;
 		int ep_dir;
 		int ep_type;
+
 		ep = &iface_desc->endpoint[i].desc;
 		ep_dir = ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK;
 		ep_type = ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
