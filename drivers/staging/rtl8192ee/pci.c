@@ -892,7 +892,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		}
 
 		/* handle command packet here */
-		if (rtlpriv->cfg->ops->rx_command_packet(hw, stats, skb)) {
+		if (rtlpriv->cfg->ops->rx_command_packet(hw, &stats, skb)) {
 				dev_kfree_skb_any(skb);
 				goto end;
 		}
