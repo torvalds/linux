@@ -306,4 +306,13 @@
 		fifo-depth = <0x100>;
 		bus-width = <4>;
 	};
+	gpu {
+		      compatible = "arm,mali400";
+		      reg = <0x10090000 0x10000>;
+	          interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+                           <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+			  			   <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			  interrupt-names = "GP", "MMU", "PP";
+	  };
+
 };
