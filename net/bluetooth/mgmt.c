@@ -5283,11 +5283,27 @@ void mgmt_index_removed(struct hci_dev *hdev)
 static void restart_le_auto_conns(struct hci_dev *hdev)
 {
 	struct hci_conn_params *p;
+	bool added = false;
 
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
-		if (p->auto_connect == HCI_AUTO_CONN_ALWAYS)
+		if (p->auto_connect == HCI_AUTO_CONN_ALWAYS) {
 			hci_pend_le_conn_add(hdev, &p->addr, p->addr_type);
+			added = true;
+		}
 	}
+
+	/* Calling hci_pend_le_conn_add will actually already trigger
+	 * background scanning when needed. So no need to trigger it
+	 * just another time.
+	 *
+	 * This check is here to avoid an unneeded restart of the
+	 * passive scanning. Since this is during the controller
+	 * power up phase the duplicate filtering is not an issue.
+	 */
+	if (added)
+		return;
+
+	hci_update_background_scan(hdev);
 }
 
 static void powered_complete(struct hci_dev *hdev, u8 status)
