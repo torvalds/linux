@@ -208,7 +208,7 @@ static void __init at91sam926x_pit_common_init(void)
 	/* Set up irq handler */
 	ret = setup_irq(at91sam926x_pit_irq.irq, &at91sam926x_pit_irq);
 	if (ret)
-		pr_crit("AT91: PIT: Unable to setup IRQ\n");
+		panic("AT91: PIT: Unable to setup IRQ\n");
 
 	/* Set up and register clockevents */
 	pit_clkevt.mult = div_sc(pit_rate, NSEC_PER_SEC, pit_clkevt.shift);
@@ -222,7 +222,7 @@ static void __init at91sam926x_pit_dt_init(struct device_node *node)
 
 	pit_base_addr = of_iomap(node, 0);
 	if (!pit_base_addr)
-		return;
+		panic("AT91: PIT: Could not map PIT address\n");
 
 	mck = of_clk_get(node, 0);
 	if (IS_ERR(mck))
@@ -234,18 +234,12 @@ static void __init at91sam926x_pit_dt_init(struct device_node *node)
 
 	/* Get the interrupts property */
 	irq = irq_of_parse_and_map(node, 0);
-	if (!irq) {
-		pr_crit("AT91: PIT: Unable to get IRQ from DT\n");
-		goto clk_err;
-	}
+	if (!irq)
+		panic("AT91: PIT: Unable to get IRQ from DT\n");
 
 	at91sam926x_pit_irq.irq = irq;
 
 	at91sam926x_pit_common_init();
-
-clk_err:
-	clk_put(mck);
-	iounmap(pit_base_addr);
 }
 CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
 		       at91sam926x_pit_dt_init);
