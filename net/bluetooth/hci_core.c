@@ -3513,29 +3513,12 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 {
 	struct hci_conn_params *params;
 
-	if (!is_identity_address(addr, addr_type))
-		return -EINVAL;
+	params = hci_conn_params_add(hdev, addr, addr_type);
+	if (!params)
+		return -EIO;
 
-	params = hci_conn_params_lookup(hdev, addr, addr_type);
-	if (params)
-		goto update;
-
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
-	if (!params) {
-		BT_ERR("Out of memory");
-		return -ENOMEM;
-	}
-
-	bacpy(&params->addr, addr);
-	params->addr_type = addr_type;
-
-	list_add(&params->list, &hdev->le_conn_params);
-
-update:
 	params->conn_min_interval = conn_min_interval;
 	params->conn_max_interval = conn_max_interval;
-	params->conn_latency = hdev->le_conn_latency;
-	params->supervision_timeout = hdev->le_supv_timeout;
 	params->auto_connect = auto_connect;
 
 	switch (auto_connect) {
