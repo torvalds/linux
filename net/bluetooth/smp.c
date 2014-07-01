@@ -837,7 +837,7 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	return smp_random(smp);
 }
 
-static u8 smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
+static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 {
 	struct smp_ltk *key;
 	struct hci_conn *hcon = conn->hcon;
@@ -845,18 +845,18 @@ static u8 smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 	key = hci_find_ltk_by_addr(hcon->hdev, &hcon->dst, hcon->dst_type,
 				   hcon->out);
 	if (!key)
-		return 0;
+		return false;
 
 	if (sec_level > BT_SECURITY_MEDIUM && !key->authenticated)
-		return 0;
+		return false;
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
-		return 1;
+		return true;
 
 	hci_le_start_enc(hcon, key->ediv, key->rand, key->val);
 	hcon->enc_key_size = key->enc_size;
 
-	return 1;
+	return true;
 }
 
 static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
