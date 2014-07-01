@@ -45,36 +45,78 @@
 
 extern struct ww_class reservation_ww_class;
 
+struct reservation_object_list {
+	u32 shared_count, shared_max;
+	struct fence *shared[];
+};
+
 struct reservation_object {
 	struct ww_mutex lock;
 
 	struct fence *fence_excl;
-	struct fence **fence_shared;
-	u32 fence_shared_count, fence_shared_max;
+	struct reservation_object_list *fence;
+	struct reservation_object_list *staged;
 };
+
+#define reservation_object_assert_held(obj) \
+	lockdep_assert_held(&(obj)->lock.base)
 
 static inline void
 reservation_object_init(struct reservation_object *obj)
 {
 	ww_mutex_init(&obj->lock, &reservation_ww_class);
 
-	obj->fence_shared_count = obj->fence_shared_max = 0;
-	obj->fence_shared = NULL;
 	obj->fence_excl = NULL;
+	obj->fence = NULL;
+	obj->staged = NULL;
 }
 
 static inline void
 reservation_object_fini(struct reservation_object *obj)
 {
 	int i;
+	struct reservation_object_list *fobj;
 
+	/*
+	 * This object should be dead and all references must have
+	 * been released to it.
+	 */
 	if (obj->fence_excl)
 		fence_put(obj->fence_excl);
-	for (i = 0; i < obj->fence_shared_count; ++i)
-		fence_put(obj->fence_shared[i]);
-	kfree(obj->fence_shared);
+
+	fobj = obj->fence;
+	if (fobj) {
+		for (i = 0; i < fobj->shared_count; ++i)
+			fence_put(fobj->shared[i]);
+
+		kfree(fobj);
+	}
+	kfree(obj->staged);
 
 	ww_mutex_destroy(&obj->lock);
 }
+
+static inline struct reservation_object_list *
+reservation_object_get_list(struct reservation_object *obj)
+{
+	reservation_object_assert_held(obj);
+
+	return obj->fence;
+}
+
+static inline struct fence *
+reservation_object_get_excl(struct reservation_object *obj)
+{
+	reservation_object_assert_held(obj);
+
+	return obj->fence_excl;
+}
+
+int reservation_object_reserve_shared(struct reservation_object *obj);
+void reservation_object_add_shared_fence(struct reservation_object *obj,
+					 struct fence *fence);
+
+void reservation_object_add_excl_fence(struct reservation_object *obj,
+				       struct fence *fence);
 
 #endif /* _LINUX_RESERVATION_H */

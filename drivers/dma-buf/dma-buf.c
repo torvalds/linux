@@ -134,7 +134,10 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 {
 	struct dma_buf *dmabuf;
 	struct reservation_object *resv;
+	struct reservation_object_list *fobj;
+	struct fence *fence_excl;
 	unsigned long events;
+	unsigned shared_count;
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
@@ -150,12 +153,18 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 
 	ww_mutex_lock(&resv->lock, NULL);
 
-	if (resv->fence_excl && (!(events & POLLOUT) ||
-				 resv->fence_shared_count == 0)) {
+	fobj = resv->fence;
+	if (!fobj)
+		goto out;
+
+	shared_count = fobj->shared_count;
+	fence_excl = resv->fence_excl;
+
+	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
 		unsigned long pevents = POLLIN;
 
-		if (resv->fence_shared_count == 0)
+		if (shared_count == 0)
 			pevents |= POLLOUT;
 
 		spin_lock_irq(&dmabuf->poll.lock);
@@ -167,19 +176,20 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 		spin_unlock_irq(&dmabuf->poll.lock);
 
 		if (events & pevents) {
-			if (!fence_add_callback(resv->fence_excl,
-						&dcb->cb, dma_buf_poll_cb))
+			if (!fence_add_callback(fence_excl, &dcb->cb,
+						       dma_buf_poll_cb)) {
 				events &= ~pevents;
-			else
+			} else {
 				/*
 				 * No callback queued, wake up any additional
 				 * waiters.
 				 */
 				dma_buf_poll_cb(NULL, &dcb->cb);
+			}
 		}
 	}
 
-	if ((events & POLLOUT) && resv->fence_shared_count > 0) {
+	if ((events & POLLOUT) && shared_count > 0) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_shared;
 		int i;
 
@@ -194,15 +204,18 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 		if (!(events & POLLOUT))
 			goto out;
 
-		for (i = 0; i < resv->fence_shared_count; ++i)
-			if (!fence_add_callback(resv->fence_shared[i],
-						&dcb->cb, dma_buf_poll_cb)) {
+		for (i = 0; i < shared_count; ++i) {
+			struct fence *fence = fobj->shared[i];
+
+			if (!fence_add_callback(fence, &dcb->cb,
+						dma_buf_poll_cb)) {
 				events &= ~POLLOUT;
 				break;
 			}
+		}
 
 		/* No callback queued, wake up any additional waiters. */
-		if (i == resv->fence_shared_count)
+		if (i == shared_count)
 			dma_buf_poll_cb(NULL, &dcb->cb);
 	}
 
