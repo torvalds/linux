@@ -25,10 +25,12 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
+#include <linux/fence.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/reservation.h>
 
 static inline int is_dma_buf_file(struct file *);
 
@@ -55,6 +57,9 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	mutex_lock(&db_list.lock);
 	list_del(&dmabuf->list_node);
 	mutex_unlock(&db_list.lock);
+
+	if (dmabuf->resv == (struct reservation_object *)&dmabuf[1])
+		reservation_object_fini(dmabuf->resv);
 
 	kfree(dmabuf);
 	return 0;
@@ -128,6 +133,7 @@ static inline int is_dma_buf_file(struct file *file)
  * @size:	[in]	Size of the buffer
  * @flags:	[in]	mode flags for the file.
  * @exp_name:	[in]	name of the exporting module - useful for debugging.
+ * @resv:	[in]	reservation-object, NULL to allocate default one.
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
  * supplied private data and operations for dma_buf_ops. On either missing
@@ -135,10 +141,17 @@ static inline int is_dma_buf_file(struct file *file)
  *
  */
 struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
-				size_t size, int flags, const char *exp_name)
+				size_t size, int flags, const char *exp_name,
+				struct reservation_object *resv)
 {
 	struct dma_buf *dmabuf;
 	struct file *file;
+	size_t alloc_size = sizeof(struct dma_buf);
+	if (!resv)
+		alloc_size += sizeof(struct reservation_object);
+	else
+		/* prevent &dma_buf[1] == dma_buf->resv */
+		alloc_size += 1;
 
 	if (WARN_ON(!priv || !ops
 			  || !ops->map_dma_buf
@@ -150,7 +163,7 @@ struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
 		return ERR_PTR(-EINVAL);
 	}
 
-	dmabuf = kzalloc(sizeof(struct dma_buf), GFP_KERNEL);
+	dmabuf = kzalloc(alloc_size, GFP_KERNEL);
 	if (dmabuf == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -158,6 +171,11 @@ struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
 	dmabuf->ops = ops;
 	dmabuf->size = size;
 	dmabuf->exp_name = exp_name;
+	if (!resv) {
+		resv = (struct reservation_object *)&dmabuf[1];
+		reservation_object_init(resv);
+	}
+	dmabuf->resv = resv;
 
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
 	if (IS_ERR(file)) {

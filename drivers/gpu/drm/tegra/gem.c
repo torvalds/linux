@@ -420,7 +420,7 @@ struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
 				       int flags)
 {
 	return dma_buf_export(gem, &tegra_gem_prime_dmabuf_ops, gem->size,
-			      flags);
+			      flags, NULL);
 }
 
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,
