@@ -131,15 +131,12 @@ void blk_mq_drain_queue(struct request_queue *q)
  */
 static void blk_mq_freeze_queue(struct request_queue *q)
 {
-	bool drain;
-
 	spin_lock_irq(q->queue_lock);
-	drain = !q->bypass_depth++;
+	q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 	spin_unlock_irq(q->queue_lock);
 
-	if (drain)
-		blk_mq_drain_queue(q);
+	blk_mq_drain_queue(q);
 }
 
 static void blk_mq_unfreeze_queue(struct request_queue *q)
