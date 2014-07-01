@@ -1970,33 +1970,6 @@ static struct s3c_fb_driverdata s3c_fb_data_s3c2443 = {
 	},
 };
 
-static struct s3c_fb_driverdata s3c_fb_data_s5p64x0 = {
-	.variant = {
-		.nr_windows	= 3,
-		.vidtcon	= VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-		},
-
-		.has_blendcon	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0] = &s3c_fb_data_s5p_wins[0],
-	.win[1] = &s3c_fb_data_s5p_wins[1],
-	.win[2] = &s3c_fb_data_s5p_wins[2],
-};
-
 static struct platform_device_id s3c_fb_driver_ids[] = {
 	{
 		.name		= "s3c-fb",
@@ -2016,9 +1989,6 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 	}, {
 		.name		= "s3c2443-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_s3c2443,
-	}, {
-		.name		= "s5p64x0-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_s5p64x0,
 	},
 	{},
 };
