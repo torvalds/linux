@@ -66,9 +66,7 @@ struct gpio_desc {
 #define GPIO_FLAGS_MASK		((1 << ID_SHIFT) - 1)
 #define GPIO_TRIGGER_MASK	(BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE))
 
-#ifdef CONFIG_DEBUG_FS
 	const char		*label;
-#endif
 };
 static struct gpio_desc gpio_desc[ARCH_NR_GPIOS];
 
@@ -87,7 +85,6 @@ static void gpiod_free(struct gpio_desc *desc);
 
 /* With descriptor prefix */
 
-#ifdef CONFIG_DEBUG_FS
 #define gpiod_emerg(desc, fmt, ...)					       \
 	pr_emerg("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
                  ##__VA_ARGS__)
@@ -106,20 +103,6 @@ static void gpiod_free(struct gpio_desc *desc);
 #define gpiod_dbg(desc, fmt, ...)					       \
 	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
                  ##__VA_ARGS__)
-#else
-#define gpiod_emerg(desc, fmt, ...)					\
-	pr_emerg("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_crit(desc, fmt, ...)					\
-	pr_crit("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_err(desc, fmt, ...)					\
-	pr_err("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_warn(desc, fmt, ...)					\
-	pr_warn("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_info(desc, fmt, ...)					\
-	pr_info("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#define gpiod_dbg(desc, fmt, ...)					\
-	pr_debug("gpio-%d: " fmt, desc_to_gpio(desc), ##__VA_ARGS__)
-#endif
 
 /* With chip prefix */
 
@@ -138,9 +121,7 @@ static void gpiod_free(struct gpio_desc *desc);
 
 static inline void desc_set_label(struct gpio_desc *d, const char *label)
 {
-#ifdef CONFIG_DEBUG_FS
 	d->label = label;
-#endif
 }
 
 /*
@@ -1906,8 +1887,8 @@ EXPORT_SYMBOL_GPL(gpio_free_array);
  * @offset: of signal within controller's 0..(ngpio - 1) range
  *
  * Returns NULL if the GPIO is not currently requested, else a string.
- * If debugfs support is enabled, the string returned is the label passed
- * to gpio_request(); otherwise it is a meaningless constant.
+ * The string returned is the label passed to gpio_request(); if none has been
+ * passed it is a meaningless, non-NULL constant.
  *
  * This function is for use by GPIO controller drivers.  The label can
  * help with diagnostics, and knowing that the signal is used as a GPIO
@@ -1924,11 +1905,7 @@ const char *gpiochip_is_requested(struct gpio_chip *chip, unsigned offset)
 
 	if (test_bit(FLAG_REQUESTED, &desc->flags) == 0)
 		return NULL;
-#ifdef CONFIG_DEBUG_FS
 	return desc->label;
-#else
-	return "?";
-#endif
 }
 EXPORT_SYMBOL_GPL(gpiochip_is_requested);
 
