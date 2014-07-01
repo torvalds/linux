@@ -588,7 +588,7 @@ static int caam_probe(struct platform_device *pdev)
 	 */
 	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
 
-	ctrlpriv->dfs_root = debugfs_create_dir("caam", NULL);
+	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
 	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
 
 	/* Controller-level - performance monitor counters */
