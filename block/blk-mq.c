@@ -84,15 +84,14 @@ static int blk_mq_queue_enter(struct request_queue *q)
 	smp_mb();
 
 	/* we have problems freezing the queue if it's initializing */
-	if (!blk_queue_dying(q) &&
-	    (!blk_queue_bypass(q) || !blk_queue_init_done(q)))
+	if (!q->mq_freeze_depth)
 		return 0;
 
 	__percpu_counter_add(&q->mq_usage_counter, -1, 1000000);
 
 	spin_lock_irq(q->queue_lock);
 	ret = wait_event_interruptible_lock_irq(q->mq_freeze_wq,
-		!blk_queue_bypass(q) || blk_queue_dying(q),
+		!q->mq_freeze_depth || blk_queue_dying(q),
 		*q->queue_lock);
 	/* inc usage with lock hold to avoid freeze_queue runs here */
 	if (!ret && !blk_queue_dying(q))
@@ -129,11 +128,10 @@ void blk_mq_drain_queue(struct request_queue *q)
  * Guarantee no request is in use, so we can change any data structure of
  * the queue afterward.
  */
-static void blk_mq_freeze_queue(struct request_queue *q)
+void blk_mq_freeze_queue(struct request_queue *q)
 {
 	spin_lock_irq(q->queue_lock);
-	q->bypass_depth++;
-	queue_flag_set(QUEUE_FLAG_BYPASS, q);
+	q->mq_freeze_depth++;
 	spin_unlock_irq(q->queue_lock);
 
 	blk_mq_drain_queue(q);
@@ -144,11 +142,8 @@ static void blk_mq_unfreeze_queue(struct request_queue *q)
 	bool wake = false;
 
 	spin_lock_irq(q->queue_lock);
-	if (!--q->bypass_depth) {
-		queue_flag_clear(QUEUE_FLAG_BYPASS, q);
-		wake = true;
-	}
-	WARN_ON_ONCE(q->bypass_depth < 0);
+	wake = !--q->mq_freeze_depth;
+	WARN_ON_ONCE(q->mq_freeze_depth < 0);
 	spin_unlock_irq(q->queue_lock);
 	if (wake)
 		wake_up_all(&q->mq_freeze_wq);
