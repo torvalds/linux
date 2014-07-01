@@ -1992,6 +1992,9 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	/* allow SCSI layer to restart the device in case of errors */
 	sdev->allow_restart = 1;
 
+	/* REPORT SUPPORTED OPERATION CODES is not supported */
+	sdev->no_report_opcodes = 1;
+
 	lun_qdepth = ufshcd_read_sdev_qdepth(hba, sdev);
 	if (lun_qdepth <= 0)
 		/* eventually, we can figure out the real queue depth */
