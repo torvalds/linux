@@ -1,5 +1,5 @@
 /*
- * ffs-test.c -- user mode filesystem api for usb composite function
+ * ffs-test.c.c -- user mode filesystem api for usb composite function
  *
  * Copyright (C) 2010 Samsung Electronics
  *                    Author: Michal Nazarewicz <mina86@mina86.com>
@@ -21,8 +21,6 @@
 
 /* $(CROSS_COMPILE)cc -Wall -Wextra -g -o ffs-test ffs-test.c -lpthread */
 
-/* Uncomment to make the tool use legacy FFS descriptor headers. */
-/* #define USE_LEGACY_DESC_HEAD */
 
 #define _BSD_SOURCE /* for endian.h */
 
@@ -108,15 +106,7 @@ static void _msg(unsigned level, const char *fmt, ...)
 /******************** Descriptors and Strings *******************************/
 
 static const struct {
-	struct {
-		__le32 magic;
-		__le32 length;
-#ifndef USE_LEGACY_DESC_HEAD
-		__le32 flags;
-#endif
-		__le32 fs_count;
-		__le32 hs_count;
-	} __attribute__((packed)) header;
+	struct usb_functionfs_descs_head header;
 	struct {
 		struct usb_interface_descriptor intf;
 		struct usb_endpoint_descriptor_no_audio sink;
@@ -124,16 +114,10 @@ static const struct {
 	} __attribute__((packed)) fs_descs, hs_descs;
 } __attribute__((packed)) descriptors = {
 	.header = {
-#ifdef USE_LEGACY_DESC_HEAD
 		.magic = cpu_to_le32(FUNCTIONFS_DESCRIPTORS_MAGIC),
-#else
-		.magic = cpu_to_le32(FUNCTIONFS_DESCRIPTORS_MAGIC_V2),
-		.flags = cpu_to_le32(FUNCTIONFS_HAS_FS_DESC |
-				     FUNCTIONFS_HAS_HS_DESC),
-#endif
 		.length = cpu_to_le32(sizeof descriptors),
-		.fs_count = 3,
-		.hs_count = 3,
+		.fs_count = cpu_to_le32(3),
+		.hs_count = cpu_to_le32(3),
 	},
 	.fs_descs = {
 		.intf = {

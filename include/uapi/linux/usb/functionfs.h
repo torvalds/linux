@@ -33,6 +33,13 @@ struct usb_endpoint_descriptor_no_audio {
 	__u8  bInterval;
 } __attribute__((packed));
 
+/* Legacy format, deprecated as of 3.14. */
+struct usb_functionfs_descs_head {
+	__le32 magic;
+	__le32 length;
+	__le32 fs_count;
+	__le32 hs_count;
+} __attribute__((packed, deprecated));
 
 /*
  * Descriptors format:
@@ -53,7 +60,7 @@ struct usb_endpoint_descriptor_no_audio {
  * structure.  Any flags that are not recognised cause the whole block to be
  * rejected with -ENOSYS.
  *
- * Legacy descriptors format (deprecated as of 3.14):
+ * Legacy descriptors format:
  *
  * | off | name      | type         | description                          |
  * |-----+-----------+--------------+--------------------------------------|
