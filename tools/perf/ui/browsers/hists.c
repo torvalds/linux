@@ -56,11 +56,19 @@ static u32 hist_browser__nr_entries(struct hist_browser *hb)
 	return nr_entries + hb->nr_callchain_rows;
 }
 
-static void hist_browser__refresh_dimensions(struct hist_browser *browser)
+static void hist_browser__refresh_dimensions(struct ui_browser *browser)
 {
+	struct hist_browser *hb = container_of(browser, struct hist_browser, b);
+
 	/* 3 == +/- toggle symbol before actual hist_entry rendering */
-	browser->b.width = 3 + (hists__sort_list_width(browser->hists) +
-			     sizeof("[k]"));
+	browser->width = 3 + (hists__sort_list_width(hb->hists) + sizeof("[k]"));
+	/*
+ 	 * FIXME: Just keeping existing behaviour, but this really should be
+ 	 *	  before updating browser->width, as it will invalidate the
+ 	 *	  calculation above. Fix this and the fallout in another
+ 	 *	  changeset.
+ 	 */
+	ui_browser__refresh_dimensions(browser);
 }
 
 static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
@@ -78,7 +86,7 @@ static void hist_browser__reset(struct hist_browser *browser)
 
 	hist_browser__update_nr_entries(browser);
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
-	hist_browser__refresh_dimensions(browser);
+	hist_browser__refresh_dimensions(&browser->b);
 	ui_browser__reset_index(&browser->b);
 }
 
@@ -360,7 +368,6 @@ static int hist_browser__run(struct hist_browser *browser,
 	browser->b.entries = &browser->hists->entries;
 	browser->b.nr_entries = hist_browser__nr_entries(browser);
 
-	hist_browser__refresh_dimensions(browser);
 	hists__browser_title(browser->hists, title, sizeof(title));
 
 	if (ui_browser__show(&browser->b, title,
@@ -1195,6 +1202,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 	if (browser) {
 		browser->hists = hists;
 		browser->b.refresh = hist_browser__refresh;
+		browser->b.refresh_dimensions = hist_browser__refresh_dimensions;
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
 	}
