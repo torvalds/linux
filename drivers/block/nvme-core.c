@@ -48,6 +48,7 @@
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
 #define CQ_SIZE(depth)		(depth * sizeof(struct nvme_completion))
 #define ADMIN_TIMEOUT		(admin_timeout * HZ)
+#define SHUTDOWN_TIMEOUT	(shutdown_timeout * HZ)
 #define IOD_TIMEOUT		(retry_time * HZ)
 
 static unsigned char admin_timeout = 60;
@@ -61,6 +62,10 @@ MODULE_PARM_DESC(io_timeout, "timeout in seconds for I/O");
 static unsigned char retry_time = 30;
 module_param(retry_time, byte, 0644);
 MODULE_PARM_DESC(retry_time, "time in seconds to retry failed I/O");
+
+static unsigned char shutdown_timeout = 5;
+module_param(shutdown_timeout, byte, 0644);
+MODULE_PARM_DESC(shutdown_timeout, "timeout in seconds for controller shutdown");
 
 static int nvme_major;
 module_param(nvme_major, int, 0);
@@ -1447,7 +1452,7 @@ static int nvme_shutdown_ctrl(struct nvme_dev *dev)
 
 	writel(dev->ctrl_config, &dev->bar->cc);
 
-	timeout = 2 * HZ + jiffies;
+	timeout = SHUTDOWN_TIMEOUT + jiffies;
 	while ((readl(&dev->bar->csts) & NVME_CSTS_SHST_MASK) !=
 							NVME_CSTS_SHST_CMPLT) {
 		msleep(100);
