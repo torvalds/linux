@@ -34,6 +34,7 @@ config OLD_IRQ_AT91
 	select SPARSE_IRQ
 
 config AT91_SAM9_TIME
+	select CLKSRC_OF if OF
 	bool
 
 config HAVE_AT91_SMD

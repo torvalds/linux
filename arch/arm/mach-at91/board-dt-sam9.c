@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/clk-provider.h>
+#include <linux/clocksource.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -31,7 +32,7 @@ static void __init sam9_dt_timer_init(void)
 #if defined(CONFIG_COMMON_CLK)
 	of_clk_init(NULL);
 #endif
-	at91sam926x_pit_init();
+	clocksource_of_init();
 }
 
 static const char *at91_dt_board_compat[] __initdata = {

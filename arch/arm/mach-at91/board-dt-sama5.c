@@ -17,6 +17,7 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/clk-provider.h>
+#include <linux/clocksource.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -32,7 +33,7 @@ static void __init sama5_dt_timer_init(void)
 #if defined(CONFIG_COMMON_CLK)
 	of_clk_init(NULL);
 #endif
-	at91sam926x_pit_init();
+	clocksource_of_init();
 }
 
 static int ksz9021rn_phy_fixup(struct phy_device *phy)

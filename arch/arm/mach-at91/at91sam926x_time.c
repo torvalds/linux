@@ -19,7 +19,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <asm/mach/time.h>
 #include <mach/hardware.h>
 
 #define AT91_PIT_MR		0x00			/* Mode Register */
@@ -176,81 +175,21 @@ static struct irqaction at91sam926x_pit_irq = {
 	.name		= "at91_tick",
 	.flags		= IRQF_SHARED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= at91sam926x_pit_interrupt,
-	.irq		= NR_IRQS_LEGACY + AT91_ID_SYS,
 };
-
-#ifdef CONFIG_OF
-static struct of_device_id pit_timer_ids[] = {
-	{ .compatible = "atmel,at91sam9260-pit" },
-	{ /* sentinel */ }
-};
-
-static int __init of_at91sam926x_pit_init(void)
-{
-	struct device_node	*np;
-	int			ret;
-
-	np = of_find_matching_node(NULL, pit_timer_ids);
-	if (!np)
-		goto err;
-
-	pit_base_addr = of_iomap(np, 0);
-	if (!pit_base_addr)
-		goto node_err;
-
-	mck = of_clk_get(np, 0);
-
-	/* Get the interrupts property */
-	ret = irq_of_parse_and_map(np, 0);
-	if (!ret) {
-		pr_crit("AT91: PIT: Unable to get IRQ from DT\n");
-		if (!IS_ERR(mck))
-			clk_put(mck);
-		goto ioremap_err;
-	}
-	at91sam926x_pit_irq.irq = ret;
-
-	of_node_put(np);
-
-	return 0;
-
-ioremap_err:
-	iounmap(pit_base_addr);
-node_err:
-	of_node_put(np);
-err:
-	return -EINVAL;
-}
-#else
-static int __init of_at91sam926x_pit_init(void)
-{
-	return -EINVAL;
-}
-#endif
 
 /*
  * Set up both clocksource and clockevent support.
  */
-void __init at91sam926x_pit_init(void)
+static void __init at91sam926x_pit_common_init(void)
 {
 	unsigned long	pit_rate;
 	unsigned	bits;
 	int		ret;
 
-	mck = ERR_PTR(-ENOENT);
-
-	/* For device tree enabled device: initialize here */
-	of_at91sam926x_pit_init();
-
 	/*
 	 * Use our actual MCK to figure out how many MCK/16 ticks per
 	 * 1/HZ period (instead of a compile-time constant LATCH).
 	 */
-	if (IS_ERR(mck))
-		mck = clk_get(NULL, "mck");
-
-	if (IS_ERR(mck))
-		panic("AT91: PIT: Unable to get mck clk\n");
 	pit_rate = clk_get_rate(mck) / 16;
 	pit_cycle = DIV_ROUND_CLOSEST(pit_rate, HZ);
 	WARN_ON(((pit_cycle - 1) & ~AT91_PIT_PIV) != 0);
@@ -275,6 +214,51 @@ void __init at91sam926x_pit_init(void)
 	pit_clkevt.mult = div_sc(pit_rate, NSEC_PER_SEC, pit_clkevt.shift);
 	pit_clkevt.cpumask = cpumask_of(0);
 	clockevents_register_device(&pit_clkevt);
+}
+
+static void __init at91sam926x_pit_dt_init(struct device_node *node)
+{
+	unsigned int irq;
+
+	pit_base_addr = of_iomap(node, 0);
+	if (!pit_base_addr)
+		return;
+
+	mck = of_clk_get(node, 0);
+	if (IS_ERR(mck))
+		/* Fallback on clkdev for !CCF-based boards */
+		mck = clk_get(NULL, "mck");
+
+	if (IS_ERR(mck))
+		panic("AT91: PIT: Unable to get mck clk\n");
+
+	/* Get the interrupts property */
+	irq = irq_of_parse_and_map(node, 0);
+	if (!irq) {
+		pr_crit("AT91: PIT: Unable to get IRQ from DT\n");
+		goto clk_err;
+	}
+
+	at91sam926x_pit_irq.irq = irq;
+
+	at91sam926x_pit_common_init();
+
+clk_err:
+	clk_put(mck);
+	iounmap(pit_base_addr);
+}
+CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
+		       at91sam926x_pit_dt_init);
+
+void __init at91sam926x_pit_init(void)
+{
+	mck = clk_get(NULL, "mck");
+	if (IS_ERR(mck))
+		panic("AT91: PIT: Unable to get mck clk\n");
+
+	at91sam926x_pit_irq.irq = NR_IRQS_LEGACY + AT91_ID_SYS;
+
+	at91sam926x_pit_common_init();
 }
 
 void __init at91sam926x_ioremap_pit(u32 addr)
