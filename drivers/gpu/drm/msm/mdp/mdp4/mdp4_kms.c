@@ -147,7 +147,7 @@ static void mdp4_destroy(struct msm_kms *kms)
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
 	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference(mdp4_kms->blank_cursor_bo);
+		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
 	kfree(mdp4_kms);
 }
 
