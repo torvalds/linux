@@ -67,7 +67,7 @@ static void __init imx51_init_late(void)
 	imx51_pm_init();
 }
 
-static const char *imx51_dt_board_compat[] __initconst = {
+static const char * const imx51_dt_board_compat[] __initconst = {
 	"fsl,imx51",
 	NULL
 };

@@ -44,7 +44,7 @@ static void __init imx6sx_init_late(void)
 	imx6q_cpuidle_init();
 }
 
-static const char *imx6sx_dt_compat[] __initconst = {
+static const char * const imx6sx_dt_compat[] __initconst = {
 	"fsl,imx6sx",
 	NULL,
 };
