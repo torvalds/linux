@@ -1286,9 +1286,7 @@ static void rtd_release(struct device *dev)
 	kfree(dev);
 }
 
-static int soc_aux_dev_init(struct snd_soc_card *card,
-			    struct snd_soc_codec *codec,
-			    int num)
+static int soc_aux_dev_init(struct snd_soc_card *card, int num)
 {
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
@@ -1298,12 +1296,10 @@ static int soc_aux_dev_init(struct snd_soc_card *card,
 
 	/* do machine specific initialization */
 	if (aux_dev->init) {
-		ret = aux_dev->init(&codec->dapm);
+		ret = aux_dev->init(&rtd->codec->dapm);
 		if (ret < 0)
 			return ret;
 	}
-
-	rtd->codec = codec;
 
 	return 0;
 }
@@ -1327,7 +1323,6 @@ static int soc_dai_link_init(struct snd_soc_card *card, int num)
 }
 
 static int soc_post_component_init(struct snd_soc_card *card,
-				   struct snd_soc_codec *codec,
 				   int num, int dailess)
 {
 	struct snd_soc_dai_link *dai_link = NULL;
@@ -1345,7 +1340,7 @@ static int soc_post_component_init(struct snd_soc_card *card,
 		aux_dev = &card->aux_dev[num];
 		rtd = &card->rtd_aux[num];
 		name = aux_dev->name;
-		ret = soc_aux_dev_init(card, codec, num);
+		ret = soc_aux_dev_init(card, num);
 	}
 
 	if (ret < 0) {
@@ -1380,13 +1375,13 @@ static int soc_post_component_init(struct snd_soc_card *card,
 	/* add DAPM sysfs entries for this codec */
 	ret = snd_soc_dapm_sys_add(rtd->dev);
 	if (ret < 0)
-		dev_err(codec->dev,
+		dev_err(rtd->dev,
 			"ASoC: failed to add codec dapm sysfs entries: %d\n", ret);
 
 	/* add codec sysfs entries */
 	ret = device_create_file(rtd->dev, &dev_attr_codec_reg);
 	if (ret < 0)
-		dev_err(codec->dev,
+		dev_err(rtd->dev,
 			"ASoC: failed to add codec sysfs files: %d\n", ret);
 
 #ifdef CONFIG_DEBUG_FS
@@ -1551,7 +1546,7 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	if (order != SND_SOC_COMP_ORDER_LAST)
 		return 0;
 
-	ret = soc_post_component_init(card, codec, num, 0);
+	ret = soc_post_component_init(card, num, 0);
 	if (ret)
 		return ret;
 
@@ -1649,51 +1644,39 @@ static void soc_unregister_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 }
 #endif
 
-static int soc_check_aux_dev(struct snd_soc_card *card, int num)
+static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 {
+	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
 	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
 	const char *codecname = aux_dev->codec_name;
-	struct snd_soc_codec *codec;
 
-	codec = soc_find_codec(aux_dev->codec_of_node, aux_dev->codec_name);
-	if (codec)
-		return 0;
-	if (aux_dev->codec_of_node)
-		codecname = of_node_full_name(aux_dev->codec_of_node);
+	rtd->codec = soc_find_codec(aux_dev->codec_of_node, codecname);
+	if (!rtd->codec) {
+		if (aux_dev->codec_of_node)
+			codecname = of_node_full_name(aux_dev->codec_of_node);
 
-	dev_err(card->dev, "ASoC: %s not registered\n", codecname);
-	return -EPROBE_DEFER;
+		dev_err(card->dev, "ASoC: %s not registered\n", codecname);
+		return -EPROBE_DEFER;
+	}
+
+	return 0;
 }
 
 static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 {
-	struct snd_soc_aux_dev *aux_dev = &card->aux_dev[num];
-	const char *codecname = aux_dev->codec_name;
-	int ret = -ENODEV;
-	struct snd_soc_codec *codec;
+	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
+	int ret;
 
-	codec = soc_find_codec(aux_dev->codec_of_node, aux_dev->codec_name);
-	if (!codec) {
-		if (aux_dev->codec_of_node)
-			codecname = of_node_full_name(aux_dev->codec_of_node);
-
-		/* codec not found */
-		dev_err(card->dev, "ASoC: codec %s not found", codecname);
-		return -EPROBE_DEFER;
-	}
-
-	if (codec->probed) {
-		dev_err(codec->dev, "ASoC: codec already probed");
+	if (rtd->codec->probed) {
+		dev_err(rtd->codec->dev, "ASoC: codec already probed\n");
 		return -EBUSY;
 	}
 
-	ret = soc_probe_codec(card, codec);
+	ret = soc_probe_codec(card, rtd->codec);
 	if (ret < 0)
 		return ret;
 
-	ret = soc_post_component_init(card, codec, num, 1);
-
-	return ret;
+	return soc_post_component_init(card, num, 1);
 }
 
 static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
@@ -1745,9 +1728,9 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 			goto base_error;
 	}
 
-	/* check aux_devs too */
+	/* bind aux_devs too */
 	for (i = 0; i < card->num_aux_devs; i++) {
-		ret = soc_check_aux_dev(card, i);
+		ret = soc_bind_aux_dev(card, i);
 		if (ret != 0)
 			goto base_error;
 	}
