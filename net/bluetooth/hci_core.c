@@ -1611,6 +1611,15 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 
 		memset(events, 0, sizeof(events));
 		events[0] = 0x1f;
+
+		/* If controller supports the Connection Parameters Request
+		 * Link Layer Procedure, enable the corresponding event.
+		 */
+		if (hdev->le_features[0] & HCI_LE_CONN_PARAM_REQ_PROC)
+			events[0] |= 0x20;	/* LE Remote Connection
+						 * Parameter Request
+						 */
+
 		hci_req_add(req, HCI_OP_LE_SET_EVENT_MASK, sizeof(events),
 			    events);
 

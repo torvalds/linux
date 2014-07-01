@@ -307,6 +307,9 @@ enum {
 #define LMP_HOST_LE_BREDR	0x04
 #define LMP_HOST_SC		0x08
 
+/* LE features */
+#define HCI_LE_CONN_PARAM_REQ_PROC	0x02
+
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
 #define HCI_CM_HOLD	0x0001
