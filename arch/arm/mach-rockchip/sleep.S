@@ -18,7 +18,8 @@ ldmfd	sp!, { r3 - r12, pc }
 
 ENDPROC(rkpm_slp_cpu_while_tst)
 
-
+.data
+.align
 //65 A   48 0  97 a
 ENTRY(rkpm_slp_cpu_resume)
 9:	mov r1,r1 

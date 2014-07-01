@@ -1269,14 +1269,22 @@ static void rkpm_save_setting_resume_first(void)
 
 static void rkpm_save_setting(u32 ctrbits)
 {
-        rk3288_powermode=rkpm_slp_mode_set(ctrbits);
-        if(rk3288_powermode&BIT(pmu_pwr_mode_en))
-       {
-                sram_code_data_save(rk3288_powermode);   
-                rkpm_peri_save(rk3288_powermode);                
-        }
-        else
-             return ;
+
+#if 0
+    rkpm_ddr_regs_dump(RK_DDR_VIRT,0,0x3fc);
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE,0,0x294);
+
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE+RK3288_DDR_PUBL_SIZE,0,0x3fc);
+    rkpm_ddr_regs_dump(RK_DDR_VIRT+RK3288_DDR_PCTL_SIZE*2+RK3288_DDR_PUBL_SIZE,0,0x294);
+#endif
+    rk3288_powermode=rkpm_slp_mode_set(ctrbits);
+    if(rk3288_powermode&BIT(pmu_pwr_mode_en))
+    {
+            sram_code_data_save(rk3288_powermode);   
+            rkpm_peri_save(rk3288_powermode);                
+    }
+    else
+         return ;
 
 }
 static void rkpm_save_setting_resume(void)
