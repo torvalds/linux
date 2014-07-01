@@ -271,12 +271,8 @@ static int hda_tegra_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 	struct hda_tegra *hda = container_of(chip, struct hda_tegra, chip);
-	int status;
 
 	hda_tegra_enable_clocks(hda);
-
-	/* Read STATESTS before controller reset */
-	status = azx_readw(chip, STATESTS);
 
 	hda_tegra_init(hda);
 
