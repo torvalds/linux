@@ -170,6 +170,91 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 }
 
 /*
+ * Verify the internal certificate chain as best we can.
+ */
+static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
+				  struct pkcs7_signed_info *sinfo)
+{
+	struct x509_certificate *x509 = sinfo->signer, *p;
+	int ret;
+
+	kenter("");
+
+	for (p = pkcs7->certs; p; p = p->next)
+		p->seen = false;
+
+	for (;;) {
+		pr_debug("verify %s: %s\n", x509->subject, x509->fingerprint);
+		x509->seen = true;
+		ret = x509_get_sig_params(x509);
+		if (ret < 0)
+			return ret;
+
+		if (x509->issuer)
+			pr_debug("- issuer %s\n", x509->issuer);
+		if (x509->authority)
+			pr_debug("- authkeyid %s\n", x509->authority);
+
+		if (!x509->authority ||
+		    (x509->subject &&
+		     strcmp(x509->subject, x509->issuer) == 0)) {
+			/* If there's no authority certificate specified, then
+			 * the certificate must be self-signed and is the root
+			 * of the chain.  Likewise if the cert is its own
+			 * authority.
+			 */
+			pr_debug("- no auth?\n");
+			if (x509->raw_subject_size != x509->raw_issuer_size ||
+			    memcmp(x509->raw_subject, x509->raw_issuer,
+				   x509->raw_issuer_size) != 0)
+				return 0;
+
+			ret = x509_check_signature(x509->pub, x509);
+			if (ret < 0)
+				return ret;
+			x509->signer = x509;
+			pr_debug("- self-signed\n");
+			return 0;
+		}
+
+		/* Look through the X.509 certificates in the PKCS#7 message's
+		 * list to see if the next one is there.
+		 */
+		pr_debug("- want %s\n", x509->authority);
+		for (p = pkcs7->certs; p; p = p->next) {
+			pr_debug("- cmp [%u] %s\n", p->index, p->fingerprint);
+			if (p->raw_subject_size == x509->raw_issuer_size &&
+			    strcmp(p->fingerprint, x509->authority) == 0 &&
+			    memcmp(p->raw_subject, x509->raw_issuer,
+				   x509->raw_issuer_size) == 0)
+				goto found_issuer;
+		}
+
+		/* We didn't find the root of this chain */
+		pr_debug("- top\n");
+		return 0;
+
+	found_issuer:
+		pr_debug("- issuer %s\n", p->subject);
+		if (p->seen) {
+			pr_warn("Sig %u: X.509 chain contains loop\n",
+				sinfo->index);
+			return 0;
+		}
+		ret = x509_check_signature(p->pub, x509);
+		if (ret < 0)
+			return ret;
+		x509->signer = p;
+		if (x509 == p) {
+			pr_debug("- self-signed\n");
+			return 0;
+		}
+		x509 = p;
+		might_sleep();
+	}
+}
+
+/*
  * Verify one signed information block from a PKCS#7 message.
  */
 static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
@@ -201,7 +286,8 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
 
 	pr_devel("Verified signature %u\n", sinfo->index);
 
-	return 0;
+	/* Verify the internal certificate chain */
+	return pkcs7_verify_sig_chain(pkcs7, sinfo);
 }
 
 /**
