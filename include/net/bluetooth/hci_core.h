@@ -171,6 +171,7 @@ struct hci_dev {
 	__u8		bus;
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
+	bdaddr_t	public_addr;
 	bdaddr_t	random_addr;
 	bdaddr_t	static_addr;
 	__u8		adv_addr_type;
@@ -344,6 +345,7 @@ struct hci_dev {
 	int (*setup)(struct hci_dev *hdev);
 	int (*send)(struct hci_dev *hdev, struct sk_buff *skb);
 	void (*notify)(struct hci_dev *hdev, unsigned int evt);
+	int (*set_bdaddr)(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 };
 
 #define HCI_PHY_HANDLE(handle)	(handle & 0xff)

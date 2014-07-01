@@ -2249,6 +2249,17 @@ static int hci_dev_do_open(struct hci_dev *hdev)
 	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags))
 		ret = hdev->setup(hdev);
 
+	/* If public address change is configured, ensure that the
+	 * address gets programmed. If the driver does not support
+	 * changing the public address, fail the power on procedure.
+	 */
+	if (!ret && bacmp(&hdev->public_addr, BDADDR_ANY)) {
+		if (hdev->set_bdaddr)
+			ret = hdev->set_bdaddr(hdev, &hdev->public_addr);
+		else
+			ret = -EADDRNOTAVAIL;
+	}
+
 	if (!ret) {
 		if (!test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks) &&
 		    !test_bit(HCI_USER_CHANNEL, &hdev->dev_flags))
