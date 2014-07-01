@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+struct key;
 struct pkcs7_message;
 
 /*
@@ -21,6 +22,13 @@ extern void pkcs7_free_message(struct pkcs7_message *pkcs7);
 extern int pkcs7_get_content_data(const struct pkcs7_message *pkcs7,
 				  const void **_data, size_t *_datalen,
 				  bool want_wrapper);
+
+/*
+ * pkcs7_trust.c
+ */
+extern int pkcs7_validate_trust(struct pkcs7_message *pkcs7,
+				struct key *trust_keyring,
+				bool *_trusted);
 
 /*
  * pkcs7_verify.c
