@@ -449,7 +449,7 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	if (ret < 0)
 		goto error;
 
-	ret = -ENOANO; // Not yet complete
+	ret = pkcs7_validate_trust(pkcs7, trusted_keyring, _trusted);
 
 error:
 	pkcs7_free_message(ctx.pkcs7);
