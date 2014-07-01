@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __GDM_WIMAX_H__
-#define __GDM_WIMAX_H__
+#ifndef __GDM72XX_GDM_WIMAX_H__
+#define __GDM72XX_GDM_WIMAX_H__
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -57,4 +57,4 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev);
 int gdm_wimax_send_tx(struct sk_buff *skb, struct net_device *dev);
 void unregister_wimax_device(struct phy_dev *phy_dev);
 
-#endif
+#endif /* __GDM72XX_GDM_WIMAX_H__ */

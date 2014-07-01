@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef HCI_H_20080801
-#define HCI_H_20080801
+#ifndef __GDM72XX_HCI_H__
+#define __GDM72XX_HCI_H__
 
 #define HCI_HEADER_SIZE		4
 #define HCI_VALUE_OFFS		(HCI_HEADER_SIZE)
@@ -204,4 +204,4 @@ struct hci_s {
 	unsigned char  data[0];
 } __packed;
 
-#endif
+#endif /* __GDM72XX_HCI_H__ */

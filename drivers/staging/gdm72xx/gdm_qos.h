@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#if !defined(GDM_QOS_H_20090403)
-#define GDM_QOS_H_20090403
+#ifndef __GDM72XX_GDM_QOS_H__
+#define __GDM72XX_GDM_QOS_H__
 
 #include <linux/types.h>
 #include <linux/usb.h>
@@ -71,4 +71,4 @@ void gdm_qos_release_list(void *nic_ptr);
 int gdm_qos_send_hci_pkt(struct sk_buff *skb, struct net_device *dev);
 void gdm_recv_qos_hci_packet(void *nic_ptr, u8 *buf, int size);
 
-#endif
+#endif /* __GDM72XX_GDM_QOS_H__ */
