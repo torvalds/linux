@@ -416,7 +416,6 @@ int rtw_hw_resume23a(struct rtw_adapter *padapter)
 			netif_tx_wake_all_queues(pnetdev);
 
 		pwrpriv->bkeepfwalive = false;
-		pwrpriv->brfoffbyhw = false;
 
 		pwrpriv->rf_pwrstate = rf_on;
 		pwrpriv->bips_processing = false;

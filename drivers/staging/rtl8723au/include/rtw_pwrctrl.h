@@ -210,7 +210,6 @@ struct pwrctrl_priv {
 	u8	bHWPowerdown;/* if support hw power down */
 	u8	bHWPwrPindetect;
 	u8	bkeepfwalive;
-	u8	brfoffbyhw;
 	unsigned long PS_BBRegBackup[PSBBREG_TOTALCNT];
 };
 

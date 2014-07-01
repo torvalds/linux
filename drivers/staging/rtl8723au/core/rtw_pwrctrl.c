@@ -165,7 +165,6 @@ void rtw_ps_processor23a(struct rtw_adapter*padapter)
 		if (rfpwrstate!= pwrpriv->rf_pwrstate) {
 			if (rfpwrstate == rf_off) {
 				pwrpriv->change_rfpwrstate = rf_off;
-				pwrpriv->brfoffbyhw = true;
 				padapter->bCardDisableWOHSM = true;
 				rtw_hw_suspend23a(padapter);
 			} else {
