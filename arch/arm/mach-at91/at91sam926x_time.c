@@ -252,7 +252,7 @@ void __init at91sam926x_pit_init(void)
 	if (IS_ERR(mck))
 		panic("AT91: PIT: Unable to get mck clk\n");
 	pit_rate = clk_get_rate(mck) / 16;
-	pit_cycle = (pit_rate + HZ/2) / HZ;
+	pit_cycle = DIV_ROUND_CLOSEST(pit_rate, HZ);
 	WARN_ON(((pit_cycle - 1) & ~AT91_PIT_PIV) != 0);
 
 	/* Initialize and enable the timer */
