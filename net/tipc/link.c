@@ -1422,11 +1422,6 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		if (unlikely(!list_empty(&l_ptr->waiting_ports)))
 			tipc_link_wakeup_ports(l_ptr, 0);
 
-		if (unlikely(++l_ptr->unacked_window >= TIPC_MIN_LINK_WIN)) {
-			l_ptr->stats.sent_acks++;
-			tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
-		}
-
 		/* Process the incoming packet */
 		if (unlikely(!link_working_working(l_ptr))) {
 			if (msg_user(msg) == LINK_PROTOCOL) {
@@ -1459,6 +1454,11 @@ void tipc_rcv(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		l_ptr->next_in_no++;
 		if (unlikely(l_ptr->oldest_deferred_in))
 			head = link_insert_deferred_queue(l_ptr, head);
+
+		if (unlikely(++l_ptr->unacked_window >= TIPC_MIN_LINK_WIN)) {
+			l_ptr->stats.sent_acks++;
+			tipc_link_proto_xmit(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
+		}
 
 		if (tipc_link_prepare_input(l_ptr, &buf)) {
 			tipc_node_unlock(n_ptr);
