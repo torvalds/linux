@@ -810,8 +810,18 @@ static void gpio_ddr_dump_reg(int ports)
  {
      u32 l2ctlr;
      asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (l2ctlr));
-         return l2ctlr;
+      return l2ctlr;
  }
+
+static inline u32 rkpm_armerrata_818325(void)
+{
+    u32 armerrata;
+    asm("mrc p15, 0, %0, c15, c0, 1" : "=r" (armerrata));
+    return armerrata;
+}
+
+
+
 /**************************************sleep func**************************/
 
 void ddr_reg_save(uint32_t *pArg);
@@ -1060,11 +1070,23 @@ static void sram_code_data_save(u32 pwrmode)
         {   
             sleep_resume_data[RKPM_BOOTDATA_L2LTY_F]=1;
             sleep_resume_data[RKPM_BOOTDATA_L2LTY]=rkpm_l2_config();// in sys resume ,ddr is need resume	
-            sleep_resume_data[RKPM_BOOTDATA_CPUSP]=RKPM_BOOT_CPUSP_PHY;// in sys resume ,ddr is need resume	
-            sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=virt_to_phys(cpu_resume);// in sys resume ,ddr is need resume    
+            
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F]=1;
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325]=rkpm_armerrata_818325();//
+        
+            sleep_resume_data[RKPM_BOOTDATA_CPUSP]=RKPM_BOOT_CPUSP_PHY;// in sys resume ,ddr is need resume	            
+            sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=virt_to_phys(cpu_resume);// in sys resume ,ddr is need resume  
+            #if 0
+            rkpm_ddr_printascii("l2&arm_errata--");   
+            rkpm_ddr_printhex(rkpm_l2_config());             
+            rkpm_ddr_printhex(rkpm_armerrata_818325());
+            rkpm_ddr_printascii("\n");  
+            #endif
         }
         else
         {
+            sleep_resume_data[RKPM_BOOTDATA_L2LTY_F]=0;
+            sleep_resume_data[RKPM_BOOTDATA_ARM_ERRATA_818325_F]=0;       
             sleep_resume_data[RKPM_BOOTDATA_CPUCODE]=0;
             return ;
         }
@@ -1259,13 +1281,19 @@ static void rkpm_save_setting(u32 ctrbits)
 }
 static void rkpm_save_setting_resume(void)
 {
+
+        #if 0
+        rkpm_ddr_printascii("l2&arm_errata--");   
+        rkpm_ddr_printhex(rkpm_l2_config());             
+        rkpm_ddr_printhex(rkpm_armerrata_818325());
+        rkpm_ddr_printascii("\n");            
+        #endif
                    
          if(rk3288_powermode&BIT(pmu_pwr_mode_en))
         {
             sram_code_data_resume(rk3288_powermode); 
             rkpm_peri_resume(rk3288_powermode);
-        }
-         
+        }         
          rkpm_slp_mode_set_resume();       
 
 }
