@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "X.509: "fmt
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/oid_registry.h>
@@ -52,6 +53,7 @@ void x509_free_certificate(struct x509_certificate *cert)
 		kfree(cert);
 	}
 }
+EXPORT_SYMBOL_GPL(x509_free_certificate);
 
 /*
  * Parse an X.509 certificate
@@ -97,6 +99,7 @@ error_no_ctx:
 error_no_cert:
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(x509_cert_parse);
 
 /*
  * Note an OID when we find one for later processing when we know how
