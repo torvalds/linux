@@ -3472,21 +3472,22 @@ void hci_pend_le_conns_clear(struct hci_dev *hdev)
 }
 
 /* This function requires the caller holds hdev->lock */
-int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
+struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
+					    bdaddr_t *addr, u8 addr_type)
 {
 	struct hci_conn_params *params;
 
 	if (!is_identity_address(addr, addr_type))
-		return -EINVAL;
+		return NULL;
 
 	params = hci_conn_params_lookup(hdev, addr, addr_type);
 	if (params)
-		return 0;
+		return params;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params) {
 		BT_ERR("Out of memory");
-		return -ENOMEM;
+		return NULL;
 	}
 
 	bacpy(&params->addr, addr);
@@ -3502,7 +3503,7 @@ int hci_conn_params_add(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 
 	BT_DBG("addr %pMR (type %u)", addr, addr_type);
 
-	return 0;
+	return params;
 }
 
 /* This function requires the caller holds hdev->lock */
