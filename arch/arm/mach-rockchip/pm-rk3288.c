@@ -1347,19 +1347,15 @@ extern void rk_last_log_text(char *text, size_t size);
 
 static void  ddr_printch(char byte)
 {
-        char last_char;
-        
 	uart_printch(byte);  
     
 #ifdef CONFIG_RK_LAST_LOG
-        last_char=byte;
-        rk_last_log_text(&last_char,1);
-        
-        if (byte == '\n') {
-            last_char='\r';
-            rk_last_log_text(&last_char,1);
-         }
-      
+	rk_last_log_text(&byte, 1);
+
+	if (byte == '\n') {
+		byte = '\r';
+		rk_last_log_text(&byte, 1);
+	}
 #endif
         pll_udelay(2);
 }
