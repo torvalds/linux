@@ -23,16 +23,6 @@
 
 #define DRIVER_VERSION		"3.2.3"
 
-#define H2L(x)		__cpu_to_le16(x)
-#define L2H(x)		__le16_to_cpu(x)
-#define DH2L(x)		__cpu_to_le32(x)
-#define DL2H(x)		__le32_to_cpu(x)
-
-#define H2B(x)		__cpu_to_be16(x)
-#define B2H(x)		__be16_to_cpu(x)
-#define DH2B(x)		__cpu_to_be32(x)
-#define DB2H(x)		__be32_to_cpu(x)
-
 struct phy_dev {
 	void			*priv_dev;
 	struct net_device	*netdev;

@@ -24,8 +24,6 @@
 #include "hci.h"
 #include "gdm_qos.h"
 
-#define B2H(x)	__be16_to_cpu(x)
-
 #define MAX_FREE_LIST_CNT		32
 static struct {
 	struct list_head head;
@@ -266,7 +264,7 @@ int gdm_qos_send_hci_pkt(struct sk_buff *skb, struct net_device *dev)
 
 	tcph = (struct tcphdr *)iph + iph->ihl*4;
 
-	if (B2H(ethh->h_proto) == ETH_P_IP) {
+	if (ethh->h_proto == cpu_to_be16(ETH_P_IP)) {
 		if (qcb->qos_list_cnt && !qos_free_list.cnt) {
 			entry = alloc_qos_entry();
 			entry->skb = skb;

@@ -36,10 +36,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 #define GDM7205_PADDING		256
 
-#define H2B(x)		__cpu_to_be16(x)
-#define B2H(x)		__be16_to_cpu(x)
-#define DB2H(x)		__be32_to_cpu(x)
-
 #define DOWNLOAD_CONF_VALUE	0x21
 
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
@@ -541,9 +537,9 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	bConfigurationValue = usbdev->actconfig->desc.bConfigurationValue;
 
 	/*USB description is set up with Little-Endian*/
-	idVendor = L2H(usbdev->descriptor.idVendor);
-	idProduct = L2H(usbdev->descriptor.idProduct);
-	bcdDevice = L2H(usbdev->descriptor.bcdDevice);
+	idVendor = le16_to_cpu(usbdev->descriptor.idVendor);
+	idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
+	bcdDevice = le16_to_cpu(usbdev->descriptor.bcdDevice);
 
 	dev_info(&intf->dev, "Found GDM USB VID = 0x%04x PID = 0x%04x...\n",
 		 idVendor, idProduct);
@@ -626,7 +622,7 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 	phy_dev = usb_get_intfdata(intf);
 
 	/*USB description is set up with Little-Endian*/
-	idProduct = L2H(usbdev->descriptor.idProduct);
+	idProduct = le16_to_cpu(usbdev->descriptor.idProduct);
 
 	if (idProduct != EMERGENCY_PID &&
 	    bConfigurationValue != DOWNLOAD_CONF_VALUE &&

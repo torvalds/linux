@@ -199,9 +199,9 @@
 #define T_DUPLEX_MODE			(0xdb	| (4 << 16))
 
 struct hci_s {
-	unsigned short cmd_evt;
-	unsigned short length;
-	unsigned char  data[0];
+	__be16	cmd_evt;
+	__be16	length;
+	u8	data[0];
 } __packed;
 
 #endif /* __GDM72XX_HCI_H__ */

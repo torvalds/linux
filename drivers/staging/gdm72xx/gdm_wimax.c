@@ -166,6 +166,7 @@ static void dump_eth_packet(struct net_device *dev, const char *title,
 static inline int gdm_wimax_header(struct sk_buff **pskb)
 {
 	u16 buf[HCI_HEADER_SIZE / sizeof(u16)];
+	struct hci_s *hci = (struct hci_s *)buf;
 	struct sk_buff *skb = *pskb;
 
 	if (unlikely(skb_headroom(skb) < HCI_HEADER_SIZE)) {
@@ -181,8 +182,8 @@ static inline int gdm_wimax_header(struct sk_buff **pskb)
 	}
 
 	skb_push(skb, HCI_HEADER_SIZE);
-	buf[0] = H2B(WIMAX_TX_SDU);
-	buf[1] = H2B(skb->len - HCI_HEADER_SIZE);
+	hci->cmd_evt = cpu_to_be16(WIMAX_TX_SDU);
+	hci->length = cpu_to_be16(skb->len - HCI_HEADER_SIZE);
 	memcpy(skb->data, buf, HCI_HEADER_SIZE);
 
 	*pskb = skb;
@@ -409,7 +410,7 @@ static int gdm_wimax_set_config(struct net_device *dev, struct ifmap *map)
 static void __gdm_wimax_set_mac_addr(struct net_device *dev, char *mac_addr)
 {
 	u16 hci_pkt_buf[32 / sizeof(u16)];
-	u8 *pkt = (u8 *)&hci_pkt_buf[0];
+	struct hci_s *hci = (struct hci_s *)hci_pkt_buf;
 	struct nic *nic = netdev_priv(dev);
 
 	/* Since dev is registered as a ethernet device,
@@ -420,13 +421,13 @@ static void __gdm_wimax_set_mac_addr(struct net_device *dev, char *mac_addr)
 	/* Let lower layer know of this change by sending
 	 * SetInformation(MAC Address)
 	 */
-	hci_pkt_buf[0] = H2B(WIMAX_SET_INFO);	/* cmd_evt */
-	hci_pkt_buf[1] = H2B(8);			/* size */
-	pkt[4] = 0; /* T */
-	pkt[5] = 6; /* L */
-	memcpy(pkt + 6, mac_addr, dev->addr_len); /* V */
+	hci->cmd_evt = cpu_to_be16(WIMAX_SET_INFO);
+	hci->length = cpu_to_be16(8);
+	hci->data[0] = 0; /* T */
+	hci->data[1] = 6; /* L */
+	memcpy(&hci->data[2], mac_addr, dev->addr_len); /* V */
 
-	gdm_wimax_send(nic, pkt, HCI_HEADER_SIZE + 8);
+	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE + 8);
 }
 
 /* A driver function */
@@ -608,6 +609,7 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 	struct hci_s *hci = (struct hci_s *)buf;
 	u16 len = 0;
 	u32 val = 0;
+	__be32 val_be32;
 
 	#define BIT_MULTI_CS	0
 	#define BIT_WIMAX		1
@@ -616,9 +618,9 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 
 	/* GetInformation mac address */
 	len = 0;
-	hci->cmd_evt = H2B(WIMAX_GET_INFO);
+	hci->cmd_evt = cpu_to_be16(WIMAX_GET_INFO);
 	hci->data[len++] = TLV_T(T_MAC_ADDRESS);
-	hci->length = H2B(len);
+	hci->length = cpu_to_be16(len);
 	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
 
 	val = (1<<BIT_WIMAX) | (1<<BIT_MULTI_CS);
@@ -631,16 +633,16 @@ static void gdm_wimax_prepare_device(struct net_device *dev)
 
 	/* Set capability */
 	len = 0;
-	hci->cmd_evt = H2B(WIMAX_SET_INFO);
+	hci->cmd_evt = cpu_to_be16(WIMAX_SET_INFO);
 	hci->data[len++] = TLV_T(T_CAPABILITY);
 	hci->data[len++] = TLV_L(T_CAPABILITY);
-	val = DH2B(val);
-	memcpy(&hci->data[len], &val, TLV_L(T_CAPABILITY));
+	val_be32 = cpu_to_be32(val);
+	memcpy(&hci->data[len], &val_be32, TLV_L(T_CAPABILITY));
 	len += TLV_L(T_CAPABILITY);
-	hci->length = H2B(len);
+	hci->length = cpu_to_be16(len);
 	gdm_wimax_send(nic, hci, HCI_HEADER_SIZE+len);
 
-	netdev_info(dev, "GDM WiMax Set CAPABILITY: 0x%08X\n", DB2H(val));
+	netdev_info(dev, "GDM WiMax Set CAPABILITY: 0x%08X\n", val);
 }
 
 static int gdm_wimax_hci_get_tlv(u8 *buf, u8 *T, u16 *L, u8 **V)
@@ -650,7 +652,7 @@ static int gdm_wimax_hci_get_tlv(u8 *buf, u8 *T, u16 *L, u8 **V)
 
 	*T = buf[0];
 	if (buf[1] == 0x82) {
-		*L = B2H(__U82U16(&buf[2]));
+		*L = be16_to_cpu(__U82U16(&buf[2]));
 		next_pos = 1/*type*/+3/*len*/;
 	} else {
 		*L = buf[1];
@@ -670,8 +672,8 @@ static int gdm_wimax_get_prepared_info(struct net_device *dev, char *buf,
 	u16 cmd_evt, cmd_len;
 	int pos = HCI_HEADER_SIZE;
 
-	cmd_evt = B2H(*(u16 *)&buf[0]);
-	cmd_len = B2H(*(u16 *)&buf[2]);
+	cmd_evt = be16_to_cpup((const __be16 *)&buf[0]);
+	cmd_len = be16_to_cpup((const __be16 *)&buf[2]);
 
 	if (len < cmd_len + HCI_HEADER_SIZE) {
 		netdev_err(dev, "%s: invalid length [%d/%d]\n", __func__,
@@ -744,13 +746,13 @@ static void gdm_wimax_transmit_aggr_pkt(struct net_device *dev, char *buf,
 	while (len > 0) {
 		hci = (struct hci_s *)buf;
 
-		if (B2H(hci->cmd_evt) != WIMAX_RX_SDU) {
+		if (hci->cmd_evt != cpu_to_be16(WIMAX_RX_SDU)) {
 			netdev_err(dev, "Wrong cmd_evt(0x%04X)\n",
-				   B2H(hci->cmd_evt));
+				   be16_to_cpu(hci->cmd_evt));
 			break;
 		}
 
-		length = B2H(hci->length);
+		length = be16_to_cpu(hci->length);
 		gdm_wimax_netif_rx(dev, hci->data, length);
 
 		if (length & 0x3) {
@@ -775,8 +777,8 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 	if (len == 0)
 		return;
 
-	cmd_evt = B2H(*(u16 *)&buf[0]);
-	cmd_len = B2H(*(u16 *)&buf[2]);
+	cmd_evt = be16_to_cpup((const __be16 *)&buf[0]);
+	cmd_len = be16_to_cpup((const __be16 *)&buf[2]);
 
 	if (len < cmd_len + HCI_HEADER_SIZE) {
 		if (len)
@@ -816,14 +818,14 @@ static void gdm_wimax_transmit_pkt(struct net_device *dev, char *buf, int len)
 static void gdm_wimax_ind_fsm_update(struct net_device *dev, struct fsm_s *fsm)
 {
 	u16 buf[32 / sizeof(u16)];
-	u8 *hci_pkt_buf = (u8 *)&buf[0];
+	struct hci_s *hci = (struct hci_s *)buf;
 
 	/* Indicate updating fsm */
-	buf[0] = H2B(WIMAX_FSM_UPDATE);
-	buf[1] = H2B(sizeof(struct fsm_s));
-	memcpy(&hci_pkt_buf[HCI_HEADER_SIZE], fsm, sizeof(struct fsm_s));
+	hci->cmd_evt = cpu_to_be16(WIMAX_FSM_UPDATE);
+	hci->length = cpu_to_be16(sizeof(struct fsm_s));
+	memcpy(&hci->data[0], fsm, sizeof(struct fsm_s));
 
-	gdm_wimax_event_send(dev, hci_pkt_buf,
+	gdm_wimax_event_send(dev, (char *)hci,
 			     HCI_HEADER_SIZE + sizeof(struct fsm_s));
 }
 
@@ -836,8 +838,8 @@ static void gdm_wimax_ind_if_updown(struct net_device *dev, int if_up)
 	up_down = if_up ? WIMAX_IF_UP : WIMAX_IF_DOWN;
 
 	/* Indicate updating fsm */
-	hci->cmd_evt = H2B(WIMAX_IF_UPDOWN);
-	hci->length = H2B(sizeof(up_down));
+	hci->cmd_evt = cpu_to_be16(WIMAX_IF_UPDOWN);
+	hci->length = cpu_to_be16(sizeof(up_down));
 	hci->data[0] = up_down;
 
 	gdm_wimax_event_send(dev, (char *)hci, HCI_HEADER_SIZE+sizeof(up_down));

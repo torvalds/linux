@@ -275,8 +275,9 @@ static void send_sdu(struct sdio_func *func, struct tx_cxt *tx)
 	aggr_len = pos;
 
 	hci = (struct hci_s *)(tx->sdu_buf + TYPE_A_HEADER_SIZE);
-	hci->cmd_evt = H2B(WIMAX_TX_SDU_AGGR);
-	hci->length = H2B(aggr_len - TYPE_A_HEADER_SIZE - HCI_HEADER_SIZE);
+	hci->cmd_evt = cpu_to_be16(WIMAX_TX_SDU_AGGR);
+	hci->length = cpu_to_be16(aggr_len - TYPE_A_HEADER_SIZE -
+				  HCI_HEADER_SIZE);
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
