@@ -245,6 +245,13 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 		goto error;
 	}
 
+	ret = mscode_parse(&ctx);
+	if (ret < 0)
+		goto error;
+
+	pr_debug("Digest: %u [%*ph]\n",
+		 ctx.digest_len, ctx.digest_len, ctx.digest);
+
 	ret = -ENOANO; // Not yet complete
 
 error:

@@ -54,4 +54,11 @@ pkcs7_test_key-y := \
 obj-$(CONFIG_SIGNED_PE_FILE_VERIFICATION) += verify_signed_pefile.o
 
 verify_signed_pefile-y := \
-	verify_pefile.o
+	verify_pefile.o \
+	mscode_parser.o \
+	mscode-asn1.o
+
+$(obj)/mscode_parser.o: $(obj)/mscode-asn1.h $(obj)/mscode-asn1.h
+$(obj)/mscode-asn1.o: $(obj)/mscode-asn1.c $(obj)/mscode-asn1.h
+
+clean-files	+= mscode-asn1.c mscode-asn1.h

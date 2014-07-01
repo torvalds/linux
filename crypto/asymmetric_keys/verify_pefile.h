@@ -35,3 +35,8 @@ struct pefile_context {
 	pr_devel("==> %s("FMT")\n", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) \
 	pr_devel("<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+
+/*
+ * mscode_parser.c
+ */
+extern int mscode_parse(struct pefile_context *ctx);

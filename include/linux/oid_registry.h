@@ -52,8 +52,13 @@ enum OID {
 	OID_md4,			/* 1.2.840.113549.2.4 */
 	OID_md5,			/* 1.2.840.113549.2.5 */
 
-	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
+	/* Microsoft Authenticode & Software Publishing */
+	OID_msIndirectData,		/* 1.3.6.1.4.1.311.2.1.4 */
+	OID_msPeImageDataObjId,		/* 1.3.6.1.4.1.311.2.1.15 */
+	OID_msIndividualSPKeyPurpose,	/* 1.3.6.1.4.1.311.2.1.21 */
 	OID_msOutlookExpress,		/* 1.3.6.1.4.1.311.16.4 */
+
+	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
 	OID_sha1,			/* 1.3.14.3.2.26 */
 	OID_sha256,			/* 2.16.840.1.101.3.4.2.1 */
 
