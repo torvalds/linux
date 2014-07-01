@@ -278,6 +278,8 @@ static int nf_tables_dump_tables(struct sk_buff *skb,
 	int family = nfmsg->nfgen_family;
 
 	rcu_read_lock();
+	cb->seq = net->nft.base_seq;
+
 	list_for_each_entry_rcu(afi, &net->nft.af_info, list) {
 		if (family != NFPROTO_UNSPEC && family != afi->family)
 			continue;
@@ -295,6 +297,8 @@ static int nf_tables_dump_tables(struct sk_buff *skb,
 						      NLM_F_MULTI,
 						      afi->family, table) < 0)
 				goto done;
+
+			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 			idx++;
 		}
@@ -767,6 +771,8 @@ static int nf_tables_dump_chains(struct sk_buff *skb,
 	int family = nfmsg->nfgen_family;
 
 	rcu_read_lock();
+	cb->seq = net->nft.base_seq;
+
 	list_for_each_entry_rcu(afi, &net->nft.af_info, list) {
 		if (family != NFPROTO_UNSPEC && family != afi->family)
 			continue;
@@ -784,6 +790,8 @@ static int nf_tables_dump_chains(struct sk_buff *skb,
 							      NLM_F_MULTI,
 							      afi->family, table, chain) < 0)
 					goto done;
+
+				nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 				idx++;
 			}
@@ -1555,10 +1563,10 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 	unsigned int idx = 0, s_idx = cb->args[0];
 	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
-	u8 genctr = ACCESS_ONCE(net->nft.genctr);
-	u8 gencursor = ACCESS_ONCE(net->nft.gencursor);
 
 	rcu_read_lock();
+	cb->seq = net->nft.base_seq;
+
 	list_for_each_entry_rcu(afi, &net->nft.af_info, list) {
 		if (family != NFPROTO_UNSPEC && family != afi->family)
 			continue;
@@ -1579,6 +1587,8 @@ static int nf_tables_dump_rules(struct sk_buff *skb,
 								      NLM_F_MULTI | NLM_F_APPEND,
 								      afi->family, table, chain, rule) < 0)
 						goto done;
+
+					nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 					idx++;
 				}
@@ -1587,10 +1597,6 @@ cont:
 	}
 done:
 	rcu_read_unlock();
-
-	/* Invalidate this dump, a transition to the new generation happened */
-	if (gencursor != net->nft.gencursor || genctr != net->nft.genctr)
-		return -EBUSY;
 
 	cb->args[0] = idx;
 	return skb->len;
@@ -2244,6 +2250,8 @@ static int nf_tables_dump_sets_table(struct nft_ctx *ctx, struct sk_buff *skb,
 		return skb->len;
 
 	rcu_read_lock();
+	cb->seq = ctx->net->nft.base_seq;
+
 	list_for_each_entry_rcu(set, &ctx->table->sets, list) {
 		if (idx < s_idx)
 			goto cont;
@@ -2252,6 +2260,7 @@ static int nf_tables_dump_sets_table(struct nft_ctx *ctx, struct sk_buff *skb,
 			cb->args[0] = idx;
 			goto done;
 		}
+		nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 		idx++;
 	}
@@ -2272,6 +2281,8 @@ static int nf_tables_dump_sets_family(struct nft_ctx *ctx, struct sk_buff *skb,
 		return skb->len;
 
 	rcu_read_lock();
+	cb->seq = ctx->net->nft.base_seq;
+
 	list_for_each_entry_rcu(table, &ctx->afi->tables, list) {
 		if (cur_table) {
 			if (cur_table != table)
@@ -2290,6 +2301,7 @@ static int nf_tables_dump_sets_family(struct nft_ctx *ctx, struct sk_buff *skb,
 				cb->args[2] = (unsigned long) table;
 				goto done;
 			}
+			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 			idx++;
 		}
@@ -2314,6 +2326,8 @@ static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
 		return skb->len;
 
 	rcu_read_lock();
+	cb->seq = net->nft.base_seq;
+
 	list_for_each_entry_rcu(afi, &net->nft.af_info, list) {
 		if (cur_family) {
 			if (afi->family != cur_family)
@@ -2344,6 +2358,7 @@ static int nf_tables_dump_sets_all(struct nft_ctx *ctx, struct sk_buff *skb,
 					cb->args[3] = afi->family;
 					goto done;
 				}
+				nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 cont:
 				idx++;
 			}
@@ -3361,7 +3376,7 @@ static int nf_tables_commit(struct sk_buff *skb)
 	struct nft_set *set;
 
 	/* Bump generation counter, invalidate any dump in progress */
-	net->nft.genctr++;
+	while (++net->nft.base_seq == 0);
 
 	/* A new generation has just started */
 	net->nft.gencursor = gencursor_next(net);
@@ -3966,6 +3981,7 @@ static int nf_tables_init_net(struct net *net)
 {
 	INIT_LIST_HEAD(&net->nft.af_info);
 	INIT_LIST_HEAD(&net->nft.commit_list);
+	net->nft.base_seq = 1;
 	return 0;
 }
 
