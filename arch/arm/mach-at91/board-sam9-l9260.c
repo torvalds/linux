@@ -221,7 +221,7 @@ static void __init ek_board_init(void)
 
 MACHINE_START(SAM9_L9260, "Olimex SAM9-L9260")
 	/* Maintainer: Olimex */
-	.init_time	= at91sam926x_pit_init,
+	.init_time	= at91_init_time,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
