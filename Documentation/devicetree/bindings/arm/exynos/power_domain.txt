@@ -24,6 +24,7 @@ Optional Properties:
 		are supported currently.
 - power-domains: generic power domain binding pointing to a master power domain
 		 that the given domain is a part of
+- domain-always-on:	keeps the domain always enabled
 
 Node of a device using power domains must have a power-domains property
 defined with a phandle to respective power domain.
