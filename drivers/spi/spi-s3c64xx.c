@@ -1323,13 +1323,6 @@ static struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
 	.tx_st_done	= 21,
 };
 
-static struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
-	.fifo_lvl_mask	= { 0x7f, 0x7F },
-	.rx_lvl_offset	= 13,
-	.tx_st_done	= 21,
-	.high_speed	= true,
-};
-
 static struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
@@ -1362,9 +1355,6 @@ static struct platform_device_id s3c64xx_spi_driver_ids[] = {
 		.name		= "s3c6410-spi",
 		.driver_data	= (kernel_ulong_t)&s3c6410_spi_port_config,
 	}, {
-		.name		= "s5pc100-spi",
-		.driver_data	= (kernel_ulong_t)&s5pc100_spi_port_config,
-	}, {
 		.name		= "s5pv210-spi",
 		.driver_data	= (kernel_ulong_t)&s5pv210_spi_port_config,
 	}, {
@@ -1380,9 +1370,6 @@ static const struct of_device_id s3c64xx_spi_dt_match[] = {
 	},
 	{ .compatible = "samsung,s3c6410-spi",
 			.data = (void *)&s3c6410_spi_port_config,
-	},
-	{ .compatible = "samsung,s5pc100-spi",
-			.data = (void *)&s5pc100_spi_port_config,
 	},
 	{ .compatible = "samsung,s5pv210-spi",
 			.data = (void *)&s5pv210_spi_port_config,
