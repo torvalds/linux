@@ -116,6 +116,7 @@ static const u16 mgmt_events[] = {
 	MGMT_EV_NEW_CSRK,
 	MGMT_EV_DEVICE_ADDED,
 	MGMT_EV_DEVICE_REMOVED,
+	MGMT_EV_NEW_CONN_PARAM,
 };
 
 #define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
@@ -5688,6 +5689,24 @@ void mgmt_new_csrk(struct hci_dev *hdev, struct smp_csrk *csrk,
 	memcpy(ev.key.val, csrk->val, sizeof(csrk->val));
 
 	mgmt_event(MGMT_EV_NEW_CSRK, hdev, &ev, sizeof(ev), NULL);
+}
+
+void mgmt_new_conn_param(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			 u8 bdaddr_type, u16 min_interval, u16 max_interval,
+			 u16 latency, u16 timeout)
+{
+	struct mgmt_ev_new_conn_param ev;
+
+	memset(&ev, 0, sizeof(ev));
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_bdaddr(LE_LINK, bdaddr_type);
+	ev.store_hint = 0x00;
+	ev.min_interval = cpu_to_le16(min_interval);
+	ev.max_interval = cpu_to_le16(max_interval);
+	ev.latency = cpu_to_le16(latency);
+	ev.timeout = cpu_to_le16(timeout);
+
+	mgmt_event(MGMT_EV_NEW_CONN_PARAM, hdev, &ev, sizeof(ev), NULL);
 }
 
 static inline u16 eir_append_data(u8 *eir, u16 eir_len, u8 type, u8 *data,

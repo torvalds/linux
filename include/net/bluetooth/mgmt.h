@@ -615,3 +615,13 @@ struct mgmt_ev_device_added {
 struct mgmt_ev_device_removed {
 	struct mgmt_addr_info addr;
 } __packed;
+
+#define MGMT_EV_NEW_CONN_PARAM		0x001c
+struct mgmt_ev_new_conn_param {
+	struct mgmt_addr_info addr;
+	__u8 store_hint;
+	__le16 min_interval;
+	__le16 max_interval;
+	__le16 latency;
+	__le16 timeout;
+} __packed;

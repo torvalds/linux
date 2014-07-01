@@ -4417,6 +4417,10 @@ static void hci_le_remote_conn_param_req_evt(struct hci_dev *hdev,
 		return send_conn_param_neg_reply(hdev, handle,
 						 HCI_ERROR_INVALID_LL_PARAMS);
 
+	if (test_bit(HCI_CONN_MASTER, &hcon->flags))
+		mgmt_new_conn_param(hdev, &hcon->dst, hcon->dst_type, min, max,
+				    latency, timeout);
+
 	cp.handle = ev->handle;
 	cp.interval_min = ev->interval_min;
 	cp.interval_max = ev->interval_max;
