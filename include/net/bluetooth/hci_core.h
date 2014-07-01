@@ -510,8 +510,8 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 						       int state);
 void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 				      struct inquiry_entry *ie);
-bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			      bool name_known, bool *ssp);
+u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
+			     bool name_known);
 void hci_inquiry_cache_flush(struct hci_dev *hdev);
 
 /* ----- HCI Connections ----- */
@@ -1318,9 +1318,8 @@ void mgmt_read_local_oob_data_complete(struct hci_dev *hdev, u8 *hash192,
 				       u8 *randomizer192, u8 *hash256,
 				       u8 *randomizer256, u8 status);
 void mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-		       u8 addr_type, u8 *dev_class, s8 rssi, u8 cfm_name,
-		       u8 ssp, u8 *eir, u16 eir_len, u8 *scan_rsp,
-		       u8 scan_rsp_len);
+		       u8 addr_type, u8 *dev_class, s8 rssi, u32 flags,
+		       u8 *eir, u16 eir_len, u8 *scan_rsp, u8 scan_rsp_len);
 void mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		      u8 addr_type, s8 rssi, u8 *name, u8 name_len);
 void mgmt_discovering(struct hci_dev *hdev, u8 discovering);

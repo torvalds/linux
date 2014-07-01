@@ -1132,7 +1132,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
 					  d->last_adv_addr_type, NULL,
-					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_rssi, 0,
 					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 		}
@@ -1965,7 +1965,7 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	for (; num_rsp; num_rsp--, info++) {
-		bool name_known, ssp;
+		u32 flags;
 
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
@@ -1976,10 +1976,10 @@ static void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		data.rssi		= 0x00;
 		data.ssp_mode		= 0x00;
 
-		name_known = hci_inquiry_cache_update(hdev, &data, false, &ssp);
+		flags = hci_inquiry_cache_update(hdev, &data, false);
+
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
-				  info->dev_class, 0, !name_known, ssp, NULL,
-				  0, NULL, 0);
+				  info->dev_class, 0, flags, NULL, 0, NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -3257,7 +3257,6 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 {
 	struct inquiry_data data;
 	int num_rsp = *((__u8 *) skb->data);
-	bool name_known, ssp;
 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
@@ -3274,6 +3273,8 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 		info = (void *) (skb->data + 1);
 
 		for (; num_rsp; num_rsp--, info++) {
+			u32 flags;
+
 			bacpy(&data.bdaddr, &info->bdaddr);
 			data.pscan_rep_mode	= info->pscan_rep_mode;
 			data.pscan_period_mode	= info->pscan_period_mode;
@@ -3283,16 +3284,18 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 			data.rssi		= info->rssi;
 			data.ssp_mode		= 0x00;
 
-			name_known = hci_inquiry_cache_update(hdev, &data,
-							      false, &ssp);
+			flags = hci_inquiry_cache_update(hdev, &data, false);
+
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 					  info->dev_class, info->rssi,
-					  !name_known, ssp, NULL, 0, NULL, 0);
+					  flags, NULL, 0, NULL, 0);
 		}
 	} else {
 		struct inquiry_info_with_rssi *info = (void *) (skb->data + 1);
 
 		for (; num_rsp; num_rsp--, info++) {
+			u32 flags;
+
 			bacpy(&data.bdaddr, &info->bdaddr);
 			data.pscan_rep_mode	= info->pscan_rep_mode;
 			data.pscan_period_mode	= info->pscan_period_mode;
@@ -3301,11 +3304,12 @@ static void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev,
 			data.clock_offset	= info->clock_offset;
 			data.rssi		= info->rssi;
 			data.ssp_mode		= 0x00;
-			name_known = hci_inquiry_cache_update(hdev, &data,
-							      false, &ssp);
+
+			flags = hci_inquiry_cache_update(hdev, &data, false);
+
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 					  info->dev_class, info->rssi,
-					  !name_known, ssp, NULL, 0, NULL, 0);
+					  flags, NULL, 0, NULL, 0);
 		}
 	}
 
@@ -3472,7 +3476,8 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	for (; num_rsp; num_rsp--, info++) {
-		bool name_known, ssp;
+		u32 flags;
+		bool name_known;
 
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
@@ -3490,12 +3495,13 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 		else
 			name_known = true;
 
-		name_known = hci_inquiry_cache_update(hdev, &data, name_known,
-						      &ssp);
+		flags = hci_inquiry_cache_update(hdev, &data, name_known);
+
 		eir_len = eir_get_length(info->data, sizeof(info->data));
+
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
-				  info->dev_class, info->rssi, !name_known,
-				  ssp, info->data, eir_len, NULL, 0);
+				  info->dev_class, info->rssi,
+				  flags, info->data, eir_len, NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -4226,7 +4232,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		}
 
 		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
-				  rssi, 0, 1, data, len, NULL, 0);
+				  rssi, 0, data, len, NULL, 0);
 		return;
 	}
 
@@ -4243,7 +4249,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		if (!match)
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
 					  d->last_adv_addr_type, NULL,
-					  d->last_adv_rssi, 0, 1,
+					  d->last_adv_rssi, 0,
 					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 
@@ -4261,7 +4267,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		clear_pending_adv_report(hdev);
 		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
-				  rssi, 0, 1, data, len, NULL, 0);
+				  rssi, 0, data, len, NULL, 0);
 		return;
 	}
 
@@ -4270,7 +4276,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * sending a merged device found event.
 	 */
 	mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-			  d->last_adv_addr_type, NULL, rssi, 0, 1,
+			  d->last_adv_addr_type, NULL, rssi, 0,
 			  d->last_adv_data, d->last_adv_data_len, data, len);
 	clear_pending_adv_report(hdev);
 }

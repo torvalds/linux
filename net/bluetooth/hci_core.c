@@ -35,6 +35,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
+#include <net/bluetooth/mgmt.h>
 
 #include "smp.h"
 
@@ -1970,22 +1971,24 @@ void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 	list_add(&ie->list, pos);
 }
 
-bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-			      bool name_known, bool *ssp)
+u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
+			     bool name_known)
 {
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
+	u32 flags = 0;
 
 	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
 	hci_remove_remote_oob_data(hdev, &data->bdaddr);
 
-	*ssp = data->ssp_mode;
+	if (!data->ssp_mode)
+		flags |= MGMT_DEV_FOUND_LEGACY_PAIRING;
 
 	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
 	if (ie) {
-		if (ie->data.ssp_mode)
-			*ssp = true;
+		if (!ie->data.ssp_mode)
+			flags |= MGMT_DEV_FOUND_LEGACY_PAIRING;
 
 		if (ie->name_state == NAME_NEEDED &&
 		    data->rssi != ie->data.rssi) {
@@ -1998,8 +2001,10 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	/* Entry not in the cache. Add new one. */
 	ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
-	if (!ie)
-		return false;
+	if (!ie) {
+		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
+		goto done;
+	}
 
 	list_add(&ie->all, &cache->all);
 
@@ -2022,9 +2027,10 @@ update:
 	cache->timestamp = jiffies;
 
 	if (ie->name_state == NAME_NOT_KNOWN)
-		return false;
+		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
 
-	return true;
+done:
+	return flags;
 }
 
 static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
