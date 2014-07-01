@@ -330,6 +330,19 @@ static inline void rcu_user_hooks_switch(struct task_struct *prev,
 #define rcu_note_voluntary_context_switch(t)	do { } while (0)
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
+/**
+ * cond_resched_rcu_qs - Report potential quiescent states to RCU
+ *
+ * This macro resembles cond_resched(), except that it is defined to
+ * report potential quiescent states to RCU-tasks even if the cond_resched()
+ * machinery were to be shut off, as some advocate for PREEMPT kernels.
+ */
+#define cond_resched_rcu_qs() \
+do { \
+	rcu_note_voluntary_context_switch(current); \
+	cond_resched(); \
+} while (0)
+
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP)
 bool __rcu_is_watching(void);
 #endif /* #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP) */

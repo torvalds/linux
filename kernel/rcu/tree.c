@@ -1647,7 +1647,7 @@ static int rcu_gp_init(struct rcu_state *rsp)
 					    rnp->level, rnp->grplo,
 					    rnp->grphi, rnp->qsmask);
 		raw_spin_unlock_irq(&rnp->lock);
-		cond_resched();
+		cond_resched_rcu_qs();
 	}
 
 	mutex_unlock(&rsp->onoff_mutex);
@@ -1736,7 +1736,7 @@ static void rcu_gp_cleanup(struct rcu_state *rsp)
 		/* smp_mb() provided by prior unlock-lock pair. */
 		nocb += rcu_future_gp_cleanup(rsp, rnp);
 		raw_spin_unlock_irq(&rnp->lock);
-		cond_resched();
+		cond_resched_rcu_qs();
 	}
 	rnp = rcu_get_root(rsp);
 	raw_spin_lock_irq(&rnp->lock);
@@ -1785,7 +1785,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			/* Locking provides needed memory barrier. */
 			if (rcu_gp_init(rsp))
 				break;
-			cond_resched();
+			cond_resched_rcu_qs();
 			flush_signals(current);
 			trace_rcu_grace_period(rsp->name,
 					       ACCESS_ONCE(rsp->gpnum),
@@ -1828,10 +1828,10 @@ static int __noreturn rcu_gp_kthread(void *arg)
 				trace_rcu_grace_period(rsp->name,
 						       ACCESS_ONCE(rsp->gpnum),
 						       TPS("fqsend"));
-				cond_resched();
+				cond_resched_rcu_qs();
 			} else {
 				/* Deal with stray signal. */
-				cond_resched();
+				cond_resched_rcu_qs();
 				flush_signals(current);
 				trace_rcu_grace_period(rsp->name,
 						       ACCESS_ONCE(rsp->gpnum),
@@ -2434,7 +2434,7 @@ static void force_qs_rnp(struct rcu_state *rsp,
 	struct rcu_node *rnp;
 
 	rcu_for_each_leaf_node(rsp, rnp) {
-		cond_resched();
+		cond_resched_rcu_qs();
 		mask = 0;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		smp_mb__after_unlock_lock();

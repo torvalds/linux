@@ -1848,7 +1848,7 @@ static int rcu_oom_notify(struct notifier_block *self,
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
-		cond_resched();
+		cond_resched_rcu_qs();
 	}
 	put_online_cpus();
 
