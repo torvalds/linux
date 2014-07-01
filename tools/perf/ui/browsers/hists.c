@@ -392,10 +392,10 @@ static int hist_browser__run(struct hist_browser *browser,
 			struct hist_entry *h = rb_entry(browser->b.top,
 							struct hist_entry, rb_node);
 			ui_helpline__pop();
-			ui_helpline__fpush("%d: nr_ent=(%d,%d), height=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
+			ui_helpline__fpush("%d: nr_ent=(%d,%d), rows=%d, idx=%d, fve: idx=%d, row_off=%d, nrows=%d",
 					   seq++, browser->b.nr_entries,
 					   browser->hists->nr_entries,
-					   browser->b.height,
+					   browser->b.rows,
 					   browser->b.index,
 					   browser->b.top_idx,
 					   h->row_offset, h->nr_rows);
@@ -514,7 +514,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			slsmg_write_nstring(str, width);
 			free(alloc_str);
 
-			if (++row == browser->b.height)
+			if (++row == browser->b.rows)
 				goto out;
 do_next:
 			if (folded_sign == '+')
@@ -527,7 +527,7 @@ do_next:
 									 new_level, row, row_offset,
 									 is_current_entry);
 		}
-		if (row == browser->b.height)
+		if (row == browser->b.rows)
 			goto out;
 		node = next;
 	}
@@ -573,7 +573,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 		slsmg_printf("%c ", folded_sign);
 		slsmg_write_nstring(s, width - 2);
 
-		if (++row == browser->b.height)
+		if (++row == browser->b.rows)
 			goto out;
 	}
 
@@ -602,7 +602,7 @@ static int hist_browser__show_callchain(struct hist_browser *browser,
 		row += hist_browser__show_callchain_node(browser, node, level,
 							 row, row_offset,
 							 is_current_entry);
-		if (row == browser->b.height)
+		if (row == browser->b.rows)
 			break;
 	}
 
@@ -776,7 +776,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 	} else
 		--row_offset;
 
-	if (folded_sign == '-' && row != browser->b.height) {
+	if (folded_sign == '-' && row != browser->b.rows) {
 		printed += hist_browser__show_callchain(browser, &entry->sorted_chain,
 							1, row, &row_offset,
 							&current_entry);
@@ -817,7 +817,7 @@ static unsigned int hist_browser__refresh(struct ui_browser *browser)
 			continue;
 
 		row += hist_browser__show_entry(hb, h, row);
-		if (row == browser->height)
+		if (row == browser->rows)
 			break;
 	}
 
