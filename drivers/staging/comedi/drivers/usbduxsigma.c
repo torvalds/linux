@@ -136,7 +136,7 @@
 
 static const struct comedi_lrange usbduxsigma_ai_range = {
 	1, {
-		BIP_RANGE(2.65 / 2.0)
+		BIP_RANGE(2.5 * 0x800000 / 0x780000 / 2.0)
 	}
 };
 
