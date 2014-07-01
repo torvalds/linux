@@ -227,14 +227,14 @@ void rtl8821ae_deinit_sw_vars(struct ieee80211_hw *hw)
 
 static u32 rtl8812ae_rx_command_packet_handler(
 	struct ieee80211_hw *hw,
-	struct rtl_stats status,
+	const struct rtl_stats *status,
 	struct sk_buff *skb
 	)
 {
 	u32 result = 0;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	switch (status.packet_report_type) {
+	switch (status->packet_report_type) {
 		case NORMAL_RX:
 			result = 0;
 			break;
