@@ -63,6 +63,11 @@ static void hist_browser__refresh_dimensions(struct hist_browser *browser)
 			     sizeof("[k]"));
 }
 
+static void hist_browser__gotorc(struct hist_browser *browser, int row, int column)
+{
+	ui_browser__gotorc(&browser->b, row, column);
+}
+
 static void hist_browser__reset(struct hist_browser *browser)
 {
 	/*
@@ -508,7 +513,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			}
 
 			ui_browser__set_color(&browser->b, color);
-			ui_browser__gotorc(&browser->b, row, 0);
+			hist_browser__gotorc(browser, row, 0);
 			slsmg_write_nstring(" ", offset + extra_offset);
 			slsmg_printf("%c ", folded_sign);
 			slsmg_write_nstring(str, width);
@@ -567,7 +572,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 
 		s = callchain_list__sym_name(chain, bf, sizeof(bf),
 					     browser->show_dso);
-		ui_browser__gotorc(&browser->b, row, 0);
+		hist_browser__gotorc(browser, row, 0);
 		ui_browser__set_color(&browser->b, color);
 		slsmg_write_nstring(" ", offset);
 		slsmg_printf("%c ", folded_sign);
@@ -732,7 +737,7 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 			.ptr		= &arg,
 		};
 
-		ui_browser__gotorc(&browser->b, row, 0);
+		hist_browser__gotorc(browser, row, 0);
 
 		perf_hpp__for_each_format(fmt) {
 			if (perf_hpp__should_skip(fmt))
