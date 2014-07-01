@@ -1,36 +1,46 @@
 #include "headers.h"
 
+static int adapter_err_occurred(const struct bcm_interface_adapter *ad)
+{
+	if (ad->psAdapter->device_removed == TRUE) {
+		BCM_DEBUG_PRINT(ad->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+				"Device got removed");
+		return -ENODEV;
+	}
+
+	if ((ad->psAdapter->StopAllXaction == TRUE) &&
+	    (ad->psAdapter->chip_id >= T3LPB)) {
+		BCM_DEBUG_PRINT(ad->psAdapter, DBG_TYPE_OTHERS, RDM,
+				DBG_LVL_ALL,
+				"Currently Xaction is not allowed on the bus");
+		return -EACCES;
+	}
+
+	if (ad->bSuspended == TRUE || ad->bPreparingForBusSuspend == TRUE) {
+		BCM_DEBUG_PRINT(ad->psAdapter, DBG_TYPE_OTHERS, RDM,
+				DBG_LVL_ALL,
+				"Bus is in suspended states hence RDM not allowed..");
+		return -EACCES;
+	}
+
+	return 0;
+}
+
 int InterfaceRDM(struct bcm_interface_adapter *psIntfAdapter,
 		unsigned int addr,
 		void *buff,
 		int len)
 {
 	int bytes;
+	int err = 0;
 
 	if (!psIntfAdapter)
 		return -EINVAL;
 
-	if (psIntfAdapter->psAdapter->device_removed == TRUE) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
-				"Device got removed");
-		return -ENODEV;
-	}
+	err = adapter_err_occurred(psIntfAdapter);
+	if (err)
+		return err;
 
-	if ((psIntfAdapter->psAdapter->StopAllXaction == TRUE) &&
-	    (psIntfAdapter->psAdapter->chip_id >= T3LPB)) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM,
-				DBG_LVL_ALL,
-				"Currently Xaction is not allowed on the bus");
-		return -EACCES;
-	}
-
-	if (psIntfAdapter->bSuspended == TRUE ||
-	    psIntfAdapter->bPreparingForBusSuspend == TRUE) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, RDM,
-				DBG_LVL_ALL,
-				"Bus is in suspended states hence RDM not allowed..");
-		return -EACCES;
-	}
 	psIntfAdapter->psAdapter->DeviceAccess = TRUE;
 
 	bytes = usb_control_msg(psIntfAdapter->udev,
@@ -63,31 +73,14 @@ int InterfaceWRM(struct bcm_interface_adapter *psIntfAdapter,
 		int len)
 {
 	int retval = 0;
+	int err = 0;
 
 	if (!psIntfAdapter)
 		return -EINVAL;
 
-	if (psIntfAdapter->psAdapter->device_removed == TRUE) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
-				"Device got removed");
-		return -ENODEV;
-	}
-
-	if ((psIntfAdapter->psAdapter->StopAllXaction == TRUE) &&
-	    (psIntfAdapter->psAdapter->chip_id >= T3LPB)) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM,
-				DBG_LVL_ALL,
-				"Currently Xaction is not allowed on the bus...");
-		return -EACCES;
-	}
-
-	if (psIntfAdapter->bSuspended == TRUE ||
-	    psIntfAdapter->bPreparingForBusSuspend == TRUE) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM,
-				DBG_LVL_ALL,
-				"Bus is in suspended states hence RDM not allowed..");
-		return -EACCES;
-	}
+	err = adapter_err_occurred(psIntfAdapter);
+	if (err)
+		return err;
 
 	psIntfAdapter->psAdapter->DeviceAccess = TRUE;
 
