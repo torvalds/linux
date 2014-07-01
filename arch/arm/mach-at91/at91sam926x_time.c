@@ -279,15 +279,9 @@ void __init at91sam926x_pit_init(void)
 
 void __init at91sam926x_ioremap_pit(u32 addr)
 {
-#if defined(CONFIG_OF)
-	struct device_node *np =
-		of_find_matching_node(NULL, pit_timer_ids);
-
-	if (np) {
-		of_node_put(np);
+	if (of_have_populated_dt())
 		return;
-	}
-#endif
+
 	pit_base_addr = ioremap(addr, 16);
 
 	if (!pit_base_addr)
