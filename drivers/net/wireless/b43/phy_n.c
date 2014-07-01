@@ -590,7 +590,9 @@ static void b43_nphy_set_rf_sequence(struct b43_wldev *dev, u8 cmd,
  * Radio 0x2057
  **************************************************/
 
-/* http://bcm-v4.sipsolutions.net/PHY/radio2057_rcal */
+/* Calibrate resistors in LPF of PLL?
+ * http://bcm-v4.sipsolutions.net/PHY/radio205x_rcal
+ */
 static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -603,15 +605,25 @@ static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 		b43_radio_maskset(dev, 0x1ca, ~0x2, 0x1);
 	}
 
+	/* Enable */
 	b43_radio_set(dev, R2057_RCAL_CONFIG, 0x1);
 	udelay(10);
-	b43_radio_set(dev, R2057_RCAL_CONFIG, 0x3);
-	if (!b43_radio_wait_value(dev, R2057_RCCAL_N1_1, 1, 1, 100, 1000000)) {
+
+	/* Start */
+	b43_radio_set(dev, R2057_RCAL_CONFIG, 0x2);
+	usleep_range(100, 200);
+
+	/* Stop */
+	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x2);
+
+	/* Wait and check for result */
+	if (!b43_radio_wait_value(dev, R2057_RCAL_STATUS, 1, 1, 100, 1000000)) {
 		b43err(dev->wl, "Radio 0x2057 rcal timeout\n");
 		return 0;
 	}
-	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x2);
 	tmp = b43_radio_read(dev, R2057_RCAL_STATUS) & 0x3E;
+
+	/* Disable */
 	b43_radio_mask(dev, R2057_RCAL_CONFIG, ~0x1);
 
 	if (phy->radio_rev == 5) {
@@ -627,7 +639,9 @@ static u8 b43_radio_2057_rcal(struct b43_wldev *dev)
 	return tmp & 0x3e;
 }
 
-/* http://bcm-v4.sipsolutions.net/PHY/radio2057_rccal */
+/* Calibrate the internal RC oscillator?
+ * http://bcm-v4.sipsolutions.net/PHY/radio2057_rccal
+ */
 static u16 b43_radio_2057_rccal(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -635,49 +649,76 @@ static u16 b43_radio_2057_rccal(struct b43_wldev *dev)
 			phy->radio_rev == 6);
 	u16 tmp;
 
+	/* Setup cal */
 	if (special) {
 		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x61);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xC0);
 	} else {
-		b43_radio_write(dev, 0x1AE, 0x61);
+		b43_radio_write(dev, R2057v7_RCCAL_MASTER, 0x61);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xE1);
 	}
 	b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
+
+	/* Start, wait, stop */
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
-	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 2, 2, 500,
 				  5000000))
 		b43dbg(dev->wl, "Radio 0x2057 rccal timeout\n");
+	usleep_range(35, 70);
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	usleep_range(70, 140);
+
+	/* Setup cal */
 	if (special) {
 		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x69);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xB0);
 	} else {
-		b43_radio_write(dev, 0x1AE, 0x69);
+		b43_radio_write(dev, R2057v7_RCCAL_MASTER, 0x69);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xD5);
 	}
 	b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
+
+	/* Start, wait, stop */
+	usleep_range(35, 70);
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
-	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+	usleep_range(70, 140);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 2, 2, 500,
 				  5000000))
 		b43dbg(dev->wl, "Radio 0x2057 rccal timeout\n");
+	usleep_range(35, 70);
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	usleep_range(70, 140);
+
+	/* Setup cal */
 	if (special) {
 		b43_radio_write(dev, R2057_RCCAL_MASTER, 0x73);
 		b43_radio_write(dev, R2057_RCCAL_X1, 0x28);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0xB0);
 	} else {
-		b43_radio_write(dev, 0x1AE, 0x73);
+		b43_radio_write(dev, R2057v7_RCCAL_MASTER, 0x73);
 		b43_radio_write(dev, R2057_RCCAL_X1, 0x6E);
 		b43_radio_write(dev, R2057_RCCAL_TRC0, 0x99);
 	}
+
+	/* Start, wait, stop */
+	usleep_range(35, 70);
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x55);
-	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 1, 1, 500,
+	usleep_range(70, 140);
+	if (!b43_radio_wait_value(dev, R2057_RCCAL_DONE_OSCCAP, 2, 2, 500,
 				  5000000)) {
 		b43err(dev->wl, "Radio 0x2057 rcal timeout\n");
 		return 0;
 	}
 	tmp = b43_radio_read(dev, R2057_RCCAL_DONE_OSCCAP);
+	usleep_range(35, 70);
 	b43_radio_write(dev, R2057_RCCAL_START_R1_Q1_P1, 0x15);
+	usleep_range(70, 140);
+
+	if (special)
+		b43_radio_mask(dev, R2057_RCCAL_MASTER, ~0x1);
+	else
+		b43_radio_mask(dev, R2057v7_RCCAL_MASTER, ~0x1);
+
 	return tmp;
 }
 
