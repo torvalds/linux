@@ -250,7 +250,10 @@ int ui_browser__show(struct ui_browser *browser, const char *title,
 	int err;
 	va_list ap;
 
-	ui_browser__refresh_dimensions(browser);
+	if (browser->refresh_dimensions == NULL)
+		browser->refresh_dimensions = ui_browser__refresh_dimensions;
+
+	browser->refresh_dimensions(browser);
 
 	pthread_mutex_lock(&ui__lock);
 	__ui_browser__show_title(browser, title);
@@ -367,7 +370,7 @@ int ui_browser__run(struct ui_browser *browser, int delay_secs)
 
 		if (key == K_RESIZE) {
 			ui__refresh_dimensions(false);
-			ui_browser__refresh_dimensions(browser);
+			browser->refresh_dimensions(browser);
 			__ui_browser__show_title(browser, browser->title);
 			ui_helpline__puts(browser->helpline);
 			continue;
