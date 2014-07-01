@@ -155,18 +155,14 @@ struct pwrctrl_priv {
 			   * read from HCPWM 2. driver lowers power level
 			   */
 	volatile u8 tog; /*  toggling */
-	volatile u8 cpwm_tog; /*  toggling */
 
 	u8	pwr_mode;
 	u8	smart_ps;
 	u8	bcn_ant_mode;
 
-	u32	alives;
-	struct work_struct cpwm_event;
 	u8	bpower_saving;
 
 	u8	reg_rfoff;
-	u8	reg_pdnmode; /* powerdown mode */
 	u32	rfoff_reason;
 
 	/* RF OFF Level */
@@ -206,7 +202,6 @@ struct pwrctrl_priv {
 	enum rt_rf_power_state	rf_pwrstate;/* cur power state */
 	enum rt_rf_power_state	change_rfpwrstate;
 
-	u8	wepkeymask;
 	u8	bHWPowerdown;/* if support hw power down */
 	u8	bHWPwrPindetect;
 	u8	bkeepfwalive;
