@@ -41,13 +41,6 @@ extern void s5p_fimd0_set_platdata(struct s3c_fb_platdata *pd);
 extern void s3c64xx_fb_gpio_setup_24bpp(void);
 
 /**
- * s5pc100_fb_gpio_setup_24bpp() - S5PC100 setup function for 24bpp LCD
- *
- * Initialise the GPIO for an 24bpp LCD display on the RGB interface.
- */
-extern void s5pc100_fb_gpio_setup_24bpp(void);
-
-/**
  * s5pv210_fb_gpio_setup_24bpp() - S5PV210/S5PC110 setup function for 24bpp LCD
  *
  * Initialise the GPIO for an 24bpp LCD display on the RGB interface.

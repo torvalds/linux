@@ -15,7 +15,7 @@ config PLAT_SAMSUNG
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5PC100 || ARCH_S5PV210)
+	depends on ARCH_S5PV210
 	default y
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_VIC
@@ -78,14 +78,14 @@ config SAMSUNG_CLKSRC
 	  used by newer systems such as the S3C64XX.
 
 config S5P_CLOCK
-	def_bool (ARCH_S5PC100 || ARCH_S5PV210)
+	def_bool ARCH_S5PV210
 	help
 	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
 
 # options for IRQ support
 
 config S5P_IRQ
-	def_bool (ARCH_S5PC100 || ARCH_S5PV210)
+	def_bool ARCH_S5PV210
 	help
 	  Support common interrupt part for ARCH_S5P SoCs
 
@@ -142,7 +142,7 @@ config S3C_GPIO_TRACK
 
 config S5P_DEV_UART
 	def_bool y
-	depends on (ARCH_S5PC100 || ARCH_S5PV210)
+	depends on ARCH_S5PV210
 
 # ADC driver
 
@@ -396,7 +396,7 @@ config SAMSUNG_PM_GPIO
 
 config SAMSUNG_DMADEV
 	bool "Use legacy Samsung DMA abstraction"
-	depends on CPU_S5PV210 || CPU_S5PC100 || ARCH_S3C64XX
+	depends on CPU_S5PV210 || ARCH_S3C64XX
 	select DMADEVICES
 	default y
 	help
