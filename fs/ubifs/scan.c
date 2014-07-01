@@ -131,7 +131,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
  * @offs: offset to start at (usually zero)
  * @sbuf: scan buffer (must be c->leb_size)
  *
- * This function returns %0 on success and a negative error code on failure.
+ * This function returns the scaned information on success and a negative error
+ * code on failure.
  */
 struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 					int offs, void *sbuf)
@@ -170,8 +171,6 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
  * @sleb: scanning information
  * @lnum: logical eraseblock number
  * @offs: offset to start at (usually zero)
- *
- * This function returns %0 on success and a negative error code on failure.
  */
 void ubifs_end_scan(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		    int lnum, int offs)
