@@ -808,6 +808,7 @@ struct gmap {
 	spinlock_t guest_table_lock;
 	unsigned long *table;
 	unsigned long asce;
+	unsigned long asce_end;
 	void *private;
 	bool pfault_enabled;
 };
@@ -844,7 +845,7 @@ struct gmap_notifier {
 	void (*notifier_call)(struct gmap *gmap, unsigned long gaddr);
 };
 
-struct gmap *gmap_alloc(struct mm_struct *mm);
+struct gmap *gmap_alloc(struct mm_struct *mm, unsigned long limit);
 void gmap_free(struct gmap *gmap);
 void gmap_enable(struct gmap *gmap);
 void gmap_disable(struct gmap *gmap);

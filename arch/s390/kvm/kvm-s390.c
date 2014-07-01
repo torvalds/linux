@@ -451,7 +451,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (type & KVM_VM_S390_UCONTROL) {
 		kvm->arch.gmap = NULL;
 	} else {
-		kvm->arch.gmap = gmap_alloc(current->mm);
+		kvm->arch.gmap = gmap_alloc(current->mm, -1UL);
 		if (!kvm->arch.gmap)
 			goto out_nogmap;
 		kvm->arch.gmap->private = kvm;
@@ -535,7 +535,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.pfault_token = KVM_S390_PFAULT_TOKEN_INVALID;
 	kvm_clear_async_pf_completion_queue(vcpu);
 	if (kvm_is_ucontrol(vcpu->kvm)) {
-		vcpu->arch.gmap = gmap_alloc(current->mm);
+		vcpu->arch.gmap = gmap_alloc(current->mm, -1UL);
 		if (!vcpu->arch.gmap)
 			return -ENOMEM;
 		vcpu->arch.gmap->private = vcpu->kvm;
