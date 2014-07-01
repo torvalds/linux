@@ -323,6 +323,12 @@
 			>;
 		};
 
+		pinctrl_pcie: pciegrp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x100b1
+			>;
+		};
+
 		pinctrl_pfuze: pfuze100grp1 {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D20__GPIO3_IO20		0x80000000
@@ -383,6 +389,13 @@
 			>;
 		};
 	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio4 8 0>;
+	status = "okay";
 };
 
 &sata {
