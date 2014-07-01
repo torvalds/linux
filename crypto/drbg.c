@@ -446,8 +446,16 @@ static int drbg_ctr_bcc(struct drbg_state *drbg,
  *		length: drbg_blocklen(drbg)
  *	temp
  *		start: iv + drbg_blocklen(drbg)
- *		length: (drbg_keylen(drbg) + drbg_blocklen(drbg) ==
- *				drbg_statelen(drbg))
+ *		length: drbg_satelen(drbg) + drbg_blocklen(drbg)
+ *			note: temp is the buffer that the BCC function operates
+ *			on. BCC operates blockwise. drbg_statelen(drbg)
+ *			is sufficient when the DRBG state length is a multiple
+ *			of the block size. For AES192 (and maybe other ciphers)
+ *			this is not correct and the length for temp is
+ *			insufficient (yes, that also means for such ciphers,
+ *			the final output of all BCC rounds are truncated).
+ *			Therefore, add drbg_blocklen(drbg) to cover all
+ *			possibilities.
  */
 
 /* Derivation Function for CTR DRBG as defined in 10.4.2 */
@@ -1205,7 +1213,7 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 			  drbg_statelen(drbg) +	/* df_data */
 			  drbg_blocklen(drbg) +	/* pad */
 			  drbg_blocklen(drbg) +	/* iv */
-			  drbg_statelen(drbg);	/* temp */
+			  drbg_statelen(drbg) + drbg_blocklen(drbg); /* temp */
 	else
 		sb_size = drbg_statelen(drbg) + drbg_blocklen(drbg);
 
