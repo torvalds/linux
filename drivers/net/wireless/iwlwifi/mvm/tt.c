@@ -338,9 +338,15 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	duration = tt->params->ct_kill_duration;
 
+	/* make sure the device is available for direct read/writes */
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_CHECK_CTKILL))
+		goto reschedule;
+
 	iwl_trans_start_hw(mvm->trans);
 	temp = check_nic_temperature(mvm);
 	iwl_trans_stop_device(mvm->trans);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_CHECK_CTKILL);
 
 	if (temp < MIN_TEMPERATURE || temp > MAX_TEMPERATURE) {
 		IWL_DEBUG_TEMP(mvm, "Failed to measure NIC temperature\n");

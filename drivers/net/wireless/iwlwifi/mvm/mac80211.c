@@ -211,7 +211,9 @@ void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 		return;
 
 	IWL_DEBUG_RPM(mvm, "Take mvm reference - type %d\n", ref_type);
-	WARN_ON(test_and_set_bit(ref_type, mvm->ref_bitmap));
+	spin_lock_bh(&mvm->refs_lock);
+	mvm->refs[ref_type]++;
+	spin_unlock_bh(&mvm->refs_lock);
 	iwl_trans_ref(mvm->trans);
 }
 
@@ -221,29 +223,35 @@ void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 		return;
 
 	IWL_DEBUG_RPM(mvm, "Leave mvm reference - type %d\n", ref_type);
-	WARN_ON(!test_and_clear_bit(ref_type, mvm->ref_bitmap));
+	spin_lock_bh(&mvm->refs_lock);
+	WARN_ON(!mvm->refs[ref_type]--);
+	spin_unlock_bh(&mvm->refs_lock);
 	iwl_trans_unref(mvm->trans);
 }
 
-static void
-iwl_mvm_unref_all_except(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref)
+static void iwl_mvm_unref_all_except(struct iwl_mvm *mvm,
+				     enum iwl_mvm_ref_type except_ref)
 {
-	int i;
+	int i, j;
 
 	if (!iwl_mvm_is_d0i3_supported(mvm))
 		return;
 
-	for_each_set_bit(i, mvm->ref_bitmap, IWL_MVM_REF_COUNT) {
-		if (ref == i)
+	spin_lock_bh(&mvm->refs_lock);
+	for (i = 0; i < IWL_MVM_REF_COUNT; i++) {
+		if (except_ref == i || !mvm->refs[i])
 			continue;
 
-		IWL_DEBUG_RPM(mvm, "Cleanup: remove mvm ref type %d\n", i);
-		clear_bit(i, mvm->ref_bitmap);
-		iwl_trans_unref(mvm->trans);
+		IWL_DEBUG_RPM(mvm, "Cleanup: remove mvm ref type %d (%d)\n",
+			      i, mvm->refs[i]);
+		for (j = 0; j < mvm->refs[i]; j++)
+			iwl_trans_unref(mvm->trans);
+		mvm->refs[i] = 0;
 	}
+	spin_unlock_bh(&mvm->refs_lock);
 }
 
-static int iwl_mvm_ref_sync(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
+int iwl_mvm_ref_sync(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
 	iwl_mvm_ref(mvm, ref_type);
 
@@ -1533,6 +1541,14 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
+	/*
+	 * iwl_mvm_mac_ctxt_add() might read directly from the device
+	 * (the system time), so make sure it is available.
+	 */
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_START_AP);
+	if (ret)
+		return ret;
+
 	mutex_lock(&mvm->mutex);
 
 	/* Send the beacon template */
@@ -1594,6 +1610,7 @@ out_remove:
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 out_unlock:
 	mutex_unlock(&mvm->mutex);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_START_AP);
 	return ret;
 }
 
@@ -1671,6 +1688,14 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
+	/*
+	 * iwl_mvm_bss_info_changed_station() might call
+	 * iwl_mvm_protect_session(), which reads directly from
+	 * the device (the system time), so make sure it is available.
+	 */
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_BSS_CHANGED))
+		return;
+
 	mutex_lock(&mvm->mutex);
 
 	if (changes & BSS_CHANGED_IDLE && !bss_conf->idle)
@@ -1690,6 +1715,7 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	mutex_unlock(&mvm->mutex);
+	iwl_mvm_unref(mvm, IWL_MVM_REF_BSS_CHANGED);
 }
 
 static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
@@ -2065,10 +2091,19 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 	if (WARN_ON_ONCE(vif->bss_conf.assoc))
 		return;
 
+	/*
+	 * iwl_mvm_protect_session() reads directly from the device
+	 * (the system time), so make sure it is available.
+	 */
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PREPARE_TX))
+		return;
+
 	mutex_lock(&mvm->mutex);
 	/* Try really hard to protect the session and hear a beacon */
 	iwl_mvm_protect_session(mvm, vif, duration, min_duration, 500);
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PREPARE_TX);
 }
 
 static void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
@@ -2077,10 +2112,19 @@ static void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u32 duration = 2 * vif->bss_conf.dtim_period * vif->bss_conf.beacon_int;
 
+	/*
+	 * iwl_mvm_protect_session() reads directly from the device
+	 * (the system time), so make sure it is available.
+	 */
+	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PROTECT_TDLS))
+		return;
+
 	mutex_lock(&mvm->mutex);
 	/* Protect the session to hear the TDLS setup response on the channel */
 	iwl_mvm_protect_session(mvm, vif, duration, duration, 100);
 	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_PROTECT_TDLS);
 }
 
 static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,

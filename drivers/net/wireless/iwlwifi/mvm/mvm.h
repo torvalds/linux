@@ -249,6 +249,15 @@ enum iwl_mvm_ref_type {
 	IWL_MVM_REF_TX,
 	IWL_MVM_REF_TX_AGG,
 	IWL_MVM_REF_ADD_IF,
+	IWL_MVM_REF_START_AP,
+	IWL_MVM_REF_BSS_CHANGED,
+	IWL_MVM_REF_PREPARE_TX,
+	IWL_MVM_REF_PROTECT_TDLS,
+	IWL_MVM_REF_CHECK_CTKILL,
+	IWL_MVM_REF_PRPH_READ,
+	IWL_MVM_REF_PRPH_WRITE,
+	IWL_MVM_REF_NMI,
+	IWL_MVM_REF_TM_CMD,
 	IWL_MVM_REF_EXIT_WORK,
 
 	IWL_MVM_REF_COUNT,
@@ -606,8 +615,9 @@ struct iwl_mvm {
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
 
-	/* A bitmap of reference types taken by the driver. */
-	unsigned long ref_bitmap[BITS_TO_LONGS(IWL_MVM_REF_COUNT)];
+	/* references taken by the driver and spinlock protecting them */
+	spinlock_t refs_lock;
+	u8 refs[IWL_MVM_REF_COUNT];
 
 	u8 vif_count;
 
@@ -988,6 +998,7 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 /* D0i3 */
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_unref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
+int iwl_mvm_ref_sync(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type);
 void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq);
 int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);
 
