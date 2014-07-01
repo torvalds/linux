@@ -216,7 +216,10 @@ static int pefile_strip_sig_wrapper(const void *pebuf,
 int verify_pefile_signature(const void *pebuf, unsigned pelen,
 			    struct key *trusted_keyring, bool *_trusted)
 {
+	struct pkcs7_message *pkcs7;
 	struct pefile_context ctx;
+	const void *data;
+	size_t datalen;
 	int ret;
 
 	kenter("");
@@ -230,5 +233,21 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	if (ret < 0)
 		return ret;
 
-	return -ENOANO; // Not yet complete
+	pkcs7 = pkcs7_parse_message(pebuf + ctx.sig_offset, ctx.sig_len);
+	if (IS_ERR(pkcs7))
+		return PTR_ERR(pkcs7);
+	ctx.pkcs7 = pkcs7;
+
+	ret = pkcs7_get_content_data(ctx.pkcs7, &data, &datalen, false);
+	if (ret < 0 || datalen == 0) {
+		pr_devel("PKCS#7 message does not contain data\n");
+		ret = -EBADMSG;
+		goto error;
+	}
+
+	ret = -ENOANO; // Not yet complete
+
+error:
+	pkcs7_free_message(ctx.pkcs7);
+	return ret;
 }
