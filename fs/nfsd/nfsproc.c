@@ -409,9 +409,7 @@ nfsd_proc_symlink(struct svc_rqst *rqstp, struct nfsd_symlinkargs *argp,
 	 */
 	argp->tname[argp->tlen] = '\0';
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
-						 argp->tname,
-				 		 &newfh, &argp->attrs);
-
+						 argp->tname, &newfh);
 
 	fh_put(&argp->ffh);
 	fh_put(&newfh);

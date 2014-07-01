@@ -1505,8 +1505,7 @@ __be32
 nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 				char *fname, int flen,
 				char *path,
-				struct svc_fh *resfhp,
-				struct iattr *iap)
+				struct svc_fh *resfhp)
 {
 	struct dentry	*dentry, *dnew;
 	__be32		err, cerr;

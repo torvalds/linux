@@ -282,8 +282,7 @@ nfsd3_proc_symlink(struct svc_rqst *rqstp, struct nfsd3_symlinkargs *argp,
 	fh_copy(&resp->dirfh, &argp->ffh);
 	fh_init(&resp->fh, NFS3_FHSIZE);
 	nfserr = nfsd_symlink(rqstp, &resp->dirfh, argp->fname, argp->flen,
-						   argp->tname,
-						   &resp->fh, &argp->attrs);
+						   argp->tname, &resp->fh);
 	RETURN_STATUS(nfserr);
 }
 

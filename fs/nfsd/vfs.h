@@ -86,7 +86,7 @@ __be32		nfsd_readlink(struct svc_rqst *, struct svc_fh *,
 				char *, int *);
 __be32		nfsd_symlink(struct svc_rqst *, struct svc_fh *,
 				char *name, int len, char *path,
-				struct svc_fh *res, struct iattr *);
+				struct svc_fh *res);
 __be32		nfsd_link(struct svc_rqst *, struct svc_fh *,
 				char *, int, struct svc_fh *);
 __be32		nfsd_rename(struct svc_rqst *,
