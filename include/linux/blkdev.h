@@ -21,6 +21,7 @@
 #include <linux/bsg.h>
 #include <linux/smp.h>
 #include <linux/rcupdate.h>
+#include <linux/percpu-refcount.h>
 
 #include <asm/scatterlist.h>
 
@@ -484,7 +485,7 @@ struct request_queue {
 #endif
 	struct rcu_head		rcu_head;
 	wait_queue_head_t	mq_freeze_wq;
-	struct percpu_counter	mq_usage_counter;
+	struct percpu_ref	mq_usage_counter;
 	struct list_head	all_q_node;
 
 	struct blk_mq_tag_set	*tag_set;
