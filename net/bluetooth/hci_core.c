@@ -3275,7 +3275,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 
 	list_add(&entry->list, &hdev->blacklist);
 
-	return mgmt_device_blocked(hdev, bdaddr, type);
+	return 0;
 }
 
 int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
@@ -3294,7 +3294,7 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	list_del(&entry->list);
 	kfree(entry);
 
-	return mgmt_device_unblocked(hdev, bdaddr, type);
+	return 0;
 }
 
 struct bdaddr_list *hci_white_list_lookup(struct hci_dev *hdev,

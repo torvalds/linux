@@ -3773,11 +3773,16 @@ static int block_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	err = hci_blacklist_add(hdev, &cp->addr.bdaddr, cp->addr.type);
-	if (err < 0)
+	if (err < 0) {
 		status = MGMT_STATUS_FAILED;
-	else
-		status = MGMT_STATUS_SUCCESS;
+		goto done;
+	}
 
+	mgmt_event(MGMT_EV_DEVICE_BLOCKED, hdev, &cp->addr, sizeof(cp->addr),
+		   sk);
+	status = MGMT_STATUS_SUCCESS;
+
+done:
 	err = cmd_complete(sk, hdev->id, MGMT_OP_BLOCK_DEVICE, status,
 			   &cp->addr, sizeof(cp->addr));
 
@@ -3803,11 +3808,16 @@ static int unblock_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	err = hci_blacklist_del(hdev, &cp->addr.bdaddr, cp->addr.type);
-	if (err < 0)
+	if (err < 0) {
 		status = MGMT_STATUS_INVALID_PARAMS;
-	else
-		status = MGMT_STATUS_SUCCESS;
+		goto done;
+	}
 
+	mgmt_event(MGMT_EV_DEVICE_UNBLOCKED, hdev, &cp->addr, sizeof(cp->addr),
+		   sk);
+	status = MGMT_STATUS_SUCCESS;
+
+done:
 	err = cmd_complete(sk, hdev->id, MGMT_OP_UNBLOCK_DEVICE, status,
 			   &cp->addr, sizeof(cp->addr));
 
@@ -6344,34 +6354,6 @@ void mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 	ev.discovering = discovering;
 
 	mgmt_event(MGMT_EV_DISCOVERING, hdev, &ev, sizeof(ev), NULL);
-}
-
-int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
-{
-	struct pending_cmd *cmd;
-	struct mgmt_ev_device_blocked ev;
-
-	cmd = mgmt_pending_find(MGMT_OP_BLOCK_DEVICE, hdev);
-
-	bacpy(&ev.addr.bdaddr, bdaddr);
-	ev.addr.type = type;
-
-	return mgmt_event(MGMT_EV_DEVICE_BLOCKED, hdev, &ev, sizeof(ev),
-			  cmd ? cmd->sk : NULL);
-}
-
-int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
-{
-	struct pending_cmd *cmd;
-	struct mgmt_ev_device_unblocked ev;
-
-	cmd = mgmt_pending_find(MGMT_OP_UNBLOCK_DEVICE, hdev);
-
-	bacpy(&ev.addr.bdaddr, bdaddr);
-	ev.addr.type = type;
-
-	return mgmt_event(MGMT_EV_DEVICE_UNBLOCKED, hdev, &ev, sizeof(ev),
-			  cmd ? cmd->sk : NULL);
 }
 
 static void adv_enable_complete(struct hci_dev *hdev, u8 status)
