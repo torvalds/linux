@@ -211,6 +211,19 @@ int x509_note_signature(void *context, size_t hdrlen,
 }
 
 /*
+ * Note the certificate serial number
+ */
+int x509_note_serial(void *context, size_t hdrlen,
+		     unsigned char tag,
+		     const void *value, size_t vlen)
+{
+	struct x509_parse_context *ctx = context;
+	ctx->cert->raw_serial = value;
+	ctx->cert->raw_serial_size = vlen;
+	return 0;
+}
+
+/*
  * Note some of the name segments from which we'll fabricate a name.
  */
 int x509_extract_name_segment(void *context, size_t hdrlen,
@@ -322,6 +335,8 @@ int x509_note_issuer(void *context, size_t hdrlen,
 		     const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
+	ctx->cert->raw_issuer = value;
+	ctx->cert->raw_issuer_size = vlen;
 	return x509_fabricate_name(ctx, hdrlen, tag, &ctx->cert->issuer, vlen);
 }
 
@@ -330,6 +345,8 @@ int x509_note_subject(void *context, size_t hdrlen,
 		      const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
+	ctx->cert->raw_subject = value;
+	ctx->cert->raw_subject_size = vlen;
 	return x509_fabricate_name(ctx, hdrlen, tag, &ctx->cert->subject, vlen);
 }
 
