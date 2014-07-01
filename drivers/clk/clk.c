@@ -36,17 +36,6 @@ static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
 static LIST_HEAD(clk_notifier_list);
 
-static struct hlist_head *all_lists[] = {
-	&clk_root_list,
-	&clk_orphan_list,
-	NULL,
-};
-
-static struct hlist_head *orphan_list[] = {
-	&clk_orphan_list,
-	NULL,
-};
-
 /***           locking             ***/
 static void clk_prepare_lock(void)
 {
@@ -110,6 +99,17 @@ static void clk_enable_unlock(unsigned long flags)
 
 static struct dentry *rootdir;
 static int inited = 0;
+
+static struct hlist_head *all_lists[] = {
+	&clk_root_list,
+	&clk_orphan_list,
+	NULL,
+};
+
+static struct hlist_head *orphan_list[] = {
+	&clk_orphan_list,
+	NULL,
+};
 
 static void clk_summary_show_one(struct seq_file *s, struct clk *c, int level)
 {
