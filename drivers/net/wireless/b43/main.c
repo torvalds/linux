@@ -122,7 +122,11 @@ static const struct bcma_device_id b43_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x11, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x17, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x18, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x1C, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x1D, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x1E, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x28, BCMA_ANY_CLASS),
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x2A, BCMA_ANY_CLASS),
 	BCMA_CORETABLE_END
 };
 MODULE_DEVICE_TABLE(bcma, b43_bcma_tbl);
@@ -2218,6 +2222,10 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		if (phy->type == B43_PHYTYPE_AC)
 			filename = "ucode42";
 		break;
+	case 40:
+		if (phy->type == B43_PHYTYPE_AC)
+			filename = "ucode40";
+		break;
 	case 33:
 		if (phy->type == B43_PHYTYPE_LCN40)
 			filename = "ucode33_lcn40";
@@ -2343,6 +2351,8 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	case B43_PHYTYPE_AC:
 		if (rev == 42)
 			filename = "ac1initvals42";
+		else if (rev == 40)
+			filename = "ac0initvals40";
 		break;
 	}
 	if (!filename)
@@ -2401,6 +2411,8 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	case B43_PHYTYPE_AC:
 		if (rev == 42)
 			filename = "ac1bsinitvals42";
+		else if (rev == 40)
+			filename = "ac0bsinitvals40";
 		break;
 	}
 	if (!filename)
