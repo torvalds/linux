@@ -108,8 +108,16 @@ static void blk_mq_queue_exit(struct request_queue *q)
 	__percpu_counter_add(&q->mq_usage_counter, -1, 1000000);
 }
 
-void blk_mq_drain_queue(struct request_queue *q)
+/*
+ * Guarantee no request is in use, so we can change any data structure of
+ * the queue afterward.
+ */
+void blk_mq_freeze_queue(struct request_queue *q)
 {
+	spin_lock_irq(q->queue_lock);
+	q->mq_freeze_depth++;
+	spin_unlock_irq(q->queue_lock);
+
 	while (true) {
 		s64 count;
 
@@ -122,19 +130,6 @@ void blk_mq_drain_queue(struct request_queue *q)
 		blk_mq_start_hw_queues(q);
 		msleep(10);
 	}
-}
-
-/*
- * Guarantee no request is in use, so we can change any data structure of
- * the queue afterward.
- */
-void blk_mq_freeze_queue(struct request_queue *q)
-{
-	spin_lock_irq(q->queue_lock);
-	q->mq_freeze_depth++;
-	spin_unlock_irq(q->queue_lock);
-
-	blk_mq_drain_queue(q);
 }
 
 static void blk_mq_unfreeze_queue(struct request_queue *q)
