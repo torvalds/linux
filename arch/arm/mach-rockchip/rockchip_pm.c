@@ -183,28 +183,28 @@ void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch)
 }
 
 /******************for user ************************/
-void inline rkpm_set_ctrbits(u32 bits)
+void rkpm_set_ctrbits(u32 bits)
 {	
 	rkpm_ctrbits = bits;
 	
 }
-void inline rkpm_add_ctrbits(u32 bits)
+void rkpm_add_ctrbits(u32 bits)
 {	
 	rkpm_ctrbits |= bits;
 	
 }
-u32  inline rkpm_get_ctrbits(void)
+u32 rkpm_get_ctrbits(void)
 {	
 	return rkpm_ctrbits;
 }
 
-u32 inline  rkpm_chk_ctrbits(u32 bits)
+u32 rkpm_chk_ctrbits(u32 bits)
 {	
 	return (rkpm_ctrbits&bits);
 }
 
 //clear
-void inline rkpm_clr_ctrbits(u32 bits)
+void rkpm_clr_ctrbits(u32 bits)
 {
 	rkpm_ctrbits&=~bits;
 }

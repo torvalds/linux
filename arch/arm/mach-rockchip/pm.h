@@ -180,9 +180,9 @@ extern void rkpm_set_sram_ops_pmic(rkpm_ops_void_callback pmic,rkpm_ops_void_cal
 extern void rkpm_set_sram_ops_ddr(rkpm_ops_void_callback ddr,rkpm_ops_void_callback re_ddr);
 extern void rkpm_set_sram_ops_printch(rkpm_ops_printch_callback printch);
 
-extern void inline rkpm_set_ctrbits(u32 bits);
-extern u32  inline rkpm_get_ctrbits(void);
-extern void inline rkpm_clr_ctrbits(u32 bits);//clear
+extern void rkpm_set_ctrbits(u32 bits);
+extern u32  rkpm_get_ctrbits(void);
+extern void rkpm_clr_ctrbits(u32 bits);//clear
 
 extern void rkpm_ddr_printch(char byte);
 extern void rkpm_ddr_printascii(const char *s);
