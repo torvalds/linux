@@ -361,7 +361,8 @@ static int l2cap_sock_getname(struct socket *sock, struct sockaddr *addr,
 	BT_DBG("sock %p, sk %p", sock, sk);
 
 	if (peer && sk->sk_state != BT_CONNECTED &&
-	    sk->sk_state != BT_CONNECT && sk->sk_state != BT_CONNECT2)
+	    sk->sk_state != BT_CONNECT && sk->sk_state != BT_CONNECT2 &&
+	    sk->sk_state != BT_CONFIG)
 		return -ENOTCONN;
 
 	memset(la, 0, sizeof(struct sockaddr_l2));
