@@ -55,6 +55,7 @@ enum OID {
 	OID_certAuthInfoAccess,		/* 1.3.6.1.5.5.7.1.1 */
 	OID_msOutlookExpress,		/* 1.3.6.1.4.1.311.16.4 */
 	OID_sha1,			/* 1.3.14.3.2.26 */
+	OID_sha256,			/* 2.16.840.1.101.3.4.2.1 */
 
 	/* Distinguished Name attribute IDs [RFC 2256] */
 	OID_commonName,			/* 2.5.4.3 */

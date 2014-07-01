@@ -37,4 +37,13 @@ config X509_CERTIFICATE_PARSER
 	  data and provides the ability to instantiate a crypto key from a
 	  public key packet found inside the certificate.
 
+config PKCS7_MESSAGE_PARSER
+	tristate "PKCS#7 message parser"
+	depends on X509_CERTIFICATE_PARSER
+	select ASN1
+	select OID_REGISTRY
+	help
+	  This option provides support for parsing PKCS#7 format messages for
+	  signature data and provides the ability to verify the signature.
+
 endif # ASYMMETRIC_KEY_TYPE
