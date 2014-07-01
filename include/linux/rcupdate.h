@@ -216,6 +216,8 @@ void synchronize_sched(void);
  * memory ordering guarantees.
  */
 void call_rcu_tasks(struct rcu_head *head, void (*func)(struct rcu_head *head));
+void synchronize_rcu_tasks(void);
+void rcu_barrier_tasks(void);
 
 #ifdef CONFIG_PREEMPT_RCU
 
