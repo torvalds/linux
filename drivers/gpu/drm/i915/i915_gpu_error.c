@@ -920,6 +920,9 @@ static void i915_gem_record_active_context(struct intel_engine_cs *ring,
 		return;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
+		if (!i915_gem_obj_ggtt_bound(obj))
+			continue;
+
 		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
 			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
 			break;
