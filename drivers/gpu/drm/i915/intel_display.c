@@ -6209,8 +6209,8 @@ static void i9xx_get_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(crtc->base.primary->fb->pitches[0] *
-				   aligned_height, PAGE_SIZE);
+	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
+					aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe, plane, crtc->base.primary->fb->width,
@@ -7229,8 +7229,8 @@ static void ironlake_get_plane_config(struct intel_crtc *crtc,
 	aligned_height = intel_align_height(dev, crtc->base.primary->fb->height,
 					    plane_config->tiled);
 
-	plane_config->size = ALIGN(crtc->base.primary->fb->pitches[0] *
-				   aligned_height, PAGE_SIZE);
+	plane_config->size = PAGE_ALIGN(crtc->base.primary->fb->pitches[0] *
+					aligned_height);
 
 	DRM_DEBUG_KMS("pipe/plane %d/%d with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
 		      pipe, plane, crtc->base.primary->fb->width,
@@ -8318,7 +8318,7 @@ static u32
 intel_framebuffer_size_for_mode(struct drm_display_mode *mode, int bpp)
 {
 	u32 pitch = intel_framebuffer_pitch_for_width(mode->hdisplay, bpp);
-	return ALIGN(pitch * mode->vdisplay, PAGE_SIZE);
+	return PAGE_ALIGN(pitch * mode->vdisplay);
 }
 
 static struct drm_framebuffer *
