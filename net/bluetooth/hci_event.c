@@ -4365,8 +4365,11 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 * using a distributed LTK.
 	 */
 	if (ltk->type == SMP_STK) {
+		set_bit(HCI_CONN_STK_ENCRYPT, &conn->flags);
 		list_del(&ltk->list);
 		kfree(ltk);
+	} else {
+		clear_bit(HCI_CONN_STK_ENCRYPT, &conn->flags);
 	}
 
 	hci_dev_unlock(hdev);

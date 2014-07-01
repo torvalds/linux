@@ -538,6 +538,7 @@ static u8 smp_random(struct smp_chan *smp)
 
 		hci_le_start_enc(hcon, ediv, rand, stk);
 		hcon->enc_key_size = smp->enc_key_size;
+		set_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags);
 	} else {
 		u8 stk[16], auth;
 		__le64 rand = 0;
@@ -855,6 +856,9 @@ static bool smp_ltk_encrypt(struct l2cap_conn *conn, u8 sec_level)
 
 	hci_le_start_enc(hcon, key->ediv, key->rand, key->val);
 	hcon->enc_key_size = key->enc_size;
+
+	/* We never store STKs for master role, so clear this flag */
+	clear_bit(HCI_CONN_STK_ENCRYPT, &hcon->flags);
 
 	return true;
 }
