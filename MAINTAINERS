@@ -2900,8 +2900,8 @@ S:	Maintained
 L:	linux-media@vger.kernel.org
 L:	dri-devel@lists.freedesktop.org
 L:	linaro-mm-sig@lists.linaro.org
-F:	drivers/base/dma-buf*
-F:	include/linux/dma-buf*
+F:	drivers/dma-buf/
+F:	include/linux/dma-buf* include/linux/reservation.h
 F:	Documentation/dma-buf-sharing.txt
 T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
 
