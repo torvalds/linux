@@ -453,7 +453,6 @@ static int hda_tegra_create(struct snd_card *card,
 	chip->driver_type = driver_caps & 0xff;
 	chip->dev_index = 0;
 	INIT_LIST_HEAD(&chip->pcm_list);
-	INIT_LIST_HEAD(&chip->list);
 
 	chip->codec_probe_mask = -1;
 
