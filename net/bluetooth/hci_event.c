@@ -4270,8 +4270,8 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * sending a merged device found event.
 	 */
 	mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-			  d->last_adv_addr_type, NULL, rssi, 0, 1, data, len,
-			  d->last_adv_data, d->last_adv_data_len);
+			  d->last_adv_addr_type, NULL, rssi, 0, 1,
+			  d->last_adv_data, d->last_adv_data_len, data, len);
 	clear_pending_adv_report(hdev);
 }
 
