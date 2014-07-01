@@ -816,12 +816,33 @@ static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 	return NULL;
 }
 
-static void pineview_disable_cxsr(struct drm_device *dev)
+void intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
+	u32 val;
 
-	/* deactivate cxsr */
-	I915_WRITE(DSPFW3, I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN);
+	if (IS_VALLEYVIEW(dev)) {
+		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
+	} else if (IS_G4X(dev) || IS_CRESTLINE(dev)) {
+		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
+	} else if (IS_PINEVIEW(dev)) {
+		val = I915_READ(DSPFW3) & ~PINEVIEW_SELF_REFRESH_EN;
+		val |= enable ? PINEVIEW_SELF_REFRESH_EN : 0;
+		I915_WRITE(DSPFW3, val);
+	} else if (IS_I945G(dev) || IS_I945GM(dev)) {
+		val = enable ? _MASKED_BIT_ENABLE(FW_BLC_SELF_EN) :
+			       _MASKED_BIT_DISABLE(FW_BLC_SELF_EN);
+		I915_WRITE(FW_BLC_SELF, val);
+	} else if (IS_I915GM(dev)) {
+		val = enable ? _MASKED_BIT_ENABLE(INSTPM_SELF_EN) :
+			       _MASKED_BIT_DISABLE(INSTPM_SELF_EN);
+		I915_WRITE(INSTPM, val);
+	} else {
+		return;
+	}
+
+	DRM_DEBUG_KMS("memory self-refresh is %s\n",
+		      enable ? "enabled" : "disabled");
 }
 
 /*
@@ -1060,7 +1081,7 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 					 dev_priv->fsb_freq, dev_priv->mem_freq);
 	if (!latency) {
 		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
-		pineview_disable_cxsr(dev);
+		intel_set_memory_cxsr(dev_priv, false);
 		return;
 	}
 
@@ -1111,13 +1132,9 @@ static void pineview_update_wm(struct drm_crtc *unused_crtc)
 		I915_WRITE(DSPFW3, reg);
 		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
 
-		/* activate cxsr */
-		I915_WRITE(DSPFW3,
-			   I915_READ(DSPFW3) | PINEVIEW_SELF_REFRESH_EN);
-		DRM_DEBUG_KMS("Self-refresh is enabled\n");
+		intel_set_memory_cxsr(dev_priv, true);
 	} else {
-		pineview_disable_cxsr(dev);
-		DRM_DEBUG_KMS("Self-refresh is disabled\n");
+		intel_set_memory_cxsr(dev_priv, false);
 	}
 }
 
@@ -1369,10 +1386,9 @@ static void valleyview_update_wm(struct drm_crtc *crtc)
 			     &valleyview_wm_info,
 			     &valleyview_cursor_wm_info,
 			     &ignore_plane_sr, &cursor_sr)) {
-		I915_WRITE(FW_BLC_SELF_VLV, FW_CSPWRDWNEN);
+		intel_set_memory_cxsr(dev_priv, true);
 	} else {
-		I915_WRITE(FW_BLC_SELF_VLV,
-			   I915_READ(FW_BLC_SELF_VLV) & ~FW_CSPWRDWNEN);
+		intel_set_memory_cxsr(dev_priv, false);
 		plane_sr = cursor_sr = 0;
 	}
 
@@ -1421,10 +1437,9 @@ static void g4x_update_wm(struct drm_crtc *crtc)
 			     &g4x_wm_info,
 			     &g4x_cursor_wm_info,
 			     &plane_sr, &cursor_sr)) {
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+		intel_set_memory_cxsr(dev_priv, true);
 	} else {
-		I915_WRITE(FW_BLC_SELF,
-			   I915_READ(FW_BLC_SELF) & ~FW_BLC_SELF_EN);
+		intel_set_memory_cxsr(dev_priv, false);
 		plane_sr = cursor_sr = 0;
 	}
 
@@ -1495,13 +1510,10 @@ static void i965_update_wm(struct drm_crtc *unused_crtc)
 		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
 			      "cursor %d\n", srwm, cursor_sr);
 
-		if (IS_CRESTLINE(dev))
-			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+		intel_set_memory_cxsr(dev_priv, true);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
-		if (IS_CRESTLINE(dev))
-			I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
-				   & ~FW_BLC_SELF_EN);
+		intel_set_memory_cxsr(dev_priv, false);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
@@ -1587,10 +1599,7 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	cwm = 2;
 
 	/* Play safe and disable self-refresh before adjusting watermarks. */
-	if (IS_I945G(dev) || IS_I945GM(dev))
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | 0);
-	else if (IS_I915GM(dev))
-		I915_WRITE(INSTPM, _MASKED_BIT_DISABLE(INSTPM_SELF_EN));
+	intel_set_memory_cxsr(dev_priv, false);
 
 	/* Calc sr entries for one plane configs */
 	if (HAS_FW_BLC(dev) && enabled) {
@@ -1636,17 +1645,8 @@ static void i9xx_update_wm(struct drm_crtc *unused_crtc)
 	I915_WRITE(FW_BLC, fwater_lo);
 	I915_WRITE(FW_BLC2, fwater_hi);
 
-	if (HAS_FW_BLC(dev)) {
-		if (enabled) {
-			if (IS_I945G(dev) || IS_I945GM(dev))
-				I915_WRITE(FW_BLC_SELF,
-					   FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
-			else if (IS_I915GM(dev))
-				I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_SELF_EN));
-			DRM_DEBUG_KMS("memory self refresh enabled\n");
-		} else
-			DRM_DEBUG_KMS("memory self refresh disabled\n");
-	}
+	if (enabled)
+		intel_set_memory_cxsr(dev_priv, true);
 }
 
 static void i845_update_wm(struct drm_crtc *unused_crtc)
@@ -6782,7 +6782,7 @@ void intel_init_pm(struct drm_device *dev)
 				 (dev_priv->is_ddr3 == 1) ? "3" : "2",
 				 dev_priv->fsb_freq, dev_priv->mem_freq);
 			/* Disable CxSR and never update its watermark again */
-			pineview_disable_cxsr(dev);
+			intel_set_memory_cxsr(dev_priv, false);
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
