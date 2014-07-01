@@ -95,6 +95,12 @@
 	};
 };
 
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_can1>;
+	status = "okay";
+};
+
 &ecspi5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;
@@ -297,6 +303,13 @@
 			fsl,pins = <
 				MX6QDL_PAD_EIM_A16__GPIO2_IO22 0x80000000
 				MX6QDL_PAD_EIM_A17__GPIO2_IO21 0x80000000
+			>;
+		};
+
+		pinctrl_can1: can1grp {
+			fsl,pins = <
+				MX6QDL_PAD_KEY_ROW2__FLEXCAN1_RX	0x1b0b0
+				MX6QDL_PAD_GPIO_7__FLEXCAN1_TX		0x1b0b0
 			>;
 		};
 
