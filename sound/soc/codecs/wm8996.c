@@ -620,15 +620,12 @@ static int bg_event(struct snd_soc_dapm_widget *w,
 static int cp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	int ret = 0;
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(5);
 		break;
 	default:
 		WARN(1, "Invalid event %d\n", event);
-		ret = -EINVAL;
 	}
 
 	return 0;
