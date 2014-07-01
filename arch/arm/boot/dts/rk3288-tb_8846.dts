@@ -579,8 +579,8 @@
 	 display-timings = <&disp_timings>;
 };
 
-/*lcdc1 as PRMRY(LCD),lcdc0 as EXTEND(HDMI)*/
-&lcdc1 {
+/*lcdc0 as PRMRY(LCD),lcdc1 as EXTEND(HDMI)*/
+&lcdc0 {
 	status = "okay";
 	rockchip,mirror = <NO_MIRROR>;
 	rockchip,cabc_mode = <0>;
@@ -607,7 +607,7 @@
 	};
 };
 
-&lcdc0 {
+&lcdc1 {
 	status = "okay";
 	rockchip,mirror = <ROTATE_270>;
 
@@ -729,7 +729,7 @@
 		/* KHz    uV */
 		200000 1000000
 		300000 1000000
-		420000 1050000
+		400000 1050000
 		533000 1150000
 		>;
 
