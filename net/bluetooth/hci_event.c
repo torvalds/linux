@@ -1089,13 +1089,15 @@ static void clear_pending_adv_report(struct hci_dev *hdev)
 }
 
 static void store_pending_adv_report(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				     u8 bdaddr_type, s8 rssi, u8 *data, u8 len)
+				     u8 bdaddr_type, s8 rssi, u32 flags,
+				     u8 *data, u8 len)
 {
 	struct discovery_state *d = &hdev->discovery;
 
 	bacpy(&d->last_adv_addr, bdaddr);
 	d->last_adv_addr_type = bdaddr_type;
 	d->last_adv_rssi = rssi;
+	d->last_adv_flags = flags;
 	memcpy(d->last_adv_data, data, len);
 	d->last_adv_data_len = len;
 }
@@ -1132,7 +1134,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
 					  d->last_adv_addr_type, NULL,
-					  d->last_adv_rssi, 0,
+					  d->last_adv_rssi, d->last_adv_flags,
 					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 		}
@@ -4209,6 +4211,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 {
 	struct discovery_state *d = &hdev->discovery;
 	bool match;
+	u32 flags;
 
 	/* Passive scanning shouldn't trigger any device found events */
 	if (hdev->le_scan_type == LE_SCAN_PASSIVE) {
@@ -4216,6 +4219,27 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			check_pending_le_conn(hdev, bdaddr, bdaddr_type);
 		return;
 	}
+
+	/* When receiving non-connectable or scannable undirected
+	 * advertising reports, this means that the remote device is
+	 * not connectable and then clearly indicate this in the
+	 * device found event.
+	 *
+	 * When receiving a scan response, then there is no way to
+	 * know if the remote device is connectable or not. However
+	 * since scan responses are merged with a previously seen
+	 * advertising report, the flags field from that report
+	 * will be used.
+	 *
+	 * In the really unlikely case that a controller get confused
+	 * and just sends a scan response event, then it is marked as
+	 * not connectable as well.
+	 */
+	if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND ||
+	    type == LE_ADV_SCAN_RSP)
+		flags = MGMT_DEV_FOUND_NOT_CONNECTABLE;
+	else
+		flags = 0;
 
 	/* If there's nothing pending either store the data from this
 	 * event or send an immediate device found event if the data
@@ -4227,12 +4251,12 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
 			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
-						 rssi, data, len);
+						 rssi, flags, data, len);
 			return;
 		}
 
 		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
-				  rssi, 0, data, len, NULL, 0);
+				  rssi, flags, data, len, NULL, 0);
 		return;
 	}
 
@@ -4249,7 +4273,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		if (!match)
 			mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
 					  d->last_adv_addr_type, NULL,
-					  d->last_adv_rssi, 0,
+					  d->last_adv_rssi, d->last_adv_flags,
 					  d->last_adv_data,
 					  d->last_adv_data_len, NULL, 0);
 
@@ -4258,7 +4282,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		if (type == LE_ADV_IND || type == LE_ADV_SCAN_IND) {
 			store_pending_adv_report(hdev, bdaddr, bdaddr_type,
-						 rssi, data, len);
+						 rssi, flags, data, len);
 			return;
 		}
 
@@ -4267,7 +4291,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 */
 		clear_pending_adv_report(hdev);
 		mgmt_device_found(hdev, bdaddr, LE_LINK, bdaddr_type, NULL,
-				  rssi, 0, data, len, NULL, 0);
+				  rssi, flags, data, len, NULL, 0);
 		return;
 	}
 
@@ -4276,7 +4300,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * sending a merged device found event.
 	 */
 	mgmt_device_found(hdev, &d->last_adv_addr, LE_LINK,
-			  d->last_adv_addr_type, NULL, rssi, 0,
+			  d->last_adv_addr_type, NULL, rssi, d->last_adv_flags,
 			  d->last_adv_data, d->last_adv_data_len, data, len);
 	clear_pending_adv_report(hdev);
 }
